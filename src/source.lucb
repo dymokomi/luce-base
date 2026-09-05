@@ -1,0 +1,54 @@
+## Source text: the bytes of one file, the encoding gate of base.md §3.1, and
+## line/column positions for diagnostics.
+
+pub let bad_encoding: ErrorCode = ErrorCode.package(1)
+pub let unreadable: ErrorCode = ErrorCode.package(2)
+
+pub struct Source:
+    var path: str
+    var bytes: const u8[]
+
+    ## Load a file into the current allocator and check it is UTF-8 without NUL.
+    pub static func load(path: cstr) -> Source!:
+        let data = try files.read(path)
+        return try Source.over((str)path, data)
+
+    ## Adopt bytes already in memory (tests, and the driver's own strings).
+    pub static func over(path: str, data: const u8[]) -> Source!:
+        for byte in data:
+            if byte == 0:
+                error(bad_encoding, "NUL byte in source")
+        discard(try str(data))
+        return Source(path = path, bytes = data)
+
+    ## One-based line and column of a byte offset, counting columns in bytes.
+    pub func position(offset: usize) -> (u32, u32):
+        var line: u32 = 1
+        var column: u32 = 1
+        var i: usize = 0
+        while i < offset and i < self.bytes.length:
+            if self.bytes[i] == '\n':
+                line += 1
+                column = 1
+            else:
+                column += 1
+            i += 1
+        return (line, column)
+
+    pub func text(start: usize, end: usize) -> str:
+        return (str)self.bytes[start..<end]
+
+test "position counts lines and columns":
+    let src = Source.over("t", "ab\ncd".bytes) catch failure:
+        recover Source(path = "", bytes = "".bytes)
+    let (line, column) = src.position(4)
+    assert(line == 2)
+    assert(column == 2)
+
+test "NUL is refused":
+    var raw: u8[3] = [97, 0, 98]
+    var refused = false
+    discard(Source.over("t", raw) catch failure:
+        refused = failure.code == bad_encoding
+        recover Source(path = "", bytes = "".bytes))
+    assert(refused)

@@ -1,0 +1,12 @@
+## The first sample: a struct, a method, a formatted print.
+
+struct Greeter:
+    var name: str
+
+    func greet(out: Writer) -> !:
+        try out.write(f"hello, {self.name}\n")
+
+pub func main(arguments: str[]) -> i32!:
+    var g = Greeter(name = "luce")
+    try g.greet(io.stdout())
+    return 0

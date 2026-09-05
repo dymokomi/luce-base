@@ -1,0 +1,79 @@
+## Tokens: the kinds, the reserved words of base.md §3.6, and the operator
+## spellings of §21, longest first so `+%=` wins over `+%` and `+`.
+
+pub enum Kind as u8:
+    name = 1
+    keyword = 2
+    integer = 3
+    float = 4
+    character = 5
+    text = 6
+    bytes = 7
+    raw = 8
+    format_start = 9
+    format_text = 10
+    format_end = 11
+    operator = 12
+    newline = 13
+    indent = 14
+    dedent = 15
+    doc_comment = 16
+    raw_line = 17
+    eof = 18
+
+pub struct Token:
+    var kind: Kind
+    var start: usize
+    var end: usize
+    var line: u32
+    var column: u32
+
+    pub func label() -> str:
+        match self.kind:
+            .name: return "name"
+            .keyword: return "keyword"
+            .integer: return "integer"
+            .float: return "float"
+            .character: return "character"
+            .text: return "text"
+            .bytes: return "bytes"
+            .raw: return "raw"
+            .format_start: return "format_start"
+            .format_text: return "format_text"
+            .format_end: return "format_end"
+            .operator: return "operator"
+            .newline: return "newline"
+            .indent: return "indent"
+            .dedent: return "dedent"
+            .doc_comment: return "doc_comment"
+            .raw_line: return "raw_line"
+            _: return "eof"
+
+pub let keywords: str[49] = [
+    "alloc", "and", "as", "asm", "break", "catch", "const", "continue", "defer",
+    "elif", "else", "enum", "errdefer", "export", "extern", "false", "for", "free",
+    "from", "func", "goto", "if", "implements", "import", "in", "interface", "let",
+    "match", "mutating", "new", "none", "not", "or", "pub", "recover", "return",
+    "self", "static", "struct", "test", "thread_local", "true", "try", "type",
+    "union", "var", "volatile", "while", "with"]
+
+pub func is_keyword(word: str) -> bool:
+    for k in keywords:
+        if k == word:
+            return true
+    return false
+
+## Operators, longest first. The lexer takes the first entry that matches.
+pub let operators: str[52] = [
+    "+%=", "-%=", "*%=", "+|=", "-|=", "*|=", "<<=", ">>=", "//=", "---", "...",
+    "..<", "..=", "+%", "-%", "*%", "+|", "-|", "*|", "+?", "-?", "*?", "->", "=>",
+    "==", "!=", "<=", ">=", "<<", ">>", "+=", "-=", "*=", "%=", "&=", "|=", "^=",
+    "//", "..", "+", "-", "*", "/", "%", "&", "|", "^", "~", "<", ">", "=", "("]
+
+## The one-character operators that are not a prefix of any longer one.
+pub let singles: str[13] = [")", "[", "]", "{", "}", ",", ":", ".", "?", "!", "@", ";", "\\"]
+
+test "keywords are recognised":
+    assert(is_keyword("func"))
+    assert(is_keyword("thread_local"))
+    assert(not is_keyword("function"))
