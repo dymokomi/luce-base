@@ -5,8 +5,8 @@ unit tests green in the oracle and the binary agreeing on `samples/`.
 
 | Slice | Scope | Gate |
 | --- | --- | --- |
-| 1. Lexer | tokens, literals, layout, `luce-base lex` | every file under `samples/` and the seed's `testdata/` tokenizes; token counts match the seed's `lucb lex` |
-| 2. Syntax | arena tree, full grammar of §21, `luce-base parse` | the seed's parse dumps agree on the same files |
+| 1. Lexer | tokens, literals, layout, `luce-base lex` | done: every file under `samples/`, the seed's `testdata/`, and this tree tokenizes |
+| 2. Syntax | arena tree, full grammar of §21, `luce-base parse` | done: every Base file we have parses, including this compiler's own sources |
 | 3. Checking | names, types, effects, diagnostics with stable codes | the seed's `check` diagnostics agree on positive and negative programs |
 | 4. C backend | checked tree to C, `luce-base build` | this tree's own sources compile and pass their tests through the binary |
 | 5. Self-hosting | B0 (seed) builds B1; B1 builds B2; B2 builds B3 | B2 and B3 are byte-identical; the seed is pinned |
@@ -22,3 +22,22 @@ cmp build/B2 build/B3                         # fixpoint
 ```
 
 Until slice 5, `test.sh` runs the first line only.
+
+## The standard library
+
+`luce-base` is also where the standard modules of base.md §16.6 become Base
+source instead of seed builtins: `memory`, `io`, `files`, `process`,
+`strings`, `paths`, `json`, `thread`, `sync`, `atomic`, and `c`. They are
+written after slice 4, when this compiler can build them, and they grow in
+the order the operating system needs them:
+
+1. `memory`, `io`, `files`, `paths`, `strings`: what the compiler itself uses.
+2. `process`, `thread`, `sync`, `atomic`, `time`: what servers and tools use.
+3. `net`: sockets, TCP, and UDP over the host's C library, then TLS through a
+   bound library.
+4. `graphics`: windows, input, and a GPU surface through the host (Metal on
+   macOS, Vulkan elsewhere), reached through `extern` and `luce bind`.
+
+Each module is Base code over `extern` declarations; nothing in the compiler
+knows their names. That is the point of Base: the operating system's own
+libraries are ordinary packages.

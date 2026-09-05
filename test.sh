@@ -10,8 +10,9 @@ for f in src/*.lucb; do
     fi
 done
 ./build.sh
-for f in samples/*.lucb; do
-    echo "== lex $f"
+for f in samples/*.lucb src/*.lucb; do
+    echo "== parse $f"
     ./build/luce-base lex "$f" > /dev/null
+    ./build/luce-base parse "$f" > /dev/null
 done
 echo "ok"

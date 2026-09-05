@@ -1,0 +1,1598 @@
+## Recursive-descent parser for base.md §21. Tokens are lexed up front into
+## a buffer so the parser can look ahead freely; expressions use one
+## function per precedence level (§7.10); a `(T)x` cast is recognised only
+## when the parenthesised text is cast-shaped (§7.5). The first syntax error
+## stops the parse and carries its line and column.
+
+import ast
+import lexer
+import source
+import token
+
+pub let syntax: ErrorCode = ErrorCode.package(7)
+pub let too_deep: ErrorCode = ErrorCode.package(8)
+
+let max_nest: u32 = 200
+
+pub struct Parser:
+    var src: source.Source
+    var tokens: token.Token[]
+    var count: usize
+    var pos: usize
+    var scratch: u8[]
+    var nest: u32
+
+    ## Lex the whole source into the current allocator.
+    pub static func over(src: source.Source, scratch: u8[]) -> Parser!:
+        var lx = lexer.Lexer.over(src)
+        var buffer = try alloc token.Token[256]
+        var n: usize = 0
+        while true:
+            let t = try lx.next()
+            if n == buffer.length:
+                let grown = try alloc token.Token[buffer.length * 2]
+                memory.copy(grown, buffer, n)
+                free(buffer)
+                buffer = grown
+            buffer[n] = t
+            n += 1
+            if t.kind == token.Kind.eof:
+                break
+        return Parser(src = src, tokens = buffer, count = n, pos = 0, scratch = scratch, nest = 0)
+
+    # ---- the token cursor -------------------------------------------------
+
+    func cur() -> token.Token:
+        return self.tokens[self.pos]
+
+    func peek(ahead: usize) -> token.Token:
+        let i = self.pos + ahead
+        if i >= self.count:
+            return self.tokens[self.count - 1]
+        return self.tokens[i]
+
+    pub func text_of(t: token.Token) -> str:
+        return self.src.text(t.start, t.end)
+
+    pub func at(kind: token.Kind) -> bool:
+        return self.cur().kind == kind
+
+    pub func at_op(spelling: str) -> bool:
+        let t = self.cur()
+        return t.kind == token.Kind.operator and self.text_of(t) == spelling
+
+    pub func at_kw(word: str) -> bool:
+        let t = self.cur()
+        return t.kind == token.Kind.keyword and self.text_of(t) == word
+
+    func at_name(word: str) -> bool:
+        let t = self.cur()
+        return t.kind == token.Kind.name and self.text_of(t) == word
+
+    func peek_op(ahead: usize, spelling: str) -> bool:
+        let t = self.peek(ahead)
+        return t.kind == token.Kind.operator and self.text_of(t) == spelling
+
+    pub mutating func take() -> token.Token:
+        let t = self.cur()
+        if self.pos + 1 < self.count:
+            self.pos += 1
+        return t
+
+    pub mutating func eat_op(spelling: str) -> bool:
+        if self.at_op(spelling):
+            discard(self.take())
+            return true
+        return false
+
+    mutating func eat_kw(word: str) -> bool:
+        if self.at_kw(word):
+            discard(self.take())
+            return true
+        return false
+
+    ## The message lives in the first half of `scratch`; `what` may live in the second.
+    func fail(what: str) -> ast.Node*!:
+        let t = self.cur()
+        let half = self.scratch.length // 2
+        let message = try format(self.scratch[..<half], f"{t.line}:{t.column}: {what}")
+        error(syntax, message)
+
+    func spelled(prefix: str, spelling: str) -> str!:
+        let half = self.scratch.length // 2
+        return try format(self.scratch[half..], f"{prefix}`{spelling}`")
+
+    mutating func expect_op(spelling: str) -> !:
+        if not self.eat_op(spelling):
+            discard(try self.fail(try self.spelled("expected ", spelling)))
+
+    mutating func expect_kw(word: str) -> !:
+        if not self.eat_kw(word):
+            discard(try self.fail(try self.spelled("expected ", word)))
+
+    mutating func expect_newline() -> !:
+        if self.at(token.Kind.newline):
+            discard(self.take())
+            return
+        if self.at(token.Kind.eof) or self.at(token.Kind.dedent):
+            return
+        # a `catch` suite or a same-line suite has already consumed the line end
+        if self.pos > 0:
+            let prev = self.tokens[self.pos - 1].kind
+            if prev == token.Kind.newline or prev == token.Kind.dedent:
+                return
+        # `discard(x catch f: recover 0)`: the enclosing bracket ends the suite
+        if self.at_op(")") or self.at_op("]") or self.at_op("}"):
+            return
+        discard(try self.fail("expected the end of the line"))
+
+    mutating func expect_name() -> str!:
+        if not self.at(token.Kind.name):
+            discard(try self.fail("expected a name"))
+        return self.text_of(self.take())
+
+    ## After `.`, and as an enum case, a reserved word is an ordinary name.
+    mutating func expect_member_name() -> str!:
+        if not self.at(token.Kind.name) and not self.at(token.Kind.keyword):
+            discard(try self.fail("expected a member name"))
+        return self.text_of(self.take())
+
+    func at_member_name(ahead: usize) -> bool:
+        let k = self.peek(ahead).kind
+        return k == token.Kind.name or k == token.Kind.keyword
+
+    mutating func skip_newlines():
+        while self.at(token.Kind.newline) or self.at(token.Kind.doc_comment):
+            discard(self.take())
+
+    func node(kind: ast.Kind, text: str) -> ast.Node*!:
+        let t = self.cur()
+        return try ast.Node.make(kind, text, t.start, t.line)
+
+    mutating func enter() -> !:
+        self.nest += 1
+        if self.nest > max_nest:
+            discard(try self.fail("nesting is too deep"))
+
+    mutating func leave():
+        self.nest -= 1
+
+    # ---- module and declarations -------------------------------------------
+
+    pub mutating func parse_module() -> ast.Node*!:
+        let module = try self.node(ast.Kind.module, self.src.path)
+        var tail: ast.Node*? = none
+        self.skip_newlines()
+        while not self.at(token.Kind.eof):
+            let d = try self.parse_top_decl()
+            ast.append(&module.body, &tail, d)
+            self.skip_newlines()
+        return module
+
+    mutating func parse_top_decl() -> ast.Node*!:
+        if self.at_kw("import") or self.at_kw("from"):
+            return try self.parse_import()
+        if self.at_kw("test"):
+            return try self.parse_test()
+        if self.at_name("assert"):
+            let n = try self.node(ast.Kind.assert_, "")
+            discard(self.take())
+            n.body = try self.parse_arguments()
+            try self.expect_newline()
+            return n
+        if self.at_kw("asm") and self.peek(1).kind == token.Kind.name and self.peek_op(2, ":"):
+            return try self.parse_asm()
+        var flags: u32 = 0
+        if self.eat_kw("pub"):
+            flags |= ast.flag_pub
+        if self.eat_kw("export"):
+            flags |= ast.flag_export
+        if self.at_kw("extern"):
+            let d = try self.parse_extern()
+            d.flags |= flags
+            return d
+        return try self.parse_decl(flags)
+
+    ## A declaration after its visibility: constant, global, alias, function, or a type.
+    mutating func parse_decl(visibility: u32) -> ast.Node*!:
+        var flags = visibility
+        if self.eat_kw("thread_local"):
+            flags |= ast.flag_thread_local
+        let attributes = try self.parse_attributes()
+        if self.at_kw("let"):
+            let n = try self.node(ast.Kind.constant, "")
+            discard(self.take())
+            n.text = try self.expect_name()
+            if self.eat_op(":"):
+                n.ty = try self.parse_type()
+            try self.expect_op("=")
+            n.left = try self.parse_expression()
+            try self.expect_newline()
+            n.flags |= flags
+            return n
+        if self.at_kw("var"):
+            let n = try self.node(ast.Kind.global, "")
+            discard(self.take())
+            n.text = try self.expect_name()
+            try self.expect_op(":")
+            n.ty = try self.parse_type()
+            if self.eat_op("="):
+                n.left = try self.parse_expression()
+            try self.expect_newline()
+            n.flags |= flags
+            n.right = attributes
+            return n
+        if self.at_kw("type"):
+            let n = try self.node(ast.Kind.type_alias, "")
+            discard(self.take())
+            n.text = try self.expect_name()
+            try self.expect_op("=")
+            n.ty = try self.parse_type()
+            try self.expect_newline()
+            n.flags |= flags
+            return n
+        var layout: ast.Node*? = none
+        if self.at_name("packed"):
+            discard(self.take())
+            flags |= ast.flag_packed
+        elif self.at_name("align") and self.peek_op(1, "("):
+            discard(self.take())
+            try self.expect_op("(")
+            layout = try self.parse_expression()
+            try self.expect_op(")")
+        if self.at_kw("struct"):
+            let n = try self.parse_struct(false)
+            n.flags |= flags
+            n.right = layout
+            return n
+        if self.at_kw("enum"):
+            let n = try self.parse_enum()
+            n.flags |= flags
+            return n
+        if self.at_kw("union"):
+            let n = try self.parse_union(false)
+            n.flags |= flags
+            return n
+        if self.at_kw("interface"):
+            let n = try self.parse_interface()
+            n.flags |= flags
+            return n
+        if self.at_kw("static") or self.at_kw("mutating") or self.at_kw("func"):
+            let n = try self.parse_func()
+            n.flags |= flags
+            if attributes != none:
+                n.right = attributes
+            return n
+        return try self.fail("expected a declaration")
+
+    mutating func parse_attributes() -> ast.Node*?!:
+        var list: ast.Node*? = none
+        var tail: ast.Node*? = none
+        while self.at(token.Kind.name):
+            let word = self.text_of(self.cur())
+            if word == "inline" or word == "noinline" or word == "cold" or word == "naked" or word == "weak" or word == "used" or word == "section":
+                let a = try self.node(ast.Kind.attribute, word)
+                discard(self.take())
+                if word == "section":
+                    try self.expect_op("(")
+                    a.left = try self.parse_primary()
+                    try self.expect_op(")")
+                ast.append(&list, &tail, a)
+            else:
+                break
+        return list
+
+    mutating func parse_import() -> ast.Node*!:
+        if self.eat_kw("from"):
+            let n = try self.node(ast.Kind.from_import, "")
+            n.text = try self.parse_module_path()
+            try self.expect_kw("import")
+            var tail: ast.Node*? = none
+            while true:
+                let item = try self.node(ast.Kind.name, "")
+                item.text = try self.expect_name()
+                ast.append(&n.body, &tail, item)
+                if not self.eat_op(","):
+                    break
+            try self.expect_newline()
+            return n
+        let n = try self.node(ast.Kind.import_, "")
+        try self.expect_kw("import")
+        n.text = try self.parse_module_path()
+        if self.eat_kw("as"):
+            let alias = try self.node(ast.Kind.name, "")
+            alias.text = try self.expect_name()
+            n.left = alias
+        try self.expect_newline()
+        return n
+
+    mutating func parse_module_path() -> str!:
+        let first = self.cur()
+        if first.kind != token.Kind.name:
+            discard(try self.fail("expected a module path"))
+        var last = self.take()
+        while self.at_op(".") and self.peek(1).kind == token.Kind.name:
+            discard(self.take())
+            last = self.take()
+        return self.src.text(first.start, last.end)
+
+    mutating func parse_func() -> ast.Node*!:
+        let n = try self.node(ast.Kind.func, "")
+        if self.eat_kw("static"):
+            n.flags |= ast.flag_static
+        if self.eat_kw("mutating"):
+            n.flags |= ast.flag_mutating
+        try self.expect_kw("func")
+        n.text = try self.expect_name()
+        if self.at_op("[") :
+            n.left = try self.parse_generic_params()
+        n.body = try self.parse_params()
+        try self.parse_result(n)
+        try self.expect_op(":")
+        let body = try self.parse_suite()
+        # params live in `right`; the suite in `body`
+        n.right = n.body
+        n.body = body
+        return n
+
+    ## A function signature line inside an interface.
+    mutating func parse_func_sig() -> ast.Node*!:
+        let n = try self.node(ast.Kind.func, "")
+        if self.eat_kw("mutating"):
+            n.flags |= ast.flag_mutating
+        try self.expect_kw("func")
+        n.text = try self.expect_name()
+        if self.at_op("["):
+            n.left = try self.parse_generic_params()
+        n.right = try self.parse_params()
+        try self.parse_result(n)
+        try self.expect_newline()
+        return n
+
+    mutating func parse_result(n: ast.Node*) -> !:
+        if self.eat_op("->"):
+            if self.eat_op("!"):
+                n.flags |= ast.flag_fallible
+                return
+            n.ty = try self.parse_type()
+
+    mutating func parse_generic_params() -> ast.Node*!:
+        let list = try self.node(ast.Kind.generic_param, "")
+        try self.expect_op("[")
+        var tail: ast.Node*? = none
+        while not self.at_op("]"):
+            let p = try self.node(ast.Kind.generic_param, "")
+            p.text = try self.expect_name()
+            if self.eat_op(":"):
+                var btail: ast.Node*? = none
+                while true:
+                    let bound = try self.parse_type()
+                    ast.append(&p.body, &btail, bound)
+                    if not self.eat_op("&"):
+                        break
+            ast.append(&list.body, &tail, p)
+            if not self.eat_op(","):
+                break
+        try self.expect_op("]")
+        return list
+
+    mutating func parse_params() -> ast.Node*?!:
+        try self.expect_op("(")
+        var list: ast.Node*? = none
+        var tail: ast.Node*? = none
+        while not self.at_op(")"):
+            let p = try self.node(ast.Kind.param, "")
+            if self.at_name("out") and self.peek(1).kind == token.Kind.name and self.peek_op(2, ":"):
+                discard(self.take())
+                p.flags |= ast.flag_out
+            p.text = try self.expect_name()
+            try self.expect_op(":")
+            if self.at_name("noalias"):
+                discard(self.take())
+                p.flags |= ast.flag_noalias
+            p.ty = try self.parse_type()
+            if self.eat_op("="):
+                p.left = try self.parse_expression()
+            ast.append(&list, &tail, p)
+            if not self.eat_op(","):
+                break
+        try self.expect_op(")")
+        return list
+
+    ## `struct Name[T] implements A, B:` and the members; `extern struct` has fields only.
+    mutating func parse_struct(is_extern: bool) -> ast.Node*!:
+        let n = try self.node(ast.Kind.extern_struct if is_extern else ast.Kind.struct_, "")
+        try self.expect_kw("struct")
+        n.text = try self.expect_name()
+        if self.at_op("["):
+            n.left = try self.parse_generic_params()
+        if self.eat_kw("implements"):
+            var tail: ast.Node*? = none
+            while true:
+                let i = try self.parse_type()
+                ast.append(&n.ty, &tail, i)
+                if not self.eat_op(","):
+                    break
+        try self.expect_op(":")
+        try self.expect_newline()
+        try self.expect_indent()
+        var tail: ast.Node*? = none
+        while not self.at(token.Kind.dedent) and not self.at(token.Kind.eof):
+            if self.at(token.Kind.newline) or self.at(token.Kind.doc_comment):
+                discard(self.take())
+                continue
+            let m = try self.parse_member(is_extern)
+            ast.append(&n.body, &tail, m)
+        discard(self.take())
+        return n
+
+    mutating func expect_indent() -> !:
+        if not self.at(token.Kind.indent):
+            discard(try self.fail("expected an indented block"))
+        discard(self.take())
+
+    ## A field or a method inside a struct, enum, or union.
+    mutating func parse_member(fields_only: bool) -> ast.Node*!:
+        var flags: u32 = 0
+        if self.eat_kw("pub"):
+            flags |= ast.flag_pub
+        if self.eat_kw("export"):
+            flags |= ast.flag_export
+        if not fields_only and (self.at_kw("static") or self.at_kw("mutating") or self.at_kw("func")):
+            let f = try self.parse_func()
+            f.flags |= flags
+            return f
+        let field = try self.node(ast.Kind.field, "")
+        if self.at_name("align") and self.peek_op(1, "("):
+            discard(self.take())
+            try self.expect_op("(")
+            field.right = try self.parse_expression()
+            try self.expect_op(")")
+        if self.eat_kw("var"):
+            flags |= 0
+        elif self.eat_kw("let"):
+            flags |= ast.flag_const
+        elif not fields_only:
+            discard(try self.fail("expected `var`, `let`, or `func`"))
+        field.text = try self.expect_name()
+        try self.expect_op(":")
+        field.ty = try self.parse_type()
+        if self.eat_op("="):
+            field.left = try self.parse_expression()
+        try self.expect_newline()
+        field.flags |= flags
+        return field
+
+    mutating func parse_enum() -> ast.Node*!:
+        let n = try self.node(ast.Kind.enum_, "")
+        try self.expect_kw("enum")
+        n.text = try self.expect_name()
+        if self.at_op("["):
+            n.left = try self.parse_generic_params()
+        if self.eat_kw("as"):
+            n.ty = try self.parse_type()
+        if self.eat_kw("implements"):
+            var itail: ast.Node*? = none
+            while true:
+                let i = try self.parse_type()
+                ast.append(&n.right, &itail, i)
+                if not self.eat_op(","):
+                    break
+        try self.expect_op(":")
+        try self.expect_newline()
+        try self.expect_indent()
+        var tail: ast.Node*? = none
+        while not self.at(token.Kind.dedent) and not self.at(token.Kind.eof):
+            if self.at(token.Kind.newline) or self.at(token.Kind.doc_comment):
+                discard(self.take())
+                continue
+            let method_ahead = self.at_kw("pub") or self.at_kw("static") or self.at_kw("mutating") or (self.at_kw("func") and self.peek(1).kind == token.Kind.name)
+            if method_ahead:
+                let m = try self.parse_member(false)
+                ast.append(&n.body, &tail, m)
+                continue
+            let c = try self.node(ast.Kind.enum_case, "")
+            c.text = try self.expect_member_name()
+            if self.at_op("("):
+                c.body = try self.parse_params()
+            elif self.eat_op("="):
+                c.left = try self.parse_expression()
+            try self.expect_newline()
+            ast.append(&n.body, &tail, c)
+        discard(self.take())
+        return n
+
+    mutating func parse_union(is_extern: bool) -> ast.Node*!:
+        let n = try self.node(ast.Kind.extern_union if is_extern else ast.Kind.union_, "")
+        try self.expect_kw("union")
+        n.text = try self.expect_name()
+        try self.expect_op(":")
+        try self.expect_newline()
+        try self.expect_indent()
+        var tail: ast.Node*? = none
+        while not self.at(token.Kind.dedent) and not self.at(token.Kind.eof):
+            if self.at(token.Kind.newline) or self.at(token.Kind.doc_comment):
+                discard(self.take())
+                continue
+            if not is_extern and (self.at_kw("pub") or self.at_kw("static") or self.at_kw("mutating") or self.at_kw("func")):
+                let m = try self.parse_member(false)
+                ast.append(&n.body, &tail, m)
+                continue
+            let member = try self.node(ast.Kind.field, "")
+            member.text = try self.expect_name()
+            try self.expect_op(":")
+            member.ty = try self.parse_type()
+            try self.expect_newline()
+            ast.append(&n.body, &tail, member)
+        discard(self.take())
+        return n
+
+    mutating func parse_interface() -> ast.Node*!:
+        let n = try self.node(ast.Kind.interface, "")
+        try self.expect_kw("interface")
+        n.text = try self.expect_name()
+        if self.at_op("["):
+            n.left = try self.parse_generic_params()
+        try self.expect_op(":")
+        try self.expect_newline()
+        try self.expect_indent()
+        var tail: ast.Node*? = none
+        while not self.at(token.Kind.dedent) and not self.at(token.Kind.eof):
+            if self.at(token.Kind.newline) or self.at(token.Kind.doc_comment):
+                discard(self.take())
+                continue
+            let sig = try self.parse_func_sig()
+            ast.append(&n.body, &tail, sig)
+        discard(self.take())
+        return n
+
+    mutating func parse_test() -> ast.Node*!:
+        let n = try self.node(ast.Kind.test, "")
+        try self.expect_kw("test")
+        if not self.at(token.Kind.text):
+            discard(try self.fail("a test needs a title"))
+        n.text = self.text_of(self.take())
+        try self.expect_op(":")
+        n.body = try self.parse_suite()
+        return n
+
+    mutating func parse_extern() -> ast.Node*!:
+        try self.expect_kw("extern")
+        if self.at_kw("type"):
+            let n = try self.node(ast.Kind.extern_type, "")
+            discard(self.take())
+            n.text = try self.expect_name()
+            if self.eat_op("="):
+                n.ty = try self.parse_type()
+            try self.expect_newline()
+            return n
+        if self.at_kw("var"):
+            let n = try self.node(ast.Kind.extern_var, "")
+            discard(self.take())
+            n.text = try self.expect_name()
+            try self.expect_op(":")
+            n.ty = try self.parse_type()
+            try self.expect_newline()
+            return n
+        if self.at_kw("struct") or self.at_name("packed") or (self.at_name("align") and self.peek_op(1, "(")):
+            var flags: u32 = 0
+            var layout: ast.Node*? = none
+            if self.at_name("packed"):
+                discard(self.take())
+                flags |= ast.flag_packed
+            elif self.at_name("align"):
+                discard(self.take())
+                try self.expect_op("(")
+                layout = try self.parse_expression()
+                try self.expect_op(")")
+            let n = try self.parse_struct(true)
+            n.flags |= flags
+            n.right = layout
+            return n
+        if self.at_kw("union"):
+            return try self.parse_union(true)
+        let n = try self.node(ast.Kind.extern_func, "")
+        if self.at_name("blocking"):
+            discard(self.take())
+            n.flags |= ast.flag_blocking
+        try self.expect_kw("func")
+        n.text = try self.expect_name()
+        if self.eat_kw("as"):
+            if not self.at(token.Kind.text):
+                discard(try self.fail("expected the C symbol as a string"))
+            n.left = try self.node(ast.Kind.literal, self.text_of(self.take()))
+        try self.expect_op("(")
+        var tail: ast.Node*? = none
+        while not self.at_op(")"):
+            if self.eat_op("..."):
+                n.flags |= ast.flag_variadic
+                break
+            let p = try self.node(ast.Kind.param, "")
+            if self.at_name("out"):
+                discard(self.take())
+                p.flags |= ast.flag_out
+            p.text = try self.expect_name()
+            try self.expect_op(":")
+            p.ty = try self.parse_type()
+            ast.append(&n.right, &tail, p)
+            if not self.eat_op(","):
+                break
+        try self.expect_op(")")
+        try self.parse_result(n)
+        try self.expect_newline()
+        return n
+
+    ## `asm ARCH:` with raw lines, at module level or as a statement.
+    mutating func parse_asm() -> ast.Node*!:
+        let n = try self.node(ast.Kind.asm, "")
+        try self.expect_kw("asm")
+        n.text = try self.expect_name()
+        if self.eat_op("("):
+            var tail: ast.Node*? = none
+            while not self.at_op(")"):
+                let operand = try self.node(ast.Kind.argument, "")
+                operand.text = self.text_of(self.take())     # in / out / inout / options
+                try self.expect_op("(")
+                var ptail: ast.Node*? = none
+                while not self.at_op(")"):
+                    let place = try self.node(ast.Kind.literal, self.text_of(self.take()))
+                    ast.append(&operand.body, &ptail, place)
+                    if not self.eat_op(","):
+                        break
+                try self.expect_op(")")
+                if operand.text != "options":
+                    if self.at_name("_"):
+                        operand.left = try self.node(ast.Kind.name, self.text_of(self.take()))
+                    else:
+                        operand.left = try self.parse_expression()
+                ast.append(&n.right, &tail, operand)
+                if not self.eat_op(","):
+                    break
+            try self.expect_op(")")
+        try self.expect_op(":")
+        try self.expect_newline()
+        try self.expect_indent()
+        var tail: ast.Node*? = none
+        while self.at(token.Kind.raw_line):
+            let line = try self.node(ast.Kind.literal, self.text_of(self.take()))
+            ast.append(&n.body, &tail, line)
+        if not self.at(token.Kind.dedent):
+            discard(try self.fail("an asm suite holds raw lines only"))
+        discard(self.take())
+        return n
+
+    # ---- statements ------------------------------------------------------
+
+    ## `:` was consumed; a same-line simple statement or an indented block.
+    mutating func parse_suite() -> ast.Node*!:
+        let block = try self.node(ast.Kind.block, "")
+        var tail: ast.Node*? = none
+        if not self.at(token.Kind.newline):
+            let s = try self.parse_simple_statement()
+            ast.append(&block.body, &tail, s)
+            return block
+        discard(self.take())
+        try self.expect_indent()
+        try self.enter()
+        while not self.at(token.Kind.dedent) and not self.at(token.Kind.eof):
+            if self.at(token.Kind.newline) or self.at(token.Kind.doc_comment):
+                discard(self.take())
+                continue
+            let s = try self.parse_statement()
+            ast.append(&block.body, &tail, s)
+        if self.at(token.Kind.dedent):
+            discard(self.take())
+        self.leave()
+        return block
+
+    mutating func parse_statement() -> ast.Node*!:
+        if self.at_kw("if"):
+            return try self.parse_if()
+        if self.at_kw("while"):
+            return try self.parse_while("")
+        if self.at_kw("for"):
+            return try self.parse_for("")
+        if self.at_kw("match"):
+            return try self.parse_match(false)
+        if self.at_kw("with"):
+            let n = try self.node(ast.Kind.with_, "")
+            discard(self.take())
+            n.left = try self.parse_expression()
+            try self.expect_op(":")
+            n.body = try self.parse_suite()
+            return n
+        if self.at_kw("asm"):
+            return try self.parse_asm()
+        if self.at(token.Kind.name) and self.peek_op(1, ":"):
+            let label = self.text_of(self.take())
+            discard(self.take())
+            if self.at_kw("while"):
+                return try self.parse_while(label)
+            if self.at_kw("for"):
+                return try self.parse_for(label)
+            discard(try self.fail("a label must be followed by a loop"))
+        return try self.parse_simple_statement()
+
+    mutating func parse_simple_statement() -> ast.Node*!:
+        if self.at_kw("let") or self.at_kw("var"):
+            return try self.parse_binding()
+        if self.at_kw("break") or self.at_kw("continue"):
+            let is_break = self.at_kw("break")
+            let n = try self.node(ast.Kind.break_ if is_break else ast.Kind.continue_, "")
+            discard(self.take())
+            if self.at(token.Kind.name):
+                n.text = self.text_of(self.take())
+            try self.expect_newline()
+            return n
+        if self.at_kw("return"):
+            let n = try self.node(ast.Kind.return_, "")
+            discard(self.take())
+            if not self.at(token.Kind.newline) and not self.at(token.Kind.dedent) and not self.at(token.Kind.eof):
+                n.left = try self.parse_expression()
+            try self.expect_newline()
+            return n
+        if self.at_kw("defer") or self.at_kw("errdefer"):
+            let is_defer = self.at_kw("defer")
+            let n = try self.node(ast.Kind.defer_ if is_defer else ast.Kind.errdefer_, "")
+            discard(self.take())
+            if self.at_kw("free"):
+                n.left = try self.parse_free()
+                return n
+            n.left = try self.parse_expression()
+            if n.left.kind != ast.Kind.catch_:
+                try self.expect_newline()
+            return n
+        if self.at_kw("recover"):
+            let n = try self.node(ast.Kind.recover_, "")
+            discard(self.take())
+            n.left = try self.parse_expression()
+            try self.expect_newline()
+            return n
+        if self.at_kw("free"):
+            return try self.parse_free()
+        let e = try self.parse_expression()
+        if self.at(token.Kind.operator) and self.is_assign_op(self.text_of(self.cur())):
+            let n = try self.node(ast.Kind.assign, self.text_of(self.take()))
+            n.left = e
+            n.right = try self.parse_expression()
+            try self.expect_newline()
+            return n
+        let n = try self.node(ast.Kind.expr_stmt, "")
+        n.left = e
+        if e.kind != ast.Kind.catch_:
+            try self.expect_newline()
+        return n
+
+    func is_assign_op(spelling: str) -> bool:
+        let ops: str[18] = ["=", "+=", "-=", "*=", "/=", "//=", "%=", "+%=", "-%=", "*%=", "+|=", "-|=", "*|=", "&=", "|=", "^=", "<<=", ">>="]
+        for op in ops:
+            if op == spelling:
+                return true
+        return false
+
+    mutating func parse_free() -> ast.Node*!:
+        let n = try self.node(ast.Kind.free_, "")
+        try self.expect_kw("free")
+        try self.expect_op("(")
+        n.left = try self.parse_expression()
+        try self.expect_op(")")
+        if self.eat_kw("in"):
+            n.right = try self.parse_expression()
+        try self.expect_newline()
+        return n
+
+    ## `let`/`var` with a name or a tuple pattern, a type, and an initialiser or `---`.
+    mutating func parse_binding() -> ast.Node*!:
+        let is_let = self.at_kw("let")
+        let n = try self.node(ast.Kind.let_ if is_let else ast.Kind.var_, "")
+        discard(self.take())
+        if self.eat_op("("):
+            var tail: ast.Node*? = none
+            while not self.at_op(")"):
+                let name = try self.node(ast.Kind.name, "")
+                name.text = try self.expect_name()
+                ast.append(&n.body, &tail, name)
+                if not self.eat_op(","):
+                    break
+            try self.expect_op(")")
+        else:
+            n.text = try self.expect_name()
+        if self.eat_op(":"):
+            n.ty = try self.parse_type()
+        if self.eat_op("="):
+            if self.eat_op("---"):
+                n.flags |= ast.flag_uninit
+            else:
+                n.left = try self.parse_expression()
+        elif is_let:
+            discard(try self.fail("a let binding requires an initialiser"))
+        try self.expect_newline()
+        return n
+
+    ## `expression` or `let NAME = expression` after if/while/elif.
+    mutating func parse_condition(n: ast.Node*) -> !:
+        if self.eat_kw("let"):
+            n.flags |= ast.flag_if_let
+            let binding = try self.node(ast.Kind.let_, "")
+            binding.text = try self.expect_name()
+            try self.expect_op("=")
+            binding.left = try self.parse_expression()
+            n.left = binding
+            return
+        n.left = try self.parse_expression()
+
+    mutating func parse_if() -> ast.Node*!:
+        let n = try self.node(ast.Kind.if_, "")
+        discard(self.take())
+        try self.parse_condition(n)
+        try self.expect_op(":")
+        n.body = try self.parse_suite()
+        if self.at_kw("elif"):
+            let rest = try self.parse_if()       # `elif` reads as a nested if
+            n.right = rest
+        elif self.eat_kw("else"):
+            try self.expect_op(":")
+            n.right = try self.parse_suite()
+        return n
+
+    mutating func parse_while(label: str) -> ast.Node*!:
+        let n = try self.node(ast.Kind.while_, label)
+        try self.expect_kw("while")
+        try self.parse_condition(n)
+        try self.expect_op(":")
+        n.body = try self.parse_suite()
+        return n
+
+    mutating func parse_for(label: str) -> ast.Node*!:
+        let n = try self.node(ast.Kind.for_, label)
+        try self.expect_kw("for")
+        let binding = try self.node(ast.Kind.let_, "")
+        if self.eat_op("("):
+            var tail: ast.Node*? = none
+            while not self.at_op(")"):
+                let name = try self.node(ast.Kind.name, "")
+                name.text = try self.expect_name()
+                ast.append(&binding.body, &tail, name)
+                if not self.eat_op(","):
+                    break
+            try self.expect_op(")")
+        else:
+            binding.text = try self.expect_name()
+            if self.eat_op(":"):
+                binding.ty = try self.parse_type()
+        n.left = binding
+        try self.expect_kw("in")
+        if self.eat_op("&"):
+            n.flags |= ast.flag_by_pointer
+        n.right = try self.parse_expression()
+        try self.expect_op(":")
+        n.body = try self.parse_suite()
+        return n
+
+    ## `match` as a statement (arms with `:` suites) or an expression (arms with `=>`).
+    mutating func parse_match(is_expr: bool) -> ast.Node*!:
+        let n = try self.node(ast.Kind.match_expr if is_expr else ast.Kind.match_, "")
+        try self.expect_kw("match")
+        n.left = try self.parse_expression()
+        try self.expect_op(":")
+        try self.expect_newline()
+        try self.expect_indent()
+        var tail: ast.Node*? = none
+        while not self.at(token.Kind.dedent) and not self.at(token.Kind.eof):
+            if self.at(token.Kind.newline) or self.at(token.Kind.doc_comment):
+                discard(self.take())
+                continue
+            let arm = try self.node(ast.Kind.match_arm, "")
+            var ptail: ast.Node*? = none
+            while true:
+                let p = try self.parse_pattern()
+                ast.append(&arm.left, &ptail, p)
+                if not self.eat_op(","):
+                    break
+            if self.eat_kw("if"):
+                arm.right = try self.parse_expression()
+            if is_expr:
+                try self.expect_op("=>")
+                arm.body = try self.parse_expression()
+                try self.expect_newline()
+            else:
+                try self.expect_op(":")
+                arm.body = try self.parse_suite()
+            ast.append(&n.body, &tail, arm)
+        discard(self.take())
+        return n
+
+    mutating func parse_pattern() -> ast.Node*!:
+        let p = try self.node(ast.Kind.pattern, "")
+        if self.at_name("_"):
+            discard(self.take())
+            p.flags |= ast.flag_wildcard
+            return p
+        if self.eat_op("."):
+            let c = try self.node(ast.Kind.case_value, "")
+            c.text = try self.expect_member_name()
+            if self.eat_op("("):
+                var tail: ast.Node*? = none
+                while not self.at_op(")"):
+                    let b = try self.node(ast.Kind.name, self.text_of(self.take()))
+                    ast.append(&c.body, &tail, b)
+                    if not self.eat_op(","):
+                        break
+                try self.expect_op(")")
+            p.left = c
+            return p
+        p.left = try self.parse_pattern_literal()
+        if self.at_op("..<") or self.at_op("..="):
+            p.text = self.text_of(self.take())
+            p.right = try self.parse_pattern_literal()
+        return p
+
+    mutating func parse_pattern_literal() -> ast.Node*!:
+        if self.at_op("-"):
+            let neg = try self.node(ast.Kind.unary, self.text_of(self.take()))
+            neg.left = try self.parse_primary()
+            return neg
+        return try self.parse_primary()
+
+    # ---- expressions -------------------------------------------------------
+
+    pub mutating func parse_expression() -> ast.Node*!:
+        try self.enter()
+        var e = try self.parse_else()
+        if self.at_kw("catch"):
+            let c = try self.node(ast.Kind.catch_, "")
+            discard(self.take())
+            if self.at(token.Kind.name):
+                c.text = self.text_of(self.take())
+            try self.expect_op(":")
+            c.left = e
+            c.body = try self.parse_suite()
+            e = c
+        self.leave()
+        return e
+
+    mutating func parse_else() -> ast.Node*!:
+        let e = try self.parse_conditional()
+        if self.at_kw("else"):
+            let n = try self.node(ast.Kind.else_, "")
+            discard(self.take())
+            n.left = e
+            if self.at_kw("return") or self.at_kw("break") or self.at_kw("continue"):
+                n.right = try self.parse_simple_exit()
+            else:
+                n.right = try self.parse_else()
+            return n
+        return e
+
+    ## `else return x`, `else break`: an exit inside an expression.
+    mutating func parse_simple_exit() -> ast.Node*!:
+        if self.at_kw("return"):
+            let n = try self.node(ast.Kind.return_, "")
+            discard(self.take())
+            if not self.at(token.Kind.newline) and not self.at(token.Kind.dedent) and not self.at(token.Kind.eof) and not self.at_op(")"):
+                n.left = try self.parse_expression()
+            return n
+        let is_break = self.at_kw("break")
+        let n = try self.node(ast.Kind.break_ if is_break else ast.Kind.continue_, "")
+        discard(self.take())
+        if self.at(token.Kind.name):
+            n.text = self.text_of(self.take())
+        return n
+
+    mutating func parse_conditional() -> ast.Node*!:
+        let value = try self.parse_binary(0)
+        if self.at_kw("if"):
+            let n = try self.node(ast.Kind.conditional, "")
+            discard(self.take())
+            n.left = value
+            n.ty = try self.parse_binary(0)
+            try self.expect_kw("else")
+            n.right = try self.parse_conditional()
+            return n
+        return value
+
+    ## Precedence levels, lowest first: or, and, comparison, range, |, ^, &, shifts, additive, multiplicative.
+    func level_of(t: token.Token) -> u32:
+        if t.kind == token.Kind.keyword:
+            let w = self.text_of(t)
+            if w == "or":
+                return 1
+            if w == "and":
+                return 2
+            return 0
+        if t.kind != token.Kind.operator:
+            return 0
+        let s = self.text_of(t)
+        if s == "==" or s == "!=" or s == "<" or s == "<=" or s == ">" or s == ">=":
+            return 3
+        if s == "..<" or s == "..=":
+            return 4
+        if s == "|":
+            return 5
+        if s == "^":
+            return 6
+        if s == "&":
+            return 7
+        if s == "<<" or s == ">>":
+            return 8
+        if s == "+" or s == "-" or s == "+%" or s == "-%" or s == "+|" or s == "-|" or s == "+?" or s == "-?":
+            return 9
+        if s == "*" or s == "/" or s == "//" or s == "%" or s == "*%" or s == "*|" or s == "*?":
+            return 10
+        return 0
+
+    mutating func parse_binary(min_level: u32) -> ast.Node*!:
+        var left = try self.parse_unary()
+        while true:
+            let t = self.cur()
+            let level = self.level_of(t)
+            if level == 0 or level <= min_level:
+                break
+            let n = try self.node(ast.Kind.binary, self.text_of(self.take()))
+            n.left = left
+            # comparison and range do not chain (§7.3)
+            n.right = try self.parse_binary(level if level != 3 and level != 4 else level)
+            left = n
+            if level == 3 or level == 4:
+                if self.level_of(self.cur()) == level:
+                    discard(try self.fail("comparisons do not chain; use `and`"))
+        return left
+
+    mutating func parse_unary() -> ast.Node*!:
+        if self.at_kw("try") or self.at_kw("not"):
+            let n = try self.node(ast.Kind.unary, self.text_of(self.take()))
+            n.left = try self.parse_unary()
+            return n
+        if self.at_op("-") or self.at_op("-%") or self.at_op("~") or self.at_op("*") or self.at_op("&") or self.at_op("+"):
+            let n = try self.node(ast.Kind.unary, self.text_of(self.take()))
+            n.left = try self.parse_unary()
+            return n
+        if self.at_op("(") and self.looks_like_cast():
+            let n = try self.node(ast.Kind.cast, "")
+            discard(self.take())
+            n.ty = try self.parse_type()
+            try self.expect_op(")")
+            n.left = try self.parse_unary()
+            return n
+        return try self.parse_postfix()
+
+    ## `(T)x`: the parenthesised text names a type and is followed by an operand (§7.5).
+    func looks_like_cast() -> bool:
+        var i: usize = 1
+        var t = self.peek(i)
+        if t.kind == token.Kind.operator and self.text_of(t) == "@":
+            i += 1
+            t = self.peek(i)
+        while t.kind == token.Kind.keyword and (self.text_of(t) == "const" or self.text_of(t) == "volatile"):
+            i += 1
+            t = self.peek(i)
+        if t.kind != token.Kind.name:
+            return false
+        let head = self.text_of(t)
+        var typed = self.is_type_word(head)
+        i += 1
+        t = self.peek(i)
+        while t.kind == token.Kind.operator:
+            let s = self.text_of(t)
+            if s == "." and self.peek(i + 1).kind == token.Kind.name:
+                typed = typed or self.is_type_word(self.text_of(self.peek(i + 1))) or head == "c"
+                i += 2
+            elif s == "*" or s == "?" or s == "*?":
+                typed = true
+                i += 1
+            elif s == "[" and self.peek_op(i + 1, "]"):
+                typed = true
+                i += 2
+            else:
+                break
+            t = self.peek(i)
+        if not (t.kind == token.Kind.operator and self.text_of(t) == ")"):
+            return false
+        if not typed:
+            return false
+        let after = self.peek(i + 1)
+        if after.kind == token.Kind.name or after.kind == token.Kind.integer or after.kind == token.Kind.float or after.kind == token.Kind.character or after.kind == token.Kind.text or after.kind == token.Kind.format_start:
+            return true
+        if after.kind == token.Kind.keyword:
+            let w = self.text_of(after)
+            return w == "self" or w == "try" or w == "not" or w == "true" or w == "false"
+        if after.kind == token.Kind.operator:
+            let s = self.text_of(after)
+            return s == "(" or s == "&" or s == "*" or s == "~" or s == "["
+        return false
+
+    func is_type_word(word: str) -> bool:
+        let core: str[21] = ["i8", "i16", "i32", "i64", "u8", "u16", "u32", "u64", "usize", "isize", "f16", "f32", "f64", "bool", "char", "str", "cstr", "fmt", "unit", "never", "void"]
+        for c in core:
+            if c == word:
+                return true
+        let b = word.bytes
+        return b.length > 0 and b[0] >= 'A' and b[0] <= 'Z'
+
+    mutating func parse_postfix() -> ast.Node*!:
+        var e = try self.parse_primary()
+        while true:
+            if self.at_op(".") and self.at_member_name(1):
+                discard(self.take())
+                let m = try self.node(ast.Kind.member, self.text_of(self.take()))
+                m.left = e
+                e = m
+            elif self.at_op("("):
+                let c = try self.node(ast.Kind.call, "")
+                c.left = e
+                c.body = try self.parse_arguments()
+                e = c
+            elif self.at_op("[") and self.looks_like_type_args():
+                let args = try self.parse_type_args()
+                if self.at_op("("):
+                    let c = try self.node(ast.Kind.call, "")
+                    c.left = e
+                    c.ty = args
+                    c.body = try self.parse_arguments()
+                    e = c
+                else:
+                    e.ty = args                  # `Map[str, u32].create(...)`
+            elif self.at_op("["):
+                discard(self.take())
+                if self.eat_op("..<"):
+                    let s = try self.node(ast.Kind.slice, "")
+                    s.left = e
+                    s.right = try self.parse_expression()
+                    try self.expect_op("]")
+                    e = s
+                    continue
+                let index = try self.parse_expression()
+                if self.at_op("..<") or self.at_op(".."):
+                    let s = try self.node(ast.Kind.slice, "")
+                    s.left = e
+                    s.body = index
+                    if self.text_of(self.take()) == "..<":
+                        s.right = try self.parse_expression()
+                    try self.expect_op("]")
+                    e = s
+                    continue
+                let ix = try self.node(ast.Kind.index, "")
+                ix.left = e
+                ix.body = index
+                try self.expect_op("]")
+                e = ix
+            else:
+                break
+        return e
+
+    ## `name[T](...)`: a bracket after a name holding types and followed by `(`.
+    func looks_like_type_args() -> bool:
+        var i: usize = 1
+        var depth: u32 = 1
+        while depth > 0:
+            let t = self.peek(i)
+            if t.kind == token.Kind.eof or t.kind == token.Kind.newline:
+                return false
+            if t.kind == token.Kind.operator:
+                let s = self.text_of(t)
+                if s == "[":
+                    depth += 1
+                elif s == "]":
+                    depth -= 1
+            i += 1
+        let first = self.peek(1)
+        if first.kind != token.Kind.name or not self.is_type_word(self.text_of(first)):
+            return false
+        return self.peek_op(i, "(") or self.peek_op(i, ".")
+
+    mutating func parse_type_args() -> ast.Node*!:
+        let list = try self.node(ast.Kind.type_, "")
+        try self.expect_op("[")
+        var tail: ast.Node*? = none
+        while not self.at_op("]"):
+            let t = try self.parse_type()
+            ast.append(&list.body, &tail, t)
+            if not self.eat_op(","):
+                break
+        try self.expect_op("]")
+        return list
+
+    mutating func parse_arguments() -> ast.Node*?!:
+        try self.expect_op("(")
+        var list: ast.Node*? = none
+        var tail: ast.Node*? = none
+        while not self.at_op(")"):
+            let a = try self.node(ast.Kind.argument, "")
+            if self.at(token.Kind.name) and self.peek_op(1, "=") :
+                a.text = self.text_of(self.take())
+                discard(self.take())
+            a.left = try self.parse_expression()
+            ast.append(&list, &tail, a)
+            if not self.eat_op(","):
+                break
+        try self.expect_op(")")
+        return list
+
+    mutating func parse_primary() -> ast.Node*!:
+        let t = self.cur()
+        if t.kind == token.Kind.integer or t.kind == token.Kind.float or t.kind == token.Kind.character or t.kind == token.Kind.text or t.kind == token.Kind.bytes or t.kind == token.Kind.raw:
+            return try self.node(ast.Kind.literal, self.text_of(self.take()))
+        if t.kind == token.Kind.format_start:
+            return try self.parse_formatted()
+        if t.kind == token.Kind.keyword:
+            let w = self.text_of(t)
+            if w == "true" or w == "false" or w == "none":
+                return try self.node(ast.Kind.literal, self.text_of(self.take()))
+            if w == "self":
+                discard(self.take())
+                return try self.node(ast.Kind.self_, "self")
+            if w == "match":
+                return try self.parse_match(true)
+            if w == "new":
+                return try self.parse_new()
+            if w == "alloc":
+                return try self.parse_alloc()
+            discard(try self.fail("expected an expression"))
+        if t.kind == token.Kind.name:
+            if self.looks_like_span_constructor():
+                let s = try self.node(ast.Kind.span_make, "")
+                s.ty = try self.parse_type()
+                s.body = try self.parse_arguments()
+                return s
+            return try self.node(ast.Kind.name, self.text_of(self.take()))
+        if t.kind == token.Kind.operator:
+            let s = self.text_of(t)
+            if s == ".":
+                discard(self.take())
+                let c = try self.node(ast.Kind.case_value, "")
+                c.text = try self.expect_member_name()
+                if self.at_op("("):
+                    c.body = try self.parse_arguments()
+                return c
+            if s == "[":
+                let a = try self.node(ast.Kind.array_lit, "")
+                discard(self.take())
+                var tail: ast.Node*? = none
+                while not self.at_op("]"):
+                    let e = try self.parse_expression()
+                    ast.append(&a.body, &tail, e)
+                    if not self.eat_op(","):
+                        break
+                try self.expect_op("]")
+                return a
+            if s == "(":
+                if self.looks_like_lambda():
+                    return try self.parse_lambda()
+                discard(self.take())
+                if self.eat_op(")"):
+                    return try self.node(ast.Kind.unit, "")
+                let first = try self.parse_expression()
+                if self.at_op(","):
+                    let tuple = try self.node(ast.Kind.tuple, "")
+                    var tail: ast.Node*? = none
+                    ast.append(&tuple.body, &tail, first)
+                    while self.eat_op(","):
+                        if self.at_op(")"):
+                            break
+                        let e = try self.parse_expression()
+                        ast.append(&tuple.body, &tail, e)
+                    try self.expect_op(")")
+                    return tuple
+                try self.expect_op(")")
+                let g = try self.node(ast.Kind.group, "")
+                g.left = first
+                return g
+        return try self.fail("expected an expression")
+
+    ## `u8[](pointer, count)`: a type, `[]`, then arguments.
+    func looks_like_span_constructor() -> bool:
+        var i: usize = 1
+        while self.peek_op(i, ".") and self.peek(i + 1).kind == token.Kind.name:
+            i += 2
+        return self.peek_op(i, "[") and self.peek_op(i + 1, "]") and self.peek_op(i + 2, "(")
+
+    ## `(a, b) => body` or `() => body`: a parenthesised list followed by `=>`.
+    func looks_like_lambda() -> bool:
+        var i: usize = 1
+        var depth: u32 = 1
+        while depth > 0:
+            let t = self.peek(i)
+            if t.kind == token.Kind.eof:
+                return false
+            if t.kind == token.Kind.operator:
+                let s = self.text_of(t)
+                if s == "(":
+                    depth += 1
+                elif s == ")":
+                    depth -= 1
+            i += 1
+        return self.peek_op(i, "=>")
+
+    mutating func parse_lambda() -> ast.Node*!:
+        let n = try self.node(ast.Kind.lambda, "")
+        try self.expect_op("(")
+        var tail: ast.Node*? = none
+        while not self.at_op(")"):
+            let p = try self.node(ast.Kind.param, "")
+            p.text = try self.expect_name()
+            if self.eat_op(":"):
+                p.ty = try self.parse_type()
+            ast.append(&n.right, &tail, p)
+            if not self.eat_op(","):
+                break
+        try self.expect_op(")")
+        try self.expect_op("=>")
+        n.body = try self.parse_expression()
+        return n
+
+    mutating func parse_formatted() -> ast.Node*!:
+        let n = try self.node(ast.Kind.formatted, "")
+        discard(self.take())
+        var tail: ast.Node*? = none
+        while not self.at(token.Kind.format_end):
+            if self.at(token.Kind.format_text):
+                let part = try self.node(ast.Kind.format_text, self.text_of(self.take()))
+                ast.append(&n.body, &tail, part)
+            elif self.eat_op("{"):
+                let field = try self.node(ast.Kind.format_field, "")
+                field.left = try self.parse_expression()
+                try self.expect_op("}")
+                ast.append(&n.body, &tail, field)
+            else:
+                discard(try self.fail("expected formatted string text or a field"))
+        discard(self.take())
+        return n
+
+    ## `new T(args)`, `new T[n]`, `new Kind.case(args)`, `new T`, with `in allocator`.
+    mutating func parse_new() -> ast.Node*!:
+        let n = try self.node(ast.Kind.new_, "")
+        try self.expect_kw("new")
+        n.ty = try self.parse_type()
+        if self.at_op("("):
+            n.body = try self.parse_arguments()
+        elif self.eat_op("."):
+            let c = try self.node(ast.Kind.case_value, "")
+            c.text = try self.expect_member_name()
+            if self.at_op("("):
+                c.body = try self.parse_arguments()
+            n.body = c
+        if self.eat_kw("in"):
+            n.right = try self.parse_expression()
+        return n
+
+    mutating func parse_alloc() -> ast.Node*!:
+        let n = try self.node(ast.Kind.alloc, "")
+        try self.expect_kw("alloc")
+        if self.at_op("("):
+            n.body = try self.parse_arguments()
+        else:
+            n.ty = try self.parse_type()
+        if self.eat_kw("in"):
+            n.right = try self.parse_expression()
+        return n
+
+    # ---- types -------------------------------------------------------------
+
+    pub mutating func parse_type() -> ast.Node*!:
+        var flags: u32 = 0
+        if self.eat_op("@"):
+            flags |= ast.flag_atomic
+        while self.at_kw("const") or self.at_kw("volatile"):
+            if self.eat_kw("const"):
+                flags |= ast.flag_const
+            else:
+                discard(self.take())
+                flags |= ast.flag_volatile
+        var t = try self.parse_type_core()
+        t.flags |= flags
+        while true:
+            if self.at_op("*") or self.at_op("*?"):
+                let nullable = self.at_op("*?")
+                discard(self.take())
+                let p = try self.node(ast.Kind.type_, "*")
+                p.flags |= ast.flag_star
+                p.left = t
+                t = p
+                if nullable:
+                    let o = try self.node(ast.Kind.type_, "?")
+                    o.flags |= ast.flag_optional
+                    o.left = t
+                    t = o
+            elif self.at_op("[") and self.array_suffix_ahead():
+                discard(self.take())
+                let s = try self.node(ast.Kind.type_, "[")
+                s.left = t
+                if self.eat_op("]"):
+                    s.flags |= ast.flag_span
+                else:
+                    s.flags |= ast.flag_array
+                    s.right = try self.parse_expression()
+                    try self.expect_op("]")
+                t = s
+            else:
+                break
+        if self.eat_op("?"):
+            let o = try self.node(ast.Kind.type_, "?")
+            o.flags |= ast.flag_optional
+            o.left = t
+            t = o
+        if self.eat_op("!"):
+            let f = try self.node(ast.Kind.type_, "!")
+            f.flags |= ast.flag_fallible
+            f.left = t
+            t = f
+        return t
+
+    ## `[` after a type: an array or span suffix unless it holds type arguments.
+    func array_suffix_ahead() -> bool:
+        let t = self.peek(1)
+        if t.kind == token.Kind.operator and self.text_of(t) == "]":
+            return true
+        if t.kind == token.Kind.integer or t.kind == token.Kind.keyword:
+            return true
+        if t.kind == token.Kind.operator and self.text_of(t) == "(":
+            return true
+        if t.kind == token.Kind.name:
+            let w = self.text_of(t)
+            if w == "sizeof" or w == "alignof":
+                return true
+            return not self.is_type_word(w)
+        return false
+
+    mutating func parse_type_core() -> ast.Node*!:
+        if self.eat_kw("func"):
+            let t = try self.node(ast.Kind.type_, "func")
+            t.flags |= ast.flag_func_type
+            try self.expect_op("(")
+            var tail: ast.Node*? = none
+            while not self.at_op(")"):
+                let p = try self.parse_type()
+                ast.append(&t.body, &tail, p)
+                if not self.eat_op(","):
+                    break
+            try self.expect_op(")")
+            try self.expect_op("->")
+            t.left = try self.parse_type()
+            return t
+        if self.at_name("void"):
+            let t = try self.node(ast.Kind.type_, "void")
+            discard(self.take())
+            t.flags |= ast.flag_void
+            return t
+        if self.eat_op("("):
+            let first = try self.parse_type()
+            if self.eat_op(","):
+                let tuple = try self.node(ast.Kind.type_, "tuple")
+                tuple.flags |= ast.flag_tuple_type
+                var tail: ast.Node*? = none
+                ast.append(&tuple.body, &tail, first)
+                while not self.at_op(")"):
+                    let next = try self.parse_type()
+                    ast.append(&tuple.body, &tail, next)
+                    if not self.eat_op(","):
+                        break
+                try self.expect_op(")")
+                return tuple
+            try self.expect_op(")")
+            let g = try self.node(ast.Kind.type_, "(")
+            g.left = first
+            return g
+        if not self.at(token.Kind.name):
+            discard(try self.fail("expected a type"))
+        let first = self.take()
+        var last = first
+        while self.at_op(".") and self.peek(1).kind == token.Kind.name and (self.is_type_word(self.text_of(self.peek(1))) or self.text_of(first) == "c"):
+            discard(self.take())
+            last = self.take()
+        let t = try self.node(ast.Kind.type_, self.src.text(first.start, last.end))
+        if self.at_op("[") and not self.array_suffix_ahead():
+            t.body = (try self.parse_type_args()).body
+        return t
+
+## Parse `text` as a module in the current allocator.
+pub func parse_text(text: str, scratch: u8[]) -> ast.Node*!:
+    let src = try source.Source.over("test", text.bytes)
+    var p = try Parser.over(src, scratch)
+    return try p.parse_module()
+
+test "a function with a body":
+    var backing: u8[65536]
+    var arena = FixedBuffer.over(backing)
+    var scratch: u8[256]
+    with arena:
+        let m = try parse_text("pub func add(a: i64, b: i64 = 2) -> i64:\n    return a + b\n", scratch)
+        assert(ast.count(m.body) == 1)
+        let f = m.body else return
+        assert(f.kind == ast.Kind.func)
+        assert(f.has(ast.flag_pub))
+        assert(ast.count(f.right) == 2)
+        let block = f.body else return
+        assert(ast.count(block.body) == 1)
+
+test "struct, enum, and union declarations":
+    var backing: u8[65536]
+    var arena = FixedBuffer.over(backing)
+    var scratch: u8[256]
+    with arena:
+        let text = "struct P implements A:\n    var x: i64\n    func get() -> i64: return self.x\nenum K as u8:\n    a = 1\n    b(v: i64)\nunion U:\n    i: i64\n    f: f64\n"
+        let m = try parse_text(text, scratch)
+        assert(ast.count(m.body) == 3)
+        let s = m.body else return
+        assert(s.kind == ast.Kind.struct_)
+        assert(ast.count(s.body) == 2)
+
+test "expression precedence and casts":
+    var backing: u8[65536]
+    var arena = FixedBuffer.over(backing)
+    var scratch: u8[256]
+    with arena:
+        let m = try parse_text("let v = (u8)x + 2 * 3 == 8 and not y\n", scratch)
+        let c = m.body else return
+        let e = c.left else return
+        assert(e.kind == ast.Kind.binary)
+        assert(e.text == "and")
+        let l = e.left else return
+        assert(l.text == "==")
+        let sum = l.left else return
+        assert(sum.text == "+")
+        let cast = sum.left else return
+        assert(cast.kind == ast.Kind.cast)
+
+test "statements and layout":
+    var backing: u8[65536]
+    var arena = FixedBuffer.over(backing)
+    var scratch: u8[256]
+    with arena:
+        let text = "func f() -> !:\n    var i: usize = 0\n    outer: while i < 3:\n        if let v = g(i):\n            i += 1\n        elif i == 2:\n            break outer\n        else:\n            continue\n    for (k, x) in items.indexed():\n        defer free(x)\n    match k:\n        .a, .b(v): return\n        1..<3 if k > 0: pass_()\n        _: trap()\n    let r = risky() catch failure:\n        recover 0\n"
+        let m = try parse_text(text, scratch)
+        let f = m.body else return
+        let block = f.body else return
+        assert(ast.count(block.body) == 5)
+
+test "types":
+    var backing: u8[65536]
+    var arena = FixedBuffer.over(backing)
+    var scratch: u8[256]
+    with arena:
+        let m = try parse_text("var a: const u8[]?\nvar b: func(i64, Node*?) -> unit\nvar c: (i64, str)\nvar d: Map[str, u32]\nvar e: @u32\n", scratch)
+        assert(ast.count(m.body) == 5)
+        let a = m.body else return
+        let at = a.ty else return
+        assert(at.has(ast.flag_optional))
+
+test "a syntax error names its position":
+    var backing: u8[65536]
+    var arena = FixedBuffer.over(backing)
+    var scratch: u8[256]
+    var where = ""
+    with arena:
+        let result = parse_text("func f(:\n", scratch) catch failure:
+            where = failure.message
+            recover try ast.Node.make(ast.Kind.unit, "", 0, 0)
+        discard(result)
+    assert(where == "1:8: expected a name")
+
+test "uninitialised var":
+    var backing: u8[65536]
+    var arena = FixedBuffer.over(backing)
+    var scratch: u8[256]
+    with arena:
+        let m = try parse_text("func f():\n    var a: i64 = ---\n", scratch)
+        let f = m.body else return
+        let block = f.body else return
+        let v = block.body else return
+        assert(v.has(ast.flag_uninit))
+
+test "dash operator token":
+    var backing: u8[65536]
+    var arena = FixedBuffer.over(backing)
+    var scratch: u8[256]
+    with arena:
+        let src = try source.Source.over("t", "= ---".bytes)
+        var p = try Parser.over(src, scratch)
+        assert(p.count == 3)
+        let t0 = p.tokens[0]
+        let t1 = p.tokens[1]
+        assert(t1.kind == token.Kind.operator)
+        assert(t1.end - t1.start == 3)
+        assert(p.text_of(t1) == "---")
+        assert(p.at_op("="))
+        assert(p.eat_op("="))
+        assert(p.at_op("---"))
+        assert(p.eat_op("---"))
+        assert(p.at(token.Kind.eof))

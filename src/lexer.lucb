@@ -36,11 +36,19 @@ pub struct Lexer:
     var asm_header: bool
     var raw_level: u32
     var in_raw: bool
+    ## Offset just past the last comment, so a `:` inside it does not open a suite.
+    var comment_end: usize
+    ## The block depth when each open bracket was seen; a closer ends any suite
+    ## opened inside it (base.md §3.2: closers on the body's last line).
+    var bracket_base: usize[64]
+    ## A colon ended a line inside brackets: the next line's indentation counts.
+    var reopened: bool
 
     pub static func over(src: source.Source) -> Lexer:
         return Lexer(src = src, offset = 0, line = 1, line_start = 0, at_line_start = true,
                      depth = 0, pending_dedents = 0, delimiters = 0, mode_depth = 0,
-                     asm_header = false, raw_level = 0, in_raw = false)
+                     asm_header = false, raw_level = 0, in_raw = false, comment_end = 0,
+                     reopened = false)
 
     func peek() -> u8:
         if self.offset >= self.src.bytes.length:
@@ -101,6 +109,7 @@ pub struct Lexer:
                 let doc = self.peek_at(1) == '#' and start == self.line_start
                 while self.peek() != '\n' and self.peek() != 0:
                     self.offset += 1
+                self.comment_end = self.offset
                 if doc:
                     return self.make(token.Kind.doc_comment, start)
             else:
@@ -109,15 +118,29 @@ pub struct Lexer:
     ## Measure the current line's indentation and queue layout tokens.
     mutating func layout() -> token.Token?!:
         var column: u32 = 0
-        while self.peek() == ' ':
-            self.offset += 1
-            column += 1
-        let c = self.peek()
-        if c == '\n' or c == '#' or c == 0 or (c == '\r' and self.peek_at(1) == '\n'):
-            return none                         # blank or comment-only line
+        while true:
+            column = 0
+            while self.peek() == ' ':
+                self.offset += 1
+                column += 1
+            let c = self.peek()
+            if c == '#' and not (self.peek_at(1) == '#' and column == 0):
+                while self.peek() != '\n' and self.peek() != 0:
+                    self.offset += 1            # a comment-only line
+                continue
+            if c == '\n':
+                self.newline_here()             # a blank line
+                continue
+            if c == '\r' and self.peek_at(1) == '\n':
+                self.offset += 1
+                continue
+            break
+        if self.peek() == 0 or self.peek() == '#':
+            return none                         # end of input, or a doc comment
         self.at_line_start = false
-        if self.delimiters > 0:
+        if self.delimiters > 0 and not self.reopened and self.depth <= self.bracket_base[(usize)self.delimiters - 1]:
             return none                         # spacing inside brackets
+        self.reopened = false
         let current = self.levels[self.depth]
         if column > current:
             if self.depth + 1 >= max_blocks:
@@ -291,8 +314,10 @@ pub struct Lexer:
             return self.make(token.Kind.eof, start)
         if c == '\n':
             self.newline_here()
-            if self.delimiters > 0 and not self.colon_ended(start):
-                return try self.next()
+            if self.delimiters > 0 and self.depth <= self.bracket_base[(usize)self.delimiters - 1]:
+                if not self.colon_ended(start):
+                    return try self.next()      # spacing inside brackets
+                self.reopened = true
             let t = token.Token(kind = token.Kind.newline, start = start, end = start + 1,
                                 line = self.line - 1, column = u32(start - self.line_start_before(start)) + 1)
             return t
@@ -311,8 +336,14 @@ pub struct Lexer:
                 self.offset += 1
             let word = self.src.text(start, self.offset)
             if token.is_keyword(word):
+                # `asm ARCH ... :` at the start of a line opens a raw suite;
+                # `asm = 19` (an enum case) or `.asm` does not.
                 if word == "asm" and start == self.line_start + (usize)self.levels[self.depth]:
-                    self.asm_header = true
+                    var look = self.offset
+                    while look < self.src.bytes.length and self.src.bytes[look] == ' ':
+                        look += 1
+                    if look < self.src.bytes.length and self.is_letter(self.src.bytes[look]):
+                        self.asm_header = true
                 return self.make(token.Kind.keyword, start)
             return self.make(token.Kind.name, start)
         if self.is_digit(c):
@@ -337,21 +368,31 @@ pub struct Lexer:
             self.offset += 1
             return self.make(token.Kind.character, start)
         if c == '(' or c == '[' or c == '{':
+            if (usize)self.delimiters < 64:
+                self.bracket_base[(usize)self.delimiters] = self.depth
             self.delimiters += 1
-        elif c == ')' or c == ']':
+        elif c == ')' or c == ']' or (c == '}' and self.mode() != 2):
             if self.delimiters > 0:
+                # a closer on a suite's last line ends the suite first
+                let base = self.bracket_base[(usize)self.delimiters - 1]
+                if self.depth > base:
+                    while self.depth > base:
+                        self.depth -= 1
+                        self.pending_dedents += 1
+                    self.pending_dedents -= 1
+                    self.reopened = false
+                    return self.make(token.Kind.dedent, start)
                 self.delimiters -= 1
         elif c == '}':
-            if self.mode() == 2:
-                self.offset += 1
-                self.pop_mode()
-                return self.make(token.Kind.operator, start)
-            if self.delimiters > 0:
-                self.delimiters -= 1
+            self.offset += 1
+            self.pop_mode()
+            return self.make(token.Kind.operator, start)
         return try self.operator(start)
 
     ## Whether the physical line ending at `end` ends with `:` (a suite inside brackets).
     func colon_ended(end: usize) -> bool:
+        if self.comment_end == end:
+            return false                        # the line ends in a comment
         var i = end
         while i > 0:
             i -= 1
@@ -442,3 +483,17 @@ test "a tab is an error":
         refused = failure.code == tab
         recover 0)
     assert(refused)
+
+test "a suite inside brackets closes with the bracket":
+    var toks: token.Token[64] = ---
+    let n = tokenize("f(x catch e:\n    recover 0)\ny\n", toks) catch failure: recover 0
+    # f ( x catch e : newline indent recover 0 dedent ) newline y newline
+    assert(n == 15)
+    assert(toks[7].kind == token.Kind.indent)
+    assert(toks[10].kind == token.Kind.dedent)
+    assert(toks[11].kind == token.Kind.operator)
+
+test "a colon in a trailing comment does not open a suite":
+    var toks: token.Token[64] = ---
+    let n = tokenize("f(1,   # note:\n  2)\n", toks) catch failure: recover 0
+    assert(n == 7)

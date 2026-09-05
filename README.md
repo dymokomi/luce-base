@@ -29,8 +29,10 @@ export LUCB=../luce-seed/build/lucb   # or wherever lucb is
 
 ## Status
 
-Slice 1, the lexer: tokens and layout for the whole Base language (base.md
-§3, §4, §21), with a token dump command. Nothing is parsed yet.
+Slices 1 and 2: the lexer and the parser for the whole Base language
+(base.md §3, §4, §21), with `lex` and `parse` dump commands. Every Base
+file in existence, this compiler's own sources included, parses. Nothing is
+checked yet.
 
 ## License
 

@@ -1,0 +1,261 @@
+## The untyped syntax tree (base.md §21). One `Node` shape for every
+## construct: a kind, a spelling, a span, four child slots, and a sibling
+## link for lists. Nodes come from the current allocator and are never freed
+## individually; a compilation's arena owns them all.
+
+pub enum Kind as u8:
+    module = 1
+    import_ = 2
+    from_import = 3
+    func = 4
+    struct_ = 5
+    enum_ = 6
+    union_ = 7
+    interface = 8
+    type_alias = 9
+    constant = 10
+    global = 11
+    test = 12
+    extern_func = 13
+    extern_type = 14
+    extern_var = 15
+    extern_struct = 16
+    extern_union = 17
+    assert_ = 18
+    asm = 19
+    field = 20
+    enum_case = 21
+    param = 22
+    generic_param = 23
+    attribute = 24
+    block = 30
+    let_ = 31
+    var_ = 32
+    assign = 33
+    if_ = 34
+    while_ = 35
+    for_ = 36
+    match_ = 37
+    match_arm = 38
+    return_ = 39
+    break_ = 40
+    continue_ = 41
+    defer_ = 42
+    errdefer_ = 43
+    recover_ = 44
+    free_ = 45
+    with_ = 46
+    expr_stmt = 47
+    name = 60
+    self_ = 61
+    literal = 62
+    unary = 63
+    binary = 64
+    call = 65
+    member = 66
+    index = 67
+    slice = 68
+    tuple = 69
+    array_lit = 70
+    group = 71
+    lambda = 72
+    conditional = 73
+    else_ = 74
+    catch_ = 75
+    cast = 76
+    case_value = 77
+    formatted = 78
+    format_text = 79
+    format_field = 80
+    new_ = 81
+    alloc = 82
+    span_make = 83
+    match_expr = 84
+    unit = 85
+    type_ = 90
+    pattern = 91
+    argument = 92
+
+## Flags on a node; which ones apply depends on the kind.
+pub let flag_pub: u32 = 1
+pub let flag_mutating: u32 = 2
+pub let flag_static: u32 = 4
+pub let flag_export: u32 = 8
+pub let flag_packed: u32 = 16
+pub let flag_thread_local: u32 = 32
+pub let flag_uninit: u32 = 64
+pub let flag_const: u32 = 128
+pub let flag_volatile: u32 = 256
+pub let flag_atomic: u32 = 512
+pub let flag_optional: u32 = 1024
+pub let flag_fallible: u32 = 2048
+pub let flag_by_pointer: u32 = 4096
+pub let flag_noalias: u32 = 8192
+pub let flag_out: u32 = 16384
+pub let flag_blocking: u32 = 32768
+pub let flag_variadic: u32 = 65536
+pub let flag_star: u32 = 131072
+pub let flag_span: u32 = 262144
+pub let flag_array: u32 = 524288
+pub let flag_func_type: u32 = 1048576
+pub let flag_void: u32 = 2097152
+pub let flag_tuple_type: u32 = 4194304
+pub let flag_if_let: u32 = 8388608
+pub let flag_wildcard: u32 = 16777216
+
+pub struct Node:
+    var kind: Kind
+    ## The spelling that matters: a name, a literal, an operator, a label.
+    var text: str
+    var start: usize
+    var end: usize
+    var line: u32
+    var flags: u32
+    var left: Node*?
+    var right: Node*?
+    var body: Node*?
+    var ty: Node*?
+    var next: Node*?
+
+    pub static func make(kind: Kind, text: str, start: usize, line: u32) -> Node*!:
+        return try new Node(kind = kind, text = text, start = start, end = start, line = line,
+                            flags = 0, left = none, right = none, body = none, ty = none, next = none)
+
+    pub func has(flag: u32) -> bool:
+        return (self.flags & flag) != 0
+
+## Append `item` to the sibling list at `list`, keeping `tail` current so a
+## long list costs nothing per append.
+pub func append(list: Node*?*, tail: Node*?*, item: Node*):
+    item.next = none
+    if let last = *tail:
+        last.next = item
+    else:
+        *list = item
+    *tail = item
+
+pub func count(list: Node*?) -> usize:
+    var n: usize = 0
+    var cursor = list
+    while let node = cursor:
+        n += 1
+        cursor = node.next
+    return n
+
+## The kind as it prints in a dump.
+pub func kind_name(kind: Kind) -> str:
+    match kind:
+        .module: return "module"
+        .import_: return "import"
+        .from_import: return "from_import"
+        .func: return "func"
+        .struct_: return "struct"
+        .enum_: return "enum"
+        .union_: return "union"
+        .interface: return "interface"
+        .type_alias: return "type_alias"
+        .constant: return "constant"
+        .global: return "global"
+        .test: return "test"
+        .extern_func: return "extern_func"
+        .extern_type: return "extern_type"
+        .extern_var: return "extern_var"
+        .extern_struct: return "extern_struct"
+        .extern_union: return "extern_union"
+        .assert_: return "assert"
+        .asm: return "asm"
+        .field: return "field"
+        .enum_case: return "enum_case"
+        .param: return "param"
+        .generic_param: return "generic_param"
+        .attribute: return "attribute"
+        .block: return "block"
+        .let_: return "let"
+        .var_: return "var"
+        .assign: return "assign"
+        .if_: return "if"
+        .while_: return "while"
+        .for_: return "for"
+        .match_: return "match"
+        .match_arm: return "arm"
+        .return_: return "return"
+        .break_: return "break"
+        .continue_: return "continue"
+        .defer_: return "defer"
+        .errdefer_: return "errdefer"
+        .recover_: return "recover"
+        .free_: return "free"
+        .with_: return "with"
+        .expr_stmt: return "expr"
+        .name: return "name"
+        .self_: return "self"
+        .literal: return "literal"
+        .unary: return "unary"
+        .binary: return "binary"
+        .call: return "call"
+        .member: return "member"
+        .index: return "index"
+        .slice: return "slice"
+        .tuple: return "tuple"
+        .array_lit: return "array"
+        .group: return "group"
+        .lambda: return "lambda"
+        .conditional: return "conditional"
+        .else_: return "else"
+        .catch_: return "catch"
+        .cast: return "cast"
+        .case_value: return "case"
+        .formatted: return "formatted"
+        .format_text: return "format_text"
+        .format_field: return "format_field"
+        .new_: return "new"
+        .alloc: return "alloc"
+        .span_make: return "span_make"
+        .match_expr: return "match_expr"
+        .unit: return "unit"
+        .type_: return "type"
+        .pattern: return "pattern"
+        .argument: return "argument"
+        _: return "?"
+
+## Print `node` and everything under it as nested s-expressions.
+pub func dump(out: Writer, node: Node*?, depth: u32) -> !:
+    var cursor = node
+    while let n = cursor:
+        var i: u32 = 0
+        while i < depth:
+            try out.write("  ")
+            i += 1
+        try out.write("(")
+        try out.write(kind_name(n.kind))
+        if n.text.length > 0:
+            try out.write(f" {n.text}")
+        if n.flags != 0:
+            try out.write(f" #{n.flags}")
+        let children = n.left != none or n.right != none or n.body != none or n.ty != none
+        if children:
+            try out.write("\n")
+            try dump(out, n.ty, depth + 1)
+            try dump(out, n.left, depth + 1)
+            try dump(out, n.right, depth + 1)
+            try dump(out, n.body, depth + 1)
+            i = 0
+            while i < depth:
+                try out.write("  ")
+                i += 1
+        try out.write(")\n")
+        cursor = n.next
+
+test "append keeps order and count":
+    var backing: u8[1024]
+    var arena = FixedBuffer.over(backing)
+    with arena:
+        var list: Node*? = none
+        var tail: Node*? = none
+        let a = try Node.make(Kind.name, "a", 0, 1)
+        append(&list, &tail, a)
+        let b = try Node.make(Kind.name, "b", 1, 1)
+        append(&list, &tail, b)
+        assert(count(list) == 2)
+        assert(a.next != none)
+        assert(b.next == none)
