@@ -103,6 +103,33 @@ let seeded: u32 = 31
 pub func is_distinct_c(id: u32) -> bool:
     return id >= c_char_id and id <= c_va_list_id
 
+## Every bucket empty.
+func zero_index(index: u32[]):
+    var i: usize = 0
+    while i < index.length:
+        index[i] = 0
+        i += 1
+
+## A hash of what `same_type` compares: the structure, and the name where it counts.
+func structure_hash(t: Type) -> u64:
+    var h = mix(0x9e3779b97f4a7c15, (u64)t.kind)
+    h = mix(h, (u64)t.elem)
+    h = mix(h, t.length)
+    h = mix(h, (1 if t.is_const else 0) | (2 if t.is_volatile else 0) | (4 if t.variadic else 0))
+    if let d = t.decl:
+        h = mix(h, (u64)(usize)d)
+    for arg in t.args:
+        h = mix(h, (u64)arg)
+    if t.decl == none or t.kind == Kind.param:
+        for byte in t.name.bytes:
+            h = mix(h, (u64)byte)
+    return h
+
+func mix(h: u64, x: u64) -> u64:
+    var r = h ^ x
+    r = r *% 11400714819323198485
+    return r ^ (r >> 29)
+
 # mark: The type record ========================================================================
 
 pub struct Type:
@@ -126,9 +153,13 @@ pub struct Type:
 
 pub struct Table:
     var types: list.List[Type]
+    ## An open-addressing index from a type's structure to its id + 1 (0 marks an empty
+    ## bucket), so `intern` is a lookup rather than a scan over every type so far.
+    var index: u32[]
 
     pub static func create() -> Table!:
-        var t = Table(types = try list.List[Type].create(256))
+        var t = Table(types = try list.List[Type].create(256), index = try alloc u32[1024])
+        zero_index(t.index)
         # id 0 is "no type"; the scalars follow in Kind order
         let seeds: Kind[31] = [Kind.error_, Kind.error_, Kind.never_, Kind.unit_, Kind.bool_, Kind.i8_, Kind.i16_, Kind.i32_, Kind.i64_, Kind.isize_, Kind.u8_, Kind.u16_, Kind.u32_, Kind.u64_, Kind.usize_, Kind.f32_, Kind.f64_, Kind.char_, Kind.str_, Kind.cstr_, Kind.fmt_, Kind.void_, Kind.untyped_int, Kind.untyped_float, Kind.error_code, Kind.error_value, Kind.i8_, Kind.i64_, Kind.u64_, Kind.i32_, Kind.pointer]
         let names: str[31] = ["", "<error>", "never", "unit", "bool", "i8", "i16", "i32", "i64", "isize", "u8", "u16", "u32", "u64", "usize", "f32", "f64", "char", "str", "c.str", "fmt", "void", "<integer>", "<float>", "ErrorCode", "Error", "c.char", "c.long", "c.ulong", "c.wchar", "c.va_list"]
@@ -137,6 +168,10 @@ pub struct Table:
             # `c.va_list` is a pointer-sized opaque value on the supported targets
             let elem = void_id if i == (usize)c_va_list_id else 0
             try t.types.push(Type(kind = seeds[i], elem = elem, args = try no_args(), length = 0, is_const = false, is_volatile = false, variadic = false, decl = none, name = names[i]))
+            i += 1
+        i = 0
+        while i < t.types.count:
+            t.index_add(u32(i))
             i += 1
         return t
 
@@ -162,20 +197,48 @@ pub struct Table:
     ## The id of a type equal to `t`, adding it when new. Nominal types with a
     ## declaration compare by declaration and type arguments.
     pub mutating func intern(t: Type) -> u32!:
-        var i: usize = seeded
-        let n = self.types.count
-        while i < n:
-            let have = self.types.get(i)
-            if have.kind == t.kind and have.elem == t.elem and have.length == t.length and have.is_const == t.is_const and have.is_volatile == t.is_volatile and have.variadic == t.variadic and have.decl == t.decl and self.same_args(have.args, t.args):
-                # a generic parameter is its own type: same declaration, same name
-                if t.kind == Kind.param:
-                    if have.name == t.name:
-                        return u32(i)
-                elif have.decl != none or have.name == t.name:
-                    return u32(i)
-            i += 1
+        let mask = self.index.length - 1
+        var at = (usize)structure_hash(t) & mask
+        while self.index[at] != 0:
+            let id = self.index[at] - 1
+            if id >= seeded and self.same_type(self.types.get((usize)id), t):
+                return id
+            at = (at + 1) & mask
+        let id = u32(self.types.count)
         try self.types.push(t)
-        return u32(n)
+        if self.types.count * 2 > self.index.length:
+            try self.grow_index()
+        else:
+            self.index_add(id)
+        return id
+
+    ## Whether `have` is the type `t` describes: the same structure, and for a generic
+    ## parameter, which is its own type, or a type without a declaration, the same name.
+    func same_type(have: Type, t: Type) -> bool:
+        if have.kind != t.kind or have.elem != t.elem or have.length != t.length or have.is_const != t.is_const or have.is_volatile != t.is_volatile or have.variadic != t.variadic or have.decl != t.decl or not self.same_args(have.args, t.args):
+            return false
+        if t.kind == Kind.param:
+            return have.name == t.name
+        return have.decl != none or have.name == t.name
+
+    ## Put type `id` into the first empty bucket on its hash's probe path.
+    mutating func index_add(id: u32):
+        let mask = self.index.length - 1
+        var at = (usize)structure_hash(self.types.get((usize)id)) & mask
+        while self.index[at] != 0:
+            at = (at + 1) & mask
+        self.index[at] = id + 1
+
+    ## Twice the buckets, every type re-added.
+    mutating func grow_index() -> !:
+        let old = self.index
+        self.index = try alloc u32[old.length * 2]
+        zero_index(self.index)
+        var i: usize = 0
+        while i < self.types.count:
+            self.index_add(u32(i))
+            i += 1
+        free(old)
 
     func plain(kind: Kind, elem: u32, name: str) -> Type!:
         return Type(kind = kind, elem = elem, args = try no_args(), length = 0, is_const = false, is_volatile = false, variadic = false, decl = none, name = name)

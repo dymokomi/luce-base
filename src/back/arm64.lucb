@@ -406,9 +406,10 @@ pub struct Generator:
 
     ## Which frame slots live in registers (§19.3 codegen): a slot of 1, 2, 4, or 8 bytes whose
     ## address is taken only to load or store that many bytes at once, in one register class.
-    ## The most-used ones take x19-x24 and d8-d11; the rest of the callee-saved registers stay
-    ## with the temporaries. Frame descriptors need the frame, so `--debug` promotes nothing.
-    mutating func promote() -> !:
+    ## The most-used ones take the first `ints` integer and `floats` float callee-saved
+    ## registers; the rest stay with the temporaries. Frame descriptors need the frame, so
+    ## `--debug` promotes nothing.
+    mutating func promote(ints: u8, floats: u8) -> !:
         self.slot_regs.count = 0
         self.temp_slot.count = 0
         let ns = self.f.slots.count
@@ -477,7 +478,7 @@ pub struct Generator:
                 if vb != 0:
                     kind[(usize)vb - 1] = 3
             ix += 1
-        # the most-used fit slots take the registers: six integer, four float
+        # the most-used fit slots take the registers, up to the budget of each class
         var int_code: u8 = 1
         var float_code: u8 = 11
         while true:
@@ -485,21 +486,21 @@ pub struct Generator:
             var best_uses: u32 = 0
             i = 0
             while i < ns:
-                if self.slot_regs.get(i) == 0 and (kind[i] == 1 or kind[i] == 2) and uses[i] > best_uses:
+                if self.slot_regs.get(i) == 0 and (kind[i] == 1 or kind[i] == 2) and uses[i] >= 2 and uses[i] > best_uses:
                     best = i
                     best_uses = uses[i]
                 i += 1
             if best == ns:
                 break
             if kind[best] == 1:
-                if int_code > 6:
+                if int_code > ints:
                     kind[best] = 3
                     continue
                 self.slot_regs.set(best, int_code)
                 self.used_mask = self.used_mask | (u32)(1 << (u32)(int_code - 1))
                 int_code += 1
             else:
-                if float_code > 14:
+                if float_code > 10 + floats:
                     kind[best] = 3
                     continue
                 self.slot_regs.set(best, float_code)
@@ -534,35 +535,17 @@ pub struct Generator:
             return
         uses[i] += 1
 
-    mutating func allocate() -> !:
-        self.temp_regs.count = 0
+    ## Where each temporary is defined and last used, by instruction index. A temporary
+    ## defined before a loop and used inside it is live across the back-edge: its last use is
+    ## pushed to the loop's bottom. A jump or branch to an earlier label is a back-edge, and one
+    ## forward pass is enough: an inner loop's back-edge comes before its outer loop's, so an
+    ## extension across the inner loop is already in place when the outer one is considered.
+    mutating func live_ranges(def_at: u32[], last_use: u32[]) -> !:
         let n = self.f.temps.count
         var i: usize = 0
         while i < n:
-            try self.temp_regs.push(0)
-            i += 1
-        # the promoted slots' registers are already in the mask; the temporaries add theirs
-        self.used_mask = 0
-        var ps: usize = 0
-        while ps < self.slot_regs.count:
-            let code = self.slot_regs.get(ps)
-            if code != 0:
-                self.used_mask = self.used_mask | (u32)(1 << (u32)(code - 1))
-            ps += 1
-        if n == 0:
-            return
-        var def_at = try alloc u32[n] in memory.heap
-        defer free(def_at) in memory.heap
-        var last_use = try alloc u32[n] in memory.heap
-        defer free(last_use) in memory.heap
-        var eligible = try alloc bool[n] in memory.heap
-        defer free(eligible) in memory.heap
-        i = 0
-        while i < n:
             def_at[i] = 0
             last_use[i] = 0
-            let c = self.f.temp_class(u32(i + 1))
-            eligible[i] = (c == ir.Class.w or c == ir.Class.l or c == ir.Class.s or c == ir.Class.d) and self.promoted_slot(u32(i + 1)) == 0
             i += 1
         # the instruction index each label sits at, for finding loop back-edges
         var label_pos = try alloc u32[(usize)self.f.labels + 1] in memory.heap
@@ -583,11 +566,6 @@ pub struct Generator:
                     self.note_use(self.f.args.get((usize)(info.args_start + k)).value, last_use, u32(ix))
                     k += 1
             ix += 1
-        # a temporary defined before a loop and used inside it is live across the back-edge:
-        # its register must be held to the loop's bottom, not freed at its last textual use.
-        # A jump or branch to an earlier label is a back-edge. One forward pass is enough:
-        # an inner loop's back-edge comes before its outer loop's, so an extension across the
-        # inner loop is already in place when the outer one is considered.
         ix = 0
         while ix < self.f.instrs.count:
             let instr = self.f.instrs.get(ix)
@@ -608,6 +586,73 @@ pub struct Generator:
                             last_use[i2] = u32(ix)
                         i2 += 1
             ix += 1
+
+    ## The most temporaries of each register class live at one point: what the temporaries
+    ## could use of the callee-saved registers, so the promoted slots may take the rest.
+    mutating func pressure(def_at: u32[], last_use: u32[]) -> (u32, u32)!:
+        let n = self.f.temps.count
+        let m = self.f.instrs.count + 2
+        var delta_int = try alloc i32[m] in memory.heap
+        defer free(delta_int) in memory.heap
+        var delta_float = try alloc i32[m] in memory.heap
+        defer free(delta_float) in memory.heap
+        var k: usize = 0
+        while k < m:
+            delta_int[k] = 0
+            delta_float[k] = 0
+            k += 1
+        var i: usize = 0
+        while i < n:
+            if last_use[i] > def_at[i]:
+                let c = self.f.temp_class(u32(i + 1))
+                if c == ir.Class.s or c == ir.Class.d:
+                    delta_float[(usize)def_at[i]] += 1
+                    delta_float[(usize)last_use[i] + 1] -= 1
+                elif c == ir.Class.w or c == ir.Class.l:
+                    delta_int[(usize)def_at[i]] += 1
+                    delta_int[(usize)last_use[i] + 1] -= 1
+            i += 1
+        var ints: i32 = 0
+        var floats: i32 = 0
+        var live_int: i32 = 0
+        var live_float: i32 = 0
+        k = 0
+        while k < m:
+            live_int += delta_int[k]
+            live_float += delta_float[k]
+            if live_int > ints:
+                ints = live_int
+            if live_float > floats:
+                floats = live_float
+            k += 1
+        return ((u32)ints, (u32)floats)
+
+    ## Give each temporary a callee-saved register by linear scan over its live range, from
+    ## `live_ranges`; when a class's pool is full, the temporary living longest is spilled.
+    mutating func allocate(def_at: u32[], last_use: u32[]) -> !:
+        self.temp_regs.count = 0
+        let n = self.f.temps.count
+        var i: usize = 0
+        while i < n:
+            try self.temp_regs.push(0)
+            i += 1
+        # the promoted slots' registers are already in the mask; the temporaries add theirs
+        self.used_mask = 0
+        var ps: usize = 0
+        while ps < self.slot_regs.count:
+            let code = self.slot_regs.get(ps)
+            if code != 0:
+                self.used_mask = self.used_mask | (u32)(1 << (u32)(code - 1))
+            ps += 1
+        if n == 0:
+            return
+        var eligible = try alloc bool[n] in memory.heap
+        defer free(eligible) in memory.heap
+        i = 0
+        while i < n:
+            let c = self.f.temp_class(u32(i + 1))
+            eligible[i] = (c == ir.Class.w or c == ir.Class.l or c == ir.Class.s or c == ir.Class.d) and self.promoted_slot(u32(i + 1)) == 0
+            i += 1
         # two register pools, integer codes 1..10 (x19..x28) and float codes 11..18 (d8..d15)
         var reg_temp: u32[19] = ---
         var c: usize = 0
@@ -621,7 +666,7 @@ pub struct Generator:
             if code != 0:
                 reg_temp[(usize)code] = held
             pk += 1
-        ix = 0
+        var ix: usize = 0
         while ix < self.f.instrs.count:
             c = 1
             while c <= 18:
@@ -664,7 +709,7 @@ pub struct Generator:
 
     ## Copy `size` bytes from [x10] to [x11] with plain loads and stores: 16 at a time, then
     ## 8, 4, 2, 1. The addresses are records in frames or fields, so unaligned access is fine
-    ## on arm64; a copy this small is cheaper inline than as a call.
+    ## on arm64; a copy of up to 128 bytes is cheaper inline than as a call.
     mutating func inline_copy(size: u64) -> !:
         var done: u64 = 0
         while size - done >= 16:
@@ -797,11 +842,24 @@ pub struct Generator:
             if last_use[(usize)r.index - 1] < ix:
                 last_use[(usize)r.index - 1] = ix
 
+    ## Split the callee-saved registers between promoted slots and temporaries: the
+    ## temporaries keep as many as they can use at once, up to four of each class, and the
+    ## most-used frame slots take the rest of the ten integer and eight float registers.
+    mutating func plan_registers() -> !:
+        let nt = self.f.temps.count
+        var def_at = try alloc u32[nt if nt > 0 else 1] in memory.heap
+        defer free(def_at) in memory.heap
+        var last_use = try alloc u32[nt if nt > 0 else 1] in memory.heap
+        defer free(last_use) in memory.heap
+        try self.live_ranges(def_at, last_use)
+        let (ints, floats) = try self.pressure(def_at, last_use)
+        try self.promote(slot_budget(ints, 10), slot_budget(floats, 8))
+        try self.allocate(def_at, last_use)
+
     mutating func function(index: usize) -> !:
         self.index = index
         self.f = &self.program_unit.functions.items[index]
-        try self.promote()
-        try self.allocate()
+        try self.plan_registers()
         try self.layout()
         if self.f.section.length > 0:
             try self.put("\n    .section ")
@@ -1126,7 +1184,7 @@ pub struct Generator:
                 try self.line("blr x16")
                 try self.store_temp("x0", n.dst)
             .blit:
-                if n.extra <= 64:
+                if n.extra <= 128:
                     # a record copy: loads and stores in place of a call
                     try self.address_operand("x10", n.b)
                     try self.address_operand("x11", n.a)
@@ -1137,7 +1195,7 @@ pub struct Generator:
                     try self.load_immediate("x2", (i64)n.extra)
                     try self.line("bl _memcpy")
             .zero:
-                if n.extra <= 64:
+                if n.extra <= 128:
                     try self.address_operand("x11", n.a)
                     try self.inline_zero((u64)n.extra)
                 else:
@@ -1828,6 +1886,11 @@ pub struct Generator:
         try self.put("\"")
 
 # mark: Helpers ================================================================================
+
+## How many of a class's `pool` callee-saved registers the promoted slots may take when the
+## temporaries need `pressure` at once: the temporaries keep up to four.
+func slot_budget(pressure: u32, pool: u32) -> u8:
+    return (u8)(pool - (pressure if pressure < 4 else 4))
 
 ## The callee-saved registers the allocator hands out: codes 1..10 are x19..x28, codes
 ## 11..18 are d8..d15, viewed as w/s where a narrower access asks for it.
