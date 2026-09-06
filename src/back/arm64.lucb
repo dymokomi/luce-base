@@ -972,7 +972,7 @@ pub struct Generator:
                     try self.put_u64((u64)p.first)
                     try self.put(", [x9]")
                     if p.count == 2:
-                        try self.line("ldr x")
+                        try self.line("ldr x" if a.size > 12 else "ldr w")
                         try self.put_u64((u64)p.first + 1)
                         try self.put(", [x9, #8]")
             elif p.where == 3:
@@ -1021,10 +1021,14 @@ pub struct Generator:
                 k += 1
             return
         if info.result_size <= 16:
+            # the second word is stored only as far as the value reaches, so a slot of
+            # twelve bytes does not lose its neighbour
             try self.frame_address("x16", home)
             try self.line("str x0, [x16]")
-            if info.result_size > 8:
+            if info.result_size > 12:
                 try self.line("str x1, [x16, #8]")
+            elif info.result_size > 8:
+                try self.line("str w1, [x16, #8]")
 
     ## The wide name of a class's first scratch register for a stack store.
     func wide(cls: ir.Class, n: u32) -> str:
@@ -1061,8 +1065,10 @@ pub struct Generator:
             elif self.f.result_size <= 16:
                 try self.address_operand("x9", n.a)
                 try self.line("ldr x0, [x9]")
-                if self.f.result_size > 8:
+                if self.f.result_size > 12:
                     try self.line("ldr x1, [x9, #8]")
+                elif self.f.result_size > 8:
+                    try self.line("ldr w1, [x9, #8]")
             else:
                 try self.address_operand("x1", n.a)
                 try self.frame_address("x16", self.indirect_home)

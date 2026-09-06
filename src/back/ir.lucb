@@ -265,7 +265,9 @@ pub struct Function:
     pub func temp_class(index: u32) -> Class:
         return self.temps.get((usize)index - 1)
 
-    pub mutating func slot(size: u32, align: u32) -> u32!:
+    pub mutating func slot(wanted: u32, align: u32) -> u32!:
+        # an aggregate that travels in two registers lands as two words
+        let size = 16 if wanted > 8 and wanted < 16 else wanted
         try self.slots.push(Slot(size = size if size > 0 else 1, align = align if align > 0 else 1))
         return u32(self.slots.count - 1)
 
