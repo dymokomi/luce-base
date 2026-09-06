@@ -1,0 +1,268 @@
+## The terminal: raw mode, its size, keys decoded from the byte stream, and
+## a buffered writer for the escape sequences the screen is drawn with.
+
+import strings
+
+extern func tcgetattr(descriptor: i32, state: Termios*) -> i32
+extern func tcsetattr(descriptor: i32, action: i32, state: const Termios*) -> i32
+extern func ioctl(descriptor: i32, request: u64, ...) -> i32
+extern func isatty(descriptor: i32) -> i32
+extern func c_read as "read"(descriptor: i32, buffer: void*, count: usize) -> isize
+extern func c_write as "write"(descriptor: i32, buffer: const void*, count: usize) -> isize
+
+## `struct termios` as arm64-macos lays it out.
+extern struct Termios:
+    input: u64
+    output: u64
+    control: u64
+    local: u64
+    control_chars: u8[20]
+    input_speed: u64
+    output_speed: u64
+
+extern struct WindowSize:
+    rows: u16
+    columns: u16
+    x_pixels: u16
+    y_pixels: u16
+
+let echo: u64 = 8
+let canonical: u64 = 256
+let signals: u64 = 128
+let extended: u64 = 1024
+let xon: u64 = 512
+let cr_to_nl: u64 = 256
+let post_process: u64 = 1
+let minimum_index: usize = 16
+let timeout_index: usize = 17
+let flush_then_set: i32 = 2
+let window_size_request: u64 = 1074295912
+
+pub let failed: ErrorCode = ErrorCode.package(1)
+
+## What one key press means to the editor.
+pub enum Key:
+    none_
+    character(byte: u8)
+    control(letter: u8)
+    enter
+    backspace
+    escape
+    up
+    down
+    left
+    right
+    home
+    end_
+    page_up
+    page_down
+    delete
+    word_left
+    word_right
+
+pub struct Terminal:
+    var saved: Termios
+    var raw: bool
+    pub var rows: usize
+    pub var columns: usize
+    var out: u8[8192]
+    var used: usize
+
+    pub static func open() -> Terminal!:
+        var t: Terminal = ---
+        t.raw = false
+        t.rows = 24
+        t.columns = 80
+        t.used = 0
+        if isatty(0) == 0:
+            return t
+        if tcgetattr(0, &t.saved) != 0:
+            error(failed, "not a terminal")
+        var state = t.saved
+        state.input = state.input & ~(xon | cr_to_nl)
+        state.output = state.output & ~post_process
+        state.local = state.local & ~(echo | canonical | signals | extended)
+        state.control_chars[minimum_index] = 1
+        state.control_chars[timeout_index] = 0
+        if tcsetattr(0, flush_then_set, &state) != 0:
+            error(failed, "cannot enter raw mode")
+        t.raw = true
+        t.measure()
+        return t
+
+    pub mutating func close():
+        if self.raw:
+            self.put("\x1b[2J\x1b[H")
+            self.flush()
+            discard(tcsetattr(0, flush_then_set, &self.saved))
+            self.raw = false
+
+    pub mutating func measure():
+        var size = WindowSize(rows = 0, columns = 0, x_pixels = 0, y_pixels = 0)
+        if ioctl(1, window_size_request, &size) == 0 and size.rows > 0 and size.columns > 0:
+            self.rows = (usize)size.rows
+            self.columns = (usize)size.columns
+
+    ## Buffered output; `flush` writes it in one go so the screen never tears.
+    pub mutating func put(text: str):
+        self.put_bytes(text.bytes)
+
+    pub mutating func put_bytes(data: const u8[]):
+        var i: usize = 0
+        while i < data.length:
+            if self.used == self.out.length:
+                self.flush()
+            self.out[self.used] = data[i]
+            self.used += 1
+            i += 1
+
+    pub mutating func flush():
+        var sent: usize = 0
+        while sent < self.used:
+            let n = c_write(1, &self.out[sent], self.used - sent)
+            if n <= 0:
+                break
+            sent += (usize)n
+        self.used = 0
+
+    ## The next key, blocking; escape sequences are read as a unit.
+    pub func read_key() -> Key:
+        var byte: u8[1]
+        if c_read(0, &byte[0], 1) != 1:
+            return Key.control(letter = 'Q')
+        return decode(byte[0], &self)
+
+    func read_byte() -> u8?:
+        var byte: u8[1]
+        if c_read(0, &byte[0], 1) != 1:
+            return none
+        return byte[0]
+
+## A key from its first byte, pulling the rest of an escape sequence from `source`.
+func decode(first: u8, source: const Terminal*) -> Key:
+    if first == 13 or first == 10:
+        return Key.enter
+    if first == 127 or first == 8:
+        return Key.backspace
+    if first == 27:
+        let second = source.read_byte() else return Key.escape
+        if second == '[':
+            let third = source.read_byte() else return Key.escape
+            match third:
+                'A': return Key.up
+                'B': return Key.down
+                'C': return Key.right
+                'D': return Key.left
+                'H': return Key.home
+                'F': return Key.end_
+                '1':
+                    # `ESC [ 1 ; 5 C` is control-right, `ESC [ 1 ~` is home
+                    let fourth = source.read_byte() else return Key.escape
+                    if fourth == '~':
+                        return Key.home
+                    if fourth == ';':
+                        discard(source.read_byte())
+                        let last = source.read_byte() else return Key.escape
+                        if last == 'C':
+                            return Key.word_right
+                        if last == 'D':
+                            return Key.word_left
+                    return Key.escape
+                '3':
+                    discard(source.read_byte())
+                    return Key.delete
+                '4':
+                    discard(source.read_byte())
+                    return Key.end_
+                '5':
+                    discard(source.read_byte())
+                    return Key.page_up
+                '6':
+                    discard(source.read_byte())
+                    return Key.page_down
+                _: return Key.escape
+        if second == 'O':
+            let third = source.read_byte() else return Key.escape
+            if third == 'H':
+                return Key.home
+            if third == 'F':
+                return Key.end_
+            return Key.escape
+        if second == 'b':
+            return Key.word_left
+        if second == 'f':
+            return Key.word_right
+        return Key.escape
+    if first < 32:
+        return Key.control(letter = first + 64)
+    return Key.character(byte = first)
+
+## Keys spelled in a replay script: `^S` is control-S, `\n` enter, `\b` backspace,
+## `\e` escape, `<up>` and the like are the named keys, `\\` and `\^` are literal.
+pub struct Script:
+    var text: str
+    var at: usize
+
+    pub static func over(text: str) -> Script:
+        return Script(text = text, at = 0)
+
+    pub mutating func next() -> Key?:
+        let b = self.text.bytes
+        if self.at >= b.length:
+            return none
+        let c = b[self.at]
+        self.at += 1
+        if c == '^' and self.at < b.length:
+            let letter = b[self.at]
+            self.at += 1
+            return Key.control(letter = letter - 32 if letter >= 'a' and letter <= 'z' else letter)
+        if c == '\\' and self.at < b.length:
+            let code = b[self.at]
+            self.at += 1
+            if code == 'n':
+                return Key.enter
+            if code == 'b':
+                return Key.backspace
+            if code == 'e':
+                return Key.escape
+            if code == 't':
+                return Key.character(byte = 9)
+            return Key.character(byte = code)
+        if c == '<':
+            let rest = (str)b[self.at..]
+            let close = strings.find(rest, ">") else return Key.character(byte = c)
+            let name = (str)rest.bytes[..<close]
+            self.at += close + 1
+            return named(name)
+        if c == '\n':
+            return self.next()
+        return Key.character(byte = c)
+
+func named(name: str) -> Key:
+    if name == "up": return Key.up
+    if name == "down": return Key.down
+    if name == "left": return Key.left
+    if name == "right": return Key.right
+    if name == "home": return Key.home
+    if name == "end": return Key.end_
+    if name == "pageup": return Key.page_up
+    if name == "pagedown": return Key.page_down
+    if name == "delete": return Key.delete
+    if name == "wordleft": return Key.word_left
+    if name == "wordright": return Key.word_right
+    return Key.escape
+
+test "a script spells keys":
+    var script = Script.over("a^S\\n<up>\\\\<end>")
+    var keys: Key[8]
+    var n: usize = 0
+    while let key = script.next():
+        keys[n] = key
+        n += 1
+    assert(n == 6)
+    assert(keys[0] == Key.character(byte = 'a'))
+    assert(keys[1] == Key.control(letter = 'S'))
+    assert(keys[2] == Key.enter)
+    assert(keys[3] == Key.up)
+    assert(keys[4] == Key.character(byte = '\\'))
+    assert(keys[5] == Key.end_)

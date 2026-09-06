@@ -1,0 +1,280 @@
+## The text of one file as a gap buffer of bytes, with a cursor that is a byte
+## offset, and the line arithmetic an editor needs over it.
+
+pub struct Buffer:
+    var data: u8[]
+    var gap_start: usize
+    var gap_end: usize
+    pub var cursor: usize
+    pub var dirty: bool
+
+    pub static func create(text: const u8[]) -> Buffer!:
+        let room = text.length + 256
+        var data = try alloc u8[room]
+        memory.copy(data, text, text.length)
+        return Buffer(data = data, gap_start = text.length, gap_end = room, cursor = 0, dirty = false)
+
+    pub mutating func destroy():
+        free(self.data)
+
+    pub func length() -> usize:
+        return self.data.length - (self.gap_end - self.gap_start)
+
+    pub func at(index: usize) -> u8:
+        if index < self.gap_start:
+            return self.data[index]
+        return self.data[index + (self.gap_end - self.gap_start)]
+
+    ## The whole text, contiguous, in a block the caller frees.
+    pub func copy() -> u8[]!:
+        let n = self.length()
+        var out = try alloc u8[n if n > 0 else 1]
+        memory.copy(out, self.data[..<self.gap_start], self.gap_start)
+        memory.copy(out[self.gap_start..], self.data[self.gap_end..], self.data.length - self.gap_end)
+        return out[..<n]
+
+    ## Bytes `[start, end)` into `out`, which must be long enough.
+    pub func slice(start: usize, end: usize, out: u8[]) -> u8[]:
+        var i = start
+        var n: usize = 0
+        while i < end and n < out.length:
+            out[n] = self.at(i)
+            i += 1
+            n += 1
+        return out[..<n]
+
+    mutating func move_gap(to: usize) -> !:
+        if to == self.gap_start:
+            return
+        let width = self.gap_end - self.gap_start
+        if to < self.gap_start:
+            let count = self.gap_start - to
+            memory.move(self.data[to + width..<self.gap_end], self.data[to..<self.gap_start], count)
+        else:
+            let count = to - self.gap_start
+            memory.move(self.data[self.gap_start..], self.data[self.gap_end..<self.gap_end + count], count)
+        self.gap_start = to
+        self.gap_end = to + width
+
+    mutating func reserve(extra: usize) -> !:
+        if self.gap_end - self.gap_start >= extra:
+            return
+        let needed = self.length() + extra + 1024
+        var grown = try alloc u8[needed]
+        memory.copy(grown, self.data[..<self.gap_start], self.gap_start)
+        let tail = self.data.length - self.gap_end
+        memory.copy(grown[needed - tail..], self.data[self.gap_end..], tail)
+        free(self.data)
+        self.data = grown
+        self.gap_end = needed - tail
+
+    pub mutating func insert(at: usize, text: const u8[]) -> !:
+        try self.reserve(text.length)
+        try self.move_gap(at)
+        memory.copy(self.data[self.gap_start..], text, text.length)
+        self.gap_start += text.length
+        if self.cursor >= at:
+            self.cursor += text.length
+        self.dirty = true
+
+    pub mutating func remove(start: usize, end: usize) -> !:
+        if end <= start:
+            return
+        try self.move_gap(start)
+        self.gap_end += end - start
+        if self.cursor >= end:
+            self.cursor -= end - start
+        elif self.cursor > start:
+            self.cursor = start
+        self.dirty = true
+
+    ## Replace everything, for undo.
+    pub mutating func reset(text: const u8[], cursor: usize) -> !:
+        try self.remove(0, self.length())
+        try self.insert(0, text)
+        self.cursor = cursor if cursor <= text.length else text.length
+
+    # -- lines ------------------------------------------------------------------------
+
+    pub func line_start(at: usize) -> usize:
+        var i = at
+        while i > 0 and self.at(i - 1) != '\n':
+            i -= 1
+        return i
+
+    pub func line_end(at: usize) -> usize:
+        var i = at
+        let n = self.length()
+        while i < n and self.at(i) != '\n':
+            i += 1
+        return i
+
+    pub func line_of(at: usize) -> usize:
+        var count: usize = 0
+        var i: usize = 0
+        while i < at:
+            if self.at(i) == '\n':
+                count += 1
+            i += 1
+        return count
+
+    pub func count_lines() -> usize:
+        return self.line_of(self.length()) + 1
+
+    ## The offset where line `index` starts, clamped to the last line.
+    pub func line_at(index: usize) -> usize:
+        var i: usize = 0
+        var line: usize = 0
+        let n = self.length()
+        while line < index and i < n:
+            if self.at(i) == '\n':
+                line += 1
+            i += 1
+        return i
+
+    ## Columns count Unicode scalars, so a multi-byte character is one column.
+    pub func column_of(at: usize) -> usize:
+        var i = self.line_start(at)
+        var column: usize = 0
+        while i < at:
+            if (self.at(i) & 192) != 128:
+                column += 1
+            i += 1
+        return column
+
+    pub func at_column(start: usize, column: usize) -> usize:
+        var i = start
+        let end = self.line_end(start)
+        var seen: usize = 0
+        while i < end:
+            if (self.at(i) & 192) != 128:
+                if seen == column:
+                    return i
+                seen += 1
+            i += 1
+        return end
+
+    ## One scalar back or forward from `at`.
+    pub func previous_boundary(at: usize) -> usize:
+        if at == 0:
+            return 0
+        var i = at - 1
+        while i > 0 and (self.at(i) & 192) == 128:
+            i -= 1
+        return i
+
+    pub func next_boundary(at: usize) -> usize:
+        let n = self.length()
+        if at >= n:
+            return n
+        var i = at + 1
+        while i < n and (self.at(i) & 192) == 128:
+            i += 1
+        return i
+
+    pub func previous_word(at: usize) -> usize:
+        var i = at
+        while i > 0 and not is_word(self.at(i - 1)):
+            i -= 1
+        while i > 0 and is_word(self.at(i - 1)):
+            i -= 1
+        return i
+
+    pub func next_word(at: usize) -> usize:
+        var i = at
+        let n = self.length()
+        while i < n and is_word(self.at(i)):
+            i += 1
+        while i < n and not is_word(self.at(i)):
+            i += 1
+        return i
+
+    ## The offset of `needle` at or after `start`, wrapping to the beginning once.
+    pub func find(needle: const u8[], start: usize) -> usize?:
+        let n = self.length()
+        if needle.length == 0 or needle.length > n:
+            return none
+        var pass: usize = 0
+        while pass < 2:
+            var i = start if pass == 0 else 0
+            let stop = n - needle.length + 1 if pass == 0 else (start if start + needle.length <= n else n - needle.length + 1)
+            while i < stop:
+                var k: usize = 0
+                while k < needle.length and self.at(i + k) == needle[k]:
+                    k += 1
+                if k == needle.length:
+                    return i
+                i += 1
+            pass += 1
+        return none
+
+    ## The indentation of the line at `at`: its leading spaces, as a count.
+    pub func indentation(at: usize) -> usize:
+        var i = self.line_start(at)
+        var count: usize = 0
+        while i < self.length() and self.at(i) == ' ':
+            count += 1
+            i += 1
+        return count
+
+pub func is_word(byte: u8) -> bool:
+    return (byte >= 'a' and byte <= 'z') or (byte >= 'A' and byte <= 'Z') or (byte >= '0' and byte <= '9') or byte == '_' or byte >= 128
+
+test "insert and remove around the gap":
+    var b = try Buffer.create("hello".bytes)
+    defer b.destroy()
+    try b.insert(5, " world".bytes)
+    try b.insert(0, "oh, ".bytes)
+    let copy = try b.copy()
+    defer free(copy)
+    assert((str)copy == "oh, hello world")
+    try b.remove(0, 4)
+    try b.remove(5, 6)
+    let again = try b.copy()
+    defer free(again)
+    assert((str)again == "helloworld")
+    assert(b.length() == 10)
+    assert(b.dirty)
+
+test "lines and columns":
+    var b = try Buffer.create("first\nsecond line\n\nlast".bytes)
+    defer b.destroy()
+    assert(b.count_lines() == 4)
+    assert(b.line_at(1) == 6)
+    assert(b.line_at(2) == 18)
+    assert(b.line_at(9) == b.length())
+    assert(b.line_of(8) == 1)
+    assert(b.line_start(8) == 6)
+    assert(b.line_end(8) == 17)
+    assert(b.column_of(8) == 2)
+    assert(b.at_column(6, 3) == 9)
+    assert(b.at_column(6, 99) == 17)
+    assert(b.next_word(0) == 6)
+    assert(b.previous_word(12) == 6)
+    assert(b.indentation(0) == 0)
+
+test "multi-byte characters are one column":
+    var b = try Buffer.create("héllo".bytes)
+    defer b.destroy()
+    assert(b.next_boundary(1) == 3)
+    assert(b.previous_boundary(3) == 1)
+    assert(b.column_of(3) == 2)
+    assert(b.at_column(0, 2) == 3)
+
+test "find wraps around":
+    var b = try Buffer.create("one two one".bytes)
+    defer b.destroy()
+    assert(b.find("one".bytes, 0) == 0)
+    assert(b.find("one".bytes, 1) == 8)
+    assert(b.find("one".bytes, 9) == 0)
+    assert(b.find("three".bytes, 0) == none)
+
+test "a large text grows the buffer":
+    var b = try Buffer.create("".bytes)
+    defer b.destroy()
+    for i in 0..<5000:
+        try b.insert(b.length(), "ab".bytes)
+    assert(b.length() == 10000)
+    try b.remove(0, 9999)
+    assert(b.length() == 1)
+    assert(b.at(0) == 'b')
