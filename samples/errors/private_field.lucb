@@ -1,0 +1,5 @@
+# error: that field is not public
+func f() -> usize:
+    var backing: u8[64]
+    var arena = FixedBuffer.over(backing)
+    return arena.used

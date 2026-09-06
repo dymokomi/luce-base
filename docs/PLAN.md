@@ -7,7 +7,7 @@ unit tests green in the oracle and the binary agreeing on `samples/`.
 | --- | --- | --- |
 | 1. Lexer | tokens, literals, layout, `luce-base lex` | done: every file under `samples/`, the seed's `testdata/`, and this tree tokenizes |
 | 2. Syntax | arena tree, full grammar of §21, `luce-base parse` | done: every Base file we have parses, including this compiler's own sources |
-| 3. Checking | names, types, effects, diagnostics with stable codes | the seed's `check` diagnostics agree on positive and negative programs |
+| 3. Checking | names, types, effects, `luce-base check` | done: every sample and every source of this tree checks; every program under `samples/errors/` is rejected for its stated reason |
 | 4. C backend | checked tree to C, `luce-base build` | this tree's own sources compile and pass their tests through the binary |
 | 5. Self-hosting | B0 (seed) builds B1; B1 builds B2; B2 builds B3 | B2 and B3 are byte-identical; the seed is pinned |
 | 6. Native | one target, arm64-macos, proved against the C backend | every program agrees under both backends |

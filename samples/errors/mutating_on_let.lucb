@@ -1,0 +1,11 @@
+# error: needs a `var` receiver
+struct Counter:
+    var n: i64
+
+    mutating func bump():
+        self.n += 1
+
+func f() -> i64:
+    let c = Counter(n = 0)
+    c.bump()
+    return c.n

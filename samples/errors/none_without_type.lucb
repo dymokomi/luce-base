@@ -1,0 +1,4 @@
+# error: `none` needs a written type
+func f():
+    let missing = none
+    discard(missing)

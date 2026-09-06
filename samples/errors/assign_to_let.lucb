@@ -1,0 +1,5 @@
+# error: cannot assign to a `let`
+func f() -> i64:
+    let count = 1
+    count = 2
+    return count

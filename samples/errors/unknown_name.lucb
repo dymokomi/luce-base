@@ -1,0 +1,6 @@
+# error: unknown name
+func total(values: const i64[]) -> i64:
+    var sum: i64 = 0
+    for v in values:
+        sum += value
+    return sum

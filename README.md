@@ -25,14 +25,17 @@ export LUCB=../luce-seed/build/lucb   # or wherever lucb is
 ./build.sh                            # build/luce-base, the compiler binary
 ./test.sh                             # unit tests through `lucb test`, then the binary on samples/
 ./build/luce-base lex samples/hello.lucb
+./build/luce-base parse samples/hello.lucb
+./build/luce-base check samples/json_parser.lucb   # silence means it checks
 ```
 
 ## Status
 
-Slices 1 and 2: the lexer and the parser for the whole Base language
-(base.md §3, §4, §21), with `lex` and `parse` dump commands. Every Base
-file in existence, this compiler's own sources included, parses. Nothing is
-checked yet.
+Slices 1 to 3: the lexer, the parser, and the checker for the whole Base
+language (base.md §3 to §17, §21), with `lex`, `parse`, and `check`
+commands. Every Base file we have, this compiler's own sources included,
+checks; the programs under `samples/errors/` are rejected for the reasons
+they state. Nothing is emitted yet: slice 4 is the C backend.
 
 ## License
 
