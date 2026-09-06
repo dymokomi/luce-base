@@ -148,7 +148,7 @@ pub enum Op as u8:
     jnz = 102
     ret = 103
     ## `trap a` where `a` names the reason text
-    trap = 104
+    trap_ = 104
     ## `check a < b` else trap "index out of bounds"
     bounds = 105
     ## `arith` variants that trap on overflow: `dst = a op b` with the op in `extra`

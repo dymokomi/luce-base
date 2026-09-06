@@ -613,7 +613,7 @@ pub struct Lowerer:
 
     mutating func trap_with(reason: str) -> !:
         let t = try self.program_unit.text(reason)
-        try self.f.emit(ir.Op.trap, ir.Class.l, 0, ir.text_ref(t), ir.none_ref(), 0)
+        try self.f.emit(ir.Op.trap_, ir.Class.l, 0, ir.text_ref(t), ir.none_ref(), 0)
 
     # mark: Statements =========================================================================
 
@@ -1186,7 +1186,7 @@ pub struct Lowerer:
                 let st = self.elem(try self.ty(e))
                 discard(st)
                 return try self.load_from(p, try self.ty(e))
-            .unit:
+            .unit_:
                 return LowerValue(ref = ir.const_ref(0), type_id = types.unit_id, in_memory = false)
             .group:
                 let inner = e.left else return try self.fail(e, "empty group")

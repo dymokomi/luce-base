@@ -1,5 +1,7 @@
 ## What the checker warns about and removes (§19.6): the program's answer is unchanged.
 import memory
+import io
+from io import Writer
 var hits: i64 = 0
 
 func bump() -> i64:
@@ -12,6 +14,8 @@ func never_called() -> i64:
 pub func main(arguments: str[]) -> i32:
     let unused = 5
     let effect = bump()
+    let out: Writer = io.stdout()
+    discard(out)
     var total: i64 = 40
     if true:
         total += 1

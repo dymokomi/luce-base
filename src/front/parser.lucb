@@ -29,6 +29,8 @@ pub struct Parser:
     var pos: usize
     var scratch: u8[]
     var nest: u32
+    ## The standard modules declare the core names they define (§3.5).
+    pub var allow_core_names: bool
 
     ## Lex the whole source into the current allocator.
     pub static func over(src: source.Source, scratch: u8[]) -> Parser!:
@@ -111,7 +113,7 @@ pub struct Parser:
     pub func fail(what: str) -> ast.Node*!:
         let t = self.cur()
         let half = self.scratch.length // 2
-        let message = try format(self.scratch[..<half], f"{t.line}:{t.column}: {what}")
+        let message = try format(self.scratch[..<half], f"{self.src.path}:{t.line}:{t.column}: {what}")
         error(syntax, message)
 
     func spelled(prefix: str, spelling: str) -> str!:
@@ -145,7 +147,10 @@ pub struct Parser:
     pub mutating func expect_name() -> str!:
         if not self.at(token.Kind.name):
             discard(try self.fail("expected a name"))
-        return self.text_of(self.take())
+        let word = self.text_of(self.take())
+        if token.is_core_name(word) and not self.allow_core_names:
+            discard(try self.fail("this name belongs to the language; a declaration cannot take it (§3.5)"))
+        return word
 
     ## After `.`, a reserved word is an ordinary name; a declaration never takes one.
     mutating func expect_member_name() -> str!:
@@ -1325,7 +1330,7 @@ pub struct Parser:
                     return try self.parse_lambda()
                 discard(self.take())
                 if self.eat_op(")"):
-                    return try self.node(ast.Kind.unit, "")
+                    return try self.node(ast.Kind.unit_, "")
                 let first = try self.parse_expression()
                 if self.at_op(","):
                     let tuple = try self.node(ast.Kind.tuple, "")
@@ -1634,7 +1639,7 @@ test "a syntax error names its position":
     with arena:
         let result = parse_text("func f(:\n", scratch) catch failure:
             where = failure.message
-            recover try ast.Node.make(ast.Kind.unit, "", 0, 0)
+            recover try ast.Node.make(ast.Kind.unit_, "", 0, 0)
         discard(result)
     assert(where == "1:8: expected a name")
 

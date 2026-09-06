@@ -24,6 +24,7 @@ import files
 import front.ast
 import front.parser
 import front.source
+import front.token
 import io
 import memory
 import sema.prelude
@@ -184,7 +185,7 @@ pub struct Checker:
     ## Bind `name` in the innermost scope. Base has no shadowing (§3.5): a local
     ## may not reuse the name of another local, and nothing may reuse a core name.
     mutating func bind(at: ast.Node*, name: str, type_id: u32, decl: ast.Node*?, mutable: bool) -> !:
-        if is_core_name(name) and not self.in_prelude():
+        if token.is_core_name(name) and not self.in_prelude():
             discard(try self.fail(at, "this name belongs to the language"))
         if let existing = self.lookup(name):
             if existing.depth >= 2 or existing.depth == self.depth:
@@ -259,7 +260,7 @@ pub struct Checker:
     ## The reporter for the module being checked.
     mutating func reporter() -> prune.Reporter:
         let m = self.modules.get(self.current)
-        return prune.Reporter(path = m.src.path, src = m.src, warnings = &self.warnings)
+        return prune.Reporter(path = m.src.path, src = m.src, warnings = &self.warnings, silent = m.is_prelude)
 
     ## The binding just made came through import `at`.
     mutating func set_origin(at: ast.Node*):
@@ -268,6 +269,17 @@ pub struct Checker:
         var b = self.scope.get(self.scope.count - 1)
         b.origin = at
         self.scope.set(self.scope.count - 1, b)
+
+    ## The binding of `name` now counts for import `at`.
+    mutating func reassign_origin(name: str, at: ast.Node*):
+        var i = self.scope.count
+        while i > 0:
+            i -= 1
+            var b = self.scope.get(i)
+            if b.name == name:
+                b.origin = at
+                self.scope.set(i, b)
+                return
 
     ## A name was used: the import it came through is referenced (§16.3).
     func note_origin(b: Binding):
@@ -293,6 +305,7 @@ pub struct Checker:
     ## Parse `src` and add it as module `name`.
     pub mutating func add_module(name: str, src: source.Source, is_prelude: bool) -> !:
         var p = try parser.Parser.over(src, self.scratch)
+        p.allow_core_names = is_prelude
         let tree = try p.parse_module()
         tree.text = name
         if is_prelude:
@@ -425,8 +438,13 @@ pub struct Checker:
     mutating func bind_standard() -> !:
         return
 
+    ## Import `at` makes `tree` visible as `alias`. When the name is bound already, a `from`
+    ## import takes the binding over: `import io` beside `from io import Writer` is the
+    ## redundant one, and gets reported as unused.
     mutating func bind_module(tree: ast.Node*, alias: str, at: ast.Node*) -> !:
         if self.lookup(alias) != none:
+            if at.kind == ast.Kind.from_import:
+                self.reassign_origin(alias, at)
             return
         if tree.type_id == types.none_id:
             tree.type_id = try self.table.nominal(types.Kind.module, tree, try types.no_args())
@@ -454,6 +472,8 @@ pub struct Checker:
                 let index = self.find_module(d.text) else return try self.fail(d, "cannot find that module")
                 let other = self.modules.get(index).tree
                 d.resolved = other
+                # `from io import Writer` also makes `io` visible (§16.3)
+                try self.bind_module(other, last_component(d.text), d)
                 var names = d.body
                 while let n = names:
                     let member = find_decl(other, n.text) else return try self.fail(n, "no such public name in that module")
@@ -1197,7 +1217,7 @@ pub struct Checker:
                 if self.self_type == types.none_id:
                     return try self.fail(e, "`self` outside a method")
                 return self.self_type
-            .unit:
+            .unit_:
                 return types.unit_id
             .group:
                 let inner = e.left else return try self.fail(e, "empty group")
@@ -1523,7 +1543,7 @@ pub struct Checker:
         if id == types.untyped_int_id or id == types.untyped_float_id or id == types.none_id:
             return true
         match t.kind:
-            .union_, .interface_, .func_, .span, .module, .fmt, .error_value:
+            .union_, .interface_, .func_, .span, .module, .fmt_, .error_value:
                 return false
             .optional:
                 return true
@@ -3381,11 +3401,6 @@ func is_intrinsic(name: str) -> bool:
             return true
     return false
 
-func is_core_name(name: str) -> bool:
-    if is_intrinsic(name):
-        return true
-    return scalar_id(name) != types.none_id
-
 pub func is_standard_module(name: str) -> bool:
     for p in prelude.modules:
         if p.name == name:
@@ -3402,8 +3417,8 @@ pub func is_float_text(text: str) -> bool:
 ## The bytes a text literal denotes, in the current allocator: delimiters and
 ## prefix removed, CRLF normalised and indentation stripped for triple quotes,
 ## escapes decoded except in raw text (§4.4).
-pub func decode_text(token: str) -> str:
-    var b = token.bytes
+pub func decode_text(spelled: str) -> str:
+    var b = spelled.bytes
     var raw = false
     var is_bytes = false
     if b.length >= 2 and b[0] == 'r' and b[1] == '"':
@@ -3543,8 +3558,8 @@ pub func encode_utf8(cp: u32, out: u8[]) -> usize:
     return 4
 
 ## The scalar value of a character literal.
-pub func decode_char(token: str) -> u32:
-    let b = token.bytes
+pub func decode_char(spelled: str) -> u32:
+    let b = spelled.bytes
     if b.length < 3:
         return 0
     let body = b[1..<b.length - 1]

@@ -1,8 +1,9 @@
-luce-base: samples/warnings.lucb:18:10: warning: this branch never runs: the condition is `true`
-luce-base: samples/warnings.lucb:20:14: warning: this branch never runs: the condition is `false`
-luce-base: samples/warnings.lucb:22:5: warning: this loop never runs: its condition is `false`
-luce-base: samples/warnings.lucb:27:11: warning: unreachable code
-luce-base: samples/warnings.lucb:13:5: warning: unused local `unused`
-luce-base: samples/warnings.lucb:14:5: warning: unused local `effect`
-luce-base: samples/warnings.lucb:9:1: warning: unused function `never_called`
+luce-base: samples/warnings.lucb:22:10: warning: this branch never runs: the condition is `true`
+luce-base: samples/warnings.lucb:24:14: warning: this branch never runs: the condition is `false`
+luce-base: samples/warnings.lucb:26:5: warning: this loop never runs: its condition is `false`
+luce-base: samples/warnings.lucb:31:11: warning: unreachable code
+luce-base: samples/warnings.lucb:15:5: warning: unused local `unused`
+luce-base: samples/warnings.lucb:16:5: warning: unused local `effect`
+luce-base: samples/warnings.lucb:11:1: warning: unused function `never_called`
 luce-base: samples/warnings.lucb:2:1: warning: unused import `memory`
+luce-base: samples/warnings.lucb:3:1: warning: unused import `io`

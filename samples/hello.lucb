@@ -1,6 +1,5 @@
 ## The first sample: a struct, a method, a formatted print.
 
-import io
 from io import Writer
 
 struct Greeter:

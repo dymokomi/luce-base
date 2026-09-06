@@ -158,7 +158,7 @@ pub struct Emitter:
         else:
             try self.globals.put_byte(byte)
 
-    mutating func pad() -> !:
+    mutating func pad_to_column() -> !:
         var i: u32 = 0
         while i < self.indent:
             try self.put("    ")
@@ -167,7 +167,7 @@ pub struct Emitter:
     ## Start a new line at the current indentation and write `text`.
     mutating func line(text: str) -> !:
         try self.put("\n")
-        try self.pad()
+        try self.pad_to_column()
         try self.put(text)
 
     ## A fresh number for a temporary.
@@ -316,39 +316,39 @@ pub struct Emitter:
     mutating func put_type(id: u32) -> !:
         let t = self.c.table.get(id)
         match t.kind:
-            .unit, .never, .void_:
+            .unit_, .never_, .void_:
                 try self.put("void")
             .bool_:
                 try self.put("bool")
-            .i8:
+            .i8_:
                 try self.put("int8_t")
-            .i16:
+            .i16_:
                 try self.put("int16_t")
-            .i32:
+            .i32_:
                 try self.put("int32_t")
-            .i64:
+            .i64_:
                 try self.put("int64_t")
-            .isize:
+            .isize_:
                 try self.put("intptr_t")
-            .u8:
+            .u8_:
                 try self.put("uint8_t")
-            .u16:
+            .u16_:
                 try self.put("uint16_t")
-            .u32:
+            .u32_:
                 try self.put("uint32_t")
-            .u64:
+            .u64_:
                 try self.put("uint64_t")
-            .usize:
+            .usize_:
                 try self.put("size_t")
-            .f32:
+            .f32_:
                 try self.put("float")
-            .f64:
+            .f64_:
                 try self.put("double")
             .char_:
                 try self.put("uint32_t")
-            .str_, .fmt:
+            .str_, .fmt_:
                 try self.put("lb_str")
-            .cstr:
+            .cstr_:
                 try self.put("const char*")
             .error_code:
                 try self.put("uint32_t")
@@ -1975,7 +1975,7 @@ pub struct Emitter:
                 try self.name(e)
             .self_:
                 try self.put("(*self)")
-            .unit:
+            .unit_:
                 try self.put("((void)0)")
             .group:
                 let inner = e.left else return

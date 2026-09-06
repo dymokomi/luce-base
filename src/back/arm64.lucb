@@ -60,6 +60,9 @@ pub struct Generator:
     ## `save_offset[c]` is where that register is spilled on entry.
     var used_mask: u32
     var save_offset: u64[19]
+    ## How far sp is below the frame's bottom while a call sequence has moved it; frame
+    ## operands relative to sp add it back.
+    var sp_shift: u64
 
     pub static func create(program_unit: ir.Unit*) -> Generator!:
         return Generator(out = try buffer.Buffer.create(262144), program_unit = program_unit, f = program_unit.functions.span().data, index = 0,
@@ -131,6 +134,38 @@ pub struct Generator:
                     try self.put_u64(shift)
                 first = false
             shift += 16
+
+    ## The memory operand `[sp, #n]` for the frame home `offset` bytes below x29, for an
+    ## access of `width` bytes: the scaled unsigned form reaches 4095 units of the width.
+    ## The frame is laid out before any instruction is emitted, so `frame` is known.
+    func frame_fits(offset: u64, width: u64) -> bool:
+        if offset > self.frame:
+            return false
+        let n = self.frame - offset + self.sp_shift
+        return n % width == 0 and n // width <= 4095
+
+    mutating func frame_operand(offset: u64) -> !:
+        try self.put("[sp, #")
+        try self.put_u64(self.frame - offset + self.sp_shift)
+        try self.put("]")
+
+    ## `reg` stored to or loaded from the frame home `offset`: through sp when the offset
+    ## reaches, else through an address in x16.
+    mutating func frame_store(reg: str, offset: u64) -> !:
+        if self.frame_fits(offset, access_width_of(reg)):
+            try self.line3("str ", reg, ", ")
+            try self.frame_operand(offset)
+            return
+        try self.frame_address("x16", offset)
+        try self.line3("str ", reg, ", [x16]")
+
+    mutating func frame_load(reg: str, offset: u64) -> !:
+        if self.frame_fits(offset, access_width_of(reg)):
+            try self.line3("ldr ", reg, ", ")
+            try self.frame_operand(offset)
+            return
+        try self.frame_address("x16", offset)
+        try self.line3("ldr ", reg, ", [x16]")
 
     ## `reg = x29 - offset`.
     mutating func frame_address(reg: str, offset: u64) -> !:
@@ -207,10 +242,7 @@ pub struct Generator:
                 try self.put(", ")
                 try self.put(home)
             return
-        try self.frame_address("x16", self.temp_home(t))
-        try self.line("ldr ")
-        try self.put(reg)
-        try self.put(", [x16]")
+        try self.frame_load(reg, self.temp_home(t))
 
     mutating func store_temp(reg: str, t: u32) -> !:
         let code = self.temp_regs.get((usize)t - 1)
@@ -223,10 +255,7 @@ pub struct Generator:
                 try self.put(", ")
                 try self.put(reg)
             return
-        try self.frame_address("x16", self.temp_home(t))
-        try self.line("str ")
-        try self.put(reg)
-        try self.put(", [x16]")
+        try self.frame_store(reg, self.temp_home(t))
 
     ## An operand into a scratch register of class `cls`.
     mutating func operand(reg: str, cls: ir.Class, r: ir.Ref) -> !:
@@ -1118,7 +1147,7 @@ pub struct Generator:
                     try self.line("bl _memset")
             .call:
                 try self.call(n)
-            .trap:
+            .trap_:
                 try self.address_operand("x0", n.a)
                 try self.line("bl _lb_core_trap")
             .bounds:
@@ -1481,12 +1510,14 @@ pub struct Generator:
         if area > 0:
             try self.load_immediate("x16", (i64)area)
             try self.line("sub sp, sp, x16")
+            self.sp_shift += area
         # the callee's address first, kept in a slot-free register the arguments do not touch
         var through_register = false
         if n.a.kind == ir.RefKind.temp:
             through_register = true
             try self.load_temp("x17", ir.Class.l, n.a.index)
             try self.line("str x17, [sp, #-16]!")
+            self.sp_shift += 16
         # stack arguments
         i = 0
         while i < info.args_count and i < 32:
@@ -1550,10 +1581,7 @@ pub struct Generator:
             let p = placements[i]
             if p.where == 0:
                 if a.size == 0:
-                    try self.operand("x9", ir.Class.l, a.value)
-                    try self.line("mov x")
-                    try self.put_u64((u64)p.first)
-                    try self.put(", x9")
+                    try self.operand(arg_register(p.first), ir.Class.l, a.value)
                 else:
                     try self.address_operand("x9", a.value)
                     try self.line("ldr x")
@@ -1574,6 +1602,7 @@ pub struct Generator:
             try self.frame_address("x8", self.slot_home(info.result_slot))
         if through_register:
             try self.line("ldr x17, [sp], #16")
+            self.sp_shift -= 16
             try self.line("blr x17")
         else:
             try self.line("bl ")
@@ -1581,6 +1610,7 @@ pub struct Generator:
         if area > 0:
             try self.load_immediate("x16", (i64)area)
             try self.line("add sp, sp, x16")
+            self.sp_shift -= area
         # the result
         if not info.has_result:
             return
@@ -1675,10 +1705,7 @@ pub struct Generator:
         var c: usize = 1
         while c <= 18:
             if (self.used_mask & (u32)(1 << (u32)(c - 1))) != 0:
-                try self.frame_address("x16", self.save_offset[c])
-                try self.line("str ")
-                try self.put(save_name(c))
-                try self.put(", [x16]")
+                try self.frame_store(save_name(c), self.save_offset[c])
             c += 1
 
     ## Restore them before returning; the result already sits in x0/x1/d0.
@@ -1686,10 +1713,7 @@ pub struct Generator:
         var c: usize = 1
         while c <= 18:
             if (self.used_mask & (u32)(1 << (u32)(c - 1))) != 0:
-                try self.frame_address("x16", self.save_offset[c])
-                try self.line("ldr ")
-                try self.put(save_name(c))
-                try self.put(", [x16]")
+                try self.frame_load(save_name(c), self.save_offset[c])
             c += 1
 
     # mark: The unit ===========================================================================
@@ -1813,6 +1837,17 @@ let w_names: str[19] = ["", "w19", "w20", "w21", "w22", "w23", "w24", "w25", "w2
 ## The 8-byte name used to spill and reload a register on entry and exit.
 func save_name(code: usize) -> str:
     return x_names[code]
+
+## The bytes a load or store of register `reg` moves: 4 for `w` and `s` names, 8 otherwise.
+func access_width_of(reg: str) -> u64:
+    let first = reg.bytes[0]
+    return 4 if first == 'w' or first == 's' else 8
+
+let argument_names: str[8] = ["x0", "x1", "x2", "x3", "x4", "x5", "x6", "x7"]
+
+## The integer argument register `n` of the calling convention.
+func arg_register(n: u32) -> str:
+    return argument_names[(usize)n]
 
 ## Register code `code` viewed as class `cls`: `w`/`s` names for the narrow classes.
 func class_name(code: u8, cls: ir.Class) -> str:

@@ -81,7 +81,7 @@ pub enum Kind as u8:
     alloc_ = 82
     span_make = 83
     match_expr = 84
-    unit = 85
+    unit_ = 85
     type_ = 90
     pattern = 91
     argument = 92
@@ -249,7 +249,7 @@ pub func kind_name(kind: Kind) -> str:
         .alloc_: return "alloc"
         .span_make: return "span_make"
         .match_expr: return "match_expr"
-        .unit: return "unit"
+        .unit_: return "unit"
         .type_: return "type"
         .pattern: return "pattern"
         .argument: return "argument"

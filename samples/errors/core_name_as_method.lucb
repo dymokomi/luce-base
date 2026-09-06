@@ -1,0 +1,5 @@
+# error: belongs to the language
+struct S:
+    var n: i64
+    func pad() -> i64:
+        return self.n

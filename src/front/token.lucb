@@ -67,6 +67,21 @@ pub let keywords: str[48] = [
     "self", "static", "struct", "test", "thread_local", "true", "try", "type",
     "union", "var", "volatile", "while", "with"]
 
+## The core names of §3.5: the language's own functions and type names. No declaration of
+## any kind may take one; the standard modules, which are what these names mean, may.
+pub let core_names: str[36] = [
+    "assert", "discard", "error", "trap", "hash", "print", "format", "sizeof",
+    "alignof", "offsetof", "hex", "bin", "pad", "bool", "i8", "i16",
+    "i32", "i64", "isize", "u8", "u16", "u32", "u64", "usize",
+    "f16", "f32", "f64", "char", "str", "cstr", "unit", "never",
+    "void", "fmt", "Error", "ErrorCode"]
+
+pub func is_core_name(word: str) -> bool:
+    for name in core_names:
+        if name == word:
+            return true
+    return false
+
 pub func is_keyword(word: str) -> bool:
     for k in keywords:
         if k == word:

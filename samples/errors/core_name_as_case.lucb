@@ -1,0 +1,4 @@
+# error: belongs to the language
+enum Kind as u8:
+    i8 = 1
+    unit = 2

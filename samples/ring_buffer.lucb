@@ -1,4 +1,3 @@
-import memory
 from memory import Allocator
 
 pub let full: ErrorCode = ErrorCode.package(2)

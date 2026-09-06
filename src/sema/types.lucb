@@ -19,26 +19,26 @@ import memory
 import support.list
 
 pub enum Kind as u8:
-    error = 1
-    never = 2
-    unit = 3
+    error_ = 1
+    never_ = 2
+    unit_ = 3
     bool_ = 4
-    i8 = 5
-    i16 = 6
-    i32 = 7
-    i64 = 8
-    isize = 9
-    u8 = 10
-    u16 = 11
-    u32 = 12
-    u64 = 13
-    usize = 14
-    f32 = 15
-    f64 = 16
+    i8_ = 5
+    i16_ = 6
+    i32_ = 7
+    i64_ = 8
+    isize_ = 9
+    u8_ = 10
+    u16_ = 11
+    u32_ = 12
+    u64_ = 13
+    usize_ = 14
+    f32_ = 15
+    f64_ = 16
     char_ = 17
     str_ = 18
-    cstr = 19
-    fmt = 20
+    cstr_ = 19
+    fmt_ = 20
     void_ = 21
     untyped_int = 22
     untyped_float = 23
@@ -118,7 +118,7 @@ pub struct Table:
     pub static func create() -> Table!:
         var t = Table(types = try list.List[Type].create(256))
         # id 0 is "no type"; the scalars follow in Kind order
-        let seeds: Kind[26] = [Kind.error, Kind.error, Kind.never, Kind.unit, Kind.bool_, Kind.i8, Kind.i16, Kind.i32, Kind.i64, Kind.isize, Kind.u8, Kind.u16, Kind.u32, Kind.u64, Kind.usize, Kind.f32, Kind.f64, Kind.char_, Kind.str_, Kind.cstr, Kind.fmt, Kind.void_, Kind.untyped_int, Kind.untyped_float, Kind.error_code, Kind.error_value]
+        let seeds: Kind[26] = [Kind.error_, Kind.error_, Kind.never_, Kind.unit_, Kind.bool_, Kind.i8_, Kind.i16_, Kind.i32_, Kind.i64_, Kind.isize_, Kind.u8_, Kind.u16_, Kind.u32_, Kind.u64_, Kind.usize_, Kind.f32_, Kind.f64_, Kind.char_, Kind.str_, Kind.cstr_, Kind.fmt_, Kind.void_, Kind.untyped_int, Kind.untyped_float, Kind.error_code, Kind.error_value]
         let names: str[26] = ["", "<error>", "never", "unit", "bool", "i8", "i16", "i32", "i64", "isize", "u8", "u16", "u32", "u64", "usize", "f32", "f64", "char", "str", "cstr", "fmt", "void", "<integer>", "<float>", "ErrorCode", "Error"]
         var i: usize = 0
         while i < 26:
@@ -225,15 +225,15 @@ pub struct Table:
 
     pub func is_integer(id: u32) -> bool:
         let k = (u8)self.kind(id)
-        return (k >= (u8)Kind.i8 and k <= (u8)Kind.usize) or k == (u8)Kind.untyped_int
+        return (k >= (u8)Kind.i8_ and k <= (u8)Kind.usize_) or k == (u8)Kind.untyped_int
 
     pub func is_signed(id: u32) -> bool:
         let k = self.kind(id)
-        return k == Kind.i8 or k == Kind.i16 or k == Kind.i32 or k == Kind.i64 or k == Kind.isize or k == Kind.untyped_int
+        return k == Kind.i8_ or k == Kind.i16_ or k == Kind.i32_ or k == Kind.i64_ or k == Kind.isize_ or k == Kind.untyped_int
 
     pub func is_float(id: u32) -> bool:
         let k = self.kind(id)
-        return k == Kind.f32 or k == Kind.f64 or k == Kind.untyped_float
+        return k == Kind.f32_ or k == Kind.f64_ or k == Kind.untyped_float
 
     pub func is_numeric(id: u32) -> bool:
         return self.is_integer(id) or self.is_float(id)
@@ -244,7 +244,7 @@ pub struct Table:
     ## `T*?`, `cstr?`, and `func(...)?` are one word with null as the niche (§5.3, §5.5, §5.6).
     pub func has_null_niche(elem: u32) -> bool:
         let inner = self.kind(elem)
-        return inner == Kind.pointer or inner == Kind.cstr or inner == Kind.func_
+        return inner == Kind.pointer or inner == Kind.cstr_ or inner == Kind.func_
 
     ## An optional stored with the null niche rather than a flag.
     pub func is_nullable_pointer(id: u32) -> bool:
@@ -254,12 +254,12 @@ pub struct Table:
     ## Bits of an integer type on the 64-bit host; 0 for anything else.
     pub func bits(id: u32) -> u32:
         match self.kind(id):
-            .i8, .u8: return 8
-            .i16, .u16: return 16
-            .i32, .u32: return 32
-            .i64, .u64, .isize, .usize, .untyped_int: return 64
-            .f32: return 32
-            .f64: return 64
+            .i8_, .u8_: return 8
+            .i16_, .u16_: return 16
+            .i32_, .u32_: return 32
+            .i64_, .u64_, .isize_, .usize_, .untyped_int: return 64
+            .f32_: return 32
+            .f64_: return 64
             .char_: return 32
             .bool_: return 8
             _: return 0
@@ -277,7 +277,7 @@ pub struct Table:
     pub func zeroable(id: u32) -> bool:
         let t = self.get(id)
         match t.kind:
-            .pointer, .cstr, .func_, .never, .error, .fmt, .void_, .param: return false
+            .pointer, .cstr_, .func_, .never_, .error_, .fmt_, .void_, .param: return false
             .optional: return true
             .array: return self.zeroable(t.elem)
             .tuple:
@@ -343,12 +343,12 @@ pub struct Table:
     func sized(id: u32, env_decl: ast.Node*?, env_args: u32[]) -> u64:
         let t = self.get(id)
         match t.kind:
-            .i8, .u8, .bool_: return 1
-            .i16, .u16: return 2
-            .i32, .u32, .f32, .char_, .error_code: return 4
-            .i64, .u64, .isize, .usize, .f64, .untyped_int, .untyped_float: return 8
-            .pointer, .func_, .cstr: return 8
-            .str_, .span, .interface_, .fmt: return 16
+            .i8_, .u8_, .bool_: return 1
+            .i16_, .u16_: return 2
+            .i32_, .u32_, .f32_, .char_, .error_code: return 4
+            .i64_, .u64_, .isize_, .usize_, .f64_, .untyped_int, .untyped_float: return 8
+            .pointer, .func_, .cstr_: return 8
+            .str_, .span, .interface_, .fmt_: return 16
             .error_value: return 24
             .param:
                 let resolved = self.through(id, env_decl, env_args)
@@ -472,7 +472,7 @@ pub struct Table:
                             pcursor = p.next
                     cursor = member.next
                 return declared_align(widest, decl)
-            .str_, .span, .interface_, .fmt, .error_value: return 8
+            .str_, .span, .interface_, .fmt_, .error_value: return 8
             _:
                 let s = self.sized(id, env_decl, env_args)
                 return s if s > 0 else 1
@@ -583,7 +583,7 @@ test "scalars are seeded at fixed ids and interning deduplicates":
     var arena = memory.FixedBuffer.over(backing)
     with arena:
         var table = try Table.create()
-        assert(table.kind(i64_id) == Kind.i64)
+        assert(table.kind(i64_id) == Kind.i64_)
         assert(table.kind(str_id) == Kind.str_)
         let p1 = try table.pointer(u8_id, true, false)
         let p2 = try table.pointer(u8_id, true, false)

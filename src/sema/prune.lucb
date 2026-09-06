@@ -23,8 +23,12 @@ pub struct Reporter:
     pub var path: str
     pub var src: source.Source
     pub var warnings: list.List[str]*
+    ## A standard module's warnings are nobody's business: it is pruned in silence.
+    pub var silent: bool
 
     pub mutating func warn(node: ast.Node*, what: str) -> !:
+        if self.silent:
+            return
         var buffer: u8[512]
         let (line, column) = self.src.position(node.start)
         let text = try format(buffer, f"{self.path}:{line}:{column}: warning: {what}")

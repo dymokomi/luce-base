@@ -1,0 +1,4 @@
+# error: belongs to the language
+pub func answer() -> i64:
+    let error = 1
+    return 42
