@@ -251,6 +251,14 @@ typedef struct lb_r_unit {
     bool failed;
 } lb_r_unit;
 
+/* The startup shim's pieces, shared by the C and native backends: the argument
+   vector as `str[]` (checked) or `cstr[]`, a failed `main`, and the test runner's
+   report lines. */
+lb_span lb_arguments(int argc, char** argv, bool as_text);
+int lb_main_failed(lb_error error);
+void lb_test_report(lb_str name, const lb_r_unit* result);
+int lb_test_summary(int32_t total, int32_t failed);
+
 int lb_qadd_s(int64_t a, int64_t b, int bits, int64_t* out);
 int lb_qadd_u(uint64_t a, uint64_t b, int bits, uint64_t* out);
 int lb_qsub_s(int64_t a, int64_t b, int bits, int64_t* out);
