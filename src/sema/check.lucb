@@ -270,11 +270,29 @@ pub struct Checker:
         try self.bind_imports(tree)
         try self.collect(tree)
         try self.resolve_signatures(tree)
+        if index + 1 == self.modules.count:
+            try self.check_entry(tree)
         var cursor = tree.body
         while let d = cursor:
             try self.check_declaration(d)
             cursor = d.next
         self.pop_scope()
+
+    ## `main` takes `str[]` or `cstr[]` and returns `i32` or `i32!` (§9.7).
+    mutating func check_entry(tree: ast.Node*) -> !:
+        let d = find_decl(tree, "main") else return
+        if d.kind != ast.Kind.func_:
+            return
+        let ft = self.table.get(d.type_id)
+        var result = ft.elem
+        if self.table.kind(result) == types.Kind.fallible:
+            result = self.table.get(result).elem
+        var good = ft.args.length == 1 and result == types.i32_id
+        if good:
+            let p = self.table.get(ft.args[0])
+            good = p.kind == types.Kind.span and (p.elem == types.str_id or p.elem == types.cstr_id)
+        if not good:
+            discard(try self.fail(d, "`main` takes `str[]` or `cstr[]` and returns `i32` or `i32!`"))
 
     ## The standard modules are visible by name in every module, and a few of
     ## their types by bare name (§16.6). A prelude module sees only its predecessors.
