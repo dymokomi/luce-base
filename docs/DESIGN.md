@@ -53,8 +53,10 @@ read `Node.type_id` and `Node.resolved` and never look a name up again.
 
 Types are interned in `types.Table`; two spellings of one type share an id,
 so equality is integer equality. The standard modules come from `prelude`:
-Base text parsed and bound before the program's own modules, which keeps
-`io.stdout()` and `Writer` ordinary declarations rather than special cases.
+Base text parsed and checked before the program's own modules, which keeps
+`io.stdout()` and `Writer` ordinary declarations rather than special cases,
+and they are imported like any other module: nothing is in scope without
+`import io` or `from io import Writer` (§16.6).
 
 Generic declarations are checked once, against their written constraints,
 with their parameters as opaque types (§13). A use substitutes the arguments
