@@ -11,8 +11,9 @@ unit tests green in the oracle and the binary agreeing on `samples/`.
 | 4. C backend | checked tree to C, `luce-base build` and `luce-base test` | done: every sample with `main` builds and runs; every module's tests pass through the binary |
 | 5. Self-hosting | the seed pinned; the standard modules in Base | done: `bootstrap/luce-base.c` is the compiler's own C and `build.sh` starts from it with only a C compiler; `memory`, `io`, `files`, `process`, `thread`, `sync`, and `atomic` are Base source over `extern` in `src/sema/prelude.lucb`; the C runtime is down to traps, checked arithmetic, formatting, and hashing |
 | 6. Native | one target, arm64-macos, proved against the C backend | done: every sample and every module's tests agree under both backends; the compiler builds itself natively and the native build emits the same C and assembly as the C build; `tools/native_check.sh` runs the seed's corpus natively |
-| 7. Proving | programs big enough to break things: a threaded HTTP server, a terminal editor, `luce-base-d` (a debugger), an SDL3 editor | each builds under both backends and every bug it finds is pinned as a test |
+| 7. Proving | programs big enough to break things: a threaded HTTP server, a terminal editor, `luce-base-d` (a debugger), an SDL3 editor; built natively, with no C in the path | each builds under both backends and every bug it finds is pinned as a test in both compilers |
 | 8. Codegen | register allocation over the IR, then the release | native code within reach of `cc -O2` on the compiler itself |
+| 9. Linking | `luce-ld`, a linker of our own, as Zig carries one, in its own repository | a native build that needs nothing from the host toolchain |
 
 ## The bootstrap gate
 

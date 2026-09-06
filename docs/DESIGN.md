@@ -32,7 +32,7 @@ from wherever it sits.
 | `front.ast` | the syntax tree: one `Node` shape, kinds, flags, sibling lists |
 | `front.parser` | tokens to the tree, the whole grammar of §21 |
 | `sema.types` | the type table: interned ids for every type, layout, spelling |
-| `sema.prelude` | the standard modules of §16.6 as Base source text |
+| `sema.prelude` | the standard modules of §16.6 as Base source text, and `core`, the runtime in Base |
 | `sema.check` | names, types, and effects; writes `type_id` and `resolved` onto the tree |
 | `back.names` | the symbol every declaration and instance gets, shared by both backends |
 | `back.emit` | the checked tree to C: monomorphisation, conversions, the runtime contract |
@@ -117,10 +117,16 @@ loops or `dmb` fences. There is no register allocation yet; the output is
 correct first and the allocator comes as a separate pass over the IR.
 
 Both backends share `names`, so a function's symbol is the same in C and in
-assembly, and both link against the same `runtime/lucb_rt.c`. The native
-backend closes its own loop under the gate: the compiler built natively
-must emit the same C and the same assembly for the compiler as the C-built
-one does.
+assembly. The native path involves no C at all: what generated code needs by
+name, the trap reporter, text formatting, the conversion and saturation
+families, hashing, UTF-8 validation, and the startup shim's pieces, is the
+`core` module of the prelude, written in Base and compiled with the program;
+`//`, `%`, and the shifts are checked inline in the IR. The driver assembles
+with `as` and links with `ld` against the system library. The C backend
+keeps `runtime/lucb_rt.c` for the same helpers, so the two backends are two
+implementations of one contract. The native backend closes its own loop
+under the gate: the compiler built natively must emit the same C and the
+same assembly for the compiler as the C-built one does.
 
 ## Memory
 

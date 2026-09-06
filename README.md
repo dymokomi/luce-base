@@ -28,7 +28,7 @@ seed implements. What this compiler must do to earn the switch is in
 ./build/luce-base parse samples/hello.lucb
 ./build/luce-base check samples/json.lucb                  # silence means it checks
 ./build/luce-base build samples/json.lucb -o json          # C through the host cc
-./build/luce-base build samples/json.lucb --native -o json # arm64 assembly through the host as/ld
+./build/luce-base build samples/json.lucb --native -o json # arm64 assembly through as and ld, no C
 ./build/luce-base test src/front/parser.lucb               # the module's tests, compiled and run
 ./build/luce-base test src/front/parser.lucb --native      # the same tests through the native backend
 ./build/luce-base build src/main.lucb --native -o B2       # the compiler builds itself, natively
@@ -57,11 +57,13 @@ itself: traps, checked arithmetic, formatting of scalars, hashing.
 
 Slice 6: a native backend. `src/back/lower.lucb` takes the checked tree to a
 QBE-like IR and `src/back/arm64.lucb` takes that to arm64-macos assembly;
-`--native` selects it for `build` and `test`. Every sample and every module's
-tests pass through both backends, the compiler builds itself natively, and
-the natively built compiler emits the same C and the same assembly for the
-compiler as the C-built one. Code comes out unoptimised, with every
-temporary in the frame; register allocation is next.
+`--native` selects it for `build` and `test`. The native path involves no C:
+the runtime a program needs is the `core` module, written in Base, and the
+driver assembles with `as` and links with `ld`. Every sample and every
+module's tests pass through both backends, the compiler builds itself
+natively, and the natively built compiler emits the same C and the same
+assembly for the compiler as the C-built one. Code comes out unoptimised,
+with every temporary in the frame; register allocation is next.
 
 ## License
 
