@@ -2915,6 +2915,9 @@ pub struct Emitter:
         let result = try self.ty(e)
         try self.put("({ ")
         if self.is_array(ot):
+            # read through `const`, since the array may sit behind a `const` pointer; the
+            # span's data pointer casts it away below, as the checker allowed
+            try self.put("const ")
             try self.put_type(ot)
             try self.put("* ")
             try self.put_tmp("sp", n)
@@ -2928,9 +2931,11 @@ pub struct Emitter:
             try self.put_type(self.elem(ot))
             try self.put("* ")
             try self.put_tmp("sd", n)
-            try self.put(" = ")
+            try self.put(" = (")
+            try self.put_type(self.elem(ot))
+            try self.put("*)(")
             try self.put_tmp("sp", n)
-            try self.put("->d; ")
+            try self.put("->d); ")
         else:
             try self.put("lb_span ")
             try self.put_tmp("sv", n)
