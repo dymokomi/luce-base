@@ -73,6 +73,10 @@ natively under the gate and driven from outside by its `check.sh`:
 - `programs/http`: a multi-threaded HTTP/1.1 server (a listener thread, a
   pool of workers over a bounded queue, static files, `/echo`, `/stats`,
   keep-alive), proved with `curl`.
+- `programs/editor`: a terminal text editor (a gap buffer, whole-text undo
+  and redo, incremental search, a screen of escape sequences, raw mode over
+  `termios`), proved by replaying a script of keys headlessly and comparing
+  the saved file and the final screen.
 
 Every bug they find is pinned as a test in both compilers before the fix.
 
