@@ -97,6 +97,22 @@ becomes `value.display(__sink)`, where `__sink` is a name marked
 `flag_format_sink`; each backend supplies that sink where it builds the
 string, an `io.FormatSink` over the buffer being filled, viewed as a `Writer`.
 
+Inline assembly (§8.9) reaches the native backend as `set_reg`, `asm`, and
+`get_reg` instructions over named registers. A `reg` operand's register is
+chosen by the lowerer (`AsmRegisters`): one of x11–x15 or d16–d23, which the
+backend never touches while it moves operands, skipping any the block names
+itself; `{name}` in the text is replaced by that register before the text
+reaches the backend, so the assembler sees plain instructions. The C backend
+instead makes a `reg` operand a named operand and spells `{name}` as
+`%[name]`; the checker refuses a `{name}` that names no `reg` operand.
+
+An extern's `out` parameters (§17.1) are the checker's third rewrite of a
+signature rather than a tree: the function type a caller sees has no `out`
+parameters and answers the declared result followed by every `out` value, as
+a tuple when there is more than one; each backend walks the declaration's
+own parameter list at the call, passes the address of a fresh local for each
+`out`, and builds the tuple afterwards.
+
 Generic declarations are checked once, against their written constraints,
 with their parameters as opaque types (§13). A use substitutes the arguments
 into the signature and never re-checks the body; inference walks parameter

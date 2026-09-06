@@ -12,5 +12,6 @@ LB=${1:-./build/luce-base}
 cmp -s build/asm-check.out build/asm-check-c.out || { echo "FAIL programs/asm: backends disagree"; exit 1; }
 grep -q "add(40, 2) = 42" build/asm-check.out || { echo "FAIL programs/asm: wrong result"; cat build/asm-check.out; exit 1; }
 grep -q "popcount(255) = 8" build/asm-check.out || { echo "FAIL programs/asm: wrong popcount"; exit 1; }
+grep -q "double_and_add(19, 2) = 40" build/asm-check.out || { echo "FAIL programs/asm: wrong reg operands"; exit 1; }
 rm -f build/asm-check build/asm-check-c build/asm-check.out build/asm-check-c.out
 echo "ok programs/asm"

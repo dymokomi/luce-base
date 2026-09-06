@@ -51,6 +51,16 @@ pub func main(arguments: str[]) -> i32:
     print(f"byteswap(1) = {byteswap(1)}")
     print(f"popcount(255) = {popcount(255)}")
     print(f"popcount(0xF0F0) = {popcount(61680)}")
+    print(f"double_and_add(19, 2) = {double_and_add(19, 2)}")
     print(f"leading_zeros(1) = {leading_zeros(1)}")
     print(f"saturating_add(200, 100) = {saturating_add(200, 100) & 255}")
     return 0
+
+## `reg` operands (§8.9): the compiler chooses the registers, and `{name}` in the text is
+## the one it chose for the operand whose expression is that name.
+func double_and_add(a: u64, b: u64) -> u64:
+    var out: u64 = 0
+    asm arm64(in(reg) a, in(reg) b, out(reg) out):
+        add {out}, {a}, {a}
+        add {out}, {out}, {b}
+    return out

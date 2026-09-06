@@ -117,8 +117,8 @@ Base programmer would miss them.
 | § | Feature | State |
 | --- | --- | --- |
 | 14.4 | `Display`, `Iterator`, `Iterable` | done in both: `for` desugars to the protocol; a `Display` struct in a formatted string calls `display` through the string's own sink |
-| 17.1 | `out` parameters as tuple results | missing in both |
-| 8.9 | compiler-chosen `reg` operands, `{name}` substitution natively | C only |
+| 17.1 | `out` parameters as tuple results | done in both: an extern's `out` parameter takes no argument and is answered after the declared result, as a tuple when there is more than one value |
+| 8.9 | compiler-chosen `reg` operands, `{name}` substitution natively | done in both: the lowerer picks x11–x15 / d16–d23 and writes the register into the text; the C backend uses named operands |
 | 5.1 | `f16` | missing in both; low demand |
 | 17.6 | `luce build --lib` with a generated header | missing; `export` works |
 | 19.4 | `--freestanding`, `--profile diagnostic` | missing |

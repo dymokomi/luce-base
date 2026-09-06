@@ -602,7 +602,8 @@ pub struct Checker:
             cursor = m.next
         self.pop_scope()
 
-    ## The function type of `f`. A method's receiver is implicit and not part of it.
+    ## The function type of `f`. A method's receiver is implicit and not part of it, and so
+    ## is an extern's `out` parameter, which the call answers instead (§17.1).
     mutating func resolve_function(f: ast.Node*) -> !:
         self.push_scope()
         try self.bind_generics(f)
@@ -611,23 +612,50 @@ pub struct Checker:
         if n > 0:
             params = try alloc u32[n]
         var i: usize = 0
+        var outs: usize = 0
         var cursor = f.right
         while let p = cursor:
             let t = p.ty else return try self.fail(p, "a parameter needs a type")
             p.type_id = try self.resolve_type(t)
-            params[i] = p.type_id
-            i += 1
+            if p.has(ast.flag_out):
+                if f.kind != ast.Kind.extern_func:
+                    return try self.fail(p, "only an extern function has `out` parameters")
+                outs += 1
+            else:
+                params[i] = p.type_id
+                i += 1
             cursor = p.next
         var result = types.unit_id
         if let r = f.ty:
             result = try self.resolve_type(r)
+            r.type_id = result # the declared result, which the backends need beside `out` values
             # `-> T!` spells the failure on the type; `-> !` on the flag. One flag serves both.
             if self.table.kind(result) == types.Kind.fallible:
                 f.flags |= ast.flag_fallible
         elif f.has(ast.flag_fallible):
             result = try self.table.fallible(result)
-        f.type_id = try self.table.function(params, result, f.has(ast.flag_variadic))
+        if outs > 0:
+            result = try self.extern_result(f, result)
+        f.type_id = try self.table.function(params[..<i], result, f.has(ast.flag_variadic))
         self.pop_scope()
+
+    ## What a call of extern `f` answers: `declared`, then every `out` parameter, as a tuple
+    ## when there is more than one value (§17.1).
+    mutating func extern_result(f: ast.Node*, declared: u32) -> u32!:
+        var parts = try alloc u32[ast.count(f.right) + 1]
+        var n: usize = 0
+        if declared != types.unit_id:
+            parts[n] = declared
+            n += 1
+        var cursor = f.right
+        while let p = cursor:
+            if p.has(ast.flag_out):
+                parts[n] = p.type_id
+                n += 1
+            cursor = p.next
+        if n == 1:
+            return parts[0]
+        return try self.table.tuple(parts[..<n])
 
     # mark: Types ==============================================================================
 
@@ -2867,10 +2895,33 @@ pub struct Checker:
                         if v.kind != ast.Kind.name or v.text != "_":
                             discard(try self.check_expr(v, types.none_id))
                     operand = o.next
+                try self.check_asm_references(s)
             .block:
                 try self.check_block(s)
             _:
                 discard(try self.fail(s, "unsupported statement"))
+
+    ## `{name}` in an asm block's text stands for the register the compiler chose for the
+    ## `reg` operand whose expression is the name `name` (§8.9); anything else is an error.
+    mutating func check_asm_references(s: ast.Node*) -> !:
+        var lines = s.body
+        while let l = lines:
+            let b = l.text.bytes
+            var i: usize = 0
+            while i < b.length:
+                if b[i] == '{':
+                    var j = i + 1
+                    while j < b.length and b[j] != '}':
+                        j += 1
+                    if j >= b.length:
+                        return try self.fail(l, "an unclosed `{` in assembly text")
+                    let name = (str)b[i + 1..<j]
+                    if not asm_names_operand(s, name):
+                        let message = try format(self.scratch, f"the assembly text names `{name}`, which is not a `reg` operand")
+                        return try self.fail(l, message)
+                    i = j
+                i += 1
+            lines = l.next
 
     ## `let`/`var`, with a name or a tuple of names (§6.1).
     mutating func check_binding(s: ast.Node*) -> !:
@@ -3396,23 +3447,44 @@ func argument_names(args: ast.Node*?, f: ast.Node*, d: ast.Node*) -> bool:
         cursor = a.next
     return false
 
+## Whether asm block `s` has a `reg` operand whose expression is the name `name`.
+pub func asm_names_operand(s: ast.Node*, name: str) -> bool:
+    var operand = s.right
+    while let o = operand:
+        if asm_operand_place(o) == "reg":
+            if let v = o.left:
+                if v.kind == ast.Kind.name and v.text == name:
+                    return true
+        operand = o.next
+    return false
+
+## The register an asm operand names, `x0`, or `reg` for one the compiler chooses.
+pub func asm_operand_place(o: ast.Node*) -> str:
+    let p = o.body else return ""
+    return decode_text(p.text)
+
+## The position of parameter `name` among the ones a caller supplies: an extern's `out`
+## parameter takes no argument (§17.1), so it has no position.
 func param_index(d: ast.Node*, name: str) -> usize?:
     var i: usize = 0
     var cursor = d.right
     while let p = cursor:
-        if p.text == name:
-            return i
-        i += 1
+        if not p.has(ast.flag_out):
+            if p.text == name:
+                return i
+            i += 1
         cursor = p.next
     return none
 
+## The parameter at `index` among the ones a caller supplies.
 func param_at(d: ast.Node*, index: usize) -> ast.Node*?:
     var i: usize = 0
     var cursor = d.right
     while let p = cursor:
-        if i == index:
-            return p
-        i += 1
+        if not p.has(ast.flag_out):
+            if i == index:
+                return p
+            i += 1
         cursor = p.next
     return none
 

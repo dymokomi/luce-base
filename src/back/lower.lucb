@@ -1024,20 +1024,32 @@ pub struct Lowerer:
     ## before the block, each `out`/`inout` register stored back after it. The raw lines name
     ## the registers directly, so a specific register (`x0`, `d1`) is required, not `reg`.
     mutating func asm_stmt(s: ast.Node*) -> !:
-        # inputs first, into their registers
+        var chosen = try AsmRegisters.choose(s)
+        # the inputs are computed first, then moved into their registers together, so that
+        # computing one cannot touch a register another already holds
+        var values: LowerValue[16] = ---
+        var count: usize = 0
         var operand = s.right
         while let o = operand:
             if o.text == "in" or o.text == "inout":
-                let place = try self.asm_place(o)
+                if count >= 16:
+                    return try self.fail(o, "at most sixteen asm inputs")
                 let value = o.left else return try self.fail(o, "an asm operand needs a value")
-                let want = self.asm_operand_type(place)
-                let v = try self.value(value, want)
-                try self.f.emit(ir.Op.set_reg, self.class_of(want), 0, v.ref, ir.text_ref(try self.program_unit.text(place)), 0)
+                values[count] = try self.value(value, self.asm_operand_type(chosen.place_of(o)))
+                count += 1
+            operand = o.next
+        count = 0
+        operand = s.right
+        while let o = operand:
+            if o.text == "in" or o.text == "inout":
+                let place = chosen.place_of(o)
+                try self.f.emit(ir.Op.set_reg, self.class_of(self.asm_operand_type(place)), 0, values[count].ref, ir.text_ref(try self.program_unit.text(place)), 0)
+                count += 1
             operand = o.next
         var text = try buffer.Buffer.create(64)
         var lines = s.body
         while let l = lines:
-            try text.put(l.text)
+            try chosen.substitute(l.text, &text)
             try text.put("\n")
             lines = l.next
         let arch = try self.program_unit.text(s.text)
@@ -1047,21 +1059,13 @@ pub struct Lowerer:
         operand = s.right
         while let o = operand:
             if o.text == "out" or o.text == "inout":
-                let place = try self.asm_place(o)
+                let place = chosen.place_of(o)
                 let target = o.left else return try self.fail(o, "an asm output needs a place")
                 if target.text != "_":
                     let want = self.asm_operand_type(place)
                     let address = try self.place(target)
                     try self.f.emit(ir.Op.get_reg, self.class_of(want), 0, address, ir.text_ref(try self.program_unit.text(place)), 0)
             operand = o.next
-
-    ## The register a `reg("x0")` operand names; the native backend needs a specific one.
-    func asm_place(o: ast.Node*) -> str!:
-        let first = o.body else return try self.fail(o, "an asm operand needs a register")
-        let place = check.decode_text(first.text)
-        if place.length == 0 or place == "reg":
-            return try self.fail(o, "the native backend needs a named register, not `reg`")
-        return place
 
     ## A `d`/`s` register operand is a float, everything else an integer word.
     func asm_operand_type(place: str) -> u32:
@@ -2569,10 +2573,23 @@ pub struct Lowerer:
         if has_receiver:
             try pending.push(ir.Arg(value = receiver, cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, is_float_only = false, float_count = 0))
         var fixed: u32 = 0
+        # an extern's `out` parameters: a slot each, passed by address, read after the call
+        var out_slots: u32[8] = ---
+        var out_types: u32[8] = ---
+        var outs: usize = 0
         if let d = decl:
             var pi: usize = 0
             var param = d.right
             while let p = param:
+                if p.has(ast.flag_out):
+                    if outs >= 8:
+                        return try self.fail(p, "at most eight `out` parameters")
+                    out_slots[outs] = try self.new_slot(p.type_id)
+                    out_types[outs] = p.type_id
+                    try pending.push(ir.Arg(value = try self.slot_address(out_slots[outs]), cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, is_float_only = false, float_count = 0))
+                    outs += 1
+                    param = p.next
+                    continue
                 var given: ast.Node*? = none
                 var position: usize = 0
                 var a = args
@@ -2625,7 +2642,7 @@ pub struct Lowerer:
             try self.f.args.push(pending.get(k))
             k += 1
         let count = u32(pending.count)
-        let result = f.elem
+        let result = self.declared_result(decl, f.elem) if outs > 0 else f.elem
         var info = ir.CallInfo(args_start = start, args_count = count, fixed_count = fixed, variadic = f.variadic, result_cls = ir.Class.l, has_result = false, result_size = 0, result_align = 8, result_type = result, result_slot = 0, result_float_only = false, result_float_count = 0)
         if result != types.unit_id and result != types.never_id:
             info.has_result = true
@@ -2645,11 +2662,46 @@ pub struct Lowerer:
         try self.f.emit(ir.Op.call, info.result_cls, dst, callee, ir.none_ref(), u32(self.f.calls.count - 1))
         discard(template)
         discard(template_args)
-        if not info.has_result:
-            return LowerValue(ref = ir.const_ref(0), type_id = result, in_memory = false)
-        if info.result_size == 0:
-            return LowerValue(ref = ir.temp_ref(dst), type_id = result, in_memory = false)
-        return LowerValue(ref = try self.slot_address(info.result_slot), type_id = result, in_memory = true)
+        var answered = LowerValue(ref = ir.const_ref(0), type_id = result, in_memory = false)
+        if info.has_result and info.result_size == 0:
+            answered = LowerValue(ref = ir.temp_ref(dst), type_id = result, in_memory = false)
+        elif info.has_result:
+            answered = LowerValue(ref = try self.slot_address(info.result_slot), type_id = result, in_memory = true)
+        if outs > 0:
+            return try self.with_out_values(answered, f.elem, out_slots[..<outs], out_types[..<outs])
+        return answered
+
+    ## The result C declared, when the function type's result also counts `out` values.
+    func declared_result(decl: ast.Node*?, answered: u32) -> u32:
+        let d = decl else return answered
+        if d.kind != ast.Kind.extern_func:
+            return answered
+        let r = d.ty else return types.unit_id
+        return r.type_id
+
+    ## The value a call with `out` parameters answers (§17.1): the declared result followed
+    ## by each `out` slot's value, as the tuple `t`, or the one value alone.
+    mutating func with_out_values(declared: LowerValue, t: u32, slots: u32[], slot_types: u32[]) -> LowerValue!:
+        if self.kind(t) != types.Kind.tuple:
+            return try self.load_from(try self.slot_address(slots[0]), slot_types[0])
+        let tt = self.c.table.get(t)
+        let slot = try self.new_slot(t)
+        let a = try self.slot_address(slot)
+        var offset: u64 = 0
+        var i: usize = 0
+        var k: usize = 0
+        while i < tt.args.length:
+            let mt = tt.args[i]
+            offset = lower_round_up(offset, self.c.table.align_of(mt))
+            if i == 0 and declared.type_id != types.unit_id:
+                try self.store_to(try self.offset_address(a, offset), declared)
+            else:
+                let v = try self.load_from(try self.slot_address(slots[k]), slot_types[k])
+                try self.store_to(try self.offset_address(a, offset), v)
+                k += 1
+            offset += self.c.table.size_of(mt)
+            i += 1
+        return LowerValue(ref = a, type_id = t, in_memory = true)
 
     ## An argument: its parameter's type, with text passed as bytes where wanted.
     mutating func argument_value(v: ast.Node*, want: u32) -> LowerValue!:
@@ -3982,3 +4034,96 @@ func section_of(d: ast.Node*) -> str:
             return check.decode_text(name.text)
         cursor = a.next
     return ""
+
+## The registers of one asm block (§8.9): the ones its operands name, and for each `reg`
+## operand one the compiler chooses, from the caller-saved registers the backend never
+## touches while it moves operands (x11..x15, d16..d23), skipping any the block names.
+struct AsmRegisters:
+    var operands: ast.Node*?[16]
+    var places: str[16]
+    var count: usize
+
+    static func choose(s: ast.Node*) -> AsmRegisters!:
+        var chosen = AsmRegisters(operands = [none, none, none, none, none, none, none, none, none, none, none, none, none, none, none, none],
+                                  places = ["", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""], count = 0)
+        let ints: str[5] = ["x11", "x12", "x13", "x14", "x15"]
+        let floats: str[8] = ["d16", "d17", "d18", "d19", "d20", "d21", "d22", "d23"]
+        var next_int: usize = 0
+        var next_float: usize = 0
+        var operand = s.right
+        while let o = operand:
+            if chosen.count >= 16:
+                return error(native_unsupported, "at most sixteen asm operands")
+            let named = check.asm_operand_place(o)
+            var place = named
+            if named == "reg":
+                let float = o.left != none and is_float_operand(o)
+                if float:
+                    if next_float >= floats.length:
+                        return error(native_unsupported, "too many `reg` float operands")
+                    place = floats[next_float]
+                    next_float += 1
+                else:
+                    while next_int < ints.length and block_names(s, ints[next_int]):
+                        next_int += 1
+                    if next_int >= ints.length:
+                        return error(native_unsupported, "too many `reg` operands")
+                    place = ints[next_int]
+                    next_int += 1
+            chosen.operands[chosen.count] = o
+            chosen.places[chosen.count] = place
+            chosen.count += 1
+            operand = o.next
+        return chosen
+
+    ## The register operand `o` uses.
+    func place_of(o: ast.Node*) -> str:
+        var i: usize = 0
+        while i < self.count:
+            if self.operands[i] == o:
+                return self.places[i]
+            i += 1
+        return ""
+
+    ## `line` with each `{name}` replaced by the register of the `reg` operand named `name`.
+    func substitute(line: str, out: buffer.Buffer*) -> !:
+        let b = line.bytes
+        var i: usize = 0
+        while i < b.length:
+            if b[i] == '{':
+                var j = i + 1
+                while j < b.length and b[j] != '}':
+                    j += 1
+                if j < b.length:
+                    try out.put(self.register_named((str)b[i + 1..<j]))
+                    i = j + 1
+                    continue
+            try out.put_byte(b[i])
+            i += 1
+
+    ## The register of the `reg` operand whose expression is the name `name`, spelled at the
+    ## operand's width; empty when there is none (the checker refused that already).
+    func register_named(name: str) -> str:
+        var i: usize = 0
+        while i < self.count:
+            if let o = self.operands[i]:
+                if let v = o.left:
+                    if v.kind == ast.Kind.name and v.text == name and check.asm_operand_place(o) == "reg":
+                        return self.places[i]
+            i += 1
+        return ""
+
+## Whether the block names register `place` for some operand of its own.
+func block_names(s: ast.Node*, place: str) -> bool:
+    var operand = s.right
+    while let o = operand:
+        if check.asm_operand_place(o) == place:
+            return true
+        operand = o.next
+    return false
+
+## A `reg` operand of float type takes a float register.
+func is_float_operand(o: ast.Node*) -> bool:
+    let v = o.left else return false
+    let t = v.type_id
+    return t == types.f32_id or t == types.f64_id

@@ -1777,9 +1777,15 @@ pub struct Emitter:
                 try self.put(" = ")
                 try self.value(v, vt)
             try self.put(";")
+            # a `reg` operand whose expression is a name is a named operand, `[name]`, which the
+            # text reaches as `{name}` (§8.9)
+            var label = ""
+            if (place == "reg" or place.length == 0) and v.kind == ast.Kind.name:
+                label = v.text
             if is_out:
                 if outs.used > 0:
                     try outs.put(", ")
+                try put_asm_label(&outs, label)
                 try outs.put("\"+r\"(" if is_in else "\"=r\"(")
                 try outs.put("_lb_as")
                 try outs.put_u64((u64)n)
@@ -1789,6 +1795,7 @@ pub struct Emitter:
             elif is_in:
                 if ins.used > 0:
                     try ins.put(", ")
+                try put_asm_label(&ins, label)
                 try ins.put("\"r\"(_lb_as")
                 try ins.put_u64((u64)n)
                 try ins.put(")")
@@ -3544,6 +3551,9 @@ pub struct Emitter:
             fn = try self.c.substitute(fn, d, args)
         if d.kind == ast.Kind.func_:
             discard(try self.add_func(d, args, owner, owner_args))
+        if d.kind == ast.Kind.extern_func and has_out_params(d):
+            try self.extern_out_call(e, d, fn)
+            return
         try self.put_func_name(d, args, owner, owner_args)
         try self.put("(")
         try self.arguments(e.body, fn, d, args)
@@ -3553,6 +3563,85 @@ pub struct Emitter:
             let rt = self.c.table.get(fn).elem
             if self.is_ptr(rt):
                 discard(rt)
+
+    ## `({ int32_t o0; double r = frexp(x, &o0); (tuple){ r, o0 }; })`: an extern's `out`
+    ## parameters are locals passed by address and answered after the declared result (§17.1).
+    mutating func extern_out_call(e: ast.Node*, d: ast.Node*, fn: u32) -> !:
+        let n = self.tmp()
+        let declared = declared_result(d)
+        try self.put("({ ")
+        var outs: u32 = 0
+        var param = d.right
+        while let p = param:
+            if p.has(ast.flag_out):
+                try self.put_type(p.type_id)
+                try self.put(" ")
+                try self.put_out_local(n, outs)
+                try self.put("; ")
+                outs += 1
+            param = p.next
+        if declared != types.unit_id:
+            try self.put_type(declared)
+            try self.put(" ")
+            try self.put_tmp("or", n)
+            try self.put(" = ")
+        try self.put(names.c_symbol(d))
+        try self.put("(")
+        try self.arguments_with_outs(e.body, fn, d, n)
+        try self.put("); ")
+        let answered = self.c.table.get(fn).elem
+        if self.kind(answered) == types.Kind.tuple:
+            try self.put("((")
+            try self.put_type(answered)
+            try self.put("){ ")
+            var first = true
+            if declared != types.unit_id:
+                try self.put_tmp("or", n)
+                first = false
+            var k: u32 = 0
+            while k < outs:
+                if not first:
+                    try self.put(", ")
+                first = false
+                try self.put_out_local(n, k)
+                k += 1
+            try self.put(" }); })")
+        elif declared != types.unit_id:
+            try self.put_tmp("or", n)
+            try self.put("; })")
+        else:
+            try self.put_out_local(n, 0)
+            try self.put("; })")
+
+    ## `_lb_oN_k`: the local an `out` parameter is written through.
+    mutating func put_out_local(n: u32, k: u32) -> !:
+        try self.put_tmp("o", n)
+        try self.put("_")
+        try self.put_u64((u64)k)
+
+    ## The arguments of an extern call whose `out` parameters take the address of a local.
+    mutating func arguments_with_outs(args: ast.Node*?, fn: u32, d: ast.Node*, n: u32) -> !:
+        let f = self.c.table.get(fn)
+        var first = true
+        var pi: usize = 0
+        var outs: u32 = 0
+        var cursor = args
+        var param = d.right
+        while let p = param:
+            if not first:
+                try self.put(", ")
+            first = false
+            if p.has(ast.flag_out):
+                try self.put("&")
+                try self.put_out_local(n, outs)
+                outs += 1
+            else:
+                let a = cursor else return error(backend, "an extern call is short of arguments")
+                let v = a.left else return
+                try self.argument_value(v, f.args[pi] if pi < f.args.length else types.none_id)
+                pi += 1
+                cursor = a.next
+            param = p.next
 
     ## `x.method(args)`, `Type.static(args)`, `module.func(args)`, and the builtin
     ## methods of the standard records.
@@ -3717,8 +3806,16 @@ pub struct Emitter:
     mutating func asm_lines(lines: ast.Node*?, extended: bool) -> !:
         var cursor = lines
         while let l = cursor:
+            var in_name = false
             for b in l.text.bytes:
-                if b == '%' and extended:
+                if b == '{' and extended:
+                    # `{name}` is the named operand `%[name]`
+                    try self.put("%[")
+                    in_name = true
+                elif b == '}' and in_name:
+                    try self.put("]")
+                    in_name = false
+                elif b == '%' and extended:
                     try self.put("%%")
                 elif b == '"':
                     try self.put("\\\"")
@@ -5076,16 +5173,29 @@ pub struct Emitter:
             return
         try self.line("extern ")
         let ft = self.c.table.get(d.type_id)
-        if ft.elem == types.unit_id:
+        let result = declared_result(d) if has_out_params(d) else ft.elem
+        if result == types.unit_id:
             try self.put("void")
         else:
-            try self.put_type(ft.elem)
+            try self.put_type(result)
         try self.put(" ")
         try self.put(names.c_symbol(d))
         try self.put("(")
         var first = true
+        if has_out_params(d):
+            # the declared parameters in C's order, an `out` one as a pointer
+            var param = d.right
+            while let p = param:
+                if not p.has(ast.flag_variadic):
+                    if not first:
+                        try self.put(", ")
+                    first = false
+                    try self.put_type(p.type_id)
+                    if p.has(ast.flag_out):
+                        try self.put("*")
+                param = p.next
         var i: usize = 0
-        while i < ft.args.length:
+        while i < ft.args.length and not has_out_params(d):
             if not first:
                 try self.put(", ")
             first = false
@@ -5224,6 +5334,28 @@ pub struct Emitter:
 # mark: Helpers ================================================================================
 
 ## The runtime helper behind an arithmetic operator.
+## `[name] ` before a constraint: the named operand form of GNU extended asm.
+func put_asm_label(out: buffer.Buffer*, label: str) -> !:
+    if label.length == 0:
+        return
+    try out.put("[")
+    try out.put(label)
+    try out.put("] ")
+
+## Whether an extern declares `out` parameters (§17.1).
+func has_out_params(d: ast.Node*) -> bool:
+    var cursor = d.right
+    while let p = cursor:
+        if p.has(ast.flag_out):
+            return true
+        cursor = p.next
+    return false
+
+## The result an extern declared, apart from its `out` values: the result type node's type.
+func declared_result(d: ast.Node*) -> u32:
+    let r = d.ty else return types.unit_id
+    return r.type_id
+
 ## Whether a formatted string has a field that writes itself (§14.4): such a string is built
 ## in a buffer rather than written piece by piece.
 func displays_a_field(f: ast.Node*) -> bool:
