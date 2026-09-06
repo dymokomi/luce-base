@@ -22,7 +22,9 @@ import sema.check
 
 ## The last stage of the pipeline: the checked program as the target's text.
 pub interface Backend:
-    ## `mode` is 0 for a `main` program, 1 for the test runner, 2 for an `answer()` program.
+    ## `mode` is 0 for a `main` program, 1 for the test runner, 2 for an `answer()` program,
+    ## 3 for a library, which has no entry and initialises itself when loaded (§17.6), 4 for
+    ## a freestanding program, whose own `_start` is the entry (§19.4).
     mutating func compile(mode: u32) -> str!
 
 ## C for the host C compiler.

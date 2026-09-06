@@ -120,8 +120,8 @@ Base programmer would miss them.
 | 17.1 | `out` parameters as tuple results | done in both: an extern's `out` parameter takes no argument and is answered after the declared result, as a tuple when there is more than one value |
 | 8.9 | compiler-chosen `reg` operands, `{name}` substitution natively | done in both: the lowerer picks x11–x15 / d16–d23 and writes the register into the text; the C backend uses named operands |
 | 5.1 | `f16` | missing in both; low demand |
-| 17.6 | `luce build --lib` with a generated header | missing; `export` works |
-| 19.4 | `--freestanding`, `--profile diagnostic` | missing |
+| 17.6 | `luce build --lib` with a generated header | done: `--lib -o NAME` writes `NAME.a` and `NAME.h` through either backend; exports of spans, `str`, fallible results, and non-pointer optionals are refused by the header writer for now |
+| 19.4 | `--freestanding`, `--profile diagnostic` | `--freestanding` done natively (no shim, the program's `export naked func _start` is the entry, `programs/freestanding`); `--profile diagnostic` missing |
 | 19.5 | targets beyond arm64-macos | missing; the `Backend` interface is ready |
 | 17.5 | `luce bind` | missing; a project of its own |
 | 19.6 | `luce fmt`, `--costs`, `--target` listing | missing |

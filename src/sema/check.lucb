@@ -1583,7 +1583,7 @@ pub struct Checker:
             return try self.fail(e, "checked arithmetic needs integers")
         return try self.fail(e, "unknown operator")
 
-    func is_backed_enum(id: u32) -> bool:
+    pub func is_backed_enum(id: u32) -> bool:
         let t = self.table.get(id)
         if t.kind != types.Kind.enum_:
             return false
@@ -3462,6 +3462,29 @@ pub func asm_names_operand(s: ast.Node*, name: str) -> bool:
 pub func asm_operand_place(o: ast.Node*) -> str:
     let p = o.body else return ""
     return decode_text(p.text)
+
+## The integer an `enum Name as T` is backed by; `i32` when the enum names none.
+pub func enum_backing(table: types.Table*, id: u32) -> u32:
+    let d = table.get(id).decl else return types.i32_id
+    let backing = d.ty else return types.i32_id
+    return backing.type_id
+
+## The value of case `target` of enum `d`: as written, or one more than the case before.
+pub func case_value(d: ast.Node*, target: ast.Node*) -> u64:
+    var next: u64 = 0
+    var cursor = d.body
+    while let c = cursor:
+        if c.kind == ast.Kind.enum_case:
+            var v = next
+            if let written = c.left:
+                if written.kind == ast.Kind.literal:
+                    v = decode_integer(written.text) catch failure:
+                        recover next
+            if c == target:
+                return v
+            next = v + 1
+        cursor = c.next
+    return 0
 
 ## The position of parameter `name` among the ones a caller supplies: an extern's `out`
 ## parameter takes no argument (§17.1), so it has no position.

@@ -1,0 +1,22 @@
+## A freestanding program (§19.4): no startup shim is linked, and the program's own
+## `_start`, a naked function of one asm block, is the entry. It writes a line through the
+## kernel directly and exits, touching no C library and no runtime of its own.
+## Build: luce-base build programs/freestanding/main.lucb --native --freestanding -o build/fs
+
+asm arm64:
+    .section __TEXT,__cstring,cstring_literals
+    lb_freestanding_message:
+    .ascii "freestanding\n"
+    .section __TEXT,__text,regular,pure_instructions
+
+export naked func _start():
+    asm arm64:
+        mov x0, #1
+        adrp x1, lb_freestanding_message@PAGE
+        add x1, x1, lb_freestanding_message@PAGEOFF
+        mov x2, #13
+        mov x16, #4
+        svc #0x80
+        mov x0, #0
+        mov x16, #1
+        svc #0x80

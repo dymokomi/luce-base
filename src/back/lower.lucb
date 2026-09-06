@@ -3675,7 +3675,10 @@ pub struct Lowerer:
             while tests_done < self.tests.count and next >= self.funcs.count:
                 try self.test_body(self.tests.get(tests_done), u32(tests_done))
                 tests_done += 1
-        try self.entry_function(mode)
+        if mode == 3:
+            try self.library_init_function()
+        elif mode != 4:
+            try self.entry_function(mode)
         try self.witness_tables()
 
     mutating func declare_global(d: ast.Node*) -> !:
@@ -3716,6 +3719,22 @@ pub struct Lowerer:
         self.pop_scope()
         try self.fall_off_end()
         try self.end_function()
+
+    ## A library has no `main`: `lb_library_init`, run when the library is loaded through the
+    ## Mach-O initialiser section, starts the globals and the allocator (§17.6).
+    mutating func library_init_function() -> !:
+        let inst = LowerInstance(decl = self.entry, args = try types.no_args(), owner = none, owner_args = try types.no_args(), done = true)
+        try self.begin_function("lb_library_init", none, inst)
+        self.fn_decl = none
+        self.current_fn = none
+        self.f.used = true
+        try self.push_scope(false, "", 0, 0)
+        discard(try self.call_named("lb_init_globals", u32(self.f.args.count), 0, ir.Class.w, false, types.unit_id))
+        discard(try self.call_named("lb_memory_startup", u32(self.f.args.count), 0, ir.Class.w, false, types.unit_id))
+        self.pop_scope()
+        try self.f.emit(ir.Op.ret, ir.Class.l, 0, ir.none_ref(), ir.none_ref(), 0)
+        try self.end_function()
+        try self.program_unit.module_asm.push(ir.Text(bytes = "    .section __DATA,__mod_init_func,mod_init_funcs\n    .p2align 3\n    .quad _lb_library_init\n"))
 
     ## `main`: startup, the arguments, the program's entry, the exit code; or the test runner.
     mutating func entry_function(mode: u32) -> !:

@@ -1,0 +1,29 @@
+## A library (§17.6): `luce-base build samples/exports.lucb --lib -o build/pixels` writes
+## `pixels.a` and `pixels.h`, and a C program includes the header and links the archive.
+## Only `export` declarations are visible to C; `pub` ones stay the library's own.
+
+enum Blend as u32:
+    add = 0
+    max = 1
+
+struct Pixel:
+    pub var red: u8
+    pub var green: u8
+    pub var blue: u8
+
+    ## `Pixel_brightness(const Pixel* self)` in the header.
+    export func brightness() -> u32:
+        return u32(self.red) + u32(self.green) + u32(self.blue)
+
+export func blend(left: Pixel, right: Pixel, how: Blend) -> Pixel:
+    if how == Blend.max:
+        return Pixel(red = larger(left.red, right.red), green = larger(left.green, right.green), blue = larger(left.blue, right.blue))
+    return Pixel(red = left.red +| right.red, green = left.green +| right.green, blue = left.blue +| right.blue)
+
+export func scale(pixel: Pixel*, factor: u32):
+    pixel.red = (u8)(u32(pixel.red) * factor // 100)
+    pixel.green = (u8)(u32(pixel.green) * factor // 100)
+    pixel.blue = (u8)(u32(pixel.blue) * factor // 100)
+
+func larger(a: u8, b: u8) -> u8:
+    return a if a > b else b

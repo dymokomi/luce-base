@@ -11,6 +11,8 @@
 
 import c
 import back.backend
+import back.header
+import back.names
 import files
 import front.ast
 import front.lexer
@@ -21,12 +23,13 @@ import io
 import memory
 import process
 import sema.check
+import support.buffer
 import support.runtime
 
 let version: str = "0.1"
 
 func usage(out: io.Writer) -> !:
-    try out.write("usage: luce-base lex FILE\n       luce-base parse FILE\n       luce-base check FILE\n       luce-base build FILE [-o OUT] [--release] [--emit=c] [--native] [--debug] [--emit=asm] [-W] [-lNAME] [-LDIR] [-framework NAME]\n       luce-base test FILE [--native]\n       luce-base --version\n")
+    try out.write("usage: luce-base lex FILE\n       luce-base parse FILE\n       luce-base check FILE\n       luce-base build FILE [-o OUT] [--release] [--emit=c] [--native] [--debug] [--emit=asm] [--lib] [--freestanding] [-W] [-lNAME] [-LDIR] [-framework NAME]\n       luce-base test FILE [--native]\n       luce-base --version\n")
 
 # mark: Building ===============================================================================
 
@@ -38,6 +41,10 @@ struct Options:
     var run_tests: bool
     var native: bool
     var debug: bool
+    ## `--lib`: a library and its header rather than a program (§17.6).
+    var library: bool
+    ## `--freestanding`: no startup shim; the program's own `_start` is the entry (§19.4).
+    var freestanding: bool
     ## `-lNAME` and `-LDIR`: libraries to link and where to find them.
     var libraries: (c.str?)[16]
     var library_count: usize
@@ -84,30 +91,53 @@ func report_warnings(c: check.Checker*) -> !:
 
 ## Check FILE and its imports, then generate C for the whole program.
 func generate(path: c.str, mode: u32) -> str!:
-    var c = try check.Checker.create(scratch_of())
-    try c.add_prelude()
-    try c.load(path)
-    try c.check_program()
-    try report_warnings(&c)
+    var c = try checked(path)
     let entry = c.modules.get(c.modules.count - 1).tree
     var actual = mode
+    if mode == 4 and check.find_decl(entry, "_start") == none:
+        error(build_failed, "a freestanding program supplies `export naked func _start` (§19.4)")
     if mode == 0 and check.find_decl(entry, "main") == none:
         if check.find_decl(entry, "answer") == none:
             error(build_failed, "this module has no `main` to build a program from; `check` it, or `test` it")
         actual = 2
     used_mode = actual
+    return try translate(&c, entry, actual)
+
+## `--lib`: the program as a library with no entry, and the header of its exports (§17.6).
+func generate_library(path: c.str) -> (str, str)!:
+    var c = try checked(path)
+    let entry = c.modules.get(c.modules.count - 1).tree
+    used_mode = 3
+    let code = try translate(&c, entry, 3)
+    var text = try buffer.Buffer.create(4096)
+    try header.write(&c, &text)
+    return (code, try names.keep(&text))
+
+## The program at `path`, checked, with its warnings reported.
+func checked(path: c.str) -> check.Checker!:
+    var c = try check.Checker.create(scratch_of())
+    try c.add_prelude()
+    try c.load(path)
+    try c.check_program()
+    try report_warnings(&c)
+    return c
+
+## The checked program through the backend the command chose.
+func translate(c: check.Checker*, entry: ast.Node*, mode: u32) -> str!:
     if native_backend:
-        var native = try backend.NativeBackend.over(&c, entry, debug_backend)
+        var native = try backend.NativeBackend.over(c, entry, debug_backend)
         let target: backend.Backend = &native
-        return try target.compile(actual)
-    var host_c = try backend.CBackend.over(&c, entry)
+        return try target.compile(mode)
+    var host_c = try backend.CBackend.over(c, entry)
     let target: backend.Backend = &host_c
-    return try target.compile(actual)
+    return try target.compile(mode)
 
 ## The backend the current command chose: C through the host compiler, or arm64 assembly.
 var native_backend: bool
 ## `--debug`: the native backend describes every frame and calls the `debug` module.
 var debug_backend: bool
+## `--freestanding`: the program's own `_start` is the entry, and no shim is linked (§19.4).
+var freestanding: bool
 ## `-lNAME`, `-LDIR`, and `-framework NAME` of the current build, for the link step.
 var link_libraries: (c.str?)[16]
 var link_library_count: usize
@@ -133,23 +163,23 @@ func compile(text: str, exe: str, release: bool, with_start: bool) -> !:
     if status != 0:
         error(build_failed, "could not create a scratch directory")
     # the scratch names must end in NUL for the C library; `format` appends one
-    var names: u8[4096]
-    let dir = try format(names[3072..], f"{trim(dir_text)}")
+    var name_bytes: u8[4096]
+    let dir = try format(name_bytes[3072..], f"{trim(dir_text)}")
     defer remove_tree((c.str)dir)
     if native_backend:
-        try assemble_and_link(dir, names[..<3072], text, exe)
+        try assemble_and_link(dir, name_bytes[..<3072], text, exe)
         return
-    let gen_path = try format(names[..<512], f"{dir}/gen.s" if native_backend else f"{dir}/gen.c")
-    let header_path = try format(names[512..<1024], f"{dir}/lucb_rt.h")
-    let runtime_path = try format(names[1024..<1536], f"{dir}/lucb_rt.c")
-    let start_path = try format(names[1536..<2048], f"{dir}/start.c")
-    let err_path = try format(names[2048..<2560], f"{dir}/cc.err")
+    let gen_path = try format(name_bytes[..<512], f"{dir}/gen.s" if native_backend else f"{dir}/gen.c")
+    let header_path = try format(name_bytes[512..<1024], f"{dir}/lucb_rt.h")
+    let runtime_path = try format(name_bytes[1024..<1536], f"{dir}/lucb_rt.c")
+    let start_path = try format(name_bytes[1536..<2048], f"{dir}/start.c")
+    let err_path = try format(name_bytes[2048..<2560], f"{dir}/cc.err")
     try files.write((c.str)gen_path, text.bytes)
     try files.write((c.str)header_path, runtime.header.bytes)
     try files.write((c.str)runtime_path, runtime.source.bytes)
     if with_start:
         try files.write((c.str)start_path, runtime.start.bytes)
-    var include = try format(names[2560..<3072], f"-I{dir}")
+    var include = try format(name_bytes[2560..<3072], f"-I{dir}")
     var cc_args: c.str[40] = ---
     cc_args[0] = "-std=gnu11"
     cc_args[1] = "-Wall"
@@ -199,9 +229,9 @@ func compile(text: str, exe: str, release: bool, with_start: bool) -> !:
     discard(err_path)
 
 ## `as` over the assembly, then `ld` against the system library found through `xcrun`.
-func assemble_and_link(dir: str, names: u8[], text: str, exe: str) -> !:
-    let asm_path = try format(names[..<512], f"{dir}/gen.s")
-    let object_path = try format(names[512..<1024], f"{dir}/gen.o")
+func assemble_and_link(dir: str, name_bytes: u8[], text: str, exe: str) -> !:
+    let asm_path = try format(name_bytes[..<512], f"{dir}/gen.s")
+    let object_path = try format(name_bytes[512..<1024], f"{dir}/gen.o")
     try files.write((c.str)asm_path, text.bytes)
     var as_args: c.str[3] = ---
     as_args[0] = "-o"
@@ -219,7 +249,7 @@ func assemble_and_link(dir: str, names: u8[], text: str, exe: str) -> !:
     discard(sdk_err.length)
     if sdk_status != 0:
         error(build_failed, "xcrun could not find the SDK")
-    let sdk = try format(names[1024..<2048], f"{trim(sdk_out)}")
+    let sdk = try format(name_bytes[1024..<2048], f"{trim(sdk_out)}")
     var ld_args: c.str[40] = ---
     ld_args[0] = "-arch"
     ld_args[1] = "arm64"
@@ -230,6 +260,11 @@ func assemble_and_link(dir: str, names: u8[], text: str, exe: str) -> !:
     ld_args[6] = (c.str)exe
     ld_args[7] = (c.str)object_path
     var n: usize = 8
+    if freestanding:
+        # the exported `_start` is the entry; its assembler label carries the C underscore
+        ld_args[n] = "-e"
+        ld_args[n + 1] = "__start"
+        n += 2
     var flag_bytes: u8[2048]
     var used: usize = 0
     var k: usize = 0
@@ -283,7 +318,14 @@ func build_file(path: c.str, options: Options) -> !:
         while k < options.framework_count:
             link_frameworks[k] = options.frameworks[k]
             k += 1
-        let text = try generate(path, 1 if options.run_tests else 0)
+        if options.library:
+            let (code, header_text) = try generate_library(path)
+            try build_library(code, header_text, options.output if options.output.length > 0 else "library")
+            return
+        if options.freestanding and not options.native:
+            error(build_failed, "a freestanding program is built natively: add `--native`")
+        freestanding = options.freestanding
+        let text = try generate(path, 4 if options.freestanding else (1 if options.run_tests else 0))
         if options.emit_c:
             if options.output.length > 0:
                 try files.write((c.str)options.output, text.bytes)
@@ -294,6 +336,56 @@ func build_file(path: c.str, options: Options) -> !:
         if exe.length == 0:
             exe = "a.out"
         try compile(text, exe, options.release, used_mode == 2 and not native_backend)
+
+## `--lib`: `NAME.a` from the generated code (and the C runtime when the code is C), and
+## `NAME.h` with the exported surface (§17.6).
+func build_library(code: str, header_text: str, name: str) -> !:
+    let mktemp_args: c.str[2] = ["-d", "/tmp/luce-base.XXXXXX"]
+    let made = try process.run("mktemp", mktemp_args)
+    let (status, dir_text, unused_err) = made
+    discard(unused_err.length)
+    if status != 0:
+        error(build_failed, "could not create a scratch directory")
+    var names_bytes: u8[4096]
+    let dir = try format(names_bytes[3072..], f"{trim(dir_text)}")
+    defer remove_tree((c.str)dir)
+    let archive = try format(names_bytes[2048..<2560], f"{name}.a")
+    let header_path = try format(names_bytes[2560..<3072], f"{name}.h")
+    let object_path = try format(names_bytes[..<512], f"{dir}/gen.o")
+    if native_backend:
+        let asm_path = try format(names_bytes[512..<1024], f"{dir}/gen.s")
+        try files.write((c.str)asm_path, code.bytes)
+        var as_args: c.str[3] = ["-o", (c.str)object_path, (c.str)asm_path]
+        try run_tool("as", as_args, "the assembler rejected the generated code")
+        var ar_args: c.str[3] = ["rcs", (c.str)archive, (c.str)object_path]
+        try run_tool("ar", ar_args, "the archiver failed")
+    else:
+        let gen_path = try format(names_bytes[512..<1024], f"{dir}/gen.c")
+        let rt_header = try format(names_bytes[1024..<1536], f"{dir}/lucb_rt.h")
+        let rt_source = try format(names_bytes[1536..<2048], f"{dir}/lucb_rt.c")
+        try files.write((c.str)gen_path, code.bytes)
+        try files.write((c.str)rt_header, runtime.header.bytes)
+        try files.write((c.str)rt_source, runtime.source.bytes)
+        var include_bytes: u8[600]
+        let include = try format(include_bytes, f"-I{dir}")
+        var rt_object_bytes: u8[600]
+        let rt_object = try format(rt_object_bytes, f"{dir}/rt.o")
+        var gen_args: c.str[9] = ["-std=gnu11", "-Wall", "-Werror", "-O2", (c.str)include, "-c", (c.str)gen_path, "-o", (c.str)object_path]
+        try run_tool("cc", gen_args, "the C compiler rejected the generated code")
+        var rt_args: c.str[9] = ["-std=gnu11", "-Wall", "-Werror", "-O2", (c.str)include, "-c", (c.str)rt_source, "-o", (c.str)rt_object]
+        try run_tool("cc", rt_args, "the C compiler rejected the runtime")
+        var ar_args: c.str[4] = ["rcs", (c.str)archive, (c.str)object_path, (c.str)rt_object]
+        try run_tool("ar", ar_args, "the archiver failed")
+    try files.write((c.str)header_path, header_text.bytes)
+
+## Run a build tool; its standard error is shown when it fails.
+func run_tool(program: c.str, arguments: c.str[], what: str) -> !:
+    let ran = try process.run(program, arguments)
+    let (status, out, err) = ran
+    discard(out.length)
+    if status != 0:
+        try io.stderr().write(err)
+        error(build_failed, what)
 
 ## `test FILE`: build the test runner into a scratch file and run it.
 func test_file(path: c.str, native: bool) -> i32!:
@@ -421,6 +513,8 @@ pub func main(arguments: c.str[]) -> i32!:
         options.run_tests = false
         options.native = false
         options.debug = false
+        options.library = false
+        options.freestanding = false
         options.library_count = 0
         options.library_dir_count = 0
         options.framework_count = 0
@@ -436,6 +530,10 @@ pub func main(arguments: c.str[]) -> i32!:
                 options.emit_c = true
             elif a == "--native":
                 options.native = true
+            elif a == "--lib":
+                options.library = true
+            elif a == "--freestanding":
+                options.freestanding = true
             elif a == "--debug":
                 options.debug = true
             elif a == "-W":

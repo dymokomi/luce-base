@@ -39,6 +39,16 @@ for f in samples/*.expect; do
     cmp build/sample.out "$f"
 done
 rm -f build/sample build/sample.out
+# a library and its header, through both backends: a C program includes the header, links
+# the archive, and prints what samples/exports_use.out says
+for native in "" "--native"; do
+    echo "== lib samples/exports.lucb $native"
+    ./build/luce-base build samples/exports.lucb --lib $native -o build/pixels
+    cc -std=c11 -Wall -Werror -Ibuild samples/exports_use.c build/pixels.a -o build/use_pixels
+    ./build/use_pixels > build/use_pixels.out
+    cmp build/use_pixels.out samples/exports_use.out
+done
+rm -f build/pixels.a build/pixels.h build/use_pixels build/use_pixels.out
 # the proving programs build natively and are driven from outside
 for f in programs/*/check.sh; do
     "$f"

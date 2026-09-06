@@ -185,6 +185,25 @@ implementations of one contract. The native backend closes its own loop
 under the gate: the compiler built natively must emit the same C and the
 same assembly for the compiler as the C-built one does.
 
+## Libraries
+
+`luce build --lib -o NAME` (§17.6) asks either backend for mode 3, a program
+with no entry: the C backend adds a constructor that starts the runtime when
+the library loads, the native backend an `lb_library_init` reached through
+the Mach-O initialiser section. The driver archives the object (and the C
+runtime's) into `NAME.a`, and `back/header.lucb` writes `NAME.h`: the records
+every `export` signature mentions, in dependency order and under their Base
+names, an integer-backed enum as its backing integer with one constant per
+case, then a prototype per export, a method as `Owner_name` with `self`
+first. The header spells only what C can hold; a signature it cannot spell
+is an error.
+
+`luce build --freestanding --native` (§19.4) is mode 4: the native backend
+emits no entry function at all, and the driver links with `-e __start`, the
+assembler label of the program's `export naked func _start`. Nothing starts
+the runtime or the globals for such a program; its `_start` owns the
+process from the first instruction, as `programs/freestanding` shows.
+
 ## Debugging
 
 There is no `ptrace` on macOS without entitlements, so the debugger lives in
