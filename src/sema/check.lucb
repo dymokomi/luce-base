@@ -684,6 +684,9 @@ pub struct Checker:
         if e.kind == ast.Kind.name:
             let scalar = scalar_id(e.text)
             if scalar != types.none_id:
+                # a scalar type name is a type reference; the backends read `type_id` and the flag
+                e.type_id = scalar
+                e.flags |= ast.flag_type_ref
                 return scalar
             if let b = self.lookup(e.text):
                 if let d = b.decl:
