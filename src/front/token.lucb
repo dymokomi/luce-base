@@ -59,10 +59,10 @@ pub struct Token:
 
 # mark: Reserved words ========================================================================
 
-pub let keywords: str[49] = [
+pub let keywords: str[48] = [
     "alloc", "and", "as", "asm", "break", "catch", "const", "continue", "defer",
     "elif", "else", "enum", "errdefer", "export", "extern", "false", "for", "free",
-    "from", "func", "goto", "if", "implements", "import", "in", "interface", "let",
+    "from", "func", "goto", "if", "import", "in", "interface", "let",
     "match", "mutating", "new", "none", "not", "or", "pub", "recover", "return",
     "self", "static", "struct", "test", "thread_local", "true", "try", "type",
     "union", "var", "volatile", "while", "with"]

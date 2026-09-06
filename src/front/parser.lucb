@@ -421,21 +421,31 @@ pub struct Parser:
         try self.expect_op(")")
         return list
 
-    ## `struct Name[T] implements A, B:` and the members; `extern struct` has fields only.
+    ## `: A, B` before a type's body (§14.1): the first colon opens the interface list, or
+    ## the body when a newline follows it; a list ends with the body's own colon. Both
+    ## colons are consumed here.
+    mutating func parse_conformance() -> ast.Node*?!:
+        try self.expect_op(":")
+        if self.at(token.Kind.newline):
+            return none
+        var list: ast.Node*? = none
+        var tail: ast.Node*? = none
+        while true:
+            let i = try self.parse_type()
+            ast.append(&list, &tail, i)
+            if not self.eat_op(","):
+                break
+        try self.expect_op(":")
+        return list
+
+    ## `struct Name[T]: A, B:` and the members; `extern struct` has fields only.
     mutating func parse_struct(is_extern: bool) -> ast.Node*!:
         let n = try self.node(ast.Kind.extern_struct if is_extern else ast.Kind.struct_, "")
         try self.expect_kw("struct")
         n.text = try self.expect_name()
         if self.at_op("["):
             n.left = try self.parse_generic_params()
-        if self.eat_kw("implements"):
-            var tail: ast.Node*? = none
-            while true:
-                let i = try self.parse_type()
-                ast.append(&n.ty, &tail, i)
-                if not self.eat_op(","):
-                    break
-        try self.expect_op(":")
+        n.ty = try self.parse_conformance()
         try self.expect_newline()
         try self.expect_indent()
         var tail: ast.Node*? = none
@@ -493,14 +503,7 @@ pub struct Parser:
             n.left = try self.parse_generic_params()
         if self.eat_kw("as"):
             n.ty = try self.parse_type()
-        if self.eat_kw("implements"):
-            var itail: ast.Node*? = none
-            while true:
-                let i = try self.parse_type()
-                ast.append(&n.right, &itail, i)
-                if not self.eat_op(","):
-                    break
-        try self.expect_op(":")
+        n.right = try self.parse_conformance()
         try self.expect_newline()
         try self.expect_indent()
         var tail: ast.Node*? = none
@@ -1572,7 +1575,7 @@ test "struct, enum, and union declarations":
     var arena = memory.FixedBuffer.over(backing)
     var scratch: u8[256]
     with arena:
-        let text = "struct P implements A:\n    var x: i64\n    func get() -> i64: return self.x\nenum K as u8:\n    a = 1\n    b(v: i64)\nunion U:\n    i: i64\n    f: f64\n"
+        let text = "struct P: A:\n    var x: i64\n    func get() -> i64: return self.x\nenum K as u8:\n    a = 1\n    b(v: i64)\nunion U:\n    i: i64\n    f: f64\n"
         let m = try parse_text(text, scratch)
         assert(ast.count(m.body) == 3)
         let s = m.body else return

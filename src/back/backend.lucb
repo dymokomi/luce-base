@@ -25,7 +25,7 @@ pub interface Backend:
     mutating func compile(mode: u32) -> str!
 
 ## C for the host C compiler.
-pub struct CBackend implements Backend:
+pub struct CBackend: Backend:
     var emitter: emit.Emitter
 
     pub static func over(c: check.Checker*, entry: ast.Node*) -> CBackend!:
@@ -36,7 +36,7 @@ pub struct CBackend implements Backend:
         return self.emitter.text()
 
 ## arm64 assembly through the IR: lower the tree, then generate.
-pub struct NativeBackend implements Backend:
+pub struct NativeBackend: Backend:
     var lowerer: lower.Lowerer
     var debug: bool
 

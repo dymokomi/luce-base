@@ -523,7 +523,7 @@ pub interface Allocator:
 
 ## A bump allocator over a caller's bytes. Only the last block can be resized or
 ## released; everything goes away together when the buffer does.
-pub struct FixedBuffer implements Allocator:
+pub struct FixedBuffer: Allocator:
     var data: u8[]
     var used: usize
 
@@ -561,7 +561,7 @@ pub struct FixedBuffer implements Allocator:
             self.used = start
 
 ## The C library's heap.
-pub struct CAllocator implements Allocator:
+pub struct CAllocator: Allocator:
     var unused: u8
 
     pub mutating func allocate(size: usize, alignment: usize) -> u8[]?:
@@ -649,7 +649,7 @@ pub struct Location:
 pub let closed: ErrorCode = ErrorCode.package(1)
 
 ## A C stream. Every write is flushed so that it never reorders against `print`.
-pub struct File implements Writer:
+pub struct File: Writer:
     var descriptor: i32
     var stream: void*?
 
@@ -1224,7 +1224,7 @@ pub func to_lower(text: str) -> str!:
     return (str)out[..<i]
 
 ## Text built piece by piece in the current allocator.
-pub struct Builder implements Writer:
+pub struct Builder: Writer:
     var data: u8[]
     var used: usize
 
@@ -1549,7 +1549,7 @@ pub struct Listener:
         discard(close(self.descriptor))
 
 ## One TCP connection; it is a `Writer`.
-pub struct Connection implements Writer:
+pub struct Connection: Writer:
     ## The socket, for callers that poll or pass it on.
     pub var descriptor: i32
 

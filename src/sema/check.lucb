@@ -57,7 +57,7 @@ pub struct Module:
     pub var is_prelude: bool
 
 ## A `Writer` over a caller's buffer, for spelling types into diagnostics.
-struct SpanWriter implements io.Writer:
+struct SpanWriter: io.Writer:
     var data: u8[]
     var used: usize
 
@@ -513,7 +513,7 @@ pub struct Checker:
         while let i = implemented:
             let id = try self.resolve_type(i)
             if self.table.kind(id) != types.Kind.interface_:
-                discard(try self.fail(i, "`implements` names an interface"))
+                discard(try self.fail(i, "a conformance names an interface"))
             implemented = i.next
         var cursor = d.body
         while let m = cursor:
@@ -966,7 +966,7 @@ pub struct Checker:
         let r = self.table.get(t.elem)
         return r.kind == types.Kind.fallible and r.elem == s.elem
 
-    ## Does struct or enum `id` declare `implements` for interface `iface`?
+    ## Does struct or enum `id` declare conformance to interface `iface`?
     func conforms(id: u32, iface: u32) -> bool:
         let t = self.table.get(id)
         let i = self.table.get(iface)
@@ -3709,7 +3709,7 @@ test "the standard modules need an import":
     try expect_error("func f(w: Writer) -> !:\n    discard(try w.write(\"hi\".bytes))\n", "unknown type")
 
 test "interfaces form views from pointers":
-    try expect_ok("from io import Writer\nstruct W implements Writer:\n    var n: usize\n    pub mutating func write(bytes: const u8[]) -> usize!:\n        self.n += bytes.length\n        return bytes.length\nfunc f() -> !:\n    var w = W(n = 0)\n    let v: Writer = &w\n    discard(try v.write(\"abc\"))\n")
+    try expect_ok("from io import Writer\nstruct W: Writer:\n    var n: usize\n    pub mutating func write(bytes: const u8[]) -> usize!:\n        self.n += bytes.length\n        return bytes.length\nfunc f() -> !:\n    var w = W(n = 0)\n    let v: Writer = &w\n    discard(try v.write(\"abc\"))\n")
 
 test "none needs an optional and if let unwraps":
     try expect_error("func f() -> i64:\n    let x = none\n    return 0\n", "`none` needs a written type")
