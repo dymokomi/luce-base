@@ -68,7 +68,8 @@ var used_mode: u32
 func scratch_of() -> u8[]:
     return scratch_bytes
 
-## Run the host C compiler over the generated text in a scratch directory.
+## Turn the generated text into `exe` in a scratch directory: assembly through the
+## host assembler and linker, C through the host C compiler.
 func compile(text: str, exe: str, release: bool, with_start: bool) -> !:
     let mktemp_args: cstr[2] = ["-d", "/tmp/luce-base.XXXXXX"]
     let made = try process.run("mktemp", mktemp_args)
@@ -79,6 +80,10 @@ func compile(text: str, exe: str, release: bool, with_start: bool) -> !:
     # the scratch names must end in NUL for the C library; `format` appends one
     var names: u8[4096]
     let dir = try format(names[3072..], f"{trim(dir_text)}")
+    defer remove_tree((cstr)dir)
+    if native_backend:
+        try assemble_and_link(dir, names[..<3072], text, exe)
+        return
     let gen_path = try format(names[..<512], f"{dir}/gen.s" if native_backend else f"{dir}/gen.c")
     let header_path = try format(names[512..<1024], f"{dir}/lucb_rt.h")
     let runtime_path = try format(names[1024..<1536], f"{dir}/lucb_rt.c")
@@ -106,16 +111,49 @@ func compile(text: str, exe: str, release: bool, with_start: bool) -> !:
     let result = try process.run("cc", cc_args)
     let (cc_status, cc_out, cc_err) = result
     discard(cc_out.length)
-    var rm_args: cstr[2] = ---
-    rm_args[0] = "-rf"
-    rm_args[1] = (cstr)dir
     if cc_status != 0:
         let out = io.stderr()
         try out.write(cc_err)
-        discard(try process.run("rm", rm_args))
         error(build_failed, "the C compiler rejected the generated code")
-    discard(try process.run("rm", rm_args))
     discard(err_path)
+
+## `as` over the assembly, then `ld` against the system library found through `xcrun`.
+func assemble_and_link(dir: str, names: u8[], text: str, exe: str) -> !:
+    let asm_path = try format(names[..<512], f"{dir}/gen.s")
+    let object_path = try format(names[512..<1024], f"{dir}/gen.o")
+    try files.write((cstr)asm_path, text.bytes)
+    var as_args: cstr[3] = ---
+    as_args[0] = "-o"
+    as_args[1] = (cstr)object_path
+    as_args[2] = (cstr)asm_path
+    let assembled = try process.run("as", as_args)
+    let (as_status, as_out, as_err) = assembled
+    discard(as_out.length)
+    if as_status != 0:
+        try io.stderr().write(as_err)
+        error(build_failed, "the assembler rejected the generated code")
+    let sdk_args: cstr[1] = ["--show-sdk-path"]
+    let found = try process.run("xcrun", sdk_args)
+    let (sdk_status, sdk_out, sdk_err) = found
+    discard(sdk_err.length)
+    if sdk_status != 0:
+        error(build_failed, "xcrun could not find the SDK")
+    let sdk = try format(names[1024..<2048], f"{trim(sdk_out)}")
+    var ld_args: cstr[8] = ---
+    ld_args[0] = "-arch"
+    ld_args[1] = "arm64"
+    ld_args[2] = "-syslibroot"
+    ld_args[3] = (cstr)sdk
+    ld_args[4] = "-lSystem"
+    ld_args[5] = "-o"
+    ld_args[6] = (cstr)exe
+    ld_args[7] = (cstr)object_path
+    let linked = try process.run("ld", ld_args)
+    let (ld_status, ld_out, ld_err) = linked
+    discard(ld_out.length)
+    if ld_status != 0:
+        try io.stderr().write(ld_err)
+        error(build_failed, "the linker rejected the generated code")
 
 ## `build FILE`: check, generate, compile.
 func build_file(path: cstr, options: Options) -> !:
@@ -164,8 +202,14 @@ func test_file(path: cstr, native: bool) -> i32!:
         return code
 
 func remove_file(path: cstr):
+    remove_path("-f", path)
+
+func remove_tree(path: cstr):
+    remove_path("-rf", path)
+
+func remove_path(flag: cstr, path: cstr):
     var rm_args: cstr[2] = ---
-    rm_args[0] = "-f"
+    rm_args[0] = flag
     rm_args[1] = path
     let ran = process.run("rm", rm_args) catch:
         return

@@ -26,7 +26,486 @@ pub struct Prelude:
 
 ## The modules in dependency order: `memory` first because `io` names its types,
 ## `atomic` before `sync`, whose orderings it declares.
-pub let modules: Prelude[15] = [
+pub let modules: Prelude[16] = [
+    Prelude(name = "core", text = """
+extern func write(descriptor: i32, buffer: const void*, count: usize) -> isize
+extern func c_exit as "exit"(code: i32) -> never
+extern func malloc(size: usize) -> void*?
+extern func memcpy(target: void*, source: const void*, count: usize) -> void*
+extern func memcmp(a: const void*, b: const void*, count: usize) -> i32
+extern func strlen(text: cstr) -> usize
+extern func snprintf(buffer: void*, size: usize, format: cstr, ...) -> i32
+
+## Stop the program with its reason on stderr (§8.7).
+pub func trap(message: cstr) -> never:
+    let prefix = "trap: "
+    discard(write(2, prefix.bytes.data, prefix.length))
+    discard(write(2, (const void*)message, strlen(message)))
+    let newline = "\\n"
+    discard(write(2, newline.bytes.data, 1))
+    c_exit(1)
+
+## The buffer `format` and f"..." fill: the bytes, their capacity, and the count used.
+pub struct FormatBuffer:
+    pub var data: u8*
+    pub var capacity: usize
+    pub var used: usize
+
+## Append `count` bytes; 1 when they do not fit, and the buffer is then over capacity.
+pub func format_put(b: FormatBuffer*, text: const void*?, count: usize) -> i32:
+    if count > b.capacity or b.used > b.capacity - count:
+        b.used = b.capacity +% 1
+        return 1
+    if let source = text:
+        if count > 0:
+            discard(memcpy(&b.data[b.used], source, count))
+    b.used += count
+    return 0
+
+pub func format_u64(b: FormatBuffer*, value: u64) -> i32:
+    var digits: u8[24] = ---
+    var n: usize = 0
+    var v = value
+    if v == 0:
+        digits[23] = 48
+        n = 1
+    while v != 0:
+        n += 1
+        digits[24 - n] = (u8)(48 + v % 10)
+        v = v // 10
+    return format_put(b, &digits[24 - n], n)
+
+pub func format_i64(b: FormatBuffer*, value: i64) -> i32:
+    if value < 0:
+        let minus = "-"
+        if format_put(b, minus.bytes.data, 1) != 0:
+            return 1
+        return format_u64(b, 0 -% (u64)value)
+    return format_u64(b, (u64)value)
+
+## `%g`, as the C library spells it, so both backends print one text.
+pub func format_f64(b: FormatBuffer*, value: f64) -> i32:
+    var text: u8[64] = ---
+    let n = snprintf((void*)&text[0], 64, "%g", value)
+    if n < 0:
+        return 1
+    return format_put(b, &text[0], (usize)n)
+
+pub func format_bool(b: FormatBuffer*, value: bool) -> i32:
+    let word = "true" if value else "false"
+    return format_put(b, word.bytes.data, word.length)
+
+## The text so far, NUL-terminated when there is room.
+pub func format_finish(b: FormatBuffer*) -> str:
+    if b.used < b.capacity:
+        b.data[b.used] = 0
+    if b.used > b.capacity:
+        return ""
+    return (str)u8[](b.data, b.used)
+
+## `hex`, `bin`, and `pad` return text in one of four rotating thread-local slots.
+thread_local var show_bytes: u8[1024]
+thread_local var show_next: u32
+
+func show_take(source: const u8*, count: usize) -> str:
+    let slot = (usize)(show_next & 3) * 256
+    show_next = show_next +% 1
+    var n = count
+    if n > 255:
+        n = 255
+    if n > 0:
+        discard(memcpy(&show_bytes[slot], source, n))
+    show_bytes[slot + n] = 0
+    return (str)show_bytes[slot..<slot + n]
+
+pub func show_hex(value: u64) -> str:
+    var digits: u8[16] = ---
+    var n: usize = 0
+    var v = value
+    if v == 0:
+        digits[15] = 48
+        n = 1
+    while v != 0:
+        n += 1
+        let d = (u8)(v & 15)
+        digits[16 - n] = d + 48 if d < 10 else d + 87
+        v = v >> 4
+    return show_take(&digits[16 - n], n)
+
+pub func show_bin(value: u64) -> str:
+    var digits: u8[64] = ---
+    var n: usize = 0
+    var v = value
+    if v == 0:
+        digits[63] = 48
+        n = 1
+    while v != 0:
+        n += 1
+        digits[64 - n] = 48 + (u8)(v & 1)
+        v = v >> 1
+    return show_take(&digits[64 - n], n)
+
+pub func show_pad(inner: str, width: usize) -> str:
+    var n = inner.length
+    if n >= width:
+        return show_take(inner.bytes.data, n)
+    var text: u8[256] = ---
+    var pad = width - n
+    if width > 255:
+        if n > 255:
+            n = 255
+        pad = 255 - n
+    for i in 0..<pad:
+        text[i] = 32
+    if n > 0:
+        discard(memcpy(&text[pad], inner.bytes.data, n))
+    return show_take(&text[0], pad + n)
+
+## The startup shim's pieces: the argument vector as `str[]` (checked) or `cstr[]`.
+pub func arguments(count: i32, vector: cstr*) -> str[]:
+    let n = (usize)count
+    let block = malloc((n if n > 0 else 1) * sizeof(str)) else trap("memory.exhausted")
+    let items = (str*)block
+    var i: usize = 0
+    while i < n:
+        let text = (str)vector[i]
+        if not utf8_ok(text.bytes.data, text.length):
+            trap("invalid_utf8")
+        items[i] = text
+        i += 1
+    return str[](items, n)
+
+pub func raw_arguments(count: i32, vector: cstr*) -> cstr[]:
+    return cstr[](vector, (usize)count)
+
+## A failed `main`: its error on stderr, exit status 1.
+pub func main_failed(code: i32, message: str) -> i32:
+    var bytes: u8[1024] = ---
+    let line = format(bytes, f"error {code}: {message}\\n") catch:
+        return 1
+    discard(write(2, line.bytes.data, line.length))
+    return 1
+
+## The test runner's report line and its summary.
+pub func test_report(name: str, failed: bool, message: str):
+    var bytes: u8[1024] = ---
+    let line = format(bytes, f"FAIL  {name}\\n      error: {message}\\n" if failed else f"ok    {name}\\n") catch:
+        return
+    discard(write(1, line.bytes.data, line.length))
+
+pub func test_summary(total: i32, failed: i32) -> i32:
+    var bytes: u8[64] = ---
+    let line = format(bytes, f"{total - failed} passed\\n") catch:
+        return 1
+    discard(write(1, line.bytes.data, line.length))
+    return 0 if failed == 0 else 1
+
+## `print`: the text and a newline on stdout; `answer()` programs print their number.
+pub func print_str(text: str):
+    discard(write(1, text.bytes.data, text.length))
+    let newline = "\\n"
+    discard(write(1, newline.bytes.data, 1))
+
+pub func print_i64(value: i64):
+    var bytes: u8[32] = ---
+    let all: u8[] = bytes
+    var b = FormatBuffer(data = all.data, capacity = 32, used = 0)
+    discard(format_i64(&b, value))
+    discard(write(1, all.data, b.used))
+    let newline = "\\n"
+    discard(write(1, newline.bytes.data, 1))
+
+## Ordering of text: bytewise, then by length (§7.4).
+pub func str_compare(a: str, b: str) -> i32:
+    let n = a.length if a.length < b.length else b.length
+    var c: i32 = 0
+    if n > 0:
+        c = memcmp(a.bytes.data, b.bytes.data, n)
+    if c != 0:
+        return -1 if c < 0 else 1
+    if a.length < b.length:
+        return -1
+    return 1 if a.length > b.length else 0
+
+## Whether `count` bytes are well-formed UTF-8: no overlong forms, no surrogates, nothing past U+10FFFF.
+pub func utf8_ok(text: const u8*?, count: usize) -> bool:
+    let s = text else return count == 0
+    var i: usize = 0
+    while i < count:
+        let c = s[i]
+        var w: usize = 1
+        var cp: u32 = 0
+        if c < 128:
+            cp = (u32)c
+        elif (c & 224) == 192:
+            w = 2
+            cp = (u32)(c & 31)
+        elif (c & 240) == 224:
+            w = 3
+            cp = (u32)(c & 15)
+        elif (c & 248) == 240:
+            w = 4
+            cp = (u32)(c & 7)
+        else:
+            return false
+        if i + w > count:
+            return false
+        var k: usize = 1
+        while k < w:
+            let x = s[i + k]
+            if (x & 192) != 128:
+                return false
+            cp = (cp << 6) | (u32)(x & 63)
+            k += 1
+        if w == 2 and cp < 128:
+            return false
+        if w == 3 and cp < 2048:
+            return false
+        if w == 4 and cp < 65536:
+            return false
+        if cp >= 55296 and cp <= 57343:
+            return false
+        if cp > 1114111:
+            return false
+        i += w
+    return true
+
+## `hash`: a per-process seed and a multiplicative mixer (§7.4).
+var hash_seed_value: u64
+var hash_seeded: bool
+
+pub func hash_seed() -> u64:
+    if not hash_seeded:
+        hash_seed_value = 11400714819323198485 ^ (u64)(usize)&hash_seed_value
+        hash_seeded = true
+    return hash_seed_value
+
+pub func hash_mix(h: u64, x: u64) -> u64:
+    var r = h ^ x
+    r = r *% 11400714819323198485
+    r = r ^ (r >> 32)
+    return r
+
+pub func hash_bytes(h: u64, data: const void*?, count: usize) -> u64:
+    var r = h
+    if let p = data:
+        let bytes = (const u8*)p
+        var i: usize = 0
+        while i < count:
+            r = hash_mix(r, (u64)bytes[i])
+            i += 1
+    return hash_mix(r, (u64)count)
+
+## Integer conversions between widths: `bits` of `value` as a 64-bit word.
+func mask_of(bits: i32) -> u64:
+    if bits >= 64:
+        return 18446744073709551615
+    return (1 << (u64)bits) - 1
+
+func sign_extend(value: i64, bits: i32) -> i64:
+    if bits >= 64:
+        return value
+    let m = mask_of(bits)
+    let x = (u64)value & m
+    if (x & (1 << (u64)(bits - 1))) != 0:
+        return (i64)(x | ~m)
+    return (i64)x
+
+func zero_extend(value: u64, bits: i32) -> u64:
+    return value & mask_of(bits)
+
+func signed_min(bits: i32) -> i64:
+    if bits >= 64:
+        return -9223372036854775807 - 1
+    return 0 -% (1 << (i64)(bits - 1))
+
+func signed_max(bits: i32) -> i64:
+    if bits >= 64:
+        return 9223372036854775807
+    return (1 << (i64)(bits - 1)) - 1
+
+func fits_signed(value: i64, bits: i32) -> bool:
+    return value >= signed_min(bits) and value <= signed_max(bits)
+
+func fits_unsigned(value: u64, bits: i32) -> bool:
+    return value <= mask_of(bits)
+
+## `T(x)` between integers (`mode` 0, checked) and `(T)x` (`mode` 1, truncating).
+pub func conv_s(value: i64, from_bits: i32, from_signed: i32, to_bits: i32, to_signed: i32, mode: i32) -> i64:
+    var a = value
+    if from_signed != 0:
+        a = sign_extend(a, from_bits)
+    else:
+        a = (i64)zero_extend((u64)a, from_bits)
+    if mode == 0:
+        if to_signed != 0:
+            if not fits_signed(a, to_bits):
+                trap("integer conversion out of range")
+            return a
+        if a < 0 or not fits_unsigned((u64)a, to_bits):
+            trap("integer conversion out of range")
+        return a
+    let bits = (u64)a & mask_of(to_bits)
+    if to_signed != 0:
+        return sign_extend((i64)bits, to_bits)
+    return (i64)bits
+
+pub func conv_u(value: u64, from_bits: i32, from_signed: i32, to_bits: i32, to_signed: i32, mode: i32) -> u64:
+    let s = sign_extend((i64)value, from_bits) if from_signed != 0 else (i64)zero_extend(value, from_bits)
+    if mode == 0:
+        if to_signed != 0:
+            if not fits_signed(s, to_bits):
+                trap("integer conversion out of range")
+            return (u64)s
+        if s < 0 or not fits_unsigned((u64)s, to_bits):
+            trap("integer conversion out of range")
+        return (u64)s
+    return zero_extend((u64)s, to_bits)
+
+func is_finite(value: f64) -> bool:
+    return value - value == 0.0
+
+## Float to integer: checked (`mode` 0) or saturating (`mode` 1); the cast inside is the target's own.
+pub func f_to_s(value: f64, bits: i32, mode: i32) -> i64:
+    let low = (f64)signed_min(bits)
+    let high = (f64)signed_max(bits)
+    if mode == 0:
+        if not is_finite(value) or value < low or value > high:
+            trap("integer conversion out of range")
+        return (i64)value
+    if not is_finite(value):
+        return 0
+    if value <= low:
+        return signed_min(bits)
+    if value >= high:
+        return signed_max(bits)
+    return (i64)value
+
+pub func f_to_u(value: f64, bits: i32, mode: i32) -> u64:
+    let high = (f64)mask_of(bits)
+    if mode == 0:
+        if not is_finite(value) or value < 0.0 or value > high:
+            trap("integer conversion out of range")
+        return (u64)value
+    if not is_finite(value) or value < 0.0:
+        return 0
+    if value >= high:
+        return mask_of(bits)
+    return (u64)value
+
+## Saturating arithmetic (`+|`, `-|`, `*|`) on `bits`-wide operands in 64-bit words.
+func add_overflows_s(a: i64, b: i64, r: i64) -> bool:
+    return ((a ^ r) & (b ^ r)) < 0
+
+func sub_overflows_s(a: i64, b: i64, r: i64) -> bool:
+    return ((a ^ b) & (a ^ r)) < 0
+
+func mul_overflows_s(a: i64, b: i64) -> bool:
+    if a == 0 or b == 0:
+        return false
+    if a == -1:
+        return b == signed_min(64)
+    if b == -1:
+        return a == signed_min(64)
+    return (a *% b) // b != a
+
+pub func adds_s(x: i64, y: i64, bits: i32) -> i64:
+    let a = sign_extend(x, bits)
+    let b = sign_extend(y, bits)
+    let r = a +% b
+    if add_overflows_s(a, b, r) or not fits_signed(r, bits):
+        return signed_min(bits) if a < 0 else signed_max(bits)
+    return r
+
+pub func adds_u(x: u64, y: u64, bits: i32) -> u64:
+    let a = zero_extend(x, bits)
+    let b = zero_extend(y, bits)
+    let r = a +% b
+    if r < a or not fits_unsigned(r, bits):
+        return mask_of(bits)
+    return r
+
+pub func subs_s(x: i64, y: i64, bits: i32) -> i64:
+    let a = sign_extend(x, bits)
+    let b = sign_extend(y, bits)
+    let r = a -% b
+    if sub_overflows_s(a, b, r) or not fits_signed(r, bits):
+        return signed_min(bits) if a < 0 else signed_max(bits)
+    return r
+
+pub func subs_u(x: u64, y: u64, bits: i32) -> u64:
+    let a = zero_extend(x, bits)
+    let b = zero_extend(y, bits)
+    if a < b:
+        return 0
+    return a - b
+
+pub func muls_s(x: i64, y: i64, bits: i32) -> i64:
+    let a = sign_extend(x, bits)
+    let b = sign_extend(y, bits)
+    if mul_overflows_s(a, b) or not fits_signed(a *% b, bits):
+        return signed_min(bits) if (a < 0) != (b < 0) else signed_max(bits)
+    return a *% b
+
+pub func muls_u(x: u64, y: u64, bits: i32) -> u64:
+    let a = zero_extend(x, bits)
+    let b = zero_extend(y, bits)
+    if b != 0 and a > mask_of(bits) // b:
+        return mask_of(bits)
+    return zero_extend(a *% b, bits)
+
+## Checked-to-optional arithmetic (`+?`, `-?`, `*?`): the result through `out`, whether it fit.
+pub func qadd_s(x: i64, y: i64, bits: i32, out: i64*) -> bool:
+    let a = sign_extend(x, bits)
+    let b = sign_extend(y, bits)
+    let r = a +% b
+    if add_overflows_s(a, b, r) or not fits_signed(r, bits):
+        return false
+    *out = r
+    return true
+
+pub func qadd_u(x: u64, y: u64, bits: i32, out: u64*) -> bool:
+    let a = zero_extend(x, bits)
+    let b = zero_extend(y, bits)
+    let r = a +% b
+    if r < a or not fits_unsigned(r, bits):
+        return false
+    *out = r
+    return true
+
+pub func qsub_s(x: i64, y: i64, bits: i32, out: i64*) -> bool:
+    let a = sign_extend(x, bits)
+    let b = sign_extend(y, bits)
+    let r = a -% b
+    if sub_overflows_s(a, b, r) or not fits_signed(r, bits):
+        return false
+    *out = r
+    return true
+
+pub func qsub_u(x: u64, y: u64, bits: i32, out: u64*) -> bool:
+    let a = zero_extend(x, bits)
+    let b = zero_extend(y, bits)
+    if a < b:
+        return false
+    *out = a - b
+    return true
+
+pub func qmul_s(x: i64, y: i64, bits: i32, out: i64*) -> bool:
+    let a = sign_extend(x, bits)
+    let b = sign_extend(y, bits)
+    if mul_overflows_s(a, b) or not fits_signed(a *% b, bits):
+        return false
+    *out = a *% b
+    return true
+
+pub func qmul_u(x: u64, y: u64, bits: i32, out: u64*) -> bool:
+    let a = zero_extend(x, bits)
+    let b = zero_extend(y, bits)
+    if b != 0 and a > mask_of(bits) // b:
+        return false
+    *out = a *% b
+    return true
+"""),
     Prelude(name = "memory", text = """
 extern func malloc(size: usize) -> void*?
 extern func c_free as "free"(block: void*)

@@ -1468,6 +1468,12 @@ pub struct Lowerer:
             return try self.load_from(p.ref, t)
         if e.text == "+":
             return try self.expr(inner)
+        if e.text == "-" and inner.kind == ast.Kind.literal and self.is_int(t):
+            # `-literal` is one constant, not a checked negation: `-128` is a valid `i8`
+            let magnitude = check.decode_integer(inner.text) catch failure:
+                recover 0
+            let negative = (i64)(0 -% magnitude)
+            return LowerValue(ref = ir.const_ref(negative), type_id = t, in_memory = false)
         let v = try self.value(inner, t)
         if self.is_float(t):
             return LowerValue(ref = try self.f.unary(ir.Op.neg, self.class_of(t), v.ref), type_id = t, in_memory = false)
@@ -1552,13 +1558,62 @@ pub struct Lowerer:
             let wide = try self.f.binary(plain, cls, a, b)
             return try self.narrow(wide, t)
         if op == "//" or op == "%":
-            return try self.runtime_arith("div" if op == "//" else "mod", t, a, b)
+            return try self.divide(op == "//", t, a, b)
         if op == "+|" or op == "-|" or op == "*|":
             let helper = "adds" if op == "+|" else ("subs" if op == "-|" else "muls")
             return try self.runtime_arith(helper, t, a, b)
         if op == "<<" or op == ">>":
-            return try self.runtime_arith("shl" if op == "<<" else "shr", t, a, b)
+            return try self.shift(op == "<<", t, a, b)
         return try self.fail(at, "unknown operator")
+
+    ## `a // b` and `a % b`: a zero divisor traps, so does the one overflowing quotient.
+    mutating func divide(quotient: bool, t: u32, a: ir.Ref, b: ir.Ref) -> ir.Ref!:
+        let cls = self.class_of(t)
+        let signed = self.signed_of(t)
+        let bits = self.scalar_size(t) * 8
+        let zero = try self.f.binary(ir.Op.ceq, cls, b, ir.const_ref(0))
+        let bad = self.f.label()
+        let ok = self.f.label()
+        try self.f.branch(zero, bad, ok)
+        try self.f.place_label(bad)
+        try self.trap_with("division by zero")
+        try self.f.place_label(ok)
+        if signed:
+            # the most negative value divided by -1 has no representable result
+            let lowest = try self.f.binary(ir.Op.shl, cls, ir.const_ref(1), ir.const_ref((i64)(bits - 1)))
+            let is_lowest = try self.f.binary(ir.Op.ceq, cls, a, lowest)
+            let minus_one = try self.f.binary(ir.Op.ceq, cls, b, ir.const_ref(-1))
+            let both = try self.f.binary(ir.Op.and_, ir.Class.w, is_lowest, minus_one)
+            let over = self.f.label()
+            let fine = self.f.label()
+            try self.f.branch(both, over, fine)
+            try self.f.place_label(over)
+            try self.trap_with("integer overflow")
+            try self.f.place_label(fine)
+        var op = ir.Op.sdiv if quotient else ir.Op.srem
+        if not signed:
+            op = ir.Op.udiv if quotient else ir.Op.urem
+        let r = try self.f.binary(op, cls, a, b)
+        return try self.narrow(r, t)
+
+    ## `a << n` and `a >> n`: a count at or past the width traps; the result keeps the width.
+    mutating func shift(left: bool, t: u32, a: ir.Ref, n: ir.Ref) -> ir.Ref!:
+        let cls = self.class_of(t)
+        let signed = self.signed_of(t)
+        let bits = self.scalar_size(t) * 8
+        let count = try self.to_word(n, t)
+        let over = try self.f.binary(ir.Op.cuge, ir.Class.l, count, ir.const_ref((i64)bits))
+        let bad = self.f.label()
+        let ok = self.f.label()
+        try self.f.branch(over, bad, ok)
+        try self.f.place_label(bad)
+        try self.trap_with("shift count out of range")
+        try self.f.place_label(ok)
+        var op = ir.Op.shl
+        if not left:
+            op = ir.Op.ashr if signed else ir.Op.lshr
+        let r = try self.f.binary(op, cls, a, n)
+        return try self.narrow(r, t)
 
     ## The last emitted checked instruction carries its signedness in `extra`.
     mutating func mark_signed(signed: bool) -> !:
@@ -1566,12 +1621,12 @@ pub struct Lowerer:
         last.extra = 1 if signed else 0
         self.f.instrs.set(self.f.instrs.count - 1, last)
 
-    ## `lb_<helper>_s(a, b, bits)` from the runtime, cast back to the type.
+    ## `core.<helper>_s(a, b, bits)`, cast back to the type.
     mutating func runtime_arith(helper: str, t: u32, a: ir.Ref, b: ir.Ref) -> ir.Ref!:
         let signed = self.signed_of(t)
         let bits = self.scalar_size(t) * 8
         self.scratch.clear()
-        try self.scratch.put("lb_")
+        try self.scratch.put("lb_core_")
         try self.scratch.put(helper)
         try self.scratch.put("_s" if signed else "_u")
         let name = try names.keep(&self.scratch)
@@ -1625,10 +1680,14 @@ pub struct Lowerer:
         var ot = lt
         if lt == types.untyped_int_id or lt == types.untyped_float_id or lt == types.none_id:
             ot = rt
-        if ot == types.untyped_int_id or ot == types.none_id:
-            ot = types.i64_id
-        elif ot == types.untyped_float_id:
-            ot = types.f64_id
+        if ot == types.untyped_int_id or ot == types.none_id or ot == types.untyped_float_id:
+            # two literals: the checker settled the expression's own type, `let b: i32 = 7 * 2`
+            if self.is_int(t) or self.is_float(t) or t == types.char_id:
+                ot = t
+            elif ot == types.untyped_float_id:
+                ot = types.f64_id
+            else:
+                ot = types.i64_id
         if op == "==" or op == "!=":
             return try self.equality(l, lt, r, rt, ot, op == "!=")
         if op == "<" or op == "<=" or op == ">" or op == ">=":
@@ -1638,7 +1697,7 @@ pub struct Lowerer:
                 let start = u32(self.f.args.count)
                 try self.f.args.push(try self.arg_of(lv))
                 try self.f.args.push(try self.arg_of(rv))
-                let c = try self.call_named("lb_str_compare", start, 2, ir.Class.w, true, types.i32_id)
+                let c = try self.call_named("lb_core_str_compare", start, 2, ir.Class.w, true, types.i32_id)
                 let cop = ir.Op.cslt if op == "<" else (ir.Op.csle if op == "<=" else (ir.Op.csgt if op == ">" else ir.Op.csge))
                 return LowerValue(ref = try self.f.binary(cop, ir.Class.w, c, ir.const_ref(0)), type_id = types.bool_id, in_memory = false)
             let lv = try self.value(l, ot)
@@ -1658,7 +1717,8 @@ pub struct Lowerer:
             let lv = try self.expr(l)
             let rv = try self.expr(r)
             if op == "-" and self.is_ptr(rt):
-                let diff = try self.f.binary(ir.Op.sub, ir.Class.l, lv.ref, rv.ref)
+                let bytes = try self.f.binary(ir.Op.sub, ir.Class.l, lv.ref, rv.ref)
+                let diff = try self.f.binary(ir.Op.sdiv, ir.Class.l, bytes, ir.const_ref((i64)self.c.table.size_of(self.elem(ot))))
                 return LowerValue(ref = diff, type_id = t, in_memory = false)
             let stride = self.c.table.size_of(self.elem(ot))
             let scaled = try self.f.binary(ir.Op.mul, ir.Class.l, try self.to_word(rv.ref, rt), ir.const_ref((i64)stride))
@@ -1675,12 +1735,12 @@ pub struct Lowerer:
         let result = try self.arithmetic(op, ot, lv.ref, rv.ref, e)
         return LowerValue(ref = result, type_id = ot, in_memory = false)
 
-    ## `lb_qadd_s(a, b, bits, &out)` into a tagged optional.
+    ## `core.qadd_s(a, b, bits, &out)` into a tagged optional.
     mutating func checked_optional(helper: str, et: u32, a: ir.Ref, b: ir.Ref, t: u32) -> LowerValue!:
         let signed = self.signed_of(et)
         let bits = self.scalar_size(et) * 8
         self.scratch.clear()
-        try self.scratch.put("lb_")
+        try self.scratch.put("lb_core_")
         try self.scratch.put(helper)
         try self.scratch.put("_s" if signed else "_u")
         let name = try names.keep(&self.scratch)
@@ -1784,7 +1844,12 @@ pub struct Lowerer:
         if self.is_int_enum(st) and self.is_int(dest):
             return LowerValue(ref = try self.convert_int(v.ref, self.enum_backing(st), dest, false), type_id = dest, in_memory = false)
         if self.is_float(st) and self.is_int(dest):
-            let helper = "lb_f_to_s" if self.is_signed(dest) else "lb_f_to_u"
+            if not checked and self.in_core():
+                # `core.f_to_s` and `core.f_to_u` end in this cast: the instruction itself
+                let wide = try self.f.unary(ir.Op.exts, ir.Class.d, v.ref) if st == types.f32_id else v.ref
+                let raw = try self.f.unary(ir.Op.dtosi if self.is_signed(dest) else ir.Op.dtoui, ir.Class.l, wide)
+                return LowerValue(ref = try self.from_word(raw, dest), type_id = dest, in_memory = false)
+            let helper = "lb_core_f_to_s" if self.is_signed(dest) else "lb_core_f_to_u"
             let wide = try self.f.unary(ir.Op.exts, ir.Class.d, v.ref) if st == types.f32_id else v.ref
             let start = u32(self.f.args.count)
             try self.f.args.push(ir.Arg(value = wide, cls = ir.Class.d, size = 0, align = 8, type_id = types.f64_id, is_float_only = false, float_count = 0))
@@ -1810,6 +1875,12 @@ pub struct Lowerer:
         # pointers, spans, and everything else convert by reinterpretation
         return LowerValue(ref = v.ref, type_id = dest, in_memory = v.in_memory)
 
+    ## Whether the function being lowered belongs to the `core` module, whose bodies are
+    ## what the other conversions call.
+    func in_core() -> bool:
+        let f = self.current_fn else return false
+        return names.module_of(f) == "core"
+
     ## An integer converted between widths, checked through the runtime when asked.
     mutating func convert_int(r: ir.Ref, st: u32, dest: u32, checked: bool) -> ir.Ref!:
         let from_bits = 32 if st == types.char_id else (64 if st == types.untyped_int_id or st == types.bool_id else (self.scalar_size(st) * 8))
@@ -1828,7 +1899,7 @@ pub struct Lowerer:
         try self.f.args.push(ir.Arg(value = ir.const_ref((i64)to_bits), cls = ir.Class.w, size = 0, align = 4, type_id = types.i32_id, is_float_only = false, float_count = 0))
         try self.f.args.push(ir.Arg(value = ir.const_ref(1 if to_signed else 0), cls = ir.Class.w, size = 0, align = 4, type_id = types.i32_id, is_float_only = false, float_count = 0))
         try self.f.args.push(ir.Arg(value = ir.const_ref(0), cls = ir.Class.w, size = 0, align = 4, type_id = types.i32_id, is_float_only = false, float_count = 0))
-        let out = try self.call_named("lb_conv_s" if from_signed else "lb_conv_u", start, 6, ir.Class.l, true, types.i64_id)
+        let out = try self.call_named("lb_core_conv_s" if from_signed else "lb_core_conv_u", start, 6, ir.Class.l, true, types.i64_id)
         return try self.from_word(out, dest)
 
     mutating func enum_check(dest: u32, v: ir.Ref) -> !:
@@ -1877,7 +1948,7 @@ pub struct Lowerer:
         let start = u32(self.f.args.count)
         try self.f.args.push(ir.Arg(value = data, cls = ir.Class.l, size = 0, align = 8, type_id = types.cstr_id, is_float_only = false, float_count = 0))
         try self.f.args.push(ir.Arg(value = length, cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, is_float_only = false, float_count = 0))
-        let ok = try self.call_named("lb_utf8_ok", start, 2, ir.Class.w, true, types.i32_id)
+        let ok = try self.call_named("lb_core_utf8_ok", start, 2, ir.Class.w, true, types.i32_id)
         let good = self.f.label()
         let bad = self.f.label()
         let done = self.f.label()
@@ -2645,7 +2716,7 @@ pub struct Lowerer:
             let text = try self.expr(v)
             let start = u32(self.f.args.count)
             try self.f.args.push(try self.arg_of(LowerValue(ref = text.ref, type_id = types.str_id, in_memory = true)))
-            discard(try self.call_named("lb_print_str", start, 1, ir.Class.w, false, types.unit_id))
+            discard(try self.call_named("lb_core_print_str", start, 1, ir.Class.w, false, types.unit_id))
             return nothing
         if name == "format":
             let buf = arg else return try self.fail(e, "no buffer")
@@ -2663,7 +2734,7 @@ pub struct Lowerer:
                 let data = try self.f.load(ir.Op.loadl, ir.Class.l, m.ref)
                 let start = u32(self.f.args.count)
                 try self.f.args.push(ir.Arg(value = data, cls = ir.Class.l, size = 0, align = 8, type_id = types.cstr_id, is_float_only = false, float_count = 0))
-                discard(try self.call_named("lb_trap", start, 1, ir.Class.w, false, types.unit_id))
+                discard(try self.call_named("lb_core_trap", start, 1, ir.Class.w, false, types.unit_id))
             else:
                 try self.trap_with("assert failed")
             try self.f.place_label(ok)
@@ -2674,7 +2745,7 @@ pub struct Lowerer:
                 let data = try self.f.load(ir.Op.loadl, ir.Class.l, m.ref)
                 let start = u32(self.f.args.count)
                 try self.f.args.push(ir.Arg(value = data, cls = ir.Class.l, size = 0, align = 8, type_id = types.cstr_id, is_float_only = false, float_count = 0))
-                discard(try self.call_named("lb_trap", start, 1, ir.Class.w, false, types.unit_id))
+                discard(try self.call_named("lb_core_trap", start, 1, ir.Class.w, false, types.unit_id))
             else:
                 try self.trap_with("trap")
             return LowerValue(ref = ir.const_ref(0), type_id = types.never_id, in_memory = false)
@@ -2694,7 +2765,7 @@ pub struct Lowerer:
             let word = try self.to_word(x.ref, x.type_id) if x.type_id != types.untyped_int_id else x.ref
             let start = u32(self.f.args.count)
             try self.f.args.push(ir.Arg(value = word, cls = ir.Class.l, size = 0, align = 8, type_id = types.u64_id, is_float_only = false, float_count = 0))
-            return try self.call_aggregate("lb_show_hex" if name == "hex" else "lb_show_bin", start, 1, types.str_id)
+            return try self.call_aggregate("lb_core_show_hex" if name == "hex" else "lb_core_show_bin", start, 1, types.str_id)
         if name == "pad":
             let v = arg else return try self.fail(e, "no argument")
             let w = second else return try self.fail(e, "no width")
@@ -2702,13 +2773,13 @@ pub struct Lowerer:
             try self.display(fb, v)
             let start = u32(self.f.args.count)
             try self.f.args.push(ir.Arg(value = fb, cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, is_float_only = false, float_count = 0))
-            let inner = try self.call_aggregate("lb_fmtbuf_finish", start, 1, types.str_id)
+            let inner = try self.call_aggregate("lb_core_format_finish", start, 1, types.str_id)
             let wv = try self.value(w, types.usize_id)
             let start2 = u32(self.f.args.count)
             try self.f.args.push(try self.arg_of(inner))
             try self.f.args.push(ir.Arg(value = wv.ref, cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, is_float_only = false, float_count = 0))
             discard(chars)
-            return try self.call_aggregate("lb_show_pad", start2, 2, types.str_id)
+            return try self.call_aggregate("lb_core_show_pad", start2, 2, types.str_id)
         if name == "sizeof" or name == "alignof":
             let v = arg else return try self.fail(e, "no argument")
             let t = try self.map(v.type_id)
@@ -3079,7 +3150,7 @@ pub struct Lowerer:
             let start = u32(self.f.args.count)
             try self.f.args.push(ir.Arg(value = fb, cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, is_float_only = false, float_count = 0))
             try self.f.args.push(ir.Arg(value = x.ref, cls = ir.Class.w, size = 0, align = 4, type_id = types.bool_id, is_float_only = false, float_count = 0))
-            discard(try self.call_named("lb_fmtbuf_bool", start, 2, ir.Class.w, true, types.i32_id))
+            discard(try self.call_named("lb_core_format_bool", start, 2, ir.Class.w, true, types.i32_id))
             return
         if t == types.str_id or t == types.fmt_id:
             let data = try self.f.load(ir.Op.loadl, ir.Class.l, x.ref)
@@ -3088,21 +3159,21 @@ pub struct Lowerer:
             try self.f.args.push(ir.Arg(value = fb, cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, is_float_only = false, float_count = 0))
             try self.f.args.push(ir.Arg(value = data, cls = ir.Class.l, size = 0, align = 8, type_id = types.cstr_id, is_float_only = false, float_count = 0))
             try self.f.args.push(ir.Arg(value = length, cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, is_float_only = false, float_count = 0))
-            discard(try self.call_named("lb_fmtbuf_put", start, 3, ir.Class.w, true, types.i32_id))
+            discard(try self.call_named("lb_core_format_put", start, 3, ir.Class.w, true, types.i32_id))
             return
         if self.is_float(t) or t == types.untyped_float_id:
             let wide = try self.f.unary(ir.Op.exts, ir.Class.d, x.ref) if t == types.f32_id else x.ref
             let start = u32(self.f.args.count)
             try self.f.args.push(ir.Arg(value = fb, cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, is_float_only = false, float_count = 0))
             try self.f.args.push(ir.Arg(value = wide, cls = ir.Class.d, size = 0, align = 8, type_id = types.f64_id, is_float_only = false, float_count = 0))
-            discard(try self.call_named("lb_fmtbuf_f64", start, 2, ir.Class.w, true, types.i32_id))
+            discard(try self.call_named("lb_core_format_f64", start, 2, ir.Class.w, true, types.i32_id))
             return
         let unsigned = self.is_ptr(t) or (self.is_int(t) and not self.is_signed(t)) or t == types.char_id or (self.is_int_enum(t) and not self.signed_of(t)) or t == types.error_code_id or t == types.cstr_id
         let word = try self.to_word(x.ref, t) if t != types.untyped_int_id and not self.is_ptr(t) and t != types.cstr_id else x.ref
         let start = u32(self.f.args.count)
         try self.f.args.push(ir.Arg(value = fb, cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, is_float_only = false, float_count = 0))
         try self.f.args.push(ir.Arg(value = word, cls = ir.Class.l, size = 0, align = 8, type_id = types.i64_id, is_float_only = false, float_count = 0))
-        discard(try self.call_named("lb_fmtbuf_u64" if unsigned else "lb_fmtbuf_i64", start, 2, ir.Class.w, true, types.i32_id))
+        discard(try self.call_named("lb_core_format_u64" if unsigned else "lb_core_format_i64", start, 2, ir.Class.w, true, types.i32_id))
 
     ## The pieces of a formatted string appended to the buffer at `fb`.
     mutating func pieces(fb: ir.Ref, f: ast.Node*) -> !:
@@ -3116,7 +3187,7 @@ pub struct Lowerer:
                 try self.f.args.push(ir.Arg(value = fb, cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, is_float_only = false, float_count = 0))
                 try self.f.args.push(ir.Arg(value = data, cls = ir.Class.l, size = 0, align = 8, type_id = types.cstr_id, is_float_only = false, float_count = 0))
                 try self.f.args.push(ir.Arg(value = ir.const_ref((i64)text.length), cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, is_float_only = false, float_count = 0))
-                discard(try self.call_named("lb_fmtbuf_put", start, 3, ir.Class.w, true, types.i32_id))
+                discard(try self.call_named("lb_core_format_put", start, 3, ir.Class.w, true, types.i32_id))
             elif p.kind == ast.Kind.format_field:
                 let v = p.left else return
                 try self.display(fb, v)
@@ -3129,7 +3200,7 @@ pub struct Lowerer:
         let start = u32(self.f.args.count)
         try self.f.args.push(ir.Arg(value = fb, cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, is_float_only = false, float_count = 0))
         discard(chars)
-        return try self.call_aggregate("lb_fmtbuf_finish", start, 1, types.fmt_id)
+        return try self.call_aggregate("lb_core_format_finish", start, 1, types.fmt_id)
 
     ## `format(buffer, text)` into the caller's bytes, yielding `str!`.
     mutating func format_call(buf: ast.Node*, msg: ast.Node*) -> LowerValue!:
@@ -3161,7 +3232,7 @@ pub struct Lowerer:
         try self.f.place_label(good)
         let start = u32(self.f.args.count)
         try self.f.args.push(ir.Arg(value = fb, cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, is_float_only = false, float_count = 0))
-        let text = try self.call_aggregate("lb_fmtbuf_finish", start, 1, types.str_id)
+        let text = try self.call_aggregate("lb_core_format_finish", start, 1, types.str_id)
         try self.f.copy_bytes(a, text.ref, 16)
         try self.f.store(ir.Op.storeb, ir.const_ref(0), try self.offset_address(a, self.failed_offset(result)))
         try self.f.jump(done)
@@ -3174,7 +3245,7 @@ pub struct Lowerer:
         let x = try self.expr(v)
         let start = u32(self.f.args.count)
         let seed_start = u32(self.f.args.count)
-        let seed = try self.call_named("lb_hash_seed", seed_start, 0, ir.Class.l, true, types.u64_id)
+        let seed = try self.call_named("lb_core_hash_seed", seed_start, 0, ir.Class.l, true, types.u64_id)
         if t == types.str_id:
             let data = try self.f.load(ir.Op.loadl, ir.Class.l, x.ref)
             let length = try self.f.load(ir.Op.loadl, ir.Class.l, try self.offset_address(x.ref, 8))
@@ -3182,14 +3253,14 @@ pub struct Lowerer:
             try self.f.args.push(ir.Arg(value = seed, cls = ir.Class.l, size = 0, align = 8, type_id = types.u64_id, is_float_only = false, float_count = 0))
             try self.f.args.push(ir.Arg(value = data, cls = ir.Class.l, size = 0, align = 8, type_id = types.cstr_id, is_float_only = false, float_count = 0))
             try self.f.args.push(ir.Arg(value = length, cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, is_float_only = false, float_count = 0))
-            let h = try self.call_named("lb_hash_bytes", s2, 3, ir.Class.l, true, types.u64_id)
+            let h = try self.call_named("lb_core_hash_bytes", s2, 3, ir.Class.l, true, types.u64_id)
             return LowerValue(ref = h, type_id = types.u64_id, in_memory = false)
         if x.in_memory:
             let s2 = u32(self.f.args.count)
             try self.f.args.push(ir.Arg(value = seed, cls = ir.Class.l, size = 0, align = 8, type_id = types.u64_id, is_float_only = false, float_count = 0))
             try self.f.args.push(ir.Arg(value = x.ref, cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, is_float_only = false, float_count = 0))
             try self.f.args.push(ir.Arg(value = ir.const_ref((i64)self.size(t)), cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, is_float_only = false, float_count = 0))
-            let h = try self.call_named("lb_hash_bytes", s2, 3, ir.Class.l, true, types.u64_id)
+            let h = try self.call_named("lb_core_hash_bytes", s2, 3, ir.Class.l, true, types.u64_id)
             return LowerValue(ref = h, type_id = types.u64_id, in_memory = false)
         var word = x.ref
         if self.is_float(t):
@@ -3201,7 +3272,7 @@ pub struct Lowerer:
         let s2 = u32(self.f.args.count)
         try self.f.args.push(ir.Arg(value = seed, cls = ir.Class.l, size = 0, align = 8, type_id = types.u64_id, is_float_only = false, float_count = 0))
         try self.f.args.push(ir.Arg(value = word, cls = ir.Class.l, size = 0, align = 8, type_id = types.u64_id, is_float_only = false, float_count = 0))
-        let h = try self.call_named("lb_hash_mix", s2, 2, ir.Class.l, true, types.u64_id)
+        let h = try self.call_named("lb_core_hash_mix", s2, 2, ir.Class.l, true, types.u64_id)
         discard(start)
         return LowerValue(ref = h, type_id = types.u64_id, in_memory = false)
 
@@ -3325,11 +3396,13 @@ pub struct Lowerer:
                 let title = check.decode_text(t.text)
                 let index = try self.program_unit.text(title)
                 let name = try self.span_of(try self.f.address_of(ir.text_ref(index)), ir.const_ref((i64)title.length), types.str_id)
+                let failed = try self.f.load(ir.Op.loadub, ir.Class.w, try self.offset_address(r.ref, self.failed_offset(r.type_id)))
+                let message = LowerValue(ref = try self.offset_address(r.ref, self.error_offset(r.type_id) + 8), type_id = types.str_id, in_memory = true)
                 let s2 = u32(self.f.args.count)
                 try self.f.args.push(try self.arg_of(name))
-                try self.f.args.push(ir.Arg(value = r.ref, cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, is_float_only = false, float_count = 0))
-                discard(try self.call_named("lb_test_report", s2, 2, ir.Class.w, false, types.unit_id))
-                let failed = try self.f.load(ir.Op.loadub, ir.Class.w, try self.offset_address(r.ref, 24))
+                try self.f.args.push(ir.Arg(value = failed, cls = ir.Class.w, size = 0, align = 4, type_id = types.bool_id, is_float_only = false, float_count = 0))
+                try self.f.args.push(try self.arg_of(message))
+                discard(try self.call_named("lb_core_test_report", s2, 3, ir.Class.w, false, types.unit_id))
                 let old = try self.f.load(ir.Op.loadsw, ir.Class.w, try self.slot_address(failed_slot))
                 let sum = try self.f.binary(ir.Op.add, ir.Class.w, old, failed)
                 try self.f.store(ir.Op.storew, sum, try self.slot_address(failed_slot))
@@ -3338,7 +3411,7 @@ pub struct Lowerer:
             let s3 = u32(self.f.args.count)
             try self.f.args.push(ir.Arg(value = ir.const_ref((i64)self.tests.count), cls = ir.Class.w, size = 0, align = 4, type_id = types.i32_id, is_float_only = false, float_count = 0))
             try self.f.args.push(ir.Arg(value = total, cls = ir.Class.w, size = 0, align = 4, type_id = types.i32_id, is_float_only = false, float_count = 0))
-            let code = try self.call_named("lb_test_summary", s3, 2, ir.Class.w, true, types.i32_id)
+            let code = try self.call_named("lb_core_test_summary", s3, 2, ir.Class.w, true, types.i32_id)
             try self.f.store(ir.Op.storew, code, try self.slot_address(exit_code))
         elif mode == 2:
             let answer = check.find_decl(self.entry, "answer") else return
@@ -3350,10 +3423,9 @@ pub struct Lowerer:
                 let bad = self.f.label()
                 try self.f.branch(failed, bad, ok)
                 try self.f.place_label(bad)
-                let err = LowerValue(ref = try self.offset_address(r.ref, self.error_offset(r.type_id)), type_id = types.error_value_id, in_memory = true)
                 let s4 = u32(self.f.args.count)
-                try self.f.args.push(try self.arg_of(err))
-                let code = try self.call_named("lb_main_failed", s4, 1, ir.Class.w, true, types.i32_id)
+                try self.push_error_pieces(try self.offset_address(r.ref, self.error_offset(r.type_id)))
+                let code = try self.call_named("lb_core_main_failed", s4, 2, ir.Class.w, true, types.i32_id)
                 try self.f.store(ir.Op.storew, code, try self.slot_address(exit_code))
                 try self.f.jump(self.f.labels + 1)
                 try self.f.place_label(ok)
@@ -3374,23 +3446,24 @@ pub struct Lowerer:
             let s5 = u32(self.f.args.count)
             try self.f.args.push(ir.Arg(value = argc, cls = ir.Class.w, size = 0, align = 4, type_id = types.i32_id, is_float_only = false, float_count = 0))
             try self.f.args.push(ir.Arg(value = argv, cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, is_float_only = false, float_count = 0))
-            try self.f.args.push(ir.Arg(value = ir.const_ref(1 if as_text else 0), cls = ir.Class.w, size = 0, align = 4, type_id = types.bool_id, is_float_only = false, float_count = 0))
             let span_type = try self.c.table.span(types.str_id if as_text else types.cstr_id, false)
-            let args = try self.call_aggregate("lb_arguments", s5, 3, span_type)
+            let args = try self.call_aggregate("lb_core_arguments" if as_text else "lb_core_raw_arguments", s5, 2, span_type)
             let s6 = u32(self.f.args.count)
-            try self.f.args.push(try self.arg_of(args))
+            var main_args: u32 = 0
+            if ft.args.length > 0:
+                try self.f.args.push(try self.arg_of(args))
+                main_args = 1
             if main_fn.has(ast.flag_fallible):
-                let r = try self.call_aggregate("lb_main", s6, 1, try self.c.table.fallible(types.i32_id))
+                let r = try self.call_aggregate("lb_main", s6, main_args, try self.c.table.fallible(types.i32_id))
                 let failed = try self.f.load(ir.Op.loadub, ir.Class.w, try self.offset_address(r.ref, self.failed_offset(r.type_id)))
                 let ok = self.f.label()
                 let bad = self.f.label()
                 let done = self.f.label()
                 try self.f.branch(failed, bad, ok)
                 try self.f.place_label(bad)
-                let err = LowerValue(ref = try self.offset_address(r.ref, self.error_offset(r.type_id)), type_id = types.error_value_id, in_memory = true)
                 let s7 = u32(self.f.args.count)
-                try self.f.args.push(try self.arg_of(err))
-                let code = try self.call_named("lb_main_failed", s7, 1, ir.Class.w, true, types.i32_id)
+                try self.push_error_pieces(try self.offset_address(r.ref, self.error_offset(r.type_id)))
+                let code = try self.call_named("lb_core_main_failed", s7, 2, ir.Class.w, true, types.i32_id)
                 try self.f.store(ir.Op.storew, code, try self.slot_address(exit_code))
                 try self.f.jump(done)
                 try self.f.place_label(ok)
@@ -3399,7 +3472,7 @@ pub struct Lowerer:
                 try self.f.jump(done)
                 try self.f.place_label(done)
             else:
-                let code = try self.call_named("lb_main", s6, 1, ir.Class.w, true, types.i32_id)
+                let code = try self.call_named("lb_main", s6, main_args, ir.Class.w, true, types.i32_id)
                 try self.f.store(ir.Op.storew, code, try self.slot_address(exit_code))
         self.pop_scope()
         let code = try self.f.load(ir.Op.loadsw, ir.Class.w, try self.slot_address(exit_code))
@@ -3408,11 +3481,18 @@ pub struct Lowerer:
         try self.f.emit(ir.Op.ret, ir.Class.w, 0, out, ir.none_ref(), 0)
         try self.end_function()
 
+    ## An error value's code and message as two arguments.
+    mutating func push_error_pieces(err: ir.Ref) -> !:
+        let code = try self.f.load(ir.Op.loadsw, ir.Class.w, err)
+        try self.f.args.push(ir.Arg(value = code, cls = ir.Class.w, size = 0, align = 4, type_id = types.i32_id, is_float_only = false, float_count = 0))
+        let message = LowerValue(ref = try self.offset_address(err, 8), type_id = types.str_id, in_memory = true)
+        try self.f.args.push(try self.arg_of(message))
+
     ## `answer()` programs print their result as the seed's `start.c` did.
     mutating func print_answer(value: ir.Ref) -> !:
         let s = u32(self.f.args.count)
         try self.f.args.push(ir.Arg(value = value, cls = ir.Class.l, size = 0, align = 8, type_id = types.i64_id, is_float_only = false, float_count = 0))
-        discard(try self.call_named("lb_print_i64", s, 1, ir.Class.w, false, types.unit_id))
+        discard(try self.call_named("lb_core_print_i64", s, 1, ir.Class.w, false, types.unit_id))
 
     ## Every witness table as data: one pointer per interface requirement.
     mutating func witness_tables() -> !:
