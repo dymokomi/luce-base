@@ -1802,8 +1802,10 @@ pub struct Checker:
         let r = e.right else return try self.fail(e, "`else` needs an alternative")
         var lt = try self.check_expr(l, try self.table.optional(hint) if hint != types.none_id else types.none_id)
         let t = self.table.get(lt)
-        if t.kind != types.Kind.optional and t.kind != types.Kind.fallible:
-            return try self.fail(l, "`else` needs an optional or fallible value")
+        if t.kind == types.Kind.fallible:
+            return try self.fail(l, "`else` takes an optional; a fallible result takes `try` or `catch` (§11.2)")
+        if t.kind != types.Kind.optional:
+            return try self.fail(l, "`else` needs an optional")
         let payload = t.elem
         if r.kind == ast.Kind.return_ or r.kind == ast.Kind.break_ or r.kind == ast.Kind.continue_:
             try self.check_stmt(r)

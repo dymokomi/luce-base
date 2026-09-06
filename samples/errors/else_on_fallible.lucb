@@ -1,0 +1,12 @@
+# error: `else` takes an optional; a fallible result takes `try` or `catch`
+pub let broken: ErrorCode = ErrorCode.package(1)
+
+func might(flag: bool) -> i64!:
+    if flag:
+        error(broken, "no")
+    return 40
+
+pub func main(arguments: str[]) -> i32:
+    let v = might(false) else 0
+    print(f"{v}")
+    return 0

@@ -128,7 +128,7 @@ Base programmer would miss them.
 | 16.6 | TLS for `net`, a `graphics` module | missing |
 | plan 9 | `luce-ld` | not started |
 
-Known and accepted: luce-base accepts `x else y` on a fallible `x`, which §11.1 reserves for optionals (a fallible takes `try` or `catch`); the seed refuses it, and luce-base should too; the
+Known and accepted: the
 interpreter cannot run asm; `var views: Interface[N]` is rejected by both
 compilers because a view has no zero value; a union member written only
 through a pointer taken earlier is not seen by the interpreter's punning.
