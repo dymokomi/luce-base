@@ -172,21 +172,40 @@ the program's modules are hooked; the standard modules run as built.
 ## The native backend's code quality
 
 The product is the compiler built by itself through the native backend, so
-that backend's quality is what the compiler runs on. Three passes in
-`back/arm64.lucb` shape it. `promote` puts frame slots in registers: a slot of
-1, 2, 4, or 8 bytes whose address is only ever taken to load or store that
-many bytes, in one register class, lives in a callee-saved register for the
-whole function (x19–x24, d8–d11 for the most-used); its address temporaries
-are never materialised, a narrow load re-extends from the register, and a
-parameter's slot is filled by a move at entry. A slot a call sequence writes
-into (an aggregate result) stays in the frame, as does everything under
-`--debug`, whose frame descriptors need the frame. `allocate` then gives the
-block-local temporaries the remaining callee-saved registers by linear scan,
-extending a live range across a loop's back-edge in one forward pass. The
-emitter copies and zeroes records up to 64 bytes with loads and stores rather
-than a call. What remains before this backend matches a C compiler at `-O2`:
-operands still pass through scratch registers, values do not stay in registers
-across blocks, and nothing is inlined.
+that backend's quality is what the compiler runs on. Between lowering and the
+target, `back/inline.lucb` expands small leaf functions at their call sites: a
+callee of at most twenty-four instructions with no calls of its own, whose
+arguments are stored into its parameter slots (which join the caller's frame),
+whose temporaries, slots, and labels are renumbered into the caller's, and
+whose every `ret` becomes a store of the result and a jump to one exit. A loop
+over a struct's accessors runs a third faster; the compiler's own build, which
+is not call-bound, does not change. Then three passes in `back/arm64.lucb`
+shape each function. `plan_registers` measures how many temporaries of each
+class are live at once and splits the callee-saved registers accordingly:
+the temporaries keep up to four of each class, the most-used frame slots take
+the rest. `promote` puts those slots in registers: a slot of 1, 2, 4, or 8
+bytes, touched at least twice, whose address is only ever taken to load or
+store that many bytes, in one register class, lives in a callee-saved
+register for the whole function; its address temporaries are never
+materialised, a narrow load re-extends from the register, and a parameter's
+slot is filled by a move at entry. A slot a call sequence writes into (an
+aggregate result) stays in the frame, as does everything under `--debug`,
+whose frame descriptors need the frame. `allocate` then gives the
+temporaries the remaining callee-saved registers by linear scan over the
+ranges `live_ranges` computed, which extend across a loop's back-edge in one
+forward pass. Instructions read their operands where they are and compute
+into the destination's own register; frame operands are sp-relative where
+they fit; call arguments load straight into their registers; the emitter
+copies and zeroes records up to 128 bytes with loads and stores rather than a
+call. What remains before this backend matches a C compiler at `-O2` is an
+optimiser over the IR: values still pass through slots between an inlined
+body and its caller, nothing propagates copies or folds constants, and the
+profile of the compiler compiling itself is dominated by record copies and by
+the register allocator itself.
+
+The checker's type table is part of the same story: `types.Table` indexes its
+types by structure, so interning is a hash lookup rather than a scan that
+copied every type so far.
 
 ## Warnings, and what the checker removes
 

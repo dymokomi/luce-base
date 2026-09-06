@@ -1,0 +1,20 @@
+## A generic instantiated over a module-qualified type, `Holder[memory.FixedBuffer]`, in a
+## field, a local, and a parameter: the brackets hold a type argument, not an array length.
+import memory
+
+struct Holder[T]:
+    var items: T[]
+
+struct Sink:
+    var held: Holder[memory.FixedBuffer]
+
+func count_of(h: Holder[memory.FixedBuffer]) -> usize:
+    return h.items.length
+
+pub func main(arguments: str[]) -> i32:
+    var backing: u8[64]
+    var buffers: memory.FixedBuffer[2] = [memory.FixedBuffer.over(backing), memory.FixedBuffer.over(backing)]
+    let sink = Sink(held = Holder[memory.FixedBuffer](items = buffers))
+    let local: Holder[memory.FixedBuffer] = sink.held
+    print(f"{count_of(local) + 38}")
+    return 0

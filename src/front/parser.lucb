@@ -1506,8 +1506,13 @@ pub struct Parser:
             let w = self.text_of(t)
             if w == "sizeof" or w == "alignof":
                 return true
-            return not self.is_type_word(w)
+            # `List[ir.Instr]`: a module-qualified type is a type argument, not a length
+            return not self.is_type_word(w) and not self.qualified_type_ahead(1)
         return false
+
+    ## Whether the tokens from `ahead` spell `module.Type`.
+    func qualified_type_ahead(ahead: usize) -> bool:
+        return self.peek(ahead).kind == token.Kind.name and self.peek_op(ahead + 1, ".") and self.peek(ahead + 2).kind == token.Kind.name and self.is_type_word(self.text_of(self.peek(ahead + 2)))
 
     mutating func parse_type_core() -> ast.Node*!:
         if self.eat_kw("func"):

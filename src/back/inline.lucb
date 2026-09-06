@@ -1,0 +1,293 @@
+#==============================================================================================
+#
+#   inline - Small functions expanded at their call sites, on the IR
+#
+#   DESCRIPTION:
+#       After lowering and before a target sees the program, every call of a small function
+#       of the program is replaced by the function's body: the arguments are stored into the
+#       callee's parameter slots, which join the caller's frame, the body's temporaries,
+#       slots, and labels are renumbered into the caller's, and each `ret` becomes a store
+#       of the result and a jump to one exit label. The callee itself stays in the program for
+#       the calls that are not expanded and for its address.
+#
+#       A function is small when its body has at most `small` instructions besides labels.
+#       Not expanded: a variadic or naked function, one carrying inline assembly, atomics,
+#       or the debugger's hooks, and a function calling itself. The lowerer's discipline that
+#       a temporary is used in the block that assigned it is not kept across an expansion,
+#       which the register allocator does not need: it scans live ranges by instruction
+#       index and extends them across loop back-edges.
+#
+#==============================================================================================
+
+import memory
+import support.list
+import back.ir
+
+## The most instructions, labels aside, a function may have to be expanded at its calls.
+let small: usize = 24
+
+## Expand the small functions of `unit` at every call site.
+pub func expand(program: ir.Unit*) -> !:
+    var index = try Index.over(program)
+    defer index.release()
+    var i: usize = 0
+    while i < program.functions.count:
+        try expand_in(program, &index, i)
+        i += 1
+
+## Rebuild function `fi`'s instruction list with its expandable calls opened out.
+func expand_in(program: ir.Unit*, index: Index*, fi: usize) -> !:
+    var f = &program.functions.items[fi]
+    if f.debug or not has_expandable_call(program, index, fi):
+        return
+    var out = Sink(instrs = try list.List[ir.Instr].create(f.instrs.count + 64))
+    var ix: usize = 0
+    while ix < f.instrs.count:
+        let n = f.instrs.get(ix)
+        ix += 1
+        if let gi = expandable_callee(program, index, fi, n):
+            var expansion = Expansion.of(f, &program.functions.items[gi], n)
+            try expansion.run(&out)
+        else:
+            try out.push(n)
+    f.instrs.destroy()
+    f.instrs = out.instrs
+
+## Whether any call of function `fi` can be expanded, so functions without one are left alone.
+func has_expandable_call(program: ir.Unit*, index: Index*, fi: usize) -> bool:
+    let f = &program.functions.items[fi]
+    var ix: usize = 0
+    while ix < f.instrs.count:
+        if expandable_callee(program, index, fi, f.instrs.get(ix)) != none:
+            return true
+        ix += 1
+    return false
+
+## The index of the function that call `n` in function `fi` may be expanded with.
+func expandable_callee(program: ir.Unit*, index: Index*, fi: usize, n: ir.Instr) -> usize?:
+    if n.op != ir.Op.call or n.a.kind != ir.RefKind.function:
+        return none
+    let gi = index.find(n.a.name) else return none
+    if gi == fi:
+        return none
+    let g = &program.functions.items[gi]
+    let info = program.functions.items[fi].calls.get((usize)n.extra)
+    if info.variadic or (usize)info.args_count != g.params.count:
+        return none
+    return gi if is_small(g) else none
+
+## A function whose body may stand in for a call of it.
+func is_small(g: ir.Function*) -> bool:
+    if g.variadic or g.naked or g.debug or g.instrs.count == 0:
+        return false
+    var count: usize = 0
+    var ix: usize = 0
+    while ix < g.instrs.count:
+        let n = g.instrs.get(ix)
+        ix += 1
+        if n.op == ir.Op.label:
+            continue
+        if not is_expandable_op(n.op):
+            return false
+        if n.op == ir.Op.call:
+            return false
+        count += 1
+    return count <= small
+
+## Instructions an expansion knows how to renumber; the ones that reach outside the
+## function's own temporaries, slots, and labels are left to a real call.
+func is_expandable_op(op: ir.Op) -> bool:
+    match op:
+        .asm_, .set_reg, .get_reg, .frame, .fence, .atomic_load, .atomic_store, .atomic_add, .atomic_sub, .atomic_or, .atomic_and_not, .atomic_xor, .atomic_swap, .atomic_max, .atomic_min, .atomic_cas:
+            return false
+        _:
+            return true
+
+## The instruction list being built for a function.
+struct Sink:
+    var instrs: ir.Instrs
+
+    mutating func push(n: ir.Instr) -> !:
+        try self.instrs.push(n)
+
+# mark: One expansion ==========================================================================
+
+## The renumbering of one callee body into one caller, at one call.
+struct Expansion:
+    var f: ir.Function*
+    var g: ir.Function*
+    var call: ir.Instr
+    var info: ir.CallInfo
+    ## The caller's counts before the body joined it: what the body's numbers shift by.
+    var slot_base: u32
+    var temp_base: u32
+    var label_base: u32
+    ## Where the body's `ret` jumps to, and the slot a scalar result passes through.
+    var exit_label: u32
+    var result_slot: u32
+
+    static func of(f: ir.Function*, g: ir.Function*, call: ir.Instr) -> Expansion:
+        return Expansion(f = f, g = g, call = call, info = f.calls.get((usize)call.extra), slot_base = u32(f.slots.count),
+                         temp_base = u32(f.temps.count), label_base = f.labels, exit_label = 0, result_slot = 0)
+
+    mutating func run(out: Sink*) -> !:
+        try self.join_frames()
+        try self.bind_parameters(out)
+        var ix: usize = 0
+        while ix < self.g.instrs.count:
+            try self.copy_instr(self.g.instrs.get(ix), out)
+            ix += 1
+        try out.push(ir.Instr(op = ir.Op.label, cls = ir.Class.l, dst = 0, a = ir.none_ref(), b = ir.none_ref(), extra = self.exit_label, extra2 = 0))
+        try self.take_result(out)
+
+    ## The callee's slots and temporaries join the caller's; its labels get fresh numbers,
+    ## plus one for the exit; a scalar result gets a slot to cross the exit through.
+    mutating func join_frames() -> !:
+        var i: usize = 0
+        while i < self.g.slots.count:
+            try self.f.slots.push(self.g.slots.get(i))
+            i += 1
+        i = 0
+        while i < self.g.temps.count:
+            try self.f.temps.push(self.g.temps.get(i))
+            i += 1
+        self.f.labels += self.g.labels
+        self.exit_label = self.f.label()
+        if self.info.has_result and self.info.result_size == 0:
+            self.result_slot = try self.f.slot(8, 8)
+
+    ## Each argument lands in its parameter's slot: a scalar by a store, a record by a copy.
+    func bind_parameters(out: Sink*) -> !:
+        var i: usize = 0
+        while i < self.g.params.count:
+            let p = self.g.params.get(i)
+            let a = self.f.args.get((usize)self.info.args_start + i)
+            let target = ir.slot_ref(self.slot_base + p.slot)
+            if p.size == 0:
+                try out.push(ir.Instr(op = store_op(p.cls), cls = ir.Class.l, dst = 0, a = a.value, b = target, extra = 0, extra2 = 0))
+            else:
+                try out.push(ir.Instr(op = ir.Op.blit, cls = ir.Class.l, dst = 0, a = target, b = a.value, extra = p.size, extra2 = 0))
+            i += 1
+
+    ## The caller's destination takes the result from its slot, after the exit label.
+    func take_result(out: Sink*) -> !:
+        if self.result_slot == 0 or self.call.dst == 0:
+            return
+        let cls = self.info.result_cls
+        try out.push(ir.Instr(op = load_op(cls), cls = cls, dst = self.call.dst, a = ir.slot_ref(self.result_slot), b = ir.none_ref(), extra = 0, extra2 = 0))
+
+    ## One instruction of the body, renumbered; `ret` becomes the result's store and the exit.
+    mutating func copy_instr(n: ir.Instr, out: Sink*) -> !:
+        var m = n
+        if m.dst != 0:
+            m.dst += self.temp_base
+        m.a = self.renumber(m.a)
+        m.b = self.renumber(m.b)
+        match m.op:
+            .label, .jmp:
+                m.extra += self.label_base
+            .jnz:
+                m.extra += self.label_base
+                m.extra2 += self.label_base
+            .call:
+                m.extra = try self.copy_call(m.extra)
+            .ret:
+                try self.leave(m.a, out)
+                return
+            _:
+                discard(0)
+        try out.push(m)
+
+    ## A `ret a` of the body: the value goes to where the caller expects it, then the exit.
+    func leave(value: ir.Ref, out: Sink*) -> !:
+        if self.info.has_result:
+            if self.info.result_size == 0:
+                try out.push(ir.Instr(op = store_op(self.info.result_cls), cls = ir.Class.l, dst = 0, a = value, b = ir.slot_ref(self.result_slot), extra = 0, extra2 = 0))
+            else:
+                # a record result is built where the caller's call sequence would have put it
+                try out.push(ir.Instr(op = ir.Op.blit, cls = ir.Class.l, dst = 0, a = ir.slot_ref(self.info.result_slot), b = value, extra = self.info.result_size, extra2 = 0))
+        try out.push(ir.Instr(op = ir.Op.jmp, cls = ir.Class.l, dst = 0, a = ir.none_ref(), b = ir.none_ref(), extra = self.exit_label, extra2 = 0))
+
+    ## A call inside the body: its description and arguments join the caller's lists.
+    func copy_call(extra: u32) -> u32!:
+        var info = self.g.calls.get((usize)extra)
+        let start = u32(self.f.args.count)
+        var k: u32 = 0
+        while k < info.args_count:
+            var a = self.g.args.get((usize)(info.args_start + k))
+            a.value = self.renumber(a.value)
+            try self.f.args.push(a)
+            k += 1
+        info.args_start = start
+        if info.has_result and info.result_size > 0:
+            info.result_slot += self.slot_base
+        try self.f.calls.push(info)
+        return u32(self.f.calls.count - 1)
+
+    ## A reference of the body as the caller numbers it.
+    func renumber(r: ir.Ref) -> ir.Ref:
+        var out = r
+        if r.kind == ir.RefKind.temp:
+            out.index += self.temp_base
+        elif r.kind == ir.RefKind.slot:
+            out.index += self.slot_base
+        return out
+
+## The store and load that move a scalar of class `cls` through an eight-byte slot.
+func store_op(cls: ir.Class) -> ir.Op:
+    match cls:
+        .w: return ir.Op.storew
+        .l: return ir.Op.storel
+        .s: return ir.Op.stores
+        _: return ir.Op.stored
+
+func load_op(cls: ir.Class) -> ir.Op:
+    match cls:
+        .w: return ir.Op.loaduw
+        .l: return ir.Op.loadl
+        .s: return ir.Op.loads
+        _: return ir.Op.loadd
+
+# mark: Finding functions by name ==============================================================
+
+## The program's functions by symbol, in an open-addressing table of index + 1 (0 is empty).
+struct Index:
+    var buckets: u32[]
+    var program: ir.Unit*
+
+    static func over(program: ir.Unit*) -> Index!:
+        var room: usize = 64
+        while room < program.functions.count * 2:
+            room *= 2
+        var index = Index(buckets = try alloc u32[room], program = program)
+        var i: usize = 0
+        while i < room:
+            index.buckets[i] = 0
+            i += 1
+        i = 0
+        while i < program.functions.count:
+            var at = (usize)hash_text(program.functions.items[i].name) & (room - 1)
+            while index.buckets[at] != 0:
+                at = (at + 1) & (room - 1)
+            index.buckets[at] = u32(i) + 1
+            i += 1
+        return index
+
+    func find(name: str) -> usize?:
+        let mask = self.buckets.length - 1
+        var at = (usize)hash_text(name) & mask
+        while self.buckets[at] != 0:
+            let i = (usize)self.buckets[at] - 1
+            if self.program.functions.items[i].name == name:
+                return i
+            at = (at + 1) & mask
+        return none
+
+    func release():
+        free(self.buckets)
+
+func hash_text(text: str) -> u64:
+    var h: u64 = 0xcbf29ce484222325
+    for byte in text.bytes:
+        h = (h ^ (u64)byte) *% 0x100000001b3
+    return h

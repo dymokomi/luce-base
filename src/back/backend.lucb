@@ -15,6 +15,7 @@
 
 import back.arm64
 import back.emit
+import back.inline
 import back.lower
 import front.ast
 import sema.check
@@ -46,6 +47,7 @@ pub struct NativeBackend: Backend:
     pub mutating func compile(mode: u32) -> str!:
         self.lowerer.debug = self.debug
         try self.lowerer.program(mode)
+        try inline.expand(&self.lowerer.program_unit)
         var generator = try arm64.Generator.create(&self.lowerer.program_unit)
         try generator.generate()
         return generator.text()
