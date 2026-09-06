@@ -14,9 +14,10 @@
 #include <stdio.h>
 
 int64_t lb_answer(void);
+void lb_startup(void);
 
 int main(void) {
-    lb_set_alloc(lb_heap_alloc());
+    lb_startup();
     int64_t value = lb_answer();
     printf("%" PRId64 "\n", value);
     return 0;

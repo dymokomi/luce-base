@@ -5,7 +5,9 @@
 //   DESCRIPTION:
 //       The types generated code uses (`lb_str`, `lb_span`, `lb_iface`, optionals and results
 //       through `LB_OPT`/`LB_RES`), the inline checked arithmetic and bounds checks, and the
-//       prototypes of everything in lucb_rt.c.
+//       prototypes of everything in lucb_rt.c. Allocation, files, processes, threads, and
+//       the sync primitives are Base source now (src/prelude.lucb); what remains here is
+//       what generated code cannot spell itself.
 //
 //==============================================================================================
 
@@ -24,34 +26,6 @@
 
 LB_NORETURN void lb_trap(const char* message);
 void lb_pause(void);
-
-typedef struct lb_Mutex {
-    _Atomic uint32_t state;
-} lb_Mutex;
-
-typedef struct lb_Cond {
-    _Atomic uint32_t seq;
-} lb_Cond;
-
-typedef struct lb_Once {
-    _Atomic uint32_t state;
-} lb_Once;
-
-typedef struct lb_Sem {
-    _Atomic uint32_t count;
-} lb_Sem;
-
-void lb_mutex_lock(lb_Mutex* m);
-void lb_mutex_unlock(lb_Mutex* m);
-bool lb_mutex_try(lb_Mutex* m);
-void lb_cond_wait(lb_Cond* c, lb_Mutex* m);
-void lb_cond_signal(lb_Cond* c);
-void lb_cond_broadcast(lb_Cond* c);
-int lb_once_begin(lb_Once* o);
-void lb_once_end(lb_Once* o);
-void lb_once_wait(lb_Once* o);
-void lb_sem_acquire(lb_Sem* s);
-void lb_sem_release(lb_Sem* s);
 
 /* Checked arithmetic is inline so that `a + b` costs one instruction and one
    predicted branch after the host C compiler optimises (base.md §1, §7.2). */
@@ -207,6 +181,8 @@ typedef struct lb_span {
    is needed where a `T[]` meets a `const T[]`. */
 typedef lb_span lb_cspan;
 
+/* Ordering of text by bytes, then by length (base.md §5.5). */
+int lb_str_compare(lb_str a, lb_str b);
 void lb_print_i64(int64_t value);
 void lb_print_u64(uint64_t value);
 void lb_print_bool(bool value);
@@ -224,12 +200,6 @@ typedef struct lb_iface {
     const void* vtable;
 } lb_iface;
 
-typedef struct lb_Location {
-    lb_str file;
-    uint32_t line;
-    lb_str function;
-} lb_Location;
-
 typedef struct lb_fmtbuf {
     char* data;
     size_t cap;
@@ -243,46 +213,7 @@ int lb_fmtbuf_f64(lb_fmtbuf* b, double v);
 int lb_fmtbuf_bool(lb_fmtbuf* b, bool v);
 lb_str lb_fmtbuf_finish(lb_fmtbuf* b);
 
-typedef struct lb_alloc {
-    void* ctx;
-    int kind; /* 0 heap, 1 fixed buffer, -1 unset */
-} lb_alloc;
-
-typedef struct lb_fixed {
-    uint8_t* data;
-    size_t cap;
-    size_t used;
-} lb_fixed;
-
-typedef struct lb_span_opt {
-    lb_span value;
-    bool present;
-} lb_span_opt;
-
-typedef struct lb_vt_Allocator {
-    lb_span_opt (*allocate)(void* self, size_t size, size_t alignment);
-    bool (*resize)(void* self, lb_span block, size_t size);
-    void (*release)(void* self, lb_span block);
-} lb_vt_Allocator;
-
-lb_alloc lb_heap_raw(void);
-lb_alloc lb_fixed_raw(lb_fixed* f);
-lb_span lb_alloc_bytes(lb_alloc a, size_t size, size_t align);
-lb_span lb_resize_bytes(lb_alloc a, lb_span block, size_t size);
-void lb_release_bytes(lb_alloc a, lb_span block);
-
-lb_iface lb_heap_alloc(void);
-lb_iface lb_fixed_alloc(lb_fixed* f);
-lb_iface lb_get_alloc(void);
-void lb_set_alloc(lb_iface a);
-lb_span_opt lb_alloc_call(lb_iface a, size_t size, size_t alignment);
-bool lb_resize_call(lb_iface a, lb_span block, size_t size);
-void lb_release_call(lb_iface a, lb_span block);
-
 int lb_utf8_ok(const char* s, size_t n);
-int lb_files_list(lb_iface a, const char* path, lb_span* out);
-int lb_process_run(const char* program, const char* const* args, size_t nargs, lb_iface alloc,
-                   int32_t* status, lb_str* out, lb_str* err);
 
 uint64_t lb_hash_seed(void);
 uint64_t lb_hash_mix(uint64_t h, uint64_t x);

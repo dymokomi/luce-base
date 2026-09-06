@@ -8,8 +8,15 @@
 #       right place for signatures is Base source. Each module below is a piece of Base
 #       text the checker parses and binds before a program's own modules, so `memory`,
 #       `io`, `files`, `process`, `thread`, `sync`, `atomic`, `c`, and `luce` are ordinary
-#       modules with ordinary declarations. Their bodies are placeholders until the
-#       library is written in Base; the seed supplies the behaviour meanwhile.
+#       modules with ordinary declarations, and the backend emits their bodies like any
+#       other code. They reach the operating system through `extern` (§17): the C
+#       library's own functions, declared here with the types Base gives them. The few
+#       things no Base body can express, `atomic.fence`, the `luce` facts, and the C
+#       standard streams, the backend supplies.
+#
+#       The constants that follow are those of the first target, arm64-macos (§19.5);
+#       a second target gets its own copy of this module through the per-target
+#       modules of §16.4.
 #
 #==============================================================================================
 
@@ -17,144 +24,529 @@ pub struct Prelude:
     pub var name: str
     pub var text: str
 
-## The modules in dependency order; `memory` first because `io` names its types.
+## The modules in dependency order: `memory` first because `io` names its types,
+## `atomic` before `sync`, whose orderings it declares.
 pub let modules: Prelude[9] = [
     Prelude(name = "memory", text = """
+extern func malloc(size: usize) -> void*?
+extern func c_free as "free"(block: void*)
+extern func posix_memalign(memptr: void*?*, alignment: usize, size: usize) -> i32
+extern func memcpy(target: void*, source: const void*, count: usize) -> void*
+extern func memmove(target: void*, source: const void*, count: usize) -> void*
+extern func memset(target: void*, value: i32, count: usize) -> void*
+
+## What every allocator offers: blocks of bytes at an alignment, optionally
+## resized in place, and given back (§12.4).
 pub interface Allocator:
     mutating func allocate(size: usize, alignment: usize) -> u8[]?
     mutating func resize(block: u8[], size: usize) -> bool
     mutating func release(block: u8[])
 
+## A bump allocator over a caller's bytes. Only the last block can be resized or
+## released; everything goes away together when the buffer does.
 pub struct FixedBuffer implements Allocator:
     var data: u8[]
     var used: usize
+
     pub static func over(buffer: u8[]) -> FixedBuffer:
         return FixedBuffer(data = buffer, used = 0)
-    pub mutating func allocate(size: usize, alignment: usize) -> u8[]?:
-        return none
-    pub mutating func resize(block: u8[], size: usize) -> bool:
-        return false
-    pub mutating func release(block: u8[]):
-        discard(block.length)
 
-pub struct CAllocator implements Allocator:
-    var unused: i64
     pub mutating func allocate(size: usize, alignment: usize) -> u8[]?:
-        return none
+        if size == 0:
+            return self.data[..<0]
+        let align = alignment if alignment > 0 else 1
+        let start = (self.used + align - 1) // align * align
+        if start + size > self.data.length:
+            return none
+        self.used = start + size
+        return self.data[start..<self.used]
+
     pub mutating func resize(block: u8[], size: usize) -> bool:
-        return false
+        if size == block.length:
+            return true
+        if block.length == 0:
+            return false
+        let start = (usize)block.data - (usize)self.data.data
+        if start + block.length != self.used:
+            return false
+        if start + size > self.data.length:
+            return false
+        self.used = start + size
+        return true
+
     pub mutating func release(block: u8[]):
-        discard(block.length)
+        if block.length == 0:
+            return
+        let start = (usize)block.data - (usize)self.data.data
+        if start + block.length == self.used:
+            self.used = start
+
+## The C library's heap.
+pub struct CAllocator implements Allocator:
+    var unused: u8
+
+    pub mutating func allocate(size: usize, alignment: usize) -> u8[]?:
+        if size == 0:
+            return u8[]((u8*)8, 0)
+        var align = alignment if alignment > 8 else 8
+        var p: void*? = none
+        if posix_memalign(&p, align, size) != 0:
+            return none
+        let block = p else return none
+        return u8[]((u8*)block, size)
+
+    pub mutating func resize(block: u8[], size: usize) -> bool:
+        return size <= block.length
+
+    pub mutating func release(block: u8[]):
+        if block.length > 0:
+            c_free(block.data)
 
 pub let exhausted: ErrorCode = ErrorCode.package(1)
 pub let unset: ErrorCode = ErrorCode.package(2)
-pub var allocator: Allocator
+
+var c_allocator: CAllocator
+## The current allocator of this thread (§12.3) and the process's initial one.
+pub thread_local var allocator: Allocator
 pub var heap: Allocator
+
+## Run by the startup shim before `main`, and by `thread.spawn` in a new thread.
+pub func startup():
+    heap = &c_allocator
+    allocator = heap
+
 pub func copy[T](target: T[], source: const T[], count: usize):
-    discard(count)
+    if count > target.length or count > source.length:
+        trap("index out of bounds")
+    if count > 0:
+        discard(memcpy(target.data, source.data, count * sizeof(T)))
+
 pub func move[T](target: T[], source: const T[], count: usize):
-    discard(count)
+    if count > target.length or count > source.length:
+        trap("index out of bounds")
+    if count > 0:
+        discard(memmove(target.data, source.data, count * sizeof(T)))
+
 pub func set(target: u8[], value: u8, count: usize):
-    discard(count)
+    if count > target.length:
+        trap("index out of bounds")
+    if count > 0:
+        discard(memset(target.data, (i32)value, count))
+
 pub func read[T](address: const u8*) -> T:
-    trap()
+    var value: T = ---
+    discard(memcpy(&value, address, sizeof(T)))
+    return value
+
 pub func write[T](address: u8*, value: T):
-    discard(value)
+    var copy_of = value
+    discard(memcpy(address, &copy_of, sizeof(T)))
+
+## `block` with `size` bytes: in place when the current allocator can, else a
+## new block with the old bytes copied and the old block released.
 pub func grow(block: u8[], size: usize) -> u8[]!:
-    return block
+    if allocator.resize(block, size):
+        return u8[](block.data, size)
+    let fresh = allocator.allocate(size, 8) else error(exhausted, "memory.exhausted")
+    let keep = block.length if block.length < size else size
+    if keep > 0:
+        discard(memcpy(fresh.data, block.data, keep))
+    allocator.release(block)
+    return fresh
 """),
     Prelude(name = "io", text = """
+extern func fwrite(data: const void*, size: usize, count: usize, stream: void*) -> usize
+extern func fflush(stream: void*?) -> i32
+extern func fdopen(descriptor: i32, mode: cstr) -> void*?
+
+## The standard sink (§14.4).
 pub interface Writer:
     mutating func write(data: const u8[]) -> usize!
 
+## A compile-time source position, the value of `luce.location`.
 pub struct Location:
-    var file: str
-    var line: u32
-    var function: str
+    pub var file: str
+    pub var line: u32
+    pub var function: str
 
-pub struct Piece:
-    var text: str
+pub let closed: ErrorCode = ErrorCode.package(1)
 
+## A C stream. Every write is flushed so that it never reorders against `print`.
 pub struct File implements Writer:
-    var handle: i64
+    var descriptor: i32
+    var stream: void*?
+
     pub mutating func write(data: const u8[]) -> usize!:
-        return data.length
+        if self.stream == none:
+            self.stream = fdopen(self.descriptor, "w")
+        let stream = self.stream else error(closed, "the stream could not be opened")
+        discard(fflush(none))
+        var written: usize = 0
+        if data.length > 0:
+            written = fwrite(data.data, 1, data.length, stream)
+        discard(fflush(stream))
+        if written != data.length:
+            error(closed, "the stream refused the bytes")
+        return written
+
+var out_file: File = File(descriptor = 1, stream = none)
+var err_file: File = File(descriptor = 2, stream = none)
 
 pub func stdout() -> Writer:
-    trap()
+    return &out_file
+
 pub func stderr() -> Writer:
-    trap()
+    return &err_file
 """),
     Prelude(name = "files", text = """
+extern func open(path: cstr, flags: i32, ...) -> i32
+extern func close(descriptor: i32) -> i32
+extern func c_read as "read"(descriptor: i32, buffer: void*, count: usize) -> isize
+extern func c_write as "write"(descriptor: i32, buffer: const void*, count: usize) -> isize
+extern func lseek(descriptor: i32, offset: i64, whence: i32) -> i64
+extern func opendir(path: cstr) -> void*?
+extern func readdir(directory: void*) -> Entry*?
+extern func closedir(directory: void*) -> i32
+
+## A directory entry as arm64-macos lays it out.
+extern struct Entry:
+    inode: u64
+    seek: u64
+    length: u16
+    name_length: u16
+    kind: u8
+    name: u8[1024]
+
+let read_only: i32 = 0
+let write_only: i32 = 1
+let create: i32 = 512
+let truncate: i32 = 1024
+let seek_end: i32 = 2
+let seek_set: i32 = 0
+
 pub let missing: ErrorCode = ErrorCode.package(1)
+pub let failed: ErrorCode = ErrorCode.package(2)
+
+## The whole file, allocated from the current allocator.
 pub func read(path: cstr) -> u8[]!:
-    error(missing, "unread")
+    let fd = open(path, read_only)
+    if fd < 0:
+        error(missing, "missing")
+    let size = lseek(fd, 0, seek_end)
+    if size < 0 or lseek(fd, 0, seek_set) < 0:
+        discard(close(fd))
+        error(failed, "the file cannot be read")
+    let bytes = alloc u8[(usize)size] catch failure:
+        discard(close(fd))
+        error(memory.exhausted, "memory.exhausted")
+    var got: usize = 0
+    while got < bytes.length:
+        let n = c_read(fd, bytes[got..].data, bytes.length - got)
+        if n < 0:
+            discard(close(fd))
+            error(failed, "the file cannot be read")
+        if n == 0:
+            break
+        got += (usize)n
+    discard(close(fd))
+    return bytes[..<got]
+
 pub func write(path: cstr, data: const u8[]) -> !:
-    discard(data.length)
+    let fd = open(path, write_only | create | truncate, 420)
+    if fd < 0:
+        error(missing, "missing")
+    var done: usize = 0
+    while done < data.length:
+        let n = c_write(fd, data[done..].data, data.length - done)
+        if n <= 0:
+            discard(close(fd))
+            error(failed, "write")
+        done += (usize)n
+    discard(close(fd))
+
+## The names in a directory, sorted, allocated from the current allocator.
 pub func list(path: cstr) -> str[]!:
-    error(missing, "unlisted")
+    let dir = opendir(path) else error(missing, "missing")
+    var names = try alloc str[16]
+    var count: usize = 0
+    while let entry = readdir(dir):
+        let name = (str)entry.name[..<(usize)entry.name_length]
+        if name == "." or name == "..":
+            continue
+        if count == names.length:
+            let grown = try alloc str[names.length * 2]
+            memory.copy(grown, names, count)
+            names = grown
+        let copy = try alloc u8[name.length + 1]
+        memory.copy(copy, name.bytes, name.length)
+        copy[name.length] = 0
+        names[count] = (str)copy[..<name.length]
+        count += 1
+    discard(closedir(dir))
+    # insertion sort by bytes; directories are small
+    var i: usize = 1
+    while i < count:
+        let item = names[i]
+        var j = i
+        while j > 0 and item < names[j - 1]:
+            names[j] = names[j - 1]
+            j -= 1
+        names[j] = item
+        i += 1
+    return names[..<count]
 """),
     Prelude(name = "process", text = """
+extern func pipe(descriptors: i32*) -> i32
+extern func fork() -> i32
+extern func dup2(from_fd: i32, to_fd: i32) -> i32
+extern func close(descriptor: i32) -> i32
+extern func execvp(program: cstr, arguments: void*?*) -> i32
+extern func c_exit as "exit"(code: i32) -> never
+extern func _exit(code: i32) -> never
+extern func waitpid(pid: i32, status: i32*, options: i32) -> i32
+extern func c_read as "read"(descriptor: i32, buffer: void*, count: usize) -> isize
+extern func poll(descriptors: Poll*, count: u32, timeout: i32) -> i32
+extern func fcntl(descriptor: i32, command: i32, ...) -> i32
+
+extern struct Poll:
+    descriptor: i32
+    events: i16
+    returned: i16
+
+let poll_in: i16 = 1
+let poll_hang_up: i16 = 16
+let poll_error: i16 = 8
+let set_flags: i32 = 4
+let non_blocking: i32 = 4
+
+pub let failed: ErrorCode = ErrorCode.package(1)
+
+## A captured stream: bytes in the current allocator.
+struct Capture:
+    var descriptor: i32
+    var data: u8[]
+    var used: usize
+    var open: bool
+
+    mutating func pull() -> !:
+        if self.data.length - self.used < 256:
+            let room = 1024 if self.data.length == 0 else self.data.length * 2
+            self.data = try memory.grow(self.data, room)
+        let n = c_read(self.descriptor, self.data[self.used..].data, self.data.length - self.used)
+        if n == 0:
+            self.open = false
+        elif n > 0:
+            self.used += (usize)n
+
+## Run `program` with `arguments`, wait for it, and answer its exit status and
+## what it wrote to its standard output and error.
 pub func run(program: cstr, arguments: cstr[]) -> (i32, str, str)!:
-    return (0, "", "")
+    var out_pipe: i32[2]
+    var err_pipe: i32[2]
+    if pipe((i32*)&out_pipe) != 0:
+        error(failed, "run")
+    if pipe((i32*)&err_pipe) != 0:
+        error(failed, "run")
+    let pid = fork()
+    if pid < 0:
+        error(failed, "run")
+    if pid == 0:
+        discard(close(out_pipe[0]))
+        discard(close(err_pipe[0]))
+        if dup2(out_pipe[1], 1) < 0 or dup2(err_pipe[1], 2) < 0:
+            _exit(127)
+        discard(close(out_pipe[1]))
+        discard(close(err_pipe[1]))
+        let argv = alloc void*?[arguments.length + 2] catch failure:
+            _exit(127)
+        argv[0] = (void*)program
+        var i: usize = 0
+        while i < arguments.length:
+            argv[i + 1] = (void*)arguments[i]
+            i += 1
+        argv[arguments.length + 1] = none
+        discard(execvp(program, argv.data))
+        _exit(127)
+    discard(close(out_pipe[1]))
+    discard(close(err_pipe[1]))
+    discard(fcntl(out_pipe[0], set_flags, non_blocking))
+    discard(fcntl(err_pipe[0], set_flags, non_blocking))
+    var out = Capture(descriptor = out_pipe[0], data = u8[]((u8*)8, 0), used = 0, open = true)
+    var err = Capture(descriptor = err_pipe[0], data = u8[]((u8*)8, 0), used = 0, open = true)
+    while out.open or err.open:
+        var watched: Poll[2] = ---
+        watched[0] = Poll(descriptor = out.descriptor if out.open else -1, events = poll_in, returned = 0)
+        watched[1] = Poll(descriptor = err.descriptor if err.open else -1, events = poll_in, returned = 0)
+        if poll((Poll*)&watched, 2, -1) < 0:
+            continue
+        if out.open and (watched[0].returned & (poll_in | poll_hang_up | poll_error)) != 0:
+            try out.pull()
+        if err.open and (watched[1].returned & (poll_in | poll_hang_up | poll_error)) != 0:
+            try err.pull()
+    discard(close(out_pipe[0]))
+    discard(close(err_pipe[0]))
+    var status: i32 = 0
+    if waitpid(pid, &status, 0) < 0:
+        error(failed, "run")
+    if (status & 127) != 0:
+        error(failed, "the program was stopped by a signal")
+    return ((status >> 8) & 255, (str)out.data[..<out.used], (str)err.data[..<err.used])
+
 pub func exit(code: i32) -> never:
-    trap()
-"""),
-    Prelude(name = "thread", text = """
-pub struct Handle:
-    var id: usize
-    pub func join() -> !:
-        discard(self.id)
-    pub func detach():
-        discard(self.id)
-pub func spawn(entry: func(void*) -> unit, context: void*, stack: usize = 0, name: str = "") -> Handle!:
-    return Handle(id = 0)
-pub func current() -> Handle:
-    return Handle(id = 0)
-pub func pause():
-    discard(0)
-pub func yield():
-    discard(0)
-pub func sleep(milliseconds: u64):
-    discard(milliseconds)
-"""),
-    Prelude(name = "sync", text = """
-pub struct Mutex:
-    var state: @u32
-    pub mutating func lock():
-        discard(0)
-    pub mutating func unlock():
-        discard(0)
-    pub mutating func try() -> bool:
-        return true
-pub struct Condition:
-    var seq: @u32
-    pub mutating func wait(mutex: Mutex*):
-        discard(0)
-    pub mutating func signal():
-        discard(0)
-    pub mutating func broadcast():
-        discard(0)
-pub struct Once:
-    var state: @u32
-    pub mutating func run(function: func() -> unit):
-        discard(0)
-pub struct Semaphore:
-    var count: @u32
-    pub mutating func acquire():
-        discard(0)
-    pub mutating func release():
-        discard(0)
+    c_exit(code)
 """),
     Prelude(name = "atomic", text = """
+## Memory orderings for the operations of `@T` (§15.1).
 pub enum Ordering as u8:
     relaxed = 1
     acquire = 2
     release = 3
     acq_rel = 4
     seq_cst = 5
+
+## A standalone fence; the backend supplies the instruction.
 pub func fence(order: Ordering):
-    discard(0)
+    discard(order)
+"""),
+    Prelude(name = "thread", text = """
+extern func pthread_create(thread: void*?*, attributes: void*?, start: func(void*) -> void*?, argument: void*) -> i32
+extern func pthread_join(thread: void*, result: void*?*?) -> i32
+extern func pthread_detach(thread: void*) -> i32
+extern func pthread_self() -> void*
+extern func sched_yield() -> i32
+extern func nanosleep(request: const Duration*, remaining: Duration*?) -> i32
+
+extern struct Duration:
+    seconds: i64
+    nanoseconds: i64
+
+pub let failed: ErrorCode = ErrorCode.package(1)
+
+## A running thread; the zero value is no thread at all, so arrays of handles exist.
+pub struct Handle:
+    var id: void*?
+
+    pub func join() -> !:
+        let id = self.id else error(failed, "no thread to join")
+        if pthread_join(id, none) != 0:
+            error(failed, "join")
+
+    pub func detach():
+        let id = self.id else return
+        discard(pthread_detach(id))
+
+## What a new thread starts with: the entry, its context, and the allocator rule of §15.3.
+struct Start:
+    var entry: func(void*) -> unit
+    var context: void*
+
+func trampoline(raw: void*) -> void*?:
+    let start = (Start*)raw
+    memory.allocator = memory.heap
+    let entry = start.entry
+    let context = start.context
+    free(start) in memory.heap
+    entry(context)
+    return none
+
+pub func spawn(entry: func(void*) -> unit, context: void*, stack: usize = 0, name: str = "") -> Handle!:
+    let start = try new Start(entry = entry, context = context) in memory.heap
+    var id: void*? = none
+    if pthread_create(&id, none, trampoline, (void*)start) != 0:
+        free(start) in memory.heap
+        error(failed, "spawn")
+    let thread = id else error(failed, "spawn")
+    discard(stack)
+    discard(name.length)
+    return Handle(id = thread)
+
+pub func current() -> Handle:
+    return Handle(id = pthread_self())
+
+## A hint to the processor inside a spin loop.
+pub func pause():
+    asm arm64:
+        yield
+    asm x86_64:
+        pause
+
+pub func yield():
+    discard(sched_yield())
+
+pub func sleep(milliseconds: u64):
+    var request = Duration(seconds = (i64)(milliseconds // 1000), nanoseconds = (i64)(milliseconds % 1000) * 1000000)
+    discard(nanosleep(&request, none))
+"""),
+    Prelude(name = "sync", text = """
+## A spinning lock: zero is unlocked, so `var lock: Mutex` is ready to use.
+pub struct Mutex:
+    var state: @u32
+
+    pub mutating func lock():
+        while true:
+            let (taken, seen) = self.state.cas(0, 1, .acquire, .relaxed)
+            if taken:
+                return
+            discard(seen)
+            while self.state.load(.relaxed) != 0:
+                thread.pause()
+
+    pub mutating func unlock():
+        self.state.store(0, .release)
+
+    pub mutating func try() -> bool:
+        let (taken, seen) = self.state.cas(0, 1, .acquire, .relaxed)
+        discard(seen)
+        return taken
+
+## A sequence number waiters watch; every signal advances it.
+pub struct Condition:
+    var sequence: @u32
+
+    pub mutating func wait(mutex: Mutex*):
+        let seen = self.sequence.load(.acquire)
+        mutex.unlock()
+        while self.sequence.load(.acquire) == seen:
+            thread.pause()
+        mutex.lock()
+
+    pub mutating func signal():
+        discard(self.sequence.add(1, .release))
+
+    pub mutating func broadcast():
+        self.signal()
+
+## Runs its function exactly once; later callers wait for the first to finish.
+pub struct Once:
+    var state: @u32
+
+    pub mutating func run(function: func() -> unit):
+        let (first, seen) = self.state.cas(0, 1, .acq_rel, .acquire)
+        discard(seen)
+        if first:
+            function()
+            self.state.store(2, .release)
+            return
+        while self.state.load(.acquire) != 2:
+            thread.pause()
+
+## A counting semaphore.
+pub struct Semaphore:
+    var count: @u32
+
+    pub mutating func acquire():
+        while true:
+            let n = self.count.load(.acquire)
+            if n > 0:
+                let (taken, seen) = self.count.cas(n, n - 1, .acq_rel, .relaxed)
+                discard(seen)
+                if taken:
+                    return
+            else:
+                thread.pause()
+
+    pub mutating func release():
+        discard(self.count.add(1, .release))
 """),
     Prelude(name = "c", text = """
 pub type int = i32
@@ -172,17 +564,20 @@ pub type ssize_t = isize
 pub type float = f32
 pub type double = f64
 pub type wchar = i32
+
+## The C standard streams; the backend supplies them.
 pub func stdin() -> void*:
-    trap()
+    trap("supplied by the backend")
 pub func stdout() -> void*:
-    trap()
+    trap("supplied by the backend")
 pub func stderr() -> void*:
-    trap()
-pub func bytes_at(address: const void*, count: usize) -> const u8[]:
-    trap()
+    trap("supplied by the backend")
 """),
     Prelude(name = "luce", text = """
+## Compile-time facts about the use site; the backend replaces them (§9.1).
 pub let file: str = ""
 pub let line: u32 = 0
 pub let function: str = ""
-""")]
+pub let location: io.Location = io.Location(file = "", line = 0, function = "")
+"""),
+]
