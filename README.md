@@ -23,14 +23,21 @@ seed implements. What this compiler must do to earn the switch is in
 
 ```sh
 ./build.sh                            # bootstrap/luce-base.c with cc, then the compiler from source
-./test.sh                             # the gate; uses the seed's oracle too when ../luce-seed is built
+./test.sh                             # the gate: both backends over every sample, test, and the compiler
 ./build/luce-base lex samples/hello.lucb
 ./build/luce-base parse samples/hello.lucb
-./build/luce-base check samples/json_parser.lucb   # silence means it checks
-./build/luce-base build samples/json.lucb -o json  # C through the host cc
-./build/luce-base test src/parser.lucb             # the module's tests, compiled and run
-./build/luce-base build src/main.lucb -o B2        # the compiler builds itself
+./build/luce-base check samples/json.lucb                  # silence means it checks
+./build/luce-base build samples/json.lucb -o json          # C through the host cc
+./build/luce-base build samples/json.lucb --native -o json # arm64 assembly through the host as/ld
+./build/luce-base test src/front/parser.lucb               # the module's tests, compiled and run
+./build/luce-base test src/front/parser.lucb --native      # the same tests through the native backend
+./build/luce-base build src/main.lucb --native -o B2       # the compiler builds itself, natively
 ```
+
+The sources are `src/front` (source, tokens, lexer, tree, parser),
+`src/sema` (types, the standard modules as Base text, the checker),
+`src/back` (names, the C backend, the IR, lowering, arm64), and
+`src/support` (list, buffer, the embedded C runtime).
 
 ## Status
 
@@ -43,10 +50,18 @@ and the compiler builds itself, twice, to the same C.
 Slice 5: the seed is pinned. `bootstrap/luce-base.c` is the compiler's own C,
 `build.sh` starts from it with nothing but a C compiler, and the standard
 modules (`memory`, `io`, `files`, `process`, `thread`, `sync`, `atomic`) are
-Base source in `src/prelude.lucb` over `extern` declarations of the C
+Base source in `src/sema/prelude.lucb` over `extern` declarations of the C
 library, as are `strings`, `paths`, `math`, `time`, `testing`, and `net`.
 What is left in C, under `runtime/`, is what generated code cannot spell
 itself: traps, checked arithmetic, formatting of scalars, hashing.
+
+Slice 6: a native backend. `src/back/lower.lucb` takes the checked tree to a
+QBE-like IR and `src/back/arm64.lucb` takes that to arm64-macos assembly;
+`--native` selects it for `build` and `test`. Every sample and every module's
+tests pass through both backends, the compiler builds itself natively, and
+the natively built compiler emits the same C and the same assembly for the
+compiler as the C-built one. Code comes out unoptimised, with every
+temporary in the frame; register allocation is next.
 
 ## License
 

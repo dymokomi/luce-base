@@ -9,8 +9,10 @@ unit tests green in the oracle and the binary agreeing on `samples/`.
 | 2. Syntax | arena tree, full grammar of §21, `luce-base parse` | done: every Base file we have parses, including this compiler's own sources |
 | 3. Checking | names, types, effects, `luce-base check` | done: every sample and every source of this tree checks; every program under `samples/errors/` is rejected for its stated reason |
 | 4. C backend | checked tree to C, `luce-base build` and `luce-base test` | done: every sample with `main` builds and runs; every module's tests pass through the binary |
-| 5. Self-hosting | the seed pinned; the standard modules in Base | done: `bootstrap/luce-base.c` is the compiler's own C and `build.sh` starts from it with only a C compiler; `memory`, `io`, `files`, `process`, `thread`, `sync`, and `atomic` are Base source over `extern` in `src/prelude.lucb`; the C runtime is down to traps, checked arithmetic, formatting, and hashing |
-| 6. Native | one target, arm64-macos, proved against the C backend | every program agrees under both backends |
+| 5. Self-hosting | the seed pinned; the standard modules in Base | done: `bootstrap/luce-base.c` is the compiler's own C and `build.sh` starts from it with only a C compiler; `memory`, `io`, `files`, `process`, `thread`, `sync`, and `atomic` are Base source over `extern` in `src/sema/prelude.lucb`; the C runtime is down to traps, checked arithmetic, formatting, and hashing |
+| 6. Native | one target, arm64-macos, proved against the C backend | done: every sample and every module's tests agree under both backends; the compiler builds itself natively and the native build emits the same C and assembly as the C build; `tools/native_check.sh` runs the seed's corpus natively |
+| 7. Proving | programs big enough to break things: a threaded HTTP server, a terminal editor, `luce-base-d` (a debugger), an SDL3 editor | each builds under both backends and every bug it finds is pinned as a test |
+| 8. Codegen | register allocation over the IR, then the release | native code within reach of `cc -O2` on the compiler itself |
 
 ## The bootstrap gate
 
@@ -21,11 +23,20 @@ build/luce-base build src/main.lucb -o build/stage2          # and again, by its
 cmp <stage1 C> <stage2 C>                                    # fixpoint
 ```
 
-`test.sh` runs these lines, comparing the C the two generations emit rather
-than the binaries, which differ only in the linker's identifiers. The seed is
-pinned: `LUCB=../luce-seed/build/lucb ./build.sh` still starts from it, and
-the gate still runs every module's tests in its oracle when it is present,
-but nothing requires it. `tools/snapshot.sh` refreshes the snapshot.
+```text
+build/luce-base build src/main.lucb --native -o build/native   # the compiler, natively
+build/native build src/main.lucb --emit=c                      # must match the C build's C
+build/native build src/main.lucb --native --emit=asm           # and its assembly
+```
+
+`test.sh` runs these lines, comparing the C and assembly the generations emit
+rather than the binaries, which differ only in the linker's identifiers. The
+seed is pinned: `LUCB=../luce-seed/build/lucb ./build.sh` still starts from
+it, but nothing requires it. `tools/snapshot.sh` refreshes the snapshot.
+
+The two backends are the two executions now: every module's tests and every
+sample run through both under the gate, and the seed's program corpus runs
+natively through `tools/native_check.sh`.
 
 ## The standard library
 
@@ -33,7 +44,7 @@ but nothing requires it. `tools/snapshot.sh` refreshes the snapshot.
 source instead of seed builtins. `memory`, `io`, `files`, `process`,
 `thread`, `sync`, `atomic`, `c`, `strings`, `paths`, `math`, `time`,
 `testing`, and `net` (TCP and UDP over BSD sockets, with `resolve`) are in
-`src/prelude.lucb`, each a piece of Base over `extern` declarations of the C
+`src/sema/prelude.lucb`, each a piece of Base over `extern` declarations of the C
 library; the constants are those of arm64-macos, and a second target gets its
 own copy through the per-target modules of §16.4. `samples/library.lucb` and
 `samples/loopback.lucb` exercise them under the gate. What remains grows in
