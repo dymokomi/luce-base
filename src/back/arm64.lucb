@@ -52,6 +52,10 @@ pub struct Generator:
     ## Register allocation: for each temporary, the callee-saved register it lives in
     ## (1..10 for x19..x28), or 0 when it is spilled to its frame home.
     var temp_regs: list.List[u8]
+    ## The callee-saved register code a promoted frame slot lives in, 0 when it stays in the
+    ## frame; and, per temporary, 1 + the slot whose address it holds, 0 otherwise.
+    var slot_regs: list.List[u8]
+    var temp_slot: list.List[u32]
     ## Bit c-1 is set when register code c is used (1..10 = x19..x28, 11..18 = d8..d15);
     ## `save_offset[c]` is where that register is spilled on entry.
     var used_mask: u32
@@ -61,7 +65,7 @@ pub struct Generator:
         return Generator(out = try buffer.Buffer.create(262144), program_unit = program_unit, f = program_unit.functions.span().data, index = 0,
                          temp_homes = try list.List[FrameHome].create(256), slot_homes = try list.List[FrameHome].create(64),
                          frame = 0, indirect_home = 0, text_count = 0, descriptors = try buffer.Buffer.create(4096),
-                         temp_regs = try list.List[u8].create(256), used_mask = 0)
+                         temp_regs = try list.List[u8].create(256), slot_regs = try list.List[u8].create(64), temp_slot = try list.List[u32].create(256), used_mask = 0)
 
     # -- output ---------------------------------------------------------------------------
 
@@ -331,6 +335,146 @@ pub struct Generator:
     ## Assign block-local integer temporaries to callee-saved registers by linear scan,
     ## spilling the longest-lived when they run out (base.md §19.1: temps never cross a block,
     ## and callee-saved registers survive the calls a block may contain).
+    ## The slot an address temporary stands for, 1-based, or 0. Only meaningful after
+    ## `promote`, and only for slots that were promoted.
+    func promoted_slot(t: u32) -> u32:
+        if (usize)t > self.temp_slot.count:
+            return 0
+        let k = self.temp_slot.get((usize)t - 1)
+        if k == 0 or self.slot_regs.get((usize)k - 1) == 0:
+            return 0
+        return k
+
+    ## Which frame slots live in registers (§19.3 codegen): a slot of 1, 2, 4, or 8 bytes whose
+    ## address is taken only to load or store that many bytes at once, in one register class.
+    ## The most-used ones take x19-x24 and d8-d11; the rest of the callee-saved registers stay
+    ## with the temporaries. Frame descriptors need the frame, so `--debug` promotes nothing.
+    mutating func promote() -> !:
+        self.slot_regs.count = 0
+        self.temp_slot.count = 0
+        let ns = self.f.slots.count
+        let nt = self.f.temps.count
+        var i: usize = 0
+        while i < ns:
+            try self.slot_regs.push(0)
+            i += 1
+        i = 0
+        while i < nt:
+            try self.temp_slot.push(0)
+            i += 1
+        if self.f.debug or ns == 0:
+            return
+        # 1 = integer, 2 = float, 3 = unfit
+        var kind = try alloc u8[ns] in memory.heap
+        defer free(kind) in memory.heap
+        var uses = try alloc u32[ns] in memory.heap
+        defer free(uses) in memory.heap
+        i = 0
+        while i < ns:
+            let sz = self.f.slots.get(i).size
+            kind[i] = 0 if sz == 1 or sz == 2 or sz == 4 or sz == 8 else 3
+            uses[i] = 0
+            i += 1
+        # which temporaries hold a slot's address
+        var ix: usize = 0
+        while ix < self.f.instrs.count:
+            let n = self.f.instrs.get(ix)
+            if n.op == ir.Op.addr and n.a.kind == ir.RefKind.slot and n.dst > 0:
+                self.temp_slot.set((usize)n.dst - 1, n.a.index + 1)
+            ix += 1
+        # every use of such a temporary, or of a slot directly, must be a whole-slot load or store
+        ix = 0
+        while ix < self.f.instrs.count:
+            let n = self.f.instrs.get(ix)
+            let is_load = n.op == ir.Op.loadsb or n.op == ir.Op.loadub or n.op == ir.Op.loadsh or n.op == ir.Op.loaduh or n.op == ir.Op.loadsw or n.op == ir.Op.loaduw or n.op == ir.Op.loadl or n.op == ir.Op.loads or n.op == ir.Op.loadd
+            let is_store = n.op == ir.Op.storeb or n.op == ir.Op.storeh or n.op == ir.Op.storew or n.op == ir.Op.storel or n.op == ir.Op.stores or n.op == ir.Op.stored
+            if is_load:
+                self.note_access(self.slot_of(n.a), access_width(n.op), n.op == ir.Op.loads or n.op == ir.Op.loadd, kind, uses)
+            elif is_store:
+                self.note_access(self.slot_of(n.b), access_width(n.op), n.op == ir.Op.stores or n.op == ir.Op.stored, kind, uses)
+                let v = self.slot_of(n.a)
+                if v != 0:
+                    kind[(usize)v - 1] = 3
+            elif n.op == ir.Op.addr:
+                let inner = self.slot_of(n.a)
+                if inner != 0 and n.a.kind == ir.RefKind.temp:
+                    kind[(usize)inner - 1] = 3
+            elif n.op == ir.Op.call:
+                let info = self.f.calls.get((usize)n.extra)
+                # an aggregate result is written into its slot by the call sequence itself
+                if info.has_result and info.result_size > 0 and (usize)info.result_slot < ns:
+                    kind[(usize)info.result_slot] = 3
+                var a: u32 = 0
+                while a < info.args_count:
+                    let v = self.slot_of(self.f.args.get((usize)(info.args_start + a)).value)
+                    if v != 0:
+                        kind[(usize)v - 1] = 3
+                    a += 1
+            else:
+                let va = self.slot_of(n.a)
+                if va != 0:
+                    kind[(usize)va - 1] = 3
+                let vb = self.slot_of(n.b)
+                if vb != 0:
+                    kind[(usize)vb - 1] = 3
+            ix += 1
+        # the most-used fit slots take the registers: six integer, four float
+        var int_code: u8 = 1
+        var float_code: u8 = 11
+        while true:
+            var best: usize = ns
+            var best_uses: u32 = 0
+            i = 0
+            while i < ns:
+                if self.slot_regs.get(i) == 0 and (kind[i] == 1 or kind[i] == 2) and uses[i] > best_uses:
+                    best = i
+                    best_uses = uses[i]
+                i += 1
+            if best == ns:
+                break
+            if kind[best] == 1:
+                if int_code > 6:
+                    kind[best] = 3
+                    continue
+                self.slot_regs.set(best, int_code)
+                self.used_mask = self.used_mask | (u32)(1 << (u32)(int_code - 1))
+                int_code += 1
+            else:
+                if float_code > 14:
+                    kind[best] = 3
+                    continue
+                self.slot_regs.set(best, float_code)
+                self.used_mask = self.used_mask | (u32)(1 << (u32)(float_code - 1))
+                float_code += 1
+
+    ## The slot a reference stands for, 1-based: a slot reference itself, or a temporary that
+    ## holds a slot's address; 0 otherwise.
+    func slot_of(r: ir.Ref) -> u32:
+        if r.kind == ir.RefKind.slot:
+            return r.index + 1
+        if r.kind == ir.RefKind.temp and (usize)r.index <= self.temp_slot.count:
+            return self.temp_slot.get((usize)r.index - 1)
+        return 0
+
+    ## One load or store of `width` bytes through slot `k` (1-based): it fits when the width
+    ## is the slot's and the class agrees with every other access.
+    func note_access(k: u32, width: u32, float: bool, kind: u8[], uses: u32[]):
+        if k == 0:
+            return
+        let i = (usize)k - 1
+        if kind[i] == 3:
+            return
+        if self.f.slots.get(i).size != width:
+            kind[i] = 3
+            return
+        let want: u8 = 2 if float else 1
+        if kind[i] == 0:
+            kind[i] = want
+        elif kind[i] != want:
+            kind[i] = 3
+            return
+        uses[i] += 1
+
     mutating func allocate() -> !:
         self.temp_regs.count = 0
         let n = self.f.temps.count
@@ -338,7 +482,14 @@ pub struct Generator:
         while i < n:
             try self.temp_regs.push(0)
             i += 1
+        # the promoted slots' registers are already in the mask; the temporaries add theirs
         self.used_mask = 0
+        var ps: usize = 0
+        while ps < self.slot_regs.count:
+            let code = self.slot_regs.get(ps)
+            if code != 0:
+                self.used_mask = self.used_mask | (u32)(1 << (u32)(code - 1))
+            ps += 1
         if n == 0:
             return
         var def_at = try alloc u32[n] in memory.heap
@@ -352,7 +503,7 @@ pub struct Generator:
             def_at[i] = 0
             last_use[i] = 0
             let c = self.f.temp_class(u32(i + 1))
-            eligible[i] = c == ir.Class.w or c == ir.Class.l or c == ir.Class.s or c == ir.Class.d
+            eligible[i] = (c == ir.Class.w or c == ir.Class.l or c == ir.Class.s or c == ir.Class.d) and self.promoted_slot(u32(i + 1)) == 0
             i += 1
         # the instruction index each label sits at, for finding loop back-edges
         var label_pos = try alloc u32[(usize)self.f.labels + 1] in memory.heap
@@ -404,12 +555,19 @@ pub struct Generator:
         while c <= 18:
             reg_temp[c] = 0
             c += 1
+        # a register holding a promoted slot is taken for the whole function
+        var pk: usize = 0
+        while pk < self.slot_regs.count:
+            let code = self.slot_regs.get(pk)
+            if code != 0:
+                reg_temp[(usize)code] = held
+            pk += 1
         ix = 0
         while ix < self.f.instrs.count:
             c = 1
             while c <= 18:
                 let t = reg_temp[c]
-                if t != 0 and last_use[(usize)t - 1] < u32(ix):
+                if t != 0 and t != held and last_use[(usize)t - 1] < u32(ix):
                     reg_temp[c] = 0
                 c += 1
             let instr = self.f.instrs.get(ix)
@@ -432,7 +590,7 @@ pub struct Generator:
                     c = low
                     while c <= high:
                         let t = reg_temp[c]
-                        if t != 0 and last_use[(usize)t - 1] > far_use:
+                        if t != 0 and t != held and last_use[(usize)t - 1] > far_use:
                             far_use = last_use[(usize)t - 1]
                             far_c = c
                         c += 1
@@ -487,6 +645,48 @@ pub struct Generator:
         try self.put_u64(offset)
         try self.put("]")
 
+    ## The promoted slot an address reference reaches, 1-based, or 0.
+    func promoted_address(r: ir.Ref) -> u32:
+        let k = self.slot_of(r)
+        if k == 0 or self.slot_regs.get((usize)k - 1) == 0:
+            return 0
+        return k
+
+    ## A load from a promoted slot: the register, extended as the load would extend from
+    ## memory, since a narrow store leaves the register's upper bits as they were.
+    mutating func load_promoted(op: ir.Op, k: u32) -> !:
+        let code = (usize)self.slot_regs.get((usize)k - 1)
+        let xs = x_names[code]
+        let ws = w_names[code]
+        match op:
+            .loadl: try self.line2("mov x9, ", xs)
+            .loaduw: try self.line2("mov w9, ", ws)
+            .loadsw: try self.line2("sxtw x9, ", ws)
+            .loadub: try self.line3("and w9, ", ws, ", #0xff")
+            .loadsb: try self.line2("sxtb w9, ", ws)
+            .loaduh: try self.line3("and w9, ", ws, ", #0xffff")
+            .loadsh: try self.line2("sxth w9, ", ws)
+            .loads: try self.line2("fmov s16, ", ws)
+            _: try self.line2("fmov d16, ", xs)
+
+    ## A store into a promoted slot: the value's register moves in.
+    mutating func store_promoted(op: ir.Op, k: u32) -> !:
+        let code = (usize)self.slot_regs.get((usize)k - 1)
+        match op:
+            .storel: try self.line3("mov ", x_names[code], ", x9")
+            .stores: try self.line3("fmov ", w_names[code], ", s16")
+            .stored: try self.line3("fmov ", x_names[code], ", d16")
+            _: try self.line3("mov ", w_names[code], ", w9")
+
+    mutating func line2(a: str, b: str) -> !:
+        try self.line(a)
+        try self.put(b)
+
+    mutating func line3(a: str, b: str, c: str) -> !:
+        try self.line(a)
+        try self.put(b)
+        try self.put(c)
+
     ## `.weak_definition` and `.no_dead_strip` for a symbol with those attributes (§9.8).
     mutating func linkage_directives(name: str, weak: bool, used: bool) -> !:
         if weak:
@@ -512,6 +712,7 @@ pub struct Generator:
     mutating func function(index: usize) -> !:
         self.index = index
         self.f = &self.program_unit.functions.items[index]
+        try self.promote()
         try self.allocate()
         try self.layout()
         if self.f.section.length > 0:
@@ -598,34 +799,54 @@ pub struct Generator:
             let p = self.f.params.get(i)
             let home = self.slot_home(p.slot)
             if p.size == 0:
-                # a scalar
+                # a scalar; a promoted slot takes the value in its register
+                let code = (usize)self.slot_regs.get((usize)p.slot)
                 if p.cls == ir.Class.s or p.cls == ir.Class.d:
                     if next_float < 8:
-                        try self.frame_address("x16", home)
-                        try self.line("str ")
+                        if code != 0:
+                            try self.line("fmov ")
+                            try self.put(w_names[code] if p.cls == ir.Class.s else x_names[code])
+                            try self.put(", ")
+                        else:
+                            try self.frame_address("x16", home)
+                            try self.line("str ")
                         try self.put(("s" if p.cls == ir.Class.s else "d"))
                         try self.put_u64((u64)next_float)
-                        try self.put(", [x16]")
+                        if code == 0:
+                            try self.put(", [x16]")
                         next_float += 1
                     else:
                         try self.line("ldr x9, [x29, #")
                         try self.put_u64(stack_offset)
                         try self.put("]")
-                        try self.frame_address("x16", home)
-                        try self.line("str x9, [x16]")
+                        if code != 0:
+                            try self.line3("fmov ", x_names[code], ", x9")
+                        else:
+                            try self.frame_address("x16", home)
+                            try self.line("str x9, [x16]")
                         stack_offset += 8
                 elif next_int < 8:
-                    try self.frame_address("x16", home)
-                    try self.line("str w" if p.cls == ir.Class.w else "str x")
-                    try self.put_u64((u64)next_int)
-                    try self.put(", [x16]")
+                    if code != 0:
+                        try self.line("mov ")
+                        try self.put(w_names[code] if p.cls == ir.Class.w else x_names[code])
+                        try self.put(", ")
+                        try self.put("w" if p.cls == ir.Class.w else "x")
+                        try self.put_u64((u64)next_int)
+                    else:
+                        try self.frame_address("x16", home)
+                        try self.line("str w" if p.cls == ir.Class.w else "str x")
+                        try self.put_u64((u64)next_int)
+                        try self.put(", [x16]")
                     next_int += 1
                 else:
                     try self.line("ldr x9, [x29, #")
                     try self.put_u64(stack_offset)
                     try self.put("]")
-                    try self.frame_address("x16", home)
-                    try self.line("str w9, [x16]" if p.cls == ir.Class.w else "str x9, [x16]")
+                    if code != 0:
+                        try self.line3("mov ", w_names[code] if p.cls == ir.Class.w else x_names[code], ", w9" if p.cls == ir.Class.w else ", x9")
+                    else:
+                        try self.frame_address("x16", home)
+                        try self.line("str w9, [x16]" if p.cls == ir.Class.w else "str x9, [x16]")
                     stack_offset += 8
             elif p.is_float_only and next_float + p.float_count <= 8:
                 # a homogeneous float aggregate in d or s registers
@@ -731,20 +952,28 @@ pub struct Generator:
             .ceq, .cne, .cslt, .csle, .csgt, .csge, .cult, .cule, .cugt, .cuge:
                 try self.comparison(n)
             .loadsb, .loadub, .loadsh, .loaduh, .loadsw, .loaduw, .loadl, .loads, .loadd:
-                try self.address_operand("x9", n.a)
-                try self.line(load_mnemonic(n.op))
-                try self.put(" ")
-                try self.put(load_register(n.op))
-                try self.put(", [x9]")
+                let from_slot = self.promoted_address(n.a)
+                if from_slot != 0:
+                    try self.load_promoted(n.op, from_slot)
+                else:
+                    try self.address_operand("x9", n.a)
+                    try self.line(load_mnemonic(n.op))
+                    try self.put(" ")
+                    try self.put(load_register(n.op))
+                    try self.put(", [x9]")
                 try self.store_temp(load_register(n.op), n.dst)
             .storeb, .storeh, .storew, .storel, .stores, .stored:
                 let cls = store_class(n.op)
                 try self.operand(self.reg(cls, 0), cls, n.a)
-                try self.address_operand("x10", n.b)
-                try self.line(store_mnemonic(n.op))
-                try self.put(" ")
-                try self.put(self.reg(cls, 0))
-                try self.put(", [x10]")
+                let to_slot = self.promoted_address(n.b)
+                if to_slot != 0:
+                    try self.store_promoted(n.op, to_slot)
+                else:
+                    try self.address_operand("x10", n.b)
+                    try self.line(store_mnemonic(n.op))
+                    try self.put(" ")
+                    try self.put(self.reg(cls, 0))
+                    try self.put(", [x10]")
             .frame:
                 try self.line("mov x9, x29")
                 try self.store_temp("x9", n.dst)
@@ -794,8 +1023,9 @@ pub struct Generator:
                     try self.put(self.reg(fc, 0))
                 try self.store_temp(self.reg(n.cls, 0), n.dst)
             .addr:
-                try self.address_operand("x9", n.a)
-                try self.store_temp("x9", n.dst)
+                if self.promoted_slot(n.dst) == 0:
+                    try self.address_operand("x9", n.a)
+                    try self.store_temp("x9", n.dst)
             .addr_tls:
                 try self.line("adrp x0, ")
                 try self.symbol(n.a.name)
@@ -1543,6 +1773,17 @@ func save_name(code: usize) -> str:
     return x_names[code]
 
 ## The store that writes a register of class `c` (an asm output back to its place).
+## The bytes a load or store moves.
+func access_width(op: ir.Op) -> u32:
+    match op:
+        .loadsb, .loadub, .storeb: return 1
+        .loadsh, .loaduh, .storeh: return 2
+        .loadsw, .loaduw, .loads, .storew, .stores: return 4
+        _: return 8
+
+## A register-pool entry standing for "held by a promoted slot for the whole function".
+let held: u32 = 4294967295
+
 func store_mnemonic_for(c: ir.Class) -> str:
     return "str"
 

@@ -153,6 +153,25 @@ of the prelude keeps a shadow stack of activations, matches breakpoints,
 and reads locals straight out of the frame by their described offsets. Only
 the program's modules are hooked; the standard modules run as built.
 
+## The native backend's code quality
+
+The product is the compiler built by itself through the native backend, so
+that backend's quality is what the compiler runs on. Three passes in
+`back/arm64.lucb` shape it. `promote` puts frame slots in registers: a slot of
+1, 2, 4, or 8 bytes whose address is only ever taken to load or store that
+many bytes, in one register class, lives in a callee-saved register for the
+whole function (x19–x24, d8–d11 for the most-used); its address temporaries
+are never materialised, a narrow load re-extends from the register, and a
+parameter's slot is filled by a move at entry. A slot a call sequence writes
+into (an aggregate result) stays in the frame, as does everything under
+`--debug`, whose frame descriptors need the frame. `allocate` then gives the
+block-local temporaries the remaining callee-saved registers by linear scan,
+extending a live range across a loop's back-edge in one forward pass. The
+emitter copies and zeroes records up to 64 bytes with loads and stores rather
+than a call. What remains before this backend matches a C compiler at `-O2`:
+operands still pass through scratch registers, values do not stay in registers
+across blocks, and nothing is inlined.
+
 ## Warnings, and what the checker removes
 
 The checker has two outputs besides the checked tree: errors, which stop the
