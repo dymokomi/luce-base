@@ -236,7 +236,7 @@ pub struct Generator:
     mutating func address_operand(reg: str, r: ir.Ref) -> !:
         if r.kind == ir.RefKind.slot:
             try self.frame_address(reg, self.slot_home(r.index))
-        elif r.kind == ir.RefKind.global or r.kind == ir.RefKind.function:
+        elif r.kind == ir.RefKind.global:
             try self.line("adrp ")
             try self.put(reg)
             try self.put(", ")
@@ -249,6 +249,21 @@ pub struct Generator:
             try self.put(", ")
             try self.symbol(r.name)
             try self.put("@PAGEOFF")
+        elif r.kind == ir.RefKind.function:
+            # a function's address goes through the GOT, so a symbol defined in a linked
+            # dylib (an extern C function used as a pointer, like `objc_msgSend`) resolves
+            try self.line("adrp ")
+            try self.put(reg)
+            try self.put(", ")
+            try self.symbol(r.name)
+            try self.put("@GOTPAGE")
+            try self.line("ldr ")
+            try self.put(reg)
+            try self.put(", [")
+            try self.put(reg)
+            try self.put(", ")
+            try self.symbol(r.name)
+            try self.put("@GOTPAGEOFF]")
         elif r.kind == ir.RefKind.text:
             try self.line("adrp ")
             try self.put(reg)
@@ -741,6 +756,18 @@ pub struct Generator:
                 try self.checked(n)
             .asm_:
                 try self.inline_asm(n)
+            .set_reg:
+                # move an input operand into the exact register the asm block names
+                let reg = self.program_unit.texts.get((usize)n.b.index).bytes
+                try self.operand(reg, n.cls, n.a)
+            .get_reg:
+                # store the register the asm block left back into the output place
+                let reg = self.program_unit.texts.get((usize)n.b.index).bytes
+                try self.address_operand("x16", n.a)
+                try self.line(store_mnemonic_for(n.cls))
+                try self.put(" ")
+                try self.put(reg)
+                try self.put(", [x16]")
             .atomic_load:
                 try self.address_operand("x9", n.a)
                 try self.line("ldar" if n.extra2 >= 2 else "ldr")
@@ -1401,6 +1428,10 @@ pub struct Generator:
 ## The callee-saved registers the allocator hands out, x19..x28, by their code 1..10.
 let x_names: str[11] = ["", "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28"]
 let w_names: str[11] = ["", "w19", "w20", "w21", "w22", "w23", "w24", "w25", "w26", "w27", "w28"]
+
+## The store that writes a register of class `c` (an asm output back to its place).
+func store_mnemonic_for(c: ir.Class) -> str:
+    return "str"
 
 func is_int_class(c: ir.Class) -> bool:
     return c == ir.Class.w or c == ir.Class.l
