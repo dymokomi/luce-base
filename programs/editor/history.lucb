@@ -2,7 +2,7 @@
 ## before an edit. Typing coalesces into one revision until another kind of
 ## edit, so undo takes back a word or a line rather than one character.
 
-import buffer
+import editor.buffer
 import memory
 
 pub struct Revision:

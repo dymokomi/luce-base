@@ -1,0 +1,249 @@
+## The editing session shared by the terminal and the SDL editors: the text, its
+## history, the cursor commands, the find prompt, and saving. It knows nothing
+## about drawing beyond how many rows a page holds.
+
+import editor.buffer
+import files
+import editor.history
+import memory
+import editor.terminal
+
+pub struct Session:
+    pub var text: buffer.Buffer
+    pub var undo: history.History
+    pub var path: str
+    var note: u8[256]
+    var note_length: usize
+    var quit_armed: bool
+    pub var searching: bool
+    var needle: u8[128]
+    var needle_length: usize
+    var goal_column: usize
+    var has_goal: bool
+    pub var running: bool
+    ## Rows a page-up or page-down moves by; the screen sets it.
+    pub var page_rows: usize
+
+    pub static func open(path: str) -> Session!:
+        var name: u8[1024]
+        let c_path = try format(name, f"{path}")
+        let read = files.read((cstr)c_path) catch failure:
+            if failure.code != files.missing:
+                error(failure.code, failure.message)
+            recover u8[]((u8*)8, 0)
+        var s: Session = ---
+        s.text = try buffer.Buffer.create(read)
+        if read.length > 0:
+            free(read)
+        s.undo = try history.History.create(256)
+        s.path = path
+        s.note_length = 0
+        s.quit_armed = false
+        s.searching = false
+        s.needle_length = 0
+        s.goal_column = 0
+        s.has_goal = false
+        s.running = true
+        s.page_rows = 20
+        return s
+
+    pub mutating func close():
+        self.text.destroy()
+        self.undo.destroy()
+
+    pub func message() -> str:
+        return (str)self.note[..<self.note_length]
+
+    pub mutating func say(text: str):
+        let n = text.length if text.length < self.note.length else self.note.length
+        memory.copy(self.note, text.bytes, n)
+        self.note_length = n
+
+    ## One key: the find prompt first, then editing.
+    pub mutating func handle(key: terminal.Key) -> !:
+        if self.searching:
+            try self.search_key(key)
+            return
+        if key != terminal.Key.control(letter = 'Q'):
+            self.quit_armed = false
+        var keep_goal = false
+        match key:
+            .character(byte):
+                try self.undo.record(&self.text, true)
+                var one: u8[1]
+                one[0] = byte
+                try self.text.insert(self.text.cursor, one)
+            .enter:
+                try self.undo.record(&self.text, false)
+                let indent = self.text.indentation(self.text.cursor)
+                var line: u8[128]
+                line[0] = '\n'
+                var n: usize = 1
+                while n <= indent and n < line.length:
+                    line[n] = ' '
+                    n += 1
+                try self.text.insert(self.text.cursor, line[..<n])
+            .backspace:
+                if self.text.cursor > 0:
+                    try self.undo.record(&self.text, true)
+                    let start = self.text.previous_boundary(self.text.cursor)
+                    try self.text.remove(start, self.text.cursor)
+            .delete:
+                if self.text.cursor < self.text.length():
+                    try self.undo.record(&self.text, false)
+                    try self.text.remove(self.text.cursor, self.text.next_boundary(self.text.cursor))
+            .left:
+                self.text.cursor = self.text.previous_boundary(self.text.cursor)
+            .right:
+                self.text.cursor = self.text.next_boundary(self.text.cursor)
+            .word_left:
+                self.text.cursor = self.text.previous_word(self.text.cursor)
+            .word_right:
+                self.text.cursor = self.text.next_word(self.text.cursor)
+            .up:
+                self.vertical(-1)
+                keep_goal = true
+            .down:
+                self.vertical(1)
+                keep_goal = true
+            .page_up:
+                self.vertical(0 - (i64)self.page_rows)
+                keep_goal = true
+            .page_down:
+                self.vertical((i64)self.page_rows)
+                keep_goal = true
+            .home:
+                self.text.cursor = self.text.line_start(self.text.cursor)
+            .end_:
+                self.text.cursor = self.text.line_end(self.text.cursor)
+            .control(letter):
+                try self.command(letter)
+            .escape:
+                self.say("")
+            .none_:
+                discard(0)
+        if not keep_goal:
+            self.has_goal = false
+        if not is_typing(key):
+            self.undo.settle()
+
+    mutating func command(letter: u8) -> !:
+        if letter == 'S':
+            try self.save()
+        elif letter == 'Q':
+            if self.text.dirty and not self.quit_armed:
+                self.quit_armed = true
+                self.say("unsaved changes: ^Q again to quit without saving")
+            else:
+                self.running = false
+        elif letter == 'F':
+            self.searching = true
+            self.needle_length = 0
+            self.say("find: ")
+        elif letter == 'Z':
+            if not (try self.undo.undo(&self.text)):
+                self.say("nothing to undo")
+        elif letter == 'Y':
+            if not (try self.undo.redo(&self.text)):
+                self.say("nothing to redo")
+        elif letter == 'K':
+            try self.undo.record(&self.text, false)
+            let start = self.text.line_start(self.text.cursor)
+            var end = self.text.line_end(self.text.cursor)
+            if end < self.text.length():
+                end += 1
+            try self.text.remove(start, end)
+            self.text.cursor = start
+        elif letter == 'A':
+            self.text.cursor = self.text.line_start(self.text.cursor)
+        elif letter == 'E':
+            self.text.cursor = self.text.line_end(self.text.cursor)
+
+    ## Keys while the find prompt is open.
+    mutating func search_key(key: terminal.Key) -> !:
+        match key:
+            .character(byte):
+                if self.needle_length < self.needle.length:
+                    self.needle[self.needle_length] = byte
+                    self.needle_length += 1
+                try self.find_from(self.text.cursor)
+            .backspace:
+                if self.needle_length > 0:
+                    self.needle_length -= 1
+                try self.find_from(self.text.cursor)
+            .enter:
+                try self.find_from(self.text.next_boundary(self.text.cursor))
+            .control(letter):
+                if letter == 'F':
+                    try self.find_from(self.text.next_boundary(self.text.cursor))
+                else:
+                    self.searching = false
+                    self.say("")
+            .escape:
+                self.searching = false
+                self.say("")
+            _:
+                self.searching = false
+                self.say("")
+                try self.handle(key)
+
+    mutating func find_from(start: usize) -> !:
+        var prompt: u8[160]
+        let needle = self.needle[..<self.needle_length]
+        if let at = self.text.find(needle, start):
+            self.text.cursor = at
+            let line = self.text.line_of(at) + 1
+            self.say(try format(prompt, f"find: {(str)needle}   (line {line}; enter for the next, escape to stop)"))
+        else:
+            self.say(try format(prompt, f"find: {(str)needle}   (not found)"))
+
+    ## Up or down by `delta` lines, keeping the column the user was aiming for.
+    mutating func vertical(delta: i64):
+        let line = (i64)self.text.line_of(self.text.cursor)
+        if not self.has_goal:
+            self.goal_column = self.text.column_of(self.text.cursor)
+            self.has_goal = true
+        var target = line + delta
+        if target < 0:
+            target = 0
+        let total = (i64)self.text.count_lines()
+        if target >= total:
+            target = total - 1
+        let start = self.text.line_at((usize)target)
+        self.text.cursor = self.text.at_column(start, self.goal_column)
+
+    pub mutating func save() -> !:
+        let data = try self.text.copy()
+        defer free(data)
+        var name: u8[1024]
+        let path = try format(name, f"{self.path}")
+        try files.write((cstr)path, data)
+        self.text.dirty = false
+        var prompt: u8[160]
+        self.say(try format(prompt, f"saved {data.length} bytes to {self.path}"))
+
+    ## Apply every key of a replay script.
+    pub mutating func replay(keys: str) -> !:
+        var script = terminal.Script.over(keys)
+        while let key = script.next():
+            if not self.running:
+                break
+            try self.handle(key)
+
+func is_typing(key: terminal.Key) -> bool:
+    match key:
+        .character(byte):
+            discard(byte)
+            return true
+        .backspace: return true
+        _: return false
+
+test "typing, undo, and search through a session":
+    var s = try Session.open("/nonexistent/luce-session-test")
+    defer s.close()
+    try s.replay("abc\\ndef^Z")
+    let text = try s.text.copy()
+    defer free(text)
+    assert((str)text == "abc\n")
+    try s.replay("^Fabc\\n")
+    assert(s.text.cursor == 0)

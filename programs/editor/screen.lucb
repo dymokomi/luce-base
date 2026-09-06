@@ -2,8 +2,8 @@
 ## with the cursor placed last. Everything goes through the terminal's buffer
 ## and is flushed once per frame.
 
-import buffer
-import terminal
+import editor.buffer
+import editor.terminal
 
 pub let tab_width: usize = 4
 
