@@ -239,10 +239,15 @@ pub struct Table:
     pub func is_pointer(id: u32) -> bool:
         return self.kind(id) == Kind.pointer
 
-    ## `T*?`: an optional whose payload is a pointer, stored with the null niche.
+    ## `T*?`, `cstr?`, and `func(...)?` are one word with null as the niche (§5.3, §5.5, §5.6).
+    pub func has_null_niche(elem: u32) -> bool:
+        let inner = self.kind(elem)
+        return inner == Kind.pointer or inner == Kind.cstr or inner == Kind.func_
+
+    ## An optional stored with the null niche rather than a flag.
     pub func is_nullable_pointer(id: u32) -> bool:
         let t = self.get(id)
-        return t.kind == Kind.optional and self.kind(t.elem) == Kind.pointer
+        return t.kind == Kind.optional and self.has_null_niche(t.elem)
 
     ## Bits of an integer type on the 64-bit host; 0 for anything else.
     pub func bits(id: u32) -> u32:
@@ -307,7 +312,7 @@ pub struct Table:
             .array: return self.size_of(t.elem) * t.length
             .atomic: return self.size_of(t.elem)
             .optional:
-                if self.kind(t.elem) == Kind.pointer:
+                if self.has_null_niche(t.elem):
                     return 8
                 let inner = self.size_of(t.elem)
                 let a = self.align_of(t.elem)
@@ -380,7 +385,7 @@ pub struct Table:
             .array: return self.align_of(t.elem)
             .atomic: return self.align_of(t.elem)
             .optional:
-                if self.kind(t.elem) == Kind.pointer:
+                if self.has_null_niche(t.elem):
                     return 8
                 let a = self.align_of(t.elem)
                 return a if a > 0 else 1

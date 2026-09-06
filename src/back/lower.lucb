@@ -77,6 +77,8 @@ pub struct Lowerer:
     var funcs: list.List[LowerInstance]
     var tests: list.List[NodeRef]
     var vtables: list.List[LowerWitness]
+    ## `--debug`: describe every frame and call the `debug` module at every statement.
+    pub var debug: bool
     var current_fn: ast.Node*?
     var fn_decl: ast.Node*?
     var fn_args: u32[]
@@ -99,7 +101,7 @@ pub struct Lowerer:
     var mode: u32
 
     pub static func create(c: check.Checker*, entry: ast.Node*) -> Lowerer!:
-        return Lowerer(c = c, program_unit = try ir.Unit.create(), f = try ir.Function.create(""), scratch = try buffer.Buffer.create(256),
+        return Lowerer(c = c, program_unit = try ir.Unit.create(), f = try ir.Function.create(""), scratch = try buffer.Buffer.create(256), debug = false,
                        modules = try list.List[NodeRef].create(16), entry = entry,
                        funcs = try list.List[LowerInstance].create(64), tests = try list.List[NodeRef].create(32),
                        vtables = try list.List[LowerWitness].create(16), current_fn = none, fn_decl = none,
@@ -170,7 +172,7 @@ pub struct Lowerer:
         return self.kind(id) == types.Kind.interface_
 
     func is_nullable_ptr(id: u32) -> bool:
-        return self.is_opt(id) and (self.is_ptr(self.elem(id)) or self.kind(self.elem(id)) == types.Kind.func_)
+        return self.c.table.is_nullable_pointer(id)
 
     func is_tagged_opt(id: u32) -> bool:
         return self.is_opt(id) and not self.is_nullable_ptr(id)
@@ -322,7 +324,36 @@ pub struct Lowerer:
     mutating func bind_local(decl: ast.Node*, id: u32) -> u32!:
         let s = try self.new_slot(id)
         try self.locals.push(LowerLocal(decl = decl, slot = s))
+        try self.describe_local(decl, s, id)
         return s
+
+    ## The path of the file a declaration came from; a standard module's is its name.
+    func source_of(decl: ast.Node*) -> str:
+        let m = decl.resolved else return self.src_file
+        var i: usize = 0
+        while i < self.c.modules.count:
+            let module = self.c.modules.get(i)
+            if module.tree == m:
+                return module.src.path
+            i += 1
+        return self.src_file
+
+    ## `--debug`: a named local joins the frame's descriptor.
+    mutating func describe_local(decl: ast.Node*, slot: u32, id: u32) -> !:
+        if not self.f.debug or decl.text.length == 0 or decl.text == "_":
+            return
+        try self.f.locals.push(ir.LocalInfo(name = decl.text, slot = slot, kind = try self.c.spell(id), size = self.size(id)))
+
+    ## `--debug`: the address of this function's descriptor, `lbd_<name>`.
+    mutating func descriptor_ref() -> ir.Ref!:
+        self.scratch.clear()
+        try self.scratch.put("lbd_")
+        try self.scratch.put(self.f.name)
+        let name = try names.keep(&self.scratch)
+        return try self.f.address_of(ir.global_ref(name))
+
+    mutating func debug_call(name: str, start: u32, count: u32) -> !:
+        discard(try self.call_named(name, start, count, ir.Class.w, false, types.unit_id))
 
     # -- names ----------------------------------------------------------------------------
 
@@ -464,9 +495,14 @@ pub struct Lowerer:
                 align = 8
             let s = try self.f.slot(size, align)
             try self.locals.push(LowerLocal(decl = p, slot = s))
+            try self.describe_local(p, s, pt)
             try self.f.params.push(try self.param_of(pt, s))
             cursor = p.next
         try self.push_scope(false, "", 0, 0)
+        if self.f.debug:
+            let start = u32(self.f.args.count)
+            try self.f.args.push(ir.Arg(value = try self.descriptor_ref(), cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, is_float_only = false, float_count = 0))
+            try self.debug_call("lb_debug_enter", start, 1)
         if let body = d.body:
             var s = body.body
             while let st = s:
@@ -487,6 +523,12 @@ pub struct Lowerer:
     ## Open a function: its result shape and the slot the result is built in.
     mutating func begin_function(name: str, d: ast.Node*?, inst: LowerInstance) -> !:
         self.f = try ir.Function.create(name)
+        # the program's own functions are described and hooked; the standard modules are not
+        self.f.debug = false
+        if let decl = d:
+            self.f.debug = self.debug and not check.is_standard_module(names.module_of(decl))
+            self.src_file = self.source_of(decl)
+        self.f.source = self.src_file
         self.locals.count = 0
         self.scopes.count = 0
         self.defers.count = 0
@@ -541,9 +583,11 @@ pub struct Lowerer:
         if self.fn_fallible() and self.result_payload() == types.unit_id:
             let r = try self.slot_address(self.result_slot)
             try self.f.store(ir.Op.storeb, ir.const_ref(0), try self.offset_address(r, self.failed_offset(self.f.result_type)))
+            try self.debug_leave()
             try self.f.emit(ir.Op.ret, ir.Class.l, 0, r, ir.none_ref(), 0)
             return
         if not self.f.has_result:
+            try self.debug_leave()
             try self.f.emit(ir.Op.ret, ir.Class.l, 0, ir.none_ref(), ir.none_ref(), 0)
             return
         try self.trap_with("unreachable")
@@ -577,6 +621,14 @@ pub struct Lowerer:
         self.pop_scope()
 
     mutating func stmt(s: ast.Node*) -> !:
+        if self.f.debug and s.kind != ast.Kind.block and s.line > 0:
+            # `--debug`: the descriptor, the line, and the frame, before the statement runs
+            let start = u32(self.f.args.count)
+            try self.f.args.push(ir.Arg(value = try self.descriptor_ref(), cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, is_float_only = false, float_count = 0))
+            try self.f.args.push(ir.Arg(value = ir.const_ref((i64)s.line), cls = ir.Class.w, size = 0, align = 4, type_id = types.u32_id, is_float_only = false, float_count = 0))
+            let frame = try self.f.unary(ir.Op.frame, ir.Class.l, ir.none_ref())
+            try self.f.args.push(ir.Arg(value = frame, cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, is_float_only = false, float_count = 0))
+            try self.debug_call("lb_debug_at", start, 3)
         match s.kind:
             .block:
                 try self.block(s)
@@ -880,13 +932,19 @@ pub struct Lowerer:
             if self.fn_fallible():
                 try self.f.store(ir.Op.storeb, ir.const_ref(1 if failing else 0), try self.offset_address(r, self.failed_offset(self.f.result_type)))
             try self.unwind_from(0, failing)
+            try self.debug_leave()
             let again = try self.slot_address(self.result_slot)
             let out = try self.load_from(again, self.f.result_type)
             try self.f.emit(ir.Op.ret, ir.Class.l, 0, out.ref, ir.none_ref(), 0)
         else:
             try self.unwind_from(0, failing)
+            try self.debug_leave()
             try self.f.emit(ir.Op.ret, ir.Class.l, 0, ir.none_ref(), ir.none_ref(), 0)
         try self.f.place_label(self.f.label())
+
+    mutating func debug_leave() -> !:
+        if self.f.debug:
+            try self.debug_call("lb_debug_leave", u32(self.f.args.count), 0)
 
     ## `error(code, message)`: the failing result leaves the function.
     mutating func error_return(e: ast.Node*) -> !:

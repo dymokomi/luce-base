@@ -274,11 +274,11 @@ pub struct Emitter:
 
     ## An optional whose payload is a pointer is the pointer itself (§5.8).
     func is_nullable_ptr(id: u32) -> bool:
-        return self.is_opt(id) and self.is_ptr(self.elem(id))
+        return self.c.table.is_nullable_pointer(id)
 
     ## A tagged optional carries a `present` flag beside its value.
     func is_tagged_opt(id: u32) -> bool:
-        return self.is_opt(id) and not self.is_ptr(self.elem(id))
+        return self.is_opt(id) and not self.c.table.is_nullable_pointer(id)
 
     func is_int_enum(id: u32) -> bool:
         if self.kind(id) != types.Kind.enum_:
@@ -380,7 +380,7 @@ pub struct Emitter:
                 try self.note(id)
                 try self.put_mangled_name(id)
             .optional:
-                if self.is_ptr(t.elem):
+                if self.c.table.has_null_niche(t.elem):
                     try self.put_type(t.elem)
                 else:
                     try self.note(id)
@@ -662,7 +662,7 @@ pub struct Emitter:
             .optional:
                 try self.define_type(t.elem)
                 try self.defined.push(id)
-                if self.is_ptr(t.elem):
+                if self.c.table.has_null_niche(t.elem):
                     return
                 try self.line("LB_OPT(")
                 try self.put_type(t.elem)
@@ -5189,7 +5189,8 @@ func unescape_braces(text: str) -> str:
 
 ## Functions of stdio.h, stdlib.h, and string.h, which the generated C includes.
 func declared_by_headers(symbol: str) -> bool:
-    let known: str[20] = ["memcpy", "memmove", "memset", "memcmp", "strlen", "malloc", "free", "realloc", "calloc", "exit", "abort", "fwrite", "fread", "fputs", "fflush", "fdopen", "fopen", "fclose", "posix_memalign", "snprintf"]
+    let known: str[32] = ["memcpy", "memmove", "memset", "memcmp", "strlen", "malloc", "free", "realloc", "calloc", "exit", "abort", "fwrite", "fread", "fputs", "fflush", "fdopen", "fopen", "fclose", "posix_memalign", "snprintf",
+                          "getenv", "setenv", "unsetenv", "putenv", "atoi", "strtol", "strcmp", "strncmp", "strchr", "strstr", "printf", "fprintf"]
     for n in known:
         if n == symbol:
             return true
