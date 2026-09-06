@@ -113,6 +113,9 @@ pub let flag_if_let: u32 = 8388608
 pub let flag_wildcard: u32 = 16777216
 ## Set by the checker on a name that denotes a type rather than a value.
 pub let flag_type_ref: u32 = 33554432
+## Set by the checker on every declaration of a standard module: the backend
+## maps these onto the runtime instead of emitting their placeholder bodies.
+pub let flag_builtin: u32 = 67108864
 
 # mark: Nodes and lists =======================================================================
 

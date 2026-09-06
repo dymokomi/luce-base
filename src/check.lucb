@@ -65,8 +65,8 @@ struct SpanWriter implements Writer:
 # mark: The checker ============================================================================
 
 pub struct Checker:
-    var table: types.Table
-    var modules: list.List[Module]
+    pub var table: types.Table
+    pub var modules: list.List[Module]
     var scope: list.List[Binding]
     var depth: u32
     ## Diagnostics are formatted into the first half; type spellings into the second.
@@ -180,6 +180,15 @@ pub struct Checker:
         var p = try parser.Parser.over(src, self.scratch)
         let tree = try p.parse_module()
         tree.text = name
+        if is_prelude:
+            var cursor = tree.body
+            while let d = cursor:
+                d.flags |= ast.flag_builtin
+                var member = d.body
+                while let m = member:
+                    m.flags |= ast.flag_builtin
+                    member = m.next
+                cursor = d.next
         try self.modules.push(Module(name = name, tree = tree, src = src, is_prelude = is_prelude))
 
     ## Parse and add every standard module.
@@ -212,7 +221,7 @@ pub struct Checker:
         tree.text = name
         try self.modules.push(Module(name = name, tree = tree, src = src, is_prelude = false))
 
-    func find_module(name: str) -> usize?:
+    pub func find_module(name: str) -> usize?:
         var i: usize = 0
         while i < self.modules.count:
             if self.modules.get(i).name == name:
@@ -656,7 +665,7 @@ pub struct Checker:
     # mark: Substitution =======================================================================
 
     ## Replace the generic parameters of `decl` inside `id` with `args`.
-    mutating func substitute(id: u32, decl: ast.Node*, args: u32[]) -> u32!:
+    pub mutating func substitute(id: u32, decl: ast.Node*, args: u32[]) -> u32!:
         if args.length == 0:
             return id
         let t = self.table.get(id)
@@ -1565,7 +1574,7 @@ pub struct Checker:
         let pointer = try self.table.pointer(id, false, false)
         if let body = e.body:
             if body.kind == ast.Kind.case_value:
-                discard(try self.case_type(body, id))
+                body.type_id = try self.case_type(body, id)
             else:
                 discard(try self.construct(e, id, e.body))
         elif not self.table.zeroable(id):
@@ -2093,6 +2102,17 @@ pub struct Checker:
         var result = f.elem
         if let t = template:
             result = try self.substitute(result, t, inferred)
+            # the instance the backend must build: the arguments as type nodes on the call
+            if explicit == none:
+                let holder = try ast.Node.make(ast.Kind.type_, "", e.start, e.line)
+                var tail: ast.Node*? = none
+                var j: usize = 0
+                while j < generic_count:
+                    let a = try ast.Node.make(ast.Kind.type_, "", e.start, e.line)
+                    a.type_id = inferred[j]
+                    ast.append(&holder.body, &tail, a)
+                    j += 1
+                e.ty = holder
         discard(owner)
         discard(owner_args)
         discard(hint)
@@ -3030,6 +3050,183 @@ func is_arithmetic(op: str) -> bool:
     return op == "+" or op == "-" or op == "*" or op == "/" or op == "//" or op == "%" or op == "+%" or op == "-%" or op == "*%" or op == "+|" or op == "-|" or op == "*|" or op == "+?" or op == "-?" or op == "*?" or op == "&" or op == "|" or op == "^"
 
 ## A number literal with a point or an exponent, outside the prefixed forms.
+pub func is_float_text(text: str) -> bool:
+    return is_float_literal(text)
+
+## The bytes a text literal denotes, in the current allocator: delimiters and
+## prefix removed, CRLF normalised and indentation stripped for triple quotes,
+## escapes decoded except in raw text (§4.4).
+pub func decode_text(token: str) -> str:
+    var b = token.bytes
+    var raw = false
+    var is_bytes = false
+    if b.length >= 2 and b[0] == 'r' and b[1] == '"':
+        raw = true
+        b = b[1..]
+    elif b.length >= 2 and b[0] == 'b' and b[1] == '"':
+        is_bytes = true
+        b = b[1..]
+    var body = b
+    var triple = false
+    if b.length >= 6 and b[0] == '"' and b[1] == '"' and b[2] == '"':
+        triple = true
+        body = b[3..<b.length - 3]
+    elif b.length >= 2 and b[0] == '"':
+        body = b[1..<b.length - 1]
+    let out = alloc u8[body.length + 1] catch failure:
+        trap("out of memory")
+    var n: usize = 0
+    if triple:
+        # the closing delimiter's column is the indentation to strip
+        var indent: usize = 0
+        var k = body.length
+        while k > 0 and body[k - 1] == ' ':
+            k -= 1
+            indent += 1
+        if k > 0 and body[k - 1] != '\n':
+            indent = 0
+        var i: usize = 0
+        var at_line_start = true
+        while i < body.length:
+            if body[i] == '\r' and i + 1 < body.length and body[i + 1] == '\n':
+                i += 1
+                continue
+            if at_line_start:
+                var skipped: usize = 0
+                while skipped < indent and i < body.length and body[i] == ' ':
+                    i += 1
+                    skipped += 1
+                at_line_start = false
+                if i >= body.length:
+                    break
+            let c = body[i]
+            out[n] = c
+            n += 1
+            if c == '\n':
+                at_line_start = true
+            i += 1
+        body = out[..<n]
+        n = 0
+        if raw:
+            return (str)body
+        # decode escapes in place is unsafe; copy again
+        let second = alloc u8[body.length + 1] catch failure:
+            trap("out of memory")
+        n = decode_escapes(body, second, is_bytes)
+        return (str)second[..<n]
+    if raw:
+        memory.copy(out, body, body.length)
+        return (str)out[..<body.length]
+    n = decode_escapes(body, out, is_bytes)
+    return (str)out[..<n]
+
+## Decode the escapes of `body` into `out`; returns the byte count.
+func decode_escapes(body: const u8[], out: u8[], is_bytes: bool) -> usize:
+    var n: usize = 0
+    var i: usize = 0
+    while i < body.length:
+        let c = body[i]
+        if c != '\\' or i + 1 >= body.length:
+            out[n] = c
+            n += 1
+            i += 1
+            continue
+        let e = body[i + 1]
+        i += 2
+        if e == 'n':
+            out[n] = '\n'
+            n += 1
+        elif e == 'r':
+            out[n] = '\r'
+            n += 1
+        elif e == 't':
+            out[n] = '\t'
+            n += 1
+        elif e == '0':
+            out[n] = 0
+            n += 1
+        elif e == 'x' and is_bytes and i + 1 < body.length:
+            out[n] = (u8)(hex_value(body[i]) * 16 + hex_value(body[i + 1]))
+            n += 1
+            i += 2
+        elif e == 'u' and i < body.length and body[i] == '{':
+            var cp: u32 = 0
+            i += 1
+            while i < body.length and body[i] != '}':
+                cp = cp * 16 + (u32)hex_value(body[i])
+                i += 1
+            i += 1
+            n += encode_utf8(cp, out[n..])
+        else:
+            out[n] = e
+            n += 1
+    return n
+
+func hex_value(c: u8) -> u8:
+    if c >= '0' and c <= '9':
+        return c - '0'
+    if c >= 'a' and c <= 'f':
+        return c - 'a' + 10
+    if c >= 'A' and c <= 'F':
+        return c - 'A' + 10
+    return 0
+
+## Write `cp` as UTF-8 into `out`; returns the byte count.
+pub func encode_utf8(cp: u32, out: u8[]) -> usize:
+    if cp < 128:
+        out[0] = (u8)cp
+        return 1
+    if cp < 2048:
+        out[0] = (u8)(192 + (cp >> 6))
+        out[1] = (u8)(128 + (cp & 63))
+        return 2
+    if cp < 65536:
+        out[0] = (u8)(224 + (cp >> 12))
+        out[1] = (u8)(128 + ((cp >> 6) & 63))
+        out[2] = (u8)(128 + (cp & 63))
+        return 3
+    out[0] = (u8)(240 + (cp >> 18))
+    out[1] = (u8)(128 + ((cp >> 12) & 63))
+    out[2] = (u8)(128 + ((cp >> 6) & 63))
+    out[3] = (u8)(128 + (cp & 63))
+    return 4
+
+## The scalar value of a character literal.
+pub func decode_char(token: str) -> u32:
+    let b = token.bytes
+    if b.length < 3:
+        return 0
+    let body = b[1..<b.length - 1]
+    if body[0] != '\\':
+        # one UTF-8 scalar
+        let c0 = body[0]
+        if c0 < 128:
+            return (u32)c0
+        if c0 < 224 and body.length >= 2:
+            return ((u32)(c0 & 31) << 6) | (u32)(body[1] & 63)
+        if c0 < 240 and body.length >= 3:
+            return ((u32)(c0 & 15) << 12) | ((u32)(body[1] & 63) << 6) | (u32)(body[2] & 63)
+        if body.length >= 4:
+            return ((u32)(c0 & 7) << 18) | ((u32)(body[1] & 63) << 12) | ((u32)(body[2] & 63) << 6) | (u32)(body[3] & 63)
+        return 0
+    let e = body[1]
+    if e == 'n':
+        return 10
+    if e == 'r':
+        return 13
+    if e == 't':
+        return 9
+    if e == '0':
+        return 0
+    if e == 'u' and body.length > 3:
+        var cp: u32 = 0
+        var i: usize = 3
+        while i < body.length and body[i] != '}':
+            cp = cp * 16 + (u32)hex_value(body[i])
+            i += 1
+        return cp
+    return (u32)e
+
 func is_float_literal(text: str) -> bool:
     let b = text.bytes
     if b.length > 1 and b[0] == '0' and (b[1] == 'x' or b[1] == 'X' or b[1] == 'b' or b[1] == 'B' or b[1] == 'o' or b[1] == 'O'):
