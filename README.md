@@ -65,6 +65,17 @@ natively, and the natively built compiler emits the same C and the same
 assembly for the compiler as the C-built one. Code comes out unoptimised,
 with every temporary in the frame; register allocation is next.
 
+## Proving programs
+
+`programs/` holds programs large enough to break a compiler, each built
+natively under the gate and driven from outside by its `check.sh`:
+
+- `programs/http`: a multi-threaded HTTP/1.1 server (a listener thread, a
+  pool of workers over a bounded queue, static files, `/echo`, `/stats`,
+  keep-alive), proved with `curl`.
+
+Every bug they find is pinned as a test in both compilers before the fix.
+
 ## License
 
 Dual-licensed under the Apache License 2.0 and the MIT license, at your

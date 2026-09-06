@@ -128,6 +128,14 @@ implementations of one contract. The native backend closes its own loop
 under the gate: the compiler built natively must emit the same C and the
 same assembly for the compiler as the C-built one does.
 
+## Waiting
+
+`sync` sleeps in the kernel: `Mutex`, `Condition`, `Once`, and `Semaphore`
+are one `@u32` each over `__ulock_wait` and `__ulock_wake`, the futex of
+macOS, with the three-state mutex of Drepper's paper. A pool of workers
+waiting on a condition costs nothing while it waits, which the HTTP server
+under `programs/` relies on.
+
 ## Memory
 
 One arena per compilation, made current with `with`, owns everything with
