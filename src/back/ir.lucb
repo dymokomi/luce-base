@@ -174,6 +174,8 @@ pub enum Op as u8:
     atomic_cas = 130
     ## `fence a`: a full fence with the C memory order in `a`
     fence = 131
+    ## The frame pointer of the running function, for the debugger.
+    frame = 200
 
 ## One instruction. `dst` is 0 when there is none. `extra` carries a label, a
 ## byte count, or a call's argument range.
@@ -231,9 +233,20 @@ pub struct Param:
 
 # mark: Functions and the unit ================================================================
 
+## A named local as the debugger sees it (`--debug`): its slot, its type's spelling.
+pub struct LocalInfo:
+    pub var name: str
+    pub var slot: u32
+    pub var kind: str
+    pub var size: u32
+
 pub struct Function:
     pub var name: str
     pub var exported: bool
+    ## `--debug`: the source file, and every named local for the frame's descriptor.
+    pub var debug: bool
+    pub var source: str
+    pub var locals: list.List[LocalInfo]
     pub var params: list.List[Param]
     pub var slots: list.List[Slot]
     pub var instrs: list.List[Instr]
@@ -251,7 +264,8 @@ pub struct Function:
     pub var variadic: bool
 
     pub static func create(name: str) -> Function!:
-        return Function(name = name, exported = false, params = try list.List[Param].create(8),
+        return Function(name = name, exported = false, debug = false, source = "", locals = try list.List[LocalInfo].create(8),
+                        params = try list.List[Param].create(8),
                         slots = try list.List[Slot].create(32), instrs = try list.List[Instr].create(256),
                         args = try list.List[Arg].create(32), calls = try list.List[CallInfo].create(16),
                         temps = try list.List[Class].create(128), labels = 0, has_result = false,

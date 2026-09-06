@@ -114,6 +114,13 @@ pub struct Checker:
         let message = try format(self.scratch[..<half], f"{name}:{line}:{column}: {what}")
         error(type_error, message)
 
+    ## The spelling of a type, kept in the current allocator.
+    pub func spell(id: u32) -> str!:
+        let text = try self.with_type("", id, "")
+        var out = try alloc u8[text.length if text.length > 0 else 1]
+        memory.copy(out, text.bytes, text.length)
+        return (str)out[..<text.length]
+
     ## `prefix` + the spelling of a type + `suffix`, in the second half of `scratch`.
     func with_type(prefix: str, id: u32, suffix: str) -> str!:
         let half = self.scratch.length // 2

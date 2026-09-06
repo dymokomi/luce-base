@@ -23,7 +23,7 @@ import front.token
 let version: str = "0.1"
 
 func usage(out: Writer) -> !:
-    try out.write("usage: luce-base lex FILE\n       luce-base parse FILE\n       luce-base check FILE\n       luce-base build FILE [-o OUT] [--release] [--emit=c] [--native] [--emit=asm]\n       luce-base test FILE [--native]\n       luce-base --version\n")
+    try out.write("usage: luce-base lex FILE\n       luce-base parse FILE\n       luce-base check FILE\n       luce-base build FILE [-o OUT] [--release] [--emit=c] [--native] [--debug] [--emit=asm]\n       luce-base test FILE [--native]\n       luce-base --version\n")
 
 # mark: Building ===============================================================================
 
@@ -34,6 +34,7 @@ struct Options:
     var emit_c: bool
     var run_tests: bool
     var native: bool
+    var debug: bool
 
 ## Check FILE and its imports, then generate C for the whole program.
 func generate(path: cstr, mode: u32) -> str!:
@@ -50,6 +51,7 @@ func generate(path: cstr, mode: u32) -> str!:
     used_mode = actual
     if native_backend:
         var l = try lower.Lowerer.create(&c, entry)
+        l.debug = debug_backend
         try l.program(actual)
         var g = try arm64.Generator.create(&l.program_unit)
         try g.generate()
@@ -60,6 +62,8 @@ func generate(path: cstr, mode: u32) -> str!:
 
 ## The backend the current command chose: C through the host compiler, or arm64 assembly.
 var native_backend: bool
+## `--debug`: the native backend describes every frame and calls the `debug` module.
+var debug_backend: bool
 
 var scratch_bytes: u8[4096]
 ## The mode the last `generate` settled on: 2 means an `answer()` program that links `start.c`.
@@ -162,6 +166,7 @@ func build_file(path: cstr, options: Options) -> !:
     var arena = FixedBuffer.over(backing)
     with arena:
         native_backend = options.native
+        debug_backend = options.debug and options.native
         let text = try generate(path, 1 if options.run_tests else 0)
         if options.emit_c:
             if options.output.length > 0:
@@ -286,7 +291,7 @@ pub func main(arguments: cstr[]) -> i32!:
             return 1
         return 0
     if command == "build" and arguments.length >= 3:
-        var options = Options(output = "", release = false, emit_c = false, run_tests = false, native = false)
+        var options = Options(output = "", release = false, emit_c = false, run_tests = false, native = false, debug = false)
         var i: usize = 3
         while i < arguments.length:
             let a = (str)arguments[i]
@@ -299,6 +304,8 @@ pub func main(arguments: cstr[]) -> i32!:
                 options.emit_c = true
             elif a == "--native":
                 options.native = true
+            elif a == "--debug":
+                options.debug = true
             else:
                 try io.stderr().write(f"luce-base: unexpected argument `{a}`\n")
                 return 2

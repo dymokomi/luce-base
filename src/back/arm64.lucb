@@ -46,11 +46,13 @@ pub struct Generator:
     ## The frame slot holding x8 (the indirect result address) when the function returns a large aggregate.
     var indirect_home: u64
     var text_count: usize
+    ## `--debug`: the frame descriptors, gathered while each function's frame is known.
+    var descriptors: buffer.Buffer
 
     pub static func create(program_unit: ir.Unit*) -> Generator!:
         return Generator(out = try buffer.Buffer.create(262144), program_unit = program_unit, f = program_unit.functions.span().data, index = 0,
                          temp_homes = try list.List[FrameHome].create(256), slot_homes = try list.List[FrameHome].create(64),
-                         frame = 0, indirect_home = 0, text_count = 0)
+                         frame = 0, indirect_home = 0, text_count = 0, descriptors = try buffer.Buffer.create(4096))
 
     # -- output ---------------------------------------------------------------------------
 
@@ -296,6 +298,43 @@ pub struct Generator:
             try self.instruction(self.f.instrs.get(i))
             i += 1
         try self.put("\n")
+        if self.f.debug:
+            try self.describe_frame()
+
+    ## `lbd_<name>`: the function's name and source, then each named local's name, type
+    ## spelling, distance below the frame pointer, and size; every text is a `str`.
+    mutating func describe_frame() -> !:
+        var d = &self.descriptors
+        try d.put("    .globl _lbd_")
+        try d.put(self.f.name)
+        try d.put("\n_lbd_")
+        try d.put(self.f.name)
+        try d.put(":\n")
+        try self.describe_text(self.f.name)
+        try self.describe_text(self.f.source)
+        try d.put("    .quad ")
+        try d.put_u64((u64)self.f.locals.count)
+        try d.put("\n")
+        var i: usize = 0
+        while i < self.f.locals.count:
+            let local = self.f.locals.get(i)
+            try self.describe_text(local.name)
+            try self.describe_text(local.kind)
+            try d.put("    .quad ")
+            try d.put_u64(self.slot_home(local.slot))
+            try d.put(", ")
+            try d.put_u64((u64)local.size)
+            try d.put("\n")
+            i += 1
+
+    mutating func describe_text(text: str) -> !:
+        let index = try self.program_unit.text(text)
+        var d = &self.descriptors
+        try d.put("    .quad l_text_")
+        try d.put_u64((u64)index)
+        try d.put(", ")
+        try d.put_u64((u64)text.length)
+        try d.put("\n")
 
     ## Store the incoming arguments into their slots.
     mutating func receive_params() -> !:
@@ -454,6 +493,9 @@ pub struct Generator:
                 try self.put(" ")
                 try self.put(self.reg(cls, 0))
                 try self.put(", [x10]")
+            .frame:
+                try self.line("mov x9, x29")
+                try self.store_temp("x9", n.dst)
             .extsb, .extub, .extsh, .extuh, .extsw, .extuw:
                 try self.operand("x9", ir.Class.l, n.a)
                 try self.extend(n.op, n.cls)
@@ -1119,6 +1161,9 @@ pub struct Generator:
                 try self.put("\n")
                 k += 1
             i += 1
+        # frame descriptors, when `--debug` asked for them
+        if self.descriptors.used > 0:
+            try self.put(self.descriptors.view())
         # globals
         i = 0
         while i < self.program_unit.globals.count:

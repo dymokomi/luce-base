@@ -26,7 +26,7 @@ pub struct Prelude:
 
 ## The modules in dependency order: `memory` first because `io` names its types,
 ## `atomic` before `sync`, whose orderings it declares.
-pub let modules: Prelude[16] = [
+pub let modules: Prelude[17] = [
     Prelude(name = "core", text = """
 extern func write(descriptor: i32, buffer: const void*, count: usize) -> isize
 extern func c_exit as "exit"(code: i32) -> never
@@ -1583,6 +1583,276 @@ pub struct Datagram:
 
     pub func close():
         discard(close(self.descriptor))
+"""),
+    Prelude(name = "debug", text = """
+extern func getenv(name: cstr) -> cstr?
+extern func c_read as "read"(descriptor: i32, buffer: void*, count: usize) -> isize
+extern func c_exit as "exit"(code: i32) -> never
+
+## A frame as the compiler described it under `--debug`: the function's name and
+## source, then `count` locals laid out after it.
+extern struct Shape:
+    name: str
+    source: str
+    count: u64
+
+extern struct Local:
+    name: str
+    kind: str
+    offset: u64
+    size: u64
+
+struct Activation:
+    var shape: Shape*?
+    var frame: void*?
+    var line: u32
+
+struct Break:
+    var file: str
+    var line: u32
+
+var activations: Activation[512]
+var depth: usize
+var checked: bool
+var active: bool
+var started: bool
+var stepping: bool
+var step_over: usize
+var breaks: Break[32]
+var break_count: usize
+var names: u8[4096]
+var names_used: usize
+var line_bytes: u8[512]
+
+## Called at every function entry and exit of a `--debug` build.
+pub func enter(shape: void*):
+    if depth < activations.length:
+        activations[depth] = Activation(shape = (Shape*)shape, frame = none, line = 0)
+    depth += 1
+
+pub func leave():
+    if depth > 0:
+        depth -= 1
+
+## Called before every statement: stop when a breakpoint, a step, or the start asks.
+pub func at(shape: void*, line: u32, frame: void*):
+    if not checked:
+        checked = true
+        active = getenv("LUCE_DEBUG") != none
+    if not active or depth == 0 or depth > activations.length:
+        return
+    let top = depth - 1
+    let s = (Shape*)shape
+    activations[top] = Activation(shape = s, frame = frame, line = line)
+    var stop = false
+    if not started:
+        started = true
+        stop = true
+    elif stepping:
+        stop = true
+    elif step_over > 0 and depth <= step_over:
+        stop = true
+    elif hits(s.source, line):
+        stop = true
+    if not stop:
+        return
+    stepping = false
+    step_over = 0
+    print(f"stopped at {s.source}:{line} in {s.name}")
+    prompt(top)
+
+func hits(file: str, line: u32) -> bool:
+    var i: usize = 0
+    while i < break_count:
+        let b = breaks[i]
+        if b.line == line and (b.file == file or ends_with(file, b.file)):
+            return true
+        i += 1
+    return false
+
+func ends_with(text: str, suffix: str) -> bool:
+    if suffix.length > text.length:
+        return false
+    return (str)text.bytes[text.length - suffix.length..] == suffix
+
+## Read commands until one lets the program run.
+func prompt(top: usize):
+    while true:
+        let line = read_line() else return
+        let command = first_word(line)
+        let rest = trim((str)line.bytes[command.length..])
+        if command == "r" or command == "run" or command == "c" or command == "continue":
+            return
+        if command == "s" or command == "step":
+            stepping = true
+            return
+        if command == "n" or command == "next":
+            step_over = depth
+            return
+        if command == "q" or command == "quit":
+            print("quit")
+            c_exit(0)
+        if command == "b" or command == "break":
+            add_break(rest)
+        elif command == "p" or command == "print":
+            show_named(top, rest)
+        elif command == "locals":
+            show_all(top)
+        elif command == "bt" or command == "backtrace":
+            backtrace()
+        elif command.length == 0:
+            continue
+        else:
+            print(f"unknown command `{command}`; commands: break FILE:LINE, run, step, next, print NAME, locals, backtrace, quit")
+
+func add_break(spec: str):
+    var colon: usize = spec.length
+    var i = spec.length
+    while i > 0:
+        i -= 1
+        if spec.bytes[i] == ':':
+            colon = i
+            break
+    if colon == spec.length:
+        print("break needs FILE:LINE")
+        return
+    let file = (str)spec.bytes[..<colon]
+    let number = parse_line((str)spec.bytes[colon + 1..])
+    if number == 0 or break_count == breaks.length or names_used + file.length > names.length:
+        print("cannot set that breakpoint")
+        return
+    memory.copy(names[names_used..], file.bytes, file.length)
+    let kept = (str)names[names_used..<names_used + file.length]
+    names_used += file.length
+    breaks[break_count] = Break(file = kept, line = number)
+    break_count += 1
+    print(f"breakpoint {break_count} at {file}:{number}")
+
+func parse_line(text: str) -> u32:
+    var value: u32 = 0
+    for byte in text.bytes:
+        if byte < '0' or byte > '9':
+            return 0
+        value = value * 10 + (u32)(byte - '0')
+    return value
+
+func backtrace():
+    var i = depth
+    var index: usize = 0
+    while i > 0:
+        i -= 1
+        let a = activations[i]
+        if let s = a.shape:
+            print(f"#{index} {s.name} at {s.source}:{a.line}")
+        index += 1
+
+func show_all(top: usize):
+    let a = activations[top]
+    let s = a.shape else return
+    var i: u64 = 0
+    while i < s.count:
+        show(local_of(s, i), a.frame)
+        i += 1
+
+func show_named(top: usize, name: str):
+    let a = activations[top]
+    let s = a.shape else return
+    var i: u64 = 0
+    while i < s.count:
+        let local = local_of(s, i)
+        if local.name == name:
+            show(local, a.frame)
+            return
+        i += 1
+    print(f"no local named `{name}`")
+
+## The locals follow the shape, each `sizeof(Local)` bytes.
+func local_of(s: Shape*, index: u64) -> Local*:
+    let base = (usize)s + sizeof(Shape) + (usize)index * sizeof(Local)
+    return (Local*)base
+
+## A local's value read from the frame and shown by its type's spelling.
+func show(local: Local*, frame: void*?):
+    let f = frame else return
+    let address = (void*)((usize)f - (usize)local.offset)
+    let kind = local.kind
+    if kind == "i64" or kind == "isize":
+        print(f"{local.name}: {kind} = {memory.read[i64](address)}")
+    elif kind == "i32":
+        print(f"{local.name}: {kind} = {memory.read[i32](address)}")
+    elif kind == "i16":
+        print(f"{local.name}: {kind} = {memory.read[i16](address)}")
+    elif kind == "i8":
+        print(f"{local.name}: {kind} = {memory.read[i8](address)}")
+    elif kind == "u64" or kind == "usize":
+        print(f"{local.name}: {kind} = {memory.read[u64](address)}")
+    elif kind == "u32" or kind == "char":
+        print(f"{local.name}: {kind} = {memory.read[u32](address)}")
+    elif kind == "u16":
+        print(f"{local.name}: {kind} = {memory.read[u16](address)}")
+    elif kind == "u8":
+        print(f"{local.name}: {kind} = {memory.read[u8](address)}")
+    elif kind == "bool":
+        print(f"{local.name}: {kind} = {memory.read[bool](address)}")
+    elif kind == "f64":
+        print(f"{local.name}: {kind} = {memory.read[f64](address)}")
+    elif kind == "f32":
+        print(f"{local.name}: {kind} = {memory.read[f32](address)}")
+    elif kind == "str":
+        let text = memory.read[str](address)
+        print(f"{local.name}: {kind} = \\"{text}\\"")
+    elif kind == "cstr":
+        let text = memory.read[cstr](address)
+        print(f"{local.name}: {kind} = \\"{(str)text}\\"")
+    elif ends_with(kind, "*") or ends_with(kind, "*?"):
+        print(f"{local.name}: {kind} = 0x{hex(memory.read[usize](address))}")
+    else:
+        var shown: usize = (usize)local.size
+        if shown > 32:
+            shown = 32
+        var text: u8[160]
+        var used: usize = 0
+        var i: usize = 0
+        while i < shown:
+            let byte = memory.read[u8]((void*)((usize)address + i))
+            let digits = "0123456789abcdef".bytes
+            text[used] = digits[(usize)(byte >> 4)]
+            text[used + 1] = digits[(usize)(byte & 15)]
+            text[used + 2] = ' '
+            used += 3
+            i += 1
+        print(f"{local.name}: {kind} = {local.size} bytes {(str)text[..<used]}")
+
+func first_word(line: str) -> str:
+    var i: usize = 0
+    while i < line.length and line.bytes[i] != ' ':
+        i += 1
+    return (str)line.bytes[..<i]
+
+func trim(text: str) -> str:
+    var start: usize = 0
+    var end = text.length
+    while start < end and text.bytes[start] == ' ':
+        start += 1
+    while end > start and (text.bytes[end - 1] == ' ' or text.bytes[end - 1] == '\\r'):
+        end -= 1
+    return (str)text.bytes[start..<end]
+
+## One line from standard input, without its newline; none at the end of input.
+func read_line() -> str?:
+    var used: usize = 0
+    while used < line_bytes.length:
+        var byte: u8[1]
+        let n = c_read(0, &byte[0], 1)
+        if n <= 0:
+            if used == 0:
+                return none
+            break
+        if byte[0] == '\\n':
+            break
+        line_bytes[used] = byte[0]
+        used += 1
+    return (str)line_bytes[..<used]
 """),
     Prelude(name = "c", text = """
 pub type int = i32
