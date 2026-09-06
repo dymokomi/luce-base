@@ -33,6 +33,7 @@ seed implements. What this compiler must do to earn the switch is in
 ./build/luce-base test src/front/parser.lucb --native      # the same tests through the native backend
 ./build/luce-base build src/main.lucb --native -o B2       # the compiler builds itself, natively
 ./build/luce-base build app.lucb --native --debug -o app   # with frame descriptors for luce-base-d
+./build/luce-base build app.lucb --native -lSDL3 -L/opt/homebrew/lib -o app   # link a C library
 ```
 
 The sources are `src/front` (source, tokens, lexer, tree, parser),
@@ -84,6 +85,11 @@ natively under the gate and driven from outside by its `check.sh`:
   lives in the program and talks on standard input and output: breakpoints,
   `step`, `next`, `print`, `locals`, `backtrace`. Proved with a scripted
   session over a sample.
+- `programs/gui`: the same editor with a window, over SDL3 reached through
+  `extern` alone (`luce-base build --native -lSDL3 -L/opt/homebrew/lib`).
+  Proved by replaying keys under SDL's dummy video driver and comparing the
+  saved file and the frame's text. It shares the buffer, history, and
+  editing session with the terminal editor.
 
 Every bug they find is pinned as a test in both compilers before the fix.
 
