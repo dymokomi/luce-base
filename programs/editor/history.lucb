@@ -1,0 +1,114 @@
+## Undo and redo as whole-text revisions: each holds the text and the cursor
+## before an edit. Typing coalesces into one revision until another kind of
+## edit, so undo takes back a word or a line rather than one character.
+
+import buffer
+
+pub struct Revision:
+    var text: u8[]
+    var cursor: usize
+
+pub struct History:
+    var past: Revision[]
+    var past_count: usize
+    var future: Revision[]
+    var future_count: usize
+    var typing: bool
+
+    pub static func create(depth: usize) -> History!:
+        return History(past = try alloc Revision[depth], past_count = 0, future = try alloc Revision[depth], future_count = 0, typing = false)
+
+    pub mutating func destroy():
+        self.clear_future()
+        while self.past_count > 0:
+            self.past_count -= 1
+            free(self.past[self.past_count].text)
+        free(self.past)
+        free(self.future)
+
+    ## Remember the buffer as it is, before an edit; `is_typing` edits share one revision.
+    pub mutating func record(b: buffer.Buffer*, is_typing: bool) -> !:
+        if is_typing and self.typing:
+            return
+        self.typing = is_typing
+        self.clear_future()
+        let text = try b.copy()
+        if self.past_count == self.past.length:
+            free(self.past[0].text)
+            memory.move(self.past[..<self.past.length - 1], self.past[1..], self.past.length - 1)
+            self.past_count -= 1
+        self.past[self.past_count] = Revision(text = text, cursor = b.cursor)
+        self.past_count += 1
+
+    ## Anything but typing ends a run of typing.
+    pub mutating func settle():
+        self.typing = false
+
+    pub mutating func undo(b: buffer.Buffer*) -> bool!:
+        if self.past_count == 0:
+            return false
+        self.typing = false
+        let now = try b.copy()
+        self.future[self.future_count] = Revision(text = now, cursor = b.cursor)
+        self.future_count += 1
+        self.past_count -= 1
+        let back = self.past[self.past_count]
+        try b.reset(back.text, back.cursor)
+        free(back.text)
+        return true
+
+    pub mutating func redo(b: buffer.Buffer*) -> bool!:
+        if self.future_count == 0:
+            return false
+        self.typing = false
+        let now = try b.copy()
+        self.past[self.past_count] = Revision(text = now, cursor = b.cursor)
+        self.past_count += 1
+        self.future_count -= 1
+        let forward = self.future[self.future_count]
+        try b.reset(forward.text, forward.cursor)
+        free(forward.text)
+        return true
+
+    mutating func clear_future():
+        while self.future_count > 0:
+            self.future_count -= 1
+            free(self.future[self.future_count].text)
+
+test "undo takes back a run of typing at once":
+    var b = try buffer.Buffer.create("".bytes)
+    defer b.destroy()
+    var h = try History.create(8)
+    defer h.destroy()
+    try h.record(&b, true)
+    try b.insert(0, "a".bytes)
+    try h.record(&b, true)
+    try b.insert(1, "b".bytes)
+    h.settle()
+    try h.record(&b, false)
+    try b.insert(2, "\n".bytes)
+    assert(b.length() == 3)
+    assert(try h.undo(&b))
+    assert(b.length() == 2)
+    assert(try h.undo(&b))
+    assert(b.length() == 0)
+    assert(not (try h.undo(&b)))
+    assert(try h.redo(&b))
+    assert(b.length() == 2)
+    assert(b.cursor == 2)
+    assert(try h.redo(&b))
+    assert(b.length() == 3)
+    assert(not (try h.redo(&b)))
+
+test "the history is bounded":
+    var b = try buffer.Buffer.create("".bytes)
+    defer b.destroy()
+    var h = try History.create(2)
+    defer h.destroy()
+    for i in 0..<5:
+        try h.record(&b, false)
+        try b.insert(b.length(), "x".bytes)
+    assert(try h.undo(&b))
+    assert(try h.undo(&b))
+    assert(not (try h.undo(&b)))
+    assert(b.length() == 3)

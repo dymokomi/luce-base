@@ -68,12 +68,17 @@ pub struct Terminal:
     var out: u8[8192]
     var used: usize
 
-    pub static func open() -> Terminal!:
+    ## No terminal at all: a fixed 80 by 24 screen written to standard output.
+    pub static func headless() -> Terminal:
         var t: Terminal = ---
         t.raw = false
         t.rows = 24
         t.columns = 80
         t.used = 0
+        return t
+
+    pub static func open() -> Terminal!:
+        var t = Terminal.headless()
         if isatty(0) == 0:
             return t
         if tcgetattr(0, &t.saved) != 0:
@@ -92,7 +97,7 @@ pub struct Terminal:
 
     pub mutating func close():
         if self.raw:
-            self.put("\x1b[2J\x1b[H")
+            self.put("\u{1b}[2J\u{1b}[H")
             self.flush()
             discard(tcsetattr(0, flush_then_set, &self.saved))
             self.raw = false

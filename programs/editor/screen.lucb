@@ -1,0 +1,144 @@
+## Drawing: the visible lines of the buffer, a status line, and a message line,
+## with the cursor placed last. Everything goes through the terminal's buffer
+## and is flushed once per frame.
+
+import buffer
+import terminal
+
+pub let tab_width: usize = 4
+
+pub struct View:
+    ## The first visible line and column.
+    pub var top: usize
+    pub var left: usize
+
+## Keep the cursor inside the view, scrolling as little as possible.
+pub func follow(view: View*, b: buffer.Buffer*, rows: usize, columns: usize):
+    let line = b.line_of(b.cursor)
+    let column = display_column(b, b.line_start(b.cursor), b.cursor)
+    if line < view.top:
+        view.top = line
+    if line >= view.top + rows:
+        view.top = line + 1 - rows
+    if column < view.left:
+        view.left = column
+    if column >= view.left + columns:
+        view.left = column + 1 - columns
+
+## The screen column of `at`, counting tabs to the next stop and scalars as one.
+pub func display_column(b: buffer.Buffer*, start: usize, at: usize) -> usize:
+    var i = start
+    var column: usize = 0
+    while i < at:
+        let byte = b.at(i)
+        if byte == '\t':
+            column += tab_width - column % tab_width
+        elif (byte & 192) != 128:
+            column += 1
+        i += 1
+    return column
+
+## One frame: `rows - 2` text lines, the status line, the message line.
+pub func draw(t: terminal.Terminal*, b: buffer.Buffer*, view: View*, name: str, message: str):
+    let rows = t.rows
+    let columns = t.columns
+    let text_rows = rows - 2 if rows > 2 else 1
+    follow(view, b, text_rows, columns)
+    t.put("\u{1b}[?25l\u{1b}[H")
+    var line_bytes: u8[4096]
+    var row: usize = 0
+    let total = b.count_lines()
+    while row < text_rows:
+        let index = view.top + row
+        t.put("\u{1b}[2K")
+        if index < total:
+            let start = b.line_at(index)
+            let end = b.line_end(start)
+            let raw = b.slice(start, end, line_bytes)
+            draw_line(t, raw, view.left, columns)
+        else:
+            t.put("~")
+        t.put("\r\n")
+        row += 1
+    # the status line, inverted
+    var status: u8[256]
+    let line = b.line_of(b.cursor) + 1
+    let column = display_column(b, b.line_start(b.cursor), b.cursor) + 1
+    let mark = " *" if b.dirty else ""
+    let text = format(status, f" {name}{mark}   {line}:{column}   {total} lines ") catch:
+        return
+    t.put("\u{1b}[7m")
+    var padded: usize = 0
+    let shown = text.length if text.length < columns else columns
+    t.put_bytes(text.bytes[..<shown])
+    padded = shown
+    while padded < columns:
+        t.put(" ")
+        padded += 1
+    t.put("\u{1b}[0m\r\n\u{1b}[2K")
+    let message_length = message.length if message.length < columns else columns
+    t.put_bytes(message.bytes[..<message_length])
+    # the cursor
+    var move: u8[32]
+    let cursor_row = b.line_of(b.cursor) - view.top + 1
+    let cursor_column = column - view.left
+    let go = format(move, f"\u{1b}[{cursor_row};{cursor_column}H\u{1b}[?25h") catch:
+        return
+    t.put(go)
+    t.flush()
+
+## One line of text from column `left`, tabs expanded, cut at the screen's width.
+func draw_line(t: terminal.Terminal*, raw: const u8[], left: usize, columns: usize):
+    var column: usize = 0
+    var shown: usize = 0
+    var i: usize = 0
+    while i < raw.length and shown < columns:
+        let byte = raw[i]
+        if byte == '\t':
+            let width = tab_width - column % tab_width
+            var k: usize = 0
+            while k < width:
+                if column >= left and shown < columns:
+                    t.put(" ")
+                    shown += 1
+                column += 1
+                k += 1
+            i += 1
+            continue
+        # a whole scalar at once, so a multi-byte character is never cut
+        var length: usize = 1
+        if byte >= 240:
+            length = 4
+        elif byte >= 224:
+            length = 3
+        elif byte >= 192:
+            length = 2
+        if i + length > raw.length:
+            length = raw.length - i
+        if column >= left:
+            if byte < 32:
+                t.put("?")
+            else:
+                t.put_bytes(raw[i..<i + length])
+            shown += 1
+        column += 1
+        i += length
+
+test "display columns expand tabs":
+    var b = try buffer.Buffer.create("\tx\ty".bytes)
+    defer b.destroy()
+    assert(display_column(&b, 0, 1) == 4)
+    assert(display_column(&b, 0, 2) == 5)
+    assert(display_column(&b, 0, 3) == 8)
+    assert(display_column(&b, 0, 4) == 9)
+
+test "the view follows the cursor":
+    var b = try buffer.Buffer.create("a\nb\nc\nd\ne\nf".bytes)
+    defer b.destroy()
+    var view = View(top = 0, left = 0)
+    b.cursor = b.line_at(5)
+    follow(&view, &b, 3, 80)
+    assert(view.top == 3)
+    b.cursor = 0
+    follow(&view, &b, 3, 80)
+    assert(view.top == 0)
