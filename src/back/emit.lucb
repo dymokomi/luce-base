@@ -3551,6 +3551,14 @@ pub struct Emitter:
             try self.builtin_method(e, callee, receiver, rt)
             return
         let method = callee.resolved else return try self.put("0")
+        if method.kind == ast.Kind.field:
+            # `holder.callback(args)`: a field of function type, called through its value
+            try self.put("(")
+            try self.expr(callee)
+            try self.put(")(")
+            try self.arguments(e.body, try self.ty(callee), none, try types.no_args())
+            try self.put(")")
+            return
         # interface views dispatch through the table
         if self.is_iface(rt):
             let n = self.tmp()

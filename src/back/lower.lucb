@@ -2504,6 +2504,10 @@ pub struct Lowerer:
         if callee.has(ast.flag_static) and callee.resolved == none:
             return try self.builtin_method(e, callee, receiver, rt)
         let method = callee.resolved else return try self.fail(e, "no method")
+        if method.kind == ast.Kind.field:
+            # `holder.callback(args)`: a field of function type, called through its value
+            let fv = try self.member(callee)
+            return try self.call_through(fv.ref, try self.ty(callee), none, e.body, ir.none_ref(), false, none, try types.no_args())
         if self.is_iface(rt):
             let fn = try self.map(method.type_id)
             let i = self.decl_of(rt) else return try self.fail(e, "no interface")
