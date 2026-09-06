@@ -177,6 +177,10 @@ pub enum Op as u8:
     fence = 131
     ## The frame pointer of the running function, for the debugger.
     frame = 200
+    ## Inline assembly operands: `set_reg a -> named register b` before an `asm` block,
+    ## `get_reg [a] <- named register b` after it; `cls` is the width.
+    set_reg = 210
+    get_reg = 211
 
 ## One instruction. `dst` is 0 when there is none. `extra` carries a label, a
 ## byte count, or a call's argument range.

@@ -1014,10 +1014,20 @@ pub struct Lowerer:
         try self.unwind(self.scopes.count - 1, false)
         self.pop_scope()
 
-    ## Inline assembly without operands is passed through; operands are not yet supported natively.
+    ## Inline assembly (§16.7): each `in`/`inout` operand is moved into its named register
+    ## before the block, each `out`/`inout` register stored back after it. The raw lines name
+    ## the registers directly, so a specific register (`x0`, `d1`) is required, not `reg`.
     mutating func asm_stmt(s: ast.Node*) -> !:
-        if s.right != none:
-            return try self.fail(s, "asm operands are not supported by the native backend yet")
+        # inputs first, into their registers
+        var operand = s.right
+        while let o = operand:
+            if o.text == "in" or o.text == "inout":
+                let place = try self.asm_place(o)
+                let value = o.left else return try self.fail(o, "an asm operand needs a value")
+                let want = self.asm_operand_type(place)
+                let v = try self.value(value, want)
+                try self.f.emit(ir.Op.set_reg, self.class_of(want), 0, v.ref, ir.text_ref(try self.program_unit.text(place)), 0)
+            operand = o.next
         var text = try buffer.Buffer.create(64)
         var lines = s.body
         while let l = lines:
@@ -1027,6 +1037,33 @@ pub struct Lowerer:
         let arch = try self.program_unit.text(s.text)
         let body = try self.program_unit.text(try names.keep(&text))
         try self.f.emit(ir.Op.asm_, ir.Class.l, 0, ir.text_ref(arch), ir.text_ref(body), 0)
+        # outputs, from their registers back into the named places
+        operand = s.right
+        while let o = operand:
+            if o.text == "out" or o.text == "inout":
+                let place = try self.asm_place(o)
+                let target = o.left else return try self.fail(o, "an asm output needs a place")
+                if target.text != "_":
+                    let want = self.asm_operand_type(place)
+                    let address = try self.place(target)
+                    try self.f.emit(ir.Op.get_reg, self.class_of(want), 0, address, ir.text_ref(try self.program_unit.text(place)), 0)
+            operand = o.next
+
+    ## The register a `reg("x0")` operand names; the native backend needs a specific one.
+    func asm_place(o: ast.Node*) -> str!:
+        let first = o.body else return try self.fail(o, "an asm operand needs a register")
+        let place = check.decode_text(first.text)
+        if place.length == 0 or place == "reg":
+            return try self.fail(o, "the native backend needs a named register, not `reg`")
+        return place
+
+    ## A `d`/`s` register operand is a float, everything else an integer word.
+    func asm_operand_type(place: str) -> u32:
+        if place.length > 0 and (place.bytes[0] == 'd' or place.bytes[0] == 's'):
+            return types.f64_id if place.bytes[0] == 'd' else types.f32_id
+        if place.length > 0 and place.bytes[0] == 'w':
+            return types.u32_id
+        return types.u64_id
 
     # mark: Expressions ========================================================================
 
