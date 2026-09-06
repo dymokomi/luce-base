@@ -38,10 +38,14 @@ Slices 1 to 4: lexer, parser, checker, and C backend for the whole Base
 language (base.md §3 to §17, §19, §21), with `lex`, `parse`, `check`,
 `build`, and `test` commands. Every sample builds and runs; every module's
 tests pass both in the seed's oracle and compiled through this compiler;
-and the compiler builds itself, twice, to the same C. The runtime the
-generated C links is `runtime/`, carried inside the binary. What remains
-for slice 5 is pinning the seed, and moving the standard modules from that
-runtime into Base.
+and the compiler builds itself, twice, to the same C.
+
+Slice 5: the seed is pinned. `bootstrap/luce-base.c` is the compiler's own C,
+`build.sh` starts from it with nothing but a C compiler, and the standard
+modules (`memory`, `io`, `files`, `process`, `thread`, `sync`, `atomic`) are
+Base source in `src/prelude.lucb` over `extern` declarations of the C
+library. What is left in C, under `runtime/`, is what generated code cannot
+spell itself: traps, checked arithmetic, formatting of scalars, hashing.
 
 ## License
 

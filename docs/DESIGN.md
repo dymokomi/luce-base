@@ -71,9 +71,19 @@ interface view, an array a span, a value its tagged optional, text a byte
 span. Optionals of pointers are the pointer itself; other optionals and every
 fallible result are small structs the runtime header defines through macros.
 
-The standard modules have no bodies to emit. Their declarations are mapped
-onto `runtime/lucb_rt.c`, the same contract the seed's backend used, so one
-runtime serves both compilers until the standard library is written in Base.
+The standard modules are Base source in `prelude` and are emitted like any
+other module. Three things stay with the backend because no Base body can
+spell them: `atomic.fence`, the `luce` facts about the use site, and the C
+standard streams. Every C name is qualified by its module (`lb_files_read`,
+`lb_memory_allocator`, `lb_io_Location`), so two modules may declare the same
+name; only `main` and `answer` keep the names the entry shims call.
+
+`runtime/lucb_rt.c` is what generated code calls by name and cannot be Base:
+the trap reporter, the checked and wrapping arithmetic families, conversions,
+the scalar formatting behind `print` and `format`, UTF-8 validation, and
+hashing. Allocation goes through the `Allocator` interface the prelude
+declares; the backend generates the three calls `new`, `alloc`, and `free`
+make on a view, next to that interface's witness-table type.
 
 ## Memory
 
