@@ -1,17 +1,20 @@
 #!/bin/sh
-# The gate: unit tests in the seed's oracle; then the binary lexes, parses, and
-# checks every sample and source file, builds and runs every sample with `main`,
-# runs every module's tests, builds itself twice to the same C, and rejects
-# every program under samples/errors.
+# The gate: unit tests in the seed's oracle when a seed is present; then the
+# binary lexes, parses, and checks every sample and source file, builds and runs
+# every sample with `main`, runs every module's tests, builds itself again to the
+# same C, and rejects every program under samples/errors.
 set -eu
 cd "$(dirname "$0")"
+# the seed's oracle is a second execution of every module test, while a seed is around
 LUCB=${LUCB:-../luce-seed/build/lucb}
-for f in src/*.lucb; do
-    if grep -q '^test "' "$f"; then
-        echo "== $f"
-        "$LUCB" test "$f"
-    fi
-done
+if [ -x "$LUCB" ]; then
+    for f in src/*.lucb; do
+        if grep -q '^test "' "$f"; then
+            echo "== $f"
+            "$LUCB" test "$f"
+        fi
+    done
+fi
 ./build.sh
 for f in samples/*.lucb src/*.lucb; do
     echo "== $f"
@@ -35,15 +38,18 @@ for f in src/*.lucb; do
         ./build/luce-base test "$f" | tail -1
     fi
 done
-# the bootstrap: the seed-built compiler builds itself, and that one builds itself again;
-# both generations must emit the same C for the compiler
+# the bootstrap: the compiler built from source builds itself again, and both
+# generations must emit the same C for the compiler; the snapshot is only
+# reported when it has drifted
 echo "== bootstrap"
-./build/luce-base build src/main.lucb -o build/B2
-./build/B2 build src/main.lucb --emit=c -o build/B2.c
-./build/B2 build src/main.lucb -o build/B3
-./build/B3 build src/main.lucb --emit=c -o build/B3.c
-cmp build/B2.c build/B3.c
-rm -f build/B2.c build/B3.c
+./build/luce-base build src/main.lucb --emit=c -o build/stage1.c
+./build/luce-base build src/main.lucb -o build/stage2
+./build/stage2 build src/main.lucb --emit=c -o build/stage2.c
+cmp build/stage1.c build/stage2.c
+if ! cmp -s build/stage1.c bootstrap/luce-base.c; then
+    echo "note: bootstrap/luce-base.c differs from the current compiler; run tools/snapshot.sh"
+fi
+rm -f build/stage1.c build/stage2.c build/stage2
 # every rejected program must be rejected for the stated reason
 for f in samples/errors/*.lucb; do
     want=$(sed -n 's/^# error: //p' "$f")

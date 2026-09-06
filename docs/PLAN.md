@@ -9,20 +9,23 @@ unit tests green in the oracle and the binary agreeing on `samples/`.
 | 2. Syntax | arena tree, full grammar of §21, `luce-base parse` | done: every Base file we have parses, including this compiler's own sources |
 | 3. Checking | names, types, effects, `luce-base check` | done: every sample and every source of this tree checks; every program under `samples/errors/` is rejected for its stated reason |
 | 4. C backend | checked tree to C, `luce-base build` and `luce-base test` | done: every sample with `main` builds and runs; every module's tests pass through the binary |
-| 5. Self-hosting | B0 (seed) builds B1; B1 builds B2; B2 builds B3 | B1 builds B2 and B2 builds B3 today, and both emit the same C for the compiler; what remains is pinning the seed and moving the standard modules from the seed's runtime into Base |
+| 5. Self-hosting | the seed pinned; the standard modules in Base | the seed is pinned: `bootstrap/luce-base.c` is the compiler's own C, and `build.sh` starts from it with only a C compiler; the standard modules move from `runtime/lucb_rt.c` into `src/prelude.lucb` module by module |
 | 6. Native | one target, arm64-macos, proved against the C backend | every program agrees under both backends |
 
 ## The bootstrap gate
 
 ```text
-lucb build src/main.lucb -o build/B1          # the seed builds luce-base
-build/B1 build src/main.lucb -o build/B2      # luce-base builds itself
-build/B2 build src/main.lucb -o build/B3      # and again
-cmp build/B2 build/B3                         # fixpoint
+cc bootstrap/luce-base.c runtime/lucb_rt.c -o build/stage0   # the snapshot, with only a C compiler
+build/stage0 build src/main.lucb -o build/luce-base          # the compiler from source
+build/luce-base build src/main.lucb -o build/stage2          # and again, by itself
+cmp <stage1 C> <stage2 C>                                    # fixpoint
 ```
 
-`test.sh` runs all four lines, comparing the C the two generations emit
-rather than the binaries, which differ only in the linker's identifiers.
+`test.sh` runs these lines, comparing the C the two generations emit rather
+than the binaries, which differ only in the linker's identifiers. The seed is
+pinned: `LUCB=../luce-seed/build/lucb ./build.sh` still starts from it, and
+the gate still runs every module's tests in its oracle when it is present,
+but nothing requires it. `tools/snapshot.sh` refreshes the snapshot.
 
 ## The standard library
 

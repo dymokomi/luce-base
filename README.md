@@ -11,8 +11,9 @@ luce-base  (this tree, Base)     compiles itself; C first, then native
 luce-full  (Base)                compiles full Luce
 ```
 
-`luce-seed` builds this tree until this tree builds itself; after that the
-seed is pinned and only this compiler moves. The language is
+`luce-seed` built this tree until this tree built itself; the seed is now
+pinned, `bootstrap/luce-base.c` is the compiler's own C, and only this
+compiler moves. The language is
 [`docs/language/base.md`](docs/language/base.md), the same document the
 seed implements. What this compiler must do to earn the switch is in
 [`docs/PLAN.md`](docs/PLAN.md); how it is shaped is in
@@ -21,9 +22,8 @@ seed implements. What this compiler must do to earn the switch is in
 ## Build and test
 
 ```sh
-export LUCB=../luce-seed/build/lucb   # or wherever lucb is
-./build.sh                            # build/luce-base, the compiler binary
-./test.sh                             # unit tests through `lucb test`, then the binary on samples/
+./build.sh                            # bootstrap/luce-base.c with cc, then the compiler from source
+./test.sh                             # the gate; uses the seed's oracle too when ../luce-seed is built
 ./build/luce-base lex samples/hello.lucb
 ./build/luce-base parse samples/hello.lucb
 ./build/luce-base check samples/json_parser.lucb   # silence means it checks
