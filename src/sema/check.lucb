@@ -1300,6 +1300,19 @@ pub struct Checker:
                 discard(try self.coerce(r, rt, rt))
             return lt
         let lt = try self.check_expr(l, hint if is_arithmetic(op) else types.none_id)
+        if (op == "+" or op == "-") and self.table.kind(lt) == types.Kind.pointer:
+            # `p + n`, `p - n`, and `p - q` (§6.5): element-scaled, unchecked
+            let rt = try self.check_expr(r, types.usize_id)
+            if op == "-" and self.table.kind(rt) == types.Kind.pointer:
+                if self.table.get(lt).elem != self.table.get(rt).elem:
+                    return try self.fail(e, "pointer difference needs one pointee type")
+                return types.isize_id
+            if rt == types.untyped_int_id:
+                discard(try self.coerce(r, rt, types.usize_id))
+                return lt
+            if rt != types.usize_id and rt != types.isize_id:
+                return try self.fail(e, "a pointer offset is `usize` or `isize`")
+            return lt
         var rhint = lt
         if lt == types.untyped_int_id or lt == types.untyped_float_id or lt == types.none_id:
             rhint = hint if is_arithmetic(op) else types.none_id
@@ -1364,12 +1377,18 @@ pub struct Checker:
     mutating func index_type(e: ast.Node*) -> u32!:
         let owner = e.left else return try self.fail(e, "missing operand")
         let index = e.body else return try self.fail(e, "missing index")
-        let ot = self.deref(try self.check_expr(owner, types.none_id))
-        let t = self.table.get(ot)
+        let raw = try self.check_expr(owner, types.none_id)
+        let ot = self.deref(raw)
+        var t = self.table.get(ot)
         if t.kind != types.Kind.span and t.kind != types.Kind.array:
-            if ot == types.str_id:
+            # `p[i]` on a pointer to anything else: element-scaled and unchecked (§6.5)
+            let pointee = self.table.get(raw)
+            if pointee.kind == types.Kind.pointer and pointee.elem != types.void_id:
+                t = pointee
+            elif ot == types.str_id:
                 return try self.fail(e, "`str` is not indexed; slice `.bytes` or iterate")
-            return try self.fail(e, "indexing needs a span or an array")
+            else:
+                return try self.fail(e, "indexing needs a span, an array, or a pointer")
         let it = try self.check_expr(index, types.usize_id)
         if not (it == types.untyped_int_id or self.table.is_integer(it)):
             return try self.fail(index, "an index is an integer")
@@ -1527,14 +1546,19 @@ pub struct Checker:
         let inner = e.left else return try self.fail(e, "a cast needs an operand")
         let want = try self.resolve_type(t)
         let got = try self.check_expr(inner, types.none_id)
-        let have = self.concrete(got)
+        var have = self.concrete(got)
+        if got == types.untyped_int_id and inner.kind == ast.Kind.literal:
+            # a bare literal past `i64` is `u64` under a cast: `(u64)18446744073709551615`
+            if try decode_integer(inner.text) > 9223372036854775807:
+                have = types.u64_id
         if got == types.untyped_int_id or got == types.untyped_float_id:
             discard(try self.coerce(inner, got, have))
         if have == want:
             return want
         let s = self.table.get(have)
         let d = self.table.get(want)
-        let s_num = self.table.is_numeric(have) or have == types.char_id or have == types.bool_id
+        # no reinterpreting cast between scalars of different kinds: `bool` stays out (§7.5)
+        let s_num = self.table.is_numeric(have) or have == types.char_id
         let d_num = self.table.is_numeric(want) or want == types.char_id
         if s_num and d_num:
             return want
@@ -3414,8 +3438,12 @@ pub func check_text(text: str, scratch: u8[]) -> !:
     try c.add_module("test", src, false)
     try c.check_program()
 
+## The standard modules alone take over two megabytes of tree; the tests' arenas hold eight.
+let test_arena_size: usize = 8388608
+
 func expect_error(text: str, fragment: str) -> !:
-    var backing: u8[2097152]
+    let backing = try alloc u8[test_arena_size] in memory.heap
+    defer free(backing) in memory.heap
     var arena = FixedBuffer.over(backing)
     var scratch: u8[1024]
     var failed = false
@@ -3430,7 +3458,8 @@ func expect_error(text: str, fragment: str) -> !:
         error(type_error, "expected an error, the program checked")
 
 func expect_ok(text: str) -> !:
-    var backing: u8[2097152]
+    let backing = try alloc u8[test_arena_size] in memory.heap
+    defer free(backing) in memory.heap
     var arena = FixedBuffer.over(backing)
     var scratch: u8[1024]
     with arena:
@@ -3502,7 +3531,8 @@ test "error and catch handle failure":
     try expect_ok("let bad: ErrorCode = ErrorCode.package(1)\nfunc g(n: i64) -> i64!:\n    if n < 0:\n        error(bad, \"negative\")\n    return n\nfunc f() -> i64:\n    let v = g(-1) catch e:\n        if e.code == bad:\n            recover 0\n        recover 1\n    return v\n")
 
 test "modules import and qualify names":
-    var backing: u8[2097152]
+    let backing = try alloc u8[test_arena_size] in memory.heap
+    defer free(backing) in memory.heap
     var arena = FixedBuffer.over(backing)
     var scratch: u8[1024]
     with arena:
