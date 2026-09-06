@@ -7,7 +7,7 @@
 set -eu
 cd "$(dirname "$0")"
 ./build.sh
-for f in samples/*.lucb src/*.lucb src/*/*.lucb; do
+for f in samples/*.lucb src/*.lucb src/*/*.lucb programs/*/*.lucb; do
     echo "== $f"
     ./build/luce-base lex "$f" > /dev/null
     ./build/luce-base parse "$f" > /dev/null
@@ -22,8 +22,12 @@ for f in samples/*.expect; do
     cmp build/sample.out "$f"
 done
 rm -f build/sample build/sample.out
+# the proving programs build natively and are driven from outside
+for f in programs/*/check.sh; do
+    "$f"
+done
 # every module's tests run through both backends: the two executions must agree
-for f in src/*/*.lucb; do
+for f in src/*/*.lucb programs/*/*.lucb; do
     if grep -q '^test "' "$f"; then
         echo "== test $f"
         ./build/luce-base test "$f" | tail -1
@@ -39,6 +43,10 @@ for f in samples/*.expect; do
     cmp build/sample.out "$f"
 done
 rm -f build/sample build/sample.out
+# the proving programs build natively and are driven from outside
+for f in programs/*/check.sh; do
+    "$f"
+done
 # the bootstrap: the compiler built from source builds itself again, and both
 # generations must emit the same C for the compiler; the snapshot is only
 # reported when it has drifted

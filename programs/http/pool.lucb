@@ -1,0 +1,95 @@
+## A fixed set of worker threads draining a bounded queue of connections. The
+## queue is a ring under a mutex; workers sleep on a condition until there is
+## work or the pool is stopping.
+
+import net
+import sync
+import thread
+
+pub let full: ErrorCode = ErrorCode.package(1)
+
+pub let capacity: usize = 64
+
+pub struct Queue:
+    var items: net.Connection[64]
+    var head: usize
+    var count: usize
+    var stopping: bool
+    var mutex: sync.Mutex
+    var ready: sync.Condition
+    var drained: sync.Condition
+
+    ## Hand a connection to a worker; fails when every slot is taken.
+    pub mutating func push(connection: net.Connection) -> !:
+        self.mutex.lock()
+        defer self.mutex.unlock()
+        if self.count == capacity:
+            error(full, "the queue is full")
+        self.items[(self.head + self.count) % capacity] = connection
+        self.count += 1
+        self.ready.signal()
+
+    ## The next connection, or none once the pool is stopping and the queue is empty.
+    pub mutating func pop() -> net.Connection?:
+        self.mutex.lock()
+        defer self.mutex.unlock()
+        while self.count == 0 and not self.stopping:
+            self.ready.wait(&self.mutex)
+        if self.count == 0:
+            return none
+        let connection = self.items[self.head]
+        self.head = (self.head + 1) % capacity
+        self.count -= 1
+        if self.count == 0:
+            self.drained.broadcast()
+        return connection
+
+    ## Let every worker finish and leave.
+    pub mutating func stop():
+        self.mutex.lock()
+        self.stopping = true
+        self.ready.broadcast()
+        self.mutex.unlock()
+
+    pub mutating func pending() -> usize:
+        self.mutex.lock()
+        defer self.mutex.unlock()
+        return self.count
+
+## What every worker runs: the queue and the function that serves one connection.
+pub struct Worker:
+    pub var queue: Queue*
+    pub var serve: func(net.Connection) -> unit
+
+pub func run(context: void*):
+    let worker = (Worker*)context
+    while let connection = worker.queue.pop():
+        worker.serve(connection)
+
+## Start `count` workers over `worker`; the handles join in `stop_all`.
+pub func start(worker: Worker*, count: usize, handles: thread.Handle[]) -> !:
+    var i: usize = 0
+    while i < count and i < handles.length:
+        handles[i] = try thread.spawn(run, worker)
+        i += 1
+
+pub func stop_all(queue: Queue*, handles: thread.Handle[], count: usize) -> !:
+    queue.stop()
+    var i: usize = 0
+    while i < count and i < handles.length:
+        try handles[i].join()
+        i += 1
+
+test "a queue hands out what was pushed, in order":
+    var queue: Queue
+    try queue.push(net.Connection(descriptor = 5))
+    try queue.push(net.Connection(descriptor = 6))
+    assert(queue.pending() == 2)
+    assert(descriptor_of(queue.pop()) == 5)
+    queue.stop()
+    assert(descriptor_of(queue.pop()) == 6)
+    assert(descriptor_of(queue.pop()) == -1)
+
+func descriptor_of(connection: net.Connection?) -> i32:
+    let c = connection else return -1
+    return c.descriptor
