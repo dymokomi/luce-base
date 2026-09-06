@@ -1,0 +1,28 @@
+## A small program to debug: a struct, a loop, a call, and a fallible function.
+
+struct Point:
+    var x: i64
+    var y: i64
+
+func distance(a: Point, b: Point) -> i64:
+    let dx = b.x - a.x
+    let dy = b.y - a.y
+    return dx * dx + dy * dy
+
+func total(count: usize) -> i64:
+    var sum: i64 = 0
+    var i: usize = 0
+    while i < count:
+        sum += (i64)i * 3
+        i += 1
+    return sum
+
+pub func main(arguments: str[]) -> i32:
+    let name = "sample"
+    let origin = Point(x = 0, y = 0)
+    let far = Point(x = 3, y = 4)
+    let squared = distance(origin, far)
+    let all = total(4)
+    let flag = squared == 25
+    print(f"{name}: {squared} {all} {flag}")
+    return 0

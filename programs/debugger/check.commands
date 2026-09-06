@@ -1,0 +1,12 @@
+break sample.lucb:16
+run
+print sum
+print count
+backtrace
+next
+next
+print sum
+step
+step
+print i
+quit

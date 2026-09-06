@@ -1,0 +1,75 @@
+## luce-base-d: build a program natively with `--debug` and run it under the
+## debugger, which lives inside the program (the `debug` module) and talks on
+## standard input and output.
+##
+##     luce-base-d FILE.lucb [arguments...]
+##
+## Commands at a stop: `break FILE:LINE`, `run`, `step`, `next`, `print NAME`,
+## `locals`, `backtrace`, `quit`. The program stops before its first statement.
+
+import files
+import process
+import strings
+
+extern func setenv(name: cstr, value: cstr, overwrite: i32) -> i32
+extern func execv(path: cstr, arguments: void*?*) -> i32
+
+pub let failed: ErrorCode = ErrorCode.package(1)
+
+pub func main(arguments: cstr[]) -> i32!:
+    if arguments.length < 2:
+        print("usage: luce-base-d FILE.lucb [arguments...]")
+        return 2
+    let source = arguments[1]
+    let compiler = compiler_path(arguments[0])
+    var name: u8[1024]
+    let exe = try format(name, f"{(str)source}.debug")
+    var build_args: cstr[5] = ---
+    build_args[0] = "build"
+    build_args[1] = source
+    build_args[2] = "--native"
+    build_args[3] = "--debug"
+    build_args[4] = "-o"
+    var full: cstr[6] = ---
+    full[0] = build_args[0]
+    full[1] = build_args[1]
+    full[2] = build_args[2]
+    full[3] = build_args[3]
+    full[4] = build_args[4]
+    full[5] = (cstr)exe
+    let built = try process.run(compiler, full)
+    let (status, out, err) = built
+    discard(out.length)
+    if status != 0:
+        try io.stderr().write(err)
+        print(f"luce-base-d: `{(str)compiler}` exited with {status}")
+        error(failed, "the program did not build")
+    discard(setenv("LUCE_DEBUG", "1", 1))
+    var argv: void*?[64]
+    argv[0] = (void*)(cstr)exe
+    var i: usize = 2
+    var n: usize = 1
+    while i < arguments.length and n < 63:
+        argv[n] = (void*)arguments[i]
+        i += 1
+        n += 1
+    argv[n] = none
+    discard(execv((cstr)exe, &argv[0]))
+    error(failed, "the program could not be started")
+
+## The compiler beside this binary, or `luce-base` on the path; the name lives in
+## a global because a `cstr` into a local buffer would not survive the return.
+var compiler_name: u8[1024]
+
+func compiler_path(self_path: cstr) -> cstr:
+    let text = (str)self_path
+    var i = text.length
+    while i > 0 and text.bytes[i - 1] != '/':
+        i -= 1
+    if i == 0:
+        return "luce-base"
+    let beside = format(compiler_name, f"{(str)text.bytes[..<i]}luce-base") catch:
+        return "luce-base"
+    if files.exists((cstr)beside):
+        return (cstr)beside
+    return "luce-base"
