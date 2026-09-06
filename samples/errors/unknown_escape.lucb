@@ -1,0 +1,4 @@
+# error: unknown escape
+pub func answer() -> i64:
+    let s = "a\x1bb"
+    return (i64)s.length

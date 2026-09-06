@@ -35,7 +35,12 @@ pub struct Parser:
         var buffer = try alloc token.Token[256]
         var n: usize = 0
         while true:
-            let t = try lx.next()
+            # a lexing error is reported where the lexer stopped
+            let t = lx.next() catch failure:
+                let (line, column) = lx.position()
+                let half = scratch.length // 2
+                let message = try format(scratch[..<half], f"{line}:{column}: {failure.message}")
+                error(failure.code, message)
             if n == buffer.length:
                 let grown = try alloc token.Token[buffer.length * 2]
                 memory.copy(grown, buffer, n)

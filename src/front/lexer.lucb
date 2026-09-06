@@ -54,6 +54,10 @@ pub struct Lexer:
                      asm_header = false, raw_level = 0, in_raw = false, comment_end = 0,
                      reopened = false)
 
+    ## The one-based line and column of the byte about to be read, for diagnostics.
+    pub func position() -> (u32, u32):
+        return (self.line, u32(self.offset - self.line_start) + 1)
+
     func peek() -> u8:
         if self.offset >= self.src.bytes.length:
             return 0
@@ -217,19 +221,29 @@ pub struct Lexer:
             self.offset += 1                    # a suffix such as u8 or f32
         return self.make(kind, start)
 
-    mutating func escape() -> !:
+    ## The escapes of §4.2: `\\ \" \' \n \r \t \0 \u{HEX}`, and `\xNN` in a byte literal only.
+    mutating func escape(bytes: bool) -> !:
         self.offset += 1                        # the backslash
         let c = self.peek()
         if c == 'u' and self.peek_at(1) == '{':
             self.offset += 2
+            var digits: usize = 0
             while self.is_hex(self.peek()):
                 self.offset += 1
-            if self.peek() != '}':
-                error(bad_character, "unterminated \\u{...} escape")
+                digits += 1
+            if self.peek() != '}' or digits == 0 or digits > 6:
+                error(bad_character, "a Unicode escape is \\u{HEX} with one to six digits")
             self.offset += 1
             return
         if c == 0 or c == '\n':
             error(unterminated, "escape at the end of the line")
+        if bytes and c == 'x':
+            if not (self.is_hex(self.peek_at(1)) and self.is_hex(self.peek_at(2))):
+                error(bad_character, "a byte escape is \\xNN")
+            self.offset += 3
+            return
+        if c != '\\' and c != '"' and c != '\'' and c != 'n' and c != 'r' and c != 't' and c != '0':
+            error(bad_character, "unknown escape")
         self.offset += 1
 
     ## A quoted literal after its opening quote: text, bytes, raw, or triple.
@@ -244,7 +258,7 @@ pub struct Lexer:
             if c == '\n' and not triple:
                 error(unterminated, "a string literal does not span lines")
             if c == '\\' and not raw:
-                try self.escape()
+                try self.escape(kind == token.Kind.bytes)
                 continue
             if c == '"':
                 if not triple:
@@ -285,7 +299,7 @@ pub struct Lexer:
                 self.offset += 2
                 continue
             if c == '\\':
-                try self.escape()
+                try self.escape(false)
                 continue
             self.offset += 1
 
@@ -365,7 +379,7 @@ pub struct Lexer:
         if c == '\'':
             self.offset += 1
             if self.peek() == '\\':
-                try self.escape()
+                try self.escape(false)
             else:
                 self.offset += 1
                 # a multi-byte UTF-8 scalar continues with 10xxxxxx bytes
