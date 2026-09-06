@@ -128,6 +128,19 @@ implementations of one contract. The native backend closes its own loop
 under the gate: the compiler built natively must emit the same C and the
 same assembly for the compiler as the C-built one does.
 
+## Debugging
+
+There is no `ptrace` on macOS without entitlements, so the debugger lives in
+the program. Under `--debug` the lowerer records every named local (its
+slot and its type's spelling) on the IR function, calls `debug.enter` and
+`debug.leave` at each function's edges, and calls `debug.at(descriptor,
+line, frame)` before every statement of the program's own modules; the
+arm64 backend, which knows where each slot lands below the frame pointer,
+emits one descriptor per function into `__DATA,__const`. The `debug` module
+of the prelude keeps a shadow stack of activations, matches breakpoints,
+and reads locals straight out of the frame by their described offsets. Only
+the program's modules are hooked; the standard modules run as built.
+
 ## Waiting
 
 `sync` sleeps in the kernel: `Mutex`, `Condition`, `Once`, and `Semaphore`

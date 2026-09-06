@@ -32,6 +32,7 @@ seed implements. What this compiler must do to earn the switch is in
 ./build/luce-base test src/front/parser.lucb               # the module's tests, compiled and run
 ./build/luce-base test src/front/parser.lucb --native      # the same tests through the native backend
 ./build/luce-base build src/main.lucb --native -o B2       # the compiler builds itself, natively
+./build/luce-base build app.lucb --native --debug -o app   # with frame descriptors for luce-base-d
 ```
 
 The sources are `src/front` (source, tokens, lexer, tree, parser),
@@ -77,6 +78,12 @@ natively under the gate and driven from outside by its `check.sh`:
   and redo, incremental search, a screen of escape sequences, raw mode over
   `termios`), proved by replaying a script of keys headlessly and comparing
   the saved file and the final screen.
+- `programs/debugger`: `luce-base-d`, a source-level debugger. `luce-base
+  build --debug --native` describes every frame (each named local's slot and
+  type) and calls the `debug` module before every statement; the debugger
+  lives in the program and talks on standard input and output: breakpoints,
+  `step`, `next`, `print`, `locals`, `backtrace`. Proved with a scripted
+  session over a sample.
 
 Every bug they find is pinned as a test in both compilers before the fix.
 
