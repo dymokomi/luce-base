@@ -1081,6 +1081,26 @@ pub struct Parser:
 
     ## `(T)x`: the parenthesised text names a type and is followed by an operand (§7.5).
     func looks_like_cast() -> bool:
+        # `(func(A, B) -> R)expr`: a function-pointer cast (§7.5), the way `objc_msgSend`
+        # is called with one C symbol and many shapes
+        let first = self.peek(1)
+        if first.kind == token.Kind.keyword and self.text_of(first) == "func":
+            var depth: usize = 1
+            var j: usize = 1
+            while depth > 0 and j < 512:
+                let tk = self.peek(j)
+                if tk.kind == token.Kind.eof:
+                    return false
+                if tk.kind == token.Kind.operator:
+                    let s = self.text_of(tk)
+                    if s == "(":
+                        depth += 1
+                    elif s == ")":
+                        depth -= 1
+                        if depth == 0:
+                            break
+                j += 1
+            return self.cast_operand_follows(j + 1)
         var i: usize = 1
         var t = self.peek(i)
         if t.kind == token.Kind.operator and self.text_of(t) == "@":
@@ -1113,7 +1133,11 @@ pub struct Parser:
             return false
         if not typed:
             return false
-        let after = self.peek(i + 1)
+        return self.cast_operand_follows(i + 1)
+
+    ## What follows a cast's `)` must begin an operand for it to be a cast.
+    func cast_operand_follows(at: usize) -> bool:
+        let after = self.peek(at)
         if after.kind == token.Kind.name or after.kind == token.Kind.integer or after.kind == token.Kind.float or after.kind == token.Kind.character or after.kind == token.Kind.text or after.kind == token.Kind.format_start:
             return true
         if after.kind == token.Kind.keyword:
