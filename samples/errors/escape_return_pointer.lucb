@@ -1,0 +1,4 @@
+# error: must not escape the function
+func leak() -> i64*:
+    var x: i64 = 5
+    return &x

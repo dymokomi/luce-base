@@ -119,6 +119,8 @@ pub let flag_type_ref: u32 = 33554432
 ## Set by the checker on every declaration of a standard module: the backend
 ## maps these onto the runtime instead of emitting their placeholder bodies.
 pub let flag_builtin: u32 = 67108864
+## An expression whose value is, or aliases, the address of a local (§6.6).
+pub let flag_local: u32 = 134217728
 
 # mark: Nodes and lists =======================================================================
 

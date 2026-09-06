@@ -1,0 +1,4 @@
+# error: must not escape the function
+func leak() -> u8[]:
+    var buffer: u8[16]
+    return buffer[..<16]

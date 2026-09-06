@@ -44,6 +44,9 @@ struct Binding:
     var decl: ast.Node*?
     var mutable: bool
     var depth: u32
+    ## Set when the binding was initialised from a local address, so a name that reads it
+    ## carries the escape taint of §6.6.
+    var from_local: bool
 
 ## One module of the program: its tree, its source for positions, and whether
 ## the checker supplied it from the prelude.
@@ -173,7 +176,61 @@ pub struct Checker:
         if let existing = self.lookup(name):
             if existing.depth >= 2 or existing.depth == self.depth:
                 discard(try self.fail(at, "this name is already in scope"))
-        try self.scope.push(Binding(name = name, type_id = type_id, decl = decl, mutable = mutable, depth = self.depth))
+        try self.scope.push(Binding(name = name, type_id = type_id, decl = decl, mutable = mutable, depth = self.depth, from_local = false))
+
+    ## §6.6: whether an expression's value is the address of a local, or aliases one.
+    func is_local_value(e: ast.Node*) -> bool:
+        return e.has(ast.flag_local)
+
+    mutating func mark_local(e: ast.Node*):
+        e.flags |= ast.flag_local
+
+    ## Whether a place (an lvalue) is rooted in the current frame: a local `var`/`let`/param,
+    ## an element or field reached from one, or a dereference of a local pointer.
+    func place_is_local(e: ast.Node*) -> bool:
+        match e.kind:
+            .name:
+                let b = self.lookup(e.text) else return false
+                let d = b.decl else return false
+                if d.kind == ast.Kind.global or d.kind == ast.Kind.constant:
+                    return false
+                return b.depth > 0
+            .self_:
+                return false
+            .group:
+                let inner = e.left else return false
+                return self.place_is_local(inner)
+            .member:
+                let owner = e.left else return false
+                if self.table.kind(owner.type_id) == types.Kind.pointer:
+                    return self.is_local_value(owner)
+                return self.place_is_local(owner)
+            .index:
+                let owner = e.left else return false
+                return self.place_is_local(owner) or self.is_local_value(owner)
+            .unary:
+                if e.text == "*":
+                    let inner = e.left else return false
+                    return self.is_local_value(inner)
+                return self.is_local_value(e)
+            _:
+                return self.is_local_value(e)
+
+    ## Record on a binding that it holds a local address (a `let` alias of §6.6).
+    mutating func set_from_local(name: str, taint: bool):
+        var i = self.scope.count
+        while i > 0:
+            i -= 1
+            var b = self.scope.get(i)
+            if b.name == name and b.depth == self.depth:
+                b.from_local = taint
+                self.scope.set(i, b)
+                return
+
+    ## The escape rule (§6.6): a pointer, span, or `str` that names a local must not leave.
+    func escapes(id: u32) -> bool:
+        let k = self.table.kind(id)
+        return k == types.Kind.pointer or k == types.Kind.span or id == types.str_id
 
     ## The standard modules may spell core names (`c.char`, `c.int`).
     func in_prelude() -> bool:
@@ -971,6 +1028,9 @@ pub struct Checker:
             return e.type_id
         if got == types.never_id:
             return got
+        # a local array passed where a span is wanted aliases the frame (§6.6)
+        if self.table.kind(got) == types.Kind.array and self.escapes(target) and self.place_is_local(e):
+            self.mark_local(e)
         return target
 
     ## An integer literal must fit its type (§7.5).
@@ -1193,6 +1253,8 @@ pub struct Checker:
             return scalar
         let b = self.lookup(e.text) else return try self.fail(e, "unknown name")
         e.resolved = b.decl
+        if b.from_local:
+            self.mark_local(e)
         let d = b.decl else return b.type_id
         match d.kind:
             .func_, .extern_func:
@@ -1257,6 +1319,8 @@ pub struct Checker:
                 return try self.fail(e, "cannot take the address of a literal")
             if inner.has(ast.flag_type_ref):
                 return try self.fail(e, "cannot take the address of a type")
+            if self.place_is_local(inner):
+                self.mark_local(e)
             return try self.table.pointer(it, self.address_is_const(inner), false)
         if e.text == "*":
             let it = try self.check_expr(inner, types.none_id)
@@ -1265,6 +1329,8 @@ pub struct Checker:
                 return try self.fail(e, "`*` needs a pointer")
             if t.elem == types.void_id:
                 return try self.fail(e, "cannot dereference `void*`")
+            if self.is_local_value(inner):
+                self.mark_local(e)
             return t.elem
         let it = try self.check_expr(inner, hint)
         if e.text == "-" or e.text == "+":
@@ -1405,6 +1471,8 @@ pub struct Checker:
         if not (it == types.untyped_int_id or self.table.is_integer(it)):
             return try self.fail(index, "an index is an integer")
         discard(try self.coerce(index, it, types.usize_id if it == types.untyped_int_id else it))
+        if self.is_local_value(owner) or (t.kind == types.Kind.array and self.place_is_local(owner)):
+            self.mark_local(e)
         return t.elem
 
     mutating func slice_type(e: ast.Node*) -> u32!:
@@ -1421,6 +1489,9 @@ pub struct Checker:
             if not (et == types.untyped_int_id or self.table.is_integer(et)):
                 return try self.fail(end, "a slice bound is an integer")
             discard(try self.coerce(end, et, types.usize_id if et == types.untyped_int_id else et))
+        # a span or str of a local array names the frame; a slice of a tainted view stays tainted
+        if self.is_local_value(owner) or (t.kind == types.Kind.array and self.place_is_local(owner)):
+            self.mark_local(e)
         if t.kind == types.Kind.span:
             return ot
         if t.kind == types.Kind.array:
@@ -1558,6 +1629,9 @@ pub struct Checker:
         let inner = e.left else return try self.fail(e, "a cast needs an operand")
         let want = try self.resolve_type(t)
         let got = try self.check_expr(inner, types.none_id)
+        # a reinterpreting cast of a local address keeps it local: `(str)local_bytes` (§6.6)
+        if self.is_local_value(inner) and self.escapes(want):
+            self.mark_local(e)
         var have = self.concrete(got)
         if got == types.untyped_int_id and inner.kind == ast.Kind.literal:
             # a bare literal past `i64` is `u64` under a cast: `(u64)18446744073709551615`
@@ -1802,6 +1876,8 @@ pub struct Checker:
                 e.resolved = f
                 if not f.has(ast.flag_pub) and not self.same_module(d) and not self.inside(d):
                     return try self.fail(e, "that field is not public")
+                if self.is_local_value(owner):
+                    self.mark_local(e)
                 return try self.substitute(f.type_id, d, t.args)
             if let m = find_member(d, name, ast.Kind.func_):
                 if m.has(ast.flag_static):
@@ -2422,6 +2498,9 @@ pub struct Checker:
             let got = try self.check_expr(tv, types.none_id)
             if got != types.str_id and got != types.fmt_id:
                 return try self.fail(tv, "`format` takes text or a formatted string")
+            # the returned text views the buffer; a local buffer makes the result local (§6.6)
+            if self.is_local_value(bv) or self.place_is_local(bv):
+                self.mark_local(e)
             return try self.table.fallible(types.str_id)
         if name == "assert":
             let first = e.body else return try self.fail(e, "`assert` needs a condition")
@@ -2447,6 +2526,8 @@ pub struct Checker:
             let second = first.next else return try self.fail(e, "`error(code, message)` takes two arguments")
             let mv = second.left else return try self.fail(e, "empty argument")
             discard(try self.expect(mv, types.str_id))
+            if self.is_local_value(mv):
+                discard(try self.fail(mv, "an error message must not name a local; format into a buffer that outlives the function"))
             return types.never_id
         if name == "discard":
             let arg = try self.single_argument(e)
@@ -2640,6 +2721,10 @@ pub struct Checker:
                 return try self.fail(s, "this type has no zero value; give it one")
         s.type_id = id
         try self.bind(s, s.text, id, s, mutable)
+        # `let s = &local` or `let s = local_array[..]`: the name inherits the escape taint
+        if let init = s.left:
+            if self.is_local_value(init) and s.text != "_":
+                self.set_from_local(s.text, true)
 
     mutating func check_assign(s: ast.Node*) -> !:
         let place = s.left else return try self.fail(s, "missing place")
@@ -2758,6 +2843,8 @@ pub struct Checker:
                 discard(try self.fail(v, "this function returns nothing"))
             return
         discard(try self.expect(v, want))
+        if self.is_local_value(v) and self.escapes(want):
+            discard(try self.fail(v, "this pointer or view names a local and must not escape the function"))
 
     ## `match` as a statement (`is_expr` false) or an expression yielding a type.
     mutating func match_type(m: ast.Node*, hint: u32, is_expr: bool) -> u32!:

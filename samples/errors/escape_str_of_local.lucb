@@ -1,0 +1,4 @@
+# error: must not escape the function
+func leak() -> str:
+    var buffer: u8[16]
+    return (str)buffer[..<4]
