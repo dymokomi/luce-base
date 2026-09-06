@@ -90,6 +90,14 @@ natively under the gate and driven from outside by its `check.sh`:
   Proved by replaying keys under SDL's dummy video driver and comparing the
   saved file and the frame's text. It shares the buffer, history, and
   editing session with the terminal editor.
+- `programs/metal`: a GPU computation. A compute shader, given as text and
+  compiled at run time, squares an array of floats; the result is read back.
+  Metal is reached through its one C entry point and the Objective-C runtime
+  alone (`-lobjc -framework Foundation -framework Metal`); the bridge in
+  `programs/metal/objc.lucb` is a hundred lines of ordinary Base.
+- `programs/asm`: hand-written arm64 in Base source (`asm arm64(operands):`),
+  the same lines compiled by the native backend and by the host C compiler,
+  proved to agree.
 
 Every bug they find is pinned as a test in both compilers before the fix.
 

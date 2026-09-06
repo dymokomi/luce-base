@@ -153,6 +153,26 @@ of the prelude keeps a shadow stack of activations, matches breakpoints,
 and reads locals straight out of the frame by their described offsets. Only
 the program's modules are hooked; the standard modules run as built.
 
+## Calling out
+
+An `extern` declaration is a C prototype and nothing more; a Base pointer is a
+C pointer, a Base struct a C struct, so there is no marshalling layer. Two
+things make the harder libraries reachable without glue. A function value is a
+C function pointer (§5.6), and casting one function type to another is a plain
+cast, so `objc_msgSend`, which has one C symbol and a different shape at every
+call, is called by casting its pointer to the shape each message needs; the
+`programs/metal` bridge is built entirely this way. And a function's address,
+taken as a value, goes through the GOT, so a symbol that lives in a linked
+dylib resolves at load time like any other. `-lNAME`, `-LDIR`, and
+`-framework NAME` reach the linker on both backends.
+
+Inline assembly (§16.7) binds Base values to named registers around a block of
+raw lines: `set_reg` moves each input into its register before the block,
+`get_reg` stores each output register back after it, and the register
+allocator leaves those registers alone. The native backend needs a specific
+register per operand, since the lines name registers directly; the
+compiler-chosen `reg` form is the C backend's for now.
+
 ## Waiting
 
 `sync` sleeps in the kernel: `Mutex`, `Condition`, `Once`, and `Semaphore`
