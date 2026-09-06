@@ -104,6 +104,8 @@ pub struct Lowerer:
     var format_sink: ir.Ref
     ## `--profile diagnostic`: `---` storage is filled with a pattern, the allocator quarantines.
     pub var diagnostic: bool
+    ## The line of the allocation being lowered, for the diagnostic profile's record.
+    var site_line: u32
 
     pub static func create(c: check.Checker*, entry: ast.Node*) -> Lowerer!:
         return Lowerer(c = c, program_unit = try ir.Unit.create(), f = try ir.Function.create(""), scratch = try buffer.Buffer.create(256), debug = false,
@@ -114,7 +116,7 @@ pub struct Lowerer:
                        locals = try list.List[LowerLocal].create(64), scopes = try list.List[LowerScope].create(32),
                        defers = try list.List[NodeRef].create(32), result_slot = 0, self_slot = 0, catch_slot = 0,
                        catch_done = 0, catch_payload = 0, catch_error_slot = 0, in_catch = false, match_slot = 0,
-                       match_type = 0, src_file = entry.text, mode = 0, format_sink = ir.none_ref(), diagnostic = false)
+                       match_type = 0, src_file = entry.text, mode = 0, format_sink = ir.none_ref(), diagnostic = false, site_line = 0)
 
     func fail(node: ast.Node*, what: str) -> never!:
         # the checker's scratch outlives the arena the tree lives in, so the report does too
@@ -3285,8 +3287,24 @@ pub struct Lowerer:
         let d = check.find_decl(m, "Allocator") else return types.none_id
         return d.type_id
 
-    ## `view.allocate(size, alignment)`: the optional span answered, in memory.
+    ## `view.allocate(size, alignment)`: the optional span answered, in memory; under the
+    ## diagnostic profile the block is also recorded with the function and line asking (§19.4).
     mutating func allocate_bytes(view: ir.Ref, size: ir.Ref, alignment: ir.Ref) -> ir.Ref!:
+        let block = try self.allocate_bytes_raw(view, size, alignment)
+        if self.diagnostic:
+            let data = try self.f.load(ir.Op.loadl, ir.Class.l, block)
+            let text = try self.program_unit.text(self.f.name)
+            let name = try self.f.address_of(ir.text_ref(text))
+            let function = try self.span_of(name, ir.const_ref((i64)self.f.name.length), types.str_id)
+            let start = u32(self.f.args.count)
+            try self.f.args.push(ir.Arg(value = data, cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, is_float_only = false, float_count = 0))
+            try self.f.args.push(ir.Arg(value = size, cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, is_float_only = false, float_count = 0))
+            try self.f.args.push(ir.Arg(value = function.ref, cls = ir.Class.l, size = 16, align = 8, type_id = types.str_id, is_float_only = false, float_count = 0))
+            try self.f.args.push(ir.Arg(value = ir.const_ref((i64)self.site_line), cls = ir.Class.w, size = 0, align = 4, type_id = types.u32_id, is_float_only = false, float_count = 0))
+            discard(try self.call_named("lb_memory_note_site", start, 4, ir.Class.w, false, types.unit_id))
+        return block
+
+    mutating func allocate_bytes_raw(view: ir.Ref, size: ir.Ref, alignment: ir.Ref) -> ir.Ref!:
         let data = try self.f.load(ir.Op.loadl, ir.Class.l, view)
         let table = try self.f.load(ir.Op.loadl, ir.Class.l, try self.offset_address(view, 8))
         let ok = self.f.label()
@@ -3383,6 +3401,7 @@ pub struct Lowerer:
         return a
 
     mutating func new_expr(e: ast.Node*) -> LowerValue!:
+        self.site_line = e.line
         let t = e.ty else return try self.fail(e, "no type")
         let result = try self.ty(e)
         let payload = self.elem(result)
@@ -3442,6 +3461,7 @@ pub struct Lowerer:
         return LowerValue(ref = a, type_id = result, in_memory = true)
 
     mutating func alloc_expr(e: ast.Node*) -> LowerValue!:
+        self.site_line = e.line
         let result = try self.ty(e)
         let payload = self.elem(result)
         let view = try self.allocator_of(e.right)

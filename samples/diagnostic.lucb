@@ -11,4 +11,6 @@ pub func main(arguments: str[]) -> i32!:
     let data = block.data
     free(block)
     print(f"{hex(data[0])} {hex(data[7])}")
+    let sites = memory.allocation_sites()
+    print(f"{sites.length} {sites[0].size} {sites[0].line}")
     return 0

@@ -595,6 +595,26 @@ pub struct CAllocator: Allocator:
 
 ## `--profile diagnostic`: set by the startup shim before `startup` runs.
 pub var diagnostic: bool
+
+## An allocation the diagnostic profile recorded (§19.4): the block, its size, and where.
+pub struct Site:
+    pub var address: void*?
+    pub var size: usize
+    pub var function: str
+    pub var line: u32
+
+var sites: Site[256]
+var site_next: usize
+
+## Called by the compiled program after each allocation under `--profile diagnostic`.
+pub func note_site(address: void*?, size: usize, function: str, line: u32):
+    sites[site_next % sites.length] = Site(address = address, size = size, function = function, line = line)
+    site_next += 1
+
+## The allocations recorded so far, the most recent 256 at most, oldest first.
+pub func allocation_sites() -> const Site[]:
+    let held = site_next if site_next < sites.length else sites.length
+    return sites[..<held]
 ## The released blocks the diagnostic profile still holds, oldest freed first.
 var quarantine: (u8[]?)[64]
 var quarantine_next: usize

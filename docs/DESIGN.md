@@ -208,7 +208,8 @@ process from the first instruction, as `programs/freestanding` shows.
 is filled with `0xAA` (the IR's `fill`, C's `memset`), and the entry shim sets
 `memory.diagnostic` before the runtime starts, whereupon the C allocator's
 `release` fills a block with `0xDD` and holds it in a ring of sixty-four
-before freeing the oldest, so a use after release reads the pattern.
+before freeing the oldest, so a use after release reads the pattern; and every
+allocation is noted in `memory`'s ring of sites with its function and line.
 
 ## Debugging
 

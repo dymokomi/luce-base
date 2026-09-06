@@ -108,6 +108,8 @@ pub struct Emitter:
     var sink_index: u32
     ## `--profile diagnostic`: `---` storage is filled with a pattern, the allocator quarantines.
     pub var diagnostic: bool
+    ## The line of the allocation being emitted, for the diagnostic profile's record.
+    var site_line: u32
 
     pub static func create(checker: check.Checker*, entry: ast.Node*) -> Emitter!:
         return Emitter(c = checker, out = try buffer.Buffer.create(65536), body = try buffer.Buffer.create(262144),
@@ -121,7 +123,7 @@ pub struct Emitter:
                        owner_args = try types.no_args(), scopes = try list.List[Scope].create(64),
                        defers = try list.List[NodeRef].create(64), catch_var = 0, catch_done = 0,
                        catch_payload = 0, match_result = 0, in_catch = false, src_file = entry.text, wrote_writer = false,
-                       sink_prefix = "", sink_index = 0, diagnostic = false)
+                       sink_prefix = "", sink_index = 0, diagnostic = false, site_line = 0)
 
     # -- output ---------------------------------------------------------------------------
 
@@ -1942,6 +1944,21 @@ pub struct Emitter:
             try self.put("){ .present = false })")
             return
         try self.put("{0}")
+
+    ## Under the diagnostic profile, `lb_memory_note_site(block, size, function, line)` after an
+    ## allocation succeeded (§19.4); `size_tmp` names the temporary holding the byte count.
+    mutating func note_allocation(n: u32, size_tmp: str) -> !:
+        if not self.diagnostic:
+            return
+        try self.put("if (")
+        try self.put_tmp("ao", n)
+        try self.put(".present) lb_memory_note_site(")
+        try self.put_tmp("ao", n)
+        try self.put(".value.data, ")
+        try self.put_tmp(size_tmp, n)
+        try self.put(", (lb_str){ __func__, sizeof(__func__) - 1 }, ")
+        try self.put_u64((u64)self.site_line)
+        try self.put("); ")
 
     ## `((lb_iface){ &(FormatSink){ &buffer }, &table })`: the sink over the buffer being built.
     mutating func format_sink_view() -> !:
@@ -4476,6 +4493,7 @@ pub struct Emitter:
         try self.put("){ .error = { .code = LB_MEMORY_EXHAUSTED, .message = (lb_str){\"memory.exhausted\", 16} }, .failed = true })")
 
     mutating func new_expr(e: ast.Node*) -> !:
+        self.site_line = e.line
         let t = e.ty else return
         let result = try self.ty(e)
         let payload = self.elem(result)
@@ -4614,6 +4632,7 @@ pub struct Emitter:
             try self.put(".value.data, 0, ")
             try self.put_tmp("bytes", n)
             try self.put("); ")
+        try self.note_allocation(n, "bytes")
         try self.put_tmp("r", n)
         try self.put(".value.data = ")
         try self.put_tmp("ao", n)
@@ -4628,6 +4647,7 @@ pub struct Emitter:
         try self.put("; })")
 
     mutating func alloc_expr(e: ast.Node*) -> !:
+        self.site_line = e.line
         let result = try self.ty(e)
         let payload = self.elem(result)
         try self.note(result)
@@ -4664,6 +4684,7 @@ pub struct Emitter:
         try self.put(", ")
         try self.put_tmp("al", n)
         try self.put("); ")
+        try self.note_allocation(n, "sz")
         try self.put_type(result)
         try self.put(" ")
         try self.put_tmp("r", n)
