@@ -49,11 +49,18 @@ pub struct Generator:
     var text_count: usize
     ## `--debug`: the frame descriptors, gathered while each function's frame is known.
     var descriptors: buffer.Buffer
+    ## Register allocation: for each temporary, the callee-saved register it lives in
+    ## (1..10 for x19..x28), or 0 when it is spilled to its frame home.
+    var temp_regs: list.List[u8]
+    ## Bit c-1 is set when x(18+c) is used; `save_offset[c]` is where it is spilled on entry.
+    var used_mask: u16
+    var save_offset: u64[11]
 
     pub static func create(program_unit: ir.Unit*) -> Generator!:
         return Generator(out = try buffer.Buffer.create(262144), program_unit = program_unit, f = program_unit.functions.span().data, index = 0,
                          temp_homes = try list.List[FrameHome].create(256), slot_homes = try list.List[FrameHome].create(64),
-                         frame = 0, indirect_home = 0, text_count = 0, descriptors = try buffer.Buffer.create(4096))
+                         frame = 0, indirect_home = 0, text_count = 0, descriptors = try buffer.Buffer.create(4096),
+                         temp_regs = try list.List[u8].create(256), used_mask = 0)
 
     # -- output ---------------------------------------------------------------------------
 
@@ -152,14 +159,32 @@ pub struct Generator:
     func xreg(n: u32) -> str:
         return "x9" if n == 0 else ("x10" if n == 1 else "x11")
 
-    ## Load a temporary's value from its home into `reg` of its class.
+    ## Load a temporary into `reg`: a register move when it lives in one, else from its home.
     mutating func load_temp(reg: str, cls: ir.Class, t: u32) -> !:
+        let code = self.temp_regs.get((usize)t - 1)
+        if code != 0:
+            let home = w_names[(usize)code] if reg.bytes[0] == 'w' else x_names[(usize)code]
+            if home != reg:
+                try self.line("mov ")
+                try self.put(reg)
+                try self.put(", ")
+                try self.put(home)
+            return
         try self.frame_address("x16", self.temp_home(t))
         try self.line("ldr ")
         try self.put(reg)
         try self.put(", [x16]")
 
     mutating func store_temp(reg: str, t: u32) -> !:
+        let code = self.temp_regs.get((usize)t - 1)
+        if code != 0:
+            let home = w_names[(usize)code] if reg.bytes[0] == 'w' else x_names[(usize)code]
+            if home != reg:
+                try self.line("mov ")
+                try self.put(home)
+                try self.put(", ")
+                try self.put(reg)
+            return
         try self.frame_address("x16", self.temp_home(t))
         try self.line("str ")
         try self.put(reg)
@@ -248,7 +273,8 @@ pub struct Generator:
 
     # mark: Functions ==========================================================================
 
-    ## Lay out the frame: parameter slots, slots, temporaries, all below x29.
+    ## Lay out the frame: the indirect result, the callee-saved save area, slots, and a
+    ## home for each spilled temporary, all below x29.
     mutating func layout() -> !:
         self.temp_homes.count = 0
         self.slot_homes.count = 0
@@ -257,6 +283,15 @@ pub struct Generator:
         if self.f.has_result and self.f.result_size > 16 and not (self.f.result_float_only):
             offset = arm_round_up(offset, 8) + 8
             self.indirect_home = offset
+        # one word for each callee-saved register the allocator used
+        var c: usize = 1
+        while c <= 10:
+            if (self.used_mask & (u16)(1 << (u16)(c - 1))) != 0:
+                offset = arm_round_up(offset + 8, 8)
+                self.save_offset[c] = offset
+            else:
+                self.save_offset[c] = 0
+            c += 1
         var i: usize = 0
         while i < self.f.slots.count:
             let s = self.f.slots.get(i)
@@ -266,14 +301,138 @@ pub struct Generator:
             i += 1
         i = 0
         while i < self.f.temps.count:
-            offset = arm_round_up(offset + 8, 8)
-            try self.temp_homes.push(FrameHome(offset = offset))
+            if self.temp_regs.get(i) == 0:
+                offset = arm_round_up(offset + 8, 8)
+                try self.temp_homes.push(FrameHome(offset = offset))
+            else:
+                try self.temp_homes.push(FrameHome(offset = 0))
             i += 1
         self.frame = arm_round_up(offset, 16)
+
+    ## Assign block-local integer temporaries to callee-saved registers by linear scan,
+    ## spilling the longest-lived when they run out (base.md §19.1: temps never cross a block,
+    ## and callee-saved registers survive the calls a block may contain).
+    mutating func allocate() -> !:
+        self.temp_regs.count = 0
+        let n = self.f.temps.count
+        var i: usize = 0
+        while i < n:
+            try self.temp_regs.push(0)
+            i += 1
+        self.used_mask = 0
+        if n == 0:
+            return
+        var def_at = try alloc u32[n] in memory.heap
+        defer free(def_at) in memory.heap
+        var last_use = try alloc u32[n] in memory.heap
+        defer free(last_use) in memory.heap
+        var eligible = try alloc bool[n] in memory.heap
+        defer free(eligible) in memory.heap
+        i = 0
+        while i < n:
+            def_at[i] = 0
+            last_use[i] = 0
+            let c = self.f.temp_class(u32(i + 1))
+            eligible[i] = c == ir.Class.w or c == ir.Class.l
+            i += 1
+        # the instruction index each label sits at, for finding loop back-edges
+        var label_pos = try alloc u32[(usize)self.f.labels + 1] in memory.heap
+        defer free(label_pos) in memory.heap
+        var ix: usize = 0
+        while ix < self.f.instrs.count:
+            let instr = self.f.instrs.get(ix)
+            if instr.op == ir.Op.label and instr.extra <= self.f.labels:
+                label_pos[(usize)instr.extra] = u32(ix)
+            if instr.dst > 0 and (usize)instr.dst <= n:
+                def_at[(usize)instr.dst - 1] = u32(ix)
+            self.note_use(instr.a, last_use, u32(ix))
+            self.note_use(instr.b, last_use, u32(ix))
+            if instr.op == ir.Op.call:
+                let info = self.f.calls.get((usize)instr.extra)
+                var k: u32 = 0
+                while k < info.args_count:
+                    self.note_use(self.f.args.get((usize)(info.args_start + k)).value, last_use, u32(ix))
+                    k += 1
+            ix += 1
+        # a temporary defined before a loop and used inside it is live across the back-edge:
+        # its register must be held to the loop's bottom, not freed at its last textual use.
+        # A jump or branch to an earlier label is a back-edge; iterate to a fixpoint for nesting.
+        var changed = true
+        while changed:
+            changed = false
+            ix = 0
+            while ix < self.f.instrs.count:
+                let instr = self.f.instrs.get(ix)
+                if instr.op == ir.Op.jmp or instr.op == ir.Op.jnz:
+                    let targets: u32[2] = [instr.extra, instr.extra2 if instr.op == ir.Op.jnz else instr.extra]
+                    var w: usize = 0
+                    while w < 2:
+                        let target = targets[w]
+                        w += 1
+                        if target == 0 or target > self.f.labels:
+                            continue
+                        let t = label_pos[(usize)target]
+                        if t >= u32(ix):
+                            continue
+                        var i2: usize = 0
+                        while i2 < n:
+                            if def_at[i2] < t and last_use[i2] >= t and last_use[i2] < u32(ix):
+                                last_use[i2] = u32(ix)
+                                changed = true
+                            i2 += 1
+                ix += 1
+        var reg_temp: u32[11] = ---
+        var c: usize = 0
+        while c <= 10:
+            reg_temp[c] = 0
+            c += 1
+        ix = 0
+        while ix < self.f.instrs.count:
+            c = 1
+            while c <= 10:
+                let t = reg_temp[c]
+                if t != 0 and last_use[(usize)t - 1] < u32(ix):
+                    reg_temp[c] = 0
+                c += 1
+            let instr = self.f.instrs.get(ix)
+            let d = (usize)instr.dst
+            if d > 0 and d <= n and eligible[d - 1] and def_at[d - 1] == u32(ix) and last_use[d - 1] > u32(ix):
+                var chosen: usize = 0
+                c = 1
+                while c <= 10:
+                    if reg_temp[c] == 0:
+                        chosen = c
+                        break
+                    c += 1
+                if chosen == 0:
+                    var far_c: usize = 0
+                    var far_use = last_use[d - 1]
+                    c = 1
+                    while c <= 10:
+                        let t = reg_temp[c]
+                        if t != 0 and last_use[(usize)t - 1] > far_use:
+                            far_use = last_use[(usize)t - 1]
+                            far_c = c
+                        c += 1
+                    if far_c != 0:
+                        self.temp_regs.set((usize)reg_temp[far_c] - 1, 0)
+                        chosen = far_c
+                if chosen != 0:
+                    reg_temp[chosen] = instr.dst
+                    self.temp_regs.set(d - 1, (u8)chosen)
+                    self.used_mask = self.used_mask | (u16)(1 << (u16)(chosen - 1))
+            ix += 1
+
+    ## A temporary reference used at instruction `ix` extends its live range.
+    func note_use(r: ir.Ref, last_use: u32[], ix: u32):
+        if r.kind == ir.RefKind.temp and (usize)r.index <= last_use.length:
+            if last_use[(usize)r.index - 1] < ix:
+                last_use[(usize)r.index - 1] = ix
 
     mutating func function(index: usize) -> !:
         self.index = index
         self.f = &self.program_unit.functions.items[index]
+        try self.allocate()
         try self.layout()
         try self.put("\n    .p2align 2\n")
         if self.f.exported or true:
@@ -293,6 +452,7 @@ pub struct Generator:
         if self.f.has_result and self.f.result_size > 16 and not self.f.result_float_only:
             try self.frame_address("x16", self.indirect_home)
             try self.line("str x8, [x16]")
+        try self.save_callee_saved()
         try self.receive_params()
         var i: usize = 0
         while i < self.f.instrs.count:
@@ -1120,9 +1280,32 @@ pub struct Generator:
                 try self.line("bl _memcpy")
                 try self.frame_address("x16", self.indirect_home)
                 try self.line("ldr x0, [x16]")
+        try self.restore_callee_saved()
         try self.line("mov sp, x29")
         try self.line("ldp x29, x30, [sp], #16")
         try self.line("ret")
+
+    ## Save every callee-saved register the allocator used, on entry.
+    mutating func save_callee_saved() -> !:
+        var c: usize = 1
+        while c <= 10:
+            if (self.used_mask & (u16)(1 << (u16)(c - 1))) != 0:
+                try self.frame_address("x16", self.save_offset[c])
+                try self.line("str ")
+                try self.put(x_names[c])
+                try self.put(", [x16]")
+            c += 1
+
+    ## Restore them before returning; the result already sits in x0/x1/d0.
+    mutating func restore_callee_saved() -> !:
+        var c: usize = 1
+        while c <= 10:
+            if (self.used_mask & (u16)(1 << (u16)(c - 1))) != 0:
+                try self.frame_address("x16", self.save_offset[c])
+                try self.line("ldr ")
+                try self.put(x_names[c])
+                try self.put(", [x16]")
+            c += 1
 
     # mark: The unit ===========================================================================
 
@@ -1214,6 +1397,10 @@ pub struct Generator:
         try self.put("\"")
 
 # mark: Helpers ================================================================================
+
+## The callee-saved registers the allocator hands out, x19..x28, by their code 1..10.
+let x_names: str[11] = ["", "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28"]
+let w_names: str[11] = ["", "w19", "w20", "w21", "w22", "w23", "w24", "w25", "w26", "w27", "w28"]
 
 func is_int_class(c: ir.Class) -> bool:
     return c == ir.Class.w or c == ir.Class.l
