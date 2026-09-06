@@ -63,7 +63,7 @@ pub func header_end(data: const u8[]) -> usize?:
 pub func parse(data: const u8[], end: usize) -> Request!:
     let head = str(data[..<end]) catch:
         error(bad_request, "the request is not text")
-    var empty: Header[32] = ---
+    var empty: Header[32]
     var request = Request(method = "", path = "", version = "", headers = empty, header_count = 0, body = data[end..], keep_alive = false)
     var line_start: usize = 0
     var line_index: usize = 0
@@ -154,7 +154,7 @@ pub func write_all(connection: net.Connection*, data: const u8[]) -> !:
         sent += n
 
 func empty_request(body: const u8[]) -> Request:
-    var empty: Header[32] = ---
+    var empty: Header[32]
     return Request(method = "", path = "", version = "", headers = empty, header_count = 0, body = body, keep_alive = false)
 
 func or_zero(offset: usize?) -> usize:

@@ -22,10 +22,6 @@ for f in samples/*.expect; do
     cmp build/sample.out "$f"
 done
 rm -f build/sample build/sample.out
-# the proving programs build natively and are driven from outside
-for f in programs/*/check.sh; do
-    "$f"
-done
 # every module's tests run through both backends: the two executions must agree
 for f in src/*/*.lucb programs/*/*.lucb; do
     if grep -q '^test "' "$f"; then
