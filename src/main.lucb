@@ -22,13 +22,14 @@ import front.token
 import io
 import memory
 import process
+import strings
 import sema.check
 import support.runtime
 
 let version: str = "0.1"
 
 func usage(out: io.Writer) -> !:
-    try out.write("usage: luce-base lex FILE\n       luce-base parse FILE\n       luce-base check FILE\n       luce-base build FILE [-o OUT] [--release] [--emit=c] [--native] [--debug] [--emit=asm]\n       luce-base test FILE [--native]\n       luce-base --version\n")
+    try out.write("usage: luce-base lex FILE\n       luce-base parse FILE\n       luce-base check FILE\n       luce-base build FILE [-o OUT] [--release] [--emit=c] [--native] [--debug] [--emit=asm] [-lNAME] [-LDIR]\n       luce-base test FILE [--native]\n       luce-base --version\n")
 
 # mark: Building ===============================================================================
 
@@ -40,6 +41,11 @@ struct Options:
     var run_tests: bool
     var native: bool
     var debug: bool
+    ## `-lNAME` and `-LDIR`: libraries to link and where to find them.
+    var libraries: cstr[16]
+    var library_count: usize
+    var library_dirs: cstr[8]
+    var library_dir_count: usize
 
 ## Check FILE and its imports, then generate C for the whole program.
 func generate(path: cstr, mode: u32) -> str!:
@@ -69,6 +75,11 @@ func generate(path: cstr, mode: u32) -> str!:
 var native_backend: bool
 ## `--debug`: the native backend describes every frame and calls the `debug` module.
 var debug_backend: bool
+## `-lNAME` and `-LDIR` of the current build, for the link step.
+var link_libraries: cstr[16]
+var link_library_count: usize
+var link_dirs: cstr[8]
+var link_dir_count: usize
 
 var scratch_bytes: u8[4096]
 ## The mode the last `generate` settled on: 2 means an `answer()` program that links `start.c`.
@@ -104,7 +115,7 @@ func compile(text: str, exe: str, release: bool, with_start: bool) -> !:
     if with_start:
         try files.write((cstr)start_path, runtime.start.bytes)
     var include = try format(names[2560..<3072], f"-I{dir}")
-    var cc_args: cstr[12] = ---
+    var cc_args: cstr[40] = ---
     cc_args[0] = "-std=gnu11"
     cc_args[1] = "-Wall"
     cc_args[2] = "-Werror"
@@ -117,7 +128,27 @@ func compile(text: str, exe: str, release: bool, with_start: bool) -> !:
     cc_args[9] = "-pthread"
     cc_args[10] = "-o"
     cc_args[11] = (cstr)exe
-    let result = try process.run("cc", cc_args)
+    var n: usize = 12
+    var flag_bytes: u8[2048]
+    var used: usize = 0
+    var k: usize = 0
+    while k < link_dir_count and n + 2 < cc_args.length:
+        let flag = try format(flag_bytes[used..], f"-L{(str)link_dirs[k]}")
+        used += flag.length + 1
+        cc_args[n] = (cstr)flag
+        let path = try format(flag_bytes[used..], f"-Wl,-rpath,{(str)link_dirs[k]}")
+        used += path.length + 1
+        cc_args[n + 1] = (cstr)path
+        n += 2
+        k += 1
+    k = 0
+    while k < link_library_count and n < cc_args.length:
+        let flag = try format(flag_bytes[used..], f"-l{(str)link_libraries[k]}")
+        used += flag.length + 1
+        cc_args[n] = (cstr)flag
+        n += 1
+        k += 1
+    let result = try process.run("cc", cc_args[..<n])
     let (cc_status, cc_out, cc_err) = result
     discard(cc_out.length)
     if cc_status != 0:
@@ -148,7 +179,7 @@ func assemble_and_link(dir: str, names: u8[], text: str, exe: str) -> !:
     if sdk_status != 0:
         error(build_failed, "xcrun could not find the SDK")
     let sdk = try format(names[1024..<2048], f"{trim(sdk_out)}")
-    var ld_args: cstr[8] = ---
+    var ld_args: cstr[40] = ---
     ld_args[0] = "-arch"
     ld_args[1] = "arm64"
     ld_args[2] = "-syslibroot"
@@ -157,7 +188,25 @@ func assemble_and_link(dir: str, names: u8[], text: str, exe: str) -> !:
     ld_args[5] = "-o"
     ld_args[6] = (cstr)exe
     ld_args[7] = (cstr)object_path
-    let linked = try process.run("ld", ld_args)
+    var n: usize = 8
+    var flag_bytes: u8[2048]
+    var used: usize = 0
+    var k: usize = 0
+    while k < link_dir_count and n + 4 < ld_args.length:
+        ld_args[n] = "-L"
+        ld_args[n + 1] = link_dirs[k]
+        ld_args[n + 2] = "-rpath"
+        ld_args[n + 3] = link_dirs[k]
+        n += 4
+        k += 1
+    k = 0
+    while k < link_library_count and n < ld_args.length:
+        let flag = try format(flag_bytes[used..], f"-l{(str)link_libraries[k]}")
+        used += flag.length + 1
+        ld_args[n] = (cstr)flag
+        n += 1
+        k += 1
+    let linked = try process.run("ld", ld_args[..<n])
     let (ld_status, ld_out, ld_err) = linked
     discard(ld_out.length)
     if ld_status != 0:
@@ -172,6 +221,16 @@ func build_file(path: cstr, options: Options) -> !:
     with arena:
         native_backend = options.native
         debug_backend = options.debug and options.native
+        link_library_count = options.library_count
+        link_dir_count = options.library_dir_count
+        var k: usize = 0
+        while k < options.library_count:
+            link_libraries[k] = options.libraries[k]
+            k += 1
+        k = 0
+        while k < options.library_dir_count:
+            link_dirs[k] = options.library_dirs[k]
+            k += 1
         let text = try generate(path, 1 if options.run_tests else 0)
         if options.emit_c:
             if options.output.length > 0:
@@ -296,7 +355,15 @@ pub func main(arguments: cstr[]) -> i32!:
             return 1
         return 0
     if command == "build" and arguments.length >= 3:
-        var options = Options(output = "", release = false, emit_c = false, run_tests = false, native = false, debug = false)
+        var options: Options = ---
+        options.output = ""
+        options.release = false
+        options.emit_c = false
+        options.run_tests = false
+        options.native = false
+        options.debug = false
+        options.library_count = 0
+        options.library_dir_count = 0
         var i: usize = 3
         while i < arguments.length:
             let a = (str)arguments[i]
@@ -311,6 +378,12 @@ pub func main(arguments: cstr[]) -> i32!:
                 options.native = true
             elif a == "--debug":
                 options.debug = true
+            elif strings.starts_with(a, "-l") and a.length > 2 and options.library_count < options.libraries.length:
+                options.libraries[options.library_count] = (cstr)(str)a.bytes[2..]
+                options.library_count += 1
+            elif strings.starts_with(a, "-L") and a.length > 2 and options.library_dir_count < options.library_dirs.length:
+                options.library_dirs[options.library_dir_count] = (cstr)(str)a.bytes[2..]
+                options.library_dir_count += 1
             else:
                 try io.stderr().write(f"luce-base: unexpected argument `{a}`\n")
                 return 2
