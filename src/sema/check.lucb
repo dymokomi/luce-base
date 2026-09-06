@@ -361,10 +361,10 @@ pub struct Checker:
                 .union_, .extern_union:
                     d.type_id = try self.table.nominal(types.Kind.union_, d, try types.no_args())
                     try self.bind(d, d.text, d.type_id, d, false)
-                .interface:
-                    d.type_id = try self.table.nominal(types.Kind.interface, d, try self.generic_ids(d))
+                .interface_:
+                    d.type_id = try self.table.nominal(types.Kind.interface_, d, try self.generic_ids(d))
                     try self.bind(d, d.text, d.type_id, d, false)
-                .type_alias, .func, .extern_func, .constant:
+                .type_alias, .func_, .extern_func, .constant:
                     try self.bind(d, d.text, types.none_id, d, false)
                 .global, .extern_var:
                     try self.bind(d, d.text, types.none_id, d, true)
@@ -398,7 +398,7 @@ pub struct Checker:
             var bound = g.body
             while let c = bound:
                 let id = try self.resolve_type(c)
-                if self.table.kind(id) != types.Kind.interface:
+                if self.table.kind(id) != types.Kind.interface_:
                     discard(try self.fail(c, "a constraint must be an interface"))
                 bound = c.next
             cursor = g.next
@@ -424,13 +424,13 @@ pub struct Checker:
                 let t = d.ty else return try self.fail(d, "a global needs a type")
                 d.type_id = try self.resolve_type(t)
                 try self.rebind(d.text, d.type_id)
-            .func, .extern_func:
+            .func_, .extern_func:
                 try self.resolve_function(d)
                 try self.rebind(d.text, d.type_id)
             .extern_type:
                 if let t = d.ty:
                     discard(try self.resolve_type(t))
-            .struct_, .extern_struct, .union_, .extern_union, .enum_, .interface:
+            .struct_, .extern_struct, .union_, .extern_union, .enum_, .interface_:
                 try self.resolve_members(d)
             _:
                 discard(0)
@@ -447,7 +447,7 @@ pub struct Checker:
         var implemented = d.ty if d.kind != ast.Kind.enum_ else d.right
         while let i = implemented:
             let id = try self.resolve_type(i)
-            if self.table.kind(id) != types.Kind.interface:
+            if self.table.kind(id) != types.Kind.interface_:
                 discard(try self.fail(i, "`implements` names an interface"))
             implemented = i.next
         var cursor = d.body
@@ -463,7 +463,7 @@ pub struct Checker:
                         p.type_id = try self.resolve_type(t)
                         pcursor = p.next
                     m.type_id = d.type_id
-                .func:
+                .func_:
                     try self.resolve_function(m)
                 _:
                     discard(0)
@@ -731,7 +731,7 @@ pub struct Checker:
                     members[i] = try self.substitute(t.args[i], decl, args)
                     i += 1
                 return try self.table.tuple(members)
-            .func:
+            .func_:
                 var params = try types.no_args()
                 if t.args.length > 0:
                     params = try alloc u32[t.args.length]
@@ -740,7 +740,7 @@ pub struct Checker:
                     params[i] = try self.substitute(t.args[i], decl, args)
                     i += 1
                 return try self.table.function(params, try self.substitute(t.elem, decl, args), t.variadic)
-            .struct_, .enum_, .union_, .interface:
+            .struct_, .enum_, .union_, .interface_:
                 let d = t.decl else return id
                 if t.args.length == 0:
                     # the template's own name inside its declaration: instantiate it
@@ -774,12 +774,12 @@ pub struct Checker:
             if p.kind == types.Kind.pointer or p.kind == types.Kind.span or p.kind == types.Kind.array or p.kind == types.Kind.optional or p.kind == types.Kind.fallible or p.kind == types.Kind.atomic:
                 try self.infer(p.elem, a.elem, decl, out)
                 return
-            if p.kind == types.Kind.tuple or p.kind == types.Kind.func:
+            if p.kind == types.Kind.tuple or p.kind == types.Kind.func_:
                 var i: usize = 0
                 while i < p.args.length and i < a.args.length:
                     try self.infer(p.args[i], a.args[i], decl, out)
                     i += 1
-                if p.kind == types.Kind.func:
+                if p.kind == types.Kind.func_:
                     try self.infer(p.elem, a.elem, decl, out)
                 return
             if p.decl == a.decl and p.args.length == a.args.length:
@@ -790,7 +790,7 @@ pub struct Checker:
                 return
         if p.kind == types.Kind.span and a.kind == types.Kind.array:
             try self.infer(p.elem, a.elem, decl, out)
-        if p.kind == types.Kind.interface and a.kind == types.Kind.pointer:
+        if p.kind == types.Kind.interface_ and a.kind == types.Kind.pointer:
             try self.infer(param, a.elem, decl, out)
 
     ## An untyped literal type made concrete for inference and bindings.
@@ -852,11 +852,11 @@ pub struct Checker:
             if t.elem == types.u8_id and t.is_const and (have == types.str_id or have == types.fmt_id):
                 return true
             return false
-        if t.kind == types.Kind.interface:
+        if t.kind == types.Kind.interface_:
             if s.kind == types.Kind.pointer:
                 return self.conforms(s.elem, want)
             return false
-        if t.kind == types.Kind.func and s.kind == types.Kind.func:
+        if t.kind == types.Kind.func_ and s.kind == types.Kind.func_:
             return self.function_converts(have, want)
         if t.kind == types.Kind.atomic:
             return self.assignable(e, have, t.elem)
@@ -1114,7 +1114,7 @@ pub struct Checker:
                 return types.fmt_id
             .new_:
                 return try self.new_type(e)
-            .alloc:
+            .alloc_:
                 return try self.alloc_type(e)
             .span_make:
                 let t = e.ty else return try self.fail(e, "a span constructor needs a type")
@@ -1183,9 +1183,9 @@ pub struct Checker:
         e.resolved = b.decl
         let d = b.decl else return b.type_id
         match d.kind:
-            .func, .extern_func:
+            .func_, .extern_func:
                 return d.type_id
-            .struct_, .enum_, .union_, .interface, .extern_type, .extern_struct, .extern_union, .generic_param:
+            .struct_, .enum_, .union_, .interface_, .extern_type, .extern_struct, .extern_union, .generic_param:
                 e.flags |= ast.flag_type_ref
                 if e.ty != none:
                     # `Map[str, u32]` before a static member
@@ -1354,7 +1354,7 @@ pub struct Checker:
         if id == types.untyped_int_id or id == types.untyped_float_id or id == types.none_id:
             return true
         match t.kind:
-            .union_, .interface, .func, .span, .module, .fmt, .error_value:
+            .union_, .interface_, .func_, .span, .module, .fmt, .error_value:
                 return false
             .optional:
                 return true
@@ -1456,7 +1456,7 @@ pub struct Checker:
             var pt = types.none_id
             if let t = p.ty:
                 pt = try self.resolve_type(t)
-            elif h.kind == types.Kind.func and i < h.args.length:
+            elif h.kind == types.Kind.func_ and i < h.args.length:
                 pt = h.args[i]
             else:
                 return try self.fail(p, "this parameter needs a type")
@@ -1467,7 +1467,7 @@ pub struct Checker:
             cursor = p.next
         let body = e.body else return try self.fail(e, "a lambda needs a body")
         var want = types.none_id
-        if h.kind == types.Kind.func:
+        if h.kind == types.Kind.func_:
             want = h.elem
         let saved_result = self.result_type
         let saved_fallible = self.fallible
@@ -1566,11 +1566,11 @@ pub struct Checker:
             return want
         if (s.kind == types.Kind.span or s.kind == types.Kind.array) and d.kind == types.Kind.span:
             return want
-        if s.kind == types.Kind.func and d.kind == types.Kind.pointer and d.elem == types.void_id:
+        if s.kind == types.Kind.func_ and d.kind == types.Kind.pointer and d.elem == types.void_id:
             return want
-        if s.kind == types.Kind.pointer and s.elem == types.void_id and d.kind == types.Kind.func:
+        if s.kind == types.Kind.pointer and s.elem == types.void_id and d.kind == types.Kind.func_:
             return want
-        if s.kind == types.Kind.pointer and d.kind == types.Kind.interface:
+        if s.kind == types.Kind.pointer and d.kind == types.Kind.interface_:
             return try self.fail(e, "an interface view is formed by assignment, not a cast")
         return try self.mismatch(e, want, have)
 
@@ -1656,7 +1656,7 @@ pub struct Checker:
     mutating func check_allocator(e: ast.Node*) -> !:
         let got = try self.check_expr(e, types.none_id)
         let t = self.table.get(got)
-        if t.kind == types.Kind.interface:
+        if t.kind == types.Kind.interface_:
             let d = t.decl else return
             if d.text == "Allocator":
                 return
@@ -1767,7 +1767,7 @@ pub struct Checker:
                 if not f.has(ast.flag_pub) and not self.same_module(d) and not self.inside(d):
                     return try self.fail(e, "that field is not public")
                 return try self.substitute(f.type_id, d, t.args)
-            if let m = find_member(d, name, ast.Kind.func):
+            if let m = find_member(d, name, ast.Kind.func_):
                 if m.has(ast.flag_static):
                     return try self.fail(e, "a static method is called through the type")
                 e.resolved = m
@@ -1777,9 +1777,9 @@ pub struct Checker:
             if t.kind == types.Kind.enum_ and find_member(d, name, ast.Kind.enum_case) != none:
                 return try self.fail(e, "a case is named through the type, `Kind.case`")
             return try self.fail(e, "no such member")
-        if t.kind == types.Kind.interface:
+        if t.kind == types.Kind.interface_:
             let d = t.decl else return try self.fail(e, "no declaration")
-            let m = find_member(d, name, ast.Kind.func) else return try self.fail(e, "the interface has no such method")
+            let m = find_member(d, name, ast.Kind.func_) else return try self.fail(e, "the interface has no such method")
             e.resolved = m
             return try self.substitute(m.type_id, d, t.args)
         if t.kind == types.Kind.param:
@@ -1788,7 +1788,7 @@ pub struct Checker:
             while let c = bound:
                 let ct = self.table.get(c.type_id)
                 if let cd = ct.decl:
-                    if let m = find_member(cd, name, ast.Kind.func):
+                    if let m = find_member(cd, name, ast.Kind.func_):
                         e.resolved = m
                         return try self.substitute(m.type_id, cd, ct.args)
                 bound = c.next
@@ -1821,7 +1821,7 @@ pub struct Checker:
                 return id
         if t.kind == types.Kind.struct_ or t.kind == types.Kind.enum_ or t.kind == types.Kind.union_:
             let d = t.decl else return try self.fail(e, "no declaration")
-            let m = find_member(d, name, ast.Kind.func) else return try self.fail(e, "no such static member")
+            let m = find_member(d, name, ast.Kind.func_) else return try self.fail(e, "no such static member")
             if not m.has(ast.flag_static):
                 return try self.fail(e, "that method needs a receiver")
             if not m.has(ast.flag_pub) and not self.same_module(d) and not self.inside(d):
@@ -1945,7 +1945,7 @@ pub struct Checker:
         if callee.has(ast.flag_type_ref):
             return try self.construct_or_convert(e, callee, ct)
         let t = self.table.get(ct)
-        if t.kind != types.Kind.func:
+        if t.kind != types.Kind.func_:
             return try self.fail(callee, "this is not callable")
         # the declaration behind the callee, for names, defaults, and generics
         var decl: ast.Node*? = callee.resolved
@@ -1954,16 +1954,16 @@ pub struct Checker:
         if callee.kind == ast.Kind.member:
             if let receiver = callee.left:
                 let rt = self.table.get(self.deref(receiver.type_id))
-                if rt.kind == types.Kind.struct_ or rt.kind == types.Kind.enum_ or rt.kind == types.Kind.union_ or rt.kind == types.Kind.interface:
+                if rt.kind == types.Kind.struct_ or rt.kind == types.Kind.enum_ or rt.kind == types.Kind.union_ or rt.kind == types.Kind.interface_:
                     owner = rt.decl
                     owner_args = rt.args
                 if let m = callee.resolved:
-                    if m.kind == ast.Kind.func and m.has(ast.flag_mutating) and not callee.has(ast.flag_static):
+                    if m.kind == ast.Kind.func_ and m.has(ast.flag_mutating) and not callee.has(ast.flag_static):
                         try self.require_mutable_receiver(receiver)
                 if callee.has(ast.flag_static) and callee.resolved == none:
                     decl = none
         if let d = decl:
-            if d.kind != ast.Kind.func and d.kind != ast.Kind.extern_func:
+            if d.kind != ast.Kind.func_ and d.kind != ast.Kind.extern_func:
                 decl = none
         e.resolved = decl
         return try self.check_call(e, ct, decl, e.ty if e.ty != none else callee.ty, owner, owner_args, hint)
@@ -2060,7 +2060,7 @@ pub struct Checker:
             if rt.is_const:
                 discard(try self.fail(receiver, "a mutating method needs a mutable pointer"))
             return
-        if rt.kind == types.Kind.interface:
+        if rt.kind == types.Kind.interface_:
             return
         if not self.is_mutable_place(receiver):
             discard(try self.fail(receiver, "a mutating method needs a `var` receiver"))
@@ -2183,13 +2183,13 @@ pub struct Checker:
                 return true
             .pointer, .span, .array, .optional, .fallible, .atomic:
                 return self.mentions_param(t.elem)
-            .tuple, .func, .struct_, .enum_, .union_, .interface:
+            .tuple, .func_, .struct_, .enum_, .union_, .interface_:
                 var i: usize = 0
                 while i < t.args.length:
                     if self.mentions_param(t.args[i]):
                         return true
                     i += 1
-                if t.kind == types.Kind.func:
+                if t.kind == types.Kind.func_:
                     return self.mentions_param(t.elem)
                 return false
             _:
@@ -2257,7 +2257,7 @@ pub struct Checker:
     mutating func construct(e: ast.Node*, id: u32, args: ast.Node*?) -> u32!:
         let t = self.table.get(id)
         let d = t.decl else return try self.fail(e, "no declaration")
-        if let init = find_member(d, "init", ast.Kind.func):
+        if let init = find_member(d, "init", ast.Kind.func_):
             e.resolved = init
             let fn = try self.substitute(init.type_id, d, t.args)
             discard(try self.check_call(e, fn, init, none, d, t.args, types.none_id))
@@ -2729,7 +2729,7 @@ pub struct Checker:
     ## Check the body of a top-level declaration.
     mutating func check_declaration(d: ast.Node*) -> !:
         match d.kind:
-            .func:
+            .func_:
                 try self.check_function(d, none)
             .constant:
                 if d.type_id == types.none_id or d.ty != none:
@@ -2746,9 +2746,9 @@ pub struct Checker:
                     discard(try self.fail(d, "this global's type has no zero value; give it one"))
             .struct_, .union_, .enum_:
                 try self.check_type_body(d)
-            .interface:
+            .interface_:
                 discard(0)
-            .test:
+            .test_:
                 try self.check_test(d)
             .assert_:
                 let first = d.body else return try self.fail(d, "`assert` needs a condition")
@@ -2835,7 +2835,7 @@ pub struct Checker:
                     if let value = m.left:
                         let backing = d.ty else return try self.fail(m, "a case value needs `enum Name as T`")
                         discard(try self.expect(value, backing.type_id))
-                .func:
+                .func_:
                     try self.check_function(m, d)
                 _:
                     discard(0)
@@ -2853,7 +2853,7 @@ pub struct Checker:
             let iface = it.decl else return try self.fail(l, "no interface")
             var req = iface.body
             while let r = req:
-                let m = find_member(d, r.text, ast.Kind.func) else return try self.fail(l, "a required method is missing")
+                let m = find_member(d, r.text, ast.Kind.func_) else return try self.fail(l, "a required method is missing")
                 let want = try self.substitute(r.type_id, iface, it.args)
                 if not self.signature_matches(m.type_id, want):
                     return try self.fail(m, "this method does not match the interface's signature")
@@ -2898,7 +2898,7 @@ pub struct Checker:
 pub func find_decl(tree: ast.Node*, name: str) -> ast.Node*?:
     var cursor = tree.body
     while let d = cursor:
-        if d.text == name and d.kind != ast.Kind.import_ and d.kind != ast.Kind.from_import and d.kind != ast.Kind.test:
+        if d.text == name and d.kind != ast.Kind.import_ and d.kind != ast.Kind.from_import and d.kind != ast.Kind.test_:
             return d
         cursor = d.next
     return none
@@ -2922,12 +2922,12 @@ pub func generic_params_of(d: ast.Node*) -> ast.Node*?:
 ## `Equatable`, `Hashable`, and `Comparable` are satisfied by structure, never declared.
 func is_derived_bound(d: ast.Node*?) -> bool:
     let decl = d else return false
-    if decl.kind != ast.Kind.interface or not decl.has(ast.flag_builtin):
+    if decl.kind != ast.Kind.interface_ or not decl.has(ast.flag_builtin):
         return false
     return decl.text == "Equatable" or decl.text == "Hashable" or decl.text == "Comparable"
 
 func is_type_decl(d: ast.Node*) -> bool:
-    return d.kind == ast.Kind.struct_ or d.kind == ast.Kind.enum_ or d.kind == ast.Kind.union_ or d.kind == ast.Kind.interface or d.kind == ast.Kind.extern_type or d.kind == ast.Kind.extern_struct or d.kind == ast.Kind.extern_union
+    return d.kind == ast.Kind.struct_ or d.kind == ast.Kind.enum_ or d.kind == ast.Kind.union_ or d.kind == ast.Kind.interface_ or d.kind == ast.Kind.extern_type or d.kind == ast.Kind.extern_struct or d.kind == ast.Kind.extern_union
 
 ## Was field `f` of `d` given among `args`, by name or by position?
 func argument_names(args: ast.Node*?, f: ast.Node*, d: ast.Node*) -> bool:

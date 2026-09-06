@@ -14,15 +14,15 @@ pub enum Kind as u8:
     module = 1
     import_ = 2
     from_import = 3
-    func = 4
+    func_ = 4
     struct_ = 5
     enum_ = 6
     union_ = 7
-    interface = 8
+    interface_ = 8
     type_alias = 9
     constant = 10
     global = 11
-    test = 12
+    test_ = 12
     extern_func = 13
     extern_type = 14
     extern_var = 15
@@ -75,7 +75,7 @@ pub enum Kind as u8:
     format_text = 79
     format_field = 80
     new_ = 81
-    alloc = 82
+    alloc_ = 82
     span_make = 83
     match_expr = 84
     unit = 85
@@ -171,15 +171,15 @@ pub func kind_name(kind: Kind) -> str:
         .module: return "module"
         .import_: return "import"
         .from_import: return "from_import"
-        .func: return "func"
+        .func_: return "func"
         .struct_: return "struct"
         .enum_: return "enum"
         .union_: return "union"
-        .interface: return "interface"
+        .interface_: return "interface"
         .type_alias: return "type_alias"
         .constant: return "constant"
         .global: return "global"
-        .test: return "test"
+        .test_: return "test"
         .extern_func: return "extern_func"
         .extern_type: return "extern_type"
         .extern_var: return "extern_var"
@@ -232,7 +232,7 @@ pub func kind_name(kind: Kind) -> str:
         .format_text: return "format_text"
         .format_field: return "format_field"
         .new_: return "new"
-        .alloc: return "alloc"
+        .alloc_: return "alloc"
         .span_make: return "span_make"
         .match_expr: return "match_expr"
         .unit: return "unit"

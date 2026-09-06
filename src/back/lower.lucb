@@ -167,10 +167,10 @@ pub struct Lowerer:
         return self.kind(id) == types.Kind.fallible
 
     func is_iface(id: u32) -> bool:
-        return self.kind(id) == types.Kind.interface
+        return self.kind(id) == types.Kind.interface_
 
     func is_nullable_ptr(id: u32) -> bool:
-        return self.is_opt(id) and (self.is_ptr(self.elem(id)) or self.kind(self.elem(id)) == types.Kind.func)
+        return self.is_opt(id) and (self.is_ptr(self.elem(id)) or self.kind(self.elem(id)) == types.Kind.func_)
 
     func is_tagged_opt(id: u32) -> bool:
         return self.is_opt(id) and not self.is_nullable_ptr(id)
@@ -194,7 +194,7 @@ pub struct Lowerer:
         let k = self.kind(id)
         if self.is_int(id) or self.is_float(id) or id == types.bool_id or id == types.char_id or id == types.cstr_id or id == types.error_code_id or id == types.unit_id or id == types.never_id or id == types.void_id or id == types.untyped_int_id or id == types.untyped_float_id:
             return true
-        if k == types.Kind.pointer or k == types.Kind.func:
+        if k == types.Kind.pointer or k == types.Kind.func_:
             return true
         if self.is_nullable_ptr(id):
             return true
@@ -370,7 +370,7 @@ pub struct Lowerer:
         let i_decl = self.decl_of(iface) else return
         var req = i_decl.body
         while let r = req:
-            if let m = check.find_member(d, r.text, ast.Kind.func):
+            if let m = check.find_member(d, r.text, ast.Kind.func_):
                 discard(try self.add_func(m, try types.no_args(), d, t.args))
             req = r.next
 
@@ -521,7 +521,7 @@ pub struct Lowerer:
     ## The C-visible result type of a declaration: `T`, `T!` as one aggregate, or none.
     mutating func result_type_of(d: ast.Node*?) -> u32!:
         let f = d else return types.unit_id
-        if f.kind == ast.Kind.test:
+        if f.kind == ast.Kind.test_:
             return try self.c.table.fallible(types.unit_id)
         let ft = self.c.table.get(try self.map(f.type_id))
         return ft.elem
@@ -979,10 +979,10 @@ pub struct Lowerer:
         let h = self.c.table.get(have)
         if e.kind == ast.Kind.literal and e.text == "none":
             return try self.none_of(want)
-        if w.kind == types.Kind.interface and h.kind == types.Kind.pointer:
+        if w.kind == types.Kind.interface_ and h.kind == types.Kind.pointer:
             let p = try self.expr(e)
             return try self.iface_view(p.ref, h.elem, want)
-        if w.kind == types.Kind.interface and h.kind == types.Kind.interface:
+        if w.kind == types.Kind.interface_ and h.kind == types.Kind.interface_:
             return try self.expr(e)
         if w.kind == types.Kind.optional:
             if self.is_nullable_ptr(want):
@@ -1015,7 +1015,7 @@ pub struct Lowerer:
         if h.kind == types.Kind.atomic:
             let v = try self.expr(e)
             return LowerValue(ref = v.ref, type_id = want, in_memory = v.in_memory)
-        if w.kind == types.Kind.func and h.kind == types.Kind.func:
+        if w.kind == types.Kind.func_ and h.kind == types.Kind.func_:
             let v = try self.expr(e)
             return LowerValue(ref = v.ref, type_id = want, in_memory = false)
         if self.is_int(want) and (self.is_int(have) or have == types.untyped_int_id):
@@ -1124,7 +1124,7 @@ pub struct Lowerer:
                 return try self.formatted_value(e)
             .new_:
                 return try self.new_expr(e)
-            .alloc:
+            .alloc_:
                 return try self.alloc_expr(e)
             .span_make:
                 let first = e.body else return try self.fail(e, "empty span")
@@ -1185,7 +1185,7 @@ pub struct Lowerer:
         if let d = e.resolved:
             if d.kind == ast.Kind.enum_case:
                 return try self.enum_value(e)
-            if d.kind == ast.Kind.func or d.kind == ast.Kind.extern_func:
+            if d.kind == ast.Kind.func_ or d.kind == ast.Kind.extern_func:
                 return try self.func_value(e, d)
             if d.kind == ast.Kind.global or d.kind == ast.Kind.constant or d.kind == ast.Kind.extern_var:
                 return try self.load_from(try self.global_address(d), t)
@@ -1910,7 +1910,7 @@ pub struct Lowerer:
         if let d = e.resolved:
             if d.kind == ast.Kind.enum_case:
                 return try self.enum_value(e)
-            if d.kind == ast.Kind.func or d.kind == ast.Kind.extern_func:
+            if d.kind == ast.Kind.func_ or d.kind == ast.Kind.extern_func:
                 return try self.method_value(e, owner, d)
             if d.kind == ast.Kind.global or d.kind == ast.Kind.constant or d.kind == ast.Kind.extern_var:
                 return try self.load_from(try self.global_address(d), t)
@@ -2369,7 +2369,7 @@ pub struct Lowerer:
         if callee.kind == ast.Kind.member:
             return try self.member_call(e, callee)
         if let d = e.resolved:
-            if d.kind == ast.Kind.func or d.kind == ast.Kind.extern_func:
+            if d.kind == ast.Kind.func_ or d.kind == ast.Kind.extern_func:
                 return try self.direct_call(e, d, none, try types.no_args())
         let fv = try self.expr(callee)
         return try self.call_through(fv.ref, try self.ty(callee), none, e.body, ir.none_ref(), false, none, try types.no_args())
@@ -2445,7 +2445,7 @@ pub struct Lowerer:
         let t = self.c.table.get(rt)
         var impl = method
         if let od = t.decl:
-            if let found = check.find_member(od, method.text, ast.Kind.func):
+            if let found = check.find_member(od, method.text, ast.Kind.func_):
                 impl = found
         var fn = try self.map(impl.type_id)
         if let o = t.decl:
@@ -2554,7 +2554,7 @@ pub struct Lowerer:
         let target = try self.ty(e)
         let payload = self.elem(target) if self.is_fail(target) else target
         if let init = e.resolved:
-            if init.kind == ast.Kind.func and init.text == "init":
+            if init.kind == ast.Kind.func_ and init.text == "init":
                 return try self.init_call(e, init, payload)
         if self.kind(payload) == types.Kind.struct_:
             return try self.constructor(e, payload)
@@ -2992,7 +2992,7 @@ pub struct Lowerer:
                 let v = try self.enum_value(body)
                 try self.f.copy_bytes(p, v.ref, self.size(et))
             elif let init = e.resolved:
-                if init.kind == ast.Kind.func and init.text == "init":
+                if init.kind == ast.Kind.func_ and init.text == "init":
                     let v = try self.init_call(e, init, et)
                     if self.is_fail(v.type_id):
                         # a failing init is the failure of `new`
@@ -3219,19 +3219,19 @@ pub struct Lowerer:
         while i < self.modules.count:
             var cursor = self.modules.get(i).body
             while let d = cursor:
-                if d.kind == ast.Kind.func and check.generic_params_of(d) == none:
+                if d.kind == ast.Kind.func_ and check.generic_params_of(d) == none:
                     discard(try self.add_func(d, try types.no_args(), none, try types.no_args()))
                 elif (d.kind == ast.Kind.struct_ or d.kind == ast.Kind.enum_ or d.kind == ast.Kind.union_) and check.generic_params_of(d) == none:
                     var member = d.body
                     while let m = member:
-                        if m.kind == ast.Kind.func and check.generic_params_of(m) == none:
+                        if m.kind == ast.Kind.func_ and check.generic_params_of(m) == none:
                             discard(try self.add_func(m, try types.no_args(), d, try types.no_args()))
                         member = m.next
                     var listed = d.ty if d.kind != ast.Kind.enum_ else d.right
                     while let l = listed:
                         try self.note_vtable(d.type_id, l.type_id)
                         listed = l.next
-                elif d.kind == ast.Kind.test and mode == 1:
+                elif d.kind == ast.Kind.test_ and mode == 1:
                     try self.tests.push(d)
                 elif d.kind == ast.Kind.global or d.kind == ast.Kind.constant:
                     try self.declare_global(d)
@@ -3426,8 +3426,8 @@ pub struct Lowerer:
             var table = ir.WitnessTable(name = name, entries = try list.List[str].create(8))
             var req = iface.body
             while let r = req:
-                if r.kind == ast.Kind.func:
-                    if let m = check.find_member(d, r.text, ast.Kind.func):
+                if r.kind == ast.Kind.func_:
+                    if let m = check.find_member(d, r.text, ast.Kind.func_):
                         try table.entries.push(try self.function_name(m, try types.no_args(), d, t.args))
                     else:
                         try table.entries.push("")
@@ -3442,7 +3442,7 @@ func method_index(iface: ast.Node*, method: ast.Node*) -> u64:
     var i: u64 = 0
     var cursor = iface.body
     while let r = cursor:
-        if r.kind == ast.Kind.func:
+        if r.kind == ast.Kind.func_:
             if r.text == method.text:
                 return i
             i += 1

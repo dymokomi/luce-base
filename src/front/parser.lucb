@@ -141,7 +141,7 @@ pub struct Parser:
             discard(try self.fail("expected a name"))
         return self.text_of(self.take())
 
-    ## After `.`, and as an enum case, a reserved word is an ordinary name.
+    ## After `.`, a reserved word is an ordinary name; a declaration never takes one.
     mutating func expect_member_name() -> str!:
         if not self.at(token.Kind.name) and not self.at(token.Kind.keyword):
             discard(try self.fail("expected a member name"))
@@ -332,13 +332,13 @@ pub struct Parser:
         return self.src.text(first.start, last.end)
 
     mutating func parse_func() -> ast.Node*!:
-        let n = try self.node(ast.Kind.func, "")
+        let n = try self.node(ast.Kind.func_, "")
         if self.eat_kw("static"):
             n.flags |= ast.flag_static
         if self.eat_kw("mutating"):
             n.flags |= ast.flag_mutating
         try self.expect_kw("func")
-        n.text = try self.expect_member_name()
+        n.text = try self.expect_name()
         if self.at_op("[") :
             n.left = try self.parse_generic_params()
         n.body = try self.parse_params()
@@ -352,11 +352,11 @@ pub struct Parser:
 
     ## A function signature line inside an interface.
     mutating func parse_func_sig() -> ast.Node*!:
-        let n = try self.node(ast.Kind.func, "")
+        let n = try self.node(ast.Kind.func_, "")
         if self.eat_kw("mutating"):
             n.flags |= ast.flag_mutating
         try self.expect_kw("func")
-        n.text = try self.expect_member_name()
+        n.text = try self.expect_name()
         if self.at_op("["):
             n.left = try self.parse_generic_params()
         n.right = try self.parse_params()
@@ -507,7 +507,7 @@ pub struct Parser:
                 ast.append(&n.body, &tail, m)
                 continue
             let c = try self.node(ast.Kind.enum_case, "")
-            c.text = try self.expect_member_name()
+            c.text = try self.expect_name()
             if self.at_op("("):
                 c.body = try self.parse_params()
             elif self.eat_op("="):
@@ -543,7 +543,7 @@ pub struct Parser:
         return n
 
     mutating func parse_interface() -> ast.Node*!:
-        let n = try self.node(ast.Kind.interface, "")
+        let n = try self.node(ast.Kind.interface_, "")
         try self.expect_kw("interface")
         n.text = try self.expect_name()
         if self.at_op("["):
@@ -562,7 +562,7 @@ pub struct Parser:
         return n
 
     mutating func parse_test() -> ast.Node*!:
-        let n = try self.node(ast.Kind.test, "")
+        let n = try self.node(ast.Kind.test_, "")
         try self.expect_kw("test")
         if not self.at(token.Kind.text):
             discard(try self.fail("a test needs a title"))
@@ -1386,7 +1386,7 @@ pub struct Parser:
         return n
 
     mutating func parse_alloc() -> ast.Node*!:
-        let n = try self.node(ast.Kind.alloc, "")
+        let n = try self.node(ast.Kind.alloc_, "")
         try self.expect_kw("alloc")
         if self.at_op("("):
             n.body = try self.parse_arguments()
@@ -1530,7 +1530,7 @@ test "a function with a body":
         let m = try parse_text("pub func add(a: i64, b: i64 = 2) -> i64:\n    return a + b\n", scratch)
         assert(ast.count(m.body) == 1)
         let f = m.body else return
-        assert(f.kind == ast.Kind.func)
+        assert(f.kind == ast.Kind.func_)
         assert(f.has(ast.flag_pub))
         assert(ast.count(f.right) == 2)
         let block = f.body else return

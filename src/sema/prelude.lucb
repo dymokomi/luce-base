@@ -500,7 +500,7 @@ pub struct Mutex:
     pub mutating func unlock():
         self.state.store(0, .release)
 
-    pub mutating func try() -> bool:
+    pub mutating func try_lock() -> bool:
         let (taken, seen) = self.state.cas(0, 1, .acquire, .relaxed)
         discard(seen)
         return taken

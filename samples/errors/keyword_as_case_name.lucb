@@ -1,0 +1,4 @@
+# error: expected a name
+enum Kind:
+    func
+    struct_

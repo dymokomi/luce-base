@@ -48,12 +48,12 @@ pub enum Kind as u8:
     tuple = 33
     optional = 34
     fallible = 35
-    func = 36
+    func_ = 36
     atomic = 37
     struct_ = 40
     enum_ = 41
     union_ = 42
-    interface = 43
+    interface_ = 43
     param = 44
     module = 45
     type_name = 46
@@ -201,7 +201,7 @@ pub struct Table:
         return try self.intern(t)
 
     pub mutating func function(params: u32[], result: u32, variadic: bool) -> u32!:
-        var t = try self.plain(Kind.func, result, "")
+        var t = try self.plain(Kind.func_, result, "")
         t.args = params
         t.variadic = variadic
         return try self.intern(t)
@@ -270,7 +270,7 @@ pub struct Table:
     pub func zeroable(id: u32) -> bool:
         let t = self.get(id)
         match t.kind:
-            .pointer, .func, .never, .error, .fmt, .void_, .param: return false
+            .pointer, .func_, .never, .error, .fmt, .void_, .param: return false
             .optional: return true
             .array: return self.zeroable(t.elem)
             .tuple:
@@ -289,7 +289,7 @@ pub struct Table:
             .enum_:
                 # integer-backed enums need a case for zero; payload enums use tag 0
                 return true
-            .interface: return false
+            .interface_: return false
             _: return true
 
     # -- layout ---------------------------------------------------------------------------
@@ -301,8 +301,8 @@ pub struct Table:
             .i16, .u16: return 2
             .i32, .u32, .f32, .char_, .error_code: return 4
             .i64, .u64, .isize, .usize, .f64, .untyped_int, .untyped_float: return 8
-            .pointer, .func, .cstr: return 8
-            .str_, .span, .interface, .fmt: return 16
+            .pointer, .func_, .cstr: return 8
+            .str_, .span, .interface_, .fmt: return 16
             .error_value: return 24
             .array: return self.size_of(t.elem) * t.length
             .atomic: return self.size_of(t.elem)
@@ -413,7 +413,7 @@ pub struct Table:
                         cursor = member.next
                     return widest
                 return 1
-            .str_, .span, .interface, .fmt, .error_value: return 8
+            .str_, .span, .interface_, .fmt, .error_value: return 8
             _:
                 let s = self.size_of(id)
                 return s if s > 0 else 1
@@ -474,7 +474,7 @@ pub struct Table:
                     try self.describe(out, t.args[i])
                     i += 1
                 try out.write(")")
-            .func:
+            .func_:
                 try out.write("func(")
                 var i: usize = 0
                 while i < t.args.length:
@@ -484,7 +484,7 @@ pub struct Table:
                     i += 1
                 try out.write(") -> ")
                 try self.describe(out, t.elem)
-            .struct_, .enum_, .union_, .interface, .param, .module, .type_name:
+            .struct_, .enum_, .union_, .interface_, .param, .module, .type_name:
                 try out.write(t.name)
                 if t.args.length > 0:
                     try out.write("[")

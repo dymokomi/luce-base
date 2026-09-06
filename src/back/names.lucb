@@ -87,7 +87,7 @@ pub func mangled(out: buffer.Buffer*, table: types.Table*, id: u32) -> !:
                 try mangled(out, table, t.args[i])
                 i += 1
             try out.put("_end")
-        .func:
+        .func_:
             try out.put("fn")
             var i: usize = 0
             while i < t.args.length:
@@ -96,7 +96,7 @@ pub func mangled(out: buffer.Buffer*, table: types.Table*, id: u32) -> !:
                 i += 1
             try out.put("_to_")
             try mangled(out, table, t.elem)
-        .struct_, .union_, .enum_, .interface:
+        .struct_, .union_, .enum_, .interface_:
             let d = t.decl else return try out.put("X")
             try out.put(module_of(d))
             try out.put("_")

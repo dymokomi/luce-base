@@ -264,10 +264,10 @@ pub struct Emitter:
         return self.kind(id) == types.Kind.tuple
 
     func is_func(id: u32) -> bool:
-        return self.kind(id) == types.Kind.func
+        return self.kind(id) == types.Kind.func_
 
     func is_iface(id: u32) -> bool:
-        return self.kind(id) == types.Kind.interface
+        return self.kind(id) == types.Kind.interface_
 
     func is_atomic(id: u32) -> bool:
         return self.kind(id) == types.Kind.atomic
@@ -376,7 +376,7 @@ pub struct Emitter:
                 try self.put("*")
             .span:
                 try self.put("lb_cspan" if t.is_const else "lb_span")
-            .array, .tuple, .func:
+            .array, .tuple, .func_:
                 try self.note(id)
                 try self.put_mangled_name(id)
             .optional:
@@ -391,7 +391,7 @@ pub struct Emitter:
                 else:
                     try self.note(id)
                     try self.put_mangled_name(id)
-            .interface:
+            .interface_:
                 try self.put("lb_iface")
             .struct_, .union_, .enum_:
                 if self.is_int_enum(id):
@@ -432,7 +432,7 @@ pub struct Emitter:
             try self.put("lb_a_")
         elif k == types.Kind.tuple:
             try self.put("lb_t_")
-        elif k == types.Kind.func:
+        elif k == types.Kind.func_:
             try self.put("lb_fn_")
         elif k == types.Kind.optional:
             try self.put("lb_o_")
@@ -471,7 +471,7 @@ pub struct Emitter:
                     try self.put_mangled(t.args[i])
                     i += 1
                 try self.put("_end")
-            .func:
+            .func_:
                 try self.put("fn")
                 var i: usize = 0
                 while i < t.args.length:
@@ -480,7 +480,7 @@ pub struct Emitter:
                     i += 1
                 try self.put("_to_")
                 try self.put_mangled(t.elem)
-            .struct_, .union_, .enum_, .interface:
+            .struct_, .union_, .enum_, .interface_:
                 let d = t.decl else return try self.put("X")
                 try self.put(self.module_name(d))
                 try self.put("_")
@@ -514,7 +514,7 @@ pub struct Emitter:
         try self.records.push(Instance(decl = d, args = args, owner = none, owner_args = try types.no_args(), done = false))
         var member = d.body
         while let m = member:
-            if m.kind == ast.Kind.func and check.generic_params_of(m) == none:
+            if m.kind == ast.Kind.func_ and check.generic_params_of(m) == none:
                 try self.add_func(m, try types.no_args(), d, args)
             member = m.next
 
@@ -590,7 +590,7 @@ pub struct Emitter:
     ## The C name of the function the emission context is inside.
     mutating func put_current_name() -> !:
         let f = self.current_fn else return try self.put("lb_unknown")
-        if f.kind == ast.Kind.test:
+        if f.kind == ast.Kind.test_:
             try self.put("lb_test_")
             let index = try self.test_index(f)
             try self.put_u64((u64)index)
@@ -608,7 +608,7 @@ pub struct Emitter:
 
     ## The C result type of a function declaration (or test) in the current context.
     mutating func put_result_type(f: ast.Node*) -> !:
-        if f.kind == ast.Kind.test:
+        if f.kind == ast.Kind.test_:
             try self.put("lb_r_unit")
             return
         let ft = self.c.table.get(try self.map(f.type_id))
@@ -623,7 +623,7 @@ pub struct Emitter:
     ## The unwrapped result type of the current function.
     mutating func result_payload() -> u32!:
         let f = self.current_fn else return types.unit_id
-        if f.kind == ast.Kind.test:
+        if f.kind == ast.Kind.test_:
             return types.unit_id
         let ft = self.c.table.get(try self.map(f.type_id))
         if f.has(ast.flag_fallible):
@@ -632,7 +632,7 @@ pub struct Emitter:
 
     func fn_fallible() -> bool:
         let f = self.current_fn else return false
-        return f.kind == ast.Kind.test or f.has(ast.flag_fallible)
+        return f.kind == ast.Kind.test_ or f.has(ast.flag_fallible)
 
     # mark: Definitions ========================================================================
 
@@ -699,7 +699,7 @@ pub struct Emitter:
                 try self.put(" } ")
                 try self.put_mangled_name(id)
                 try self.put(";")
-            .func:
+            .func_:
                 var i: usize = 0
                 while i < t.args.length:
                     try self.define_type(t.args[i])
@@ -926,7 +926,7 @@ pub struct Emitter:
     ## The signature of a function or method instance; `define` opens the body.
     mutating func signature(f: ast.Node*, define: bool) -> !:
         try self.line("")
-        if f.kind == ast.Kind.test:
+        if f.kind == ast.Kind.test_:
             try self.put("lb_r_unit lb_test_")
             let index = try self.test_index(f)
             try self.put_u64((u64)index)
@@ -981,7 +981,7 @@ pub struct Emitter:
         try self.signature(f, true)
         self.indent += 1
         # the result type must exist as a typedef
-        if f.kind != ast.Kind.test:
+        if f.kind != ast.Kind.test_:
             let ft = self.c.table.get(try self.map(f.type_id))
             if f.has(ast.flag_fallible):
                 try self.note_if_typedef(ft.elem)
@@ -1014,7 +1014,7 @@ pub struct Emitter:
     ## Composite types spelled only inside bodies still need their typedefs.
     mutating func note_if_typedef(id: u32) -> !:
         let k = self.kind(id)
-        if k == types.Kind.array or k == types.Kind.tuple or k == types.Kind.func or k == types.Kind.optional or k == types.Kind.fallible or k == types.Kind.struct_ or k == types.Kind.enum_ or k == types.Kind.union_:
+        if k == types.Kind.array or k == types.Kind.tuple or k == types.Kind.func_ or k == types.Kind.optional or k == types.Kind.fallible or k == types.Kind.struct_ or k == types.Kind.enum_ or k == types.Kind.union_:
             try self.note(id)
 
     # -- scopes and cleanup ---------------------------------------------------------------
@@ -1185,7 +1185,7 @@ pub struct Emitter:
             try self.put("false")
         elif self.is_int(t) or self.is_float(t) or t == types.char_id or self.is_int_enum(t) or t == types.error_code_id:
             try self.put("0")
-        elif k == types.Kind.pointer or k == types.Kind.func or t == types.cstr_id:
+        elif k == types.Kind.pointer or k == types.Kind.func_ or t == types.cstr_id:
             try self.put("((void*)0)")
         elif self.is_nullable_ptr(t):
             try self.put("((void*)0)")
@@ -1812,10 +1812,10 @@ pub struct Emitter:
         if e.kind == ast.Kind.literal and e.text == "none":
             try self.none_of(want)
             return
-        if w.kind == types.Kind.interface and h.kind == types.Kind.pointer:
+        if w.kind == types.Kind.interface_ and h.kind == types.Kind.pointer:
             try self.iface_view(e, h.elem, want)
             return
-        if w.kind == types.Kind.interface and h.kind == types.Kind.interface:
+        if w.kind == types.Kind.interface_ and h.kind == types.Kind.interface_:
             try self.expr(e)
             return
         if w.kind == types.Kind.optional:
@@ -1866,7 +1866,7 @@ pub struct Emitter:
             try self.expr(e)
             try self.put("))")
             return
-        if w.kind == types.Kind.func and h.kind == types.Kind.func and w.elem != h.elem:
+        if w.kind == types.Kind.func_ and h.kind == types.Kind.func_ and w.elem != h.elem:
             # a plain function where a fallible one is wanted: the thunk wraps its result
             try self.thunk(e, have, want)
             return
@@ -2035,7 +2035,7 @@ pub struct Emitter:
                 try self.formatted_value(e)
             .new_:
                 try self.new_expr(e)
-            .alloc:
+            .alloc_:
                 try self.alloc_expr(e)
             .span_make:
                 let first = e.body else return
@@ -2134,7 +2134,7 @@ pub struct Emitter:
             if d.kind == ast.Kind.enum_case:
                 try self.enum_value(e)
                 return
-            if d.kind == ast.Kind.func or d.kind == ast.Kind.extern_func:
+            if d.kind == ast.Kind.func_ or d.kind == ast.Kind.extern_func:
                 try self.func_value(e, d)
                 return
             if d.kind == ast.Kind.extern_var or d.kind == ast.Kind.global or d.kind == ast.Kind.constant:
@@ -2766,7 +2766,7 @@ pub struct Emitter:
             if d.kind == ast.Kind.enum_case:
                 try self.enum_value(e)
                 return
-            if d.kind == ast.Kind.func or d.kind == ast.Kind.extern_func:
+            if d.kind == ast.Kind.func_ or d.kind == ast.Kind.extern_func:
                 try self.method_value(e, owner, d)
                 return
             if d.kind == ast.Kind.constant or d.kind == ast.Kind.global or d.kind == ast.Kind.extern_var:
@@ -3375,7 +3375,7 @@ pub struct Emitter:
             try self.member_call(e, callee)
             return
         if let d = e.resolved:
-            if d.kind == ast.Kind.func or d.kind == ast.Kind.extern_func:
+            if d.kind == ast.Kind.func_ or d.kind == ast.Kind.extern_func:
                 try self.direct_call(e, d, none, try types.no_args())
                 return
         # a function value
@@ -3481,7 +3481,7 @@ pub struct Emitter:
             fn = try self.c.substitute(fn, o, owner_args)
         if args.length > 0:
             fn = try self.c.substitute(fn, d, args)
-        if d.kind == ast.Kind.func:
+        if d.kind == ast.Kind.func_:
             discard(try self.add_func(d, args, owner, owner_args))
         try self.put_func_name(d, args, owner, owner_args)
         try self.put("(")
@@ -3573,7 +3573,7 @@ pub struct Emitter:
         var owner_args = t.args
         var impl = method
         if let od = owner:
-            if let found = check.find_member(od, method.text, ast.Kind.func):
+            if let found = check.find_member(od, method.text, ast.Kind.func_):
                 impl = found
         var fn = try self.map(impl.type_id)
         if let o = owner:
@@ -3720,7 +3720,7 @@ pub struct Emitter:
         let target = try self.ty(e)
         let payload = self.elem(target) if self.is_fail(target) else target
         if let init = e.resolved:
-            if init.kind == ast.Kind.func and init.text == "init":
+            if init.kind == ast.Kind.func_ and init.text == "init":
                 try self.init_call(e, init, payload)
                 return
         if self.kind(payload) == types.Kind.struct_:
@@ -4274,7 +4274,7 @@ pub struct Emitter:
                 try self.enum_value(body)
                 try self.put("; ")
             elif let init = e.resolved:
-                if init.kind == ast.Kind.func and init.text == "init":
+                if init.kind == ast.Kind.func_ and init.text == "init":
                     try self.put("*")
                     try self.put_tmp("p", n)
                     try self.put(" = ")
@@ -4700,7 +4700,7 @@ pub struct Emitter:
         let i_decl = self.decl_of(iface) else return
         var req = i_decl.body
         while let r = req:
-            if let m = check.find_member(d, r.text, ast.Kind.func):
+            if let m = check.find_member(d, r.text, ast.Kind.func_):
                 discard(try self.add_func(m, try types.no_args(), d, t.args))
             req = r.next
 
@@ -4712,7 +4712,7 @@ pub struct Emitter:
         self.indent += 1
         var m = d.body
         while let f = m:
-            if f.kind == ast.Kind.func:
+            if f.kind == ast.Kind.func_:
                 try self.line("")
                 try self.put_result_type(f)
                 try self.put(" (*")
@@ -4745,7 +4745,7 @@ pub struct Emitter:
         self.indent += 1
         var req = i.body
         while let r = req:
-            if r.kind == ast.Kind.func:
+            if r.kind == ast.Kind.func_:
                 try self.line(".")
                 try self.put(r.text)
                 try self.put(" = (")
@@ -4757,7 +4757,7 @@ pub struct Emitter:
                     try self.put_type(try self.map(q.type_id))
                     p = q.next
                 try self.put("))")
-                if let m = check.find_member(d, r.text, ast.Kind.func):
+                if let m = check.find_member(d, r.text, ast.Kind.func_):
                     try self.put_func_name(m, try types.no_args(), d, t.args)
                 else:
                     try self.put("NULL")
@@ -4806,12 +4806,12 @@ pub struct Emitter:
         while i < self.modules.count:
             var cursor = self.modules.get(i).body
             while let d = cursor:
-                if d.kind == ast.Kind.func and check.generic_params_of(d) == none:
+                if d.kind == ast.Kind.func_ and check.generic_params_of(d) == none:
                     discard(try self.add_func(d, try types.no_args(), none, try types.no_args()))
                 elif (d.kind == ast.Kind.struct_ or d.kind == ast.Kind.enum_ or d.kind == ast.Kind.union_) and check.generic_params_of(d) == none:
                     var member = d.body
                     while let m = member:
-                        if m.kind == ast.Kind.func and check.generic_params_of(m) == none:
+                        if m.kind == ast.Kind.func_ and check.generic_params_of(m) == none:
                             discard(try self.add_func(m, try types.no_args(), d, try types.no_args()))
                         member = m.next
                     # every implemented interface needs its table
@@ -4819,7 +4819,7 @@ pub struct Emitter:
                     while let l = listed:
                         try self.note_vtable(d.type_id, l.type_id)
                         listed = l.next
-                elif d.kind == ast.Kind.test and mode == 1:
+                elif d.kind == ast.Kind.test_ and mode == 1:
                     discard(try self.test_index(d))
                 cursor = d.next
             i += 1
@@ -4879,7 +4879,7 @@ pub struct Emitter:
                     try self.put(" ")
                     try self.put(d.text)
                     try self.put(";")
-                elif d.kind == ast.Kind.interface:
+                elif d.kind == ast.Kind.interface_:
                     try self.interface_typedef(d)
                     if d.text == "Allocator" and d.has(ast.flag_builtin):
                         try self.allocator_glue()
