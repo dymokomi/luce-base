@@ -963,43 +963,65 @@ pub func sleep(milliseconds: u64):
     discard(nanosleep(&request, none))
 """),
     Prelude(name = "sync", text = """
-## A spinning lock: zero is unlocked, so `var lock: Mutex` is ready to use.
+extern func __ulock_wait(operation: u32, address: void*, value: u64, timeout: u32) -> i32
+extern func __ulock_wake(operation: u32, address: void*, wake_value: u64) -> i32
+
+let compare_and_wait: u32 = 1
+let wake_all: u32 = 256
+
+## Sleep in the kernel while the word at `address` still holds `value`; a change
+## or a wake returns, and so may nothing at all, so every caller loops.
+func sleep_on(address: void*, value: u32):
+    discard(__ulock_wait(compare_and_wait, address, (u64)value, 0))
+
+func wake_one(address: void*):
+    discard(__ulock_wake(compare_and_wait, address, 0))
+
+func wake_every(address: void*):
+    discard(__ulock_wake(compare_and_wait | wake_all, address, 0))
+
+## A lock whose waiters sleep: zero is unlocked, so `var lock: Mutex` is ready to
+## use; one is locked; two is locked with someone asleep on it.
 pub struct Mutex:
     var state: @u32
 
     pub mutating func lock():
-        while true:
-            let (taken, seen) = self.state.cas(0, 1, .acquire, .relaxed)
-            if taken:
-                return
-            discard(seen)
-            while self.state.load(.relaxed) != 0:
-                thread.pause()
+        let (taken, seen) = self.state.cas(0, 1, .acquire, .relaxed)
+        if taken:
+            return
+        var current = seen
+        if current != 2:
+            current = self.state.swap(2, .acquire)
+        while current != 0:
+            sleep_on((void*)&self.state, 2)
+            current = self.state.swap(2, .acquire)
 
     pub mutating func unlock():
-        self.state.store(0, .release)
+        if self.state.swap(0, .release) == 2:
+            wake_one((void*)&self.state)
 
     pub mutating func try_lock() -> bool:
         let (taken, seen) = self.state.cas(0, 1, .acquire, .relaxed)
         discard(seen)
         return taken
 
-## A sequence number waiters watch; every signal advances it.
+## A sequence number waiters watch; every signal advances it and wakes.
 pub struct Condition:
     var sequence: @u32
 
     pub mutating func wait(mutex: Mutex*):
         let seen = self.sequence.load(.acquire)
         mutex.unlock()
-        while self.sequence.load(.acquire) == seen:
-            thread.pause()
+        sleep_on((void*)&self.sequence, seen)
         mutex.lock()
 
     pub mutating func signal():
         discard(self.sequence.add(1, .release))
+        wake_one((void*)&self.sequence)
 
     pub mutating func broadcast():
-        self.signal()
+        discard(self.sequence.add(1, .release))
+        wake_every((void*)&self.sequence)
 
 ## Runs its function exactly once; later callers wait for the first to finish.
 pub struct Once:
@@ -1011,11 +1033,12 @@ pub struct Once:
         if first:
             function()
             self.state.store(2, .release)
+            wake_every((void*)&self.state)
             return
         while self.state.load(.acquire) != 2:
-            thread.pause()
+            sleep_on((void*)&self.state, 1)
 
-## A counting semaphore.
+## A counting semaphore whose waiters sleep.
 pub struct Semaphore:
     var count: @u32
 
@@ -1028,10 +1051,11 @@ pub struct Semaphore:
                 if taken:
                     return
             else:
-                thread.pause()
+                sleep_on((void*)&self.count, 0)
 
     pub mutating func release():
         discard(self.count.add(1, .release))
+        wake_one((void*)&self.count)
 """),
     Prelude(name = "strings", text = """
 ## Text operations over `str` views; what allocates says so and uses the current allocator.
@@ -1491,7 +1515,8 @@ pub struct Listener:
 
 ## One TCP connection; it is a `Writer`.
 pub struct Connection implements Writer:
-    var descriptor: i32
+    ## The socket, for callers that poll or pass it on.
+    pub var descriptor: i32
 
     pub static func connect(address: Address) -> Connection!:
         let fd = socket(inet, stream, 0)
