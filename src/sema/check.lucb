@@ -47,6 +47,8 @@ struct Binding:
     ## Set when the binding was initialised from a local address, so a name that reads it
     ## carries the escape taint of §6.6.
     var from_local: bool
+    ## The import that made this name visible, so a use of the name marks the import.
+    var origin: ast.Node*?
 
 ## One module of the program: its tree, its source for positions, and whether
 ## the checker supplied it from the prelude.
@@ -176,7 +178,7 @@ pub struct Checker:
         if let existing = self.lookup(name):
             if existing.depth >= 2 or existing.depth == self.depth:
                 discard(try self.fail(at, "this name is already in scope"))
-        try self.scope.push(Binding(name = name, type_id = type_id, decl = decl, mutable = mutable, depth = self.depth, from_local = false))
+        try self.scope.push(Binding(name = name, type_id = type_id, decl = decl, mutable = mutable, depth = self.depth, from_local = false, origin = none))
 
     ## §6.6: whether an expression's value is the address of a local, or aliases one.
     func is_local_value(e: ast.Node*) -> bool:
@@ -231,6 +233,19 @@ pub struct Checker:
     func escapes(id: u32) -> bool:
         let k = self.table.kind(id)
         return k == types.Kind.pointer or k == types.Kind.span or id == types.str_id
+
+    ## The binding just made came through import `at`.
+    mutating func set_origin(at: ast.Node*):
+        if self.scope.count == 0:
+            return
+        var b = self.scope.get(self.scope.count - 1)
+        b.origin = at
+        self.scope.set(self.scope.count - 1, b)
+
+    ## A name was used: the import it came through is referenced (§16.3).
+    func note_origin(b: Binding):
+        if let o = b.origin:
+            o.flags |= ast.flag_referenced
 
     ## The standard modules may spell core names (`c.char`, `c.int`).
     func in_prelude() -> bool:
@@ -346,6 +361,7 @@ pub struct Checker:
         while let d = cursor:
             try self.check_declaration(d)
             cursor = d.next
+        prune_unused_imports(tree)
         self.pop_scope()
 
     ## `main` takes `str[]` or `cstr[]` and returns `i32` or `i32!` (§9.7).
@@ -375,6 +391,7 @@ pub struct Checker:
         if tree.type_id == types.none_id:
             tree.type_id = try self.table.nominal(types.Kind.module, tree, try types.no_args())
         try self.bind(at, alias, tree.type_id, tree, false)
+        self.set_origin(at)
 
     mutating func bind_public(tree: ast.Node*, name: str) -> !:
         if self.lookup(name) != none:
@@ -404,6 +421,7 @@ pub struct Checker:
                         discard(try self.fail(n, "that name is not public"))
                     n.resolved = member
                     try self.bind(n, n.text, member.type_id, member, member.kind == ast.Kind.global)
+                    self.set_origin(d)
                     names = n.next
             cursor = d.next
 
@@ -631,6 +649,7 @@ pub struct Checker:
             return scalar
         var decl: ast.Node*? = none
         if let b = self.lookup(t.text):
+            self.note_origin(b)
             let d = b.decl else return try self.fail(t, "that name is not a type")
             decl = d
         else:
@@ -640,6 +659,7 @@ pub struct Checker:
             let head = (str)t.text.bytes[..<dot]
             let rest = (str)t.text.bytes[dot + 1..]
             let mb = self.lookup(head) else return try self.fail(t, "unknown type")
+            self.note_origin(mb)
             let module = mb.decl else return try self.fail(t, "unknown type")
             if module.kind != ast.Kind.module:
                 return try self.fail(t, "that is not a module")
@@ -729,6 +749,7 @@ pub struct Checker:
             if owner.kind != ast.Kind.name:
                 return none
             let b = self.lookup(owner.text) else return none
+            self.note_origin(b)
             let m = b.decl else return none
             if m.kind != ast.Kind.module:
                 return none
@@ -746,6 +767,7 @@ pub struct Checker:
                 e.flags |= ast.flag_type_ref
                 return scalar
             if let b = self.lookup(e.text):
+                self.note_origin(b)
                 if let d = b.decl:
                     if is_type_decl(d) or d.kind == ast.Kind.type_alias or d.kind == ast.Kind.generic_param:
                         if d.kind == ast.Kind.type_alias and d.type_id == types.none_id:
@@ -1253,6 +1275,7 @@ pub struct Checker:
             return scalar
         let b = self.lookup(e.text) else return try self.fail(e, "unknown name")
         e.resolved = b.decl
+        self.note_origin(b)
         if b.from_local:
             self.mark_local(e)
         let d = b.decl else return b.type_id
@@ -1812,6 +1835,7 @@ pub struct Checker:
         # `luce.location` and its pieces are compile-time facts, not members
         if owner.kind == ast.Kind.name and owner.text == "luce":
             if let b = self.lookup("luce"):
+                self.note_origin(b)
                 owner.type_id = b.type_id
                 owner.resolved = b.decl
                 if name == "location":
@@ -2944,7 +2968,7 @@ pub struct Checker:
                     self.at_top_level = true
                     discard(try self.expect(init, d.type_id))
                     self.at_top_level = saved
-                elif not self.table.zeroable(d.type_id) and not self.modules.get(self.current).is_prelude:
+                elif not d.has(ast.flag_uninit) and not self.table.zeroable(d.type_id) and not self.modules.get(self.current).is_prelude:
                     # the startup shim initialises the prelude's own globals (§12.3)
                     discard(try self.fail(d, "this global's type has no zero value; give it one"))
             .struct_, .union_, .enum_:
@@ -3124,6 +3148,22 @@ pub func generic_params_of(d: ast.Node*) -> ast.Node*?:
     if l.kind != ast.Kind.generic_param:
         return none
     return l.body
+
+## An import nothing resolved through leaves the tree here, so nothing after the checker
+## sees it (§16.3).
+pub func prune_unused_imports(tree: ast.Node*):
+    var previous: ast.Node*? = none
+    var cursor = tree.body
+    while let d = cursor:
+        let unused = (d.kind == ast.Kind.import_ or d.kind == ast.Kind.from_import) and not d.has(ast.flag_referenced)
+        if unused:
+            if let p = previous:
+                p.next = d.next
+            else:
+                tree.body = d.next
+        else:
+            previous = d
+        cursor = d.next
 
 ## `Equatable`, `Hashable`, and `Comparable` are satisfied by structure, never declared.
 func is_derived_bound(d: ast.Node*?) -> bool:
@@ -3355,6 +3395,11 @@ pub func decode_text(token: str) -> str:
         if k > 0 and body[k - 1] != '\n':
             indent = 0
         var i: usize = 0
+        # a newline directly after the opening delimiter is not part of the text (§4.4)
+        if body.length > 0 and body[0] == '\n':
+            i = 1
+        elif body.length > 1 and body[0] == '\r' and body[1] == '\n':
+            i = 2
         var at_line_start = true
         while i < body.length:
             if body[i] == '\r' and i + 1 < body.length and body[i + 1] == '\n':

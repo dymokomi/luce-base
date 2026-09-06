@@ -925,6 +925,28 @@ pub struct Emitter:
     # mark: Functions ==========================================================================
 
     ## The signature of a function or method instance; `define` opens the body.
+    ## The attributes of §9.8 as one `__attribute__` prefix. `inline` is advice this backend
+    ## leaves to the C compiler; a section name is passed as spelled.
+    mutating func attribute_prefix(d: ast.Node*, is_func: bool) -> !:
+        var first = true
+        var cursor = d.attrs
+        while let a = cursor:
+            let word = a.text
+            let skip = word == "inline" or (not is_func and (word == "noinline" or word == "cold" or word == "naked"))
+            if not skip:
+                try self.put("__attribute__((" if first else ", ")
+                first = false
+                if word == "section":
+                    try self.put("section(")
+                    if let name = a.left:
+                        try self.put(name.text)
+                    try self.put(")")
+                else:
+                    try self.put(word)
+            cursor = a.next
+        if not first:
+            try self.put(")) ")
+
     mutating func signature(f: ast.Node*, define: bool) -> !:
         try self.line("")
         if f.kind == ast.Kind.test_:
@@ -933,6 +955,7 @@ pub struct Emitter:
             try self.put_u64((u64)index)
             try self.put("(void)")
         else:
+            try self.attribute_prefix(f, true)
             try self.put_result_type(f)
             try self.put(" ")
             try self.put_func_name(f, self.fn_args, self.owner_decl, self.owner_args)
@@ -4960,6 +4983,7 @@ pub struct Emitter:
     ## A top-level `let` or `var` as a C global.
     mutating func global(d: ast.Node*) -> !:
         try self.line("")
+        try self.attribute_prefix(d, false)
         if d.has(ast.flag_thread_local):
             try self.put("_Thread_local ")
         let t = d.type_id

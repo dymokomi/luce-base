@@ -477,6 +477,10 @@ pub struct Lowerer:
         let d = inst.decl
         let name = try self.function_name(d, inst.args, inst.owner, inst.owner_args)
         try self.begin_function(name, d, inst)
+        self.f.naked = has_attribute(d, "naked")
+        self.f.weak = has_attribute(d, "weak")
+        self.f.used = has_attribute(d, "used")
+        self.f.section = section_of(d)
         # parameters: `self` first for methods, each in a slot
         if let o = inst.owner:
             if not d.has(ast.flag_static):
@@ -3549,7 +3553,7 @@ pub struct Lowerer:
 
     mutating func declare_global(d: ast.Node*) -> !:
         let name = try self.global_name(d)
-        try self.program_unit.globals.push(ir.Global(name = name, size = self.size(d.type_id), align = self.align(d.type_id), is_thread_local = d.has(ast.flag_thread_local), exported = false))
+        try self.program_unit.globals.push(ir.Global(name = name, size = self.size(d.type_id), align = self.align(d.type_id), is_thread_local = d.has(ast.flag_thread_local), exported = false, weak = has_attribute(d, "weak"), used = has_attribute(d, "used"), section = section_of(d)))
 
     ## `lb_init_globals`: every top-level initialiser, in module order.
     mutating func globals_initialiser() -> !:
@@ -3893,3 +3897,22 @@ func float_to_bits(value: f64) -> u64:
 func f32_to_bits(value: f32) -> u32:
     var copy_of = value
     return memory.read[u32]((void*)&copy_of)
+
+## Whether declaration `d` carries the attribute `word` (§9.8).
+func has_attribute(d: ast.Node*, word: str) -> bool:
+    var cursor = d.attrs
+    while let a = cursor:
+        if a.text == word:
+            return true
+        cursor = a.next
+    return false
+
+## The name in `section("name")` on `d`, or empty.
+func section_of(d: ast.Node*) -> str:
+    var cursor = d.attrs
+    while let a = cursor:
+        if a.text == "section":
+            let name = a.left else return ""
+            return check.decode_text(name.text)
+        cursor = a.next
+    return ""

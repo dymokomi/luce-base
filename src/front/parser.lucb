@@ -239,10 +239,13 @@ pub struct Parser:
             try self.expect_op(":")
             n.ty = try self.parse_type()
             if self.eat_op("="):
-                n.left = try self.parse_expression()
+                if self.eat_op("---"):
+                    n.flags |= ast.flag_uninit
+                else:
+                    n.left = try self.parse_expression()
             try self.expect_newline()
             n.flags |= flags
-            n.right = attributes
+            n.attrs = attributes
             return n
         if self.at_kw("type"):
             let n = try self.node(ast.Kind.type_alias, "")
@@ -282,8 +285,7 @@ pub struct Parser:
         if self.at_kw("static") or self.at_kw("mutating") or self.at_kw("func"):
             let n = try self.parse_func()
             n.flags |= flags
-            if attributes != none:
-                n.right = attributes
+            n.attrs = attributes
             return n
         return try self.fail("expected a declaration")
 
@@ -1444,10 +1446,12 @@ pub struct Parser:
                 flags |= ast.flag_volatile
         var t = try self.parse_type_core()
         t.flags |= flags
+        var pointee = false
         while true:
             if self.at_op("*") or self.at_op("*?"):
                 let nullable = self.at_op("*?")
                 discard(self.take())
+                pointee = true
                 let p = try self.node(ast.Kind.type_, "*")
                 p.flags |= ast.flag_star
                 p.left = t
@@ -1470,6 +1474,8 @@ pub struct Parser:
                 t = s
             else:
                 break
+        if (flags & ast.flag_volatile) != 0 and not pointee:
+            return try self.fail("`volatile` qualifies a pointee: write `volatile T*` (§15.2)")
         if self.eat_op("?"):
             let o = try self.node(ast.Kind.type_, "?")
             o.flags |= ast.flag_optional

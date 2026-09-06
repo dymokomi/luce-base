@@ -383,7 +383,7 @@ pub struct Table:
                 var cursor = decl.body
                 while let member = cursor:
                     if member.kind == ast.Kind.field:
-                        let a = self.aligned(member.type_id, decl, inner)
+                        let a = field_align(self.aligned(member.type_id, decl, inner), member)
                         if not decl.has(ast.flag_packed):
                             offset = round_up(offset, a)
                         offset += self.sized(member.type_id, decl, inner)
@@ -391,7 +391,7 @@ pub struct Table:
                     cursor = member.next
                 if decl.has(ast.flag_packed):
                     return offset
-                return round_up(offset, largest)
+                return round_up(offset, declared_align(largest, decl))
             .union_:
                 var largest: u64 = 0
                 var widest: u64 = 1
@@ -403,7 +403,7 @@ pub struct Table:
                     if member.kind == ast.Kind.field:
                         let s = self.sized(member.type_id, decl, inner)
                         largest = s if s > largest else largest
-                        let a = self.aligned(member.type_id, decl, inner)
+                        let a = field_align(self.aligned(member.type_id, decl, inner), member)
                         widest = a if a > widest else widest
                     cursor = member.next
                 return round_up(largest, widest)
@@ -463,7 +463,7 @@ pub struct Table:
                 var cursor = decl.body
                 while let member = cursor:
                     if member.kind == ast.Kind.field:
-                        let a = self.aligned(member.type_id, decl, inner)
+                        let a = field_align(self.aligned(member.type_id, decl, inner), member)
                         widest = a if a > widest else widest
                     elif member.kind == ast.Kind.enum_case:
                         var pcursor = member.body
@@ -472,7 +472,7 @@ pub struct Table:
                             widest = a if a > widest else widest
                             pcursor = p.next
                     cursor = member.next
-                return widest
+                return declared_align(widest, decl)
             .str_, .span, .interface_, .fmt, .error_value: return 8
             _:
                 let s = self.sized(id, env_decl, env_args)
@@ -601,3 +601,28 @@ test "scalars are seeded at fixed ids and interning deduplicates":
         assert(table.align_of(tup) == 8)
         assert(table.widens(u8_id, u32_id))
         assert(not table.widens(u8_id, i32_id))
+
+## The `N` of `align(N)` (§5.11) on a declaration or a field, a decimal literal, or 0 when
+## there is none.
+func explicit_align(n: ast.Node*?) -> u64:
+    let e = n else return 0
+    if e.kind != ast.Kind.literal:
+        return 0
+    var value: u64 = 0
+    for b in e.text.bytes:
+        if b < '0' or b > '9':
+            return 0
+        value = value * 10 + (u64)(b - '0')
+    return value
+
+## A field's alignment: its type's, raised by `align(N)` before the field.
+func field_align(natural: u64, member: ast.Node*) -> u64:
+    let e = explicit_align(member.right)
+    return e if e > natural else natural
+
+## A struct's alignment: its widest field's, raised by `align(N)` before the struct.
+func declared_align(natural: u64, decl: ast.Node*) -> u64:
+    if decl.kind != ast.Kind.struct_:
+        return natural
+    let e = explicit_align(decl.right)
+    return e if e > natural else natural

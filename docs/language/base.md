@@ -1301,7 +1301,7 @@ import data.serialisation as serial
 from image.geometry import Point
 ```
 
-`import` keeps a module qualified, with an optional alias. `from ... import` brings named declarations in. There are no wildcards and no relative imports. Unused and duplicate imports are errors with automatic fixes.
+`import` keeps a module qualified, with an optional alias. `from ... import` brings named declarations in. There are no wildcards and no relative imports. An import nothing resolves through is pruned by the checker, so nothing after it sees the import; a duplicate import is an error with an automatic fix.
 
 ### 16.4 Packages
 

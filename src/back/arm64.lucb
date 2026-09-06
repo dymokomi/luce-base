@@ -447,6 +447,22 @@ pub struct Generator:
                     self.used_mask = self.used_mask | (u32)(1 << (u32)(chosen - 1))
             ix += 1
 
+    ## `.weak_definition` and `.no_dead_strip` for a symbol with those attributes (§9.8).
+    mutating func linkage_directives(name: str, weak: bool, used: bool) -> !:
+        if weak:
+            try self.put("    .weak_definition ")
+            try self.symbol(name)
+            try self.put("\n")
+        if used:
+            try self.put("    .no_dead_strip ")
+            try self.symbol(name)
+            try self.put("\n")
+
+    ## Back to the text section after a function placed in a named one.
+    mutating func leave_section() -> !:
+        if self.f.section.length > 0:
+            try self.put("\n    .section __TEXT,__text,regular,pure_instructions\n")
+
     ## A temporary reference used at instruction `ix` extends its live range.
     func note_use(r: ir.Ref, last_use: u32[], ix: u32):
         if r.kind == ir.RefKind.temp and (usize)r.index <= last_use.length:
@@ -458,13 +474,24 @@ pub struct Generator:
         self.f = &self.program_unit.functions.items[index]
         try self.allocate()
         try self.layout()
+        if self.f.section.length > 0:
+            try self.put("\n    .section ")
+            try self.put(self.f.section)
         try self.put("\n    .p2align 2\n")
-        if self.f.exported or true:
-            try self.put("    .globl ")
-            try self.symbol(self.f.name)
-            try self.put("\n")
+        try self.put("    .globl ")
+        try self.symbol(self.f.name)
+        try self.put("\n")
+        try self.linkage_directives(self.f.name, self.f.weak, self.f.used)
         try self.symbol(self.f.name)
         try self.put(":")
+        if self.f.naked:
+            # the body is asm blocks only (§9.8): no frame, no prologue, nothing after
+            var k: usize = 0
+            while k < self.f.instrs.count:
+                try self.instruction(self.f.instrs.get(k))
+                k += 1
+            try self.leave_section()
+            return
         try self.line("stp x29, x30, [sp, #-16]!")
         try self.line("mov x29, sp")
         if self.frame <= 4095:
@@ -1400,10 +1427,26 @@ pub struct Generator:
                 try self.put(":\n    .quad __tlv_bootstrap\n    .quad 0\n    .quad ")
                 try self.symbol(g.name)
                 try self.put("$tlv$init\n")
+            elif g.section.length > 0:
+                # a named section: laid out as zeroed space where the program asked
+                try self.put("\n    .section ")
+                try self.put(g.section)
+                try self.put("\n    .p2align ")
+                try self.put_u64(log2((u64)g.align if g.align > 0 else 1))
+                try self.put("\n    .globl ")
+                try self.symbol(g.name)
+                try self.put("\n")
+                try self.linkage_directives(g.name, g.weak, g.used)
+                try self.symbol(g.name)
+                try self.put(":\n    .space ")
+                try self.put_u64((u64)g.size if g.size > 0 else 1)
+                try self.put("\n")
             else:
                 try self.put("    .globl ")
                 try self.symbol(g.name)
-                try self.put("\n    .zerofill __DATA,__bss,")
+                try self.put("\n")
+                try self.linkage_directives(g.name, g.weak, g.used)
+                try self.put("    .zerofill __DATA,__bss,")
                 try self.symbol(g.name)
                 try self.put(",")
                 try self.put_u64((u64)g.size if g.size > 0 else 1)

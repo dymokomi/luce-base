@@ -267,6 +267,11 @@ pub struct Function:
     pub var result_float_only: bool
     pub var result_float_count: u32
     pub var variadic: bool
+    ## The attributes of §9.8 that reach the object file.
+    pub var naked: bool
+    pub var weak: bool
+    pub var used: bool
+    pub var section: str
 
     pub static func create(name: str) -> Function!:
         return Function(name = name, exported = false, debug = false, source = "", locals = try list.List[LocalInfo].create(8),
@@ -347,6 +352,9 @@ pub struct Global:
     pub var align: u32
     pub var is_thread_local: bool
     pub var exported: bool
+    pub var weak: bool
+    pub var used: bool
+    pub var section: str
 
 ## A witness table: the symbol and the functions it points at, in requirement order.
 pub struct WitnessTable:

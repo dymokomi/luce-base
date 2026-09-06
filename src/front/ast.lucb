@@ -121,6 +121,8 @@ pub let flag_type_ref: u32 = 33554432
 pub let flag_builtin: u32 = 67108864
 ## An expression whose value is, or aliases, the address of a local (§6.6).
 pub let flag_local: u32 = 134217728
+## An import that some name resolved through; an import without it is unused (§16.3).
+pub let flag_referenced: u32 = 268435456
 
 # mark: Nodes and lists =======================================================================
 
@@ -137,6 +139,9 @@ pub struct Node:
     pub var body: Node*?
     pub var ty: Node*?
     pub var next: Node*?
+    ## The attributes of §9.8 before a `func` or a top-level `var`: nodes named by the word,
+    ## `section` carrying its name in `left`.
+    pub var attrs: Node*?
     ## Written by the checker: the interned type id of this node (0 = none)
     ## and the declaration a name, call, or member resolved to.
     pub var type_id: u32
