@@ -11,15 +11,155 @@
 
 import ast
 import check
+import emit
 import lexer
 import parser
+import runtime
 import source
 import token
 
 let version: str = "0.1"
 
 func usage(out: Writer) -> !:
-    try out.write("usage: luce-base lex FILE\n       luce-base parse FILE\n       luce-base check FILE\n       luce-base --version\n")
+    try out.write("usage: luce-base lex FILE\n       luce-base parse FILE\n       luce-base check FILE\n       luce-base build FILE [-o OUT] [--release] [--emit=c]\n       luce-base test FILE\n       luce-base --version\n")
+
+# mark: Building ===============================================================================
+
+## What a build was asked for.
+struct Options:
+    var output: str
+    var release: bool
+    var emit_c: bool
+    var run_tests: bool
+
+## Check FILE and its imports, then generate C for the whole program.
+func generate(path: cstr, mode: u32) -> str!:
+    var c = try check.Checker.create(scratch_of())
+    try c.add_prelude()
+    try c.load(path)
+    try c.check_program()
+    let entry = c.modules.get(c.modules.count - 1).tree
+    var actual = mode
+    if mode == 0 and check.find_decl(entry, "main") == none:
+        if check.find_decl(entry, "answer") == none:
+            error(build_failed, "this module has no `main` to build a program from; `check` it, or `test` it")
+        actual = 2
+    used_mode = actual
+    var e = try emit.Emitter.create(&c, entry)
+    try e.program(actual)
+    return e.text()
+
+var scratch_bytes: u8[4096]
+## The mode the last `generate` settled on: 2 means an `answer()` program that links `start.c`.
+var used_mode: u32
+
+func scratch_of() -> u8[]:
+    return scratch_bytes
+
+## Run the host C compiler over the generated text in a scratch directory.
+func compile(text: str, exe: str, release: bool, with_start: bool) -> !:
+    let mktemp_args: cstr[2] = ["-d", "/tmp/luce-base.XXXXXX"]
+    let made = try process.run("mktemp", mktemp_args)
+    let (status, dir_text, unused_err) = made
+    discard(unused_err.length)
+    if status != 0:
+        error(build_failed, "could not create a scratch directory")
+    # the scratch names must end in NUL for the C library; `format` appends one
+    var names: u8[4096]
+    let dir = try format(names[3072..], f"{trim(dir_text)}")
+    let gen_path = try format(names[..<512], f"{dir}/gen.c")
+    let header_path = try format(names[512..<1024], f"{dir}/lucb_rt.h")
+    let runtime_path = try format(names[1024..<1536], f"{dir}/lucb_rt.c")
+    let start_path = try format(names[1536..<2048], f"{dir}/start.c")
+    let err_path = try format(names[2048..<2560], f"{dir}/cc.err")
+    try files.write((cstr)gen_path, text.bytes)
+    try files.write((cstr)header_path, runtime.header.bytes)
+    try files.write((cstr)runtime_path, runtime.source.bytes)
+    if with_start:
+        try files.write((cstr)start_path, runtime.start.bytes)
+    var include = try format(names[2560..<3072], f"-I{dir}")
+    var cc_args: cstr[12] = ---
+    cc_args[0] = "-std=gnu11"
+    cc_args[1] = "-Wall"
+    cc_args[2] = "-Werror"
+    cc_args[3] = "-O2" if release else "-O0"
+    cc_args[4] = (cstr)include
+    cc_args[5] = (cstr)gen_path
+    cc_args[6] = (cstr)runtime_path
+    cc_args[7] = (cstr)start_path if with_start else "-fno-common"
+    cc_args[8] = "-lm"
+    cc_args[9] = "-pthread"
+    cc_args[10] = "-o"
+    cc_args[11] = (cstr)exe
+    let result = try process.run("cc", cc_args)
+    let (cc_status, cc_out, cc_err) = result
+    discard(cc_out.length)
+    var rm_args: cstr[2] = ---
+    rm_args[0] = "-rf"
+    rm_args[1] = (cstr)dir
+    if cc_status != 0:
+        let out = io.stderr()
+        try out.write(cc_err)
+        discard(try process.run("rm", rm_args))
+        error(build_failed, "the C compiler rejected the generated code")
+    discard(try process.run("rm", rm_args))
+    discard(err_path)
+
+## `build FILE`: check, generate, compile.
+func build_file(path: cstr, options: Options) -> !:
+    let backing = try alloc u8[arena_size] in memory.heap
+    defer free(backing) in memory.heap
+    var arena = FixedBuffer.over(backing)
+    with arena:
+        let text = try generate(path, 1 if options.run_tests else 0)
+        if options.emit_c:
+            if options.output.length > 0:
+                try files.write((cstr)options.output, text.bytes)
+            else:
+                try io.stdout().write(text)
+            return
+        var exe = options.output
+        if exe.length == 0:
+            exe = "a.out"
+        try compile(text, exe, options.release, used_mode == 2)
+
+## `test FILE`: build the test runner into a scratch file and run it.
+func test_file(path: cstr) -> i32!:
+    let backing = try alloc u8[arena_size] in memory.heap
+    defer free(backing) in memory.heap
+    var arena = FixedBuffer.over(backing)
+    with arena:
+        let text = try generate(path, 1)
+        let mktemp_args: cstr[1] = ["/tmp/luce-base-test.XXXXXX"]
+        let made = try process.run("mktemp", mktemp_args)
+        let (status, exe_text, unused_err) = made
+        discard(unused_err.length)
+        if status != 0:
+            error(build_failed, "could not create a scratch file")
+        var exe_name: u8[512]
+        let exe = try format(exe_name, f"{trim(exe_text)}")
+        try compile(text, exe, false, false)
+        var run_args: cstr[1] = ---
+        run_args[0] = (cstr)exe
+        let ran = try process.run((cstr)exe, run_args)
+        let (code, out, err) = ran
+        try io.stdout().write(out)
+        try io.stderr().write(err)
+        var rm_args: cstr[2] = ---
+        rm_args[0] = "-f"
+        rm_args[1] = (cstr)exe
+        discard(try process.run("rm", rm_args))
+        return code
+
+pub let build_failed: ErrorCode = ErrorCode.package(13)
+
+## Text without its trailing newline.
+func trim(text: str) -> str:
+    var end = text.length
+    let b = text.bytes
+    while end > 0 and (b[end - 1] == '\n' or b[end - 1] == ' '):
+        end -= 1
+    return (str)b[..<end]
 
 ## Check FILE and the modules it imports from its directory; silence means success.
 func check_file(path: cstr) -> !:
@@ -78,6 +218,31 @@ pub func main(arguments: cstr[]) -> i32!:
             try io.stderr().write(f"luce-base: {failure.message}\n")
             return 1
         return 0
+    if command == "build" and arguments.length >= 3:
+        var options = Options(output = "", release = false, emit_c = false, run_tests = false)
+        var i: usize = 3
+        while i < arguments.length:
+            let a = (str)arguments[i]
+            if a == "-o" and i + 1 < arguments.length:
+                options.output = (str)arguments[i + 1]
+                i += 1
+            elif a == "--release":
+                options.release = true
+            elif a == "--emit=c":
+                options.emit_c = true
+            else:
+                try io.stderr().write(f"luce-base: unexpected argument `{a}`\n")
+                return 2
+            i += 1
+        build_file(arguments[2], options) catch failure:
+            try io.stderr().write(f"luce-base: {failure.message}\n")
+            return 1
+        return 0
+    if command == "test" and arguments.length == 3:
+        let code = test_file(arguments[2]) catch failure:
+            try io.stderr().write(f"luce-base: {failure.message}\n")
+            recover 1
+        return code
     if command == "check" and arguments.length == 3:
         check_file(arguments[2]) catch failure:
             try io.stderr().write(f"luce-base: {failure.message}\n")

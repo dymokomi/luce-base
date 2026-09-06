@@ -27,15 +27,21 @@ export LUCB=../luce-seed/build/lucb   # or wherever lucb is
 ./build/luce-base lex samples/hello.lucb
 ./build/luce-base parse samples/hello.lucb
 ./build/luce-base check samples/json_parser.lucb   # silence means it checks
+./build/luce-base build samples/json.lucb -o json  # C through the host cc
+./build/luce-base test src/parser.lucb             # the module's tests, compiled and run
+./build/luce-base build src/main.lucb -o B2        # the compiler builds itself
 ```
 
 ## Status
 
-Slices 1 to 3: the lexer, the parser, and the checker for the whole Base
-language (base.md §3 to §17, §21), with `lex`, `parse`, and `check`
-commands. Every Base file we have, this compiler's own sources included,
-checks; the programs under `samples/errors/` are rejected for the reasons
-they state. Nothing is emitted yet: slice 4 is the C backend.
+Slices 1 to 4: lexer, parser, checker, and C backend for the whole Base
+language (base.md §3 to §17, §19, §21), with `lex`, `parse`, `check`,
+`build`, and `test` commands. Every sample builds and runs; every module's
+tests pass both in the seed's oracle and compiled through this compiler;
+and the compiler builds itself, twice, to the same C. The runtime the
+generated C links is `runtime/`, carried inside the binary. What remains
+for slice 5 is pinning the seed, and moving the standard modules from that
+runtime into Base.
 
 ## License
 
