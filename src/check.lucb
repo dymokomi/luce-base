@@ -318,6 +318,8 @@ pub struct Checker:
     mutating func collect(tree: ast.Node*) -> !:
         var cursor = tree.body
         while let d = cursor:
+            # a top-level declaration remembers its module, for the backend's names
+            d.resolved = tree
             match d.kind:
                 .struct_, .extern_struct, .extern_type:
                     d.type_id = try self.table.nominal(types.Kind.struct_, d, try self.generic_ids(d))
@@ -1515,6 +1517,11 @@ pub struct Checker:
         if have == types.str_id and want == types.cstr_id:
             return want
         if have == types.cstr_id and want == types.str_id:
+            return want
+        # `cstr` is a pointer to C text; it converts to and from object pointers
+        if have == types.cstr_id and d.kind == types.Kind.pointer:
+            return want
+        if s.kind == types.Kind.pointer and want == types.cstr_id:
             return want
         if (s.kind == types.Kind.span or s.kind == types.Kind.array) and d.kind == types.Kind.span:
             return want
@@ -3336,7 +3343,7 @@ pub func check_text(text: str, scratch: u8[]) -> !:
     try c.check_program()
 
 func expect_error(text: str, fragment: str) -> !:
-    var backing: u8[262144]
+    var backing: u8[2097152]
     var arena = FixedBuffer.over(backing)
     var scratch: u8[1024]
     var failed = false
@@ -3351,7 +3358,7 @@ func expect_error(text: str, fragment: str) -> !:
         error(type_error, "expected an error, the program checked")
 
 func expect_ok(text: str) -> !:
-    var backing: u8[262144]
+    var backing: u8[2097152]
     var arena = FixedBuffer.over(backing)
     var scratch: u8[1024]
     with arena:
@@ -3423,7 +3430,7 @@ test "error and catch handle failure":
     try expect_ok("let bad: ErrorCode = ErrorCode.package(1)\nfunc g(n: i64) -> i64!:\n    if n < 0:\n        error(bad, \"negative\")\n    return n\nfunc f() -> i64:\n    let v = g(-1) catch e:\n        if e.code == bad:\n            recover 0\n        recover 1\n    return v\n")
 
 test "modules import and qualify names":
-    var backing: u8[262144]
+    var backing: u8[2097152]
     var arena = FixedBuffer.over(backing)
     var scratch: u8[1024]
     with arena:

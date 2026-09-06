@@ -62,6 +62,7 @@ struct Scope:
 let to_out: u8 = 0
 let to_body: u8 = 1
 let to_globals: u8 = 2
+let to_protos: u8 = 3
 
 # mark: The emitter ============================================================================
 
@@ -70,6 +71,7 @@ pub struct Emitter:
     var out: buffer.Buffer
     var body: buffer.Buffer
     var globals: buffer.Buffer
+    var protos: buffer.Buffer
     var target: u8
     var indent: u32
     var counter: u32
@@ -102,7 +104,7 @@ pub struct Emitter:
 
     pub static func create(c: check.Checker*, entry: ast.Node*) -> Emitter!:
         return Emitter(c = c, out = try buffer.Buffer.create(65536), body = try buffer.Buffer.create(262144),
-                       globals = try buffer.Buffer.create(4096), target = to_body, indent = 0, counter = 0,
+                       globals = try buffer.Buffer.create(4096), protos = try buffer.Buffer.create(16384), target = to_body, indent = 0, counter = 0,
                        modules = try list.List[NodeRef].create(16), entry = entry,
                        funcs = try list.List[Instance].create(64), records = try list.List[Instance].create(64),
                        needed = try list.List[u32].create(256), defined = try list.List[u32].create(256),
@@ -120,6 +122,8 @@ pub struct Emitter:
             try self.body.put(text)
         elif self.target == to_out:
             try self.out.put(text)
+        elif self.target == to_protos:
+            try self.protos.put(text)
         else:
             try self.globals.put(text)
 
@@ -128,6 +132,8 @@ pub struct Emitter:
             try self.body.put_u64(value)
         elif self.target == to_out:
             try self.out.put_u64(value)
+        elif self.target == to_protos:
+            try self.protos.put_u64(value)
         else:
             try self.globals.put_u64(value)
 
@@ -136,6 +142,8 @@ pub struct Emitter:
             try self.body.put_i64(value)
         elif self.target == to_out:
             try self.out.put_i64(value)
+        elif self.target == to_protos:
+            try self.protos.put_i64(value)
         else:
             try self.globals.put_i64(value)
 
@@ -144,6 +152,8 @@ pub struct Emitter:
             try self.body.put_byte(byte)
         elif self.target == to_out:
             try self.out.put_byte(byte)
+        elif self.target == to_protos:
+            try self.protos.put_byte(byte)
         else:
             try self.globals.put_byte(byte)
 
@@ -299,16 +309,6 @@ pub struct Emitter:
     func decl_of(id: u32) -> ast.Node*?:
         return self.c.table.get(id).decl
 
-    ## The declaration behind a standard-module record: `FixedBuffer`, `Location`, ...
-    func builtin_name(id: u32) -> str:
-        let t = self.c.table.get(id)
-        if t.kind != types.Kind.struct_ and t.kind != types.Kind.interface:
-            return ""
-        let d = t.decl else return ""
-        if not d.has(ast.flag_builtin):
-            return ""
-        return d.text
-
     # -- spelling -------------------------------------------------------------------------
 
     ## The C type of `id`, which must be concrete.
@@ -363,13 +363,13 @@ pub struct Emitter:
                 try self.put(")")
             .pointer:
                 if t.elem == types.void_id:
-                    try self.put("void*")
+                    try self.put("const void*" if t.is_const else "void*")
                     return
                 if t.is_const:
                     try self.put("const ")
                 if t.is_volatile:
                     try self.put("volatile ")
-                if self.is_record(t.elem) and self.builtin_name(t.elem).length == 0:
+                if self.is_record(t.elem):
                     try self.put("union " if self.kind(t.elem) == types.Kind.union_ else "struct ")
                 try self.put_type(t.elem)
                 try self.put("*")
@@ -381,8 +381,6 @@ pub struct Emitter:
             .optional:
                 if self.is_ptr(t.elem):
                     try self.put_type(t.elem)
-                elif self.is_span(t.elem) and self.elem(t.elem) == types.u8_id and not self.c.table.get(t.elem).is_const:
-                    try self.put("lb_span_opt")
                 else:
                     try self.note(id)
                     try self.put_mangled_name(id)
@@ -398,10 +396,6 @@ pub struct Emitter:
                 if self.is_int_enum(id):
                     try self.put_type(self.enum_backing(id))
                     return
-                let builtin = self.builtin_name(id)
-                if builtin.length > 0:
-                    try self.put(runtime_record(builtin))
-                    return
                 try self.note(id)
                 try self.put_record_name(id)
             .param:
@@ -409,7 +403,14 @@ pub struct Emitter:
             _:
                 try self.put("void")
 
-    ## `lb_Name` or `lb_Name__args` for a record type.
+    ## The module a top-level declaration belongs to, by name.
+    func module_name(d: ast.Node*) -> str:
+        let m = d.resolved else return "x"
+        if m.kind != ast.Kind.module:
+            return "x"
+        return m.text
+
+    ## `lb_module_Name` or `lb_module_Name__args` for a record type.
     mutating func put_record_name(id: u32) -> !:
         let t = self.c.table.get(id)
         let d = t.decl else return try self.put("void")
@@ -417,6 +418,8 @@ pub struct Emitter:
             try self.put(d.text)
             return
         try self.put("lb_")
+        try self.put(self.module_name(d))
+        try self.put("_")
         try self.put(d.text)
         var i: usize = 0
         while i < t.args.length:
@@ -481,6 +484,8 @@ pub struct Emitter:
                 try self.put_mangled(t.elem)
             .struct_, .union_, .enum_, .interface:
                 let d = t.decl else return try self.put("X")
+                try self.put(self.module_name(d))
+                try self.put("_")
                 try self.put(d.text)
                 var i: usize = 0
                 while i < t.args.length:
@@ -548,6 +553,8 @@ pub struct Emitter:
             return
         try self.put("lb_")
         if let o = owner:
+            try self.put(self.module_name(o))
+            try self.put("_")
             try self.put(o.text)
             var i: usize = 0
             while i < owner_args.length:
@@ -555,17 +562,32 @@ pub struct Emitter:
                 try self.put_mangled(owner_args[i])
                 i += 1
             try self.put("_")
-        if f.text == "answer" and f.has(ast.flag_fallible) and owner == none:
-            try self.put("answer_impl")
+        elif f.text == "main" or f.text == "answer":
+            # the entry points keep the names the shims call
+            if f.text == "answer" and f.has(ast.flag_fallible):
+                try self.put("answer_impl")
+            else:
+                try self.put(f.text)
+            return
         else:
-            try self.put(f.text)
+            try self.put(self.module_name(f))
+            try self.put("_")
+        try self.put(f.text)
         var i: usize = 0
         while i < args.length:
             try self.put("__")
             try self.put_mangled(args[i])
             i += 1
-        if owner == none and args.length == 0 and is_runtime_name(f.text):
-            try self.put("_")
+
+    ## `lb_module_name` for a top-level `let` or `var`.
+    mutating func put_global_name(d: ast.Node*) -> !:
+        if d.kind == ast.Kind.extern_var:
+            try self.put(d.text)
+            return
+        try self.put("lb_")
+        try self.put(self.module_name(d))
+        try self.put("_")
+        try self.put(d.text)
 
     ## The C name of the function the emission context is inside.
     mutating func put_current_name() -> !:
@@ -642,7 +664,7 @@ pub struct Emitter:
             .optional:
                 try self.define_type(t.elem)
                 try self.defined.push(id)
-                if self.is_ptr(t.elem) or (self.is_span(t.elem) and self.elem(t.elem) == types.u8_id and not self.c.table.get(t.elem).is_const):
+                if self.is_ptr(t.elem):
                     return
                 try self.line("LB_OPT(")
                 try self.put_type(t.elem)
@@ -705,7 +727,7 @@ pub struct Emitter:
                 try self.put(");")
             .struct_, .union_, .enum_:
                 try self.defined.push(id)
-                if self.is_int_enum(id) or self.builtin_name(id).length > 0:
+                if self.is_int_enum(id):
                     return
                 let d = t.decl else return
                 if t.args.length > 0:
@@ -723,7 +745,7 @@ pub struct Emitter:
                 return
             i += 1
         try self.decls_done.push(d)
-        if d.has(ast.flag_builtin) or check.generic_params_of(d) != none:
+        if check.generic_params_of(d) != none:
             return
         if d.kind == ast.Kind.enum_ and d.ty != none:
             return
@@ -1026,9 +1048,9 @@ pub struct Emitter:
                 try self.expr(call)
                 try self.put(");")
         if sc.restore_alloc:
-            try self.line("lb_set_alloc(")
+            try self.line("lb_memory_allocator = ")
             try self.put_tmp("as", sc.alloc_save)
-            try self.put(");")
+            try self.put(";")
 
     ## Unwind every scope from the innermost down to `from`, for an exit.
     mutating func unwind_from(start: usize, failing: bool) -> !:
@@ -1181,9 +1203,9 @@ pub struct Emitter:
         if place.kind == ast.Kind.member and place.text == "allocator":
             if let owner = place.left:
                 if self.kind(owner.type_id) == types.Kind.module:
-                    try self.line("lb_set_alloc(")
+                    try self.line("lb_memory_allocator = ")
                     try self.allocator_view(value)
-                    try self.put(");")
+                    try self.put(";")
                     return
         let pt = try self.ty(place)
         if s.text == "=":
@@ -1645,10 +1667,10 @@ pub struct Emitter:
         self.indent += 1
         try self.line("lb_iface ")
         try self.put_tmp("as", n)
-        try self.put(" = lb_get_alloc();")
-        try self.line("lb_set_alloc(")
+        try self.put(" = lb_memory_allocator;")
+        try self.line("lb_memory_allocator = ")
         try self.allocator_view(a)
-        try self.put(");")
+        try self.put(";")
         try self.push_scope(false, "")
         var sc = self.scopes.get(self.scopes.count - 1)
         sc.restore_alloc = true
@@ -1880,15 +1902,6 @@ pub struct Emitter:
 
     ## `((lb_iface){ pointer, &vtable })` for a struct pointer used as a view.
     mutating func iface_view(e: ast.Node*, target: u32, iface: u32) -> !:
-        let name = self.builtin_name(target)
-        if name == "FixedBuffer":
-            try self.put("lb_fixed_alloc(")
-            try self.expr(e)
-            try self.put(")")
-            return
-        if name == "CAllocator":
-            try self.put("lb_heap_alloc()")
-            return
         let d = self.decl_of(target) else return try self.expr(e)
         let i = self.decl_of(iface) else return try self.expr(e)
         try self.put("((lb_iface){ (void*)(")
@@ -2126,11 +2139,8 @@ pub struct Emitter:
             if d.kind == ast.Kind.func or d.kind == ast.Kind.extern_func:
                 try self.func_value(e, d)
                 return
-            if d.kind == ast.Kind.extern_var:
-                try self.put(d.text)
-                return
-            if d.kind == ast.Kind.global and d.has(ast.flag_builtin):
-                try self.builtin_global(d)
+            if d.kind == ast.Kind.extern_var or d.kind == ast.Kind.global or d.kind == ast.Kind.constant:
+                try self.put_global_name(d)
                 return
         try self.put_ident(e.text)
 
@@ -2161,15 +2171,6 @@ pub struct Emitter:
             i += 1
             cursor = a.next
         return args
-
-    ## `memory.allocator`, `memory.heap`, and the other standard globals.
-    mutating func builtin_global(d: ast.Node*) -> !:
-        if d.text == "allocator":
-            try self.put("lb_get_alloc()")
-        elif d.text == "heap":
-            try self.put("lb_heap_alloc()")
-        else:
-            try self.put_ident(d.text)
 
     ## An enum case value: the integer, or the tagged record with its payload.
     mutating func enum_value(e: ast.Node*) -> !:
@@ -2770,11 +2771,8 @@ pub struct Emitter:
             if d.kind == ast.Kind.func or d.kind == ast.Kind.extern_func:
                 try self.method_value(e, owner, d)
                 return
-            if d.kind == ast.Kind.global and d.has(ast.flag_builtin):
-                try self.builtin_global(d)
-                return
-            if d.kind == ast.Kind.constant or d.kind == ast.Kind.global:
-                try self.put_ident(d.text)
+            if d.kind == ast.Kind.constant or d.kind == ast.Kind.global or d.kind == ast.Kind.extern_var:
+                try self.put_global_name(d)
                 return
         let ot = try self.ty(owner)
         if self.kind(ot) == types.Kind.module:
@@ -2840,19 +2838,10 @@ pub struct Emitter:
             else:
                 try self.function_name_literal()
             return
-        if m.text == "memory" and e.text == "exhausted":
-            try self.put("((uint32_t)LB_MEMORY_EXHAUSTED)")
-            return
-        if m.text == "memory" and e.text == "unset":
-            try self.put("((uint32_t)4)")
-            return
-        if m.text == "files" and e.text == "missing":
-            try self.put("((uint32_t)LB_FILES_MISSING)")
-            return
         try self.put_ident(e.text)
 
     mutating func location_value(e: ast.Node*) -> !:
-        try self.put("((lb_Location){ .file = ")
+        try self.put("((lb_io_Location){ .file = ")
         try self.put_str_literal(self.src_file)
         try self.put(", .line = ")
         try self.put_u64((u64)e.line)
@@ -3515,7 +3504,7 @@ pub struct Emitter:
         if self.kind(rt_raw) == types.Kind.module:
             let m = self.decl_of(rt_raw) else return
             let d = e.resolved else return try self.put("0")
-            if d.has(ast.flag_builtin):
+            if d.has(ast.flag_builtin) and (m.text == "atomic" or m.text == "c"):
                 try self.std_call(e, m.text, callee.text, d)
                 return
             try self.direct_call(e, d, none, try types.no_args())
@@ -3527,9 +3516,6 @@ pub struct Emitter:
                     try self.enum_value(e)
                     return
             if let d = callee.resolved:
-                if d.has(ast.flag_builtin):
-                    try self.builtin_static(e, rt_raw, callee.text)
-                    return
                 let t = self.c.table.get(rt_raw)
                 try self.direct_call(e, d, t.decl, t.args)
                 return
@@ -3575,10 +3561,6 @@ pub struct Emitter:
             try self.builtin_method(e, callee, receiver, rt)
             return
         let method = callee.resolved else return try self.put("0")
-        # standard records: Handle, Mutex, Condition, Once, Semaphore, FixedBuffer
-        if method.has(ast.flag_builtin) and self.builtin_name(rt).length > 0 and not self.is_iface(rt):
-            try self.std_method(e, callee, receiver, rt, self.is_ptr(rt_raw))
-            return
         # interface views dispatch through the table
         if self.is_iface(rt):
             let n = self.tmp()
@@ -3676,9 +3658,10 @@ pub struct Emitter:
         if callee.text == "indexed":
             # a span of (index, element) pairs built in the current allocator
             let pair = self.elem(result)
-            try self.put("lb_span_opt ")
+            try self.put_block_type()
+            try self.put(" ")
             try self.put_tmp("ix", n)
-            try self.put(" = lb_alloc_call(lb_get_alloc(), sizeof(")
+            try self.put(" = lb_alloc_call(lb_memory_allocator, sizeof(")
             try self.put_type(pair)
             try self.put(") * ")
             try self.put_tmp("sq", n)
@@ -3986,479 +3969,11 @@ pub struct Emitter:
 
     # mark: Standard modules ===================================================================
 
-    ## `module.function(...)` of a standard module, mapped onto the runtime.
+    ## The standard calls no Base body can express: `atomic.fence` and the C streams.
     mutating func std_call(e: ast.Node*, module: str, name: str, d: ast.Node*) -> !:
-        let first = e.body
-        var arg: ast.Node*? = none
-        var second: ast.Node*? = none
-        var third: ast.Node*? = none
-        if let f = first:
-            arg = f.left
-            if let s = f.next:
-                second = s.left
-                if let t = s.next:
-                    third = t.left
-        let n = self.tmp()
-        let result = try self.ty(e)
-        if module == "io" and (name == "stdout" or name == "stderr"):
-            try self.put("((lb_iface){ (void*)")
-            try self.put(name)
-            try self.put(", &lb_vt_file })")
-            self.wrote_writer = true
-            return
-        if module == "memory" and (name == "copy" or name == "move"):
-            let to = arg else return
-            let source = second else return
-            let count = third else return
-            try self.put("({ lb_span ")
-            try self.put_tmp("to", n)
-            try self.put(" = ")
-            try self.value(to, try self.ty(to))
-            try self.put("; lb_span ")
-            try self.put_tmp("fr", n)
-            try self.put(" = ")
-            try self.value(source, try self.ty(source))
-            try self.put("; size_t ")
-            try self.put_tmp("n", n)
-            try self.put(" = (size_t)(")
-            try self.value(count, types.usize_id)
-            try self.put("); if (")
-            try self.put_tmp("n", n)
-            try self.put(" > ")
-            try self.put_tmp("to", n)
-            try self.put(".length || ")
-            try self.put_tmp("n", n)
-            try self.put(" > ")
-            try self.put_tmp("fr", n)
-            try self.put(".length) lb_trap(\"index out of bounds\"); ")
-            try self.put("memcpy(" if name == "copy" else "memmove(")
-            try self.put_tmp("to", n)
-            try self.put(".data, ")
-            try self.put_tmp("fr", n)
-            try self.put(".data, ")
-            try self.put_tmp("n", n)
-            try self.put(" * sizeof(")
-            try self.put_type(self.elem(try self.ty(to)))
-            try self.put(")); (void)0; })")
-            return
-        if module == "memory" and name == "set":
-            let span = arg else return
-            let byte = second else return
-            let count = third else return
-            try self.put("({ lb_span ")
-            try self.put_tmp("st", n)
-            try self.put(" = ")
-            try self.value(span, try self.ty(span))
-            try self.put("; size_t ")
-            try self.put_tmp("n", n)
-            try self.put(" = (size_t)(")
-            try self.value(count, types.usize_id)
-            try self.put("); if (")
-            try self.put_tmp("n", n)
-            try self.put(" > ")
-            try self.put_tmp("st", n)
-            try self.put(".length) lb_trap(\"index out of bounds\"); memset(")
-            try self.put_tmp("st", n)
-            try self.put(".data, (int)(unsigned char)(")
-            try self.value(byte, types.u8_id)
-            try self.put("), ")
-            try self.put_tmp("n", n)
-            try self.put("); (void)0; })")
-            return
-        if module == "memory" and name == "read":
-            let address = arg else return
-            try self.put("({ ")
-            try self.put_type(result)
-            try self.put(" ")
-            try self.put_tmp("rd", n)
-            try self.put("; memcpy(&")
-            try self.put_tmp("rd", n)
-            try self.put(", ")
-            try self.expr(address)
-            try self.put(", sizeof(")
-            try self.put_tmp("rd", n)
-            try self.put(")); ")
-            try self.put_tmp("rd", n)
-            try self.put("; })")
-            return
-        if module == "memory" and name == "write":
-            let address = arg else return
-            let v = second else return
-            let vt = try self.ty(v)
-            try self.put("({ ")
-            try self.put_type(vt)
-            try self.put(" ")
-            try self.put_tmp("wr", n)
-            try self.put(" = ")
-            try self.expr(v)
-            try self.put("; memcpy(")
-            try self.expr(address)
-            try self.put(", &")
-            try self.put_tmp("wr", n)
-            try self.put(", sizeof(")
-            try self.put_tmp("wr", n)
-            try self.put(")); (void)0; })")
-            return
-        if module == "memory" and name == "grow":
-            let block = arg else return
-            let size = second else return
-            try self.note(result)
-            try self.put("({ lb_span ")
-            try self.put_tmp("gb", n)
-            try self.put(" = ")
-            try self.expr(block)
-            try self.put("; size_t ")
-            try self.put_tmp("gs", n)
-            try self.put(" = (size_t)(")
-            try self.value(size, types.usize_id)
-            try self.put("); lb_iface ")
-            try self.put_tmp("ga", n)
-            try self.put(" = lb_get_alloc(); lb_span ")
-            try self.put_tmp("gg", n)
-            try self.put("; if (lb_resize_call(")
-            try self.put_tmp("ga", n)
-            try self.put(", ")
-            try self.put_tmp("gb", n)
-            try self.put(", ")
-            try self.put_tmp("gs", n)
-            try self.put(")) { ")
-            try self.put_tmp("gg", n)
-            try self.put(".data = ")
-            try self.put_tmp("gb", n)
-            try self.put(".data; ")
-            try self.put_tmp("gg", n)
-            try self.put(".length = ")
-            try self.put_tmp("gs", n)
-            try self.put("; } else { lb_span_opt ")
-            try self.put_tmp("go", n)
-            try self.put(" = lb_alloc_call(")
-            try self.put_tmp("ga", n)
-            try self.put(", ")
-            try self.put_tmp("gs", n)
-            try self.put(", sizeof(void*)); if (!")
-            try self.put_tmp("go", n)
-            try self.put(".present) { ")
-            try self.put_tmp("gg", n)
-            try self.put(".data = NULL; ")
-            try self.put_tmp("gg", n)
-            try self.put(".length = 0; } else { if (")
-            try self.put_tmp("gb", n)
-            try self.put(".length > 0 && ")
-            try self.put_tmp("gb", n)
-            try self.put(".data != NULL) memcpy(")
-            try self.put_tmp("go", n)
-            try self.put(".value.data, ")
-            try self.put_tmp("gb", n)
-            try self.put(".data, ")
-            try self.put_tmp("gb", n)
-            try self.put(".length < ")
-            try self.put_tmp("gs", n)
-            try self.put(" ? ")
-            try self.put_tmp("gb", n)
-            try self.put(".length : ")
-            try self.put_tmp("gs", n)
-            try self.put("); lb_release_call(")
-            try self.put_tmp("ga", n)
-            try self.put(", ")
-            try self.put_tmp("gb", n)
-            try self.put("); ")
-            try self.put_tmp("gg", n)
-            try self.put(" = ")
-            try self.put_tmp("go", n)
-            try self.put(".value; } } ")
-            try self.put_type(result)
-            try self.put(" ")
-            try self.put_tmp("gr", n)
-            try self.put("; if (")
-            try self.put_tmp("gg", n)
-            try self.put(".data == NULL && ")
-            try self.put_tmp("gs", n)
-            try self.put(" != 0) { ")
-            try self.put_tmp("gr", n)
-            try self.put(" = ")
-            try self.exhausted(result)
-            try self.put("; } else { ")
-            try self.put_tmp("gr", n)
-            try self.put(".failed = false; ")
-            try self.put_tmp("gr", n)
-            try self.put(".value = ")
-            try self.put_tmp("gg", n)
-            try self.put("; } ")
-            try self.put_tmp("gr", n)
-            try self.put("; })")
-            return
-        if module == "files" and name == "read":
-            let path = arg else return
-            try self.note(result)
-            try self.put("({ const char* ")
-            try self.put_tmp("fp", n)
-            try self.put(" = ")
-            try self.value(path, types.cstr_id)
-            try self.put("; FILE* ")
-            try self.put_tmp("f", n)
-            try self.put(" = fopen(")
-            try self.put_tmp("fp", n)
-            try self.put(", \"rb\"); ")
-            try self.put_type(result)
-            try self.put(" ")
-            try self.put_tmp("fr", n)
-            try self.put("; if (")
-            try self.put_tmp("f", n)
-            try self.put(" == NULL) { ")
-            try self.put_tmp("fr", n)
-            try self.put(".failed = true; ")
-            try self.put_tmp("fr", n)
-            try self.put(".error = (lb_error){ .code = LB_FILES_MISSING, .message = (lb_str){\"missing\", 7} }; } else { fseek(")
-            try self.put_tmp("f", n)
-            try self.put(", 0, SEEK_END); long ")
-            try self.put_tmp("fn", n)
-            try self.put(" = ftell(")
-            try self.put_tmp("f", n)
-            try self.put("); rewind(")
-            try self.put_tmp("f", n)
-            try self.put("); if (")
-            try self.put_tmp("fn", n)
-            try self.put(" < 0) ")
-            try self.put_tmp("fn", n)
-            try self.put(" = 0; lb_span_opt ")
-            try self.put_tmp("fa", n)
-            try self.put(" = lb_alloc_call(lb_get_alloc(), (size_t)")
-            try self.put_tmp("fn", n)
-            try self.put(", 1); if (")
-            try self.put_tmp("fn", n)
-            try self.put(" > 0 && !")
-            try self.put_tmp("fa", n)
-            try self.put(".present) { ")
-            try self.put_tmp("fr", n)
-            try self.put(" = ")
-            try self.exhausted(result)
-            try self.put("; fclose(")
-            try self.put_tmp("f", n)
-            try self.put("); } else { if (")
-            try self.put_tmp("fn", n)
-            try self.put(" > 0) { size_t _got = fread(")
-            try self.put_tmp("fa", n)
-            try self.put(".value.data, 1, (size_t)")
-            try self.put_tmp("fn", n)
-            try self.put(", ")
-            try self.put_tmp("f", n)
-            try self.put("); (void)_got; } fclose(")
-            try self.put_tmp("f", n)
-            try self.put("); ")
-            try self.put_tmp("fr", n)
-            try self.put(".failed = false; ")
-            try self.put_tmp("fr", n)
-            try self.put(".value = (lb_span){ ")
-            try self.put_tmp("fa", n)
-            try self.put(".value.data, (size_t)")
-            try self.put_tmp("fn", n)
-            try self.put(" }; } } ")
-            try self.put_tmp("fr", n)
-            try self.put("; })")
-            return
-        if module == "files" and name == "write":
-            let path = arg else return
-            let data = second else return
-            try self.put("({ const char* ")
-            try self.put_tmp("fp", n)
-            try self.put(" = ")
-            try self.value(path, types.cstr_id)
-            try self.put("; lb_cspan ")
-            try self.put_tmp("fb", n)
-            try self.put(" = ")
-            try self.argument_value(data, try self.c.table.span(types.u8_id, true))
-            try self.put("; FILE* ")
-            try self.put_tmp("f", n)
-            try self.put(" = fopen(")
-            try self.put_tmp("fp", n)
-            try self.put(", \"wb\"); lb_r_unit ")
-            try self.put_tmp("fr", n)
-            try self.put("; if (")
-            try self.put_tmp("f", n)
-            try self.put(" == NULL) { ")
-            try self.put_tmp("fr", n)
-            try self.put(".failed = true; ")
-            try self.put_tmp("fr", n)
-            try self.put(".error = (lb_error){ .code = LB_FILES_MISSING, .message = (lb_str){\"missing\", 7} }; } else { size_t _w = ")
-            try self.put_tmp("fb", n)
-            try self.put(".length == 0 ? 0 : fwrite(")
-            try self.put_tmp("fb", n)
-            try self.put(".data, 1, ")
-            try self.put_tmp("fb", n)
-            try self.put(".length, ")
-            try self.put_tmp("f", n)
-            try self.put("); fclose(")
-            try self.put_tmp("f", n)
-            try self.put("); if (_w != ")
-            try self.put_tmp("fb", n)
-            try self.put(".length) { ")
-            try self.put_tmp("fr", n)
-            try self.put(".failed = true; ")
-            try self.put_tmp("fr", n)
-            try self.put(".error = (lb_error){ .code = 1, .message = (lb_str){\"write\", 5} }; } else { ")
-            try self.put_tmp("fr", n)
-            try self.put(".failed = false; } } ")
-            try self.put_tmp("fr", n)
-            try self.put("; })")
-            return
-        if module == "files" and name == "list":
-            let path = arg else return
-            try self.note(result)
-            try self.put("({ lb_span ")
-            try self.put_tmp("ln", n)
-            try self.put("; int ")
-            try self.put_tmp("le", n)
-            try self.put(" = lb_files_list(lb_get_alloc(), ")
-            try self.value(path, types.cstr_id)
-            try self.put(", &")
-            try self.put_tmp("ln", n)
-            try self.put("); ")
-            try self.put_type(result)
-            try self.put(" ")
-            try self.put_tmp("lr", n)
-            try self.put("; if (")
-            try self.put_tmp("le", n)
-            try self.put(" != 0) { ")
-            try self.put_tmp("lr", n)
-            try self.put(".failed = true; ")
-            try self.put_tmp("lr", n)
-            try self.put(".error = (lb_error){ .code = ")
-            try self.put_tmp("le", n)
-            try self.put(" == 2 ? 2 : 1, .message = ")
-            try self.put_tmp("le", n)
-            try self.put(" == 2 ? (lb_str){\"missing\", 7} : (lb_str){\"memory.exhausted\", 16} }; } else { ")
-            try self.put_tmp("lr", n)
-            try self.put(".failed = false; ")
-            try self.put_tmp("lr", n)
-            try self.put(".value = ")
-            try self.put_tmp("ln", n)
-            try self.put("; } ")
-            try self.put_tmp("lr", n)
-            try self.put("; })")
-            return
-        if module == "process" and name == "run":
-            let program = arg else return
-            let args = second else return
-            try self.note(result)
-            let payload = self.elem(result)
-            try self.note(payload)
-            try self.put("({ lb_cspan ")
-            try self.put_tmp("pa", n)
-            try self.put(" = ")
-            try self.value(args, try self.c.table.span(types.cstr_id, true))
-            try self.put("; int32_t ")
-            try self.put_tmp("ps", n)
-            try self.put(" = 0; lb_str ")
-            try self.put_tmp("po", n)
-            try self.put(" = {NULL, 0}; lb_str ")
-            try self.put_tmp("pe", n)
-            try self.put(" = {NULL, 0}; int ")
-            try self.put_tmp("pc", n)
-            try self.put(" = lb_process_run(")
-            try self.value(program, types.cstr_id)
-            try self.put(", (const char* const*)")
-            try self.put_tmp("pa", n)
-            try self.put(".data, ")
-            try self.put_tmp("pa", n)
-            try self.put(".length, lb_get_alloc(), &")
-            try self.put_tmp("ps", n)
-            try self.put(", &")
-            try self.put_tmp("po", n)
-            try self.put(", &")
-            try self.put_tmp("pe", n)
-            try self.put("); ")
-            try self.put_type(result)
-            try self.put(" ")
-            try self.put_tmp("pr", n)
-            try self.put("; if (")
-            try self.put_tmp("pc", n)
-            try self.put(" != 0) { ")
-            try self.put_tmp("pr", n)
-            try self.put(".failed = true; ")
-            try self.put_tmp("pr", n)
-            try self.put(".error = (lb_error){ .code = 1, .message = (lb_str){\"run\", 3} }; } else { ")
-            try self.put_tmp("pr", n)
-            try self.put(".failed = false; ")
-            try self.put_tmp("pr", n)
-            try self.put(".value = ((")
-            try self.put_type(payload)
-            try self.put("){ .a0 = ")
-            try self.put_tmp("ps", n)
-            try self.put(", .a1 = ")
-            try self.put_tmp("po", n)
-            try self.put(", .a2 = ")
-            try self.put_tmp("pe", n)
-            try self.put(" }); } ")
-            try self.put_tmp("pr", n)
-            try self.put("; })")
-            return
-        if module == "process" and name == "exit":
-            let code = arg else return
-            try self.put("(exit((int)(")
-            try self.value(code, types.i32_id)
-            try self.put(")), (void)0)")
-            return
-        if module == "thread" and name == "spawn":
-            let entry = arg else return
-            let context = second else return
-            try self.note(result)
-            try self.put("({ pthread_t ")
-            try self.put_tmp("th", n)
-            try self.put("; ")
-            try self.put_type(result)
-            try self.put(" ")
-            try self.put_tmp("tr", n)
-            try self.put("; if (pthread_create(&")
-            try self.put_tmp("th", n)
-            try self.put(", NULL, (void*(*)(void*))(void*)")
-            try self.expr(entry)
-            try self.put(", (void*)(")
-            try self.expr(context)
-            try self.put(")) != 0) { ")
-            try self.put_tmp("tr", n)
-            try self.put(".failed = true; ")
-            try self.put_tmp("tr", n)
-            try self.put(".error = (lb_error){ .code = 1, .message = (lb_str){\"spawn\", 5} }; } else { ")
-            try self.put_tmp("tr", n)
-            try self.put(".failed = false; ")
-            try self.put_tmp("tr", n)
-            try self.put(".value = (lb_Handle){ (size_t)")
-            try self.put_tmp("th", n)
-            try self.put(" }; } ")
-            try self.put_tmp("tr", n)
-            try self.put("; })")
-            return
-        if module == "thread" and name == "current":
-            try self.put("((lb_Handle){ (size_t)pthread_self() })")
-            return
-        if module == "thread" and name == "pause":
-            try self.put("(lb_pause())")
-            return
-        if module == "thread" and name == "yield":
-            try self.put("((void)sched_yield())")
-            return
-        if module == "thread" and name == "sleep":
-            let ms = arg else return
-            try self.put("({ struct timespec ")
-            try self.put_tmp("ts", n)
-            try self.put("; uint64_t ")
-            try self.put_tmp("tm", n)
-            try self.put(" = (uint64_t)(")
-            try self.value(ms, types.u64_id)
-            try self.put("); ")
-            try self.put_tmp("ts", n)
-            try self.put(".tv_sec = (time_t)(")
-            try self.put_tmp("tm", n)
-            try self.put(" / 1000); ")
-            try self.put_tmp("ts", n)
-            try self.put(".tv_nsec = (long)((")
-            try self.put_tmp("tm", n)
-            try self.put(" % 1000) * 1000000L); nanosleep(&")
-            try self.put_tmp("ts", n)
-            try self.put(", NULL); (void)0; })")
-            return
         if module == "atomic" and name == "fence":
-            let order = arg else return
+            let first = e.body else return try self.put("((void)0)")
+            let order = first.left else return try self.put("((void)0)")
             if order.text == "signal":
                 try self.put("({ __asm__ volatile(\"\" ::: \"memory\"); (void)0; })")
                 return
@@ -4466,85 +3981,12 @@ pub struct Emitter:
             try self.memory_order(order)
             try self.put("))")
             return
-        try self.put("/* unsupported standard call */ 0")
-        discard(d)
-
-    ## Static members of the standard records: `FixedBuffer.over`.
-    mutating func builtin_static(e: ast.Node*, id: u32, name: str) -> !:
-        let first = e.body else return
-        let v = first.left else return
-        if self.builtin_name(id) == "FixedBuffer" and name == "over":
-            let vt = try self.ty(v)
-            let n = self.tmp()
-            if self.is_array(vt):
-                try self.put("((lb_fixed){ .data = (uint8_t*)(")
-                try self.array_data(v)
-                try self.put("), .cap = ")
-                try self.put_u64(self.c.table.get(vt).length)
-                try self.put("ULL, .used = 0 })")
-                return
-            try self.put("({ lb_span ")
-            try self.put_tmp("s", n)
-            try self.put(" = ")
-            try self.expr(v)
-            try self.put("; (lb_fixed){ .data = (uint8_t*)")
-            try self.put_tmp("s", n)
-            try self.put(".data, .cap = ")
-            try self.put_tmp("s", n)
-            try self.put(".length, .used = 0 }; })")
+        if module == "c" and (name == "stdin" or name == "stdout" or name == "stderr"):
+            try self.put("((void*)")
+            try self.put(name)
+            try self.put(")")
             return
-        try self.put("0")
-
-    ## Methods of the standard records mapped onto the runtime.
-    mutating func std_method(e: ast.Node*, callee: ast.Node*, receiver: ast.Node*, rt: u32, through_ptr: bool) -> !:
-        let record = self.builtin_name(rt)
-        let name = callee.text
-        var arg: ast.Node*? = none
-        if let f = e.body:
-            arg = f.left
-        if record == "Handle":
-            if name == "join":
-                try self.put("({ pthread_join((pthread_t)(")
-                try self.expr(receiver)
-                try self.put("->id), NULL); " if through_ptr else ".id), NULL); ")
-                try self.put("(lb_r_unit){ .failed = false }; })")
-                return
-            try self.put("((void)pthread_detach((pthread_t)(")
-            try self.expr(receiver)
-            try self.put("->id)))" if through_ptr else ".id)))")
-            return
-        # the sync records take their address
-        try self.put("(lb_")
-        if record == "Mutex":
-            try self.put("mutex_")
-        elif record == "Condition":
-            try self.put("cond_")
-        elif record == "Once":
-            try self.put("once_")
-        elif record == "Semaphore":
-            try self.put("sem_")
-        if record == "Once":
-            # run(function) is begin/end/wait around the call
-            let entry = arg else return
-            let n = self.tmp()
-            try self.put("begin(")
-            try self.receiver_address(receiver, through_ptr)
-            try self.put(") ? ({ ")
-            try self.expr(entry)
-            try self.put("(); lb_once_end(")
-            try self.receiver_address(receiver, through_ptr)
-            try self.put("); 0; }) : ({ lb_once_wait(")
-            try self.receiver_address(receiver, through_ptr)
-            try self.put("); 0; }))")
-            discard(n)
-            return
-        try self.put(name)
-        try self.put("(")
-        try self.receiver_address(receiver, through_ptr)
-        if let a = arg:
-            try self.put(", ")
-            try self.expr(a)
-        try self.put("))")
+        try self.direct_call(e, d, none, try types.no_args())
 
     mutating func receiver_address(receiver: ast.Node*, through_ptr: bool) -> !:
         if through_ptr:
@@ -4761,7 +4203,7 @@ pub struct Emitter:
 
     ## The allocator view for `in x` and `with x`, or the current allocator.
     mutating func allocator_of(e: ast.Node*?) -> !:
-        let a = e else return try self.put("lb_get_alloc()")
+        let a = e else return try self.put("lb_memory_allocator")
         try self.allocator_view(a)
 
     mutating func allocator_view(e: ast.Node*) -> !:
@@ -4774,15 +4216,6 @@ pub struct Emitter:
             try self.iface_view(e, target, try self.allocator_iface())
             return
         # a `var` record: take its address
-        let name = self.builtin_name(target)
-        if name == "FixedBuffer":
-            try self.put("lb_fixed_alloc(&(")
-            try self.place(e)
-            try self.put("))")
-            return
-        if name == "CAllocator":
-            try self.put("lb_heap_alloc()")
-            return
         let i = self.decl_of(try self.allocator_iface()) else return try self.expr(e)
         try self.put("((lb_iface){ (void*)(&(")
         try self.place(e)
@@ -4822,7 +4255,8 @@ pub struct Emitter:
             try self.counted_allocation(n, payload, count, result, true)
             return
         let et = self.elem(payload)
-        try self.put("lb_span_opt ")
+        try self.put_block_type()
+        try self.put(" ")
         try self.put_tmp("ao", n)
         try self.put(" = lb_alloc_call(")
         try self.put_tmp("a", n)
@@ -4917,7 +4351,9 @@ pub struct Emitter:
         try self.put_type(et)
         try self.put(") * ")
         try self.put_tmp("n", n)
-        try self.put("; lb_span_opt ")
+        try self.put("; ")
+        try self.put_block_type()
+        try self.put(" ")
         try self.put_tmp("ao", n)
         try self.put(" = lb_alloc_call(")
         try self.put_tmp("a", n)
@@ -4981,7 +4417,9 @@ pub struct Emitter:
         try self.put_tmp("al", n)
         try self.put(" = (size_t)(")
         try self.value(align, types.usize_id)
-        try self.put("); lb_span_opt ")
+        try self.put("); ")
+        try self.put_block_type()
+        try self.put(" ")
         try self.put_tmp("ao", n)
         try self.put(" = lb_alloc_call(")
         try self.put_tmp("a", n)
@@ -5345,16 +4783,19 @@ pub struct Emitter:
         self.indent -= 1
         try self.line("};")
 
-    ## The `Writer` table and the standard-output writer the runtime lacks.
-    mutating func writer_support() -> !:
-        try self.line("typedef struct lb_vt_Writer { lb_r_usize (*write)(void* self, lb_cspan); } lb_vt_Writer;")
-        try self.line("static lb_r_usize lb_file_write(void* self, lb_cspan bytes) {")
-        try self.line("    FILE* f = (FILE*)self;")
-        try self.line("    size_t n = bytes.length == 0 ? 0 : fwrite(bytes.data, 1, bytes.length, f);")
-        try self.line("    fflush(f);")
-        try self.line("    lb_r_usize r; r.failed = false; r.value = n; return r;")
-        try self.line("}")
-        try self.line("static const lb_vt_Writer lb_vt_file __attribute__((unused)) = { .write = lb_file_write };")
+    ## The type an allocator answers: `u8[]?`.
+    mutating func put_block_type() -> !:
+        let block = try self.c.table.optional(try self.c.table.span(types.u8_id, false))
+        try self.put_type(block)
+
+    ## The calls `new`, `alloc`, `free`, and `grow` make on an allocator view.
+    mutating func allocator_glue() -> !:
+        let block = try self.c.table.optional(try self.c.table.span(types.u8_id, false))
+        try self.line("static inline __attribute__((unused)) ")
+        try self.put_type(block)
+        try self.put(" lb_alloc_call(lb_iface a, size_t size, size_t alignment) { if (a.vtable == NULL) lb_trap(\"memory.unset\"); return ((const lb_vt_Allocator*)a.vtable)->allocate(a.data, size, alignment); }")
+        try self.line("static inline bool __attribute__((unused)) lb_resize_call(lb_iface a, lb_span block, size_t size) { if (a.vtable == NULL) lb_trap(\"memory.unset\"); return ((const lb_vt_Allocator*)a.vtable)->resize(a.data, block, size); }")
+        try self.line("static inline void __attribute__((unused)) lb_release_call(lb_iface a, lb_span block) { if (a.vtable == NULL) return; ((const lb_vt_Allocator*)a.vtable)->release(a.data, block); }")
 
     # mark: Program ============================================================================
 
@@ -5362,12 +4803,10 @@ pub struct Emitter:
     ## then the instances they needed, then the header those bodies need.
     ## `mode` is 0 for a program, 1 for the test runner, 2 for an `answer()` program.
     pub mutating func program(mode: u32) -> !:
-        # program modules only; the prelude has no bodies to emit
+        # every module, the standard ones included: their bodies are Base too
         var i: usize = 0
         while i < self.c.modules.count:
-            let m = self.c.modules.get(i)
-            if not m.is_prelude:
-                try self.modules.push(m.tree)
+            try self.modules.push(self.c.modules.get(i).tree)
             i += 1
         # globals first, into their own buffer
         self.target = to_globals
@@ -5415,12 +4854,15 @@ pub struct Emitter:
             while tests_done < self.tests.count and next >= self.funcs.count:
                 try self.test_body(self.tests.get(tests_done))
                 tests_done += 1
+        # the prototypes first, so the types they spell are noted before the typedefs
+        self.target = to_protos
+        try self.prototypes()
         # the header: prologue, types, prototypes, globals, tables
         self.target = to_out
         try self.prologue()
         try self.forward_declarations()
         try self.type_definitions()
-        try self.prototypes()
+        try self.out.put(self.protos.view())
         try self.line("")
         try self.out.put(self.globals.view())
         try self.tables()
@@ -5439,8 +4881,6 @@ pub struct Emitter:
         try self.put("/* generated by luce-base */\n")
         try self.put("#include \"lucb_rt.h\"\n")
         try self.put("#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n#include <stdatomic.h>\n")
-        try self.put("#include <pthread.h>\n#include <sched.h>\n#include <time.h>\n#include <unistd.h>\n")
-        try self.put("typedef struct lb_Handle { size_t id; } lb_Handle;\n")
 
     ## Prototypes of every function instance and extern, and the interface tables' types.
     mutating func prototypes() -> !:
@@ -5458,9 +4898,10 @@ pub struct Emitter:
                     try self.put(";")
                 elif d.kind == ast.Kind.interface:
                     try self.interface_typedef(d)
+                    if d.text == "Allocator" and d.has(ast.flag_builtin):
+                        try self.allocator_glue()
                 cursor = d.next
             i += 1
-        try self.writer_support()
         i = 0
         while i < self.funcs.count:
             let inst = self.funcs.get(i)
@@ -5482,6 +4923,10 @@ pub struct Emitter:
             i += 1
 
     mutating func extern_prototype(d: ast.Node*) -> !:
+        # the C library's own functions come from the headers the prologue includes;
+        # some of them are macros there, so they are never redeclared
+        if declared_by_headers(c_symbol(d)):
+            return
         try self.line("extern ")
         let ft = self.c.table.get(d.type_id)
         if ft.elem == types.unit_id:
@@ -5516,7 +4961,7 @@ pub struct Emitter:
         let t = d.type_id
         try self.put_type(t)
         try self.put(" ")
-        try self.put_ident(d.text)
+        try self.put_global_name(d)
         if d.has(ast.flag_uninit):
             try self.put(";")
             return
@@ -5564,7 +5009,7 @@ pub struct Emitter:
         if ft.args.length > 0:
             cstr_args = self.elem(ft.args[0]) == types.cstr_id
         try self.line("int main(int argc, char** argv) {")
-        try self.line("    lb_set_alloc(lb_heap_alloc());")
+        try self.line("    lb_memory_startup();")
         if cstr_args:
             try self.line("    lb_span args = { (void*)argv, (size_t)argc };")
         else:
@@ -5595,7 +5040,7 @@ pub struct Emitter:
     ## A `main` that runs every test in order and reports.
     mutating func test_runner() -> !:
         try self.line("int main(void) {")
-        try self.line("    lb_set_alloc(lb_heap_alloc());")
+        try self.line("    lb_memory_startup();")
         try self.line("    int failed = 0;")
         var i: usize = 0
         while i < self.tests.count:
@@ -5619,28 +5064,6 @@ pub struct Emitter:
         return self.out.view()
 
 # mark: Helpers ================================================================================
-
-## The runtime's C type for a standard-module record.
-func runtime_record(name: str) -> str:
-    if name == "FixedBuffer":
-        return "lb_fixed"
-    if name == "Location":
-        return "lb_Location"
-    if name == "Handle":
-        return "lb_Handle"
-    if name == "Mutex":
-        return "lb_Mutex"
-    if name == "Condition":
-        return "lb_Cond"
-    if name == "Once":
-        return "lb_Once"
-    if name == "Semaphore":
-        return "lb_Sem"
-    if name == "CAllocator":
-        return "lb_iface"
-    if name == "File":
-        return "void*"
-    return "int"
 
 ## Identifiers the runtime defines with the `lb_` prefix; a user name that
 ## spells one gets an underscore so the two never meet.
@@ -5773,6 +5196,14 @@ func unescape_braces(text: str) -> str:
             i += 1
         i += 1
     return (str)out[..<n]
+
+## Functions of stdio.h, stdlib.h, and string.h, which the generated C includes.
+func declared_by_headers(symbol: str) -> bool:
+    let names: str[19] = ["memcpy", "memmove", "memset", "memcmp", "strlen", "malloc", "free", "realloc", "calloc", "exit", "abort", "fwrite", "fread", "fputs", "fflush", "fdopen", "fopen", "fclose", "posix_memalign"]
+    for n in names:
+        if n == symbol:
+            return true
+    return false
 
 func contains_id(ids: const u32[], id: u32) -> bool:
     for x in ids:
