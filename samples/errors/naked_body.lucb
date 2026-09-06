@@ -1,0 +1,3 @@
+# error: a naked function's body is asm blocks only
+naked func f() -> i64:
+    return 1

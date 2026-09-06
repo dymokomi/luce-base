@@ -1,0 +1,6 @@
+# error: a lambda captures nothing
+func apply(f: func(i64) -> i64, x: i64) -> i64:
+    return f(x)
+pub func answer() -> i64:
+    let k: i64 = 5
+    return apply((x) => x + k, 41)

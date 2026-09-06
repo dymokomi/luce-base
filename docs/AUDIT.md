@@ -1,6 +1,6 @@
-# Audit, 2026-09-06
+# Audit, 2026-09-06 (updated after the fixes)
 
-What the compiler provably does today, the bugs the audit found, the parts of
+What the compiler provably does today, the bugs the audit found and their fixes, the parts of
 the specification neither compiler implements, and the order to close them in.
 Every claim was checked against the three executions: the seed's interpreter,
 the C backend, and the native arm64 backend. Both gates were green at the time.
@@ -57,70 +57,66 @@ Every code block in the specification was also run through both compilers:
 of 68, 21 check in both, 44 are fragments that fail at the same position in
 both, and 3 check only here.
 
-## 3. Bugs in luce-base
+## 3. Bugs found in luce-base, all fixed
 
-Ranked by what they break; each root cause was found in the source.
+Ranked by what they broke; each root cause was found in the source, each fix is
+pinned under `luce-seed/testdata/programs/values/` or `samples/errors/`.
 
-1. **Lambdas compile to a null pointer, then crash.** `apply((x) => x + 1, 41)`
-   parses and checks and the oracle answers 42, but `emit.lucb` emits
-   `((void*)0)` and `lower.lucb` emits constant 0 for a `.lambda` node.
-   Fix: hoist each lambda to a hidden module function during checking. Medium.
-2. **Every function attribute is rejected.** `inline`, `noinline`, `cold`,
-   `weak`, `used`, `section`, `naked` before `func` fail with "a parameter
-   needs a type": the declaration parser stores the attribute list into
-   `n.right`, where a function keeps its parameters (`parser.lucb:286`).
-   Attributes on `var` work. Fix: an own field, then emit them:
-   `__attribute__` in C, `.weak_definition` / `.no_dead_strip` / `.section`
-   natively, no prologue for `naked`. Small.
-3. **The native backend ignores `align(N)`.** `types.lucb` reads only the
-   packed flag; the parser stores the alignment expression and nothing reads
-   it. `align(16) struct Vec` is size 8, alignment 4 natively and 16, 16 under
-   C; `align(8) var b` on a field is ignored the same way. The backends
-   disagree on an ABI fact. Fix: honour it in `aligned()` and the layout,
-   per type and per field. Small.
-4. **Module-level `asm` blocks are dropped.** The checker accepts a
-   file-scope `asm arm64:` block and both backends skip it, so its symbols
-   are undefined at link (§8.9). Fix: emit verbatim natively, top-level
-   `__asm__` in C. Small.
-5. **`out` array parameters on externs break both backends.**
-   `extern func pipe(out fds: i32[2]) -> i32` emits a prototype that conflicts
-   with the header's, and the native call crashes; neither backend reads the
-   `out` flag. Fix: pass `out T[N]` as a pointer to its first element. Small.
-6. **`T: Comparable` calls the wrong `compare`.** The monomorphised
-   `item.compare(best)` passes two arguments to the one-argument
-   compiler-supplied compare: a C compile error, a wrong result natively.
-   Separately, `a.compare(b)` on a scalar or `str` is "this value has no
-   members" here while the seed supplies it (§14.4). Fix: a builtin
-   `compare` for integers, floats, `char`, `str`, and route the constrained
-   call through it. Medium.
-7. **`var v: volatile i64` is accepted.** §15.2 makes `volatile` a pointee
-   qualifier; the seed rejects the local form. Tiny.
-8. **Module-level `var x: T = ---` does not parse** (§6.2); the seed parses
-   it. Tiny.
-9. **Unused imports are not diagnosed**; the seed rejects them. Small.
-10. **A triple-quoted string keeps the newline after the opening delimiter.**
-    Both backends agree; the specification does not say. Decide, write it
-    into §4.4, pin it. Tiny.
+1. **Lambdas compiled to a null pointer.** Both backends emitted 0 for a
+   `.lambda` node. Now the checker hoists each lambda to a hidden module
+   function (`__lambdaN`) with a one-`return` body; enclosing locals are hidden
+   from its body, so a capture is a diagnostic (§9.6). `lambda_value`,
+   `lambda_capture`.
+2. **Function attributes were rejected.** The parser stored the attribute list
+   in the field that holds the parameters. Attributes have their own field now
+   and reach both backends: `__attribute__` in C; `.weak_definition`,
+   `.no_dead_strip`, `.section`, and no prologue for `naked` natively.
+   `attributes_linkage`, `naked_function`.
+3. **The native backend ignored `align(N)`.** The layout now honours it on a
+   struct and on a field; both backends agree with C. `layout_align`.
+4. **Module-level `asm` blocks were dropped.** They reach the IR (`module_asm`)
+   and the C (`__asm__` at file scope). `module_asm`.
+5. **`T: Comparable` called the wrong `compare`**, and scalars had none. Numbers,
+   `char`, and `str` have a builtin `compare`; a constrained call at a scalar
+   routes to it in both backends. `compare_scalars`.
+6. **A method on a value receiver** (`Flags.a.name()`, a call's result) failed
+   to lower natively and took an rvalue's address in C. Both hold the value in a
+   temporary. `enum_case_method`.
+7. **`var v: volatile i64` was accepted.** `volatile` qualifies a pointee (§15.2).
+   `volatile_local`, `volatile_pointee`.
+8. **Module-level `var x: T = ---` did not parse.** `global_uninit`.
+9. **Unused imports were not diagnosed.** By decision they are now pruned by the
+   checker in both compilers, so nothing after it sees them; §16.3 says so.
+10. **A triple-quoted text kept the newline after its opener.** By decision it is
+    dropped, in both compilers; §4.4 says so.
 
-## 4. Bugs in the seed oracle
+Reclassified: `out fds: i32[2]` on an extern was a misuse of `out`. §17.1 makes
+`out` parameters extra results returned as a tuple; neither compiler implements
+that yet (see §5).
 
-| What | Observed | Consequence |
-| --- | --- | --- |
-| `weak func`, `weak var` | rejected as full Luce; §9.8 lists them as Base | blocks the attribute differential |
-| `naked func` | "must return a value on every path": the asm body is not terminating | blocks naked functions |
-| `value.bits()` on a float | "methods are called on structs"; §7.5 defines it | luce-base is right and untested |
-| labeled `for` | the outer loop's variable is unknown inside the inner loop | luce-base is right and untested |
-| a nested block at end of file | "expected newline" at EOF after a trailing `match` or `catch` block | parser robustness |
-| multi-line `asm` operand lists | "expected a dedent" on the continuation line; the spec's own §8.9 example | the example does not parse |
-| union reinterpretation | typed slots, not bytes: a scalar pun reads 0, a byte-array pun traps | unions proven by C-versus-native only |
+## 4. Bugs found in the seed oracle, all fixed
+
+Fixed in luce-seed 0.5 and 0.6: `weak func` and `weak var` as attributes; naked
+bodies as asm only; `value.bits()` and `f64.bits(u)`; a labeled loop keeping
+its variable (the label has its own node field); a top-level binding ending
+with a suite; a multi-line `asm` header; unions reinterpreting through the
+target's byte layout (`interp/punning`); an untyped arithmetic expression
+taking the width it meets; a float literal adapting to `f32`; a floating
+literal emitted with a point; a method on a value receiver; an integer-backed
+enum forward-declared for its methods.
+
+Remaining, by design: the interpreter cannot run `asm`, so naked functions and
+module asm are proven by the two backends agreeing (`# oracle: none`).
 
 ## 5. Missing functionality
+
+Parts of the specification neither compiler implements. Ordered by how much a
+Base programmer would miss them.
 
 | § | Feature | State |
 | --- | --- | --- |
 | 14.4 | `Display`, `Iterator`, `Iterable` | missing in both; the largest language gap |
-| 14.4 | `compare` on scalars and `str` | missing here (bug 6) |
-| 9.8 | `naked func` | missing in both |
+| 17.1 | `out` parameters as tuple results | missing in both |
 | 8.9 | compiler-chosen `reg` operands, `{name}` substitution natively | C only |
 | 5.1 | `f16` | missing in both; low demand |
 | 17.6 | `luce build --lib` with a generated header | missing; `export` works |
@@ -132,18 +128,14 @@ Ranked by what they break; each root cause was found in the source.
 | plan 9 | `luce-ld` | not started |
 
 Known and accepted: the allocator handles block-local temporaries only; the
-interpreter cannot run asm or unions; `var views: Interface[N]` is rejected
-by both compilers because a view has no zero value.
+interpreter cannot run asm; `var views: Interface[N]` is rejected by both
+compilers because a view has no zero value; a union member written only
+through a pointer taken earlier is not seen by the interpreter's punning.
 
 ## 6. The order
 
-1. **Bugs here**: attributes and `align` first (ABI and linkage facts), then
-   lambdas, module asm, `out` parameters, `Comparable`, then the four small
-   ones. Each pinned in the seed corpus or `samples/errors`; both gates green.
-2. **The oracle**: the seven seed bugs, so the differential covers what it
-   currently cannot.
-3. **Language gaps**: `Display`, `Iterator`, `Iterable` in both compilers;
-   `naked func` end to end; asm `reg` operands natively.
-4. **Tooling and targets**: `--lib` with the header, `--freestanding`, `fmt`;
+1. **Language gaps**: `Display`, `Iterator`, `Iterable` in both compilers,
+   `out` parameters as tuple results, asm `reg` operands natively.
+2. **Tooling and targets**: `--lib` with the header, `--freestanding`, `fmt`;
    arm64-linux as the second target; `luce bind` as its own tool.
-5. **Release**: `luce-ld`, then the luce-base release and luce-full in Base.
+3. **Release**: `luce-ld`, then the luce-base release and luce-full in Base.

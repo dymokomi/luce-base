@@ -1,0 +1,4 @@
+# error: `volatile` qualifies a pointee
+pub func answer() -> i64:
+    var v: volatile i64 = 40
+    return v
