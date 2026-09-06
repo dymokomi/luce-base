@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Write src/runtime.lucb: the C runtime sources as raw Base text, so the
+"""Write src/support/runtime.lucb: the C runtime sources as raw Base text, so the
 compiler binary carries everything the generated C needs."""
 import pathlib
 
@@ -23,5 +23,5 @@ for name, file in files:
     text = (root / "runtime" / file).read_text()
     assert '"""' not in text, file
     out.append(f"## The text of `runtime/{file}`.\npub let {name}: str = r\"\"\"{text}\"\"\"\n\n")
-(root / "src" / "runtime.lucb").write_text("".join(out).rstrip("\n") + "\n")
-print("wrote src/runtime.lucb")
+(root / "src" / "support" / "runtime.lucb").write_text("".join(out).rstrip("\n") + "\n")
+print("wrote src/support/runtime.lucb")
