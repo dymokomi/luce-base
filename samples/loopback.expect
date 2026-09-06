@@ -1,0 +1,3 @@
+server got ping
+client got pong
+udp got hello over udp from the loopback: true

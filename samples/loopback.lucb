@@ -1,0 +1,46 @@
+## A TCP echo over loopback and a UDP round trip, the client on a second thread.
+
+import net
+import thread
+
+struct Peer:
+    var address: net.Address
+    var datagram_port: u16
+
+func client(context: void*):
+    let peer = (Peer*)context
+    var connection = net.Connection.connect(peer.address) catch failure:
+        print(f"client: {failure.message}")
+        return
+    try_send(&connection) catch failure:
+        print(f"client: {failure.message}")
+        recover ()
+    connection.close()
+
+func try_send(connection: net.Connection*) -> !:
+    discard(try connection.write("ping".bytes))
+    var buffer: u8[64]
+    let n = try connection.receive(buffer)
+    print(f"client got {(str)buffer[..<n]}")
+
+pub func main(arguments: str[]) -> i32!:
+    let listener = try net.Listener.bind(net.Address.loopback(0))
+    let bound = listener.address()
+    var peer = Peer(address = bound, datagram_port = 0)
+    let worker = try thread.spawn(client, &peer)
+    var connection = try listener.accept()
+    var buffer: u8[64]
+    let n = try connection.receive(buffer)
+    print(f"server got {(str)buffer[..<n]}")
+    discard(try connection.write("pong".bytes))
+    try worker.join()
+    connection.close()
+    listener.close()
+    let a = try net.Datagram.bind(net.Address.loopback(0))
+    let b = try net.Datagram.bind(net.Address.loopback(0))
+    try a.send_to("hello over udp".bytes, b.address())
+    let (count, sender) = try b.receive_from(buffer)
+    print(f"udp got {(str)buffer[..<count]} from the loopback: {sender.ip == 2130706433}")
+    a.close()
+    b.close()
+    return 0

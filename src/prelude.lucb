@@ -26,7 +26,7 @@ pub struct Prelude:
 
 ## The modules in dependency order: `memory` first because `io` names its types,
 ## `atomic` before `sync`, whose orderings it declares.
-pub let modules: Prelude[9] = [
+pub let modules: Prelude[15] = [
     Prelude(name = "memory", text = """
 extern func malloc(size: usize) -> void*?
 extern func c_free as "free"(block: void*)
@@ -547,6 +547,532 @@ pub struct Semaphore:
 
     pub mutating func release():
         discard(self.count.add(1, .release))
+"""),
+    Prelude(name = "strings", text = """
+## Text operations over `str` views; what allocates says so and uses the current allocator.
+pub func starts_with(text: str, prefix: str) -> bool:
+    if prefix.length > text.length:
+        return false
+    return (str)text.bytes[..<prefix.length] == prefix
+
+pub func ends_with(text: str, suffix: str) -> bool:
+    if suffix.length > text.length:
+        return false
+    return (str)text.bytes[text.length - suffix.length..] == suffix
+
+## The byte offset of the first `needle` in `text`.
+pub func find(text: str, needle: str) -> usize?:
+    if needle.length > text.length:
+        return none
+    var i: usize = 0
+    while i + needle.length <= text.length:
+        if (str)text.bytes[i..<i + needle.length] == needle:
+            return i
+        i += 1
+    return none
+
+## The byte offset of the last `byte` in `text`.
+pub func last(text: str, byte: u8) -> usize?:
+    var i = text.length
+    while i > 0:
+        i -= 1
+        if text.bytes[i] == byte:
+            return i
+    return none
+
+pub func contains(text: str, needle: str) -> bool:
+    return find(text, needle) != none
+
+func is_space(byte: u8) -> bool:
+    return byte == ' ' or byte == '\\n' or byte == '\\t' or byte == '\\r'
+
+## `text` without leading and trailing spaces, tabs, and line ends: a view.
+pub func trim(text: str) -> str:
+    var start: usize = 0
+    var end = text.length
+    let b = text.bytes
+    while start < end and is_space(b[start]):
+        start += 1
+    while end > start and is_space(b[end - 1]):
+        end -= 1
+    return (str)b[start..<end]
+
+## `text` split at every `separator`, as views into it, in the current allocator.
+pub func split(text: str, separator: u8) -> str[]!:
+    var count: usize = 1
+    for b in text.bytes:
+        if b == separator:
+            count += 1
+    let parts = try alloc str[count]
+    var n: usize = 0
+    var start: usize = 0
+    var i: usize = 0
+    let b = text.bytes
+    while i < b.length:
+        if b[i] == separator:
+            parts[n] = (str)b[start..<i]
+            n += 1
+            start = i + 1
+        i += 1
+    parts[n] = (str)b[start..]
+    return parts
+
+## The pieces joined with `separator` between them, in the current allocator.
+pub func join(pieces: const str[], separator: str) -> str!:
+    var total: usize = 0
+    var i: usize = 0
+    while i < pieces.length:
+        total += pieces[i].length
+        if i + 1 < pieces.length:
+            total += separator.length
+        i += 1
+    let out = try alloc u8[total + 1]
+    var n: usize = 0
+    i = 0
+    while i < pieces.length:
+        memory.copy(out[n..], pieces[i].bytes, pieces[i].length)
+        n += pieces[i].length
+        if i + 1 < pieces.length:
+            memory.copy(out[n..], separator.bytes, separator.length)
+            n += separator.length
+        i += 1
+    out[n] = 0
+    return (str)out[..<n]
+
+## A copy of `text` in the current allocator, NUL-terminated so it may be a `cstr`.
+pub func copy(text: str) -> str!:
+    let out = try alloc u8[text.length + 1]
+    memory.copy(out, text.bytes, text.length)
+    out[text.length] = 0
+    return (str)out[..<text.length]
+
+## A decimal integer, with an optional sign; none when the text is not one.
+pub func to_i64(text: str) -> i64?:
+    let b = text.bytes
+    if b.length == 0:
+        return none
+    var i: usize = 0
+    var negative = false
+    if b[0] == '-' or b[0] == '+':
+        negative = b[0] == '-'
+        i = 1
+    if i >= b.length:
+        return none
+    var value: i64 = 0
+    while i < b.length:
+        let c = b[i]
+        if c < '0' or c > '9':
+            return none
+        let digit = (i64)(c - '0')
+        let next = value *? 10 else return none
+        value = next +? digit else return none
+        i += 1
+    return 0 - value if negative else value
+
+## ASCII case folding; other bytes pass through.
+pub func to_upper(text: str) -> str!:
+    let out = try alloc u8[text.length + 1]
+    var i: usize = 0
+    for b in text.bytes:
+        out[i] = b - 32 if b >= 'a' and b <= 'z' else b
+        i += 1
+    out[i] = 0
+    return (str)out[..<i]
+
+pub func to_lower(text: str) -> str!:
+    let out = try alloc u8[text.length + 1]
+    var i: usize = 0
+    for b in text.bytes:
+        out[i] = b + 32 if b >= 'A' and b <= 'Z' else b
+        i += 1
+    out[i] = 0
+    return (str)out[..<i]
+
+## Text built piece by piece in the current allocator.
+pub struct Builder implements Writer:
+    var data: u8[]
+    var used: usize
+
+    pub static func create(capacity: usize) -> Builder!:
+        return Builder(data = try alloc u8[capacity if capacity > 0 else 64], used = 0)
+
+    pub mutating func write(data: const u8[]) -> usize!:
+        if self.used + data.length >= self.data.length:
+            var room = self.data.length * 2
+            while room <= self.used + data.length:
+                room = room * 2
+            self.data = try memory.grow(self.data, room)
+        memory.copy(self.data[self.used..], data, data.length)
+        self.used += data.length
+        return data.length
+
+    pub mutating func put(text: str) -> !:
+        discard(try self.write(text.bytes))
+
+    ## The text so far, NUL-terminated in the buffer; invalid after the next write.
+    pub mutating func view() -> str:
+        if self.used < self.data.length:
+            self.data[self.used] = 0
+        return (str)self.data[..<self.used]
+
+    pub mutating func clear():
+        self.used = 0
+"""),
+    Prelude(name = "paths", text = """
+## File system paths as text, with `/` as the separator.
+pub func is_absolute(path: str) -> bool:
+    return path.length > 0 and path.bytes[0] == '/'
+
+## Everything up to the last separator, or `.` when there is none.
+pub func directory(path: str) -> str:
+    let cut = strings.last(path, '/') else return "."
+    if cut == 0:
+        return "/"
+    return (str)path.bytes[..<cut]
+
+## The last component.
+pub func base(path: str) -> str:
+    let cut = strings.last(path, '/') else return path
+    return (str)path.bytes[cut + 1..]
+
+## The extension with its dot, or the empty text.
+pub func extension(path: str) -> str:
+    let name = base(path)
+    let dot = strings.last(name, '.') else return ""
+    if dot == 0:
+        return ""
+    return (str)name.bytes[dot..]
+
+## The last component without its extension.
+pub func stem(path: str) -> str:
+    let name = base(path)
+    let ext = extension(name)
+    return (str)name.bytes[..<name.length - ext.length]
+
+## `left/right`, in the current allocator; an absolute `right` wins.
+pub func join(left: str, right: str) -> str!:
+    if is_absolute(right) or left.length == 0:
+        return try strings.copy(right)
+    let out = try alloc u8[left.length + right.length + 2]
+    var n: usize = 0
+    memory.copy(out, left.bytes, left.length)
+    n = left.length
+    if left.bytes[left.length - 1] != '/':
+        out[n] = '/'
+        n += 1
+    memory.copy(out[n..], right.bytes, right.length)
+    n += right.length
+    out[n] = 0
+    return (str)out[..<n]
+"""),
+    Prelude(name = "math", text = """
+extern func c_floor as "floor"(x: f64) -> f64
+extern func c_ceil as "ceil"(x: f64) -> f64
+extern func c_sqrt as "sqrt"(x: f64) -> f64
+extern func c_fmod as "fmod"(x: f64, y: f64) -> f64
+extern func c_pow as "pow"(x: f64, y: f64) -> f64
+extern func c_sin as "sin"(x: f64) -> f64
+extern func c_cos as "cos"(x: f64) -> f64
+extern func c_log as "log"(x: f64) -> f64
+extern func c_exp as "exp"(x: f64) -> f64
+
+pub let pi: f64 = 3.141592653589793
+pub let e: f64 = 2.718281828459045
+## Built from bits so that no constant expression needs to overflow.
+pub let infinity: f64 = f64.bits(9218868437227405312)
+pub let nan: f64 = f64.bits(9221120237041090560)
+
+pub func floor(x: f64) -> f64:
+    return c_floor(x)
+pub func ceil(x: f64) -> f64:
+    return c_ceil(x)
+pub func sqrt(x: f64) -> f64:
+    return c_sqrt(x)
+## The remainder of `x / y` with the sign of `x`, as C's `fmod`.
+pub func mod(x: f64, y: f64) -> f64:
+    return c_fmod(x, y)
+pub func pow(x: f64, y: f64) -> f64:
+    return c_pow(x, y)
+pub func sin(x: f64) -> f64:
+    return c_sin(x)
+pub func cos(x: f64) -> f64:
+    return c_cos(x)
+pub func log(x: f64) -> f64:
+    return c_log(x)
+pub func exp(x: f64) -> f64:
+    return c_exp(x)
+pub func is_nan(x: f64) -> bool:
+    return x != x
+pub func abs(x: f64) -> f64:
+    return 0.0 - x if x < 0.0 else x
+pub func min(a: f64, b: f64) -> f64:
+    return a if a < b else b
+pub func max(a: f64, b: f64) -> f64:
+    return a if a > b else b
+pub func imin(a: i64, b: i64) -> i64:
+    return a if a < b else b
+pub func imax(a: i64, b: i64) -> i64:
+    return a if a > b else b
+"""),
+    Prelude(name = "time", text = """
+extern func clock_gettime(clock: i32, out_time: Stamp*) -> i32
+extern func c_time as "time"(out_time: void*?) -> i64
+
+extern struct Stamp:
+    seconds: i64
+    nanoseconds: i64
+
+let monotonic: i32 = 6
+let realtime: i32 = 0
+
+## Nanoseconds from an arbitrary origin, never going backwards.
+pub func now() -> u64:
+    var stamp = Stamp(seconds = 0, nanoseconds = 0)
+    discard(clock_gettime(monotonic, &stamp))
+    return (u64)stamp.seconds * 1000000000 + (u64)stamp.nanoseconds
+
+## Seconds since the Unix epoch.
+pub func unix() -> i64:
+    return c_time(none)
+
+## Nanoseconds elapsed since `start`, from `now()`.
+pub func since(start: u64) -> u64:
+    let current = now()
+    return current - start if current > start else 0
+"""),
+    Prelude(name = "testing", text = """
+## What a Base test runs under (§16.5): a fixed-buffer allocator made current for
+## each test, a deterministic seed, and assertions that name what differed.
+var arena_bytes: u8[1048576]
+var arena: FixedBuffer
+var saved: Allocator
+var current_seed: u64 = 1
+
+## Called by the runner before each test.
+pub func begin(index: u64):
+    arena = FixedBuffer.over(arena_bytes)
+    saved = memory.allocator
+    memory.allocator = &arena
+    current_seed = index * 2654435761 + 1
+
+## Called by the runner after each test.
+pub func end():
+    memory.allocator = saved
+
+## A seed that is the same on every run of the same test.
+pub func seed() -> u64:
+    return current_seed
+
+## The next pseudo-random value from the seed, and the seed advanced.
+pub func random() -> u64:
+    var x = current_seed
+    x = x ^ (x << 13)
+    x = x ^ (x >> 7)
+    x = x ^ (x << 17)
+    current_seed = x
+    return x
+
+pub func expect(condition: bool, message: str):
+    if not condition:
+        trap(message)
+
+pub func expect_equal(actual: i64, expected: i64, message: str):
+    if actual != expected:
+        print(f"expected {expected}, got {actual}: {message}")
+        trap(message)
+
+pub func expect_text(actual: str, expected: str, message: str):
+    if actual != expected:
+        print(f"expected `{expected}`, got `{actual}`: {message}")
+        trap(message)
+"""),
+    Prelude(name = "net", text = """
+extern func socket(domain: i32, kind: i32, protocol: i32) -> i32
+extern func bind(descriptor: i32, address: const SocketAddress*, length: u32) -> i32
+extern func listen(descriptor: i32, backlog: i32) -> i32
+extern func accept(descriptor: i32, address: SocketAddress*?, length: u32*?) -> i32
+extern func connect(descriptor: i32, address: const SocketAddress*, length: u32) -> i32
+extern func send(descriptor: i32, data: const void*, length: usize, flags: i32) -> isize
+extern func recv(descriptor: i32, buffer: void*, length: usize, flags: i32) -> isize
+extern func sendto(descriptor: i32, data: const void*, length: usize, flags: i32, address: const SocketAddress*, address_length: u32) -> isize
+extern func recvfrom(descriptor: i32, buffer: void*, length: usize, flags: i32, address: SocketAddress*?, address_length: u32*?) -> isize
+extern func close(descriptor: i32) -> i32
+extern func setsockopt(descriptor: i32, level: i32, option: i32, value: const void*, length: u32) -> i32
+extern func getsockname(descriptor: i32, address: SocketAddress*, length: u32*) -> i32
+extern func getaddrinfo(host: cstr, service: cstr?, hints: const AddressInfo*?, result: AddressInfo*?*) -> i32
+extern func freeaddrinfo(info: AddressInfo*)
+
+## `sockaddr_in` as arm64-macos lays it out.
+extern struct SocketAddress:
+    length: u8
+    family: u8
+    port: u16
+    address: u32
+    zero: u8[8]
+
+## `addrinfo` as arm64-macos lays it out.
+extern struct AddressInfo:
+    flags: i32
+    family: i32
+    kind: i32
+    protocol: i32
+    address_length: u32
+    canonical: cstr?
+    address: SocketAddress*?
+    next: AddressInfo*?
+
+let inet: i32 = 2
+let stream: i32 = 1
+let datagram: i32 = 2
+let socket_level: i32 = 65535
+let reuse_address: i32 = 4
+
+pub let failed: ErrorCode = ErrorCode.package(1)
+pub let closed: ErrorCode = ErrorCode.package(2)
+pub let unknown_host: ErrorCode = ErrorCode.package(3)
+
+## An IPv4 address and port, both in host order.
+pub struct Address:
+    pub var ip: u32
+    pub var port: u16
+
+    pub static func loopback(port: u16) -> Address:
+        return Address(ip = 2130706433, port = port)
+
+    pub static func any(port: u16) -> Address:
+        return Address(ip = 0, port = port)
+
+    func raw() -> SocketAddress:
+        var zero: u8[8]
+        return SocketAddress(length = 16, family = 2, port = swap16(self.port), address = swap32(self.ip), zero = zero)
+
+    static func from_raw(raw: SocketAddress) -> Address:
+        return Address(ip = swap32(raw.address), port = swap16(raw.port))
+
+## Host to network byte order and back; the machine is little-endian.
+func swap16(value: u16) -> u16:
+    return (value << 8) | (value >> 8)
+
+func swap32(value: u32) -> u32:
+    return (value << 24) | ((value << 8) & 16711680) | ((value >> 8) & 65280) | (value >> 24)
+
+## The first IPv4 address of `host`.
+pub func resolve(host: cstr, port: u16) -> Address!:
+    var hints = AddressInfo(flags = 0, family = inet, kind = stream, protocol = 0, address_length = 0, canonical = none, address = none, next = none)
+    var found: AddressInfo*? = none
+    if getaddrinfo(host, none, &hints, &found) != 0:
+        error(unknown_host, "unknown host")
+    let info = found else error(unknown_host, "unknown host")
+    let raw = info.address else error(unknown_host, "unknown host")
+    var address = Address.from_raw(*raw)
+    address.port = port
+    freeaddrinfo(info)
+    return address
+
+## A bound TCP socket waiting for connections.
+pub struct Listener:
+    var descriptor: i32
+
+    pub static func bind(address: Address) -> Listener!:
+        let fd = socket(inet, stream, 0)
+        if fd < 0:
+            error(failed, "socket")
+        var yes: i32 = 1
+        discard(setsockopt(fd, socket_level, reuse_address, &yes, 4))
+        let raw = address.raw()
+        if bind(fd, &raw, 16) != 0:
+            discard(close(fd))
+            error(failed, "bind")
+        if listen(fd, 16) != 0:
+            discard(close(fd))
+            error(failed, "listen")
+        return Listener(descriptor = fd)
+
+    ## The address the socket ended up with; a port of zero asked for any free one.
+    pub func address() -> Address:
+        var raw = SocketAddress(length = 0, family = 0, port = 0, address = 0, zero = [0, 0, 0, 0, 0, 0, 0, 0])
+        var length: u32 = 16
+        discard(getsockname(self.descriptor, &raw, &length))
+        return Address.from_raw(raw)
+
+    pub func accept() -> Connection!:
+        let fd = accept(self.descriptor, none, none)
+        if fd < 0:
+            error(failed, "accept")
+        return Connection(descriptor = fd)
+
+    pub func close():
+        discard(close(self.descriptor))
+
+## One TCP connection; it is a `Writer`.
+pub struct Connection implements Writer:
+    var descriptor: i32
+
+    pub static func connect(address: Address) -> Connection!:
+        let fd = socket(inet, stream, 0)
+        if fd < 0:
+            error(failed, "socket")
+        let raw = address.raw()
+        if connect(fd, &raw, 16) != 0:
+            discard(close(fd))
+            error(failed, "connect")
+        return Connection(descriptor = fd)
+
+    ## Send every byte.
+    pub mutating func write(data: const u8[]) -> usize!:
+        var done: usize = 0
+        while done < data.length:
+            let n = send(self.descriptor, data[done..].data, data.length - done, 0)
+            if n <= 0:
+                error(closed, "the connection closed")
+            done += (usize)n
+        return done
+
+    ## Receive what is available, up to the buffer; zero means the peer closed.
+    pub func receive(buffer: u8[]) -> usize!:
+        let n = recv(self.descriptor, buffer.data, buffer.length, 0)
+        if n < 0:
+            error(closed, "the connection closed")
+        return (usize)n
+
+    pub func close():
+        discard(close(self.descriptor))
+
+## A UDP socket.
+pub struct Datagram:
+    var descriptor: i32
+
+    pub static func bind(address: Address) -> Datagram!:
+        let fd = socket(inet, datagram, 0)
+        if fd < 0:
+            error(failed, "socket")
+        let raw = address.raw()
+        if bind(fd, &raw, 16) != 0:
+            discard(close(fd))
+            error(failed, "bind")
+        return Datagram(descriptor = fd)
+
+    pub func address() -> Address:
+        var raw = SocketAddress(length = 0, family = 0, port = 0, address = 0, zero = [0, 0, 0, 0, 0, 0, 0, 0])
+        var length: u32 = 16
+        discard(getsockname(self.descriptor, &raw, &length))
+        return Address.from_raw(raw)
+
+    pub func send_to(data: const u8[], address: Address) -> !:
+        let raw = address.raw()
+        if sendto(self.descriptor, data.data, data.length, 0, &raw, 16) < 0:
+            error(failed, "send")
+
+    pub func receive_from(buffer: u8[]) -> (usize, Address)!:
+        var raw = SocketAddress(length = 0, family = 0, port = 0, address = 0, zero = [0, 0, 0, 0, 0, 0, 0, 0])
+        var length: u32 = 16
+        let n = recvfrom(self.descriptor, buffer.data, buffer.length, 0, &raw, &length)
+        if n < 0:
+            error(failed, "receive")
+        return ((usize)n, Address.from_raw(raw))
+
+    pub func close():
+        discard(close(self.descriptor))
 """),
     Prelude(name = "c", text = """
 pub type int = i32

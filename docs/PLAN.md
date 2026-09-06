@@ -31,17 +31,16 @@ but nothing requires it. `tools/snapshot.sh` refreshes the snapshot.
 
 `luce-base` is also where the standard modules of base.md §16.6 are Base
 source instead of seed builtins. `memory`, `io`, `files`, `process`,
-`thread`, `sync`, `atomic`, and `c` are in `src/prelude.lucb` now, each a
-piece of Base over `extern` declarations of the C library; the constants are
-those of arm64-macos, and a second target gets its own copy through the
-per-target modules of §16.4. The rest grows in the order the operating system
-needs it:
+`thread`, `sync`, `atomic`, `c`, `strings`, `paths`, `math`, `time`,
+`testing`, and `net` (TCP and UDP over BSD sockets, with `resolve`) are in
+`src/prelude.lucb`, each a piece of Base over `extern` declarations of the C
+library; the constants are those of arm64-macos, and a second target gets its
+own copy through the per-target modules of §16.4. `samples/library.lucb` and
+`samples/loopback.lucb` exercise them under the gate. What remains grows in
+the order the operating system needs it:
 
-1. `paths`, `strings`, `math`, `testing`: what the compiler and its tests use next.
-2. `time`, and the pieces of `process` and `thread` the spec names but nothing calls yet.
-3. `net`: sockets, TCP, and UDP over the host's C library, then TLS through a
-   bound library.
-4. `graphics`: windows, input, and a GPU surface through the host (Metal on
+1. TLS for `net`, through a bound library.
+2. `graphics`: windows, input, and a GPU surface through the host (Metal on
    macOS, Vulkan elsewhere), reached through `extern` and `luce bind`.
 
 Each module is Base code over `extern` declarations; nothing in the compiler

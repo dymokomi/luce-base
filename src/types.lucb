@@ -309,8 +309,9 @@ pub struct Table:
                 let a = self.align_of(t.elem)
                 return round_up(inner, a) + a if a > 0 else inner + 1
             .fallible:
-                let inner = self.size_of(t.elem) if t.elem != unit_id else 0
-                return round_up(inner + 24, 8)
+                # the value, then the error (a code and a message), then the flag, as C lays them out
+                let inner = self.size_of(t.elem) if t.elem != unit_id and t.elem != never_id else 0
+                return round_up(round_up(inner, 8) + 24 + 1, 8)
             .tuple, .struct_:
                 var offset: u64 = 0
                 var largest: u64 = 1

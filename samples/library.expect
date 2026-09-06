@@ -1,0 +1,10 @@
+4 a c
+a-b--c
+padded
+6 true true
+-42 7 LUCE
+one, 2, 3.5
+/usr/local/bin cc .lucb main
+src/main.lucb
+2 4 1.5 9 true
+true true

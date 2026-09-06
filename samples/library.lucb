@@ -1,0 +1,26 @@
+## The standard modules that are Base source: text, paths, numbers, time, and tests.
+
+pub func main(arguments: str[]) -> i32!:
+    var backing: u8[65536]
+    var arena = FixedBuffer.over(backing)
+    with arena:
+        let parts = try strings.split("a,b,,c", ',')
+        print(f"{parts.length} {parts[0]} {parts[3]}")
+        print(try strings.join(parts, "-"))
+        print(strings.trim("  padded \n"))
+        let at = strings.find("hello world", "world") else 99
+        print(f"{at} {strings.starts_with("hello", "he")} {strings.ends_with("hello", "lo")}")
+        let n = strings.to_i64("-42") else 0
+        let bad = strings.to_i64("4x") else 7
+        print(f"{n} {bad} {try strings.to_upper("Luce")}")
+        var b = try strings.Builder.create(8)
+        try b.put("one")
+        try b.write(f", {2}, {3.5}")
+        print(b.view())
+        print(f"{paths.directory("/usr/local/bin/cc")} {paths.base("/usr/local/bin/cc")} {paths.extension("src/main.lucb")} {paths.stem("src/main.lucb")}")
+        print(try paths.join("src", "main.lucb"))
+        print(f"{math.floor(2.7)} {math.sqrt(16.0)} {math.mod(7.5, 2.0)} {math.imax(3, 9)} {math.is_nan(math.nan)}")
+        let start = time.now()
+        thread.sleep(2)
+        print(f"{time.since(start) >= 2000000} {time.unix() > 1600000000}")
+    return 0

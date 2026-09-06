@@ -3527,27 +3527,12 @@ pub struct Emitter:
                 try self.put("))")
                 return
             if self.is_float(rt_raw) and callee.text == "bits":
+                # a bit cast, which is a constant expression when the bits are
                 let first = e.body else return
                 let v = first.left else return
-                let n = self.tmp()
-                try self.put("({ ")
-                try self.put("uint32_t " if rt_raw == types.f32_id else "uint64_t ")
-                try self.put_tmp("fb", n)
-                try self.put(" = ")
+                try self.put("__builtin_bit_cast(float, (uint32_t)(" if rt_raw == types.f32_id else "__builtin_bit_cast(double, (uint64_t)(")
                 try self.expr(v)
-                try self.put("; ")
-                try self.put_type(rt_raw)
-                try self.put(" ")
-                try self.put_tmp("fv", n)
-                try self.put("; memcpy(&")
-                try self.put_tmp("fv", n)
-                try self.put(", &")
-                try self.put_tmp("fb", n)
-                try self.put(", sizeof(")
-                try self.put_tmp("fv", n)
-                try self.put(")); ")
-                try self.put_tmp("fv", n)
-                try self.put("; })")
+                try self.put("))")
                 return
             try self.put("0")
             return
@@ -5045,9 +5030,11 @@ pub struct Emitter:
         var i: usize = 0
         while i < self.tests.count:
             let t = self.tests.get(i)
-            try self.line("    { lb_r_unit r = lb_test_")
+            try self.line("    { lb_testing_begin(")
             try self.put_u64((u64)i)
-            try self.put("(); if (r.failed) { failed++; fprintf(stdout, \"FAIL  %s\\n      error: %.*s\\n\", ")
+            try self.put("); lb_r_unit r = lb_test_")
+            try self.put_u64((u64)i)
+            try self.put("(); lb_testing_end(); if (r.failed) { failed++; fprintf(stdout, \"FAIL  %s\\n      error: %.*s\\n\", ")
             try self.put_c_string(check.decode_text(t.text))
             try self.put(", (int)r.error.message.length, r.error.message.data); } else { fprintf(stdout, \"ok    %s\\n\", ")
             try self.put_c_string(check.decode_text(t.text))

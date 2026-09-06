@@ -44,8 +44,9 @@ Slice 5: the seed is pinned. `bootstrap/luce-base.c` is the compiler's own C,
 `build.sh` starts from it with nothing but a C compiler, and the standard
 modules (`memory`, `io`, `files`, `process`, `thread`, `sync`, `atomic`) are
 Base source in `src/prelude.lucb` over `extern` declarations of the C
-library. What is left in C, under `runtime/`, is what generated code cannot
-spell itself: traps, checked arithmetic, formatting of scalars, hashing.
+library, as are `strings`, `paths`, `math`, `time`, `testing`, and `net`.
+What is left in C, under `runtime/`, is what generated code cannot spell
+itself: traps, checked arithmetic, formatting of scalars, hashing.
 
 ## License
 

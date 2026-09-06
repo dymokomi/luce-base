@@ -207,6 +207,10 @@ pub struct Checker:
         var p = try parser.Parser.over(src, self.scratch)
         let tree = try p.parse_module()
         let name = module_name_of(text)
+        if is_standard_module(name):
+            let half = self.scratch.length // 2
+            let message = try format(self.scratch[..<half], f"{text}: a module cannot take a standard module's name")
+            error(unknown_name, message)
         if self.find_module(name) != none:
             return
         var cursor = tree.body
