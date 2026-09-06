@@ -1,0 +1,51 @@
+#==============================================================================================
+#
+#   backend - The interface every code generator implements
+#
+#   DESCRIPTION:
+#       The pipeline is checked tree (the high-level form the checker leaves, with a type and
+#       a resolution on every node) to a target. A `Backend` is the last stage: it takes the
+#       checked program and yields the text its host tool consumes. Two implement it today:
+#       `CBackend` streams C for the host C compiler; `NativeBackend` lowers the tree to the
+#       machine-neutral IR of `ir` (the middle form, in the spirit of QBE) and turns that into
+#       arm64 assembly. A third target adds a struct here and changes nothing else: the driver
+#       holds a `Backend` view and never names a generator.
+#
+#==============================================================================================
+
+import back.arm64
+import back.emit
+import back.lower
+import front.ast
+import sema.check
+
+## The last stage of the pipeline: the checked program as the target's text.
+pub interface Backend:
+    ## `mode` is 0 for a `main` program, 1 for the test runner, 2 for an `answer()` program.
+    mutating func compile(mode: u32) -> str!
+
+## C for the host C compiler.
+pub struct CBackend implements Backend:
+    var emitter: emit.Emitter
+
+    pub static func over(c: check.Checker*, entry: ast.Node*) -> CBackend!:
+        return CBackend(emitter = try emit.Emitter.create(c, entry))
+
+    pub mutating func compile(mode: u32) -> str!:
+        try self.emitter.program(mode)
+        return self.emitter.text()
+
+## arm64 assembly through the IR: lower the tree, then generate.
+pub struct NativeBackend implements Backend:
+    var lowerer: lower.Lowerer
+    var debug: bool
+
+    pub static func over(c: check.Checker*, entry: ast.Node*, debug: bool) -> NativeBackend!:
+        return NativeBackend(lowerer = try lower.Lowerer.create(c, entry), debug = debug)
+
+    pub mutating func compile(mode: u32) -> str!:
+        self.lowerer.debug = self.debug
+        try self.lowerer.program(mode)
+        var generator = try arm64.Generator.create(&self.lowerer.program_unit)
+        try generator.generate()
+        return generator.text()

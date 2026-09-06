@@ -9,9 +9,7 @@
 #
 #==============================================================================================
 
-import back.arm64
-import back.emit
-import back.lower
+import back.backend
 import c
 import files
 import front.ast
@@ -61,15 +59,12 @@ func generate(path: cstr, mode: u32) -> str!:
         actual = 2
     used_mode = actual
     if native_backend:
-        var l = try lower.Lowerer.create(&c, entry)
-        l.debug = debug_backend
-        try l.program(actual)
-        var g = try arm64.Generator.create(&l.program_unit)
-        try g.generate()
-        return g.text()
-    var e = try emit.Emitter.create(&c, entry)
-    try e.program(actual)
-    return e.text()
+        var native = try backend.NativeBackend.over(&c, entry, debug_backend)
+        let target: backend.Backend = &native
+        return try target.compile(actual)
+    var host_c = try backend.CBackend.over(&c, entry)
+    let target: backend.Backend = &host_c
+    return try target.compile(actual)
 
 ## The backend the current command chose: C through the host compiler, or arm64 assembly.
 var native_backend: bool

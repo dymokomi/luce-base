@@ -8,14 +8,24 @@ failure. Where the claim fails, the language changes, not the compiler.
 ## Pipeline
 
 ```text
-source → tokens/layout → syntax tree → checked tree → C → host cc
-                                                   ↘ IR → arm64 assembly → host as/ld
+source → tokens/layout → syntax tree → checked tree ─┬─→ C → host cc
+                                       (the HIR)      └─→ IR → arm64 assembly → host as/ld
+                                                          (the MIR)
 ```
 
-The first backend is C, as the seed's is, so the compiler can rebuild itself
-without the seed. The native backend starts from the same checked tree and
-is proved against the C one: every program is run through both, and the two
-must agree.
+Three forms carry a program down. The **checked tree** is the high-level form
+(an HIR): the syntax tree with a type and a resolution on every node, which is
+all a backend needs and the only thing the checker leaves behind. The **IR**
+of `ir` is the middle form (an MIR, in the spirit of QBE): machine-neutral
+instructions over typed temporaries, the shape a real code generator wants.
+The last stage is a **backend**, and every backend implements one interface
+(`back.backend`): `compile(mode) -> str`. Two implement it. `CBackend` streams
+C straight from the checked tree, as the seed's backend did, so the compiler
+can rebuild itself without the seed. `NativeBackend` lowers the checked tree
+to the IR and turns that into arm64 assembly. The driver holds a `Backend`
+view and never names a generator; a third target is a struct here and a line
+in the driver, nothing more. The native backend is proved against the C one:
+every program runs through both and the two must agree.
 
 ## Modules
 
