@@ -17,6 +17,7 @@
 #
 #==============================================================================================
 
+import memory
 import support.list
 
 # mark: Classes and references =================================================================
@@ -398,7 +399,7 @@ pub func store_op(size: u64, is_float: bool) -> Op:
 
 test "a function collects temporaries, slots, and instructions":
     var backing: u8[65536]
-    var arena = FixedBuffer.over(backing)
+    var arena = memory.FixedBuffer.over(backing)
     with arena:
         var f = try Function.create("f")
         let a = try f.binary(Op.add, Class.l, const_ref(1), const_ref(2))

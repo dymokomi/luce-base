@@ -17,8 +17,9 @@
 #
 #==============================================================================================
 
-import support.buffer
 import back.ir
+import memory
+import support.buffer
 import support.list
 
 pub let failed: ErrorCode = ErrorCode.package(15)
@@ -1268,7 +1269,7 @@ func log2(value: u64) -> u64:
 
 test "immediates and frame addresses assemble":
     var backing: u8[1048576]
-    var arena = FixedBuffer.over(backing)
+    var arena = memory.FixedBuffer.over(backing)
     with arena:
         var u = try ir.Unit.create()
         var g = try Generator.create(&u)

@@ -9,10 +9,12 @@
 #
 #==============================================================================================
 
+import memory
+
 pub struct Buffer:
     var data: u8[]
     pub var used: usize
-    var allocator: Allocator
+    var allocator: memory.Allocator
 
     pub static func create(capacity: usize) -> Buffer!:
         let room = capacity if capacity > 0 else 256
@@ -83,7 +85,7 @@ pub struct Buffer:
 
 test "a buffer appends text and numbers and grows":
     var backing: u8[65536]
-    var arena = FixedBuffer.over(backing)
+    var arena = memory.FixedBuffer.over(backing)
     with arena:
         var b = try Buffer.create(4)
         try b.put("abc")

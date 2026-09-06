@@ -10,11 +10,13 @@
 #
 #==============================================================================================
 
+import memory
+
 pub struct List[T]:
     ## The storage; `items[..<count]` are the live elements.
     pub var items: T[]
     pub var count: usize
-    var allocator: Allocator
+    var allocator: memory.Allocator
 
     pub static func create(capacity: usize) -> List[T]!:
         let room = capacity if capacity > 0 else 4
@@ -44,7 +46,7 @@ pub struct List[T]:
 
 test "a list grows and keeps order":
     var backing: u8[4096]
-    var arena = FixedBuffer.over(backing)
+    var arena = memory.FixedBuffer.over(backing)
     with arena:
         var xs = try List[i64].create(1)
         var i: i64 = 0

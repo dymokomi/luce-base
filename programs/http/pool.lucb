@@ -2,6 +2,7 @@
 ## queue is a ring under a mutex; workers sleep on a condition until there is
 ## work or the pool is stopping.
 
+import c
 import net
 import sync
 import thread

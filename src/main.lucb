@@ -10,19 +10,24 @@
 #==============================================================================================
 
 import back.arm64
-import front.ast
-import sema.check
 import back.emit
-import front.lexer
 import back.lower
+import c
+import files
+import front.ast
+import front.lexer
 import front.parser
-import support.runtime
 import front.source
 import front.token
+import io
+import memory
+import process
+import sema.check
+import support.runtime
 
 let version: str = "0.1"
 
-func usage(out: Writer) -> !:
+func usage(out: io.Writer) -> !:
     try out.write("usage: luce-base lex FILE\n       luce-base parse FILE\n       luce-base check FILE\n       luce-base build FILE [-o OUT] [--release] [--emit=c] [--native] [--debug] [--emit=asm]\n       luce-base test FILE [--native]\n       luce-base --version\n")
 
 # mark: Building ===============================================================================
@@ -163,7 +168,7 @@ func assemble_and_link(dir: str, names: u8[], text: str, exe: str) -> !:
 func build_file(path: cstr, options: Options) -> !:
     let backing = try alloc u8[arena_size] in memory.heap
     defer free(backing) in memory.heap
-    var arena = FixedBuffer.over(backing)
+    var arena = memory.FixedBuffer.over(backing)
     with arena:
         native_backend = options.native
         debug_backend = options.debug and options.native
@@ -183,7 +188,7 @@ func build_file(path: cstr, options: Options) -> !:
 func test_file(path: cstr, native: bool) -> i32!:
     let backing = try alloc u8[arena_size] in memory.heap
     defer free(backing) in memory.heap
-    var arena = FixedBuffer.over(backing)
+    var arena = memory.FixedBuffer.over(backing)
     with arena:
         native_backend = native
         let text = try generate(path, 1)
@@ -237,7 +242,7 @@ func trim(text: str) -> str:
 func check_file(path: cstr) -> !:
     let backing = try alloc u8[arena_size] in memory.heap
     defer free(backing) in memory.heap
-    var arena = FixedBuffer.over(backing)
+    var arena = memory.FixedBuffer.over(backing)
     var scratch: u8[4096]
     with arena:
         var c = try check.Checker.create(scratch)
@@ -249,10 +254,10 @@ func check_file(path: cstr) -> !:
 ## freed until the command ends.
 let arena_size: usize = 536870912
 
-func parse_file(path: cstr, out: Writer) -> !:
+func parse_file(path: cstr, out: io.Writer) -> !:
     let backing = try alloc u8[arena_size] in memory.heap
     defer free(backing) in memory.heap
-    var arena = FixedBuffer.over(backing)
+    var arena = memory.FixedBuffer.over(backing)
     var scratch: u8[4096]
     with arena:
         let src = try source.Source.load(path)
@@ -260,10 +265,10 @@ func parse_file(path: cstr, out: Writer) -> !:
         let module = try p.parse_module()
         try ast.dump(out, module, 0)
 
-func lex_file(path: cstr, out: Writer) -> !:
+func lex_file(path: cstr, out: io.Writer) -> !:
     let backing = try alloc u8[arena_size] in memory.heap
     defer free(backing) in memory.heap
-    var arena = FixedBuffer.over(backing)
+    var arena = memory.FixedBuffer.over(backing)
     with arena:
         let src = try source.Source.load(path)
         var lx = lexer.Lexer.over(src)

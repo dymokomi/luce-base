@@ -1,6 +1,8 @@
 ## The text of one file as a gap buffer of bytes, with a cursor that is a byte
 ## offset, and the line arithmetic an editor needs over it.
 
+import memory
+
 pub struct Buffer:
     var data: u8[]
     var gap_start: usize

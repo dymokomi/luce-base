@@ -3,6 +3,7 @@
 ## edit, so undo takes back a word or a line rather than one character.
 
 import buffer
+import memory
 
 pub struct Revision:
     var text: u8[]

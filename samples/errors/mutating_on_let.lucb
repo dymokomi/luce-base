@@ -1,4 +1,7 @@
 # error: needs a `var` receiver
+
+import c
+
 struct Counter:
     var n: i64
 

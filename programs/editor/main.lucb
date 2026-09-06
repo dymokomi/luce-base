@@ -11,6 +11,7 @@
 import buffer
 import files
 import history
+import memory
 import screen
 import strings
 import terminal

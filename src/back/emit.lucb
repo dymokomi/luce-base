@@ -21,12 +21,13 @@
 #
 #==============================================================================================
 
-import front.ast
-import support.buffer
-import sema.check
-import support.list
 import back.names
+import c
+import front.ast
+import sema.check
 import sema.types
+import support.buffer
+import support.list
 
 pub let backend: ErrorCode = ErrorCode.package(12)
 

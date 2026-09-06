@@ -1,5 +1,12 @@
 ## The standard modules that are Base source: text, paths, numbers, time, and tests.
 
+import math
+import paths
+import strings
+import thread
+import time
+from memory import FixedBuffer
+
 pub func main(arguments: str[]) -> i32!:
     var backing: u8[65536]
     var arena = FixedBuffer.over(backing)

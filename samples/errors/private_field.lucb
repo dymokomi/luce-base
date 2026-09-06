@@ -1,4 +1,7 @@
 # error: that field is not public
+
+from memory import FixedBuffer
+
 func f() -> usize:
     var backing: u8[64]
     var arena = FixedBuffer.over(backing)

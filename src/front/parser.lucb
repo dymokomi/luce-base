@@ -11,10 +11,12 @@
 #
 #==============================================================================================
 
+import c
 import front.ast
 import front.lexer
 import front.source
 import front.token
+import memory
 
 pub let syntax: ErrorCode = ErrorCode.package(7)
 pub let too_deep: ErrorCode = ErrorCode.package(8)
@@ -1529,7 +1531,7 @@ pub func parse_text(text: str, scratch: u8[]) -> ast.Node*!:
 
 test "a function with a body":
     var backing: u8[65536]
-    var arena = FixedBuffer.over(backing)
+    var arena = memory.FixedBuffer.over(backing)
     var scratch: u8[256]
     with arena:
         let m = try parse_text("pub func add(a: i64, b: i64 = 2) -> i64:\n    return a + b\n", scratch)
@@ -1543,7 +1545,7 @@ test "a function with a body":
 
 test "struct, enum, and union declarations":
     var backing: u8[65536]
-    var arena = FixedBuffer.over(backing)
+    var arena = memory.FixedBuffer.over(backing)
     var scratch: u8[256]
     with arena:
         let text = "struct P implements A:\n    var x: i64\n    func get() -> i64: return self.x\nenum K as u8:\n    a = 1\n    b(v: i64)\nunion U:\n    i: i64\n    f: f64\n"
@@ -1555,7 +1557,7 @@ test "struct, enum, and union declarations":
 
 test "expression precedence and casts":
     var backing: u8[65536]
-    var arena = FixedBuffer.over(backing)
+    var arena = memory.FixedBuffer.over(backing)
     var scratch: u8[256]
     with arena:
         let m = try parse_text("let v = (u8)x + 2 * 3 == 8 and not y\n", scratch)
@@ -1572,7 +1574,7 @@ test "expression precedence and casts":
 
 test "statements and layout":
     var backing: u8[65536]
-    var arena = FixedBuffer.over(backing)
+    var arena = memory.FixedBuffer.over(backing)
     var scratch: u8[256]
     with arena:
         let text = "func f() -> !:\n    var i: usize = 0\n    outer: while i < 3:\n        if let v = g(i):\n            i += 1\n        elif i == 2:\n            break outer\n        else:\n            continue\n    for (k, x) in items.indexed():\n        defer free(x)\n    match k:\n        .a, .b(v): return\n        1..<3 if k > 0: pass_()\n        _: trap()\n    let r = risky() catch failure:\n        recover 0\n"
@@ -1583,7 +1585,7 @@ test "statements and layout":
 
 test "types":
     var backing: u8[65536]
-    var arena = FixedBuffer.over(backing)
+    var arena = memory.FixedBuffer.over(backing)
     var scratch: u8[256]
     with arena:
         let m = try parse_text("var a: const u8[]?\nvar b: func(i64, Node*?) -> unit\nvar c: (i64, str)\nvar d: Map[str, u32]\nvar e: @u32\n", scratch)
@@ -1594,7 +1596,7 @@ test "types":
 
 test "a syntax error names its position":
     var backing: u8[65536]
-    var arena = FixedBuffer.over(backing)
+    var arena = memory.FixedBuffer.over(backing)
     var scratch: u8[256]
     var where = ""
     with arena:
@@ -1606,7 +1608,7 @@ test "a syntax error names its position":
 
 test "uninitialised var":
     var backing: u8[65536]
-    var arena = FixedBuffer.over(backing)
+    var arena = memory.FixedBuffer.over(backing)
     var scratch: u8[256]
     with arena:
         let m = try parse_text("func f():\n    var a: i64 = ---\n", scratch)
@@ -1617,7 +1619,7 @@ test "uninitialised var":
 
 test "dash operator token":
     var backing: u8[65536]
-    var arena = FixedBuffer.over(backing)
+    var arena = memory.FixedBuffer.over(backing)
     var scratch: u8[256]
     with arena:
         let src = try source.Source.over("t", "= ---".bytes)

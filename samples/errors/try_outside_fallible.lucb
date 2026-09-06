@@ -1,3 +1,6 @@
 # error: only valid in a fallible function
+
+import files
+
 func read_all(path: cstr) -> u8[]:
     return try files.read(path)

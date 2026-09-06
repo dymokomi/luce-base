@@ -10,6 +10,9 @@
 #
 #==============================================================================================
 
+import io
+import memory
+
 pub enum Kind as u8:
     module = 1
     import_ = 2
@@ -242,7 +245,7 @@ pub func kind_name(kind: Kind) -> str:
         _: return "?"
 
 ## Print `node` and everything under it as nested s-expressions.
-pub func dump(out: Writer, node: Node*?, depth: u32) -> !:
+pub func dump(out: io.Writer, node: Node*?, depth: u32) -> !:
     var cursor = node
     while let n = cursor:
         var i: u32 = 0
@@ -271,7 +274,7 @@ pub func dump(out: Writer, node: Node*?, depth: u32) -> !:
 
 test "append keeps order and count":
     var backing: u8[1024]
-    var arena = FixedBuffer.over(backing)
+    var arena = memory.FixedBuffer.over(backing)
     with arena:
         var list: Node*? = none
         var tail: Node*? = none

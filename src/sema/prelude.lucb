@@ -675,210 +675,24 @@ pub func stdout() -> Writer:
 pub func stderr() -> Writer:
     return &err_file
 """),
-    Prelude(name = "files", text = """
-extern func open(path: cstr, flags: i32, ...) -> i32
-extern func close(descriptor: i32) -> i32
-extern func c_read as "read"(descriptor: i32, buffer: void*, count: usize) -> isize
-extern func c_write as "write"(descriptor: i32, buffer: const void*, count: usize) -> isize
-extern func lseek(descriptor: i32, offset: i64, whence: i32) -> i64
-extern func opendir(path: cstr) -> void*?
-extern func readdir(directory: void*) -> Entry*?
-extern func closedir(directory: void*) -> i32
+    Prelude(name = "luce", text = """
+## The derived bounds of §14.4: every type with `==` is Equatable, every hashable
+## one Hashable, every ordered one Comparable. Nothing implements them by hand.
 
-## A directory entry as arm64-macos lays it out.
-extern struct Entry:
-    inode: u64
-    seek: u64
-    length: u16
-    name_length: u16
-    kind: u8
-    name: u8[1024]
+import io
 
-let read_only: i32 = 0
-let write_only: i32 = 1
-let create: i32 = 512
-let truncate: i32 = 1024
-let seek_end: i32 = 2
-let seek_set: i32 = 0
+pub interface Equatable:
+    func equals(other: void*) -> bool
+pub interface Hashable:
+    func hashed() -> u64
+pub interface Comparable:
+    func compare(other: void*) -> i64
 
-pub let missing: ErrorCode = ErrorCode.package(1)
-
-## Whether `path` can be opened for reading.
-pub func exists(path: cstr) -> bool:
-    let descriptor = open(path, read_only)
-    if descriptor < 0:
-        return false
-    discard(close(descriptor))
-    return true
-pub let failed: ErrorCode = ErrorCode.package(2)
-
-## The whole file, allocated from the current allocator.
-pub func read(path: cstr) -> u8[]!:
-    let fd = open(path, read_only)
-    if fd < 0:
-        error(missing, "missing")
-    let size = lseek(fd, 0, seek_end)
-    if size < 0 or lseek(fd, 0, seek_set) < 0:
-        discard(close(fd))
-        error(failed, "the file cannot be read")
-    let bytes = alloc u8[(usize)size] catch failure:
-        discard(close(fd))
-        error(memory.exhausted, "memory.exhausted")
-    var got: usize = 0
-    while got < bytes.length:
-        let n = c_read(fd, bytes[got..].data, bytes.length - got)
-        if n < 0:
-            discard(close(fd))
-            error(failed, "the file cannot be read")
-        if n == 0:
-            break
-        got += (usize)n
-    discard(close(fd))
-    return bytes[..<got]
-
-pub func write(path: cstr, data: const u8[]) -> !:
-    let fd = open(path, write_only | create | truncate, 420)
-    if fd < 0:
-        error(missing, "missing")
-    var done: usize = 0
-    while done < data.length:
-        let n = c_write(fd, data[done..].data, data.length - done)
-        if n <= 0:
-            discard(close(fd))
-            error(failed, "write")
-        done += (usize)n
-    discard(close(fd))
-
-## The names in a directory, sorted, allocated from the current allocator.
-pub func list(path: cstr) -> str[]!:
-    let dir = opendir(path) else error(missing, "missing")
-    var names = try alloc str[16]
-    var count: usize = 0
-    while let entry = readdir(dir):
-        let name = (str)entry.name[..<(usize)entry.name_length]
-        if name == "." or name == "..":
-            continue
-        if count == names.length:
-            let grown = try alloc str[names.length * 2]
-            memory.copy(grown, names, count)
-            names = grown
-        let copy = try alloc u8[name.length + 1]
-        memory.copy(copy, name.bytes, name.length)
-        copy[name.length] = 0
-        names[count] = (str)copy[..<name.length]
-        count += 1
-    discard(closedir(dir))
-    # insertion sort by bytes; directories are small
-    var i: usize = 1
-    while i < count:
-        let item = names[i]
-        var j = i
-        while j > 0 and item < names[j - 1]:
-            names[j] = names[j - 1]
-            j -= 1
-        names[j] = item
-        i += 1
-    return names[..<count]
-"""),
-    Prelude(name = "process", text = """
-extern func pipe(descriptors: i32*) -> i32
-extern func fork() -> i32
-extern func dup2(from_fd: i32, to_fd: i32) -> i32
-extern func close(descriptor: i32) -> i32
-extern func execvp(program: cstr, arguments: void*?*) -> i32
-extern func c_exit as "exit"(code: i32) -> never
-extern func _exit(code: i32) -> never
-extern func waitpid(pid: i32, status: i32*, options: i32) -> i32
-extern func c_read as "read"(descriptor: i32, buffer: void*, count: usize) -> isize
-extern func poll(descriptors: Poll*, count: u32, timeout: i32) -> i32
-extern func fcntl(descriptor: i32, command: i32, ...) -> i32
-
-extern struct Poll:
-    descriptor: i32
-    events: i16
-    returned: i16
-
-let poll_in: i16 = 1
-let poll_hang_up: i16 = 16
-let poll_error: i16 = 8
-let set_flags: i32 = 4
-let non_blocking: i32 = 4
-
-pub let failed: ErrorCode = ErrorCode.package(1)
-
-## A captured stream: bytes in the current allocator.
-struct Capture:
-    var descriptor: i32
-    var data: u8[]
-    var used: usize
-    var open: bool
-
-    mutating func pull() -> !:
-        if self.data.length - self.used < 256:
-            let room = 1024 if self.data.length == 0 else self.data.length * 2
-            self.data = try memory.grow(self.data, room)
-        let n = c_read(self.descriptor, self.data[self.used..].data, self.data.length - self.used)
-        if n == 0:
-            self.open = false
-        elif n > 0:
-            self.used += (usize)n
-
-## Run `program` with `arguments`, wait for it, and answer its exit status and
-## what it wrote to its standard output and error.
-pub func run(program: cstr, arguments: cstr[]) -> (i32, str, str)!:
-    var out_pipe: i32[2]
-    var err_pipe: i32[2]
-    if pipe((i32*)&out_pipe) != 0:
-        error(failed, "run")
-    if pipe((i32*)&err_pipe) != 0:
-        error(failed, "run")
-    let pid = fork()
-    if pid < 0:
-        error(failed, "run")
-    if pid == 0:
-        discard(close(out_pipe[0]))
-        discard(close(err_pipe[0]))
-        if dup2(out_pipe[1], 1) < 0 or dup2(err_pipe[1], 2) < 0:
-            _exit(127)
-        discard(close(out_pipe[1]))
-        discard(close(err_pipe[1]))
-        let argv = alloc void*?[arguments.length + 2] catch failure:
-            _exit(127)
-        argv[0] = (void*)program
-        var i: usize = 0
-        while i < arguments.length:
-            argv[i + 1] = (void*)arguments[i]
-            i += 1
-        argv[arguments.length + 1] = none
-        discard(execvp(program, argv.data))
-        _exit(127)
-    discard(close(out_pipe[1]))
-    discard(close(err_pipe[1]))
-    discard(fcntl(out_pipe[0], set_flags, non_blocking))
-    discard(fcntl(err_pipe[0], set_flags, non_blocking))
-    var out = Capture(descriptor = out_pipe[0], data = u8[]((u8*)8, 0), used = 0, open = true)
-    var err = Capture(descriptor = err_pipe[0], data = u8[]((u8*)8, 0), used = 0, open = true)
-    while out.open or err.open:
-        var watched: Poll[2] = ---
-        watched[0] = Poll(descriptor = out.descriptor if out.open else -1, events = poll_in, returned = 0)
-        watched[1] = Poll(descriptor = err.descriptor if err.open else -1, events = poll_in, returned = 0)
-        if poll((Poll*)&watched, 2, -1) < 0:
-            continue
-        if out.open and (watched[0].returned & (poll_in | poll_hang_up | poll_error)) != 0:
-            try out.pull()
-        if err.open and (watched[1].returned & (poll_in | poll_hang_up | poll_error)) != 0:
-            try err.pull()
-    discard(close(out_pipe[0]))
-    discard(close(err_pipe[0]))
-    var status: i32 = 0
-    if waitpid(pid, &status, 0) < 0:
-        error(failed, "run")
-    if (status & 127) != 0:
-        error(failed, "the program was stopped by a signal")
-    return ((status >> 8) & 255, (str)out.data[..<out.used], (str)err.data[..<err.used])
-
-pub func exit(code: i32) -> never:
-    c_exit(code)
+## Compile-time facts about the use site; the backend replaces them (§9.1).
+pub let file: str = ""
+pub let line: u32 = 0
+pub let function: str = ""
+pub let location: io.Location = io.Location(file = "", line = 0, function = "")
 """),
     Prelude(name = "atomic", text = """
 ## Memory orderings for the operations of `@T` (§15.1).
@@ -893,7 +707,8 @@ pub enum Ordering as u8:
 pub func fence(order: Ordering):
     discard(order)
 """),
-    Prelude(name = "thread", text = """
+    Prelude(name = "thread", text = """import memory
+
 extern func pthread_create(thread: void*?*, attributes: void*?, start: func(void*) -> void*?, argument: void*) -> i32
 extern func pthread_join(thread: void*, result: void*?*?) -> i32
 extern func pthread_detach(thread: void*) -> i32
@@ -1057,8 +872,219 @@ pub struct Semaphore:
         discard(self.count.add(1, .release))
         wake_one((void*)&self.count)
 """),
+    Prelude(name = "files", text = """import memory
+
+extern func open(path: cstr, flags: i32, ...) -> i32
+extern func close(descriptor: i32) -> i32
+extern func c_read as "read"(descriptor: i32, buffer: void*, count: usize) -> isize
+extern func c_write as "write"(descriptor: i32, buffer: const void*, count: usize) -> isize
+extern func lseek(descriptor: i32, offset: i64, whence: i32) -> i64
+extern func opendir(path: cstr) -> void*?
+extern func readdir(directory: void*) -> Entry*?
+extern func closedir(directory: void*) -> i32
+
+## A directory entry as arm64-macos lays it out.
+extern struct Entry:
+    inode: u64
+    seek: u64
+    length: u16
+    name_length: u16
+    kind: u8
+    name: u8[1024]
+
+let read_only: i32 = 0
+let write_only: i32 = 1
+let create: i32 = 512
+let truncate: i32 = 1024
+let seek_end: i32 = 2
+let seek_set: i32 = 0
+
+pub let missing: ErrorCode = ErrorCode.package(1)
+
+## Whether `path` can be opened for reading.
+pub func exists(path: cstr) -> bool:
+    let descriptor = open(path, read_only)
+    if descriptor < 0:
+        return false
+    discard(close(descriptor))
+    return true
+pub let failed: ErrorCode = ErrorCode.package(2)
+
+## The whole file, allocated from the current allocator.
+pub func read(path: cstr) -> u8[]!:
+    let fd = open(path, read_only)
+    if fd < 0:
+        error(missing, "missing")
+    let size = lseek(fd, 0, seek_end)
+    if size < 0 or lseek(fd, 0, seek_set) < 0:
+        discard(close(fd))
+        error(failed, "the file cannot be read")
+    let bytes = alloc u8[(usize)size] catch failure:
+        discard(close(fd))
+        error(memory.exhausted, "memory.exhausted")
+    var got: usize = 0
+    while got < bytes.length:
+        let n = c_read(fd, bytes[got..].data, bytes.length - got)
+        if n < 0:
+            discard(close(fd))
+            error(failed, "the file cannot be read")
+        if n == 0:
+            break
+        got += (usize)n
+    discard(close(fd))
+    return bytes[..<got]
+
+pub func write(path: cstr, data: const u8[]) -> !:
+    let fd = open(path, write_only | create | truncate, 420)
+    if fd < 0:
+        error(missing, "missing")
+    var done: usize = 0
+    while done < data.length:
+        let n = c_write(fd, data[done..].data, data.length - done)
+        if n <= 0:
+            discard(close(fd))
+            error(failed, "write")
+        done += (usize)n
+    discard(close(fd))
+
+## The names in a directory, sorted, allocated from the current allocator.
+pub func list(path: cstr) -> str[]!:
+    let dir = opendir(path) else error(missing, "missing")
+    var names = try alloc str[16]
+    var count: usize = 0
+    while let entry = readdir(dir):
+        let name = (str)entry.name[..<(usize)entry.name_length]
+        if name == "." or name == "..":
+            continue
+        if count == names.length:
+            let grown = try alloc str[names.length * 2]
+            memory.copy(grown, names, count)
+            names = grown
+        let copy = try alloc u8[name.length + 1]
+        memory.copy(copy, name.bytes, name.length)
+        copy[name.length] = 0
+        names[count] = (str)copy[..<name.length]
+        count += 1
+    discard(closedir(dir))
+    # insertion sort by bytes; directories are small
+    var i: usize = 1
+    while i < count:
+        let item = names[i]
+        var j = i
+        while j > 0 and item < names[j - 1]:
+            names[j] = names[j - 1]
+            j -= 1
+        names[j] = item
+        i += 1
+    return names[..<count]
+"""),
+    Prelude(name = "process", text = """import memory
+
+extern func pipe(descriptors: i32*) -> i32
+extern func fork() -> i32
+extern func dup2(from_fd: i32, to_fd: i32) -> i32
+extern func close(descriptor: i32) -> i32
+extern func execvp(program: cstr, arguments: void*?*) -> i32
+extern func c_exit as "exit"(code: i32) -> never
+extern func _exit(code: i32) -> never
+extern func waitpid(pid: i32, status: i32*, options: i32) -> i32
+extern func c_read as "read"(descriptor: i32, buffer: void*, count: usize) -> isize
+extern func poll(descriptors: Poll*, count: u32, timeout: i32) -> i32
+extern func fcntl(descriptor: i32, command: i32, ...) -> i32
+
+extern struct Poll:
+    descriptor: i32
+    events: i16
+    returned: i16
+
+let poll_in: i16 = 1
+let poll_hang_up: i16 = 16
+let poll_error: i16 = 8
+let set_flags: i32 = 4
+let non_blocking: i32 = 4
+
+pub let failed: ErrorCode = ErrorCode.package(1)
+
+## A captured stream: bytes in the current allocator.
+struct Capture:
+    var descriptor: i32
+    var data: u8[]
+    var used: usize
+    var open: bool
+
+    mutating func pull() -> !:
+        if self.data.length - self.used < 256:
+            let room = 1024 if self.data.length == 0 else self.data.length * 2
+            self.data = try memory.grow(self.data, room)
+        let n = c_read(self.descriptor, self.data[self.used..].data, self.data.length - self.used)
+        if n == 0:
+            self.open = false
+        elif n > 0:
+            self.used += (usize)n
+
+## Run `program` with `arguments`, wait for it, and answer its exit status and
+## what it wrote to its standard output and error.
+pub func run(program: cstr, arguments: cstr[]) -> (i32, str, str)!:
+    var out_pipe: i32[2]
+    var err_pipe: i32[2]
+    if pipe((i32*)&out_pipe) != 0:
+        error(failed, "run")
+    if pipe((i32*)&err_pipe) != 0:
+        error(failed, "run")
+    let pid = fork()
+    if pid < 0:
+        error(failed, "run")
+    if pid == 0:
+        discard(close(out_pipe[0]))
+        discard(close(err_pipe[0]))
+        if dup2(out_pipe[1], 1) < 0 or dup2(err_pipe[1], 2) < 0:
+            _exit(127)
+        discard(close(out_pipe[1]))
+        discard(close(err_pipe[1]))
+        let argv = alloc void*?[arguments.length + 2] catch failure:
+            _exit(127)
+        argv[0] = (void*)program
+        var i: usize = 0
+        while i < arguments.length:
+            argv[i + 1] = (void*)arguments[i]
+            i += 1
+        argv[arguments.length + 1] = none
+        discard(execvp(program, argv.data))
+        _exit(127)
+    discard(close(out_pipe[1]))
+    discard(close(err_pipe[1]))
+    discard(fcntl(out_pipe[0], set_flags, non_blocking))
+    discard(fcntl(err_pipe[0], set_flags, non_blocking))
+    var out = Capture(descriptor = out_pipe[0], data = u8[]((u8*)8, 0), used = 0, open = true)
+    var err = Capture(descriptor = err_pipe[0], data = u8[]((u8*)8, 0), used = 0, open = true)
+    while out.open or err.open:
+        var watched: Poll[2] = ---
+        watched[0] = Poll(descriptor = out.descriptor if out.open else -1, events = poll_in, returned = 0)
+        watched[1] = Poll(descriptor = err.descriptor if err.open else -1, events = poll_in, returned = 0)
+        if poll((Poll*)&watched, 2, -1) < 0:
+            continue
+        if out.open and (watched[0].returned & (poll_in | poll_hang_up | poll_error)) != 0:
+            try out.pull()
+        if err.open and (watched[1].returned & (poll_in | poll_hang_up | poll_error)) != 0:
+            try err.pull()
+    discard(close(out_pipe[0]))
+    discard(close(err_pipe[0]))
+    var status: i32 = 0
+    if waitpid(pid, &status, 0) < 0:
+        error(failed, "run")
+    if (status & 127) != 0:
+        error(failed, "the program was stopped by a signal")
+    return ((status >> 8) & 255, (str)out.data[..<out.used], (str)err.data[..<err.used])
+
+pub func exit(code: i32) -> never:
+    c_exit(code)
+"""),
     Prelude(name = "strings", text = """
 ## Text operations over `str` views; what allocates says so and uses the current allocator.
+
+import memory
+from io import Writer
+
 pub func starts_with(text: str, prefix: str) -> bool:
     if prefix.length > text.length:
         return false
@@ -1229,6 +1255,10 @@ pub struct Builder implements Writer:
 """),
     Prelude(name = "paths", text = """
 ## File system paths as text, with `/` as the separator.
+
+import memory
+import strings
+
 pub func is_absolute(path: str) -> bool:
     return path.length > 0 and path.bytes[0] == '/'
 
@@ -1352,6 +1382,10 @@ pub func since(start: u64) -> u64:
     Prelude(name = "testing", text = """
 ## What a Base test runs under (§16.5): a fixed-buffer allocator made current for
 ## each test, a deterministic seed, and assertions that name what differed.
+
+import memory
+from memory import Allocator, FixedBuffer
+
 var arena_bytes: u8[1048576]
 var arena: FixedBuffer
 var saved: Allocator
@@ -1395,7 +1429,8 @@ pub func expect_text(actual: str, expected: str, message: str):
         print(f"expected `{expected}`, got `{actual}`: {message}")
         trap(message)
 """),
-    Prelude(name = "net", text = """
+    Prelude(name = "net", text = """from io import Writer
+
 extern func socket(domain: i32, kind: i32, protocol: i32) -> i32
 extern func bind(descriptor: i32, address: const SocketAddress*, length: u32) -> i32
 extern func listen(descriptor: i32, backlog: i32) -> i32
@@ -1584,7 +1619,8 @@ pub struct Datagram:
     pub func close():
         discard(close(self.descriptor))
 """),
-    Prelude(name = "debug", text = """
+    Prelude(name = "debug", text = """import memory
+
 extern func getenv(name: cstr) -> cstr?
 extern func c_read as "read"(descriptor: i32, buffer: void*, count: usize) -> isize
 extern func c_exit as "exit"(code: i32) -> never
@@ -1878,21 +1914,5 @@ pub func stdout() -> void*:
     trap("supplied by the backend")
 pub func stderr() -> void*:
     trap("supplied by the backend")
-"""),
-    Prelude(name = "luce", text = """
-## The derived bounds of §14.4: every type with `==` is Equatable, every hashable
-## one Hashable, every ordered one Comparable. Nothing implements them by hand.
-pub interface Equatable:
-    func equals(other: void*) -> bool
-pub interface Hashable:
-    func hashed() -> u64
-pub interface Comparable:
-    func compare(other: void*) -> i64
-
-## Compile-time facts about the use site; the backend replaces them (§9.1).
-pub let file: str = ""
-pub let line: u32 = 0
-pub let function: str = ""
-pub let location: io.Location = io.Location(file = "", line = 0, function = "")
 """),
 ]

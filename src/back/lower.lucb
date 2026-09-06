@@ -17,13 +17,15 @@
 #
 #==============================================================================================
 
-import front.ast
-import support.buffer
-import sema.check
 import back.ir
-import support.list
 import back.names
+import c
+import front.ast
+import memory
+import sema.check
 import sema.types
+import support.buffer
+import support.list
 
 pub let native_unsupported: ErrorCode = ErrorCode.package(14)
 

@@ -13,8 +13,9 @@
 #==============================================================================================
 
 import front.ast
-import support.buffer
+import memory
 import sema.types
+import support.buffer
 
 ## The module a top-level declaration belongs to, by name.
 pub func module_of(d: ast.Node*) -> str:

@@ -8,6 +8,7 @@
 ## `locals`, `backtrace`, `quit`. The program stops before its first statement.
 
 import files
+import io
 import process
 import strings
 

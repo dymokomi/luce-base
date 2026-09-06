@@ -9,6 +9,8 @@
 #
 #==============================================================================================
 
+import files
+
 pub let bad_encoding: ErrorCode = ErrorCode.package(1)
 pub let unreadable: ErrorCode = ErrorCode.package(2)
 
