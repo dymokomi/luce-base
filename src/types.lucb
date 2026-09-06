@@ -1,0 +1,529 @@
+#==============================================================================================
+#
+#   types - Interned types and their target layout
+#
+#   DESCRIPTION:
+#       Every type the checker names lives once in a `Table` and is referred to by its
+#       index, so two equal types have one id and equality is an integer compare. The
+#       scalars are pre-seeded at fixed ids. Nominal types (structs, enums, unions,
+#       interfaces) are identified by their declaration node; structural ones (pointers,
+#       spans, arrays, tuples, optionals, results, functions, atomics) by their parts.
+#       Layout answers `sizeof`, `alignof`, and `offsetof` for the 64-bit host target
+#       (base.md §5.11); pointers to unsized things carry a length word (§5.4, §5.5).
+#
+#==============================================================================================
+
+import ast
+import list
+
+pub enum Kind as u8:
+    error = 1
+    never = 2
+    unit = 3
+    bool_ = 4
+    i8 = 5
+    i16 = 6
+    i32 = 7
+    i64 = 8
+    isize = 9
+    u8 = 10
+    u16 = 11
+    u32 = 12
+    u64 = 13
+    usize = 14
+    f32 = 15
+    f64 = 16
+    char_ = 17
+    str_ = 18
+    cstr = 19
+    fmt = 20
+    void_ = 21
+    untyped_int = 22
+    untyped_float = 23
+    error_code = 24
+    error_value = 25
+    pointer = 30
+    span = 31
+    array = 32
+    tuple = 33
+    optional = 34
+    fallible = 35
+    func = 36
+    atomic = 37
+    struct_ = 40
+    enum_ = 41
+    union_ = 42
+    interface = 43
+    param = 44
+    module = 45
+    type_name = 46
+
+# mark: Fixed ids ==============================================================================
+
+## Ids of the pre-seeded types, in the order `Table.create` seeds them.
+pub let none_id: u32 = 0
+pub let error_id: u32 = 1
+pub let never_id: u32 = 2
+pub let unit_id: u32 = 3
+pub let bool_id: u32 = 4
+pub let i8_id: u32 = 5
+pub let i16_id: u32 = 6
+pub let i32_id: u32 = 7
+pub let i64_id: u32 = 8
+pub let isize_id: u32 = 9
+pub let u8_id: u32 = 10
+pub let u16_id: u32 = 11
+pub let u32_id: u32 = 12
+pub let u64_id: u32 = 13
+pub let usize_id: u32 = 14
+pub let f32_id: u32 = 15
+pub let f64_id: u32 = 16
+pub let char_id: u32 = 17
+pub let str_id: u32 = 18
+pub let cstr_id: u32 = 19
+pub let fmt_id: u32 = 20
+pub let void_id: u32 = 21
+pub let untyped_int_id: u32 = 22
+pub let untyped_float_id: u32 = 23
+pub let error_code_id: u32 = 24
+pub let error_value_id: u32 = 25
+let seeded: u32 = 26
+
+# mark: The type record ========================================================================
+
+pub struct Type:
+    pub var kind: Kind
+    ## The pointee, element, payload, or result, by id; `none_id` when absent.
+    pub var elem: u32
+    ## Tuple members or function parameters, by id.
+    pub var args: u32[]
+    ## Array length.
+    pub var length: u64
+    pub var is_const: bool
+    pub var is_volatile: bool
+    ## Variadic function type (C only).
+    pub var variadic: bool
+    ## Nominal types: the declaration; generic instances: the same declaration
+    ## plus the type arguments in `args`.
+    pub var decl: ast.Node*?
+    pub var name: str
+
+# mark: The table ==============================================================================
+
+pub struct Table:
+    var types: list.List[Type]
+
+    pub static func create() -> Table!:
+        var t = Table(types = try list.List[Type].create(256))
+        # id 0 is "no type"; the scalars follow in Kind order
+        let seeds: Kind[26] = [Kind.error, Kind.error, Kind.never, Kind.unit, Kind.bool_, Kind.i8, Kind.i16, Kind.i32, Kind.i64, Kind.isize, Kind.u8, Kind.u16, Kind.u32, Kind.u64, Kind.usize, Kind.f32, Kind.f64, Kind.char_, Kind.str_, Kind.cstr, Kind.fmt, Kind.void_, Kind.untyped_int, Kind.untyped_float, Kind.error_code, Kind.error_value]
+        let names: str[26] = ["", "<error>", "never", "unit", "bool", "i8", "i16", "i32", "i64", "isize", "u8", "u16", "u32", "u64", "usize", "f32", "f64", "char", "str", "cstr", "fmt", "void", "<integer>", "<float>", "ErrorCode", "Error"]
+        var i: usize = 0
+        while i < 26:
+            try t.types.push(Type(kind = seeds[i], elem = 0, args = try no_args(), length = 0, is_const = false, is_volatile = false, variadic = false, decl = none, name = names[i]))
+            i += 1
+        return t
+
+    pub func get(id: u32) -> Type:
+        return self.types.get((usize)id)
+
+    pub func kind(id: u32) -> Kind:
+        return self.types.get((usize)id).kind
+
+    pub func count() -> u32:
+        return u32(self.types.count)
+
+    func same_args(a: const u32[], b: const u32[]) -> bool:
+        if a.length != b.length:
+            return false
+        var i: usize = 0
+        while i < a.length:
+            if a[i] != b[i]:
+                return false
+            i += 1
+        return true
+
+    ## The id of a type equal to `t`, adding it when new. Nominal types with a
+    ## declaration compare by declaration and type arguments.
+    pub mutating func intern(t: Type) -> u32!:
+        var i: usize = seeded
+        let n = self.types.count
+        while i < n:
+            let have = self.types.get(i)
+            if have.kind == t.kind and have.elem == t.elem and have.length == t.length and have.is_const == t.is_const and have.is_volatile == t.is_volatile and have.variadic == t.variadic and have.decl == t.decl and self.same_args(have.args, t.args):
+                if have.decl != none or have.name == t.name or t.kind != Kind.param:
+                    return u32(i)
+            i += 1
+        try self.types.push(t)
+        return u32(n)
+
+    func plain(kind: Kind, elem: u32, name: str) -> Type!:
+        return Type(kind = kind, elem = elem, args = try no_args(), length = 0, is_const = false, is_volatile = false, variadic = false, decl = none, name = name)
+
+    # -- constructors ---------------------------------------------------------------------
+
+    pub mutating func pointer(elem: u32, is_const: bool, is_volatile: bool) -> u32!:
+        var t = try self.plain(Kind.pointer, elem, "")
+        t.is_const = is_const
+        t.is_volatile = is_volatile
+        return try self.intern(t)
+
+    pub mutating func span(elem: u32, is_const: bool) -> u32!:
+        var t = try self.plain(Kind.span, elem, "")
+        t.is_const = is_const
+        return try self.intern(t)
+
+    pub mutating func array(elem: u32, length: u64) -> u32!:
+        var t = try self.plain(Kind.array, elem, "")
+        t.length = length
+        return try self.intern(t)
+
+    pub mutating func optional(elem: u32) -> u32!:
+        if self.kind(elem) == Kind.optional:
+            return elem
+        return try self.intern(try self.plain(Kind.optional, elem, ""))
+
+    pub mutating func fallible(elem: u32) -> u32!:
+        if self.kind(elem) == Kind.fallible:
+            return elem
+        return try self.intern(try self.plain(Kind.fallible, elem, ""))
+
+    pub mutating func atomic(elem: u32) -> u32!:
+        return try self.intern(try self.plain(Kind.atomic, elem, ""))
+
+    pub mutating func tuple(members: u32[]) -> u32!:
+        var t = try self.plain(Kind.tuple, 0, "")
+        t.args = members
+        return try self.intern(t)
+
+    pub mutating func function(params: u32[], result: u32, variadic: bool) -> u32!:
+        var t = try self.plain(Kind.func, result, "")
+        t.args = params
+        t.variadic = variadic
+        return try self.intern(t)
+
+    ## A nominal type for a declaration; the same declaration yields the same id.
+    pub mutating func nominal(kind: Kind, decl: ast.Node*, args: u32[]) -> u32!:
+        var t = try self.plain(kind, 0, decl.text)
+        t.decl = decl
+        t.args = args
+        return try self.intern(t)
+
+    ## A generic parameter of a declaration.
+    pub mutating func parameter(decl: ast.Node*, name: str) -> u32!:
+        var t = try self.plain(Kind.param, 0, name)
+        t.decl = decl
+        return try self.intern(t)
+
+    # -- predicates -----------------------------------------------------------------------
+
+    pub func is_integer(id: u32) -> bool:
+        let k = (u8)self.kind(id)
+        return (k >= (u8)Kind.i8 and k <= (u8)Kind.usize) or k == (u8)Kind.untyped_int
+
+    pub func is_signed(id: u32) -> bool:
+        let k = self.kind(id)
+        return k == Kind.i8 or k == Kind.i16 or k == Kind.i32 or k == Kind.i64 or k == Kind.isize or k == Kind.untyped_int
+
+    pub func is_float(id: u32) -> bool:
+        let k = self.kind(id)
+        return k == Kind.f32 or k == Kind.f64 or k == Kind.untyped_float
+
+    pub func is_numeric(id: u32) -> bool:
+        return self.is_integer(id) or self.is_float(id)
+
+    pub func is_pointer(id: u32) -> bool:
+        return self.kind(id) == Kind.pointer
+
+    ## `T*?`: an optional whose payload is a pointer, stored with the null niche.
+    pub func is_nullable_pointer(id: u32) -> bool:
+        let t = self.get(id)
+        return t.kind == Kind.optional and self.kind(t.elem) == Kind.pointer
+
+    ## Bits of an integer type on the 64-bit host; 0 for anything else.
+    pub func bits(id: u32) -> u32:
+        match self.kind(id):
+            .i8, .u8: return 8
+            .i16, .u16: return 16
+            .i32, .u32: return 32
+            .i64, .u64, .isize, .usize, .untyped_int: return 64
+            .f32: return 32
+            .f64: return 64
+            .char_: return 32
+            .bool_: return 8
+            _: return 0
+
+    ## Whether an integer of `from` widens implicitly to `to` (base.md §7.5):
+    ## the same signedness and no fewer bits.
+    pub func widens(source: u32, target: u32) -> bool:
+        if not self.is_integer(source) or not self.is_integer(target):
+            return false
+        if self.kind(source) == Kind.untyped_int:
+            return true
+        return self.is_signed(source) == self.is_signed(target) and self.bits(source) <= self.bits(target)
+
+    ## Whether the zero bit pattern is a valid value (base.md §6.1).
+    pub func zeroable(id: u32) -> bool:
+        let t = self.get(id)
+        match t.kind:
+            .pointer, .func, .never, .error, .fmt, .void_, .param: return false
+            .optional: return true
+            .array: return self.zeroable(t.elem)
+            .tuple:
+                for m in t.args:
+                    if not self.zeroable(m):
+                        return false
+                return true
+            .struct_, .union_:
+                if let decl = t.decl:
+                    var cursor = decl.body
+                    while let member = cursor:
+                        if member.kind == ast.Kind.field and not self.zeroable(member.type_id):
+                            return false
+                        cursor = member.next
+                return true
+            .enum_:
+                # integer-backed enums need a case for zero; payload enums use tag 0
+                return true
+            .interface: return false
+            _: return true
+
+    # -- layout ---------------------------------------------------------------------------
+
+    pub func size_of(id: u32) -> u64:
+        let t = self.get(id)
+        match t.kind:
+            .i8, .u8, .bool_: return 1
+            .i16, .u16: return 2
+            .i32, .u32, .f32, .char_, .error_code: return 4
+            .i64, .u64, .isize, .usize, .f64, .untyped_int, .untyped_float: return 8
+            .pointer, .func, .cstr: return 8
+            .str_, .span, .interface, .fmt: return 16
+            .error_value: return 24
+            .array: return self.size_of(t.elem) * t.length
+            .atomic: return self.size_of(t.elem)
+            .optional:
+                if self.kind(t.elem) == Kind.pointer:
+                    return 8
+                let inner = self.size_of(t.elem)
+                let a = self.align_of(t.elem)
+                return round_up(inner, a) + a if a > 0 else inner + 1
+            .fallible:
+                let inner = self.size_of(t.elem) if t.elem != unit_id else 0
+                return round_up(inner + 24, 8)
+            .tuple, .struct_:
+                var offset: u64 = 0
+                var largest: u64 = 1
+                if t.kind == Kind.tuple:
+                    for m in t.args:
+                        let a = self.align_of(m)
+                        offset = round_up(offset, a) + self.size_of(m)
+                        largest = a if a > largest else largest
+                elif let decl = t.decl:
+                    var cursor = decl.body
+                    while let member = cursor:
+                        if member.kind == ast.Kind.field:
+                            let a = self.align_of(member.type_id)
+                            if not decl.has(ast.flag_packed):
+                                offset = round_up(offset, a)
+                            offset += self.size_of(member.type_id)
+                            largest = a if a > largest else largest
+                        cursor = member.next
+                if let decl = t.decl:
+                    if decl.has(ast.flag_packed):
+                        return offset
+                return round_up(offset, largest)
+            .union_:
+                var largest: u64 = 0
+                var widest: u64 = 1
+                if let decl = t.decl:
+                    var cursor = decl.body
+                    while let member = cursor:
+                        if member.kind == ast.Kind.field:
+                            let s = self.size_of(member.type_id)
+                            largest = s if s > largest else largest
+                            let a = self.align_of(member.type_id)
+                            widest = a if a > widest else widest
+                        cursor = member.next
+                return round_up(largest, widest)
+            .enum_:
+                if let decl = t.decl:
+                    if decl.ty != none:
+                        return self.size_of(decl.type_id) if decl.type_id != none_id else 4
+                    # tag plus the largest payload, each field aligned
+                    var largest: u64 = 0
+                    var widest: u64 = 4
+                    var cursor = decl.body
+                    while let c = cursor:
+                        if c.kind == ast.Kind.enum_case:
+                            var offset: u64 = 0
+                            var pcursor = c.body
+                            while let p = pcursor:
+                                let a = self.align_of(p.type_id)
+                                offset = round_up(offset, a) + self.size_of(p.type_id)
+                                widest = a if a > widest else widest
+                                pcursor = p.next
+                            largest = offset if offset > largest else largest
+                        cursor = c.next
+                    return round_up(round_up(4, widest) + largest, widest)
+                return 4
+            _: return 0
+
+    pub func align_of(id: u32) -> u64:
+        let t = self.get(id)
+        match t.kind:
+            .array: return self.align_of(t.elem)
+            .atomic: return self.align_of(t.elem)
+            .optional:
+                if self.kind(t.elem) == Kind.pointer:
+                    return 8
+                let a = self.align_of(t.elem)
+                return a if a > 0 else 1
+            .fallible: return 8
+            .tuple:
+                var widest: u64 = 1
+                for m in t.args:
+                    let a = self.align_of(m)
+                    widest = a if a > widest else widest
+                return widest
+            .struct_, .union_, .enum_:
+                if let decl = t.decl:
+                    if decl.has(ast.flag_packed):
+                        return 1
+                    if t.kind == Kind.enum_ and decl.ty != none:
+                        return self.align_of(decl.type_id)
+                    var widest: u64 = 4 if t.kind == Kind.enum_ else 1
+                    var cursor = decl.body
+                    while let member = cursor:
+                        if member.kind == ast.Kind.field:
+                            let a = self.align_of(member.type_id)
+                            widest = a if a > widest else widest
+                        elif member.kind == ast.Kind.enum_case:
+                            var pcursor = member.body
+                            while let p = pcursor:
+                                let a = self.align_of(p.type_id)
+                                widest = a if a > widest else widest
+                                pcursor = p.next
+                        cursor = member.next
+                    return widest
+                return 1
+            .str_, .span, .interface, .fmt, .error_value: return 8
+            _:
+                let s = self.size_of(id)
+                return s if s > 0 else 1
+
+    ## Byte offset of `field` in the struct `id`; 0 when absent.
+    pub func offset_of(id: u32, field: str) -> u64:
+        let t = self.get(id)
+        let decl = t.decl else return 0
+        var offset: u64 = 0
+        var cursor = decl.body
+        while let member = cursor:
+            if member.kind == ast.Kind.field:
+                if not decl.has(ast.flag_packed):
+                    offset = round_up(offset, self.align_of(member.type_id))
+                if member.text == field:
+                    return offset
+                offset += self.size_of(member.type_id)
+            cursor = member.next
+        return 0
+
+    # -- names ----------------------------------------------------------------------------
+
+    ## Write the type as a programmer would spell it, for diagnostics.
+    pub func describe(out: Writer, id: u32) -> !:
+        let t = self.get(id)
+        match t.kind:
+            .pointer:
+                if t.is_const:
+                    try out.write("const ")
+                if t.is_volatile:
+                    try out.write("volatile ")
+                try self.describe(out, t.elem)
+                try out.write("*")
+            .span:
+                if t.is_const:
+                    try out.write("const ")
+                try self.describe(out, t.elem)
+                try out.write("[]")
+            .array:
+                try self.describe(out, t.elem)
+                try out.write(f"[{t.length}]")
+            .optional:
+                try self.describe(out, t.elem)
+                try out.write("?")
+            .fallible:
+                if t.elem != unit_id:
+                    try self.describe(out, t.elem)
+                try out.write("!")
+            .atomic:
+                try out.write("@")
+                try self.describe(out, t.elem)
+            .tuple:
+                try out.write("(")
+                var i: usize = 0
+                while i < t.args.length:
+                    if i > 0:
+                        try out.write(", ")
+                    try self.describe(out, t.args[i])
+                    i += 1
+                try out.write(")")
+            .func:
+                try out.write("func(")
+                var i: usize = 0
+                while i < t.args.length:
+                    if i > 0:
+                        try out.write(", ")
+                    try self.describe(out, t.args[i])
+                    i += 1
+                try out.write(") -> ")
+                try self.describe(out, t.elem)
+            .struct_, .enum_, .union_, .interface, .param, .module, .type_name:
+                try out.write(t.name)
+                if t.args.length > 0:
+                    try out.write("[")
+                    var i: usize = 0
+                    while i < t.args.length:
+                        if i > 0:
+                            try out.write(", ")
+                        try self.describe(out, t.args[i])
+                        i += 1
+                    try out.write("]")
+            _:
+                try out.write(t.name)
+
+## An empty argument list: a one-element allocation sliced to nothing, since a
+## Base array literal cannot be empty (§5.4).
+pub func no_args() -> u32[]!:
+    let one = try alloc u32[1]
+    return one[..<0]
+
+func round_up(value: u64, align: u64) -> u64:
+    if align <= 1:
+        return value
+    return (value + align - 1) // align * align
+
+# mark: Tests ==================================================================================
+
+test "scalars are seeded at fixed ids and interning deduplicates":
+    var backing: u8[65536]
+    var arena = FixedBuffer.over(backing)
+    with arena:
+        var table = try Table.create()
+        assert(table.kind(i64_id) == Kind.i64)
+        assert(table.kind(str_id) == Kind.str_)
+        let p1 = try table.pointer(u8_id, true, false)
+        let p2 = try table.pointer(u8_id, true, false)
+        let p3 = try table.pointer(u8_id, false, false)
+        assert(p1 == p2)
+        assert(p1 != p3)
+        let o = try table.optional(p3)
+        assert(table.is_nullable_pointer(o))
+        assert(table.size_of(o) == 8)
+        assert(table.size_of(try table.array(i32_id, 5)) == 20)
+        var members: u32[2] = [u8_id, i64_id]
+        let tup = try table.tuple(members)
+        assert(table.size_of(tup) == 16)
+        assert(table.align_of(tup) == 8)
+        assert(table.widens(u8_id, u32_id))
+        assert(not table.widens(u8_id, i32_id))

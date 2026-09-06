@@ -1,0 +1,188 @@
+#==============================================================================================
+#
+#   prelude - The standard modules, as Base declarations
+#
+#   DESCRIPTION:
+#       base.md §16.6 names the standard modules; a Base program reaches them with
+#       `import` or by their bare names. The checker needs their signatures, and the
+#       right place for signatures is Base source. Each module below is a piece of Base
+#       text the checker parses and binds before a program's own modules, so `memory`,
+#       `io`, `files`, `process`, `thread`, `sync`, `atomic`, `c`, and `luce` are ordinary
+#       modules with ordinary declarations. Their bodies are placeholders until the
+#       library is written in Base; the seed supplies the behaviour meanwhile.
+#
+#==============================================================================================
+
+pub struct Prelude:
+    pub var name: str
+    pub var text: str
+
+## The modules in dependency order; `memory` first because `io` names its types.
+pub let modules: Prelude[9] = [
+    Prelude(name = "memory", text = """
+pub interface Allocator:
+    mutating func allocate(size: usize, alignment: usize) -> u8[]?
+    mutating func resize(block: u8[], size: usize) -> bool
+    mutating func release(block: u8[])
+
+pub struct FixedBuffer implements Allocator:
+    var data: u8[]
+    var used: usize
+    pub static func over(buffer: u8[]) -> FixedBuffer:
+        return FixedBuffer(data = buffer, used = 0)
+    pub mutating func allocate(size: usize, alignment: usize) -> u8[]?:
+        return none
+    pub mutating func resize(block: u8[], size: usize) -> bool:
+        return false
+    pub mutating func release(block: u8[]):
+        discard(block.length)
+
+pub struct CAllocator implements Allocator:
+    var unused: i64
+    pub mutating func allocate(size: usize, alignment: usize) -> u8[]?:
+        return none
+    pub mutating func resize(block: u8[], size: usize) -> bool:
+        return false
+    pub mutating func release(block: u8[]):
+        discard(block.length)
+
+pub let exhausted: ErrorCode = ErrorCode.package(1)
+pub let unset: ErrorCode = ErrorCode.package(2)
+pub var allocator: Allocator
+pub var heap: Allocator
+pub func copy[T](target: T[], source: const T[], count: usize):
+    discard(count)
+pub func move[T](target: T[], source: const T[], count: usize):
+    discard(count)
+pub func set(target: u8[], value: u8, count: usize):
+    discard(count)
+pub func read[T](address: const u8*) -> T:
+    trap()
+pub func write[T](address: u8*, value: T):
+    discard(value)
+pub func grow(block: u8[], size: usize) -> u8[]!:
+    return block
+"""),
+    Prelude(name = "io", text = """
+pub interface Writer:
+    mutating func write(data: const u8[]) -> usize!
+
+pub struct Location:
+    var file: str
+    var line: u32
+    var function: str
+
+pub struct Piece:
+    var text: str
+
+pub struct File implements Writer:
+    var handle: i64
+    pub mutating func write(data: const u8[]) -> usize!:
+        return data.length
+
+pub func stdout() -> Writer:
+    trap()
+pub func stderr() -> Writer:
+    trap()
+"""),
+    Prelude(name = "files", text = """
+pub let missing: ErrorCode = ErrorCode.package(1)
+pub func read(path: cstr) -> u8[]!:
+    error(missing, "unread")
+pub func write(path: cstr, data: const u8[]) -> !:
+    discard(data.length)
+pub func list(path: cstr) -> str[]!:
+    error(missing, "unlisted")
+"""),
+    Prelude(name = "process", text = """
+pub func run(program: cstr, arguments: cstr[]) -> (i32, str, str)!:
+    return (0, "", "")
+pub func exit(code: i32) -> never:
+    trap()
+"""),
+    Prelude(name = "thread", text = """
+pub struct Handle:
+    var id: usize
+    pub func join() -> !:
+        discard(self.id)
+    pub func detach():
+        discard(self.id)
+pub func spawn(entry: func(void*) -> unit, context: void*, stack: usize = 0, name: str = "") -> Handle!:
+    return Handle(id = 0)
+pub func current() -> Handle:
+    return Handle(id = 0)
+pub func pause():
+    discard(0)
+pub func yield():
+    discard(0)
+pub func sleep(milliseconds: u64):
+    discard(milliseconds)
+"""),
+    Prelude(name = "sync", text = """
+pub struct Mutex:
+    var state: @u32
+    pub mutating func lock():
+        discard(0)
+    pub mutating func unlock():
+        discard(0)
+    pub mutating func try() -> bool:
+        return true
+pub struct Condition:
+    var seq: @u32
+    pub mutating func wait(mutex: Mutex*):
+        discard(0)
+    pub mutating func signal():
+        discard(0)
+    pub mutating func broadcast():
+        discard(0)
+pub struct Once:
+    var state: @u32
+    pub mutating func run(function: func() -> unit):
+        discard(0)
+pub struct Semaphore:
+    var count: @u32
+    pub mutating func acquire():
+        discard(0)
+    pub mutating func release():
+        discard(0)
+"""),
+    Prelude(name = "atomic", text = """
+pub enum Ordering as u8:
+    relaxed = 1
+    acquire = 2
+    release = 3
+    acq_rel = 4
+    seq_cst = 5
+pub func fence(order: Ordering):
+    discard(0)
+"""),
+    Prelude(name = "c", text = """
+pub type int = i32
+pub type uint = u32
+pub type short = i16
+pub type ushort = u16
+pub type long = i64
+pub type ulong = u64
+pub type longlong = i64
+pub type ulonglong = u64
+pub type char = i8
+pub type uchar = u8
+pub type size_t = usize
+pub type ssize_t = isize
+pub type float = f32
+pub type double = f64
+pub type wchar = i32
+pub func stdin() -> void*:
+    trap()
+pub func stdout() -> void*:
+    trap()
+pub func stderr() -> void*:
+    trap()
+pub func bytes_at(address: const void*, count: usize) -> const u8[]:
+    trap()
+"""),
+    Prelude(name = "luce", text = """
+pub let file: str = ""
+pub let line: u32 = 0
+pub let function: str = ""
+""")]
