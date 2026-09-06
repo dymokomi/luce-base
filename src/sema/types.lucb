@@ -277,7 +277,7 @@ pub struct Table:
     pub func zeroable(id: u32) -> bool:
         let t = self.get(id)
         match t.kind:
-            .pointer, .func_, .never, .error, .fmt, .void_, .param: return false
+            .pointer, .cstr, .func_, .never, .error, .fmt, .void_, .param: return false
             .optional: return true
             .array: return self.zeroable(t.elem)
             .tuple:

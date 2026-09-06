@@ -1833,8 +1833,8 @@ pub struct Emitter:
             try self.expr(e)
             return
         if w.kind == types.Kind.optional:
-            if self.is_ptr(w.elem):
-                # `T*` into `T*?`: the same pointer
+            if self.c.table.has_null_niche(w.elem):
+                # `T*`, `cstr`, or a function into its nullable form: the same word (§5.3)
                 try self.expr(e)
                 return
             if h.kind == types.Kind.optional:

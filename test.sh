@@ -55,6 +55,16 @@ if ! cmp -s build/stage1.c bootstrap/luce-base.c; then
     echo "note: bootstrap/luce-base.c differs from the current compiler; run tools/snapshot.sh"
 fi
 rm -f build/stage1.c build/stage2.c build/stage2
+# the seed named in bootstrap/SEED builds this compiler from source, and the compiler it
+# builds emits the same C for itself as the snapshot-built one: the seed stays a real start
+if [ -x ../luce-seed/build/lucb ]; then
+    echo "== seed $(cat bootstrap/SEED)"
+    ../luce-seed/build/lucb build src/main.lucb --release -o build/seed-stage0
+    ./build/seed-stage0 build src/main.lucb --emit=c -o build/seed1.c
+    ./build/luce-base build src/main.lucb --emit=c -o build/stage1.c
+    cmp build/stage1.c build/seed1.c
+    rm -f build/seed-stage0 build/seed1.c build/stage1.c
+fi
 # the native backend closes its own loop: the compiler built natively must emit the
 # same C and the same assembly for the compiler as the C-built one
 ./build/luce-base build src/main.lucb --native -o build/native

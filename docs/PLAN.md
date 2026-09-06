@@ -26,10 +26,13 @@ when the picture changes.
 
 ```text
 cc bootstrap/luce-base.c runtime/lucb_rt.c -o build/stage0   # the snapshot, with only a C compiler
-build/stage0 build src/main.lucb -o build/luce-base          # the compiler from source
-build/luce-base build src/main.lucb -o build/stage2          # and again, by itself
-cmp <stage1 C> <stage2 C>                                    # fixpoint
+build/stage0 build src/main.lucb -o build/stage1             # the compiler from source, through C
+build/stage1 build src/main.lucb --native -o build/luce-base # the product: by itself, natively
+cmp <stage1 asm> <product asm>                               # the native backend's fixpoint
 ```
+
+`LUCB=../luce-seed/build/lucb ./build.sh` replaces the first line with the
+seed named in `bootstrap/SEED`.
 
 ```text
 build/luce-base build src/main.lucb --native -o build/native   # the compiler, natively

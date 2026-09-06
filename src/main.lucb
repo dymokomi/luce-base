@@ -19,7 +19,6 @@ import front.token
 import io
 import memory
 import process
-import strings
 import sema.check
 import support.runtime
 
@@ -39,13 +38,30 @@ struct Options:
     var native: bool
     var debug: bool
     ## `-lNAME` and `-LDIR`: libraries to link and where to find them.
-    var libraries: cstr[16]
+    var libraries: (cstr?)[16]
     var library_count: usize
-    var library_dirs: cstr[8]
+    var library_dirs: (cstr?)[8]
     var library_dir_count: usize
     ## `-framework NAME`: an Apple framework to link.
-    var frameworks: cstr[16]
+    var frameworks: (cstr?)[16]
     var framework_count: usize
+
+## Element `k` of a link-flag list; an empty slot reads as empty text. A `cstr` has no zero
+## value (§6.1), so the lists hold `cstr?`.
+func at(list: (cstr?)[], k: usize) -> cstr:
+    return list[k] else (cstr)""
+
+## Whether `text` begins with `prefix`. The compiler's own sources stay within the seed's
+## modules, so this is written here rather than taken from `strings`.
+func starts_with(text: str, prefix: str) -> bool:
+    if text.length < prefix.length:
+        return false
+    var i: usize = 0
+    while i < prefix.length:
+        if text.bytes[i] != prefix.bytes[i]:
+            return false
+        i += 1
+    return true
 
 ## Whether `flag` is among the arguments.
 func has_argument(arguments: cstr[], flag: str) -> bool:
@@ -92,11 +108,11 @@ var native_backend: bool
 ## `--debug`: the native backend describes every frame and calls the `debug` module.
 var debug_backend: bool
 ## `-lNAME`, `-LDIR`, and `-framework NAME` of the current build, for the link step.
-var link_libraries: cstr[16]
+var link_libraries: (cstr?)[16]
 var link_library_count: usize
-var link_dirs: cstr[8]
+var link_dirs: (cstr?)[8]
 var link_dir_count: usize
-var link_frameworks: cstr[16]
+var link_frameworks: (cstr?)[16]
 var link_framework_count: usize
 
 var scratch_bytes: u8[4096]
@@ -151,17 +167,17 @@ func compile(text: str, exe: str, release: bool, with_start: bool) -> !:
     var used: usize = 0
     var k: usize = 0
     while k < link_dir_count and n + 2 < cc_args.length:
-        let flag = try format(flag_bytes[used..], f"-L{(str)link_dirs[k]}")
+        let flag = try format(flag_bytes[used..], f"-L{(str)at(link_dirs, k)}")
         used += flag.length + 1
         cc_args[n] = (cstr)flag
-        let path = try format(flag_bytes[used..], f"-Wl,-rpath,{(str)link_dirs[k]}")
+        let path = try format(flag_bytes[used..], f"-Wl,-rpath,{(str)at(link_dirs, k)}")
         used += path.length + 1
         cc_args[n + 1] = (cstr)path
         n += 2
         k += 1
     k = 0
     while k < link_library_count and n < cc_args.length:
-        let flag = try format(flag_bytes[used..], f"-l{(str)link_libraries[k]}")
+        let flag = try format(flag_bytes[used..], f"-l{(str)at(link_libraries, k)}")
         used += flag.length + 1
         cc_args[n] = (cstr)flag
         n += 1
@@ -169,7 +185,7 @@ func compile(text: str, exe: str, release: bool, with_start: bool) -> !:
     k = 0
     while k < link_framework_count and n + 1 < cc_args.length:
         cc_args[n] = "-framework"
-        cc_args[n + 1] = link_frameworks[k]
+        cc_args[n + 1] = at(link_frameworks, k)
         n += 2
         k += 1
     let result = try process.run("cc", cc_args[..<n])
@@ -218,14 +234,14 @@ func assemble_and_link(dir: str, names: u8[], text: str, exe: str) -> !:
     var k: usize = 0
     while k < link_dir_count and n + 4 < ld_args.length:
         ld_args[n] = "-L"
-        ld_args[n + 1] = link_dirs[k]
+        ld_args[n + 1] = at(link_dirs, k)
         ld_args[n + 2] = "-rpath"
-        ld_args[n + 3] = link_dirs[k]
+        ld_args[n + 3] = at(link_dirs, k)
         n += 4
         k += 1
     k = 0
     while k < link_library_count and n < ld_args.length:
-        let flag = try format(flag_bytes[used..], f"-l{(str)link_libraries[k]}")
+        let flag = try format(flag_bytes[used..], f"-l{(str)at(link_libraries, k)}")
         used += flag.length + 1
         ld_args[n] = (cstr)flag
         n += 1
@@ -233,7 +249,7 @@ func assemble_and_link(dir: str, names: u8[], text: str, exe: str) -> !:
     k = 0
     while k < link_framework_count and n + 1 < ld_args.length:
         ld_args[n] = "-framework"
-        ld_args[n + 1] = link_frameworks[k]
+        ld_args[n + 1] = at(link_frameworks, k)
         n += 2
         k += 1
     let linked = try process.run("ld", ld_args[..<n])
@@ -423,10 +439,10 @@ pub func main(arguments: cstr[]) -> i32!:
                 options.debug = true
             elif a == "-W":
                 show_warnings = true
-            elif strings.starts_with(a, "-l") and a.length > 2 and options.library_count < options.libraries.length:
+            elif starts_with(a, "-l") and a.length > 2 and options.library_count < options.libraries.length:
                 options.libraries[options.library_count] = (cstr)(str)a.bytes[2..]
                 options.library_count += 1
-            elif strings.starts_with(a, "-L") and a.length > 2 and options.library_dir_count < options.library_dirs.length:
+            elif starts_with(a, "-L") and a.length > 2 and options.library_dir_count < options.library_dirs.length:
                 options.library_dirs[options.library_dir_count] = (cstr)(str)a.bytes[2..]
                 options.library_dir_count += 1
             elif a == "-framework" and i + 1 < arguments.length and options.framework_count < options.frameworks.length:

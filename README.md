@@ -11,9 +11,14 @@ luce-base  (this tree, Base)     compiles itself; C first, then native
 luce-full  (Base)                compiles full Luce
 ```
 
-`luce-seed` built this tree until this tree built itself; the seed is now
-pinned, `bootstrap/luce-base.c` is the compiler's own C, and only this
-compiler moves. The language is
+`luce-seed` built this tree until this tree built itself. The seed is pinned
+at the version named in `bootstrap/SEED` (luce-seed 0.8): `LUCB=../luce-seed/build/lucb
+./build.sh` still starts from it, the gate proves the compiler it builds
+agrees with the snapshot-built one, and the compiler's own sources stay
+within what the seed provides. `bootstrap/luce-base.c` is the compiler's own
+C, and only this compiler moves. `build/luce-base` is the compiler built by
+itself through the native backend, with no C in its path; `build.sh` checks
+that it reproduces its own assembly. The language is
 [`docs/language/base.md`](docs/language/base.md), the same document the
 seed implements. What this compiler must do to earn the switch is in
 [`docs/PLAN.md`](docs/PLAN.md); how it is shaped is in
