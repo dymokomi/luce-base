@@ -166,6 +166,36 @@ pub struct Generator:
 
     ## Load a temporary into `reg`: a register move when it lives in one, else from its home.
     ## A float register moves with `fmov`, an integer one with `mov`; the width follows `reg`.
+    ## The register holding `r` as class `cls` when `r` is a temporary living in one of the
+    ## right kind, else `scratch` after loading it there. Instructions then read operands
+    ## where they are rather than through a scratch register.
+    mutating func source(r: ir.Ref, cls: ir.Class, scratch: str) -> str!:
+        if r.kind == ir.RefKind.temp:
+            let code = self.temp_regs.get((usize)r.index - 1)
+            if code != 0 and (code >= 11) == (cls == ir.Class.s or cls == ir.Class.d):
+                return class_name(code, cls)
+        try self.operand(scratch, cls, r)
+        return scratch
+
+    ## The register to compute temporary `dst` into: its own when it lives in one of the
+    ## right kind, else `scratch`, which `finish` then stores.
+    func target(dst: u32, cls: ir.Class, scratch: str) -> str:
+        if dst == 0:
+            return scratch
+        let code = self.temp_regs.get((usize)dst - 1)
+        if code != 0 and (code >= 11) == (cls == ir.Class.s or cls == ir.Class.d):
+            return class_name(code, cls)
+        return scratch
+
+    ## After a result landed in `reg`: nothing when that is the temporary's own register.
+    mutating func finish(dst: u32, cls: ir.Class, reg: str) -> !:
+        if dst == 0:
+            return
+        let code = self.temp_regs.get((usize)dst - 1)
+        if code != 0 and class_name(code, cls) == reg:
+            return
+        try self.store_temp(reg, dst)
+
     mutating func load_temp(reg: str, cls: ir.Class, t: u32) -> !:
         let code = self.temp_regs.get((usize)t - 1)
         if code != 0:
@@ -654,29 +684,45 @@ pub struct Generator:
 
     ## A load from a promoted slot: the register, extended as the load would extend from
     ## memory, since a narrow store leaves the register's upper bits as they were.
-    mutating func load_promoted(op: ir.Op, k: u32) -> !:
+    mutating func load_promoted(op: ir.Op, k: u32, d: str) -> !:
         let code = (usize)self.slot_regs.get((usize)k - 1)
         let xs = x_names[code]
         let ws = w_names[code]
         match op:
-            .loadl: try self.line2("mov x9, ", xs)
-            .loaduw: try self.line2("mov w9, ", ws)
-            .loadsw: try self.line2("sxtw x9, ", ws)
-            .loadub: try self.line3("and w9, ", ws, ", #0xff")
-            .loadsb: try self.line2("sxtb w9, ", ws)
-            .loaduh: try self.line3("and w9, ", ws, ", #0xffff")
-            .loadsh: try self.line2("sxth w9, ", ws)
-            .loads: try self.line2("fmov s16, ", ws)
-            _: try self.line2("fmov d16, ", xs)
+            .loadl:
+                if d != xs:
+                    try self.line4("mov ", d, ", ", xs)
+            .loaduw:
+                if d != ws:
+                    try self.line4("mov ", d, ", ", ws)
+            .loadsw: try self.line4("sxtw ", d, ", ", ws)
+            .loadub: try self.line5("and ", d, ", ", ws, ", #0xff")
+            .loadsb: try self.line4("sxtb ", d, ", ", ws)
+            .loaduh: try self.line5("and ", d, ", ", ws, ", #0xffff")
+            .loadsh: try self.line4("sxth ", d, ", ", ws)
+            .loads:
+                if d != ws:
+                    try self.line4("fmov ", d, ", ", ws)
+            _:
+                if d != xs:
+                    try self.line4("fmov ", d, ", ", xs)
 
-    ## A store into a promoted slot: the value's register moves in.
-    mutating func store_promoted(op: ir.Op, k: u32) -> !:
+    ## A store into a promoted slot: the value's register `v` moves in.
+    mutating func store_promoted(op: ir.Op, k: u32, v: str) -> !:
         let code = (usize)self.slot_regs.get((usize)k - 1)
         match op:
-            .storel: try self.line3("mov ", x_names[code], ", x9")
-            .stores: try self.line3("fmov ", w_names[code], ", s16")
-            .stored: try self.line3("fmov ", x_names[code], ", d16")
-            _: try self.line3("mov ", w_names[code], ", w9")
+            .storel:
+                if v != x_names[code]:
+                    try self.line4("mov ", x_names[code], ", ", v)
+            .stores:
+                if v != w_names[code]:
+                    try self.line4("fmov ", w_names[code], ", ", v)
+            .stored:
+                if v != x_names[code]:
+                    try self.line4("fmov ", x_names[code], ", ", v)
+            _:
+                if v != w_names[code]:
+                    try self.line4("mov ", w_names[code], ", ", v)
 
     mutating func line2(a: str, b: str) -> !:
         try self.line(a)
@@ -686,6 +732,19 @@ pub struct Generator:
         try self.line(a)
         try self.put(b)
         try self.put(c)
+
+    mutating func line4(a: str, b: str, c: str, d: str) -> !:
+        try self.line(a)
+        try self.put(b)
+        try self.put(c)
+        try self.put(d)
+
+    mutating func line5(a: str, b: str, c: str, d: str, e: str) -> !:
+        try self.line(a)
+        try self.put(b)
+        try self.put(c)
+        try self.put(d)
+        try self.put(e)
 
     ## `.weak_definition` and `.no_dead_strip` for a symbol with those attributes (§9.8).
     mutating func linkage_directives(name: str, weak: bool, used: bool) -> !:
@@ -927,105 +986,106 @@ pub struct Generator:
                 try self.line("b ")
                 try self.label_name(n.extra)
             .jnz:
-                try self.operand("w9", ir.Class.w, n.a)
-                try self.line("cbnz w9, ")
+                let c = try self.source(n.a, ir.Class.w, "w9")
+                try self.line("cbnz ")
+                try self.put(c)
+                try self.put(", ")
                 try self.label_name(n.extra)
                 try self.line("b ")
                 try self.label_name(n.extra2)
             .ret:
                 try self.return_value(n)
             .copy:
-                try self.operand(self.reg(n.cls, 0), n.cls, n.a)
-                try self.store_temp(self.reg(n.cls, 0), n.dst)
+                let v = try self.source(n.a, n.cls, self.reg(n.cls, 0))
+                let d = self.target(n.dst, n.cls, self.reg(n.cls, 0))
+                if v != d:
+                    try self.line("fmov " if n.cls == ir.Class.s or n.cls == ir.Class.d else "mov ")
+                    try self.put(d)
+                    try self.put(", ")
+                    try self.put(v)
+                try self.finish(n.dst, n.cls, d)
             .add, .sub, .mul, .sdiv, .udiv, .srem, .urem, .and_, .or_, .xor, .shl, .lshr, .ashr:
                 try self.arithmetic(n)
             .neg:
-                try self.operand(self.reg(n.cls, 0), n.cls, n.a)
-                if n.cls == ir.Class.s or n.cls == ir.Class.d:
-                    try self.line("fneg ")
-                else:
-                    try self.line("neg ")
-                try self.put(self.reg(n.cls, 0))
+                let v = try self.source(n.a, n.cls, self.reg(n.cls, 0))
+                let d = self.target(n.dst, n.cls, self.reg(n.cls, 0))
+                try self.line("fneg " if n.cls == ir.Class.s or n.cls == ir.Class.d else "neg ")
+                try self.put(d)
                 try self.put(", ")
-                try self.put(self.reg(n.cls, 0))
-                try self.store_temp(self.reg(n.cls, 0), n.dst)
+                try self.put(v)
+                try self.finish(n.dst, n.cls, d)
             .ceq, .cne, .cslt, .csle, .csgt, .csge, .cult, .cule, .cugt, .cuge:
                 try self.comparison(n)
             .loadsb, .loadub, .loadsh, .loaduh, .loadsw, .loaduw, .loadl, .loads, .loadd:
+                let lc = load_class(n.op)
+                let d = self.target(n.dst, lc, load_register(n.op))
                 let from_slot = self.promoted_address(n.a)
                 if from_slot != 0:
-                    try self.load_promoted(n.op, from_slot)
+                    try self.load_promoted(n.op, from_slot, d)
                 else:
                     try self.address_operand("x9", n.a)
                     try self.line(load_mnemonic(n.op))
                     try self.put(" ")
-                    try self.put(load_register(n.op))
+                    try self.put(d)
                     try self.put(", [x9]")
-                try self.store_temp(load_register(n.op), n.dst)
+                try self.finish(n.dst, lc, d)
             .storeb, .storeh, .storew, .storel, .stores, .stored:
                 let cls = store_class(n.op)
-                try self.operand(self.reg(cls, 0), cls, n.a)
+                let v = try self.source(n.a, cls, self.reg(cls, 0))
                 let to_slot = self.promoted_address(n.b)
                 if to_slot != 0:
-                    try self.store_promoted(n.op, to_slot)
+                    try self.store_promoted(n.op, to_slot, v)
                 else:
                     try self.address_operand("x10", n.b)
                     try self.line(store_mnemonic(n.op))
                     try self.put(" ")
-                    try self.put(self.reg(cls, 0))
+                    try self.put(v)
                     try self.put(", [x10]")
             .frame:
-                try self.line("mov x9, x29")
-                try self.store_temp("x9", n.dst)
+                let d = self.target(n.dst, ir.Class.l, "x9")
+                try self.line("mov ")
+                try self.put(d)
+                try self.put(", x29")
+                try self.finish(n.dst, ir.Class.l, d)
             .extsb, .extub, .extsh, .extuh, .extsw, .extuw:
-                try self.operand("x9", ir.Class.l, n.a)
-                try self.extend(n.op, n.cls)
-                try self.store_temp(self.reg(n.cls, 0), n.dst)
-            .exts:
-                try self.operand("s16", ir.Class.s, n.a)
-                try self.line("fcvt d16, s16")
-                try self.store_temp("d16", n.dst)
-            .truncd:
-                try self.operand("d16", ir.Class.d, n.a)
-                try self.line("fcvt s16, d16")
-                try self.store_temp("s16", n.dst)
+                let v = try self.source(n.a, ir.Class.w, "w9")
+                let d = self.target(n.dst, n.cls, self.reg(n.cls, 0))
+                try self.extend_from(n.op, v, d)
+                try self.finish(n.dst, n.cls, d)
+            .exts, .truncd:
+                let src_cls = ir.Class.s if n.op == ir.Op.exts else ir.Class.d
+                let v = try self.source(n.a, src_cls, self.reg(src_cls, 0))
+                let d = self.target(n.dst, n.cls, self.reg(n.cls, 0))
+                try self.line3("fcvt ", d, ", ")
+                try self.put(v)
+                try self.finish(n.dst, n.cls, d)
             .stosi, .stoui, .dtosi, .dtoui:
                 let src_cls = ir.Class.s if n.op == ir.Op.stosi or n.op == ir.Op.stoui else ir.Class.d
-                try self.operand(self.reg(src_cls, 0), src_cls, n.a)
-                try self.line("fcvtzs " if n.op == ir.Op.stosi or n.op == ir.Op.dtosi else "fcvtzu ")
-                try self.put(self.reg(n.cls, 0))
-                try self.put(", ")
-                try self.put(self.reg(src_cls, 0))
-                try self.store_temp(self.reg(n.cls, 0), n.dst)
+                let v = try self.source(n.a, src_cls, self.reg(src_cls, 0))
+                let d = self.target(n.dst, n.cls, self.reg(n.cls, 0))
+                try self.line3("fcvtzs " if n.op == ir.Op.stosi or n.op == ir.Op.dtosi else "fcvtzu ", d, ", ")
+                try self.put(v)
+                try self.finish(n.dst, n.cls, d)
             .swtof, .uwtof, .sltof, .ultof:
                 let src_cls = ir.Class.w if n.op == ir.Op.swtof or n.op == ir.Op.uwtof else ir.Class.l
-                try self.operand(self.reg(src_cls, 0), src_cls, n.a)
-                try self.line("scvtf " if n.op == ir.Op.swtof or n.op == ir.Op.sltof else "ucvtf ")
-                try self.put(self.reg(n.cls, 0))
-                try self.put(", ")
-                try self.put(self.reg(src_cls, 0))
-                try self.store_temp(self.reg(n.cls, 0), n.dst)
+                let v = try self.source(n.a, src_cls, self.reg(src_cls, 0))
+                let d = self.target(n.dst, n.cls, self.reg(n.cls, 0))
+                try self.line3("scvtf " if n.op == ir.Op.swtof or n.op == ir.Op.sltof else "ucvtf ", d, ", ")
+                try self.put(v)
+                try self.finish(n.dst, n.cls, d)
             .cast:
                 # bits move between an integer and a float of the same width
-                if n.cls == ir.Class.s or n.cls == ir.Class.d:
-                    let ic = ir.Class.w if n.cls == ir.Class.s else ir.Class.l
-                    try self.operand(self.reg(ic, 0), ic, n.a)
-                    try self.line("fmov ")
-                    try self.put(self.reg(n.cls, 0))
-                    try self.put(", ")
-                    try self.put(self.reg(ic, 0))
-                else:
-                    let fc = ir.Class.s if n.cls == ir.Class.w else ir.Class.d
-                    try self.operand(self.reg(fc, 0), fc, n.a)
-                    try self.line("fmov ")
-                    try self.put(self.reg(n.cls, 0))
-                    try self.put(", ")
-                    try self.put(self.reg(fc, 0))
-                try self.store_temp(self.reg(n.cls, 0), n.dst)
+                let other = (ir.Class.w if n.cls == ir.Class.s else ir.Class.l) if (n.cls == ir.Class.s or n.cls == ir.Class.d) else (ir.Class.s if n.cls == ir.Class.w else ir.Class.d)
+                let v = try self.source(n.a, other, self.reg(other, 0))
+                let d = self.target(n.dst, n.cls, self.reg(n.cls, 0))
+                try self.line3("fmov ", d, ", ")
+                try self.put(v)
+                try self.finish(n.dst, n.cls, d)
             .addr:
                 if self.promoted_slot(n.dst) == 0:
-                    try self.address_operand("x9", n.a)
-                    try self.store_temp("x9", n.dst)
+                    let d = self.target(n.dst, ir.Class.l, "x9")
+                    try self.address_operand(d, n.a)
+                    try self.finish(n.dst, ir.Class.l, d)
             .addr_tls:
                 try self.line("adrp x0, ")
                 try self.symbol(n.a.name)
@@ -1062,9 +1122,10 @@ pub struct Generator:
                 try self.address_operand("x0", n.a)
                 try self.line("bl _lb_core_trap")
             .bounds:
-                try self.operand("x9", ir.Class.l, n.a)
-                try self.operand("x10", ir.Class.l, n.b)
-                try self.line("cmp x9, x10")
+                let a = try self.source(n.a, ir.Class.l, "x9")
+                let b = try self.source(n.b, ir.Class.l, "x10")
+                try self.line3("cmp ", a, ", ")
+                try self.put(b)
                 try self.line("b.lo 1f")
                 try self.trap_text("index out of bounds")
                 try self.put("\n1:")
@@ -1111,10 +1172,9 @@ pub struct Generator:
                 error(failed, "an instruction the arm64 generator does not know")
 
     mutating func arithmetic(n: ir.Instr) -> !:
-        let a = self.reg(n.cls, 0)
-        let b = self.reg(n.cls, 1)
-        try self.operand(a, n.cls, n.a)
-        try self.operand(b, n.cls, n.b)
+        let a = try self.source(n.a, n.cls, self.reg(n.cls, 0))
+        let b = try self.source(n.b, n.cls, self.reg(n.cls, 1))
+        let d = self.target(n.dst, n.cls, self.reg(n.cls, 0))
         let is_float = n.cls == ir.Class.s or n.cls == ir.Class.d
         var mnemonic = "add"
         match n.op:
@@ -1137,30 +1197,28 @@ pub struct Generator:
                 try self.put(", ")
                 try self.put(b)
                 try self.line("msub ")
-                try self.put(a)
+                try self.put(d)
                 try self.put(", ")
                 try self.put(self.reg(n.cls, 2))
                 try self.put(", ")
                 try self.put(b)
                 try self.put(", ")
                 try self.put(a)
-                try self.store_temp(a, n.dst)
+                try self.finish(n.dst, n.cls, d)
                 return
             _: mnemonic = "add"
         try self.line(mnemonic)
         try self.put(" ")
-        try self.put(a)
+        try self.put(d)
         try self.put(", ")
         try self.put(a)
         try self.put(", ")
         try self.put(b)
-        try self.store_temp(a, n.dst)
+        try self.finish(n.dst, n.cls, d)
 
     mutating func comparison(n: ir.Instr) -> !:
-        let a = self.reg(n.cls, 0)
-        let b = self.reg(n.cls, 1)
-        try self.operand(a, n.cls, n.a)
-        try self.operand(b, n.cls, n.b)
+        let a = try self.source(n.a, n.cls, self.reg(n.cls, 0))
+        let b = try self.source(n.b, n.cls, self.reg(n.cls, 1))
         let is_float = n.cls == ir.Class.s or n.cls == ir.Class.d
         try self.line("fcmp " if is_float else "cmp ")
         try self.put(a)
@@ -1179,40 +1237,24 @@ pub struct Generator:
             .cugt: cond = "hi"
             .cuge: cond = "hs"
             _: cond = "eq"
-        try self.line("cset w9, ")
+        let d = self.target(n.dst, ir.Class.w, "w9")
+        try self.line3("cset ", d, ", ")
         try self.put(cond)
-        try self.store_temp("w9", n.dst)
+        try self.finish(n.dst, ir.Class.w, d)
 
-    mutating func extend(op: ir.Op, cls: ir.Class) -> !:
-        let target = self.reg(cls, 0)
+    ## `op` applied to the 32-bit view `v` of a value, into `d`.
+    mutating func extend_from(op: ir.Op, v: str, d: str) -> !:
         match op:
-            .extsb:
-                try self.line("sxtb ")
-                try self.put(target)
-                try self.put(", w9")
-            .extub:
-                try self.line("and ")
-                try self.put(target)
-                try self.put(", ")
-                try self.put(target)
-                try self.put(", #255")
-            .extsh:
-                try self.line("sxth ")
-                try self.put(target)
-                try self.put(", w9")
-            .extuh:
-                try self.line("and ")
-                try self.put(target)
-                try self.put(", ")
-                try self.put(target)
-                try self.put(", #65535")
-            .extsw:
-                if cls == ir.Class.l:
-                    try self.line("sxtw x9, w9")
-                else:
-                    try self.line("mov w9, w9")
+            .extsb: try self.line4("sxtb ", d, ", ", v)
+            .extub: try self.line5("and ", d, ", ", v, ", #255")
+            .extsh: try self.line4("sxth ", d, ", ", v)
+            .extuh: try self.line5("and ", d, ", ", v, ", #65535")
+            .extsw: try self.line4("sxtw ", d, ", ", v)
             _:
-                try self.line("mov w9, w9")
+                # zero-extension of a word: writing the 32-bit view clears the upper half
+                let dw = narrow_name(d)
+                if dw != v:
+                    try self.line4("mov ", dw, ", ", v)
 
     ## Checked add, subtract, and multiply: trap on overflow of the class width.
     mutating func checked(n: ir.Instr) -> !:
@@ -1771,6 +1813,37 @@ let w_names: str[19] = ["", "w19", "w20", "w21", "w22", "w23", "w24", "w25", "w2
 ## The 8-byte name used to spill and reload a register on entry and exit.
 func save_name(code: usize) -> str:
     return x_names[code]
+
+## Register code `code` viewed as class `cls`: `w`/`s` names for the narrow classes.
+func class_name(code: u8, cls: ir.Class) -> str:
+    if cls == ir.Class.w or cls == ir.Class.s:
+        return w_names[(usize)code]
+    return x_names[(usize)code]
+
+## `x21` -> `w21`, `x9` -> `w9`: the 32-bit view of an integer register.
+func narrow_name(reg: str) -> str:
+    if reg.bytes[0] != 'x':
+        return reg
+    var k: usize = 1
+    while k <= 10:
+        if x_names[k] == reg:
+            return w_names[k]
+        k += 1
+    if reg == "x9":
+        return "w9"
+    if reg == "x10":
+        return "w10"
+    if reg == "x11":
+        return "w11"
+    return reg
+
+## The class a load produces.
+func load_class(op: ir.Op) -> ir.Class:
+    match op:
+        .loadsb, .loadub, .loadsh, .loaduh, .loaduw: return ir.Class.w
+        .loadsw, .loadl: return ir.Class.l
+        .loads: return ir.Class.s
+        _: return ir.Class.d
 
 ## The store that writes a register of class `c` (an asm output back to its place).
 ## The bytes a load or store moves.
