@@ -1,22 +1,13 @@
 #!/bin/sh
-# The gate: unit tests in the seed's oracle when a seed is present; then the
-# binary lexes, parses, and checks every sample and source file, builds and runs
-# every sample with `main`, runs every module's tests, builds itself again to the
-# same C, and rejects every program under samples/errors.
+# The gate: the binary lexes, parses, and checks every sample and source file,
+# builds and runs every sample with `main` through both backends, runs every
+# module's tests through both backends, builds itself again to the same C, and
+# rejects every program under samples/errors. The C and native backends are the
+# two executions that must agree.
 set -eu
 cd "$(dirname "$0")"
-# the seed's oracle is a second execution of every module test, while a seed is around
-LUCB=${LUCB:-../luce-seed/build/lucb}
-if [ -x "$LUCB" ]; then
-    for f in src/*.lucb; do
-        if grep -q '^test "' "$f"; then
-            echo "== $f"
-            "$LUCB" test "$f"
-        fi
-    done
-fi
 ./build.sh
-for f in samples/*.lucb src/*.lucb; do
+for f in samples/*.lucb src/*.lucb src/*/*.lucb; do
     echo "== $f"
     ./build/luce-base lex "$f" > /dev/null
     ./build/luce-base parse "$f" > /dev/null
@@ -31,13 +22,23 @@ for f in samples/*.expect; do
     cmp build/sample.out "$f"
 done
 rm -f build/sample build/sample.out
-# every module's tests run through the binary too
-for f in src/*.lucb; do
+# every module's tests run through both backends: the two executions must agree
+for f in src/*/*.lucb; do
     if grep -q '^test "' "$f"; then
         echo "== test $f"
         ./build/luce-base test "$f" | tail -1
+        ./build/luce-base test "$f" --native | tail -1
     fi
 done
+# every sample with `main` runs natively too
+for f in samples/*.expect; do
+    src="${f%.expect}.lucb"
+    echo "== native $src"
+    ./build/luce-base build "$src" --native -o build/sample
+    ./build/sample > build/sample.out
+    cmp build/sample.out "$f"
+done
+rm -f build/sample build/sample.out
 # the bootstrap: the compiler built from source builds itself again, and both
 # generations must emit the same C for the compiler; the snapshot is only
 # reported when it has drifted
@@ -50,6 +51,16 @@ if ! cmp -s build/stage1.c bootstrap/luce-base.c; then
     echo "note: bootstrap/luce-base.c differs from the current compiler; run tools/snapshot.sh"
 fi
 rm -f build/stage1.c build/stage2.c build/stage2
+# the native backend closes its own loop: the compiler built natively must emit the
+# same C and the same assembly for the compiler as the C-built one
+./build/luce-base build src/main.lucb --native -o build/native
+./build/native build src/main.lucb --emit=c -o build/native1.c
+./build/luce-base build src/main.lucb --emit=c -o build/stage1.c
+cmp build/stage1.c build/native1.c
+./build/luce-base build src/main.lucb --native --emit=asm -o build/stage1.s
+./build/native build src/main.lucb --native --emit=asm -o build/native1.s
+cmp build/stage1.s build/native1.s
+rm -f build/native build/native1.c build/stage1.c build/stage1.s build/native1.s
 # every rejected program must be rejected for the stated reason
 for f in samples/errors/*.lucb; do
     want=$(sed -n 's/^# error: //p' "$f")

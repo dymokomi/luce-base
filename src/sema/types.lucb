@@ -13,8 +13,8 @@
 #
 #==============================================================================================
 
-import ast
-import list
+import front.ast
+import support.list
 
 pub enum Kind as u8:
     error = 1
@@ -151,7 +151,11 @@ pub struct Table:
         while i < n:
             let have = self.types.get(i)
             if have.kind == t.kind and have.elem == t.elem and have.length == t.length and have.is_const == t.is_const and have.is_volatile == t.is_volatile and have.variadic == t.variadic and have.decl == t.decl and self.same_args(have.args, t.args):
-                if have.decl != none or have.name == t.name or t.kind != Kind.param:
+                # a generic parameter is its own type: same declaration, same name
+                if t.kind == Kind.param:
+                    if have.name == t.name:
+                        return u32(i)
+                elif have.decl != none or have.name == t.name:
                     return u32(i)
             i += 1
         try self.types.push(t)
@@ -349,8 +353,8 @@ pub struct Table:
                 return round_up(largest, widest)
             .enum_:
                 if let decl = t.decl:
-                    if decl.ty != none:
-                        return self.size_of(decl.type_id) if decl.type_id != none_id else 4
+                    if let backing = decl.ty:
+                        return self.size_of(backing.type_id) if backing.type_id != none_id else 4
                     # tag plus the largest payload, each field aligned
                     var largest: u64 = 0
                     var widest: u64 = 4
@@ -391,8 +395,9 @@ pub struct Table:
                 if let decl = t.decl:
                     if decl.has(ast.flag_packed):
                         return 1
-                    if t.kind == Kind.enum_ and decl.ty != none:
-                        return self.align_of(decl.type_id)
+                    if t.kind == Kind.enum_:
+                        if let backing = decl.ty:
+                            return self.align_of(backing.type_id) if backing.type_id != none_id else 4
                     var widest: u64 = 4 if t.kind == Kind.enum_ else 1
                     var cursor = decl.body
                     while let member = cursor:

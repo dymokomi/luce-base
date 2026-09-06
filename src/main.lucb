@@ -9,19 +9,21 @@
 #
 #==============================================================================================
 
-import ast
-import check
-import emit
-import lexer
-import parser
-import runtime
-import source
-import token
+import back.arm64
+import front.ast
+import sema.check
+import back.emit
+import front.lexer
+import back.lower
+import front.parser
+import support.runtime
+import front.source
+import front.token
 
 let version: str = "0.1"
 
 func usage(out: Writer) -> !:
-    try out.write("usage: luce-base lex FILE\n       luce-base parse FILE\n       luce-base check FILE\n       luce-base build FILE [-o OUT] [--release] [--emit=c]\n       luce-base test FILE\n       luce-base --version\n")
+    try out.write("usage: luce-base lex FILE\n       luce-base parse FILE\n       luce-base check FILE\n       luce-base build FILE [-o OUT] [--release] [--emit=c] [--native] [--emit=asm]\n       luce-base test FILE [--native]\n       luce-base --version\n")
 
 # mark: Building ===============================================================================
 
@@ -31,6 +33,7 @@ struct Options:
     var release: bool
     var emit_c: bool
     var run_tests: bool
+    var native: bool
 
 ## Check FILE and its imports, then generate C for the whole program.
 func generate(path: cstr, mode: u32) -> str!:
@@ -45,9 +48,18 @@ func generate(path: cstr, mode: u32) -> str!:
             error(build_failed, "this module has no `main` to build a program from; `check` it, or `test` it")
         actual = 2
     used_mode = actual
+    if native_backend:
+        var l = try lower.Lowerer.create(&c, entry)
+        try l.program(actual)
+        var g = try arm64.Generator.create(&l.program_unit)
+        try g.generate()
+        return g.text()
     var e = try emit.Emitter.create(&c, entry)
     try e.program(actual)
     return e.text()
+
+## The backend the current command chose: C through the host compiler, or arm64 assembly.
+var native_backend: bool
 
 var scratch_bytes: u8[4096]
 ## The mode the last `generate` settled on: 2 means an `answer()` program that links `start.c`.
@@ -67,7 +79,7 @@ func compile(text: str, exe: str, release: bool, with_start: bool) -> !:
     # the scratch names must end in NUL for the C library; `format` appends one
     var names: u8[4096]
     let dir = try format(names[3072..], f"{trim(dir_text)}")
-    let gen_path = try format(names[..<512], f"{dir}/gen.c")
+    let gen_path = try format(names[..<512], f"{dir}/gen.s" if native_backend else f"{dir}/gen.c")
     let header_path = try format(names[512..<1024], f"{dir}/lucb_rt.h")
     let runtime_path = try format(names[1024..<1536], f"{dir}/lucb_rt.c")
     let start_path = try format(names[1536..<2048], f"{dir}/start.c")
@@ -82,7 +94,7 @@ func compile(text: str, exe: str, release: bool, with_start: bool) -> !:
     cc_args[0] = "-std=gnu11"
     cc_args[1] = "-Wall"
     cc_args[2] = "-Werror"
-    cc_args[3] = "-O2" if release else "-O0"
+    cc_args[3] = "-O2" if release and not native_backend else "-O0"
     cc_args[4] = (cstr)include
     cc_args[5] = (cstr)gen_path
     cc_args[6] = (cstr)runtime_path
@@ -111,6 +123,7 @@ func build_file(path: cstr, options: Options) -> !:
     defer free(backing) in memory.heap
     var arena = FixedBuffer.over(backing)
     with arena:
+        native_backend = options.native
         let text = try generate(path, 1 if options.run_tests else 0)
         if options.emit_c:
             if options.output.length > 0:
@@ -121,14 +134,15 @@ func build_file(path: cstr, options: Options) -> !:
         var exe = options.output
         if exe.length == 0:
             exe = "a.out"
-        try compile(text, exe, options.release, used_mode == 2)
+        try compile(text, exe, options.release, used_mode == 2 and not native_backend)
 
 ## `test FILE`: build the test runner into a scratch file and run it.
-func test_file(path: cstr) -> i32!:
+func test_file(path: cstr, native: bool) -> i32!:
     let backing = try alloc u8[arena_size] in memory.heap
     defer free(backing) in memory.heap
     var arena = FixedBuffer.over(backing)
     with arena:
+        native_backend = native
         let text = try generate(path, 1)
         let mktemp_args: cstr[1] = ["/tmp/luce-base-test.XXXXXX"]
         let made = try process.run("mktemp", mktemp_args)
@@ -138,6 +152,8 @@ func test_file(path: cstr) -> i32!:
             error(build_failed, "could not create a scratch file")
         var exe_name: u8[512]
         let exe = try format(exe_name, f"{trim(exe_text)}")
+        # the scratch file goes whether the build or the run fails
+        defer remove_file((cstr)exe)
         try compile(text, exe, false, false)
         var run_args: cstr[1] = ---
         run_args[0] = (cstr)exe
@@ -145,11 +161,18 @@ func test_file(path: cstr) -> i32!:
         let (code, out, err) = ran
         try io.stdout().write(out)
         try io.stderr().write(err)
-        var rm_args: cstr[2] = ---
-        rm_args[0] = "-f"
-        rm_args[1] = (cstr)exe
-        discard(try process.run("rm", rm_args))
         return code
+
+func remove_file(path: cstr):
+    var rm_args: cstr[2] = ---
+    rm_args[0] = "-f"
+    rm_args[1] = path
+    let ran = process.run("rm", rm_args) catch:
+        return
+    let (code, out, err) = ran
+    discard(code)
+    discard(out.length)
+    discard(err.length)
 
 pub let build_failed: ErrorCode = ErrorCode.package(13)
 
@@ -175,7 +198,7 @@ func check_file(path: cstr) -> !:
 
 ## Trees and tokens live in one arena taken from the process heap; nothing is
 ## freed until the command ends.
-let arena_size: usize = 67108864
+let arena_size: usize = 536870912
 
 func parse_file(path: cstr, out: Writer) -> !:
     let backing = try alloc u8[arena_size] in memory.heap
@@ -219,7 +242,7 @@ pub func main(arguments: cstr[]) -> i32!:
             return 1
         return 0
     if command == "build" and arguments.length >= 3:
-        var options = Options(output = "", release = false, emit_c = false, run_tests = false)
+        var options = Options(output = "", release = false, emit_c = false, run_tests = false, native = false)
         var i: usize = 3
         while i < arguments.length:
             let a = (str)arguments[i]
@@ -228,8 +251,10 @@ pub func main(arguments: cstr[]) -> i32!:
                 i += 1
             elif a == "--release":
                 options.release = true
-            elif a == "--emit=c":
+            elif a == "--emit=c" or a == "--emit=asm":
                 options.emit_c = true
+            elif a == "--native":
+                options.native = true
             else:
                 try io.stderr().write(f"luce-base: unexpected argument `{a}`\n")
                 return 2
@@ -238,8 +263,8 @@ pub func main(arguments: cstr[]) -> i32!:
             try io.stderr().write(f"luce-base: {failure.message}\n")
             return 1
         return 0
-    if command == "test" and arguments.length == 3:
-        let code = test_file(arguments[2]) catch failure:
+    if command == "test" and (arguments.length == 3 or (arguments.length == 4 and (str)arguments[3] == "--native")):
+        let code = test_file(arguments[2], arguments.length == 4) catch failure:
             try io.stderr().write(f"luce-base: {failure.message}\n")
             recover 1
         return code

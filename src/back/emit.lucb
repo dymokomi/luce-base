@@ -21,11 +21,12 @@
 #
 #==============================================================================================
 
-import ast
-import buffer
-import check
-import list
-import types
+import front.ast
+import support.buffer
+import sema.check
+import support.list
+import back.names
+import sema.types
 
 pub let backend: ErrorCode = ErrorCode.package(12)
 
@@ -405,10 +406,7 @@ pub struct Emitter:
 
     ## The module a top-level declaration belongs to, by name.
     func module_name(d: ast.Node*) -> str:
-        let m = d.resolved else return "x"
-        if m.kind != ast.Kind.module:
-            return "x"
-        return m.text
+        return names.module_of(d)
 
     ## `lb_module_Name` or `lb_module_Name__args` for a record type.
     mutating func put_record_name(id: u32) -> !:
@@ -537,13 +535,13 @@ pub struct Emitter:
     mutating func put_ident(name: str) -> !:
         try self.put("lb_")
         try self.put(name)
-        if is_runtime_name(name):
+        if names.is_runtime_name(name):
             try self.put("_")
 
     ## The C name of a function or method instance.
     mutating func put_func_name(f: ast.Node*, args: u32[], owner: ast.Node*?, owner_args: u32[]) -> !:
         if f.kind == ast.Kind.extern_func:
-            try self.put(c_symbol(f))
+            try self.put(names.c_symbol(f))
             return
         if f.has(ast.flag_export):
             if let o = owner:
@@ -2147,7 +2145,7 @@ pub struct Emitter:
     ## A function used as a value: its instance's C name.
     mutating func func_value(e: ast.Node*, d: ast.Node*) -> !:
         if d.kind == ast.Kind.extern_func:
-            try self.put(c_symbol(d))
+            try self.put(names.c_symbol(d))
             return
         var args = try types.no_args()
         if let t = e.ty:
@@ -4910,7 +4908,7 @@ pub struct Emitter:
     mutating func extern_prototype(d: ast.Node*) -> !:
         # the C library's own functions come from the headers the prologue includes;
         # some of them are macros there, so they are never redeclared
-        if declared_by_headers(c_symbol(d)):
+        if declared_by_headers(names.c_symbol(d)):
             return
         try self.line("extern ")
         let ft = self.c.table.get(d.type_id)
@@ -4919,7 +4917,7 @@ pub struct Emitter:
         else:
             try self.put_type(ft.elem)
         try self.put(" ")
-        try self.put(c_symbol(d))
+        try self.put(names.c_symbol(d))
         try self.put("(")
         var first = true
         var i: usize = 0
@@ -5010,16 +5008,16 @@ pub struct Emitter:
             try self.line("    return (int)lb_main(args);")
         try self.line("}")
 
-    ## `lb_answer` for the seed's `answer()` convention, then `start.c` calls it.
+    ## `lb_answer` for the seed's `answer()` convention, then `start.c` calls it; a
+    ## plain `answer` already carries that name.
     mutating func answer_shim() -> !:
         let f = check.find_decl(self.entry, "answer") else return
+        if not f.has(ast.flag_fallible):
+            return
         try self.line("int64_t lb_answer(void) {")
-        if f.has(ast.flag_fallible):
-            try self.line("    lb_r_i64 r = lb_answer_impl();")
-            try self.line("    if (r.failed) { fprintf(stderr, \"error %d: %.*s\\n\", r.error.code, (int)r.error.message.length, r.error.message.data); exit(1); }")
-            try self.line("    return r.value;")
-        else:
-            try self.line("    return lb_answer();")
+        try self.line("    lb_r_i64 r = lb_answer_impl();")
+        try self.line("    if (r.failed) { fprintf(stderr, \"error %d: %.*s\\n\", r.error.code, (int)r.error.message.length, r.error.message.data); exit(1); }")
+        try self.line("    return r.value;")
         try self.line("}")
 
     ## A `main` that runs every test in order and reports.
@@ -5051,24 +5049,6 @@ pub struct Emitter:
         return self.out.view()
 
 # mark: Helpers ================================================================================
-
-## Identifiers the runtime defines with the `lb_` prefix; a user name that
-## spells one gets an underscore so the two never meet.
-func is_runtime_name(name: str) -> bool:
-    let names: str[16] = ["span", "str", "error", "cspan", "out", "fmtbuf", "hash_bytes", "hash_mix", "hash_seed", "utf8_ok", "trap", "check_index", "unknown", "iface", "alloc", "fixed"]
-    for n in names:
-        if n == name:
-            return true
-    return false
-
-## The C symbol of an extern function: its `as "name"`, or its own name.
-func c_symbol(f: ast.Node*) -> str:
-    if let alias = f.left:
-        if alias.kind == ast.Kind.literal:
-            let b = alias.text.bytes
-            if b.length >= 2 and b[0] == '"':
-                return (str)b[1..<b.length - 1]
-    return f.text
 
 ## The runtime helper behind an arithmetic operator.
 func helper_name(op: str) -> str:
@@ -5186,8 +5166,8 @@ func unescape_braces(text: str) -> str:
 
 ## Functions of stdio.h, stdlib.h, and string.h, which the generated C includes.
 func declared_by_headers(symbol: str) -> bool:
-    let names: str[19] = ["memcpy", "memmove", "memset", "memcmp", "strlen", "malloc", "free", "realloc", "calloc", "exit", "abort", "fwrite", "fread", "fputs", "fflush", "fdopen", "fopen", "fclose", "posix_memalign"]
-    for n in names:
+    let known: str[19] = ["memcpy", "memmove", "memset", "memcmp", "strlen", "malloc", "free", "realloc", "calloc", "exit", "abort", "fwrite", "fread", "fputs", "fflush", "fdopen", "fopen", "fclose", "posix_memalign"]
+    for n in known:
         if n == symbol:
             return true
     return false

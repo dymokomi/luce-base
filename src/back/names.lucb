@@ -1,0 +1,178 @@
+#==============================================================================================
+#
+#   names - The symbol names both backends agree on
+#
+#   DESCRIPTION:
+#       Every C or assembly symbol a Base declaration becomes: `lb_module_name` for a
+#       function or global, `lb_module_Record__args` for a record instance, the method's
+#       owner in front of its name, and `main` and `answer` kept as the entry shims expect.
+#       Type arguments are spelled with identifier characters only, so an instance's name
+#       is unique per type. The C backend writes these through a buffer; the native backend
+#       does the same and then prefixes an underscore, as the Mach-O convention wants.
+#
+#==============================================================================================
+
+import front.ast
+import support.buffer
+import sema.types
+
+## The module a top-level declaration belongs to, by name.
+pub func module_of(d: ast.Node*) -> str:
+    let m = d.resolved else return "x"
+    if m.kind != ast.Kind.module:
+        return "x"
+    return symbol_part(m.text)
+
+## A dotted module path as one identifier piece: `front.lexer` -> `front_lexer`.
+pub func symbol_part(path: str) -> str:
+    var any = false
+    for b in path.bytes:
+        if b == '.':
+            any = true
+    if not any:
+        return path
+    let out = alloc u8[path.length] catch failure:
+        trap("out of memory")
+    var i: usize = 0
+    for b in path.bytes:
+        out[i] = '_' if b == '.' else b
+        i += 1
+    return (str)out[..<i]
+
+## Identifiers the runtime defines with the `lb_` prefix.
+pub func is_runtime_name(name: str) -> bool:
+    let names: str[16] = ["span", "str", "error", "cspan", "out", "fmtbuf", "hash_bytes", "hash_mix", "hash_seed", "utf8_ok", "trap", "check_index", "unknown", "iface", "alloc", "fixed"]
+    for n in names:
+        if n == name:
+            return true
+    return false
+
+## The C symbol of an extern function: its `as "name"`, or its own name.
+pub func c_symbol(f: ast.Node*) -> str:
+    if let alias = f.left:
+        if alias.kind == ast.Kind.literal:
+            let b = alias.text.bytes
+            if b.length >= 2 and b[0] == '"':
+                return (str)b[1..<b.length - 1]
+    return f.text
+
+## A spelling of a type made of identifier characters only, unique per type.
+pub func mangled(out: buffer.Buffer*, table: types.Table*, id: u32) -> !:
+    let t = table.get(id)
+    match t.kind:
+        .pointer:
+            try mangled(out, table, t.elem)
+            try out.put("_cptr" if t.is_const else "_ptr")
+        .span:
+            try mangled(out, table, t.elem)
+            try out.put("_cspan" if t.is_const else "_span")
+        .array:
+            try mangled(out, table, t.elem)
+            try out.put("_arr")
+            try out.put_u64(t.length)
+        .optional:
+            try mangled(out, table, t.elem)
+            try out.put("_opt")
+        .fallible:
+            try mangled(out, table, t.elem)
+            try out.put("_res")
+        .atomic:
+            try mangled(out, table, t.elem)
+            try out.put("_atomic")
+        .tuple:
+            try out.put("tup")
+            var i: usize = 0
+            while i < t.args.length:
+                try out.put("_")
+                try mangled(out, table, t.args[i])
+                i += 1
+            try out.put("_end")
+        .func:
+            try out.put("fn")
+            var i: usize = 0
+            while i < t.args.length:
+                try out.put("_")
+                try mangled(out, table, t.args[i])
+                i += 1
+            try out.put("_to_")
+            try mangled(out, table, t.elem)
+        .struct_, .union_, .enum_, .interface:
+            let d = t.decl else return try out.put("X")
+            try out.put(module_of(d))
+            try out.put("_")
+            try out.put(d.text)
+            var i: usize = 0
+            while i < t.args.length:
+                try out.put("__")
+                try mangled(out, table, t.args[i])
+                i += 1
+        _:
+            try out.put(t.name)
+
+## The symbol of a function or method instance.
+pub func function_name(out: buffer.Buffer*, table: types.Table*, f: ast.Node*, args: u32[], owner: ast.Node*?, owner_args: u32[]) -> !:
+    if f.kind == ast.Kind.extern_func:
+        try out.put(c_symbol(f))
+        return
+    if f.has(ast.flag_export):
+        if let o = owner:
+            try out.put(o.text)
+            try out.put("_")
+        try out.put(f.text)
+        return
+    try out.put("lb_")
+    if let o = owner:
+        try out.put(module_of(o))
+        try out.put("_")
+        try out.put(o.text)
+        var i: usize = 0
+        while i < owner_args.length:
+            try out.put("__")
+            try mangled(out, table, owner_args[i])
+            i += 1
+        try out.put("_")
+    elif f.text == "main" or f.text == "answer":
+        if f.text == "answer" and f.has(ast.flag_fallible):
+            try out.put("answer_impl")
+        else:
+            try out.put(f.text)
+        return
+    else:
+        try out.put(module_of(f))
+        try out.put("_")
+    try out.put(f.text)
+    var i: usize = 0
+    while i < args.length:
+        try out.put("__")
+        try mangled(out, table, args[i])
+        i += 1
+
+## The symbol of a top-level `let` or `var`.
+pub func global_name(out: buffer.Buffer*, d: ast.Node*) -> !:
+    if d.kind == ast.Kind.extern_var:
+        try out.put(d.text)
+        return
+    try out.put("lb_")
+    try out.put(module_of(d))
+    try out.put("_")
+    try out.put(d.text)
+
+## The witness table of a record viewed as an interface.
+pub func vtable_name(out: buffer.Buffer*, table: types.Table*, record: u32, iface: ast.Node*) -> !:
+    try out.put("lb_vt_")
+    try mangled(out, table, record)
+    try out.put("_")
+    try out.put(iface.text)
+
+## The symbol of the `index`th test.
+pub func test_name(out: buffer.Buffer*, index: u32) -> !:
+    try out.put("lb_test_")
+    try out.put_u64((u64)index)
+
+## A copy of the buffer's text in the current allocator, so a name outlives the buffer.
+pub func keep(out: buffer.Buffer*) -> str!:
+    let text = out.view()
+    let copy = try alloc u8[text.length + 1]
+    memory.copy(copy, text.bytes, text.length)
+    copy[text.length] = 0
+    return (str)copy[..<text.length]

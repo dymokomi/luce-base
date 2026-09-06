@@ -127,18 +127,16 @@ pub func move[T](target: T[], source: const T[], count: usize):
     if count > 0:
         discard(memmove(target.data, source.data, count * sizeof(T)))
 
-pub func set(target: u8[], value: u8, count: usize):
-    if count > target.length:
-        trap("index out of bounds")
-    if count > 0:
-        discard(memset(target.data, (i32)value, count))
+pub func set(target: u8[], value: u8):
+    if target.length > 0:
+        discard(memset(target.data, (i32)value, target.length))
 
-pub func read[T](address: const u8*) -> T:
+pub func read[T](address: const void*) -> T:
     var value: T = ---
     discard(memcpy(&value, address, sizeof(T)))
     return value
 
-pub func write[T](address: u8*, value: T):
+pub func write[T](address: void*, value: T):
     var copy_of = value
     discard(memcpy(address, &copy_of, sizeof(T)))
 
@@ -225,6 +223,14 @@ let seek_end: i32 = 2
 let seek_set: i32 = 0
 
 pub let missing: ErrorCode = ErrorCode.package(1)
+
+## Whether `path` can be opened for reading.
+pub func exists(path: cstr) -> bool:
+    let descriptor = open(path, read_only)
+    if descriptor < 0:
+        return false
+    discard(close(descriptor))
+    return true
 pub let failed: ErrorCode = ErrorCode.package(2)
 
 ## The whole file, allocated from the current allocator.
@@ -437,8 +443,8 @@ pub struct Handle:
 
 ## What a new thread starts with: the entry, its context, and the allocator rule of §15.3.
 struct Start:
-    var entry: func(void*) -> unit
-    var context: void*
+    var entry: func(void*?) -> unit
+    var context: void*?
 
 func trampoline(raw: void*) -> void*?:
     let start = (Start*)raw
@@ -449,7 +455,7 @@ func trampoline(raw: void*) -> void*?:
     entry(context)
     return none
 
-pub func spawn(entry: func(void*) -> unit, context: void*, stack: usize = 0, name: str = "") -> Handle!:
+pub func spawn(entry: func(void*?) -> unit, context: void*?, stack: usize = 0, name: str = "") -> Handle!:
     let start = try new Start(entry = entry, context = context) in memory.heap
     var id: void*? = none
     if pthread_create(&id, none, trampoline, (void*)start) != 0:
@@ -1100,6 +1106,15 @@ pub func stderr() -> void*:
     trap("supplied by the backend")
 """),
     Prelude(name = "luce", text = """
+## The derived bounds of §14.4: every type with `==` is Equatable, every hashable
+## one Hashable, every ordered one Comparable. Nothing implements them by hand.
+pub interface Equatable:
+    func equals(other: void*) -> bool
+pub interface Hashable:
+    func hashed() -> u64
+pub interface Comparable:
+    func compare(other: void*) -> i64
+
 ## Compile-time facts about the use site; the backend replaces them (§9.1).
 pub let file: str = ""
 pub let line: u32 = 0

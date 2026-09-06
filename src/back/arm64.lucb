@@ -1,0 +1,1229 @@
+#==============================================================================================
+#
+#   arm64 - The arm64-macos code generator
+#
+#   DESCRIPTION:
+#       Turns an `ir.Unit` into assembly text for the system assembler: Mach-O sections,
+#       underscore-prefixed symbols, `adrp`/`add` addressing, thread-locals through the
+#       `TLVP` descriptors, and calls under the Apple arm64 convention (base.md §19.5):
+#       integers in x0-x7, floats in d0-d7, aggregates up to sixteen bytes in registers,
+#       larger ones by address, homogeneous float aggregates in d registers, results the
+#       same way with x8 for the large ones, variadic arguments on the stack.
+#
+#       Every temporary lives in a frame slot: an instruction loads its operands into
+#       scratch registers, computes, and stores the result. That is the -O0 shape, chosen
+#       so that the backend is right before it is fast; a register allocator over the same
+#       instructions is the next step and changes nothing here but the operand code.
+#
+#==============================================================================================
+
+import support.buffer
+import back.ir
+import support.list
+
+pub let failed: ErrorCode = ErrorCode.package(15)
+
+## Where a temporary or slot lives: an offset below the frame pointer.
+struct FrameHome:
+    var offset: u64
+
+## One argument's placement for a call.
+struct ArgPlacement:
+    ## 0 = integer registers, 1 = float registers, 2 = stack, 3 = by reference in an integer register
+    var where: u8
+    var first: u32
+    var count: u32
+    var stack_offset: u32
+
+pub struct Generator:
+    var out: buffer.Buffer
+    var program_unit: ir.Unit*
+    var f: ir.Function*
+    var index: usize
+    var temp_homes: list.List[FrameHome]
+    var slot_homes: list.List[FrameHome]
+    var frame: u64
+    ## The frame slot holding x8 (the indirect result address) when the function returns a large aggregate.
+    var indirect_home: u64
+    var text_count: usize
+
+    pub static func create(program_unit: ir.Unit*) -> Generator!:
+        return Generator(out = try buffer.Buffer.create(262144), program_unit = program_unit, f = program_unit.functions.span().data, index = 0,
+                         temp_homes = try list.List[FrameHome].create(256), slot_homes = try list.List[FrameHome].create(64),
+                         frame = 0, indirect_home = 0, text_count = 0)
+
+    # -- output ---------------------------------------------------------------------------
+
+    mutating func put(text: str) -> !:
+        try self.out.put(text)
+
+    mutating func line(text: str) -> !:
+        try self.out.put("\n    ")
+        try self.out.put(text)
+
+    mutating func put_u64(v: u64) -> !:
+        try self.out.put_u64(v)
+
+    mutating func put_i64(v: i64) -> !:
+        try self.out.put_i64(v)
+
+    ## `_name`
+    mutating func symbol(name: str) -> !:
+        try self.out.put("_")
+        try self.out.put(name)
+
+    mutating func label_name(n: u32) -> !:
+        try self.out.put("L")
+        try self.out.put_u64((u64)self.index)
+        try self.out.put("_")
+        try self.out.put_u64((u64)n)
+
+    mutating func text_label(n: u32) -> !:
+        try self.out.put("l_text_")
+        try self.out.put_u64((u64)n)
+
+    pub func text() -> str:
+        return self.out.view()
+
+    # -- registers and immediates ---------------------------------------------------------
+
+    ## `movz`/`movk` for any 64-bit value.
+    mutating func load_immediate(reg: str, value: i64) -> !:
+        let bits = (u64)value
+        if bits == 0:
+            try self.line("mov ")
+            try self.put(reg)
+            try self.put(", #0")
+            return
+        # a negative number is shorter with movn
+        if value < 0 and value >= -65536:
+            try self.line("movn ")
+            try self.put(reg)
+            try self.put(", #")
+            try self.put_u64((u64)(-1 - value))
+            return
+        var first = true
+        var shift: u64 = 0
+        while shift < 64:
+            let piece = (bits >> shift) & 65535
+            if piece != 0 or (first and shift == 48):
+                try self.line("movz " if first else "movk ")
+                try self.put(reg)
+                try self.put(", #")
+                try self.put_u64(piece)
+                if shift > 0:
+                    try self.put(", lsl #")
+                    try self.put_u64(shift)
+                first = false
+            shift += 16
+
+    ## `reg = x29 - offset`.
+    mutating func frame_address(reg: str, offset: u64) -> !:
+        if offset <= 4095:
+            try self.line("sub ")
+            try self.put(reg)
+            try self.put(", x29, #")
+            try self.put_u64(offset)
+            return
+        try self.load_immediate("x16", (i64)offset)
+        try self.line("sub ")
+        try self.put(reg)
+        try self.put(", x29, x16")
+
+    func temp_home(t: u32) -> u64:
+        return self.temp_homes.get((usize)t - 1).offset
+
+    func slot_home(s: u32) -> u64:
+        return self.slot_homes.get((usize)s).offset
+
+    ## The register name of class `cls` for scratch number `n` (0, 1, 2).
+    func reg(cls: ir.Class, n: u32) -> str:
+        if cls == ir.Class.w:
+            return "w9" if n == 0 else ("w10" if n == 1 else "w11")
+        if cls == ir.Class.l:
+            return "x9" if n == 0 else ("x10" if n == 1 else "x11")
+        if cls == ir.Class.s:
+            return "s16" if n == 0 else ("s17" if n == 1 else "s18")
+        return "d16" if n == 0 else ("d17" if n == 1 else "d18")
+
+    func xreg(n: u32) -> str:
+        return "x9" if n == 0 else ("x10" if n == 1 else "x11")
+
+    ## Load a temporary's value from its home into `reg` of its class.
+    mutating func load_temp(reg: str, cls: ir.Class, t: u32) -> !:
+        try self.frame_address("x16", self.temp_home(t))
+        try self.line("ldr ")
+        try self.put(reg)
+        try self.put(", [x16]")
+
+    mutating func store_temp(reg: str, t: u32) -> !:
+        try self.frame_address("x16", self.temp_home(t))
+        try self.line("str ")
+        try self.put(reg)
+        try self.put(", [x16]")
+
+    ## An operand into a scratch register of class `cls`.
+    mutating func operand(reg: str, cls: ir.Class, r: ir.Ref) -> !:
+        if r.kind == ir.RefKind.temp:
+            let tc = self.f.temp_class(r.index)
+            if tc == cls or (is_int_class(tc) and is_int_class(cls)):
+                try self.load_temp(reg, cls, r.index)
+                return
+            # a float temporary read as an integer word or the reverse: reinterpret the home's bytes
+            try self.load_temp(reg, cls, r.index)
+            return
+        if r.kind == ir.RefKind.constant:
+            if cls == ir.Class.s or cls == ir.Class.d:
+                try self.load_immediate("x16", r.value)
+                try self.line("fmov ")
+                try self.put(reg)
+                try self.put(", ")
+                try self.put("w16" if cls == ir.Class.s else "x16")
+                return
+            try self.load_immediate(self.as_x(reg), r.value)
+            return
+        try self.address_operand(self.as_x(reg), r)
+
+    ## `w9` -> `x9`; a 64-bit immediate load wants the wide name.
+    func as_x(reg: str) -> str:
+        let b = reg.bytes
+        if b[0] == 'w':
+            if reg == "w9":
+                return "x9"
+            if reg == "w10":
+                return "x10"
+            if reg == "w11":
+                return "x11"
+            if reg == "w16":
+                return "x16"
+            if reg == "w0":
+                return "x0"
+            if reg == "w1":
+                return "x1"
+            if reg == "w2":
+                return "x2"
+        return reg
+
+    ## The address a slot, global, function, or text refers to, into an x register.
+    mutating func address_operand(reg: str, r: ir.Ref) -> !:
+        if r.kind == ir.RefKind.slot:
+            try self.frame_address(reg, self.slot_home(r.index))
+        elif r.kind == ir.RefKind.global or r.kind == ir.RefKind.function:
+            try self.line("adrp ")
+            try self.put(reg)
+            try self.put(", ")
+            try self.symbol(r.name)
+            try self.put("@PAGE")
+            try self.line("add ")
+            try self.put(reg)
+            try self.put(", ")
+            try self.put(reg)
+            try self.put(", ")
+            try self.symbol(r.name)
+            try self.put("@PAGEOFF")
+        elif r.kind == ir.RefKind.text:
+            try self.line("adrp ")
+            try self.put(reg)
+            try self.put(", ")
+            try self.text_label(r.index)
+            try self.put("@PAGE")
+            try self.line("add ")
+            try self.put(reg)
+            try self.put(", ")
+            try self.put(reg)
+            try self.put(", ")
+            try self.text_label(r.index)
+            try self.put("@PAGEOFF")
+        elif r.kind == ir.RefKind.temp:
+            try self.load_temp(reg, ir.Class.l, r.index)
+        elif r.kind == ir.RefKind.constant:
+            try self.load_immediate(reg, r.value)
+        else:
+            try self.line("mov ")
+            try self.put(reg)
+            try self.put(", #0")
+
+    # mark: Functions ==========================================================================
+
+    ## Lay out the frame: parameter slots, slots, temporaries, all below x29.
+    mutating func layout() -> !:
+        self.temp_homes.count = 0
+        self.slot_homes.count = 0
+        var offset: u64 = 16
+        # the indirect result address, when the function returns a large aggregate
+        if self.f.has_result and self.f.result_size > 16 and not (self.f.result_float_only):
+            offset = arm_round_up(offset, 8) + 8
+            self.indirect_home = offset
+        var i: usize = 0
+        while i < self.f.slots.count:
+            let s = self.f.slots.get(i)
+            let size = (u64)s.size if s.size > 0 else 1
+            offset = arm_round_up(offset + size, (u64)s.align if s.align > 0 else 1)
+            try self.slot_homes.push(FrameHome(offset = offset))
+            i += 1
+        i = 0
+        while i < self.f.temps.count:
+            offset = arm_round_up(offset + 8, 8)
+            try self.temp_homes.push(FrameHome(offset = offset))
+            i += 1
+        self.frame = arm_round_up(offset, 16)
+
+    mutating func function(index: usize) -> !:
+        self.index = index
+        self.f = &self.program_unit.functions.items[index]
+        try self.layout()
+        try self.put("\n    .p2align 2\n")
+        if self.f.exported or true:
+            try self.put("    .globl ")
+            try self.symbol(self.f.name)
+            try self.put("\n")
+        try self.symbol(self.f.name)
+        try self.put(":")
+        try self.line("stp x29, x30, [sp, #-16]!")
+        try self.line("mov x29, sp")
+        if self.frame <= 4095:
+            try self.line("sub sp, sp, #")
+            try self.put_u64(self.frame)
+        else:
+            try self.load_immediate("x16", (i64)self.frame)
+            try self.line("sub sp, sp, x16")
+        if self.f.has_result and self.f.result_size > 16 and not self.f.result_float_only:
+            try self.frame_address("x16", self.indirect_home)
+            try self.line("str x8, [x16]")
+        try self.receive_params()
+        var i: usize = 0
+        while i < self.f.instrs.count:
+            try self.instruction(self.f.instrs.get(i))
+            i += 1
+        try self.put("\n")
+
+    ## Store the incoming arguments into their slots.
+    mutating func receive_params() -> !:
+        var next_int: u32 = 0
+        var next_float: u32 = 0
+        var stack_offset: u64 = 16
+        var i: usize = 0
+        while i < self.f.params.count:
+            let p = self.f.params.get(i)
+            let home = self.slot_home(p.slot)
+            if p.size == 0:
+                # a scalar
+                if p.cls == ir.Class.s or p.cls == ir.Class.d:
+                    if next_float < 8:
+                        try self.frame_address("x16", home)
+                        try self.line("str ")
+                        try self.put(("s" if p.cls == ir.Class.s else "d"))
+                        try self.put_u64((u64)next_float)
+                        try self.put(", [x16]")
+                        next_float += 1
+                    else:
+                        try self.line("ldr x9, [x29, #")
+                        try self.put_u64(stack_offset)
+                        try self.put("]")
+                        try self.frame_address("x16", home)
+                        try self.line("str x9, [x16]")
+                        stack_offset += 8
+                elif next_int < 8:
+                    try self.frame_address("x16", home)
+                    try self.line("str w" if p.cls == ir.Class.w else "str x")
+                    try self.put_u64((u64)next_int)
+                    try self.put(", [x16]")
+                    next_int += 1
+                else:
+                    try self.line("ldr x9, [x29, #")
+                    try self.put_u64(stack_offset)
+                    try self.put("]")
+                    try self.frame_address("x16", home)
+                    try self.line("str w9, [x16]" if p.cls == ir.Class.w else "str x9, [x16]")
+                    stack_offset += 8
+            elif p.is_float_only and next_float + p.float_count <= 8:
+                # a homogeneous float aggregate in d or s registers
+                let each = (u64)p.size // (u64)p.float_count
+                var k: u32 = 0
+                while k < p.float_count:
+                    try self.frame_address("x16", home)
+                    try self.line("str ")
+                    try self.put("s" if each == 4 else "d")
+                    try self.put_u64((u64)(next_float + k))
+                    try self.put(", [x16, #")
+                    try self.put_u64((u64)k * each)
+                    try self.put("]")
+                    k += 1
+                next_float += p.float_count
+            elif p.size <= 16:
+                let words = (p.size + 7) // 8
+                if next_int + words <= 8:
+                    try self.frame_address("x16", home)
+                    try self.line("str x")
+                    try self.put_u64((u64)next_int)
+                    try self.put(", [x16]")
+                    if words == 2:
+                        try self.line("str x")
+                        try self.put_u64((u64)next_int + 1)
+                        try self.put(", [x16, #8]")
+                    next_int += words
+                else:
+                    next_int = 8
+                    var k: u32 = 0
+                    while k < words:
+                        try self.line("ldr x9, [x29, #")
+                        try self.put_u64(stack_offset)
+                        try self.put("]")
+                        try self.frame_address("x16", home)
+                        try self.line("str x9, [x16, #")
+                        try self.put_u64((u64)k * 8)
+                        try self.put("]")
+                        stack_offset += 8
+                        k += 1
+            else:
+                # by reference: keep the address in the slot for now; the bytes are
+                # copied in a second pass, after every register is safely stored
+                if next_int < 8:
+                    try self.frame_address("x16", home)
+                    try self.line("str x")
+                    try self.put_u64((u64)next_int)
+                    try self.put(", [x16]")
+                    next_int += 1
+                else:
+                    try self.line("ldr x9, [x29, #")
+                    try self.put_u64(stack_offset)
+                    try self.put("]")
+                    try self.frame_address("x16", home)
+                    try self.line("str x9, [x16]")
+                    stack_offset += 8
+            i += 1
+        i = 0
+        while i < self.f.params.count:
+            let p = self.f.params.get(i)
+            if p.size > 16 and not (p.is_float_only and p.float_count <= 8):
+                let home = self.slot_home(p.slot)
+                try self.frame_address("x0", home)
+                try self.line("ldr x1, [x0]")
+                try self.load_immediate("x2", (i64)p.size)
+                try self.line("bl _memcpy")
+            i += 1
+
+    # mark: Instructions =======================================================================
+
+    mutating func instruction(n: ir.Instr) -> !:
+        match n.op:
+            .label:
+                try self.put("\n")
+                try self.label_name(n.extra)
+                try self.put(":")
+            .jmp:
+                try self.line("b ")
+                try self.label_name(n.extra)
+            .jnz:
+                try self.operand("w9", ir.Class.w, n.a)
+                try self.line("cbnz w9, ")
+                try self.label_name(n.extra)
+                try self.line("b ")
+                try self.label_name(n.extra2)
+            .ret:
+                try self.return_value(n)
+            .copy:
+                try self.operand(self.reg(n.cls, 0), n.cls, n.a)
+                try self.store_temp(self.reg(n.cls, 0), n.dst)
+            .add, .sub, .mul, .sdiv, .udiv, .srem, .urem, .and_, .or_, .xor, .shl, .lshr, .ashr:
+                try self.arithmetic(n)
+            .neg:
+                try self.operand(self.reg(n.cls, 0), n.cls, n.a)
+                if n.cls == ir.Class.s or n.cls == ir.Class.d:
+                    try self.line("fneg ")
+                else:
+                    try self.line("neg ")
+                try self.put(self.reg(n.cls, 0))
+                try self.put(", ")
+                try self.put(self.reg(n.cls, 0))
+                try self.store_temp(self.reg(n.cls, 0), n.dst)
+            .ceq, .cne, .cslt, .csle, .csgt, .csge, .cult, .cule, .cugt, .cuge:
+                try self.comparison(n)
+            .loadsb, .loadub, .loadsh, .loaduh, .loadsw, .loaduw, .loadl, .loads, .loadd:
+                try self.address_operand("x9", n.a)
+                try self.line(load_mnemonic(n.op))
+                try self.put(" ")
+                try self.put(load_register(n.op))
+                try self.put(", [x9]")
+                try self.store_temp(load_register(n.op), n.dst)
+            .storeb, .storeh, .storew, .storel, .stores, .stored:
+                let cls = store_class(n.op)
+                try self.operand(self.reg(cls, 0), cls, n.a)
+                try self.address_operand("x10", n.b)
+                try self.line(store_mnemonic(n.op))
+                try self.put(" ")
+                try self.put(self.reg(cls, 0))
+                try self.put(", [x10]")
+            .extsb, .extub, .extsh, .extuh, .extsw, .extuw:
+                try self.operand("x9", ir.Class.l, n.a)
+                try self.extend(n.op, n.cls)
+                try self.store_temp(self.reg(n.cls, 0), n.dst)
+            .exts:
+                try self.operand("s16", ir.Class.s, n.a)
+                try self.line("fcvt d16, s16")
+                try self.store_temp("d16", n.dst)
+            .truncd:
+                try self.operand("d16", ir.Class.d, n.a)
+                try self.line("fcvt s16, d16")
+                try self.store_temp("s16", n.dst)
+            .stosi, .stoui, .dtosi, .dtoui:
+                let src_cls = ir.Class.s if n.op == ir.Op.stosi or n.op == ir.Op.stoui else ir.Class.d
+                try self.operand(self.reg(src_cls, 0), src_cls, n.a)
+                try self.line("fcvtzs " if n.op == ir.Op.stosi or n.op == ir.Op.dtosi else "fcvtzu ")
+                try self.put(self.reg(n.cls, 0))
+                try self.put(", ")
+                try self.put(self.reg(src_cls, 0))
+                try self.store_temp(self.reg(n.cls, 0), n.dst)
+            .swtof, .uwtof, .sltof, .ultof:
+                let src_cls = ir.Class.w if n.op == ir.Op.swtof or n.op == ir.Op.uwtof else ir.Class.l
+                try self.operand(self.reg(src_cls, 0), src_cls, n.a)
+                try self.line("scvtf " if n.op == ir.Op.swtof or n.op == ir.Op.sltof else "ucvtf ")
+                try self.put(self.reg(n.cls, 0))
+                try self.put(", ")
+                try self.put(self.reg(src_cls, 0))
+                try self.store_temp(self.reg(n.cls, 0), n.dst)
+            .cast:
+                # bits move between an integer and a float of the same width
+                if n.cls == ir.Class.s or n.cls == ir.Class.d:
+                    let ic = ir.Class.w if n.cls == ir.Class.s else ir.Class.l
+                    try self.operand(self.reg(ic, 0), ic, n.a)
+                    try self.line("fmov ")
+                    try self.put(self.reg(n.cls, 0))
+                    try self.put(", ")
+                    try self.put(self.reg(ic, 0))
+                else:
+                    let fc = ir.Class.s if n.cls == ir.Class.w else ir.Class.d
+                    try self.operand(self.reg(fc, 0), fc, n.a)
+                    try self.line("fmov ")
+                    try self.put(self.reg(n.cls, 0))
+                    try self.put(", ")
+                    try self.put(self.reg(fc, 0))
+                try self.store_temp(self.reg(n.cls, 0), n.dst)
+            .addr:
+                try self.address_operand("x9", n.a)
+                try self.store_temp("x9", n.dst)
+            .addr_tls:
+                try self.line("adrp x0, ")
+                try self.symbol(n.a.name)
+                try self.put("@TLVPPAGE")
+                try self.line("ldr x0, [x0, ")
+                try self.symbol(n.a.name)
+                try self.put("@TLVPPAGEOFF]")
+                try self.line("ldr x16, [x0]")
+                try self.line("blr x16")
+                try self.store_temp("x0", n.dst)
+            .blit:
+                try self.address_operand("x0", n.a)
+                try self.address_operand("x1", n.b)
+                try self.load_immediate("x2", (i64)n.extra)
+                try self.line("bl _memcpy")
+            .zero:
+                try self.address_operand("x0", n.a)
+                try self.line("mov x1, #0")
+                try self.load_immediate("x2", (i64)n.extra)
+                try self.line("bl _memset")
+            .call:
+                try self.call(n)
+            .trap:
+                try self.address_operand("x0", n.a)
+                try self.line("bl _lb_trap")
+            .bounds:
+                try self.operand("x9", ir.Class.l, n.a)
+                try self.operand("x10", ir.Class.l, n.b)
+                try self.line("cmp x9, x10")
+                try self.line("b.lo 1f")
+                try self.trap_text("index out of bounds")
+                try self.put("\n1:")
+            .addo, .subo, .mulo:
+                try self.checked(n)
+            .asm_:
+                try self.inline_asm(n)
+            .atomic_load:
+                try self.address_operand("x9", n.a)
+                try self.line("ldar" if n.extra2 >= 2 else "ldr")
+                try self.put(width_suffix(n.extra))
+                try self.put(" ")
+                try self.put(self.reg(ir.Class.w if n.extra <= 4 else ir.Class.l, 0))
+                try self.put(", [x9]")
+                try self.store_temp(self.reg(n.cls, 0), n.dst)
+            .atomic_store:
+                let cls = ir.Class.w if n.extra <= 4 else ir.Class.l
+                try self.operand(self.reg(cls, 0), cls, n.a)
+                try self.address_operand("x10", n.b)
+                try self.line("stlr" if n.extra2 >= 3 else "str")
+                try self.put(width_suffix(n.extra))
+                try self.put(" ")
+                try self.put(self.reg(cls, 0))
+                try self.put(", [x10]")
+            .atomic_add, .atomic_sub, .atomic_or, .atomic_and_not, .atomic_xor, .atomic_swap, .atomic_max, .atomic_min:
+                try self.read_modify_write(n)
+            .atomic_cas:
+                try self.compare_and_swap(n)
+            .fence:
+                try self.line("dmb ish")
+            _:
+                error(failed, "an instruction the arm64 generator does not know")
+
+    mutating func arithmetic(n: ir.Instr) -> !:
+        let a = self.reg(n.cls, 0)
+        let b = self.reg(n.cls, 1)
+        try self.operand(a, n.cls, n.a)
+        try self.operand(b, n.cls, n.b)
+        let is_float = n.cls == ir.Class.s or n.cls == ir.Class.d
+        var mnemonic = "add"
+        match n.op:
+            .add: mnemonic = "fadd" if is_float else "add"
+            .sub: mnemonic = "fsub" if is_float else "sub"
+            .mul: mnemonic = "fmul" if is_float else "mul"
+            .sdiv: mnemonic = "fdiv" if is_float else "sdiv"
+            .udiv: mnemonic = "udiv"
+            .and_: mnemonic = "and"
+            .or_: mnemonic = "orr"
+            .xor: mnemonic = "eor"
+            .shl: mnemonic = "lsl"
+            .lshr: mnemonic = "lsr"
+            .ashr: mnemonic = "asr"
+            .srem, .urem:
+                try self.line("sdiv " if n.op == ir.Op.srem else "udiv ")
+                try self.put(self.reg(n.cls, 2))
+                try self.put(", ")
+                try self.put(a)
+                try self.put(", ")
+                try self.put(b)
+                try self.line("msub ")
+                try self.put(a)
+                try self.put(", ")
+                try self.put(self.reg(n.cls, 2))
+                try self.put(", ")
+                try self.put(b)
+                try self.put(", ")
+                try self.put(a)
+                try self.store_temp(a, n.dst)
+                return
+            _: mnemonic = "add"
+        try self.line(mnemonic)
+        try self.put(" ")
+        try self.put(a)
+        try self.put(", ")
+        try self.put(a)
+        try self.put(", ")
+        try self.put(b)
+        try self.store_temp(a, n.dst)
+
+    mutating func comparison(n: ir.Instr) -> !:
+        let a = self.reg(n.cls, 0)
+        let b = self.reg(n.cls, 1)
+        try self.operand(a, n.cls, n.a)
+        try self.operand(b, n.cls, n.b)
+        let is_float = n.cls == ir.Class.s or n.cls == ir.Class.d
+        try self.line("fcmp " if is_float else "cmp ")
+        try self.put(a)
+        try self.put(", ")
+        try self.put(b)
+        var cond = "eq"
+        match n.op:
+            .ceq: cond = "eq"
+            .cne: cond = "ne"
+            .cslt: cond = "mi" if is_float else "lt"
+            .csle: cond = "ls" if is_float else "le"
+            .csgt: cond = "gt"
+            .csge: cond = "ge"
+            .cult: cond = "lo"
+            .cule: cond = "ls"
+            .cugt: cond = "hi"
+            .cuge: cond = "hs"
+            _: cond = "eq"
+        try self.line("cset w9, ")
+        try self.put(cond)
+        try self.store_temp("w9", n.dst)
+
+    mutating func extend(op: ir.Op, cls: ir.Class) -> !:
+        let target = self.reg(cls, 0)
+        match op:
+            .extsb:
+                try self.line("sxtb ")
+                try self.put(target)
+                try self.put(", w9")
+            .extub:
+                try self.line("and ")
+                try self.put(target)
+                try self.put(", ")
+                try self.put(target)
+                try self.put(", #255")
+            .extsh:
+                try self.line("sxth ")
+                try self.put(target)
+                try self.put(", w9")
+            .extuh:
+                try self.line("and ")
+                try self.put(target)
+                try self.put(", ")
+                try self.put(target)
+                try self.put(", #65535")
+            .extsw:
+                if cls == ir.Class.l:
+                    try self.line("sxtw x9, w9")
+                else:
+                    try self.line("mov w9, w9")
+            _:
+                try self.line("mov w9, w9")
+
+    ## Checked add, subtract, and multiply: trap on overflow of the class width.
+    mutating func checked(n: ir.Instr) -> !:
+        let signed = n.extra == 1
+        let a = self.reg(n.cls, 0)
+        let b = self.reg(n.cls, 1)
+        try self.operand(a, n.cls, n.a)
+        try self.operand(b, n.cls, n.b)
+        if n.op == ir.Op.mulo:
+            if n.cls == ir.Class.w:
+                # multiply at 64 bits and check the range
+                if signed:
+                    try self.line("sxtw x9, w9")
+                    try self.line("sxtw x10, w10")
+                    try self.line("mul x9, x9, x10")
+                    try self.line("cmp x9, w9, sxtw")
+                else:
+                    try self.line("mov w9, w9")
+                    try self.line("mov w10, w10")
+                    try self.line("mul x9, x9, x10")
+                    try self.line("cmp x9, w9, uxtw")
+                try self.line("b.eq 1f")
+            else:
+                if signed:
+                    try self.line("smulh x11, x9, x10")
+                    try self.line("mul x9, x9, x10")
+                    try self.line("cmp x11, x9, asr #63")
+                    try self.line("b.eq 1f")
+                else:
+                    try self.line("umulh x11, x9, x10")
+                    try self.line("mul x9, x9, x10")
+                    try self.line("cbz x11, 1f")
+            try self.trap_text("integer overflow")
+            try self.put("\n1:")
+            try self.store_temp(a, n.dst)
+            return
+        let add = n.op == ir.Op.addo
+        try self.line("adds " if add else "subs ")
+        try self.put(a)
+        try self.put(", ")
+        try self.put(a)
+        try self.put(", ")
+        try self.put(b)
+        if signed:
+            try self.line("b.vc 1f")
+        elif add:
+            try self.line("b.cc 1f")
+        else:
+            try self.line("b.cs 1f")
+        try self.trap_text("integer overflow")
+        try self.put("\n1:")
+        try self.store_temp(a, n.dst)
+
+    mutating func trap_text(reason: str) -> !:
+        let index = try self.program_unit.text(reason)
+        try self.address_operand("x0", ir.text_ref(index))
+        try self.line("bl _lb_trap")
+
+    mutating func inline_asm(n: ir.Instr) -> !:
+        let arch = self.program_unit.texts.get((usize)n.a.index).bytes
+        if arch != "arm64":
+            return
+        let body = self.program_unit.texts.get((usize)n.b.index).bytes
+        try self.put("\n")
+        try self.put(body)
+
+    mutating func read_modify_write(n: ir.Instr) -> !:
+        let cls = ir.Class.w if n.extra <= 4 else ir.Class.l
+        let value = self.reg(cls, 1)
+        try self.operand(value, cls, n.a)
+        try self.address_operand("x12", n.b)
+        let acquire = n.extra2 == 2 or n.extra2 == 4 or n.extra2 == 5
+        let release = n.extra2 >= 3
+        try self.put("\n1:")
+        try self.line("ldaxr" if acquire else "ldxr")
+        try self.put(width_suffix(n.extra))
+        try self.put(" ")
+        try self.put(self.reg(cls, 0))
+        try self.put(", [x12]")
+        let old = self.reg(cls, 0)
+        let fresh = self.reg(cls, 2)
+        match n.op:
+            .atomic_add:
+                try self.line("add ")
+            .atomic_sub:
+                try self.line("sub ")
+            .atomic_or:
+                try self.line("orr ")
+            .atomic_and_not:
+                try self.line("bic ")
+            .atomic_xor:
+                try self.line("eor ")
+            .atomic_swap:
+                try self.line("mov ")
+            .atomic_max:
+                try self.line("cmp ")
+                try self.put(old)
+                try self.put(", ")
+                try self.put(value)
+                try self.line("csel ")
+                try self.put(fresh)
+                try self.put(", ")
+                try self.put(old)
+                try self.put(", ")
+                try self.put(value)
+                try self.put(", ge")
+            .atomic_min:
+                try self.line("cmp ")
+                try self.put(old)
+                try self.put(", ")
+                try self.put(value)
+                try self.line("csel ")
+                try self.put(fresh)
+                try self.put(", ")
+                try self.put(old)
+                try self.put(", ")
+                try self.put(value)
+                try self.put(", le")
+            _:
+                try self.line("mov ")
+        if n.op != ir.Op.atomic_max and n.op != ir.Op.atomic_min:
+            try self.put(fresh)
+            try self.put(", ")
+            if n.op != ir.Op.atomic_swap:
+                try self.put(old)
+                try self.put(", ")
+            try self.put(value)
+        try self.line("stlxr" if release else "stxr")
+        try self.put(width_suffix(n.extra))
+        try self.put(" w13, ")
+        try self.put(fresh)
+        try self.put(", [x12]")
+        try self.line("cbnz w13, 1b")
+        try self.store_temp(old, n.dst)
+
+    mutating func compare_and_swap(n: ir.Instr) -> !:
+        let cls = ir.Class.w if n.extra <= 4 else ir.Class.l
+        let expected = self.f.args.get((usize)n.b.value)
+        let desired = self.f.args.get((usize)n.b.value + 1)
+        try self.operand(self.reg(cls, 1), cls, expected.value)
+        try self.operand(self.reg(cls, 2), cls, desired.value)
+        try self.address_operand("x12", n.a)
+        try self.put("\n1:")
+        try self.line("ldaxr")
+        try self.put(width_suffix(n.extra))
+        try self.put(" ")
+        try self.put(self.reg(cls, 0))
+        try self.put(", [x12]")
+        try self.line("cmp ")
+        try self.put(self.reg(cls, 0))
+        try self.put(", ")
+        try self.put(self.reg(cls, 1))
+        try self.line("b.ne 2f")
+        try self.line("stlxr")
+        try self.put(width_suffix(n.extra))
+        try self.put(" w13, ")
+        try self.put(self.reg(cls, 2))
+        try self.put(", [x12]")
+        try self.line("cbnz w13, 1b")
+        try self.put("\n2:")
+        try self.line("clrex")
+        try self.store_temp(self.reg(cls, 0), n.dst)
+
+    # mark: Calls ==============================================================================
+
+    ## Classify one argument under the Apple convention, advancing the counters.
+    func place(a: ir.Arg, next_int: u32*, next_float: u32*, stack: u32*) -> ArgPlacement:
+        if a.size == 0:
+            if a.cls == ir.Class.s or a.cls == ir.Class.d:
+                if *next_float < 8:
+                    let p = ArgPlacement(where = 1, first = *next_float, count = 1, stack_offset = 0)
+                    *next_float += 1
+                    return p
+                let p = ArgPlacement(where = 2, first = 0, count = 1, stack_offset = *stack)
+                *stack += 8
+                return p
+            if *next_int < 8:
+                let p = ArgPlacement(where = 0, first = *next_int, count = 1, stack_offset = 0)
+                *next_int += 1
+                return p
+            let p = ArgPlacement(where = 2, first = 0, count = 1, stack_offset = *stack)
+            *stack += 8
+            return p
+        if a.is_float_only and *next_float + a.float_count <= 8:
+            let p = ArgPlacement(where = 1, first = *next_float, count = a.float_count, stack_offset = 0)
+            *next_float += a.float_count
+            return p
+        if a.size <= 16:
+            let words = (a.size + 7) // 8
+            if *next_int + words <= 8:
+                let p = ArgPlacement(where = 0, first = *next_int, count = words, stack_offset = 0)
+                *next_int += words
+                return p
+            *next_int = 8
+            let p = ArgPlacement(where = 2, first = 0, count = words, stack_offset = *stack)
+            *stack += words * 8
+            return p
+        if *next_int < 8:
+            let p = ArgPlacement(where = 3, first = *next_int, count = 1, stack_offset = 0)
+            *next_int += 1
+            return p
+        let p = ArgPlacement(where = 2, first = 0, count = 1, stack_offset = *stack)
+        *stack += 8
+        return p
+
+    mutating func call(n: ir.Instr) -> !:
+        let info = self.f.calls.get((usize)n.extra)
+        # first pass: sizes of the stack area
+        var next_int: u32 = 0
+        var next_float: u32 = 0
+        var stack: u32 = 0
+        var placements: ArgPlacement[32] = ---
+        var i: u32 = 0
+        while i < info.args_count and i < 32:
+            let a = self.f.args.get((usize)(info.args_start + i))
+            if info.variadic and i >= info.fixed_count:
+                # Apple passes every variadic argument on the stack, eight bytes each
+                placements[i] = ArgPlacement(where = 2, first = 0, count = 1, stack_offset = stack)
+                stack += 8
+            else:
+                placements[i] = self.place(a, &next_int, &next_float, &stack)
+            i += 1
+        let area = (u64)arm_round_up((u64)stack, 16)
+        if area > 0:
+            try self.load_immediate("x16", (i64)area)
+            try self.line("sub sp, sp, x16")
+        # the callee's address first, kept in a slot-free register the arguments do not touch
+        var through_register = false
+        if n.a.kind == ir.RefKind.temp:
+            through_register = true
+            try self.load_temp("x17", ir.Class.l, n.a.index)
+            try self.line("str x17, [sp, #-16]!")
+        # stack arguments
+        i = 0
+        while i < info.args_count and i < 32:
+            let a = self.f.args.get((usize)(info.args_start + i))
+            let p = placements[i]
+            if p.where == 2:
+                let base_offset = (u64)p.stack_offset + (16 if through_register else 0)
+                if a.size == 0:
+                    try self.operand(self.reg(a.cls, 0), a.cls, a.value)
+                    try self.line("str ")
+                    try self.put(self.wide(a.cls, 0))
+                    try self.put(", [sp, #")
+                    try self.put_u64(base_offset)
+                    try self.put("]")
+                elif a.size <= 16:
+                    try self.address_operand("x9", a.value)
+                    try self.line("ldr x10, [x9]")
+                    try self.line("str x10, [sp, #")
+                    try self.put_u64(base_offset)
+                    try self.put("]")
+                    if a.size > 8:
+                        try self.line("ldr x10, [x9, #8]")
+                        try self.line("str x10, [sp, #")
+                        try self.put_u64(base_offset + 8)
+                        try self.put("]")
+                else:
+                    try self.address_operand("x9", a.value)
+                    try self.line("str x9, [sp, #")
+                    try self.put_u64(base_offset)
+                    try self.put("]")
+            i += 1
+        # register arguments, floats first so integer scratch stays free
+        i = 0
+        while i < info.args_count and i < 32:
+            let a = self.f.args.get((usize)(info.args_start + i))
+            let p = placements[i]
+            if p.where == 1:
+                if a.size == 0:
+                    try self.operand(self.reg(a.cls, 0), a.cls, a.value)
+                    try self.line("fmov ")
+                    try self.put("s" if a.cls == ir.Class.s else "d")
+                    try self.put_u64((u64)p.first)
+                    try self.put(", ")
+                    try self.put(self.reg(a.cls, 0))
+                else:
+                    try self.address_operand("x9", a.value)
+                    let each = (u64)a.size // (u64)a.float_count
+                    var k: u32 = 0
+                    while k < p.count:
+                        try self.line("ldr ")
+                        try self.put("s" if each == 4 else "d")
+                        try self.put_u64((u64)(p.first + k))
+                        try self.put(", [x9, #")
+                        try self.put_u64((u64)k * each)
+                        try self.put("]")
+                        k += 1
+            i += 1
+        i = 0
+        while i < info.args_count and i < 32:
+            let a = self.f.args.get((usize)(info.args_start + i))
+            let p = placements[i]
+            if p.where == 0:
+                if a.size == 0:
+                    try self.operand("x9", ir.Class.l, a.value)
+                    try self.line("mov x")
+                    try self.put_u64((u64)p.first)
+                    try self.put(", x9")
+                else:
+                    try self.address_operand("x9", a.value)
+                    try self.line("ldr x")
+                    try self.put_u64((u64)p.first)
+                    try self.put(", [x9]")
+                    if p.count == 2:
+                        try self.line("ldr x")
+                        try self.put_u64((u64)p.first + 1)
+                        try self.put(", [x9, #8]")
+            elif p.where == 3:
+                try self.address_operand("x9", a.value)
+                try self.line("mov x")
+                try self.put_u64((u64)p.first)
+                try self.put(", x9")
+            i += 1
+        # a large aggregate result arrives through x8
+        if info.has_result and info.result_size > 16 and not info.result_float_only:
+            try self.frame_address("x8", self.slot_home(info.result_slot))
+        if through_register:
+            try self.line("ldr x17, [sp], #16")
+            try self.line("blr x17")
+        else:
+            try self.line("bl ")
+            try self.symbol(n.a.name)
+        if area > 0:
+            try self.load_immediate("x16", (i64)area)
+            try self.line("add sp, sp, x16")
+        # the result
+        if not info.has_result:
+            return
+        if info.result_size == 0:
+            if info.result_cls == ir.Class.s:
+                try self.store_temp("s0", n.dst)
+            elif info.result_cls == ir.Class.d:
+                try self.store_temp("d0", n.dst)
+            elif info.result_cls == ir.Class.w:
+                try self.store_temp("w0", n.dst)
+            else:
+                try self.store_temp("x0", n.dst)
+            return
+        let home = self.slot_home(info.result_slot)
+        if info.result_float_only:
+            let each = (u64)info.result_size // (u64)info.result_float_count
+            var k: u32 = 0
+            while k < info.result_float_count:
+                try self.frame_address("x16", home)
+                try self.line("str ")
+                try self.put("s" if each == 4 else "d")
+                try self.put_u64((u64)k)
+                try self.put(", [x16, #")
+                try self.put_u64((u64)k * each)
+                try self.put("]")
+                k += 1
+            return
+        if info.result_size <= 16:
+            try self.frame_address("x16", home)
+            try self.line("str x0, [x16]")
+            if info.result_size > 8:
+                try self.line("str x1, [x16, #8]")
+
+    ## The wide name of a class's first scratch register for a stack store.
+    func wide(cls: ir.Class, n: u32) -> str:
+        if cls == ir.Class.w:
+            return "x9" if n == 0 else "x10"
+        if cls == ir.Class.s:
+            return "d16" if n == 0 else "d17"
+        return self.reg(cls, n)
+
+    mutating func return_value(n: ir.Instr) -> !:
+        if self.f.has_result:
+            if self.f.result_size == 0:
+                if self.f.result_cls == ir.Class.s:
+                    try self.operand("s16", ir.Class.s, n.a)
+                    try self.line("fmov s0, s16")
+                elif self.f.result_cls == ir.Class.d:
+                    try self.operand("d16", ir.Class.d, n.a)
+                    try self.line("fmov d0, d16")
+                else:
+                    try self.operand("x9", ir.Class.l, n.a)
+                    try self.line("mov x0, x9")
+            elif self.f.result_float_only:
+                try self.address_operand("x9", n.a)
+                let each = (u64)self.f.result_size // (u64)self.f.result_float_count
+                var k: u32 = 0
+                while k < self.f.result_float_count:
+                    try self.line("ldr ")
+                    try self.put("s" if each == 4 else "d")
+                    try self.put_u64((u64)k)
+                    try self.put(", [x9, #")
+                    try self.put_u64((u64)k * each)
+                    try self.put("]")
+                    k += 1
+            elif self.f.result_size <= 16:
+                try self.address_operand("x9", n.a)
+                try self.line("ldr x0, [x9]")
+                if self.f.result_size > 8:
+                    try self.line("ldr x1, [x9, #8]")
+            else:
+                try self.address_operand("x1", n.a)
+                try self.frame_address("x16", self.indirect_home)
+                try self.line("ldr x0, [x16]")
+                try self.load_immediate("x2", (i64)self.f.result_size)
+                try self.line("bl _memcpy")
+                try self.frame_address("x16", self.indirect_home)
+                try self.line("ldr x0, [x16]")
+        try self.line("mov sp, x29")
+        try self.line("ldp x29, x30, [sp], #16")
+        try self.line("ret")
+
+    # mark: The unit ===========================================================================
+
+    pub mutating func generate() -> !:
+        try self.put("    .section __TEXT,__text,regular,pure_instructions\n")
+        var i: usize = 0
+        while i < self.program_unit.functions.count:
+            try self.function(i)
+            i += 1
+        # text literals
+        try self.put("\n    .section __TEXT,__cstring,cstring_literals\n")
+        i = 0
+        while i < self.program_unit.texts.count:
+            try self.text_label(u32(i))
+            try self.put(":\n    .asciz ")
+            try self.c_string(self.program_unit.texts.get(i).bytes)
+            try self.put("\n")
+            i += 1
+        # witness tables
+        try self.put("\n    .section __DATA,__const\n    .p2align 3\n")
+        i = 0
+        while i < self.program_unit.tables.count:
+            let t = self.program_unit.tables.get(i)
+            try self.put("    .globl ")
+            try self.symbol(t.name)
+            try self.put("\n")
+            try self.symbol(t.name)
+            try self.put(":\n")
+            var k: usize = 0
+            while k < t.entries.count:
+                let entry = t.entries.get(k)
+                try self.put("    .quad ")
+                if entry.length == 0:
+                    try self.put("0")
+                else:
+                    try self.symbol(entry)
+                try self.put("\n")
+                k += 1
+            i += 1
+        # globals
+        i = 0
+        while i < self.program_unit.globals.count:
+            let g = self.program_unit.globals.get(i)
+            if g.is_thread_local:
+                try self.put("\n    .section __DATA,__thread_bss,thread_local_zerofill\n    .p2align 4\n")
+                try self.symbol(g.name)
+                try self.put("$tlv$init:\n    .space ")
+                try self.put_u64((u64)g.size if g.size > 0 else 1)
+                try self.put("\n    .section __DATA,__thread_vars,thread_local_variables\n    .globl ")
+                try self.symbol(g.name)
+                try self.put("\n")
+                try self.symbol(g.name)
+                try self.put(":\n    .quad __tlv_bootstrap\n    .quad 0\n    .quad ")
+                try self.symbol(g.name)
+                try self.put("$tlv$init\n")
+            else:
+                try self.put("    .globl ")
+                try self.symbol(g.name)
+                try self.put("\n    .zerofill __DATA,__bss,")
+                try self.symbol(g.name)
+                try self.put(",")
+                try self.put_u64((u64)g.size if g.size > 0 else 1)
+                try self.put(",")
+                try self.put_u64(log2((u64)g.align if g.align > 0 else 1))
+                try self.put("\n")
+            i += 1
+        try self.put("\n")
+
+    mutating func c_string(text: str) -> !:
+        try self.put("\"")
+        for b in text.bytes:
+            if b == '\\' or b == '"':
+                try self.put("\\")
+                try self.out.put_byte(b)
+            elif b == '\n':
+                try self.put("\\n")
+            elif b == '\t':
+                try self.put("\\t")
+            elif b < 32 or b >= 127:
+                try self.put("\\")
+                try self.out.put_byte('0' + (b >> 6))
+                try self.out.put_byte('0' + ((b >> 3) & 7))
+                try self.out.put_byte('0' + (b & 7))
+            else:
+                try self.out.put_byte(b)
+        try self.put("\"")
+
+# mark: Helpers ================================================================================
+
+func is_int_class(c: ir.Class) -> bool:
+    return c == ir.Class.w or c == ir.Class.l
+
+func load_mnemonic(op: ir.Op) -> str:
+    match op:
+        .loadsb: return "ldrsb"
+        .loadub: return "ldrb"
+        .loadsh: return "ldrsh"
+        .loaduh: return "ldrh"
+        .loadsw: return "ldrsw"
+        _: return "ldr"
+
+func load_register(op: ir.Op) -> str:
+    match op:
+        .loadsb, .loadub, .loadsh, .loaduh, .loaduw: return "w9"
+        .loadsw, .loadl: return "x9"
+        .loads: return "s16"
+        _: return "d16"
+
+func store_mnemonic(op: ir.Op) -> str:
+    match op:
+        .storeb: return "strb"
+        .storeh: return "strh"
+        _: return "str"
+
+func store_class(op: ir.Op) -> ir.Class:
+    match op:
+        .storeb, .storeh, .storew: return ir.Class.w
+        .stores: return ir.Class.s
+        .stored: return ir.Class.d
+        _: return ir.Class.l
+
+func width_suffix(width: u32) -> str:
+    if width == 1:
+        return "b"
+    if width == 2:
+        return "h"
+    return ""
+
+func arm_round_up(value: u64, align: u64) -> u64:
+    if align <= 1:
+        return value
+    return (value + align - 1) // align * align
+
+func log2(value: u64) -> u64:
+    var n: u64 = 0
+    var v = value
+    while v > 1:
+        v = v // 2
+        n += 1
+    return n
+
+test "immediates and frame addresses assemble":
+    var backing: u8[1048576]
+    var arena = FixedBuffer.over(backing)
+    with arena:
+        var u = try ir.Unit.create()
+        var g = try Generator.create(&u)
+        try g.load_immediate("x9", 0)
+        try g.load_immediate("x9", 70000)
+        try g.load_immediate("x9", -5)
+        try g.frame_address("x9", 5000)
+        let text = g.text()
+        assert(text.length > 0)

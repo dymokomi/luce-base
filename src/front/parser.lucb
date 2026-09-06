@@ -11,10 +11,10 @@
 #
 #==============================================================================================
 
-import ast
-import lexer
-import source
-import token
+import front.ast
+import front.lexer
+import front.source
+import front.token
 
 pub let syntax: ErrorCode = ErrorCode.package(7)
 pub let too_deep: ErrorCode = ErrorCode.package(8)
@@ -58,6 +58,9 @@ pub struct Parser:
             return self.tokens[self.count - 1]
         return self.tokens[i]
 
+    pub func scratch_length() -> usize:
+        return self.scratch.length
+
     pub func text_of(t: token.Token) -> str:
         return self.src.text(t.start, t.end)
 
@@ -99,7 +102,7 @@ pub struct Parser:
         return false
 
     ## The message lives in the first half of `scratch`; `what` may live in the second.
-    func fail(what: str) -> ast.Node*!:
+    pub func fail(what: str) -> ast.Node*!:
         let t = self.cur()
         let half = self.scratch.length // 2
         let message = try format(self.scratch[..<half], f"{t.line}:{t.column}: {what}")
@@ -133,7 +136,7 @@ pub struct Parser:
             return
         discard(try self.fail("expected the end of the line"))
 
-    mutating func expect_name() -> str!:
+    pub mutating func expect_name() -> str!:
         if not self.at(token.Kind.name):
             discard(try self.fail("expected a name"))
         return self.text_of(self.take())

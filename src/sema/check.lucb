@@ -20,12 +20,12 @@
 #
 #==============================================================================================
 
-import ast
-import list
-import parser
-import prelude
-import source
-import types
+import front.ast
+import support.list
+import front.parser
+import sema.prelude
+import front.source
+import sema.types
 
 pub let unknown_name: ErrorCode = ErrorCode.package(9)
 pub let type_error: ErrorCode = ErrorCode.package(10)
@@ -70,7 +70,8 @@ pub struct Checker:
     var scope: list.List[Binding]
     var depth: u32
     ## Diagnostics are formatted into the first half; type spellings into the second.
-    var scratch: u8[]
+    ## The buffer outlives the arena, so the backends format their own reports here too.
+    pub var scratch: u8[]
     ## The module being checked, as an index into `modules`.
     var current: usize
     var current_func: ast.Node*?
@@ -86,13 +87,15 @@ pub struct Checker:
     var checking_template: bool
     ## Inside a top-level constant initialiser, where `ErrorCode.package` is allowed.
     var at_top_level: bool
+    ## The directory of the entry file; dotted imports resolve beneath it.
+    var root: str
 
     pub static func create(scratch: u8[]) -> Checker!:
         return Checker(table = try types.Table.create(), modules = try list.List[Module].create(16),
                        scope = try list.List[Binding].create(512), depth = 0, scratch = scratch,
                        current = 0, current_func = none, result_type = types.unit_id, fallible = false,
                        self_type = types.none_id, self_mutable = false, loop_depth = 0, in_catch = false,
-                       catch_result = types.none_id, checking_template = false, at_top_level = false)
+                       catch_result = types.none_id, checking_template = false, at_top_level = false, root = "")
 
     # -- diagnostics ----------------------------------------------------------------------
 
@@ -199,6 +202,11 @@ pub struct Checker:
 
     ## Load `path` and, first, every module it imports from the same directory.
     pub mutating func load(path: cstr) -> !:
+        self.root = directory_of((str)path)
+        try self.load_as(path, module_name_of((str)path))
+
+    ## Load `path` as module `name`; an imported module keeps its dotted path as its name.
+    pub mutating func load_as(path: cstr, name: str) -> !:
         let text = (str)path
         let src = source.Source.load(path) catch failure:
             let half = self.scratch.length // 2
@@ -206,7 +214,6 @@ pub struct Checker:
             error(unknown_name, message)
         var p = try parser.Parser.over(src, self.scratch)
         let tree = try p.parse_module()
-        let name = module_name_of(text)
         if is_standard_module(name):
             let half = self.scratch.length // 2
             let message = try format(self.scratch[..<half], f"{text}: a module cannot take a standard module's name")
@@ -217,13 +224,27 @@ pub struct Checker:
         while let d = cursor:
             if d.kind == ast.Kind.import_ or d.kind == ast.Kind.from_import:
                 if self.find_module(d.text) == none and not is_standard_module(d.text):
-                    let dir = directory_of(text)
-                    var buffer = try alloc u8[dir.length + d.text.length + 6]
-                    let sibling = try format(buffer, f"{dir}{d.text}.lucb")
-                    try self.load((cstr)sibling)
+                    let sibling = try self.resolve_import(d.text)
+                    try self.load_as((cstr)sibling, d.text)
             cursor = d.next
         tree.text = name
         try self.modules.push(Module(name = name, tree = tree, src = src, is_prelude = false))
+
+    ## `import front.lexer` is `front/lexer.lucb` under the root. The root starts as the
+    ## entry file's directory; when a module under a subdirectory is the entry (its tests,
+    ## say), the first import that is missing there moves the root up until it resolves.
+    mutating func resolve_import(text: str) -> str!:
+        var dir = self.root
+        while true:
+            var buffer = try alloc u8[dir.length + text.length + 6]
+            let candidate = try format(buffer, f"{dir}{text}.lucb")
+            for i in dir.length..<candidate.length:
+                if candidate.bytes[i] == '.' and i + 5 < candidate.length:
+                    buffer[i] = '/'
+            if file_exists((cstr)candidate) or dir.length == 0:
+                self.root = dir
+                return candidate
+            dir = parent_of(dir)
 
     pub func find_module(name: str) -> usize?:
         var i: usize = 0
@@ -276,6 +297,12 @@ pub struct Checker:
                 let io_tree = self.modules.get(ii).tree
                 try self.bind_public(io_tree, "Writer")
                 try self.bind_public(io_tree, "Location")
+        if let li = self.find_module("luce"):
+            if li < self.current:
+                let luce_tree = self.modules.get(li).tree
+                try self.bind_public(luce_tree, "Equatable")
+                try self.bind_public(luce_tree, "Hashable")
+                try self.bind_public(luce_tree, "Comparable")
 
     mutating func bind_module(tree: ast.Node*, alias: str, at: ast.Node*) -> !:
         if self.lookup(alias) != none:
@@ -858,7 +885,13 @@ pub struct Checker:
         var i: usize = 0
         while i < s.args.length:
             if s.args[i] != t.args[i]:
-                return false
+                # a pointer and its nullable form share a representation; either may stand for the other
+                let sp = self.table.get(s.args[i])
+                let tp = self.table.get(t.args[i])
+                let s_opt = sp.kind == types.Kind.optional and sp.elem == t.args[i] and self.table.kind(sp.elem) == types.Kind.pointer
+                let t_opt = tp.kind == types.Kind.optional and tp.elem == s.args[i] and self.table.kind(tp.elem) == types.Kind.pointer
+                if not (s_opt or t_opt):
+                    return false
             i += 1
         if s.elem == t.elem:
             return true
@@ -869,6 +902,8 @@ pub struct Checker:
     func conforms(id: u32, iface: u32) -> bool:
         let t = self.table.get(id)
         let i = self.table.get(iface)
+        if is_derived_bound(i.decl):
+            return true
         if t.kind == types.Kind.param:
             return self.constraint_has(id, iface)
         let d = t.decl else return false
@@ -884,6 +919,8 @@ pub struct Checker:
 
     ## Does generic parameter `id` carry interface `iface` as a constraint?
     func constraint_has(id: u32, iface: u32) -> bool:
+        if is_derived_bound(self.table.get(iface).decl):
+            return true
         let g = self.generic_param_node(id) else return false
         var bound = g.body
         while let c = bound:
@@ -1273,7 +1310,7 @@ pub struct Checker:
                 return try self.fail(e, "these values have no equality")
             return types.bool_id
         if op == "<" or op == "<=" or op == ">" or op == ">=":
-            if not (t == types.untyped_int_id or t == types.untyped_float_id or self.table.is_numeric(t) or t == types.char_id or t == types.str_id):
+            if not (t == types.untyped_int_id or t == types.untyped_float_id or self.table.is_numeric(t) or t == types.char_id or t == types.str_id or self.table.kind(t) == types.Kind.param):
                 return try self.fail(e, "ordering needs numbers or text")
             return types.bool_id
         if op == "&" or op == "|" or op == "^":
@@ -1897,6 +1934,14 @@ pub struct Checker:
                     if self.table.kind(self.deref(rt)) == types.Kind.atomic:
                         return try self.atomic_call(e, callee, self.deref(rt))
         let ct = try self.check_expr(callee, types.none_id)
+        if let c = callee.resolved:
+            if c.kind == ast.Kind.enum_case and callee.kind == ast.Kind.member:
+                # `Kind.case(args)`: the payload's parameters take named or positional arguments
+                let enum_id = self.table.get(ct).elem
+                let d = self.table.get(enum_id).decl else return try self.fail(e, "no enum")
+                e.resolved = c
+                try self.check_payload(e, c, enum_id, d)
+                return enum_id
         if callee.has(ast.flag_type_ref):
             return try self.construct_or_convert(e, callee, ct)
         let t = self.table.get(ct)
@@ -1921,7 +1966,7 @@ pub struct Checker:
             if d.kind != ast.Kind.func and d.kind != ast.Kind.extern_func:
                 decl = none
         e.resolved = decl
-        return try self.check_call(e, ct, decl, callee.ty, owner, owner_args, hint)
+        return try self.check_call(e, ct, decl, e.ty if e.ty != none else callee.ty, owner, owner_args, hint)
 
     ## The operations of an `@T` (§15.1): read-modify-write methods returning the
     ## previous value, `load`, `store`, `cas`, `wait`, and `wake`. An omitted
@@ -2874,6 +2919,13 @@ pub func generic_params_of(d: ast.Node*) -> ast.Node*?:
         return none
     return l.body
 
+## `Equatable`, `Hashable`, and `Comparable` are satisfied by structure, never declared.
+func is_derived_bound(d: ast.Node*?) -> bool:
+    let decl = d else return false
+    if decl.kind != ast.Kind.interface or not decl.has(ast.flag_builtin):
+        return false
+    return decl.text == "Equatable" or decl.text == "Hashable" or decl.text == "Comparable"
+
 func is_type_decl(d: ast.Node*) -> bool:
     return d.kind == ast.Kind.struct_ or d.kind == ast.Kind.enum_ or d.kind == ast.Kind.union_ or d.kind == ast.Kind.interface or d.kind == ast.Kind.extern_type or d.kind == ast.Kind.extern_struct or d.kind == ast.Kind.extern_union
 
@@ -3321,6 +3373,22 @@ pub func module_name_of(path: str) -> str:
     return (str)b[start..<end]
 
 ## `dir/name.lucb` -> `dir/`; a bare name yields the empty string.
+## `a/b/` for `a/b/c/`, `` for `c/`.
+pub func parent_of(dir: str) -> str:
+    let b = dir.bytes
+    var end: usize = 0
+    var i: usize = 0
+    while i + 1 < b.length:
+        if b[i] == '/':
+            end = i + 1
+        i += 1
+    return (str)b[..<end]
+
+func file_exists(path: cstr) -> bool:
+    let data = files.read(path) catch:
+        return false
+    return data.length >= 0
+
 pub func directory_of(path: str) -> str:
     let b = path.bytes
     var end: usize = 0

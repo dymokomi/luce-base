@@ -1,0 +1,398 @@
+#==============================================================================================
+#
+#   ir - The intermediate representation of the native backend
+#
+#   DESCRIPTION:
+#       A small machine-neutral form between the checked tree and a target (base.md §19.1),
+#       in the spirit of QBE: instructions over typed temporaries in four classes, `w` (32-bit
+#       integer), `l` (64-bit integer or address), `s`, and `d`; stack slots for everything
+#       that has an address; calls that carry enough about each argument for a target to
+#       classify it. Aggregates never live in temporaries; they live in memory and are
+#       moved by `blit`.
+#
+#       Temporaries are assigned once and used within the block that assigned them. A value
+#       that must cross a block, the result of a conditional or a `match` expression, goes
+#       through a slot. That keeps register allocation a per-block affair, with no dataflow
+#       across the control flow graph.
+#
+#==============================================================================================
+
+import support.list
+
+# mark: Classes and references =================================================================
+
+## The register class of a temporary.
+pub enum Class as u8:
+    w = 1
+    l = 2
+    s = 3
+    d = 4
+
+## What an operand refers to.
+pub enum RefKind as u8:
+    none_ = 0
+    temp = 1
+    constant = 2
+    slot = 3
+    global = 4
+    function = 5
+    text = 6
+
+## An operand: a temporary, a constant, the address of a slot, global, function, or text.
+pub struct Ref:
+    pub var kind: RefKind
+    pub var index: u32
+    pub var value: i64
+    ## The symbol of a global or function; the bytes of a text literal.
+    pub var name: str
+
+pub func none_ref() -> Ref:
+    return Ref(kind = RefKind.none_, index = 0, value = 0, name = "")
+
+pub func temp_ref(index: u32) -> Ref:
+    return Ref(kind = RefKind.temp, index = index, value = 0, name = "")
+
+pub func const_ref(value: i64) -> Ref:
+    return Ref(kind = RefKind.constant, index = 0, value = value, name = "")
+
+pub func slot_ref(index: u32) -> Ref:
+    return Ref(kind = RefKind.slot, index = index, value = 0, name = "")
+
+pub func global_ref(name: str) -> Ref:
+    return Ref(kind = RefKind.global, index = 0, value = 0, name = name)
+
+pub func function_ref(name: str) -> Ref:
+    return Ref(kind = RefKind.function, index = 0, value = 0, name = name)
+
+pub func text_ref(index: u32) -> Ref:
+    return Ref(kind = RefKind.text, index = index, value = 0, name = "")
+
+# mark: Instructions ===========================================================================
+
+pub enum Op as u8:
+    ## `dst = a`
+    copy = 1
+    ## integer and float arithmetic on the class of `dst`
+    add = 10
+    sub = 11
+    mul = 12
+    sdiv = 13
+    udiv = 14
+    srem = 15
+    urem = 16
+    and_ = 17
+    or_ = 18
+    xor = 19
+    shl = 20
+    lshr = 21
+    ashr = 22
+    neg = 23
+    ## comparisons: `dst` is `w`, 1 or 0; the class on the instruction is the operands'
+    ceq = 30
+    cne = 31
+    cslt = 32
+    csle = 33
+    csgt = 34
+    csge = 35
+    cult = 36
+    cule = 37
+    cugt = 38
+    cuge = 39
+    ## loads: `a` is an address; the width and extension are in the op
+    loadsb = 40
+    loadub = 41
+    loadsh = 42
+    loaduh = 43
+    loadsw = 44
+    loaduw = 45
+    loadl = 46
+    loads = 47
+    loadd = 48
+    ## stores: `a` is the value, `b` the address
+    storeb = 50
+    storeh = 51
+    storew = 52
+    storel = 53
+    stores = 54
+    stored = 55
+    ## conversions between classes
+    extsb = 60
+    extub = 61
+    extsh = 62
+    extuh = 63
+    extsw = 64
+    extuw = 65
+    exts = 66
+    truncd = 67
+    stosi = 68
+    stoui = 69
+    dtosi = 70
+    dtoui = 71
+    swtof = 72
+    uwtof = 73
+    sltof = 74
+    ultof = 75
+    cast = 76
+    ## `dst = address of a` (a slot, global, function, or text)
+    addr = 80
+    ## `blit a <- b, extra bytes`: copy memory
+    blit = 81
+    ## `zero a, extra bytes`
+    zero = 82
+    ## `call`: `a` is the callee, arguments follow in the function's argument list
+    call = 90
+    ## control: `label extra`, `jmp extra`, `jnz a, extra (then), value (else)`, `ret [a]`
+    label = 100
+    jmp = 101
+    jnz = 102
+    ret = 103
+    ## `trap a` where `a` names the reason text
+    trap = 104
+    ## `check a < b` else trap "index out of bounds"
+    bounds = 105
+    ## `arith` variants that trap on overflow: `dst = a op b` with the op in `extra`
+    addo = 110
+    subo = 111
+    mulo = 112
+    ## `addr_tls`: `dst = address of the thread-local global a`
+    addr_tls = 113
+    ## `asm a, b`: architecture text `a`, raw lines `b`, no operands
+    asm_ = 114
+    ## atomics: `extra` is the width in bytes, `extra2` the C memory order;
+    ## `atomic_load dst <- [a]`, `atomic_store a -> [b]`, read-modify-write `dst = old; [b] op= a`,
+    ## `atomic_cas dst = old; expected and desired are args from index b.value`
+    atomic_load = 120
+    atomic_store = 121
+    atomic_add = 122
+    atomic_sub = 123
+    atomic_or = 124
+    atomic_and_not = 125
+    atomic_xor = 126
+    atomic_swap = 127
+    atomic_max = 128
+    atomic_min = 129
+    atomic_cas = 130
+    ## `fence a`: a full fence with the C memory order in `a`
+    fence = 131
+
+## One instruction. `dst` is 0 when there is none. `extra` carries a label, a
+## byte count, or a call's argument range.
+pub struct Instr:
+    pub var op: Op
+    pub var cls: Class
+    pub var dst: u32
+    pub var a: Ref
+    pub var b: Ref
+    pub var extra: u32
+    pub var extra2: u32
+
+## One argument of a call: the operand, its class, and for an aggregate its
+## byte size and alignment (0 size means a scalar). `type_id` is the Base type
+## for the target's classification of aggregates.
+pub struct Arg:
+    pub var value: Ref
+    pub var cls: Class
+    pub var size: u32
+    pub var align: u32
+    pub var type_id: u32
+    pub var is_float_only: bool
+    pub var float_count: u32
+
+## A call's result: a scalar class, or an aggregate written to `slot` of `size` bytes.
+pub struct CallInfo:
+    pub var args_start: u32
+    pub var args_count: u32
+    pub var fixed_count: u32
+    pub var variadic: bool
+    pub var result_cls: Class
+    pub var has_result: bool
+    pub var result_size: u32
+    pub var result_align: u32
+    pub var result_type: u32
+    pub var result_slot: u32
+    pub var result_float_only: bool
+    pub var result_float_count: u32
+
+## A stack slot: `size` bytes at `align`.
+pub struct Slot:
+    pub var size: u32
+    pub var align: u32
+
+## A parameter as the function receives it.
+pub struct Param:
+    pub var cls: Class
+    pub var size: u32
+    pub var align: u32
+    pub var type_id: u32
+    ## The slot the parameter is stored into on entry.
+    pub var slot: u32
+    pub var is_float_only: bool
+    pub var float_count: u32
+
+# mark: Functions and the unit ================================================================
+
+pub struct Function:
+    pub var name: str
+    pub var exported: bool
+    pub var params: list.List[Param]
+    pub var slots: list.List[Slot]
+    pub var instrs: list.List[Instr]
+    pub var args: list.List[Arg]
+    pub var calls: list.List[CallInfo]
+    pub var temps: list.List[Class]
+    pub var labels: u32
+    pub var has_result: bool
+    pub var result_cls: Class
+    pub var result_size: u32
+    pub var result_align: u32
+    pub var result_type: u32
+    pub var result_float_only: bool
+    pub var result_float_count: u32
+    pub var variadic: bool
+
+    pub static func create(name: str) -> Function!:
+        return Function(name = name, exported = false, params = try list.List[Param].create(8),
+                        slots = try list.List[Slot].create(32), instrs = try list.List[Instr].create(256),
+                        args = try list.List[Arg].create(32), calls = try list.List[CallInfo].create(16),
+                        temps = try list.List[Class].create(128), labels = 0, has_result = false,
+                        result_cls = Class.l, result_size = 0, result_align = 0, result_type = 0,
+                        result_float_only = false, result_float_count = 0, variadic = false)
+
+    pub mutating func temp(cls: Class) -> u32!:
+        try self.temps.push(cls)
+        return u32(self.temps.count)
+
+    pub func temp_class(index: u32) -> Class:
+        return self.temps.get((usize)index - 1)
+
+    pub mutating func slot(size: u32, align: u32) -> u32!:
+        try self.slots.push(Slot(size = size if size > 0 else 1, align = align if align > 0 else 1))
+        return u32(self.slots.count - 1)
+
+    pub mutating func label() -> u32:
+        self.labels += 1
+        return self.labels
+
+    pub mutating func emit(op: Op, cls: Class, dst: u32, a: Ref, b: Ref, extra: u32) -> !:
+        try self.instrs.push(Instr(op = op, cls = cls, dst = dst, a = a, b = b, extra = extra, extra2 = 0))
+
+    ## `dst = op a, b` with a fresh temporary.
+    pub mutating func binary(op: Op, cls: Class, a: Ref, b: Ref) -> Ref!:
+        let t = try self.temp(cls)
+        try self.emit(op, cls, t, a, b, 0)
+        return temp_ref(t)
+
+    pub mutating func unary(op: Op, cls: Class, a: Ref) -> Ref!:
+        let t = try self.temp(cls)
+        try self.emit(op, cls, t, a, none_ref(), 0)
+        return temp_ref(t)
+
+    pub mutating func place_label(label: u32) -> !:
+        try self.emit(Op.label, Class.l, 0, none_ref(), none_ref(), label)
+
+    pub mutating func jump(label: u32) -> !:
+        try self.emit(Op.jmp, Class.l, 0, none_ref(), none_ref(), label)
+
+    pub mutating func branch(condition: Ref, then_label: u32, else_label: u32) -> !:
+        try self.instrs.push(Instr(op = Op.jnz, cls = Class.w, dst = 0, a = condition, b = none_ref(), extra = then_label, extra2 = else_label))
+
+    pub mutating func load(op: Op, cls: Class, address: Ref) -> Ref!:
+        let t = try self.temp(cls)
+        try self.emit(op, cls, t, address, none_ref(), 0)
+        return temp_ref(t)
+
+    pub mutating func store(op: Op, value: Ref, address: Ref) -> !:
+        try self.emit(op, Class.l, 0, value, address, 0)
+
+    pub mutating func address_of(r: Ref) -> Ref!:
+        let t = try self.temp(Class.l)
+        try self.emit(Op.addr, Class.l, t, r, none_ref(), 0)
+        return temp_ref(t)
+
+    pub mutating func copy_bytes(target: Ref, source: Ref, size: u32) -> !:
+        try self.emit(Op.blit, Class.l, 0, target, source, size)
+
+    pub mutating func zero_bytes(target: Ref, size: u32) -> !:
+        try self.emit(Op.zero, Class.l, 0, target, none_ref(), size)
+
+## A text literal of the unit, emitted once with a NUL after it.
+pub struct Text:
+    pub var bytes: str
+
+## Data for a global: its symbol, its size, its alignment, and whether it is thread-local.
+pub struct Global:
+    pub var name: str
+    pub var size: u32
+    pub var align: u32
+    pub var is_thread_local: bool
+    pub var exported: bool
+
+## A witness table: the symbol and the functions it points at, in requirement order.
+pub struct WitnessTable:
+    pub var name: str
+    pub var entries: list.List[str]
+
+## The whole program as the target sees it.
+pub struct Unit:
+    pub var functions: list.List[Function]
+    pub var globals: list.List[Global]
+    pub var texts: list.List[Text]
+    pub var tables: list.List[WitnessTable]
+
+    pub static func create() -> Unit!:
+        return Unit(functions = try list.List[Function].create(64), globals = try list.List[Global].create(32),
+                    texts = try list.List[Text].create(64), tables = try list.List[WitnessTable].create(16))
+
+    ## The index of a text literal, adding it when new.
+    pub mutating func text(bytes: str) -> u32!:
+        var i: usize = 0
+        while i < self.texts.count:
+            if self.texts.get(i).bytes == bytes:
+                return u32(i)
+            i += 1
+        try self.texts.push(Text(bytes = bytes))
+        return u32(self.texts.count - 1)
+
+## The class a scalar of `size` bytes uses; floats are chosen by the caller.
+pub func class_of_size(size: u64) -> Class:
+    return Class.l if size > 4 else Class.w
+
+## The load op for a scalar of a size and signedness, or a float.
+pub func load_op(size: u64, signed: bool, is_float: bool) -> Op:
+    if is_float:
+        return Op.loads if size == 4 else Op.loadd
+    if size == 1:
+        return Op.loadsb if signed else Op.loadub
+    if size == 2:
+        return Op.loadsh if signed else Op.loaduh
+    if size == 4:
+        return Op.loadsw if signed else Op.loaduw
+    return Op.loadl
+
+pub func store_op(size: u64, is_float: bool) -> Op:
+    if is_float:
+        return Op.stores if size == 4 else Op.stored
+    if size == 1:
+        return Op.storeb
+    if size == 2:
+        return Op.storeh
+    if size == 4:
+        return Op.storew
+    return Op.storel
+
+test "a function collects temporaries, slots, and instructions":
+    var backing: u8[65536]
+    var arena = FixedBuffer.over(backing)
+    with arena:
+        var f = try Function.create("f")
+        let a = try f.binary(Op.add, Class.l, const_ref(1), const_ref(2))
+        let s = try f.slot(8, 8)
+        try f.store(Op.storel, a, slot_ref(s))
+        let back = try f.load(Op.loadl, Class.l, slot_ref(s))
+        assert(f.instrs.count == 3)
+        assert(f.temps.count == 2)
+        assert(back.index == 2)
+        var u = try Unit.create()
+        assert((try u.text("hi")) == 0)
+        assert((try u.text("hi")) == 0)
+        assert((try u.text("yo")) == 1)

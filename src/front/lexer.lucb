@@ -13,8 +13,8 @@
 #
 #==============================================================================================
 
-import source
-import token
+import front.source
+import front.token
 
 pub let bad_indent: ErrorCode = ErrorCode.package(3)
 pub let unterminated: ErrorCode = ErrorCode.package(4)
