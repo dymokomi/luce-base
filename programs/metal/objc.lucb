@@ -1,0 +1,63 @@
+## The Objective-C runtime as a Base module: classes by name, selectors from strings,
+## and objc_msgSend cast to the shape each message needs. This is all the "bridge" there
+## is; a framework's objects are ordinary pointers and its methods ordinary calls.
+
+## An Objective-C object or class is a pointer we do not look inside.
+pub let nil: void*? = none
+
+extern func objc_getClass(name: cstr) -> void*?
+extern func sel_registerName(name: cstr) -> void*?
+extern func objc_msgSend(receiver: void*, selector: void*) -> void*?
+extern func class_getName(cls: void*) -> cstr
+
+## The selector `name`; registration is idempotent and cached by the runtime.
+pub func selector(name: cstr) -> void*:
+    let s = sel_registerName(name) else trap("no selector")
+    return s
+
+## The class `name`, or a trap: a missing class means a framework was not linked.
+pub func class(name: cstr) -> void*:
+    let c = objc_getClass(name) else trap("class not found; is its framework linked?")
+    return c
+
+## `[receiver selector]` and the shapes the Metal example needs. objc_msgSend has one C
+## symbol; each shape is that symbol's pointer cast to the right function type (§7.5).
+pub func send(receiver: void*, name: cstr) -> void*?:
+    return objc_msgSend(receiver, selector(name))
+
+pub func send_p(receiver: void*, name: cstr, a: void*?) -> void*?:
+    let f = (func(void*, void*, void*?) -> void*?)(void*)objc_msgSend
+    return f(receiver, selector(name), a)
+
+pub func send_pp(receiver: void*, name: cstr, a: void*?, b: void*?) -> void*?:
+    let f = (func(void*, void*, void*?, void*?) -> void*?)(void*)objc_msgSend
+    return f(receiver, selector(name), a, b)
+
+pub func send_ppp(receiver: void*, name: cstr, a: void*?, b: void*?, c: void*?) -> void*?:
+    let f = (func(void*, void*, void*?, void*?, void*?) -> void*?)(void*)objc_msgSend
+    return f(receiver, selector(name), a, b, c)
+
+## `[receiver selector: n]` with an unsigned integer argument, returning an object.
+pub func send_u(receiver: void*, name: cstr, a: u64) -> void*?:
+    let f = (func(void*, void*, u64) -> void*?)(void*)objc_msgSend
+    return f(receiver, selector(name), a)
+
+pub func send_uu(receiver: void*, name: cstr, a: u64, b: u64) -> void*?:
+    let f = (func(void*, void*, u64, u64) -> void*?)(void*)objc_msgSend
+    return f(receiver, selector(name), a, b)
+
+## A message returning a machine-word integer rather than an object.
+pub func send_ret_u(receiver: void*, name: cstr) -> u64:
+    let f = (func(void*, void*) -> u64)(void*)objc_msgSend
+    return f(receiver, selector(name))
+
+## A message returning a raw pointer (a buffer's contents, say).
+pub func send_ret_ptr(receiver: void*, name: cstr) -> void*?:
+    let f = (func(void*, void*) -> void*?)(void*)objc_msgSend
+    return f(receiver, selector(name))
+
+## `[receiver dispatch: a threads: b]` for the compute dispatch, three MTLSize-by-value
+## arguments would need a struct ABI; the example uses the buffer form instead.
+pub func send_encode(receiver: void*, name: cstr, groups: u64, per_group: u64) -> void*?:
+    let f = (func(void*, void*, u64, u64, u64, u64, u64, u64) -> void*?)(void*)objc_msgSend
+    return f(receiver, selector(name), groups, 1, 1, per_group, 1, 1)

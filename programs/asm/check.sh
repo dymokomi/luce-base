@@ -1,0 +1,16 @@
+#!/bin/sh
+# Prove the inline-assembly example: build it through both backends and check that the
+# hand-written arm64 agrees between them.
+# Usage: programs/asm/check.sh [luce-base binary]
+set -eu
+cd "$(dirname "$0")/../.."
+LB=${1:-./build/luce-base}
+"$LB" build programs/asm/main.lucb --native -o build/asm-check
+"$LB" build programs/asm/main.lucb -o build/asm-check-c
+./build/asm-check > build/asm-check.out
+./build/asm-check-c > build/asm-check-c.out
+cmp -s build/asm-check.out build/asm-check-c.out || { echo "FAIL programs/asm: backends disagree"; exit 1; }
+grep -q "add(40, 2) = 42" build/asm-check.out || { echo "FAIL programs/asm: wrong result"; cat build/asm-check.out; exit 1; }
+grep -q "popcount(255) = 8" build/asm-check.out || { echo "FAIL programs/asm: wrong popcount"; exit 1; }
+rm -f build/asm-check build/asm-check-c build/asm-check.out build/asm-check-c.out
+echo "ok programs/asm"

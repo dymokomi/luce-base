@@ -1,0 +1,56 @@
+## Inline arm64 assembly in Base source (§16.7). Each `asm arch(operands): lines` binds
+## Base values to named registers, then the raw lines run with those registers in place.
+## The native backend emits the lines as they are written; the C backend hands them to the
+## C compiler's extended asm. Both agree, so the same source is portable across them.
+
+## `a + b`, computed by the machine's add instruction rather than the language's.
+func add(a: i64, b: i64) -> i64:
+    var out: i64 = 0
+    asm arm64(in("x0") a, in("x1") b, out("x0") out):
+        add x0, x0, x1
+    return out
+
+## The bytes of a 64-bit word reversed, one `rev` instruction, the way a byte-order swap
+## is written by hand.
+func byteswap(value: u64) -> u64:
+    var out: u64 = 0
+    asm arm64(in("x1") value, out("x0") out):
+        rev x0, x1
+    return out
+
+## The number of set bits, using the NEON population-count on a single lane.
+func popcount(value: u64) -> u64:
+    var out: u64 = 0
+    asm arm64(in("x1") value, out("x0") out):
+        fmov d0, x1
+        cnt v0.8b, v0.8b
+        uaddlv h0, v0.8b
+        fmov w0, s0
+    return out
+
+## The count of leading zero bits.
+func leading_zeros(value: u64) -> u64:
+    var out: u64 = 0
+    asm arm64(in("x1") value, out("x0") out):
+        clz x0, x1
+    return out
+
+## A saturating unsigned add of two bytes, which the language spells `+|` but which is
+## one instruction on the vector unit.
+func saturating_add(a: u64, b: u64) -> u64:
+    var out: u64 = 0
+    asm arm64(in("x1") a, in("x2") b, out("x0") out):
+        fmov d0, x1
+        fmov d1, x2
+        uqadd v0.8b, v0.8b, v1.8b
+        fmov x0, d0
+    return out
+
+pub func main(arguments: str[]) -> i32:
+    print(f"add(40, 2) = {add(40, 2)}")
+    print(f"byteswap(1) = {byteswap(1)}")
+    print(f"popcount(255) = {popcount(255)}")
+    print(f"popcount(0xF0F0) = {popcount(61680)}")
+    print(f"leading_zeros(1) = {leading_zeros(1)}")
+    print(f"saturating_add(200, 100) = {saturating_add(200, 100) & 255}")
+    return 0

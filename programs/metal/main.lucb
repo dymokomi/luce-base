@@ -1,0 +1,118 @@
+## A GPU computation with no C and no Objective-C source: Metal reached through its C
+## entry point and the Objective-C runtime alone. A compute shader, given as text and
+## compiled at run time, squares an array of floats; the result is read back and printed.
+##
+##     metal [N]
+##
+## Build: luce-base build programs/metal/main.lucb --native -lobjc -framework Foundation -framework Metal
+
+import objc
+import strings
+
+extern func MTLCreateSystemDefaultDevice() -> void*?
+extern func objc_msgSend(receiver: void*, selector: void*) -> void*?
+
+## MTLSize, three machine words, passed to a dispatch by value (§19.5).
+struct Size:
+    var width: u64
+    var height: u64
+    var depth: u64
+
+## MTLResourceStorageModeShared: the CPU and GPU share one buffer.
+let storage_shared: u64 = 0
+
+pub let failed: ErrorCode = ErrorCode.package(1)
+
+## The shader: one thread squares one element. `[[buffer(0)]]` and `[[buffer(1)]]` bind
+## the input and output; `[[thread_position_in_grid]]` is the element index.
+let shader: cstr = "#include <metal_stdlib>\nusing namespace metal;\nkernel void square(const device float* input [[buffer(0)]], device float* output [[buffer(1)]], uint i [[thread_position_in_grid]]) { output[i] = input[i] * input[i]; }"
+
+func nsstring(text: cstr) -> void*!:
+    let s = objc.send_p(objc.class("NSString"), "stringWithUTF8String:", (void*)text) else error(failed, "NSString")
+    return s
+
+## `[library newFunctionWithName: "square"]`, the compiled kernel.
+func square_on(device: void*) -> (void*, void*)!:
+    let source = try nsstring(shader)
+    # newLibraryWithSource:options:error: — options nil, error captured
+    var compile_error: void*? = none
+    let f = (func(void*, void*, void*?, void*?, void*?) -> void*?)(void*)objc_msgSend
+    let library = f(device, objc.selector("newLibraryWithSource:options:error:"), source, none, (void*)&compile_error) else error(failed, "the shader did not compile")
+    let name = try nsstring("square")
+    let function = objc.send_p(library, "newFunctionWithName:", name) else error(failed, "no `square` in the library")
+    var pipeline_error: void*? = none
+    let p = (func(void*, void*, void*?, void*?) -> void*?)(void*)objc_msgSend
+    let pipeline = p(device, objc.selector("newComputePipelineStateWithFunction:error:"), function, (void*)&pipeline_error) else error(failed, "no pipeline")
+    return (pipeline, library)
+
+## `[device newBufferWithBytes: p length: n options: shared]` and its `contents`.
+func buffer_with(device: void*, bytes: const void*, length: u64) -> void*!:
+    let f = (func(void*, void*, const void*, u64, u64) -> void*?)(void*)objc_msgSend
+    let b = f(device, objc.selector("newBufferWithBytes:length:options:"), bytes, length, storage_shared) else error(failed, "no input buffer")
+    return b
+
+func buffer_of(device: void*, length: u64) -> void*!:
+    let b = objc.send_uu(device, "newBufferWithLength:options:", length, storage_shared) else error(failed, "no output buffer")
+    return b
+
+func contents(buffer: void*) -> void*:
+    let p = objc.send_ret_ptr(buffer, "contents") else return (void*)8
+    return p
+
+func no_metal() -> i32:
+    print("no Metal device on this machine")
+    return 1
+
+pub func main(arguments: str[]) -> i32!:
+    var count: usize = 8
+    if arguments.length > 1:
+        if let n = strings.to_i64(arguments[1]):
+            count = (usize)n if n > 0 and n <= 4096 else 8
+    let device = MTLCreateSystemDefaultDevice() else return no_metal()
+    # the input: 1.0, 2.0, ... count
+    var input = try alloc f32[count]
+    defer free(input)
+    for i in 0..<count:
+        input[i] = (f32)(i + 1)
+    let bytes = count * sizeof(f32)
+    let in_buffer = try buffer_with(device, input.data, (u64)bytes)
+    let out_buffer = try buffer_of(device, (u64)bytes)
+    let (pipeline, library) = try square_on(device)
+    discard(library)
+    # the command: bind the pipeline and the buffers, dispatch one thread per element
+    let queue = objc.send(device, "newCommandQueue") else error(failed, "no queue")
+    let command = objc.send(queue, "commandBuffer") else error(failed, "no command buffer")
+    let encoder = objc.send(command, "computeCommandEncoder") else error(failed, "no encoder")
+    discard(objc.send_p(encoder, "setComputePipelineState:", pipeline))
+    set_buffer(encoder, in_buffer, 0)
+    set_buffer(encoder, out_buffer, 1)
+    dispatch(encoder, count)
+    discard(objc.send(encoder, "endEncoding"))
+    discard(objc.send(command, "commit"))
+    discard(objc.send(command, "waitUntilCompleted"))
+    # read the squares back from the shared output buffer
+    let results = (const f32*)contents(out_buffer)
+    var line: u8[512]
+    var writer = try strings.Builder.create(512)
+    for i in 0..<count:
+        if i > 0:
+            try writer.put(" ")
+        var one: u8[32]
+        try writer.put((str)(try format(one, f"{results[i]}")))
+    discard(line.length)
+    print(f"squared on the GPU: {writer.view()}")
+    return 0
+
+## `[encoder setBuffer: b offset: 0 atIndex: i]`.
+func set_buffer(encoder: void*, buffer: void*, index: u64):
+    let f = (func(void*, void*, void*?, u64, u64) -> void*?)(void*)objc_msgSend
+    discard(f(encoder, objc.selector("setBuffer:offset:atIndex:"), buffer, 0, index))
+
+## `[encoder dispatchThreadgroups: groups threadsPerThreadgroup: per]`, one thread per element.
+func dispatch(encoder: void*, count: usize):
+    let per: usize = count if count < 64 else 64
+    let groups = (count + per - 1) // per
+    var grid = Size(width = (u64)groups, height = 1, depth = 1)
+    var block = Size(width = (u64)per, height = 1, depth = 1)
+    let f = (func(void*, void*, Size, Size) -> void*?)(void*)objc_msgSend
+    discard(f(encoder, objc.selector("dispatchThreadgroups:threadsPerThreadgroup:"), grid, block))
