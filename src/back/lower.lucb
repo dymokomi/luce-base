@@ -1774,7 +1774,7 @@ pub struct Lowerer:
             else:
                 let a = try self.value(l, vt)
                 let b = try self.value(r, vt)
-                result = try self.memory_equal(a.ref, b.ref, self.size(vt))
+                result = try self.value_equal(a.ref, b.ref, vt)
         elif ot == types.str_id or ot == types.fmt_id:
             let a = try self.expr(l)
             let b = try self.expr(r)
@@ -1782,7 +1782,7 @@ pub struct Lowerer:
         elif not self.is_scalar(ot):
             let a = try self.value(l, ot)
             let b = try self.value(r, ot)
-            result = try self.memory_equal(a.ref, b.ref, self.size(ot))
+            result = try self.value_equal(a.ref, b.ref, ot)
         else:
             let a = try self.value(l, ot) if not l_none else LowerValue(ref = ir.const_ref(0), type_id = ot, in_memory = false)
             let b = try self.value(r, ot) if not r_none else LowerValue(ref = ir.const_ref(0), type_id = ot, in_memory = false)
@@ -1790,6 +1790,127 @@ pub struct Lowerer:
         if negate:
             result = try self.f.binary(ir.Op.ceq, ir.Class.w, result, ir.const_ref(0))
         return LowerValue(ref = result, type_id = types.bool_id, in_memory = false)
+
+    ## Two values of type `t` in memory at `a` and `b`, compared component by component
+    ## so that padding never speaks (§7.4).
+    mutating func value_equal(a: ir.Ref, b: ir.Ref, t: u32) -> ir.Ref!:
+        if t == types.str_id or t == types.fmt_id:
+            return try self.text_equal(a, b)
+        if self.is_scalar(t):
+            let x = try self.load_from(a, t)
+            let y = try self.load_from(b, t)
+            return try self.f.binary(ir.Op.ceq, self.class_of(t), x.ref, y.ref)
+        let tt = self.c.table.get(t)
+        if self.is_tagged_opt(t):
+            let et = self.elem(t)
+            let flag = (u64)self.c.table.size_of(et)
+            let pa = try self.f.load(ir.Op.loadub, ir.Class.w, try self.offset_address(a, flag))
+            let pb = try self.f.load(ir.Op.loadub, ir.Class.w, try self.offset_address(b, flag))
+            let slot = try self.f.slot(1, 1)
+            let out = try self.slot_address(slot)
+            try self.f.store(ir.Op.storeb, try self.f.binary(ir.Op.ceq, ir.Class.w, pa, pb), out)
+            let both = try self.f.binary(ir.Op.and_, ir.Class.w, pa, pb)
+            let inner = self.f.label()
+            let done = self.f.label()
+            try self.f.branch(both, inner, done)
+            try self.f.place_label(inner)
+            let same = try self.value_equal(a, b, et)
+            try self.f.store(ir.Op.storeb, same, try self.slot_address(slot))
+            try self.f.jump(done)
+            try self.f.place_label(done)
+            return try self.f.load(ir.Op.loadub, ir.Class.w, try self.slot_address(slot))
+        if tt.kind == types.Kind.struct_ or tt.kind == types.Kind.tuple:
+            var out = ir.const_ref(1)
+            var offset: u64 = 0
+            if tt.kind == types.Kind.tuple:
+                for at in tt.args:
+                    let ft = try self.map(at)
+                    offset = lower_round_up(offset, self.c.table.align_of(ft))
+                    let same = try self.value_equal(try self.offset_address(a, offset), try self.offset_address(b, offset), ft)
+                    out = try self.f.binary(ir.Op.and_, ir.Class.w, out, same)
+                    offset += self.c.table.size_of(ft)
+                return out
+            let d = tt.decl else return try self.memory_equal(a, b, self.size(t))
+            var cursor = d.body
+            while let m = cursor:
+                if m.kind == ast.Kind.field:
+                    let ft = try self.map(try self.c.substitute(m.type_id, d, tt.args))
+                    if not d.has(ast.flag_packed):
+                        offset = lower_round_up(offset, self.c.table.align_of(ft))
+                    let same = try self.value_equal(try self.offset_address(a, offset), try self.offset_address(b, offset), ft)
+                    out = try self.f.binary(ir.Op.and_, ir.Class.w, out, same)
+                    offset += self.c.table.size_of(ft)
+                cursor = m.next
+            return out
+        if tt.kind == types.Kind.array:
+            let et = try self.map(tt.elem)
+            if self.is_scalar(et) and not self.is_float(et):
+                return try self.memory_equal(a, b, self.size(t))
+            let stride = (u64)self.c.table.size_of(et)
+            let slot = try self.f.slot(1, 1)
+            let out = try self.slot_address(slot)
+            try self.f.store(ir.Op.storeb, ir.const_ref(1), out)
+            let counter = try self.f.slot(8, 8)
+            let i_address = try self.slot_address(counter)
+            try self.f.store(ir.Op.storel, ir.const_ref(0), i_address)
+            let head = self.f.label()
+            let body = self.f.label()
+            let done = self.f.label()
+            try self.f.jump(head)
+            try self.f.place_label(head)
+            let i = try self.f.load(ir.Op.loadl, ir.Class.l, try self.slot_address(counter))
+            let more = try self.f.binary(ir.Op.cult, ir.Class.l, i, ir.const_ref((i64)tt.length))
+            try self.f.branch(more, body, done)
+            try self.f.place_label(body)
+            let scaled = try self.f.binary(ir.Op.mul, ir.Class.l, i, ir.const_ref((i64)stride))
+            let ea = try self.f.binary(ir.Op.add, ir.Class.l, a, scaled)
+            let eb = try self.f.binary(ir.Op.add, ir.Class.l, b, scaled)
+            let same = try self.value_equal(ea, eb, et)
+            let so_far = try self.f.load(ir.Op.loadub, ir.Class.w, try self.slot_address(slot))
+            try self.f.store(ir.Op.storeb, try self.f.binary(ir.Op.and_, ir.Class.w, so_far, same), try self.slot_address(slot))
+            let next = try self.f.binary(ir.Op.add, ir.Class.l, try self.f.load(ir.Op.loadl, ir.Class.l, try self.slot_address(counter)), ir.const_ref(1))
+            try self.f.store(ir.Op.storel, next, try self.slot_address(counter))
+            try self.f.jump(head)
+            try self.f.place_label(done)
+            return try self.f.load(ir.Op.loadub, ir.Class.w, try self.slot_address(slot))
+        if tt.kind == types.Kind.enum_:
+            # the tag, then the payload of the case both carry
+            let d = tt.decl else return try self.memory_equal(a, b, self.size(t))
+            let ta = try self.f.load(ir.Op.loadsw, ir.Class.w, a)
+            let tb = try self.f.load(ir.Op.loadsw, ir.Class.w, b)
+            let slot = try self.f.slot(1, 1)
+            let out = try self.slot_address(slot)
+            try self.f.store(ir.Op.storeb, try self.f.binary(ir.Op.ceq, ir.Class.w, ta, tb), out)
+            let done = self.f.label()
+            let base = self.payload_offset(t)
+            var cursor = d.body
+            while let c = cursor:
+                if c.kind == ast.Kind.enum_case and c.body != none:
+                    let tag_matches = try self.f.binary(ir.Op.ceq, ir.Class.w, ta, ir.const_ref((i64)lower_case_tag(d, c)))
+                    let same_tag = try self.f.load(ir.Op.loadub, ir.Class.w, try self.slot_address(slot))
+                    let this_case = try self.f.binary(ir.Op.and_, ir.Class.w, tag_matches, same_tag)
+                    let here = self.f.label()
+                    let next = self.f.label()
+                    try self.f.branch(this_case, here, next)
+                    try self.f.place_label(here)
+                    var offset: u64 = 0
+                    var param = c.body
+                    var same = ir.const_ref(1)
+                    while let q = param:
+                        let pt = try self.map(try self.c.substitute(q.type_id, d, tt.args))
+                        offset = lower_round_up(offset, self.c.table.align_of(pt))
+                        let field_same = try self.value_equal(try self.offset_address(a, base + offset), try self.offset_address(b, base + offset), pt)
+                        same = try self.f.binary(ir.Op.and_, ir.Class.w, same, field_same)
+                        offset += self.c.table.size_of(pt)
+                        param = q.next
+                    try self.f.store(ir.Op.storeb, same, try self.slot_address(slot))
+                    try self.f.jump(done)
+                    try self.f.place_label(next)
+                cursor = c.next
+            try self.f.jump(done)
+            try self.f.place_label(done)
+            return try self.f.load(ir.Op.loadub, ir.Class.w, try self.slot_address(slot))
+        return try self.memory_equal(a, b, self.size(t))
 
     mutating func memory_equal(a: ir.Ref, b: ir.Ref, size: u32) -> ir.Ref!:
         let start = u32(self.f.args.count)
