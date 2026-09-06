@@ -1709,6 +1709,10 @@ pub struct Checker:
 
     ## `__lambda1`, `__lambda2`, ...: names no source can spell.
     mutating func lambda_name() -> str!:
+        return try self.hidden_name("__lambda")
+
+    ## `prefix` followed by a fresh number: a name no source can spell.
+    mutating func hidden_name(prefix: str) -> str!:
         self.lambda_count += 1
         var digits: u8[12]
         var n = self.lambda_count
@@ -1719,7 +1723,6 @@ pub struct Checker:
             n = n // 10
             if n == 0:
                 break
-        let prefix = "__lambda"
         var out = try alloc u8[prefix.length + k]
         memory.copy(out, prefix.bytes, prefix.length)
         var j: usize = 0
@@ -2973,8 +2976,10 @@ pub struct Checker:
                 elem = try self.table.pointer(t.elem, const_elem, false)
         elif got == types.str_id:
             elem = types.char_id
+        elif self.iterator_method(got) != none:
+            return try self.desugar_iterable_for(s, binding, iterable)
         else:
-            return try self.fail(iterable, "`for` iterates a span, an array, a range, or text")
+            return try self.fail(iterable, "`for` iterates a span, an array, a range, text, or an Iterable")
         self.push_scope()
         if binding.body != none:
             let et = self.table.get(elem)
@@ -3000,6 +3005,47 @@ pub struct Checker:
         try self.check_block(body)
         self.loop_depth -= 1
         self.pop_scope()
+
+    ## The `iterator()` method of a struct or enum type, the mark of an Iterable (§14.4).
+    func iterator_method(id: u32) -> ast.Node*?:
+        let t = self.table.get(id)
+        if t.kind != types.Kind.struct_ and t.kind != types.Kind.enum_:
+            return none
+        let d = t.decl else return none
+        return find_member(d, "iterator", ast.Kind.func_)
+
+    ## `for x in source: body` over an Iterable (§8.3) becomes, in its own block,
+    ## `var __iterN = source.iterator()` and `while let x = __iterN.next(): body`: the
+    ## iterator lives in a hidden local of its concrete type, and the backends see only a
+    ## loop they already know.
+    mutating func desugar_iterable_for(s: ast.Node*, binding: ast.Node*, sequence: ast.Node*) -> !:
+        if binding.body != none:
+            return try self.fail(binding, "an Iterable yields one value per step; bind one name")
+        let hidden = try self.hidden_name("__iter")
+        let start = try ast.Node.make(ast.Kind.var_, hidden, s.start, s.line)
+        start.left = try self.method_call(sequence, "iterator", s)
+        let advance = try ast.Node.make(ast.Kind.name, hidden, s.start, s.line)
+        var step = try ast.Node.make(ast.Kind.let_, binding.text, binding.start, binding.line)
+        step.ty = binding.ty
+        step.left = try self.method_call(advance, "next", s)
+        let loop = try ast.Node.make(ast.Kind.while_, s.text, s.start, s.line)
+        loop.flags |= ast.flag_if_let
+        loop.left = step
+        loop.body = s.body
+        start.next = loop
+        s.kind = ast.Kind.block
+        s.left = none
+        s.right = none
+        s.body = start
+        try self.check_block(s)
+
+    ## The call `receiver.name()` as a fresh tree at `at`'s position.
+    func method_call(receiver: ast.Node*, name: str, at: ast.Node*) -> ast.Node*!:
+        let member = try ast.Node.make(ast.Kind.member, name, at.start, at.line)
+        member.left = receiver
+        let call = try ast.Node.make(ast.Kind.call, "", at.start, at.line)
+        call.left = member
+        return call
 
     mutating func check_return(s: ast.Node*) -> !:
         let want = self.result_type

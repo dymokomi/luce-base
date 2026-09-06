@@ -690,6 +690,17 @@ pub interface Hashable:
 pub interface Comparable:
     func compare(other: void*) -> i64
 
+## The protocols `for` consumes (§8.3, §14.4): a value iterator answers each element
+## until `none`; an iterable answers a fresh iterator of its own concrete type.
+pub interface Iterator[T]:
+    mutating func next() -> T?
+pub interface Iterable[T, I: Iterator[T]]:
+    func iterator() -> I
+
+## A value that writes itself to a sink (§14.4); formatted strings call it for each field.
+pub interface Display:
+    func display(sink: io.Writer) -> !
+
 ## Compile-time facts about the use site; the backend replaces them (§9.1).
 pub let file: str = ""
 pub let line: u32 = 0

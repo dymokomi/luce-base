@@ -84,6 +84,15 @@ standard modules, which are what those names mean, are exempt. A `from`
 import brings exactly the names it lists (§16.3); a program that also writes
 `io.stdout()` needs `import io` as well.
 
+`for` over a user type consumes the `Iterable` protocol (§8.3) by rewriting
+the tree: a `for x in source: body` whose source is a struct or enum with an
+`iterator()` method becomes, in its own block, `var __iterN = source.iterator()`
+and `while let x = __iterN.next(): body`. The iterator is a hidden local of
+its concrete type, no view is formed, and the backends see only a loop they
+already know; the protocols themselves, `Iterator[T]`, `Iterable[T, I]`, and
+`Display`, are ordinary generic interfaces in the `luce` module, which the
+backends never table because nothing views them.
+
 Generic declarations are checked once, against their written constraints,
 with their parameters as opaque types (§13). A use substitutes the arguments
 into the signature and never re-checks the body; inference walks parameter

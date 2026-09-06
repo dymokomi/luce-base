@@ -1,0 +1,8 @@
+# error: `for` iterates a span, an array, a range, text, or an Iterable
+struct Plain:
+    var n: u32
+
+pub func main(arguments: str[]) -> i32:
+    for x in Plain(n = 1):
+        discard(x)
+    return 0

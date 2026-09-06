@@ -4939,10 +4939,13 @@ pub struct Emitter:
                         if m.kind == ast.Kind.func_ and check.generic_params_of(m) == none:
                             discard(try self.add_func(m, try types.no_args(), d, try types.no_args()))
                         member = m.next
-                    # every implemented interface needs its table
+                    # every implemented interface needs its table, except a generic one,
+                    # `Iterator[T]`, which `for` consumes statically and nothing views
                     var listed = d.ty if d.kind != ast.Kind.enum_ else d.right
                     while let l = listed:
-                        try self.note_vtable(d.type_id, l.type_id)
+                        if let iface = self.decl_of(l.type_id):
+                            if check.generic_params_of(iface) == none:
+                                try self.note_vtable(d.type_id, l.type_id)
                         listed = l.next
                 elif d.kind == ast.Kind.test_ and mode == 1:
                     discard(try self.test_index(d))
@@ -5004,7 +5007,9 @@ pub struct Emitter:
                     try self.put(" ")
                     try self.put(d.text)
                     try self.put(";")
-                elif d.kind == ast.Kind.interface_:
+                elif d.kind == ast.Kind.interface_ and check.generic_params_of(d) == none:
+                    # a generic interface, `Iterator[T]`, is consumed statically by `for` and
+                    # never viewed, so it has no table of its own
                     try self.interface_typedef(d)
                     if d.text == "Allocator" and d.has(ast.flag_builtin):
                         try self.allocator_glue()

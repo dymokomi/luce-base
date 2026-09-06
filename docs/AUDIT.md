@@ -116,7 +116,7 @@ Base programmer would miss them.
 
 | § | Feature | State |
 | --- | --- | --- |
-| 14.4 | `Display`, `Iterator`, `Iterable` | missing in both; the largest language gap |
+| 14.4 | `Display`, `Iterator`, `Iterable` | `Iterator` and `Iterable` done in both (`for` desugars to the protocol); `Display` for user types in formatted strings still missing |
 | 17.1 | `out` parameters as tuple results | missing in both |
 | 8.9 | compiler-chosen `reg` operands, `{name}` substitution natively | C only |
 | 5.1 | `f16` | missing in both; low demand |
