@@ -1,13 +1,17 @@
-## The lexer: bytes to tokens (base.md §3, §4, §21).
-##
-## Tokens are spans into the source; the literal decoder of a later slice
-## turns spellings into values. Layout is part of lexing: a newline at the
-## top level becomes `newline`, a deeper first-column becomes `indent`, and
-## shallower becomes one `dedent` per closed block. Inside `()`, `[]`, and
-## `{}` newlines are spacing, except that a `:` ending a line reopens layout.
-## A formatted string lexes as `format_start`, then `format_text` runs and
-## ordinary tokens for each `{field}`, then `format_end`. An `asm` suite is
-## captured as `raw_line` tokens.
+#==============================================================================================
+#
+#   lexer - Bytes to tokens, then layout
+#
+#   DESCRIPTION:
+#       Tokens are spans; the literal decoder of a later slice turns spellings into values.
+#       Layout is part of lexing: a newline at the top level becomes `newline`, a deeper first
+#       column becomes `indent`, and a shallower one becomes one `dedent` per closed block.
+#       Inside `()`, `[]`, and `{}` newlines are spacing, except that a `:` ending a line
+#       reopens layout and the bracket that closes the suite ends it (base.md §3.2). A
+#       formatted string lexes as `format_start`, `format_text` runs, ordinary tokens for each
+#       `{field}`, then `format_end`. An `asm` suite is captured as `raw_line` tokens.
+#
+#==============================================================================================
 
 import source
 import token
@@ -230,6 +234,9 @@ pub struct Lexer:
 
     ## A quoted literal after its opening quote: text, bytes, raw, or triple.
     mutating func quoted(kind: token.Kind, start: usize, triple: bool, raw: bool) -> token.Token!:
+        # a triple-quoted literal spans lines; its token keeps the line and column it opened on
+        let first_line = self.line
+        let first_start = self.line_start
         while true:
             let c = self.peek()
             if c == 0:
@@ -245,7 +252,8 @@ pub struct Lexer:
                     return self.make(kind, start)
                 if self.peek_at(1) == '"' and self.peek_at(2) == '"':
                     self.offset += 3
-                    return self.make(kind, start)
+                    return token.Token(kind = kind, start = start, end = self.offset, line = first_line,
+                                       column = u32(start - first_start) + 1)
             if c == '\n':
                 self.line += 1
                 self.line_start = self.offset + 1
@@ -411,6 +419,8 @@ pub struct Lexer:
 
     pub func text(t: token.Token) -> str:
         return self.src.text(t.start, t.end)
+
+# mark: Entry point and tests =================================================================
 
 ## Tokenize `text` into `out`; the number of tokens, `eof` excluded.
 pub func tokenize(text: str, out: token.Token[]) -> usize!:

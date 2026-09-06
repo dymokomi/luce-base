@@ -1,7 +1,14 @@
-## The untyped syntax tree (base.md §21). One `Node` shape for every
-## construct: a kind, a spelling, a span, four child slots, and a sibling
-## link for lists. Nodes come from the current allocator and are never freed
-## individually; a compilation's arena owns them all.
+#==============================================================================================
+#
+#   ast - The untyped syntax tree
+#
+#   DESCRIPTION:
+#       One `Node` shape for every construct (base.md §21): a kind, a spelling, a span, four
+#       child slots, and a sibling link for lists. Nodes come from the current allocator and
+#       are never freed individually; a compilation's arena owns them. The checker writes what
+#       it learns onto the same nodes, so there is one tree from parsing through emission.
+#
+#==============================================================================================
 
 pub enum Kind as u8:
     module = 1
@@ -22,7 +29,7 @@ pub enum Kind as u8:
     extern_struct = 16
     extern_union = 17
     assert_ = 18
-    asm = 19
+    asm_ = 19
     field = 20
     enum_case = 21
     param = 22
@@ -76,6 +83,8 @@ pub enum Kind as u8:
     pattern = 91
     argument = 92
 
+# mark: Flags =================================================================================
+
 ## Flags on a node; which ones apply depends on the kind.
 pub let flag_pub: u32 = 1
 pub let flag_mutating: u32 = 2
@@ -102,24 +111,33 @@ pub let flag_void: u32 = 2097152
 pub let flag_tuple_type: u32 = 4194304
 pub let flag_if_let: u32 = 8388608
 pub let flag_wildcard: u32 = 16777216
+## Set by the checker on a name that denotes a type rather than a value.
+pub let flag_type_ref: u32 = 33554432
+
+# mark: Nodes and lists =======================================================================
 
 pub struct Node:
-    var kind: Kind
+    pub var kind: Kind
     ## The spelling that matters: a name, a literal, an operator, a label.
-    var text: str
-    var start: usize
-    var end: usize
-    var line: u32
-    var flags: u32
-    var left: Node*?
-    var right: Node*?
-    var body: Node*?
-    var ty: Node*?
-    var next: Node*?
+    pub var text: str
+    pub var start: usize
+    pub var end: usize
+    pub var line: u32
+    pub var flags: u32
+    pub var left: Node*?
+    pub var right: Node*?
+    pub var body: Node*?
+    pub var ty: Node*?
+    pub var next: Node*?
+    ## Written by the checker: the interned type id of this node (0 = none)
+    ## and the declaration a name, call, or member resolved to.
+    pub var type_id: u32
+    pub var resolved: Node*?
 
     pub static func make(kind: Kind, text: str, start: usize, line: u32) -> Node*!:
         return try new Node(kind = kind, text = text, start = start, end = start, line = line,
-                            flags = 0, left = none, right = none, body = none, ty = none, next = none)
+                            flags = 0, left = none, right = none, body = none, ty = none, next = none,
+                            type_id = 0, resolved = none)
 
     pub func has(flag: u32) -> bool:
         return (self.flags & flag) != 0
@@ -142,6 +160,8 @@ pub func count(list: Node*?) -> usize:
         cursor = node.next
     return n
 
+# mark: Dumping ===============================================================================
+
 ## The kind as it prints in a dump.
 pub func kind_name(kind: Kind) -> str:
     match kind:
@@ -163,7 +183,7 @@ pub func kind_name(kind: Kind) -> str:
         .extern_struct: return "extern_struct"
         .extern_union: return "extern_union"
         .assert_: return "assert"
-        .asm: return "asm"
+        .asm_: return "asm"
         .field: return "field"
         .enum_case: return "enum_case"
         .param: return "param"

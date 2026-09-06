@@ -1,12 +1,20 @@
-## Source text: the bytes of one file, the encoding gate of base.md §3.1, and
-## line/column positions for diagnostics.
+#==============================================================================================
+#
+#   source - Source text and positions
+#
+#   DESCRIPTION:
+#       The bytes of one file, the encoding gate of base.md §3.1, and line/column positions
+#       for diagnostics. A `Source` never owns its bytes; the caller's allocator does, so a
+#       whole compilation can live in one arena.
+#
+#==============================================================================================
 
 pub let bad_encoding: ErrorCode = ErrorCode.package(1)
 pub let unreadable: ErrorCode = ErrorCode.package(2)
 
 pub struct Source:
-    var path: str
-    var bytes: const u8[]
+    pub var path: str
+    pub var bytes: const u8[]
 
     ## Load a file into the current allocator and check it is UTF-8 without NUL.
     pub static func load(path: cstr) -> Source!:

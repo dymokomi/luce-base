@@ -1,8 +1,15 @@
-## Recursive-descent parser for base.md §21. Tokens are lexed up front into
-## a buffer so the parser can look ahead freely; expressions use one
-## function per precedence level (§7.10); a `(T)x` cast is recognised only
-## when the parenthesised text is cast-shaped (§7.5). The first syntax error
-## stops the parse and carries its line and column.
+#==============================================================================================
+#
+#   parser - Recursive descent over the token buffer
+#
+#   DESCRIPTION:
+#       The grammar of base.md §21, one function per production, with the expression
+#       precedence ladder of §7.10. A `(T)x` cast is recognised only when the parenthesised
+#       text is cast-shaped (§7.5), and a `[` after a name holds type arguments only when it
+#       is followed by `(` or `.`. The first syntax error stops the parse and carries its line
+#       and column.
+#
+#==============================================================================================
 
 import ast
 import lexer
@@ -40,7 +47,7 @@ pub struct Parser:
                 break
         return Parser(src = src, tokens = buffer, count = n, pos = 0, scratch = scratch, nest = 0)
 
-    # ---- the token cursor -------------------------------------------------
+    # -- the token cursor ------------------------------------------------------------------
 
     func cur() -> token.Token:
         return self.tokens[self.pos]
@@ -149,6 +156,11 @@ pub struct Parser:
         let t = self.cur()
         return try ast.Node.make(kind, text, t.start, t.line)
 
+    ## A node made of the current token: its text and its position, then consumed.
+    mutating func taken(kind: ast.Kind) -> ast.Node*!:
+        let t = self.take()
+        return try ast.Node.make(kind, self.text_of(t), t.start, t.line)
+
     mutating func enter() -> !:
         self.nest += 1
         if self.nest > max_nest:
@@ -157,7 +169,7 @@ pub struct Parser:
     mutating func leave():
         self.nest -= 1
 
-    # ---- module and declarations -------------------------------------------
+    # -- module and declarations ----------------------------------------------------------
 
     pub mutating func parse_module() -> ast.Node*!:
         let module = try self.node(ast.Kind.module, self.src.path)
@@ -323,7 +335,7 @@ pub struct Parser:
         if self.eat_kw("mutating"):
             n.flags |= ast.flag_mutating
         try self.expect_kw("func")
-        n.text = try self.expect_name()
+        n.text = try self.expect_member_name()
         if self.at_op("[") :
             n.left = try self.parse_generic_params()
         n.body = try self.parse_params()
@@ -341,7 +353,7 @@ pub struct Parser:
         if self.eat_kw("mutating"):
             n.flags |= ast.flag_mutating
         try self.expect_kw("func")
-        n.text = try self.expect_name()
+        n.text = try self.expect_member_name()
         if self.at_op("["):
             n.left = try self.parse_generic_params()
         n.right = try self.parse_params()
@@ -600,7 +612,7 @@ pub struct Parser:
         if self.eat_kw("as"):
             if not self.at(token.Kind.text):
                 discard(try self.fail("expected the C symbol as a string"))
-            n.left = try self.node(ast.Kind.literal, self.text_of(self.take()))
+            n.left = try self.taken(ast.Kind.literal)
         try self.expect_op("(")
         var tail: ast.Node*? = none
         while not self.at_op(")"):
@@ -624,7 +636,7 @@ pub struct Parser:
 
     ## `asm ARCH:` with raw lines, at module level or as a statement.
     mutating func parse_asm() -> ast.Node*!:
-        let n = try self.node(ast.Kind.asm, "")
+        let n = try self.node(ast.Kind.asm_, "")
         try self.expect_kw("asm")
         n.text = try self.expect_name()
         if self.eat_op("("):
@@ -635,14 +647,14 @@ pub struct Parser:
                 try self.expect_op("(")
                 var ptail: ast.Node*? = none
                 while not self.at_op(")"):
-                    let place = try self.node(ast.Kind.literal, self.text_of(self.take()))
+                    let place = try self.taken(ast.Kind.literal)
                     ast.append(&operand.body, &ptail, place)
                     if not self.eat_op(","):
                         break
                 try self.expect_op(")")
                 if operand.text != "options":
                     if self.at_name("_"):
-                        operand.left = try self.node(ast.Kind.name, self.text_of(self.take()))
+                        operand.left = try self.taken(ast.Kind.name)
                     else:
                         operand.left = try self.parse_expression()
                 ast.append(&n.right, &tail, operand)
@@ -654,14 +666,14 @@ pub struct Parser:
         try self.expect_indent()
         var tail: ast.Node*? = none
         while self.at(token.Kind.raw_line):
-            let line = try self.node(ast.Kind.literal, self.text_of(self.take()))
+            let line = try self.taken(ast.Kind.literal)
             ast.append(&n.body, &tail, line)
         if not self.at(token.Kind.dedent):
             discard(try self.fail("an asm suite holds raw lines only"))
         discard(self.take())
         return n
 
-    # ---- statements ------------------------------------------------------
+    # -- statements -----------------------------------------------------------------------
 
     ## `:` was consumed; a same-line simple statement or an indented block.
     mutating func parse_suite() -> ast.Node*!:
@@ -738,8 +750,9 @@ pub struct Parser:
             if self.at_kw("free"):
                 n.left = try self.parse_free()
                 return n
-            n.left = try self.parse_expression()
-            if n.left.kind != ast.Kind.catch_:
+            let call = try self.parse_expression()
+            n.left = call
+            if call.kind != ast.Kind.catch_:
                 try self.expect_newline()
             return n
         if self.at_kw("recover"):
@@ -752,7 +765,7 @@ pub struct Parser:
             return try self.parse_free()
         let e = try self.parse_expression()
         if self.at(token.Kind.operator) and self.is_assign_op(self.text_of(self.cur())):
-            let n = try self.node(ast.Kind.assign, self.text_of(self.take()))
+            let n = try self.taken(ast.Kind.assign)
             n.left = e
             n.right = try self.parse_expression()
             try self.expect_newline()
@@ -914,7 +927,7 @@ pub struct Parser:
             if self.eat_op("("):
                 var tail: ast.Node*? = none
                 while not self.at_op(")"):
-                    let b = try self.node(ast.Kind.name, self.text_of(self.take()))
+                    let b = try self.taken(ast.Kind.name)
                     ast.append(&c.body, &tail, b)
                     if not self.eat_op(","):
                         break
@@ -929,12 +942,12 @@ pub struct Parser:
 
     mutating func parse_pattern_literal() -> ast.Node*!:
         if self.at_op("-"):
-            let neg = try self.node(ast.Kind.unary, self.text_of(self.take()))
+            let neg = try self.taken(ast.Kind.unary)
             neg.left = try self.parse_primary()
             return neg
         return try self.parse_primary()
 
-    # ---- expressions -------------------------------------------------------
+    # -- expressions ----------------------------------------------------------------------
 
     pub mutating func parse_expression() -> ast.Node*!:
         try self.enter()
@@ -1028,7 +1041,7 @@ pub struct Parser:
             let level = self.level_of(t)
             if level == 0 or level <= min_level:
                 break
-            let n = try self.node(ast.Kind.binary, self.text_of(self.take()))
+            let n = try self.taken(ast.Kind.binary)
             n.left = left
             # comparison and range do not chain (§7.3)
             n.right = try self.parse_binary(level if level != 3 and level != 4 else level)
@@ -1040,11 +1053,11 @@ pub struct Parser:
 
     mutating func parse_unary() -> ast.Node*!:
         if self.at_kw("try") or self.at_kw("not"):
-            let n = try self.node(ast.Kind.unary, self.text_of(self.take()))
+            let n = try self.taken(ast.Kind.unary)
             n.left = try self.parse_unary()
             return n
         if self.at_op("-") or self.at_op("-%") or self.at_op("~") or self.at_op("*") or self.at_op("&") or self.at_op("+"):
-            let n = try self.node(ast.Kind.unary, self.text_of(self.take()))
+            let n = try self.taken(ast.Kind.unary)
             n.left = try self.parse_unary()
             return n
         if self.at_op("(") and self.looks_like_cast():
@@ -1114,7 +1127,7 @@ pub struct Parser:
         while true:
             if self.at_op(".") and self.at_member_name(1):
                 discard(self.take())
-                let m = try self.node(ast.Kind.member, self.text_of(self.take()))
+                let m = try self.taken(ast.Kind.member)
                 m.left = e
                 e = m
             elif self.at_op("("):
@@ -1142,6 +1155,16 @@ pub struct Parser:
                     e = s
                     continue
                 let index = try self.parse_expression()
+                if index.kind == ast.Kind.binary and index.text == "..<":
+                    # `[start..<end]` reads as a range expression; it is a slice
+                    let s = try self.node(ast.Kind.slice, "")
+                    s.left = e
+                    s.body = index.left
+                    s.right = index.right
+                    s.start = index.start
+                    try self.expect_op("]")
+                    e = s
+                    continue
                 if self.at_op("..<") or self.at_op(".."):
                     let s = try self.node(ast.Kind.slice, "")
                     s.left = e
@@ -1211,13 +1234,13 @@ pub struct Parser:
     mutating func parse_primary() -> ast.Node*!:
         let t = self.cur()
         if t.kind == token.Kind.integer or t.kind == token.Kind.float or t.kind == token.Kind.character or t.kind == token.Kind.text or t.kind == token.Kind.bytes or t.kind == token.Kind.raw:
-            return try self.node(ast.Kind.literal, self.text_of(self.take()))
+            return try self.taken(ast.Kind.literal)
         if t.kind == token.Kind.format_start:
             return try self.parse_formatted()
         if t.kind == token.Kind.keyword:
             let w = self.text_of(t)
             if w == "true" or w == "false" or w == "none":
-                return try self.node(ast.Kind.literal, self.text_of(self.take()))
+                return try self.taken(ast.Kind.literal)
             if w == "self":
                 discard(self.take())
                 return try self.node(ast.Kind.self_, "self")
@@ -1234,7 +1257,7 @@ pub struct Parser:
                 s.ty = try self.parse_type()
                 s.body = try self.parse_arguments()
                 return s
-            return try self.node(ast.Kind.name, self.text_of(self.take()))
+            return try self.taken(ast.Kind.name)
         if t.kind == token.Kind.operator:
             let s = self.text_of(t)
             if s == ".":
@@ -1326,7 +1349,7 @@ pub struct Parser:
         var tail: ast.Node*? = none
         while not self.at(token.Kind.format_end):
             if self.at(token.Kind.format_text):
-                let part = try self.node(ast.Kind.format_text, self.text_of(self.take()))
+                let part = try self.taken(ast.Kind.format_text)
                 ast.append(&n.body, &tail, part)
             elif self.eat_op("{"):
                 let field = try self.node(ast.Kind.format_field, "")
@@ -1366,7 +1389,7 @@ pub struct Parser:
             n.right = try self.parse_expression()
         return n
 
-    # ---- types -------------------------------------------------------------
+    # -- types ----------------------------------------------------------------------------
 
     pub mutating func parse_type() -> ast.Node*!:
         var flags: u32 = 0
@@ -1483,6 +1506,8 @@ pub struct Parser:
         if self.at_op("[") and not self.array_suffix_ahead():
             t.body = (try self.parse_type_args()).body
         return t
+
+# mark: Entry point and tests =================================================================
 
 ## Parse `text` as a module in the current allocator.
 pub func parse_text(text: str, scratch: u8[]) -> ast.Node*!:

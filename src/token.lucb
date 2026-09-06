@@ -1,5 +1,13 @@
-## Tokens: the kinds, the reserved words of base.md §3.6, and the operator
-## spellings of §21, longest first so `+%=` wins over `+%` and `+`.
+#==============================================================================================
+#
+#   token - Tokens, reserved words, and operator spellings
+#
+#   DESCRIPTION:
+#       The token kinds the lexer produces, the reserved words of base.md §3.6, and the
+#       operator spellings of §21 ordered longest first so `+%=` wins over `+%` and `+`.
+#       Tokens are spans into the source; nothing here decodes a literal.
+#
+#==============================================================================================
 
 pub enum Kind as u8:
     name = 1
@@ -22,11 +30,11 @@ pub enum Kind as u8:
     eof = 18
 
 pub struct Token:
-    var kind: Kind
-    var start: usize
-    var end: usize
-    var line: u32
-    var column: u32
+    pub var kind: Kind
+    pub var start: usize
+    pub var end: usize
+    pub var line: u32
+    pub var column: u32
 
     pub func label() -> str:
         match self.kind:
@@ -49,6 +57,8 @@ pub struct Token:
             .raw_line: return "raw_line"
             _: return "eof"
 
+# mark: Reserved words ========================================================================
+
 pub let keywords: str[49] = [
     "alloc", "and", "as", "asm", "break", "catch", "const", "continue", "defer",
     "elif", "else", "enum", "errdefer", "export", "extern", "false", "for", "free",
@@ -62,6 +72,8 @@ pub func is_keyword(word: str) -> bool:
         if k == word:
             return true
     return false
+
+# mark: Operators =============================================================================
 
 ## Operators, longest first. The lexer takes the first entry that matches.
 pub let operators: str[52] = [
