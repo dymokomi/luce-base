@@ -375,31 +375,29 @@ pub struct Generator:
             ix += 1
         # a temporary defined before a loop and used inside it is live across the back-edge:
         # its register must be held to the loop's bottom, not freed at its last textual use.
-        # A jump or branch to an earlier label is a back-edge; iterate to a fixpoint for nesting.
-        var changed = true
-        while changed:
-            changed = false
-            ix = 0
-            while ix < self.f.instrs.count:
-                let instr = self.f.instrs.get(ix)
-                if instr.op == ir.Op.jmp or instr.op == ir.Op.jnz:
-                    let targets: u32[2] = [instr.extra, instr.extra2 if instr.op == ir.Op.jnz else instr.extra]
-                    var w: usize = 0
-                    while w < 2:
-                        let target = targets[w]
-                        w += 1
-                        if target == 0 or target > self.f.labels:
-                            continue
-                        let t = label_pos[(usize)target]
-                        if t >= u32(ix):
-                            continue
-                        var i2: usize = 0
-                        while i2 < n:
-                            if def_at[i2] < t and last_use[i2] >= t and last_use[i2] < u32(ix):
-                                last_use[i2] = u32(ix)
-                                changed = true
-                            i2 += 1
-                ix += 1
+        # A jump or branch to an earlier label is a back-edge. One forward pass is enough:
+        # an inner loop's back-edge comes before its outer loop's, so an extension across the
+        # inner loop is already in place when the outer one is considered.
+        ix = 0
+        while ix < self.f.instrs.count:
+            let instr = self.f.instrs.get(ix)
+            if instr.op == ir.Op.jmp or instr.op == ir.Op.jnz:
+                let targets: u32[2] = [instr.extra, instr.extra2 if instr.op == ir.Op.jnz else instr.extra]
+                var w: usize = 0
+                while w < 2:
+                    let target = targets[w]
+                    w += 1
+                    if target == 0 or target > self.f.labels:
+                        continue
+                    let t = label_pos[(usize)target]
+                    if t >= u32(ix):
+                        continue
+                    var i2: usize = 0
+                    while i2 < n:
+                        if def_at[i2] < t and last_use[i2] >= t and last_use[i2] < u32(ix):
+                            last_use[i2] = u32(ix)
+                        i2 += 1
+            ix += 1
         # two register pools, integer codes 1..10 (x19..x28) and float codes 11..18 (d8..d15)
         var reg_temp: u32[19] = ---
         var c: usize = 0
@@ -446,6 +444,48 @@ pub struct Generator:
                     self.temp_regs.set(d - 1, (u8)chosen)
                     self.used_mask = self.used_mask | (u32)(1 << (u32)(chosen - 1))
             ix += 1
+
+    ## Copy `size` bytes from [x10] to [x11] with plain loads and stores: 16 at a time, then
+    ## 8, 4, 2, 1. The addresses are records in frames or fields, so unaligned access is fine
+    ## on arm64; a copy this small is cheaper inline than as a call.
+    mutating func inline_copy(size: u64) -> !:
+        var done: u64 = 0
+        while size - done >= 16:
+            try self.pair_move("ldp x12, x13, [x10, #", done)
+            try self.pair_move("stp x12, x13, [x11, #", done)
+            done += 16
+        let widths: u64[4] = [8, 4, 2, 1]
+        let loads: str[4] = ["ldr x12", "ldr w12", "ldrh w12", "ldrb w12"]
+        let stores: str[4] = ["str x12", "str w12", "strh w12", "strb w12"]
+        var k: usize = 0
+        while k < 4:
+            if size - done >= widths[k]:
+                try self.pair_move(loads[k], done, ", [x10, #")
+                try self.pair_move(stores[k], done, ", [x11, #")
+                done += widths[k]
+            k += 1
+
+    ## Zero `size` bytes at [x11] the same way.
+    mutating func inline_zero(size: u64) -> !:
+        var done: u64 = 0
+        while size - done >= 16:
+            try self.pair_move("stp xzr, xzr, [x11, #", done)
+            done += 16
+        let widths: u64[4] = [8, 4, 2, 1]
+        let stores: str[4] = ["str xzr", "str wzr", "strh wzr", "strb wzr"]
+        var k: usize = 0
+        while k < 4:
+            if size - done >= widths[k]:
+                try self.pair_move(stores[k], done, ", [x11, #")
+                done += widths[k]
+            k += 1
+
+    ## `mnemonic` + `middle` + offset + `]`: one line of a copy.
+    mutating func pair_move(mnemonic: str, offset: u64, middle: str = "") -> !:
+        try self.line(mnemonic)
+        try self.put(middle)
+        try self.put_u64(offset)
+        try self.put("]")
 
     ## `.weak_definition` and `.no_dead_strip` for a symbol with those attributes (§9.8).
     mutating func linkage_directives(name: str, weak: bool, used: bool) -> !:
@@ -767,15 +807,25 @@ pub struct Generator:
                 try self.line("blr x16")
                 try self.store_temp("x0", n.dst)
             .blit:
-                try self.address_operand("x0", n.a)
-                try self.address_operand("x1", n.b)
-                try self.load_immediate("x2", (i64)n.extra)
-                try self.line("bl _memcpy")
+                if n.extra <= 64:
+                    # a record copy: loads and stores in place of a call
+                    try self.address_operand("x10", n.b)
+                    try self.address_operand("x11", n.a)
+                    try self.inline_copy((u64)n.extra)
+                else:
+                    try self.address_operand("x0", n.a)
+                    try self.address_operand("x1", n.b)
+                    try self.load_immediate("x2", (i64)n.extra)
+                    try self.line("bl _memcpy")
             .zero:
-                try self.address_operand("x0", n.a)
-                try self.line("mov x1, #0")
-                try self.load_immediate("x2", (i64)n.extra)
-                try self.line("bl _memset")
+                if n.extra <= 64:
+                    try self.address_operand("x11", n.a)
+                    try self.inline_zero((u64)n.extra)
+                else:
+                    try self.address_operand("x0", n.a)
+                    try self.line("mov x1, #0")
+                    try self.load_immediate("x2", (i64)n.extra)
+                    try self.line("bl _memset")
             .call:
                 try self.call(n)
             .trap:

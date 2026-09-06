@@ -522,7 +522,8 @@ pub struct Emitter:
     mutating func add_func(f: ast.Node*, args: u32[], owner: ast.Node*?, owner_args: u32[]) -> usize!:
         var i: usize = 0
         while i < self.funcs.count:
-            let r = self.funcs.get(i)
+            # through a pointer: the scan must not copy a record per step
+            let r = &self.funcs.items[i]
             if r.decl == f and same_args(r.args, args) and r.owner == owner and same_args(r.owner_args, owner_args):
                 return i
             i += 1

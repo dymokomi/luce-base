@@ -382,7 +382,8 @@ pub struct Lowerer:
     mutating func add_func(f: ast.Node*, args: u32[], owner: ast.Node*?, owner_args: u32[]) -> usize!:
         var i: usize = 0
         while i < self.funcs.count:
-            let r = self.funcs.get(i)
+            # through a pointer: the scan must not copy a record per step
+            let r = &self.funcs.items[i]
             if r.decl == f and lower_same_args(r.args, args) and r.owner == owner and lower_same_args(r.owner_args, owner_args):
                 return i
             i += 1
@@ -2109,7 +2110,10 @@ pub struct Lowerer:
         let to_bits = 32 if dest == types.char_id else self.scalar_size(dest) * 8
         let from_signed = st != types.char_id and st != types.bool_id and (st == types.untyped_int_id or self.signed_of(st))
         let to_signed = dest != types.char_id and self.signed_of(dest)
-        if not checked:
+        # a conversion that cannot fail needs no check: to the same width and signedness, or
+        # wider with the same signedness, or unsigned into a wider signed type
+        let safe = (to_bits == from_bits and from_signed == to_signed) or (to_bits > from_bits and (from_signed == to_signed or not from_signed))
+        if not checked or safe:
             # C's cast: truncation or reinterpretation
             let word = try self.to_word(r, st) if st != types.untyped_int_id else r
             return try self.from_word(word, dest)
