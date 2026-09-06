@@ -26,8 +26,10 @@ rm -f build/sample build/sample.out
 for f in src/*/*.lucb programs/*/*.lucb; do
     if grep -q '^test "' "$f"; then
         echo "== test $f"
-        ./build/luce-base test "$f" | tail -1
-        ./build/luce-base test "$f" --native | tail -1
+        out=$(./build/luce-base test "$f") || { echo "$out" | tail -3; exit 1; }
+        echo "$out" | tail -1
+        out=$(./build/luce-base test "$f" --native) || { echo "$out" | tail -3; exit 1; }
+        echo "$out" | tail -1
     fi
 done
 # every sample with `main` runs natively too

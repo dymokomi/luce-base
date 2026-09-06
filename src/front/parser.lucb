@@ -1647,7 +1647,7 @@ test "a syntax error names its position":
             where = failure.message
             recover try ast.Node.make(ast.Kind.unit_, "", 0, 0)
         discard(result)
-    assert(where == "1:8: expected a name")
+    assert(where == "test:1:8: expected a name")
 
 test "uninitialised var":
     var backing: u8[65536]
