@@ -2212,6 +2212,11 @@ pub struct Checker:
         var digits = try alloc u8[24]
         v.text = try format(digits, f"{full}")
 
+    ## The unsigned integer as wide as the float `id`: the type its `bits` are (§7.5).
+    pub func bits_type(id: u32) -> u32:
+        let width = self.table.bits(id)
+        return types.u16_id if width == 16 else (types.u32_id if width == 32 else types.u64_id)
+
     ## `Type.name`: a static method, an enum case, `ErrorCode.package`, `f32.bits`.
     mutating func static_member(e: ast.Node*, owner: ast.Node*, id: u32) -> u32!:
         let name = e.text
@@ -2222,7 +2227,7 @@ pub struct Checker:
             e.flags |= ast.flag_static
             return try self.table.function(try one_arg(types.u32_id), types.error_code_id, false)
         if self.table.is_float(id) and name == "bits":
-            let bits = types.u32_id if id == types.f32_id else types.u64_id
+            let bits = self.bits_type(id)
             e.flags |= ast.flag_static
             return try self.table.function(try one_arg(bits), id, false)
         if t.kind == types.Kind.enum_:
@@ -2274,7 +2279,7 @@ pub struct Checker:
             let tuple = try self.table.tuple(pair)
             return try self.table.function(try types.no_args(), try self.table.span(tuple, true), false)
         if name == "bits":
-            let bits = types.u32_id if id == types.f32_id else types.u64_id
+            let bits = self.bits_type(id)
             return try self.table.function(try types.no_args(), bits, false)
         if name == "compare":
             # numbers, `char`, and `str` order themselves (§14.4)
@@ -3600,6 +3605,8 @@ pub func scalar_id(name: str) -> u32:
         return types.u64_id
     if name == "usize":
         return types.usize_id
+    if name == "f16":
+        return types.f16_id
     if name == "f32":
         return types.f32_id
     if name == "f64":

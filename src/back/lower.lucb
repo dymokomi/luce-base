@@ -215,6 +215,8 @@ pub struct Lowerer:
 
     ## The register class of a scalar type.
     func class_of(id: u32) -> ir.Class:
+        if id == types.f16_id:
+            return ir.Class.h
         if id == types.f32_id:
             return ir.Class.s
         if id == types.f64_id or id == types.untyped_float_id:
@@ -1139,13 +1141,20 @@ pub struct Lowerer:
             let v = try self.expr(e)
             if have == types.untyped_int_id:
                 return LowerValue(ref = try self.f.unary(ir.Op.sltof, self.class_of(want), v.ref), type_id = want, in_memory = false)
-            if have == types.f32_id and want == types.f64_id:
-                return LowerValue(ref = try self.f.unary(ir.Op.exts, ir.Class.d, v.ref), type_id = want, in_memory = false)
-            if have == types.f64_id and want == types.f32_id:
-                return LowerValue(ref = try self.f.unary(ir.Op.truncd, ir.Class.s, v.ref), type_id = want, in_memory = false)
-            return LowerValue(ref = v.ref, type_id = want, in_memory = false)
+            return LowerValue(ref = try self.convert_float(v.ref, have, want), type_id = want, in_memory = false)
         let v = try self.expr(e)
         return LowerValue(ref = v.ref, type_id = want, in_memory = v.in_memory)
+
+    ## A float temporary of `have` as the float `want`: itself when the widths agree, else
+    ## extended or rounded once, directly between the two widths. An untyped literal is a double.
+    mutating func convert_float(r: ir.Ref, have: u32, want: u32) -> ir.Ref!:
+        let source = self.c.table.bits(have)
+        let target = self.c.table.bits(want)
+        if source == target:
+            return r
+        if source < target:
+            return try self.f.unary(ir.Op.exth if source == 16 else ir.Op.exts, self.class_of(want), r)
+        return try self.f.unary(ir.Op.truncs if source == 32 else ir.Op.truncd, self.class_of(want), r)
 
     ## An integer temporary widened from `have` to `want` (§7.5 implicit widening).
     mutating func widen(r: ir.Ref, have: u32, want: u32) -> ir.Ref!:
@@ -1291,6 +1300,9 @@ pub struct Lowerer:
             return try self.span_of(data, ir.const_ref((i64)text.length), span_type)
         if check.is_float_text(e.text):
             let bits = float_bits(e.text)
+            if t == types.f16_id:
+                let h = try self.f.unary(ir.Op.cast, ir.Class.h, ir.const_ref((i64)float16_bits(e.text)))
+                return LowerValue(ref = h, type_id = t, in_memory = false)
             if t == types.f32_id:
                 let w = try self.f.unary(ir.Op.cast, ir.Class.s, ir.const_ref((i64)float32_bits(e.text)))
                 return LowerValue(ref = w, type_id = t, in_memory = false)
@@ -2092,11 +2104,11 @@ pub struct Lowerer:
         if self.is_float(st) and self.is_int(dest):
             if not checked and self.in_core():
                 # `core.f_to_s` and `core.f_to_u` end in this cast: the instruction itself
-                let wide = try self.f.unary(ir.Op.exts, ir.Class.d, v.ref) if st == types.f32_id else v.ref
+                let wide = try self.convert_float(v.ref, st, types.f64_id)
                 let raw = try self.f.unary(ir.Op.dtosi if self.is_signed(dest) else ir.Op.dtoui, ir.Class.l, wide)
                 return LowerValue(ref = try self.from_word(raw, dest), type_id = dest, in_memory = false)
             let helper = "lb_core_f_to_s" if self.is_signed(dest) else "lb_core_f_to_u"
-            let wide = try self.f.unary(ir.Op.exts, ir.Class.d, v.ref) if st == types.f32_id else v.ref
+            let wide = try self.convert_float(v.ref, st, types.f64_id)
             let start = u32(self.f.args.count)
             try self.f.args.push(ir.Arg(value = wide, cls = ir.Class.d, size = 0, align = 8, type_id = types.f64_id, is_float_only = false, float_count = 0))
             try self.f.args.push(ir.Arg(value = ir.const_ref((i64)(self.scalar_size(dest) * 8)), cls = ir.Class.w, size = 0, align = 4, type_id = types.i32_id, is_float_only = false, float_count = 0))
@@ -2109,11 +2121,7 @@ pub struct Lowerer:
             let op = ir.Op.sltof if signed else ir.Op.ultof
             return LowerValue(ref = try self.f.unary(op, self.class_of(dest), word), type_id = dest, in_memory = false)
         if (self.is_float(st) or st == types.untyped_float_id) and self.is_float(dest):
-            if st == types.f32_id and dest == types.f64_id:
-                return LowerValue(ref = try self.f.unary(ir.Op.exts, ir.Class.d, v.ref), type_id = dest, in_memory = false)
-            if st == types.f64_id and dest == types.f32_id:
-                return LowerValue(ref = try self.f.unary(ir.Op.truncd, ir.Class.s, v.ref), type_id = dest, in_memory = false)
-            return LowerValue(ref = v.ref, type_id = dest, in_memory = false)
+            return LowerValue(ref = try self.convert_float(v.ref, st, dest), type_id = dest, in_memory = false)
         let s_word = self.is_int(st) or st == types.char_id or st == types.bool_id or st == types.untyped_int_id
         let d_word = self.is_int(dest) or dest == types.char_id
         if s_word and d_word:
@@ -2792,7 +2800,7 @@ pub struct Lowerer:
             if self.is_float(rt_raw) and callee.text == "bits":
                 let first = e.body else return try self.fail(e, "no argument")
                 let v = first.left else return try self.fail(e, "no argument")
-                let bits = try self.value(v, types.u32_id if rt_raw == types.f32_id else types.u64_id)
+                let bits = try self.value(v, self.c.bits_type(rt_raw))
                 return LowerValue(ref = try self.f.unary(ir.Op.cast, self.class_of(rt_raw), bits.ref), type_id = rt_raw, in_memory = false)
             return try self.fail(e, "native_unsupported static call")
         let rt = self.elem(rt_raw) if self.is_ptr(rt_raw) else rt_raw
@@ -3538,7 +3546,7 @@ pub struct Lowerer:
             discard(try self.call_named("lb_core_format_put", start, 3, ir.Class.w, true, types.i32_id))
             return
         if self.is_float(t) or t == types.untyped_float_id:
-            let wide = try self.f.unary(ir.Op.exts, ir.Class.d, x.ref) if t == types.f32_id else x.ref
+            let wide = try self.convert_float(x.ref, t, types.f64_id)
             let start = u32(self.f.args.count)
             try self.f.args.push(ir.Arg(value = fb, cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, is_float_only = false, float_count = 0))
             try self.f.args.push(ir.Arg(value = wide, cls = ir.Class.d, size = 0, align = 8, type_id = types.f64_id, is_float_only = false, float_count = 0))
@@ -3641,7 +3649,7 @@ pub struct Lowerer:
         var word = x.ref
         if self.is_float(t):
             word = try self.f.unary(ir.Op.cast, ir.Class.l if t == types.f64_id else ir.Class.w, x.ref)
-            if t == types.f32_id:
+            if t != types.f64_id:
                 word = try self.f.unary(ir.Op.extuw, ir.Class.l, word)
         elif t != types.untyped_int_id and not self.is_ptr(t) and t != types.cstr_id and self.class_of(t) == ir.Class.w:
             word = try self.f.unary(ir.Op.extuw, ir.Class.l, x.ref)
@@ -4031,6 +4039,63 @@ pub func float_bits(text: str) -> u64:
 pub func float32_bits(text: str) -> u64:
     let value = parse_float(text)
     return (u64)f32_to_bits(f32(value))
+
+pub func float16_bits(text: str) -> u64:
+    return half_bits(parse_float(text))
+
+## The binary16 nearest `value`, ties to even, as its sixteen bits: the compiler's own
+## rounding, so a literal's bits do not depend on the compiler being built with `f16`.
+func half_bits(value: f64) -> u64:
+    let bits = float_to_bits(value)
+    let sign = (bits >> 63) << 15
+    let exponent = (i64)((bits >> 52) & 0x7FF) - 1023
+    let fraction = bits & 0xFFFFFFFFFFFFF
+    if exponent == 1024:
+        # an infinity, or a NaN kept quiet
+        return sign | 0x7C00 | (0x200 if fraction != 0 else 0)
+    if exponent == -1023 and fraction == 0:
+        return sign
+    var biased = exponent + 15
+    var shift: i64 = 42
+    if biased <= 0:
+        # a subnormal: fewer fraction bits survive, and the hidden bit is one of them
+        shift += 1 - biased
+        biased = 0
+        if shift > 60:
+            return sign
+    let one: u64 = 1
+    let mantissa = fraction | (one << 52)
+    let dropped = mantissa & ((one << (u64)shift) - 1)
+    let half = one << (u64)(shift - 1)
+    var kept = mantissa >> (u64)shift
+    if dropped > half or (dropped == half and (kept & 1) == 1):
+        kept += 1
+    if biased == 0:
+        # rounding up out of the subnormals lands on the smallest normal, which spells itself
+        return sign | kept
+    if kept == 2048:
+        kept = 1024
+        biased += 1
+    if biased >= 31:
+        return sign | 0x7C00
+    return sign | ((u64)biased << 10) | (kept - 1024)
+
+test "half_bits rounds a double to the nearest binary16":
+    assert(half_bits(1.0) == 0x3C00)
+    assert(half_bits(-2.0) == 0xC000)
+    assert(half_bits(0.0) == 0)
+    assert(half_bits(65504.0) == 0x7BFF)
+    assert(half_bits(65519.0) == 0x7BFF)
+    assert(half_bits(65520.0) == 0x7C00)
+    assert(half_bits(1.0 / 3.0) == 0x3555)
+    assert(half_bits(0.1) == 0x2E66)
+    assert(half_bits(2049.0) == 0x6800)
+    assert(half_bits(2051.0) == 0x6802)
+    assert(half_bits(0.000000059604644775390625) == 0x0001)
+    assert(half_bits(0.0000000298023223876953125) == 0)
+    assert(half_bits(0.0000000447034835815429688) == 0x0001)
+    assert(half_bits(0.00006103515625) == 0x0400)
+    assert(half_bits(1.0e300) == 0x7C00)
 
 ## A decimal float from its text: digits, a point, an exponent.
 func parse_float(text: str) -> f64:

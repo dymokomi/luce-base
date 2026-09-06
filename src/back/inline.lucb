@@ -239,6 +239,7 @@ func store_op(cls: ir.Class) -> ir.Op:
         .w: return ir.Op.storew
         .l: return ir.Op.storel
         .s: return ir.Op.stores
+        .h: return ir.Op.storehf
         _: return ir.Op.stored
 
 func load_op(cls: ir.Class) -> ir.Op:
@@ -246,6 +247,7 @@ func load_op(cls: ir.Class) -> ir.Op:
         .w: return ir.Op.loaduw
         .l: return ir.Op.loadl
         .s: return ir.Op.loads
+        .h: return ir.Op.loadhf
         _: return ir.Op.loadd
 
 # mark: Finding functions by name ==============================================================

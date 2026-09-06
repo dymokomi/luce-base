@@ -45,6 +45,8 @@ pub enum Kind as u8:
     untyped_float = 23
     error_code = 24
     error_value = 25
+    ## the half-precision float, seeded after the first slice's scalars
+    f16_ = 26
     pointer = 30
     span = 31
     array = 32
@@ -97,7 +99,8 @@ pub let c_long_id: u32 = 27
 pub let c_ulong_id: u32 = 28
 pub let c_wchar_id: u32 = 29
 pub let c_va_list_id: u32 = 30
-let seeded: u32 = 31
+pub let f16_id: u32 = 31
+let seeded: u32 = 32
 
 ## Whether `id` is one of the `c` module's distinct types, which convert only explicitly.
 pub func is_distinct_c(id: u32) -> bool:
@@ -161,8 +164,8 @@ pub struct Table:
         var t = Table(types = try list.List[Type].create(256), index = try alloc u32[1024])
         zero_index(t.index)
         # id 0 is "no type"; the scalars follow in Kind order
-        let seeds: Kind[31] = [Kind.error_, Kind.error_, Kind.never_, Kind.unit_, Kind.bool_, Kind.i8_, Kind.i16_, Kind.i32_, Kind.i64_, Kind.isize_, Kind.u8_, Kind.u16_, Kind.u32_, Kind.u64_, Kind.usize_, Kind.f32_, Kind.f64_, Kind.char_, Kind.str_, Kind.cstr_, Kind.fmt_, Kind.void_, Kind.untyped_int, Kind.untyped_float, Kind.error_code, Kind.error_value, Kind.i8_, Kind.i64_, Kind.u64_, Kind.i32_, Kind.pointer]
-        let names: str[31] = ["", "<error>", "never", "unit", "bool", "i8", "i16", "i32", "i64", "isize", "u8", "u16", "u32", "u64", "usize", "f32", "f64", "char", "str", "c.str", "fmt", "void", "<integer>", "<float>", "ErrorCode", "Error", "c.char", "c.long", "c.ulong", "c.wchar", "c.va_list"]
+        let seeds: Kind[32] = [Kind.error_, Kind.error_, Kind.never_, Kind.unit_, Kind.bool_, Kind.i8_, Kind.i16_, Kind.i32_, Kind.i64_, Kind.isize_, Kind.u8_, Kind.u16_, Kind.u32_, Kind.u64_, Kind.usize_, Kind.f32_, Kind.f64_, Kind.char_, Kind.str_, Kind.cstr_, Kind.fmt_, Kind.void_, Kind.untyped_int, Kind.untyped_float, Kind.error_code, Kind.error_value, Kind.i8_, Kind.i64_, Kind.u64_, Kind.i32_, Kind.pointer, Kind.f16_]
+        let names: str[32] = ["", "<error>", "never", "unit", "bool", "i8", "i16", "i32", "i64", "isize", "u8", "u16", "u32", "u64", "usize", "f32", "f64", "char", "str", "c.str", "fmt", "void", "<integer>", "<float>", "ErrorCode", "Error", "c.char", "c.long", "c.ulong", "c.wchar", "c.va_list", "f16"]
         var i: usize = 0
         while i < (usize)seeded:
             # `c.va_list` is a pointer-sized opaque value on the supported targets
@@ -310,7 +313,7 @@ pub struct Table:
 
     pub func is_float(id: u32) -> bool:
         let k = self.kind(id)
-        return k == Kind.f32_ or k == Kind.f64_ or k == Kind.untyped_float
+        return k == Kind.f16_ or k == Kind.f32_ or k == Kind.f64_ or k == Kind.untyped_float
 
     pub func is_numeric(id: u32) -> bool:
         return self.is_integer(id) or self.is_float(id)
@@ -328,15 +331,16 @@ pub struct Table:
         let t = self.get(id)
         return t.kind == Kind.optional and self.has_null_niche(t.elem)
 
-    ## Bits of an integer type on the 64-bit host; 0 for anything else.
+    ## Bits of an integer or float type on the 64-bit host; 0 for anything else.
     pub func bits(id: u32) -> u32:
         match self.kind(id):
             .i8_, .u8_: return 8
             .i16_, .u16_: return 16
             .i32_, .u32_: return 32
             .i64_, .u64_, .isize_, .usize_, .untyped_int: return 64
+            .f16_: return 16
             .f32_: return 32
-            .f64_: return 64
+            .f64_, .untyped_float: return 64
             .char_: return 32
             .bool_: return 8
             _: return 0
@@ -423,7 +427,7 @@ pub struct Table:
         let t = self.get(id)
         match t.kind:
             .i8_, .u8_, .bool_: return 1
-            .i16_, .u16_: return 2
+            .i16_, .u16_, .f16_: return 2
             .i32_, .u32_, .f32_, .char_, .error_code: return 4
             .i64_, .u64_, .isize_, .usize_, .f64_, .untyped_int, .untyped_float: return 8
             .pointer, .func_, .cstr_: return 8

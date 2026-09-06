@@ -1,0 +1,6 @@
+# error: expected `f32`, got `f16`
+pub func main(arguments: str[]) -> i32:
+    let h: f16 = 1.5
+    let wider: f32 = h
+    print(f"{wider}")
+    return 0

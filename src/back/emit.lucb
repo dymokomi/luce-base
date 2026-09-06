@@ -351,6 +351,8 @@ pub struct Emitter:
                 try self.put("uint64_t")
             .usize_:
                 try self.put("size_t")
+            .f16_:
+                try self.put("_Float16")
             .f32_:
                 try self.put("float")
             .f64_:
@@ -2192,7 +2194,9 @@ pub struct Emitter:
             return
         if check.is_float_text(e.text):
             try self.put(strip_underscores(e.text))
-            if t == types.f32_id:
+            if t == types.f16_id:
+                try self.put("f16")
+            elif t == types.f32_id:
                 try self.put("f")
             return
         let value = try check.decode_integer(e.text)
@@ -2692,8 +2696,10 @@ pub struct Emitter:
             return
         if (self.is_int(st) or st == types.untyped_int_id) and self.is_float(dest):
             let signed = st == types.untyped_int_id or self.is_signed(st)
-            if dest == types.f32_id:
-                try self.put("(float)")
+            if dest != types.f64_id:
+                try self.put("(")
+                try self.put_type(dest)
+                try self.put(")")
             try self.put("lb_to_f(")
             try self.put("(int64_t)(" if signed else "(uint64_t)(")
             try self.expr(src)
@@ -3705,7 +3711,11 @@ pub struct Emitter:
                 # a bit cast, which is a constant expression when the bits are
                 let first = e.body else return
                 let v = first.left else return
-                try self.put("__builtin_bit_cast(float, (uint32_t)(" if rt_raw == types.f32_id else "__builtin_bit_cast(double, (uint64_t)(")
+                try self.put("__builtin_bit_cast(")
+                try self.put_type(rt_raw)
+                try self.put(", (")
+                try self.put_type(self.c.bits_type(rt_raw))
+                try self.put(")(")
                 try self.expr(v)
                 try self.put("))")
                 return
@@ -3888,7 +3898,8 @@ pub struct Emitter:
             try self.put(" = ")
             try self.expr(receiver)
             try self.put("; ")
-            try self.put("uint32_t " if rt == types.f32_id else "uint64_t ")
+            try self.put_type(self.c.bits_type(rt))
+            try self.put(" ")
             try self.put_tmp("fb", n)
             try self.put("; memcpy(&")
             try self.put_tmp("fb", n)

@@ -1,0 +1,31 @@
+## `f16` is a real binary16 (§5.1): two bytes in memory, every result rounded to half
+## precision, converted to and from the other floats and the integers, and passed in
+## registers like any float, alone or as a record of halves.
+struct Sample:
+    var value: f16
+    var weight: f16
+
+func weighted(s: Sample) -> f16:
+    return s.value * s.weight
+
+func halve(x: f16) -> f16:
+    return x / 2.0
+
+pub func main(arguments: str[]) -> i32:
+    let big: f16 = 2048.0
+    let next = big + 1.0
+    let third: f16 = 1.0 / 3.0
+    let s = Sample(value = f16(0.1), weight = f16(0.2))
+    let back = s.value + s.weight
+    let bits = third.bits()
+    let again = f16.bits(bits)
+    var grid: f16[4] = [1.5, 2.5, 3.5, 65504.0]
+    grid[3] = grid[3] + 32.0
+    let count = i64(grid[2])
+    print(f"{next} {f64(third)} {f32(back)} {bits} {again == third}")
+    print(f"{weighted(s)} {halve(grid[0])} {count} {f64(grid[3]) > 65504.0} {sizeof(Sample)} {sizeof(grid)}")
+    var total: f16 = 0.0
+    for x in grid[..<3]:
+        total = total + x
+    print(f"{total} {f64(grid[1]) - 0.5}")
+    return 0

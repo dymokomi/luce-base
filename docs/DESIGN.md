@@ -185,6 +185,19 @@ implementations of one contract. The native backend closes its own loop
 under the gate: the compiler built natively must emit the same C and the
 same assembly for the compiler as the C-built one does.
 
+### Half floats
+
+`f16` is the fifth register class, `h`. A half lives in the low sixteen bits of a
+`v` register and is computed on with the half-precision instructions the target
+has (`fadd h0, h1, h2`, `fcvt`, `scvtf h0, w1`), so each operation rounds once,
+exactly as the C backend's `_Float16` does. Loads and stores are `loadhf` and
+`storehf`; a conversion between float widths is `exth`, `exts`, `truncs`, or
+`truncd`, named by the source, the result's class naming the destination. A half
+scratch register spills through its `s` view so its home's whole word is written,
+which is what lets `cast` read the bits back as an integer. A literal's bits come
+from the compiler's own rounding (`half_bits` in the lowerer), so the compiler
+does not need to be built by a compiler that has `f16`.
+
 ## Packages
 
 `support/manifest.lucb` finds `luce.toml` upward from the entry file and

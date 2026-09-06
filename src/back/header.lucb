@@ -214,6 +214,7 @@ struct Header:
             .u32_: try self.out.put("uint32_t")
             .u64_: try self.out.put("uint64_t" if id != types.c_ulong_id else "unsigned long")
             .usize_: try self.out.put("size_t")
+            .f16_: try self.out.put("_Float16")
             .f32_: try self.out.put("float")
             .f64_: try self.out.put("double")
             .char_: try self.out.put("uint32_t")
