@@ -1,6 +1,7 @@
 # error: only valid in a fallible function
 
+import c
 import files
 
-func read_all(path: cstr) -> u8[]:
+func read_all(path: c.str) -> u8[]:
     return try files.read(path)

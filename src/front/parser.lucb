@@ -11,6 +11,7 @@
 #
 #==============================================================================================
 
+import c
 import front.ast
 import front.lexer
 import front.source
@@ -1158,7 +1159,7 @@ pub struct Parser:
         return false
 
     func is_type_word(word: str) -> bool:
-        let core: str[21] = ["i8", "i16", "i32", "i64", "u8", "u16", "u32", "u64", "usize", "isize", "f16", "f32", "f64", "bool", "char", "str", "cstr", "fmt", "unit", "never", "void"]
+        let core: str[20] = ["i8", "i16", "i32", "i64", "u8", "u16", "u32", "u64", "usize", "isize", "f16", "f32", "f64", "bool", "char", "str", "fmt", "unit", "never", "void"]
         for c in core:
             if c == word:
                 return true

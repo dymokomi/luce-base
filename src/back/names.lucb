@@ -12,6 +12,7 @@
 #
 #==============================================================================================
 
+import c
 import front.ast
 import memory
 import sema.types
@@ -60,6 +61,11 @@ pub func c_symbol(f: ast.Node*) -> str:
 ## A spelling of a type made of identifier characters only, unique per type.
 pub func mangled(out: buffer.Buffer*, table: types.Table*, id: u32) -> !:
     let t = table.get(id)
+    if types.is_distinct_c(id):
+        # `c.long`, `c.va_list`: the `c` module's types spell their dot as an underscore
+        for byte in t.name.bytes:
+            try out.put_byte('_' if byte == '.' else byte)
+        return
     match t.kind:
         .pointer:
             try mangled(out, table, t.elem)
@@ -108,7 +114,9 @@ pub func mangled(out: buffer.Buffer*, table: types.Table*, id: u32) -> !:
                 try mangled(out, table, t.args[i])
                 i += 1
         _:
-            try out.put(t.name)
+            # `c.str` spells its dot as an underscore
+            for byte in t.name.bytes:
+                try out.put_byte('_' if byte == '.' else byte)
 
 ## The symbol of a function or method instance.
 pub func function_name(out: buffer.Buffer*, table: types.Table*, f: ast.Node*, args: u32[], owner: ast.Node*?, owner_args: u32[]) -> !:

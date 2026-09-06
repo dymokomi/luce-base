@@ -1,0 +1,19 @@
+## The `c` module (§5.2): `c.int` is `i32` by another name; `c.char`, `c.long`, and
+## `c.wchar` are distinct types of their target width, converted explicitly; C text is
+## `c.str`, and a Base string literal converts to it because its NUL is guaranteed.
+import c
+
+extern func strlen(text: c.str) -> usize
+
+func widen(n: c.int) -> i64:
+    let same: i32 = n
+    return i64(same)
+
+pub func main(arguments: str[]) -> i32:
+    var count: c.long = -40
+    let ch: c.char = c.char(65)
+    let wide: c.wchar = (c.wchar)ch
+    let back = c.long(i64(wide) - 25)
+    let total = i64(back - count * 0) + i64(count) + widen(40) + (i64)strlen("xy") - 2
+    print(f"{total}")
+    return 0

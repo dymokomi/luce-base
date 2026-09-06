@@ -4,6 +4,7 @@
 ##
 ##     http [--port N] [--root DIR] [--threads N]
 
+import c
 import files
 import http
 import memory
@@ -124,7 +125,7 @@ func serve_file(connection: net.Connection*, request: http.Request*, route: str)
     let relative = "index.html" if route == "/" else (str)route.bytes[1..]
     var name: u8[1024]
     let path = try format(name, f"{server.root}/{relative}")
-    let data = files.read((cstr)path) catch failure:
+    let data = files.read((c.str)path) catch failure:
         if failure.code == files.missing:
             try http.respond(connection, 404, "text/plain", "not found\n".bytes, request.keep_alive)
             return

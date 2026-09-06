@@ -9,6 +9,7 @@
 #
 #==============================================================================================
 
+import c
 import files
 
 pub let bad_encoding: ErrorCode = ErrorCode.package(1)
@@ -19,7 +20,7 @@ pub struct Source:
     pub var bytes: const u8[]
 
     ## Load a file into the current allocator and check it is UTF-8 without NUL.
-    pub static func load(path: cstr) -> Source!:
+    pub static func load(path: c.str) -> Source!:
         let data = try files.read(path)
         return try Source.over((str)path, data)
 

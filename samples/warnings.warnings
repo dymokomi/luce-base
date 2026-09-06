@@ -6,4 +6,3 @@ luce-base: samples/warnings.lucb:15:5: warning: unused local `unused`
 luce-base: samples/warnings.lucb:16:5: warning: unused local `effect`
 luce-base: samples/warnings.lucb:11:1: warning: unused function `never_called`
 luce-base: samples/warnings.lucb:2:1: warning: unused import `memory`
-luce-base: samples/warnings.lucb:3:1: warning: unused import `io`

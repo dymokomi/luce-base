@@ -1,6 +1,6 @@
 ## The first sample: a struct, a method, a formatted print.
 
-from io import Writer
+from io import Writer, stdout
 
 struct Greeter:
     var name: str
@@ -10,5 +10,5 @@ struct Greeter:
 
 pub func main(arguments: str[]) -> i32!:
     var g = Greeter(name = "luce")
-    try g.greet(io.stdout())
+    try g.greet(stdout())
     return 0

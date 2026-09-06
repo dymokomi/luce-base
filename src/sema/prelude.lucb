@@ -28,16 +28,17 @@ pub struct Prelude:
 ## `atomic` before `sync`, whose orderings it declares.
 pub let modules: Prelude[17] = [
     Prelude(name = "core", text = """
+import c
 extern func write(descriptor: i32, buffer: const void*, count: usize) -> isize
 extern func c_exit as "exit"(code: i32) -> never
 extern func malloc(size: usize) -> void*?
 extern func memcpy(target: void*, source: const void*, count: usize) -> void*
 extern func memcmp(a: const void*, b: const void*, count: usize) -> i32
-extern func strlen(text: cstr) -> usize
-extern func snprintf(buffer: void*, size: usize, format: cstr, ...) -> i32
+extern func strlen(text: c.str) -> usize
+extern func snprintf(buffer: void*, size: usize, format: c.str, ...) -> i32
 
 ## Stop the program with its reason on stderr (§8.7).
-pub func trap(message: cstr) -> never:
+pub func trap(message: c.str) -> never:
     let prefix = "trap: "
     discard(write(2, prefix.bytes.data, prefix.length))
     discard(write(2, (const void*)message, strlen(message)))
@@ -161,8 +162,8 @@ pub func show_pad(inner: str, width: usize) -> str:
         discard(memcpy(&text[pad], inner.bytes.data, n))
     return show_take(&text[0], pad + n)
 
-## The startup shim's pieces: the argument vector as `str[]` (checked) or `cstr[]`.
-pub func arguments(count: i32, vector: cstr*) -> str[]:
+## The startup shim's pieces: the argument vector as `str[]` (checked) or `c.str[]`.
+pub func arguments(count: i32, vector: c.str*) -> str[]:
     let n = (usize)count
     let block = malloc((n if n > 0 else 1) * sizeof(str)) else trap("memory.exhausted")
     let items = (str*)block
@@ -175,8 +176,8 @@ pub func arguments(count: i32, vector: cstr*) -> str[]:
         i += 1
     return str[](items, n)
 
-pub func raw_arguments(count: i32, vector: cstr*) -> cstr[]:
-    return cstr[](vector, (usize)count)
+pub func raw_arguments(count: i32, vector: c.str*) -> c.str[]:
+    return c.str[](vector, (usize)count)
 
 ## A failed `main`: its error on stderr, exit status 1.
 pub func main_failed(code: i32, message: str) -> i32:
@@ -632,9 +633,10 @@ pub func grow(block: u8[], size: usize) -> u8[]!:
     return fresh
 """),
     Prelude(name = "io", text = """
+import c
 extern func fwrite(data: const void*, size: usize, count: usize, stream: void*) -> usize
 extern func fflush(stream: void*?) -> i32
-extern func fdopen(descriptor: i32, mode: cstr) -> void*?
+extern func fdopen(descriptor: i32, mode: c.str) -> void*?
 
 ## The standard sink (§14.4).
 pub interface Writer:
@@ -872,14 +874,15 @@ pub struct Semaphore:
         discard(self.count.add(1, .release))
         wake_one((void*)&self.count)
 """),
-    Prelude(name = "files", text = """import memory
+    Prelude(name = "files", text = """import c
+import memory
 
-extern func open(path: cstr, flags: i32, ...) -> i32
+extern func open(path: c.str, flags: i32, ...) -> i32
 extern func close(descriptor: i32) -> i32
 extern func c_read as "read"(descriptor: i32, buffer: void*, count: usize) -> isize
 extern func c_write as "write"(descriptor: i32, buffer: const void*, count: usize) -> isize
 extern func lseek(descriptor: i32, offset: i64, whence: i32) -> i64
-extern func opendir(path: cstr) -> void*?
+extern func opendir(path: c.str) -> void*?
 extern func readdir(directory: void*) -> Entry*?
 extern func closedir(directory: void*) -> i32
 
@@ -902,7 +905,7 @@ let seek_set: i32 = 0
 pub let missing: ErrorCode = ErrorCode.package(1)
 
 ## Whether `path` can be opened for reading.
-pub func exists(path: cstr) -> bool:
+pub func exists(path: c.str) -> bool:
     let descriptor = open(path, read_only)
     if descriptor < 0:
         return false
@@ -911,7 +914,7 @@ pub func exists(path: cstr) -> bool:
 pub let failed: ErrorCode = ErrorCode.package(2)
 
 ## The whole file, allocated from the current allocator.
-pub func read(path: cstr) -> u8[]!:
+pub func read(path: c.str) -> u8[]!:
     let fd = open(path, read_only)
     if fd < 0:
         error(missing, "missing")
@@ -934,7 +937,7 @@ pub func read(path: cstr) -> u8[]!:
     discard(close(fd))
     return bytes[..<got]
 
-pub func write(path: cstr, data: const u8[]) -> !:
+pub func write(path: c.str, data: const u8[]) -> !:
     let fd = open(path, write_only | create | truncate, 420)
     if fd < 0:
         error(missing, "missing")
@@ -948,7 +951,7 @@ pub func write(path: cstr, data: const u8[]) -> !:
     discard(close(fd))
 
 ## The names in a directory, sorted, allocated from the current allocator.
-pub func list(path: cstr) -> str[]!:
+pub func list(path: c.str) -> str[]!:
     let dir = opendir(path) else error(missing, "missing")
     var names = try alloc str[16]
     var count: usize = 0
@@ -978,13 +981,14 @@ pub func list(path: cstr) -> str[]!:
         i += 1
     return names[..<count]
 """),
-    Prelude(name = "process", text = """import memory
+    Prelude(name = "process", text = """import c
+import memory
 
 extern func pipe(descriptors: i32*) -> i32
 extern func fork() -> i32
 extern func dup2(from_fd: i32, to_fd: i32) -> i32
 extern func close(descriptor: i32) -> i32
-extern func execvp(program: cstr, arguments: void*?*) -> i32
+extern func execvp(program: c.str, arguments: void*?*) -> i32
 extern func c_exit as "exit"(code: i32) -> never
 extern func _exit(code: i32) -> never
 extern func waitpid(pid: i32, status: i32*, options: i32) -> i32
@@ -1024,7 +1028,7 @@ struct Capture:
 
 ## Run `program` with `arguments`, wait for it, and answer its exit status and
 ## what it wrote to its standard output and error.
-pub func run(program: cstr, arguments: cstr[]) -> (i32, str, str)!:
+pub func run(program: c.str, arguments: c.str[]) -> (i32, str, str)!:
     var out_pipe: i32[2]
     var err_pipe: i32[2]
     if pipe((i32*)&out_pipe) != 0:
@@ -1080,6 +1084,7 @@ pub func exit(code: i32) -> never:
     c_exit(code)
 """),
     Prelude(name = "strings", text = """
+import c
 ## Text operations over `str` views; what allocates says so and uses the current allocator.
 
 import memory
@@ -1174,7 +1179,7 @@ pub func join(pieces: const str[], separator: str) -> str!:
     out[n] = 0
     return (str)out[..<n]
 
-## A copy of `text` in the current allocator, NUL-terminated so it may be a `cstr`.
+## A copy of `text` in the current allocator, NUL-terminated so it may be a `c.str`.
 pub func copy(text: str) -> str!:
     let out = try alloc u8[text.length + 1]
     memory.copy(out, text.bytes, text.length)
@@ -1429,7 +1434,8 @@ pub func expect_text(actual: str, expected: str, message: str):
         print(f"expected `{expected}`, got `{actual}`: {message}")
         trap(message)
 """),
-    Prelude(name = "net", text = """from io import Writer
+    Prelude(name = "net", text = """import c
+from io import Writer
 
 extern func socket(domain: i32, kind: i32, protocol: i32) -> i32
 extern func bind(descriptor: i32, address: const SocketAddress*, length: u32) -> i32
@@ -1443,7 +1449,7 @@ extern func recvfrom(descriptor: i32, buffer: void*, length: usize, flags: i32, 
 extern func close(descriptor: i32) -> i32
 extern func setsockopt(descriptor: i32, level: i32, option: i32, value: const void*, length: u32) -> i32
 extern func getsockname(descriptor: i32, address: SocketAddress*, length: u32*) -> i32
-extern func getaddrinfo(host: cstr, service: cstr?, hints: const AddressInfo*?, result: AddressInfo*?*) -> i32
+extern func getaddrinfo(host: c.str, service: c.str?, hints: const AddressInfo*?, result: AddressInfo*?*) -> i32
 extern func freeaddrinfo(info: AddressInfo*)
 
 ## `sockaddr_in` as arm64-macos lays it out.
@@ -1461,7 +1467,7 @@ extern struct AddressInfo:
     kind: i32
     protocol: i32
     address_length: u32
-    canonical: cstr?
+    canonical: c.str?
     address: SocketAddress*?
     next: AddressInfo*?
 
@@ -1501,7 +1507,7 @@ func swap32(value: u32) -> u32:
     return (value << 24) | ((value << 8) & 16711680) | ((value >> 8) & 65280) | (value >> 24)
 
 ## The first IPv4 address of `host`.
-pub func resolve(host: cstr, port: u16) -> Address!:
+pub func resolve(host: c.str, port: u16) -> Address!:
     var hints = AddressInfo(flags = 0, family = inet, kind = stream, protocol = 0, address_length = 0, canonical = none, address = none, next = none)
     var found: AddressInfo*? = none
     if getaddrinfo(host, none, &hints, &found) != 0:
@@ -1619,9 +1625,10 @@ pub struct Datagram:
     pub func close():
         discard(close(self.descriptor))
 """),
-    Prelude(name = "debug", text = """import memory
+    Prelude(name = "debug", text = """import c
+import memory
 
-extern func getenv(name: cstr) -> cstr?
+extern func getenv(name: c.str) -> c.str?
 extern func c_read as "read"(descriptor: i32, buffer: void*, count: usize) -> isize
 extern func c_exit as "exit"(code: i32) -> never
 
@@ -1837,8 +1844,8 @@ func show(local: Local*, frame: void*?):
     elif kind == "str":
         let text = memory.read[str](address)
         print(f"{local.name}: {kind} = \\"{text}\\"")
-    elif kind == "cstr":
-        let text = memory.read[cstr](address)
+    elif kind == "c.str":
+        let text = memory.read[c.str](address)
         print(f"{local.name}: {kind} = \\"{(str)text}\\"")
     elif ends_with(kind, "*") or ends_with(kind, "*?"):
         print(f"{local.name}: {kind} = 0x{hex(memory.read[usize](address))}")
@@ -1891,21 +1898,9 @@ func read_line() -> str?:
     return (str)line_bytes[..<used]
 """),
     Prelude(name = "c", text = """
-pub type int = i32
-pub type uint = u32
-pub type short = i16
-pub type ushort = u16
-pub type long = i64
-pub type ulong = u64
-pub type longlong = i64
-pub type ulonglong = u64
-pub type char = i8
-pub type uchar = u8
-pub type size_t = usize
-pub type ssize_t = isize
-pub type float = f32
-pub type double = f64
-pub type wchar = i32
+## C's types live here (base.md §5.2); the checker supplies them, since their widths are the
+## target's: `c.int` and the other fixed-width ones are Base types by another name, `c.char`,
+## `c.long`, `c.ulong`, and `c.wchar` are distinct, `c.va_list` is opaque, `c.str` is C text.
 
 ## The C standard streams; the backend supplies them.
 pub func stdin() -> void*:

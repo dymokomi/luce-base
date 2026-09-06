@@ -6,6 +6,7 @@
 ##
 ## Build: luce-base build programs/metal/main.lucb --native -lobjc -framework Foundation -framework Metal
 
+import c
 import objc
 import strings
 
@@ -25,9 +26,9 @@ pub let failed: ErrorCode = ErrorCode.package(1)
 
 ## The shader: one thread squares one element. `[[buffer(0)]]` and `[[buffer(1)]]` bind
 ## the input and output; `[[thread_position_in_grid]]` is the element index.
-let shader: cstr = "#include <metal_stdlib>\nusing namespace metal;\nkernel void square(const device float* input [[buffer(0)]], device float* output [[buffer(1)]], uint i [[thread_position_in_grid]]) { output[i] = input[i] * input[i]; }"
+let shader: c.str = "#include <metal_stdlib>\nusing namespace metal;\nkernel void square(const device float* input [[buffer(0)]], device float* output [[buffer(1)]], uint i [[thread_position_in_grid]]) { output[i] = input[i] * input[i]; }"
 
-func nsstring(text: cstr) -> void*!:
+func nsstring(text: c.str) -> void*!:
     let s = objc.send_p(objc.class("NSString"), "stringWithUTF8String:", (void*)text) else error(failed, "NSString")
     return s
 

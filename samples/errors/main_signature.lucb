@@ -1,3 +1,5 @@
-# error: `main` takes `str[]` or `cstr[]`
+# error: `main` takes `str[]` or `c.str[]`
+import c
+
 pub func main() -> i32:
     return 0

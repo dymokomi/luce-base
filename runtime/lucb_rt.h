@@ -13,6 +13,7 @@
 
 #pragma once
 
+#include <stdarg.h>
 #include <stdatomic.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -252,7 +253,7 @@ typedef struct lb_r_unit {
 } lb_r_unit;
 
 /* The startup shim's pieces, shared by the C and native backends: the argument
-   vector as `str[]` (checked) or `cstr[]`, a failed `main`, and the test runner's
+   vector as `str[]` (checked) or `c.str[]`, a failed `main`, and the test runner's
    report lines. */
 lb_span lb_arguments(int argc, char** argv, bool as_text);
 int lb_entry_failed(lb_error error);

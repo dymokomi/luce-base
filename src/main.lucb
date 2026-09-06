@@ -9,6 +9,7 @@
 #
 #==============================================================================================
 
+import c
 import back.backend
 import files
 import front.ast
@@ -38,18 +39,18 @@ struct Options:
     var native: bool
     var debug: bool
     ## `-lNAME` and `-LDIR`: libraries to link and where to find them.
-    var libraries: (cstr?)[16]
+    var libraries: (c.str?)[16]
     var library_count: usize
-    var library_dirs: (cstr?)[8]
+    var library_dirs: (c.str?)[8]
     var library_dir_count: usize
     ## `-framework NAME`: an Apple framework to link.
-    var frameworks: (cstr?)[16]
+    var frameworks: (c.str?)[16]
     var framework_count: usize
 
-## Element `k` of a link-flag list; an empty slot reads as empty text. A `cstr` has no zero
-## value (§6.1), so the lists hold `cstr?`.
-func at(list: (cstr?)[], k: usize) -> cstr:
-    return list[k] else (cstr)""
+## Element `k` of a link-flag list; an empty slot reads as empty text. A `c.str` has no zero
+## value (§6.1), so the lists hold `c.str?`.
+func at(list: (c.str?)[], k: usize) -> c.str:
+    return list[k] else (c.str)""
 
 ## Whether `text` begins with `prefix`. The compiler's own sources stay within the seed's
 ## modules, so this is written here rather than taken from `strings`.
@@ -64,7 +65,7 @@ func starts_with(text: str, prefix: str) -> bool:
     return true
 
 ## Whether `flag` is among the arguments.
-func has_argument(arguments: cstr[], flag: str) -> bool:
+func has_argument(arguments: c.str[], flag: str) -> bool:
     for a in arguments:
         if (str)a == flag:
             return true
@@ -82,7 +83,7 @@ func report_warnings(c: check.Checker*) -> !:
         i += 1
 
 ## Check FILE and its imports, then generate C for the whole program.
-func generate(path: cstr, mode: u32) -> str!:
+func generate(path: c.str, mode: u32) -> str!:
     var c = try check.Checker.create(scratch_of())
     try c.add_prelude()
     try c.load(path)
@@ -108,11 +109,11 @@ var native_backend: bool
 ## `--debug`: the native backend describes every frame and calls the `debug` module.
 var debug_backend: bool
 ## `-lNAME`, `-LDIR`, and `-framework NAME` of the current build, for the link step.
-var link_libraries: (cstr?)[16]
+var link_libraries: (c.str?)[16]
 var link_library_count: usize
-var link_dirs: (cstr?)[8]
+var link_dirs: (c.str?)[8]
 var link_dir_count: usize
-var link_frameworks: (cstr?)[16]
+var link_frameworks: (c.str?)[16]
 var link_framework_count: usize
 
 var scratch_bytes: u8[4096]
@@ -125,7 +126,7 @@ func scratch_of() -> u8[]:
 ## Turn the generated text into `exe` in a scratch directory: assembly through the
 ## host assembler and linker, C through the host C compiler.
 func compile(text: str, exe: str, release: bool, with_start: bool) -> !:
-    let mktemp_args: cstr[2] = ["-d", "/tmp/luce-base.XXXXXX"]
+    let mktemp_args: c.str[2] = ["-d", "/tmp/luce-base.XXXXXX"]
     let made = try process.run("mktemp", mktemp_args)
     let (status, dir_text, unused_err) = made
     discard(unused_err.length)
@@ -134,7 +135,7 @@ func compile(text: str, exe: str, release: bool, with_start: bool) -> !:
     # the scratch names must end in NUL for the C library; `format` appends one
     var names: u8[4096]
     let dir = try format(names[3072..], f"{trim(dir_text)}")
-    defer remove_tree((cstr)dir)
+    defer remove_tree((c.str)dir)
     if native_backend:
         try assemble_and_link(dir, names[..<3072], text, exe)
         return
@@ -143,25 +144,25 @@ func compile(text: str, exe: str, release: bool, with_start: bool) -> !:
     let runtime_path = try format(names[1024..<1536], f"{dir}/lucb_rt.c")
     let start_path = try format(names[1536..<2048], f"{dir}/start.c")
     let err_path = try format(names[2048..<2560], f"{dir}/cc.err")
-    try files.write((cstr)gen_path, text.bytes)
-    try files.write((cstr)header_path, runtime.header.bytes)
-    try files.write((cstr)runtime_path, runtime.source.bytes)
+    try files.write((c.str)gen_path, text.bytes)
+    try files.write((c.str)header_path, runtime.header.bytes)
+    try files.write((c.str)runtime_path, runtime.source.bytes)
     if with_start:
-        try files.write((cstr)start_path, runtime.start.bytes)
+        try files.write((c.str)start_path, runtime.start.bytes)
     var include = try format(names[2560..<3072], f"-I{dir}")
-    var cc_args: cstr[40] = ---
+    var cc_args: c.str[40] = ---
     cc_args[0] = "-std=gnu11"
     cc_args[1] = "-Wall"
     cc_args[2] = "-Werror"
     cc_args[3] = "-O2" if release and not native_backend else "-O0"
-    cc_args[4] = (cstr)include
-    cc_args[5] = (cstr)gen_path
-    cc_args[6] = (cstr)runtime_path
-    cc_args[7] = (cstr)start_path if with_start else "-fno-common"
+    cc_args[4] = (c.str)include
+    cc_args[5] = (c.str)gen_path
+    cc_args[6] = (c.str)runtime_path
+    cc_args[7] = (c.str)start_path if with_start else "-fno-common"
     cc_args[8] = "-lm"
     cc_args[9] = "-pthread"
     cc_args[10] = "-o"
-    cc_args[11] = (cstr)exe
+    cc_args[11] = (c.str)exe
     var n: usize = 12
     var flag_bytes: u8[2048]
     var used: usize = 0
@@ -169,17 +170,17 @@ func compile(text: str, exe: str, release: bool, with_start: bool) -> !:
     while k < link_dir_count and n + 2 < cc_args.length:
         let flag = try format(flag_bytes[used..], f"-L{(str)at(link_dirs, k)}")
         used += flag.length + 1
-        cc_args[n] = (cstr)flag
+        cc_args[n] = (c.str)flag
         let path = try format(flag_bytes[used..], f"-Wl,-rpath,{(str)at(link_dirs, k)}")
         used += path.length + 1
-        cc_args[n + 1] = (cstr)path
+        cc_args[n + 1] = (c.str)path
         n += 2
         k += 1
     k = 0
     while k < link_library_count and n < cc_args.length:
         let flag = try format(flag_bytes[used..], f"-l{(str)at(link_libraries, k)}")
         used += flag.length + 1
-        cc_args[n] = (cstr)flag
+        cc_args[n] = (c.str)flag
         n += 1
         k += 1
     k = 0
@@ -201,33 +202,33 @@ func compile(text: str, exe: str, release: bool, with_start: bool) -> !:
 func assemble_and_link(dir: str, names: u8[], text: str, exe: str) -> !:
     let asm_path = try format(names[..<512], f"{dir}/gen.s")
     let object_path = try format(names[512..<1024], f"{dir}/gen.o")
-    try files.write((cstr)asm_path, text.bytes)
-    var as_args: cstr[3] = ---
+    try files.write((c.str)asm_path, text.bytes)
+    var as_args: c.str[3] = ---
     as_args[0] = "-o"
-    as_args[1] = (cstr)object_path
-    as_args[2] = (cstr)asm_path
+    as_args[1] = (c.str)object_path
+    as_args[2] = (c.str)asm_path
     let assembled = try process.run("as", as_args)
     let (as_status, as_out, as_err) = assembled
     discard(as_out.length)
     if as_status != 0:
         try io.stderr().write(as_err)
         error(build_failed, "the assembler rejected the generated code")
-    let sdk_args: cstr[1] = ["--show-sdk-path"]
+    let sdk_args: c.str[1] = ["--show-sdk-path"]
     let found = try process.run("xcrun", sdk_args)
     let (sdk_status, sdk_out, sdk_err) = found
     discard(sdk_err.length)
     if sdk_status != 0:
         error(build_failed, "xcrun could not find the SDK")
     let sdk = try format(names[1024..<2048], f"{trim(sdk_out)}")
-    var ld_args: cstr[40] = ---
+    var ld_args: c.str[40] = ---
     ld_args[0] = "-arch"
     ld_args[1] = "arm64"
     ld_args[2] = "-syslibroot"
-    ld_args[3] = (cstr)sdk
+    ld_args[3] = (c.str)sdk
     ld_args[4] = "-lSystem"
     ld_args[5] = "-o"
-    ld_args[6] = (cstr)exe
-    ld_args[7] = (cstr)object_path
+    ld_args[6] = (c.str)exe
+    ld_args[7] = (c.str)object_path
     var n: usize = 8
     var flag_bytes: u8[2048]
     var used: usize = 0
@@ -243,7 +244,7 @@ func assemble_and_link(dir: str, names: u8[], text: str, exe: str) -> !:
     while k < link_library_count and n < ld_args.length:
         let flag = try format(flag_bytes[used..], f"-l{(str)at(link_libraries, k)}")
         used += flag.length + 1
-        ld_args[n] = (cstr)flag
+        ld_args[n] = (c.str)flag
         n += 1
         k += 1
     k = 0
@@ -260,7 +261,7 @@ func assemble_and_link(dir: str, names: u8[], text: str, exe: str) -> !:
         error(build_failed, "the linker rejected the generated code")
 
 ## `build FILE`: check, generate, compile.
-func build_file(path: cstr, options: Options) -> !:
+func build_file(path: c.str, options: Options) -> !:
     let backing = try alloc u8[arena_size] in memory.heap
     defer free(backing) in memory.heap
     var arena = memory.FixedBuffer.over(backing)
@@ -285,7 +286,7 @@ func build_file(path: cstr, options: Options) -> !:
         let text = try generate(path, 1 if options.run_tests else 0)
         if options.emit_c:
             if options.output.length > 0:
-                try files.write((cstr)options.output, text.bytes)
+                try files.write((c.str)options.output, text.bytes)
             else:
                 try io.stdout().write(text)
             return
@@ -295,14 +296,14 @@ func build_file(path: cstr, options: Options) -> !:
         try compile(text, exe, options.release, used_mode == 2 and not native_backend)
 
 ## `test FILE`: build the test runner into a scratch file and run it.
-func test_file(path: cstr, native: bool) -> i32!:
+func test_file(path: c.str, native: bool) -> i32!:
     let backing = try alloc u8[arena_size] in memory.heap
     defer free(backing) in memory.heap
     var arena = memory.FixedBuffer.over(backing)
     with arena:
         native_backend = native
         let text = try generate(path, 1)
-        let mktemp_args: cstr[1] = ["/tmp/luce-base-test.XXXXXX"]
+        let mktemp_args: c.str[1] = ["/tmp/luce-base-test.XXXXXX"]
         let made = try process.run("mktemp", mktemp_args)
         let (status, exe_text, unused_err) = made
         discard(unused_err.length)
@@ -311,24 +312,24 @@ func test_file(path: cstr, native: bool) -> i32!:
         var exe_name: u8[512]
         let exe = try format(exe_name, f"{trim(exe_text)}")
         # the scratch file goes whether the build or the run fails
-        defer remove_file((cstr)exe)
+        defer remove_file((c.str)exe)
         try compile(text, exe, false, false)
-        var run_args: cstr[1] = ---
-        run_args[0] = (cstr)exe
-        let ran = try process.run((cstr)exe, run_args)
+        var run_args: c.str[1] = ---
+        run_args[0] = (c.str)exe
+        let ran = try process.run((c.str)exe, run_args)
         let (code, out, err) = ran
         try io.stdout().write(out)
         try io.stderr().write(err)
         return code
 
-func remove_file(path: cstr):
+func remove_file(path: c.str):
     remove_path("-f", path)
 
-func remove_tree(path: cstr):
+func remove_tree(path: c.str):
     remove_path("-rf", path)
 
-func remove_path(flag: cstr, path: cstr):
-    var rm_args: cstr[2] = ---
+func remove_path(flag: c.str, path: c.str):
+    var rm_args: c.str[2] = ---
     rm_args[0] = flag
     rm_args[1] = path
     let ran = process.run("rm", rm_args) catch:
@@ -349,7 +350,7 @@ func trim(text: str) -> str:
     return (str)b[..<end]
 
 ## Check FILE and the modules it imports from its directory; silence means success.
-func check_file(path: cstr) -> !:
+func check_file(path: c.str) -> !:
     let backing = try alloc u8[arena_size] in memory.heap
     defer free(backing) in memory.heap
     var arena = memory.FixedBuffer.over(backing)
@@ -365,7 +366,7 @@ func check_file(path: cstr) -> !:
 ## freed until the command ends.
 let arena_size: usize = 536870912
 
-func parse_file(path: cstr, out: io.Writer) -> !:
+func parse_file(path: c.str, out: io.Writer) -> !:
     let backing = try alloc u8[arena_size] in memory.heap
     defer free(backing) in memory.heap
     var arena = memory.FixedBuffer.over(backing)
@@ -376,7 +377,7 @@ func parse_file(path: cstr, out: io.Writer) -> !:
         let module = try p.parse_module()
         try ast.dump(out, module, 0)
 
-func lex_file(path: cstr, out: io.Writer) -> !:
+func lex_file(path: c.str, out: io.Writer) -> !:
     let backing = try alloc u8[arena_size] in memory.heap
     defer free(backing) in memory.heap
     var arena = memory.FixedBuffer.over(backing)
@@ -392,7 +393,7 @@ func lex_file(path: cstr, out: io.Writer) -> !:
             else:
                 try out.write(f"{t.line}:{t.column} {t.label()} {lx.text(t)}\n")
 
-pub func main(arguments: cstr[]) -> i32!:
+pub func main(arguments: c.str[]) -> i32!:
     let out = io.stdout()
     if arguments.length < 2:
         try usage(io.stderr())
@@ -440,10 +441,10 @@ pub func main(arguments: cstr[]) -> i32!:
             elif a == "-W":
                 show_warnings = true
             elif starts_with(a, "-l") and a.length > 2 and options.library_count < options.libraries.length:
-                options.libraries[options.library_count] = (cstr)(str)a.bytes[2..]
+                options.libraries[options.library_count] = (c.str)(str)a.bytes[2..]
                 options.library_count += 1
             elif starts_with(a, "-L") and a.length > 2 and options.library_dir_count < options.library_dirs.length:
-                options.library_dirs[options.library_dir_count] = (cstr)(str)a.bytes[2..]
+                options.library_dirs[options.library_dir_count] = (c.str)(str)a.bytes[2..]
                 options.library_dir_count += 1
             elif a == "-framework" and i + 1 < arguments.length and options.framework_count < options.frameworks.length:
                 options.frameworks[options.framework_count] = arguments[i + 1]

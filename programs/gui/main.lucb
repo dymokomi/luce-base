@@ -7,26 +7,27 @@
 ##
 ## Build: luce-base build programs/gui/main.lucb --native -lSDL3 -L/opt/homebrew/lib
 
+import c
 import editor.buffer
 import editor.session
 import editor.terminal
 import files
 import memory
 
-extern func SDL_SetHint(name: cstr, value: cstr) -> bool
+extern func SDL_SetHint(name: c.str, value: c.str) -> bool
 extern func SDL_Init(flags: u32) -> bool
 extern func SDL_Quit()
-extern func SDL_GetError() -> cstr
-extern func SDL_CreateWindow(title: cstr, width: i32, height: i32, flags: u64) -> void*?
+extern func SDL_GetError() -> c.str
+extern func SDL_CreateWindow(title: c.str, width: i32, height: i32, flags: u64) -> void*?
 extern func SDL_DestroyWindow(window: void*)
-extern func SDL_CreateRenderer(window: void*, name: cstr?) -> void*?
+extern func SDL_CreateRenderer(window: void*, name: c.str?) -> void*?
 extern func SDL_DestroyRenderer(renderer: void*)
 extern func SDL_SetRenderScale(renderer: void*, x: f32, y: f32) -> bool
 extern func SDL_GetRenderOutputSize(renderer: void*, width: i32*, height: i32*) -> bool
 extern func SDL_SetRenderDrawColor(renderer: void*, r: u8, g: u8, b: u8, a: u8) -> bool
 extern func SDL_RenderClear(renderer: void*) -> bool
 extern func SDL_RenderFillRect(renderer: void*, rect: const Rect*) -> bool
-extern func SDL_RenderDebugText(renderer: void*, x: f32, y: f32, text: cstr) -> bool
+extern func SDL_RenderDebugText(renderer: void*, x: f32, y: f32, text: c.str) -> bool
 extern func SDL_RenderPresent(renderer: void*) -> bool
 extern func SDL_PollEvent(event: void*) -> bool
 extern func SDL_StartTextInput(window: void*) -> bool
@@ -150,7 +151,7 @@ struct Window:
         memory.copy(line, raw, n)
         line[n] = 0
         discard(SDL_SetRenderDrawColor(self.renderer, r, g, b, 255))
-        discard(SDL_RenderDebugText(self.renderer, (f32)column * cell, (f32)row * cell, (cstr)(str)line[..<n]))
+        discard(SDL_RenderDebugText(self.renderer, (f32)column * cell, (f32)row * cell, (c.str)(str)line[..<n]))
 
 ## The next key from SDL's queue, none when the queue is empty; quit closes the session.
 func next_key(event_bytes: u8[], quit: bool*) -> terminal.Key?:
@@ -160,7 +161,7 @@ func next_key(event_bytes: u8[], quit: bool*) -> terminal.Key?:
             *quit = true
             return none
         if kind == event_text_input:
-            let text = memory.read[cstr]((void*)((usize)event_bytes.data + 24))
+            let text = memory.read[c.str]((void*)((usize)event_bytes.data + 24))
             let bytes = (str)text
             if bytes.length > 0:
                 # the rest of a multi-byte character follows through the queue
@@ -238,7 +239,7 @@ pub func main(arguments: str[]) -> i32!:
     if headless:
         var script_name: u8[1024]
         let script_path = try format(script_name, f"{arguments[3]}")
-        let keys = try files.read((cstr)script_path)
+        let keys = try files.read((c.str)script_path)
         defer free(keys)
         try editor.replay(try str(keys))
         window.draw(&editor.text, editor.path, editor.message())

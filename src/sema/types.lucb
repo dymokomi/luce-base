@@ -13,6 +13,7 @@
 #
 #==============================================================================================
 
+import c
 import front.ast
 import io
 import memory
@@ -89,7 +90,18 @@ pub let untyped_int_id: u32 = 22
 pub let untyped_float_id: u32 = 23
 pub let error_code_id: u32 = 24
 pub let error_value_id: u32 = 25
-let seeded: u32 = 26
+## The `c` module's distinct types (base.md §5.2): integers of a target-dependent width,
+## and the opaque `va_list`, each its own type although its kind is a Base one.
+pub let c_char_id: u32 = 26
+pub let c_long_id: u32 = 27
+pub let c_ulong_id: u32 = 28
+pub let c_wchar_id: u32 = 29
+pub let c_va_list_id: u32 = 30
+let seeded: u32 = 31
+
+## Whether `id` is one of the `c` module's distinct types, which convert only explicitly.
+pub func is_distinct_c(id: u32) -> bool:
+    return id >= c_char_id and id <= c_va_list_id
 
 # mark: The type record ========================================================================
 
@@ -118,11 +130,13 @@ pub struct Table:
     pub static func create() -> Table!:
         var t = Table(types = try list.List[Type].create(256))
         # id 0 is "no type"; the scalars follow in Kind order
-        let seeds: Kind[26] = [Kind.error_, Kind.error_, Kind.never_, Kind.unit_, Kind.bool_, Kind.i8_, Kind.i16_, Kind.i32_, Kind.i64_, Kind.isize_, Kind.u8_, Kind.u16_, Kind.u32_, Kind.u64_, Kind.usize_, Kind.f32_, Kind.f64_, Kind.char_, Kind.str_, Kind.cstr_, Kind.fmt_, Kind.void_, Kind.untyped_int, Kind.untyped_float, Kind.error_code, Kind.error_value]
-        let names: str[26] = ["", "<error>", "never", "unit", "bool", "i8", "i16", "i32", "i64", "isize", "u8", "u16", "u32", "u64", "usize", "f32", "f64", "char", "str", "cstr", "fmt", "void", "<integer>", "<float>", "ErrorCode", "Error"]
+        let seeds: Kind[31] = [Kind.error_, Kind.error_, Kind.never_, Kind.unit_, Kind.bool_, Kind.i8_, Kind.i16_, Kind.i32_, Kind.i64_, Kind.isize_, Kind.u8_, Kind.u16_, Kind.u32_, Kind.u64_, Kind.usize_, Kind.f32_, Kind.f64_, Kind.char_, Kind.str_, Kind.cstr_, Kind.fmt_, Kind.void_, Kind.untyped_int, Kind.untyped_float, Kind.error_code, Kind.error_value, Kind.i8_, Kind.i64_, Kind.u64_, Kind.i32_, Kind.pointer]
+        let names: str[31] = ["", "<error>", "never", "unit", "bool", "i8", "i16", "i32", "i64", "isize", "u8", "u16", "u32", "u64", "usize", "f32", "f64", "char", "str", "c.str", "fmt", "void", "<integer>", "<float>", "ErrorCode", "Error", "c.char", "c.long", "c.ulong", "c.wchar", "c.va_list"]
         var i: usize = 0
-        while i < 26:
-            try t.types.push(Type(kind = seeds[i], elem = 0, args = try no_args(), length = 0, is_const = false, is_volatile = false, variadic = false, decl = none, name = names[i]))
+        while i < (usize)seeded:
+            # `c.va_list` is a pointer-sized opaque value on the supported targets
+            let elem = void_id if i == (usize)c_va_list_id else 0
+            try t.types.push(Type(kind = seeds[i], elem = elem, args = try no_args(), length = 0, is_const = false, is_volatile = false, variadic = false, decl = none, name = names[i]))
             i += 1
         return t
 
@@ -241,7 +255,7 @@ pub struct Table:
     pub func is_pointer(id: u32) -> bool:
         return self.kind(id) == Kind.pointer
 
-    ## `T*?`, `cstr?`, and `func(...)?` are one word with null as the niche (§5.3, §5.5, §5.6).
+    ## `T*?`, `c.str?`, and `func(...)?` are one word with null as the niche (§5.3, §5.5, §5.6).
     pub func has_null_niche(elem: u32) -> bool:
         let inner = self.kind(elem)
         return inner == Kind.pointer or inner == Kind.cstr_ or inner == Kind.func_
@@ -268,6 +282,8 @@ pub struct Table:
     ## the same signedness and no fewer bits.
     pub func widens(source: u32, target: u32) -> bool:
         if not self.is_integer(source) or not self.is_integer(target):
+            return false
+        if is_distinct_c(source) or is_distinct_c(target):
             return false
         if self.kind(source) == Kind.untyped_int:
             return true

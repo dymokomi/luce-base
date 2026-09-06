@@ -8,6 +8,7 @@
 ##     ^K delete the line   ^A ^E line start and end   arrows, home, end, page up and down
 ##     option-arrows: by word
 
+import c
 import files
 import editor.screen
 import editor.session
@@ -28,7 +29,7 @@ pub func main(arguments: str[]) -> i32!:
             return 2
         var script_name: u8[1024]
         let script_path = try format(script_name, f"{arguments[3]}")
-        let keys = try files.read((cstr)script_path)
+        let keys = try files.read((c.str)script_path)
         defer free(keys)
         var term = terminal.Terminal.headless()
         editor.page_rows = term.rows - 2

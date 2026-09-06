@@ -20,6 +20,7 @@
 #
 #==============================================================================================
 
+import c
 import files
 import front.ast
 import front.parser
@@ -270,17 +271,6 @@ pub struct Checker:
         b.origin = at
         self.scope.set(self.scope.count - 1, b)
 
-    ## The binding of `name` now counts for import `at`.
-    mutating func reassign_origin(name: str, at: ast.Node*):
-        var i = self.scope.count
-        while i > 0:
-            i -= 1
-            var b = self.scope.get(i)
-            if b.name == name:
-                b.origin = at
-                self.scope.set(i, b)
-                return
-
     ## A name was used: the import it came through is referenced (§16.3).
     func note_origin(b: Binding):
         if let o = b.origin:
@@ -326,12 +316,12 @@ pub struct Checker:
             try self.add_module(p.name, src, true)
 
     ## Load `path` and, first, every module it imports from the same directory.
-    pub mutating func load(path: cstr) -> !:
+    pub mutating func load(path: c.str) -> !:
         self.root = directory_of((str)path)
         try self.load_as(path, module_name_of((str)path))
 
     ## Load `path` as module `name`; an imported module keeps its dotted path as its name.
-    pub mutating func load_as(path: cstr, name: str) -> !:
+    pub mutating func load_as(path: c.str, name: str) -> !:
         let text = (str)path
         let src = source.Source.load(path) catch failure:
             let half = self.scratch.length // 2
@@ -350,7 +340,7 @@ pub struct Checker:
             if d.kind == ast.Kind.import_ or d.kind == ast.Kind.from_import:
                 if self.find_module(d.text) == none and not is_standard_module(d.text):
                     let sibling = try self.resolve_import(d.text)
-                    try self.load_as((cstr)sibling, d.text)
+                    try self.load_as((c.str)sibling, d.text)
             cursor = d.next
         tree.text = name
         try self.modules.push(Module(name = name, tree = tree, src = src, is_prelude = false))
@@ -366,10 +356,15 @@ pub struct Checker:
             for i in dir.length..<candidate.length:
                 if candidate.bytes[i] == '.' and i + 5 < candidate.length:
                     buffer[i] = '/'
-            if file_exists((cstr)candidate) or dir.length == 0:
+            if file_exists((c.str)candidate) or dir.length == 0:
                 self.root = dir
                 return candidate
             dir = parent_of(dir)
+
+    ## Whether `m` is the standard `c` module, whose types the checker supplies (§5.2).
+    func is_c_module(m: ast.Node*) -> bool:
+        let index = self.find_module("c") else return false
+        return self.modules.get(index).tree == m
 
     pub func find_module(name: str) -> usize?:
         var i: usize = 0
@@ -417,7 +412,7 @@ pub struct Checker:
                 discard(try self.fail(s, "a naked function's body is asm blocks only"))
             cursor = s.next
 
-    ## `main` takes `str[]` or `cstr[]` and returns `i32` or `i32!` (§9.7).
+    ## `main` takes `str[]` or `c.str[]` and returns `i32` or `i32!` (§9.7).
     mutating func check_entry(tree: ast.Node*) -> !:
         let d = find_decl(tree, "main") else return
         if d.kind != ast.Kind.func_:
@@ -431,20 +426,15 @@ pub struct Checker:
             let p = self.table.get(ft.args[0])
             good = p.kind == types.Kind.span and (p.elem == types.str_id or p.elem == types.cstr_id)
         if not good:
-            discard(try self.fail(d, "`main` takes `str[]` or `cstr[]` and returns `i32` or `i32!`"))
+            discard(try self.fail(d, "`main` takes `str[]` or `c.str[]` and returns `i32` or `i32!`"))
 
     ## Nothing is visible without an import (§16.3): a standard module is `import io`,
     ## one of its declarations `from io import Writer`, in the prelude as anywhere else.
     mutating func bind_standard() -> !:
         return
 
-    ## Import `at` makes `tree` visible as `alias`. When the name is bound already, a `from`
-    ## import takes the binding over: `import io` beside `from io import Writer` is the
-    ## redundant one, and gets reported as unused.
     mutating func bind_module(tree: ast.Node*, alias: str, at: ast.Node*) -> !:
         if self.lookup(alias) != none:
-            if at.kind == ast.Kind.from_import:
-                self.reassign_origin(alias, at)
             return
         if tree.type_id == types.none_id:
             tree.type_id = try self.table.nominal(types.Kind.module, tree, try types.no_args())
@@ -472,8 +462,7 @@ pub struct Checker:
                 let index = self.find_module(d.text) else return try self.fail(d, "cannot find that module")
                 let other = self.modules.get(index).tree
                 d.resolved = other
-                # `from io import Writer` also makes `io` visible (§16.3)
-                try self.bind_module(other, last_component(d.text), d)
+                # `from io import Writer` brings `Writer` alone; `io` itself needs `import io`
                 var names = d.body
                 while let n = names:
                     let member = find_decl(other, n.text) else return try self.fail(n, "no such public name in that module")
@@ -723,6 +712,8 @@ pub struct Checker:
             let module = mb.decl else return try self.fail(t, "unknown type")
             if module.kind != ast.Kind.module:
                 return try self.fail(t, "that is not a module")
+            if self.is_c_module(module) and c_type_id(rest) != types.none_id:
+                return c_type_id(rest)
             let d = find_decl(module, rest) else return try self.fail(t, "no such type in that module")
             if not d.has(ast.flag_pub):
                 return try self.fail(t, "that type is not public")
@@ -1821,7 +1812,7 @@ pub struct Checker:
             return want
         if have == types.cstr_id and want == types.str_id:
             return want
-        # `cstr` is a pointer to C text; it converts to and from object pointers
+        # `c.str` is a pointer to C text; it converts to and from object pointers
         if have == types.cstr_id and d.kind == types.Kind.pointer:
             return want
         if s.kind == types.Kind.pointer and want == types.cstr_id:
@@ -1979,6 +1970,9 @@ pub struct Checker:
         let ot = self.table.get(raw)
         if ot.kind == types.Kind.module:
             let m = ot.decl else return try self.fail(e, "no module")
+            if self.is_c_module(m) and c_type_id(name) != types.none_id:
+                e.flags |= ast.flag_type_ref
+                return c_type_id(name)
             let d = find_decl(m, name) else return try self.fail(e, "no such public name in that module")
             if not d.has(ast.flag_pub):
                 return try self.fail(e, "that name is not public")
@@ -3346,6 +3340,30 @@ func param_at(d: ast.Node*, index: usize) -> ast.Node*?:
 # mark: Name helpers ===========================================================================
 
 ## The id of a scalar or core type name, or `none_id`.
+## The `c` module's types (base.md §5.2): the fixed-width ones are Base types by another
+## name; `char`, `long`, `ulong`, `wchar`, and `va_list` are distinct; `str` is C text.
+pub func c_type_id(name: str) -> u32:
+    if name == "int": return types.i32_id
+    if name == "uint": return types.u32_id
+    if name == "short": return types.i16_id
+    if name == "ushort": return types.u16_id
+    if name == "schar": return types.i8_id
+    if name == "uchar": return types.u8_id
+    if name == "longlong": return types.i64_id
+    if name == "ulonglong": return types.u64_id
+    if name == "float": return types.f32_id
+    if name == "double": return types.f64_id
+    if name == "bool": return types.bool_id
+    if name == "size" or name == "uintptr": return types.usize_id
+    if name == "ssize" or name == "ptrdiff" or name == "intptr": return types.isize_id
+    if name == "char": return types.c_char_id
+    if name == "long": return types.c_long_id
+    if name == "ulong": return types.c_ulong_id
+    if name == "wchar": return types.c_wchar_id
+    if name == "va_list": return types.c_va_list_id
+    if name == "str": return types.cstr_id
+    return types.none_id
+
 pub func scalar_id(name: str) -> u32:
     if name == "i8":
         return types.i8_id
@@ -3377,8 +3395,6 @@ pub func scalar_id(name: str) -> u32:
         return types.char_id
     if name == "str":
         return types.str_id
-    if name == "cstr":
-        return types.cstr_id
     if name == "fmt":
         return types.fmt_id
     if name == "unit":
@@ -3687,7 +3703,7 @@ pub func parent_of(dir: str) -> str:
         i += 1
     return (str)b[..<end]
 
-func file_exists(path: cstr) -> bool:
+func file_exists(path: c.str) -> bool:
     let data = files.read(path) catch:
         return false
     return data.length >= 0

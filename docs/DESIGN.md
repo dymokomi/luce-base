@@ -68,6 +68,22 @@ Base text parsed and checked before the program's own modules, which keeps
 and they are imported like any other module: nothing is in scope without
 `import io` or `from io import Writer` (§16.6).
 
+The `c` module is the one standard module whose types the checker supplies
+rather than parses (§5.2): their widths are the target's, not Base text. The
+fixed-width ones, `c.int` and kin, resolve to the Base type of that width, so
+`c.int` and `i32` are one type; `c.char`, `c.long`, `c.ulong`, `c.wchar`, and
+the opaque `c.va_list` are seeded at fixed ids (`types.c_char_id`…) with a
+Base kind for their arithmetic and a name of their own for identity, so they
+convert only through `T(x)` or a cast (`is_distinct_c` keeps them out of
+implicit widening). C text is `c.str`. Nothing of the module is visible
+without `import c`.
+
+Names the language owns (§3.5: `str`, `i8`, `unit`, `print`, `pad`…) sit in
+`token.core_names`; no declaration of any kind may take one, and the
+standard modules, which are what those names mean, are exempt. A `from`
+import brings exactly the names it lists (§16.3); a program that also writes
+`io.stdout()` needs `import io` as well.
+
 Generic declarations are checked once, against their written constraints,
 with their parameters as opaque types (§13). A use substitutes the arguments
 into the signature and never re-checks the body; inference walks parameter

@@ -2,6 +2,7 @@
 ## history, the cursor commands, the find prompt, and saving. It knows nothing
 ## about drawing beyond how many rows a page holds.
 
+import c
 import editor.buffer
 import files
 import editor.history
@@ -27,7 +28,7 @@ pub struct Session:
     pub static func open(path: str) -> Session!:
         var name: u8[1024]
         let c_path = try format(name, f"{path}")
-        let read = files.read((cstr)c_path) catch failure:
+        let read = files.read((c.str)c_path) catch failure:
             if failure.code != files.missing:
                 error(failure.code, failure.message)
             recover u8[]((u8*)8, 0)
@@ -217,7 +218,7 @@ pub struct Session:
         defer free(data)
         var name: u8[1024]
         let path = try format(name, f"{self.path}")
-        try files.write((cstr)path, data)
+        try files.write((c.str)path, data)
         self.text.dirty = false
         var prompt: u8[160]
         self.say(try format(prompt, f"saved {data.length} bytes to {self.path}"))

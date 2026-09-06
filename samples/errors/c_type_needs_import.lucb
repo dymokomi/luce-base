@@ -1,0 +1,5 @@
+# error: unknown type
+
+pub func main(arguments: str[]) -> i32:
+    var n: c.int = 40
+    return 0
