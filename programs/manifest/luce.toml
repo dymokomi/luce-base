@@ -1,0 +1,6 @@
+[package]
+name = "manifest"
+symbol_prefix = "mf_"
+
+[native]
+sources = ["helper.c"]

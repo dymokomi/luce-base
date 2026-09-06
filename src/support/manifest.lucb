@@ -1,0 +1,176 @@
+#==============================================================================================
+#
+#   manifest - The package manifest, `luce.toml`
+#
+#   DESCRIPTION:
+#       A package has a `luce.toml` at its root (base.md §16.4). This reads the little of it
+#       the compiler needs: `[package] name`, the identity of the package's error codes
+#       (§11.3); `symbol_prefix`, what every exported symbol starts with (§17.6); and the
+#       `[native]` inputs the build hands the C compiler and the linker (§17.4). The file is
+#       found upward from the entry file's directory; a program without one is the package
+#       `app` with no inputs.
+#
+#==============================================================================================
+
+import c
+import files
+import memory
+
+pub let malformed: ErrorCode = ErrorCode.package(17)
+
+## What the manifest says; the lists hold NUL-terminated text, ready for a tool's arguments.
+pub struct Manifest:
+    pub var name: str
+    ## The directory holding `luce.toml`, with its trailing slash; empty when none was found.
+    pub var root: str
+    pub var symbol_prefix: str
+    pub var sources: c.str[]
+    pub var libraries: c.str[]
+    pub var link_search: c.str[]
+    pub var frameworks: c.str[]
+    pub var pkg_config: c.str[]
+
+## The manifest of the package holding `entry_path`, or the default one.
+pub func load(entry_path: str) -> Manifest!:
+    var dir = directory_of(entry_path)
+    while true:
+        var buffer = try alloc u8[dir.length + 16]
+        let candidate = try format(buffer, f"{dir}luce.toml")
+        if let text = read_if_present((c.str)candidate):
+            return try parse((str)text, dir)
+        if dir.length == 0:
+            return try parse("", "")
+        dir = parent_of(dir)
+
+## The bytes of the file at `path`, or `none` when there is no such file.
+func read_if_present(path: c.str) -> u8[]?:
+    let data = files.read(path) catch:
+        return none
+    return data
+
+## The manifest `text` describes, for the package rooted at `root`.
+pub func parse(text: str, root: str) -> Manifest!:
+    var m = Manifest(name = "app", root = root, symbol_prefix = "", sources = try no_items(), libraries = try no_items(),
+                     link_search = try no_items(), frameworks = try no_items(), pkg_config = try no_items())
+    var section: str = ""
+    var rest = text
+    while rest.length > 0:
+        let cut = find_byte(rest, '\n')
+        let line = trim((str)rest.bytes[..<cut])
+        rest = (str)rest.bytes[cut + 1..] if cut < rest.length else ""
+        if line.length == 0 or line.bytes[0] == '#':
+            continue
+        if line.bytes[0] == '[':
+            section = line
+            continue
+        let eq = find_byte(line, '=')
+        if eq >= line.length:
+            return error(malformed, "a manifest line is neither a section nor `key = value`")
+        let key = trim((str)line.bytes[..<eq])
+        let value = trim((str)line.bytes[eq + 1..])
+        if section == "[package]":
+            if key == "name":
+                m.name = unquote(value)
+            elif key == "symbol_prefix":
+                m.symbol_prefix = unquote(value)
+        elif section == "[native]":
+            if key == "sources":
+                m.sources = try items_of(value)
+            elif key == "libraries":
+                m.libraries = try items_of(value)
+            elif key == "link_search":
+                m.link_search = try items_of(value)
+            elif key == "frameworks":
+                m.frameworks = try items_of(value)
+            elif key == "pkg_config":
+                m.pkg_config = try items_of(value)
+    return m
+
+## `["a", "b"]` as its strings, each copied with a NUL after it; a bare string is one item.
+func items_of(value: str) -> c.str[]!:
+    var body = value
+    if body.length >= 2 and body.bytes[0] == '[' and body.bytes[body.length - 1] == ']':
+        body = (str)body.bytes[1..<body.length - 1]
+    var out = try alloc c.str[body.length + 1]
+    var count: usize = 0
+    var rest = body
+    while rest.length > 0:
+        let cut = find_byte(rest, ',')
+        let item = unquote(trim((str)rest.bytes[..<cut]))
+        rest = (str)rest.bytes[cut + 1..] if cut < rest.length else ""
+        if item.length > 0:
+            var copy = try alloc u8[item.length + 1]
+            out[count] = (c.str)(try format(copy, f"{item}"))
+            count += 1
+    return out[..<count]
+
+func unquote(value: str) -> str:
+    let b = value.bytes
+    if b.length >= 2 and (b[0] == '"' or b[0] == '\'') and b[b.length - 1] == b[0]:
+        return (str)b[1..<b.length - 1]
+    return value
+
+## The index of `wanted` in `text`, or the length when absent.
+func find_byte(text: str, wanted: u8) -> usize:
+    var i: usize = 0
+    for b in text.bytes:
+        if b == wanted:
+            return i
+        i += 1
+    return text.length
+
+## `text` without the blanks at either end.
+func trim(text: str) -> str:
+    let b = text.bytes
+    var start: usize = 0
+    var end = b.length
+    while start < end and (b[start] == ' ' or b[start] == '\t' or b[start] == '\r'):
+        start += 1
+    while end > start and (b[end - 1] == ' ' or b[end - 1] == '\t' or b[end - 1] == '\r'):
+        end -= 1
+    return (str)b[start..<end]
+
+func no_items() -> c.str[]!:
+    var none_at_all = try alloc c.str[1]
+    return none_at_all[..<0]
+
+## The directory part of a path, with its trailing slash; empty for a bare name.
+pub func directory_of(path: str) -> str:
+    let b = path.bytes
+    var end: usize = 0
+    var i: usize = 0
+    while i < b.length:
+        if b[i] == '/':
+            end = i + 1
+        i += 1
+    return (str)b[..<end]
+
+## The directory above `dir`, with its trailing slash; empty at the top.
+pub func parent_of(dir: str) -> str:
+    let b = dir.bytes
+    if b.length == 0:
+        return ""
+    var end: usize = 0
+    var i: usize = 0
+    while i + 1 < b.length:
+        if b[i] == '/':
+            end = i + 1
+        i += 1
+    return (str)b[..<end]
+
+test "a manifest names the package, the prefix, and the native inputs":
+    var backing: u8[8192]
+    var arena = memory.FixedBuffer.over(backing)
+    with arena:
+        let m = try parse("# the package\n[package]\nname = \"widgets\"\nsymbol_prefix = \"wg_\"\n\n[native]\nsources = [\"vendor/a.c\", \"shims.c\"]\nlibraries = [\"m\"]\nframeworks = [\"Metal\"]\n", "pkg/")
+        assert(m.name == "widgets")
+        assert(m.symbol_prefix == "wg_")
+        assert(m.root == "pkg/")
+        assert(m.sources.length == 2)
+        assert((str)m.sources[1] == "shims.c")
+        assert(m.libraries.length == 1)
+        assert(m.frameworks.length == 1)
+        assert(m.pkg_config.length == 0)
+        let none_at_all = try parse("", "")
+        assert(none_at_all.name == "app")
+        assert(none_at_all.sources.length == 0)

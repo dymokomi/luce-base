@@ -104,6 +104,8 @@ pub struct Checker:
     var at_top_level: bool
     ## The directory of the entry file; dotted imports resolve beneath it.
     var root: str
+    ## The manifest's name (§16.4): the identity of the package's error codes (§11.3).
+    pub var package_name: str
     ## Inside a lambda body, bindings below this index (the enclosing locals) are hidden:
     ## a lambda captures nothing (§9.6).
     var lambda_floor: usize
@@ -116,7 +118,7 @@ pub struct Checker:
                        scope = try list.List[Binding].create(512), warnings = try list.List[str].create(16), depth = 0, scratch = scratch,
                        current = 0, current_func = none, result_type = types.unit_id, fallible = false,
                        self_type = types.none_id, self_mutable = false, in_init = false, loop_depth = 0, in_catch = false,
-                       catch_result = types.none_id, checking_template = false, at_top_level = false, root = "")
+                       catch_result = types.none_id, checking_template = false, at_top_level = false, root = "", package_name = "app")
 
     # -- diagnostics ----------------------------------------------------------------------
 
@@ -2194,6 +2196,22 @@ pub struct Checker:
             i += 1
         return try self.table.function(params[..<f.args.length], f.elem, false)
 
+    ## `ErrorCode.package(n)` becomes the literal `(identity << 16) | n` (§11.3): the identity is
+    ## sixteen bits of the package's name, `luce` for the standard modules, so that no two
+    ## packages share a code and the backends see a plain constant.
+    mutating func fold_package_code(e: ast.Node*) -> !:
+        let argument = e.body else return try self.fail(e, "`ErrorCode.package` takes a code")
+        let v = argument.left else return try self.fail(e, "`ErrorCode.package` takes a code")
+        if v.kind != ast.Kind.literal:
+            return try self.fail(v, "`ErrorCode.package` takes an integer literal")
+        let code = try decode_integer(v.text)
+        if code > 65535:
+            return try self.fail(v, "an error code is at most 65535; the package's identity takes the high half")
+        let name = "luce" if self.in_prelude() else self.package_name
+        let full = ((u64)package_identity(name) << 16) | code
+        var digits = try alloc u8[24]
+        v.text = try format(digits, f"{full}")
+
     ## `Type.name`: a static method, an enum case, `ErrorCode.package`, `f32.bits`.
     mutating func static_member(e: ast.Node*, owner: ast.Node*, id: u32) -> u32!:
         let name = e.text
@@ -2336,6 +2354,10 @@ pub struct Checker:
                     if self.table.kind(self.deref(rt)) == types.Kind.atomic:
                         return try self.atomic_call(e, callee, self.deref(rt))
         let ct = try self.check_expr(callee, types.none_id)
+        if callee.kind == ast.Kind.member and callee.has(ast.flag_static) and callee.text == "package" and is_error_code_type(callee.left):
+            let answered = try self.check_call(e, ct, none, none, none, try types.no_args(), hint)
+            try self.fold_package_code(e)
+            return answered
         if let resolved = callee.resolved:
             if resolved.kind == ast.Kind.enum_case and callee.kind == ast.Kind.member:
                 # `Kind.case(args)`: the payload's parameters take named or positional arguments
@@ -3490,6 +3512,19 @@ pub func case_value(d: ast.Node*, target: ast.Node*) -> u64:
             next = v + 1
         cursor = node.next
     return 0
+
+## The identity of a package's error codes (§11.3): sixteen bits of its name, the same
+## computation in every compiler of the language.
+pub func package_identity(name: str) -> u32:
+    var h: u32 = 2166136261
+    for byte in name.bytes:
+        h = (h ^ (u32)byte) *% 16777619
+    return (h ^ (h >> 16)) & 65535
+
+## Whether a callee's receiver is the `ErrorCode` type itself.
+func is_error_code_type(receiver: ast.Node*?) -> bool:
+    let r = receiver else return false
+    return r.has(ast.flag_type_ref) and r.type_id == types.error_code_id
 
 ## The position of parameter `name` among the ones a caller supplies: an extern's `out`
 ## parameter takes no argument (§17.1), so it has no position.

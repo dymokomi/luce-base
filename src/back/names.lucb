@@ -18,6 +18,10 @@ import memory
 import sema.types
 import support.buffer
 
+## The manifest's `symbol_prefix` (§17.6): what every exported symbol starts with. The driver
+## sets it once per build.
+pub var export_prefix: str
+
 ## The module a top-level declaration belongs to, by name.
 pub func module_of(d: ast.Node*) -> str:
     let m = d.resolved else return "x"
@@ -124,6 +128,7 @@ pub func function_name(out: buffer.Buffer*, table: types.Table*, f: ast.Node*, a
         try out.put(c_symbol(f))
         return
     if f.has(ast.flag_export):
+        try out.put(export_prefix)
         if let o = owner:
             try out.put(o.text)
             try out.put("_")

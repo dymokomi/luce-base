@@ -13,6 +13,7 @@ import c
 import back.backend
 import back.header
 import back.names
+import support.manifest
 import files
 import front.ast
 import front.lexer
@@ -119,7 +120,11 @@ func generate_library(path: c.str) -> (str, str)!:
 
 ## The program at `path`, checked, with its warnings reported.
 func checked(path: c.str) -> check.Checker!:
+    let m = try manifest.load((str)path)
+    package = m
+    names.export_prefix = m.symbol_prefix
     var checker = try check.Checker.create(scratch_of())
+    checker.package_name = m.name
     try checker.add_prelude()
     try checker.load(path)
     try checker.check_program()
@@ -144,6 +149,8 @@ var debug_backend: bool
 var freestanding: bool
 ## `--profile diagnostic`: filled `---` storage and a quarantining allocator (§19.4).
 var diagnostic_profile: bool
+## The manifest of the package being built (§16.4): its native inputs reach the build.
+var package: manifest.Manifest
 ## `-lNAME`, `-LDIR`, and `-framework NAME` of the current build, for the link step.
 var link_libraries: (c.str?)[16]
 var link_library_count: usize
@@ -203,6 +210,37 @@ func compile(text: str, exe: str, release: bool, with_start: bool) -> !:
     var flag_bytes: u8[2048]
     var used: usize = 0
     var k: usize = 0
+    # the manifest's C sources, under the package root (§17.4)
+    var source_bytes: u8[2048]
+    var source_used: usize = 0
+    k = 0
+    while k < package.sources.length and n < cc_args.length:
+        let path = try format(source_bytes[source_used..], f"{package.root}{(str)package.sources[k]}")
+        source_used += path.length + 1
+        cc_args[n] = (c.str)path
+        n += 1
+        k += 1
+    k = 0
+    while k < package.libraries.length and n < cc_args.length:
+        let flag = try format(flag_bytes[used..], f"-l{(str)package.libraries[k]}")
+        used += flag.length + 1
+        cc_args[n] = (c.str)flag
+        n += 1
+        k += 1
+    k = 0
+    while k < package.link_search.length and n < cc_args.length:
+        let flag = try format(flag_bytes[used..], f"-L{(str)package.link_search[k]}")
+        used += flag.length + 1
+        cc_args[n] = (c.str)flag
+        n += 1
+        k += 1
+    k = 0
+    while k < package.frameworks.length and n + 1 < cc_args.length:
+        cc_args[n] = "-framework"
+        cc_args[n + 1] = package.frameworks[k]
+        n += 2
+        k += 1
+    k = 0
     while k < link_dir_count and n + 2 < cc_args.length:
         let flag = try format(flag_bytes[used..], f"-L{(str)at(link_dirs, k)}")
         used += flag.length + 1
@@ -271,6 +309,39 @@ func assemble_and_link(dir: str, name_bytes: u8[], text: str, exe: str) -> !:
         ld_args[n] = "-e"
         ld_args[n + 1] = "__start"
         n += 2
+    # the manifest's C sources (§17.4), each compiled to an object beside the assembly
+    var object_bytes: u8[2048]
+    var object_used: usize = 0
+    var s: usize = 0
+    while s < package.sources.length and n < ld_args.length:
+        let source_path = try format(object_bytes[object_used..], f"{package.root}{(str)package.sources[s]}")
+        object_used += source_path.length + 1
+        let compiled = try format(object_bytes[object_used..], f"{dir}/source{s}.o")
+        object_used += compiled.length + 1
+        var cc_args: c.str[6] = ["-std=gnu11", "-c", (c.str)source_path, "-O2", "-o", (c.str)compiled]
+        try run_tool("cc", cc_args, "the C compiler rejected a source the manifest names")
+        ld_args[n] = (c.str)compiled
+        n += 1
+        s += 1
+    s = 0
+    while s < package.libraries.length and n < ld_args.length:
+        let flag = try format(object_bytes[object_used..], f"-l{(str)package.libraries[s]}")
+        object_used += flag.length + 1
+        ld_args[n] = (c.str)flag
+        n += 1
+        s += 1
+    s = 0
+    while s < package.link_search.length and n + 1 < ld_args.length:
+        ld_args[n] = "-L"
+        ld_args[n + 1] = package.link_search[s]
+        n += 2
+        s += 1
+    s = 0
+    while s < package.frameworks.length and n + 1 < ld_args.length:
+        ld_args[n] = "-framework"
+        ld_args[n + 1] = package.frameworks[s]
+        n += 2
+        s += 1
     var flag_bytes: u8[2048]
     var used: usize = 0
     var k: usize = 0

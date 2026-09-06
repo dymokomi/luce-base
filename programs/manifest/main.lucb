@@ -1,0 +1,22 @@
+## The manifest reaches the build (§16.4): `[native] sources` are compiled in (§17.4), an
+## `export` carries `symbol_prefix` (§17.6), and every error code carries the package's
+## identity in its high half (§11.3), so the same `package(1)` in two packages never collides.
+## Build: luce-base build programs/manifest/main.lucb [--native] -o build/mf
+
+extern func helper_twice_plus(x: i32, y: i32) -> i32
+
+pub let first: ErrorCode = ErrorCode.package(1)
+
+export func twice(x: i32) -> i32:
+    return x * 2
+
+func fails() -> i64!:
+    error(first, "as planned")
+
+pub func main(arguments: str[]) -> i32:
+    print(f"{helper_twice_plus(19, 2)}")
+    let caught = fails() catch failure:
+        print(f"{failure.code == first} {failure.message}")
+        recover 0
+    print(f"{caught}")
+    return 0

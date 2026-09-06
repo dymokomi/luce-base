@@ -185,6 +185,19 @@ implementations of one contract. The native backend closes its own loop
 under the gate: the compiler built natively must emit the same C and the
 same assembly for the compiler as the C-built one does.
 
+## Packages
+
+`support/manifest.lucb` finds `luce.toml` upward from the entry file and
+reads what the compiler needs of it (§16.4): the package's name, its
+`symbol_prefix`, and the `[native]` inputs. The name is the identity of the
+package's error codes (§11.3): the checker folds `ErrorCode.package(n)` into
+the literal `(identity << 16) | n`, sixteen bits of the name for a program's
+own modules and of `luce` for the standard ones, the same computation the
+seed makes, so the backends see a plain constant and two packages' codes
+never collide. The prefix is put before every exported symbol by both
+backends and the header writer; the native inputs are compiled and linked
+by the driver, each C source to an object beside the generated code.
+
 ## Libraries
 
 `luce build --lib -o NAME` (§17.6) asks either backend for mode 3, a program

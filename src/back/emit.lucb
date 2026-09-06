@@ -563,6 +563,7 @@ pub struct Emitter:
             try self.put(names.c_symbol(f))
             return
         if f.has(ast.flag_export):
+            try self.put(names.export_prefix)
             if let o = owner:
                 try self.put(o.text)
                 try self.put("_")

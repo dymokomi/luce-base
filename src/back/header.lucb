@@ -12,6 +12,7 @@
 #
 #==============================================================================================
 
+import back.names
 import c
 import front.ast
 import memory
@@ -168,6 +169,7 @@ struct Header:
             return error(not_representable, "a fallible function cannot be exported yet")
         try self.spell(ft.elem)
         try self.out.put(" ")
+        try self.out.put(names.export_prefix)
         if let o = owner:
             try self.out.put(o.text)
             try self.out.put("_")
