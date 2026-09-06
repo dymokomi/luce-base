@@ -102,6 +102,8 @@ pub struct Lowerer:
     var mode: u32
     ## The format buffer a `Display` field writes into, while lowering its call.
     var format_sink: ir.Ref
+    ## `--profile diagnostic`: `---` storage is filled with a pattern, the allocator quarantines.
+    pub var diagnostic: bool
 
     pub static func create(c: check.Checker*, entry: ast.Node*) -> Lowerer!:
         return Lowerer(c = c, program_unit = try ir.Unit.create(), f = try ir.Function.create(""), scratch = try buffer.Buffer.create(256), debug = false,
@@ -112,7 +114,7 @@ pub struct Lowerer:
                        locals = try list.List[LowerLocal].create(64), scopes = try list.List[LowerScope].create(32),
                        defers = try list.List[NodeRef].create(32), result_slot = 0, self_slot = 0, catch_slot = 0,
                        catch_done = 0, catch_payload = 0, catch_error_slot = 0, in_catch = false, match_slot = 0,
-                       match_type = 0, src_file = entry.text, mode = 0, format_sink = ir.none_ref())
+                       match_type = 0, src_file = entry.text, mode = 0, format_sink = ir.none_ref(), diagnostic = false)
 
     func fail(node: ast.Node*, what: str) -> never!:
         # the checker's scratch outlives the arena the tree lives in, so the report does too
@@ -698,6 +700,9 @@ pub struct Lowerer:
         let t = try self.map(s.type_id)
         let slot = try self.bind_local(s, t)
         if s.has(ast.flag_uninit):
+            if self.diagnostic:
+                # the diagnostic profile fills `---` storage with a pattern (§19.4)
+                try self.f.emit(ir.Op.fill, ir.Class.l, 0, try self.slot_address(slot), ir.const_ref(170), self.size(t))
             return
         let address = try self.slot_address(slot)
         if let init = s.left:
@@ -3751,6 +3756,9 @@ pub struct Lowerer:
         try self.f.params.push(ir.Param(cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, slot = argv_slot, is_float_only = false, float_count = 0))
         try self.push_scope(false, "", 0, 0)
         discard(try self.call_named("lb_init_globals", u32(self.f.args.count), 0, ir.Class.w, false, types.unit_id))
+        if self.diagnostic:
+            # the allocator quarantines what is released (§19.4)
+            try self.f.store(ir.Op.storeb, ir.const_ref(1), try self.f.address_of(ir.global_ref("lb_memory_diagnostic")))
         discard(try self.call_named("lb_memory_startup", u32(self.f.args.count), 0, ir.Class.w, false, types.unit_id))
         let exit_code = try self.f.slot(4, 4)
         try self.f.store(ir.Op.storew, ir.const_ref(0), try self.slot_address(exit_code))

@@ -98,7 +98,7 @@ func is_small(g: ir.Function*) -> bool:
 ## function's own temporaries, slots, and labels are left to a real call.
 func is_expandable_op(op: ir.Op) -> bool:
     match op:
-        .asm_, .set_reg, .get_reg, .frame, .fence, .atomic_load, .atomic_store, .atomic_add, .atomic_sub, .atomic_or, .atomic_and_not, .atomic_xor, .atomic_swap, .atomic_max, .atomic_min, .atomic_cas:
+        .asm_, .set_reg, .get_reg, .frame, .fence, .fill, .atomic_load, .atomic_store, .atomic_add, .atomic_sub, .atomic_or, .atomic_and_not, .atomic_xor, .atomic_swap, .atomic_max, .atomic_min, .atomic_cas:
             return false
         _:
             return true

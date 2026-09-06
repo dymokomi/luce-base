@@ -494,17 +494,17 @@ pub struct Table:
                 var largest: u64 = 0
                 var widest: u64 = 4
                 var cursor = decl.body
-                while let c = cursor:
-                    if c.kind == ast.Kind.enum_case:
+                while let node = cursor:
+                    if node.kind == ast.Kind.enum_case:
                         var offset: u64 = 0
-                        var pcursor = c.body
+                        var pcursor = node.body
                         while let p = pcursor:
                             let a = self.aligned(p.type_id, decl, inner)
                             offset = round_up(offset, a) + self.sized(p.type_id, decl, inner)
                             widest = a if a > widest else widest
                             pcursor = p.next
                         largest = offset if offset > largest else largest
-                    cursor = c.next
+                    cursor = node.next
                 return round_up(round_up(4, widest) + largest, widest)
             _: return 0
 

@@ -1,0 +1,9 @@
+# error: this name is an import; a local may not shadow it
+import io
+
+func twice(io: i64) -> i64:
+    return io * 2
+
+pub func main(arguments: str[]) -> i32:
+    print(f"{twice(20)}")
+    return 0

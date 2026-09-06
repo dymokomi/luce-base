@@ -140,6 +140,8 @@ pub enum Op as u8:
     blit = 81
     ## `zero a, extra bytes`
     zero = 82
+    ## `fill a, extra bytes` with the byte constant `b`: the diagnostic profile's pattern
+    fill = 83
     ## `call`: `a` is the callee, arguments follow in the function's argument list
     call = 90
     ## control: `label extra`, `jmp extra`, `jnz a, extra (then), value (else)`, `ret [a]`

@@ -106,9 +106,11 @@ pub struct Emitter:
     ## The format buffer temporary a `Display` field writes into, while emitting its call.
     var sink_prefix: str
     var sink_index: u32
+    ## `--profile diagnostic`: `---` storage is filled with a pattern, the allocator quarantines.
+    pub var diagnostic: bool
 
-    pub static func create(c: check.Checker*, entry: ast.Node*) -> Emitter!:
-        return Emitter(c = c, out = try buffer.Buffer.create(65536), body = try buffer.Buffer.create(262144),
+    pub static func create(checker: check.Checker*, entry: ast.Node*) -> Emitter!:
+        return Emitter(c = checker, out = try buffer.Buffer.create(65536), body = try buffer.Buffer.create(262144),
                        globals = try buffer.Buffer.create(4096), protos = try buffer.Buffer.create(16384), target = to_body, indent = 0, counter = 0,
                        modules = try list.List[NodeRef].create(16), entry = entry,
                        funcs = try list.List[Instance].create(64), records = try list.List[Instance].create(64),
@@ -119,7 +121,7 @@ pub struct Emitter:
                        owner_args = try types.no_args(), scopes = try list.List[Scope].create(64),
                        defers = try list.List[NodeRef].create(64), catch_var = 0, catch_done = 0,
                        catch_payload = 0, match_result = 0, in_catch = false, src_file = entry.text, wrote_writer = false,
-                       sink_prefix = "", sink_index = 0)
+                       sink_prefix = "", sink_index = 0, diagnostic = false)
 
     # -- output ---------------------------------------------------------------------------
 
@@ -1213,6 +1215,13 @@ pub struct Emitter:
         try self.put(" __attribute__((unused))")
         if s.has(ast.flag_uninit):
             try self.put(";")
+            if self.diagnostic:
+                # the diagnostic profile fills `---` storage with a pattern (§19.4)
+                try self.put(" memset(&")
+                try self.put_ident(s.text)
+                try self.put(", 0xAA, sizeof(")
+                try self.put_ident(s.text)
+                try self.put("));")
             return
         try self.put(" = ")
         if let init = s.left:
@@ -2229,25 +2238,25 @@ pub struct Emitter:
 
     ## An enum case value: the integer, or the tagged record with its payload.
     mutating func enum_value(e: ast.Node*) -> !:
-        let c = e.resolved else return try self.put("0")
+        let resolved = e.resolved else return try self.put("0")
         let t = try self.ty(e)
         let d = self.decl_of(t) else return try self.put("0")
         if self.is_int_enum(t):
             try self.put("((")
             try self.put_type(t)
             try self.put(")")
-            try self.put_u64(case_int(d, c))
+            try self.put_u64(case_int(d, resolved))
             try self.put("u)")
             return
         try self.put("((")
         try self.put_type(t)
         try self.put("){ .tag = ")
-        try self.put_u64((u64)case_tag(d, c))
-        if e.body != none and c.body != none:
+        try self.put_u64((u64)case_tag(d, resolved))
+        if e.body != none and resolved.body != none:
             try self.put(", .u.")
-            try self.put(c.text)
+            try self.put(resolved.text)
             try self.put(" = {")
-            var param = c.body
+            var param = resolved.body
             var arg = e.body
             var first = true
             while let p = param:
@@ -2728,16 +2737,16 @@ pub struct Emitter:
         try self.put("); if (!(")
         var first = true
         var cursor = d.body
-        while let c = cursor:
-            if c.kind == ast.Kind.enum_case:
+        while let node = cursor:
+            if node.kind == ast.Kind.enum_case:
                 if not first:
                     try self.put(" || ")
                 first = false
                 try self.put_tmp("ev", n)
                 try self.put(" == ")
-                try self.put_u64(case_int(d, c))
+                try self.put_u64(case_int(d, node))
                 try self.put("u")
-            cursor = c.next
+            cursor = node.next
         if first:
             try self.put("0")
         try self.put(")) lb_trap(\"invalid enum value\"); ")
@@ -3241,11 +3250,11 @@ pub struct Emitter:
                     if p.has(ast.flag_wildcard):
                         try self.line("default:")
                     elif let v = p.left:
-                        if let c = v.resolved:
-                            if c.kind == ast.Kind.enum_case:
+                        if let resolved = v.resolved:
+                            if resolved.kind == ast.Kind.enum_case:
                                 let d = self.decl_of(st) else return
                                 try self.line("case ")
-                                try self.put_u64(case_int(d, c))
+                                try self.put_u64(case_int(d, resolved))
                                 try self.put("LL:")
                                 pattern = p.next
                                 continue
@@ -3284,9 +3293,9 @@ pub struct Emitter:
                     if p.has(ast.flag_wildcard):
                         try self.line("default:")
                     elif let v = p.left:
-                        if let c = v.resolved:
+                        if let resolved = v.resolved:
                             try self.line("case ")
-                            try self.put_u64((u64)case_tag(d, c))
+                            try self.put_u64((u64)case_tag(d, resolved))
                             try self.put(":")
                             if v.body != none:
                                 payload_pattern = p
@@ -3295,9 +3304,9 @@ pub struct Emitter:
                 self.indent += 1
                 if let p = payload_pattern:
                     if let v = p.left:
-                        if let c = v.resolved:
+                        if let resolved = v.resolved:
                             var name = v.body
-                            var param = c.body
+                            var param = resolved.body
                             while let nm = name:
                                 let q = param else break
                                 if nm.text != "_":
@@ -3308,7 +3317,7 @@ pub struct Emitter:
                                     try self.put(" __attribute__((unused)) = ")
                                     try self.put_tmp("m", n)
                                     try self.put(".u.")
-                                    try self.put(c.text)
+                                    try self.put(resolved.text)
                                     try self.put(".")
                                     try self.put(q.text)
                                     try self.put(";")
@@ -3659,8 +3668,8 @@ pub struct Emitter:
             return
         # a static method or a payload case through the type
         if receiver.has(ast.flag_type_ref):
-            if let c = callee.resolved:
-                if c.kind == ast.Kind.enum_case:
+            if let resolved = callee.resolved:
+                if resolved.kind == ast.Kind.enum_case:
                     try self.enum_value(e)
                     return
             if let d = callee.resolved:
@@ -5124,7 +5133,7 @@ pub struct Emitter:
     ## A library starts its runtime when it is loaded, since no `main` of its own will.
     mutating func library_init() -> !:
         try self.line("__attribute__((constructor)) static void lb_library_init(void) {")
-        try self.line("    lb_memory_startup();")
+        try self.startup_lines()
         try self.line("}")
 
     mutating func prologue() -> !:
@@ -5275,7 +5284,7 @@ pub struct Emitter:
         if ft.args.length > 0:
             cstr_args = self.elem(ft.args[0]) == types.cstr_id
         try self.line("int main(int argc, char** argv) {")
-        try self.line("    lb_memory_startup();")
+        try self.startup_lines()
         if cstr_args:
             try self.line("    lb_span args = { (void*)argv, (size_t)argc };")
         else:
@@ -5312,9 +5321,15 @@ pub struct Emitter:
         try self.line("}")
 
     ## A `main` that runs every test in order and reports.
+    ## The runtime's start, with the diagnostic profile's flag set first when asked (§19.4).
+    mutating func startup_lines() -> !:
+        if self.diagnostic:
+            try self.line("    lb_memory_diagnostic = true;")
+        try self.line("    lb_memory_startup();")
+
     mutating func test_runner() -> !:
         try self.line("int main(void) {")
-        try self.line("    lb_memory_startup();")
+        try self.startup_lines()
         try self.line("    int failed = 0;")
         var i: usize = 0
         while i < self.tests.count:
@@ -5437,29 +5452,29 @@ func never_valued(e: ast.Node*) -> bool:
 func case_int(d: ast.Node*, target: ast.Node*) -> u64:
     var next: u64 = 0
     var cursor = d.body
-    while let c = cursor:
-        if c.kind == ast.Kind.enum_case:
+    while let node = cursor:
+        if node.kind == ast.Kind.enum_case:
             var v = next
-            if let written = c.left:
+            if let written = node.left:
                 if written.kind == ast.Kind.literal:
                     v = check.decode_integer(written.text) catch failure:
                         recover next
-            if c == target:
+            if node == target:
                 return v
             next = v + 1
-        cursor = c.next
+        cursor = node.next
     return 0
 
 ## The tag of a payload enum case: its position among the cases.
 func case_tag(d: ast.Node*, target: ast.Node*) -> u32:
     var i: u32 = 0
     var cursor = d.body
-    while let c = cursor:
-        if c.kind == ast.Kind.enum_case:
-            if c == target:
+    while let node = cursor:
+        if node.kind == ast.Kind.enum_case:
+            if node == target:
                 return i
             i += 1
-        cursor = c.next
+        cursor = node.next
     return 0
 
 ## A float literal without its digit separators.

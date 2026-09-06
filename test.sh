@@ -49,6 +49,14 @@ for native in "" "--native"; do
     cmp build/use_pixels.out samples/exports_use.out
 done
 rm -f build/pixels.a build/pixels.h build/use_pixels build/use_pixels.out
+# the diagnostic profile, through both backends: filled `---` storage, quarantined releases
+for native in "" "--native"; do
+    echo "== diagnostic samples/diagnostic.lucb $native"
+    ./build/luce-base build samples/diagnostic.lucb --profile diagnostic $native -o build/sample
+    ./build/sample > build/sample.out
+    cmp build/sample.out samples/diagnostic.out
+done
+rm -f build/sample build/sample.out
 # the proving programs build natively and are driven from outside
 for f in programs/*/check.sh; do
     "$f"

@@ -29,7 +29,7 @@ import support.runtime
 let version: str = "0.1"
 
 func usage(out: io.Writer) -> !:
-    try out.write("usage: luce-base lex FILE\n       luce-base parse FILE\n       luce-base check FILE\n       luce-base build FILE [-o OUT] [--release] [--emit=c] [--native] [--debug] [--emit=asm] [--lib] [--freestanding] [-W] [-lNAME] [-LDIR] [-framework NAME]\n       luce-base test FILE [--native]\n       luce-base --version\n")
+    try out.write("usage: luce-base lex FILE\n       luce-base parse FILE\n       luce-base check FILE\n       luce-base build FILE [-o OUT] [--release] [--emit=c] [--native] [--debug] [--emit=asm] [--lib] [--freestanding] [--target] [--profile diagnostic] [-W] [-lNAME] [-LDIR] [-framework NAME]\n       luce-base test FILE [--native]\n       luce-base --version\n")
 
 # mark: Building ===============================================================================
 
@@ -45,6 +45,10 @@ struct Options:
     var library: bool
     ## `--freestanding`: no startup shim; the program's own `_start` is the entry (§19.4).
     var freestanding: bool
+    ## `--target` with no name: list the targets and the asm architectures the program covers.
+    var list_targets: bool
+    ## `--profile diagnostic`: filled `---` storage and a quarantining allocator (§19.4).
+    var diagnostic: bool
     ## `-lNAME` and `-LDIR`: libraries to link and where to find them.
     var libraries: (c.str?)[16]
     var library_count: usize
@@ -81,18 +85,18 @@ func has_argument(arguments: c.str[], flag: str) -> bool:
 ## `-W`: the checker's warnings go to standard error (§19.6); without it they are silent.
 var show_warnings: bool = false
 
-func report_warnings(c: check.Checker*) -> !:
+func report_warnings(checker: check.Checker*) -> !:
     if not show_warnings:
         return
     var i: usize = 0
-    while i < c.warnings.count:
-        try io.stderr().write(f"luce-base: {c.warnings.get(i)}\n")
+    while i < checker.warnings.count:
+        try io.stderr().write(f"luce-base: {checker.warnings.get(i)}\n")
         i += 1
 
 ## Check FILE and its imports, then generate C for the whole program.
 func generate(path: c.str, mode: u32) -> str!:
-    var c = try checked(path)
-    let entry = c.modules.get(c.modules.count - 1).tree
+    var checker = try checked(path)
+    let entry = checker.modules.get(checker.modules.count - 1).tree
     var actual = mode
     if mode == 4 and check.find_decl(entry, "_start") == none:
         error(build_failed, "a freestanding program supplies `export naked func _start` (§19.4)")
@@ -101,34 +105,34 @@ func generate(path: c.str, mode: u32) -> str!:
             error(build_failed, "this module has no `main` to build a program from; `check` it, or `test` it")
         actual = 2
     used_mode = actual
-    return try translate(&c, entry, actual)
+    return try translate(&checker, entry, actual)
 
 ## `--lib`: the program as a library with no entry, and the header of its exports (§17.6).
 func generate_library(path: c.str) -> (str, str)!:
-    var c = try checked(path)
-    let entry = c.modules.get(c.modules.count - 1).tree
+    var checker = try checked(path)
+    let entry = checker.modules.get(checker.modules.count - 1).tree
     used_mode = 3
-    let code = try translate(&c, entry, 3)
+    let code = try translate(&checker, entry, 3)
     var text = try buffer.Buffer.create(4096)
-    try header.write(&c, &text)
+    try header.write(&checker, &text)
     return (code, try names.keep(&text))
 
 ## The program at `path`, checked, with its warnings reported.
 func checked(path: c.str) -> check.Checker!:
-    var c = try check.Checker.create(scratch_of())
-    try c.add_prelude()
-    try c.load(path)
-    try c.check_program()
-    try report_warnings(&c)
-    return c
+    var checker = try check.Checker.create(scratch_of())
+    try checker.add_prelude()
+    try checker.load(path)
+    try checker.check_program()
+    try report_warnings(&checker)
+    return checker
 
 ## The checked program through the backend the command chose.
-func translate(c: check.Checker*, entry: ast.Node*, mode: u32) -> str!:
+func translate(checker: check.Checker*, entry: ast.Node*, mode: u32) -> str!:
     if native_backend:
-        var native = try backend.NativeBackend.over(c, entry, debug_backend)
+        var native = try backend.NativeBackend.over(checker, entry, debug_backend, diagnostic_profile)
         let target: backend.Backend = &native
         return try target.compile(mode)
-    var host_c = try backend.CBackend.over(c, entry)
+    var host_c = try backend.CBackend.over(checker, entry, diagnostic_profile)
     let target: backend.Backend = &host_c
     return try target.compile(mode)
 
@@ -138,6 +142,8 @@ var native_backend: bool
 var debug_backend: bool
 ## `--freestanding`: the program's own `_start` is the entry, and no shim is linked (§19.4).
 var freestanding: bool
+## `--profile diagnostic`: filled `---` storage and a quarantining allocator (§19.4).
+var diagnostic_profile: bool
 ## `-lNAME`, `-LDIR`, and `-framework NAME` of the current build, for the link step.
 var link_libraries: (c.str?)[16]
 var link_library_count: usize
@@ -318,6 +324,9 @@ func build_file(path: c.str, options: Options) -> !:
         while k < options.framework_count:
             link_frameworks[k] = options.frameworks[k]
             k += 1
+        if options.list_targets:
+            try list_targets(path)
+            return
         if options.library:
             let (code, header_text) = try generate_library(path)
             try build_library(code, header_text, options.output if options.output.length > 0 else "library")
@@ -325,6 +334,7 @@ func build_file(path: c.str, options: Options) -> !:
         if options.freestanding and not options.native:
             error(build_failed, "a freestanding program is built natively: add `--native`")
         freestanding = options.freestanding
+        diagnostic_profile = options.diagnostic
         let text = try generate(path, 4 if options.freestanding else (1 if options.run_tests else 0))
         if options.emit_c:
             if options.output.length > 0:
@@ -336,6 +346,44 @@ func build_file(path: c.str, options: Options) -> !:
         if exe.length == 0:
             exe = "a.out"
         try compile(text, exe, options.release, used_mode == 2 and not native_backend)
+
+## `--target` with no name (§19.6): the targets of §19.5, then the asm architectures the
+## program's own modules carry blocks for; the one this compiler builds is marked.
+func list_targets(path: c.str) -> !:
+    var checker = try checked(path)
+    let out = io.stdout()
+    try out.write("targets: x86_64-linux x86_64-macos x86_64-windows arm64-linux arm64-macos (built here) wasm32\n")
+    var wrote_any = false
+    var i: usize = 0
+    while i < checker.modules.count:
+        let m = checker.modules.get(i)
+        if not m.is_prelude:
+            var cursor = m.tree.body
+            while let d = cursor:
+                if d.kind == ast.Kind.asm_ or asm_architecture_of(d).length > 0:
+                    let arch = d.text if d.kind == ast.Kind.asm_ else asm_architecture_of(d)
+                    if not wrote_any:
+                        try out.write("asm architectures covered:")
+                        wrote_any = true
+                    try out.write(f" {arch}")
+                cursor = d.next
+        i += 1
+    if wrote_any:
+        try out.write("\n")
+    else:
+        try out.write("asm architectures covered: none\n")
+
+## The architecture of the first asm block inside a function, or empty text.
+func asm_architecture_of(d: ast.Node*) -> str:
+    if d.kind != ast.Kind.func_:
+        return ""
+    let body = d.body else return ""
+    var cursor = body.body
+    while let s = cursor:
+        if s.kind == ast.Kind.asm_:
+            return s.text
+        cursor = s.next
+    return ""
 
 ## `--lib`: `NAME.a` from the generated code (and the C runtime when the code is C), and
 ## `NAME.h` with the exported surface (§17.6).
@@ -448,11 +496,11 @@ func check_file(path: c.str) -> !:
     var arena = memory.FixedBuffer.over(backing)
     var scratch: u8[4096]
     with arena:
-        var c = try check.Checker.create(scratch)
-        try c.add_prelude()
-        try c.load(path)
-        try c.check_program()
-        try report_warnings(&c)
+        var checker = try check.Checker.create(scratch)
+        try checker.add_prelude()
+        try checker.load(path)
+        try checker.check_program()
+        try report_warnings(&checker)
 
 ## Trees and tokens live in one arena taken from the process heap; nothing is
 ## freed until the command ends.
@@ -515,6 +563,8 @@ pub func main(arguments: c.str[]) -> i32!:
         options.debug = false
         options.library = false
         options.freestanding = false
+        options.list_targets = false
+        options.diagnostic = false
         options.library_count = 0
         options.library_dir_count = 0
         options.framework_count = 0
@@ -534,6 +584,16 @@ pub func main(arguments: c.str[]) -> i32!:
                 options.library = true
             elif a == "--freestanding":
                 options.freestanding = true
+            elif a == "--target":
+                options.list_targets = true
+            elif a == "--profile" and i + 1 < arguments.length:
+                let profile = (str)arguments[i + 1]
+                if profile == "diagnostic":
+                    options.diagnostic = true
+                elif profile != "default":
+                    try io.stderr().write(f"luce-base: unknown profile `{profile}`; the profiles are `default` and `diagnostic`\n")
+                    return 2
+                i += 1
             elif a == "--debug":
                 options.debug = true
             elif a == "-W":

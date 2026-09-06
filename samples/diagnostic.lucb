@@ -1,0 +1,14 @@
+## The diagnostic profile (§19.4): `luce-base build samples/diagnostic.lucb --profile diagnostic`
+## fills `---` storage with a pattern, so a read before a write shows 0xAA bytes rather than
+## whatever the frame held, and the C allocator holds released blocks back, filled with 0xDD,
+## so a use after release reads the pattern rather than the next allocation.
+import memory
+
+pub func main(arguments: str[]) -> i32!:
+    var word: u64 = ---
+    print(f"{hex(word)}")
+    let block = try alloc u8[8]
+    let data = block.data
+    free(block)
+    print(f"{hex(data[0])} {hex(data[7])}")
+    return 0

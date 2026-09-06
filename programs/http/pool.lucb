@@ -92,5 +92,5 @@ test "a queue hands out what was pushed, in order":
     assert(descriptor_of(queue.pop()) == -1)
 
 func descriptor_of(connection: net.Connection?) -> i32:
-    let c = connection else return -1
-    return c.descriptor
+    let conn = connection else return -1
+    return conn.descriptor

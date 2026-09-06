@@ -19,8 +19,8 @@ pub func selector(name: c.str) -> void*:
 
 ## The class `name`, or a trap: a missing class means a framework was not linked.
 pub func class(name: c.str) -> void*:
-    let c = objc_getClass(name) else trap("class not found; is its framework linked?")
-    return c
+    let cls = objc_getClass(name) else trap("class not found; is its framework linked?")
+    return cls
 
 ## `[receiver selector]` and the shapes the Metal example needs. objc_msgSend has one C
 ## symbol; each shape is that symbol's pointer cast to the right function type (§7.5).
@@ -35,9 +35,9 @@ pub func send_pp(receiver: void*, name: c.str, a: void*?, b: void*?) -> void*?:
     let f = (func(void*, void*, void*?, void*?) -> void*?)(void*)objc_msgSend
     return f(receiver, selector(name), a, b)
 
-pub func send_ppp(receiver: void*, name: c.str, a: void*?, b: void*?, c: void*?) -> void*?:
+pub func send_ppp(receiver: void*, name: c.str, a: void*?, b: void*?, third: void*?) -> void*?:
     let f = (func(void*, void*, void*?, void*?, void*?) -> void*?)(void*)objc_msgSend
-    return f(receiver, selector(name), a, b, c)
+    return f(receiver, selector(name), a, b, third)
 
 ## `[receiver selector: n]` with an unsigned integer argument, returning an object.
 pub func send_u(receiver: void*, name: c.str, a: u64) -> void*?:

@@ -31,8 +31,10 @@ pub interface Backend:
 pub struct CBackend: Backend:
     var emitter: emit.Emitter
 
-    pub static func over(c: check.Checker*, entry: ast.Node*) -> CBackend!:
-        return CBackend(emitter = try emit.Emitter.create(c, entry))
+    pub static func over(c: check.Checker*, entry: ast.Node*, diagnostic: bool) -> CBackend!:
+        var emitter = try emit.Emitter.create(c, entry)
+        emitter.diagnostic = diagnostic
+        return CBackend(emitter = emitter)
 
     pub mutating func compile(mode: u32) -> str!:
         try self.emitter.program(mode)
@@ -43,8 +45,10 @@ pub struct NativeBackend: Backend:
     var lowerer: lower.Lowerer
     var debug: bool
 
-    pub static func over(c: check.Checker*, entry: ast.Node*, debug: bool) -> NativeBackend!:
-        return NativeBackend(lowerer = try lower.Lowerer.create(c, entry), debug = debug)
+    pub static func over(c: check.Checker*, entry: ast.Node*, debug: bool, diagnostic: bool) -> NativeBackend!:
+        var lowerer = try lower.Lowerer.create(c, entry)
+        lowerer.diagnostic = diagnostic
+        return NativeBackend(lowerer = lowerer, debug = debug)
 
     pub mutating func compile(mode: u32) -> str!:
         self.lowerer.debug = self.debug

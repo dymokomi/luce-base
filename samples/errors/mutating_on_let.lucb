@@ -9,6 +9,6 @@ struct Counter:
         self.n += 1
 
 func f() -> i64:
-    let c = Counter(n = 0)
-    c.bump()
-    return c.n
+    let counter = Counter(n = 0)
+    counter.bump()
+    return counter.n

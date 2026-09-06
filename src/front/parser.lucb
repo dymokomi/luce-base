@@ -523,14 +523,14 @@ pub struct Parser:
                 let m = try self.parse_member(false)
                 ast.append(&n.body, &tail, m)
                 continue
-            let c = try self.node(ast.Kind.enum_case, "")
-            c.text = try self.expect_name()
+            let case_node = try self.node(ast.Kind.enum_case, "")
+            case_node.text = try self.expect_name()
             if self.at_op("("):
-                c.body = try self.parse_params()
+                case_node.body = try self.parse_params()
             elif self.eat_op("="):
-                c.left = try self.parse_expression()
+                case_node.left = try self.parse_expression()
             try self.expect_newline()
-            ast.append(&n.body, &tail, c)
+            ast.append(&n.body, &tail, case_node)
         discard(self.take())
         return n
 
@@ -942,17 +942,17 @@ pub struct Parser:
             p.flags |= ast.flag_wildcard
             return p
         if self.eat_op("."):
-            let c = try self.node(ast.Kind.case_value, "")
-            c.text = try self.expect_member_name()
+            let value = try self.node(ast.Kind.case_value, "")
+            value.text = try self.expect_member_name()
             if self.eat_op("("):
                 var tail: ast.Node*? = none
                 while not self.at_op(")"):
                     let b = try self.taken(ast.Kind.name)
-                    ast.append(&c.body, &tail, b)
+                    ast.append(&value.body, &tail, b)
                     if not self.eat_op(","):
                         break
                 try self.expect_op(")")
-            p.left = c
+            p.left = value
             return p
         p.left = try self.parse_pattern_literal()
         if self.at_op("..<") or self.at_op("..="):
@@ -973,14 +973,14 @@ pub struct Parser:
         try self.enter()
         var e = try self.parse_else()
         if self.at_kw("catch"):
-            let c = try self.node(ast.Kind.catch_, "")
+            let handler = try self.node(ast.Kind.catch_, "")
             discard(self.take())
             if self.at(token.Kind.name):
-                c.text = self.text_of(self.take())
+                handler.text = self.text_of(self.take())
             try self.expect_op(":")
-            c.left = e
-            c.body = try self.parse_suite()
-            e = c
+            handler.left = e
+            handler.body = try self.parse_suite()
+            e = handler
         self.leave()
         return e
 
@@ -1160,8 +1160,8 @@ pub struct Parser:
 
     func is_type_word(word: str) -> bool:
         let core: str[20] = ["i8", "i16", "i32", "i64", "u8", "u16", "u32", "u64", "usize", "isize", "f16", "f32", "f64", "bool", "char", "str", "fmt", "unit", "never", "void"]
-        for c in core:
-            if c == word:
+        for core_name in core:
+            if core_name == word:
                 return true
         let b = word.bytes
         return b.length > 0 and b[0] >= 'A' and b[0] <= 'Z'
@@ -1175,18 +1175,18 @@ pub struct Parser:
                 m.left = e
                 e = m
             elif self.at_op("("):
-                let c = try self.node(ast.Kind.call, "")
-                c.left = e
-                c.body = try self.parse_arguments()
-                e = c
+                let call = try self.node(ast.Kind.call, "")
+                call.left = e
+                call.body = try self.parse_arguments()
+                e = call
             elif self.at_op("[") and self.looks_like_type_args():
                 let args = try self.parse_type_args()
                 if self.at_op("("):
-                    let c = try self.node(ast.Kind.call, "")
-                    c.left = e
-                    c.ty = args
-                    c.body = try self.parse_arguments()
-                    e = c
+                    let call = try self.node(ast.Kind.call, "")
+                    call.left = e
+                    call.ty = args
+                    call.body = try self.parse_arguments()
+                    e = call
                 else:
                     e.ty = args                  # `Map[str, u32].create(...)`
             elif self.at_op("["):
@@ -1310,11 +1310,11 @@ pub struct Parser:
             let s = self.text_of(t)
             if s == ".":
                 discard(self.take())
-                let c = try self.node(ast.Kind.case_value, "")
-                c.text = try self.expect_member_name()
+                let value = try self.node(ast.Kind.case_value, "")
+                value.text = try self.expect_member_name()
                 if self.at_op("("):
-                    c.body = try self.parse_arguments()
-                return c
+                    value.body = try self.parse_arguments()
+                return value
             if s == "[":
                 let a = try self.node(ast.Kind.array_lit, "")
                 discard(self.take())
@@ -1417,11 +1417,11 @@ pub struct Parser:
         if self.at_op("("):
             n.body = try self.parse_arguments()
         elif self.eat_op("."):
-            let c = try self.node(ast.Kind.case_value, "")
-            c.text = try self.expect_member_name()
+            let value = try self.node(ast.Kind.case_value, "")
+            value.text = try self.expect_member_name()
             if self.at_op("("):
-                c.body = try self.parse_arguments()
-            n.body = c
+                value.body = try self.parse_arguments()
+            n.body = value
         if self.eat_kw("in"):
             n.right = try self.parse_expression()
         return n
@@ -1604,8 +1604,8 @@ test "expression precedence and casts":
     var scratch: u8[256]
     with arena:
         let m = try parse_text("let v = (u8)x + 2 * 3 == 8 and not y\n", scratch)
-        let c = m.body else return
-        let e = c.left else return
+        let content = m.body else return
+        let e = content.left else return
         assert(e.kind == ast.Kind.binary)
         assert(e.text == "and")
         let l = e.left else return

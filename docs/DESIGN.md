@@ -204,6 +204,12 @@ assembler label of the program's `export naked func _start`. Nothing starts
 the runtime or the globals for such a program; its `_start` owns the
 process from the first instruction, as `programs/freestanding` shows.
 
+`--profile diagnostic` (§19.4) reaches both backends as a flag: a `---` local
+is filled with `0xAA` (the IR's `fill`, C's `memset`), and the entry shim sets
+`memory.diagnostic` before the runtime starts, whereupon the C allocator's
+`release` fills a block with `0xDD` and holds it in a ring of sixty-four
+before freeing the oldest, so a use after release reads the pattern.
+
 ## Debugging
 
 There is no `ptrace` on macOS without entitlements, so the debugger lives in

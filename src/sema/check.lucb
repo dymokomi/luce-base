@@ -129,9 +129,9 @@ pub struct Checker:
         if self.current < self.modules.count:
             let m = self.modules.get(self.current)
             name = m.src.path
-            let (l, c) = m.src.position(node.start)
+            let (l, col) = m.src.position(node.start)
             line = l
-            column = c
+            column = col
         let message = try format(self.scratch[..<half], f"{name}:{line}:{column}: {what}")
         error(type_error, message)
 
@@ -183,14 +183,17 @@ pub struct Checker:
                 return b
         return none
 
-    ## Bind `name` in the innermost scope. Base has no shadowing (§3.5): a local
-    ## may not reuse the name of another local, and nothing may reuse a core name.
+    ## Bind `name` in the innermost scope. Base has no shadowing (§3.5): a local may not
+    ## reuse the name of another local, a parameter, or an import, and nothing may reuse a
+    ## core name.
     mutating func bind(at: ast.Node*, name: str, type_id: u32, decl: ast.Node*?, mutable: bool) -> !:
         if token.is_core_name(name) and not self.in_prelude():
             discard(try self.fail(at, "this name belongs to the language"))
         if let existing = self.lookup(name):
             if existing.depth >= 2 or existing.depth == self.depth:
                 discard(try self.fail(at, "this name is already in scope"))
+            elif existing.origin != none and self.depth >= 2:
+                discard(try self.fail(at, "this name is an import; a local may not shadow it"))
         try self.scope.push(Binding(name = name, type_id = type_id, decl = decl, mutable = mutable, depth = self.depth, from_local = false, origin = none, used = false))
 
     ## §6.6: whether an expression's value is the address of a local, or aliases one.
@@ -528,11 +531,11 @@ pub struct Checker:
                 g.type_id = try self.table.parameter(d, g.text)
             try self.bind(g, g.text, g.type_id, g, false)
             var bound = g.body
-            while let c = bound:
-                let id = try self.resolve_type(c)
+            while let constraint = bound:
+                let id = try self.resolve_type(constraint)
                 if self.table.kind(id) != types.Kind.interface_:
-                    discard(try self.fail(c, "a constraint must be an interface"))
-                bound = c.next
+                    discard(try self.fail(constraint, "a constraint must be an interface"))
+                bound = constraint.next
             cursor = g.next
 
     mutating func resolve_signatures(tree: ast.Node*) -> !:
@@ -1092,10 +1095,10 @@ pub struct Checker:
             return true
         let g = self.generic_param_node(id) else return false
         var bound = g.body
-        while let c = bound:
-            if c.type_id == iface or self.table.get(c.type_id).decl == self.table.get(iface).decl:
+        while let constraint = bound:
+            if constraint.type_id == iface or self.table.get(constraint.type_id).decl == self.table.get(iface).decl:
                 return true
-            bound = c.next
+            bound = constraint.next
         return false
 
     ## The `generic_param` node behind a param type.
@@ -1301,8 +1304,8 @@ pub struct Checker:
                 let p = args else return try self.fail(e, "a span constructor takes a pointer and a count")
                 let pv = p.left else return try self.fail(e, "empty argument")
                 discard(try self.expect(pv, pointer))
-                let c = p.next else return try self.fail(e, "a span constructor takes a pointer and a count")
-                let cv = c.left else return try self.fail(e, "empty argument")
+                let second = p.next else return try self.fail(e, "a span constructor takes a pointer and a count")
+                let cv = second.left else return try self.fail(e, "empty argument")
                 discard(try self.expect(cv, types.usize_id))
                 return span
             .match_expr:
@@ -1901,16 +1904,16 @@ pub struct Checker:
         if self.table.kind(enum_id) != types.Kind.enum_:
             return try self.fail(e, "`.case` needs an enum type from the context")
         let d = self.table.get(enum_id).decl else return try self.fail(e, "no enum here")
-        let c = find_member(d, e.text, ast.Kind.enum_case) else return try self.fail(e, "no such case")
-        e.resolved = c
-        if c.body != none or e.body != none:
-            try self.check_payload(e, c, enum_id, d)
+        let case_decl = find_member(d, e.text, ast.Kind.enum_case) else return try self.fail(e, "no such case")
+        e.resolved = case_decl
+        if case_decl.body != none or e.body != none:
+            try self.check_payload(e, case_decl, enum_id, d)
         return enum_id
 
     ## The arguments of a payload case against its declared parameters.
-    mutating func check_payload(at: ast.Node*, c: ast.Node*, enum_id: u32, d: ast.Node*) -> !:
+    mutating func check_payload(at: ast.Node*, case_decl: ast.Node*, enum_id: u32, d: ast.Node*) -> !:
         let instance = self.table.get(enum_id)
-        var param = c.body
+        var param = case_decl.body
         var arg = at.body
         while let p = param:
             let a = arg else return try self.fail(at, "this case needs more arguments")
@@ -1981,9 +1984,9 @@ pub struct Checker:
         var conc = got
         if t.kind == types.Kind.pointer:
             conc = t.elem
-        let c = self.table.get(conc)
-        if c.kind == types.Kind.struct_ or c.kind == types.Kind.param:
-            let d = c.decl else return try self.fail(e, "this is not an allocator")
+        let concrete_type = self.table.get(conc)
+        if concrete_type.kind == types.Kind.struct_ or concrete_type.kind == types.Kind.param:
+            let d = concrete_type.decl else return try self.fail(e, "this is not an allocator")
             if self.implements_named(conc, "Allocator"):
                 if t.kind != types.Kind.pointer and not self.is_mutable_place(e):
                     discard(try self.fail(e, "an allocator must be a `var`"))
@@ -1996,11 +1999,11 @@ pub struct Checker:
         if t.kind == types.Kind.param:
             let g = self.generic_param_node(id) else return false
             var bound = g.body
-            while let c = bound:
-                if let cd = self.table.get(c.type_id).decl:
+            while let constraint = bound:
+                if let cd = self.table.get(constraint.type_id).decl:
                     if cd.text == name:
                         return true
-                bound = c.next
+                bound = constraint.next
             return false
         var listed = d.ty if d.kind != ast.Kind.enum_ else d.right
         while let l = listed:
@@ -2113,8 +2116,8 @@ pub struct Checker:
         if t.kind == types.Kind.param:
             let g = self.generic_param_node(id) else return try self.fail(e, "no such member")
             var bound = g.body
-            while let c = bound:
-                let ct = self.table.get(c.type_id)
+            while let constraint = bound:
+                let ct = self.table.get(constraint.type_id)
                 if let cd = ct.decl:
                     if let m = find_member(cd, name, ast.Kind.func_):
                         e.resolved = m
@@ -2123,7 +2126,7 @@ pub struct Checker:
                             # `compare(other: void*)` in the prelude is `compare(other: T)` here
                             return try self.with_self_arguments(fn, id)
                         return fn
-                bound = c.next
+                bound = constraint.next
             return try self.fail(e, "no constraint of this parameter has that method")
         if t.kind == types.Kind.pointer and t.elem == types.void_id:
             return try self.fail(e, "`void*` has no members")
@@ -2204,12 +2207,12 @@ pub struct Checker:
             return try self.table.function(try one_arg(bits), id, false)
         if t.kind == types.Kind.enum_:
             let d = t.decl else return try self.fail(e, "no declaration")
-            if let c = find_member(d, name, ast.Kind.enum_case):
-                e.resolved = c
-                if c.body != none:
+            if let case_decl = find_member(d, name, ast.Kind.enum_case):
+                e.resolved = case_decl
+                if case_decl.body != none:
                     # a payload case is a constructor
                     e.flags |= ast.flag_static
-                    return try self.case_constructor(c, d, t.args)
+                    return try self.case_constructor(case_decl, d, t.args)
                 return id
         if t.kind == types.Kind.struct_ or t.kind == types.Kind.enum_ or t.kind == types.Kind.union_:
             let d = t.decl else return try self.fail(e, "no declaration")
@@ -2224,13 +2227,13 @@ pub struct Checker:
         return try self.fail(e, "this type has no such member")
 
     ## The function type that builds a payload case.
-    mutating func case_constructor(c: ast.Node*, d: ast.Node*, args: u32[]) -> u32!:
-        let n = ast.count(c.body)
+    mutating func case_constructor(case_node: ast.Node*, d: ast.Node*, args: u32[]) -> u32!:
+        let n = ast.count(case_node.body)
         var params = try types.no_args()
         if n > 0:
             params = try alloc u32[n]
         var i: usize = 0
-        var cursor = c.body
+        var cursor = case_node.body
         while let p = cursor:
             params[i] = try self.substitute(p.type_id, d, args)
             i += 1
@@ -2331,13 +2334,13 @@ pub struct Checker:
                     if self.table.kind(self.deref(rt)) == types.Kind.atomic:
                         return try self.atomic_call(e, callee, self.deref(rt))
         let ct = try self.check_expr(callee, types.none_id)
-        if let c = callee.resolved:
-            if c.kind == ast.Kind.enum_case and callee.kind == ast.Kind.member:
+        if let resolved = callee.resolved:
+            if resolved.kind == ast.Kind.enum_case and callee.kind == ast.Kind.member:
                 # `Kind.case(args)`: the payload's parameters take named or positional arguments
                 let enum_id = self.table.get(ct).elem
                 let d = self.table.get(enum_id).decl else return try self.fail(e, "no enum")
-                e.resolved = c
-                try self.check_payload(e, c, enum_id, d)
+                e.resolved = resolved
+                try self.check_payload(e, resolved, enum_id, d)
                 return enum_id
         if callee.has(ast.flag_type_ref):
             return try self.construct_or_convert(e, callee, ct)
@@ -3019,17 +3022,17 @@ pub struct Checker:
 
     ## The condition of `if` and `while`: a `bool`, or `let name = optional`.
     mutating func check_condition(s: ast.Node*) -> !:
-        let c = s.left else return try self.fail(s, "missing condition")
+        let condition = s.left else return try self.fail(s, "missing condition")
         if s.has(ast.flag_if_let):
-            let init = c.left else return try self.fail(c, "`let` needs a value")
+            let init = condition.left else return try self.fail(condition, "`let` needs a value")
             let got = try self.check_expr(init, types.none_id)
             let t = self.table.get(got)
             if t.kind != types.Kind.optional:
                 return try self.fail(init, "`if let` needs an optional value")
-            c.type_id = t.elem
-            try self.bind(c, c.text, t.elem, c, false)
+            condition.type_id = t.elem
+            try self.bind(condition, condition.text, t.elem, condition, false)
             return
-        discard(try self.expect(c, types.bool_id))
+        discard(try self.expect(condition, types.bool_id))
 
     mutating func check_if(s: ast.Node*) -> !:
         self.push_scope()
@@ -3196,11 +3199,11 @@ pub struct Checker:
             if self.table.kind(enum_id) != types.Kind.enum_:
                 return try self.fail(p, "`.case` needs an enum scrutinee")
             let d = self.table.get(enum_id).decl else return try self.fail(p, "no enum")
-            let c = find_member(d, v.text, ast.Kind.enum_case) else return try self.fail(v, "no such case")
-            v.resolved = c
+            let case_decl = find_member(d, v.text, ast.Kind.enum_case) else return try self.fail(v, "no such case")
+            v.resolved = case_decl
             v.type_id = enum_id
             var name = v.body
-            var param = c.body
+            var param = case_decl.body
             while let n = name:
                 let q = param else return try self.fail(n, "this case carries fewer values")
                 n.type_id = try self.substitute(q.type_id, d, self.table.get(enum_id).args)
@@ -3473,17 +3476,17 @@ pub func enum_backing(table: types.Table*, id: u32) -> u32:
 pub func case_value(d: ast.Node*, target: ast.Node*) -> u64:
     var next: u64 = 0
     var cursor = d.body
-    while let c = cursor:
-        if c.kind == ast.Kind.enum_case:
+    while let node = cursor:
+        if node.kind == ast.Kind.enum_case:
             var v = next
-            if let written = c.left:
+            if let written = node.left:
                 if written.kind == ast.Kind.literal:
                     v = decode_integer(written.text) catch failure:
                         recover next
-            if c == target:
+            if node == target:
                 return v
             next = v + 1
-        cursor = c.next
+        cursor = node.next
     return 0
 
 ## The position of parameter `name` among the ones a caller supplies: an extern's `out`
@@ -3656,10 +3659,10 @@ pub func decode_text(spelled: str) -> str:
                 at_line_start = false
                 if i >= body.length:
                     break
-            let c = body[i]
-            out[n] = c
+            let byte = body[i]
+            out[n] = byte
             n += 1
-            if c == '\n':
+            if byte == '\n':
                 at_line_start = true
             i += 1
         body = out[..<n]
@@ -3682,9 +3685,9 @@ func decode_escapes(body: const u8[], out: u8[], is_bytes: bool) -> usize:
     var n: usize = 0
     var i: usize = 0
     while i < body.length:
-        let c = body[i]
-        if c != '\\' or i + 1 >= body.length:
-            out[n] = c
+        let byte = body[i]
+        if byte != '\\' or i + 1 >= body.length:
+            out[n] = byte
             n += 1
             i += 1
             continue
@@ -3719,13 +3722,13 @@ func decode_escapes(body: const u8[], out: u8[], is_bytes: bool) -> usize:
             n += 1
     return n
 
-func hex_value(c: u8) -> u8:
-    if c >= '0' and c <= '9':
-        return c - '0'
-    if c >= 'a' and c <= 'f':
-        return c - 'a' + 10
-    if c >= 'A' and c <= 'F':
-        return c - 'A' + 10
+func hex_value(digit: u8) -> u8:
+    if digit >= '0' and digit <= '9':
+        return digit - '0'
+    if digit >= 'a' and digit <= 'f':
+        return digit - 'a' + 10
+    if digit >= 'A' and digit <= 'F':
+        return digit - 'A' + 10
     return 0
 
 ## Write `cp` as UTF-8 into `out`; returns the byte count.
@@ -3788,8 +3791,8 @@ func is_float_literal(text: str) -> bool:
     let b = text.bytes
     if b.length > 1 and b[0] == '0' and (b[1] == 'x' or b[1] == 'X' or b[1] == 'b' or b[1] == 'B' or b[1] == 'o' or b[1] == 'O'):
         return false
-    for c in b:
-        if c == '.' or c == 'e' or c == 'E':
+    for byte in b:
+        if byte == '.' or byte == 'e' or byte == 'E':
             return true
     return false
 
@@ -3810,17 +3813,17 @@ pub func decode_integer(text: str) -> u64!:
             i = 2
     var value: u64 = 0
     while i < b.length:
-        let c = b[i]
+        let byte = b[i]
         i += 1
-        if c == '_':
+        if byte == '_':
             continue
         var digit: u64 = 0
-        if c >= '0' and c <= '9':
-            digit = (u64)(c - '0')
-        elif c >= 'a' and c <= 'f':
-            digit = (u64)(c - 'a') + 10
-        elif c >= 'A' and c <= 'F':
-            digit = (u64)(c - 'A') + 10
+        if byte >= '0' and byte <= '9':
+            digit = (u64)(byte - '0')
+        elif byte >= 'a' and byte <= 'f':
+            digit = (u64)(byte - 'a') + 10
+        elif byte >= 'A' and byte <= 'F':
+            digit = (u64)(byte - 'A') + 10
         else:
             error(type_error, "bad digit in integer literal")
         if digit >= base:
@@ -3902,11 +3905,11 @@ func one_arg(id: u32) -> u32[]!:
 
 ## Check a program given as text, in a fresh arena; the first error is returned.
 pub func check_text(text: str, scratch: u8[]) -> !:
-    var c = try Checker.create(scratch)
-    try c.add_prelude()
+    var checker = try Checker.create(scratch)
+    try checker.add_prelude()
     let src = try source.Source.over("test", text.bytes)
-    try c.add_module("test", src, false)
-    try c.check_program()
+    try checker.add_module("test", src, false)
+    try checker.check_program()
 
 ## The standard modules alone take over two megabytes of tree; the tests' arenas hold eight.
 let test_arena_size: usize = 8388608
@@ -4011,13 +4014,13 @@ test "modules import and qualify names":
     var arena = memory.FixedBuffer.over(backing)
     var scratch: u8[1024]
     with arena:
-        var c = try Checker.create(scratch)
-        try c.add_prelude()
+        var checker = try Checker.create(scratch)
+        try checker.add_prelude()
         let a = try source.Source.over("a", "pub struct Point:\n    pub var x: i64\npub func origin() -> Point:\n    return Point(x = 0)\n".bytes)
-        try c.add_module("a", a, false)
+        try checker.add_module("a", a, false)
         let b = try source.Source.over("b", "import a\nfunc f() -> i64:\n    let p = a.origin()\n    return p.x\n".bytes)
-        try c.add_module("b", b, false)
-        try c.check_program()
+        try checker.add_module("b", b, false)
+        try checker.check_program()
 
 test "a function that may fall off its end is rejected":
     try expect_error("func f(b: bool) -> i64:\n    if b:\n        return 1\n", "may reach its end")

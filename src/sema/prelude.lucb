@@ -219,11 +219,11 @@ pub func print_i64(value: i64):
 ## Ordering of text: bytewise, then by length (§7.4).
 pub func str_compare(a: str, b: str) -> i32:
     let n = a.length if a.length < b.length else b.length
-    var c: i32 = 0
+    var order: i32 = 0
     if n > 0:
-        c = memcmp(a.bytes.data, b.bytes.data, n)
-    if c != 0:
-        return -1 if c < 0 else 1
+        order = memcmp(a.bytes.data, b.bytes.data, n)
+    if order != 0:
+        return -1 if order < 0 else 1
     if a.length < b.length:
         return -1
     return 1 if a.length > b.length else 0
@@ -233,20 +233,20 @@ pub func utf8_ok(text: const u8*?, count: usize) -> bool:
     let s = text else return count == 0
     var i: usize = 0
     while i < count:
-        let c = s[i]
+        let byte = s[i]
         var w: usize = 1
         var cp: u32 = 0
-        if c < 128:
-            cp = (u32)c
-        elif (c & 224) == 192:
+        if byte < 128:
+            cp = (u32)byte
+        elif (byte & 224) == 192:
             w = 2
-            cp = (u32)(c & 31)
-        elif (c & 240) == 224:
+            cp = (u32)(byte & 31)
+        elif (byte & 240) == 224:
             w = 3
-            cp = (u32)(c & 15)
-        elif (c & 248) == 240:
+            cp = (u32)(byte & 15)
+        elif (byte & 248) == 240:
             w = 4
-            cp = (u32)(c & 7)
+            cp = (u32)(byte & 7)
         else:
             return false
         if i + w > count:
@@ -579,8 +579,25 @@ pub struct CAllocator: Allocator:
         return size <= block.length
 
     pub mutating func release(block: u8[]):
-        if block.length > 0:
+        if block.length == 0:
+            return
+        if not diagnostic:
             c_free(block.data)
+            return
+        # the diagnostic profile (§19.4): the block is filled with a pattern and held back, so
+        # a use after release reads the pattern rather than the next allocation
+        discard(memset(block.data, 221, block.length))
+        let slot = quarantine_next % quarantine.length
+        if let old = quarantine[slot]:
+            c_free(old.data)
+        quarantine[slot] = block
+        quarantine_next += 1
+
+## `--profile diagnostic`: set by the startup shim before `startup` runs.
+pub var diagnostic: bool
+## The released blocks the diagnostic profile still holds, oldest freed first.
+var quarantine: (u8[]?)[64]
+var quarantine_next: usize
 
 pub let exhausted: ErrorCode = ErrorCode.package(1)
 pub let unset: ErrorCode = ErrorCode.package(2)
@@ -1224,10 +1241,10 @@ pub func to_i64(text: str) -> i64?:
         return none
     var value: i64 = 0
     while i < b.length:
-        let c = b[i]
-        if c < '0' or c > '9':
+        let byte = b[i]
+        if byte < '0' or byte > '9':
             return none
-        let digit = (i64)(c - '0')
+        let digit = (i64)(byte - '0')
         let next = value *? 10 else return none
         value = next +? digit else return none
         i += 1

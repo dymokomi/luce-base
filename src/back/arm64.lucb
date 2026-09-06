@@ -1203,6 +1203,11 @@ pub struct Generator:
                     try self.line("mov x1, #0")
                     try self.load_immediate("x2", (i64)n.extra)
                     try self.line("bl _memset")
+            .fill:
+                try self.address_operand("x0", n.a)
+                try self.load_immediate("x1", n.b.value)
+                try self.load_immediate("x2", (i64)n.extra)
+                try self.line("bl _memset")
             .call:
                 try self.call(n)
             .trap_:
