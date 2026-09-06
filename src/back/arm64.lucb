@@ -1378,6 +1378,12 @@ pub struct Generator:
         while i < self.program_unit.functions.count:
             try self.function(i)
             i += 1
+        # module-level asm blocks, verbatim, in the text section (§8.9)
+        i = 0
+        while i < self.program_unit.module_asm.count:
+            try self.put("\n")
+            try self.put(self.program_unit.module_asm.get(i).bytes)
+            i += 1
         # text literals
         try self.put("\n    .section __TEXT,__cstring,cstring_literals\n")
         i = 0

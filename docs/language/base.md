@@ -224,7 +224,7 @@ text"""
 - A character literal is one Unicode scalar after escapes. In a `u8` context an ASCII character literal is that byte, so `byte == '\n'` needs no conversion.
 - A string literal is valid UTF-8, stored once in static data, and followed by a NUL byte that is not part of its length. Its type is `str`, and it converts implicitly to `cstr` (§5.5) because the NUL is guaranteed.
 - A byte literal `b"..."` is static data of type `const u8[N]`, with `\xNN` escapes and ASCII text; it is not NUL-terminated.
-- Triple-quoted strings strip indentation by the closing delimiter's column, and normalise CRLF to `\n` before escapes are decoded.
+- Triple-quoted strings drop a newline that directly follows the opening delimiter, strip indentation by the closing delimiter's column, and normalise CRLF to `\n` before escapes are decoded.
 - Escapes in text are `\\`, `\"`, `\'`, `\n`, `\r`, `\t`, `\0`, and `\u{HEX}` with one to six hex digits. There is no `\x` in text; it exists in byte literals.
 - A formatted string is not a value. It is consumed by `print`, by a `Writer`, by `format`, or by a parameter of type `fmt` (§5.5). `{{` and `}}` are literal braces. Each field is `{expression}`, evaluated once, left to right; there is no format specification inside the braces, and radix and padding are one-word functions applied in the field, `{hex(value)}`.
 

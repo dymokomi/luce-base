@@ -367,10 +367,13 @@ pub struct Unit:
     pub var globals: list.List[Global]
     pub var texts: list.List[Text]
     pub var tables: list.List[WitnessTable]
+    ## Module-level `asm` blocks for this target, verbatim (§8.9).
+    pub var module_asm: list.List[Text]
 
     pub static func create() -> Unit!:
         return Unit(functions = try list.List[Function].create(64), globals = try list.List[Global].create(32),
-                    texts = try list.List[Text].create(64), tables = try list.List[WitnessTable].create(16))
+                    texts = try list.List[Text].create(64), tables = try list.List[WitnessTable].create(16),
+                    module_asm = try list.List[Text].create(4))
 
     ## The index of a text literal, adding it when new.
     pub mutating func text(bytes: str) -> u32!:

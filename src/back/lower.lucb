@@ -477,9 +477,9 @@ pub struct Lowerer:
         let d = inst.decl
         let name = try self.function_name(d, inst.args, inst.owner, inst.owner_args)
         try self.begin_function(name, d, inst)
-        self.f.naked = has_attribute(d, "naked")
-        self.f.weak = has_attribute(d, "weak")
-        self.f.used = has_attribute(d, "used")
+        self.f.naked = ast.has_attribute(d, "naked")
+        self.f.weak = ast.has_attribute(d, "weak")
+        self.f.used = ast.has_attribute(d, "used")
         self.f.section = section_of(d)
         # parameters: `self` first for methods, each in a slot
         if let o = inst.owner:
@@ -1211,7 +1211,8 @@ pub struct Lowerer:
             .array_lit:
                 return try self.array_literal(e)
             .lambda:
-                return LowerValue(ref = ir.const_ref(0), type_id = try self.ty(e), in_memory = false)
+                let d = e.resolved else return try self.fail(e, "a lambda without its function")
+                return try self.func_value(e, d)
             .else_:
                 return try self.else_expr(e)
             .catch_:
@@ -2740,6 +2741,9 @@ pub struct Lowerer:
             let target = try self.f.load(ir.Op.loadl, ir.Class.l, try self.offset_address(table, index * 8))
             return try self.call_through(target, fn, method, e.body, data, true, none, try types.no_args())
         let t = self.c.table.get(rt)
+        if t.decl == none and method.text == "compare":
+            # `T: Comparable` at a number, `char`, or `str`: the builtin ordering (§14.4)
+            return try self.builtin_method(e, callee, receiver, rt)
         var impl = method
         if let od = t.decl:
             if let found = check.find_member(od, method.text, ast.Kind.func_):
@@ -2762,12 +2766,58 @@ pub struct Lowerer:
                 let p = try self.expr(receiver)
                 self_ref = p.ref
             else:
-                self_ref = try self.place(receiver)
+                self_ref = try self.receiver_address(receiver, rt)
         return try self.call_through(ir.function_ref(name), fn, impl, e.body, self_ref, has_self, none, args)
+
+    ## The address a method's `self` takes: the receiver's place, or a temporary holding a
+    ## value receiver, `Flags.a.name()` or a call's result.
+    mutating func receiver_address(receiver: ast.Node*, rt: u32) -> ir.Ref!:
+        if ast.is_place_expression(receiver):
+            return try self.place(receiver)
+        let v = try self.expr(receiver)
+        if v.in_memory:
+            return v.ref
+        let slot = try self.f.slot(self.size(rt), self.align(rt))
+        let address = try self.slot_address(slot)
+        try self.store_to(address, v)
+        return address
+
+    ## `a.compare(b)` on a number, `char`, or `str`: negative, zero, or positive (§14.4).
+    mutating func compare_call(e: ast.Node*, receiver: ast.Node*, rt: u32, result: u32) -> LowerValue!:
+        let first = e.body else return try self.fail(e, "`compare` takes one argument")
+        let other = first.left else return try self.fail(e, "empty argument")
+        if rt == types.str_id:
+            let lv = try self.expr(receiver)
+            let rv = try self.expr(other)
+            let start = u32(self.f.args.count)
+            try self.f.args.push(try self.arg_of(lv))
+            try self.f.args.push(try self.arg_of(rv))
+            let c = try self.call_named("lb_core_str_compare", start, 2, ir.Class.w, true, types.i32_id)
+            return LowerValue(ref = try self.f.unary(ir.Op.extsw, ir.Class.l, c), type_id = result, in_memory = false)
+        let lv = try self.value(receiver, rt)
+        let rv = try self.value(other, rt)
+        let signed = self.is_float(rt) or self.signed_of(rt) or rt == types.char_id
+        let cls = self.class_of(rt)
+        let less = try self.f.binary(ir.Op.cslt if signed else ir.Op.cult, cls, lv.ref, rv.ref)
+        let greater = try self.f.binary(ir.Op.csgt if signed else ir.Op.cugt, cls, lv.ref, rv.ref)
+        let diff = try self.f.binary(ir.Op.sub, ir.Class.w, greater, less)
+        return LowerValue(ref = try self.f.unary(ir.Op.extsw, ir.Class.l, diff), type_id = result, in_memory = false)
+
+    ## A module-level `asm arm64:` block (§8.9): its lines go into the unit verbatim.
+    mutating func module_asm(d: ast.Node*) -> !:
+        var text = try buffer.Buffer.create(64)
+        var lines = d.body
+        while let l = lines:
+            try text.put(l.text)
+            try text.put("\n")
+            lines = l.next
+        try self.program_unit.module_asm.push(ir.Text(bytes = try names.keep(&text)))
 
     ## `first()`, `last()`, `indexed()` on spans; `bits()` on floats.
     mutating func builtin_method(e: ast.Node*, callee: ast.Node*, receiver: ast.Node*, rt: u32) -> LowerValue!:
         let result = try self.ty(e)
+        if callee.text == "compare":
+            return try self.compare_call(e, receiver, rt, result)
         if callee.text == "bits":
             let v = try self.expr(receiver)
             return LowerValue(ref = try self.f.unary(ir.Op.cast, self.class_of(result), v.ref), type_id = result, in_memory = false)
@@ -3518,6 +3568,8 @@ pub struct Lowerer:
             while let d = cursor:
                 if d.kind == ast.Kind.func_ and check.generic_params_of(d) == none:
                     discard(try self.add_func(d, try types.no_args(), none, try types.no_args()))
+                elif d.kind == ast.Kind.asm_ and d.text == "arm64":
+                    try self.module_asm(d)
                 elif (d.kind == ast.Kind.struct_ or d.kind == ast.Kind.enum_ or d.kind == ast.Kind.union_) and check.generic_params_of(d) == none:
                     var member = d.body
                     while let m = member:
@@ -3553,7 +3605,7 @@ pub struct Lowerer:
 
     mutating func declare_global(d: ast.Node*) -> !:
         let name = try self.global_name(d)
-        try self.program_unit.globals.push(ir.Global(name = name, size = self.size(d.type_id), align = self.align(d.type_id), is_thread_local = d.has(ast.flag_thread_local), exported = false, weak = has_attribute(d, "weak"), used = has_attribute(d, "used"), section = section_of(d)))
+        try self.program_unit.globals.push(ir.Global(name = name, size = self.size(d.type_id), align = self.align(d.type_id), is_thread_local = d.has(ast.flag_thread_local), exported = false, weak = ast.has_attribute(d, "weak"), used = ast.has_attribute(d, "used"), section = section_of(d)))
 
     ## `lb_init_globals`: every top-level initialiser, in module order.
     mutating func globals_initialiser() -> !:
@@ -3897,15 +3949,6 @@ func float_to_bits(value: f64) -> u64:
 func f32_to_bits(value: f32) -> u32:
     var copy_of = value
     return memory.read[u32]((void*)&copy_of)
-
-## Whether declaration `d` carries the attribute `word` (§9.8).
-func has_attribute(d: ast.Node*, word: str) -> bool:
-    var cursor = d.attrs
-    while let a = cursor:
-        if a.text == word:
-            return true
-        cursor = a.next
-    return false
 
 ## The name in `section("name")` on `d`, or empty.
 func section_of(d: ast.Node*) -> str:

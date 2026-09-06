@@ -123,6 +123,8 @@ pub let flag_builtin: u32 = 67108864
 pub let flag_local: u32 = 134217728
 ## An import that some name resolved through; an import without it is unused (§16.3).
 pub let flag_referenced: u32 = 268435456
+## A hidden function the checker made from a lambda (§9.6); it is not checked again.
+pub let flag_lambda: u32 = 536870912
 
 # mark: Nodes and lists =======================================================================
 
@@ -292,3 +294,33 @@ test "append keeps order and count":
         assert(count(list) == 2)
         assert(a.next != none)
         assert(b.next == none)
+
+## Whether declaration `d` carries the attribute `word` of §9.8.
+pub func has_attribute(d: Node*, word: str) -> bool:
+    var cursor = d.attrs
+    while let a = cursor:
+        if a.text == word:
+            return true
+        cursor = a.next
+    return false
+
+## Whether `e` names storage a method may take the address of: a binding, `self`, an
+## element, a dereference, or a member of one of those. An enum case or a call's result is a
+## value.
+pub func is_place_expression(e: Node*) -> bool:
+    match e.kind:
+        .name, .self_, .index:
+            return true
+        .unary:
+            return e.text == "*"
+        .group:
+            let inner = e.left else return false
+            return is_place_expression(inner)
+        .member:
+            if let d = e.resolved:
+                if d.kind == Kind.enum_case:
+                    return false
+            let owner = e.left else return false
+            return is_place_expression(owner) or not owner.has(flag_type_ref)
+        _:
+            return false

@@ -1013,14 +1013,19 @@ pub struct Emitter:
                 try self.note_if_typedef(ft.elem)
         let base = self.scopes.count
         try self.push_scope(false, "")
-        if let body = f.body:
+        let naked = ast.has_attribute(f, "naked")
+        if naked:
+            try self.naked_body(f)
+        elif let body = f.body:
             var cursor = body.body
             while let s = cursor:
                 try self.stmt(s)
                 cursor = s.next
         try self.unwind(self.scopes.count - 1, false)
         self.pop_scope()
-        if self.fn_fallible() and (try self.result_payload()) == types.unit_id:
+        if naked:
+            discard(0)
+        elif self.fn_fallible() and (try self.result_payload()) == types.unit_id:
             try self.line("return ((lb_r_unit){ .failed = false });")
         elif (try self.result_payload()) != types.unit_id and (try self.result_payload()) != types.never_id:
             try self.line("lb_trap(\"unreachable\");")
@@ -1775,21 +1780,7 @@ pub struct Emitter:
                 try ins.put(")")
             operand = o.next
         try self.line("asm volatile(\"")
-        var lines = s.body
-        while let l = lines:
-            for b in l.text.bytes:
-                if b == '%':
-                    try self.put("%%")
-                elif b == '"':
-                    try self.put("\\\"")
-                elif b == '\\':
-                    try self.put("\\\\")
-                elif b == '\n':
-                    try self.put("\\n")
-                else:
-                    try self.put_byte(b)
-            try self.put("\\n")
-            lines = l.next
+        try self.asm_lines(s.body, true)
         try self.put("\" : ")
         try self.put(outs.view())
         try self.put(" : ")
@@ -2045,7 +2036,8 @@ pub struct Emitter:
                     cursor = m.next
                 try self.put("}})")
             .lambda:
-                try self.put("((void*)0)")
+                let d = e.resolved else return
+                try self.func_value(e, d)
             .else_:
                 try self.else_expr(e)
             .catch_:
@@ -3613,6 +3605,10 @@ pub struct Emitter:
             return
         # a method on a generic parameter's constraint resolves to the concrete type's method
         let t = self.c.table.get(rt)
+        if t.decl == none and method.text == "compare":
+            # `T: Comparable` at a number, `char`, or `str`: the builtin ordering (§14.4)
+            try self.builtin_method(e, callee, receiver, rt)
+            return
         var owner = t.decl
         var owner_args = t.args
         var impl = method
@@ -3628,17 +3624,29 @@ pub struct Emitter:
         if args.length > 0:
             fn = try self.c.substitute(fn, impl, args)
         discard(try self.add_func(impl, args, owner, owner_args))
+        # a value receiver, `Flags.a.name()` or a call's result, is held in a temporary
+        let by_value = not impl.has(ast.flag_static) and not self.is_ptr(rt_raw) and not ast.is_place_expression(receiver)
+        if by_value:
+            try self.put("({ ")
+            try self.put_type(rt)
+            try self.put(" _lb_rc = ")
+            try self.value(receiver, rt)
+            try self.put("; ")
         try self.put_func_name(impl, args, owner, owner_args)
         try self.put("(")
         if not impl.has(ast.flag_static):
             if self.is_ptr(rt_raw):
                 try self.expr(receiver)
+            elif by_value:
+                try self.put("&_lb_rc")
             else:
                 try self.address(receiver)
             if e.body != none or impl.right != none:
                 try self.put(", ")
         try self.arguments(e.body, fn, impl, args)
         try self.put(")")
+        if by_value:
+            try self.put("; })")
 
     ## A method named without a call: a function value of the instance.
     mutating func method_value(e: ast.Node*, owner: ast.Node*, d: ast.Node*) -> !:
@@ -3651,7 +3659,69 @@ pub struct Emitter:
         try self.put_func_name(d, try types.no_args(), t.decl, t.args)
 
     ## `first()`, `last()`, `indexed()` on spans; `bits()` on floats.
+    ## `a.compare(b)` on a number, `char`, or `str`: negative, zero, or positive (§14.4).
+    mutating func compare_call(e: ast.Node*, receiver: ast.Node*, rt: u32) -> !:
+        let first = e.body else return
+        let other = first.left else return
+        if rt == types.str_id:
+            try self.put("((int64_t)lb_str_compare(")
+            try self.value(receiver, rt)
+            try self.put(", ")
+            try self.value(other, rt)
+            try self.put("))")
+            return
+        try self.put("({ ")
+        try self.put_type(rt)
+        try self.put(" _lb_ca = ")
+        try self.value(receiver, rt)
+        try self.put("; ")
+        try self.put_type(rt)
+        try self.put(" _lb_cb = ")
+        try self.value(other, rt)
+        try self.put("; (_lb_ca < _lb_cb) ? (int64_t)-1 : ((_lb_ca > _lb_cb) ? (int64_t)1 : (int64_t)0); })")
+
+    ## The raw lines of an `asm` block as C string text; extended asm doubles `%`.
+    mutating func asm_lines(lines: ast.Node*?, extended: bool) -> !:
+        var cursor = lines
+        while let l = cursor:
+            for b in l.text.bytes:
+                if b == '%' and extended:
+                    try self.put("%%")
+                elif b == '"':
+                    try self.put("\\\"")
+                elif b == '\\':
+                    try self.put("\\\\")
+                elif b == '\n':
+                    try self.put("\\n")
+                else:
+                    try self.put_byte(b)
+            try self.put("\\n")
+            cursor = l.next
+
+    ## A module-level `asm arm64:` block (§8.9): the lines verbatim at file scope.
+    mutating func module_asm(d: ast.Node*) -> !:
+        try self.line("#if defined(__aarch64__)")
+        try self.line("__asm__(\"")
+        try self.asm_lines(d.body, false)
+        try self.put("\");")
+        try self.line("#endif")
+
+    ## A `naked func` body: its asm blocks and nothing else, since C admits no other
+    ## statement in a naked function (§9.8).
+    mutating func naked_body(f: ast.Node*) -> !:
+        let body = f.body else return
+        var cursor = body.body
+        while let s = cursor:
+            if s.kind == ast.Kind.asm_ and s.text == "arm64":
+                try self.line("__asm__ volatile(\"")
+                try self.asm_lines(s.body, false)
+                try self.put("\");")
+            cursor = s.next
+
     mutating func builtin_method(e: ast.Node*, callee: ast.Node*, receiver: ast.Node*, rt: u32) -> !:
+        if callee.text == "compare":
+            try self.compare_call(e, receiver, rt)
+            return
         let n = self.tmp()
         if callee.text == "bits":
             try self.put("({ ")
@@ -4843,6 +4913,8 @@ pub struct Emitter:
             while let d = cursor:
                 if d.kind == ast.Kind.global or d.kind == ast.Kind.constant:
                     try self.global(d)
+                elif d.kind == ast.Kind.asm_ and d.text == "arm64":
+                    try self.module_asm(d)
                 cursor = d.next
             i += 1
         self.target = to_body

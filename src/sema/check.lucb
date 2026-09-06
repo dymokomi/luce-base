@@ -100,6 +100,10 @@ pub struct Checker:
     var at_top_level: bool
     ## The directory of the entry file; dotted imports resolve beneath it.
     var root: str
+    ## Inside a lambda body, bindings below this index (the enclosing locals) are hidden:
+    ## a lambda captures nothing (§9.6).
+    var lambda_floor: usize
+    var lambda_count: u32
 
     pub static func create(scratch: u8[]) -> Checker!:
         return Checker(table = try types.Table.create(), modules = try list.List[Module].create(16),
@@ -166,6 +170,8 @@ pub struct Checker:
         while i > 0:
             i -= 1
             let b = self.scope.get(i)
+            if i < self.lambda_floor and b.depth > 0:
+                continue
             if b.name == name:
                 return b
         return none
@@ -363,6 +369,17 @@ pub struct Checker:
             cursor = d.next
         prune_unused_imports(tree)
         self.pop_scope()
+
+    ## A `naked func` owns its frame: the body is asm blocks and nothing else (§9.8), and the
+    ## blocks are what returns, so the every-path rule does not apply.
+    mutating func check_naked_body(body: ast.Node*) -> !:
+        var cursor = body.body
+        if cursor == none:
+            discard(try self.fail(body, "a naked function's body is one asm block per architecture"))
+        while let s = cursor:
+            if s.kind != ast.Kind.asm_:
+                discard(try self.fail(s, "a naked function's body is asm blocks only"))
+            cursor = s.next
 
     ## `main` takes `str[]` or `cstr[]` and returns `i32` or `i32!` (§9.7).
     mutating func check_entry(tree: ast.Node*) -> !:
@@ -1273,7 +1290,7 @@ pub struct Checker:
         if scalar != types.none_id:
             e.flags |= ast.flag_type_ref
             return scalar
-        let b = self.lookup(e.text) else return try self.fail(e, "unknown name")
+        let b = self.lookup(e.text) else return try self.unknown_name(e)
         e.resolved = b.decl
         self.note_origin(b)
         if b.from_local:
@@ -1305,6 +1322,17 @@ pub struct Checker:
                 return d.type_id
             _:
                 return b.type_id
+
+    ## An unresolved name; inside a lambda, a local of the enclosing function is the usual
+    ## cause, and a lambda captures nothing (§9.6).
+    func unknown_name(e: ast.Node*) -> u32!:
+        if self.lambda_floor > 0:
+            var i = self.lambda_floor
+            while i > 0:
+                i -= 1
+                if self.scope.get(i).name == e.text:
+                    return try self.fail(e, "a lambda captures nothing; pass the value as a parameter (§9.6)")
+        return try self.fail(e, "unknown name")
 
     ## A top-level constant typed on first use, so order does not matter.
     mutating func check_constant(d: ast.Node*) -> !:
@@ -1574,6 +1602,10 @@ pub struct Checker:
         var params = try types.no_args()
         if n > 0:
             params = try alloc u32[n]
+        let saved_floor = self.lambda_floor
+        let saved_self = self.self_type
+        self.lambda_floor = self.scope.count
+        self.self_type = types.none_id
         self.push_scope()
         var i: usize = 0
         var cursor = e.right
@@ -1606,7 +1638,57 @@ pub struct Checker:
         self.result_type = saved_result
         self.fallible = saved_fallible
         self.pop_scope()
-        return try self.table.function(params, result, false)
+        self.lambda_floor = saved_floor
+        self.self_type = saved_self
+        let fn_type = try self.table.function(params, result, false)
+        e.resolved = try self.hoist_lambda(e, body, fn_type)
+        return fn_type
+
+    ## A lambda is a hidden module function (§9.6): its parameters, a body of one `return`,
+    ## and no captures. The backends emit it as any other function of the module.
+    mutating func hoist_lambda(e: ast.Node*, body: ast.Node*, fn_type: u32) -> ast.Node*!:
+        let fn = try ast.Node.make(ast.Kind.func_, try self.lambda_name(), e.start, e.line)
+        fn.flags |= ast.flag_lambda
+        fn.right = e.right
+        fn.type_id = fn_type
+        let ret = try ast.Node.make(ast.Kind.return_, "", body.start, body.line)
+        ret.left = body
+        ret.type_id = types.never_id
+        let block = try ast.Node.make(ast.Kind.block, "", body.start, body.line)
+        block.body = ret
+        fn.body = block
+        let tree = self.modules.get(self.current).tree
+        var cursor = tree.body
+        var last: ast.Node*? = none
+        while let d = cursor:
+            last = d
+            cursor = d.next
+        if let l = last:
+            l.next = fn
+        else:
+            tree.body = fn
+        return fn
+
+    ## `__lambda1`, `__lambda2`, ...: names no source can spell.
+    mutating func lambda_name() -> str!:
+        self.lambda_count += 1
+        var digits: u8[12]
+        var n = self.lambda_count
+        var k: usize = 0
+        while true:
+            digits[k] = (u8)48 + (u8)(n % 10)
+            k += 1
+            n = n // 10
+            if n == 0:
+                break
+        let prefix = "__lambda"
+        var out = try alloc u8[prefix.length + k]
+        memory.copy(out, prefix.bytes, prefix.length)
+        var j: usize = 0
+        while j < k:
+            out[prefix.length + j] = digits[k - 1 - j]
+            j += 1
+        return (str)out[..<prefix.length + k]
 
     ## `x else y`: the payload of an optional or fallible `x`, or `y` (§11.1).
     mutating func else_type(e: ast.Node*, hint: u32) -> u32!:
@@ -1885,7 +1967,9 @@ pub struct Checker:
                 return types.usize_id
             if name == "bytes":
                 return try self.table.span(types.u8_id, true)
-            return try self.fail(e, "`str` has `length` and `bytes`")
+            if name == "compare":
+                return try self.builtin_method(e, types.str_id, name)
+            return try self.fail(e, "`str` has `length`, `bytes`, and `compare`")
         if id == types.error_value_id:
             if name == "code":
                 return types.error_code_id
@@ -1918,6 +2002,8 @@ pub struct Checker:
             let m = find_member(d, name, ast.Kind.func_) else return try self.fail(e, "the interface has no such method")
             e.resolved = m
             return try self.substitute(m.type_id, d, t.args)
+        if name == "compare" and (self.table.is_numeric(id) or id == types.char_id or id == types.str_id):
+            return try self.builtin_method(e, id, name)
         if t.kind == types.Kind.param:
             let g = self.generic_param_node(id) else return try self.fail(e, "no such member")
             var bound = g.body
@@ -2061,6 +2147,11 @@ pub struct Checker:
         if name == "bits":
             let bits = types.u32_id if id == types.f32_id else types.u64_id
             return try self.table.function(try types.no_args(), bits, false)
+        if name == "compare":
+            # numbers, `char`, and `str` order themselves (§14.4)
+            var one = try alloc u32[1]
+            one[0] = id
+            return try self.table.function(one, types.i64_id, false)
         return try self.fail(e, "no such builtin member")
 
     mutating func location_type() -> u32!:
@@ -2957,7 +3048,8 @@ pub struct Checker:
     mutating func check_declaration(d: ast.Node*) -> !:
         match d.kind:
             .func_:
-                try self.check_function(d, none)
+                if not d.has(ast.flag_lambda):
+                    try self.check_function(d, none)
             .constant:
                 if d.type_id == types.none_id or d.ty != none:
                     d.type_id = types.none_id
@@ -3029,7 +3121,9 @@ pub struct Checker:
             cursor = p.next
         if let body = f.body:
             try self.check_block(body)
-            if self.result_type != types.unit_id and self.result_type != types.never_id and not always_leaves(body):
+            if ast.has_attribute(f, "naked"):
+                try self.check_naked_body(body)
+            elif self.result_type != types.unit_id and self.result_type != types.never_id and not always_leaves(body):
                 discard(try self.fail(f, "this function may reach its end without returning"))
         self.current_func = saved_func
         self.result_type = saved_result
