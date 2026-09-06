@@ -634,6 +634,7 @@ pub func grow(block: u8[], size: usize) -> u8[]!:
 """),
     Prelude(name = "io", text = """
 import c
+import core
 extern func fwrite(data: const void*, size: usize, count: usize, stream: void*) -> usize
 extern func fflush(stream: void*?) -> i32
 extern func fdopen(descriptor: i32, mode: c.str) -> void*?
@@ -676,6 +677,18 @@ pub func stdout() -> Writer:
 
 pub func stderr() -> Writer:
     return &err_file
+
+pub let full: ErrorCode = ErrorCode.package(2)
+
+## The sink a formatted string offers a `Display` value (§14.4): it appends to the buffer
+## the compiler is filling, and fails once that buffer is full, as `format` then does.
+pub struct FormatSink: Writer:
+    var buffer: core.FormatBuffer*
+
+    pub mutating func write(data: const u8[]) -> usize!:
+        if core.format_put(self.buffer, data.data, data.length) != 0:
+            error(full, "the buffer is full")
+        return data.length
 """),
     Prelude(name = "luce", text = """
 ## The derived bounds of §14.4: every type with `==` is Equatable, every hashable

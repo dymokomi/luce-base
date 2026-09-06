@@ -1254,7 +1254,10 @@ pub struct Checker:
                         let v = p.left else return try self.fail(p, "empty field")
                         let vt = try self.check_expr(v, types.none_id)
                         if not self.printable(vt):
-                            discard(try self.fail(v, "this value cannot be formatted"))
+                            if self.displays_itself(vt):
+                                try self.display_through_sink(p)
+                            else:
+                                discard(try self.fail(v, "this value cannot be formatted"))
                     part = p.next
                 return types.fmt_id
             .new_:
@@ -1281,6 +1284,35 @@ pub struct Checker:
                 return types.never_id
             _:
                 return try self.fail(e, "unsupported expression")
+
+    ## A struct that is `Display` (§14.4) shows itself in a formatted string.
+    func displays_itself(id: u32) -> bool:
+        if self.table.kind(id) != types.Kind.struct_:
+            return false
+        let iface = self.standard_type("luce", "Display")
+        return iface != types.none_id and self.conforms(id, iface)
+
+    ## The type of a standard module's declaration, `io.Writer`; `none_id` when absent.
+    pub func standard_type(module: str, name: str) -> u32:
+        let index = self.find_module(module) else return types.none_id
+        let d = find_decl(self.modules.get(index).tree, name) else return types.none_id
+        return d.type_id
+
+    ## A field whose value writes itself becomes the call `value.display(__sink)`, where
+    ## `__sink` stands for the string's own sink (`flag_format_sink`); the backends supply
+    ## that sink where they build the string.
+    mutating func display_through_sink(field: ast.Node*) -> !:
+        let v = field.left else return
+        let sink = try ast.Node.make(ast.Kind.name, "__sink", field.start, field.line)
+        sink.flags |= ast.flag_format_sink
+        let argument = try ast.Node.make(ast.Kind.argument, "", field.start, field.line)
+        argument.left = sink
+        let call = try self.method_call(v, "display", field)
+        call.body = argument
+        call.flags |= ast.flag_format_sink
+        field.left = call
+        field.flags |= ast.flag_format_sink
+        discard(try self.check_expr(call, types.none_id))
 
     ## Values a formatted string or `print` can show.
     func printable(id: u32) -> bool:
@@ -1320,6 +1352,8 @@ pub struct Checker:
 
     ## A name is a local, a declaration, a module, or a type used as a value.
     mutating func name_type(e: ast.Node*) -> u32!:
+        if e.has(ast.flag_format_sink):
+            return self.standard_type("io", "Writer")
         let scalar = scalar_id(e.text)
         if scalar != types.none_id:
             e.flags |= ast.flag_type_ref

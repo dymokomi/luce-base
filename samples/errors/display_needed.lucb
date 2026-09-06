@@ -1,0 +1,7 @@
+# error: this value cannot be formatted
+struct Plain:
+    var n: u32
+
+pub func main(arguments: str[]) -> i32:
+    print(f"{Plain(n = 1)}")
+    return 0

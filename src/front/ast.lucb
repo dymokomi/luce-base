@@ -127,6 +127,9 @@ pub let flag_referenced: u32 = 268435456
 pub let flag_lambda: u32 = 536870912
 ## A local no expression read: the block it is in prunes it (§19.6).
 pub let flag_unused: u32 = 1073741824
+## The sink of the formatted string being built (a name), the call that displays a field
+## through it, and the field itself (§14.4).
+pub let flag_format_sink: u32 = 2147483648
 
 # mark: Nodes and lists =======================================================================
 

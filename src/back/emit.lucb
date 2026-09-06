@@ -103,6 +103,9 @@ pub struct Emitter:
     var in_catch: bool
     var src_file: str
     var wrote_writer: bool
+    ## The format buffer temporary a `Display` field writes into, while emitting its call.
+    var sink_prefix: str
+    var sink_index: u32
 
     pub static func create(c: check.Checker*, entry: ast.Node*) -> Emitter!:
         return Emitter(c = c, out = try buffer.Buffer.create(65536), body = try buffer.Buffer.create(262144),
@@ -115,7 +118,8 @@ pub struct Emitter:
                        current_fn = none, fn_decl = none, fn_args = try types.no_args(), owner_decl = none,
                        owner_args = try types.no_args(), scopes = try list.List[Scope].create(64),
                        defers = try list.List[NodeRef].create(64), catch_var = 0, catch_done = 0,
-                       catch_payload = 0, match_result = 0, in_catch = false, src_file = entry.text, wrote_writer = false)
+                       catch_payload = 0, match_result = 0, in_catch = false, src_file = entry.text, wrote_writer = false,
+                       sink_prefix = "", sink_index = 0)
 
     # -- output ---------------------------------------------------------------------------
 
@@ -1923,6 +1927,23 @@ pub struct Emitter:
             return
         try self.put("{0}")
 
+    ## `((lb_iface){ &(FormatSink){ &buffer }, &table })`: the sink over the buffer being built.
+    mutating func format_sink_view() -> !:
+        let sink_type = self.c.standard_type("io", "FormatSink")
+        let writer = self.c.standard_type("io", "Writer")
+        try self.note(sink_type)
+        try self.put("((lb_iface){ (void*)&(")
+        try self.put_record_name(sink_type)
+        # the runtime's `lb_fmtbuf` and core's `FormatBuffer` are one layout, data, capacity, used
+        try self.put("){ (")
+        try self.put_record_name(self.c.standard_type("core", "FormatBuffer"))
+        try self.put("*)&")
+        try self.put_tmp(self.sink_prefix, self.sink_index)
+        try self.put(" }, &lb_vt_")
+        try self.put_mangled(sink_type)
+        try self.put("_Writer })")
+        try self.note_vtable(sink_type, writer)
+
     ## `((lb_iface){ pointer, &vtable })` for a struct pointer used as a view.
     mutating func iface_view(e: ast.Node*, target: u32, iface: u32) -> !:
         let d = self.decl_of(target) else return try self.expr(e)
@@ -2156,6 +2177,9 @@ pub struct Emitter:
         try self.put("LL")
 
     mutating func name(e: ast.Node*) -> !:
+        if e.has(ast.flag_format_sink):
+            try self.format_sink_view()
+            return
         if let d = e.resolved:
             if d.kind == ast.Kind.enum_case:
                 try self.enum_value(e)
@@ -3972,7 +3996,7 @@ pub struct Emitter:
                 second = s.left
         if name == "print":
             let v = arg else return
-            if v.kind == ast.Kind.formatted:
+            if v.kind == ast.Kind.formatted and not displays_a_field(v):
                 try self.print_formatted(v)
                 return
             try self.put("lb_print_str(")
@@ -4559,6 +4583,16 @@ pub struct Emitter:
 
     ## Append one value to the format buffer temporary `prefix n`.
     mutating func display(n: u32, prefix: str, v: ast.Node*) -> !:
+        if v.has(ast.flag_format_sink):
+            # `value.display(__sink)`: the sink is this buffer
+            let saved_prefix = self.sink_prefix
+            let saved_index = self.sink_index
+            self.sink_prefix = prefix
+            self.sink_index = n
+            try self.expr(v)
+            self.sink_prefix = saved_prefix
+            self.sink_index = saved_index
+            return
         let t = try self.ty(v)
         if t == types.bool_id:
             try self.put("lb_fmtbuf_bool(&")
@@ -5190,6 +5224,16 @@ pub struct Emitter:
 # mark: Helpers ================================================================================
 
 ## The runtime helper behind an arithmetic operator.
+## Whether a formatted string has a field that writes itself (§14.4): such a string is built
+## in a buffer rather than written piece by piece.
+func displays_a_field(f: ast.Node*) -> bool:
+    var part = f.body
+    while let p = part:
+        if p.kind == ast.Kind.format_field and p.has(ast.flag_format_sink):
+            return true
+        part = p.next
+    return false
+
 ## The C spelling of one of the `c` module's distinct types (base.md §5.2).
 func c_spelling(id: u32) -> str:
     if id == types.c_char_id: return "char"

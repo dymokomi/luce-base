@@ -1,0 +1,26 @@
+## A struct that is `Display` writes itself to the sink a formatted string offers (§14.4):
+## through `print`, through `format` into the caller's buffer, and from inside another
+## value's own `display`.
+from luce import Display
+from io import Writer
+
+struct Point: Display:
+    var x: i64
+    var y: i64
+
+    func display(sink: Writer) -> !:
+        discard(try sink.write(f"({self.x}, {self.y})"))
+
+struct Segment: Display:
+    var a: Point
+    var b: Point
+
+    func display(sink: Writer) -> !:
+        discard(try sink.write(f"{self.a} to {self.b}"))
+
+pub func main(arguments: str[]) -> i32!:
+    let s = Segment(a = Point(x = 1, y = 2), b = Point(x = 3, y = 4))
+    var buffer: u8[64]
+    let text = try format(buffer, f"segment {s}!")
+    print(f"{s.a} and {text}")
+    return 0

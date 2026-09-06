@@ -116,7 +116,7 @@ Base programmer would miss them.
 
 | § | Feature | State |
 | --- | --- | --- |
-| 14.4 | `Display`, `Iterator`, `Iterable` | `Iterator` and `Iterable` done in both (`for` desugars to the protocol); `Display` for user types in formatted strings still missing |
+| 14.4 | `Display`, `Iterator`, `Iterable` | done in both: `for` desugars to the protocol; a `Display` struct in a formatted string calls `display` through the string's own sink |
 | 17.1 | `out` parameters as tuple results | missing in both |
 | 8.9 | compiler-chosen `reg` operands, `{name}` substitution natively | C only |
 | 5.1 | `f16` | missing in both; low demand |
@@ -128,7 +128,7 @@ Base programmer would miss them.
 | 16.6 | TLS for `net`, a `graphics` module | missing |
 | plan 9 | `luce-ld` | not started |
 
-Known and accepted: the allocator handles block-local temporaries only; the
+Known and accepted: luce-base accepts `x else y` on a fallible `x`, which §11.1 reserves for optionals (a fallible takes `try` or `catch`); the seed refuses it, and luce-base should too; the
 interpreter cannot run asm; `var views: Interface[N]` is rejected by both
 compilers because a view has no zero value; a union member written only
 through a pointer taken earlier is not seen by the interpreter's punning.

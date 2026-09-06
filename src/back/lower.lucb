@@ -100,6 +100,8 @@ pub struct Lowerer:
     var match_type: u32
     var src_file: str
     var mode: u32
+    ## The format buffer a `Display` field writes into, while lowering its call.
+    var format_sink: ir.Ref
 
     pub static func create(c: check.Checker*, entry: ast.Node*) -> Lowerer!:
         return Lowerer(c = c, program_unit = try ir.Unit.create(), f = try ir.Function.create(""), scratch = try buffer.Buffer.create(256), debug = false,
@@ -110,7 +112,7 @@ pub struct Lowerer:
                        locals = try list.List[LowerLocal].create(64), scopes = try list.List[LowerScope].create(32),
                        defers = try list.List[NodeRef].create(32), result_slot = 0, self_slot = 0, catch_slot = 0,
                        catch_done = 0, catch_payload = 0, catch_error_slot = 0, in_catch = false, match_slot = 0,
-                       match_type = 0, src_file = entry.text, mode = 0)
+                       match_type = 0, src_file = entry.text, mode = 0, format_sink = ir.none_ref())
 
     func fail(node: ast.Node*, what: str) -> never!:
         # the checker's scratch outlives the arena the tree lives in, so the report does too
@@ -1167,6 +1169,14 @@ pub struct Lowerer:
         try self.f.store(ir.Op.storel, table, try self.offset_address(a, 8))
         return LowerValue(ref = a, type_id = iface, in_memory = true)
 
+    ## The `Writer` view of an `io.FormatSink` over the buffer a formatted string is built in.
+    mutating func format_sink_view() -> LowerValue!:
+        let sink_type = self.c.standard_type("io", "FormatSink")
+        let slot = try self.new_slot(sink_type)
+        let a = try self.slot_address(slot)
+        try self.f.store(ir.Op.storel, self.format_sink, a)
+        return try self.iface_view(a, sink_type, self.c.standard_type("io", "Writer"))
+
     ## `{ data, length }` in memory.
     mutating func span_of(data: ir.Ref, length: ir.Ref, t: u32) -> LowerValue!:
         let slot = try self.f.slot(16, 8)
@@ -1283,6 +1293,8 @@ pub struct Lowerer:
         return LowerValue(ref = ir.const_ref((i64)v), type_id = it, in_memory = false)
 
     mutating func name(e: ast.Node*) -> LowerValue!:
+        if e.has(ast.flag_format_sink):
+            return try self.format_sink_view()
         let t = try self.ty(e)
         if let d = e.resolved:
             if d.kind == ast.Kind.enum_case:
@@ -3423,6 +3435,14 @@ pub struct Lowerer:
 
     ## Append one value to the format buffer at `fb`.
     mutating func display(fb: ir.Ref, v: ast.Node*) -> !:
+        if v.has(ast.flag_format_sink):
+            # `value.display(__sink)`: the sink is this buffer; a failed write leaves the
+            # buffer over capacity, which `format` reports
+            let saved = self.format_sink
+            self.format_sink = fb
+            discard(try self.expr(v))
+            self.format_sink = saved
+            return
         let t = try self.ty(v)
         let x = try self.expr(v)
         if t == types.bool_id:

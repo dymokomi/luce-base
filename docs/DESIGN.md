@@ -91,7 +91,11 @@ and `while let x = __iterN.next(): body`. The iterator is a hidden local of
 its concrete type, no view is formed, and the backends see only a loop they
 already know; the protocols themselves, `Iterator[T]`, `Iterable[T, I]`, and
 `Display`, are ordinary generic interfaces in the `luce` module, which the
-backends never table because nothing views them.
+backends never table because nothing views them. A `Display` struct in a
+formatted string is the other protocol the checker rewrites: the field
+becomes `value.display(__sink)`, where `__sink` is a name marked
+`flag_format_sink`; each backend supplies that sink where it builds the
+string, an `io.FormatSink` over the buffer being filled, viewed as a `Writer`.
 
 Generic declarations are checked once, against their written constraints,
 with their parameters as opaque types (§13). A use substitutes the arguments
