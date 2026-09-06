@@ -20,12 +20,16 @@
 #
 #==============================================================================================
 
+import c
+import files
 import front.ast
-import support.list
 import front.parser
-import sema.prelude
 import front.source
+import io
+import memory
+import sema.prelude
 import sema.types
+import support.list
 
 pub let unknown_name: ErrorCode = ErrorCode.package(9)
 pub let type_error: ErrorCode = ErrorCode.package(10)
@@ -50,7 +54,7 @@ pub struct Module:
     pub var is_prelude: bool
 
 ## A `Writer` over a caller's buffer, for spelling types into diagnostics.
-struct SpanWriter implements Writer:
+struct SpanWriter implements io.Writer:
     var data: u8[]
     var used: usize
 
@@ -80,6 +84,8 @@ pub struct Checker:
     var fallible: bool
     var self_type: u32
     var self_mutable: bool
+    ## Inside `init`, where `let` fields take their first value.
+    var in_init: bool
     var loop_depth: u32
     var in_catch: bool
     var catch_result: u32
@@ -94,7 +100,7 @@ pub struct Checker:
         return Checker(table = try types.Table.create(), modules = try list.List[Module].create(16),
                        scope = try list.List[Binding].create(512), depth = 0, scratch = scratch,
                        current = 0, current_func = none, result_type = types.unit_id, fallible = false,
-                       self_type = types.none_id, self_mutable = false, loop_depth = 0, in_catch = false,
+                       self_type = types.none_id, self_mutable = false, in_init = false, loop_depth = 0, in_catch = false,
                        catch_result = types.none_id, checking_template = false, at_top_level = false, root = "")
 
     # -- diagnostics ----------------------------------------------------------------------
@@ -301,33 +307,10 @@ pub struct Checker:
         if not good:
             discard(try self.fail(d, "`main` takes `str[]` or `cstr[]` and returns `i32` or `i32!`"))
 
-    ## The standard modules are visible by name in every module, and a few of
-    ## their types by bare name (§16.6). A prelude module sees only its predecessors.
+    ## Nothing is visible without an import (§16.3): a standard module is `import io`,
+    ## one of its declarations `from io import Writer`, in the prelude as anywhere else.
     mutating func bind_standard() -> !:
-        var i: usize = 0
-        while i < self.modules.count and i != self.current:
-            let m = self.modules.get(i)
-            if not m.is_prelude:
-                break
-            try self.bind_module(m.tree, m.name, m.tree)
-            i += 1
-        if let mi = self.find_module("memory"):
-            if mi < self.current:
-                let mem = self.modules.get(mi).tree
-                try self.bind_public(mem, "Allocator")
-                try self.bind_public(mem, "FixedBuffer")
-                try self.bind_public(mem, "CAllocator")
-        if let ii = self.find_module("io"):
-            if ii < self.current:
-                let io_tree = self.modules.get(ii).tree
-                try self.bind_public(io_tree, "Writer")
-                try self.bind_public(io_tree, "Location")
-        if let li = self.find_module("luce"):
-            if li < self.current:
-                let luce_tree = self.modules.get(li).tree
-                try self.bind_public(luce_tree, "Equatable")
-                try self.bind_public(luce_tree, "Hashable")
-                try self.bind_public(luce_tree, "Comparable")
+        return
 
     mutating func bind_module(tree: ast.Node*, alias: str, at: ast.Node*) -> !:
         if self.lookup(alias) != none:
@@ -1036,7 +1019,8 @@ pub struct Checker:
             .member:
                 let owner = e.left else return false
                 if let field = e.resolved:
-                    if field.kind == ast.Kind.field and field.has(ast.flag_const):
+                    # `init` gives every field its first value, `let` fields included (§9.4)
+                    if field.kind == ast.Kind.field and field.has(ast.flag_const) and not self.in_init:
                         return false
                     if field.kind == ast.Kind.global:
                         return true
@@ -1839,12 +1823,76 @@ pub struct Checker:
                 if let cd = ct.decl:
                     if let m = find_member(cd, name, ast.Kind.func_):
                         e.resolved = m
-                        return try self.substitute(m.type_id, cd, ct.args)
+                        let fn = try self.substitute(m.type_id, cd, ct.args)
+                        if is_derived_bound(cd):
+                            # `compare(other: void*)` in the prelude is `compare(other: T)` here
+                            return try self.with_self_arguments(fn, id)
+                        return fn
                 bound = c.next
             return try self.fail(e, "no constraint of this parameter has that method")
         if t.kind == types.Kind.pointer and t.elem == types.void_id:
             return try self.fail(e, "`void*` has no members")
         return try self.fail(e, "this value has no members")
+
+    func all_params(ids: u32[]) -> bool:
+        for id in ids:
+            if self.table.kind(id) != types.Kind.param:
+                return false
+        return ids.length > 0
+
+    ## The instance of generic `d` whose parameters the construction's values imply.
+    mutating func infer_construction(e: ast.Node*, d: ast.Node*, generic_count: usize) -> u32!:
+        var inferred = try alloc u32[generic_count]
+        var j: usize = 0
+        while j < generic_count:
+            inferred[j] = types.none_id
+            j += 1
+        var cursor = e.body
+        var positional = d.body
+        while let a = cursor:
+            let v = a.left else return try self.fail(a, "empty argument")
+            var field: ast.Node*? = none
+            if a.text.length > 0:
+                field = find_member(d, a.text, ast.Kind.field)
+            else:
+                while let p = positional:
+                    if p.kind == ast.Kind.field:
+                        break
+                    positional = p.next
+                field = positional
+                if let p = positional:
+                    positional = p.next
+            let f = field else return try self.fail(a, "no field with that name")
+            var got = try self.check_expr(v, types.none_id if self.mentions_param(f.type_id) else f.type_id)
+            got = self.concrete(got) if got != types.none_id else got
+            try self.infer(f.type_id, got, d, inferred)
+            cursor = a.next
+        j = 0
+        while j < generic_count:
+            if inferred[j] == types.none_id:
+                return try self.fail(e, "a type argument could not be inferred; write `Name[T](...)`")
+            j += 1
+        let holder = try ast.Node.make(ast.Kind.type_, "", e.start, e.line)
+        var tail: ast.Node*? = none
+        j = 0
+        while j < generic_count:
+            let node = try ast.Node.make(ast.Kind.type_, "", e.start, e.line)
+            node.type_id = inferred[j]
+            ast.append(&holder.body, &tail, node)
+            j += 1
+        e.ty = holder
+        return try self.table.nominal(self.table.kind(d.type_id), d, inferred)
+
+    ## A function type with every `void*` parameter replaced by `self_id`.
+    mutating func with_self_arguments(fn: u32, self_id: u32) -> u32!:
+        let f = self.table.get(fn)
+        var params = try alloc u32[f.args.length if f.args.length > 0 else 1]
+        var i: usize = 0
+        while i < f.args.length:
+            let a = self.table.get(f.args[i])
+            params[i] = self_id if a.kind == types.Kind.pointer and a.elem == types.void_id else f.args[i]
+            i += 1
+        return try self.table.function(params[..<f.args.length], f.elem, false)
 
     ## `Type.name`: a static method, an enum case, `ErrorCode.package`, `f32.bits`.
     mutating func static_member(e: ast.Node*, owner: ast.Node*, id: u32) -> u32!:
@@ -2286,8 +2334,14 @@ pub struct Checker:
             return target
         if t.kind == types.Kind.struct_:
             let d = t.decl else return try self.fail(e, "no declaration")
-            if ast.count(generic_params_of(d)) > 0 and t.args.length == 0 and not self.inside(d):
+            let generic_count = ast.count(generic_params_of(d))
+            if generic_count > 0 and t.args.length == 0 and not self.inside(d):
                 return try self.fail(e, "this type needs type arguments, `Name[T](...)`")
+            if generic_count > 0 and e.ty == none and not self.inside(d) and self.all_params(t.args):
+                # `Pair(key = 1, value = 2)`: the arguments come from the fields' values
+                let instance = try self.infer_construction(e, d, generic_count)
+                callee.type_id = instance
+                return try self.construct(e, instance, e.body)
             return try self.construct(e, target, e.body)
         if t.kind == types.Kind.union_:
             return try self.fail(e, "a union is built by assigning one member")
@@ -2713,8 +2767,10 @@ pub struct Checker:
         while let a = arm:
             self.push_scope()
             var pattern = a.left
+            var first = true
             while let p = pattern:
-                try self.check_pattern(p, st)
+                try self.check_pattern(p, st, first)
+                first = false
                 pattern = p.next
             if let guard = a.right:
                 discard(try self.expect(guard, types.bool_id))
@@ -2735,7 +2791,9 @@ pub struct Checker:
 
     ## A pattern against the scrutinee type: `_`, `.case(names)`, a literal, a
     ## constant, or a range of literals.
-    mutating func check_pattern(p: ast.Node*, st: u32) -> !:
+    ## A pattern of an arm; after the first pattern of an arm the names are bound
+    ## already and every further pattern must bind the same names to the same types.
+    mutating func check_pattern(p: ast.Node*, st: u32, first: bool) -> !:
         if p.has(ast.flag_wildcard):
             p.type_id = st
             return
@@ -2757,7 +2815,13 @@ pub struct Checker:
                 let q = param else return try self.fail(n, "this case carries fewer values")
                 n.type_id = try self.substitute(q.type_id, d, self.table.get(enum_id).args)
                 if n.text != "_":
-                    try self.bind(n, n.text, n.type_id, n, false)
+                    if first:
+                        try self.bind(n, n.text, n.type_id, n, false)
+                    else:
+                        let b = self.lookup(n.text) else return try self.fail(n, "every pattern of an arm binds the same names")
+                        if b.type_id != n.type_id:
+                            return try self.fail(n, "a name bound by every pattern of an arm has one type")
+                        n.resolved = b.decl
                 name = n.next
                 param = q.next
             if param != none and v.body != none:
@@ -2820,6 +2884,7 @@ pub struct Checker:
         let saved_fallible = self.fallible
         let saved_self = self.self_type
         let saved_self_mutable = self.self_mutable
+        let saved_in_init = self.in_init
         let saved_loop = self.loop_depth
         self.current_func = f
         self.loop_depth = 0
@@ -2831,7 +2896,8 @@ pub struct Checker:
                 self.self_type = types.none_id
             else:
                 self.self_type = o.type_id
-                self.self_mutable = f.has(ast.flag_mutating)
+                self.self_mutable = f.has(ast.flag_mutating) or f.text == "init"
+                self.in_init = f.text == "init"
                 if f.has(ast.flag_mutating) and f.has(ast.flag_static):
                     discard(try self.fail(f, "a static method has no receiver to mutate"))
         else:
@@ -2856,6 +2922,7 @@ pub struct Checker:
         self.fallible = saved_fallible
         self.self_type = saved_self
         self.self_mutable = saved_self_mutable
+        self.in_init = saved_in_init
         self.loop_depth = saved_loop
         self.checking_template = saved_template
         self.pop_scope()
@@ -3469,7 +3536,7 @@ let test_arena_size: usize = 8388608
 func expect_error(text: str, fragment: str) -> !:
     let backing = try alloc u8[test_arena_size] in memory.heap
     defer free(backing) in memory.heap
-    var arena = FixedBuffer.over(backing)
+    var arena = memory.FixedBuffer.over(backing)
     var scratch: u8[1024]
     var failed = false
     with arena:
@@ -3485,13 +3552,16 @@ func expect_error(text: str, fragment: str) -> !:
 func expect_ok(text: str) -> !:
     let backing = try alloc u8[test_arena_size] in memory.heap
     defer free(backing) in memory.heap
-    var arena = FixedBuffer.over(backing)
+    var arena = memory.FixedBuffer.over(backing)
     var scratch: u8[1024]
     with arena:
         check_text(text, scratch) catch failure:
-            print(f"unexpected: {failure.message}")
-            error(failure.code, failure.message)
+            # the message lives in this frame's scratch; the runner reads it after the return
+            let kept = try format(test_message, f"{failure.message}")
+            error(failure.code, kept)
             recover ()
+
+var test_message: u8[1024]
 
 func contains(haystack: str, needle: str) -> bool:
     let h = haystack.bytes
@@ -3542,11 +3612,14 @@ test "generics infer from arguments and substitute results":
 test "a generic struct instantiates and its methods substitute":
     try expect_ok("struct Box[T]:\n    var item: T\n    func get() -> T:\n        return self.item\nfunc f() -> i64:\n    let b = Box[i64](item = 3)\n    return b.get()\n")
 
-test "the standard modules are visible by name":
-    try expect_ok("func f() -> !:\n    let out = io.stdout()\n    try out.write(\"hi\")\n    var buf: u8[16]\n    let s = try format(buf, f\"{buf.length}\")\n    discard(s.length)\n")
+test "the standard modules need an import":
+    try expect_ok("import io\nfunc f() -> !:\n    let out = io.stdout()\n    try out.write(\"hi\")\n    var buf: u8[16]\n    let s = try format(buf, f\"{buf.length}\")\n    discard(s.length)\n")
+    try expect_error("func f() -> !:\n    let out = io.stdout()\n    try out.write(\"hi\")\n", "unknown name")
+    try expect_ok("from io import Writer\nfunc f(w: Writer) -> !:\n    discard(try w.write(\"hi\".bytes))\n")
+    try expect_error("func f(w: Writer) -> !:\n    discard(try w.write(\"hi\".bytes))\n", "unknown type")
 
 test "interfaces form views from pointers":
-    try expect_ok("struct W implements Writer:\n    var n: usize\n    pub mutating func write(bytes: const u8[]) -> usize!:\n        self.n += bytes.length\n        return bytes.length\nfunc f() -> !:\n    var w = W(n = 0)\n    let v: Writer = &w\n    discard(try v.write(\"abc\"))\n")
+    try expect_ok("from io import Writer\nstruct W implements Writer:\n    var n: usize\n    pub mutating func write(bytes: const u8[]) -> usize!:\n        self.n += bytes.length\n        return bytes.length\nfunc f() -> !:\n    var w = W(n = 0)\n    let v: Writer = &w\n    discard(try v.write(\"abc\"))\n")
 
 test "none needs an optional and if let unwraps":
     try expect_error("func f() -> i64:\n    let x = none\n    return 0\n", "`none` needs a written type")
@@ -3558,7 +3631,7 @@ test "error and catch handle failure":
 test "modules import and qualify names":
     let backing = try alloc u8[test_arena_size] in memory.heap
     defer free(backing) in memory.heap
-    var arena = FixedBuffer.over(backing)
+    var arena = memory.FixedBuffer.over(backing)
     var scratch: u8[1024]
     with arena:
         var c = try Checker.create(scratch)

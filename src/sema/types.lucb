@@ -13,7 +13,10 @@
 #
 #==============================================================================================
 
+import c
 import front.ast
+import io
+import memory
 import support.list
 
 pub enum Kind as u8:
@@ -299,7 +302,46 @@ pub struct Table:
 
     # -- layout ---------------------------------------------------------------------------
 
+    ## Sizes and alignments of a type; a generic instance's fields are measured with
+    ## the declaration's parameters standing for the instance's arguments.
     pub func size_of(id: u32) -> u64:
+        return self.sized(id, none, no_args_view())
+
+    pub func align_of(id: u32) -> u64:
+        return self.aligned(id, none, no_args_view())
+
+    ## The parameter `t` (of `env_decl`) resolved through `env_args`, or the id itself.
+    func through(id: u32, env_decl: ast.Node*?, env_args: u32[]) -> u32:
+        let t = self.get(id)
+        if t.kind != Kind.param:
+            return id
+        let d = env_decl else return id
+        let owner = t.decl else return id
+        if owner != d:
+            return id
+        var index: usize = 0
+        var cursor = d.left
+        if let l = cursor:
+            if l.kind == ast.Kind.generic_param:
+                cursor = l.body
+            else:
+                cursor = none
+        while let g = cursor:
+            if g.text == t.name:
+                return env_args[index] if index < env_args.length else id
+            index += 1
+            cursor = g.next
+        return id
+
+    ## An instance's arguments resolved through the enclosing environment, into `out`.
+    func instance_args(t: Type, env_decl: ast.Node*?, env_args: u32[], out: u32[]) -> u32[]:
+        var n: usize = 0
+        while n < t.args.length and n < out.length:
+            out[n] = self.through(t.args[n], env_decl, env_args)
+            n += 1
+        return out[..<n]
+
+    func sized(id: u32, env_decl: ast.Node*?, env_args: u32[]) -> u64:
         let t = self.get(id)
         match t.kind:
             .i8, .u8, .bool_: return 1
@@ -309,140 +351,155 @@ pub struct Table:
             .pointer, .func_, .cstr: return 8
             .str_, .span, .interface_, .fmt: return 16
             .error_value: return 24
-            .array: return self.size_of(t.elem) * t.length
-            .atomic: return self.size_of(t.elem)
+            .param:
+                let resolved = self.through(id, env_decl, env_args)
+                return 0 if resolved == id else self.sized(resolved, none, no_args_view())
+            .array: return self.sized(t.elem, env_decl, env_args) * t.length
+            .atomic: return self.sized(t.elem, env_decl, env_args)
             .optional:
                 if self.has_null_niche(t.elem):
                     return 8
-                let inner = self.size_of(t.elem)
-                let a = self.align_of(t.elem)
+                let inner = self.sized(t.elem, env_decl, env_args)
+                let a = self.aligned(t.elem, env_decl, env_args)
                 return round_up(inner, a) + a if a > 0 else inner + 1
             .fallible:
                 # the value, then the error (a code and a message), then the flag, as C lays them out
-                let inner = self.size_of(t.elem) if t.elem != unit_id and t.elem != never_id else 0
+                let inner = self.sized(t.elem, env_decl, env_args) if t.elem != unit_id and t.elem != never_id else 0
                 return round_up(round_up(inner, 8) + 24 + 1, 8)
-            .tuple, .struct_:
+            .tuple:
                 var offset: u64 = 0
                 var largest: u64 = 1
-                if t.kind == Kind.tuple:
-                    for m in t.args:
-                        let a = self.align_of(m)
-                        offset = round_up(offset, a) + self.size_of(m)
+                for m in t.args:
+                    let a = self.aligned(m, env_decl, env_args)
+                    offset = round_up(offset, a) + self.sized(m, env_decl, env_args)
+                    largest = a if a > largest else largest
+                return round_up(offset, largest)
+            .struct_:
+                var offset: u64 = 0
+                var largest: u64 = 1
+                let decl = t.decl else return 0
+                var room: u32[16]
+                let inner = self.instance_args(t, env_decl, env_args, room)
+                var cursor = decl.body
+                while let member = cursor:
+                    if member.kind == ast.Kind.field:
+                        let a = self.aligned(member.type_id, decl, inner)
+                        if not decl.has(ast.flag_packed):
+                            offset = round_up(offset, a)
+                        offset += self.sized(member.type_id, decl, inner)
                         largest = a if a > largest else largest
-                elif let decl = t.decl:
-                    var cursor = decl.body
-                    while let member = cursor:
-                        if member.kind == ast.Kind.field:
-                            let a = self.align_of(member.type_id)
-                            if not decl.has(ast.flag_packed):
-                                offset = round_up(offset, a)
-                            offset += self.size_of(member.type_id)
-                            largest = a if a > largest else largest
-                        cursor = member.next
-                if let decl = t.decl:
-                    if decl.has(ast.flag_packed):
-                        return offset
+                    cursor = member.next
+                if decl.has(ast.flag_packed):
+                    return offset
                 return round_up(offset, largest)
             .union_:
                 var largest: u64 = 0
                 var widest: u64 = 1
-                if let decl = t.decl:
-                    var cursor = decl.body
-                    while let member = cursor:
-                        if member.kind == ast.Kind.field:
-                            let s = self.size_of(member.type_id)
-                            largest = s if s > largest else largest
-                            let a = self.align_of(member.type_id)
-                            widest = a if a > widest else widest
-                        cursor = member.next
+                let decl = t.decl else return 0
+                var room: u32[16]
+                let inner = self.instance_args(t, env_decl, env_args, room)
+                var cursor = decl.body
+                while let member = cursor:
+                    if member.kind == ast.Kind.field:
+                        let s = self.sized(member.type_id, decl, inner)
+                        largest = s if s > largest else largest
+                        let a = self.aligned(member.type_id, decl, inner)
+                        widest = a if a > widest else widest
+                    cursor = member.next
                 return round_up(largest, widest)
             .enum_:
-                if let decl = t.decl:
-                    if let backing = decl.ty:
-                        return self.size_of(backing.type_id) if backing.type_id != none_id else 4
-                    # tag plus the largest payload, each field aligned
-                    var largest: u64 = 0
-                    var widest: u64 = 4
-                    var cursor = decl.body
-                    while let c = cursor:
-                        if c.kind == ast.Kind.enum_case:
-                            var offset: u64 = 0
-                            var pcursor = c.body
-                            while let p = pcursor:
-                                let a = self.align_of(p.type_id)
-                                offset = round_up(offset, a) + self.size_of(p.type_id)
-                                widest = a if a > widest else widest
-                                pcursor = p.next
-                            largest = offset if offset > largest else largest
-                        cursor = c.next
-                    return round_up(round_up(4, widest) + largest, widest)
-                return 4
+                let decl = t.decl else return 4
+                if let backing = decl.ty:
+                    return self.sized(backing.type_id, none, no_args_view()) if backing.type_id != none_id else 4
+                var room: u32[16]
+                let inner = self.instance_args(t, env_decl, env_args, room)
+                var largest: u64 = 0
+                var widest: u64 = 4
+                var cursor = decl.body
+                while let c = cursor:
+                    if c.kind == ast.Kind.enum_case:
+                        var offset: u64 = 0
+                        var pcursor = c.body
+                        while let p = pcursor:
+                            let a = self.aligned(p.type_id, decl, inner)
+                            offset = round_up(offset, a) + self.sized(p.type_id, decl, inner)
+                            widest = a if a > widest else widest
+                            pcursor = p.next
+                        largest = offset if offset > largest else largest
+                    cursor = c.next
+                return round_up(round_up(4, widest) + largest, widest)
             _: return 0
 
-    pub func align_of(id: u32) -> u64:
+    func aligned(id: u32, env_decl: ast.Node*?, env_args: u32[]) -> u64:
         let t = self.get(id)
         match t.kind:
-            .array: return self.align_of(t.elem)
-            .atomic: return self.align_of(t.elem)
+            .param:
+                let resolved = self.through(id, env_decl, env_args)
+                return 1 if resolved == id else self.aligned(resolved, none, no_args_view())
+            .array: return self.aligned(t.elem, env_decl, env_args)
+            .atomic: return self.aligned(t.elem, env_decl, env_args)
             .optional:
                 if self.has_null_niche(t.elem):
                     return 8
-                let a = self.align_of(t.elem)
+                let a = self.aligned(t.elem, env_decl, env_args)
                 return a if a > 0 else 1
             .fallible: return 8
             .tuple:
                 var widest: u64 = 1
                 for m in t.args:
-                    let a = self.align_of(m)
+                    let a = self.aligned(m, env_decl, env_args)
                     widest = a if a > widest else widest
                 return widest
             .struct_, .union_, .enum_:
-                if let decl = t.decl:
-                    if decl.has(ast.flag_packed):
-                        return 1
-                    if t.kind == Kind.enum_:
-                        if let backing = decl.ty:
-                            return self.align_of(backing.type_id) if backing.type_id != none_id else 4
-                    var widest: u64 = 4 if t.kind == Kind.enum_ else 1
-                    var cursor = decl.body
-                    while let member = cursor:
-                        if member.kind == ast.Kind.field:
-                            let a = self.align_of(member.type_id)
+                let decl = t.decl else return 1
+                if decl.has(ast.flag_packed):
+                    return 1
+                if t.kind == Kind.enum_:
+                    if let backing = decl.ty:
+                        return self.aligned(backing.type_id, none, no_args_view()) if backing.type_id != none_id else 4
+                var room: u32[16]
+                let inner = self.instance_args(t, env_decl, env_args, room)
+                var widest: u64 = 4 if t.kind == Kind.enum_ else 1
+                var cursor = decl.body
+                while let member = cursor:
+                    if member.kind == ast.Kind.field:
+                        let a = self.aligned(member.type_id, decl, inner)
+                        widest = a if a > widest else widest
+                    elif member.kind == ast.Kind.enum_case:
+                        var pcursor = member.body
+                        while let p = pcursor:
+                            let a = self.aligned(p.type_id, decl, inner)
                             widest = a if a > widest else widest
-                        elif member.kind == ast.Kind.enum_case:
-                            var pcursor = member.body
-                            while let p = pcursor:
-                                let a = self.align_of(p.type_id)
-                                widest = a if a > widest else widest
-                                pcursor = p.next
-                        cursor = member.next
-                    return widest
-                return 1
+                            pcursor = p.next
+                    cursor = member.next
+                return widest
             .str_, .span, .interface_, .fmt, .error_value: return 8
             _:
-                let s = self.size_of(id)
+                let s = self.sized(id, env_decl, env_args)
                 return s if s > 0 else 1
 
     ## Byte offset of `field` in the struct `id`; 0 when absent.
     pub func offset_of(id: u32, field: str) -> u64:
         let t = self.get(id)
         let decl = t.decl else return 0
+        var room: u32[16]
+        let inner = self.instance_args(t, none, no_args_view(), room)
         var offset: u64 = 0
         var cursor = decl.body
         while let member = cursor:
             if member.kind == ast.Kind.field:
                 if not decl.has(ast.flag_packed):
-                    offset = round_up(offset, self.align_of(member.type_id))
+                    offset = round_up(offset, self.aligned(member.type_id, decl, inner))
                 if member.text == field:
                     return offset
-                offset += self.size_of(member.type_id)
+                offset += self.sized(member.type_id, decl, inner)
             cursor = member.next
         return 0
 
     # -- names ----------------------------------------------------------------------------
 
     ## Write the type as a programmer would spell it, for diagnostics.
-    pub func describe(out: Writer, id: u32) -> !:
+    pub func describe(out: io.Writer, id: u32) -> !:
         let t = self.get(id)
         match t.kind:
             .pointer:
@@ -505,6 +562,12 @@ pub struct Table:
 
 ## An empty argument list: a one-element allocation sliced to nothing, since a
 ## Base array literal cannot be empty (§5.4).
+## An empty argument list that lives forever, for measuring types outside any instance.
+var no_arguments: u32[1]
+
+func no_args_view() -> u32[]:
+    return no_arguments[..<0]
+
 pub func no_args() -> u32[]!:
     let one = try alloc u32[1]
     return one[..<0]
@@ -518,7 +581,7 @@ func round_up(value: u64, align: u64) -> u64:
 
 test "scalars are seeded at fixed ids and interning deduplicates":
     var backing: u8[65536]
-    var arena = FixedBuffer.over(backing)
+    var arena = memory.FixedBuffer.over(backing)
     with arena:
         var table = try Table.create()
         assert(table.kind(i64_id) == Kind.i64)
