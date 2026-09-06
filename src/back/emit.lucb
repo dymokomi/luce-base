@@ -22,7 +22,6 @@
 #==============================================================================================
 
 import back.names
-import c
 import front.ast
 import sema.check
 import sema.types
@@ -2581,7 +2580,6 @@ pub struct Emitter:
     mutating func conversion(src: ast.Node*, dest: u32, checked: bool) -> !:
         let st = try self.ty(src)
         let s = self.c.table.get(st)
-        let d = self.c.table.get(dest)
         if dest == types.str_id and (st == types.cstr_id or ((s.kind == types.Kind.span or s.kind == types.Kind.array) and s.elem == types.u8_id)):
             try self.str_conversion(src, checked)
             return

@@ -21,6 +21,7 @@ the assembly it emits for itself. The native path involves no C.
 | Inline assembly with named-register operands | `programs/asm`: both backends agree |
 | Standard modules in Base | memory, io, files, process, thread, sync, atomic, c, strings, paths, math, time, testing, net |
 | Proving programs | http, editor, debugger, gui, metal, asm, each with a gate-run `check.sh` |
+| Warnings and pruning (§19.6) | both compilers; `-W` prints; unused locals, imports, private functions, unreachable code, and literal branches are pruned by the checker; `samples/warnings.lucb` pins the text |
 
 Sizes: 21,790 lines of Base in this tree; 135 corpus programs and 462 unit
 tests in the seed; 44 module tests and 16 rejection samples here.

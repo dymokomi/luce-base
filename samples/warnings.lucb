@@ -1,0 +1,27 @@
+## What the checker warns about and removes (§19.6): the program's answer is unchanged.
+import memory
+var hits: i64 = 0
+
+func bump() -> i64:
+    hits += 1
+    return 1
+
+func never_called() -> i64:
+    return 7
+
+pub func main(arguments: str[]) -> i32:
+    let unused = 5
+    let effect = bump()
+    var total: i64 = 40
+    if true:
+        total += 1
+    else:
+        total += 100
+    if false:
+        total += 100
+    while false:
+        total += 100
+    total += hits
+    print(f"{total}")
+    return 0
+    total += 1000

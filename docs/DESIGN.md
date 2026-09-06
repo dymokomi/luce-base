@@ -153,6 +153,20 @@ of the prelude keeps a shadow stack of activations, matches breakpoints,
 and reads locals straight out of the frame by their described offsets. Only
 the program's modules are hooked; the standard modules run as built.
 
+## Warnings, and what the checker removes
+
+The checker has two outputs besides the checked tree: errors, which stop the
+build, and warnings, which `-W` prints and which are otherwise silent. Every
+warning names something the program does not use, and the checker removes it
+from the tree before any backend runs: an unused local (a name beginning with
+`_` is exempt), an unused import, a private function nothing references, a
+statement no path reaches, and a branch or loop whose literal condition rules
+it out. The removal keeps the program's meaning: an unused binding whose
+initialiser may have an effect stays as that expression, and a function
+referenced only as a value is a reference like any other. The checker marks
+(`flag_unused`, `flag_referenced`) and `sema/prune.lucb` cuts and reports, so
+the rules live in one place and the backends never see what was warned about.
+
 ## Calling out
 
 An `extern` declaration is a C prototype and nothing more; a Base pointer is a

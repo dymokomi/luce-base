@@ -66,6 +66,12 @@ cmp build/stage1.c build/native1.c
 cmp build/stage1.s build/native1.s
 rm -f build/native build/native1.c build/stage1.c build/stage1.s build/native1.s
 # every rejected program must be rejected for the stated reason
+# the checker's warnings, and their exact text, for the sample that exercises each
+if ! ./build/luce-base check samples/warnings.lucb -W 2>&1 | cmp -s - samples/warnings.warnings; then
+    echo "FAIL samples/warnings.lucb: warnings differ from samples/warnings.warnings"
+    ./build/luce-base check samples/warnings.lucb -W 2>&1 | diff - samples/warnings.warnings | head -10
+    exit 1
+fi
 for f in samples/errors/*.lucb; do
     want=$(sed -n 's/^# error: //p' "$f")
     got=$(./build/luce-base check "$f" 2>&1 || true)

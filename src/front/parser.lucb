@@ -11,7 +11,6 @@
 #
 #==============================================================================================
 
-import c
 import front.ast
 import front.lexer
 import front.source
@@ -1658,7 +1657,6 @@ test "dash operator token":
         let src = try source.Source.over("t", "= ---".bytes)
         var p = try Parser.over(src, scratch)
         assert(p.count == 3)
-        let t0 = p.tokens[0]
         let t1 = p.tokens[1]
         assert(t1.kind == token.Kind.operator)
         assert(t1.end - t1.start == 3)

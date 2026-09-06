@@ -20,7 +20,6 @@
 #
 #==============================================================================================
 
-import c
 import files
 import front.ast
 import front.parser
@@ -28,6 +27,7 @@ import front.source
 import io
 import memory
 import sema.prelude
+import sema.prune
 import sema.types
 import support.list
 
@@ -49,6 +49,8 @@ struct Binding:
     var from_local: bool
     ## The import that made this name visible, so a use of the name marks the import.
     var origin: ast.Node*?
+    ## Some expression read or assigned the name; a local nothing used is pruned (§19.6).
+    var used: bool
 
 ## One module of the program: its tree, its source for positions, and whether
 ## the checker supplied it from the prelude.
@@ -104,10 +106,12 @@ pub struct Checker:
     ## a lambda captures nothing (§9.6).
     var lambda_floor: usize
     var lambda_count: u32
+    ## The warnings of the whole program, formatted with their positions (§19.6).
+    pub var warnings: list.List[str]
 
     pub static func create(scratch: u8[]) -> Checker!:
         return Checker(table = try types.Table.create(), modules = try list.List[Module].create(16),
-                       scope = try list.List[Binding].create(512), depth = 0, scratch = scratch,
+                       scope = try list.List[Binding].create(512), warnings = try list.List[str].create(16), depth = 0, scratch = scratch,
                        current = 0, current_func = none, result_type = types.unit_id, fallible = false,
                        self_type = types.none_id, self_mutable = false, in_init = false, loop_depth = 0, in_catch = false,
                        catch_result = types.none_id, checking_template = false, at_top_level = false, root = "")
@@ -162,6 +166,7 @@ pub struct Checker:
 
     mutating func pop_scope():
         while self.scope.count > 0 and self.scope.get(self.scope.count - 1).depth == self.depth:
+            mark_if_unused(self.scope.get(self.scope.count - 1))
             self.scope.count -= 1
         self.depth -= 1
 
@@ -184,7 +189,7 @@ pub struct Checker:
         if let existing = self.lookup(name):
             if existing.depth >= 2 or existing.depth == self.depth:
                 discard(try self.fail(at, "this name is already in scope"))
-        try self.scope.push(Binding(name = name, type_id = type_id, decl = decl, mutable = mutable, depth = self.depth, from_local = false, origin = none))
+        try self.scope.push(Binding(name = name, type_id = type_id, decl = decl, mutable = mutable, depth = self.depth, from_local = false, origin = none, used = false))
 
     ## §6.6: whether an expression's value is the address of a local, or aliases one.
     func is_local_value(e: ast.Node*) -> bool:
@@ -239,6 +244,22 @@ pub struct Checker:
     func escapes(id: u32) -> bool:
         let k = self.table.kind(id)
         return k == types.Kind.pointer or k == types.Kind.span or id == types.str_id
+
+    ## The innermost binding of `name` was read or assigned (§19.6).
+    mutating func mark_used(name: str):
+        var i = self.scope.count
+        while i > 0:
+            i -= 1
+            var b = self.scope.get(i)
+            if b.name == name:
+                b.used = true
+                self.scope.set(i, b)
+                return
+
+    ## The reporter for the module being checked.
+    mutating func reporter() -> prune.Reporter:
+        let m = self.modules.get(self.current)
+        return prune.Reporter(path = m.src.path, src = m.src, warnings = &self.warnings)
 
     ## The binding just made came through import `at`.
     mutating func set_origin(at: ast.Node*):
@@ -367,7 +388,9 @@ pub struct Checker:
         while let d = cursor:
             try self.check_declaration(d)
             cursor = d.next
-        prune_unused_imports(tree)
+        var r = self.reporter()
+        try prune.prune_unused_functions(tree, &r, m.is_prelude)
+        try prune.prune_unused_imports(tree, &r)
         self.pop_scope()
 
     ## A `naked func` owns its frame: the body is asm blocks and nothing else (§9.8), and the
@@ -1293,6 +1316,10 @@ pub struct Checker:
         let b = self.lookup(e.text) else return try self.unknown_name(e)
         e.resolved = b.decl
         self.note_origin(b)
+        self.mark_used(e.text)
+        if let d = b.decl:
+            if d.kind == ast.Kind.func_:
+                d.flags |= ast.flag_referenced
         if b.from_local:
             self.mark_local(e)
         let d = b.decl else return b.type_id
@@ -1648,7 +1675,7 @@ pub struct Checker:
     ## and no captures. The backends emit it as any other function of the module.
     mutating func hoist_lambda(e: ast.Node*, body: ast.Node*, fn_type: u32) -> ast.Node*!:
         let fn = try ast.Node.make(ast.Kind.func_, try self.lambda_name(), e.start, e.line)
-        fn.flags |= ast.flag_lambda
+        fn.flags |= ast.flag_lambda | ast.flag_referenced
         fn.right = e.right
         fn.type_id = fn_type
         let ret = try ast.Node.make(ast.Kind.return_, "", body.start, body.line)
@@ -2704,8 +2731,15 @@ pub struct Checker:
         var cursor = block.body
         while let s = cursor:
             try self.check_stmt(s)
+            if let rest = s.next:
+                if prune.certainly_leaves(s):
+                    var r = self.reporter()
+                    try r.warn(rest, "unreachable code")
+                    s.next = none
             cursor = s.next
         self.pop_scope()
+        var r = self.reporter()
+        try prune.prune_block(block, &r)
 
     mutating func check_stmt(s: ast.Node*) -> !:
         match s.kind:
@@ -2715,6 +2749,9 @@ pub struct Checker:
                 try self.check_assign(s)
             .if_:
                 try self.check_if(s)
+                if not s.has(ast.flag_if_let):
+                    var r = self.reporter()
+                    try prune.fold_constant_branch(s, &r)
             .while_:
                 self.push_scope()
                 try self.check_condition(s)
@@ -2723,6 +2760,9 @@ pub struct Checker:
                 try self.check_block(body)
                 self.loop_depth -= 1
                 self.pop_scope()
+                if not s.has(ast.flag_if_let):
+                    var r = self.reporter()
+                    try prune.fold_constant_branch(s, &r)
             .for_:
                 try self.check_for(s)
             .match_:
@@ -3123,7 +3163,7 @@ pub struct Checker:
             try self.check_block(body)
             if ast.has_attribute(f, "naked"):
                 try self.check_naked_body(body)
-            elif self.result_type != types.unit_id and self.result_type != types.never_id and not always_leaves(body):
+            elif self.result_type != types.unit_id and self.result_type != types.never_id and not prune.always_leaves(body):
                 discard(try self.fail(f, "this function may reach its end without returning"))
         self.current_func = saved_func
         self.result_type = saved_result
@@ -3243,22 +3283,6 @@ pub func generic_params_of(d: ast.Node*) -> ast.Node*?:
         return none
     return l.body
 
-## An import nothing resolved through leaves the tree here, so nothing after the checker
-## sees it (§16.3).
-pub func prune_unused_imports(tree: ast.Node*):
-    var previous: ast.Node*? = none
-    var cursor = tree.body
-    while let d = cursor:
-        let unused = (d.kind == ast.Kind.import_ or d.kind == ast.Kind.from_import) and not d.has(ast.flag_referenced)
-        if unused:
-            if let p = previous:
-                p.next = d.next
-            else:
-                tree.body = d.next
-        else:
-            previous = d
-        cursor = d.next
-
 ## `Equatable`, `Hashable`, and `Comparable` are satisfied by structure, never declared.
 func is_derived_bound(d: ast.Node*?) -> bool:
     let decl = d else return false
@@ -3299,87 +3323,6 @@ func param_at(d: ast.Node*, index: usize) -> ast.Node*?:
     return none
 
 ## Does a block end in a way that never reaches its own end?
-func always_leaves(block: ast.Node*) -> bool:
-    var last: ast.Node*? = none
-    var cursor = block.body
-    while let s = cursor:
-        last = s
-        cursor = s.next
-    let s = last else return false
-    match s.kind:
-        .return_:
-            return true
-        .expr_stmt:
-            let e = s.left else return false
-            return e.type_id == types.never_id or (e.kind == ast.Kind.catch_ and never_completes(e))
-        .let_, .var_:
-            let e = s.left else return false
-            return e.type_id == types.never_id
-        .if_:
-            let body = s.body else return false
-            let rest = s.right else return false
-            if not always_leaves(body):
-                return false
-            if rest.kind == ast.Kind.if_:
-                var chain: ast.Node*? = rest
-                while let c = chain:
-                    let cb = c.body else return false
-                    if not always_leaves(cb):
-                        return false
-                    let next = c.right else return false
-                    if next.kind != ast.Kind.if_:
-                        return always_leaves(next)
-                    chain = next
-                return false
-            return always_leaves(rest)
-        .match_:
-            var arm = s.body
-            var any = false
-            while let a = arm:
-                let body = a.body else return false
-                if not always_leaves(body):
-                    return false
-                any = true
-                arm = a.next
-            return any
-        .while_:
-            let c = s.left else return false
-            return c.kind == ast.Kind.literal and c.text == "true" and not contains_break(s.body)
-        .with_:
-            let body = s.body else return false
-            return always_leaves(body)
-        .block:
-            return always_leaves(s)
-        _:
-            return false
-
-## A `catch` whose handler always leaves makes the statement never complete.
-func never_completes(e: ast.Node*) -> bool:
-    let body = e.body else return false
-    return always_leaves(body)
-
-func contains_break(block: ast.Node*?) -> bool:
-    let b = block else return false
-    var cursor = b.body
-    while let s = cursor:
-        if s.kind == ast.Kind.break_:
-            return true
-        if s.kind == ast.Kind.if_:
-            if contains_break(s.body) or contains_break(s.right):
-                return true
-        if s.kind == ast.Kind.match_:
-            var arm = s.body
-            while let a = arm:
-                if contains_break(a.body):
-                    return true
-                arm = a.next
-        if s.kind == ast.Kind.with_ and contains_break(s.body):
-            return true
-        if s.kind == ast.Kind.block and contains_break(s):
-            return true
-        cursor = s.next
-    return false
-
 # mark: Name helpers ===========================================================================
 
 ## The id of a scalar or core type name, or `none_id`.
@@ -3788,7 +3731,6 @@ func expect_ok(text: str) -> !:
             # the message lives in this frame's scratch; the runner reads it after the return
             let kept = try format(test_message, f"{failure.message}")
             error(failure.code, kept)
-            recover ()
 
 var test_message: u8[1024]
 
@@ -3873,3 +3815,16 @@ test "modules import and qualify names":
 
 test "a function that may fall off its end is rejected":
     try expect_error("func f(b: bool) -> i64:\n    if b:\n        return 1\n", "may reach its end")
+
+## A binding leaving scope that nothing read: marked for the block to prune (§19.6). Names
+## beginning with `_` say the silence is intended; a tuple's names are not pruned.
+func mark_if_unused(b: Binding):
+    if b.used or b.depth == 0 or b.name.length == 0 or b.name.bytes[0] == '_':
+        return
+    let d = b.decl else return
+    if (d.kind == ast.Kind.let_ or d.kind == ast.Kind.var_) and d.text == b.name:
+        # `let d = x else return ...` is a guard: the binding is the condition, not a value
+        if let init = d.left:
+            if init.kind == ast.Kind.else_:
+                return
+        d.flags |= ast.flag_unused

@@ -95,6 +95,8 @@ natively under the gate and driven from outside by its `check.sh`:
   Metal is reached through its one C entry point and the Objective-C runtime
   alone (`-lobjc -framework Foundation -framework Metal`); the bridge in
   `programs/metal/objc.lucb` is a hundred lines of ordinary Base.
+- `-W` on `check`, `build`, or `test` prints the checker's warnings; what
+  they name is pruned from the program either way (`docs/DESIGN.md`).
 - `programs/asm`: hand-written arm64 in Base source (`asm arm64(operands):`),
   the same lines compiled by the native backend and by the host C compiler,
   proved to agree.

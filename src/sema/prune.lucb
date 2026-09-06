@@ -1,0 +1,295 @@
+#==============================================================================================
+#
+#   prune - Warnings and what the checker removes after them
+#
+#   DESCRIPTION:
+#       The checker warns about what a program does not use and removes it from the tree,
+#       so nothing after the checker sees an unused local, import, or private function, a
+#       statement no path reaches, or a branch a literal condition rules out (base.md §19.6).
+#       Every removal keeps the program's meaning: an unused binding whose initialiser may do
+#       something stays as an expression statement. The checker marks; this module cuts and
+#       reports through a `Reporter` positioned in the module's source.
+#
+#==============================================================================================
+
+import front.ast
+import front.source
+import support.list
+import memory
+import sema.types
+
+## The warnings of one module, each formatted with its position.
+pub struct Reporter:
+    pub var path: str
+    pub var src: source.Source
+    pub var warnings: list.List[str]*
+
+    pub mutating func warn(node: ast.Node*, what: str) -> !:
+        var buffer: u8[512]
+        let (line, column) = self.src.position(node.start)
+        let text = try format(buffer, f"{self.path}:{line}:{column}: warning: {what}")
+        var kept = try alloc u8[text.length if text.length > 0 else 1]
+        memory.copy(kept, text.bytes, text.length)
+        try self.warnings.push((str)kept[..<text.length])
+
+## Whether a block always leaves: its last statement does.
+pub func always_leaves(block: ast.Node*) -> bool:
+    var last: ast.Node*? = none
+    var cursor = block.body
+    while let s = cursor:
+        last = s
+        cursor = s.next
+    let s = last else return false
+    return statement_leaves(s)
+
+## Whether control never continues past statement `s`: a `return`, a call that never
+## returns, an `if` whose every branch leaves, a `match` whose every arm leaves, a
+## `while true` without `break`.
+pub func statement_leaves(s: ast.Node*) -> bool:
+    match s.kind:
+        .return_:
+            return true
+        .expr_stmt:
+            let e = s.left else return false
+            return e.type_id == types.never_id or (e.kind == ast.Kind.catch_ and never_completes(e))
+        .let_, .var_:
+            let e = s.left else return false
+            return e.type_id == types.never_id
+        .if_:
+            let body = s.body else return false
+            let rest = s.right else return false
+            if not always_leaves(body):
+                return false
+            if rest.kind == ast.Kind.if_:
+                var chain: ast.Node*? = rest
+                while let c = chain:
+                    let cb = c.body else return false
+                    if not always_leaves(cb):
+                        return false
+                    let next = c.right else return false
+                    if next.kind != ast.Kind.if_:
+                        return always_leaves(next)
+                    chain = next
+                return false
+            return always_leaves(rest)
+        .match_:
+            var arm = s.body
+            var any = false
+            while let a = arm:
+                let body = a.body else return false
+                if not always_leaves(body):
+                    return false
+                any = true
+                arm = a.next
+            return any
+        .while_:
+            let c = s.left else return false
+            return c.kind == ast.Kind.literal and c.text == "true" and not contains_break(s.body)
+        .with_:
+            let body = s.body else return false
+            return always_leaves(body)
+        .block:
+            return always_leaves(s)
+        _:
+            return false
+
+## A `catch` whose handler always leaves makes the statement never complete.
+pub func never_completes(e: ast.Node*) -> bool:
+    let body = e.body else return false
+    return always_leaves(body)
+
+## Whether a `break` occurs under `node`, a block or an `if` chain. Nested loops are
+## searched too, since a labeled `break` may leave the outer loop: the answer errs towards
+## "yes", which is the safe direction for what depends on it.
+pub func contains_break(node: ast.Node*?) -> bool:
+    let n = node else return false
+    if n.kind == ast.Kind.if_:
+        return contains_break(n.body) or contains_break(n.right)
+    if n.kind == ast.Kind.break_:
+        return true
+    var cursor = n.body
+    while let s = cursor:
+        match s.kind:
+            .break_:
+                return true
+            .if_:
+                if contains_break(s.body) or contains_break(s.right):
+                    return true
+            .match_:
+                var arm = s.body
+                while let a = arm:
+                    if contains_break(a.body):
+                        return true
+                    arm = a.next
+            .while_, .for_, .with_, .block:
+                if contains_break(s.body):
+                    return true
+            _:
+                discard(0)
+        cursor = s.next
+    return false
+
+
+## Whether control certainly never continues past statement `s`: the rule that cuts what
+## follows. Unlike `statement_leaves`, which the function-end check uses, this one admits no
+## doubt: a `catch` completes when its expression succeeds, and a `match` leaves only when
+## a `_` arm makes it total.
+pub func certainly_leaves(s: ast.Node*) -> bool:
+    match s.kind:
+        .return_, .break_, .continue_:
+            return true
+        .expr_stmt:
+            let e = s.left else return false
+            return e.type_id == types.never_id and e.kind != ast.Kind.catch_
+        .let_, .var_:
+            let e = s.left else return false
+            return e.type_id == types.never_id and e.kind != ast.Kind.catch_
+        .if_:
+            if s.has(ast.flag_if_let):
+                return false
+            let body = s.body else return false
+            let rest = s.right else return false
+            if not certainly_leaves_block(body):
+                return false
+            if rest.kind == ast.Kind.if_:
+                return certainly_leaves(rest)
+            return certainly_leaves_block(rest)
+        .match_:
+            var arm = s.body
+            var total = false
+            while let a = arm:
+                let body = a.body else return false
+                if not certainly_leaves_block(body):
+                    return false
+                var pattern = a.left
+                while let p = pattern:
+                    if p.text == "_":
+                        total = true
+                    pattern = p.next
+                arm = a.next
+            return total
+        .while_:
+            let c = s.left else return false
+            return c.kind == ast.Kind.literal and c.text == "true" and not contains_break(s.body)
+        .with_:
+            let body = s.body else return false
+            return certainly_leaves_block(body)
+        .block:
+            return certainly_leaves_block(s)
+        _:
+            return false
+
+pub func certainly_leaves_block(block: ast.Node*) -> bool:
+    var last: ast.Node*? = none
+    var cursor = block.body
+    while let x = cursor:
+        last = x
+        cursor = x.next
+    let s = last else return false
+    return certainly_leaves(s)
+
+## An expression whose evaluation neither traps nor has an effect, safe to drop unread.
+pub func is_pure(e: ast.Node*?) -> bool:
+    let x = e else return true
+    match x.kind:
+        .literal, .name, .self_:
+            return true
+        .group, .member:
+            return is_pure(x.left)
+        .unary:
+            return x.text == "&" and is_pure(x.left)
+        _:
+            return false
+
+## After a block is checked: unused bindings leave, or stay as the expression they
+## evaluated when that expression may do something.
+pub func prune_block(block: ast.Node*, reporter: Reporter*) -> !:
+    var previous: ast.Node*? = none
+    var cursor = block.body
+    while let s = cursor:
+        let binding = s.kind == ast.Kind.let_ or s.kind == ast.Kind.var_
+        if binding and s.has(ast.flag_unused):
+            var text: u8[128]
+            try reporter.warn(s, try format(text, f"unused local `{s.text}`"))
+            if s.left == none or is_pure(s.left):
+                if let p = previous:
+                    p.next = s.next
+                else:
+                    block.body = s.next
+                cursor = s.next
+                continue
+            s.kind = ast.Kind.expr_stmt
+            s.text = ""
+            s.ty = none
+        previous = s
+        cursor = s.next
+
+## `if true:` keeps its body and `if false:` its alternative; `while false:` is nothing.
+pub func fold_constant_branch(s: ast.Node*, reporter: Reporter*) -> !:
+    let c = s.left else return
+    if c.kind != ast.Kind.literal or (c.text != "true" and c.text != "false"):
+        return
+    let truth = c.text == "true"
+    if s.kind == ast.Kind.while_:
+        if truth:
+            return
+        try reporter.warn(s, "this loop never runs: its condition is `false`")
+        s.kind = ast.Kind.block
+        s.body = none
+        s.left = none
+        return
+    let taken = s.body if truth else s.right
+    let dropped = s.right if truth else s.body
+    if let d = dropped:
+        try reporter.warn(d, "this branch never runs: the condition is `true`" if truth else "this branch never runs: the condition is `false`")
+    s.kind = ast.Kind.block
+    s.left = none
+    s.right = none
+    if let t = taken:
+        if t.kind == ast.Kind.block:
+            s.body = t.body
+        else:
+            t.next = none
+            s.body = t
+    else:
+        s.body = none
+
+## A private function no name resolved to leaves the module. `main`, `answer`, tests,
+## exports, hidden lambdas, and anything with an attribute stay, as do methods and the
+## standard modules' own functions, which the backends may name directly.
+pub func prune_unused_functions(tree: ast.Node*, reporter: Reporter*, is_prelude: bool) -> !:
+    if is_prelude:
+        return
+    var previous: ast.Node*? = none
+    var cursor = tree.body
+    while let d = cursor:
+        let candidate = d.kind == ast.Kind.func_ and not d.has(ast.flag_referenced) and not d.has(ast.flag_pub) and not d.has(ast.flag_export) and not d.has(ast.flag_lambda) and d.attrs == none and d.text != "main" and d.text != "answer"
+        if candidate:
+            var text: u8[128]
+            try reporter.warn(d, try format(text, f"unused function `{d.text}`"))
+            if let p = previous:
+                p.next = d.next
+            else:
+                tree.body = d.next
+            cursor = d.next
+            continue
+        previous = d
+        cursor = d.next
+
+## An import nothing resolved through leaves the tree here, so nothing after the checker
+## sees it (§16.3).
+pub func prune_unused_imports(tree: ast.Node*, reporter: Reporter*) -> !:
+    var previous: ast.Node*? = none
+    var cursor = tree.body
+    while let d = cursor:
+        let unused = (d.kind == ast.Kind.import_ or d.kind == ast.Kind.from_import) and not d.has(ast.flag_referenced)
+        if unused:
+            var text: u8[128]
+            try reporter.warn(d, try format(text, f"unused import `{d.text}`"))
+            if let p = previous:
+                p.next = d.next
+            else:
+                tree.body = d.next
+        else:
+            previous = d
+        cursor = d.next

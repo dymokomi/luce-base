@@ -12,6 +12,7 @@
 
 #include "lucb_rt.h"
 
+#include <execinfo.h>
 #include <inttypes.h>
 #include <math.h>
 #include <stdio.h>
@@ -137,6 +138,12 @@ int lb_str_compare(lb_str a, lb_str b) {
 
 void lb_trap(const char* message) {
     fprintf(stderr, "trap: %s\n", message != NULL ? message : "");
+    // `LB_TRACE=1` in the environment adds the C frames, for finding a trap in a C build
+    if (getenv("LB_TRACE") != NULL) {
+        void* frames[32];
+        int depth = backtrace(frames, 32);
+        backtrace_symbols_fd(frames, depth, 2);
+    }
     exit(1);
 }
 

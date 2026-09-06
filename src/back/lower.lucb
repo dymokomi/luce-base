@@ -19,7 +19,6 @@
 
 import back.ir
 import back.names
-import c
 import front.ast
 import memory
 import sema.check

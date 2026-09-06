@@ -10,7 +10,6 @@
 #==============================================================================================
 
 import back.backend
-import c
 import files
 import front.ast
 import front.lexer
@@ -27,7 +26,7 @@ import support.runtime
 let version: str = "0.1"
 
 func usage(out: io.Writer) -> !:
-    try out.write("usage: luce-base lex FILE\n       luce-base parse FILE\n       luce-base check FILE\n       luce-base build FILE [-o OUT] [--release] [--emit=c] [--native] [--debug] [--emit=asm] [-lNAME] [-LDIR] [-framework NAME]\n       luce-base test FILE [--native]\n       luce-base --version\n")
+    try out.write("usage: luce-base lex FILE\n       luce-base parse FILE\n       luce-base check FILE\n       luce-base build FILE [-o OUT] [--release] [--emit=c] [--native] [--debug] [--emit=asm] [-W] [-lNAME] [-LDIR] [-framework NAME]\n       luce-base test FILE [--native]\n       luce-base --version\n")
 
 # mark: Building ===============================================================================
 
@@ -48,12 +47,31 @@ struct Options:
     var frameworks: cstr[16]
     var framework_count: usize
 
+## Whether `flag` is among the arguments.
+func has_argument(arguments: cstr[], flag: str) -> bool:
+    for a in arguments:
+        if (str)a == flag:
+            return true
+    return false
+
+## `-W`: the checker's warnings go to standard error (§19.6); without it they are silent.
+var show_warnings: bool = false
+
+func report_warnings(c: check.Checker*) -> !:
+    if not show_warnings:
+        return
+    var i: usize = 0
+    while i < c.warnings.count:
+        try io.stderr().write(f"luce-base: {c.warnings.get(i)}\n")
+        i += 1
+
 ## Check FILE and its imports, then generate C for the whole program.
 func generate(path: cstr, mode: u32) -> str!:
     var c = try check.Checker.create(scratch_of())
     try c.add_prelude()
     try c.load(path)
     try c.check_program()
+    try report_warnings(&c)
     let entry = c.modules.get(c.modules.count - 1).tree
     var actual = mode
     if mode == 0 and check.find_decl(entry, "main") == none:
@@ -325,6 +343,7 @@ func check_file(path: cstr) -> !:
         try c.add_prelude()
         try c.load(path)
         try c.check_program()
+        try report_warnings(&c)
 
 ## Trees and tokens live in one arena taken from the process heap; nothing is
 ## freed until the command ends.
@@ -363,15 +382,21 @@ pub func main(arguments: cstr[]) -> i32!:
         try usage(io.stderr())
         return 2
     let command = (str)arguments[1]
+    # `-W` may appear on any command and is not one of its arguments
+    var positional = arguments.length
+    for a in arguments:
+        if (str)a == "-W":
+            show_warnings = true
+            positional -= 1
     if command == "--version":
         try out.write(f"luce-base {version}\n")
         return 0
-    if command == "parse" and arguments.length == 3:
+    if command == "parse" and positional == 3:
         parse_file(arguments[2], out) catch failure:
             try io.stderr().write(f"luce-base: {failure.message}\n")
             return 1
         return 0
-    if command == "build" and arguments.length >= 3:
+    if command == "build" and positional >= 3:
         var options: Options = ---
         options.output = ""
         options.release = false
@@ -396,6 +421,8 @@ pub func main(arguments: cstr[]) -> i32!:
                 options.native = true
             elif a == "--debug":
                 options.debug = true
+            elif a == "-W":
+                show_warnings = true
             elif strings.starts_with(a, "-l") and a.length > 2 and options.library_count < options.libraries.length:
                 options.libraries[options.library_count] = (cstr)(str)a.bytes[2..]
                 options.library_count += 1
@@ -414,17 +441,17 @@ pub func main(arguments: cstr[]) -> i32!:
             try io.stderr().write(f"luce-base: {failure.message}\n")
             return 1
         return 0
-    if command == "test" and (arguments.length == 3 or (arguments.length == 4 and (str)arguments[3] == "--native")):
-        let code = test_file(arguments[2], arguments.length == 4) catch failure:
+    if command == "test" and (positional == 3 or (positional == 4 and has_argument(arguments, "--native"))):
+        let code = test_file(arguments[2], has_argument(arguments, "--native")) catch failure:
             try io.stderr().write(f"luce-base: {failure.message}\n")
             recover 1
         return code
-    if command == "check" and arguments.length == 3:
+    if command == "check" and positional == 3:
         check_file(arguments[2]) catch failure:
             try io.stderr().write(f"luce-base: {failure.message}\n")
             return 1
         return 0
-    if command == "lex" and arguments.length == 3:
+    if command == "lex" and positional == 3:
         lex_file(arguments[2], out) catch failure:
             try io.stderr().write(f"luce-base: {failure.message}\n")
             return 1
