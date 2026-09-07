@@ -3,4 +3,5 @@ ir 30
 loads 3
 stores 3
 calls 7
-asm 129
+asm-arm64 129
+asm-x86_64 84

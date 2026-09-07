@@ -1,0 +1,61 @@
+## Sleeping in the kernel (§16.6): `Mutex`, `Condition`, `Semaphore`, and `Once` over the
+## target's futex, under contention from several threads, with deterministic counts.
+import sync
+import thread
+
+struct Shared:
+    var lock: sync.Mutex
+    var count: i64
+    var finished: i64
+    var done: sync.Condition
+    var slots: sync.Semaphore
+    var handed: i64
+    var once: sync.Once
+
+var once_runs: i64 = 0
+
+func run_once():
+    once_runs += 1
+
+func worker(raw: void*?):
+    let s = (Shared*)(raw else return)
+    var i: i64 = 0
+    while i < 2000:
+        s.lock.lock()
+        s.count += 1
+        s.lock.unlock()
+        i += 1
+    s.once.run(run_once)
+    s.slots.acquire()
+    s.lock.lock()
+    s.handed += 1
+    s.finished += 1
+    s.lock.unlock()
+    s.done.broadcast()
+
+pub func main(arguments: str[]) -> i32!:
+    var shared = Shared(lock = sync.Mutex(), count = 0, finished = 0, done = sync.Condition(), slots = sync.Semaphore(), handed = 0, once = sync.Once())
+    var handles: thread.Handle[8]
+    var k: usize = 0
+    while k < 8:
+        handles[k] = try thread.spawn(worker, (void*)&shared)
+        k += 1
+    # the workers count, then each waits for a slot; hand them out one at a time
+    var given: i64 = 0
+    while given < 8:
+        shared.slots.release()
+        given += 1
+    shared.lock.lock()
+    while shared.finished < 8:
+        shared.done.wait(&shared.lock)
+    shared.lock.unlock()
+    k = 0
+    while k < 8:
+        try handles[k].join()
+        k += 1
+    print(f"count {shared.count}")
+    print(f"handed {shared.handed}")
+    print(f"once {once_runs}")
+    print(f"try_lock {shared.lock.try_lock()} {shared.lock.try_lock()}")
+    shared.lock.unlock()
+    return 0

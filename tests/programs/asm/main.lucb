@@ -1,13 +1,17 @@
-## Inline arm64 assembly in Base source (§16.7). Each `asm arch(operands): lines` binds
-## Base values to named registers, then the raw lines run with those registers in place.
-## The native backend emits the lines as they are written; the C backend hands them to the
-## C compiler's extended asm. Both agree, so the same source is portable across them.
+## Inline assembly in Base source (§16.7), one block per architecture. Each `asm
+## arch(operands): lines` binds Base values to named registers, then the raw lines run with
+## those registers in place. The native backend emits the lines as they are written; the C
+## backend hands them to the C compiler's extended asm. Both agree, so the same source is
+## portable across them; the x86_64 lines are in the AT&T syntax both consume.
 
 ## `a + b`, computed by the machine's add instruction rather than the language's.
 func add(a: i64, b: i64) -> i64:
     var out: i64 = 0
     asm arm64(in("x0") a, in("x1") b, out("x0") out):
         add x0, x0, x1
+    asm x86_64(in("rdi") a, in("rsi") b, out("rax") out):
+        movq %rdi, %rax
+        addq %rsi, %rax
     return out
 
 ## The bytes of a 64-bit word reversed, one `rev` instruction, the way a byte-order swap
@@ -16,6 +20,9 @@ func byteswap(value: u64) -> u64:
     var out: u64 = 0
     asm arm64(in("x1") value, out("x0") out):
         rev x0, x1
+    asm x86_64(in("rdi") value, out("rax") out):
+        movq %rdi, %rax
+        bswapq %rax
     return out
 
 ## The number of set bits, using the NEON population-count on a single lane.
@@ -26,6 +33,8 @@ func popcount(value: u64) -> u64:
         cnt v0.8b, v0.8b
         uaddlv h0, v0.8b
         fmov w0, s0
+    asm x86_64(in("rdi") value, out("rax") out):
+        popcntq %rdi, %rax
     return out
 
 ## The count of leading zero bits.
@@ -33,6 +42,9 @@ func leading_zeros(value: u64) -> u64:
     var out: u64 = 0
     asm arm64(in("x1") value, out("x0") out):
         clz x0, x1
+    asm x86_64(in("rdi") value, out("rax") out):
+        bsrq %rdi, %rax
+        xorq $63, %rax
     return out
 
 ## A saturating unsigned add of two bytes, which the language spells `+|` but which is
@@ -44,6 +56,11 @@ func saturating_add(a: u64, b: u64) -> u64:
         fmov d1, x2
         uqadd v0.8b, v0.8b, v1.8b
         fmov x0, d0
+    asm x86_64(in("rdi") a, in("rsi") b, out("rax") out):
+        movq %rdi, %xmm0
+        movq %rsi, %xmm1
+        paddusb %xmm1, %xmm0
+        movq %xmm0, %rax
     return out
 
 pub func main(arguments: str[]) -> i32:
@@ -63,4 +80,7 @@ func double_and_add(a: u64, b: u64) -> u64:
     asm arm64(in(reg) a, in(reg) b, out(reg) out):
         add {out}, {a}, {a}
         add {out}, {out}, {b}
+    asm x86_64(in(reg) a, in(reg) b, out(reg) out):
+        leaq ({a}, {a}), {out}
+        addq {b}, {out}
     return out

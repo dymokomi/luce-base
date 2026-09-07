@@ -5,12 +5,16 @@ func add_pair(a: i64, b: i64) -> i64:
     var result: i64
     asm arm64 (in("x0") a, in("x1") b, out("x0") result, options(nostack)):
         add x0, x0, x1
+    asm x86_64 (in("rdi") a, in("rsi") b, out("rax") result, options(nostack)):
+        leaq (%rdi, %rsi), %rax
     return result
 
 func doubled(a: i64) -> i64:
     var result: i64
     asm arm64 (in(reg) a, out(reg) result):
         lsl {result}, {a}, #1
+    asm x86_64 (in(reg) a, out(reg) result):
+        leaq ({a}, {a}), {result}
     return result
 
 pub func main(arguments: str[]) -> i32:

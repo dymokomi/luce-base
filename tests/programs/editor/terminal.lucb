@@ -1,17 +1,18 @@
 ## The terminal: raw mode, its size, keys decoded from the byte stream, and
 ## a buffered writer for the escape sequences the screen is drawn with.
 
+import os
 import strings
 
-extern func tcgetattr(descriptor: i32, state: Termios*) -> i32
-extern func tcsetattr(descriptor: i32, action: i32, state: const Termios*) -> i32
+extern func tcgetattr(descriptor: i32, state: void*) -> i32
+extern func tcsetattr(descriptor: i32, action: i32, state: const void*) -> i32
 extern func ioctl(descriptor: i32, request: u64, ...) -> i32
 extern func isatty(descriptor: i32) -> i32
 extern func c_read as "read"(descriptor: i32, buffer: void*, count: usize) -> isize
 extern func c_write as "write"(descriptor: i32, buffer: const void*, count: usize) -> isize
 
-## `struct termios` as arm64-macos lays it out.
-extern struct Termios:
+## `struct termios` as macOS lays it out: 72 bytes, the flags and speeds as longs.
+extern struct MacTermios:
     input: u64
     output: u64
     control: u64
@@ -20,23 +21,39 @@ extern struct Termios:
     input_speed: u64
     output_speed: u64
 
+## `struct termios` as Linux lays it out: 60 bytes, the flags as ints, a line discipline
+## byte before the control characters.
+extern struct LinuxTermios:
+    input: u32
+    output: u32
+    control: u32
+    lflag: u32
+    line: u8
+    control_chars: u8[32]
+    input_speed: u32
+    output_speed: u32
+
+## Room for either layout; the arm for the target reads it through its own struct (§19.5).
+type TermiosBytes = u8[80]
+
 extern struct WindowSize:
     rows: u16
     columns: u16
     x_pixels: u16
     y_pixels: u16
 
+## The flags, by target: the BSD values on macOS, Linux's own.
 let echo: u64 = 8
-let canonical: u64 = 256
-let signals: u64 = 128
-let extended: u64 = 1024
-let xon: u64 = 512
+let canonical: u64 = 256 if os.macos else 2
+let signals: u64 = 128 if os.macos else 1
+let extended: u64 = 1024 if os.macos else 32768
+let xon: u64 = 512 if os.macos else 1024
 let cr_to_nl: u64 = 256
 let post_process: u64 = 1
-let minimum_index: usize = 16
-let timeout_index: usize = 17
+let minimum_index: usize = 16 if os.macos else 6
+let timeout_index: usize = 17 if os.macos else 5
 let flush_then_set: i32 = 2
-let window_size_request: u64 = 1074295912
+let window_size_request: u64 = 1074295912 if os.macos else 21523
 
 pub let failed: ErrorCode = ErrorCode.package(1)
 
@@ -61,7 +78,7 @@ pub enum Key:
     word_right
 
 pub struct Terminal:
-    var saved: Termios
+    var saved: TermiosBytes
     var raw: bool
     pub var rows: usize
     pub var columns: usize
@@ -81,15 +98,24 @@ pub struct Terminal:
         var t = Terminal.headless()
         if isatty(0) == 0:
             return t
-        if tcgetattr(0, &t.saved) != 0:
+        if tcgetattr(0, (void*)&t.saved[0]) != 0:
             error(failed, "not a terminal")
         var state = t.saved
-        state.input = state.input & ~(xon | cr_to_nl)
-        state.output = state.output & ~post_process
-        state.lflag = state.lflag & ~(echo | canonical | signals | extended)
-        state.control_chars[minimum_index] = 1
-        state.control_chars[timeout_index] = 0
-        if tcsetattr(0, flush_then_set, &state) != 0:
+        if os.macos:
+            let s = (MacTermios*)&state[0]
+            s.input = s.input & ~(xon | cr_to_nl)
+            s.output = s.output & ~post_process
+            s.lflag = s.lflag & ~(echo | canonical | signals | extended)
+            s.control_chars[minimum_index] = 1
+            s.control_chars[timeout_index] = 0
+        else:
+            let s = (LinuxTermios*)&state[0]
+            s.input = s.input & ~(u32)(xon | cr_to_nl)
+            s.output = s.output & ~(u32)post_process
+            s.lflag = s.lflag & ~(u32)(echo | canonical | signals | extended)
+            s.control_chars[minimum_index] = 1
+            s.control_chars[timeout_index] = 0
+        if tcsetattr(0, flush_then_set, (const void*)&state[0]) != 0:
             error(failed, "cannot enter raw mode")
         t.raw = true
         t.measure()
@@ -99,7 +125,7 @@ pub struct Terminal:
         if self.raw:
             self.put("\u{1b}[2J\u{1b}[H")
             self.flush()
-            discard(tcsetattr(0, flush_then_set, &self.saved))
+            discard(tcsetattr(0, flush_then_set, (const void*)&self.saved[0]))
             self.raw = false
 
     pub mutating func measure():

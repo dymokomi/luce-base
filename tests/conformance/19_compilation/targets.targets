@@ -1,2 +1,2 @@
 targets: x86_64-linux x86_64-macos x86_64-windows arm64-linux arm64-macos
-asm architectures covered: arm64
+asm architectures covered: arm64 x86_64

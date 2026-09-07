@@ -1,0 +1,4 @@
+x86_64-macos 64
+posix true macos true linux false windows false
+arm64 false x86_64 true
+waits on a ulock

@@ -1,0 +1,31 @@
+## §7.1: left to right, always. Arguments with effects are computed in order whatever the
+## host C compiler would do on its own (GCC evaluates C arguments right to left); a
+## receiver comes before the arguments; interpolation fields in order.
+var trace: u8[16]
+var n: usize = 0
+
+func step(k: u8) -> i64:
+    trace[n] = k
+    n += 1
+    return (i64)k
+
+func sum3(a: i64, b: i64, c: i64) -> i64:
+    return a + b + c
+
+struct Acc:
+    var total: i64
+    func add(x: i64, y: i64) -> i64:
+        return self.total + x + y
+
+func through(f: func(i64, i64, i64) -> i64) -> i64:
+    return f(step(6), step(7), step(8))
+
+pub func main(arguments: str[]) -> i32:
+    var acc = Acc(total = 0)
+    print(f"{sum3(step(1), step(2), step(3))} {acc.add(step(4), step(5))} {through(sum3)}")
+    print(f"{step(9)} {step(10)}")
+    var i: usize = 0
+    while i < 10:
+        print(f"{trace[i]}")
+        i += 1
+    return 0

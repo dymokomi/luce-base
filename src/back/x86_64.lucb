@@ -1,0 +1,2101 @@
+#==============================================================================================
+#
+#   x86_64 - The x86_64 code generator
+#
+#   DESCRIPTION:
+#       Turns an `ir.Unit` into assembly text for the GNU assembler, in the AT&T syntax the
+#       C backend's inline assembly also uses: ELF sections, unprefixed symbols, rip-relative
+#       addressing with the GOT and the PLT for what another image defines (so the output
+#       links as position-independent code), thread-locals through the initial-exec model,
+#       and calls under the System V convention (base.md §19.5): integers in rdi, rsi, rdx,
+#       rcx, r8, r9, floats in xmm0-xmm7, an aggregate of up to sixteen bytes split into
+#       eightbytes that each take an integer or an SSE register by what they hold, larger
+#       ones copied onto the stack, results in rax/rdx and xmm0/xmm1 the same way or through
+#       a hidden pointer, variadic calls with the SSE register count in al.
+#
+#       The shape is the arm64 generator's: a frame slot for every temporary and stack slot
+#       below rbp, the most-used slots promoted into callee-saved registers, temporaries
+#       given the rest by linear scan. The convention has no callee-saved SSE registers, so
+#       floats stay in the frame between instructions. Half floats convert through the F16C
+#       instructions and compute in single precision, rounding once to a half, which is what
+#       the C compiler does for `_Float16` on this target.
+#
+#==============================================================================================
+
+import back.ir
+import back.target as build_target
+import memory
+import support.buffer
+import support.list
+
+pub let failed: ErrorCode = ErrorCode.package(21)
+
+## Where a temporary or slot lives: an offset below the frame pointer.
+struct Home:
+    var offset: u64
+
+## One argument's placement for a call: in registers, one per eightbyte, or on the stack.
+struct Placement:
+    ## 0 = registers, 2 = stack
+    var where: u8
+    ## bit k set when eightbyte k takes an SSE register
+    var sse: u8
+    var first_int: u32
+    var first_float: u32
+    var words: u32
+    var stack_offset: u32
+
+pub struct Generator:
+    var out: buffer.Buffer
+    ## What precedes a C symbol in this target's assembler: nothing on Linux (§19.5).
+    pub var symbol_prefix: str
+    ## The target's operating system decides the section names and the initialiser section.
+    pub var os: build_target.Os
+    var program_unit: ir.Unit*
+    var f: ir.Function*
+    var index: usize
+    var temp_homes: list.List[Home]
+    var slot_homes: list.List[Home]
+    var frame: u64
+    ## The frame slot holding the hidden result pointer when the function returns through memory.
+    var indirect_home: u64
+    ## `--debug`: the frame descriptors, gathered while each function's frame is known.
+    var descriptors: buffer.Buffer
+    ## Register allocation: for each temporary, the callee-saved register it lives in
+    ## (1..5 for rbx, r12, r13, r14, r15), or 0 when it is spilled to its frame home.
+    var temp_regs: list.List[u8]
+    ## The callee-saved register code a promoted frame slot lives in, 0 when it stays in the
+    ## frame; and, per temporary, 1 + the slot whose address it holds, 0 otherwise.
+    var slot_regs: list.List[u8]
+    var temp_slot: list.List[u32]
+    ## Bit c-1 is set when register code c is used; `save_offset[c]` is where it is spilled.
+    var used_mask: u32
+    var save_offset: u64[6]
+
+    pub static func create(program_unit: ir.Unit*) -> Generator!:
+        return Generator(symbol_prefix = "", os = build_target.Os.linux, out = try buffer.Buffer.create(262144), program_unit = program_unit, f = program_unit.functions.span().data, index = 0,
+                         temp_homes = try list.List[Home].create(256), slot_homes = try list.List[Home].create(64),
+                         frame = 0, indirect_home = 0, descriptors = try buffer.Buffer.create(4096),
+                         temp_regs = try list.List[u8].create(256), slot_regs = try list.List[u8].create(64), temp_slot = try list.List[u32].create(256), used_mask = 0)
+
+    # -- output ---------------------------------------------------------------------------
+
+    mutating func put(text: str) -> !:
+        try self.out.put(text)
+
+    mutating func line(text: str) -> !:
+        try self.out.put("\n    ")
+        try self.out.put(text)
+
+    mutating func line2(a: str, b: str) -> !:
+        try self.line(a)
+        try self.put(b)
+
+    mutating func line3(a: str, b: str, c: str) -> !:
+        try self.line(a)
+        try self.put(b)
+        try self.put(c)
+
+    mutating func line4(a: str, b: str, c: str, d: str) -> !:
+        try self.line(a)
+        try self.put(b)
+        try self.put(c)
+        try self.put(d)
+
+    mutating func line5(a: str, b: str, c: str, d: str, e: str) -> !:
+        try self.line(a)
+        try self.put(b)
+        try self.put(c)
+        try self.put(d)
+        try self.put(e)
+
+    mutating func put_u64(v: u64) -> !:
+        try self.out.put_u64(v)
+
+    mutating func put_i64(v: i64) -> !:
+        try self.out.put_i64(v)
+
+    mutating func symbol(name: str) -> !:
+        try self.out.put(self.symbol_prefix)
+        try self.out.put(name)
+
+    ## `.L<function>_<label>`: local to the object, as the assembler treats `.L` names.
+    mutating func label_name(n: u32) -> !:
+        try self.out.put(".L")
+        try self.out.put_u64((u64)self.index)
+        try self.out.put("_")
+        try self.out.put_u64((u64)n)
+
+    mutating func text_label(n: u32) -> !:
+        try self.out.put(".Ltext_")
+        try self.out.put_u64((u64)n)
+
+    pub func text() -> str:
+        return self.out.view()
+
+    # -- registers, immediates, and the frame ---------------------------------------------
+
+    ## `value` into an integer register: `movl` for a 32-bit name, `movq` when the value
+    ## fits a sign-extended immediate, `movabsq` otherwise.
+    mutating func load_immediate(reg: str, value: i64) -> !:
+        if is_narrow(reg):
+            try self.line("movl $")
+            try self.put_u64((u64)value & 4294967295)
+            try self.put(", ")
+            try self.put(reg)
+            return
+        if value >= -2147483648 and value <= 2147483647:
+            try self.line("movq $")
+        else:
+            try self.line("movabsq $")
+        try self.put_i64(value)
+        try self.put(", ")
+        try self.put(reg)
+
+    ## `-offset(%rbp)`: the home `offset` bytes below the frame pointer.
+    mutating func frame_operand(offset: u64) -> !:
+        try self.put("-")
+        try self.put_u64(offset)
+        try self.put("(%rbp)")
+
+    ## The move that carries a register of class `cls` to or from memory.
+    func move_of(cls: ir.Class) -> str:
+        if cls == ir.Class.w:
+            return "movl "
+        if cls == ir.Class.l:
+            return "movq "
+        if cls == ir.Class.d:
+            return "movsd "
+        return "movss "
+
+    mutating func frame_store(reg: str, cls: ir.Class, offset: u64) -> !:
+        try self.line3(self.move_of(cls), reg, ", ")
+        try self.frame_operand(offset)
+
+    mutating func frame_load(reg: str, cls: ir.Class, offset: u64) -> !:
+        try self.line(self.move_of(cls))
+        try self.frame_operand(offset)
+        try self.put(", ")
+        try self.put(reg)
+
+    ## `reg = rbp - offset`.
+    mutating func frame_address(reg: str, offset: u64) -> !:
+        try self.line("leaq ")
+        try self.frame_operand(offset)
+        try self.put(", ")
+        try self.put(reg)
+
+    func temp_home(t: u32) -> u64:
+        return self.temp_homes.get((usize)t - 1).offset
+
+    func slot_home(s: u32) -> u64:
+        return self.slot_homes.get((usize)s).offset
+
+    ## The scratch register of class `cls` numbered `n` (0, 1, 2): rax, rcx, rdx for the
+    ## integers, xmm8, xmm9, xmm10 for the floats; r10 and r11 hold addresses.
+    func reg(cls: ir.Class, n: u32) -> str:
+        if cls == ir.Class.w:
+            return "%eax" if n == 0 else ("%ecx" if n == 1 else "%edx")
+        if cls == ir.Class.l:
+            return "%rax" if n == 0 else ("%rcx" if n == 1 else "%rdx")
+        return "%xmm8" if n == 0 else ("%xmm9" if n == 1 else "%xmm10")
+
+    ## The register holding `r` as class `cls` when `r` is a temporary living in one and the
+    ## class is an integer one, else `scratch` after loading it there.
+    mutating func source(r: ir.Ref, cls: ir.Class, scratch: str) -> str!:
+        if r.kind == ir.RefKind.temp and is_int_class(cls):
+            let code = self.temp_regs.get((usize)r.index - 1)
+            if code != 0:
+                return class_name(code, cls)
+        try self.operand(scratch, cls, r)
+        return scratch
+
+    ## The register to compute temporary `dst` into: its own when it lives in one and the
+    ## class is an integer one, else `scratch`, which `finish` then stores.
+    func target(dst: u32, cls: ir.Class, scratch: str) -> str:
+        if dst == 0 or not is_int_class(cls):
+            return scratch
+        let code = self.temp_regs.get((usize)dst - 1)
+        if code != 0:
+            return class_name(code, cls)
+        return scratch
+
+    ## After a result landed in `reg`: nothing when that is the temporary's own register.
+    mutating func finish(dst: u32, cls: ir.Class, reg: str) -> !:
+        if dst == 0:
+            return
+        let code = self.temp_regs.get((usize)dst - 1)
+        if code != 0 and is_int_class(cls) and class_name(code, cls) == reg:
+            return
+        try self.store_temp(reg, cls, dst)
+
+    ## Load temporary `t` into `reg` as class `cls`: a move when it lives in a register,
+    ## else from its home. An integer register read as a float moves its bits over.
+    mutating func load_temp(reg: str, cls: ir.Class, t: u32) -> !:
+        let code = self.temp_regs.get((usize)t - 1)
+        if code != 0:
+            if is_int_class(cls):
+                let home = class_name(code, cls)
+                if home != reg:
+                    try self.line4("movl " if cls == ir.Class.w else "movq ", home, ", ", reg)
+            else:
+                try self.line4("movq " if cls == ir.Class.d else "movd ", class_name(code, ir.Class.l if cls == ir.Class.d else ir.Class.w), ", ", reg)
+            return
+        try self.frame_load(reg, cls, self.temp_home(t))
+
+    mutating func store_temp(reg: str, cls: ir.Class, t: u32) -> !:
+        let code = self.temp_regs.get((usize)t - 1)
+        if code != 0:
+            if is_int_class(cls):
+                let home = class_name(code, cls)
+                if home != reg:
+                    try self.line4("movl " if cls == ir.Class.w else "movq ", reg, ", ", home)
+            else:
+                try self.line4("movq " if cls == ir.Class.d else "movd ", reg, ", ", class_name(code, ir.Class.l if cls == ir.Class.d else ir.Class.w))
+            return
+        try self.frame_store(reg, cls, self.temp_home(t))
+
+    ## An operand into a register of class `cls`.
+    mutating func operand(reg: str, cls: ir.Class, r: ir.Ref) -> !:
+        if r.kind == ir.RefKind.temp:
+            try self.load_temp(reg, cls, r.index)
+            return
+        if r.kind == ir.RefKind.constant:
+            if ir.is_float_class(cls):
+                if cls == ir.Class.d:
+                    try self.load_immediate("%rax", r.value)
+                    try self.line3("movq %rax, ", reg, "")
+                else:
+                    try self.load_immediate("%eax", r.value)
+                    try self.line3("movd %eax, ", reg, "")
+                return
+            try self.load_immediate(reg, r.value)
+            return
+        try self.address_operand(wide_name(reg), r)
+
+    ## The address a slot, global, function, or text refers to, into a 64-bit register.
+    mutating func address_operand(reg: str, r: ir.Ref) -> !:
+        if r.kind == ir.RefKind.slot:
+            try self.frame_address(reg, self.slot_home(r.index))
+        elif r.kind == ir.RefKind.global and r.value == 0:
+            try self.line("leaq ")
+            try self.symbol(r.name)
+            try self.put("(%rip), ")
+            try self.put(reg)
+        elif r.kind == ir.RefKind.global or r.kind == ir.RefKind.function:
+            # a function's address, or another image's data (`import_ref`), goes through the
+            # GOT, so a symbol defined in a linked shared object resolves
+            try self.line("movq ")
+            try self.symbol(r.name)
+            try self.put("@GOTPCREL(%rip), ")
+            try self.put(reg)
+        elif r.kind == ir.RefKind.text:
+            try self.line("leaq ")
+            try self.text_label(r.index)
+            try self.put("(%rip), ")
+            try self.put(reg)
+        elif r.kind == ir.RefKind.temp:
+            try self.load_temp(reg, ir.Class.l, r.index)
+        elif r.kind == ir.RefKind.constant:
+            try self.load_immediate(reg, r.value)
+        else:
+            try self.line3("movq $0, ", reg, "")
+
+    # mark: Functions ==========================================================================
+
+    ## Lay out the frame: the hidden result pointer, the callee-saved save area, slots, and a
+    ## home for each spilled temporary, all below rbp.
+    mutating func layout() -> !:
+        self.temp_homes.count = 0
+        self.slot_homes.count = 0
+        var offset: u64 = 0
+        if self.f.has_result and self.f.result_size > 16:
+            offset = round_up(offset + 8, 8)
+            self.indirect_home = offset
+        var c: usize = 1
+        while c <= 5:
+            if (self.used_mask & (u32)(1 << (u32)(c - 1))) != 0:
+                offset = round_up(offset + 8, 8)
+                self.save_offset[c] = offset
+            else:
+                self.save_offset[c] = 0
+            c += 1
+        var i: usize = 0
+        while i < self.f.slots.count:
+            let s = self.f.slots.get(i)
+            let size = (u64)s.size if s.size > 0 else 1
+            offset = round_up(offset + size, (u64)s.align if s.align > 0 else 1)
+            try self.slot_homes.push(Home(offset = offset))
+            i += 1
+        i = 0
+        while i < self.f.temps.count:
+            if self.temp_regs.get(i) == 0:
+                offset = round_up(offset + 8, 8)
+                try self.temp_homes.push(Home(offset = offset))
+            else:
+                try self.temp_homes.push(Home(offset = 0))
+            i += 1
+        self.frame = round_up(offset, 16)
+
+    ## The slot an address temporary stands for, 1-based, or 0. Only meaningful after
+    ## `promote`, and only for slots that were promoted.
+    func promoted_slot(t: u32) -> u32:
+        if (usize)t > self.temp_slot.count:
+            return 0
+        let k = self.temp_slot.get((usize)t - 1)
+        if k == 0 or self.slot_regs.get((usize)k - 1) == 0:
+            return 0
+        return k
+
+    ## Which frame slots live in registers (§19.3 codegen): an integer slot of 1, 2, 4, or 8
+    ## bytes whose address is taken only to load or store that many bytes at once. The most-used
+    ## ones take the first `ints` callee-saved registers. Frame descriptors need the frame, so
+    ## `--debug` promotes nothing; the convention saves no SSE register, so no float slot is.
+    mutating func promote(ints: u8) -> !:
+        self.slot_regs.count = 0
+        self.temp_slot.count = 0
+        let ns = self.f.slots.count
+        let nt = self.f.temps.count
+        var i: usize = 0
+        while i < ns:
+            try self.slot_regs.push(0)
+            i += 1
+        i = 0
+        while i < nt:
+            try self.temp_slot.push(0)
+            i += 1
+        if self.f.debug or ns == 0:
+            return
+        # 1 = integer, 2 = float, 3 = unfit
+        var kind = try alloc u8[ns] in memory.heap
+        defer free(kind) in memory.heap
+        var uses = try alloc u32[ns] in memory.heap
+        defer free(uses) in memory.heap
+        i = 0
+        while i < ns:
+            let sz = self.f.slots.get(i).size
+            kind[i] = 0 if sz == 1 or sz == 2 or sz == 4 or sz == 8 else 3
+            uses[i] = 0
+            i += 1
+        var ix: usize = 0
+        while ix < self.f.instrs.count:
+            let n = self.f.instrs.get(ix)
+            if n.op == ir.Op.addr and n.a.kind == ir.RefKind.slot and n.dst > 0:
+                self.temp_slot.set((usize)n.dst - 1, n.a.index + 1)
+            ix += 1
+        ix = 0
+        while ix < self.f.instrs.count:
+            let n = self.f.instrs.get(ix)
+            let is_load = n.op == ir.Op.loadsb or n.op == ir.Op.loadub or n.op == ir.Op.loadsh or n.op == ir.Op.loaduh or n.op == ir.Op.loadsw or n.op == ir.Op.loaduw or n.op == ir.Op.loadl or n.op == ir.Op.loads or n.op == ir.Op.loadd or n.op == ir.Op.loadhf
+            let is_store = n.op == ir.Op.storeb or n.op == ir.Op.storeh or n.op == ir.Op.storew or n.op == ir.Op.storel or n.op == ir.Op.stores or n.op == ir.Op.stored or n.op == ir.Op.storehf
+            if is_load:
+                self.note_access(self.slot_of(n.a), access_width(n.op), is_float_load(n.op), kind, uses)
+            elif is_store:
+                self.note_access(self.slot_of(n.b), access_width(n.op), is_float_store(n.op), kind, uses)
+                let v = self.slot_of(n.a)
+                if v != 0:
+                    kind[(usize)v - 1] = 3
+            elif n.op == ir.Op.addr:
+                let inner = self.slot_of(n.a)
+                if inner != 0 and n.a.kind == ir.RefKind.temp:
+                    kind[(usize)inner - 1] = 3
+            elif n.op == ir.Op.call:
+                let info = self.f.calls.get((usize)n.extra)
+                if info.has_result and info.result_size > 0 and (usize)info.result_slot < ns:
+                    kind[(usize)info.result_slot] = 3
+                var a: u32 = 0
+                while a < info.args_count:
+                    let v = self.slot_of(self.f.args.get((usize)(info.args_start + a)).value)
+                    if v != 0:
+                        kind[(usize)v - 1] = 3
+                    a += 1
+            else:
+                let va = self.slot_of(n.a)
+                if va != 0:
+                    kind[(usize)va - 1] = 3
+                let vb = self.slot_of(n.b)
+                if vb != 0:
+                    kind[(usize)vb - 1] = 3
+            ix += 1
+        var int_code: u8 = 1
+        while true:
+            var best: usize = ns
+            var best_uses: u32 = 0
+            i = 0
+            while i < ns:
+                if self.slot_regs.get(i) == 0 and kind[i] == 1 and uses[i] >= 2 and uses[i] > best_uses:
+                    best = i
+                    best_uses = uses[i]
+                i += 1
+            if best == ns:
+                break
+            if int_code > ints:
+                kind[best] = 3
+                continue
+            self.slot_regs.set(best, int_code)
+            self.used_mask = self.used_mask | (u32)(1 << (u32)(int_code - 1))
+            int_code += 1
+
+    ## The slot a reference stands for, 1-based: a slot reference itself, or a temporary that
+    ## holds a slot's address; 0 otherwise.
+    func slot_of(r: ir.Ref) -> u32:
+        if r.kind == ir.RefKind.slot:
+            return r.index + 1
+        if r.kind == ir.RefKind.temp and (usize)r.index <= self.temp_slot.count:
+            return self.temp_slot.get((usize)r.index - 1)
+        return 0
+
+    ## One load or store of `width` bytes through slot `k` (1-based): it fits when the width
+    ## is the slot's and the class agrees with every other access.
+    func note_access(k: u32, width: u32, float: bool, kind: u8[], uses: u32[]):
+        if k == 0:
+            return
+        let i = (usize)k - 1
+        if kind[i] == 3:
+            return
+        if self.f.slots.get(i).size != width:
+            kind[i] = 3
+            return
+        let want: u8 = 2 if float else 1
+        if kind[i] == 0:
+            kind[i] = want
+        elif kind[i] != want:
+            kind[i] = 3
+            return
+        uses[i] += 1
+
+    ## Where each temporary is defined and last used, by instruction index; a temporary used
+    ## inside a loop that was defined before it is live to the loop's bottom.
+    mutating func live_ranges(def_at: u32[], last_use: u32[]) -> !:
+        let n = self.f.temps.count
+        var i: usize = 0
+        while i < n:
+            def_at[i] = 0
+            last_use[i] = 0
+            i += 1
+        var label_pos = try alloc u32[(usize)self.f.labels + 1] in memory.heap
+        defer free(label_pos) in memory.heap
+        var ix: usize = 0
+        while ix < self.f.instrs.count:
+            let instr = self.f.instrs.get(ix)
+            if instr.op == ir.Op.label and instr.extra <= self.f.labels:
+                label_pos[(usize)instr.extra] = u32(ix)
+            if instr.dst > 0 and (usize)instr.dst <= n:
+                def_at[(usize)instr.dst - 1] = u32(ix)
+            self.note_use(instr.a, last_use, u32(ix))
+            self.note_use(instr.b, last_use, u32(ix))
+            if instr.op == ir.Op.call:
+                let info = self.f.calls.get((usize)instr.extra)
+                var k: u32 = 0
+                while k < info.args_count:
+                    self.note_use(self.f.args.get((usize)(info.args_start + k)).value, last_use, u32(ix))
+                    k += 1
+            ix += 1
+        ix = 0
+        while ix < self.f.instrs.count:
+            let instr = self.f.instrs.get(ix)
+            if instr.op == ir.Op.jmp or instr.op == ir.Op.jnz:
+                let jump_targets: u32[2] = [instr.extra, instr.extra2 if instr.op == ir.Op.jnz else instr.extra]
+                var w: usize = 0
+                while w < 2:
+                    let where = jump_targets[w]
+                    w += 1
+                    if where == 0 or where > self.f.labels:
+                        continue
+                    let t = label_pos[(usize)where]
+                    if t >= u32(ix):
+                        continue
+                    var i2: usize = 0
+                    while i2 < n:
+                        if def_at[i2] < t and last_use[i2] >= t and last_use[i2] < u32(ix):
+                            last_use[i2] = u32(ix)
+                        i2 += 1
+            ix += 1
+
+    func note_use(r: ir.Ref, last_use: u32[], ix: u32):
+        if r.kind == ir.RefKind.temp and (usize)r.index <= last_use.length:
+            if last_use[(usize)r.index - 1] < ix:
+                last_use[(usize)r.index - 1] = ix
+
+    ## The most integer temporaries live at one point.
+    mutating func pressure(def_at: u32[], last_use: u32[]) -> u32!:
+        let n = self.f.temps.count
+        let m = self.f.instrs.count + 2
+        var delta = try alloc i32[m] in memory.heap
+        defer free(delta) in memory.heap
+        var k: usize = 0
+        while k < m:
+            delta[k] = 0
+            k += 1
+        var i: usize = 0
+        while i < n:
+            if last_use[i] > def_at[i] and is_int_class(self.f.temp_class(u32(i + 1))):
+                delta[(usize)def_at[i]] += 1
+                delta[(usize)last_use[i] + 1] -= 1
+            i += 1
+        var most: i32 = 0
+        var live: i32 = 0
+        k = 0
+        while k < m:
+            live += delta[k]
+            if live > most:
+                most = live
+            k += 1
+        return (u32)most
+
+    ## Give each integer temporary a callee-saved register by linear scan over its live
+    ## range; when the pool is full, the temporary living longest is spilled.
+    mutating func allocate(def_at: u32[], last_use: u32[]) -> !:
+        self.temp_regs.count = 0
+        let n = self.f.temps.count
+        var i: usize = 0
+        while i < n:
+            try self.temp_regs.push(0)
+            i += 1
+        self.used_mask = 0
+        var ps: usize = 0
+        while ps < self.slot_regs.count:
+            let code = self.slot_regs.get(ps)
+            if code != 0:
+                self.used_mask = self.used_mask | (u32)(1 << (u32)(code - 1))
+            ps += 1
+        if n == 0:
+            return
+        var eligible = try alloc bool[n] in memory.heap
+        defer free(eligible) in memory.heap
+        i = 0
+        while i < n:
+            eligible[i] = is_int_class(self.f.temp_class(u32(i + 1))) and self.promoted_slot(u32(i + 1)) == 0
+            i += 1
+        var reg_temp: u32[6] = ---
+        var c: usize = 0
+        while c <= 5:
+            reg_temp[c] = 0
+            c += 1
+        var pk: usize = 0
+        while pk < self.slot_regs.count:
+            let code = self.slot_regs.get(pk)
+            if code != 0:
+                reg_temp[(usize)code] = held
+            pk += 1
+        var ix: usize = 0
+        while ix < self.f.instrs.count:
+            c = 1
+            while c <= 5:
+                let t = reg_temp[c]
+                if t != 0 and t != held and last_use[(usize)t - 1] < u32(ix):
+                    reg_temp[c] = 0
+                c += 1
+            let instr = self.f.instrs.get(ix)
+            let d = (usize)instr.dst
+            if d > 0 and d <= n and eligible[d - 1] and def_at[d - 1] == u32(ix) and last_use[d - 1] > u32(ix):
+                var chosen: usize = 0
+                c = 1
+                while c <= 5:
+                    if reg_temp[c] == 0:
+                        chosen = c
+                        break
+                    c += 1
+                if chosen == 0:
+                    var far_c: usize = 0
+                    var far_use = last_use[d - 1]
+                    c = 1
+                    while c <= 5:
+                        let t = reg_temp[c]
+                        if t != 0 and t != held and last_use[(usize)t - 1] > far_use:
+                            far_use = last_use[(usize)t - 1]
+                            far_c = c
+                        c += 1
+                    if far_c != 0:
+                        self.temp_regs.set((usize)reg_temp[far_c] - 1, 0)
+                        chosen = far_c
+                if chosen != 0:
+                    reg_temp[chosen] = instr.dst
+                    self.temp_regs.set(d - 1, (u8)chosen)
+                    self.used_mask = self.used_mask | (u32)(1 << (u32)(chosen - 1))
+            ix += 1
+
+    ## Split the callee-saved registers between promoted slots and temporaries: the
+    ## temporaries keep as many as they can use at once, up to two, and the most-used
+    ## frame slots take the rest of the five.
+    mutating func plan_registers() -> !:
+        let nt = self.f.temps.count
+        var def_at = try alloc u32[nt if nt > 0 else 1] in memory.heap
+        defer free(def_at) in memory.heap
+        var last_use = try alloc u32[nt if nt > 0 else 1] in memory.heap
+        defer free(last_use) in memory.heap
+        try self.live_ranges(def_at, last_use)
+        let ints = try self.pressure(def_at, last_use)
+        try self.promote((u8)(5 - (ints if ints < 2 else 2)))
+        try self.allocate(def_at, last_use)
+
+    ## Copy `size` bytes from (%r10) to (%r11) with plain loads and stores: 16 at a time
+    ## through an SSE register, then 8, 4, 2, 1. Unaligned access is fine on this target.
+    mutating func inline_copy(size: u64) -> !:
+        var done: u64 = 0
+        while size - done >= 16:
+            try self.offset_move("movups ", done, "(%r10), %xmm8")
+            try self.line("movups %xmm8, ")
+            try self.put_u64(done)
+            try self.put("(%r11)")
+            done += 16
+        let widths: u64[4] = [8, 4, 2, 1]
+        let loads: str[4] = ["movq ", "movl ", "movzwl ", "movzbl "]
+        let load_regs: str[4] = ["(%r10), %rax", "(%r10), %eax", "(%r10), %eax", "(%r10), %eax"]
+        let stores: str[4] = ["movq %rax, ", "movl %eax, ", "movw %ax, ", "movb %al, "]
+        var k: usize = 0
+        while k < 4:
+            if size - done >= widths[k]:
+                try self.offset_move(loads[k], done, load_regs[k])
+                try self.line(stores[k])
+                try self.put_u64(done)
+                try self.put("(%r11)")
+                done += widths[k]
+            k += 1
+
+    ## Zero `size` bytes at (%r11) the same way.
+    mutating func inline_zero(size: u64) -> !:
+        var done: u64 = 0
+        if size >= 16:
+            try self.line("pxor %xmm8, %xmm8")
+        while size - done >= 16:
+            try self.line("movups %xmm8, ")
+            try self.put_u64(done)
+            try self.put("(%r11)")
+            done += 16
+        let widths: u64[4] = [8, 4, 2, 1]
+        let stores: str[4] = ["movq $0, ", "movl $0, ", "movw $0, ", "movb $0, "]
+        var k: usize = 0
+        while k < 4:
+            if size - done >= widths[k]:
+                try self.line(stores[k])
+                try self.put_u64(done)
+                try self.put("(%r11)")
+                done += widths[k]
+            k += 1
+
+    ## `mnemonic` + offset + `rest`: one line of a copy.
+    mutating func offset_move(mnemonic: str, offset: u64, rest: str) -> !:
+        try self.line(mnemonic)
+        try self.put_u64(offset)
+        try self.put(rest)
+
+    ## The promoted slot an address reference reaches, 1-based, or 0.
+    func promoted_address(r: ir.Ref) -> u32:
+        let k = self.slot_of(r)
+        if k == 0 or self.slot_regs.get((usize)k - 1) == 0:
+            return 0
+        return k
+
+    ## A load from a promoted slot: the register, extended as the load would extend from
+    ## memory, since a narrow store leaves the register's upper bits as they were.
+    mutating func load_promoted(op: ir.Op, k: u32, d: str) -> !:
+        let code = (usize)self.slot_regs.get((usize)k - 1)
+        let q = q_names[code]
+        let l = l_names[code]
+        match op:
+            .loadl:
+                if d != q:
+                    try self.line4("movq ", q, ", ", d)
+            .loaduw:
+                if d != l:
+                    try self.line4("movl ", l, ", ", d)
+            .loadsw: try self.line4("movslq ", l, ", ", d)
+            .loadub: try self.line4("movzbl ", b_names[code], ", ", d)
+            .loadsb: try self.line4("movsbl ", b_names[code], ", ", d)
+            .loaduh: try self.line4("movzwl ", w_names[code], ", ", d)
+            .loadsh: try self.line4("movswl ", w_names[code], ", ", d)
+            _:
+                error(failed, "a float load from a promoted slot")
+
+    ## A store into a promoted slot: the value's register `v` moves in.
+    mutating func store_promoted(op: ir.Op, k: u32, v: str) -> !:
+        let code = (usize)self.slot_regs.get((usize)k - 1)
+        match op:
+            .storel:
+                if v != q_names[code]:
+                    try self.line4("movq ", v, ", ", q_names[code])
+            .storew:
+                if v != l_names[code]:
+                    try self.line4("movl ", v, ", ", l_names[code])
+            .storeh: try self.line4("movw ", word_name(v), ", ", w_names[code])
+            .storeb: try self.line4("movb ", byte_name(v), ", ", b_names[code])
+            _:
+                error(failed, "a float store into a promoted slot")
+
+    ## `.weak` for a weak symbol (§9.8); ELF has no directive for `used`, which only matters
+    ## to a linker that discards sections, so it is left to the section's own flags.
+    mutating func linkage_directives(name: str, weak: bool, used: bool) -> !:
+        if weak:
+            try self.put("    .weak ")
+            try self.symbol(name)
+            try self.put("\n")
+        discard(used)
+
+    ## Back to the text section after a function placed in a named one.
+    mutating func leave_section() -> !:
+        if self.f.section.length > 0:
+            try self.put("\n    .text\n")
+
+    mutating func function(index: usize) -> !:
+        self.index = index
+        self.f = &self.program_unit.functions.items[index]
+        try self.plan_registers()
+        try self.layout()
+        if self.f.section.length > 0:
+            try self.put("\n    .section ")
+            try self.put(build_target.section_name(self.f.section, true, self.os))
+            try self.put(",\"ax\",@progbits")
+        try self.put("\n    .p2align 4\n")
+        try self.put("    .globl ")
+        try self.symbol(self.f.name)
+        try self.put("\n    .type ")
+        try self.symbol(self.f.name)
+        try self.put(", @function\n")
+        try self.linkage_directives(self.f.name, self.f.weak, self.f.used)
+        try self.symbol(self.f.name)
+        try self.put(":")
+        if self.f.naked:
+            # the body is asm blocks only (§9.8): no frame, no prologue, nothing after
+            var k: usize = 0
+            while k < self.f.instrs.count:
+                try self.instruction(self.f.instrs.get(k))
+                k += 1
+            try self.leave_section()
+            return
+        try self.line("pushq %rbp")
+        try self.line("movq %rsp, %rbp")
+        if self.frame > 0:
+            try self.line("subq $")
+            try self.put_u64(self.frame)
+            try self.put(", %rsp")
+        if self.f.has_result and self.f.result_size > 16:
+            try self.line("movq %rdi, ")
+            try self.frame_operand(self.indirect_home)
+        try self.save_callee_saved()
+        try self.receive_params()
+        var i: usize = 0
+        while i < self.f.instrs.count:
+            try self.instruction(self.f.instrs.get(i))
+            i += 1
+        try self.put("\n")
+        if self.f.debug:
+            try self.describe_frame()
+
+    ## `lbd_<name>`: the function's name and source, then each named local's name, type
+    ## spelling, distance below the frame pointer, and size; every text is a `str`.
+    mutating func describe_frame() -> !:
+        var d = &self.descriptors
+        try d.put("    .globl ")
+        try d.put(self.symbol_prefix)
+        try d.put("lbd_")
+        try d.put(self.f.name)
+        try d.put("\n")
+        try d.put(self.symbol_prefix)
+        try d.put("lbd_")
+        try d.put(self.f.name)
+        try d.put(":\n")
+        try self.describe_text(self.f.name)
+        try self.describe_text(self.f.source)
+        try d.put("    .quad ")
+        try d.put_u64((u64)self.f.locals.count)
+        try d.put("\n")
+        var i: usize = 0
+        while i < self.f.locals.count:
+            let described = self.f.locals.get(i)
+            try self.describe_text(described.name)
+            try self.describe_text(described.kind)
+            try d.put("    .quad ")
+            try d.put_u64(self.slot_home(described.slot))
+            try d.put(", ")
+            try d.put_u64((u64)described.size)
+            try d.put("\n")
+            i += 1
+
+    mutating func describe_text(text: str) -> !:
+        let index = try self.program_unit.text(text)
+        var d = &self.descriptors
+        try d.put("    .quad .Ltext_")
+        try d.put_u64((u64)index)
+        try d.put(", ")
+        try d.put_u64((u64)text.length)
+        try d.put("\n")
+
+    # mark: Eightbytes =========================================================================
+
+    ## Classify an argument or result of `size` bytes: bit k of the answer is set when
+    ## eightbyte k takes an SSE register. A scalar is its own class; an aggregate carries the
+    ## lowerer's classification of its first sixteen bytes.
+    func sse_of(cls: ir.Class, size: u32, words: u8) -> u8:
+        if size == 0:
+            return 1 if ir.is_float_class(cls) else 0
+        return words & (3 if size > 8 else 1)
+
+    ## Exactly `width` bytes (1..8) at `offset(base)` into the 64-bit register `reg`, zero
+    ## above; `%r11` helps with the odd widths.
+    mutating func load_bytes(reg: str, base: str, offset: u64, width: u64) -> !:
+        let l = narrow_name(reg)
+        if width == 8:
+            try self.offset_move("movq ", offset, "(")
+            try self.put(base)
+            try self.put("), ")
+            try self.put(reg)
+            return
+        if width == 4 or width == 2 or width == 1:
+            try self.offset_move("movl " if width == 4 else ("movzwl " if width == 2 else "movzbl "), offset, "(")
+            try self.put(base)
+            try self.put("), ")
+            try self.put(l)
+            return
+        # 3, 5, 6, 7: the low part, then the rest shifted into place
+        let low: u64 = 4 if width > 4 else 2
+        try self.load_bytes("%r11", base, offset + low, width - low)
+        try self.load_bytes(reg, base, offset, low)
+        try self.line("shlq $")
+        try self.put_u64(low * 8)
+        try self.put(", %r11")
+        try self.line3("orq %r11, ", reg, "")
+
+    ## Exactly `width` bytes of the 64-bit register `reg` to `offset(base)`; the register is
+    ## consumed.
+    mutating func store_bytes(reg: str, base: str, offset: u64, width: u64) -> !:
+        if width == 8 or width == 4 or width == 2 or width == 1:
+            try self.line(store_word_mnemonic(width))
+            try self.put(register_of_width(reg, width))
+            try self.put(", ")
+            try self.put_u64(offset)
+            try self.put("(")
+            try self.put(base)
+            try self.put(")")
+            return
+        let low: u64 = 4 if width > 4 else 2
+        try self.store_bytes(reg, base, offset, low)
+        try self.line("shrq $")
+        try self.put_u64(low * 8)
+        try self.put(", ")
+        try self.put(reg)
+        try self.store_bytes(reg, base, offset + low, width - low)
+
+    ## Eightbyte `k` of an aggregate of `size` bytes at (%r10), into `reg`: an integer
+    ## register, or an SSE one through rax.
+    mutating func load_eightbyte(reg: str, k: u32, size: u32, sse: bool) -> !:
+        let offset = (u64)k * 8
+        let width = (u64)size - offset if (u64)size - offset < 8 else 8
+        if sse:
+            try self.load_bytes("%rax", "%r10", offset, width)
+            try self.line3("movq %rax, ", reg, "")
+        else:
+            try self.load_bytes(reg, "%r10", offset, width)
+
+    ## Eightbyte `k` of an aggregate of `size` bytes, from `reg` to (%r10).
+    mutating func store_eightbyte(reg: str, k: u32, size: u32, sse: bool) -> !:
+        let offset = (u64)k * 8
+        let width = (u64)size - offset if (u64)size - offset < 8 else 8
+        if sse:
+            try self.line3("movq ", reg, ", %rax")
+            try self.store_bytes("%rax", "%r10", offset, width)
+        else:
+            try self.store_bytes(reg, "%r10", offset, width)
+
+    ## Store the incoming arguments into their slots.
+    mutating func receive_params() -> !:
+        var next_int: u32 = 1 if self.f.has_result and self.f.result_size > 16 else 0
+        var next_float: u32 = 0
+        var stack_offset: u64 = 16
+        var i: usize = 0
+        while i < self.f.params.count:
+            let p = self.f.params.get(i)
+            let home = self.slot_home(p.slot)
+            if p.size == 0:
+                let code = (usize)self.slot_regs.get((usize)p.slot)
+                if ir.is_float_class(p.cls):
+                    if next_float < 8:
+                        if p.cls == ir.Class.h:
+                            try self.line2("movd ", float_argument_names[(usize)next_float])
+                            try self.put(", %eax")
+                            try self.line("movw %ax, ")
+                            try self.frame_operand(home)
+                        else:
+                            try self.frame_store(float_argument_names[(usize)next_float], p.cls, home)
+                        next_float += 1
+                    else:
+                        try self.stack_param_load("%rax", stack_offset)
+                        try self.line(store_word_mnemonic(2 if p.cls == ir.Class.h else (4 if p.cls == ir.Class.s else 8)))
+                        try self.put(register_of_width("%rax", 2 if p.cls == ir.Class.h else (4 if p.cls == ir.Class.s else 8)))
+                        try self.put(", ")
+                        try self.frame_operand(home)
+                        stack_offset += 8
+                elif next_int < 6:
+                    let source_name = argument_names[(usize)next_int] if p.cls == ir.Class.l else narrow_name(argument_names[(usize)next_int])
+                    if code != 0:
+                        try self.line4("movq " if p.cls == ir.Class.l else "movl ", source_name, ", ", class_name((u8)code, p.cls))
+                    else:
+                        try self.frame_store(source_name, p.cls, home)
+                    next_int += 1
+                else:
+                    try self.stack_param_load("%rax", stack_offset)
+                    if code != 0:
+                        try self.line4("movq " if p.cls == ir.Class.l else "movl ", "%rax" if p.cls == ir.Class.l else "%eax", ", ", class_name((u8)code, p.cls))
+                    else:
+                        try self.frame_store("%rax" if p.cls == ir.Class.l else "%eax", p.cls, home)
+                    stack_offset += 8
+            else:
+                let sse = self.sse_of(p.cls, p.size, p.sse_words)
+                let words: u32 = 2 if p.size > 8 else 1
+                let sse_count = count_bits(sse)
+                let int_count = words - sse_count
+                if p.size <= 16 and next_int + int_count <= 6 and next_float + sse_count <= 8:
+                    try self.frame_address("%r10", home)
+                    var k: u32 = 0
+                    while k < words:
+                        if (sse & (u8)(1 << k)) != 0:
+                            try self.store_eightbyte(float_argument_names[(usize)next_float], k, p.size, true)
+                            next_float += 1
+                        else:
+                            try self.store_eightbyte(argument_names[(usize)next_int], k, p.size, false)
+                            next_int += 1
+                        k += 1
+                else:
+                    # copied from the caller's stack area in a second pass, after every
+                    # register is safely stored
+                    stack_offset += round_up((u64)p.size, 8)
+            i += 1
+        stack_offset = 16
+        next_int = 1 if self.f.has_result and self.f.result_size > 16 else 0
+        next_float = 0
+        i = 0
+        while i < self.f.params.count:
+            let p = self.f.params.get(i)
+            if p.size == 0:
+                if ir.is_float_class(p.cls):
+                    if next_float < 8:
+                        next_float += 1
+                    else:
+                        stack_offset += 8
+                elif next_int < 6:
+                    next_int += 1
+                else:
+                    stack_offset += 8
+            else:
+                let sse = self.sse_of(p.cls, p.size, p.sse_words)
+                let words: u32 = 2 if p.size > 8 else 1
+                let sse_count = count_bits(sse)
+                let int_count = words - sse_count
+                if p.size <= 16 and next_int + int_count <= 6 and next_float + sse_count <= 8:
+                    next_int += int_count
+                    next_float += sse_count
+                else:
+                    try self.line("leaq ")
+                    try self.put_u64(stack_offset)
+                    try self.put("(%rbp), %r10")
+                    try self.frame_address("%r11", self.slot_home(p.slot))
+                    try self.copy_r10_to_r11((u64)p.size)
+                    stack_offset += round_up((u64)p.size, 8)
+            i += 1
+
+    mutating func stack_param_load(reg: str, offset: u64) -> !:
+        try self.line("movq ")
+        try self.put_u64(offset)
+        try self.put("(%rbp), ")
+        try self.put(reg)
+
+    ## `size` bytes from (%r10) to (%r11): inline up to 128, else `memcpy`.
+    mutating func copy_r10_to_r11(size: u64) -> !:
+        if size <= 128:
+            try self.inline_copy(size)
+            return
+        try self.line("movq %r11, %rdi")
+        try self.line("movq %r10, %rsi")
+        try self.load_immediate("%rdx", (i64)size)
+        try self.call_symbol("memcpy")
+
+    mutating func call_symbol(name: str) -> !:
+        try self.line("call ")
+        try self.symbol(name)
+        try self.put("@PLT")
+
+    # mark: Instructions =======================================================================
+
+    mutating func instruction(n: ir.Instr) -> !:
+        match n.op:
+            .label:
+                try self.put("\n")
+                try self.label_name(n.extra)
+                try self.put(":")
+            .jmp:
+                try self.line("jmp ")
+                try self.label_name(n.extra)
+            .jnz:
+                let cls = ir.Class.l if n.cls == ir.Class.l else ir.Class.w
+                let c = try self.source(n.a, cls, self.reg(cls, 0))
+                try self.line5("testq " if cls == ir.Class.l else "testl ", c, ", ", c, "")
+                try self.line("jne ")
+                try self.label_name(n.extra)
+                try self.line("jmp ")
+                try self.label_name(n.extra2)
+            .ret:
+                try self.return_value(n)
+            .copy:
+                let v = try self.source(n.a, n.cls, self.reg(n.cls, 0))
+                let d = self.target(n.dst, n.cls, self.reg(n.cls, 0))
+                if v != d:
+                    try self.line4(register_move(n.cls), v, ", ", d)
+                try self.finish(n.dst, n.cls, d)
+            .add, .sub, .mul, .sdiv, .udiv, .srem, .urem, .and_, .or_, .xor, .shl, .lshr, .ashr:
+                if ir.is_float_class(n.cls):
+                    try self.float_arithmetic(n)
+                else:
+                    try self.arithmetic(n)
+            .neg:
+                try self.negate(n)
+            .ceq, .cne, .cslt, .csle, .csgt, .csge, .cult, .cule, .cugt, .cuge:
+                if ir.is_float_class(n.cls):
+                    try self.float_comparison(n)
+                else:
+                    try self.comparison(n)
+            .loadsb, .loadub, .loadsh, .loaduh, .loadsw, .loaduw, .loadl, .loads, .loadd, .loadhf:
+                let lc = load_class(n.op)
+                let d = self.target(n.dst, lc, self.reg(lc, 0))
+                let from_slot = self.promoted_address(n.a)
+                if from_slot != 0:
+                    try self.load_promoted(n.op, from_slot, d)
+                else:
+                    try self.address_operand("%r10", n.a)
+                    if n.op == ir.Op.loadhf:
+                        try self.line("movzwl (%r10), %eax")
+                        try self.line3("movd %eax, ", d, "")
+                    else:
+                        try self.line4(load_mnemonic(n.op), "(%r10), ", d, "")
+                try self.finish(n.dst, lc, d)
+            .storeb, .storeh, .storew, .storel, .stores, .stored, .storehf:
+                let cls = store_class(n.op)
+                let v = try self.source(n.a, cls, self.reg(cls, 0))
+                let to_slot = self.promoted_address(n.b)
+                if to_slot != 0:
+                    try self.store_promoted(n.op, to_slot, v)
+                else:
+                    try self.address_operand("%r10", n.b)
+                    if n.op == ir.Op.storehf:
+                        try self.line3("movd ", v, ", %eax")
+                        try self.line("movw %ax, (%r10)")
+                    elif n.op == ir.Op.storeb:
+                        try self.line3("movb ", byte_name(v), ", (%r10)")
+                    elif n.op == ir.Op.storeh:
+                        try self.line3("movw ", word_name(v), ", (%r10)")
+                    else:
+                        try self.line3(store_mnemonic(n.op), v, ", (%r10)")
+            .frame:
+                let d = self.target(n.dst, ir.Class.l, "%rax")
+                try self.line3("movq %rbp, ", d, "")
+                try self.finish(n.dst, ir.Class.l, d)
+            .extsb, .extub, .extsh, .extuh, .extsw, .extuw:
+                let v = try self.source(n.a, ir.Class.w, "%eax")
+                let d = self.target(n.dst, n.cls, self.reg(n.cls, 0))
+                try self.extend_from(n.op, n.cls, v, d)
+                try self.finish(n.dst, n.cls, d)
+            .exth, .exts, .truncs, .truncd:
+                try self.float_convert(n)
+            .stosi, .stoui, .dtosi, .dtoui:
+                try self.float_to_int(n)
+            .swtof, .uwtof, .sltof, .ultof:
+                try self.int_to_float(n)
+            .cast:
+                # bits move between an integer and a float of the same width
+                let other = cast_partner(n.cls)
+                let v = try self.source(n.a, other, self.reg(other, 0))
+                let d = self.target(n.dst, n.cls, self.reg(n.cls, 0))
+                try self.line4("movq " if n.cls == ir.Class.d or n.cls == ir.Class.l else "movd ", v, ", ", d)
+                try self.finish(n.dst, n.cls, d)
+            .addr:
+                if self.promoted_slot(n.dst) == 0:
+                    let d = self.target(n.dst, ir.Class.l, "%rax")
+                    try self.address_operand(d, n.a)
+                    try self.finish(n.dst, ir.Class.l, d)
+            .addr_tls:
+                # the initial-exec model: the thread pointer plus the variable's offset in
+                # the static thread block, which the linker writes into the GOT
+                try self.line("movq %fs:0, %rax")
+                try self.line("addq ")
+                try self.symbol(n.a.name)
+                try self.put("@GOTTPOFF(%rip), %rax")
+                try self.store_temp("%rax", ir.Class.l, n.dst)
+            .blit:
+                if n.extra <= 128:
+                    try self.address_operand("%r10", n.b)
+                    try self.address_operand("%r11", n.a)
+                    try self.inline_copy((u64)n.extra)
+                else:
+                    try self.address_operand("%rdi", n.a)
+                    try self.address_operand("%rsi", n.b)
+                    try self.load_immediate("%rdx", (i64)n.extra)
+                    try self.call_symbol("memcpy")
+            .zero:
+                if n.extra <= 128:
+                    try self.address_operand("%r11", n.a)
+                    try self.inline_zero((u64)n.extra)
+                else:
+                    try self.address_operand("%rdi", n.a)
+                    try self.line("xorl %esi, %esi")
+                    try self.load_immediate("%rdx", (i64)n.extra)
+                    try self.call_symbol("memset")
+            .fill:
+                try self.address_operand("%rdi", n.a)
+                try self.load_immediate("%esi", n.b.value)
+                try self.load_immediate("%rdx", (i64)n.extra)
+                try self.call_symbol("memset")
+            .call:
+                try self.call(n)
+            .trap_:
+                try self.address_operand("%rdi", n.a)
+                try self.call_symbol("lb_core_trap")
+            .bounds:
+                let a = try self.source(n.a, ir.Class.l, "%rax")
+                let b = try self.source(n.b, ir.Class.l, "%rcx")
+                try self.line4("cmpq ", b, ", ", a)
+                try self.line("jb 1f")
+                try self.trap_text("index out of bounds")
+                try self.put("\n1:")
+            .addo, .subo, .mulo:
+                try self.checked(n)
+            .asm_:
+                try self.inline_asm(n)
+            .set_reg:
+                # move an input operand into the exact register the asm block names
+                let reg = with_percent(self.program_unit.texts.get((usize)n.b.index).bytes)
+                try self.operand(reg, n.cls, n.a)
+            .get_reg:
+                # store the register the asm block left back into the output place
+                let reg = with_percent(self.program_unit.texts.get((usize)n.b.index).bytes)
+                try self.address_operand("%r10", n.a)
+                try self.line3(self.move_of(n.cls), reg, ", (%r10)")
+            .atomic_load:
+                # every aligned load is acquire on this target; the fence is for sequential
+                # consistency against stores, which `atomic_store` supplies with `xchg`
+                let cls = ir.Class.w if n.extra <= 4 else ir.Class.l
+                try self.address_operand("%r10", n.a)
+                try self.line4(zero_extending_load(n.extra), "(%r10), ", self.reg(cls, 0), "")
+                try self.store_temp(self.reg(cls, 0), cls, n.dst)
+            .atomic_store:
+                let cls = ir.Class.w if n.extra <= 4 else ir.Class.l
+                try self.operand(self.reg(cls, 0), cls, n.a)
+                try self.address_operand("%r10", n.b)
+                try self.line("xchg" if n.extra2 >= 5 else "mov")
+                try self.put(width_suffix(n.extra))
+                try self.put(" ")
+                try self.put(register_of_width("%rax", (u64)n.extra))
+                try self.put(", (%r10)")
+            .atomic_add, .atomic_sub, .atomic_or, .atomic_and_not, .atomic_xor, .atomic_swap, .atomic_max, .atomic_min:
+                try self.read_modify_write(n)
+            .atomic_cas:
+                try self.compare_and_swap(n)
+            .fence:
+                try self.line("mfence")
+            _:
+                error(failed, "an instruction the x86_64 generator does not know")
+
+    ## `d = a op b` on the integer classes: the value into `d`, then the two-operand form.
+    mutating func arithmetic(n: ir.Instr) -> !:
+        let cls = n.cls
+        let suffix = "q" if cls == ir.Class.l else "l"
+        if n.op == ir.Op.sdiv or n.op == ir.Op.udiv or n.op == ir.Op.srem or n.op == ir.Op.urem:
+            # the dividend in rax (and rdx), the divisor anywhere else
+            let b = try self.source(n.b, cls, self.reg(cls, 1))
+            try self.operand(self.reg(cls, 0), cls, n.a)
+            if n.op == ir.Op.sdiv or n.op == ir.Op.srem:
+                try self.line("cqto" if cls == ir.Class.l else "cltd")
+                try self.line3("idiv", suffix, " ")
+            else:
+                try self.line("xorl %edx, %edx")
+                try self.line3("div", suffix, " ")
+            try self.put(b)
+            let quotient = self.reg(cls, 0) if n.op == ir.Op.sdiv or n.op == ir.Op.udiv else self.reg(cls, 2)
+            let d = self.target(n.dst, cls, self.reg(cls, 0))
+            if d != quotient:
+                try self.line4("mov", suffix, " ", quotient)
+                try self.put(", ")
+                try self.put(d)
+            try self.finish(n.dst, cls, d)
+            return
+        if n.op == ir.Op.shl or n.op == ir.Op.lshr or n.op == ir.Op.ashr:
+            # the count lives in cl
+            let a = try self.source(n.a, cls, self.reg(cls, 0))
+            let d = self.target(n.dst, cls, self.reg(cls, 0))
+            if a != d:
+                try self.line4("mov", suffix, " ", a)
+                try self.put(", ")
+                try self.put(d)
+            try self.operand(self.reg(cls, 1), cls, n.b)
+            try self.line("shl" if n.op == ir.Op.shl else ("shr" if n.op == ir.Op.lshr else "sar"))
+            try self.put(suffix)
+            try self.put(" %cl, ")
+            try self.put(d)
+            try self.finish(n.dst, cls, d)
+            return
+        let a = try self.source(n.a, cls, self.reg(cls, 0))
+        let b = try self.source(n.b, cls, self.reg(cls, 1))
+        let d = self.target(n.dst, cls, self.reg(cls, 0))
+        if a != d:
+            try self.line4("mov", suffix, " ", a)
+            try self.put(", ")
+            try self.put(d)
+        var mnemonic = "add"
+        match n.op:
+            .add: mnemonic = "add"
+            .sub: mnemonic = "sub"
+            .mul: mnemonic = "imul"
+            .and_: mnemonic = "and"
+            .or_: mnemonic = "or"
+            .xor: mnemonic = "xor"
+            _: mnemonic = "add"
+        try self.line4(mnemonic, suffix, " ", b)
+        try self.put(", ")
+        try self.put(d)
+        try self.finish(n.dst, cls, d)
+
+    ## Float arithmetic: singles and doubles directly, halves through single precision.
+    mutating func float_arithmetic(n: ir.Instr) -> !:
+        let cls = n.cls
+        let a = try self.source(n.a, cls, self.reg(cls, 0))
+        let b = try self.source(n.b, cls, self.reg(cls, 1))
+        let d = self.reg(cls, 0)
+        if cls == ir.Class.h:
+            try self.line4("vcvtph2ps ", a, ", ", d)
+            try self.line4("vcvtph2ps ", b, ", ", self.reg(cls, 1))
+        elif a != d:
+            try self.line4("movaps ", a, ", ", d)
+        var mnemonic = "add"
+        match n.op:
+            .add: mnemonic = "add"
+            .sub: mnemonic = "sub"
+            .mul: mnemonic = "mul"
+            .sdiv: mnemonic = "div"
+            _: mnemonic = "add"
+        try self.line(mnemonic)
+        try self.put("sd " if cls == ir.Class.d else "ss ")
+        try self.put(self.reg(cls, 1) if cls == ir.Class.h else b)
+        try self.put(", ")
+        try self.put(d)
+        if cls == ir.Class.h:
+            try self.round_to_half(d)
+        try self.finish(n.dst, cls, d)
+
+    ## The single in `reg` rounded to a half in its low sixteen bits, zero above, so that a
+    ## reinterpretation of the bits as an integer reads the half alone.
+    mutating func round_to_half(reg: str) -> !:
+        try self.line4("vcvtps2ph $0, ", reg, ", ", reg)
+        try self.line3("movd ", reg, ", %eax")
+        try self.line("movzwl %ax, %eax")
+        try self.line3("movd %eax, ", reg, "")
+
+    mutating func negate(n: ir.Instr) -> !:
+        let cls = n.cls
+        let v = try self.source(n.a, cls, self.reg(cls, 0))
+        let d = self.target(n.dst, cls, self.reg(cls, 0))
+        if cls == ir.Class.w or cls == ir.Class.l:
+            if v != d:
+                try self.line4("movq " if cls == ir.Class.l else "movl ", v, ", ", d)
+            try self.line3("negq " if cls == ir.Class.l else "negl ", d, "")
+        elif cls == ir.Class.d:
+            try self.line3("movq ", v, ", %rax")
+            try self.line("btcq $63, %rax")
+            try self.line3("movq %rax, ", d, "")
+        else:
+            try self.line3("movd ", v, ", %eax")
+            try self.line("xorl $32768, %eax" if cls == ir.Class.h else "xorl $2147483648, %eax")
+            try self.line3("movd %eax, ", d, "")
+        try self.finish(n.dst, cls, d)
+
+    mutating func comparison(n: ir.Instr) -> !:
+        let cls = n.cls
+        let a = try self.source(n.a, cls, self.reg(cls, 0))
+        let b = try self.source(n.b, cls, self.reg(cls, 1))
+        try self.line4("cmpq " if cls == ir.Class.l else "cmpl ", b, ", ", a)
+        var cond = "e"
+        match n.op:
+            .ceq: cond = "e"
+            .cne: cond = "ne"
+            .cslt: cond = "l"
+            .csle: cond = "le"
+            .csgt: cond = "g"
+            .csge: cond = "ge"
+            .cult: cond = "b"
+            .cule: cond = "be"
+            .cugt: cond = "a"
+            .cuge: cond = "ae"
+            _: cond = "e"
+        try self.line3("set", cond, " %al")
+        let d = self.target(n.dst, ir.Class.w, "%eax")
+        try self.line3("movzbl %al, ", d, "")
+        try self.finish(n.dst, ir.Class.w, d)
+
+    ## Float comparison: `ucomis` orders the second operand against the first and leaves the
+    ## unordered case with every flag set, so `<` and `<=` swap operands to use the
+    ## above-conditions, which an unordered pair fails, and equality also tests parity.
+    mutating func float_comparison(n: ir.Instr) -> !:
+        let cls = n.cls
+        var a = try self.source(n.a, cls, self.reg(cls, 0))
+        var b = try self.source(n.b, cls, self.reg(cls, 1))
+        if cls == ir.Class.h:
+            try self.line4("vcvtph2ps ", a, ", ", self.reg(cls, 0))
+            try self.line4("vcvtph2ps ", b, ", ", self.reg(cls, 1))
+            a = self.reg(cls, 0)
+            b = self.reg(cls, 1)
+        let mnemonic = "ucomisd " if cls == ir.Class.d else "ucomiss "
+        match n.op:
+            .cslt:
+                try self.line4(mnemonic, a, ", ", b)
+                try self.line("seta %al")
+            .csle:
+                try self.line4(mnemonic, a, ", ", b)
+                try self.line("setae %al")
+            .csgt:
+                try self.line4(mnemonic, b, ", ", a)
+                try self.line("seta %al")
+            .csge:
+                try self.line4(mnemonic, b, ", ", a)
+                try self.line("setae %al")
+            .ceq:
+                try self.line4(mnemonic, b, ", ", a)
+                try self.line("sete %al")
+                try self.line("setnp %cl")
+                try self.line("andb %cl, %al")
+            _:
+                try self.line4(mnemonic, b, ", ", a)
+                try self.line("setne %al")
+                try self.line("setp %cl")
+                try self.line("orb %cl, %al")
+        let d = self.target(n.dst, ir.Class.w, "%eax")
+        try self.line3("movzbl %al, ", d, "")
+        try self.finish(n.dst, ir.Class.w, d)
+
+    ## `op` applied to the 32-bit view `v` of a value, into `d` of class `cls`.
+    mutating func extend_from(op: ir.Op, cls: ir.Class, v: str, d: str) -> !:
+        let to = "q " if cls == ir.Class.l else "l "
+        match op:
+            .extsb: try self.line4("movsb", to, byte_name(v), ", ")
+            .extub: try self.line4("movzb", to, byte_name(v), ", ")
+            .extsh: try self.line4("movsw", to, word_name(v), ", ")
+            .extuh: try self.line4("movzw", to, word_name(v), ", ")
+            .extsw:
+                if cls == ir.Class.l:
+                    try self.line3("movslq ", v, ", ")
+                else:
+                    try self.line3("movl ", v, ", ")
+            _:
+                # zero-extension of a word: writing the 32-bit view clears the upper half
+                try self.line3("movl ", v, ", ")
+                try self.put(narrow_name(d))
+                return
+        try self.put(d)
+
+    ## Conversions between float widths: `exth` a half up, `exts` a single up, `truncs` a
+    ## single down to a half, `truncd` a double down.
+    mutating func float_convert(n: ir.Instr) -> !:
+        let src = float_source_class(n.op)
+        let v = try self.source(n.a, src, self.reg(src, 0))
+        let d = self.reg(n.cls, 0)
+        match n.op:
+            .exth:
+                try self.line4("vcvtph2ps ", v, ", ", d)
+                if n.cls == ir.Class.d:
+                    try self.line4("cvtss2sd ", d, ", ", d)
+            .exts:
+                try self.line4("cvtss2sd ", v, ", ", d)
+            .truncs:
+                if v != d:
+                    try self.line4("movaps ", v, ", ", d)
+                try self.round_to_half(d)
+            _:
+                try self.line4("cvtsd2ss ", v, ", ", d)
+                if n.cls == ir.Class.h:
+                    try self.round_to_half(d)
+        try self.finish(n.dst, n.cls, d)
+
+    ## A float to an integer, truncating: signed through the conversion instruction; an
+    ## unsigned word through the 64-bit conversion; an unsigned long by taking 2^63 off
+    ## first when the value reaches it.
+    mutating func float_to_int(n: ir.Instr) -> !:
+        let src = ir.Class.s if n.op == ir.Op.stosi or n.op == ir.Op.stoui else ir.Class.d
+        let v = try self.source(n.a, src, self.reg(src, 0))
+        let d = self.target(n.dst, n.cls, self.reg(n.cls, 0))
+        let convert = "cvttsd2si " if src == ir.Class.d else "cvttss2si "
+        if n.op == ir.Op.stosi or n.op == ir.Op.dtosi:
+            try self.line4(convert, v, ", ", d)
+        elif n.cls == ir.Class.w:
+            try self.line4(convert, v, ", ", wide_name(d))
+        else:
+            let work = self.reg(src, 2)
+            let bound = self.reg(src, 1)
+            if v != work:
+                try self.line4("movaps ", v, ", ", work)
+            if src == ir.Class.d:
+                try self.load_immediate("%rax", 4890909195324358656)
+                try self.line3("movq %rax, ", bound, "")
+                try self.line4("ucomisd ", bound, ", ", work)
+            else:
+                try self.load_immediate("%eax", 1593835520)
+                try self.line3("movd %eax, ", bound, "")
+                try self.line4("ucomiss ", bound, ", ", work)
+            try self.line("jae 1f")
+            try self.line4(convert, work, ", ", d)
+            try self.line("jmp 2f")
+            try self.put("\n1:")
+            try self.line4("subsd " if src == ir.Class.d else "subss ", bound, ", ", work)
+            try self.line4(convert, work, ", ", d)
+            try self.line3("btcq $63, ", d, "")
+            try self.put("\n2:")
+        try self.finish(n.dst, n.cls, d)
+
+    ## An integer to a float: signed through the conversion instruction at the integer's
+    ## width; an unsigned word as a long; an unsigned long halved when its top bit is set,
+    ## keeping the low bit for the rounding, then doubled.
+    mutating func int_to_float(n: ir.Instr) -> !:
+        let src = ir.Class.w if n.op == ir.Op.swtof or n.op == ir.Op.uwtof else ir.Class.l
+        let v = try self.source(n.a, src, self.reg(src, 0))
+        let d = self.reg(n.cls, 0)
+        let single = n.cls != ir.Class.d
+        let convert = "cvtsi2ss" if single else "cvtsi2sd"
+        if n.op == ir.Op.swtof:
+            try self.line4(convert, "l ", v, ", ")
+            try self.put(d)
+        elif n.op == ir.Op.sltof:
+            try self.line4(convert, "q ", v, ", ")
+            try self.put(d)
+        elif n.op == ir.Op.uwtof:
+            try self.line3("movl ", v, ", %eax")
+            try self.line3(convert, "q %rax, ", d)
+        else:
+            try self.line3("movq ", v, ", %rcx")
+            try self.line("testq %rcx, %rcx")
+            try self.line("js 1f")
+            try self.line3(convert, "q %rcx, ", d)
+            try self.line("jmp 2f")
+            try self.put("\n1:")
+            try self.line("movq %rcx, %rax")
+            try self.line("shrq $1, %rax")
+            try self.line("andl $1, %ecx")
+            try self.line("orq %rcx, %rax")
+            try self.line3(convert, "q %rax, ", d)
+            try self.line4("addss " if single else "addsd ", d, ", ", d)
+            try self.put("\n2:")
+        if n.cls == ir.Class.h:
+            try self.round_to_half(d)
+        try self.finish(n.dst, n.cls, d)
+
+    ## Checked add, subtract, and multiply: trap on overflow of the class width.
+    mutating func checked(n: ir.Instr) -> !:
+        let signed = n.extra == 1
+        let cls = n.cls
+        let suffix = "q" if cls == ir.Class.l else "l"
+        let a = self.reg(cls, 0)
+        let b = self.reg(cls, 1)
+        try self.operand(a, cls, n.a)
+        try self.operand(b, cls, n.b)
+        if n.op == ir.Op.mulo:
+            if signed:
+                try self.line5("imul", suffix, " ", b, ", ")
+                try self.put(a)
+                try self.line("jno 1f")
+            else:
+                try self.line4("mul", suffix, " ", b)
+                try self.line("jnc 1f")
+        else:
+            try self.line5("add" if n.op == ir.Op.addo else "sub", suffix, " ", b, ", ")
+            try self.put(a)
+            try self.line("jno 1f" if signed else "jnc 1f")
+        try self.trap_text("integer overflow")
+        try self.put("\n1:")
+        try self.store_temp(a, cls, n.dst)
+
+    mutating func trap_text(reason: str) -> !:
+        let index = try self.program_unit.text(reason)
+        try self.address_operand("%rdi", ir.text_ref(index))
+        try self.call_symbol("lb_core_trap")
+
+    mutating func inline_asm(n: ir.Instr) -> !:
+        let arch = self.program_unit.texts.get((usize)n.a.index).bytes
+        if arch != "x86_64":
+            return
+        let body = self.program_unit.texts.get((usize)n.b.index).bytes
+        try self.put("\n")
+        try self.put(body)
+
+    ## Read-modify-write atomics: `xadd` and `xchg` for the ones the machine has, a
+    ## compare-and-swap loop for the rest; the old value is the result.
+    mutating func read_modify_write(n: ir.Instr) -> !:
+        let cls = ir.Class.w if n.extra <= 4 else ir.Class.l
+        let width = (u64)n.extra
+        let suffix = width_suffix(n.extra)
+        let value = register_of_width("%rcx", width)
+        let old = register_of_width("%rax", width)
+        let fresh = register_of_width("%rdx", width)
+        try self.operand(self.reg(cls, 1), cls, n.a)
+        try self.address_operand("%r10", n.b)
+        if n.op == ir.Op.atomic_add or n.op == ir.Op.atomic_sub:
+            if n.op == ir.Op.atomic_sub:
+                try self.line4("neg", suffix, " ", value)
+            try self.line5("lock xadd", suffix, " ", value, ", (%r10)")
+            try self.store_temp(self.reg(cls, 1), cls, n.dst)
+            return
+        if n.op == ir.Op.atomic_swap:
+            try self.line5("xchg", suffix, " ", value, ", (%r10)")
+            try self.store_temp(self.reg(cls, 1), cls, n.dst)
+            return
+        try self.line4(zero_extending_load(n.extra), "(%r10), ", self.reg(cls, 0), "")
+        try self.put("\n1:")
+        try self.line5("mov", suffix, " ", old, ", ")
+        try self.put(fresh)
+        match n.op:
+            .atomic_or:
+                try self.line5("or", suffix, " ", value, ", ")
+                try self.put(fresh)
+            .atomic_xor:
+                try self.line5("xor", suffix, " ", value, ", ")
+                try self.put(fresh)
+            .atomic_and_not:
+                try self.line4("not", suffix, " ", fresh)
+                try self.line5("or", suffix, " ", value, ", ")
+                try self.put(fresh)
+                try self.line4("not", suffix, " ", fresh)
+            .atomic_max:
+                try self.line5("cmp", suffix, " ", value, ", ")
+                try self.put(old)
+                try self.line4("cmovl", suffix if cls == ir.Class.l else "l", " ", self.reg(cls, 1))
+                try self.put(", ")
+                try self.put(self.reg(cls, 2))
+            .atomic_min:
+                try self.line5("cmp", suffix, " ", value, ", ")
+                try self.put(old)
+                try self.line4("cmovg", suffix if cls == ir.Class.l else "l", " ", self.reg(cls, 1))
+                try self.put(", ")
+                try self.put(self.reg(cls, 2))
+            _:
+                discard(fresh.length)
+        try self.line5("lock cmpxchg", suffix, " ", fresh, ", (%r10)")
+        try self.line("jne 1b")
+        try self.store_temp(self.reg(cls, 0), cls, n.dst)
+
+    mutating func compare_and_swap(n: ir.Instr) -> !:
+        let cls = ir.Class.w if n.extra <= 4 else ir.Class.l
+        let width = (u64)n.extra
+        let expected = self.f.args.get((usize)n.b.value)
+        let desired = self.f.args.get((usize)n.b.value + 1)
+        try self.operand(self.reg(cls, 0), cls, expected.value)
+        try self.operand(self.reg(cls, 1), cls, desired.value)
+        try self.address_operand("%r10", n.a)
+        try self.line5("lock cmpxchg", width_suffix(n.extra), " ", register_of_width("%rcx", width), ", (%r10)")
+        try self.store_temp(self.reg(cls, 0), cls, n.dst)
+
+    # mark: Calls ==============================================================================
+
+    ## Classify one argument under the System V convention, advancing the counters: every
+    ## eightbyte of a small aggregate takes a register of its class, or the whole aggregate
+    ## goes to the stack; a large one always does.
+    func place(a: ir.Arg, next_int: u32*, next_float: u32*, stack: u32*) -> Placement:
+        if a.size == 0:
+            if ir.is_float_class(a.cls):
+                if *next_float < 8:
+                    let p = Placement(where = 0, sse = 1, first_int = 0, first_float = *next_float, words = 1, stack_offset = 0)
+                    *next_float += 1
+                    return p
+            elif *next_int < 6:
+                let p = Placement(where = 0, sse = 0, first_int = *next_int, first_float = 0, words = 1, stack_offset = 0)
+                *next_int += 1
+                return p
+            let p = Placement(where = 2, sse = 0, first_int = 0, first_float = 0, words = 1, stack_offset = *stack)
+            *stack += 8
+            return p
+        let sse = self.sse_of(a.cls, a.size, a.sse_words)
+        let words: u32 = 2 if a.size > 8 else 1
+        let sse_count = count_bits(sse)
+        let int_count = words - sse_count
+        if a.size <= 16 and *next_int + int_count <= 6 and *next_float + sse_count <= 8:
+            let p = Placement(where = 0, sse = sse, first_int = *next_int, first_float = *next_float, words = words, stack_offset = 0)
+            *next_int += int_count
+            *next_float += sse_count
+            return p
+        let start = round_up((u64)*stack, (u64)a.align if a.align > 8 else 8)
+        let p = Placement(where = 2, sse = 0, first_int = 0, first_float = 0, words = words, stack_offset = (u32)start)
+        *stack = (u32)(start + round_up((u64)a.size, 8))
+        return p
+
+    mutating func call(n: ir.Instr) -> !:
+        let info = self.f.calls.get((usize)n.extra)
+        let hidden = info.has_result and info.result_size > 16
+        var next_int: u32 = 1 if hidden else 0
+        var next_float: u32 = 0
+        var stack: u32 = 0
+        var placements: Placement[32] = ---
+        var i: u32 = 0
+        while i < info.args_count and i < 32:
+            let a = self.f.args.get((usize)(info.args_start + i))
+            placements[i] = self.place(a, &next_int, &next_float, &stack)
+            i += 1
+        let area = round_up((u64)stack, 16)
+        if area > 0:
+            try self.line("subq $")
+            try self.put_u64(area)
+            try self.put(", %rsp")
+        # stack arguments first, while every register is still free
+        i = 0
+        while i < info.args_count and i < 32:
+            let a = self.f.args.get((usize)(info.args_start + i))
+            let p = placements[i]
+            if p.where == 2:
+                if a.size == 0:
+                    let cls = ir.Class.l if a.cls == ir.Class.w or a.cls == ir.Class.l else a.cls
+                    try self.operand(self.reg(cls, 0), cls, a.value)
+                    try self.line3(self.move_of(cls), self.reg(cls, 0), ", ")
+                    try self.put_u64((u64)p.stack_offset)
+                    try self.put("(%rsp)")
+                else:
+                    try self.address_operand("%r10", a.value)
+                    try self.line("leaq ")
+                    try self.put_u64((u64)p.stack_offset)
+                    try self.put("(%rsp), %r11")
+                    try self.copy_r10_to_r11((u64)a.size)
+            i += 1
+        # float registers, then integer ones, so loading the latter disturbs nothing
+        i = 0
+        while i < info.args_count and i < 32:
+            let a = self.f.args.get((usize)(info.args_start + i))
+            let p = placements[i]
+            if p.where == 0 and p.sse != 0:
+                if a.size == 0:
+                    try self.operand(float_argument_names[(usize)p.first_float], a.cls, a.value)
+                else:
+                    try self.address_operand("%r10", a.value)
+                    var k: u32 = 0
+                    var f = p.first_float
+                    while k < p.words:
+                        if (p.sse & (u8)(1 << k)) != 0:
+                            try self.load_eightbyte(float_argument_names[(usize)f], k, a.size, true)
+                            f += 1
+                        k += 1
+            i += 1
+        i = 0
+        while i < info.args_count and i < 32:
+            let a = self.f.args.get((usize)(info.args_start + i))
+            let p = placements[i]
+            if p.where == 0 and (p.sse == 0 or a.size > 0):
+                if a.size == 0:
+                    try self.operand(argument_names[(usize)p.first_int] if a.cls == ir.Class.l else narrow_name(argument_names[(usize)p.first_int]), a.cls, a.value)
+                else:
+                    try self.address_operand("%r10", a.value)
+                    var k: u32 = 0
+                    var g = p.first_int
+                    while k < p.words:
+                        if (p.sse & (u8)(1 << k)) == 0:
+                            try self.load_eightbyte(argument_names[(usize)g], k, a.size, false)
+                            g += 1
+                        k += 1
+            i += 1
+        if hidden:
+            try self.frame_address("%rdi", self.slot_home(info.result_slot))
+        if n.a.kind == ir.RefKind.temp:
+            try self.load_temp("%r11", ir.Class.l, n.a.index)
+        if info.variadic:
+            try self.load_immediate("%eax", (i64)next_float)
+        if n.a.kind == ir.RefKind.temp:
+            try self.line("call *%r11")
+        else:
+            try self.call_symbol(n.a.name)
+        if area > 0:
+            try self.line("addq $")
+            try self.put_u64(area)
+            try self.put(", %rsp")
+        if not info.has_result:
+            return
+        if info.result_size == 0:
+            if ir.is_float_class(info.result_cls):
+                try self.store_temp("%xmm0", info.result_cls, n.dst)
+            else:
+                try self.store_temp("%rax" if info.result_cls == ir.Class.l else "%eax", info.result_cls, n.dst)
+            return
+        if hidden:
+            return
+        try self.frame_address("%r10", self.slot_home(info.result_slot))
+        let sse = self.sse_of(info.result_cls, info.result_size, info.result_sse_words)
+        try self.result_eightbytes(info.result_size, sse, true)
+
+    ## The eightbytes of a small aggregate result between (%r10) and rax/rdx and xmm0/xmm1,
+    ## `store` into the memory from the registers, else the reverse.
+    mutating func result_eightbytes(size: u32, sse: u8, store: bool) -> !:
+        let words: u32 = 2 if size > 8 else 1
+        var next_int: u32 = 0
+        var next_float: u32 = 0
+        var k: u32 = 0
+        while k < words:
+            if (sse & (u8)(1 << k)) != 0:
+                let reg = "%xmm0" if next_float == 0 else "%xmm1"
+                next_float += 1
+                if store:
+                    try self.store_eightbyte(reg, k, size, true)
+                else:
+                    try self.load_eightbyte(reg, k, size, true)
+            else:
+                let reg = "%rax" if next_int == 0 else "%rdx"
+                next_int += 1
+                if store:
+                    try self.store_eightbyte(reg, k, size, false)
+                else:
+                    try self.load_eightbyte(reg, k, size, false)
+            k += 1
+
+    mutating func return_value(n: ir.Instr) -> !:
+        if self.f.has_result:
+            if self.f.result_size == 0:
+                if ir.is_float_class(self.f.result_cls):
+                    try self.operand("%xmm0", self.f.result_cls, n.a)
+                else:
+                    try self.operand("%rax" if self.f.result_cls == ir.Class.l else "%eax", self.f.result_cls, n.a)
+            elif self.f.result_size <= 16:
+                try self.address_operand("%r10", n.a)
+                let sse = self.sse_of(self.f.result_cls, self.f.result_size, self.f.result_sse_words)
+                try self.result_eightbytes(self.f.result_size, sse, false)
+            else:
+                try self.address_operand("%rsi", n.a)
+                try self.line("movq ")
+                try self.frame_operand(self.indirect_home)
+                try self.put(", %rdi")
+                try self.load_immediate("%rdx", (i64)self.f.result_size)
+                try self.call_symbol("memcpy")
+                try self.line("movq ")
+                try self.frame_operand(self.indirect_home)
+                try self.put(", %rax")
+        try self.restore_callee_saved()
+        try self.line("movq %rbp, %rsp")
+        try self.line("popq %rbp")
+        try self.line("ret")
+
+    mutating func save_callee_saved() -> !:
+        var c: usize = 1
+        while c <= 5:
+            if (self.used_mask & (u32)(1 << (u32)(c - 1))) != 0:
+                try self.frame_store(q_names[c], ir.Class.l, self.save_offset[c])
+            c += 1
+
+    mutating func restore_callee_saved() -> !:
+        var c: usize = 1
+        while c <= 5:
+            if (self.used_mask & (u32)(1 << (u32)(c - 1))) != 0:
+                try self.frame_load(q_names[c], ir.Class.l, self.save_offset[c])
+            c += 1
+
+    # mark: The unit ===========================================================================
+
+    pub mutating func generate() -> !:
+        try self.put("    .text\n")
+        var i: usize = 0
+        while i < self.program_unit.functions.count:
+            try self.function(i)
+            i += 1
+        # module-level asm blocks, verbatim, in the text section (§8.9)
+        i = 0
+        while i < self.program_unit.module_asm.count:
+            try self.put("\n")
+            try self.put(self.program_unit.module_asm.get(i).bytes)
+            i += 1
+        # text literals
+        try self.put("\n    .section .rodata\n")
+        i = 0
+        while i < self.program_unit.texts.count:
+            try self.text_label(u32(i))
+            try self.put(":\n    .asciz ")
+            try self.c_string(self.program_unit.texts.get(i).bytes)
+            try self.put("\n")
+            i += 1
+        # witness tables and frame descriptors hold addresses, which a position-independent
+        # image relocates when it loads
+        try self.put("\n    .section .data.rel.ro,\"aw\"\n    .p2align 3\n")
+        i = 0
+        while i < self.program_unit.tables.count:
+            let t = self.program_unit.tables.get(i)
+            try self.put("    .globl ")
+            try self.symbol(t.name)
+            try self.put("\n")
+            try self.symbol(t.name)
+            try self.put(":\n")
+            var k: usize = 0
+            while k < t.entries.count:
+                let entry = t.entries.get(k)
+                try self.put("    .quad ")
+                if entry.length == 0:
+                    try self.put("0")
+                else:
+                    try self.symbol(entry)
+                try self.put("\n")
+                k += 1
+            i += 1
+        if self.descriptors.used > 0:
+            try self.put(self.descriptors.view())
+        # globals
+        i = 0
+        while i < self.program_unit.globals.count:
+            let g = self.program_unit.globals.get(i)
+            let size = (u64)g.size if g.size > 0 else 1
+            let align = log2((u64)g.align if g.align > 0 else 1)
+            if g.is_thread_local:
+                try self.put("\n    .section .tbss,\"awT\",@nobits\n")
+            elif g.section.length > 0:
+                try self.put("\n    .section ")
+                try self.put(build_target.section_name(g.section, false, self.os))
+                try self.put(",\"aw\"\n")
+            else:
+                try self.put("\n    .bss\n")
+            try self.put("    .globl ")
+            try self.symbol(g.name)
+            try self.put("\n    .type ")
+            try self.symbol(g.name)
+            try self.put(", @object\n")
+            try self.linkage_directives(g.name, g.weak, g.used)
+            try self.put("    .p2align ")
+            try self.put_u64(align)
+            try self.put("\n")
+            try self.symbol(g.name)
+            try self.put(":\n    .zero ")
+            try self.put_u64(size)
+            try self.put("\n")
+            i += 1
+        try self.put("\n    .section .note.GNU-stack,\"\",@progbits\n")
+
+    mutating func c_string(text: str) -> !:
+        try self.put("\"")
+        for b in text.bytes:
+            if b == '\\' or b == '"':
+                try self.put("\\")
+                try self.out.put_byte(b)
+            elif b == '\n':
+                try self.put("\\n")
+            elif b == '\t':
+                try self.put("\\t")
+            elif b < 32 or b >= 127:
+                try self.put("\\")
+                try self.out.put_byte('0' + (b >> 6))
+                try self.out.put_byte('0' + ((b >> 3) & 7))
+                try self.out.put_byte('0' + (b & 7))
+            else:
+                try self.out.put_byte(b)
+        try self.put("\"")
+
+# mark: Helpers ================================================================================
+
+## The callee-saved registers the allocator hands out, codes 1..5, in their four widths.
+let q_names: str[6] = ["", "%rbx", "%r12", "%r13", "%r14", "%r15"]
+let l_names: str[6] = ["", "%ebx", "%r12d", "%r13d", "%r14d", "%r15d"]
+let w_names: str[6] = ["", "%bx", "%r12w", "%r13w", "%r14w", "%r15w"]
+let b_names: str[6] = ["", "%bl", "%r12b", "%r13b", "%r14b", "%r15b"]
+
+## Every integer register this generator names, in its four widths, for the views.
+let all_q: str[14] = ["%rax", "%rcx", "%rdx", "%rbx", "%rsi", "%rdi", "%r8", "%r9", "%r10", "%r11", "%r12", "%r13", "%r14", "%r15"]
+let all_l: str[14] = ["%eax", "%ecx", "%edx", "%ebx", "%esi", "%edi", "%r8d", "%r9d", "%r10d", "%r11d", "%r12d", "%r13d", "%r14d", "%r15d"]
+let all_w: str[14] = ["%ax", "%cx", "%dx", "%bx", "%si", "%di", "%r8w", "%r9w", "%r10w", "%r11w", "%r12w", "%r13w", "%r14w", "%r15w"]
+let all_b: str[14] = ["%al", "%cl", "%dl", "%bl", "%sil", "%dil", "%r8b", "%r9b", "%r10b", "%r11b", "%r12b", "%r13b", "%r14b", "%r15b"]
+
+let argument_names: str[6] = ["%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9"]
+let float_argument_names: str[8] = ["%xmm0", "%xmm1", "%xmm2", "%xmm3", "%xmm4", "%xmm5", "%xmm6", "%xmm7"]
+
+## The index of `reg` among the integer registers, in any width, or 14.
+func register_index(reg: str) -> usize:
+    var k: usize = 0
+    while k < 14:
+        if all_q[k] == reg or all_l[k] == reg or all_w[k] == reg or all_b[k] == reg:
+            return k
+        k += 1
+    return 14
+
+func wide_name(reg: str) -> str:
+    let k = register_index(reg)
+    return all_q[k] if k < 14 else reg
+
+func narrow_name(reg: str) -> str:
+    let k = register_index(reg)
+    return all_l[k] if k < 14 else reg
+
+func word_name(reg: str) -> str:
+    let k = register_index(reg)
+    return all_w[k] if k < 14 else reg
+
+func byte_name(reg: str) -> str:
+    let k = register_index(reg)
+    return all_b[k] if k < 14 else reg
+
+## `reg` in the width of `width` bytes.
+func register_of_width(reg: str, width: u64) -> str:
+    if width == 8:
+        return wide_name(reg)
+    if width == 4:
+        return narrow_name(reg)
+    if width == 2:
+        return word_name(reg)
+    return byte_name(reg)
+
+## Whether `reg` is a 32-bit name.
+func is_narrow(reg: str) -> bool:
+    let k = register_index(reg)
+    return k < 14 and all_l[k] == reg
+
+## Register code `code` viewed as class `cls`.
+func class_name(code: u8, cls: ir.Class) -> str:
+    if cls == ir.Class.w:
+        return l_names[(usize)code]
+    return q_names[(usize)code]
+
+func is_int_class(c: ir.Class) -> bool:
+    return c == ir.Class.w or c == ir.Class.l
+
+## The register-to-register move of a class.
+func register_move(cls: ir.Class) -> str:
+    if cls == ir.Class.w:
+        return "movl "
+    if cls == ir.Class.l:
+        return "movq "
+    return "movaps "
+
+func store_word_mnemonic(width: u64) -> str:
+    if width == 8:
+        return "movq "
+    if width == 4:
+        return "movl "
+    if width == 2:
+        return "movw "
+    return "movb "
+
+## The load that zero-extends `width` bytes into a register.
+func zero_extending_load(width: u32) -> str:
+    if width == 8:
+        return "movq "
+    if width == 4:
+        return "movl "
+    if width == 2:
+        return "movzwl "
+    return "movzbl "
+
+func width_suffix(width: u32) -> str:
+    if width == 1:
+        return "b"
+    if width == 2:
+        return "w"
+    if width == 4:
+        return "l"
+    return "q"
+
+func count_bits(v: u8) -> u32:
+    return (u32)(v & 1) + (u32)((v >> 1) & 1)
+
+## A register name with its `%`, whether the source wrote one or not.
+func with_percent(name: str) -> str:
+    if name.length > 0 and name.bytes[0] == '%':
+        return name
+    var room: u8[32]
+    let spelled = format(room, f"%{name}") catch failure:
+        return name
+    let copy = alloc u8[spelled.length] catch failure:
+        return name
+    memory.copy(copy, spelled.bytes, spelled.length)
+    return (str)copy
+
+## The class a float conversion reads: `exth` a half, `exts` and `truncs` a single, `truncd` a double.
+func float_source_class(op: ir.Op) -> ir.Class:
+    match op:
+        .exth: return ir.Class.h
+        .exts, .truncs: return ir.Class.s
+        _: return ir.Class.d
+
+## The class whose bits `cast` moves into `cls`: the integer as wide as a float, and back.
+func cast_partner(cls: ir.Class) -> ir.Class:
+    match cls:
+        .h, .s: return ir.Class.w
+        .d: return ir.Class.l
+        .w: return ir.Class.s
+        _: return ir.Class.d
+
+func is_float_load(op: ir.Op) -> bool:
+    return op == ir.Op.loads or op == ir.Op.loadd or op == ir.Op.loadhf
+
+func is_float_store(op: ir.Op) -> bool:
+    return op == ir.Op.stores or op == ir.Op.stored or op == ir.Op.storehf
+
+## The class a load produces.
+func load_class(op: ir.Op) -> ir.Class:
+    match op:
+        .loadsb, .loadub, .loadsh, .loaduh, .loaduw: return ir.Class.w
+        .loadsw, .loadl: return ir.Class.l
+        .loads: return ir.Class.s
+        .loadhf: return ir.Class.h
+        _: return ir.Class.d
+
+## The bytes a load or store moves.
+func access_width(op: ir.Op) -> u32:
+    match op:
+        .loadsb, .loadub, .storeb: return 1
+        .loadsh, .loaduh, .storeh, .loadhf, .storehf: return 2
+        .loadsw, .loaduw, .loads, .storew, .stores: return 4
+        _: return 8
+
+## A register-pool entry standing for "held by a promoted slot for the whole function".
+let held: u32 = 4294967295
+
+func load_mnemonic(op: ir.Op) -> str:
+    match op:
+        .loadsb: return "movsbl "
+        .loadub: return "movzbl "
+        .loadsh: return "movswl "
+        .loaduh: return "movzwl "
+        .loadsw: return "movslq "
+        .loaduw: return "movl "
+        .loads: return "movss "
+        .loadd: return "movsd "
+        _: return "movq "
+
+func store_mnemonic(op: ir.Op) -> str:
+    match op:
+        .storew: return "movl "
+        .stores: return "movss "
+        .stored: return "movsd "
+        _: return "movq "
+
+func store_class(op: ir.Op) -> ir.Class:
+    match op:
+        .storeb, .storeh, .storew: return ir.Class.w
+        .stores: return ir.Class.s
+        .stored: return ir.Class.d
+        .storehf: return ir.Class.h
+        _: return ir.Class.l
+
+func round_up(value: u64, align: u64) -> u64:
+    if align <= 1:
+        return value
+    return (value + align - 1) // align * align
+
+func log2(value: u64) -> u64:
+    var n: u64 = 0
+    var v = value
+    while v > 1:
+        v = v // 2
+        n += 1
+    return n
+
+test "immediates, views, and byte moves assemble":
+    var backing: u8[1048576]
+    var arena = memory.FixedBuffer.over(backing)
+    with arena:
+        var u = try ir.Unit.create()
+        var g = try Generator.create(&u)
+        try g.load_immediate("%rax", 0)
+        try g.load_immediate("%eax", -5)
+        try g.load_immediate("%rax", 70000)
+        try g.load_immediate("%rax", 4890909195324358656)
+        try g.frame_address("%rax", 5000)
+        try g.load_bytes("%rax", "%r10", 8, 3)
+        try g.store_bytes("%rax", "%r10", 8, 7)
+        let text = g.text()
+        assert(text.length > 0)
+        assert(narrow_name("%r12") == "%r12d")
+        assert(byte_name("%rsi") == "%sil")
+        assert(word_name("%eax") == "%ax")
+        assert(wide_name("%ecx") == "%rcx")
+        assert(register_of_width("%rdx", 1) == "%dl")
+        assert(count_bits(3) == 2)
+        assert(with_percent("rdi") == "%rdi")
+        assert(with_percent("%xmm8") == "%xmm8")

@@ -3,7 +3,8 @@
 # builds and runs every sample with `main` through both backends, runs every
 # module's tests through both backends, builds itself again to the same C, and
 # rejects every program under tests/samples/errors. The C and native backends are the
-# two executions that must agree.
+# two executions that must agree. The gate runs on every host with a native backend
+# (arm64-macos, x86_64-linux); what depends on the target is under tests/platform.
 set -eu
 cd "$(dirname "$0")"
 ./build.sh
@@ -49,7 +50,7 @@ rm -f build/sample build/sample.out
 for native in "" "--native"; do
     echo "== lib tests/samples/exports.lucb $native"
     ./build/luce-base build tests/samples/exports.lucb --lib $native -o build/pixels
-    cc -std=c11 -Wall -Werror -Ibuild tests/samples/exports_use.c build/pixels.a -o build/use_pixels
+    cc -std=c11 -Wall -Werror -Ibuild tests/samples/exports_use.c build/pixels.a -lm -pthread -o build/use_pixels
     ./build/use_pixels > build/use_pixels.out
     cmp build/use_pixels.out tests/samples/exports_use.out
 done
@@ -74,12 +75,19 @@ echo "== bootstrap"
 ./build/luce-base build src/main.lucb -o build/stage2
 ./build/stage2 build src/main.lucb --emit=c -o build/stage2.c
 cmp build/stage1.c build/stage2.c
-if ! cmp -s build/stage1.c bootstrap/luce-base.c; then
-    echo "note: bootstrap/luce-base.c differs from the current compiler; run tools/snapshot.sh"
-fi
-rm -f build/stage1.c build/stage2.c build/stage2
+# every target's snapshot is what this compiler emits for that target, from this host: the
+# C backend's cross-target output is the same on every host, or the note says so
+for snapshot in bootstrap/luce-base-*.c; do
+    target=$(basename "$snapshot" .c | sed 's/^luce-base-//')
+    ./build/luce-base build src/main.lucb --target "$target" --emit=c -o build/snapshot.c
+    if ! cmp -s build/snapshot.c "$snapshot"; then
+        echo "note: $snapshot differs from the current compiler's C for $target; run tools/snapshot.sh"
+    fi
+done
+rm -f build/stage1.c build/stage2.c build/stage2 build/snapshot.c
 # the seed named in bootstrap/SEED builds this compiler from source, and the compiler it
-# builds emits the same C for itself as the snapshot-built one: the seed stays a real start
+# builds emits the same C for itself as the snapshot-built one: the seed stays a real start.
+# (Only this host's target is compared: the seed emits C for its host alone.)
 if [ -x ../luce-seed/build/lucb ]; then
     echo "== seed $(cat bootstrap/SEED)"
     ../luce-seed/build/lucb build src/main.lucb --release -o build/seed-stage0
@@ -89,7 +97,7 @@ if [ -x ../luce-seed/build/lucb ]; then
     rm -f build/seed-stage0 build/seed1.c build/stage1.c
 fi
 # the native backend closes its own loop: the compiler built natively must emit the
-# same C and the same assembly for the compiler as the C-built one
+# same C and the same assembly for the compiler as the C-built one, on this host
 ./build/luce-base build src/main.lucb --native -o build/native
 ./build/native build src/main.lucb --emit=c -o build/native1.c
 ./build/luce-base build src/main.lucb --emit=c -o build/stage1.c
@@ -119,4 +127,6 @@ tests/robustness/run.sh
 tests/optimization/run.sh
 # the conformance suite: a positive and a negative program for each point of the specification
 tests/conformance/run.sh
+# the platform suite: what depends on the target, on this host, and every target emitted from it
+tests/platform/run.sh
 echo "ok"

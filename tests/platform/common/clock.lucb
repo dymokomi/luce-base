@@ -1,0 +1,13 @@
+## Time through the target's clocks (§16.6): the monotonic clock never goes back and
+## measures a sleep, the wall clock is past 2020.
+import thread
+import time
+
+pub func main(arguments: str[]) -> i32:
+    let start = time.now()
+    thread.sleep(20)
+    let elapsed = time.since(start)
+    print(f"monotonic {time.now() >= start}")
+    print(f"slept {elapsed >= 20000000 and elapsed < 20000000000}")
+    print(f"unix {time.unix() > 1577836800}")
+    return 0

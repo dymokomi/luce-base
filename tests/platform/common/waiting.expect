@@ -1,0 +1,4 @@
+count 16000
+handed 8
+once 1
+try_lock true false

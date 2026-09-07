@@ -11,7 +11,7 @@ cold func rare(a: i64) -> i64:
 
 weak var counter: i64 = 4
 
-used section("__DATA,__extra") var marker: u8 = 5
+used section(".extra") var marker: u8 = 5
 
 pub func main(arguments: str[]) -> i32!:
     print(f"{fast(1)} {slow(1)} {rare(1)} {counter} {marker}")

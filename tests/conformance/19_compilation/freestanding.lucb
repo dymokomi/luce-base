@@ -6,6 +6,12 @@ asm arm64:
     .ascii "no shim\n"
     .section __TEXT,__text,regular,pure_instructions
 
+asm x86_64:
+    .section .rodata
+    lb_conformance_freestanding_line:
+    .ascii "no shim\n"
+    .text
+
 export naked func _start():
     asm arm64:
         mov x0, #1
@@ -17,3 +23,12 @@ export naked func _start():
         mov x0, #3
         mov x16, #1
         svc #0x80
+    asm x86_64:
+        movl $1, %eax
+        movl $1, %edi
+        leaq lb_conformance_freestanding_line(%rip), %rsi
+        movl $8, %edx
+        syscall
+        movl $60, %eax
+        movl $3, %edi
+        syscall

@@ -9,6 +9,12 @@ asm arm64:
     .ascii "freestanding\n"
     .section __TEXT,__text,regular,pure_instructions
 
+asm x86_64:
+    .section .rodata
+    lb_freestanding_message:
+    .ascii "freestanding\n"
+    .text
+
 export naked func _start():
     asm arm64:
         mov x0, #1
@@ -20,3 +26,12 @@ export naked func _start():
         mov x0, #0
         mov x16, #1
         svc #0x80
+    asm x86_64:
+        movl $1, %eax
+        movl $1, %edi
+        leaq lb_freestanding_message(%rip), %rsi
+        movl $13, %edx
+        syscall
+        movl $60, %eax
+        xorl %edi, %edi
+        syscall

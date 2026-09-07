@@ -222,7 +222,9 @@ pub struct Instr:
 
 ## One argument of a call: the operand, its class, and for an aggregate its
 ## byte size and alignment (0 size means a scalar). `type_id` is the Base type
-## for the target's classification of aggregates.
+## for the target's classification of aggregates; `is_float_only` and `float_count`
+## describe a homogeneous float aggregate (arm64's), and `sse_words` classifies the
+## first two eightbytes for x86-64: bit k is set when eightbyte k holds floats only.
 pub struct Arg:
     pub var value: Ref
     pub var cls: Class
@@ -231,6 +233,7 @@ pub struct Arg:
     pub var type_id: u32
     pub var is_float_only: bool
     pub var float_count: u32
+    pub var sse_words: u8
 
 ## A call's result: a scalar class, or an aggregate written to `slot` of `size` bytes.
 pub struct CallInfo:
@@ -246,6 +249,7 @@ pub struct CallInfo:
     pub var result_slot: u32
     pub var result_float_only: bool
     pub var result_float_count: u32
+    pub var result_sse_words: u8
 
 ## A stack slot: `size` bytes at `align`.
 pub struct Slot:
@@ -262,6 +266,7 @@ pub struct Param:
     pub var slot: u32
     pub var is_float_only: bool
     pub var float_count: u32
+    pub var sse_words: u8
 
 # mark: Functions and the unit ================================================================
 
@@ -293,6 +298,7 @@ pub struct Function:
     pub var result_type: u32
     pub var result_float_only: bool
     pub var result_float_count: u32
+    pub var result_sse_words: u8
     pub var variadic: bool
     ## The attributes of §9.8 that reach the object file.
     pub var naked: bool
@@ -307,7 +313,7 @@ pub struct Function:
                         args = try list.List[Arg].create(32), calls = try list.List[CallInfo].create(16),
                         temps = try list.List[Class].create(128), labels = 0, has_result = false,
                         result_cls = Class.l, result_size = 0, result_align = 0, result_type = 0,
-                        result_float_only = false, result_float_count = 0, variadic = false)
+                        result_float_only = false, result_float_count = 0, result_sse_words = 0, variadic = false)
 
     pub mutating func temp(cls: Class) -> u32!:
         try self.temps.push(cls)

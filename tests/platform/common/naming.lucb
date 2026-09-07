@@ -1,0 +1,10 @@
+## Name resolution through the target's `getaddrinfo` (§16.6), whose result record is laid
+## out differently on macOS and Linux: `localhost` is the loopback address either way.
+import net
+
+pub func main(arguments: str[]) -> i32!:
+    let address = try net.resolve("localhost", 8080)
+    print(f"{address.ip == 2130706433} {address.port}")
+    let loopback = net.Address.loopback(9)
+    print(f"{loopback.ip == 2130706433} {loopback.port}")
+    return 0

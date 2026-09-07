@@ -3,6 +3,8 @@
 export naked func spin():
     asm arm64:
         ret
+    asm x86_64:
+        ret
 
 pub func main(arguments: str[]) -> i32:
     return 0

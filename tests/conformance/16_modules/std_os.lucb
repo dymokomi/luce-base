@@ -9,10 +9,8 @@ pub func main(arguments: str[]) -> i32!:
     let missing = os.env("LUCE_CONFORMANCE_UNSET_NAME") == none
     let cwd = try os.cwd()
     let host = try os.hostname()
-    var arch = "other"
-    if os.arm64:
-        arch = "arm64"
-    elif os.x86_64:
-        arch = "x86_64"
-    print(f"{os.arm64} {os.macos} {os.pointer_bits} {os.cpus() >= 1} {os.page_size() >= 4096} {value} {missing} {cwd.length > 0} {host.length > 0} {os.pid() > 0} {arch}")
+    # one architecture and one operating system, whichever the host is (tests/platform names them)
+    let one_arch = os.arm64 != os.x86_64
+    let one_os = (os.macos != os.linux) and (os.posix != os.windows)
+    print(f"{one_arch} {one_os} {os.pointer_bits} {os.cpus() >= 1} {os.page_size() >= 4096} {value} {missing} {cwd.length > 0} {host.length > 0} {os.pid() > 0} {os.name.length > 0}")
     return 0

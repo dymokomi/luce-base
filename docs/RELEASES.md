@@ -5,6 +5,29 @@
 release is a VERSION bump, a tag `luce-base-N`, and a push, the way luce-seed does it
 (`bootstrap/SEED` pins the seed the tree is built against).
 
+## 0.2.0
+
+The second host: x86_64 Linux, natively.
+
+- `src/back/x86_64.lucb`: an x86_64 code generator over the same IR, System V calls with
+  eightbyte classification (`sse_words` on the IR, computed by the lowerer), ELF sections,
+  PIE-safe addressing, initial-exec thread-locals, F16C half floats; the compiler builds
+  itself natively on Linux and reaches its assembly and C fixpoints there;
+- the host is the target the compiler was built for, read from its own `platform` module;
+  the driver links through the C driver on Linux; `asm ARCH` arms are taken for the
+  target's architecture; `section(".name")` is one spelling for every target (§9.8);
+- both C backends compute a call's effectful arguments in order (§7.1); `f64.bits(N)` is a
+  hexadecimal float literal; the label attribute form GCC accepts;
+- per-target bootstrap snapshots, `bootstrap/luce-base-arm64-macos.c` and
+  `bootstrap/luce-base-x86_64-linux.c`, written from any host by `tools/snapshot.sh`;
+- `tests/platform`: the target-dependent standard library proved on each host, every
+  target emitted from every host; the proving programs run on Linux (the editor over
+  Linux's `termios`, the freestanding program through Linux system calls, an `asm x86_64`
+  arm in the assembly program); `asm-x86_64` limits in the optimisation suite;
+- the standard library's Linux arms, written before, now executed and proved: the futex,
+  `dirent`, `addrinfo`, `open` flags, `mmap` flags, `SOL_SOCKET`, `CLOCK_MONOTONIC`;
+- pinned to luce-seed-0.41, whose own gate is green on Linux.
+
 ## 0.1.0
 
 The first versioned tree, arm64-macos. What it holds:

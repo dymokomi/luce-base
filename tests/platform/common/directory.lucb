@@ -1,0 +1,41 @@
+## Files and directories through `files` (§16.6): the directory entry is laid out
+## differently on every operating system, and `files.list` reads the target's.
+import c
+import files
+import os
+import process
+import strings
+from io import path
+from memory import FixedBuffer
+
+pub func main(arguments: str[]) -> i32!:
+    var backing: u8[65536]
+    var arena = FixedBuffer.over(backing)
+    with arena:
+        var room: u8[1024]
+        let base = try format(room[..<256], f"{path.temp()}/luce-platform-{os.pid()}")
+        let mkdir_args: c.str[1] = [(c.str)base]
+        let (made, made_out, made_err) = try process.run("mkdir", mkdir_args)
+        discard(made_out.length)
+        discard(made_err.length)
+        if made != 0:
+            error(files.failed, "the directory cannot be made")
+        let first = try format(room[256..<512], f"{base}/first.txt")
+        let second = try format(room[512..<768], f"{base}/second.txt")
+        let third = try format(room[768..], f"{base}/.hidden")
+        try files.write((c.str)first, "one\n".bytes)
+        try files.write((c.str)second, "two and more\n".bytes)
+        try files.write((c.str)third, "".bytes)
+        let names = try files.list((c.str)base)
+        print(f"{names.length} entries")
+        for name in names:
+            print(name)
+        let back = try files.read((c.str)second)
+        print(f"{back.length} bytes: {strings.trim((str)back)}")
+        print(f"exists {files.exists((c.str)first)} {files.exists("/definitely/not/here")}")
+        let rm_args: c.str[2] = ["-r", (c.str)base]
+        let (removed, rm_out, rm_err) = try process.run("rm", rm_args)
+        discard(rm_out.length)
+        discard(rm_err.length)
+        print(f"removed {removed == 0} {files.exists((c.str)first)}")
+    return 0

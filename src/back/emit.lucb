@@ -23,6 +23,7 @@
 
 import c
 import back.names
+import back.target as targets
 import front.ast
 import sema.check
 import sema.types
@@ -67,6 +68,11 @@ let to_globals: u8 = 2
 let to_protos: u8 = 3
 
 # mark: The emitter ============================================================================
+
+## An argument computed into the temporary `_lb_sq<id>` before its call (§7.1).
+struct Sequenced:
+    var node: ast.Node*
+    var id: u32
 
 pub struct Emitter:
     var c: check.Checker*
@@ -115,9 +121,12 @@ pub struct Emitter:
     var seq_in_place: bool
     ## The line of the allocation being emitted, for the diagnostic profile's record.
     var site_line: u32
+    ## The arguments of the calls being emitted that were computed into temporaries first
+    ## (§7.1), innermost call last; `argument_value` reads the temporary for such a node.
+    var sequenced: list.List[Sequenced]
 
     pub static func create(checker: check.Checker*, entry: ast.Node*) -> Emitter!:
-        return Emitter(c = checker, out = try buffer.Buffer.create(65536), body = try buffer.Buffer.create(262144),
+        return Emitter(c = checker, out = try buffer.Buffer.create(65536), body = try buffer.Buffer.create(262144), sequenced = try list.List[Sequenced].create(32),
                        globals = try buffer.Buffer.create(4096), protos = try buffer.Buffer.create(16384), target = to_body, indent = 0, counter = 0,
                        modules = try list.List[NodeRef].create(16), entry = entry,
                        funcs = try list.List[Instance].create(64), records = try list.List[Instance].create(64),
@@ -988,7 +997,8 @@ pub struct Emitter:
 
     ## The signature of a function or method instance; `define` opens the body.
     ## The attributes of §9.8 as one `__attribute__` prefix. `inline` is advice this backend
-    ## leaves to the C compiler; a section name is passed as spelled.
+    ## leaves to the C compiler; a section name is passed as spelled, except that a Mach-O
+    ## target places a name without a comma in `__DATA` or `__TEXT` (§9.8).
     mutating func attribute_prefix(d: ast.Node*, is_func: bool) -> !:
         var first = true
         var cursor = d.attrs
@@ -999,10 +1009,10 @@ pub struct Emitter:
                 try self.put("__attribute__((" if first else ", ")
                 first = false
                 if word == "section":
-                    try self.put("section(")
+                    try self.put("section(\"")
                     if let name = a.left:
-                        try self.put(name.text)
-                    try self.put(")")
+                        try self.put(targets.section_name(check.decode_text(name.text), is_func, self.c.build_target.os))
+                    try self.put("\")")
                 else:
                     try self.put(word)
             cursor = a.next
@@ -1503,17 +1513,17 @@ pub struct Emitter:
         if let body = s.body:
             try self.block(body)
         if s.text.length > 0:
-            try self.line("__attribute__((unused)) lb_cont_")
+            try self.line("lb_cont_")
             try self.put(s.text)
-            try self.put(": ;")
+            try self.put(": __attribute__((unused));")
         self.indent -= 1
         try self.line("}")
         try self.unwind(self.scopes.count - 1, false)
         self.pop_scope()
         if s.text.length > 0:
-            try self.line("__attribute__((unused)) lb_brk_")
+            try self.line("lb_brk_")
             try self.put(s.text)
-            try self.put(": ;")
+            try self.put(": __attribute__((unused));")
 
     mutating func for_stmt(s: ast.Node*) -> !:
         let binding = s.left else return
@@ -1623,17 +1633,17 @@ pub struct Emitter:
         if let body = s.body:
             try self.block(body)
         if s.text.length > 0:
-            try self.line("__attribute__((unused)) lb_cont_")
+            try self.line("lb_cont_")
             try self.put(s.text)
-            try self.put(": ;")
+            try self.put(": __attribute__((unused));")
         self.indent -= 1
         try self.line("}")
         try self.unwind(self.scopes.count - 1, false)
         self.pop_scope()
         if s.text.length > 0:
-            try self.line("__attribute__((unused)) lb_brk_")
+            try self.line("lb_brk_")
             try self.put(s.text)
-            try self.put(": ;")
+            try self.put(": __attribute__((unused));")
 
     ## Element `i` of the sequence temporary `n`: an array, a span, or text.
     mutating func element_of(it: u32, n: u32) -> !:
@@ -2273,6 +2283,67 @@ pub struct Emitter:
         try self.line("}")
 
     # -- literals and names ---------------------------------------------------------------
+
+    ## The C constant whose value is the float `t` with these bits (§7.5): a hexadecimal
+    ## literal for a finite value, exact by construction, `__builtin_inf` for an infinity,
+    ## and `__builtin_nan` or `__builtin_nans` with the payload otherwise. Every spelling is
+    ## a constant expression under both GCC and clang, so a global may be initialised with it.
+    mutating func float_constant(t: u32, bits: u64) -> !:
+        let exp_bits: u32 = 11 if t == types.f64_id else 8 if t == types.f32_id else 5
+        let mant_bits: u32 = 52 if t == types.f64_id else 23 if t == types.f32_id else 10
+        let width = 1 + exp_bits + mant_bits
+        let masked = bits if width == 64 else bits & (((u64)1 << width) - 1)
+        let negative = (masked >> (width - 1)) & 1 == 1
+        let exponent = (masked >> mant_bits) & (((u64)1 << exp_bits) - 1)
+        let mantissa = masked & (((u64)1 << mant_bits) - 1)
+        let bias = (i64)((u64)1 << (exp_bits - 1)) - 1
+        let digits = (mant_bits + 3) // 4
+        let type_name: str = "double" if t == types.f64_id else "float" if t == types.f32_id else "_Float16"
+        if exponent == ((u64)1 << exp_bits) - 1:
+            try self.put("((")
+            try self.put(type_name)
+            try self.put(")(")
+            if negative:
+                try self.put("-")
+            if mantissa == 0:
+                try self.put("__builtin_inf()))")
+                return
+            # the top mantissa bit is the quiet bit; the rest is the payload, given in the
+            # width of `float` or `double` so the conversion to a half keeps it
+            let quiet = (mantissa >> (mant_bits - 1)) & 1 == 1
+            let payload = mantissa & (((u64)1 << (mant_bits - 1)) - 1)
+            try self.put("__builtin_nan" if quiet else "__builtin_nans")
+            if t != types.f64_id:
+                try self.put("f")
+            try self.put("(\"0x")
+            try self.hex_digits(payload << 13 if t == types.f16_id else payload, 16)
+            try self.put("\")))")
+            return
+        try self.put("(")
+        if negative:
+            try self.put("-")
+        try self.put("0x")
+        if exponent == 0 and mantissa == 0:
+            try self.put("0p0")
+        else:
+            let shift = digits * 4 - mant_bits
+            try self.put("0." if exponent == 0 else "1.")
+            try self.hex_digits(mantissa << shift, digits)
+            try self.put("p")
+            try self.put_i64(1 - bias if exponent == 0 else (i64)exponent - bias)
+        if t == types.f32_id:
+            try self.put("f")
+        elif t == types.f16_id:
+            try self.put("f16")
+        try self.put(")")
+
+    ## The low `digits` × 4 bits of `value` as hexadecimal digits, most significant first.
+    mutating func hex_digits(value: u64, digits: u32) -> !:
+        let table = "0123456789abcdef"
+        var k = digits
+        while k > 0:
+            k -= 1
+            try self.put_byte(table.bytes[(value >> (k * 4)) & 15])
 
     mutating func literal(e: ast.Node*) -> !:
         let t = try self.ty(e)
@@ -3399,9 +3470,9 @@ pub struct Emitter:
         self.catch_done = saved_done
         self.catch_payload = saved_payload
         self.in_catch = saved_in
-        try self.line("__attribute__((unused)) ")
+        try self.line("")
         try self.put_tmp("cd", n)
-        try self.put(": ;")
+        try self.put(": __attribute__((unused));")
         self.indent -= 1
         try self.line("} else { ")
         if payload != types.unit_id and payload != types.never_id:
@@ -3735,11 +3806,97 @@ pub struct Emitter:
                 try self.direct_call(e, d, none, try types.no_args())
                 return
         # a function value
+        let hoisted = try self.begin_sequence(e.body, try self.ty(callee), none)
         try self.put("(")
         try self.expr(callee)
         try self.put(")(")
         try self.arguments(e.body, try self.ty(callee), none, try types.no_args())
         try self.put(")")
+        try self.end_sequence(hoisted)
+
+    ## Base evaluates arguments left to right (§7.1); C promises no order. When a call has
+    ## more than one argument and any of them may have an effect, every given argument is
+    ## computed into a temporary first, in order, inside a statement expression the call
+    ## then closes (`end_sequence`), and the call reads the temporaries. Answers how many
+    ## were hoisted, 0 when the call is emitted as it is.
+    mutating func begin_sequence(args: ast.Node*?, fn: u32, decl: ast.Node*?) -> usize!:
+        var given: usize = 0
+        var effects = false
+        var cursor = args
+        while let a = cursor:
+            given += 1
+            if let v = a.left:
+                if may_have_effect(v):
+                    effects = true
+            cursor = a.next
+        if given < 2 or not effects:
+            return 0
+        let f = self.c.table.get(fn)
+        var hoisted: usize = 0
+        try self.put("({ ")
+        if let d = decl:
+            # named arguments are matched to parameters by the declaration, as `arguments` does
+            var position: usize = 0
+            cursor = args
+            while let a = cursor:
+                let v = a.left else return hoisted
+                var pi: usize = 0
+                var found: usize = 0
+                var param = d.right
+                var matched = false
+                if a.text.length > 0:
+                    while let p = param:
+                        if p.text == a.text:
+                            found = pi
+                            matched = true
+                        pi += 1
+                        param = p.next
+                else:
+                    found = position
+                    position += 1
+                    matched = found < f.args.length
+                let want = f.args[found] if matched and found < f.args.length else types.none_id
+                if want != types.none_id and (matched or not f.variadic):
+                    hoisted += try self.hoist(v, want)
+                cursor = a.next
+        else:
+            var i: usize = 0
+            cursor = args
+            while let a = cursor:
+                let v = a.left else return hoisted
+                if i < f.args.length:
+                    hoisted += try self.hoist(v, f.args[i])
+                i += 1
+                cursor = a.next
+        return hoisted
+
+    ## `T _lb_sqN = value;` for one argument, remembered for `argument_value`.
+    mutating func hoist(v: ast.Node*, want: u32) -> usize!:
+        let n = self.tmp()
+        try self.put_type(want)
+        try self.put(" ")
+        try self.put_tmp("sq", n)
+        try self.put(" = ")
+        try self.argument_value(v, want)
+        try self.put("; ")
+        try self.sequenced.push(Sequenced(node = v, id = n))
+        return 1
+
+    mutating func end_sequence(hoisted: usize) -> !:
+        if hoisted == 0:
+            return
+        try self.put("; })")
+        self.sequenced.count -= hoisted
+
+    ## The temporary an argument was computed into, when it was.
+    func sequenced_id(v: ast.Node*) -> u32?:
+        var i = self.sequenced.count
+        while i > 0:
+            i -= 1
+            let s = self.sequenced.get(i)
+            if s.node == v:
+                return s.id
+        return none
 
     ## The arguments of a call, each converted to its parameter type.
     mutating func arguments(args: ast.Node*?, fn: u32, decl: ast.Node*?, decl_args: u32[]) -> !:
@@ -3802,6 +3959,9 @@ pub struct Emitter:
 
     ## An argument: its parameter's type, with text passed as bytes where wanted.
     mutating func argument_value(v: ast.Node*, want: u32) -> !:
+        if let id = self.sequenced_id(v):
+            try self.put_tmp("sq", id)
+            return
         let have = try self.ty(v)
         if want != types.none_id and self.is_span(want) and self.elem(want) == types.u8_id and (have == types.str_id or have == types.fmt_id):
             if v.kind == ast.Kind.formatted:
@@ -3845,6 +4005,7 @@ pub struct Emitter:
         # a bare pointer, handle, or `c.str` from C must not be null: the one boundary check (§17.1)
         let rt = self.c.table.get(fn).elem
         let checked = d.kind == ast.Kind.extern_func and (self.is_ptr(rt) or rt == types.cstr_id or self.c.table.is_opaque_handle(rt))
+        let hoisted = try self.begin_sequence(e.body, fn, d)
         if checked:
             try self.put("({ ")
             try self.put_type(rt)
@@ -3855,6 +4016,7 @@ pub struct Emitter:
         try self.put(")")
         if checked:
             try self.put("; if (!_lb_fr) lb_trap(\"null_foreign\"); _lb_fr; })")
+        try self.end_sequence(hoisted)
 
     ## A zero arriving from C in a bare pointer, handle, or `c.str` parameter of an export
     ## traps `null_foreign`: the one boundary check, in this direction (§17.1).
@@ -3979,16 +4141,23 @@ pub struct Emitter:
                 try self.put("))")
                 return
             if self.is_float(rt_raw) and callee.text == "bits":
-                # a bit cast, which is a constant expression when the bits are
+                # constant bits are spelled as a float constant, so `f64.bits(...)` can
+                # initialise a global (§6.4) under GCC, which has no bit cast in C; other bits
+                # are copied at the float's width
                 let first = e.body else return
                 let v = first.left else return
-                try self.put("__builtin_bit_cast(")
-                try self.put_type(rt_raw)
-                try self.put(", (")
+                if let bits = self.c.constant_u64(v):
+                    try self.float_constant(rt_raw, bits)
+                    return
+                try self.put("({ ")
+                try self.put_type(self.c.bits_type(rt_raw))
+                try self.put(" _lb_b = (")
                 try self.put_type(self.c.bits_type(rt_raw))
                 try self.put(")(")
                 try self.expr(v)
-                try self.put("))")
+                try self.put("); ")
+                try self.put_type(rt_raw)
+                try self.put(" _lb_f; __builtin_memcpy(&_lb_f, &_lb_b, sizeof _lb_f); _lb_f; })")
                 return
             try self.put("0")
             return
@@ -4004,11 +4173,13 @@ pub struct Emitter:
         let method = callee.resolved else return try self.put("0")
         if method.kind == ast.Kind.field:
             # `holder.callback(args)`: a field of function type, called through its value
+            let hoisted = try self.begin_sequence(e.body, try self.ty(callee), none)
             try self.put("(")
             try self.expr(callee)
             try self.put(")(")
             try self.arguments(e.body, try self.ty(callee), none, try types.no_args())
             try self.put(")")
+            try self.end_sequence(hoisted)
             return
         # interface views dispatch through the table
         if self.is_iface(rt):
@@ -4019,7 +4190,9 @@ pub struct Emitter:
             try self.put_tmp("if", n)
             try self.put(" = ")
             try self.expr(receiver)
-            try self.put("; ((lb_vt_")
+            try self.put("; ")
+            let hoisted = try self.begin_sequence(e.body, fn, method)
+            try self.put("((lb_vt_")
             try self.put(i.text)
             try self.put("*)")
             try self.put_tmp("if", n)
@@ -4031,7 +4204,9 @@ pub struct Emitter:
             if e.body != none:
                 try self.put(", ")
                 try self.arguments(e.body, fn, method, try types.no_args())
-            try self.put("); })")
+            try self.put(")")
+            try self.end_sequence(hoisted)
+            try self.put("; })")
             return
         # a method on a generic parameter's constraint resolves to the concrete type's method
         let t = self.c.table.get(rt)
@@ -4062,6 +4237,7 @@ pub struct Emitter:
             try self.put(" _lb_rc = ")
             try self.value(receiver, rt)
             try self.put("; ")
+        let hoisted = try self.begin_sequence(e.body, fn, impl)
         try self.put_func_name(impl, args, owner, owner_args)
         try self.put("(")
         if not impl.has(ast.flag_static):
@@ -4075,6 +4251,7 @@ pub struct Emitter:
                 try self.put(", ")
         try self.arguments(e.body, fn, impl, args)
         try self.put(")")
+        try self.end_sequence(hoisted)
         if by_value:
             try self.put("; })")
 
@@ -4356,13 +4533,16 @@ pub struct Emitter:
             try self.put("lb_r_unit ")
             try self.put_tmp("ir", n)
             try self.put(" = ")
+        let hoisted = try self.begin_sequence(e.body, fn, init)
         try self.put_func_name(init, try types.no_args(), t.decl, t.args)
         try self.put("(&")
         try self.put_tmp("iv", n)
         if e.body != none:
             try self.put(", ")
             try self.arguments(e.body, fn, init, try types.no_args())
-        try self.put("); ")
+        try self.put(")")
+        try self.end_sequence(hoisted)
+        try self.put("; ")
         if init.has(ast.flag_fallible):
             let res = try self.c.table.fallible(id)
             try self.note(res)
@@ -6072,3 +6252,30 @@ func same_args(a: const u32[], b: const u32[]) -> bool:
             return false
         i += 1
     return true
+
+## Whether evaluating `e` may have an effect another operand could observe (§7.1): a call,
+## a `try`, a `catch`, an allocation, or a formatted string with such a field. A lambda's
+## body runs later, not here.
+pub func may_have_effect(e: ast.Node*) -> bool:
+    match e.kind:
+        .call, .catch_, .new_, .alloc_, .match_expr:
+            return true
+        .unary:
+            if e.text == "try":
+                return true
+        .lambda:
+            return false
+        _:
+            discard(e)
+    if let l = e.left:
+        if may_have_effect(l):
+            return true
+    if let r = e.right:
+        if may_have_effect(r):
+            return true
+    var cursor = e.body
+    while let b = cursor:
+        if may_have_effect(b):
+            return true
+        cursor = b.next
+    return false

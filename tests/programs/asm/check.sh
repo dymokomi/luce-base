@@ -1,6 +1,6 @@
 #!/bin/sh
 # Prove the inline-assembly example: build it through both backends and check that the
-# hand-written arm64 agrees between them.
+# hand-written assembly of the host's architecture agrees between them.
 # Usage: tests/programs/asm/check.sh [luce-base binary]
 set -eu
 cd "$(dirname "$0")/../../.."

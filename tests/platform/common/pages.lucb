@@ -1,0 +1,19 @@
+## Whole pages from the host (§12.4): `PageAllocator` maps and unmaps with the flags the
+## target spells, and the pages read back what was written.
+import memory
+import os
+
+pub func main(arguments: str[]) -> i32!:
+    var pages = memory.PageAllocator()
+    let page = os.page_size()
+    let block = pages.allocate(page * 3, page) else error(memory.exhausted, "no pages")
+    print(f"{block.length == page * 3} {(usize)block.data % page == 0}")
+    block[0] = 7
+    block[page] = 8
+    block[page * 3 - 1] = 9
+    print(f"{block[0]} {block[page]} {block[page * 3 - 1]} {block[1]}")
+    pages.release(block)
+    let again = pages.allocate(64, 16) else error(memory.exhausted, "no page")
+    print(f"{again.length >= 64}")
+    pages.release(again)
+    return 0

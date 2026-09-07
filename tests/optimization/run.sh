@@ -2,8 +2,9 @@
 # The optimisation suite: programs whose IR after the pre-backend passes and whose arm64
 # assembly are measured, not only run. Beside each program, `NAME.limits` holds the largest
 # counts allowed, one `key max` per line: `ir` (instructions in the IR text of `--emit=ir`),
-# `loads` and `stores` (memory operations in it), `calls`, and `asm` (instruction lines in the
-# assembly). A pass that lowers a count may lower the limit; nothing may raise one without
+# `loads` and `stores` (memory operations in it), `calls`, and `asm-arm64` and `asm-x86_64`
+# (instruction lines in the assembly of that architecture, checked on its host). A pass that
+# lowers a count may lower the limit; nothing may raise one without
 # saying so. Every program also runs natively and prints its `.expect`, so a measurement is
 # never taken on a wrong program. `--report` prints the counts beside the limits.
 set -eu
@@ -23,10 +24,12 @@ measure() {
         END { printf "%d %d %d %d\n", ir, loads, stores, calls }' build/opt.ir > build/opt.counts
     read -r ir loads stores calls < build/opt.counts
     asm=$(awk -v stem="$stem" '
-        /^_[A-Za-z0-9_]+:$/ { keep = ($0 ~ ("^_lb_" stem "_") || $0 ~ /^_lb_main:/) ; next }
+        /^_?[A-Za-z0-9_]+:$/ { keep = ($0 ~ ("^_?lb_" stem "_") || $0 ~ /^_?lb_main:/) ; next }
         keep && /^    [a-z]/ { n++ }
         END { print n + 0 }' build/opt.s)
 }
+# the assembly count is the host architecture's: `asm-arm64` or `asm-x86_64` in the limits
+arch=$(tools/host.sh | sed 's/-.*//')
 for f in tests/optimization/*.limits; do
     src="${f%.limits}.lucb"
     echo "== $src"
@@ -36,7 +39,8 @@ for f in tests/optimization/*.limits; do
     cmp build/opt.out "${f%.limits}.expect"
     while read -r key max; do
         case "$key" in
-            ir) got=$ir;; loads) got=$loads;; stores) got=$stores;; calls) got=$calls;; asm) got=$asm;;
+            ir) got=$ir;; loads) got=$loads;; stores) got=$stores;; calls) got=$calls;;
+            asm-"$arch") got=$asm;; asm-*) continue;;
             ''|'#'*) continue;;
             *) echo "FAIL $f: unknown key $key"; exit 1;;
         esac

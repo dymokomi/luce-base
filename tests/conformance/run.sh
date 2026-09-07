@@ -8,6 +8,8 @@
 # excuses a program from the seed (asm, and what the interpreter cannot model).
 set -eu
 cd "$(dirname "$0")/../.."
+# a program whose output names the host has one expectation per host, `NAME.HOST.expect`
+host=$(tools/host.sh)
 seed=../luce-seed/build/lucb
 [ -x "$seed" ] || seed=""
 programs=0
@@ -15,9 +17,11 @@ rejections=0
 for dir in tests/conformance/[0-9]*/; do
     for f in "$dir"*.expect; do
         [ -e "$f" ] || continue
-        src="${f%.expect}.lucb"
+        case "$f" in *.*-*.expect) continue;; esac
+        [ -e "${f%.expect}.$host.expect" ] && f="${f%.expect}.$host.expect"
+        src="${f%%.*}.lucb"
         # a package of several modules: `NAME/main.lucb` beside `NAME.expect`
-        [ -e "$src" ] || src="${f%.expect}/main.lucb"
+        [ -e "$src" ] || src="${f%%.*}/main.lucb"
         echo "== $src"
         ./build/luce-base build "$src" -o build/conformance
         ./build/conformance > build/conformance.out

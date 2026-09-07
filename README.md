@@ -12,11 +12,12 @@ luce-full  (Base)                compiles full Luce
 ```
 
 `luce-seed` built this tree until this tree built itself. The seed is pinned
-at the version named in `bootstrap/SEED` (luce-seed 0.16): `LUCB=../luce-seed/build/lucb
+at the version named in `bootstrap/SEED`: `LUCB=../luce-seed/build/lucb
 ./build.sh` still starts from it, the gate proves the compiler it builds
 agrees with the snapshot-built one, and the compiler's own sources stay
-within what the seed provides. `bootstrap/luce-base.c` is the compiler's own
-C, and only this compiler moves. `build/luce-base` is the compiler built by
+within what the seed provides. `bootstrap/luce-base-HOST.c` is the compiler's
+own C for each host it runs on natively, arm64-macos and x86_64-linux, and
+only this compiler moves. `build/luce-base` is the compiler built by
 itself through the native backend, with no C in its path; `build.sh` checks
 that it reproduces its own assembly. The language is
 [`docs/language/base.md`](docs/language/base.md), the same document the
@@ -27,7 +28,7 @@ seed implements. What this compiler must do to earn the switch is in
 ## Build and test
 
 ```sh
-./build.sh                            # bootstrap/luce-base.c with cc, then the compiler from source
+./build.sh                            # the host's bootstrap snapshot with cc, then the compiler from source
 ./test.sh                             # the gate: both backends over every sample, test, and the compiler
 
 The test material lives under `tests/`: `tests/samples` (programs with their expected output and the rejected programs), `tests/programs` (the proving programs, each with a `check.sh`), and `tests/conformance` (one positive and one negative program per point of the specification, run through both backends and the seed).
@@ -35,18 +36,22 @@ The test material lives under `tests/`: `tests/samples` (programs with their exp
 ./build/luce-base parse tests/samples/hello.lucb
 ./build/luce-base check tests/samples/json.lucb                  # silence means it checks
 ./build/luce-base build tests/samples/json.lucb -o json          # C through the host cc
-./build/luce-base build tests/samples/json.lucb --native -o json # arm64 assembly through as and ld, no C
+./build/luce-base build tests/samples/json.lucb --native -o json # the host's assembly through as and the linker, no C
 ./build/luce-base test src/front/parser.lucb               # the module's tests, compiled and run
 ./build/luce-base test src/front/parser.lucb --native      # the same tests through the native backend
 ./build/luce-base build src/main.lucb --native -o B2       # the compiler builds itself, natively
 ./build/luce-base build app.lucb --native --debug -o app   # with frame descriptors for luce-base-d
 ./build/luce-base build app.lucb --native -lSDL3 -L/opt/homebrew/lib -o app   # link a C library
+./build/luce-base build app.lucb --target x86_64-linux --emit=c -o app.c        # the C for another target
 ```
+
+The tree builds and its gate is green on arm64 macOS and on x86_64 Linux; the two
+hosts are the two native targets. `tests/platform` holds what depends on the target.
 
 The sources are `src/front` (source, tokens, lexer, tree, parser),
 `src/sema` (types, the standard modules as Base text, the checker),
-`src/back` (names, the C backend, the IR, lowering, arm64), and
-`src/support` (list, buffer, the embedded C runtime).
+`src/back` (names, the C backend, the IR, lowering, the arm64 and x86_64
+generators, the target), and `src/support` (list, buffer, the embedded C runtime).
 
 ## Status
 
@@ -81,6 +86,20 @@ module's tests pass through both backends, the compiler builds itself
 natively, and the natively built compiler emits the same C and the same
 assembly for the compiler as the C-built one. Code comes out unoptimised,
 with every temporary in the frame; register allocation is next.
+
+The Linux pass (0.2.0): `src/back/x86_64.lucb` takes the same IR to x86_64
+ELF assembly under the System V convention, the driver links through the C
+driver, and the host is whatever the compiler was built for, read from its
+own `platform` module. The gate runs on x86_64 Linux as it does on arm64
+macOS: every sample, every module's tests, the proving programs (the HTTP
+server, the editor on Linux's `termios`, the debugger, the freestanding
+program through Linux system calls, the inline assembly with an `asm x86_64`
+arm), the conformance, robustness, and optimisation suites, and the native
+fixpoint. Building on the second host found two things the first had hidden:
+C promises no evaluation order for arguments (§7.1 does), so both C backends
+now compute a call's effectful arguments into temporaries in order; and
+`f64.bits(N)` must be a C constant without clang's `__builtin_bit_cast`, so it
+is a hexadecimal float literal.
 
 ## Proving programs
 

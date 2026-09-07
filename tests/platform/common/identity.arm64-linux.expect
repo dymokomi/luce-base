@@ -1,0 +1,4 @@
+arm64-linux 64
+posix true macos false linux true windows false
+arm64 true x86_64 false
+waits on a futex

@@ -1,0 +1,15 @@
+## The target as the program sees it (§19.5): the `os` constants the compiler decided for
+## this build, and one arm of a platform branch taken. The expectation is per target.
+import os
+
+pub func main(arguments: str[]) -> i32:
+    print(f"{os.name} {os.pointer_bits}")
+    print(f"posix {os.posix} macos {os.macos} linux {os.linux} windows {os.windows}")
+    print(f"arm64 {os.arm64} x86_64 {os.x86_64}")
+    if os.linux:
+        print("waits on a futex")
+    if os.macos:
+        print("waits on a ulock")
+    if os.windows:
+        print("waits on WaitOnAddress")
+    return 0

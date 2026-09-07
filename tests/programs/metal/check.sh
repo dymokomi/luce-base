@@ -5,6 +5,7 @@
 set -eu
 cd "$(dirname "$0")/../../.."
 LB=${1:-./build/luce-base}
+[ "$(uname -s)" = Darwin ] || { echo "skip tests/programs/metal: Metal is macOS only"; exit 0; }
 "$LB" build tests/programs/metal/main.lucb --native -lobjc -framework Foundation -framework Metal -o build/metal-check
 OUT=$(./build/metal-check 8)
 case "$OUT" in

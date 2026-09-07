@@ -8,13 +8,15 @@
 #       checked program and yields the text its host tool consumes. Two implement it today:
 #       `CBackend` streams C for the host C compiler; `NativeBackend` lowers the tree to the
 #       machine-neutral IR of `ir` (the middle form, in the spirit of QBE) and turns that into
-#       arm64 assembly. A third target adds a struct here and changes nothing else: the driver
-#       holds a `Backend` view and never names a generator.
+#       the target's assembly, arm64 (Mach-O) or x86_64 (ELF). A third target adds a
+#       generator and a line here and changes nothing else: the driver holds a `Backend`
+#       view and never names a generator.
 #
 #==============================================================================================
 
 import back.arm64
 import back.target as targets
+import back.x86_64
 import back.emit
 import back.inline
 import back.irtext
@@ -51,7 +53,7 @@ pub struct NativeBackend: Backend:
     var debug: bool
     ## `--emit=ir`: the IR as text after every pass before the target, instead of assembly.
     pub var dump_ir: bool
-    ## The target of the build (§19.5): this backend emits the host's only.
+    ## The target of the build (§19.5): arm64-macos and x86_64-linux have generators.
     var target: targets.Target
 
     pub static func over(c: check.Checker*, entry: ast.Node*, debug: bool, diagnostic: bool) -> NativeBackend!:
@@ -61,14 +63,22 @@ pub struct NativeBackend: Backend:
 
     pub mutating func compile(mode: u32) -> str!:
         let t = self.target
-        if not t.is_host():
-            error(unsupported_target, "the native backend emits arm64-macos only; write the C for another target with --emit=c")
+        let has_generator = (t.arch == targets.Arch.arm64 and t.os == targets.Os.macos) or (t.arch == targets.Arch.x86_64 and t.os == targets.Os.linux)
+        if not has_generator:
+            error(unsupported_target, "the native backend emits arm64-macos and x86_64-linux; write the C for another target with --emit=c")
         self.lowerer.debug = self.debug
+        self.lowerer.target = t
         try self.lowerer.program(mode)
         try inline.expand(&self.lowerer.program_unit)
         try opt.optimise(&self.lowerer.program_unit)
         if self.dump_ir:
             return try irtext.render(&self.lowerer.program_unit)
+        if t.arch == targets.Arch.x86_64:
+            var generator = try x86_64.Generator.create(&self.lowerer.program_unit)
+            generator.symbol_prefix = t.symbol_prefix
+            generator.os = t.os
+            try generator.generate()
+            return generator.text()
         var generator = try arm64.Generator.create(&self.lowerer.program_unit)
         generator.symbol_prefix = t.symbol_prefix
         try generator.generate()

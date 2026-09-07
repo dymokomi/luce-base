@@ -1,0 +1,29 @@
+## The process through `os` (§16.6): processors, pages, identity, the environment, the
+## working directory, and the host's name, each through the system call the target has.
+import c
+import os
+import strings
+from memory import FixedBuffer
+
+pub func main(arguments: str[]) -> i32!:
+    var backing: u8[65536]
+    var arena = FixedBuffer.over(backing)
+    with arena:
+        print(f"cpus {os.cpus() >= 1}")
+        let page = os.page_size()
+        print(f"page {page >= 4096 and (page & (page - 1)) == 0}")
+        print(f"pid {os.pid() > 0 and os.parent_pid() > 0 and os.pid() != os.parent_pid()}")
+        try os.set_env("LUCE_PLATFORM_CHECK", "set by the program")
+        let value = os.env("LUCE_PLATFORM_CHECK") else "unset"
+        print(value)
+        try os.unset_env("LUCE_PLATFORM_CHECK")
+        let gone = os.env("LUCE_PLATFORM_CHECK") else "unset"
+        print(gone)
+        let here = try strings.copy(try os.cwd())
+        try os.change_dir("/")
+        print(try os.cwd())
+        try os.change_dir((c.str)here)
+        print(f"back {(try os.cwd()) == here}")
+        let host = try os.hostname()
+        print(f"host {host.length > 0}")
+    return 0
