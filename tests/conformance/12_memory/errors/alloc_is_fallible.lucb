@@ -1,0 +1,5 @@
+# error: 
+## §12.2: every `alloc` is fallible.
+pub func main(arguments: str[]) -> i32:
+    let raw = alloc(64, 8)
+    return 0

@@ -1,0 +1,26 @@
+## §12.2, §12.3: storage from `in arena` and from a `with arena:` suite lies in the arena's
+## own bytes; `with memory.heap:` inside it, and the code after the suite, allocate elsewhere.
+## The interpreter models memory as values, not addresses, so it is no oracle here.
+# oracle: none
+import memory
+
+pub func main(arguments: str[]) -> i32!:
+    var backing: u8[256]
+    let low = (usize)&backing[0]
+    let high = low + 256
+    var arena = memory.FixedBuffer.over(backing)
+    let inside = try new u8[100] in arena
+    print(f"{(usize)inside.data >= low and (usize)inside.data < high}")
+    free(inside) in arena
+    with arena:
+        let a = try new i64[8]
+        print(f"{(usize)a.data >= low and (usize)a.data < high}")
+        with memory.heap:
+            let from_heap = try new u8[8]
+            print(f"{(usize)from_heap.data < low or (usize)from_heap.data >= high}")
+            free(from_heap)
+        free(a)
+    let after = try new u8[8]
+    defer free(after)
+    print(f"{(usize)after.data < low or (usize)after.data >= high}")
+    return 0

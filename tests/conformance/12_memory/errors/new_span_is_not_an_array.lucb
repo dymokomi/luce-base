@@ -1,0 +1,5 @@
+# error: 
+## §12.2: `new T[n]` yields a span, not an array.
+pub func main(arguments: str[]) -> i32!:
+    let a: u8[4] = try new u8[4]
+    return 0

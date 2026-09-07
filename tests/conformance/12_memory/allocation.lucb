@@ -1,0 +1,86 @@
+## §12.2: `new` constructs, `new T` zeroes, `new T[n]` zeroes a span, `alloc T[n]` leaves
+## elements uninitialised, `alloc(size, alignment)` yields raw bytes, `new (u8[4])` yields a
+## pointer to one fixed array; every form is fallible and freed with `free`; `in` names the
+## allocator; §12.3: `with` sets the current allocator for a suite and restores it after.
+import memory
+
+struct Node:
+    var value: i64
+    var next: Node*?
+
+enum Expr:
+    number(value: f64)
+    sum(left: Expr*, right: Expr*)
+
+func total(e: const Expr*) -> f64:
+    match *e:
+        .number(value):
+            return value
+        .sum(left, right):
+            return total(left) + total(right)
+
+pub func main(arguments: str[]) -> i32!:
+    let node = try new Node(value = 1, next = none)
+    defer free(node)
+    let zeroed = try new Node
+    defer free(zeroed)
+    let second = try new Node(value = 2, next = node)
+    defer free(second)
+    print(f"{node.value} {zeroed.value} {zeroed.next == none} {second.next != none}")
+
+    let two = try new Expr.number(value = 2.0)
+    let three = try new Expr.number(value = 3.0)
+    let both = try new Expr.sum(left = two, right = three)
+    defer free(both)
+    defer free(three)
+    defer free(two)
+    print(f"{total(both)}")
+
+    let items = try new u8[16]
+    defer free(items)
+    var all_zero = true
+    for b in items:
+        if b != 0:
+            all_zero = false
+    items[3] = 7
+    print(f"{items.length} {all_zero} {items[3]}")
+
+    let pool = try alloc Node[4]
+    defer free(pool)
+    var i: usize = 0
+    while i < pool.length:
+        pool[i] = Node(value = (i64)i * 10, next = none)
+        i += 1
+    print(f"{pool.length} {pool[3].value}")
+
+    let raw = try alloc(64, 16)
+    defer free(raw)
+    raw[0] = 1
+    raw[63] = 2
+    print(f"{raw.length} {(usize)raw.data % 16} {raw[0] + raw[63]}")
+
+    let fixed = try new (u8[4])
+    defer free(fixed)
+    (*fixed)[1] = 9
+    let view: u8[] = *fixed
+    print(f"{sizeof(*fixed)} {view.length} {view[1]}")
+
+    var backing: u8[256]
+    var arena = memory.FixedBuffer.over(backing)
+    let inside = try new u8[100] in arena
+    print(f"{inside.length}")
+    free(inside) in arena
+    with arena:
+        let a = try new i64[8]
+        let b = try new Node(value = 5, next = none)
+        print(f"{a.length} {b.value}")
+        free(b)
+        free(a)
+        with memory.heap:
+            let from_heap = try new u8[8]
+            print(f"{from_heap.length}")
+            free(from_heap)
+    let after = try new u8[8]
+    defer free(after)
+    print(f"{after.length}")
+    return 0

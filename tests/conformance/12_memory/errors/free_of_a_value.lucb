@@ -1,0 +1,9 @@
+# error: 
+## §12.2: a struct value is not storage from `new`.
+struct P:
+    var x: i64
+
+pub func main(arguments: str[]) -> i32!:
+    var p = P(x = 1)
+    free(p)
+    return 0

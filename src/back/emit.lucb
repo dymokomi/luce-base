@@ -4668,7 +4668,9 @@ pub struct Emitter:
     mutating func exhausted(result: u32) -> !:
         try self.put("((")
         try self.put_type(result)
-        try self.put("){ .error = { .code = LB_MEMORY_EXHAUSTED, .message = (lb_str){\"memory.exhausted\", 16} }, .failed = true })")
+        try self.put("){ .error = { .code = ")
+        try self.put_u64(check.exhausted_code())
+        try self.put(", .message = (lb_str){\"memory.exhausted\", 16} }, .failed = true })")
 
     mutating func new_expr(e: ast.Node*) -> !:
         self.site_line = e.line
@@ -5240,7 +5242,9 @@ pub struct Emitter:
         try self.put_tmp("fb", n)
         try self.put(".cap) { ")
         try self.put_tmp("out", n)
-        try self.put(" = ((lb_r_str){ .error = { .code = LB_MEMORY_EXHAUSTED, .message = (lb_str){\"memory.exhausted\", 16} }, .failed = true }); } else { ")
+        try self.put(" = ((lb_r_str){ .error = { .code = ")
+        try self.put_u64(check.exhausted_code())
+        try self.put(", .message = (lb_str){\"memory.exhausted\", 16} }, .failed = true }); } else { ")
         try self.put_tmp("out", n)
         try self.put(" = ((lb_r_str){ .value = lb_fmtbuf_finish(&")
         try self.put_tmp("fb", n)

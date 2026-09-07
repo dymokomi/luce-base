@@ -1,0 +1,58 @@
+## §12.4: a type that implements `Allocator` is named by `in` and made current by `with`;
+## its methods are `mutating`; `free` returns storage through `release`; §12.3: a structure
+## frees with the allocator it was built with, whatever is current.
+import memory
+
+struct Counting: memory.Allocator:
+    var live: usize
+    var bytes: usize
+
+    pub mutating func allocate(size: usize, alignment: usize) -> u8[]?:
+        let block = memory.heap.allocate(size, alignment) else return none
+        self.live += 1
+        self.bytes += size
+        return block
+
+    pub mutating func resize(block: u8[], size: usize) -> bool:
+        return false
+
+    pub mutating func release(block: u8[]):
+        self.live -= 1
+        self.bytes -= block.length
+        memory.heap.release(block)
+
+struct Stack:
+    var items: i64[]
+    var count: usize
+    var allocator: memory.Allocator
+
+    static func create(capacity: usize, allocator: memory.Allocator) -> Stack!:
+        let items = try new i64[capacity] in allocator
+        return Stack(items = items, count = 0, allocator = allocator)
+
+    mutating func push(value: i64):
+        self.items[self.count] = value
+        self.count += 1
+
+    mutating func destroy():
+        free(self.items) in self.allocator
+
+pub func main(arguments: str[]) -> i32!:
+    var counting = Counting(live = 0, bytes = 0)
+    let one = try new i64[4] in counting
+    print(f"{counting.live} {counting.bytes}")
+    with counting:
+        let two = try new u8[10]
+        print(f"{counting.live} {counting.bytes}")
+        free(two)
+    print(f"{counting.live} {counting.bytes}")
+    free(one) in counting
+    print(f"{counting.live} {counting.bytes}")
+
+    var stack = try Stack.create(8, &counting)
+    with memory.heap:
+        stack.push(3)
+        stack.push(4)
+        stack.destroy()
+    print(f"{stack.count} {counting.live} {counting.bytes}")
+    return 0

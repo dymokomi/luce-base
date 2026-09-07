@@ -1,0 +1,12 @@
+# error: 
+## §12.4: an allocator implements `allocate`, `resize`, and `release`.
+import memory
+
+struct Half: memory.Allocator:
+    var n: usize
+
+    pub mutating func allocate(size: usize, alignment: usize) -> u8[]?:
+        return none
+
+pub func main(arguments: str[]) -> i32!:
+    return 0

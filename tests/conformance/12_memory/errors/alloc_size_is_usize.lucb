@@ -1,0 +1,5 @@
+# error: 
+## §12.2: `alloc(size, alignment)` takes two `usize` values.
+pub func main(arguments: str[]) -> i32!:
+    let raw = try alloc("many", 8)
+    return 0

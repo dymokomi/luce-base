@@ -1,0 +1,6 @@
+# error: 
+## §12.2: `free` is a statement, not an expression.
+pub func main(arguments: str[]) -> i32!:
+    let p = try new i64
+    let gone = free(p)
+    return 0

@@ -1,0 +1,5 @@
+# error: 
+## §12.2: `free` takes a `T*`, a `T[]`, or a `u8[]`.
+pub func main(arguments: str[]) -> i32!:
+    free(5)
+    return 0

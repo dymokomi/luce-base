@@ -1,0 +1,5 @@
+# error: 
+## §12.2: every `new` is fallible; the result must be handled.
+pub func main(arguments: str[]) -> i32:
+    let p = new i64
+    return 0

@@ -1,0 +1,5 @@
+# error: 
+## §12.2: `new T[count]` zeroes its elements, so `T` is zeroable.
+pub func main(arguments: str[]) -> i32!:
+    let pointers = try new (i64*)[4]
+    return 0

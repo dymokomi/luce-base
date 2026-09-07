@@ -1,0 +1,7 @@
+# error: 
+## §12.3: `memory.allocator` holds an `Allocator` view.
+import memory
+
+pub func main(arguments: str[]) -> i32!:
+    memory.allocator = 5
+    return 0

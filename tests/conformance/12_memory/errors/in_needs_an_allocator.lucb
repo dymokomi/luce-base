@@ -1,0 +1,6 @@
+# error: 
+## §12.2: `in` names an allocator.
+pub func main(arguments: str[]) -> i32!:
+    var n: i64 = 5
+    let p = try new i64 in n
+    return 0

@@ -1,0 +1,7 @@
+# error: 
+## §12.3: `with` takes an allocator.
+pub func main(arguments: str[]) -> i32!:
+    var n: i64 = 5
+    with n:
+        return 0
+    return 0

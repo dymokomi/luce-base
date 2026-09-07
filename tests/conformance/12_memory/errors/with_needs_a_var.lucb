@@ -1,0 +1,10 @@
+# error: 
+## §12.3: `with` takes a `var`, an address, or a view.
+import memory
+
+pub func main(arguments: str[]) -> i32!:
+    var backing: u8[64]
+    let arena = memory.FixedBuffer.over(backing)
+    with arena:
+        return 0
+    return 0

@@ -38,6 +38,12 @@ pub let header: str = r"""//====================================================
 #define LB_NORETURN
 #endif
 
+/* The code of `memory.exhausted` (base.md §11.7): the standard modules' identity `luce`
+   above 1, the number `check.exhausted_code()` computes; a compiler built from an older
+   snapshot still names this macro. */
+#define LB_MEMORY_EXHAUSTED 208273409ull
+
+
 LB_NORETURN void lb_trap(const char* message);
 void lb_pause(void);
 
@@ -248,7 +254,6 @@ lb_str lb_show_pad(lb_str inner, size_t width);
 int lb_fmtbuf_hex(lb_fmtbuf* b, uint64_t v);
 int lb_fmtbuf_bin(lb_fmtbuf* b, uint64_t v);
 
-#define LB_MEMORY_EXHAUSTED 1
 #define LB_FILES_MISSING 2
 #define LB_INVALID_UTF8 3
 

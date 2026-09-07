@@ -2361,10 +2361,14 @@ pub struct Checker:
             let inner = t.left else return try self.fail(t, "an array needs an element type")
             let count = t.right else return try self.fail(t, "`new T[n]` needs a count")
             let elem = try self.resolve_type(inner)
+            try self.storable(elem, inner)
+            if not self.table.zeroable(elem):
+                return try self.fail(t, "`new T[count]` zeroes its elements, so `T` must be zeroable; use `alloc`")
             discard(try self.expect(count, types.usize_id))
             t.type_id = try self.table.span(elem, false)
             return try self.table.fallible(t.type_id)
         let id = try self.resolve_type(t)
+        try self.storable(id, t)
         let pointer = try self.table.pointer(id, false, false)
         if let body = e.body:
             if body.kind == ast.Kind.case_value:
@@ -4197,6 +4201,11 @@ pub func package_identity(name: str) -> u32:
         h = (h ^ (u32)byte) *% 16777619
     return (h ^ (h >> 16)) & 65535
 
+## The code of `memory.exhausted` (§11.7) as the backends raise it: the prelude's constant,
+## under the standard modules' identity `luce`, so a program's comparison holds.
+pub func exhausted_code() -> u64:
+    return ((u64)package_identity("luce") << 16) | 1
+
 ## Whether a callee's receiver is the `ErrorCode` type itself.
 func is_error_code_type(receiver: ast.Node*?) -> bool:
     let r = receiver else return false
@@ -4900,6 +4909,17 @@ test "error needs a fallible function, in a handler too":
 
 test "sizeof takes every type form":
     try expect_ok("struct P:\n    var x: i64\nfunc f() -> usize:\n    return sizeof(i64*) + sizeof(i64?) + sizeof(P*?) + sizeof(i64[4]) + sizeof((i64?)[2]) + sizeof(func(i64) -> i64) + alignof(P)\n")
+
+test "the code of memory.exhausted is the one the runtime header names":
+    assert(exhausted_code() == 208273409)
+
+test "new zeroes its elements and allocates no result":
+    try expect_error("func f() -> !:\n    let p = try new (i64*)[4]\n    discard(p.length)\n", "must be zeroable")
+    try expect_error("func f() -> !:\n    let p = try new (i64!)\n    discard(p)\n", "not a storable type")
+    try expect_ok("func f() -> !:\n    let p = try alloc (i64*)[4]\n    free(p)\n")
+
+test "the allocator named by in binds below catch":
+    try expect_ok("import memory\nfunc f() -> usize:\n    var backing: u8[64]\n    var arena = memory.FixedBuffer.over(backing)\n    let block = new u8[8] in arena catch e:\n        recover backing[..<0]\n    return block.length\n")
 
 test "generics infer from arguments and substitute results":
     try expect_ok("func first[T](values: const T[]) -> T?:\n    if values.length == 0:\n        return none\n    return values[0]\nfunc f() -> i64:\n    let xs: i64[3] = [1, 2, 3]\n    let v = first(xs) else return 0\n    return v\n")

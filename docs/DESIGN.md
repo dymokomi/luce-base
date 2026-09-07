@@ -401,3 +401,10 @@ code 1, and two test programs), `T!` accepted as a field, parameter, or local,
 and `sizeof` unable to name a pointer, optional, array, or function type; in
 the seed, `break` and `continue` from a handler lost in a loop over an array,
 and the C backend wrapping an optional twice through a group or conditional.
+Chapter 12 found `memory.exhausted` raised as the bare code 1 by both backends
+while the prelude's constant carries the `luce` identity (so a program's
+comparison never held), `new T[n]` of elements with no zero value, `new (T!)`,
+`in arena catch e:` parsed with the handler inside the allocator name, and
+`alloc (T)[n]` taken for the raw form; in the seed, `free` that released
+nothing, `memory.heap` as a view with no methods, `(*p)[i] = v` refused, and the
+same two parses.

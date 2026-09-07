@@ -1,0 +1,5 @@
+# error: 
+## §11.2, §12.2: a `T!` cannot be stored, so `new` cannot allocate one.
+pub func main(arguments: str[]) -> i32!:
+    let p = try new (i64!)
+    return 0

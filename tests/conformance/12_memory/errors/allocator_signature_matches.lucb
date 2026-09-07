@@ -1,0 +1,18 @@
+# error: 
+## §12.4: `allocate` answers `u8[]?`.
+import memory
+
+struct Wrong: memory.Allocator:
+    var n: usize
+
+    pub mutating func allocate(size: usize, alignment: usize) -> u8[]:
+        return u8[]((u8*)8, 0)
+
+    pub mutating func resize(block: u8[], size: usize) -> bool:
+        return false
+
+    pub mutating func release(block: u8[]):
+        return
+
+pub func main(arguments: str[]) -> i32!:
+    return 0

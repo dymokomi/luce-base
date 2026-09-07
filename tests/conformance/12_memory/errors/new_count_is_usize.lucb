@@ -1,0 +1,5 @@
+# error: 
+## §12.2: the count of `new T[count]` is a `usize`.
+pub func main(arguments: str[]) -> i32!:
+    let items = try new u8["four"]
+    return 0

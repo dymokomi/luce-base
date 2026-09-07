@@ -824,7 +824,7 @@ pub struct Parser:
         n.left = try self.parse_expression()
         try self.expect_op(")")
         if self.eat_kw("in"):
-            n.right = try self.parse_expression()
+            n.right = try self.parse_else()    # a `catch` after the allocator handles the allocation
         try self.expect_newline()
         return n
 
@@ -1292,6 +1292,14 @@ pub struct Parser:
             return w == "func" or w == "const" or w == "volatile"
         return t.kind == token.Kind.name and (self.is_type_word(self.text_of(t)) or self.qualified_type_ahead(1))
 
+    ## Whether `(` opens a parenthesised type: a type word, `func`, `const`, or `volatile`.
+    func paren_type_ahead() -> bool:
+        let inner = self.peek(1)
+        if inner.kind == token.Kind.keyword:
+            let w = self.text_of(inner)
+            return w == "func" or w == "const" or w == "volatile"
+        return inner.kind == token.Kind.name and (self.is_type_word(self.text_of(inner)) or self.qualified_type_ahead(1))
+
     ## `(Type)` or `(Type, field)`: the first argument is a type, the rest are expressions.
     mutating func parse_type_argument() -> ast.Node*?!:
         try self.expect_op("(")
@@ -1466,18 +1474,19 @@ pub struct Parser:
                 value.body = try self.parse_arguments()
             n.body = value
         if self.eat_kw("in"):
-            n.right = try self.parse_expression()
+            n.right = try self.parse_else()    # a `catch` after the allocator handles the allocation
         return n
 
     mutating func parse_alloc() -> ast.Node*!:
         let n = try self.node(ast.Kind.alloc_, "")
         try self.expect_kw("alloc")
-        if self.at_op("("):
+        # `alloc (T)[n]` parenthesises a type; `alloc(size, alignment)` opens on an expression
+        if self.at_op("(") and not self.paren_type_ahead():
             n.body = try self.parse_arguments()
         else:
             n.ty = try self.parse_type()
         if self.eat_kw("in"):
-            n.right = try self.parse_expression()
+            n.right = try self.parse_else()    # a `catch` after the allocator handles the allocation
         return n
 
     # -- types ----------------------------------------------------------------------------

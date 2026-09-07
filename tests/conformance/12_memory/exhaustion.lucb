@@ -1,0 +1,31 @@
+## §12.2, §11.7: an allocation that fails is the recoverable `memory.exhausted`, handled with
+## `try`, `catch`, or `else`; §12.3: `with` restores the previous allocator on every exit,
+## including error propagation; a `defer free` inside the suite runs before that.
+import memory
+
+func fill(arena: memory.FixedBuffer*) -> usize!:
+    with *arena:
+        let a = try new u8[100]
+        defer free(a)
+        let b = try new u8[100]
+        defer free(b)
+        return a.length + b.length
+
+pub func main(arguments: str[]) -> i32!:
+    var backing: u8[128]
+    var arena = memory.FixedBuffer.over(backing)
+    let got = fill(&arena) catch failure:
+        print(f"{failure.code == memory.exhausted}")
+        recover 0
+    print(f"{got}")
+    let big = try new u8[64] in arena
+    print(f"{big.length}")
+    let more = new u8[100] in arena catch failure:
+        recover memory.heap.allocate(100, 1) else trap("no memory anywhere")
+    print(f"{more.length}")
+    memory.heap.release(more)
+    free(big) in arena
+    let again = try new u8[100]
+    print(f"{again.length}")
+    free(again)
+    return 0

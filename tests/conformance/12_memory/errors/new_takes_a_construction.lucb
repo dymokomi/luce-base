@@ -1,0 +1,5 @@
+# error: 
+## §12.2: `new` is followed by a construction, not an arbitrary value.
+pub func main(arguments: str[]) -> i32!:
+    let p = try new 5
+    return 0
