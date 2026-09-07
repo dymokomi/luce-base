@@ -820,7 +820,7 @@ pub struct Generator:
                 try self.call(n)
             .trap_:
                 try self.address_operand("%rdi", n.a)
-                try self.call_symbol("lb_core_trap")
+                try self.call_symbol(self.program_unit.trap_function)
             .bounds:
                 let a = try self.source(n.a, ir.Class.l, "%rax")
                 let b = try self.source(n.b, ir.Class.l, "%rcx")
@@ -1183,7 +1183,7 @@ pub struct Generator:
     mutating func trap_text(reason: str) -> !:
         let index = try self.program_unit.text(reason)
         try self.address_operand("%rdi", ir.text_ref(index))
-        try self.call_symbol("lb_core_trap")
+        try self.call_symbol(self.program_unit.trap_function)
 
     mutating func inline_asm(n: ir.Instr) -> !:
         let arch = self.program_unit.texts.get((usize)n.a.index).bytes

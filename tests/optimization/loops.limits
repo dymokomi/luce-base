@@ -1,7 +1,9 @@
-# the counts the passes reach; a pass lowers these, nothing raises them without saying so
-ir 125
-loads 19
-stores 23
-calls 7
-asm-arm64 302
-asm-x86_64 266
+# the counts the passes reach; a pass lowers these, nothing raises them without saying so.
+# 0.4.0: the print's formatting is expanded into `main`; the assembly count covers whole
+# functions.
+ir 146
+loads 24
+stores 27
+calls 6
+asm-arm64 113
+asm-x86_64 125

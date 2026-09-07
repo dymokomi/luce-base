@@ -418,12 +418,15 @@ pub struct Unit:
     ## a library's initialiser (§17.6). The generator places it in its object format's
     ## initialiser section.
     pub var init_function: str
+    ## The function a `trap` or a failed `bounds` calls with the reason's text: named here
+    ## so the generators spell no symbol of the program, and the inliner keeps it.
+    pub var trap_function: str
 
     pub static func create() -> Unit!:
         return Unit(functions = try list.List[Function].create(64), globals = try list.List[Global].create(32),
                     texts = try list.List[Text].create(64), tables = try list.List[WitnessTable].create(16),
                     module_asm = try list.List[Text].create(4), shapes = try list.List[Shape].create(64), leaves = try list.List[Leaf].create(256),
-                    init_function = "")
+                    init_function = "", trap_function = "")
 
     ## The index of a text literal, adding it when new.
     ## The leaves of shape `shape` (1-based), empty for 0.

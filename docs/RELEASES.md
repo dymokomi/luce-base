@@ -5,6 +5,24 @@
 release is a VERSION bump, a tag `luce-base-N`, and a push, the way luce-seed does it
 (`bootstrap/SEED` pins the seed the tree is built against).
 
+## 0.4.0
+
+The inliner expands what can be expanded, and the policy is measured.
+
+- `src/back/inline.lucb`: callees before callers (a depth-first order over the call
+  graph), callees with calls of their own, one callee's slots shared by its expansions in
+  one caller, a function called from one place expanded there whatever its size (up to
+  256 instructions) and dropped when nothing else names it; the census of what names a
+  function (calls, addresses, witness tables, assembly text, the object file);
+- the IR names the trap reporter (`Unit.trap_function`) as it names the initialiser: the
+  generators spell no symbol of the program;
+- `tests/optimization/inlining.lucb`: a chain of small functions, a once-called large one,
+  a method, a generic instance, all gone into `main`; the assembly counts of the suite
+  cover whole functions (a local label no longer ended the count); every limit re-measured
+  and explained in place;
+- measured on the compiler: wider policies grow the code a tenth for no speed, so the
+  next step is an optimiser that keeps values out of slots across blocks.
+
 ## 0.3.0
 
 The target boundary: one IR, generators attached.

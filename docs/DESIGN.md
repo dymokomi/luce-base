@@ -355,15 +355,27 @@ the program's modules are hooked; the standard modules run as built.
 
 The product is the compiler built by itself through the native backend, so
 that backend's quality is what the compiler runs on. Between lowering and the
-target, `back/inline.lucb` expands small leaf functions at their call sites: a
-callee of at most twenty-four instructions with no calls of its own, whose
-arguments are stored into its parameter slots (which join the caller's frame),
-whose temporaries, slots, and labels are renumbered into the caller's, and
-whose every `ret` becomes a store of the result and a jump to one exit. A loop
-over a struct's accessors runs a third faster; the compiler's own build, which
-is not call-bound, does not change. Then three passes in `back/arm64.lucb`
-shape each function. `plan_registers` measures how many temporaries of each
-class are live at once and splits the callee-saved registers accordingly:
+target, `back/inline.lucb` expands functions at their call sites: the
+arguments are stored into the callee's parameter slots (which join the
+caller's frame, and which every expansion of one callee in one caller
+shares), its temporaries, slots, and labels are renumbered into the caller's,
+its own calls join the caller's call list, and its every `ret` becomes a
+store of the result and a jump to one exit. Callees are expanded before their
+callers, in a depth-first order over the call graph, so a function reaches
+its callers with its own calls opened out and is measured as it will stand.
+The policy is measured, not assumed: a callee of at most twenty-four
+instructions is expanded at every call; one called from one place only is
+expanded there up to two hundred and fifty-six instructions and, when nothing
+else names it (a call, an address, a witness table, assembly text, the object
+file), dropped from the program. Wider policies were tried on the compiler
+itself and rejected: expanding bodies of up to sixty-four instructions at up
+to four calls each grew its code by a tenth and made it no faster, because
+values still pass through slots between an expanded body and its caller and
+the optimiser forwards them within one block only. A loop over a struct's
+accessors runs a third faster; the compiler's own build, which is not
+call-bound, does not change. Then `back/frame.lucb` shapes each function for
+its generator. `plan` measures how many temporaries of each class are live at
+once and splits the callee-saved registers accordingly:
 the temporaries keep up to four of each class, the most-used frame slots take
 the rest. `promote` puts those slots in registers: a slot of 1, 2, 4, or 8
 bytes, touched at least twice, whose address is only ever taken to load or

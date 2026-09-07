@@ -1,0 +1,40 @@
+## What the inliner expands: a chain of small functions collapses into its caller, a
+## function called from one place only is expanded there whatever its size and dropped, a
+## method and a generic instance are functions like any other. Only the print's own calls
+## should remain.
+struct Counter:
+    var total: i64
+
+    mutating func add(n: i64):
+        self.total += n
+
+    func doubled() -> i64:
+        return self.total * 2
+
+func square(n: i64) -> i64:
+    return n * n
+
+func cube(n: i64) -> i64:
+    return square(n) * n
+
+func fourth(n: i64) -> i64:
+    return square(square(n))
+
+func largest[T](a: T, b: T) -> T:
+    return a if a > b else b
+
+## Called from one place: expanded there and dropped, though it is not small.
+func accumulate(limit: i64) -> i64:
+    var c = Counter(total = 0)
+    var i: i64 = 0
+    while i < limit:
+        c.add(cube(i))
+        c.add(fourth(i))
+        c.add(largest(i, 3))
+        c.add(largest(-i, -3))
+        i += 1
+    return c.doubled()
+
+pub func main(arguments: str[]) -> i32:
+    print(f"{accumulate(10)}")
+    return 0

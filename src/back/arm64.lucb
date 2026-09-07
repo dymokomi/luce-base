@@ -855,7 +855,7 @@ pub struct Generator:
                 try self.call(n)
             .trap_:
                 try self.address_operand("x0", n.a)
-                try self.line("bl _lb_core_trap")
+                try self.call_trap()
             .bounds:
                 let a = try self.source(n.a, ir.Class.l, "x9")
                 let b = try self.source(n.b, ir.Class.l, "x10")
@@ -1046,7 +1046,12 @@ pub struct Generator:
     mutating func trap_text(reason: str) -> !:
         let index = try self.program_unit.text(reason)
         try self.address_operand("x0", ir.text_ref(index))
-        try self.line("bl _lb_core_trap")
+        try self.call_trap()
+
+    ## The program's trap reporter, with the reason in x0.
+    mutating func call_trap() -> !:
+        try self.line("bl ")
+        try self.symbol(self.program_unit.trap_function)
 
     mutating func inline_asm(n: ir.Instr) -> !:
         let arch = self.program_unit.texts.get((usize)n.a.index).bytes

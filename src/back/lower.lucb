@@ -3926,6 +3926,7 @@ pub struct Lowerer:
     ## they needed, then the globals' initialiser, the entry, and the tables.
     pub mutating func program(mode: u32) -> !:
         self.mode = mode
+        self.program_unit.trap_function = "lb_core_trap"
         var i: usize = 0
         while i < self.c.modules.count:
             try self.modules.push(self.c.modules.get(i).tree)

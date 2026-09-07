@@ -1,7 +1,9 @@
-# the counts the passes reach; a pass lowers these, nothing raises them without saying so
-ir 75
-loads 15
-stores 13
+# the counts the passes reach; a pass lowers these, nothing raises them without saying so.
+# 0.4.0: `square` and `norm` are expanded into `main` and dropped, and so is the print's
+# formatting; the assembly count covers whole functions.
+ir 87
+loads 17
+stores 16
 calls 4
-asm-arm64 225
-asm-x86_64 95
+asm-arm64 62
+asm-x86_64 60

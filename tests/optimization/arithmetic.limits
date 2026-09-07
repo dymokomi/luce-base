@@ -1,7 +1,9 @@
-# the counts the passes reach; a pass lowers these, nothing raises them without saying so
-ir 30
-loads 3
-stores 3
-calls 7
+# the counts the passes reach; a pass lowers these, nothing raises them without saying so.
+# 0.4.0: the inliner opens the print's formatting into `main`, so its instructions are
+# measured here and the calls it made are not; the assembly count covers whole functions.
+ir 47
+loads 6
+stores 5
+calls 8
 asm-arm64 129
-asm-x86_64 84
+asm-x86_64 124
