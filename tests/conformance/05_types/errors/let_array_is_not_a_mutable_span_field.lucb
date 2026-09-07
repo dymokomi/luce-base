@@ -1,0 +1,10 @@
+# error: expected `i32[]`, got `i32[2]`
+## §5.3: a struct literal's span field converts a `let` array no more than a parameter does.
+let table: i32[2] = [1, 2]
+
+struct Holder:
+    var items: i32[]
+
+pub func main(arguments: str[]) -> i32:
+    let h = Holder(items = table)
+    return h.items[0]

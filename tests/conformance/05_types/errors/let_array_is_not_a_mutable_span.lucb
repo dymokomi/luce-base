@@ -1,0 +1,8 @@
+# error: expected `i32[]`, got `i32[2]`
+## §5.3: a `let` array converts to `const i32[]` only; a mutable span needs a `var` array.
+func take(xs: i32[]) -> i32:
+    return xs[0]
+
+pub func main(arguments: str[]) -> i32:
+    let a: i32[2] = [1, 2]
+    return take(a)

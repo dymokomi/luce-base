@@ -1,0 +1,9 @@
+# error: expected `i32[]`, got `i32[2]`
+## §5.3: a module-level `let` array is read-only storage; `return` converts it to `const i32[]` only.
+let table: i32[2] = [1, 2]
+
+func give() -> i32[]:
+    return table
+
+pub func main(arguments: str[]) -> i32:
+    return give()[0]

@@ -1463,6 +1463,12 @@ pub struct Checker:
             if s.kind == types.Kind.span or s.kind == types.Kind.array:
                 if s.kind == types.Kind.span and s.is_const and not t.is_const:
                     return false
+                # a mutable `T[N]` converts to `T[]`; a `let` array, or an array that is no
+                # place, to `const T[]` only (§5.3)
+                if s.kind == types.Kind.array and not t.is_const:
+                    let n = e else return false
+                    if not self.is_mutable_place(n):
+                        return false
                 return self.same_pointee(s.elem, t.elem)
             # a `Writer` takes text as bytes
             if t.elem == types.u8_id and t.is_const and (have == types.str_id or have == types.fmt_id):

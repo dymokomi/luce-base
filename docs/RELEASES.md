@@ -5,6 +5,30 @@
 release is a VERSION bump, a tag `luce-base-N`, and a push, the way luce-seed does it
 (`bootstrap/SEED` pins the seed the tree is built against).
 
+## 0.3.0
+
+The target boundary: one IR, generators attached.
+
+- `src/back/frame.lucb`: the frame layout, slot promotion, live ranges, and the linear-scan
+  allocator, once, parameterised by the target's callee-saved registers; both generators
+  emit byte-identical assembly to what they emitted with their own copies;
+- the IR carries no calling convention: an aggregate argument, parameter, or result has
+  a *shape*, its scalar leaves, and each generator reads it by its own rule (arm64's
+  homogeneous float aggregates, x86_64's SSE eightbytes); `is_float_only`, `float_count`,
+  and `sse_words` are gone from the IR and the lowerer;
+- the IR names the function the loader runs (`Unit.init_function`); the generators place
+  it in `__mod_init_func` or `.init_array`; the lowerer emits no assembler text;
+- `src/back/isa.lucb`: the registers inline assembly may name and the scratch registers
+  `reg` operands get, per architecture; `sp`, `fp`, and `lr` are integers, not floats;
+- `Target` says its linker (`Linker`: Apple's `ld` or the C driver), its system libraries,
+  and its architecture's name; the driver reads them instead of the host's `platform`;
+- `types.Table.word` from the target's `pointer_bits` sizes pointers, `usize`, texts,
+  spans, interface views, and error values;
+- `--lib` with `--emit=c` or `--emit=asm` writes the library's code as text for any target;
+- a `let` array converts to `const T[]` only (§5.3), as the seed always said and this
+  compiler now does too; three rejection tests; `process.run` takes `const c.str[]`;
+- `docs/DESIGN.md` describes the boundary; `docs/AUDIT.md` §7 records the pass.
+
 ## 0.2.0
 
 The second host: x86_64 Linux, natively.

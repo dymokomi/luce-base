@@ -1345,7 +1345,7 @@ struct Capture:
 
 ## Run `program` with `arguments`, wait for it, and answer its exit status and
 ## what it wrote to its standard output and error.
-pub func run(program: c.str, arguments: c.str[]) -> (i32, str, str)!:
+pub func run(program: c.str, arguments: const c.str[]) -> (i32, str, str)!:
     var out_pipe: i32[2]
     var err_pipe: i32[2]
     if pipe((i32*)&out_pipe) != 0:
