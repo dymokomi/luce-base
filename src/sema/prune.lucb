@@ -105,32 +105,17 @@ pub func never_completes(e: ast.Node*) -> bool:
 ## Whether a `break` occurs under `node`, a block or an `if` chain. Nested loops are
 ## searched too, since a labeled `break` may leave the outer loop: the answer errs towards
 ## "yes", which is the safe direction for what depends on it.
+## Whether a `break` sits anywhere under `node`: in a statement, an arm, or an expression's
+## `else break` (§8.5, §11.1). A nested loop's own breaks count too, which only keeps what
+## follows the outer loop.
 pub func contains_break(node: ast.Node*?) -> bool:
-    let n = node else return false
-    if n.kind == ast.Kind.if_:
-        return contains_break(n.body) or contains_break(n.right)
-    if n.kind == ast.Kind.break_:
-        return true
-    var cursor = n.body
-    while let s = cursor:
-        match s.kind:
-            .break_:
-                return true
-            .if_:
-                if contains_break(s.body) or contains_break(s.right):
-                    return true
-            .match_:
-                var arm = s.body
-                while let a = arm:
-                    if contains_break(a.body):
-                        return true
-                    arm = a.next
-            .while_, .for_, .with_, .block:
-                if contains_break(s.body):
-                    return true
-            _:
-                discard(0)
-        cursor = s.next
+    var cursor = node
+    while let n = cursor:
+        if n.kind == ast.Kind.break_:
+            return true
+        if contains_break(n.left) or contains_break(n.right) or contains_break(n.body) or contains_break(n.ty):
+            return true
+        cursor = n.next
     return false
 
 

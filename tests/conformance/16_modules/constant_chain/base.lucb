@@ -1,0 +1,3 @@
+pub let NCmpI: i32 = 10
+pub let NCmpF: i32 = 8
+pub let NCmp: i32 = NCmpI + NCmpF

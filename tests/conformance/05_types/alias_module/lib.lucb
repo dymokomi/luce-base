@@ -1,0 +1,4 @@
+pub type bits = u64
+
+pub func low(b: bits) -> u8:
+    return (u8)(b & 0xFF)

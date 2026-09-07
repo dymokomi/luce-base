@@ -553,11 +553,15 @@ pub struct Parser:
             if self.at(token.Kind.newline) or self.at(token.Kind.doc_comment):
                 discard(self.take())
                 continue
-            if not is_extern and (self.at_kw("pub") or self.at_kw("static") or self.at_kw("mutating") or self.at_kw("func")):
+            let pub_member = self.at_kw("pub") and self.peek(1).kind == token.Kind.name and self.peek_op(2, ":")
+            if not is_extern and not pub_member and (self.at_kw("pub") or self.at_kw("static") or self.at_kw("mutating") or self.at_kw("func")):
                 let m = try self.parse_member(false)
                 ast.append(&n.body, &tail, m)
                 continue
             let member = try self.node(ast.Kind.field, "")
+            if pub_member:
+                discard(self.take())
+                member.flags |= ast.flag_pub
             member.text = try self.expect_name()
             try self.expect_op(":")
             member.ty = try self.parse_type()
@@ -1138,12 +1142,14 @@ pub struct Parser:
             return false
         let head = self.text_of(t)
         var typed = self.is_type_word(head)
+        var bare = not typed    # a lowercase name: an alias, if anything
         i += 1
         t = self.peek(i)
         while t.kind == token.Kind.operator:
             let s = self.text_of(t)
             if s == "." and self.peek(i + 1).kind == token.Kind.name:
                 typed = typed or self.is_type_word(self.text_of(self.peek(i + 1))) or head == "c"
+                bare = not typed
                 i += 2
             elif s == "*" or s == "?" or s == "*?":
                 typed = true
@@ -1156,6 +1162,11 @@ pub struct Parser:
             t = self.peek(i)
         if not (t.kind == token.Kind.operator and self.text_of(t) == ")"):
             return false
+        if bare:
+            # `(bits)1`, `(lib.bits)x`: a cast through an alias only when a plain operand
+            # follows, since `(n) - 1` and `(n) * p` are arithmetic (§7.5)
+            let after = self.peek(i + 1)
+            return after.kind == token.Kind.name or after.kind == token.Kind.integer or after.kind == token.Kind.float or after.kind == token.Kind.character or after.kind == token.Kind.text
         if not typed:
             return false
         return self.cast_operand_follows(i + 1)
@@ -1194,6 +1205,8 @@ pub struct Parser:
                 call.left = e
                 if e.kind == ast.Kind.name and (e.text == "sizeof" or e.text == "alignof" or e.text == "offsetof") and self.type_argument_ahead():
                     call.body = try self.parse_type_argument()
+                elif e.kind == ast.Kind.name and e.text == "assert":
+                    call.body = try self.parse_assert_arguments(call)
                 else:
                     call.body = try self.parse_arguments()
                 e = call
@@ -1263,6 +1276,8 @@ pub struct Parser:
         let first = self.peek(1)
         if first.kind != token.Kind.name:
             return false
+        if self.bracket_holds_expression():
+            return false
         # `module.Type` counts as a type word too
         let qualified = self.peek_op(2, ".") and self.peek(3).kind == token.Kind.name and self.is_type_word(self.text_of(self.peek(3)))
         if not self.is_type_word(self.text_of(first)) and not qualified:
@@ -1311,6 +1326,23 @@ pub struct Parser:
         var list: ast.Node*? = first
         var tail: ast.Node*? = first
         while self.eat_op(","):
+            let more = try self.node(ast.Kind.argument, "")
+            more.left = try self.parse_expression()
+            ast.append(&list, &tail, more)
+        try self.expect_op(")")
+        return list
+
+    ## `assert(condition)` or `assert(condition, message)`: the arguments, with the
+    ## condition's own text kept on the call for the trap's message (§11.6).
+    mutating func parse_assert_arguments(call: ast.Node*) -> ast.Node*?!:
+        try self.expect_op("(")
+        let first = try self.node(ast.Kind.argument, "")
+        let begin = self.cur().start
+        first.left = try self.parse_expression()
+        call.text = self.src.text(begin, self.tokens[self.pos - 1].end)
+        var list: ast.Node*? = first
+        var tail: ast.Node*? = first
+        if self.eat_op(","):
             let more = try self.node(ast.Kind.argument, "")
             more.left = try self.parse_expression()
             ast.append(&list, &tail, more)
@@ -1507,7 +1539,9 @@ pub struct Parser:
         var t = try self.parse_type_core()
         t.flags |= flags
         var pointee = false
+        var suffixed = false    # after a suffix, a bracket can only be another suffix
         while true:
+            suffixed = true
             if self.at_op("*") or self.at_op("*?"):
                 let nullable = self.at_op("*?")
                 discard(self.take())
@@ -1521,17 +1555,21 @@ pub struct Parser:
                     o.flags |= ast.flag_optional
                     o.left = t
                     t = o
-            elif self.at_op("[") and self.array_suffix_ahead():
-                discard(self.take())
-                let s = try self.node(ast.Kind.type_, "[")
-                s.left = t
-                if self.eat_op("]"):
-                    s.flags |= ast.flag_span
-                else:
-                    s.flags |= ast.flag_array
-                    s.right = try self.parse_expression()
-                    try self.expect_op("]")
-                t = s
+            elif self.at_op("[") and (self.array_suffix_ahead() or suffixed):
+                var first_suffix: ast.Node*? = none
+                var last_suffix: ast.Node*? = none
+                while self.at_op("["):
+                    discard(self.take())
+                    let s = try self.node(ast.Kind.type_, "[")
+                    if self.eat_op("]"):
+                        s.flags |= ast.flag_span
+                    else:
+                        s.flags |= ast.flag_array
+                        s.right = try self.parse_expression()
+                        try self.expect_op("]")
+                    ast.append(&first_suffix, &last_suffix, s)
+                # the run applies inside-out as in C: `u8[2][4]` is two arrays of four (§5.4)
+                t = try nest_suffixes(first_suffix, t)
             else:
                 break
         if (flags & ast.flag_volatile) != 0 and not pointee:
@@ -1550,10 +1588,58 @@ pub struct Parser:
             t = f
         return t
 
+    ## Whether the bracket at the cursor holds something no type can: an arithmetic or
+    ## comparison operator, a literal past the first token, a lowercase field after a dot,
+    ## or `*` between operands. Such a bracket is an index or an array length whatever its
+    ## first name looks like (§5.4, §7.6); one holding only names is decided by what the
+    ## names resolve to, in the checker.
+    func bracket_holds_expression() -> bool:
+        var i: usize = 1
+        var depth: u32 = 0
+        while true:
+            let t = self.peek(i)
+            if t.kind == token.Kind.eof or t.kind == token.Kind.newline:
+                return false
+            let s = self.text_of(t)
+            if t.kind == token.Kind.operator:
+                if s == "(" or s == "[":
+                    depth += 1
+                    i += 1
+                    continue
+                if s == ")" or s == "]":
+                    if depth == 0:
+                        return false
+                    depth -= 1
+                    i += 1
+                    continue
+            if depth > 0:
+                i += 1
+                continue
+            let after = self.peek(i + 1)
+            if t.kind == token.Kind.operator:
+                if s == "+" or s == "-" or s == "/" or s == "//" or s == "%" or s == "<" or s == ">" or s == "<=" or s == ">=" or s == "==" or s == "!=" or s == "|" or s == "^" or s == ".." or s == "..<" or s == "<<" or s == ">>":
+                    return true
+                if s == "*" and (after.kind == token.Kind.name or after.kind == token.Kind.integer or (after.kind == token.Kind.operator and self.text_of(after) == "(")):
+                    return true    # `a * b`, not `T*`
+                if s == "." and after.kind == token.Kind.name and i > 1:
+                    let ab = self.text_of(after).bytes
+                    if ab.length > 0 and ab[0] >= 'a' and ab[0] <= 'z' and self.text_of(self.peek(i - 1)) != "c":
+                        return true    # `s.count`: a field, not `module.Type`
+            elif t.kind == token.Kind.integer:
+                if i > 1:
+                    return true    # `T[3]` is an array type; `n - 3` is not
+            elif t.kind == token.Kind.float or t.kind == token.Kind.character or t.kind == token.Kind.text:
+                return true
+            elif t.kind == token.Kind.keyword and (s == "and" or s == "or" or s == "not"):
+                return true
+            i += 1
+
     ## `[` after a type: an array or span suffix unless it holds type arguments.
     func array_suffix_ahead() -> bool:
         let t = self.peek(1)
         if t.kind == token.Kind.operator and self.text_of(t) == "]":
+            return true
+        if self.bracket_holds_expression():
             return true
         if t.kind == token.Kind.integer or t.kind == token.Kind.keyword:
             return true
@@ -1613,13 +1699,23 @@ pub struct Parser:
             discard(try self.fail("expected a type"))
         let first = self.take()
         var last = first
-        while self.at_op(".") and self.peek(1).kind == token.Kind.name and (self.is_type_word(self.text_of(self.peek(1))) or self.text_of(first) == "c"):
+        var segments: u32 = 1
+        while self.at_op(".") and self.peek(1).kind == token.Kind.name and (self.is_type_word(self.text_of(self.peek(1))) or self.text_of(first) == "c" or (segments == 1 and not self.is_type_word(self.text_of(first)) and not self.peek_op(2, "("))):
             discard(self.take())
             last = self.take()
+            segments += 1
         let t = try self.node(ast.Kind.type_, self.src.text(first.start, last.end))
         if self.at_op("[") and not self.array_suffix_ahead():
             t.body = (try self.parse_type_args()).body
         return t
+
+## The element type wrapped by a run of suffixes, last suffix innermost.
+func nest_suffixes(first: ast.Node*?, elem: ast.Node*) -> ast.Node*!:
+    let s = first else return elem
+    let inner = try nest_suffixes(s.next, elem)
+    s.left = inner
+    s.next = none
+    return s
 
 # mark: Entry point and tests =================================================================
 

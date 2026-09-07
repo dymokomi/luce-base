@@ -1,0 +1,22 @@
+## §8.5, §11.1: `else break` in a binding leaves the innermost loop like any `break`, so
+## what follows a `while true:` that holds one is reachable.
+var calls: i32 = 0
+
+func pick() -> i32*?:
+    calls += 1
+    return none
+
+pub func main(arguments: str[]) -> i32:
+    var seen: i32 = 0
+    while true:
+        let p = pick() else break
+        seen += *p
+    var rounds: i32 = 0
+    while true:
+        rounds += 1
+        if rounds > 3:
+            break
+        let q = pick() else continue
+        seen += *q
+    print(f"after loop {seen} {calls}")
+    return 0

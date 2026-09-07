@@ -1,0 +1,19 @@
+## §17.1, §17.2: a binding of a C library function never clashes with the prototype the
+## system headers carry; `c.stderr()` links natively; an untyped integer in a variadic slot
+## passes as `i32`, a `bool` or narrow integer promoted to `int`, an `f32` to `double`.
+# oracle: none
+import c
+
+extern func fputc(ch: i32, stream: void*) -> i32
+extern func fprintf(stream: void*, spec: c.str, ...) -> i32
+extern func fflush(stream: void*) -> i32
+
+pub func main(arguments: str[]) -> i32:
+    let small: u8 = 7
+    let ratio: f32 = 0.5
+    discard(fprintf(c.stdout(), "%d %d %.1f\n", 5, small, ratio))
+    discard(fputc((i32)'x', c.stdout()))
+    discard(fputc(10, c.stdout()))
+    discard(fflush(c.stdout()))
+    discard(fprintf(c.stderr(), ""))
+    return 0

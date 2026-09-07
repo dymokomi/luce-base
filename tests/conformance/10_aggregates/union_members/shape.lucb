@@ -1,0 +1,9 @@
+pub union Bits:
+    pub i: i64
+    pub d: f64
+
+pub struct Cell:
+    pub var bits: Bits
+
+pub func raw(c: Cell) -> i64:
+    return c.bits.i

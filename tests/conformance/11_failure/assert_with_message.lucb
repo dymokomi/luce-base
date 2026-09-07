@@ -1,0 +1,5 @@
+## §11.6: a message follows the location and the condition.
+pub func main(arguments: str[]) -> i32:
+    let n: i32 = (i32)arguments.length - 1
+    assert(n == 1, "one argument expected")
+    return 0

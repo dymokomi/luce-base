@@ -274,7 +274,7 @@ pub struct Checker:
             .unary:
                 let inner = e.left else return false
                 if e.text == "&":
-                    return self.names_a_global(inner)
+                    return self.global_place(inner)
                 return self.is_constant(inner)
             .binary:
                 let l = e.left else return false
@@ -326,6 +326,27 @@ pub struct Checker:
             cursor = a.next
         return true
 
+    ## A global, or an element or field of one reached by constant steps (§6.4).
+    func global_place(e: ast.Node*) -> bool:
+        match e.kind:
+            .name:
+                return self.names_a_global(e)
+            .group:
+                let inner = e.left else return false
+                return self.global_place(inner)
+            .index:
+                let owner = e.left else return false
+                let i = e.body else return false
+                return self.global_place(owner) and self.is_constant(i)
+            .member:
+                let owner = e.left else return false
+                let d = e.resolved else return false
+                if d.kind == ast.Kind.global or d.kind == ast.Kind.constant:
+                    return true    # `module.global`
+                return d.kind == ast.Kind.field and self.global_place(owner)
+            _:
+                return false
+
     ## `&global` and a function name are constant addresses (§6.4).
     func names_a_global(e: ast.Node*) -> bool:
         if e.kind != ast.Kind.name:
@@ -357,11 +378,17 @@ pub struct Checker:
                 return self.place_is_local(inner)
             .member:
                 let owner = e.left else return false
-                if self.table.kind(owner.type_id) == types.Kind.pointer:
-                    return self.is_local_value(owner)
+                let ok = self.table.kind(owner.type_id)
+                if ok == types.Kind.module:
+                    return false    # `module.global`
+                if ok == types.Kind.pointer or ok == types.Kind.span or owner.type_id == types.str_id:
+                    return self.is_local_value(owner)    # wherever the pointer or view points
                 return self.place_is_local(owner)
             .index:
                 let owner = e.left else return false
+                let ok = self.table.kind(owner.type_id)
+                if ok == types.Kind.pointer or ok == types.Kind.span or owner.type_id == types.str_id:
+                    return self.is_local_value(owner)
                 return self.place_is_local(owner) or self.is_local_value(owner)
             .unary:
                 if e.text == "*":
@@ -1026,6 +1053,8 @@ pub struct Checker:
     ## A named type: a scalar, a declaration in scope, `module.Type`, or an
     ## instance `Name[args]` of a generic declaration.
     mutating func resolve_named(t: ast.Node*) -> u32!:
+        if let arr = try self.array_reading(t):
+            return try self.resolve_type(arr)
         let scalar = scalar_id(t.text)
         if scalar != types.none_id:
             if t.body != none:
@@ -1083,6 +1112,66 @@ pub struct Checker:
                 return try self.fail(t, "this type needs type arguments")
         return d.type_id
 
+    ## The declaration a bare or `module.`-qualified name refers to when it is a value rather
+    ## than a type: a constant, a global, or a local.
+    mutating func bracket_value_decl(text: str) -> ast.Node*?:
+        let dot = find_byte(text, '.')
+        var decl: ast.Node*? = none
+        if dot >= text.length:
+            let b = self.lookup(text) else return none
+            decl = b.decl
+        else:
+            let mb = self.lookup((str)text.bytes[..<dot]) else return none
+            let m = mb.decl else return none
+            if m.kind != ast.Kind.module:
+                return none
+            decl = find_decl(m, (str)text.bytes[dot + 1..])
+        let d = decl else return none
+        if d.kind == ast.Kind.constant or d.kind == ast.Kind.global or d.kind == ast.Kind.let_ or d.kind == ast.Kind.var_ or d.kind == ast.Kind.param:
+            return d
+        return none
+
+    ## The expression a bracketed name spells: `NAME` or `module.NAME`.
+    func bracket_name_expr(arg: ast.Node*) -> ast.Node*!:
+        let dot = find_byte(arg.text, '.')
+        if dot >= arg.text.length:
+            return try ast.Node.make(ast.Kind.name, arg.text, arg.start, arg.line)
+        let m = try ast.Node.make(ast.Kind.member, (str)arg.text.bytes[dot + 1..], arg.start, arg.line)
+        m.left = try ast.Node.make(ast.Kind.name, (str)arg.text.bytes[..<dot], arg.start, arg.line)
+        return m
+
+    ## `T[NAME]` where NAME is a value, not a type: the parser read a type argument, the
+    ## program means an array of NAME elements (§5.4). That array type, or none.
+    mutating func array_reading(t: ast.Node*) -> ast.Node*?!:
+        let arg = t.body else return none
+        if arg.next != none or arg.kind != ast.Kind.type_ or arg.flags != 0 or arg.left != none or arg.body != none or arg.text.length == 0:
+            return none
+        if self.bracket_value_decl(arg.text) == none:
+            return none
+        let base = try ast.Node.make(ast.Kind.type_, t.text, t.start, t.line)
+        let arr = try ast.Node.make(ast.Kind.type_, "[", t.start, t.line)
+        arr.flags |= ast.flag_array
+        arr.left = base
+        arr.right = try self.bracket_name_expr(arg)
+        return arr
+
+    ## `table[NAME].f` read as a generic instance of a value: an index (§7.6). Rewrites `e`
+    ## in place and says whether it did.
+    mutating func index_reading(e: ast.Node*) -> bool!:
+        let holder = e.ty else return false
+        let arg = holder.body else return false
+        if arg.next != none or arg.kind != ast.Kind.type_ or arg.flags != 0 or arg.left != none or arg.body != none:
+            return false
+        if self.bracket_value_decl(e.text) == none or self.bracket_value_decl(arg.text) == none:
+            return false
+        let owner = try ast.Node.make(ast.Kind.name, e.text, e.start, e.line)
+        e.kind = ast.Kind.index
+        e.text = ""
+        e.ty = none
+        e.left = owner
+        e.body = try self.bracket_name_expr(arg)
+        return true
+
     ## The type declaration whose members are being checked, if any.
     func self_decl() -> ast.Node*?:
         if self.self_type == types.none_id:
@@ -1127,6 +1216,9 @@ pub struct Checker:
     ## The constant a name or `module.name` denotes, or none.
     mutating func constant_decl(e: ast.Node*) -> ast.Node*?!:
         if e.kind == ast.Kind.name:
+            # a name inside another module's initialiser was resolved when that module was checked
+            if let d = e.resolved:
+                return d if d.kind == ast.Kind.constant else none
             let b = self.lookup(e.text) else return none
             let d = b.decl else return none
             return d if d.kind == ast.Kind.constant else none
@@ -1311,7 +1403,7 @@ pub struct Checker:
             if let n = e:
                 return n.kind == ast.Kind.literal and n.text.bytes[0] == '\'' and decode_char(n.text) < 128
             return false
-        if have == types.str_id and want == types.cstr_id:
+        if have == types.str_id and (want == types.cstr_id or (t.kind == types.Kind.optional and t.elem == types.cstr_id)):
             if let n = e:
                 return n.kind == ast.Kind.literal and n.text.bytes[0] == '"'
             return false
@@ -1803,6 +1895,8 @@ pub struct Checker:
     mutating func name_type(e: ast.Node*) -> u32!:
         if e.has(ast.flag_format_sink):
             return self.standard_type("io", "Writer")
+        if e.ty != none and try self.index_reading(e):
+            return try self.index_type(e)
         let scalar = scalar_id(e.text)
         if scalar != types.none_id:
             e.flags |= ast.flag_type_ref
@@ -1989,8 +2083,6 @@ pub struct Checker:
                 return try self.fail(e, "`*` needs a pointer")
             if t.elem == types.void_id:
                 return try self.fail(e, "cannot dereference `void*`")
-            if self.is_local_value(inner):
-                self.mark_local(e)
             return t.elem
         if e.text == "-" and inner.kind == ast.Kind.literal and self.table.is_integer(hint) and not self.table.is_signed(hint):
             return try self.fail(e, "a negative literal does not fit an unsigned type")
@@ -2061,7 +2153,7 @@ pub struct Checker:
             if rt == types.untyped_int_id:
                 discard(try self.coerce(r, rt, types.usize_id))
                 return lt
-            if rt != types.usize_id and rt != types.isize_id:
+            if rt != types.usize_id and rt != types.isize_id and not self.table.widens(rt, types.usize_id) and not self.table.widens(rt, types.isize_id):
                 return try self.fail(e, "a pointer offset is `usize` or `isize`")
             return lt
         var rhint = lt
@@ -2086,6 +2178,8 @@ pub struct Checker:
                 return try self.fail(e, "these values have no equality")
             return types.bool_id
         if op == "<" or op == "<=" or op == ">" or op == ">=":
+            if self.table.kind(t) == types.Kind.pointer:
+                return types.bool_id    # the total order of addresses (§5.3)
             if not (t == types.untyped_int_id or t == types.untyped_float_id or self.table.is_numeric(t) or t == types.char_id or t == types.str_id or self.table.kind(t) == types.Kind.param):
                 return try self.fail(e, "ordering needs numbers or text")
             return types.bool_id
@@ -2170,8 +2264,12 @@ pub struct Checker:
         let raw = try self.check_expr(owner, types.none_id)
         let ot = self.deref(raw)
         var t = self.table.get(ot)
-        if t.kind != types.Kind.span and t.kind != types.Kind.array:
-            # `p[i]` on a pointer to anything else: element-scaled and unchecked (§6.5)
+        let through = self.table.get(raw)
+        if through.kind == types.Kind.pointer and through.elem != types.void_id and self.table.kind(through.elem) != types.Kind.span:
+            # `p[i]` on a pointer: element-scaled by the pointee and unchecked, an array
+            # pointee included, so `rows[n][i]` reads row `n` (§7.7)
+            t = through
+        elif t.kind != types.Kind.span and t.kind != types.Kind.array:
             let pointee = self.table.get(raw)
             if pointee.kind == types.Kind.pointer and pointee.elem != types.void_id:
                 t = pointee
@@ -2179,7 +2277,10 @@ pub struct Checker:
                 return try self.fail(e, "`str` is not indexed; slice `.bytes` or iterate")
             else:
                 return try self.fail(e, "indexing needs a span, an array, or a pointer")
-        let it = try self.check_expr(index, types.usize_id)
+        var it = try self.check_expr(index, types.usize_id)
+        if it == types.char_id and index.kind == ast.Kind.literal and index.text.bytes[0] == '\'' and check_decode_char(index.text) < 128:
+            index.type_id = types.usize_id    # `table['P']`: an ASCII literal in an integer context (§4.4)
+            it = types.usize_id
         if not (it == types.untyped_int_id or self.table.is_integer(it)):
             return try self.fail(index, "an index is an integer")
         discard(try self.coerce(index, it, types.usize_id if it == types.untyped_int_id else it))
@@ -2456,6 +2557,17 @@ pub struct Checker:
     mutating func cast_type(e: ast.Node*) -> u32!:
         let t = e.ty else return try self.fail(e, "a cast needs a type")
         let inner = e.left else return try self.fail(e, "a cast needs an operand")
+        if t.body == none and t.left == none and t.flags == 0 and scalar_id(t.text) == types.none_id and self.bracket_value_decl(t.text) != none:
+            # `(NPtr) * n`: the parenthesised name is a value, the operator a binary one (§7.5)
+            if inner.kind == ast.Kind.unary and (inner.text == "*" or inner.text == "-"):
+                let l = try self.bracket_name_expr(t)
+                e.kind = ast.Kind.binary
+                e.text = inner.text
+                e.ty = none
+                e.left = l
+                e.right = inner.left
+                return try self.check_expr(e, types.none_id)
+            return try self.fail(t, "that name is a value, not a type")
         let want = try self.resolve_type(t)
         let got = try self.check_expr(inner, types.none_id)
         # a reinterpreting cast of a local address keeps it local: `(str)local_bytes` (§6.6)
@@ -2718,8 +2830,8 @@ pub struct Checker:
                 e.resolved = f
                 if not f.has(ast.flag_pub) and not self.same_module(d) and not self.inside(d):
                     return try self.fail(e, "that field is not public")
-                if self.is_local_value(owner):
-                    self.mark_local(e)
+                if self.is_local_value(owner) and self.table.kind(owner.type_id) != types.Kind.pointer:
+                    self.mark_local(e)    # a field read through a pointer is not the pointer (§6.6)
                 return try self.substitute(f.type_id, d, t.args)
             if let m = find_member(d, name, ast.Kind.func_):
                 if m.has(ast.flag_static):
@@ -3196,7 +3308,7 @@ pub struct Checker:
                 extra += 1
                 let v = a.left else return try self.fail(a, "empty argument")
                 let vt = try self.check_expr(v, types.none_id)
-                discard(try self.coerce(v, vt, self.concrete(vt)))
+                discard(try self.coerce(v, vt, types.i32_id if vt == types.untyped_int_id else self.concrete(vt)))
             else:
                 return try self.fail(a, "too many arguments")
             cursor = a.next
@@ -5099,6 +5211,9 @@ pub func decode_integer(text: str) -> u64!:
     return value
 
 ## The first `b` in `s`, or `s.length`.
+func check_decode_char(text: str) -> u32:
+    return decode_char(text)
+
 func find_byte(s: str, b: u8) -> usize:
     var i: usize = 0
     let bytes = s.bytes

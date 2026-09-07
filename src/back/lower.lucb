@@ -68,6 +68,12 @@ pub struct LowerValue:
 
 # mark: The lowerer ============================================================================
 
+## A copy of `text` in the current allocator, for a message the unit keeps by view.
+func kept_text(text: str) -> str!:
+    let copy = try alloc u8[text.length]
+    memory.copy(copy, text.bytes, text.length)
+    return (str)copy
+
 pub struct Lowerer:
     var c: check.Checker*
     pub var program_unit: ir.Unit
@@ -335,6 +341,11 @@ pub struct Lowerer:
         try self.locals.push(LowerLocal(decl = decl, slot = s))
         try self.describe_local(decl, s, id)
         return s
+
+    ## The path of the file the function being lowered came from.
+    func source_of_current() -> str:
+        let f = self.current_fn else return self.src_file
+        return self.source_of(f)
 
     ## The path of the file a declaration came from; a standard module's is its name.
     func source_of(decl: ast.Node*) -> str:
@@ -1162,11 +1173,12 @@ pub struct Lowerer:
         if w.kind == types.Kind.interface_ and h.kind == types.Kind.interface_:
             return try self.expr(e)
         if w.kind == types.Kind.optional:
-            if self.is_nullable_ptr(want):
-                let p = try self.expr(e)
-                return LowerValue(ref = p.ref, type_id = want, in_memory = false)
             if h.kind == types.Kind.optional:
                 return try self.expr(e)
+            if self.is_nullable_ptr(want):
+                # the same word as the payload, converted as the niche type asks (§5.3)
+                let p = try self.value(e, w.elem)
+                return LowerValue(ref = p.ref, type_id = want, in_memory = false)
             let inner = try self.value(e, w.elem)
             let slot = try self.new_slot(want)
             let a = try self.slot_address(slot)
@@ -1181,7 +1193,7 @@ pub struct Lowerer:
                 let text = try self.expr(e)
                 return LowerValue(ref = text.ref, type_id = want, in_memory = true)
             return try self.expr(e)
-        if want == types.cstr_id and have == types.str_id:
+        if (want == types.cstr_id or (w.kind == types.Kind.optional and w.elem == types.cstr_id)) and have == types.str_id:
             let text = try self.expr(e)
             let data = try self.f.load(ir.Op.loadl, ir.Class.l, text.ref)
             return LowerValue(ref = data, type_id = want, in_memory = false)
@@ -1355,7 +1367,7 @@ pub struct Lowerer:
             let text = check.decode_text(e.text)
             let index = try self.program_unit.text(text)
             let data = try self.f.address_of(ir.text_ref(index))
-            if t == types.cstr_id:
+            if t == types.cstr_id or (self.c.table.kind(t) == types.Kind.optional and self.c.table.get(t).elem == types.cstr_id):
                 return LowerValue(ref = data, type_id = t, in_memory = false)
             let span_type = try self.c.table.span(types.u8_id, true) if b[0] == 'b' else types.str_id
             return try self.span_of(data, ir.const_ref((i64)text.length), span_type)
@@ -1398,6 +1410,8 @@ pub struct Lowerer:
             let t = try self.temp(ir.Class.l)
             try self.f.emit(ir.Op.addr_tls, ir.Class.l, t.index, ir.global_ref(name), ir.none_ref(), 0)
             return t
+        if d.kind == ast.Kind.extern_var:
+            return try self.f.address_of(ir.import_ref(name))
         return try self.f.address_of(ir.global_ref(name))
 
     mutating func func_value(e: ast.Node*, d: ast.Node*) -> LowerValue!:
@@ -1543,13 +1557,9 @@ pub struct Lowerer:
             let scaled = try self.f.binary(ir.Op.mul, ir.Class.l, index, ir.const_ref((i64)self.c.table.size_of(self.elem(ot))))
             return try self.f.binary(ir.Op.add, ir.Class.l, data, scaled)
         if self.is_ptr(ot):
+            # element-scaled by the pointee, an array included (§7.7)
             let p = try self.expr(owner)
             let inner = self.elem(ot)
-            if self.is_array(inner):
-                let t = self.c.table.get(inner)
-                try self.f.emit(ir.Op.bounds, ir.Class.l, 0, index, ir.const_ref((i64)t.length), 0)
-                let scaled = try self.f.binary(ir.Op.mul, ir.Class.l, index, ir.const_ref((i64)self.c.table.size_of(t.elem)))
-                return try self.f.binary(ir.Op.add, ir.Class.l, p.ref, scaled)
             let scaled = try self.f.binary(ir.Op.mul, ir.Class.l, index, ir.const_ref((i64)self.c.table.size_of(inner)))
             return try self.f.binary(ir.Op.add, ir.Class.l, p.ref, scaled)
         return try self.fail(e, "indexing needs a span or an array")
@@ -3180,14 +3190,23 @@ pub struct Lowerer:
             let bad = self.f.label()
             try self.f.branch(c.ref, ok, bad)
             try self.f.place_label(bad)
+            var located: u8[512]
+            var where = try format(located, f"{self.source_of_current()}:{e.line}: assert failed: {e.text}")
+            var joined: u8[1024]
             if let msg = second:
-                let m = try self.expr(msg)
-                let data = try self.f.load(ir.Op.loadl, ir.Class.l, m.ref)
-                let start = u32(self.f.args.count)
-                try self.f.args.push(ir.Arg(value = data, cls = ir.Class.l, size = 0, align = 8, type_id = types.cstr_id, is_float_only = false, float_count = 0))
-                discard(try self.call_named("lb_core_trap", start, 1, ir.Class.w, false, types.unit_id))
+                if msg.kind == ast.Kind.literal and msg.text.bytes[0] == '"':
+                    where = try format(joined, f"{where}: {check.decode_text(msg.text)}")
+                    try self.trap_with(try kept_text(where))
+                else:
+                    let m = try self.expr(msg)
+                    let data = try self.f.load(ir.Op.loadl, ir.Class.l, m.ref)
+                    let start = u32(self.f.args.count)
+                    let prefix = try self.program_unit.text(try kept_text(where))
+                    try self.f.args.push(ir.Arg(value = try self.f.address_of(ir.text_ref(prefix)), cls = ir.Class.l, size = 0, align = 8, type_id = types.cstr_id, is_float_only = false, float_count = 0))
+                    try self.f.args.push(ir.Arg(value = data, cls = ir.Class.l, size = 0, align = 8, type_id = types.cstr_id, is_float_only = false, float_count = 0))
+                    discard(try self.call_named("lb_core_trap_two", start, 2, ir.Class.w, false, types.unit_id))
             else:
-                try self.trap_with("assert failed")
+                try self.trap_with(try kept_text(where))
             try self.f.place_label(ok)
             return nothing
         if name == "trap":
@@ -3260,7 +3279,7 @@ pub struct Lowerer:
             try self.f.emit(ir.Op.fence, ir.Class.l, 0, ir.const_ref((i64)memory_order(order)), ir.none_ref(), 0)
             return LowerValue(ref = ir.const_ref(0), type_id = types.unit_id, in_memory = false)
         if module == "c":
-            let stream = try self.f.address_of(ir.global_ref("__stdinp" if name == "stdin" else ("__stdoutp" if name == "stdout" else "__stderrp")))
+            let stream = try self.f.address_of(ir.import_ref("__stdinp" if name == "stdin" else ("__stdoutp" if name == "stdout" else "__stderrp")))
             let value = try self.f.load(ir.Op.loadl, ir.Class.l, stream)
             return LowerValue(ref = value, type_id = try self.ty(e), in_memory = false)
         return try self.direct_call(e, d, none, try types.no_args())

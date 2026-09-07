@@ -1,0 +1,19 @@
+## §5.10, §7.5: an alias is a type wherever a type is read, `lib.bits` included, and
+## `(bits)x` casts through a scalar alias.
+import lib
+type bits = u64
+
+func popcount(b: lib.bits) -> u32:
+    var v = b
+    var n: u32 = 0
+    while v != 0:
+        v &= v - 1
+        n += 1
+    return n
+
+pub func main(arguments: str[]) -> i32:
+    let n: u64 = 3
+    let x = (bits)1 << n
+    let y = (lib.bits)x | 1
+    print(f"{x} {y} {popcount(y)} {lib.low(y)}")
+    return 0

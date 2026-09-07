@@ -1,0 +1,12 @@
+## §5: a float to integer cast saturates for any out-of-range value, an infinity included;
+## only NaN becomes 0. A negated float literal takes its context's width.
+pub func main(arguments: str[]) -> i32:
+    var pos: f32 = 3.0e38
+    pos = pos * 10.0
+    var neg: f32 = -3.0e38
+    neg = neg * 10.0
+    var wide: f64 = 1.0e308
+    wide = wide * 10.0
+    let nan = wide - wide
+    print(f"{(u32)pos} {(i32)pos} {(u32)neg} {(i32)neg} {(u64)wide} {(i64)neg} {(i32)nan} {(u8)pos}")
+    return 0

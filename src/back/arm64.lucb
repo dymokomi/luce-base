@@ -306,7 +306,7 @@ pub struct Generator:
     mutating func address_operand(reg: str, r: ir.Ref) -> !:
         if r.kind == ir.RefKind.slot:
             try self.frame_address(reg, self.slot_home(r.index))
-        elif r.kind == ir.RefKind.global:
+        elif r.kind == ir.RefKind.global and r.value == 0:
             try self.line("adrp ")
             try self.put(reg)
             try self.put(", ")
@@ -319,9 +319,9 @@ pub struct Generator:
             try self.put(", ")
             try self.symbol(r.name)
             try self.put("@PAGEOFF")
-        elif r.kind == ir.RefKind.function:
-            # a function's address goes through the GOT, so a symbol defined in a linked
-            # dylib (an extern C function used as a pointer, like `objc_msgSend`) resolves
+        elif r.kind == ir.RefKind.global or r.kind == ir.RefKind.function:
+            # a function's address, or another image's data (`import_ref`), goes through the
+            # GOT, so a symbol defined in a linked dylib resolves
             try self.line("adrp ")
             try self.put(reg)
             try self.put(", ")

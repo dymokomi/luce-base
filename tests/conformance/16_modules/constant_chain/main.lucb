@@ -1,0 +1,9 @@
+## §6.4, §16.3: a constant built from other constants of its module is a constant where it
+## is imported, an array length included.
+import base
+
+let tab: i32[base.NCmp] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]
+
+pub func main(arguments: str[]) -> i32:
+    print(f"{tab.length} {base.NCmp} {tab[base.NCmpI]}")
+    return 0

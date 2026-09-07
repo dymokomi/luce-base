@@ -1,0 +1,14 @@
+## §6.4: the address of a global's element or field, reached by constant steps, is a
+## constant expression, so a global pointer can start inside a global array.
+struct Pair:
+    var lo: i32
+    var hi: i32
+var table: i32[4] = [10, 20, 30, 40]
+var pair: Pair = Pair(lo = 1, hi = 2)
+var cur: i32* = &table[2]
+var high: i32* = &pair.hi
+
+pub func main(arguments: str[]) -> i32:
+    *cur += 1
+    print(f"{table[2]} {*high} {cur - &table[0]}")
+    return 0

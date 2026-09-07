@@ -1,0 +1,28 @@
+## §5.4, §7.6: a bracket holding one bare name is read by what the name resolves to:
+## `i32[NIns]` is an array when `NIns` is a constant, and `insb[NIns]` an index; brackets
+## holding arithmetic are never type arguments; a run of brackets reads inside-out as in C;
+## an array of optionals parenthesises its element type; `(NPtr)` naming a value is an
+## operand, not a cast.
+import c
+let NIns: usize = 8
+let NPtr: usize = 3
+struct Row:
+    var cells: i32[NIns]
+var insb: i32[NIns]
+var grid: u8[2][4]
+var rows: Row[2]
+let names: (c.str?)[3] = ["a", none, "b"]
+
+pub func main(arguments: str[]) -> i32:
+    insb[NIns - 1] = 5
+    insb[NIns - 2] = insb[NIns - 1] + 1
+    grid[1][3] = 9
+    rows[1].cells[NIns - 1] = 7
+    let scaled = (usize)(NPtr) * sizeof(u8*)
+    let last = &insb[0] + NIns
+    var count: usize = 0
+    for name in names:
+        if name != none:
+            count += 1
+    print(f"{insb[NIns - 1]} {insb[NIns - 2]} {sizeof(grid)} {grid[1][3]} {rows[1].cells[NIns - 1]} {scaled} {last - &insb[0]} {count}")
+    return 0

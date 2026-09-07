@@ -1,0 +1,22 @@
+## §5.2: a string literal fills a `c.str?` slot as it fills a `c.str` one, in a constant
+## table and in an assignment.
+import c
+
+struct Op:
+    var name: c.str?
+    var code: i32
+
+let ops: Op[3] = [Op(name = "add", code = 1), Op(name = none, code = 2), Op(name = "sub", code = 3)]
+
+pub func main(arguments: str[]) -> i32:
+    var slot: c.str? = none
+    slot = "mul"
+    var named: usize = 0
+    for op in ops:
+        if op.name != none:
+            named += 1
+    let first = ops[0].name else return 1
+    let third = ops[2].name else return 1
+    let s = slot else return 1
+    print(f"{(str)first} {(str)third} {(str)s} {named}")
+    return 0

@@ -1,0 +1,32 @@
+## §6.6: the escape rule stops at a pointer or a view. A field read through a local row
+## pointer is not the pointer; the bytes of a `str` parameter belong to the caller; and a
+## global of an imported module is a global, so its span may be stored anywhere.
+import regs
+
+struct Node:
+    var next: Node*?
+    var value: i32
+
+struct Holder:
+    var view: const i32[]
+
+func first_byte(text: str) -> const u8*:
+    return &text.bytes[0]
+
+func link(target: Node*, nodes: Node*, n: usize):
+    let row = &nodes[n]
+    target.next = row.next
+
+func fill(h: Holder*):
+    h.view = regs.table
+
+pub func main(arguments: str[]) -> i32:
+    var nodes: Node[3]
+    nodes[2].value = 9
+    nodes[1].next = &nodes[2]
+    link(&nodes[0], &nodes[0], 1)
+    var h = Holder(view = regs.table)
+    fill(&h)
+    let tail = nodes[0].next else return 1
+    print(f"{tail.value} {*first_byte("hi")} {h.view.length}")
+    return 0

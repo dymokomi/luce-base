@@ -72,6 +72,11 @@ pub func slot_ref(index: u32) -> Ref:
 pub func global_ref(name: str) -> Ref:
     return Ref(kind = RefKind.global, index = 0, value = 0, name = name)
 
+## A data symbol another image defines, `__stderrp` or an `extern var`: reached through the
+## GOT, since a direct page address to a dylib's data does not link.
+pub func import_ref(name: str) -> Ref:
+    return Ref(kind = RefKind.global, index = 0, value = 1, name = name)
+
 pub func function_ref(name: str) -> Ref:
     return Ref(kind = RefKind.function, index = 0, value = 0, name = name)
 

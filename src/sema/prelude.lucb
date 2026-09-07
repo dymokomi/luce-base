@@ -46,6 +46,18 @@ pub func trap(message: c.str) -> never:
     discard(write(2, newline.bytes.data, 1))
     c_exit(1)
 
+## `trap: message: detail`, for an `assert` whose message is computed (§11.6).
+pub func trap_two(message: c.str, detail: c.str) -> never:
+    let prefix = "trap: "
+    discard(write(2, prefix.bytes.data, prefix.length))
+    discard(write(2, (const void*)message, strlen(message)))
+    let sep = ": "
+    discard(write(2, sep.bytes.data, 2))
+    discard(write(2, (const void*)detail, strlen(detail)))
+    let newline = "\\n"
+    discard(write(2, newline.bytes.data, 1))
+    c_exit(1)
+
 ## The buffer `format` and f"..." fill: the bytes, their capacity, and the count used.
 pub struct FormatBuffer:
     pub var data: u8*
@@ -423,7 +435,7 @@ pub func f_to_s(value: f64, bits: i32, mode: i32) -> i64:
         if not is_finite(value) or value < low or value > high:
             trap("integer conversion out of range")
         return (i64)value
-    if not is_finite(value):
+    if value != value:
         return 0
     if value <= low:
         return signed_min(bits)
@@ -437,7 +449,7 @@ pub func f_to_u(value: f64, bits: i32, mode: i32) -> u64:
         if not is_finite(value) or value < 0.0 or value > high:
             trap("integer conversion out of range")
         return (u64)value
-    if not is_finite(value) or value < 0.0:
+    if value != value or value < 0.0:
         return 0
     if value >= high:
         return mask_of(bits)

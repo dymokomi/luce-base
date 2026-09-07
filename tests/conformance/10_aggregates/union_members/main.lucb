@@ -1,0 +1,9 @@
+## §10.4: `pub` before a union member opens it to other modules, as it does a field.
+import shape
+
+pub func main(arguments: str[]) -> i32:
+    var c = shape.Cell()
+    c.bits.i = 7
+    c.bits.d = 2.5
+    print(f"{c.bits.d} {shape.raw(c) != 7}")
+    return 0

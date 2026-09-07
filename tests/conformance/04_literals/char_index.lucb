@@ -1,0 +1,8 @@
+## §4.4: an ASCII character literal adapts to an index as it does to `u8`.
+var seen: u8[128]
+
+pub func main(arguments: str[]) -> i32:
+    seen['P'] = 1
+    seen['Q'] += 2
+    print(f"{seen['P']} {seen['Q']} {seen['R']}")
+    return 0

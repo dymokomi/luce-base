@@ -599,7 +599,7 @@ pub struct Emitter:
     ## The C name of a function or method instance.
     mutating func put_func_name(f: ast.Node*, args: u32[], owner: ast.Node*?, owner_args: u32[]) -> !:
         if f.kind == ast.Kind.extern_func:
-            try self.put(names.c_symbol(f))
+            try self.put_extern_name(f)
             return
         if f.has(ast.flag_export):
             try self.put(names.export_prefix)
@@ -1978,12 +1978,13 @@ pub struct Emitter:
             try self.expr(e)
             return
         if w.kind == types.Kind.optional:
-            if self.c.table.has_null_niche(w.elem):
-                # `T*`, `c.str`, or a function into its nullable form: the same word (§5.3)
-                try self.expr(e)
-                return
             if h.kind == types.Kind.optional:
                 try self.expr(e)
+                return
+            if self.c.table.has_null_niche(w.elem):
+                # `T*`, `c.str`, or a function into its nullable form: the same word (§5.3),
+                # the payload converted as the niche type asks (`"text"` into `c.str?`)
+                try self.value(e, w.elem)
                 return
             try self.put("((")
             try self.put_type(want)
@@ -2006,7 +2007,7 @@ pub struct Emitter:
                 return
             try self.expr(e)
             return
-        if want == types.cstr_id and have == types.str_id:
+        if (want == types.cstr_id or (self.kind(want) == types.Kind.optional and self.c.table.get(want).elem == types.cstr_id)) and have == types.str_id:
             if e.kind == ast.Kind.literal:
                 try self.put_c_string(check.decode_text(e.text))
                 return
@@ -2278,7 +2279,7 @@ pub struct Emitter:
             return
         if b[0] == '"' or b[0] == 'r':
             let text = check.decode_text(e.text)
-            if t == types.cstr_id:
+            if t == types.cstr_id or (self.kind(t) == types.Kind.optional and self.c.table.get(t).elem == types.cstr_id):
                 try self.put_c_string(text)
                 return
             try self.put_str_literal(text)
@@ -2339,7 +2340,7 @@ pub struct Emitter:
     ## A function used as a value: its instance's C name.
     mutating func func_value(e: ast.Node*, d: ast.Node*) -> !:
         if d.kind == ast.Kind.extern_func:
-            try self.put(names.c_symbol(d))
+            try self.put_extern_name(d)
             return
         var args = try types.no_args()
         if let t = e.ty:
@@ -3066,6 +3067,18 @@ pub struct Emitter:
         try self.function_name_literal()
         try self.put(" })")
 
+    ## The path of the file the current function came from; the entry's when unknown.
+    func source_of_current() -> str:
+        let f = self.current_fn else return self.src_file
+        let m = f.resolved else return self.src_file
+        var i: usize = 0
+        while i < self.c.modules.count:
+            let module = self.c.modules.get(i)
+            if module.tree == m:
+                return module.src.path
+            i += 1
+        return self.src_file
+
     mutating func function_name_literal() -> !:
         let f = self.current_fn else return try self.put_str_literal("")
         try self.put_str_literal(f.text)
@@ -3075,12 +3088,21 @@ pub struct Emitter:
         let i = e.body else return
         let ot = try self.ty(owner)
         if self.is_array(ot):
+            let length = self.c.table.get(ot).length
+            if i.kind == ast.Kind.literal and i.text.bytes[0] != '\'' and (try check.decode_integer(i.text)) < length:
+                # a literal in range needs no check, and stays a constant expression (§6.4)
+                try self.put("((")
+                try self.expr(owner)
+                try self.put(").d[")
+                try self.put_u64(try check.decode_integer(i.text))
+                try self.put("])")
+                return
             try self.put("((")
             try self.expr(owner)
             try self.put(").d[lb_at((uint64_t)(")
             try self.expr(i)
             try self.put("), ")
-            try self.put_u64(self.c.table.get(ot).length)
+            try self.put_u64(length)
             try self.put("ULL)])")
             return
         if self.is_span(ot):
@@ -3095,16 +3117,7 @@ pub struct Emitter:
             try self.put(".length)])")
             return
         if self.is_ptr(ot):
-            let inner = self.elem(ot)
-            if self.is_array(inner):
-                try self.put("((")
-                try self.expr(owner)
-                try self.put(")->d[lb_at((uint64_t)(")
-                try self.expr(i)
-                try self.put("), ")
-                try self.put_u64(self.c.table.get(inner).length)
-                try self.put("ULL)])")
-                return
+            # element-scaled by the pointee, an array included (§7.7)
             try self.put("((")
             try self.expr(owner)
             try self.put(")[")
@@ -3830,7 +3843,7 @@ pub struct Emitter:
             try self.put(" ")
             try self.put_tmp("or", n)
             try self.put(" = ")
-        try self.put(names.c_symbol(d))
+        try self.put_extern_name(d)
         try self.put("(")
         try self.arguments_with_outs(e.body, fn, d, n)
         try self.put("); ")
@@ -4359,13 +4372,22 @@ pub struct Emitter:
             let cond = arg else return
             try self.put("((void)((")
             try self.value(cond, types.bool_id)
-            try self.put(") ? 0 : (lb_trap(")
+            var located: u8[512]
+            let where = try format(located, f"{self.source_of_current()}:{e.line}: assert failed: {e.text}")
             if let msg = second:
-                try self.put("(")
-                try self.expr(msg)
-                try self.put(").data")
+                if msg.kind == ast.Kind.literal and msg.text.bytes[0] == '"':
+                    var joined: u8[1024]
+                    try self.put(") ? 0 : (lb_trap(")
+                    try self.put_c_string(try format(joined, f"{where}: {check.decode_text(msg.text)}"))
+                else:
+                    try self.put(") ? 0 : (lb_trap_two(")
+                    try self.put_c_string(where)
+                    try self.put(", (")
+                    try self.expr(msg)
+                    try self.put(").data")
             else:
-                try self.put("\"assert failed\"")
+                try self.put(") ? 0 : (lb_trap(")
+                try self.put_c_string(where)
             try self.put("), 0)))")
             return
         if name == "trap":
@@ -5604,11 +5626,9 @@ pub struct Emitter:
             try self.put("(void);")
             i += 1
 
+    ## An `extern func` is declared under its own C name and bound to the symbol by an asm
+    ## label, so a binding of `fputc` never clashes with the prototype `<stdio.h>` carries.
     mutating func extern_prototype(d: ast.Node*) -> !:
-        # the C library's own functions come from the headers the prologue includes;
-        # some of them are macros there, so they are never redeclared
-        if declared_by_headers(names.c_symbol(d)):
-            return
         try self.line("extern ")
         let ft = self.c.table.get(d.type_id)
         let result = declared_result(d) if has_out_params(d) else ft.elem
@@ -5617,7 +5637,7 @@ pub struct Emitter:
         else:
             try self.put_type(result)
         try self.put(" ")
-        try self.put(names.c_symbol(d))
+        try self.put_extern_name(d)
         try self.put("(")
         var first = true
         if has_out_params(d):
@@ -5646,7 +5666,17 @@ pub struct Emitter:
             first = false
         if first:
             try self.put("void")
+        try self.put(") LB_SYMBOL(")
+        try self.put_c_string(names.c_symbol(d))
         try self.put(");")
+
+    ## `lb_x_module_symbol`: the C name an `extern func` is declared and called under. The
+    ## module is part of it, since two modules may bind one symbol with different shapes.
+    mutating func put_extern_name(d: ast.Node*) -> !:
+        try self.put("lb_x_")
+        try self.put(names.module_of(d))
+        try self.put("_")
+        try self.put(names.c_symbol(d))
 
     ## A top-level `let` or `var` as a C global.
     mutating func global(d: ast.Node*) -> !:
@@ -5956,14 +5986,6 @@ func unescape_braces(text: str) -> str:
     return (str)out[..<n]
 
 ## Functions of stdio.h, stdlib.h, and string.h, which the generated C includes.
-func declared_by_headers(symbol: str) -> bool:
-    let known: str[32] = ["memcpy", "memmove", "memset", "memcmp", "strlen", "malloc", "free", "realloc", "calloc", "exit", "abort", "fwrite", "fread", "fputs", "fflush", "fdopen", "fopen", "fclose", "posix_memalign", "snprintf",
-                          "getenv", "setenv", "unsetenv", "putenv", "atoi", "strtol", "strcmp", "strncmp", "strchr", "strstr", "printf", "fprintf"]
-    for n in known:
-        if n == symbol:
-            return true
-    return false
-
 func contains_id(ids: const u32[], id: u32) -> bool:
     for x in ids:
         if x == id:
