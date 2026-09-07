@@ -137,6 +137,18 @@ pub struct Emitter:
         else:
             try self.globals.put(text)
 
+    ## A number literal's digits without the `_` separators C does not read.
+    mutating func put_digits(text: str) -> !:
+        let b = text.bytes
+        var start: usize = 0
+        var i: usize = 0
+        while i < b.length:
+            if b[i] == '_':
+                try self.put((str)b[start..<i])
+                start = i + 1
+            i += 1
+        try self.put((str)b[start..])
+
     mutating func put_u64(value: u64) -> !:
         if self.target == to_body:
             try self.body.put_u64(value)
@@ -1469,9 +1481,16 @@ pub struct Emitter:
             try self.put(" = ")
             try self.value(seq, it)
             try self.put(";")
+            # `for character in text` walks the scalars of valid UTF-8 (§5.5): the index
+            # advances by each scalar's width
             try self.line("for (size_t ")
             try self.put_tmp("i", n)
-            try self.put(" = 0; ")
+            try self.put(" = 0")
+            if it == types.str_id:
+                try self.put(", ")
+                try self.put_tmp("w", n)
+                try self.put(" = 0")
+            try self.put("; ")
             try self.put_tmp("i", n)
             try self.put(" < ")
             if self.is_array(it):
@@ -1481,7 +1500,12 @@ pub struct Emitter:
                 try self.put(".length")
             try self.put("; ")
             try self.put_tmp("i", n)
-            try self.put("++) {")
+            if it == types.str_id:
+                try self.put(" += ")
+                try self.put_tmp("w", n)
+                try self.put(") {")
+            else:
+                try self.put("++) {")
             self.indent += 1
             # the element, by value or by pointer, or the tuple members
             if binding.body != none:
@@ -1540,11 +1564,15 @@ pub struct Emitter:
             try self.put_tmp("i", n)
             try self.put("]")
         elif it == types.str_id:
-            try self.put("((const unsigned char*)")
+            try self.put("lb_utf8_scalar(")
             try self.put_tmp("seq", n)
-            try self.put(".data)[")
+            try self.put(".data, ")
+            try self.put_tmp("seq", n)
+            try self.put(".length, ")
             try self.put_tmp("i", n)
-            try self.put("]")
+            try self.put(", &")
+            try self.put_tmp("w", n)
+            try self.put(")")
         else:
             try self.put("((")
             if self.c.table.get(it).is_const:
@@ -2193,7 +2221,7 @@ pub struct Emitter:
             try self.put("})")
             return
         if check.is_float_text(e.text):
-            try self.put(strip_underscores(e.text))
+            try self.put_digits(check.literal_body(e.text))
             if t == types.f16_id:
                 try self.put("f16")
             elif t == types.f32_id:
@@ -4740,6 +4768,13 @@ pub struct Emitter:
             try self.expr(v)
             try self.put(")")
             return
+        if t == types.char_id:
+            try self.put("lb_fmtbuf_char(&")
+            try self.put_tmp(prefix, n)
+            try self.put(", ")
+            try self.expr(v)
+            try self.put(")")
+            return
         if t == types.str_id or t == types.fmt_id:
             let k = self.tmp()
             try self.put("({ lb_str ")
@@ -4852,6 +4887,10 @@ pub struct Emitter:
                     try self.put("fputs((")
                     try self.expr(v)
                     try self.put(") ? \"true\" : \"false\", stdout); ")
+                elif t == types.char_id:
+                    try self.put("{ char lb_cb[4]; fwrite(lb_cb, 1, lb_utf8_encode(")
+                    try self.expr(v)
+                    try self.put(", lb_cb), stdout); } ")
                 elif t == types.str_id or t == types.fmt_id:
                     let k = self.tmp()
                     try self.put("{ lb_str ")
@@ -5511,15 +5550,6 @@ func case_tag(d: ast.Node*, target: ast.Node*) -> u32:
     return 0
 
 ## A float literal without its digit separators.
-func strip_underscores(text: str) -> str:
-    var any = false
-    for b in text.bytes:
-        if b == '_':
-            any = true
-    if not any:
-        return text
-    return text
-
 ## `{{` and `}}` in a formatted piece are one brace each.
 func unescape_braces(text: str) -> str:
     let b = text.bytes

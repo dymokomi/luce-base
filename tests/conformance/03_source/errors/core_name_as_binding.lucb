@@ -1,0 +1,4 @@
+# error: this name belongs to the language; a declaration cannot take it (§3.5)
+pub func main(arguments: str[]) -> i32:
+    let sizeof = 4
+    return 0

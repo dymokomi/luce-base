@@ -1,0 +1,9 @@
+﻿## §3.1: a byte-order mark at byte zero is ignored; CRLF is normalised; Unicode is fine
+## inside text and comments: café, 日本, 🚀.
+pub func main(arguments: str[]) -> i32:
+    let text = "naïve — 日本 🚀"
+    var scalars = 0
+    for ch in text:
+        scalars += 1
+    print(f"{text.length} {scalars}")
+    return 0

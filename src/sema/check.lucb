@@ -96,6 +96,9 @@ pub struct Checker:
     ## Inside `init`, where `let` fields take their first value.
     var in_init: bool
     var loop_depth: u32
+    ## The labels of the loops open around the statement being checked (§8.5).
+    var labels: str[16]
+    var label_count: usize
     var in_catch: bool
     var catch_result: u32
     ## Inside a generic declaration, where parameter types stand for themselves.
@@ -1003,7 +1006,7 @@ pub struct Checker:
             return self.assignable(e, have, t.elem)
         if have == types.char_id and want == types.u8_id:
             if let n = e:
-                return n.kind == ast.Kind.literal and n.text.bytes[0] == '\''
+                return n.kind == ast.Kind.literal and n.text.bytes[0] == '\'' and decode_char(n.text) < 128
             return false
         if have == types.str_id and want == types.cstr_id:
             if let n = e:
@@ -1368,7 +1371,8 @@ pub struct Checker:
                 return hint
             return types.none_id
         if first == '\'':
-            if hint == types.u8_id:
+            # an ASCII character adapts to a byte (§4.4); any other is a `char`
+            if hint == types.u8_id and decode_char(e.text) < 128:
                 return types.u8_id
             return types.char_id
         if first == '"':
@@ -1379,9 +1383,24 @@ pub struct Checker:
             if first == 'b':
                 return try self.table.span(types.u8_id, true)
             return types.str_id
+        let suffix = literal_suffix(e.text)
+        if suffix.length > 0:
+            return try self.suffixed_literal(e, suffix)
         if is_float_literal(e.text):
             return types.untyped_float_id
         return types.untyped_int_id
+
+    ## `255u8`, `0.5f32`: the suffix names the literal's exact type (§4.2, §4.3), and the
+    ## literal must fit it.
+    mutating func suffixed_literal(e: ast.Node*, suffix: str) -> u32!:
+        let id = scalar_id(suffix)
+        if id == types.none_id or not self.table.is_numeric(id):
+            return try self.fail(e, "a literal suffix names an integer or float type")
+        if self.table.is_float(id) != is_float_literal(e.text):
+            return try self.fail(e, "a float suffix needs a float literal, an integer suffix an integer literal")
+        if self.table.is_integer(id):
+            try self.check_fits(e, id)
+        return id
 
     ## A name is a local, a declaration, a module, or a type used as a value.
     mutating func name_type(e: ast.Node*) -> u32!:
@@ -1488,6 +1507,8 @@ pub struct Checker:
             if self.is_local_value(inner):
                 self.mark_local(e)
             return t.elem
+        if e.text == "-" and inner.kind == ast.Kind.literal and self.table.is_integer(hint) and not self.table.is_signed(hint):
+            return try self.fail(e, "a negative literal does not fit an unsigned type")
         let it = try self.check_expr(inner, hint)
         if e.text == "-" or e.text == "+":
             if it == types.untyped_int_id or it == types.untyped_float_id or self.table.is_numeric(it):
@@ -2866,10 +2887,10 @@ pub struct Checker:
             .while_:
                 self.push_scope()
                 try self.check_condition(s)
-                self.loop_depth += 1
+                try self.enter_loop(s)
                 let body = s.body else return try self.fail(s, "a loop needs a body")
                 try self.check_block(body)
-                self.loop_depth -= 1
+                self.leave_loop(s)
                 self.pop_scope()
                 if not s.has(ast.flag_if_let):
                     var r = self.reporter()
@@ -2883,6 +2904,8 @@ pub struct Checker:
             .break_, .continue_:
                 if self.loop_depth == 0:
                     discard(try self.fail(s, "not inside a loop"))
+                elif s.text.length > 0 and not self.has_label(s.text):
+                    discard(try self.fail(s, "no enclosing loop has this label"))
             .defer_, .errdefer_:
                 if s.kind == ast.Kind.errdefer_ and not self.fallible:
                     discard(try self.fail(s, "`errdefer` needs a fallible function"))
@@ -2956,6 +2979,33 @@ pub struct Checker:
             lines = l.next
 
     ## `let`/`var`, with a name or a tuple of names (§6.1).
+    ## A loop opens: its label, when it has one, may be neither a core name (§3.5) nor one
+    ## of the labels already open around it (§8.5).
+    mutating func enter_loop(s: ast.Node*) -> !:
+        self.loop_depth += 1
+        if s.text.length == 0:
+            return
+        if token.is_core_name(s.text):
+            discard(try self.fail(s, "this name belongs to the language; a label cannot take it (§3.5)"))
+        elif self.has_label(s.text):
+            discard(try self.fail(s, "this label is already open"))
+        if self.label_count < self.labels.length:
+            self.labels[self.label_count] = s.text
+        self.label_count += 1
+
+    mutating func leave_loop(s: ast.Node*):
+        self.loop_depth -= 1
+        if s.text.length > 0:
+            self.label_count -= 1
+
+    func has_label(name: str) -> bool:
+        var i: usize = 0
+        while i < self.label_count and i < self.labels.length:
+            if self.labels[i] == name:
+                return true
+            i += 1
+        return false
+
     mutating func check_binding(s: ast.Node*) -> !:
         let mutable = s.kind == ast.Kind.var_
         var declared = types.none_id
@@ -2990,6 +3040,8 @@ pub struct Checker:
                     return try self.fail(init, "`none` needs a written type")
                 if got == types.untyped_int_id or got == types.untyped_float_id:
                     discard(try self.coerce(init, got, id))
+                if id == types.fmt_id:
+                    return try self.fail(init, "a formatted string is not a value: print it, write it, or format it (§4.4)")
                 if id == types.unit_id:
                     return try self.fail(init, "this expression has no value")
                 if id == types.never_id:
@@ -3117,10 +3169,10 @@ pub struct Checker:
                 return try self.mismatch(binding, declared, elem)
             binding.type_id = elem if declared == types.none_id else declared
             try self.bind(binding, binding.text, binding.type_id, binding, false)
-        self.loop_depth += 1
+        try self.enter_loop(s)
         let body = s.body else return try self.fail(s, "a loop needs a body")
         try self.check_block(body)
-        self.loop_depth -= 1
+        self.leave_loop(s)
         self.pop_scope()
 
     ## The `iterator()` method of a struct or enum type, the mark of an Iterable (§14.4).
@@ -3309,8 +3361,10 @@ pub struct Checker:
         let saved_self_mutable = self.self_mutable
         let saved_in_init = self.in_init
         let saved_loop = self.loop_depth
+        let saved_labels = self.label_count
         self.current_func = f
         self.loop_depth = 0
+        self.label_count = 0
         let ft = self.table.get(f.type_id)
         self.fallible = f.has(ast.flag_fallible)
         self.result_type = self.table.get(ft.elem).elem if self.fallible else ft.elem
@@ -3348,6 +3402,7 @@ pub struct Checker:
         self.self_type = saved_self
         self.self_mutable = saved_self_mutable
         self.in_init = saved_in_init
+        self.label_count = saved_labels
         self.loop_depth = saved_loop
         self.checking_template = saved_template
         self.pop_scope()
@@ -3832,7 +3887,7 @@ pub func decode_char(spelled: str) -> u32:
     return (u32)e
 
 func is_float_literal(text: str) -> bool:
-    let b = text.bytes
+    let b = literal_body(text).bytes
     if b.length > 1 and b[0] == '0' and (b[1] == 'x' or b[1] == 'X' or b[1] == 'b' or b[1] == 'B' or b[1] == 'o' or b[1] == 'O'):
         return false
     for byte in b:
@@ -3840,9 +3895,30 @@ func is_float_literal(text: str) -> bool:
             return true
     return false
 
+## The type suffix of a number literal, `u8` in `255u8` or `f32` in `0.5f32`, or empty
+## (§4.2, §4.3). A based literal's suffix begins at its first non-digit.
+pub func literal_suffix(text: str) -> str:
+    let b = text.bytes
+    var i: usize = 0
+    if b.length > 1 and b[0] == '0' and (b[1] == 'x' or b[1] == 'o' or b[1] == 'b'):
+        i = 2
+        while i < b.length and (is_hex_digit(b[i]) or b[i] == '_'):
+            i += 1
+        return (str)b[i..]
+    while i < b.length and b[i] != 'i' and b[i] != 'u' and b[i] != 'f':
+        i += 1
+    return (str)b[i..]
+
+## A number literal without its suffix: what its digits say.
+pub func literal_body(text: str) -> str:
+    return (str)text.bytes[..<text.length - literal_suffix(text).length]
+
+func is_hex_digit(b: u8) -> bool:
+    return (b >= '0' and b <= '9') or (b >= 'a' and b <= 'f') or (b >= 'A' and b <= 'F')
+
 ## Decode an integer literal: decimal, `0x`, `0b`, `0o`, with `_` separators.
 pub func decode_integer(text: str) -> u64!:
-    let b = text.bytes
+    let b = literal_body(text).bytes
     var base: u64 = 10
     var i: usize = 0
     if b.length > 1 and b[0] == '0':

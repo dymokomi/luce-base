@@ -1,0 +1,5 @@
+# error: `class` belongs to full Luce; Base declares a `struct`
+class Point:
+    var x: i64
+pub func main(arguments: str[]) -> i32:
+    return 0

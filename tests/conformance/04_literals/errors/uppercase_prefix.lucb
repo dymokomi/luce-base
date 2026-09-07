@@ -1,0 +1,4 @@
+# error: a based integer prefix is lowercase: `0x`, `0o`, or `0b`
+pub func main(arguments: str[]) -> i32:
+    let x = 0XFF
+    return 0

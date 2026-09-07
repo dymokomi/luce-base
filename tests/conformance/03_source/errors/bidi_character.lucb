@@ -1,0 +1,4 @@
+# error: bidirectional format characters are not allowed in source
+# a comment with ‮ hidden text
+pub func main(arguments: str[]) -> i32:
+    return 0

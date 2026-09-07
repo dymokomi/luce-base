@@ -1,0 +1,4 @@
+# error: a formatted string is not a value: print it, write it, or format it (§4.4)
+pub func main(arguments: str[]) -> i32:
+    let s = f"{1}"
+    return 0

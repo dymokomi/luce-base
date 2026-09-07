@@ -1,17 +1,17 @@
 # Plan
 
 Slices are ordered by what the self-hosting gate needs. Each ends with the
-unit tests green in the oracle and the binary agreeing on `samples/`.
+unit tests green in the oracle and the binary agreeing on `tests/samples/`.
 
 | Slice | Scope | Gate |
 | --- | --- | --- |
-| 1. Lexer | tokens, literals, layout, `luce-base lex` | done: every file under `samples/`, the seed's `testdata/`, and this tree tokenizes |
+| 1. Lexer | tokens, literals, layout, `luce-base lex` | done: every file under `tests/samples/`, the seed's `testdata/`, and this tree tokenizes |
 | 2. Syntax | arena tree, full grammar of §21, `luce-base parse` | done: every Base file we have parses, including this compiler's own sources |
-| 3. Checking | names, types, effects, `luce-base check` | done: every sample and every source of this tree checks; every program under `samples/errors/` is rejected for its stated reason |
+| 3. Checking | names, types, effects, `luce-base check` | done: every sample and every source of this tree checks; every program under `tests/samples/errors/` is rejected for its stated reason |
 | 4. C backend | checked tree to C, `luce-base build` and `luce-base test` | done: every sample with `main` builds and runs; every module's tests pass through the binary |
 | 5. Self-hosting | the seed pinned; the standard modules in Base | done: `bootstrap/luce-base.c` is the compiler's own C and `build.sh` starts from it with only a C compiler; `memory`, `io`, `files`, `process`, `thread`, `sync`, and `atomic` are Base source over `extern` in `src/sema/prelude.lucb`; the C runtime is down to traps, checked arithmetic, formatting, and hashing |
 | 6. Native | one target, arm64-macos, proved against the C backend | done: every sample and every module's tests agree under both backends; the compiler builds itself natively and the native build emits the same C and assembly as the C build; `tools/native_check.sh` runs the seed's corpus natively |
-| 7. Proving | programs big enough to break things: a threaded HTTP server, a terminal editor, `luce-base-d` (a debugger), an SDL3 editor, a Metal GPU computation, and inline arm64 assembly; built natively, with no C in the path | in progress: `programs/http`, `programs/editor`, `programs/debugger` (`luce-base-d`), and `programs/gui` (an SDL3 window) are under the gate; the rounds so far found pointer arithmetic, negated literals, function-typed field calls, spinning locks, padding in aggregate equality, two-register results, unknown escapes, generic instance sizes, and `sizeof` losing its size in arithmetic, all pinned in `luce-seed/testdata/programs/` or `samples/errors/` |
+| 7. Proving | programs big enough to break things: a threaded HTTP server, a terminal editor, `luce-base-d` (a debugger), an SDL3 editor, a Metal GPU computation, and inline arm64 assembly; built natively, with no C in the path | in progress: `tests/programs/http`, `tests/programs/editor`, `tests/programs/debugger` (`luce-base-d`), and `tests/programs/gui` (an SDL3 window) are under the gate; the rounds so far found pointer arithmetic, negated literals, function-typed field calls, spinning locks, padding in aggregate equality, two-register results, unknown escapes, generic instance sizes, and `sizeof` losing its size in arithmetic, all pinned in `luce-seed/testdata/programs/` or `tests/samples/errors/` |
 | 8. Codegen | register allocation over the IR, then the release | in progress: the product is the compiler built by itself natively; locals live in registers, temporaries by linear scan, small records copy inline; the native-built compiler is 4–5× slower than the C `-O2` build, and `docs/DESIGN.md` names what closes the rest of that gap |
 | 9. Linking | `luce-ld`, a linker of our own, as Zig carries one, in its own repository | a native build that needs nothing from the host toolchain |
 
@@ -57,8 +57,8 @@ source instead of seed builtins. `memory`, `io`, `files`, `process`,
 `testing`, and `net` (TCP and UDP over BSD sockets, with `resolve`) are in
 `src/sema/prelude.lucb`, each a piece of Base over `extern` declarations of the C
 library; the constants are those of arm64-macos, and a second target gets its
-own copy through the per-target modules of §16.4. `samples/library.lucb` and
-`samples/loopback.lucb` exercise them under the gate. What remains grows in
+own copy through the per-target modules of §16.4. `tests/samples/library.lucb` and
+`tests/samples/loopback.lucb` exercise them under the gate. What remains grows in
 the order the operating system needs it:
 
 1. TLS for `net`, through a bound library.

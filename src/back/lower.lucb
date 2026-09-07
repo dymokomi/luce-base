@@ -843,6 +843,8 @@ pub struct Lowerer:
         let data_slot = try self.f.slot(8, 8)
         let count_slot = try self.f.slot(8, 8)
         let index_slot = try self.f.slot(8, 8)
+        # text is walked by scalar (§5.5): the width of the last one steps the index
+        let width_slot = try self.f.slot(8, 8)
         var element_type = types.u8_id
         var stride: u64 = 1
         if self.is_array(it):
@@ -894,8 +896,8 @@ pub struct Lowerer:
             try self.f.store(ir.Op.storel, element_address, try self.slot_address(slot))
         elif it == types.str_id:
             let slot = try self.bind_local(binding, types.char_id)
-            let byte = try self.f.load(ir.Op.loadub, ir.Class.w, element_address)
-            try self.f.store(ir.Op.storew, byte, try self.slot_address(slot))
+            let scalar = try self.utf8_scalar(base, n, i2, try self.slot_address(width_slot))
+            try self.f.store(ir.Op.storew, scalar, try self.slot_address(slot))
         else:
             let bt = try self.map(binding.type_id)
             let slot = try self.bind_local(binding, bt)
@@ -905,12 +907,24 @@ pub struct Lowerer:
             try self.block(body)
         try self.f.place_label(step)
         let i3 = try self.f.load(ir.Op.loadl, ir.Class.l, try self.slot_address(index_slot))
-        let next = try self.f.binary(ir.Op.add, ir.Class.l, i3, ir.const_ref(1))
+        var advance = ir.const_ref(1)
+        if it == types.str_id:
+            advance = try self.f.load(ir.Op.loadl, ir.Class.l, try self.slot_address(width_slot))
+        let next = try self.f.binary(ir.Op.add, ir.Class.l, i3, advance)
         try self.f.store(ir.Op.storel, next, try self.slot_address(index_slot))
         try self.f.jump(head)
         try self.f.place_label(end_label)
         try self.unwind(self.scopes.count - 1, false)
         self.pop_scope()
+
+    ## `core.utf8_scalar(data, count, index, &width)`: the scalar at a byte of valid UTF-8.
+    mutating func utf8_scalar(data: ir.Ref, count: ir.Ref, index: ir.Ref, width: ir.Ref) -> ir.Ref!:
+        let start = u32(self.f.args.count)
+        try self.f.args.push(ir.Arg(value = data, cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, is_float_only = false, float_count = 0))
+        try self.f.args.push(ir.Arg(value = count, cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, is_float_only = false, float_count = 0))
+        try self.f.args.push(ir.Arg(value = index, cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, is_float_only = false, float_count = 0))
+        try self.f.args.push(ir.Arg(value = width, cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, is_float_only = false, float_count = 0))
+        return try self.call_named("lb_core_utf8_scalar", start, 4, ir.Class.w, true, types.char_id)
 
     mutating func jump(s: ast.Node*) -> !:
         let target = self.loop_scope(s.text)
@@ -1299,12 +1313,13 @@ pub struct Lowerer:
             let span_type = try self.c.table.span(types.u8_id, true) if b[0] == 'b' else types.str_id
             return try self.span_of(data, ir.const_ref((i64)text.length), span_type)
         if check.is_float_text(e.text):
-            let bits = float_bits(e.text)
+            let digits = check.literal_body(e.text)
+            let bits = float_bits(digits)
             if t == types.f16_id:
-                let h = try self.f.unary(ir.Op.cast, ir.Class.h, ir.const_ref((i64)float16_bits(e.text)))
+                let h = try self.f.unary(ir.Op.cast, ir.Class.h, ir.const_ref((i64)float16_bits(digits)))
                 return LowerValue(ref = h, type_id = t, in_memory = false)
             if t == types.f32_id:
-                let w = try self.f.unary(ir.Op.cast, ir.Class.s, ir.const_ref((i64)float32_bits(e.text)))
+                let w = try self.f.unary(ir.Op.cast, ir.Class.s, ir.const_ref((i64)float32_bits(digits)))
                 return LowerValue(ref = w, type_id = t, in_memory = false)
             let d = try self.f.unary(ir.Op.cast, ir.Class.d, ir.const_ref((i64)bits))
             return LowerValue(ref = d, type_id = types.f64_id if t == types.untyped_float_id else t, in_memory = false)
@@ -3535,6 +3550,12 @@ pub struct Lowerer:
             try self.f.args.push(ir.Arg(value = fb, cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, is_float_only = false, float_count = 0))
             try self.f.args.push(ir.Arg(value = x.ref, cls = ir.Class.w, size = 0, align = 4, type_id = types.bool_id, is_float_only = false, float_count = 0))
             discard(try self.call_named("lb_core_format_bool", start, 2, ir.Class.w, true, types.i32_id))
+            return
+        if t == types.char_id:
+            let start = u32(self.f.args.count)
+            try self.f.args.push(ir.Arg(value = fb, cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, is_float_only = false, float_count = 0))
+            try self.f.args.push(ir.Arg(value = x.ref, cls = ir.Class.w, size = 0, align = 4, type_id = types.char_id, is_float_only = false, float_count = 0))
+            discard(try self.call_named("lb_core_format_char", start, 2, ir.Class.w, true, types.i32_id))
             return
         if t == types.str_id or t == types.fmt_id:
             let data = try self.f.load(ir.Op.loadl, ir.Class.l, x.ref)

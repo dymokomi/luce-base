@@ -1,0 +1,4 @@
+# error: a Unicode escape is \u{HEX} with one to six digits
+pub func main(arguments: str[]) -> i32:
+    let s = "\u{1234567}"
+    return 0

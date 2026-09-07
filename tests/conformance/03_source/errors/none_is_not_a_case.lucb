@@ -1,0 +1,6 @@
+# error: expected a name
+enum Slot:
+    none
+    some
+pub func main(arguments: str[]) -> i32:
+    return 0

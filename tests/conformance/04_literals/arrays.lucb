@@ -1,0 +1,13 @@
+## §4.5: an array literal is a fixed array; its element type comes from context or from
+## the elements, which must agree.
+pub func main(arguments: str[]) -> i32:
+    let magic: u8[4] = [0x4c, 0x55, 0x43, 0x45]
+    let primes = [2, 3, 5, 7]
+    let ratios = [0.5, 0.25]
+    let words = ["a", "bb"]
+    var total: i64 = 0
+    for p in primes:
+        total += p
+    print(f"{magic[0]} {magic.length} {sizeof(magic)} {primes.length} {sizeof(primes)} {total}")
+    print(f"{ratios[1]} {words[1]} {sizeof(ratios)}")
+    return 0

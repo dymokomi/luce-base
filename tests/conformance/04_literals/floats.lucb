@@ -1,0 +1,14 @@
+## §4.3: float forms, `f64` without context, a suffix, context choosing `f32` and `f16`,
+## and a decimal correctly rounded to each width.
+pub func main(arguments: str[]) -> i32:
+    let one = 1.0
+    let avogadro = 6.022e23
+    let half = 0.5f32
+    let grouped = 1_000.25
+    let narrow: f32 = 0.1
+    let half_float: f16 = 0.1
+    let tenth = 0.1
+    print(f"{one} {avogadro} {half} {grouped}")
+    print(f"{f64(narrow) == tenth} {f64(half_float) == tenth} {f64(narrow) > f64(half_float)}")
+    print(f"{sizeof(one)} {sizeof(half)} {sizeof(half_float)}")
+    return 0

@@ -29,11 +29,13 @@ seed implements. What this compiler must do to earn the switch is in
 ```sh
 ./build.sh                            # bootstrap/luce-base.c with cc, then the compiler from source
 ./test.sh                             # the gate: both backends over every sample, test, and the compiler
-./build/luce-base lex samples/hello.lucb
-./build/luce-base parse samples/hello.lucb
-./build/luce-base check samples/json.lucb                  # silence means it checks
-./build/luce-base build samples/json.lucb -o json          # C through the host cc
-./build/luce-base build samples/json.lucb --native -o json # arm64 assembly through as and ld, no C
+
+The test material lives under `tests/`: `tests/samples` (programs with their expected output and the rejected programs), `tests/programs` (the proving programs, each with a `check.sh`), and `tests/conformance` (one positive and one negative program per point of the specification, run through both backends and the seed).
+./build/luce-base lex tests/samples/hello.lucb
+./build/luce-base parse tests/samples/hello.lucb
+./build/luce-base check tests/samples/json.lucb                  # silence means it checks
+./build/luce-base build tests/samples/json.lucb -o json          # C through the host cc
+./build/luce-base build tests/samples/json.lucb --native -o json # arm64 assembly through as and ld, no C
 ./build/luce-base test src/front/parser.lucb               # the module's tests, compiled and run
 ./build/luce-base test src/front/parser.lucb --native      # the same tests through the native backend
 ./build/luce-base build src/main.lucb --native -o B2       # the compiler builds itself, natively
@@ -74,35 +76,35 @@ with every temporary in the frame; register allocation is next.
 
 ## Proving programs
 
-`programs/` holds programs large enough to break a compiler, each built
+`tests/programs/` holds programs large enough to break a compiler, each built
 natively under the gate and driven from outside by its `check.sh`:
 
-- `programs/http`: a multi-threaded HTTP/1.1 server (a listener thread, a
+- `tests/programs/http`: a multi-threaded HTTP/1.1 server (a listener thread, a
   pool of workers over a bounded queue, static files, `/echo`, `/stats`,
   keep-alive), proved with `curl`.
-- `programs/editor`: a terminal text editor (a gap buffer, whole-text undo
+- `tests/programs/editor`: a terminal text editor (a gap buffer, whole-text undo
   and redo, incremental search, a screen of escape sequences, raw mode over
   `termios`), proved by replaying a script of keys headlessly and comparing
   the saved file and the final screen.
-- `programs/debugger`: `luce-base-d`, a source-level debugger. `luce-base
+- `tests/programs/debugger`: `luce-base-d`, a source-level debugger. `luce-base
   build --debug --native` describes every frame (each named local's slot and
   type) and calls the `debug` module before every statement; the debugger
   lives in the program and talks on standard input and output: breakpoints,
   `step`, `next`, `print`, `locals`, `backtrace`. Proved with a scripted
   session over a sample.
-- `programs/gui`: the same editor with a window, over SDL3 reached through
+- `tests/programs/gui`: the same editor with a window, over SDL3 reached through
   `extern` alone (`luce-base build --native -lSDL3 -L/opt/homebrew/lib`).
   Proved by replaying keys under SDL's dummy video driver and comparing the
   saved file and the frame's text. It shares the buffer, history, and
   editing session with the terminal editor.
-- `programs/metal`: a GPU computation. A compute shader, given as text and
+- `tests/programs/metal`: a GPU computation. A compute shader, given as text and
   compiled at run time, squares an array of floats; the result is read back.
   Metal is reached through its one C entry point and the Objective-C runtime
   alone (`-lobjc -framework Foundation -framework Metal`); the bridge in
-  `programs/metal/objc.lucb` is a hundred lines of ordinary Base.
+  `tests/programs/metal/objc.lucb` is a hundred lines of ordinary Base.
 - `-W` on `check`, `build`, or `test` prints the checker's warnings; what
   they name is pruned from the program either way (`docs/DESIGN.md`).
-- `programs/asm`: hand-written arm64 in Base source (`asm arm64(operands):`),
+- `tests/programs/asm`: hand-written arm64 in Base source (`asm arm64(operands):`),
   the same lines compiled by the native backend and by the host C compiler,
   proved to agree.
 

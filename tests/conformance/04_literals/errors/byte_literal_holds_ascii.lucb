@@ -1,0 +1,4 @@
+# error: a byte literal holds ASCII text and `\xNN` escapes
+pub func main(arguments: str[]) -> i32:
+    let b = b"café"
+    return 0

@@ -1,0 +1,5 @@
+# error: this name belongs to the language; a declaration cannot take it (§3.5)
+struct Error:
+    var code: i64
+pub func main(arguments: str[]) -> i32:
+    return 0

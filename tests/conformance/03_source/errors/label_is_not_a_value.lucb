@@ -1,0 +1,5 @@
+# error: unknown name
+pub func main(arguments: str[]) -> i32:
+    outer: for i in 0..<2:
+        let n = outer
+    return 0

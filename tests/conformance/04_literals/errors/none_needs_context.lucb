@@ -1,0 +1,4 @@
+# error: `none` needs a written type
+pub func main(arguments: str[]) -> i32:
+    let x = none
+    return 0

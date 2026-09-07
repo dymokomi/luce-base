@@ -1,0 +1,4 @@
+# error: unknown escape
+pub func main(arguments: str[]) -> i32:
+    let s = "\q"
+    return 0

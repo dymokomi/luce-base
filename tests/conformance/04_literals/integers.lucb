@@ -1,0 +1,22 @@
+## §4.2: every integer form, context choosing the type, `i64` when there is none, a
+## suffix naming an exact type, and the most negative `i64` written as a literal.
+pub func main(arguments: str[]) -> i32:
+    let plain = 42
+    let big = 1_000_000
+    let hexed = 0xff
+    let octal = 0o755
+    let binary = 0b1010_1100
+    let byte = 255u8
+    let narrow = -20i32
+    let wide: u64 = 18446744073709551615
+    let lowest = -9223372036854775808
+    let byte_from_context: u8 = 200
+    let short: i16 = -32768
+    print(f"{plain} {big} {hexed} {octal} {binary} {byte} {narrow}")
+    print(f"{wide} {lowest} {byte_from_context} {short}")
+    print(f"{sizeof(plain)} {sizeof(byte)} {sizeof(narrow)} {sizeof(short)}")
+    var steps = 0
+    for i in 0..<4:
+        steps += 1
+    print(f"{steps}")
+    return 0

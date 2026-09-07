@@ -1,0 +1,4 @@
+# error: invalid UTF-8 in source
+# café
+pub func main(arguments: str[]) -> i32:
+    return 0

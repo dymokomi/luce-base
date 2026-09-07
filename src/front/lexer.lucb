@@ -198,8 +198,10 @@ pub struct Lexer:
             self.newline_here()
         return t
 
-    mutating func number(start: usize) -> token.Token:
+    mutating func number(start: usize) -> token.Token!:
         var kind = token.Kind.integer
+        if self.peek() == '0' and (self.peek_at(1) == 'X' or self.peek_at(1) == 'O' or self.peek_at(1) == 'B'):
+            error(bad_character, "a based integer prefix is lowercase: `0x`, `0o`, or `0b`")
         if self.peek() == '0' and (self.peek_at(1) == 'x' or self.peek_at(1) == 'o' or self.peek_at(1) == 'b'):
             self.offset += 2
             while self.is_hex(self.peek()) or self.peek() == '_':
@@ -260,6 +262,8 @@ pub struct Lexer:
             if c == '\\' and not raw:
                 try self.escape(kind == token.Kind.bytes)
                 continue
+            if kind == token.Kind.bytes and c >= 0x80:
+                error(bad_character, "a byte literal holds ASCII text and `\\xNN` escapes")
             if c == '"':
                 if not triple:
                     self.offset += 1
@@ -369,7 +373,7 @@ pub struct Lexer:
                 return self.make(token.Kind.keyword, start)
             return self.make(token.Kind.name, start)
         if self.is_digit(c):
-            return self.number(start)
+            return try self.number(start)
         if c == '"':
             self.offset += 1
             if self.peek() == '"' and self.peek_at(1) == '"':

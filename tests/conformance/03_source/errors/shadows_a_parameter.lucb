@@ -1,0 +1,6 @@
+# error: this name is already in scope
+func f(n: i64) -> i64:
+    let n = 2
+    return n
+pub func main(arguments: str[]) -> i32:
+    return i32(f(1))

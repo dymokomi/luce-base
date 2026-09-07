@@ -1,0 +1,5 @@
+# error: expected the end of the line
+pub func main(arguments: str[]) -> i32:
+    var x = 1
+    if true: x = 2 x = 3
+    return 0

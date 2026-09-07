@@ -1,0 +1,23 @@
+## §4.4: characters, text, bytes, raw and triple-quoted strings, escapes, and the
+## formatted string with its literal braces and one-word field functions.
+pub func main(arguments: str[]) -> i32:
+    let letter = 'A'
+    let byte: u8 = 'A'
+    let newline: u8 = '\n'
+    let rocket = '\u{1F680}'
+    let text = "hello"
+    let bytes = b"\x89PNG\r\n"
+    let raw = r"C:\studio\shots"
+    let block = """
+        first line
+          indented
+        last
+        """
+    let escaped = "tab\there \"quoted\" \\ \u{e9}"
+    let frame = 7
+    print(f"{letter} {byte} {newline} {u32(rocket)} {text} {text.length}")
+    print(f"{bytes.length} {bytes[0]} {bytes[4]} {raw} {raw.length}")
+    print(block)
+    print(escaped)
+    print(f"frame {{{frame}}}: {hex(frame + 248)} {bin(5)} {pad(frame, 3)}|")
+    return 0

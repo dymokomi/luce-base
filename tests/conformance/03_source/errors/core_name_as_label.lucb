@@ -1,0 +1,5 @@
+# error: this name belongs to the language; a label cannot take it (§3.5)
+pub func main(arguments: str[]) -> i32:
+    print: for i in 0..<2:
+        break print
+    return 0

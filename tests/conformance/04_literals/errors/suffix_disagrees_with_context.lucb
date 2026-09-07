@@ -1,0 +1,4 @@
+# error: expected `i64`, got `u8`
+pub func main(arguments: str[]) -> i32:
+    let x: i64 = 5u8
+    return 0

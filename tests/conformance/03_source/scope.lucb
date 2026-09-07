@@ -1,0 +1,43 @@
+## §3.5: names resolve lexically; a module's declarations are order-independent; a loop,
+## `catch`, `if let`, and `match` binding owns its nested scope; a loop label has its own
+## namespace; a local named like a standard module that is not imported is ordinary.
+pub let boom: ErrorCode = ErrorCode.package(3)
+
+pub func main(arguments: str[]) -> i32:
+    let c = later(2)
+    var total: i64 = 0
+    for c2 in 0..<3:
+        total += c2
+    if let found = maybe(true):
+        total += found
+    let sum = match c:
+        2 => 20
+        _ => 0
+    total += sum
+    let ok = might(false) catch failure:
+        recover 0
+    total += ok
+    var io = 5
+    io += 1
+    outer: for x in 0..<3:
+        for y in 0..<3:
+            if x * y == 2:
+                break outer
+            total += 1
+    print(f"{c} {total} {io}")
+    return 0
+
+func later(n: i64) -> i64:
+    return n * 2 + 1 - 1 + first
+
+let first: i64 = 0
+
+func maybe(flag: bool) -> i64?:
+    if flag:
+        return 7
+    return none
+
+func might(flag: bool) -> i64!:
+    if flag:
+        error(boom, "asked to")
+    return 3

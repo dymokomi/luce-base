@@ -1,0 +1,5 @@
+# error: this name belongs to the language; a declaration cannot take it (§3.5)
+func hash(x: i64) -> i64:
+    return x
+pub func main(arguments: str[]) -> i32:
+    return 0

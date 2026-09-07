@@ -1,0 +1,4 @@
+# error: expected `u8`, got `char`
+pub func main(arguments: str[]) -> i32:
+    let b: u8 = 'é'
+    return 0

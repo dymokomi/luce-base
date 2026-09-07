@@ -228,7 +228,7 @@ is an error.
 emits no entry function at all, and the driver links with `-e __start`, the
 assembler label of the program's `export naked func _start`. Nothing starts
 the runtime or the globals for such a program; its `_start` owns the
-process from the first instruction, as `programs/freestanding` shows.
+process from the first instruction, as `tests/programs/freestanding` shows.
 
 `--profile diagnostic` (§19.4) reaches both backends as a flag: a `---` local
 is filled with `0xAA` (the IR's `fill`, C's `memset`), and the entry shim sets
@@ -310,7 +310,7 @@ things make the harder libraries reachable without glue. A function value is a
 C function pointer (§5.6), and casting one function type to another is a plain
 cast, so `objc_msgSend`, which has one C symbol and a different shape at every
 call, is called by casting its pointer to the shape each message needs; the
-`programs/metal` bridge is built entirely this way. And a function's address,
+`tests/programs/metal` bridge is built entirely this way. And a function's address,
 taken as a value, goes through the GOT, so a symbol that lives in a linked
 dylib resolves at load time like any other. `-lNAME`, `-LDIR`, and
 `-framework NAME` reach the linker on both backends.
@@ -328,7 +328,7 @@ compiler-chosen `reg` form is the C backend's for now.
 are one `@u32` each over `__ulock_wait` and `__ulock_wake`, the futex of
 macOS, with the three-state mutex of Drepper's paper. A pool of workers
 waiting on a condition costs nothing while it waits, which the HTTP server
-under `programs/` relies on.
+under `tests/programs/` relies on.
 
 ## Memory
 
@@ -345,3 +345,17 @@ backends; every sample with `main` runs through both as well, and
 backends disagree, one of them is wrong, and the program that showed it is
 pinned before the tree moves on. The seed's oracle served this role until
 the seed was pinned.
+
+### The conformance suite
+
+`tests/conformance/` holds one directory per chapter of `docs/language/base.md`
+and, for each point a chapter makes, a program: beside a `.expect` it is the
+positive side, built through the C backend and the native backend and run through
+the seed's interpreter, every execution printing the expectation; under `errors/`
+it is the negative side, its `# error:` line naming the diagnostic this compiler
+must give, and a program the seed must reject too. `tests/conformance/run.sh`
+runs it as part of the gate. Its first chapters found rules neither compiler
+enforced (a BOM, bidirectional controls, uppercase base prefixes, non-ASCII byte
+literals, a stored formatted string, a negative literal into an unsigned type, a
+core name as a label, a standard module's name bound without an import) and
+behaviour both got wrong (text iterated by byte, a `char` displayed as a number).

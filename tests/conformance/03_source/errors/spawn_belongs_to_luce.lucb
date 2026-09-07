@@ -1,0 +1,6 @@
+# error: `spawn` belongs to full Luce; Base starts a thread through the `thread` module
+func work():
+    return
+pub func main(arguments: str[]) -> i32:
+    spawn work()
+    return 0

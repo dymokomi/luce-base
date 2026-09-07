@@ -292,6 +292,8 @@ pub struct Parser:
             n.flags |= flags
             n.attrs = attributes
             return n
+        if self.at_name("class"):
+            return try self.fail("`class` belongs to full Luce; Base declares a `struct`")
         return try self.fail("expected a declaration")
 
     mutating func parse_attributes() -> ast.Node*?!:
@@ -700,6 +702,8 @@ pub struct Parser:
         let block = try self.node(ast.Kind.block, "")
         var tail: ast.Node*? = none
         if not self.at(token.Kind.newline):
+            if self.at_compound_statement():
+                return try self.fail("a same-line suite cannot contain a compound statement (§3.2)")
             let s = try self.parse_simple_statement()
             ast.append(&block.body, &tail, s)
             return block
@@ -716,6 +720,10 @@ pub struct Parser:
             discard(self.take())
         self.leave()
         return block
+
+    ## `if`, `while`, `for`, `match`, `with`, `asm`: what a same-line suite may not hold.
+    func at_compound_statement() -> bool:
+        return self.at_kw("if") or self.at_kw("while") or self.at_kw("for") or self.at_kw("match") or self.at_kw("with") or self.at_kw("asm")
 
     mutating func parse_statement() -> ast.Node*!:
         if self.at_kw("if"):
@@ -746,6 +754,8 @@ pub struct Parser:
         return try self.parse_simple_statement()
 
     mutating func parse_simple_statement() -> ast.Node*!:
+        if self.at_name("spawn"):
+            return try self.fail("`spawn` belongs to full Luce; Base starts a thread through the `thread` module")
         if self.at_kw("let") or self.at_kw("var"):
             return try self.parse_binding()
         if self.at_kw("break") or self.at_kw("continue"):

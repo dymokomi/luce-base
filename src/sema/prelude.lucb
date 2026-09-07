@@ -96,6 +96,31 @@ pub func format_bool(b: FormatBuffer*, value: bool) -> i32:
     let word = "true" if value else "false"
     return format_put(b, word.bytes.data, word.length)
 
+## A `char` displays as itself, in UTF-8 (§14.4).
+pub func format_char(b: FormatBuffer*, value: char) -> i32:
+    let cp = u32(value)
+    var out: u8[4]
+    var n: usize = 0
+    if cp < 0x80:
+        out[0] = u8(cp)
+        n = 1
+    elif cp < 0x800:
+        out[0] = u8(0xC0 | (cp >> 6))
+        out[1] = u8(0x80 | (cp & 0x3F))
+        n = 2
+    elif cp < 0x10000:
+        out[0] = u8(0xE0 | (cp >> 12))
+        out[1] = u8(0x80 | ((cp >> 6) & 0x3F))
+        out[2] = u8(0x80 | (cp & 0x3F))
+        n = 3
+    else:
+        out[0] = u8(0xF0 | (cp >> 18))
+        out[1] = u8(0x80 | ((cp >> 12) & 0x3F))
+        out[2] = u8(0x80 | ((cp >> 6) & 0x3F))
+        out[3] = u8(0x80 | (cp & 0x3F))
+        n = 4
+    return format_put(b, (const void*)&out, n)
+
 ## The text so far, NUL-terminated when there is room.
 pub func format_finish(b: FormatBuffer*) -> str:
     if b.used < b.capacity:
@@ -227,6 +252,30 @@ pub func str_compare(a: str, b: str) -> i32:
     if a.length < b.length:
         return -1
     return 1 if a.length > b.length else 0
+
+## The scalar starting at byte `index` of `count` bytes of valid UTF-8, its width left in
+## `width`: what `for character in text` steps by (§5.5).
+pub func utf8_scalar(text: const u8*, count: usize, index: usize, width: usize*) -> char:
+    let byte = text[index]
+    var w: usize = 1
+    var cp: u32 = (u32)byte
+    if byte >= 240:
+        w = 4
+        cp = (u32)(byte & 7)
+    elif byte >= 224:
+        w = 3
+        cp = (u32)(byte & 15)
+    elif byte >= 192:
+        w = 2
+        cp = (u32)(byte & 31)
+    if index + w > count:
+        w = count - index
+    var k: usize = 1
+    while k < w:
+        cp = (cp << 6) | (u32)(text[index + k] & 63)
+        k += 1
+    *width = w
+    return char(cp)
 
 ## Whether `count` bytes are well-formed UTF-8: no overlong forms, no surrogates, nothing past U+10FFFF.
 pub func utf8_ok(text: const u8*?, count: usize) -> bool:

@@ -1,0 +1,7 @@
+# error: this name is already in scope
+pub func main(arguments: str[]) -> i32:
+    let x = 1
+    if true:
+        let x = 2
+        print(f"{x}")
+    return 0

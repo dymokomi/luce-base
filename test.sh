@@ -2,19 +2,19 @@
 # The gate: the binary lexes, parses, and checks every sample and source file,
 # builds and runs every sample with `main` through both backends, runs every
 # module's tests through both backends, builds itself again to the same C, and
-# rejects every program under samples/errors. The C and native backends are the
+# rejects every program under tests/samples/errors. The C and native backends are the
 # two executions that must agree.
 set -eu
 cd "$(dirname "$0")"
 ./build.sh
-for f in samples/*.lucb src/*.lucb src/*/*.lucb programs/*/*.lucb; do
+for f in tests/samples/*.lucb src/*.lucb src/*/*.lucb tests/programs/*/*.lucb; do
     echo "== $f"
     ./build/luce-base lex "$f" > /dev/null
     ./build/luce-base parse "$f" > /dev/null
     ./build/luce-base check "$f"
 done
 # programs with `main` build and print what their `.expect` files say
-for f in samples/*.expect; do
+for f in tests/samples/*.expect; do
     src="${f%.expect}.lucb"
     echo "== build $src"
     ./build/luce-base build "$src" -o build/sample
@@ -23,7 +23,7 @@ for f in samples/*.expect; do
 done
 rm -f build/sample build/sample.out
 # every module's tests run through both backends: the two executions must agree
-for f in src/*/*.lucb programs/*/*.lucb; do
+for f in src/*/*.lucb tests/programs/*/*.lucb; do
     if grep -q '^test "' "$f"; then
         echo "== test $f"
         out=$(./build/luce-base test "$f") || { echo "$out" | tail -3; exit 1; }
@@ -33,7 +33,7 @@ for f in src/*/*.lucb programs/*/*.lucb; do
     fi
 done
 # every sample with `main` runs natively too
-for f in samples/*.expect; do
+for f in tests/samples/*.expect; do
     src="${f%.expect}.lucb"
     echo "== native $src"
     ./build/luce-base build "$src" --native -o build/sample
@@ -42,25 +42,25 @@ for f in samples/*.expect; do
 done
 rm -f build/sample build/sample.out
 # a library and its header, through both backends: a C program includes the header, links
-# the archive, and prints what samples/exports_use.out says
+# the archive, and prints what tests/samples/exports_use.out says
 for native in "" "--native"; do
-    echo "== lib samples/exports.lucb $native"
-    ./build/luce-base build samples/exports.lucb --lib $native -o build/pixels
-    cc -std=c11 -Wall -Werror -Ibuild samples/exports_use.c build/pixels.a -o build/use_pixels
+    echo "== lib tests/samples/exports.lucb $native"
+    ./build/luce-base build tests/samples/exports.lucb --lib $native -o build/pixels
+    cc -std=c11 -Wall -Werror -Ibuild tests/samples/exports_use.c build/pixels.a -o build/use_pixels
     ./build/use_pixels > build/use_pixels.out
-    cmp build/use_pixels.out samples/exports_use.out
+    cmp build/use_pixels.out tests/samples/exports_use.out
 done
 rm -f build/pixels.a build/pixels.h build/use_pixels build/use_pixels.out
 # the diagnostic profile, through both backends: filled `---` storage, quarantined releases
 for native in "" "--native"; do
-    echo "== diagnostic samples/diagnostic.lucb $native"
-    ./build/luce-base build samples/diagnostic.lucb --profile diagnostic $native -o build/sample
+    echo "== diagnostic tests/samples/diagnostic.lucb $native"
+    ./build/luce-base build tests/samples/diagnostic.lucb --profile diagnostic $native -o build/sample
     ./build/sample > build/sample.out
-    cmp build/sample.out samples/diagnostic.out
+    cmp build/sample.out tests/samples/diagnostic.out
 done
 rm -f build/sample build/sample.out
 # the proving programs build natively and are driven from outside
-for f in programs/*/check.sh; do
+for f in tests/programs/*/check.sh; do
     "$f"
 done
 # the bootstrap: the compiler built from source builds itself again, and both
@@ -97,17 +97,19 @@ cmp build/stage1.s build/native1.s
 rm -f build/native build/native1.c build/stage1.c build/stage1.s build/native1.s
 # every rejected program must be rejected for the stated reason
 # the checker's warnings, and their exact text, for the sample that exercises each
-if ! ./build/luce-base check samples/warnings.lucb -W 2>&1 | cmp -s - samples/warnings.warnings; then
-    echo "FAIL samples/warnings.lucb: warnings differ from samples/warnings.warnings"
-    ./build/luce-base check samples/warnings.lucb -W 2>&1 | diff - samples/warnings.warnings | head -10
+if ! ./build/luce-base check tests/samples/warnings.lucb -W 2>&1 | cmp -s - tests/samples/warnings.warnings; then
+    echo "FAIL tests/samples/warnings.lucb: warnings differ from tests/samples/warnings.warnings"
+    ./build/luce-base check tests/samples/warnings.lucb -W 2>&1 | diff - tests/samples/warnings.warnings | head -10
     exit 1
 fi
-for f in samples/errors/*.lucb; do
-    want=$(sed -n 's/^# error: //p' "$f")
+for f in tests/samples/errors/*.lucb; do
+    want=$(LC_ALL=C sed -n 's/^# error: //p' "$f")
     got=$(./build/luce-base check "$f" 2>&1 || true)
     case "$got" in
         *"$want"*) echo "== $f (rejected)";;
         *) echo "FAIL $f: expected [$want], got [$got]"; exit 1;;
     esac
 done
+# the conformance suite: a positive and a negative program for each point of the specification
+tests/conformance/run.sh
 echo "ok"

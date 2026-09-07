@@ -18,10 +18,10 @@ the assembly it emits for itself. The native path involves no C.
 | Register allocation | linear scan over x19–x28 and d8–d15, live ranges extended across back-edges; 27% less assembly |
 | Escape rule §6.6 | both compilers; zero false positives across every program we have |
 | FFI: externs, variadics, function-type casts, GOT addressing, `-l -L -framework` | SDL3 editor, Metal compute via the Objective-C runtime |
-| Inline assembly with named-register operands | `programs/asm`: both backends agree |
+| Inline assembly with named-register operands | `tests/programs/asm`: both backends agree |
 | Standard modules in Base | memory, io, files, process, thread, sync, atomic, c, strings, paths, math, time, testing, net |
 | Proving programs | http, editor, debugger, gui, metal, asm, each with a gate-run `check.sh` |
-| Warnings and pruning (§19.6) | both compilers; `-W` prints; unused locals, imports, private functions, unreachable code, and literal branches are pruned by the checker; `samples/warnings.lucb` pins the text |
+| Warnings and pruning (§19.6) | both compilers; `-W` prints; unused locals, imports, private functions, unreachable code, and literal branches are pruned by the checker; `tests/samples/warnings.lucb` pins the text |
 
 Sizes: 21,790 lines of Base in this tree; 135 corpus programs and 462 unit
 tests in the seed; 44 module tests and 16 rejection samples here.
@@ -61,7 +61,7 @@ both, and 3 check only here.
 ## 3. Bugs found in luce-base, all fixed
 
 Ranked by what they broke; each root cause was found in the source, each fix is
-pinned under `luce-seed/testdata/programs/values/` or `samples/errors/`.
+pinned under `luce-seed/testdata/programs/values/` or `tests/samples/errors/`.
 
 1. **Lambdas compiled to a null pointer.** Both backends emitted 0 for a
    `.lambda` node. Now the checker hoists each lambda to a hidden module
@@ -119,10 +119,10 @@ Base programmer would miss them.
 | 14.4 | `Display`, `Iterator`, `Iterable` | done in both: `for` desugars to the protocol; a `Display` struct in a formatted string calls `display` through the string's own sink |
 | 17.1 | `out` parameters as tuple results | done in both: an extern's `out` parameter takes no argument and is answered after the declared result, as a tuple when there is more than one value |
 | 8.9 | compiler-chosen `reg` operands, `{name}` substitution natively | done in both: the lowerer picks x11–x15 / d16–d23 and writes the register into the text; the C backend uses named operands |
-| 5.1 | `f16` | done in both: binary16 in memory, `_Float16` in the C, half instructions in the native backend (`samples/half_floats.lucb`) |
-| 16.4, 17.4, 11.3 | the manifest: package name, `symbol_prefix`, `[native]` inputs, error-code identity | done in both: `luce.toml` is found upward from the entry file; `[native] sources`, `libraries`, `link_search`, `frameworks` reach the C compiler and the linker (`pkg_config` is parsed, not yet run by luce-base); exports carry the prefix; every `ErrorCode.package(n)` carries sixteen bits of the package's name (`programs/manifest`) |
+| 5.1 | `f16` | done in both: binary16 in memory, `_Float16` in the C, half instructions in the native backend (`tests/samples/half_floats.lucb`) |
+| 16.4, 17.4, 11.3 | the manifest: package name, `symbol_prefix`, `[native]` inputs, error-code identity | done in both: `luce.toml` is found upward from the entry file; `[native] sources`, `libraries`, `link_search`, `frameworks` reach the C compiler and the linker (`pkg_config` is parsed, not yet run by luce-base); exports carry the prefix; every `ErrorCode.package(n)` carries sixteen bits of the package's name (`tests/programs/manifest`) |
 | 17.6 | `luce build --lib` with a generated header | done: `--lib -o NAME` writes `NAME.a` and `NAME.h` through either backend; exports of spans, `str`, fallible results, and non-pointer optionals are refused by the header writer for now |
-| 19.4 | `--freestanding`, `--profile diagnostic` | `--freestanding` done natively (no shim, the program's `export naked func _start` is the entry, `programs/freestanding`); `--profile diagnostic` fills `---` storage with 0xAA and the C allocator quarantines released blocks filled with 0xDD and records the last 256 allocation sites (`memory.allocation_sites()`), all shown by `samples/diagnostic.lucb` |
+| 19.4 | `--freestanding`, `--profile diagnostic` | `--freestanding` done natively (no shim, the program's `export naked func _start` is the entry, `tests/programs/freestanding`); `--profile diagnostic` fills `---` storage with 0xAA and the C allocator quarantines released blocks filled with 0xDD and records the last 256 allocation sites (`memory.allocation_sites()`), all shown by `tests/samples/diagnostic.lucb` |
 | 19.5 | targets beyond arm64-macos | missing; the `Backend` interface is ready |
 | 17.5 | `luce bind` | missing; a project of its own |
 | 19.6 | `luce fmt`, `--costs`, `--target` listing | `--target` listing done (`build FILE --target` names the targets and the asm architectures the program covers); `fmt` and `--costs` missing |

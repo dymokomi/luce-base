@@ -1,0 +1,4 @@
+# error: arithmetic needs numbers
+pub func main(arguments: str[]) -> i32:
+    let s = "a" + "b"
+    return 0
