@@ -30,7 +30,7 @@ import support.runtime
 let version: str = "0.1"
 
 func usage(out: io.Writer) -> !:
-    try out.write("usage: luce-base lex FILE\n       luce-base parse FILE\n       luce-base check FILE\n       luce-base build FILE [-o OUT] [--release] [--emit=c] [--native] [--debug] [--emit=asm] [--lib] [--freestanding] [--target] [--profile diagnostic] [-W] [-lNAME] [-LDIR] [-framework NAME]\n       luce-base test FILE [--native]\n       luce-base --version\n")
+    try out.write("usage: luce-base lex FILE\n       luce-base parse FILE\n       luce-base check FILE\n       luce-base build FILE [-o OUT] [--release] [--emit=c] [--native] [--debug] [--emit=asm] [--emit=ir] [--lib] [--freestanding] [--target] [--profile diagnostic] [-W] [-lNAME] [-LDIR] [-framework NAME]\n       luce-base test FILE [--native]\n       luce-base --version\n")
 
 # mark: Building ===============================================================================
 
@@ -135,6 +135,7 @@ func checked(path: c.str) -> check.Checker!:
 func translate(checker: check.Checker*, entry: ast.Node*, mode: u32) -> str!:
     if native_backend:
         var native = try backend.NativeBackend.over(checker, entry, debug_backend, diagnostic_profile)
+        native.dump_ir = dump_ir
         let target: backend.Backend = &native
         return try target.compile(mode)
     var host_c = try backend.CBackend.over(checker, entry, diagnostic_profile)
@@ -143,6 +144,8 @@ func translate(checker: check.Checker*, entry: ast.Node*, mode: u32) -> str!:
 
 ## The backend the current command chose: C through the host compiler, or arm64 assembly.
 var native_backend: bool
+## `--emit=ir`: the native pipeline stops after its passes and writes the IR as text.
+var dump_ir: bool
 ## `--debug`: the native backend describes every frame and calls the `debug` module.
 var debug_backend: bool
 ## `--freestanding`: the program's own `_start` is the entry, and no shim is linked (§19.4).
@@ -661,6 +664,10 @@ pub func main(arguments: c.str[]) -> i32!:
                 options.release = true
             elif a == "--emit=c" or a == "--emit=asm":
                 options.emit_c = true
+            elif a == "--emit=ir":
+                options.emit_c = true
+                options.native = true
+                dump_ir = true
             elif a == "--native":
                 options.native = true
             elif a == "--lib":

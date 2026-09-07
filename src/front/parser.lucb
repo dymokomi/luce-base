@@ -223,10 +223,11 @@ pub struct Parser:
     ## A declaration after its visibility: constant, global, alias, function, or a type.
     mutating func parse_decl(visibility: u32) -> ast.Node*!:
         var flags = visibility
-        if self.eat_kw("thread_local"):
+        # `local var`: one variable per thread (§6.3)
+        if self.eat_kw("local"):
             flags |= ast.flag_thread_local
             if not self.at_kw("var"):
-                return try self.fail("`thread_local` declares a `var` (§6.3)")
+                return try self.fail("`local` declares a `var` (§6.3)")
         let attributes = try self.parse_attributes()
         if self.at_kw("let"):
             if attributes != none or flags != visibility:

@@ -1,0 +1,15 @@
+## Straight-line arithmetic on locals: what the passes should fold, forward, and drop. The
+## constants combine at compile time, a copy of a copy reads the original, a value never
+## read is never computed, and a local that is written once and read once needs no slot.
+func compute(a: i64, b: i64) -> i64:
+    let two: i64 = 1 + 1
+    let four = two * 2
+    let copy = a
+    let again = copy
+    let unused = b * 7
+    let sum = again + four + b
+    return sum - 1
+
+pub func main(arguments: str[]) -> i32:
+    print(f"{compute(10, 5)} {compute(-3, 3)}")
+    return 0

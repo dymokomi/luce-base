@@ -15,6 +15,6 @@ pub func main(arguments: str[]) -> i32:
     var backing: u8[64]
     var buffers: memory.FixedBuffer[2] = [memory.FixedBuffer.over(backing), memory.FixedBuffer.over(backing)]
     let sink = Sink(held = Holder[memory.FixedBuffer](items = buffers))
-    let local: Holder[memory.FixedBuffer] = sink.held
-    print(f"{count_of(local) + 38}")
+    let kept: Holder[memory.FixedBuffer] = sink.held
+    print(f"{count_of(kept) + 38}")
     return 0

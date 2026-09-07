@@ -18,7 +18,7 @@ enum Shape:
 
 var hits: u32
 var seed: u32 = 0x9E3779B9
-thread_local var current: i64
+local var current: i64
 pub let max_header: usize = 16 * 1024
 let origin: Point = Point(x = 1, y = 2)
 

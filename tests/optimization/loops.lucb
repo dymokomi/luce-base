@@ -1,0 +1,21 @@
+## A counting loop over an array: the bound and the element address should not be recomputed
+## from scratch on every iteration, and the accumulator should live in a register.
+func total(values: const i64[]) -> i64:
+    var sum: i64 = 0
+    var i: usize = 0
+    while i < values.length:
+        sum += values[i]
+        i += 1
+    return sum
+
+func count_even(values: const i64[]) -> usize:
+    var n: usize = 0
+    for v in values:
+        if v % 2 == 0:
+            n += 1
+    return n
+
+pub func main(arguments: str[]) -> i32:
+    let values: i64[6] = [1, 2, 3, 4, 5, 6]
+    print(f"{total(values)} {count_even(values)}")
+    return 0

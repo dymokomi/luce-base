@@ -130,8 +130,8 @@ pub func format_finish(b: FormatBuffer*) -> str:
     return (str)u8[](b.data, b.used)
 
 ## `hex`, `bin`, and `pad` return text in one of four rotating thread-local slots.
-thread_local var show_bytes: u8[1024]
-thread_local var show_next: u32
+local var show_bytes: u8[1024]
+local var show_next: u32
 
 func show_take(source: const u8*, count: usize) -> str:
     let slot = (usize)(show_next & 3) * 256
@@ -673,7 +673,7 @@ pub let unset: ErrorCode = ErrorCode.package(2)
 
 var c_allocator: CAllocator
 ## The current allocator of this thread (§12.3) and the process's initial one.
-pub thread_local var allocator: Allocator
+pub local var allocator: Allocator
 pub var heap: Allocator
 
 ## Run by the startup shim before `main`, and by `thread.spawn` in a new thread.
@@ -1912,9 +1912,9 @@ func show_named(top: usize, name: str):
     let s = a.shape else return
     var i: u64 = 0
     while i < s.count:
-        let local = local_of(s, i)
-        if local.name == name:
-            show(local, a.frame)
+        let described = local_of(s, i)
+        if described.name == name:
+            show(described, a.frame)
             return
         i += 1
     print(f"no local named `{name}`")
@@ -1925,42 +1925,42 @@ func local_of(s: Shape*, index: u64) -> Local*:
     return (Local*)base
 
 ## A local's value read from the frame and shown by its type's spelling.
-func show(local: Local*, frame: void*?):
+func show(described: Local*, frame: void*?):
     let f = frame else return
-    let address = (void*)((usize)f - (usize)local.offset)
-    let kind = local.kind
+    let address = (void*)((usize)f - (usize)described.offset)
+    let kind = described.kind
     if kind == "i64" or kind == "isize":
-        print(f"{local.name}: {kind} = {memory.read[i64](address)}")
+        print(f"{described.name}: {kind} = {memory.read[i64](address)}")
     elif kind == "i32":
-        print(f"{local.name}: {kind} = {memory.read[i32](address)}")
+        print(f"{described.name}: {kind} = {memory.read[i32](address)}")
     elif kind == "i16":
-        print(f"{local.name}: {kind} = {memory.read[i16](address)}")
+        print(f"{described.name}: {kind} = {memory.read[i16](address)}")
     elif kind == "i8":
-        print(f"{local.name}: {kind} = {memory.read[i8](address)}")
+        print(f"{described.name}: {kind} = {memory.read[i8](address)}")
     elif kind == "u64" or kind == "usize":
-        print(f"{local.name}: {kind} = {memory.read[u64](address)}")
+        print(f"{described.name}: {kind} = {memory.read[u64](address)}")
     elif kind == "u32" or kind == "char":
-        print(f"{local.name}: {kind} = {memory.read[u32](address)}")
+        print(f"{described.name}: {kind} = {memory.read[u32](address)}")
     elif kind == "u16":
-        print(f"{local.name}: {kind} = {memory.read[u16](address)}")
+        print(f"{described.name}: {kind} = {memory.read[u16](address)}")
     elif kind == "u8":
-        print(f"{local.name}: {kind} = {memory.read[u8](address)}")
+        print(f"{described.name}: {kind} = {memory.read[u8](address)}")
     elif kind == "bool":
-        print(f"{local.name}: {kind} = {memory.read[bool](address)}")
+        print(f"{described.name}: {kind} = {memory.read[bool](address)}")
     elif kind == "f64":
-        print(f"{local.name}: {kind} = {memory.read[f64](address)}")
+        print(f"{described.name}: {kind} = {memory.read[f64](address)}")
     elif kind == "f32":
-        print(f"{local.name}: {kind} = {memory.read[f32](address)}")
+        print(f"{described.name}: {kind} = {memory.read[f32](address)}")
     elif kind == "str":
         let text = memory.read[str](address)
-        print(f"{local.name}: {kind} = \\"{text}\\"")
+        print(f"{described.name}: {kind} = \\"{text}\\"")
     elif kind == "c.str":
         let text = memory.read[c.str](address)
-        print(f"{local.name}: {kind} = \\"{(str)text}\\"")
+        print(f"{described.name}: {kind} = \\"{(str)text}\\"")
     elif ends_with(kind, "*") or ends_with(kind, "*?"):
-        print(f"{local.name}: {kind} = 0x{hex(memory.read[usize](address))}")
+        print(f"{described.name}: {kind} = 0x{hex(memory.read[usize](address))}")
     else:
-        var shown: usize = (usize)local.size
+        var shown: usize = (usize)described.size
         if shown > 32:
             shown = 32
         var text: u8[160]
@@ -1974,7 +1974,7 @@ func show(local: Local*, frame: void*?):
             text[used + 2] = ' '
             used += 3
             i += 1
-        print(f"{local.name}: {kind} = {local.size} bytes {(str)text[..<used]}")
+        print(f"{described.name}: {kind} = {described.size} bytes {(str)text[..<used]}")
 
 func first_word(line: str) -> str:
     var i: usize = 0

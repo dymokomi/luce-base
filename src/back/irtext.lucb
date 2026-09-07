@@ -1,0 +1,259 @@
+#==============================================================================================
+#
+#   irtext - The IR as text (`--emit=ir`)
+#
+#   DESCRIPTION:
+#       Writes a `ir.Unit` in a form modelled on QBE's: one function per block, temporaries
+#       as `%tN`, stack slots as `#N`, symbols as `$name`, text literals as `"index"`, labels
+#       as `@LN`, and one instruction per line, `%t3 =w add %t1, %t2`. The text is what the
+#       optimisation suite measures and what a reader inspects when a backend misbehaves; it
+#       is not read back.
+#
+#==============================================================================================
+
+import back.ir
+import support.buffer
+
+## The whole unit as text.
+pub func render(program: ir.Unit*) -> str!:
+    var out = try buffer.Buffer.create(65536)
+    var i: usize = 0
+    while i < program.functions.count:
+        let f = &program.functions.items[i]
+        try function(&out, f)
+        i += 1
+    return out.view()
+
+## One function: its header, slots, and instructions.
+func function(out: buffer.Buffer*, f: ir.Function*) -> !:
+    try out.put("function ")
+    if f.exported:
+        try out.put("export ")
+    try out.put("$")
+    try out.put(f.name)
+    try out.put("(")
+    var i: usize = 0
+    while i < f.params.count:
+        let p = f.params.get(i)
+        if i > 0:
+            try out.put(", ")
+        try out.put(class_name(p.cls))
+        try out.put(" #")
+        try out.put_u64((u64)p.slot)
+        i += 1
+    try out.put(")")
+    if f.has_result:
+        try out.put(" -> ")
+        try out.put(class_name(f.result_cls))
+    try out.put(":\n")
+    i = 0
+    while i < f.slots.count:
+        let s = f.slots.get(i)
+        try out.put("    slot #")
+        try out.put_u64((u64)i)
+        try out.put(" ")
+        try out.put_u64((u64)s.size)
+        try out.put(" align ")
+        try out.put_u64((u64)s.align)
+        try out.put("\n")
+        i += 1
+    i = 0
+    while i < f.instrs.count:
+        try instruction(out, f, f.instrs.get(i))
+        i += 1
+    try out.put("\n")
+
+func instruction(out: buffer.Buffer*, f: ir.Function*, x: ir.Instr) -> !:
+    if x.op == ir.Op.label:
+        try out.put("@L")
+        try out.put_u64((u64)x.extra)
+        try out.put(":\n")
+        return
+    try out.put("    ")
+    if x.dst != 0:
+        try out.put("%t")
+        try out.put_u64((u64)x.dst)
+        try out.put(" =")
+        try out.put(class_name(x.cls))
+        try out.put(" ")
+    try out.put(op_name(x.op))
+    match x.op:
+        .jmp:
+            try out.put(" @L")
+            try out.put_u64((u64)x.extra)
+        .jnz:
+            try out.put(" ")
+            try operand(out, x.a)
+            try out.put(", @L")
+            try out.put_u64((u64)x.extra)
+            try out.put(", @L")
+            try out.put_u64((u64)x.b.value)
+        .ret:
+            if x.a.kind != ir.RefKind.none_:
+                try out.put(" ")
+                try operand(out, x.a)
+        .call:
+            try out.put(" ")
+            try operand(out, x.a)
+            try out.put("(")
+            let info = f.calls.get((usize)x.extra)
+            var k: usize = 0
+            while k < (usize)info.args_count:
+                let a = f.args.get((usize)info.args_start + k)
+                if k > 0:
+                    try out.put(", ")
+                try out.put(class_name(a.cls))
+                try out.put(" ")
+                try operand(out, a.value)
+                k += 1
+            try out.put(")")
+        .blit, .zero, .fill:
+            try out.put(" ")
+            try operand(out, x.a)
+            if x.op != ir.Op.zero:
+                try out.put(", ")
+                try operand(out, x.b)
+            try out.put(", ")
+            try out.put_u64((u64)x.extra)
+        .addo, .subo, .mulo:
+            try out.put(" ")
+            try operand(out, x.a)
+            try out.put(", ")
+            try operand(out, x.b)
+        _:
+            if x.a.kind != ir.RefKind.none_:
+                try out.put(" ")
+                try operand(out, x.a)
+            if x.b.kind != ir.RefKind.none_:
+                try out.put(", ")
+                try operand(out, x.b)
+            if x.extra != 0 and x.op != ir.Op.trap_:
+                try out.put(" [")
+                try out.put_u64((u64)x.extra)
+                try out.put("]")
+    try out.put("\n")
+
+func operand(out: buffer.Buffer*, r: ir.Ref) -> !:
+    match r.kind:
+        .temp:
+            try out.put("%t")
+            try out.put_u64((u64)r.index)
+        .constant:
+            try out.put_i64(r.value)
+        .slot:
+            try out.put("#")
+            try out.put_u64((u64)r.index)
+        .global, .function:
+            try out.put("$")
+            try out.put(r.name)
+        .text:
+            try out.put("\"")
+            try out.put_u64((u64)r.index)
+            try out.put("\"")
+        _:
+            try out.put("_")
+
+func class_name(c: ir.Class) -> str:
+    match c:
+        .w: return "w"
+        .l: return "l"
+        .s: return "s"
+        .d: return "d"
+        .h: return "h"
+        _: return "?"
+
+func op_name(op: ir.Op) -> str:
+    match op:
+        .copy: return "copy"
+        .add: return "add"
+        .sub: return "sub"
+        .mul: return "mul"
+        .sdiv: return "sdiv"
+        .udiv: return "udiv"
+        .srem: return "srem"
+        .urem: return "urem"
+        .and_: return "and"
+        .or_: return "or"
+        .xor: return "xor"
+        .shl: return "shl"
+        .lshr: return "lshr"
+        .ashr: return "ashr"
+        .neg: return "neg"
+        .ceq: return "ceq"
+        .cne: return "cne"
+        .cslt: return "cslt"
+        .csle: return "csle"
+        .csgt: return "csgt"
+        .csge: return "csge"
+        .cult: return "cult"
+        .cule: return "cule"
+        .cugt: return "cugt"
+        .cuge: return "cuge"
+        .loadsb: return "loadsb"
+        .loadub: return "loadub"
+        .loadsh: return "loadsh"
+        .loaduh: return "loaduh"
+        .loadsw: return "loadsw"
+        .loaduw: return "loaduw"
+        .loadl: return "loadl"
+        .loads: return "loads"
+        .loadd: return "loadd"
+        .loadhf: return "loadhf"
+        .storeb: return "storeb"
+        .storeh: return "storeh"
+        .storew: return "storew"
+        .storel: return "storel"
+        .stores: return "stores"
+        .stored: return "stored"
+        .storehf: return "storehf"
+        .extsb: return "extsb"
+        .extub: return "extub"
+        .extsh: return "extsh"
+        .extuh: return "extuh"
+        .extsw: return "extsw"
+        .extuw: return "extuw"
+        .exts: return "exts"
+        .truncd: return "truncd"
+        .stosi: return "stosi"
+        .stoui: return "stoui"
+        .dtosi: return "dtosi"
+        .dtoui: return "dtoui"
+        .swtof: return "swtof"
+        .uwtof: return "uwtof"
+        .sltof: return "sltof"
+        .ultof: return "ultof"
+        .cast: return "cast"
+        .exth: return "exth"
+        .truncs: return "truncs"
+        .addr: return "addr"
+        .blit: return "blit"
+        .zero: return "zero"
+        .fill: return "fill"
+        .call: return "call"
+        .label: return "label"
+        .jmp: return "jmp"
+        .jnz: return "jnz"
+        .ret: return "ret"
+        .trap_: return "trap"
+        .bounds: return "bounds"
+        .addo: return "addo"
+        .subo: return "subo"
+        .mulo: return "mulo"
+        .addr_tls: return "addr_tls"
+        .asm_: return "asm"
+        .atomic_load: return "atomic_load"
+        .atomic_store: return "atomic_store"
+        .atomic_add: return "atomic_add"
+        .atomic_sub: return "atomic_sub"
+        .atomic_or: return "atomic_or"
+        .atomic_and_not: return "atomic_and_not"
+        .atomic_xor: return "atomic_xor"
+        .atomic_swap: return "atomic_swap"
+        .atomic_max: return "atomic_max"
+        .atomic_min: return "atomic_min"
+        .atomic_cas: return "atomic_cas"
+        .fence: return "fence"
+        .frame: return "frame"
+        .set_reg: return "set_reg"
+        .get_reg: return "get_reg"
+        _: return "?"

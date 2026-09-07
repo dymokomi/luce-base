@@ -112,6 +112,8 @@ for f in tests/samples/errors/*.lucb; do
 done
 # the robustness suite: memory management measured through a counting allocator
 tests/robustness/run.sh
+# the optimisation suite: the IR before the target and the assembly after it, counted
+tests/optimization/run.sh
 # the conformance suite: a positive and a negative program for each point of the specification
 tests/conformance/run.sh
 echo "ok"

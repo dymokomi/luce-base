@@ -365,7 +365,7 @@ real wrapper where a plain function meets a fallible function type (the C backen
 had cast the pointer), `const (T*)*` spelled as C's `T* const*`, and a `never`
 branch in a conditional; in the seed, span ends and indexed loops, `sizeof` of a
 member, nullable functions, tail padding, and addresses from pointer casts.
-Chapters 6 and 7 found a `thread_local let`, `u32(-1)`, unary minus on an
+Chapters 6 and 7 found a `local let`, `u32(-1)`, unary minus on an
 unsigned, a global or module-level `assert` initialised at runtime, a local's
 address stored into a global or through a pointer, a `luce.line` default
 expanding at its declaration rather than the call, a compound assignment
@@ -439,3 +439,27 @@ tuple binding, `try` for `try_lock`, `spawn` with any entry, bit methods on an
 `@bool`, and `cas` comparing pointers by their word. Still open: a plain read
 of an `@T` in the native backend is a plain load rather than a sequentially
 consistent one.
+
+The keyword `thread_local` became `local` (§3.6): no reserved word carries an
+underscore.
+
+### The robustness and optimisation suites
+
+`tests/robustness/` measures memory management rather than asserting it:
+`memory/counting.lucb` is an allocator that counts every block and byte it
+hands out and takes back, and each program prints those counts at its peak and
+at its end, through both backends: `defer` and `errdefer` pairs on every path,
+recursion that allocates per frame and a tree freed recursively, `with`
+nested and restored under failure, a budget that runs out mid-structure and is
+recovered from, a growing container, the diagnostic profile showing a read
+after `free` and an uninitialised local, and a deliberate leak reported by
+count. `tests/optimization/` measures the IR before the target (`--emit=ir`,
+`back/irtext.lucb`, a text modelled on QBE's) and the assembly after it:
+`NAME.limits` holds the largest instruction, load, store, call, and assembly
+counts allowed for the program's own functions, a pass lowers them, and
+nothing raises one silently. `back/opt.lucb` holds the passes that run after
+inlining: forwarding a store to a promotable slot to the loads that follow it
+in the block, reading through copies, folding operators on constants (the
+trapping ones only when they hold), and sweeping unread results and unread
+stores. The first round took the arithmetic program from 62 IR instructions
+to 30 and its assembly from 176 lines to 129.

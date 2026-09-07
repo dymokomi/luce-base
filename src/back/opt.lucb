@@ -1,0 +1,415 @@
+#==============================================================================================
+#
+#   opt - The passes on the IR before a target sees it
+#
+#   DESCRIPTION:
+#       Four passes over each function, repeated until nothing changes, in the spirit of
+#       QBE's: a store to a stack slot whose address never leaves a load or store is
+#       forwarded to the loads that follow it in the same basic block (`promote`); a copy of
+#       a temporary or a constant is read at its uses (`propagate`); an operator on two
+#       constants is computed here, a trapping one only when it would not trap (`fold`);
+#       and an instruction whose result nothing reads and that has no other effect is
+#       dropped, as is a store to a promotable slot the function never loads (`sweep`).
+#
+#       The lowerer assigns every temporary once, which these passes rely on and keep. A
+#       basic block ends at a label, a jump, a branch, a return, or a call: a call may write
+#       any memory, so nothing is forwarded across it.
+#
+#==============================================================================================
+
+import support.list
+import back.ir
+
+## Run the passes over every function of `program`.
+pub func optimise(program: ir.Unit*) -> !:
+    var i: usize = 0
+    while i < program.functions.count:
+        try function(&program.functions.items[i])
+        i += 1
+
+func function(f: ir.Function*) -> !:
+    if f.naked:
+        return
+    var round: u32 = 0
+    while round < 6:
+        var changed = false
+        changed = try promote(f) or changed
+        changed = try propagate(f) or changed
+        changed = fold(f) or changed
+        changed = try sweep(f) or changed
+        if not changed:
+            return
+        round += 1
+
+# mark: What a temporary is ====================================================================
+
+## The slot an `addr` temporary names, per temporary; 0 for every other temporary. Slot
+## indices are stored one above their value so that 0 means none.
+func addressed_slots(f: ir.Function*) -> u32[]!:
+    var slot_of = try alloc u32[f.temps.count + 1]
+    var z: usize = 0
+    while z < slot_of.length:
+        slot_of[z] = 0
+        z += 1
+    var i: usize = 0
+    while i < f.instrs.count:
+        let x = f.instrs.get(i)
+        if x.op == ir.Op.addr and x.a.kind == ir.RefKind.slot and x.dst != 0:
+            slot_of[x.dst] = x.a.index + 1
+        i += 1
+    return slot_of
+
+## Whether each slot is promotable: every temporary that holds its address is used only as
+## the address of a scalar load or store. A slot whose address is copied, passed, blitted,
+## or read by an atomic may be reached by anything, and is left as memory.
+func promotable_slots(f: ir.Function*, slot_of: u32[]) -> bool[]!:
+    var ok = try alloc bool[f.slots.count + 1]
+    var k: usize = 0
+    while k < ok.length:
+        ok[k] = true
+        k += 1
+    var i: usize = 0
+    while i < f.instrs.count:
+        let x = f.instrs.get(i)
+        if x.op == ir.Op.addr:
+            i += 1
+            continue
+        let a_slot = slot_named(slot_of, x.a)
+        let b_slot = slot_named(slot_of, x.b)
+        if is_load(x.op):
+            if b_slot != 0:
+                ok[b_slot - 1] = false
+        elif is_store(x.op):
+            if a_slot != 0:
+                ok[a_slot - 1] = false
+        else:
+            if a_slot != 0:
+                ok[a_slot - 1] = false
+            if b_slot != 0:
+                ok[b_slot - 1] = false
+        i += 1
+    i = 0
+    while i < f.args.count:
+        let s = slot_named(slot_of, f.args.get(i).value)
+        if s != 0:
+            ok[s - 1] = false
+        i += 1
+    return ok
+
+func slot_named(slot_of: u32[], r: ir.Ref) -> u32:
+    if r.kind != ir.RefKind.temp or (usize)r.index >= slot_of.length:
+        return 0
+    return slot_of[r.index]
+
+# mark: promote ================================================================================
+
+## A value known to be in a promotable slot: the stored reference and the store's width.
+struct Known:
+    var value: ir.Ref
+    var op: ir.Op
+
+## Within each basic block, a load of a promotable slot after a store to it reads the
+## stored value instead.
+func promote(f: ir.Function*) -> bool!:
+    let slot_of = try addressed_slots(f)
+    let ok = try promotable_slots(f, slot_of)
+    var known = try alloc Known[f.slots.count + 1]
+    clear_known(known)
+    var changed = false
+    var i: usize = 0
+    while i < f.instrs.count:
+        let x = &f.instrs.items[i]
+        if ends_block(x.op):
+            clear_known(known)
+        elif is_store(x.op):
+            let s = slot_named(slot_of, x.b)
+            if s != 0 and ok[s - 1]:
+                known[s - 1] = Known(value = x.a, op = x.op)
+            elif s == 0:
+                # a store through an address that is not a promotable slot's: every promotable
+                # slot is still its own memory, so nothing changes
+                discard(0)
+        elif is_load(x.op):
+            let s = slot_named(slot_of, x.a)
+            if s != 0 and ok[s - 1] and known[s - 1].op != ir.Op.copy and matches(known[s - 1].op, x.op):
+                x.op = ir.Op.copy
+                x.a = known[s - 1].value
+                x.b = ir.none_ref()
+                changed = true
+        i += 1
+    free(known)
+    free(ok)
+    free(slot_of)
+    return changed
+
+func clear_known(known: Known[]):
+    var k: usize = 0
+    while k < known.length:
+        known[k] = Known(value = ir.none_ref(), op = ir.Op.copy)
+        k += 1
+
+## Whether a load reads exactly what a store wrote: the same width, and for a word the
+## same value, since the lowerer keeps a word temporary already extended as its type needs.
+func matches(store: ir.Op, load: ir.Op) -> bool:
+    if store == ir.Op.storel:
+        return load == ir.Op.loadl
+    if store == ir.Op.stored:
+        return load == ir.Op.loadd
+    if store == ir.Op.stores:
+        return load == ir.Op.loads
+    if store == ir.Op.storew:
+        return load == ir.Op.loadsw or load == ir.Op.loaduw
+    return false
+
+# mark: propagate ==============================================================================
+
+## Every use of a temporary that was a copy of another temporary or a constant reads the
+## original; the copy is left for `sweep`.
+func propagate(f: ir.Function*) -> bool!:
+    var source = try alloc ir.Ref[f.temps.count + 1]
+    var k: usize = 0
+    while k < source.length:
+        source[k] = ir.none_ref()
+        k += 1
+    var any = false
+    var i: usize = 0
+    while i < f.instrs.count:
+        let x = f.instrs.get(i)
+        if x.op == ir.Op.copy and x.dst != 0 and (x.a.kind == ir.RefKind.temp or x.a.kind == ir.RefKind.constant) and x.a.index != x.dst:
+            source[x.dst] = x.a
+            any = true
+        i += 1
+    if not any:
+        free(source)
+        return false
+    # a chain of copies resolves to its head
+    k = 1
+    while k < source.length:
+        var r = source[k]
+        var hops: u32 = 0
+        while r.kind == ir.RefKind.temp and source[r.index].kind != ir.RefKind.none_ and hops < 64:
+            r = source[r.index]
+            hops += 1
+        source[k] = r
+        k += 1
+    var changed = false
+    i = 0
+    while i < f.instrs.count:
+        let x = &f.instrs.items[i]
+        if x.op != ir.Op.copy or x.dst == 0 or source[x.dst].kind == ir.RefKind.none_:
+            if replace(&x.a, source):
+                changed = true
+            if x.op != ir.Op.jnz and replace(&x.b, source):
+                changed = true
+        i += 1
+    i = 0
+    while i < f.args.count:
+        if replace(&f.args.items[i].value, source):
+            changed = true
+        i += 1
+    free(source)
+    return changed
+
+func replace(r: ir.Ref*, source: ir.Ref[]) -> bool:
+    if r.kind != ir.RefKind.temp or (usize)r.index >= source.length:
+        return false
+    let s = source[r.index]
+    if s.kind == ir.RefKind.none_:
+        return false
+    *r = s
+    return true
+
+# mark: fold ===================================================================================
+
+## An operator on two constants becomes the constant; a trapping one only when it holds.
+func fold(f: ir.Function*) -> bool:
+    var changed = false
+    var i: usize = 0
+    while i < f.instrs.count:
+        let x = &f.instrs.items[i]
+        if x.dst != 0 and x.a.kind == ir.RefKind.constant and x.b.kind == ir.RefKind.constant:
+            if let v = constant_of(x.op, x.cls, x.a.value, x.b.value):
+                x.op = ir.Op.copy
+                x.a = ir.const_ref(v)
+                x.b = ir.none_ref()
+                changed = true
+        i += 1
+    return changed
+
+## `a op b` at class `cls`, or `none` when the operator is not folded here or would trap.
+func constant_of(op: ir.Op, cls: ir.Class, a: i64, b: i64) -> i64?:
+    let wide = cls == ir.Class.l
+    if cls != ir.Class.w and cls != ir.Class.l:
+        return none
+    match op:
+        .add: return narrow(a +% b, wide)
+        .sub: return narrow(a -% b, wide)
+        .mul: return narrow(a *% b, wide)
+        .and_: return narrow(a & b, wide)
+        .or_: return narrow(a | b, wide)
+        .xor: return narrow(a ^ b, wide)
+        .shl:
+            if b < 0 or b >= (64 if wide else 32):
+                return none
+            return narrow(a << b, wide)
+        .lshr:
+            if b < 0 or b >= (64 if wide else 32):
+                return none
+            let bits = (u64)a if wide else (u64)a & 0xFFFFFFFF
+            return narrow((i64)(bits >> (u64)b), wide)
+        .ashr:
+            if b < 0 or b >= (64 if wide else 32):
+                return none
+            let sa = a if wide else (i64)(i32)a
+            return narrow(sa >> b, wide)
+        .ceq: return 1 if same(a, b, wide) else 0
+        .cne: return 0 if same(a, b, wide) else 1
+        .cslt: return 1 if signed(a, wide) < signed(b, wide) else 0
+        .csle: return 1 if signed(a, wide) <= signed(b, wide) else 0
+        .csgt: return 1 if signed(a, wide) > signed(b, wide) else 0
+        .csge: return 1 if signed(a, wide) >= signed(b, wide) else 0
+        .cult: return 1 if unsigned(a, wide) < unsigned(b, wide) else 0
+        .cule: return 1 if unsigned(a, wide) <= unsigned(b, wide) else 0
+        .cugt: return 1 if unsigned(a, wide) > unsigned(b, wide) else 0
+        .cuge: return 1 if unsigned(a, wide) >= unsigned(b, wide) else 0
+        .addo:
+            let (sum, carried) = checked_add(signed(a, wide), signed(b, wide), wide)
+            return sum if not carried else none
+        .subo:
+            let (difference, carried) = checked_sub(signed(a, wide), signed(b, wide), wide)
+            return difference if not carried else none
+        .mulo:
+            let (product, carried) = checked_mul(signed(a, wide), signed(b, wide), wide)
+            return product if not carried else none
+        _:
+            return none
+
+## A constant at its class's width: a word keeps its low 32 bits, sign-extended.
+func narrow(v: i64, wide: bool) -> i64:
+    return v if wide else (i64)(i32)v
+
+func signed(v: i64, wide: bool) -> i64:
+    return v if wide else (i64)(i32)v
+
+func unsigned(v: i64, wide: bool) -> u64:
+    return (u64)v if wide else (u64)v & 0xFFFFFFFF
+
+func same(a: i64, b: i64, wide: bool) -> bool:
+    return unsigned(a, wide) == unsigned(b, wide)
+
+## Checked arithmetic at the width: the result and whether it overflowed the class.
+func checked_add(a: i64, b: i64, wide: bool) -> (i64, bool):
+    if wide:
+        let s = a +| b
+        return (s, (a > 0 and b > 0 and s < 0) or (a < 0 and b < 0 and s >= 0) or s != a +% b)
+    let s = a + b
+    return (s, s != (i64)(i32)s)
+
+func checked_sub(a: i64, b: i64, wide: bool) -> (i64, bool):
+    if wide:
+        let d = a -% b
+        return (d, (a >= 0 and b < 0 and d < 0) or (a < 0 and b > 0 and d >= 0))
+    let d = a - b
+    return (d, d != (i64)(i32)d)
+
+func checked_mul(a: i64, b: i64, wide: bool) -> (i64, bool):
+    if wide:
+        let p = a *% b
+        let overflow = a != 0 and (p // a != b or (a == -1 and b == -9223372036854775807 - 1) or (b == -1 and a == -9223372036854775807 - 1))
+        return (p, overflow)
+    let p = a * b
+    return (p, p != (i64)(i32)p)
+
+# mark: sweep ==================================================================================
+
+## Drop an instruction whose result nothing reads and that has no other effect, and a store
+## to a promotable slot the function never loads.
+func sweep(f: ir.Function*) -> bool!:
+    var used = try alloc bool[f.temps.count + 1]
+    clear_flags(used)
+    var i: usize = 0
+    while i < f.instrs.count:
+        let x = f.instrs.get(i)
+        mark(used, x.a)
+        mark(used, x.b)
+        i += 1
+    i = 0
+    while i < f.args.count:
+        mark(used, f.args.get(i).value)
+        i += 1
+    let slot_of = try addressed_slots(f)
+    let ok = try promotable_slots(f, slot_of)
+    var loaded = try alloc bool[f.slots.count + 1]
+    clear_flags(loaded)
+    i = 0
+    while i < f.instrs.count:
+        let x = f.instrs.get(i)
+        if is_load(x.op):
+            let s = slot_named(slot_of, x.a)
+            if s != 0:
+                loaded[s - 1] = true
+        i += 1
+    var out = try list.List[ir.Instr].create(f.instrs.count)
+    var changed = false
+    i = 0
+    while i < f.instrs.count:
+        let x = f.instrs.get(i)
+        var keep = true
+        if x.dst != 0 and not used[x.dst] and pure(x.op):
+            keep = false
+        elif is_store(x.op):
+            let s = slot_named(slot_of, x.b)
+            if s != 0 and ok[s - 1] and not loaded[s - 1]:
+                keep = false
+        if keep:
+            try out.push(x)
+        else:
+            changed = true
+        i += 1
+    if changed:
+        f.instrs.destroy()
+        f.instrs = out
+    else:
+        out.destroy()
+    free(loaded)
+    free(ok)
+    free(slot_of)
+    free(used)
+    return changed
+
+func clear_flags(flags: bool[]):
+    var k: usize = 0
+    while k < flags.length:
+        flags[k] = false
+        k += 1
+
+func mark(used: bool[], r: ir.Ref):
+    if r.kind == ir.RefKind.temp and (usize)r.index < used.length:
+        used[r.index] = true
+
+# mark: Operators ==============================================================================
+
+func is_load(op: ir.Op) -> bool:
+    return (u8)op >= (u8)ir.Op.loadsb and (u8)op <= (u8)ir.Op.loadhf
+
+func is_store(op: ir.Op) -> bool:
+    return (u8)op >= (u8)ir.Op.storeb and (u8)op <= (u8)ir.Op.storehf
+
+func ends_block(op: ir.Op) -> bool:
+    return op == ir.Op.label or op == ir.Op.jmp or op == ir.Op.jnz or op == ir.Op.ret or op == ir.Op.call or op == ir.Op.asm_ or op == ir.Op.set_reg or op == ir.Op.get_reg or (u8)op >= (u8)ir.Op.atomic_load and (u8)op <= (u8)ir.Op.fence
+
+## An instruction with no effect beyond its result: the arithmetic that cannot trap, the
+## comparisons, conversions, loads, and addresses.
+func pure(op: ir.Op) -> bool:
+    let code = (u8)op
+    if op == ir.Op.copy or op == ir.Op.addr or op == ir.Op.addr_tls:
+        return true
+    if code >= (u8)ir.Op.add and code <= (u8)ir.Op.neg:
+        return op != ir.Op.sdiv and op != ir.Op.udiv and op != ir.Op.srem and op != ir.Op.urem
+    if code >= (u8)ir.Op.ceq and code <= (u8)ir.Op.cuge:
+        return true
+    if is_load(op):
+        return true
+    if code >= (u8)ir.Op.extsb and code <= (u8)ir.Op.truncs:
+        return true
+    return false

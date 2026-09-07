@@ -1,10 +1,10 @@
 ## §15.3: threads are the `thread` module; `spawn` runs `entry(context)`; `join` waits and
-## makes the thread's work visible; a `thread_local var` is one per thread; a `sync.Mutex`
+## makes the thread's work visible; a `local var` is one per thread; a `sync.Mutex`
 ## orders plain data; a `Semaphore` counts; a `Once` runs its function once.
 import sync
 import thread
 
-thread_local var mine: u64
+local var mine: u64
 
 struct Shared:
     var hits: @u64

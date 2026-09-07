@@ -36,7 +36,7 @@ gave the right answer.
 | --- | --- | --- | --- | --- | --- |
 | 4.4 | raw, byte, triple-quoted, `\u{..}` literals | ok | not in core | ok | — |
 | 5.7 / 9.3 | tuples and multiple results | ok | ok | ok | ok |
-| 6.3 | `thread_local var` | ok | ok | ok | ok |
+| 6.3 | `local var` | ok | ok | ok | ok |
 | 7.2 | wrapping, saturating, checked arithmetic | ok | ok | ok | ok |
 | 7.5 | `f64.bits(u64)`, `value.bits()` | ok | rejects | ok | — |
 | 7.8 | `match` and conditional expressions | ok | ok | ok | ok |

@@ -16,7 +16,9 @@
 import back.arm64
 import back.emit
 import back.inline
+import back.irtext
 import back.lower
+import back.opt
 import front.ast
 import sema.check
 
@@ -44,16 +46,21 @@ pub struct CBackend: Backend:
 pub struct NativeBackend: Backend:
     var lowerer: lower.Lowerer
     var debug: bool
+    ## `--emit=ir`: the IR as text after every pass before the target, instead of assembly.
+    pub var dump_ir: bool
 
     pub static func over(c: check.Checker*, entry: ast.Node*, debug: bool, diagnostic: bool) -> NativeBackend!:
         var lowerer = try lower.Lowerer.create(c, entry)
         lowerer.diagnostic = diagnostic
-        return NativeBackend(lowerer = lowerer, debug = debug)
+        return NativeBackend(lowerer = lowerer, debug = debug, dump_ir = false)
 
     pub mutating func compile(mode: u32) -> str!:
         self.lowerer.debug = self.debug
         try self.lowerer.program(mode)
         try inline.expand(&self.lowerer.program_unit)
+        try opt.optimise(&self.lowerer.program_unit)
+        if self.dump_ir:
+            return try irtext.render(&self.lowerer.program_unit)
         var generator = try arm64.Generator.create(&self.lowerer.program_unit)
         try generator.generate()
         return generator.text()

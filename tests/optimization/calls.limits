@@ -1,0 +1,6 @@
+# the counts the passes reach; a pass lowers these, nothing raises them without saying so
+ir 75
+loads 15
+stores 13
+calls 4
+asm 225

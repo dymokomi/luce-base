@@ -15,7 +15,7 @@ extern struct Termios:
     input: u64
     output: u64
     control: u64
-    local: u64
+    lflag: u64
     control_chars: u8[20]
     input_speed: u64
     output_speed: u64
@@ -86,7 +86,7 @@ pub struct Terminal:
         var state = t.saved
         state.input = state.input & ~(xon | cr_to_nl)
         state.output = state.output & ~post_process
-        state.local = state.local & ~(echo | canonical | signals | extended)
+        state.lflag = state.lflag & ~(echo | canonical | signals | extended)
         state.control_chars[minimum_index] = 1
         state.control_chars[timeout_index] = 0
         if tcsetattr(0, flush_then_set, &state) != 0:

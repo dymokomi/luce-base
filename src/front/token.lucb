@@ -66,7 +66,7 @@ pub let keywords: str[48] = [
     "elif", "else", "enum", "errdefer", "export", "extern", "false", "for", "free",
     "from", "func", "goto", "if", "import", "in", "interface", "let",
     "match", "mutating", "new", "none", "not", "or", "pub", "recover", "return",
-    "self", "static", "struct", "test", "thread_local", "true", "try", "type",
+    "self", "static", "struct", "test", "local", "true", "try", "type",
     "union", "var", "volatile", "while", "with"]
 
 ## The core names of §3.5: the language's own functions and type names. No declaration of
@@ -104,5 +104,5 @@ pub let singles: str[13] = [")", "[", "]", "{", "}", ",", ":", ".", "?", "!", "@
 
 test "keywords are recognised":
     assert(is_keyword("func"))
-    assert(is_keyword("thread_local"))
+    assert(is_keyword("local"))
     assert(not is_keyword("function"))

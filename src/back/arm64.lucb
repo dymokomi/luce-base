@@ -925,13 +925,13 @@ pub struct Generator:
         try d.put("\n")
         var i: usize = 0
         while i < self.f.locals.count:
-            let local = self.f.locals.get(i)
-            try self.describe_text(local.name)
-            try self.describe_text(local.kind)
+            let described = self.f.locals.get(i)
+            try self.describe_text(described.name)
+            try self.describe_text(described.kind)
             try d.put("    .quad ")
-            try d.put_u64(self.slot_home(local.slot))
+            try d.put_u64(self.slot_home(described.slot))
             try d.put(", ")
-            try d.put_u64((u64)local.size)
+            try d.put_u64((u64)described.size)
             try d.put("\n")
             i += 1
 
