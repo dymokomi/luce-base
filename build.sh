@@ -8,6 +8,7 @@
 set -eu
 cd "$(dirname "$0")"
 mkdir -p build
+python3 tools/embed_version.py > /dev/null
 CC=${CC:-cc}
 if [ -n "${LUCB:-}" ]; then
     # the seed this tree is written against is named in bootstrap/SEED; an older one may

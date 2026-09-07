@@ -62,7 +62,9 @@ library (`memory`, `io`, `os`, `files`, `process`, `thread`, `sync`, `atomic`,
 `strings`, `paths`, `math`, `time`, `testing`, `net`) is Base source under
 `src/std/`, one file per module over `extern` declarations of the C library;
 `tools/embed_std.py` gathers them into `src/sema/prelude.lucb`, which the
-compiler binary carries. Everything decided by target lives in
+compiler binary carries. `VERSION` is the tree's version; `build.sh` writes it
+into `src/support/version.lucb`, and a release is a tag `luce-base-N`
+(`docs/RELEASES.md`). Everything decided by target lives in
 `src/back/target.lucb` and in the `platform` module the compiler writes for each
 build (`--target NAME`); the library branches on `platform.macos` and its kin,
 and the branch a target rules out is pruned. Linux's constants and layouts are

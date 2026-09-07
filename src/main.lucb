@@ -27,8 +27,7 @@ import process
 import sema.check
 import support.buffer
 import support.runtime
-
-let version: str = "0.1"
+import support.version
 
 func usage(out: io.Writer) -> !:
     try out.write("usage: luce-base lex FILE\n       luce-base parse FILE\n       luce-base check FILE\n       luce-base build FILE [-o OUT] [--release] [--emit=c] [--native] [--debug] [--emit=asm] [--emit=ir] [--lib] [--freestanding] [--target] [--profile diagnostic] [-W] [-lNAME] [-LDIR] [-framework NAME]\n       luce-base test FILE [--native]\n       luce-base --version\n")
@@ -658,7 +657,7 @@ pub func main(arguments: c.str[]) -> i32!:
             show_warnings = true
             positional -= 1
     if command == "--version":
-        try out.write(f"luce-base {version}\n")
+        try out.write(f"luce-base {version.text}\n")
         return 0
     if command == "parse" and positional == 3:
         parse_file(arguments[2], out) catch failure:
