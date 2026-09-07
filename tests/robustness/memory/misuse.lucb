@@ -1,0 +1,19 @@
+## Under `--profile diagnostic` the mistakes a program cannot be stopped from making become
+## visible: a read after `free` sees the 0xDD fill instead of the next allocation, an
+## uninitialised `---` local reads as 0xAA, and every allocation left a site behind.
+# profile: diagnostic
+import memory
+
+pub func main(arguments: str[]) -> i32!:
+    let block = try alloc u8[16]
+    block[0] = 1
+    let data = block.data
+    free(block)
+    let next = try alloc u8[16]
+    print(f"{hex(data[0])} {hex(data[15])} {(usize)next.data != (usize)data}")
+    var word: u64 = ---
+    print(f"{hex(word)}")
+    let sites = memory.allocation_sites()
+    print(f"{sites.length} {sites[0].size} {sites[1].size}")
+    free(next)
+    return 0

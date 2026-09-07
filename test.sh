@@ -110,6 +110,8 @@ for f in tests/samples/errors/*.lucb; do
         *) echo "FAIL $f: expected [$want], got [$got]"; exit 1;;
     esac
 done
+# the robustness suite: memory management measured through a counting allocator
+tests/robustness/run.sh
 # the conformance suite: a positive and a negative program for each point of the specification
 tests/conformance/run.sh
 echo "ok"

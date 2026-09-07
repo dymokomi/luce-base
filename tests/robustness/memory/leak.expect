@@ -1,0 +1,2 @@
+leak: allocations=3 frees=1 live=2 bytes=96 peak_live=2 peak_bytes=96 failures=0
+2 blocks, 96 bytes still live

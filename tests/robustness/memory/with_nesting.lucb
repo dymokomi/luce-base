@@ -1,0 +1,47 @@
+## `with` nests and restores on every exit: a failure inside an inner suite leaves the outer
+## allocator current, a container frees with the allocator that built it whatever is current,
+## and blocks are counted where they were taken.
+import counting
+import memory
+
+let refused = ErrorCode.package(1)
+
+struct Bag:
+    var items: i64[]
+    var allocator: memory.Allocator
+
+    static func create(count: usize, allocator: memory.Allocator) -> Bag!:
+        return Bag(items = try new i64[count] in allocator, allocator = allocator)
+
+    mutating func destroy():
+        free(self.items) in self.allocator
+
+func inner(b: counting.Counting*) -> !:
+    with *b:
+        let x = try new u8[100]
+        defer free(x)
+        error(refused, "inner failed")
+
+pub func main(arguments: str[]) -> i32!:
+    var a = counting.Counting.unlimited()
+    var b = counting.Counting.unlimited()
+    with a:
+        let first = try new u8[10]
+        with b:
+            let second = try new u8[20]
+            inner(&b) catch e:
+                print(f"caught {e.message}")
+            let third = try new u8[30]
+            free(second)
+            free(third)
+        let fourth = try new u8[40]
+        free(first)
+        free(fourth)
+    a.report("a")
+    b.report("b")
+    var bag = try Bag.create(8, &a)
+    with b:
+        bag.destroy()
+    a.report("a after bag")
+    b.report("b after bag")
+    return 0

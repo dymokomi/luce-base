@@ -1,0 +1,41 @@
+## A budget that runs out mid-structure: the partial structure is released by `errdefer`,
+## the failure is `memory.exhausted`, the counts return to zero, and the same build succeeds
+## once the budget allows it.
+import counting
+import memory
+
+struct Row:
+    var cells: i64[]
+
+## The rows filled so far: a fresh table's rows hold empty spans, so the helper frees only
+## what a failed build had made.
+func release_rows(table: Row[]):
+    for row in table:
+        if row.cells.length > 0:
+            free(row.cells)
+
+func build(rows: usize, cells: usize) -> Row[]!:
+    let table = try new Row[rows]
+    errdefer free(table)
+    errdefer release_rows(table)
+    var made: usize = 0
+    while made < rows:
+        table[made] = Row(cells = try new i64[cells])
+        made += 1
+    return table
+
+pub func main(arguments: str[]) -> i32:
+    var c = counting.Counting.within(1000)
+    with c:
+        let table = build(8, 16) catch e:
+            print(f"{e.code == memory.exhausted} {c.failures}")
+            c.report("after failure")
+            c.limit = 4000
+            recover build(8, 16) catch e2:
+                print("still failing")
+                return 1
+        print(f"{table.length} {c.live}")
+        release_rows(table)
+        free(table)
+        c.report("end")
+    return 0

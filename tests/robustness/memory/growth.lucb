@@ -1,0 +1,38 @@
+## A growing container: doubling with `new`, copy, `free`; the peak shows the last two
+## buffers side by side; a `FixedBuffer` resizes its last block in place and refuses others.
+import counting
+import memory
+
+struct Ints:
+    var items: i64[]
+    var count: usize
+
+    mutating func push(value: i64) -> !:
+        if self.count == self.items.length:
+            let bigger = try new i64[self.items.length * 2 if self.items.length > 0 else 4]
+            memory.copy(bigger, self.items, self.count)
+            free(self.items)
+            self.items = bigger
+        self.items[self.count] = value
+        self.count += 1
+
+pub func main(arguments: str[]) -> i32!:
+    var c = counting.Counting.unlimited()
+    with c:
+        var ints = Ints(items = try new i64[4], count = 0)
+        var i: i64 = 0
+        while i < 100000:
+            try ints.push(i)
+            i += 1
+        var sum: i64 = 0
+        for v in ints.items[..<ints.count]:
+            sum += v
+        print(f"{sum} {ints.items.length}")
+        free(ints.items)
+        c.report("ints")
+    var backing: u8[256]
+    var fixed = memory.FixedBuffer.over(backing)
+    let first = fixed.allocate(64, 8) else return 1
+    let last = fixed.allocate(32, 8) else return 1
+    print(f"{fixed.resize(first, 96)} {fixed.resize(last, 128)} {fixed.resize(last, 200)}")
+    return 0

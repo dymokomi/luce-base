@@ -1,0 +1,58 @@
+## Every `new` meets its `free` through `defer` and `errdefer` on every path: early returns,
+## `break` and `continue`, failures inside loops, and a failure after several allocations.
+import counting
+import memory
+
+let too_big = ErrorCode.package(1)
+
+func work(n: i64) -> i64!:
+    let a = try new i64[8]
+    defer free(a)
+    if n == 1:
+        return 1
+    let b = try new i64[16]
+    defer free(b)
+    if n == 2:
+        error(too_big, "two")
+    var total: i64 = 0
+    for i in 0..<10:
+        let scratch = try new u8[32]
+        defer free(scratch)
+        if i == 3:
+            continue
+        if i == 7:
+            break
+        total += (i64)scratch.length
+    return total
+
+func build(fail_at: i64) -> u8[]!:
+    let block = try new u8[64]
+    errdefer free(block)
+    if fail_at == 1:
+        error(too_big, "first")
+    let extra = try new u8[64]
+    errdefer free(extra)
+    if fail_at == 2:
+        error(too_big, "second")
+    free(extra)
+    return block
+
+pub func main(arguments: str[]) -> i32:
+    var c = counting.Counting.unlimited()
+    with c:
+        var sum: i64 = 0
+        for n in [1, 2, 3]:
+            let v = work(n) catch e:
+                recover -1
+            sum += v
+        print(f"{sum}")
+        c.report("work")
+        for at in [1, 2, 0]:
+            let block = build(at) catch e:
+                c.report("failed build")
+                continue
+            print(f"kept {block.length}")
+            free(block)
+        c.report("build")
+    print(f"{c.live == 0 and c.allocations == c.frees}")
+    return 0

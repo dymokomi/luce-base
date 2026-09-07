@@ -1,0 +1,50 @@
+## Deep recursion that allocates per frame and frees by `defer` as frames unwind, and a tree
+## built and freed recursively: the peak shows the depth, the end shows nothing live.
+import counting
+import memory
+
+struct Node:
+    var value: i64
+    var left: Node*?
+    var right: Node*?
+
+func descend(depth: usize, c: counting.Counting*) -> usize!:
+    let frame = try new u8[16]
+    defer free(frame)
+    if depth == 0:
+        return c.live
+    return try descend(depth - 1, c)
+
+func grow(depth: u32, value: i64) -> Node*!:
+    let node = try new Node(value = value, left = none, right = none)
+    errdefer free(node)
+    if depth > 0:
+        node.left = try grow(depth - 1, value * 2)
+        node.right = try grow(depth - 1, value * 2 + 1)
+    return node
+
+func total(node: const Node*) -> i64:
+    var sum = node.value
+    if let l = node.left:
+        sum += total(l)
+    if let r = node.right:
+        sum += total(r)
+    return sum
+
+func drop(node: Node*):
+    if let l = node.left:
+        drop(l)
+    if let r = node.right:
+        drop(r)
+    free(node)
+
+pub func main(arguments: str[]) -> i32!:
+    var c = counting.Counting.unlimited()
+    with c:
+        let deepest = try descend(2000, &c)
+        print(f"{deepest} {c.peak_live} {c.live}")
+        let root = try grow(12, 1)
+        print(f"{total(root)} {c.live}")
+        drop(root)
+        c.report("tree")
+    return 0

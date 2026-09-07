@@ -1,0 +1,20 @@
+## A deliberate leak is measurable: what the allocator still holds at the end is reported,
+## by count and by bytes, so a leak never hides.
+import counting
+import memory
+
+func leaky(keep: bool) -> !:
+    let block = try new u8[48]
+    if keep:
+        return
+    free(block)
+
+pub func main(arguments: str[]) -> i32!:
+    var c = counting.Counting.unlimited()
+    with c:
+        try leaky(false)
+        try leaky(true)
+        try leaky(true)
+    c.report("leak")
+    print(f"{c.live} blocks, {c.bytes} bytes still live")
+    return 0
