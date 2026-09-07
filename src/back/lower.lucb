@@ -170,6 +170,9 @@ pub struct Lowerer:
     func is_signed(id: u32) -> bool:
         return self.c.table.is_signed(id)
 
+    func is_vector(id: u32) -> bool:
+        return self.c.table.is_vector(id)
+
     func is_float(id: u32) -> bool:
         return self.c.table.is_float(id)
 
@@ -1585,6 +1588,10 @@ pub struct Lowerer:
                 let inner = e.left else return try self.fail(e, "empty group")
                 return try self.place(inner)
             .unary:
+                if e.text != "*":
+                    # `(-v)[1]`: the operator's value, in a temporary of its own
+                    let v = try self.expr(e)
+                    return try self.address_of_value(v)
                 let inner = e.left else return try self.fail(e, "empty deref")
                 let p = try self.expr(inner)
                 return p.ref
@@ -1772,6 +1779,8 @@ pub struct Lowerer:
     mutating func unary(e: ast.Node*) -> LowerValue!:
         let inner = e.left else return try self.fail(e, "no operand")
         let t = try self.ty(e)
+        if self.is_vector(t):
+            return try self.vector_unary(e, inner, t)
         if e.text == "try":
             return try self.try_expr(e)
         if e.text == "not":
@@ -1793,19 +1802,23 @@ pub struct Lowerer:
             let negative = (i64)(0 -% magnitude)
             return LowerValue(ref = ir.const_ref(negative), type_id = t, in_memory = false)
         let v = try self.value(inner, t)
+        return LowerValue(ref = try self.unary_scalar(e.text, t, v.ref), type_id = t, in_memory = false)
+
+    ## `-x`, `~x`, or `-%x` on one scalar of type `t`.
+    mutating func unary_scalar(op: str, t: u32, x: ir.Ref) -> ir.Ref!:
         if self.is_float(t):
-            return LowerValue(ref = try self.f.unary(ir.Op.neg, self.class_of(t), v.ref), type_id = t, in_memory = false)
+            return try self.f.unary(ir.Op.neg, self.class_of(t), x)
         let cls = self.class_of(t)
-        if e.text == "~":
-            let flipped = try self.f.binary(ir.Op.xor, cls, v.ref, ir.const_ref(-1))
-            return LowerValue(ref = try self.narrow(flipped, t), type_id = t, in_memory = false)
-        if e.text == "-%":
-            let neg = try self.f.binary(ir.Op.sub, cls, ir.const_ref(0), v.ref)
-            return LowerValue(ref = try self.narrow(neg, t), type_id = t, in_memory = false)
-        let neg = try self.f.binary(ir.Op.subo, cls, ir.const_ref(0), v.ref)
+        if op == "~":
+            let flipped = try self.f.binary(ir.Op.xor, cls, x, ir.const_ref(-1))
+            return try self.narrow(flipped, t)
+        if op == "-%":
+            let neg = try self.f.binary(ir.Op.sub, cls, ir.const_ref(0), x)
+            return try self.narrow(neg, t)
+        let neg = try self.f.binary(ir.Op.subo, cls, ir.const_ref(0), x)
         try self.mark_signed(self.signed_of(t))
         try self.check_range(neg, t)
-        return LowerValue(ref = neg, type_id = t, in_memory = false)
+        return neg
 
     ## Bring a `w`/`l` result back into the range of a narrower integer type (wrapping).
     mutating func narrow(r: ir.Ref, t: u32) -> ir.Ref!:
@@ -1974,6 +1987,8 @@ pub struct Lowerer:
         let r = e.right else return try self.fail(e, "no operand")
         let op = e.text
         let t = try self.ty(e)
+        if self.is_vector(t):
+            return try self.vector_binary(e, l, r, t)
         if op == "and" or op == "or":
             # short-circuit through a slot
             let slot = try self.f.slot(1, 1)
@@ -2052,6 +2067,104 @@ pub struct Lowerer:
         let rv = try self.value(r, ot)
         let result = try self.arithmetic(op, ot, lv.ref, rv.ref, e)
         return LowerValue(ref = result, type_id = ot, in_memory = false)
+
+    ## Lane-wise arithmetic (§5.12): each lane computed as the scalar operator would, in
+    ## lane order, into a slot of the vector type; a scalar operand stands for every lane.
+    mutating func vector_binary(e: ast.Node*, l: ast.Node*, r: ast.Node*, t: u32) -> LowerValue!:
+        let et = self.elem(t)
+        let lt = try self.ty(l)
+        let rt = try self.ty(r)
+        let lv = try self.value(l, lt if self.kind(lt) == types.Kind.array else et)
+        let rv = try self.value(r, rt if self.kind(rt) == types.Kind.array else et)
+        let stride = self.c.table.size_of(et)
+        let count = self.c.table.get(t).length
+        let slot = try self.new_slot(t)
+        let out = try self.slot_address(slot)
+        var i: u64 = 0
+        while i < count:
+            let a = try self.lane_of(lv, et, i * stride)
+            let b = try self.lane_of(rv, et, i * stride)
+            let result = try self.arithmetic(e.text, et, a, b, e)
+            try self.store_to(try self.offset_address(out, i * stride), LowerValue(ref = result, type_id = et, in_memory = false))
+            i += 1
+        return LowerValue(ref = out, type_id = t, in_memory = true)
+
+    ## The lane at `offset` of a vector operand, or a scalar operand itself.
+    mutating func lane_of(v: LowerValue, et: u32, offset: u64) -> ir.Ref!:
+        if self.kind(v.type_id) != types.Kind.array:
+            return v.ref
+        let lane = try self.load_from(try self.offset_address(v.ref, offset), et)
+        return lane.ref
+
+    ## Every lane of a vector under `~`, `-`, or `-%` (§5.12).
+    mutating func vector_unary(e: ast.Node*, inner: ast.Node*, t: u32) -> LowerValue!:
+        let et = self.elem(t)
+        let v = try self.value(inner, t)
+        let stride = self.c.table.size_of(et)
+        let count = self.c.table.get(t).length
+        let slot = try self.new_slot(t)
+        let out = try self.slot_address(slot)
+        var i: u64 = 0
+        while i < count:
+            let x = try self.lane_of(v, et, i * stride)
+            let result = try self.unary_scalar(e.text, et, x)
+            try self.store_to(try self.offset_address(out, i * stride), LowerValue(ref = result, type_id = et, in_memory = false))
+            i += 1
+        return LowerValue(ref = out, type_id = t, in_memory = true)
+
+    ## `T[N](x)`: every lane is `x`, computed once (§5.12).
+    mutating func splat(e: ast.Node*, t: u32) -> LowerValue!:
+        let first = e.body else return try self.fail(e, "no argument")
+        let v = first.left else return try self.fail(e, "no argument")
+        let et = self.elem(t)
+        let x = try self.value(v, et)
+        let stride = self.c.table.size_of(et)
+        let count = self.c.table.get(t).length
+        let slot = try self.new_slot(t)
+        let out = try self.slot_address(slot)
+        var i: u64 = 0
+        while i < count:
+            try self.store_to(try self.offset_address(out, i * stride), x)
+            i += 1
+        return LowerValue(ref = out, type_id = t, in_memory = true)
+
+    ## `v.sum()`, `v.min()`, `v.max()`: the lanes folded in order through a slot (§5.12); a
+    ## float `min` or `max` skips a NaN lane when another lane compares.
+    mutating func vector_fold(e: ast.Node*, callee: ast.Node*, receiver: ast.Node*, rt: u32, result: u32) -> LowerValue!:
+        let et = self.elem(rt)
+        let v = try self.expr(receiver)
+        let stride = self.c.table.size_of(et)
+        let count = self.c.table.get(rt).length
+        let acc_slot = try self.new_slot(et)
+        let acc = try self.slot_address(acc_slot)
+        try self.store_to(acc, try self.load_from(v.ref, et))
+        let cls = self.class_of(et)
+        let signed = self.is_float(et) or self.signed_of(et)
+        var i: u64 = 1
+        while i < count:
+            let lane = (try self.load_from(try self.offset_address(v.ref, i * stride), et)).ref
+            let have = (try self.load_from(acc, et)).ref
+            if callee.text == "sum":
+                let sum = try self.arithmetic("+", et, have, lane, e)
+                try self.store_to(acc, LowerValue(ref = sum, type_id = et, in_memory = false))
+            else:
+                var cop = ir.Op.cslt if signed else ir.Op.cult
+                if callee.text == "max":
+                    cop = ir.Op.csgt if signed else ir.Op.cugt
+                var take = try self.f.binary(cop, cls, lane, have)
+                if self.is_float(et):
+                    let nan = try self.f.binary(ir.Op.cne, cls, have, have)
+                    take = try self.f.binary(ir.Op.or_, ir.Class.w, take, nan)
+                let yes = self.f.label()
+                let done = self.f.label()
+                try self.f.branch(take, yes, done)
+                try self.f.place_label(yes)
+                try self.store_to(acc, LowerValue(ref = lane, type_id = et, in_memory = false))
+                try self.f.jump(done)
+                try self.f.place_label(done)
+            i += 1
+        let folded = try self.load_from(acc, et)
+        return LowerValue(ref = folded.ref, type_id = result, in_memory = false)
 
     ## `core.qadd_s(a, b, bits, &out)` into a tagged optional.
     mutating func checked_optional(helper: str, et: u32, a: ir.Ref, b: ir.Ref, t: u32) -> LowerValue!:
@@ -3132,6 +3245,8 @@ pub struct Lowerer:
         let result = try self.ty(e)
         if callee.text == "compare":
             return try self.compare_call(e, receiver, rt, result)
+        if callee.text == "sum" or callee.text == "min" or callee.text == "max":
+            return try self.vector_fold(e, callee, receiver, rt, result)
         if callee.text == "bits":
             let v = try self.expr(receiver)
             return LowerValue(ref = try self.f.unary(ir.Op.cast, self.class_of(result), v.ref), type_id = result, in_memory = false)
@@ -3215,6 +3330,8 @@ pub struct Lowerer:
 
     mutating func construct_or_convert(e: ast.Node*, callee: ast.Node*) -> LowerValue!:
         let target = try self.ty(e)
+        if self.is_vector(target):
+            return try self.splat(e, target)
         let payload = self.elem(target) if self.is_fail(target) else target
         if let init = e.resolved:
             if init.kind == ast.Kind.func_ and init.text == "init":

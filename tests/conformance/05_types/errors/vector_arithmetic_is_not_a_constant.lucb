@@ -1,0 +1,6 @@
+# error: a top-level `let` needs a constant expression
+## §5.12: a lane-wise operator runs; it is not a constant expression (§6.4).
+let base: f32[4] = [1.0, 2.0, 3.0, 4.0]
+let scaled = base * 2.0
+pub func main(arguments: str[]) -> i32:
+    return 0

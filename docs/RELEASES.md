@@ -5,6 +5,23 @@
 release is a VERSION bump, a tag `luce-base-N`, and a push, the way luce-seed does it
 (`bootstrap/SEED` pins the seed the tree is built against).
 
+## 0.5.0
+
+Vectors (§5.12).
+
+- an array of eight or sixteen bytes of one integer or float lane type computes lane by
+  lane under `+ - * / +% -% *% +| -| *| & | ^ << >>` and unary `- -% ~`, a scalar of the
+  lane type broadcasting; `T[N](x)` fills every lane; `sum()`, `min()`, `max()` fold the
+  lanes, a float `min`/`max` skipping NaN lanes; each lane computes as the scalar would,
+  traps included, in all three executions (interpreter, C, native);
+- a lane-wise operator is not a constant expression (§6.4); a module-level vector is an
+  array literal or a broadcast of a constant;
+- the lowerer's `place` no longer reads through a unary operator: `(-v)[1]` indexes the
+  operator's value;
+- `tests/conformance/05_types/vectors.lucb`, `vector_lane_overflow.trap`, and eight
+  rejections; pinned to luce-seed-0.42, which has the same feature and eleven tests of it;
+- `docs/DESIGN.md` "Vectors": what is done, and what the native backend's SIMD step is.
+
 ## 0.4.0
 
 The inliner expands what can be expanded, and the policy is measured.

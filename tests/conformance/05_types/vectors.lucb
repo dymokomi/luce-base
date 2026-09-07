@@ -1,0 +1,46 @@
+## §5.12: a vector is an array of eight or sixteen bytes of one lane type; the operators
+## of §7.2 and §7.3 apply lane by lane, a scalar of the lane type broadcasts, `T[N](x)`
+## fills every lane, and `sum`, `min`, `max` fold the lanes. A lane computes exactly as the
+## scalar would, so the three executions agree on every bit.
+let ones = i32[4](1)
+let base: f32[4] = [1.0, 2.0, 3.0, 4.0]
+
+func norm2(v: f32[4]) -> f32:
+    return (v * v).sum()
+
+pub func main(arguments: str[]) -> i32:
+    let half = f32[4](0.5)
+    let c = base * half + base
+    let d = c * 2.0
+    print(f"{c[0]} {c[1]} {c[2]} {c[3]} {d[3]} {c.sum()} {c.min()} {c.max()} {norm2(base)}")
+    var counts: u32[4] = [1, 2, 3, 4]
+    counts = counts +% counts
+    let masked = counts & 6
+    let shifted = counts << 2
+    let mixed = (counts | 1) ^ ones_u32()
+    print(f"{counts[3]} {masked[1]} {masked[3]} {shifted[0]} {counts.sum()} {mixed[0]} {mixed[3]}")
+    let signed: i16[8] = [1, -2, 3, -4, 5, -6, 7, -8]
+    let neg = -signed
+    let inv = ~signed
+    let wide = signed *| 20000
+    let wrapped = signed *% 20000
+    let sat = signed -| 32767
+    print(f"{neg[1]} {inv[0]} {wide[0]} {wide[1]} {wrapped[1]} {sat[7]} {signed.min()} {signed.max()} {signed.sum()}")
+    let pair: f64[2] = [2.5, 0.0]
+    let q = pair / f64[2](2.0)
+    let bytes: u8[16] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
+    let doubled = bytes * 2
+    let bumped = bytes +| 250
+    print(f"{q[0]} {q[1]} {pair == [2.5, 0.0]} {(q != pair)} {doubled[15]} {(doubled & 15).sum()} {bumped[10]} {bumped.max()}")
+    let longs: i64[2] = [4000000000, -4000000000]
+    let scaled = longs * 2
+    let wrapped_neg = -%(u64[2](1))
+    print(f"{scaled[0]} {scaled[1]} {longs.min()} {(-longs)[1]} {wrapped_neg[0]} {ones.sum()}")
+    var lanes: f32[2] = [3.0, -1.0]
+    lanes[1] = lanes[0] * 3.0
+    let shrunk = lanes - 1.0
+    print(f"{lanes[1]} {shrunk[0]} {shrunk[1]} {(lanes * f32[2](0.0)).sum()}")
+    return 0
+
+func ones_u32() -> u32[4]:
+    return u32[4](1)

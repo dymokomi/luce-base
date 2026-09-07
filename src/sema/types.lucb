@@ -321,6 +321,19 @@ pub struct Table:
     pub func is_numeric(id: u32) -> bool:
         return self.is_integer(id) or self.is_float(id)
 
+    ## A vector (§5.12): an array of one integer type of a stated width, or of `f32` or
+    ## `f64`, whose bytes number eight or sixteen.
+    pub func is_vector(id: u32) -> bool:
+        let t = self.get(id)
+        if t.kind != Kind.array or is_distinct_c(t.elem):
+            return false
+        let k = self.kind(t.elem)
+        let lane = k == Kind.i8_ or k == Kind.i16_ or k == Kind.i32_ or k == Kind.i64_ or k == Kind.u8_ or k == Kind.u16_ or k == Kind.u32_ or k == Kind.u64_ or k == Kind.f32_ or k == Kind.f64_
+        if not lane:
+            return false
+        let bytes = self.size_of(t.elem) * t.length
+        return bytes == 8 or bytes == 16
+
     pub func is_pointer(id: u32) -> bool:
         return self.kind(id) == Kind.pointer
 

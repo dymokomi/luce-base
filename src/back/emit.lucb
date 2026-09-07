@@ -277,6 +277,9 @@ pub struct Emitter:
     func is_signed(id: u32) -> bool:
         return self.c.table.is_signed(id)
 
+    func is_vector(id: u32) -> bool:
+        return self.c.table.is_vector(id)
+
     func is_float(id: u32) -> bool:
         return self.c.table.is_float(id)
 
@@ -2568,6 +2571,9 @@ pub struct Emitter:
             try self.expr(inner)
             return
         let t = try self.ty(e)
+        if self.is_vector(t):
+            try self.vector_unary(e, inner, t)
+            return
         if self.is_float(t):
             try self.put("(-(")
             try self.expr(inner)
@@ -2640,6 +2646,9 @@ pub struct Emitter:
         let lt = try self.ty(l)
         let rt = try self.ty(r)
         let t = try self.ty(e)
+        if self.is_vector(t):
+            try self.vector_binary(e, l, lt, r, rt, t)
+            return
         # the operand type: the typed side, or the result
         var ot = lt
         if lt == types.untyped_int_id or lt == types.untyped_float_id or lt == types.none_id:
@@ -2740,6 +2749,221 @@ pub struct Emitter:
             try self.put("; })")
             return
         try self.checked_op(helper_name(op), ot, l, r)
+
+    ## Lane-wise arithmetic (§5.12): the operands bound once, each lane of the result the
+    ## scalar operation on the operands' lanes; a scalar operand stands for every lane.
+    mutating func vector_binary(e: ast.Node*, l: ast.Node*, lt: u32, r: ast.Node*, rt: u32, t: u32) -> !:
+        let et = self.elem(t)
+        let n = self.tmp()
+        let lv = self.kind(lt) == types.Kind.array
+        let rv = self.kind(rt) == types.Kind.array
+        try self.put("({ ")
+        try self.put_type(lt if lv else et)
+        try self.put(" ")
+        try self.put_tmp("va", n)
+        try self.put(" = ")
+        try self.value(l, lt if lv else et)
+        try self.put("; ")
+        try self.put_type(rt if rv else et)
+        try self.put(" ")
+        try self.put_tmp("vb", n)
+        try self.put(" = ")
+        try self.value(r, rt if rv else et)
+        try self.put("; ")
+        try self.put_type(t)
+        try self.put(" ")
+        try self.put_tmp("vr", n)
+        try self.put("; ")
+        let count = self.c.table.get(t).length
+        var i: u64 = 0
+        while i < count:
+            try self.put_tmp("vr", n)
+            try self.put(".d[")
+            try self.put_u64(i)
+            try self.put("] = ")
+            try self.lane_op(e.text, et, "va", n, i if lv else no_lane, "vb", n, i if rv else no_lane)
+            try self.put("; ")
+            i += 1
+        try self.put_tmp("vr", n)
+        try self.put("; })")
+
+    ## Every lane of a vector under `~`, `-`, or `-%` (§5.12).
+    mutating func vector_unary(e: ast.Node*, inner: ast.Node*, t: u32) -> !:
+        let et = self.elem(t)
+        let n = self.tmp()
+        try self.put("({ ")
+        try self.put_type(t)
+        try self.put(" ")
+        try self.put_tmp("va", n)
+        try self.put(" = ")
+        try self.value(inner, t)
+        try self.put("; ")
+        try self.put_type(t)
+        try self.put(" ")
+        try self.put_tmp("vr", n)
+        try self.put("; ")
+        let count = self.c.table.get(t).length
+        var i: u64 = 0
+        while i < count:
+            try self.put_tmp("vr", n)
+            try self.put(".d[")
+            try self.put_u64(i)
+            try self.put("] = ")
+            try self.lane_unary(e.text, et, "va", n, i)
+            try self.put("; ")
+            i += 1
+        try self.put_tmp("vr", n)
+        try self.put("; })")
+
+    ## `T[N](x)`: every lane is `x`, computed once (§5.12); in a global's initialiser `x` is
+    ## a constant and the lanes are a compound literal.
+    mutating func splat(e: ast.Node*, t: u32) -> !:
+        let first = e.body else return
+        let v = first.left else return
+        let et = self.elem(t)
+        let count = self.c.table.get(t).length
+        if self.folding:
+            try self.put("((")
+            try self.put_type(t)
+            try self.put("){{")
+            var k: u64 = 0
+            while k < count:
+                if k > 0:
+                    try self.put(", ")
+                try self.value(v, et)
+                k += 1
+            try self.put("}})")
+            return
+        let n = self.tmp()
+        try self.put("({ ")
+        try self.put_type(et)
+        try self.put(" ")
+        try self.put_tmp("va", n)
+        try self.put(" = ")
+        try self.value(v, et)
+        try self.put("; ")
+        try self.put_type(t)
+        try self.put(" ")
+        try self.put_tmp("vr", n)
+        try self.put("; ")
+        var i: u64 = 0
+        while i < count:
+            try self.put_tmp("vr", n)
+            try self.put(".d[")
+            try self.put_u64(i)
+            try self.put("] = ")
+            try self.put_tmp("va", n)
+            try self.put("; ")
+            i += 1
+        try self.put_tmp("vr", n)
+        try self.put("; })")
+
+    ## `v.sum()`, `v.min()`, `v.max()`: the lanes folded in order (§5.12); a float `min` or
+    ## `max` skips a NaN lane when another lane compares.
+    mutating func vector_fold(e: ast.Node*, callee: ast.Node*, receiver: ast.Node*, rt: u32) -> !:
+        let et = self.elem(rt)
+        let n = self.tmp()
+        try self.put("({ ")
+        try self.put_type(rt)
+        try self.put(" ")
+        try self.put_tmp("va", n)
+        try self.put(" = ")
+        try self.expr(receiver)
+        try self.put("; ")
+        try self.put_type(et)
+        try self.put(" ")
+        try self.put_tmp("vf", n)
+        try self.put(" = ")
+        try self.put_tmp("va", n)
+        try self.put(".d[0]; ")
+        let count = self.c.table.get(rt).length
+        var i: u64 = 1
+        while i < count:
+            if callee.text == "sum":
+                try self.put_tmp("vf", n)
+                try self.put(" = ")
+                try self.lane_op("+", et, "vf", n, no_lane, "va", n, i)
+                try self.put("; ")
+            else:
+                try self.put("if (")
+                if self.is_float(et):
+                    try self.put_tmp("vf", n)
+                    try self.put(" != ")
+                    try self.put_tmp("vf", n)
+                    try self.put(" || ")
+                try self.lane("va", n, i)
+                try self.put(" < " if callee.text == "min" else " > ")
+                try self.put_tmp("vf", n)
+                try self.put(") ")
+                try self.put_tmp("vf", n)
+                try self.put(" = ")
+                try self.lane("va", n, i)
+                try self.put("; ")
+            i += 1
+        try self.put_tmp("vf", n)
+        try self.put("; })")
+
+    ## Temporary `name<n>`, or its lane `i` when it is a vector.
+    mutating func lane(name: str, n: u32, i: u64) -> !:
+        try self.put_tmp(name, n)
+        if i != no_lane:
+            try self.put(".d[")
+            try self.put_u64(i)
+            try self.put("]")
+
+    ## One scalar operation of §7.2 or §7.3 on two temporaries' lanes, of type `t`: C's
+    ## operator for floats and bits, the runtime's helper for the integer forms.
+    mutating func lane_op(op: str, t: u32, a: str, an: u32, ai: u64, b: str, bn: u32, bi: u64) -> !:
+        if self.is_float(t) or op == "&" or op == "|" or op == "^":
+            try self.put("((")
+            try self.put_type(t)
+            try self.put(")(")
+            try self.lane(a, an, ai)
+            try self.put(" ")
+            try self.put(op)
+            try self.put(" ")
+            try self.lane(b, bn, bi)
+            try self.put("))")
+            return
+        try self.put("(")
+        try self.put_type(t)
+        try self.put(")(lb_")
+        try self.put(helper_name(op))
+        try self.put("_s(" if self.signed_of(t) else "_u(")
+        try self.put("(int64_t)(" if self.signed_of(t) else "(uint64_t)(")
+        try self.lane(a, an, ai)
+        try self.put("), ")
+        try self.put("(int64_t)(" if self.signed_of(t) else "(uint64_t)(")
+        try self.lane(b, bn, bi)
+        try self.put("), ")
+        try self.put_u64((u64)self.bits(t))
+        try self.put("))")
+
+    ## `~`, `-`, or `-%` on one temporary's lane, of type `t`.
+    mutating func lane_unary(op: str, t: u32, a: str, an: u32, ai: u64) -> !:
+        if self.is_float(t):
+            try self.put("(-(")
+            try self.lane(a, an, ai)
+            try self.put("))")
+            return
+        try self.put("((")
+        try self.put_type(t)
+        try self.put(")")
+        if op == "~":
+            if self.signed_of(t):
+                try self.put("~(")
+                try self.lane(a, an, ai)
+                try self.put("))")
+                return
+            try self.put("lb_not_u((uint64_t)(")
+        elif op == "-%":
+            try self.put("lb_negw_s((int64_t)(" if self.signed_of(t) else "lb_negw_u((uint64_t)(")
+        else:
+            try self.put("lb_neg_s((int64_t)(")
+        try self.lane(a, an, ai)
+        try self.put("), ")
+        try self.put_u64((u64)self.bits(t))
+        try self.put("))")
 
     ## `==` and `!=` over scalars, text, pointers, and tagged optionals.
     mutating func equality(l: ast.Node*, lt: u32, r: ast.Node*, rt: u32, ot: u32, negate: bool) -> !:
@@ -4337,6 +4561,9 @@ pub struct Emitter:
         if callee.text == "compare":
             try self.compare_call(e, receiver, rt)
             return
+        if callee.text == "sum" or callee.text == "min" or callee.text == "max":
+            try self.vector_fold(e, callee, receiver, rt)
+            return
         let n = self.tmp()
         if callee.text == "bits":
             try self.put("({ ")
@@ -4448,6 +4675,9 @@ pub struct Emitter:
     ## `Name(...)`: a struct value, an `init` call, or a checked scalar conversion.
     mutating func construct_or_convert(e: ast.Node*, callee: ast.Node*) -> !:
         let target = try self.ty(e)
+        if self.is_vector(target):
+            try self.splat(e, target)
+            return
         let payload = self.elem(target) if self.is_fail(target) else target
         if let init = e.resolved:
             if init.kind == ast.Kind.func_ and init.text == "init":
@@ -6144,6 +6374,9 @@ func source_path(checker: check.Checker*, tree: ast.Node*) -> str:
             return module.src.path
         i += 1
     return tree.text
+
+## A temporary that is not a vector: `lane` names it whole.
+let no_lane: u64 = 0xFFFFFFFFFFFFFFFF
 
 func helper_name(op: str) -> str:
     if op == "+":

@@ -1,0 +1,6 @@
+# error: ordering needs numbers or text
+## §5.12: there is no lane-wise comparison; `==` compares the arrays, `<` is refused.
+pub func main(arguments: str[]) -> i32:
+    let a: f32[4] = [1.0, 2.0, 3.0, 4.0]
+    let c = a < a
+    return 0

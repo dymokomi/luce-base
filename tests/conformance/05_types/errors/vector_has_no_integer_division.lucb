@@ -1,0 +1,6 @@
+# error: this operator is not defined on vectors
+## §5.12: `//` and `%` are not lane-wise; index a lane or write the loop.
+pub func main(arguments: str[]) -> i32:
+    let a: i32[4] = [1, 2, 3, 4]
+    let c = a // 2
+    return 0

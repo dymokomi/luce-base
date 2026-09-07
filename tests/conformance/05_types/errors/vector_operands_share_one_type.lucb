@@ -1,0 +1,7 @@
+# error: vector arithmetic takes two vectors of one type
+## §5.12: the lanes of both operands are one type; `f32[4] + i32[4]` has no meaning.
+pub func main(arguments: str[]) -> i32:
+    let a: f32[4] = [1.0, 2.0, 3.0, 4.0]
+    let b: i32[4] = [1, 2, 3, 4]
+    let c = a + b
+    return 0

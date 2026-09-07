@@ -280,11 +280,12 @@ pub struct Checker:
                 let inner = e.left else return false
                 if e.text == "&":
                     return self.global_place(inner)
-                return self.is_constant(inner)
+                # a lane-wise operator runs (§5.12)
+                return not self.table.is_vector(e.type_id) and self.is_constant(inner)
             .binary:
                 let l = e.left else return false
                 let r = e.right else return false
-                return self.is_constant(l) and self.is_constant(r)
+                return not self.table.is_vector(e.type_id) and self.is_constant(l) and self.is_constant(r)
             .cast:
                 let inner = e.left else return false
                 return self.is_constant(inner)
@@ -2207,6 +2208,16 @@ pub struct Checker:
         if e.text == "-" and inner.kind == ast.Kind.literal and self.table.is_integer(hint) and not self.table.is_signed(hint):
             return try self.fail(e, "a negative literal does not fit an unsigned type")
         let it = try self.check_expr(inner, hint)
+        if self.table.is_vector(it):
+            # every lane, under the scalar rule (§5.12)
+            let lane = self.table.get(it).elem
+            if e.text == "-" and not self.table.is_signed(lane) and not self.table.is_float(lane):
+                return try self.fail(e, "unary `-` is rejected on unsigned types; use `-%`")
+            if (e.text == "-%" or e.text == "~") and not self.table.is_integer(lane):
+                return try self.fail(e, "wrapping negation and `~` need integer lanes (§5.12)")
+            if e.text == "-" or e.text == "-%" or e.text == "~":
+                return it
+            return try self.fail(e, "unknown operator")
         if e.text == "-" and self.table.is_integer(it) and not self.table.is_signed(it):
             return try self.fail(e, "unary `-` is rejected on unsigned types; use `-%`")
         if e.text == "-" or e.text == "+":
@@ -2246,6 +2257,15 @@ pub struct Checker:
         if op == "<<" or op == ">>":
             let lt = try self.check_expr(l, hint)
             let rt = try self.check_expr(r, types.none_id)
+            if self.table.is_vector(lt):
+                # every lane by one count (§5.12)
+                let lane = self.table.get(lt).elem
+                if not self.table.is_integer(lane):
+                    return try self.fail(e, "a vector shift needs integer lanes (§5.12)")
+                if not (rt == types.untyped_int_id or self.table.is_integer(rt)):
+                    return try self.fail(e, "a shift count is an integer")
+                discard(try self.coerce(r, rt, lane if rt == types.untyped_int_id else rt))
+                return lt
             if not (lt == types.untyped_int_id or self.table.is_integer(lt)):
                 return try self.fail(e, "a shift needs an integer")
             if not (rt == types.untyped_int_id or self.table.is_integer(rt)):
@@ -2280,6 +2300,8 @@ pub struct Checker:
         if lt == types.untyped_int_id or lt == types.untyped_float_id or lt == types.none_id:
             rhint = context
         let rt = self.plain_read(try self.check_expr(r, rhint))
+        if (self.table.is_vector(lt) or self.table.is_vector(rt)) and not is_comparison(op):
+            return try self.vector_binary_type(e, l, lt, r, rt)
         var t = try self.unify(l, lt, r, rt)
         # two untyped literals under a typed context compute in that type: `3 -| 7` as `u8`
         if is_arithmetic(op) and t == types.untyped_int_id and self.table.is_integer(context):
@@ -2335,6 +2357,62 @@ pub struct Checker:
                 return try self.table.optional(base)
             return try self.fail(e, "checked arithmetic needs integers")
         return try self.fail(e, "unknown operator")
+
+    ## Lane-wise arithmetic (§5.12): two vectors of one type, or a vector and a scalar of its
+    ## element type, under the operators of §7.2 and §7.3 that keep the type. Comparisons
+    ## were answered before this: `==` compares the arrays, and `<` is refused.
+    mutating func vector_binary_type(e: ast.Node*, l: ast.Node*, lt: u32, r: ast.Node*, rt: u32) -> u32!:
+        let op = e.text
+        let vt = lt if self.table.is_vector(lt) else rt
+        let et = self.table.get(vt).elem
+        let l_ok = try self.vector_operand(l, lt, vt)
+        let r_ok = try self.vector_operand(r, rt, vt)
+        if not l_ok or not r_ok:
+            return try self.fail(e, "vector arithmetic takes two vectors of one type, or a vector and a scalar of its element type (§5.12)")
+        if op == "/":
+            if not self.table.is_float(et):
+                return try self.fail(e, "`/` needs float lanes; integer division is not defined on vectors (§5.12)")
+            return vt
+        if op == "+" or op == "-" or op == "*":
+            return vt
+        if op == "+%" or op == "-%" or op == "*%" or op == "+|" or op == "-|" or op == "*|" or op == "&" or op == "|" or op == "^":
+            if not self.table.is_integer(et):
+                return try self.fail(e, "wrapping, saturating, and bit operators need integer lanes (§5.12)")
+            return vt
+        return try self.fail(e, "this operator is not defined on vectors (§5.12)")
+
+    ## An operand of vector arithmetic: the vector itself, or a scalar of its element type,
+    ## which an untyped literal becomes.
+    mutating func vector_operand(side: ast.Node*, st: u32, vt: u32) -> bool!:
+        let et = self.table.get(vt).elem
+        if st == vt:
+            return true
+        if self.table.kind(st) == types.Kind.array:
+            return false
+        if (st == types.untyped_int_id and self.table.is_integer(et)) or (st == types.untyped_float_id and self.table.is_float(et)):
+            discard(try self.coerce(side, st, et))
+            return true
+        return st == et
+
+    ## `T[N](x)`: the vector whose every lane is `x` (§5.12); the callee is read as the type.
+    mutating func splat_type(e: ast.Node*, callee: ast.Node*, base: ast.Node*) -> u32!:
+        let length = callee.body else return try self.fail(callee, "missing index")
+        let elem_node = try ast.Node.make(ast.Kind.type_, base.text, base.start, base.line)
+        let array_node = try ast.Node.make(ast.Kind.type_, "[", callee.start, callee.line)
+        array_node.flags |= ast.flag_array
+        array_node.left = elem_node
+        array_node.right = length
+        let vt = try self.resolve_type(array_node)
+        if not self.table.is_vector(vt):
+            return try self.fail(e, "`T[N](x)` makes a vector, and this array is not one (§5.12)")
+        callee.flags |= ast.flag_type_ref
+        callee.type_id = vt
+        let arg = try self.single_argument(e)
+        let et = self.table.get(vt).elem
+        let got = try self.check_expr(arg, et)
+        discard(try self.coerce(arg, got, et))
+        e.resolved = none
+        return vt
 
     pub func is_backed_enum(id: u32) -> bool:
         let t = self.table.get(id)
@@ -2932,6 +3010,8 @@ pub struct Checker:
                 return types.usize_id
             if name == "data":
                 return try self.table.pointer(t.elem, t.is_const, false)
+            if t.kind == types.Kind.array and self.table.is_vector(id) and (name == "sum" or name == "min" or name == "max"):
+                return try self.builtin_method(e, id, name)
             if name == "first" or name == "last" or name == "indexed":
                 let span = id if t.kind == types.Kind.span else try self.table.span(t.elem, false)
                 return try self.builtin_method(e, span, name)
@@ -3152,6 +3232,9 @@ pub struct Checker:
     mutating func builtin_method(e: ast.Node*, id: u32, name: str) -> u32!:
         let t = self.table.get(id)
         e.flags |= ast.flag_static
+        if name == "sum" or name == "min" or name == "max":
+            # a vector folds to one lane (§5.12)
+            return try self.table.function(try types.no_args(), t.elem, false)
         if name == "first" or name == "last":
             return try self.table.function(try types.no_args(), try self.table.optional(t.elem), false)
         if name == "indexed":
@@ -3241,6 +3324,10 @@ pub struct Checker:
                     let rt = try self.check_expr(receiver, types.none_id)
                     if self.table.kind(self.deref(rt)) == types.Kind.atomic:
                         return try self.atomic_call(e, callee, self.deref(rt))
+        if callee.kind == ast.Kind.index:
+            if let base = callee.left:
+                if base.kind == ast.Kind.name and is_lane_type_name(base.text) and self.lookup(base.text) == none:
+                    return try self.splat_type(e, callee, base)
         self.calling = callee.kind == ast.Kind.member
         let ct = try self.check_expr(callee, types.none_id)
         self.calling = false
@@ -4906,6 +4993,14 @@ pub func is_standard_module(name: str) -> bool:
         if p.name == name:
             return true
     return false
+
+func is_comparison(op: str) -> bool:
+    return op == "==" or op == "!=" or op == "<" or op == "<=" or op == ">" or op == ">="
+
+## The ten element types a vector may have (§5.12), by name: `T[N](x)` with one of them is
+## the broadcast form, not a call through an indexed value.
+func is_lane_type_name(text: str) -> bool:
+    return text == "i8" or text == "i16" or text == "i32" or text == "i64" or text == "u8" or text == "u16" or text == "u32" or text == "u64" or text == "f32" or text == "f64"
 
 func is_arithmetic(op: str) -> bool:
     return op == "+" or op == "-" or op == "*" or op == "/" or op == "//" or op == "%" or op == "+%" or op == "-%" or op == "*%" or op == "+|" or op == "-|" or op == "*|" or op == "+?" or op == "-?" or op == "*?" or op == "&" or op == "|" or op == "^"

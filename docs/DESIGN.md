@@ -401,6 +401,35 @@ The checker's type table is part of the same story: `types.Table` indexes its
 types by structure, so interning is a hash lookup rather than a scan that
 copied every type so far.
 
+## Vectors
+
+A vector (§5.12) is an array of eight or sixteen bytes of one lane type, and
+the language adds nothing to the type: the lane-wise operators, the broadcast
+form `T[N](x)`, and the folds `sum`, `min`, `max` are the whole feature. The
+checker admits them by `types.Table.is_vector`; the broadcast form is a call
+whose callee is an index of a lane type's name, which the checker reads as the
+array type and marks as a type reference, so the backends treat it as a
+construction. The rule that decides everything downstream is that a lane
+computes exactly as the scalar operator would, in lane order, traps included:
+the seed's interpreter loops over the lanes with its scalar arithmetic, both C
+backends bind the operands once and write one scalar operation per lane (the
+runtime's checked helpers for integers, C's operators for floats and bits),
+and the lowerer stores one scalar IR operation per lane into a slot of the
+vector type. So the three executions agree on every bit, and a program that
+uses vectors is correct today on every target. A lane-wise operator is not a
+constant expression, because folding it would need a lane evaluator in each
+C backend; a module-level vector is an array literal or a broadcast of a
+constant.
+
+What the native backend does not do yet is compute a vector in a vector
+register. That is the next step, and it is a backend step only: the IR gains
+a vector class and lane-typed operations, the arm64 generator maps them to
+NEON and the x86_64 generator to SSE2, the checked integer forms detect a
+lane's overflow with the lanes' own comparison, and `frame` learns the vector
+registers (none are callee-saved in full on either target, so a vector lives
+in the frame across a call). Neither the checker, the C backends, nor a
+program changes when that lands.
+
 ## Warnings, and what the checker removes
 
 The checker has two outputs besides the checked tree: errors, which stop the

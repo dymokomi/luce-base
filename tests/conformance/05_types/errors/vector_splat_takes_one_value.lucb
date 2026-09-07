@@ -1,0 +1,5 @@
+# error: one argument is needed
+## §5.12: `T[N](x)` takes the one value every lane gets.
+pub func main(arguments: str[]) -> i32:
+    let c = f32[4](1.0, 2.0)
+    return 0
