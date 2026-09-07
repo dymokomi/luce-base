@@ -127,7 +127,9 @@ pub struct Frame:
         i = 0
         while i < f.temps.count:
             if self.temp_regs.get(i) == 0:
-                offset = round_up(offset + 8, 8)
+                # a vector temporary has a sixteen-byte home at a sixteen-byte boundary
+                let wide = f.temp_class(u32(i + 1)) == ir.Class.v
+                offset = round_up(offset + (16 if wide else 8), 16 if wide else 8)
                 try self.temp_homes.push(offset)
             else:
                 try self.temp_homes.push(0)

@@ -421,14 +421,34 @@ constant expression, because folding it would need a lane evaluator in each
 C backend; a module-level vector is an array literal or a broadcast of a
 constant.
 
-What the native backend does not do yet is compute a vector in a vector
-register. That is the next step, and it is a backend step only: the IR gains
-a vector class and lane-typed operations, the arm64 generator maps them to
-NEON and the x86_64 generator to SSE2, the checked integer forms detect a
-lane's overflow with the lanes' own comparison, and `frame` learns the vector
-registers (none are callee-saved in full on either target, so a vector lives
-in the frame across a call). Neither the checker, the C backends, nor a
-program changes when that lands.
+The native backend computes a vector in a vector register where the machine
+can. The IR has a class `v`, a vector of eight or sixteen bytes, and the
+instructions `loadv`, `storev`, `vsplat`, the float `vadd vsub vmul vdiv
+vneg`, the integer `vaddw vsubw vmulw` (wrapping), `vaddo vsubo` (checked: a
+lane's overflow traps), `vadds vsubs` (saturating), `vshl vshr` by one scalar
+count, and `vand vor vxor vnot`; every one carries its lane shape (width,
+count, float, signed) in `extra`, and every one means exactly the lane-wise
+scalar operation, so the IR stays one for every target. Which shapes a target
+computes in one instruction sequence is the instruction set's fact, in
+`back/isa.lucb` (`has_vector`): the lowerer emits the vector instruction where
+the target has it and the lanes as scalars where it does not, so a generator
+implements exactly the forms claimed for it, and a program means the same
+either way. NEON has them all but the 64-bit lane multiply; SSE2 lacks the
+saturating and checked forms above sixteen bits (the checked doubleword is
+recovered from the sign of `(a ^ r) & (b ^ r)`, or from an unsigned order
+through a sign flip), the multiply above sixteen bits, the byte shifts, and
+the arithmetic right shift of quadwords. A checked lane on NEON compares the
+wrapping result with the saturating one and folds the equalities with
+`uminv`; on SSE2 with `pcmpeqb` and `pmovmskb`. The checked multiply and the
+folds read the lanes one by one on both. A vector temporary lives in a
+sixteen-byte home in the frame, never in a register across instructions
+(`frame` gives class `v` no register, since neither target saves a whole
+vector register across a call), which costs a load and a store around each
+instruction today; keeping a vector in a scratch register between adjacent
+instructions is the next step, a peephole in the generators. The
+`tests/optimization/vectors.lucb` program measures the instruction counts on
+both targets. The SSE2 forms assemble on this host and their lane semantics
+were checked by reading; they run under the Linux gate.
 
 ## Warnings, and what the checker removes
 

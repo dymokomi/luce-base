@@ -863,6 +863,8 @@ pub struct Generator:
                 try self.compare_and_swap(n)
             .fence:
                 try self.line("mfence")
+            .loadv, .storev, .vadd, .vsub, .vmul, .vdiv, .vand, .vor, .vxor, .vneg, .vnot, .vaddw, .vsubw, .vmulw, .vaddo, .vsubo, .vadds, .vsubs, .vshl, .vshr, .vsplat:
+                try self.vector(n)
             _:
                 error(failed, "an instruction the x86_64 generator does not know")
 
@@ -1156,6 +1158,155 @@ pub struct Generator:
         try self.finish(n.dst, n.cls, d)
 
     ## Checked add, subtract, and multiply: trap on overflow of the class width.
+    # -- vectors (§5.12) ------------------------------------------------------------------
+
+    ## A vector instruction on SSE2: the operands come from their homes into xmm8 and xmm9,
+    ## the result computes into xmm8 (xmm10 for a checked form) and goes to its home. An
+    ## eight-byte vector is the low half of the register, moved as a quadword; the upper
+    ## lanes then hold zeros, which no instruction here reads.
+    mutating func vector(n: ir.Instr) -> !:
+        let shape = n.extra
+        let bytes = ir.vector_bytes(shape)
+        let bits = ir.lane_bits(shape)
+        let signed = ir.lanes_signed(shape)
+        match n.op:
+            .loadv:
+                try self.address_operand("%r10", n.a)
+                try self.line3(vector_move(bytes), "(%r10), ", "%xmm8")
+                try self.vector_result(n.dst, "%xmm8", bytes)
+            .storev:
+                try self.vector_source(n.a, "%xmm8", bytes)
+                try self.address_operand("%r10", n.b)
+                try self.line3(vector_move(bytes), "%xmm8, ", "(%r10)")
+            .vsplat:
+                try self.splat(n, shape)
+                try self.vector_result(n.dst, "%xmm8", bytes)
+            .vneg:
+                # the sign bit of every lane flipped
+                try self.vector_source(n.a, "%xmm8", bytes)
+                try self.line3("xorps ", ".Lvsign64(%rip)" if bits == 64 else ".Lvsign32(%rip)", ", %xmm8")
+                try self.vector_result(n.dst, "%xmm8", bytes)
+            .vnot:
+                try self.vector_source(n.a, "%xmm8", bytes)
+                try self.line("pcmpeqd %xmm9, %xmm9")
+                try self.line("pxor %xmm9, %xmm8")
+                try self.vector_result(n.dst, "%xmm8", bytes)
+            .vshl, .vshr:
+                # the count, one scalar, in xmm9's low quadword
+                try self.vector_source(n.a, "%xmm8", bytes)
+                try self.operand("%rax", ir.Class.l, n.b)
+                try self.line("movq %rax, %xmm9")
+                var mnemonic = "psllw"
+                if n.op == ir.Op.vshl:
+                    mnemonic = "psllw" if bits == 16 else ("pslld" if bits == 32 else "psllq")
+                elif signed:
+                    mnemonic = "psraw" if bits == 16 else "psrad"
+                else:
+                    mnemonic = "psrlw" if bits == 16 else ("psrld" if bits == 32 else "psrlq")
+                try self.line3(mnemonic, " %xmm9, ", "%xmm8")
+                try self.vector_result(n.dst, "%xmm8", bytes)
+            .vaddo, .vsubo:
+                try self.checked_lanes(n, shape)
+            _:
+                try self.vector_source(n.a, "%xmm8", bytes)
+                try self.vector_source(n.b, "%xmm9", bytes)
+                try self.line3(vector_mnemonic(n.op, shape), " %xmm9, ", "%xmm8")
+                try self.vector_result(n.dst, "%xmm8", bytes)
+
+    ## `vaddo`/`vsubo`: the wrapping result in xmm10; a lane that overflowed traps. Bytes
+    ## and halfwords compare the wrapping result with the saturating one; doublewords read
+    ## the sign of the overflow test, `(a ^ r) & (b ^ r)` for an add, `(a ^ b) & (a ^ r)`
+    ## for a subtract, or the unsigned order of the operands through a sign flip.
+    mutating func checked_lanes(n: ir.Instr, shape: u32) -> !:
+        let bytes = ir.vector_bytes(shape)
+        let bits = ir.lane_bits(shape)
+        let signed = ir.lanes_signed(shape)
+        let add = n.op == ir.Op.vaddo
+        try self.vector_source(n.a, "%xmm8", bytes)
+        try self.vector_source(n.b, "%xmm9", bytes)
+        try self.line("movdqa %xmm8, %xmm10")
+        try self.line3(lane_mnemonic("padd" if add else "psub", bits), " %xmm9, ", "%xmm10")
+        if bits <= 16:
+            let sat = ("padds" if signed else "paddus") if add else ("psubs" if signed else "psubus")
+            try self.line3(lane_mnemonic(sat, bits), " %xmm9, ", "%xmm8")
+            try self.line("pcmpeqb %xmm10, %xmm8")
+            try self.line("pmovmskb %xmm8, %eax")
+            if bytes == 16:
+                try self.line("cmpl $65535, %eax")
+            else:
+                try self.line("andl $255, %eax")
+                try self.line("cmpl $255, %eax")
+            try self.line("je 1f")
+        elif signed:
+            # xmm8 = a, xmm9 = b, xmm10 = r: the overflow test's sign bits
+            try self.line("movdqa %xmm8, %xmm11")
+            if add:
+                try self.line("pxor %xmm10, %xmm11")
+                try self.line("pxor %xmm10, %xmm9")
+                try self.line("pand %xmm9, %xmm11")
+            else:
+                try self.line("pxor %xmm9, %xmm11")
+                try self.line("pxor %xmm10, %xmm8")
+                try self.line("pand %xmm8, %xmm11")
+            try self.line("pmovmskb %xmm11, %eax")
+            try self.line("andl $34952, %eax" if bytes == 16 else "andl $136, %eax")
+            try self.line("je 1f")
+        else:
+            # unsigned: an add overflowed where r < a, a subtract where a < b
+            try self.line("movdqa .Lvsign32(%rip), %xmm11")
+            try self.line("pxor %xmm11, %xmm8")
+            if add:
+                try self.line("pxor %xmm10, %xmm11")
+                try self.line("pcmpgtd %xmm11, %xmm8")
+            else:
+                try self.line("pxor %xmm9, %xmm11")
+                try self.line("pcmpgtd %xmm8, %xmm11")
+                try self.line("movdqa %xmm11, %xmm8")
+            try self.line("pmovmskb %xmm8, %eax")
+            try self.line("andl $65535, %eax" if bytes == 16 else "andl $255, %eax")
+            try self.line("je 1f")
+        try self.trap_text("integer overflow")
+        try self.put("\n1:")
+        try self.vector_result(n.dst, "%xmm10", bytes)
+
+    ## `T[N](x)`: the scalar into every lane of xmm8.
+    mutating func splat(n: ir.Instr, shape: u32) -> !:
+        let bits = ir.lane_bits(shape)
+        if ir.lanes_float(shape):
+            if bits == 64:
+                try self.operand("%xmm8", ir.Class.d, n.a)
+                try self.line("unpcklpd %xmm8, %xmm8")
+            else:
+                try self.operand("%xmm8", ir.Class.s, n.a)
+                try self.line("shufps $0, %xmm8, %xmm8")
+            return
+        if bits == 64:
+            try self.operand("%rax", ir.Class.l, n.a)
+            try self.line("movq %rax, %xmm8")
+            try self.line("punpcklqdq %xmm8, %xmm8")
+            return
+        try self.operand("%eax", ir.Class.w, n.a)
+        try self.line("movd %eax, %xmm8")
+        if bits == 8:
+            try self.line("punpcklbw %xmm8, %xmm8")
+        if bits <= 16:
+            try self.line("punpcklwd %xmm8, %xmm8")
+        try self.line("pshufd $0, %xmm8, %xmm8")
+
+    ## A vector temporary from its home into `reg`.
+    mutating func vector_source(r: ir.Ref, reg: str, bytes: u32) -> !:
+        try self.line(vector_move(bytes))
+        try self.frame_operand(self.temp_home(r.index))
+        try self.put(", ")
+        try self.put(reg)
+
+    ## `reg` into the home of vector temporary `dst`.
+    mutating func vector_result(dst: u32, reg: str, bytes: u32) -> !:
+        if dst == 0:
+            return
+        try self.line3(vector_move(bytes), reg, ", ")
+        try self.frame_operand(self.temp_home(dst))
+
     mutating func checked(n: ir.Instr) -> !:
         let signed = n.extra == 1
         let cls = n.cls
@@ -1478,8 +1629,8 @@ pub struct Generator:
                 try self.put("\n    .section .init_array,\"aw\"\n    .p2align 3\n    .quad ")
             try self.symbol(self.program_unit.init_function)
             try self.put("\n    .text\n")
-        # text literals
-        try self.put("\n    .section .rodata\n")
+        # text literals, after the sign masks vector negation and unsigned lane checks read
+        try self.put("\n    .section .rodata\n    .p2align 4\n.Lvsign32:\n    .long 2147483648, 2147483648, 2147483648, 2147483648\n.Lvsign64:\n    .quad -9223372036854775808, -9223372036854775808\n")
         i = 0
         while i < self.program_unit.texts.count:
             try self.text_label(u32(i))
@@ -1764,3 +1915,42 @@ test "immediates, views, and byte moves assemble":
         assert(count_bits(3) == 2)
         assert(with_percent("rdi") == "%rdi")
         assert(with_percent("%xmm8") == "%xmm8")
+
+## The move of a vector of `bytes` between memory and a register: unaligned, a quadword for
+## the eight-byte form.
+func vector_move(bytes: u32) -> str:
+    return "movdqu " if bytes == 16 else "movq "
+
+## `padd` on lanes of `bits`: `paddb`, `paddw`, `paddd`, `paddq`.
+func lane_mnemonic(base: str, bits: u32) -> str:
+    if base == "padd":
+        return "paddb" if bits == 8 else ("paddw" if bits == 16 else ("paddd" if bits == 32 else "paddq"))
+    if base == "psub":
+        return "psubb" if bits == 8 else ("psubw" if bits == 16 else ("psubd" if bits == 32 else "psubq"))
+    if base == "padds":
+        return "paddsb" if bits == 8 else "paddsw"
+    if base == "paddus":
+        return "paddusb" if bits == 8 else "paddusw"
+    if base == "psubs":
+        return "psubsb" if bits == 8 else "psubsw"
+    return "psubusb" if bits == 8 else "psubusw"
+
+## The two-operand SSE2 instruction of a vector operation on lanes of `shape`.
+func vector_mnemonic(op: ir.Op, shape: u32) -> str:
+    let bits = ir.lane_bits(shape)
+    let signed = ir.lanes_signed(shape)
+    let wide = bits == 64
+    match op:
+        .vadd: return "addpd" if wide else "addps"
+        .vsub: return "subpd" if wide else "subps"
+        .vmul: return "mulpd" if wide else "mulps"
+        .vdiv: return "divpd" if wide else "divps"
+        .vand: return "pand"
+        .vor: return "por"
+        .vxor: return "pxor"
+        .vaddw: return lane_mnemonic("padd", bits)
+        .vsubw: return lane_mnemonic("psub", bits)
+        .vmulw: return "pmullw"
+        .vadds: return lane_mnemonic("padds" if signed else "paddus", bits)
+        .vsubs: return lane_mnemonic("psubs" if signed else "psubus", bits)
+        _: return "paddb"

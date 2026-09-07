@@ -5,6 +5,24 @@
 release is a VERSION bump, a tag `luce-base-N`, and a push, the way luce-seed does it
 (`bootstrap/SEED` pins the seed the tree is built against).
 
+## 0.6.0
+
+Vectors compute in vector registers.
+
+- the IR's class `v` and the vector instructions (`loadv storev vsplat vadd vsub vmul vdiv
+  vneg vaddw vsubw vmulw vaddo vsubo vadds vsubs vshl vshr vand vor vxor vnot`), each
+  carrying its lane shape and meaning the lane-wise scalar operation, traps included;
+- `back/isa.lucb` says which shapes each instruction set computes in one sequence
+  (`has_vector`); the lowerer emits the vector form there and scalar lanes elsewhere;
+- the arm64 generator emits NEON (`fadd v.4s`, `sqadd`, `uminv` for the checked forms,
+  `sshl` by a spread count, `dup` for a broadcast); the x86_64 generator emits SSE2
+  (`addps`, `paddsb`/`pcmpeqb`/`pmovmskb` for the checked forms, the sign test for
+  doublewords, `pshufd` for a broadcast, `xorps` with a sign mask to negate);
+- `frame` gives a vector temporary a sixteen-byte home; the IR printer shows lane shapes
+  and the right branch target of `jnz`;
+- `tests/optimization/vectors.lucb`: the counts on both targets; the x86_64 output
+  assembles on macOS and awaits the Linux gate to run.
+
 ## 0.5.0
 
 Vectors (§5.12).

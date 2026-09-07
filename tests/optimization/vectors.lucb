@@ -1,0 +1,19 @@
+## Vectors (§5.12) compute in vector registers: a float product and sum, a wrapping and
+## a checked integer add, a shift, and a broadcast are one instruction each on the lanes,
+## not a loop over them. The folds read the lanes one by one, as the order rule demands.
+func blend(a: f32[4], b: f32[4], t: f32) -> f32[4]:
+    return a * f32[4](t) + b * (f32[4](1.0) - f32[4](t))
+
+func scale(v: i16[8], k: i16) -> i16[8]:
+    return ((v +% v) << 1) + v * k
+
+pub func main(arguments: str[]) -> i32:
+    let a: f32[4] = [1.0, 2.0, 3.0, 4.0]
+    let b: f32[4] = [4.0, 3.0, 2.0, 1.0]
+    let mixed = blend(a, b, 0.25)
+    let counts: i16[8] = [1, 2, 3, 4, 5, 6, 7, 8]
+    let scaled = scale(counts, 3)
+    let bits: u32[4] = [1, 2, 4, 8]
+    let flags = (bits | 16) ^ u32[4](1)
+    print(f"{mixed.sum()} {scaled[7]} {scaled.max()} {flags[0]} {flags[3]}")
+    return 0

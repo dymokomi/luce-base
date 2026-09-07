@@ -903,6 +903,8 @@ pub struct Generator:
                 try self.compare_and_swap(n)
             .fence:
                 try self.line("dmb ish")
+            .loadv, .storev, .vadd, .vsub, .vmul, .vdiv, .vand, .vor, .vxor, .vneg, .vnot, .vaddw, .vsubw, .vmulw, .vaddo, .vsubo, .vadds, .vsubs, .vshl, .vshr, .vsplat:
+                try self.vector(n)
             _:
                 error(failed, "an instruction the arm64 generator does not know")
 
@@ -992,6 +994,128 @@ pub struct Generator:
                     try self.line4("mov ", dw, ", ", v)
 
     ## Checked add, subtract, and multiply: trap on overflow of the class width.
+    # -- vectors (§5.12) ------------------------------------------------------------------
+
+    ## A vector instruction on NEON: the operands come from their homes into v16 and v17,
+    ## the result computes into v16 (v18 for a checked form) and goes to its home. The lane
+    ## shape picks the arrangement, `.4s` or `.8b`; an eight-byte vector is the low half
+    ## of the register, loaded and stored as `d`.
+    mutating func vector(n: ir.Instr) -> !:
+        let shape = n.extra
+        let bytes = ir.vector_bytes(shape)
+        let arr = arrangement(shape)
+        let all = ".16b" if bytes == 16 else ".8b"
+        match n.op:
+            .loadv:
+                try self.address_operand("x9", n.a)
+                try self.line3("ldr ", vector_scratch(0, bytes), ", [x9]")
+                try self.vector_result(n.dst, 0, bytes)
+            .storev:
+                try self.vector_source(0, n.a, bytes)
+                try self.address_operand("x9", n.b)
+                try self.line3("str ", vector_scratch(0, bytes), ", [x9]")
+            .vsplat:
+                try self.splat(n, shape, arr)
+                try self.vector_result(n.dst, 0, bytes)
+            .vneg, .vnot:
+                try self.vector_source(0, n.a, bytes)
+                let form = arr if n.op == ir.Op.vneg else all
+                try self.line("fneg v16" if n.op == ir.Op.vneg else "mvn v16")
+                try self.put(form)
+                try self.put(", v16")
+                try self.put(form)
+                try self.vector_result(n.dst, 0, bytes)
+            .vshl, .vshr:
+                # the count, one scalar, spread over the lanes; a right shift is a left
+                # shift by the negated count, arithmetic or logical by the lanes' signedness
+                try self.vector_source(0, n.a, bytes)
+                let wide = ir.lane_bits(shape) == 64
+                try self.operand("x9" if wide else "w9", ir.Class.l if wide else ir.Class.w, n.b)
+                try self.line("dup v17")
+                try self.put(arr)
+                try self.put(", x9" if wide else ", w9")
+                if n.op == ir.Op.vshr:
+                    try self.line("neg v17")
+                    try self.put(arr)
+                    try self.put(", v17")
+                    try self.put(arr)
+                try self.line("sshl v16" if ir.lanes_signed(shape) else "ushl v16")
+                try self.put(arr)
+                try self.put(", v16")
+                try self.put(arr)
+                try self.put(", v17")
+                try self.put(arr)
+                try self.vector_result(n.dst, 0, bytes)
+            .vaddo, .vsubo:
+                # the wrapping result beside the saturating one: a lane that differs overflowed
+                try self.vector_source(0, n.a, bytes)
+                try self.vector_source(1, n.b, bytes)
+                let add = n.op == ir.Op.vaddo
+                try self.line("add v18" if add else "sub v18")
+                try self.put(arr)
+                try self.put(", v16")
+                try self.put(arr)
+                try self.put(", v17")
+                try self.put(arr)
+                let signed = ir.lanes_signed(shape)
+                try self.line(("sqadd v16" if signed else "uqadd v16") if add else ("sqsub v16" if signed else "uqsub v16"))
+                try self.put(arr)
+                try self.put(", v16")
+                try self.put(arr)
+                try self.put(", v17")
+                try self.put(arr)
+                try self.line("cmeq v16")
+                try self.put(arr)
+                try self.put(", v16")
+                try self.put(arr)
+                try self.put(", v18")
+                try self.put(arr)
+                try self.line("uminv b16, v16")
+                try self.put(all)
+                try self.line("fmov w9, s16")
+                try self.line("cbnz w9, 1f")
+                try self.trap_text("integer overflow")
+                try self.put("\n1:")
+                try self.vector_result(n.dst, 2, bytes)
+            _:
+                try self.vector_source(0, n.a, bytes)
+                try self.vector_source(1, n.b, bytes)
+                let bitwise = n.op == ir.Op.vand or n.op == ir.Op.vor or n.op == ir.Op.vxor
+                let form = all if bitwise else arr
+                try self.line(vector_mnemonic(n.op, ir.lanes_signed(shape)))
+                try self.put(" v16")
+                try self.put(form)
+                try self.put(", v16")
+                try self.put(form)
+                try self.put(", v17")
+                try self.put(form)
+                try self.vector_result(n.dst, 0, bytes)
+
+    ## `T[N](x)`: the scalar into every lane of v16.
+    mutating func splat(n: ir.Instr, shape: u32, arr: str) -> !:
+        if ir.lanes_float(shape):
+            let cls = ir.Class.d if ir.lane_bits(shape) == 64 else ir.Class.s
+            try self.operand(self.reg(cls, 0), cls, n.a)
+            try self.line("dup v16")
+            try self.put(arr)
+            try self.put(", v16.d[0]" if cls == ir.Class.d else ", v16.s[0]")
+            return
+        let wide = ir.lane_bits(shape) == 64
+        try self.operand("x9" if wide else "w9", ir.Class.l if wide else ir.Class.w, n.a)
+        try self.line("dup v16")
+        try self.put(arr)
+        try self.put(", x9" if wide else ", w9")
+
+    ## A vector temporary from its home into scratch register `k`.
+    mutating func vector_source(k: u32, r: ir.Ref, bytes: u32) -> !:
+        try self.frame_load(vector_scratch(k, bytes), self.temp_home(r.index))
+
+    ## Scratch register `k` into the home of vector temporary `dst`.
+    mutating func vector_result(dst: u32, k: u32, bytes: u32) -> !:
+        if dst == 0:
+            return
+        try self.frame_store(vector_scratch(k, bytes), self.temp_home(dst))
+
     mutating func checked(n: ir.Instr) -> !:
         let signed = n.extra == 1
         let a = self.reg(n.cls, 0)
@@ -1567,6 +1691,8 @@ func access_width_of(reg: str) -> u64:
     let first = reg.bytes[0]
     if first == 'h':
         return 2
+    if first == 'q':
+        return 16
     return 4 if first == 'w' or first == 's' else 8
 
 ## The single-precision view of a half scratch or result register, else the register itself.
@@ -1727,3 +1853,38 @@ test "immediates and frame addresses assemble":
         try g.frame_address("x9", 5000)
         let text = g.text()
         assert(text.length > 0)
+
+## The NEON arrangement of a lane shape: the lanes' width and count.
+func arrangement(shape: u32) -> str:
+    let bits = ir.lane_bits(shape)
+    let count = ir.lane_count(shape)
+    if bits == 8:
+        return ".16b" if count == 16 else ".8b"
+    if bits == 16:
+        return ".8h" if count == 8 else ".4h"
+    if bits == 32:
+        return ".4s" if count == 4 else ".2s"
+    return ".2d"
+
+## Scratch vector register `k` (v16, v17, v18) spelled for a load or store of `bytes`.
+func vector_scratch(k: u32, bytes: u32) -> str:
+    if bytes == 16:
+        return "q16" if k == 0 else ("q17" if k == 1 else "q18")
+    return "d16" if k == 0 else ("d17" if k == 1 else "d18")
+
+## The three-operand NEON instruction of a vector operation.
+func vector_mnemonic(op: ir.Op, signed: bool) -> str:
+    match op:
+        .vadd: return "fadd"
+        .vsub: return "fsub"
+        .vmul: return "fmul"
+        .vdiv: return "fdiv"
+        .vand: return "and"
+        .vor: return "orr"
+        .vxor: return "eor"
+        .vaddw: return "add"
+        .vsubw: return "sub"
+        .vmulw: return "mul"
+        .vadds: return "sqadd" if signed else "uqadd"
+        .vsubs: return "sqsub" if signed else "uqsub"
+        _: return "add"

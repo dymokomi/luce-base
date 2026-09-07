@@ -87,7 +87,7 @@ func instruction(out: buffer.Buffer*, f: ir.Function*, x: ir.Instr) -> !:
             try out.put(", @L")
             try out.put_u64((u64)x.extra)
             try out.put(", @L")
-            try out.put_u64((u64)x.b.value)
+            try out.put_u64((u64)x.extra2)
         .ret:
             if x.a.kind != ir.RefKind.none_:
                 try out.put(" ")
@@ -127,7 +127,15 @@ func instruction(out: buffer.Buffer*, f: ir.Function*, x: ir.Instr) -> !:
             if x.b.kind != ir.RefKind.none_:
                 try out.put(", ")
                 try operand(out, x.b)
-            if x.extra != 0 and x.op != ir.Op.trap_:
+            if ir.is_vector_op(x.op):
+                # the lane shape: `[4 x s32]`, `[2 x f64]`
+                try out.put(" [")
+                try out.put_u64((u64)ir.lane_count(x.extra))
+                try out.put(" x ")
+                try out.put("f" if ir.lanes_float(x.extra) else ("s" if ir.lanes_signed(x.extra) else "u"))
+                try out.put_u64((u64)ir.lane_bits(x.extra))
+                try out.put("]")
+            elif x.extra != 0 and x.op != ir.Op.trap_:
                 try out.put(" [")
                 try out.put_u64((u64)x.extra)
                 try out.put("]")
@@ -160,6 +168,7 @@ func class_name(c: ir.Class) -> str:
         .s: return "s"
         .d: return "d"
         .h: return "h"
+        .v: return "v"
         _: return "?"
 
 func op_name(op: ir.Op) -> str:
@@ -256,4 +265,25 @@ func op_name(op: ir.Op) -> str:
         .frame: return "frame"
         .set_reg: return "set_reg"
         .get_reg: return "get_reg"
+        .loadv: return "loadv"
+        .storev: return "storev"
+        .vadd: return "vadd"
+        .vsub: return "vsub"
+        .vmul: return "vmul"
+        .vdiv: return "vdiv"
+        .vand: return "vand"
+        .vor: return "vor"
+        .vxor: return "vxor"
+        .vneg: return "vneg"
+        .vnot: return "vnot"
+        .vaddw: return "vaddw"
+        .vsubw: return "vsubw"
+        .vmulw: return "vmulw"
+        .vaddo: return "vaddo"
+        .vsubo: return "vsubo"
+        .vadds: return "vadds"
+        .vsubs: return "vsubs"
+        .vshl: return "vshl"
+        .vshr: return "vshr"
+        .vsplat: return "vsplat"
         _: return "?"

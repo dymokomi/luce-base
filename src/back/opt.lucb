@@ -421,4 +421,9 @@ func pure(op: ir.Op) -> bool:
         return true
     if code >= (u8)ir.Op.extsb and code <= (u8)ir.Op.truncs:
         return true
+    if op == ir.Op.loadv or op == ir.Op.vsplat:
+        return true
+    if ir.is_vector_op(op):
+        # a checked lane traps; a store has its effect
+        return op != ir.Op.storev and op != ir.Op.vaddo and op != ir.Op.vsubo
     return false

@@ -2068,8 +2068,10 @@ pub struct Lowerer:
         let result = try self.arithmetic(op, ot, lv.ref, rv.ref, e)
         return LowerValue(ref = result, type_id = ot, in_memory = false)
 
-    ## Lane-wise arithmetic (§5.12): each lane computed as the scalar operator would, in
-    ## lane order, into a slot of the vector type; a scalar operand stands for every lane.
+    ## Lane-wise arithmetic (§5.12): one vector instruction where the target computes the
+    ## lanes at once (`isa.has_vector`), else each lane computed as the scalar operator
+    ## would, in lane order, into a slot of the vector type; a scalar operand stands for
+    ## every lane.
     mutating func vector_binary(e: ast.Node*, l: ast.Node*, r: ast.Node*, t: u32) -> LowerValue!:
         let et = self.elem(t)
         let lt = try self.ty(l)
@@ -2080,6 +2082,20 @@ pub struct Lowerer:
         let count = self.c.table.get(t).length
         let slot = try self.new_slot(t)
         let out = try self.slot_address(slot)
+        let shape = self.lane_shape(t)
+        let vop = vector_op(e.text, self.is_float(et))
+        if vop != ir.Op.copy and isa.has_vector(self.target.arch, vop, shape):
+            let a = try self.vector_operand(lv, et, shape)
+            if e.text == "<<" or e.text == ">>":
+                # the count is one scalar, checked against the lane width as for a scalar
+                let count_ref = try self.checked_shift_count(rv.ref, et)
+                let shifted = try self.vector_instr(vop, a, count_ref, shape)
+                try self.f.emit(ir.Op.storev, ir.Class.v, 0, shifted, out, shape)
+                return LowerValue(ref = out, type_id = t, in_memory = true)
+            let b = try self.vector_operand(rv, et, shape)
+            let computed = try self.vector_instr(vop, a, b, shape)
+            try self.f.emit(ir.Op.storev, ir.Class.v, 0, computed, out, shape)
+            return LowerValue(ref = out, type_id = t, in_memory = true)
         var i: u64 = 0
         while i < count:
             let a = try self.lane_of(lv, et, i * stride)
@@ -2089,6 +2105,42 @@ pub struct Lowerer:
             i += 1
         return LowerValue(ref = out, type_id = t, in_memory = true)
 
+    ## The lane shape of vector type `t` (§5.12), as `ir.lanes` spells it.
+    func lane_shape(t: u32) -> u32:
+        let et = self.elem(t)
+        let bits = u32(self.c.table.size_of(et) * 8)
+        return ir.lanes(bits, u32(self.c.table.get(t).length), self.is_float(et), self.signed_of(et))
+
+    ## A vector operand in a vector temporary: loaded from its memory, or a scalar spread
+    ## over every lane.
+    mutating func vector_operand(v: LowerValue, et: u32, shape: u32) -> ir.Ref!:
+        if self.kind(v.type_id) == types.Kind.array:
+            let t = try self.f.temp(ir.Class.v)
+            try self.f.emit(ir.Op.loadv, ir.Class.v, t, v.ref, ir.none_ref(), shape)
+            return ir.temp_ref(t)
+        let t = try self.f.temp(ir.Class.v)
+        try self.f.emit(ir.Op.vsplat, ir.Class.v, t, v.ref, ir.none_ref(), shape)
+        return ir.temp_ref(t)
+
+    ## A vector instruction on two vector temporaries (or a scalar count), lane shape `shape`.
+    mutating func vector_instr(op: ir.Op, a: ir.Ref, b: ir.Ref, shape: u32) -> ir.Ref!:
+        let t = try self.f.temp(ir.Class.v)
+        try self.f.emit(op, ir.Class.v, t, a, b, shape)
+        return ir.temp_ref(t)
+
+    ## A shift count as a word, trapping when it reaches the lane width (§7.3).
+    mutating func checked_shift_count(n: ir.Ref, et: u32) -> ir.Ref!:
+        let bits = self.scalar_size(et) * 8
+        let count = try self.to_word(n, et)
+        let over = try self.f.binary(ir.Op.cuge, ir.Class.l, count, ir.const_ref((i64)bits))
+        let bad = self.f.label()
+        let ok = self.f.label()
+        try self.f.branch(over, bad, ok)
+        try self.f.place_label(bad)
+        try self.trap_with("shift count out of range")
+        try self.f.place_label(ok)
+        return count
+
     ## The lane at `offset` of a vector operand, or a scalar operand itself.
     mutating func lane_of(v: LowerValue, et: u32, offset: u64) -> ir.Ref!:
         if self.kind(v.type_id) != types.Kind.array:
@@ -2096,7 +2148,8 @@ pub struct Lowerer:
         let lane = try self.load_from(try self.offset_address(v.ref, offset), et)
         return lane.ref
 
-    ## Every lane of a vector under `~`, `-`, or `-%` (§5.12).
+    ## Every lane of a vector under `~`, `-`, or `-%` (§5.12): one vector instruction
+    ## where the target has it, else lane by lane.
     mutating func vector_unary(e: ast.Node*, inner: ast.Node*, t: u32) -> LowerValue!:
         let et = self.elem(t)
         let v = try self.value(inner, t)
@@ -2104,6 +2157,26 @@ pub struct Lowerer:
         let count = self.c.table.get(t).length
         let slot = try self.new_slot(t)
         let out = try self.slot_address(slot)
+        let shape = self.lane_shape(t)
+        var vop = ir.Op.copy
+        if e.text == "~":
+            vop = ir.Op.vnot
+        elif e.text == "-" and self.is_float(et):
+            vop = ir.Op.vneg
+        elif e.text == "-%":
+            vop = ir.Op.vsubw
+        if vop != ir.Op.copy and isa.has_vector(self.target.arch, vop, shape):
+            let x = try self.vector_operand(v, et, shape)
+            var computed = ir.none_ref()
+            if vop == ir.Op.vsubw:
+                # `-%x` is `0 -% x`, lane by lane
+                let zero = try self.f.temp(ir.Class.v)
+                try self.f.emit(ir.Op.vsplat, ir.Class.v, zero, ir.const_ref(0), ir.none_ref(), shape)
+                computed = try self.vector_instr(vop, ir.temp_ref(zero), x, shape)
+            else:
+                computed = try self.vector_instr(vop, x, ir.none_ref(), shape)
+            try self.f.emit(ir.Op.storev, ir.Class.v, 0, computed, out, shape)
+            return LowerValue(ref = out, type_id = t, in_memory = true)
         var i: u64 = 0
         while i < count:
             let x = try self.lane_of(v, et, i * stride)
@@ -2112,7 +2185,8 @@ pub struct Lowerer:
             i += 1
         return LowerValue(ref = out, type_id = t, in_memory = true)
 
-    ## `T[N](x)`: every lane is `x`, computed once (§5.12).
+    ## `T[N](x)`: every lane is `x`, computed once (§5.12): one vector instruction where
+    ## the target spreads a scalar, else lane by lane.
     mutating func splat(e: ast.Node*, t: u32) -> LowerValue!:
         let first = e.body else return try self.fail(e, "no argument")
         let v = first.left else return try self.fail(e, "no argument")
@@ -2122,6 +2196,11 @@ pub struct Lowerer:
         let count = self.c.table.get(t).length
         let slot = try self.new_slot(t)
         let out = try self.slot_address(slot)
+        let shape = self.lane_shape(t)
+        if isa.has_vector(self.target.arch, ir.Op.vsplat, shape):
+            let spread = try self.vector_operand(x, et, shape)
+            try self.f.emit(ir.Op.storev, ir.Class.v, 0, spread, out, shape)
+            return LowerValue(ref = out, type_id = t, in_memory = true)
         var i: u64 = 0
         while i < count:
             try self.store_to(try self.offset_address(out, i * stride), x)
@@ -4616,3 +4695,41 @@ func is_float_operand(o: ast.Node*) -> bool:
     let v = o.left else return false
     let t = v.type_id
     return t == types.f32_id or t == types.f64_id
+
+## The vector instruction of a lane-wise operator (§5.12), `copy` for one that has none.
+func vector_op(op: str, floats: bool) -> ir.Op:
+    if floats:
+        if op == "+":
+            return ir.Op.vadd
+        if op == "-":
+            return ir.Op.vsub
+        if op == "*":
+            return ir.Op.vmul
+        if op == "/":
+            return ir.Op.vdiv
+        return ir.Op.copy
+    if op == "+%":
+        return ir.Op.vaddw
+    if op == "-%":
+        return ir.Op.vsubw
+    if op == "*%":
+        return ir.Op.vmulw
+    if op == "+":
+        return ir.Op.vaddo
+    if op == "-":
+        return ir.Op.vsubo
+    if op == "+|":
+        return ir.Op.vadds
+    if op == "-|":
+        return ir.Op.vsubs
+    if op == "&":
+        return ir.Op.vand
+    if op == "|":
+        return ir.Op.vor
+    if op == "^":
+        return ir.Op.vxor
+    if op == "<<":
+        return ir.Op.vshl
+    if op == ">>":
+        return ir.Op.vshr
+    return ir.Op.copy

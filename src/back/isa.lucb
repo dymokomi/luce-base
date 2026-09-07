@@ -14,6 +14,7 @@
 #
 #==============================================================================================
 
+import back.ir
 import back.target as targets
 
 ## What a named register carries: a float or an integer, of `bits` bits.
@@ -61,6 +62,44 @@ pub func register_of(arch: targets.Arch, place: str) -> Register:
     if name[0] == 'w':
         return Register(is_float = false, bits = 32)
     return Register(is_float = false, bits = 64)
+
+## Whether the architecture computes vector instruction `op` on lanes of `shape` in one
+## instruction sequence of its own (§5.12): the lowerer emits the vector form where it does
+## and the lanes as scalars where it does not, so a generator implements exactly the forms
+## claimed here. A vector of one lane is a scalar's work on both.
+pub func has_vector(arch: targets.Arch, op: ir.Op, shape: u32) -> bool:
+    let bits = ir.lane_bits(shape)
+    let count = ir.lane_count(shape)
+    let floats = ir.lanes_float(shape)
+    if count < 2:
+        return false
+    if op == ir.Op.loadv or op == ir.Op.storev or op == ir.Op.vsplat or op == ir.Op.vand or op == ir.Op.vor or op == ir.Op.vxor or op == ir.Op.vnot:
+        return true
+    if floats:
+        # NEON and SSE2 both add, subtract, multiply, divide, and negate float lanes
+        return op == ir.Op.vadd or op == ir.Op.vsub or op == ir.Op.vmul or op == ir.Op.vdiv or op == ir.Op.vneg
+    if arch == targets.Arch.arm64:
+        # NEON: wrapping, checked (through the saturating forms), and saturating adds and
+        # subtracts on every lane width; wrapping multiplies up to 32 bits; shifts on all
+        if op == ir.Op.vaddw or op == ir.Op.vsubw or op == ir.Op.vaddo or op == ir.Op.vsubo or op == ir.Op.vadds or op == ir.Op.vsubs or op == ir.Op.vshl or op == ir.Op.vshr:
+            return true
+        return op == ir.Op.vmulw and bits <= 32
+    # SSE2: wrapping adds and subtracts on every width; saturating and checked ones on bytes
+    # and halfwords, checked on words through the sign; multiplies on halfwords; shifts on
+    # halfwords and up, the arithmetic right shift not on doublewords
+    if op == ir.Op.vaddw or op == ir.Op.vsubw:
+        return true
+    if op == ir.Op.vadds or op == ir.Op.vsubs:
+        return bits <= 16
+    if op == ir.Op.vaddo or op == ir.Op.vsubo:
+        return bits <= 32
+    if op == ir.Op.vmulw:
+        return bits == 16
+    if op == ir.Op.vshl:
+        return bits >= 16
+    if op == ir.Op.vshr:
+        return bits >= 16 and not (bits == 64 and ir.lanes_signed(shape))
+    return false
 
 ## Whether `arch` is the architecture an `asm ARCH` block names (§8.9).
 pub func is_named(arch: targets.Arch, name: str) -> bool:

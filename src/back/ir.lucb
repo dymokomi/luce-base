@@ -30,6 +30,9 @@ pub enum Class as u8:
     d = 4
     ## a half-precision float, in the low half of a `v` register
     h = 5
+    ## a vector of eight or sixteen bytes (§5.12), in a vector register; its lane shape is
+    ## on the instruction (`lanes`)
+    v = 6
 
 ## Whether `cls` lives in the float registers.
 ## The ten comparisons: their result is a word whatever they compare.
@@ -38,6 +41,34 @@ pub func is_comparison(op: Op) -> bool:
 
 pub func is_float_class(cls: Class) -> bool:
     return cls == Class.s or cls == Class.d or cls == Class.h
+
+pub func is_vector_class(cls: Class) -> bool:
+    return cls == Class.v
+
+## The lane shape of a vector instruction, in its `extra`: the lanes' width in bits, how
+## many, and whether they are floats and signed. A vector is `lane_bits * lane_count / 8`
+## bytes: eight or sixteen.
+pub func lanes(bits: u32, count: u32, is_float: bool, signed: bool) -> u32:
+    return bits | (count << 8) | ((1 if is_float else 0) << 16) | ((1 if signed else 0) << 17)
+
+pub func lane_bits(shape: u32) -> u32:
+    return shape & 0xFF
+
+pub func lane_count(shape: u32) -> u32:
+    return (shape >> 8) & 0xFF
+
+pub func lanes_float(shape: u32) -> bool:
+    return (shape & (1 << 16)) != 0
+
+pub func lanes_signed(shape: u32) -> bool:
+    return (shape & (1 << 17)) != 0
+
+pub func vector_bytes(shape: u32) -> u32:
+    return lane_bits(shape) * lane_count(shape) // 8
+
+## Whether `op` computes on vectors (§5.12), lane shape in `extra`.
+pub func is_vector_op(op: Op) -> bool:
+    return (u8)op >= (u8)Op.loadv and (u8)op <= (u8)Op.vsplat
 
 ## What an operand refers to.
 pub enum RefKind as u8:
@@ -199,6 +230,31 @@ pub enum Op as u8:
     atomic_cas = 130
     ## `fence a`: a full fence with the C memory order in `a`
     fence = 131
+    ## Vectors (§5.12): the lanes compute exactly as the scalar operators would, and a
+    ## checked lane's overflow traps. `loadv`/`storev` move the shape's bytes; `vshl`/`vshr`
+    ## take a scalar count in `b`, already checked against the lane width; `vsplat` takes a
+    ## scalar of the lane's class in `a`.
+    loadv = 140
+    storev = 141
+    vadd = 142
+    vsub = 143
+    vmul = 144
+    vdiv = 145
+    vand = 146
+    vor = 147
+    vxor = 148
+    vneg = 149
+    vnot = 150
+    vaddw = 151
+    vsubw = 152
+    vmulw = 153
+    vaddo = 154
+    vsubo = 155
+    vadds = 156
+    vsubs = 157
+    vshl = 158
+    vshr = 159
+    vsplat = 160
     ## The frame pointer of the running function, for the debugger.
     frame = 200
     ## Inline assembly operands: `set_reg a -> named register b` before an `asm` block,
