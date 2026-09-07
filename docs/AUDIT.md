@@ -128,7 +128,7 @@ Base programmer would miss them.
 | 5.1, 7.2 | same-width integers | done: `u64` and `usize` stay distinct in assignment; they compute together in arithmetic, as the seed does |
 | 16.6 | the standard library as source, `os`, `io.path`, the full `math` | done: `src/std/*.lucb`, `tools/embed_std.py`, `docs/LIBRARY.md` from `tools/library_reference.py` |
 | 14.3 | `Writer?` in the null niche | deferred: a tagged optional today, 24 bytes instead of 16; every niche site in both backends assumes a one-word payload |
-| 19.5 | targets beyond arm64-macos | missing; the `Backend` interface is ready |
+| 19.5 | targets beyond arm64-macos | the target abstraction is done: `src/back/target.lucb`, `--target NAME`, the generated `platform` module, per-target constants and layouts in the standard library pruned at compile time (`19_compilation/targets_prune.lucb`); Linux values are written and untested, Windows arms are marked; the native backend emits arm64-macos only and other targets go through `--emit=c` |
 | 17.5 | `luce bind` | missing; a project of its own |
 | 19.6 | `luce fmt`, `--costs`, `--target` listing | `--target` listing done (`build FILE --target` names the targets and the asm architectures the program covers); `fmt` and `--costs` missing |
 | 16.6 | TLS for `net`, a `graphics` module | missing |

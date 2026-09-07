@@ -1,4 +1,5 @@
 import c
+import platform
 from io import Writer
 
 extern func socket(domain: i32, kind: i32, protocol: i32) -> i32
@@ -16,30 +17,43 @@ extern func getsockname(descriptor: i32, address: SocketAddress*, length: u32*) 
 extern func getaddrinfo(host: c.str, service: c.str?, hints: const AddressInfo*?, result: AddressInfo*?*) -> i32
 extern func freeaddrinfo(info: AddressInfo*)
 
-## `sockaddr_in` as arm64-macos lays it out.
+## `sockaddr_in`: 16 bytes everywhere; macOS splits the first two into a length and a
+## one-byte family, Linux keeps a two-byte family. `family_word` reads and writes it.
 extern struct SocketAddress:
-    length: u8
-    family: u8
+    head: u16
     port: u16
     address: u32
     zero: u8[8]
 
-## `addrinfo` as arm64-macos lays it out.
+## The first two bytes of `sockaddr_in` as one little-endian word: on macOS the length
+## byte (16) comes first and the family byte second, on Linux the family fills both.
+func family_word(family: u8) -> u16:
+    if platform.macos:
+        return (u16)16 | ((u16)family << 8)
+    return (u16)family
+
+## `addrinfo`: macOS puts the canonical name before the address, Linux after it.
 extern struct AddressInfo:
     flags: i32
     family: i32
     kind: i32
     protocol: i32
     address_length: u32
-    canonical: c.str?
-    address: SocketAddress*?
+    fifth: void*?
+    sixth: void*?
     next: AddressInfo*?
+
+func info_address(info: AddressInfo*) -> SocketAddress*?:
+    let raw = info.sixth if platform.macos else info.fifth
+    let p = raw else return none
+    return (SocketAddress*)p
 
 let inet: i32 = 2
 let stream: i32 = 1
 let datagram: i32 = 2
-let socket_level: i32 = 65535
-let reuse_address: i32 = 4
+## `SOL_SOCKET` and `SO_REUSEADDR`: 65535 and 4 on macOS, 1 and 2 on Linux.
+let socket_level: i32 = 65535 if platform.macos else 1
+let reuse_address: i32 = 4 if platform.macos else 2
 
 pub let failed: ErrorCode = ErrorCode.package(9)
 pub let closed: ErrorCode = ErrorCode.package(10)
@@ -58,7 +72,7 @@ pub struct Address:
 
     func raw() -> SocketAddress:
         var zero: u8[8]
-        return SocketAddress(length = 16, family = 2, port = swap16(self.port), address = swap32(self.ip), zero = zero)
+        return SocketAddress(head = family_word(2), port = swap16(self.port), address = swap32(self.ip), zero = zero)
 
     static func from_raw(raw: SocketAddress) -> Address:
         return Address(ip = swap32(raw.address), port = swap16(raw.port))
@@ -72,12 +86,12 @@ func swap32(value: u32) -> u32:
 
 ## The first IPv4 address of `host`.
 pub func resolve(host: c.str, port: u16) -> Address!:
-    var hints = AddressInfo(flags = 0, family = inet, kind = stream, protocol = 0, address_length = 0, canonical = none, address = none, next = none)
+    var hints = AddressInfo(flags = 0, family = inet, kind = stream, protocol = 0, address_length = 0, fifth = none, sixth = none, next = none)
     var found: AddressInfo*? = none
     if getaddrinfo(host, none, &hints, &found) != 0:
         error(unknown_host, "unknown host")
     let info = found else error(unknown_host, "unknown host")
-    let raw = info.address else error(unknown_host, "unknown host")
+    let raw = info_address(info) else error(unknown_host, "unknown host")
     var address = Address.from_raw(*raw)
     address.port = port
     freeaddrinfo(info)
@@ -104,7 +118,7 @@ pub struct Listener:
 
     ## The address the socket ended up with; a port of zero asked for any free one.
     pub func address() -> Address:
-        var raw = SocketAddress(length = 0, family = 0, port = 0, address = 0, zero = [0, 0, 0, 0, 0, 0, 0, 0])
+        var raw = SocketAddress(head = 0, port = 0, address = 0, zero = [0, 0, 0, 0, 0, 0, 0, 0])
         var length: u32 = 16
         discard(getsockname(self.descriptor, &raw, &length))
         return Address.from_raw(raw)
@@ -168,7 +182,7 @@ pub struct Datagram:
         return Datagram(descriptor = fd)
 
     pub func address() -> Address:
-        var raw = SocketAddress(length = 0, family = 0, port = 0, address = 0, zero = [0, 0, 0, 0, 0, 0, 0, 0])
+        var raw = SocketAddress(head = 0, port = 0, address = 0, zero = [0, 0, 0, 0, 0, 0, 0, 0])
         var length: u32 = 16
         discard(getsockname(self.descriptor, &raw, &length))
         return Address.from_raw(raw)
@@ -179,7 +193,7 @@ pub struct Datagram:
             error(failed, "send")
 
     pub func receive_from(buffer: u8[]) -> (usize, Address)!:
-        var raw = SocketAddress(length = 0, family = 0, port = 0, address = 0, zero = [0, 0, 0, 0, 0, 0, 0, 0])
+        var raw = SocketAddress(head = 0, port = 0, address = 0, zero = [0, 0, 0, 0, 0, 0, 0, 0])
         var length: u32 = 16
         let n = recvfrom(self.descriptor, buffer.data, buffer.length, 0, &raw, &length)
         if n < 0:

@@ -14,6 +14,7 @@
 #==============================================================================================
 
 import back.arm64
+import back.target as targets
 import back.emit
 import back.inline
 import back.irtext
@@ -21,6 +22,8 @@ import back.lower
 import back.opt
 import front.ast
 import sema.check
+
+pub let unsupported_target: ErrorCode = ErrorCode.package(20)
 
 ## The last stage of the pipeline: the checked program as the target's text.
 pub interface Backend:
@@ -48,13 +51,18 @@ pub struct NativeBackend: Backend:
     var debug: bool
     ## `--emit=ir`: the IR as text after every pass before the target, instead of assembly.
     pub var dump_ir: bool
+    ## The target of the build (§19.5): this backend emits the host's only.
+    var target: targets.Target
 
     pub static func over(c: check.Checker*, entry: ast.Node*, debug: bool, diagnostic: bool) -> NativeBackend!:
         var lowerer = try lower.Lowerer.create(c, entry)
         lowerer.diagnostic = diagnostic
-        return NativeBackend(lowerer = lowerer, debug = debug, dump_ir = false)
+        return NativeBackend(lowerer = lowerer, debug = debug, dump_ir = false, target = c.build_target)
 
     pub mutating func compile(mode: u32) -> str!:
+        let t = self.target
+        if not t.is_host():
+            error(unsupported_target, "the native backend emits arm64-macos only; write the C for another target with --emit=c")
         self.lowerer.debug = self.debug
         try self.lowerer.program(mode)
         try inline.expand(&self.lowerer.program_unit)
@@ -62,5 +70,6 @@ pub struct NativeBackend: Backend:
         if self.dump_ir:
             return try irtext.render(&self.lowerer.program_unit)
         var generator = try arm64.Generator.create(&self.lowerer.program_unit)
+        generator.symbol_prefix = t.symbol_prefix
         try generator.generate()
         return generator.text()

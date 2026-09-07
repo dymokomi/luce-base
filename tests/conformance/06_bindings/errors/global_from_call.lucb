@@ -1,0 +1,13 @@
+# error: a global's initialiser is a constant expression
+## §6.4: a static function runs, so its result is not a constant; a global cannot start from
+## one.
+struct Config:
+    var width: i32
+
+    pub static func standard() -> Config:
+        return Config(width = 80)
+
+var current: Config = Config.standard()
+
+pub func main(arguments: str[]) -> i32:
+    return current.width

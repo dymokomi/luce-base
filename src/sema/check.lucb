@@ -22,6 +22,7 @@
 
 import c
 import files
+import back.target as targets
 import front.ast
 import front.parser
 import front.source
@@ -86,6 +87,9 @@ pub struct Checker:
     ## Diagnostics are formatted into the first half; type spellings into the second.
     ## The buffer outlives the arena, so the backends format their own reports here too.
     pub var scratch: u8[]
+    ## The target of the build (§19.5): what the `target` module says and what the backends
+    ## emit for.
+    pub var build_target: targets.Target
     ## The module being checked, as an index into `modules`.
     var current: usize
     var current_func: ast.Node*?
@@ -129,7 +133,8 @@ pub struct Checker:
                        current = 0, current_func = none, result_type = types.unit_id, fallible = false,
                        self_type = types.none_id, self_mutable = false, in_init = false, loop_depth = 0, in_catch = false,
                        catch_result = types.none_id, checking_template = false, at_top_level = false, root = "", package_name = "app",
-                       package_codes = try list.List[u64].create(64), export_symbols = try list.List[str].create(32))
+                       package_codes = try list.List[u64].create(64), export_symbols = try list.List[str].create(32),
+                       build_target = targets.Target.host())
 
     # -- diagnostics ----------------------------------------------------------------------
 
@@ -305,7 +310,11 @@ pub struct Checker:
                 let callee = e.left else return false
                 if callee.kind == ast.Kind.name and (callee.text == "sizeof" or callee.text == "alignof" or callee.text == "offsetof"):
                     return true
-                # a struct construction or a payload case from constants
+                # a struct construction or a payload case from constants; a static function
+                # runs, so its result is not one
+                if let f = callee.resolved:
+                    if f.kind == ast.Kind.func_ or f.kind == ast.Kind.extern_func:
+                        return false
                 if callee.has(ast.flag_type_ref) or callee.has(ast.flag_static):
                     return self.all_constant(e.body)
                 return false
@@ -481,7 +490,12 @@ pub struct Checker:
     ## Parse and add every standard module.
     pub mutating func add_prelude() -> !:
         for p in prelude.modules:
-            let src = try source.Source.over(p.name, p.text.bytes)
+            var text = p.text
+            if p.name == "platform":
+                # the one module written for the build: the target's facts (§19.5)
+                let buffer = try alloc u8[1024]
+                text = try self.build_target.module_text(buffer)
+            let src = try source.Source.over(p.name, text.bytes)
             try self.add_module(p.name, src, true)
 
     ## Load `path` and, first, every module it imports from the same directory.
@@ -1958,7 +1972,7 @@ pub struct Checker:
     ## The value of a constant integer expression (§6.4), or `none` when it is not one this
     ## evaluator folds: literals, `sizeof`, `alignof`, constants, the arithmetic, bit, and
     ## shift operators, and casts.
-    func constant_u64(e: ast.Node*) -> u64?:
+    pub func constant_u64(e: ast.Node*) -> u64?:
         match e.kind:
             .literal:
                 let v = decode_integer(e.text) catch failure:
@@ -2000,13 +2014,20 @@ pub struct Checker:
                     return none
                 let init = d.left else return none
                 return self.constant_u64(init)
+            .conditional:
+                # `6 if target.macos else 1`: the arm the constant condition picks
+                let cond = e.ty else return none
+                let l = e.left else return none
+                let r = e.right else return none
+                let truth = self.constant_bool(cond) else return none
+                return self.constant_u64(l if truth else r)
             _:
                 return none
 
     ## The truth of a constant condition (§11.6): the literals, top-level `let`s of `bool`
     ## such as `os.arm64`, `not`, `and`, `or`, and comparisons of constant integers, signed
     ## when either operand's type is.
-    func constant_bool(e: ast.Node*) -> bool?:
+    pub func constant_bool(e: ast.Node*) -> bool?:
         match e.kind:
             .literal:
                 if e.text == "true":
@@ -2020,6 +2041,12 @@ pub struct Checker:
                     return none
                 let init = d.left else return none
                 return self.constant_bool(init)
+            .conditional:
+                let cond = e.ty else return none
+                let l = e.left else return none
+                let r = e.right else return none
+                let truth = self.constant_bool(cond) else return none
+                return self.constant_bool(l if truth else r)
             .group:
                 let inner = e.left else return none
                 return self.constant_bool(inner)
@@ -2040,6 +2067,32 @@ pub struct Checker:
                 let b = self.constant_u64(r) else return none
                 let signed = self.table.is_signed(l.type_id) or self.table.is_signed(r.type_id)
                 return compare_constants(e.text, a, b, signed)
+            _:
+                return none
+
+    ## The text a constant `str` expression denotes: a literal, or a top-level `let` of one,
+    ## `os.name`; none for anything else.
+    pub func constant_text(e: ast.Node*) -> str?:
+        match e.kind:
+            .literal:
+                if e.text.bytes[0] != '"':
+                    return none
+                return decode_text(e.text)
+            .group:
+                let inner = e.left else return none
+                return self.constant_text(inner)
+            .name, .member:
+                let d = e.resolved else return none
+                if d.kind != ast.Kind.constant:
+                    return none
+                let init = d.left else return none
+                return self.constant_text(init)
+            .conditional:
+                let cond = e.ty else return none
+                let l = e.left else return none
+                let r = e.right else return none
+                let truth = self.constant_bool(cond) else return none
+                return self.constant_text(l if truth else r)
             _:
                 return none
 
@@ -3951,6 +4004,11 @@ pub struct Checker:
         if let rest = s.right:
             if rest.kind == ast.Kind.if_:
                 try self.check_if(rest)
+                if not rest.has(ast.flag_if_let):
+                    # an `elif` on a constant folds like the `if` it follows (§19.6)
+                    let quiet = try self.fold_condition(rest)
+                    var r = self.reporter()
+                    try prune.fold_constant_branch(rest, &r, quiet)
             else:
                 try self.check_block(rest)
 

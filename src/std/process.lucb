@@ -1,5 +1,6 @@
 import c
 import memory
+import platform
 
 extern func pipe(descriptors: i32*) -> i32
 extern func fork() -> i32
@@ -22,7 +23,8 @@ let poll_in: i16 = 1
 let poll_hang_up: i16 = 16
 let poll_error: i16 = 8
 let set_flags: i32 = 4
-let non_blocking: i32 = 4
+## `O_NONBLOCK`: 4 on macOS, 2048 on Linux.
+let non_blocking: i32 = 4 if platform.macos else 2048
 
 pub let failed: ErrorCode = ErrorCode.package(8)
 

@@ -38,6 +38,8 @@ struct ArgPlacement:
 
 pub struct Generator:
     var out: buffer.Buffer
+    ## What precedes a C symbol in this target's assembler: `_` on macOS (§19.5).
+    pub var symbol_prefix: str
     var program_unit: ir.Unit*
     var f: ir.Function*
     var index: usize
@@ -65,7 +67,7 @@ pub struct Generator:
     var sp_shift: u64
 
     pub static func create(program_unit: ir.Unit*) -> Generator!:
-        return Generator(out = try buffer.Buffer.create(262144), program_unit = program_unit, f = program_unit.functions.span().data, index = 0,
+        return Generator(symbol_prefix = "_", out = try buffer.Buffer.create(262144), program_unit = program_unit, f = program_unit.functions.span().data, index = 0,
                          temp_homes = try list.List[FrameHome].create(256), slot_homes = try list.List[FrameHome].create(64),
                          frame = 0, indirect_home = 0, text_count = 0, descriptors = try buffer.Buffer.create(4096),
                          temp_regs = try list.List[u8].create(256), slot_regs = try list.List[u8].create(64), temp_slot = try list.List[u32].create(256), used_mask = 0)
@@ -87,7 +89,7 @@ pub struct Generator:
 
     ## `_name`
     mutating func symbol(name: str) -> !:
-        try self.out.put("_")
+        try self.out.put(self.symbol_prefix)
         try self.out.put(name)
 
     mutating func label_name(n: u32) -> !:

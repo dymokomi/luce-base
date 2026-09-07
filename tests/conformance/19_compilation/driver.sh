@@ -27,6 +27,22 @@ for native in "" "--native"; do
     ar t build/conformance.a > /dev/null
     rm -f build/conformance.a build/conformance.h
 done
+# `--target NAME`: one arm of a target test survives per target in the emitted C (§19.5, §19.6)
+for pair in "x86_64-linux ARM_LINUX_X86" "arm64-macos ARM_MACOS_ARM64" "arm64-linux ARM_LINUX_ARM64" "x86_64-windows ARM_WINDOWS"; do
+    set -- $pair
+    $lb build $dir/targets_prune.lucb --target $1 --emit=c -o build/conformance.c
+    survivors=$(grep -o 'ARM_[A-Z0-9_]*' build/conformance.c | sort -u | tr '\n' ' ')
+    [ "$survivors" = "$2 " ] || { echo "FAIL $dir/targets_prune.lucb for $1: kept [$survivors]"; exit 1; }
+done
+if $lb build $dir/targets_prune.lucb --target arm64-linux --native -o build/conformance 2> build/conformance.err; then
+    echo "FAIL $dir: the native backend accepted another target"; exit 1
+fi
+grep -q 'emit=c' build/conformance.err
+if $lb build $dir/targets_prune.lucb --target nope --emit=c -o build/conformance.c 2> build/conformance.err; then
+    echo "FAIL $dir: an unknown target was accepted"; exit 1
+fi
+grep -q 'unknown target' build/conformance.err
+rm -f build/conformance.c
 # the target listing (§19.5); the host's mark is not part of the expectation
 $lb build $dir/targets.lucb --target | sed 's/ (built here)//' | cmp - $dir/targets.targets
 # a freestanding program: its own `_start`, no shim, an exit code of its own choosing (§19.4)

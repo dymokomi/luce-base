@@ -1,3 +1,5 @@
+import platform
+
 extern func malloc(size: usize) -> void*?
 extern func c_free as "free"(block: void*)
 extern func posix_memalign(memptr: void*?*, alignment: usize, size: usize) -> i32
@@ -153,7 +155,7 @@ pub struct PageAllocator: Allocator:
             note_refusal("page allocator", size, alignment, 0)
             return none
         let rounded = (size + page - 1) // page * page
-        let mapped = mmap(none, rounded, 3, 4098, -1, 0) else return none    # PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANON
+        let mapped = mmap(none, rounded, 3, private_anonymous, -1, 0) else return none
         if (usize)mapped == 18446744073709551615:
             note_refusal("page allocator", size, alignment, 0)
             return none
@@ -170,6 +172,9 @@ pub struct PageAllocator: Allocator:
         discard(munmap(block.data, block.length))
 
 extern func mmap(address: void*?, length: usize, protection: i32, flags: i32, descriptor: i32, offset: i64) -> void*?
+## `MAP_PRIVATE | MAP_ANON`: `MAP_ANON` is 0x1000 on macOS and 0x20 on Linux; the
+## protection `PROT_READ | PROT_WRITE` is 3 on both.
+let private_anonymous: i32 = 4098 if platform.macos else 34
 extern func munmap(address: void*, length: usize) -> i32
 extern func getpagesize() -> i32
 

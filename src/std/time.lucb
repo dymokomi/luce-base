@@ -1,3 +1,5 @@
+import platform
+
 extern func clock_gettime(clock: i32, out_time: Stamp*) -> i32
 extern func c_time as "time"(out_time: void*?) -> i64
 
@@ -5,7 +7,8 @@ extern struct Stamp:
     seconds: i64
     nanoseconds: i64
 
-let monotonic: i32 = 6
+## `CLOCK_MONOTONIC`: 6 on macOS, 1 on Linux; `CLOCK_REALTIME` is 0 on both.
+let monotonic: i32 = 6 if platform.macos else 1
 let realtime: i32 = 0
 
 ## Nanoseconds from an arbitrary origin, never going backwards.

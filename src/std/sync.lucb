@@ -1,19 +1,37 @@
+import platform
+
+## macOS: the `ulock` calls libSystem builds its own locks on.
 extern func __ulock_wait(operation: u32, address: void*, value: u64, timeout: u32) -> i32
 extern func __ulock_wake(operation: u32, address: void*, wake_value: u64) -> i32
+## Linux: the futex system call, through `syscall`; the number is the architecture's.
+extern func syscall(number: i64, ...) -> i64
 
 let compare_and_wait: u32 = 1
 let wake_all: u32 = 256
+let futex_number: i64 = 98 if platform.arm64 else 202
+let futex_wait_private: i32 = 128
+let futex_wake_private: i32 = 129
 
 ## Sleep in the kernel while the word at `address` still holds `value`; a change
 ## or a wake returns, and so may nothing at all, so every caller loops.
 func sleep_on(address: void*, value: u32):
-    discard(__ulock_wait(compare_and_wait, address, (u64)value, 0))
+    if platform.macos:
+        discard(__ulock_wait(compare_and_wait, address, (u64)value, 0))
+    else:
+        let no_timeout: void*? = none
+        discard(syscall(futex_number, address, futex_wait_private, value, no_timeout))
 
 func wake_one(address: void*):
-    discard(__ulock_wake(compare_and_wait, address, 0))
+    if platform.macos:
+        discard(__ulock_wake(compare_and_wait, address, 0))
+    else:
+        discard(syscall(futex_number, address, futex_wake_private, 1))
 
 func wake_every(address: void*):
-    discard(__ulock_wake(compare_and_wait | wake_all, address, 0))
+    if platform.macos:
+        discard(__ulock_wake(compare_and_wait | wake_all, address, 0))
+    else:
+        discard(syscall(futex_number, address, futex_wake_private, 2147483647))
 
 ## A lock whose waiters sleep: zero is unlocked, so `var lock: Mutex` is ready to
 ## use; one is locked; two is locked with someone asleep on it.

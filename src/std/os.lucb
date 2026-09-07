@@ -3,6 +3,7 @@
 ## system owns; copy what must outlive the next call.
 import c
 import memory
+import platform
 
 extern func getenv(name: c.str) -> c.str?
 extern func setenv(name: c.str, value: c.str, overwrite: i32) -> i32
@@ -18,19 +19,24 @@ extern func getpagesize() -> i32
 
 pub let failed: ErrorCode = ErrorCode.package(12)
 
-## The target, as constants a program can branch on: `if os.arm64:` (§19.5). These are
-## the first target's, arm64-macos; another target gets its own copy of this module.
-pub let arm64: bool = true
-pub let x86_64: bool = false
-pub let macos: bool = true
-pub let linux: bool = false
-pub let windows: bool = false
-pub let pointer_bits: u32 = 64
-pub let name: str = "arm64-macos"
+## The target, as constants a program branches on: `if os.arm64:`, `if os.linux and
+## os.x86_64:` (§19.5); the compiler decides them from `--target`, so the branch a target
+## rules out is pruned (§19.6).
+pub let arm64: bool = platform.arm64
+pub let x86_64: bool = platform.x86_64
+pub let macos: bool = platform.macos
+pub let linux: bool = platform.linux
+pub let windows: bool = platform.windows
+pub let posix: bool = platform.posix
+pub let pointer_bits: u32 = platform.pointer_bits
+pub let name: str = platform.name
+
+## `_SC_NPROCESSORS_ONLN`: 58 on macOS, 84 on Linux.
+let processors_online: i32 = 58 if platform.macos else 84
 
 ## The processors available to this process, at least one.
 pub func cpus() -> u32:
-    let n = sysconf(58)    # _SC_NPROCESSORS_ONLN on macOS
+    let n = sysconf(processors_online)
     return (u32)n if n > 0 else 1
 
 pub func page_size() -> usize:

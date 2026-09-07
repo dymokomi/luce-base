@@ -5713,7 +5713,7 @@ pub struct Emitter:
         try self.put("lb_x_")
         try self.put(names.module_of(d))
         try self.put("_")
-        try self.put(names.c_symbol(d))
+        try self.put(d.text)
 
     ## A top-level `let` or `var` as a C global.
     mutating func global(d: ast.Node*) -> !:
@@ -5731,11 +5731,36 @@ pub struct Emitter:
         try self.put(" = ")
         if let init = d.left:
             self.folding = true
-            try self.value(init, t)
+            if not (try self.folded_constant(init, t)):
+                try self.value(init, t)
             self.folding = false
         else:
             try self.zero_value(t)
         try self.put(";")
+
+    ## A global's initialiser that names another constant, `os.macos = platform.macos` or
+    ## `6 if platform.macos else 1`, written as the value it denotes, since C wants a
+    ## file-scope initialiser to be a literal. Says whether it wrote one.
+    mutating func folded_constant(init: ast.Node*, t: u32) -> bool!:
+        if init.kind != ast.Kind.name and init.kind != ast.Kind.member and init.kind != ast.Kind.conditional:
+            return false
+        if t == types.bool_id:
+            let v = self.c.constant_bool(init) else return false
+            try self.put("true" if v else "false")
+            return true
+        if self.is_int(t):
+            let v = self.c.constant_u64(init) else return false
+            try self.put("((")
+            try self.put_type(t)
+            try self.put(")")
+            try self.put_u64(v)
+            try self.put("ULL)")
+            return true
+        if t == types.str_id:
+            let text = self.c.constant_text(init) else return false
+            try self.put_str_literal(text)
+            return true
+        return false
 
     ## Every witness table the program needs.
     mutating func tables() -> !:

@@ -11,6 +11,7 @@
 
 import c
 import back.backend
+import back.target as targets
 import back.header
 import back.names
 import support.manifest
@@ -48,6 +49,8 @@ struct Options:
     var freestanding: bool
     ## `--target` with no name: list the targets and the asm architectures the program covers.
     var list_targets: bool
+    ## `--target NAME`: the target of the build (§19.5); the host when empty.
+    var target: str
     ## `--profile diagnostic`: filled `---` storage and a quarantining allocator (§19.4).
     var diagnostic: bool
     ## `-lNAME` and `-LDIR`: libraries to link and where to find them.
@@ -125,6 +128,7 @@ func checked(path: c.str) -> check.Checker!:
     names.export_prefix = m.symbol_prefix
     var checker = try check.Checker.create(scratch_of())
     checker.package_name = m.name
+    checker.build_target = build_target()
     try checker.add_prelude()
     try checker.load(path)
     try checker.check_program()
@@ -144,6 +148,15 @@ func translate(checker: check.Checker*, entry: ast.Node*, mode: u32) -> str!:
 
 ## The backend the current command chose: C through the host compiler, or arm64 assembly.
 var native_backend: bool
+## The target of the build, by name: the host unless `--target` named another (§19.5).
+var build_target_name: str = "arm64-macos"
+
+func build_target() -> targets.Target:
+    let chosen = targets.Target.named(build_target_name) else return targets.Target.host()
+    return chosen
+
+func unknown_target() -> !:
+    error(build_failed, "unknown target; `--target` with no name lists them")
 ## `--emit=ir`: the native pipeline stops after its passes and writes the IR as text.
 var dump_ir: bool
 ## `--debug`: the native backend describes every frame and calls the `debug` module.
@@ -400,6 +413,11 @@ func build_file(path: c.str, options: Options) -> !:
         while k < options.framework_count:
             link_frameworks[k] = options.frameworks[k]
             k += 1
+        if options.target.length > 0:
+            let chosen = targets.Target.named(options.target) else return try unknown_target()
+            build_target_name = chosen.name
+            if not chosen.is_host() and not options.emit_c and not options.library:
+                error(build_failed, "a program for another target is written as C with --emit=c and compiled there")
         if options.list_targets:
             try list_targets(path)
             return
@@ -428,7 +446,12 @@ func build_file(path: c.str, options: Options) -> !:
 func list_targets(path: c.str) -> !:
     var checker = try checked(path)
     let out = io.stdout()
-    try out.write("targets: x86_64-linux x86_64-macos x86_64-windows arm64-linux arm64-macos (built here) wasm32\n")
+    try out.write("targets:")
+    for name in targets.names:
+        try out.write(f" {name}")
+        if name == targets.Target.host().name:
+            try out.write(" (built here)")
+    try out.write("\n")
     var wrote_any = false
     var i: usize = 0
     while i < checker.modules.count:
@@ -573,6 +596,7 @@ func check_file(path: c.str) -> !:
     var scratch: u8[4096]
     with arena:
         var checker = try check.Checker.create(scratch)
+        checker.build_target = build_target()
         try checker.add_prelude()
         try checker.load(path)
         try checker.check_program()
@@ -652,6 +676,7 @@ pub func main(arguments: c.str[]) -> i32!:
         options.library = false
         options.freestanding = false
         options.list_targets = false
+        options.target = ""
         options.diagnostic = false
         options.library_count = 0
         options.library_dir_count = 0
@@ -676,6 +701,9 @@ pub func main(arguments: c.str[]) -> i32!:
                 options.library = true
             elif a == "--freestanding":
                 options.freestanding = true
+            elif a == "--target" and i + 1 < arguments.length and not starts_with((str)arguments[i + 1], "-"):
+                options.target = (str)arguments[i + 1]
+                i += 1
             elif a == "--target":
                 options.list_targets = true
             elif a == "--profile" and i + 1 < arguments.length:

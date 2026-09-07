@@ -1,5 +1,6 @@
 import c
 import memory
+import platform
 
 extern func open(path: c.str, flags: i32, ...) -> i32
 extern func close(descriptor: i32) -> i32
@@ -7,11 +8,12 @@ extern func c_read as "read"(descriptor: i32, buffer: void*, count: usize) -> is
 extern func c_write as "write"(descriptor: i32, buffer: const void*, count: usize) -> isize
 extern func lseek(descriptor: i32, offset: i64, whence: i32) -> i64
 extern func opendir(path: c.str) -> void*?
-extern func readdir(directory: void*) -> Entry*?
+extern func readdir_macos as "readdir"(directory: void*) -> MacEntry*?
+extern func readdir_linux as "readdir"(directory: void*) -> LinuxEntry*?
 extern func closedir(directory: void*) -> i32
 
-## A directory entry as arm64-macos lays it out.
-extern struct Entry:
+## A directory entry as macOS lays it out (`struct dirent`, 64-bit inodes).
+extern struct MacEntry:
     inode: u64
     seek: u64
     length: u16
@@ -19,10 +21,30 @@ extern struct Entry:
     kind: u8
     name: u8[1024]
 
+## A directory entry as Linux lays it out: the name is NUL-terminated, not counted.
+extern struct LinuxEntry:
+    inode: u64
+    offset: i64
+    length: u16
+    kind: u8
+    name: u8[256]
+
+## The next entry's name, or none at the end; `.` and `..` are entries like any other.
+func next_entry(directory: void*) -> str?:
+    if platform.macos:
+        let entry = readdir_macos(directory) else return none
+        return (str)entry.name[..<(usize)entry.name_length]
+    let entry = readdir_linux(directory) else return none
+    var n: usize = 0
+    while n < entry.name.length and entry.name[n] != 0:
+        n += 1
+    return (str)entry.name[..<n]
+
+## `open` flags: macOS keeps the BSD values, Linux its own (§19.5).
 let read_only: i32 = 0
 let write_only: i32 = 1
-let create: i32 = 512
-let truncate: i32 = 1024
+let create: i32 = 512 if platform.macos else 64
+let truncate: i32 = 1024 if platform.macos else 512
 let seek_end: i32 = 2
 let seek_set: i32 = 0
 
@@ -79,8 +101,7 @@ pub func list(path: c.str) -> str[]!:
     let dir = opendir(path) else error(missing, "missing")
     var names = try alloc str[16]
     var count: usize = 0
-    while let entry = readdir(dir):
-        let name = (str)entry.name[..<(usize)entry.name_length]
+    while let name = next_entry(dir):
         if name == "." or name == "..":
             continue
         if count == names.length:
