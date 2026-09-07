@@ -1,0 +1,33 @@
+## §12.4: the standard allocators `Arena` (bump allocation over a parent, released all at
+## once) and `PageAllocator` (whole pages from the host), used through `with` and `in`.
+# oracle: none
+import memory
+from memory import Arena, PageAllocator
+
+struct Node:
+    var value: i64
+    var next: Node*?
+
+pub func main(arguments: str[]) -> i32!:
+    var pages = PageAllocator()
+    var arena = try Arena.over(&pages, 1 << 16)
+    var head: Node*? = none
+    with arena:
+        var i: i64 = 0
+        while i < 100:
+            let n = try new Node(value = i, next = head)
+            head = n
+            i += 1
+    var sum: i64 = 0
+    var cursor = head
+    while let n = cursor:
+        sum += n.value
+        cursor = n.next
+    let big = try alloc u8[100000] in &pages
+    big[99999] = 7
+    let used_before = arena.in_use()
+    arena.reset()
+    print(f"{sum} {used_before >= 1600} {arena.in_use()} {arena.capacity()} {big.length} {big[99999]}")
+    free(big) in &pages
+    arena.destroy()
+    return 0

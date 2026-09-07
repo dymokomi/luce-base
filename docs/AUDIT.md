@@ -123,6 +123,11 @@ Base programmer would miss them.
 | 16.4, 17.4, 11.3 | the manifest: package name, `symbol_prefix`, `[native]` inputs, error-code identity | done in both: `luce.toml` is found upward from the entry file; `[native] sources`, `libraries`, `link_search`, `frameworks` reach the C compiler and the linker (`pkg_config` is parsed, not yet run by luce-base); exports carry the prefix; every `ErrorCode.package(n)` carries sixteen bits of the package's name (`tests/programs/manifest`) |
 | 17.6 | `luce build --lib` with a generated header | done: `--lib -o NAME` writes `NAME.a` and `NAME.h` through either backend; exports of spans, `str`, fallible results, and non-pointer optionals are refused by the header writer for now |
 | 19.4 | `--freestanding`, `--profile diagnostic` | `--freestanding` done natively (no shim, the program's `export naked func _start` is the entry, `tests/programs/freestanding`); `--profile diagnostic` fills `---` storage with 0xAA and the C allocator quarantines released blocks filled with 0xDD and records the last 256 allocation sites (`memory.allocation_sites()`), all shown by `tests/samples/diagnostic.lucb` |
+| 12.4 | `Arena`, `PageAllocator` | done: `src/std/memory.lucb`, `tests/conformance/12_memory/arena_and_pages.lucb` |
+| 15.1 | plain reads of `@T` natively | done: sequentially consistent atomic loads in the IR |
+| 5.1, 7.2 | same-width integers | done: `u64` and `usize` stay distinct in assignment; they compute together in arithmetic, as the seed does |
+| 16.6 | the standard library as source, `os`, `io.path`, the full `math` | done: `src/std/*.lucb`, `tools/embed_std.py`, `docs/LIBRARY.md` from `tools/library_reference.py` |
+| 14.3 | `Writer?` in the null niche | deferred: a tagged optional today, 24 bytes instead of 16; every niche site in both backends assumes a one-word payload |
 | 19.5 | targets beyond arm64-macos | missing; the `Backend` interface is ready |
 | 17.5 | `luce bind` | missing; a project of its own |
 | 19.6 | `luce fmt`, `--costs`, `--target` listing | `--target` listing done (`build FILE --target` names the targets and the asm architectures the program covers); `fmt` and `--costs` missing |
@@ -136,8 +141,8 @@ through a pointer taken earlier is not seen by the interpreter's punning.
 
 ## 6. The order
 
-1. **Language gaps**: `Display`, `Iterator`, `Iterable` in both compilers,
-   `out` parameters as tuple results, asm `reg` operands natively.
-2. **Tooling and targets**: `--lib` with the header, `--freestanding`, `fmt`;
-   arm64-linux as the second target; `luce bind` as its own tool.
-3. **Release**: `luce-ld`, then the luce-base release and luce-full in Base.
+1. **Release for arm64-macos**: `tools/install.sh` installs `luce-base` and `luce`;
+   a version and a tagged release; `docs/LIBRARY.md` as the library reference.
+2. **After the release**: `luce fmt`, `luce bind`, `--costs`; x86_64-macos and
+   arm64-linux through the `Backend` interface; `Writer?` in the null niche;
+   the optimiser's cross-block passes; `luce-ld`; luce-full in Base.

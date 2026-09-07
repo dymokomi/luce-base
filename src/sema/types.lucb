@@ -363,7 +363,8 @@ pub struct Table:
             return false
         if self.kind(source) == Kind.untyped_int:
             return true
-        return self.is_signed(source) == self.is_signed(target) and self.bits(source) <= self.bits(target)
+        # strictly wider: `u64` and `usize` share a width and stay distinct (§5.1)
+        return self.is_signed(source) == self.is_signed(target) and self.bits(source) < self.bits(target)
 
     ## Whether the zero bit pattern is a valid value (base.md §6.1).
     pub func zeroable(id: u32) -> bool:

@@ -1,0 +1,7 @@
+# error: expected `usize`, got `u64`
+## §5.1: an integer converts implicitly only to a strictly wider integer of its signedness;
+## `u64` and `usize` share a width and stay distinct, so the conversion is written.
+pub func main(arguments: str[]) -> i32:
+    let a: u64 = 1
+    let b: usize = a
+    return (i32)b

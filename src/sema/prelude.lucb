@@ -657,6 +657,94 @@ pub struct CAllocator: Allocator:
         quarantine[slot] = block
         quarantine_next += 1
 
+## Bump allocation over a parent allocator, released all at once by `reset` or `destroy`
+## (§12.4, §24.3). One thread at a time.
+pub struct Arena: Allocator:
+    var parent: Allocator
+    var block: u8[]
+    var used: usize
+
+    pub static func over(parent: Allocator, capacity: usize) -> Arena!:
+        let block = parent.allocate(capacity, 16) else error(exhausted, "memory.exhausted")
+        return Arena(parent = parent, block = block, used = 0)
+
+    pub mutating func allocate(size: usize, alignment: usize) -> u8[]?:
+        if size == 0:
+            return self.block[..<0]
+        let align = alignment if alignment > 0 else 1
+        let base = (usize)self.block.data
+        let start = ((base + self.used + align - 1) // align * align) - base
+        let end = start +? size else return none
+        if end > self.block.length:
+            note_refusal("arena", size, align, self.used)
+            return none
+        self.used = end
+        return self.block[start..<end]
+
+    pub mutating func resize(block: u8[], size: usize) -> bool:
+        if size == block.length:
+            return true
+        if block.length == 0:
+            return false
+        # the last block may grow or shrink in place
+        let start = (usize)block.data - (usize)self.block.data
+        if start + block.length != self.used or start + size > self.block.length:
+            return false
+        self.used = start + size
+        return true
+
+    pub mutating func release(block: u8[]):
+        if diagnostic and block.length > 0:
+            discard(memset(block.data, 221, block.length))    # an arena releases all at once
+
+    ## What has been handed out since the last reset, and what the arena holds in all.
+    pub func in_use() -> usize:
+        return self.used
+    pub func capacity() -> usize:
+        return self.block.length
+
+    ## Forget every allocation; the storage is reused from its start.
+    pub mutating func reset():
+        self.used = 0
+
+    ## Give the storage back to the parent; the arena is empty afterwards.
+    pub mutating func destroy():
+        self.parent.release(self.block)
+        self.block = self.block[..<0]
+        self.used = 0
+
+## Whole pages from the host, each block its own mapping (§12.4). Safe from several threads.
+pub struct PageAllocator: Allocator:
+    var unused: u8
+
+    pub mutating func allocate(size: usize, alignment: usize) -> u8[]?:
+        if size == 0:
+            return u8[]((u8*)8, 0)
+        let page = (usize)getpagesize()
+        if alignment > page:
+            note_refusal("page allocator", size, alignment, 0)
+            return none
+        let rounded = (size + page - 1) // page * page
+        let mapped = mmap(none, rounded, 3, 4098, -1, 0) else return none    # PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANON
+        if (usize)mapped == 18446744073709551615:
+            note_refusal("page allocator", size, alignment, 0)
+            return none
+        return u8[]((u8*)mapped, rounded)
+
+    pub mutating func resize(block: u8[], size: usize) -> bool:
+        return size <= block.length
+
+    pub mutating func release(block: u8[]):
+        if block.length == 0:
+            return
+        if diagnostic:
+            discard(memset(block.data, 221, block.length))
+        discard(munmap(block.data, block.length))
+
+extern func mmap(address: void*?, length: usize, protection: i32, flags: i32, descriptor: i32, offset: i64) -> void*?
+extern func munmap(address: void*, length: usize) -> i32
+extern func getpagesize() -> i32
+
 ## The heap refusing a request is rare and worth a line on standard error: what was asked,
 ## so an exhaustion in the field says more than its error code. A fixed buffer running out
 ## is ordinary and says nothing.

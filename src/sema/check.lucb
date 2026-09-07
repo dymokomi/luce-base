@@ -1648,6 +1648,12 @@ pub struct Checker:
             return lt
         if self.assignable(l, lt, rt):
             return rt
+        # two integers of one width and signedness compute together, `hash(key) % length`,
+        # in the pointer-sized type when one is (§7.2); storing the result is still strict
+        if self.table.is_integer(lt) and self.table.is_integer(rt) and self.table.is_signed(lt) == self.table.is_signed(rt) and self.table.bits(lt) == self.table.bits(rt) and not types.is_distinct_c(lt) and not types.is_distinct_c(rt):
+            if rt == types.usize_id or rt == types.isize_id:
+                return rt
+            return lt
         return try self.mismatch(r, lt, rt)
 
     # mark: Places =============================================================================

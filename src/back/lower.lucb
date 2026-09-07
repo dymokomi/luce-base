@@ -307,6 +307,13 @@ pub struct Lowerer:
 
     ## A value read from an address.
     mutating func load_from(address: ir.Ref, id: u32) -> LowerValue!:
+        if self.kind(id) == types.Kind.atomic and self.is_scalar(self.elem(id)):
+            # a plain read of `@T` is a sequentially consistent load (§15.1)
+            let et = self.elem(id)
+            let cls = self.class_of(et)
+            let t = try self.f.temp(cls)
+            try self.f.instrs.push(ir.Instr(op = ir.Op.atomic_load, cls = cls, dst = t, a = address, b = ir.none_ref(), extra = u32(self.scalar_size(et)), extra2 = 5))
+            return LowerValue(ref = ir.temp_ref(t), type_id = id, in_memory = false)
         if not self.is_scalar(id):
             return LowerValue(ref = address, type_id = id, in_memory = true)
         if id == types.unit_id or id == types.never_id:
