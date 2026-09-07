@@ -1191,7 +1191,10 @@ pub struct Parser:
             elif self.at_op("("):
                 let call = try self.node(ast.Kind.call, "")
                 call.left = e
-                call.body = try self.parse_arguments()
+                if e.kind == ast.Kind.name and (e.text == "sizeof" or e.text == "alignof" or e.text == "offsetof") and self.type_argument_ahead():
+                    call.body = try self.parse_type_argument()
+                else:
+                    call.body = try self.parse_arguments()
                 e = call
             elif self.at_op("[") and self.looks_like_type_args():
                 let args = try self.parse_type_args()
@@ -1275,6 +1278,32 @@ pub struct Parser:
             if not self.eat_op(","):
                 break
         try self.expect_op("]")
+        return list
+
+    ## Whether `sizeof(` is followed by a type rather than an expression: a type word,
+    ## `module.Type`, a parenthesised type, or `func`, `const`, `volatile` (§5.11).
+    func type_argument_ahead() -> bool:
+        let t = self.peek(1)
+        if t.kind == token.Kind.operator and self.text_of(t) == "(":
+            let inner = self.peek(2)
+            return inner.kind == token.Kind.name and self.is_type_word(self.text_of(inner))
+        if t.kind == token.Kind.keyword:
+            let w = self.text_of(t)
+            return w == "func" or w == "const" or w == "volatile"
+        return t.kind == token.Kind.name and (self.is_type_word(self.text_of(t)) or self.qualified_type_ahead(1))
+
+    ## `(Type)` or `(Type, field)`: the first argument is a type, the rest are expressions.
+    mutating func parse_type_argument() -> ast.Node*?!:
+        try self.expect_op("(")
+        let first = try self.node(ast.Kind.argument, "")
+        first.left = try self.parse_type()
+        var list: ast.Node*? = first
+        var tail: ast.Node*? = first
+        while self.eat_op(","):
+            let more = try self.node(ast.Kind.argument, "")
+            more.left = try self.parse_expression()
+            ast.append(&list, &tail, more)
+        try self.expect_op(")")
         return list
 
     mutating func parse_arguments() -> ast.Node*?!:

@@ -1,0 +1,9 @@
+# error: 
+## §11.4: `catch` handles a fallible expression only.
+func plain() -> i64:
+    return 1
+
+pub func main(arguments: str[]) -> i32:
+    let v = plain() catch e:
+        recover 0
+    return 0

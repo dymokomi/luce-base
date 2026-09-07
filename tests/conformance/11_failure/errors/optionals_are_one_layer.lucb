@@ -1,0 +1,5 @@
+# error: 
+## §11.1, §5.8: optionals are one layer.
+pub func main(arguments: str[]) -> i32:
+    var x: i64??
+    return 0

@@ -1,0 +1,5 @@
+# error: 
+## §11.6: the message is a `str`.
+pub func main(arguments: str[]) -> i32:
+    assert(true, 5)
+    return 0

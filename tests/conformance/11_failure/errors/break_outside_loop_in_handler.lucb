@@ -1,0 +1,9 @@
+# error: 
+## §11.4: `break` in a handler needs an enclosing loop.
+func may() -> i64!:
+    return 1
+
+pub func main(arguments: str[]) -> i32:
+    let v = may() catch e:
+        break
+    return 0

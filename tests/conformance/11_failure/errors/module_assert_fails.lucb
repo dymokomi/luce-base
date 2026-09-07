@@ -1,0 +1,6 @@
+# error: 
+## §11.6: a false module-level `assert` is a compile error.
+assert(sizeof(i64) == 4, "a word is four bytes")
+
+pub func main(arguments: str[]) -> i32:
+    return 0

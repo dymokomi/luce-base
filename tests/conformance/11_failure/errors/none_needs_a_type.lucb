@@ -1,0 +1,5 @@
+# error: 
+## §11.1: `none` needs an expected optional type.
+pub func main(arguments: str[]) -> i32:
+    let x = none
+    return 0

@@ -1,0 +1,7 @@
+# error: 
+## §11.3: two constants in one package with the same `n` are rejected.
+let first = ErrorCode.package(1)
+let second = ErrorCode.package(1)
+
+pub func main(arguments: str[]) -> i32:
+    return 0

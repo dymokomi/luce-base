@@ -1,0 +1,7 @@
+# error: 
+## §11.2: `T!` is a result effect, not a storable type.
+func take(r: i64!) -> i64:
+    return 0
+
+pub func main(arguments: str[]) -> i32:
+    return 0

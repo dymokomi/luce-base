@@ -1,0 +1,5 @@
+# error: 
+## §11.5: `trap` takes a message.
+pub func main(arguments: str[]) -> i32:
+    trap(42)
+    return 0

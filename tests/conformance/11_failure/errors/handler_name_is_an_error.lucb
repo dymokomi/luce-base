@@ -1,0 +1,9 @@
+# error: 
+## §11.4: the handler's name is the `Error`, not the value.
+func may() -> i64!:
+    return 1
+
+pub func main(arguments: str[]) -> i32:
+    let v = may() catch e:
+        recover e + 1
+    return 0

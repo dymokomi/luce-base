@@ -1,0 +1,5 @@
+# error: 
+## §11.2: `T!` cannot be an element.
+pub func main(arguments: str[]) -> i32:
+    var rs: i64![4]
+    return 0

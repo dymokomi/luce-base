@@ -1,0 +1,9 @@
+# error: 
+## §11.6: a module-level `assert` is evaluated at compile time.
+func size() -> usize:
+    return 8
+
+assert(size() == 8, "size")
+
+pub func main(arguments: str[]) -> i32:
+    return 0

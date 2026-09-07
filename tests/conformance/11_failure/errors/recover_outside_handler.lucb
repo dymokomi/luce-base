@@ -1,0 +1,5 @@
+# error: 
+## §11.4: `recover` belongs to a `catch` handler.
+pub func main(arguments: str[]) -> i32:
+    recover 0
+    return 0

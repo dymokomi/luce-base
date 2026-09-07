@@ -1,0 +1,11 @@
+# error: 
+## §11.3, §6.6: a formatted message on a local buffer does not outlive the function.
+let code = ErrorCode.package(1)
+
+func fail(n: i64) -> !:
+    var buffer: u8[64]
+    let text = try format(buffer, f"bad {n}")
+    error(code, text)
+
+pub func main(arguments: str[]) -> i32:
+    return 0

@@ -1,0 +1,8 @@
+# error: 
+## §11.1: the fallback has the optional's element type.
+func find() -> i64?:
+    return 3
+
+pub func main(arguments: str[]) -> i32:
+    let n = find() else "zero"
+    return 0

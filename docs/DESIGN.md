@@ -391,3 +391,13 @@ handler that neither recovered nor left, and none of the rules of a custom
 `init` (`sema/init_rules.lucb` walks the body with the set of fields assigned
 so far); in the seed, positional construction, a failing `init` that did not
 fail the construction, and a union that lost the bytes beyond a narrow member.
+Chapter 11 found a module-level `assert` never decided (now folded through
+`constant_bool`, as C's `static_assert`), a message formatted on a local
+buffer accepted once a `let` or `try` stood between the buffer and `error`
+(a local array taints the view; a span variable or parameter does not),
+`error` accepted in a handler of a non-fallible function, two constants of one
+package sharing an error code (the prelude's own modules did, six of them on
+code 1, and two test programs), `T!` accepted as a field, parameter, or local,
+and `sizeof` unable to name a pointer, optional, array, or function type; in
+the seed, `break` and `continue` from a handler lost in a loop over an array,
+and the C backend wrapping an optional twice through a group or conditional.

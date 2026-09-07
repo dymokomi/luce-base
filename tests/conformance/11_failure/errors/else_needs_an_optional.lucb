@@ -1,0 +1,6 @@
+# error: 
+## §11.1: `else` unwraps an optional, not a plain value.
+pub func main(arguments: str[]) -> i32:
+    let n: i64 = 3
+    let m = n else 0
+    return 0

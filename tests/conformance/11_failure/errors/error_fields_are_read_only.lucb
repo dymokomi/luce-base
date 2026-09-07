@@ -1,0 +1,10 @@
+# error: 
+## §11.3: an `Error` is read; its fields are not assigned.
+func may() -> i64!:
+    return 1
+
+pub func main(arguments: str[]) -> i32:
+    let v = may() catch failure:
+        failure.message = "changed"
+        recover 0
+    return 0

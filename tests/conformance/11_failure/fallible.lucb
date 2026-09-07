@@ -1,0 +1,76 @@
+## §11.2-11.4: `T!` returns `T` or an `Error`; `try` forwards the same error; a non-fallible
+## caller catches; `error(code, message)` has type `never`; `Error` is `{code, message}`;
+## `recover` supplies the value; a handler may `return`, `break`, `continue`, `error`, `trap`;
+## `catch` binds more loosely than any operator; `T?!` is a fallible optional.
+let too_small = ErrorCode.package(1)
+let too_big = ErrorCode.package(2)
+
+func check(n: i64) -> i64!:
+    if n < 0:
+        error(too_small, "below zero")
+    if n > 100:
+        return error(too_big, "above one hundred")
+    return n
+
+func doubled(n: i64) -> i64!:
+    let v = try check(n)
+    return v * 2
+
+func lookup(n: i64) -> i64?!:
+    let v = try check(n)
+    if v == 0:
+        return none
+    return v
+
+func describe(n: i64) -> str!:
+    let v = doubled(n) catch failure:
+        if failure.code == too_small:
+            recover -1
+        if failure.code == too_big:
+            return "big"
+        error(failure.code, failure.message)
+    return "small" if v < 0 else "fine"
+
+func label(n: i64) -> str:
+    return describe(n) catch failure:
+        recover "?"
+
+func through(n: i64) -> !:
+    discard(try doubled(n))
+
+pub func main(arguments: str[]) -> i32:
+    print(f"{label(5)} {label(-5)} {label(500)}")
+    let sum = doubled(3) catch e:
+        recover 0
+    let plus = doubled(3) catch e:
+        recover 0
+    print(f"{sum + plus} {(doubled(4) catch e: recover 0) + 1}")
+
+    var seen: i64 = 0
+    for n in [1, -1, 2, 200, 3]:
+        let v = doubled(n) catch e:
+            if e.code == too_small:
+                continue
+            break
+        seen += v
+    print(f"{seen}")
+
+    through(1000) catch e:
+        print(f"{e.code == too_big} {e.code != too_small} {e.message}")
+    through(50) catch e:
+        print("no")
+
+    let some = lookup(7) catch e:
+        recover none
+    let empty = lookup(0) catch e:
+        recover 1
+    let failed = lookup(-1) catch e:
+        recover 2
+    print(f"{some == 7} {empty == none} {failed == 2}")
+
+    let chained = (try_chain(3) catch e: recover -100)
+    print(f"{chained}")
+    return 0
+
+func try_chain(n: i64) -> i64!:
+    return try doubled(try doubled(try check(n)))

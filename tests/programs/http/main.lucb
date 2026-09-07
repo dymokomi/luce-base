@@ -161,7 +161,7 @@ func parse_options(arguments: str[]) -> Options!:
         i += 2
     return options
 
-pub let bad_option: ErrorCode = ErrorCode.package(1)
+pub let bad_option: ErrorCode = ErrorCode.package(4)
 
 pub func main(arguments: str[]) -> i32!:
     let options = parse_options(arguments) catch failure:

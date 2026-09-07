@@ -1,0 +1,7 @@
+# error: 
+## §11.3: the message is a `str`.
+let code = ErrorCode.package(1)
+
+pub func main(arguments: str[]) -> i32!:
+    error(code, 7)
+    return 0

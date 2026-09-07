@@ -1,0 +1,8 @@
+# error: 
+## §11.2: a fallible call whose value is unit still needs handling.
+func may() -> !:
+    return
+
+pub func main(arguments: str[]) -> i32:
+    may()
+    return 0

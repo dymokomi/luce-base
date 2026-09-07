@@ -1,0 +1,11 @@
+# error: 
+## §11.1: a member is not reached through an optional.
+struct P:
+    var x: i64
+
+func find() -> P?:
+    return P(x = 1)
+
+pub func main(arguments: str[]) -> i32:
+    let n = find().x
+    return 0

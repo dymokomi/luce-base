@@ -1,0 +1,10 @@
+# error: 
+## §11.7: `new` is fallible; the result must be handled.
+import memory
+
+pub func main(arguments: str[]) -> i32:
+    var backing: u8[64]
+    var arena = memory.FixedBuffer.over(backing)
+    with arena:
+        let p = new i64
+    return 0

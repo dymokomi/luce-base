@@ -1,0 +1,7 @@
+# error: 
+## §11.2: `T!` cannot be a field.
+struct S:
+    var r: i64!
+
+pub func main(arguments: str[]) -> i32:
+    return 0

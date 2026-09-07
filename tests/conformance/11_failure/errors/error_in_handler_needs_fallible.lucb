@@ -1,0 +1,9 @@
+# error: 
+## §11.3, §11.4: `error` in a handler still needs a fallible function to carry it.
+func may() -> i64!:
+    return 1
+
+pub func main(arguments: str[]) -> i32:
+    let v = may() catch failure:
+        error(failure.code, failure.message)
+    return 0

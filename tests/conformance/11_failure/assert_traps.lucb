@@ -1,0 +1,11 @@
+## §11.6: `assert(condition, message)` traps when the condition is false; §11.5: `defer`
+## does not run on a trap.
+assert(sizeof(i64) == 8, "a word is eight bytes")
+
+pub func main(arguments: str[]) -> i32:
+    defer print("never printed")
+    assert(1 + 1 == 2)
+    print("checked")
+    assert(arguments.length > 100, "too few arguments")
+    print("unreachable")
+    return 0

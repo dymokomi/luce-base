@@ -1,0 +1,8 @@
+## §11.5: a failed `T(x)` conversion traps.
+pub func main(arguments: str[]) -> i32:
+    let wide: i64 = 300
+    let fits = u16(wide)
+    print(f"{fits}")
+    let narrow = u8(wide)
+    print(f"{narrow}")
+    return 0

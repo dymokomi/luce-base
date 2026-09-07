@@ -1,0 +1,8 @@
+# error: 
+## §11.2: `try` is valid only inside a fallible function.
+func may() -> i64!:
+    return 1
+
+pub func main(arguments: str[]) -> i32:
+    let n = try may()
+    return 0

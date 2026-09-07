@@ -1,0 +1,8 @@
+# error: 
+## §11.2: `try` is valid only on a `T!`.
+func plain() -> i64:
+    return 1
+
+pub func main(arguments: str[]) -> i32!:
+    let n = try plain()
+    return 0

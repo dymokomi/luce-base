@@ -112,6 +112,8 @@ pub struct Checker:
     var root: str
     ## The manifest's name (§16.4): the identity of the package's error codes (§11.3).
     pub var package_name: str
+    ## Every `ErrorCode.package(n)` folded so far, with its package identity: no two alike.
+    var package_codes: list.List[u64]
     ## Inside a lambda body, bindings below this index (the enclosing locals) are hidden:
     ## a lambda captures nothing (§9.6).
     var lambda_floor: usize
@@ -124,7 +126,8 @@ pub struct Checker:
                        scope = try list.List[Binding].create(512), warnings = try list.List[str].create(16), depth = 0, scratch = scratch,
                        current = 0, current_func = none, result_type = types.unit_id, fallible = false,
                        self_type = types.none_id, self_mutable = false, in_init = false, loop_depth = 0, in_catch = false,
-                       catch_result = types.none_id, checking_template = false, at_top_level = false, root = "", package_name = "app")
+                       catch_result = types.none_id, checking_template = false, at_top_level = false, root = "", package_name = "app",
+                       package_codes = try list.List[u64].create(64))
 
     # -- diagnostics ----------------------------------------------------------------------
 
@@ -697,6 +700,7 @@ pub struct Checker:
             .global, .extern_var:
                 let t = d.ty else return try self.fail(d, "a global needs a type")
                 d.type_id = try self.resolve_type(t)
+                try self.storable(d.type_id, t)
                 try self.rebind(d.text, d.type_id)
             .func_, .extern_func:
                 try self.resolve_function(d)
@@ -749,6 +753,12 @@ pub struct Checker:
             _:
                 return false
 
+    ## `T!` is a result effect, not a storable type: no parameter, field, element, or local
+    ## holds one (§11.2).
+    func storable(id: u32, at: ast.Node*) -> !:
+        if self.table.kind(id) == types.Kind.fallible:
+            return try self.fail(at, "`T!` is a result, not a storable type; declare an enum to hold one (§11.2)")
+
     ## The fields, cases, and method signatures of a type declaration.
     mutating func resolve_members(d: ast.Node*) -> !:
         self.push_scope()
@@ -770,6 +780,7 @@ pub struct Checker:
                 .field:
                     let t = m.ty else return try self.fail(m, "a field needs a type")
                     m.type_id = try self.resolve_type(t)
+                    try self.storable(m.type_id, t)
                 .enum_case:
                     var pcursor = m.body
                     while let p = pcursor:
@@ -799,6 +810,7 @@ pub struct Checker:
         while let p = cursor:
             let t = p.ty else return try self.fail(p, "a parameter needs a type")
             p.type_id = try self.resolve_type(t)
+            try self.storable(p.type_id, t)
             if p.has(ast.flag_out):
                 if f.kind != ast.Kind.extern_func:
                     return try self.fail(p, "only an extern function has `out` parameters")
@@ -1037,6 +1049,10 @@ pub struct Checker:
 
     ## The type an argument of `sizeof`/`alignof` names, or the type of the expression.
     mutating func type_of_argument(e: ast.Node*) -> u32!:
+        if e.kind == ast.Kind.type_:
+            e.type_id = try self.resolve_type(e)
+            e.flags |= ast.flag_type_ref
+            return e.type_id
         if e.kind == ast.Kind.name:
             let scalar = scalar_id(e.text)
             if scalar != types.none_id:
@@ -1659,6 +1675,86 @@ pub struct Checker:
                     return try self.fail(e, "a lambda captures nothing; pass the value as a parameter (§9.6)")
         return try self.fail(e, "unknown name")
 
+    ## The value of a constant integer expression (§6.4), or `none` when it is not one this
+    ## evaluator folds: literals, `sizeof`, `alignof`, constants, the arithmetic, bit, and
+    ## shift operators, and casts.
+    func constant_u64(e: ast.Node*) -> u64?:
+        match e.kind:
+            .literal:
+                let v = decode_integer(e.text) catch failure:
+                    return none
+                return v
+            .group, .cast:
+                let inner = e.left else return none
+                return self.constant_u64(inner)
+            .unary:
+                let inner = e.left else return none
+                let v = self.constant_u64(inner) else return none
+                if e.text == "-" or e.text == "-%":
+                    return 0 -% v
+                if e.text == "~":
+                    return ~v
+                if e.text == "+":
+                    return v
+                return none
+            .binary:
+                let l = e.left else return none
+                let r = e.right else return none
+                let a = self.constant_u64(l) else return none
+                let b = self.constant_u64(r) else return none
+                return fold_binary(e.text, a, b)
+            .call:
+                let callee = e.left else return none
+                if callee.kind != ast.Kind.name or callee.resolved != none:
+                    return none
+                let arg = e.resolved else return none
+                if callee.text == "sizeof":
+                    return self.table.size_of(arg.type_id)
+                if callee.text == "alignof":
+                    return self.table.align_of(arg.type_id)
+                return none
+            .name:
+                let d = e.resolved else return none
+                if d.kind != ast.Kind.constant:
+                    return none
+                let init = d.left else return none
+                return self.constant_u64(init)
+            _:
+                return none
+
+    ## The truth of a constant condition (§11.6): the literals, `not`, `and`, `or`, and
+    ## comparisons of constant integers, signed when either operand's type is.
+    func constant_bool(e: ast.Node*) -> bool?:
+        match e.kind:
+            .literal:
+                if e.text == "true":
+                    return true
+                if e.text == "false":
+                    return false
+                return none
+            .group:
+                let inner = e.left else return none
+                return self.constant_bool(inner)
+            .unary:
+                let inner = e.left else return none
+                if e.text != "not":
+                    return none
+                let v = self.constant_bool(inner) else return none
+                return not v
+            .binary:
+                let l = e.left else return none
+                let r = e.right else return none
+                if e.text == "and" or e.text == "or":
+                    let a = self.constant_bool(l) else return none
+                    let b = self.constant_bool(r) else return none
+                    return (a and b) if e.text == "and" else (a or b)
+                let a = self.constant_u64(l) else return none
+                let b = self.constant_u64(r) else return none
+                let signed = self.table.is_signed(l.type_id) or self.table.is_signed(r.type_id)
+                return compare_constants(e.text, a, b, signed)
+            _:
+                return none
+
     ## A top-level constant typed on first use, so order does not matter.
     mutating func check_constant(d: ast.Node*) -> !:
         let init = d.left else return try self.fail(d, "a constant needs a value")
@@ -1687,6 +1783,8 @@ pub struct Checker:
                 return try self.fail(e, "`try` needs a fallible expression")
             if not self.fallible:
                 return try self.fail(e, "`try` is only valid in a fallible function")
+            if self.is_local_value(inner):
+                self.mark_local(e)    # the value still views the local it came from (§6.6)
             return self.table.get(it).elem
         if e.text == "not":
             discard(try self.expect(inner, types.bool_id))
@@ -2537,6 +2635,10 @@ pub struct Checker:
             return try self.fail(v, "an error code is at most 65535; the package's identity takes the high half")
         let name = "luce" if self.in_prelude() else self.package_name
         let full = ((u64)package_identity(name) << 16) | code
+        for known in self.package_codes.span():
+            if known == full:
+                return try self.fail(v, "two constants of one package share this error code (§11.3)")
+        try self.package_codes.push(full)
         var digits = try alloc u8[24]
         v.text = try format(digits, f"{full}")
 
@@ -3111,8 +3213,9 @@ pub struct Checker:
             let got = try self.check_expr(tv, types.none_id)
             if got != types.str_id and got != types.fmt_id:
                 return try self.fail(tv, "`format` takes text or a formatted string")
-            # the returned text views the buffer; a local buffer makes the result local (§6.6)
-            if self.is_local_value(bv) or self.place_is_local(bv):
+            # the returned text views the buffer: a local array, or a span derived from one, makes
+            # the result local (§6.6); a span variable or parameter views memory elsewhere
+            if self.is_local_value(bv) or (self.table.kind(bv.type_id) == types.Kind.array and self.place_is_local(bv)):
                 self.mark_local(e)
             return try self.table.fallible(types.str_id)
         if name == "assert":
@@ -3131,8 +3234,8 @@ pub struct Checker:
                     return try self.fail(mv, "`trap` takes text")
             return types.never_id
         if name == "error":
-            if not self.fallible and not self.in_catch:
-                return try self.fail(e, "`error` is only valid in a fallible function or a handler")
+            if not self.fallible:
+                return try self.fail(e, "`error` is only valid in a fallible function, in a handler or not")
             let first = e.body else return try self.fail(e, "`error(code, message)` takes two arguments")
             let cv = first.left else return try self.fail(e, "empty argument")
             discard(try self.expect(cv, types.error_code_id))
@@ -3362,6 +3465,7 @@ pub struct Checker:
         var declared = types.none_id
         if let t = s.ty:
             declared = try self.resolve_type(t)
+            try self.storable(declared, t)
         if s.body != none:
             let init = s.left else return try self.fail(s, "a tuple binding needs a value")
             let got = try self.expect(init, declared)
@@ -3805,6 +3909,15 @@ pub struct Checker:
                 discard(try self.expect(cv, types.bool_id))
                 if not self.is_constant(cv):
                     discard(try self.fail(cv, "a module-level `assert` needs a constant condition (§6.4)"))
+                elif let holds = self.constant_bool(cv):
+                    if not holds:
+                        var text: u8[256]
+                        var reason: str = ""
+                        if let second = first.next:
+                            if let mv = second.left:
+                                if mv.kind == ast.Kind.literal and mv.text.length >= 2:
+                                    reason = (str)mv.text.bytes[1..<mv.text.length - 1]
+                        discard(try self.fail(cv, try format(text, f"a module-level `assert` failed: {reason}")))
             .extern_func, .extern_type, .extern_var, .extern_struct, .extern_union, .type_alias, .import_, .from_import, .asm_:
                 discard(0)
             _:
@@ -4258,6 +4371,48 @@ func is_negative_literal(e: ast.Node*) -> bool:
     return inner.kind == ast.Kind.literal and not is_float_literal(inner.text) and inner.text.bytes[0] >= '0' and inner.text.bytes[0] <= '9'
 
 ## Whether a type declaration holds a field (§10.1).
+## The wrapping integer result of a constant binary operator, or `none` for an operator this
+## evaluator does not fold or a division by zero.
+func fold_binary(op: str, a: u64, b: u64) -> u64?:
+    if op == "+" or op == "+%":
+        return a +% b
+    if op == "-" or op == "-%":
+        return a -% b
+    if op == "*" or op == "*%":
+        return a *% b
+    if op == "//":
+        return (a // b) if b != 0 else none
+    if op == "%":
+        return (a % b) if b != 0 else none
+    if op == "<<":
+        return (a << b) if b < 64 else 0
+    if op == ">>":
+        return (a >> b) if b < 64 else 0
+    if op == "&":
+        return a & b
+    if op == "|":
+        return a | b
+    if op == "^":
+        return a ^ b
+    return none
+
+func compare_constants(op: str, a: u64, b: u64, signed: bool) -> bool?:
+    if op == "==":
+        return a == b
+    if op == "!=":
+        return a != b
+    let sa = (i64)a
+    let sb = (i64)b
+    if op == "<":
+        return (sa < sb) if signed else (a < b)
+    if op == "<=":
+        return (sa <= sb) if signed else (a <= b)
+    if op == ">":
+        return (sa > sb) if signed else (a > b)
+    if op == ">=":
+        return (sa >= sb) if signed else (a >= b)
+    return none
+
 ## Whether a handler's every path ends in `recover`, `return`, `error`, `trap`, `break`, or
 ## `continue` (§11.4).
 func handler_leaves(block: ast.Node*) -> bool:
@@ -4722,6 +4877,29 @@ test "a catch handler for a value recovers or leaves":
     try expect_error("func g() -> i64!:\n    return 1\nfunc f() -> i64:\n    let v = g() catch e:\n        discard(e)\n    return v\n", "must `recover`")
     try expect_ok("func g() -> i64!:\n    return 1\nfunc f() -> i64:\n    let v = g() catch e:\n        recover 2\n    return v\n")
     try expect_ok("func g() -> !:\n    return\nfunc f() -> i64:\n    g() catch e:\n        discard(e)\n    return 1\n")
+
+test "a module-level assert is decided at compile time":
+    try expect_ok("assert(sizeof(i64) == 8, \"a word\")\nfunc f() -> i64:\n    return 0\n")
+    try expect_error("assert(sizeof(i64) == 4, \"a word\")\nfunc f() -> i64:\n    return 0\n", "`assert` failed: a word")
+    try expect_error("assert(not (1 < 2 and true))\nfunc f() -> i64:\n    return 0\n", "`assert` failed")
+
+test "a message formatted on a local buffer is local through try and let":
+    try expect_error("let code = ErrorCode.package(1)\nfunc fail(n: i64) -> !:\n    var buffer: u8[64]\n    let text = try format(buffer, f\"bad {n}\")\n    error(code, text)\n", "must not name a local")
+    try expect_ok("let code = ErrorCode.package(1)\nfunc fail(n: i64, buffer: u8[]) -> !:\n    let text = try format(buffer, f\"bad {n}\")\n    error(code, text)\n")
+
+test "two constants of one package do not share an error code":
+    try expect_error("let first = ErrorCode.package(1)\nlet second = ErrorCode.package(1)\nfunc f() -> i64:\n    return 0\n", "share this error code")
+
+test "a result is not a storable type":
+    try expect_error("func take(r: i64!) -> i64:\n    return 0\n", "not a storable type")
+    try expect_error("struct S:\n    var r: i64!\nfunc f() -> i64:\n    return 0\n", "not a storable type")
+    try expect_error("func may() -> i64!:\n    return 1\nfunc f() -> i64:\n    var r: i64! = may()\n    return 0\n", "not a storable type")
+
+test "error needs a fallible function, in a handler too":
+    try expect_error("func may() -> i64!:\n    return 1\nfunc f() -> i64:\n    let v = may() catch e:\n        error(e.code, e.message)\n    return v\n", "only valid in a fallible function")
+
+test "sizeof takes every type form":
+    try expect_ok("struct P:\n    var x: i64\nfunc f() -> usize:\n    return sizeof(i64*) + sizeof(i64?) + sizeof(P*?) + sizeof(i64[4]) + sizeof((i64?)[2]) + sizeof(func(i64) -> i64) + alignof(P)\n")
 
 test "generics infer from arguments and substitute results":
     try expect_ok("func first[T](values: const T[]) -> T?:\n    if values.length == 0:\n        return none\n    return values[0]\nfunc f() -> i64:\n    let xs: i64[3] = [1, 2, 3]\n    let v = first(xs) else return 0\n    return v\n")

@@ -1,0 +1,5 @@
+# error: 
+## §11.3: `ErrorCode.package(n)` may appear only as a top-level constant initialiser.
+pub func main(arguments: str[]) -> i32!:
+    let code = ErrorCode.package(1)
+    error(code, "no")

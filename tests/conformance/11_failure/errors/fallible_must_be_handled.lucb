@@ -1,0 +1,8 @@
+# error: 
+## §11.2: a non-fallible caller must `catch`.
+func may() -> i64!:
+    return 1
+
+pub func main(arguments: str[]) -> i32:
+    let n = may()
+    return 0

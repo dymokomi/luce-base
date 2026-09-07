@@ -1,0 +1,9 @@
+# error: 
+## §11.4: `recover` supplies the expression's type.
+func may() -> i64!:
+    return 1
+
+pub func main(arguments: str[]) -> i32:
+    let v = may() catch e:
+        recover "none"
+    return 0

@@ -1,0 +1,16 @@
+## §11.1: `else trap("reason")` is the explicit unwrap; §11.5: the trap names its reason.
+func find(values: const i64[], wanted: i64) -> usize?:
+    var i: usize = 0
+    for v in values:
+        if v == wanted:
+            return i
+        i += 1
+    return none
+
+pub func main(arguments: str[]) -> i32:
+    let values: i64[3] = [4, 5, 6]
+    let at = find(values, 5) else trap("five is present")
+    print(f"{at}")
+    let gone = find(values, 9) else trap("nine is absent")
+    print(f"{gone}")
+    return 0

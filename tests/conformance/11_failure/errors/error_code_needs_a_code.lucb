@@ -1,0 +1,5 @@
+# error: 
+## §11.3: `error` takes an `ErrorCode` and a `str`.
+pub func main(arguments: str[]) -> i32!:
+    error("first", "no")
+    return 0

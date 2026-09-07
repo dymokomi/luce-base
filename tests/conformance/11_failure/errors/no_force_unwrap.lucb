@@ -1,0 +1,8 @@
+# error: 
+## §11.1: there is no force-unwrap operator.
+func find() -> i64?:
+    return 3
+
+pub func main(arguments: str[]) -> i32:
+    let n = find()!
+    return 0

@@ -1,0 +1,7 @@
+# error: 
+## §11.3: `error` is legal only in a fallible function or a `catch` handler.
+let code = ErrorCode.package(1)
+
+pub func main(arguments: str[]) -> i32:
+    error(code, "no")
+    return 0

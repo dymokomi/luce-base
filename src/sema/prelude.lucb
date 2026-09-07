@@ -735,7 +735,7 @@ pub struct Location:
     pub var line: u32
     pub var function: str
 
-pub let closed: ErrorCode = ErrorCode.package(1)
+pub let closed: ErrorCode = ErrorCode.package(3)
 
 ## A C stream. Every write is flushed so that it never reorders against `print`.
 pub struct File: Writer:
@@ -764,7 +764,7 @@ pub func stdout() -> Writer:
 pub func stderr() -> Writer:
     return &err_file
 
-pub let full: ErrorCode = ErrorCode.package(2)
+pub let full: ErrorCode = ErrorCode.package(4)
 
 ## The sink a formatted string offers a `Display` value (§14.4): it appends to the buffer
 ## the compiler is filling, and fails once that buffer is full, as `format` then does.
@@ -832,7 +832,7 @@ extern struct Duration:
     seconds: i64
     nanoseconds: i64
 
-pub let failed: ErrorCode = ErrorCode.package(1)
+pub let failed: ErrorCode = ErrorCode.package(5)
 
 ## A running thread; the zero value is no thread at all, so arrays of handles exist.
 pub struct Handle:
@@ -1012,7 +1012,7 @@ let truncate: i32 = 1024
 let seek_end: i32 = 2
 let seek_set: i32 = 0
 
-pub let missing: ErrorCode = ErrorCode.package(1)
+pub let missing: ErrorCode = ErrorCode.package(6)
 
 ## Whether `path` can be opened for reading.
 pub func exists(path: c.str) -> bool:
@@ -1021,7 +1021,7 @@ pub func exists(path: c.str) -> bool:
         return false
     discard(close(descriptor))
     return true
-pub let failed: ErrorCode = ErrorCode.package(2)
+pub let failed: ErrorCode = ErrorCode.package(7)
 
 ## The whole file, allocated from the current allocator.
 pub func read(path: c.str) -> u8[]!:
@@ -1117,7 +1117,7 @@ let poll_error: i16 = 8
 let set_flags: i32 = 4
 let non_blocking: i32 = 4
 
-pub let failed: ErrorCode = ErrorCode.package(1)
+pub let failed: ErrorCode = ErrorCode.package(8)
 
 ## A captured stream: bytes in the current allocator.
 struct Capture:
@@ -1587,9 +1587,9 @@ let datagram: i32 = 2
 let socket_level: i32 = 65535
 let reuse_address: i32 = 4
 
-pub let failed: ErrorCode = ErrorCode.package(1)
-pub let closed: ErrorCode = ErrorCode.package(2)
-pub let unknown_host: ErrorCode = ErrorCode.package(3)
+pub let failed: ErrorCode = ErrorCode.package(9)
+pub let closed: ErrorCode = ErrorCode.package(10)
+pub let unknown_host: ErrorCode = ErrorCode.package(11)
 
 ## An IPv4 address and port, both in host order.
 pub struct Address:

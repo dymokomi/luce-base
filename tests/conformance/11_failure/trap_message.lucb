@@ -1,0 +1,12 @@
+## §11.5: `trap(message)` stops the program with its message; nothing after it runs, and
+## a pending `defer` does not either.
+func halt(reason: str) -> never:
+    trap(reason)
+
+pub func main(arguments: str[]) -> i32:
+    defer print("skipped")
+    print("before")
+    if arguments.length < 100:
+        halt("deliberate stop")
+    print("after")
+    return 0

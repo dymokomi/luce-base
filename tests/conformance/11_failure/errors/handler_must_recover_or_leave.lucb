@@ -1,0 +1,9 @@
+# error: must `recover`
+## §11.4: a handler recovers a value or leaves.
+func may() -> i64!:
+    return 1
+
+pub func main(arguments: str[]) -> i32:
+    let v = may() catch e:
+        print("oops")
+    return 0

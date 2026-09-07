@@ -1,0 +1,8 @@
+# error: 
+## §11.2: `T!` cannot be stored in a local.
+func may() -> i64!:
+    return 1
+
+pub func main(arguments: str[]) -> i32:
+    var r: i64! = may()
+    return 0

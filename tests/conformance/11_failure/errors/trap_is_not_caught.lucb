@@ -1,0 +1,6 @@
+# error: 
+## §11.5: a trap is not a failure; `catch` has nothing to handle.
+pub func main(arguments: str[]) -> i32:
+    trap("stop") catch e:
+        recover ()
+    return 0

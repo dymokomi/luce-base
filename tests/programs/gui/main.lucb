@@ -67,7 +67,7 @@ let mod_gui: u16 = 3072
 let cell: f32 = 8.0
 let scale: f32 = 2.0
 
-pub let failed: ErrorCode = ErrorCode.package(1)
+pub let failed: ErrorCode = ErrorCode.package(2)
 
 struct Window:
     var window: void*

@@ -1,0 +1,8 @@
+# error: 
+## §11.1: `T?` does not convert back to `T` without unwrapping.
+func find() -> i64?:
+    return 3
+
+pub func main(arguments: str[]) -> i32:
+    let n: i64 = find()
+    return 0

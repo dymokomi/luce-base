@@ -1,0 +1,81 @@
+## §11.1: absence is data. `none` under an expected type; `T` promotes to `T?`; `if let`,
+## `while let`, `match`, and the three-arm `else` unwrap; `else` with a value, `else error`;
+## optionals of pointers, of structs, of enums; `==` against `none` and against a value.
+struct User:
+    var id: u32
+    var name: str
+
+let missing = ErrorCode.package(1)
+
+func find(users: const User[], id: u32) -> const User*?:
+    for u in &users:
+        if u.id == id:
+            return u
+    return none
+
+func parse(text: str) -> i64?:
+    var value: i64 = 0
+    if text.length == 0:
+        return none
+    for b in text.bytes:
+        if b < '0' or b > '9':
+            return none
+        value = value * 10 + (i64)(b - '0')
+    return value
+
+func first_even(values: const i64[]) -> i64?:
+    for v in values:
+        if v % 2 == 0:
+            return v
+    return none
+
+func need(text: str) -> i64!:
+    let n = parse(text) else error(missing, "not a number")
+    return n
+
+pub func main(arguments: str[]) -> i32:
+    let users: User[2] = [User(id = 1, name = "ann"), User(id = 2, name = "bob")]
+    if let u = find(users, 2):
+        print(f"found {u.name}")
+    if let u = find(users, 3):
+        print(f"found {u.name}")
+    else:
+        print("nobody")
+    let count = parse("42") else 0
+    let fallback = parse("x4") else -1
+    let promoted: i64? = 7
+    let empty: i64? = none
+    print(f"{count} {fallback} {promoted == 7} {empty == none} {promoted != none} {first_even([1, 3, 4]) == 4} {first_even([1, 3]) == none}")
+
+    var queue: (i64?)[3] = [1, none, 3]
+    var i: usize = 0
+    var total: i64 = 0
+    while let v = queue[i]:
+        total += v
+        i += 1
+    print(f"{total} {i}")
+
+    match parse("9"):
+        .some(n):
+            print(f"some {n}")
+        .none:
+            print("none")
+    match parse(""):
+        .some(n):
+            print(f"some {n}")
+        .none:
+            print("none")
+
+    let ok = need("12") catch e:
+        print(f"unexpected {e.message}")
+        recover 0
+    let bad = need("nope") catch e:
+        print(f"failed: {e.message}")
+        recover -1
+    print(f"{ok} {bad}")
+
+    var boxed: User? = none
+    boxed = User(id = 9, name = "zed")
+    let inner = boxed else User(id = 0, name = "")
+    print(f"{inner.name} {sizeof(i64?) > sizeof(i64)} {sizeof(User*?) == sizeof(User*)}")
+    return 0

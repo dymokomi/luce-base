@@ -7,7 +7,7 @@ import net
 import sync
 import thread
 
-pub let full: ErrorCode = ErrorCode.package(1)
+pub let full: ErrorCode = ErrorCode.package(3)
 
 pub let capacity: usize = 64
 
