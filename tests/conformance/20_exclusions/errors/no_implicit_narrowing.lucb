@@ -1,0 +1,6 @@
+# error: 
+## §20: no implicit narrowing.
+pub func main(arguments: str[]) -> i32:
+    let wide: i64 = 300
+    let narrow: u8 = wide
+    return 0

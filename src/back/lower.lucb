@@ -211,7 +211,7 @@ pub struct Lowerer:
             return true
         if k == types.Kind.atomic:
             return self.is_scalar(self.elem(id))
-        return false
+        return self.c.table.is_opaque_handle(id)
 
     ## The register class of a scalar type.
     func class_of(id: u32) -> ir.Class:
@@ -514,6 +514,8 @@ pub struct Lowerer:
             try self.describe_local(p, s, pt)
             try self.f.params.push(try self.param_of(pt, s))
             cursor = p.next
+        if d.has(ast.flag_export) and not self.f.naked:
+            try self.check_foreign_parameters(d)
         try self.push_scope(false, "", 0, 0)
         if self.f.debug:
             let start = u32(self.f.args.count)
@@ -528,6 +530,23 @@ pub struct Lowerer:
         self.pop_scope()
         try self.fall_off_end()
         try self.end_function()
+
+    ## A zero arriving from C in a bare pointer, handle, or `c.str` parameter of an export
+    ## traps `null_foreign`: the one boundary check, in this direction (§17.1).
+    mutating func check_foreign_parameters(d: ast.Node*) -> !:
+        var cursor = d.right
+        while let p = cursor:
+            let pt = try self.map(p.type_id)
+            if self.is_ptr(pt) or pt == types.cstr_id or self.c.table.is_opaque_handle(pt):
+                let slot = self.find_local(p) else return try self.fail(p, "a parameter without a slot")
+                let value = try self.f.load(ir.Op.loadl, ir.Class.l, try self.slot_address(slot))
+                let ok = self.f.label()
+                let bad = self.f.label()
+                try self.f.branch(value, ok, bad)
+                try self.f.place_label(bad)
+                try self.trap_with("null_foreign")
+                try self.f.place_label(ok)
+            cursor = p.next
 
     ## A parameter description from its type and slot.
     mutating func param_of(id: u32, slot: u32) -> ir.Param!:
@@ -2804,6 +2823,10 @@ pub struct Lowerer:
         let x = try self.expr(v)
         if x.type_id == types.untyped_int_id:
             return LowerValue(ref = x.ref, type_id = types.i64_id, in_memory = false)
+        if have == types.f32_id or have == types.f16_id:
+            # the default argument promotions of C (§17.2): a single or half travels as a double
+            let widened = try self.f.unary(ir.Op.exts if have == types.f32_id else ir.Op.exth, ir.Class.d, x.ref)
+            return LowerValue(ref = widened, type_id = types.f64_id, in_memory = false)
         return x
 
     mutating func call(e: ast.Node*) -> LowerValue!:
@@ -2836,8 +2859,8 @@ pub struct Lowerer:
             discard(try self.add_func(d, args, owner, owner_args))
             callee = ir.function_ref(try self.function_name(d, args, owner, owner_args))
         let v = try self.call_through(callee, fn, d, e.body, ir.none_ref(), false, none, args)
-        if d.kind == ast.Kind.extern_func and self.is_ptr(v.type_id):
-            # a bare pointer from C must not be null (§17.1)
+        if d.kind == ast.Kind.extern_func and (self.is_ptr(v.type_id) or v.type_id == types.cstr_id or self.c.table.is_opaque_handle(v.type_id)):
+            # a bare pointer, handle, or `c.str` from C must not be null: the one boundary check (§17.1)
             let ok = self.f.label()
             let bad = self.f.label()
             try self.f.branch(v.ref, ok, bad)
@@ -3449,7 +3472,7 @@ pub struct Lowerer:
         let big = try self.f.binary(ir.Op.cugt, ir.Class.l, bytes, limit)
         try self.f.branch(big, too_big, fits)
         try self.f.place_label(too_big)
-        try self.store_error(a, result_type, (i64)check.exhausted_code(), "memory.exhausted")
+        try self.store_error(a, result_type, (i64)check.exhausted_code(), "memory.exhausted: the allocation size overflows")
         try self.f.jump(done)
         try self.f.place_label(fits)
         let block = try self.allocate_bytes(view, bytes, ir.const_ref((i64)self.c.table.align_of(elem)))
@@ -3696,7 +3719,7 @@ pub struct Lowerer:
         let done = self.f.label()
         try self.f.branch(over, bad, good)
         try self.f.place_label(bad)
-        try self.store_error(a, result, (i64)check.exhausted_code(), "memory.exhausted")
+        try self.store_error(a, result, (i64)check.exhausted_code(), "memory.exhausted: the formatted text does not fit its buffer")
         try self.f.jump(done)
         try self.f.place_label(good)
         let start = u32(self.f.args.count)

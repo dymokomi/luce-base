@@ -1,0 +1,5 @@
+# error: 
+## §20: `!` is `not`.
+pub func main(arguments: str[]) -> i32:
+    let inverse = !true
+    return 0

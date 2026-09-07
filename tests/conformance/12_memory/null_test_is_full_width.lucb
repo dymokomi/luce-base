@@ -1,0 +1,12 @@
+## §12.1, §5.4: a pointer is null only when all of its bits are zero; one whose low word is
+## zero, as a large mapping's address may be, is present.
+pub func main(arguments: str[]) -> i32:
+    let high: usize = 4294967296 + (usize)arguments.length - 1
+    let p: i64*? = (i64*?)high
+    if let q = p:
+        print(f"present {(usize)q == high}")
+    else:
+        print("none")
+    let q2: i64*? = (i64*?)(usize)0
+    print(f"{q2 == none}")
+    return 0

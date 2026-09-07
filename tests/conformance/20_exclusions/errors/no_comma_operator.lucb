@@ -1,0 +1,7 @@
+# error: 
+## §20: no comma operator.
+pub func main(arguments: str[]) -> i32:
+    var a: i64 = 1
+    var b: i64 = 2
+    let c = (a = 3, b)
+    return 0

@@ -1,0 +1,7 @@
+# error: 
+## §17.1: a bare extern type is never null.
+extern type File
+
+pub func main(arguments: str[]) -> i32:
+    let f: File = none
+    return 0

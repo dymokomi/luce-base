@@ -1,0 +1,15 @@
+from shapes.point import Point
+
+pub let bad_radius = ErrorCode.package(3)
+
+pub struct Circle:
+    pub var centre: Point
+    pub var radius: f64
+
+    pub func area() -> f64:
+        return 3.0 * self.radius * self.radius
+
+pub func make(radius: f64) -> Circle!:
+    if radius < 0.0:
+        error(bad_radius, "a radius is not negative")
+    return Circle(centre = Point(x = 0, y = 0), radius = radius)

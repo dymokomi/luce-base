@@ -1,0 +1,8 @@
+# error: 
+## §17.2: an untyped integer literal in a variadic position is an `i32` and must fit.
+import c
+extern func printf(format: c.str, ...) -> i32
+
+pub func main(arguments: str[]) -> i32:
+    discard(printf("%d", 5000000000))
+    return 0

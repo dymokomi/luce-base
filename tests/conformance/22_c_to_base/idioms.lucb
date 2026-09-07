@@ -1,0 +1,72 @@
+## §22: the translation table as a program: C's idioms in their Base spelling, each doing
+## what the C did.
+import luce
+import memory
+
+struct Node:
+    var value: i64
+    var next: Node*?
+
+var counter: i32 = 3
+
+func helper() -> i32:
+    counter += 1
+    return counter
+
+func find(values: const i64[], wanted: i64) -> (bool, usize):
+    var i: usize = 0
+    for v in values:
+        if v == wanted:
+            return (true, i)
+        i += 1
+    return (false, 0)
+
+func hash_of(text: str) -> u32:
+    var h: u32 = 0
+    for b in text.bytes:
+        h = h *% 31 +% (u32)b
+    return h
+
+pub func main(arguments: str[]) -> i32!:
+    var x: i32 = 41
+    let p: i32* = &x
+    *p = *p + 1
+    let q: const i32* = p
+    print(f"{*q} {(u8)300} {(i32)2.9}")
+    let node = try new Node(value = 7, next = none)
+    defer free(node)
+    var head: Node*? = node
+    if let h = head:
+        print(f"{h.value} {h.next == none}")
+    let items = try new i64[3]
+    defer free(items)
+    items[2] = 9
+    let raw = try alloc u8[8]
+    defer free(raw)
+    raw[7] = 1
+    print(f"{items[2]} {raw[7]} {sizeof(Node)} {offsetof(Node, next)}")
+    let five: i64 = 5
+    print(f"{-7 // 2} {-7 % 2} {hash_of("ab")} {five & -%five}")
+    let (found, at) = find(items, 9)
+    let (missing, _) = find(items, 4)
+    print(f"{found} {at} {missing} {helper()} {helper()}")
+    let byte: u8 = 200
+    let widened: u32 = byte
+    var label = "other"
+    match widened:
+        1, 2, 3:
+            label = "small"
+        100..=255:
+            label = "byte"
+        _:
+            label = "big"
+    print(f"{widened} {label}")
+    outer: for i in 0..<3:
+        for j in 0..<3:
+            if i * j == 2:
+                print(f"{i} {j}")
+                break outer
+    var n: @i32
+    n += 1
+    print(f"{n} {luce.line}")
+    return 0

@@ -1,0 +1,21 @@
+## §16.1, §16.3: one file is one module named by its path; `import` keeps a module
+## qualified by its last name, or by an alias when asked; `from ... import` brings the named declarations and
+## nothing else; a private declaration stays inside its module; a module-level `var` is one
+## per program; the package's error codes carry its name from `luce.toml`.
+import shapes.circle
+import shapes.square as sq
+from shapes.point import Point, origin
+import util.counter
+
+pub func main(arguments: str[]) -> i32!:
+    let c = circle.Circle(centre = origin(), radius = 2.0)
+    let s = sq.Square(corner = Point(x = 1, y = 1), side = 3.0)
+    print(f"{c.area()} {sq.area_of(s)} {c.centre.x} {s.corner.y}")
+    counter.bump()
+    counter.bump()
+    print(f"{counter.count()} {counter.name}")
+    let r = circle.make(-1.0) catch e:
+        print(f"{e.code == circle.bad_radius} {e.message}")
+        recover circle.Circle(centre = origin(), radius = 1.0)
+    print(f"{r.radius}")
+    return 0

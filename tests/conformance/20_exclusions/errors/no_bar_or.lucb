@@ -1,0 +1,5 @@
+# error: 
+## §20: `||` is `or`.
+pub func main(arguments: str[]) -> i32:
+    let either = true || false
+    return 0

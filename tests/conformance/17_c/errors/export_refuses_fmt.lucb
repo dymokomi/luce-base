@@ -1,0 +1,7 @@
+# error: 
+## §17.6, §9.1: `fmt` is not C-representable.
+export func log(message: fmt):
+    print(message)
+
+pub func main(arguments: str[]) -> i32:
+    return 0

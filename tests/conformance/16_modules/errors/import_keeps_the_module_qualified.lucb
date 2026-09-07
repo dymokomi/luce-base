@@ -1,0 +1,7 @@
+# error: 
+## §16.3: `import io` makes `io.stdout` visible, never a bare `stdout`.
+import io
+
+pub func main(arguments: str[]) -> i32:
+    let out = stdout()
+    return 0

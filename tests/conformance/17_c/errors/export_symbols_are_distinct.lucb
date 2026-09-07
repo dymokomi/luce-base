@@ -1,0 +1,13 @@
+# error: 
+## §17.6: two exports may not share a symbol: a method exports as `Type_method`.
+export func S_run() -> i32:
+    return 1
+
+struct S:
+    var n: i32
+
+    export func run() -> i32:
+        return 2
+
+pub func main(arguments: str[]) -> i32:
+    return 0

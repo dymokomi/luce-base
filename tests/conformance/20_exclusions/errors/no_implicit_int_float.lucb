@@ -1,0 +1,6 @@
+# error: 
+## §20: no implicit integer-float conversion.
+pub func main(arguments: str[]) -> i32:
+    let n: i64 = 2
+    let f: f64 = n
+    return 0

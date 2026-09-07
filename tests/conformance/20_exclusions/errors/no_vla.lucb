@@ -1,0 +1,6 @@
+# error: 
+## §20: no variable-length arrays; a length is a constant expression.
+pub func main(arguments: str[]) -> i32:
+    let n: usize = (usize)arguments.length
+    var buffer: u8[n]
+    return 0

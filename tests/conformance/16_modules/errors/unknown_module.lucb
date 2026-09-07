@@ -1,0 +1,6 @@
+# error: 
+## §16.1: a module is a file on the package's path.
+import nowhere.at.all
+
+pub func main(arguments: str[]) -> i32:
+    return 0

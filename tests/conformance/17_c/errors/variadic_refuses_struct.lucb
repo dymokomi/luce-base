@@ -1,0 +1,11 @@
+# error: 
+## §17.2: a struct is rejected in a variadic position.
+import c
+extern func printf(format: c.str, ...) -> i32
+
+struct P:
+    var x: i32
+
+pub func main(arguments: str[]) -> i32:
+    discard(printf("%d", P(x = 1)))
+    return 0

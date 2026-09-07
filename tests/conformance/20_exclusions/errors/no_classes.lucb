@@ -1,0 +1,7 @@
+# error: 
+## §20: no classes; full Luce has them.
+class Point:
+    var x: i64
+
+pub func main(arguments: str[]) -> i32:
+    return 0

@@ -1,0 +1,7 @@
+# error: 
+## §16.3: a duplicate import is an error.
+import io
+import io
+
+pub func main(arguments: str[]) -> i32:
+    return 0

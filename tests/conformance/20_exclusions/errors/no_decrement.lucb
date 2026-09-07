@@ -1,0 +1,6 @@
+# error: 
+## §20: no `--`.
+pub func main(arguments: str[]) -> i32:
+    var n: i64 = 1
+    --n
+    return 0

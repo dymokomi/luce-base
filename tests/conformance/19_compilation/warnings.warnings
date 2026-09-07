@@ -1,0 +1,8 @@
+luce-base: tests/conformance/19_compilation/warnings.lucb:24:10: warning: this branch never runs: the condition is `true`
+luce-base: tests/conformance/19_compilation/warnings.lucb:26:14: warning: this branch never runs: the condition is `false`
+luce-base: tests/conformance/19_compilation/warnings.lucb:28:5: warning: this loop never runs: its condition is `false`
+luce-base: tests/conformance/19_compilation/warnings.lucb:34:11: warning: unreachable code
+luce-base: tests/conformance/19_compilation/warnings.lucb:18:5: warning: unused local `idle`
+luce-base: tests/conformance/19_compilation/warnings.lucb:20:5: warning: unused local `effect`
+luce-base: tests/conformance/19_compilation/warnings.lucb:14:1: warning: unused function `orphan`
+luce-base: tests/conformance/19_compilation/warnings.lucb:6:1: warning: unused import `memory`

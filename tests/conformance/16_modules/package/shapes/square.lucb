@@ -1,0 +1,8 @@
+import shapes.point
+
+pub struct Square:
+    pub var corner: point.Point
+    pub var side: f64
+
+pub func area_of(s: Square) -> f64:
+    return s.side * s.side

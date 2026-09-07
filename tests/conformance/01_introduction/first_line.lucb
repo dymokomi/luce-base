@@ -1,0 +1,34 @@
+## §1.2: the program the specification opens with, run as written: a struct with a mutating
+## method and a fallible one, `while let` over `first()`, `catch` with `recover ()`, and a
+## cast that reinterprets bytes as text. Nothing allocates.
+let past_end = ErrorCode.package(1)
+
+struct Cursor:
+    var data: const u8[]
+    var offset: usize
+
+    mutating func advance(count: usize) -> !:
+        if self.offset + count > self.data.length:
+            error(past_end, "advance past the end of the input")
+        self.offset += count
+
+    func remaining() -> const u8[]:
+        return self.data[self.offset..]
+
+func first_line(text: str) -> str:
+    var cursor = Cursor(data = text.bytes, offset = 0)
+    while let byte = cursor.remaining().first():
+        if byte == '\n': break
+        cursor.advance(1) catch failure:
+            recover ()
+    return (str)text.bytes[0..<cursor.offset]
+
+pub func main(arguments: str[]) -> i32:
+    print(first_line("first\nsecond\nthird"))
+    print(first_line("only"))
+    print(f"[{first_line("")}]")
+    var cursor = Cursor(data = "ab".bytes, offset = 0)
+    cursor.advance(3) catch failure:
+        print(failure.message)
+    print(f"{cursor.offset} {cursor.remaining().length}")
+    return 0

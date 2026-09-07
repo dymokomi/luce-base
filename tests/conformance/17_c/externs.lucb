@@ -1,0 +1,26 @@
+## §17.1, §17.3: an `extern func` binds a C library function with no marshalling; `out`
+## parameters arrive as tuple components; `as "name"` binds a C symbol under a Base name;
+## `blocking` is informational; a nullable result is unwrapped with the ordinary forms.
+# oracle: none
+import c
+
+extern func strlen(text: c.str) -> usize
+extern func atoi(text: c.str) -> i32
+extern func c_abs as "abs"(n: i32) -> i32
+extern func frexp(value: f64, out exponent: i32) -> f64
+extern blocking func usleep(microseconds: u32) -> i32
+extern func memcmp(a: const u8*, b: const u8*, count: usize) -> i32
+extern func getenv(name: c.str) -> c.str?
+
+pub func main(arguments: str[]) -> i32:
+    print(f"{strlen("hello")} {atoi("42x")} {c_abs(-7)}")
+    let (mantissa, exponent) = frexp(8.0)
+    print(f"{mantissa} {exponent}")
+    discard(usleep(1))
+    let left: u8[3] = [1, 2, 3]
+    let right: u8[3] = [1, 2, 4]
+    print(f"{memcmp(&left[0], &right[0], 3) < 0} {memcmp(&left[0], &left[0], 3)}")
+    let path = getenv("PATH")
+    let home_missing = getenv("LUCE_CONFORMANCE_UNSET_NAME")
+    print(f"{path != none} {home_missing == none}")
+    return 0

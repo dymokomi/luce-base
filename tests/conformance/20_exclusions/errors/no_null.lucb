@@ -1,0 +1,5 @@
+# error: 
+## §20: no `NULL`; `none` under a `T*?`.
+pub func main(arguments: str[]) -> i32:
+    let p: i64*? = NULL
+    return 0

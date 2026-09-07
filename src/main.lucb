@@ -209,7 +209,9 @@ func compile(text: str, exe: str, release: bool, with_start: bool) -> !:
     cc_args[9] = "-pthread"
     cc_args[10] = "-o"
     cc_args[11] = (c.str)exe
-    var n: usize = 12
+    # a C format string is the program's business, not the host compiler's (§17.2)
+    cc_args[12] = "-Wno-format"
+    var n: usize = 13
     var flag_bytes: u8[2048]
     var used: usize = 0
     var k: usize = 0

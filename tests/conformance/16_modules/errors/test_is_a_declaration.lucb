@@ -1,0 +1,6 @@
+# error: 
+## §16.5: `test` is a declaration, not a statement.
+pub func main(arguments: str[]) -> i32:
+    test "inside a function":
+        assert(true)
+    return 0

@@ -1,0 +1,7 @@
+# error: 
+## §20: no `long double`; `c.long` is the one distinct `long`.
+import c
+
+pub func main(arguments: str[]) -> i32:
+    var x: c.longdouble = 1.0
+    return 0

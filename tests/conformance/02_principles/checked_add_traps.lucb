@@ -1,0 +1,9 @@
+## §2, §7.2: `+` on integers traps on overflow; the wrapping form is `+%`.
+pub func main(arguments: str[]) -> i32:
+    var n: u8 = 250
+    n = n +% 10
+    print(f"{n}")
+    var m: u8 = 250
+    m = m + 10
+    print(f"{m}")
+    return 0

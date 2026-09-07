@@ -1,0 +1,9 @@
+var bumps: u32
+
+pub let name: str = "counter"
+
+pub func bump():
+    bumps += 1
+
+pub func count() -> u32:
+    return bumps

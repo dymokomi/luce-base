@@ -1,0 +1,37 @@
+## §17.1, §17.4: a package's own C sources are compiled and linked; an `extern struct`
+## passes and returns by value; an `extern type` is an opaque handle, `?` its null niche;
+## `extern var` binds a C global; `out` parameters become tuple components; a variadic
+## function takes the promoted arguments of §17.2.
+# oracle: none
+import c
+
+extern struct Parts:
+    quot: c.long
+    rem: c.long
+
+extern func divide(a: c.long, b: c.long) -> Parts
+extern func split(value: f64, out exponent: i32) -> f64
+extern var shim_version: i32
+extern type Counter
+extern func counter_new() -> Counter
+extern func counter_bump(counter: Counter)
+extern func counter_value(counter: Counter) -> c.long
+extern func counter_free(counter: Counter)
+extern func counter_none() -> Counter?
+extern func shim_sum(count: i32, ...) -> i32
+
+pub func main(arguments: str[]) -> i32:
+    let parts = divide(c.long(17), c.long(5))
+    let (mantissa, exponent) = split(16.0)
+    print(f"{(i64)parts.quot} {(i64)parts.rem} {mantissa} {exponent}")
+    print(f"{shim_version}")
+    shim_version = 9
+    print(f"{shim_version}")
+    let counter = counter_new()
+    counter_bump(counter)
+    counter_bump(counter)
+    print(f"{(i64)counter_value(counter)} {counter_none() == none} {sizeof(Counter) == sizeof(void*)}")
+    counter_free(counter)
+    let small: u8 = 4
+    print(f"{shim_sum(3, 1, 2, small)} {shim_sum(0)}")
+    return 0

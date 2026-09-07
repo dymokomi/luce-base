@@ -1,0 +1,21 @@
+## §2: the safe path is the ordinary one and the unchecked form is the marked one: `+` traps
+## where `+%` wraps and `+|` saturates and `+?` answers `none`; `u8(x)` traps where `(u8)x`
+## truncates; `i32(f)` traps where `(i32)f` saturates; a local array is zeroed unless it is
+## written `= ---`; `//` truncates as C does; a shift past the width traps where C is
+## undefined; every check is one predicted branch.
+pub func main(arguments: str[]) -> i32:
+    let big: u8 = 250
+    print(f"{big +% 10} {big +| 10} {(big +? 10) == none} {(big +? 5) == 255}")
+    let wide: i64 = 300
+    print(f"{(u8)wide} {(u8)(-1)} {(i8)200}")
+    let f: f64 = 3e12
+    let negative: f64 = -7.9
+    print(f"{(i32)f} {(i32)negative} {(u8)negative}")
+    var zeroed: u8[4]
+    var raw: u8[4] = ---
+    raw[0] = 1
+    print(f"{zeroed[0] + zeroed[3]} {raw[0]}")
+    print(f"{-7 // 2} {-7 % 2} {7 // -2} {7 % -2}")
+    let ones: u32 = 0xFFFFFFFF
+    print(f"{ones << 4} {ones >> 28} {(i32)ones >> 28}")
+    return 0

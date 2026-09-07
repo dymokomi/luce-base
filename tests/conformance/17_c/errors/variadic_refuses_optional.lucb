@@ -1,0 +1,9 @@
+# error: 
+## §17.2: an optional is rejected in a variadic position.
+import c
+extern func printf(format: c.str, ...) -> i32
+
+pub func main(arguments: str[]) -> i32:
+    let n: i32? = 3
+    discard(printf("%d", n))
+    return 0

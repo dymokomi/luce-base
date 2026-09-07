@@ -32,6 +32,10 @@ pub enum Class as u8:
     h = 5
 
 ## Whether `cls` lives in the float registers.
+## The ten comparisons: their result is a word whatever they compare.
+pub func is_comparison(op: Op) -> bool:
+    return (u8)op >= (u8)Op.ceq and (u8)op <= (u8)Op.cuge
+
 pub func is_float_class(cls: Class) -> bool:
     return cls == Class.s or cls == Class.d or cls == Class.h
 
@@ -321,8 +325,9 @@ pub struct Function:
         try self.instrs.push(Instr(op = op, cls = cls, dst = dst, a = a, b = b, extra = extra, extra2 = 0))
 
     ## `dst = op a, b` with a fresh temporary.
+    ## `dst = a op b` at class `cls`; a comparison compares at `cls` and answers a word.
     pub mutating func binary(op: Op, cls: Class, a: Ref, b: Ref) -> Ref!:
-        let t = try self.temp(cls)
+        let t = try self.temp(Class.w if is_comparison(op) else cls)
         try self.emit(op, cls, t, a, b, 0)
         return temp_ref(t)
 
@@ -337,8 +342,13 @@ pub struct Function:
     pub mutating func jump(label: u32) -> !:
         try self.emit(Op.jmp, Class.l, 0, none_ref(), none_ref(), label)
 
+    ## Branch on `condition` being nonzero, tested at its own width: a pointer's low word
+    ## may be zero while the pointer is not.
     pub mutating func branch(condition: Ref, then_label: u32, else_label: u32) -> !:
-        try self.instrs.push(Instr(op = Op.jnz, cls = Class.w, dst = 0, a = condition, b = none_ref(), extra = then_label, extra2 = else_label))
+        var cls = Class.l
+        if condition.kind == RefKind.temp and (usize)condition.index <= self.temps.count:
+            cls = self.temps.get((usize)condition.index - 1)
+        try self.instrs.push(Instr(op = Op.jnz, cls = cls, dst = 0, a = condition, b = none_ref(), extra = then_label, extra2 = else_label))
 
     pub mutating func load(op: Op, cls: Class, address: Ref) -> Ref!:
         let t = try self.temp(cls)

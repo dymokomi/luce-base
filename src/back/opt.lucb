@@ -74,6 +74,12 @@ func promotable_slots(f: ir.Function*, slot_of: u32[]) -> bool[]!:
         if x.op == ir.Op.addr:
             i += 1
             continue
+        # a slot named directly, not through an `addr` temporary, is memory this pass does
+        # not follow: the inliner stores arguments that way
+        if x.a.kind == ir.RefKind.slot and (usize)x.a.index < f.slots.count:
+            ok[x.a.index] = false
+        if x.b.kind == ir.RefKind.slot and (usize)x.b.index < f.slots.count:
+            ok[x.b.index] = false
         let a_slot = slot_named(slot_of, x.a)
         let b_slot = slot_named(slot_of, x.b)
         if is_load(x.op):
@@ -90,9 +96,12 @@ func promotable_slots(f: ir.Function*, slot_of: u32[]) -> bool[]!:
         i += 1
     i = 0
     while i < f.args.count:
-        let s = slot_named(slot_of, f.args.get(i).value)
+        let value = f.args.get(i).value
+        let s = slot_named(slot_of, value)
         if s != 0:
             ok[s - 1] = false
+        if value.kind == ir.RefKind.slot and (usize)value.index < f.slots.count:
+            ok[value.index] = false
         i += 1
     return ok
 

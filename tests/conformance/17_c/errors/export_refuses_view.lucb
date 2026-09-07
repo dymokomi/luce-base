@@ -1,0 +1,9 @@
+# error: 
+## §17.6: an interface view is not C-representable.
+from io import Writer
+
+export func sink(w: Writer) -> i32:
+    return 0
+
+pub func main(arguments: str[]) -> i32:
+    return 0

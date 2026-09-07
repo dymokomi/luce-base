@@ -1,0 +1,7 @@
+## §19.6, §17.6: `build --lib` produces an archive and a header; the header declares each
+## `export` in C spelling and nothing that is only `pub`.
+pub func hidden() -> i32:
+    return 1
+
+export func twice(x: i32) -> i32:
+    return x * 2

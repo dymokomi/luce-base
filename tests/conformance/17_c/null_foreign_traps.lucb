@@ -1,0 +1,13 @@
+## §17.1: a zero arriving in a bare pointer slot from C traps `null_foreign`.
+# oracle: none
+import c
+
+extern func getenv(name: c.str) -> c.str
+
+pub func main(arguments: str[]) -> i32:
+    let missing = getenv("LUCE_CONFORMANCE_UNSET_NAME")
+    print(f"{strlen_of(missing)}")
+    return 0
+
+func strlen_of(text: c.str) -> usize:
+    return ((str)text).length

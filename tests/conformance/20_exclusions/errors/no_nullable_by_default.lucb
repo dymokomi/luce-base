@@ -1,0 +1,5 @@
+# error: 
+## §20, §5.3: a bare pointer is never null.
+pub func main(arguments: str[]) -> i32:
+    let p: i64* = none
+    return 0

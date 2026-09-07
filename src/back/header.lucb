@@ -218,7 +218,7 @@ struct Header:
             .f32_: try self.out.put("float")
             .f64_: try self.out.put("double")
             .char_: try self.out.put("uint32_t")
-            .cstr_: try self.out.put("const char*")
+            .cstr_: try self.out.put("char*")
             .pointer:
                 if id == types.c_va_list_id:
                     try self.out.put("va_list")

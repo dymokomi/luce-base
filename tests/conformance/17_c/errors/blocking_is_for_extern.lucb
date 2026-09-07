@@ -1,0 +1,7 @@
+# error: 
+## §17.1: `blocking` marks an extern function.
+blocking func wait():
+    return
+
+pub func main(arguments: str[]) -> i32:
+    return 0

@@ -1,0 +1,6 @@
+# error: 
+## §17.1: `str` is not admitted in an extern signature; C text is `c.str`.
+extern func puts(text: str) -> i32
+
+pub func main(arguments: str[]) -> i32:
+    return 0

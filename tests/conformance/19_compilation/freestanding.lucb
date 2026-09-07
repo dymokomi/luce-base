@@ -1,0 +1,19 @@
+## §19.4: `--freestanding` drops the startup shim; the program supplies `_start` as a naked
+## function of one `asm` block and talks to the kernel itself.
+asm arm64:
+    .section __TEXT,__cstring,cstring_literals
+    lb_conformance_freestanding_line:
+    .ascii "no shim\n"
+    .section __TEXT,__text,regular,pure_instructions
+
+export naked func _start():
+    asm arm64:
+        mov x0, #1
+        adrp x1, lb_conformance_freestanding_line@PAGE
+        add x1, x1, lb_conformance_freestanding_line@PAGEOFF
+        mov x2, #8
+        mov x16, #4
+        svc #0x80
+        mov x0, #3
+        mov x16, #1
+        svc #0x80

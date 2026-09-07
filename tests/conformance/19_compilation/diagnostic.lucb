@@ -1,0 +1,15 @@
+## §19.4: the diagnostic profile fills `---` storage, quarantines released blocks in the
+## standard allocators, and records allocation sites; the default profile does none of that,
+## and neither changes overflow, bounds, evaluation order, or error behaviour.
+import memory
+
+pub func main(arguments: str[]) -> i32!:
+    var word: u64 = ---
+    print(f"{hex(word)}")
+    let block = try alloc u8[16]
+    let data = block.data
+    free(block)
+    print(f"{hex(data[0])} {hex(data[15])}")
+    let sites = memory.allocation_sites()
+    print(f"{sites.length} {sites[0].size} {sites[0].line}")
+    return 0

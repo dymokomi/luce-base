@@ -1170,7 +1170,7 @@ pub struct Parser:
             return w == "self" or w == "try" or w == "not" or w == "true" or w == "false"
         if after.kind == token.Kind.operator:
             let s = self.text_of(after)
-            return s == "(" or s == "&" or s == "*" or s == "~" or s == "["
+            return s == "(" or s == "&" or s == "*" or s == "~" or s == "[" or s == "-" or s == "-%"
         return false
 
     func is_type_word(word: str) -> bool:

@@ -1,0 +1,7 @@
+# error: 
+## §17.6: a tagged optional is not C-representable; a nullable pointer is.
+export func maybe(n: i32) -> i32?:
+    return n
+
+pub func main(arguments: str[]) -> i32:
+    return 0

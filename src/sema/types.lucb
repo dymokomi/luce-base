@@ -324,7 +324,16 @@ pub struct Table:
     ## `T*?`, `c.str?`, and `func(...)?` are one word with null as the niche (§5.3, §5.5, §5.6).
     pub func has_null_niche(elem: u32) -> bool:
         let inner = self.kind(elem)
-        return inner == Kind.pointer or inner == Kind.cstr_ or inner == Kind.func_
+        return inner == Kind.pointer or inner == Kind.cstr_ or inner == Kind.func_ or self.is_opaque_handle(elem)
+
+    ## An `extern type Name` with no integer shape: a pointer-shaped handle that is never
+    ## null bare and keeps `none` in the null niche (§17.1).
+    pub func is_opaque_handle(id: u32) -> bool:
+        let t = self.get(id)
+        if t.kind != Kind.struct_:
+            return false
+        let d = t.decl else return false
+        return d.kind == ast.Kind.extern_type and d.ty == none
 
     ## An optional stored with the null niche rather than a flag.
     pub func is_nullable_pointer(id: u32) -> bool:
@@ -358,6 +367,8 @@ pub struct Table:
 
     ## Whether the zero bit pattern is a valid value (base.md §6.1).
     pub func zeroable(id: u32) -> bool:
+        if self.is_opaque_handle(id):
+            return false    # never null bare (§17.1)
         let t = self.get(id)
         match t.kind:
             .pointer, .cstr_, .func_, .never_, .error_, .fmt_, .void_, .param: return false
@@ -424,6 +435,8 @@ pub struct Table:
         return out[..<n]
 
     func sized(id: u32, env_decl: ast.Node*?, env_args: u32[]) -> u64:
+        if self.is_opaque_handle(id):
+            return 8    # a pointer-shaped handle (§17.1)
         let t = self.get(id)
         match t.kind:
             .i8_, .u8_, .bool_: return 1
@@ -513,6 +526,8 @@ pub struct Table:
             _: return 0
 
     func aligned(id: u32, env_decl: ast.Node*?, env_args: u32[]) -> u64:
+        if self.is_opaque_handle(id):
+            return 8
         let t = self.get(id)
         match t.kind:
             .param:

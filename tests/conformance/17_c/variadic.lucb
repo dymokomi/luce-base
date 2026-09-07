@@ -1,0 +1,22 @@
+## §17.2: in a variadic position an untyped integer literal is an `i32`, a float literal an
+## `f64`, small integers and `f32` are promoted, a string literal is `c.str`, and a typed
+## integer or pointer passes as itself.
+# oracle: none
+import c
+
+extern func snprintf(buffer: c.str, size: usize, pattern: c.str, ...) -> i32
+
+func render(buffer: u8[], pattern: c.str, value: i64) -> str:
+    let n = snprintf((c.str)&buffer[0], buffer.length, pattern, value)
+    return (str)buffer[..<(usize)n]
+
+pub func main(arguments: str[]) -> i32:
+    var buffer: u8[64]
+    let n = snprintf((c.str)&buffer[0], buffer.length, "%d %ld %u %.1f %c %s", 5, (i64)7, (u32)9, 2.5, (u8)65, "text")
+    print((str)buffer[..<(usize)n])
+    let small: u8 = 200
+    let single: f32 = 1.5
+    let m = snprintf((c.str)&buffer[0], buffer.length, "%d %.2f %lld", small, single, (i64)-3)
+    print((str)buffer[..<(usize)m])
+    print(render(buffer, "[%lld]", 123456789012))
+    return 0

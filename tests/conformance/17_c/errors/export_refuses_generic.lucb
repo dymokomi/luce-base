@@ -1,0 +1,7 @@
+# error: 
+## §17.6: no generic is exported.
+export func first[T](values: const T[]) -> T?:
+    return values[0]
+
+pub func main(arguments: str[]) -> i32:
+    return 0

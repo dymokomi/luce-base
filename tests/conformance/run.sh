@@ -16,6 +16,8 @@ for dir in tests/conformance/[0-9]*/; do
     for f in "$dir"*.expect; do
         [ -e "$f" ] || continue
         src="${f%.expect}.lucb"
+        # a package of several modules: `NAME/main.lucb` beside `NAME.expect`
+        [ -e "$src" ] || src="${f%.expect}/main.lucb"
         echo "== $src"
         ./build/luce-base build "$src" -o build/conformance
         ./build/conformance > build/conformance.out
@@ -27,12 +29,18 @@ for dir in tests/conformance/[0-9]*/; do
             "$seed" eval "$src" > build/conformance.out
             cmp build/conformance.out "$f"
         fi
+        # `# tests: true`: the program's `test` declarations run under both backends and pass
+        if grep -q '^# tests: true' "$src"; then
+            ./build/luce-base test "$src" > build/conformance.out
+            ./build/luce-base test "$src" --native > build/conformance.out
+        fi
         programs=$((programs + 1))
     done
     # a program beside a `.trap` file must stop with a trap naming that text, in every execution
     for f in "$dir"*.trap; do
         [ -e "$f" ] || continue
         src="${f%.trap}.lucb"
+        [ -e "$src" ] || src="${f%.trap}/main.lucb"
         want=$(cat "$f")
         echo "== $src (traps)"
         for flags in "" "--native"; do
@@ -54,6 +62,10 @@ for dir in tests/conformance/[0-9]*/; do
         [ -e "$f" ] || continue
         want=$(LC_ALL=C sed -n 's/^# error: //p' "$f")
         got=$(./build/luce-base check "$f" 2>&1 || true)
+        # an empty `# error:` asks only for a rejection; a fragment must appear in the message
+        if [ -z "$got" ]; then
+            echo "FAIL $f: this compiler accepts it"; exit 1
+        fi
         case "$got" in
             *"$want"*) ;;
             *) echo "FAIL $f: expected [$want], got [$got]"; exit 1;;
@@ -65,6 +77,10 @@ for dir in tests/conformance/[0-9]*/; do
         fi
         rejections=$((rejections + 1))
     done
+    # a chapter about the driver proves its points by a script beside the programs
+    if [ -e "$dir"driver.sh ]; then
+        sh "$dir"driver.sh
+    fi
     echo "== $dir $(ls "$dir"*.expect "$dir"*.trap 2>/dev/null | wc -l | tr -d ' ') programs, $(ls "$dir"errors/*.lucb 2>/dev/null | wc -l | tr -d ' ') rejections"
 done
 rm -f build/conformance build/conformance.out build/conformance.err

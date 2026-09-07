@@ -1,0 +1,7 @@
+# error: 
+## §16.5: a test has a title.
+test:
+    assert(true)
+
+pub func main(arguments: str[]) -> i32:
+    return 0

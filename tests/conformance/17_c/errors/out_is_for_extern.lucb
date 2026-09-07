@@ -1,0 +1,7 @@
+# error: 
+## §17.1: only an extern function has `out` parameters.
+func f(out n: i32) -> bool:
+    return true
+
+pub func main(arguments: str[]) -> i32:
+    return 0

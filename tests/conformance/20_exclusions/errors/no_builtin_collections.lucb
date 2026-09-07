@@ -1,0 +1,5 @@
+# error: 
+## §20: no built-in collections; a list is a library type.
+pub func main(arguments: str[]) -> i32:
+    var items: list[i64]
+    return 0

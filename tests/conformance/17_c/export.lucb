@@ -1,0 +1,25 @@
+## §17.6: `export func` gives a function C linkage under its name; an exported method is
+## `Type_method` with `self` first; the program itself still calls them as Base functions.
+struct Pixel:
+    pub var r: u8
+    pub var g: u8
+    pub var b: u8
+
+export func blend(left: Pixel, right: Pixel) -> Pixel:
+    return Pixel(r = (u8)(((u32)left.r + (u32)right.r) // 2), g = (u8)(((u32)left.g + (u32)right.g) // 2), b = (u8)(((u32)left.b + (u32)right.b) // 2))
+
+struct Cursor:
+    pub var offset: usize
+
+    export mutating func advance(count: usize):
+        self.offset += count
+
+export func count_bytes(data: const u8[]) -> usize:
+    return data.length
+
+pub func main(arguments: str[]) -> i32:
+    let p = blend(Pixel(r = 10, g = 20, b = 30), Pixel(r = 30, g = 40, b = 50))
+    var c = Cursor(offset = 1)
+    c.advance(4)
+    print(f"{p.r} {p.g} {p.b} {c.offset} {count_bytes("abc".bytes)}")
+    return 0

@@ -1,0 +1,5 @@
+# error: 
+## §20: no statement expressions.
+pub func main(arguments: str[]) -> i32:
+    let n = ({ var t: i64 = 1; t })
+    return 0

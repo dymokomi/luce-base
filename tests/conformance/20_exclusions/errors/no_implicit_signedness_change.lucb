@@ -1,0 +1,6 @@
+# error: 
+## §20: no implicit signedness change.
+pub func main(arguments: str[]) -> i32:
+    let s: i32 = -1
+    let u: u32 = s
+    return 0

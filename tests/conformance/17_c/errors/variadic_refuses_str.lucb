@@ -1,0 +1,9 @@
+# error: 
+## §17.2: `str` is rejected in a variadic position.
+import c
+extern func printf(format: c.str, ...) -> i32
+
+pub func main(arguments: str[]) -> i32:
+    let s: str = "x"
+    discard(printf("%s", s))
+    return 0

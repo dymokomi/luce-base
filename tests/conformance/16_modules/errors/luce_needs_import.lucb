@@ -1,0 +1,5 @@
+# error: unknown name
+## §3.5, §16.6: `luce.line` and its siblings bind only where `luce` is imported.
+pub func main(arguments: str[]) -> i32:
+    print(f"{luce.line}")
+    return 0

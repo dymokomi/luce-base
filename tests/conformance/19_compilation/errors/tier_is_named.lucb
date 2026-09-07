@@ -1,0 +1,8 @@
+# error: belongs to full Luce
+## §19.1: a runtime-dependent construct is rejected with a diagnostic naming the tier it
+## belongs to.
+class Widget:
+    var size: i32
+
+pub func main(arguments: str[]) -> i32:
+    return 0

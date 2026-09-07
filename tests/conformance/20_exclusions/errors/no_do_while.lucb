@@ -1,0 +1,8 @@
+# error: 
+## §20: no `do while`.
+pub func main(arguments: str[]) -> i32:
+    var n: i64 = 0
+    do:
+        n += 1
+    while n < 3
+    return 0

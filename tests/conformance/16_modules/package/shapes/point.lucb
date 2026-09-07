@@ -1,0 +1,9 @@
+pub struct Point:
+    pub var x: i64
+    pub var y: i64
+
+pub func origin() -> Point:
+    return Point(x = 0, y = 0)
+
+func hidden() -> i64:
+    return 1

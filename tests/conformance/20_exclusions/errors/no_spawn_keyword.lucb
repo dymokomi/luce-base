@@ -1,0 +1,8 @@
+# error: 
+## §20, §3.6: `spawn` belongs to full Luce.
+func work():
+    return
+
+pub func main(arguments: str[]) -> i32:
+    spawn work()
+    return 0

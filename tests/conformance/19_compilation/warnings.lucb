@@ -1,0 +1,34 @@
+## §19.6: `-W` prints the checker's warnings: an unused local (a name beginning with `_` is
+## exempt), an unused import, a private function nothing references, a statement no path
+## reaches, and a branch or loop whose literal condition rules it out. Each is pruned, and an
+## unused binding whose initialiser may have an effect stays as that expression, so the
+## program's answer does not change.
+import memory
+import io
+var calls: i64 = 0
+
+func count() -> i64:
+    calls += 1
+    return 1
+
+func orphan() -> i64:
+    return 7
+
+pub func main(arguments: str[]) -> i32!:
+    let idle = 5
+    let _spare = 6
+    let effect = count()
+    var total: i64 = 40
+    if true:
+        total += 1
+    else:
+        total += 100
+    if false:
+        total += 100
+    while false:
+        total += 100
+    total += calls
+    let out = io.stdout()
+    try out.write(f"{total}\n")
+    return 0
+    total += 1000

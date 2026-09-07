@@ -1,0 +1,6 @@
+# error: 
+## §20: no `++`; write `n += 1`.
+pub func main(arguments: str[]) -> i32:
+    var n: i64 = 0
+    n++
+    return 0

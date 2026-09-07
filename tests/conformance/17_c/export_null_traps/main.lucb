@@ -1,0 +1,18 @@
+## §17.1: a zero arriving from C in a bare pointer parameter of an export traps
+## `null_foreign`; the export never runs with it.
+# oracle: none
+import c
+
+export func total_of(values: i32*, count: i64) -> i32:
+    var sum: i32 = 0
+    var i: i64 = 0
+    while i < count:
+        sum += values[i]
+        i += 1
+    return sum
+
+extern func call_with_null() -> i32
+
+pub func main(arguments: str[]) -> i32:
+    print(f"{call_with_null()}")
+    return 0

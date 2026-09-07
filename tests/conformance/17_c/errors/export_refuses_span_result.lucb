@@ -1,0 +1,8 @@
+# error: 
+## §17.6: a span is representable in parameter position only.
+export func bytes_of(count: usize) -> u8[]:
+    var b: u8[4]
+    return b[..<0]
+
+pub func main(arguments: str[]) -> i32:
+    return 0

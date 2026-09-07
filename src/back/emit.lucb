@@ -379,7 +379,7 @@ pub struct Emitter:
             .str_, .fmt_:
                 try self.put("lb_str")
             .cstr_:
-                try self.put("const char*")
+                try self.put("char*")
             .error_code:
                 try self.put("uint32_t")
             .error_value:
@@ -451,7 +451,14 @@ pub struct Emitter:
     mutating func put_record_name(id: u32) -> !:
         let t = self.c.table.get(id)
         let d = t.decl else return try self.put("void")
-        if d.kind == ast.Kind.extern_struct or d.kind == ast.Kind.extern_union or d.kind == ast.Kind.extern_type:
+        if d.kind == ast.Kind.extern_type:
+            # an opaque handle is pointer-shaped (§17.1); an integer-shaped one names its integer
+            if let shape = d.ty:
+                try self.put_type(try self.map(shape.type_id))
+            else:
+                try self.put("void*")
+            return
+        if d.kind == ast.Kind.extern_struct or d.kind == ast.Kind.extern_union:
             try self.put(d.text)
             return
         try self.put("lb_")
@@ -1065,6 +1072,8 @@ pub struct Emitter:
         let base = self.scopes.count
         try self.push_scope(false, "")
         let naked = ast.has_attribute(f, "naked")
+        if f.has(ast.flag_export) and not naked:
+            try self.check_foreign_parameters(f)
         if naked:
             try self.naked_body(f)
         elif let body = f.body:
@@ -2001,7 +2010,7 @@ pub struct Emitter:
             if e.kind == ast.Kind.literal:
                 try self.put_c_string(check.decode_text(e.text))
                 return
-            try self.put("(")
+            try self.put("((char*)")
             try self.expr(e)
             try self.put(".data)")
             return
@@ -2765,7 +2774,8 @@ pub struct Emitter:
             try self.str_conversion(src, checked)
             return
         if dest == types.cstr_id and st == types.str_id:
-            try self.put("(")
+            # `(c.str)text`: the bytes are read-only by type; the cast is what the program wrote
+            try self.put("((char*)")
             try self.expr(src)
             try self.put(".data)")
             return
@@ -3369,7 +3379,8 @@ pub struct Emitter:
         try self.put(" = ")
         try self.value(scrutinee, st)
         try self.put(";")
-        if self.is_int(st) or self.is_int_enum(st) or st == types.bool_id or st == types.char_id:
+        # a guarded arm may repeat a value or a `_`, which C's `switch` cannot: those go to the chain
+        if (self.is_int(st) or self.is_int_enum(st) or st == types.bool_id or st == types.char_id) and not has_guard(m):
             try self.line("switch ((int64_t)(")
             try self.put_tmp("m", n)
             try self.put(")) {")
@@ -3491,6 +3502,16 @@ pub struct Emitter:
                         try self.put_tmp("m", n)
                         if self.is_tagged_opt(st):
                             try self.put(".present")
+                    elif v.kind == ast.Kind.case_value and self.kind(st) == types.Kind.enum_ and self.is_int_enum(st):
+                        # an integer-backed enum is its representation: compare the value
+                        let d = self.decl_of(st) else return
+                        let resolved = v.resolved else return
+                        try self.put_tmp("m", n)
+                        try self.put(" == (")
+                        try self.put_type(st)
+                        try self.put(")")
+                        try self.put_u64(check.case_value(d, resolved))
+                        try self.put("ull")
                     elif v.kind == ast.Kind.case_value and self.kind(st) == types.Kind.enum_:
                         let d = self.decl_of(st) else return
                         let resolved = v.resolved else return
@@ -3762,15 +3783,31 @@ pub struct Emitter:
         if d.kind == ast.Kind.extern_func and has_out_params(d):
             try self.extern_out_call(e, d, fn)
             return
+        # a bare pointer, handle, or `c.str` from C must not be null: the one boundary check (§17.1)
+        let rt = self.c.table.get(fn).elem
+        let checked = d.kind == ast.Kind.extern_func and (self.is_ptr(rt) or rt == types.cstr_id or self.c.table.is_opaque_handle(rt))
+        if checked:
+            try self.put("({ ")
+            try self.put_type(rt)
+            try self.put(" _lb_fr = ")
         try self.put_func_name(d, args, owner, owner_args)
         try self.put("(")
         try self.arguments(e.body, fn, d, args)
         try self.put(")")
-        if d.kind == ast.Kind.extern_func:
-            # a bare pointer result must not be null (§17.1)
-            let rt = self.c.table.get(fn).elem
-            if self.is_ptr(rt):
-                discard(rt)
+        if checked:
+            try self.put("; if (!_lb_fr) lb_trap(\"null_foreign\"); _lb_fr; })")
+
+    ## A zero arriving from C in a bare pointer, handle, or `c.str` parameter of an export
+    ## traps `null_foreign`: the one boundary check, in this direction (§17.1).
+    mutating func check_foreign_parameters(f: ast.Node*) -> !:
+        var cursor = f.right
+        while let p = cursor:
+            let pt = try self.map(p.type_id)
+            if self.is_ptr(pt) or pt == types.cstr_id or self.c.table.is_opaque_handle(pt):
+                try self.line("if (!")
+                try self.put_ident(p.text)
+                try self.put(") lb_trap(\"null_foreign\");")
+            cursor = p.next
 
     ## `({ int32_t o0; double r = frexp(x, &o0); (tuple){ r, o0 }; })`: an extern's `out`
     ## parameters are locals passed by address and answered after the declared result (§17.1).
@@ -5259,7 +5296,7 @@ pub struct Emitter:
         try self.put_tmp("out", n)
         try self.put(" = ((lb_r_str){ .error = { .code = ")
         try self.put_u64(check.exhausted_code())
-        try self.put(", .message = (lb_str){\"memory.exhausted\", 16} }, .failed = true }); } else { ")
+        try self.put(", .message = (lb_str){\"memory.exhausted: the formatted text does not fit its buffer\", 60} }, .failed = true }); } else { ")
         try self.put_tmp("out", n)
         try self.put(" = ((lb_r_str){ .value = lb_fmtbuf_finish(&")
         try self.put_tmp("fb", n)

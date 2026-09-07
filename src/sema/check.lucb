@@ -114,6 +114,8 @@ pub struct Checker:
     pub var package_name: str
     ## Every `ErrorCode.package(n)` folded so far, with its package identity: no two alike.
     var package_codes: list.List[u64]
+    ## Every symbol an `export` claimed: no two alike (§17.6).
+    var export_symbols: list.List[str]
     ## Inside a lambda body, bindings below this index (the enclosing locals) are hidden:
     ## a lambda captures nothing (§9.6).
     var lambda_floor: usize
@@ -127,7 +129,7 @@ pub struct Checker:
                        current = 0, current_func = none, result_type = types.unit_id, fallible = false,
                        self_type = types.none_id, self_mutable = false, in_init = false, loop_depth = 0, in_catch = false,
                        catch_result = types.none_id, checking_template = false, at_top_level = false, root = "", package_name = "app",
-                       package_codes = try list.List[u64].create(64))
+                       package_codes = try list.List[u64].create(64), export_symbols = try list.List[str].create(32))
 
     # -- diagnostics ----------------------------------------------------------------------
 
@@ -595,6 +597,17 @@ pub struct Checker:
     mutating func bind_imports(tree: ast.Node*) -> !:
         var cursor = tree.body
         while let d = cursor:
+            if d.kind == ast.Kind.import_ or d.kind == ast.Kind.from_import:
+                var earlier = tree.body
+                while let e = earlier:
+                    if e == d:
+                        break
+                    if e.kind == d.kind and e.text == d.text:
+                        if d.kind == ast.Kind.import_:
+                            return try self.fail(d, "this module is already imported (§16.3)")
+                        if let again = repeated_name(e.body, d.body):
+                            return try self.fail(again, "this name is already imported (§16.3)")
+                    earlier = e.next
             if d.kind == ast.Kind.import_:
                 let index = self.find_module(d.text) else return try self.fail(d, "cannot find that module")
                 let other = self.modules.get(index).tree
@@ -707,7 +720,7 @@ pub struct Checker:
                 try self.storable(d.type_id, t)
                 try self.rebind(d.text, d.type_id)
             .func_, .extern_func:
-                try self.resolve_function(d)
+                try self.resolve_function(d, none)
                 try self.rebind(d.text, d.type_id)
             .extern_type:
                 if let t = d.ty:
@@ -757,6 +770,78 @@ pub struct Checker:
             _:
                 return false
 
+    ## An `extern` or `export` signature crosses the C boundary: no generic, no `str`, no
+    ## `fmt`, no array by value, no span outside a parameter, no tagged optional, no view
+    ## (§17.1, §17.6); an export's symbol is unique in the program.
+    mutating func check_foreign_signature(f: ast.Node*, owner: ast.Node*?) -> !:
+        let exported = f.has(ast.flag_export)
+        let which = "an `export`" if exported else "an `extern`"
+        if generic_params_of(f) != none:
+            var text: u8[128]
+            return try self.fail(f, try format(text, f"{which} cannot be generic (§17.6)"))
+        var cursor = f.right
+        while let p = cursor:
+            if not p.has(ast.flag_variadic) and not self.c_representable(p.type_id, true):
+                var text: u8[160]
+                return try self.fail(p, try format(text, f"this type is not C-representable in {which} signature; C text is `c.str` (§17.6)"))
+            if exported and p.has(ast.flag_out):
+                return try self.fail(p, "an `export` cannot have `out` parameters")
+            cursor = p.next
+        let ft = self.table.get(f.type_id)
+        var result = ft.elem
+        if self.table.kind(result) == types.Kind.fallible:
+            result = self.table.get(result).elem
+        if self.table.kind(result) == types.Kind.tuple:
+            for m in self.table.get(result).args:
+                if not self.c_representable(m, false):
+                    return try self.fail(f, "an `out` result is not C-representable (§17.1)")
+        elif result != types.unit_id and not self.c_representable(result, false):
+            var text: u8[160]
+            return try self.fail(f, try format(text, f"the result is not C-representable in {which} signature (§17.6)"))
+        if exported:
+            var symbol_bytes = try alloc u8[f.text.length + 128]
+            var symbol = f.text
+            if let o = owner:
+                symbol = try format(symbol_bytes, f"{o.text}_{f.text}")
+            for known in self.export_symbols.span():
+                if known == symbol:
+                    return try self.fail(f, "two exports share this symbol (§17.6)")
+            try self.export_symbols.push(symbol)
+
+    ## C-representable (§17.6): scalars, the `c` types, pointers, `c.str`, spans in
+    ## parameter position, records of representable fields, integer-backed enums, and
+    ## function pointers with representable signatures.
+    func c_representable(id: u32, parameter: bool) -> bool:
+        let t = self.table.get(id)
+        if self.table.is_numeric(id) or id == types.bool_id or id == types.char_id or id == types.cstr_id or id == types.void_id or id == types.unit_id or id == types.never_id:
+            return true
+        match t.kind:
+            .pointer:
+                return t.elem == types.void_id or self.c_representable(t.elem, false) or self.table.kind(t.elem) == types.Kind.struct_ or self.table.kind(t.elem) == types.Kind.union_
+            .span:
+                return parameter and self.c_representable(t.elem, false)
+            .optional:
+                return self.table.has_null_niche(t.elem) and self.c_representable(t.elem, false)
+            .struct_, .union_:
+                if self.table.is_opaque_handle(id):
+                    return true
+                let d = t.decl else return false
+                var member = d.body
+                while let m = member:
+                    if m.kind == ast.Kind.field and not self.c_representable(m.type_id, false):
+                        return false
+                    member = m.next
+                return true
+            .enum_:
+                return self.is_backed_enum(id)
+            .func_:
+                for a in t.args:
+                    if not self.c_representable(a, true):
+                        return false
+                return t.elem == types.unit_id or self.c_representable(t.elem, false)
+            _:
+                return false
+
     ## `T!` is a result effect, not a storable type: no parameter, field, element, or local
     ## holds one (§11.2).
     func storable(id: u32, at: ast.Node*) -> !:
@@ -795,7 +880,7 @@ pub struct Checker:
                 .func_:
                     if d.kind == ast.Kind.interface_ and generic_params_of(m) != none:
                         discard(try self.fail(m, "an interface has no generic methods (§14.1)"))
-                    try self.resolve_function(m)
+                    try self.resolve_function(m, d)
                 _:
                     discard(0)
             cursor = m.next
@@ -803,7 +888,7 @@ pub struct Checker:
 
     ## The function type of `f`. A method's receiver is implicit and not part of it, and so
     ## is an extern's `out` parameter, which the call answers instead (§17.1).
-    mutating func resolve_function(f: ast.Node*) -> !:
+    mutating func resolve_function(f: ast.Node*, owner: ast.Node*?) -> !:
         self.push_scope()
         try self.bind_generics(f)
         let n = ast.count(f.right)
@@ -837,6 +922,8 @@ pub struct Checker:
         if outs > 0:
             result = try self.extern_result(f, result)
         f.type_id = try self.table.function(params[..<i], result, f.has(ast.flag_variadic))
+        if f.kind == ast.Kind.extern_func or f.has(ast.flag_export):
+            try self.check_foreign_signature(f, owner)
         self.pop_scope()
 
     ## What a call of extern `f` answers: `declared`, then every `out` parameter, as a tuple
@@ -3515,8 +3602,8 @@ pub struct Checker:
                 let got = try self.check_expr(v, types.none_id)
                 if self.table.kind(got) == types.Kind.fallible:
                     discard(try self.fail(v, "a fallible result must be handled: `try`, `catch`, or `else`"))
-                if v.kind == ast.Kind.name or v.kind == ast.Kind.literal or v.kind == ast.Kind.member:
-                    discard(try self.fail(v, "this expression has no effect"))
+                if not is_call_statement(v):
+                    discard(try self.fail(v, "a statement is a call; an expression whose value is unused is not one (§7.9)"))
             .asm_:
                 var operand = s.right
                 while let o = operand:
@@ -4310,6 +4397,18 @@ pub func find_member(owner: ast.Node*, name: str, kind: ast.Kind) -> ast.Node*?:
     return none
 
 ## The generic parameter list of a declaration, or none.
+## The first name in `later` that `earlier` already lists, if any.
+func repeated_name(earlier: ast.Node*?, later: ast.Node*?) -> ast.Node*?:
+    var cursor = later
+    while let item = cursor:
+        var known = earlier
+        while let k = known:
+            if k.text == item.text:
+                return item
+            known = k.next
+        cursor = item.next
+    return none
+
 pub func generic_params_of(d: ast.Node*) -> ast.Node*?:
     let l = d.left else return none
     if l.kind != ast.Kind.generic_param:
@@ -4692,6 +4791,20 @@ func ordering_rank(e: ast.Node*) -> u32:
     if e.text == "acquire" or e.text == "release":
         return 1
     return 0
+
+## A call, alone or under `try`, `catch`, or parentheses (§7.9).
+func is_call_statement(e: ast.Node*) -> bool:
+    match e.kind:
+        .call:
+            return true
+        .group, .catch_:
+            let inner = e.left else return false
+            return is_call_statement(inner)
+        .unary:
+            let inner = e.left else return false
+            return e.text == "try" and is_call_statement(inner)
+        _:
+            return false
 
 func is_none_literal(e: ast.Node*) -> bool:
     return e.kind == ast.Kind.literal and e.text == "none"

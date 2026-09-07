@@ -1082,7 +1082,7 @@ pub struct Generator:
                 try self.line("b ")
                 try self.label_name(n.extra)
             .jnz:
-                let c = try self.source(n.a, ir.Class.w, "w9")
+                let c = try self.source(n.a, n.cls, "x9" if n.cls == ir.Class.l else "w9")
                 try self.line("cbnz ")
                 try self.put(c)
                 try self.put(", ")

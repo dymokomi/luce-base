@@ -1,0 +1,7 @@
+## §19.4: no build profile changes overflow behaviour: `i32` arithmetic that overflows traps
+## under `default` and under `diagnostic` alike.
+pub func main(arguments: str[]) -> i32:
+    var top: i32 = 2147483647
+    top += i32(arguments.length) + 1
+    print(f"{top}")
+    return 0

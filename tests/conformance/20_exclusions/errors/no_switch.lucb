@@ -1,0 +1,8 @@
+# error: 
+## §20: no `switch`; `match` has no fallthrough.
+pub func main(arguments: str[]) -> i32:
+    let n: i64 = 1
+    switch n:
+        case 1:
+            return 1
+    return 0

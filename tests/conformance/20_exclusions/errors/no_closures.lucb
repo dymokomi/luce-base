@@ -1,0 +1,9 @@
+# error: 
+## §9.6, §20: a lambda captures nothing; there are no closures.
+func apply(f: func(i64) -> i64) -> i64:
+    return f(1)
+
+pub func main(arguments: str[]) -> i32:
+    let k: i64 = 10
+    let n = apply((x: i64) -> i64 => x + k)
+    return 0

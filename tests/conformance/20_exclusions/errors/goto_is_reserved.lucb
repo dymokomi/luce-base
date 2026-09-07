@@ -1,0 +1,6 @@
+# error: 
+## §8.6, §20: `goto` is reserved and unused.
+pub func main(arguments: str[]) -> i32:
+    goto done
+    done:
+    return 0

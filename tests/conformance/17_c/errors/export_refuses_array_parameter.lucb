@@ -1,0 +1,7 @@
+# error: 
+## §17.6: C has no by-value array parameters.
+export func sum(values: i64[4]) -> i64:
+    return values[0]
+
+pub func main(arguments: str[]) -> i32:
+    return 0

@@ -1,0 +1,23 @@
+## §16.5: `test` is a declaration compiled to a hidden `unit!` function; `luce test` runs
+## every test and `luce build` removes them all; a test may use its module's private
+## declarations and `try`.
+# tests: true
+let too_big = ErrorCode.package(1)
+
+func clamp(n: i64) -> i64!:
+    if n > 100:
+        error(too_big, "too big")
+    return n
+
+test "clamp passes small values":
+    assert(try clamp(5) == 5)
+
+test "clamp refuses big values":
+    let v = clamp(500) catch e:
+        assert(e.code == too_big)
+        recover -1
+    assert(v == -1)
+
+pub func main(arguments: str[]) -> i32:
+    print("built without its tests")
+    return 0
