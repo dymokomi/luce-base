@@ -1,0 +1,15 @@
+# error: a mutating method needs a `var` receiver
+## §9.5: a mutating method cannot run on a `let` reached through a field chain.
+struct Counter:
+    var n: i32
+
+    pub mutating func bump():
+        self.n += 1
+
+struct Holder:
+    var inner: Counter
+
+pub func main(arguments: str[]) -> i32:
+    let h = Holder(inner = Counter(n = 0))
+    h.inner.bump()
+    return h.inner.n

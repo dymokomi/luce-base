@@ -1,0 +1,10 @@
+# error: expected `i32`, got `str`
+## §10.2: a payload argument keeps its declared type through a nested construction.
+enum Node:
+    leaf(value: i32)
+    pair(left: i32, right: Node*)
+
+pub func main(arguments: str[]) -> i32:
+    var l = Node.leaf(value = 1)
+    let p = Node.pair(left = "one", right = &l)
+    return 0

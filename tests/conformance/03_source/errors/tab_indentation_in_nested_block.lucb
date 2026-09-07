@@ -1,0 +1,8 @@
+# error: tabs are not allowed; use four spaces
+## §3.3: a tab never indents, however deep the block.
+pub func main(arguments: str[]) -> i32:
+    var n: i32 = 0
+    if arguments.length > 0:
+        if n == 0:
+	    n = 1
+    return n

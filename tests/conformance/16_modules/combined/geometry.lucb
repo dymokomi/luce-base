@@ -1,0 +1,21 @@
+pub struct Point:
+    pub var x: i64
+    pub var y: i64
+
+func square(n: i64) -> i64:
+    return n * n
+
+pub func distance(a: Point, b: Point) -> i64:
+    return isqrt(square(a.x - b.x) + square(a.y - b.y))
+
+func isqrt(n: i64) -> i64:
+    var r: i64 = 0
+    while (r + 1) * (r + 1) <= n:
+        r += 1
+    return r
+
+pub func origin() -> Point:
+    return Point(x = 0, y = 0)
+
+test "distance of a 3-4-5 triangle":
+    assert(distance(Point(x = 0, y = 0), Point(x = 3, y = 4)) == 5)

@@ -1,0 +1,49 @@
+## §12: memory in depth: a linked structure built with `new` in a fixed buffer, freed in
+## reverse under `defer`, spans over allocated arrays resized through `grow`, `with`
+## switching allocators inside a loop, and the counts matching at the end.
+import memory
+from memory import FixedBuffer
+
+struct Node:
+    var value: i32
+    var next: Node*?
+
+var made: i32 = 0
+var freed: i32 = 0
+
+func build(n: i32) -> Node*?!:
+    var head: Node*? = none
+    var i: i32 = 0
+    while i < n:
+        head = try new Node(value = i, next = head)
+        made += 1
+        i += 1
+    return head
+
+func release(head: Node*?):
+    var cursor = head
+    while let node = cursor:
+        cursor = node.next
+        free(node)
+        freed += 1
+
+pub func main(arguments: str[]) -> i32!:
+    var backing: u8[4096]
+    var arena = FixedBuffer.over(backing)
+    var sum: i32 = 0
+    with arena:
+        let head = try build(10)
+        defer release(head)
+        var cursor = head
+        while let node = cursor:
+            sum += node.value
+            cursor = node.next
+    var bytes = try alloc u8[2]
+    bytes[0] = 5
+    bytes[1] = 6
+    let grown = try memory.grow(bytes, 16)
+    grown[15] = 7
+    let kept = (i32)grown[0] + (i32)grown[1] + (i32)grown[15]
+    free(grown)
+    print(f"{sum} {made} {freed} {grown.length} {kept}")
+    return 0

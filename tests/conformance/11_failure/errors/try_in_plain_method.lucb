@@ -1,0 +1,15 @@
+# error: `try` is only valid in a fallible function
+## §11.2: `try` is only for a fallible function, a method included.
+func risky() -> i32!:
+    return 1
+
+struct Reader:
+    var count: i32
+
+    pub mutating func read() -> i32:
+        self.count += try risky()
+        return self.count
+
+pub func main(arguments: str[]) -> i32:
+    var r = Reader(count = 0)
+    return r.read()

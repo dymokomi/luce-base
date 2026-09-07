@@ -1,0 +1,62 @@
+# oracle: none
+## §22: C idioms written the Base way, together: a byte buffer walked by index and by
+## pointer, a NUL-terminated string measured and copied, a flags word tested and set with
+## an integer-backed enum, a function-pointer table dispatched by index, and an
+## intrusive linked list threaded through a struct field.
+import c
+
+enum Perm as u32:
+    read = 1
+    write = 2
+    exec = 4
+
+struct Item:
+    var value: i32
+    var next: Item*?
+
+func negate(x: i32) -> i32:
+    return -x
+func twice(x: i32) -> i32:
+    return x * 2
+
+func text_length(p: c.str) -> usize:
+    var n: usize = 0
+    let bytes = (const u8*)p
+    while bytes[n] != 0:
+        n += 1
+    return n
+
+pub func main(arguments: str[]) -> i32:
+    var buffer: u8[8] = [1, 2, 3, 4, 5, 6, 7, 8]
+    var by_index: i32 = 0
+    for b in buffer:
+        by_index += (i32)b
+    var by_pointer: i32 = 0
+    var p = &buffer[0]
+    let end = &buffer[8]
+    while p < end:
+        by_pointer += (i32)*p
+        p = p + 1
+    let name: c.str = "hello"
+    let n = text_length(name)
+    var copy: u8[8]
+    var i: usize = 0
+    while i < n:
+        copy[i] = ((const u8*)name)[i]
+        i += 1
+    copy[n] = 0
+    var flags = Perm.read | Perm.exec
+    let can_exec = (flags & Perm.exec) != (Perm)0
+    flags = flags | Perm.write
+    let table: (func(i32) -> i32)[2] = [negate, twice]
+    let dispatched = table[1](table[0](5))
+    var third = Item(value = 3, next = none)
+    var second = Item(value = 2, next = &third)
+    var first = Item(value = 1, next = &second)
+    var walked: i32 = 0
+    var cursor: Item*? = &first
+    while let it = cursor:
+        walked = walked * 10 + it.value
+        cursor = it.next
+    print(f"{by_index} {by_pointer} {n} {(str)copy[0..<n]} {can_exec} {(u32)flags} {dispatched} {walked}")
+    return 0

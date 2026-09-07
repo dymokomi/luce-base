@@ -1,0 +1,11 @@
+# error: expected `i32`, got `bool`
+## §5.1, §7.2: `bool` takes no arithmetic, inside a generic as anywhere.
+func count_true[T](items: const T[], pick: func(T) -> bool) -> i32:
+    var n: i32 = 0
+    for it in items:
+        n += pick(it)
+    return n
+
+pub func main(arguments: str[]) -> i32:
+    let xs: i32[2] = [1, 2]
+    return count_true(xs, (x: i32) => x > 1)

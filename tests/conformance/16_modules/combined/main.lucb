@@ -1,0 +1,14 @@
+## §16: modules in depth: a package of three modules where one imports the other two,
+## a type from one module used as a field in another, `from` imports beside qualified
+## ones, a private helper invisible outside, and a test declaration in a library module.
+# tests: true
+import geometry
+from geometry import Point, distance
+import report
+
+pub func main(arguments: str[]) -> i32:
+    let a = Point(x = 0, y = 0)
+    let b = Point(x = 3, y = 4)
+    let seg = report.Segment(from_point = a, to_point = b)
+    print(f"{distance(a, b)} {report.describe(seg)} {geometry.origin().x}")
+    return 0

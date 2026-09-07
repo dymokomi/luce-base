@@ -1,0 +1,12 @@
+# error: `@T` needs an integer, `bool`, or a pointer of at most pointer width, or a struct of two words (§5.9)
+## §15.1: `@T` takes an integer, a `bool`, a pointer, or a two-word record; a three-field
+## struct is not atomic.
+struct Triple:
+    var a: i64
+    var b: i64
+    var c: i64
+
+var shared: @Triple = Triple(a = 0, b = 0, c = 0)
+
+pub func main(arguments: str[]) -> i32:
+    return 0

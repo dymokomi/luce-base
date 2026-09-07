@@ -1,0 +1,33 @@
+## §7: operators meeting: precedence across arithmetic, shifts, bit operators, and
+## comparisons; wrapping, saturating, and checked forms side by side; casts between widths
+## and signedness; pointer difference; conditional and match expressions nested.
+enum Kind as u8:
+    small = 1
+    large = 2
+
+func classify(n: i32) -> Kind:
+    return Kind.large if n > 100 else Kind.small
+
+pub func main(arguments: str[]) -> i32:
+    let a: i32 = 7
+    let b: i32 = 3
+    let mixed = a + b * 2 - (a - b) // 2 % 3
+    let bits = (1 << 4 | 3) & 0x1F ^ 2
+    let wrapped: u8 = 250u8 +% 10
+    let clamped: u8 = 250u8 +| 10
+    let checked = a *? b else 0
+    let overflow = 2147483647i32 +? 1 else -1
+    let narrowed = (u8)300
+    let signed = (i8)200u8
+    let widened: i64 = (i64)narrowed * 1000
+    var arr: i32[8]
+    let distance = &arr[6] - &arr[1]
+    let picked = match classify(mixed):
+        .small => "small"
+        .large => "large"
+        _ => "other"
+    let shifted = (u64)1 << 40 >> 39
+    let compare = a > b and not (a == b) or b < 0
+    let text = "yes" if compare and picked == "small" else "no"
+    print(f"{mixed} {bits} {wrapped} {clamped} {checked} {overflow} {narrowed} {signed} {widened} {distance} {picked} {shifted} {text}")
+    return 0

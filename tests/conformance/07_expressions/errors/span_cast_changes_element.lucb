@@ -1,0 +1,6 @@
+# error: cannot change a span's element type
+## §7.5: no cast reinterprets a span as a span of another element type; the length would lie.
+pub func main(arguments: str[]) -> i32:
+    var numbers: i32[4]
+    let bytes = (u8[])numbers[0..<4]
+    return (i32)bytes.length

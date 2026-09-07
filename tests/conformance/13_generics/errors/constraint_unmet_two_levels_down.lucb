@@ -1,0 +1,17 @@
+# error: the type argument for `T` does not satisfy `Comparable`
+## §13.1: a constraint is checked at every instantiation, including one made by another
+## generic function.
+from luce import Comparable
+
+func larger[T: Comparable](a: T, b: T) -> T:
+    return a if a.compare(b) >= 0 else b
+
+func first_larger[T: Comparable](items: const T[]) -> T:
+    return larger(items[0], items[1])
+
+struct Plain:
+    var n: i32
+
+pub func main(arguments: str[]) -> i32:
+    let ps: Plain[2] = [Plain(n = 1), Plain(n = 2)]
+    return first_larger(ps).n

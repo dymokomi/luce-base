@@ -1,0 +1,14 @@
+# error: not inside a loop
+## §8.5: `break` needs a loop around it; a `match` arm is not one.
+enum Mode:
+    fast
+    slow
+
+pub func main(arguments: str[]) -> i32:
+    let m = Mode.fast if arguments.length > 0 else Mode.slow
+    match m:
+        .fast:
+            break
+        .slow:
+            return 2
+    return 0

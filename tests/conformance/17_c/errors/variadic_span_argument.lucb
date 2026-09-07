@@ -1,0 +1,9 @@
+# error: this type cannot be a variadic argument; C has no shape for it
+## §17.2: a span cannot pass through a variadic slot; C has no shape for it.
+import c
+
+extern func printf(spec: c.str, ...) -> i32
+
+pub func main(arguments: str[]) -> i32:
+    let xs: i32[2] = [1, 2]
+    return printf("%d\n", xs[0..<2])

@@ -1,0 +1,9 @@
+# error: `new T` needs a zeroable type; give it arguments
+## §12.1: `new T` zeroes; a type holding a bare pointer has no zero, so it needs its value.
+struct Node:
+    var next: Node*
+    var value: i32
+
+pub func main(arguments: str[]) -> i32!:
+    let n = try new Node
+    return n.value

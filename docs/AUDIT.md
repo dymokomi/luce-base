@@ -23,8 +23,10 @@ the assembly it emits for itself. The native path involves no C.
 | Proving programs | http, editor, debugger, gui, metal, asm, each with a gate-run `check.sh` |
 | Warnings and pruning (§19.6) | both compilers; `-W` prints; unused locals, imports, private functions, unreachable code, and literal branches are pruned by the checker; `tests/samples/warnings.lucb` pins the text |
 
-Sizes: 21,790 lines of Base in this tree; 135 corpus programs and 462 unit
-tests in the seed; 44 module tests and 16 rejection samples here.
+Sizes (2026-09-07): the conformance suite holds 136 programs run three ways and 430
+rejections checked by both compilers, each chapter with a `combined.lucb` that mixes its
+features and complex rejections beside the simple ones; the robustness and optimisation
+suites and the module tests come on top. The seed runs 533 tests.
 
 ## 2. Verified this session
 

@@ -1,0 +1,9 @@
+# error: this pointer or view names a local and must not escape the function
+## §6.6: a local's address may not leave through a tuple result either.
+func pair() -> (i32, i32*):
+    var n: i32 = 4
+    return (1, &n)
+
+pub func main(arguments: str[]) -> i32:
+    let (a, p) = pair()
+    return a + *p

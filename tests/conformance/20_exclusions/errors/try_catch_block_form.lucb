@@ -1,0 +1,11 @@
+# error: a `try:` block belongs to full Luce; Base writes `catch` after an expression (§11.3)
+## §20, §11.3: full Luce's `try:` block with `except` has no place in Base; `catch`
+## follows an expression.
+func risky() -> i32!:
+    return 1
+
+pub func main(arguments: str[]) -> i32:
+    try:
+        return risky()
+    except failure:
+        return 2

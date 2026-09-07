@@ -1,0 +1,12 @@
+# error: no enclosing loop has this label
+## §8.5: a labelled `break` names an enclosing loop's label, not any label.
+pub func main(arguments: str[]) -> i32:
+    var n: i32 = 0
+    outer: while n < 3:
+        var j: i32 = 0
+        while j < 3:
+            if j == 1:
+                break elsewhere
+            j += 1
+        n += 1
+    return n

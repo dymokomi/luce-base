@@ -1,0 +1,43 @@
+## §15: atomics in depth: a counter incremented from several threads through `+=` on an
+## `@u64`, a flag published with a release store and awaited with acquire loads, a
+## compare-and-swap loop reserving slots, and a fence between two plain writes.
+# oracle: none
+import atomic
+import thread
+
+var counter: @u64 = 0
+var ready: @u32 = 0
+var slots: @u32 = 0
+var claimed: u32[64]
+
+func worker(context: void*?):
+    var i: u32 = 0
+    while i < 1000:
+        counter += 1
+        i += 1
+    while true:
+        let seen = slots.load(.acquire)
+        let (swapped, _) = slots.cas(seen, seen + 1, .acq_rel, .acquire)
+        if swapped:
+            claimed[seen] = 1
+            break
+    ready += 1
+
+pub func main(arguments: str[]) -> i32!:
+    var handles: thread.Handle[4]
+    var i: usize = 0
+    while i < 4:
+        handles[i] = try thread.spawn(worker, none)
+        i += 1
+    while ready.load(.acquire) < 4:
+        thread.pause()
+    atomic.fence(.seq_cst)
+    i = 0
+    while i < 4:
+        try handles[i].join()
+        i += 1
+    var taken: u32 = 0
+    for c in claimed:
+        taken += c
+    print(f"{counter} {slots} {taken}")
+    return 0

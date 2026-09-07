@@ -1,0 +1,10 @@
+# error: the result is not C-representable in an `export` signature (§17.6)
+## §17.6: an export cannot be generic, nor a method of a generic type.
+struct Box[T]:
+    var item: T
+
+    export func get() -> T:
+        return self.item
+
+pub func main(arguments: str[]) -> i32:
+    return 0

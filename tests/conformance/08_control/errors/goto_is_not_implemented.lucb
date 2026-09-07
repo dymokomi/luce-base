@@ -1,4 +1,4 @@
-# error: expected an expression
+# error: `goto` is reserved and unused
 pub func main(arguments: str[]) -> i32:
     goto done
     return 0

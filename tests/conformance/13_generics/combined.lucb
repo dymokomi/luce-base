@@ -1,0 +1,51 @@
+## §13: generics in depth: a generic struct holding a generic pair, a constrained method
+## through Comparable, a generic function inferring from two arguments, instantiation
+## nested three deep, and a static generic constructor.
+from luce import Comparable
+
+struct Pair[A, B]:
+    var first: A
+    var second: B
+
+    pub func swapped() -> Pair[B, A]:
+        return Pair[B, A](first = self.second, second = self.first)
+
+struct Stack[T]:
+    var items: T[8]
+    var count: usize
+
+    pub static func empty() -> Stack[T]:
+        var s: Stack[T] = ---
+        s.count = 0
+        return s
+
+    pub mutating func push(item: T):
+        self.items[self.count] = item
+        self.count += 1
+
+    pub func top() -> T?:
+        if self.count == 0:
+            return none
+        return self.items[self.count - 1]
+
+func largest[T: Comparable](a: T, b: T) -> T:
+    return a if a.compare(b) >= 0 else b
+
+func lengths[T](items: const T[], f: func(T) -> usize) -> usize:
+    var total: usize = 0
+    for it in items:
+        total += f(it)
+    return total
+
+pub func main(arguments: str[]) -> i32:
+    var stack = Stack[Pair[i32, str]].empty()
+    stack.push(Pair[i32, str](first = 1, second = "one"))
+    stack.push(Pair[i32, str](first = 2, second = "two"))
+    let top = stack.top() else return 1
+    let flipped = top.swapped()
+    let deep: Pair[Pair[i32, i32], Stack[u8]] = Pair[Pair[i32, i32], Stack[u8]](first = Pair[i32, i32](first = 3, second = 4), second = Stack[u8].empty())
+    let words: str[2] = ["ab", "cde"]
+    let measure: func(str) -> usize = (s: str) => s.length
+    let letters = lengths(words, measure)
+    print(f"{top.first} {flipped.first} {flipped.second} {largest(3, 9)} {largest("b", "a")} {deep.first.second} {deep.second.count} {letters}")
+    return 0

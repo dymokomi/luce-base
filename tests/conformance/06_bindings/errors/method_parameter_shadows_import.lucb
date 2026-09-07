@@ -1,0 +1,13 @@
+# error: this name is an import; a local may not shadow it
+## §3.5: a method's parameter may not take an imported module's name.
+import memory
+
+struct Pool:
+    var size: usize
+
+    pub func fits(memory: usize) -> bool:
+        return memory <= self.size
+
+pub func main(arguments: str[]) -> i32:
+    let p = Pool(size = 4)
+    return 1 if p.fits(2) else 0

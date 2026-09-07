@@ -1,0 +1,47 @@
+## §8: control flow in depth: labelled loops nested three deep with `break` and
+## `continue` to outer labels, `for` over ranges and slices with an index, `match` with
+## guards and ranges, `defer` ordering against early returns, and `while let` over an
+## iterator-like function.
+var trail: i32 = 0
+
+func note(n: i32):
+    trail = trail * 10 + n
+
+func step(state: i32*) -> i32?:
+    if *state >= 3:
+        return none
+    *state += 1
+    return *state
+
+func search(limit: i32) -> i32:
+    defer note(9)
+    outer: for i in 0..<limit:
+        middle: for j in 0..<limit:
+            for k in 0..<limit:
+                if k == 1:
+                    continue middle
+                if i + j + k == 4:
+                    note(i)
+                    break outer
+    return trail
+
+func grade(n: i32) -> str:
+    match n:
+        0: return "zero"
+        1..<10: return "digit"
+        10..=99: return "two"
+        _ if n < 0: return "negative"
+        _: return "big"
+
+pub func main(arguments: str[]) -> i32:
+    let found = search(5)
+    var state: i32 = 0
+    var seen: i32 = 0
+    while let s = step(&state):
+        seen = seen * 10 + s
+    let items: i32[4] = [4, 8, 15, 16]
+    var weighted: i32 = 0
+    for (index, value) in items[1..<4].indexed():
+        weighted += (i32)index * value
+    print(f"{found} {trail} {seen} {weighted} {grade(0)} {grade(7)} {grade(42)} {grade(-3)} {grade(500)}")
+    return 0

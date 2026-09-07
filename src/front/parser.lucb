@@ -498,6 +498,8 @@ pub struct Parser:
             flags |= 0
         elif self.eat_kw("let"):
             flags |= ast.flag_const
+        elif self.at_name("class"):
+            return try self.fail("`class` belongs to full Luce; a struct nests no types, declare it beside (§20)")
         elif not fields_only:
             discard(try self.fail("expected `var`, `let`, or `func`"))
         field.text = try self.expect_name()
@@ -735,6 +737,10 @@ pub struct Parser:
         return self.at_kw("if") or self.at_kw("while") or self.at_kw("for") or self.at_kw("match") or self.at_kw("with") or self.at_kw("asm")
 
     mutating func parse_statement() -> ast.Node*!:
+        if self.at_kw("goto"):
+            return try self.fail("`goto` is reserved and unused (§8.6); label a loop and `break` to it")
+        if self.at_kw("try") and self.peek_op(1, ":"):
+            return try self.fail("a `try:` block belongs to full Luce; Base writes `catch` after an expression (§11.3)")
         if self.at_kw("if"):
             return try self.parse_if()
         if self.at_kw("while"):

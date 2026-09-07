@@ -1,0 +1,18 @@
+# error: the interface has no such method
+## §14.2: a view offers the interface's methods only, not the conforming type's others.
+interface Named:
+    func name() -> str
+
+struct Dog: Named:
+    var age: i32
+
+    pub func name() -> str:
+        return "dog"
+    pub func bark() -> str:
+        return "woof"
+
+pub func main(arguments: str[]) -> i32:
+    var d = Dog(age = 3)
+    let views: Named[1] = [&d]
+    let sound = views[0].bark()
+    return (i32)sound.length

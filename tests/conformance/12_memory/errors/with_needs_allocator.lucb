@@ -1,0 +1,8 @@
+# error: this is not an allocator
+## §12.3: `with` takes an allocator, a value conforming to `memory.Allocator`.
+pub func main(arguments: str[]) -> i32!:
+    var count: i32 = 3
+    with count:
+        let p = try new i32(1)
+        free(p)
+    return 0

@@ -1,0 +1,7 @@
+# error: `free` takes a pointer or a span
+## §12.2: `free` takes what `new` or `alloc` gave, a pointer or a span; a local array is
+## neither.
+pub func main(arguments: str[]) -> i32:
+    var buffer: u8[16]
+    free(buffer)
+    return 0

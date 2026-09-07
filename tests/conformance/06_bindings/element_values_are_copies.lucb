@@ -1,0 +1,21 @@
+## §6.6: an element read from a local array is a copy, so a `str` or a pointer taken from
+## a local table may be returned; only the address of an element or a slice of the array
+## views the frame.
+var shared: i32 = 5
+
+func pick(index: usize) -> str?:
+    let table: str[3] = ["zero", "one", "two"]
+    if index >= table.length:
+        return none
+    return table[index]
+
+func pointer_at(index: usize) -> i32*:
+    let table: (i32*)[2] = [&shared, &shared]
+    return table[index]
+
+pub func main(arguments: str[]) -> i32:
+    let two = pick(2) else return 1
+    let none_there = pick(9) == none
+    *pointer_at(1) += 1
+    print(f"{two} {none_there} {shared}")
+    return 0

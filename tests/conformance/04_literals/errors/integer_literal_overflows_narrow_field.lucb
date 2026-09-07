@@ -1,0 +1,9 @@
+# error: integer literal does not fit
+## §4.2: an integer literal must fit the type it meets, a struct field's included.
+struct Packet:
+    var kind: u8
+    var length: u16
+
+pub func main(arguments: str[]) -> i32:
+    let p = Packet(kind = 7, length = 70000)
+    return (i32)p.kind

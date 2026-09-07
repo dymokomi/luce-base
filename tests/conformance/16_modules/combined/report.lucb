@@ -1,0 +1,12 @@
+import geometry
+from geometry import Point
+
+pub struct Segment:
+    pub var from_point: Point
+    pub var to_point: Point
+
+pub func describe(s: Segment) -> str:
+    let d = geometry.distance(s.from_point, s.to_point)
+    if d > 4:
+        return "long"
+    return "short"

@@ -1,0 +1,13 @@
+## §8.4: a `match` mixing range patterns with a guarded arm keeps both bounds of every
+## range whichever way the backend tests the arms.
+func grade(n: i32) -> str:
+    match n:
+        0: return "zero"
+        1..<10: return "digit"
+        10..=99: return "two"
+        _ if n < 0: return "negative"
+        _: return "big"
+
+pub func main(arguments: str[]) -> i32:
+    print(f"{grade(0)} {grade(1)} {grade(9)} {grade(10)} {grade(99)} {grade(100)} {grade(-3)} {grade(500)}")
+    return 0

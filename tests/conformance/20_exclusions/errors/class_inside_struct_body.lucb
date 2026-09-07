@@ -1,0 +1,10 @@
+# error: `class` belongs to full Luce; a struct nests no types, declare it beside (§20)
+## §20: a `class` belongs to full Luce wherever it appears, a struct's body included.
+struct Outer:
+    var n: i32
+
+    class Inner:
+        var m: i32
+
+pub func main(arguments: str[]) -> i32:
+    return 0

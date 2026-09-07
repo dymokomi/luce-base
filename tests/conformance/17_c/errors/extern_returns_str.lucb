@@ -1,0 +1,9 @@
+# error: the result is not C-representable in an `extern` signature (§17.6)
+## §17.1: an `extern` signature admits `c.str`, never `str`.
+import c
+
+extern func getenv(name: c.str) -> str?
+
+pub func main(arguments: str[]) -> i32:
+    let v = getenv("HOME") else return 1
+    return (i32)v.length

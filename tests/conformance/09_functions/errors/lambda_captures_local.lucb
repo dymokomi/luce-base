@@ -1,0 +1,8 @@
+# error: a lambda captures nothing; pass the value as a parameter (§9.6)
+## §9.6: a lambda captures nothing; one that names an enclosing local is refused.
+func apply(f: func(i32) -> i32, x: i32) -> i32:
+    return f(x)
+
+pub func main(arguments: str[]) -> i32:
+    let offset: i32 = 5
+    return apply((x: i32) => x + offset, 1)

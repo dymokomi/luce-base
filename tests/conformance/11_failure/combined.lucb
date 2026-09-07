@@ -1,0 +1,52 @@
+## §11: failure in depth: fallible calls nested under `try`, `catch` with recovery of a
+## value, `errdefer` running only on failure, error codes compared, optionals of
+## fallibles unwrapped in one step, and `assert` with a message that holds.
+import memory
+
+pub let bad_input: ErrorCode = ErrorCode.package(1)
+pub let too_big: ErrorCode = ErrorCode.package(2)
+var undone: i32 = 0
+
+func parse(text: str) -> i32!:
+    if text.length == 0:
+        error(bad_input, "empty")
+    var n: i32 = 0
+    for b in text.bytes:
+        if b < '0' or b > '9':
+            error(bad_input, "not a digit")
+        n = n * 10 + (i32)(b - '0')
+        if n > 999:
+            error(too_big, "over 999")
+    return n
+
+func undo():
+    undone += 1
+
+func total(texts: const str[]) -> i32!:
+    errdefer undo()
+    var sum: i32 = 0
+    for t in texts:
+        sum += try parse(t)
+    return sum
+
+func lookup(index: usize) -> str?:
+    let table: str[2] = ["12", "x"]
+    if index >= table.length:
+        return none
+    return table[index]
+
+pub func main(arguments: str[]) -> i32!:
+    let good: str[2] = ["12", "30"]
+    let mixed: str[2] = ["7", "abc"]
+    let huge: str[1] = ["1000"]
+    let a = try total(good)
+    let b = total(mixed) catch failure:
+        recover -(i32)(failure.code == bad_input)
+    let c = total(huge) catch failure:
+        recover -100 if failure.code == too_big else 0
+    let chosen = lookup(0) else return 3
+    let d = try parse(chosen)
+    let missing = lookup(5) == none
+    assert(a == 42, "a is the sum")
+    print(f"{a} {b} {c} {d} {missing} {undone}")
+    return 0

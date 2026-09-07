@@ -1236,7 +1236,7 @@ pub struct Emitter:
             try self.put_type(tt)
             try self.put(" ")
             try self.put_tmp("tu", n)
-            try self.put(" = ")
+            try self.put(" __attribute__((unused)) = ")    # `let (_, _) = pair()` names nothing
             try self.value(init, tt)
             try self.put(";")
             var i: u64 = 0
@@ -3587,6 +3587,15 @@ pub struct Emitter:
                         try self.put(".data, ")
                         try self.put_tmp("m", n)
                         try self.put(".length) == 0); })")
+                    elif let hi = p.right:
+                        # `lo..<hi` and `lo..=hi` in the chain: both bounds (§8.4)
+                        try self.put_tmp("m", n)
+                        try self.put(" >= ")
+                        try self.value(v, st)
+                        try self.put(" && ")
+                        try self.put_tmp("m", n)
+                        try self.put(" < " if p.text == "..<" else " <= ")
+                        try self.value(hi, st)
                     else:
                         try self.put_tmp("m", n)
                         try self.put(" == ")

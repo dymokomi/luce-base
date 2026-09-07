@@ -1,0 +1,5 @@
+# error: expected `u8`, got `char`
+## §4.4: only an ASCII character literal adapts to `u8`; a wider scalar does not.
+pub func main(arguments: str[]) -> i32:
+    let b: u8 = 'é'
+    return (i32)b

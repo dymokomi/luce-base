@@ -1,0 +1,48 @@
+## §9: functions in depth: defaults and named arguments, multiple results consumed
+## partly, recursion through a function value, a mutating method chain, `noalias` and
+## `inline` attributes, a static constructor, and a lambda passed down.
+struct Counter:
+    var value: i64
+    var steps: u32
+
+    pub static func starting(start: i64) -> Counter:
+        return Counter(value = start, steps = 0)
+
+    pub mutating func add(n: i64) -> Counter*:
+        self.value += n
+        self.steps += 1
+        return &self
+
+    pub func report() -> (i64, u32):
+        return (self.value, self.steps)
+
+func apply(values: noalias i64[], f: func(i64) -> i64):
+    var i: usize = 0
+    while i < values.length:
+        values[i] = f(values[i])
+        i += 1
+
+inline func scale(n: i64, by: i64 = 3, offset: i64 = 1) -> i64:
+    return n * by + offset
+
+func fact(n: i64, again: func(i64, func(i64, void*) -> i64) -> i64) -> i64:
+    return n
+
+func rec(n: i64) -> i64:
+    if n <= 1:
+        return 1
+    return n * rec(n - 1)
+
+pub func main(arguments: str[]) -> i32:
+    var c = Counter.starting(5)
+    c.add(2).add(3)
+    let (value, _) = c.report()
+    let (_, steps) = c.report()
+    var items: i64[4] = [1, 2, 3, 4]
+    apply(items[0..<4], (x: i64) => x * x)
+    let a = scale(2)
+    let b = scale(2, offset = 10)
+    let d = scale(2, 5, 0)
+    let r: func(i64) -> i64 = rec
+    print(f"{value} {steps} {items[3]} {items[0] + items[1]} {a} {b} {d} {r(5)}")
+    return 0

@@ -1,0 +1,14 @@
+# error: expected `usize`, got `u64`
+## §5.1: the strict integer rule holds inside a generic method as well as at top level.
+struct Box[T]:
+    var items: T[4]
+    var count: u64
+
+    pub func at(index: usize) -> T:
+        let last: usize = self.count
+        return self.items[last - index]
+
+pub func main(arguments: str[]) -> i32:
+    var b: Box[i32] = ---
+    b.count = 0
+    return b.at(0)

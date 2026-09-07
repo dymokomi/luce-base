@@ -1,0 +1,30 @@
+## §6: bindings in depth: shadow-free nesting, `var` reassignment through loops, tuple
+## destructuring from a call, `let` aliases of places, globals mutated from functions,
+## and a constant table built from other constants.
+let base: i32 = 10
+let doubled: i32 = base * 2
+let table: i32[3] = [base, doubled, doubled + base]
+var counter: i64 = 0
+
+func bump(by: i64) -> (i64, bool):
+    counter += by
+    return (counter, counter > 5)
+
+pub func main(arguments: str[]) -> i32:
+    var acc: i32 = 0
+    var i: usize = 0
+    while i < table.length:
+        let entry = table[i]
+        var inner = entry
+        if inner > 15:
+            inner -= 15
+        acc += inner
+        i += 1
+    let (first, over) = bump(3)
+    let (second, over2) = bump(4)
+    var slot = table[1]
+    slot += 1
+    let alias = &counter
+    *alias += 10
+    print(f"{acc} {first} {over} {second} {over2} {slot} {table[1]} {counter}")
+    return 0

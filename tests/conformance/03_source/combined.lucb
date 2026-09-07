@@ -1,0 +1,38 @@
+## §3: source in depth: layout with nested suites and blank lines, comments between
+## arms, a long call broken inside parentheses and brackets, a doc comment before a
+## declaration, names with digits and underscores, and every kind of literal in one
+## statement.
+## A record whose name and fields use digits and underscores.
+struct Vec3_f64:
+    var x_0: f64
+    var y_1: f64
+    var z_2: f64
+
+func dot_3(a: Vec3_f64,
+           b: Vec3_f64) -> f64:
+    # a comment inside a function
+    return (a.x_0 * b.x_0 +
+            a.y_1 * b.y_1 +      # a continuation inside parentheses
+            a.z_2 * b.z_2)
+
+pub func main(arguments: str[]) -> i32:
+    let v = Vec3_f64(x_0 = 1.0,
+                     y_1 = 2.0,
+                     z_2 = 3.0)
+
+    let table: i32[6] = [
+        1, 2,
+        3, 4,   # two per row
+        5, 6,
+    ]
+
+    var total: i32 = 0
+    for n in table:
+
+        if n % 2 == 0:
+            total += n
+
+        else:
+            total -= n
+    print(f"{dot_3(v, v)} {total} {table.length}")
+    return 0

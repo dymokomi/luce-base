@@ -1,0 +1,8 @@
+# error: a block indents by exactly four spaces
+## §3.3: a suite indents by exactly four spaces even after a parenthesised continuation.
+func add(a: i32,
+         b: i32) -> i32:
+      return a + b
+
+pub func main(arguments: str[]) -> i32:
+    return add(1, 2)

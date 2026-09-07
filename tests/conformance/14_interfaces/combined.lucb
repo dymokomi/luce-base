@@ -1,0 +1,59 @@
+## §14: interfaces in depth: two types conforming to one interface, views stored in an
+## array and called through it, a view passed down and returned, a static use through a
+## generic constraint, an optional view, and `Display` through a formatted string.
+from io import Writer
+from luce import Display
+
+interface Shape:
+    func area() -> i64
+    func name() -> str
+
+struct Square: Shape:
+    var side: i64
+
+    pub func area() -> i64:
+        return self.side * self.side
+    pub func name() -> str:
+        return "square"
+
+struct Rect: Shape:
+    var w: i64
+    var h: i64
+
+    pub func area() -> i64:
+        return self.w * self.h
+    pub func name() -> str:
+        return "rect"
+
+struct Money: Display:
+    var cents: i64
+
+    pub func display(sink: Writer) -> !:
+        try sink.write(f"${self.cents // 100}.{self.cents % 100}")
+
+func biggest(shapes: const Shape[]) -> Shape?:
+    var best: Shape? = none
+    var best_area: i64 = -1
+    for s in shapes:
+        if s.area() > best_area:
+            best_area = s.area()
+            best = s
+    return best
+
+func total[T: Shape](items: const T[]) -> i64:
+    var sum: i64 = 0
+    for it in items:
+        sum += it.area()
+    return sum
+
+pub func main(arguments: str[]) -> i32:
+    var sq = Square(side = 3)
+    var r1 = Rect(w = 2, h = 5)
+    var r2 = Rect(w = 4, h = 4)
+    let shapes: Shape[3] = [&sq, &r1, &r2]
+    let top = biggest(shapes[0..<3]) else return 1
+    let rects: Rect[2] = [r1, r2]
+    let nothing = biggest(shapes[0..<0]) == none
+    let price = Money(cents = 1234)
+    print(f"{top.name()} {top.area()} {total(rects)} {nothing} {price}")
+    return 0

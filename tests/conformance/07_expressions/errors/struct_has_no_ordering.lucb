@@ -1,0 +1,10 @@
+# error: ordering needs numbers or text
+## §7.4: `<` between two structs does not exist, even when every field is ordered.
+struct Version:
+    var major: i32
+    var minor: i32
+
+pub func main(arguments: str[]) -> i32:
+    let a = Version(major = 1, minor = 2)
+    let b = Version(major = 1, minor = 3)
+    return 1 if a < b else 0

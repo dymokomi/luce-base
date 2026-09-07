@@ -1,0 +1,16 @@
+# error: expected `c.str`, got `str`
+## §5.2: a `str` never reaches a `c.str` field through a nested construction.
+import c
+
+struct Inner:
+    var label: c.str
+
+struct Outer:
+    var inner: Inner
+
+func name() -> str:
+    return "n"
+
+pub func main(arguments: str[]) -> i32:
+    let o = Outer(inner = Inner(label = name()))
+    return 0

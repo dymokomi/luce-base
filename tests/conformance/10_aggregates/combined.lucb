@@ -1,0 +1,45 @@
+## §10: aggregates in depth: a struct holding an enum with payloads inside a union-free
+## tagged tree, methods on the enum, equality of nested structs, an array of structs
+## sorted in place, a packed struct's size, and construction with defaults.
+enum Shape:
+    dot
+    line(length: i32)
+    box(width: i32, height: i32)
+
+    pub func area() -> i32:
+        match self:
+            .dot: return 0
+            .line(n): return n
+            .box(w, h): return w * h
+
+struct Named:
+    var name: str
+    var shape: Shape
+    var weight: i32 = 1
+
+packed struct Header:
+    var tag: u8
+    var length: u32
+    var flags: u16
+
+func by_area(items: Named[]):
+    var i: usize = 1
+    while i < items.length:
+        var j = i
+        while j > 0 and items[j - 1].shape.area() > items[j].shape.area():
+            let t = items[j - 1]
+            items[j - 1] = items[j]
+            items[j] = t
+            j -= 1
+        i += 1
+
+pub func main(arguments: str[]) -> i32:
+    var items: Named[3] = [Named(name = "b", shape = .box(width = 3, height = 4)), Named(name = "d", shape = .dot), Named(name = "l", shape = .line(length = 5), weight = 2)]
+    by_area(items[0..<3])
+    let same = items[0] == Named(name = "d", shape = .dot)
+    let differ = items[1] == items[2]
+    var total: i32 = 0
+    for it in items:
+        total += it.shape.area() * it.weight
+    print(f"{items[0].name}{items[1].name}{items[2].name} {same} {differ} {total} {sizeof(Header)} {alignof(Header)}")
+    return 0

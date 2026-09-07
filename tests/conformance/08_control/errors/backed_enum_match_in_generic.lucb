@@ -1,0 +1,13 @@
+# error: `match` on an integer-backed enum needs a `_` arm: a combination need not be a declared case
+## §8.4: a `match` on an integer-backed enum needs `_`, even reached through a generic.
+enum Flag as u8:
+    a = 1
+    b = 2
+
+func name[T](x: T, f: Flag) -> i32:
+    match f:
+        .a: return 1
+        .b: return 2
+
+pub func main(arguments: str[]) -> i32:
+    return name(0, Flag.a)

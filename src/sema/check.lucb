@@ -363,6 +363,16 @@ pub struct Checker:
         let d = e.resolved else return false
         return d.kind == ast.Kind.global or d.kind == ast.Kind.constant or d.kind == ast.Kind.func_
 
+    ## A tuple or array literal holding a local's address is as local as that address:
+    ## `return (1, &n)` leaves the frame through the tuple (§6.6).
+    mutating func mark_if_member_local(e: ast.Node*):
+        var cursor = e.body
+        while let m = cursor:
+            if self.is_local_value(m):
+                self.mark_local(e)
+                return
+            cursor = m.next
+
     ## §6.6: whether an expression's value is the address of a local, or aliases one.
     func is_local_value(e: ast.Node*) -> bool:
         return e.has(ast.flag_local)
@@ -418,12 +428,30 @@ pub struct Checker:
                 self.scope.set(i, b)
                 return
 
-    ## The escape rule (§6.6): a pointer, span, or `str` that names a local must not leave.
+    ## The escape rule (§6.6): a pointer, span, or `str` that names a local must not leave,
+    ## alone or as a component of a tuple, an array, a struct, or an optional.
     func escapes(id: u32) -> bool:
-        let k = self.table.kind(id)
-        if k == types.Kind.optional:
-            return self.escapes(self.table.get(id).elem)
-        return k == types.Kind.pointer or k == types.Kind.span or id == types.str_id
+        let t = self.table.get(id)
+        match t.kind:
+            .pointer, .span:
+                return true
+            .optional, .array:
+                return self.escapes(t.elem)
+            .tuple:
+                for m in t.args:
+                    if self.escapes(m):
+                        return true
+                return false
+            .struct_:
+                let d = t.decl else return false
+                var cursor = d.body
+                while let f = cursor:
+                    if f.kind == ast.Kind.field and self.escapes(f.type_id):
+                        return true
+                    cursor = f.next
+                return false
+            _:
+                return id == types.str_id
 
     ## The innermost binding of `name` was read or assigned (§19.6).
     mutating func mark_used(name: str):
@@ -1770,9 +1798,13 @@ pub struct Checker:
             .slice:
                 return try self.slice_type(e)
             .tuple:
-                return try self.tuple_type(e, hint)
+                let t = try self.tuple_type(e, hint)
+                self.mark_if_member_local(e)
+                return t
             .array_lit:
-                return try self.array_type(e, hint)
+                let t = try self.array_type(e, hint)
+                self.mark_if_member_local(e)
+                return t
             .lambda:
                 return try self.lambda_type(e, hint)
             .else_:
@@ -2364,8 +2396,8 @@ pub struct Checker:
         if not (it == types.untyped_int_id or self.table.is_integer(it)):
             return try self.fail(index, "an index is an integer")
         discard(try self.coerce(index, it, types.usize_id if it == types.untyped_int_id else it))
-        if self.is_local_value(owner) or (t.kind == types.Kind.array and self.place_is_local(owner)):
-            self.mark_local(e)
+        # the element is a copy: a `str` read from a local table views its own text, not
+        # the frame; only `&a[i]` and a slice view the array (§6.6)
         return t.elem
 
     mutating func slice_type(e: ast.Node*) -> u32!:
@@ -2702,6 +2734,9 @@ pub struct Checker:
         if s.kind == types.Kind.pointer and want == types.cstr_id:
             return want
         if (s.kind == types.Kind.span or s.kind == types.Kind.array) and d.kind == types.Kind.span:
+            # a span keeps its element type: `(u8[])ints` would lie about the length (§7.5)
+            if s.elem != d.elem:
+                return try self.fail(e, "a cast cannot change a span's element type; slice the bytes through a pointer")
             return want
         if s.kind == types.Kind.func_ and d.kind == types.Kind.pointer and d.elem == types.void_id:
             return want
@@ -3393,7 +3428,15 @@ pub struct Checker:
                 extra += 1
                 let v = a.left else return try self.fail(a, "empty argument")
                 let vt = try self.check_expr(v, types.none_id)
-                discard(try self.coerce(v, vt, types.i32_id if vt == types.untyped_int_id else self.concrete(vt)))
+                let ck = self.table.kind(vt)
+                if vt == types.str_id and v.kind == ast.Kind.literal and v.text.bytes[0] == '"':
+                    # a text literal passes as `c.str`, the way C's own literals do (§17.2)
+                    discard(try self.coerce(v, vt, types.cstr_id))
+                elif ck == types.Kind.span or ck == types.Kind.interface_ or ck == types.Kind.tuple or ck == types.Kind.array or vt == types.str_id or vt == types.fmt_id or (ck == types.Kind.optional and not self.table.is_nullable_pointer(vt)):
+                    # C's `...` carries scalars, pointers, and records only (§17.2)
+                    return try self.fail(v, "this type cannot be a variadic argument; C has no shape for it; text goes as `c.str`")
+                else:
+                    discard(try self.coerce(v, vt, types.i32_id if vt == types.untyped_int_id else self.concrete(vt)))
             else:
                 return try self.fail(a, "too many arguments")
             cursor = a.next

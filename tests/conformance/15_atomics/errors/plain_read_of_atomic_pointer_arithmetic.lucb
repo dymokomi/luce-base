@@ -1,0 +1,7 @@
+# error: checked arithmetic does not apply to an atomic; write a `cas` loop (§15.1)
+## §15.1: checked arithmetic does not apply to an atomic; a `cas` loop does.
+var counter: @i64 = 0
+
+pub func main(arguments: str[]) -> i32:
+    let next = counter +? 1 else return 1
+    return (i32)next

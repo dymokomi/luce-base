@@ -1,0 +1,10 @@
+# error: `goto` is reserved and unused (§8.6); label a loop and `break` to it
+## §20: `goto` is reserved and unused; a loop offers labelled `break` instead.
+pub func main(arguments: str[]) -> i32:
+    var i: i32 = 0
+    while i < 10:
+        if i == 3:
+            goto done
+        i += 1
+    done:
+    return i

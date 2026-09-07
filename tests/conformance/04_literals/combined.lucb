@@ -1,0 +1,29 @@
+## §4: literals of every kind meeting each other: integer forms with suffixes and
+## separators, floats adapting to `f32`, character literals as bytes and as indexes,
+## raw, byte, and triple-quoted text, and `none` under every optional type.
+struct Sample:
+    var mask: u32
+    var ratio: f32
+    var tag: u8
+    var note: str?
+
+pub func main(arguments: str[]) -> i32:
+    let hexed: u32 = 0xFF_00
+    let binary: u8 = 0b1010_0101
+    let octal: i64 = 0o777
+    let wide = 1_000_000u64 * 3
+    let tiny: i8 = -128
+    var table: u8[128]
+    table['a'] = 'z'
+    table['b'] = table['a'] - 1
+    let raw = r"a\nb"
+    let bytes = b"\x01\x02\x03"
+    let block = """
+        first
+        second"""
+    let s = Sample(mask = hexed | (u32)binary, ratio = 1.5, tag = 'q', note = none)
+    let t = Sample(mask = 0, ratio = -2.5e-1, tag = table['a'], note = "set")
+    let named = t.note else return 1
+    print(f"{hexed} {binary} {octal} {wide} {tiny} {table['a']} {table['b']} {raw.length} {bytes[2]} {block.length}")
+    print(f"{s.mask} {s.ratio} {s.tag == 'q'} {s.note == none} {t.ratio * 4.0} {t.tag} {named}")
+    return 0

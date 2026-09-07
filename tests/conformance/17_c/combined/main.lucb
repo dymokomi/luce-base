@@ -1,0 +1,38 @@
+## §17: C in depth: a package's own C source defining a struct passed by value and by
+## pointer, a callback into an exported Base function, a variadic call with promoted
+## arguments, an `out` parameter, and an opaque handle created and destroyed by C.
+# oracle: none
+import c
+
+extern struct Span2:
+    lo: i32
+    hi: i32
+
+extern type Registry
+extern func registry_new() -> Registry
+extern func registry_add(r: Registry, value: i32)
+extern func registry_sum(r: Registry) -> i32
+extern func registry_free(r: Registry)
+extern func span_width(s: Span2) -> i32
+extern func span_grow(s: Span2*, by: i32)
+extern func apply_twice(f: func(i32) -> i32, x: i32) -> i32
+extern func split_value(value: i32, out low: i32) -> i32
+extern func snprintf(buffer: u8*, size: usize, spec: c.str, ...) -> i32
+
+export func triple(x: i32) -> i32:
+    return x * 3
+
+pub func main(arguments: str[]) -> i32:
+    var s = Span2(lo = 2, hi = 9)
+    span_grow(&s, 4)
+    let r = registry_new()
+    registry_add(r, 5)
+    registry_add(r, 7)
+    let sum = registry_sum(r)
+    registry_free(r)
+    let (high, low) = split_value(258)
+    var text: u8[32]
+    let n = snprintf(&text[0], 32, "%d-%s-%.1f", 42, "x", 0.5f32)
+    let written = (str)text[0..<(usize)n]
+    print(f"{span_width(s)} {sum} {apply_twice(triple, 2)} {high} {low} {written}")
+    return 0
