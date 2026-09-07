@@ -1,0 +1,12 @@
+# error: `match` on an integer-backed enum needs a `_` arm: a combination need not be a declared case
+enum Access as u32:
+    read = 1
+    write = 2
+func name(a: Access) -> str:
+    match a:
+        .read:
+            return "r"
+        .write:
+            return "w"
+pub func main(arguments: str[]) -> i32:
+    return 0

@@ -1,0 +1,6 @@
+# error: this label is already open
+pub func main(arguments: str[]) -> i32:
+    outer: for i in 0..<2:
+        outer: for j in 0..<2:
+            break outer
+    return 0

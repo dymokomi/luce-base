@@ -1,0 +1,84 @@
+## §8.1 to §8.3, §8.5, §8.7: `if`/`elif`/`else`, `if let` with `else`, `while`, `while let`
+## driving an optional-returning method, every `for` form, labels, and `return` from a loop.
+struct Cursor:
+    var at: usize
+    var limit: usize
+
+    mutating func next() -> usize?:
+        if self.at >= self.limit:
+            return none
+        self.at += 1
+        return self.at
+
+struct Entity:
+    var position: i64
+    var velocity: i64
+
+func find(items: const i64[], wanted: i64) -> usize?:
+    for (index, value) in items.indexed():
+        if value == wanted:
+            return index
+    return none
+
+func classify(t: f64) -> str:
+    if t > 30.0:
+        return "hot"
+    elif t < 10.0:
+        return "cold"
+    else:
+        return "mild"
+
+pub func main(arguments: str[]) -> i32:
+    let numbers: i64[5] = [3, 1, 4, 1, 5]
+    var found = "none"
+    if let index = find(numbers, 4):
+        found = "some"
+    else:
+        found = "missing"
+    var missing = 0
+    if let index = find(numbers, 9):
+        missing = 1
+    var cursor = Cursor(at = 0, limit = 3)
+    var seen: usize = 0
+    while let n = cursor.next():
+        seen += n
+    var countdown = 3
+    var ticks = 0
+    while countdown > 0:
+        countdown -= 1
+        ticks += 1
+    var total: i64 = 0
+    for n in numbers:
+        total += n
+    var span_total: u32 = 0
+    for value: u32 in 1..=4:
+        span_total += value
+    var half_open = 0
+    for i in 0..<3:
+        half_open += 1
+    var entities: Entity[2] = [Entity(position = 0, velocity = 2), Entity(position = 10, velocity = -1)]
+    for e in &entities:
+        e.position += e.velocity
+    var scalars = 0
+    for ch in "añb":
+        scalars += 1
+    var pairs = 0
+    rows: for y in 0..<4:
+        for x in 0..<4:
+            if x == 2:
+                continue
+            if y == 2:
+                break rows
+            pairs += 1
+    var evens = 0
+    for i in 0..<10:
+        if i % 2 == 1:
+            continue
+        evens += 1
+    let bounds: usize = 3
+    var stepped: usize = 0
+    for i in 0..<bounds:
+        stepped += i
+    print(f"{classify(35.0)} {classify(5.0)} {classify(20.0)} {found} {missing} {seen} {ticks} {total} {span_total} {half_open}")
+    print(f"{entities[0].position} {entities[1].position} {scalars} {pairs} {evens} {stepped}")
+    return 0

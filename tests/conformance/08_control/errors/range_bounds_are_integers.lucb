@@ -1,0 +1,5 @@
+# error: a range needs integer bounds
+pub func main(arguments: str[]) -> i32:
+    for x in 0.0..<3.0:
+        return 1
+    return 0

@@ -1,0 +1,7 @@
+# error: `try` is only valid in a fallible function
+pub let broken: ErrorCode = ErrorCode.package(1)
+func might() -> i64!:
+    return 1
+pub func main(arguments: str[]) -> i32:
+    let v = try might()
+    return 0

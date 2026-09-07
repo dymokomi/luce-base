@@ -1,0 +1,6 @@
+# error: this function may reach its end without returning
+func pick(flag: bool) -> i64:
+    if flag:
+        return 1
+pub func main(arguments: str[]) -> i32:
+    return i32(pick(true))

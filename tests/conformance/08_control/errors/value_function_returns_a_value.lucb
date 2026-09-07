@@ -1,0 +1,5 @@
+# error: this function returns a value
+func number() -> i64:
+    return
+pub func main(arguments: str[]) -> i32:
+    return i32(number())

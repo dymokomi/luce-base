@@ -1,0 +1,7 @@
+# error: a default argument is a constant expression (§9.1)
+func now() -> i64:
+    return 1
+func f(n: i64 = now()) -> i64:
+    return n
+pub func main(arguments: str[]) -> i32:
+    return 0

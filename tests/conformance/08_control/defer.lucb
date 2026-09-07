@@ -1,0 +1,53 @@
+## §8.8: `defer` runs last-in-first-out on every exit of its scope; `errdefer` runs only
+## when an error leaves the scope; a `catch` that recovers triggers neither.
+pub let broken: ErrorCode = ErrorCode.package(1)
+
+var trail: u8[16]
+var length: usize = 0
+
+func note(byte: u8):
+    trail[length] = byte
+    length += 1
+
+func ordered() -> i64:
+    defer note('1')
+    defer note('2')
+    note('a')
+    return 7
+
+func loops():
+    for i in 0..<3:
+        defer note('d')
+        if i == 1:
+            continue
+        note(u8(i) + '0')
+
+func might(fail: bool) -> i64!:
+    errdefer note('E')
+    defer note('D')
+    if fail:
+        error(broken, "asked")
+    return 3
+
+func recovers() -> i64:
+    let v = might(true) catch failure:
+        recover 9
+    note('R')
+    return v
+
+func deferred_catch() -> !:
+    defer discard(might(true) catch failure:
+        note('c')
+        recover 0)
+    note('b')
+
+pub func main(arguments: str[]) -> i32:
+    let a = ordered()
+    loops()
+    let b = might(false) catch failure:
+        recover -1
+    let c = recovers()
+    deferred_catch() catch failure:
+        note('X')
+    print(f"{a} {b} {c} {(str)trail[..<length]}")
+    return 0

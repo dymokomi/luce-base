@@ -1,0 +1,10 @@
+# error: every pattern of an arm binds the same names
+enum Cmd:
+    open(path: str)
+    save(target: str)
+func name(c: Cmd) -> str:
+    match c:
+        .open(path), .save(target):
+            return path
+pub func main(arguments: str[]) -> i32:
+    return 0

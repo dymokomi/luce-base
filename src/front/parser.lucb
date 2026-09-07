@@ -229,6 +229,8 @@ pub struct Parser:
                 return try self.fail("`thread_local` declares a `var` (§6.3)")
         let attributes = try self.parse_attributes()
         if self.at_kw("let"):
+            if attributes != none or flags != visibility:
+                return try self.fail("an attribute goes before `func` or a top-level `var` (§9.8)")
             let n = try self.node(ast.Kind.constant, "")
             discard(self.take())
             n.text = try self.expect_name()

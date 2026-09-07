@@ -1,0 +1,5 @@
+# error: not inside a loop
+pub func main(arguments: str[]) -> i32:
+    if true:
+        continue
+    return 0

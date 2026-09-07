@@ -1,0 +1,7 @@
+# error: expected a name
+struct C:
+    var n: i64
+    func with(self: C) -> i64:
+        return 1
+pub func main(arguments: str[]) -> i32:
+    return 0

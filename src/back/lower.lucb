@@ -2502,6 +2502,18 @@ pub struct Lowerer:
             return
         let v = p.left else return
         let a = try self.slot_address(scrutinee_slot)
+        if v.kind == ast.Kind.case_value and v.resolved == none and self.kind(st) == types.Kind.optional:
+            # `.some` and `.none` test the optional's presence (§8.4)
+            let payload = self.elem(st)
+            let hit = take if v.text == "some" else miss
+            let other = miss if v.text == "some" else take
+            if self.is_tagged_opt(st):
+                let present = try self.f.load(ir.Op.loadub, ir.Class.w, try self.offset_address(a, self.c.table.size_of(payload)))
+                try self.f.branch(present, hit, other)
+            else:
+                let word = try self.f.load(ir.Op.loadl, ir.Class.l, a)
+                try self.f.branch(word, hit, other)
+            return
         if v.kind == ast.Kind.case_value:
             let c = v.resolved else return
             let d = self.decl_of(st) else return
@@ -2538,6 +2550,17 @@ pub struct Lowerer:
         try self.f.branch(hit, take, miss)
 
     mutating func bind_payload(v: ast.Node*, st: u32, scrutinee_slot: u32) -> !:
+        if v.resolved == none and self.kind(st) == types.Kind.optional:
+            # `.some(name)`: the value sits first in a tagged optional, and is the word itself
+            # of a nullable pointer
+            let payload = self.elem(st)
+            let at = try self.slot_address(scrutinee_slot)
+            if let nm = v.body:
+                if nm.text != "_":
+                    let slot = try self.bind_local(nm, payload)
+                    let value = try self.load_from(at, payload)
+                    try self.store_to(try self.slot_address(slot), value)
+            return
         let c = v.resolved else return
         let d = self.decl_of(st) else return
         let instance = self.c.table.get(st)

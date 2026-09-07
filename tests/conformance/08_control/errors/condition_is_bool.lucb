@@ -1,0 +1,6 @@
+# error: expected `bool`, got `i64`
+pub func main(arguments: str[]) -> i32:
+    let n = 1
+    if n:
+        return 1
+    return 0

@@ -1,0 +1,12 @@
+# error: this case carries more values
+enum Cmd:
+    resize(width: u32, height: u32)
+    quit
+func name(c: Cmd) -> str:
+    match c:
+        .resize(w):
+            return "r"
+        .quit:
+            return "q"
+pub func main(arguments: str[]) -> i32:
+    return 0

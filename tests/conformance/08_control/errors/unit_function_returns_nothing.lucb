@@ -1,0 +1,6 @@
+# error: this function returns nothing
+func nothing():
+    return 1
+pub func main(arguments: str[]) -> i32:
+    nothing()
+    return 0

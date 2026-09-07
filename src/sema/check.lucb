@@ -100,6 +100,8 @@ pub struct Checker:
     var labels: str[16]
     var label_count: usize
     var in_catch: bool
+    ## The member expression being checked is a call's callee: a method may stand there.
+    var calling: bool
     var catch_result: u32
     ## Inside a generic declaration, where parameter types stand for themselves.
     var checking_template: bool
@@ -204,6 +206,21 @@ pub struct Checker:
     ## A default argument that is `luce.line`, `luce.file`, or `luce.function` expands at
     ## the call site (§6.4): the call gains a named argument holding the fact as a literal.
     mutating func expand_fact_argument(call: ast.Node*, p: ast.Node*, fact: ast.Node*) -> !:
+        if fact.text == "location":
+            # `luce.location` itself, re-spelled at the call so the backends read its line there
+            let owner = fact.left else return
+            let module = try ast.Node.make(ast.Kind.name, owner.text, call.start, call.line)
+            module.type_id = owner.type_id
+            module.resolved = owner.resolved
+            let here = try ast.Node.make(ast.Kind.member, fact.text, call.start, call.line)
+            here.left = module
+            here.type_id = p.type_id
+            here.resolved = fact.resolved
+            let argument = try ast.Node.make(ast.Kind.argument, p.text, call.start, call.line)
+            argument.left = here
+            argument.type_id = p.type_id
+            self.append_argument(call, argument)
+            return
         var text = ""
         var id = types.str_id
         if fact.text == "line":
@@ -225,6 +242,9 @@ pub struct Checker:
         let argument = try ast.Node.make(ast.Kind.argument, p.text, call.start, call.line)
         argument.left = literal
         argument.type_id = id
+        self.append_argument(call, argument)
+
+    func append_argument(call: ast.Node*, argument: ast.Node*):
         var tail: ast.Node*? = none
         var cursor = call.body
         while let a = cursor:
@@ -2258,6 +2278,8 @@ pub struct Checker:
     mutating func member_type(e: ast.Node*) -> u32!:
         let owner = e.left else return try self.fail(e, "missing operand")
         let name = e.text
+        let as_callee = self.calling
+        self.calling = false
         # `luce.location` and its pieces are compile-time facts, not members
         if owner.kind == ast.Kind.name and owner.text == "luce":
             if let b = self.lookup("luce"):
@@ -2337,6 +2359,9 @@ pub struct Checker:
             if let m = find_member(d, name, ast.Kind.func_):
                 if m.has(ast.flag_static):
                     return try self.fail(e, "a static method is called through the type")
+                if not as_callee:
+                    # `value.member` without `()` is always a field (§9.5)
+                    return try self.fail(e, "a method is called; write `name()`")
                 e.resolved = m
                 if not m.has(ast.flag_pub) and not self.same_module(d) and not self.inside(d):
                     return try self.fail(e, "that method is not public")
@@ -2606,7 +2631,9 @@ pub struct Checker:
                     let rt = try self.check_expr(receiver, types.none_id)
                     if self.table.kind(self.deref(rt)) == types.Kind.atomic:
                         return try self.atomic_call(e, callee, self.deref(rt))
+        self.calling = callee.kind == ast.Kind.member
         let ct = try self.check_expr(callee, types.none_id)
+        self.calling = false
         if callee.kind == ast.Kind.member and callee.has(ast.flag_static) and callee.text == "package" and is_error_code_type(callee.left):
             let answered = try self.check_call(e, ct, none, none, none, try types.no_args(), hint)
             try self.fold_package_code(e)
@@ -3273,6 +3300,8 @@ pub struct Checker:
             s.type_id = got
             return
         var id = declared
+        if declared == types.fmt_id:
+            return try self.fail(s, "a formatted string is not stored; `fmt` is a parameter type only (§9.1)")
         if let init = s.left:
             let got = try self.check_expr(init, declared)
             if declared != types.none_id:
@@ -3483,6 +3512,7 @@ pub struct Checker:
         if st == types.untyped_int_id or st == types.untyped_float_id:
             st = try self.coerce(scrutinee, st, self.concrete(st))
         var result = hint
+        var coverage = Coverage(wildcard = false, some = false, none_ = false, truth = false, falsity = false, cases = 0, seen = 0)
         var arm = m.body
         while let a = arm:
             self.push_scope()
@@ -3490,6 +3520,7 @@ pub struct Checker:
             var first = true
             while let p = pattern:
                 try self.check_pattern(p, st, first)
+                try self.note_pattern(p, st, a.right == none, &coverage)
                 first = false
                 pattern = p.next
             if let guard = a.right:
@@ -3507,7 +3538,87 @@ pub struct Checker:
             arm = a.next
         if is_expr and result == types.none_id:
             return try self.fail(m, "the arms yield no value")
+        try self.check_exhaustive(m, st, coverage)
         return result if is_expr else types.unit_id
+
+    ## What the unguarded arms of a `match` cover so far (§8.4): a guarded arm counts for
+    ## nothing, since its guard may fail.
+    mutating func note_pattern(p: ast.Node*, st: u32, unguarded: bool, coverage: Coverage*) -> !:
+        if coverage.wildcard:
+            return try self.fail(p, "this pattern is unreachable: an earlier `_` arm takes everything")
+        if p.has(ast.flag_wildcard):
+            if unguarded:
+                coverage.wildcard = true
+            return
+        let v = p.left else return
+        let t = self.table.get(st)
+        if v.kind == ast.Kind.case_value and t.kind == types.Kind.optional and v.resolved == none:
+            let already = coverage.some if v.text == "some" else coverage.none_
+            if already:
+                return try self.fail(p, "duplicate pattern")
+            if unguarded:
+                if v.text == "some":
+                    coverage.some = true
+                else:
+                    coverage.none_ = true
+            return
+        if v.kind == ast.Kind.case_value:
+            let case_decl = v.resolved else return
+            let d = self.table.get(v.type_id).decl else return
+            let index = case_index(d, case_decl)
+            let bit: u64 = (u64(1) << index) if index < 64 else 0
+            if (coverage.cases & bit) != 0 and bit != 0:
+                return try self.fail(p, "duplicate pattern")
+            if unguarded:
+                coverage.cases |= bit
+            return
+        if v.kind == ast.Kind.literal and p.right == none:
+            if v.text == "true" or v.text == "false":
+                let already = coverage.truth if v.text == "true" else coverage.falsity
+                if already:
+                    return try self.fail(p, "duplicate pattern")
+                if unguarded:
+                    if v.text == "true":
+                        coverage.truth = true
+                    else:
+                        coverage.falsity = true
+                return
+            var i: usize = 0
+            while i < coverage.seen and i < coverage.texts.length:
+                if coverage.texts[i] == v.text:
+                    return try self.fail(p, "duplicate pattern")
+                i += 1
+            if coverage.seen < coverage.texts.length:
+                coverage.texts[coverage.seen] = v.text
+            coverage.seen += 1
+
+    ## Every `match` is exhaustive (§8.4): the compiler names what is missing.
+    mutating func check_exhaustive(m: ast.Node*, st: u32, coverage: Coverage) -> !:
+        if coverage.wildcard:
+            return
+        let t = self.table.get(st)
+        if t.kind == types.Kind.optional:
+            if not (coverage.some and coverage.none_):
+                discard(try self.fail(m, "`match` on an optional needs `.some` and `.none`, or a `_` arm"))
+            return
+        if t.kind == types.Kind.enum_ and not self.is_backed_enum(st):
+            let d = t.decl else return
+            let count = case_count(d)
+            var index: usize = 0
+            while index < count and index < 64:
+                if (coverage.cases & (1 << index)) == 0:
+                    return try self.fail(m, "`match` is missing a case; name it or add a `_` arm")
+                index += 1
+            if count > 64:
+                discard(try self.fail(m, "`match` on an enum with more than 64 cases needs a `_` arm"))
+            return
+        if st == types.bool_id:
+            if not (coverage.truth and coverage.falsity):
+                discard(try self.fail(m, "`match` on a `bool` needs `true` and `false`, or a `_` arm"))
+            return
+        if self.is_backed_enum(st):
+            return try self.fail(m, "`match` on an integer-backed enum needs a `_` arm: a combination need not be a declared case")
+        discard(try self.fail(m, "`match` on this type needs a `_` arm"))
 
     ## A pattern against the scrutinee type: `_`, `.case(names)`, a literal, a
     ## constant, or a range of literals.
@@ -3519,6 +3630,27 @@ pub struct Checker:
             return
         let t = self.table.get(st)
         let v = p.left else return try self.fail(p, "empty pattern")
+        if v.kind == ast.Kind.case_value and t.kind == types.Kind.optional and (v.text == "some" or v.text == "none"):
+            # `.some(name)` and `.none` take an optional apart (§8.4)
+            v.type_id = st
+            p.type_id = st
+            if v.text == "none":
+                if v.body != none:
+                    return try self.fail(v, "`.none` carries no value")
+                return
+            let name = v.body else return try self.fail(v, "`.some` binds its value: write `.some(name)`")
+            if name.next != none:
+                return try self.fail(name, "`.some` carries one value")
+            name.type_id = t.elem
+            if name.text != "_":
+                if first:
+                    try self.bind(name, name.text, t.elem, name, false)
+                else:
+                    let b = self.lookup(name.text) else return try self.fail(name, "every pattern of an arm binds the same names")
+                    if b.type_id != t.elem:
+                        return try self.fail(name, "a name bound by every pattern of an arm has one type")
+                    name.resolved = b.decl
+            return
         if v.kind == ast.Kind.case_value:
             var enum_id = st
             if t.kind == types.Kind.optional:
@@ -3599,6 +3731,8 @@ pub struct Checker:
 
     ## A function or method body, with its parameters and result in place.
     mutating func check_function(f: ast.Node*, owner: ast.Node*?) -> !:
+        if f.has(ast.flag_mutating) and f.has(ast.flag_static):
+            discard(try self.fail(f, "a static method has no receiver to mutate"))
         self.push_scope()
         try self.bind_generics(f)
         let saved_template = self.checking_template
@@ -3618,6 +3752,8 @@ pub struct Checker:
         let ft = self.table.get(f.type_id)
         self.fallible = f.has(ast.flag_fallible)
         self.result_type = self.table.get(ft.elem).elem if self.fallible else ft.elem
+        if self.result_type == types.fmt_id:
+            discard(try self.fail(f, "a function does not return `fmt`; it is a parameter type only (§9.1)"))
         if let o = owner:
             if f.has(ast.flag_static):
                 self.self_type = types.none_id
@@ -3638,6 +3774,8 @@ pub struct Checker:
                 self.at_top_level = true
                 discard(try self.expect(default, p.type_id))
                 self.at_top_level = saved_top
+                if not self.is_constant(default):
+                    discard(try self.fail(default, "a default argument is a constant expression (§9.1)"))
             try self.bind(p, p.text, p.type_id, p, p.has(ast.flag_out))
             cursor = p.next
         if let body = f.body:
@@ -3959,12 +4097,45 @@ func is_arithmetic(op: str) -> bool:
 pub func is_float_text(text: str) -> bool:
     return is_float_literal(text)
 
+## What the arms of a `match` cover: `_`, an optional's two cases, `true` and `false`, an
+## enum's cases as bits by declaration order, and the literals seen, for duplicates.
+struct Coverage:
+    var wildcard: bool
+    var some: bool
+    var none_: bool
+    var truth: bool
+    var falsity: bool
+    var cases: u64
+    var seen: usize
+    var texts: str[64]
+
+## The position of a case among its enum's cases, in declaration order.
+func case_index(d: ast.Node*, case_decl: ast.Node*) -> usize:
+    var index: usize = 0
+    var cursor = d.body
+    while let m = cursor:
+        if m == case_decl:
+            return index
+        if m.kind == ast.Kind.enum_case:
+            index += 1
+        cursor = m.next
+    return index
+
+func case_count(d: ast.Node*) -> usize:
+    var count: usize = 0
+    var cursor = d.body
+    while let m = cursor:
+        if m.kind == ast.Kind.enum_case:
+            count += 1
+        cursor = m.next
+    return count
+
 ## `luce.line`, `luce.file`, or `luce.function`: a fact of the use site (§6.4).
 func is_luce_fact(e: ast.Node*) -> bool:
     if e.kind != ast.Kind.member:
         return false
     let owner = e.left else return false
-    return owner.kind == ast.Kind.name and owner.text == "luce" and (e.text == "line" or e.text == "file" or e.text == "function")
+    return owner.kind == ast.Kind.name and owner.text == "luce" and (e.text == "line" or e.text == "file" or e.text == "function" or e.text == "location")
 
 ## `-1`: unary minus on an integer literal.
 func is_negative_literal(e: ast.Node*) -> bool:
@@ -4379,7 +4550,8 @@ test "a mutating method needs a var receiver":
     try expect_error("struct C:\n    var n: i64\n    mutating func bump():\n        self.n += 1\nfunc f():\n    let c = C(n = 0)\n    c.bump()\n", "needs a `var` receiver")
 
 test "enums match by case":
-    try expect_ok("enum K as u8:\n    a = 1\n    b = 2\nfunc f(k: K) -> i64:\n    match k:\n        .a:\n            return 1\n        .b:\n            return 2\n")
+    try expect_ok("enum K as u8:\n    a = 1\n    b = 2\nfunc f(k: K) -> i64:\n    match k:\n        .a:\n            return 1\n        .b:\n            return 2\n        _:\n            return 0\n")
+    try expect_error("enum K as u8:\n    a = 1\n    b = 2\nfunc f(k: K) -> i64:\n    match k:\n        .a:\n            return 1\n        .b:\n            return 2\n", "needs a `_` arm")
 
 test "generics infer from arguments and substitute results":
     try expect_ok("func first[T](values: const T[]) -> T?:\n    if values.length == 0:\n        return none\n    return values[0]\nfunc f() -> i64:\n    let xs: i64[3] = [1, 2, 3]\n    let v = first(xs) else return 0\n    return v\n")

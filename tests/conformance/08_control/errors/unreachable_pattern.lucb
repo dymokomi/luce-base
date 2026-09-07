@@ -1,0 +1,9 @@
+# error: this pattern is unreachable: an earlier `_` arm takes everything
+func name(n: i64) -> str:
+    match n:
+        _:
+            return "other"
+        1:
+            return "one"
+pub func main(arguments: str[]) -> i32:
+    return 0

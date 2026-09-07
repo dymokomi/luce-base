@@ -1,0 +1,9 @@
+# error: a mutating method needs a `var` receiver
+struct C:
+    var n: i64
+    mutating func bump():
+        self.n += 1
+pub func main(arguments: str[]) -> i32:
+    let c = C(n = 0)
+    c.bump()
+    return 0

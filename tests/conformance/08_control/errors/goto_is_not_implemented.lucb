@@ -1,0 +1,4 @@
+# error: expected an expression
+pub func main(arguments: str[]) -> i32:
+    goto done
+    return 0

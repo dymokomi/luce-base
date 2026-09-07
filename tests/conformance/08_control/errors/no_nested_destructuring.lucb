@@ -1,0 +1,12 @@
+# error: expected `)`
+enum Outer:
+    wrap(inner: i64?)
+    plain
+func name(o: Outer) -> i64:
+    match o:
+        .wrap(.some(v)):
+            return v
+        _:
+            return 0
+pub func main(arguments: str[]) -> i32:
+    return 0

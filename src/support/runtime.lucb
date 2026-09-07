@@ -433,7 +433,7 @@ lb_span lb_arguments(int argc, char** argv, bool as_text) {
 }
 
 int lb_entry_failed(lb_error error) {
-    fprintf(stderr, "error %d: %.*s\n", error.code, (int)error.message.length, error.message.data);
+    fprintf(stderr, "error %u: %.*s\n", (unsigned)error.code, (int)error.message.length, error.message.data);
     return 1;
 }
 

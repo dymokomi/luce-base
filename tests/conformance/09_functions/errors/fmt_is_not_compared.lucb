@@ -1,0 +1,5 @@
+# error: these values have no equality
+func log(message: fmt) -> bool:
+    return message == "x"
+pub func main(arguments: str[]) -> i32:
+    return 0

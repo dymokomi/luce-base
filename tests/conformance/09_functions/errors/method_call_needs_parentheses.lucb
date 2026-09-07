@@ -1,0 +1,9 @@
+# error: a method is called; write `name()`
+struct C:
+    var n: i64
+    func value() -> i64:
+        return self.n
+pub func main(arguments: str[]) -> i32:
+    let c = C(n = 1)
+    let v = c.value
+    return 0

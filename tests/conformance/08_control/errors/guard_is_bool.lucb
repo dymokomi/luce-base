@@ -1,0 +1,9 @@
+# error: expected `bool`, got `i64`
+func name(n: i64) -> str:
+    match n:
+        1 if n:
+            return "one"
+        _:
+            return "other"
+pub func main(arguments: str[]) -> i32:
+    return 0

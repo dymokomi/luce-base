@@ -1,0 +1,18 @@
+## §9.8: the declaration attributes combine and change nothing a program observes; `main`
+## returning `i32!` prints a returned error and exits with status 1 when it fails.
+inline func fast(a: i64) -> i64:
+    return a + 1
+
+noinline func slow(a: i64) -> i64:
+    return a + 2
+
+cold func rare(a: i64) -> i64:
+    return a + 3
+
+weak var counter: i64 = 4
+
+used section("__DATA,__extra") var marker: u8 = 5
+
+pub func main(arguments: str[]) -> i32!:
+    print(f"{fast(1)} {slow(1)} {rare(1)} {counter} {marker}")
+    return 0

@@ -1,0 +1,13 @@
+# error: `match` is missing a case; name it or add a `_` arm
+enum Kind:
+    a
+    b
+    c
+func name(k: Kind) -> str:
+    match k:
+        .a:
+            return "a"
+        .b:
+            return "b"
+pub func main(arguments: str[]) -> i32:
+    return 0

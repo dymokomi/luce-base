@@ -1,0 +1,5 @@
+# error: a formatted string is not stored; `fmt` is a parameter type only (§9.1)
+func log(message: fmt):
+    let kept: fmt = message
+pub func main(arguments: str[]) -> i32:
+    return 0

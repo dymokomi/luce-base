@@ -1,0 +1,6 @@
+# error: `errdefer` needs a fallible function
+func note():
+    return
+pub func main(arguments: str[]) -> i32:
+    errdefer note()
+    return 0

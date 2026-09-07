@@ -1,0 +1,5 @@
+# error: a function does not return `fmt`; it is a parameter type only (§9.1)
+func log(message: fmt) -> fmt:
+    return message
+pub func main(arguments: str[]) -> i32:
+    return 0

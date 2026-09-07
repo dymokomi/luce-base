@@ -1,0 +1,4 @@
+# error: expected the end of the line
+pub func main(arguments: str[]) -> i32:
+    inline var x = 1
+    return 0

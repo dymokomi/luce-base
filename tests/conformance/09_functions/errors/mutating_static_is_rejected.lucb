@@ -1,0 +1,7 @@
+# error: a static method has no receiver to mutate
+struct C:
+    var n: i64
+    static mutating func make() -> i64:
+        return 1
+pub func main(arguments: str[]) -> i32:
+    return 0

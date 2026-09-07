@@ -1,0 +1,5 @@
+# error: a lambda captures nothing; pass the value as a parameter (§9.6)
+pub func main(arguments: str[]) -> i32:
+    let y = 1
+    let f: func(i64) -> i64 = (x) => x + y
+    return 0

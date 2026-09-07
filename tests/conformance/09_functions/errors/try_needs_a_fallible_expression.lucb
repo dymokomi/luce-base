@@ -1,0 +1,6 @@
+# error: `try` needs a fallible expression
+func plain() -> i64:
+    return 1
+pub func main(arguments: str[]) -> i32!:
+    let v = try plain()
+    return 0

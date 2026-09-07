@@ -1,0 +1,70 @@
+## §9.1 to §9.4, §9.6: positional and named arguments, defaults embedded at the call site,
+## `luce.location` as a default, an `fmt` parameter forwarded three ways, `-> !`, multiple
+## results, recursion, `never`, function values, and a capture-free lambda.
+import luce
+import io
+from io import Location
+
+struct Scene:
+    var objects: i64
+
+pub let broken: ErrorCode = ErrorCode.package(2)
+
+func clamp(value: f64, minimum: f64, maximum: f64) -> f64:
+    if value < minimum: return minimum
+    if value > maximum: return maximum
+    return value
+
+func render(scene: Scene*, samples: u32 = 64, denoise: bool = true) -> i64!:
+    if scene.objects == 0:
+        error(broken, "nothing to render")
+    return scene.objects * i64(samples) + (1 if denoise else 0)
+
+func log(level: i64, message: fmt, at: Location = luce.location) -> !:
+    var buffer: u8[64]
+    let line = try format(buffer, f"{at.line}:{level} {message}")
+    print(line)
+    forward(message)
+
+func forward(message: fmt):
+    print(message)
+
+func check(flag: bool) -> !:
+    if not flag:
+        error(broken, "unchecked")
+
+func divide(value: i64, divisor: i64) -> (i64, i64):
+    return (value // divisor, value % divisor)
+
+func factorial(n: i64) -> i64:
+    return 1 if n <= 1 else n * factorial(n - 1)
+
+func halt() -> never:
+    trap("halted")
+
+func apply(op: func(i64) -> i64, x: i64) -> i64:
+    return op(x)
+
+pub func main(arguments: str[]) -> i32:
+    var scene = Scene(objects = 2)
+    let plain = render(&scene) catch failure:
+        recover -1
+    let named = render(&scene, samples = 4, denoise = false) catch failure:
+        recover -1
+    scene.objects = 0
+    let failed = render(&scene) catch failure:
+        recover -1
+    log(3, f"lost {plain} packets") catch failure:
+        return 1
+    log(4, "plain") catch failure:
+        return 1
+    check(true) catch failure:
+        return 1
+    var checked = "passed"
+    check(false) catch failure:
+        checked = failure.message
+    let (q, r) = divide(17, 5)
+    let inc = apply((x) => x + 1, 41)
+    let value: i64 = 5 if plain > 0 else halt()
+    print(f"{clamp(5.0, 0.0, 1.0)} {clamp(0.5, 0.0, 1.0)} {plain} {named} {failed} {checked} {q} {r} {factorial(5)} {inc} {value}")
+    return 0

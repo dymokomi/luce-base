@@ -1,0 +1,10 @@
+## §9.7: an error returned from `main` is printed and becomes exit status 1.
+pub let broken: ErrorCode = ErrorCode.package(3)
+
+func start(n: usize) -> !:
+    if n > 0:
+        error(broken, "the start failed")
+
+pub func main(arguments: str[]) -> i32!:
+    try start(arguments.length)
+    return 0

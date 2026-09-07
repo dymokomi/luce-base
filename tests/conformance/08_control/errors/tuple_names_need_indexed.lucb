@@ -1,0 +1,6 @@
+# error: a tuple of names needs tuple elements; use `.indexed()`
+pub func main(arguments: str[]) -> i32:
+    let items: i64[2] = [1, 2]
+    for (i, v) in items:
+        return 1
+    return 0

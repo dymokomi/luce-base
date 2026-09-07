@@ -1,0 +1,4 @@
+# error: an attribute goes before `func` or a top-level `var` (§9.8)
+weak let x: i64 = 1
+pub func main(arguments: str[]) -> i32:
+    return 0

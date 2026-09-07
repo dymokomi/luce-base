@@ -111,6 +111,8 @@ pub struct Emitter:
     ## Inside a top-level initialiser (§6.4): arithmetic and casts are C's own constant
     ## operators, since the helpers that trap are not constant expressions to C.
     var folding: bool
+    ## The loop being emitted walks an array in place: its sequence temporary is a pointer.
+    var seq_in_place: bool
     ## The line of the allocation being emitted, for the diagnostic profile's record.
     var site_line: u32
 
@@ -126,7 +128,7 @@ pub struct Emitter:
                        owner_args = try types.no_args(), scopes = try list.List[Scope].create(64),
                        defers = try list.List[NodeRef].create(64), catch_var = 0, catch_done = 0,
                        catch_payload = 0, match_result = 0, in_catch = false, src_file = source_path(checker, entry), wrote_writer = false,
-                       sink_prefix = "", sink_index = 0, diagnostic = false, site_line = 0, folding = false)
+                       sink_prefix = "", sink_index = 0, diagnostic = false, site_line = 0, folding = false, seq_in_place = false)
 
     # -- output ---------------------------------------------------------------------------
 
@@ -1523,11 +1525,20 @@ pub struct Emitter:
             let n = self.tmp()
             try self.line("")
             try self.put_type(it)
-            try self.put(" ")
-            try self.put_tmp("seq", n)
-            try self.put(" = ")
-            try self.value(seq, it)
-            try self.put(";")
+            # `for e in &items` over an array modifies the array itself, not a copy
+            self.seq_in_place = self.is_array(it) and s.has(ast.flag_by_pointer) and ast.is_place_expression(seq)
+            if self.seq_in_place:
+                try self.put("* ")
+                try self.put_tmp("seq", n)
+                try self.put(" = &(")
+                try self.expr(seq)
+                try self.put(");")
+            else:
+                try self.put(" ")
+                try self.put_tmp("seq", n)
+                try self.put(" = ")
+                try self.value(seq, it)
+                try self.put(";")
             # `for character in text` walks the scalars of valid UTF-8 (§5.5): the index
             # advances by each scalar's width
             try self.line("for (size_t ")
@@ -1587,6 +1598,7 @@ pub struct Emitter:
                     try self.element_of(it, n)
                 try self.put(";")
             self.indent -= 1
+            self.seq_in_place = false
         self.indent += 1
         if let body = s.body:
             try self.block(body)
@@ -1607,7 +1619,7 @@ pub struct Emitter:
     mutating func element_of(it: u32, n: u32) -> !:
         if self.is_array(it):
             try self.put_tmp("seq", n)
-            try self.put(".d[")
+            try self.put("->d[" if self.seq_in_place else ".d[")
             try self.put_tmp("i", n)
             try self.put("]")
         elif it == types.str_id:
@@ -3384,7 +3396,8 @@ pub struct Emitter:
             self.indent -= 1
             try self.line("}")
             return
-        if self.kind(st) == types.Kind.enum_:
+        # a guarded arm may repeat a case, which C's `switch` cannot: those go to the chain
+        if self.kind(st) == types.Kind.enum_ and not has_guard(m):
             let d = self.decl_of(st) else return
             try self.line("switch ((int)(")
             try self.put_tmp("m", n)
@@ -3455,8 +3468,22 @@ pub struct Emitter:
                 if p.has(ast.flag_wildcard):
                     try self.put("1")
                 elif let v = p.left:
-                    try self.put("(")
-                    if st == types.str_id:
+                    # `!!` keeps clang from seeing an `==` in doubled parentheses
+                    try self.put("(!!(")
+                    if v.kind == ast.Kind.case_value and v.resolved == none and (self.is_tagged_opt(st) or self.is_nullable_ptr(st)):
+                        # `.some` and `.none` test the optional's presence (§8.4)
+                        if v.text == "none":
+                            try self.put("!")
+                        try self.put_tmp("m", n)
+                        if self.is_tagged_opt(st):
+                            try self.put(".present")
+                    elif v.kind == ast.Kind.case_value and self.kind(st) == types.Kind.enum_:
+                        let d = self.decl_of(st) else return
+                        let resolved = v.resolved else return
+                        try self.put_tmp("m", n)
+                        try self.put(".tag == ")
+                        try self.put_u64((u64)case_tag(d, resolved))
+                    elif st == types.str_id:
                         let k = self.tmp()
                         try self.put("({ lb_str ")
                         try self.put_tmp("sb", k)
@@ -3479,27 +3506,81 @@ pub struct Emitter:
                         try self.put_tmp("m", n)
                         try self.put(" == ")
                         try self.value(v, st)
-                    try self.put(")")
+                    try self.put("))")
                 pattern = p.next
             if not any:
                 try self.put("0")
+            if let guard = a.right:
+                # a failed guard falls to the next arm: the guard joins the test, with the
+                # arm's names bound for it
+                try self.put(" && ({ ")
+                try self.bind_arm_names(a, st, n)
+                try self.put(" !!(")
+                try self.value(guard, types.bool_id)
+                try self.put("); })")
             try self.put(") {")
             self.indent += 1
+            try self.bind_arm_names(a, st, n)
             try self.arm_body(a, dest, n, false)
             self.indent -= 1
             try self.line("}")
             arm = a.next
+
+    ## The names an arm's first pattern binds, in the chain form: `.some(name)` over an
+    ## optional takes the value; `.case(names)` over an enum takes the payload's fields.
+    mutating func bind_arm_names(a: ast.Node*, st: u32, n: u32) -> !:
+        let p = a.left else return
+        let v = p.left else return
+        if v.kind != ast.Kind.case_value:
+            return
+        if v.resolved == none and (self.is_tagged_opt(st) or self.is_nullable_ptr(st)):
+            if v.text != "some":
+                return
+            let nm = v.body else return
+            if nm.text == "_":
+                return
+            try self.line("")
+            try self.put_type(self.elem(st))
+            try self.put(" ")
+            try self.put_ident(nm.text)
+            try self.put(" __attribute__((unused)) = ")
+            try self.put_tmp("m", n)
+            if self.is_tagged_opt(st):
+                try self.put(".value")
+            try self.put(";")
+            return
+        let resolved = v.resolved else return
+        var name = v.body
+        var param = resolved.body
+        while let nm = name:
+            let q = param else break
+            if nm.text != "_":
+                try self.line("")
+                try self.put_type(try self.map(nm.type_id))
+                try self.put(" ")
+                try self.put_ident(nm.text)
+                try self.put(" __attribute__((unused)) = ")
+                try self.put_tmp("m", n)
+                try self.put(".u.")
+                try self.put(resolved.text)
+                try self.put(".")
+                try self.put(q.text)
+                try self.put(";")
+            name = nm.next
+            param = q.next
 
     ## The body of one arm, with its guard; `in_switch` adds the `break`.
     mutating func arm_body(a: ast.Node*, dest: u32, n: u32, in_switch: bool) -> !:
         if in_switch:
             try self.line("{")
             self.indent += 1
-        if let guard = a.right:
-            try self.line("if (!!(")
-            try self.value(guard, types.bool_id)
-            try self.put(")) {")
-            self.indent += 1
+        # in the chain form the guard is part of the arm's test already
+        if in_switch:
+            if let guard = a.right:
+                try self.line("if (!!(")
+                try self.value(guard, types.bool_id)
+                try self.put(")) {")
+                self.indent += 1
         if dest != 0:
             let body = a.body else return
             try self.line("")
@@ -3509,9 +3590,8 @@ pub struct Emitter:
             try self.put(";")
         elif let body = a.body:
             try self.block(body)
-        if a.right != none:
-            if in_switch:
-                try self.line("break;")
+        if a.right != none and in_switch:
+            try self.line("break;")
             self.indent -= 1
             try self.line("}")
         elif in_switch:
@@ -5678,6 +5758,15 @@ func c_spelling(id: u32) -> str:
     if id == types.c_ulong_id: return "unsigned long"
     if id == types.c_wchar_id: return "wchar_t"
     return "va_list"
+
+## Whether any arm of a `match` carries a guard.
+func has_guard(m: ast.Node*) -> bool:
+    var arm = m.body
+    while let a = arm:
+        if a.right != none:
+            return true
+        arm = a.next
+    return false
 
 ## The C operator behind a checked helper, for a constant expression.
 func plain_operator(helper: str) -> str:

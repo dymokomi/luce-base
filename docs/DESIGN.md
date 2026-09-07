@@ -373,4 +373,11 @@ evaluating its place twice, a checked index evaluated twice, constant
 initialisers written with the trapping helpers that C cannot fold, an untyped
 `3 -| 7` computed in `i64`, and equality of payload enums and structs by
 `memcmp`, which reads padding and stale union bytes; the runner now also proves
-the traps a chapter requires, on every execution.
+the traps a chapter requires, on every execution. Chapters 8 and 9 found a
+`for` over a pointer to an array copying the array, `defer` skipped under
+`continue`, string patterns compared by pointer, no optional patterns, no
+exhaustiveness checking at all (duplicate, unreachable, and missing arms; the
+`_` an integer-backed enum needs), a guarded enum arm lost in a C `switch`, a
+method named without its call, a default argument that was not a constant, and
+a `-> fmt` return; in the seed, string and optional patterns, defers running
+whole under a pending jump, range bounds, and the same exhaustiveness rules.

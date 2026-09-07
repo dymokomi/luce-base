@@ -1,0 +1,5 @@
+# error: a naked function's body is asm blocks only
+naked func entry():
+    return
+pub func main(arguments: str[]) -> i32:
+    return 0

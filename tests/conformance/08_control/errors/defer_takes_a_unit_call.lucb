@@ -1,0 +1,6 @@
+# error: a deferred call must produce `unit`; wrap it in `discard`
+func number() -> i64:
+    return 1
+pub func main(arguments: str[]) -> i32:
+    defer number()
+    return 0

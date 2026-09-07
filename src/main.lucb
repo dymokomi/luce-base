@@ -583,6 +583,8 @@ func reserve_arena() -> u8[]!:
     var size = arena_size
     while size >= 33554432:
         if let backing = memory.heap.allocate(size, 16):
+            if size < arena_size:
+                try io.stderr().write(f"luce-base: note: the machine spared {size // 1048576} MB for the arena\n")
             return backing
         size = size // 2
     error(memory.exhausted, "no room for the compiler's arena")

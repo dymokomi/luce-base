@@ -1,0 +1,36 @@
+## §9.5: implicit `self`, `static func` through the type, `mutating` on a `var`, a pointer,
+## and a span element, calls through a pointer without dereference, and a method on a
+## temporary; §9.7: `main` with `str[]`.
+struct Cursor:
+    pub var position: usize
+    var name: str
+
+    static func origin(name: str) -> Cursor:
+        return Cursor(position = 0, name = name)
+
+    mutating func advance(amount: usize):
+        self.position += amount
+
+    func where() -> usize:
+        return self.position
+
+    func label() -> str:
+        return self.name
+
+    mutating func reset():
+        self = Cursor.origin("reset")
+
+pub func main(arguments: str[]) -> i32:
+    var c = Cursor.origin("first")
+    c.advance(3)
+    let p: Cursor* = &c
+    p.advance(2)
+    var many: Cursor[2] = [Cursor.origin("a"), Cursor.origin("b")]
+    many[1].advance(7)
+    let view: Cursor[] = many
+    view[0].advance(1)
+    let on_temporary = Cursor.origin("tmp").where()
+    let by_name = c.label()
+    c.reset()
+    print(f"{c.where()} {p.where()} {many[0].where()} {many[1].where()} {on_temporary} {by_name} {c.label()} {arguments.length >= 1}")
+    return 0

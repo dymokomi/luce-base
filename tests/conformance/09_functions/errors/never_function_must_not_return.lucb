@@ -1,0 +1,5 @@
+# error: this function returns a value
+func f() -> never:
+    return
+pub func main(arguments: str[]) -> i32:
+    return 0

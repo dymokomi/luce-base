@@ -1,0 +1,18 @@
+# oracle: none
+## §8.9: an `asm` block per architecture with named-register and `reg` operands, and a
+## module-level block placing a symbol.
+func add_pair(a: i64, b: i64) -> i64:
+    var result: i64
+    asm arm64 (in("x0") a, in("x1") b, out("x0") result, options(nostack)):
+        add x0, x0, x1
+    return result
+
+func doubled(a: i64) -> i64:
+    var result: i64
+    asm arm64 (in(reg) a, out(reg) result):
+        lsl {result}, {a}, #1
+    return result
+
+pub func main(arguments: str[]) -> i32:
+    print(f"{add_pair(40, 2)} {doubled(21)}")
+    return 0
