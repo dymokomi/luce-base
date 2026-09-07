@@ -1,0 +1,8 @@
+# error: no field with that name
+## §10.1: the memberwise initialiser takes only the declared fields.
+struct S:
+    var x: i64
+
+pub func main(arguments: str[]) -> i32:
+    let s = S(z = 1)
+    return 0

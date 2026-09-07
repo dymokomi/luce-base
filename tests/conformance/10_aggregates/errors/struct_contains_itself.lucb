@@ -1,0 +1,8 @@
+# error: contains itself
+## §10.1: a struct cannot contain itself directly.
+struct Node:
+    var value: i64
+    var next: Node
+
+pub func main(arguments: str[]) -> i32:
+    return 0

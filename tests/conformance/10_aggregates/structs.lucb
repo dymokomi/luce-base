@@ -1,0 +1,86 @@
+## §10.1: memberwise initialisers, positional or named; defaults and zeroable fields omitted;
+## a nullable pointer field defaults to none; a custom `init` returning `!` or unit suppresses
+## the memberwise form; structs copy by value; structural equality; a struct holds a pointer
+## to its own type; nested structs; `let` and `var` fields; methods on structs.
+struct Color:
+    pub let r: f64
+    pub let g: f64
+    pub let b: f64
+    pub let a: f64
+
+struct Style:
+    pub let color: Color = Color(0.0, 0.0, 0.0, 1.0)
+    pub let width: f64 = 1.0
+    var cache: i64*?
+    var hits: u32
+
+let out_of_range = ErrorCode.package(1)
+
+struct Percentage:
+    let value: f64
+
+    pub func init(value: f64) -> !:
+        if value < 0.0 or value > 100.0:
+            return error(out_of_range, "percentage must be 0 through 100")
+        self.value = value
+
+    func get() -> f64:
+        return self.value
+
+struct Pair:
+    var first: i64
+    var second: i64
+
+    pub func init(sum: i64):
+        let half = sum // 2
+        self.first = half
+        self.second = sum - half
+
+    mutating func swap():
+        let t = self.first
+        self.first = self.second
+        self.second = t
+
+struct Node:
+    var value: i64
+    var next: Node*?
+
+struct Box:
+    var inner: Pair
+    var tag: u8
+
+pub func main(arguments: str[]) -> i32:
+    let thin = Style(width = 0.5)
+    let defaulted = Style()
+    let full = Style(Color(1.0, 0.5, 0.0, 1.0), 2.0, none, 3)
+    print(f"{thin.width} {thin.color.a} {thin.hits} {thin.cache == none} {defaulted.width} {full.color.r} {full.hits}")
+
+    let opacity = Percentage(75.0) catch:
+        print("unexpected")
+        return 1
+    let bad = Percentage(101.0) catch e:
+        print(f"rejected {e.message}")
+        recover Percentage(0.0) catch:
+            return 1
+    print(f"{opacity.get()} {bad.get()}")
+
+    var p = Pair(7)
+    let copy = p
+    p.swap()
+    print(f"{p.first} {p.second} {copy.first} {copy.second} {copy == Pair(7)} {p != copy}")
+
+    var third = Node(value = 3, next = none)
+    var second = Node(value = 2, next = &third)
+    var head = Node(1, &second)
+    var total: i64 = 0
+    var cursor: Node*? = &head
+    while let n = cursor:
+        total += n.value
+        cursor = n.next
+    print(f"{total}")
+
+    var b = Box(inner = Pair(11), tag = 1)
+    b.inner.swap()
+    let c = Box(Pair(11), 1)
+    print(f"{b.inner.first} {b.inner.second} {b == c} {b.inner != c.inner} {b.tag == c.tag}")
+    return 0

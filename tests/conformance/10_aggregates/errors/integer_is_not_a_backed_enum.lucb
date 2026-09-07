@@ -1,0 +1,9 @@
+# error: 
+## §10.3: an integer does not become an enum implicitly.
+enum Access as u32:
+    read = 1
+    write = 2
+
+pub func main(arguments: str[]) -> i32:
+    let a: Access = 1
+    return 0

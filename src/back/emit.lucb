@@ -2357,7 +2357,7 @@ pub struct Emitter:
             try self.put("((")
             try self.put_type(t)
             try self.put(")")
-            try self.put_u64(case_int(d, resolved))
+            try self.put_u64(check.case_value(d, resolved))
             try self.put("u)")
             return
         try self.put("((")
@@ -2858,6 +2858,8 @@ pub struct Emitter:
         try self.put(")(")
         try self.expr(src)
         try self.put("); if (!(")
+        # both sides at the representation's width, so `-1` in an `i8` enum is the byte 0xFF
+        let mask = width_mask(self.bits(dest))
         var first = true
         var cursor = d.body
         while let node = cursor:
@@ -2865,10 +2867,13 @@ pub struct Emitter:
                 if not first:
                     try self.put(" || ")
                 first = false
+                try self.put("((uint64_t)")
                 try self.put_tmp("ev", n)
-                try self.put(" == ")
-                try self.put_u64(case_int(d, node))
-                try self.put("u")
+                try self.put(" & ")
+                try self.put_u64(mask)
+                try self.put("ull) == ")
+                try self.put_u64(check.case_value(d, node) & mask)
+                try self.put("ull")
             cursor = node.next
         if first:
             try self.put("0")
@@ -3371,7 +3376,7 @@ pub struct Emitter:
                             if resolved.kind == ast.Kind.enum_case:
                                 let d = self.decl_of(st) else return
                                 try self.line("case ")
-                                try self.put_u64(case_int(d, resolved))
+                                try self.put_u64(check.case_value(d, resolved))
                                 try self.put("LL:")
                                 pattern = p.next
                                 continue
@@ -5845,22 +5850,9 @@ func never_valued(e: ast.Node*) -> bool:
         return inner.type_id != 0 and false
     return false
 
-## The integer value of an integer-backed enum case: written, or the previous plus one.
-func case_int(d: ast.Node*, target: ast.Node*) -> u64:
-    var next: u64 = 0
-    var cursor = d.body
-    while let node = cursor:
-        if node.kind == ast.Kind.enum_case:
-            var v = next
-            if let written = node.left:
-                if written.kind == ast.Kind.literal:
-                    v = check.decode_integer(written.text) catch failure:
-                        recover next
-            if node == target:
-                return v
-            next = v + 1
-        cursor = node.next
-    return 0
+## The ones of an integer width, `0xFF` for eight bits.
+func width_mask(bits: u32) -> u64:
+    return 0xFFFFFFFFFFFFFFFF if bits >= 64 else (u64(1) << (u64)bits) - 1
 
 ## The tag of a payload enum case: its position among the cases.
 func case_tag(d: ast.Node*, target: ast.Node*) -> u32:

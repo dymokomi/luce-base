@@ -1,0 +1,10 @@
+# error: contains itself
+## §10.1: a struct cannot contain itself through another struct either.
+struct A:
+    var b: B
+
+struct B:
+    var a: A
+
+pub func main(arguments: str[]) -> i32:
+    return 0

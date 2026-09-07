@@ -1,0 +1,49 @@
+## §10.3: an enum `as` an integer type has that representation; `|`, `&`, `^`, `~` produce the
+## enum type; `(u32)flag` reads it; `Access(n)` checks; `(Access)n` does not; `match` needs `_`.
+enum Access as u32:
+    empty = 0
+    read = 1
+    write = 2
+    execute = 4
+
+enum Level as i8:
+    low = -1
+    mid = 0
+    high = 1
+
+func name(a: Access) -> str:
+    match a:
+        .empty: return "empty"
+        .read: return "read"
+        .write: return "write"
+        .execute: return "execute"
+        _: return "combined"
+
+pub func main(arguments: str[]) -> i32:
+    let mode = Access.read | Access.write
+    let writable = (mode & Access.write) != Access.empty
+    let executable = (mode & .execute) != .empty
+    let bits = (u32)mode
+    let flipped = mode ^ Access.read
+    let inverted = ~Access.empty
+    print(f"{writable} {executable} {bits} {(u32)flipped} {(u32)inverted} {name(mode)} {name(flipped)}")
+
+    let checked = Access(4)
+    let raw = (Access)7
+    var count: u32 = 0
+    for value in [(u32)0, 1, 2, 4]:
+        let a = Access(value)
+        if a == (Access)value:
+            count += 1
+    print(f"{name(checked)} {(u32)raw} {name(raw)} {count} {raw == (Access.read | .write | .execute)}")
+
+    let l = Level.low
+    let n = (i8)l
+    let back = Level(n)
+    let widened = (i32)(i8)Level.high
+    print(f"{n} {back == .low} {widened} {sizeof(Access)} {sizeof(Level)}")
+
+    var flags: Access
+    flags = flags | .read
+    print(f"{name(flags)} {(u32)flags}")
+    return 0

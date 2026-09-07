@@ -1,0 +1,11 @@
+# error: 
+## §10.4: unions have no equality.
+union U:
+    a: i64
+    b: f64
+
+pub func main(arguments: str[]) -> i32:
+    var x: U
+    var y: U
+    let same = x == y
+    return 0

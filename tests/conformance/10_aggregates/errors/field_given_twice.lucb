@@ -1,0 +1,9 @@
+# error: given twice
+## §10.1: a field is given once.
+struct S:
+    var x: i64
+    var y: i64
+
+pub func main(arguments: str[]) -> i32:
+    let s = S(x = 1, x = 2)
+    return 0

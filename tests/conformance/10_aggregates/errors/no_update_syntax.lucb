@@ -1,0 +1,10 @@
+# error: 
+## §10.1: there is no spread or update syntax.
+struct S:
+    var x: i64
+    var y: i64
+
+pub func main(arguments: str[]) -> i32:
+    let s = S(x = 1, y = 2)
+    let t = S(s, y = 3)
+    return 0

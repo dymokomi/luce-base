@@ -1,0 +1,9 @@
+# error: 
+## §10.2: a plain enum is not converted from an integer.
+enum Direction:
+    north
+    south
+
+pub func main(arguments: str[]) -> i32:
+    let d = Direction(0)
+    return 0

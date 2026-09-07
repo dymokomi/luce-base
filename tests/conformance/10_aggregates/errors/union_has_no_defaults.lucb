@@ -1,0 +1,8 @@
+# error: 
+## §10.4: a union member has no default value.
+union U:
+    a: i64 = 1
+    b: f64
+
+pub func main(arguments: str[]) -> i32:
+    return 0

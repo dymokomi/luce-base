@@ -1,0 +1,8 @@
+# error: 
+## §10.3: an integer-backed enum has no payload cases.
+enum Small as u8:
+    a = 1
+    b(x: i64) = 2
+
+pub func main(arguments: str[]) -> i32:
+    return 0

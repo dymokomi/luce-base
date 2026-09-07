@@ -1,0 +1,182 @@
+#==============================================================================================
+#
+#   init_rules - The rules of a custom `init` (base.md §10.1)
+#
+#   DESCRIPTION:
+#       A custom `init` assigns every field exactly once and neither reads a field nor calls
+#       a method before every field is assigned. The body is walked in order with the set of
+#       fields definitely assigned so far, a bit per field: an assignment to a field already
+#       in the set may run twice; any other use of `self` while the set is short is a read
+#       too early; a loop's body assigns no field, since it may run twice or not at all; the
+#       branches of an `if` or `match` each start from the same set and contribute what all
+#       of them assign, a branch that leaves contributing nothing.
+#
+#==============================================================================================
+
+import front.ast
+import sema.prune
+
+## The first rule the body breaks: where, and what to say.
+pub struct Finding:
+    pub var at: ast.Node*
+    pub var what: str
+
+## The rule `fn`'s body breaks for the fields of `owner`, if any.
+pub func verify(fn: ast.Node*, owner: ast.Node*) -> Finding?:
+    let body = fn.body else return none
+    var walk = Walk(owner = owner, every = all_fields(owner), finding = none)
+    var assigned: u64 = 0
+    walk.statement(body, &assigned, false)
+    if let found = walk.finding:
+        return found
+    if assigned != walk.every and not prune.always_leaves(body):
+        let missing = first_missing(owner, assigned) else return none
+        return Finding(at = fn, what = "a field is not assigned by `init`")
+    return none
+
+struct Walk:
+    var owner: ast.Node*
+    var every: u64
+    var finding: Finding?
+
+    mutating func note(at: ast.Node*, what: str):
+        if self.finding == none:
+            self.finding = Finding(at = at, what = what)
+
+    ## An expression evaluated while fields are missing must not touch `self`.
+    mutating func expression(e: ast.Node*?, assigned: u64):
+        let node = e else return
+        if assigned != self.every and mentions_self(node):
+            self.note(node, "`init` cannot read a field or call a method before every field is assigned")
+
+    mutating func statement(s: ast.Node*, assigned: u64*, in_loop: bool):
+        match s.kind:
+            .block:
+                var cursor = s.body
+                while let item = cursor:
+                    self.statement(item, assigned, in_loop)
+                    cursor = item.next
+            .assign:
+                let field = assigned_field(s.left, self.owner)
+                if field < 0 or s.text != "=":
+                    self.expression(s.left, *assigned)
+                    self.expression(s.right, *assigned)
+                    return
+                self.expression(s.right, *assigned)
+                let bit: u64 = (u64(1) << (u64)field) if field < 64 else 0
+                if (*assigned & bit) != 0 or in_loop:
+                    self.note(s, "a field may be assigned twice in `init`")
+                *assigned |= bit
+            .if_:
+                self.expression(s.left, *assigned)
+                var then_set = *assigned
+                if let then = s.body:
+                    self.statement(then, &then_set, in_loop)
+                var else_set = *assigned
+                if let rest = s.right:
+                    self.statement(rest, &else_set, in_loop)
+                let then_leaves = leaves(s.body)
+                let else_leaves = leaves(s.right)
+                if then_leaves and not else_leaves:
+                    *assigned = else_set
+                elif else_leaves and not then_leaves:
+                    *assigned = then_set
+                elif not then_leaves:
+                    *assigned = then_set & else_set
+            .match_:
+                self.expression(s.left, *assigned)
+                var joined = self.every
+                var any = false
+                var arm = s.body
+                while let a = arm:
+                    self.expression(a.ty, *assigned)
+                    var arm_set = *assigned
+                    if let body = a.body:
+                        self.statement(body, &arm_set, in_loop)
+                    if not leaves(a.body):
+                        joined &= arm_set
+                        any = true
+                    arm = a.next
+                if any:
+                    *assigned = joined
+            .while_, .for_, .with_:
+                self.expression(s.left, *assigned)
+                self.expression(s.right, *assigned)
+                var body_set = *assigned
+                if let body = s.body:
+                    self.statement(body, &body_set, true)
+            .let_, .var_, .return_, .recover_, .expr_stmt, .free_:
+                self.expression(s.left, *assigned)
+                self.expression(s.right, *assigned)
+            _:
+                # `defer` runs at the end, when every field is assigned or the init has failed
+                discard(0)
+
+## Whether a branch never continues past its end: a `return`, an `error`, a `trap`.
+func leaves(block: ast.Node*?) -> bool:
+    let b = block else return false
+    if b.kind == ast.Kind.block:
+        return prune.always_leaves(b)
+    return prune.statement_leaves(b)
+
+## `self.name` as a store target: the field's number, or -1.
+func assigned_field(place: ast.Node*?, owner: ast.Node*) -> i64:
+    let p = place else return -1
+    if p.kind != ast.Kind.member:
+        return -1
+    let receiver = p.left else return -1
+    if receiver.kind != ast.Kind.self_:
+        return -1
+    return field_number(owner, p.text)
+
+func field_number(owner: ast.Node*, name: str) -> i64:
+    var i: i64 = 0
+    var cursor = owner.body
+    while let m = cursor:
+        if m.kind == ast.Kind.field:
+            if m.text == name:
+                return i
+            i += 1
+        cursor = m.next
+    return -1
+
+func all_fields(owner: ast.Node*) -> u64:
+    var set: u64 = 0
+    var i: u64 = 0
+    var cursor = owner.body
+    while let m = cursor:
+        if m.kind == ast.Kind.field:
+            set |= (u64(1) << i) if i < 64 else 0
+            i += 1
+        cursor = m.next
+    return set
+
+func first_missing(owner: ast.Node*, assigned: u64) -> ast.Node*?:
+    var i: u64 = 0
+    var cursor = owner.body
+    while let m = cursor:
+        if m.kind == ast.Kind.field:
+            if i < 64 and (assigned & (u64(1) << i)) == 0:
+                return m
+            i += 1
+        cursor = m.next
+    return none
+
+func mentions_self(n: ast.Node*) -> bool:
+    if n.kind == ast.Kind.self_:
+        return true
+    if let l = n.left:
+        if mentions_self(l):
+            return true
+    if let r = n.right:
+        if mentions_self(r):
+            return true
+    if let t = n.ty:
+        if mentions_self(t):
+            return true
+    var cursor = n.body
+    while let item = cursor:
+        if mentions_self(item):
+            return true
+        cursor = item.next
+    return false

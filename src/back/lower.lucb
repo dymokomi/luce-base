@@ -1370,7 +1370,7 @@ pub struct Lowerer:
         let t = try self.ty(e)
         let d = self.decl_of(t) else return try self.fail(e, "no enum")
         if self.is_int_enum(t):
-            return LowerValue(ref = ir.const_ref((i64)lower_case_int(d, c)), type_id = t, in_memory = false)
+            return LowerValue(ref = ir.const_ref((i64)check.case_value(d, c)), type_id = t, in_memory = false)
         let slot = try self.new_slot(t)
         let a = try self.slot_address(slot)
         try self.f.zero_bytes(a, self.size(t))
@@ -2178,12 +2178,16 @@ pub struct Lowerer:
         let d = self.decl_of(dest) else return
         let ok = self.f.label()
         let bad = self.f.label()
+        # both sides at the representation's width, so `-1` in an `i8` enum is the byte 0xFF
+        let bits = self.c.table.bits(self.enum_backing(dest))
+        let mask: u64 = 0xFFFFFFFFFFFFFFFF if bits >= 64 else (u64(1) << (u64)bits) - 1
+        let word = try self.f.binary(ir.Op.and_, ir.Class.l, try self.to_word(v, types.u64_id), ir.const_ref((i64)mask))
         var cursor = d.body
         var next = ok
         while let c = cursor:
             if c.kind == ast.Kind.enum_case:
-                let value = lower_case_int(d, c)
-                let hit = try self.f.binary(ir.Op.ceq, ir.Class.l, try self.to_word(v, types.u64_id), ir.const_ref((i64)value))
+                let value = check.case_value(d, c) & mask
+                let hit = try self.f.binary(ir.Op.ceq, ir.Class.l, word, ir.const_ref((i64)value))
                 let miss = self.f.label()
                 try self.f.branch(hit, ok, miss)
                 try self.f.place_label(miss)
@@ -2519,7 +2523,7 @@ pub struct Lowerer:
             let d = self.decl_of(st) else return
             if self.is_int_enum(st):
                 let current = try self.load_from(a, st)
-                let hit = try self.f.binary(ir.Op.ceq, self.class_of(st), current.ref, ir.const_ref((i64)lower_case_int(d, c)))
+                let hit = try self.f.binary(ir.Op.ceq, self.class_of(st), current.ref, ir.const_ref((i64)check.case_value(d, c)))
                 try self.f.branch(hit, take, miss)
                 return
             let tag = try self.f.load(ir.Op.loadsw, ir.Class.w, a)
@@ -3995,22 +3999,6 @@ func memory_order(e: ast.Node*) -> u32:
     if e.text == "acq_rel":
         return 4
     return 5
-
-func lower_case_int(d: ast.Node*, target: ast.Node*) -> u64:
-    var next: u64 = 0
-    var cursor = d.body
-    while let c = cursor:
-        if c.kind == ast.Kind.enum_case:
-            var v = next
-            if let written = c.left:
-                if written.kind == ast.Kind.literal:
-                    v = check.decode_integer(written.text) catch failure:
-                        recover next
-            if c == target:
-                return v
-            next = v + 1
-        cursor = c.next
-    return 0
 
 func lower_case_tag(d: ast.Node*, target: ast.Node*) -> u32:
     var i: u32 = 0

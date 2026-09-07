@@ -1,0 +1,34 @@
+## §10.4: a union stores one member at one address; its size and alignment come from its
+## members; another member reinterprets the bytes; it is zeroed as bytes; it may declare methods.
+union Value:
+    integer: i64
+    real: f64
+    bytes: u8[8]
+
+    func low_byte() -> u8:
+        return self.bytes[0]
+
+    mutating func clear():
+        self.integer = 0
+
+union Small:
+    byte: u8
+    pair: u16
+
+pub func main(arguments: str[]) -> i32:
+    var v: Value
+    print(f"{v.integer} {v.real} {v.bytes[7]} {sizeof(Value)} {alignof(Value)} {sizeof(Small)} {alignof(Small)}")
+    v.integer = 0x0102030405060708
+    print(f"{v.low_byte()} {v.bytes[7]} {hex(v.integer)}")
+    v.real = 1.0
+    print(f"{hex(v.integer)} {v.bytes[7]}")
+    v.bytes[7] = 0xC0
+    print(f"{v.real}")
+    v.clear()
+    print(f"{v.real} {v.integer}")
+    var s: Small
+    s.pair = 0x1234
+    let copy = s
+    s.byte = 0xFF
+    print(f"{hex(s.pair)} {hex(copy.pair)} {copy.byte}")
+    return 0

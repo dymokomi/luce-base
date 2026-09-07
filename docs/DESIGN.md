@@ -381,3 +381,13 @@ exhaustiveness checking at all (duplicate, unreachable, and missing arms; the
 method named without its call, a default argument that was not a constant, and
 a `-> fmt` return; in the seed, string and optional patterns, defers running
 whole under a pending jump, range bounds, and the same exhaustiveness rules.
+Chapter 10 found a field given twice, `~` refused on an integer-backed enum,
+two cases sharing a value, a backed enum's case without one, a `-1` case whose
+checked conversion never matched (both backends compared the 64-bit value
+against a narrow one; now both sides are masked to the representation), a
+compiler that trapped folding the case after `-1`, a struct containing itself,
+a union without members, equality on a struct holding a union, a `catch`
+handler that neither recovered nor left, and none of the rules of a custom
+`init` (`sema/init_rules.lucb` walks the body with the set of fields assigned
+so far); in the seed, positional construction, a failing `init` that did not
+fail the construction, and a union that lost the bytes beyond a narrow member.

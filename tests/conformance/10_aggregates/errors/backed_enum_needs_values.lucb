@@ -1,0 +1,8 @@
+# error: 
+## §10.3: an integer-backed enum gives every case its value.
+enum Small as u8:
+    a
+    b
+
+pub func main(arguments: str[]) -> i32:
+    return 0

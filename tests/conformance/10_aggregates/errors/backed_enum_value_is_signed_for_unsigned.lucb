@@ -1,0 +1,7 @@
+# error: 
+## §10.3: a negative value needs a signed representation.
+enum Small as u8:
+    a = -1
+
+pub func main(arguments: str[]) -> i32:
+    return 0

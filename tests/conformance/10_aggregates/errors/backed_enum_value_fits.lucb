@@ -1,0 +1,8 @@
+# error: 
+## §10.3: a case value fits the representation.
+enum Small as u8:
+    a = 255
+    b = 256
+
+pub func main(arguments: str[]) -> i32:
+    return 0

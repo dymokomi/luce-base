@@ -1,0 +1,11 @@
+# error: 
+## §10.1: declaring `init` suppresses the memberwise form.
+struct P:
+    let value: f64
+
+    pub func init(v: f64):
+        self.value = v
+
+pub func main(arguments: str[]) -> i32:
+    let p = P(value = 1.0)
+    return 0

@@ -1,0 +1,11 @@
+## §10.3: `Access(n)` traps on a value that is not a declared case; `(Access)n` does not.
+enum Access as u32:
+    read = 1
+    write = 2
+
+pub func main(arguments: str[]) -> i32:
+    let raw = (Access)3
+    print(f"{(u32)raw}")
+    let checked = Access((u32)raw)
+    print(f"{(u32)checked}")
+    return 0

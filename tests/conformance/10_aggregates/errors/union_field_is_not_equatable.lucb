@@ -1,0 +1,14 @@
+# error: 
+## §7.4, §10.4: a struct is equatable only when every field is; a union has no equality.
+union U:
+    a: i64
+    b: f64
+
+struct S:
+    var u: U
+
+pub func main(arguments: str[]) -> i32:
+    var x: S
+    var y: S
+    let same = x == y
+    return 0

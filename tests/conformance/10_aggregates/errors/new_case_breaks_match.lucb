@@ -1,0 +1,15 @@
+# error: missing
+## §10.2: every exhaustive `match` names every case.
+enum Direction:
+    north
+    east
+    south
+
+func turn(d: Direction) -> Direction:
+    match d:
+        .north: return .east
+        .east: return .south
+    return .north
+
+pub func main(arguments: str[]) -> i32:
+    return 0

@@ -1,0 +1,8 @@
+# error: expected a name
+## §10.2: a case may not be named `none`.
+enum Maybe:
+    none
+    some
+
+pub func main(arguments: str[]) -> i32:
+    return 0

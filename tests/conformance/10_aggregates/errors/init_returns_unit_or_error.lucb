@@ -1,0 +1,11 @@
+# error: `init` returns
+## §10.1: `init` returns unit or `!`.
+struct P:
+    let a: i64
+
+    pub func init(a: i64) -> i64:
+        self.a = a
+        return a
+
+pub func main(arguments: str[]) -> i32:
+    return 0

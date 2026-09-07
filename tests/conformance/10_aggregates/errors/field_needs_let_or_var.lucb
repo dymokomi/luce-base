@@ -1,0 +1,7 @@
+# error: expected
+## §10.1: a field is declared with `let` or `var`.
+struct S:
+    x: i64
+
+pub func main(arguments: str[]) -> i32:
+    return 0

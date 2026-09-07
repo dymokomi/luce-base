@@ -1,0 +1,8 @@
+# error: too many
+## §10.1: the memberwise initialiser has one slot per field.
+struct S:
+    var x: i64
+
+pub func main(arguments: str[]) -> i32:
+    let s = S(1, 2)
+    return 0

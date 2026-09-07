@@ -1,0 +1,10 @@
+# error: 
+## §10.2: a payload is reached only by `match`.
+enum Command:
+    open(path: str)
+    quit
+
+pub func main(arguments: str[]) -> i32:
+    let c: Command = .open("a")
+    let p = c.path
+    return 0

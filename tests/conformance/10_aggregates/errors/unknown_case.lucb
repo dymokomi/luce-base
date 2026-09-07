@@ -1,0 +1,9 @@
+# error: no such case
+## §10.2: `.case` names a declared case.
+enum Direction:
+    north
+    south
+
+pub func main(arguments: str[]) -> i32:
+    let d: Direction = .up
+    return 0

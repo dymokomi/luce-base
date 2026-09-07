@@ -1,0 +1,9 @@
+# error: 
+## §10.2: a case without a payload is not called.
+enum Command:
+    open(path: str)
+    quit
+
+pub func main(arguments: str[]) -> i32:
+    let c: Command = .quit("now")
+    return 0

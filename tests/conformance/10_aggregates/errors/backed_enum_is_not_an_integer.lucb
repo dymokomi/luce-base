@@ -1,0 +1,9 @@
+# error: 
+## §10.3: the representation is read with a cast, never implicitly.
+enum Access as u32:
+    read = 1
+    write = 2
+
+pub func main(arguments: str[]) -> i32:
+    let n: u32 = Access.read
+    return 0

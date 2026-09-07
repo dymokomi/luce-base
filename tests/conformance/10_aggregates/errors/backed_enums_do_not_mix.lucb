@@ -1,0 +1,12 @@
+# error: 
+## §10.3: the bit operators join one enum type with itself.
+enum Access as u32:
+    read = 1
+    write = 2
+
+enum Mode as u32:
+    fast = 1
+
+pub func main(arguments: str[]) -> i32:
+    let a = Access.read | Mode.fast
+    return 0

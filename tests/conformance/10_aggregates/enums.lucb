@@ -1,0 +1,62 @@
+## §10.2: plain and payload enums, `.case` where the type is known, payloads reached only by
+## `match`, equality, enums in structs and arrays, a `match` expression, multi-field payloads.
+enum Direction:
+    north
+    east
+    south
+    west
+
+enum Command:
+    open(path: str)
+    save(path: str)
+    resize(width: u32, height: u32)
+    quit
+
+struct Turtle:
+    var facing: Direction
+    var steps: u32
+
+func turn(d: Direction) -> Direction:
+    return match d:
+        .north => .east
+        .east => .south
+        .south => .west
+        .west => .north
+
+func describe(c: Command) -> u32:
+    match c:
+        .open(path):
+            print(f"open {path}")
+            return 1
+        .save(path):
+            print(f"save {path}")
+            return 2
+        .resize(width, height):
+            print(f"resize {width}x{height}")
+            return width * height
+        .quit:
+            print("quit")
+            return 0
+
+pub func main(arguments: str[]) -> i32:
+    var t = Turtle(facing = .north, steps = 0)
+    t.facing = turn(t.facing)
+    t.facing = turn(t.facing)
+    let same = t.facing == Direction.south
+    let other: Direction = .west
+    print(f"{same} {t.facing != other} {turn(other) == .north}")
+
+    let commands: Command[4] = [.open("a.txt"), .resize(width = 3, height = 4), .save(path = "b.txt"), .quit]
+    var sum: u32 = 0
+    for c in commands:
+        sum += describe(c)
+    print(f"{sum}")
+
+    let a: Command = .resize(2, 2)
+    let b = Command.resize(2, 2)
+    let c = Command.resize(2, 3)
+    print(f"{a == b} {a == c} {a != Command.quit} {commands[3] == .quit}")
+
+    var zeroed: Direction
+    print(f"{zeroed == .north}")
+    return 0

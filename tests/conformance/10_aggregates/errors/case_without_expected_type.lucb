@@ -1,0 +1,5 @@
+# error: 
+## §10.2: `.case` needs a known enum type.
+pub func main(arguments: str[]) -> i32:
+    let d = .north
+    return 0

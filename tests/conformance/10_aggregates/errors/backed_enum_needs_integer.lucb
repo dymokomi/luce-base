@@ -1,0 +1,7 @@
+# error: 
+## §10.3: the representation is an integer type.
+enum Small as f32:
+    a = 1
+
+pub func main(arguments: str[]) -> i32:
+    return 0

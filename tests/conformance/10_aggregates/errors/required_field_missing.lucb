@@ -1,0 +1,9 @@
+# error: a required field is missing
+## §10.1: a field without a default that is not zeroable must be given.
+struct S:
+    let p: i64*
+    var n: i64
+
+pub func main(arguments: str[]) -> i32:
+    let s = S(n = 1)
+    return 0

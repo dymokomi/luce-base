@@ -28,6 +28,7 @@ import front.source
 import front.token
 import io
 import memory
+import sema.init_rules
 import sema.prelude
 import sema.prune
 import sema.types
@@ -526,6 +527,11 @@ pub struct Checker:
         try self.bind_imports(tree)
         try self.collect(tree)
         try self.resolve_signatures(tree)
+        var decl = tree.body
+        while let d = decl:
+            if d.kind == ast.Kind.struct_ or d.kind == ast.Kind.union_:
+                try self.check_containment(d)
+            decl = d.next
         if index + 1 == self.modules.count:
             try self.check_entry(tree)
         var cursor = tree.body
@@ -702,6 +708,46 @@ pub struct Checker:
                 try self.resolve_members(d)
             _:
                 discard(0)
+
+    ## A struct or union cannot contain itself by value; a pointer, span, or optional
+    ## pointer breaks the cycle (§10.1). The offending field loses its type so no layout recurses.
+    mutating func check_containment(d: ast.Node*) -> !:
+        var cursor = d.body
+        while let m = cursor:
+            if m.kind == ast.Kind.field and self.contains_by_value(m.type_id, d, 0):
+                discard(try self.fail(m, "this struct contains itself; use a pointer (§10.1)"))
+                m.type_id = types.error_id
+            cursor = m.next
+
+    func contains_by_value(id: u32, d: ast.Node*, depth: u32) -> bool:
+        if depth > 32:
+            return false
+        let t = self.table.get(id)
+        match t.kind:
+            .array, .atomic:
+                return self.contains_by_value(t.elem, d, depth + 1)
+            .optional:
+                let inner = self.table.get(t.elem)
+                if inner.kind == types.Kind.pointer or inner.kind == types.Kind.func_:
+                    return false
+                return self.contains_by_value(t.elem, d, depth + 1)
+            .tuple:
+                for a in t.args:
+                    if self.contains_by_value(a, d, depth + 1):
+                        return true
+                return false
+            .struct_, .union_:
+                let decl = t.decl else return false
+                if decl == d:
+                    return true
+                var cursor = decl.body
+                while let m = cursor:
+                    if m.kind == ast.Kind.field and self.contains_by_value(m.type_id, d, depth + 1):
+                        return true
+                    cursor = m.next
+                return false
+            _:
+                return false
 
     ## The fields, cases, and method signatures of a type declaration.
     mutating func resolve_members(d: ast.Node*) -> !:
@@ -1680,7 +1726,7 @@ pub struct Checker:
                 return it
             return try self.fail(e, "wrapping negation needs an integer")
         if e.text == "~":
-            if it == types.untyped_int_id or self.table.is_integer(it):
+            if it == types.untyped_int_id or self.table.is_integer(it) or self.is_backed_enum(it):
                 return it
             return try self.fail(e, "`~` needs an integer")
         return try self.fail(e, "unknown operator")
@@ -1796,6 +1842,7 @@ pub struct Checker:
         return d.ty != none
 
     ## Types with `==` (§7.4).
+    ## `==` exists where every component supports it; unions and views never do (§7.4).
     func comparable(id: u32) -> bool:
         let t = self.table.get(id)
         if id == types.untyped_int_id or id == types.untyped_float_id or id == types.none_id:
@@ -1803,7 +1850,26 @@ pub struct Checker:
         match t.kind:
             .union_, .interface_, .func_, .span, .module, .fmt_, .error_value:
                 return false
-            .optional:
+            .array, .optional, .atomic:
+                return self.comparable(t.elem)
+            .tuple:
+                for a in t.args:
+                    if not self.comparable(a):
+                        return false
+                return true
+            .struct_, .enum_:
+                let d = t.decl else return true
+                var cursor = d.body
+                while let m = cursor:
+                    if m.kind == ast.Kind.field and not self.comparable(m.type_id):
+                        return false
+                    if m.kind == ast.Kind.enum_case:
+                        var payload = m.body
+                        while let p = payload:
+                            if not self.comparable(p.type_id):
+                                return false
+                            payload = p.next
+                    cursor = m.next
                 return true
             _:
                 return true
@@ -2089,6 +2155,9 @@ pub struct Checker:
         self.in_catch = saved_in
         self.catch_result = saved_result
         self.pop_scope()
+        # a handler for a value recovers one or leaves; one for `unit` may fall through (§11.4)
+        if t.elem != types.unit_id and not handler_leaves(body):
+            discard(try self.fail(e, "a `catch` handler must `recover` a value or leave with `return`, `error`, `trap`, `break`, or `continue`"))
         return t.elem
 
     ## `(T)x`: C's cast, with every case defined (§7.5).
@@ -2980,14 +3049,25 @@ pub struct Checker:
             return id
         var cursor = args
         var positional = d.body
+        var named = false
         while let a = cursor:
             let v = a.left else return try self.fail(a, "empty argument")
             var field: ast.Node*? = none
             if a.text.length > 0:
+                named = true
                 field = find_member(d, a.text, ast.Kind.field)
                 if field == none:
                     return try self.fail(a, "no field with that name")
+                var earlier = args
+                while let o = earlier:
+                    if o == a:
+                        break
+                    if o.text == a.text:
+                        return try self.fail(a, "this field is given twice")
+                    earlier = o.next
             else:
+                if named:
+                    return try self.fail(a, "a positional value cannot follow a named one")
                 while let p = positional:
                     if p.kind == ast.Kind.field:
                         break
@@ -2996,6 +3076,7 @@ pub struct Checker:
                 field = p
                 positional = p.next
             let f = field else return try self.fail(a, "no field")
+            a.text = f.text
             if not f.has(ast.flag_pub) and not self.same_module(d) and not self.inside(d):
                 return try self.fail(a, "that field is not public")
             let want = try self.substitute(f.type_id, d, t.args)
@@ -3780,6 +3861,12 @@ pub struct Checker:
             cursor = p.next
         if let body = f.body:
             try self.check_block(body)
+            if let o = owner:
+                if f.text == "init" and o.kind == ast.Kind.struct_:
+                    if self.result_type != types.unit_id:
+                        discard(try self.fail(f, "`init` returns `unit` or `!` (§10.1)"))
+                    if let found = init_rules.verify(f, o):
+                        discard(try self.fail(found.at, found.what))
             if ast.has_attribute(f, "naked"):
                 try self.check_naked_body(body)
             elif self.result_type != types.unit_id and self.result_type != types.never_id and not prune.always_leaves(body):
@@ -3799,6 +3886,8 @@ pub struct Checker:
     mutating func check_type_body(d: ast.Node*) -> !:
         if d.kind == ast.Kind.struct_ and not has_field(d):
             discard(try self.fail(d, "a struct has at least one field, as in C (§10.1)"))
+        if d.kind == ast.Kind.union_ and not has_field(d):
+            discard(try self.fail(d, "a union has at least one member (§10.4)"))
         self.push_scope()
         try self.bind_generics(d)
         let saved_template = self.checking_template
@@ -3821,6 +3910,17 @@ pub struct Checker:
                     if let value = m.left:
                         let backing = d.ty else return try self.fail(m, "a case value needs `enum Name as T`")
                         discard(try self.expect(value, backing.type_id))
+                        if not self.is_constant(value):
+                            discard(try self.fail(value, "a case value is a constant"))
+                        var earlier = d.body
+                        while let o = earlier:
+                            if o == m:
+                                break
+                            if o.kind == ast.Kind.enum_case and case_value(d, o) == case_value(d, m):
+                                discard(try self.fail(m, "two cases share one value"))
+                            earlier = o.next
+                    elif d.ty != none:
+                        discard(try self.fail(m, "an integer-backed enum gives every case its value (§10.3)"))
                 .func_:
                     try self.check_function(m, d)
                 _:
@@ -3954,14 +4054,27 @@ pub func case_value(d: ast.Node*, target: ast.Node*) -> u64:
         if node.kind == ast.Kind.enum_case:
             var v = next
             if let written = node.left:
-                if written.kind == ast.Kind.literal:
-                    v = decode_integer(written.text) catch failure:
-                        recover next
+                v = written_value(written) else next
             if node == target:
                 return v
-            next = v + 1
+            next = v +% 1
         cursor = node.next
     return 0
+
+## A case value as written: a literal, possibly grouped or negated.
+func written_value(e: ast.Node*) -> u64?:
+    if e.kind == ast.Kind.group:
+        let inner = e.left else return none
+        return written_value(inner)
+    if e.kind == ast.Kind.unary and e.text == "-":
+        let inner = e.left else return none
+        let v = written_value(inner) else return none
+        return 0 -% v
+    if e.kind == ast.Kind.literal:
+        let v = decode_integer(e.text) catch failure:
+            return none
+        return v
+    return none
 
 ## The identity of a package's error codes (§11.3): sixteen bits of its name, the same
 ## computation in every compiler of the language.
@@ -4145,6 +4258,29 @@ func is_negative_literal(e: ast.Node*) -> bool:
     return inner.kind == ast.Kind.literal and not is_float_literal(inner.text) and inner.text.bytes[0] >= '0' and inner.text.bytes[0] <= '9'
 
 ## Whether a type declaration holds a field (§10.1).
+## Whether a handler's every path ends in `recover`, `return`, `error`, `trap`, `break`, or
+## `continue` (§11.4).
+func handler_leaves(block: ast.Node*) -> bool:
+    var cursor = block.body
+    while let s = cursor:
+        if handler_statement_leaves(s):
+            return true
+        cursor = s.next
+    return false
+
+func handler_statement_leaves(s: ast.Node*) -> bool:
+    match s.kind:
+        .recover_, .break_, .continue_:
+            return true
+        .if_:
+            let then = s.body else return false
+            let rest = s.right else return false
+            if not handler_leaves(then):
+                return false
+            return handler_statement_leaves(rest) if rest.kind == ast.Kind.if_ else handler_leaves(rest)
+        _:
+            return prune.statement_leaves(s)
+
 func has_field(d: ast.Node*) -> bool:
     var cursor = d.body
     while let m = cursor:
@@ -4552,6 +4688,40 @@ test "a mutating method needs a var receiver":
 test "enums match by case":
     try expect_ok("enum K as u8:\n    a = 1\n    b = 2\nfunc f(k: K) -> i64:\n    match k:\n        .a:\n            return 1\n        .b:\n            return 2\n        _:\n            return 0\n")
     try expect_error("enum K as u8:\n    a = 1\n    b = 2\nfunc f(k: K) -> i64:\n    match k:\n        .a:\n            return 1\n        .b:\n            return 2\n", "needs a `_` arm")
+
+test "a memberwise initialiser is positional or named, each field once":
+    try expect_ok("struct P:\n    var x: i64\n    var y: i64\nfunc f() -> i64:\n    let p = P(1, 2)\n    let q = P(1, y = 2)\n    return p.x + q.y\n")
+    try expect_error("struct P:\n    var x: i64\n    var y: i64\nfunc f() -> i64:\n    let p = P(x = 1, x = 2)\n    return p.x\n", "given twice")
+    try expect_error("struct P:\n    var x: i64\n    var y: i64\nfunc f() -> i64:\n    let p = P(x = 1, 2)\n    return p.x\n", "cannot follow a named one")
+    try expect_error("struct P:\n    var x: i64\nfunc f() -> i64:\n    let p = P(1, 2)\n    return p.x\n", "too many values")
+
+test "an init assigns every field once and reads none early":
+    try expect_ok("struct P:\n    let a: i64\n    let b: i64\n    pub func init(n: i64) -> !:\n        if n < 0:\n            error(1, \"neg\")\n        self.a = n\n        self.b = n * 2\n        discard(self.a + self.b)\nfunc f() -> i64!:\n    let p = try P(1)\n    return p.b\n")
+    try expect_error("struct P:\n    let a: i64\n    let b: i64\n    pub func init(n: i64):\n        self.a = n\nfunc f() -> i64:\n    return P(1).a\n", "not assigned")
+    try expect_error("struct P:\n    let a: i64\n    pub func init(n: i64):\n        self.a = n\n        self.a = n + 1\nfunc f() -> i64:\n    return P(1).a\n", "assigned twice")
+    try expect_error("struct P:\n    let a: i64\n    let b: i64\n    pub func init(n: i64):\n        self.a = n\n        self.b = self.a * 2\nfunc f() -> i64:\n    return P(1).a\n", "before every field is assigned")
+    try expect_error("struct P:\n    let a: i64\n    pub func init(n: i64):\n        while n > 0:\n            self.a = n\nfunc f() -> i64:\n    return P(1).a\n", "assigned twice")
+    try expect_error("struct P:\n    let a: i64\n    pub func init(n: i64) -> i64:\n        self.a = n\n        return n\nfunc f() -> i64:\n    return 0\n", "`init` returns")
+
+test "a struct cannot contain itself by value":
+    try expect_error("struct N:\n    var next: N\nfunc f() -> i64:\n    return 0\n", "contains itself")
+    try expect_error("struct A:\n    var b: B\nstruct B:\n    var a: A\nfunc f() -> i64:\n    return 0\n", "contains itself")
+    try expect_ok("struct N:\n    var value: i64\n    var next: N*?\nfunc f() -> i64:\n    let n = N(value = 1, next = none)\n    return n.value\n")
+
+test "integer-backed enums: values for every case, distinct, and the bit operators":
+    try expect_ok("enum A as u32:\n    r = 1\n    w = 2\nfunc f() -> u32:\n    return (u32)(~A.r & (A.r | A.w))\n")
+    try expect_error("enum A as u8:\n    a = 1\n    b = 1\nfunc f() -> i64:\n    return 0\n", "share one value")
+    try expect_error("enum A as u8:\n    a\n    b\nfunc f() -> i64:\n    return 0\n", "every case its value")
+    try expect_ok("enum L as i8:\n    low = -1\n    high = 1\nfunc f() -> i64:\n    return (i64)(i8)L.low\n")
+
+test "equality needs it in every component; a union has a member":
+    try expect_error("union U:\n    a: i64\n    b: f64\nstruct S:\n    var u: U\nfunc f() -> bool:\n    var x: S\n    var y: S\n    return x == y\n", "no equality")
+    try expect_error("union U:\n    func g() -> i64:\n        return 1\nfunc f() -> i64:\n    return 0\n", "at least one member")
+
+test "a catch handler for a value recovers or leaves":
+    try expect_error("func g() -> i64!:\n    return 1\nfunc f() -> i64:\n    let v = g() catch e:\n        discard(e)\n    return v\n", "must `recover`")
+    try expect_ok("func g() -> i64!:\n    return 1\nfunc f() -> i64:\n    let v = g() catch e:\n        recover 2\n    return v\n")
+    try expect_ok("func g() -> !:\n    return\nfunc f() -> i64:\n    g() catch e:\n        discard(e)\n    return 1\n")
 
 test "generics infer from arguments and substitute results":
     try expect_ok("func first[T](values: const T[]) -> T?:\n    if values.length == 0:\n        return none\n    return values[0]\nfunc f() -> i64:\n    let xs: i64[3] = [1, 2, 3]\n    let v = first(xs) else return 0\n    return v\n")

@@ -1,0 +1,15 @@
+# error: before every field is assigned
+## §10.1: `init` cannot call a method before every field is assigned.
+struct P:
+    let a: i64
+
+    pub func init(a: i64):
+        let d = self.double()
+        self.a = d
+
+    func double() -> i64:
+        return self.a * 2
+
+pub func main(arguments: str[]) -> i32:
+    let p = P(1)
+    return 0

@@ -1,0 +1,9 @@
+# error: 
+## §10.4: a union cannot implement an interface.
+from io import Writer
+union U: Writer:
+    a: i64
+    b: f64
+
+pub func main(arguments: str[]) -> i32:
+    return 0

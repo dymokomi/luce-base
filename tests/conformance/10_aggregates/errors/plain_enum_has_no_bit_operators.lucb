@@ -1,0 +1,9 @@
+# error: 
+## §10.3: only an integer-backed enum combines with `|`.
+enum Direction:
+    north
+    south
+
+pub func main(arguments: str[]) -> i32:
+    let d = Direction.north | Direction.south
+    return 0

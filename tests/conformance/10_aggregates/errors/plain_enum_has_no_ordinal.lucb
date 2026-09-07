@@ -1,0 +1,9 @@
+# error: 
+## §10.2: ordinary code never sees an ordinal.
+enum Direction:
+    north
+    south
+
+pub func main(arguments: str[]) -> i32:
+    let n = (u32)Direction.north
+    return 0

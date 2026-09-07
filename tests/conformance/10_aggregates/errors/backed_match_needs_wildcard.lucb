@@ -1,0 +1,13 @@
+# error: needs a `_` arm
+## §10.3: a combination need not be a declared case.
+enum Access as u32:
+    read = 1
+    write = 2
+
+func name(a: Access) -> str:
+    match a:
+        .read: return "read"
+        .write: return "write"
+
+pub func main(arguments: str[]) -> i32:
+    return 0
