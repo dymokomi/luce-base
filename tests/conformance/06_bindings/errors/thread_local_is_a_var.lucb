@@ -1,0 +1,4 @@
+# error: `thread_local` declares a `var` (§6.3)
+thread_local let x: i64 = 1
+pub func main(arguments: str[]) -> i32:
+    return 0

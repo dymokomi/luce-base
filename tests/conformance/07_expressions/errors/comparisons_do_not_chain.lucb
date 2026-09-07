@@ -1,0 +1,6 @@
+# error: comparisons do not chain; use `and`
+pub func main(arguments: str[]) -> i32:
+    let a = 1
+    if 0 < a < 2:
+        return 1
+    return 0

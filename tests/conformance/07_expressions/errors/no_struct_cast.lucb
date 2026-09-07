@@ -1,0 +1,9 @@
+# error: expected `B`, got `A`
+struct A:
+    var x: i64
+struct B:
+    var x: i64
+pub func main(arguments: str[]) -> i32:
+    let a = A(x = 1)
+    let b = (B)a
+    return 0

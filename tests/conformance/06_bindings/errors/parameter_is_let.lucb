@@ -1,0 +1,6 @@
+# error: cannot assign to a `let`
+func f(n: i64) -> i64:
+    n = 2
+    return n
+pub func main(arguments: str[]) -> i32:
+    return i32(f(1))

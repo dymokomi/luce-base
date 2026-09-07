@@ -1,0 +1,4 @@
+# error: `= ---` needs `var` with a written type
+pub func main(arguments: str[]) -> i32:
+    let x: i64 = ---
+    return 0

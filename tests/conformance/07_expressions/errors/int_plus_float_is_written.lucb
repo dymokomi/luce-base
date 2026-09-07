@@ -1,0 +1,6 @@
+# error: expected `i64`, got `f64`
+pub func main(arguments: str[]) -> i32:
+    let n: i64 = 1
+    let f: f64 = 2.0
+    let x = n + f
+    return 0

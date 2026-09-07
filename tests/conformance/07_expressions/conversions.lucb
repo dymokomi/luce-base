@@ -1,0 +1,57 @@
+## §7.5: implicit widening; `T(x)` checked conversions that fit; `(T)x` casts with C's
+## meaning in every case; text conversions; pointers to integers and back; functions
+## through `void*`.
+import c
+
+enum Kind as u8:
+    alpha = 1
+    beta = 2
+
+func twice(n: i64) -> i64:
+    return n * 2
+
+pub func main(arguments: str[]) -> i32:
+    let byte: u8 = 200
+    let wide: u32 = byte
+    let wider: usize = wide
+    let small: i32 = -5
+    let big: i64 = small
+    let index: isize = small
+    let narrowed: u8 = u8(wide)
+    let rounded = f64(big)
+    let truncated = i32(-2.75)
+    let kind = Kind(2)
+    let long = c.long(big)
+    let cut: u8 = (u8)300
+    let bits: i8 = (i8)255
+    let saturated: u8 = (u8)300.7
+    let floor_sat: i8 = (i8)(-1000.0)
+    let toward_zero: i64 = (i64)(-2.75)
+    let to_float: f32 = (f32)big
+    let shorter: f32 = (f32)2.5
+    let repr: u8 = (u8)Kind.beta
+    let unchecked: Kind = (Kind)1
+    let text = "hi"
+    let cs = (c.str)text
+    let back = (str)text.bytes
+    var n: i64 = 41
+    let p: i64* = &n
+    let as_int = (usize)p
+    let again: i64*? = (i64*?)as_int
+    var through: i64 = 0
+    if let q = again:
+        through = *q
+    let erased: void* = (void*)twice
+    let restored: func(i64) -> i64 = (func(i64) -> i64)erased
+    let cp: const i64* = p
+    let writable: i64* = (i64*)cp
+    *writable = 42
+    let from_void: i64* = (i64*)erased_pointer(p)
+    let text_back = str(cs) catch:
+        recover "bad"
+    print(f"{wide} {wider} {big} {index} {narrowed} {rounded} {truncated} {(u8)kind} {i64(long)} {cut} {bits} {saturated} {floor_sat} {toward_zero}")
+    print(f"{to_float} {shorter} {repr} {(u8)unchecked} {text_back} {back} {through} {restored(4)} {n} {*from_void}")
+    return 0
+
+func erased_pointer(p: i64*) -> void*:
+    return p

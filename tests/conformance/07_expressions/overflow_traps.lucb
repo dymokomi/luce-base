@@ -1,0 +1,7 @@
+## A trap the arithmetic and conversion rules require (§7.2, §7.3, §7.5, §7.6).
+pub func main(arguments: str[]) -> i32:
+    var big: i64 = 9223372036854775807
+    let one: i64 = i64(arguments.length)
+    big = big + one
+    print(f"{big}")
+    return 0

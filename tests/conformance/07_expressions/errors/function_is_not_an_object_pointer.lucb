@@ -1,0 +1,6 @@
+# error: expected `i64*`, got `func() -> i64`
+func f() -> i64:
+    return 1
+pub func main(arguments: str[]) -> i32:
+    let p = (i64*)f
+    return 0

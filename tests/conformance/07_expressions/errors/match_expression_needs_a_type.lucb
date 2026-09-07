@@ -1,0 +1,7 @@
+# error: expected `i64`, got `str`
+pub func main(arguments: str[]) -> i32:
+    let n = 1
+    let x = match n:
+        1 => 1
+        _ => "other"
+    return 0

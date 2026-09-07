@@ -1,0 +1,13 @@
+## §6.4: `luce.file`, `luce.line`, and `luce.function` are compile-time replacements naming
+## the use site; as a default argument they expand at the call site.
+import luce
+
+func here(line: u32 = luce.line) -> u32:
+    return line
+
+pub func main(arguments: str[]) -> i32:
+    let l = luce.line
+    let f = luce.function
+    let called = here()
+    print(f"{l} {f} {called} {luce.file}")
+    return 0

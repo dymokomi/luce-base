@@ -1,0 +1,33 @@
+## §6.4: constant expressions from literals, `sizeof`, `alignof`, `offsetof`, arithmetic,
+## casts, enum cases, array and struct literals, and top-level `let` names; a module-level
+## `assert` on one.
+struct Header:
+    var tag: u32
+    var length: u32
+    var flags: u8
+
+enum Flag as u32:
+    read = 1
+    write = 2
+    execute = 4
+
+let header_size: usize = sizeof(Header)
+let padded: usize = (header_size + 7) // 8 * 8
+let page: usize = 1 << 12
+let both: Flag = .read | .write
+let masks: u32[3] = [1, 2, 4]
+let limit: i64 = -(3 * 4) + 1
+let narrow: u8 = (u8)300
+let wide: f64 = 2.5 * 2.0
+let where: usize = offsetof(Header, flags)
+let aligned: usize = alignof(Header)
+pub let greeting: str = "hi"
+
+assert(sizeof(Header) == 12)
+assert(page == 4096)
+
+var table: u8[padded]
+
+pub func main(arguments: str[]) -> i32:
+    print(f"{header_size} {padded} {page} {(u32)both} {masks[2]} {limit} {narrow} {wide} {where} {aligned} {greeting} {table.length}")
+    return 0

@@ -1,0 +1,6 @@
+# error: expected `i32`, got `u32`
+pub func main(arguments: str[]) -> i32:
+    let a: i32 = 1
+    let b: u32 = 2
+    let x = a + b
+    return 0

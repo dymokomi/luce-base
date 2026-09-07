@@ -1,0 +1,9 @@
+# error: these values have no equality
+union Bits:
+    f: f32
+    u: u32
+pub func main(arguments: str[]) -> i32:
+    var a: Bits
+    var b: Bits
+    let same = a == b
+    return 0

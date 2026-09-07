@@ -1,0 +1,6 @@
+# error: this pointer or view names a local and must not be stored where it outlives the function
+var keep: i64*? = none
+pub func main(arguments: str[]) -> i32:
+    var x: i64 = 1
+    keep = &x
+    return 0

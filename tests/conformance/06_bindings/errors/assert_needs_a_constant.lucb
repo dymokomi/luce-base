@@ -1,0 +1,6 @@
+# error: a module-level `assert` needs a constant condition (§6.4)
+func f() -> bool:
+    return true
+assert(f())
+pub func main(arguments: str[]) -> i32:
+    return 0

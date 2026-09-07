@@ -1,0 +1,6 @@
+# error: a top-level `let` needs a constant expression (§6.4)
+func f() -> i64:
+    return 1
+let g: i64 = f()
+pub func main(arguments: str[]) -> i32:
+    return 0

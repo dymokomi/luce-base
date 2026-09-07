@@ -1,0 +1,9 @@
+## A trap the arithmetic and conversion rules require (§7.2, §7.3, §7.5, §7.6).
+enum Kind as u8:
+    alpha = 1
+    beta = 2
+pub func main(arguments: str[]) -> i32:
+    let n: u8 = 3 * u8(arguments.length)
+    let k = Kind(n)
+    print(f"{(u8)k}")
+    return 0

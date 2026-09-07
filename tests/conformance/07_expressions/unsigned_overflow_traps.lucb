@@ -1,0 +1,7 @@
+## A trap the arithmetic and conversion rules require (§7.2, §7.3, §7.5, §7.6).
+pub func main(arguments: str[]) -> i32:
+    var byte: u8 = 255
+    let one: u8 = u8(arguments.length)
+    byte = byte + one
+    print(f"{byte}")
+    return 0

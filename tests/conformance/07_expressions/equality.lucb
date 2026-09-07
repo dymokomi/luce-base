@@ -1,0 +1,34 @@
+## §7.4: equality on scalars, `char`, `str` by bytes, tuples, arrays, structs, enums,
+## optionals, and pointers by address; `hash` agrees on equal values within a run.
+struct Point:
+    var x: i64
+    var y: i64
+
+enum Kind:
+    plain
+    tagged(value: i64)
+
+pub func main(arguments: str[]) -> i32:
+    let p = Point(x = 1, y = 2)
+    let q = Point(x = 1, y = 2)
+    let r = Point(x = 2, y = 1)
+    let pair: (i64, str) = (1, "a")
+    let same: (i64, str) = (1, "a")
+    let arr: u8[3] = [1, 2, 3]
+    let arr2: u8[3] = [1, 2, 3]
+    let arr3: u8[3] = [1, 2, 4]
+    let k1 = Kind.tagged(value = 3)
+    let k2 = Kind.tagged(value = 3)
+    let k3 = Kind.plain
+    let some: i64? = 5
+    let other: i64? = 5
+    let absent: i64? = none
+    var a: i64 = 1
+    var b: i64 = 1
+    let pa: i64* = &a
+    let pb: i64* = &b
+    let pa2: i64* = &a
+    let word = "grüße"
+    print(f"{p == q} {p != r} {pair == same} {arr == arr2} {arr != arr3} {k1 == k2} {k1 != k3} {some == other} {absent == none} {some != absent}")
+    print(f"{pa == pb} {pa == pa2} {'a' == 'a'} {'a' != 'b'} {word == "grüße"} {"ab" < "b"} {1.5 == 1.5} {hash(p) == hash(q)} {hash(p) != hash(r)} {hash("x") == hash("x")} {hash(pa) == hash(pa2)}")
+    return 0

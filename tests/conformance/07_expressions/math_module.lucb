@@ -1,0 +1,7 @@
+# oracle: none
+## §7.2: the functions beside the operators live in `math`; `//` and `%` keep C's meaning.
+import math
+
+pub func main(arguments: str[]) -> i32:
+    print(f"{math.floor(-3.5)} {math.ceil(-3.5)} {math.mod(-7.0, 2.0)} {-7 // 2} {-7 % 2} {math.sqrt(16.0)}")
+    return 0

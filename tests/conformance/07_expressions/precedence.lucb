@@ -1,0 +1,24 @@
+## §7.10: the operator precedence table, from member and call through `or`, on cases
+## where Base's answer differs from a guess.
+func seven() -> i64:
+    return 7
+
+pub func main(arguments: str[]) -> i32:
+    let x: i64 = 12
+    let y: i64 = 10
+    let a = 1 + 2 * 3
+    let b = -2 * 3
+    let c = ~x & 0xF
+    let d = x << 1 + 1
+    let e = x & 4 == 4
+    let f = not false and false
+    let g = 2 + seven() * 2
+    let h = x - y - 1
+    let i = 100 // 10 // 2
+    let j = 2 * 3 % 4
+    let k = 1 | 2 ^ 3 & 1
+    let m = 5 if x > y else 6 if y > x else 7
+    let n = x > 5 and y > 5 or x < 0
+    let o = 1 + 1 == 2
+    print(f"{a} {b} {c} {d} {e} {f} {g} {h} {i} {j} {k} {m} {n} {o}")
+    return 0

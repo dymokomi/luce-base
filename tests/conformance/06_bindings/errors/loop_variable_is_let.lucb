@@ -1,0 +1,5 @@
+# error: cannot assign to a `let`
+pub func main(arguments: str[]) -> i32:
+    for i in 0..<3:
+        i = 5
+    return 0

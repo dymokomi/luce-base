@@ -1,0 +1,24 @@
+## §7.8, §7.9: the conditional expression with one common type and an untyped branch;
+## the `match` expression with ranges and alternatives; a discarded non-unit result.
+func classify(c: char) -> str:
+    return match c:
+        '0'..='9' => "digit"
+        'a'..='z', 'A'..='Z' => "letter"
+        _ => "other"
+
+func bump(n: i64) -> i64:
+    return n + 1
+
+pub func main(arguments: str[]) -> i32:
+    let ready = true
+    let label = "ready" if ready else "waiting"
+    let count: i64 = 3
+    let fallback = count if count > 5 else 0
+    let sized: u8 = 200 if ready else 100
+    let kind = match count:
+        1 => "one"
+        2, 3 => "few"
+        _ => "many"
+    discard(bump(1))
+    print(f"{label} {fallback} {sized} {kind} {classify('7')} {classify('Q')} {classify(' ')}")
+    return 0

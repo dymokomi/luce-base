@@ -1,0 +1,57 @@
+## §6.1, §6.3: a `var` with a zeroable type starts at zero; globals are zero before `main`
+## or hold their constant; `---` leaves storage unwritten until the program writes it.
+struct Point:
+    var x: i64
+    var y: i64
+
+struct Node:
+    var value: i64
+    var next: Node*?
+
+enum Level as u8:
+    quiet = 0
+    loud = 1
+
+enum Shape:
+    empty
+    circle(radius: f64)
+
+var hits: u32
+var seed: u32 = 0x9E3779B9
+thread_local var current: i64
+pub let max_header: usize = 16 * 1024
+let origin: Point = Point(x = 1, y = 2)
+
+pub func main(arguments: str[]) -> i32:
+    var count: u32
+    var buffer: u8[16]
+    var next: Node*?
+    var point: Point
+    var maybe: i64?
+    var text: str
+    var view: u8[]
+    var level: Level
+    var shape: Shape
+    var flag: bool
+    var ratio: f64
+    var raw: u8[4] = ---
+    raw[0] = 7
+    raw[1] = 8
+    raw[2] = 9
+    raw[3] = 10
+    var sum: u32 = 0
+    for b in buffer:
+        sum += u32(b)
+    let none_next = next == none
+    let none_maybe = maybe == none
+    var described = "circle"
+    match shape:
+        .empty:
+            described = "empty"
+        .circle(radius):
+            described = "round"
+    hits += 3
+    current = 5
+    print(f"{count} {sum} {none_next} {point.x} {point.y} {none_maybe} {text.length} {view.length} {(u8)level} {described} {flag} {ratio}")
+    print(f"{raw[3]} {hits} {seed} {current} {max_header} {origin.x} {origin.y} {level == .quiet}")
+    return 0

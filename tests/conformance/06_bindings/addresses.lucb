@@ -1,0 +1,43 @@
+## §6.6: the pointer's qualifier comes from the nearest root of the path: a `var` gives
+## `T*`, a `let` gives `const T*`, and a path rooted at a `T*` held in a `let` is mutable;
+## a local's address and a span of a local array may be passed down.
+struct Task:
+    var link: i64
+    var done: bool
+
+func bump(p: i64*):
+    *p += 1
+
+func peek(p: const i64*) -> i64:
+    return *p
+
+func total(view: const u8[]) -> i64:
+    var s: i64 = 0
+    for b in view:
+        s += i64(b)
+    return s
+
+func fill(view: u8[]):
+    var i: usize = 0
+    while i < view.length:
+        view[i] = u8(i + 1)
+        i += 1
+
+pub func main(arguments: str[]) -> i32:
+    var counter: i64 = 1
+    bump(&counter)
+    let fixed: i64 = 10
+    let read_only: const i64* = &fixed
+    var task = Task(link = 1, done = false)
+    let held: Task* = &task
+    let link: i64* = &held.link
+    *link = 9
+    held.done = true
+    var bytes: u8[4]
+    fill(bytes)
+    let seen = total(bytes)
+    var local_text: u8[2] = ['o', 'k']
+    let view: const u8[] = local_text
+    let as_text = (str)view
+    print(f"{counter} {peek(read_only)} {peek(&counter)} {task.link} {task.done} {seen} {as_text}")
+    return 0

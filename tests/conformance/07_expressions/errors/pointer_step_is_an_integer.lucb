@@ -1,0 +1,6 @@
+# error: a pointer offset is `usize` or `isize`
+pub func main(arguments: str[]) -> i32:
+    var x: i64 = 1
+    let p = &x
+    let q = p + 1.5
+    return 0

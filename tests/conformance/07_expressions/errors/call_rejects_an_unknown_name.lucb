@@ -1,0 +1,6 @@
+# error: no parameter with that name
+func add(a: i64, b: i64) -> i64:
+    return a + b
+pub func main(arguments: str[]) -> i32:
+    let x = add(a = 1, c = 2)
+    return 0

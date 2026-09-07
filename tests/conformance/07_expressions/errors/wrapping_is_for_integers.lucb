@@ -1,0 +1,4 @@
+# error: wrapping and saturating arithmetic need integers
+pub func main(arguments: str[]) -> i32:
+    let x = 1.5 +% 2.0
+    return 0

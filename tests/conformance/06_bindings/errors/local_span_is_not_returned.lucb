@@ -1,0 +1,6 @@
+# error: this pointer or view names a local and must not escape the function
+func leak() -> u8[]:
+    var buffer: u8[8]
+    return buffer
+pub func main(arguments: str[]) -> i32:
+    return 0

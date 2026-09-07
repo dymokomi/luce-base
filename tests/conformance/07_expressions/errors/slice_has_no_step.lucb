@@ -1,0 +1,5 @@
+# error: expected `]`
+pub func main(arguments: str[]) -> i32:
+    let items: u8[3] = [1, 2, 3]
+    let every = items[0..<3..2]
+    return 0

@@ -1,0 +1,8 @@
+# error: this value is not hashable
+union Bits:
+    f: f32
+    u: u32
+pub func main(arguments: str[]) -> i32:
+    var a: Bits
+    let h = hash(a)
+    return 0

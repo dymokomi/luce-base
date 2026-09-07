@@ -1,0 +1,5 @@
+# error: expected `@u64`, got `<integer>`
+pub func main(arguments: str[]) -> i32:
+    var hits: @u64
+    let more = hits +? 1
+    return 0

@@ -1,0 +1,8 @@
+# error: this place is not mutable
+struct P:
+    var x: i64
+pub func main(arguments: str[]) -> i32:
+    var p = P(x = 1)
+    let q: const P* = &p
+    q.x = 2
+    return 0

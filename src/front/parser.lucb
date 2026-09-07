@@ -225,6 +225,8 @@ pub struct Parser:
         var flags = visibility
         if self.eat_kw("thread_local"):
             flags |= ast.flag_thread_local
+            if not self.at_kw("var"):
+                return try self.fail("`thread_local` declares a `var` (§6.3)")
         let attributes = try self.parse_attributes()
         if self.at_kw("let"):
             let n = try self.node(ast.Kind.constant, "")

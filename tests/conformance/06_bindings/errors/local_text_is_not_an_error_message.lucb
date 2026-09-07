@@ -1,0 +1,7 @@
+# error: an error message must not name a local; format into a buffer that outlives the function
+pub let broken: ErrorCode = ErrorCode.package(1)
+func fail() -> i64!:
+    var bytes: u8[4] = ['o', 'o', 'p', 's']
+    error(broken, (str)bytes)
+pub func main(arguments: str[]) -> i32:
+    return 0

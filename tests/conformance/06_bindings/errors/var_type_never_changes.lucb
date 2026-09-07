@@ -1,0 +1,5 @@
+# error: expected `i64`, got `str`
+pub func main(arguments: str[]) -> i32:
+    var x = 1
+    x = "text"
+    return 0

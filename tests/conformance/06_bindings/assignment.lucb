@@ -1,0 +1,42 @@
+## §6.5: the right side is evaluated before the destination changes; a field or index path
+## is one place evaluated once; pointers store through; a tuple binding destructures left
+## to right; compound assignment on scalars and paths.
+struct Item:
+    var selected: bool
+    var count: i64
+
+var calls: i64 = 0
+
+func next_index() -> usize:
+    calls += 1
+    return 1
+
+func pair() -> (i64, i64):
+    calls += 10
+    return (calls, calls + 1)
+
+pub func main(arguments: str[]) -> i32:
+    var items: Item[3]
+    items[next_index()].count += 5
+    items[next_index()].selected = true
+    var x: i64 = 3
+    x = x * x + x
+    var p: i64* = &x
+    *p = *p + 1
+    var cursor = Item(selected = false, count = 1)
+    var q: Item* = &cursor
+    q.count = q.count * 10
+    let (first, second) = pair()
+    var total: i64 = 100
+    total -= 1
+    total *= 2
+    total //= 3
+    total %= 50
+    var bits: u32 = 0b1100
+    bits &= 0b1010
+    bits |= 1
+    bits ^= 0b11
+    bits <<= 2
+    bits >>= 1
+    print(f"{items[1].count} {items[1].selected} {items[0].count} {calls} {x} {cursor.count} {first} {second} {total} {bits}")
+    return 0

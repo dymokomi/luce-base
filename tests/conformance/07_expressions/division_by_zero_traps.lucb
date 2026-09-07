@@ -1,0 +1,6 @@
+## A trap the arithmetic and conversion rules require (§7.2, §7.3, §7.5, §7.6).
+pub func main(arguments: str[]) -> i32:
+    let a: i64 = 7
+    let zero: i64 = i64(arguments.length) - 1
+    print(f"{a // zero}")
+    return 0

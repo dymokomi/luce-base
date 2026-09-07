@@ -1,0 +1,45 @@
+## §7.2, §7.3: checked, wrapping, saturating, and optional arithmetic; C's truncating `//`
+## and `%`; float division; bit operators, shifts that discard, arithmetic right shift;
+## short-circuit logic, in one program mixing widths.
+var side_effects: i64 = 0
+
+func touched() -> bool:
+    side_effects += 1
+    return true
+
+pub func main(arguments: str[]) -> i32:
+    let a: i64 = -7
+    let b: i64 = 2
+    let byte: u8 = 250
+    let small: u8 = 200
+    let wrapped: u8 = byte +% 10
+    let negated: u8 = -%byte
+    let lowest = byte & -%byte
+    let saturated: u8 = byte +| small
+    let sat_mul: u8 = small *| 2
+    let sat_sub: u8 = 3 -| 7
+    let maybe: u8? = byte +? 5
+    let fits: u8? = 1 +? 2
+    var report = "none"
+    if let v = maybe:
+        report = "some"
+    var fitted: i64 = 0
+    if let v = fits:
+        fitted = i64(v)
+    let quotient = a // b
+    let remainder = a % b
+    let half = 7.0 / 2.0
+    let widened: u16 = byte
+    let mixed = widened + small
+    let x: i64 = 0b1100
+    let y: i64 = 0b1010
+    let shifted: u8 = 3 << 7
+    let arithmetic_shift = -8 >> 1
+    let big: u64 = 1 << 63
+    let ok = false and touched()
+    let also = true or touched()
+    let both = true and touched()
+    print(f"{wrapped} {negated} {lowest} {saturated} {sat_mul} {sat_sub} {report} {fitted}")
+    print(f"{quotient} {remainder} {half} {mixed} {x & y} {x | y} {x ^ y} {~x & 0xF} {shifted} {arithmetic_shift} {big} {a * b + 1} {-a}")
+    print(f"{ok} {also} {both} {side_effects} {not ok} {a < b and b < 3}")
+    return 0

@@ -108,6 +108,9 @@ pub struct Emitter:
     var sink_index: u32
     ## `--profile diagnostic`: `---` storage is filled with a pattern, the allocator quarantines.
     pub var diagnostic: bool
+    ## Inside a top-level initialiser (§6.4): arithmetic and casts are C's own constant
+    ## operators, since the helpers that trap are not constant expressions to C.
+    var folding: bool
     ## The line of the allocation being emitted, for the diagnostic profile's record.
     var site_line: u32
 
@@ -122,8 +125,8 @@ pub struct Emitter:
                        current_fn = none, fn_decl = none, fn_args = try types.no_args(), owner_decl = none,
                        owner_args = try types.no_args(), scopes = try list.List[Scope].create(64),
                        defers = try list.List[NodeRef].create(64), catch_var = 0, catch_done = 0,
-                       catch_payload = 0, match_result = 0, in_catch = false, src_file = entry.text, wrote_writer = false,
-                       sink_prefix = "", sink_index = 0, diagnostic = false, site_line = 0)
+                       catch_payload = 0, match_result = 0, in_catch = false, src_file = source_path(checker, entry), wrote_writer = false,
+                       sink_prefix = "", sink_index = 0, diagnostic = false, site_line = 0, folding = false)
 
     # -- output ---------------------------------------------------------------------------
 
@@ -1301,34 +1304,69 @@ pub struct Emitter:
             try self.value(value, self.elem(pt))
             try self.put(";")
             return
+        # a compound assignment evaluates its place once (§6.5): the place's address is
+        # taken into a temporary and the operation reads and writes through it
+        let cell = try self.place_cell(place, pt)
         if op == "&" or op == "|" or op == "^":
             try self.line("")
-            try self.place(place)
+            try self.expr(cell)
             try self.put(" = ")
-            try self.place(place)
+            try self.expr(cell)
             try self.put(" ")
             try self.put(op)
             try self.put(" (")
             try self.value(value, pt)
-            try self.put(");")
+            try self.put("); }")
             return
         if self.is_float(pt) and (op == "+" or op == "-" or op == "*" or op == "/"):
             try self.line("")
-            try self.place(place)
+            try self.expr(cell)
             try self.put(" ")
             try self.put(op)
             try self.put("= ")
             try self.value(value, pt)
-            try self.put(";")
+            try self.put("; }")
             return
         try self.line("")
-        try self.place(place)
+        try self.expr(cell)
         try self.put(" = ")
-        try self.checked_op(helper_name(op), pt, place, value)
-        try self.put(";")
+        try self.checked_op(helper_name(op), pt, cell, value)
+        try self.put("; }")
+
+    ## Opens a block holding a pointer to `place`, and answers the dereference that stands
+    ## for the place from then on; the caller closes the block.
+    mutating func place_cell(place: ast.Node*, pt: u32) -> ast.Node*!:
+        let n = self.tmp()
+        var name_bytes = try alloc u8[24]
+        let name = try format(name_bytes, f"_cell{n}")
+        let cell = try ast.Node.make(ast.Kind.name, name, place.start, place.line)
+        cell.type_id = try self.c.table.pointer(pt, false, false)
+        let deref = try ast.Node.make(ast.Kind.unary, "*", place.start, place.line)
+        deref.left = cell
+        deref.type_id = pt
+        try self.line("{ ")
+        try self.put_type(pt)
+        try self.put("* ")
+        try self.put_ident(name)
+        try self.put(" = &(")
+        try self.place(place)
+        try self.put(");")
+        return deref
 
     ## `lb_add_s(a, b, bits)` cast back to the type; `a` and `b` are expressions.
     mutating func checked_op(helper: str, t: u32, l: ast.Node*, r: ast.Node*) -> !:
+        if self.folding:
+            # a constant expression: C's operator, which the checker has already bounded
+            try self.put("((")
+            try self.put_type(t)
+            try self.put(")(")
+            try self.value(l, t)
+            try self.put(" ")
+            try self.put(plain_operator(helper))
+            try self.put(" ")
+            try self.value(r, t)
+            try self.put("))")
+            return
         try self.put("(")
         try self.put_type(t)
         try self.put(")(lb_")
@@ -2258,6 +2296,13 @@ pub struct Emitter:
             if d.kind == ast.Kind.func_ or d.kind == ast.Kind.extern_func:
                 try self.func_value(e, d)
                 return
+            if d.kind == ast.Kind.constant and self.folding:
+                # C reads no global in an initialiser, so a constant's value stands in for its name
+                if let init = d.left:
+                    try self.put("(")
+                    try self.value(init, d.type_id)
+                    try self.put(")")
+                    return
             if d.kind == ast.Kind.extern_var or d.kind == ast.Kind.global or d.kind == ast.Kind.constant:
                 try self.put_global_name(d)
                 return
@@ -2453,6 +2498,11 @@ pub struct Emitter:
                 try self.put_u64(v)
                 try self.put("LL))")
                 return
+        if self.folding:
+            try self.put("(-(")
+            try self.expr(inner)
+            try self.put("))")
+            return
         try self.put("((")
         try self.put_type(t)
         try self.put(")lb_neg_s((int64_t)(")
@@ -2658,13 +2708,9 @@ pub struct Emitter:
             try self.put_tmp("eb", n)
             try self.put(" = ")
             try self.value(r, ot)
-            try self.put("; memcmp(&")
-            try self.put_tmp("ea", n)
-            try self.put(", &")
-            try self.put_tmp("eb", n)
-            try self.put(", sizeof(")
-            try self.put_tmp("ea", n)
-            try self.put(")) == 0; })")
+            try self.put("; ")
+            try self.same_value(ot, try self.tmp_name("ea", n), try self.tmp_name("eb", n))
+            try self.put("; })")
         else:
             try self.put("(")
             if l_none:
@@ -2686,6 +2732,14 @@ pub struct Emitter:
     mutating func conversion(src: ast.Node*, dest: u32, checked: bool) -> !:
         let st = try self.ty(src)
         let s = self.c.table.get(st)
+        if self.folding and (self.is_int(dest) or self.is_float(dest)) and (self.is_int(st) or self.is_float(st) or st == types.untyped_int_id or st == types.untyped_float_id):
+            # a constant expression: C's cast
+            try self.put("((")
+            try self.put_type(dest)
+            try self.put(")(")
+            try self.expr(src)
+            try self.put("))")
+            return
         if dest == types.str_id and (st == types.cstr_id or ((s.kind == types.Kind.span or s.kind == types.Kind.array) and s.elem == types.u8_id)):
             try self.str_conversion(src, checked)
             return
@@ -2987,39 +3041,33 @@ pub struct Emitter:
         if self.is_array(ot):
             try self.put("((")
             try self.expr(owner)
-            try self.put(").d[(lb_check_index((uint64_t)(")
+            try self.put(").d[lb_at((uint64_t)(")
             try self.expr(i)
             try self.put("), ")
             try self.put_u64(self.c.table.get(ot).length)
-            try self.put("ULL), ")
-            try self.expr(i)
-            try self.put(")])")
+            try self.put("ULL)])")
             return
         if self.is_span(ot):
             try self.put("(((")
             try self.put_type(self.elem(ot))
             try self.put("*)")
             try self.expr(owner)
-            try self.put(".data)[(lb_check_index((uint64_t)(")
+            try self.put(".data)[lb_at((uint64_t)(")
             try self.expr(i)
             try self.put("), ")
             try self.expr(owner)
-            try self.put(".length), ")
-            try self.expr(i)
-            try self.put(")])")
+            try self.put(".length)])")
             return
         if self.is_ptr(ot):
             let inner = self.elem(ot)
             if self.is_array(inner):
                 try self.put("((")
                 try self.expr(owner)
-                try self.put(")->d[(lb_check_index((uint64_t)(")
+                try self.put(")->d[lb_at((uint64_t)(")
                 try self.expr(i)
                 try self.put("), ")
                 try self.put_u64(self.c.table.get(inner).length)
-                try self.put("ULL), ")
-                try self.expr(i)
-                try self.put(")])")
+                try self.put("ULL)])")
                 return
             try self.put("((")
             try self.expr(owner)
@@ -4823,6 +4871,157 @@ pub struct Emitter:
         try self.expr(v)
         try self.put("))")
 
+    ## `a == b` for two C expressions of type `t`, member by member (§7.4): padding bytes
+    ## and the bytes of an inactive payload never take part, as they would in a `memcmp`.
+    mutating func same_value(t: u32, a: str, b: str) -> !:
+        let k = self.kind(t)
+        if t == types.str_id or t == types.fmt_id:
+            try self.put("(")
+            try self.put(a)
+            try self.put(".length == ")
+            try self.put(b)
+            try self.put(".length && (")
+            try self.put(a)
+            try self.put(".length == 0 || memcmp(")
+            try self.put(a)
+            try self.put(".data, ")
+            try self.put(b)
+            try self.put(".data, ")
+            try self.put(a)
+            try self.put(".length) == 0))")
+            return
+        if self.is_tagged_opt(t):
+            try self.put("(")
+            try self.put(a)
+            try self.put(".present == ")
+            try self.put(b)
+            try self.put(".present && (!")
+            try self.put(a)
+            try self.put(".present || ")
+            try self.same_value(self.elem(t), try self.path(a, ".value"), try self.path(b, ".value"))
+            try self.put("))")
+            return
+        if k == types.Kind.array:
+            let n = self.tmp()
+            let i = try self.tmp_name("i", n)
+            let eq = try self.tmp_name("eq", n)
+            try self.put("({ bool ")
+            try self.put(eq)
+            try self.put(" = true; for (size_t ")
+            try self.put(i)
+            try self.put(" = 0; ")
+            try self.put(i)
+            try self.put(" < ")
+            try self.put_u64(self.c.table.get(t).length)
+            try self.put("ULL && ")
+            try self.put(eq)
+            try self.put("; ")
+            try self.put(i)
+            try self.put("++) { ")
+            try self.put(eq)
+            try self.put(" = ")
+            var index_bytes = try alloc u8[i.length + 5]
+            let index = try format(index_bytes, f".d[{i}]")
+            try self.same_value(self.elem(t), try self.path(a, index), try self.path(b, index))
+            try self.put("; } ")
+            try self.put(eq)
+            try self.put("; })")
+            return
+        if k == types.Kind.tuple:
+            let members = self.c.table.get(t).args
+            try self.put("(")
+            var j: usize = 0
+            while j < members.length:
+                if j > 0:
+                    try self.put(" && ")
+                var member_bytes = try alloc u8[16]
+                let member = try format(member_bytes, f".a{j}")
+                try self.same_value(members[j], try self.path(a, member), try self.path(b, member))
+                j += 1
+            if members.length == 0:
+                try self.put("true")
+            try self.put(")")
+            return
+        if k == types.Kind.struct_:
+            let record = self.c.table.get(t)
+            let d = record.decl else return try self.put("true")
+            try self.put("(")
+            var any = false
+            var cursor = d.body
+            while let m = cursor:
+                if m.kind == ast.Kind.field:
+                    if any:
+                        try self.put(" && ")
+                    any = true
+                    var ft = m.type_id
+                    if record.args.length > 0:
+                        ft = try self.c.substitute(ft, d, record.args)
+                    let member = try self.path(".", m.text)
+                    try self.same_value(ft, try self.path(a, member), try self.path(b, member))
+                cursor = m.next
+            if not any:
+                try self.put("true")
+            try self.put(")")
+            return
+        if k == types.Kind.enum_ and not self.is_int_enum(t):
+            let record = self.c.table.get(t)
+            let d = record.decl else return try self.put("true")
+            let n = self.tmp()
+            let eq = try self.tmp_name("eq", n)
+            try self.put("({ bool ")
+            try self.put(eq)
+            try self.put(" = ")
+            try self.put(a)
+            try self.put(".tag == ")
+            try self.put(b)
+            try self.put(".tag; if (")
+            try self.put(eq)
+            try self.put(") switch ((int)")
+            try self.put(a)
+            try self.put(".tag) { ")
+            var cursor = d.body
+            while let case_decl = cursor:
+                if case_decl.kind == ast.Kind.enum_case and case_decl.body != none:
+                    try self.put("case ")
+                    try self.put_u64((u64)case_tag(d, case_decl))
+                    try self.put(": ")
+                    try self.put(eq)
+                    try self.put(" = (")
+                    var first = true
+                    var param = case_decl.body
+                    while let p = param:
+                        if not first:
+                            try self.put(" && ")
+                        first = false
+                        var pt = p.type_id
+                        if record.args.length > 0:
+                            pt = try self.c.substitute(pt, d, record.args)
+                        var member_bytes = try alloc u8[case_decl.text.length + p.text.length + 4]
+                        let member = try format(member_bytes, f".u.{case_decl.text}.{p.text}")
+                        try self.same_value(pt, try self.path(a, member), try self.path(b, member))
+                        param = p.next
+                    try self.put("); break; ")
+                cursor = case_decl.next
+            try self.put("default: break; } ")
+            try self.put(eq)
+            try self.put("; })")
+            return
+        try self.put("(")
+        try self.put(a)
+        try self.put(" == ")
+        try self.put(b)
+        try self.put(")")
+
+    ## `a` followed by `suffix`, as one C expression text.
+    func path(a: str, suffix: str) -> str!:
+        var bytes = try alloc u8[a.length + suffix.length + 1]
+        return try format(bytes, f"{a}{suffix}")
+
+    ## The text `put_tmp(prefix, n)` writes.
+    func tmp_name(prefix: str, n: u32) -> str!:
+        var bytes = try alloc u8[prefix.length + 16]
+        return try format(bytes, f"_lb_{prefix}{n}")
+
     ## The pieces of a formatted string appended to buffer `prefix n`.
     mutating func pieces(n: u32, prefix: str, f: ast.Node*) -> !:
         var part = f.body
@@ -5323,7 +5522,9 @@ pub struct Emitter:
             return
         try self.put(" = ")
         if let init = d.left:
+            self.folding = true
             try self.value(init, t)
+            self.folding = false
         else:
             try self.zero_value(t)
         try self.put(";")
@@ -5477,6 +5678,32 @@ func c_spelling(id: u32) -> str:
     if id == types.c_ulong_id: return "unsigned long"
     if id == types.c_wchar_id: return "wchar_t"
     return "va_list"
+
+## The C operator behind a checked helper, for a constant expression.
+func plain_operator(helper: str) -> str:
+    if helper == "add" or helper == "addw" or helper == "adds":
+        return "+"
+    if helper == "sub" or helper == "subw" or helper == "subs":
+        return "-"
+    if helper == "mul" or helper == "mulw" or helper == "muls":
+        return "*"
+    if helper == "div":
+        return "/"
+    if helper == "mod":
+        return "%"
+    if helper == "shl":
+        return "<<"
+    return ">>"
+
+## The path of the module `tree` came from, for `luce.file` (§6.4); a name when unknown.
+func source_path(checker: check.Checker*, tree: ast.Node*) -> str:
+    var i: usize = 0
+    while i < checker.modules.count:
+        let module = checker.modules.get(i)
+        if module.tree == tree:
+            return module.src.path
+        i += 1
+    return tree.text
 
 func helper_name(op: str) -> str:
     if op == "+":

@@ -1,0 +1,5 @@
+# error: expected `str`, got `<integer>`
+pub func main(arguments: str[]) -> i32:
+    let flag = true
+    let x = 1 if flag else "one"
+    return 0

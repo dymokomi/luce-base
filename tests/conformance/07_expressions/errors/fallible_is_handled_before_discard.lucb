@@ -1,0 +1,7 @@
+# error: a fallible result must be handled before it is discarded
+pub let broken: ErrorCode = ErrorCode.package(1)
+func might() -> i64!:
+    return 1
+pub func main(arguments: str[]) -> i32:
+    discard(might())
+    return 0

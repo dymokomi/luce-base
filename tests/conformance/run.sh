@@ -29,6 +29,27 @@ for dir in tests/conformance/[0-9]*/; do
         fi
         programs=$((programs + 1))
     done
+    # a program beside a `.trap` file must stop with a trap naming that text, in every execution
+    for f in "$dir"*.trap; do
+        [ -e "$f" ] || continue
+        src="${f%.trap}.lucb"
+        want=$(cat "$f")
+        echo "== $src (traps)"
+        for flags in "" "--native"; do
+            ./build/luce-base build "$src" $flags -o build/conformance
+            if ./build/conformance > build/conformance.out 2> build/conformance.err; then
+                echo "FAIL $src: expected a trap, the program finished"; exit 1
+            fi
+            grep -q "$want" build/conformance.err || { echo "FAIL $src: expected [$want], got [$(cat build/conformance.err)]"; exit 1; }
+        done
+        if [ -n "$seed" ] && ! grep -q '^# oracle: none' "$src"; then
+            if "$seed" eval "$src" > build/conformance.out 2> build/conformance.err; then
+                echo "FAIL $src: expected a trap, the seed finished"; exit 1
+            fi
+            grep -q "$want" build/conformance.err || { echo "FAIL $src: the seed said [$(cat build/conformance.err)]"; exit 1; }
+        fi
+        programs=$((programs + 1))
+    done
     for f in "$dir"errors/*.lucb; do
         [ -e "$f" ] || continue
         want=$(LC_ALL=C sed -n 's/^# error: //p' "$f")
@@ -44,7 +65,7 @@ for dir in tests/conformance/[0-9]*/; do
         fi
         rejections=$((rejections + 1))
     done
-    echo "== $dir $(ls "$dir"*.expect 2>/dev/null | wc -l | tr -d ' ') programs, $(ls "$dir"errors/*.lucb 2>/dev/null | wc -l | tr -d ' ') rejections"
+    echo "== $dir $(ls "$dir"*.expect "$dir"*.trap 2>/dev/null | wc -l | tr -d ' ') programs, $(ls "$dir"errors/*.lucb 2>/dev/null | wc -l | tr -d ' ') rejections"
 done
-rm -f build/conformance build/conformance.out
+rm -f build/conformance build/conformance.out build/conformance.err
 echo "ok conformance: $programs programs, $rejections rejections"

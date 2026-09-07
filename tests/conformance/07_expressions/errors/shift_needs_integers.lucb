@@ -1,0 +1,4 @@
+# error: a shift needs an integer
+pub func main(arguments: str[]) -> i32:
+    let x = 1.0 << 2
+    return 0

@@ -1,0 +1,4 @@
+# error: integer division is `//`
+pub func main(arguments: str[]) -> i32:
+    let x = 7 / 2
+    return 0

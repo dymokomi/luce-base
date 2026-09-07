@@ -201,6 +201,112 @@ pub struct Checker:
                 discard(try self.fail(at, "this name is an import; a local may not shadow it"))
         try self.scope.push(Binding(name = name, type_id = type_id, decl = decl, mutable = mutable, depth = self.depth, from_local = false, origin = none, used = false))
 
+    ## A default argument that is `luce.line`, `luce.file`, or `luce.function` expands at
+    ## the call site (§6.4): the call gains a named argument holding the fact as a literal.
+    mutating func expand_fact_argument(call: ast.Node*, p: ast.Node*, fact: ast.Node*) -> !:
+        var text = ""
+        var id = types.str_id
+        if fact.text == "line":
+            var digits = try alloc u8[12]
+            text = try format(digits, f"{call.line}")
+            id = types.u32_id
+        elif fact.text == "file":
+            let path = self.modules.get(self.current).src.path
+            var spelled = try alloc u8[path.length + 2]
+            text = try format(spelled, f"\"{path}\"")
+        else:
+            var name = "main"
+            if let f = self.current_func:
+                name = f.text
+            var spelled = try alloc u8[name.length + 2]
+            text = try format(spelled, f"\"{name}\"")
+        let literal = try ast.Node.make(ast.Kind.literal, text, call.start, call.line)
+        literal.type_id = id
+        let argument = try ast.Node.make(ast.Kind.argument, p.text, call.start, call.line)
+        argument.left = literal
+        argument.type_id = id
+        var tail: ast.Node*? = none
+        var cursor = call.body
+        while let a = cursor:
+            tail = a
+            cursor = a.next
+        if let last = tail:
+            last.next = argument
+        else:
+            call.body = argument
+
+    ## A constant expression (§6.4): literals; `sizeof`, `alignof`, `offsetof`, and the
+    ## `luce` facts; operators and casts on constants; array, tuple, and struct literals of
+    ## constants; enum cases; the address of a global or a function; top-level `let` names.
+    func is_constant(e: ast.Node*) -> bool:
+        match e.kind:
+            .literal:
+                return true
+            .group:
+                let inner = e.left else return false
+                return self.is_constant(inner)
+            .unary:
+                let inner = e.left else return false
+                if e.text == "&":
+                    return self.names_a_global(inner)
+                return self.is_constant(inner)
+            .binary:
+                let l = e.left else return false
+                let r = e.right else return false
+                return self.is_constant(l) and self.is_constant(r)
+            .cast:
+                let inner = e.left else return false
+                return self.is_constant(inner)
+            .conditional:
+                let cond = e.ty else return false
+                let l = e.left else return false
+                let r = e.right else return false
+                return self.is_constant(cond) and self.is_constant(l) and self.is_constant(r)
+            .array_lit, .tuple:
+                return self.all_constant(e.body)
+            .case_value:
+                return self.all_constant(e.body)
+            .name:
+                let d = e.resolved else return false
+                return d.kind == ast.Kind.constant or d.kind == ast.Kind.func_ or d.kind == ast.Kind.enum_case
+            .member:
+                let owner = e.left else return false
+                if owner.kind == ast.Kind.name and owner.text == "luce":
+                    return true
+                let d = e.resolved else return false
+                return d.kind == ast.Kind.constant or d.kind == ast.Kind.enum_case or d.kind == ast.Kind.func_
+            .call:
+                let callee = e.left else return false
+                if callee.kind == ast.Kind.name and (callee.text == "sizeof" or callee.text == "alignof" or callee.text == "offsetof"):
+                    return true
+                # a struct construction or a payload case from constants
+                if callee.has(ast.flag_type_ref) or callee.has(ast.flag_static):
+                    return self.all_constant(e.body)
+                return false
+            _:
+                return false
+
+    ## Every item of a list is constant; an argument node wraps its expression, an array or
+    ## tuple element is the expression itself.
+    func all_constant(items: ast.Node*?) -> bool:
+        var cursor = items
+        while let a = cursor:
+            if a.kind == ast.Kind.argument:
+                let v = a.left else return false
+                if not self.is_constant(v):
+                    return false
+            elif not self.is_constant(a):
+                return false
+            cursor = a.next
+        return true
+
+    ## `&global` and a function name are constant addresses (§6.4).
+    func names_a_global(e: ast.Node*) -> bool:
+        if e.kind != ast.Kind.name:
+            return false
+        let d = e.resolved else return false
+        return d.kind == ast.Kind.global or d.kind == ast.Kind.constant or d.kind == ast.Kind.func_
+
     ## §6.6: whether an expression's value is the address of a local, or aliases one.
     func is_local_value(e: ast.Node*) -> bool:
         return e.has(ast.flag_local)
@@ -253,6 +359,8 @@ pub struct Checker:
     ## The escape rule (§6.6): a pointer, span, or `str` that names a local must not leave.
     func escapes(id: u32) -> bool:
         let k = self.table.kind(id)
+        if k == types.Kind.optional:
+            return self.escapes(self.table.get(id).elem)
         return k == types.Kind.pointer or k == types.Kind.span or id == types.str_id
 
     ## The innermost binding of `name` was read or assigned (§19.6).
@@ -1498,6 +1606,8 @@ pub struct Checker:
             declared = try self.resolve_type(t)
         let got = try self.expect(init, declared)
         self.at_top_level = saved_top
+        if not self.is_constant(init):
+            discard(try self.fail(init, "a top-level `let` needs a constant expression (§6.4)"))
         d.type_id = declared if declared != types.none_id else self.concrete(got)
         if d.type_id == types.none_id:
             discard(try self.fail(d, "`none` needs a type"))
@@ -1539,6 +1649,8 @@ pub struct Checker:
         if e.text == "-" and inner.kind == ast.Kind.literal and self.table.is_integer(hint) and not self.table.is_signed(hint):
             return try self.fail(e, "a negative literal does not fit an unsigned type")
         let it = try self.check_expr(inner, hint)
+        if e.text == "-" and self.table.is_integer(it) and not self.table.is_signed(it):
+            return try self.fail(e, "unary `-` is rejected on unsigned types; use `-%`")
         if e.text == "-" or e.text == "+":
             if it == types.untyped_int_id or it == types.untyped_float_id or self.table.is_numeric(it):
                 return it
@@ -1583,7 +1695,11 @@ pub struct Checker:
             if rt != types.untyped_int_id:
                 discard(try self.coerce(r, rt, rt))
             return lt
-        let lt = try self.check_expr(l, hint if is_arithmetic(op) else types.none_id)
+        # `let fits: u8? = 1 +? 2` adds bytes: the optional's element is the operands' context
+        var context = hint if is_arithmetic(op) else types.none_id
+        if (op == "+?" or op == "-?" or op == "*?") and self.table.kind(hint) == types.Kind.optional:
+            context = self.table.get(hint).elem
+        let lt = try self.check_expr(l, context)
         if (op == "+" or op == "-") and self.table.kind(lt) == types.Kind.pointer:
             # `p + n`, `p - n`, and `p - q` (§6.5): element-scaled, unchecked
             let rt = try self.check_expr(r, types.usize_id)
@@ -1599,9 +1715,18 @@ pub struct Checker:
             return lt
         var rhint = lt
         if lt == types.untyped_int_id or lt == types.untyped_float_id or lt == types.none_id:
-            rhint = hint if is_arithmetic(op) else types.none_id
+            rhint = context
         let rt = try self.check_expr(r, rhint)
-        let t = try self.unify(l, lt, r, rt)
+        var t = try self.unify(l, lt, r, rt)
+        # two untyped literals under a typed context compute in that type: `3 -| 7` as `u8`
+        if is_arithmetic(op) and t == types.untyped_int_id and self.table.is_integer(context):
+            discard(try self.coerce(l, lt, context))
+            discard(try self.coerce(r, rt, context))
+            t = context
+        elif is_arithmetic(op) and (t == types.untyped_int_id or t == types.untyped_float_id) and self.table.is_float(context):
+            discard(try self.coerce(l, lt, context))
+            discard(try self.coerce(r, rt, context))
+            t = context
         if op == "==" or op == "!=":
             if not self.comparable(t):
                 return try self.fail(e, "these values have no equality")
@@ -1634,7 +1759,12 @@ pub struct Checker:
             return try self.fail(e, "wrapping and saturating arithmetic need integers")
         if op == "+?" or op == "-?" or op == "*?":
             if t == types.untyped_int_id or self.table.is_integer(t):
-                return try self.table.optional(self.concrete(t))
+                var base = self.concrete(t)
+                if t == types.untyped_int_id and self.table.is_integer(context):
+                    base = context
+                    discard(try self.coerce(l, lt, base))
+                    discard(try self.coerce(r, rt, base))
+                return try self.table.optional(base)
             return try self.fail(e, "checked arithmetic needs integers")
         return try self.fail(e, "unknown operator")
 
@@ -1948,7 +2078,8 @@ pub struct Checker:
         let want = try self.resolve_type(t)
         let got = try self.check_expr(inner, types.none_id)
         # a reinterpreting cast of a local address keeps it local: `(str)local_bytes` (§6.6)
-        if self.is_local_value(inner) and self.escapes(want):
+        let local_array = self.table.kind(got) == types.Kind.array and self.place_is_local(inner)
+        if (self.is_local_value(inner) or local_array) and self.escapes(want):
             self.mark_local(e)
         var have = self.concrete(got)
         if got == types.untyped_int_id and inner.kind == ast.Kind.literal:
@@ -2681,8 +2812,9 @@ pub struct Checker:
             else:
                 let d = decl else return try self.fail(e, "too few arguments")
                 let p = param_at(d, i) else return try self.fail(e, "too few arguments")
-                if p.left == none:
-                    return try self.fail(e, "a required argument is missing")
+                let default = p.left else return try self.fail(e, "a required argument is missing")
+                if is_luce_fact(default):
+                    try self.expand_fact_argument(e, p, default)
             i += 1
         if let t = template:
             var j: usize = 0
@@ -2764,6 +2896,9 @@ pub struct Checker:
                 discard(try self.coerce(arg, got, have))
             if not (self.table.is_numeric(have) or have == types.char_id or have == types.bool_id):
                 return try self.fail(arg, "a checked conversion takes a number")
+            if is_negative_literal(arg) and self.table.is_integer(target) and not self.table.is_signed(target):
+                # a conversion the compiler can prove impossible is an error (§7.5)
+                return try self.fail(arg, "a negative literal never fits an unsigned type")
             return target
         if target == types.str_id:
             let arg = try self.single_argument(e)
@@ -3185,6 +3320,9 @@ pub struct Checker:
             return try self.fail(place, "this place is not mutable")
         if s.text == "=":
             discard(try self.expect(value, pt))
+            if self.is_local_value(value) and self.escapes(pt) and not self.place_is_local(place):
+                # §6.6: a local's address may not be stored in a global or through a pointer
+                discard(try self.fail(value, "this pointer or view names a local and must not be stored where it outlives the function"))
             return
         let target = self.table.get(pt).elem if self.table.kind(pt) == types.Kind.atomic else pt
         let vt = try self.expect(value, target)
@@ -3437,6 +3575,8 @@ pub struct Checker:
                     self.at_top_level = true
                     discard(try self.expect(init, d.type_id))
                     self.at_top_level = saved
+                    if not self.is_constant(init):
+                        discard(try self.fail(init, "a global's initialiser is a constant expression (§6.3)"))
                 elif not d.has(ast.flag_uninit) and not self.table.zeroable(d.type_id) and not self.modules.get(self.current).is_prelude:
                     # the startup shim initialises the prelude's own globals (§12.3)
                     discard(try self.fail(d, "this global's type has no zero value; give it one"))
@@ -3450,6 +3590,8 @@ pub struct Checker:
                 let first = d.body else return try self.fail(d, "`assert` needs a condition")
                 let cv = first.left else return try self.fail(d, "empty argument")
                 discard(try self.expect(cv, types.bool_id))
+                if not self.is_constant(cv):
+                    discard(try self.fail(cv, "a module-level `assert` needs a constant condition (§6.4)"))
             .extern_func, .extern_type, .extern_var, .extern_struct, .extern_union, .type_alias, .import_, .from_import, .asm_:
                 discard(0)
             _:
@@ -3816,6 +3958,20 @@ func is_arithmetic(op: str) -> bool:
 ## A number literal with a point or an exponent, outside the prefixed forms.
 pub func is_float_text(text: str) -> bool:
     return is_float_literal(text)
+
+## `luce.line`, `luce.file`, or `luce.function`: a fact of the use site (§6.4).
+func is_luce_fact(e: ast.Node*) -> bool:
+    if e.kind != ast.Kind.member:
+        return false
+    let owner = e.left else return false
+    return owner.kind == ast.Kind.name and owner.text == "luce" and (e.text == "line" or e.text == "file" or e.text == "function")
+
+## `-1`: unary minus on an integer literal.
+func is_negative_literal(e: ast.Node*) -> bool:
+    if e.kind != ast.Kind.unary or e.text != "-":
+        return false
+    let inner = e.left else return false
+    return inner.kind == ast.Kind.literal and not is_float_literal(inner.text) and inner.text.bytes[0] >= '0' and inner.text.bytes[0] <= '9'
 
 ## Whether a type declaration holds a field (§10.1).
 func has_field(d: ast.Node*) -> bool:

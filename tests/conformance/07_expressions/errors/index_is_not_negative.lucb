@@ -1,0 +1,5 @@
+# error: a negative literal does not fit an unsigned type
+pub func main(arguments: str[]) -> i32:
+    let items: u8[3] = [1, 2, 3]
+    let last = items[-1]
+    return 0

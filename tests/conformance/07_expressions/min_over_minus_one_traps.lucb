@@ -1,0 +1,6 @@
+## A trap the arithmetic and conversion rules require (§7.2, §7.3, §7.5, §7.6).
+pub func main(arguments: str[]) -> i32:
+    let lowest: i64 = -9223372036854775808
+    let minus: i64 = -i64(arguments.length)
+    print(f"{lowest // minus}")
+    return 0

@@ -374,7 +374,7 @@ func assemble_and_link(dir: str, name_bytes: u8[], text: str, exe: str) -> !:
 
 ## `build FILE`: check, generate, compile.
 func build_file(path: c.str, options: Options) -> !:
-    let backing = try alloc u8[arena_size] in memory.heap
+    let backing = try reserve_arena()
     defer free(backing) in memory.heap
     var arena = memory.FixedBuffer.over(backing)
     with arena:
@@ -508,7 +508,7 @@ func run_tool(program: c.str, arguments: c.str[], what: str) -> !:
 
 ## `test FILE`: build the test runner into a scratch file and run it.
 func test_file(path: c.str, native: bool) -> i32!:
-    let backing = try alloc u8[arena_size] in memory.heap
+    let backing = try reserve_arena()
     defer free(backing) in memory.heap
     var arena = memory.FixedBuffer.over(backing)
     with arena:
@@ -562,7 +562,7 @@ func trim(text: str) -> str:
 
 ## Check FILE and the modules it imports from its directory; silence means success.
 func check_file(path: c.str) -> !:
-    let backing = try alloc u8[arena_size] in memory.heap
+    let backing = try reserve_arena()
     defer free(backing) in memory.heap
     var arena = memory.FixedBuffer.over(backing)
     var scratch: u8[4096]
@@ -577,8 +577,18 @@ func check_file(path: c.str) -> !:
 ## freed until the command ends.
 let arena_size: usize = 536870912
 
+## The command's arena: the full size, or a smaller one when the machine cannot spare it,
+## since a small program needs far less than the compiler itself.
+func reserve_arena() -> u8[]!:
+    var size = arena_size
+    while size >= 33554432:
+        if let backing = memory.heap.allocate(size, 16):
+            return backing
+        size = size // 2
+    error(memory.exhausted, "no room for the compiler's arena")
+
 func parse_file(path: c.str, out: io.Writer) -> !:
-    let backing = try alloc u8[arena_size] in memory.heap
+    let backing = try reserve_arena()
     defer free(backing) in memory.heap
     var arena = memory.FixedBuffer.over(backing)
     var scratch: u8[4096]
@@ -589,7 +599,7 @@ func parse_file(path: c.str, out: io.Writer) -> !:
         try ast.dump(out, module, 0)
 
 func lex_file(path: c.str, out: io.Writer) -> !:
-    let backing = try alloc u8[arena_size] in memory.heap
+    let backing = try reserve_arena()
     defer free(backing) in memory.heap
     var arena = memory.FixedBuffer.over(backing)
     with arena:

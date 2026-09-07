@@ -194,6 +194,11 @@ static inline void lb_check_index(uint64_t i, uint64_t n) {
         lb_trap("index out of bounds");
     }
 }
+// The index `i` once checked against `n`: an index expression is evaluated once (§6.5).
+static inline uint64_t lb_at(uint64_t i, uint64_t n) {
+    lb_check_index(i, n);
+    return i;
+}
 void lb_check_utf8(const char* s, size_t n);
 
 typedef struct lb_iface {

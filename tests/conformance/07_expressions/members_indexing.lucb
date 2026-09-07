@@ -1,0 +1,42 @@
+## §7.6, §7.7: members auto-dereference pointers; calls take named arguments; indexing and
+## slicing are half-open and checked; pointer arithmetic is element-scaled; `memory` reads
+## and writes untyped memory.
+import memory
+
+struct Image:
+    var width: i64
+    var height: i64
+
+    func area() -> i64:
+        return self.width * self.height
+
+    mutating func resize(scale: i64, keep_height: bool):
+        self.width = self.width * scale
+        if not keep_height:
+            self.height = self.height * scale
+
+pub func main(arguments: str[]) -> i32:
+    var image = Image(width = 2, height = 3)
+    let p: Image* = &image
+    p.resize(scale = 2, keep_height = true)
+    let pixels: u8[8] = [1, 2, 3, 4, 5, 6, 7, 8]
+    let middle = pixels[2..<5]
+    let head = pixels[..<3]
+    let tail = pixels[6..]
+    let base: const u8* = pixels[0..].data
+    let third = base + 2
+    let diff = third - base
+    let seventh = base[6]
+    var words: i64[4] = [10, 20, 30, 40]
+    let wp: i64* = &words[0]
+    let stepped = wp + 3
+    let gap = stepped - wp
+    var raw: u8[8]
+    memory.write[i32]((void*)&raw, 258)
+    let read_back = memory.read[i32]((void*)&raw)
+    var copy: u8[8]
+    memory.copy(copy, raw, 8)
+    memory.set(copy[4..], 9)
+    print(f"{p.width} {p.height} {p.area()} {image.area()} {middle.length} {middle[0]} {head[2]} {tail[1]} {*third} {diff} {seventh}")
+    print(f"{*stepped} {gap} {read_back} {copy[0]} {copy[1]} {copy[4]} {copy[7]} {pixels[7]}")
+    return 0

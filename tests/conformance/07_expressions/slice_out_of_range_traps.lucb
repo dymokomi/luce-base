@@ -1,0 +1,7 @@
+## A trap the arithmetic and conversion rules require (§7.2, §7.3, §7.5, §7.6).
+pub func main(arguments: str[]) -> i32:
+    let items: u8[3] = [1, 2, 3]
+    let end: usize = 4 * arguments.length
+    let view = items[1..<end]
+    print(f"{view.length}")
+    return 0

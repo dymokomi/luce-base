@@ -1,0 +1,6 @@
+# error: this place is not mutable
+pub func main(arguments: str[]) -> i32:
+    let x: i64 = 1
+    let p = &x
+    *p = 2
+    return 0

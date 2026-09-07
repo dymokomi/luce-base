@@ -1,0 +1,4 @@
+# error: a let binding requires an initialiser
+pub func main(arguments: str[]) -> i32:
+    let x: i64
+    return 0

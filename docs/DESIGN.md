@@ -365,3 +365,12 @@ real wrapper where a plain function meets a fallible function type (the C backen
 had cast the pointer), `const (T*)*` spelled as C's `T* const*`, and a `never`
 branch in a conditional; in the seed, span ends and indexed loops, `sizeof` of a
 member, nullable functions, tail padding, and addresses from pointer casts.
+Chapters 6 and 7 found a `thread_local let`, `u32(-1)`, unary minus on an
+unsigned, a global or module-level `assert` initialised at runtime, a local's
+address stored into a global or through a pointer, a `luce.line` default
+expanding at its declaration rather than the call, a compound assignment
+evaluating its place twice, a checked index evaluated twice, constant
+initialisers written with the trapping helpers that C cannot fold, an untyped
+`3 -| 7` computed in `i64`, and equality of payload enums and structs by
+`memcmp`, which reads padding and stale union bytes; the runner now also proves
+the traps a chapter requires, on every execution.

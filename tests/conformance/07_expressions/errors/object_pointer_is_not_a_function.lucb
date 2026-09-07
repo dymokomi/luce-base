@@ -1,0 +1,5 @@
+# error: expected `func() -> i64`, got `i64*`
+pub func main(arguments: str[]) -> i32:
+    var x: i64 = 1
+    let f = (func() -> i64)&x
+    return 0

@@ -1,0 +1,5 @@
+# error: unary `-` is rejected on unsigned types; use `-%`
+pub func main(arguments: str[]) -> i32:
+    let x: u32 = 1
+    let y = -x
+    return 0

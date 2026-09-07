@@ -1,0 +1,6 @@
+# error: a required argument is missing
+func add(a: i64, b: i64) -> i64:
+    return a + b
+pub func main(arguments: str[]) -> i32:
+    let x = add(1)
+    return 0

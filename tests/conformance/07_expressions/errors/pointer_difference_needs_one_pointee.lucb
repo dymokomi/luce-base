@@ -1,0 +1,6 @@
+# error: pointer difference needs one pointee type
+pub func main(arguments: str[]) -> i32:
+    var x: i64 = 1
+    var y: u8 = 2
+    let d = &x - &y
+    return 0
