@@ -1,0 +1,31 @@
+## §14.3: an interface view's optional keeps `none` in the null niche: `Writer?` is the two
+## words of the view, its data word null for none, so it is the view's own size; `else`,
+## `if let`, `match`, and `== none` all read that word.
+import io
+from io import Writer
+
+struct Logger:
+    var sink: Writer?
+    var lines: i32
+
+    pub mutating func say(text: str) -> !:
+        let out = self.sink else return
+        try out.write(text)
+        try out.write("\n")
+        self.lines += 1
+
+pub func main(arguments: str[]) -> i32!:
+    var quiet = Logger(sink = none, lines = 0)
+    var loud = Logger(sink = io.stdout(), lines = 0)
+    try quiet.say("hidden")
+    try loud.say("shown")
+    var picked: Writer? = none
+    if arguments.length > 0:
+        picked = io.stdout()
+    if let w = picked:
+        try w.write("picked\n")
+    match picked:
+        .some(w): try w.write("matched\n")
+        .none: print("no writer")
+    print(f"{sizeof(Writer?)} {quiet.sink == none} {loud.sink != none} {quiet.lines} {loud.lines}")
+    return 0

@@ -321,10 +321,12 @@ pub struct Table:
     pub func is_pointer(id: u32) -> bool:
         return self.kind(id) == Kind.pointer
 
-    ## `T*?`, `c.str?`, and `func(...)?` are one word with null as the niche (§5.3, §5.5, §5.6).
+    ## `T*?`, `c.str?`, and `func(...)?` are one word with null as the niche (§5.3, §5.5,
+    ## §5.6); an interface view's optional is the two-word view with a null data word
+    ## (§14.3). None of them carries a flag.
     pub func has_null_niche(elem: u32) -> bool:
         let inner = self.kind(elem)
-        return inner == Kind.pointer or inner == Kind.cstr_ or inner == Kind.func_ or self.is_opaque_handle(elem)
+        return inner == Kind.pointer or inner == Kind.cstr_ or inner == Kind.func_ or inner == Kind.interface_ or self.is_opaque_handle(elem)
 
     ## An `extern type Name` with no integer shape: a pointer-shaped handle that is never
     ## null bare and keeps `none` in the null niche (§17.1).
@@ -335,10 +337,16 @@ pub struct Table:
         let d = t.decl else return false
         return d.kind == ast.Kind.extern_type and d.ty == none
 
-    ## An optional stored with the null niche rather than a flag.
+    ## An optional that is one word with null as its niche rather than a flag.
     pub func is_nullable_pointer(id: u32) -> bool:
         let t = self.get(id)
-        return t.kind == Kind.optional and self.has_null_niche(t.elem)
+        return t.kind == Kind.optional and self.has_null_niche(t.elem) and self.kind(t.elem) != Kind.interface_
+
+    ## `Writer?`: an interface view's optional, the two-word view whose data word is null
+    ## for `none` (§14.3).
+    pub func is_nullable_view(id: u32) -> bool:
+        let t = self.get(id)
+        return t.kind == Kind.optional and self.kind(t.elem) == Kind.interface_
 
     ## Bits of an integer or float type on the 64-bit host; 0 for anything else.
     pub func bits(id: u32) -> u32:
@@ -454,7 +462,7 @@ pub struct Table:
             .atomic: return self.sized(t.elem, env_decl, env_args)
             .optional:
                 if self.has_null_niche(t.elem):
-                    return 8
+                    return self.sized(t.elem, env_decl, env_args)    # the payload itself
                 let inner = self.sized(t.elem, env_decl, env_args)
                 let a = self.aligned(t.elem, env_decl, env_args)
                 return round_up(inner, a) + a if a > 0 else inner + 1
@@ -538,7 +546,7 @@ pub struct Table:
             .atomic: return self.aligned(t.elem, env_decl, env_args)
             .optional:
                 if self.has_null_niche(t.elem):
-                    return 8
+                    return self.aligned(t.elem, env_decl, env_args)
                 let a = self.aligned(t.elem, env_decl, env_args)
                 return a if a > 0 else 1
             .fallible: return 8

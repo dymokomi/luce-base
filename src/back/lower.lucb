@@ -187,8 +187,12 @@ pub struct Lowerer:
     func is_nullable_ptr(id: u32) -> bool:
         return self.c.table.is_nullable_pointer(id)
 
+    ## `Writer?`: the two-word view in memory, none when its data word is null (§14.3).
+    func is_nullable_view(id: u32) -> bool:
+        return self.c.table.is_nullable_view(id)
+
     func is_tagged_opt(id: u32) -> bool:
-        return self.is_opt(id) and not self.is_nullable_ptr(id)
+        return self.is_opt(id) and not self.is_nullable_ptr(id) and not self.is_nullable_view(id)
 
     func is_int_enum(id: u32) -> bool:
         if self.kind(id) != types.Kind.enum_:
@@ -831,8 +835,8 @@ pub struct Lowerer:
             let ot = v.type_id
             let payload = self.elem(ot)
             let slot = try self.bind_local(c, payload)
-            if self.is_tagged_opt(ot):
-                let present = try self.f.load(ir.Op.loadub, ir.Class.w, try self.offset_address(v.ref, self.c.table.size_of(payload)))
+            if self.is_tagged_opt(ot) or self.is_nullable_view(ot):
+                let present = try self.f.load(ir.Op.loadl, ir.Class.l, v.ref) if self.is_nullable_view(ot) else try self.f.load(ir.Op.loadub, ir.Class.w, try self.offset_address(v.ref, self.c.table.size_of(payload)))
                 let take = self.f.label()
                 try self.f.branch(present, take, else_label)
                 try self.f.place_label(take)
@@ -1186,6 +1190,10 @@ pub struct Lowerer:
                 # the same word as the payload, converted as the niche type asks (§5.3)
                 let p = try self.value(e, w.elem)
                 return LowerValue(ref = p.ref, type_id = want, in_memory = false)
+            if self.is_nullable_view(want):
+                # the view itself: its data word is never null when present (§14.3)
+                let view = try self.value(e, w.elem)
+                return LowerValue(ref = view.ref, type_id = want, in_memory = true)
             let inner = try self.value(e, w.elem)
             let slot = try self.new_slot(want)
             let a = try self.slot_address(slot)
@@ -1991,7 +1999,12 @@ pub struct Lowerer:
         let l_none = l.kind == ast.Kind.literal and l.text == "none"
         let r_none = r.kind == ast.Kind.literal and r.text == "none"
         var result = ir.none_ref()
-        if self.is_tagged_opt(lt) or self.is_tagged_opt(rt):
+        if (self.is_nullable_view(lt) or self.is_nullable_view(rt)) and (l_none or r_none):
+            # `view == none`: the data word (§14.3)
+            let side = try self.expr(r if l_none else l)
+            let word = try self.f.load(ir.Op.loadl, ir.Class.l, side.ref)
+            result = try self.f.binary(ir.Op.ceq, ir.Class.l, word, ir.const_ref(0))
+        elif self.is_tagged_opt(lt) or self.is_tagged_opt(rt):
             let vt = lt if self.is_tagged_opt(lt) else rt
             if l_none or r_none:
                 let side = try self.expr(r if l_none else l)
@@ -2461,6 +2474,9 @@ pub struct Lowerer:
         elif self.is_tagged_opt(lt):
             let present = try self.f.load(ir.Op.loadub, ir.Class.w, try self.offset_address(v.ref, self.c.table.size_of(payload)))
             try self.f.branch(present, present_label, absent_label)
+        elif self.is_nullable_view(lt):
+            let word = try self.f.load(ir.Op.loadl, ir.Class.l, v.ref)
+            try self.f.branch(word, present_label, absent_label)
         else:
             try self.f.branch(v.ref, present_label, absent_label)
         try self.f.place_label(present_label)
@@ -3105,6 +3121,8 @@ pub struct Lowerer:
         let element = try self.load_from(source, et)
         if self.is_nullable_ptr(result):
             try self.f.store(ir.Op.storel, element.ref, a)
+        elif self.is_nullable_view(result):
+            try self.store_to(a, element)
         else:
             try self.store_to(a, element)
             try self.f.store(ir.Op.storeb, ir.const_ref(1), try self.offset_address(a, self.c.table.size_of(et)))

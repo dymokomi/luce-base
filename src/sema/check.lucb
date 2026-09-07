@@ -1045,7 +1045,7 @@ pub struct Checker:
         if self.table.is_integer(id) or id == types.bool_id or k == types.Kind.pointer:
             return self.table.size_of(id) <= 8
         if k == types.Kind.optional:
-            return self.table.has_null_niche(self.table.get(id).elem)
+            return self.table.is_nullable_pointer(id)    # one word; a view's optional is two
         if k == types.Kind.struct_:
             return self.table.size_of(id) == 16 and self.table.align_of(id) == 8
         return false

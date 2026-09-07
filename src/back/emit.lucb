@@ -302,9 +302,13 @@ pub struct Emitter:
     func is_nullable_ptr(id: u32) -> bool:
         return self.c.table.is_nullable_pointer(id)
 
+    ## `Writer?`: the `lb_iface` itself, none when its `data` is null (§14.3).
+    func is_nullable_view(id: u32) -> bool:
+        return self.c.table.is_nullable_view(id)
+
     ## A tagged optional carries a `present` flag beside its value.
     func is_tagged_opt(id: u32) -> bool:
-        return self.is_opt(id) and not self.c.table.is_nullable_pointer(id)
+        return self.is_opt(id) and not self.c.table.is_nullable_pointer(id) and not self.c.table.is_nullable_view(id)
 
     func is_int_enum(id: u32) -> bool:
         if self.kind(id) != types.Kind.enum_:
@@ -1437,6 +1441,9 @@ pub struct Emitter:
         if self.is_tagged_opt(ot):
             try self.put_tmp("o", n)
             try self.put(".present")
+        elif self.is_nullable_view(ot):
+            try self.put_tmp("o", n)
+            try self.put(".data != ((void*)0)")
         else:
             try self.put_tmp("o", n)
             try self.put(" != ((void*)0)")
@@ -2049,6 +2056,9 @@ pub struct Emitter:
             return
         if self.is_nullable_ptr(t) or self.is_ptr(t) or self.is_func(t):
             try self.put("((void*)0)")
+            return
+        if self.is_nullable_view(t):
+            try self.put("((lb_iface){ ((void*)0), ((void*)0) })")
             return
         if self.is_opt(t):
             try self.put("((")
@@ -2665,9 +2675,15 @@ pub struct Emitter:
         let l_none = l.kind == ast.Kind.literal and l.text == "none"
         let r_none = r.kind == ast.Kind.literal and r.text == "none"
         let tagged = self.is_tagged_opt(lt) or self.is_tagged_opt(rt)
+        let view = (self.is_nullable_view(lt) or self.is_nullable_view(rt)) and (l_none or r_none)
         if negate:
             try self.put("(!")
-        if tagged:
+        if view:
+            # `view == none`: the data word (§14.3)
+            try self.put("((")
+            try self.expr(r if l_none else l)
+            try self.put(").data == ((void*)0))")
+        elif tagged:
             let n = self.tmp()
             if l_none or r_none:
                 let side = r if l_none else l
@@ -3290,6 +3306,10 @@ pub struct Emitter:
             try self.put("if (!")
             try self.put_tmp("o", n)
             try self.put(".present) ")
+        elif self.is_nullable_view(lt):
+            try self.put("if (")
+            try self.put_tmp("o", n)
+            try self.put(".data == ((void*)0)) ")
         else:
             try self.put("if (")
             try self.put_tmp("o", n)
@@ -3523,13 +3543,15 @@ pub struct Emitter:
                 elif let v = p.left:
                     # `!!` keeps clang from seeing an `==` in doubled parentheses
                     try self.put("(!!(")
-                    if v.kind == ast.Kind.case_value and v.resolved == none and (self.is_tagged_opt(st) or self.is_nullable_ptr(st)):
+                    if v.kind == ast.Kind.case_value and v.resolved == none and (self.is_tagged_opt(st) or self.is_nullable_ptr(st) or self.is_nullable_view(st)):
                         # `.some` and `.none` test the optional's presence (§8.4)
                         if v.text == "none":
                             try self.put("!")
                         try self.put_tmp("m", n)
                         if self.is_tagged_opt(st):
                             try self.put(".present")
+                        elif self.is_nullable_view(st):
+                            try self.put(".data")
                     elif v.kind == ast.Kind.case_value and self.kind(st) == types.Kind.enum_ and self.is_int_enum(st):
                         # an integer-backed enum is its representation: compare the value
                         let d = self.decl_of(st) else return
@@ -3596,7 +3618,7 @@ pub struct Emitter:
         let v = p.left else return
         if v.kind != ast.Kind.case_value:
             return
-        if v.resolved == none and (self.is_tagged_opt(st) or self.is_nullable_ptr(st)):
+        if v.resolved == none and (self.is_tagged_opt(st) or self.is_nullable_ptr(st) or self.is_nullable_view(st)):
             if v.text != "some":
                 return
             let nm = v.body else return

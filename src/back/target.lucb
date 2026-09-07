@@ -1,0 +1,69 @@
+#==============================================================================================
+#
+#   target - The target a build is for
+#
+#   DESCRIPTION:
+#       base.md §19.5 names the targets: an operating system and a processor. Everything
+#       the compiler and the standard library decide by target is decided here, once: the
+#       assembler's symbol prefix, the C library's names for the standard streams, the
+#       linker and its arguments, and the constants the `target` standard module hands a
+#       program, so that `if target.linux and target.x86_64:` prunes at compile time
+#       (§19.6). The host is arm64-macos; the native backend emits that target only, and
+#       the C backend emits C for any of them with `--emit=c`.
+#
+#==============================================================================================
+
+pub enum Os as u8:
+    macos = 1
+    linux = 2
+    windows = 3
+
+pub enum Arch as u8:
+    arm64 = 1
+    x86_64 = 2
+
+pub struct Target:
+    pub var name: str
+    pub var os: Os
+    pub var arch: Arch
+    pub var pointer_bits: u32
+    ## What the assembler and the linker put before a C symbol: `_` on macOS, nothing on
+    ## Linux and 64-bit Windows.
+    pub var symbol_prefix: str
+    ## The C library's variables holding the standard streams (§5.2).
+    pub var stdin_symbol: str
+    pub var stdout_symbol: str
+    pub var stderr_symbol: str
+    ## The libraries a program links by default.
+    pub var system_libraries: str
+
+    ## The target this compiler runs on and emits natively.
+    pub static func host() -> Target:
+        return Target(name = "arm64-macos", os = Os.macos, arch = Arch.arm64, pointer_bits = 64, symbol_prefix = "_",
+                      stdin_symbol = "__stdinp", stdout_symbol = "__stdoutp", stderr_symbol = "__stderrp", system_libraries = "-lSystem")
+
+    ## The target `name` of §19.5 spells, or none.
+    pub static func named(name: str) -> Target?:
+        if name == "arm64-macos":
+            return Target.host()
+        if name == "x86_64-macos":
+            return Target(name = name, os = Os.macos, arch = Arch.x86_64, pointer_bits = 64, symbol_prefix = "_",
+                          stdin_symbol = "__stdinp", stdout_symbol = "__stdoutp", stderr_symbol = "__stderrp", system_libraries = "-lSystem")
+        if name == "arm64-linux" or name == "x86_64-linux":
+            return Target(name = name, os = Os.linux, arch = Arch.arm64 if name == "arm64-linux" else Arch.x86_64, pointer_bits = 64, symbol_prefix = "",
+                          stdin_symbol = "stdin", stdout_symbol = "stdout", stderr_symbol = "stderr", system_libraries = "-lc -lm -lpthread")
+        if name == "x86_64-windows":
+            return Target(name = name, os = Os.windows, arch = Arch.x86_64, pointer_bits = 64, symbol_prefix = "",
+                          stdin_symbol = "__acrt_iob_func", stdout_symbol = "__acrt_iob_func", stderr_symbol = "__acrt_iob_func", system_libraries = "-lmsvcrt")
+        return none
+
+    pub func is_host() -> bool:
+        return self.os == Os.macos and self.arch == Arch.arm64
+
+    ## The `target` standard module for this target: constants a program and the standard
+    ## library branch on. A top-level `let` is a constant (§6.4), so the branches prune.
+    pub func module_text(buffer: u8[]) -> str!:
+        return try format(buffer, f"## The target this program is compiled for (§19.5), decided by `--target`.\npub let name: str = \"{self.name}\"\npub let macos: bool = {self.os == Os.macos}\npub let linux: bool = {self.os == Os.linux}\npub let windows: bool = {self.os == Os.windows}\npub let posix: bool = {self.os != Os.windows}\npub let arm64: bool = {self.arch == Arch.arm64}\npub let x86_64: bool = {self.arch == Arch.x86_64}\npub let pointer_bits: u32 = {self.pointer_bits}\n")
+
+## Every target name, for `--target` with no argument (§19.6).
+pub let names: str[5] = ["x86_64-linux", "x86_64-macos", "x86_64-windows", "arm64-linux", "arm64-macos"]
