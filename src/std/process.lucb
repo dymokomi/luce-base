@@ -1,0 +1,101 @@
+import c
+import memory
+
+extern func pipe(descriptors: i32*) -> i32
+extern func fork() -> i32
+extern func dup2(from_fd: i32, to_fd: i32) -> i32
+extern func close(descriptor: i32) -> i32
+extern func execvp(program: c.str, arguments: void*?*) -> i32
+extern func c_exit as "exit"(code: i32) -> never
+extern func _exit(code: i32) -> never
+extern func waitpid(pid: i32, status: i32*, options: i32) -> i32
+extern func c_read as "read"(descriptor: i32, buffer: void*, count: usize) -> isize
+extern func poll(descriptors: Poll*, count: u32, timeout: i32) -> i32
+extern func fcntl(descriptor: i32, command: i32, ...) -> i32
+
+extern struct Poll:
+    descriptor: i32
+    events: i16
+    returned: i16
+
+let poll_in: i16 = 1
+let poll_hang_up: i16 = 16
+let poll_error: i16 = 8
+let set_flags: i32 = 4
+let non_blocking: i32 = 4
+
+pub let failed: ErrorCode = ErrorCode.package(8)
+
+## A captured stream: bytes in the current allocator.
+struct Capture:
+    var descriptor: i32
+    var data: u8[]
+    var used: usize
+    var open: bool
+
+    mutating func pull() -> !:
+        if self.data.length - self.used < 256:
+            let room = 1024 if self.data.length == 0 else self.data.length * 2
+            self.data = try memory.grow(self.data, room)
+        let n = c_read(self.descriptor, self.data[self.used..].data, self.data.length - self.used)
+        if n == 0:
+            self.open = false
+        elif n > 0:
+            self.used += (usize)n
+
+## Run `program` with `arguments`, wait for it, and answer its exit status and
+## what it wrote to its standard output and error.
+pub func run(program: c.str, arguments: c.str[]) -> (i32, str, str)!:
+    var out_pipe: i32[2]
+    var err_pipe: i32[2]
+    if pipe((i32*)&out_pipe) != 0:
+        error(failed, "run")
+    if pipe((i32*)&err_pipe) != 0:
+        error(failed, "run")
+    let pid = fork()
+    if pid < 0:
+        error(failed, "run")
+    if pid == 0:
+        discard(close(out_pipe[0]))
+        discard(close(err_pipe[0]))
+        if dup2(out_pipe[1], 1) < 0 or dup2(err_pipe[1], 2) < 0:
+            _exit(127)
+        discard(close(out_pipe[1]))
+        discard(close(err_pipe[1]))
+        let argv = alloc void*?[arguments.length + 2] catch failure:
+            _exit(127)
+        argv[0] = (void*)program
+        var i: usize = 0
+        while i < arguments.length:
+            argv[i + 1] = (void*)arguments[i]
+            i += 1
+        argv[arguments.length + 1] = none
+        discard(execvp(program, argv.data))
+        _exit(127)
+    discard(close(out_pipe[1]))
+    discard(close(err_pipe[1]))
+    discard(fcntl(out_pipe[0], set_flags, non_blocking))
+    discard(fcntl(err_pipe[0], set_flags, non_blocking))
+    var out = Capture(descriptor = out_pipe[0], data = u8[]((u8*)8, 0), used = 0, open = true)
+    var err = Capture(descriptor = err_pipe[0], data = u8[]((u8*)8, 0), used = 0, open = true)
+    while out.open or err.open:
+        var watched: Poll[2] = ---
+        watched[0] = Poll(descriptor = out.descriptor if out.open else -1, events = poll_in, returned = 0)
+        watched[1] = Poll(descriptor = err.descriptor if err.open else -1, events = poll_in, returned = 0)
+        if poll((Poll*)&watched, 2, -1) < 0:
+            continue
+        if out.open and (watched[0].returned & (poll_in | poll_hang_up | poll_error)) != 0:
+            try out.pull()
+        if err.open and (watched[1].returned & (poll_in | poll_hang_up | poll_error)) != 0:
+            try err.pull()
+    discard(close(out_pipe[0]))
+    discard(close(err_pipe[0]))
+    var status: i32 = 0
+    if waitpid(pid, &status, 0) < 0:
+        error(failed, "run")
+    if (status & 127) != 0:
+        error(failed, "the program was stopped by a signal")
+    return ((status >> 8) & 255, (str)out.data[..<out.used], (str)err.data[..<err.used])
+
+pub func exit(code: i32) -> never:
+    c_exit(code)

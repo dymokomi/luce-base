@@ -1,0 +1,69 @@
+import memory
+
+extern func pthread_create(thread: void*?*, attributes: void*?, start: func(void*) -> void*?, argument: void*) -> i32
+extern func pthread_join(thread: void*, result: void*?*?) -> i32
+extern func pthread_detach(thread: void*) -> i32
+extern func pthread_self() -> void*
+extern func sched_yield() -> i32
+extern func nanosleep(request: const Duration*, remaining: Duration*?) -> i32
+
+extern struct Duration:
+    seconds: i64
+    nanoseconds: i64
+
+pub let failed: ErrorCode = ErrorCode.package(5)
+
+## A running thread; the zero value is no thread at all, so arrays of handles exist.
+pub struct Handle:
+    var id: void*?
+
+    pub func join() -> !:
+        let id = self.id else error(failed, "no thread to join")
+        if pthread_join(id, none) != 0:
+            error(failed, "join")
+
+    pub func detach():
+        let id = self.id else return
+        discard(pthread_detach(id))
+
+## What a new thread starts with: the entry, its context, and the allocator rule of §15.3.
+struct Start:
+    var entry: func(void*?) -> unit
+    var context: void*?
+
+func trampoline(raw: void*) -> void*?:
+    let start = (Start*)raw
+    memory.allocator = memory.heap
+    let entry = start.entry
+    let context = start.context
+    free(start) in memory.heap
+    entry(context)
+    return none
+
+pub func spawn(entry: func(void*?) -> unit, context: void*?, stack: usize = 0, name: str = "") -> Handle!:
+    let start = try new Start(entry = entry, context = context) in memory.heap
+    var id: void*? = none
+    if pthread_create(&id, none, trampoline, (void*)start) != 0:
+        free(start) in memory.heap
+        error(failed, "spawn")
+    let thread = id else error(failed, "spawn")
+    discard(stack)
+    discard(name.length)
+    return Handle(id = thread)
+
+pub func current() -> Handle:
+    return Handle(id = pthread_self())
+
+## A hint to the processor inside a spin loop.
+pub func pause():
+    asm arm64:
+        yield
+    asm x86_64:
+        pause
+
+pub func yield():
+    discard(sched_yield())
+
+pub func sleep(milliseconds: u64):
+    var request = Duration(seconds = (i64)(milliseconds // 1000), nanoseconds = (i64)(milliseconds % 1000) * 1000000)
+    discard(nanosleep(&request, none))

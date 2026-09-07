@@ -1,0 +1,106 @@
+import c
+import memory
+
+extern func open(path: c.str, flags: i32, ...) -> i32
+extern func close(descriptor: i32) -> i32
+extern func c_read as "read"(descriptor: i32, buffer: void*, count: usize) -> isize
+extern func c_write as "write"(descriptor: i32, buffer: const void*, count: usize) -> isize
+extern func lseek(descriptor: i32, offset: i64, whence: i32) -> i64
+extern func opendir(path: c.str) -> void*?
+extern func readdir(directory: void*) -> Entry*?
+extern func closedir(directory: void*) -> i32
+
+## A directory entry as arm64-macos lays it out.
+extern struct Entry:
+    inode: u64
+    seek: u64
+    length: u16
+    name_length: u16
+    kind: u8
+    name: u8[1024]
+
+let read_only: i32 = 0
+let write_only: i32 = 1
+let create: i32 = 512
+let truncate: i32 = 1024
+let seek_end: i32 = 2
+let seek_set: i32 = 0
+
+pub let missing: ErrorCode = ErrorCode.package(6)
+
+## Whether `path` can be opened for reading.
+pub func exists(path: c.str) -> bool:
+    let descriptor = open(path, read_only)
+    if descriptor < 0:
+        return false
+    discard(close(descriptor))
+    return true
+pub let failed: ErrorCode = ErrorCode.package(7)
+
+## The whole file, allocated from the current allocator.
+pub func read(path: c.str) -> u8[]!:
+    let fd = open(path, read_only)
+    if fd < 0:
+        error(missing, "missing")
+    let size = lseek(fd, 0, seek_end)
+    if size < 0 or lseek(fd, 0, seek_set) < 0:
+        discard(close(fd))
+        error(failed, "the file cannot be read")
+    let bytes = alloc u8[(usize)size] catch failure:
+        discard(close(fd))
+        error(memory.exhausted, "memory.exhausted")
+    var got: usize = 0
+    while got < bytes.length:
+        let n = c_read(fd, bytes[got..].data, bytes.length - got)
+        if n < 0:
+            discard(close(fd))
+            error(failed, "the file cannot be read")
+        if n == 0:
+            break
+        got += (usize)n
+    discard(close(fd))
+    return bytes[..<got]
+
+pub func write(path: c.str, data: const u8[]) -> !:
+    let fd = open(path, write_only | create | truncate, 420)
+    if fd < 0:
+        error(missing, "missing")
+    var done: usize = 0
+    while done < data.length:
+        let n = c_write(fd, data[done..].data, data.length - done)
+        if n <= 0:
+            discard(close(fd))
+            error(failed, "write")
+        done += (usize)n
+    discard(close(fd))
+
+## The names in a directory, sorted, allocated from the current allocator.
+pub func list(path: c.str) -> str[]!:
+    let dir = opendir(path) else error(missing, "missing")
+    var names = try alloc str[16]
+    var count: usize = 0
+    while let entry = readdir(dir):
+        let name = (str)entry.name[..<(usize)entry.name_length]
+        if name == "." or name == "..":
+            continue
+        if count == names.length:
+            let grown = try alloc str[names.length * 2]
+            memory.copy(grown, names, count)
+            names = grown
+        let copy = try alloc u8[name.length + 1]
+        memory.copy(copy, name.bytes, name.length)
+        copy[name.length] = 0
+        names[count] = (str)copy[..<name.length]
+        count += 1
+    discard(closedir(dir))
+    # insertion sort by bytes; directories are small
+    var i: usize = 1
+    while i < count:
+        let item = names[i]
+        var j = i
+        while j > 0 and item < names[j - 1]:
+            names[j] = names[j - 1]
+            j -= 1
+        names[j] = item
+        i += 1
+    return names[..<count]

@@ -1987,7 +1987,8 @@ pub struct Checker:
                 if callee.text == "alignof":
                     return self.table.align_of(arg.type_id)
                 return none
-            .name:
+            .name, .member:
+                # a top-level `let`, this module's or an imported one's: `os.pointer_bits`
                 let d = e.resolved else return none
                 if d.kind != ast.Kind.constant:
                     return none
@@ -1996,8 +1997,9 @@ pub struct Checker:
             _:
                 return none
 
-    ## The truth of a constant condition (§11.6): the literals, `not`, `and`, `or`, and
-    ## comparisons of constant integers, signed when either operand's type is.
+    ## The truth of a constant condition (§11.6): the literals, top-level `let`s of `bool`
+    ## such as `os.arm64`, `not`, `and`, `or`, and comparisons of constant integers, signed
+    ## when either operand's type is.
     func constant_bool(e: ast.Node*) -> bool?:
         match e.kind:
             .literal:
@@ -2006,6 +2008,12 @@ pub struct Checker:
                 if e.text == "false":
                     return false
                 return none
+            .name, .member:
+                let d = e.resolved else return none
+                if d.kind != ast.Kind.constant:
+                    return none
+                let init = d.left else return none
+                return self.constant_bool(init)
             .group:
                 let inner = e.left else return none
                 return self.constant_bool(inner)
@@ -2028,6 +2036,19 @@ pub struct Checker:
                 return compare_constants(e.text, a, b, signed)
             _:
                 return none
+
+    ## A condition that is a constant but not a literal, `if os.arm64:`, becomes the literal
+    ## it stands for, so the branch it rules out is pruned; the program meant it, so no
+    ## warning follows. Says whether it folded one.
+    mutating func fold_condition(s: ast.Node*) -> bool!:
+        let cond = s.left else return false
+        if cond.kind == ast.Kind.literal:
+            return false
+        let truth = self.constant_bool(cond) else return false
+        let folded = try ast.Node.make(ast.Kind.literal, "true" if truth else "false", cond.start, cond.line)
+        folded.type_id = types.bool_id
+        s.left = folded
+        return true
 
     ## A top-level constant typed on first use, so order does not matter.
     mutating func check_constant(d: ast.Node*) -> !:
@@ -2585,10 +2606,15 @@ pub struct Checker:
             return want
         let s = self.table.get(have)
         let d = self.table.get(want)
-        # no reinterpreting cast between scalars of different kinds: `bool` stays out (§7.5)
         let s_num = self.table.is_numeric(have) or have == types.char_id
         let d_num = self.table.is_numeric(want) or want == types.char_id
         if s_num and d_num:
+            return want
+        # `(i32)flag` is 0 or 1 and `(bool)n` is `n != 0`, as in C (§7.5); the cast is
+        # written, since `bool` has no implicit numeric conversion (§5.1)
+        if have == types.bool_id and self.table.is_integer(want):
+            return want
+        if self.table.is_integer(have) and want == types.bool_id:
             return want
         if self.is_backed_enum(have) and self.table.is_integer(want):
             return want
@@ -3655,8 +3681,9 @@ pub struct Checker:
             .if_:
                 try self.check_if(s)
                 if not s.has(ast.flag_if_let):
+                    let quiet = try self.fold_condition(s)
                     var r = self.reporter()
-                    try prune.fold_constant_branch(s, &r)
+                    try prune.fold_constant_branch(s, &r, quiet)
             .while_:
                 self.push_scope()
                 try self.check_condition(s)
@@ -3666,8 +3693,9 @@ pub struct Checker:
                 self.leave_loop(s)
                 self.pop_scope()
                 if not s.has(ast.flag_if_let):
+                    let quiet = try self.fold_condition(s)
                     var r = self.reporter()
-                    try prune.fold_constant_branch(s, &r)
+                    try prune.fold_constant_branch(s, &r, quiet)
             .for_:
                 try self.check_for(s)
             .match_:

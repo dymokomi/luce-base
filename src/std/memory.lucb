@@ -1,0 +1,173 @@
+extern func malloc(size: usize) -> void*?
+extern func c_free as "free"(block: void*)
+extern func posix_memalign(memptr: void*?*, alignment: usize, size: usize) -> i32
+extern func memcpy(target: void*, source: const void*, count: usize) -> void*
+extern func memmove(target: void*, source: const void*, count: usize) -> void*
+extern func memset(target: void*, value: i32, count: usize) -> void*
+
+## What every allocator offers: blocks of bytes at an alignment, optionally
+## resized in place, and given back (§12.4).
+pub interface Allocator:
+    mutating func allocate(size: usize, alignment: usize) -> u8[]?
+    mutating func resize(block: u8[], size: usize) -> bool
+    mutating func release(block: u8[])
+
+## A bump allocator over a caller's bytes. Only the last block can be resized or
+## released; everything goes away together when the buffer does.
+pub struct FixedBuffer: Allocator:
+    var data: u8[]
+    var used: usize
+
+    pub static func over(buffer: u8[]) -> FixedBuffer:
+        return FixedBuffer(data = buffer, used = 0)
+
+    pub mutating func allocate(size: usize, alignment: usize) -> u8[]?:
+        if size == 0:
+            return self.data[..<0]
+        let align = alignment if alignment > 0 else 1
+        let start = (self.used + align - 1) // align * align
+        if start + size > self.data.length:
+            note_refusal("fixed buffer", size, align, self.used)
+            return none
+        self.used = start + size
+        return self.data[start..<self.used]
+
+    pub mutating func resize(block: u8[], size: usize) -> bool:
+        if size == block.length:
+            return true
+        if block.length == 0:
+            return false
+        let start = (usize)block.data - (usize)self.data.data
+        if start + block.length != self.used:
+            return false
+        if start + size > self.data.length:
+            return false
+        self.used = start + size
+        return true
+
+    pub mutating func release(block: u8[]):
+        if block.length == 0:
+            return
+        let start = (usize)block.data - (usize)self.data.data
+        if start + block.length == self.used:
+            self.used = start
+
+## The C library's heap.
+pub struct CAllocator: Allocator:
+    var unused: u8
+
+    pub mutating func allocate(size: usize, alignment: usize) -> u8[]?:
+        if size == 0:
+            return u8[]((u8*)8, 0)
+        var align = alignment if alignment > 8 else 8
+        var p: void*? = none
+        if posix_memalign(&p, align, size) != 0:
+            note_refusal("heap", size, align, 0)
+            return none
+        let block = p else return none
+        return u8[]((u8*)block, size)
+
+    pub mutating func resize(block: u8[], size: usize) -> bool:
+        return size <= block.length
+
+    pub mutating func release(block: u8[]):
+        if block.length == 0:
+            return
+        if not diagnostic:
+            c_free(block.data)
+            return
+        # the diagnostic profile (§19.4): the block is filled with a pattern and held back, so
+        # a use after release reads the pattern rather than the next allocation
+        discard(memset(block.data, 221, block.length))
+        let slot = quarantine_next % quarantine.length
+        if let old = quarantine[slot]:
+            c_free(old.data)
+        quarantine[slot] = block
+        quarantine_next += 1
+
+## The heap refusing a request is rare and worth a line on standard error: what was asked,
+## so an exhaustion in the field says more than its error code. A fixed buffer running out
+## is ordinary and says nothing.
+func note_refusal(who: str, size: usize, alignment: usize, used: usize):
+    var text: u8[160]
+    let line = format(text, f"memory: the {who} refused {size} bytes at alignment {alignment} (used {used})\\n") catch failure:
+        return
+    discard(write_bytes(2, line.bytes.data, line.length))
+
+extern func write_bytes as "write"(descriptor: i32, buffer: const void*, count: usize) -> isize
+
+## `--profile diagnostic`: set by the startup shim before `startup` runs.
+pub var diagnostic: bool
+
+## An allocation the diagnostic profile recorded (§19.4): the block, its size, and where.
+pub struct Site:
+    pub var address: void*?
+    pub var size: usize
+    pub var function: str
+    pub var line: u32
+
+var sites: Site[256]
+var site_next: usize
+
+## Called by the compiled program after each allocation under `--profile diagnostic`.
+pub func note_site(address: void*?, size: usize, function: str, line: u32):
+    sites[site_next % sites.length] = Site(address = address, size = size, function = function, line = line)
+    site_next += 1
+
+## The allocations recorded so far, the most recent 256 at most, oldest first.
+pub func allocation_sites() -> const Site[]:
+    let held = site_next if site_next < sites.length else sites.length
+    return sites[..<held]
+## The released blocks the diagnostic profile still holds, oldest freed first.
+var quarantine: (u8[]?)[64]
+var quarantine_next: usize
+
+pub let exhausted: ErrorCode = ErrorCode.package(1)
+pub let unset: ErrorCode = ErrorCode.package(2)
+
+var c_allocator: CAllocator
+## The current allocator of this thread (§12.3) and the process's initial one.
+pub local var allocator: Allocator
+pub var heap: Allocator
+
+## Run by the startup shim before `main`, and by `thread.spawn` in a new thread.
+pub func startup():
+    heap = &c_allocator
+    allocator = heap
+
+pub func copy[T](target: T[], source: const T[], count: usize):
+    if count > target.length or count > source.length:
+        trap("index out of bounds")
+    if count > 0:
+        discard(memcpy(target.data, source.data, count * sizeof(T)))
+
+pub func move[T](target: T[], source: const T[], count: usize):
+    if count > target.length or count > source.length:
+        trap("index out of bounds")
+    if count > 0:
+        discard(memmove(target.data, source.data, count * sizeof(T)))
+
+pub func set(target: u8[], value: u8):
+    if target.length > 0:
+        discard(memset(target.data, (i32)value, target.length))
+
+pub func read[T](address: const void*) -> T:
+    var value: T = ---
+    discard(memcpy(&value, address, sizeof(T)))
+    return value
+
+pub func write[T](address: void*, value: T):
+    var copy_of = value
+    discard(memcpy(address, &copy_of, sizeof(T)))
+
+## `block` with `size` bytes: in place when the current allocator can, else a
+## new block with the old bytes copied and the old block released.
+pub func grow(block: u8[], size: usize) -> u8[]!:
+    if allocator.resize(block, size):
+        return u8[](block.data, size)
+    let fresh = allocator.allocate(size, 8) else error(exhausted, "memory.exhausted")
+    let keep = block.length if block.length < size else size
+    if keep > 0:
+        discard(memcpy(fresh.data, block.data, keep))
+    allocator.release(block)
+    return fresh

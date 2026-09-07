@@ -1,0 +1,48 @@
+## What a Base test runs under (§16.5): a fixed-buffer allocator made current for
+## each test, a deterministic seed, and assertions that name what differed.
+
+import memory
+from memory import Allocator, FixedBuffer
+
+var arena_bytes: u8[1048576]
+var arena: FixedBuffer
+var saved: Allocator
+var current_seed: u64 = 1
+
+## Called by the runner before each test.
+pub func begin(index: u64):
+    arena = FixedBuffer.over(arena_bytes)
+    saved = memory.allocator
+    memory.allocator = &arena
+    current_seed = index * 2654435761 + 1
+
+## Called by the runner after each test.
+pub func end():
+    memory.allocator = saved
+
+## A seed that is the same on every run of the same test.
+pub func seed() -> u64:
+    return current_seed
+
+## The next pseudo-random value from the seed, and the seed advanced.
+pub func random() -> u64:
+    var x = current_seed
+    x = x ^ (x << 13)
+    x = x ^ (x >> 7)
+    x = x ^ (x << 17)
+    current_seed = x
+    return x
+
+pub func expect(condition: bool, message: str):
+    if not condition:
+        trap(message)
+
+pub func expect_equal(actual: i64, expected: i64, message: str):
+    if actual != expected:
+        print(f"expected {expected}, got {actual}: {message}")
+        trap(message)
+
+pub func expect_text(actual: str, expected: str, message: str):
+    if actual != expected:
+        print(f"expected `{expected}`, got `{actual}`: {message}")
+        trap(message)

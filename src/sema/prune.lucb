@@ -214,7 +214,9 @@ pub func prune_block(block: ast.Node*, reporter: Reporter*) -> !:
         cursor = s.next
 
 ## `if true:` keeps its body and `if false:` its alternative; `while false:` is nothing.
-pub func fold_constant_branch(s: ast.Node*, reporter: Reporter*) -> !:
+## `quiet` says the literal stood for a named constant, `if os.arm64:`, whose ruled-out
+## branch is meant to go and draws no warning.
+pub func fold_constant_branch(s: ast.Node*, reporter: Reporter*, quiet: bool) -> !:
     let c = s.left else return
     if c.kind != ast.Kind.literal or (c.text != "true" and c.text != "false"):
         return
@@ -222,7 +224,8 @@ pub func fold_constant_branch(s: ast.Node*, reporter: Reporter*) -> !:
     if s.kind == ast.Kind.while_:
         if truth:
             return
-        try reporter.warn(s, "this loop never runs: its condition is `false`")
+        if not quiet:
+            try reporter.warn(s, "this loop never runs: its condition is `false`")
         s.kind = ast.Kind.block
         s.body = none
         s.left = none
@@ -230,7 +233,8 @@ pub func fold_constant_branch(s: ast.Node*, reporter: Reporter*) -> !:
     let taken = s.body if truth else s.right
     let dropped = s.right if truth else s.body
     if let d = dropped:
-        try reporter.warn(d, "this branch never runs: the condition is `true`" if truth else "this branch never runs: the condition is `false`")
+        if not quiet:
+            try reporter.warn(d, "this branch never runs: the condition is `true`" if truth else "this branch never runs: the condition is `false`")
     s.kind = ast.Kind.block
     s.left = none
     s.right = none

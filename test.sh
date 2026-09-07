@@ -7,7 +7,9 @@
 set -eu
 cd "$(dirname "$0")"
 ./build.sh
+# the standard library under src/std is checked as the prelude, not as modules of its own
 for f in tests/samples/*.lucb src/*.lucb src/*/*.lucb tests/programs/*/*.lucb; do
+    case "$f" in src/std/*) continue;; esac
     echo "== $f"
     ./build/luce-base lex "$f" > /dev/null
     ./build/luce-base parse "$f" > /dev/null
@@ -24,6 +26,7 @@ done
 rm -f build/sample build/sample.out
 # every module's tests run through both backends: the two executions must agree
 for f in src/*/*.lucb tests/programs/*/*.lucb; do
+    case "$f" in src/std/*) continue;; esac
     if grep -q '^test "' "$f"; then
         echo "== test $f"
         out=$(./build/luce-base test "$f") || { echo "$out" | tail -3; exit 1; }

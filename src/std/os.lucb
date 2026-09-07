@@ -1,0 +1,86 @@
+## The operating system's view of the process (§16.6): its environment, working
+## directory, identity, and host. Text comes back as `str` views of C storage that the
+## system owns; copy what must outlive the next call.
+import c
+import memory
+
+extern func getenv(name: c.str) -> c.str?
+extern func setenv(name: c.str, value: c.str, overwrite: i32) -> i32
+extern func unsetenv(name: c.str) -> i32
+extern func getcwd(buffer: u8*, size: usize) -> c.str?
+extern func chdir(path: c.str) -> i32
+extern func getpid() -> i32
+extern func getppid() -> i32
+extern func gethostname(buffer: u8*, size: usize) -> i32
+extern func c_exit as "exit"(code: i32) -> never
+extern func sysconf(name: i32) -> i64
+extern func getpagesize() -> i32
+
+pub let failed: ErrorCode = ErrorCode.package(12)
+
+## The target, as constants a program can branch on: `if os.arm64:` (§19.5). These are
+## the first target's, arm64-macos; another target gets its own copy of this module.
+pub let arm64: bool = true
+pub let x86_64: bool = false
+pub let macos: bool = true
+pub let linux: bool = false
+pub let windows: bool = false
+pub let pointer_bits: u32 = 64
+pub let name: str = "arm64-macos"
+
+## The processors available to this process, at least one.
+pub func cpus() -> u32:
+    let n = sysconf(58)    # _SC_NPROCESSORS_ONLN on macOS
+    return (u32)n if n > 0 else 1
+
+pub func page_size() -> usize:
+    return (usize)getpagesize()
+
+## The value of an environment variable, or none when it is not set.
+pub func env(name: c.str) -> str?:
+    let value = getenv(name) else return none
+    return (str)value
+
+## Set an environment variable for this process and the ones it starts.
+pub func set_env(name: c.str, value: c.str) -> !:
+    if setenv(name, value, 1) != 0:
+        error(failed, "the environment variable cannot be set")
+
+pub func unset_env(name: c.str) -> !:
+    if unsetenv(name) != 0:
+        error(failed, "the environment variable cannot be unset")
+
+## The working directory, in storage from the current allocator.
+pub func cwd() -> str!:
+    let buffer = try alloc u8[4096]
+    let found = getcwd(buffer.data, buffer.length)
+    if found == none:
+        free(buffer)
+        error(failed, "the working directory cannot be read")
+    let path = found else trap("unreachable")
+    return (str)path
+
+pub func change_dir(path: c.str) -> !:
+    if chdir(path) != 0:
+        error(failed, "the directory cannot be entered")
+
+pub func pid() -> i32:
+    return getpid()
+
+pub func parent_pid() -> i32:
+    return getppid()
+
+## The host's name, in storage from the current allocator.
+pub func hostname() -> str!:
+    let buffer = try alloc u8[256]
+    if gethostname(buffer.data, buffer.length) != 0:
+        free(buffer)
+        error(failed, "the host name cannot be read")
+    var n: usize = 0
+    while n < buffer.length and buffer[n] != 0:
+        n += 1
+    return (str)buffer[..<n]
+
+## Stop the process with `code`, running no deferred work.
+pub func exit(code: i32) -> never:
+    c_exit(code)

@@ -1,0 +1,11 @@
+## Memory orderings for the operations of `@T` (§15.1).
+pub enum Ordering as u8:
+    relaxed = 1
+    acquire = 2
+    release = 3
+    acq_rel = 4
+    seq_cst = 5
+
+## A standalone fence; the backend supplies the instruction.
+pub func fence(order: Ordering):
+    discard(order)

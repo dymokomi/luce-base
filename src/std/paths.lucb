@@ -1,0 +1,49 @@
+## File system paths as text, with `/` as the separator.
+
+import memory
+import strings
+
+pub func is_absolute(path: str) -> bool:
+    return path.length > 0 and path.bytes[0] == '/'
+
+## Everything up to the last separator, or `.` when there is none.
+pub func directory(path: str) -> str:
+    let cut = strings.last(path, '/') else return "."
+    if cut == 0:
+        return "/"
+    return (str)path.bytes[..<cut]
+
+## The last component.
+pub func base(path: str) -> str:
+    let cut = strings.last(path, '/') else return path
+    return (str)path.bytes[cut + 1..]
+
+## The extension with its dot, or the empty text.
+pub func extension(path: str) -> str:
+    let name = base(path)
+    let dot = strings.last(name, '.') else return ""
+    if dot == 0:
+        return ""
+    return (str)name.bytes[dot..]
+
+## The last component without its extension.
+pub func stem(path: str) -> str:
+    let name = base(path)
+    let ext = extension(name)
+    return (str)name.bytes[..<name.length - ext.length]
+
+## `left/right`, in the current allocator; an absolute `right` wins.
+pub func join(left: str, right: str) -> str!:
+    if is_absolute(right) or left.length == 0:
+        return try strings.copy(right)
+    let out = try alloc u8[left.length + right.length + 2]
+    var n: usize = 0
+    memory.copy(out, left.bytes, left.length)
+    n = left.length
+    if left.bytes[left.length - 1] != '/':
+        out[n] = '/'
+        n += 1
+    memory.copy(out[n..], right.bytes, right.length)
+    n += right.length
+    out[n] = 0
+    return (str)out[..<n]

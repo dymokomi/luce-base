@@ -1,0 +1,18 @@
+## §16.6: the `os` module names the target as constants and answers what the process can
+## ask of the system.
+# oracle: none
+import os
+
+pub func main(arguments: str[]) -> i32!:
+    try os.set_env("LUCE_CONFORMANCE", "yes")
+    let value = os.env("LUCE_CONFORMANCE") else return 1
+    let missing = os.env("LUCE_CONFORMANCE_UNSET_NAME") == none
+    let cwd = try os.cwd()
+    let host = try os.hostname()
+    var arch = "other"
+    if os.arm64:
+        arch = "arm64"
+    elif os.x86_64:
+        arch = "x86_64"
+    print(f"{os.arm64} {os.macos} {os.pointer_bits} {os.cpus() >= 1} {os.page_size() >= 4096} {value} {missing} {cwd.length > 0} {host.length > 0} {os.pid() > 0} {arch}")
+    return 0

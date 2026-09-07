@@ -1,0 +1,173 @@
+import c
+## Text operations over `str` views; what allocates says so and uses the current allocator.
+
+import memory
+from io import Writer
+
+pub func starts_with(text: str, prefix: str) -> bool:
+    if prefix.length > text.length:
+        return false
+    return (str)text.bytes[..<prefix.length] == prefix
+
+pub func ends_with(text: str, suffix: str) -> bool:
+    if suffix.length > text.length:
+        return false
+    return (str)text.bytes[text.length - suffix.length..] == suffix
+
+## The byte offset of the first `needle` in `text`.
+pub func find(text: str, needle: str) -> usize?:
+    if needle.length > text.length:
+        return none
+    var i: usize = 0
+    while i + needle.length <= text.length:
+        if (str)text.bytes[i..<i + needle.length] == needle:
+            return i
+        i += 1
+    return none
+
+## The byte offset of the last `byte` in `text`.
+pub func last(text: str, byte: u8) -> usize?:
+    var i = text.length
+    while i > 0:
+        i -= 1
+        if text.bytes[i] == byte:
+            return i
+    return none
+
+pub func contains(text: str, needle: str) -> bool:
+    return find(text, needle) != none
+
+func is_space(byte: u8) -> bool:
+    return byte == ' ' or byte == '\\n' or byte == '\\t' or byte == '\\r'
+
+## `text` without leading and trailing spaces, tabs, and line ends: a view.
+pub func trim(text: str) -> str:
+    var start: usize = 0
+    var end = text.length
+    let b = text.bytes
+    while start < end and is_space(b[start]):
+        start += 1
+    while end > start and is_space(b[end - 1]):
+        end -= 1
+    return (str)b[start..<end]
+
+## `text` split at every `separator`, as views into it, in the current allocator.
+pub func split(text: str, separator: u8) -> str[]!:
+    var count: usize = 1
+    for b in text.bytes:
+        if b == separator:
+            count += 1
+    let parts = try alloc str[count]
+    var n: usize = 0
+    var start: usize = 0
+    var i: usize = 0
+    let b = text.bytes
+    while i < b.length:
+        if b[i] == separator:
+            parts[n] = (str)b[start..<i]
+            n += 1
+            start = i + 1
+        i += 1
+    parts[n] = (str)b[start..]
+    return parts
+
+## The pieces joined with `separator` between them, in the current allocator.
+pub func join(pieces: const str[], separator: str) -> str!:
+    var total: usize = 0
+    var i: usize = 0
+    while i < pieces.length:
+        total += pieces[i].length
+        if i + 1 < pieces.length:
+            total += separator.length
+        i += 1
+    let out = try alloc u8[total + 1]
+    var n: usize = 0
+    i = 0
+    while i < pieces.length:
+        memory.copy(out[n..], pieces[i].bytes, pieces[i].length)
+        n += pieces[i].length
+        if i + 1 < pieces.length:
+            memory.copy(out[n..], separator.bytes, separator.length)
+            n += separator.length
+        i += 1
+    out[n] = 0
+    return (str)out[..<n]
+
+## A copy of `text` in the current allocator, NUL-terminated so it may be a `c.str`.
+pub func copy(text: str) -> str!:
+    let out = try alloc u8[text.length + 1]
+    memory.copy(out, text.bytes, text.length)
+    out[text.length] = 0
+    return (str)out[..<text.length]
+
+## A decimal integer, with an optional sign; none when the text is not one.
+pub func to_i64(text: str) -> i64?:
+    let b = text.bytes
+    if b.length == 0:
+        return none
+    var i: usize = 0
+    var negative = false
+    if b[0] == '-' or b[0] == '+':
+        negative = b[0] == '-'
+        i = 1
+    if i >= b.length:
+        return none
+    var value: i64 = 0
+    while i < b.length:
+        let byte = b[i]
+        if byte < '0' or byte > '9':
+            return none
+        let digit = (i64)(byte - '0')
+        let next = value *? 10 else return none
+        value = next +? digit else return none
+        i += 1
+    return 0 - value if negative else value
+
+## ASCII case folding; other bytes pass through.
+pub func to_upper(text: str) -> str!:
+    let out = try alloc u8[text.length + 1]
+    var i: usize = 0
+    for b in text.bytes:
+        out[i] = b - 32 if b >= 'a' and b <= 'z' else b
+        i += 1
+    out[i] = 0
+    return (str)out[..<i]
+
+pub func to_lower(text: str) -> str!:
+    let out = try alloc u8[text.length + 1]
+    var i: usize = 0
+    for b in text.bytes:
+        out[i] = b + 32 if b >= 'A' and b <= 'Z' else b
+        i += 1
+    out[i] = 0
+    return (str)out[..<i]
+
+## Text built piece by piece in the current allocator.
+pub struct Builder: Writer:
+    var data: u8[]
+    var used: usize
+
+    pub static func create(capacity: usize) -> Builder!:
+        return Builder(data = try alloc u8[capacity if capacity > 0 else 64], used = 0)
+
+    pub mutating func write(data: const u8[]) -> usize!:
+        if self.used + data.length >= self.data.length:
+            var room = self.data.length * 2
+            while room <= self.used + data.length:
+                room = room * 2
+            self.data = try memory.grow(self.data, room)
+        memory.copy(self.data[self.used..], data, data.length)
+        self.used += data.length
+        return data.length
+
+    pub mutating func put(text: str) -> !:
+        discard(try self.write(text.bytes))
+
+    ## The text so far, NUL-terminated in the buffer; invalid after the next write.
+    pub mutating func view() -> str:
+        if self.used < self.data.length:
+            self.data[self.used] = 0
+        return (str)self.data[..<self.used]
+
+    pub mutating func clear():
+        self.used = 0

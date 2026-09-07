@@ -1,0 +1,24 @@
+extern func clock_gettime(clock: i32, out_time: Stamp*) -> i32
+extern func c_time as "time"(out_time: void*?) -> i64
+
+extern struct Stamp:
+    seconds: i64
+    nanoseconds: i64
+
+let monotonic: i32 = 6
+let realtime: i32 = 0
+
+## Nanoseconds from an arbitrary origin, never going backwards.
+pub func now() -> u64:
+    var stamp = Stamp(seconds = 0, nanoseconds = 0)
+    discard(clock_gettime(monotonic, &stamp))
+    return (u64)stamp.seconds * 1000000000 + (u64)stamp.nanoseconds
+
+## Seconds since the Unix epoch.
+pub func unix() -> i64:
+    return c_time(none)
+
+## Nanoseconds elapsed since `start`, from `now()`.
+pub func since(start: u64) -> u64:
+    let current = now()
+    return current - start if current > start else 0

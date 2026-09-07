@@ -1,0 +1,10 @@
+## §16.6: `io.path` answers the process's directories.
+# oracle: none
+from io import path
+
+pub func main(arguments: str[]) -> i32!:
+    let user = try path.user()
+    let temp = path.temp()
+    let config = try path.config()
+    print(f"{user.length > 0} {temp.length > 0} {config.length > user.length}")
+    return 0

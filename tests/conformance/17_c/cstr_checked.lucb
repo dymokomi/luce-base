@@ -1,0 +1,13 @@
+## §5.2: `(c.str)text` hands C the text's data pointer only when the byte after the text
+## is NUL; a view cut from the middle of longer text traps instead of reading past its end.
+# oracle: none
+import c
+
+pub func main(arguments: str[]) -> i32:
+    let all: str = "wlsd"
+    let whole = (c.str)all
+    print(f"{(str)whole}")
+    let middle = (str)all.bytes[2..<3]
+    let bad = (c.str)middle
+    print(f"{(str)bad}")
+    return 0

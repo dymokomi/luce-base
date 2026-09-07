@@ -2438,7 +2438,12 @@ pub struct Emitter:
             try self.put_ident(e.text)
             try self.put(".d")
             return
-        if e.kind == ast.Kind.name or e.kind == ast.Kind.member or e.kind == ast.Kind.index:
+        if e.kind == ast.Kind.index:
+            try self.put("&(")
+            try self.index_at(e, true)
+            try self.put(")")
+            return
+        if e.kind == ast.Kind.name or e.kind == ast.Kind.member:
             try self.put("&(")
             try self.place(e)
             try self.put(")")
@@ -2775,10 +2780,10 @@ pub struct Emitter:
             try self.str_conversion(src, checked)
             return
         if dest == types.cstr_id and st == types.str_id:
-            # `(c.str)text`: the bytes are read-only by type; the cast is what the program wrote
-            try self.put("((char*)")
+            # `(c.str)text`: C's text ends at a NUL, so the byte after the view must be one (§5.2)
+            try self.put("lb_cstr_of(")
             try self.expr(src)
-            try self.put(".data)")
+            try self.put(")")
             return
         if st == types.cstr_id and dest == types.str_id:
             try self.str_conversion(src, checked)
@@ -2835,6 +2840,11 @@ pub struct Emitter:
             return
         let s_word = self.is_int(st) or st == types.char_id or st == types.bool_id or st == types.untyped_int_id
         let d_word = self.is_int(dest) or dest == types.char_id
+        if s_word and dest == types.bool_id:
+            try self.put("((")
+            try self.expr(src)
+            try self.put(") != 0)")
+            return
         if s_word and d_word:
             let fb = 32 if st == types.char_id else (64 if st == types.untyped_int_id or st == types.bool_id else self.bits(st))
             let tb = 32 if dest == types.char_id else self.bits(dest)
@@ -3084,12 +3094,17 @@ pub struct Emitter:
         try self.put_str_literal(f.text)
 
     mutating func index(e: ast.Node*) -> !:
+        try self.index_at(e, false)
+
+    ## `owner[i]`; under `&` the index may equal the length, C's one past the end (§7.7).
+    mutating func index_at(e: ast.Node*, one_past: bool) -> !:
         let owner = e.left else return
         let i = e.body else return
         let ot = try self.ty(owner)
+        let slack: u64 = 1 if one_past else 0
         if self.is_array(ot):
             let length = self.c.table.get(ot).length
-            if i.kind == ast.Kind.literal and i.text.bytes[0] != '\'' and (try check.decode_integer(i.text)) < length:
+            if i.kind == ast.Kind.literal and i.text.bytes[0] != '\'' and (try check.decode_integer(i.text)) < length + slack:
                 # a literal in range needs no check, and stays a constant expression (§6.4)
                 try self.put("((")
                 try self.expr(owner)
@@ -3102,7 +3117,7 @@ pub struct Emitter:
             try self.put(").d[lb_at((uint64_t)(")
             try self.expr(i)
             try self.put("), ")
-            try self.put_u64(length)
+            try self.put_u64(length + slack)
             try self.put("ULL)])")
             return
         if self.is_span(ot):
@@ -3114,7 +3129,7 @@ pub struct Emitter:
             try self.expr(i)
             try self.put("), ")
             try self.expr(owner)
-            try self.put(".length)])")
+            try self.put(".length + 1ULL)])" if one_past else ".length)])")
             return
         if self.is_ptr(ot):
             # element-scaled by the pointee, an array included (§7.7)

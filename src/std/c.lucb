@@ -1,0 +1,11 @@
+## C's types live here (base.md §5.2); the checker supplies them, since their widths are the
+## target's: `c.int` and the other fixed-width ones are Base types by another name, `c.char`,
+## `c.long`, `c.ulong`, and `c.wchar` are distinct, `c.va_list` is opaque, `c.str` is C text.
+
+## The C standard streams; the backend supplies them.
+pub func stdin() -> void*:
+    trap("supplied by the backend")
+pub func stdout() -> void*:
+    trap("supplied by the backend")
+pub func stderr() -> void*:
+    trap("supplied by the backend")

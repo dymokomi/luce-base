@@ -1,0 +1,190 @@
+import c
+from io import Writer
+
+extern func socket(domain: i32, kind: i32, protocol: i32) -> i32
+extern func bind(descriptor: i32, address: const SocketAddress*, length: u32) -> i32
+extern func listen(descriptor: i32, backlog: i32) -> i32
+extern func accept(descriptor: i32, address: SocketAddress*?, length: u32*?) -> i32
+extern func connect(descriptor: i32, address: const SocketAddress*, length: u32) -> i32
+extern func send(descriptor: i32, data: const void*, length: usize, flags: i32) -> isize
+extern func recv(descriptor: i32, buffer: void*, length: usize, flags: i32) -> isize
+extern func sendto(descriptor: i32, data: const void*, length: usize, flags: i32, address: const SocketAddress*, address_length: u32) -> isize
+extern func recvfrom(descriptor: i32, buffer: void*, length: usize, flags: i32, address: SocketAddress*?, address_length: u32*?) -> isize
+extern func close(descriptor: i32) -> i32
+extern func setsockopt(descriptor: i32, level: i32, option: i32, value: const void*, length: u32) -> i32
+extern func getsockname(descriptor: i32, address: SocketAddress*, length: u32*) -> i32
+extern func getaddrinfo(host: c.str, service: c.str?, hints: const AddressInfo*?, result: AddressInfo*?*) -> i32
+extern func freeaddrinfo(info: AddressInfo*)
+
+## `sockaddr_in` as arm64-macos lays it out.
+extern struct SocketAddress:
+    length: u8
+    family: u8
+    port: u16
+    address: u32
+    zero: u8[8]
+
+## `addrinfo` as arm64-macos lays it out.
+extern struct AddressInfo:
+    flags: i32
+    family: i32
+    kind: i32
+    protocol: i32
+    address_length: u32
+    canonical: c.str?
+    address: SocketAddress*?
+    next: AddressInfo*?
+
+let inet: i32 = 2
+let stream: i32 = 1
+let datagram: i32 = 2
+let socket_level: i32 = 65535
+let reuse_address: i32 = 4
+
+pub let failed: ErrorCode = ErrorCode.package(9)
+pub let closed: ErrorCode = ErrorCode.package(10)
+pub let unknown_host: ErrorCode = ErrorCode.package(11)
+
+## An IPv4 address and port, both in host order.
+pub struct Address:
+    pub var ip: u32
+    pub var port: u16
+
+    pub static func loopback(port: u16) -> Address:
+        return Address(ip = 2130706433, port = port)
+
+    pub static func any(port: u16) -> Address:
+        return Address(ip = 0, port = port)
+
+    func raw() -> SocketAddress:
+        var zero: u8[8]
+        return SocketAddress(length = 16, family = 2, port = swap16(self.port), address = swap32(self.ip), zero = zero)
+
+    static func from_raw(raw: SocketAddress) -> Address:
+        return Address(ip = swap32(raw.address), port = swap16(raw.port))
+
+## Host to network byte order and back; the machine is little-endian.
+func swap16(value: u16) -> u16:
+    return (value << 8) | (value >> 8)
+
+func swap32(value: u32) -> u32:
+    return (value << 24) | ((value << 8) & 16711680) | ((value >> 8) & 65280) | (value >> 24)
+
+## The first IPv4 address of `host`.
+pub func resolve(host: c.str, port: u16) -> Address!:
+    var hints = AddressInfo(flags = 0, family = inet, kind = stream, protocol = 0, address_length = 0, canonical = none, address = none, next = none)
+    var found: AddressInfo*? = none
+    if getaddrinfo(host, none, &hints, &found) != 0:
+        error(unknown_host, "unknown host")
+    let info = found else error(unknown_host, "unknown host")
+    let raw = info.address else error(unknown_host, "unknown host")
+    var address = Address.from_raw(*raw)
+    address.port = port
+    freeaddrinfo(info)
+    return address
+
+## A bound TCP socket waiting for connections.
+pub struct Listener:
+    var descriptor: i32
+
+    pub static func bind(address: Address) -> Listener!:
+        let fd = socket(inet, stream, 0)
+        if fd < 0:
+            error(failed, "socket")
+        var yes: i32 = 1
+        discard(setsockopt(fd, socket_level, reuse_address, &yes, 4))
+        let raw = address.raw()
+        if bind(fd, &raw, 16) != 0:
+            discard(close(fd))
+            error(failed, "bind")
+        if listen(fd, 16) != 0:
+            discard(close(fd))
+            error(failed, "listen")
+        return Listener(descriptor = fd)
+
+    ## The address the socket ended up with; a port of zero asked for any free one.
+    pub func address() -> Address:
+        var raw = SocketAddress(length = 0, family = 0, port = 0, address = 0, zero = [0, 0, 0, 0, 0, 0, 0, 0])
+        var length: u32 = 16
+        discard(getsockname(self.descriptor, &raw, &length))
+        return Address.from_raw(raw)
+
+    pub func accept() -> Connection!:
+        let fd = accept(self.descriptor, none, none)
+        if fd < 0:
+            error(failed, "accept")
+        return Connection(descriptor = fd)
+
+    pub func close():
+        discard(close(self.descriptor))
+
+## One TCP connection; it is a `Writer`.
+pub struct Connection: Writer:
+    ## The socket, for callers that poll or pass it on.
+    pub var descriptor: i32
+
+    pub static func connect(address: Address) -> Connection!:
+        let fd = socket(inet, stream, 0)
+        if fd < 0:
+            error(failed, "socket")
+        let raw = address.raw()
+        if connect(fd, &raw, 16) != 0:
+            discard(close(fd))
+            error(failed, "connect")
+        return Connection(descriptor = fd)
+
+    ## Send every byte.
+    pub mutating func write(data: const u8[]) -> usize!:
+        var done: usize = 0
+        while done < data.length:
+            let n = send(self.descriptor, data[done..].data, data.length - done, 0)
+            if n <= 0:
+                error(closed, "the connection closed")
+            done += (usize)n
+        return done
+
+    ## Receive what is available, up to the buffer; zero means the peer closed.
+    pub func receive(buffer: u8[]) -> usize!:
+        let n = recv(self.descriptor, buffer.data, buffer.length, 0)
+        if n < 0:
+            error(closed, "the connection closed")
+        return (usize)n
+
+    pub func close():
+        discard(close(self.descriptor))
+
+## A UDP socket.
+pub struct Datagram:
+    var descriptor: i32
+
+    pub static func bind(address: Address) -> Datagram!:
+        let fd = socket(inet, datagram, 0)
+        if fd < 0:
+            error(failed, "socket")
+        let raw = address.raw()
+        if bind(fd, &raw, 16) != 0:
+            discard(close(fd))
+            error(failed, "bind")
+        return Datagram(descriptor = fd)
+
+    pub func address() -> Address:
+        var raw = SocketAddress(length = 0, family = 0, port = 0, address = 0, zero = [0, 0, 0, 0, 0, 0, 0, 0])
+        var length: u32 = 16
+        discard(getsockname(self.descriptor, &raw, &length))
+        return Address.from_raw(raw)
+
+    pub func send_to(data: const u8[], address: Address) -> !:
+        let raw = address.raw()
+        if sendto(self.descriptor, data.data, data.length, 0, &raw, 16) < 0:
+            error(failed, "send")
+
+    pub func receive_from(buffer: u8[]) -> (usize, Address)!:
+        var raw = SocketAddress(length = 0, family = 0, port = 0, address = 0, zero = [0, 0, 0, 0, 0, 0, 0, 0])
+        var length: u32 = 16
+        let n = recvfrom(self.descriptor, buffer.data, buffer.length, 0, &raw, &length)
+        if n < 0:
+            error(failed, "receive")
+        return ((usize)n, Address.from_raw(raw))
+
+    pub func close():
+        discard(close(self.descriptor))

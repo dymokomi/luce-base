@@ -1538,21 +1538,29 @@ pub struct Lowerer:
         return try self.fail(e, "no such field")
 
     mutating func index_address(e: ast.Node*) -> ir.Ref!:
+        return try self.index_address_at(e, false)
+
+    ## The address of `owner[i]`; under `&` the index may equal the length, C's one past
+    ## the end (§7.7), so the bound is one more.
+    mutating func index_address_at(e: ast.Node*, one_past: bool) -> ir.Ref!:
         let owner = e.left else return try self.fail(e, "no owner")
         let i = e.body else return try self.fail(e, "no index")
         let ot = try self.ty(owner)
         let iv = try self.value(i, types.usize_id)
         let index = try self.widen(iv.ref, iv.type_id, types.usize_id)
+        let slack: i64 = 1 if one_past else 0
         if self.is_array(ot):
             let base = try self.place(owner)
             let t = self.c.table.get(ot)
-            try self.f.emit(ir.Op.bounds, ir.Class.l, 0, index, ir.const_ref((i64)t.length), 0)
+            try self.f.emit(ir.Op.bounds, ir.Class.l, 0, index, ir.const_ref((i64)t.length + slack), 0)
             let scaled = try self.f.binary(ir.Op.mul, ir.Class.l, index, ir.const_ref((i64)self.c.table.size_of(t.elem)))
             return try self.f.binary(ir.Op.add, ir.Class.l, base, scaled)
         if self.is_span(ot):
             let span = try self.expr(owner)
             let data = try self.f.load(ir.Op.loadl, ir.Class.l, span.ref)
-            let length = try self.f.load(ir.Op.loadl, ir.Class.l, try self.offset_address(span.ref, 8))
+            var length = try self.f.load(ir.Op.loadl, ir.Class.l, try self.offset_address(span.ref, 8))
+            if one_past:
+                length = try self.f.binary(ir.Op.add, ir.Class.l, length, ir.const_ref(1))
             try self.f.emit(ir.Op.bounds, ir.Class.l, 0, index, length, 0)
             let scaled = try self.f.binary(ir.Op.mul, ir.Class.l, index, ir.const_ref((i64)self.c.table.size_of(self.elem(ot))))
             return try self.f.binary(ir.Op.add, ir.Class.l, data, scaled)
@@ -1671,6 +1679,8 @@ pub struct Lowerer:
             let v = try self.value(inner, types.bool_id)
             return LowerValue(ref = try self.f.binary(ir.Op.ceq, ir.Class.w, v.ref, ir.const_ref(0)), type_id = types.bool_id, in_memory = false)
         if e.text == "&":
+            if inner.kind == ast.Kind.index:
+                return LowerValue(ref = try self.index_address_at(inner, true), type_id = t, in_memory = false)
             return LowerValue(ref = try self.place(inner), type_id = t, in_memory = false)
         if e.text == "*":
             let p = try self.expr(inner)
@@ -2164,8 +2174,19 @@ pub struct Lowerer:
         if dest == types.str_id and (st == types.cstr_id or ((s.kind == types.Kind.span or s.kind == types.Kind.array) and s.elem == types.u8_id)):
             return try self.str_conversion(src, checked)
         if dest == types.cstr_id and st == types.str_id:
+            # `(c.str)text`: C's text ends at a NUL, so the byte after the view must be one (§5.2)
             let text = try self.expr(src)
-            return LowerValue(ref = try self.f.load(ir.Op.loadl, ir.Class.l, text.ref), type_id = dest, in_memory = false)
+            let data = try self.f.load(ir.Op.loadl, ir.Class.l, text.ref)
+            let length = try self.f.load(ir.Op.loadl, ir.Class.l, try self.offset_address(text.ref, 8))
+            let end = try self.f.binary(ir.Op.add, ir.Class.l, data, length)
+            let terminator = try self.f.load(ir.Op.loadub, ir.Class.w, end)
+            let ok = self.f.label()
+            let bad = self.f.label()
+            try self.f.branch(terminator, bad, ok)
+            try self.f.place_label(bad)
+            try self.trap_with("c.str: the text is not NUL-terminated")
+            try self.f.place_label(ok)
+            return LowerValue(ref = data, type_id = dest, in_memory = false)
         let v = try self.expr(src)
         if self.is_int_enum(dest):
             if checked:
@@ -2198,6 +2219,10 @@ pub struct Lowerer:
         let d_word = self.is_int(dest) or dest == types.char_id
         if s_word and d_word:
             return LowerValue(ref = try self.convert_int(v.ref, st, dest, checked), type_id = dest, in_memory = false)
+        if s_word and dest == types.bool_id:
+            # `(bool)n`: nonzero (§7.5)
+            let word = try self.to_word(v.ref, st) if st != types.untyped_int_id else v.ref
+            return LowerValue(ref = try self.f.binary(ir.Op.cne, ir.Class.l, word, ir.const_ref(0)), type_id = dest, in_memory = false)
         # pointers, spans, and everything else convert by reinterpretation
         return LowerValue(ref = v.ref, type_id = dest, in_memory = v.in_memory)
 

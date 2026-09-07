@@ -1,0 +1,15 @@
+## §9.2, §10.1: a parameter and a field may carry a default; a call or a construction
+## names only what differs from it.
+struct Config:
+    var width: i32 = 80
+    var name: str = "plain"
+    var depth: i32
+
+func scale(x: i32, by: i32 = 2) -> i32:
+    return x * by
+
+pub func main(arguments: str[]) -> i32:
+    let c = Config(depth = 3)
+    let d = Config(width = 10, depth = 1, name = "wide")
+    print(f"{c.width} {c.name} {c.depth} {d.width} {d.name} {scale(4)} {scale(4, 3)}")
+    return 0

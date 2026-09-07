@@ -58,9 +58,11 @@ and the compiler builds itself, twice, to the same C.
 
 Slice 5: the seed is pinned. `bootstrap/luce-base.c` is the compiler's own C,
 `build.sh` starts from it with nothing but a C compiler, and the standard
-modules (`memory`, `io`, `files`, `process`, `thread`, `sync`, `atomic`) are
-Base source in `src/sema/prelude.lucb` over `extern` declarations of the C
-library, as are `strings`, `paths`, `math`, `time`, `testing`, and `net`.
+library (`memory`, `io`, `os`, `files`, `process`, `thread`, `sync`, `atomic`,
+`strings`, `paths`, `math`, `time`, `testing`, `net`) is Base source under
+`src/std/`, one file per module over `extern` declarations of the C library;
+`tools/embed_std.py` gathers them into `src/sema/prelude.lucb`, which the
+compiler binary carries.
 What is left in C, under `runtime/`, is what generated code cannot spell
 itself: traps, checked arithmetic, formatting of scalars, hashing.
 

@@ -1,0 +1,10 @@
+## §7.5: `(i32)flag` is 0 or 1 and `(bool)n` is `n != 0`, as in C; the cast is written,
+## since `bool` has no implicit numeric conversion.
+pub func main(arguments: str[]) -> i32:
+    let flag = arguments.length > 0
+    let off = arguments.length > 100
+    var z: i32 = 5
+    z ^= (i32)flag
+    let n: u8 = (u8)flag + (u8)off
+    print(f"{(i32)flag} {(i64)off} {z} {n} {(bool)7} {(bool)0} {(bool)(-1)}")
+    return 0

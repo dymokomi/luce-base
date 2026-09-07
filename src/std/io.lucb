@@ -1,0 +1,86 @@
+import c
+import core
+extern func fwrite(data: const void*, size: usize, count: usize, stream: void*) -> usize
+extern func fflush(stream: void*?) -> i32
+extern func fdopen(descriptor: i32, mode: c.str) -> void*?
+
+## The standard sink (§14.4).
+pub interface Writer:
+    mutating func write(data: const u8[]) -> usize!
+
+## A compile-time source position, the value of `luce.location`.
+pub struct Location:
+    pub var file: str
+    pub var line: u32
+    pub var function: str
+
+pub let closed: ErrorCode = ErrorCode.package(3)
+
+## A C stream. Every write is flushed so that it never reorders against `print`.
+pub struct File: Writer:
+    var descriptor: i32
+    var stream: void*?
+
+    pub mutating func write(data: const u8[]) -> usize!:
+        if self.stream == none:
+            self.stream = fdopen(self.descriptor, "w")
+        let stream = self.stream else error(closed, "the stream could not be opened")
+        discard(fflush(none))
+        var written: usize = 0
+        if data.length > 0:
+            written = fwrite(data.data, 1, data.length, stream)
+        discard(fflush(stream))
+        if written != data.length:
+            error(closed, "the stream refused the bytes")
+        return written
+
+var out_file: File = File(descriptor = 1, stream = none)
+var err_file: File = File(descriptor = 2, stream = none)
+
+pub func stdout() -> Writer:
+    return &out_file
+
+pub func stderr() -> Writer:
+    return &err_file
+
+pub let full: ErrorCode = ErrorCode.package(4)
+
+## The sink a formatted string offers a `Display` value (§14.4): it appends to the buffer
+## the compiler is filling, and fails once that buffer is full, as `format` then does.
+pub struct FormatSink: Writer:
+    var buffer: core.FormatBuffer*
+
+    pub mutating func write(data: const u8[]) -> usize!:
+        if core.format_put(self.buffer, data.data, data.length) != 0:
+            error(full, "the buffer is full")
+        return data.length
+
+## The process's directories (§16.6): `from io import path`, then `path.user()`. Each is
+## a `str` view of environment storage the system owns, or fresh storage from the current
+## allocator where one has to be built.
+pub struct path:
+    var unused: u8
+
+    ## The user's home directory: `$HOME`.
+    pub static func user() -> str!:
+        let home = getenv("HOME") else error(io_path_failed, "no home directory")
+        return (str)home
+
+    pub static func home() -> str!:
+        return try path.user()
+
+    ## Where temporary files go: `$TMPDIR`, else `/tmp`.
+    pub static func temp() -> str:
+        let dir = getenv("TMPDIR") else return "/tmp"
+        return (str)dir
+
+    ## Where configuration lives: `$XDG_CONFIG_HOME`, else `$HOME/.config`.
+    pub static func config() -> str!:
+        if let set = getenv("XDG_CONFIG_HOME"):
+            return (str)set
+        let home = try path.user()
+        let buffer = try alloc u8[home.length + 8]
+        return try format(buffer, f"{home}/.config")
+
+extern func getenv(name: c.str) -> c.str?
+pub let io_path_failed: ErrorCode = ErrorCode.package(13)

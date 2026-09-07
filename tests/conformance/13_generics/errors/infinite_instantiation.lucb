@@ -5,8 +5,6 @@ struct Pair[A, B]:
     var second: B
 
 func grow[T](depth: T) -> i64:
-    if sizeof(T) > 1000:
-        return 0
     return grow(Pair[T, T](first = depth, second = depth))
 
 pub func main(arguments: str[]) -> i32:

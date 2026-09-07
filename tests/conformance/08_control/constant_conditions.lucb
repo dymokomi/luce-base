@@ -1,0 +1,24 @@
+## §6.4, §19.6: a condition that is a constant, a top-level `let` of `bool` or a comparison
+## of constants, is decided by the compiler: the branch it rules out is pruned, silently,
+## since the program meant it. `if true:` and `if false:` keep their warnings.
+let verbose: bool = false
+let wide: bool = true
+let bits: u32 = 64
+
+func loud() -> i32:
+    trap("pruned code ran")
+
+pub func main(arguments: str[]) -> i32:
+    var n: i32 = 0
+    if verbose:
+        n += loud()
+    if wide and bits == 64:
+        n += 1
+    if not wide:
+        n += loud()
+    elif bits > 32:
+        n += 10
+    while verbose:
+        n += loud()
+    print(f"{n}")
+    return 0
