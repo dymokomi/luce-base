@@ -1,0 +1,457 @@
+#==============================================================================================
+#
+#   frame - The frame and the callee-saved registers, for every code generator
+#
+#   DESCRIPTION:
+#       What a generator decides before it emits a function, and what is the same on every
+#       target: which frame slots and temporaries live in callee-saved registers, and where
+#       everything else sits below the frame pointer. A target says how many callee-saved
+#       integer and float registers it offers (`Registers`); this module numbers them, the
+#       integer codes 1..ints first and the float codes after, and the generator spells each
+#       code as its register. The policy: temporaries keep as many registers as they can use
+#       at once, up to a few of each class; the most-used frame slots of one register width,
+#       accessed only as a whole, take the rest (§19.3 codegen); temporaries are given
+#       registers by linear scan over live ranges that stretch across loop back-edges, the
+#       longest-lived spilled when a class runs out; a frame descriptor for `--debug` needs
+#       every slot in the frame, so a debug build promotes nothing.
+#
+#==============================================================================================
+
+import back.ir
+import memory
+import support.list
+
+## The callee-saved registers a target offers, and how many the temporaries may keep.
+pub struct Registers:
+    pub var ints: u8
+    pub var floats: u8
+    pub var keep_ints: u8
+    pub var keep_floats: u8
+
+## A register that a promoted slot holds for the whole function.
+let held: u32 = 4294967295
+
+pub struct Frame:
+    pub var registers: Registers
+    ## Where each temporary and each slot lives: an offset below the frame pointer; 0 for a
+    ## temporary in a register.
+    pub var temp_homes: list.List[u64]
+    pub var slot_homes: list.List[u64]
+    ## Per temporary, the register code it lives in, or 0 when it is in the frame.
+    pub var temp_regs: list.List[u8]
+    ## Per slot, the register code it was promoted to, or 0; per temporary, 1 + the slot
+    ## whose address it holds, or 0.
+    pub var slot_regs: list.List[u8]
+    pub var temp_slot: list.List[u32]
+    ## Bit c-1 is set when register code c is used; `save_offset[c]` is where it is spilled.
+    pub var used_mask: u32
+    pub var save_offset: u64[32]
+    ## The frame's size, rounded to 16, and the home of the hidden result pointer when the
+    ## function returns through memory.
+    pub var size: u64
+    pub var indirect_home: u64
+
+    pub static func create(registers: Registers) -> Frame!:
+        var f = Frame(registers = registers, temp_homes = try list.List[u64].create(256), slot_homes = try list.List[u64].create(64),
+                      temp_regs = try list.List[u8].create(256), slot_regs = try list.List[u8].create(64), temp_slot = try list.List[u32].create(256),
+                      used_mask = 0, save_offset = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], size = 0, indirect_home = 0)
+        return f
+
+    pub func temp_home(t: u32) -> u64:
+        return self.temp_homes.get((usize)t - 1)
+
+    pub func slot_home(s: u32) -> u64:
+        return self.slot_homes.get((usize)s)
+
+    pub func uses(code: u8) -> bool:
+        return (self.used_mask & (u32)(1 << (u32)(code - 1))) != 0
+
+    ## The slot an address temporary stands for, 1-based, or 0. Only meaningful after
+    ## `plan`, and only for slots that were promoted.
+    pub func promoted_slot(t: u32) -> u32:
+        if (usize)t > self.temp_slot.count:
+            return 0
+        let k = self.temp_slot.get((usize)t - 1)
+        if k == 0 or self.slot_regs.get((usize)k - 1) == 0:
+            return 0
+        return k
+
+    ## The slot a reference stands for, 1-based: a slot reference itself, or a temporary that
+    ## holds a slot's address; 0 otherwise.
+    pub func slot_of(r: ir.Ref) -> u32:
+        if r.kind == ir.RefKind.slot:
+            return r.index + 1
+        if r.kind == ir.RefKind.temp and (usize)r.index <= self.temp_slot.count:
+            return self.temp_slot.get((usize)r.index - 1)
+        return 0
+
+    ## Decide the registers for function `f`: live ranges, the pressure they exert, the
+    ## slots promoted with what the temporaries leave, then the temporaries themselves.
+    pub mutating func plan(f: ir.Function*) -> !:
+        let nt = f.temps.count
+        var def_at = try alloc u32[nt if nt > 0 else 1] in memory.heap
+        defer free(def_at) in memory.heap
+        var last_use = try alloc u32[nt if nt > 0 else 1] in memory.heap
+        defer free(last_use) in memory.heap
+        try live_ranges(f, def_at, last_use)
+        let (ints, floats) = try pressure(f, def_at, last_use)
+        try self.promote(f, budget(ints, self.registers.ints, self.registers.keep_ints), budget(floats, self.registers.floats, self.registers.keep_floats))
+        try self.allocate(f, def_at, last_use)
+
+    ## Lay the frame out below `base` (what the prologue already pushed): the hidden result
+    ## pointer's home when `indirect_result`, a word per callee-saved register used, every
+    ## slot at its alignment, then a word per temporary left in the frame.
+    pub mutating func layout(f: ir.Function*, base: u64, indirect_result: bool) -> !:
+        self.temp_homes.count = 0
+        self.slot_homes.count = 0
+        var offset = base
+        if indirect_result:
+            offset = round_up(offset, 8) + 8
+            self.indirect_home = offset
+        let codes = (usize)self.registers.ints + (usize)self.registers.floats
+        var c: usize = 1
+        while c <= codes:
+            if self.uses((u8)c):
+                offset = round_up(offset + 8, 8)
+                self.save_offset[c] = offset
+            else:
+                self.save_offset[c] = 0
+            c += 1
+        var i: usize = 0
+        while i < f.slots.count:
+            let s = f.slots.get(i)
+            let size = (u64)s.size if s.size > 0 else 1
+            offset = round_up(offset + size, (u64)s.align if s.align > 0 else 1)
+            try self.slot_homes.push(offset)
+            i += 1
+        i = 0
+        while i < f.temps.count:
+            if self.temp_regs.get(i) == 0:
+                offset = round_up(offset + 8, 8)
+                try self.temp_homes.push(offset)
+            else:
+                try self.temp_homes.push(0)
+            i += 1
+        self.size = round_up(offset, 16)
+
+    ## Which frame slots live in registers: a slot of 1, 2, 4, or 8 bytes whose address is
+    ## taken only to load or store that many bytes at once, in one register class. The
+    ## most-used ones take the first `ints` integer and `floats` float codes.
+    mutating func promote(f: ir.Function*, ints: u8, floats: u8) -> !:
+        self.slot_regs.count = 0
+        self.temp_slot.count = 0
+        let ns = f.slots.count
+        let nt = f.temps.count
+        var i: usize = 0
+        while i < ns:
+            try self.slot_regs.push(0)
+            i += 1
+        i = 0
+        while i < nt:
+            try self.temp_slot.push(0)
+            i += 1
+        if f.debug or ns == 0:
+            return
+        # 1 = integer, 2 = float, 3 = unfit
+        var kind = try alloc u8[ns] in memory.heap
+        defer free(kind) in memory.heap
+        var uses = try alloc u32[ns] in memory.heap
+        defer free(uses) in memory.heap
+        i = 0
+        while i < ns:
+            let sz = f.slots.get(i).size
+            kind[i] = 0 if sz == 1 or sz == 2 or sz == 4 or sz == 8 else 3
+            uses[i] = 0
+            i += 1
+        # which temporaries hold a slot's address
+        var ix: usize = 0
+        while ix < f.instrs.count:
+            let n = f.instrs.get(ix)
+            if n.op == ir.Op.addr and n.a.kind == ir.RefKind.slot and n.dst > 0:
+                self.temp_slot.set((usize)n.dst - 1, n.a.index + 1)
+            ix += 1
+        # every use of such a temporary, or of a slot directly, must be a whole-slot load or store
+        ix = 0
+        while ix < f.instrs.count:
+            let n = f.instrs.get(ix)
+            if is_load(n.op):
+                self.note_access(f, self.slot_of(n.a), access_width(n.op), is_float_access(n.op), kind, uses)
+            elif is_store(n.op):
+                self.note_access(f, self.slot_of(n.b), access_width(n.op), is_float_access(n.op), kind, uses)
+                let v = self.slot_of(n.a)
+                if v != 0:
+                    kind[(usize)v - 1] = 3
+            elif n.op == ir.Op.addr:
+                let inner = self.slot_of(n.a)
+                if inner != 0 and n.a.kind == ir.RefKind.temp:
+                    kind[(usize)inner - 1] = 3
+            elif n.op == ir.Op.call:
+                let info = f.calls.get((usize)n.extra)
+                # an aggregate result is written into its slot by the call sequence itself
+                if info.has_result and info.result_size > 0 and (usize)info.result_slot < ns:
+                    kind[(usize)info.result_slot] = 3
+                var a: u32 = 0
+                while a < info.args_count:
+                    let v = self.slot_of(f.args.get((usize)(info.args_start + a)).value)
+                    if v != 0:
+                        kind[(usize)v - 1] = 3
+                    a += 1
+            else:
+                let va = self.slot_of(n.a)
+                if va != 0:
+                    kind[(usize)va - 1] = 3
+                let vb = self.slot_of(n.b)
+                if vb != 0:
+                    kind[(usize)vb - 1] = 3
+            ix += 1
+        # the most-used fit slots take the registers, up to the budget of each class
+        var int_code: u8 = 1
+        var float_code: u8 = self.registers.ints + 1
+        while true:
+            var best: usize = ns
+            var best_uses: u32 = 0
+            i = 0
+            while i < ns:
+                if self.slot_regs.get(i) == 0 and (kind[i] == 1 or kind[i] == 2) and uses[i] >= 2 and uses[i] > best_uses:
+                    best = i
+                    best_uses = uses[i]
+                i += 1
+            if best == ns:
+                break
+            if kind[best] == 1:
+                if int_code > ints:
+                    kind[best] = 3
+                    continue
+                self.slot_regs.set(best, int_code)
+                self.used_mask = self.used_mask | (u32)(1 << (u32)(int_code - 1))
+                int_code += 1
+            else:
+                if float_code > self.registers.ints + floats:
+                    kind[best] = 3
+                    continue
+                self.slot_regs.set(best, float_code)
+                self.used_mask = self.used_mask | (u32)(1 << (u32)(float_code - 1))
+                float_code += 1
+
+    ## One load or store of `width` bytes through slot `k` (1-based): it fits when the width
+    ## is the slot's and the class agrees with every other access.
+    func note_access(f: ir.Function*, k: u32, width: u32, float: bool, kind: u8[], uses: u32[]):
+        if k == 0:
+            return
+        let i = (usize)k - 1
+        if kind[i] == 3:
+            return
+        if f.slots.get(i).size != width:
+            kind[i] = 3
+            return
+        let want: u8 = 2 if float else 1
+        if kind[i] == 0:
+            kind[i] = want
+        elif kind[i] != want:
+            kind[i] = 3
+            return
+        uses[i] += 1
+
+    ## Give each temporary a callee-saved register by linear scan over its live range; when
+    ## a class's pool is full, the temporary living longest is spilled.
+    mutating func allocate(f: ir.Function*, def_at: u32[], last_use: u32[]) -> !:
+        self.temp_regs.count = 0
+        let n = f.temps.count
+        var i: usize = 0
+        while i < n:
+            try self.temp_regs.push(0)
+            i += 1
+        # the promoted slots' registers are already in the mask; the temporaries add theirs
+        self.used_mask = 0
+        var ps: usize = 0
+        while ps < self.slot_regs.count:
+            let code = self.slot_regs.get(ps)
+            if code != 0:
+                self.used_mask = self.used_mask | (u32)(1 << (u32)(code - 1))
+            ps += 1
+        if n == 0:
+            return
+        let ints = (usize)self.registers.ints
+        let floats = (usize)self.registers.floats
+        var eligible = try alloc bool[n] in memory.heap
+        defer free(eligible) in memory.heap
+        i = 0
+        while i < n:
+            let c = f.temp_class(u32(i + 1))
+            let fits = (c == ir.Class.w or c == ir.Class.l) or (ir.is_float_class(c) and floats > 0)
+            eligible[i] = fits and self.promoted_slot(u32(i + 1)) == 0
+            i += 1
+        var reg_temp: u32[32] = ---
+        var c: usize = 0
+        while c < reg_temp.length:
+            reg_temp[c] = 0
+            c += 1
+        # a register holding a promoted slot is taken for the whole function
+        var pk: usize = 0
+        while pk < self.slot_regs.count:
+            let code = self.slot_regs.get(pk)
+            if code != 0:
+                reg_temp[(usize)code] = held
+            pk += 1
+        let codes = ints + floats
+        var ix: usize = 0
+        while ix < f.instrs.count:
+            c = 1
+            while c <= codes:
+                let t = reg_temp[c]
+                if t != 0 and t != held and last_use[(usize)t - 1] < u32(ix):
+                    reg_temp[c] = 0
+                c += 1
+            let instr = f.instrs.get(ix)
+            let d = (usize)instr.dst
+            if d > 0 and d <= n and eligible[d - 1] and def_at[d - 1] == u32(ix) and last_use[d - 1] > u32(ix):
+                let is_float = ir.is_float_class(f.temp_class(instr.dst))
+                let low: usize = ints + 1 if is_float else 1
+                let high: usize = codes if is_float else ints
+                var chosen: usize = 0
+                c = low
+                while c <= high:
+                    if reg_temp[c] == 0:
+                        chosen = c
+                        break
+                    c += 1
+                if chosen == 0:
+                    var far_c: usize = 0
+                    var far_use = last_use[d - 1]
+                    c = low
+                    while c <= high:
+                        let t = reg_temp[c]
+                        if t != 0 and t != held and last_use[(usize)t - 1] > far_use:
+                            far_use = last_use[(usize)t - 1]
+                            far_c = c
+                        c += 1
+                    if far_c != 0:
+                        self.temp_regs.set((usize)reg_temp[far_c] - 1, 0)
+                        chosen = far_c
+                if chosen != 0:
+                    reg_temp[chosen] = instr.dst
+                    self.temp_regs.set(d - 1, (u8)chosen)
+                    self.used_mask = self.used_mask | (u32)(1 << (u32)(chosen - 1))
+            ix += 1
+
+## Where each temporary is defined and last used, by instruction index. A temporary
+## defined before a loop and used inside it is live across the back-edge: its last use is
+## pushed to the loop's bottom. A jump or branch to an earlier label is a back-edge, and one
+## forward pass is enough: an inner loop's back-edge comes before its outer loop's, so an
+## extension across the inner loop is already in place when the outer one is considered.
+func live_ranges(f: ir.Function*, def_at: u32[], last_use: u32[]) -> !:
+    let n = f.temps.count
+    var i: usize = 0
+    while i < n:
+        def_at[i] = 0
+        last_use[i] = 0
+        i += 1
+    var label_pos = try alloc u32[(usize)f.labels + 1] in memory.heap
+    defer free(label_pos) in memory.heap
+    var ix: usize = 0
+    while ix < f.instrs.count:
+        let instr = f.instrs.get(ix)
+        if instr.op == ir.Op.label and instr.extra <= f.labels:
+            label_pos[(usize)instr.extra] = u32(ix)
+        if instr.dst > 0 and (usize)instr.dst <= n:
+            def_at[(usize)instr.dst - 1] = u32(ix)
+        note_use(instr.a, last_use, u32(ix))
+        note_use(instr.b, last_use, u32(ix))
+        if instr.op == ir.Op.call:
+            let info = f.calls.get((usize)instr.extra)
+            var k: u32 = 0
+            while k < info.args_count:
+                note_use(f.args.get((usize)(info.args_start + k)).value, last_use, u32(ix))
+                k += 1
+        ix += 1
+    ix = 0
+    while ix < f.instrs.count:
+        let instr = f.instrs.get(ix)
+        if instr.op == ir.Op.jmp or instr.op == ir.Op.jnz:
+            let jump_targets: u32[2] = [instr.extra, instr.extra2 if instr.op == ir.Op.jnz else instr.extra]
+            var w: usize = 0
+            while w < 2:
+                let where = jump_targets[w]
+                w += 1
+                if where == 0 or where > f.labels:
+                    continue
+                let t = label_pos[(usize)where]
+                if t >= u32(ix):
+                    continue
+                var i2: usize = 0
+                while i2 < n:
+                    if def_at[i2] < t and last_use[i2] >= t and last_use[i2] < u32(ix):
+                        last_use[i2] = u32(ix)
+                    i2 += 1
+        ix += 1
+
+## A temporary reference used at instruction `ix` extends its live range.
+func note_use(r: ir.Ref, last_use: u32[], ix: u32):
+    if r.kind == ir.RefKind.temp and (usize)r.index <= last_use.length:
+        last_use[(usize)r.index - 1] = ix
+
+## The most temporaries of each register class live at one point: what the temporaries
+## could use of the callee-saved registers, so the promoted slots may take the rest.
+func pressure(f: ir.Function*, def_at: u32[], last_use: u32[]) -> (u32, u32)!:
+    let n = f.temps.count
+    let m = f.instrs.count + 2
+    var delta_int = try alloc i32[m] in memory.heap
+    defer free(delta_int) in memory.heap
+    var delta_float = try alloc i32[m] in memory.heap
+    defer free(delta_float) in memory.heap
+    var k: usize = 0
+    while k < m:
+        delta_int[k] = 0
+        delta_float[k] = 0
+        k += 1
+    var i: usize = 0
+    while i < n:
+        if last_use[i] > def_at[i]:
+            let c = f.temp_class(u32(i + 1))
+            if ir.is_float_class(c):
+                delta_float[(usize)def_at[i]] += 1
+                delta_float[(usize)last_use[i] + 1] -= 1
+            elif c == ir.Class.w or c == ir.Class.l:
+                delta_int[(usize)def_at[i]] += 1
+                delta_int[(usize)last_use[i] + 1] -= 1
+        i += 1
+    var ints: i32 = 0
+    var floats: i32 = 0
+    var live_int: i32 = 0
+    var live_float: i32 = 0
+    k = 0
+    while k < m:
+        live_int += delta_int[k]
+        live_float += delta_float[k]
+        if live_int > ints:
+            ints = live_int
+        if live_float > floats:
+            floats = live_float
+        k += 1
+    return ((u32)ints, (u32)floats)
+
+## How many of a class's `pool` the promoted slots may take: what the temporaries do not
+## keep, and they keep up to `keep` when the pressure asks for that many.
+func budget(need: u32, pool: u8, keep: u8) -> u8:
+    let kept = need if need < (u32)keep else (u32)keep
+    return (u8)((u32)pool - kept)
+
+func is_load(op: ir.Op) -> bool:
+    return (u8)op >= (u8)ir.Op.loadsb and (u8)op <= (u8)ir.Op.loadhf
+
+func is_store(op: ir.Op) -> bool:
+    return (u8)op >= (u8)ir.Op.storeb and (u8)op <= (u8)ir.Op.storehf
+
+func is_float_access(op: ir.Op) -> bool:
+    return op == ir.Op.loads or op == ir.Op.loadd or op == ir.Op.loadhf or op == ir.Op.stores or op == ir.Op.stored or op == ir.Op.storehf
+
+## The bytes a load or store moves.
+func access_width(op: ir.Op) -> u32:
+    match op:
+        .loadsb, .loadub, .storeb: return 1
+        .loadsh, .loaduh, .storeh, .loadhf, .storehf: return 2
+        .loadsw, .loaduw, .storew, .loads, .stores: return 4
+        _: return 8
+
+func round_up(value: u64, align: u64) -> u64:
+    return (value + align - 1) // align * align

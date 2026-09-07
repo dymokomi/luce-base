@@ -220,20 +220,29 @@ pub struct Instr:
     pub var extra: u32
     pub var extra2: u32
 
-## One argument of a call: the operand, its class, and for an aggregate its
-## byte size and alignment (0 size means a scalar). `type_id` is the Base type
-## for the target's classification of aggregates; `is_float_only` and `float_count`
-## describe a homogeneous float aggregate (arm64's), and `sse_words` classifies the
-## first two eightbytes for x86-64: bit k is set when eightbyte k holds floats only.
+## One scalar member of an aggregate, wherever it lies: what a calling convention reads to
+## classify the aggregate. A union's members overlap; padding has no leaf.
+pub struct Leaf:
+    pub var offset: u32
+    pub var size: u8
+    pub var cls: Class
+
+## An aggregate's leaves, as a range of the unit's `leaves`; shape 0 is no shape, the
+## aggregate is passed in memory whatever the convention.
+pub struct Shape:
+    pub var start: u32
+    pub var count: u32
+
+## One argument of a call: the operand, its class, and for an aggregate its byte size,
+## alignment, and shape (0 size means a scalar). The convention is the target's: the IR
+## says what the value is made of, and the generator decides where it goes.
 pub struct Arg:
     pub var value: Ref
     pub var cls: Class
     pub var size: u32
     pub var align: u32
     pub var type_id: u32
-    pub var is_float_only: bool
-    pub var float_count: u32
-    pub var sse_words: u8
+    pub var shape: u32
 
 ## A call's result: a scalar class, or an aggregate written to `slot` of `size` bytes.
 pub struct CallInfo:
@@ -247,9 +256,7 @@ pub struct CallInfo:
     pub var result_align: u32
     pub var result_type: u32
     pub var result_slot: u32
-    pub var result_float_only: bool
-    pub var result_float_count: u32
-    pub var result_sse_words: u8
+    pub var result_shape: u32
 
 ## A stack slot: `size` bytes at `align`.
 pub struct Slot:
@@ -264,9 +271,7 @@ pub struct Param:
     pub var type_id: u32
     ## The slot the parameter is stored into on entry.
     pub var slot: u32
-    pub var is_float_only: bool
-    pub var float_count: u32
-    pub var sse_words: u8
+    pub var shape: u32
 
 # mark: Functions and the unit ================================================================
 
@@ -296,9 +301,7 @@ pub struct Function:
     pub var result_size: u32
     pub var result_align: u32
     pub var result_type: u32
-    pub var result_float_only: bool
-    pub var result_float_count: u32
-    pub var result_sse_words: u8
+    pub var result_shape: u32
     pub var variadic: bool
     ## The attributes of §9.8 that reach the object file.
     pub var naked: bool
@@ -313,7 +316,7 @@ pub struct Function:
                         args = try list.List[Arg].create(32), calls = try list.List[CallInfo].create(16),
                         temps = try list.List[Class].create(128), labels = 0, has_result = false,
                         result_cls = Class.l, result_size = 0, result_align = 0, result_type = 0,
-                        result_float_only = false, result_float_count = 0, result_sse_words = 0, variadic = false)
+                        result_shape = 0, variadic = false)
 
     pub mutating func temp(cls: Class) -> u32!:
         try self.temps.push(cls)
@@ -408,13 +411,28 @@ pub struct Unit:
     pub var tables: list.List[WitnessTable]
     ## Module-level `asm` blocks for this target, verbatim (§8.9).
     pub var module_asm: list.List[Text]
+    ## The shapes of the aggregates passed and returned, and their leaves.
+    pub var shapes: list.List[Shape]
+    pub var leaves: list.List[Leaf]
 
     pub static func create() -> Unit!:
         return Unit(functions = try list.List[Function].create(64), globals = try list.List[Global].create(32),
                     texts = try list.List[Text].create(64), tables = try list.List[WitnessTable].create(16),
-                    module_asm = try list.List[Text].create(4))
+                    module_asm = try list.List[Text].create(4), shapes = try list.List[Shape].create(64), leaves = try list.List[Leaf].create(256))
 
     ## The index of a text literal, adding it when new.
+    ## The leaves of shape `shape` (1-based), empty for 0.
+    pub func leaves_of(shape: u32) -> Leaf[]:
+        if shape == 0 or (usize)shape > self.shapes.count:
+            return self.leaves.span()[..<0]
+        let s = self.shapes.get((usize)shape - 1)
+        return self.leaves.span()[(usize)s.start..<(usize)(s.start + s.count)]
+
+    ## Record a shape from the leaves pushed since `start`; its 1-based index.
+    pub mutating func shape_from(start: usize) -> u32!:
+        try self.shapes.push(Shape(start = u32(start), count = u32(self.leaves.count - start)))
+        return u32(self.shapes.count)
+
     pub mutating func text(bytes: str) -> u32!:
         var i: usize = 0
         while i < self.texts.count:
