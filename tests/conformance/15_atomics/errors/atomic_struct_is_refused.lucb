@@ -1,0 +1,10 @@
+# error: 
+## §5.9, §15.1: `@T` needs an integer, bool, pointer, or two-word struct.
+struct Triple:
+    var a: u64
+    var b: u64
+    var c: u64
+
+pub func main(arguments: str[]) -> i32:
+    var t: @Triple
+    return 0

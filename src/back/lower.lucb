@@ -728,16 +728,42 @@ pub struct Lowerer:
                     return
         let pt = try self.ty(place)
         let address = try self.place(place)
+        if self.kind(pt) == types.Kind.atomic:
+            try self.atomic_assign(s, address, self.elem(pt), value)
+            return
         if s.text == "=":
             let v = try self.value(value, pt)
             try self.store_to(address, v)
             return
         let op = (str)s.text.bytes[..<s.text.length - 1]
-        let target = self.elem(pt) if self.kind(pt) == types.Kind.atomic else pt
-        let old = try self.load_from(address, target)
-        let rhs = try self.value(value, target)
-        let result = try self.arithmetic(op, target, old.ref, rhs.ref, s)
-        try self.f.store(ir.store_op(self.scalar_size(target), self.is_float(target)), result, address)
+        let old = try self.load_from(address, pt)
+        let rhs = try self.value(value, pt)
+        let result = try self.arithmetic(op, pt, old.ref, rhs.ref, s)
+        try self.f.store(ir.store_op(self.scalar_size(pt), self.is_float(pt)), result, address)
+
+    ## `=` on an `@T` is the sequentially consistent store; `+=` `-=` `|=` `&=` `^=` are the
+    ## read-modify-write instructions and wrap (§15.1). `&=` is `and-not` of the complement.
+    mutating func atomic_assign(s: ast.Node*, address: ir.Ref, et: u32, value: ast.Node*) -> !:
+        let cls = self.class_of(et)
+        let width = u32(self.scalar_size(et))
+        let vv = try self.value(value, et)
+        if s.text == "=":
+            try self.f.instrs.push(ir.Instr(op = ir.Op.atomic_store, cls = cls, dst = 0, a = vv.ref, b = address, extra = width, extra2 = 5))
+            return
+        let op = (str)s.text.bytes[..<s.text.length - 1]
+        var operand = vv.ref
+        var instr = ir.Op.atomic_add
+        if op == "-":
+            instr = ir.Op.atomic_sub
+        elif op == "|":
+            instr = ir.Op.atomic_or
+        elif op == "^":
+            instr = ir.Op.atomic_xor
+        elif op == "&":
+            instr = ir.Op.atomic_and_not
+            operand = try self.f.binary(ir.Op.xor, cls, vv.ref, ir.const_ref(-1))
+        let t = try self.f.temp(cls)
+        try self.f.instrs.push(ir.Instr(op = instr, cls = cls, dst = t, a = operand, b = address, extra = width, extra2 = 5))
 
     mutating func if_stmt(s: ast.Node*) -> !:
         let then_label = self.f.label()

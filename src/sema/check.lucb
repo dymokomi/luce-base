@@ -1298,6 +1298,11 @@ pub struct Checker:
         var text: u8[256]
         return try self.fail(t, try format(text, f"unknown type `{t.text}`"))
 
+    ## The type a plain read of `id` yields: an `@T` reads as its `T`.
+    func plain_read(id: u32) -> u32:
+        let t = self.table.get(id)
+        return t.elem if t.kind == types.Kind.atomic else id
+
     ## Whether any requirement of interface `iface` is `mutating`.
     func interface_mutates(iface: u32) -> bool:
         let d = self.table.get(iface).decl else return false
@@ -1402,6 +1407,13 @@ pub struct Checker:
     ## Check `e` against `target`, then require assignability. Untyped literals
     ## take the target type. Returns the type the expression has afterwards.
     mutating func expect(e: ast.Node*, target: u32) -> u32!:
+        # an `@T` is initialised from a `T`: the initial value is the first store (§15.1)
+        let t = self.table.get(target)
+        if t.kind == types.Kind.atomic:
+            let got = try self.check_expr(e, t.elem)
+            if self.table.kind(got) != types.Kind.atomic:
+                return try self.coerce(e, got, t.elem)
+            return try self.coerce(e, got, target)
         let got = try self.check_expr(e, target)
         return try self.coerce(e, got, target)
 
@@ -1946,7 +1958,12 @@ pub struct Checker:
         var context = hint if is_arithmetic(op) else types.none_id
         if (op == "+?" or op == "-?" or op == "*?") and self.table.kind(hint) == types.Kind.optional:
             context = self.table.get(hint).elem
-        let lt = try self.check_expr(l, context)
+        # a plain read of an `@T` operand is a load: the operator sees the `T` (§15.1), except
+        # that checked arithmetic never applies to an atomic: a checked update is a `cas` loop
+        let raw_lt = try self.check_expr(l, context)
+        if self.table.kind(raw_lt) == types.Kind.atomic and (op == "+?" or op == "-?" or op == "*?"):
+            return try self.fail(e, "checked arithmetic does not apply to an atomic; write a `cas` loop (§15.1)")
+        let lt = self.plain_read(raw_lt)
         if (op == "+" or op == "-") and self.table.kind(lt) == types.Kind.pointer:
             # `p + n`, `p - n`, and `p - q` (§6.5): element-scaled, unchecked
             let rt = try self.check_expr(r, types.usize_id)
@@ -1963,7 +1980,7 @@ pub struct Checker:
         var rhint = lt
         if lt == types.untyped_int_id or lt == types.untyped_float_id or lt == types.none_id:
             rhint = context
-        let rt = try self.check_expr(r, rhint)
+        let rt = self.plain_read(try self.check_expr(r, rhint))
         var t = try self.unify(l, lt, r, rt)
         # two untyped literals under a typed context compute in that type: `3 -| 7` as `u8`
         if is_arithmetic(op) and t == types.untyped_int_id and self.table.is_integer(context):
@@ -2307,7 +2324,7 @@ pub struct Checker:
     mutating func else_type(e: ast.Node*, hint: u32) -> u32!:
         let l = e.left else return try self.fail(e, "missing operand")
         let r = e.right else return try self.fail(e, "`else` needs an alternative")
-        var lt = try self.check_expr(l, try self.table.optional(hint) if hint != types.none_id else types.none_id)
+        var lt = self.plain_read(try self.check_expr(l, try self.table.optional(hint) if hint != types.none_id else types.none_id))
         let t = self.table.get(lt)
         if t.kind == types.Kind.fallible:
             return try self.fail(l, "`else` takes an optional; a fallible result takes `try` or `catch` (§11.2)")
@@ -2983,6 +3000,13 @@ pub struct Checker:
                 try self.expect_argument(e, 2, ordering)
             if given >= 4:
                 try self.expect_argument(e, 3, ordering)
+                # the failure ordering is never `release` or `acq_rel`, nor stronger than success
+                let failure = argument_at(e, 3) else return try self.fail(e, "no failure ordering")
+                if failure.kind == ast.Kind.case_value and (failure.text == "release" or failure.text == "acq_rel"):
+                    return try self.fail(failure, "the failure ordering of `cas` may not be `release` or `acq_rel` (§15.1)")
+                if let success = argument_at(e, 2):
+                    if ordering_rank(failure) > ordering_rank(success):
+                        return try self.fail(failure, "the failure ordering of `cas` may not be stronger than the success ordering (§15.1)")
             if given == 5:
                 try self.expect_argument(e, 4, types.bool_id)
             var pair = try alloc u32[2]
@@ -3596,10 +3620,10 @@ pub struct Checker:
         if declared == types.fmt_id:
             return try self.fail(s, "a formatted string is not stored; `fmt` is a parameter type only (§9.1)")
         if let init = s.left:
-            let got = try self.check_expr(init, declared)
             if declared != types.none_id:
-                discard(try self.coerce(init, got, declared))
+                discard(try self.expect(init, declared))
             else:
+                let got = try self.check_expr(init, declared)
                 id = self.concrete(got)
                 if id == types.none_id:
                     return try self.fail(init, "`none` needs a written type")
@@ -3649,6 +3673,8 @@ pub struct Checker:
         let target = self.table.get(pt).elem if self.table.kind(pt) == types.Kind.atomic else pt
         let vt = try self.expect(value, target)
         let op = (str)s.text.bytes[..<s.text.length - 1]
+        if self.table.kind(pt) == types.Kind.atomic and not (op == "+" or op == "-" or op == "|" or op == "&" or op == "^"):
+            return try self.fail(s, "an atomic compound assignment is `+=` `-=` `|=` `&=` or `^=` (§15.1)")
         if op == "<<" or op == ">>":
             if not self.table.is_integer(target):
                 discard(try self.fail(s, "a shift needs an integer"))
@@ -3674,7 +3700,7 @@ pub struct Checker:
         let condition = s.left else return try self.fail(s, "missing condition")
         if s.has(ast.flag_if_let):
             let init = condition.left else return try self.fail(condition, "`let` needs a value")
-            let got = try self.check_expr(init, types.none_id)
+            let got = self.plain_read(try self.check_expr(init, types.none_id))
             let t = self.table.get(got)
             if t.kind != types.Kind.optional:
                 return try self.fail(init, "`if let` needs an optional value")
@@ -4643,6 +4669,30 @@ func ends_with_name(text: str, name: str) -> bool:
         return false
     return (str)t[6..] == name
 
+## The `index`th argument's value of call `e`.
+func argument_at(e: ast.Node*, index: usize) -> ast.Node*?:
+    var i: usize = 0
+    var cursor = e.body
+    while let a = cursor:
+        if i == index:
+            return a.left
+        i += 1
+        cursor = a.next
+    return none
+
+## How strong a written `Ordering` case is: relaxed, then acquire and release, then
+## acq_rel, then seq_cst; a non-literal ordering ranks as the weakest.
+func ordering_rank(e: ast.Node*) -> u32:
+    if e.kind != ast.Kind.case_value:
+        return 0
+    if e.text == "seq_cst":
+        return 3
+    if e.text == "acq_rel":
+        return 2
+    if e.text == "acquire" or e.text == "release":
+        return 1
+    return 0
+
 func is_none_literal(e: ast.Node*) -> bool:
     return e.kind == ast.Kind.literal and e.text == "none"
 
@@ -5185,6 +5235,19 @@ test "interfaces have no generic methods; Equatable is not written by hand; muta
     try expect_error("interface Shape:\n    func scaled[T](f: T) -> f64\n", "no generic methods")
     try expect_error("from luce import Equatable\nstruct P: Equatable:\n    var x: i64\n    func equals(other: P) -> bool:\n        return true\n", "not implemented by hand")
     try expect_error("interface Sink:\n    mutating func put(v: i64)\nstruct S: Sink:\n    var n: i64\n    func put(v: i64):\n        discard(v)\n", "declares this method mutating")
+
+test "an atomic takes its payload as initial value and reads as it in expressions":
+    try expect_ok("struct C:\n    var hits: @u64\n    var flag: @bool\nfunc f() -> u64:\n    var byte: @u8 = 250\n    var c = C(hits = 1, flag = false)\n    var head: @i64*? = none\n    let same = c.hits == 1 and byte == 250 and head == none\n    return 1 if same else 0\n")
+    try expect_ok("struct N:\n    var v: i64\nfunc f(head: (@N*?)*) -> i64:\n    if let n = *head:\n        return n.v\n    return 0\n")
+
+test "atomic compound assignments are the five instructions and never checked arithmetic":
+    try expect_error("func f() -> unit:\n    var hits: @u64\n    hits *= 2\n", "atomic compound assignment")
+    try expect_error("func f() -> u64:\n    var hits: @u64\n    return hits +? 1\n", "does not apply to an atomic")
+
+test "cas orderings: no release on failure, and failure no stronger than success":
+    try expect_error("func f() -> unit:\n    var hits: @u64\n    let (ok, seen) = hits.cas(0, 1, .acq_rel, .release)\n    discard(ok)\n", "may not be `release`")
+    try expect_error("func f() -> unit:\n    var hits: @u64\n    let (ok, seen) = hits.cas(0, 1, .relaxed, .acquire)\n    discard(ok)\n", "stronger than the success")
+    try expect_ok("func f() -> bool:\n    var hits: @u64\n    let (ok, seen) = hits.cas(0, 1, .acq_rel, .acquire)\n    return ok and seen == 0\n")
 
 test "generics infer from arguments and substitute results":
     try expect_ok("func first[T](values: const T[]) -> T?:\n    if values.length == 0:\n        return none\n    return values[0]\nfunc f() -> i64:\n    let xs: i64[3] = [1, 2, 3]\n    let v = first(xs) else return 0\n    return v\n")

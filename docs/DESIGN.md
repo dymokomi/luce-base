@@ -428,3 +428,14 @@ the checker rewrites re-resolving its inferred type arguments; in the seed, no
 optional views at all, views formed from values, `Comparable` unnameable, and a
 struct's `compare` bypassed for the scalar intrinsic. Still open: `Writer?` is
 a tagged optional in this compiler, not the null niche §14.3 promises.
+Chapter 15 found the native backend lowering `hits += 1` on an `@u64` as a
+load, a checked add, and a store, which lost updates under contention (now the
+`atomic_add` family, and `=` the `atomic_store`), `@` marking only the core of a
+type so `@Node*?` was a pointer to an atomic, an atomic that could not take an
+initial value, a plain read of an `@T` refused in `==` and `if let`, `*=` on an
+atomic, checked `+?` on an atomic after the read, `none` of an `@T*?` spelled as
+a brace initialiser in C, and no `cas` ordering rules; in the seed, `_` in a
+tuple binding, `try` for `try_lock`, `spawn` with any entry, bit methods on an
+`@bool`, and `cas` comparing pointers by their word. Still open: a plain read
+of an `@T` in the native backend is a plain load rather than a sequentially
+consistent one.

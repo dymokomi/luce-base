@@ -1,0 +1,10 @@
+# error: 
+## §15.3: `spawn` is fallible.
+import thread
+
+func work(context: void*):
+    discard(context)
+
+pub func main(arguments: str[]) -> i32!:
+    let h = thread.spawn(work, none)
+    return 0

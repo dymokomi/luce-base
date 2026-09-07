@@ -1,0 +1,72 @@
+## §15.1: plain reads and `=` on an `@T` are sequentially consistent loads and stores; `+=`
+## and the bit assignments are the read-modify-write instructions and wrap; the methods
+## answer the previous value; `cas` answers whether it exchanged and what it saw; `wait`
+## returns at once when the value differs; `fence` is a standalone fence. §15.2: loads and
+## stores through `volatile T*` are ordinary in value.
+import atomic
+
+struct Node:
+    var value: i64
+
+struct Counter:
+    var hits: @u64
+    var flag: @bool
+
+pub func main(arguments: str[]) -> i32:
+    var hits: @u64
+    var ready: @bool
+    var byte: @u8 = 250
+    hits += 5
+    hits -= 2
+    hits |= 8
+    hits &= 11
+    hits ^= 1
+    byte += 10
+    ready = true
+    let seen: u64 = hits
+    print(f"{seen} {hits} {byte} {ready}")
+
+    let before_add = hits.add(3, .relaxed)
+    let before_sub = hits.sub(1, .acq_rel)
+    let before_set = hits.set(4, .release)
+    let before_clear = hits.clear(2, .acquire)
+    let before_flip = hits.flip(1)
+    let before_max = hits.max(100)
+    let before_min = hits.min(50)
+    let before_swap = hits.swap(7, .seq_cst)
+    print(f"{before_add} {before_sub} {before_set} {before_clear} {before_flip} {before_max} {before_min} {before_swap} {hits.load(.acquire)}")
+
+    hits.store(9, .release)
+    let (exchanged, observed) = hits.cas(9, 10, .acq_rel, .acquire)
+    let (again, seen_again) = hits.cas(9, 11, .seq_cst, .relaxed)
+    let (weakly, _) = hits.cas(10, 12, .seq_cst, .seq_cst, true)
+    print(f"{exchanged} {observed} {again} {seen_again} {weakly or hits == 10} {hits == 12 or hits == 10}")
+
+    var head: @Node*? = none
+    var first = Node(value = 1)
+    var second = Node(value = 2)
+    let (linked, was) = head.cas(none, &first, .acq_rel, .acquire)
+    let (relinked, now) = head.cas(none, &second, .acq_rel, .acquire)
+    var total: i64 = 0
+    if let n = head:
+        total += n.value
+    if let w = now:
+        total += w.value * 10
+    print(f"{linked} {was == none} {relinked} {total}")
+
+    hits.wait(5)
+    hits.wake(0)
+    atomic.fence(.release)
+    atomic.fence(.seq_cst)
+    var c = Counter(hits = 1, flag = false)
+    c.hits += 2
+    c.flag = not c.flag
+    let flag_now: bool = c.flag
+    print(f"{c.hits} {flag_now} {sizeof(@u32)} {sizeof(@bool)} {sizeof(@Node*?) == sizeof(Node*)}")
+
+    var cells: u32[4] = [1, 2, 3, 4]
+    let port: volatile u32* = &cells[2]
+    *port = *port + 40
+    let read: u32 = *port
+    print(f"{read} {cells[2]}")
+    return 0

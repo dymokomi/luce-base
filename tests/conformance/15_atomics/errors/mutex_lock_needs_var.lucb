@@ -1,0 +1,8 @@
+# error: 
+## §15.3: `lock` mutates the mutex.
+import sync
+
+pub func main(arguments: str[]) -> i32:
+    let m: sync.Mutex = sync.Mutex()
+    m.lock()
+    return 0

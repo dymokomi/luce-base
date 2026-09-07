@@ -1,0 +1,6 @@
+# error: 
+## §15.1: the failure ordering may not be stronger than the success ordering.
+pub func main(arguments: str[]) -> i32:
+    var hits: @u64
+    let (ok, seen) = hits.cas(0, 1, .relaxed, .acquire)
+    return 0

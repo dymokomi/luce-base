@@ -1,0 +1,6 @@
+# error: 
+## §15.1: `*=` is not a read-modify-write instruction.
+pub func main(arguments: str[]) -> i32:
+    var hits: @u64
+    hits *= 2
+    return 0

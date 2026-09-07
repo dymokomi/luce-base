@@ -2034,6 +2034,9 @@ pub struct Emitter:
 
     ## The absent value of an optional type.
     mutating func none_of(t: u32) -> !:
+        if self.is_atomic(t):
+            try self.none_of(self.elem(t))    # `@Node*?` holds the pointer's `none`
+            return
         if self.is_nullable_ptr(t) or self.is_ptr(t) or self.is_func(t):
             try self.put("((void*)0)")
             return

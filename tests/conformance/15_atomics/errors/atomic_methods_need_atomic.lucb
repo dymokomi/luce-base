@@ -1,0 +1,6 @@
+# error: 
+## §15.1: the atomic methods belong to `@T`.
+pub func main(arguments: str[]) -> i32:
+    var hits: u64 = 0
+    let before = hits.add(1, .relaxed)
+    return 0

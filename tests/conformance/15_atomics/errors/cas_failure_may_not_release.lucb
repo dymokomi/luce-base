@@ -1,0 +1,6 @@
+# error: 
+## §15.1: the failure ordering may not be `release` or `acq_rel`.
+pub func main(arguments: str[]) -> i32:
+    var hits: @u64
+    let (ok, seen) = hits.cas(0, 1, .acq_rel, .release)
+    return 0

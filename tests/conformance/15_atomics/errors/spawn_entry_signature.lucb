@@ -1,0 +1,10 @@
+# error: 
+## §15.3: the entry is `func(void*) -> unit`.
+import thread
+
+func work(n: i64):
+    discard(n)
+
+pub func main(arguments: str[]) -> i32!:
+    let h = try thread.spawn(work, none)
+    return 0

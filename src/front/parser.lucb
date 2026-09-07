@@ -1284,6 +1284,8 @@ pub struct Parser:
     ## `module.Type`, a parenthesised type, or `func`, `const`, `volatile` (§5.11).
     func type_argument_ahead() -> bool:
         let t = self.peek(1)
+        if t.kind == token.Kind.operator and self.text_of(t) == "@":
+            return true
         if t.kind == token.Kind.operator and self.text_of(t) == "(":
             let inner = self.peek(2)
             return inner.kind == token.Kind.name and self.is_type_word(self.text_of(inner))
@@ -1493,8 +1495,8 @@ pub struct Parser:
 
     pub mutating func parse_type() -> ast.Node*!:
         var flags: u32 = 0
-        if self.eat_op("@"):
-            flags |= ast.flag_atomic
+        # `@` marks the whole type, suffixes included: `@Node*?` is an atomic nullable pointer
+        let atomic = self.eat_op("@")
         while self.at_kw("const") or self.at_kw("volatile"):
             if self.eat_kw("const"):
                 flags |= ast.flag_const
@@ -1538,6 +1540,8 @@ pub struct Parser:
             o.flags |= ast.flag_optional
             o.left = t
             t = o
+        if atomic:
+            t.flags |= ast.flag_atomic
         if self.eat_op("!"):
             let f = try self.node(ast.Kind.type_, "!")
             f.flags |= ast.flag_fallible

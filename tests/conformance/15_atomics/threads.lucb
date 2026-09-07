@@ -1,0 +1,55 @@
+## §15.3: threads are the `thread` module; `spawn` runs `entry(context)`; `join` waits and
+## makes the thread's work visible; a `thread_local var` is one per thread; a `sync.Mutex`
+## orders plain data; a `Semaphore` counts; a `Once` runs its function once.
+import sync
+import thread
+
+thread_local var mine: u64
+
+struct Shared:
+    var hits: @u64
+    var lock: sync.Mutex
+    var plain: u64
+    var gate: sync.Semaphore
+    var once: sync.Once
+    var ran: @u32
+
+func bump(context: void*):
+    let shared = (Shared*)context
+    var i: u32 = 0
+    while i < 10000:
+        shared.hits += 1
+        shared.lock.lock()
+        shared.plain += 1
+        shared.lock.unlock()
+        i += 1
+    mine += 1
+    shared.once.run(mark)
+    shared.gate.release()
+
+var seen: @u32
+
+func mark():
+    seen += 1
+
+pub func main(arguments: str[]) -> i32!:
+    var shared: Shared
+    var handles: thread.Handle[4]
+    for index in 0..<4:
+        handles[index] = try thread.spawn(bump, &shared)
+    for handle in handles:
+        try handle.join()
+    var passed: u32 = 0
+    for _ in 0..<4:
+        shared.gate.acquire()
+        passed += 1
+    print(f"{shared.hits} {shared.plain} {mine} {passed} {seen}")
+    let solo = try thread.spawn(bump, &shared)
+    solo.detach()
+    thread.sleep(1)
+    thread.yield()
+    thread.pause()
+    let me = thread.current()
+    print(f"{shared.lock.try_lock()} {shared.lock.try_lock()}")
+    shared.lock.unlock()
+    return 0

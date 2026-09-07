@@ -1,0 +1,5 @@
+# error: 
+## §15.2: `volatile` qualifies a pointee, never a local.
+pub func main(arguments: str[]) -> i32:
+    var port: volatile u32 = 0
+    return 0

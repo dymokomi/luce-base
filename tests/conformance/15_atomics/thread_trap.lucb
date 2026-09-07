@@ -1,0 +1,15 @@
+## §15.3: a trap on any thread stops the whole process.
+# oracle: none
+import thread
+
+func run(context: void*):
+    let n = (i64*)context
+    if *n > 0:
+        trap("stopped on a worker")
+
+pub func main(arguments: str[]) -> i32!:
+    var n: i64 = 7
+    let h = try thread.spawn(run, &n)
+    try h.join()
+    print("never")
+    return 0

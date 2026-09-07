@@ -1,4 +1,4 @@
-# error: expected `@u64`, got `<integer>`
+# error: checked arithmetic does not apply to an atomic
 pub func main(arguments: str[]) -> i32:
     var hits: @u64
     let more = hits +? 1

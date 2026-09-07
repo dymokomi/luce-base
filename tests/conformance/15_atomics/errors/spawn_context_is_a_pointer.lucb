@@ -1,0 +1,10 @@
+# error: 
+## §15.3: the context is a `void*`.
+import thread
+
+func work(context: void*):
+    discard(context)
+
+pub func main(arguments: str[]) -> i32!:
+    let h = try thread.spawn(work, 42)
+    return 0

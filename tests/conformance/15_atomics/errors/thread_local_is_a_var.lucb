@@ -1,0 +1,6 @@
+# error: 
+## §6.3, §15.3: `thread_local` applies to a `var`.
+thread_local let mine: u64 = 0
+
+pub func main(arguments: str[]) -> i32:
+    return 0

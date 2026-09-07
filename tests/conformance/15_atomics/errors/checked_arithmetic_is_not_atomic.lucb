@@ -1,0 +1,6 @@
+# error: 
+## §15.1: checked arithmetic does not apply to atomics.
+pub func main(arguments: str[]) -> i32:
+    var hits: @u64
+    let n = hits +? 1
+    return 0

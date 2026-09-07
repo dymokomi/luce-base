@@ -1,0 +1,6 @@
+# error: 
+## §15.1: a store takes the payload type.
+pub func main(arguments: str[]) -> i32:
+    var hits: @u64
+    hits.store("many")
+    return 0

@@ -1,0 +1,6 @@
+# error: 
+## §15.1: an ordering is an `Ordering` case.
+pub func main(arguments: str[]) -> i32:
+    var hits: @u64
+    let v = hits.load(5)
+    return 0

@@ -1,0 +1,8 @@
+# error: 
+## §15.3, §16.6: the `thread` module binds only where it is imported.
+func work(context: void*):
+    discard(context)
+
+pub func main(arguments: str[]) -> i32!:
+    let h = try thread.spawn(work, none)
+    return 0

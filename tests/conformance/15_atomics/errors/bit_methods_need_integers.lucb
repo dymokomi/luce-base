@@ -1,0 +1,6 @@
+# error: 
+## §15.1: `set`, `clear`, `flip` take an integer atomic.
+pub func main(arguments: str[]) -> i32:
+    var flag: @bool
+    let before = flag.set(true)
+    return 0
