@@ -1,0 +1,10 @@
+# error: 
+## §13.1: constraints join with `&`, not `,`.
+from luce import Comparable
+from luce import Display
+
+func f[T: Comparable, Display](a: T) -> T:
+    return a
+
+pub func main(arguments: str[]) -> i32:
+    return 0

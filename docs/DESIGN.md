@@ -407,4 +407,13 @@ comparison never held), `new T[n]` of elements with no zero value, `new (T!)`,
 `in arena catch e:` parsed with the handler inside the allocator name, and
 `alloc (T)[n]` taken for the raw form; in the seed, `free` that released
 nothing, `memory.heap` as a view with no methods, `(*p)[i] = v` refused, and the
-same two parses.
+same two parses. Chapter 13 found no constraint checked at instantiation, an
+unconstrained parameter compared, hashed, and formatted (the derived protocols
+counted as always carried; `has_written_constraint` now tells what a body may
+rely on), a type parameter shadowing a type, an infinite chain that exhausted
+the compiler's memory (now a nesting limit in both backends' worklists and a
+checker rule for a call nesting its own parameter), and an optional `str`
+compared with C's `==`; in the seed, instantiations checked among the caller's
+locals, `Pair[B, A]` inside `Pair[A, B]`, inference blind to function types,
+`compare` and `Display` under bounds, a zero value assumed for `T`, and a chain
+that grew names until memory ran out.

@@ -1,0 +1,15 @@
+# error: 
+## §13.1: an argument type must satisfy the constraint.
+from luce import Comparable
+
+struct Point:
+    var x: i64
+
+func largest[T: Comparable](a: T, b: T) -> T:
+    if a.compare(b) >= 0:
+        return a
+    return b
+
+pub func main(arguments: str[]) -> i32:
+    let p = largest(Point(x = 1), Point(x = 2))
+    return 0

@@ -1,0 +1,10 @@
+# error: 
+## §13.1: no specialisation; one name, one declaration.
+func show[T](a: T) -> i64:
+    return 0
+
+func show(a: i64) -> i64:
+    return a
+
+pub func main(arguments: str[]) -> i32:
+    return 0

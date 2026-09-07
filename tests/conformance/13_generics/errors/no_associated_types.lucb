@@ -1,0 +1,7 @@
+# error: 
+## §13.1: there are no associated types.
+func item[T](a: T) -> T.Item:
+    return a.first
+
+pub func main(arguments: str[]) -> i32:
+    return 0

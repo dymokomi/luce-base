@@ -1,0 +1,16 @@
+# error: 
+## §13.1, §7.4: a union is not Equatable.
+from luce import Equatable
+
+union U:
+    a: i64
+    b: f64
+
+func same[T: Equatable](a: T, b: T) -> bool:
+    return a == b
+
+pub func main(arguments: str[]) -> i32:
+    var x: U
+    var y: U
+    let s = same(x, y)
+    return 0

@@ -1,0 +1,7 @@
+# error: 
+## §13.1: `compare` needs Comparable.
+func larger[T](a: T, b: T) -> bool:
+    return a.compare(b) > 0
+
+pub func main(arguments: str[]) -> i32:
+    return 0

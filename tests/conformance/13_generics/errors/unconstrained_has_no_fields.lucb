@@ -1,0 +1,7 @@
+# error: 
+## §13.1: no constraint provides a field.
+func x_of[T](a: T) -> i64:
+    return a.x
+
+pub func main(arguments: str[]) -> i32:
+    return 0

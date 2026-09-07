@@ -395,6 +395,8 @@ pub struct Lowerer:
             if r.decl == f and lower_same_args(r.args, args) and r.owner == owner and lower_same_args(r.owner_args, owner_args):
                 return i
             i += 1
+        if check.nesting_of_all(&self.c.table, args) > check.max_nesting or check.nesting_of_all(&self.c.table, owner_args) > check.max_nesting:
+            return try self.fail(f, "an infinite chain of instantiations")
         try self.funcs.push(LowerInstance(decl = f, args = args, owner = owner, owner_args = owner_args, done = false))
         return self.funcs.count - 1
 

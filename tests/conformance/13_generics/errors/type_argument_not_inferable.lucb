@@ -1,0 +1,8 @@
+# error: 
+## §13.1: a parameter no argument mentions is written at the call.
+func none_of[T]() -> T?:
+    return none
+
+pub func main(arguments: str[]) -> i32:
+    let z = none_of()
+    return 0

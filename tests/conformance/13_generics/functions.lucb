@@ -1,0 +1,97 @@
+## §13.1: type parameters in brackets, inferred from arguments or written at the call; generic
+## structs with methods; nested instantiations; generics over pointers, spans, and function
+## types; every instantiation is its own type.
+struct Pair[A, B]:
+    pub let first: A
+    pub let second: B
+
+    func swapped() -> Pair[B, A]:
+        return Pair[B, A](first = self.second, second = self.first)
+
+struct Stack[T]:
+    var items: T[]
+    var count: usize
+
+    static func over(items: T[]) -> Stack[T]:
+        return Stack[T](items = items, count = 0)
+
+    mutating func push(value: T):
+        self.items[self.count] = value
+        self.count += 1
+
+    mutating func pop() -> T?:
+        if self.count == 0:
+            return none
+        self.count -= 1
+        return self.items[self.count]
+
+func first[T](values: const T[]) -> T?:
+    if values.length == 0:
+        return none
+    return values[0]
+
+func swap[T](a: T*, b: T*):
+    let held = *a
+    *a = *b
+    *b = held
+
+func none_of[T]() -> T?:
+    return none
+
+func apply[T, R](value: T, f: func(T) -> R) -> R:
+    return f(value)
+
+func count_where[T](values: const T[], keep: func(T) -> bool) -> usize:
+    var n: usize = 0
+    for v in values:
+        if keep(v):
+            n += 1
+    return n
+
+func double(n: i64) -> i64:
+    return n * 2
+
+func is_short(s: str) -> bool:
+    return s.length < 4
+
+func length_of(s: str) -> usize:
+    return s.length
+
+pub func main(arguments: str[]) -> i32:
+    let numbers: i64[3] = [7, 8, 9]
+    let words: str[2] = ["ab", "cde"]
+    let empty: const i64[] = numbers[..<0]
+    print(f"{first(numbers) == 7} {first(words) == "ab"} {first(empty) == none}")
+
+    var a: i64 = 1
+    var b: i64 = 2
+    swap(&a, &b)
+    var s: str = "x"
+    var t: str = "y"
+    swap[str](&s, &t)
+    print(f"{a} {b} {s} {t}")
+
+    let z = none_of[i64]() else 3
+    let zf = none_of[f64]() else 2.5
+    let zp = none_of[Pair[i64, bool]]() else Pair[i64, bool](first = 1, second = true)
+    print(f"{z} {zf} {zp.first} {zp.second}")
+
+    let p = Pair[i64, str](first = 1, second = "one")
+    let q = p.swapped()
+    let nested = Pair[Pair[i64, str], bool](first = p, second = true)
+    print(f"{q.first} {q.second} {nested.first.second} {nested.second} {sizeof(Pair[u8, u8])} {sizeof(Pair[i64, i64])}")
+
+    var int_slots: i64[4]
+    var ints = Stack[i64].over(int_slots)
+    ints.push(4)
+    ints.push(5)
+    var text_slots: str[2]
+    var texts = Stack[str].over(text_slots)
+    texts.push("s")
+    let top = ints.pop() else -1
+    let word = texts.pop() else "?"
+    let gone = texts.pop() else "gone"
+    print(f"{top} {ints.count} {word} {gone}")
+
+    print(f"{apply(21, double)} {apply("four", length_of)} {count_where(words, is_short)}")
+    return 0

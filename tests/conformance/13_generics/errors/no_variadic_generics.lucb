@@ -1,0 +1,7 @@
+# error: 
+## §13.1: there are no variadic generics.
+func all[T...](values: T) -> bool:
+    return true
+
+pub func main(arguments: str[]) -> i32:
+    return 0

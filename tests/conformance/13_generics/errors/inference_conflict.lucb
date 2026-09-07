@@ -1,0 +1,8 @@
+# error: 
+## §13.1: one parameter, one type.
+func same[T](a: T, b: T) -> bool:
+    return true
+
+pub func main(arguments: str[]) -> i32:
+    let s = same(1, "one")
+    return 0

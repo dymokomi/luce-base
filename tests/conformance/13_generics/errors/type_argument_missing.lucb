@@ -1,0 +1,9 @@
+# error: 
+## §13.1: a generic struct takes every type argument.
+struct Pair[A, B]:
+    var first: A
+    var second: B
+
+pub func main(arguments: str[]) -> i32:
+    let p = Pair[i64](first = 1, second = 2)
+    return 0

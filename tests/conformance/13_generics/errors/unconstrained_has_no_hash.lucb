@@ -1,0 +1,7 @@
+# error: 
+## §13.1: `hash` needs Hashable.
+func h[T](a: T) -> u64:
+    return hash(a)
+
+pub func main(arguments: str[]) -> i32:
+    return 0

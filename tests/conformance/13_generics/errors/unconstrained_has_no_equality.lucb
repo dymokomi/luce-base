@@ -1,0 +1,7 @@
+# error: 
+## §13.1: a generic body uses only what its constraints promise; `==` needs Equatable.
+func same[T](a: T, b: T) -> bool:
+    return a == b
+
+pub func main(arguments: str[]) -> i32:
+    return 0

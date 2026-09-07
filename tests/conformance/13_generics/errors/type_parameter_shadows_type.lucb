@@ -1,0 +1,10 @@
+# error: 
+## §3.5, §13.1: a type parameter may not reuse a type name in scope.
+struct Point:
+    var x: i64
+
+func f[Point](a: Point) -> Point:
+    return a
+
+pub func main(arguments: str[]) -> i32:
+    return 0

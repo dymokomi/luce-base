@@ -669,6 +669,10 @@ pub struct Checker:
     mutating func bind_generics(d: ast.Node*) -> !:
         var cursor = generic_params_of(d)
         while let g = cursor:
+            if let existing = self.lookup(g.text):
+                if let ed = existing.decl:
+                    if (is_type_decl(ed) or ed.kind == ast.Kind.type_alias) and ed != d:
+                        discard(try self.fail(g, "a type parameter may not take the name of a type in scope"))
             if g.type_id == types.none_id:
                 g.type_id = try self.table.parameter(d, g.text)
             try self.bind(g, g.text, g.type_id, g, false)
@@ -1301,10 +1305,59 @@ pub struct Checker:
             listed = l.next
         return false
 
-    ## Does generic parameter `id` carry interface `iface` as a constraint?
+    ## Every type argument satisfies the constraints of its parameter (§13.1).
+    mutating func check_constraints(d: ast.Node*, args: u32[], at: ast.Node*) -> !:
+        var i: usize = 0
+        var cursor = generic_params_of(d)
+        while let g = cursor:
+            if i >= args.length:
+                return
+            var bound = g.body
+            while let constraint = bound:
+                if not self.satisfies(args[i], constraint.type_id):
+                    var text: u8[256]
+                    var name: str = "the constraint"
+                    if let iface = self.table.get(constraint.type_id).decl:
+                        name = iface.text
+                    return try self.fail(at, try format(text, f"the type argument for `{g.text}` does not satisfy `{name}`"))
+                bound = constraint.next
+            i += 1
+            cursor = g.next
+
+    ## Whether type `id` satisfies interface `iface`: the derived protocols by structure,
+    ## `Display` by what formats, any other by declared conformance (§14).
+    func satisfies(id: u32, iface: u32) -> bool:
+        let t = self.table.get(id)
+        if t.kind == types.Kind.param:
+            return self.has_written_constraint(id, iface)
+        let d = self.table.get(iface).decl else return false
+        if is_derived_bound(d):
+            if d.text == "Comparable":
+                if self.table.is_numeric(id) or id == types.char_id or id == types.str_id:
+                    return true
+                let sd = t.decl else return false
+                return t.kind == types.Kind.struct_ and find_member(sd, "compare", ast.Kind.func_) != none
+            return self.comparable(id)
+        if d.has(ast.flag_builtin) and d.text == "Display":
+            return self.printable(id) or self.displays_itself(id)
+        if t.kind == types.Kind.interface_:
+            return t.decl == d
+        if t.kind == types.Kind.pointer:
+            return self.satisfies(t.elem, iface)
+        if t.kind == types.Kind.struct_ or t.kind == types.Kind.enum_:
+            return self.conforms(id, iface)
+        return false
+
+    ## Does generic parameter `id` carry interface `iface` as a constraint? The derived
+    ## protocols count as carried: a conforming argument satisfies them by structure.
     func constraint_has(id: u32, iface: u32) -> bool:
         if is_derived_bound(self.table.get(iface).decl):
             return true
+        return self.has_written_constraint(id, iface)
+
+    ## Whether `iface` is written among parameter `id`'s constraints (§13.1): what a generic
+    ## body may rely on, the derived protocols included.
+    func has_written_constraint(id: u32, iface: u32) -> bool:
         let g = self.generic_param_node(id) else return false
         var bound = g.body
         while let constraint = bound:
@@ -1576,7 +1629,8 @@ pub struct Checker:
             return true
         if t.kind == types.Kind.pointer or t.kind == types.Kind.enum_:
             return true
-        return t.kind == types.Kind.param
+        # a type parameter formats only under `Display` (§13.1)
+        return t.kind == types.Kind.param and self.constraint_has(id, self.standard_type("luce", "Display"))
 
     mutating func literal_type(e: ast.Node*, hint: u32) -> u32!:
         let b = e.text.bytes
@@ -1955,6 +2009,8 @@ pub struct Checker:
                     if not self.comparable(a):
                         return false
                 return true
+            .param:
+                return self.has_written_constraint(id, self.standard_type("luce", "Equatable"))
             .struct_, .enum_:
                 let d = t.decl else return true
                 var cursor = d.body
@@ -2242,6 +2298,8 @@ pub struct Checker:
         let t = self.table.get(lt)
         if t.kind != types.Kind.fallible:
             return try self.fail(l, "`catch` needs a fallible value")
+        if self.is_local_value(l):
+            self.mark_local(e)    # the handled value still views what it viewed (§6.6)
         self.push_scope()
         if e.text.length > 0:
             try self.bind(e, e.text, types.error_value_id, e, false)
@@ -2789,6 +2847,7 @@ pub struct Checker:
             args[i] = try self.resolve_type(a)
             i += 1
             cursor = a.next
+        try self.check_constraints(d, args, named)
         return try self.table.nominal(self.table.kind(d.type_id), d, args)
 
     # mark: Calls ==============================================================================
@@ -3024,6 +3083,16 @@ pub struct Checker:
                 if inferred[j] == types.none_id:
                     return try self.fail(e, "a type argument could not be inferred; write it")
                 j += 1
+            try self.check_constraints(t, inferred, e)
+            if let here = self.current_func:
+                if here == t:
+                    var k: usize = 0
+                    var own = generic_params_of(t)
+                    while let g = own:
+                        if k < generic_count and inferred[k] != g.type_id and self.mentions_param(inferred[k]):
+                            return try self.fail(e, "an infinite chain of instantiations: the call nests its own type parameter")
+                        k += 1
+                        own = g.next
         # second pass: coerce each argument to its (substituted) parameter type
         i = 0
         while i < n_params:
@@ -3258,7 +3327,10 @@ pub struct Checker:
         if name == "hash":
             let arg = try self.single_argument(e)
             let got = try self.check_expr(arg, types.none_id)
-            if not self.comparable(got):
+            if self.table.kind(got) == types.Kind.param:
+                if not self.has_written_constraint(got, self.standard_type("luce", "Hashable")):
+                    return try self.fail(arg, "a type parameter hashes only under `Hashable`")
+            elif not self.comparable(got):
                 return try self.fail(arg, "this value is not hashable")
             discard(try self.coerce(arg, got, self.concrete(got)))
             return types.u64_id
@@ -4201,6 +4273,40 @@ pub func package_identity(name: str) -> u32:
         h = (h ^ (u32)byte) *% 16777619
     return (h ^ (h >> 16)) & 65535
 
+## How deeply generic instances nest in `id`: `Pair[Pair[i64, i64], i64]` is two. A chain of
+## instantiations whose arguments nest past `max_nesting` never ends (§13.1).
+pub let max_nesting: u32 = 16
+
+pub func nesting(table: types.Table*, id: u32) -> u32:
+    let t = table.get(id)
+    match t.kind:
+        .struct_, .enum_, .union_:
+            var deepest: u32 = 0
+            for a in t.args:
+                let n = nesting(table, a)
+                if n > deepest:
+                    deepest = n
+            return deepest + 1 if t.args.length > 0 else 0
+        .pointer, .span, .array, .optional, .fallible, .atomic:
+            return nesting(table, t.elem)
+        .tuple, .func_:
+            var deepest: u32 = 0
+            for a in t.args:
+                let n = nesting(table, a)
+                if n > deepest:
+                    deepest = n
+            return deepest
+        _:
+            return 0
+
+pub func nesting_of_all(table: types.Table*, args: u32[]) -> u32:
+    var deepest: u32 = 0
+    for a in args:
+        let n = nesting(table, a)
+        if n > deepest:
+            deepest = n
+    return deepest
+
 ## The code of `memory.exhausted` (§11.7) as the backends raise it: the prelude's constant,
 ## under the standard modules' identity `luce`, so a program's comparison holds.
 pub func exhausted_code() -> u64:
@@ -4920,6 +5026,23 @@ test "new zeroes its elements and allocates no result":
 
 test "the allocator named by in binds below catch":
     try expect_ok("import memory\nfunc f() -> usize:\n    var backing: u8[64]\n    var arena = memory.FixedBuffer.over(backing)\n    let block = new u8[8] in arena catch e:\n        recover backing[..<0]\n    return block.length\n")
+
+test "a type argument satisfies its constraints":
+    try expect_error("from luce import Comparable\nstruct P:\n    var x: i64\nfunc largest[T: Comparable](a: T, b: T) -> T:\n    return a if a.compare(b) >= 0 else b\nfunc f() -> i64:\n    return largest(P(x = 1), P(x = 2)).x\n", "does not satisfy `Comparable`")
+    try expect_error("from luce import Equatable\nunion U:\n    a: i64\n    b: f64\nfunc same[T: Equatable](a: T, b: T) -> bool:\n    return a == b\nfunc f() -> bool:\n    var x: U\n    var y: U\n    return same(x, y)\n", "does not satisfy `Equatable`")
+    try expect_ok("from luce import Display\nfunc show[T: Display](a: T):\n    print(f\"{a}\")\nfunc f():\n    show(1)\n    show(\"x\")\n")
+
+test "an unconstrained type parameter has no equality, hash, or display":
+    try expect_error("func same[T](a: T, b: T) -> bool:\n    return a == b\n", "no equality")
+    try expect_error("func h[T](a: T) -> u64:\n    return hash(a)\n", "only under `Hashable`")
+    try expect_error("func show[T](a: T):\n    print(f\"{a}\")\n", "cannot be formatted")
+    try expect_ok("from luce import Equatable\nfrom luce import Hashable\nfunc both[T: Equatable & Hashable](a: T, b: T) -> bool:\n    return a == b and hash(a) == hash(b)\n")
+
+test "a type parameter may not take the name of a type in scope":
+    try expect_error("struct Point:\n    var x: i64\nfunc f[Point](a: Point) -> Point:\n    return a\n", "name of a type in scope")
+
+test "a generic that nests its own parameter in a recursive call is an infinite chain":
+    try expect_error("struct Pair[A, B]:\n    var first: A\n    var second: B\nfunc grow[T](depth: T) -> i64:\n    return grow(Pair[T, T](first = depth, second = depth))\n", "infinite chain")
 
 test "generics infer from arguments and substitute results":
     try expect_ok("func first[T](values: const T[]) -> T?:\n    if values.length == 0:\n        return none\n    return values[0]\nfunc f() -> i64:\n    let xs: i64[3] = [1, 2, 3]\n    let v = first(xs) else return 0\n    return v\n")

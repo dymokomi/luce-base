@@ -1,0 +1,7 @@
+# error: 
+## §13.1: there are no value parameters.
+struct Buffer[N: usize]:
+    var bytes: u8[N]
+
+pub func main(arguments: str[]) -> i32:
+    return 0

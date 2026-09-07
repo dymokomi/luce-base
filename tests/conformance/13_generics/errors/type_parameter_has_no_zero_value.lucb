@@ -1,0 +1,8 @@
+# error: 
+## §13.1, §6.1: a body checks from its constraints alone, and none promises a zero value.
+func zero[T]() -> T:
+    var v: T
+    return v
+
+pub func main(arguments: str[]) -> i32:
+    return 0

@@ -1,0 +1,10 @@
+# error: 
+## §6.6, §11.4: a handled value still views what its expression viewed; a local buffer's
+## text may not leave the function through `catch`.
+func describe(n: i64) -> str:
+    var buffer: u8[32]
+    return format(buffer, f"{n}") catch e:
+        recover "?"
+
+pub func main(arguments: str[]) -> i32:
+    return 0

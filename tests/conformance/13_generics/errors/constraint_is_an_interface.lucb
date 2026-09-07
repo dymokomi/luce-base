@@ -1,0 +1,7 @@
+# error: 
+## §13.1: a constraint is an interface.
+func f[T: i64](a: T) -> T:
+    return a
+
+pub func main(arguments: str[]) -> i32:
+    return 0

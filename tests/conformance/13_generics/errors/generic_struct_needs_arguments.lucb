@@ -1,0 +1,8 @@
+# error: 
+## §13.1: a generic struct is named with its arguments.
+struct Box[T]:
+    var item: T
+
+pub func main(arguments: str[]) -> i32:
+    var b: Box
+    return 0

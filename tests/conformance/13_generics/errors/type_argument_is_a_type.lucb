@@ -1,0 +1,8 @@
+# error: 
+## §13.1: a type argument is a type.
+func none_of[T]() -> T?:
+    return none
+
+pub func main(arguments: str[]) -> i32:
+    let z = none_of[5]()
+    return 0

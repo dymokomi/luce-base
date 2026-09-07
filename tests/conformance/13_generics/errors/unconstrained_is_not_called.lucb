@@ -1,0 +1,7 @@
+# error: 
+## §13.1: a type parameter is not a function type.
+func run[T](a: T) -> i64:
+    return a()
+
+pub func main(arguments: str[]) -> i32:
+    return 0

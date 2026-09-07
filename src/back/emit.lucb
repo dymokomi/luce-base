@@ -557,6 +557,8 @@ pub struct Emitter:
             if r.decl == d and same_args(r.args, args):
                 return
             i += 1
+        if check.nesting_of_all(&self.c.table, args) > check.max_nesting:
+            error(backend, "an infinite chain of instantiations")
         try self.records.push(Instance(decl = d, args = args, owner = none, owner_args = try types.no_args(), done = false))
         var member = d.body
         while let m = member:
@@ -573,6 +575,8 @@ pub struct Emitter:
             if r.decl == f and same_args(r.args, args) and r.owner == owner and same_args(r.owner_args, owner_args):
                 return i
             i += 1
+        if check.nesting_of_all(&self.c.table, args) > check.max_nesting or check.nesting_of_all(&self.c.table, owner_args) > check.max_nesting:
+            error(backend, "an infinite chain of instantiations")
         try self.funcs.push(Instance(decl = f, args = args, owner = owner, owner_args = owner_args, done = false))
         return self.funcs.count - 1
 
@@ -2679,10 +2683,12 @@ pub struct Emitter:
                 try self.put(".present) && (!")
                 try self.put_tmp("oa", n)
                 try self.put(".present || ")
-                try self.put_tmp("oa", n)
-                try self.put(".value == ")
-                try self.put_tmp("ob", n)
-                try self.put(".value); })")
+                let oa = try self.tmp_name("oa", n)
+                let ob = try self.tmp_name("ob", n)
+                var a_bytes = try alloc u8[oa.length + 8]
+                var b_bytes = try alloc u8[ob.length + 8]
+                try self.same_value(self.c.table.get(vt).elem, try format(a_bytes, f"{oa}.value"), try format(b_bytes, f"{ob}.value"))
+                try self.put("); })")
         elif ot == types.str_id or ot == types.fmt_id:
             let n = self.tmp()
             try self.put("({ lb_str ")

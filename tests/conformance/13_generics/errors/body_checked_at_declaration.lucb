@@ -1,0 +1,7 @@
+# error: 
+## §13.1: a generic body type-checks from its declaration, instantiated or not.
+func bump[T](a: T) -> T:
+    return a + 1
+
+pub func main(arguments: str[]) -> i32:
+    return 0

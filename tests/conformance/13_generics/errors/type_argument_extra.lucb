@@ -1,0 +1,9 @@
+# error: 
+## §13.1: no more type arguments than parameters.
+func first[T](values: const T[]) -> T?:
+    return values[0]
+
+pub func main(arguments: str[]) -> i32:
+    let xs: i64[2] = [1, 2]
+    let v = first[i64, str](xs)
+    return 0

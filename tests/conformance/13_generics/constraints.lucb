@@ -1,0 +1,47 @@
+## §13.1, §14.4: a constraint is one or more interfaces joined by `&`; a body uses only what
+## its constraints promise: `==` under Equatable, `hash` under Hashable, `compare` under
+## Comparable, a formatted field under Display; the compiler supplies them for scalars and
+## text, and derives Equatable and Hashable for structs whose fields have them.
+from luce import Comparable
+from luce import Display
+from luce import Equatable
+from luce import Hashable
+
+struct Point:
+    var x: i64
+    var y: i64
+
+func same[T: Equatable](a: T, b: T) -> bool:
+    return a == b
+
+func index_of[T: Equatable](values: const T[], wanted: T) -> usize?:
+    var i: usize = 0
+    for v in values:
+        if v == wanted:
+            return i
+        i += 1
+    return none
+
+func agree[T: Hashable](a: T, b: T) -> bool:
+    return hash(a) == hash(b)
+
+func largest[T: Comparable](left: T, right: T) -> T:
+    if left.compare(right) >= 0:
+        return left
+    return right
+
+func sorted_pair[T: Comparable & Display](a: T, b: T, buffer: u8[]) -> str:
+    let low = a if a.compare(b) <= 0 else b
+    let high = b if a.compare(b) <= 0 else a
+    return format(buffer, f"{low} < {high}") catch e:
+        recover "?"
+
+pub func main(arguments: str[]) -> i32:
+    let points: Point[2] = [Point(x = 1, y = 2), Point(x = 3, y = 4)]
+    print(f"{same(1, 1)} {same("a", "b")} {same(points[0], Point(x = 1, y = 2))} {index_of(points, Point(x = 3, y = 4)) == 1} {index_of(points, Point(x = 9, y = 9)) == none}")
+    print(f"{agree(5, 5)} {agree("x", "x")} {agree(points[0], Point(x = 1, y = 2))}")
+    print(f"{largest(3, 9)} {largest(2.5, -1.0)} {largest("pear", "apple")} {largest('a', 'z')}")
+    var buffer: u8[64]
+    print(sorted_pair(10, 2, buffer))
+    print(sorted_pair("b", "a", buffer))
+    return 0
