@@ -1,0 +1,5 @@
+# error: `str` is not indexed; slice `.bytes` or iterate
+pub func main(arguments: str[]) -> i32:
+    let text = "abc"
+    let b = text[0]
+    return 0

@@ -707,7 +707,10 @@ pub struct Checker:
             let inner = t.left else return try self.fail(t, "an array needs an element type")
             let count = t.right else return try self.fail(t, "an array needs a length")
             let elem = try self.resolve_type(inner)
-            id = try self.table.array(elem, try self.constant_length(count))
+            let length = try self.constant_length(count)
+            if length == 0:
+                return try self.fail(count, "an array length is positive; C has no zero-length arrays (§5.4)")
+            id = try self.table.array(elem, length)
         elif t.has(ast.flag_optional):
             let inner = t.left else return try self.fail(t, "an optional needs a payload")
             id = try self.table.optional(try self.resolve_type(inner))
@@ -720,9 +723,23 @@ pub struct Checker:
         else:
             id = try self.resolve_named(t)
         if t.has(ast.flag_atomic):
+            if not self.atomic_allowed(id):
+                return try self.fail(t, "`@T` needs an integer, `bool`, or a pointer of at most pointer width, or a struct of two words (§5.9)")
             id = try self.table.atomic(id)
         t.type_id = id
         return id
+
+    ## What `@T` may hold (§5.9): an integer, `bool`, a pointer or nullable pointer, all of at
+    ## most pointer width; or a struct of two pointer-width words for the double-width cas.
+    func atomic_allowed(id: u32) -> bool:
+        let k = self.table.kind(id)
+        if self.table.is_integer(id) or id == types.bool_id or k == types.Kind.pointer:
+            return self.table.size_of(id) <= 8
+        if k == types.Kind.optional:
+            return self.table.has_null_niche(self.table.get(id).elem)
+        if k == types.Kind.struct_:
+            return self.table.size_of(id) == 16 and self.table.align_of(id) == 8
+        return false
 
     ## A named type: a scalar, a declaration in scope, `module.Type`, or an
     ## instance `Name[args]` of a generic declaration.
@@ -1137,6 +1154,8 @@ pub struct Checker:
             return e.type_id
         if got == types.never_id:
             return got
+        if self.table.kind(got) == types.Kind.func_ and self.table.kind(target) == types.Kind.func_ and self.table.get(got).elem != self.table.get(target).elem:
+            try self.wrap_as_fallible(e, target)
         # a local array passed where a span is wanted aliases the frame (§6.6)
         if self.table.kind(got) == types.Kind.array and self.escapes(target) and self.place_is_local(e):
             self.mark_local(e)
@@ -1260,6 +1279,11 @@ pub struct Checker:
                 let r = e.right else return try self.fail(e, "a conditional needs an alternative")
                 let lt = try self.check_expr(l, hint)
                 let rt = try self.check_expr(r, hint if hint != types.none_id else lt)
+                # a `never` branch takes the other branch's type: its value never exists (§5.1)
+                if lt == types.never_id:
+                    return rt
+                if rt == types.never_id:
+                    return lt
                 return try self.unify(l, lt, r, rt)
             .call:
                 return try self.call_type(e, hint)
@@ -1353,6 +1377,9 @@ pub struct Checker:
     ## Values a formatted string or `print` can show.
     func printable(id: u32) -> bool:
         let t = self.table.get(id)
+        if t.kind == types.Kind.atomic:
+            # a plain read of `@T` is a load (§15.1): the value displays as its `T`
+            return self.printable(t.elem)
         if self.table.is_numeric(id) or id == types.untyped_int_id or id == types.untyped_float_id:
             return true
         if id == types.bool_id or id == types.char_id or id == types.str_id or id == types.cstr_id or id == types.fmt_id:
@@ -1494,6 +1521,8 @@ pub struct Checker:
                 return try self.fail(e, "cannot take the address of a literal")
             if inner.has(ast.flag_type_ref):
                 return try self.fail(e, "cannot take the address of a type")
+            if self.is_packed_field(inner):
+                return try self.fail(e, "a packed field's address is not taken unless its alignment is one (§5.11)")
             if self.place_is_local(inner):
                 self.mark_local(e)
             return try self.table.pointer(it, self.address_is_const(inner), false)
@@ -1783,6 +1812,11 @@ pub struct Checker:
         let block = try ast.Node.make(ast.Kind.block, "", body.start, body.line)
         block.body = ret
         fn.body = block
+        self.hoist(fn)
+        return fn
+
+    ## A synthesised function joins the module's declarations, after the last one.
+    mutating func hoist(fn: ast.Node*):
         let tree = self.modules.get(self.current).tree
         var cursor = tree.body
         var last: ast.Node*? = none
@@ -1793,7 +1827,55 @@ pub struct Checker:
             l.next = fn
         else:
             tree.body = fn
-        return fn
+
+    ## A named function where a fallible function type is wanted (§9.4): the name comes to
+    ## mean a hoisted function of the wanted type that calls the named one and answers its
+    ## result as success. Only a declaration can be wrapped this way; a function value
+    ## held in a variable has no name to wrap.
+    mutating func wrap_as_fallible(e: ast.Node*, want: u32) -> !:
+        let f = e.resolved else return try self.fail(e, "only a named function converts to a fallible function type")
+        if f.kind != ast.Kind.func_ and f.kind != ast.Kind.extern_func:
+            return try self.fail(e, "only a named function converts to a fallible function type")
+        let fn = try ast.Node.make(ast.Kind.func_, try self.hidden_name("__thunk"), e.start, e.line)
+        fn.flags |= ast.flag_lambda | ast.flag_referenced | ast.flag_fallible
+        fn.type_id = want
+        var params: ast.Node*? = none
+        var params_tail: ast.Node*? = none
+        var args: ast.Node*? = none
+        var args_tail: ast.Node*? = none
+        var cursor = f.right
+        while let p = cursor:
+            let np = try ast.Node.make(ast.Kind.param, p.text, e.start, e.line)
+            np.type_id = p.type_id
+            np.ty = p.ty
+            ast.append(&params, &params_tail, np)
+            let use = try ast.Node.make(ast.Kind.name, p.text, e.start, e.line)
+            use.type_id = p.type_id
+            use.resolved = np
+            let a = try ast.Node.make(ast.Kind.argument, "", e.start, e.line)
+            a.left = use
+            a.type_id = p.type_id
+            ast.append(&args, &args_tail, a)
+            cursor = p.next
+        fn.right = params
+        let callee = try ast.Node.make(ast.Kind.name, f.text, e.start, e.line)
+        callee.type_id = f.type_id
+        callee.resolved = f
+        let call = try ast.Node.make(ast.Kind.call, "", e.start, e.line)
+        call.left = callee
+        call.body = args
+        call.resolved = f
+        call.type_id = self.table.get(f.type_id).elem
+        let ret = try ast.Node.make(ast.Kind.return_, "", e.start, e.line)
+        ret.left = call
+        ret.type_id = types.never_id
+        let block = try ast.Node.make(ast.Kind.block, "", e.start, e.line)
+        block.body = ret
+        fn.body = block
+        self.hoist(fn)
+        e.resolved = fn
+        e.text = fn.text
+        e.type_id = want
 
     ## `__lambda1`, `__lambda2`, ...: names no source can spell.
     mutating func lambda_name() -> str!:
@@ -2238,6 +2320,18 @@ pub struct Checker:
         let width = self.table.bits(id)
         return types.u16_id if width == 16 else (types.u32_id if width == 32 else types.u64_id)
 
+    ## The function type of a method taken through its type: `self` is its first parameter,
+    ## `const Self*` unless the method is `mutating` (§9.5).
+    mutating func method_as_function(ft: u32, owner: u32, writes: bool) -> u32!:
+        let f = self.table.get(ft)
+        var params = try alloc u32[f.args.length + 1]
+        params[0] = try self.table.pointer(owner, not writes, false)
+        var i: usize = 0
+        while i < f.args.length:
+            params[i + 1] = f.args[i]
+            i += 1
+        return try self.table.function(params, f.elem, f.variadic)
+
     ## `Type.name`: a static method, an enum case, `ErrorCode.package`, `f32.bits`.
     mutating func static_member(e: ast.Node*, owner: ast.Node*, id: u32) -> u32!:
         let name = e.text
@@ -2263,13 +2357,15 @@ pub struct Checker:
         if t.kind == types.Kind.struct_ or t.kind == types.Kind.enum_ or t.kind == types.Kind.union_:
             let d = t.decl else return try self.fail(e, "no declaration")
             let m = find_member(d, name, ast.Kind.func_) else return try self.fail(e, "no such static member")
-            if not m.has(ast.flag_static):
-                return try self.fail(e, "that method needs a receiver")
             if not m.has(ast.flag_pub) and not self.same_module(d) and not self.inside(d):
                 return try self.fail(e, "that method is not public")
             e.resolved = m
             e.flags |= ast.flag_static
-            return try self.substitute(m.type_id, d, t.args)
+            let ft = try self.substitute(m.type_id, d, t.args)
+            if not m.has(ast.flag_static):
+                # `Point.distance` through its type is a function taking the receiver first (§5.6)
+                return try self.method_as_function(ft, id, m.has(ast.flag_mutating))
+            return ft
         return try self.fail(e, "this type has no such member")
 
     ## The function type that builds a payload case.
@@ -2979,6 +3075,18 @@ pub struct Checker:
             lines = l.next
 
     ## `let`/`var`, with a name or a tuple of names (§6.1).
+    ## Whether `e` is a member of a `packed` struct whose natural alignment exceeds one:
+    ## the address C would make undefined to dereference (§5.11).
+    func is_packed_field(e: ast.Node*) -> bool:
+        if e.kind != ast.Kind.member:
+            return false
+        let owner = e.left else return false
+        let field = e.resolved else return false
+        if field.kind != ast.Kind.field:
+            return false
+        let decl = self.table.get(self.deref(owner.type_id)).decl else return false
+        return decl.has(ast.flag_packed) and self.table.align_of(field.type_id) > 1
+
     ## A loop opens: its label, when it has one, may be neither a core name (§3.5) nor one
     ## of the labels already open around it (§8.5).
     mutating func enter_loop(s: ast.Node*) -> !:
@@ -3409,6 +3517,8 @@ pub struct Checker:
 
     ## A struct, union, or enum body: field defaults, case values, conformance, methods.
     mutating func check_type_body(d: ast.Node*) -> !:
+        if d.kind == ast.Kind.struct_ and not has_field(d):
+            discard(try self.fail(d, "a struct has at least one field, as in C (§10.1)"))
         self.push_scope()
         try self.bind_generics(d)
         let saved_template = self.checking_template
@@ -3706,6 +3816,15 @@ func is_arithmetic(op: str) -> bool:
 ## A number literal with a point or an exponent, outside the prefixed forms.
 pub func is_float_text(text: str) -> bool:
     return is_float_literal(text)
+
+## Whether a type declaration holds a field (§10.1).
+func has_field(d: ast.Node*) -> bool:
+    var cursor = d.body
+    while let m = cursor:
+        if m.kind == ast.Kind.field:
+            return true
+        cursor = m.next
+    return false
 
 ## The bytes a text literal denotes, in the current allocator: delimiters and
 ## prefix removed, CRLF normalised and indentation stripped for triple quotes,

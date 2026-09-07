@@ -1,0 +1,10 @@
+# error: expected `str`, got `f64`
+type Meters = f64
+type Feet = f64
+func walk(m: Meters) -> Meters:
+    return m
+pub func main(arguments: str[]) -> i32:
+    let f: Feet = 3.0
+    let m: Meters = f
+    let s: str = walk(m)
+    return 0

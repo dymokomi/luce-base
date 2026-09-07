@@ -1,0 +1,6 @@
+# error: expected `i64`, got `c.long`
+import c
+pub func main(arguments: str[]) -> i32:
+    let l: c.long = 1
+    let n: i64 = l
+    return 0

@@ -1,0 +1,48 @@
+## §5.7 to §5.11: tuples have C's layout; an optional is a tag beside the value unless a
+## niche exists; an atomic type carries the atomicity; an alias is only a spelling; layout
+## follows the C ABI with `packed` and `align(N)` adjusting it.
+pub type Pixel = f32[4]
+type Callback = func(i64) -> i64
+type Link = Node*?
+
+struct Node:
+    var value: i64
+    var next: Link
+
+packed struct Packed:
+    var a: u8
+    var b: u32
+
+align(16) struct Aligned:
+    var a: u8
+
+struct Padded:
+    var a: u8
+    var b: u32
+    var c: u8
+
+func double(n: i64) -> i64:
+    return n * 2
+
+pub func main(arguments: str[]) -> i32:
+    var px: Pixel
+    px[3] = 1.5
+    let cb: Callback = double
+    var n = Node(value = 1, next = none)
+    let pair: (i64, u8) = (7, 2)
+    let (seven, two) = pair
+    let opt: i64? = 5
+    let none_at_all: i64? = none
+    var flag: @bool
+    var hits: @u64
+    hits += 2
+    flag = true
+    let previous = hits.add(1, .relaxed)
+    let (swapped, observed) = hits.cas(3, 10, .acq_rel, .acquire)
+    var padded: Padded
+    var packed: Packed
+    var aligned: Aligned
+    print(f"{px[3]} {cb(4)} {n.value} {seven} {two} {sizeof(pair)} {sizeof(opt)} {sizeof(n.next)} {opt == 5} {none_at_all == none}")
+    print(f"{sizeof(padded)} {alignof(Padded)} {offsetof(Padded, c)} {sizeof(packed)} {alignof(Aligned)} {sizeof(aligned)}")
+    print(f"{hits} {flag} {previous} {swapped} {observed} {hits.load(.acquire)} {sizeof(hits)}")
+    return 0

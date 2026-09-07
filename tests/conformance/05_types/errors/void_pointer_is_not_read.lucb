@@ -1,0 +1,6 @@
+# error: cannot dereference `void*`
+pub func main(arguments: str[]) -> i32:
+    var x: i64 = 1
+    let v: void* = &x
+    let y = *v
+    return 0

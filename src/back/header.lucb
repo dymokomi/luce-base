@@ -223,12 +223,16 @@ struct Header:
                 if id == types.c_va_list_id:
                     try self.out.put("va_list")
                     return
-                if t.is_const:
+                # `const (T*)*` is C's `T* const*`: the qualifier follows the inner star (§5.3)
+                let inner_is_pointer = self.c.table.kind(t.elem) == types.Kind.pointer or self.c.table.is_nullable_pointer(t.elem)
+                if t.is_const and not inner_is_pointer:
                     try self.out.put("const ")
                 if t.elem == types.void_id:
                     try self.out.put("void")
                 else:
                     try self.spell(t.elem)
+                if t.is_const and inner_is_pointer:
+                    try self.out.put(" const")
                 try self.out.put("*")
                 if self.c.table.is_nullable_pointer(id):
                     try self.out.put(" /* may be null */")

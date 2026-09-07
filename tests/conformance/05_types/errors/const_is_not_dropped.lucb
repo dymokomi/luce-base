@@ -1,0 +1,6 @@
+# error: expected `i64*`, got `const i64*`
+pub func main(arguments: str[]) -> i32:
+    var x: i64 = 1
+    let q: const i64* = &x
+    let m: i64* = q
+    return 0

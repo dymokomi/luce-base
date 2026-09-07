@@ -1,0 +1,45 @@
+## §5.3: a bare pointer is never null and `T*?` is one word with null as `none`; a pointer
+## converts to a more qualified one and to `void*`; addresses compare and order.
+struct Node:
+    var value: i64
+    var next: Node*?
+
+func total(head: Node*?) -> i64:
+    var sum: i64 = 0
+    var cursor = head
+    while let n = cursor:
+        sum += n.value
+        cursor = n.next
+    return sum
+
+func read_only(p: const i64*) -> i64:
+    return *p
+
+func erase(p: void*) -> usize:
+    return (usize)p % 8
+
+pub func main(arguments: str[]) -> i32:
+    var a = Node(value = 1, next = none)
+    var b = Node(value = 2, next = &a)
+    var c = Node(value = 3, next = &b)
+    var x: i64 = 10
+    let p: i64* = &x
+    let q: const i64* = p
+    let v: void* = p
+    let cv: const void* = q
+    *p = 11
+    let maybe: i64*? = p
+    var nulled: i64*? = none
+    let ordered = (usize)&a < (usize)&b or (usize)&a > (usize)&b
+    let same = p == (i64*)v and q == p and cv == (const void*)q
+    var seen: i64 = 0
+    if let inner = maybe:
+        seen += *inner
+    if let missing = nulled:
+        seen += 100
+    let pp: const (i64*)* = &p
+    print(f"{total(&c)} {read_only(q)} {erase(v)} {x} {seen} {ordered} {same} {sizeof(maybe)} {**pp}")
+    nulled = &x
+    let known = nulled else return 1
+    print(f"{nulled == maybe} {*known} {(usize)(*pp) == (usize)p}")
+    return 0

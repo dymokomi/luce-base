@@ -1,0 +1,37 @@
+## §5.6, §9.4: a function value is a C function pointer; a named function, a method
+## through its type (its receiver first, as `const Self*`), and a non-fallible function
+## where a fallible type is wanted all convert.
+struct Point:
+    var x: i64
+    var y: i64
+
+    func manhattan() -> i64:
+        return self.x + self.y
+
+func add(a: i64, b: i64) -> i64:
+    return a + b
+
+func twice(a: i64) -> i64:
+    return a * 2
+
+func apply(op: func(i64, i64) -> i64, x: i64, y: i64) -> i64:
+    return op(x, y)
+
+func through(op: func(i64) -> i64!, x: i64) -> i64!:
+    return try op(x)
+
+pub func main(arguments: str[]) -> i32:
+    let operation: func(i64, i64) -> i64 = add
+    var chosen: (func(i64) -> i64)? = none
+    let p = Point(x = 3, y = 4)
+    let measure: func(const Point*) -> i64 = Point.manhattan
+    var picked: i64 = 0
+    if let f = chosen:
+        picked = f(1)
+    chosen = twice
+    if let f = chosen:
+        picked = f(21)
+    let lifted = through(twice, 5) catch:
+        recover -1
+    print(f"{operation(2, 3)} {apply(add, 4, 5)} {measure(&p)} {picked} {lifted} {sizeof(operation)} {sizeof(chosen)}")
+    return 0

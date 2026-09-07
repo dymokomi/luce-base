@@ -391,13 +391,22 @@ pub struct Emitter:
                 if t.elem == types.void_id:
                     try self.put("const void*" if t.is_const else "void*")
                     return
-                if t.is_const:
-                    try self.put("const ")
-                if t.is_volatile:
-                    try self.put("volatile ")
+                # a qualifier on a pointee that is itself a pointer follows that pointer's
+                # star, as C writes `T* const*` for `const (T*)*` (§5.3)
+                let inner_is_pointer = self.is_ptr(t.elem) or self.is_nullable_ptr(t.elem)
+                if not inner_is_pointer:
+                    if t.is_const:
+                        try self.put("const ")
+                    if t.is_volatile:
+                        try self.put("volatile ")
                 if self.is_record(t.elem):
                     try self.put("union " if self.kind(t.elem) == types.Kind.union_ else "struct ")
                 try self.put_type(t.elem)
+                if inner_is_pointer:
+                    if t.is_const:
+                        try self.put(" const")
+                    if t.is_volatile:
+                        try self.put(" volatile")
                 try self.put("*")
             .span:
                 try self.put("lb_cspan" if t.is_const else "lb_span")
@@ -1881,6 +1890,15 @@ pub struct Emitter:
     ## optional, text into a byte span, a function into its fallible shape.
     mutating func value(e: ast.Node*, want: u32) -> !:
         let have = try self.ty(e)
+        if have == types.never_id and want != types.none_id and want != types.unit_id and want != types.never_id and want != types.error_id:
+            # a `never` where a value is wanted: the C needs an expression of that type after
+            # the call that does not return (§5.1)
+            try self.put("({ ")
+            try self.expr(e)
+            try self.put("; (")
+            try self.put_type(want)
+            try self.put("){0}; })")
+            return
         if want == types.none_id or have == want or have == types.never_id or have == types.error_id:
             try self.expr(e)
             return
@@ -1943,10 +1961,6 @@ pub struct Emitter:
             try self.put("atomic_load(&(")
             try self.expr(e)
             try self.put("))")
-            return
-        if w.kind == types.Kind.func_ and h.kind == types.Kind.func_ and w.elem != h.elem:
-            # a plain function where a fallible one is wanted: the thunk wraps its result
-            try self.thunk(e, have, want)
             return
         if self.is_int(want) and (self.is_int(have) or have == types.untyped_int_id):
             try self.put("(")
@@ -2051,15 +2065,6 @@ pub struct Emitter:
         try self.put(".data), ")
         try self.put_tmp("tb", n)
         try self.put(".length }; })")
-
-    ## A wrapper that lifts a plain function to a fallible function type.
-    mutating func thunk(e: ast.Node*, have: u32, want: u32) -> !:
-        try self.put("((")
-        try self.put_type(want)
-        try self.put(")(void*)")
-        try self.expr(e)
-        try self.put(")")
-        discard(have)
 
     ## An expression by its own type.
     mutating func expr(e: ast.Node*) -> !:
@@ -4760,7 +4765,9 @@ pub struct Emitter:
             self.sink_prefix = saved_prefix
             self.sink_index = saved_index
             return
-        let t = try self.ty(v)
+        var t = try self.ty(v)
+        if self.is_atomic(t):
+            t = self.elem(t)
         if t == types.bool_id:
             try self.put("lb_fmtbuf_bool(&")
             try self.put_tmp(prefix, n)
@@ -4882,7 +4889,9 @@ pub struct Emitter:
                 try self.put(", stdout); ")
             elif p.kind == ast.Kind.format_field:
                 let v = p.left else return
-                let t = try self.ty(v)
+                var t = try self.ty(v)
+                if self.is_atomic(t):
+                    t = self.elem(t)
                 if t == types.bool_id:
                     try self.put("fputs((")
                     try self.expr(v)

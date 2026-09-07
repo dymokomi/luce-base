@@ -1,0 +1,6 @@
+# error: expected `u8[4]`, got `u8[]`
+pub func main(arguments: str[]) -> i32:
+    var b: u8[4]
+    let view: u8[] = b
+    let a: u8[4] = view
+    return 0

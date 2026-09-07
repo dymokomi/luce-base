@@ -1,0 +1,22 @@
+## §5.2: an alias `c` type is the Base type by another name; a distinct one converts with
+## `T(x)`; `c.str` is C's text and a literal converts to it.
+import c
+
+extern func strlen(s: c.str) -> c.size
+extern func abs(n: c.int) -> c.int
+
+pub func main(arguments: str[]) -> i32:
+    let n: i32 = -5
+    let a: c.int = n
+    let back: i32 = abs(a)
+    let wide: c.long = c.long(back)
+    let count: usize = strlen("hello")
+    let text: c.str = "literal"
+    let again = str(text) catch:
+        recover ""
+    let ch: c.char = c.char(65)
+    let value = i64(wide) + i64(ch)
+    let short: c.short = -3
+    let as_base: i16 = short
+    print(f"{back} {count} {again} {value} {as_base} {sizeof(wide)} {sizeof(ch)} {sizeof(a)}")
+    return 0

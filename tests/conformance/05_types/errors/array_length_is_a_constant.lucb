@@ -1,0 +1,5 @@
+# error: an array length must be a constant
+pub func main(arguments: str[]) -> i32:
+    let n: usize = 3
+    var a: u8[n]
+    return 0

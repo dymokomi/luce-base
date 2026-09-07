@@ -1,0 +1,30 @@
+## §5.1: the scalar widths; `usize` from `sizeof` is a constant that sizes an array; `never`
+## coerces to any type and `unit` is what a function returning nothing yields.
+struct Header:
+    var tag: u32
+    var length: u32
+
+let header_bytes: usize = sizeof(Header)
+var scratch: u8[sizeof(Header) * 2]
+
+func fail_now() -> never:
+    trap("never returns")
+
+func pick(flag: bool) -> i64:
+    let v: i64 = 7 if flag else fail_now()
+    return v
+
+func nothing():
+    return
+
+pub func main(arguments: str[]) -> i32:
+    let t = true
+    let widths = [sizeof(bool), sizeof(u8), sizeof(u16), sizeof(u32), sizeof(u64), sizeof(usize), sizeof(isize), sizeof(f16), sizeof(f32), sizeof(f64), sizeof(char)]
+    var total: usize = 0
+    for width in widths:
+        total += width
+    let flag_word: u8 = 1 if t else 0
+    scratch[15] = 3
+    nothing()
+    print(f"{total} {header_bytes} {scratch.length} {pick(true)} {flag_word} {scratch[15]} {alignof(Header)}")
+    return 0

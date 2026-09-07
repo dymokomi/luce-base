@@ -1,0 +1,4 @@
+# error: this type has no zero value; give it one
+pub func main(arguments: str[]) -> i32:
+    var f: func() -> unit
+    return 0

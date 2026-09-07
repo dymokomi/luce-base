@@ -1,0 +1,4 @@
+# error: `@T` needs an integer, `bool`, or a pointer of at most pointer width, or a struct of two words (§5.9)
+pub func main(arguments: str[]) -> i32:
+    var f: @f64
+    return 0

@@ -1,0 +1,7 @@
+# error: expected `c.str`, got `str`
+import c
+pub func main(arguments: str[]) -> i32:
+    let bytes: u8[2] = [104, 105]
+    let s = (str)bytes
+    let cs: c.str = s
+    return 0

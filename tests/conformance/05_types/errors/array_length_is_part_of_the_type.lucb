@@ -1,0 +1,5 @@
+# error: expected `u8[3]`, got `u8[4]`
+pub func main(arguments: str[]) -> i32:
+    var b: u8[4]
+    let a: u8[3] = b
+    return 0

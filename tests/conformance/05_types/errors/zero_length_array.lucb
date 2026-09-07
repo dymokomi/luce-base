@@ -1,0 +1,4 @@
+# error: an array length is positive; C has no zero-length arrays (§5.4)
+pub func main(arguments: str[]) -> i32:
+    var a: u8[0]
+    return 0

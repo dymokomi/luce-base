@@ -1,0 +1,5 @@
+# error: expected `i32`, got `i64`
+pub func main(arguments: str[]) -> i32:
+    let y: i64 = 1
+    let x: i32 = y
+    return 0

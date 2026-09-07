@@ -1,0 +1,8 @@
+# error: `@T` needs an integer, `bool`, or a pointer of at most pointer width, or a struct of two words (§5.9)
+struct Wide:
+    var a: usize
+    var b: usize
+    var c: usize
+pub func main(arguments: str[]) -> i32:
+    var w: @Wide
+    return 0

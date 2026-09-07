@@ -1,0 +1,5 @@
+# error: expected `i16`, got `u8`
+pub func main(arguments: str[]) -> i32:
+    let byte: u8 = 1
+    let s: i16 = byte
+    return 0

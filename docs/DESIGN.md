@@ -359,3 +359,9 @@ enforced (a BOM, bidirectional controls, uppercase base prefixes, non-ASCII byte
 literals, a stored formatted string, a negative literal into an unsigned type, a
 core name as a label, a standard module's name bound without an import) and
 behaviour both got wrong (text iterated by byte, a `char` displayed as a number).
+Chapter 5 added the atomic type's constraints, a packed field's address, a
+zero-length array, a struct without fields, `Point.method` as a function value, a
+real wrapper where a plain function meets a fallible function type (the C backend
+had cast the pointer), `const (T*)*` spelled as C's `T* const*`, and a `never`
+branch in a conditional; in the seed, span ends and indexed loops, `sizeof` of a
+member, nullable functions, tail padding, and addresses from pointer casts.

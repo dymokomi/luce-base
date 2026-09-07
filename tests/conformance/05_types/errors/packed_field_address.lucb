@@ -1,0 +1,8 @@
+# error: a packed field's address is not taken unless its alignment is one (§5.11)
+packed struct P:
+    var a: u8
+    var b: u32
+pub func main(arguments: str[]) -> i32:
+    var p: P
+    let q = &p.b
+    return 0

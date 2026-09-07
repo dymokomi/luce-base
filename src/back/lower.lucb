@@ -3543,8 +3543,11 @@ pub struct Lowerer:
             discard(try self.expr(v))
             self.format_sink = saved
             return
-        let t = try self.ty(v)
-        let x = try self.expr(v)
+        var t = try self.ty(v)
+        if self.kind(t) == types.Kind.atomic:
+            # a plain read of `@T` is a load (§15.1)
+            t = self.elem(t)
+        let x = try self.value(v, t)
         if t == types.bool_id:
             let start = u32(self.f.args.count)
             try self.f.args.push(ir.Arg(value = fb, cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, is_float_only = false, float_count = 0))

@@ -1,0 +1,4 @@
+# error: expected the end of the line
+pub func main(arguments: str[]) -> i32:
+    var x: i64?? = none
+    return 0

@@ -1,0 +1,35 @@
+## §5.5: `str` is a UTF-8 view compared by bytes; `str(bytes)` validates and `(str)bytes`
+## does not; text crosses to `c.str` and back; a formatted string reaches `print`, `format`,
+## and an `fmt` parameter.
+import c
+
+func shout(message: fmt):
+    print(message)
+
+func measure(text: str) -> (usize, usize):
+    var scalars: usize = 0
+    for ch in text:
+        scalars += 1
+    return (text.length, scalars)
+
+pub func main(arguments: str[]) -> i32:
+    let word = "grüße"
+    let (bytes, scalars) = measure(word)
+    let raw: const u8[] = word.bytes
+    let unchecked = (str)raw[0..<2]
+    let checked = str(raw) catch:
+        recover "bad"
+    let broken: u8[2] = [0xC3, 0x28]
+    let refused = str(broken) catch:
+        recover "refused"
+    let cs: c.str = (c.str)word
+    let back = str(cs) catch:
+        recover "bad"
+    var buffer: u8[32]
+    let made = format(buffer, f"{word}:{bytes}") catch:
+        recover ""
+    let nul_after = buffer[made.length] == 0
+    shout(f"{made} {nul_after}")
+    shout("plain")
+    print(f"{bytes} {scalars} {unchecked} {checked == word} {refused} {back == word} {word == "grüße"} {word < "h"} {word.bytes[0]}")
+    return 0

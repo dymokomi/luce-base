@@ -1,0 +1,6 @@
+# error: a struct has at least one field, as in C (§10.1)
+struct Empty:
+    func f() -> i64:
+        return 1
+pub func main(arguments: str[]) -> i32:
+    return 0

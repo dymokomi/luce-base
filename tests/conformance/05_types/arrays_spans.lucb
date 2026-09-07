@@ -1,0 +1,41 @@
+## §5.4: an array is a value and a span a pointer with a length; slicing is half-open;
+## nested arrays read inside-out; `first`, `last`, and `indexed` on a span.
+struct Grid:
+    var cells: u8[4][4]
+
+func sum(view: const u8[]) -> i64:
+    var s: i64 = 0
+    for b in view:
+        s += i64(b)
+    return s
+
+func fill(view: u8[], value: u8):
+    var i: usize = 0
+    while i < view.length:
+        view[i] = value
+        i += 1
+
+pub func main(arguments: str[]) -> i32:
+    var buffer: u8[8]
+    let all: u8[] = buffer
+    fill(all[2..<6], 9)
+    var copy = buffer
+    copy[0] = 1
+    let head = all[0..<2]
+    let tail = all[6..]
+    let view = u8[](all.data, 3)
+    var grid: Grid
+    grid.cells[1][2] = 5
+    let inner = grid.cells[1]
+    let frozen: const u8[] = buffer
+    var count: i64 = 0
+    for (i, v) in all.indexed():
+        if v == 9:
+            count += i64(i)
+    let empty = all[0..<0]
+    print(f"{sum(all)} {buffer[0]} {copy[0]} {head.length} {tail.length} {view.length} {inner[2]} {sizeof(grid)}")
+    print(f"{count} {empty.length} {frozen.length} {sizeof(all)} {sizeof(buffer)} {sum(frozen[2..<4])}")
+    if let first = all.first():
+        if let last = all.last():
+            print(f"{first} {last} {all[7]}")
+    return 0
