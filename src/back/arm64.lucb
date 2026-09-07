@@ -1442,6 +1442,11 @@ pub struct Generator:
             try self.put("\n")
             try self.put(self.program_unit.module_asm.get(i).bytes)
             i += 1
+        # the loader runs the unit's initialiser: Mach-O's `__mod_init_func` (§17.6)
+        if self.program_unit.init_function.length > 0:
+            try self.put("\n    .section __DATA,__mod_init_func,mod_init_funcs\n    .p2align 3\n    .quad ")
+            try self.symbol(self.program_unit.init_function)
+            try self.put("\n")
         # text literals
         try self.put("\n    .section __TEXT,__cstring,cstring_literals\n")
         i = 0

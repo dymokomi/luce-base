@@ -18,6 +18,7 @@
 #==============================================================================================
 
 import back.ir
+import back.isa
 import back.names
 import back.target as targets
 import front.ast
@@ -1195,7 +1196,7 @@ pub struct Lowerer:
         # the block for another architecture is not this build's (§8.9)
         if s.text != self.arch_name():
             return
-        var chosen = try AsmRegisters.choose(s, self.target.arch == targets.Arch.x86_64)
+        var chosen = try AsmRegisters.choose(s, self.target.arch)
         # the inputs are computed first, then moved into their registers together, so that
         # computing one cannot touch a register another already holds
         var values: LowerValue[16] = ---
@@ -1238,26 +1239,17 @@ pub struct Lowerer:
                     try self.f.emit(ir.Op.get_reg, self.class_of(want), 0, address, ir.text_ref(try self.program_unit.text(place)), 0)
             operand = o.next
 
-    ## The type an asm operand's register carries: on arm64 a `d`/`s` register is a float
-    ## and a `w` register a word; on x86_64 an `xmm` register is a double, a 32-bit name
-    ## (`eax`, `r8d`) a word; everything else an integer of 64 bits.
+    ## The type an asm operand's register carries, which the instruction set says (`isa`):
+    ## a float of the register's width, or an unsigned integer of it.
     func asm_operand_type(place: str) -> u32:
-        let name = place.bytes[1..] if place.length > 0 and place.bytes[0] == '%' else place.bytes
-        if name.length == 0:
-            return types.u64_id
-        if name.length >= 3 and name[0] == 'x' and name[1] == 'm' and name[2] == 'm':
-            return types.f64_id
-        if name[0] == 'd' or name[0] == 's':
-            return types.f64_id if name[0] == 'd' else types.f32_id
-        if name[0] == 'w' or name[0] == 'e':
-            return types.u32_id
-        if name[0] == 'r' and name[name.length - 1] == 'd':
-            return types.u32_id
-        return types.u64_id
+        let r = isa.register_of(self.target.arch, place)
+        if r.is_float:
+            return types.f64_id if r.bits == 64 else types.f32_id
+        return types.u64_id if r.bits == 64 else types.u32_id
 
     ## The architecture's name in `asm ARCH` (§8.9).
     func arch_name() -> str:
-        return "arm64" if self.target.arch == targets.Arch.arm64 else "x86_64"
+        return self.target.arch_name()
 
     # mark: Expressions ========================================================================
 
@@ -4035,10 +4027,7 @@ pub struct Lowerer:
         self.pop_scope()
         try self.f.emit(ir.Op.ret, ir.Class.l, 0, ir.none_ref(), ir.none_ref(), 0)
         try self.end_function()
-        if self.target.os == targets.Os.macos:
-            try self.program_unit.module_asm.push(ir.Text(bytes = "    .section __DATA,__mod_init_func,mod_init_funcs\n    .p2align 3\n    .quad _lb_library_init\n"))
-        else:
-            try self.program_unit.module_asm.push(ir.Text(bytes = "    .section .init_array,\"aw\"\n    .p2align 3\n    .quad lb_library_init\n    .text\n"))
+        self.program_unit.init_function = "lb_library_init"
 
     ## `main`: startup, the arguments, the program's entry, the exit code; or the test runner.
     mutating func entry_function(mode: u32) -> !:
@@ -4412,23 +4401,18 @@ func section_of(d: ast.Node*) -> str:
     return ""
 
 ## The registers of one asm block (§8.9): the ones its operands name, and for each `reg`
-## operand one the compiler chooses, from the caller-saved registers the backend never
-## touches while it moves operands (x11..x15 and d16..d23 on arm64; rdi, rsi, r8, r9, rcx
-## and xmm8..xmm15 on x86_64), skipping any the block names.
+## operand one the compiler chooses, from the scratch registers the instruction set offers
+## (`isa`), skipping any the block names.
 struct AsmRegisters:
     var operands: ast.Node*?[16]
     var places: str[16]
     var count: usize
 
-    static func choose(s: ast.Node*, x86: bool) -> AsmRegisters!:
+    static func choose(s: ast.Node*, arch: targets.Arch) -> AsmRegisters!:
         var chosen = AsmRegisters(operands = [none, none, none, none, none, none, none, none, none, none, none, none, none, none, none, none],
                                   places = ["", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""], count = 0)
-        let arm_ints: str[5] = ["x11", "x12", "x13", "x14", "x15"]
-        let arm_floats: str[8] = ["d16", "d17", "d18", "d19", "d20", "d21", "d22", "d23"]
-        let x86_ints: str[5] = ["%rdi", "%rsi", "%r8", "%r9", "%rcx"]
-        let x86_floats: str[8] = ["%xmm8", "%xmm9", "%xmm10", "%xmm11", "%xmm12", "%xmm13", "%xmm14", "%xmm15"]
-        let ints = x86_ints if x86 else arm_ints
-        let floats = x86_floats if x86 else arm_floats
+        let ints = isa.scratch_ints(arch)
+        let floats = isa.scratch_floats(arch)
         var next_int: usize = 0
         var next_float: usize = 0
         var operand = s.right

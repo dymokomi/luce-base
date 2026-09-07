@@ -1,0 +1,81 @@
+#==============================================================================================
+#
+#   isa - The registers an instruction set lets inline assembly name
+#
+#   DESCRIPTION:
+#       base.md §8.9 lets an asm operand name a register, `x0` or `%rdi`, or write `reg`
+#       for one the compiler chooses. What a name means, whether the register holds a float
+#       and how wide it is, and which registers the compiler may hand out are the
+#       instruction set's facts, so they are decided here, beside the generators, and the
+#       lowerer asks by the target's architecture: it spells no register of its own. The
+#       registers handed out are caller-saved ones the architecture's generator promises
+#       not to touch while it moves an asm block's operands into place; a generator that
+#       changes its scratch registers changes this table with it.
+#
+#==============================================================================================
+
+import back.target as targets
+
+## What a named register carries: a float or an integer, of `bits` bits.
+pub struct Register:
+    pub var is_float: bool
+    pub var bits: u32
+
+let arm64_ints: str[5] = ["x11", "x12", "x13", "x14", "x15"]
+let arm64_floats: str[8] = ["d16", "d17", "d18", "d19", "d20", "d21", "d22", "d23"]
+let x86_64_ints: str[5] = ["%rdi", "%rsi", "%r8", "%r9", "%rcx"]
+let x86_64_floats: str[8] = ["%xmm8", "%xmm9", "%xmm10", "%xmm11", "%xmm12", "%xmm13", "%xmm14", "%xmm15"]
+
+## The integer registers `reg` operands are given, in order.
+pub func scratch_ints(arch: targets.Arch) -> const str[]:
+    if arch == targets.Arch.x86_64:
+        return x86_64_ints
+    return arm64_ints
+
+## The float registers `reg` operands are given, in order.
+pub func scratch_floats(arch: targets.Arch) -> const str[]:
+    if arch == targets.Arch.x86_64:
+        return x86_64_floats
+    return arm64_floats
+
+## The register `place` names on `arch`. arm64: `d` and `s` registers are floats of 64 and
+## 32 bits, `w` registers 32-bit integers, every other name a 64-bit integer. x86_64: an
+## `xmm` register is a 64-bit float, a 32-bit name (`eax`, `r8d`) a 32-bit integer, every
+## other name a 64-bit integer. `sp`, `fp` and `lr` are the integers they are. The leading `%` of AT&T syntax is not part of the name.
+pub func register_of(arch: targets.Arch, place: str) -> Register:
+    let name = place.bytes[1..] if place.length > 0 and place.bytes[0] == '%' else place.bytes
+    if name.length == 0:
+        return Register(is_float = false, bits = 64)
+    if arch == targets.Arch.x86_64:
+        if name.length >= 3 and name[0] == 'x' and name[1] == 'm' and name[2] == 'm':
+            return Register(is_float = true, bits = 64)
+        if name[0] == 'e' or (name[0] == 'r' and name[name.length - 1] == 'd'):
+            return Register(is_float = false, bits = 32)
+        return Register(is_float = false, bits = 64)
+    if (str)name == "sp" or (str)name == "fp" or (str)name == "lr":
+        return Register(is_float = false, bits = 64)
+    if name[0] == 'd':
+        return Register(is_float = true, bits = 64)
+    if name[0] == 's':
+        return Register(is_float = true, bits = 32)
+    if name[0] == 'w':
+        return Register(is_float = false, bits = 32)
+    return Register(is_float = false, bits = 64)
+
+## Whether `arch` is the architecture an `asm ARCH` block names (§8.9).
+pub func is_named(arch: targets.Arch, name: str) -> bool:
+    return name == targets.arch_name(arch)
+
+test "the registers of each architecture":
+    assert(register_of(targets.Arch.arm64, "d3").is_float)
+    assert(register_of(targets.Arch.arm64, "s3").bits == 32)
+    assert(register_of(targets.Arch.arm64, "w7").bits == 32)
+    assert(register_of(targets.Arch.arm64, "x7").bits == 64)
+    assert(register_of(targets.Arch.arm64, "sp").bits == 64)
+    assert(register_of(targets.Arch.x86_64, "%xmm3").is_float)
+    assert(register_of(targets.Arch.x86_64, "%eax").bits == 32)
+    assert(register_of(targets.Arch.x86_64, "%r8d").bits == 32)
+    assert(register_of(targets.Arch.x86_64, "rax").bits == 64)
+    assert(not register_of(targets.Arch.x86_64, "%rsi").is_float)
+    assert(scratch_ints(targets.Arch.arm64).length == 5)
+    assert(scratch_floats(targets.Arch.x86_64)[0] == "%xmm8")

@@ -148,3 +148,43 @@ through a pointer taken earlier is not seen by the interpreter's punning.
 2. **After the release**: `luce fmt`, `luce bind`, `--costs`; x86_64-macos and
    arm64-linux through the `Backend` interface; `Writer?` in the null niche;
    the optimiser's cross-block passes; `luce-ld`; luce-full in Base.
+
+## 7. The target boundary, 2026-09-07
+
+After the second host, a pass over where the native pipeline knows its target. The clean
+parts: the standard library (every target-dependent arm behind `platform`), the front end,
+the IR passes (`inline`, `opt`), the host and bootstrap tooling, the C backend. Six leaks
+were found and closed:
+
+1. **The generator core was duplicated.** Frame layout, slot promotion, live ranges, and
+   the linear-scan allocator were copied between `arm64` and `x86_64`. They are one module
+   now, `back/frame.lucb`, parameterised by the target's callee-saved registers; both
+   generators' output is byte-identical to what they emitted before.
+2. **The lowerer classified for the ABI.** `is_float_only`, `float_count`, and
+   `sse_words` on the IR were arm64's and x86_64's rules computed by the target-neutral
+   lowerer. The IR now carries a *shape*, the scalar leaves of an aggregate, and each
+   generator reads it by its own convention (`hfa` on arm64, `sse_of` on x86_64).
+   Byte-identical output again, after one regression found by the comparison: three
+   argument sites (a text for the memory-site note, the block of an allocator's
+   `resize`/`release`) were built without a shape, and an aggregate without a shape must
+   be opaque bytes, INTEGER class, which `sse_of` now says.
+3. **Assembler text and register tables in the lowerer.** The library's initialiser
+   section was emitted by the lowerer as text, per operating system; the scratch
+   registers for `reg` operands and the width of a named register were tables in the
+   lowerer. The IR names the initialiser (`Unit.init_function`) and the generators place
+   it; the register tables are `back/isa.lucb`, which the lowerer asks by architecture.
+4. **The driver linked by host operating system.** `platform.linux` chose the ELF link.
+   `Target` now says its `Linker` and its system libraries; the driver reads them, and
+   `-arch` is the target's architecture name.
+5. **The pointer's width was the literal 8.** `types.Table.word` is set from the target's
+   `pointer_bits` when the checker takes the target; `usize`, pointers, texts, spans,
+   interface views, and error values are sized by it. The lowerer's offsets for the
+   second word of such values stay literal (see DESIGN.md), the one 64-bit assumption
+   left in the native path.
+6. **The seed's `pkg/platform.cpp` mirrors `Target.module_text`.** That is by design: the
+   seed compiles for its host only and the C preprocessor decides. The rule is written
+   down in DESIGN.md, and the gate's seed stage holds the two to each other through the
+   C fixpoint: the seed-built compiler reads the seed's module as its host.
+
+Also: `--lib` with `--emit=c` or `--emit=asm` writes the library's code as text for any
+target, so a library's initialiser section can be inspected without assembling.

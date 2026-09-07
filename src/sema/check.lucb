@@ -515,8 +515,10 @@ pub struct Checker:
                 cursor = d.next
         try self.modules.push(Module(name = name, tree = tree, src = src, is_prelude = is_prelude))
 
-    ## Parse and add every standard module.
+    ## Parse and add every standard module. The target is settled by now: its word sizes
+    ## the pointer-shaped types (§19.5).
     pub mutating func add_prelude() -> !:
+        self.table.word = (u64)self.build_target.pointer_bits // 8
         for p in prelude.modules:
             var text = p.text
             if p.name == "platform":

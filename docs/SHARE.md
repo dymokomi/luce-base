@@ -5,8 +5,8 @@ Where the Linux work lives:
 
 - `src/back/x86_64.lucb`: the x86_64-linux generator behind the `Backend` interface (`src/back/backend.lucb` picks it by `Target.arch`); `docs/DESIGN.md` describes it.
 - `src/back/target.lucb`: the host is `platform.name`, the compiler's own target; the `section` rule of §9.8.
-- `src/back/lower.lucb`: `sse_words` (the eightbyte classification), `asm` arms by target architecture, the initialiser section by OS.
-- `src/main.lucb`: `link_elf`, the C driver as the Linux linker.
+- `src/back/lower.lucb`: `asm` arms by target architecture (since 0.3.0 the eightbyte classification is the x86_64 generator's reading of the IR's shapes, and the initialiser section is the generator's).
+- `src/main.lucb`: `link_with_driver` (`link_elf` before 0.3.0), the C driver as the Linux linker, chosen by `Target.linker`.
 - `src/back/emit.lucb` and the seed's `src/emit/call.cpp`: `begin_sequence`/`end_sequence`, the §7.1 fix; `float_constant`, the `f64.bits` spelling.
 - `tests/platform/`: the platform suite; `tests/platform/run.sh` is part of the gate.
 

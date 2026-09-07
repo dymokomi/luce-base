@@ -156,12 +156,15 @@ pub struct Type:
 
 pub struct Table:
     var types: list.List[Type]
+    ## The target's word: the size and alignment of a pointer, and so of `usize`, `isize`,
+    ## a text or span (two words), and an error value (three), in bytes (§19.5).
+    pub var word: u64
     ## An open-addressing index from a type's structure to its id + 1 (0 marks an empty
     ## bucket), so `intern` is a lookup rather than a scan over every type so far.
     var index: u32[]
 
     pub static func create() -> Table!:
-        var t = Table(types = try list.List[Type].create(256), index = try alloc u32[1024])
+        var t = Table(types = try list.List[Type].create(256), word = 8, index = try alloc u32[1024])
         zero_index(t.index)
         # id 0 is "no type"; the scalars follow in Kind order
         let seeds: Kind[32] = [Kind.error_, Kind.error_, Kind.never_, Kind.unit_, Kind.bool_, Kind.i8_, Kind.i16_, Kind.i32_, Kind.i64_, Kind.isize_, Kind.u8_, Kind.u16_, Kind.u32_, Kind.u64_, Kind.usize_, Kind.f32_, Kind.f64_, Kind.char_, Kind.str_, Kind.cstr_, Kind.fmt_, Kind.void_, Kind.untyped_int, Kind.untyped_float, Kind.error_code, Kind.error_value, Kind.i8_, Kind.i64_, Kind.u64_, Kind.i32_, Kind.pointer, Kind.f16_]
@@ -348,13 +351,15 @@ pub struct Table:
         let t = self.get(id)
         return t.kind == Kind.optional and self.kind(t.elem) == Kind.interface_
 
-    ## Bits of an integer or float type on the 64-bit host; 0 for anything else.
+    ## Bits of an integer or float type; `isize` and `usize` are the target's word; 0 for
+    ## anything else.
     pub func bits(id: u32) -> u32:
         match self.kind(id):
             .i8_, .u8_: return 8
             .i16_, .u16_: return 16
             .i32_, .u32_: return 32
-            .i64_, .u64_, .isize_, .usize_, .untyped_int: return 64
+            .i64_, .u64_, .untyped_int: return 64
+            .isize_, .usize_: return (u32)(self.word * 8)
             .f16_: return 16
             .f32_: return 32
             .f64_, .untyped_float: return 64
@@ -445,16 +450,16 @@ pub struct Table:
 
     func sized(id: u32, env_decl: ast.Node*?, env_args: u32[]) -> u64:
         if self.is_opaque_handle(id):
-            return 8    # a pointer-shaped handle (§17.1)
+            return self.word    # a pointer-shaped handle (§17.1)
         let t = self.get(id)
         match t.kind:
             .i8_, .u8_, .bool_: return 1
             .i16_, .u16_, .f16_: return 2
             .i32_, .u32_, .f32_, .char_, .error_code: return 4
-            .i64_, .u64_, .isize_, .usize_, .f64_, .untyped_int, .untyped_float: return 8
-            .pointer, .func_, .cstr_: return 8
-            .str_, .span, .interface_, .fmt_: return 16
-            .error_value: return 24
+            .i64_, .u64_, .f64_, .untyped_int, .untyped_float: return 8
+            .isize_, .usize_, .pointer, .func_, .cstr_: return self.word
+            .str_, .span, .interface_, .fmt_: return 2 * self.word
+            .error_value: return 3 * self.word
             .param:
                 let resolved = self.through(id, env_decl, env_args)
                 return 0 if resolved == id else self.sized(resolved, none, no_args_view())
@@ -469,7 +474,7 @@ pub struct Table:
             .fallible:
                 # the value, then the error (a code and a message), then the flag, as C lays them out
                 let inner = self.sized(t.elem, env_decl, env_args) if t.elem != unit_id and t.elem != never_id else 0
-                return round_up(round_up(inner, 8) + 24 + 1, 8)
+                return round_up(round_up(inner, self.word) + 3 * self.word + 1, self.word)
             .tuple:
                 var offset: u64 = 0
                 var largest: u64 = 1
@@ -536,7 +541,7 @@ pub struct Table:
 
     func aligned(id: u32, env_decl: ast.Node*?, env_args: u32[]) -> u64:
         if self.is_opaque_handle(id):
-            return 8
+            return self.word
         let t = self.get(id)
         match t.kind:
             .param:
@@ -549,7 +554,7 @@ pub struct Table:
                     return self.aligned(t.elem, env_decl, env_args)
                 let a = self.aligned(t.elem, env_decl, env_args)
                 return a if a > 0 else 1
-            .fallible: return 8
+            .fallible: return self.word
             .tuple:
                 var widest: u64 = 1
                 for m in t.args:
@@ -579,7 +584,7 @@ pub struct Table:
                             pcursor = p.next
                     cursor = member.next
                 return declared_align(widest, decl)
-            .str_, .span, .interface_, .fmt_, .error_value: return 8
+            .str_, .span, .interface_, .fmt_, .error_value: return self.word
             _:
                 let s = self.sized(id, env_decl, env_args)
                 return s if s > 0 else 1

@@ -414,11 +414,16 @@ pub struct Unit:
     ## The shapes of the aggregates passed and returned, and their leaves.
     pub var shapes: list.List[Shape]
     pub var leaves: list.List[Leaf]
+    ## The function the loader runs when the image is loaded, empty when there is none:
+    ## a library's initialiser (§17.6). The generator places it in its object format's
+    ## initialiser section.
+    pub var init_function: str
 
     pub static func create() -> Unit!:
         return Unit(functions = try list.List[Function].create(64), globals = try list.List[Global].create(32),
                     texts = try list.List[Text].create(64), tables = try list.List[WitnessTable].create(16),
-                    module_asm = try list.List[Text].create(4), shapes = try list.List[Shape].create(64), leaves = try list.List[Leaf].create(256))
+                    module_asm = try list.List[Text].create(4), shapes = try list.List[Shape].create(64), leaves = try list.List[Leaf].create(256),
+                    init_function = "")
 
     ## The index of a text literal, adding it when new.
     ## The leaves of shape `shape` (1-based), empty for 0.

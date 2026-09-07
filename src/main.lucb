@@ -23,7 +23,6 @@ import front.source
 import front.token
 import io
 import memory
-import platform
 import process
 import sema.check
 import support.buffer
@@ -291,8 +290,8 @@ func compile(text: str, exe: str, release: bool, with_start: bool) -> !:
         error(build_failed, "the C compiler rejected the generated code")
     discard(err_path)
 
-## `as` over the assembly, then the target's linker: on macOS `ld` against the system
-## library found through `xcrun`, on Linux the C driver, which knows where the C library,
+## `as` over the assembly, then the target's linker (§19.5): Apple's `ld` against the
+## system library found through `xcrun`, or the C driver, which knows where the C library,
 ## its start files, and the dynamic loader are.
 func assemble_and_link(dir: str, name_bytes: u8[], text: str, exe: str) -> !:
     let asm_path = try format(name_bytes[..<512], f"{dir}/gen.s")
@@ -308,8 +307,9 @@ func assemble_and_link(dir: str, name_bytes: u8[], text: str, exe: str) -> !:
     if as_status != 0:
         try io.stderr().write(as_err)
         error(build_failed, "the assembler rejected the generated code")
-    if platform.linux:
-        try link_elf(dir, object_path, exe)
+    let t = build_target()
+    if t.linker == targets.Linker.c_driver:
+        try link_with_driver(dir, object_path, exe, t)
         return
     let sdk_args: c.str[1] = ["--show-sdk-path"]
     let found = try process.run("xcrun", sdk_args)
@@ -320,14 +320,16 @@ func assemble_and_link(dir: str, name_bytes: u8[], text: str, exe: str) -> !:
     let sdk = try format(name_bytes[1024..<2048], f"{trim(sdk_out)}")
     var ld_args: c.str[40] = ---
     ld_args[0] = "-arch"
-    ld_args[1] = "arm64" if platform.arm64 else "x86_64"
+    ld_args[1] = (c.str)t.arch_name()
     ld_args[2] = "-syslibroot"
     ld_args[3] = (c.str)sdk
-    ld_args[4] = "-lSystem"
-    ld_args[5] = "-o"
-    ld_args[6] = (c.str)exe
-    ld_args[7] = (c.str)object_path
-    var n: usize = 8
+    ld_args[4] = "-o"
+    ld_args[5] = (c.str)exe
+    ld_args[6] = (c.str)object_path
+    var n: usize = 7
+    for library in t.system_libraries:
+        ld_args[n] = (c.str)library
+        n += 1
     if freestanding:
         # the exported `_start` is the entry; its assembler label carries the C underscore
         ld_args[n] = "-e"
@@ -396,11 +398,11 @@ func assemble_and_link(dir: str, name_bytes: u8[], text: str, exe: str) -> !:
         try io.stderr().write(ld_err)
         error(build_failed, "the linker rejected the generated code")
 
-## The ELF link: the C driver over the object, the manifest's sources compiled beside it,
-## the libraries of the build, and the C library and its kin. A freestanding program links
-## no start files and enters at its own `_start`, the C library still beside it as on macOS;
-## `-framework` names nothing on Linux.
-func link_elf(dir: str, object_path: str, exe: str) -> !:
+## The link through the C driver: the object, the manifest's sources compiled beside it,
+## the libraries of the build, and the target's system libraries. A freestanding program
+## links no start files and enters at its own `_start`, the C library still beside it as
+## on macOS; `-framework` names nothing here.
+func link_with_driver(dir: str, object_path: str, exe: str, t: targets.Target) -> !:
     var cc_args: c.str[48] = ---
     cc_args[0] = "-o"
     cc_args[1] = (c.str)exe
@@ -456,10 +458,10 @@ func link_elf(dir: str, object_path: str, exe: str) -> !:
         cc_args[n] = (c.str)flag
         n += 1
         k += 1
-    if n + 2 < cc_args.length:
-        cc_args[n] = "-lm"
-        cc_args[n + 1] = "-lpthread"
-        n += 2
+    for library in t.system_libraries:
+        if n < cc_args.length:
+            cc_args[n] = (c.str)library
+            n += 1
     try run_tool("cc", cc_args[..<n], "the linker rejected the generated code")
 
 ## `build FILE`: check, generate, compile.
@@ -495,6 +497,13 @@ func build_file(path: c.str, options: Options) -> !:
             return
         if options.library:
             let (code, header_text) = try generate_library(path)
+            if options.emit_c:
+                # `--emit=c` or `--emit=asm`: the library's code as text, for any target
+                if options.output.length > 0:
+                    try files.write((c.str)options.output, code.bytes)
+                else:
+                    try io.stdout().write(code)
+                return
             try build_library(code, header_text, options.output if options.output.length > 0 else "library")
             return
         if options.freestanding and not options.native:

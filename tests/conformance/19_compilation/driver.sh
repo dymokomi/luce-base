@@ -27,6 +27,16 @@ for native in "" "--native"; do
     ar t build/conformance.a > /dev/null
     rm -f build/conformance.a build/conformance.h
 done
+# a library's code as text, for any target, with the initialiser the loader runs (§17.6, §19.5)
+$lb build $dir/library.lucb --lib --native --target arm64-macos --emit=asm -o build/conformance.s
+grep -q '__mod_init_func' build/conformance.s
+grep -q '_lb_library_init$' build/conformance.s
+$lb build $dir/library.lucb --lib --native --target x86_64-linux --emit=asm -o build/conformance.s
+grep -q '\.init_array' build/conformance.s
+grep -q ' lb_library_init$' build/conformance.s
+$lb build $dir/library.lucb --lib --target x86_64-windows --emit=c -o build/conformance.c
+grep -q 'twice' build/conformance.c
+rm -f build/conformance.s build/conformance.c
 # `--target NAME`: one arm of a target test survives per target in the emitted C (§19.5, §19.6)
 for pair in "x86_64-linux ARM_LINUX_X86" "arm64-macos ARM_MACOS_ARM64" "arm64-linux ARM_LINUX_ARM64" "x86_64-windows ARM_WINDOWS"; do
     set -- $pair

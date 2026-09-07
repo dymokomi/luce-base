@@ -26,6 +26,21 @@ pub enum Arch as u8:
     arm64 = 1
     x86_64 = 2
 
+## How a target's executable is linked from the assembled object: Apple's `ld` against the
+## SDK `xcrun` finds, or the C driver, which knows the start files, the C library and the
+## dynamic loader of its system.
+pub enum Linker as u8:
+    macho = 1
+    c_driver = 2
+
+## The architecture's name, as `asm ARCH` blocks (§8.9) and `--target` (§19.5) spell it.
+pub func arch_name(arch: Arch) -> str:
+    return "arm64" if arch == Arch.arm64 else "x86_64"
+
+let macos_libraries: str[1] = ["-lSystem"]
+let linux_libraries: str[2] = ["-lm", "-lpthread"]
+let windows_libraries: str[1] = ["-lmsvcrt"]
+
 pub struct Target:
     pub var name: str
     pub var os: Os
@@ -38,8 +53,9 @@ pub struct Target:
     pub var stdin_symbol: str
     pub var stdout_symbol: str
     pub var stderr_symbol: str
-    ## The libraries a program links by default.
-    pub var system_libraries: str
+    ## The linker of the target, and the libraries every program links, as linker arguments.
+    pub var linker: Linker
+    pub var system_libraries: const str[]
 
     ## The target this compiler runs on and emits natively: the one it was built for, which
     ## its own `platform` module names (§19.5).
@@ -51,17 +67,21 @@ pub struct Target:
     pub static func named(name: str) -> Target?:
         if name == "arm64-macos" or name == "x86_64-macos":
             return Target(name = name, os = Os.macos, arch = Arch.arm64 if name == "arm64-macos" else Arch.x86_64, pointer_bits = 64, symbol_prefix = "_",
-                          stdin_symbol = "__stdinp", stdout_symbol = "__stdoutp", stderr_symbol = "__stderrp", system_libraries = "-lSystem")
+                          stdin_symbol = "__stdinp", stdout_symbol = "__stdoutp", stderr_symbol = "__stderrp", linker = Linker.macho, system_libraries = macos_libraries)
         if name == "arm64-linux" or name == "x86_64-linux":
             return Target(name = name, os = Os.linux, arch = Arch.arm64 if name == "arm64-linux" else Arch.x86_64, pointer_bits = 64, symbol_prefix = "",
-                          stdin_symbol = "stdin", stdout_symbol = "stdout", stderr_symbol = "stderr", system_libraries = "-lc -lm -lpthread")
+                          stdin_symbol = "stdin", stdout_symbol = "stdout", stderr_symbol = "stderr", linker = Linker.c_driver, system_libraries = linux_libraries)
         if name == "x86_64-windows":
             return Target(name = name, os = Os.windows, arch = Arch.x86_64, pointer_bits = 64, symbol_prefix = "",
-                          stdin_symbol = "__acrt_iob_func", stdout_symbol = "__acrt_iob_func", stderr_symbol = "__acrt_iob_func", system_libraries = "-lmsvcrt")
+                          stdin_symbol = "__acrt_iob_func", stdout_symbol = "__acrt_iob_func", stderr_symbol = "__acrt_iob_func", linker = Linker.c_driver, system_libraries = windows_libraries)
         return none
 
     pub func is_host() -> bool:
         return self.name == platform.name
+
+    ## The architecture's name (§8.9).
+    pub func arch_name() -> str:
+        return arch_name(self.arch)
 
     ## The `platform` standard module for this target: constants the standard library and,
     ## through `os`, a program branch on. A top-level `let` is a constant (§6.4), so the

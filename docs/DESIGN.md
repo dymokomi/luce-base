@@ -102,10 +102,13 @@ string, an `io.FormatSink` over the buffer being filled, viewed as a `Writer`.
 
 Inline assembly (§8.9) reaches the native backend as `set_reg`, `asm`, and
 `get_reg` instructions over named registers. A `reg` operand's register is
-chosen by the lowerer (`AsmRegisters`): one of x11–x15 or d16–d23, which the
-backend never touches while it moves operands, skipping any the block names
-itself; `{name}` in the text is replaced by that register before the text
-reaches the backend, so the assembler sees plain instructions. The C backend
+chosen by the lowerer from the scratch registers the instruction set offers
+(`back/isa.lucb`: x11–x15 and d16–d23 on arm64, rdi, rsi, r8, r9, rcx and
+xmm8–xmm15 on x86_64), registers the architecture's generator never touches
+while it moves operands, skipping any the block names itself; the same table
+says what a named register carries, so a `w` or `s` register takes a 32-bit
+operand. `{name}` in the text is replaced by that register before the text
+reaches the generator, so the assembler sees plain instructions. The C backend
 instead makes a `reg` operand a named operand and spells `{name}` as
 `%[name]`; the checker refuses a `{name}` that names no `reg` operand.
 
@@ -184,27 +187,49 @@ and a value is a reference plus a type plus whether it is in memory. A
 fallible result is laid out as the value, then the error at the next
 8-byte boundary, then the failed byte, so callers test one byte.
 
-`arm64` turns that into Mach-O assembly text: every temporary has a frame
-slot, arguments and results follow the Apple AAPCS64 classification
-(registers first, aggregates over 16 bytes by reference, the rest on the
-stack), thread-locals go through the TLV descriptor, aggregate copies are
-`memcpy` calls, overflow checks are inline, and atomics are `ldaxr`/`stlxr`
-loops or `dmb` fences. There is no register allocation yet; the output is
-correct first and the allocator comes as a separate pass over the IR.
+The IR knows no target. An argument, parameter, or result that is an
+aggregate carries a *shape*: the list of its scalar leaves, each an offset, a
+size, and a class, walked from the layout the C backend gives the same type
+(fields, tuples, an optional's flag after its value, a fallible's error after
+its value, a payload enum's tag before its union, a text or span as two
+words). A calling convention is a reading of that list, and each generator
+reads it its own way: arm64 asks whether the leaves are one to four floats of
+one width (a homogeneous float aggregate, passed in `d` registers); x86_64
+asks, for each of the first two eightbytes, whether a float leaf covers it
+and no integer leaf touches it (an SSE eightbyte). A shape is recorded once
+per type and shared; an aggregate too large for any register (over 32 bytes)
+has none, and a generator reads no shape as opaque bytes. The IR likewise
+names the function the loader runs when a library is loaded
+(`Unit.init_function`), and each generator places it in its object format's
+initialiser section; and inline assembly's `reg` operands are already
+concrete registers when they reach a generator, as the paragraph on §8.9
+above says.
+
+`frame` is what every generator decides the same way: the frame layout (a
+home below the frame pointer for every slot and every temporary that is not
+promoted), and the register allocation over the callee-saved registers the
+target offers (`Registers`: how many integer and float registers, and how
+many the temporaries may keep), the most-used slots promoted into some,
+temporaries given the rest by linear scan over live ranges, the pressure of
+each class deciding the split. A generator supplies its register counts, its
+frame base, and the names; the module supplies the decisions.
+
+`arm64` turns the IR into Mach-O assembly text: arguments and results follow
+the Apple AAPCS64 classification (registers first, homogeneous float
+aggregates in `d` registers, aggregates over 16 bytes by reference, the rest
+on the stack), promoted slots and temporaries live in x19–x28 and d8–d15,
+thread-locals go through the TLV descriptor, aggregate copies are `memcpy`
+calls, overflow checks are inline, and atomics are `ldaxr`/`stlxr` loops or
+`dmb` fences.
 
 `x86_64` turns the same IR into ELF assembly text in the AT&T syntax, which is
-also what the C backend's inline assembly speaks. The shape is the arm64
-generator's: a home below `rbp` for every slot and spilled temporary, the
-most-used slots promoted into `rbx` and `r12`–`r15`, temporaries given the rest
-by linear scan; the convention saves no SSE register across calls, so floats
-stay in the frame between instructions. Calls follow System V: integers in
-`rdi`, `rsi`, `rdx`, `rcx`, `r8`, `r9`, floats in `xmm0`–`xmm7`, an aggregate of up
-to sixteen bytes split into eightbytes that each take an integer or an SSE
-register by what they hold (the lowerer classifies the first two eightbytes
-of every aggregate type as `sse_words` on the IR's arguments, parameters, and
-results, walking the layout the C backend gives the same type: fields,
-tuples, an optional's flag after its value, a payload enum's tag before its
-union), larger ones copied onto the stack, results in `rax`/`rdx` and
+also what the C backend's inline assembly speaks. Promoted slots and
+temporaries live in `rbx` and `r12`–`r15`; the convention saves no SSE
+register across calls, so floats stay in the frame between instructions.
+Calls follow System V: integers in `rdi`, `rsi`, `rdx`, `rcx`, `r8`, `r9`,
+floats in `xmm0`–`xmm7`, an aggregate of up to sixteen bytes split into
+eightbytes that each take an integer or an SSE register by the shape's
+leaves, larger ones copied onto the stack, results in `rax`/`rdx` and
 `xmm0`/`xmm1` the same way or through a hidden pointer, the SSE register count
 in `al` for a variadic call. Symbols have no prefix; a function's address and
 another image's data go through the GOT and calls through the PLT, so the
@@ -224,13 +249,28 @@ takes 2^63 off first when the value reaches it. Atomics are `lock xadd`,
 The target of a build is in `back/target.lucb`, and the host is the target the
 compiler was itself built for, read from its own `platform` module (§19.5): a
 compiler cross-built with `--target x86_64-linux --emit=c` and compiled there is
-a Linux compiler, natively. The same file spells the rule for `section("name")`
-(§9.8): the name is passed as written, and a Mach-O target, whose sections live
-in segments, places a name without a comma in `__DATA` or `__TEXT`, so
-`.custom` is one spelling for every target. `asm ARCH` blocks and their
-operands are taken for the target's architecture only; the compiler-chosen
-`reg` operands are `rdi`, `rsi`, `r8`, `r9`, `rcx` and `xmm8`–`xmm15` on
-x86_64, registers the generator never touches while it moves operands.
+a Linux compiler, natively. A `Target` is everything the pipeline decides by
+target, decided once: the operating system and the architecture, the word
+(`pointer_bits`, which sizes the pointer-shaped types in the type table), the
+assembler's symbol prefix, the C library's names for the standard streams,
+the linker (`Linker`: Apple's `ld` against the SDK, or the C driver) and the
+system libraries it links, and the text of the `platform` module. The same
+file spells the rule for `section("name")` (§9.8): the name is passed as
+written, and a Mach-O target, whose sections live in segments, places a name
+without a comma in `__DATA` or `__TEXT`, so `.custom` is one spelling for
+every target. `asm ARCH` blocks and their operands are taken for the target's
+architecture only. What the lowerer still assumes is that a word is eight
+bytes: the offsets it computes for the second word of a text or a span, an
+allocator view, or an error value are literal; a 32-bit target would take
+them from the table's word, and nothing else in the native path.
+
+The seed compiler carries one copy of this knowledge: its `pkg/platform.cpp`
+writes the `platform` module for the host it was compiled on, by the C
+preprocessor's own macros, which is the seed's only target. It must say what
+`Target.module_text` says for that host, and the gate's seed stage holds it to
+that: the compiler the seed builds reads its own `platform` module as its
+host, and must emit the same C for the compiler as the snapshot-built one,
+`platform` module included.
 
 Both backends share `names`, so a function's symbol is the same in C and in
 assembly. The native path involves no C at all: what generated code needs by
@@ -238,9 +278,9 @@ name, the trap reporter, text formatting, the conversion and saturation
 families, hashing, UTF-8 validation, and the startup shim's pieces, is the
 `core` module of the prelude, written in Base and compiled with the program;
 `//`, `%`, and the shifts are checked inline in the IR. The driver assembles
-with `as` and links with `ld` against the system library on macOS, and
-through the C driver on Linux, where the start files and the dynamic loader
-are its business. The C backend
+with `as` and links as the target's `Linker` says: `ld` against the system
+library on macOS, the C driver on Linux, where the start files and the
+dynamic loader are its business. The C backend
 keeps `runtime/lucb_rt.c` for the same helpers, so the two backends are two
 implementations of one contract. The native backend closes its own loop
 under the gate: the compiler built natively must emit the same C and the
