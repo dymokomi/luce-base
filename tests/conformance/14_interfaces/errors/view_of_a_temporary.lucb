@@ -1,0 +1,14 @@
+# error: 
+## §14.3, §6.6: a view borrows an object; a temporary has no address.
+interface Shape:
+    func area() -> f64
+
+struct Square: Shape:
+    var side: f64
+
+    func area() -> f64:
+        return self.side * self.side
+
+pub func main(arguments: str[]) -> i32:
+    let v: Shape = &Square(side = 1.0)
+    return 0

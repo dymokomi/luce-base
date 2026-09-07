@@ -1,0 +1,18 @@
+# error: 
+## §14.2: a constrained parameter takes a conforming type.
+interface Shape:
+    func area() -> f64
+
+struct Blob:
+    var mass: f64
+
+    func area() -> f64:
+        return self.mass
+
+func area_of[S: Shape](shape: S) -> f64:
+    return shape.area()
+
+pub func main(arguments: str[]) -> i32:
+    let b = Blob(mass = 1.0)
+    let a = area_of(b)
+    return 0

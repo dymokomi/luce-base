@@ -1,0 +1,12 @@
+# error: 
+## §14.4: Equatable and Hashable are derived structurally and cannot be implemented by hand.
+from luce import Equatable
+
+struct P: Equatable:
+    var x: i64
+
+    func equals(other: P) -> bool:
+        return true
+
+pub func main(arguments: str[]) -> i32:
+    return 0

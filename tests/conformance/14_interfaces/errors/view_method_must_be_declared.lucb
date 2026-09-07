@@ -1,0 +1,19 @@
+# error: 
+## §14.3: a view offers the interface's methods only.
+interface Shape:
+    func area() -> f64
+
+struct Square: Shape:
+    var side: f64
+
+    func area() -> f64:
+        return self.side * self.side
+
+    func perimeter() -> f64:
+        return 4.0 * self.side
+
+pub func main(arguments: str[]) -> i32:
+    var q = Square(side = 1.0)
+    let v: Shape = &q
+    let p = v.perimeter()
+    return 0

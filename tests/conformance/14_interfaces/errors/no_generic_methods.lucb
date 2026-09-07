@@ -1,0 +1,7 @@
+# error: 
+## §14.1: interfaces have no generic methods.
+interface Shape:
+    func scaled[T](factor: T) -> f64
+
+pub func main(arguments: str[]) -> i32:
+    return 0

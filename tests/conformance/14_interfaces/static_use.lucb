@@ -1,0 +1,68 @@
+## §14.2: a constrained generic is statically dispatched and monomorphised; §14.4, §8.3: a
+## user type implements `Iterable` with a value iterator, and `for` consumes it without a view.
+from luce import Iterable, Iterator
+from io import Writer
+
+interface Shape:
+    func area() -> f64
+    mutating func scale(factor: f64)
+
+struct Square: Shape:
+    var side: f64
+
+    func area() -> f64:
+        return self.side * self.side
+
+    mutating func scale(factor: f64):
+        self.side = self.side * factor
+
+func doubled_area[S: Shape](shape: S*) -> f64:
+    shape.scale(2.0)
+    return shape.area()
+
+func area_of[S: Shape](shape: S) -> f64:
+    return shape.area()
+
+func write_twice[W: Writer](writer: W*, text: str) -> !:
+    discard(try writer.write(text.bytes))
+    discard(try writer.write(text.bytes))
+
+struct Counting: Writer:
+    var bytes: usize
+
+    pub mutating func write(data: const u8[]) -> usize!:
+        self.bytes += data.length
+        return data.length
+
+struct Evens: Iterator[u32]:
+    var next_value: u32
+    var limit: u32
+
+    mutating func next() -> u32?:
+        if self.next_value >= self.limit:
+            return none
+        let v = self.next_value
+        self.next_value += 2
+        return v
+
+struct EvensBelow: Iterable[u32, Evens]:
+    var limit: u32
+
+    func iterator() -> Evens:
+        return Evens(next_value = 0, limit = self.limit)
+
+pub func main(arguments: str[]) -> i32!:
+    var q = Square(side = 1.5)
+    print(f"{doubled_area(&q)} {q.side} {area_of(q)}")
+    var counter = Counting(bytes = 0)
+    try write_twice(&counter, "abc")
+    print(f"{counter.bytes}")
+    var sum: u32 = 0
+    var count: u32 = 0
+    for v in EvensBelow(limit = 10):
+        sum += v
+        count += 1
+    for v in EvensBelow(limit = 0):
+        count += 100
+    print(f"{sum} {count}")
+    return 0

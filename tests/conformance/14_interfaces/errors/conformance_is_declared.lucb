@@ -1,0 +1,15 @@
+# error: 
+## §14.1: conformance is declared on the type, never retroactively.
+interface Shape:
+    func area() -> f64
+
+struct Square:
+    var side: f64
+
+    func area() -> f64:
+        return self.side * self.side
+
+pub func main(arguments: str[]) -> i32:
+    var q = Square(side = 1.0)
+    let v: Shape = &q
+    return 0

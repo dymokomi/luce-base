@@ -1,0 +1,14 @@
+# error: 
+## §14.1, §14.3: a non-mutating requirement is supplied by a non-mutating method.
+interface Shape:
+    func area() -> f64
+
+struct Square: Shape:
+    var side: f64
+
+    mutating func area() -> f64:
+        self.side += 1.0
+        return self.side
+
+pub func main(arguments: str[]) -> i32:
+    return 0

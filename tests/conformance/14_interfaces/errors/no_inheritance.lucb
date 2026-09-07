@@ -1,0 +1,10 @@
+# error: 
+## §14.1: interfaces do not inherit.
+interface Shape:
+    func area() -> f64
+
+interface Solid: Shape:
+    func volume() -> f64
+
+pub func main(arguments: str[]) -> i32:
+    return 0

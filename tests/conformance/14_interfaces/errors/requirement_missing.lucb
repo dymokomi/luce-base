@@ -1,0 +1,14 @@
+# error: 
+## §14.1: every requirement is supplied.
+interface Shape:
+    func area() -> f64
+    func perimeter() -> f64
+
+struct Square: Shape:
+    var side: f64
+
+    func area() -> f64:
+        return self.side * self.side
+
+pub func main(arguments: str[]) -> i32:
+    return 0

@@ -3565,6 +3565,12 @@ pub struct Lowerer:
     ## Append one value to the format buffer at `fb`.
     mutating func display(fb: ir.Ref, v: ast.Node*) -> !:
         if v.has(ast.flag_format_sink):
+            # `value.display(__sink)` at a scalar or text: a `Display` parameter instantiated
+            # at a type the compiler displays itself (§14.4)
+            if let receiver = lower_sink_receiver(v):
+                if self.kind(try self.map(receiver.type_id)) != types.Kind.struct_:
+                    try self.display(fb, receiver)
+                    return
             # `value.display(__sink)`: the sink is this buffer; a failed write leaves the
             # buffer over capacity, which `format` reports
             let saved = self.format_sink
@@ -3968,7 +3974,7 @@ pub struct Lowerer:
             var req = iface.body
             while let r = req:
                 if r.kind == ast.Kind.func_:
-                    if let m = check.find_member(d, r.text, ast.Kind.func_):
+                    if let m = check.witness_member(d, r.text):
                         try table.entries.push(try self.function_name(m, try types.no_args(), d, t.args))
                     else:
                         try table.entries.push("")
@@ -3977,6 +3983,15 @@ pub struct Lowerer:
             i += 1
 
 # mark: Helpers ================================================================================
+
+## The receiver of a `value.display(__sink)` call, the value being formatted.
+func lower_sink_receiver(v: ast.Node*) -> ast.Node*?:
+    if v.kind != ast.Kind.call:
+        return none
+    let callee = v.left else return none
+    if callee.kind != ast.Kind.member:
+        return none
+    return callee.left
 
 ## The index of a method among an interface's requirements.
 func method_index(iface: ast.Node*, method: ast.Node*) -> u64:

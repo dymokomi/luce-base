@@ -1,0 +1,13 @@
+# error: 
+## §14.1: an implementation may drop fallibility, never add it.
+interface Shape:
+    func area() -> f64
+
+struct Square: Shape:
+    var side: f64
+
+    func area() -> f64!:
+        return self.side
+
+pub func main(arguments: str[]) -> i32:
+    return 0

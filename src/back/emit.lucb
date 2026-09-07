@@ -4897,6 +4897,12 @@ pub struct Emitter:
     ## Append one value to the format buffer temporary `prefix n`.
     mutating func display(n: u32, prefix: str, v: ast.Node*) -> !:
         if v.has(ast.flag_format_sink):
+            # `value.display(__sink)` at a scalar or text: a `Display` parameter instantiated
+            # at a type the compiler displays itself (§14.4)
+            if let receiver = sink_receiver(v):
+                if self.kind(try self.map(receiver.type_id)) != types.Kind.struct_:
+                    try self.display(n, prefix, receiver)
+                    return
             # `value.display(__sink)`: the sink is this buffer
             let saved_prefix = self.sink_prefix
             let saved_index = self.sink_index
@@ -5395,7 +5401,7 @@ pub struct Emitter:
                     try self.put_type(try self.map(q.type_id))
                     p = q.next
                 try self.put("))")
-                if let m = check.find_member(d, r.text, ast.Kind.func_):
+                if let m = check.witness_member(d, r.text):
                     try self.put_func_name(m, try types.no_args(), d, t.args)
                 else:
                     try self.put("NULL")
@@ -5765,6 +5771,15 @@ func displays_a_field(f: ast.Node*) -> bool:
             return true
         part = p.next
     return false
+
+## The receiver of a `value.display(__sink)` call, the value being formatted.
+func sink_receiver(v: ast.Node*) -> ast.Node*?:
+    if v.kind != ast.Kind.call:
+        return none
+    let callee = v.left else return none
+    if callee.kind != ast.Kind.member:
+        return none
+    return callee.left
 
 ## The C spelling of one of the `c` module's distinct types (base.md §5.2).
 func c_spelling(id: u32) -> str:

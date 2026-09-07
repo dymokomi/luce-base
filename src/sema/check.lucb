@@ -793,6 +793,8 @@ pub struct Checker:
                         pcursor = p.next
                     m.type_id = d.type_id
                 .func_:
+                    if d.kind == ast.Kind.interface_ and generic_params_of(m) != none:
+                        discard(try self.fail(m, "an interface has no generic methods (§14.1)"))
                     try self.resolve_function(m)
                 _:
                     discard(0)
@@ -859,6 +861,9 @@ pub struct Checker:
 
     ## Resolve a written type (§5, §21) to its id, recording it on the node.
     pub mutating func resolve_type(t: ast.Node*) -> u32!:
+        # a type node resolved once keeps its type; the checker re-reads calls it rewrites
+        if t.type_id != types.none_id and t.kind == ast.Kind.type_:
+            return t.type_id
         var id = types.none_id
         if t.has(ast.flag_func_type):
             let n = ast.count(t.body)
@@ -947,12 +952,12 @@ pub struct Checker:
         else:
             let dot = find_byte(t.text, '.')
             if dot >= t.text.length:
-                return try self.fail(t, "unknown type")
+                return try self.unknown_type(t)
             let head = (str)t.text.bytes[..<dot]
             let rest = (str)t.text.bytes[dot + 1..]
-            let mb = self.lookup(head) else return try self.fail(t, "unknown type")
+            let mb = self.lookup(head) else return try self.unknown_type(t)
             self.note_origin(mb)
-            let module = mb.decl else return try self.fail(t, "unknown type")
+            let module = mb.decl else return try self.unknown_type(t)
             if module.kind != ast.Kind.module:
                 return try self.fail(t, "that is not a module")
             if self.is_c_module(module) and c_type_id(rest) != types.none_id:
@@ -1242,6 +1247,9 @@ pub struct Checker:
             return false
         if t.kind == types.Kind.interface_:
             if s.kind == types.Kind.pointer:
+                # a `mutating` requirement needs the conformer addressable as `var` (§14.3)
+                if s.is_const and self.interface_mutates(want):
+                    return false
                 return self.conforms(s.elem, want)
             return false
         if t.kind == types.Kind.func_ and s.kind == types.Kind.func_:
@@ -1285,6 +1293,20 @@ pub struct Checker:
             return true
         let r = self.table.get(t.elem)
         return r.kind == types.Kind.fallible and r.elem == s.elem
+
+    func unknown_type(t: ast.Node*) -> never!:
+        var text: u8[256]
+        return try self.fail(t, try format(text, f"unknown type `{t.text}`"))
+
+    ## Whether any requirement of interface `iface` is `mutating`.
+    func interface_mutates(iface: u32) -> bool:
+        let d = self.table.get(iface).decl else return false
+        var cursor = d.body
+        while let m = cursor:
+            if m.kind == ast.Kind.func_ and m.has(ast.flag_mutating):
+                return true
+            cursor = m.next
+        return false
 
     ## Does struct or enum `id` declare conformance to interface `iface`?
     func conforms(id: u32, iface: u32) -> bool:
@@ -1590,10 +1612,16 @@ pub struct Checker:
 
     ## A struct that is `Display` (§14.4) shows itself in a formatted string.
     func displays_itself(id: u32) -> bool:
+        let iface = self.standard_type("luce", "Display")
+        if iface == types.none_id:
+            return false
+        if self.table.kind(id) == types.Kind.param:
+            # a parameter bound by `Display` writes itself through the sink; the instantiation
+            # supplies the how, a struct's own `display` or the compiler's for a scalar
+            return self.has_written_constraint(id, iface)
         if self.table.kind(id) != types.Kind.struct_:
             return false
-        let iface = self.standard_type("luce", "Display")
-        return iface != types.none_id and self.conforms(id, iface)
+        return self.conforms(id, iface)
 
     ## The type of a standard module's declaration, `io.Writer`; `none_id` when absent.
     pub func standard_type(module: str, name: str) -> u32:
@@ -1629,8 +1657,7 @@ pub struct Checker:
             return true
         if t.kind == types.Kind.pointer or t.kind == types.Kind.enum_:
             return true
-        # a type parameter formats only under `Display` (§13.1)
-        return t.kind == types.Kind.param and self.constraint_has(id, self.standard_type("luce", "Display"))
+        return false
 
     mutating func literal_type(e: ast.Node*, hint: u32) -> u32!:
         let b = e.text.bytes
@@ -1849,6 +1876,8 @@ pub struct Checker:
                 return try self.fail(e, "cannot take the address of a literal")
             if inner.has(ast.flag_type_ref):
                 return try self.fail(e, "cannot take the address of a type")
+            if not is_place(inner):
+                return try self.fail(e, "cannot take the address of a temporary; bind it first")
             if self.is_packed_field(inner):
                 return try self.fail(e, "a packed field's address is not taken unless its alignment is one (§5.11)")
             if self.place_is_local(inner):
@@ -1946,6 +1975,9 @@ pub struct Checker:
             discard(try self.coerce(r, rt, context))
             t = context
         if op == "==" or op == "!=":
+            # `x == none` asks whether an optional holds a value, whatever the payload (§11.1)
+            if (is_none_literal(l) or is_none_literal(r)) and self.table.kind(t) == types.Kind.optional:
+                return types.bool_id
             if not self.comparable(t):
                 return try self.fail(e, "these values have no equality")
             return types.bool_id
@@ -4126,16 +4158,80 @@ pub struct Checker:
         while let l = listed:
             let it = self.table.get(l.type_id)
             let iface = it.decl else return try self.fail(l, "no interface")
+            if iface.has(ast.flag_builtin) and (iface.text == "Equatable" or iface.text == "Hashable"):
+                return try self.fail(l, "this protocol is derived from the fields; it is not implemented by hand (§14.4)")
             var req = iface.body
             while let r = req:
                 let m = find_member(d, r.text, ast.Kind.func_) else return try self.fail(l, "a required method is missing")
-                let want = try self.substitute(r.type_id, iface, it.args)
+                var want = try self.substitute(r.type_id, iface, it.args)
+                if is_derived_bound(iface):
+                    # `compare(other: void*)` in the prelude is `compare(other: Self)` here
+                    want = try self.with_self_arguments(want, d.type_id)
                 if not self.signature_matches(m.type_id, want):
                     return try self.fail(m, "this method does not match the interface's signature")
-                if r.has(ast.flag_mutating) != m.has(ast.flag_mutating) and not r.has(ast.flag_mutating):
-                    return try self.fail(m, "the interface declares this method non-mutating")
+                if r.has(ast.flag_mutating) != m.has(ast.flag_mutating):
+                    return try self.fail(m, "the interface declares this method mutating" if r.has(ast.flag_mutating) else "the interface declares this method non-mutating")
+                if r.has(ast.flag_fallible) and not m.has(ast.flag_fallible):
+                    try self.witness_thunk(d, m, r, want)
                 req = r.next
             listed = l.next
+
+    ## A hidden fallible method `__wit_name` that calls the non-fallible implementation `m`
+    ## and answers its result as the requirement's `T!`: what the witness table points at, so
+    ## a call through a view has the ABI the requirement declares (§14.1, §14.3).
+    mutating func witness_thunk(d: ast.Node*, m: ast.Node*, r: ast.Node*, want: u32) -> !:
+        var name_bytes = try alloc u8[r.text.length + 8]
+        let fn = try ast.Node.make(ast.Kind.func_, try format(name_bytes, f"__wit_{r.text}"), m.start, m.line)
+        fn.flags |= ast.flag_lambda | ast.flag_referenced | ast.flag_fallible | (m.flags & ast.flag_mutating) | ast.flag_pub
+        fn.type_id = want
+        var params: ast.Node*? = none
+        var params_tail: ast.Node*? = none
+        var args: ast.Node*? = none
+        var args_tail: ast.Node*? = none
+        var cursor = m.right
+        while let p = cursor:
+            let np = try ast.Node.make(ast.Kind.param, p.text, m.start, m.line)
+            np.type_id = p.type_id
+            np.ty = p.ty
+            ast.append(&params, &params_tail, np)
+            let use = try ast.Node.make(ast.Kind.name, p.text, m.start, m.line)
+            use.type_id = p.type_id
+            use.resolved = np
+            let a = try ast.Node.make(ast.Kind.argument, "", m.start, m.line)
+            a.left = use
+            a.type_id = p.type_id
+            ast.append(&args, &args_tail, a)
+            cursor = p.next
+        fn.right = params
+        let receiver = try ast.Node.make(ast.Kind.self_, "self", m.start, m.line)
+        receiver.type_id = d.type_id
+        let callee = try ast.Node.make(ast.Kind.member, m.text, m.start, m.line)
+        callee.left = receiver
+        callee.type_id = m.type_id
+        callee.resolved = m
+        let call = try ast.Node.make(ast.Kind.call, "", m.start, m.line)
+        call.left = callee
+        call.body = args
+        call.resolved = m
+        let result = self.table.get(m.type_id).elem
+        call.type_id = result
+        let block = try ast.Node.make(ast.Kind.block, "", m.start, m.line)
+        if result == types.unit_id:
+            let stmt = try ast.Node.make(ast.Kind.expr_stmt, "", m.start, m.line)
+            stmt.left = call
+            block.body = stmt
+        else:
+            let ret = try ast.Node.make(ast.Kind.return_, "", m.start, m.line)
+            ret.left = call
+            ret.type_id = types.never_id
+            block.body = ret
+        fn.body = block
+        var tail: ast.Node*? = none
+        var last = d.body
+        while let n = last:
+            tail = n
+            last = n.next
+        ast.append(&d.body, &tail, fn)
 
     ## Parameters equal; the implementation may be non-fallible where the requirement is fallible.
     func signature_matches(have: u32, want: u32) -> bool:
@@ -4527,6 +4623,42 @@ func compare_constants(op: str, a: u64, b: u64, signed: bool) -> bool?:
     if op == ">=":
         return (sa >= sb) if signed else (a >= b)
     return none
+
+## The method a witness table points at for requirement `name` of `d`: the hidden fallible
+## thunk when the implementation is not fallible, else the implementation itself.
+pub func witness_member(d: ast.Node*, name: str) -> ast.Node*?:
+    var cursor = d.body
+    while let m = cursor:
+        if m.kind == ast.Kind.func_ and m.has(ast.flag_lambda) and m.text.length == name.length + 6 and ends_with_name(m.text, name):
+            return m
+        cursor = m.next
+    return find_member(d, name, ast.Kind.func_)
+
+func ends_with_name(text: str, name: str) -> bool:
+    let t = text.bytes
+    let n = name.bytes
+    if t.length < n.length + 6:
+        return false
+    if (str)t[..<6] != "__wit_":
+        return false
+    return (str)t[6..] == name
+
+func is_none_literal(e: ast.Node*) -> bool:
+    return e.kind == ast.Kind.literal and e.text == "none"
+
+## A place: something with an address (§6.6): a name, `self`, a member, an element, a
+## dereference, or one of those in parentheses.
+func is_place(e: ast.Node*) -> bool:
+    match e.kind:
+        .name, .self_, .member, .index:
+            return true
+        .group:
+            let inner = e.left else return false
+            return is_place(inner)
+        .unary:
+            return e.text == "*"
+        _:
+            return false
 
 ## Whether a handler's every path ends in `recover`, `return`, `error`, `trap`, `break`, or
 ## `continue` (§11.4).
@@ -5043,6 +5175,16 @@ test "a type parameter may not take the name of a type in scope":
 
 test "a generic that nests its own parameter in a recursive call is an infinite chain":
     try expect_error("struct Pair[A, B]:\n    var first: A\n    var second: B\nfunc grow[T](depth: T) -> i64:\n    return grow(Pair[T, T](first = depth, second = depth))\n", "infinite chain")
+
+test "a mutating view needs a var; a view comes from a pointer; a temporary has no address":
+    try expect_error("interface Shape:\n    mutating func scale(f: f64)\nstruct Q: Shape:\n    var s: f64\n    mutating func scale(f: f64):\n        self.s = f\nfunc f() -> unit:\n    let q = Q(s = 1.0)\n    let v: Shape = &q\n    v.scale(2.0)\n", "expected `Shape`")
+    try expect_ok("interface Shape:\n    func area() -> f64\nstruct Q: Shape:\n    var s: f64\n    func area() -> f64:\n        return self.s\nfunc f() -> f64:\n    let q = Q(s = 1.0)\n    let v: Shape = &q\n    return v.area()\n")
+    try expect_error("struct Q:\n    var s: f64\nfunc f() -> Q*:\n    return &Q(s = 1.0)\n", "address of a temporary")
+
+test "interfaces have no generic methods; Equatable is not written by hand; mutating is exact":
+    try expect_error("interface Shape:\n    func scaled[T](f: T) -> f64\n", "no generic methods")
+    try expect_error("from luce import Equatable\nstruct P: Equatable:\n    var x: i64\n    func equals(other: P) -> bool:\n        return true\n", "not implemented by hand")
+    try expect_error("interface Sink:\n    mutating func put(v: i64)\nstruct S: Sink:\n    var n: i64\n    func put(v: i64):\n        discard(v)\n", "declares this method mutating")
 
 test "generics infer from arguments and substitute results":
     try expect_ok("func first[T](values: const T[]) -> T?:\n    if values.length == 0:\n        return none\n    return values[0]\nfunc f() -> i64:\n    let xs: i64[3] = [1, 2, 3]\n    let v = first(xs) else return 0\n    return v\n")

@@ -1,0 +1,12 @@
+# error: 
+## §14.4: Display is `func display(sink: Writer) -> !`.
+from luce import Display
+
+struct P: Display:
+    var x: i64
+
+    func display() -> str:
+        return "p"
+
+pub func main(arguments: str[]) -> i32:
+    return 0

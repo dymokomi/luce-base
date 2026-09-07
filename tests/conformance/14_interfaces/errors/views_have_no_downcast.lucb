@@ -1,0 +1,16 @@
+# error: 
+## §14.3: there is no downcast; recover a concrete type with an enum.
+interface Shape:
+    func area() -> f64
+
+struct Square: Shape:
+    var side: f64
+
+    func area() -> f64:
+        return self.side * self.side
+
+pub func main(arguments: str[]) -> i32:
+    var q = Square(side = 1.0)
+    let v: Shape = &q
+    let back = (Square*)v
+    return 0

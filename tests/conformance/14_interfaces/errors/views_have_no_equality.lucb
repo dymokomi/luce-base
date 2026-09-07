@@ -1,0 +1,17 @@
+# error: 
+## §14.3: there is no equality on views.
+interface Shape:
+    func area() -> f64
+
+struct Square: Shape:
+    var side: f64
+
+    func area() -> f64:
+        return self.side * self.side
+
+pub func main(arguments: str[]) -> i32:
+    var q = Square(side = 1.0)
+    let a: Shape = &q
+    let b: Shape = &q
+    let same = a == b
+    return 0

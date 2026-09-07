@@ -1,0 +1,42 @@
+## §14.4: `Display` writes a value to the sink a formatted string offers; `Comparable` is
+## implemented with `compare`; `Writer` is the standard sink and `io.stdout()` answers one;
+## `Equatable` and `Hashable` are derived structurally, never implemented by hand.
+from luce import Comparable, Display
+from io import Writer
+import io
+
+struct Version: Comparable, Display:
+    var major: u32
+    var minor: u32
+
+    func compare(other: Version) -> i64:
+        if self.major != other.major:
+            return (i64)self.major - (i64)other.major
+        return (i64)self.minor - (i64)other.minor
+
+    func display(sink: Writer) -> !:
+        discard(try sink.write(f"v{self.major}.{self.minor}"))
+
+func newest[T: Comparable](a: T, b: T) -> T:
+    return a if a.compare(b) >= 0 else b
+
+func describe[T: Display](value: T, buffer: u8[]) -> str!:
+    return try format(buffer, f"<{value}>")
+
+struct Pair:
+    var a: Version
+    var b: Version
+
+pub func main(arguments: str[]) -> i32!:
+    let old = Version(major = 1, minor = 9)
+    let fresh = Version(major = 2, minor = 0)
+    print(f"{newest(old, fresh)} {newest(3, 2)} {newest("b", "a")}")
+    var buffer: u8[32]
+    print(try describe(old, buffer))
+    print(try describe(7, buffer))
+    let out: Writer = io.stdout()
+    let n = try out.write("direct\n")
+    print(f"{n} {old == Version(major = 1, minor = 9)} {old != fresh} {hash(old) == hash(Version(major = 1, minor = 9))}")
+    let pair = Pair(a = old, b = fresh)
+    print(f"{pair.a} and {pair.b} {pair == Pair(a = old, b = fresh)}")
+    return 0

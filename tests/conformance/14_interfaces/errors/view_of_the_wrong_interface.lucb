@@ -1,0 +1,18 @@
+# error: 
+## §14.3: a view needs the object's type to implement that interface.
+interface Shape:
+    func area() -> f64
+
+interface Named:
+    func name() -> str
+
+struct Square: Shape:
+    var side: f64
+
+    func area() -> f64:
+        return self.side * self.side
+
+pub func main(arguments: str[]) -> i32:
+    var q = Square(side = 1.0)
+    let v: Named = &q
+    return 0

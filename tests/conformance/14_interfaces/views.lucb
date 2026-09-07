@@ -1,0 +1,94 @@
+## §14.1, §14.3: conformance is declared on the type; a view is two words formed from `T*`
+## (or `const T*` when nothing mutates), dispatching through a table; a view is copied, stored
+## in arrays and optionals (`Shape?` uses the null niche), and reaches the object it borrows.
+interface Shape:
+    func area() -> f64
+    mutating func scale(factor: f64)
+
+interface Named:
+    func name() -> str
+
+interface Sink:
+    mutating func put(value: i64) -> !
+
+struct Circle: Shape, Named:
+    var radius: f64
+
+    func area() -> f64:
+        return 3.0 * self.radius * self.radius
+
+    mutating func scale(factor: f64):
+        self.radius = self.radius * factor
+
+    func name() -> str:
+        return "circle"
+
+struct Square: Shape:
+    var side: f64
+
+    func area() -> f64:
+        return self.side * self.side
+
+    mutating func scale(factor: f64):
+        self.side = self.side * factor
+
+struct Total: Sink:
+    var sum: i64
+
+    mutating func put(value: i64):
+        self.sum += value
+
+func total_area(shapes: const Shape[]) -> f64:
+    var sum: f64 = 0.0
+    for s in shapes:
+        sum += s.area()
+    return sum
+
+func grow(s: Shape):
+    s.scale(2.0)
+
+func label(n: Named) -> str:
+    return n.name()
+
+func pick(shapes: const Shape[], index: usize) -> Shape?:
+    if index >= shapes.length:
+        return none
+    return shapes[index]
+
+pub func main(arguments: str[]) -> i32!:
+    var c = Circle(radius = 1.0)
+    var q = Square(side = 2.0)
+    let shapes: Shape[2] = [&c, &q]
+    print(f"{total_area(shapes)}")
+    grow(shapes[0])
+    let view: Shape = &q
+    view.scale(0.5)
+    print(f"{c.radius} {q.side} {total_area(shapes)}")
+
+    let p: Circle* = &c
+    let through_pointer: Shape = p
+    let copy = through_pointer
+    copy.scale(0.5)
+    print(f"{c.radius} {through_pointer.area()}")
+
+    let fixed = Circle(radius = 3.0)
+    let named: Named = &fixed
+    print(f"{label(named)} {label(&c)}")
+
+    let some = pick(shapes, 1)
+    let missing = pick(shapes, 9)
+    if let s = some:
+        print(f"{s.area()} {missing == none} {sizeof(Shape) == 2 * sizeof(void*)}")
+
+    var t = Total(sum = 0)
+    let sink: Sink = &t
+    try sink.put(4)
+    try sink.put(5)
+    print(f"{t.sum}")
+
+    let heap = try new Square(side = 4.0)
+    defer free(heap)
+    let on_heap: Shape = heap
+    on_heap.scale(0.25)
+    print(f"{heap.side} {on_heap.area()}")
+    return 0

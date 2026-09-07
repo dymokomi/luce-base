@@ -1,0 +1,19 @@
+# error: 
+## §14.3: a `mutating` requirement needs the conformer addressable as `var`.
+interface Shape:
+    func area() -> f64
+    mutating func scale(factor: f64)
+
+struct Square: Shape:
+    var side: f64
+
+    func area() -> f64:
+        return self.side * self.side
+
+    mutating func scale(factor: f64):
+        self.side = self.side * factor
+
+pub func main(arguments: str[]) -> i32:
+    let q = Square(side = 1.0)
+    let v: Shape = &q
+    return 0

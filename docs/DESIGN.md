@@ -416,4 +416,15 @@ checker rule for a call nesting its own parameter), and an optional `str`
 compared with C's `==`; in the seed, instantiations checked among the caller's
 locals, `Pair[B, A]` inside `Pair[A, B]`, inference blind to function types,
 `compare` and `Display` under bounds, a zero value assumed for `T`, and a chain
-that grew names until memory ran out.
+that grew names until memory ran out. Chapter 14 found a mutating view formed
+from a `let`, `view == none` refused, a generic method accepted in an
+interface, a `mutating` mismatch tolerated in one direction, and the address of
+a temporary taken, a non-fallible implementation of a fallible requirement
+entered in the witness table as it was (the native call read a result that was
+never written; `witness_thunk` now supplies the fallible entry), a `Display`
+parameter formatted as a scalar (now `value.display(__sink)`, with the backends
+falling back to the compiler's display at a scalar instantiation), and a call
+the checker rewrites re-resolving its inferred type arguments; in the seed, no
+optional views at all, views formed from values, `Comparable` unnameable, and a
+struct's `compare` bypassed for the scalar intrinsic. Still open: `Writer?` is
+a tagged optional in this compiler, not the null niche §14.3 promises.

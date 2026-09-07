@@ -1,0 +1,8 @@
+# error: 
+## §14.1, §14.3: an interface is not constructed.
+interface Shape:
+    func area() -> f64
+
+pub func main(arguments: str[]) -> i32:
+    let s = Shape()
+    return 0
