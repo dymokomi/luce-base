@@ -5,6 +5,20 @@
 release is a VERSION bump, a tag `luce-base-N`, and a push, the way luce-seed does it
 (`bootstrap/SEED` pins the seed the tree is built against).
 
+## 0.11.2
+
+- A thirty-minute fuzz run after 0.11.1 (`tools/fuzz.py --minutes 30`), fixed with a test
+  each: a constant condition folded a cast as if it were transparent, so `if (i64)(u8)-864
+  >= -639:` dropped its branch where the program's value is 160 and the seed took it (the
+  folder now converts to the cast's type, §7.5); an identifier of five thousand bytes
+  overflowed the diagnostic's buffer and was reported without a position, so an identifier
+  is now at most 128 bytes (§3.1, both compilers, luce-seed-0.51) and the buffers quoting
+  one hold it; an array length beyond `u64` was reported without a position; and a file
+  whose name is not an identifier, `bad-name.lucb`, reached the assembler as a bad symbol
+  where it is now refused at `1:1` (§16.1). The generator named a loop counter `i8`, which
+  §3.5 reserves; it counts as `idx8` now.
+- Pinned to luce-seed-0.51.
+
 ## 0.11.1
 
 - `tools/fuzz.py`: mutated programs must be accepted or rejected with a positioned

@@ -1,0 +1,22 @@
+## §7.5, §11.6: a constant condition folds at compile time, and a cast in it converts the
+## value as the program would: `(u8)-864` is 160, `(i8)200` is -56, `(bool)3` is `true`.
+pub func main(arguments: str[]) -> i32:
+    var a = 0
+    if (i64)(u8)-864 >= -639:
+        a = 1
+    var b = 0
+    if (i64)(u8)-864 == 160:
+        b = 1
+    var c = 0
+    if (i8)200 < 0:
+        c = 1
+    var d = 0
+    if (bool)3:
+        d = 1
+    var e = 0
+    while (u16)65536 == 0:
+        e += 1
+        break
+    let f = (i64)(u8)-864 >= -639
+    print(f"{a} {b} {c} {d} {e} {f}")
+    return 0

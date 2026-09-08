@@ -558,7 +558,11 @@ pub struct Checker:
         let tree = try p.parse_module()
         if is_standard_module(name):
             let half = self.scratch.length // 2
-            let message = try format(self.scratch[..<half], f"{text}: a module cannot take a standard module's name")
+            let message = try format(self.scratch[..<half], f"{text}:1:1: a module cannot take a standard module's name")
+            error(unknown_name, message)
+        if not is_identifier(module_name_of(text)):
+            let half = self.scratch.length // 2
+            let message = try format(self.scratch[..<half], f"{text}:1:1: a module's file name is an identifier (§16.1)")
             error(unknown_name, message)
         if self.find_module(name) != none:
             return
@@ -1277,7 +1281,9 @@ pub struct Checker:
     ## An array length: a literal, a constant name, `sizeof`, or arithmetic on those.
     mutating func constant_length(e: ast.Node*) -> u64!:
         if e.kind == ast.Kind.literal:
-            return try decode_integer(e.text)
+            let value = decode_integer(e.text) catch failure:
+                return try self.fail(e, "integer literal does not fit")
+            return value
         if e.kind == ast.Kind.group:
             let inner = e.left else return 0
             return try self.constant_length(inner)
@@ -1624,7 +1630,7 @@ pub struct Checker:
             var bound = g.body
             while let constraint = bound:
                 if not self.satisfies(args[i], constraint.type_id):
-                    var text: u8[256]
+                    var text: u8[512]
                     var name: str = "the constraint"
                     if let iface = self.table.get(constraint.type_id).decl:
                         name = iface.text
@@ -2130,9 +2136,14 @@ pub struct Checker:
                 let v = decode_integer(e.text) catch failure:
                     return none
                 return v
-            .group, .cast:
+            .group:
                 let inner = e.left else return none
                 return self.constant_u64(inner)
+            .cast:
+                # `(u8)-864` is 160, `(i8)200` is -56: the value converted to the cast's type
+                let inner = e.left else return none
+                let v = self.constant_u64(inner) else return none
+                return self.converted_constant(v, e.type_id)
             .unary:
                 let inner = e.left else return none
                 let v = self.constant_u64(inner) else return none
@@ -2175,6 +2186,22 @@ pub struct Checker:
                 return self.constant_u64(l if truth else r)
             _:
                 return none
+
+    ## A constant converted to an integer or `bool` type (§7.5): truncated to the width, then
+    ## sign-extended when the type is signed, so the sixty-four-bit fold reads it back right.
+    func converted_constant(v: u64, target: u32) -> u64?:
+        if target == types.bool_id:
+            return 1 if v != 0 else 0
+        if not self.table.is_integer(target):
+            return none
+        let bits = self.table.bits(target)
+        if bits >= 64:
+            return v
+        let mask = ((u64)1 << bits) - 1
+        var out = v & mask
+        if self.table.is_signed(target) and (out >> (bits - 1)) != 0:
+            out |= ~mask
+        return out
 
     ## The truth of a constant condition (§11.6): the literals, top-level `let`s of `bool`
     ## such as `os.arm64`, `not`, `and`, `or`, and comparisons of constant integers, signed
@@ -5629,6 +5656,22 @@ pub func module_name_of(path: str) -> str:
             end = i
         i += 1
     return (str)b[start..<end]
+
+## A module's name is spelled like any other name: a letter or `_`, then letters, digits,
+## or `_` (§3.1, §16.1).
+pub func is_identifier(name: str) -> bool:
+    let b = name.bytes
+    if b.length == 0:
+        return false
+    var i: usize = 0
+    while i < b.length:
+        let byte = b[i]
+        let letter = (byte >= 'a' and byte <= 'z') or (byte >= 'A' and byte <= 'Z') or byte == '_'
+        let digit = byte >= '0' and byte <= '9'
+        if not letter and not (digit and i > 0):
+            return false
+        i += 1
+    return true
 
 ## `dir/name.lucb` -> `dir/`; a bare name yields the empty string.
 ## `a/b/` for `a/b/c/`, `` for `c/`.

@@ -240,7 +240,7 @@ class Gen:
             elif k == 6 and depth > 0:
                 n = r.randint(1, 20)
                 self.loops += 1
-                name = f"i{self.loops}"
+                name = f"idx{self.loops}"
                 lines.append(f"{pad}var {name}: i64 = 0")
                 lines.append(f"{pad}while {name} < {n}:")
                 lines += self.statements(depth - 1, indent + 1)

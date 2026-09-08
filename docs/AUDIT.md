@@ -64,7 +64,11 @@ deterministic pass; `tools/fuzz.py --minutes M` runs longer, and findings land u
 `build/fuzz/`. Its first hour found four defects, each now a test: a lexer diagnostic
 without its file, a self-assignment and a self-comparison the C compiler refused, a
 recursive alias that recursed the checker off its stack, and a bracket depth that
-trapped instead of reporting.
+trapped instead of reporting. Its first thirty-minute run after that (0.11.2) found four
+more: a constant condition folding a cast as transparent, an identifier long enough to
+overflow the diagnostic quoting it (an identifier is now at most 128 bytes, §3.1), an array
+length beyond `u64` reported without a position, and a file name that was no identifier
+reaching the assembler as a symbol.
 
 ## Known and accepted
 

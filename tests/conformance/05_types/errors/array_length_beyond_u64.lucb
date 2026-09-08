@@ -1,0 +1,4 @@
+# error: integer literal does not fit
+pub func main(arguments: str[]) -> i32:
+    var a: u8[18446744073709551616]
+    return 0

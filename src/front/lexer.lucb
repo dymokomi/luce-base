@@ -19,6 +19,9 @@ import front.token
 pub let bad_indent: ErrorCode = ErrorCode.package(3)
 pub let unterminated: ErrorCode = ErrorCode.package(4)
 pub let bad_character: ErrorCode = ErrorCode.package(5)
+
+## The longest identifier (§3.1): a diagnostic quoting one fits its buffer.
+pub let longest_name: usize = 128
 pub let tab: ErrorCode = ErrorCode.package(6)
 
 let max_blocks: usize = 64
@@ -360,6 +363,8 @@ pub struct Lexer:
                 return try self.quoted(token.Kind.bytes if c == 'b' else token.Kind.raw, start, triple, c == 'r')
             while self.is_letter(self.peek()) or self.is_digit(self.peek()):
                 self.offset += 1
+            if self.offset - start > longest_name:
+                error(bad_character, "an identifier is at most 128 bytes")
             let word = self.src.text(start, self.offset)
             if token.is_keyword(word):
                 # `asm ARCH ... :` at the start of a line opens a raw suite;

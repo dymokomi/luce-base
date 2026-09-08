@@ -198,7 +198,7 @@ pub func prune_block(block: ast.Node*, reporter: Reporter*) -> !:
     while let s = cursor:
         let binding = s.kind == ast.Kind.let_ or s.kind == ast.Kind.var_
         if binding and s.has(ast.flag_unused):
-            var text: u8[128]
+            var text: u8[512]
             try reporter.warn(s, try format(text, f"unused local `{s.text}`"))
             if s.left == none or is_pure(s.left):
                 if let p = previous:
@@ -258,7 +258,7 @@ pub func prune_unused_functions(tree: ast.Node*, reporter: Reporter*, is_prelude
     while let d = cursor:
         let candidate = d.kind == ast.Kind.func_ and not d.has(ast.flag_referenced) and not d.has(ast.flag_pub) and not d.has(ast.flag_export) and not d.has(ast.flag_lambda) and d.attrs == none and d.text != "main" and d.text != "answer"
         if candidate:
-            var text: u8[128]
+            var text: u8[512]
             try reporter.warn(d, try format(text, f"unused function `{d.text}`"))
             if let p = previous:
                 p.next = d.next
@@ -277,7 +277,7 @@ pub func prune_unused_imports(tree: ast.Node*, reporter: Reporter*) -> !:
     while let d = cursor:
         let unused = (d.kind == ast.Kind.import_ or d.kind == ast.Kind.from_import) and not d.has(ast.flag_referenced)
         if unused:
-            var text: u8[128]
+            var text: u8[512]
             try reporter.warn(d, try format(text, f"unused import `{d.text}`"))
             if let p = previous:
                 p.next = d.next
