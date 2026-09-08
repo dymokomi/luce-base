@@ -5,16 +5,16 @@ import c
 import memory
 import platform
 
-extern func getenv(name: c.str) -> c.str?
-extern func setenv(name: c.str, value: c.str, overwrite: i32) -> i32
-extern func unsetenv(name: c.str) -> i32
+extern func getenv(variable: c.str) -> c.str?
+extern func setenv(variable: c.str, value: c.str, overwrite: i32) -> i32
+extern func unsetenv(variable: c.str) -> i32
 extern func getcwd(buffer: u8*, size: usize) -> c.str?
 extern func chdir(path: c.str) -> i32
 extern func getpid() -> i32
 extern func getppid() -> i32
 extern func gethostname(buffer: u8*, size: usize) -> i32
 extern func c_exit as "exit"(code: i32) -> never
-extern func sysconf(name: i32) -> i64
+extern func sysconf(option: i32) -> i64
 extern func getpagesize() -> i32
 
 pub let failed: ErrorCode = ErrorCode.package(12)
@@ -74,17 +74,17 @@ pub func page_size() -> usize:
     return (usize)getpagesize()
 
 ## The value of an environment variable, or none when it is not set.
-pub func env(name: c.str) -> str?:
-    let value = getenv(name) else return none
+pub func env(variable: c.str) -> str?:
+    let value = getenv(variable) else return none
     return (str)value
 
 ## Set an environment variable for this process and the ones it starts.
-pub func set_env(name: c.str, value: c.str) -> !:
-    if setenv(name, value, 1) != 0:
+pub func set_env(variable: c.str, value: c.str) -> !:
+    if setenv(variable, value, 1) != 0:
         error(failed, "the environment variable cannot be set")
 
-pub func unset_env(name: c.str) -> !:
-    if unsetenv(name) != 0:
+pub func unset_env(variable: c.str) -> !:
+    if unsetenv(variable) != 0:
         error(failed, "the environment variable cannot be unset")
 
 ## The working directory, in storage from the current allocator.

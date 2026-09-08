@@ -76,7 +76,7 @@ struct Header:
     ## Define the record behind `id`, its fields' records first; a pointer's pointee counts.
     mutating func define(id: u32) -> !:
         let t = self.c.table.get(id)
-        if t.kind == types.Kind.pointer:
+        if t.kind == types.Kind.pointer or t.kind == types.Kind.optional:
             return try self.define(t.elem)
         if t.kind != types.Kind.struct_ and t.kind != types.Kind.union_ and t.kind != types.Kind.enum_:
             return
@@ -86,12 +86,21 @@ struct Header:
         let d = t.decl else return error(not_representable, "a record without a declaration")
         if t.kind == types.Kind.enum_:
             return try self.enum_definition(d, id)
+        # the name first, so that a record may point at itself, or at one defined after it
+        let keyword = "union" if t.kind == types.Kind.union_ else "struct"
+        try self.out.put("typedef ")
+        try self.out.put(keyword)
+        try self.out.put(" ")
+        try self.out.put(d.text)
+        try self.out.put(" ")
+        try self.out.put(d.text)
+        try self.out.put(";\n")
         var member = d.body
         while let m = member:
             if m.kind == ast.Kind.field:
                 try self.define(m.type_id)
             member = m.next
-        try self.out.put("typedef union " if t.kind == types.Kind.union_ else "typedef struct")
+        try self.out.put(keyword)
         if d.has(ast.flag_packed):
             try self.out.put(" __attribute__((packed))")
         if let layout = d.right:
@@ -106,14 +115,31 @@ struct Header:
         while let m = member:
             if m.kind == ast.Kind.field:
                 try self.out.put("    ")
-                try self.spell(m.type_id)
-                try self.out.put(" ")
-                try self.out.put(m.text)
+                try self.field(m)
                 try self.out.put(";\n")
             member = m.next
-        try self.out.put("} ")
-        try self.out.put(d.text)
-        try self.out.put(";\n\n")
+        try self.out.put("};\n\n")
+
+    ## One field: its type and name, an array's length after the name as C wants it, and
+    ## `align(N)` as the attribute C needs to lay the record out as Base does (§5.11).
+    mutating func field(m: ast.Node*) -> !:
+        let t = self.c.table.get(m.type_id)
+        if t.kind == types.Kind.array:
+            try self.spell(t.elem)
+            try self.out.put(" ")
+            try self.out.put(m.text)
+            try self.out.put("[")
+            try self.out.put_u64(t.length)
+            try self.out.put("]")
+        else:
+            try self.spell(m.type_id)
+            try self.out.put(" ")
+            try self.out.put(m.text)
+        if let layout = m.right:
+            if layout.kind == ast.Kind.literal:
+                try self.out.put(" __attribute__((aligned(")
+                try self.out.put(layout.text)
+                try self.out.put(")))")
 
     ## `typedef uint32_t Flags;` and one constant per case (§17.6).
     mutating func enum_definition(d: ast.Node*, id: u32) -> !:

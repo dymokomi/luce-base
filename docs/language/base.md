@@ -170,7 +170,7 @@ Types, interfaces, and unions are `PascalCase`; functions, methods, bindings, fi
 
 ### 3.5 Scope
 
-Names resolve lexically. A module's declarations share one namespace and are order-independent. Members of a type have their own namespace. Locals are sequential; use before declaration is rejected. A local may not shadow another visible local, parameter, or imported name; renaming is the repair. A loop, `catch`, `if let`, or `match` binding owns its nested scope. A loop label (§8.5) lives in its own namespace.
+Names resolve lexically. A module's declarations share one namespace and are order-independent. Members of a type have their own namespace. Locals are sequential; use before declaration is rejected. A local or a parameter may not shadow another visible local, a parameter, an imported name, or a declaration of its module; renaming is the repair. A loop, `catch`, `if let`, or `match` binding owns its nested scope. A loop label (§8.5) lives in its own namespace.
 
 The compiler-known core namespace cannot be redeclared: no declaration of any kind, a binding, a parameter, a function, a type, a field, an enum case, a label, or an alias, may take a core name, and a compiler carries exactly this dictionary:
 
@@ -347,7 +347,7 @@ let tail = all[16..]
 let view = u8[](pointer, count)         # from a pointer and a length; `pointer` must address `count` elements
 ```
 
-- Indexing and slicing are bounds-checked and trap on violation, in every build. `span.length` is `usize`; `span.data` is the pointer; `span.first()` and `span.last()` are `T?`; `span.indexed()` yields `(usize, T)` pairs for `for`.
+- Indexing and slicing are bounds-checked and trap on violation, in every build. `span.length` is `usize`; `span.data` is the pointer; `span.first()` and `span.last()` are `T?`; `span.indexed()` yields `(usize, T)` pairs for `for`. An array has `length`, a constant, `first()`, and `last()`; it has no `data`, because an array is a value and its address is `&array[0]`, or the span it converts to.
 - An empty span's `data` is a non-null, correctly aligned, dangling pointer that must not be dereferenced. This keeps the empty span distinct from `none`, so `T[]?` uses the ordinary tagged optional representation, not a niche. A C caller that passes `(NULL, 0)` to an exported span parameter receives the empty span; the export wrapper normalises it (§17.6).
 - A span of a local array is a pointer into the frame; §6.6 states the escape rule.
 

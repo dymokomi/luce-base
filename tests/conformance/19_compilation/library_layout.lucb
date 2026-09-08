@@ -1,0 +1,15 @@
+## §5.11, §17.6: the header lays a record out as Base does, a field's `align(N)` included,
+## so C and Base agree on its size and on where each field is.
+struct Record:
+    var first: u8
+    align(16) var value: u64
+    var last: u8
+
+export func record_size() -> usize:
+    return sizeof(Record)
+
+export func record_value_offset() -> usize:
+    return offsetof(Record, value)
+
+export func record_value(record: const Record*) -> u64:
+    return record.value + (u64)record.last

@@ -1,0 +1,14 @@
+# error: this name is already in scope
+## §3.5: a parameter may not shadow a declaration of its module, a function here, any more
+## than a local may shadow a local.
+func total(items: i64[]) -> i64:
+    var sum: i64 = 0
+    for x in items:
+        sum += x
+    return sum
+
+func twice(total: i64) -> i64:
+    return total * 2
+
+pub func main(arguments: str[]) -> i32:
+    return 0

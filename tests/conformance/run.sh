@@ -26,6 +26,10 @@ for dir in tests/conformance/[0-9]*/; do
         ./build/luce-base build "$src" -o build/conformance
         ./build/conformance > build/conformance.out
         cmp build/conformance.out "$f"
+        # the C the host compiler optimises must mean the same as the C it does not (§12.6)
+        ./build/luce-base build "$src" --release -o build/conformance
+        ./build/conformance > build/conformance.out
+        cmp build/conformance.out "$f"
         ./build/luce-base build "$src" --native -o build/conformance
         ./build/conformance > build/conformance.out
         cmp build/conformance.out "$f"
@@ -65,18 +69,30 @@ for dir in tests/conformance/[0-9]*/; do
     for f in "$dir"errors/*.lucb; do
         [ -e "$f" ] || continue
         want=$(LC_ALL=C sed -n 's/^# error: //p' "$f")
-        got=$(./build/luce-base check "$f" 2>&1 || true)
+        # a rejection is a normal exit of 1 with a diagnostic: a crash (a signal's exit, 128 or
+        # more) or an acceptance is a failure whatever the text says
+        got=$(./build/luce-base check "$f" 2>&1) && rc=0 || rc=$?
+        if [ "$rc" -eq 0 ]; then
+            echo "FAIL $f: this compiler accepts it"; exit 1
+        fi
+        if [ "$rc" -ne 1 ]; then
+            echo "FAIL $f: the checker stopped with status $rc: [$got]"; exit 1
+        fi
         # an empty `# error:` asks only for a rejection; a fragment must appear in the message
         if [ -z "$got" ]; then
-            echo "FAIL $f: this compiler accepts it"; exit 1
+            echo "FAIL $f: rejected without a diagnostic"; exit 1
         fi
         case "$got" in
             *"$want"*) ;;
             *) echo "FAIL $f: expected [$want], got [$got]"; exit 1;;
         esac
         if [ -n "$seed" ] && ! grep -q '^# oracle: none' "$f"; then
-            if "$seed" check "$f" > /dev/null 2>&1; then
+            "$seed" check "$f" > /dev/null 2>&1 && seed_rc=0 || seed_rc=$?
+            if [ "$seed_rc" -eq 0 ]; then
                 echo "FAIL $f: the seed accepts what this compiler rejects"; exit 1
+            fi
+            if [ "$seed_rc" -ne 1 ]; then
+                echo "FAIL $f: the seed's checker stopped with status $seed_rc"; exit 1
             fi
         fi
         rejections=$((rejections + 1))

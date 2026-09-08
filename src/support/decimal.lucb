@@ -1,0 +1,499 @@
+## Decimal float literals to IEEE bits, correctly rounded (§4.3). A literal is a digit
+## string D and a decimal exponent E, D * 10^E. With big integers Num and Den, Num = D * 10^E
+## and Den = 1 for a non-negative E, else Num = D and Den = 10^-E, so that the value is
+## Num / Den exactly. Scaling by a power of two, which only moves the binary exponent, puts
+## the quotient in [2^(p+2), 2^(p+4)), p the width's precision; that quotient, its remainder
+## as a sticky bit, and the exponent are then rounded once to the width, ties to even. A
+## literal keeps at most 800 significant digits: every float and every midpoint between two
+## floats has a decimal expansion shorter than that, so what follows can only decide a tie,
+## which the sticky bit records.
+
+## Big unsigned integers of up to 6144 bits, in 32-bit limbs, least significant first. The
+## widest value here is Num scaled up to the length of Den = 10^1200, under 4100 bits.
+struct Big:
+    var limb: u32[192]
+    ## Limbs in use; the last is not zero, or `used` is zero for zero.
+    var used: usize
+
+    static func of(value: u64) -> Big:
+        var b: Big
+        var v = value
+        while v != 0:
+            b.limb[b.used] = (u32)v
+            b.used += 1
+            v >>= 32
+        return b
+
+    func is_zero() -> bool:
+        return self.used == 0
+
+    ## `self * m + a`; false when the capacity is exceeded.
+    mutating func mul_add(m: u32, a: u32) -> bool:
+        var carry: u64 = (u64)a
+        var i: usize = 0
+        while i < self.used:
+            let t = (u64)self.limb[i] * (u64)m + carry
+            self.limb[i] = (u32)t
+            carry = t >> 32
+            i += 1
+        if carry != 0:
+            if self.used == self.limb.length:
+                return false
+            self.limb[self.used] = (u32)carry
+            self.used += 1
+        return true
+
+    func bit_length() -> usize:
+        if self.used == 0:
+            return 0
+        var top = self.limb[self.used - 1]
+        var n: usize = 0
+        while top != 0:
+            n += 1
+            top >>= 1
+        return (self.used - 1) * 32 + n
+
+    mutating func trim():
+        while self.used > 0 and self.limb[self.used - 1] == 0:
+            self.used -= 1
+
+    mutating func shift_left(count: usize) -> bool:
+        if count == 0 or self.used == 0:
+            return true
+        let words = count // 32
+        let rest = (u64)(count % 32)
+        if self.used + words + 1 > self.limb.length:
+            return false
+        var i = self.used
+        while i > 0:
+            i -= 1
+            let t = (u64)self.limb[i] << rest
+            self.limb[i + words + 1] |= (u32)(t >> 32)
+            self.limb[i + words] = (u32)t
+        var k: usize = 0
+        while k < words:
+            self.limb[k] = 0
+            k += 1
+        self.used += words + 1
+        self.trim()
+        return true
+
+    mutating func shift_right_one():
+        var i: usize = 0
+        while i < self.used:
+            let low: u32 = self.limb[i + 1] & 1 if i + 1 < self.used else 0
+            self.limb[i] = (self.limb[i] >> 1) | (low << 31)
+            i += 1
+        self.trim()
+
+    ## `self >= other`.
+    func at_least(other: const Big*) -> bool:
+        if self.used != other.used:
+            return self.used > other.used
+        var i = self.used
+        while i > 0:
+            i -= 1
+            if self.limb[i] != other.limb[i]:
+                return self.limb[i] > other.limb[i]
+        return true
+
+    ## `self -= other`, with `self >= other`.
+    mutating func subtract(other: const Big*):
+        var borrow: u64 = 0
+        var i: usize = 0
+        while i < self.used:
+            let taken: u64 = (u64)other.limb[i] if i < other.used else 0
+            let t = (u64)self.limb[i] -% taken -% borrow
+            borrow = 1 if (u64)self.limb[i] < taken + borrow else 0
+            self.limb[i] = (u32)t
+            i += 1
+        self.trim()
+
+## One IEEE width.
+struct Format:
+    ## Significant bits, the hidden one included.
+    var precision: u64
+    ## Of the smallest normal.
+    var min_exponent: i64
+    ## Of the largest finite.
+    var max_exponent: i64
+    var exponent_bits: u64
+
+    static func of(width: u32) -> Format?:
+        if width == 64:
+            return Format(precision = 53, min_exponent = -1022, max_exponent = 1023, exponent_bits = 11)
+        if width == 32:
+            return Format(precision = 24, min_exponent = -126, max_exponent = 127, exponent_bits = 8)
+        if width == 16:
+            return Format(precision = 11, min_exponent = -14, max_exponent = 15, exponent_bits = 5)
+        return none
+
+    func infinity() -> u64:
+        let one: u64 = 1
+        return ((one << self.exponent_bits) - 1) << (self.precision - 1)
+
+let digit_cap: usize = 800
+
+## The bits of `text` (digits, one optional point, an optional exponent, `_` separators,
+## no sign and no suffix) as a float of `width` bits, 16, 32, or 64; `none` when the text
+## is not such a literal.
+pub func bits(text: str, width: u32) -> u64?:
+    let f = Format.of(width) else return none
+    let b = text.bytes
+    # the significant digits, leading zeros dropped, and the exponent of the last one
+    var digits: u8[800]
+    var count: usize = 0
+    var sticky = false
+    # the decimal exponent of the digit after the last kept one
+    var exponent: i64 = 0
+    var seen_digit = false
+    var seen_point = false
+    var i: usize = 0
+    while i < b.length and b[i] != 'e' and b[i] != 'E':
+        let c = b[i]
+        i += 1
+        if c == '_':
+            continue
+        if c == '.':
+            if seen_point:
+                return none
+            seen_point = true
+            continue
+        if c < '0' or c > '9':
+            return none
+        seen_digit = true
+        if seen_point:
+            exponent -= 1
+        if count == 0 and c == '0':
+            # a leading zero has no weight
+            continue
+        if count < digit_cap:
+            digits[count] = c
+            count += 1
+        else:
+            # beyond the cap the digit's weight moves into the exponent; its value only
+            # matters for a tie
+            exponent += 1
+            if c != '0':
+                sticky = true
+    if not seen_digit:
+        return none
+    if i < b.length:
+        # the `e`
+        i += 1
+        var negative = false
+        if i < b.length and (b[i] == '+' or b[i] == '-'):
+            negative = b[i] == '-'
+            i += 1
+        if i == b.length:
+            return none
+        var given: i64 = 0
+        while i < b.length:
+            let c = b[i]
+            i += 1
+            if c == '_':
+                continue
+            if c < '0' or c > '9':
+                return none
+            # any larger exponent is already an overflow or a zero
+            if given < 100000:
+                given = given * 10 + (i64)(c - '0')
+        exponent += -given if negative else given
+    if count == 0:
+        return 0
+    # trailing zeros carry no information: fold them into the exponent
+    while count > 0 and digits[count - 1] == '0':
+        count -= 1
+        exponent += 1
+    # the value is in [10^(count + exponent - 1), 10^(count + exponent)): past the largest
+    # double it is an infinity, below half the smallest subnormal it is zero
+    if (i64)count + exponent > 310:
+        return f.infinity()
+    if (i64)count + exponent < -400:
+        return 0
+    var num = Big.of(0)
+    var k: usize = 0
+    while k < count:
+        if not num.mul_add(10, (u32)(digits[k] - '0')):
+            return none
+        k += 1
+    var den = Big.of(1)
+    var e = exponent
+    while e > 0:
+        if not num.mul_add(10, 0):
+            return none
+        e -= 1
+    while e < 0:
+        if not den.mul_add(10, 0):
+            return none
+        e += 1
+    # scale so that the quotient has p + 3 or p + 4 bits
+    let scale = (i64)den.bit_length() - (i64)num.bit_length() + (i64)f.precision + 3
+    if scale >= 0:
+        if not num.shift_left((usize)scale):
+            return none
+    elif not den.shift_left((usize)(-scale)):
+        return none
+    # restoring division: the quotient bit by bit, from its highest
+    let top = num.bit_length() - den.bit_length()
+    if not den.shift_left(top):
+        return none
+    var quotient: u64 = 0
+    var j = top + 1
+    while j > 0:
+        j -= 1
+        quotient <<= 1
+        if num.at_least(&den):
+            num.subtract(&den)
+            quotient |= 1
+        den.shift_right_one()
+    if not num.is_zero():
+        sticky = true
+    # the value is quotient * 2^-scale, and more when sticky
+    var length: u64 = 0
+    var q = quotient
+    while q != 0:
+        length += 1
+        q >>= 1
+    # of the leading bit
+    var exponent2 = (i64)length - 1 - scale
+    if exponent2 > f.max_exponent:
+        return f.infinity()
+    var keep = (i64)f.precision
+    if exponent2 < f.min_exponent:
+        keep = (i64)f.precision - (f.min_exponent - exponent2)
+    let one: u64 = 1
+    if keep <= 0:
+        # at most half the smallest subnormal: exactly half is a tie, and even is zero
+        if keep == 0:
+            let half = one << (length - 1)
+            return 1 if quotient > half or (quotient == half and sticky) else 0
+        return 0
+    let shift = length - (u64)keep
+    var kept = quotient >> shift
+    let dropped = quotient & ((one << shift) - 1)
+    let half = one << (shift - 1)
+    if dropped > half or (dropped == half and (sticky or (kept & 1) != 0)):
+        kept += 1
+    let hidden = one << (f.precision - 1)
+    if kept == hidden << 1:
+        kept = hidden
+        exponent2 += 1
+        if exponent2 > f.max_exponent:
+            return f.infinity()
+    if exponent2 < f.min_exponent:
+        # a subnormal's bits are its mantissa; one that rounded up to the hidden bit is the
+        # smallest normal, whose bits are that same number
+        return kept
+    let bias = (one << (f.exponent_bits - 1)) - 1
+    return (((u64)(exponent2 + (i64)bias)) << (f.precision - 1)) | (kept - hidden)
+
+## Whether the literal is beyond the width's largest finite value, so that its rounding
+## would be an infinity, which is not a literal (§4.3).
+pub func overflows(text: str, width: u32) -> bool:
+    let f = Format.of(width) else return false
+    let value = bits(text, width) else return false
+    return value == f.infinity()
+
+func bits_of(text: str, width: u32) -> u64:
+    let v = bits(text, width) else return ~(u64)0
+    return v
+
+test "decimal literals round once at every width":
+    assert(bits_of("1e-10", 64) == 4457293557087583675)
+    assert(bits_of("1e-10", 32) == 786163455)
+    assert(bits_of("1e-10", 16) == 0)
+    assert(bits_of("1e-20", 64) == 4307583784117748259)
+    assert(bits_of("1e-20", 32) == 507307272)
+    assert(bits_of("1e-20", 16) == 0)
+    assert(bits_of("1e-100", 64) == 3110860544497550640)
+    assert(bits_of("1e-100", 32) == 0)
+    assert(bits_of("1e-100", 16) == 0)
+    assert(bits_of("2.2250738585072014e-308", 64) == 4503599627370496)
+    assert(bits_of("2.2250738585072014e-308", 32) == 0)
+    assert(bits_of("2.2250738585072014e-308", 16) == 0)
+    assert(bits_of("1.7976931348623157e308", 64) == 9218868437227405311)
+    assert(bits_of("1.7976931348623157e308", 32) == 2139095040)
+    assert(bits_of("1.7976931348623157e308", 16) == 31744)
+    assert(bits_of("0.1", 64) == 4591870180066957722)
+    assert(bits_of("0.1", 32) == 1036831949)
+    assert(bits_of("0.1", 16) == 11878)
+    assert(bits_of("0.29", 64) == 4598895795485655695)
+    assert(bits_of("0.29", 32) == 1049918177)
+    assert(bits_of("0.29", 16) == 13476)
+    assert(bits_of("1.2345678901234567", 64) == 4608238818662570491)
+    assert(bits_of("1.2345678901234567", 32) == 1067320914)
+    assert(bits_of("1.2345678901234567", 16) == 15600)
+    assert(bits_of("5e-324", 64) == 1)
+    assert(bits_of("5e-324", 32) == 0)
+    assert(bits_of("5e-324", 16) == 0)
+    assert(bits_of("2.4703282292062327e-324", 64) == 0)
+    assert(bits_of("2.4703282292062327e-324", 32) == 0)
+    assert(bits_of("2.4703282292062327e-324", 16) == 0)
+    assert(bits_of("2.4703282292062328e-324", 64) == 1)
+    assert(bits_of("2.4703282292062328e-324", 32) == 0)
+    assert(bits_of("2.4703282292062328e-324", 16) == 0)
+    assert(bits_of("1.7976931348623158e308", 64) == 9218868437227405311)
+    assert(bits_of("1.7976931348623158e308", 32) == 2139095040)
+    assert(bits_of("1.7976931348623158e308", 16) == 31744)
+    assert(bits_of("1.7976931348623159e308", 64) == 9218868437227405312)
+    assert(bits_of("1.7976931348623159e308", 32) == 2139095040)
+    assert(bits_of("1.7976931348623159e308", 16) == 31744)
+    assert(bits_of("1e309", 64) == 9218868437227405312)
+    assert(bits_of("1e309", 32) == 2139095040)
+    assert(bits_of("1e309", 16) == 31744)
+    assert(bits_of("1e-400", 64) == 0)
+    assert(bits_of("1e-400", 32) == 0)
+    assert(bits_of("1e-400", 16) == 0)
+    assert(bits_of("9007199254740993", 64) == 4845873199050653696)
+    assert(bits_of("9007199254740993", 32) == 1509949440)
+    assert(bits_of("9007199254740993", 16) == 31744)
+    assert(bits_of("9007199254740993.0000000000000000000001", 64) == 4845873199050653697)
+    assert(bits_of("9007199254740993.0000000000000000000001", 32) == 1509949440)
+    assert(bits_of("9007199254740993.0000000000000000000001", 16) == 31744)
+    assert(bits_of("10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000", 64) == 9218868437227405312)
+    assert(bits_of("10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000", 32) == 2139095040)
+    assert(bits_of("10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000", 16) == 31744)
+    assert(bits_of("0.0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001", 64) == 103904837566199265)
+    assert(bits_of("0.0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001", 32) == 0)
+    assert(bits_of("0.0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001", 16) == 0)
+    assert(bits_of("65504", 64) == 4679235614791434240)
+    assert(bits_of("65504", 32) == 1199562752)
+    assert(bits_of("65504", 16) == 31743)
+    assert(bits_of("65505", 64) == 4679235752230387712)
+    assert(bits_of("65505", 32) == 1199563008)
+    assert(bits_of("65505", 16) == 31743)
+    assert(bits_of("65519", 64) == 4679237676375736320)
+    assert(bits_of("65519", 32) == 1199566592)
+    assert(bits_of("65519", 16) == 31743)
+    assert(bits_of("65519.00000000000000001", 64) == 4679237676375736320)
+    assert(bits_of("65519.00000000000000001", 32) == 1199566592)
+    assert(bits_of("65519.00000000000000001", 16) == 31743)
+    assert(bits_of("65520", 64) == 4679237813814689792)
+    assert(bits_of("65520", 32) == 1199566848)
+    assert(bits_of("65520", 16) == 31744)
+    assert(bits_of("2049", 64) == 4656724213724348416)
+    assert(bits_of("2049", 32) == 1157632000)
+    assert(bits_of("2049", 16) == 26624)
+    assert(bits_of("2049.0000000000000000001", 64) == 4656724213724348416)
+    assert(bits_of("2049.0000000000000000001", 32) == 1157632000)
+    assert(bits_of("2049.0000000000000000001", 16) == 26625)
+    assert(bits_of("2051", 64) == 4656728611770859520)
+    assert(bits_of("2051", 32) == 1157640192)
+    assert(bits_of("2051", 16) == 26626)
+    assert(bits_of("2050.0000000000000001", 64) == 4656726412747603968)
+    assert(bits_of("2050.0000000000000001", 32) == 1157636096)
+    assert(bits_of("2050.0000000000000001", 16) == 26625)
+    assert(bits_of("0.000000059604644775390625", 64) == 4499096027743125504)
+    assert(bits_of("0.000000059604644775390625", 32) == 864026624)
+    assert(bits_of("0.000000059604644775390625", 16) == 1)
+    assert(bits_of("0.0000000298023223876953125", 64) == 4494592428115755008)
+    assert(bits_of("0.0000000298023223876953125", 32) == 855638016)
+    assert(bits_of("0.0000000298023223876953125", 16) == 0)
+    assert(bits_of("0.00000002980232238769531250000001", 64) == 4494592428115755008)
+    assert(bits_of("0.00000002980232238769531250000001", 32) == 855638016)
+    assert(bits_of("0.00000002980232238769531250000001", 16) == 1)
+    assert(bits_of("3.4028235e38", 64) == 5183643170655547384)
+    assert(bits_of("3.4028235e38", 32) == 2139095039)
+    assert(bits_of("3.4028235e38", 16) == 31744)
+    assert(bits_of("3.4028236e38", 64) == 5183643170920245180)
+    assert(bits_of("3.4028236e38", 32) == 2139095040)
+    assert(bits_of("3.4028236e38", 16) == 31744)
+    assert(bits_of("3.4028235677973366e38", 64) == 5183643170835005440)
+    assert(bits_of("3.4028235677973366e38", 32) == 2139095039)
+    assert(bits_of("3.4028235677973366e38", 16) == 31744)
+    assert(bits_of("3.4028235677973367e38", 64) == 5183643170835005440)
+    assert(bits_of("3.4028235677973367e38", 32) == 2139095040)
+    assert(bits_of("3.4028235677973367e38", 16) == 31744)
+    assert(bits_of("1.4e-45", 64) == 3936137728114922858)
+    assert(bits_of("1.4e-45", 32) == 1)
+    assert(bits_of("1.4e-45", 16) == 0)
+    assert(bits_of("7.006492321624085e-46", 64) == 3931642474694443008)
+    assert(bits_of("7.006492321624085e-46", 32) == 0)
+    assert(bits_of("7.006492321624085e-46", 16) == 0)
+    assert(bits_of("7.0064923216240854e-46", 64) == 3931642474694443008)
+    assert(bits_of("7.0064923216240854e-46", 32) == 1)
+    assert(bits_of("7.0064923216240854e-46", 16) == 0)
+    assert(bits_of("1.1754943508222875e-38", 64) == 4039728865751334912)
+    assert(bits_of("1.1754943508222875e-38", 32) == 8388608)
+    assert(bits_of("1.1754943508222875e-38", 16) == 0)
+    assert(bits_of("1.1754942106924411e-38", 64) == 4039728864677593088)
+    assert(bits_of("1.1754942106924411e-38", 32) == 8388607)
+    assert(bits_of("1.1754942106924411e-38", 16) == 0)
+    assert(bits_of("6.103515625e-05", 64) == 4544132024016830464)
+    assert(bits_of("6.103515625e-05", 32) == 947912704)
+    assert(bits_of("6.103515625e-05", 16) == 1024)
+    assert(bits_of("6.097555160522461e-05", 64) == 4544123227923808256)
+    assert(bits_of("6.097555160522461e-05", 32) == 947896320)
+    assert(bits_of("6.097555160522461e-05", 16) == 1023)
+    assert(bits_of("1_000.5e-1", 64) == 4636740809791845171)
+    assert(bits_of("1_000.5e-1", 32) == 1120410010)
+    assert(bits_of("1_000.5e-1", 16) == 22081)
+    assert(bits_of("0.5", 64) == 4602678819172646912)
+    assert(bits_of("0.5", 32) == 1056964608)
+    assert(bits_of("0.5", 16) == 14336)
+    assert(bits_of("2.5", 64) == 4612811918334230528)
+    assert(bits_of("2.5", 32) == 1075838976)
+    assert(bits_of("2.5", 16) == 16640)
+    assert(bits_of("100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001", 64) == 9218868437227405312)
+    assert(bits_of("100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001", 32) == 2139095040)
+    assert(bits_of("100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001", 16) == 31744)
+    assert(bits_of("0.999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999", 64) == 4607182418800017408)
+    assert(bits_of("0.999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999", 32) == 1065353216)
+    assert(bits_of("0.999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999", 16) == 15360)
+    assert(bits_of("16777217", 64) == 4715268810125344768)
+    assert(bits_of("16777217", 32) == 1266679808)
+    assert(bits_of("16777217", 16) == 31744)
+    assert(bits_of("16777217.00000000000000000000001", 64) == 4715268810125344768)
+    assert(bits_of("16777217.00000000000000000000001", 32) == 1266679809)
+    assert(bits_of("16777217.00000000000000000000001", 16) == 31744)
+    assert(bits_of("0.3", 64) == 4599075939470750515)
+    assert(bits_of("0.3", 32) == 1050253722)
+    assert(bits_of("0.3", 16) == 13517)
+    assert(bits_of("1e23", 64) == 4950912855330343670)
+    assert(bits_of("1e23", 32) == 1705601046)
+    assert(bits_of("1e23", 16) == 31744)
+    assert(bits_of("8.98846567431158e307", 64) == 9214364837600034816)
+    assert(bits_of("8.98846567431158e307", 32) == 2139095040)
+    assert(bits_of("8.98846567431158e307", 16) == 31744)
+    assert(bits_of("4.9e-324", 64) == 1)
+    assert(bits_of("4.9e-324", 32) == 0)
+    assert(bits_of("4.9e-324", 16) == 0)
+    assert(bits_of("3.0e-324", 64) == 1)
+    assert(bits_of("3.0e-324", 32) == 0)
+    assert(bits_of("3.0e-324", 16) == 0)
+
+test "long digit strings decide ties, and the ends of the range":
+    var past: u8[904]
+    past[0] = '2'
+    past[1] = '0'
+    past[2] = '4'
+    past[3] = '9'
+    past[4] = '.'
+    var i: usize = 5
+    while i < 903:
+        past[i] = '0'
+        i += 1
+    past[903] = '1'
+    assert(bits_of((str)past[..<904], 16) == 26625)
+    assert(bits_of((str)past[..<903], 16) == 26624)
+    var huge: u8[5001]
+    huge[0] = '1'
+    i = 1
+    while i < 5001:
+        huge[i] = '0'
+        i += 1
+    assert(bits_of((str)huge[..<5001], 64) == 9218868437227405312)
+    assert(bits_of("1e-99999999999999999999", 64) == 0)
+    assert(bits_of("1e99999999999999999999", 32) == 2139095040)
+
+test "what is not a literal is refused":
+    let refused = ~(u64)0
+    assert(bits_of("", 64) == refused)
+    assert(bits_of(".", 64) == refused)
+    assert(bits_of("1.2.3", 64) == refused)
+    assert(bits_of("1e", 64) == refused)
+    assert(bits_of("1e+", 64) == refused)
+    assert(bits_of("1x", 64) == refused)
+    assert(bits_of("1.5", 48) == refused)
+    assert(bits_of("1_000.5", 64) == 4652011706887700480)

@@ -1,0 +1,37 @@
+## §7.1: the receiver, or the function value, is evaluated before the arguments, and the
+## arguments left to right, whatever effects each has. A pointer from a call, a function
+## value from a call, and a place whose index is a call all come first.
+var sequence: i64
+struct Object:
+    var value: i64
+    func use(a: i64, b: i64) -> i64:
+        return a + b + self.value
+var objects: Object[2]
+func receiver() -> Object*:
+    sequence = sequence * 10 + 1
+    return &objects[1]
+func argument(n: i64) -> i64:
+    sequence = sequence * 10 + n
+    return n
+func add(a: i64, b: i64) -> i64:
+    return a + b
+func chosen() -> func(i64, i64) -> i64:
+    sequence = sequence * 10 + 1
+    return add
+func index_of() -> usize:
+    sequence = sequence * 10 + 1
+    return 1
+
+pub func main(arguments: str[]) -> i32:
+    objects[1].value = 100
+    sequence = 0
+    let through_pointer = receiver().use(argument(2), argument(3))
+    let pointer_order = sequence
+    sequence = 0
+    let through_value = chosen()(argument(2), argument(3))
+    let value_order = sequence
+    sequence = 0
+    let through_place = objects[index_of()].use(argument(2), argument(3))
+    let place_order = sequence
+    print(f"{pointer_order} {through_pointer} {value_order} {through_value} {place_order} {through_place}")
+    return 0

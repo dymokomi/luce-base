@@ -1,0 +1,30 @@
+## A directory listing is a set of allocations the program gives back as one: after
+## `release_list` nothing is live, and a listing that runs out of memory leaves nothing
+## behind either.
+import counting
+import files
+import memory
+
+pub func main(arguments: str[]) -> i32!:
+    var c = counting.Counting.unlimited()
+    var sorted = false
+    var found: usize = 0
+    with c:
+        let names = try files.list("tests/robustness/memory")
+        found = names.length
+        if let name = names.first():
+            # the names live until `release_list`; compare, do not keep
+            sorted = name == "counting.lucb"
+        files.release_list(names)
+    print(f"sorted {sorted} of {"some" if found > 2 else "few"}; {c.live} live, {c.bytes} bytes, balanced {c.allocations == c.frees}")
+    var tight = counting.Counting.within(200)
+    let outcome = list_under(&tight)
+    print(f"{outcome}; {tight.live} live, {tight.bytes} bytes, failures {tight.failures}")
+    return 0
+
+func list_under(tight: counting.Counting*) -> str:
+    with *tight:
+        let names = files.list("tests/robustness/memory") catch failure:
+            return "exhausted" if failure.code == memory.exhausted else "other"
+        files.release_list(names)
+    return "listed"

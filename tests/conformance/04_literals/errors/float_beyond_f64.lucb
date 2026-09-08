@@ -1,0 +1,5 @@
+# error: the float literal is beyond its type
+## §4.3: the same without a context, where the literal is an `f64`.
+pub func main(arguments: str[]) -> i32:
+    let x = 1.7976931348623159e308
+    return 0

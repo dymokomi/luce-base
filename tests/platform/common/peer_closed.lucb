@@ -1,0 +1,37 @@
+## A write to a connection whose peer has closed answers `closed` (§16.6): the process is
+## not stopped by `SIGPIPE` on either system, whether the connection was made before the
+## peer left or after.
+import c
+import net
+
+extern func socketpair(domain: i32, kind: i32, protocol: i32, pair: i32*) -> i32
+extern func close(descriptor: i32) -> i32
+
+func attempt(connection: net.Connection*) -> str:
+    var attempts = 0
+    while attempts < 4:
+        let written = connection.write("x".bytes) catch failure:
+            return "closed" if failure.code == net.closed else "other"
+        discard(written)
+        attempts += 1
+    return "wrote"
+
+pub func main(arguments: str[]) -> i32:
+    var pair: i32[2]
+    if socketpair(1, 1, 0, &pair[0]) != 0:
+        print("no socketpair")
+        return 1
+    var before = net.Connection.over(pair[0])
+    discard(close(pair[1]))
+    let first = attempt(&before)
+    var late: i32[2]
+    if socketpair(1, 1, 0, &late[0]) != 0:
+        print("no socketpair")
+        return 1
+    discard(close(late[1]))
+    var after = net.Connection.over(late[0])
+    let second = attempt(&after)
+    print(f"{first} {second}")
+    discard(close(pair[0]))
+    discard(close(late[0]))
+    return 0

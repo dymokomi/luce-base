@@ -29,7 +29,7 @@ else
         echo "build.sh: no snapshot for $host under bootstrap/; start from the seed with LUCB=../luce-seed/build/lucb" >&2
         exit 1
     fi
-    "$CC" -std=gnu11 -O2 -w -I runtime "$snapshot" runtime/lucb_rt.c -lm -pthread -o build/stage0
+    "$CC" -std=gnu11 -O2 -w -fno-strict-aliasing -I runtime "$snapshot" runtime/lucb_rt.c -lm -pthread -o build/stage0
 fi
 ./build/stage0 build src/main.lucb --release -o build/stage1
 ./build/stage1 build src/main.lucb --native -o build/luce-base

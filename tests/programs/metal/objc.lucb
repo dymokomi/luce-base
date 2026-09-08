@@ -9,7 +9,7 @@ pub let nil: void*? = none
 
 extern func objc_getClass(name: c.str) -> void*?
 extern func sel_registerName(name: c.str) -> void*?
-extern func objc_msgSend(receiver: void*, selector: void*) -> void*?
+extern func objc_msgSend(receiver: void*, message: void*) -> void*?
 extern func class_getName(cls: void*) -> c.str
 
 ## The selector `name`; registration is idempotent and cached by the runtime.

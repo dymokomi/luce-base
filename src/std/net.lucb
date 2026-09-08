@@ -54,6 +54,11 @@ let datagram: i32 = 2
 ## `SOL_SOCKET` and `SO_REUSEADDR`: 65535 and 4 on macOS, 1 and 2 on Linux.
 let socket_level: i32 = 65535 if platform.macos else 1
 let reuse_address: i32 = 4 if platform.macos else 2
+## A write to a socket the peer closed answers an error, never the process's death:
+## macOS marks the socket (`SO_NOSIGPIPE`, 4130), Linux marks the send (`MSG_NOSIGNAL`,
+## 16384).
+let no_sigpipe_option: i32 = 4130
+let send_flags: i32 = 0 if platform.macos else 16384
 
 pub let failed: ErrorCode = ErrorCode.package(9)
 pub let closed: ErrorCode = ErrorCode.package(10)
@@ -127,7 +132,7 @@ pub struct Listener:
         let fd = accept(self.descriptor, none, none)
         if fd < 0:
             error(failed, "accept")
-        return Connection(descriptor = fd)
+        return Connection.over(fd)
 
     pub func close():
         discard(close(self.descriptor))
@@ -136,6 +141,9 @@ pub struct Listener:
 pub struct Connection: Writer:
     ## The socket, for callers that poll or pass it on.
     pub var descriptor: i32
+    ## Whether the socket is marked against `SIGPIPE` (macOS); `write` marks it on first
+    ## use, so a connection built any other way than `over` is guarded too.
+    var guarded: bool
 
     pub static func connect(address: Address) -> Connection!:
         let fd = socket(inet, stream, 0)
@@ -145,13 +153,39 @@ pub struct Connection: Writer:
         if connect(fd, &raw, 16) != 0:
             discard(close(fd))
             error(failed, "connect")
-        return Connection(descriptor = fd)
+        return Connection.over(fd)
 
-    ## Send every byte.
+    ## A connection over a socket the caller made (a `socketpair`, an inherited
+    ## descriptor): the socket is marked so that a write after the peer closed fails
+    ## instead of ending the process. Make the connection while the peer is still there:
+    ## macOS refuses the mark on a socket whose peer has already gone, and a write on
+    ## such a connection answers `closed` without sending.
+    pub static func over(descriptor: i32) -> Connection:
+        var connection = Connection(descriptor = descriptor, guarded = false)
+        discard(connection.guard())
+        return connection
+
+    ## Whether a write cannot raise `SIGPIPE`. Linux asks with every `send`
+    ## (`MSG_NOSIGNAL`); macOS marks the socket once (`SO_NOSIGPIPE`), and refuses the mark
+    ## with `EINVAL` on a socket whose peer has disconnected.
+    mutating func guard() -> bool:
+        if self.guarded:
+            return true
+        if not platform.macos:
+            self.guarded = true
+            return true
+        var yes: i32 = 1
+        if setsockopt(self.descriptor, socket_level, no_sigpipe_option, &yes, 4) == 0:
+            self.guarded = true
+        return self.guarded
+
+    ## Send every byte; a peer that closed is `closed`, never a signal.
     pub mutating func write(data: const u8[]) -> usize!:
+        if not self.guard():
+            error(closed, "the connection closed")
         var done: usize = 0
         while done < data.length:
-            let n = send(self.descriptor, data[done..].data, data.length - done, 0)
+            let n = send(self.descriptor, data[done..].data, data.length - done, send_flags)
             if n <= 0:
                 error(closed, "the connection closed")
             done += (usize)n

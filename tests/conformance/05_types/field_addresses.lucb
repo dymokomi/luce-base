@@ -1,0 +1,13 @@
+# oracle: none
+## §5.11, §7.7: the address of a field is the record's address plus the field's offset,
+## an `align(N)` field's included, so a program may compute a field's offset from addresses.
+struct Record:
+    var first: u8
+    align(16) var value: u64
+    var last: u8
+
+pub func main(arguments: str[]) -> i32:
+    var record = Record(first = 1, value = 40, last = 2)
+    let p = &record
+    print(f"{(usize)&p.value - (usize)p} {(usize)&p.last - (usize)p} {(usize)&record.first - (usize)&record}")
+    return 0

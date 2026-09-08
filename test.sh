@@ -82,7 +82,7 @@ for snapshot in bootstrap/luce-base-*.c; do
     case "$target" in x86_64-*) level=v1;; *) level=neon;; esac
     ./build/luce-base build src/main.lucb --target "$target" --cpu "$level" --emit=c -o build/snapshot.c
     if ! cmp -s build/snapshot.c "$snapshot"; then
-        echo "note: $snapshot differs from the current compiler's C for $target; run tools/snapshot.sh"
+        echo "FAIL $snapshot differs from the current compiler's C for $target; run tools/snapshot.sh"; exit 1
     fi
 done
 rm -f build/stage1.c build/stage2.c build/stage2 build/snapshot.c
@@ -116,7 +116,12 @@ if ! ./build/luce-base check tests/samples/warnings.lucb -W 2>&1 | cmp -s - test
 fi
 for f in tests/samples/errors/*.lucb; do
     want=$(LC_ALL=C sed -n 's/^# error: //p' "$f")
-    got=$(./build/luce-base check "$f" 2>&1 || true)
+    # under `set -e` a failing substitution would end the gate: the status is taken here
+    got=$(./build/luce-base check "$f" 2>&1) && rc=0 || rc=$?
+    # a rejection exits with 1 and a diagnostic; a crash or an acceptance is a failure
+    if [ "$rc" -ne 1 ]; then
+        echo "FAIL $f: the checker stopped with status $rc: [$got]"; exit 1
+    fi
     case "$got" in
         *"$want"*) echo "== $f (rejected)";;
         *) echo "FAIL $f: expected [$want], got [$got]"; exit 1;;

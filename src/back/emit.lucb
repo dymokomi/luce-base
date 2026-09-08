@@ -28,6 +28,7 @@ import front.ast
 import sema.check
 import sema.types
 import support.buffer
+import support.decimal
 import support.list
 
 pub let backend: ErrorCode = ErrorCode.package(12)
@@ -66,6 +67,9 @@ let to_out: u8 = 0
 let to_body: u8 = 1
 let to_globals: u8 = 2
 let to_protos: u8 = 3
+## A function's body, written first, so that what the body needs declared at its top (the
+## format buffers) is known before the function is written into `body`.
+let to_scratch: u8 = 4
 
 # mark: The emitter ============================================================================
 
@@ -124,9 +128,20 @@ pub struct Emitter:
     ## The arguments of the calls being emitted that were computed into temporaries first
     ## (§7.1), innermost call last; `argument_value` reads the temporary for such a node.
     var sequenced: list.List[Sequenced]
+    ## The left operand of the chain link being emitted, when a long left-leaning chain is
+    ## emitted as a sequence (`chain`): its value is already in the temporary `chain_temp`.
+    var chain_left: ast.Node*?
+    var chain_temp: u32
+    ## The function being written, before its declarations are known (`to_scratch`).
+    var scratch: buffer.Buffer
+    ## The format buffers the function's body used, by number: each is declared at the top
+    ## of the function, so a formatted text's bytes live as long as the function does, not
+    ## as long as the expression that made them.
+    var formats: list.List[u32]
 
     pub static func create(checker: check.Checker*, entry: ast.Node*) -> Emitter!:
-        return Emitter(c = checker, out = try buffer.Buffer.create(65536), body = try buffer.Buffer.create(262144), sequenced = try list.List[Sequenced].create(32),
+        return Emitter(c = checker, out = try buffer.Buffer.create(65536), body = try buffer.Buffer.create(262144), sequenced = try list.List[Sequenced].create(32), chain_left = none, chain_temp = 0,
+                       scratch = try buffer.Buffer.create(65536), formats = try list.List[u32].create(16),
                        globals = try buffer.Buffer.create(4096), protos = try buffer.Buffer.create(16384), target = to_body, indent = 0, counter = 0,
                        modules = try list.List[NodeRef].create(16), entry = entry,
                        funcs = try list.List[Instance].create(64), records = try list.List[Instance].create(64),
@@ -142,7 +157,9 @@ pub struct Emitter:
     # -- output ---------------------------------------------------------------------------
 
     mutating func put(text: str) -> !:
-        if self.target == to_body:
+        if self.target == to_scratch:
+            try self.scratch.put(text)
+        elif self.target == to_body:
             try self.body.put(text)
         elif self.target == to_out:
             try self.out.put(text)
@@ -152,6 +169,46 @@ pub struct Emitter:
             try self.globals.put(text)
 
     ## A number literal's digits without the `_` separators C does not read.
+    ## `file:line: assert failed: condition` (§11.6) as adjacent C string literals, which C
+    ## joins, so the condition's source may be any length.
+    mutating func put_assert_text(e: ast.Node*) -> !:
+        try self.put_c_string(self.source_of_current())
+        try self.put(" \":")
+        try self.put_u64((u64)e.line)
+        try self.put(": assert failed: \" ")
+        try self.put_c_string(e.text)
+
+    ## A float's bits as a hexadecimal float literal, `0x1.8p+1f`: exact in C, whatever the
+    ## value, a subnormal included; `f` and `f16` name the narrower widths.
+    mutating func put_hex_float(bits: u64, width: u32) -> !:
+        let exponent_bits: u64 = 11 if width == 64 else 8 if width == 32 else 5
+        let fraction_bits: u64 = 52 if width == 64 else 23 if width == 32 else 10
+        # the fraction padded to whole hex digits: 13, 6, or 3 of them
+        let digits: u64 = (fraction_bits + 3) // 4
+        let padding = digits * 4 - fraction_bits
+        let one: u64 = 1
+        let exponent = (bits >> fraction_bits) & ((one << exponent_bits) - 1)
+        let fraction = (bits & ((one << fraction_bits) - 1)) << padding
+        let bias = (one << (exponent_bits - 1)) - 1
+        if exponent == 0 and fraction == 0:
+            try self.put("0x0p+0")
+        else:
+            try self.put("0x0." if exponent == 0 else "0x1.")
+            var i = digits
+            while i > 0:
+                i -= 1
+                let nibble = (fraction >> (i * 4)) & 15
+                try self.put_byte((u8)(48 + nibble) if nibble < 10 else (u8)(87 + nibble))
+            try self.put("p")
+            let power: i64 = 1 - (i64)bias if exponent == 0 else (i64)exponent - (i64)bias
+            if power >= 0:
+                try self.put("+")
+            try self.put_i64(power)
+        if width == 32:
+            try self.put("f")
+        elif width == 16:
+            try self.put("f16")
+
     mutating func put_digits(text: str) -> !:
         let b = text.bytes
         var start: usize = 0
@@ -164,7 +221,9 @@ pub struct Emitter:
         try self.put((str)b[start..])
 
     mutating func put_u64(value: u64) -> !:
-        if self.target == to_body:
+        if self.target == to_scratch:
+            try self.scratch.put_u64(value)
+        elif self.target == to_body:
             try self.body.put_u64(value)
         elif self.target == to_out:
             try self.out.put_u64(value)
@@ -174,7 +233,9 @@ pub struct Emitter:
             try self.globals.put_u64(value)
 
     mutating func put_i64(value: i64) -> !:
-        if self.target == to_body:
+        if self.target == to_scratch:
+            try self.scratch.put_i64(value)
+        elif self.target == to_body:
             try self.body.put_i64(value)
         elif self.target == to_out:
             try self.out.put_i64(value)
@@ -184,7 +245,9 @@ pub struct Emitter:
             try self.globals.put_i64(value)
 
     mutating func put_byte(byte: u8) -> !:
-        if self.target == to_body:
+        if self.target == to_scratch:
+            try self.scratch.put_byte(byte)
+        elif self.target == to_body:
             try self.body.put_byte(byte)
         elif self.target == to_out:
             try self.out.put_byte(byte)
@@ -1076,8 +1139,10 @@ pub struct Emitter:
         self.fn_args = inst.args
         self.owner_decl = inst.owner
         self.owner_args = inst.owner_args
-        self.target = to_body
-        try self.signature(f, true)
+        # the body first, into the scratch, so its format buffers can be declared at its top
+        self.target = to_scratch
+        self.scratch.clear()
+        self.formats.count = 0
         self.indent += 1
         # the result type must exist as a typedef
         if f.kind != ast.Kind.test_:
@@ -1110,6 +1175,19 @@ pub struct Emitter:
             try self.line("lb_trap(\"unreachable\");")
         self.indent -= 1
         try self.line("}")
+        self.target = to_body
+        try self.signature(f, true)
+        self.indent += 1
+        var k: usize = 0
+        while k < self.formats.count:
+            try self.line("char ")
+            try self.put_tmp("fb", self.formats.get(k))
+            try self.put("[1024]; lb_fmtbuf ")
+            try self.put_tmp("ff", self.formats.get(k))
+            try self.put(";")
+            k += 1
+        self.indent -= 1
+        try self.body.put(self.scratch.view())
         discard(base)
         self.current_fn = saved_fn
         self.fn_decl = saved_decl
@@ -1977,6 +2055,12 @@ pub struct Emitter:
     ## it: a pointer to an interface view, an array to a span, a value into its
     ## optional, text into a byte span, a function into its fallible shape.
     mutating func value(e: ast.Node*, want: u32) -> !:
+        if let held = self.chain_left:
+            if held == e:
+                # the left of a chain link: already computed into the chain's temporary
+                self.chain_left = none
+                try self.put_tmp("ch", self.chain_temp)
+                return
         let have = try self.ty(e)
         if have == types.never_id and want != types.none_id and want != types.unit_id and want != types.never_id and want != types.error_id:
             # a `never` where a value is wanted: the C needs an expression of that type after
@@ -2382,17 +2466,13 @@ pub struct Emitter:
             try self.put("})")
             return
         if check.is_float_text(e.text):
-            try self.put_digits(check.literal_body(e.text))
-            if t == types.f16_id:
-                try self.put("f16")
-            elif t == types.f32_id:
-                try self.put("f")
+            # the bits the literal rounds to (§4.3), spelled as C's exact hexadecimal float,
+            # so the C compiler neither rounds again nor refuses a small value
+            let width: u32 = 16 if t == types.f16_id else 32 if t == types.f32_id else 64
+            let bits = decimal.bits(check.literal_body(e.text), width) else 0
+            try self.put_hex_float(bits, width)
             return
         let value = try check.decode_integer(e.text)
-        if self.is_float(t):
-            try self.put_u64(value)
-            try self.put(".0")
-            return
         if self.is_int(t) and not self.is_signed(t) or t == types.error_code_id:
             try self.put_u64(value)
             try self.put("ULL")
@@ -2641,6 +2721,9 @@ pub struct Emitter:
         let l = e.left else return
         let r = e.right else return
         let op = e.text
+        if self.chain_left == none and try self.chain_length(e) >= chain_limit:
+            try self.chain(e)
+            return
         if op == "and" or op == "or":
             try self.put("(")
             try self.value(l, types.bool_id)
@@ -2754,6 +2837,65 @@ pub struct Emitter:
             try self.put("; })")
             return
         try self.checked_op(helper_name(op), ot, l, r)
+
+    ## Whether `e` is a link of a chain of type `t`: `a + b + c + ...` leans left, and C
+    ## nests a call for every link, which the C compiler bounds (clang stops at 256). A
+    ## link is one of the operators whose result has its left operand's type.
+    mutating func is_link(e: ast.Node*, t: u32) -> bool!:
+        if e.kind != ast.Kind.binary:
+            return false
+        let op = e.text
+        if not (op == "+" or op == "-" or op == "*" or op == "&" or op == "|" or op == "^" or op == "and" or op == "or"):
+            return false
+        return try self.ty(e) == t
+
+    ## The links from `e` down its left side: the run of the same type, exactly, so an
+    ## untyped literal chain is one run and the typed node above it another.
+    mutating func chain_length(e: ast.Node*) -> usize!:
+        let t = try self.ty(e)
+        if self.is_vector(t) or self.is_ptr(t):
+            return 0
+        var count: usize = 0
+        var cursor: ast.Node*? = e
+        while let node = cursor:
+            if not try self.is_link(node, t):
+                break
+            count += 1
+            cursor = node.left
+        return count
+
+    ## A long chain as a sequence: the leaf into a temporary, then each link applied to it
+    ## in order, so the C nests no deeper for a chain of any length.
+    mutating func chain(e: ast.Node*) -> !:
+        let t = try self.ty(e)
+        # an untyped chain computes in the word the nested form would, `int64_t` or `double`
+        let held = types.i64_id if t == types.untyped_int_id else types.f64_id if t == types.untyped_float_id else t
+        let n = self.tmp()
+        try self.put("({ ")
+        try self.put_type(held)
+        try self.put(" ")
+        try self.put_tmp("ch", n)
+        try self.put("; ")
+        try self.chain_links(e, t, held, n)
+        try self.put_tmp("ch", n)
+        try self.put("; })")
+
+    mutating func chain_links(node: ast.Node*, t: u32, held: u32, n: u32) -> !:
+        let l = node.left else return
+        if try self.is_link(l, t):
+            try self.chain_links(l, t, held, n)
+        else:
+            try self.put_tmp("ch", n)
+            try self.put(" = ")
+            try self.value(l, held)
+            try self.put("; ")
+        try self.put_tmp("ch", n)
+        try self.put(" = ")
+        self.chain_left = l
+        self.chain_temp = n
+        try self.binary(node)
+        self.chain_left = none
+        try self.put("; ")
 
     ## Lane-wise arithmetic (§5.12): the operands bound once, each lane of the result the
     ## scalar operation on the operands' lanes; a scalar operand stands for every lane.
@@ -4035,13 +4177,18 @@ pub struct Emitter:
                 try self.direct_call(e, d, none, try types.no_args())
                 return
         # a function value
+        let ordered = try self.receiver_first(callee, try self.ty(callee), e.body, false)
         let hoisted = try self.begin_sequence(e.body, try self.ty(callee), none)
         try self.put("(")
-        try self.expr(callee)
+        if ordered != 0:
+            try self.put_tmp("rv", ordered)
+        else:
+            try self.expr(callee)
         try self.put(")(")
         try self.arguments(e.body, try self.ty(callee), none, try types.no_args())
         try self.put(")")
         try self.end_sequence(hoisted)
+        try self.receiver_done(ordered)
 
     ## Base evaluates arguments left to right (§7.1); C promises no order. When a call has
     ## more than one argument and any of them may have an effect, every given argument is
@@ -4098,6 +4245,30 @@ pub struct Emitter:
                 i += 1
                 cursor = a.next
         return hoisted
+
+    ## §7.1: the receiver, or the function value, is evaluated before the arguments. C
+    ## promises no order between them, so when both may have an effect the receiver goes
+    ## into a temporary first (its pointer, or the address of its place); answers the
+    ## temporary's number, 0 when the receiver is read where it stands.
+    mutating func receiver_first(target: ast.Node*, t: u32, args: ast.Node*?, as_address: bool) -> u32!:
+        if not may_have_effect(target) or not arguments_have_effect(args):
+            return 0
+        let n = self.tmp()
+        try self.put("({ ")
+        try self.put_type(t)
+        try self.put(" ")
+        try self.put_tmp("rv", n)
+        try self.put(" = ")
+        if as_address:
+            try self.address(target)
+        else:
+            try self.expr(target)
+        try self.put("; ")
+        return n
+
+    mutating func receiver_done(n: u32) -> !:
+        if n != 0:
+            try self.put("; })")
 
     ## `T _lb_sqN = value;` for one argument, remembered for `argument_value`.
     mutating func hoist(v: ast.Node*, want: u32) -> usize!:
@@ -4402,13 +4573,18 @@ pub struct Emitter:
         let method = callee.resolved else return try self.put("0")
         if method.kind == ast.Kind.field:
             # `holder.callback(args)`: a field of function type, called through its value
+            let ordered = try self.receiver_first(callee, try self.ty(callee), e.body, false)
             let hoisted = try self.begin_sequence(e.body, try self.ty(callee), none)
             try self.put("(")
-            try self.expr(callee)
+            if ordered != 0:
+                try self.put_tmp("rv", ordered)
+            else:
+                try self.expr(callee)
             try self.put(")(")
             try self.arguments(e.body, try self.ty(callee), none, try types.no_args())
             try self.put(")")
             try self.end_sequence(hoisted)
+            try self.receiver_done(ordered)
             return
         # interface views dispatch through the table
         if self.is_iface(rt):
@@ -4466,11 +4642,19 @@ pub struct Emitter:
             try self.put(" _lb_rc = ")
             try self.value(receiver, rt)
             try self.put("; ")
+        # the receiver before the arguments (§7.1): a pointer or a place with an effect of
+        # its own is computed first, into a temporary, when an argument has one too
+        var ordered: u32 = 0
+        if not impl.has(ast.flag_static) and not by_value:
+            let receiver_type = rt_raw if self.is_ptr(rt_raw) else try self.c.table.pointer(rt, false, false)
+            ordered = try self.receiver_first(receiver, receiver_type, e.body, not self.is_ptr(rt_raw))
         let hoisted = try self.begin_sequence(e.body, fn, impl)
         try self.put_func_name(impl, args, owner, owner_args)
         try self.put("(")
         if not impl.has(ast.flag_static):
-            if self.is_ptr(rt_raw):
+            if ordered != 0:
+                try self.put_tmp("rv", ordered)
+            elif self.is_ptr(rt_raw):
                 try self.expr(receiver)
             elif by_value:
                 try self.put("&_lb_rc")
@@ -4481,6 +4665,7 @@ pub struct Emitter:
         try self.arguments(e.body, fn, impl, args)
         try self.put(")")
         try self.end_sequence(hoisted)
+        try self.receiver_done(ordered)
         if by_value:
             try self.put("; })")
 
@@ -4833,22 +5018,21 @@ pub struct Emitter:
             let cond = arg else return
             try self.put("((void)((")
             try self.value(cond, types.bool_id)
-            var located: u8[512]
-            let where = try format(located, f"{self.source_of_current()}:{e.line}: assert failed: {e.text}")
             if let msg = second:
                 if msg.kind == ast.Kind.literal and msg.text.bytes[0] == '"':
-                    var joined: u8[1024]
                     try self.put(") ? 0 : (lb_trap(")
-                    try self.put_c_string(try format(joined, f"{where}: {check.decode_text(msg.text)}"))
+                    try self.put_assert_text(e)
+                    try self.put(" \": \" ")
+                    try self.put_c_string(check.decode_text(msg.text))
                 else:
                     try self.put(") ? 0 : (lb_trap_two(")
-                    try self.put_c_string(where)
+                    try self.put_assert_text(e)
                     try self.put(", (")
                     try self.expr(msg)
                     try self.put(").data")
             else:
                 try self.put(") ? 0 : (lb_trap(")
-                try self.put_c_string(where)
+                try self.put_assert_text(e)
             try self.put("), 0)))")
             return
         if name == "trap":
@@ -5664,14 +5848,14 @@ pub struct Emitter:
                 try self.put("; ")
             part = p.next
 
-    ## A formatted string as an `lb_str` in a stack buffer.
+    ## A formatted string as an `lb_str` in one of the function's format buffers: the
+    ## buffer is declared at the function's top (`function`), so the text outlives the
+    ## expression, as the value it is passed to may read it after the expression ends.
     mutating func formatted_value(f: ast.Node*) -> !:
-        let n = self.tmp()
-        try self.put("({ char ")
-        try self.put_tmp("fb", n)
-        try self.put("[1024]; lb_fmtbuf ")
+        let n = try self.format_buffer()
+        try self.put("({ ")
         try self.put_tmp("ff", n)
-        try self.put(" = { ")
+        try self.put(" = (lb_fmtbuf){ ")
         try self.put_tmp("fb", n)
         try self.put(", 1024, 0 }; ")
         try self.pieces(n, "ff", f)
@@ -5679,21 +5863,28 @@ pub struct Emitter:
         try self.put_tmp("ff", n)
         try self.put("); })")
 
-    ## A formatted string as `lb_cspan` for a `Writer`.
-    mutating func formatted_bytes(f: ast.Node*) -> !:
+    ## A fresh format buffer of the function being written; its declaration is the
+    ## function's, not the expression's.
+    mutating func format_buffer() -> u32!:
+        if self.target != to_scratch:
+            return error(check.unsupported, "a formatted text outside a function body")
         let n = self.tmp()
-        try self.put("({ char ")
-        try self.put_tmp("wb", n)
-        try self.put("[1024]; lb_fmtbuf ")
-        try self.put_tmp("wf", n)
-        try self.put(" = { ")
-        try self.put_tmp("wb", n)
+        try self.formats.push(n)
+        return n
+
+    ## A formatted string as `lb_cspan` for a `Writer`, in a format buffer of the function.
+    mutating func formatted_bytes(f: ast.Node*) -> !:
+        let n = try self.format_buffer()
+        try self.put("({ ")
+        try self.put_tmp("ff", n)
+        try self.put(" = (lb_fmtbuf){ ")
+        try self.put_tmp("fb", n)
         try self.put(", 1024, 0 }; ")
-        try self.pieces(n, "wf", f)
+        try self.pieces(n, "ff", f)
         try self.put("(lb_cspan){ (void*)(")
-        try self.put_tmp("wf", n)
+        try self.put_tmp("ff", n)
         try self.put(".data), ")
-        try self.put_tmp("wf", n)
+        try self.put_tmp("ff", n)
         try self.put(".used }; })")
 
     ## `print(f"...")` straight to standard output.
@@ -6383,6 +6574,9 @@ func source_path(checker: check.Checker*, tree: ast.Node*) -> str:
 ## A temporary that is not a vector: `lane` names it whole.
 let no_lane: u64 = 0xFFFFFFFFFFFFFFFF
 
+## Links from which a left-leaning chain is emitted as a sequence rather than nested.
+let chain_limit: usize = 16
+
 func helper_name(op: str) -> str:
     if op == "+":
         return "add"
@@ -6516,6 +6710,16 @@ pub func may_have_effect(e: ast.Node*) -> bool:
         if may_have_effect(b):
             return true
         cursor = b.next
+    return false
+
+## Whether any argument of a call may have an effect.
+pub func arguments_have_effect(args: ast.Node*?) -> bool:
+    var cursor = args
+    while let a = cursor:
+        if let v = a.left:
+            if may_have_effect(v):
+                return true
+        cursor = a.next
     return false
 
 ## Whether an `in` or `inout` operand of the asm block `s` names the register `place`.

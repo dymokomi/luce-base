@@ -1,4 +1,4 @@
-# error: expected `i64*?`, got `<integer>`
+# error: expected `i64*?`, got an integer literal
 pub func main(arguments: str[]) -> i32:
     let p: i64*? = 0
     return 0

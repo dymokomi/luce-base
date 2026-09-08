@@ -27,8 +27,15 @@ pub struct FixedBuffer: Allocator:
         if size == 0:
             return self.data[..<0]
         let align = alignment if alignment > 0 else 1
-        let start = (self.used + align - 1) // align * align
-        if start + size > self.data.length:
+        # the address is what must be aligned, not the offset: the backing span starts
+        # wherever its owner put it
+        let base = (usize)self.data.data
+        let free_at = base + self.used
+        let aligned = (free_at + (align - 1)) & ~(align - 1)
+        if aligned < free_at:
+            return none
+        let start = aligned - base
+        if start > self.data.length or size > self.data.length - start:
             note_refusal("fixed buffer", size, align, self.used)
             return none
         self.used = start + size

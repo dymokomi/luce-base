@@ -1,4 +1,4 @@
-# error: expected `i64`, got `<float>`
+# error: expected `i64`, got a float literal
 pub func main(arguments: str[]) -> i32:
     let x: i64 = 1.5
     return 0

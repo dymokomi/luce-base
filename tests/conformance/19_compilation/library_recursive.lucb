@@ -1,0 +1,28 @@
+## §17.6: a record that points at itself, or at one that points back, is C's linked
+## structure; it is exported as such, its name declared before its body.
+struct Node:
+    var next: Node*?
+    var value: i64
+
+struct Tree:
+    var left: Branch*?
+    var total: i64
+
+struct Branch:
+    var owner: Tree*?
+    var weight: i64
+
+export func node_sum(node: const Node*) -> i64:
+    var sum: i64 = 0
+    var cursor: const Node*? = node
+    while let n = cursor:
+        sum += n.value
+        if let next = n.next:
+            cursor = next
+        else:
+            cursor = none
+    return sum
+
+export func branch_weight(tree: const Tree*) -> i64:
+    let branch = tree.left else return tree.total
+    return branch.weight + tree.total

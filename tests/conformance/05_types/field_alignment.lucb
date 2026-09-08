@@ -1,0 +1,21 @@
+## §5.11: `align(N)` before a field places it at a multiple of N, pads what follows, and
+## raises the record's alignment; the record's size is a multiple of that alignment.
+## `sizeof`, `offsetof`, a field read, a field write, and a copy all agree.
+struct Record:
+    var first: u8
+    align(16) var value: u64
+    var last: u8
+
+struct Pair:
+    var a: Record
+    var b: Record
+
+pub func main(arguments: str[]) -> i32:
+    var record = Record(first = 1, value = 40, last = 2)
+    var copy = record
+    copy.last = 5
+    var pair = Pair(a = record, b = copy)
+    pair.b.value += 1
+    print(f"{sizeof(Record)} {alignof(Record)} {offsetof(Record, value)} {offsetof(Record, last)} {sizeof(Pair)} {offsetof(Pair, b)}")
+    print(f"{record.first} {record.value} {record.last} {copy.last} {pair.a.value + (u64)pair.a.last} {pair.b.value + (u64)pair.b.last}")
+    return 0

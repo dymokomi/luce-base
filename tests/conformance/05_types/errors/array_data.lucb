@@ -1,0 +1,6 @@
+# error: an array has `length`, `first()`, and `last()`; its span has `data`
+## §5.4: `data` belongs to the span; an array is a value and its address is `&array[0]`.
+pub func main(arguments: str[]) -> i32:
+    var a: u8[4]
+    let p = a.data
+    return 0

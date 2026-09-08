@@ -1,4 +1,4 @@
-# error: expected `bool`, got `<integer>`
+# error: expected `bool`, got an integer literal
 pub func main(arguments: str[]) -> i32:
     if 1:
         return 1

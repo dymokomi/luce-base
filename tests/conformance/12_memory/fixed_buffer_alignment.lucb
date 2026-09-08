@@ -1,0 +1,28 @@
+# oracle: none
+## §12.4: an allocation comes back at the alignment asked for, whatever the address of the
+## backing span: a `FixedBuffer` over a span that starts anywhere aligns addresses, not
+## offsets.
+import memory
+
+pub func main(arguments: str[]) -> i32:
+    var backing: u8[8192]
+    let first = (usize)&backing[0]
+    var aligned: u64 = 0
+    var inside: u64 = 0
+    var offset: usize = 0
+    while offset < 64:
+        var align: usize = 1
+        while align <= 256:
+            var buffer = memory.FixedBuffer.over(backing[offset..])
+            var round: usize = 0
+            while round < 3:
+                if let block = buffer.allocate(24, align):
+                    if (usize)block.data % align == 0:
+                        aligned += 1
+                    if (usize)block.data >= first + offset and (usize)block.data + block.length <= first + backing.length:
+                        inside += 1
+                round += 1
+            align *= 2
+        offset += 1
+    print(f"{aligned} {inside}")
+    return 0

@@ -615,8 +615,15 @@ pub struct FixedBuffer: Allocator:
         if size == 0:
             return self.data[..<0]
         let align = alignment if alignment > 0 else 1
-        let start = (self.used + align - 1) // align * align
-        if start + size > self.data.length:
+        # the address is what must be aligned, not the offset: the backing span starts
+        # wherever its owner put it
+        let base = (usize)self.data.data
+        let free_at = base + self.used
+        let aligned = (free_at + (align - 1)) & ~(align - 1)
+        if aligned < free_at:
+            return none
+        let start = aligned - base
+        if start > self.data.length or size > self.data.length - start:
             note_refusal("fixed buffer", size, align, self.used)
             return none
         self.used = start + size
@@ -1246,6 +1253,7 @@ pub func read(path: c.str) -> u8[]!:
     while got < bytes.length:
         let n = c_read(fd, bytes[got..].data, bytes.length - got)
         if n < 0:
+            free(bytes)
             discard(close(fd))
             error(failed, "the file cannot be read")
         if n == 0:
@@ -1267,19 +1275,31 @@ pub func write(path: c.str, data: const u8[]) -> !:
         done += (usize)n
     discard(close(fd))
 
-## The names in a directory, sorted, allocated from the current allocator.
+## The names in a directory, sorted by bytes, without `.` and `..`: each name and the
+## array holding them, exactly as long as the names, are allocations of the current
+## allocator, which `release_list` returns together. On a failure nothing allocated is
+## kept and the directory is closed.
 pub func list(path: c.str) -> str[]!:
     let dir = opendir(path) else error(missing, "missing")
-    var names = try alloc str[16]
+    var names = alloc str[16] catch failure:
+        discard(closedir(dir))
+        error(memory.exhausted, "memory.exhausted")
     var count: usize = 0
     while let name = next_entry(dir):
         if name == "." or name == "..":
             continue
         if count == names.length:
-            let grown = try alloc str[names.length * 2]
+            let grown = alloc str[names.length * 2] catch failure:
+                release_list(names[..<count])
+                discard(closedir(dir))
+                error(memory.exhausted, "memory.exhausted")
             memory.copy(grown, names, count)
+            free(names)
             names = grown
-        let copy = try alloc u8[name.length + 1]
+        let copy = alloc u8[name.length + 1] catch failure:
+            release_list(names[..<count])
+            discard(closedir(dir))
+            error(memory.exhausted, "memory.exhausted")
         memory.copy(copy, name.bytes, name.length)
         copy[name.length] = 0
         names[count] = (str)copy[..<name.length]
@@ -1295,7 +1315,26 @@ pub func list(path: c.str) -> str[]!:
             j -= 1
         names[j] = item
         i += 1
-    return names[..<count]
+    # the array as long as the names, so that `release_list` returns what was allocated
+    if count == 0:
+        free(names)
+        var empty: str[]
+        return empty
+    let exact = alloc str[count] catch failure:
+        release_list(names[..<count])
+        error(memory.exhausted, "memory.exhausted")
+    memory.copy(exact, names, count)
+    free(names)
+    return exact
+
+## Return what `list` allocated: every name, then the array, to the allocator that is
+## current, which must be the one `list` allocated from. The names are one byte longer
+## than they read, the NUL after each (§5.5).
+pub func release_list(names: str[]):
+    for name in names:
+        free(u8[]((u8*)name.bytes.data, name.length + 1))
+    if names.length > 0:
+        free(names)
 """),
     Prelude(name = "process", text = """
 import c
@@ -1517,16 +1556,17 @@ pub func to_i64(text: str) -> i64?:
         i = 1
     if i >= b.length:
         return none
+    # the value accumulates on the side of its sign, so the negative endpoint fits
     var value: i64 = 0
     while i < b.length:
         let byte = b[i]
         if byte < '0' or byte > '9':
             return none
         let digit = (i64)(byte - '0')
-        let next = value *? 10 else return none
-        value = next +? digit else return none
+        let scaled = value *? 10 else return none
+        value = (scaled -? digit if negative else scaled +? digit) else return none
         i += 1
-    return 0 - value if negative else value
+    return value
 
 ## ASCII case folding; other bytes pass through.
 pub func to_upper(text: str) -> str!:
@@ -1800,16 +1840,16 @@ import c
 import memory
 import platform
 
-extern func getenv(name: c.str) -> c.str?
-extern func setenv(name: c.str, value: c.str, overwrite: i32) -> i32
-extern func unsetenv(name: c.str) -> i32
+extern func getenv(variable: c.str) -> c.str?
+extern func setenv(variable: c.str, value: c.str, overwrite: i32) -> i32
+extern func unsetenv(variable: c.str) -> i32
 extern func getcwd(buffer: u8*, size: usize) -> c.str?
 extern func chdir(path: c.str) -> i32
 extern func getpid() -> i32
 extern func getppid() -> i32
 extern func gethostname(buffer: u8*, size: usize) -> i32
 extern func c_exit as "exit"(code: i32) -> never
-extern func sysconf(name: i32) -> i64
+extern func sysconf(option: i32) -> i64
 extern func getpagesize() -> i32
 
 pub let failed: ErrorCode = ErrorCode.package(12)
@@ -1869,17 +1909,17 @@ pub func page_size() -> usize:
     return (usize)getpagesize()
 
 ## The value of an environment variable, or none when it is not set.
-pub func env(name: c.str) -> str?:
-    let value = getenv(name) else return none
+pub func env(variable: c.str) -> str?:
+    let value = getenv(variable) else return none
     return (str)value
 
 ## Set an environment variable for this process and the ones it starts.
-pub func set_env(name: c.str, value: c.str) -> !:
-    if setenv(name, value, 1) != 0:
+pub func set_env(variable: c.str, value: c.str) -> !:
+    if setenv(variable, value, 1) != 0:
         error(failed, "the environment variable cannot be set")
 
-pub func unset_env(name: c.str) -> !:
-    if unsetenv(name) != 0:
+pub func unset_env(variable: c.str) -> !:
+    if unsetenv(variable) != 0:
         error(failed, "the environment variable cannot be unset")
 
 ## The working directory, in storage from the current allocator.
@@ -2024,6 +2064,11 @@ let datagram: i32 = 2
 ## `SOL_SOCKET` and `SO_REUSEADDR`: 65535 and 4 on macOS, 1 and 2 on Linux.
 let socket_level: i32 = 65535 if platform.macos else 1
 let reuse_address: i32 = 4 if platform.macos else 2
+## A write to a socket the peer closed answers an error, never the process's death:
+## macOS marks the socket (`SO_NOSIGPIPE`, 4130), Linux marks the send (`MSG_NOSIGNAL`,
+## 16384).
+let no_sigpipe_option: i32 = 4130
+let send_flags: i32 = 0 if platform.macos else 16384
 
 pub let failed: ErrorCode = ErrorCode.package(9)
 pub let closed: ErrorCode = ErrorCode.package(10)
@@ -2097,7 +2142,7 @@ pub struct Listener:
         let fd = accept(self.descriptor, none, none)
         if fd < 0:
             error(failed, "accept")
-        return Connection(descriptor = fd)
+        return Connection.over(fd)
 
     pub func close():
         discard(close(self.descriptor))
@@ -2106,6 +2151,9 @@ pub struct Listener:
 pub struct Connection: Writer:
     ## The socket, for callers that poll or pass it on.
     pub var descriptor: i32
+    ## Whether the socket is marked against `SIGPIPE` (macOS); `write` marks it on first
+    ## use, so a connection built any other way than `over` is guarded too.
+    var guarded: bool
 
     pub static func connect(address: Address) -> Connection!:
         let fd = socket(inet, stream, 0)
@@ -2115,13 +2163,39 @@ pub struct Connection: Writer:
         if connect(fd, &raw, 16) != 0:
             discard(close(fd))
             error(failed, "connect")
-        return Connection(descriptor = fd)
+        return Connection.over(fd)
 
-    ## Send every byte.
+    ## A connection over a socket the caller made (a `socketpair`, an inherited
+    ## descriptor): the socket is marked so that a write after the peer closed fails
+    ## instead of ending the process. Make the connection while the peer is still there:
+    ## macOS refuses the mark on a socket whose peer has already gone, and a write on
+    ## such a connection answers `closed` without sending.
+    pub static func over(descriptor: i32) -> Connection:
+        var connection = Connection(descriptor = descriptor, guarded = false)
+        discard(connection.guard())
+        return connection
+
+    ## Whether a write cannot raise `SIGPIPE`. Linux asks with every `send`
+    ## (`MSG_NOSIGNAL`); macOS marks the socket once (`SO_NOSIGPIPE`), and refuses the mark
+    ## with `EINVAL` on a socket whose peer has disconnected.
+    mutating func guard() -> bool:
+        if self.guarded:
+            return true
+        if not platform.macos:
+            self.guarded = true
+            return true
+        var yes: i32 = 1
+        if setsockopt(self.descriptor, socket_level, no_sigpipe_option, &yes, 4) == 0:
+            self.guarded = true
+        return self.guarded
+
+    ## Send every byte; a peer that closed is `closed`, never a signal.
     pub mutating func write(data: const u8[]) -> usize!:
+        if not self.guard():
+            error(closed, "the connection closed")
         var done: usize = 0
         while done < data.length:
-            let n = send(self.descriptor, data[done..].data, data.length - done, 0)
+            let n = send(self.descriptor, data[done..].data, data.length - done, send_flags)
             if n <= 0:
                 error(closed, "the connection closed")
             done += (usize)n

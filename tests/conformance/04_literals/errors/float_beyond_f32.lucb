@@ -1,0 +1,6 @@
+# error: the float literal is beyond its type
+## §4.3: a literal that would round to an infinity is refused; `math.infinity` is the
+## infinity.
+pub func main(arguments: str[]) -> i32:
+    let x: f32 = 3.4028236e38
+    return 0

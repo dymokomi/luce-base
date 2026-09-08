@@ -273,8 +273,9 @@ func compile(text: str, exe: str, release: bool, with_start: bool) -> !:
         try files.write((c.str)start_path, runtime.start.bytes)
     var include = try format(name_bytes[2560..<3072], f"-I{dir}")
     var cc_args: c.str[40] = ---
+    # Base has no type-based aliasing rule (§12.6): the C compiler must not assume one
     cc_args[0] = "-std=gnu11"
-    cc_args[1] = "-Wall"
+    cc_args[1] = "-fno-strict-aliasing"
     cc_args[2] = "-Werror"
     cc_args[3] = "-O2" if release and not native_backend else "-O0"
     cc_args[4] = (c.str)include
@@ -668,9 +669,9 @@ func build_library(code: str, header_text: str, name: str) -> !:
         let include = try format(include_bytes, f"-I{dir}")
         var rt_object_bytes: u8[600]
         let rt_object = try format(rt_object_bytes, f"{dir}/rt.o")
-        var gen_args: c.str[9] = ["-std=gnu11", "-Wall", "-Werror", "-O2", (c.str)include, "-c", (c.str)gen_path, "-o", (c.str)object_path]
+        var gen_args: c.str[10] = ["-std=gnu11", "-Wall", "-Werror", "-fno-strict-aliasing", "-O2", (c.str)include, "-c", (c.str)gen_path, "-o", (c.str)object_path]
         try run_tool("cc", gen_args, "the C compiler rejected the generated code")
-        var rt_args: c.str[9] = ["-std=gnu11", "-Wall", "-Werror", "-O2", (c.str)include, "-c", (c.str)rt_source, "-o", (c.str)rt_object]
+        var rt_args: c.str[10] = ["-std=gnu11", "-Wall", "-Werror", "-fno-strict-aliasing", "-O2", (c.str)include, "-c", (c.str)rt_source, "-o", (c.str)rt_object]
         try run_tool("cc", rt_args, "the C compiler rejected the runtime")
         var ar_args: c.str[4] = ["rcs", (c.str)archive, (c.str)object_path, (c.str)rt_object]
         try run_tool("ar", ar_args, "the archiver failed")

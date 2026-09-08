@@ -1,0 +1,24 @@
+# oracle: none
+## §5.1, the `strings` module: a text is read as the integer it spells, both endpoints of
+## `i64` included, and nothing else.
+import strings
+
+func show(text: str):
+    if let value = strings.to_i64(text):
+        print(f"{value}")
+    else:
+        print("none")
+
+pub func main(arguments: str[]) -> i32:
+    show("-9223372036854775808")
+    show("9223372036854775807")
+    show("-9223372036854775809")
+    show("9223372036854775808")
+    show("0")
+    show("-0")
+    show("+42")
+    show("-")
+    show("")
+    show("12a")
+    show("00007")
+    return 0

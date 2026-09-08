@@ -1,0 +1,6 @@
+# error: expected `f64`, got
+## §4.2: an integer literal takes an integer type from context, never a float; a float
+## wants a float literal.
+pub func main(arguments: str[]) -> i32:
+    let x: f64 = 2
+    return 0

@@ -1,0 +1,6 @@
+# error: expected `f64`, got
+## §4.2, §7.5: an integer literal does not join float arithmetic; `2.0` does.
+pub func main(arguments: str[]) -> i32:
+    let x: f64 = 1.5
+    let y = x * 2
+    return 0

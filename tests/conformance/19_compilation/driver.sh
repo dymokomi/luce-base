@@ -27,6 +27,19 @@ for native in "" "--native"; do
     ar t build/conformance.a > /dev/null
     rm -f build/conformance.a build/conformance.h
 done
+# a linked record and an aligned field cross the header exactly (§17.6, §5.11): a C program
+# includes the header, links the archive from either backend, and agrees on every layout
+for native in "" "--native"; do
+    $lb build $dir/library_recursive.lucb --lib $native -o build/conformance
+    cc -std=c11 -Wall -Werror -Ibuild $dir/library_recursive_use.c build/conformance.a -lm -pthread -o build/conformance_use
+    ./build/conformance_use > build/conformance_use.out
+    printf '6 15\n' | cmp - build/conformance_use.out
+    $lb build $dir/library_layout.lucb --lib $native -o build/conformance
+    cc -std=c11 -Wall -Werror -Ibuild $dir/library_layout_use.c build/conformance.a -lm -pthread -o build/conformance_use
+    ./build/conformance_use > build/conformance_use.out
+    printf '1 1 32 16 42\n' | cmp - build/conformance_use.out
+    rm -f build/conformance.a build/conformance.h build/conformance_use build/conformance_use.out
+done
 # a library's code as text, for any target, with the initialiser the loader runs (§17.6, §19.5)
 $lb build $dir/library.lucb --lib --native --target arm64-macos --emit=asm -o build/conformance.s
 grep -q '__mod_init_func' build/conformance.s

@@ -26,6 +26,7 @@ import memory
 import sema.check
 import sema.types
 import support.buffer
+import support.decimal
 import support.list
 
 pub let native_unsupported: ErrorCode = ErrorCode.package(14)
@@ -71,6 +72,17 @@ pub struct LowerValue:
 # mark: The lowerer ============================================================================
 
 ## A copy of `text` in the current allocator, for a message the unit keeps by view.
+## `file:line: assert failed: condition`, and `: message` when one is given (§11.6), in
+## an allocation of its own length.
+func assert_text(file: str, line: u32, condition: str, message: str) -> str!:
+    var length = file.length + 32 + condition.length
+    if message.length > 0:
+        length += 2 + message.length
+    let room = try alloc u8[length]
+    if message.length > 0:
+        return try format(room, f"{file}:{line}: assert failed: {condition}: {message}")
+    return try format(room, f"{file}:{line}: assert failed: {condition}")
+
 func kept_text(text: str) -> str!:
     let copy = try alloc u8[text.length]
     memory.copy(copy, text.bytes, text.length)
@@ -312,7 +324,7 @@ pub struct Lowerer:
                     if m.kind == ast.Kind.field:
                         let ft = try self.map(try self.c.substitute(m.type_id, d, t.args))
                         if not d.has(ast.flag_packed):
-                            offset = lower_round_up(offset, self.c.table.align_of(ft))
+                            offset = lower_round_up(offset, self.c.table.field_alignment(ft, m))
                         try self.push_leaves(ft, base + offset)
                         offset += self.c.table.size_of(ft)
                     cursor = m.next
@@ -1489,9 +1501,6 @@ pub struct Lowerer:
             let d = try self.f.unary(ir.Op.cast, ir.Class.d, ir.const_ref((i64)bits))
             return LowerValue(ref = d, type_id = types.f64_id if t == types.untyped_float_id else t, in_memory = false)
         let v = try check.decode_integer(e.text)
-        if self.is_float(t):
-            let d = try self.f.unary(ir.Op.ultof, self.class_of(t), ir.const_ref((i64)v))
-            return LowerValue(ref = d, type_id = t, in_memory = false)
         let it = types.i64_id if t == types.untyped_int_id else t
         return LowerValue(ref = ir.const_ref((i64)v), type_id = it, in_memory = false)
 
@@ -1640,7 +1649,7 @@ pub struct Lowerer:
             if m.kind == ast.Kind.field:
                 let mt = try self.map(try self.c.substitute(m.type_id, d, t.args))
                 if not d.has(ast.flag_packed):
-                    offset = lower_round_up(offset, self.c.table.align_of(mt))
+                    offset = lower_round_up(offset, self.c.table.field_alignment(mt, m))
                 if m == field:
                     return try self.offset_address(base, offset)
                 offset += self.c.table.size_of(mt)
@@ -2355,7 +2364,7 @@ pub struct Lowerer:
                 if m.kind == ast.Kind.field:
                     let ft = try self.map(try self.c.substitute(m.type_id, d, tt.args))
                     if not d.has(ast.flag_packed):
-                        offset = lower_round_up(offset, self.c.table.align_of(ft))
+                        offset = lower_round_up(offset, self.c.table.field_alignment(ft, m))
                     let same = try self.value_equal(try self.offset_address(a, offset), try self.offset_address(b, offset), ft)
                     out = try self.f.binary(ir.Op.and_, ir.Class.w, out, same)
                     offset += self.c.table.size_of(ft)
@@ -3446,7 +3455,7 @@ pub struct Lowerer:
                 continue
             let ft = try self.map(try self.c.substitute(f.type_id, d, t.args))
             if not d.has(ast.flag_packed):
-                offset = lower_round_up(offset, self.c.table.align_of(ft))
+                offset = lower_round_up(offset, self.c.table.field_alignment(ft, f))
             var given: ast.Node*? = none
             var pos: usize = 0
             var arg = e.body
@@ -3521,23 +3530,23 @@ pub struct Lowerer:
             let bad = self.f.label()
             try self.f.branch(c.ref, ok, bad)
             try self.f.place_label(bad)
-            var located: u8[512]
-            var where = try format(located, f"{self.source_of_current()}:{e.line}: assert failed: {e.text}")
-            var joined: u8[1024]
+            # the text is as long as the condition's source, however long that is
+            let file = self.source_of_current()
+            var where = try assert_text(file, e.line, e.text, "")
             if let msg = second:
                 if msg.kind == ast.Kind.literal and msg.text.bytes[0] == '"':
-                    where = try format(joined, f"{where}: {check.decode_text(msg.text)}")
-                    try self.trap_with(try kept_text(where))
+                    where = try assert_text(file, e.line, e.text, check.decode_text(msg.text))
+                    try self.trap_with(where)
                 else:
                     let m = try self.expr(msg)
                     let data = try self.f.load(ir.Op.loadl, ir.Class.l, m.ref)
                     let start = u32(self.f.args.count)
-                    let prefix = try self.program_unit.text(try kept_text(where))
+                    let prefix = try self.program_unit.text(where)
                     try self.f.args.push(ir.Arg(value = try self.f.address_of(ir.text_ref(prefix)), cls = ir.Class.l, size = 0, align = 8, type_id = types.cstr_id, shape = 0))
                     try self.f.args.push(ir.Arg(value = data, cls = ir.Class.l, size = 0, align = 8, type_id = types.cstr_id, shape = 0))
                     discard(try self.call_named("lb_core_trap_two", start, 2, ir.Class.w, false, types.unit_id))
             else:
-                try self.trap_with(try kept_text(where))
+                try self.trap_with(where)
             try self.f.place_label(ok)
             return nothing
         if name == "trap":
@@ -4485,103 +4494,17 @@ func lower_round_up(value: u64, align: u64) -> u64:
 func round_up8(value: u64) -> u64:
     return lower_round_up(value, 8)
 
-## The IEEE bits of a decimal float literal, parsed digit by digit.
+## The IEEE bits of a decimal float literal at each width, correctly rounded (§4.3): one
+## rounding from the digits, by `decimal`, so an `f32` or `f16` literal is never rounded
+## through a double. The checker has already accepted the text as a float literal.
 pub func float_bits(text: str) -> u64:
-    let value = parse_float(text)
-    return float_to_bits(value)
+    return decimal.bits(text, 64) else 0
 
 pub func float32_bits(text: str) -> u64:
-    let value = parse_float(text)
-    return (u64)f32_to_bits(f32(value))
+    return decimal.bits(text, 32) else 0
 
 pub func float16_bits(text: str) -> u64:
-    return half_bits(parse_float(text))
-
-## The binary16 nearest `value`, ties to even, as its sixteen bits: the compiler's own
-## rounding, so a literal's bits do not depend on the compiler being built with `f16`.
-func half_bits(value: f64) -> u64:
-    let bits = float_to_bits(value)
-    let sign = (bits >> 63) << 15
-    let exponent = (i64)((bits >> 52) & 0x7FF) - 1023
-    let fraction = bits & 0xFFFFFFFFFFFFF
-    if exponent == 1024:
-        # an infinity, or a NaN kept quiet
-        return sign | 0x7C00 | (0x200 if fraction != 0 else 0)
-    if exponent == -1023 and fraction == 0:
-        return sign
-    var biased = exponent + 15
-    var shift: i64 = 42
-    if biased <= 0:
-        # a subnormal: fewer fraction bits survive, and the hidden bit is one of them
-        shift += 1 - biased
-        biased = 0
-        if shift > 60:
-            return sign
-    let one: u64 = 1
-    let mantissa = fraction | (one << 52)
-    let dropped = mantissa & ((one << (u64)shift) - 1)
-    let half = one << (u64)(shift - 1)
-    var kept = mantissa >> (u64)shift
-    if dropped > half or (dropped == half and (kept & 1) == 1):
-        kept += 1
-    if biased == 0:
-        # rounding up out of the subnormals lands on the smallest normal, which spells itself
-        return sign | kept
-    if kept == 2048:
-        kept = 1024
-        biased += 1
-    if biased >= 31:
-        return sign | 0x7C00
-    return sign | ((u64)biased << 10) | (kept - 1024)
-
-test "half_bits rounds a double to the nearest binary16":
-    assert(half_bits(1.0) == 0x3C00)
-    assert(half_bits(-2.0) == 0xC000)
-    assert(half_bits(0.0) == 0)
-    assert(half_bits(65504.0) == 0x7BFF)
-    assert(half_bits(65519.0) == 0x7BFF)
-    assert(half_bits(65520.0) == 0x7C00)
-    assert(half_bits(1.0 / 3.0) == 0x3555)
-    assert(half_bits(0.1) == 0x2E66)
-    assert(half_bits(2049.0) == 0x6800)
-    assert(half_bits(2051.0) == 0x6802)
-    assert(half_bits(0.000000059604644775390625) == 0x0001)
-    assert(half_bits(0.0000000298023223876953125) == 0)
-    assert(half_bits(0.0000000447034835815429688) == 0x0001)
-    assert(half_bits(0.00006103515625) == 0x0400)
-    assert(half_bits(1.0e300) == 0x7C00)
-
-## A decimal float from its text: digits, a point, an exponent.
-func parse_float(text: str) -> f64:
-    let b = text.bytes
-    var mantissa: f64 = 0.0
-    var i: usize = 0
-    var scale: f64 = 1.0
-    var seen_point = false
-    while i < b.length and b[i] != 'e' and b[i] != 'E':
-        let c = b[i]
-        if c == '.':
-            seen_point = true
-        elif c != '_':
-            mantissa = mantissa * 10.0 + f64((i64)(c - '0'))
-            if seen_point:
-                scale = scale * 10.0
-        i += 1
-    var result = mantissa / scale
-    if i < b.length:
-        i += 1
-        var negative = false
-        if i < b.length and (b[i] == '-' or b[i] == '+'):
-            negative = b[i] == '-'
-            i += 1
-        var exponent: i64 = 0
-        while i < b.length:
-            exponent = exponent * 10 + (i64)(b[i] - '0')
-            i += 1
-        while exponent > 0:
-            result = result / 10.0 if negative else result * 10.0
-            exponent -= 1
-    return result
+    return decimal.bits(text, 16) else 0
 
 func float_to_bits(value: f64) -> u64:
     var copy_of = value

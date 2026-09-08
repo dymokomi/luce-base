@@ -602,6 +602,11 @@ pub struct Table:
                 let s = self.sized(id, env_decl, env_args)
                 return s if s > 0 else 1
 
+    ## A field's alignment: its type's, raised by the `align(N)` before the field (§5.11).
+    ## Every layout, in the table and in the backends, places a field by this.
+    pub func field_alignment(id: u32, member: ast.Node*) -> u64:
+        return field_align(self.align_of(id), member)
+
     ## Byte offset of `field` in the struct `id`; 0 when absent.
     pub func offset_of(id: u32, field: str) -> u64:
         let t = self.get(id)
@@ -613,7 +618,7 @@ pub struct Table:
         while let member = cursor:
             if member.kind == ast.Kind.field:
                 if not decl.has(ast.flag_packed):
-                    offset = round_up(offset, self.aligned(member.type_id, decl, inner))
+                    offset = round_up(offset, field_align(self.aligned(member.type_id, decl, inner), member))
                 if member.text == field:
                     return offset
                 offset += self.sized(member.type_id, decl, inner)

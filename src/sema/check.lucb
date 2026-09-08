@@ -30,6 +30,7 @@ import front.token
 import io
 import memory
 import sema.init_rules
+import support.decimal
 import sema.prelude
 import sema.prune
 import sema.types
@@ -174,9 +175,12 @@ pub struct Checker:
         var sink = SpanWriter(data = self.scratch[half..], used = 0)
         discard(try sink.write("expected `".bytes))
         try self.table.describe(&sink, expected)
-        discard(try sink.write("`, got `".bytes))
-        try self.table.describe(&sink, got)
-        discard(try sink.write("`".bytes))
+        if got == types.untyped_int_id or got == types.untyped_float_id:
+            discard(try sink.write("`, got an integer literal".bytes if got == types.untyped_int_id else "`, got a float literal".bytes))
+        else:
+            discard(try sink.write("`, got `".bytes))
+            try self.table.describe(&sink, got)
+            discard(try sink.write("`".bytes))
         return try self.fail(node, (str)self.scratch[half..<half + sink.used])
 
     # -- scopes ---------------------------------------------------------------------------
@@ -201,17 +205,17 @@ pub struct Checker:
                 return b
         return none
 
-    ## Bind `name` in the innermost scope. Base has no shadowing (§3.5): a local may not
-    ## reuse the name of another local, a parameter, or an import, and nothing may reuse a
-    ## core name.
+    ## Bind `name` in the innermost scope. Base has no shadowing (§3.5): a local or a
+    ## parameter may not reuse the name of another local, a parameter, an import, or a
+    ## declaration of the module, and nothing may reuse a core name.
     mutating func bind(at: ast.Node*, name: str, type_id: u32, decl: ast.Node*?, mutable: bool) -> !:
         if token.is_core_name(name) and not self.in_prelude():
             discard(try self.fail(at, "this name belongs to the language"))
         if let existing = self.lookup(name):
-            if existing.depth >= 2 or existing.depth == self.depth:
-                discard(try self.fail(at, "this name is already in scope"))
-            elif existing.origin != none and self.depth >= 2:
+            if existing.origin != none and existing.depth < 2 and self.depth >= 2:
                 discard(try self.fail(at, "this name is an import; a local may not shadow it"))
+            else:
+                discard(try self.fail(at, "this name is already in scope"))
         try self.scope.push(Binding(name = name, type_id = type_id, decl = decl, mutable = mutable, depth = self.depth, from_local = false, origin = none, used = false))
 
     ## A default argument that is `luce.line`, `luce.file`, or `luce.function` expands at
@@ -884,23 +888,40 @@ pub struct Checker:
     ## parameter position, records of representable fields, integer-backed enums, and
     ## function pointers with representable signatures.
     func c_representable(id: u32, parameter: bool) -> bool:
+        var seen: u32[64] = ---
+        return self.c_representable_in(id, parameter, seen, 0)
+
+    ## The check with the records on the way down: a record reached again through a
+    ## pointer is being decided already, and is representable if its other members are.
+    func c_representable_in(id: u32, parameter: bool, seen: u32[], depth: usize) -> bool:
         let t = self.table.get(id)
         if self.table.is_numeric(id) or id == types.bool_id or id == types.char_id or id == types.cstr_id or id == types.void_id or id == types.unit_id or id == types.never_id:
             return true
         match t.kind:
             .pointer:
-                return t.elem == types.void_id or self.c_representable(t.elem, false) or self.table.kind(t.elem) == types.Kind.struct_ or self.table.kind(t.elem) == types.Kind.union_
+                return t.elem == types.void_id or self.c_representable_in(t.elem, false, seen, depth) or self.table.kind(t.elem) == types.Kind.struct_ or self.table.kind(t.elem) == types.Kind.union_
             .span:
-                return parameter and self.c_representable(t.elem, false)
+                return parameter and self.c_representable_in(t.elem, false, seen, depth)
             .optional:
-                return self.table.has_null_niche(t.elem) and self.c_representable(t.elem, false)
+                return self.table.has_null_niche(t.elem) and self.c_representable_in(t.elem, false, seen, depth)
+            .array:
+                # a C array in a record; never a parameter, which C passes as a pointer
+                return not parameter and self.c_representable_in(t.elem, false, seen, depth)
             .struct_, .union_:
                 if self.table.is_opaque_handle(id):
                     return true
+                var k: usize = 0
+                while k < depth:
+                    if seen[k] == id:
+                        return true
+                    k += 1
+                if depth >= seen.length:
+                    return false
+                seen[depth] = id
                 let d = t.decl else return false
                 var member = d.body
                 while let m = member:
-                    if m.kind == ast.Kind.field and not self.c_representable(m.type_id, false):
+                    if m.kind == ast.Kind.field and not self.c_representable_in(m.type_id, false, seen, depth + 1):
                         return false
                     member = m.next
                 return true
@@ -908,9 +929,9 @@ pub struct Checker:
                 return self.is_backed_enum(id)
             .func_:
                 for a in t.args:
-                    if not self.c_representable(a, true):
+                    if not self.c_representable_in(a, true, seen, depth):
                         return false
-                return t.elem == types.unit_id or self.c_representable(t.elem, false)
+                return t.elem == types.unit_id or self.c_representable_in(t.elem, false, seen, depth)
             _:
                 return false
 
@@ -1430,7 +1451,8 @@ pub struct Checker:
         let s = self.table.get(have)
         let t = self.table.get(want)
         if have == types.untyped_int_id:
-            return self.table.is_numeric(want) or want == types.error_code_id or (t.kind == types.Kind.optional and self.assignable(e, have, t.elem))
+            # an integer literal takes an integer type from context, never a float (§4.2)
+            return self.table.is_integer(want) or want == types.error_code_id or (t.kind == types.Kind.optional and self.assignable(e, have, t.elem))
         if have == types.untyped_float_id:
             return self.table.is_float(want) or (t.kind == types.Kind.optional and self.assignable(e, have, t.elem))
         if have == types.none_id:
@@ -1657,6 +1679,8 @@ pub struct Checker:
         if got == types.untyped_int_id or got == types.untyped_float_id:
             if e.kind == ast.Kind.literal and got == types.untyped_int_id:
                 try self.check_fits(e, target)
+            if e.kind == ast.Kind.literal and got == types.untyped_float_id:
+                try self.check_float_fits(e, target)
             e.type_id = self.table.get(target).elem if self.table.kind(target) == types.Kind.optional else target
             return e.type_id
         if got == types.never_id:
@@ -1669,6 +1693,17 @@ pub struct Checker:
         return target
 
     ## An integer literal must fit its type (§7.5).
+    ## A float literal rounds to a finite value of its type: one that would round to an
+    ## infinity is refused, since the infinities are not literals (§4.3).
+    func check_float_fits(e: ast.Node*, target: u32) -> !:
+        var dest = target
+        if self.table.kind(dest) == types.Kind.optional:
+            dest = self.table.get(dest).elem
+        if not self.table.is_float(dest):
+            return
+        if decimal.overflows(literal_body(e.text), self.table.bits(dest)):
+            discard(try self.fail(e, "the float literal is beyond its type; the infinities are constants of `math`"))
+
     func check_fits(e: ast.Node*, target: u32) -> !:
         var dest = target
         if self.table.kind(dest) == types.Kind.optional:
@@ -1937,6 +1972,8 @@ pub struct Checker:
         if suffix.length > 0:
             return try self.suffixed_literal(e, suffix)
         if is_float_literal(e.text):
+            # finite as an `f64` at least; a narrower context checks again
+            try self.check_float_fits(e, types.f64_id)
             return types.untyped_float_id
         return types.untyped_int_id
 
@@ -1950,6 +1987,8 @@ pub struct Checker:
             return try self.fail(e, "a float suffix needs a float literal, an integer suffix an integer literal")
         if self.table.is_integer(id):
             try self.check_fits(e, id)
+        else:
+            try self.check_float_fits(e, id)
         return id
 
     ## A name is a local, a declaration, a module, or a type used as a value.
@@ -2308,7 +2347,7 @@ pub struct Checker:
             discard(try self.coerce(l, lt, context))
             discard(try self.coerce(r, rt, context))
             t = context
-        elif is_arithmetic(op) and (t == types.untyped_int_id or t == types.untyped_float_id) and self.table.is_float(context):
+        elif is_arithmetic(op) and t == types.untyped_float_id and self.table.is_float(context):
             discard(try self.coerce(l, lt, context))
             discard(try self.coerce(r, rt, context))
             t = context
@@ -3009,12 +3048,18 @@ pub struct Checker:
             if name == "length":
                 return types.usize_id
             if name == "data":
+                if t.kind == types.Kind.array:
+                    # an array is a value; the address of its elements is `&a[0]`, or the
+                    # span it converts to (§5.4)
+                    return try self.fail(e, "an array has `length`, `first()`, and `last()`; its span has `data`")
                 return try self.table.pointer(t.elem, t.is_const, false)
             if t.kind == types.Kind.array and self.table.is_vector(id) and (name == "sum" or name == "min" or name == "max"):
                 return try self.builtin_method(e, id, name)
             if name == "first" or name == "last" or name == "indexed":
                 let span = id if t.kind == types.Kind.span else try self.table.span(t.elem, false)
                 return try self.builtin_method(e, span, name)
+            if t.kind == types.Kind.array:
+                return try self.fail(e, "an array has `length`, `first()`, and `last()`; its span has `data`")
             return try self.fail(e, "spans have `length`, `data`, `first()`, `last()`, and `indexed()`")
         if id == types.str_id:
             if name == "length":
@@ -3363,6 +3408,10 @@ pub struct Checker:
                         try self.require_mutable_receiver(receiver)
                 if callee.has(ast.flag_static) and callee.resolved == none:
                     decl = none
+        if callee.kind != ast.Kind.name and callee.kind != ast.Kind.member:
+            # a call, an index, or a lambda answers a function value; the declaration a
+            # call's callee resolved to is that callee's, not this call's
+            decl = none
         if let d = decl:
             if d.kind != ast.Kind.func_ and d.kind != ast.Kind.extern_func:
                 decl = none
@@ -5693,7 +5742,7 @@ test "a generic that nests its own parameter in a recursive call is an infinite 
     try expect_error("struct Pair[A, B]:\n    var first: A\n    var second: B\nfunc grow[T](depth: T) -> i64:\n    return grow(Pair[T, T](first = depth, second = depth))\n", "infinite chain")
 
 test "a mutating view needs a var; a view comes from a pointer; a temporary has no address":
-    try expect_error("interface Shape:\n    mutating func scale(f: f64)\nstruct Q: Shape:\n    var s: f64\n    mutating func scale(f: f64):\n        self.s = f\nfunc f() -> unit:\n    let q = Q(s = 1.0)\n    let v: Shape = &q\n    v.scale(2.0)\n", "expected `Shape`")
+    try expect_error("interface Shape:\n    mutating func scale(k: f64)\nstruct Q: Shape:\n    var s: f64\n    mutating func scale(k: f64):\n        self.s = k\nfunc f() -> unit:\n    let q = Q(s = 1.0)\n    let v: Shape = &q\n    v.scale(2.0)\n", "expected `Shape`")
     try expect_ok("interface Shape:\n    func area() -> f64\nstruct Q: Shape:\n    var s: f64\n    func area() -> f64:\n        return self.s\nfunc f() -> f64:\n    let q = Q(s = 1.0)\n    let v: Shape = &q\n    return v.area()\n")
     try expect_error("struct Q:\n    var s: f64\nfunc f() -> Q*:\n    return &Q(s = 1.0)\n", "address of a temporary")
 

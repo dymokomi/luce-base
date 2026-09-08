@@ -1,0 +1,5 @@
+# error: the float literal is beyond its type
+## §4.3: an `f16` context refuses 65520, which rounds past the largest half, 65504.
+pub func main(arguments: str[]) -> i32:
+    let x: f16 = 65520.0
+    return 0

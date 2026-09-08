@@ -75,6 +75,7 @@ pub func read(path: c.str) -> u8[]!:
     while got < bytes.length:
         let n = c_read(fd, bytes[got..].data, bytes.length - got)
         if n < 0:
+            free(bytes)
             discard(close(fd))
             error(failed, "the file cannot be read")
         if n == 0:
@@ -96,19 +97,31 @@ pub func write(path: c.str, data: const u8[]) -> !:
         done += (usize)n
     discard(close(fd))
 
-## The names in a directory, sorted, allocated from the current allocator.
+## The names in a directory, sorted by bytes, without `.` and `..`: each name and the
+## array holding them, exactly as long as the names, are allocations of the current
+## allocator, which `release_list` returns together. On a failure nothing allocated is
+## kept and the directory is closed.
 pub func list(path: c.str) -> str[]!:
     let dir = opendir(path) else error(missing, "missing")
-    var names = try alloc str[16]
+    var names = alloc str[16] catch failure:
+        discard(closedir(dir))
+        error(memory.exhausted, "memory.exhausted")
     var count: usize = 0
     while let name = next_entry(dir):
         if name == "." or name == "..":
             continue
         if count == names.length:
-            let grown = try alloc str[names.length * 2]
+            let grown = alloc str[names.length * 2] catch failure:
+                release_list(names[..<count])
+                discard(closedir(dir))
+                error(memory.exhausted, "memory.exhausted")
             memory.copy(grown, names, count)
+            free(names)
             names = grown
-        let copy = try alloc u8[name.length + 1]
+        let copy = alloc u8[name.length + 1] catch failure:
+            release_list(names[..<count])
+            discard(closedir(dir))
+            error(memory.exhausted, "memory.exhausted")
         memory.copy(copy, name.bytes, name.length)
         copy[name.length] = 0
         names[count] = (str)copy[..<name.length]
@@ -124,4 +137,23 @@ pub func list(path: c.str) -> str[]!:
             j -= 1
         names[j] = item
         i += 1
-    return names[..<count]
+    # the array as long as the names, so that `release_list` returns what was allocated
+    if count == 0:
+        free(names)
+        var empty: str[]
+        return empty
+    let exact = alloc str[count] catch failure:
+        release_list(names[..<count])
+        error(memory.exhausted, "memory.exhausted")
+    memory.copy(exact, names, count)
+    free(names)
+    return exact
+
+## Return what `list` allocated: every name, then the array, to the allocator that is
+## current, which must be the one `list` allocated from. The names are one byte longer
+## than they read, the NUL after each (§5.5).
+pub func release_list(names: str[]):
+    for name in names:
+        free(u8[]((u8*)name.bytes.data, name.length + 1))
+    if names.length > 0:
+        free(names)

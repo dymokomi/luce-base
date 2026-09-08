@@ -112,16 +112,17 @@ pub func to_i64(text: str) -> i64?:
         i = 1
     if i >= b.length:
         return none
+    # the value accumulates on the side of its sign, so the negative endpoint fits
     var value: i64 = 0
     while i < b.length:
         let byte = b[i]
         if byte < '0' or byte > '9':
             return none
         let digit = (i64)(byte - '0')
-        let next = value *? 10 else return none
-        value = next +? digit else return none
+        let scaled = value *? 10 else return none
+        value = (scaled -? digit if negative else scaled +? digit) else return none
         i += 1
-    return 0 - value if negative else value
+    return value
 
 ## ASCII case folding; other bytes pass through.
 pub func to_upper(text: str) -> str!:
