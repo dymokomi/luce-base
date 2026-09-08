@@ -66,6 +66,10 @@ pub func lanes_signed(shape: u32) -> bool:
 pub func vector_bytes(shape: u32) -> u32:
     return lane_bits(shape) * lane_count(shape) // 8
 
+## Whether `op` ends a basic block: control leaves through it, or never returns.
+pub func is_terminator(op: Op) -> bool:
+    return op == Op.jmp or op == Op.jnz or op == Op.ret or op == Op.trap_
+
 ## Whether `op` computes on vectors (§5.12), lane shape in `extra`.
 pub func is_vector_op(op: Op) -> bool:
     return (u8)op >= (u8)Op.loadv and (u8)op <= (u8)Op.vsplat
@@ -197,6 +201,10 @@ pub enum Op as u8:
     fill = 83
     ## `call`: `a` is the callee, arguments follow in the function's argument list
     call = 90
+    ## `dst = phi` at a block's head: the value from each predecessor, in `phi_args` from
+    ## `extra` for `extra2` entries. Only the optimiser's passes see phis: `dessa` turns
+    ## them into copies before a generator does.
+    phi = 91
     ## control: `label extra`, `jmp extra`, `jnz a, extra (then), value (else)`, `ret [a]`
     label = 100
     jmp = 101
@@ -331,6 +339,11 @@ pub struct Param:
 
 # mark: Functions and the unit ================================================================
 
+## One incoming value of a phi: what the block whose label is `pred` supplies.
+pub struct PhiArg:
+    pub var value: Ref
+    pub var pred: u32
+
 ## A named local as the debugger sees it (`--debug`): its slot, its type's spelling.
 pub struct LocalInfo:
     pub var name: str
@@ -351,6 +364,7 @@ pub struct Function:
     pub var args: list.List[Arg]
     pub var calls: list.List[CallInfo]
     pub var temps: list.List[Class]
+    pub var phi_args: list.List[PhiArg]
     pub var labels: u32
     pub var has_result: bool
     pub var result_cls: Class
@@ -370,7 +384,7 @@ pub struct Function:
                         params = try list.List[Param].create(8),
                         slots = try list.List[Slot].create(32), instrs = try list.List[Instr].create(256),
                         args = try list.List[Arg].create(32), calls = try list.List[CallInfo].create(16),
-                        temps = try list.List[Class].create(128), labels = 0, has_result = false,
+                        temps = try list.List[Class].create(128), phi_args = try list.List[PhiArg].create(16), labels = 0, has_result = false,
                         result_cls = Class.l, result_size = 0, result_align = 0, result_type = 0,
                         result_shape = 0, variadic = false)
 

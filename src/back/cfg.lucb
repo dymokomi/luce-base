@@ -1,0 +1,360 @@
+#==============================================================================================
+#
+#   cfg - The control flow graph of a function: blocks, dominators, frontiers, loops
+#
+#   DESCRIPTION:
+#       The IR is a flat list of instructions with labels; the optimiser's passes want it
+#       as a graph. A block runs from a label (or the function's start) to the instruction
+#       that leaves it, a jump, a branch, a return, or a trap, or to the next label, which
+#       the block then falls into. The graph numbers the reachable blocks in reverse
+#       post-order, finds each block's immediate dominator ("A Simple, Fast Dominance
+#       Algorithm", Cooper, Harvey, and Kennedy), its dominance frontier, its depth in the
+#       dominator tree, and its loop weight (1, times 10 per enclosing loop), as QBE's
+#       cfg.c does. The instructions stay where they are: a block names its range, and a
+#       pass that rewrites the list builds the graph again.
+#
+#==============================================================================================
+
+import memory
+import support.list
+import back.ir
+
+## No block.
+pub let none_block: u32 = 0xFFFFFFFF
+
+pub struct Block:
+    ## The label at the block's head; 0 for the entry, which has none.
+    pub var label: u32
+    ## The instructions of the block: `start` is the first after the label, `end` one past
+    ## the last, the terminator included when there is one.
+    pub var start: u32
+    pub var end: u32
+    ## Successors by block index (`none_block` when absent): a jump's target, a branch's
+    ## two, the block fallen into.
+    pub var succ1: u32
+    pub var succ2: u32
+    pub var preds: list.List[u32]
+    ## The reverse post-order number, `none_block` when unreachable from the entry.
+    pub var rpo: u32
+    pub var idom: u32
+    pub var frontier: list.List[u32]
+    ## Children in the dominator tree, and the depth below the entry.
+    pub var children: list.List[u32]
+    pub var depth: u32
+    ## 1 outside every loop, 10 inside one, 100 inside a nested one.
+    pub var loop_weight: u32
+
+pub struct Graph:
+    pub var blocks: list.List[Block]
+    ## Block indices in reverse post-order; `order.count` reachable blocks.
+    pub var order: list.List[u32]
+    ## The block a label heads, by label number.
+    var by_label: u32[]
+
+    ## The graph of `f` as its instructions stand.
+    pub static func over(f: ir.Function*) -> Graph!:
+        var g = Graph(blocks = try list.List[Block].create(32), order = try list.List[u32].create(32), by_label = try alloc u32[(usize)f.labels + 1])
+        var k: usize = 0
+        while k < g.by_label.length:
+            g.by_label[k] = none_block
+            k += 1
+        try g.split(f)
+        # the entry has no label; label 0 names it
+        g.by_label[0] = 0
+        g.link(f)
+        try g.number()
+        try g.dominators()
+        try g.frontiers()
+        g.depths()
+        try g.loops()
+        return g
+
+    pub mutating func release():
+        var i: usize = 0
+        while i < self.blocks.count:
+            var b = self.blocks.get(i)
+            b.preds.destroy()
+            b.frontier.destroy()
+            b.children.destroy()
+            i += 1
+        self.blocks.destroy()
+        self.order.destroy()
+        free(self.by_label)
+
+    ## The block that label `label` heads.
+    pub func block_of(label: u32) -> u32:
+        return self.by_label[(usize)label]
+
+    pub func count() -> usize:
+        return self.blocks.count
+
+    ## Whether `a` dominates `b`.
+    pub func dominates(a: u32, b: u32) -> bool:
+        var x = b
+        while x != none_block:
+            if x == a:
+                return true
+            if x == 0:
+                return false
+            x = self.blocks.get((usize)x).idom
+        return false
+
+    ## Whether `a` strictly dominates `b`.
+    pub func strictly_dominates(a: u32, b: u32) -> bool:
+        return a != b and self.dominates(a, b)
+
+    ## The least common ancestor of two blocks in the dominator tree.
+    pub func common_dominator(a: u32, b: u32) -> u32:
+        if a == none_block:
+            return b
+        if b == none_block:
+            return a
+        var x = a
+        var y = b
+        while self.blocks.get((usize)x).depth > self.blocks.get((usize)y).depth:
+            x = self.blocks.get((usize)x).idom
+        while self.blocks.get((usize)y).depth > self.blocks.get((usize)x).depth:
+            y = self.blocks.get((usize)y).idom
+        while x != y:
+            x = self.blocks.get((usize)x).idom
+            y = self.blocks.get((usize)y).idom
+        return x
+
+    # -- construction ---------------------------------------------------------------------
+
+    ## Cut the instruction list into blocks.
+    mutating func split(f: ir.Function*) -> !:
+        var start: u32 = 0
+        var label: u32 = 0
+        var open = true
+        var i: u32 = 0
+        while (usize)i < f.instrs.count:
+            let n = f.instrs.get((usize)i)
+            if n.op == ir.Op.label:
+                if open:
+                    try self.add(label, start, i)
+                label = n.extra
+                start = i + 1
+                open = true
+            elif ir.is_terminator(n.op):
+                try self.add(label, start, i + 1)
+                open = false
+                label = 0
+                start = i + 1
+            i += 1
+        if open:
+            try self.add(label, start, i)
+
+    mutating func add(label: u32, start: u32, end: u32) -> !:
+        let index = u32(self.blocks.count)
+        try self.blocks.push(Block(label = label, start = start, end = end, succ1 = none_block, succ2 = none_block, preds = try list.List[u32].create(2),
+                                   rpo = none_block, idom = none_block, frontier = try list.List[u32].create(2), children = try list.List[u32].create(2),
+                                   depth = 0, loop_weight = 1))
+        if label != 0:
+            self.by_label[(usize)label] = index
+
+    ## Successors from each block's last instruction, or the block after it.
+    mutating func link(f: ir.Function*):
+        var i: usize = 0
+        while i < self.blocks.count:
+            var b = self.blocks.get(i)
+            let last = f.instrs.get((usize)b.end - 1) if b.end > b.start else ir.Instr(op = ir.Op.label, cls = ir.Class.l, dst = 0, a = ir.none_ref(), b = ir.none_ref(), extra = 0, extra2 = 0)
+            if b.end > b.start and last.op == ir.Op.jmp:
+                b.succ1 = self.by_label[(usize)last.extra]
+            elif b.end > b.start and last.op == ir.Op.jnz:
+                b.succ1 = self.by_label[(usize)last.extra]
+                b.succ2 = self.by_label[(usize)last.extra2]
+            elif b.end > b.start and (last.op == ir.Op.ret or last.op == ir.Op.trap_):
+                discard(0)
+            elif i + 1 < self.blocks.count:
+                b.succ1 = u32(i + 1)
+            self.blocks.set(i, b)
+            i += 1
+
+    ## Reverse post-order from the entry; predecessors of the reachable blocks.
+    mutating func number() -> !:
+        let n = self.blocks.count
+        var state = try alloc u8[n + 1]
+        defer free(state)
+        var stack = try alloc u32[n + 1]
+        defer free(stack)
+        var next = try alloc u8[n + 1]
+        defer free(next)
+        var post = try alloc u32[n + 1]
+        defer free(post)
+        var k: usize = 0
+        while k <= n:
+            state[k] = 0
+            k += 1
+        var count: usize = 0
+        var depth: usize = 1
+        stack[0] = 0
+        next[0] = 0
+        state[0] = 1
+        while depth > 0:
+            let b = stack[depth - 1]
+            let block = self.blocks.get((usize)b)
+            var pushed = false
+            while next[depth - 1] < 2:
+                let s = block.succ1 if next[depth - 1] == 0 else block.succ2
+                next[depth - 1] += 1
+                if s != none_block and state[(usize)s] == 0:
+                    state[(usize)s] = 1
+                    stack[depth] = s
+                    next[depth] = 0
+                    depth += 1
+                    pushed = true
+                    break
+            if not pushed:
+                post[count] = b
+                count += 1
+                depth -= 1
+        # reverse post-order: the last finished first
+        self.order.count = 0
+        var r: usize = count
+        while r > 0:
+            r -= 1
+            let b = post[r]
+            var block = self.blocks.get((usize)b)
+            block.rpo = u32(count - 1 - r)
+            self.blocks.set((usize)b, block)
+            try self.order.push(b)
+        var i: usize = 0
+        while i < self.order.count:
+            let b = self.order.get(i)
+            let block = self.blocks.get((usize)b)
+            if block.succ1 != none_block:
+                try self.add_pred(block.succ1, b)
+            if block.succ2 != none_block and block.succ2 != block.succ1:
+                try self.add_pred(block.succ2, b)
+            i += 1
+
+    mutating func add_pred(to: u32, source: u32) -> !:
+        var block = self.blocks.get((usize)to)
+        try block.preds.push(source)
+        self.blocks.set((usize)to, block)
+
+    ## Immediate dominators over the reverse post-order.
+    mutating func dominators() -> !:
+        var changed = true
+        while changed:
+            changed = false
+            var i: usize = 1
+            while i < self.order.count:
+                let b = self.order.get(i)
+                var block = self.blocks.get((usize)b)
+                var d = none_block
+                var p: usize = 0
+                while p < block.preds.count:
+                    let pred = block.preds.get(p)
+                    if pred == 0 or self.blocks.get((usize)pred).idom != none_block:
+                        d = self.intersect(d, pred)
+                    p += 1
+                if d != block.idom:
+                    block.idom = d
+                    self.blocks.set((usize)b, block)
+                    changed = true
+                i += 1
+        var i: usize = 1
+        while i < self.order.count:
+            let b = self.order.get(i)
+            let d = self.blocks.get((usize)b).idom
+            if d != none_block:
+                var parent = self.blocks.get((usize)d)
+                try parent.children.push(b)
+                self.blocks.set((usize)d, parent)
+            i += 1
+
+    func intersect(a: u32, b: u32) -> u32:
+        if a == none_block:
+            return b
+        var x = a
+        var y = b
+        while x != y:
+            while self.blocks.get((usize)x).rpo > self.blocks.get((usize)y).rpo:
+                x = self.blocks.get((usize)x).idom
+            while self.blocks.get((usize)y).rpo > self.blocks.get((usize)x).rpo:
+                y = self.blocks.get((usize)y).idom
+        return x
+
+    ## Dominance frontiers: a successor a block does not strictly dominate is in the
+    ## frontier of the block and of its dominators up to the successor's.
+    mutating func frontiers() -> !:
+        var i: usize = 0
+        while i < self.order.count:
+            let b = self.order.get(i)
+            let block = self.blocks.get((usize)b)
+            try self.frontier_edge(b, block.succ1)
+            if block.succ2 != block.succ1:
+                try self.frontier_edge(b, block.succ2)
+            i += 1
+
+    mutating func frontier_edge(head: u32, to: u32) -> !:
+        if to == none_block:
+            return
+        var a = head
+        while not self.strictly_dominates(a, to):
+            var block = self.blocks.get((usize)a)
+            var present = false
+            var k: usize = 0
+            while k < block.frontier.count:
+                if block.frontier.get(k) == to:
+                    present = true
+                k += 1
+            if not present:
+                try block.frontier.push(to)
+                self.blocks.set((usize)a, block)
+            a = block.idom
+            if a == none_block:
+                return
+
+    ## Depth in the dominator tree, in reverse post-order (a dominator comes first).
+    mutating func depths():
+        var i: usize = 0
+        while i < self.order.count:
+            let b = self.order.get(i)
+            var block = self.blocks.get((usize)b)
+            block.depth = 0 if block.idom == none_block else self.blocks.get((usize)block.idom).depth + 1
+            self.blocks.set((usize)b, block)
+            i += 1
+
+    ## Loop weights: a back-edge into a header marks every block that reaches the header
+    ## inside the loop (QBE's `loopiter`).
+    mutating func loops() -> !:
+        let n = self.blocks.count
+        var visit = try alloc u32[n + 1]
+        defer free(visit)
+        var k: usize = 0
+        while k <= n:
+            visit[k] = none_block
+            k += 1
+        var stack = try alloc u32[n + 1]
+        defer free(stack)
+        var i: usize = 0
+        while i < self.order.count:
+            let head = self.order.get(i)
+            let block = self.blocks.get((usize)head)
+            var p: usize = 0
+            while p < block.preds.count:
+                let pred = block.preds.get(p)
+                if self.blocks.get((usize)pred).rpo >= block.rpo:
+                    # a back-edge: walk the predecessors back to the header
+                    var depth: usize = 1
+                    stack[0] = pred
+                    while depth > 0:
+                        depth -= 1
+                        let b = stack[depth]
+                        let inner = self.blocks.get((usize)b)
+                        if inner.rpo == none_block or inner.rpo < block.rpo or visit[(usize)b] == head:
+                            continue
+                        visit[(usize)b] = head
+                        var marked = self.blocks.get((usize)b)
+                        marked.loop_weight = marked.loop_weight *% 10
+                        self.blocks.set((usize)b, marked)
+                        var q: usize = 0
+                        while q < inner.preds.count:
+                            stack[depth] = inner.preds.get(q)
+                            depth += 1
+                            q += 1
+                p += 1
+            i += 1

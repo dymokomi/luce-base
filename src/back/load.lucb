@@ -1,0 +1,436 @@
+#==============================================================================================
+#
+#   load - Loads answered by the stores and loads before them
+#
+#   DESCRIPTION:
+#       A load reads what the last store to its address wrote, or what the last load from
+#       it read, when nothing in between could have written there. This pass finds that
+#       value for each load and makes the load a copy of it, following QBE's load.c: an
+#       address is classified (`Alias`) as an offset from a frame slot, from a symbol, from
+#       a constant, or from an unknown pointer, so that two accesses either must overlap,
+#       may, or cannot; the search runs backwards through the load's block and, at its
+#       head, into the predecessors, a phi joining what several paths supply, so a value
+#       stored before a loop is read from a temporary inside it. Where the search meets a
+#       store that may alias, a call that may write (a slot whose address escaped, or any
+#       other memory), an atomic, or a fence, the load stays. Only a whole match of one
+#       class is taken: a value of another width or class stays a load too.
+#
+#==============================================================================================
+
+import memory
+import support.list
+import back.cfg
+import back.ir
+
+## How an address is known: what it is an offset from.
+pub enum Kind as u8:
+    unknown = 0
+    slot = 1
+    symbol = 2
+    constant = 3
+
+pub struct Alias:
+    pub var kind: Kind
+    ## The slot index, or the temporary an unknown address is based on.
+    pub var base: u32
+    pub var name: str
+    pub var offset: i64
+
+pub let no_alias: u8 = 0
+pub let may_alias: u8 = 1
+pub let must_alias: u8 = 2
+
+## The alias classes of every temporary of `f` (single-assignment form), and which slots'
+## addresses escape: are used as anything but the address of a load or a store.
+pub struct Aliases:
+    pub var of: Alias[]
+    pub var escapes: bool[]
+
+    pub static func over(f: ir.Function*, g: cfg.Graph*) -> Aliases!:
+        let n = f.temps.count + 1
+        var a = Aliases(of = try alloc Alias[n], escapes = try alloc bool[f.slots.count + 1])
+        var t: usize = 0
+        while t < n:
+            a.of[t] = Alias(kind = Kind.unknown, base = u32(t), name = "", offset = 0)
+            t += 1
+        var s: usize = 0
+        while s < a.escapes.length:
+            a.escapes[s] = false
+            s += 1
+        # in reverse post-order, a definition comes before its uses
+        var o: usize = 0
+        while o < g.order.count:
+            let block = g.blocks.get((usize)g.order.get(o))
+            var i = block.start
+            while i < block.end:
+                let x = f.instrs.get((usize)i)
+                if x.dst != 0:
+                    a.of[(usize)x.dst] = a.classify(x)
+                i += 1
+            o += 1
+        # escapes
+        var i: usize = 0
+        while i < f.instrs.count:
+            let x = f.instrs.get(i)
+            if x.op == ir.Op.addr or x.op == ir.Op.copy or x.op == ir.Op.phi:
+                i += 1
+                continue
+            if x.op == ir.Op.add and (x.a.kind == ir.RefKind.constant or x.b.kind == ir.RefKind.constant):
+                i += 1
+                continue
+            if is_load(x.op):
+                i += 1
+                continue
+            if is_store(x.op):
+                a.escape(x.a)
+                i += 1
+                continue
+            if x.op == ir.Op.blit or x.op == ir.Op.zero or x.op == ir.Op.fill:
+                i += 1
+                continue
+            a.escape(x.a)
+            a.escape(x.b)
+            i += 1
+        i = 0
+        while i < f.args.count:
+            a.escape(f.args.get(i).value)
+            i += 1
+        i = 0
+        while i < f.phi_args.count:
+            a.escape(f.phi_args.get(i).value)
+            i += 1
+        return a
+
+    func classify(x: ir.Instr) -> Alias:
+        if x.op == ir.Op.addr:
+            if x.a.kind == ir.RefKind.slot:
+                return Alias(kind = Kind.slot, base = x.a.index, name = "", offset = 0)
+            if x.a.kind == ir.RefKind.global or x.a.kind == ir.RefKind.function:
+                return Alias(kind = Kind.symbol, base = 0, name = x.a.name, offset = x.a.value)
+            return Alias(kind = Kind.unknown, base = x.dst, name = "", offset = 0)
+        if x.op == ir.Op.copy:
+            return self.of_ref(x.a, x.dst)
+        if x.op == ir.Op.add:
+            if x.b.kind == ir.RefKind.constant:
+                var based = self.of_ref(x.a, x.dst)
+                based.offset = based.offset +% x.b.value
+                return based
+            if x.a.kind == ir.RefKind.constant:
+                var based = self.of_ref(x.b, x.dst)
+                based.offset = based.offset +% x.a.value
+                return based
+        return Alias(kind = Kind.unknown, base = x.dst, name = "", offset = 0)
+
+    ## The class of an operand: a temporary's, a constant's, or a symbol's; `self_temp`
+    ## names the temporary being classified, the base of an unknown.
+    func of_ref(r: ir.Ref, self_temp: u32) -> Alias:
+        if r.kind == ir.RefKind.temp:
+            return self.of[(usize)r.index]
+        if r.kind == ir.RefKind.constant:
+            return Alias(kind = Kind.constant, base = 0, name = "", offset = r.value)
+        if r.kind == ir.RefKind.slot:
+            return Alias(kind = Kind.slot, base = r.index, name = "", offset = 0)
+        if r.kind == ir.RefKind.global or r.kind == ir.RefKind.function:
+            return Alias(kind = Kind.symbol, base = 0, name = r.name, offset = r.value)
+        return Alias(kind = Kind.unknown, base = self_temp, name = "", offset = 0)
+
+    func escape(r: ir.Ref):
+        let a = self.of_ref(r, 0)
+        if a.kind == Kind.slot and (usize)a.base < self.escapes.length:
+            self.escapes[(usize)a.base] = true
+
+    ## Whether an access of `sp` bytes at `ap` and one of `sq` bytes at `q` overlap.
+    pub func relation(ap: Alias, sp: i64, q: ir.Ref, sq: i64) -> u8:
+        let aq = self.of_ref(q, 0)
+        let overlap = ap.offset < aq.offset +% sq and aq.offset < ap.offset +% sp
+        if ap.kind == Kind.slot and aq.kind == Kind.slot:
+            if ap.base == aq.base:
+                return must_alias if overlap else no_alias
+            return no_alias
+        if ap.kind == Kind.symbol and aq.kind == Kind.symbol:
+            if ap.name != aq.name:
+                return may_alias
+            return must_alias if overlap else no_alias
+        if (ap.kind == Kind.constant and aq.kind == Kind.constant) or (ap.kind == aq.kind and ap.base == aq.base):
+            return must_alias if overlap else no_alias
+        # an unknown pointer may reach anything but a slot whose address never escaped
+        if ap.kind == Kind.unknown and not self.is_local(aq):
+            return may_alias
+        if aq.kind == Kind.unknown and not self.is_local(ap):
+            return may_alias
+        return no_alias
+
+    func is_local(a: Alias) -> bool:
+        return a.kind == Kind.slot and (usize)a.base < self.escapes.length and not self.escapes[(usize)a.base]
+
+    pub func escaped(a: Alias) -> bool:
+        return not self.is_local(a)
+
+    ## The location `bytes` past `r`'s.
+    pub func at(r: ir.Ref, bytes: i64) -> Alias:
+        var a = self.of_ref(r, 0)
+        a.offset = a.offset +% bytes
+        return a
+
+    pub mutating func release():
+        free(self.of)
+        free(self.escapes)
+
+pub func is_load(op: ir.Op) -> bool:
+    return (u8)op >= (u8)ir.Op.loadsb and (u8)op <= (u8)ir.Op.loadhf
+
+pub func is_store(op: ir.Op) -> bool:
+    return (u8)op >= (u8)ir.Op.storeb and (u8)op <= (u8)ir.Op.storehf
+
+func load_width(op: ir.Op) -> i64:
+    match op:
+        .loadsb, .loadub: return 1
+        .loadsh, .loaduh, .loadhf: return 2
+        .loadsw, .loaduw, .loads: return 4
+        _: return 8
+
+func store_width(op: ir.Op) -> i64:
+    match op:
+        .storeb: return 1
+        .storeh, .storehf: return 2
+        .storew, .stores: return 4
+        _: return 8
+
+## The class a store's value has, and whether a load of `op` at class `cls` reads exactly
+## a value of that class: the same width, integer or float alike, a word as a word.
+func store_class(op: ir.Op) -> ir.Class:
+    match op:
+        .storel: return ir.Class.l
+        .stores: return ir.Class.s
+        .stored: return ir.Class.d
+        .storehf: return ir.Class.h
+        _: return ir.Class.w
+
+func load_takes(op: ir.Op, cls: ir.Class, k: ir.Class) -> bool:
+    match op:
+        .loadl: return k == ir.Class.l
+        .loads: return k == ir.Class.s
+        .loadd: return k == ir.Class.d
+        .loadhf: return k == ir.Class.h
+        .loadsw, .loaduw: return k == ir.Class.w and cls == ir.Class.w
+        _: return false
+
+# mark: The pass ===============================================================================
+
+## A phi the search wants at a block's head: for which load's location, with what.
+struct Join:
+    var block: u32
+    var address: Alias
+    var width: i64
+    var cls: ir.Class
+    var temp: u32
+    var args_start: u32
+    var args_count: u32
+    ## Whether the search that made it succeeded; a failed one is not placed.
+    var placed: bool
+
+struct Search:
+    var f: ir.Function*
+    var g: cfg.Graph*
+    var aliases: Aliases*
+    var joins: list.List[Join]
+    ## The arguments of the joins, by pred label, filled as the search returns.
+    var join_args: list.List[ir.PhiArg]
+
+    mutating func find(address: ir.Ref, width: i64, op: ir.Op, cls: ir.Class, b: u32, at: u32) -> ir.Ref?!:
+        return try find_value(&self, self.aliases.at(address, 0), width, op, cls, b, at)
+
+    ## The joins that succeeded become phis at their blocks' heads.
+    mutating func place() -> !:
+        var out = try list.List[ir.Instr].create(self.f.instrs.count + self.joins.count)
+        var b: usize = 0
+        while b < self.g.blocks.count:
+            let block = self.g.blocks.get(b)
+            if block.rpo == cfg.none_block and block.end > block.start:
+                # an unreachable block keeps its instructions as they are
+                var i = block.start
+                if block.label != 0 and i > 0:
+                    try out.push(self.f.instrs.get((usize)i - 1))
+                while i < block.end:
+                    try out.push(self.f.instrs.get((usize)i))
+                    i += 1
+                b += 1
+                continue
+            var i = block.start
+            if block.label != 0 and i > 0:
+                try out.push(self.f.instrs.get((usize)i - 1))
+            # the block's own phis first, then the joins
+            while i < block.end and self.f.instrs.get((usize)i).op == ir.Op.phi:
+                try out.push(self.f.instrs.get((usize)i))
+                i += 1
+            var j: usize = 0
+            while j < self.joins.count:
+                let join = self.joins.get(j)
+                if join.placed and join.block == u32(b):
+                    let start = u32(self.f.phi_args.count)
+                    var q: u32 = 0
+                    while q < join.args_count:
+                        try self.f.phi_args.push(self.join_args.get((usize)(join.args_start + q)))
+                        q += 1
+                    try out.push(ir.Instr(op = ir.Op.phi, cls = join.cls, dst = join.temp, a = ir.none_ref(), b = ir.none_ref(), extra = start, extra2 = join.args_count))
+                j += 1
+            while i < block.end:
+                try out.push(self.f.instrs.get((usize)i))
+                i += 1
+            b += 1
+        self.f.instrs.destroy()
+        self.f.instrs = out
+
+## Resolve the loads of `f` (single-assignment form, graph `g`); answers whether any load
+## became a copy. New phis join the block heads, so the graph must be built again.
+pub func run(f: ir.Function*, g: cfg.Graph*) -> bool!:
+    var aliases = try Aliases.over(f, g)
+    defer aliases.release()
+    var search = Search(f = f, g = g, aliases = &aliases, joins = try list.List[Join].create(16), join_args = try list.List[ir.PhiArg].create(32))
+    defer search.joins.destroy()
+    defer search.join_args.destroy()
+    var block_at = try alloc u32[f.instrs.count + 1]
+    defer free(block_at)
+    var b: usize = 0
+    while b < g.blocks.count:
+        let block = g.blocks.get(b)
+        var k = block.start
+        while k < block.end:
+            block_at[(usize)k] = u32(b)
+            k += 1
+        b += 1
+    var changed = false
+    var i: usize = 0
+    while i < f.instrs.count:
+        let x = f.instrs.get(i)
+        if is_load(x.op) and x.dst != 0 and block_at[i] != cfg.none_block and g.blocks.get((usize)block_at[i]).rpo != cfg.none_block:
+            let before = search.joins.count
+            let before_args = search.join_args.count
+            if let value = try search.find(x.a, load_width(x.op), x.op, x.cls, block_at[i], u32(i)):
+                var y = x
+                y.op = ir.Op.copy
+                y.a = value
+                y.b = ir.none_ref()
+                f.instrs.set(i, y)
+                changed = true
+            else:
+                search.joins.count = before
+                search.join_args.count = before_args
+        i += 1
+    if search.joins.count > 0:
+        try search.place()
+    return changed
+
+## A load of `width` bytes at `address`, of class `cls`, in block `b` before instruction
+## `at` (or at the block's end when `at` is the end): the value there, or none.
+func find_value(s: Search*, address: Alias, width: i64, op: ir.Op, cls: ir.Class, b: u32, at: u32) -> ir.Ref?!:
+    let block = s.g.blocks.get((usize)b)
+    var i = at
+    while i > block.start:
+        i -= 1
+        let x = s.f.instrs.get((usize)i)
+        if x.op == ir.Op.phi:
+            continue
+        # the address's own base is defined here: nothing before it holds the value
+        if x.dst != 0 and address.kind == Kind.unknown and address.base == x.dst:
+            return none
+        if x.op == ir.Op.call:
+            # a call writes any memory whose address escaped, and its own result's slot
+            if s.aliases.escaped(address):
+                return none
+            let info = s.f.calls.get((usize)x.extra)
+            if info.has_result and info.result_size > 0 and s.aliases.relation(address, width, ir.slot_ref(info.result_slot), (i64)info.result_size) != no_alias:
+                return none
+            continue
+        if is_store(x.op):
+            let rel = s.aliases.relation(address, width, x.b, store_width(x.op))
+            if rel == must_alias:
+                if store_width(x.op) == width and load_takes(op, cls, store_class(x.op)) and s.aliases.at(x.b, 0).offset == address.offset:
+                    return x.a
+                return none
+            if rel == may_alias:
+                return none
+            continue
+        if is_load(x.op):
+            let rel = s.aliases.relation(address, width, x.a, load_width(x.op))
+            if rel == must_alias and load_width(x.op) == width and x.op == op and x.cls == cls and s.aliases.at(x.a, 0).offset == address.offset:
+                return ir.temp_ref(x.dst)
+            continue
+        if x.op == ir.Op.blit:
+            # a copy of the bytes: read them where they came from, when they are all there
+            let rel_to = s.aliases.relation(address, width, x.a, (i64)x.extra)
+            if rel_to == no_alias:
+                continue
+            let target = s.aliases.at(x.a, 0)
+            if rel_to == must_alias and address.offset >= target.offset and address.offset + width <= target.offset +% (i64)x.extra:
+                let moved = s.aliases.at(x.b, address.offset - target.offset)
+                return try find_value(s, moved, width, op, cls, b, i)
+            return none
+        if x.op == ir.Op.zero:
+            let rel = s.aliases.relation(address, width, x.a, (i64)x.extra)
+            if rel == no_alias:
+                continue
+            let target = s.aliases.at(x.a, 0)
+            if rel == must_alias and address.offset >= target.offset and address.offset + width <= target.offset +% (i64)x.extra:
+                return ir.const_ref(0)
+            return none
+        if x.op == ir.Op.fill:
+            if s.aliases.relation(address, width, x.a, (i64)x.extra) != no_alias:
+                return none
+            continue
+        if x.op == ir.Op.storev:
+            if s.aliases.relation(address, width, x.b, (i64)ir.vector_bytes(x.extra)) != no_alias:
+                return none
+            continue
+        if (u8)x.op >= (u8)ir.Op.atomic_load and (u8)x.op <= (u8)ir.Op.fence:
+            return none
+        if x.op == ir.Op.asm_ or x.op == ir.Op.set_reg or x.op == ir.Op.get_reg:
+            return none
+    # the block's head: a join already made for this location, or the predecessors
+    var j: usize = 0
+    while j < s.joins.count:
+        let join = s.joins.get(j)
+        if join.block == b and join.width == width and join.cls == cls and same_alias(join.address, address):
+            return ir.temp_ref(join.temp)
+        j += 1
+    if block.preds.count == 0:
+        return none
+    if block.preds.count == 1:
+        let pred = block.preds.get(0)
+        return try find_value(s, address, width, op, cls, pred, s.g.blocks.get((usize)pred).end)
+    # several: a phi, one value per predecessor
+    let temp = try s.f.temp(cls)
+    let start = u32(s.join_args.count)
+    var q: usize = 0
+    while q < block.preds.count:
+        try s.join_args.push(ir.PhiArg(value = ir.const_ref(0), pred = s.g.blocks.get((usize)block.preds.get(q)).label))
+        q += 1
+    try s.joins.push(Join(block = b, address = address, width = width, cls = cls, temp = temp, args_start = start, args_count = u32(block.preds.count), placed = true))
+    let index = s.joins.count - 1
+    q = 0
+    while q < block.preds.count:
+        let pred = block.preds.get(q)
+        let found = try find_value(s, address, width, op, cls, pred, s.g.blocks.get((usize)pred).end)
+        if let value = found:
+            var arg = s.join_args.get((usize)start + q)
+            arg.value = value
+            s.join_args.set((usize)start + q, arg)
+        else:
+            var failed = s.joins.get(index)
+            failed.placed = false
+            s.joins.set(index, failed)
+            return none
+        q += 1
+    return ir.temp_ref(temp)
+
+func same_alias(a: Alias, b: Alias) -> bool:
+    return a.kind == b.kind and a.base == b.base and a.offset == b.offset and a.name == b.name
+
+func same_ref(a: ir.Ref, b: ir.Ref) -> bool:
+    if a.kind != b.kind:
+        return false
+    match a.kind:
+        .temp, .slot, .text: return a.index == b.index
+        .constant: return a.value == b.value
+        .none_: return true
+        _: return a.name == b.name and a.value == b.value

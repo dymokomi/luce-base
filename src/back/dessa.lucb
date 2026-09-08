@@ -1,0 +1,187 @@
+#==============================================================================================
+#
+#   dessa - Phis into copies, for the generators
+#
+#   DESCRIPTION:
+#       A generator knows no phi: it wants every value produced by an instruction it can
+#       emit. This pass gives each phi's temporary its value at the end of every
+#       predecessor, by a copy placed before the predecessor's jump, so the temporary is
+#       assigned in several places and read at the join, which the frame allocator accepts
+#       (a temporary's live range runs from its first assignment to its last use). The
+#       copies of one edge are parallel: when one reads what another writes, every source
+#       goes through a fresh temporary first. A predecessor that branches two ways cannot
+#       carry another block's copies, since they would run on both edges: the edge gets a
+#       block of its own, the copies and a jump, and the branch is retargeted to it.
+#
+#==============================================================================================
+
+import memory
+import support.list
+import back.cfg
+import back.ir
+
+## A copy to place: at the end of block `at`, `dst = value`.
+struct Move:
+    var at: u32
+    var dst: u32
+    var cls: ir.Class
+    var value: ir.Ref
+
+## Replace every phi of `f` by copies. `g` is the graph of `f` as it stands.
+pub func run(f: ir.Function*, g: cfg.Graph*) -> !:
+    var moves = try list.List[Move].create(32)
+    defer moves.destroy()
+    var any = false
+    var i: usize = 0
+    while i < f.instrs.count:
+        let x = f.instrs.get(i)
+        if x.op == ir.Op.phi:
+            any = true
+            var a: u32 = 0
+            while a < x.extra2:
+                let arg = f.phi_args.get((usize)(x.extra + a))
+                try moves.push(Move(at = g.block_of(arg.pred), dst = x.dst, cls = x.cls, value = arg.value))
+                a += 1
+        i += 1
+    if not any:
+        return
+    # which predecessors need a block of their own: a branch with copies for a successor
+    # that has other predecessors
+    let nb = g.count()
+    var split_label = try alloc u32[nb + 1]
+    defer free(split_label)
+    var k: usize = 0
+    while k <= nb:
+        split_label[k] = 0
+        k += 1
+    var out = try list.List[ir.Instr].create(f.instrs.count + moves.count * 2 + 16)
+    var b: usize = 0
+    while b < g.blocks.count:
+        let block = g.blocks.get(b)
+        # the label
+        if block.label != 0 and block.start > 0:
+            try out.push(f.instrs.get((usize)block.start - 1))
+        # the body, phis dropped, the copies before the terminator
+        var e = block.end
+        let last = f.instrs.get((usize)e - 1) if e > block.start else ir.Instr(op = ir.Op.copy, cls = ir.Class.l, dst = 0, a = ir.none_ref(), b = ir.none_ref(), extra = 0, extra2 = 0)
+        let ends = e > block.start and ir.is_terminator(last.op)
+        var i2 = block.start
+        while i2 < (e - 1 if ends else e):
+            let x = f.instrs.get((usize)i2)
+            if x.op != ir.Op.phi:
+                try out.push(x)
+            i2 += 1
+        if ends and last.op == ir.Op.jnz and block.succ1 != block.succ2:
+            # copies for a successor with other predecessors go to an edge block
+            try place_moves(f, &moves, u32(b), block.succ1, &out, split_label, g, false)
+            try place_moves(f, &moves, u32(b), block.succ2, &out, split_label, g, false)
+            var branch = last
+            if split_label[(usize)block.succ1] != 0 and split_label[(usize)block.succ1] != g.blocks.get((usize)block.succ1).label:
+                branch.extra = split_label[(usize)block.succ1]
+            if split_label[(usize)block.succ2] != 0 and split_label[(usize)block.succ2] != g.blocks.get((usize)block.succ2).label:
+                branch.extra2 = split_label[(usize)block.succ2]
+            try out.push(branch)
+            # the edge blocks, right after the branch
+            try emit_edge(f, &moves, u32(b), block.succ1, &out, split_label, g)
+            try emit_edge(f, &moves, u32(b), block.succ2, &out, split_label, g)
+        else:
+            try place_moves(f, &moves, u32(b), block.succ1, &out, split_label, g, true)
+            if ends:
+                try out.push(last)
+        b += 1
+    f.instrs.destroy()
+    f.instrs = out
+    f.phi_args.count = 0
+
+## The copies of edge `at` -> `s`, into `out` when `inline`, else noted for an edge block
+## in `split_label` (the block's own label when the edge needs none).
+func place_moves(f: ir.Function*, moves: list.List[Move]*, at: u32, s: u32, out: list.List[ir.Instr]*, split_label: u32[], g: cfg.Graph*, inline: bool) -> !:
+    if s == cfg.none_block:
+        return
+    var any = false
+    var i: usize = 0
+    while i < moves.count:
+        let m = moves.get(i)
+        if m.at == at and phi_block(f, g, m, s):
+            any = true
+        i += 1
+    if not any:
+        return
+    if inline:
+        try copy_edge(f, moves, at, s, out, g)
+        return
+    let block = g.blocks.get((usize)s)
+    if block.preds.count == 1:
+        # the only predecessor: the copies may sit before the branch
+        try copy_edge(f, moves, at, s, out, g)
+        return
+    split_label[(usize)s] = f.label()
+
+## An edge block: its label, the copies, and the jump on to the successor.
+func emit_edge(f: ir.Function*, moves: list.List[Move]*, at: u32, s: u32, out: list.List[ir.Instr]*, split_label: u32[], g: cfg.Graph*) -> !:
+    if s == cfg.none_block or split_label[(usize)s] == 0:
+        return
+    let label = split_label[(usize)s]
+    split_label[(usize)s] = 0
+    try out.push(ir.Instr(op = ir.Op.label, cls = ir.Class.l, dst = 0, a = ir.none_ref(), b = ir.none_ref(), extra = label, extra2 = 0))
+    try copy_edge(f, moves, at, s, out, g)
+    try out.push(ir.Instr(op = ir.Op.jmp, cls = ir.Class.l, dst = 0, a = ir.none_ref(), b = ir.none_ref(), extra = g.blocks.get((usize)s).label, extra2 = 0))
+
+## Whether move `m` belongs to a phi of block `s`: its destination is a phi there.
+func phi_block(f: ir.Function*, g: cfg.Graph*, m: Move, s: u32) -> bool:
+    let block = g.blocks.get((usize)s)
+    var i = block.start
+    while i < block.end:
+        let x = f.instrs.get((usize)i)
+        if x.op != ir.Op.phi:
+            return false
+        if x.dst == m.dst:
+            return true
+        i += 1
+    return false
+
+## The parallel copies of one edge: through fresh temporaries when a source is another
+## copy's destination.
+func copy_edge(f: ir.Function*, moves: list.List[Move]*, at: u32, s: u32, out: list.List[ir.Instr]*, g: cfg.Graph*) -> !:
+    var clash = false
+    var i: usize = 0
+    while i < moves.count:
+        let m = moves.get(i)
+        if m.at != at or not phi_block(f, g, m, s):
+            i += 1
+            continue
+        var j: usize = 0
+        while j < moves.count:
+            let o = moves.get(j)
+            if j != i and o.at == at and o.value.kind == ir.RefKind.temp and o.value.index == m.dst and phi_block(f, g, o, s):
+                clash = true
+            j += 1
+        i += 1
+    if not clash:
+        i = 0
+        while i < moves.count:
+            let m = moves.get(i)
+            if m.at == at and phi_block(f, g, m, s):
+                if not (m.value.kind == ir.RefKind.temp and m.value.index == m.dst):
+                    try out.push(ir.Instr(op = ir.Op.copy, cls = m.cls, dst = m.dst, a = m.value, b = ir.none_ref(), extra = 0, extra2 = 0))
+            i += 1
+        return
+    # every source first, then every destination
+    var staged = try list.List[u32].create(8)
+    defer staged.destroy()
+    i = 0
+    while i < moves.count:
+        let m = moves.get(i)
+        if m.at == at and phi_block(f, g, m, s):
+            let t = try f.temp(m.cls)
+            try out.push(ir.Instr(op = ir.Op.copy, cls = m.cls, dst = t, a = m.value, b = ir.none_ref(), extra = 0, extra2 = 0))
+            try staged.push(t)
+        i += 1
+    var k: usize = 0
+    i = 0
+    while i < moves.count:
+        let m = moves.get(i)
+        if m.at == at and phi_block(f, g, m, s):
+            try out.push(ir.Instr(op = ir.Op.copy, cls = m.cls, dst = m.dst, a = ir.temp_ref(staged.get(k)), b = ir.none_ref(), extra = 0, extra2 = 0))
+            k += 1
+        i += 1

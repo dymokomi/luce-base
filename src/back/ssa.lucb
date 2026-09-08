@@ -1,0 +1,690 @@
+#==============================================================================================
+#
+#   ssa - Slots into temporaries, temporaries into single-assignment form
+#
+#   DESCRIPTION:
+#       The lowerer keeps every local in a frame slot and computes through block-local
+#       temporaries, which is the form the generators want and the form the optimiser's
+#       passes cannot see through. This module brings a function to static single
+#       assignment, in QBE's two steps (mem.c's `promote`, then ssa.c): a slot that is
+#       only ever loaded and stored whole, in one class, becomes a temporary that every
+#       store assigns and every load reads (a parameter's slot keeps one load at the entry,
+#       the value the prologue put there); then each temporary assigned more than once
+#       gets a phi at every block of its iterated dominance frontier where it is live, and
+#       the definitions and uses are renamed down the dominator tree so that each
+#       temporary has one definition. The passes that follow rely on that; `dessa` undoes
+#       it before a generator sees the function.
+#
+#==============================================================================================
+
+import memory
+import support.list
+import back.cfg
+import back.ir
+
+## No temporary, no instruction.
+let none_index: u32 = 0xFFFFFFFF
+
+## Where the temporaries of a function are defined and used: one instruction or one call
+## argument or one phi argument per use, gathered once per pass. A use site is an
+## instruction index, or an argument index under `arg_site`, or a phi argument index under
+## `phi_site`.
+pub let arg_site: u32 = 0x40000000
+pub let phi_site: u32 = 0x80000000
+
+pub struct Uses:
+    pub var def_count: u32[]
+    pub var def_at: u32[]
+    pub var use_start: u32[]
+    pub var use_count: u32[]
+    pub var sites: u32[]
+
+    pub static func over(f: ir.Function*) -> Uses!:
+        let n = f.temps.count + 1
+        var u = Uses(def_count = try alloc u32[n], def_at = try alloc u32[n], use_start = try alloc u32[n], use_count = try alloc u32[n], sites = try alloc u32[1])
+        var t: usize = 0
+        while t < n:
+            u.def_count[t] = 0
+            u.def_at[t] = none_index
+            u.use_start[t] = 0
+            u.use_count[t] = 0
+            t += 1
+        # count, then place
+        var i: usize = 0
+        while i < f.instrs.count:
+            let x = f.instrs.get(i)
+            if x.dst != 0:
+                u.def_count[(usize)x.dst] += 1
+                u.def_at[(usize)x.dst] = u32(i)
+            count_use(u.use_count, x.a)
+            count_use(u.use_count, x.b)
+            i += 1
+        i = 0
+        while i < f.args.count:
+            count_use(u.use_count, f.args.get(i).value)
+            i += 1
+        i = 0
+        while i < f.phi_args.count:
+            count_use(u.use_count, f.phi_args.get(i).value)
+            i += 1
+        var total: u32 = 0
+        t = 0
+        while t < n:
+            u.use_start[t] = total
+            total += u.use_count[t]
+            u.use_count[t] = 0
+            t += 1
+        free(u.sites)
+        u.sites = try alloc u32[(usize)total + 1]
+        i = 0
+        while i < f.instrs.count:
+            let x = f.instrs.get(i)
+            u.place_use(x.a, u32(i))
+            u.place_use(x.b, u32(i))
+            i += 1
+        i = 0
+        while i < f.args.count:
+            u.place_use(f.args.get(i).value, arg_site | u32(i))
+            i += 1
+        i = 0
+        while i < f.phi_args.count:
+            u.place_use(f.phi_args.get(i).value, phi_site | u32(i))
+            i += 1
+        return u
+
+    mutating func place_use(r: ir.Ref, site: u32):
+        if r.kind != ir.RefKind.temp:
+            return
+        let t = (usize)r.index
+        self.sites[(usize)(self.use_start[t] + self.use_count[t])] = site
+        self.use_count[t] += 1
+
+    pub func use(t: u32, k: u32) -> u32:
+        return self.sites[(usize)(self.use_start[(usize)t] + k)]
+
+    pub mutating func release():
+        free(self.def_count)
+        free(self.def_at)
+        free(self.use_start)
+        free(self.use_count)
+        free(self.sites)
+
+func count_use(counts: u32[], r: ir.Ref):
+    if r.kind == ir.RefKind.temp:
+        counts[(usize)r.index] += 1
+
+# mark: Slot promotion =========================================================================
+
+## Not promotable, undecided, promotable.
+let no: u8 = 2
+let open: u8 = 0
+
+## Turn every slot that is only loaded and stored whole into a temporary: the stores become
+## copies into it, the loads copies (or extensions, for a narrow slot) out of it. A
+## parameter's slot keeps a load at the entry, its incoming value. Answers whether anything
+## changed.
+pub func promote(f: ir.Function*) -> bool!:
+    let ns = f.slots.count
+    if ns == 0:
+        return false
+    var kind = try alloc u8[ns + 1]
+    defer free(kind)
+    var cls = try alloc ir.Class[ns + 1]
+    defer free(cls)
+    var has_store = try alloc bool[ns + 1]
+    defer free(has_store)
+    var is_param = try alloc bool[ns + 1]
+    defer free(is_param)
+    var s: usize = 0
+    while s < ns:
+        let size = f.slots.get(s).size
+        kind[s] = open if size == 1 or size == 2 or size == 4 or size == 8 else no
+        cls[s] = ir.Class.w
+        has_store[s] = false
+        is_param[s] = false
+        s += 1
+    var p: usize = 0
+    while p < f.params.count:
+        let param = f.params.get(p)
+        if param.size == 0:
+            is_param[(usize)param.slot] = true
+            has_store[(usize)param.slot] = true
+            cls[(usize)param.slot] = param.cls
+            if param.cls == ir.Class.v:
+                kind[(usize)param.slot] = no
+        else:
+            kind[(usize)param.slot] = no
+        p += 1
+    # which temporaries hold a slot's address
+    var addr_of = try alloc u32[f.temps.count + 1]
+    defer free(addr_of)
+    var t: usize = 0
+    while t <= f.temps.count:
+        addr_of[t] = none_index
+        t += 1
+    var i: usize = 0
+    while i < f.instrs.count:
+        let x = f.instrs.get(i)
+        if x.op == ir.Op.addr and x.a.kind == ir.RefKind.slot and x.dst != 0:
+            addr_of[(usize)x.dst] = x.a.index
+        i += 1
+    # every use of a slot, or of its address, is a whole load or a whole store in one class
+    i = 0
+    while i < f.instrs.count:
+        let x = f.instrs.get(i)
+        if x.op == ir.Op.addr:
+            i += 1
+            continue
+        let sa = slot_of(addr_of, x.a)
+        let sb = slot_of(addr_of, x.b)
+        if sa != none_index:
+            if is_load(x.op) and load_fits(x.op, f.slots.get((usize)sa).size):
+                discard(0)
+            else:
+                kind[(usize)sa] = no
+        if sb != none_index:
+            if is_store(x.op) and sa != sb and store_fits(x.op, f.slots.get((usize)sb).size):
+                let k = store_class(x.op)
+                if has_store[(usize)sb] and cls[(usize)sb] != k:
+                    kind[(usize)sb] = no
+                has_store[(usize)sb] = true
+                cls[(usize)sb] = k
+            else:
+                kind[(usize)sb] = no
+        i += 1
+    i = 0
+    while i < f.args.count:
+        let sa = slot_of(addr_of, f.args.get(i).value)
+        if sa != none_index:
+            kind[(usize)sa] = no
+        i += 1
+    # a call writes its aggregate result into a slot without an instruction saying so
+    i = 0
+    while i < f.calls.count:
+        let info = f.calls.get(i)
+        if info.has_result and info.result_size > 0 and (usize)info.result_slot < ns:
+            kind[(usize)info.result_slot] = no
+        i += 1
+    i = 0
+    while i < f.phi_args.count:
+        let sa = slot_of(addr_of, f.phi_args.get(i).value)
+        if sa != none_index:
+            kind[(usize)sa] = no
+        i += 1
+    # a load must read the class the stores wrote
+    i = 0
+    while i < f.instrs.count:
+        let x = f.instrs.get(i)
+        let sa = slot_of(addr_of, x.a)
+        if sa != none_index and kind[(usize)sa] == open and is_load(x.op):
+            if not has_store[(usize)sa] or not load_reads(x.op, cls[(usize)sa]):
+                kind[(usize)sa] = no
+        i += 1
+    var any = false
+    var temp_of = try alloc u32[ns + 1]
+    defer free(temp_of)
+    s = 0
+    while s < ns:
+        temp_of[s] = 0
+        if kind[s] == open and has_store[s]:
+            temp_of[s] = try f.temp(cls[s])
+            any = true
+        s += 1
+    if not any:
+        return false
+    # rewrite: the parameters' entry loads first, then every instruction with its slot
+    # accesses turned into copies
+    var out = try list.List[ir.Instr].create(f.instrs.count + f.params.count)
+    p = 0
+    while p < f.params.count:
+        let param = f.params.get(p)
+        if param.size == 0 and temp_of[(usize)param.slot] != 0:
+            let op = ir.load_op((u64)f.slots.get((usize)param.slot).size, false, ir.is_float_class(param.cls))
+            try out.push(ir.Instr(op = op, cls = param.cls, dst = temp_of[(usize)param.slot], a = ir.slot_ref(param.slot), b = ir.none_ref(), extra = 0, extra2 = 0))
+        p += 1
+    i = 0
+    while i < f.instrs.count:
+        var x = f.instrs.get(i)
+        i += 1
+        if x.op == ir.Op.addr and x.a.kind == ir.RefKind.slot and temp_of[(usize)x.a.index] != 0:
+            continue
+        let sa = slot_of(addr_of, x.a)
+        let sb = slot_of(addr_of, x.b)
+        if sb != none_index and temp_of[(usize)sb] != 0:
+            # a store: the value into the temporary
+            x = ir.Instr(op = ir.Op.copy, cls = cls[(usize)sb], dst = temp_of[(usize)sb], a = x.a, b = ir.none_ref(), extra = 0, extra2 = 0)
+        elif sa != none_index and temp_of[(usize)sa] != 0:
+            # a load: the temporary, extended as the load would have
+            x = ir.Instr(op = load_as(x.op, x.cls), cls = x.cls, dst = x.dst, a = ir.temp_ref(temp_of[(usize)sa]), b = ir.none_ref(), extra = 0, extra2 = 0)
+        try out.push(x)
+    f.instrs.destroy()
+    f.instrs = out
+    return true
+
+## The slot an operand names: directly, or through the temporary holding its address.
+func slot_of(addr_of: u32[], r: ir.Ref) -> u32:
+    if r.kind == ir.RefKind.slot:
+        return r.index
+    if r.kind == ir.RefKind.temp and (usize)r.index < addr_of.length:
+        return addr_of[(usize)r.index]
+    return none_index
+
+pub func is_load(op: ir.Op) -> bool:
+    return (u8)op >= (u8)ir.Op.loadsb and (u8)op <= (u8)ir.Op.loadhf
+
+pub func is_store(op: ir.Op) -> bool:
+    return (u8)op >= (u8)ir.Op.storeb and (u8)op <= (u8)ir.Op.storehf
+
+func load_width(op: ir.Op) -> u32:
+    match op:
+        .loadsb, .loadub: return 1
+        .loadsh, .loaduh, .loadhf: return 2
+        .loadsw, .loaduw, .loads: return 4
+        _: return 8
+
+func store_width(op: ir.Op) -> u32:
+    match op:
+        .storeb: return 1
+        .storeh, .storehf: return 2
+        .storew, .stores: return 4
+        _: return 8
+
+func load_fits(op: ir.Op, size: u32) -> bool:
+    return load_width(op) == size
+
+func store_fits(op: ir.Op, size: u32) -> bool:
+    return store_width(op) == size
+
+## The class a store's value has.
+func store_class(op: ir.Op) -> ir.Class:
+    match op:
+        .storel: return ir.Class.l
+        .stores: return ir.Class.s
+        .stored: return ir.Class.d
+        .storehf: return ir.Class.h
+        _: return ir.Class.w
+
+## Whether a load reads a slot the stores wrote in class `k`.
+func load_reads(op: ir.Op, k: ir.Class) -> bool:
+    match op:
+        .loads: return k == ir.Class.s
+        .loadd: return k == ir.Class.d
+        .loadhf: return k == ir.Class.h
+        .loadl: return k == ir.Class.l
+        _: return k == ir.Class.w
+
+## The instruction a load becomes when its slot is a temporary: a copy, or the extension
+## the load performed.
+func load_as(op: ir.Op, cls: ir.Class) -> ir.Op:
+    match op:
+        .loadsb: return ir.Op.extsb
+        .loadub: return ir.Op.extub
+        .loadsh: return ir.Op.extsh
+        .loaduh: return ir.Op.extuh
+        .loadsw: return ir.Op.extsw if cls == ir.Class.l else ir.Op.copy
+        .loaduw: return ir.Op.extuw if cls == ir.Class.l else ir.Op.copy
+        _: return ir.Op.copy
+
+# mark: Liveness ===============================================================================
+
+## Which temporaries are live at each block's entry and exit, as bit sets.
+pub struct Liveness:
+    pub var words: usize
+    pub var live_in: u64[]
+    pub var live_out: u64[]
+
+    pub static func over(f: ir.Function*, g: cfg.Graph*) -> Liveness!:
+        let words = (f.temps.count + 1 + 63) // 64
+        let nb = g.count()
+        var l = Liveness(words = words, live_in = try alloc u64[words * nb + 1], live_out = try alloc u64[words * nb + 1])
+        var k: usize = 0
+        while k < l.live_in.length:
+            l.live_in[k] = 0
+            l.live_out[k] = 0
+            k += 1
+        var gen = try alloc u64[words + 1]
+        defer free(gen)
+        var changed = true
+        while changed:
+            changed = false
+            var r: usize = g.order.count
+            while r > 0:
+                r -= 1
+                let b = g.order.get(r)
+                let block = g.blocks.get((usize)b)
+                # out = union of successors' in, with the successors' phis reading from here
+                k = 0
+                while k < words:
+                    gen[k] = 0
+                    k += 1
+                l.live_on(f, g, block.succ1, b, gen)
+                if block.succ2 != block.succ1:
+                    l.live_on(f, g, block.succ2, b, gen)
+                k = 0
+                while k < words:
+                    if l.live_out[(usize)b * words + k] != gen[k]:
+                        changed = true
+                    l.live_out[(usize)b * words + k] = gen[k]
+                    k += 1
+                # in = out - defs + uses, backwards over the block
+                var i: u32 = block.end
+                while i > block.start:
+                    i -= 1
+                    let x = f.instrs.get((usize)i)
+                    if x.op == ir.Op.phi:
+                        clear_bit(gen, x.dst)
+                        continue
+                    if x.dst != 0:
+                        clear_bit(gen, x.dst)
+                    set_use(gen, x.a)
+                    set_use(gen, x.b)
+                    if x.op == ir.Op.call:
+                        let info = f.calls.get((usize)x.extra)
+                        var a: u32 = 0
+                        while a < info.args_count:
+                            set_use(gen, f.args.get((usize)(info.args_start + a)).value)
+                            a += 1
+                k = 0
+                while k < words:
+                    if l.live_in[(usize)b * words + k] != gen[k]:
+                        changed = true
+                    l.live_in[(usize)b * words + k] = gen[k]
+                    k += 1
+        return l
+
+    ## What successor `s` needs live at the end of `b`: its live-in, minus its phis'
+    ## results, plus what its phis take from `b`.
+    func live_on(f: ir.Function*, g: cfg.Graph*, s: u32, b: u32, out: u64[]):
+        if s == cfg.none_block:
+            return
+        let block = g.blocks.get((usize)s)
+        let from_label = g.blocks.get((usize)b).label
+        var k: usize = 0
+        while k < self.words:
+            out[k] |= self.live_in[(usize)s * self.words + k]
+            k += 1
+        var i = block.start
+        while i < block.end:
+            let x = f.instrs.get((usize)i)
+            if x.op != ir.Op.phi:
+                break
+            clear_bit(out, x.dst)
+            var a: u32 = 0
+            while a < x.extra2:
+                let arg = f.phi_args.get((usize)(x.extra + a))
+                if arg.pred == from_label:
+                    set_use(out, arg.value)
+                a += 1
+            i += 1
+
+    pub func live_in_at(b: u32, t: u32) -> bool:
+        return (self.live_in[(usize)b * self.words + (usize)t // 64] & ((u64)1 << ((u64)t % 64))) != 0
+
+    pub func live_out_at(b: u32, t: u32) -> bool:
+        return (self.live_out[(usize)b * self.words + (usize)t // 64] & ((u64)1 << ((u64)t % 64))) != 0
+
+    pub mutating func release():
+        free(self.live_in)
+        free(self.live_out)
+
+func set_use(bits: u64[], r: ir.Ref):
+    if r.kind == ir.RefKind.temp:
+        bits[(usize)r.index // 64] |= (u64)1 << ((u64)r.index % 64)
+
+func clear_bit(bits: u64[], t: u32):
+    bits[(usize)t // 64] &= ~((u64)1 << ((u64)t % 64))
+
+# mark: Phi insertion and renaming =============================================================
+
+## Bring `f` to single-assignment form: phis for the temporaries assigned more than once,
+## then one name per definition. `g` is the graph of `f` as it stands; the function's
+## instructions are rebuilt (phis join the block heads) and the graph is built again.
+pub func construct(f: ir.Function*, g: cfg.Graph*) -> cfg.Graph!:
+    var uses = try Uses.over(f)
+    defer uses.release()
+    let n = f.temps.count + 1
+    var block_at = try blocks_of_instrs(f, g)
+    defer free(block_at)
+    # the temporaries to rename: assigned more than once, or assigned outside the entry
+    # and used in another block
+    var renamed = try alloc bool[n]
+    defer free(renamed)
+    var t: usize = 0
+    while t < n:
+        renamed[t] = false
+        t += 1
+    var any = false
+    t = 1
+    while t < n:
+        if uses.def_count[t] > 1:
+            renamed[t] = true
+            any = true
+        elif uses.def_count[t] == 1:
+            let db = block_at[(usize)uses.def_at[t]]
+            var k: u32 = 0
+            while k < uses.use_count[t]:
+                let site = uses.use(u32(t), k)
+                if (site & (arg_site | phi_site)) == 0 and block_at[(usize)site] != db:
+                    renamed[t] = true
+                    any = true
+                elif (site & arg_site) != 0:
+                    # a call argument: the call is in some block; find it through the call
+                    discard(0)
+                k += 1
+        t += 1
+    if not any:
+        return try cfg.Graph.over(f)
+    var live = try Liveness.over(f, g)
+    defer live.release()
+    # phi insertion: for each renamed temporary, the iterated dominance frontier of its
+    # definition blocks, where it is live in
+    let nb = g.count()
+    var phis = try list.List[Pending].create(32)
+    defer phis.destroy()
+    var placed = try alloc u32[nb + 1]
+    defer free(placed)
+    var in_work = try alloc u32[nb + 1]
+    defer free(in_work)
+    var work = try alloc u32[nb + 1]
+    defer free(work)
+    var b: usize = 0
+    while b <= nb:
+        placed[b] = none_index
+        in_work[b] = none_index
+        b += 1
+    # the blocks defining each renamed temporary, gathered in one pass
+    var def_start = try alloc u32[n + 1]
+    defer free(def_start)
+    var def_fill = try alloc u32[n + 1]
+    defer free(def_fill)
+    t = 0
+    while t <= n:
+        def_start[t] = 0
+        def_fill[t] = 0
+        t += 1
+    var i: usize = 0
+    while i < f.instrs.count:
+        let x = f.instrs.get(i)
+        if x.dst != 0 and renamed[(usize)x.dst]:
+            def_start[(usize)x.dst + 1] += 1
+        i += 1
+    t = 1
+    while t <= n:
+        def_start[t] += def_start[t - 1]
+        t += 1
+    var def_blocks = try alloc u32[(usize)def_start[n] + 1]
+    defer free(def_blocks)
+    i = 0
+    while i < f.instrs.count:
+        let x = f.instrs.get(i)
+        if x.dst != 0 and renamed[(usize)x.dst]:
+            def_blocks[(usize)(def_start[(usize)x.dst] + def_fill[(usize)x.dst])] = block_at[i]
+            def_fill[(usize)x.dst] += 1
+        i += 1
+    t = 1
+    while t < n:
+        if not renamed[t]:
+            t += 1
+            continue
+        var count: usize = 0
+        var d = def_start[t]
+        while d < def_start[t + 1]:
+            let db = def_blocks[(usize)d]
+            d += 1
+            if db != cfg.none_block and in_work[(usize)db] != u32(t):
+                in_work[(usize)db] = u32(t)
+                work[count] = db
+                count += 1
+        while count > 0:
+            count -= 1
+            let db = work[count]
+            let block = g.blocks.get((usize)db)
+            var k: usize = 0
+            while k < block.frontier.count:
+                let fb = block.frontier.get(k)
+                if placed[(usize)fb] != u32(t) and live.live_in_at(fb, u32(t)):
+                    placed[(usize)fb] = u32(t)
+                    try phis.push(Pending(block = fb, temp = u32(t), cls = f.temp_class(u32(t))))
+                    if in_work[(usize)fb] != u32(t):
+                        in_work[(usize)fb] = u32(t)
+                        work[count] = fb
+                        count += 1
+                k += 1
+        t += 1
+    # rebuild with the phis at their blocks' heads, each with one argument per predecessor
+    var out = try list.List[ir.Instr].create(f.instrs.count + phis.count)
+    var origin = try list.List[u32].create(f.instrs.count + phis.count)
+    defer origin.destroy()
+    b = 0
+    i = 0
+    while i < f.instrs.count:
+        let x = f.instrs.get(i)
+        try out.push(x)
+        try origin.push(0)
+        if x.op == ir.Op.label:
+            let here = g.block_of(x.extra)
+            var k: usize = 0
+            while k < phis.count:
+                let ph = phis.get(k)
+                if ph.block == here:
+                    let block = g.blocks.get((usize)here)
+                    let start = u32(f.phi_args.count)
+                    var q: usize = 0
+                    while q < block.preds.count:
+                        try f.phi_args.push(ir.PhiArg(value = ir.const_ref(0), pred = g.blocks.get((usize)block.preds.get(q)).label))
+                        q += 1
+                    try out.push(ir.Instr(op = ir.Op.phi, cls = ph.cls, dst = ph.temp, a = ir.none_ref(), b = ir.none_ref(), extra = start, extra2 = u32(block.preds.count)))
+                    try origin.push(ph.temp)
+                k += 1
+        i += 1
+    f.instrs.destroy()
+    f.instrs = out
+    var g2 = try cfg.Graph.over(f)
+    # renaming down the dominator tree
+    var current = try alloc u32[n]
+    defer free(current)
+    t = 0
+    while t < n:
+        current[t] = 0
+        t += 1
+    var log = try list.List[Undo].create(64)
+    defer log.destroy()
+    try rename(f, &g2, 0, renamed, current, &log, &origin)
+    return g2
+
+## A phi to place: at which block, for which temporary.
+struct Pending:
+    var block: u32
+    var temp: u32
+    var cls: ir.Class
+
+## A renaming to undo when leaving a dominator tree node.
+struct Undo:
+    var temp: u32
+    var previous: u32
+
+## The block of every instruction, a label counting as its block's.
+func blocks_of_instrs(f: ir.Function*, g: cfg.Graph*) -> u32[]!:
+    var block_at = try alloc u32[f.instrs.count + 1]
+    var i: usize = 0
+    while i < block_at.length:
+        block_at[i] = cfg.none_block
+        i += 1
+    var b: usize = 0
+    while b < g.blocks.count:
+        let block = g.blocks.get(b)
+        var k = block.start
+        if block.label != 0 and k > 0:
+            block_at[(usize)k - 1] = u32(b)
+        while k < block.end:
+            block_at[(usize)k] = u32(b)
+            k += 1
+        b += 1
+    return block_at
+
+## The current name of temporary `t`, or zero when no definition reaches here.
+func name_of(current: u32[], renamed: bool[], r: ir.Ref) -> ir.Ref:
+    if r.kind != ir.RefKind.temp or not renamed[(usize)r.index]:
+        return r
+    let now = current[(usize)r.index]
+    if now == 0:
+        return ir.const_ref(0)
+    return ir.temp_ref(now)
+
+func rename(f: ir.Function*, g: cfg.Graph*, b: u32, renamed: bool[], current: u32[], log: list.List[Undo]*, origin: list.List[u32]*) -> !:
+    let mark = log.count
+    let block = g.blocks.get((usize)b)
+    var i = block.start
+    while i < block.end:
+        var x = f.instrs.get((usize)i)
+        if x.op != ir.Op.phi:
+            x.a = name_of(current, renamed, x.a)
+            x.b = name_of(current, renamed, x.b)
+            if x.op == ir.Op.call:
+                let info = f.calls.get((usize)x.extra)
+                var a: u32 = 0
+                while a < info.args_count:
+                    var arg = f.args.get((usize)(info.args_start + a))
+                    arg.value = name_of(current, renamed, arg.value)
+                    f.args.set((usize)(info.args_start + a), arg)
+                    a += 1
+        if x.dst != 0 and renamed[(usize)x.dst]:
+            let old = x.dst
+            let fresh = try f.temp(f.temp_class(old))
+            try log.push(Undo(temp = old, previous = current[(usize)old]))
+            current[(usize)old] = fresh
+            x.dst = fresh
+        f.instrs.set((usize)i, x)
+        i += 1
+    # the successors' phis take this block's names
+    try fill_phis(f, g, block.succ1, block.label, current, renamed, origin)
+    if block.succ2 != block.succ1:
+        try fill_phis(f, g, block.succ2, block.label, current, renamed, origin)
+    var c: usize = 0
+    while c < block.children.count:
+        try rename(f, g, block.children.get(c), renamed, current, log, origin)
+        c += 1
+    while log.count > mark:
+        let undo = log.get(log.count - 1)
+        log.count -= 1
+        current[(usize)undo.temp] = undo.previous
+
+func fill_phis(f: ir.Function*, g: cfg.Graph*, s: u32, from_label: u32, current: u32[], renamed: bool[], origin: list.List[u32]*) -> !:
+    if s == cfg.none_block:
+        return
+    let block = g.blocks.get((usize)s)
+    var i = block.start
+    while i < block.end:
+        let x = f.instrs.get((usize)i)
+        if x.op != ir.Op.phi:
+            break
+        let t = origin.get((usize)i)
+        if t != 0 and renamed[(usize)t]:
+            var a: u32 = 0
+            while a < x.extra2:
+                var arg = f.phi_args.get((usize)(x.extra + a))
+                if arg.pred == from_label:
+                    arg.value = name_of(current, renamed, ir.temp_ref(t))
+                    f.phi_args.set((usize)(x.extra + a), arg)
+                a += 1
+        i += 1

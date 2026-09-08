@@ -139,6 +139,8 @@ func translate(checker: check.Checker*, entry: ast.Node*, mode: u32) -> str!:
     if native_backend:
         var native = try backend.NativeBackend.over(checker, entry, debug_backend, diagnostic_profile)
         native.dump_ir = dump_ir
+        native.opt_level = opt_level
+        native.opt_count = opt_count
         let target: backend.Backend = &native
         return try target.compile(mode)
     var host_c = try backend.CBackend.over(checker, entry, diagnostic_profile)
@@ -159,6 +161,11 @@ func unknown_target() -> !:
     error(build_failed, "unknown target; `--target` with no name lists them")
 ## `--emit=ir`: the native pipeline stops after its passes and writes the IR as text.
 var dump_ir: bool
+## `--opt N`: how far the IR optimiser goes (0 none, 1 single-assignment form, 2 value
+## numbering, 3 load elimination, the default); `--opt-count K`: on the first K functions
+## only. Both are for finding an optimiser's fault by bisection.
+var opt_level: u32 = 3
+var opt_count: u32 = 0xFFFFFFFF
 ## `--debug`: the native backend describes every frame and calls the `debug` module.
 var debug_backend: bool
 ## `--freestanding`: the program's own `_start` is the entry, and no shim is linked (§19.4).
@@ -780,6 +787,14 @@ pub func main(arguments: c.str[]) -> i32!:
                 options.emit_c = true
                 options.native = true
                 dump_ir = true
+            elif a == "--opt" and i + 1 < arguments.length:
+                opt_level = u32(check.decode_integer((str)arguments[i + 1]) catch failure:
+                    recover 3)
+                i += 1
+            elif a == "--opt-count" and i + 1 < arguments.length:
+                opt_count = u32(check.decode_integer((str)arguments[i + 1]) catch failure:
+                    recover 0)
+                i += 1
             elif a == "--native":
                 options.native = true
             elif a == "--lib":

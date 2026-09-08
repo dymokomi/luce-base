@@ -176,15 +176,26 @@ func matches(store: ir.Op, load: ir.Op) -> bool:
 ## original; the copy is left for `sweep`.
 func propagate(f: ir.Function*) -> bool!:
     var source = try alloc ir.Ref[f.temps.count + 1]
+    var defs = try alloc u32[f.temps.count + 1]
+    defer free(defs)
     var k: usize = 0
     while k < source.length:
         source[k] = ir.none_ref()
+        defs[k] = 0
         k += 1
-    var any = false
     var i: usize = 0
     while i < f.instrs.count:
         let x = f.instrs.get(i)
-        if x.op == ir.Op.copy and x.dst != 0 and (x.a.kind == ir.RefKind.temp or x.a.kind == ir.RefKind.constant) and x.a.index != x.dst:
+        if x.dst != 0:
+            defs[(usize)x.dst] += 1
+        i += 1
+    # only a copy assigned once, of a value assigned once (or a constant), stands for its
+    # source everywhere: a temporary assigned in several places changes between them
+    var any = false
+    i = 0
+    while i < f.instrs.count:
+        let x = f.instrs.get(i)
+        if x.op == ir.Op.copy and x.dst != 0 and defs[(usize)x.dst] == 1 and (x.a.kind == ir.RefKind.constant or (x.a.kind == ir.RefKind.temp and defs[(usize)x.a.index] == 1)) and x.a.index != x.dst:
             source[x.dst] = x.a
             any = true
         i += 1
@@ -245,8 +256,23 @@ func fold(f: ir.Function*) -> bool:
         i += 1
     return changed
 
+## `op a` at class `cls` on one constant: the extensions and negation; `none` otherwise.
+pub func unary_constant(op: ir.Op, cls: ir.Class, a: i64) -> i64?:
+    let wide = cls == ir.Class.l
+    if cls != ir.Class.w and cls != ir.Class.l:
+        return none
+    match op:
+        .extsb: return narrow((i64)(i8)a, wide)
+        .extub: return narrow((i64)(u8)a, wide)
+        .extsh: return narrow((i64)(i16)a, wide)
+        .extuh: return narrow((i64)(u16)a, wide)
+        .extsw: return narrow((i64)(i32)a, wide)
+        .extuw: return narrow((i64)(u32)a, wide)
+        .neg: return narrow(0 -% a, wide)
+        _: return none
+
 ## `a op b` at class `cls`, or `none` when the operator is not folded here or would trap.
-func constant_of(op: ir.Op, cls: ir.Class, a: i64, b: i64) -> i64?:
+pub func constant_of(op: ir.Op, cls: ir.Class, a: i64, b: i64) -> i64?:
     let wide = cls == ir.Class.l
     if cls != ir.Class.w and cls != ir.Class.l:
         return none

@@ -5,6 +5,21 @@
 release is a VERSION bump, a tag `luce-base-N`, and a push, the way luce-seed does it
 (`bootstrap/SEED` pins the seed the tree is built against).
 
+## 0.7.0
+
+The optimiser: QBE's passes on this IR.
+
+- `back/cfg.lucb`: blocks, reverse post-order, dominators, frontiers, depths, loop
+  weights; `back/ssa.lucb`: slots into temporaries, phis, renaming; `back/gvn.lucb`:
+  value numbering over the dominator tree with constant, identity, phi and branch folding
+  and unreachable-block removal; `back/load.lucb`: alias classes and loads answered by the
+  stores, loads, blits and zeroings before them, across blocks with phis; `back/dessa.lucb`:
+  phis back into parallel copies with edge blocks; `frame` accepts a temporary assigned in
+  several places; the IR has `phi` and `PhiArg`, the printer shows them and the right
+  branch target of `jnz`;
+- the passes' memory is the heap's, so the compiler's own build fits its arena;
+- `docs/DESIGN.md`: "The optimiser", and the plan for instruction-set levels.
+
 ## 0.6.0
 
 Vectors compute in vector registers.

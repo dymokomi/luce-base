@@ -336,7 +336,7 @@ pub struct Frame:
                     self.used_mask = self.used_mask | (u32)(1 << (u32)(chosen - 1))
             ix += 1
 
-## Where each temporary is defined and last used, by instruction index. A temporary
+## Where each temporary is first defined and last used, by instruction index. A temporary
 ## defined before a loop and used inside it is live across the back-edge: its last use is
 ## pushed to the loop's bottom. A jump or branch to an earlier label is a back-edge, and one
 ## forward pass is enough: an inner loop's back-edge comes before its outer loop's, so an
@@ -345,7 +345,7 @@ func live_ranges(f: ir.Function*, def_at: u32[], last_use: u32[]) -> !:
     let n = f.temps.count
     var i: usize = 0
     while i < n:
-        def_at[i] = 0
+        def_at[i] = 0xFFFFFFFF
         last_use[i] = 0
         i += 1
     var label_pos = try alloc u32[(usize)f.labels + 1] in memory.heap
@@ -355,7 +355,9 @@ func live_ranges(f: ir.Function*, def_at: u32[], last_use: u32[]) -> !:
         let instr = f.instrs.get(ix)
         if instr.op == ir.Op.label and instr.extra <= f.labels:
             label_pos[(usize)instr.extra] = u32(ix)
-        if instr.dst > 0 and (usize)instr.dst <= n:
+        if instr.dst > 0 and (usize)instr.dst <= n and u32(ix) < def_at[(usize)instr.dst - 1]:
+            # a temporary assigned in several places (a phi's, after `dessa`) lives from
+            # its first assignment
             def_at[(usize)instr.dst - 1] = u32(ix)
         note_use(instr.a, last_use, u32(ix))
         note_use(instr.b, last_use, u32(ix))

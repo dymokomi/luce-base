@@ -120,6 +120,16 @@ func instruction(out: buffer.Buffer*, f: ir.Function*, x: ir.Instr) -> !:
             try operand(out, x.a)
             try out.put(", ")
             try operand(out, x.b)
+        .phi:
+            var k: u32 = 0
+            while k < x.extra2:
+                let arg = f.phi_args.get((usize)(x.extra + k))
+                try out.put(" " if k == 0 else ", ")
+                try out.put("@L")
+                try out.put_u64((u64)arg.pred)
+                try out.put(" ")
+                try operand(out, arg.value)
+                k += 1
         _:
             if x.a.kind != ir.RefKind.none_:
                 try out.put(" ")
@@ -265,6 +275,7 @@ func op_name(op: ir.Op) -> str:
         .frame: return "frame"
         .set_reg: return "set_reg"
         .get_reg: return "get_reg"
+        .phi: return "phi"
         .loadv: return "loadv"
         .storev: return "storev"
         .vadd: return "vadd"

@@ -401,6 +401,70 @@ The checker's type table is part of the same story: `types.Table` indexes its
 types by structure, so interning is a hash lookup rather than a scan that
 copied every type so far.
 
+## The optimiser
+
+Between the inliner and the generators, each function goes through the passes QBE
+runs (its cfg.c, mem.c, ssa.c, gvn.c, alias.c, and load.c, written here for this IR):
+
+- `back/cfg.lucb` reads the flat instruction list as a graph: blocks from the labels
+  and the jumps, reverse post-order, immediate dominators (Cooper, Harvey, and
+  Kennedy), dominance frontiers, dominator-tree depth, and loop weights.
+- `back/ssa.lucb` promotes every slot that is only loaded and stored whole, in one
+  class, into a temporary (a parameter's slot keeps one load at the entry, the value the
+  prologue put there), then brings the function to single-assignment form: a phi at
+  every block of a temporary's iterated dominance frontier where it is live, and one name
+  per definition down the dominator tree. Liveness is a bit set per block.
+- `back/gvn.lucb` walks the dominator tree with a table of the computations available
+  where it stands: a repeated computation, a constant computation, an operator's
+  identity, and a phi whose arguments agree all become the value they stand for; a
+  branch on a constant becomes a jump, and the blocks no longer reached go, their phis
+  losing the arguments they supplied. Without global code motion, a value replaces
+  another only where its definition dominates the use.
+- `back/load.lucb` classifies every address as an offset from a slot, a symbol, a
+  constant, or an unknown pointer, so that two accesses must overlap, may, or cannot;
+  each load is then answered by the last store or load to its location, backwards
+  through its block and its predecessors, a phi joining what several paths supply, and
+  through a blit or a zeroing of the bytes to where they came from. A store that may
+  alias, a call where the slot's address escaped, an atomic, or a fence ends the search
+  and the load stays. Only a whole match of one class is taken.
+- `back/dessa.lucb` gives the generators back their form: each phi's temporary is
+  assigned by a copy at the end of every predecessor (a branching predecessor gets an
+  edge block for a successor with other predecessors; the copies of an edge are parallel),
+  and `frame` runs a temporary's live range from its first assignment.
+
+The old block-local passes (`opt.lucb`) still run after: the store-to-load forwarding
+they do is subsumed, but the sweep is the dead-code elimination, and constant folding
+of what `dessa` leaves is cheap. A function under `--debug` keeps its slots, where the
+frame descriptors say its locals are; a naked function is its assembly. The working
+memory of every pass is the heap's, returned as the pass ends.
+
+What is not here yet from QBE: global code motion (which needs the sinking and the
+scheduling that make its value-numbering unrestricted), the inference of a zero from a
+dominating branch, and the coalescing of slots. The register allocator is still the
+frame's linear scan; a real allocator over the SSA form is the next step after these.
+
+## Instruction sets and their levels
+
+One processor family has several instruction-set levels (x86-64: SSE2, SSE4.2, AVX2,
+AVX-512, AMX; arm64: NEON, SVE, SVE2, SME), and the compiler must not be written once
+per level. The IR is the abstraction: its vector instructions carry lane shapes and mean
+the lane-wise scalar operation whatever the machine, and `back/isa.lucb` says which of
+them a target computes in one sequence. The plan, not yet built: the `Target` carries a
+feature level (`--cpu`, defaulting to the baseline every processor of the family has:
+x86-64-v1 and NEON), `isa.has_vector` and the generators read the level, so a build for
+`--cpu v3` emits AVX2 where the level allows and the same IR emits SSE2 without it; the
+`os` module answers which features the running processor has (`cpuid`, `sysctl`,
+`getauxval`), so a program can dispatch itself; and function multiversioning, several
+generated bodies chosen at load by the features found, comes after. Testing is a matrix:
+every level's output assembles on any host (`clang -target`), the conformance suite runs
+per level on a host that has it, and an emulator (QEMU user mode, `-cpu max`) runs the
+levels the host lacks. On Apple silicon the relevant sets are NEON (done), SME on M4-class
+chips (documented, the path for matrix work), and AMX before it (undocumented, unsupported
+by Apple's assembler: reachable through inline assembly in a library, not from the
+generator); FPAC is pointer authentication, a hardening feature rather than SIMD, in
+effect only for arm64e processes, which macOS does not run third-party binaries as by
+default.
+
 ## Vectors
 
 A vector (§5.12) is an array of eight or sixteen bytes of one lane type, and

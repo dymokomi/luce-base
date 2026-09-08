@@ -14,11 +14,18 @@
 #
 #==============================================================================================
 
+import memory
 import back.arm64
+import back.cfg
+import back.dessa
+import back.gvn
+import back.load
+import back.ssa
 import back.target as targets
 import back.x86_64
 import back.emit
 import back.inline
+import back.ir
 import back.irtext
 import back.lower
 import back.opt
@@ -53,13 +60,16 @@ pub struct NativeBackend: Backend:
     var debug: bool
     ## `--emit=ir`: the IR as text after every pass before the target, instead of assembly.
     pub var dump_ir: bool
+    ## How far the optimiser goes, and on how many functions (`--opt`, `--opt-count`).
+    pub var opt_level: u32
+    pub var opt_count: u32
     ## The target of the build (§19.5): arm64-macos and x86_64-linux have generators.
     var target: targets.Target
 
     pub static func over(c: check.Checker*, entry: ast.Node*, debug: bool, diagnostic: bool) -> NativeBackend!:
         var lowerer = try lower.Lowerer.create(c, entry)
         lowerer.diagnostic = diagnostic
-        return NativeBackend(lowerer = lowerer, debug = debug, dump_ir = false, target = c.build_target)
+        return NativeBackend(lowerer = lowerer, debug = debug, dump_ir = false, opt_level = 3, opt_count = 0xFFFFFFFF, target = c.build_target)
 
     pub mutating func compile(mode: u32) -> str!:
         let t = self.target
@@ -70,6 +80,7 @@ pub struct NativeBackend: Backend:
         self.lowerer.target = t
         try self.lowerer.program(mode)
         try inline.expand(&self.lowerer.program_unit)
+        try optimise_functions(&self.lowerer.program_unit, self.opt_level, self.opt_count)
         try opt.optimise(&self.lowerer.program_unit)
         if self.dump_ir:
             return try irtext.render(&self.lowerer.program_unit)
@@ -83,3 +94,39 @@ pub struct NativeBackend: Backend:
         generator.symbol_prefix = t.symbol_prefix
         try generator.generate()
         return generator.text()
+
+## The optimiser over the IR, function by function: slots into temporaries, the function
+## into single-assignment form, the passes, then the phis back into copies for the
+## generator. A naked function is its assembly; a function under `--debug` keeps its
+## locals in their slots, where the frame descriptor says they are.
+func optimise_functions(program: ir.Unit*, level: u32, count: u32) -> !:
+    var i: usize = 0
+    while i < program.functions.count and i < (usize)count:
+        let f = &program.functions.items[i]
+        i += 1
+        if f.naked or f.debug or f.instrs.count == 0 or level == 0:
+            continue
+        # the passes' working memory is the heap's, returned as each pass finishes; the
+        # driver's arena would keep every function's scratch until the build ends
+        with memory.heap:
+            var g = try cfg.Graph.over(f)
+            if try ssa.promote(f):
+                g.release()
+                g = try cfg.Graph.over(f)
+            var g2 = try ssa.construct(f, &g)
+            g.release()
+            if level < 2:
+                try dessa.run(f, &g2)
+                g2.release()
+                continue
+            var g3 = try gvn.run(f, &g2)
+            g2.release()
+            if level >= 3 and try load.run(f, &g3):
+                # loads became copies, and phis joined some blocks: number again
+                g3.release()
+                g3 = try cfg.Graph.over(f)
+                var g4 = try gvn.run(f, &g3)
+                g3.release()
+                g3 = g4
+            try dessa.run(f, &g3)
+            g3.release()

@@ -1,0 +1,390 @@
+#==============================================================================================
+#
+#   gvn - Value numbering over the dominator tree
+#
+#   DESCRIPTION:
+#       On the single-assignment form, a walk down the dominator tree keeps a table of the
+#       computations already available where the walk stands: an instruction whose
+#       operator, class, and operands are in the table is a copy of the earlier result,
+#       one on constants is its constant, one with an identity (`x + 0`, `x & x`, `x == x`
+#       on integers) is its operand, and a phi whose arguments all agree is that argument.
+#       Every such instruction is dropped and its uses read the value it stood for. A
+#       branch on a constant becomes a jump, and the blocks that no branch reaches any more
+#       go, their phis losing the arguments those blocks supplied. This is QBE's gvn.c
+#       without global code motion, so a computation replaces another only where its
+#       block dominates the use: the table is scoped to the walk.
+#
+#==============================================================================================
+
+import memory
+import support.list
+import back.cfg
+import back.ir
+import back.opt
+
+## An entry of the table: what an instruction computed, and where its result is.
+struct Entry:
+    var op: ir.Op
+    var cls: ir.Class
+    var a: ir.Ref
+    var b: ir.Ref
+    var extra: u32
+    var result: u32
+
+## The pass over `f`, whose graph is `g`. Answers the graph of the function as it stands
+## afterwards, which is a new one when blocks were removed.
+pub func run(f: ir.Function*, g: cfg.Graph*) -> cfg.Graph!:
+    let n = f.temps.count + 1
+    var rep = try alloc ir.Ref[n]
+    defer free(rep)
+    var t: usize = 0
+    while t < n:
+        rep[t] = ir.none_ref()
+        t += 1
+    var dead = try alloc bool[f.instrs.count + 1]
+    defer free(dead)
+    var i: usize = 0
+    while i <= f.instrs.count:
+        dead[i] = false
+        i += 1
+    var table = try list.List[Entry].create(256)
+    defer table.destroy()
+    try number(f, g, 0, rep, dead, &table)
+    # every use reads what its value became
+    i = 0
+    while i < f.instrs.count:
+        var x = f.instrs.get(i)
+        x.a = resolve(rep, x.a)
+        x.b = resolve(rep, x.b)
+        f.instrs.set(i, x)
+        i += 1
+    i = 0
+    while i < f.args.count:
+        var a = f.args.get(i)
+        a.value = resolve(rep, a.value)
+        f.args.set(i, a)
+        i += 1
+    i = 0
+    while i < f.phi_args.count:
+        var a = f.phi_args.get(i)
+        a.value = resolve(rep, a.value)
+        f.phi_args.set(i, a)
+        i += 1
+    # constant branches become jumps
+    var branched = false
+    i = 0
+    while i < f.instrs.count:
+        var x = f.instrs.get(i)
+        if x.op == ir.Op.jnz and (x.a.kind == ir.RefKind.constant or x.extra == x.extra2):
+            let taken = x.extra2 if x.a.kind == ir.RefKind.constant and x.a.value == 0 else x.extra
+            x = ir.Instr(op = ir.Op.jmp, cls = ir.Class.l, dst = 0, a = ir.none_ref(), b = ir.none_ref(), extra = taken, extra2 = 0)
+            f.instrs.set(i, x)
+            branched = true
+        i += 1
+    # the survivors, in order
+    var out = try list.List[ir.Instr].create(f.instrs.count)
+    i = 0
+    while i < f.instrs.count:
+        if not dead[i]:
+            try out.push(f.instrs.get(i))
+        i += 1
+    f.instrs.destroy()
+    f.instrs = out
+    if branched:
+        var reached = try cfg.Graph.over(f)
+        try drop_unreachable(f, &reached)
+        reached.release()
+    try drop_dead_phis(f)
+    # the graph of the function as it stands now, ranges and all
+    return try cfg.Graph.over(f)
+
+## The value a reference stands for, through the replacements.
+func resolve(rep: ir.Ref[], r: ir.Ref) -> ir.Ref:
+    var out = r
+    var hops: u32 = 0
+    while out.kind == ir.RefKind.temp and rep[(usize)out.index].kind != ir.RefKind.none_ and hops < 64:
+        out = rep[(usize)out.index]
+        hops += 1
+    return out
+
+## The walk: block `b`, then its dominator-tree children with the table as it stands
+## here, then the table cut back.
+func number(f: ir.Function*, g: cfg.Graph*, b: u32, rep: ir.Ref[], dead: bool[], table: list.List[Entry]*) -> !:
+    let mark = table.count
+    let block = g.blocks.get((usize)b)
+    var i = block.start
+    while i < block.end:
+        var x = f.instrs.get((usize)i)
+        if x.op == ir.Op.phi:
+            if let same = agreeing_phi(f, x, rep):
+                rep[(usize)x.dst] = same
+                dead[(usize)i] = true
+            elif let earlier = same_phi(f, block, i, rep, dead):
+                rep[(usize)x.dst] = ir.temp_ref(earlier)
+                dead[(usize)i] = true
+            i += 1
+            continue
+        x.a = resolve(rep, x.a)
+        x.b = resolve(rep, x.b)
+        if x.op == ir.Op.call:
+            let info = f.calls.get((usize)x.extra)
+            var k: u32 = 0
+            while k < info.args_count:
+                var a = f.args.get((usize)(info.args_start + k))
+                a.value = resolve(rep, a.value)
+                f.args.set((usize)(info.args_start + k), a)
+                k += 1
+        if x.dst != 0 and numberable(x.op):
+            if commutes(x.op) and ordered_after(x.a, x.b):
+                let swap = x.a
+                x.a = x.b
+                x.b = swap
+            if let value = folded(x):
+                rep[(usize)x.dst] = value
+                dead[(usize)i] = true
+                f.instrs.set((usize)i, x)
+                i += 1
+                continue
+            if let same = identity(x):
+                rep[(usize)x.dst] = same
+                dead[(usize)i] = true
+                f.instrs.set((usize)i, x)
+                i += 1
+                continue
+            var found: u32 = 0
+            var e: usize = 0
+            while e < table.count:
+                let entry = table.get(e)
+                if entry.op == x.op and entry.cls == x.cls and entry.extra == x.extra and same_ref(entry.a, x.a) and same_ref(entry.b, x.b):
+                    found = entry.result
+                e += 1
+            if found != 0:
+                rep[(usize)x.dst] = ir.temp_ref(found)
+                dead[(usize)i] = true
+            else:
+                try table.push(Entry(op = x.op, cls = x.cls, a = x.a, b = x.b, extra = x.extra, result = x.dst))
+        f.instrs.set((usize)i, x)
+        i += 1
+    var c: usize = 0
+    while c < block.children.count:
+        try number(f, g, block.children.get(c), rep, dead, table)
+        c += 1
+    table.count = mark
+
+## Whether an instruction's result depends on its operands alone: the arithmetic and the
+## conversions, the comparisons, addresses, and the vector forms; not loads, stores, calls,
+## traps, or anything with an effect. A checked or dividing operator is here too: computed
+## twice on the same operands it traps twice or never, so once is enough.
+func numberable(op: ir.Op) -> bool:
+    let code = (u8)op
+    if op == ir.Op.copy or op == ir.Op.addr or op == ir.Op.addr_tls:
+        return true
+    if code >= (u8)ir.Op.add and code <= (u8)ir.Op.neg:
+        return true
+    if code >= (u8)ir.Op.ceq and code <= (u8)ir.Op.cuge:
+        return true
+    if code >= (u8)ir.Op.extsb and code <= (u8)ir.Op.truncs:
+        return true
+    if op == ir.Op.addo or op == ir.Op.subo or op == ir.Op.mulo:
+        return true
+    if ir.is_vector_op(op):
+        return op != ir.Op.loadv and op != ir.Op.storev
+    return false
+
+func commutes(op: ir.Op) -> bool:
+    return op == ir.Op.add or op == ir.Op.mul or op == ir.Op.and_ or op == ir.Op.or_ or op == ir.Op.xor or op == ir.Op.ceq or op == ir.Op.cne or op == ir.Op.addo or op == ir.Op.mulo
+
+## A canonical order of two operands: temporaries before constants, then by number.
+func ordered_after(a: ir.Ref, b: ir.Ref) -> bool:
+    if a.kind == ir.RefKind.constant and b.kind == ir.RefKind.temp:
+        return true
+    if a.kind == ir.RefKind.temp and b.kind == ir.RefKind.temp:
+        return a.index > b.index
+    if a.kind == ir.RefKind.constant and b.kind == ir.RefKind.constant:
+        return a.value > b.value
+    return false
+
+func same_ref(a: ir.Ref, b: ir.Ref) -> bool:
+    if a.kind != b.kind:
+        return false
+    match a.kind:
+        .none_: return true
+        .temp, .slot, .text: return a.index == b.index
+        .constant: return a.value == b.value
+        _: return a.name == b.name and a.value == b.value
+
+## The constant an instruction on constants computes, when it computes one.
+func folded(x: ir.Instr) -> ir.Ref?:
+    if x.op == ir.Op.copy and x.a.kind == ir.RefKind.constant:
+        return x.a
+    if x.a.kind != ir.RefKind.constant:
+        return none
+    if x.b.kind == ir.RefKind.constant:
+        if let v = opt.constant_of(x.op, x.cls, x.a.value, x.b.value):
+            return ir.const_ref(v)
+        return none
+    if x.b.kind == ir.RefKind.none_:
+        # a unary: the extensions and negation of a constant word
+        if let v = opt.unary_constant(x.op, x.cls, x.a.value):
+            return ir.const_ref(v)
+    return none
+
+## The operand an instruction is a copy of by its operator's identity, on integers.
+func identity(x: ir.Instr) -> ir.Ref?:
+    if x.op == ir.Op.copy:
+        return x.a
+    if x.cls != ir.Class.w and x.cls != ir.Class.l:
+        return none
+    let zero = x.b.kind == ir.RefKind.constant and x.b.value == 0
+    let one = x.b.kind == ir.RefKind.constant and x.b.value == 1
+    let same = x.a.kind == ir.RefKind.temp and x.b.kind == ir.RefKind.temp and x.a.index == x.b.index
+    match x.op:
+        .add, .sub, .or_, .xor, .shl, .lshr, .ashr, .addo, .subo:
+            if zero:
+                return x.a
+        .mul, .mulo, .sdiv, .udiv:
+            if one:
+                return x.a
+        _:
+            discard(0)
+    if same:
+        match x.op:
+            .and_, .or_: return x.a
+            .xor, .sub, .subo, .cne, .cslt, .csgt, .cult, .cugt: return ir.const_ref(0)
+            .ceq, .csle, .csge, .cule, .cuge: return ir.const_ref(1)
+            _: discard(0)
+    return none
+
+## The one value a phi's arguments agree on (the phi itself aside), or none.
+func agreeing_phi(f: ir.Function*, x: ir.Instr, rep: ir.Ref[]) -> ir.Ref?:
+    var value = ir.none_ref()
+    var k: u32 = 0
+    while k < x.extra2:
+        let a = resolve(rep, f.phi_args.get((usize)(x.extra + k)).value)
+        if a.kind == ir.RefKind.temp and a.index == x.dst:
+            k += 1
+            continue
+        if value.kind == ir.RefKind.none_:
+            value = a
+        elif not same_ref(value, a):
+            return none
+        k += 1
+    if value.kind == ir.RefKind.none_:
+        return none
+    return value
+
+## An earlier phi of the same block with the same arguments, by predecessor.
+func same_phi(f: ir.Function*, block: cfg.Block, at: u32, rep: ir.Ref[], dead: bool[]) -> u32?:
+    let x = f.instrs.get((usize)at)
+    var i = block.start
+    while i < at:
+        let y = f.instrs.get((usize)i)
+        if y.op != ir.Op.phi:
+            break
+        if not dead[(usize)i] and y.cls == x.cls and y.extra2 == x.extra2:
+            var agree = true
+            var k: u32 = 0
+            while k < x.extra2:
+                let ax = f.phi_args.get((usize)(x.extra + k))
+                var matched = false
+                var q: u32 = 0
+                while q < y.extra2:
+                    let ay = f.phi_args.get((usize)(y.extra + q))
+                    if ay.pred == ax.pred and same_ref(resolve(rep, ay.value), resolve(rep, ax.value)):
+                        matched = true
+                    q += 1
+                if not matched:
+                    agree = false
+                k += 1
+            if agree:
+                return y.dst
+        i += 1
+    return none
+
+## Remove the blocks the entry no longer reaches, and the phi arguments they supplied.
+func drop_unreachable(f: ir.Function*, g: cfg.Graph*) -> !:
+    var keep_label = try alloc bool[(usize)f.labels + 1]
+    defer free(keep_label)
+    var k: usize = 0
+    while k < keep_label.length:
+        keep_label[k] = false
+        k += 1
+    keep_label[0] = true
+    var b: usize = 0
+    while b < g.blocks.count:
+        let block = g.blocks.get(b)
+        if block.rpo != cfg.none_block:
+            keep_label[(usize)block.label] = true
+        b += 1
+    var out = try list.List[ir.Instr].create(f.instrs.count)
+    b = 0
+    while b < g.blocks.count:
+        let block = g.blocks.get(b)
+        if block.rpo == cfg.none_block:
+            b += 1
+            continue
+        if block.label != 0 and block.start > 0:
+            try out.push(f.instrs.get((usize)block.start - 1))
+        var i = block.start
+        while i < block.end:
+            var x = f.instrs.get((usize)i)
+            if x.op == ir.Op.phi:
+                # drop the arguments of predecessors that are gone
+                var kept: u32 = 0
+                var q: u32 = 0
+                while q < x.extra2:
+                    let arg = f.phi_args.get((usize)(x.extra + q))
+                    if keep_label[(usize)arg.pred]:
+                        f.phi_args.set((usize)(x.extra + kept), arg)
+                        kept += 1
+                    q += 1
+                x.extra2 = kept
+            try out.push(x)
+            i += 1
+        b += 1
+    f.instrs.destroy()
+    f.instrs = out
+
+## Remove the phis nothing reads, until none is left: a phi feeding only dead phis is dead.
+func drop_dead_phis(f: ir.Function*) -> !:
+    var changed = true
+    while changed:
+        changed = false
+        var used = try alloc bool[f.temps.count + 1]
+        defer free(used)
+        var k: usize = 0
+        while k < used.length:
+            used[k] = false
+            k += 1
+        var i: usize = 0
+        while i < f.instrs.count:
+            let x = f.instrs.get(i)
+            mark_use(used, x.a)
+            mark_use(used, x.b)
+            if x.op == ir.Op.phi:
+                var q: u32 = 0
+                while q < x.extra2:
+                    let arg = f.phi_args.get((usize)(x.extra + q))
+                    if not (arg.value.kind == ir.RefKind.temp and arg.value.index == x.dst):
+                        mark_use(used, arg.value)
+                    q += 1
+            i += 1
+        i = 0
+        while i < f.args.count:
+            mark_use(used, f.args.get(i).value)
+            i += 1
+        var out = try list.List[ir.Instr].create(f.instrs.count)
+        i = 0
+        while i < f.instrs.count:
+            let x = f.instrs.get(i)
+            if x.op == ir.Op.phi and not used[(usize)x.dst]:
+                changed = true
+            else:
+                try out.push(x)
+            i += 1
+        f.instrs.destroy()
+        f.instrs = out
+
+func mark_use(used: bool[], r: ir.Ref):
+    if r.kind == ir.RefKind.temp and (usize)r.index < used.length:
+        used[(usize)r.index] = true
