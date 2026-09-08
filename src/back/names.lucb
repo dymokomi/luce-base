@@ -122,17 +122,36 @@ pub func mangled(out: buffer.Buffer*, table: types.Table*, id: u32) -> !:
             for byte in t.name.bytes:
                 try out.put_byte('_' if byte == '.' else byte)
 
+## Whether an export's C face differs from the function itself (§17.6): a fallible
+## function is exported in its status form, and a span parameter arrives as a pointer and
+## a length; such a function keeps its internal name and a wrapper carries the export's.
+pub func export_wrapped(table: types.Table*, f: ast.Node*) -> bool:
+    if not f.has(ast.flag_export):
+        return false
+    if f.has(ast.flag_fallible):
+        return true
+    var cursor = f.right
+    while let p = cursor:
+        if table.kind(p.type_id) == types.Kind.span:
+            return true
+        cursor = p.next
+    return false
+
+## The symbol an export is reached by: the prefix, the owner, the name (§17.6).
+pub func export_symbol(out: buffer.Buffer*, f: ast.Node*, owner: ast.Node*?) -> !:
+    try out.put(export_prefix)
+    if let o = owner:
+        try out.put(o.text)
+        try out.put("_")
+    try out.put(f.text)
+
 ## The symbol of a function or method instance.
 pub func function_name(out: buffer.Buffer*, table: types.Table*, f: ast.Node*, args: u32[], owner: ast.Node*?, owner_args: u32[]) -> !:
     if f.kind == ast.Kind.extern_func:
         try out.put(c_symbol(f))
         return
-    if f.has(ast.flag_export):
-        try out.put(export_prefix)
-        if let o = owner:
-            try out.put(o.text)
-            try out.put("_")
-        try out.put(f.text)
+    if f.has(ast.flag_export) and not export_wrapped(table, f):
+        try export_symbol(out, f, owner)
         return
     try out.put("lb_")
     if let o = owner:

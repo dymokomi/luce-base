@@ -47,6 +47,9 @@ The test material lives under `tests/`: `tests/samples` (programs with their exp
 
 The tree builds and its gate is green on arm64 macOS and on x86_64 Linux; the two
 hosts are the two native targets. `tests/platform` holds what depends on the target.
+After pulling on either host, `./test.sh` must be green; a bootstrap snapshot that has
+drifted is reported as a failure, and `tools/snapshot.sh` writes both hosts' snapshots
+from either host.
 
 The sources are `src/front` (source, tokens, lexer, tree, parser),
 `src/sema` (types, the standard modules as Base text, the checker),
@@ -55,51 +58,34 @@ generators, the target), and `src/support` (list, buffer, the embedded C runtime
 
 ## Status
 
-Slices 1 to 4: lexer, parser, checker, and C backend for the whole Base
-language (base.md §3 to §17, §19, §21), with `lex`, `parse`, `check`,
-`build`, and `test` commands. Every sample builds and runs; every module's
-tests pass both in the seed's oracle and compiled through this compiler;
-and the compiler builds itself, twice, to the same C.
+The whole of Base (base.md §3 to §17, §19, §21) through two backends: C for the
+host C compiler, and native assembly for arm64-macos and x86_64-linux, with no
+C in the native path. The compiler builds itself through both to the same C and
+the same assembly, and the seed pinned in `bootstrap/SEED` builds it to the
+same C. [`docs/AUDIT.md`](docs/AUDIT.md) is the one current matrix of what is
+verified, what is limited and where, and what is planned; it is rewritten, not
+appended, when the picture changes.
 
-Slice 5: the seed is pinned. `bootstrap/luce-base.c` is the compiler's own C,
-`build.sh` starts from it with nothing but a C compiler, and the standard
-library (`memory`, `io`, `os`, `files`, `process`, `thread`, `sync`, `atomic`,
-`strings`, `paths`, `math`, `time`, `testing`, `net`) is Base source under
-`src/std/`, one file per module over `extern` declarations of the C library;
-`tools/embed_std.py` gathers them into `src/sema/prelude.lucb`, which the
-compiler binary carries. `VERSION` is the tree's version; `build.sh` writes it
-into `src/support/version.lucb`, and a release is a tag `luce-base-N`
-(`docs/RELEASES.md`). Everything decided by target lives in
-`src/back/target.lucb` and in the `platform` module the compiler writes for each
-build (`--target NAME`); the library branches on `platform.macos` and its kin,
-and the branch a target rules out is pruned. Linux's constants and layouts are
-written but untested until the Linux pass; Windows has its arms marked.
-What is left in C, under `runtime/`, is what generated code cannot spell
-itself: traps, checked arithmetic, formatting of scalars, hashing.
+The standard library (`memory`, `io`, `os`, `files`, `process`, `thread`,
+`sync`, `atomic`, `strings`, `paths`, `math`, `time`, `testing`, `net`, `c`) is
+Base source under `src/std/`, one file per module over `extern` declarations of
+the C library; `tools/embed_std.py` gathers them into `src/sema/prelude.lucb`,
+which the compiler binary carries, and `tools/library_reference.py` writes
+[`docs/LIBRARY.md`](docs/LIBRARY.md) from the same source. The gate fails when
+either has drifted. Everything decided by target lives in `src/back/target.lucb`
+and in the `platform` module the compiler writes for each build (`--target
+NAME`); the library branches on `platform.macos` and its kin, and the branch a
+target rules out is pruned; `tests/platform` proves each host's arms. What is
+left in C, under `runtime/`, is what generated code cannot spell itself: traps,
+checked arithmetic, formatting of scalars, hashing.
 
-Slice 6: a native backend. `src/back/lower.lucb` takes the checked tree to a
-QBE-like IR and `src/back/arm64.lucb` takes that to arm64-macos assembly;
-`--native` selects it for `build` and `test`. The native path involves no C:
-the runtime a program needs is the `core` module, written in Base, and the
-driver assembles with `as` and links with `ld`. Every sample and every
-module's tests pass through both backends, the compiler builds itself
-natively, and the natively built compiler emits the same C and the same
-assembly for the compiler as the C-built one. Code comes out unoptimised,
-with every temporary in the frame; register allocation is next.
-
-The Linux pass (0.2.0): `src/back/x86_64.lucb` takes the same IR to x86_64
-ELF assembly under the System V convention, the driver links through the C
-driver, and the host is whatever the compiler was built for, read from its
-own `platform` module. The gate runs on x86_64 Linux as it does on arm64
-macOS: every sample, every module's tests, the proving programs (the HTTP
-server, the editor on Linux's `termios`, the debugger, the freestanding
-program through Linux system calls, the inline assembly with an `asm x86_64`
-arm), the conformance, robustness, and optimisation suites, and the native
-fixpoint. Building on the second host found two things the first had hidden:
-C promises no evaluation order for arguments (§7.1 does), so both C backends
-now compute a call's effectful arguments into temporaries in order; and
-`f64.bits(N)` must be a C constant without clang's `__builtin_bit_cast`, so it
-is a hexadecimal float literal.
+The native backend lowers the checked tree to a QBE-like IR (`src/back/lower.lucb`),
+runs the optimiser over it (inlining, single-assignment form, value numbering,
+load elimination), and the target's generator (`arm64.lucb`, `x86_64.lucb`)
+places it on the machine: frames, the calling convention with the ABI's
+aggregate classification, atomics, half floats, vectors at the instruction-set
+level the machine has (`--cpu`). `VERSION` is the tree's version; a release is a
+tag `luce-base-N` ([`docs/RELEASES.md`](docs/RELEASES.md)).
 
 ## Proving programs
 
@@ -134,6 +120,14 @@ natively under the gate and driven from outside by its `check.sh`:
 - `tests/programs/asm`: hand-written arm64 in Base source (`asm arm64(operands):`),
   the same lines compiled by the native backend and by the host C compiler,
   proved to agree.
+- `tests/programs/abi`: the calling convention both ways. Records of every class
+  the target ABIs distinguish cross between Base and C by value, in both
+  directions, with the values C computes; and the exported surface of §17.6
+  (function pointers, the status form of a fallible function, spans as a pointer
+  and a length, the package's error codes) is proved through the header, a C
+  consumer, linking, and running.
+- `tests/programs/pkgconfig`: a manifest that names a library through
+  `pkg-config`; skipped, and said so, on a host without it.
 
 Every bug they find is pinned as a test in both compilers before the fix.
 

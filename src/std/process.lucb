@@ -28,7 +28,7 @@ let non_blocking: i32 = 4 if platform.macos else 2048
 
 pub let failed: ErrorCode = ErrorCode.package(8)
 
-## A captured stream: bytes in the current allocator.
+## A captured stream: bytes in the current allocator, grown as the program writes.
 struct Capture:
     var descriptor: i32
     var data: u8[]
@@ -37,25 +37,68 @@ struct Capture:
 
     mutating func pull() -> !:
         if self.data.length - self.used < 256:
-            let room = 1024 if self.data.length == 0 else self.data.length * 2
-            self.data = try memory.grow(self.data, room)
+            if self.data.length == 0:
+                self.data = try alloc u8[1024]
+            else:
+                self.data = try memory.grow(self.data, self.data.length * 2)
         let n = c_read(self.descriptor, self.data[self.used..].data, self.data.length - self.used)
         if n == 0:
             self.open = false
         elif n > 0:
             self.used += (usize)n
 
-## Run `program` with `arguments`, wait for it, and answer its exit status and
-## what it wrote to its standard output and error.
+    ## What was captured, in an allocation exactly its length, or empty with none; the
+    ## capture's own storage is given back.
+    mutating func take() -> str!:
+        var empty: u8[]
+        if self.used == 0:
+            if self.data.length > 0:
+                free(self.data)
+                self.data = empty
+            return (str)empty
+        let exact = try alloc u8[self.used]
+        memory.copy(exact, self.data, self.used)
+        free(self.data)
+        self.data = empty
+        return (str)exact
+
+    mutating func drop():
+        if self.data.length > 0:
+            free(self.data)
+            var empty: u8[]
+            self.data = empty
+
+## Run `program` with `arguments`, wait for it, and answer its exit status and what it
+## wrote to its standard output and error. The two texts are allocations of the current
+## allocator, each exactly its length, empty ones no allocation at all; `release` gives
+## one back. Nothing is left behind: a failure closes what was opened and reaps what was
+## started, and the child does nothing between `fork` and `exec` but move descriptors,
+## so a parent with other threads is safe (§15.3).
 pub func run(program: c.str, arguments: const c.str[]) -> (i32, str, str)!:
+    let argv = try alloc void*?[arguments.length + 2]
+    argv[0] = (void*)program
+    var i: usize = 0
+    while i < arguments.length:
+        argv[i + 1] = (void*)arguments[i]
+        i += 1
+    argv[arguments.length + 1] = none
     var out_pipe: i32[2]
     var err_pipe: i32[2]
     if pipe((i32*)&out_pipe) != 0:
+        free(argv)
         error(failed, "run")
     if pipe((i32*)&err_pipe) != 0:
+        discard(close(out_pipe[0]))
+        discard(close(out_pipe[1]))
+        free(argv)
         error(failed, "run")
     let pid = fork()
     if pid < 0:
+        discard(close(out_pipe[0]))
+        discard(close(out_pipe[1]))
+        discard(close(err_pipe[0]))
+        discard(close(err_pipe[1]))
+        free(argv)
         error(failed, "run")
     if pid == 0:
         discard(close(out_pipe[0]))
@@ -64,40 +107,65 @@ pub func run(program: c.str, arguments: const c.str[]) -> (i32, str, str)!:
             _exit(127)
         discard(close(out_pipe[1]))
         discard(close(err_pipe[1]))
-        let argv = alloc void*?[arguments.length + 2] catch failure:
-            _exit(127)
-        argv[0] = (void*)program
-        var i: usize = 0
-        while i < arguments.length:
-            argv[i + 1] = (void*)arguments[i]
-            i += 1
-        argv[arguments.length + 1] = none
         discard(execvp(program, argv.data))
         _exit(127)
+    free(argv)
     discard(close(out_pipe[1]))
     discard(close(err_pipe[1]))
     discard(fcntl(out_pipe[0], set_flags, non_blocking))
     discard(fcntl(err_pipe[0], set_flags, non_blocking))
-    var out = Capture(descriptor = out_pipe[0], data = u8[]((u8*)8, 0), used = 0, open = true)
-    var err = Capture(descriptor = err_pipe[0], data = u8[]((u8*)8, 0), used = 0, open = true)
+    var empty: u8[]
+    var out = Capture(descriptor = out_pipe[0], data = empty, used = 0, open = true)
+    var err = Capture(descriptor = err_pipe[0], data = empty, used = 0, open = true)
+    # from here a failure closes the pipes, drops the captures, and reaps the child
+    errdefer discard(close(out_pipe[0]))
+    errdefer discard(close(err_pipe[0]))
+    errdefer out.drop()
+    errdefer err.drop()
+    errdefer reap(pid)
     while out.open or err.open:
         var watched: Poll[2] = ---
         watched[0] = Poll(descriptor = out.descriptor if out.open else -1, events = poll_in, returned = 0)
         watched[1] = Poll(descriptor = err.descriptor if err.open else -1, events = poll_in, returned = 0)
         if poll((Poll*)&watched, 2, -1) < 0:
-            continue
+            if c.errno() == c.interrupted:
+                continue
+            error(failed, "the program's output cannot be read")
         if out.open and (watched[0].returned & (poll_in | poll_hang_up | poll_error)) != 0:
             try out.pull()
         if err.open and (watched[1].returned & (poll_in | poll_hang_up | poll_error)) != 0:
             try err.pull()
+    let status = try wait_for(pid)
     discard(close(out_pipe[0]))
     discard(close(err_pipe[0]))
-    var status: i32 = 0
-    if waitpid(pid, &status, 0) < 0:
-        error(failed, "run")
     if (status & 127) != 0:
+        out.drop()
+        err.drop()
         error(failed, "the program was stopped by a signal")
-    return ((status >> 8) & 255, (str)out.data[..<out.used], (str)err.data[..<err.used])
+    let out_text = try out.take()
+    let err_text = err.take() catch failure:
+        release(out_text)
+        error(failure.code, failure.message)
+    return ((status >> 8) & 255, out_text, err_text)
+
+## The child's wait status, waited for again when a signal interrupts the wait.
+func wait_for(pid: i32) -> i32!:
+    var status: i32 = 0
+    while waitpid(pid, &status, 0) < 0:
+        if c.errno() != c.interrupted:
+            error(failed, "run")
+    return status
+
+## Wait for a child whose result no longer matters, so it is not left a zombie.
+func reap(pid: i32):
+    var status: i32 = 0
+    while waitpid(pid, &status, 0) < 0 and c.errno() == c.interrupted:
+        continue
+
+## Give back a text `run` answered, to the allocator that was current then.
+pub func release(text: str):
+    if text.length > 0:
+        free(u8[]((u8*)text.bytes.data, text.length))
 
 pub func exit(code: i32) -> never:
     c_exit(code)

@@ -928,8 +928,10 @@ pub struct Checker:
             .enum_:
                 return self.is_backed_enum(id)
             .func_:
+                # spans are representable as a function's own parameters, through the
+                # wrapper, never inside a function pointer's signature (§17.6)
                 for a in t.args:
-                    if not self.c_representable_in(a, true, seen, depth):
+                    if not self.c_representable_in(a, false, seen, depth):
                         return false
                 return t.elem == types.unit_id or self.c_representable_in(t.elem, false, seen, depth)
             _:

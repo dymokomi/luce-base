@@ -1334,9 +1334,12 @@ pub struct Generator:
         var next_int: u32 = 0
         var next_float: u32 = 0
         var stack: u32 = 0
-        var placements: ArgPlacement[32] = ---
+        # one placement per argument, however many: from the build's arena
+        var placements: ArgPlacement[]
+        if info.args_count > 0:
+            placements = try alloc ArgPlacement[(usize)info.args_count]
         var i: u32 = 0
-        while i < info.args_count and i < 32:
+        while i < info.args_count:
             let a = self.f.args.get((usize)(info.args_start + i))
             if info.variadic and i >= info.fixed_count:
                 # Apple passes every variadic argument on the stack, eight bytes each
@@ -1359,7 +1362,7 @@ pub struct Generator:
             self.sp_shift += 16
         # stack arguments
         i = 0
-        while i < info.args_count and i < 32:
+        while i < info.args_count:
             let a = self.f.args.get((usize)(info.args_start + i))
             let p = placements[i]
             if p.where == 2:
@@ -1390,7 +1393,7 @@ pub struct Generator:
             i += 1
         # register arguments, floats first so integer scratch stays free
         i = 0
-        while i < info.args_count and i < 32:
+        while i < info.args_count:
             let a = self.f.args.get((usize)(info.args_start + i))
             let p = placements[i]
             if p.where == 1:
@@ -1415,7 +1418,7 @@ pub struct Generator:
                         k += 1
             i += 1
         i = 0
-        while i < info.args_count and i < 32:
+        while i < info.args_count:
             let a = self.f.args.get((usize)(info.args_start + i))
             let p = placements[i]
             if p.where == 0:

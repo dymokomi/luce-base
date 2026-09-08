@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Write docs/LIBRARY.md: the standard library's public surface, read from src/std/*.lucb.
 Every `pub` declaration appears with the doc comment (`##` lines) written above it, so the
-reference is the source's own words and never drifts from it. Run after editing src/std."""
-import pathlib, re
+reference is the source's own words and never drifts from it. Run after editing src/std;
+with `--check`, write nothing and exit 1 when docs/LIBRARY.md is not what the source says."""
+import pathlib, re, sys
 
 root = pathlib.Path(__file__).resolve().parent.parent
 std = root / "src" / "std"
@@ -70,5 +71,12 @@ for n in names:
         continue
     doc.append(render(n))
 doc.append("## `c`\n\nThe C types (`c.int`, `c.long`, `c.char`, `c.str`, `c.va_list`, …) and the standard streams `c.stdin()`, `c.stdout()`, `c.stderr()` (§5.2, §17).\n")
-(root / "docs" / "LIBRARY.md").write_text("\n".join(doc))
+target = root / "docs" / "LIBRARY.md"
+text = "\n".join(doc)
+if "--check" in sys.argv:
+    if target.read_text() != text:
+        print("docs/LIBRARY.md is not what src/std/ says; run tools/library_reference.py")
+        sys.exit(1)
+    sys.exit(0)
+target.write_text(text)
 print("wrote docs/LIBRARY.md")

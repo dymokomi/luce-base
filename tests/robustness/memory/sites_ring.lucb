@@ -1,0 +1,21 @@
+# profile: diagnostic
+## The diagnostic profile's record of allocations (§19.4) keeps the most recent 256,
+## oldest first, however many came before: after 300 allocations the first recorded is
+## the 45th and the last is the 300th.
+import memory
+
+type Block = u8[]
+
+pub func main(arguments: str[]) -> i32!:
+    var blocks: Block[300]
+    var i: usize = 0
+    while i < 300:
+        blocks[i] = try alloc u8[i + 1]
+        i += 1
+    let sites = memory.allocation_sites()
+    print(f"{sites.length} {sites[0].size} {sites[128].size} {sites[255].size}")
+    i = 0
+    while i < 300:
+        free(blocks[i])
+        i += 1
+    return 0

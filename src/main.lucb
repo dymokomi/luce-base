@@ -27,6 +27,7 @@ import memory
 import process
 import sema.check
 import support.buffer
+import support.list
 import support.runtime
 import support.version
 
@@ -55,18 +56,91 @@ struct Options:
     ## `--profile diagnostic`: filled `---` storage and a quarantining allocator (§19.4).
     var diagnostic: bool
     ## `-lNAME` and `-LDIR`: libraries to link and where to find them.
-    var libraries: (c.str?)[16]
-    var library_count: usize
-    var library_dirs: (c.str?)[8]
-    var library_dir_count: usize
+    var libraries: list.List[c.str]
+    var library_dirs: list.List[c.str]
     ## `-framework NAME`: an Apple framework to link.
-    var frameworks: (c.str?)[16]
-    var framework_count: usize
+    var frameworks: list.List[c.str]
 
 ## Element `k` of a link-flag list; an empty slot reads as empty text. A `c.str` has no zero
 ## value (§6.1), so the lists hold `c.str?`.
-func at(list: (c.str?)[], k: usize) -> c.str:
-    return list[k] else (c.str)""
+## A command line built piece by piece: `c.str` items in a list, each formatted flag in an
+## allocation of its own, so nothing is cut off at a fixed count.
+struct Arguments:
+    var items: list.List[c.str]
+
+    static func create() -> Arguments!:
+        return Arguments(items = try list.List[c.str].create(32))
+
+    mutating func add(item: c.str) -> !:
+        try self.items.push(item)
+
+    ## `prefix` followed by `value`, NUL-terminated in the current allocator.
+    mutating func flag(prefix: str, value: str) -> !:
+        let room = try alloc u8[prefix.length + value.length + 1]
+        let text = try format(room, f"{prefix}{value}")
+        try self.items.push((c.str)text)
+
+    ## Every whitespace-separated word of `text`, as `pkg-config` prints its flags.
+    mutating func words(text: str) -> !:
+        let b = text.bytes
+        var start: usize = 0
+        var i: usize = 0
+        while i <= b.length:
+            if i == b.length or b[i] == ' ' or b[i] == '\n' or b[i] == '\t':
+                if i > start:
+                    try self.flag("", (str)b[start..<i])
+                start = i + 1
+            i += 1
+
+    func span() -> c.str[]:
+        return self.items.span()
+
+## The flags `pkg-config` answers for `name` under `what`, `--cflags` or `--libs` (§17.4).
+func pkg_config_flags(arguments: Arguments*, name: c.str, what: c.str) -> !:
+    let query: c.str[2] = [what, name]
+    let asked = process.run("pkg-config", query) catch failure:
+        error(build_failed, "pkg-config is not available, and the manifest names a package through it")
+    let (status, out, err) = asked
+    if status != 0:
+        try io.stderr().write(err)
+        error(build_failed, "pkg-config does not know a package the manifest names")
+    try arguments.words(trim(out))
+
+## The `-l`, `-L`, and `-framework` options of the command line, for a C driver link:
+## `-L` with a run path, and the frameworks only where the platform has them.
+func link_flags(arguments: Arguments*, with_frameworks: bool) -> !:
+    for directory in link_directories:
+        try arguments.flag("-L", (str)directory)
+        try arguments.flag("-Wl,-rpath,", (str)directory)
+    for library in link_libraries:
+        try arguments.flag("-l", (str)library)
+    if with_frameworks:
+        for framework in link_frameworks:
+            try arguments.add("-framework")
+            try arguments.add(framework)
+
+## The manifest's C sources (§17.4), each compiled to an object beside the generated code
+## with the flags `pkg-config` gives for the packages it names, and added to the link.
+func compile_sources(dir: str, arguments: Arguments*) -> !:
+    var s: usize = 0
+    while s < package.sources.length:
+        let name = (str)package.sources[s]
+        let source_path = try alloc u8[package.root.length + name.length + 1]
+        let source_text = try format(source_path, f"{package.root}{name}")
+        let compiled_path = try alloc u8[dir.length + 32]
+        let compiled = try format(compiled_path, f"{dir}/source{s}.o")
+        var source_args = try Arguments.create()
+        try source_args.add("-std=gnu11")
+        try source_args.add("-c")
+        try source_args.add((c.str)source_text)
+        try source_args.add("-O2")
+        for wanted in package.pkg_config:
+            try pkg_config_flags(&source_args, wanted, "--cflags")
+        try source_args.add("-o")
+        try source_args.add((c.str)compiled)
+        try run_tool("cc", source_args.span(), "the C compiler rejected a source the manifest names")
+        try arguments.add((c.str)compiled)
+        s += 1
 
 ## Whether `text` begins with `prefix`. The compiler's own sources stay within the seed's
 ## modules, so this is written here rather than taken from `strings`.
@@ -231,12 +305,10 @@ var diagnostic_profile: bool
 ## The manifest of the package being built (§16.4): its native inputs reach the build.
 var package: manifest.Manifest
 ## `-lNAME`, `-LDIR`, and `-framework NAME` of the current build, for the link step.
-var link_libraries: (c.str?)[16]
-var link_library_count: usize
-var link_dirs: (c.str?)[8]
-var link_dir_count: usize
-var link_frameworks: (c.str?)[16]
-var link_framework_count: usize
+## The libraries, directories, and frameworks the command line asked to link.
+var link_libraries: c.str[]
+var link_directories: c.str[]
+var link_frameworks: c.str[]
 
 var scratch_bytes: u8[4096]
 ## The mode the last `generate` settled on: 2 means an `answer()` program that links `start.c`.
@@ -272,80 +344,38 @@ func compile(text: str, exe: str, release: bool, with_start: bool) -> !:
     if with_start:
         try files.write((c.str)start_path, runtime.start.bytes)
     var include = try format(name_bytes[2560..<3072], f"-I{dir}")
-    var cc_args: c.str[40] = ---
+    var cc_args = try Arguments.create()
+    try cc_args.add("-std=gnu11")
+    try cc_args.add("-Wall")
     # Base has no type-based aliasing rule (§12.6): the C compiler must not assume one
-    cc_args[0] = "-std=gnu11"
-    cc_args[1] = "-fno-strict-aliasing"
-    cc_args[2] = "-Werror"
-    cc_args[3] = "-O2" if release and not native_backend else "-O0"
-    cc_args[4] = (c.str)include
-    cc_args[5] = (c.str)gen_path
-    cc_args[6] = (c.str)runtime_path
-    cc_args[7] = (c.str)start_path if with_start else "-fno-common"
-    cc_args[8] = "-lm"
-    cc_args[9] = "-pthread"
-    cc_args[10] = "-o"
-    cc_args[11] = (c.str)exe
+    try cc_args.add("-fno-strict-aliasing")
+    try cc_args.add("-Werror")
+    try cc_args.add("-O2" if release and not native_backend else "-O0")
+    try cc_args.add((c.str)include)
+    try cc_args.add((c.str)gen_path)
+    try cc_args.add((c.str)runtime_path)
+    try cc_args.add((c.str)start_path if with_start else "-fno-common")
+    try cc_args.add("-lm")
+    try cc_args.add("-pthread")
+    try cc_args.add("-o")
+    try cc_args.add((c.str)exe)
     # a C format string is the program's business, not the host compiler's (§17.2)
-    cc_args[12] = "-Wno-format"
-    var n: usize = 13
-    var flag_bytes: u8[2048]
-    var used: usize = 0
-    var k: usize = 0
-    # the manifest's C sources, under the package root (§17.4)
-    var source_bytes: u8[2048]
-    var source_used: usize = 0
-    k = 0
-    while k < package.sources.length and n < cc_args.length:
-        let path = try format(source_bytes[source_used..], f"{package.root}{(str)package.sources[k]}")
-        source_used += path.length + 1
-        cc_args[n] = (c.str)path
-        n += 1
-        k += 1
-    k = 0
-    while k < package.libraries.length and n < cc_args.length:
-        let flag = try format(flag_bytes[used..], f"-l{(str)package.libraries[k]}")
-        used += flag.length + 1
-        cc_args[n] = (c.str)flag
-        n += 1
-        k += 1
-    k = 0
-    while k < package.link_search.length and n < cc_args.length:
-        let flag = try format(flag_bytes[used..], f"-L{(str)package.link_search[k]}")
-        used += flag.length + 1
-        cc_args[n] = (c.str)flag
-        n += 1
-        k += 1
-    k = 0
-    while k < package.frameworks.length and n + 1 < cc_args.length:
-        cc_args[n] = "-framework"
-        cc_args[n + 1] = package.frameworks[k]
-        n += 2
-        k += 1
-    k = 0
-    while k < link_dir_count and n + 2 < cc_args.length:
-        let flag = try format(flag_bytes[used..], f"-L{(str)at(link_dirs, k)}")
-        used += flag.length + 1
-        cc_args[n] = (c.str)flag
-        let path = try format(flag_bytes[used..], f"-Wl,-rpath,{(str)at(link_dirs, k)}")
-        used += path.length + 1
-        cc_args[n + 1] = (c.str)path
-        n += 2
-        k += 1
-    k = 0
-    while k < link_library_count and n < cc_args.length:
-        let flag = try format(flag_bytes[used..], f"-l{(str)at(link_libraries, k)}")
-        used += flag.length + 1
-        cc_args[n] = (c.str)flag
-        n += 1
-        k += 1
-    k = 0
-    while k < link_framework_count and n + 1 < cc_args.length:
-        cc_args[n] = "-framework"
-        cc_args[n + 1] = at(link_frameworks, k)
-        n += 2
-        k += 1
-    let result = try process.run("cc", cc_args[..<n])
+    try cc_args.add("-Wno-format")
+    # the manifest's C sources, under the package root (§17.4), and what it links
+    for file in package.sources:
+        try cc_args.flag(package.root, (str)file)
+    for library in package.libraries:
+        try cc_args.flag("-l", (str)library)
+    for search in package.link_search:
+        try cc_args.flag("-L", (str)search)
+    for framework in package.frameworks:
+        try cc_args.add("-framework")
+        try cc_args.add(framework)
+    for name in package.pkg_config:
+        try pkg_config_flags(&cc_args, name, "--cflags")
+        try pkg_config_flags(&cc_args, name, "--libs")
+    try link_flags(&cc_args, true)
+    let result = try process.run("cc", cc_args.span())
     let (cc_status, cc_out, cc_err) = result
     discard(cc_out.length)
     if cc_status != 0:
@@ -382,80 +412,43 @@ func assemble_and_link(dir: str, name_bytes: u8[], text: str, exe: str) -> !:
     if sdk_status != 0:
         error(build_failed, "xcrun could not find the SDK")
     let sdk = try format(name_bytes[1024..<2048], f"{trim(sdk_out)}")
-    var ld_args: c.str[40] = ---
-    ld_args[0] = "-arch"
-    ld_args[1] = (c.str)t.arch_name()
-    ld_args[2] = "-syslibroot"
-    ld_args[3] = (c.str)sdk
-    ld_args[4] = "-o"
-    ld_args[5] = (c.str)exe
-    ld_args[6] = (c.str)object_path
-    var n: usize = 7
+    var ld_args = try Arguments.create()
+    try ld_args.add("-arch")
+    try ld_args.add((c.str)t.arch_name())
+    try ld_args.add("-syslibroot")
+    try ld_args.add((c.str)sdk)
+    try ld_args.add("-o")
+    try ld_args.add((c.str)exe)
+    try ld_args.add((c.str)object_path)
     for library in t.system_libraries:
-        ld_args[n] = (c.str)library
-        n += 1
+        try ld_args.add((c.str)library)
     if freestanding:
         # the exported `_start` is the entry; its assembler label carries the C underscore
-        ld_args[n] = "-e"
-        ld_args[n + 1] = "__start"
-        n += 2
+        try ld_args.add("-e")
+        try ld_args.add("__start")
     # the manifest's C sources (§17.4), each compiled to an object beside the assembly
-    var object_bytes: u8[2048]
-    var object_used: usize = 0
-    var s: usize = 0
-    while s < package.sources.length and n < ld_args.length:
-        let source_path = try format(object_bytes[object_used..], f"{package.root}{(str)package.sources[s]}")
-        object_used += source_path.length + 1
-        let compiled = try format(object_bytes[object_used..], f"{dir}/source{s}.o")
-        object_used += compiled.length + 1
-        var cc_args: c.str[6] = ["-std=gnu11", "-c", (c.str)source_path, "-O2", "-o", (c.str)compiled]
-        try run_tool("cc", cc_args, "the C compiler rejected a source the manifest names")
-        ld_args[n] = (c.str)compiled
-        n += 1
-        s += 1
-    s = 0
-    while s < package.libraries.length and n < ld_args.length:
-        let flag = try format(object_bytes[object_used..], f"-l{(str)package.libraries[s]}")
-        object_used += flag.length + 1
-        ld_args[n] = (c.str)flag
-        n += 1
-        s += 1
-    s = 0
-    while s < package.link_search.length and n + 1 < ld_args.length:
-        ld_args[n] = "-L"
-        ld_args[n + 1] = package.link_search[s]
-        n += 2
-        s += 1
-    s = 0
-    while s < package.frameworks.length and n + 1 < ld_args.length:
-        ld_args[n] = "-framework"
-        ld_args[n + 1] = package.frameworks[s]
-        n += 2
-        s += 1
-    var flag_bytes: u8[2048]
-    var used: usize = 0
-    var k: usize = 0
-    while k < link_dir_count and n + 4 < ld_args.length:
-        ld_args[n] = "-L"
-        ld_args[n + 1] = at(link_dirs, k)
-        ld_args[n + 2] = "-rpath"
-        ld_args[n + 3] = at(link_dirs, k)
-        n += 4
-        k += 1
-    k = 0
-    while k < link_library_count and n < ld_args.length:
-        let flag = try format(flag_bytes[used..], f"-l{(str)at(link_libraries, k)}")
-        used += flag.length + 1
-        ld_args[n] = (c.str)flag
-        n += 1
-        k += 1
-    k = 0
-    while k < link_framework_count and n + 1 < ld_args.length:
-        ld_args[n] = "-framework"
-        ld_args[n + 1] = at(link_frameworks, k)
-        n += 2
-        k += 1
-    let linked = try process.run("ld", ld_args[..<n])
+    try compile_sources(dir, &ld_args)
+    for library in package.libraries:
+        try ld_args.flag("-l", (str)library)
+    for search in package.link_search:
+        try ld_args.add("-L")
+        try ld_args.add(search)
+    for framework in package.frameworks:
+        try ld_args.add("-framework")
+        try ld_args.add(framework)
+    for name in package.pkg_config:
+        try pkg_config_flags(&ld_args, name, "--libs")
+    for directory in link_directories:
+        try ld_args.add("-L")
+        try ld_args.add(directory)
+        try ld_args.add("-rpath")
+        try ld_args.add(directory)
+    for library in link_libraries:
+        try ld_args.flag("-l", (str)library)
+    for framework in link_frameworks:
+        try ld_args.add("-framework")
+        try ld_args.add(framework)
+    let linked = try process.run("ld", ld_args.span())
     let (ld_status, ld_out, ld_err) = linked
     discard(ld_out.length)
     if ld_status != 0:
@@ -467,66 +460,24 @@ func assemble_and_link(dir: str, name_bytes: u8[], text: str, exe: str) -> !:
 ## links no start files and enters at its own `_start`, the C library still beside it as
 ## on macOS; `-framework` names nothing here.
 func link_with_driver(dir: str, object_path: str, exe: str, t: targets.Target) -> !:
-    var cc_args: c.str[48] = ---
-    cc_args[0] = "-o"
-    cc_args[1] = (c.str)exe
-    cc_args[2] = (c.str)object_path
-    var n: usize = 3
+    var cc_args = try Arguments.create()
+    try cc_args.add("-o")
+    try cc_args.add((c.str)exe)
+    try cc_args.add((c.str)object_path)
     if freestanding:
-        cc_args[n] = "-nostartfiles"
-        n += 1
+        try cc_args.add("-nostartfiles")
     # the manifest's C sources (§17.4), each compiled to an object beside the assembly
-    var object_bytes: u8[2048]
-    var object_used: usize = 0
-    var s: usize = 0
-    while s < package.sources.length and n < cc_args.length:
-        let source_path = try format(object_bytes[object_used..], f"{package.root}{(str)package.sources[s]}")
-        object_used += source_path.length + 1
-        let compiled = try format(object_bytes[object_used..], f"{dir}/source{s}.o")
-        object_used += compiled.length + 1
-        var source_args: c.str[6] = ["-std=gnu11", "-c", (c.str)source_path, "-O2", "-o", (c.str)compiled]
-        try run_tool("cc", source_args, "the C compiler rejected a source the manifest names")
-        cc_args[n] = (c.str)compiled
-        n += 1
-        s += 1
-    var flag_bytes: u8[2048]
-    var used: usize = 0
-    s = 0
-    while s < package.link_search.length and n < cc_args.length:
-        let flag = try format(flag_bytes[used..], f"-L{(str)package.link_search[s]}")
-        used += flag.length + 1
-        cc_args[n] = (c.str)flag
-        n += 1
-        s += 1
-    s = 0
-    while s < package.libraries.length and n < cc_args.length:
-        let flag = try format(flag_bytes[used..], f"-l{(str)package.libraries[s]}")
-        used += flag.length + 1
-        cc_args[n] = (c.str)flag
-        n += 1
-        s += 1
-    var k: usize = 0
-    while k < link_dir_count and n + 2 < cc_args.length:
-        let flag = try format(flag_bytes[used..], f"-L{(str)at(link_dirs, k)}")
-        used += flag.length + 1
-        cc_args[n] = (c.str)flag
-        let path = try format(flag_bytes[used..], f"-Wl,-rpath,{(str)at(link_dirs, k)}")
-        used += path.length + 1
-        cc_args[n + 1] = (c.str)path
-        n += 2
-        k += 1
-    k = 0
-    while k < link_library_count and n < cc_args.length:
-        let flag = try format(flag_bytes[used..], f"-l{(str)at(link_libraries, k)}")
-        used += flag.length + 1
-        cc_args[n] = (c.str)flag
-        n += 1
-        k += 1
+    try compile_sources(dir, &cc_args)
+    for search in package.link_search:
+        try cc_args.flag("-L", (str)search)
+    for library in package.libraries:
+        try cc_args.flag("-l", (str)library)
+    for name in package.pkg_config:
+        try pkg_config_flags(&cc_args, name, "--libs")
+    try link_flags(&cc_args, false)
     for library in t.system_libraries:
-        if n < cc_args.length:
-            cc_args[n] = (c.str)library
-            n += 1
-    try run_tool("cc", cc_args[..<n], "the linker rejected the generated code")
+        try cc_args.add((c.str)library)
+    try run_tool("cc", cc_args.span(), "the linker rejected the generated code")
 
 ## `build FILE`: check, generate, compile.
 func build_file(path: c.str, options: Options) -> !:
@@ -536,21 +487,9 @@ func build_file(path: c.str, options: Options) -> !:
     with arena:
         native_backend = options.native
         debug_backend = options.debug and options.native
-        link_library_count = options.library_count
-        link_dir_count = options.library_dir_count
-        var k: usize = 0
-        while k < options.library_count:
-            link_libraries[k] = options.libraries[k]
-            k += 1
-        k = 0
-        while k < options.library_dir_count:
-            link_dirs[k] = options.library_dirs[k]
-            k += 1
-        link_framework_count = options.framework_count
-        k = 0
-        while k < options.framework_count:
-            link_frameworks[k] = options.frameworks[k]
-            k += 1
+        link_libraries = options.libraries.span()
+        link_directories = options.library_dirs.span()
+        link_frameworks = options.frameworks.span()
         cpu_level_name = options.cpu
         if options.target.length > 0:
             let chosen = targets.Target.named(options.target) else return try unknown_target()
@@ -819,6 +758,9 @@ pub func main(arguments: c.str[]) -> i32!:
         return 0
     if command == "build" and positional >= 3:
         var options: Options = ---
+        options.libraries = try list.List[c.str].create(4)
+        options.library_dirs = try list.List[c.str].create(4)
+        options.frameworks = try list.List[c.str].create(4)
         options.output = ""
         options.release = false
         options.emit_c = false
@@ -831,9 +773,6 @@ pub func main(arguments: c.str[]) -> i32!:
         options.target = ""
         options.cpu = ""
         options.diagnostic = false
-        options.library_count = 0
-        options.library_dir_count = 0
-        options.framework_count = 0
         var i: usize = 3
         while i < arguments.length:
             let a = (str)arguments[i]
@@ -884,15 +823,12 @@ pub func main(arguments: c.str[]) -> i32!:
                 options.debug = true
             elif a == "-W":
                 show_warnings = true
-            elif starts_with(a, "-l") and a.length > 2 and options.library_count < options.libraries.length:
-                options.libraries[options.library_count] = (c.str)(str)a.bytes[2..]
-                options.library_count += 1
-            elif starts_with(a, "-L") and a.length > 2 and options.library_dir_count < options.library_dirs.length:
-                options.library_dirs[options.library_dir_count] = (c.str)(str)a.bytes[2..]
-                options.library_dir_count += 1
-            elif a == "-framework" and i + 1 < arguments.length and options.framework_count < options.frameworks.length:
-                options.frameworks[options.framework_count] = arguments[i + 1]
-                options.framework_count += 1
+            elif starts_with(a, "-l") and a.length > 2:
+                try options.libraries.push((c.str)(str)a.bytes[2..])
+            elif starts_with(a, "-L") and a.length > 2:
+                try options.library_dirs.push((c.str)(str)a.bytes[2..])
+            elif a == "-framework" and i + 1 < arguments.length:
+                try options.frameworks.push(arguments[i + 1])
                 i += 1
             else:
                 try io.stderr().write(f"luce-base: unexpected argument `{a}`\n")

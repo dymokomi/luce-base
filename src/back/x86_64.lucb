@@ -412,7 +412,7 @@ pub struct Generator:
         self.index = index
         self.f = &self.program_unit.functions.items[index]
         try self.fr.plan(self.f)
-        try self.fr.layout(self.f, 0, self.f.has_result and self.f.result_size > 16)
+        try self.fr.layout(self.f, 0, self.f.has_result and self.in_memory(self.f.result_size, self.f.result_shape))
         if self.f.section.length > 0:
             try self.put("\n    .section ")
             try self.put(build_target.section_name(self.f.section, true, self.os))
@@ -441,7 +441,7 @@ pub struct Generator:
             try self.line("subq $")
             try self.put_u64(self.fr.size)
             try self.put(", %rsp")
-        if self.f.has_result and self.f.result_size > 16:
+        if self.f.has_result and self.in_memory(self.f.result_size, self.f.result_shape):
             try self.line("movq %rdi, ")
             try self.frame_operand(self.fr.indirect_home)
         try self.save_callee_saved()
@@ -502,6 +502,16 @@ pub struct Generator:
     ## Which of an argument's first two eightbytes take SSE registers (System V §3.2.3):
     ## bit k is set when a float leaf covers eightbyte k and no integer leaf touches it.
     ## A scalar is its own class; an aggregate without a shape is opaque bytes, INTEGER.
+    ## Whether an aggregate of `size` bytes with `shape` is passed and returned in memory
+    ## (System V §3.2.3): over sixteen bytes, or holding a field that is not aligned to its
+    ## own size, which a packed record has and which the ABI classes MEMORY at any size.
+    func in_memory(size: u32, shape: u32) -> bool:
+        if size > 16:
+            return true
+        if size == 0 or shape == 0:
+            return false
+        return has_unaligned_leaf(self.program_unit.leaves_of(shape))
+
     func sse_of(cls: ir.Class, size: u32, shape: u32) -> u8:
         if size == 0:
             return 1 if ir.is_float_class(cls) else 0
@@ -586,7 +596,7 @@ pub struct Generator:
 
     ## Store the incoming arguments into their slots.
     mutating func receive_params() -> !:
-        var next_int: u32 = 1 if self.f.has_result and self.f.result_size > 16 else 0
+        var next_int: u32 = 1 if self.f.has_result and self.in_memory(self.f.result_size, self.f.result_shape) else 0
         var next_float: u32 = 0
         var stack_offset: u64 = 16
         var i: usize = 0
@@ -648,7 +658,7 @@ pub struct Generator:
                     stack_offset += round_up((u64)p.size, 8)
             i += 1
         stack_offset = 16
-        next_int = 1 if self.f.has_result and self.f.result_size > 16 else 0
+        next_int = 1 if self.f.has_result and self.in_memory(self.f.result_size, self.f.result_shape) else 0
         next_float = 0
         i = 0
         while i < self.f.params.count:
@@ -1558,7 +1568,7 @@ pub struct Generator:
         let words: u32 = 2 if a.size > 8 else 1
         let sse_count = count_bits(sse)
         let int_count = words - sse_count
-        if a.size <= 16 and *next_int + int_count <= 6 and *next_float + sse_count <= 8:
+        if not self.in_memory(a.size, a.shape) and *next_int + int_count <= 6 and *next_float + sse_count <= 8:
             let p = Placement(where = 0, sse = sse, first_int = *next_int, first_float = *next_float, words = words, stack_offset = 0)
             *next_int += int_count
             *next_float += sse_count
@@ -1570,13 +1580,16 @@ pub struct Generator:
 
     mutating func call(n: ir.Instr) -> !:
         let info = self.f.calls.get((usize)n.extra)
-        let hidden = info.has_result and info.result_size > 16
+        let hidden = info.has_result and self.in_memory(info.result_size, info.result_shape)
         var next_int: u32 = 1 if hidden else 0
         var next_float: u32 = 0
         var stack: u32 = 0
-        var placements: Placement[32] = ---
+        # one placement per argument, however many: from the build's arena
+        var placements: Placement[]
+        if info.args_count > 0:
+            placements = try alloc Placement[(usize)info.args_count]
         var i: u32 = 0
-        while i < info.args_count and i < 32:
+        while i < info.args_count:
             let a = self.f.args.get((usize)(info.args_start + i))
             placements[i] = self.place(a, &next_int, &next_float, &stack)
             i += 1
@@ -1587,7 +1600,7 @@ pub struct Generator:
             try self.put(", %rsp")
         # stack arguments first, while every register is still free
         i = 0
-        while i < info.args_count and i < 32:
+        while i < info.args_count:
             let a = self.f.args.get((usize)(info.args_start + i))
             let p = placements[i]
             if p.where == 2:
@@ -1606,7 +1619,7 @@ pub struct Generator:
             i += 1
         # float registers, then integer ones, so loading the latter disturbs nothing
         i = 0
-        while i < info.args_count and i < 32:
+        while i < info.args_count:
             let a = self.f.args.get((usize)(info.args_start + i))
             let p = placements[i]
             if p.where == 0 and p.sse != 0:
@@ -1623,7 +1636,7 @@ pub struct Generator:
                         k += 1
             i += 1
         i = 0
-        while i < info.args_count and i < 32:
+        while i < info.args_count:
             let a = self.f.args.get((usize)(info.args_start + i))
             let p = placements[i]
             if p.where == 0 and (p.sse == 0 or a.size > 0):
@@ -1698,7 +1711,7 @@ pub struct Generator:
                     try self.operand("%xmm0", self.f.result_cls, n.a)
                 else:
                     try self.operand("%rax" if self.f.result_cls == ir.Class.l else "%eax", self.f.result_cls, n.a)
-            elif self.f.result_size <= 16:
+            elif not self.in_memory(self.f.result_size, self.f.result_shape):
                 try self.address_operand("%r10", n.a)
                 let sse = self.sse_of(self.f.result_cls, self.f.result_size, self.f.result_shape)
                 try self.result_eightbytes(self.f.result_size, sse, false)
@@ -2018,6 +2031,59 @@ func log2(value: u64) -> u64:
         v = v // 2
         n += 1
     return n
+
+## A leaf not aligned to its own size: a packed record's field, which makes the whole
+## aggregate MEMORY class (System V §3.2.3).
+func has_unaligned_leaf(leaves: const ir.Leaf[]) -> bool:
+    for leaf in leaves:
+        if leaf.size > 1 and (u64)leaf.offset % (u64)leaf.size != 0:
+            return true
+    return false
+
+test "a packed aggregate with a misaligned field is MEMORY class at any size":
+    var backing: u8[1048576]
+    var arena = memory.FixedBuffer.over(backing)
+    with arena:
+        var u = try ir.Unit.create()
+        # { u8 tag; u64 value } packed: nine bytes, the u64 at offset 1
+        let packed_start = u.leaves.count
+        try u.leaves.push(ir.Leaf(offset = 0, size = 1, cls = ir.Class.w))
+        try u.leaves.push(ir.Leaf(offset = 1, size = 8, cls = ir.Class.l))
+        let packed = try u.shape_from(packed_start)
+        # { u16 a; u32 b } packed: six bytes, the u32 at offset 2
+        let small_start = u.leaves.count
+        try u.leaves.push(ir.Leaf(offset = 0, size = 2, cls = ir.Class.w))
+        try u.leaves.push(ir.Leaf(offset = 2, size = 4, cls = ir.Class.w))
+        let small = try u.shape_from(small_start)
+        # { u8 tag; u64 value } with padding: sixteen bytes, two INTEGER eightbytes
+        let padded_start = u.leaves.count
+        try u.leaves.push(ir.Leaf(offset = 0, size = 1, cls = ir.Class.w))
+        try u.leaves.push(ir.Leaf(offset = 8, size = 8, cls = ir.Class.l))
+        let padded = try u.shape_from(padded_start)
+        # { f32 x; f32 y }: one SSE eightbyte
+        let point_start = u.leaves.count
+        try u.leaves.push(ir.Leaf(offset = 0, size = 4, cls = ir.Class.s))
+        try u.leaves.push(ir.Leaf(offset = 4, size = 4, cls = ir.Class.s))
+        let point = try u.shape_from(point_start)
+        var g = try Generator.create(&u)
+        assert(g.in_memory(9, packed))
+        assert(g.in_memory(6, small))
+        assert(not g.in_memory(16, padded))
+        assert(not g.in_memory(8, point))
+        assert(g.in_memory(24, 0))
+        assert(not g.in_memory(0, 0))
+        assert(g.sse_of(ir.Class.l, 8, point) == 1)
+        assert(g.sse_of(ir.Class.l, 16, padded) == 0)
+        var next_int: u32 = 0
+        var next_float: u32 = 0
+        var stack: u32 = 0
+        let placed = g.place(ir.Arg(value = ir.none_ref(), cls = ir.Class.l, size = 9, align = 1, type_id = 0, shape = packed), &next_int, &next_float, &stack)
+        assert(placed.where == 2)
+        assert(next_int == 0)
+        assert(stack == 16)
+        let in_registers = g.place(ir.Arg(value = ir.none_ref(), cls = ir.Class.l, size = 16, align = 8, type_id = 0, shape = padded), &next_int, &next_float, &stack)
+        assert(in_registers.where == 0)
+        assert(next_int == 2)
 
 test "immediates, views, and byte moves assemble":
     var backing: u8[1048576]

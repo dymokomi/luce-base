@@ -1,0 +1,39 @@
+## What the library allocates on a program's behalf comes back exactly: the texts
+## `process.run` answers through `process.release`, the texts `strings` makes through
+## `strings.release`, the array `split` answers through `free`, and a builder's bytes
+## through `destroy`, whatever allocator was current when each was made.
+import c
+import counting
+import process
+import strings
+
+pub func main(arguments: str[]) -> i32!:
+    var counter = counting.Counting.unlimited()
+    with counter:
+        let echo_args: c.str[2] = ["-n", "hello there"]
+        let (status, out, err) = try process.run("echo", echo_args)
+        print(f"{status} {out} [{err.length}]")
+        process.release(out)
+        process.release(err)
+        let pieces: str[3] = ["a", "b", "c"]
+        let joined = try strings.join(pieces, ", ")
+        let copied = try strings.copy(joined)
+        let upper = try strings.to_upper(copied)
+        let parts = try strings.split(upper, ',')
+        print(f"{joined} {copied} {upper} {parts.length}")
+        free(parts)
+        strings.release(upper)
+        strings.release(copied)
+        strings.release(joined)
+    var builder = strings.Builder.create(8) catch failure:
+        return 1
+    with counter:
+        var i: usize = 0
+        while i < 500:
+            try builder.put("ab")
+            i += 1
+    # the builder grew in its own allocator, the heap, whatever was current meanwhile
+    print(f"{builder.view().length} {counter.live} {counter.bytes}")
+    builder.destroy()
+    counter.report("process_release")
+    return 0

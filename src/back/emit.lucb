@@ -680,7 +680,7 @@ pub struct Emitter:
         if f.kind == ast.Kind.extern_func:
             try self.put_extern_name(f)
             return
-        if f.has(ast.flag_export):
+        if f.has(ast.flag_export) and not names.export_wrapped(&self.c.table, f):
             try self.put(names.export_prefix)
             if let o = owner:
                 try self.put(o.text)
@@ -1188,12 +1188,118 @@ pub struct Emitter:
             k += 1
         self.indent -= 1
         try self.body.put(self.scratch.view())
+        if names.export_wrapped(&self.c.table, f):
+            try self.export_wrapper(f)
         discard(base)
         self.current_fn = saved_fn
         self.fn_decl = saved_decl
         self.fn_args = saved_args
         self.owner_decl = saved_owner
         self.owner_args = saved_owner_args
+
+    ## The C face of an export whose signature C cannot take as it is (§17.6): a span
+    ## parameter arrives as a pointer and a length, `(NULL, n)` being the empty span, and a
+    ## fallible result becomes an `int` status, 0 or the error's code, with the value
+    ## written through a final out-pointer. The wrapper calls the function by its internal
+    ## name.
+    mutating func export_wrapper(f: ast.Node*) -> !:
+        let ft = self.c.table.get(try self.map(f.type_id))
+        let fallible = f.has(ast.flag_fallible)
+        let payload = self.elem(ft.elem) if fallible else ft.elem
+        let none_args = try types.no_args()
+        try self.line("")
+        if fallible:
+            try self.put("int")
+        else:
+            try self.put_result_type(f)
+        try self.put(" ")
+        try self.put(names.export_prefix)
+        if let o = self.owner_decl:
+            try self.put(o.text)
+            try self.put("_")
+        try self.put(f.text)
+        try self.put("(")
+        var first = true
+        if let o = self.owner_decl:
+            if not f.has(ast.flag_static):
+                let oid = try self.map(o.type_id)
+                if not (f.has(ast.flag_mutating) or f.text == "init"):
+                    try self.put("const ")
+                try self.put_type(oid)
+                try self.put("* self")
+                first = false
+        var cursor = f.right
+        while let p = cursor:
+            if not first:
+                try self.put(", ")
+            first = false
+            let pt = try self.map(p.type_id)
+            if self.is_span(pt):
+                if self.c.table.get(pt).is_const:
+                    try self.put("const ")
+                try self.put_type(self.elem(pt))
+                try self.put("* ")
+                try self.put_ident(p.text)
+                try self.put(", size_t ")
+                try self.put_ident(p.text)
+                try self.put("_len")
+            else:
+                try self.put_type(pt)
+                try self.put(" ")
+                try self.put_ident(p.text)
+            cursor = p.next
+        if fallible and payload != types.unit_id:
+            if not first:
+                try self.put(", ")
+            first = false
+            try self.put_type(payload)
+            try self.put("* lb_out")
+        if first:
+            try self.put("void")
+        try self.put(") {")
+        self.indent += 1
+        try self.line("")
+        if fallible:
+            try self.put_type(ft.elem)
+            try self.put(" lb_r = ")
+        elif payload != types.unit_id and payload != types.never_id:
+            try self.put("return ")
+        try self.put_func_name(f, none_args, self.owner_decl, none_args)
+        try self.put("(")
+        first = true
+        if let o = self.owner_decl:
+            if not f.has(ast.flag_static):
+                try self.put("self")
+                first = false
+        cursor = f.right
+        while let p = cursor:
+            if not first:
+                try self.put(", ")
+            first = false
+            let pt = try self.map(p.type_id)
+            if self.is_span(pt):
+                try self.put("(")
+                try self.put_type(pt)
+                try self.put("){ ")
+                try self.put_ident(p.text)
+                try self.put(" != NULL ? (void*)")
+                try self.put_ident(p.text)
+                try self.put(" : (void*)8, ")
+                try self.put_ident(p.text)
+                try self.put(" != NULL ? ")
+                try self.put_ident(p.text)
+                try self.put("_len : 0 }")
+            else:
+                try self.put_ident(p.text)
+            cursor = p.next
+        try self.put(");")
+        if fallible:
+            try self.line("if (lb_r.failed) return lb_r.error.code;")
+            if payload != types.unit_id:
+                try self.line("*lb_out = lb_r.value;")
+            try self.line("return 0;")
+        self.indent -= 1
+        try self.line("}")
 
     ## Composite types spelled only inside bodies still need their typedefs.
     mutating func note_if_typedef(id: u32) -> !:
@@ -1315,7 +1421,8 @@ pub struct Emitter:
             .asm_:
                 try self.asm_stmt(s)
             _:
-                try self.line("/* unsupported statement */")
+                # the checker admits no other statement; a new kind must be written here first
+                return error(backend, "the C backend has no form for this statement")
 
     ## `let`/`var`, with a name or a tuple of names.
     mutating func binding(s: ast.Node*) -> !:
@@ -2364,7 +2471,7 @@ pub struct Emitter:
                     try self.put("goto lb_cont_")
                     try self.put(e.text)
             _:
-                try self.put("/* unsupported expression */ 0")
+                return error(backend, "the C backend has no form for this expression")
 
     ## A `return` inside an expression, written as statements in a brace block.
     mutating func return_in_expr(e: ast.Node*) -> !:
@@ -4777,12 +4884,15 @@ pub struct Emitter:
             try self.put("; })")
             return
         let result = try self.ty(e)
+        # `first`, `last`, and `indexed` are the span's (§5.4): an array receiver is read as
+        # the span it converts to
+        let st = rt if self.is_span(rt) else try self.c.table.span(self.elem(rt), false)
         try self.put("({ ")
-        try self.put_type(rt)
+        try self.put_type(st)
         try self.put(" ")
         try self.put_tmp("sq", n)
         try self.put(" = ")
-        try self.expr(receiver)
+        try self.value(receiver, st)
         try self.put("; ")
         let et = self.elem(rt)
         if callee.text == "indexed":

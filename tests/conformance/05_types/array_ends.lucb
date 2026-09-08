@@ -1,0 +1,29 @@
+## §5.4: `first()`, `last()`, and `indexed()` are the span's, and an array has them
+## through the span it converts to: a `var` array, a `let` array, and a span of each.
+pub func main(arguments: str[]) -> i32:
+    var numbers: i64[4] = [3, 5, 7, 9]
+    let fixed: i64[3] = [10, 20, 30]
+    let view: i64[] = numbers
+    let empty = view[0..<0]
+    var total: i64 = 0
+    if let f = view.first():
+        total += f
+    if let l = numbers.last():
+        total += l
+    if let g = fixed.first():
+        total += g
+    if let h = fixed.last():
+        total += h
+    if let absent = empty.first():
+        total += 1000
+    if let absent_last = empty.last():
+        total += 1000
+    for (i, n) in view.indexed():
+        total += i64(i) * n
+    for (i, n) in numbers.indexed():
+        if i == 3:
+            total -= n
+    for (i, n) in fixed.indexed():
+        total += i64(i) + n
+    print(f"{total}")
+    return 0

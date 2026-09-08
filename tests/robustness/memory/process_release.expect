@@ -1,0 +1,4 @@
+0 hello there [0]
+a, b, c a, b, c A, B, C 3
+1000 0 0
+process_release: allocations=8 frees=8 live=0 bytes=0 peak_live=4 peak_bytes=2059 failures=0

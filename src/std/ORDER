@@ -1,4 +1,5 @@
 platform
+c
 core
 memory
 io
@@ -16,4 +17,3 @@ os
 testing
 net
 debug
-c

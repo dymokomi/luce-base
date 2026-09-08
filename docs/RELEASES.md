@@ -5,6 +5,67 @@
 release is a VERSION bump, a tag `luce-base-N`, and a push, the way luce-seed does it
 (`bootstrap/SEED` pins the seed the tree is built against).
 
+## 0.10.0
+
+The audit of 2026-09-07 (`luce-base-audit-2026-09-07.md`, eleven findings and the
+source-reviewed risks behind them), closed in full, each with a test through every
+execution.
+
+- **Evaluation order.** The C backend computes a method call's receiver, and a call's
+  function value, into a temporary before the arguments it hoists (§7.1), where before the
+  receiver was read after them; `07_expressions/receiver_before_arguments`.
+- **Float literals.** A decimal literal is converted exactly by `support.decimal`, big
+  integers and one rounding, to the width the literal has, so an `f32` or `f16` literal is
+  never rounded through a double; the C carries the bits as hexadecimal floats; a literal
+  that would round to an infinity is refused; an integer literal never takes a float type,
+  as the seed always said. `04_literals/rounding`, the decimal module's own tests.
+- **Records at the C boundary.** A record pointing at itself or at a later one no longer
+  crashes the checker and is exported as C's linked structure; a field's `align(N)` is
+  spelled in the header and honoured by every layout site, through one
+  `types.field_alignment`; a packed record with a misaligned field is MEMORY class on
+  x86-64 as System V asks, for arguments and results alike. `tests/programs/abi` proves
+  records of every class by value both ways; `19_compilation/driver.sh` links C consumers
+  against the headers.
+- **The exported surface of §17.6.** Function pointer parameters and fields (`luce_fn_N`
+  typedefs), spans as a pointer and a length, fallible functions in the status form
+  (`int`, 0 or the error's code, the value through `out`), the package's error codes as
+  `#define`s, arrays in records; a function whose C face differs is reached through a
+  wrapper both backends write. A span inside a function pointer's signature is refused.
+- **The library.** `FixedBuffer` aligns addresses, not offsets. A write to a connection
+  whose peer has closed answers `closed` on both hosts; macOS refuses the mark once the
+  peer is gone, and such a write does not send. `files.list` gives back what it allocated
+  through `release_list`, sized exactly; `files.read` frees on a failed read. `to_i64`
+  reads the endpoints of `i64`. `process.run` allocates before the fork, closes and reaps
+  on every failure, waits again after a signal, and answers exact allocations given back by
+  `process.release`; `strings.Builder` keeps the allocator it was made in and has
+  `destroy`; `strings.release` for the texts that module makes. `thread.spawn` honours
+  `stack` and `name`; `thread.sleep` sleeps on after a signal. `c.errno`. The diagnostic
+  profile's records are guarded by a lock, keep the most recent 256 sites oldest first,
+  and quarantine pages as well as heap blocks; `FixedBuffer` fills released blocks.
+- **The compiler.** The C backend declares a formatted text's buffer at the function's
+  top, so a `fmt` argument outlives the expression that made it under `-O2` (found by the
+  conformance suite's new release pass); a long left-leaning chain is written as a sequence
+  rather than 256 nested brackets; an assertion's report carries a condition of any
+  length; the fallbacks that wrote `/* unsupported */` are errors. A call's placements are
+  no longer capped at 32 arguments in either native generator. The driver builds command
+  lines without a fixed count, restores `-Wall`, and consumes `[native] pkg_config`.
+  `.data` on an array is refused, as the specification says (§5.4); a call of a call's
+  function value is no longer resolved to the callee's own declaration; a local or a
+  parameter may not shadow a declaration of its module (§3.5), as the seed always said.
+- **The gate.** Rejection runners require exit status 1 and a diagnostic, and take the
+  status without ending the script; a snapshot that has drifted is a failure; positive
+  conformance programs also run from the C built at `-O2`; the embedded standard library,
+  runtime, version, and `docs/LIBRARY.md` are checked against their sources
+  (`tools/*.py --check`); the seed's corpus runs natively under the gate
+  (`tools/native_check.sh`), which now fails on a failure.
+- **Documents.** `docs/AUDIT.md` is one current status matrix; `README.md` and
+  `docs/PLAN.md` say what is, not what was next; `docs/SHARE.md` is gone; the
+  specification says what both compilers do about shadowing, array members, exports, and
+  the diagnostic profile.
+- pinned to luce-seed-0.48: exact float literals and hexadecimal floats in the seed's C
+  too, format buffers at the function's top, `# release: true` program tests, fallible
+  exports accepted, `c.str` as a generic argument, and the specification in sync.
+
 ## 0.9.1
 
 - a bootstrap snapshot is for the family's baseline level (`tools/snapshot.sh` and the

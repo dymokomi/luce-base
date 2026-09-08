@@ -8,6 +8,12 @@
 set -eu
 cd "$(dirname "$0")"
 ./build.sh
+# what the binary carries is what the sources say: the standard modules, the C runtime, the
+# version, and the library reference are generated, and drift is a failure, not a note
+python3 tools/embed_std.py --check
+python3 tools/embed_runtime.py --check
+python3 tools/embed_version.py --check
+python3 tools/library_reference.py --check
 # the standard library under src/std is checked as the prelude, not as modules of its own
 for f in tests/samples/*.lucb src/*.lucb src/*/*.lucb tests/programs/*/*.lucb; do
     case "$f" in src/std/*) continue;; esac
@@ -135,4 +141,6 @@ tests/optimization/run.sh
 tests/conformance/run.sh
 # the platform suite: what depends on the target, on this host, and every target emitted from it
 tests/platform/run.sh
+# the seed's program corpus, built natively: every `# answer: N` program prints N
+tools/native_check.sh
 echo "ok"

@@ -44,6 +44,33 @@ pub let pointer_bits: u32 = 64
 ## The instruction-set level the program is compiled for (§19.5): 1 is the family's baseline.
 pub let cpu_level: u32 = 1
 """),
+    Prelude(name = "c", text = """
+## C's types live here (base.md §5.2); the checker supplies them, since their widths are the
+## target's: `c.int` and the other fixed-width ones are Base types by another name, `c.char`,
+## `c.long`, `c.ulong`, and `c.wchar` are distinct, `c.va_list` is opaque, `c.str` is C text.
+
+import platform
+
+extern func mac_errno as "__error"() -> i32*
+extern func linux_errno as "__errno_location"() -> i32*
+
+## The calling thread's `errno`: the C library's account of its last failure.
+pub func errno() -> i32:
+    if platform.macos:
+        return *mac_errno()
+    return *linux_errno()
+
+## `EINTR`: a call a signal interrupted, to be made again. The same number on both hosts.
+pub let interrupted: i32 = 4
+
+## The C standard streams; the backend supplies them.
+pub func stdin() -> void*:
+    trap("supplied by the backend")
+pub func stdout() -> void*:
+    trap("supplied by the backend")
+pub func stderr() -> void*:
+    trap("supplied by the backend")
+"""),
     Prelude(name = "core", text = """
 import c
 extern func write(descriptor: i32, buffer: const void*, count: usize) -> isize
@@ -645,6 +672,8 @@ pub struct FixedBuffer: Allocator:
     pub mutating func release(block: u8[]):
         if block.length == 0:
             return
+        if diagnostic:
+            discard(memset(block.data, 221, block.length))    # a fixed buffer releases all at once
         let start = (usize)block.data - (usize)self.data.data
         if start + block.length == self.used:
             self.used = start
@@ -676,11 +705,13 @@ pub struct CAllocator: Allocator:
         # the diagnostic profile (§19.4): the block is filled with a pattern and held back, so
         # a use after release reads the pattern rather than the next allocation
         discard(memset(block.data, 221, block.length))
+        lock(&records_lock)
         let slot = quarantine_next % quarantine.length
         if let old = quarantine[slot]:
             c_free(old.data)
         quarantine[slot] = block
         quarantine_next += 1
+        unlock(&records_lock)
 
 ## Bump allocation over a parent allocator, released all at once by `reset` or `destroy`
 ## (§12.4, §24.3). One thread at a time.
@@ -762,9 +793,19 @@ pub struct PageAllocator: Allocator:
     pub mutating func release(block: u8[]):
         if block.length == 0:
             return
-        if diagnostic:
-            discard(memset(block.data, 221, block.length))
-        discard(munmap(block.data, block.length))
+        if not diagnostic:
+            discard(munmap(block.data, block.length))
+            return
+        # the diagnostic profile (§19.4): the mapping is filled and kept for a while, so a
+        # use after release reads the pattern rather than faulting or reading a new mapping
+        discard(memset(block.data, 221, block.length))
+        lock(&records_lock)
+        let slot = held_next % held_pages.length
+        if let old = held_pages[slot]:
+            discard(munmap(old.data, old.length))
+        held_pages[slot] = block
+        held_next += 1
+        unlock(&records_lock)
 
 extern func mmap(address: void*?, length: usize, protection: i32, flags: i32, descriptor: i32, offset: i64) -> void*?
 ## `MAP_PRIVATE | MAP_ANON`: `MAP_ANON` is 0x1000 on macOS and 0x20 on Linux; the
@@ -797,18 +838,47 @@ pub struct Site:
 var sites: Site[256]
 var site_next: usize
 
-## Called by the compiled program after each allocation under `--profile diagnostic`.
-pub func note_site(address: void*?, size: usize, function: str, line: u32):
-    sites[site_next % sites.length] = Site(address = address, size = size, function = function, line = line)
-    site_next += 1
+## The diagnostic profile's records are shared by every thread: a short spin lock guards
+## each update, on the atomic `@bool` alone, since this module is below `sync`.
+var records_lock: @bool
 
-## The allocations recorded so far, the most recent 256 at most, oldest first.
+func lock(flag: (@bool)*):
+    while true:
+        let (exchanged, observed) = flag.cas(false, true)
+        discard(observed)
+        if exchanged:
+            return
+
+func unlock(flag: (@bool)*):
+    flag.store(false)
+
+## Called by the compiled program after each allocation under `--profile diagnostic`.
+## The record keeps the most recent 256 allocations, oldest first: once full, the oldest
+## goes and the newest takes the last place.
+pub func note_site(address: void*?, size: usize, function: str, line: u32):
+    lock(&records_lock)
+    if site_next < sites.length:
+        sites[site_next] = Site(address = address, size = size, function = function, line = line)
+    else:
+        var i: usize = 1
+        while i < sites.length:
+            sites[i - 1] = sites[i]
+            i += 1
+        sites[sites.length - 1] = Site(address = address, size = size, function = function, line = line)
+    site_next += 1
+    unlock(&records_lock)
+
+## The allocations recorded so far, the most recent 256 at most, oldest first. A view of
+## the record: read it while no other thread allocates.
 pub func allocation_sites() -> const Site[]:
     let held = site_next if site_next < sites.length else sites.length
     return sites[..<held]
 ## The released blocks the diagnostic profile still holds, oldest freed first.
 var quarantine: (u8[]?)[64]
 var quarantine_next: usize
+## The released mappings the diagnostic profile still holds, oldest first.
+var held_pages: (u8[]?)[8]
+var held_next: usize
 
 pub let exhausted: ErrorCode = ErrorCode.package(1)
 pub let unset: ErrorCode = ErrorCode.package(2)
@@ -992,20 +1062,34 @@ pub func fence(order: Ordering):
     discard(order)
 """),
     Prelude(name = "thread", text = """
+import c
 import memory
+import platform
 
 extern func pthread_create(thread: void*?*, attributes: void*?, start: func(void*) -> void*?, argument: void*) -> i32
 extern func pthread_join(thread: void*, result: void*?*?) -> i32
 extern func pthread_detach(thread: void*) -> i32
 extern func pthread_self() -> void*
+extern func pthread_attr_init(attributes: void*) -> i32
+extern func pthread_attr_setstacksize(attributes: void*, size: usize) -> i32
+extern func pthread_attr_destroy(attributes: void*) -> i32
+## macOS names the calling thread; Linux names one by handle. Both cap a name at 15 bytes.
+extern func mac_setname as "pthread_setname_np"(name: c.str) -> i32
+extern func linux_setname as "pthread_setname_np"(thread: void*, name: c.str) -> i32
 extern func sched_yield() -> i32
 extern func nanosleep(request: const Duration*, remaining: Duration*?) -> i32
+extern func getpagesize() -> i32
 
 extern struct Duration:
     seconds: i64
     nanoseconds: i64
 
 pub let failed: ErrorCode = ErrorCode.package(5)
+
+## `PTHREAD_STACK_MIN` on both hosts: a smaller stack is raised to it.
+let least_stack: usize = 16384
+## The longest name a thread may carry, with its NUL.
+let name_room: usize = 16
 
 ## A running thread; the zero value is no thread at all, so arrays of handles exist.
 pub struct Handle:
@@ -1020,29 +1104,63 @@ pub struct Handle:
         let id = self.id else return
         discard(pthread_detach(id))
 
-## What a new thread starts with: the entry, its context, and the allocator rule of §15.3.
+## What a new thread starts with: the entry, its context, its name in a heap block of
+## `name_room` bytes, NUL-terminated, and the allocator rule of §15.3.
 struct Start:
     var entry: func(void*?) -> unit
     var context: void*?
+    var name: u8[]
+    var name_length: usize
 
 func trampoline(raw: void*) -> void*?:
     let start = (Start*)raw
     memory.allocator = memory.heap
     let entry = start.entry
     let context = start.context
+    if start.name_length > 0:
+        let text = (c.str)(str)start.name[..<start.name_length]
+        if platform.macos:
+            discard(mac_setname(text))
+        else:
+            discard(linux_setname(pthread_self(), text))
+    free(start.name) in memory.heap
     free(start) in memory.heap
     entry(context)
     return none
 
+## Start a thread running `entry(context)`. `stack` is its stack in bytes, the host's
+## default when 0, else at least `PTHREAD_STACK_MIN` and whole pages; `name` is what the
+## host's tools show for it, its first fifteen bytes.
 pub func spawn(entry: func(void*?) -> unit, context: void*?, stack: usize = 0, name: str = "") -> Handle!:
-    let start = try new Start(entry = entry, context = context) in memory.heap
+    let copy = try alloc u8[name_room] in memory.heap
+    let kept = name.length if name.length < name_room - 1 else name_room - 1
+    memory.copy(copy, name.bytes, kept)
+    copy[kept] = 0
+    let start = new Start(entry = entry, context = context, name = copy, name_length = kept) in memory.heap catch failure:
+        free(copy) in memory.heap
+        error(memory.exhausted, "memory.exhausted")
+    var attributes: u64[16]
+    if pthread_attr_init((void*)&attributes[0]) != 0:
+        free(copy) in memory.heap
+        free(start) in memory.heap
+        error(failed, "spawn")
+    if stack > 0:
+        let page = (usize)getpagesize()
+        var size = stack if stack > least_stack else least_stack
+        size = (size + page - 1) // page * page
+        if pthread_attr_setstacksize((void*)&attributes[0], size) != 0:
+            discard(pthread_attr_destroy((void*)&attributes[0]))
+            free(copy) in memory.heap
+            free(start) in memory.heap
+            error(failed, "the stack size is refused")
     var id: void*? = none
-    if pthread_create(&id, none, trampoline, (void*)start) != 0:
+    let created = pthread_create(&id, (void*)&attributes[0], trampoline, (void*)start)
+    discard(pthread_attr_destroy((void*)&attributes[0]))
+    if created != 0:
+        free(copy) in memory.heap
         free(start) in memory.heap
         error(failed, "spawn")
     let thread = id else error(failed, "spawn")
-    discard(stack)
-    discard(name.length)
     return Handle(id = thread)
 
 pub func current() -> Handle:
@@ -1058,9 +1176,13 @@ pub func pause():
 pub func yield():
     discard(sched_yield())
 
+## Sleep for at least `milliseconds`: a signal that interrupts the sleep leaves the time
+## remaining, which is slept again.
 pub func sleep(milliseconds: u64):
     var request = Duration(seconds = (i64)(milliseconds // 1000), nanoseconds = (i64)(milliseconds % 1000) * 1000000)
-    discard(nanosleep(&request, none))
+    var remaining = Duration(seconds = 0, nanoseconds = 0)
+    while nanosleep(&request, &remaining) != 0 and c.errno() == c.interrupted:
+        request = remaining
 """),
     Prelude(name = "sync", text = """
 import platform
@@ -1260,7 +1382,16 @@ pub func read(path: c.str) -> u8[]!:
             break
         got += (usize)n
     discard(close(fd))
-    return bytes[..<got]
+    if got == bytes.length:
+        return bytes
+    # the file shrank while it was read: the answer is exactly as long as what was read,
+    # so that `free` gives back what was allocated
+    let exact = alloc u8[got] catch failure:
+        free(bytes)
+        error(memory.exhausted, "memory.exhausted")
+    memory.copy(exact, bytes, got)
+    free(bytes)
+    return exact
 
 pub func write(path: c.str, data: const u8[]) -> !:
     let fd = open(path, write_only | create | truncate, 420)
@@ -1367,7 +1498,7 @@ let non_blocking: i32 = 4 if platform.macos else 2048
 
 pub let failed: ErrorCode = ErrorCode.package(8)
 
-## A captured stream: bytes in the current allocator.
+## A captured stream: bytes in the current allocator, grown as the program writes.
 struct Capture:
     var descriptor: i32
     var data: u8[]
@@ -1376,25 +1507,68 @@ struct Capture:
 
     mutating func pull() -> !:
         if self.data.length - self.used < 256:
-            let room = 1024 if self.data.length == 0 else self.data.length * 2
-            self.data = try memory.grow(self.data, room)
+            if self.data.length == 0:
+                self.data = try alloc u8[1024]
+            else:
+                self.data = try memory.grow(self.data, self.data.length * 2)
         let n = c_read(self.descriptor, self.data[self.used..].data, self.data.length - self.used)
         if n == 0:
             self.open = false
         elif n > 0:
             self.used += (usize)n
 
-## Run `program` with `arguments`, wait for it, and answer its exit status and
-## what it wrote to its standard output and error.
+    ## What was captured, in an allocation exactly its length, or empty with none; the
+    ## capture's own storage is given back.
+    mutating func take() -> str!:
+        var empty: u8[]
+        if self.used == 0:
+            if self.data.length > 0:
+                free(self.data)
+                self.data = empty
+            return (str)empty
+        let exact = try alloc u8[self.used]
+        memory.copy(exact, self.data, self.used)
+        free(self.data)
+        self.data = empty
+        return (str)exact
+
+    mutating func drop():
+        if self.data.length > 0:
+            free(self.data)
+            var empty: u8[]
+            self.data = empty
+
+## Run `program` with `arguments`, wait for it, and answer its exit status and what it
+## wrote to its standard output and error. The two texts are allocations of the current
+## allocator, each exactly its length, empty ones no allocation at all; `release` gives
+## one back. Nothing is left behind: a failure closes what was opened and reaps what was
+## started, and the child does nothing between `fork` and `exec` but move descriptors,
+## so a parent with other threads is safe (§15.3).
 pub func run(program: c.str, arguments: const c.str[]) -> (i32, str, str)!:
+    let argv = try alloc void*?[arguments.length + 2]
+    argv[0] = (void*)program
+    var i: usize = 0
+    while i < arguments.length:
+        argv[i + 1] = (void*)arguments[i]
+        i += 1
+    argv[arguments.length + 1] = none
     var out_pipe: i32[2]
     var err_pipe: i32[2]
     if pipe((i32*)&out_pipe) != 0:
+        free(argv)
         error(failed, "run")
     if pipe((i32*)&err_pipe) != 0:
+        discard(close(out_pipe[0]))
+        discard(close(out_pipe[1]))
+        free(argv)
         error(failed, "run")
     let pid = fork()
     if pid < 0:
+        discard(close(out_pipe[0]))
+        discard(close(out_pipe[1]))
+        discard(close(err_pipe[0]))
+        discard(close(err_pipe[1]))
+        free(argv)
         error(failed, "run")
     if pid == 0:
         discard(close(out_pipe[0]))
@@ -1403,47 +1577,74 @@ pub func run(program: c.str, arguments: const c.str[]) -> (i32, str, str)!:
             _exit(127)
         discard(close(out_pipe[1]))
         discard(close(err_pipe[1]))
-        let argv = alloc void*?[arguments.length + 2] catch failure:
-            _exit(127)
-        argv[0] = (void*)program
-        var i: usize = 0
-        while i < arguments.length:
-            argv[i + 1] = (void*)arguments[i]
-            i += 1
-        argv[arguments.length + 1] = none
         discard(execvp(program, argv.data))
         _exit(127)
+    free(argv)
     discard(close(out_pipe[1]))
     discard(close(err_pipe[1]))
     discard(fcntl(out_pipe[0], set_flags, non_blocking))
     discard(fcntl(err_pipe[0], set_flags, non_blocking))
-    var out = Capture(descriptor = out_pipe[0], data = u8[]((u8*)8, 0), used = 0, open = true)
-    var err = Capture(descriptor = err_pipe[0], data = u8[]((u8*)8, 0), used = 0, open = true)
+    var empty: u8[]
+    var out = Capture(descriptor = out_pipe[0], data = empty, used = 0, open = true)
+    var err = Capture(descriptor = err_pipe[0], data = empty, used = 0, open = true)
+    # from here a failure closes the pipes, drops the captures, and reaps the child
+    errdefer discard(close(out_pipe[0]))
+    errdefer discard(close(err_pipe[0]))
+    errdefer out.drop()
+    errdefer err.drop()
+    errdefer reap(pid)
     while out.open or err.open:
         var watched: Poll[2] = ---
         watched[0] = Poll(descriptor = out.descriptor if out.open else -1, events = poll_in, returned = 0)
         watched[1] = Poll(descriptor = err.descriptor if err.open else -1, events = poll_in, returned = 0)
         if poll((Poll*)&watched, 2, -1) < 0:
-            continue
+            if c.errno() == c.interrupted:
+                continue
+            error(failed, "the program's output cannot be read")
         if out.open and (watched[0].returned & (poll_in | poll_hang_up | poll_error)) != 0:
             try out.pull()
         if err.open and (watched[1].returned & (poll_in | poll_hang_up | poll_error)) != 0:
             try err.pull()
+    let status = try wait_for(pid)
     discard(close(out_pipe[0]))
     discard(close(err_pipe[0]))
-    var status: i32 = 0
-    if waitpid(pid, &status, 0) < 0:
-        error(failed, "run")
     if (status & 127) != 0:
+        out.drop()
+        err.drop()
         error(failed, "the program was stopped by a signal")
-    return ((status >> 8) & 255, (str)out.data[..<out.used], (str)err.data[..<err.used])
+    let out_text = try out.take()
+    let err_text = err.take() catch failure:
+        release(out_text)
+        error(failure.code, failure.message)
+    return ((status >> 8) & 255, out_text, err_text)
+
+## The child's wait status, waited for again when a signal interrupts the wait.
+func wait_for(pid: i32) -> i32!:
+    var status: i32 = 0
+    while waitpid(pid, &status, 0) < 0:
+        if c.errno() != c.interrupted:
+            error(failed, "run")
+    return status
+
+## Wait for a child whose result no longer matters, so it is not left a zombie.
+func reap(pid: i32):
+    var status: i32 = 0
+    while waitpid(pid, &status, 0) < 0 and c.errno() == c.interrupted:
+        continue
+
+## Give back a text `run` answered, to the allocator that was current then.
+pub func release(text: str):
+    if text.length > 0:
+        free(u8[]((u8*)text.bytes.data, text.length))
 
 pub func exit(code: i32) -> never:
     c_exit(code)
 """),
     Prelude(name = "strings", text = """
 import c
-## Text operations over `str` views; what allocates says so and uses the current allocator.
+## Text operations over `str` views; what allocates says so and uses the current allocator,
+## and says how the allocation is given back: `release` for a text made here, `free` for
+## the array `split` answers.
 
 import memory
 from io import Writer
@@ -1495,7 +1696,8 @@ pub func trim(text: str) -> str:
         end -= 1
     return (str)b[start..<end]
 
-## `text` split at every `separator`, as views into it, in the current allocator.
+## `text` split at every `separator`, as views into it; the array is an allocation of the
+## current allocator, given back with `free`.
 pub func split(text: str, separator: u8) -> str[]!:
     var count: usize = 1
     for b in text.bytes:
@@ -1515,7 +1717,8 @@ pub func split(text: str, separator: u8) -> str[]!:
     parts[n] = (str)b[start..]
     return parts
 
-## The pieces joined with `separator` between them, in the current allocator.
+## The pieces joined with `separator` between them, NUL-terminated in the current
+## allocator; `release` gives it back.
 pub func join(pieces: const str[], separator: str) -> str!:
     var total: usize = 0
     var i: usize = 0
@@ -1537,7 +1740,8 @@ pub func join(pieces: const str[], separator: str) -> str!:
     out[n] = 0
     return (str)out[..<n]
 
-## A copy of `text` in the current allocator, NUL-terminated so it may be a `c.str`.
+## A copy of `text` in the current allocator, NUL-terminated so it may be a `c.str`;
+## `release` gives it back.
 pub func copy(text: str) -> str!:
     let out = try alloc u8[text.length + 1]
     memory.copy(out, text.bytes, text.length)
@@ -1568,7 +1772,8 @@ pub func to_i64(text: str) -> i64?:
         i += 1
     return value
 
-## ASCII case folding; other bytes pass through.
+## ASCII case folding; other bytes pass through. NUL-terminated in the current
+## allocator; `release` gives the text back.
 pub func to_upper(text: str) -> str!:
     let out = try alloc u8[text.length + 1]
     var i: usize = 0
@@ -1587,20 +1792,29 @@ pub func to_lower(text: str) -> str!:
     out[i] = 0
     return (str)out[..<i]
 
-## Text built piece by piece in the current allocator.
+## Give back a text `join`, `copy`, `to_upper`, or `to_lower` answered: the allocation is
+## one byte longer than the text, its NUL.
+pub func release(text: str):
+    free(u8[]((u8*)text.bytes.data, text.length + 1))
+
+## Text built piece by piece. The builder keeps the allocator that was current when it
+## was created and grows in it, so it may cross `with` blocks and outlive them; `destroy`
+## gives its bytes back to that allocator.
 pub struct Builder: Writer:
     var data: u8[]
     var used: usize
+    var owner: memory.Allocator
 
     pub static func create(capacity: usize) -> Builder!:
-        return Builder(data = try alloc u8[capacity if capacity > 0 else 64], used = 0)
+        return Builder(data = try alloc u8[capacity if capacity > 0 else 64], used = 0, owner = memory.allocator)
 
     pub mutating func write(data: const u8[]) -> usize!:
         if self.used + data.length >= self.data.length:
             var room = self.data.length * 2
             while room <= self.used + data.length:
                 room = room * 2
-            self.data = try memory.grow(self.data, room)
+            with self.owner:
+                self.data = try memory.grow(self.data, room)
         memory.copy(self.data[self.used..], data, data.length)
         self.used += data.length
         return data.length
@@ -1608,13 +1822,21 @@ pub struct Builder: Writer:
     pub mutating func put(text: str) -> !:
         discard(try self.write(text.bytes))
 
-    ## The text so far, NUL-terminated in the buffer; invalid after the next write.
+    ## The text so far, NUL-terminated in the buffer: a view, invalid after the next write
+    ## and after `destroy`.
     pub mutating func view() -> str:
         if self.used < self.data.length:
             self.data[self.used] = 0
         return (str)self.data[..<self.used]
 
     pub mutating func clear():
+        self.used = 0
+
+    ## Give the bytes back; the builder is empty and holds nothing.
+    pub mutating func destroy():
+        free(self.data) in self.owner
+        var empty: u8[]
+        self.data = empty
         self.used = 0
 """),
     Prelude(name = "paths", text = """
@@ -2519,18 +2741,5 @@ func read_line() -> str?:
         line_bytes[used] = byte[0]
         used += 1
     return (str)line_bytes[..<used]
-"""),
-    Prelude(name = "c", text = """
-## C's types live here (base.md §5.2); the checker supplies them, since their widths are the
-## target's: `c.int` and the other fixed-width ones are Base types by another name, `c.char`,
-## `c.long`, `c.ulong`, and `c.wchar` are distinct, `c.va_list` is opaque, `c.str` is C text.
-
-## The C standard streams; the backend supplies them.
-pub func stdin() -> void*:
-    trap("supplied by the backend")
-pub func stdout() -> void*:
-    trap("supplied by the backend")
-pub func stderr() -> void*:
-    trap("supplied by the backend")
 """),
 ]

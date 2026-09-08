@@ -1,17 +1,31 @@
+import c
 import memory
+import platform
 
 extern func pthread_create(thread: void*?*, attributes: void*?, start: func(void*) -> void*?, argument: void*) -> i32
 extern func pthread_join(thread: void*, result: void*?*?) -> i32
 extern func pthread_detach(thread: void*) -> i32
 extern func pthread_self() -> void*
+extern func pthread_attr_init(attributes: void*) -> i32
+extern func pthread_attr_setstacksize(attributes: void*, size: usize) -> i32
+extern func pthread_attr_destroy(attributes: void*) -> i32
+## macOS names the calling thread; Linux names one by handle. Both cap a name at 15 bytes.
+extern func mac_setname as "pthread_setname_np"(name: c.str) -> i32
+extern func linux_setname as "pthread_setname_np"(thread: void*, name: c.str) -> i32
 extern func sched_yield() -> i32
 extern func nanosleep(request: const Duration*, remaining: Duration*?) -> i32
+extern func getpagesize() -> i32
 
 extern struct Duration:
     seconds: i64
     nanoseconds: i64
 
 pub let failed: ErrorCode = ErrorCode.package(5)
+
+## `PTHREAD_STACK_MIN` on both hosts: a smaller stack is raised to it.
+let least_stack: usize = 16384
+## The longest name a thread may carry, with its NUL.
+let name_room: usize = 16
 
 ## A running thread; the zero value is no thread at all, so arrays of handles exist.
 pub struct Handle:
@@ -26,29 +40,63 @@ pub struct Handle:
         let id = self.id else return
         discard(pthread_detach(id))
 
-## What a new thread starts with: the entry, its context, and the allocator rule of §15.3.
+## What a new thread starts with: the entry, its context, its name in a heap block of
+## `name_room` bytes, NUL-terminated, and the allocator rule of §15.3.
 struct Start:
     var entry: func(void*?) -> unit
     var context: void*?
+    var name: u8[]
+    var name_length: usize
 
 func trampoline(raw: void*) -> void*?:
     let start = (Start*)raw
     memory.allocator = memory.heap
     let entry = start.entry
     let context = start.context
+    if start.name_length > 0:
+        let text = (c.str)(str)start.name[..<start.name_length]
+        if platform.macos:
+            discard(mac_setname(text))
+        else:
+            discard(linux_setname(pthread_self(), text))
+    free(start.name) in memory.heap
     free(start) in memory.heap
     entry(context)
     return none
 
+## Start a thread running `entry(context)`. `stack` is its stack in bytes, the host's
+## default when 0, else at least `PTHREAD_STACK_MIN` and whole pages; `name` is what the
+## host's tools show for it, its first fifteen bytes.
 pub func spawn(entry: func(void*?) -> unit, context: void*?, stack: usize = 0, name: str = "") -> Handle!:
-    let start = try new Start(entry = entry, context = context) in memory.heap
+    let copy = try alloc u8[name_room] in memory.heap
+    let kept = name.length if name.length < name_room - 1 else name_room - 1
+    memory.copy(copy, name.bytes, kept)
+    copy[kept] = 0
+    let start = new Start(entry = entry, context = context, name = copy, name_length = kept) in memory.heap catch failure:
+        free(copy) in memory.heap
+        error(memory.exhausted, "memory.exhausted")
+    var attributes: u64[16]
+    if pthread_attr_init((void*)&attributes[0]) != 0:
+        free(copy) in memory.heap
+        free(start) in memory.heap
+        error(failed, "spawn")
+    if stack > 0:
+        let page = (usize)getpagesize()
+        var size = stack if stack > least_stack else least_stack
+        size = (size + page - 1) // page * page
+        if pthread_attr_setstacksize((void*)&attributes[0], size) != 0:
+            discard(pthread_attr_destroy((void*)&attributes[0]))
+            free(copy) in memory.heap
+            free(start) in memory.heap
+            error(failed, "the stack size is refused")
     var id: void*? = none
-    if pthread_create(&id, none, trampoline, (void*)start) != 0:
+    let created = pthread_create(&id, (void*)&attributes[0], trampoline, (void*)start)
+    discard(pthread_attr_destroy((void*)&attributes[0]))
+    if created != 0:
+        free(copy) in memory.heap
         free(start) in memory.heap
         error(failed, "spawn")
     let thread = id else error(failed, "spawn")
-    discard(stack)
-    discard(name.length)
     return Handle(id = thread)
 
 pub func current() -> Handle:
@@ -64,6 +112,10 @@ pub func pause():
 pub func yield():
     discard(sched_yield())
 
+## Sleep for at least `milliseconds`: a signal that interrupts the sleep leaves the time
+## remaining, which is slept again.
 pub func sleep(milliseconds: u64):
     var request = Duration(seconds = (i64)(milliseconds // 1000), nanoseconds = (i64)(milliseconds % 1000) * 1000000)
-    discard(nanosleep(&request, none))
+    var remaining = Duration(seconds = 0, nanoseconds = 0)
+    while nanosleep(&request, &remaining) != 0 and c.errno() == c.interrupted:
+        request = remaining

@@ -82,7 +82,16 @@ pub func read(path: c.str) -> u8[]!:
             break
         got += (usize)n
     discard(close(fd))
-    return bytes[..<got]
+    if got == bytes.length:
+        return bytes
+    # the file shrank while it was read: the answer is exactly as long as what was read,
+    # so that `free` gives back what was allocated
+    let exact = alloc u8[got] catch failure:
+        free(bytes)
+        error(memory.exhausted, "memory.exhausted")
+    memory.copy(exact, bytes, got)
+    free(bytes)
+    return exact
 
 pub func write(path: c.str, data: const u8[]) -> !:
     let fd = open(path, write_only | create | truncate, 420)

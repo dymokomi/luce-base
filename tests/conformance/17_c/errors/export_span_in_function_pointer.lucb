@@ -1,0 +1,8 @@
+# error: 
+## §17.6: a span is representable as a function's own parameter, through the wrapper,
+## never inside a function pointer's signature, which C takes as it is.
+export func each(callback: func(const u8[]) -> unit):
+    discard(callback)
+
+pub func main(arguments: str[]) -> i32:
+    return 0

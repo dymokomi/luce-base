@@ -12,16 +12,16 @@ unit tests green in the oracle and the binary agreeing on `tests/samples/`.
 | 5. Self-hosting | the seed pinned; the standard modules in Base | done: `bootstrap/luce-base.c` is the compiler's own C and `build.sh` starts from it with only a C compiler; `memory`, `io`, `files`, `process`, `thread`, `sync`, and `atomic` are Base source over `extern` in `src/sema/prelude.lucb`; the C runtime is down to traps, checked arithmetic, formatting, and hashing |
 | 6. Native | one target, arm64-macos, proved against the C backend | done: every sample and every module's tests agree under both backends; the compiler builds itself natively and the native build emits the same C and assembly as the C build; `tools/native_check.sh` runs the seed's corpus natively |
 | 7. Proving | programs big enough to break things: a threaded HTTP server, a terminal editor, `luce-base-d` (a debugger), an SDL3 editor, a Metal GPU computation, and inline arm64 assembly; built natively, with no C in the path | in progress: `tests/programs/http`, `tests/programs/editor`, `tests/programs/debugger` (`luce-base-d`), and `tests/programs/gui` (an SDL3 window) are under the gate; the rounds so far found pointer arithmetic, negated literals, function-typed field calls, spinning locks, padding in aggregate equality, two-register results, unknown escapes, generic instance sizes, and `sizeof` losing its size in arithmetic, all pinned in `luce-seed/testdata/programs/` or `tests/samples/errors/` |
-| 8. Codegen | register allocation over the IR, then the release | in progress: the product is the compiler built by itself natively; locals live in registers, temporaries by linear scan, small records copy inline; the native-built compiler is 4–5× slower than the C `-O2` build, and `docs/DESIGN.md` names what closes the rest of that gap |
-| 9. Targets | the second host: x86_64 Linux, natively, with the gate green there | done (0.2.0): `src/back/x86_64.lucb` behind the `Backend` interface, the host read from the compiler's own `platform` module, per-target bootstrap snapshots, `tests/platform`; found §7.1 unenforced in both C backends and `f64.bits` unconstant under GCC; next hosts are arm64-linux (the x86_64 generator's ELF half with the arm64 generator's instructions) and x86_64-macos (the reverse) |
+| 8. Codegen | the optimiser over the IR, then the release | done: inlining, single-assignment form, value numbering, load elimination, and de-SSA over the IR (`docs/DESIGN.md`, "The optimiser"), measured by `tests/optimization`; a register allocator over the single-assignment form is what remains |
+| 9. Targets | the second host: x86_64 Linux, natively, with the gate green there | done (0.2.0): `src/back/x86_64.lucb` behind the `Backend` interface, the host read from the compiler's own `platform` module, per-target bootstrap snapshots, `tests/platform`; the calling convention proved both ways by `tests/programs/abi`; next hosts are arm64-linux (the x86_64 generator's ELF half with the arm64 generator's instructions) and x86_64-macos (the reverse) |
 | 10. Linking | `luce-ld`, a linker of our own, as Zig carries one, in its own repository | a native build that needs nothing from the host toolchain |
 
-## The audit
+## The status
 
-`docs/AUDIT.md` is the dated state of the whole: what is verified, the bugs
-found and their root causes, the parts of the specification neither compiler
-implements, and the order to close them in. It is rewritten, not appended,
-when the picture changes.
+`docs/AUDIT.md` is the one current matrix: each promise of the specification
+verified, limited, planned, or excluded, with its evidence, and the order to
+close what remains. It is rewritten, not appended, when the picture changes;
+history is `docs/RELEASES.md`.
 
 ## The bootstrap gate
 

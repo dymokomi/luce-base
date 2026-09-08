@@ -1,0 +1,88 @@
+## The calling convention, both ways (§17.2, §17.6): records of every class the target
+## ABIs distinguish, by value, from Base into C and from C into Base exports; the C half
+## is `helper.c` from the manifest. Build: luce-base build tests/programs/abi/main.lucb [--native]
+extern packed struct Packed:
+    tag: u8
+    value: u64
+
+extern packed struct Small:
+    a: u16
+    b: u32
+
+extern struct Point:
+    x: f32
+    y: f32
+
+extern struct Mixed:
+    a: i32
+    b: f64
+
+extern struct Bytes3:
+    bytes: u8[3]
+
+extern struct Triple:
+    a: f64
+    b: f64
+    c: f64
+
+extern func abi_packed_sum(p: Packed) -> u64
+extern func abi_packed_make(tag: u8, value: u64) -> Packed
+extern func abi_small_sum(s: Small) -> u32
+extern func abi_small_make(a: u16, b: u32) -> Small
+extern func abi_point_scale(p: Point, k: f32) -> Point
+extern func abi_mixed_sum(m: Mixed) -> f64
+extern func abi_mixed_make(a: i32, b: f64) -> Mixed
+extern func abi_bytes3_sum(b: Bytes3) -> u32
+extern func abi_bytes3_make(a: u8, b: u8, c: u8) -> Bytes3
+extern func abi_triple_sum(t: Triple) -> f64
+extern func abi_triple_make(a: f64, b: f64, c: f64) -> Triple
+extern func abi_many(a: i64, b: i64, c: i64, d: i64, e: i64, f: i64, g: i64, p: Packed, s: Small, x: f64, q: Point, t: Triple) -> u64
+extern func abi_call_back() -> u64
+
+export func base_packed_sum(p: Packed) -> u64:
+    return (u64)p.tag + p.value
+
+export func base_packed_make(tag: u8, value: u64) -> Packed:
+    return Packed(tag = tag, value = value)
+
+export func base_small_sum(s: Small) -> u32:
+    return (u32)s.a + s.b
+
+export func base_small_make(a: u16, b: u32) -> Small:
+    return Small(a = a, b = b)
+
+export func base_point_scale(p: Point, k: f32) -> Point:
+    return Point(x = p.x * k, y = p.y * k)
+
+export func base_mixed_sum(m: Mixed) -> f64:
+    return f64(m.a) + m.b
+
+export func base_mixed_make(a: i32, b: f64) -> Mixed:
+    return Mixed(a = a, b = b)
+
+export func base_bytes3_sum(b: Bytes3) -> u32:
+    return (u32)b.bytes[0] + (u32)b.bytes[1] + (u32)b.bytes[2]
+
+export func base_triple_sum(t: Triple) -> f64:
+    return t.a + t.b + t.c
+
+export func base_triple_make(a: f64, b: f64, c: f64) -> Triple:
+    return Triple(a = a, b = b, c = c)
+
+export func base_many(a: i64, b: i64, c: i64, d: i64, e: i64, f: i64, g: i64, p: Packed, s: Small, x: f64, q: Point, t: Triple) -> u64:
+    let scalars = (u64)(a + b + c + d + e + f + g)
+    return scalars + (u64)p.tag + p.value + (u64)s.a + (u64)s.b + u64(x) + u64(q.x) + u64(q.y) + u64(t.a + t.b + t.c)
+
+pub func main(arguments: str[]) -> i32:
+    let p = abi_packed_make(7, 100)
+    let s = abi_small_make(3, 40)
+    let q = abi_point_scale(Point(x = 1.5, y = 2.5), 2.0)
+    let m = abi_mixed_make(3, 0.5)
+    let b = abi_bytes3_make(1, 2, 3)
+    let t = abi_triple_make(1.0, 2.0, 3.0)
+    print(f"{abi_packed_sum(p)} {p.tag} {p.value}")
+    print(f"{abi_small_sum(s)} {s.a} {s.b}")
+    print(f"{q.x} {q.y} {abi_mixed_sum(m)} {abi_bytes3_sum(b)} {abi_triple_sum(t)}")
+    print(f"{abi_many(1, 2, 3, 4, 5, 6, 7, p, s, 8.0, q, t)}")
+    print(f"{abi_call_back()}")
+    return 0

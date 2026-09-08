@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Write src/sema/prelude.lucb: the standard modules under src/std/ as Base text the
 checker binds before a program's own modules, so the compiler binary carries the whole
-standard library. src/std/ORDER lists the modules in binding order."""
-import pathlib
+standard library. src/std/ORDER lists the modules in binding order. With `--check`, write
+nothing: exit 1 when the embedded text is not what src/std/ says, so the gate sees drift."""
+import pathlib, sys
 
 root = pathlib.Path(__file__).resolve().parent.parent
 std = root / "src" / "std"
@@ -43,5 +44,11 @@ for name in names:
     assert '"""' not in text, name
     out.append(f'    Prelude(name = "{name}", text = """\n{text}"""),\n')
 out.append("]\n")
-(root / "src" / "sema" / "prelude.lucb").write_text("".join(out))
+target = root / "src" / "sema" / "prelude.lucb"
+if "--check" in sys.argv:
+    if target.read_text() != "".join(out):
+        print("src/sema/prelude.lucb is not what src/std/ says; run tools/embed_std.py")
+        sys.exit(1)
+    sys.exit(0)
+target.write_text("".join(out))
 print(f"wrote src/sema/prelude.lucb ({len(names)} modules)")

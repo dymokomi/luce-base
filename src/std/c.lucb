@@ -2,6 +2,20 @@
 ## target's: `c.int` and the other fixed-width ones are Base types by another name, `c.char`,
 ## `c.long`, `c.ulong`, and `c.wchar` are distinct, `c.va_list` is opaque, `c.str` is C text.
 
+import platform
+
+extern func mac_errno as "__error"() -> i32*
+extern func linux_errno as "__errno_location"() -> i32*
+
+## The calling thread's `errno`: the C library's account of its last failure.
+pub func errno() -> i32:
+    if platform.macos:
+        return *mac_errno()
+    return *linux_errno()
+
+## `EINTR`: a call a signal interrupted, to be made again. The same number on both hosts.
+pub let interrupted: i32 = 4
+
 ## The C standard streams; the backend supplies them.
 pub func stdin() -> void*:
     trap("supplied by the backend")

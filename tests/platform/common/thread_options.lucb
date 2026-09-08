@@ -1,0 +1,38 @@
+## `thread.spawn` honours its options (§15.3): the thread carries the name given, read
+## back from the host, and runs on a stack of the size given, proved by a recursion far
+## deeper than the host's default stack allows.
+import c
+import thread
+
+extern func pthread_getname_np(thread: void*, buffer: u8*, length: usize) -> i32
+extern func pthread_self() -> void*
+
+struct Report:
+    var name: u8[16]
+    var depth: i64
+
+## Each frame holds four kilobytes; 12288 frames are 48 MiB, past any default stack.
+func descend(remaining: i64) -> i64:
+    var frame: u8[4096] = ---
+    frame[0] = (u8)remaining
+    if remaining == 0:
+        return (i64)frame[0]
+    return descend(remaining - 1) + 1
+
+func worker(context: void*?):
+    let raw = context else return
+    let report = (Report*)raw
+    discard(pthread_getname_np(pthread_self(), &report.name[0], 16))
+    report.depth = descend(12288)
+
+pub func main(arguments: str[]) -> i32:
+    var report: Report
+    let handle = thread.spawn(worker, (void*)&report, stack = 64 * 1024 * 1024, name = "luce-worker") catch failure:
+        print("spawn failed")
+        return 1
+    handle.join() catch failure:
+        print("join failed")
+        return 1
+    let name = (str)report.name[..<11]
+    print(f"{name} {report.depth}")
+    return 0

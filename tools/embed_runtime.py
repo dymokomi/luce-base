@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Write src/support/runtime.lucb: the C runtime sources as raw Base text, so the
-compiler binary carries everything the generated C needs."""
-import pathlib
+compiler binary carries everything the generated C needs. With `--check`, write nothing:
+exit 1 when the embedded text is not what runtime/ says."""
+import pathlib, sys
 
 root = pathlib.Path(__file__).resolve().parent.parent
 files = [("header", "lucb_rt.h"), ("source", "lucb_rt.c"), ("start", "start.c")]
@@ -23,5 +24,12 @@ for name, file in files:
     text = (root / "runtime" / file).read_text()
     assert '"""' not in text, file
     out.append(f"## The text of `runtime/{file}`.\npub let {name}: str = r\"\"\"{text}\"\"\"\n\n")
-(root / "src" / "support" / "runtime.lucb").write_text("".join(out).rstrip("\n") + "\n")
+target = root / "src" / "support" / "runtime.lucb"
+text = "".join(out).rstrip("\n") + "\n"
+if "--check" in sys.argv:
+    if target.read_text() != text:
+        print("src/support/runtime.lucb is not what runtime/ says; run tools/embed_runtime.py")
+        sys.exit(1)
+    sys.exit(0)
+target.write_text(text)
 print("wrote src/support/runtime.lucb")

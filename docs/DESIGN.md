@@ -50,7 +50,7 @@ from wherever it sits.
 | `back.ir` | the intermediate form: functions of blocks of typed instructions |
 | `back.lower` | the checked tree to IR: the same instantiation and conversion decisions as `emit` |
 | `back.arm64` | IR to arm64-macos assembly: frames, the calling convention, atomics |
-| `back.x86_64` | IR to x86_64-linux assembly: the System V convention, eightbyte classification, F16C halves |
+| `back.x86_64` | IR to x86_64-linux assembly: the System V convention, eightbyte classification with the MEMORY class for packed records, halves through F16C or software by level |
 | `back.target` | the targets of §19.5: symbols, streams, libraries, the `platform` module, section names |
 | `support.list` | a growable array over the current allocator |
 | `support.buffer` | growable text the backends stream into |
@@ -138,8 +138,20 @@ call, a `try`, a `catch`, an allocation, a formatted string with such a
 field), computes every argument into a temporary first, in order, inside a
 statement expression the call closes (`begin_sequence`, `end_sequence`, and
 `argument_value` reading the temporaries); the seed's backend does the same.
-The receiver of a method call is still evaluated where C puts it, before the
-hoisted arguments, which is the order the rule asks for.
+The receiver of a method call, and the function value of a call through one,
+is computed into a temporary before the hoisted arguments when both may have
+an effect (`receiver_first`), which is the order the rule asks for.
+
+Two more things about C the backend works around. A formatted text (`f"..."`)
+is built in a buffer, and the value that is passed on points into it; a buffer
+declared inside the statement expression that fills it is dead once that
+expression ends, which `-O2` shows by reusing the stack. So each function's
+body is written into a scratch buffer first, and the format buffers it used
+are declared at the function's top before the body is copied into place.
+And clang stops at 256 nested brackets, while a left-leaning chain of checked
+operations nests one call per link; a chain of sixteen or more links of one
+type is written as a sequence, the leaf into a temporary and each link applied
+to it in turn (`chain`), so the nesting is the same for a chain of any length.
 
 `f64.bits(N)` with constant bits, which a global initialiser needs to be a C
 constant, is spelled as a hexadecimal float literal, exact by construction,
@@ -321,10 +333,18 @@ the library loads, the native backend an `lb_library_init` reached through
 the Mach-O initialiser section. The driver archives the object (and the C
 runtime's) into `NAME.a`, and `back/header.lucb` writes `NAME.h`: the records
 every `export` signature mentions, in dependency order and under their Base
-names, an integer-backed enum as its backing integer with one constant per
-case, then a prototype per export, a method as `Owner_name` with `self`
-first. The header spells only what C can hold; a signature it cannot spell
-is an error.
+names, each declared before its body so a record may point at itself or at
+one after it, a function type as `typedef R (*luce_fn_N)(...)`, an
+integer-backed enum as its backing integer with one constant per case, the
+package's `pub` error codes as `#define`s, then a prototype per export, a
+method as `Owner_name` with `self` first. An export whose C face differs from
+its own signature, a fallible function or one with a span parameter, keeps its
+internal name, and both backends write a wrapper under the export's symbol
+(`emit.export_wrapper`, `lower.export_wrapper`): a span arrives as a pointer
+and a length, a null pointer with any length being the empty span, and a
+fallible result becomes an `int` status, 0 or the error's code, with the value
+written through a final out-pointer. The header spells only what C can hold;
+a signature it cannot spell is an error.
 
 `luce build --freestanding --native` (§19.4) is mode 4: the native backend
 emits no entry function at all, and the driver links with `-e __start`, the
@@ -336,8 +356,12 @@ process from the first instruction, as `tests/programs/freestanding` shows.
 is filled with `0xAA` (the IR's `fill`, C's `memset`), and the entry shim sets
 `memory.diagnostic` before the runtime starts, whereupon the C allocator's
 `release` fills a block with `0xDD` and holds it in a ring of sixty-four
-before freeing the oldest, so a use after release reads the pattern; and every
-allocation is noted in `memory`'s ring of sites with its function and line.
+before freeing the oldest, the page allocator does the same with a ring of
+eight mappings, and the arena and the fixed buffer fill in place, so a use
+after release reads the pattern; and every allocation is noted in `memory`'s
+record of the most recent 256 sites, oldest first, with its function and line.
+The record's updates are guarded by a spin lock on an atomic, since `memory`
+sits below `sync`.
 
 ## Debugging
 

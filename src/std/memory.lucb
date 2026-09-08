@@ -57,6 +57,8 @@ pub struct FixedBuffer: Allocator:
     pub mutating func release(block: u8[]):
         if block.length == 0:
             return
+        if diagnostic:
+            discard(memset(block.data, 221, block.length))    # a fixed buffer releases all at once
         let start = (usize)block.data - (usize)self.data.data
         if start + block.length == self.used:
             self.used = start
@@ -88,11 +90,13 @@ pub struct CAllocator: Allocator:
         # the diagnostic profile (§19.4): the block is filled with a pattern and held back, so
         # a use after release reads the pattern rather than the next allocation
         discard(memset(block.data, 221, block.length))
+        lock(&records_lock)
         let slot = quarantine_next % quarantine.length
         if let old = quarantine[slot]:
             c_free(old.data)
         quarantine[slot] = block
         quarantine_next += 1
+        unlock(&records_lock)
 
 ## Bump allocation over a parent allocator, released all at once by `reset` or `destroy`
 ## (§12.4, §24.3). One thread at a time.
@@ -174,9 +178,19 @@ pub struct PageAllocator: Allocator:
     pub mutating func release(block: u8[]):
         if block.length == 0:
             return
-        if diagnostic:
-            discard(memset(block.data, 221, block.length))
-        discard(munmap(block.data, block.length))
+        if not diagnostic:
+            discard(munmap(block.data, block.length))
+            return
+        # the diagnostic profile (§19.4): the mapping is filled and kept for a while, so a
+        # use after release reads the pattern rather than faulting or reading a new mapping
+        discard(memset(block.data, 221, block.length))
+        lock(&records_lock)
+        let slot = held_next % held_pages.length
+        if let old = held_pages[slot]:
+            discard(munmap(old.data, old.length))
+        held_pages[slot] = block
+        held_next += 1
+        unlock(&records_lock)
 
 extern func mmap(address: void*?, length: usize, protection: i32, flags: i32, descriptor: i32, offset: i64) -> void*?
 ## `MAP_PRIVATE | MAP_ANON`: `MAP_ANON` is 0x1000 on macOS and 0x20 on Linux; the
@@ -209,18 +223,47 @@ pub struct Site:
 var sites: Site[256]
 var site_next: usize
 
-## Called by the compiled program after each allocation under `--profile diagnostic`.
-pub func note_site(address: void*?, size: usize, function: str, line: u32):
-    sites[site_next % sites.length] = Site(address = address, size = size, function = function, line = line)
-    site_next += 1
+## The diagnostic profile's records are shared by every thread: a short spin lock guards
+## each update, on the atomic `@bool` alone, since this module is below `sync`.
+var records_lock: @bool
 
-## The allocations recorded so far, the most recent 256 at most, oldest first.
+func lock(flag: (@bool)*):
+    while true:
+        let (exchanged, observed) = flag.cas(false, true)
+        discard(observed)
+        if exchanged:
+            return
+
+func unlock(flag: (@bool)*):
+    flag.store(false)
+
+## Called by the compiled program after each allocation under `--profile diagnostic`.
+## The record keeps the most recent 256 allocations, oldest first: once full, the oldest
+## goes and the newest takes the last place.
+pub func note_site(address: void*?, size: usize, function: str, line: u32):
+    lock(&records_lock)
+    if site_next < sites.length:
+        sites[site_next] = Site(address = address, size = size, function = function, line = line)
+    else:
+        var i: usize = 1
+        while i < sites.length:
+            sites[i - 1] = sites[i]
+            i += 1
+        sites[sites.length - 1] = Site(address = address, size = size, function = function, line = line)
+    site_next += 1
+    unlock(&records_lock)
+
+## The allocations recorded so far, the most recent 256 at most, oldest first. A view of
+## the record: read it while no other thread allocates.
 pub func allocation_sites() -> const Site[]:
     let held = site_next if site_next < sites.length else sites.length
     return sites[..<held]
 ## The released blocks the diagnostic profile still holds, oldest freed first.
 var quarantine: (u8[]?)[64]
 var quarantine_next: usize
+## The released mappings the diagnostic profile still holds, oldest first.
+var held_pages: (u8[]?)[8]
+var held_next: usize
 
 pub let exhausted: ErrorCode = ErrorCode.package(1)
 pub let unset: ErrorCode = ErrorCode.package(2)

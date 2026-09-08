@@ -1,0 +1,9 @@
+## The manifest names a library through `pkg-config` (§17.4): the driver asks it for the
+## compile and link flags, so a package needs no `-l` or `-L` on the command line.
+## Build: luce-base build tests/programs/pkgconfig/main.lucb [--native]
+extern func SDL_GetVersion() -> i32
+
+pub func main(arguments: str[]) -> i32:
+    let version = SDL_GetVersion()
+    print(f"SDL {version // 1000000}.{version // 1000 % 1000}")
+    return 0

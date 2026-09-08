@@ -1,0 +1,30 @@
+## The exported surface the specification promises (§17.6): a function pointer parameter,
+## a fallible function in its status form, and a span parameter as a pointer and a length.
+## Build: luce-base build tests/programs/abi/exports.lucb --lib [--native] -o build/abi_exports
+
+pub let bad_divisor: ErrorCode = ErrorCode.package(3)
+
+export func apply(f: func(i64) -> i64, x: i64) -> i64:
+    return f(x)
+
+export func divide(a: i64, b: i64) -> i64!:
+    if b == 0:
+        error(bad_divisor, "the divisor is zero")
+    return a // b
+
+export func require(a: i64) -> !:
+    if a < 0:
+        error(bad_divisor, "negative")
+
+export func sum_bytes(data: const u8[]) -> u64:
+    var sum: u64 = 0
+    for b in data:
+        sum += (u64)b
+    return sum + (u64)data.length * 1000
+
+struct Hooks:
+    pub var scale: func(i64) -> i64
+    pub var offset: i64
+
+export func run_hooks(hooks: const Hooks*, x: i64) -> i64:
+    return hooks.scale(x) + hooks.offset
