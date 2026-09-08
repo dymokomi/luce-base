@@ -141,6 +141,7 @@ func translate(checker: check.Checker*, entry: ast.Node*, mode: u32) -> str!:
         native.dump_ir = dump_ir
         native.opt_level = opt_level
         native.opt_count = opt_count
+        native.report = opt_report
         let target: backend.Backend = &native
         return try target.compile(mode)
     var host_c = try backend.CBackend.over(checker, entry, diagnostic_profile)
@@ -166,6 +167,7 @@ var dump_ir: bool
 ## only. Both are for finding an optimiser's fault by bisection.
 var opt_level: u32 = 3
 var opt_count: u32 = 0xFFFFFFFF
+var opt_report: bool = false
 ## `--debug`: the native backend describes every frame and calls the `debug` module.
 var debug_backend: bool
 ## `--freestanding`: the program's own `_start` is the entry, and no shim is linked (§19.4).
@@ -791,6 +793,8 @@ pub func main(arguments: c.str[]) -> i32!:
                 opt_level = u32(check.decode_integer((str)arguments[i + 1]) catch failure:
                     recover 3)
                 i += 1
+            elif a == "--opt-report":
+                opt_report = true
             elif a == "--opt-count" and i + 1 < arguments.length:
                 opt_count = u32(check.decode_integer((str)arguments[i + 1]) catch failure:
                     recover 0)

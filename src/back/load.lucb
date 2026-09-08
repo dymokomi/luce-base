@@ -236,6 +236,9 @@ struct Search:
     var joins: list.List[Join]
     ## The arguments of the joins, by pred label, filled as the search returns.
     var join_args: list.List[ir.PhiArg]
+    ## How many instructions one load's search may still visit: a bound keeps the pass
+    ## linear on a long block of loads.
+    var budget: u32
 
     mutating func find(address: ir.Ref, width: i64, op: ir.Op, cls: ir.Class, b: u32, at: u32) -> ir.Ref?!:
         return try find_value(&self, self.aliases.at(address, 0), width, op, cls, b, at)
@@ -286,7 +289,7 @@ struct Search:
 pub func run(f: ir.Function*, g: cfg.Graph*) -> bool!:
     var aliases = try Aliases.over(f, g)
     defer aliases.release()
-    var search = Search(f = f, g = g, aliases = &aliases, joins = try list.List[Join].create(16), join_args = try list.List[ir.PhiArg].create(32))
+    var search = Search(f = f, g = g, aliases = &aliases, joins = try list.List[Join].create(16), join_args = try list.List[ir.PhiArg].create(32), budget = 0)
     defer search.joins.destroy()
     defer search.join_args.destroy()
     var block_at = try alloc u32[f.instrs.count + 1]
@@ -299,23 +302,34 @@ pub func run(f: ir.Function*, g: cfg.Graph*) -> bool!:
             block_at[(usize)k] = u32(b)
             k += 1
         b += 1
+    # the answers are recorded and applied after: a load answered stays a load while the
+    # later loads search, so that they may find it
+    var answers = try alloc ir.Ref[f.instrs.count + 1]
+    defer free(answers)
     var changed = false
     var i: usize = 0
     while i < f.instrs.count:
+        answers[i] = ir.none_ref()
         let x = f.instrs.get(i)
         if is_load(x.op) and x.dst != 0 and block_at[i] != cfg.none_block and g.blocks.get((usize)block_at[i]).rpo != cfg.none_block:
             let before = search.joins.count
             let before_args = search.join_args.count
+            search.budget = 4096
             if let value = try search.find(x.a, load_width(x.op), x.op, x.cls, block_at[i], u32(i)):
-                var y = x
-                y.op = ir.Op.copy
-                y.a = value
-                y.b = ir.none_ref()
-                f.instrs.set(i, y)
+                answers[i] = value
                 changed = true
             else:
                 search.joins.count = before
                 search.join_args.count = before_args
+        i += 1
+    i = 0
+    while i < f.instrs.count:
+        if answers[i].kind != ir.RefKind.none_:
+            var y = f.instrs.get(i)
+            y.op = ir.Op.copy
+            y.a = answers[i]
+            y.b = ir.none_ref()
+            f.instrs.set(i, y)
         i += 1
     if search.joins.count > 0:
         try search.place()
@@ -328,6 +342,9 @@ func find_value(s: Search*, address: Alias, width: i64, op: ir.Op, cls: ir.Class
     var i = at
     while i > block.start:
         i -= 1
+        if s.budget == 0:
+            return none
+        s.budget -= 1
         let x = s.f.instrs.get((usize)i)
         if x.op == ir.Op.phi:
             continue

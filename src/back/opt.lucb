@@ -20,6 +20,18 @@
 import support.list
 import back.ir
 
+## After the optimiser's passes: what they leave behind that is dead goes, and a constant
+## that a copy exposed folds, once, since nothing here feeds anything else.
+pub func clean(program: ir.Unit*) -> !:
+    var i: usize = 0
+    while i < program.functions.count:
+        let f = &program.functions.items[i]
+        i += 1
+        if f.naked:
+            continue
+        discard(fold(f))
+        discard(try sweep(f))
+
 ## Run the passes over every function of `program`.
 pub func optimise(program: ir.Unit*) -> !:
     var i: usize = 0

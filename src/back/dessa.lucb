@@ -27,23 +27,77 @@ struct Move:
     var cls: ir.Class
     var value: ir.Ref
 
+## The moves of a function, grouped by the block they are placed in, and which block each
+## phi's temporary belongs to.
+struct Moves:
+    var items: list.List[Move]
+    ## The moves of block `b` are `items[start[b] ..< start[b + 1]]`.
+    var start: u32[]
+    var owner: u32[]
+
+    static func over(f: ir.Function*, g: cfg.Graph*) -> Moves!:
+        let nb = g.count()
+        var m = Moves(items = try list.List[Move].create(32), start = try alloc u32[nb + 2], owner = try alloc u32[f.temps.count + 1])
+        var k: usize = 0
+        while k < m.start.length:
+            m.start[k] = 0
+            k += 1
+        k = 0
+        while k < m.owner.length:
+            m.owner[k] = cfg.none_block
+            k += 1
+        var all = try list.List[Move].create(32)
+        defer all.destroy()
+        var b: usize = 0
+        while b < g.blocks.count:
+            let block = g.blocks.get(b)
+            var i = block.start
+            while i < block.end:
+                let x = f.instrs.get((usize)i)
+                if x.op != ir.Op.phi:
+                    break
+                m.owner[(usize)x.dst] = u32(b)
+                var a: u32 = 0
+                while a < x.extra2:
+                    let arg = f.phi_args.get((usize)(x.extra + a))
+                    let at = g.block_of(arg.pred)
+                    try all.push(Move(at = at, dst = x.dst, cls = x.cls, value = arg.value))
+                    m.start[(usize)at + 1] += 1
+                    a += 1
+                i += 1
+            b += 1
+        b = 0
+        while b < nb:
+            m.start[b + 1] += m.start[b]
+            b += 1
+        var fill = try alloc u32[nb + 1]
+        defer free(fill)
+        b = 0
+        while b <= nb:
+            fill[b] = 0
+            b += 1
+        k = 0
+        while k < all.count:
+            try m.items.push(all.get(0))
+            k += 1
+        k = 0
+        while k < all.count:
+            let mv = all.get(k)
+            m.items.set((usize)(m.start[(usize)mv.at] + fill[(usize)mv.at]), mv)
+            fill[(usize)mv.at] += 1
+            k += 1
+        return m
+
+    mutating func release():
+        self.items.destroy()
+        free(self.start)
+        free(self.owner)
+
 ## Replace every phi of `f` by copies. `g` is the graph of `f` as it stands.
 pub func run(f: ir.Function*, g: cfg.Graph*) -> !:
-    var moves = try list.List[Move].create(32)
-    defer moves.destroy()
-    var any = false
-    var i: usize = 0
-    while i < f.instrs.count:
-        let x = f.instrs.get(i)
-        if x.op == ir.Op.phi:
-            any = true
-            var a: u32 = 0
-            while a < x.extra2:
-                let arg = f.phi_args.get((usize)(x.extra + a))
-                try moves.push(Move(at = g.block_of(arg.pred), dst = x.dst, cls = x.cls, value = arg.value))
-                a += 1
-        i += 1
-    if not any:
+    var moves = try Moves.over(f, g)
+    defer moves.release()
+    if moves.items.count == 0:
         return
     # which predecessors need a block of their own: a branch with copies for a successor
     # that has other predecessors
@@ -54,7 +108,7 @@ pub func run(f: ir.Function*, g: cfg.Graph*) -> !:
     while k <= nb:
         split_label[k] = 0
         k += 1
-    var out = try list.List[ir.Instr].create(f.instrs.count + moves.count * 2 + 16)
+    var out = try list.List[ir.Instr].create(f.instrs.count + moves.items.count * 2 + 16)
     var b: usize = 0
     while b < g.blocks.count:
         let block = g.blocks.get(b)
@@ -95,14 +149,13 @@ pub func run(f: ir.Function*, g: cfg.Graph*) -> !:
 
 ## The copies of edge `at` -> `s`, into `out` when `inline`, else noted for an edge block
 ## in `split_label` (the block's own label when the edge needs none).
-func place_moves(f: ir.Function*, moves: list.List[Move]*, at: u32, s: u32, out: list.List[ir.Instr]*, split_label: u32[], g: cfg.Graph*, inline: bool) -> !:
+func place_moves(f: ir.Function*, moves: Moves*, at: u32, s: u32, out: list.List[ir.Instr]*, split_label: u32[], g: cfg.Graph*, inline: bool) -> !:
     if s == cfg.none_block:
         return
     var any = false
-    var i: usize = 0
-    while i < moves.count:
-        let m = moves.get(i)
-        if m.at == at and phi_block(f, g, m, s):
+    var i = (usize)moves.start[(usize)at]
+    while i < (usize)moves.start[(usize)at + 1]:
+        if moves.owner[(usize)moves.items.get(i).dst] == s:
             any = true
         i += 1
     if not any:
@@ -118,7 +171,7 @@ func place_moves(f: ir.Function*, moves: list.List[Move]*, at: u32, s: u32, out:
     split_label[(usize)s] = f.label()
 
 ## An edge block: its label, the copies, and the jump on to the successor.
-func emit_edge(f: ir.Function*, moves: list.List[Move]*, at: u32, s: u32, out: list.List[ir.Instr]*, split_label: u32[], g: cfg.Graph*) -> !:
+func emit_edge(f: ir.Function*, moves: Moves*, at: u32, s: u32, out: list.List[ir.Instr]*, split_label: u32[], g: cfg.Graph*) -> !:
     if s == cfg.none_block or split_label[(usize)s] == 0:
         return
     let label = split_label[(usize)s]
@@ -127,41 +180,30 @@ func emit_edge(f: ir.Function*, moves: list.List[Move]*, at: u32, s: u32, out: l
     try copy_edge(f, moves, at, s, out, g)
     try out.push(ir.Instr(op = ir.Op.jmp, cls = ir.Class.l, dst = 0, a = ir.none_ref(), b = ir.none_ref(), extra = g.blocks.get((usize)s).label, extra2 = 0))
 
-## Whether move `m` belongs to a phi of block `s`: its destination is a phi there.
-func phi_block(f: ir.Function*, g: cfg.Graph*, m: Move, s: u32) -> bool:
-    let block = g.blocks.get((usize)s)
-    var i = block.start
-    while i < block.end:
-        let x = f.instrs.get((usize)i)
-        if x.op != ir.Op.phi:
-            return false
-        if x.dst == m.dst:
-            return true
-        i += 1
-    return false
-
 ## The parallel copies of one edge: through fresh temporaries when a source is another
 ## copy's destination.
-func copy_edge(f: ir.Function*, moves: list.List[Move]*, at: u32, s: u32, out: list.List[ir.Instr]*, g: cfg.Graph*) -> !:
+func copy_edge(f: ir.Function*, moves: Moves*, at: u32, s: u32, out: list.List[ir.Instr]*, g: cfg.Graph*) -> !:
+    let lo = (usize)moves.start[(usize)at]
+    let hi = (usize)moves.start[(usize)at + 1]
     var clash = false
-    var i: usize = 0
-    while i < moves.count:
-        let m = moves.get(i)
-        if m.at != at or not phi_block(f, g, m, s):
+    var i = lo
+    while i < hi:
+        let m = moves.items.get(i)
+        if moves.owner[(usize)m.dst] != s:
             i += 1
             continue
-        var j: usize = 0
-        while j < moves.count:
-            let o = moves.get(j)
-            if j != i and o.at == at and o.value.kind == ir.RefKind.temp and o.value.index == m.dst and phi_block(f, g, o, s):
+        var j = lo
+        while j < hi:
+            let o = moves.items.get(j)
+            if j != i and o.value.kind == ir.RefKind.temp and o.value.index == m.dst and moves.owner[(usize)o.dst] == s:
                 clash = true
             j += 1
         i += 1
     if not clash:
-        i = 0
-        while i < moves.count:
-            let m = moves.get(i)
-            if m.at == at and phi_block(f, g, m, s):
+        i = lo
+        while i < hi:
+            let m = moves.items.get(i)
+            if moves.owner[(usize)m.dst] == s:
                 if not (m.value.kind == ir.RefKind.temp and m.value.index == m.dst):
                     try out.push(ir.Instr(op = ir.Op.copy, cls = m.cls, dst = m.dst, a = m.value, b = ir.none_ref(), extra = 0, extra2 = 0))
             i += 1
@@ -169,19 +211,19 @@ func copy_edge(f: ir.Function*, moves: list.List[Move]*, at: u32, s: u32, out: l
     # every source first, then every destination
     var staged = try list.List[u32].create(8)
     defer staged.destroy()
-    i = 0
-    while i < moves.count:
-        let m = moves.get(i)
-        if m.at == at and phi_block(f, g, m, s):
+    i = lo
+    while i < hi:
+        let m = moves.items.get(i)
+        if moves.owner[(usize)m.dst] == s:
             let t = try f.temp(m.cls)
             try out.push(ir.Instr(op = ir.Op.copy, cls = m.cls, dst = t, a = m.value, b = ir.none_ref(), extra = 0, extra2 = 0))
             try staged.push(t)
         i += 1
     var k: usize = 0
-    i = 0
-    while i < moves.count:
-        let m = moves.get(i)
-        if m.at == at and phi_block(f, g, m, s):
+    i = lo
+    while i < hi:
+        let m = moves.items.get(i)
+        if moves.owner[(usize)m.dst] == s:
             try out.push(ir.Instr(op = ir.Op.copy, cls = m.cls, dst = m.dst, a = ir.temp_ref(staged.get(k)), b = ir.none_ref(), extra = 0, extra2 = 0))
             k += 1
         i += 1

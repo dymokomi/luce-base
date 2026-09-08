@@ -17,7 +17,15 @@ The optimiser: QBE's passes on this IR.
   phis back into parallel copies with edge blocks; `frame` accepts a temporary assigned in
   several places; the IR has `phi` and `PhiArg`, the printer shows them and the right
   branch target of `jnz`;
-- the passes' memory is the heap's, so the compiler's own build fits its arena;
+- the passes' memory is the heap's, so the compiler's own build fits its arena; after
+  them only the sweep runs, not the old block-local rounds;
+- `--opt N` (0 none, 1 single-assignment form, 2 value numbering, 3 the default),
+  `--opt-count K` (the first K functions), and `--opt-report` (milliseconds per stage), for
+  finding an optimiser's fault by bisection and for measuring;
+- measured on the compiler's own 400k-instruction build: the passes take 0.66 s and give
+  back 0.05 s in the generator; the optimisation suite's loads fell by a factor of four to
+  eight, its instruction counts by a third; the compiler's own code runs no faster, as its
+  time is in copies and allocation;
 - `docs/DESIGN.md`: "The optimiser", and the plan for instruction-set levels.
 
 ## 0.6.0

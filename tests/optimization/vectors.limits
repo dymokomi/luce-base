@@ -1,9 +1,11 @@
 # the counts the passes reach; a pass lowers these, nothing raises them without saying so.
 # The float blend, the wrapping add, the shift, the bit operations and the broadcasts are one
 # vector instruction each; the checked multiply and the folds still read the lanes.
-ir 353
-loads 53
-stores 56
+# 0.7.0: the optimiser (single-assignment form, value numbering, load elimination) lowered
+# every count it could; the vectors' folds and checked multiply still read the lanes.
+ir 327
+loads 41
+stores 48
 calls 12
-asm-arm64 441
-asm-x86_64 519
+asm-arm64 405
+asm-x86_64 465

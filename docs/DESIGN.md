@@ -432,9 +432,12 @@ runs (its cfg.c, mem.c, ssa.c, gvn.c, alias.c, and load.c, written here for this
   edge block for a successor with other predecessors; the copies of an edge are parallel),
   and `frame` runs a temporary's live range from its first assignment.
 
-The old block-local passes (`opt.lucb`) still run after: the store-to-load forwarding
-they do is subsumed, but the sweep is the dead-code elimination, and constant folding
-of what `dessa` leaves is cheap. A function under `--debug` keeps its slots, where the
+Of the old block-local passes (`opt.lucb`) only the sweep and one fold run after,
+as the dead-code elimination; the rounds of store-to-load forwarding and copy
+propagation are subsumed and cost more than every new pass together. `--opt N` stops
+the optimiser after a stage, `--opt-count K` limits it to the first K functions, and
+`--opt-report` prints the milliseconds per stage: a fault in a pass is found by bisecting
+the function count with a program the product compiler then miscompiles. A function under `--debug` keeps its slots, where the
 frame descriptors say its locals are; a naked function is its assembly. The working
 memory of every pass is the heap's, returned as the pass ends.
 

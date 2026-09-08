@@ -1,9 +1,11 @@
 # the counts the passes reach; a pass lowers these, nothing raises them without saying so.
 # 0.4.0: `square` and `norm` are expanded into `main` and dropped, and so is the print's
 # formatting; the assembly count covers whole functions.
-ir 87
-loads 17
-stores 16
+# 0.7.0: the optimiser (single-assignment form, value numbering, load elimination) lowered
+# every count it could; the vectors' folds and checked multiply still read the lanes.
+ir 53
+loads 2
+stores 9
 calls 4
-asm-arm64 62
-asm-x86_64 60
+asm-arm64 46
+asm-x86_64 47

@@ -1,9 +1,11 @@
 # the counts the passes reach; a pass lowers these, nothing raises them without saying so.
 # 0.4.0: the inliner opens the print's formatting into `main`, so its instructions are
 # measured here and the calls it made are not; the assembly count covers whole functions.
-ir 47
-loads 6
+# 0.7.0: the optimiser (single-assignment form, value numbering, load elimination) lowered
+# every count it could; the vectors' folds and checked multiply still read the lanes.
+ir 42
+loads 4
 stores 5
 calls 8
-asm-arm64 129
-asm-x86_64 124
+asm-arm64 127
+asm-x86_64 122

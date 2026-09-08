@@ -14,6 +14,8 @@
 #
 #==============================================================================================
 
+import c
+import io
 import memory
 import back.arm64
 import back.cfg
@@ -45,8 +47,8 @@ pub interface Backend:
 pub struct CBackend: Backend:
     var emitter: emit.Emitter
 
-    pub static func over(c: check.Checker*, entry: ast.Node*, diagnostic: bool) -> CBackend!:
-        var emitter = try emit.Emitter.create(c, entry)
+    pub static func over(checker: check.Checker*, entry: ast.Node*, diagnostic: bool) -> CBackend!:
+        var emitter = try emit.Emitter.create(checker, entry)
         emitter.diagnostic = diagnostic
         return CBackend(emitter = emitter)
 
@@ -63,13 +65,15 @@ pub struct NativeBackend: Backend:
     ## How far the optimiser goes, and on how many functions (`--opt`, `--opt-count`).
     pub var opt_level: u32
     pub var opt_count: u32
+    ## `--opt-report`: the time each stage took, on standard error.
+    pub var report: bool
     ## The target of the build (§19.5): arm64-macos and x86_64-linux have generators.
     var target: targets.Target
 
-    pub static func over(c: check.Checker*, entry: ast.Node*, debug: bool, diagnostic: bool) -> NativeBackend!:
-        var lowerer = try lower.Lowerer.create(c, entry)
+    pub static func over(checker: check.Checker*, entry: ast.Node*, debug: bool, diagnostic: bool) -> NativeBackend!:
+        var lowerer = try lower.Lowerer.create(checker, entry)
         lowerer.diagnostic = diagnostic
-        return NativeBackend(lowerer = lowerer, debug = debug, dump_ir = false, opt_level = 3, opt_count = 0xFFFFFFFF, target = c.build_target)
+        return NativeBackend(lowerer = lowerer, debug = debug, dump_ir = false, opt_level = 3, opt_count = 0xFFFFFFFF, report = false, target = checker.build_target)
 
     pub mutating func compile(mode: u32) -> str!:
         let t = self.target
@@ -78,22 +82,57 @@ pub struct NativeBackend: Backend:
             error(unsupported_target, "the native backend emits arm64-macos and x86_64-linux; write the C for another target with --emit=c")
         self.lowerer.debug = self.debug
         self.lowerer.target = t
+        var at = ticks()
         try self.lowerer.program(mode)
+        try note(&at, 0)
         try inline.expand(&self.lowerer.program_unit)
+        try note(&at, 1)
         try optimise_functions(&self.lowerer.program_unit, self.opt_level, self.opt_count)
-        try opt.optimise(&self.lowerer.program_unit)
+        if self.opt_level >= 2 and self.opt_count == 0xFFFFFFFF:
+            try opt.clean(&self.lowerer.program_unit)
+        else:
+            try opt.optimise(&self.lowerer.program_unit)
+        try note(&at, 7)
         if self.dump_ir:
             return try irtext.render(&self.lowerer.program_unit)
+        var text = ""
         if t.arch == targets.Arch.x86_64:
             var generator = try x86_64.Generator.create(&self.lowerer.program_unit)
             generator.symbol_prefix = t.symbol_prefix
             generator.os = t.os
             try generator.generate()
-            return generator.text()
-        var generator = try arm64.Generator.create(&self.lowerer.program_unit)
-        generator.symbol_prefix = t.symbol_prefix
-        try generator.generate()
-        return generator.text()
+            text = generator.text()
+        else:
+            var generator = try arm64.Generator.create(&self.lowerer.program_unit)
+            generator.symbol_prefix = t.symbol_prefix
+            try generator.generate()
+            text = generator.text()
+        try note(&at, 8)
+        if self.report:
+            try print_report()
+        return text
+
+## Processor time per stage, in the C library's clock ticks (a millionth of a second):
+## lower, inline, promote, ssa, gvn, load, dessa, the sweep, generate.
+var stage_ticks: u64[9] = [0, 0, 0, 0, 0, 0, 0, 0, 0]
+let stage_names: str[9] = ["lower", "inline", "promote", "ssa", "gvn", "load", "dessa", "opt", "generate"]
+
+extern func c_clock as "clock"() -> c.long
+
+func ticks() -> u64:
+    return (u64)(i64)c_clock()
+
+func note(at: u64*, stage: usize) -> !:
+    let now = ticks()
+    stage_ticks[stage] += now -% *at
+    *at = now
+
+func print_report() -> !:
+    let err = io.stderr()
+    var k: usize = 0
+    while k < stage_names.length:
+        try err.write(f"{stage_names[k]}: {stage_ticks[k] // 1000} ms\n")
+        k += 1
 
 ## The optimiser over the IR, function by function: slots into temporaries, the function
 ## into single-assignment form, the passes, then the phis back into copies for the
@@ -109,24 +148,33 @@ func optimise_functions(program: ir.Unit*, level: u32, count: u32) -> !:
         # the passes' working memory is the heap's, returned as each pass finishes; the
         # driver's arena would keep every function's scratch until the build ends
         with memory.heap:
+            var at = ticks()
             var g = try cfg.Graph.over(f)
             if try ssa.promote(f):
                 g.release()
                 g = try cfg.Graph.over(f)
+            try note(&at, 2)
             var g2 = try ssa.construct(f, &g)
             g.release()
+            try note(&at, 3)
             if level < 2:
                 try dessa.run(f, &g2)
                 g2.release()
+                try note(&at, 6)
                 continue
             var g3 = try gvn.run(f, &g2)
             g2.release()
+            try note(&at, 4)
             if level >= 3 and try load.run(f, &g3):
                 # loads became copies, and phis joined some blocks: number again
                 g3.release()
                 g3 = try cfg.Graph.over(f)
+                try note(&at, 5)
                 var g4 = try gvn.run(f, &g3)
                 g3.release()
                 g3 = g4
+                try note(&at, 4)
+            try note(&at, 5)
             try dessa.run(f, &g3)
             g3.release()
+            try note(&at, 6)

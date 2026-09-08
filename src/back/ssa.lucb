@@ -551,11 +551,39 @@ pub func construct(f: ir.Function*, g: cfg.Graph*) -> cfg.Graph!:
                         count += 1
                 k += 1
         t += 1
-    # rebuild with the phis at their blocks' heads, each with one argument per predecessor
+    # the phis grouped by block, then the rebuild with them at their blocks' heads, each
+    # with one argument per predecessor
+    var phi_start = try alloc u32[nb + 2]
+    defer free(phi_start)
+    b = 0
+    while b < nb + 2:
+        phi_start[b] = 0
+        b += 1
+    var k: usize = 0
+    while k < phis.count:
+        phi_start[(usize)phis.get(k).block + 1] += 1
+        k += 1
+    b = 0
+    while b < nb:
+        phi_start[b + 1] += phi_start[b]
+        b += 1
+    var by_block = try alloc u32[phis.count + 1]
+    defer free(by_block)
+    var fill = try alloc u32[nb + 1]
+    defer free(fill)
+    b = 0
+    while b <= nb:
+        fill[b] = 0
+        b += 1
+    k = 0
+    while k < phis.count:
+        let pb = (usize)phis.get(k).block
+        by_block[(usize)(phi_start[pb] + fill[pb])] = u32(k)
+        fill[pb] += 1
+        k += 1
     var out = try list.List[ir.Instr].create(f.instrs.count + phis.count)
     var origin = try list.List[u32].create(f.instrs.count + phis.count)
     defer origin.destroy()
-    b = 0
     i = 0
     while i < f.instrs.count:
         let x = f.instrs.get(i)
@@ -563,19 +591,21 @@ pub func construct(f: ir.Function*, g: cfg.Graph*) -> cfg.Graph!:
         try origin.push(0)
         if x.op == ir.Op.label:
             let here = g.block_of(x.extra)
-            var k: usize = 0
-            while k < phis.count:
-                let ph = phis.get(k)
-                if ph.block == here:
-                    let block = g.blocks.get((usize)here)
-                    let start = u32(f.phi_args.count)
-                    var q: usize = 0
-                    while q < block.preds.count:
-                        try f.phi_args.push(ir.PhiArg(value = ir.const_ref(0), pred = g.blocks.get((usize)block.preds.get(q)).label))
-                        q += 1
-                    try out.push(ir.Instr(op = ir.Op.phi, cls = ph.cls, dst = ph.temp, a = ir.none_ref(), b = ir.none_ref(), extra = start, extra2 = u32(block.preds.count)))
-                    try origin.push(ph.temp)
-                k += 1
+            if here == cfg.none_block:
+                i += 1
+                continue
+            let block = g.blocks.get((usize)here)
+            var p = phi_start[(usize)here]
+            while p < phi_start[(usize)here + 1]:
+                let ph = phis.get((usize)by_block[(usize)p])
+                let start = u32(f.phi_args.count)
+                var q: usize = 0
+                while q < block.preds.count:
+                    try f.phi_args.push(ir.PhiArg(value = ir.const_ref(0), pred = g.blocks.get((usize)block.preds.get(q)).label))
+                    q += 1
+                try out.push(ir.Instr(op = ir.Op.phi, cls = ph.cls, dst = ph.temp, a = ir.none_ref(), b = ir.none_ref(), extra = start, extra2 = u32(block.preds.count)))
+                try origin.push(ph.temp)
+                p += 1
         i += 1
     f.instrs.destroy()
     f.instrs = out

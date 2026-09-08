@@ -31,6 +31,77 @@ struct Entry:
     var extra: u32
     var result: u32
 
+## The table of available computations, scoped to the walk: open addressing over the
+## entries' hashes, with every insertion logged so that leaving a dominator-tree node
+## restores the buckets it filled, in reverse, which keeps every probe sequence intact.
+struct Table:
+    var buckets: u32[]
+    var entries: list.List[Entry]
+    var log: list.List[u32]
+
+    static func create(room: usize) -> Table!:
+        var size: usize = 64
+        while size < room * 2:
+            size *= 2
+        var t = Table(buckets = try alloc u32[size], entries = try list.List[Entry].create(room + 1), log = try list.List[u32].create(room + 1))
+        var k: usize = 0
+        while k < size:
+            t.buckets[k] = 0
+            k += 1
+        return t
+
+    mutating func release():
+        free(self.buckets)
+        self.entries.destroy()
+        self.log.destroy()
+
+    func mark() -> usize:
+        return self.log.count
+
+    ## Empty the buckets filled since `mark`, latest first.
+    mutating func cut(mark: usize):
+        while self.log.count > mark:
+            let bucket = self.log.get(self.log.count - 1)
+            self.log.count -= 1
+            self.buckets[(usize)bucket] = 0
+            self.entries.count -= 1
+
+    ## The result of the entry equal to `x`, or 0.
+    func find(x: ir.Instr) -> u32:
+        var at = hash_of(x) & (self.buckets.length - 1)
+        while self.buckets[at] != 0:
+            let entry = self.entries.get((usize)self.buckets[at] - 1)
+            if entry.op == x.op and entry.cls == x.cls and entry.extra == x.extra and same_ref(entry.a, x.a) and same_ref(entry.b, x.b):
+                return entry.result
+            at = (at + 1) & (self.buckets.length - 1)
+        return 0
+
+    mutating func insert(x: ir.Instr) -> !:
+        var at = hash_of(x) & (self.buckets.length - 1)
+        while self.buckets[at] != 0:
+            at = (at + 1) & (self.buckets.length - 1)
+        try self.entries.push(Entry(op = x.op, cls = x.cls, a = x.a, b = x.b, extra = x.extra, result = x.dst))
+        self.buckets[at] = u32(self.entries.count)
+        try self.log.push(u32(at))
+
+func hash_of(x: ir.Instr) -> usize:
+    var h: u64 = 0xcbf29ce484222325
+    h = (h ^ (u64)x.op) *% 0x100000001b3
+    h = (h ^ (u64)x.cls) *% 0x100000001b3
+    h = (h ^ (u64)x.extra) *% 0x100000001b3
+    h = (h ^ ref_hash(x.a)) *% 0x100000001b3
+    h = (h ^ ref_hash(x.b)) *% 0x100000001b3
+    return (usize)h
+
+func ref_hash(r: ir.Ref) -> u64:
+    var h = (u64)r.kind *% 0x9E3779B97F4A7C15
+    h ^= (u64)r.index *% 0xC2B2AE3D27D4EB4F
+    h ^= (u64)r.value *% 0x165667B19E3779F9
+    if r.kind == ir.RefKind.global or r.kind == ir.RefKind.function:
+        for byte in r.name.bytes:
+            h = (h ^ (u64)byte) *% 0x100000001b3
+    return h
+
 ## The pass over `f`, whose graph is `g`. Answers the graph of the function as it stands
 ## afterwards, which is a new one when blocks were removed.
 pub func run(f: ir.Function*, g: cfg.Graph*) -> cfg.Graph!:
@@ -47,8 +118,8 @@ pub func run(f: ir.Function*, g: cfg.Graph*) -> cfg.Graph!:
     while i <= f.instrs.count:
         dead[i] = false
         i += 1
-    var table = try list.List[Entry].create(256)
-    defer table.destroy()
+    var table = try Table.create(f.instrs.count)
+    defer table.release()
     try number(f, g, 0, rep, dead, &table)
     # every use reads what its value became
     i = 0
@@ -109,8 +180,8 @@ func resolve(rep: ir.Ref[], r: ir.Ref) -> ir.Ref:
 
 ## The walk: block `b`, then its dominator-tree children with the table as it stands
 ## here, then the table cut back.
-func number(f: ir.Function*, g: cfg.Graph*, b: u32, rep: ir.Ref[], dead: bool[], table: list.List[Entry]*) -> !:
-    let mark = table.count
+func number(f: ir.Function*, g: cfg.Graph*, b: u32, rep: ir.Ref[], dead: bool[], table: Table*) -> !:
+    let mark = table.mark()
     let block = g.blocks.get((usize)b)
     var i = block.start
     while i < block.end:
@@ -151,25 +222,19 @@ func number(f: ir.Function*, g: cfg.Graph*, b: u32, rep: ir.Ref[], dead: bool[],
                 f.instrs.set((usize)i, x)
                 i += 1
                 continue
-            var found: u32 = 0
-            var e: usize = 0
-            while e < table.count:
-                let entry = table.get(e)
-                if entry.op == x.op and entry.cls == x.cls and entry.extra == x.extra and same_ref(entry.a, x.a) and same_ref(entry.b, x.b):
-                    found = entry.result
-                e += 1
+            let found = table.find(x)
             if found != 0:
                 rep[(usize)x.dst] = ir.temp_ref(found)
                 dead[(usize)i] = true
             else:
-                try table.push(Entry(op = x.op, cls = x.cls, a = x.a, b = x.b, extra = x.extra, result = x.dst))
+                try table.insert(x)
         f.instrs.set((usize)i, x)
         i += 1
     var c: usize = 0
     while c < block.children.count:
         try number(f, g, block.children.get(c), rep, dead, table)
         c += 1
-    table.count = mark
+    table.cut(mark)
 
 ## Whether an instruction's result depends on its operands alone: the arithmetic and the
 ## conversions, the comparisons, addresses, and the vector forms; not loads, stores, calls,

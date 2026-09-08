@@ -1,9 +1,11 @@
 # the counts the passes reach; a pass lowers these, nothing raises them without saying so.
 # Every function of the program is expanded into `main` and dropped: the calls left are the
 # print's.
-ir 185
-loads 45
-stores 36
+# 0.7.0: the optimiser (single-assignment form, value numbering, load elimination) lowered
+# every count it could; the vectors' folds and checked multiply still read the lanes.
+ir 96
+loads 4
+stores 20
 calls 6
-asm-arm64 125
-asm-x86_64 123
+asm-arm64 100
+asm-x86_64 100
