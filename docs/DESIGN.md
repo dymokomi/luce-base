@@ -49,6 +49,7 @@ from wherever it sits.
 | `back.emit` | the checked tree to C: monomorphisation, conversions, the runtime contract |
 | `back.ir` | the intermediate form: functions of blocks of typed instructions |
 | `back.lower` | the checked tree to IR: the same instantiation and conversion decisions as `emit` |
+| `back.regalloc` | registers for the temporaries: exact lives by dataflow, linear scan with holes, two pools per class, copy hints |
 | `back.arm64` | IR to arm64-macos assembly: frames, the calling convention, atomics |
 | `back.x86_64` | IR to x86_64-linux assembly: the System V convention, eightbyte classification with the MEMORY class for packed records, halves through F16C or software by level |
 | `back.target` | the targets of §19.5: symbols, streams, libraries, the `platform` module, section names |
@@ -409,18 +410,32 @@ register for the whole function; its address temporaries are never
 materialised, a narrow load re-extends from the register, and a parameter's
 slot is filled by a move at entry. A slot a call sequence writes into (an
 aggregate result) stays in the frame, as does everything under `--debug`,
-whose frame descriptors need the frame. `allocate` then gives the
-temporaries the remaining callee-saved registers by linear scan over the
-ranges `live_ranges` computed, which extend across a loop's back-edge in one
-forward pass. Instructions read their operands where they are and compute
-into the destination's own register; frame operands are sp-relative where
-they fit; call arguments load straight into their registers; the emitter
-copies and zeroes records up to 128 bytes with loads and stores rather than a
-call. What remains before this backend matches a C compiler at `-O2` is an
-optimiser over the IR: values still pass through slots between an inlined
-body and its caller, nothing propagates copies or folds constants, and the
-profile of the compiler compiling itself is dominated by record copies and by
-the register allocator itself.
+whose frame descriptors need the frame. `back/regalloc.lucb` then gives the
+temporaries their registers by linear scan over their exact lives: liveness
+is computed by dataflow over the blocks (`ssa.Liveness`), so a temporary's
+interval is the set of positions it is live at, with holes, and a value
+defined in one arm of a branch and used after the join holds no register
+through the other arm. Positions are doubled, an instruction's reads at `2i`
+and its write at `2i + 1`, so a result may take the register of an operand
+that dies there, which is what computing in place wants. A target offers two
+pools per class: the callee-saved registers, which a call preserves, and the
+caller-saved ones (arm64: x14, x15, d24–d31, the last as q registers for
+vectors; x86-64: xmm12–xmm15), which a call, an asm block, or a block copy
+handed to `memcpy` may clobber; a temporary that crosses none of those takes
+a caller-saved register first and leaves the callee-saved ones, which cost a
+save and a restore, to the temporaries that need them. A copy's destination
+prefers its source's register, so the parallel copies `dessa` wrote for the
+phis cost nothing when the two do not overlap. When every register is taken,
+the temporary whose holders are next used farthest away gives way, or the
+new one stays in the frame for its whole life; nothing is split, since the
+generators read a temporary from one place. Instructions read their operands
+where they are and compute into the destination's own register; frame
+operands are sp-relative where they fit; call arguments load straight into
+their registers; the emitter copies and zeroes records up to 128 bytes with
+loads and stores rather than a call. What remains before this backend
+matches a C compiler at `-O2` is splitting a life at a call so that its two
+halves may take different registers, and a peephole over the generators'
+output.
 
 The checker's type table is part of the same story: `types.Table` indexes its
 types by structure, so interning is a hash lookup rather than a scan that

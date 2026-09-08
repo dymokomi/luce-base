@@ -25,12 +25,13 @@ history. Nothing is listed here that already exists.
 
 ### Missing
 
-1. **A register allocator over the single-assignment form.** Locals live in
-   registers by linear scan; temporaries and every vector still round-trip
-   through the frame, so native code is correct and about C `-O1`, not `-O2`.
-   Gate: `tests/optimization` limits lowered across the board, the native
-   fixpoint kept, the compiler's own build time measured and recorded in
-   `docs/RELEASES.md`.
+1. **Splitting a life at a call.** The allocator (0.11.0) gives each temporary
+   one place for its whole life; a value live across a call takes a
+   callee-saved register or the frame, where a split would let its two halves
+   take different registers, and the generators' fixed scratch registers
+   (x9–x13, r10, r11, xmm8–xmm11) are not in any pool. Gate: the
+   `tests/optimization` limits lowered again, the native fixpoint kept, the
+   compiler's own build time recorded in `docs/RELEASES.md`.
 2. **Every error in one pass, with notes.** The checker stops at the first
    error and names no second location. Gate: the rejection suites report every
    error of a program with several, and a note names the other site (the

@@ -3,9 +3,11 @@
 # print's.
 # 0.7.0: the optimiser (single-assignment form, value numbering, load elimination) lowered
 # every count it could; the vectors' folds and checked multiply still read the lanes.
+# 0.11.0: the register allocator over the exact lives, with the caller-saved registers for
+# the temporaries that cross no call, lowered the assembly count.
 ir 96
 loads 4
 stores 20
 calls 6
-asm-arm64 100
+asm-arm64 93
 asm-x86_64 100

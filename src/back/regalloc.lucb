@@ -1,0 +1,614 @@
+#==============================================================================================
+#
+#   back/regalloc - Registers for the temporaries, by their exact lives
+#
+#   DESCRIPTION:
+#       Linear scan over intervals with holes (Wimmer and Franz), after the optimiser has
+#       brought a function out of single-assignment form. Liveness is computed by dataflow
+#       over the blocks, so a temporary's interval is exactly the positions it is live at:
+#       a value defined in one arm of a branch and used after the join does not hold its
+#       register through the other arm. A target offers two pools per register class: the
+#       callee-saved registers, which a call preserves, and the caller-saved ones, which a
+#       call or an asm block may clobber, so a temporary that crosses neither takes a
+#       caller-saved register first and leaves the callee-saved ones, which cost a save and
+#       a restore, to the temporaries that need them. A copy's destination prefers its
+#       source's register, so the parallel copies `dessa` wrote for the phis cost nothing
+#       when the two do not overlap. When every register is taken, the temporary whose
+#       next use is farthest goes to the frame for its whole life; nothing is split, since
+#       the generators read a temporary from one place.
+#
+#==============================================================================================
+
+import back.cfg
+import back.ir
+import back.ssa
+import memory
+import support.list
+
+pub let no_position: u32 = 0xFFFFFFFF
+
+## What a target offers the temporaries, as runs of register codes: the callee-saved
+## integer registers are codes 1 to `callee_ints`, the callee-saved float registers follow,
+## then the caller-saved integer ones, then the caller-saved float ones, which vectors
+## also take.
+pub struct Pools:
+    pub var callee_ints: u8
+    pub var callee_floats: u8
+    pub var scratch_ints: u8
+    pub var scratch_floats: u8
+
+    pub func count() -> u8:
+        return self.callee_ints + self.callee_floats + self.scratch_ints + self.scratch_floats
+
+    ## Whether `code` names a float register.
+    pub func is_float(code: u8) -> bool:
+        let callee = self.callee_ints + self.callee_floats
+        return (code > self.callee_ints and code <= callee) or code > callee + self.scratch_ints
+
+    ## Whether `code` names a register a call preserves.
+    pub func is_callee(code: u8) -> bool:
+        return code <= self.callee_ints + self.callee_floats
+
+## One run of positions a temporary is live at: `from` to `to`, one past the last.
+struct Range:
+    var low: u32
+    var high: u32
+    var next: u32
+
+## A position a temporary is read at.
+struct Use:
+    var at: u32
+    var next: u32
+
+## The lives of a function's temporaries: each one's ranges, earliest first, its uses, and
+## whether a call or an asm block lies inside it. Positions are doubled: instruction `i`
+## reads its operands at `2i` and writes its result at `2i + 1`, so a result may take the
+## register of an operand that dies there, as the generators compute in place.
+pub struct Lives:
+    var count: usize
+    var start: u32[]
+    var end: u32[]
+    var head: u32[]
+    var use_head: u32[]
+    var crosses: bool[]
+    ## The temporary whose register this one prefers, 0 for none: a copy's source.
+    var hint: u32[]
+    var ranges: list.List[Range]
+    var uses: list.List[Use]
+
+    ## The lives of `f`'s temporaries over its graph `g`. Every allocation is the current
+    ## allocator's; `release` gives them back.
+    pub static func over(f: ir.Function*, g: cfg.Graph*) -> Lives!:
+        let n = f.temps.count
+        let m = f.instrs.count
+        var l = Lives(count = n, start = try alloc u32[n + 1], end = try alloc u32[n + 1], head = try alloc u32[n + 1], use_head = try alloc u32[n + 1],
+                      crosses = try alloc bool[n + 1], hint = try alloc u32[n + 1], ranges = try list.List[Range].create(2 * m + n + 2),
+                      uses = try list.List[Use].create(3 * m + 2))
+        var t: usize = 0
+        while t <= n:
+            l.start[t] = no_position
+            l.end[t] = 0
+            l.head[t] = no_position
+            l.use_head[t] = no_position
+            l.crosses[t] = false
+            l.hint[t] = 0
+            t += 1
+        var live = try ssa.Liveness.over(f, g)
+        defer live.release()
+        # blocks from the last to the first, and each backwards, so that a range is always
+        # added before the ranges that precede it and only the head can merge
+        var bi = g.blocks.count
+        while bi > 0:
+            bi -= 1
+            let block = g.blocks.get(bi)
+            if block.end <= block.start:
+                continue
+            var w: usize = 0
+            while w < live.words:
+                var bits = live.live_out[bi * live.words + w]
+                var bit: u32 = 0
+                while bits != 0:
+                    if (bits & 1) != 0:
+                        let t2 = u32(w * 64) + bit
+                        if t2 >= 1 and (usize)t2 <= n:
+                            try l.add_range(t2, 2 * block.start, 2 * block.end)
+                    bits >>= 1
+                    bit += 1
+                w += 1
+            var i = block.end
+            while i > block.start:
+                i -= 1
+                let x = f.instrs.get((usize)i)
+                if x.dst != 0 and (usize)x.dst <= n:
+                    try l.define_at(x.dst, 2 * i + 1)
+                try l.use_at(x.a, 2 * block.start, 2 * i)
+                try l.use_at(x.b, 2 * block.start, 2 * i)
+                let (args_start, args_count) = ir.argument_range(f, x)
+                var a: u32 = 0
+                while a < args_count:
+                    try l.use_at(f.args.get((usize)(args_start + a)).value, 2 * block.start, 2 * i)
+                    a += 1
+                if x.op == ir.Op.copy and x.a.kind == ir.RefKind.temp and x.dst != 0:
+                    l.hint[(usize)x.dst] = x.a.index
+        # what a call or an asm block clobbers: the caller-saved registers of every
+        # temporary live across it; a copy, a zeroing, or a fill of many bytes is a call
+        # to the C library's routine in either generator. The barriers' positions in
+        # order, and each temporary's ranges searched for one inside
+        var barriers = try list.List[u32].create(16)
+        defer barriers.destroy()
+        var p: usize = 0
+        while p < m:
+            let x = f.instrs.get(p)
+            if is_barrier(x.op):
+                try barriers.push(u32(2 * p))
+                # an asm block's operands are loaded into registers the lowerer chose from
+                # the same caller-saved set, in an order that may clobber an operand still
+                # to be read: a value the block reads or writes stays out of them
+                if x.op == ir.Op.asm_:
+                    l.mark_at(x.a, n)
+                    l.mark_at(x.b, n)
+                    if x.dst != 0 and (usize)x.dst <= n:
+                        l.crosses[(usize)x.dst] = true
+            p += 1
+        if barriers.count > 0:
+            var t3: usize = 1
+            while t3 <= n:
+                if not l.crosses[t3] and l.spans_barrier(u32(t3), barriers.span()):
+                    l.crosses[t3] = true
+                t3 += 1
+        return l
+
+    ## The temporary `r` names, when it is one, must survive an asm block.
+    mutating func mark_at(r: ir.Ref, n: usize):
+        if r.kind == ir.RefKind.temp and (usize)r.index <= n:
+            self.crosses[(usize)r.index] = true
+
+    ## Whether one of the sorted barrier positions lies inside a range of `t`: a barrier
+    ## at `p` is inside when `low <= p` and `high > p + 1`, so the value is live at the
+    ## instruction's reads and still after its result.
+    func spans_barrier(t: u32, barriers: u32[]) -> bool:
+        var r = self.head[(usize)t]
+        while r != no_position:
+            let range = self.ranges.items[(usize)r]
+            # the first barrier at or after the range's start
+            var lo: usize = 0
+            var hi: usize = barriers.length
+            while lo < hi:
+                let mid = (lo + hi) // 2
+                if barriers[mid] < range.low:
+                    lo = mid + 1
+                else:
+                    hi = mid
+            if lo < barriers.length and barriers[lo] + 1 < range.high:
+                return true
+            r = range.next
+        return false
+
+    pub mutating func release():
+        free(self.start)
+        free(self.end)
+        free(self.head)
+        free(self.use_head)
+        free(self.crosses)
+        free(self.hint)
+        self.ranges.destroy()
+        self.uses.destroy()
+
+    ## Add `[low, high)` to temporary `t`: merged into the head range when they touch.
+    mutating func add_range(t: u32, low: u32, high: u32) -> !:
+        let h = self.head[(usize)t]
+        let k = (usize)h
+        if h != no_position and self.ranges.items[k].low <= high:
+            if low < self.ranges.items[k].low:
+                self.ranges.items[k].low = low
+            if high > self.ranges.items[k].high:
+                self.ranges.items[k].high = high
+        else:
+            self.head[(usize)t] = u32(self.ranges.count)
+            try self.ranges.push(Range(low = low, high = high, next = h))
+        if low < self.start[(usize)t]:
+            self.start[(usize)t] = low
+        if high > self.end[(usize)t]:
+            self.end[(usize)t] = high
+
+    ## Temporary `t` is defined at `at`: its head range begins there; a value nothing reads
+    ## still occupies its register at the instruction that writes it.
+    mutating func define_at(t: u32, at: u32) -> !:
+        let h = self.head[(usize)t]
+        let k = (usize)h
+        if h != no_position and self.ranges.items[k].low <= at and at < self.ranges.items[k].high:
+            self.ranges.items[k].low = at
+            if at < self.start[(usize)t]:
+                self.start[(usize)t] = at
+            return
+        try self.add_range(t, at, at + 1)
+
+    ## `r`, when a temporary, is read at `at` inside a block beginning at `block_start`.
+    mutating func use_at(r: ir.Ref, block_start: u32, at: u32) -> !:
+        if r.kind != ir.RefKind.temp or (usize)r.index > self.count:
+            return
+        try self.add_range(r.index, block_start, at + 1)
+        let previous = self.use_head[(usize)r.index]
+        self.use_head[(usize)r.index] = u32(self.uses.count)
+        try self.uses.push(Use(at = at, next = previous))
+
+    ## Whether a range of `t` reaches across the instruction reading at position `p`: the
+    ## value is live at `p` (defined earlier, or live into the block there) and still
+    ## after the instruction's own result at `p + 1`, so it must survive what `p` clobbers.
+    func covers_across(t: u32, p: u32) -> bool:
+        var r = self.head[(usize)t]
+        while r != no_position:
+            let range = self.ranges.items[(usize)r]
+            if range.low > p:
+                return false
+            if range.high > p + 1:
+                return true
+            r = range.next
+        return false
+
+    ## Whether `t` is live at `p`; the ranges ascend from the head, so the walk stops at
+    ## the first that begins after `p`.
+    func covers(t: u32, p: u32) -> bool:
+        var r = self.head[(usize)t]
+        while r != no_position:
+            let range = self.ranges.items[(usize)r]
+            if range.low > p:
+                return false
+            if p < range.high:
+                return true
+            r = range.next
+        return false
+
+    ## The first position where `a` and `b` are both live, or `no_position`: one walk
+    ## down both ascending range lists.
+    func first_intersection(a: u32, b: u32) -> u32:
+        var ra = self.head[(usize)a]
+        var rb = self.head[(usize)b]
+        while ra != no_position and rb != no_position:
+            let x = self.ranges.items[(usize)ra]
+            let y = self.ranges.items[(usize)rb]
+            let low = x.low if x.low > y.low else y.low
+            let high = x.high if x.high < y.high else y.high
+            if low < high:
+                return low
+            if x.high <= y.high:
+                ra = x.next
+            else:
+                rb = y.next
+        return no_position
+
+    ## The first use of `t` at or after `p`, or `no_position`; the uses ascend from the
+    ## head, since blocks and their instructions were walked backwards.
+    func next_use(t: u32, p: u32) -> u32:
+        var u = self.use_head[(usize)t]
+        while u != no_position:
+            let use = self.uses.items[(usize)u]
+            if use.at >= p:
+                return use.at
+            u = use.next
+        return no_position
+
+    ## The most temporaries of each class live at one position: integers, then floats.
+    pub func pressure(f: ir.Function*) -> (u32, u32)!:
+        let m = 2 * f.instrs.count + 3
+        var delta_int = try alloc i32[m]
+        defer free(delta_int)
+        var delta_float = try alloc i32[m]
+        defer free(delta_float)
+        var k: usize = 0
+        while k < m:
+            delta_int[k] = 0
+            delta_float[k] = 0
+            k += 1
+        var t: usize = 1
+        while t <= self.count:
+            let c = f.temp_class(u32(t))
+            let is_int = c == ir.Class.w or c == ir.Class.l
+            if is_int or ir.is_float_class(c):
+                var r = self.head[t]
+                while r != no_position:
+                    let range = self.ranges.items[(usize)r]
+                    if is_int:
+                        delta_int[(usize)range.low] += 1
+                        delta_int[(usize)range.high] -= 1
+                    else:
+                        delta_float[(usize)range.low] += 1
+                        delta_float[(usize)range.high] -= 1
+                    r = range.next
+            t += 1
+        var ints: i32 = 0
+        var floats: i32 = 0
+        var live_int: i32 = 0
+        var live_float: i32 = 0
+        k = 0
+        while k < m:
+            live_int += delta_int[k]
+            live_float += delta_float[k]
+            if live_int > ints:
+                ints = live_int
+            if live_float > floats:
+                floats = live_float
+            k += 1
+        return ((u32)ints, (u32)floats)
+
+    ## Give each temporary a register code, 0 for the frame: `held` is the mask of codes the
+    ## promoted slots keep for the whole function; `regs` receives a code per temporary and
+    ## the mask of every code used comes back.
+    pub mutating func allocate(f: ir.Function*, pools: Pools, held: u32, regs: u8[]) -> u32!:
+        let n = self.count
+        var used: u32 = 0
+        var t: usize = 0
+        while t < n:
+            regs[t] = 0
+            t += 1
+        if n == 0:
+            return 0
+        # the intervals in order of their starts, by counting
+        let m = 2 * f.instrs.count + 2
+        var bucket = try alloc u32[m + 1]
+        defer free(bucket)
+        var k: usize = 0
+        while k <= m:
+            bucket[k] = 0
+            k += 1
+        var alive: usize = 0
+        t = 1
+        while t <= n:
+            if self.start[t] != no_position:
+                bucket[(usize)self.start[t] + 1] += 1
+                alive += 1
+            t += 1
+        k = 1
+        while k <= m:
+            bucket[k] += bucket[k - 1]
+            k += 1
+        var order = try alloc u32[alive + 1]
+        defer free(order)
+        t = 1
+        while t <= n:
+            if self.start[t] != no_position:
+                order[(usize)bucket[(usize)self.start[t]]] = u32(t)
+                bucket[(usize)self.start[t]] += 1
+            t += 1
+        var active = try alloc u32[alive + 1]
+        defer free(active)
+        var inactive = try alloc u32[alive + 1]
+        defer free(inactive)
+        var active_count: usize = 0
+        var inactive_count: usize = 0
+        let codes = (usize)pools.count()
+        var free_until = try alloc u32[codes + 1]
+        defer free(free_until)
+        var blocked_at = try alloc u32[codes + 1]
+        defer free(blocked_at)
+        var i: usize = 0
+        while i < alive:
+            let cur = order[i]
+            let s = self.start[(usize)cur]
+            # what ended is handled; what has a hole here is inactive, and the reverse
+            var a: usize = 0
+            while a < active_count:
+                let h = active[a]
+                if self.end[(usize)h] <= s:
+                    active[a] = active[active_count - 1]
+                    active_count -= 1
+                elif not self.covers(h, s):
+                    inactive[inactive_count] = h
+                    inactive_count += 1
+                    active[a] = active[active_count - 1]
+                    active_count -= 1
+                else:
+                    a += 1
+            a = 0
+            while a < inactive_count:
+                let h = inactive[a]
+                if self.end[(usize)h] <= s:
+                    inactive[a] = inactive[inactive_count - 1]
+                    inactive_count -= 1
+                elif self.covers(h, s):
+                    active[active_count] = h
+                    active_count += 1
+                    inactive[a] = inactive[inactive_count - 1]
+                    inactive_count -= 1
+                else:
+                    a += 1
+            let cls = f.temp_class(cur)
+            let is_int = cls == ir.Class.w or cls == ir.Class.l
+            let is_vector = cls == ir.Class.v
+            if not is_int and not is_vector and not ir.is_float_class(cls):
+                i += 1
+                continue
+            # the pools this temporary may draw on, caller-saved first when it may
+            var low_scratch: usize = 0
+            var high_scratch: usize = 0
+            var low_callee: usize = 0
+            var high_callee: usize = 0
+            let callee = (usize)pools.callee_ints + (usize)pools.callee_floats
+            if is_int:
+                if not self.crosses[(usize)cur]:
+                    low_scratch = callee + 1
+                    high_scratch = callee + (usize)pools.scratch_ints
+                low_callee = 1
+                high_callee = (usize)pools.callee_ints
+            else:
+                if not self.crosses[(usize)cur]:
+                    low_scratch = callee + (usize)pools.scratch_ints + 1
+                    high_scratch = codes
+                if not is_vector:
+                    low_callee = (usize)pools.callee_ints + 1
+                    high_callee = callee
+            var c: usize = 1
+            while c <= codes:
+                free_until[c] = no_position
+                blocked_at[c] = no_position
+                c += 1
+            a = 0
+            while a < active_count:
+                let h = active[a]
+                let r = (usize)regs[(usize)h - 1]
+                free_until[r] = 0
+                let u = self.next_use(h, s)
+                if u < blocked_at[r]:
+                    blocked_at[r] = u
+                a += 1
+            a = 0
+            while a < inactive_count:
+                let h = inactive[a]
+                let r = (usize)regs[(usize)h - 1]
+                let meet = self.first_intersection(h, cur)
+                if meet != no_position:
+                    if meet < free_until[r]:
+                        free_until[r] = meet
+                    let u = self.next_use(h, meet)
+                    if u < blocked_at[r]:
+                        blocked_at[r] = u
+                a += 1
+            let my_end = self.end[(usize)cur]
+            var chosen: usize = 0
+            # the hint: a copy's source, when its register is free for the whole life
+            let wanted = self.hint[(usize)cur]
+            if wanted != 0 and regs[(usize)wanted - 1] != 0:
+                let r = (usize)regs[(usize)wanted - 1]
+                let in_pool = (r >= low_scratch and r <= high_scratch) or (r >= low_callee and r <= high_callee)
+                if in_pool and (held & (u32)(1 << (u32)(r - 1))) == 0 and free_until[r] >= my_end:
+                    chosen = r
+            if chosen == 0:
+                chosen = pick_free(free_until, held, low_scratch, high_scratch, my_end)
+            if chosen == 0:
+                chosen = pick_free(free_until, held, low_callee, high_callee, my_end)
+            if chosen == 0:
+                # every register is taken: the one whose holders are next used farthest
+                # away goes to this temporary when that is later than its own first use
+                let mine = self.next_use(cur, s)
+                if mine != no_position:
+                    var far: usize = 0
+                    var far_at: u32 = 0
+                    c = 1
+                    while c <= codes:
+                        let in_pool = (c >= low_scratch and c <= high_scratch) or (c >= low_callee and c <= high_callee)
+                        if in_pool and (held & (u32)(1 << (u32)(c - 1))) == 0 and blocked_at[c] > far_at:
+                            far_at = blocked_at[c]
+                            far = c
+                        c += 1
+                    if far != 0 and far_at > mine:
+                        a = 0
+                        while a < active_count:
+                            if (usize)regs[(usize)active[a] - 1] == far:
+                                regs[(usize)active[a] - 1] = 0
+                                active[a] = active[active_count - 1]
+                                active_count -= 1
+                            else:
+                                a += 1
+                        a = 0
+                        while a < inactive_count:
+                            if (usize)regs[(usize)inactive[a] - 1] == far:
+                                regs[(usize)inactive[a] - 1] = 0
+                                inactive[a] = inactive[inactive_count - 1]
+                                inactive_count -= 1
+                            else:
+                                a += 1
+                        chosen = far
+            if chosen != 0:
+                regs[(usize)cur - 1] = (u8)chosen
+                used = used | (u32)(1 << (u32)(chosen - 1))
+                active[active_count] = cur
+                active_count += 1
+            i += 1
+        return used
+
+## An instruction that may clobber the caller-saved registers: a call, an asm block, and
+## the block operations the generators hand to `memcpy` and `memset` past their inline size.
+pub func is_barrier(op: ir.Op) -> bool:
+    return op == ir.Op.call or op == ir.Op.asm_ or op == ir.Op.blit or op == ir.Op.zero or op == ir.Op.fill
+
+## The code in `[low, high]` that stays free the longest, when one stays free for the whole
+## life ending at `end`; 0 otherwise. The first of equals wins, so the lowest register.
+func pick_free(free_until: u32[], held: u32, low: usize, high: usize, end: u32) -> usize:
+    var best: usize = 0
+    var best_until: u32 = 0
+    var c = low
+    while c != 0 and c <= high:
+        if (held & (u32)(1 << (u32)(c - 1))) == 0 and free_until[c] > best_until:
+            best_until = free_until[c]
+            best = c
+        c += 1
+    if best != 0 and best_until >= end:
+        return best
+    return 0
+
+test "a temporary across a call keeps a callee-saved register and one beside it a scratch one":
+    var backing: u8[1048576]
+    var arena = memory.FixedBuffer.over(backing)
+    with arena:
+        var f = try ir.Function.create("t")
+        # t1 = 1; t2 = 2; call g(); t3 = t1 + t2 (t1, t2 cross the call); t4 = t3 + 1 (t4 does not)
+        let t1 = try f.temp(ir.Class.l)
+        let t2 = try f.temp(ir.Class.l)
+        try f.emit(ir.Op.copy, ir.Class.l, t1, ir.const_ref(1), ir.none_ref(), 0)
+        try f.emit(ir.Op.copy, ir.Class.l, t2, ir.const_ref(2), ir.none_ref(), 0)
+        try f.calls.push(ir.CallInfo(args_start = 0, args_count = 0, fixed_count = 0, variadic = false, result_cls = ir.Class.w, has_result = false, result_size = 0, result_align = 8, result_type = 0, result_slot = 0, result_shape = 0))
+        try f.emit(ir.Op.call, ir.Class.w, 0, ir.function_ref("g"), ir.none_ref(), 0)
+        let t3 = try f.temp(ir.Class.l)
+        try f.emit(ir.Op.add, ir.Class.l, t3, ir.temp_ref(t1), ir.temp_ref(t2), 0)
+        let t4 = try f.temp(ir.Class.l)
+        try f.emit(ir.Op.add, ir.Class.l, t4, ir.temp_ref(t3), ir.const_ref(1), 0)
+        let t5 = try f.temp(ir.Class.l)
+        try f.emit(ir.Op.copy, ir.Class.l, t5, ir.temp_ref(t4), ir.none_ref(), 0)
+        try f.emit(ir.Op.ret, ir.Class.l, 0, ir.temp_ref(t5), ir.none_ref(), 0)
+        var g = try cfg.Graph.over(&f)
+        var lives = try Lives.over(&f, &g)
+        assert(lives.crosses[(usize)t1])
+        assert(lives.crosses[(usize)t2])
+        assert(not lives.crosses[(usize)t3])
+        assert(not lives.crosses[(usize)t4])
+        let (ints, floats) = try lives.pressure(&f)
+        assert(ints == 2)
+        assert(floats == 0)
+        var regs: u8[8]
+        let pools = Pools(callee_ints = 2, callee_floats = 1, scratch_ints = 2, scratch_floats = 1)
+        let used = try lives.allocate(&f, pools, 0, regs[..<5])
+        assert(regs[0] == 1 and regs[1] == 2)
+        # t3 does not cross the call: the first scratch code, 4
+        assert(regs[2] == 4)
+        # t4 is a copy's source and t5 its destination: t5 takes t4's register
+        assert(regs[3] != 0 and regs[4] == regs[3])
+        assert((used & 1) != 0 and (used & 8) != 0)
+        lives.release()
+        g.release()
+
+test "intervals have holes: two values alive in different arms share one register":
+    var backing: u8[1048576]
+    var arena = memory.FixedBuffer.over(backing)
+    with arena:
+        var f = try ir.Function.create("t")
+        # c = ...; jnz c, L1, L2; L1: a = 1; jmp L3; L2: b = 2; jmp L3; L3: (a used in L1 only, b in L2 only)
+        let c = try f.temp(ir.Class.w)
+        try f.emit(ir.Op.copy, ir.Class.w, c, ir.const_ref(1), ir.none_ref(), 0)
+        let l1 = f.label()
+        let l2 = f.label()
+        let l3 = f.label()
+        try f.branch(ir.temp_ref(c), l1, l2)
+        try f.place_label(l1)
+        let a = try f.temp(ir.Class.l)
+        try f.emit(ir.Op.copy, ir.Class.l, a, ir.const_ref(1), ir.none_ref(), 0)
+        let a2 = try f.temp(ir.Class.l)
+        try f.emit(ir.Op.add, ir.Class.l, a2, ir.temp_ref(a), ir.const_ref(1), 0)
+        try f.jump(l3)
+        try f.place_label(l2)
+        let b = try f.temp(ir.Class.l)
+        try f.emit(ir.Op.copy, ir.Class.l, b, ir.const_ref(2), ir.none_ref(), 0)
+        let b2 = try f.temp(ir.Class.l)
+        try f.emit(ir.Op.add, ir.Class.l, b2, ir.temp_ref(b), ir.const_ref(1), 0)
+        try f.jump(l3)
+        try f.place_label(l3)
+        try f.emit(ir.Op.ret, ir.Class.l, 0, ir.none_ref(), ir.none_ref(), 0)
+        var g = try cfg.Graph.over(&f)
+        var lives = try Lives.over(&f, &g)
+        assert(not lives.covers(a, lives.start[(usize)b]))
+        var regs: u8[8]
+        let pools = Pools(callee_ints = 1, callee_floats = 0, scratch_ints = 0, scratch_floats = 0)
+        discard(try lives.allocate(&f, pools, 0, regs[..<5]))
+        # one callee-saved register serves both arms: a and b never meet
+        assert(regs[(usize)a - 1] == 1 and regs[(usize)b - 1] == 1)
+        lives.release()
+        g.release()

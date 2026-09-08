@@ -48,7 +48,7 @@ seed named in `bootstrap/SEED` builds it to the same C.
 | 19.6 | warnings and pruning | limited | unused locals, imports, private functions, unreachable code, and literal branches are pruned and reported with `-W`; the specification's allocation-leak and unjoined-thread lints do not exist in this compiler |
 | 19.6 | `luce fmt`, `--costs` | planned | |
 | 16.6 | TLS for `net`, a `graphics` module | planned | the SDL3 and Metal proving programs reach their libraries through `extern` alone |
-| — | the optimiser: inlining, single-assignment form, value numbering, load elimination | verified | `tests/optimization`, the native fixpoint; a register allocator over the SSA form is the next step (DESIGN.md) |
+| — | the optimiser: inlining, single-assignment form, value numbering, load elimination, a register allocator over the exact lives | verified | `tests/optimization`, the native fixpoint; splitting a life at a call is the next step (`docs/PLAN.md`) |
 | — | debugging: `--debug` frame descriptors and `luce-base-d` | limited | `tests/programs/debugger`; not DWARF, not `lldb` or `gdb` |
 | plan 10 | `luce-ld` | planned | not started |
 

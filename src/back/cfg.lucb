@@ -53,6 +53,16 @@ pub struct Graph:
 
     ## The graph of `f` as its instructions stand.
     pub static func over(f: ir.Function*) -> Graph!:
+        var g = try Graph.blocks_of(f)
+        try g.dominators()
+        try g.frontiers()
+        g.depths()
+        try g.loops()
+        return g
+
+    ## The blocks, their edges, and the reverse post-order alone: what liveness needs, at
+    ## a fraction of the cost of the dominators, frontiers, and loops `over` adds.
+    pub static func blocks_of(f: ir.Function*) -> Graph!:
         var g = Graph(blocks = try list.List[Block].create(32), order = try list.List[u32].create(32), by_label = try alloc u32[(usize)f.labels + 1])
         var k: usize = 0
         while k < g.by_label.length:
@@ -63,10 +73,6 @@ pub struct Graph:
         g.by_label[0] = 0
         g.link(f)
         try g.number()
-        try g.dominators()
-        try g.frontiers()
-        g.depths()
-        try g.loops()
         return g
 
     pub mutating func release():

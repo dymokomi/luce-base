@@ -1,0 +1,63 @@
+## §10.1, §17.2: a record of one to seven bytes returned by value lands in a slot exactly
+## its size; the locals beside it keep their bytes. Each size, plain and packed, is
+## returned next to a live counter and checked after.
+struct One:
+    var a: u8
+
+struct Three:
+    var a: u8
+    var b: u8
+    var c: u8
+
+packed struct Five:
+    var a: u8
+    var b: u32
+
+packed struct Six:
+    var a: u16
+    var b: u32
+
+packed struct Seven:
+    var a: u8
+    var b: u16
+    var c: u32
+
+struct Four:
+    var a: u8
+    var b: u8
+    var c: u8
+    var d: u8
+
+func one(x: u8) -> One:
+    return One(a = x)
+
+func three(x: u8) -> Three:
+    return Three(a = x, b = x + 1, c = x + 2)
+
+func four(x: u8) -> Four:
+    return Four(a = x, b = x + 1, c = x + 2, d = x + 3)
+
+func five(x: u8) -> Five:
+    return Five(a = x, b = (u32)x * 1000)
+
+func six(x: u16) -> Six:
+    return Six(a = x, b = (u32)x * 1000)
+
+func seven(x: u8) -> Seven:
+    return Seven(a = x, b = (u16)x * 10, c = (u32)x * 1000)
+
+pub func main(arguments: str[]) -> i32:
+    var guard: u32 = 4242
+    var total: u64 = 0
+    var i: u8 = 1
+    while i <= 20:
+        let a = one(i)
+        let b = three(i)
+        let c = four(i)
+        let d = five(i)
+        let e = six((u16)i)
+        let f = seven(i)
+        total += (u64)a.a + (u64)b.c + (u64)c.d + (u64)d.b + (u64)e.b + (u64)f.c + (u64)f.b
+        i += 1
+    print(f"{guard} {total} {i}")
+    return 0

@@ -3,9 +3,11 @@
 # vector instruction each; the checked multiply and the folds still read the lanes.
 # 0.7.0: the optimiser (single-assignment form, value numbering, load elimination) lowered
 # every count it could; the vectors' folds and checked multiply still read the lanes.
+# 0.11.0: the register allocator over the exact lives, with the caller-saved registers for
+# the temporaries that cross no call, lowered the assembly count.
 ir 327
 loads 41
 stores 48
 calls 12
-asm-arm64 405
+asm-arm64 403
 asm-x86_64 465

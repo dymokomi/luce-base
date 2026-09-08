@@ -5,6 +5,27 @@
 release is a VERSION bump, a tag `luce-base-N`, and a push, the way luce-seed does it
 (`bootstrap/SEED` pins the seed the tree is built against).
 
+## 0.11.0
+
+The register allocator over the exact lives (`src/back/regalloc.lucb`): liveness by
+dataflow over the blocks, intervals with holes, linear scan with two pools per class, the
+callee-saved registers and, for a temporary that crosses no call, asm block, or block copy,
+the caller-saved ones (arm64: x14, x15, d24–d31, the last as q registers for vectors;
+x86-64: xmm12–xmm15, the first float registers a temporary may hold there), a copy's
+destination preferring its source's register, and the farthest next use giving way when
+every register is taken. Instruction positions are doubled so a result may share the
+register of an operand that dies there. `docs/DESIGN.md`, "The native backend's code
+quality", describes it; the assembly counts of `tests/optimization` fell by two to seven
+percent, and the compiler's own C emission runs eight percent faster under the new
+compiler; the allocation costs the self-build a few percent of compile time, which the
+lighter `cfg.Graph.blocks_of` keeps to that.
+
+Found and fixed on the way, each with a test through every execution: a small aggregate
+result was stored as a whole register, eight bytes into a slot of one to seven, so the
+slot's neighbour lost its bytes (`10_aggregates/small_results`); a word's zero-extension
+was skipped when its source and destination were one register, keeping the upper half; a
+vector operand went straight to a frame home even when the temporary had a register.
+
 ## 0.10.1
 
 - A host that lacks what a check needs (SDL3, `pkg-config`, a Metal device) fails the gate

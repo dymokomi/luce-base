@@ -56,7 +56,7 @@ pub struct Generator:
 
     pub static func create(program_unit: ir.Unit*) -> Generator!:
         return Generator(symbol_prefix = "_", out = try buffer.Buffer.create(262144), program_unit = program_unit, f = program_unit.functions.span().data, index = 0,
-                         fr = try frame.Frame.create(frame.Registers(ints = 10, floats = 8, keep_ints = 4, keep_floats = 4)), text_count = 0, descriptors = try buffer.Buffer.create(4096))
+                         fr = try frame.Frame.create(frame.Registers(ints = 10, floats = 8, keep_ints = 4, keep_floats = 4, scratch_ints = 2, scratch_floats = 8)), text_count = 0, descriptors = try buffer.Buffer.create(4096))
 
     # -- output ---------------------------------------------------------------------------
 
@@ -218,7 +218,7 @@ pub struct Generator:
     mutating func source(r: ir.Ref, cls: ir.Class, scratch: str) -> str!:
         if r.kind == ir.RefKind.temp:
             let code = self.fr.temp_regs.get((usize)r.index - 1)
-            if code != 0 and (code >= 11) == ir.is_float_class(cls):
+            if code != 0 and self.fr.float_code(code) == (ir.is_float_class(cls) or cls == ir.Class.v):
                 return class_name(code, cls)
         try self.operand(scratch, cls, r)
         return scratch
@@ -229,7 +229,7 @@ pub struct Generator:
         if dst == 0:
             return scratch
         let code = self.fr.temp_regs.get((usize)dst - 1)
-        if code != 0 and (code >= 11) == ir.is_float_class(cls):
+        if code != 0 and self.fr.float_code(code) == (ir.is_float_class(cls) or cls == ir.Class.v):
             return class_name(code, cls)
         return scratch
 
@@ -247,10 +247,7 @@ pub struct Generator:
         if code != 0:
             let home = register_view(reg, code)
             if home != reg:
-                try self.line("fmov " if code >= 11 else "mov ")
-                try self.put(reg)
-                try self.put(", ")
-                try self.put(home)
+                try self.register_move(reg, home, code)
             return
         try self.frame_load(reg, self.temp_home(t))
 
@@ -259,12 +256,24 @@ pub struct Generator:
         if code != 0:
             let home = register_view(reg, code)
             if home != reg:
-                try self.line("fmov " if code >= 11 else "mov ")
-                try self.put(home)
-                try self.put(", ")
-                try self.put(reg)
+                try self.register_move(home, reg, code)
             return
         try self.frame_store(reg, self.temp_home(t))
+
+    ## `to = from` between registers: `mov` for integers, `fmov` for floats, and the whole
+    ## vector for a `q` view.
+    mutating func register_move(target_reg: str, from_reg: str, code: u8) -> !:
+        if target_reg.bytes[0] == 'q':
+            try self.line("mov ")
+            try self.put(vector_view(target_reg))
+            try self.put(".16b, ")
+            try self.put(vector_view(from_reg))
+            try self.put(".16b")
+            return
+        try self.line("fmov " if self.fr.float_code(code) else "mov ")
+        try self.put(target_reg)
+        try self.put(", ")
+        try self.put(from_reg)
 
     ## An operand into a scratch register of class `cls`.
     mutating func operand(reg: str, cls: ir.Class, r: ir.Ref) -> !:
@@ -991,10 +1000,10 @@ pub struct Generator:
             .extuh: try self.line5("and ", d, ", ", v, ", #65535")
             .extsw: try self.line4("sxtw ", d, ", ", v)
             _:
-                # zero-extension of a word: writing the 32-bit view clears the upper half
-                let dw = narrow_name(d)
-                if dw != v:
-                    try self.line4("mov ", dw, ", ", v)
+                # zero-extension of a word: writing the 32-bit view clears the upper half,
+                # also when the source is that same register, whose upper half may hold a
+                # sign extension or what a wider write left there
+                try self.line4("mov ", narrow_name(d), ", ", v)
 
     ## Checked add, subtract, and multiply: trap on overflow of the class width.
     # -- vectors (§5.12) ------------------------------------------------------------------
@@ -1109,15 +1118,16 @@ pub struct Generator:
         try self.put(arr)
         try self.put(", x9" if wide else ", w9")
 
-    ## A vector temporary from its home into scratch register `k`.
+    ## A vector temporary into scratch register `k`: from the register it lives in, else
+    ## from its home.
     mutating func vector_source(k: u32, r: ir.Ref, bytes: u32) -> !:
-        try self.frame_load(vector_scratch(k, bytes), self.temp_home(r.index))
+        try self.load_temp(vector_scratch(k, bytes), ir.Class.v, r.index)
 
-    ## Scratch register `k` into the home of vector temporary `dst`.
+    ## Scratch register `k` into vector temporary `dst`, where it lives.
     mutating func vector_result(dst: u32, k: u32, bytes: u32) -> !:
         if dst == 0:
             return
-        try self.frame_store(vector_scratch(k, bytes), self.temp_home(dst))
+        try self.store_temp(vector_scratch(k, bytes), dst)
 
     mutating func checked(n: ir.Instr) -> !:
         let signed = n.extra == 1
@@ -1483,14 +1493,47 @@ pub struct Generator:
                 k += 1
             return
         if info.result_size <= 16:
-            # the second word is stored only as far as the value reaches, so a slot of
-            # twelve bytes does not lose its neighbour
+            # each word is stored only as far as the value reaches: the slot is exactly the
+            # result's size, and its neighbour keeps its bytes
             try self.frame_address("x16", home)
-            try self.line("str x0, [x16]")
-            if info.result_size > 12:
-                try self.line("str x1, [x16, #8]")
-            elif info.result_size > 8:
-                try self.line("str w1, [x16, #8]")
+            let size = (u64)info.result_size
+            try self.store_low("x0", "w0", 0, size if size < 8 else 8)
+            if size > 8:
+                try self.store_low("x1", "w1", 8, size - 8)
+
+    ## Exactly `width` bytes (1 to 8) of the register `x` (`w` its narrow view) to
+    ## `[x16, #offset]`, nothing past them; the odd widths go in two pieces through x17.
+    mutating func store_low(x: str, w: str, offset: u64, width: u64) -> !:
+        if width == 8 or width == 4 or width == 2 or width == 1:
+            try self.line("str " if width >= 4 else ("strh " if width == 2 else "strb "))
+            try self.put(x if width == 8 else w)
+            try self.put(", [x16, #")
+            try self.put_u64(offset)
+            try self.put("]")
+            return
+        let low: u64 = 4 if width > 4 else 2
+        try self.store_low(x, w, offset, low)
+        try self.line3("lsr x17, ", x, ", #")
+        try self.put_u64(low * 8)
+        try self.store_low("x17", "w17", offset + low, width - low)
+
+    ## Exactly `width` bytes from `[x16, #offset]` into `x`, zero above them.
+    mutating func load_low(x: str, w: str, offset: u64, width: u64) -> !:
+        if width == 8 or width == 4 or width == 2 or width == 1:
+            try self.line("ldr " if width >= 4 else ("ldrh " if width == 2 else "ldrb "))
+            try self.put(x if width == 8 else w)
+            try self.put(", [x16, #")
+            try self.put_u64(offset)
+            try self.put("]")
+            return
+        let low: u64 = 4 if width > 4 else 2
+        try self.load_low("x17", "w17", offset + low, width - low)
+        try self.load_low(x, w, offset, low)
+        try self.line("lsl x17, x17, #")
+        try self.put_u64(low * 8)
+        try self.line3("orr ", x, ", ")
+        try self.put(x)
+        try self.put(", x17")
 
     ## The wide name of a class's first scratch register for a stack store.
     func wide(cls: ir.Class, n: u32) -> str:
@@ -1528,12 +1571,11 @@ pub struct Generator:
                     try self.put("]")
                     k += 1
             elif self.f.result_size <= 16:
-                try self.address_operand("x9", n.a)
-                try self.line("ldr x0, [x9]")
-                if self.f.result_size > 12:
-                    try self.line("ldr x1, [x9, #8]")
-                elif self.f.result_size > 8:
-                    try self.line("ldr w1, [x9, #8]")
+                try self.address_operand("x16", n.a)
+                let size = (u64)self.f.result_size
+                try self.load_low("x0", "w0", 0, size if size < 8 else 8)
+                if size > 8:
+                    try self.load_low("x1", "w1", 8, size - 8)
             else:
                 try self.address_operand("x1", n.a)
                 try self.frame_address("x16", self.fr.indirect_home)
@@ -1684,9 +1726,14 @@ pub struct Generator:
 
 ## The callee-saved registers the allocator hands out: codes 1..10 are x19..x28, codes
 ## 11..18 are d8..d15, viewed as w/s where a narrower access asks for it.
-let x_names: str[19] = ["", "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28", "d8", "d9", "d10", "d11", "d12", "d13", "d14", "d15"]
-let w_names: str[19] = ["", "w19", "w20", "w21", "w22", "w23", "w24", "w25", "w26", "w27", "w28", "s8", "s9", "s10", "s11", "s12", "s13", "s14", "s15"]
-let h_names: str[19] = ["", "w19", "w20", "w21", "w22", "w23", "w24", "w25", "w26", "w27", "w28", "h8", "h9", "h10", "h11", "h12", "h13", "h14", "h15"]
+## Register codes: 1–10 the callee-saved x19–x28, 11–18 the callee-saved d8–d15, 19–20 the
+## caller-saved x14 and x15, which nothing else here touches, 21–28 the caller-saved
+## d24–d31, which a vector temporary sees as q24–q31.
+let x_names: str[29] = ["", "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28", "d8", "d9", "d10", "d11", "d12", "d13", "d14", "d15", "x14", "x15", "d24", "d25", "d26", "d27", "d28", "d29", "d30", "d31"]
+let w_names: str[29] = ["", "w19", "w20", "w21", "w22", "w23", "w24", "w25", "w26", "w27", "w28", "s8", "s9", "s10", "s11", "s12", "s13", "s14", "s15", "w14", "w15", "s24", "s25", "s26", "s27", "s28", "s29", "s30", "s31"]
+let h_names: str[29] = ["", "w19", "w20", "w21", "w22", "w23", "w24", "w25", "w26", "w27", "w28", "h8", "h9", "h10", "h11", "h12", "h13", "h14", "h15", "w14", "w15", "h24", "h25", "h26", "h27", "h28", "h29", "h30", "h31"]
+let q_names: str[29] = ["", "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15", "x14", "x15", "q24", "q25", "q26", "q27", "q28", "q29", "q30", "q31"]
+let v_names: str[29] = ["", "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "x14", "x15", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31"]
 
 ## The 8-byte name used to spill and reload a register on entry and exit.
 func save_name(code: usize) -> str:
@@ -1752,6 +1799,8 @@ func class_name(code: u8, cls: ir.Class) -> str:
         return h_names[(usize)code]
     if cls == ir.Class.w or cls == ir.Class.s:
         return w_names[(usize)code]
+    if cls == ir.Class.v:
+        return q_names[(usize)code]
     return x_names[(usize)code]
 
 ## Register `code` in the form of `reg`: the narrow view for a `w` or `s` register, the half
@@ -1762,14 +1811,29 @@ func register_view(reg: str, code: u8) -> str:
         return h_names[(usize)code]
     if letter == 'w' or letter == 's':
         return w_names[(usize)code]
+    if letter == 'q':
+        return q_names[(usize)code]
     return x_names[(usize)code]
+
+## `q16` -> `v16`: the vector view of a register given as a `q` name.
+func vector_view(reg: str) -> str:
+    var k: usize = 1
+    while k < q_names.length:
+        if q_names[k] == reg:
+            return v_names[k]
+        k += 1
+    if reg == "q16":
+        return "v16"
+    if reg == "q17":
+        return "v17"
+    return "v18"
 
 ## `x21` -> `w21`, `x9` -> `w9`: the 32-bit view of an integer register.
 func narrow_name(reg: str) -> str:
     if reg.bytes[0] != 'x':
         return reg
     var k: usize = 1
-    while k <= 10:
+    while k < x_names.length:
         if x_names[k] == reg:
             return w_names[k]
         k += 1

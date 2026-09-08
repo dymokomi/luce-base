@@ -73,7 +73,7 @@ pub struct Generator:
     pub static func create(program_unit: ir.Unit*) -> Generator!:
         return Generator(symbol_prefix = "", os = build_target.Os.linux, level = 1, out = try buffer.Buffer.create(262144), program_unit = program_unit, f = program_unit.functions.span().data, index = 0,
                          at = 0, saved = ["", "", "", "", "", "", "", ""], pending = 0, half_routines = false,
-                         fr = try frame.Frame.create(frame.Registers(ints = 5, floats = 0, keep_ints = 2, keep_floats = 0)), descriptors = try buffer.Buffer.create(4096))
+                         fr = try frame.Frame.create(frame.Registers(ints = 5, floats = 0, keep_ints = 2, keep_floats = 0, scratch_ints = 0, scratch_floats = 4)), descriptors = try buffer.Buffer.create(4096))
 
     # -- output ---------------------------------------------------------------------------
 
@@ -200,9 +200,9 @@ pub struct Generator:
     ## The register holding `r` as class `cls` when `r` is a temporary living in one and the
     ## class is an integer one, else `scratch` after loading it there.
     mutating func source(r: ir.Ref, cls: ir.Class, scratch: str) -> str!:
-        if r.kind == ir.RefKind.temp and is_int_class(cls):
+        if r.kind == ir.RefKind.temp:
             let code = self.fr.temp_regs.get((usize)r.index - 1)
-            if code != 0:
+            if code != 0 and self.fr.float_code(code) == not is_int_class(cls):
                 return class_name(code, cls)
         try self.operand(scratch, cls, r)
         return scratch
@@ -210,10 +210,10 @@ pub struct Generator:
     ## The register to compute temporary `dst` into: its own when it lives in one and the
     ## class is an integer one, else `scratch`, which `finish` then stores.
     func target(dst: u32, cls: ir.Class, scratch: str) -> str:
-        if dst == 0 or not is_int_class(cls):
+        if dst == 0:
             return scratch
         let code = self.fr.temp_regs.get((usize)dst - 1)
-        if code != 0:
+        if code != 0 and self.fr.float_code(code) == not is_int_class(cls):
             return class_name(code, cls)
         return scratch
 
@@ -222,7 +222,7 @@ pub struct Generator:
         if dst == 0:
             return
         let code = self.fr.temp_regs.get((usize)dst - 1)
-        if code != 0 and is_int_class(cls) and class_name(code, cls) == reg:
+        if code != 0 and class_name(code, cls) == reg:
             return
         try self.store_temp(reg, cls, dst)
 
@@ -231,26 +231,34 @@ pub struct Generator:
     mutating func load_temp(reg: str, cls: ir.Class, t: u32) -> !:
         let code = self.fr.temp_regs.get((usize)t - 1)
         if code != 0:
-            if is_int_class(cls):
-                let home = class_name(code, cls)
-                if home != reg:
-                    try self.line4("movl " if cls == ir.Class.w else "movq ", home, ", ", reg)
-            else:
-                try self.line4("movq " if cls == ir.Class.d else "movd ", class_name(code, ir.Class.l if cls == ir.Class.d else ir.Class.w), ", ", reg)
+            let home = class_name(code, cls)
+            if home != reg:
+                try self.register_move(reg, home, cls, code)
             return
         try self.frame_load(reg, cls, self.temp_home(t))
 
     mutating func store_temp(reg: str, cls: ir.Class, t: u32) -> !:
         let code = self.fr.temp_regs.get((usize)t - 1)
         if code != 0:
-            if is_int_class(cls):
-                let home = class_name(code, cls)
-                if home != reg:
-                    try self.line4("movl " if cls == ir.Class.w else "movq ", reg, ", ", home)
-            else:
-                try self.line4("movq " if cls == ir.Class.d else "movd ", reg, ", ", class_name(code, ir.Class.l if cls == ir.Class.d else ir.Class.w))
+            let home = class_name(code, cls)
+            if home != reg:
+                try self.register_move(home, reg, cls, code)
             return
         try self.frame_store(reg, cls, self.temp_home(t))
+
+    ## `to = from` as class `cls` between registers, one of which is the home of a temporary
+    ## in register `code`: integers move as words, floats and vectors with the SSE moves,
+    ## and a float read as an integer word or the reverse moves its bits across.
+    mutating func register_move(target_reg: str, from_reg: str, cls: ir.Class, code: u8) -> !:
+        let to_xmm = target_reg.bytes[1] == 'x'
+        let from_xmm = from_reg.bytes[1] == 'x'
+        if to_xmm and from_xmm:
+            try self.line4("movdqa " if cls == ir.Class.v else ("movaps " if cls == ir.Class.s else "movapd "), from_reg, ", ", target_reg)
+        elif not to_xmm and not from_xmm:
+            try self.line4("movl " if cls == ir.Class.w else "movq ", from_reg, ", ", target_reg)
+        else:
+            try self.line4("movd " if cls == ir.Class.w or cls == ir.Class.s or cls == ir.Class.h else "movq ", from_reg, ", ", target_reg)
+        discard(code)
 
     ## An operand into a register of class `cls`.
     mutating func operand(reg: str, cls: ir.Class, r: ir.Ref) -> !:
@@ -1346,16 +1354,24 @@ pub struct Generator:
             try self.line("punpcklwd %xmm8, %xmm8")
         try self.line("pshufd $0, %xmm8, %xmm8")
 
-    ## A vector temporary from its home into `reg`.
+    ## A vector temporary into `reg`: from the register it lives in, else from its home.
     mutating func vector_source(r: ir.Ref, reg: str, bytes: u32) -> !:
+        let code = self.fr.temp_regs.get((usize)r.index - 1)
+        if code != 0:
+            try self.line4("movdqa ", class_name(code, ir.Class.v), ", ", reg)
+            return
         try self.line(vector_move(bytes))
         try self.frame_operand(self.temp_home(r.index))
         try self.put(", ")
         try self.put(reg)
 
-    ## `reg` into the home of vector temporary `dst`.
+    ## `reg` into vector temporary `dst`, where it lives.
     mutating func vector_result(dst: u32, reg: str, bytes: u32) -> !:
         if dst == 0:
+            return
+        let code = self.fr.temp_regs.get((usize)dst - 1)
+        if code != 0:
+            try self.line4("movdqa ", reg, ", ", class_name(code, ir.Class.v))
             return
         try self.line3(vector_move(bytes), reg, ", ")
         try self.frame_operand(self.temp_home(dst))
@@ -1854,10 +1870,12 @@ pub struct Generator:
 # mark: Helpers ================================================================================
 
 ## The callee-saved registers the allocator hands out, codes 1..5, in their four widths.
-let q_names: str[6] = ["", "%rbx", "%r12", "%r13", "%r14", "%r15"]
-let l_names: str[6] = ["", "%ebx", "%r12d", "%r13d", "%r14d", "%r15d"]
-let w_names: str[6] = ["", "%bx", "%r12w", "%r13w", "%r14w", "%r15w"]
-let b_names: str[6] = ["", "%bl", "%r12b", "%r13b", "%r14b", "%r15b"]
+## Register codes: 1–5 the callee-saved rbx and r12–r15; 6–9 the caller-saved xmm12–xmm15,
+## which nothing else here touches, for floats and vectors that cross no call.
+let q_names: str[10] = ["", "%rbx", "%r12", "%r13", "%r14", "%r15", "%xmm12", "%xmm13", "%xmm14", "%xmm15"]
+let l_names: str[10] = ["", "%ebx", "%r12d", "%r13d", "%r14d", "%r15d", "%xmm12", "%xmm13", "%xmm14", "%xmm15"]
+let w_names: str[10] = ["", "%bx", "%r12w", "%r13w", "%r14w", "%r15w", "%xmm12", "%xmm13", "%xmm14", "%xmm15"]
+let b_names: str[10] = ["", "%bl", "%r12b", "%r13b", "%r14b", "%r15b", "%xmm12", "%xmm13", "%xmm14", "%xmm15"]
 
 ## Every integer register this generator names, in its four widths, for the views.
 let all_q: str[14] = ["%rax", "%rcx", "%rdx", "%rbx", "%rsi", "%rdi", "%r8", "%r9", "%r10", "%r11", "%r12", "%r13", "%r14", "%r15"]
