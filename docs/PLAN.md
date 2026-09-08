@@ -9,19 +9,82 @@ unit tests green in the oracle and the binary agreeing on `tests/samples/`.
 | 2. Syntax | arena tree, full grammar of §21, `luce-base parse` | done: every Base file we have parses, including this compiler's own sources |
 | 3. Checking | names, types, effects, `luce-base check` | done: every sample and every source of this tree checks; every program under `tests/samples/errors/` is rejected for its stated reason |
 | 4. C backend | checked tree to C, `luce-base build` and `luce-base test` | done: every sample with `main` builds and runs; every module's tests pass through the binary |
-| 5. Self-hosting | the seed pinned; the standard modules in Base | done: `bootstrap/luce-base.c` is the compiler's own C and `build.sh` starts from it with only a C compiler; `memory`, `io`, `files`, `process`, `thread`, `sync`, and `atomic` are Base source over `extern` in `src/sema/prelude.lucb`; the C runtime is down to traps, checked arithmetic, formatting, and hashing |
+| 5. Self-hosting | the seed pinned; the standard modules in Base | done: `bootstrap/luce-base-HOST.c` is the compiler's own C for each host and `build.sh` starts from it with only a C compiler; every standard module is Base source under `src/std/` over `extern` declarations, embedded into `src/sema/prelude.lucb`; the C runtime is down to traps, checked arithmetic, formatting, and hashing |
 | 6. Native | one target, arm64-macos, proved against the C backend | done: every sample and every module's tests agree under both backends; the compiler builds itself natively and the native build emits the same C and assembly as the C build; `tools/native_check.sh` runs the seed's corpus natively |
-| 7. Proving | programs big enough to break things: a threaded HTTP server, a terminal editor, `luce-base-d` (a debugger), an SDL3 editor, a Metal GPU computation, and inline arm64 assembly; built natively, with no C in the path | in progress: `tests/programs/http`, `tests/programs/editor`, `tests/programs/debugger` (`luce-base-d`), and `tests/programs/gui` (an SDL3 window) are under the gate; the rounds so far found pointer arithmetic, negated literals, function-typed field calls, spinning locks, padding in aggregate equality, two-register results, unknown escapes, generic instance sizes, and `sizeof` losing its size in arithmetic, all pinned in `luce-seed/testdata/programs/` or `tests/samples/errors/` |
+| 7. Proving | programs big enough to break things, built natively with no C in the path, each driven from outside by its `check.sh` | done: `http` (a threaded server), `editor`, `debugger` (`luce-base-d`), `gui` (SDL3), `metal` (a GPU computation), `asm`, `freestanding`, `manifest`, `abi` (the calling convention both ways), and `pkgconfig` are all under the gate; a host lacking what one needs fails the gate and says what to install |
 | 8. Codegen | the optimiser over the IR, then the release | done: inlining, single-assignment form, value numbering, load elimination, and de-SSA over the IR (`docs/DESIGN.md`, "The optimiser"), measured by `tests/optimization`; a register allocator over the single-assignment form is what remains |
 | 9. Targets | the second host: x86_64 Linux, natively, with the gate green there | done (0.2.0): `src/back/x86_64.lucb` behind the `Backend` interface, the host read from the compiler's own `platform` module, per-target bootstrap snapshots, `tests/platform`; the calling convention proved both ways by `tests/programs/abi`; next hosts are arm64-linux (the x86_64 generator's ELF half with the arm64 generator's instructions) and x86_64-macos (the reverse) |
 | 10. Linking | `luce-ld`, a linker of our own, as Zig carries one, in its own repository | a native build that needs nothing from the host toolchain |
 
-## The status
+## What remains
 
-`docs/AUDIT.md` is the one current matrix: each promise of the specification
-verified, limited, planned, or excluded, with its evidence, and the order to
-close what remains. It is rewritten, not appended, when the picture changes;
-history is `docs/RELEASES.md`.
+The one to-do list, in the order to close it. Each item names its gate: the
+test that turns it from open to done. `docs/AUDIT.md` is the matrix of what is
+verified, limited, planned, or excluded today; `docs/RELEASES.md` is the
+history. Nothing is listed here that already exists.
+
+### Missing
+
+1. **A register allocator over the single-assignment form.** Locals live in
+   registers by linear scan; temporaries and every vector still round-trip
+   through the frame, so native code is correct and about C `-O1`, not `-O2`.
+   Gate: `tests/optimization` limits lowered across the board, the native
+   fixpoint kept, the compiler's own build time measured and recorded in
+   `docs/RELEASES.md`.
+2. **Every error in one pass, with notes.** The checker stops at the first
+   error and names no second location. Gate: the rejection suites report every
+   error of a program with several, and a note names the other site (the
+   earlier declaration, the escaping local) where one exists.
+3. **`luce fmt`.** No formatter exists. Gate: every source in the tree is a
+   fixpoint of the formatter, and the gate checks it.
+4. **`luce bind`.** Bindings to C headers are written by hand. Gate: SDL3 and
+   the Metal entry points bound by the tool, the `gui` and `metal` programs
+   built on those bindings, and every FFI shape the tool emits proved by
+   `tests/programs/abi`.
+5. **The other native hosts.** arm64-linux and x86_64-macos have the target
+   model and C emission, no native generator, and no gate; wasm32 is named by
+   the specification and not modelled at all. Gate: a native generator and a
+   green gate on each host, or wasm32 struck from §19.5.
+6. **DWARF.** `--debug` emits frame descriptors for `luce-base-d` and nothing
+   `lldb` or `gdb` can read. Gate: a breakpoint, `bt`, and `p local` in `lldb`
+   on macOS and `gdb` on Linux, scripted under `tests/programs/debugger`.
+7. **Library breadth.** `net` has no TLS and no IPv6, `io` is thin, and there
+   is no `graphics` module; the proving programs reach SDL3 and Metal through
+   `extern` alone. Gate, in order: TLS for `net` through a bound library, IPv6
+   in `net`, then `graphics` (windows, input, a GPU surface: Metal on macOS,
+   Vulkan elsewhere) reached through `extern` and `luce bind`, each with a
+   proving program under the gate.
+8. **`luce-ld`.** Everything links through the host's `ld` or `cc`. A linker
+   of our own, as Zig carries one, in its own repository. Gate: a native build
+   that needs nothing from the host toolchain.
+
+### Hardening
+
+9. **Fuzzing.** The lexer, parser, and checker have never been fuzzed. Gate: a
+   fuzzer over source text with a time and memory budget, run for hours on
+   both hosts, every crash or hang pinned as a rejection test; deep nesting,
+   long files, pathological generics, and malformed UTF-8 covered on purpose.
+10. **The optimiser under a differential matrix.** `tests/optimization` counts
+    instructions; nothing runs every program at every level. Gate: the
+    conformance runner builds every positive program at `--opt 0` through
+    `--opt 3` and compares the outputs, in the gate.
+11. **Sanitizers and a litmus suite.** No sanitizer run and no test of the
+    orderings. Gate: the conformance and robustness programs built through the
+    C backend under address, undefined-behaviour, and thread sanitizers as a
+    gate step; a litmus suite for the atomic orderings of §15.1 under
+    `tests/platform`.
+12. **The Linux pass.** Everything since the last pull is proven on the Mac
+    only; `tests/programs/abi` runs the packed-record convention at run time
+    there for the first time. Gate: `./test.sh` green on x86_64 Linux at each
+    release, recorded in `docs/RELEASES.md`.
+13. **Continuous integration.** No checked-in workflow runs both hosts on every
+    push; "green on both hosts" is a claim about the last time someone ran it.
+    Gate: a workflow that builds and gates on arm64 macOS and x86_64 Linux on
+    every push, with the toolchain versions recorded, and a red gate blocking a
+    release.
+14. **The C backend at `-O2`.** The release pass exists and found one dangling
+    buffer on its first run; it is one build flag away from the sanitizer run
+    above. Gate: item 11 covers it.
 
 ## The bootstrap gate
 
@@ -53,19 +116,15 @@ natively through `tools/native_check.sh`.
 ## The standard library
 
 `luce-base` is also where the standard modules of base.md §16.6 are Base
-source instead of seed builtins. `memory`, `io`, `files`, `process`,
-`thread`, `sync`, `atomic`, `c`, `strings`, `paths`, `math`, `time`,
-`testing`, and `net` (TCP and UDP over BSD sockets, with `resolve`) are in
-`src/sema/prelude.lucb`, each a piece of Base over `extern` declarations of the C
+source instead of seed builtins. `platform`, `c`, `core`, `memory`, `io`,
+`luce`, `atomic`, `thread`, `sync`, `files`, `process`, `strings`, `paths`,
+`math`, `time`, `os`, `testing`, `net` (TCP and UDP over BSD sockets, with
+`resolve`), and `debug` are `src/std/*.lucb` in the binding order of
+`src/std/ORDER`, each a piece of Base over `extern` declarations of the C
 library; every constant and layout that differs by target is a branch on the
 `platform` module the compiler writes for the build, pruned at compile time,
-and `tests/platform` proves each host's arms. `tests/samples/library.lucb` and
-`tests/samples/loopback.lucb` exercise them under the gate. What remains grows in
-the order the operating system needs it:
-
-1. TLS for `net`, through a bound library.
-2. `graphics`: windows, input, and a GPU surface through the host (Metal on
-   macOS, Vulkan elsewhere), reached through `extern` and `luce bind`.
+and `tests/platform` proves each host's arms. What remains for the library is
+item 7 above.
 
 Each module is Base code over `extern` declarations; nothing in the compiler
 knows their names. That is the point of Base: the operating system's own

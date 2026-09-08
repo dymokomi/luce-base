@@ -64,8 +64,5 @@ seed named in `bootstrap/SEED` builds it to the same C.
 
 ## The order
 
-1. `luce fmt`, `luce bind`, `--costs`.
-2. A register allocator over the single-assignment form; a peephole in the generators.
-3. arm64-linux and x86_64-macos through the `Backend` interface, each with its gate.
-4. `luce-ld`.
-5. luce-full in Base.
+The one to-do list is `docs/PLAN.md`, "What remains": what is missing, what is still to
+be hardened, and the gate that closes each item.
