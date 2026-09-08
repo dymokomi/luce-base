@@ -1,0 +1,18 @@
+## §6.1, §13: a generic struct's instance is zeroable when its fields are at that
+## instantiation: `Pair[i64]` and `Pair[Pair[u8]]` hold zeros; a parameter alone says nothing.
+struct Pair[T]:
+    var a: T
+    var b: T
+
+struct Wrap[T]:
+    var inner: Pair[T]
+    var count: usize
+
+var flat: Pair[i64]
+var nested: Wrap[Pair[u8]]
+
+pub func main(arguments: str[]) -> i32:
+    var here: Pair[f64]
+    var opt: Pair[i64*?]
+    print(f"{flat.a} {flat.b} {nested.inner.a.b} {nested.count} {here.a} {opt.a == none}")
+    return 0

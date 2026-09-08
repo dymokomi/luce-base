@@ -1,0 +1,22 @@
+## §5.10, §9.6: a nullable function is spelled `(func(...) -> R)?`; a named function and a
+## capture-free lambda convert to it, and the lambda takes its parameter types from it.
+func triple(x: i64) -> i64:
+    return x *% 3
+
+var handler: (func(i64) -> i64)?
+
+func run(f: (func(i64) -> i64)?, x: i64) -> i64:
+    if let g = f:
+        return g(x)
+    return -1
+
+pub func main(arguments: str[]) -> i32:
+    let before = handler == none
+    handler = triple
+    let a = run(handler, 4)
+    handler = (x) => x +% 1
+    let b = run(handler, 4)
+    let c = run((x) => x *% x, 5)
+    handler = none
+    print(f"{before} {a} {b} {c} {run(handler, 9)}")
+    return 0

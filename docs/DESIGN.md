@@ -748,8 +748,9 @@ mishandles, deep nesting, long tokens, bytes that are not text, keywords out of 
 recursive types, and its rule is simple: the checker accepts, or it rejects with a
 position, and anything else is a fault to fix. Its generator writes well-typed programs
 over the value language, integers of every width under every arithmetic form, bounded
-floats, structs by value, spans, fallible calls, optionals, enums, generics, interfaces,
-lambdas and `defer`, so that nothing it writes can trap, and the four executions must
+floats, structs by value, spans, fallible calls, optionals, enums, unions, generics,
+interfaces, vectors, lambdas, `defer`, and memory through `new`, `alloc`, `free`, arenas and
+`errdefer`, so that nothing it writes can trap or leak, and the four executions must
 print the same checksum; a disagreement is a backend bug or a place
 where the language leaves something to C, which §7.2 does not. The gate's pass is short
 and seeded, so every host runs the same one; the long run is for the hours before a

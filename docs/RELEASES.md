@@ -5,6 +5,23 @@
 release is a VERSION bump, a tag `luce-base-N`, and a push, the way luce-seed does it
 (`bootstrap/SEED` pins the seed the tree is built against).
 
+## 0.11.5
+
+- The generator covers memory management and the rest of the value language: heap objects
+  and spans with `new`, uninitialised `alloc`, raw bytes, a pointer to a fixed array,
+  `free` and `defer free`, a linked list built and released, a `FixedBuffer` arena through
+  `in` and `with`, a heap expression tree built under `errdefer`, a fallible allocator with
+  `errdefer` caught by its caller; a payload enum by value under `match`, a union, a generic
+  struct, vectors, a nullable function holding a named function or a lambda, tuples, static
+  and mutating methods.
+- What extending it found: a global or local of a generic struct's instance, `Pair[i64]`,
+  was refused a zero value because the rule read the fields' parameters instead of the
+  instance's arguments (`13_generics/zeroable_instance`); a lambda where `(func(i64) ->
+  i64)?` was expected was refused for lacking parameter types
+  (`09_functions/lambda_to_nullable_function`); and the seed read `a[(usize)i].x` as a
+  generic instantiation, a hazard this tree had worked around since the audit. Pinned to
+  luce-seed-0.53.
+
 ## 0.11.4
 
 - The generator covers the value language: integers of six widths under wrapping, checked

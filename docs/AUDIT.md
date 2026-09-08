@@ -61,8 +61,11 @@ a signal, a hang, or a bare message is a finding. It also generates well-typed p
 over a wide slice of the language (integers of six widths under every arithmetic form and
 cast, bounded floats, structs by value as arguments, results, elements and through
 pointers, spans and `for`, fallible calls, optionals, a backed enum under `match`,
-generics, an interface, lambdas, `defer`, text) and requires the C, C `-O2`, native, and
-seed executions to agree. The gate runs a short
+generics, an interface, lambdas, `defer`, text, and since 0.11.5 payload enums, unions,
+generic structs, vectors, nullable functions, tuples, methods, and memory: `new`, `alloc`,
+raw bytes, `free`, `defer free`, linked lists, a `FixedBuffer` arena under `in` and `with`,
+heap trees under `errdefer`) and requires the C, C `-O2`, native, and seed executions to
+agree. The gate runs a short
 deterministic pass; `tools/fuzz.py --minutes M` runs longer, and findings land under
 `build/fuzz/`. Its first hour found four defects, each now a test: a lexer diagnostic
 without its file, a self-assignment and a self-comparison the C compiler refused, a
@@ -75,7 +78,9 @@ reaching the assembler as a symbol. Widening the generator to the whole value la
 (0.11.4) found, before its first long run, a zeroable rule both compilers had loose: an
 integer-backed enum with no zero case and a struct with a field default or an `init` were
 given zero values (§6.1); and the seed typed an `else` fallback under the optional it was
-stored into.
+stored into. Extending it to memory and the remaining forms (0.11.5) found a generic
+struct's instance refused a zero value, a lambda refused where a nullable function was
+expected, and the seed reading `a[(usize)i].x` as a generic instantiation.
 
 ## Known and accepted
 

@@ -395,25 +395,35 @@ pub struct Table:
 
     ## Whether the zero bit pattern is a valid value (base.md §6.1).
     pub func zeroable(id: u32) -> bool:
+        return self.zeroable_in(id, none, no_args_view())
+
+    ## Zeroability of `id` where a generic instance's parameters stand for its arguments:
+    ## `Pair[i64]` is zeroable because `i64` is, whatever `T` alone would say.
+    func zeroable_in(id: u32, env_decl: ast.Node*?, env_args: u32[]) -> bool:
         if self.is_opaque_handle(id):
             return false    # never null bare (§17.1)
         let t = self.get(id)
         match t.kind:
-            .pointer, .cstr_, .func_, .never_, .error_, .fmt_, .void_, .param: return false
+            .pointer, .cstr_, .func_, .never_, .error_, .fmt_, .void_: return false
+            .param:
+                let resolved = self.through(id, env_decl, env_args)
+                return false if resolved == id else self.zeroable_in(resolved, none, no_args_view())
             .optional: return true
-            .array: return self.zeroable(t.elem)
+            .array: return self.zeroable_in(t.elem, env_decl, env_args)
             .tuple:
                 for m in t.args:
-                    if not self.zeroable(m):
+                    if not self.zeroable_in(m, env_decl, env_args):
                         return false
                 return true
             .struct_, .union_:
                 # a struct with a field default or a custom `init` has no zero value: the
                 # zero would bypass what they establish (§6.1)
                 if let decl = t.decl:
+                    var room: u32[16]
+                    let inner = self.instance_args(t, env_decl, env_args, room)
                     var cursor = decl.body
                     while let member = cursor:
-                        if member.kind == ast.Kind.field and not self.zeroable(member.type_id):
+                        if member.kind == ast.Kind.field and not self.zeroable_in(member.type_id, decl, inner):
                             return false
                         if t.kind == Kind.struct_ and member.kind == ast.Kind.field and member.left != none:
                             return false

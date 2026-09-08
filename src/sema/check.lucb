@@ -2697,7 +2697,11 @@ pub struct Checker:
 
     ## `(a, b) => body`: parameters come from the written types or the expected function type.
     mutating func lambda_type(e: ast.Node*, hint: u32) -> u32!:
-        let h = self.table.get(hint)
+        # a lambda where `(func(i64) -> i64)?` is expected takes the function's shape (§9.6)
+        var target = hint
+        if self.table.kind(hint) == types.Kind.optional and self.table.kind(self.table.get(hint).elem) == types.Kind.func_:
+            target = self.table.get(hint).elem
+        let h = self.table.get(target)
         let n = ast.count(e.right)
         var params = try types.no_args()
         if n > 0:

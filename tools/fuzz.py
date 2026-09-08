@@ -15,8 +15,14 @@
             arithmetic and casts; bounded floats; structs by value, small and large, as
             arguments, results, array elements and through pointers; spans, slices and
             `for`; fallible calls with `try`, `catch` and `recover`; optionals; a backed
-            enum under `match`; generic functions; an interface dispatched statically;
-            lambdas and function values; `defer`; text) that print a checksum, and each is
+            enum under `match`; a payload enum by value under `match`; a union; a generic
+            struct; vectors; generic functions; an interface dispatched statically; lambdas,
+            function values and a nullable function; tuples; static and mutating methods;
+            `defer`; text; and memory: heap objects and spans with `new`, uninitialised
+            `alloc`, raw bytes, a pointer to a fixed array, `free` and `defer free`, a
+            linked list built and released, a `FixedBuffer` arena through `in` and `with`,
+            a heap expression tree built under `errdefer`, and a fallible allocator with
+            `errdefer` caught by its caller) that print a checksum, and each is
             run four ways: the C backend, the C backend at -O2, the native backend, and
             the seed's interpreter. The outputs must agree; a disagreement, a crash, or a
             hang is a finding. Nothing generated traps: checked operands are masked, every
@@ -282,7 +288,7 @@ class Gen:
         self.pad = "    " * indent
         saved_locals = list(self.locals)
         for _ in range(r.randint(1, 4)):
-            k = r.randrange(24)
+            k = r.randrange(42)
             pad = "    " * indent
             self.pad = pad
             if k < 2:
@@ -306,9 +312,9 @@ class Gen:
             elif k == 10:
                 lines.append(r.choice([f"{pad}o0 = {self.expr(2)}", f"{pad}o0 = none", f"{pad}o0 = lookup({self.expr(2)})", f"{pad}a1 = o0 else {self.expr(2)}"]))
             elif k == 11 and depth > 0:
-                lines.append(f"{pad}if let v{self.loops} = o0:")
+                lines.append(f"{pad}if let ov{self.loops} = o0:")
                 self.loops += 1
-                self.locals.append((f"v{self.loops - 1}", "i64"))
+                self.locals.append((f"ov{self.loops - 1}", "i64"))
                 lines += self.statements(depth - 1, indent + 1)
                 self.locals.pop()
                 if r.random() < 0.5:
@@ -378,6 +384,145 @@ class Gen:
                 ty = r.choice(["i64", "u8", "i32", "u64"])
                 lines.append(f"{pad}let t{n}: {ty} = {self.expr(2, ty)}")
                 self.locals.append((f"t{n}", ty))
+            elif k == 24:
+                lines.append(r.choice([f"{pad}sh0 = Figure.rect(w = {self.expr(2)}, h = {self.expr(2)})", f"{pad}sh0 = Figure.circle(r = {self.expr(2)})", f"{pad}sh0 = Figure.empty", f"{pad}a{r.randrange(3)} = shape_area(sh0)"]))
+            elif k == 25 and depth > 0:
+                n = self.loops
+                self.loops += 1
+                lines.append(f"{pad}match sh0:")
+                lines.append(f"{pad}    .circle(rad{n}):")
+                self.locals.append((f"rad{n}", "i64"))
+                lines += self.statements(depth - 1, indent + 2)
+                self.locals.pop()
+                lines.append(f"{pad}    .rect(wid{n}, hei{n}):")
+                self.locals += [(f"wid{n}", "i64"), (f"hei{n}", "i64")]
+                lines += self.statements(depth - 1, indent + 2)
+                self.locals.pop(); self.locals.pop()
+                lines.append(f"{pad}    .empty:")
+                lines += self.statements(depth - 1, indent + 2)
+            elif k == 26:
+                if r.random() < 0.5:
+                    lines.append(f"{pad}u0.a = {self.expr(2)}")
+                    lines.append(f"{pad}a{r.randrange(3)} = u0.a")
+                else:
+                    lines.append(f"{pad}u0.b = {self.fexpr(2)}")
+                    lines.append(f"{pad}d{r.randrange(2)} = u0.b")
+                    lines.append(f"{pad}u0.a = {self.expr(1)}")
+            elif k == 27:
+                n = self.loops
+                self.loops += 1
+                lines.append(r.choice([f"{pad}pr0 = Pair[i64](a = {self.expr(2)}, b = {self.expr(2)})", f"{pad}pr0 = swap[i64](pr0)", f"{pad}a2 = pr0.a -% pr0.b", f"{pad}let pf{n} = Pair[f64](a = {self.fexpr(2)}, b = {self.fexpr(2)})\n{pad}d1 = swap[f64](pf{n}).a - pf{n}.b"]))
+            elif k == 28:
+                lines.append(r.choice([f"{pad}v0 = v0 +% v1", f"{pad}v1 = v0 *% i32[4]({r.randint(-5, 5)})", f"{pad}v0[{r.randrange(4)}] = {self.expr(2, 'i32')}", f"{pad}a0 = (i64)v0.sum() +% (i64)v1.min()", f"{pad}v1 = (v0 & 255)", f"{pad}v0 = v0 +| v1", f"{pad}v1 = v1 -% {r.randint(-5, 5)}", f"{pad}v0 = -%v1", f"{pad}e0 = v0[{r.randrange(4)}] *% v1[{r.randrange(4)}]"]))
+            elif k == 29:
+                n = self.loops
+                self.loops += 1
+                one = [name for name, count in self.funcs if count == 1]
+                lines.append(r.choice([f"{pad}fp0 = {r.choice(one)}" if one else f"{pad}fp0 = (x) => x *% 3", f"{pad}fp0 = (x) => x {r.choice(['+%', '-%', '^'])} {r.randint(-99, 99)}", f"{pad}fp0 = none", f"{pad}if let fn{n} = fp0:\n{pad}    a{r.randrange(3)} = fn{n}({self.expr(2)})"]))
+            elif k == 30:
+                n = self.loops
+                self.loops += 1
+                lines.append(f"{pad}let (qu{n}, re{n}) = divmod({self.expr(2)})")
+                self.locals += [(f"qu{n}", "i64"), (f"re{n}", "i64")]
+            elif k == 31:
+                lines.append(r.choice([f"{pad}p0 = P.of({self.expr(2)})", f"{pad}p0.bump({self.expr(2)})", f"{pad}ps[{r.randrange(4)}].bump({self.expr(1)})"]))
+            elif k == 32:
+                n = self.loops
+                self.loops += 1
+                lines.append(f"{pad}let hp{n} = try new P(x = {self.expr(2)}, y = {self.expr(1, 'u8')}, f = {self.fexpr(1)})")
+                lines.append(f"{pad}defer free(hp{n})")
+                lines.append(f"{pad}hp{n}.x = hp{n}.x +% {self.expr(1)}")
+                self.locals.append((f"hp{n}.x", "i64"))
+                self.locals.append((f"hp{n}.y", "u8"))
+            elif k == 33:
+                n = self.loops
+                self.loops += 1
+                size = r.choice([4, 8, 16])
+                lines.append(f"{pad}let hs{n} = try new i64[{size}]")
+                lines.append(f"{pad}defer free(hs{n})")
+                lines.append(f"{pad}for fi{n} in 0..<hs{n}.length:")
+                self.locals.append((f"(i64)fi{n}", "i64"))
+                lines.append(f"{pad}    hs{n}[fi{n}] = {self.expr(2)}")
+                self.locals.pop()
+                lines.append(f"{pad}a{r.randrange(3)} = sumspan(hs{n})")
+                self.locals.append((f"hs{n}[(usize)(a1 & {size - 1})]", "i64"))
+            elif k == 34:
+                n = self.loops
+                self.loops += 1
+                lines.append(f"{pad}var head{n}: Node*? = none")
+                lines.append(f"{pad}for li{n} in 0..<{r.randint(1, 6)}:")
+                self.locals.append((f"(i64)li{n}", "i64"))
+                lines.append(f"{pad}    head{n} = try new Node(value = {self.expr(2)}, next = head{n})")
+                self.locals.pop()
+                lines.append(f"{pad}a{r.randrange(3)} = list_sum(head{n})")
+                if r.random() < 0.5:
+                    lines.append(f"{pad}if let first{n} = head{n}:")
+                    lines.append(f"{pad}    first{n}.value = first{n}.value *% 5")
+                    lines.append(f"{pad}    a1 = a1 +% list_sum(head{n})")
+                lines.append(f"{pad}release(head{n})")
+            elif k == 35 and depth > 0:
+                n = self.loops
+                self.loops += 1
+                size = r.choice([4, 8])
+                lines.append(f"{pad}var backing{n}: u8[2048]")
+                lines.append(f"{pad}var arena{n} = memory.FixedBuffer.over(backing{n})")
+                if r.random() < 0.5:
+                    lines.append(f"{pad}let ax{n} = try new i64[{size}] in arena{n}")
+                    lines.append(f"{pad}for ai{n} in 0..<ax{n}.length:")
+                    self.locals.append((f"(i64)ai{n}", "i64"))
+                    lines.append(f"{pad}    ax{n}[ai{n}] = {self.expr(2)}")
+                    self.locals.pop()
+                    lines.append(f"{pad}a{r.randrange(3)} = sumspan(ax{n})")
+                    lines.append(f"{pad}free(ax{n}) in arena{n}")
+                else:
+                    lines.append(f"{pad}with arena{n}:")
+                    lines.append(f"{pad}    let ay{n} = try new P(x = {self.expr(2)}, y = {self.expr(1, 'u8')}, f = {self.fexpr(1)})")
+                    self.locals.append((f"ay{n}.x", "i64"))
+                    lines += self.statements(depth - 1, indent + 1)
+                    self.locals.pop()
+                    lines.append(f"{pad}    a{r.randrange(3)} = ay{n}.x +% (i64)ay{n}.y")
+                    lines.append(f"{pad}    free(ay{n})")
+            elif k == 36:
+                n = self.loops
+                self.loops += 1
+                lines.append(f"{pad}let tree{n} = try build_expr({r.randint(0, 4)}, {self.expr(2)})")
+                lines.append(f"{pad}d{r.randrange(2)} = total(tree{n}) * 0.5")
+                lines.append(f"{pad}drop(tree{n})")
+            elif k == 37:
+                n = self.loops
+                self.loops += 1
+                size = r.choice([2, 4, 8])
+                lines.append(f"{pad}let ap{n} = try alloc P[{size}]")
+                lines.append(f"{pad}defer free(ap{n})")
+                lines.append(f"{pad}for pi{n} in 0..<ap{n}.length:")
+                self.locals.append((f"(i64)pi{n}", "i64"))
+                lines.append(f"{pad}    ap{n}[pi{n}] = P.of({self.expr(2)})")
+                self.locals.pop()
+                lines.append(f"{pad}a{r.randrange(3)} = ap{n}[{r.randrange(size)}].x")
+                self.locals.append((f"ap{n}[(usize)(a0 & {size - 1})].x", "i64"))
+            elif k == 38:
+                n = self.loops
+                self.loops += 1
+                lines.append(f"{pad}let raw{n} = try alloc(64, 16)")
+                lines.append(f"{pad}defer free(raw{n})")
+                lines.append(f"{pad}for ri{n} in 0..<raw{n}.length:")
+                lines.append(f"{pad}    raw{n}[ri{n}] = (u8)ri{n}")
+                lines.append(f"{pad}raw{n}[{r.randrange(64)}] = {self.expr(1, 'u8')}")
+                lines.append(f"{pad}b{r.randrange(2)} = raw{n}[{r.randrange(64)}] +% raw{n}[(usize)(a0 & 63)]")
+            elif k == 39:
+                lines.append(f"{pad}a{r.randrange(3)} = risky({self.expr(2)}) catch failure:")
+                lines.append(f"{pad}    recover 0 -% (i64)(failure.code == bad)")
+            elif k == 40:
+                n = self.loops
+                self.loops += 1
+                lines.append(f"{pad}let fa{n} = try new (i64[4])")
+                lines.append(f"{pad}defer free(fa{n})")
+                lines.append(f"{pad}(*fa{n})[{r.randrange(4)}] = {self.expr(2)}")
+                lines.append(f"{pad}a{r.randrange(3)} = (*fa{n})[{r.randrange(4)}] +% (*fa{n})[0]")
+                self.locals.append((f"(*fa{n})[(usize)(a2 & 3)]", "i64"))
+            elif k == 41 and depth > 0:
+                lines.append(f"{pad}with memory.heap:")
+                lines += self.statements(depth - 1, indent + 1)
             else:
                 lines.append(f"{pad}a{r.randrange(3)} = {self.expr(2)}")
             lines.append(f"{pad}sum = sum *% 31 +% mix()")
@@ -386,22 +531,39 @@ class Gen:
 
     def program(self):
         r = self.rng
-        text = ["## generated by tools/fuzz.py", "let bad = ErrorCode.package(1)", "",
+        text = ["## generated by tools/fuzz.py", "import memory", "", "let bad = ErrorCode.package(1)", "",
                 "enum Kind as u8:", "    small = 0", "    large = 1", "    huge = 2", "",
                 "struct P:", "    var x: i64", "    var y: u8", "    var f: f64", "",
+                "    static func of(x: i64) -> P:", "        return P(x = x, y = (u8)x, f = 0.25)", "",
+                "    mutating func bump(d: i64):", "        self.x = self.x +% d", "",
+                "struct Node:", "    var value: i64", "    var next: Node*?", "",
+                "enum Expr:", "    number(value: f64)", "    sum(left: Expr*, right: Expr*)", "",
+                "enum Figure:", "    empty", "    circle(r: i64)", "    rect(w: i64, h: i64)", "",
+                "union U:", "    a: i64", "    b: f64", "",
+                "struct Pair[T]:", "    var a: T", "    var b: T", "",
                 "struct Q:", "    var a: i64", "    var b: i64", "    var c: i64", "    var tag: Kind", "",
                 "interface Shape:", "    func area() -> i64", "",
                 "struct Box: Shape:", "    var w: i64", "    var h: i64", "", "    func area() -> i64:", "        return self.w *% self.h", "",
                 "struct Tri: Shape:", "    var b: i64", "    var h: i64", "", "    func area() -> i64:", "        return (self.b *% self.h) // 2", "",
                 "var table: i64[8]", "var ps: P[4]", "var qs: Q[3]", "var sum: i64", "var a0: i64", "var a1: i64", "var a2: i64",
                 "var b0: u8", "var b1: u8", "var c0: u32", "var c1: u32", "var e0: i32", "var e1: i32", "var h0: u16", "var m0: u64", "var m1: u64",
-                "var d0: f64", "var d1: f64", "var p0: P", "var q0: Q", "var o0: i64?", "var s0: str", "var box0: Box", "var tri0: Tri", "",
+                "var d0: f64", "var d1: f64", "var p0: P", "var q0: Q", "var o0: i64?", "var s0: str", "var box0: Box", "var tri0: Tri",
+                "var sh0: Figure", "var u0: U", "var pr0: Pair[i64]", "var v0: i32[4]", "var v1: i32[4]", "var fp0: (func(i64) -> i64)?", "",
+                "func swap[T](p: Pair[T]) -> Pair[T]:", "    return Pair[T](a = p.b, b = p.a)", "",
+                "func list_sum(head: Node*?) -> i64:", "    var tally: i64 = 0", "    var cursor = head", "    while let n = cursor:", "        tally = tally *% 7 +% n.value", "        cursor = n.next", "    return tally", "",
+                "func release(head: Node*?):", "    var cursor = head", "    while let n = cursor:", "        let next = n.next", "        free(n)", "        cursor = next", "",
+                "func drop(e: Expr*):", "    match *e:", "        .number(value):", "            discard(value)", "        .sum(left, right):", "            drop(left)", "            drop(right)", "    free(e)", "",
+                "func build_expr(depth: i64, x: i64) -> Expr*!:", "    if depth <= 0:", "        return try new Expr.number(value = f64(x & 255) * 0.5)", "    let l = try build_expr(depth - 1, x *% 3)", "    errdefer drop(l)", "    let r = try build_expr(depth - 1, x +% 1)", "    return try new Expr.sum(left = l, right = r)", "",
+                "func total(e: const Expr*) -> f64:", "    match *e:", "        .number(value):", "            return value", "        .sum(left, right):", "            return total(left) + total(right)", "",
+                "func risky(x: i64) -> i64!:", "    let n = try new Node(value = x, next = none)", "    errdefer free(n)", "    if (x & 5) == 5:", "        error(bad, \"five\")", "    let v = n.value *% 3", "    free(n)", "    return v", "",
+                "func shape_area(s: Figure) -> i64:", "    match s:", "        .empty:", "            return 0", "        .circle(r):", "            return r *% r *% 3", "        .rect(w, h):", "            return w *% h", "",
+                "func divmod(x: i64) -> (i64, i64):", "    let d = (x & 1023) // 7", "    return (d, (x & 1023) % 7)", "",
                 "func pick[T](a: T, b: T, first: bool) -> T:", "    return a if first else b", "",
                 "func area_of[S: Shape](s: S*) -> i64:", "    return s.area()", "",
                 "func apply(f: func(i64) -> i64, x: i64) -> i64:", "    return f(x)", "",
                 "func makep(x: i64) -> P:", "    return P(x = x *% 7, y = (u8)x, f = f64(x & 255) * 0.5)", "",
                 "func makeq(x: i64) -> Q:", "    return Q(a = x, b = x *% 3, c = x ^ 255, tag = Kind.large if x > 0 else Kind.small)", "",
-                "func sumspan(v: const i64[]) -> i64:", "    var total: i64 = 0", "    for x in v:", "        total = total *% 3 +% x", "    return total", "",
+                "func sumspan(v: const i64[]) -> i64:", "    var tally: i64 = 0", "    for x in v:", "        tally = tally *% 3 +% x", "    return tally", "",
                 "func lookup(x: i64) -> i64?:", "    if (x & 3) == 0:", "        return none", "    return x *% 5", "",
                 "func fall(x: i64) -> i64!:", "    if (x & 7) == 3:", "        error(bad, \"three\")", "    return x +% 11", "",
                 "func fall2(x: i64) -> i64!:", "    let v = try fall(x)", "    return v *% 2", "",
@@ -411,6 +573,7 @@ class Gen:
                 "func mix() -> i64:", "    var acc: i64 = a0 +% a1 +% a2 +% (i64)b0 +% (i64)b1 +% (i64)c0 +% (i64)c1 +% (i64)e0 +% (i64)e1 +% (i64)h0 +% (i64)m0 +% (i64)m1",
                 "    acc = acc *% 31 +% p0.x +% (i64)p0.y +% ((i64)(p0.f * 4.0) & 65535) +% q0.a +% q0.b +% q0.c +% (i64)q0.tag",
                 "    acc = acc *% 31 +% ((i64)(d0 * 8.0) & 65535) +% ((i64)(d1 * 8.0) & 65535) +% (o0 else -1) +% (i64)s0.length +% box0.w +% tri0.b",
+                "    acc = acc *% 31 +% shape_area(sh0) +% pr0.a +% pr0.b +% (i64)v0.sum() +% (i64)v1.max() +% (i64)v0.min()",
                 "    return acc *% 31 +% sumspan(table) +% deferred(acc)", ""]
         for k in range(r.randint(0, 3)):
             n = r.randint(1, 3)
@@ -422,9 +585,12 @@ class Gen:
             text.append(f"    return {body}")
             text.append("")
             self.funcs.append((f"g{k}", n))
-        text.append("pub func main(arguments: str[]) -> i32:")
+        text.append("pub func main(arguments: str[]) -> i32!:")
         for i in range(8):
             text.append(f"    table[{i}] = {r.randint(-100, 100)}")
+        text.append(f"    v0 = i32[4]({r.randint(-9, 9)})")
+        text.append(f"    v1 = [{r.randint(-9, 9)}, {r.randint(-9, 9)}, {r.randint(-9, 9)}, {r.randint(-9, 9)}]")
+        text.append(f"    pr0 = Pair[i64](a = {r.randint(-9, 9)}, b = {r.randint(-9, 9)})")
         text.append(f"    a0 = {r.randint(-50, 50)}")
         text.append(f"    a1 = {r.randint(-50, 50)}")
         text.append(f"    a2 = {r.randint(-50, 50)}")
@@ -444,7 +610,7 @@ class Gen:
         text.append("        qs[j] = makeq((i64)j -% 1)")
         self.locals = []
         text += self.statements(3, 1)
-        text.append('    print(f"{sum} {a0} {a1} {a2} {b0} {b1} {c0} {c1} {e0} {e1} {h0} {m0} {m1} {d0} {d1} {p0.x} {p0.y} {p0.f} {q0.a} {q0.b} {q0.c} {(i64)q0.tag} {o0 else -1} {s0} {box0.area()} {tri0.area()} {table[3]} {table[7]}")')
+        text.append('    print(f"{sum} {a0} {a1} {a2} {b0} {b1} {c0} {c1} {e0} {e1} {h0} {m0} {m1} {d0} {d1} {p0.x} {p0.y} {p0.f} {q0.a} {q0.b} {q0.c} {(i64)q0.tag} {o0 else -1} {s0} {box0.area()} {tri0.area()} {table[3]} {table[7]} {shape_area(sh0)} {pr0.a} {v0[1]} {v1.sum()} {u0.a}")')
         text.append("    return 0")
         return "\n".join(text) + "\n"
 
