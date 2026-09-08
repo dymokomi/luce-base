@@ -131,7 +131,8 @@ natively under the gate and driven from outside by its `check.sh`:
 
 A host that lacks what a check needs (SDL3, `pkg-config`, a Metal device) fails
 the gate and says what to install; a green gate means every check ran. The gate
-ends with the fuzzer's short pass (`tools/fuzz.py --gate`); `tools/fuzz.py
+ends with the fuzzer's short pass (`tools/fuzz.py --gate`), whose generated programs
+span the value language; `tools/fuzz.py
 --minutes 60` runs it for an hour, and every finding lands under `build/fuzz/`.
 
 Every bug they find is pinned as a test in both compilers before the fix.

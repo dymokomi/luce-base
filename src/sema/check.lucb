@@ -31,6 +31,7 @@ import io
 import memory
 import sema.init_rules
 import support.decimal
+import support.literals
 import sema.prelude
 import sema.prune
 import sema.types
@@ -1281,7 +1282,7 @@ pub struct Checker:
     ## An array length: a literal, a constant name, `sizeof`, or arithmetic on those.
     mutating func constant_length(e: ast.Node*) -> u64!:
         if e.kind == ast.Kind.literal:
-            let value = decode_integer(e.text) catch failure:
+            let value = literals.decode_integer(e.text) catch failure:
                 return try self.fail(e, "integer literal does not fit")
             return value
         if e.kind == ast.Kind.group:
@@ -1767,7 +1768,7 @@ pub struct Checker:
             dest = self.table.get(dest).elem
         if not self.table.is_float(dest):
             return
-        if decimal.overflows(literal_body(e.text), self.table.bits(dest)):
+        if decimal.overflows(literals.literal_body(e.text), self.table.bits(dest)):
             discard(try self.fail(e, "the float literal is beyond its type; the infinities are constants of `math`"))
 
     func check_fits(e: ast.Node*, target: u32, negated: bool) -> !:
@@ -1776,7 +1777,7 @@ pub struct Checker:
             dest = self.table.get(dest).elem
         if not self.table.is_integer(dest):
             return
-        let value = decode_integer(e.text) catch failure:
+        let value = literals.decode_integer(e.text) catch failure:
             return try self.fail(e, "integer literal does not fit")
         if negated and value != 0 and not self.table.is_signed(dest):
             discard(try self.fail(e, "a negative literal does not fit an unsigned type"))
@@ -2043,7 +2044,7 @@ pub struct Checker:
             if first == 'b':
                 return try self.table.span(types.u8_id, true)
             return types.str_id
-        let suffix = literal_suffix(e.text)
+        let suffix = literals.literal_suffix(e.text)
         if suffix.length > 0:
             return try self.suffixed_literal(e, suffix)
         if is_float_literal(e.text):
@@ -2051,7 +2052,7 @@ pub struct Checker:
             try self.check_float_fits(e, types.f64_id)
             return types.untyped_float_id
         # a `u64` at most; the context checks again
-        let value = decode_integer(e.text) catch failure:
+        let value = literals.decode_integer(e.text) catch failure:
             return try self.fail(e, "integer literal does not fit")
         discard(value)
         return types.untyped_int_id
@@ -2134,7 +2135,7 @@ pub struct Checker:
     pub func constant_u64(e: ast.Node*) -> u64?:
         match e.kind:
             .literal:
-                let v = decode_integer(e.text) catch failure:
+                let v = literals.decode_integer(e.text) catch failure:
                     return none
                 return v
             .group:
@@ -2916,7 +2917,7 @@ pub struct Checker:
         var have = self.concrete(got)
         if got == types.untyped_int_id and inner.kind == ast.Kind.literal:
             # a bare literal past `i64` is `u64` under a cast: `(u64)18446744073709551615`
-            let magnitude = decode_integer(inner.text) catch failure:
+            let magnitude = literals.decode_integer(inner.text) catch failure:
                 return try self.fail(inner, "integer literal does not fit")
             if magnitude > 9223372036854775807:
                 have = types.u64_id
@@ -3297,7 +3298,7 @@ pub struct Checker:
         let v = argument.left else return try self.fail(e, "`ErrorCode.package` takes a code")
         if v.kind != ast.Kind.literal:
             return try self.fail(v, "`ErrorCode.package` takes an integer literal")
-        let code = decode_integer(v.text) catch failure:
+        let code = literals.decode_integer(v.text) catch failure:
             return try self.fail(v, "integer literal does not fit")
         if code > 65535:
             return try self.fail(v, "an error code is at most 65535; the package's identity takes the high half")
@@ -4747,7 +4748,7 @@ pub struct Checker:
                         while let o = earlier:
                             if o == m:
                                 break
-                            if o.kind == ast.Kind.enum_case and case_value(d, o) == case_value(d, m):
+                            if o.kind == ast.Kind.enum_case and types.case_value(d, o) == types.case_value(d, m):
                                 discard(try self.fail(m, "two cases share one value"))
                             earlier = o.next
                     elif d.ty != none:
@@ -4952,36 +4953,6 @@ pub func enum_backing(table: types.Table*, id: u32) -> u32:
     let d = table.get(id).decl else return types.i32_id
     let backing = d.ty else return types.i32_id
     return backing.type_id
-
-## The value of case `target` of enum `d`: as written, or one more than the case before.
-pub func case_value(d: ast.Node*, target: ast.Node*) -> u64:
-    var next: u64 = 0
-    var cursor = d.body
-    while let node = cursor:
-        if node.kind == ast.Kind.enum_case:
-            var v = next
-            if let written = node.left:
-                v = written_value(written) else next
-            if node == target:
-                return v
-            next = v +% 1
-        cursor = node.next
-    return 0
-
-## A case value as written: a literal, possibly grouped or negated.
-func written_value(e: ast.Node*) -> u64?:
-    if e.kind == ast.Kind.group:
-        let inner = e.left else return none
-        return written_value(inner)
-    if e.kind == ast.Kind.unary and e.text == "-":
-        let inner = e.left else return none
-        let v = written_value(inner) else return none
-        return 0 -% v
-    if e.kind == ast.Kind.literal:
-        let v = decode_integer(e.text) catch failure:
-            return none
-        return v
-    return none
 
 ## The identity of a package's error codes (§11.3): sixteen bits of its name, the same
 ## computation in every compiler of the language.
@@ -5554,7 +5525,7 @@ pub func decode_char(spelled: str) -> u32:
     return (u32)e
 
 func is_float_literal(text: str) -> bool:
-    let b = literal_body(text).bytes
+    let b = literals.literal_body(text).bytes
     if b.length > 1 and b[0] == '0' and (b[1] == 'x' or b[1] == 'X' or b[1] == 'b' or b[1] == 'B' or b[1] == 'o' or b[1] == 'O'):
         return false
     for byte in b:
@@ -5562,63 +5533,6 @@ func is_float_literal(text: str) -> bool:
             return true
     return false
 
-## The type suffix of a number literal, `u8` in `255u8` or `f32` in `0.5f32`, or empty
-## (§4.2, §4.3). A based literal's suffix begins at its first non-digit.
-pub func literal_suffix(text: str) -> str:
-    let b = text.bytes
-    var i: usize = 0
-    if b.length > 1 and b[0] == '0' and (b[1] == 'x' or b[1] == 'o' or b[1] == 'b'):
-        i = 2
-        while i < b.length and (is_hex_digit(b[i]) or b[i] == '_'):
-            i += 1
-        return (str)b[i..]
-    while i < b.length and b[i] != 'i' and b[i] != 'u' and b[i] != 'f':
-        i += 1
-    return (str)b[i..]
-
-## A number literal without its suffix: what its digits say.
-pub func literal_body(text: str) -> str:
-    return (str)text.bytes[..<text.length - literal_suffix(text).length]
-
-func is_hex_digit(b: u8) -> bool:
-    return (b >= '0' and b <= '9') or (b >= 'a' and b <= 'f') or (b >= 'A' and b <= 'F')
-
-## Decode an integer literal: decimal, `0x`, `0b`, `0o`, with `_` separators.
-pub func decode_integer(text: str) -> u64!:
-    let b = literal_body(text).bytes
-    var base: u64 = 10
-    var i: usize = 0
-    if b.length > 1 and b[0] == '0':
-        if b[1] == 'x' or b[1] == 'X':
-            base = 16
-            i = 2
-        elif b[1] == 'b' or b[1] == 'B':
-            base = 2
-            i = 2
-        elif b[1] == 'o' or b[1] == 'O':
-            base = 8
-            i = 2
-    var value: u64 = 0
-    while i < b.length:
-        let byte = b[i]
-        i += 1
-        if byte == '_':
-            continue
-        var digit: u64 = 0
-        if byte >= '0' and byte <= '9':
-            digit = (u64)(byte - '0')
-        elif byte >= 'a' and byte <= 'f':
-            digit = (u64)(byte - 'a') + 10
-        elif byte >= 'A' and byte <= 'F':
-            digit = (u64)(byte - 'A') + 10
-        else:
-            error(type_error, "bad digit in integer literal")
-        if digit >= base:
-            error(type_error, "bad digit in integer literal")
-        if value > (18446744073709551615 - digit) // base:
-            error(type_error, "integer literal does not fit")
-        value = value * base + digit
-    return value
 
 ## The first `b` in `s`, or `s.length`.
 func check_decode_char(text: str) -> u32:

@@ -18,6 +18,7 @@ import front.ast
 import io
 import memory
 import support.list
+import support.literals
 
 pub enum Kind as u8:
     error_ = 1
@@ -407,16 +408,36 @@ pub struct Table:
                         return false
                 return true
             .struct_, .union_:
+                # a struct with a field default or a custom `init` has no zero value: the
+                # zero would bypass what they establish (§6.1)
                 if let decl = t.decl:
                     var cursor = decl.body
                     while let member = cursor:
                         if member.kind == ast.Kind.field and not self.zeroable(member.type_id):
                             return false
+                        if t.kind == Kind.struct_ and member.kind == ast.Kind.field and member.left != none:
+                            return false
+                        if t.kind == Kind.struct_ and member.kind == ast.Kind.func_ and member.text == "init":
+                            return false
                         cursor = member.next
                 return true
             .enum_:
-                # integer-backed enums need a case for zero; payload enums use tag 0
-                return true
+                # an integer-backed enum needs a case whose value is zero; a payload enum's
+                # first case must carry no payload, since tag zero is that case (§6.1)
+                let decl = t.decl else return true
+                if decl.ty != none:
+                    var cursor = decl.body
+                    while let node = cursor:
+                        if node.kind == ast.Kind.enum_case and case_value(decl, node) == 0:
+                            return true
+                        cursor = node.next
+                    return false
+                var first = decl.body
+                while let node = first:
+                    if node.kind == ast.Kind.enum_case:
+                        return node.body == none
+                    first = node.next
+                return false
             .interface_: return false
             _: return true
 
@@ -755,3 +776,33 @@ func declared_align(natural: u64, decl: ast.Node*) -> u64:
         return natural
     let e = explicit_align(decl.right)
     return e if e > natural else natural
+
+## The value of case `target` of enum `d`: as written, or one more than the case before.
+pub func case_value(d: ast.Node*, target: ast.Node*) -> u64:
+    var next: u64 = 0
+    var cursor = d.body
+    while let node = cursor:
+        if node.kind == ast.Kind.enum_case:
+            var v = next
+            if let written = node.left:
+                v = written_value(written) else next
+            if node == target:
+                return v
+            next = v +% 1
+        cursor = node.next
+    return 0
+
+## A case value as written: a literal, possibly grouped or negated.
+func written_value(e: ast.Node*) -> u64?:
+    if e.kind == ast.Kind.group:
+        let inner = e.left else return none
+        return written_value(inner)
+    if e.kind == ast.Kind.unary and e.text == "-":
+        let inner = e.left else return none
+        let v = written_value(inner) else return none
+        return 0 -% v
+    if e.kind == ast.Kind.literal:
+        let v = literals.decode_integer(e.text) catch failure:
+            return none
+        return v
+    return none

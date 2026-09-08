@@ -28,6 +28,7 @@ import process
 import sema.check
 import support.buffer
 import support.list
+import support.literals
 import support.runtime
 import support.version
 
@@ -822,13 +823,13 @@ pub func main(arguments: c.str[]) -> i32!:
                 options.native = true
                 dump_ir = true
             elif a == "--opt" and i + 1 < arguments.length:
-                opt_level = u32(check.decode_integer((str)arguments[i + 1]) catch failure:
+                opt_level = u32(literals.decode_integer((str)arguments[i + 1]) catch failure:
                     recover 3)
                 i += 1
             elif a == "--opt-report":
                 opt_report = true
             elif a == "--opt-count" and i + 1 < arguments.length:
-                opt_count = u32(check.decode_integer((str)arguments[i + 1]) catch failure:
+                opt_count = u32(literals.decode_integer((str)arguments[i + 1]) catch failure:
                     recover 0)
                 i += 1
             elif a == "--native":

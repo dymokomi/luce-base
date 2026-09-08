@@ -61,9 +61,9 @@ history. Nothing is listed here that already exists.
 
 ### Hardening
 
-The fuzzer exists (`tools/fuzz.py`, 0.11.1): mutated programs must be accepted or
-rejected with a positioned diagnostic, generated programs must agree across the four
-executions; the gate runs its short deterministic pass, and `--minutes M` runs it for
+The fuzzer exists (`tools/fuzz.py`, 0.11.1, generator widened to the value language in
+0.11.4): mutated programs must be accepted or rejected with a positioned diagnostic,
+generated programs must agree across the four executions; the gate runs its short deterministic pass, and `--minutes M` runs it for
 longer. Run it for hours on both hosts before a release; every finding becomes a test.
 
 9. **The optimiser under a differential matrix.** `tests/optimization` counts

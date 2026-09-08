@@ -1,0 +1,7 @@
+# error: this global's type has no zero value
+enum Kind as u8:
+    small = 1
+    large = 2
+var k: Kind
+pub func main(arguments: str[]) -> i32:
+    return (i32)k

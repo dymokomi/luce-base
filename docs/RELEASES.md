@@ -5,6 +5,23 @@
 release is a VERSION bump, a tag `luce-base-N`, and a push, the way luce-seed does it
 (`bootstrap/SEED` pins the seed the tree is built against).
 
+## 0.11.4
+
+- The generator covers the value language: integers of six widths under wrapping, checked
+  (on masked operands), saturating, dividing and shifting arithmetic and every cast between
+  them; floats kept finite; structs by value, small and large, as arguments, results, array
+  elements and through pointers; spans, slices and `for`; fallible calls with `try`, `catch`
+  and `recover`; optionals; a backed enum under `match`; generic functions; an interface
+  dispatched statically; lambdas and function values; `defer`; text. Nothing it writes traps.
+- What widening it found before its first run: a struct with a field default or a custom
+  `init` and an integer-backed enum with no zero case were given zero values, where §6.1
+  says they have none; the type table now reads the enum's case values and the struct's
+  members (`06_bindings/zero_values_of_enums` and four rejections). The seed had the enum
+  rule and lacked the struct one, and typed an `else` fallback under the optional it was
+  stored into; pinned to luce-seed-0.52.
+- Integer literal decoding moved to `support.literals` and enum case values to the type
+  table, so the table can answer zeroability without the checker.
+
 ## 0.11.3
 
 - The fuzzer's first hour (`tools/fuzz.py --minutes 60`, seed 23: 19,500 mutations, 2,562

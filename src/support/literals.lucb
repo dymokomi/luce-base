@@ -1,0 +1,71 @@
+#==============================================================================================
+#
+#   literals - Number literals as text
+#
+#   DESCRIPTION:
+#       The spelling of an integer literal (§4.2): its digits in any base with `_`
+#       separators, its optional type suffix, and its value as a `u64`. The checker, the type
+#       table, and both backends read literals through this one module, so a literal means
+#       the same thing everywhere.
+#
+#==============================================================================================
+
+pub let bad_literal: ErrorCode = ErrorCode.package(18)
+
+## The type suffix of a number literal, `u8` in `255u8` or `f32` in `0.5f32`, or empty
+## (§4.2, §4.3). A based literal's suffix begins at its first non-digit.
+pub func literal_suffix(text: str) -> str:
+    let b = text.bytes
+    var i: usize = 0
+    if b.length > 1 and b[0] == '0' and (b[1] == 'x' or b[1] == 'o' or b[1] == 'b'):
+        i = 2
+        while i < b.length and (is_hex_digit(b[i]) or b[i] == '_'):
+            i += 1
+        return (str)b[i..]
+    while i < b.length and b[i] != 'i' and b[i] != 'u' and b[i] != 'f':
+        i += 1
+    return (str)b[i..]
+
+## A number literal without its suffix: what its digits say.
+pub func literal_body(text: str) -> str:
+    return (str)text.bytes[..<text.length - literal_suffix(text).length]
+
+func is_hex_digit(b: u8) -> bool:
+    return (b >= '0' and b <= '9') or (b >= 'a' and b <= 'f') or (b >= 'A' and b <= 'F')
+
+## Decode an integer literal: decimal, `0x`, `0b`, `0o`, with `_` separators.
+pub func decode_integer(text: str) -> u64!:
+    let b = literal_body(text).bytes
+    var base: u64 = 10
+    var i: usize = 0
+    if b.length > 1 and b[0] == '0':
+        if b[1] == 'x' or b[1] == 'X':
+            base = 16
+            i = 2
+        elif b[1] == 'b' or b[1] == 'B':
+            base = 2
+            i = 2
+        elif b[1] == 'o' or b[1] == 'O':
+            base = 8
+            i = 2
+    var value: u64 = 0
+    while i < b.length:
+        let byte = b[i]
+        i += 1
+        if byte == '_':
+            continue
+        var digit: u64 = 0
+        if byte >= '0' and byte <= '9':
+            digit = (u64)(byte - '0')
+        elif byte >= 'a' and byte <= 'f':
+            digit = (u64)(byte - 'a') + 10
+        elif byte >= 'A' and byte <= 'F':
+            digit = (u64)(byte - 'A') + 10
+        else:
+            error(bad_literal, "bad digit in integer literal")
+        if digit >= base:
+            error(bad_literal, "bad digit in integer literal")
+        if value > (18446744073709551615 - digit) // base:
+            error(bad_literal, "integer literal does not fit")
+        value = value * base + digit
+    return value

@@ -10,11 +10,17 @@
             hang, a status the driver does not use, or a diagnostic without a position is
             a finding, written under build/fuzz/ with the input that caused it.
 
-  generate  well-typed programs are generated from a small grammar (wrapping arithmetic,
-            shifts within the width, comparisons, branches, counted loops, arrays, function
-            calls) that print a checksum, and each is run four ways: the C backend, the C
-            backend at -O2, the native backend, and the seed's interpreter. The outputs
-            must agree; a disagreement, a crash, or a hang is a finding.
+  generate  well-typed programs are generated over a wide slice of the language (integers
+            of six widths with wrapping, checked, saturating, dividing and shifting
+            arithmetic and casts; bounded floats; structs by value, small and large, as
+            arguments, results, array elements and through pointers; spans, slices and
+            `for`; fallible calls with `try`, `catch` and `recover`; optionals; a backed
+            enum under `match`; generic functions; an interface dispatched statically;
+            lambdas and function values; `defer`; text) that print a checksum, and each is
+            run four ways: the C backend, the C backend at -O2, the native backend, and
+            the seed's interpreter. The outputs must agree; a disagreement, a crash, or a
+            hang is a finding. Nothing generated traps: checked operands are masked, every
+            index is in range, every divisor is non-zero, every float stays finite.
 
 Usage:
   tools/fuzz.py [--seed N] [--mutations N] [--programs N] [--minutes M] [--gate]
@@ -150,115 +156,268 @@ def check_one(text, timeout, findings, label):
 # ---- generation ----------------------------------------------------------------------
 
 class Gen:
-    """A well-typed program over i64, u8, u32, and i64 arrays, with wrapping arithmetic so
-    nothing traps, shifts within the width, counted loops, and functions."""
+    """A well-typed program that prints a checksum, over a wide slice of the language:
+    integers of several widths with wrapping, checked (on masked operands), saturating,
+    division and remainder (non-zero divisors), shifts within the width, and casts; floats
+    kept bounded so every value is finite; structs by value, small and large, as arguments,
+    results, array elements and through pointers; spans and slices with `for`; fallible
+    functions with `try`, `catch` and `recover`; optionals with `if let` and `else`; a
+    backed enum under `match`; generic functions; an interface dispatched statically;
+    function values and lambdas; `defer`; and text. Nothing traps: every operand a checked
+    operator sees is masked first, every index is in range, every divisor is non-zero."""
 
     def __init__(self, rng):
         self.rng = rng
         self.funcs = []   # (name, params)
         self.loops = 0
+        self.locals = []  # (name, type) locals in scope of the statement being written
+
+    # -- integers ---------------------------------------------------------------------
+
+    def leaf(self, ty):
+        r = self.rng
+        pool = {
+            "i64": ["a0", "a1", "a2", "table[%d]" % r.randrange(8), "(i64)b0", "(i64)c1", "p0.x", "q0.a", "q0.b", "(i64)e0", "(i64)h0", "(i64)q0.tag", "(i64)s0.length", "(i64)table.length", "box0.w", "tri0.h", "((i64)d0 & 4095)", "((i64)(d1 * 4.0) & 255)", "((i64)s0.bytes[(usize)(a1 & 3)])", "((i64)m0 & 4095)", "((i64)m1 & 4095)"],
+            "u8": ["b0", "b1", "p0.y", "(u8)a0", "(u8)c0", "s0.bytes[(usize)(a0 & 3)]"],
+            "u32": ["c0", "c1", "(u32)a1", "(u32)e0"],
+            "i32": ["e0", "e1", "(i32)a2", "(i32)b1"],
+            "u16": ["h0", "(u16)a0", "(u16)c1"],
+            "u64": ["m0", "m1", "(u64)a2", "(u64)c0"],
+        }
+        for name, t in self.locals:
+            if t == ty:
+                pool[ty] = pool[ty] + [name, name]
+        if r.random() < 0.25:
+            if ty == "i64":
+                return str(r.randint(-1000, 1000))
+            if ty == "i32":
+                return str(r.randint(-1000, 1000))
+            return str(r.randint(0, {"u8": 255, "u32": 4000000000, "u16": 65535, "u64": 1000000}[ty]))
+        return r.choice(pool[ty])
 
     def expr(self, depth, ty="i64"):
         r = self.rng
         if depth <= 0 or r.random() < 0.3:
-            k = r.randrange(6)
-            if k == 0:
-                return str(r.randint(-1000, 1000)) if ty == "i64" else str(r.randint(0, 255 if ty == "u8" else 4000000000))
-            if k == 1 and ty == "i64":
-                return f"a{r.randrange(3)}"
-            if k == 2 and ty == "i64":
-                return f"table[{r.randrange(8)}]"
-            if k == 3 and ty == "i64":
-                return f"(i64)b{r.randrange(2)}"
-            if ty == "u8":
-                return f"b{r.randrange(2)}"
-            if ty == "u32":
-                return f"c{r.randrange(2)}"
-            return f"a{r.randrange(3)}"
-        k = r.randrange(9)
-        if ty == "i64":
-            if k < 3:
-                op = r.choice(["+%", "-%", "*%"])
-                return f"({self.expr(depth - 1)} {op} {self.expr(depth - 1)})"
-            if k == 3:
-                return f"({self.expr(depth - 1)} {r.choice(['&', '|', '^'])} {self.expr(depth - 1)})"
-            if k == 4:
-                # `<<` discards the bits shifted past the width (§7.2), whatever the value,
-                # so the executions must agree on it too
-                return f"({self.expr(depth - 1)} {r.choice(['<<', '>>'])} {r.randrange(0, 63)})"
-            if k == 5:
-                return f"({self.expr(depth - 1)} if {self.cond(depth - 1)} else {self.expr(depth - 1)})"
-            if k == 6:
-                return f"(i64){self.expr(depth - 1, 'u8')}"
-            if k == 7:
-                return f"(i64){self.expr(depth - 1, 'u32')}"
+            return self.leaf(ty)
+        width = {"i64": 63, "u8": 7, "u32": 31, "i32": 31, "u16": 15, "u64": 63}[ty]
+        k = r.randrange(16)
+        if k < 3:
+            return f"({self.expr(depth - 1, ty)} {r.choice(['+%', '-%', '*%'])} {self.expr(depth - 1, ty)})"
+        if k == 3:
+            return f"({self.expr(depth - 1, ty)} {r.choice(['&', '|', '^'])} {self.expr(depth - 1, ty)})"
+        if k == 4:
+            return f"({self.expr(depth - 1, ty)} {r.choice(['<<', '>>'])} {r.randrange(0, width)})"
+        if k == 5:
+            return f"({self.expr(depth - 1, ty)} if {self.cond(depth - 1)} else {self.expr(depth - 1, ty)})"
+        if k == 6:
+            # checked arithmetic on operands masked well inside the width never traps
+            mask = {"i64": 4095, "u8": 15, "u32": 4095, "i32": 4095, "u16": 255, "u64": 4095}[ty]
+            return f"(({self.expr(depth - 1, ty)} & {mask}) {r.choice(['+', '-', '*']) if ty in ('i64', 'i32') else r.choice(['+', '*'])} ({self.expr(depth - 1, ty)} & {mask}))"
+        if k == 7:
+            # division and remainder: a non-negative dividend, a divisor that is never zero
+            top = 127 if ty == "u8" else 1023
+            return f"(({self.expr(depth - 1, ty)} & {top}) {r.choice(['//', '%'])} (({self.expr(depth - 1, ty)} & 63) | 1))"
+        if k == 8:
+            return f"({self.expr(depth - 1, ty)} {r.choice(['+|', '-|', '*|'])} {self.expr(depth - 1, ty)})"
+        if k == 9:
+            other = r.choice([t for t in ("i64", "u8", "u32", "i32", "u16", "u64") if t != ty])
+            return f"({ty}){self.expr(depth - 1, other)}"
+        if k == 10 and ty == "i64":
+            return f"pick[i64]({self.expr(depth - 1)}, {self.expr(depth - 1)}, {self.cond(depth - 1)})"
+        if k == 11 and ty == "i64":
+            return f"(o0 else {self.expr(depth - 1)})"
+        if k == 12 and ty == "i64":
+            return f"safe({self.expr(depth - 1)})"
+        if k == 13 and ty == "i64":
+            return f"apply((x) => x {r.choice(['+%', '-%', '*%'])} {r.randint(-9, 9)}, {self.expr(depth - 1)})"
+        if k == 14 and ty == "i64":
             if self.funcs:
                 name, n = r.choice(self.funcs)
                 return f"{name}({', '.join(self.expr(depth - 1) for _ in range(n))})"
-            return f"(0 -% {self.expr(depth - 1)})"
-        if ty == "u8":
-            if k < 4:
-                return f"({self.expr(depth - 1, 'u8')} {r.choice(['+%', '-%', '*%'])} {self.expr(depth - 1, 'u8')})"
-            if k < 6:
-                return f"({self.expr(depth - 1, 'u8')} {r.choice(['&', '|', '^'])} {self.expr(depth - 1, 'u8')})"
-            if k == 6:
-                return f"({self.expr(depth - 1, 'u8')} >> {r.randrange(0, 7)})"
-            return f"(u8){self.expr(depth - 1)}"
-        # u32
-        if k < 4:
-            return f"({self.expr(depth - 1, 'u32')} {r.choice(['+%', '-%', '*%'])} {self.expr(depth - 1, 'u32')})"
-        if k < 6:
-            return f"({self.expr(depth - 1, 'u32')} {r.choice(['<<', '>>'])} {r.randrange(0, 31)})"
-        return f"(u32){self.expr(depth - 1)}"
+            return f"sumspan(table[{r.randrange(0, 4)}..<{r.randrange(4, 9)}])"
+        if k == 15 and ty == "i64":
+            return r.choice([f"area_of(&box0)", f"area_of(&tri0)", f"sumspan(table[{r.randrange(0, 4)}..<{r.randrange(4, 9)}])", f"makeq({self.expr(depth - 1)}).c", f"makep({self.expr(depth - 1)}).x", f"(0 -% {self.expr(depth - 1)})"])
+        return f"(0 -% {self.expr(depth - 1, ty)})"
+
+    def fexpr(self, depth):
+        """A float kept finite and small: fresh from a masked integer, or a contraction."""
+        r = self.rng
+        if depth <= 0 or r.random() < 0.3:
+            return r.choice(["d0", "d1", "p0.f", str(r.choice([0.5, 2.25, -1.5, 3.0, 0.125, 10.0, -0.75])), f"f64({self.expr(1)} & 4095)", "(f64)b0", "(f64)(a0 & 255)"])
+        k = r.randrange(7)
+        if k < 2:
+            return f"({self.fexpr(depth - 1)} {r.choice(['+', '-'])} {self.fexpr(depth - 1)})"
+        if k == 2:
+            return f"({self.fexpr(depth - 1)} * {r.choice(['0.5', '0.25', '-0.5', '0.001'])})"
+        if k == 3:
+            return f"({self.fexpr(depth - 1)} / {r.choice(['2.0', '4.0', '-8.0', '3.0'])})"
+        if k == 4:
+            return f"({self.fexpr(depth - 1)} if {self.fcond(depth - 1)} else {self.fexpr(depth - 1)})"
+        if k == 5:
+            return f"pick[f64]({self.fexpr(depth - 1)}, {self.fexpr(depth - 1)}, {self.cond(depth - 1)})"
+        return f"(-{self.fexpr(depth - 1)})"
+
+    def fcond(self, depth):
+        return f"({self.fexpr(depth)} {self.rng.choice(['<', '<=', '==', '!=', '>=', '>'])} {self.fexpr(depth)})"
 
     def cond(self, depth):
         r = self.rng
         if depth <= 0 or r.random() < 0.4:
-            return f"({self.expr(depth)} {r.choice(['<', '<=', '==', '!=', '>=', '>'])} {self.expr(depth)})"
+            k = r.randrange(6)
+            if k == 0:
+                return self.fcond(depth)
+            if k == 1:
+                return r.choice(["(o0 == none)", "(o0 != none)", "(q0.tag == Kind.large)", "(q0.tag != Kind.small)", "(s0 == \"abcd\")", "(p0 == makep(a0))"])
+            ty = r.choice(["i64", "i64", "u8", "u32", "i32"])
+            return f"({self.expr(depth, ty)} {r.choice(['<', '<=', '==', '!=', '>=', '>'])} {self.expr(depth, ty)})"
+        if r.random() < 0.2:
+            return f"(not {self.cond(depth - 1)})"
         return f"({self.cond(depth - 1)} {r.choice(['and', 'or'])} {self.cond(depth - 1)})"
+
+    # -- statements -------------------------------------------------------------------
 
     def statements(self, depth, indent):
         r = self.rng
         lines = []
+        self.pad = "    " * indent
+        saved_locals = list(self.locals)
         for _ in range(r.randint(1, 4)):
-            k = r.randrange(7)
+            k = r.randrange(24)
             pad = "    " * indent
+            self.pad = pad
             if k < 2:
                 lines.append(f"{pad}a{r.randrange(3)} = {self.expr(3)}")
             elif k == 2:
                 lines.append(f"{pad}b{r.randrange(2)} = {self.expr(2, 'u8')}")
             elif k == 3:
-                lines.append(f"{pad}c{r.randrange(2)} = {self.expr(2, 'u32')}")
+                lines.append(f"{pad}{r.choice(['c0', 'c1'])} = {self.expr(2, 'u32')}")
             elif k == 4:
+                lines.append(f"{pad}{r.choice(['e0', 'e1'])} = {self.expr(2, 'i32')}")
+            elif k == 5:
+                lines.append(f"{pad}h0 = {self.expr(2, 'u16')}" if r.random() < 0.34 else f"{pad}m{r.randrange(2)} = {self.expr(2, 'u64')}")
+            elif k == 6:
                 lines.append(f"{pad}table[{r.randrange(8)}] = {self.expr(2)}")
-            elif k == 5 and depth > 0:
+            elif k == 7:
+                lines.append(f"{pad}d{r.randrange(2)} = {self.fexpr(3)}")
+            elif k == 8:
+                lines.append(r.choice([f"{pad}p0 = makep({self.expr(2)})", f"{pad}p0.x = {self.expr(2)}", f"{pad}p0.y = {self.expr(2, 'u8')}", f"{pad}p0.f = {self.fexpr(2)}", f"{pad}p0 = pick[P](p0, makep({self.expr(2)}), {self.cond(1)})", f"{pad}ps[{r.randrange(4)}] = p0", f"{pad}p0 = ps[{r.randrange(4)}]", f"{pad}p0 = P(x = {self.expr(2)}, y = {self.expr(1, 'u8')}, f = {self.fexpr(1)})"]))
+            elif k == 9:
+                lines.append(r.choice([f"{pad}q0 = makeq({self.expr(2)})", f"{pad}q0.b = {self.expr(2)}", f"{pad}q0.tag = Kind.{r.choice(['small', 'large', 'huge'])}", f"{pad}q0 = pick[Q](q0, makeq({self.expr(2)}), {self.cond(1)})", f"{pad}qs[{r.randrange(3)}] = q0", f"{pad}q0 = qs[{r.randrange(3)}]", f"{pad}q0.c = qs[{r.randrange(3)}].a +% q0.c"]))
+            elif k == 10:
+                lines.append(r.choice([f"{pad}o0 = {self.expr(2)}", f"{pad}o0 = none", f"{pad}o0 = lookup({self.expr(2)})", f"{pad}a1 = o0 else {self.expr(2)}"]))
+            elif k == 11 and depth > 0:
+                lines.append(f"{pad}if let v{self.loops} = o0:")
+                self.loops += 1
+                self.locals.append((f"v{self.loops - 1}", "i64"))
+                lines += self.statements(depth - 1, indent + 1)
+                self.locals.pop()
+                if r.random() < 0.5:
+                    lines.append(f"{pad}else:")
+                    lines += self.statements(depth - 1, indent + 1)
+            elif k == 12:
+                lines.append(f"{pad}a{r.randrange(3)} = fall({self.expr(2)}) catch failure:")
+                lines.append(f"{pad}    recover {self.expr(2)} +% (i64)(failure.code == bad)")
+            elif k == 13 and depth > 0:
+                lines.append(f"{pad}match q0.tag:")
+                for case in ("small", "large", "huge"):
+                    if r.random() < 0.7:
+                        lines.append(f"{pad}    .{case}:")
+                        lines += self.statements(depth - 1, indent + 2)
+                lines.append(f"{pad}    _:")
+                lines += self.statements(depth - 1, indent + 2)
+            elif k == 14:
+                lines.append(f"{pad}a{r.randrange(3)} = match ({self.expr(2)} & 15):")
+                lines.append(f"{pad}    0 => {self.expr(2)}")
+                lines.append(f"{pad}    1..<5 => {self.expr(2)}")
+                lines.append(f"{pad}    5..=9 => {self.expr(2)}")
+                lines.append(f"{pad}    _ => {self.expr(2)}")
+            elif k == 15:
+                lines.append(r.choice([f"{pad}box0.w = {self.expr(2)}", f"{pad}tri0.b = {self.expr(2)}", f"{pad}a2 = area_of(&box0) +% area_of(&tri0)", f"{pad}a0 = box0.area()", f"{pad}a1 = tri0.area()"]))
+            elif k == 16:
+                n = self.loops
+                self.loops += 1
+                lines.append(f"{pad}var ptr{n}: i64* = &table[{r.randrange(8)}]")
+                lines.append(r.choice([f"{pad}*ptr{n} = {self.expr(2)}", f"{pad}*ptr{n} += {self.expr(1)} & 255", f"{pad}a0 = *ptr{n} +% a0", f"{pad}*ptr{n} = *ptr{n} *% 3"]))
+            elif k == 17:
+                word = r.choice(['"abcd"', '"wxyz"', '"hello world"', '"0123456789"'])
+                lines.append(r.choice([f"{pad}s0 = {word}", f"{pad}a2 = (i64)s0.bytes[{r.randrange(0, 2)}..<{r.randrange(2, 5)}].length +% a2", f"{pad}a0 = (i64)s0.bytes[(usize)(a1 & 3)] +% (i64)s0.length"]))
+            elif k == 18 and depth > 0:
+                n = self.loops
+                self.loops += 1
+                lines.append(f"{pad}for k{n} in 0..<{r.randint(1, 6)}:")
+                self.locals.append((f"(i64)k{n}", "i64"))
+                lines += self.statements(depth - 1, indent + 1)
+                self.locals.pop()
+            elif k == 19 and depth > 0:
+                n = self.loops
+                self.loops += 1
+                lo, hi = r.randrange(0, 4), r.randrange(4, 9)
+                lines.append(f"{pad}for x{n} in table[{lo}..<{hi}]:")
+                self.locals.append((f"x{n}", "i64"))
+                lines += self.statements(depth - 1, indent + 1)
+                self.locals.pop()
+            elif k == 20 and depth > 0:
                 lines.append(f"{pad}if {self.cond(2)}:")
                 lines += self.statements(depth - 1, indent + 1)
                 if r.random() < 0.5:
                     lines.append(f"{pad}else:")
                     lines += self.statements(depth - 1, indent + 1)
-            elif k == 6 and depth > 0:
-                n = r.randint(1, 20)
+            elif k == 21 and depth > 0:
+                n = r.randint(1, 12)
                 self.loops += 1
                 name = f"idx{self.loops}"
                 lines.append(f"{pad}var {name}: i64 = 0")
                 lines.append(f"{pad}while {name} < {n}:")
+                self.locals.append((name, "i64"))
                 lines += self.statements(depth - 1, indent + 1)
+                self.locals.pop()
                 lines.append(f"{pad}    {name} += 1")
+            elif k == 22:
+                n = self.loops
+                self.loops += 1
+                ty = r.choice(["i64", "u8", "i32", "u64"])
+                lines.append(f"{pad}let t{n}: {ty} = {self.expr(2, ty)}")
+                self.locals.append((f"t{n}", ty))
             else:
                 lines.append(f"{pad}a{r.randrange(3)} = {self.expr(2)}")
-            lines.append(f"{pad}sum = sum *% 31 +% a0 +% a1 +% a2 +% (i64)b0 +% (i64)b1 +% (i64)c0 +% (i64)c1")
+            lines.append(f"{pad}sum = sum *% 31 +% mix()")
+        self.locals = saved_locals
         return lines
 
     def program(self):
         r = self.rng
-        text = ["## generated by tools/fuzz.py", "var table: i64[8]", "var sum: i64", "var a0: i64", "var a1: i64", "var a2: i64", "var b0: u8", "var b1: u8", "var c0: u32", "var c1: u32", ""]
+        text = ["## generated by tools/fuzz.py", "let bad = ErrorCode.package(1)", "",
+                "enum Kind as u8:", "    small = 0", "    large = 1", "    huge = 2", "",
+                "struct P:", "    var x: i64", "    var y: u8", "    var f: f64", "",
+                "struct Q:", "    var a: i64", "    var b: i64", "    var c: i64", "    var tag: Kind", "",
+                "interface Shape:", "    func area() -> i64", "",
+                "struct Box: Shape:", "    var w: i64", "    var h: i64", "", "    func area() -> i64:", "        return self.w *% self.h", "",
+                "struct Tri: Shape:", "    var b: i64", "    var h: i64", "", "    func area() -> i64:", "        return (self.b *% self.h) // 2", "",
+                "var table: i64[8]", "var ps: P[4]", "var qs: Q[3]", "var sum: i64", "var a0: i64", "var a1: i64", "var a2: i64",
+                "var b0: u8", "var b1: u8", "var c0: u32", "var c1: u32", "var e0: i32", "var e1: i32", "var h0: u16", "var m0: u64", "var m1: u64",
+                "var d0: f64", "var d1: f64", "var p0: P", "var q0: Q", "var o0: i64?", "var s0: str", "var box0: Box", "var tri0: Tri", "",
+                "func pick[T](a: T, b: T, first: bool) -> T:", "    return a if first else b", "",
+                "func area_of[S: Shape](s: S*) -> i64:", "    return s.area()", "",
+                "func apply(f: func(i64) -> i64, x: i64) -> i64:", "    return f(x)", "",
+                "func makep(x: i64) -> P:", "    return P(x = x *% 7, y = (u8)x, f = f64(x & 255) * 0.5)", "",
+                "func makeq(x: i64) -> Q:", "    return Q(a = x, b = x *% 3, c = x ^ 255, tag = Kind.large if x > 0 else Kind.small)", "",
+                "func sumspan(v: const i64[]) -> i64:", "    var total: i64 = 0", "    for x in v:", "        total = total *% 3 +% x", "    return total", "",
+                "func lookup(x: i64) -> i64?:", "    if (x & 3) == 0:", "        return none", "    return x *% 5", "",
+                "func fall(x: i64) -> i64!:", "    if (x & 7) == 3:", "        error(bad, \"three\")", "    return x +% 11", "",
+                "func fall2(x: i64) -> i64!:", "    let v = try fall(x)", "    return v *% 2", "",
+                "func safe(x: i64) -> i64:", "    return fall2(x) catch failure:", "        recover 0 -% x", "",
+                "func bump():", "    table[7] = table[7] +% 1", "",
+                "func deferred(x: i64) -> i64:", "    defer bump()", "    return x +% table[7]", "",
+                "func mix() -> i64:", "    var acc: i64 = a0 +% a1 +% a2 +% (i64)b0 +% (i64)b1 +% (i64)c0 +% (i64)c1 +% (i64)e0 +% (i64)e1 +% (i64)h0 +% (i64)m0 +% (i64)m1",
+                "    acc = acc *% 31 +% p0.x +% (i64)p0.y +% ((i64)(p0.f * 4.0) & 65535) +% q0.a +% q0.b +% q0.c +% (i64)q0.tag",
+                "    acc = acc *% 31 +% ((i64)(d0 * 8.0) & 65535) +% ((i64)(d1 * 8.0) & 65535) +% (o0 else -1) +% (i64)s0.length +% box0.w +% tri0.b",
+                "    return acc *% 31 +% sumspan(table) +% deferred(acc)", ""]
         for k in range(r.randint(0, 3)):
             n = r.randint(1, 3)
-            params = ", ".join(f"p{i}: i64" for i in range(n))
+            params = ", ".join(f"n{i}: i64" for i in range(n))
+            self.locals = [(f"n{i}", "i64") for i in range(n)]
             body = self.expr(3)
-            for i in range(n):
-                body = body.replace(f"a{i}", f"p{i}") if r.random() < 0.5 else body
+            self.locals = []
             text.append(f"func g{k}({params}) -> i64:")
             text.append(f"    return {body}")
             text.append("")
@@ -271,8 +430,21 @@ class Gen:
         text.append(f"    a2 = {r.randint(-50, 50)}")
         text.append(f"    b0 = {r.randint(0, 255)}")
         text.append(f"    c0 = {r.randint(0, 100000)}")
+        text.append(f"    e0 = {r.randint(-1000, 1000)}")
+        text.append(f"    d0 = {r.choice([1.5, -2.25, 0.0, 100.0])}")
+        text.append(f"    d1 = {r.choice([0.5, 3.0, -7.75])}")
+        text.append("    p0 = makep(a0)")
+        text.append("    q0 = makeq(a1)")
+        text.append("    s0 = \"abcd\"")
+        text.append(f"    box0 = Box(w = {r.randint(1, 20)}, h = {r.randint(1, 20)})")
+        text.append(f"    tri0 = Tri(b = {r.randint(1, 20)}, h = {r.randint(1, 20)})")
+        text.append("    for i in 0..<4:")
+        text.append("        ps[i] = makep((i64)i)")
+        text.append("    for j in 0..<3:")
+        text.append("        qs[j] = makeq((i64)j -% 1)")
+        self.locals = []
         text += self.statements(3, 1)
-        text.append('    print(f"{sum} {a0} {a1} {a2} {b0} {b1} {c0} {c1} {table[3]}")')
+        text.append('    print(f"{sum} {a0} {a1} {a2} {b0} {b1} {c0} {c1} {e0} {e1} {h0} {m0} {m1} {d0} {d1} {p0.x} {p0.y} {p0.f} {q0.a} {q0.b} {q0.c} {(i64)q0.tag} {o0 else -1} {s0} {box0.area()} {tri0.area()} {table[3]} {table[7]}")')
         text.append("    return 0")
         return "\n".join(text) + "\n"
 

@@ -28,6 +28,7 @@ import sema.types
 import support.buffer
 import support.decimal
 import support.list
+import support.literals
 
 pub let native_unsupported: ErrorCode = ErrorCode.package(14)
 
@@ -1619,7 +1620,7 @@ pub struct Lowerer:
             let span_type = try self.c.table.span(types.u8_id, true) if b[0] == 'b' else types.str_id
             return try self.span_of(data, ir.const_ref((i64)text.length), span_type)
         if check.is_float_text(e.text):
-            let digits = check.literal_body(e.text)
+            let digits = literals.literal_body(e.text)
             let bits = float_bits(digits)
             if t == types.f16_id:
                 let h = try self.f.unary(ir.Op.cast, ir.Class.h, ir.const_ref((i64)float16_bits(digits)))
@@ -1629,7 +1630,7 @@ pub struct Lowerer:
                 return LowerValue(ref = w, type_id = t, in_memory = false)
             let d = try self.f.unary(ir.Op.cast, ir.Class.d, ir.const_ref((i64)bits))
             return LowerValue(ref = d, type_id = types.f64_id if t == types.untyped_float_id else t, in_memory = false)
-        let v = try check.decode_integer(e.text)
+        let v = try literals.decode_integer(e.text)
         let it = types.i64_id if t == types.untyped_int_id else t
         return LowerValue(ref = ir.const_ref((i64)v), type_id = it, in_memory = false)
 
@@ -1675,7 +1676,7 @@ pub struct Lowerer:
         let t = try self.ty(e)
         let d = self.decl_of(t) else return try self.fail(e, "no enum")
         if self.is_int_enum(t):
-            return LowerValue(ref = ir.const_ref((i64)check.case_value(d, c)), type_id = t, in_memory = false)
+            return LowerValue(ref = ir.const_ref((i64)types.case_value(d, c)), type_id = t, in_memory = false)
         let slot = try self.new_slot(t)
         let a = try self.slot_address(slot)
         try self.f.zero_bytes(a, self.size(t))
@@ -1939,7 +1940,7 @@ pub struct Lowerer:
             return try self.expr(inner)
         if e.text == "-" and inner.kind == ast.Kind.literal and self.is_int(t):
             # `-literal` is one constant, not a checked negation: `-128` is a valid `i8`
-            let magnitude = check.decode_integer(inner.text) catch failure:
+            let magnitude = literals.decode_integer(inner.text) catch failure:
                 recover 0
             let negative = (i64)(0 -% magnitude)
             return LowerValue(ref = ir.const_ref(negative), type_id = t, in_memory = false)
@@ -2706,7 +2707,7 @@ pub struct Lowerer:
         var next = ok
         while let c = cursor:
             if c.kind == ast.Kind.enum_case:
-                let value = check.case_value(d, c) & mask
+                let value = types.case_value(d, c) & mask
                 let hit = try self.f.binary(ir.Op.ceq, ir.Class.l, word, ir.const_ref((i64)value))
                 let miss = self.f.label()
                 try self.f.branch(hit, ok, miss)
@@ -3046,7 +3047,7 @@ pub struct Lowerer:
             let d = self.decl_of(st) else return
             if self.is_int_enum(st):
                 let current = try self.load_from(a, st)
-                let hit = try self.f.binary(ir.Op.ceq, self.class_of(st), current.ref, ir.const_ref((i64)check.case_value(d, c)))
+                let hit = try self.f.binary(ir.Op.ceq, self.class_of(st), current.ref, ir.const_ref((i64)types.case_value(d, c)))
                 try self.f.branch(hit, take, miss)
                 return
             let tag = try self.f.load(ir.Op.loadsw, ir.Class.w, a)

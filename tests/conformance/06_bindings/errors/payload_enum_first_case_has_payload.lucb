@@ -1,0 +1,7 @@
+# error: no zero value
+enum Command:
+    open(path: str)
+    quit
+var c: Command
+pub func main(arguments: str[]) -> i32:
+    return 0

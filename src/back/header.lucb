@@ -224,7 +224,7 @@ struct Header:
                 try self.out.put("_")
                 try self.out.put(m.text)
                 try self.out.put(" = ")
-                try self.out.put_u64(check.case_value(d, m))
+                try self.out.put_u64(types.case_value(d, m))
                 try self.out.put(",\n")
             member = m.next
         try self.out.put("};\n\n")

@@ -1,0 +1,9 @@
+# error: no zero value
+struct Account:
+    var balance: i64
+
+    pub func init(start: i64):
+        self.balance = start
+var a: Account
+pub func main(arguments: str[]) -> i32:
+    return (i32)a.balance

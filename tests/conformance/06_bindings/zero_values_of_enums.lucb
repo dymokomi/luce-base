@@ -1,0 +1,26 @@
+## §6.1: an integer-backed enum is zeroable when some case is zero, wherever it is declared;
+## a payload enum is zeroable when its first case carries no payload; a struct of those is.
+enum Level as u8:
+    high = 2
+    off = 0
+    low = 1
+
+enum Command:
+    quit
+    open(path: str)
+
+struct State:
+    var level: Level
+    var command: Command
+    var count: i64
+
+var state: State
+var level: Level
+
+pub func main(arguments: str[]) -> i32:
+    var here: State
+    let chosen = match state.command:
+        .quit => "quit"
+        _ => "other"
+    print(f"{(i64)state.level} {(i64)level} {state.count} {chosen} {(i64)here.level}")
+    return 0

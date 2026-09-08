@@ -30,6 +30,7 @@ import sema.types
 import support.buffer
 import support.decimal
 import support.list
+import support.literals
 
 pub let backend: ErrorCode = ErrorCode.package(12)
 
@@ -2593,10 +2594,10 @@ pub struct Emitter:
             # the bits the literal rounds to (§4.3), spelled as C's exact hexadecimal float,
             # so the C compiler neither rounds again nor refuses a small value
             let width: u32 = 16 if t == types.f16_id else 32 if t == types.f32_id else 64
-            let bits = decimal.bits(check.literal_body(e.text), width) else 0
+            let bits = decimal.bits(literals.literal_body(e.text), width) else 0
             try self.put_hex_float(bits, width)
             return
-        let value = try check.decode_integer(e.text)
+        let value = try literals.decode_integer(e.text)
         if self.is_int(t) and not self.is_signed(t) or t == types.error_code_id:
             try self.put_u64(value)
             try self.put("ULL")
@@ -2667,7 +2668,7 @@ pub struct Emitter:
             try self.put("((")
             try self.put_type(t)
             try self.put(")")
-            try self.put_u64(check.case_value(d, resolved))
+            try self.put_u64(types.case_value(d, resolved))
             try self.put("u)")
             return
         try self.put("((")
@@ -2816,7 +2817,7 @@ pub struct Emitter:
             return
         # `-literal` is one constant, not a checked negation: `-128` is a valid `i8`
         if inner.kind == ast.Kind.literal and self.c.table.is_integer(t):
-            let v = check.decode_integer(inner.text) catch failure:
+            let v = literals.decode_integer(inner.text) catch failure:
                 recover 0
             if v == 9223372036854775808:
                 try self.put("((int64_t)(1ULL << 63))")
@@ -3484,7 +3485,7 @@ pub struct Emitter:
                 try self.put(" & ")
                 try self.put_u64(mask)
                 try self.put("ull) == ")
-                try self.put_u64(check.case_value(d, node) & mask)
+                try self.put_u64(types.case_value(d, node) & mask)
                 try self.put("ull")
             cursor = node.next
         if first:
@@ -3686,12 +3687,12 @@ pub struct Emitter:
         let slack: u64 = 1 if one_past else 0
         if self.is_array(ot):
             let length = self.c.table.get(ot).length
-            if i.kind == ast.Kind.literal and i.text.bytes[0] != '\'' and (try check.decode_integer(i.text)) < length + slack:
+            if i.kind == ast.Kind.literal and i.text.bytes[0] != '\'' and (try literals.decode_integer(i.text)) < length + slack:
                 # a literal in range needs no check, and stays a constant expression (§6.4)
                 try self.put("((")
                 try self.expr(owner)
                 try self.put(").d[")
-                try self.put_u64(try check.decode_integer(i.text))
+                try self.put_u64(try literals.decode_integer(i.text))
                 try self.put("])")
                 return
             try self.put("((")
@@ -4010,7 +4011,7 @@ pub struct Emitter:
                             if resolved.kind == ast.Kind.enum_case:
                                 let d = self.decl_of(st) else return
                                 try self.line("case ")
-                                try self.put_u64(check.case_value(d, resolved))
+                                try self.put_u64(types.case_value(d, resolved))
                                 try self.put("LL:")
                                 pattern = p.next
                                 continue
@@ -4126,7 +4127,7 @@ pub struct Emitter:
                         try self.put(" == (")
                         try self.put_type(st)
                         try self.put(")")
-                        try self.put_u64(check.case_value(d, resolved))
+                        try self.put_u64(types.case_value(d, resolved))
                         try self.put("ull")
                     elif v.kind == ast.Kind.case_value and self.kind(st) == types.Kind.enum_:
                         let d = self.decl_of(st) else return
