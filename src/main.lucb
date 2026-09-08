@@ -12,6 +12,7 @@
 import c
 import back.backend
 import back.target as targets
+import platform
 import back.header
 import back.names
 import support.manifest
@@ -154,7 +155,8 @@ var native_backend: bool
 ## The target of the build, by name: empty, which is the host, unless `--target` named
 ## another (§19.5).
 var build_target_name: str = ""
-## The instruction-set level of the build, by `--cpu` name; empty for the baseline (§19.5).
+## The instruction-set level of the build, by `--cpu` name; empty for the automatic choice
+## (§19.5): the processor's own level for a build of the host, the baseline for another target.
 var cpu_level_name: str = ""
 
 func build_target() -> targets.Target:
@@ -166,7 +168,44 @@ func with_level(t: targets.Target) -> targets.Target:
     if cpu_level_name.length > 0:
         if let level = t.level_named(cpu_level_name):
             out.level = level
+    elif t.is_host():
+        # a build for this machine uses what this machine has; `--cpu v1` asks for less
+        out.level = running_level()
     return out
+
+## The instruction-set level of the processor this compiler runs on (§19.5), what
+## `os.cpu_level_running()` answers a program; asked here again because the compiler's own
+## sources stay within the seed, which has no `os` module. x86-64: SSE4.2 and POPCNT make
+## v2; AVX2, FMA, and BMI2 make v3; AVX-512F makes v4. arm64: NEON, the baseline.
+func running_level() -> u32:
+    if not platform.x86_64:
+        return 1
+    var leaf1: u32 = 1
+    var c1: u32 = 0
+    var b1: u32 = 0
+    var d1: u32 = 0
+    asm x86_64 (inout("eax") leaf1, inout("ecx") c1, out("ebx") b1, out("edx") d1, options(nostack)):
+        cpuid
+    var leaf7: u32 = 7
+    var c7: u32 = 0
+    var b7: u32 = 0
+    var d7: u32 = 0
+    asm x86_64 (inout("eax") leaf7, inout("ecx") c7, out("ebx") b7, out("edx") d7, options(nostack)):
+        cpuid
+    discard(b1)
+    discard(d1)
+    discard(d7)
+    let sse42 = (c1 & (1 << 20)) != 0
+    let popcnt = (c1 & (1 << 23)) != 0
+    let fma = (c1 & (1 << 12)) != 0
+    let avx2 = (b7 & (1 << 5)) != 0
+    let bmi2 = (b7 & (1 << 8)) != 0
+    let avx512f = (b7 & (1 << 16)) != 0
+    if not (sse42 and popcnt):
+        return 1
+    if not (avx2 and fma and bmi2):
+        return 2
+    return 4 if avx512f else 3
 
 func unknown_level(t: targets.Target) -> !:
     if t.arch == targets.Arch.x86_64:

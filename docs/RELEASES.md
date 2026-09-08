@@ -5,6 +5,20 @@
 release is a VERSION bump, a tag `luce-base-N`, and a push, the way luce-seed does it
 (`bootstrap/SEED` pins the seed the tree is built against).
 
+## 0.9.0
+
+The instruction-set level is automatic.
+
+- without `--cpu`, a build for the host is for the level of the processor it is built on
+  (`os.cpu_level_running()`, asked by the driver), a build for another target for the
+  baseline; `--cpu v1` still asks for a program that runs anywhere (§19.5);
+- the x86_64 generator's half floats follow the level: F16C from v3, below it two routines
+  of its own (`.Llb_half_to_single`, `.Llb_single_to_half`) emitted once per unit, rounding
+  to nearest even and quieting NaNs as the hardware does;
+- `tests/platform/common/halves.lucb` proves every half bit pattern through the C compiler,
+  F16C, and the software path; `tests/platform/common/level.lucb` proves the choice; on
+  x86-64 the platform suite runs every program natively at `--cpu v1` as well.
+
 ## 0.8.1
 
 The Linux gate over 0.3.0 to 0.8.0: green on x86_64 Linux, with two fixes it took.

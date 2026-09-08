@@ -1,0 +1,13 @@
+## The instruction-set level (§19.5): chosen for the processor a build of the host runs
+## on unless `--cpu` asks for less, so the level built for never exceeds the level running.
+import os
+
+pub func main(arguments: str[]) -> i32:
+    let built = os.cpu_level
+    let running = os.cpu_level_running()
+    print(f"{built >= 1} {built <= running} {running >= 1}")
+    if os.x86_64:
+        print(f"{running <= 4}")
+    else:
+        print(f"{running <= 2}")
+    return 0

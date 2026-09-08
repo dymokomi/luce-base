@@ -1632,7 +1632,7 @@ A Base executable links a startup shim and a trap reporter and no Luce runtime (
 | `arm64-macos` | `arm64` | 64 | 64 | signed | Apple arm64 |
 | `wasm32` | none | 32 | 32 | signed | WebAssembly C ABI |
 
-A target has an **instruction-set level** beyond its family's baseline, chosen with `--cpu`: on x86-64, `v1` (SSE2, the default), `v2` (SSE4.2, POPCNT), `v3` (AVX2, FMA, BMI2), and `v4` (AVX-512); on arm64, `neon` (the default) and `sve`. A program compiled for a level runs only on processors that have it; the compiler emits the level's instructions where it has forms for them, and the baseline's elsewhere, so the level never changes what a program means. `os.cpu_level` is the level the program was compiled for; `os.cpu_level_running()` is the level of the processor it runs on, for a program that dispatches at run time.
+A target has an **instruction-set level** beyond its family's baseline: on x86-64, `v1` (SSE2), `v2` (SSE4.2, POPCNT), `v3` (AVX2, FMA, BMI2), and `v4` (AVX-512); on arm64, `neon` and `sve`. Without `--cpu`, a build for the host is for the level of the processor it is built on, and a build for another target is for the baseline; `--cpu NAME` chooses the level, `--cpu v1` for a program that must run anywhere. A program compiled for a level runs only on processors that have it; the compiler emits the level's instructions where it has forms for them, and the baseline's elsewhere, so the level never changes what a program means. `os.cpu_level` is the level the program was compiled for; `os.cpu_level_running()` is the level of the processor it runs on, for a program that dispatches at run time.
 
 ### 19.6 Tooling
 

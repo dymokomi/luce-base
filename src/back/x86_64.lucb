@@ -56,6 +56,9 @@ pub struct Generator:
     var index: usize
     ## The instruction being emitted, for an asm block to see the operands around it.
     var at: usize
+    ## Below x86-64-v3 there is no F16C: halves convert through the unit's own routines,
+    ## emitted once at its end when a function needed them.
+    var half_routines: bool
     ## Callee-saved registers an asm block names, pushed before it and popped after its
     ## outputs are read; `pending` is how many.
     var saved: str[8]
@@ -69,7 +72,7 @@ pub struct Generator:
 
     pub static func create(program_unit: ir.Unit*) -> Generator!:
         return Generator(symbol_prefix = "", os = build_target.Os.linux, level = 1, out = try buffer.Buffer.create(262144), program_unit = program_unit, f = program_unit.functions.span().data, index = 0,
-                         at = 0, saved = ["", "", "", "", "", "", "", ""], pending = 0,
+                         at = 0, saved = ["", "", "", "", "", "", "", ""], pending = 0, half_routines = false,
                          fr = try frame.Frame.create(frame.Registers(ints = 5, floats = 0, keep_ints = 2, keep_floats = 0)), descriptors = try buffer.Buffer.create(4096))
 
     # -- output ---------------------------------------------------------------------------
@@ -944,8 +947,12 @@ pub struct Generator:
         let b = try self.source(n.b, cls, self.reg(cls, 1))
         let d = self.reg(cls, 0)
         if cls == ir.Class.h:
-            try self.line4("vcvtph2ps ", a, ", ", d)
-            try self.line4("vcvtph2ps ", b, ", ", self.reg(cls, 1))
+            if a != d:
+                try self.line4("movaps ", a, ", ", d)
+            try self.widen_half(d)
+            if b != self.reg(cls, 1):
+                try self.line4("movaps ", b, ", ", self.reg(cls, 1))
+            try self.widen_half(self.reg(cls, 1))
         elif a != d:
             try self.line4("movaps ", a, ", ", d)
         var mnemonic = "add"
@@ -965,11 +972,27 @@ pub struct Generator:
         try self.finish(n.dst, cls, d)
 
     ## The single in `reg` rounded to a half in its low sixteen bits, zero above, so that a
-    ## reinterpretation of the bits as an integer reads the half alone.
+    ## reinterpretation of the bits as an integer reads the half alone: F16C from
+    ## x86-64-v3, the unit's own routine below it.
     mutating func round_to_half(reg: str) -> !:
-        try self.line4("vcvtps2ph $0, ", reg, ", ", reg)
         try self.line3("movd ", reg, ", %eax")
-        try self.line("movzwl %ax, %eax")
+        if self.level >= 3:
+            try self.line4("vcvtps2ph $0, ", reg, ", ", reg)
+            try self.line3("movd ", reg, ", %eax")
+            try self.line("movzwl %ax, %eax")
+        else:
+            self.half_routines = true
+            try self.line("call .Llb_single_to_half")
+        try self.line3("movd %eax, ", reg, "")
+
+    ## The half in the low sixteen bits of `reg` widened to a single, in place.
+    mutating func widen_half(reg: str) -> !:
+        if self.level >= 3:
+            try self.line4("vcvtph2ps ", reg, ", ", reg)
+            return
+        self.half_routines = true
+        try self.line3("movd ", reg, ", %eax")
+        try self.line("call .Llb_half_to_single")
         try self.line3("movd %eax, ", reg, "")
 
     mutating func negate(n: ir.Instr) -> !:
@@ -1021,10 +1044,14 @@ pub struct Generator:
         var a = try self.source(n.a, cls, self.reg(cls, 0))
         var b = try self.source(n.b, cls, self.reg(cls, 1))
         if cls == ir.Class.h:
-            try self.line4("vcvtph2ps ", a, ", ", self.reg(cls, 0))
-            try self.line4("vcvtph2ps ", b, ", ", self.reg(cls, 1))
+            if a != self.reg(cls, 0):
+                try self.line4("movaps ", a, ", ", self.reg(cls, 0))
+            if b != self.reg(cls, 1):
+                try self.line4("movaps ", b, ", ", self.reg(cls, 1))
             a = self.reg(cls, 0)
             b = self.reg(cls, 1)
+            try self.widen_half(a)
+            try self.widen_half(b)
         let mnemonic = "ucomisd " if cls == ir.Class.d else "ucomiss "
         match n.op:
             .cslt:
@@ -1081,7 +1108,9 @@ pub struct Generator:
         let d = self.reg(n.cls, 0)
         match n.op:
             .exth:
-                try self.line4("vcvtph2ps ", v, ", ", d)
+                if v != d:
+                    try self.line4("movaps ", v, ", ", d)
+                try self.widen_half(d)
                 if n.cls == ir.Class.d:
                     try self.line4("cvtss2sd ", d, ", ", d)
             .exts:
@@ -1786,6 +1815,8 @@ pub struct Generator:
             try self.put_u64(size)
             try self.put("\n")
             i += 1
+        if self.half_routines:
+            try self.put(half_routines_text)
         try self.put("\n    .section .note.GNU-stack,\"\",@progbits\n")
 
     mutating func c_string(text: str) -> !:
@@ -2050,3 +2081,130 @@ func vector_mnemonic(op: ir.Op, shape: u32) -> str:
         .vadds: return lane_mnemonic("padds" if signed else "paddus", bits)
         .vsubs: return lane_mnemonic("psubs" if signed else "psubus", bits)
         _: return "paddb"
+
+## Half-float conversion without F16C, for levels below x86-64-v3: `eax` in, `eax` out,
+## `ecx`, `edx`, `r10d`, and `r11d` clobbered, nothing on the stack but the return address.
+## The single of a half: sign moved up, a normal half's exponent rebiased from 15 to 127, a
+## subnormal's mantissa normalised by its top bit (`bsr`), infinity kept, NaN with the payload
+## widened and made quiet, as the hardware conversion does. The half of a single, rounding to nearest even as the C compiler's `_Float16`
+## does: NaN kept quiet with its payload narrowed, 65520 and above to infinity, a normal
+## half from the rebiased exponent with the thirteen dropped bits deciding the rounding,
+## a subnormal half from the mantissa with its implicit bit shifted right by the exponent's
+## shortfall, and everything below 2^-25 to zero.
+let half_routines_text: str = """
+    .text
+    .p2align 4
+.Llb_half_to_single:
+    movzwl %ax, %eax
+    movl %eax, %edx
+    andl $32768, %edx
+    shll $16, %edx
+    andl $32767, %eax
+    cmpl $31744, %eax
+    jae 2f
+    testl $31744, %eax
+    je 3f
+    addl $114688, %eax
+    shll $13, %eax
+    orl %edx, %eax
+    ret
+2:
+    andl $1023, %eax
+    je 11f
+    shll $13, %eax
+    orl $2143289344, %eax
+    orl %edx, %eax
+    ret
+11:
+    movl $2139095040, %eax
+    orl %edx, %eax
+    ret
+3:
+    testl %eax, %eax
+    jne 4f
+    movl %edx, %eax
+    ret
+4:
+    movl %eax, %r11d
+    bsrl %eax, %ecx
+    movl %ecx, %eax
+    addl $103, %eax
+    shll $23, %eax
+    orl %edx, %eax
+    negl %ecx
+    addl $23, %ecx
+    shll %cl, %r11d
+    andl $8388607, %r11d
+    orl %r11d, %eax
+    ret
+    .p2align 4
+.Llb_single_to_half:
+    movl %eax, %edx
+    shrl $16, %edx
+    andl $32768, %edx
+    andl $2147483647, %eax
+    cmpl $2139095040, %eax
+    jb 2f
+    movl %eax, %ecx
+    andl $8388607, %ecx
+    je 5f
+    shrl $13, %ecx
+    orl $512, %ecx
+    orl $31744, %ecx
+    movl %ecx, %eax
+    orl %edx, %eax
+    ret
+5:
+    movl $31744, %eax
+    orl %edx, %eax
+    ret
+2:
+    cmpl $1199566848, %eax
+    jb 6f
+    movl $31744, %eax
+    orl %edx, %eax
+    ret
+6:
+    cmpl $947912704, %eax
+    jb 7f
+    subl $939524096, %eax
+    movl %eax, %ecx
+    andl $8191, %ecx
+    shrl $13, %eax
+    cmpl $4096, %ecx
+    jb 8f
+    ja 9f
+    testl $1, %eax
+    je 8f
+9:
+    incl %eax
+8:
+    orl %edx, %eax
+    ret
+7:
+    cmpl $855638016, %eax
+    jb 10f
+    movl %eax, %ecx
+    shrl $23, %ecx
+    andl $8388607, %eax
+    orl $8388608, %eax
+    movl %eax, %r11d
+    negl %ecx
+    addl $126, %ecx
+    shrl %cl, %eax
+    movl %eax, %r10d
+    shll %cl, %r10d
+    subl %r10d, %r11d
+    decl %ecx
+    movl $1, %r10d
+    shll %cl, %r10d
+    cmpl %r10d, %r11d
+    jb 8b
+    ja 9b
+    testl $1, %eax
+    je 8b
+    jmp 9b
+10:
+    movl %edx, %eax
+    ret
+"""

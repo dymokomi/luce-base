@@ -1,0 +1,40 @@
+## Every half bit pattern (§5.1): widened to a single and a double, narrowed back, added,
+## multiplied, compared; a checksum over the bits of each result. The C compiler, the F16C
+## forms from x86-64-v3, and the software conversion below it must agree; the results are
+## the IEEE ones, the same on every target.
+pub func main(arguments: str[]) -> i32:
+    var sum_round: u64 = 0
+    var sum_single: u64 = 0
+    var sum_double: u64 = 0
+    var sum_add: u64 = 0
+    var sum_mul: u64 = 0
+    var less: u64 = 0
+    var equal: u64 = 0
+    var bits: u32 = 0
+    let third: f32 = 1.0 / 3.0
+    while bits < 65536:
+        let h = f16.bits((u16)bits)
+        let s = (f32)h
+        let d = (f64)h
+        let back = (f16)s
+        let added = h + (f16)1.5
+        let scaled = h * (f16)0.75
+        sum_single +%= (u64)s.bits() *% ((u64)bits + 1)
+        sum_double +%= (u64)(d.bits() >> 29) *% ((u64)bits + 1)
+        sum_round +%= (u64)back.bits() *% ((u64)bits + 1)
+        sum_add +%= (u64)added.bits() *% ((u64)bits + 1)
+        sum_mul +%= (u64)scaled.bits() *% ((u64)bits + 1)
+        if h < (f16)third:
+            less += 1
+        if h == back:
+            equal += 1
+        bits += 1
+    # singles narrowed: a sweep of single bit patterns, every 977th, through the half
+    var narrow: u64 = 0
+    var sb: u32 = 0
+    while sb < 4294967000:
+        let n = (f16)f32.bits(sb)
+        narrow +%= (u64)n.bits() *% ((u64)(sb >> 10) + 1)
+        sb += 977
+    print(f"{sum_single} {sum_double} {sum_round} {sum_add} {sum_mul} {less} {equal} {narrow}")
+    return 0

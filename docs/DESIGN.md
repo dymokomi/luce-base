@@ -235,9 +235,10 @@ in `al` for a variadic call. Symbols have no prefix; a function's address and
 another image's data go through the GOT and calls through the PLT, so the
 output links as position-independent code under the C driver, which also
 knows where the start files and the dynamic loader are; thread-locals use
-the initial-exec model; `.init_array` starts a library. Half floats convert
-through the F16C instructions and compute in single precision, rounding once
-to a half, exactly as GCC's `_Float16` does on this target; comparisons swap
+the initial-exec model; `.init_array` starts a library. Half floats compute in
+single precision and round once to a half, exactly as GCC's `_Float16` does on
+this target, converting through F16C from x86-64-v3 and through the unit's
+own routines below it; comparisons swap
 operands so that `<` and `<=` use the above-conditions an unordered pair
 fails, and equality also tests parity. Checked arithmetic is the flag after
 `add`, `sub`, `imul`, or `mul`; an unsigned long to a float halves the value
@@ -453,10 +454,16 @@ AVX-512, AMX; arm64: NEON, SVE, SVE2, SME), and the compiler must not be written
 per level. The IR is the abstraction: its vector instructions carry lane shapes and mean
 the lane-wise scalar operation whatever the machine, and `back/isa.lucb` says which of
 them a target computes in one sequence. The `Target` carries an instruction-set level
-(`--cpu`: x86-64 `v1` to `v4`, arm64 `neon` and `sve`, the baseline by default),
-`isa.has_vector` and the generators read it, and the `platform` module carries it into
-`os.cpu_level`; `os.cpu_level_running()` asks the processor (`cpuid` on x86-64) so a
-program can dispatch itself. One level-specific form exists so far, x86-64-v2's
+(`--cpu`: x86-64 `v1` to `v4`, arm64 `neon` and `sve`), `isa.has_vector` and the
+generators read it, and the `platform` module carries it into `os.cpu_level`;
+`os.cpu_level_running()` asks the processor (`cpuid` on x86-64) so a program can dispatch
+itself. Without `--cpu` the driver asks the same question: a build for the host is for
+the processor it is built on, a build for another target for the baseline, and `--cpu v1`
+asks for a program that runs anywhere. The x86_64 generator's half floats follow the
+level: F16C from v3, and below it two routines of its own at the end of the unit, a
+widening through the exponent's rebias (`bsr` normalising a subnormal, a NaN made quiet)
+and a narrowing that rounds to nearest even as `_Float16` does, proved over every half
+bit pattern against the C compiler and F16C by `tests/platform/common/halves.lucb`. One level-specific form exists so far, x86-64-v2's
 doubleword lane multiply (`pmulld`); the AVX2 and AVX-512 forms, SVE, and function
 multiversioning (several generated bodies chosen at load by the level found) are the
 work ahead, each a row in `isa.has_vector` and a case in a generator, never a change to

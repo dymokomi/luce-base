@@ -5,6 +5,7 @@
 # parts (the futex, the directory entry, `getaddrinfo`, the clocks, page mapping, the
 # process's environment): each runs on every host through both backends and must print its
 # expectation, `NAME.expect`, or `NAME.HOST.expect` where the output names the target.
+# On x86-64 every program also runs natively at the baseline level, `--cpu v1`.
 # `tests/platform/linux/` and `tests/platform/macos/` hold programs for one operating
 # system, run only there. Then every target of §19.5 is emitted from this host: the C
 # backend writes the C for each (`--target NAME --emit=c`), and where the target's
@@ -30,8 +31,17 @@ run_program() {
         ./build/platform > build/platform.out
         cmp build/platform.out "$expect"
     done
+    if [ -n "$baseline" ]; then
+        ./build/luce-base build "$src" --native --cpu $baseline -o build/platform
+        ./build/platform > build/platform.out
+        cmp build/platform.out "$expect"
+    fi
     programs=$((programs + 1))
 }
+# the level is the processor's unless asked otherwise (§19.5); on x86-64 the baseline's
+# forms (no F16C, no `pmulld`) are proved as well, since a newer host would never take them
+baseline=""
+case "$host" in x86_64-*) baseline="v1";; esac
 for f in tests/platform/common/*.lucb; do
     run_program "$f"
 done
