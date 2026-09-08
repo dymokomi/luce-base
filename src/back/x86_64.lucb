@@ -49,6 +49,8 @@ pub struct Generator:
     pub var symbol_prefix: str
     ## The target's operating system decides the section names and the initialiser section.
     pub var os: build_target.Os
+    ## The instruction-set level (§19.5): which forms the generator may emit.
+    pub var level: u32
     var program_unit: ir.Unit*
     var f: ir.Function*
     var index: usize
@@ -60,7 +62,7 @@ pub struct Generator:
     ## The callee-saved register code a promoted frame slot lives in, 0 when it stays in the
 
     pub static func create(program_unit: ir.Unit*) -> Generator!:
-        return Generator(symbol_prefix = "", os = build_target.Os.linux, out = try buffer.Buffer.create(262144), program_unit = program_unit, f = program_unit.functions.span().data, index = 0,
+        return Generator(symbol_prefix = "", os = build_target.Os.linux, level = 1, out = try buffer.Buffer.create(262144), program_unit = program_unit, f = program_unit.functions.span().data, index = 0,
                          fr = try frame.Frame.create(frame.Registers(ints = 5, floats = 0, keep_ints = 2, keep_floats = 0)), descriptors = try buffer.Buffer.create(4096))
 
     # -- output ---------------------------------------------------------------------------
@@ -1210,7 +1212,11 @@ pub struct Generator:
             _:
                 try self.vector_source(n.a, "%xmm8", bytes)
                 try self.vector_source(n.b, "%xmm9", bytes)
-                try self.line3(vector_mnemonic(n.op, shape), " %xmm9, ", "%xmm8")
+                if n.op == ir.Op.vmulw and bits == 32:
+                    # x86-64-v2: the doubleword multiply of SSE4.1
+                    try self.line("pmulld %xmm9, %xmm8")
+                else:
+                    try self.line3(vector_mnemonic(n.op, shape), " %xmm9, ", "%xmm8")
                 try self.vector_result(n.dst, "%xmm8", bytes)
 
     ## `vaddo`/`vsubo`: the wrapping result in xmm10; a lane that overflowed traps. Bytes

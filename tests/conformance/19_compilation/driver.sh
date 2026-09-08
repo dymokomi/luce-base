@@ -53,6 +53,18 @@ if $lb build $dir/targets_prune.lucb --target nope --emit=c -o build/conformance
 fi
 grep -q 'unknown target' build/conformance.err
 rm -f build/conformance.c
+# `--cpu`: the instruction-set level (§19.5): x86-64-v2 multiplies doubleword lanes in one
+# instruction, v1 does not; an unknown level is refused
+$lb build $dir/levels.lucb --target x86_64-linux --native --cpu v2 --emit=asm -o build/conformance.s
+grep -q 'pmulld' build/conformance.s
+$lb build $dir/levels.lucb --target x86_64-linux --native --cpu v1 --emit=asm -o build/conformance.s
+if grep -q 'pmulld' build/conformance.s; then echo "FAIL $dir: v1 emitted an SSE4.1 instruction"; exit 1; fi
+$lb build $dir/levels.lucb --target arm64-macos --native --cpu neon --emit=asm -o build/conformance.s
+if $lb build $dir/targets_prune.lucb --cpu v9 --emit=c -o build/conformance.c 2> build/conformance.err; then
+    echo "FAIL $dir: an unknown cpu level was accepted"; exit 1
+fi
+grep -q 'cpu' build/conformance.err
+rm -f build/conformance.s build/conformance.c build/conformance.err
 # the target listing (§19.5); the host's mark is not part of the expectation
 $lb build $dir/targets.lucb --target | sed 's/ (built here)//' | cmp - $dir/targets.targets
 # a freestanding program: its own `_start`, no shim, an exit code of its own choosing (§19.4)

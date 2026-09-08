@@ -45,6 +45,11 @@ pub struct Target:
     pub var name: str
     pub var os: Os
     pub var arch: Arch
+    ## The instruction-set level (§19.5): what the processor is promised to have beyond the
+    ## family's baseline, chosen with `--cpu`. x86-64: 1 is x86-64-v1 (SSE2), 2 is v2
+    ## (SSE4.2, POPCNT), 3 is v3 (AVX2, FMA, BMI2), 4 is v4 (AVX-512). arm64: 1 is NEON, 2
+    ## is SVE. A generator emits the forms of its level and the levels below.
+    pub var level: u32
     pub var pointer_bits: u32
     ## What the assembler and the linker put before a C symbol: `_` on macOS, nothing on
     ## Linux and 64-bit Windows.
@@ -66,18 +71,43 @@ pub struct Target:
     ## The target `name` of §19.5 spells, or none.
     pub static func named(name: str) -> Target?:
         if name == "arm64-macos" or name == "x86_64-macos":
-            return Target(name = name, os = Os.macos, arch = Arch.arm64 if name == "arm64-macos" else Arch.x86_64, pointer_bits = 64, symbol_prefix = "_",
+            return Target(name = name, os = Os.macos, arch = Arch.arm64 if name == "arm64-macos" else Arch.x86_64, level = 1, pointer_bits = 64, symbol_prefix = "_",
                           stdin_symbol = "__stdinp", stdout_symbol = "__stdoutp", stderr_symbol = "__stderrp", linker = Linker.macho, system_libraries = macos_libraries)
         if name == "arm64-linux" or name == "x86_64-linux":
-            return Target(name = name, os = Os.linux, arch = Arch.arm64 if name == "arm64-linux" else Arch.x86_64, pointer_bits = 64, symbol_prefix = "",
+            return Target(name = name, os = Os.linux, arch = Arch.arm64 if name == "arm64-linux" else Arch.x86_64, level = 1, pointer_bits = 64, symbol_prefix = "",
                           stdin_symbol = "stdin", stdout_symbol = "stdout", stderr_symbol = "stderr", linker = Linker.c_driver, system_libraries = linux_libraries)
         if name == "x86_64-windows":
-            return Target(name = name, os = Os.windows, arch = Arch.x86_64, pointer_bits = 64, symbol_prefix = "",
+            return Target(name = name, os = Os.windows, arch = Arch.x86_64, level = 1, pointer_bits = 64, symbol_prefix = "",
                           stdin_symbol = "__acrt_iob_func", stdout_symbol = "__acrt_iob_func", stderr_symbol = "__acrt_iob_func", linker = Linker.c_driver, system_libraries = windows_libraries)
         return none
 
     pub func is_host() -> bool:
         return self.name == platform.name
+
+    ## The level `--cpu NAME` spells for this architecture, or none: `v1` to `v4` on
+    ## x86-64, `neon` or `sve` on arm64.
+    pub func level_named(name: str) -> u32?:
+        if self.arch == Arch.x86_64:
+            if name == "v1":
+                return 1
+            if name == "v2":
+                return 2
+            if name == "v3":
+                return 3
+            if name == "v4":
+                return 4
+            return none
+        if name == "neon":
+            return 1
+        if name == "sve":
+            return 2
+        return none
+
+    ## The level's name, as `--cpu` spells it.
+    pub func level_name() -> str:
+        if self.arch == Arch.x86_64:
+            return "v1" if self.level == 1 else ("v2" if self.level == 2 else ("v3" if self.level == 3 else "v4"))
+        return "neon" if self.level == 1 else "sve"
 
     ## The architecture's name (§8.9).
     pub func arch_name() -> str:
@@ -87,7 +117,7 @@ pub struct Target:
     ## through `os`, a program branch on. A top-level `let` is a constant (§6.4), so the
     ## branches prune (§19.6).
     pub func module_text(buffer: u8[]) -> str!:
-        return try format(buffer, f"## The target this program is compiled for (§19.5), decided by `--target`.\npub let name: str = \"{self.name}\"\npub let macos: bool = {self.os == Os.macos}\npub let linux: bool = {self.os == Os.linux}\npub let windows: bool = {self.os == Os.windows}\npub let posix: bool = {self.os != Os.windows}\npub let arm64: bool = {self.arch == Arch.arm64}\npub let x86_64: bool = {self.arch == Arch.x86_64}\npub let pointer_bits: u32 = {self.pointer_bits}\n")
+        return try format(buffer, f"## The target this program is compiled for (§19.5), decided by `--target`.\npub let name: str = \"{self.name}\"\npub let macos: bool = {self.os == Os.macos}\npub let linux: bool = {self.os == Os.linux}\npub let windows: bool = {self.os == Os.windows}\npub let posix: bool = {self.os != Os.windows}\npub let arm64: bool = {self.arch == Arch.arm64}\npub let x86_64: bool = {self.arch == Arch.x86_64}\npub let pointer_bits: u32 = {self.pointer_bits}\npub let cpu_level: u32 = {self.level}\n")
 
 ## The section a `section("name")` attribute places its declaration in, for the object
 ## format of `os` (§9.8): the name as written, except that Mach-O sections live in segments,

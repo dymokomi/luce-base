@@ -63,11 +63,12 @@ pub func register_of(arch: targets.Arch, place: str) -> Register:
         return Register(is_float = false, bits = 32)
     return Register(is_float = false, bits = 64)
 
-## Whether the architecture computes vector instruction `op` on lanes of `shape` in one
-## instruction sequence of its own (§5.12): the lowerer emits the vector form where it does
-## and the lanes as scalars where it does not, so a generator implements exactly the forms
-## claimed here. A vector of one lane is a scalar's work on both.
-pub func has_vector(arch: targets.Arch, op: ir.Op, shape: u32) -> bool:
+## Whether the architecture at instruction-set `level` (§19.5) computes vector instruction
+## `op` on lanes of `shape` in one instruction sequence of its own (§5.12): the lowerer emits
+## the vector form where it does and the lanes as scalars where it does not, so a generator
+## implements exactly the forms claimed here for its level. A vector of one lane is a
+## scalar's work on both.
+pub func has_vector(arch: targets.Arch, level: u32, op: ir.Op, shape: u32) -> bool:
     let bits = ir.lane_bits(shape)
     let count = ir.lane_count(shape)
     let floats = ir.lanes_float(shape)
@@ -94,7 +95,8 @@ pub func has_vector(arch: targets.Arch, op: ir.Op, shape: u32) -> bool:
     if op == ir.Op.vaddo or op == ir.Op.vsubo:
         return bits <= 32
     if op == ir.Op.vmulw:
-        return bits == 16
+        # `pmulld` on doublewords is SSE4.1, which x86-64-v2 has
+        return bits == 16 or (bits == 32 and level >= 2)
     if op == ir.Op.vshl:
         return bits >= 16
     if op == ir.Op.vshr:

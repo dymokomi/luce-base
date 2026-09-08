@@ -452,16 +452,18 @@ One processor family has several instruction-set levels (x86-64: SSE2, SSE4.2, A
 AVX-512, AMX; arm64: NEON, SVE, SVE2, SME), and the compiler must not be written once
 per level. The IR is the abstraction: its vector instructions carry lane shapes and mean
 the lane-wise scalar operation whatever the machine, and `back/isa.lucb` says which of
-them a target computes in one sequence. The plan, not yet built: the `Target` carries a
-feature level (`--cpu`, defaulting to the baseline every processor of the family has:
-x86-64-v1 and NEON), `isa.has_vector` and the generators read the level, so a build for
-`--cpu v3` emits AVX2 where the level allows and the same IR emits SSE2 without it; the
-`os` module answers which features the running processor has (`cpuid`, `sysctl`,
-`getauxval`), so a program can dispatch itself; and function multiversioning, several
-generated bodies chosen at load by the features found, comes after. Testing is a matrix:
-every level's output assembles on any host (`clang -target`), the conformance suite runs
-per level on a host that has it, and an emulator (QEMU user mode, `-cpu max`) runs the
-levels the host lacks. On Apple silicon the relevant sets are NEON (done), SME on M4-class
+them a target computes in one sequence. The `Target` carries an instruction-set level
+(`--cpu`: x86-64 `v1` to `v4`, arm64 `neon` and `sve`, the baseline by default),
+`isa.has_vector` and the generators read it, and the `platform` module carries it into
+`os.cpu_level`; `os.cpu_level_running()` asks the processor (`cpuid` on x86-64) so a
+program can dispatch itself. One level-specific form exists so far, x86-64-v2's
+doubleword lane multiply (`pmulld`); the AVX2 and AVX-512 forms, SVE, and function
+multiversioning (several generated bodies chosen at load by the level found) are the
+work ahead, each a row in `isa.has_vector` and a case in a generator, never a change to
+the IR or a program. Testing is a matrix: every level's output assembles on any host
+(`clang -target`), the conformance suite runs per level on a host that has it, and an
+emulator (QEMU user mode, `-cpu max`) runs the levels the host lacks; today the driver
+test proves the level's forms in the assembly and refuses an unknown level. On Apple silicon the relevant sets are NEON (done), SME on M4-class
 chips (documented, the path for matrix work), and AMX before it (undocumented, unsupported
 by Apple's assembler: reachable through inline assembly in a library, not from the
 generator); FPAC is pointer authentication, a hardening feature rather than SIMD, in

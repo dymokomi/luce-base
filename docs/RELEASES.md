@@ -5,6 +5,18 @@
 release is a VERSION bump, a tag `luce-base-N`, and a push, the way luce-seed does it
 (`bootstrap/SEED` pins the seed the tree is built against).
 
+## 0.8.0
+
+Instruction-set levels (§19.5).
+
+- `--cpu` names the level a build is for: x86-64 `v1` (SSE2) to `v4` (AVX-512), arm64
+  `neon` and `sve`; the `Target` carries it, `isa.has_vector` and the generators read it,
+  `os.cpu_level` states it, and `os.cpu_level_running()` asks the processor with `cpuid`;
+- the first level-specific form: x86-64-v2's doubleword lane multiply, `pmulld`;
+- `tests/conformance/19_compilation/levels.lucb` and the driver test: the form appears at
+  v2 and not at v1, an unknown level is refused; pinned to luce-seed-0.43, whose `platform`
+  module carries the level.
+
 ## 0.7.0
 
 The optimiser: QBE's passes on this IR.

@@ -41,6 +41,8 @@ pub let posix: bool = true
 pub let arm64: bool = true
 pub let x86_64: bool = false
 pub let pointer_bits: u32 = 64
+## The instruction-set level the program is compiled for (§19.5): 1 is the family's baseline.
+pub let cpu_level: u32 = 1
 """),
     Prelude(name = "core", text = """
 import c
@@ -1823,6 +1825,37 @@ pub let windows: bool = platform.windows
 pub let posix: bool = platform.posix
 pub let pointer_bits: u32 = platform.pointer_bits
 pub let name: str = platform.name
+## The instruction-set level the program was compiled for (`--cpu`, §19.5): on x86-64, 1
+## to 4 for x86-64-v1 to v4; on arm64, 1 for NEON, 2 for SVE.
+pub let cpu_level: u32 = platform.cpu_level
+
+## The instruction-set level of the processor this program runs on, in the same scale:
+## what it may dispatch to at run time. On x86-64 `cpuid` answers; on arm64 the level is
+## NEON until the system reports SVE.
+pub func cpu_level_running() -> u32:
+    if platform.x86_64:
+        return x86_level()
+    return 1
+
+## x86-64: SSE4.2 and POPCNT make v2; AVX2, FMA, and BMI2 make v3; AVX-512F makes v4.
+func x86_level() -> u32:
+    var c1: u32 = 0
+    var b7: u32 = 0
+    asm x86_64 (in("eax") 1u32, out("ecx") c1, out("eax") _, out("ebx") _, out("edx") _, options(nostack)):
+        cpuid
+    asm x86_64 (in("eax") 7u32, in("ecx") 0u32, out("ebx") b7, out("eax") _, out("ecx") _, out("edx") _, options(nostack)):
+        cpuid
+    let sse42 = (c1 & (1 << 20)) != 0
+    let popcnt = (c1 & (1 << 23)) != 0
+    let fma = (c1 & (1 << 12)) != 0
+    let avx2 = (b7 & (1 << 5)) != 0
+    let bmi2 = (b7 & (1 << 8)) != 0
+    let avx512f = (b7 & (1 << 16)) != 0
+    if not (sse42 and popcnt):
+        return 1
+    if not (avx2 and fma and bmi2):
+        return 2
+    return 4 if avx512f else 3
 
 ## `_SC_NPROCESSORS_ONLN`: 58 on macOS, 84 on Linux.
 let processors_online: i32 = 58 if platform.macos else 84

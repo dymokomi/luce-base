@@ -2084,7 +2084,7 @@ pub struct Lowerer:
         let out = try self.slot_address(slot)
         let shape = self.lane_shape(t)
         let vop = vector_op(e.text, self.is_float(et))
-        if vop != ir.Op.copy and isa.has_vector(self.target.arch, vop, shape):
+        if vop != ir.Op.copy and isa.has_vector(self.target.arch, self.target.level, vop, shape):
             let a = try self.vector_operand(lv, et, shape)
             if e.text == "<<" or e.text == ">>":
                 # the count is one scalar, checked against the lane width as for a scalar
@@ -2165,7 +2165,7 @@ pub struct Lowerer:
             vop = ir.Op.vneg
         elif e.text == "-%":
             vop = ir.Op.vsubw
-        if vop != ir.Op.copy and isa.has_vector(self.target.arch, vop, shape):
+        if vop != ir.Op.copy and isa.has_vector(self.target.arch, self.target.level, vop, shape):
             let x = try self.vector_operand(v, et, shape)
             var computed = ir.none_ref()
             if vop == ir.Op.vsubw:
@@ -2197,7 +2197,7 @@ pub struct Lowerer:
         let slot = try self.new_slot(t)
         let out = try self.slot_address(slot)
         let shape = self.lane_shape(t)
-        if isa.has_vector(self.target.arch, ir.Op.vsplat, shape):
+        if isa.has_vector(self.target.arch, self.target.level, ir.Op.vsplat, shape):
             let spread = try self.vector_operand(x, et, shape)
             try self.f.emit(ir.Op.storev, ir.Class.v, 0, spread, out, shape)
             return LowerValue(ref = out, type_id = t, in_memory = true)

@@ -10,3 +10,5 @@ pub let posix: bool = true
 pub let arm64: bool = true
 pub let x86_64: bool = false
 pub let pointer_bits: u32 = 64
+## The instruction-set level the program is compiled for (§19.5): 1 is the family's baseline.
+pub let cpu_level: u32 = 1
