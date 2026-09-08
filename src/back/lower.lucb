@@ -1240,6 +1240,10 @@ pub struct Lowerer:
                     let want = self.asm_operand_type(place)
                     let address = try self.place(target)
                     try self.f.emit(ir.Op.get_reg, self.class_of(want), 0, address, ir.text_ref(try self.program_unit.text(place)), 0)
+                else:
+                    # a discarded output names a register the block writes; the generator
+                    # stores nothing but may need to save the register around the block
+                    try self.f.emit(ir.Op.get_reg, ir.Class.l, 0, ir.none_ref(), ir.text_ref(try self.program_unit.text(place)), 0)
             operand = o.next
 
     ## The type an asm operand's register carries, which the instruction set says (`isa`):

@@ -5,6 +5,24 @@
 release is a VERSION bump, a tag `luce-base-N`, and a push, the way luce-seed does it
 (`bootstrap/SEED` pins the seed the tree is built against).
 
+## 0.8.1
+
+The Linux gate over 0.3.0 to 0.8.0: green on x86_64 Linux, with two fixes it took.
+
+- `atomic_cas` keeps its expected and desired values in the argument list, where only calls
+  were looked for: single-assignment renaming, value numbering, the allocator's live ranges,
+  and slot promotion now walk them through `ir.argument_range`. The Mac gate had passed by
+  allocation luck; `tests/conformance/15_atomics/cas_operands_live.lucb` pins it;
+- an asm block's discarded output on a register the block also reads (`cpuid` with
+  `in("eax")` and `out("eax") _`) is a dummy output operand in the C, not a clobber, which
+  GCC refuses; on x86_64 the native backend pushes the callee-saved registers a block names
+  (`rbx` under `cpuid`) around it and stores the outputs after restoring them, since the
+  output places' addresses may live in those registers; the lowerer hands a discarded
+  output to the generator as a `get_reg` with no place;
+- measured here: the vector conformance and optimisation programs run natively at every
+  x86-64 level v1 to v4 (this host has AVX-512), `os.cpu_level_running()` answers 4 through
+  both backends, and the doubleword lane multiply is `pmulld` at v2 and scalar lanes at v1.
+
 ## 0.8.0
 
 Instruction-set levels (§19.5).

@@ -197,14 +197,13 @@ func number(f: ir.Function*, g: cfg.Graph*, b: u32, rep: ir.Ref[], dead: bool[],
             continue
         x.a = resolve(rep, x.a)
         x.b = resolve(rep, x.b)
-        if x.op == ir.Op.call:
-            let info = f.calls.get((usize)x.extra)
-            var k: u32 = 0
-            while k < info.args_count:
-                var a = f.args.get((usize)(info.args_start + k))
-                a.value = resolve(rep, a.value)
-                f.args.set((usize)(info.args_start + k), a)
-                k += 1
+        let (args_start, args_count) = ir.argument_range(f, x)
+        var k: u32 = 0
+        while k < args_count:
+            var a = f.args.get((usize)(args_start + k))
+            a.value = resolve(rep, a.value)
+            f.args.set((usize)(args_start + k), a)
+            k += 1
         if x.dst != 0 and numberable(x.op):
             if commutes(x.op) and ordered_after(x.a, x.b):
                 let swap = x.a

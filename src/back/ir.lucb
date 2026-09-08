@@ -520,6 +520,18 @@ pub struct Unit:
         try self.texts.push(Text(bytes = bytes))
         return u32(self.texts.count - 1)
 
+## The arguments an instruction reads from the function's argument list, as a start and a
+## count: a call's, and the expected and desired values of `atomic_cas`, which sit there
+## too. Every pass that walks a call's arguments walks these, so a cas's operands are
+## renamed, resolved, counted live, and kept out of promoted slots like any other use.
+pub func argument_range(f: Function*, x: Instr) -> (u32, u32):
+    if x.op == Op.call:
+        let info = f.calls.get((usize)x.extra)
+        return (info.args_start, info.args_count)
+    if x.op == Op.atomic_cas:
+        return ((u32)x.b.value, 2)
+    return (0, 0)
+
 ## The class a scalar of `size` bytes uses; floats are chosen by the caller.
 pub func class_of_size(size: u64) -> Class:
     return Class.l if size > 4 else Class.w

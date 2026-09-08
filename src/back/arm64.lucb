@@ -873,7 +873,10 @@ pub struct Generator:
                 let reg = self.program_unit.texts.get((usize)n.b.index).bytes
                 try self.operand(reg, n.cls, n.a)
             .get_reg:
-                # store the register the asm block left back into the output place
+                # store the register the asm block left back into the output place; a
+                # discarded output has none
+                if n.a.kind == ir.RefKind.none_:
+                    return
                 let reg = self.program_unit.texts.get((usize)n.b.index).bytes
                 try self.address_operand("x16", n.a)
                 try self.line(store_mnemonic_for(n.cls))

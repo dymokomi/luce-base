@@ -378,12 +378,11 @@ pub struct Liveness:
                         clear_bit(gen, x.dst)
                     set_use(gen, x.a)
                     set_use(gen, x.b)
-                    if x.op == ir.Op.call:
-                        let info = f.calls.get((usize)x.extra)
-                        var a: u32 = 0
-                        while a < info.args_count:
-                            set_use(gen, f.args.get((usize)(info.args_start + a)).value)
-                            a += 1
+                    let (args_start, args_count) = ir.argument_range(f, x)
+                    var a: u32 = 0
+                    while a < args_count:
+                        set_use(gen, f.args.get((usize)(args_start + a)).value)
+                        a += 1
                 k = 0
                 while k < words:
                     if l.live_in[(usize)b * words + k] != gen[k]:
@@ -670,14 +669,13 @@ func rename(f: ir.Function*, g: cfg.Graph*, b: u32, renamed: bool[], current: u3
         if x.op != ir.Op.phi:
             x.a = name_of(current, renamed, x.a)
             x.b = name_of(current, renamed, x.b)
-            if x.op == ir.Op.call:
-                let info = f.calls.get((usize)x.extra)
-                var a: u32 = 0
-                while a < info.args_count:
-                    var arg = f.args.get((usize)(info.args_start + a))
-                    arg.value = name_of(current, renamed, arg.value)
-                    f.args.set((usize)(info.args_start + a), arg)
-                    a += 1
+            let (args_start, args_count) = ir.argument_range(f, x)
+            var a: u32 = 0
+            while a < args_count:
+                var arg = f.args.get((usize)(args_start + a))
+                arg.value = name_of(current, renamed, arg.value)
+                f.args.set((usize)(args_start + a), arg)
+                a += 1
         if x.dst != 0 and renamed[(usize)x.dst]:
             let old = x.dst
             let fresh = try f.temp(f.temp_class(old))

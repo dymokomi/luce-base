@@ -1886,7 +1886,10 @@ pub struct Emitter:
             let is_out = o.text == "out" or o.text == "inout"
             let is_in = o.text == "in" or o.text == "inout"
             let v = o.left else return
-            if is_out and v.kind == ast.Kind.name and v.text == "_":
+            let discarded = is_out and v.kind == ast.Kind.name and v.text == "_"
+            # a discarded output is a clobber, unless the block also reads that register: C
+            # refuses a clobber of an input's register, so it is then a dummy output operand
+            if discarded and not (place.length > 0 and asm_block_reads(s, place)):
                 if place.length > 0:
                     try clobbers.put(", \"")
                     try clobbers.put(place)
@@ -1895,8 +1898,8 @@ pub struct Emitter:
                 continue
             let n = self.tmp()
             var vt = try self.ty(v)
-            if vt == types.unit_id:
-                vt = types.i64_id
+            if vt == types.unit_id or vt == types.void_id or discarded:
+                vt = types.u64_id
             try self.line("")
             if place.length > 0 and place != "reg":
                 try self.put("register ")
@@ -1907,6 +1910,8 @@ pub struct Emitter:
                 try self.put(" asm(\"")
                 try self.put(place)
                 try self.put("\")")
+            if discarded:
+                try self.put(" __attribute__((unused))")
             if is_in:
                 try self.put(" = ")
                 try self.value(v, vt)
@@ -6511,4 +6516,16 @@ pub func may_have_effect(e: ast.Node*) -> bool:
         if may_have_effect(b):
             return true
         cursor = b.next
+    return false
+
+## Whether an `in` or `inout` operand of the asm block `s` names the register `place`.
+func asm_block_reads(s: ast.Node*, place: str) -> bool:
+    var operand = s.right
+    while let o = operand:
+        if o.text == "in" or o.text == "inout":
+            if let p = o.body:
+                let b = p.text.bytes
+                if b.length >= 2 and b[0] == '"' and (str)b[1..<b.length - 1] == place:
+                    return true
+        operand = o.next
     return false

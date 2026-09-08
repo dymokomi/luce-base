@@ -54,6 +54,12 @@ pub struct Generator:
     var program_unit: ir.Unit*
     var f: ir.Function*
     var index: usize
+    ## The instruction being emitted, for an asm block to see the operands around it.
+    var at: usize
+    ## Callee-saved registers an asm block names, pushed before it and popped after its
+    ## outputs are read; `pending` is how many.
+    var saved: str[8]
+    var pending: usize
     ## The frame and the callee-saved registers: what every generator decides the same way.
     var fr: frame.Frame
     ## `--debug`: the frame descriptors, gathered while each function's frame is known.
@@ -63,6 +69,7 @@ pub struct Generator:
 
     pub static func create(program_unit: ir.Unit*) -> Generator!:
         return Generator(symbol_prefix = "", os = build_target.Os.linux, level = 1, out = try buffer.Buffer.create(262144), program_unit = program_unit, f = program_unit.functions.span().data, index = 0,
+                         at = 0, saved = ["", "", "", "", "", "", "", ""], pending = 0,
                          fr = try frame.Frame.create(frame.Registers(ints = 5, floats = 0, keep_ints = 2, keep_floats = 0)), descriptors = try buffer.Buffer.create(4096))
 
     # -- output ---------------------------------------------------------------------------
@@ -420,6 +427,7 @@ pub struct Generator:
             # the body is asm blocks only (§9.8): no frame, no prologue, nothing after
             var k: usize = 0
             while k < self.f.instrs.count:
+                self.at = k
                 try self.instruction(self.f.instrs.get(k))
                 k += 1
             try self.leave_section()
@@ -437,6 +445,7 @@ pub struct Generator:
         try self.receive_params()
         var i: usize = 0
         while i < self.f.instrs.count:
+            self.at = i
             try self.instruction(self.f.instrs.get(i))
             i += 1
         try self.put("\n")
@@ -839,10 +848,9 @@ pub struct Generator:
                 let reg = with_percent(self.program_unit.texts.get((usize)n.b.index).bytes)
                 try self.operand(reg, n.cls, n.a)
             .get_reg:
-                # store the register the asm block left back into the output place
-                let reg = with_percent(self.program_unit.texts.get((usize)n.b.index).bytes)
-                try self.address_operand("%r10", n.a)
-                try self.line3(self.move_of(n.cls), reg, ", (%r10)")
+                # the outputs of an asm block are stored by `inline_asm`, which follows the
+                # block's operands on both sides
+                discard(n.cls)
             .atomic_load:
                 # every aligned load is acquire on this target; the fence is for sequential
                 # consistency against stores, which `atomic_store` supplies with `xchg`
@@ -1342,13 +1350,95 @@ pub struct Generator:
         try self.address_operand("%rdi", ir.text_ref(index))
         try self.call_symbol(self.program_unit.trap_function)
 
+    ## An asm block, with its outputs. The callee-saved registers its operands name
+    ## (`set_reg` before it, `get_reg` after it, a discarded output among them) are pushed
+    ## first, since the block may write them while the allocator keeps values there. After
+    ## the body, an output that lives in a pushed register is pushed as well, the saved
+    ## registers are reloaded from the stack, and only then is every output stored, so the
+    ## addresses of the output places, which may live in those registers, are sound.
     mutating func inline_asm(n: ir.Instr) -> !:
         let arch = self.program_unit.texts.get((usize)n.a.index).bytes
         if arch != "x86_64":
             return
+        self.pending = 0
+        var k = self.at
+        while k > 0 and self.f.instrs.get(k - 1).op == ir.Op.set_reg:
+            k -= 1
+            try self.note_named(self.f.instrs.get(k))
+        let first_output = self.at + 1
+        var last = first_output
+        while last < self.f.instrs.count and self.f.instrs.get(last).op == ir.Op.get_reg:
+            try self.note_named(self.f.instrs.get(last))
+            last += 1
+        var s: usize = 0
+        while s < self.pending:
+            try self.line2("pushq ", self.saved[s])
+            s += 1
         let body = self.program_unit.texts.get((usize)n.b.index).bytes
         try self.put("\n")
         try self.put(body)
+        # the outputs that live in a saved register, pushed above the saves
+        var values: usize = 0
+        var value_index: usize[16] = ---
+        k = first_output
+        while k < last:
+            let o = self.f.instrs.get(k)
+            value_index[k - first_output] = 16
+            if o.a.kind != ir.RefKind.none_:
+                let reg = wide_name(with_percent(self.program_unit.texts.get((usize)o.b.index).bytes))
+                if self.saved_index(reg) < self.pending:
+                    try self.line2("pushq ", reg)
+                    value_index[k - first_output] = values
+                    values += 1
+            k += 1
+        s = 0
+        while s < self.pending:
+            try self.line("movq ")
+            try self.put_u64((u64)(8 * (values + (self.pending - 1 - s))))
+            try self.put("(%rsp), ")
+            try self.put(self.saved[s])
+            s += 1
+        k = first_output
+        while k < last:
+            let o = self.f.instrs.get(k)
+            if o.a.kind != ir.RefKind.none_:
+                var reg = with_percent(self.program_unit.texts.get((usize)o.b.index).bytes)
+                let j = value_index[k - first_output]
+                if j < 16:
+                    try self.line("movq ")
+                    try self.put_u64((u64)(8 * (values - 1 - j)))
+                    try self.put("(%rsp), %rax")
+                    reg = "%rax" if o.cls == ir.Class.l else "%eax"
+                try self.address_operand("%r10", o.a)
+                try self.line3(self.move_of(o.cls), reg, ", (%r10)")
+            k += 1
+        if self.pending + values > 0:
+            try self.line("addq $")
+            try self.put_u64((u64)(8 * (self.pending + values)))
+            try self.put(", %rsp")
+        self.pending = 0
+
+    ## Remember the register `operand` names when the allocator may keep a value in it.
+    mutating func note_named(operand: ir.Instr) -> !:
+        let reg = wide_name(with_percent(self.program_unit.texts.get((usize)operand.b.index).bytes))
+        if self.saved_index(reg) < self.pending:
+            return
+        var c: usize = 1
+        while c <= 5:
+            if q_names[c] == reg and self.pending < 8:
+                self.saved[self.pending] = reg
+                self.pending += 1
+                return
+            c += 1
+
+    ## Where `reg` sits among the saved registers, or `pending` when it does not.
+    func saved_index(reg: str) -> usize:
+        var s: usize = 0
+        while s < self.pending:
+            if self.saved[s] == reg:
+                return s
+            s += 1
+        return self.pending
 
     ## Read-modify-write atomics: `xadd` and `xchg` for the ones the machine has, a
     ## compare-and-swap loop for the rest; the old value is the result.

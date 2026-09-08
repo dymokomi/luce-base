@@ -1,0 +1,29 @@
+## §15.1: the values `cas` compares and exchanges are uses like any other: a pointer taken
+## once and exchanged several times, with much else computed in between, is still that
+## pointer at every exchange. (The register allocator once freed it after the first, since a
+## cas keeps its operands in the argument list, where only calls were looked for.)
+struct Node:
+    var value: i64
+
+pub func main(arguments: str[]) -> i32:
+    var head: @Node*? = none
+    var first = Node(value = 1)
+    var second = Node(value = 2)
+    let mine = &first
+    var noise: i64 = 0
+    var i: i64 = 0
+    while i < 3:
+        let (swapped, seen) = head.cas(none, mine, .acq_rel, .acquire)
+        noise += (i + 1) * (7 if swapped else 3)
+        if let s = seen:
+            noise += s.value * 100
+        let (again, now) = head.cas(&second, mine, .seq_cst, .relaxed)
+        noise += 1000 if again else 0
+        if let n = now:
+            noise += n.value * 10
+        i += 1
+    var total: i64 = 0
+    if let h = head:
+        total = h.value
+    print(f"{total} {noise}")
+    return 0
