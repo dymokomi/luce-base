@@ -177,6 +177,7 @@ class Gen:
         self.funcs = []   # (name, params)
         self.loops = 0
         self.locals = []  # (name, type) locals in scope of the statement being written
+        self.in_arena = False  # inside `with arena:`, where a loop of allocations would fill it
 
     # -- integers ---------------------------------------------------------------------
 
@@ -289,6 +290,10 @@ class Gen:
         saved_locals = list(self.locals)
         for _ in range(r.randint(1, 4)):
             k = r.randrange(42)
+            if self.in_arena and k in (32, 33, 34, 35, 36, 37, 38, 39, 40, 41):
+                # a fixed buffer reclaims only its last allocation: nothing else allocates
+                # inside its suite, so the one object it holds is freed in order
+                k = 0
             pad = "    " * indent
             self.pad = pad
             if k < 2:
@@ -478,7 +483,10 @@ class Gen:
                     lines.append(f"{pad}with arena{n}:")
                     lines.append(f"{pad}    let ay{n} = try new P(x = {self.expr(2)}, y = {self.expr(1, 'u8')}, f = {self.fexpr(1)})")
                     self.locals.append((f"ay{n}.x", "i64"))
+                    saved_arena = self.in_arena
+                    self.in_arena = True
                     lines += self.statements(depth - 1, indent + 1)
+                    self.in_arena = saved_arena
                     self.locals.pop()
                     lines.append(f"{pad}    a{r.randrange(3)} = ay{n}.x +% (i64)ay{n}.y")
                     lines.append(f"{pad}    free(ay{n})")
