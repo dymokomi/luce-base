@@ -5,6 +5,15 @@
 release is a VERSION bump, a tag `luce-base-N`, and a push, the way luce-seed does it
 (`bootstrap/SEED` pins the seed the tree is built against).
 
+## 0.10.1
+
+- A host that lacks what a check needs (SDL3, `pkg-config`, a Metal device) fails the gate
+  and names what to install; a green gate means every check ran. The one skip left is
+  Metal on a host that is not macOS.
+- The first run of `tests/programs/pkgconfig` on the Mac found that pkg-config's `-Wl,`
+  flags went to Apple's `ld` as they stand; the driver now hands `ld` the linker's own
+  words.
+
 ## 0.10.0
 
 The audit of 2026-09-07 (`luce-base-audit-2026-09-07.md`, eleven findings and the

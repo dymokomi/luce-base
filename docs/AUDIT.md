@@ -17,7 +17,9 @@ seed; a crash or an acceptance fails the gate. The robustness suite counts alloc
 through a measuring allocator; the optimisation suite counts instructions; the platform
 suite proves each host's arms of the standard library and emits every target; the proving
 programs (`tests/programs`) are driven from outside; the seed's own corpus is built
-natively. The tree builds itself through both backends to the same C and assembly, and the
+natively. A host that lacks something a check needs (SDL3, `pkg-config`, a Metal device)
+fails the gate and says what to install: a green gate means every check ran. The one skip
+left is Metal on a host that is not macOS. The tree builds itself through both backends to the same C and assembly, and the
 seed named in `bootstrap/SEED` builds it to the same C.
 
 ## The matrix
@@ -35,7 +37,7 @@ seed named in `bootstrap/SEED` builds it to the same C.
 | 13 | generics: functions, records, interfaces, constraints | verified | chapter 13 |
 | 14 | interfaces, views, `Display`, `Iterator`, `Iterable`, `Writer?` in the null niche | verified | chapter 14 |
 | 15 | atomics with orderings, `volatile`, threads, `sync` | verified | chapter 15, `tests/programs/http`; `thread.spawn` honours `stack` and `name` (`tests/platform/common/thread_options.lucb`) |
-| 16 | modules, packages, the manifest, tests, the standard library | verified | chapter 16, `tests/programs/manifest`, `tests/programs/pkgconfig` (skipped on a host without `pkg-config`) |
+| 16 | modules, packages, the manifest, tests, the standard library | verified | chapter 16, `tests/programs/manifest`, `tests/programs/pkgconfig` |
 | 17.1–17.4 | `extern` functions, records, variadics, `out` parameters, C sources and libraries | verified | chapter 17, `tests/programs/abi`: records of every ABI class by value both ways, packed records in memory on x86-64 as System V asks |
 | 17.6 | export: methods, function pointers (`luce_fn_N`), spans as pointer and length, fallible functions in the status form, the package's error codes, `--lib` with a header | verified | `tests/programs/abi/exports.lucb` through a C consumer; `tests/samples/exports.lucb` |
 | 17.5 | `luce bind` | planned | a project of its own |

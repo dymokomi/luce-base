@@ -127,7 +127,10 @@ natively under the gate and driven from outside by its `check.sh`:
   and a length, the package's error codes) is proved through the header, a C
   consumer, linking, and running.
 - `tests/programs/pkgconfig`: a manifest that names a library through
-  `pkg-config`; skipped, and said so, on a host without it.
+  `pkg-config`.
+
+A host that lacks what a check needs (SDL3, `pkg-config`, a Metal device) fails
+the gate and says what to install; a green gate means every check ran.
 
 Every bug they find is pinned as a test in both compilers before the fix.
 

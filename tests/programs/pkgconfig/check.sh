@@ -1,13 +1,18 @@
 #!/bin/sh
 # Prove `pkg_config` in the manifest: the library's flags come from pkg-config, through
-# both backends. A host without pkg-config or SDL3 skips, and says so.
+# both backends. A host without pkg-config or SDL3 cannot run the whole gate, and the gate
+# says so and fails: a green gate means every check ran.
 # Usage: tests/programs/pkgconfig/check.sh [luce-base binary]
 set -eu
 cd "$(dirname "$0")/../../.."
 LB=${1:-./build/luce-base}
-if ! command -v pkg-config > /dev/null 2>&1 || ! pkg-config --exists sdl3; then
-    echo "skip tests/programs/pkgconfig: pkg-config or sdl3 is not on this host"
-    exit 0
+if ! command -v pkg-config > /dev/null 2>&1; then
+    echo "FAIL tests/programs/pkgconfig: pkg-config is not installed on this host (brew install pkgconf, or the distribution's pkgconf); the gate cannot run in full"
+    exit 1
+fi
+if ! pkg-config --exists sdl3; then
+    echo "FAIL tests/programs/pkgconfig: pkg-config does not know sdl3 on this host (brew install sdl3, or the distribution's SDL3 development package); the gate cannot run in full"
+    exit 1
 fi
 "$LB" build tests/programs/pkgconfig/main.lucb -o build/pkg-check-c
 "$LB" build tests/programs/pkgconfig/main.lucb --native -o build/pkg-check

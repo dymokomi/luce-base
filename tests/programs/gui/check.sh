@@ -8,14 +8,14 @@ LB=${1:-./build/luce-base}
 SDL=${SDL3_PREFIX:-/opt/homebrew}
 if [ "$(uname -s)" = Darwin ]; then
     if [ ! -f "$SDL/lib/libSDL3.dylib" ]; then
-        echo "skip tests/programs/gui: SDL3 is not installed under $SDL (brew install sdl3)"
-        exit 0
+        echo "FAIL tests/programs/gui: SDL3 is not installed under $SDL (brew install sdl3); the gate cannot run in full"
+        exit 1
     fi
     "$LB" build tests/programs/gui/main.lucb --native -lSDL3 "-L$SDL/lib" -o build/gui-check
 else
     if ! ldconfig -p 2>/dev/null | grep -q 'libSDL3\.so'; then
-        echo "skip tests/programs/gui: SDL3 is not installed (libSDL3.so is not in the linker's cache)"
-        exit 0
+        echo "FAIL tests/programs/gui: SDL3 is not installed (libSDL3.so is not in the linker's cache; install the distribution's SDL3 package); the gate cannot run in full"
+        exit 1
     fi
     "$LB" build tests/programs/gui/main.lucb --native -lSDL3 -o build/gui-check
 fi

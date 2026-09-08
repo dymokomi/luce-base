@@ -80,13 +80,29 @@ struct Arguments:
         let text = try format(room, f"{prefix}{value}")
         try self.items.push((c.str)text)
 
-    ## Every whitespace-separated word of `text`, as `pkg-config` prints its flags.
-    mutating func words(text: str) -> !:
+    ## Every whitespace-separated word of `text`, as `pkg-config` prints its flags. The
+    ## flags are the C driver's; for a link through `ld` itself, `-Wl,a,b` is the linker's
+    ## own words `a b`.
+    mutating func words(text: str, for_linker: bool) -> !:
         let b = text.bytes
         var start: usize = 0
         var i: usize = 0
         while i <= b.length:
             if i == b.length or b[i] == ' ' or b[i] == '\n' or b[i] == '\t':
+                if i > start:
+                    try self.word((str)b[start..<i], for_linker)
+                start = i + 1
+            i += 1
+
+    mutating func word(text: str, for_linker: bool) -> !:
+        let b = text.bytes
+        if not for_linker or b.length < 5 or (str)b[..<4] != "-Wl,":
+            try self.flag("", text)
+            return
+        var start: usize = 4
+        var i: usize = 4
+        while i <= b.length:
+            if i == b.length or b[i] == ',':
                 if i > start:
                     try self.flag("", (str)b[start..<i])
                 start = i + 1
@@ -95,8 +111,9 @@ struct Arguments:
     func span() -> c.str[]:
         return self.items.span()
 
-## The flags `pkg-config` answers for `name` under `what`, `--cflags` or `--libs` (§17.4).
-func pkg_config_flags(arguments: Arguments*, name: c.str, what: c.str) -> !:
+## The flags `pkg-config` answers for `name` under `what`, `--cflags` or `--libs` (§17.4);
+## `for_linker` when they go to `ld` itself rather than the C driver.
+func pkg_config_flags(arguments: Arguments*, name: c.str, what: c.str, for_linker: bool) -> !:
     let query: c.str[2] = [what, name]
     let asked = process.run("pkg-config", query) catch failure:
         error(build_failed, "pkg-config is not available, and the manifest names a package through it")
@@ -104,7 +121,7 @@ func pkg_config_flags(arguments: Arguments*, name: c.str, what: c.str) -> !:
     if status != 0:
         try io.stderr().write(err)
         error(build_failed, "pkg-config does not know a package the manifest names")
-    try arguments.words(trim(out))
+    try arguments.words(trim(out), for_linker)
 
 ## The `-l`, `-L`, and `-framework` options of the command line, for a C driver link:
 ## `-L` with a run path, and the frameworks only where the platform has them.
@@ -135,7 +152,7 @@ func compile_sources(dir: str, arguments: Arguments*) -> !:
         try source_args.add((c.str)source_text)
         try source_args.add("-O2")
         for wanted in package.pkg_config:
-            try pkg_config_flags(&source_args, wanted, "--cflags")
+            try pkg_config_flags(&source_args, wanted, "--cflags", false)
         try source_args.add("-o")
         try source_args.add((c.str)compiled)
         try run_tool("cc", source_args.span(), "the C compiler rejected a source the manifest names")
@@ -372,8 +389,8 @@ func compile(text: str, exe: str, release: bool, with_start: bool) -> !:
         try cc_args.add("-framework")
         try cc_args.add(framework)
     for name in package.pkg_config:
-        try pkg_config_flags(&cc_args, name, "--cflags")
-        try pkg_config_flags(&cc_args, name, "--libs")
+        try pkg_config_flags(&cc_args, name, "--cflags", false)
+        try pkg_config_flags(&cc_args, name, "--libs", false)
     try link_flags(&cc_args, true)
     let result = try process.run("cc", cc_args.span())
     let (cc_status, cc_out, cc_err) = result
@@ -437,7 +454,7 @@ func assemble_and_link(dir: str, name_bytes: u8[], text: str, exe: str) -> !:
         try ld_args.add("-framework")
         try ld_args.add(framework)
     for name in package.pkg_config:
-        try pkg_config_flags(&ld_args, name, "--libs")
+        try pkg_config_flags(&ld_args, name, "--libs", true)
     for directory in link_directories:
         try ld_args.add("-L")
         try ld_args.add(directory)
@@ -473,7 +490,7 @@ func link_with_driver(dir: str, object_path: str, exe: str, t: targets.Target) -
     for library in package.libraries:
         try cc_args.flag("-l", (str)library)
     for name in package.pkg_config:
-        try pkg_config_flags(&cc_args, name, "--libs")
+        try pkg_config_flags(&cc_args, name, "--libs", false)
     try link_flags(&cc_args, false)
     for library in t.system_libraries:
         try cc_args.add((c.str)library)
