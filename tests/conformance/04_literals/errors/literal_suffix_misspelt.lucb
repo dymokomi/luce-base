@@ -1,0 +1,4 @@
+# error: a literal suffix names an integer or float type
+pub func main(arguments: str[]) -> i32:
+    let x = 1.5f31
+    return 0

@@ -5,6 +5,16 @@
 release is a VERSION bump, a tag `luce-base-N`, and a push, the way luce-seed does it
 (`bootstrap/SEED` pins the seed the tree is built against).
 
+## 0.11.3
+
+- The fuzzer's first hour (`tools/fuzz.py --minutes 60`, seed 23: 19,500 mutations, 2,562
+  generated programs) found one defect: the lexer took any letters after a number as its
+  suffix, so `25aaa5u8` reached the decoder and was refused without a position. A suffix is
+  now checked at the literal, `a literal suffix names an integer or float type`, and the
+  decoder's other failures carry a position too (`04_literals/errors/literal_suffix_*`).
+- `tools/fuzz.py` flushes each finding as it comes and prints a progress line per round, so
+  a long run can be watched through a file or a pipe.
+
 ## 0.11.2
 
 - A thirty-minute fuzz run after 0.11.1 (`tools/fuzz.py --minutes 30`), fixed with a test

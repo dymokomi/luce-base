@@ -52,7 +52,7 @@ class Findings:
         self.count += 1
         path = out / f"finding-{self.count:03d}-{kind}.lucb"
         path.write_bytes(text)
-        print(f"FINDING {kind}: {detail}\n  input: {path}")
+        print(f"FINDING {kind}: {detail}\n  input: {path}", flush=True)
 
 
 # ---- mutation ------------------------------------------------------------------------
@@ -333,6 +333,10 @@ def main():
     round_ = 0
     while True:
         round_ += 1
+        if deadline and round_ > 1:
+            # a long run says where it is, through a pipe or a file as well as a terminal
+            left = max(0, int(deadline - time.time()))
+            print(f"fuzz: round {round_}, {done_m} mutations, {done_p} programs, {findings.count} findings, {left // 60} min left", flush=True)
         for k in range(mutations):
             f = rng.choice(files)
             text = mutate(f.read_bytes(), rng)
@@ -352,7 +356,7 @@ def main():
         p = out / name
         if p.exists():
             p.unlink()
-    print(f"fuzz: {done_m} mutations, {done_p} generated programs, {findings.count} findings (seed {seed})")
+    print(f"fuzz: {done_m} mutations, {done_p} generated programs, {findings.count} findings (seed {seed})", flush=True)
     return min(findings.count, 100)
 
 

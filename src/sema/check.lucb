@@ -1776,7 +1776,8 @@ pub struct Checker:
             dest = self.table.get(dest).elem
         if not self.table.is_integer(dest):
             return
-        let value = try decode_integer(e.text)
+        let value = decode_integer(e.text) catch failure:
+            return try self.fail(e, "integer literal does not fit")
         if negated and value != 0 and not self.table.is_signed(dest):
             discard(try self.fail(e, "a negative literal does not fit an unsigned type"))
             return
@@ -2915,7 +2916,9 @@ pub struct Checker:
         var have = self.concrete(got)
         if got == types.untyped_int_id and inner.kind == ast.Kind.literal:
             # a bare literal past `i64` is `u64` under a cast: `(u64)18446744073709551615`
-            if try decode_integer(inner.text) > 9223372036854775807:
+            let magnitude = decode_integer(inner.text) catch failure:
+                return try self.fail(inner, "integer literal does not fit")
+            if magnitude > 9223372036854775807:
                 have = types.u64_id
         if got == types.untyped_int_id or got == types.untyped_float_id:
             discard(try self.coerce(inner, got, have))
@@ -3294,7 +3297,8 @@ pub struct Checker:
         let v = argument.left else return try self.fail(e, "`ErrorCode.package` takes a code")
         if v.kind != ast.Kind.literal:
             return try self.fail(v, "`ErrorCode.package` takes an integer literal")
-        let code = try decode_integer(v.text)
+        let code = decode_integer(v.text) catch failure:
+            return try self.fail(v, "integer literal does not fit")
         if code > 65535:
             return try self.fail(v, "an error code is at most 65535; the package's identity takes the high half")
         let name = "luce" if self.in_prelude() else self.package_name

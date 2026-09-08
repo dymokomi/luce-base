@@ -20,6 +20,14 @@ pub let bad_indent: ErrorCode = ErrorCode.package(3)
 pub let unterminated: ErrorCode = ErrorCode.package(4)
 pub let bad_character: ErrorCode = ErrorCode.package(5)
 
+## The suffixes a number may carry (§4.2, §4.3): the exact type's name.
+func is_literal_suffix(word: str) -> bool:
+    let names: str[13] = ["u8", "u16", "u32", "u64", "usize", "i8", "i16", "i32", "i64", "isize", "f16", "f32", "f64"]
+    for name in names:
+        if word == name:
+            return true
+    return false
+
 ## The longest identifier (§3.1): a diagnostic quoting one fits its buffer.
 pub let longest_name: usize = 128
 pub let tab: ErrorCode = ErrorCode.package(6)
@@ -222,8 +230,11 @@ pub struct Lexer:
                 self.offset += 2
                 while self.is_digit(self.peek()):
                     self.offset += 1
+        let digits_end = self.offset
         while self.is_letter(self.peek()) or self.is_digit(self.peek()):
             self.offset += 1                    # a suffix such as u8 or f32
+        if self.offset > digits_end and not is_literal_suffix(self.src.text(digits_end, self.offset)):
+            error(bad_character, "a literal suffix names an integer or float type: `255u8`, `0.5f32`")
         return self.make(kind, start)
 
     ## The escapes of §4.2: `\\ \" \' \n \r \t \0 \u{HEX}`, and `\xNN` in a byte literal only.
