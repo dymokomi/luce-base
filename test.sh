@@ -79,7 +79,8 @@ cmp build/stage1.c build/stage2.c
 # C backend's cross-target output is the same on every host, or the note says so
 for snapshot in bootstrap/luce-base-*.c; do
     target=$(basename "$snapshot" .c | sed 's/^luce-base-//')
-    ./build/luce-base build src/main.lucb --target "$target" --emit=c -o build/snapshot.c
+    case "$target" in x86_64-*) level=v1;; *) level=neon;; esac
+    ./build/luce-base build src/main.lucb --target "$target" --cpu "$level" --emit=c -o build/snapshot.c
     if ! cmp -s build/snapshot.c "$snapshot"; then
         echo "note: $snapshot differs from the current compiler's C for $target; run tools/snapshot.sh"
     fi

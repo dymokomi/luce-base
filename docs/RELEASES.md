@@ -5,6 +5,14 @@
 release is a VERSION bump, a tag `luce-base-N`, and a push, the way luce-seed does it
 (`bootstrap/SEED` pins the seed the tree is built against).
 
+## 0.9.1
+
+- a bootstrap snapshot is for the family's baseline level (`tools/snapshot.sh` and the
+  gate's check pass `--cpu v1` or `--cpu neon`): the Linux host had written its own level 4
+  into `bootstrap/luce-base-x86_64-linux.c`, a compiler that would have run on AVX-512
+  machines only;
+- pinned to luce-seed-0.44; both gates green on arm64 macOS after the Linux pass.
+
 ## 0.9.0
 
 The instruction-set level is automatic.

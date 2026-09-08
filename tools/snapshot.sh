@@ -5,7 +5,10 @@
 # each host checks that its own snapshot is what its compiler emits.
 set -eu
 cd "$(dirname "$0")/.."
+# a snapshot is for the family's baseline level: it must build on any machine of the
+# target, not only one as new as the host that wrote it (§19.5)
 for target in arm64-macos x86_64-linux; do
-    ./build/luce-base build src/main.lucb --target "$target" --emit=c -o "bootstrap/luce-base-$target.c"
+    case "$target" in x86_64-*) level=v1;; *) level=neon;; esac
+    ./build/luce-base build src/main.lucb --target "$target" --cpu "$level" --emit=c -o "bootstrap/luce-base-$target.c"
     echo "wrote bootstrap/luce-base-$target.c"
 done
