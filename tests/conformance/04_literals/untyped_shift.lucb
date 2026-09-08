@@ -1,0 +1,15 @@
+## §4.2, §7.2: an untyped integer computes as `i64` does; a shift of one, also inside a
+## cast, has that width, so a count below 64 is in range.
+pub func main(arguments: str[]) -> i32:
+    let a: i64 = (i64)((104 >> 2) >> 0)
+    let b: i64 = (i64)(1 << 40)
+    let c: u32 = (u32)((1 << 20) >> 3)
+    let d = 300 >> 8
+    let e: u8 = (u8)(1024 >> 4)
+    # a cast converts its operand's value and gives it no context: 300 and 200 + 100 are
+    # `i64` values, then truncated (§7.5)
+    let f: u8 = (u8)300
+    let g: u8 = (u8)(200 + 100)
+    let h: u32 = (u32)(1 << 40)
+    print(f"{a} {b >> 39} {c} {d} {e} {f} {g} {h}")
+    return 0

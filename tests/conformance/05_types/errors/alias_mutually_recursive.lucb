@@ -1,0 +1,7 @@
+# error: this alias is recursive
+## §5.10: two aliases spelling each other are the same nothing.
+type First = Second*
+type Second = First*
+
+pub func main(arguments: str[]) -> i32:
+    return 0

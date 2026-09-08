@@ -32,7 +32,7 @@ seed_binary = root.parent / "luce-seed" / "build" / "lucb"
 out = root / "build" / "fuzz"
 out.mkdir(parents=True, exist_ok=True)
 
-position = re.compile(r":\d+:\d+: ")
+position = re.compile(r"[^ :]+\.lucb:\d+:\d+: ")
 
 
 def run(args, timeout, stdin=None):
@@ -141,7 +141,7 @@ def check_one(text, timeout, findings, label):
     elif status == 0:
         pass
     elif status == 1:
-        if not position.search(message) and "cannot read" not in message:
+        if not position.search(message):
             findings.report("bare", text, f"{label}: a rejection without a position: {message[:200]!r}")
     else:
         findings.report("status", text, f"{label}: exit status {status}: {message[:200]!r}")

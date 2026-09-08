@@ -5,6 +5,33 @@
 release is a VERSION bump, a tag `luce-base-N`, and a push, the way luce-seed does it
 (`bootstrap/SEED` pins the seed the tree is built against).
 
+## 0.11.1
+
+- `tools/fuzz.py`: mutated programs must be accepted or rejected with a positioned
+  diagnostic, generated programs must agree across the C, C `-O2`, native, and seed
+  executions; the gate runs its short deterministic pass. Its first hour found, and this
+  release fixes with a test each: a lexer diagnostic that named no file; `x = x` and
+  `x == x`, legal statements whose C the host compiler refused under `-Wall -Werror`
+  (the style warnings generated C may raise are off, the type checks stay); an alias
+  that named itself, `type Loop = Loop*`, which recursed the checker off its stack; and a
+  source with more open brackets than the lexer's table, which trapped instead of
+  saying so; twenty thousand dereferences in a row, which recursed the parser off its
+  stack (the parser's nesting guard now covers operators); and a source refused for its
+  encoding, which was reported without a line and column.
+- Every rejection runner now demands `file:line:column:` on the diagnostic.
+- The fuzzer's gate pass found the seed computing an untyped integer under a cast with no
+  width, then in the cast's type: `(u8)(200 + 100)` trapped where the compiled program
+  printed 44. The spec now says it: a cast gives its operand no context, so an untyped
+  operand computes as `i64` and is converted after (§7.5). Pinned to luce-seed-0.50.
+- Comparing the two on that rule found a hole in this compiler: a literal inside an
+  untyped expression with no context was never checked, so `18446744073709551615 - 1`
+  reached the C compiler, and `-(9223372036854775808)` and `let x: i8 = -129` compiled to
+  a trap. Every literal in an untyped expression is now checked against the type the
+  expression takes, only `-literal` is a negative literal, unary `-` on an untyped value
+  is refused for an unsigned type, a literal beyond `u64` is refused instead of trapping
+  the compiler, and an integer literal mixed with a float literal says so
+  (`04_literals/untyped_context` and seven rejections beside it).
+
 ## 0.11.0
 
 The register allocator over the exact lives (`src/back/regalloc.lucb`): liveness by

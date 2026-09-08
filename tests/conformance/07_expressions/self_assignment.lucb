@@ -1,0 +1,19 @@
+## §7.6: `x = x` is a read and a write of `x`, with no other meaning; it is a statement
+## like any other, also through a volatile pointer, where the read and the write both
+## happen (§15.2).
+var counter: i64
+
+pub func main(arguments: str[]) -> i32:
+    var x: i64 = 41
+    x = x
+    x = x + 1
+    counter = counter
+    counter += 1
+    var cell: u32 = 7
+    let p: volatile u32* = &cell
+    *p = *p
+    *p = *p * 3
+    var flag: u8 = 200
+    flag = flag
+    print(f"{x} {counter} {cell} {flag}")
+    return 0

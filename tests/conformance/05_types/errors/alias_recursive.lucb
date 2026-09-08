@@ -1,0 +1,7 @@
+# error: this alias is recursive
+## §5.10: an alias is another spelling for a type that exists; one that names itself, even
+## through a pointer, spells nothing.
+type Loop = Loop*
+
+pub func main(arguments: str[]) -> i32:
+    return 0

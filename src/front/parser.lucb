@@ -43,7 +43,7 @@ pub struct Parser:
             let t = lx.next() catch failure:
                 let (line, column) = lx.position()
                 let half = scratch.length // 2
-                let message = try format(scratch[..<half], f"{line}:{column}: {failure.message}")
+                let message = try format(scratch[..<half], f"{lx.src.path}:{line}:{column}: {failure.message}")
                 error(failure.code, message)
             if n == buffer.length:
                 let grown = try alloc token.Token[buffer.length * 2]
@@ -176,10 +176,13 @@ pub struct Parser:
         let t = self.take()
         return try ast.Node.make(kind, self.text_of(t), t.start, t.line)
 
+    ## One level deeper into the tree: a source that nests past `max_nest` (blocks,
+    ## brackets, and operators alike, `********x` included) is refused here, where the
+    ## recursion is, rather than left to the stack.
     mutating func enter() -> !:
         self.nest += 1
         if self.nest > max_nest:
-            discard(try self.fail("nesting is too deep"))
+            discard(try self.fail("the source nests too deeply"))
 
     mutating func leave():
         self.nest -= 1
@@ -1097,6 +1100,12 @@ pub struct Parser:
         return left
 
     mutating func parse_unary() -> ast.Node*!:
+        try self.enter()
+        let n = try self.parse_unary_inner()
+        self.leave()
+        return n
+
+    mutating func parse_unary_inner() -> ast.Node*!:
         if self.at_kw("try") or self.at_kw("not"):
             let n = try self.taken(ast.Kind.unary)
             n.left = try self.parse_unary()

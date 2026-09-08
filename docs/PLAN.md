@@ -61,31 +61,32 @@ history. Nothing is listed here that already exists.
 
 ### Hardening
 
-9. **Fuzzing.** The lexer, parser, and checker have never been fuzzed. Gate: a
-   fuzzer over source text with a time and memory budget, run for hours on
-   both hosts, every crash or hang pinned as a rejection test; deep nesting,
-   long files, pathological generics, and malformed UTF-8 covered on purpose.
-10. **The optimiser under a differential matrix.** `tests/optimization` counts
+The fuzzer exists (`tools/fuzz.py`, 0.11.1): mutated programs must be accepted or
+rejected with a positioned diagnostic, generated programs must agree across the four
+executions; the gate runs its short deterministic pass, and `--minutes M` runs it for
+longer. Run it for hours on both hosts before a release; every finding becomes a test.
+
+9. **The optimiser under a differential matrix.** `tests/optimization` counts
     instructions; nothing runs every program at every level. Gate: the
     conformance runner builds every positive program at `--opt 0` through
     `--opt 3` and compares the outputs, in the gate.
-11. **Sanitizers and a litmus suite.** No sanitizer run and no test of the
+10. **Sanitizers and a litmus suite.** No sanitizer run and no test of the
     orderings. Gate: the conformance and robustness programs built through the
     C backend under address, undefined-behaviour, and thread sanitizers as a
     gate step; a litmus suite for the atomic orderings of §15.1 under
     `tests/platform`.
-12. **The Linux pass.** Everything since the last pull is proven on the Mac
+11. **The Linux pass.** Everything since the last pull is proven on the Mac
     only; `tests/programs/abi` runs the packed-record convention at run time
     there for the first time. Gate: `./test.sh` green on x86_64 Linux at each
     release, recorded in `docs/RELEASES.md`.
-13. **Continuous integration.** No checked-in workflow runs both hosts on every
+12. **Continuous integration.** No checked-in workflow runs both hosts on every
     push; "green on both hosts" is a claim about the last time someone ran it.
     Gate: a workflow that builds and gates on arm64 macOS and x86_64 Linux on
     every push, with the toolchain versions recorded, and a red gate blocking a
     release.
-14. **The C backend at `-O2`.** The release pass exists and found one dangling
+13. **The C backend at `-O2`.** The release pass exists and found one dangling
     buffer on its first run; it is one build flag away from the sanitizer run
-    above. Gate: item 11 covers it.
+    above. Gate: item 10 covers it.
 
 ## The bootstrap gate
 

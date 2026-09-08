@@ -1,0 +1,15 @@
+## §4.2, §7.5: an untyped expression computes in its contextual type, and every literal in it
+## must fit that type; a cast gives its operand no context, so the operand computes as `i64`
+## and its value is converted after. Only `-literal` is a negative literal.
+pub func main(arguments: str[]) -> i32:
+    let a: u8 = (u8)(200 + 100)
+    let b: u32 = (u32)(1 << 40)
+    let c: i8 = (i8)(-300)
+    let d: u64 = (u64)18446744073709551615
+    let e: i8 = -128
+    let f = -9223372036854775808
+    let g: u8 = -%1
+    let h: u8 = 3 -| 7
+    let i = 1 if arguments.length > 99 else 2 + 3
+    print(f"{a} {b} {c} {d} {e} {f} {g} {h} {i}")
+    return 0

@@ -121,6 +121,9 @@ pub struct Checker:
     var package_codes: list.List[u64]
     ## Every symbol an `export` claimed: no two alike (§17.6).
     var export_symbols: list.List[str]
+    ## The aliases whose types are being resolved, as node addresses: one met again names
+    ## itself.
+    var resolving: list.List[usize]
     ## Inside a lambda body, bindings below this index (the enclosing locals) are hidden:
     ## a lambda captures nothing (§9.6).
     var lambda_floor: usize
@@ -134,7 +137,7 @@ pub struct Checker:
                        current = 0, current_func = none, result_type = types.unit_id, fallible = false,
                        self_type = types.none_id, self_mutable = false, in_init = false, loop_depth = 0, in_catch = false,
                        catch_result = types.none_id, checking_template = false, at_top_level = false, root = "", package_name = "app",
-                       package_codes = try list.List[u64].create(64), export_symbols = try list.List[str].create(32),
+                       package_codes = try list.List[u64].create(64), export_symbols = try list.List[str].create(32), resolving = try list.List[usize].create(8),
                        build_target = targets.Target.host())
 
     # -- diagnostics ----------------------------------------------------------------------
@@ -543,6 +546,12 @@ pub struct Checker:
         let text = (str)path
         let src = source.Source.load(path) catch failure:
             let half = self.scratch.length // 2
+            # a located message (`path:line:column: ...`) stands as it is, copied into the
+            # scratch that outlives the build's arena; only a file that cannot be opened is
+            # reported by its name alone
+            if failure.code == source.bad_encoding:
+                let located = try format(self.scratch[..<half], f"{failure.message}")
+                error(unknown_name, located)
             let message = try format(self.scratch[..<half], f"cannot read {text}: {failure.message}")
             error(unknown_name, message)
         var p = try parser.Parser.over(src, self.scratch)
@@ -558,7 +567,17 @@ pub struct Checker:
             if d.kind == ast.Kind.import_ or d.kind == ast.Kind.from_import:
                 if self.find_module(d.text) == none and not is_standard_module(d.text):
                     let sibling = try self.resolve_import(d.text)
-                    try self.load_as((c.str)sibling, d.text)
+                    # a module that cannot be read is reported at the import that named it;
+                    # a message that already names a place stands as it is
+                    self.load_as((c.str)sibling, d.text) catch failure:
+                        if failure.code == unknown_name and not names_a_place(failure.message):
+                            # the message sits in the scratch's lower half; the located one
+                            # goes to the upper half
+                            let half = self.scratch.length // 2
+                            let (line, column) = src.position(d.start)
+                            let located = try format(self.scratch[half..], f"{src.path}:{line}:{column}: {failure.message}")
+                            error(unknown_name, located)
+                        error(failure.code, failure.message)
             cursor = d.next
         tree.text = name
         try self.modules.push(Module(name = name, tree = tree, src = src, is_prelude = false))
@@ -784,7 +803,9 @@ pub struct Checker:
             .type_alias:
                 let t = d.ty else return try self.fail(d, "an alias needs a type")
                 if d.type_id == types.none_id:
+                    try self.resolving.push((usize)d)
                     d.type_id = try self.resolve_type(t)
+                    self.resolving.count -= 1
                 try self.rebind(d.text, d.type_id)
             .constant:
                 if let t = d.ty:
@@ -1155,7 +1176,14 @@ pub struct Checker:
         if d.kind == ast.Kind.type_alias:
             if d.type_id == types.none_id:
                 let target = d.ty else return try self.fail(t, "an alias needs a type")
+                # `type Loop = Loop*`: an alias reached again while its own type is being
+                # resolved names itself, which no type is
+                for busy in self.resolving.span():
+                    if busy == (usize)d:
+                        return try self.fail(t, "this alias is recursive")
+                try self.resolving.push((usize)d)
                 d.type_id = try self.resolve_type(target)
+                self.resolving.count -= 1
             return d.type_id
         if d.kind == ast.Kind.generic_param:
             return d.type_id
@@ -1679,11 +1707,7 @@ pub struct Checker:
                 return try self.fail(e, "`none` needs an optional type here")
             return try self.mismatch(e, target, got)
         if got == types.untyped_int_id or got == types.untyped_float_id:
-            if e.kind == ast.Kind.literal and got == types.untyped_int_id:
-                try self.check_fits(e, target)
-            if e.kind == ast.Kind.literal and got == types.untyped_float_id:
-                try self.check_float_fits(e, target)
-            e.type_id = self.table.get(target).elem if self.table.kind(target) == types.Kind.optional else target
+            try self.settle_untyped(e, got, target, false)
             return e.type_id
         if got == types.never_id:
             return got
@@ -1694,7 +1718,41 @@ pub struct Checker:
             self.mark_local(e)
         return target
 
-    ## An integer literal must fit its type (§7.5).
+    ## An untyped expression takes its type: every literal in `1 << 40` or `-(2 * 3)` must fit
+    ## it (§4.2), so the walk reaches each leaf that is still untyped. A parenthesised or
+    ## computed operand of unary `-` is not a negative literal: only `-128` is `i8`.
+    mutating func settle_untyped(e: ast.Node*, got: u32, target: u32, negated: bool) -> !:
+        e.type_id = self.table.get(target).elem if self.table.kind(target) == types.Kind.optional else target
+        match e.kind:
+            .literal:
+                if got == types.untyped_int_id:
+                    try self.check_fits(e, target, negated)
+                else:
+                    try self.check_float_fits(e, target)
+            .unary, .group:
+                let inner = e.left else return
+                if e.kind == ast.Kind.unary and e.text == "-" and got == types.untyped_int_id and self.table.is_integer(e.type_id) and not self.table.is_signed(e.type_id):
+                    discard(try self.fail(e, "unary `-` is rejected on unsigned types; use `-%`"))
+                if inner.type_id == got:
+                    let negative = e.kind == ast.Kind.unary and e.text == "-" and inner.kind == ast.Kind.literal
+                    try self.settle_untyped(inner, got, target, negative)
+            .binary, .conditional:
+                if let l = e.left:
+                    if l.type_id == got:
+                        try self.settle_untyped(l, got, target, false)
+                if let r = e.right:
+                    if r.type_id == got and e.text != "<<" and e.text != ">>":
+                        try self.settle_untyped(r, got, target, false)
+            _:
+                return
+
+    ## An untyped expression with no context takes its default, `i64` or `f64` (§4.2).
+    mutating func settle(e: ast.Node*, got: u32) -> u32!:
+        if got == types.untyped_int_id or got == types.untyped_float_id:
+            return try self.coerce(e, got, self.concrete(got))
+        return got
+
+    ## An integer literal must fit its type (§7.5); under unary `-` its negation must.
     ## A float literal rounds to a finite value of its type: one that would round to an
     ## infinity is refused, since the infinities are not literals (§4.3).
     func check_float_fits(e: ast.Node*, target: u32) -> !:
@@ -1706,28 +1764,35 @@ pub struct Checker:
         if decimal.overflows(literal_body(e.text), self.table.bits(dest)):
             discard(try self.fail(e, "the float literal is beyond its type; the infinities are constants of `math`"))
 
-    func check_fits(e: ast.Node*, target: u32) -> !:
+    func check_fits(e: ast.Node*, target: u32, negated: bool) -> !:
         var dest = target
         if self.table.kind(dest) == types.Kind.optional:
             dest = self.table.get(dest).elem
         if not self.table.is_integer(dest):
             return
         let value = try decode_integer(e.text)
-        let bits = self.table.bits(dest)
-        if bits >= 64:
-            if self.table.is_signed(dest) and value > 9223372036854775807:
-                discard(try self.fail(e, "integer literal does not fit"))
+        if negated and value != 0 and not self.table.is_signed(dest):
+            discard(try self.fail(e, "a negative literal does not fit an unsigned type"))
             return
-        var limit: u64 = (u64)1 << bits
-        if self.table.is_signed(dest):
+        let bits = self.table.bits(dest)
+        # a signed type holds one more below zero than above: `-128` is `i8`, `128` is not
+        var limit: u64 = 9223372036854775808 if bits >= 64 else (u64)1 << bits
+        if self.table.is_signed(dest) and bits < 64:
             limit = limit // 2
-        if value >= limit:
+        if not self.table.is_signed(dest) and bits >= 64:
+            return
+        if value > limit or (value == limit and not negated):
             discard(try self.fail(e, "integer literal does not fit"))
 
     ## Two operand types made one: untyped literals follow the typed side.
     mutating func unify(l: ast.Node*, lt: u32, r: ast.Node*, rt: u32) -> u32!:
         if lt == rt:
             return lt
+        # an integer literal and a float literal do not mix: `1.5 * 2` wants `2.0`
+        if lt == types.untyped_float_id and rt == types.untyped_int_id:
+            return try self.mismatch(r, types.f64_id, rt)
+        if lt == types.untyped_int_id and rt == types.untyped_float_id:
+            return try self.mismatch(r, types.i64_id, rt)
         if lt == types.untyped_int_id or lt == types.untyped_float_id or lt == types.none_id:
             return try self.coerce(l, lt, rt)
         if rt == types.untyped_int_id or rt == types.untyped_float_id or rt == types.none_id:
@@ -1867,6 +1932,7 @@ pub struct Checker:
                     if p.kind == ast.Kind.format_field:
                         let v = p.left else return try self.fail(p, "empty field")
                         let vt = try self.check_expr(v, types.none_id)
+                        discard(try self.settle(v, vt))
                         if not self.printable(vt):
                             if self.displays_itself(vt):
                                 try self.display_through_sink(p)
@@ -1977,6 +2043,10 @@ pub struct Checker:
             # finite as an `f64` at least; a narrower context checks again
             try self.check_float_fits(e, types.f64_id)
             return types.untyped_float_id
+        # a `u64` at most; the context checks again
+        let value = decode_integer(e.text) catch failure:
+            return try self.fail(e, "integer literal does not fit")
+        discard(value)
         return types.untyped_int_id
 
     ## `255u8`, `0.5f32`: the suffix names the literal's exact type (§4.2, §4.3), and the
@@ -1988,7 +2058,7 @@ pub struct Checker:
         if self.table.is_float(id) != is_float_literal(e.text):
             return try self.fail(e, "a float suffix needs a float literal, an integer suffix an integer literal")
         if self.table.is_integer(id):
-            try self.check_fits(e, id)
+            try self.check_fits(e, id, false)
         else:
             try self.check_float_fits(e, id)
         return id
@@ -2206,7 +2276,7 @@ pub struct Checker:
         self.at_top_level = saved_top
         if not self.is_constant(init):
             discard(try self.fail(init, "a top-level `let` needs a constant expression (§6.4)"))
-        d.type_id = declared if declared != types.none_id else self.concrete(got)
+        d.type_id = declared if declared != types.none_id else try self.settle(init, got)
         if d.type_id == types.none_id:
             discard(try self.fail(d, "`none` needs a type"))
         try self.rebind(d.text, d.type_id)
@@ -2570,7 +2640,7 @@ pub struct Checker:
             if h.kind == types.Kind.tuple and i < h.args.length:
                 mh = h.args[i]
             let mt = try self.check_expr(m, mh)
-            members[i] = try self.coerce(m, mt, mh) if mh != types.none_id else self.concrete(mt)
+            members[i] = try self.coerce(m, mt, mh) if mh != types.none_id else try self.settle(m, mt)
             if members[i] == types.none_id:
                 return try self.fail(m, "`none` needs a type")
             i += 1
@@ -2589,7 +2659,7 @@ pub struct Checker:
         while let m = cursor:
             let mt = try self.check_expr(m, elem)
             if elem == types.none_id:
-                elem = self.concrete(mt)
+                elem = try self.settle(m, mt)
                 if elem == types.none_id:
                     return try self.fail(m, "`none` needs a type")
             discard(try self.coerce(m, mt, elem))
@@ -2633,7 +2703,9 @@ pub struct Checker:
         self.fallible = self.table.kind(want) == types.Kind.fallible
         let bt = try self.check_expr(body, want)
         var result = self.concrete(bt)
-        if want != types.none_id:
+        if want == types.none_id:
+            result = try self.settle(body, bt)
+        else:
             result = try self.coerce(body, bt, want)
             result = want
         self.result_type = saved_result
@@ -4099,7 +4171,7 @@ pub struct Checker:
                 discard(try self.expect(init, declared))
             else:
                 let got = try self.check_expr(init, declared)
-                id = self.concrete(got)
+                id = try self.settle(init, got)
                 if id == types.none_id:
                     return try self.fail(init, "`none` needs a written type")
                 if got == types.untyped_int_id or got == types.untyped_float_id:
@@ -4328,7 +4400,8 @@ pub struct Checker:
             if is_expr:
                 let bt = try self.check_expr(body, result)
                 if result == types.none_id:
-                    result = self.concrete(bt) if bt != types.never_id else result
+                    if bt != types.never_id:
+                        result = try self.settle(body, bt)
                 else:
                     discard(try self.coerce(body, bt, result))
             else:
@@ -4931,6 +5004,21 @@ func is_error_code_type(receiver: ast.Node*?) -> bool:
     let r = receiver else return false
     return r.has(ast.flag_type_ref) and r.type_id == types.error_code_id
 
+## Whether a message begins with `path:line:column: `, as a located diagnostic does.
+func names_a_place(message: str) -> bool:
+    let b = message.bytes
+    var colons: usize = 0
+    var i: usize = 0
+    while i < b.length and colons < 3:
+        if b[i] == ':':
+            colons += 1
+            if colons == 3:
+                return i + 1 < b.length and b[i + 1] == ' '
+        elif colons > 0 and (b[i] < '0' or b[i] > '9'):
+            return false
+        i += 1
+    return false
+
 ## The position of parameter `name` among the ones a caller supplies: an extern's `out`
 ## parameter takes no argument (§17.1), so it has no position.
 func param_index(d: ast.Node*, name: str) -> usize?:
@@ -5496,6 +5584,8 @@ pub func decode_integer(text: str) -> u64!:
             error(type_error, "bad digit in integer literal")
         if digit >= base:
             error(type_error, "bad digit in integer literal")
+        if value > (18446744073709551615 - digit) // base:
+            error(type_error, "integer literal does not fit")
         value = value * base + digit
     return value
 

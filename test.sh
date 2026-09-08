@@ -129,6 +129,10 @@ for f in tests/samples/errors/*.lucb; do
         echo "FAIL $f: the checker stopped with status $rc: [$got]"; exit 1
     fi
     case "$got" in
+        *.lucb:[0-9]*:[0-9]*:\ *) ;;
+        *) echo "FAIL $f: a diagnostic without a position: [$got]"; exit 1;;
+    esac
+    case "$got" in
         *"$want"*) echo "== $f (rejected)";;
         *) echo "FAIL $f: expected [$want], got [$got]"; exit 1;;
     esac
@@ -143,4 +147,8 @@ tests/conformance/run.sh
 tests/platform/run.sh
 # the seed's program corpus, built natively: every `# answer: N` program prints N
 tools/native_check.sh
+# the fuzzer's short run, the same on every host: mutated programs are accepted or
+# rejected with a positioned diagnostic, never a fault, and generated programs agree
+# across the C, C -O2, native, and seed executions (tools/fuzz.py --minutes M runs longer)
+python3 tools/fuzz.py --gate
 echo "ok"

@@ -739,6 +739,19 @@ build's. The bootstrap snapshots are the same check at full size:
 targets from any host, and the gate on each host notes when its own
 compiler's C for a target drifts from the snapshot.
 
+### The fuzzer
+
+`tools/fuzz.py` is the third kind of test beside the written expectations and the
+differential executions: input nobody wrote. Its mutations are the shapes a compiler
+mishandles, deep nesting, long tokens, bytes that are not text, keywords out of place,
+recursive types, and its rule is simple: the checker accepts, or it rejects with a
+position, and anything else is a fault to fix. Its generator writes well-typed programs
+over the integer operations whose results are defined in every build, and the four
+executions must print the same checksum; a disagreement is a backend bug or a place
+where the language leaves something to C, which §7.2 does not. The gate's pass is short
+and seeded, so every host runs the same one; the long run is for the hours before a
+release.
+
 ### The robustness and optimisation suites
 
 `tests/robustness/` measures memory management rather than asserting it:

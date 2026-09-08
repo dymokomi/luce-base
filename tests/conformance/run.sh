@@ -82,6 +82,11 @@ for dir in tests/conformance/[0-9]*/; do
         if [ -z "$got" ]; then
             echo "FAIL $f: rejected without a diagnostic"; exit 1
         fi
+        # every diagnostic names its place: `file:line:column: message`
+        case "$got" in
+            *.lucb:[0-9]*:[0-9]*:\ *) ;;
+            *) echo "FAIL $f: a diagnostic without a position: [$got]"; exit 1;;
+        esac
         case "$got" in
             *"$want"*) ;;
             *) echo "FAIL $f: expected [$want], got [$got]"; exit 1;;

@@ -52,6 +52,20 @@ seed named in `bootstrap/SEED` builds it to the same C.
 | — | debugging: `--debug` frame descriptors and `luce-base-d` | limited | `tests/programs/debugger`; not DWARF, not `lldb` or `gdb` |
 | plan 10 | `luce-ld` | planned | not started |
 
+## The fuzzer
+
+`tools/fuzz.py` mutates every program of the corpus (bytes, tokens, nesting, long
+identifiers and literals, invalid UTF-8, bidirectional characters, keywords out of place,
+recursive types) and requires the checker to accept or to reject with `file:line:column:`;
+a signal, a hang, or a bare message is a finding. It also generates well-typed programs
+(wrapping arithmetic, shifts, comparisons, branches, counted loops, arrays, calls) and
+requires the C, C `-O2`, native, and seed executions to agree. The gate runs a short
+deterministic pass; `tools/fuzz.py --minutes M` runs longer, and findings land under
+`build/fuzz/`. Its first hour found four defects, each now a test: a lexer diagnostic
+without its file, a self-assignment and a self-comparison the C compiler refused, a
+recursive alias that recursed the checker off its stack, and a bracket depth that
+trapped instead of reporting.
+
 ## Known and accepted
 
 - The seed's interpreter cannot run `asm`; naked functions and module-level `asm` are

@@ -63,6 +63,11 @@ struct Options:
 
 ## Element `k` of a link-flag list; an empty slot reads as empty text. A `c.str` has no zero
 ## value (§6.1), so the lists hold `c.str?`.
+## The warnings a legal Base program may raise in the C it becomes, which are not about
+## the C's types and stay silent: `-Werror` keeps the rest.
+let library_c_flags: c.str[5] = ["-std=gnu11", "-Wall", "-Werror", "-fno-strict-aliasing", "-O2"]
+let generated_c_silences: c.str[4] = ["-Wno-format", "-Wno-self-assign", "-Wno-tautological-compare", "-Wno-parentheses-equality"]
+
 ## A command line built piece by piece: `c.str` items in a list, each formatted flag in an
 ## allocation of its own, so nothing is cut off at a fixed count.
 struct Arguments:
@@ -376,8 +381,11 @@ func compile(text: str, exe: str, release: bool, with_start: bool) -> !:
     try cc_args.add("-pthread")
     try cc_args.add("-o")
     try cc_args.add((c.str)exe)
-    # a C format string is the program's business, not the host compiler's (§17.2)
-    try cc_args.add("-Wno-format")
+    # a C format string is the program's business, not the host compiler's (§17.2), and a
+    # style the generated C may have, a self-assignment or a comparison of a value with
+    # itself, is the program's too: only the C compiler's type checks stay
+    for flag in generated_c_silences:
+        try cc_args.add(flag)
     # the manifest's C sources, under the package root (§17.4), and what it links
     for file in package.sources:
         try cc_args.flag(package.root, (str)file)
@@ -625,8 +633,17 @@ func build_library(code: str, header_text: str, name: str) -> !:
         let include = try format(include_bytes, f"-I{dir}")
         var rt_object_bytes: u8[600]
         let rt_object = try format(rt_object_bytes, f"{dir}/rt.o")
-        var gen_args: c.str[10] = ["-std=gnu11", "-Wall", "-Werror", "-fno-strict-aliasing", "-O2", (c.str)include, "-c", (c.str)gen_path, "-o", (c.str)object_path]
-        try run_tool("cc", gen_args, "the C compiler rejected the generated code")
+        var gen_args = try Arguments.create()
+        for flag in library_c_flags:
+            try gen_args.add(flag)
+        for flag in generated_c_silences:
+            try gen_args.add(flag)
+        try gen_args.add((c.str)include)
+        try gen_args.add("-c")
+        try gen_args.add((c.str)gen_path)
+        try gen_args.add("-o")
+        try gen_args.add((c.str)object_path)
+        try run_tool("cc", gen_args.span(), "the C compiler rejected the generated code")
         var rt_args: c.str[10] = ["-std=gnu11", "-Wall", "-Werror", "-fno-strict-aliasing", "-O2", (c.str)include, "-c", (c.str)rt_source, "-o", (c.str)rt_object]
         try run_tool("cc", rt_args, "the C compiler rejected the runtime")
         var ar_args: c.str[4] = ["rcs", (c.str)archive, (c.str)object_path, (c.str)rt_object]

@@ -25,7 +25,7 @@ let max_blocks: usize = 64
 let max_modes: usize = 32
 
 pub struct Lexer:
-    var src: source.Source
+    pub var src: source.Source
     var offset: usize
     var line: u32
     var line_start: usize
@@ -394,8 +394,11 @@ pub struct Lexer:
             self.offset += 1
             return self.make(token.Kind.character, start)
         if c == '(' or c == '[' or c == '{':
-            if (usize)self.delimiters < 64:
-                self.bracket_base[(usize)self.delimiters] = self.depth
+            # the depth a bracket was opened at is kept for each; more open brackets than
+            # the table holds is a diagnostic, never a fault
+            if (usize)self.delimiters >= self.bracket_base.length:
+                error(bad_indent, "brackets nest too deeply")
+            self.bracket_base[(usize)self.delimiters] = self.depth
             self.delimiters += 1
         elif c == ')' or c == ']' or (c == '}' and self.mode() != 2):
             if self.delimiters > 0:

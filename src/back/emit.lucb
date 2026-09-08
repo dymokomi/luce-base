@@ -1506,6 +1506,23 @@ pub struct Emitter:
         let pt = try self.ty(place)
         if s.text == "=":
             try self.line("")
+            if same_binding(place, value):
+                # `x = x` is a legal statement Base gives no meaning beyond a read and a write
+                # of `x`; C's compiler refuses the self-assignment, so it goes through a
+                # temporary, which keeps the read and the write of a volatile place
+                let n = self.tmp()
+                try self.put("{ ")
+                try self.put_type(pt)
+                try self.put(" ")
+                try self.put_tmp("as", n)
+                try self.put(" = ")
+                try self.value(value, pt)
+                try self.put("; ")
+                try self.place(place)
+                try self.put(" = ")
+                try self.put_tmp("as", n)
+                try self.put("; }")
+                return
             try self.place(place)
             try self.put(" = ")
             try self.value(value, pt)
@@ -6683,6 +6700,16 @@ func source_path(checker: check.Checker*, tree: ast.Node*) -> str:
 
 ## A temporary that is not a vector: `lane` names it whole.
 let no_lane: u64 = 0xFFFFFFFFFFFFFFFF
+
+## Whether two expressions are the same plain name bound to the same declaration.
+func same_binding(a: ast.Node*, b: ast.Node*) -> bool:
+    if a.kind != ast.Kind.name or b.kind != ast.Kind.name or a.text != b.text:
+        return false
+    if let da = a.resolved:
+        if let db = b.resolved:
+            return da == db
+        return false
+    return b.resolved == none
 
 ## Links from which a left-leaning chain is emitted as a sequence rather than nested.
 let chain_limit: usize = 16
