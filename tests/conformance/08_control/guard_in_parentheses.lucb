@@ -5,13 +5,18 @@ func describe(n: i64) -> str:
         0 => "zero"
         _ if (n < 0) => "negative"
         _ if (n > 100 and n < 1000) => "hundreds"
+        _ if ((n > 10) and (n < 20)) => "teens"
         _ => "some"
 
 func apply(f: func(i64) -> i64, x: i64) -> i64:
     return f(x)
 
+func apply_pair(f: func((i64, i64)) -> i64, p: (i64, i64)) -> i64:
+    return f(p)
+
 pub func main(arguments: str[]) -> i32:
     let doubled = apply((v) => v * 2, 21)
     let typed = apply((v: i64) => v + 1, 1)
-    print(f"{describe(0)} {describe(-5)} {describe(500)} {describe(7)} {doubled} {typed}")
+    let summed = apply_pair((p: (i64, i64)) => p.0 + p.1, (3, 4))
+    print(f"{describe(0)} {describe(-5)} {describe(500)} {describe(15)} {describe(7)} {doubled} {typed} {summed}")
     return 0

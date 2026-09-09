@@ -5,6 +5,13 @@
 release is a VERSION bump, a tag `luce-base-N`, and a push, the way luce-seed does it
 (`bootstrap/SEED` pins the seed the tree is built against).
 
+## 0.11.12
+
+- `_ if ((a > b)) => x` was still read as a lambda: a `(` inside a would-be parameter list
+  opens a tuple type only after `:`, as in `(p: (i64, i64)) => p.0 + p.1`; anywhere else the
+  parentheses hold an expression (`08_control/guard_in_parentheses` covers both). Found by
+  luce's generator. Pinned to luce-seed-0.58.
+
 ## 0.11.11
 
 - `_ if (n < 0) => x` in a match expression was read as a lambda `(n < 0) => x`; a lambda's
