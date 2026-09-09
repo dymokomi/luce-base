@@ -55,6 +55,13 @@ uint64_t abi_call_back(void) {
     assert(m.a == 3 && m.b == 0.5);
     Bytes3 b = { { 1, 2, 3 } };
     Triple t = base_triple_make(1.0, 2.0, 3.0);
+    assert(base_packed_sum(p) == 107);
+    assert(base_small_sum(s) == 43);
+    assert(q.x == 3.0f && q.y == 5.0f);
+    assert(base_mixed_sum(m) == 3.5);
+    assert(base_bytes3_sum(b) == 6);
+    assert(base_triple_sum(t) == 6.0);
+    assert(base_many(1, 2, 3, 4, 5, 6, 7, p, s, 8.0, q, t) == 200);
     uint64_t sum = 0;
     sum += base_packed_sum(p) + (p.tag == 7 && p.value == 100 ? 1000 : 0);
     sum += base_small_sum(s) + (s.a == 3 && s.b == 40 ? 2000 : 0);

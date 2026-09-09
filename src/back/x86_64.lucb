@@ -679,7 +679,7 @@ pub struct Generator:
                 let words: u32 = 2 if p.size > 8 else 1
                 let sse_count = count_bits(sse)
                 let int_count = words - sse_count
-                if p.size <= 16 and next_int + int_count <= 6 and next_float + sse_count <= 8:
+                if not self.in_memory(p.size, p.shape) and next_int + int_count <= 6 and next_float + sse_count <= 8:
                     try self.frame_address("%r10", home)
                     var k: u32 = 0
                     while k < words:
@@ -716,7 +716,7 @@ pub struct Generator:
                 let words: u32 = 2 if p.size > 8 else 1
                 let sse_count = count_bits(sse)
                 let int_count = words - sse_count
-                if p.size <= 16 and next_int + int_count <= 6 and next_float + sse_count <= 8:
+                if not self.in_memory(p.size, p.shape) and next_int + int_count <= 6 and next_float + sse_count <= 8:
                     next_int += int_count
                     next_float += sse_count
                 else:
