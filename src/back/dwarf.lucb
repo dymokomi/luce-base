@@ -41,6 +41,8 @@ pub struct Emitter:
         let room = try alloc u8[4096]
         if let path = getcwd(room.data, room.length):
             self.cwd = (str)path
+        try section(out, "line", self.macos)
+        try out.put("Ldw_line:\n")
         var i: usize = 0
         while i < self.program.functions.count:
             let f = &self.program.functions.items[i]
@@ -246,17 +248,24 @@ pub struct Emitter:
             try self.type_info(self.needed.get(i))
             i += 1
         try section(out, "abbrev", self.macos)
+        try out.put("Ldw_abbrev:\n")
         try out.put(abbreviations)
         try section(out, "info", self.macos)
-        try out.put("Ldw_info:\n    .long Ldw_info_end-Ldw_info-4\n    .short 4\n    .long 0\n    .byte 8\n    .uleb128 1\n")
+        try out.put("Ldw_info:\n    .long Ldw_info_end-Ldw_info-4\n    .short 4\n")
+        # Mach-O's debug linker rebases each object's offsets. ELF concatenates
+        # sections, so offsets into other sections must carry relocations.
+        try out.put("    .long 0\n" if self.macos else "    .long Ldw_abbrev\n")
+        try out.put("    .byte 8\n    .uleb128 1\n")
         try text(out, "luce-base native DWARF 4")
         try out.put("    .short 12\n") # C99 representation understood by both debuggers
         try text(out, self.files.get(0))
         try text(out, self.cwd)
-        try out.put("    .long 0\n    .long 0\n    .quad 0\n") # statement list and ranges, section offsets
+        try out.put("    .long 0\n    .long 0\n" if self.macos else "    .long Ldw_line\n    .long Ldw_ranges\n")
+        try out.put("    .quad 0\n") # statement list and ranges, section offsets
         try out.put(self.info.view())
         try out.put("    .byte 0\nLdw_info_end:\n")
         try section(out, "ranges", self.macos)
+        try out.put("Ldw_ranges:\n")
         i = 0
         while i < self.program.functions.count:
             let f = &self.program.functions.items[i]

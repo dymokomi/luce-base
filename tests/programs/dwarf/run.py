@@ -101,7 +101,7 @@ assert run("execute-mixed", [exe]) == "ok DWARF\n"
 if mac:
     run("verify-mixed", ["xcrun", "dwarfdump", "--verify", str(exe) + ".dSYM"])
 else:
-    run("verify-mixed", ["readelf", "--debug-dump=info", str(exe) + ".debug"])
+    run("verify-mixed", ["llvm-dwarfdump", "--verify", str(exe) + ".debug"])
 original.rename(moved)
 shutil.move(str(exe), package / exe.name)
 suffix = ".dSYM" if mac else ".debug"
@@ -126,6 +126,8 @@ run("link-consumer", [*cc, "-g", work / "consumer.o", str(lib) + ".a", "-lm", "-
 if mac:
     run("package-consumer", ["dsymutil", consumer])
     run("verify-consumer", ["xcrun", "dwarfdump", "--verify", str(consumer) + ".dSYM"])
+else:
+    run("verify-consumer", ["llvm-dwarfdump", "--verify", consumer])
 debug("library-consumer", consumer, fixtures / "library/main.lucb", [
     ("BREAK_LIBRARY", {"value": 21, "doubled": 42}, ())])
 print("ok DWARF: source breakpoints, mixed backtraces, typed locals, scopes, moved sources and libraries")

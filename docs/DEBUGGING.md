@@ -57,7 +57,8 @@ so mixed C/Base backtraces include both source languages.
 source breakpoints, mixed backtraces, typed values, lexical scope exit, moved
 source/artifact paths containing spaces, and a C consumer of a Base static
 library. Commands, output and replay records are kept under `build/dwarf/`.
-The macOS gate also runs `dwarfdump --verify` on packaged debug information.
+Both hosts run LLVM `dwarfdump --verify` on packaged debug information.
+The Linux test gate requires GDB, binutils and `llvm-dwarfdump` (the `llvm` package).
 
 The format follows [DWARF 4](https://dwarfstd.org/doc/DWARF4.pdf), the host
 assembler's [CFI directives](https://sourceware.org/binutils/docs/as/CFI-directives.html),
