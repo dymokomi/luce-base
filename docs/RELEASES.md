@@ -5,6 +5,25 @@
 release is a VERSION bump, a tag `luce-base-N`, and a push, the way luce-seed does it
 (`bootstrap/SEED` pins the seed the tree is built against).
 
+## 0.11.28
+
+- Native `--debug` emits DWARF 4, source lines, typed frame locals, lexical scopes,
+  method receivers and unwind rules. Unused locals remain inspectable. Executables
+  receive dSYM bundles on macOS or linked `.debug` sidecars on Linux; static archives
+  retain their DWARF for consumers. See `docs/DEBUGGING.md`.
+- Byte-array string conversions retain the original or function-owned storage in C
+  builds. Native calls to ordinary functions in `c`, including `errno`, no longer take
+  the standard-stream intrinsic path.
+- Socket reads, writes, accepts and datagrams retry EINTR. Stream writes report flush
+  failures. Deterministic sweeps cover allocation cleanup, partial I/O, closed peers,
+  allocator ownership and thread startup failures.
+- x86 destructive integer operations preserve a dying RHS that shares the destination;
+  mixed INTEGER/SSE returns preserve the integer half when loading the float half.
+- CI runs the full gates on macOS ARM64 and Linux x86-64. Base conformance runs C,
+  release C and all four native optimization levels with timeouts and exact statuses.
+  Failures retain diagnostics and replay commands. Hosted GPU absence is reported
+  explicitly and does not replace hardware release testing.
+
 ## 0.11.27
 
 - `recover` evaluates its payload before running deferred cleanup for every catch scope
