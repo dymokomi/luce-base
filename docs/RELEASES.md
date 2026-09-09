@@ -5,6 +5,14 @@
 release is a VERSION bump, a tag `luce-base-N`, and a push, the way luce-seed does it
 (`bootstrap/SEED` pins the seed the tree is built against).
 
+## 0.11.15
+
+- `(List[T]*)p`: the parser's cast lookahead skips a generic instance's type arguments, as
+  the cast rule of §7.5 admits (`13_generics/instance_over_a_parameter`, which also covers
+  `let q: Box[T]* = p` inside `first[T]`). Found by luce's runtime, a list as a traced
+  object. The seed emitted such an instance as a C struct over the parameter; pinned to
+  luce-seed-0.62.
+
 ## 0.11.14
 
 - `let n: i64? = parse(text) catch: recover none` (§11.4): where a `T?` is expected and the

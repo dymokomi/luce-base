@@ -1,0 +1,19 @@
+## §7.5, §13: `Box[T]*` written inside a generic function, as a cast or as a binding's type,
+## is an instance over that function's own parameter: it is substituted per instantiation
+## and is never a type of its own. The cast's parenthesised text may carry type arguments.
+struct Box[T]:
+    var v: T
+
+func as_box[T](p: void*) -> Box[T]*:
+    return (Box[T]*)p
+
+func first[T](p: Box[T]*) -> T:
+    let q: Box[T]* = p
+    return q.v
+
+pub func main(arguments: str[]) -> i32!:
+    var b = Box[i64](v = 7)
+    let q = as_box[i64]((void*)&b)
+    var t = Box[str](v = "text")
+    print(f"{q.v} {first[i64](q)} {first[str](as_box[str]((void*)&t))}")
+    return 0

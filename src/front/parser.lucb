@@ -1172,6 +1172,21 @@ pub struct Parser:
             elif s == "[" and self.peek_op(i + 1, "]"):
                 typed = true
                 i += 2
+            elif s == "[" and typed:
+                # `(List[T]*)p`: the type arguments of a generic instance (§7.5)
+                var depth: usize = 1
+                i += 1
+                while depth > 0:
+                    let inner = self.peek(i)
+                    if inner.kind == token.Kind.eof:
+                        return false
+                    if inner.kind == token.Kind.operator:
+                        let text = self.text_of(inner)
+                        if text == "[":
+                            depth += 1
+                        elif text == "]":
+                            depth -= 1
+                    i += 1
             else:
                 break
             t = self.peek(i)
