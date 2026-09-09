@@ -2943,11 +2943,13 @@ pub struct Lowerer:
         let body = e.body else return try self.fail(e, "no handler")
         let ft = try self.ty(l)
         let payload = self.elem(ft)
+        # the expression's own type: the payload, or the `T?` it was expected to be (§11.4)
+        let result = try self.ty(e)
         let v = try self.expr(l)
         let has_value = payload != types.unit_id and payload != types.never_id
         var slot: u32 = 0
         if has_value:
-            slot = try self.new_slot(payload)
+            slot = try self.new_slot(result)
         let failed = try self.f.load(ir.Op.loadub, ir.Class.w, try self.offset_address(v.ref, self.failed_offset(ft)))
         let handler = self.f.label()
         let fine = self.f.label()
@@ -2956,7 +2958,11 @@ pub struct Lowerer:
         try self.f.place_label(fine)
         if has_value:
             let inner = try self.load_from(v.ref, payload)
-            try self.store_to(try self.slot_address(slot), inner)
+            let a = try self.slot_address(slot)
+            try self.store_to(a, inner)
+            if result != payload and not self.is_nullable_ptr(result) and not self.is_nullable_view(result):
+                # a tagged optional: the payload, then its presence
+                try self.f.store(ir.Op.storeb, ir.const_ref(1), try self.offset_address(a, self.c.table.size_of(payload)))
         try self.f.jump(done)
         try self.f.place_label(handler)
         if e.text.length > 0:
@@ -2968,7 +2974,7 @@ pub struct Lowerer:
         let saved_in = self.in_catch
         self.catch_slot = slot
         self.catch_done = done
-        self.catch_payload = payload
+        self.catch_payload = result
         self.in_catch = true
         try self.block(body)
         self.catch_slot = saved_slot
@@ -2979,7 +2985,7 @@ pub struct Lowerer:
         try self.f.place_label(done)
         if not has_value:
             return LowerValue(ref = ir.const_ref(0), type_id = types.unit_id, in_memory = false)
-        return try self.load_from(try self.slot_address(slot), payload)
+        return try self.load_from(try self.slot_address(slot), result)
 
     # -- match ----------------------------------------------------------------------------
 

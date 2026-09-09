@@ -3976,6 +3976,8 @@ pub struct Emitter:
         let body = e.body else return
         let ft = try self.ty(l)
         let payload = self.elem(ft)
+        # the expression's own type: the payload, or the `T?` it was expected to be (§11.4)
+        let result = try self.ty(e)
         let n = self.tmp()
         let saved_var = self.catch_var
         let saved_done = self.catch_done
@@ -3989,7 +3991,7 @@ pub struct Emitter:
         try self.expr(l)
         try self.put("; ")
         if payload != types.unit_id and payload != types.never_id:
-            try self.put_type(payload)
+            try self.put_type(result)
         else:
             try self.put("int")
         try self.put(" ")
@@ -4006,7 +4008,7 @@ pub struct Emitter:
             try self.put(".error;")
         self.catch_var = n
         self.catch_done = n
-        self.catch_payload = payload
+        self.catch_payload = result
         self.in_catch = true
         try self.block(body)
         self.catch_var = saved_var
@@ -4021,8 +4023,15 @@ pub struct Emitter:
         if payload != types.unit_id and payload != types.never_id:
             try self.put_tmp("v", n)
             try self.put(" = ")
-            try self.put_tmp("r", n)
-            try self.put(".value; ")
+            if result != payload and not self.c.table.has_null_niche(payload):
+                try self.put("((")
+                try self.put_type(result)
+                try self.put("){ .value = ")
+                try self.put_tmp("r", n)
+                try self.put(".value, .present = true }); ")
+            else:
+                try self.put_tmp("r", n)
+                try self.put(".value; ")
         try self.put("} ")
         try self.put_tmp("v", n)
         try self.put("; })")

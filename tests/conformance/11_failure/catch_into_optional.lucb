@@ -1,0 +1,37 @@
+## §11.4: where a `T?` is expected and the handled value is a `T`, the `catch` expression
+## is the `T?` and the handler may `recover none`; a nullable pointer and a tagged optional
+## alike, and the handler may still recover a value.
+let bad: ErrorCode = ErrorCode.package(1)
+
+struct Node:
+    var n: i64
+
+var nodes: Node[2]
+
+func parse(n: i64) -> i64!:
+    if n < 0:
+        error(bad, "negative")
+    return n
+
+func find(i: i64) -> Node*!:
+    if i < 0 or i >= 2:
+        error(bad, "out of range")
+    return &nodes[(usize)i]
+
+pub func main(arguments: str[]) -> i32!:
+    nodes[0].n = 10
+    nodes[1].n = 20
+    let a: i64? = parse(-1) catch failure:
+        recover none
+    let b: i64? = parse(3) catch failure:
+        recover none
+    let c: i64? = parse(-5) catch failure:
+        recover 99
+    let p: Node*? = find(1) catch failure:
+        recover none
+    let q: Node*? = find(7) catch failure:
+        recover none
+    print(f"{a == none} {b else 0} {c else 0} {p != none} {q == none}")
+    if let node = p:
+        print(f"{node.n}")
+    return 0

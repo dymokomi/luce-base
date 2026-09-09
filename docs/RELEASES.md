@@ -5,6 +5,15 @@
 release is a VERSION bump, a tag `luce-base-N`, and a push, the way luce-seed does it
 (`bootstrap/SEED` pins the seed the tree is built against).
 
+## 0.11.14
+
+- `let n: i64? = parse(text) catch: recover none` (§11.4): where a `T?` is expected and the
+  handled value is a `T`, the `catch` expression is the `T?`, the handler recovers with it,
+  and the value on the good path is wrapped, a nullable pointer keeping its one word
+  (`11_failure/catch_into_optional`). Checker, C backend and native backend. Wanted by
+  luce's `x = f() catch: recover none`. The seed gained the same rule; pinned to
+  luce-seed-0.61.
+
 ## 0.11.13
 
 - `out.write(...)` where `out: io.Writer*` auto-dereferences (§7.3), and the C backend

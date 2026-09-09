@@ -1944,7 +1944,7 @@ pub struct Checker:
             .else_:
                 return try self.else_type(e, hint)
             .catch_:
-                return try self.catch_type(e)
+                return try self.catch_type(e, hint)
             .cast:
                 return try self.cast_type(e)
             .case_value:
@@ -2887,7 +2887,9 @@ pub struct Checker:
         return payload
 
     ## `x catch name:` handles the failure of `x`; the handler recovers or leaves.
-    mutating func catch_type(e: ast.Node*) -> u32!:
+    ## `e catch name: handler`: the handled value's type, or the `T?` expected of it when
+    ## the value is a `T`, so that a handler may `recover none` (§11.4).
+    mutating func catch_type(e: ast.Node*, hint: u32) -> u32!:
         let l = e.left else return try self.fail(e, "missing operand")
         let body = e.body else return try self.fail(e, "`catch` needs a handler")
         let lt = try self.check_expr(l, types.none_id)
@@ -2896,13 +2898,16 @@ pub struct Checker:
             return try self.fail(l, "`catch` needs a fallible value")
         if self.is_local_value(l):
             self.mark_local(e)    # the handled value still views what it viewed (§6.6)
+        var result = t.elem
+        if hint != types.none_id and self.table.kind(hint) == types.Kind.optional and self.table.get(hint).elem == t.elem:
+            result = hint
         self.push_scope()
         if e.text.length > 0:
             try self.bind(e, e.text, types.error_value_id, e, false)
         let saved_in = self.in_catch
         let saved_result = self.catch_result
         self.in_catch = true
-        self.catch_result = t.elem
+        self.catch_result = result
         try self.check_block(body)
         self.in_catch = saved_in
         self.catch_result = saved_result
@@ -2910,7 +2915,7 @@ pub struct Checker:
         # a handler for a value recovers one or leaves; one for `unit` may fall through (§11.4)
         if t.elem != types.unit_id and not handler_leaves(body):
             discard(try self.fail(e, "a `catch` handler must `recover` a value or leave with `return`, `error`, `trap`, `break`, or `continue`"))
-        return t.elem
+        return result
 
     ## `(T)x`: C's cast, with every case defined (§7.5).
     mutating func cast_type(e: ast.Node*) -> u32!:
