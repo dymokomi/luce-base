@@ -5,6 +5,14 @@
 release is a VERSION bump, a tag `luce-base-N`, and a push, the way luce-seed does it
 (`bootstrap/SEED` pins the seed the tree is built against).
 
+## 0.11.7
+
+- An array left uninitialised with `= ---` and then sliced empty, `room[..<0]`, made the
+  host C compiler refuse the generated code under `-Wuninitialized`: the slice reads the
+  array's address, which is what the language allows. The generated C now silences that
+  warning, as it does the other style warnings the checker already covers
+  (`06_bindings/uninitialised_array_sliced_empty`). Found compiling luce.
+
 ## 0.11.6
 
 - The C backend wrote `?` into C string literals as it was, so a text holding `??)` reached

@@ -67,7 +67,7 @@ struct Options:
 ## The warnings a legal Base program may raise in the C it becomes, which are not about
 ## the C's types and stay silent: `-Werror` keeps the rest.
 let library_c_flags: c.str[5] = ["-std=gnu11", "-Wall", "-Werror", "-fno-strict-aliasing", "-O2"]
-let generated_c_silences: c.str[4] = ["-Wno-format", "-Wno-self-assign", "-Wno-tautological-compare", "-Wno-parentheses-equality"]
+let generated_c_silences: c.str[5] = ["-Wno-format", "-Wno-self-assign", "-Wno-tautological-compare", "-Wno-parentheses-equality", "-Wno-uninitialized"]
 
 ## A command line built piece by piece: `c.str` items in a list, each formatted flag in an
 ## allocation of its own, so nothing is cut off at a fixed count.

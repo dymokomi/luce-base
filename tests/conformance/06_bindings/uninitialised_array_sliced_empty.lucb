@@ -1,0 +1,12 @@
+## §6.1: `= ---` leaves an array uninitialised on purpose; taking an empty span of it reads
+## its address, not its contents, and the C the backend writes must not be refused for it.
+func empty_of(room: u8[]) -> u8[]:
+    return room[..<0]
+
+pub func main(arguments: str[]) -> i32:
+    var scratch: u8[16] = ---
+    let nothing = scratch[..<0]
+    var also: i64[4] = ---
+    let first = also[..<0]
+    print(f"{nothing.length} {first.length} {empty_of(scratch).length}")
+    return 0
