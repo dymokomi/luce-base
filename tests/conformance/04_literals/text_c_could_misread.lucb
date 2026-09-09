@@ -7,5 +7,7 @@ pub func main(arguments: str[]) -> i32:
     let c = "\r"
     let d = "\u{e9}"
     assert("??=".length == 3)
+    let e = b"\0\x01ab"
     print(f"{a} {a.length} {b.length} {c.length} {d.length} {d}")
+    print(f"{b.bytes[0]} {b.bytes[1]} {b.bytes[2]} {e.length} {e[0]} {e[1]} {e[2]} {e[3]}")
     return 0

@@ -5,6 +5,14 @@
 release is a VERSION bump, a tag `luce-base-N`, and a push, the way luce-seed does it
 (`bootstrap/SEED` pins the seed the tree is built against).
 
+## 0.11.10
+
+- A text holding a NUL byte, `"x\0y"` or `b"\0\x01ab"`, came out wrong from the arm64 backend:
+  the literals sat in the linker's C-string section, which merges by content up to a NUL,
+  so the bytes after it were another literal's. They sit in `__TEXT,__const` now
+  (`04_literals/text_c_could_misread` reads past the NUL on every execution). Found by
+  luce's bytes tests.
+
 ## 0.11.9
 
 - A tuple member is read by its position, `pair.0`, `pair.1` (§5.7), in the parser, the

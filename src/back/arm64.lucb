@@ -1624,8 +1624,9 @@ pub struct Generator:
             try self.put("\n    .section __DATA,__mod_init_func,mod_init_funcs\n    .p2align 3\n    .quad ")
             try self.symbol(self.program_unit.init_function)
             try self.put("\n")
-        # text literals
-        try self.put("\n    .section __TEXT,__cstring,cstring_literals\n")
+        # text literals: `__const`, not `__cstring`, because the linker merges C string
+        # literals by their content up to a NUL, and a Base text may hold one (§4.4)
+        try self.put("\n    .section __TEXT,__const\n")
         i = 0
         while i < self.program_unit.texts.count:
             try self.text_label(u32(i))
