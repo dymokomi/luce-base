@@ -57,6 +57,7 @@ struct LowerLocal:
 ## A lexical scope: its deferred calls, whether it is a loop and how to leave it,
 ## and the allocator it restores.
 struct LowerScope:
+    var debug_scope: usize
     var defer_base: usize
     var loop: bool
     var label: str
@@ -469,7 +470,7 @@ pub struct Lowerer:
             if let m = decl.resolved:
                 if module.tree == m:
                     return module.src
-            elif module.src.path == self.src_file:
+            if module.src.path == self.src_file:
                 return module.src
             i += 1
         return none
@@ -519,7 +520,7 @@ pub struct Lowerer:
     mutating func describe_local(decl: ast.Node*, slot: u32, id: u32) -> !:
         if not self.f.debug or decl.text.length == 0 or decl.text == "_":
             return
-        try self.f.locals.push(ir.LocalInfo(name = decl.text, slot = slot, kind = try self.c.spell(id), size = self.size(id)))
+        try self.f.locals.push(ir.LocalInfo(name = decl.text, slot = slot, kind = try self.c.spell(id), size = self.size(id), type_id = id, line = decl.line, parameter = decl.kind == ast.Kind.param, scope = self.scopes.get(self.scopes.count - 1).debug_scope if self.scopes.count > 0 else 0))
 
     ## `--debug`: the address of this function's descriptor, `lbd_<name>`.
     mutating func descriptor_ref() -> ir.Ref!:
@@ -601,10 +602,17 @@ pub struct Lowerer:
     # -- scopes and cleanup ---------------------------------------------------------------
 
     mutating func push_scope(loop: bool, label: str, break_label: u32, continue_label: u32) -> !:
-        try self.scopes.push(LowerScope(defer_base = self.defers.count, loop = loop, label = label, break_label = break_label, continue_label = continue_label, restore_alloc = false, alloc_slot = 0))
+        var scope: usize = 0
+        if self.f.debug:
+            scope = self.f.debug_scopes.count
+            let parent = self.scopes.get(self.scopes.count - 1).debug_scope if self.scopes.count > 0 else 0
+            try self.f.debug_scopes.push(ir.DebugScope(parent = parent, start = self.f.instrs.count, end = 0))
+        try self.scopes.push(LowerScope(debug_scope = scope, defer_base = self.defers.count, loop = loop, label = label, break_label = break_label, continue_label = continue_label, restore_alloc = false, alloc_slot = 0))
 
     mutating func pop_scope():
         let sc = self.scopes.get(self.scopes.count - 1)
+        if self.f.debug:
+            self.f.debug_scopes.items[sc.debug_scope].end = self.f.instrs.count
         self.defers.count = sc.defer_base
         self.scopes.count -= 1
 
@@ -666,6 +674,8 @@ pub struct Lowerer:
                 let pointer = try self.c.table.pointer(oid, not (d.has(ast.flag_mutating) or d.text == "init"), false)
                 let s = try self.f.slot(8, 8)
                 self.self_slot = s
+                if self.f.debug:
+                    try self.f.locals.push(ir.LocalInfo(name = "self", slot = s, kind = try self.c.spell(pointer), size = 8, type_id = pointer, line = d.line, parameter = true, scope = 0))
                 try self.f.params.push(ir.Param(cls = ir.Class.l, size = 0, align = 8, type_id = pointer, slot = s, shape = 0))
         var cursor = d.right
         while let p = cursor:
@@ -857,9 +867,15 @@ pub struct Lowerer:
         # the program's own functions are described and hooked; the standard modules are not
         self.f.debug = false
         if let decl = d:
-            self.f.debug = self.debug and not check.is_standard_module(names.module_of(decl))
-            self.src_file = self.source_of(decl)
+            let owner = inst.owner else decl
+            self.f.debug = self.debug and not check.is_standard_module(names.module_of(owner))
+            self.src_file = self.source_of(owner)
         self.f.source = self.src_file
+        if let decl = d:
+            self.f.source_name = decl.text
+            self.f.source_line = decl.line
+        if self.f.debug:
+            try self.f.debug_scopes.push(ir.DebugScope(parent = 0, start = 0, end = 0))
         self.locals.count = 0
         self.scopes.count = 0
         self.defers.count = 0
@@ -923,6 +939,8 @@ pub struct Lowerer:
         try self.trap_with("unreachable")
 
     mutating func end_function() -> !:
+        if self.f.debug:
+            self.f.debug_scopes.items[0].end = self.f.instrs.count
         try self.program_unit.functions.push(self.f)
 
     ## Where a result keeps its error and its flag.
@@ -955,6 +973,7 @@ pub struct Lowerer:
         if s.kind != ast.Kind.block:
             self.set_position(s)
         if self.f.debug and s.kind != ast.Kind.block and s.line > 0:
+            try self.f.points.push(ir.DebugPoint(instruction = self.f.instrs.count, file = self.at_file, line = self.at_line, column = self.at_column))
             # `--debug`: the descriptor, the line, and the frame, before the statement runs
             let start = u32(self.f.args.count)
             try self.f.args.push(ir.Arg(value = try self.descriptor_ref(), cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, shape = 0))

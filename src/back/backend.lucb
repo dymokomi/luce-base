@@ -17,6 +17,7 @@
 import c
 import io
 import memory
+import back.dwarf
 import back.arm64
 import back.cfg
 import back.dessa
@@ -58,6 +59,7 @@ pub struct CBackend: Backend:
 
 ## arm64 assembly through the IR: lower the tree, then generate.
 pub struct NativeBackend: Backend:
+    var checker: check.Checker*
     var lowerer: lower.Lowerer
     var debug: bool
     ## `--emit=ir`: the IR as text after every pass before the target, instead of assembly.
@@ -73,7 +75,7 @@ pub struct NativeBackend: Backend:
     pub static func over(checker: check.Checker*, entry: ast.Node*, debug: bool, diagnostic: bool) -> NativeBackend!:
         var lowerer = try lower.Lowerer.create(checker, entry)
         lowerer.diagnostic = diagnostic
-        return NativeBackend(lowerer = lowerer, debug = debug, dump_ir = false, opt_level = 3, opt_count = 0xFFFFFFFF, report = false, target = checker.build_target)
+        return NativeBackend(checker = checker, lowerer = lowerer, debug = debug, dump_ir = false, opt_level = 3, opt_count = 0xFFFFFFFF, report = false, target = checker.build_target)
 
     pub mutating func compile(mode: u32) -> str!:
         let t = self.target
@@ -88,16 +90,20 @@ pub struct NativeBackend: Backend:
         try inline.expand(&self.lowerer.program_unit)
         try note(&at, 1)
         try optimise_functions(&self.lowerer.program_unit, self.opt_level, self.opt_count)
-        if self.opt_level >= 2 and self.opt_count == 0xFFFFFFFF:
-            try opt.clean(&self.lowerer.program_unit)
-        else:
-            try opt.optimise(&self.lowerer.program_unit)
+        if not self.debug:
+            if self.opt_level >= 2 and self.opt_count == 0xFFFFFFFF:
+                try opt.clean(&self.lowerer.program_unit)
+            else:
+                try opt.optimise(&self.lowerer.program_unit)
         try note(&at, 7)
         if self.dump_ir:
             return try irtext.render(&self.lowerer.program_unit)
+        var dw = try dwarf.Emitter.over(self.checker, &self.lowerer.program_unit, t.os == targets.Os.macos)
         var text = ""
         if t.arch == targets.Arch.x86_64:
             var generator = try x86_64.Generator.create(&self.lowerer.program_unit)
+            if self.debug:
+                generator.dw = &dw
             generator.symbol_prefix = t.symbol_prefix
             generator.os = t.os
             generator.level = t.level
@@ -105,6 +111,8 @@ pub struct NativeBackend: Backend:
             text = generator.text()
         else:
             var generator = try arm64.Generator.create(&self.lowerer.program_unit)
+            if self.debug:
+                generator.dw = &dw
             generator.symbol_prefix = t.symbol_prefix
             try generator.generate()
             text = generator.text()

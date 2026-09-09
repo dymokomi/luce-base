@@ -1,0 +1,326 @@
+## DWARF 4 for development builds. Addresses and frame offsets come from the native
+## generator; types and member offsets come from the checker's target layout.
+import c as abi
+import back.frame
+import back.ir
+import front.ast
+import sema.check
+import sema.types
+import support.buffer
+import support.list
+extern func getcwd(buffer: u8*, size: usize) -> abi.str?
+
+pub struct Emitter:
+    var checker: check.Checker*
+    var program: ir.Unit*
+    var macos: bool
+    var files: list.List[str]
+    var needed: list.List[u32]
+    var info: buffer.Buffer
+    var cwd: str
+    var serial: usize
+
+    pub static func over(checker: check.Checker*, program: ir.Unit*, macos: bool) -> Emitter!:
+        var format_room: u8[4096]
+        return Emitter(checker = checker, program = program, macos = macos,
+            files = try list.List[str].create(0), needed = try list.List[u32].create(0),
+            info = try buffer.Buffer.create(0), cwd = "", serial = 0)
+
+    mutating func file(path: str) -> usize!:
+        var format_room: u8[4096]
+        var i: usize = 0
+        while i < self.files.count:
+            if self.files.get(i) == path:
+                return i + 1
+            i += 1
+        try self.files.push(path)
+        return self.files.count
+
+    pub mutating func begin(out: buffer.Buffer*) -> !:
+        var format_room: u8[4096]
+        let room = try alloc u8[4096]
+        if let path = getcwd(room.data, room.length):
+            self.cwd = (str)path
+        var i: usize = 0
+        while i < self.program.functions.count:
+            let f = &self.program.functions.items[i]
+            if f.debug:
+                discard(try self.file(f.source))
+                for point in f.points.span():
+                    discard(try self.file(point.file))
+            i += 1
+        i = 0
+        while i < self.files.count:
+            try out.put((try format(format_room, f"\n    .file {i + 1} ")))
+            try quoted(out, self.files.get(i))
+            try out.put("\n")
+            i += 1
+
+    pub mutating func entry(out: buffer.Buffer*) -> !:
+        if self.files.count > 0:
+            try out.put("\n    .loc 1 0 0 is_stmt 0\n")
+
+    pub mutating func mark(out: buffer.Buffer*, f: ir.Function*, index: usize, instruction: usize) -> !:
+        var format_room: u8[4096]
+        if not f.debug:
+            return
+        try out.put((try format(format_room, f"\nLdw_pc_{index}_{instruction}:\n")))
+        if instruction == 0:
+            let file = try self.file(f.source)
+            try out.put(try format(format_room, f"    .loc {file} {f.source_line} 0 prologue_end is_stmt 1\n"))
+        for point in f.points.span():
+            if point.instruction == instruction:
+                let file = try self.file(point.file)
+                try out.put((try format(format_room, f"    .loc {file} {point.line} {point.column} is_stmt 1\n")))
+
+    pub mutating func function(f: ir.Function*, fr: frame.Frame*, index: usize) -> !:
+        var format_room: u8[4096]
+        if not f.debug or f.naked:
+            return
+        let file = try self.file(f.source)
+        let o = &self.info
+        try o.put("    .uleb128 2\n")
+        try text(o, f.source_name)
+        try text(o, f.name)
+        try o.put((try format(format_room, f"    .uleb128 {file}\n    .uleb128 {f.source_line}\n    .quad ")))
+        try o.put("_" if self.macos else "")
+        try o.put(f.name)
+        try o.put((try format(format_room, f"\n    .quad Ldw_end_{index}\n    .uleb128 1\n    .byte ")))
+        try o.put("109\n" if self.macos else "86\n") # DW_OP_reg29 / DW_OP_reg6
+        try self.reference(f.result_type)
+        try self.scope(f, fr, index, 0)
+        try o.put("    .byte 0\n")
+
+    mutating func scope(f: ir.Function*, fr: frame.Frame*, index: usize, scope: usize) -> !:
+        var format_room: u8[4096]
+        let o = &self.info
+        if scope != 0:
+            let s = f.debug_scopes.get(scope)
+            try o.put((try format(format_room, f"    .uleb128 5\n    .quad Ldw_pc_{index}_{s.start}\n    .quad Ldw_pc_{index}_{s.end}\n")))
+        for described in f.locals.span():
+            if described.scope != scope:
+                continue
+            try o.put("    .uleb128 3\n" if described.parameter else "    .uleb128 4\n")
+            try text(o, described.name)
+            try self.reference(described.type_id)
+            try o.put((try format(format_room, f"    .uleb128 {described.line}\n")))
+            let home = fr.slot_home(described.slot)
+            let serial = self.serial
+            self.serial += 1
+            try o.put((try format(format_room, f"    .uleb128 Ldw_expr_end_{serial}-Ldw_expr_{serial}\nLdw_expr_{serial}:\n    .byte 145\n    .sleb128 -{home}\nLdw_expr_end_{serial}:\n")))
+        var i: usize = 1
+        while i < f.debug_scopes.count:
+            if f.debug_scopes.get(i).parent == scope:
+                try self.scope(f, fr, index, i)
+            i += 1
+        if scope != 0:
+            try o.put("    .byte 0\n")
+
+    mutating func reference(id: u32) -> !:
+        var format_room: u8[4096]
+        let actual = types.void_id if id == 0 or id == types.unit_id or id == types.never_id else id
+        var found = false
+        for item in self.needed.span():
+            if item == actual:
+                found = true
+                break
+        if not found:
+            try self.needed.push(actual)
+        try self.info.put((try format(format_room, f"    .long Ldw_type_{actual}-Ldw_info\n")))
+
+    mutating func member(name: str, id: u32, offset: u64) -> !:
+        var format_room: u8[4096]
+        try self.info.put("    .uleb128 9\n")
+        try text(&self.info, name)
+        try self.reference(id)
+        try self.info.put((try format(format_room, f"    .uleb128 {offset}\n")))
+
+    mutating func type_info(id: u32) -> !:
+        var format_room: u8[4096]
+        let c = self.checker
+        let t = c.table.get(id)
+        let o = &self.info
+        let name = try c.spell(id)
+        let size = c.table.size_of(id)
+        try o.put((try format(format_room, f"Ldw_type_{id}:\n")))
+        if t.kind == types.Kind.void_:
+            try o.put("    .uleb128 16\n")
+            try text(o, name)
+            return
+        if c.table.is_integer(id) or c.table.is_float(id) or id == types.bool_id or id == types.char_id or id == types.error_code_id:
+            let encoding: u32 = 4 if c.table.is_float(id) else (2 if id == types.bool_id else (5 if c.table.is_signed(id) else 7))
+            try o.put("    .uleb128 6\n")
+            try text(o, name)
+            try o.put((try format(format_room, f"    .byte {encoding}\n    .uleb128 {size}\n")))
+            return
+        if t.kind == types.Kind.pointer or t.kind == types.Kind.cstr_ or c.table.is_opaque_handle(id):
+            try o.put("    .uleb128 7\n    .byte 8\n")
+            try self.reference(types.u8_id if t.kind == types.Kind.cstr_ else (types.void_id if c.table.is_opaque_handle(id) else t.elem))
+            return
+        if t.kind == types.Kind.atomic or (t.kind == types.Kind.optional and c.table.has_null_niche(t.elem)):
+            try o.put("    .uleb128 10\n")
+            try text(o, name)
+            try self.reference(t.elem)
+            return
+        if t.kind == types.Kind.array:
+            try o.put("    .uleb128 11\n")
+            try self.reference(t.elem)
+            try o.put((try format(format_room, f"    .uleb128 12\n    .uleb128 {t.length}\n    .byte 0\n")))
+            return
+        if t.kind == types.Kind.func_:
+            try o.put((try format(format_room, f"    .uleb128 7\n    .byte 8\n    .long Ldw_signature_{id}-Ldw_info\nLdw_signature_{id}:\n    .uleb128 13\n")))
+            try self.reference(t.elem)
+            for param in t.args:
+                try o.put("    .uleb128 14\n")
+                try self.reference(param)
+            try o.put("    .byte 0\n")
+            return
+        if t.kind == types.Kind.enum_:
+            if let decl = t.decl:
+                if let backing = decl.ty:
+                    try o.put("    .uleb128 17\n")
+                    try text(o, name)
+                    try o.put((try format(format_room, f"    .uleb128 {size}\n")))
+                    try self.reference(backing.type_id)
+                    var cursor = decl.body
+                    while let item = cursor:
+                        if item.kind == ast.Kind.enum_case:
+                            try o.put("    .uleb128 18\n")
+                            try text(o, item.text)
+                            try o.put((try format(format_room, f"    .uleb128 {types.case_value(decl, item)}\n")))
+                        cursor = item.next
+                    try o.put("    .byte 0\n")
+                    return
+        try o.put("    .uleb128 15\n" if t.kind == types.Kind.union_ else "    .uleb128 8\n")
+        try text(o, name)
+        try o.put((try format(format_room, f"    .uleb128 {size}\n")))
+        if t.kind == types.Kind.struct_ or t.kind == types.Kind.union_:
+            if let decl = t.decl:
+                var cursor = decl.body
+                while let field = cursor:
+                    if field.kind == ast.Kind.field:
+                        let ft = try c.substitute(field.type_id, decl, t.args)
+                        try self.member(field.text, ft, 0 if t.kind == types.Kind.union_ else c.table.offset_of(id, field.text))
+                    cursor = field.next
+        elif t.kind == types.Kind.str_ or t.kind == types.Kind.fmt_ or t.kind == types.Kind.span:
+            let element = t.elem if t.kind == types.Kind.span else types.u8_id
+            try self.member("data", try c.table.pointer(element, t.is_const, false), 0)
+            try self.member("length", types.usize_id, 8)
+        elif t.kind == types.Kind.interface_:
+            let pointer = try c.table.pointer(types.void_id, false, false)
+            try self.member("data", pointer, 0)
+            try self.member("vtable", pointer, 8)
+        elif t.kind == types.Kind.tuple:
+            var offset: u64 = 0
+            var index: usize = 0
+            for member in t.args:
+                offset = round_up(offset, c.table.align_of(member))
+                try self.member((try format(format_room, f"_{index}")), member, offset)
+                offset += c.table.size_of(member)
+                index += 1
+        elif t.kind == types.Kind.optional:
+            try self.member("value", t.elem, 0)
+            try self.member("present", types.bool_id, c.table.size_of(t.elem))
+        elif t.kind == types.Kind.fallible:
+            let payload = c.table.size_of(t.elem)
+            let error_at = round_up(payload, 8)
+            if payload > 0:
+                try self.member("value", t.elem, 0)
+            try self.member("error", types.error_value_id, error_at)
+            try self.member("failed", types.bool_id, error_at + 24)
+        elif t.kind == types.Kind.error_value:
+            try self.member("code", types.error_code_id, 0)
+            try self.member("message", types.str_id, 8)
+        elif t.kind == types.Kind.enum_:
+            try self.member("tag", types.u32_id, 0)
+            if size > 4:
+                try self.member("storage", try c.table.array(types.u8_id, size - 4), 4)
+        try o.put("    .byte 0\n")
+
+    pub mutating func finish(out: buffer.Buffer*) -> !:
+        var format_room: u8[4096]
+        if self.files.count == 0:
+            return
+        var i: usize = 0
+        while i < self.needed.count:
+            try self.type_info(self.needed.get(i))
+            i += 1
+        try section(out, "abbrev", self.macos)
+        try out.put(abbreviations)
+        try section(out, "info", self.macos)
+        try out.put("Ldw_info:\n    .long Ldw_info_end-Ldw_info-4\n    .short 4\n    .long 0\n    .byte 8\n    .uleb128 1\n")
+        try text(out, "luce-base native DWARF 4")
+        try out.put("    .short 12\n") # C99 representation understood by both debuggers
+        try text(out, self.files.get(0))
+        try text(out, self.cwd)
+        try out.put("    .long 0\n    .long 0\n    .quad 0\n") # statement list and ranges, section offsets
+        try out.put(self.info.view())
+        try out.put("    .byte 0\nLdw_info_end:\n")
+        try section(out, "ranges", self.macos)
+        i = 0
+        while i < self.program.functions.count:
+            let f = &self.program.functions.items[i]
+            if f.debug and not f.naked:
+                try out.put("    .quad ")
+                try out.put("_" if self.macos else "")
+                try out.put(f.name)
+                try out.put((try format(format_room, f", Ldw_end_{i}\n")))
+            i += 1
+        try out.put("    .quad 0, 0\n")
+
+func round_up(n: u64, alignment: u64) -> u64:
+    var format_room: u8[4096]
+    return (n + alignment - 1) // alignment * alignment if alignment > 0 else n
+
+func section(out: buffer.Buffer*, name: str, macos: bool) -> !:
+    var format_room: u8[4096]
+    try out.put((try format(format_room, f"\n    .section __DWARF,__debug_{name},regular,debug\n")) if macos else (try format(format_room, f"\n    .section .debug_{name},\"\",@progbits\n")))
+
+func text(out: buffer.Buffer*, value: str) -> !:
+    var format_room: u8[4096]
+    try out.put("    .asciz ")
+    try quoted(out, value)
+    try out.put("\n")
+
+func quoted(out: buffer.Buffer*, value: str) -> !:
+    var format_room: u8[4096]
+    try out.put("\"")
+    for byte in value.bytes:
+        if byte == 34 or byte == 92:
+            try out.put("\\")
+            try out.put_byte(byte)
+        elif byte < 32 or byte >= 127:
+            try out.put("\\")
+            try out.put_byte(48 + byte // 64)
+            try out.put_byte(48 + byte // 8 % 8)
+            try out.put_byte(48 + byte % 8)
+        else:
+            try out.put_byte(byte)
+    try out.put("\"")
+
+## Each row is code, tag, children, then (attribute, form) pairs and a zero pair.
+## DW_FORM: addr=1, data2=5, data1=11, string=8, udata=15, ref4=19,
+## sec_offset=23, exprloc=24. See dwarfstd.org/doc/DWARF4.pdf, sections 7.5–7.7.
+let abbreviations: str = r"""
+    .byte 1,17,1,37,8,19,5,3,8,27,8,16,23,85,23,17,1,0,0
+    .byte 2,46,1,3,8
+    .uleb128 110
+    .byte 8,58,15,59,15,17,1,18,1,64,24,73,19,0,0
+    .byte 3,5,0,3,8,73,19,59,15,2,24,0,0
+    .byte 4,52,0,3,8,73,19,59,15,2,24,0,0
+    .byte 5,11,1,17,1,18,1,0,0
+    .byte 6,36,0,3,8,62,11,11,15,0,0
+    .byte 7,15,0,11,11,73,19,0,0
+    .byte 8,19,1,3,8,11,15,0,0
+    .byte 9,13,0,3,8,73,19,56,15,0,0
+    .byte 10,22,0,3,8,73,19,0,0
+    .byte 11,1,1,73,19,0,0
+    .byte 12,33,0,55,15,0,0
+    .byte 13,21,1,73,19,0,0
+    .byte 14,5,0,73,19,0,0
+    .byte 15,23,1,3,8,11,15,0,0
+    .byte 16,59,0,3,8,0,0
+    .byte 17,4,1,3,8,11,15,73,19,0,0
+    .byte 18,40,0,3,8,28,15,0,0
+    .byte 0
+"""

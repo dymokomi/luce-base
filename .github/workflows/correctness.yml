@@ -69,6 +69,7 @@ jobs:
             luce-base/build/*.log
             luce-base/build/luce-base/build/*.log
             luce-base/build/provenance*.json
+            luce-base/build/dwarf/
             luce-base/build/failures/
             luce-base/build/fuzz/
             luce-base/build/hardware-skip.txt

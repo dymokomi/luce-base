@@ -157,7 +157,10 @@ func compile_sources(dir: str, arguments: Arguments*) -> !:
         try source_args.add("-std=gnu11")
         try source_args.add("-c")
         try source_args.add((c.str)source_text)
-        try source_args.add("-O2")
+        try source_args.add("-O0" if debug_backend else "-O2")
+        if debug_backend:
+            try source_args.add("-g")
+            try source_args.add("-fno-omit-frame-pointer")
         for wanted in package.pkg_config:
             try pkg_config_flags(&source_args, wanted, "--cflags", false)
         try source_args.add("-o")
@@ -226,6 +229,7 @@ func checked(path: c.str) -> check.Checker!:
     package = m
     names.export_prefix = m.symbol_prefix
     var checker = try check.Checker.create(scratch_of())
+    checker.debug_locals = debug_backend
     checker.package_name = m.name
     checker.build_target = build_target()
     try checker.add_prelude()
@@ -356,6 +360,8 @@ func compile(text: str, exe: str, release: bool, with_start: bool) -> !:
     defer remove_tree((c.str)dir)
     if native_backend:
         try assemble_and_link(dir, name_bytes[..<3072], text, exe)
+        if debug_backend:
+            try finish_debug(exe)
         return
     let gen_path = try format(name_bytes[..<512], f"{dir}/gen.s" if native_backend else f"{dir}/gen.c")
     let header_path = try format(name_bytes[512..<1024], f"{dir}/lucb_rt.h")
@@ -410,6 +416,22 @@ func compile(text: str, exe: str, release: bool, with_start: bool) -> !:
         try out.write(cc_err)
         error(build_failed, "the C compiler rejected the generated code")
     discard(err_path)
+
+## Finish debug artifacts before the scratch objects disappear. ELF keeps a linked
+## sidecar; Mach-O's debug map is resolved into a dSYM while its inputs still exist.
+func finish_debug(exe: str) -> !:
+    if build_target().os == targets.Os.macos:
+        var arguments: c.str[1] = [(c.str)exe]
+        try run_tool("dsymutil", arguments, "could not produce the dSYM")
+        return
+    let room = try alloc u8[exe.length + 32]
+    let sidecar = try format(room, f"{exe}.debug")
+    var keep: c.str[3] = ["--only-keep-debug", (c.str)exe, (c.str)sidecar]
+    try run_tool("objcopy", keep, "could not produce the ELF debug file")
+    let link_room = try alloc u8[sidecar.length + 32]
+    let link = try format(link_room, f"--add-gnu-debuglink={sidecar}")
+    var attach: c.str[3] = ["--strip-debug", (c.str)link, (c.str)exe]
+    try run_tool("objcopy", attach, "could not attach the ELF debug file")
 
 ## `as` over the assembly, then the target's linker (§19.5): Apple's `ld` against the
 ## system library found through `xcrun`, or the C driver, which knows where the C library,
@@ -512,6 +534,8 @@ func build_file(path: c.str, options: Options) -> !:
     defer free(backing) in memory.heap
     var arena = memory.FixedBuffer.over(backing)
     with arena:
+        if options.debug and not options.native:
+            error(build_failed, "--debug requires --native")
         native_backend = options.native
         debug_backend = options.debug and options.native
         link_libraries = options.libraries.span()

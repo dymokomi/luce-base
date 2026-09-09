@@ -82,6 +82,8 @@ struct SpanWriter: io.Writer:
 # mark: The checker ============================================================================
 
 pub struct Checker:
+    ## Development debugging retains named locals after reporting unused bindings.
+    pub var debug_locals: bool
     pub var table: types.Table
     pub var modules: list.List[Module]
     var scope: list.List[Binding]
@@ -476,7 +478,7 @@ pub struct Checker:
     ## The reporter for the module being checked.
     mutating func reporter() -> prune.Reporter:
         let m = self.modules.get(self.current)
-        return prune.Reporter(path = m.src.path, src = m.src, warnings = &self.warnings, silent = m.is_prelude)
+        return prune.Reporter(path = m.src.path, src = m.src, warnings = &self.warnings, silent = m.is_prelude, keep_locals = self.debug_locals and not m.is_prelude)
 
     ## The binding just made came through import `at`.
     mutating func set_origin(at: ast.Node*):

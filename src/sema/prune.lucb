@@ -25,6 +25,7 @@ pub struct Reporter:
     pub var warnings: list.List[str]*
     ## A standard module's warnings are nobody's business: it is pruned in silence.
     pub var silent: bool
+    pub var keep_locals: bool
 
     pub mutating func warn(node: ast.Node*, what: str) -> !:
         if self.silent:
@@ -200,6 +201,10 @@ pub func prune_block(block: ast.Node*, reporter: Reporter*) -> !:
         if binding and s.has(ast.flag_unused):
             var text: u8[512]
             try reporter.warn(s, try format(text, f"unused local `{s.text}`"))
+            if reporter.keep_locals:
+                previous = s
+                cursor = s.next
+                continue
             if s.left == none or is_pure(s.left):
                 if let p = previous:
                     p.next = s.next

@@ -350,6 +350,21 @@ pub struct LocalInfo:
     pub var slot: u32
     pub var kind: str
     pub var size: u32
+    pub var type_id: u32
+    pub var line: u32
+    pub var parameter: bool
+    pub var scope: usize
+
+pub struct DebugPoint:
+    pub var instruction: usize
+    pub var file: str
+    pub var line: u32
+    pub var column: u32
+
+pub struct DebugScope:
+    pub var parent: usize
+    pub var start: usize
+    pub var end: usize
 
 pub struct Function:
     pub var name: str
@@ -357,6 +372,10 @@ pub struct Function:
     ## `--debug`: the source file, and every named local for the frame's descriptor.
     pub var debug: bool
     pub var source: str
+    pub var source_name: str
+    pub var source_line: u32
+    pub var points: list.List[DebugPoint]
+    pub var debug_scopes: list.List[DebugScope]
     pub var locals: list.List[LocalInfo]
     pub var params: list.List[Param]
     pub var slots: list.List[Slot]
@@ -380,7 +399,7 @@ pub struct Function:
     pub var section: str
 
     pub static func create(name: str) -> Function!:
-        return Function(name = name, exported = false, debug = false, source = "", locals = try list.List[LocalInfo].create(8),
+        return Function(name = name, exported = false, debug = false, source = "", source_name = name, source_line = 1, points = try list.List[DebugPoint].create(0), debug_scopes = try list.List[DebugScope].create(0), locals = try list.List[LocalInfo].create(8),
                         params = try list.List[Param].create(8),
                         slots = try list.List[Slot].create(32), instrs = try list.List[Instr].create(256),
                         args = try list.List[Arg].create(32), calls = try list.List[CallInfo].create(16),

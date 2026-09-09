@@ -22,6 +22,7 @@
 #
 #==============================================================================================
 
+import back.dwarf
 import back.frame
 import back.ir
 import back.target as build_target
@@ -44,6 +45,7 @@ struct Placement:
     var stack_offset: u32
 
 pub struct Generator:
+    pub var dw: dwarf.Emitter*?
     var out: buffer.Buffer
     ## What precedes a C symbol in this target's assembler: nothing on Linux (§19.5).
     pub var symbol_prefix: str
@@ -418,6 +420,8 @@ pub struct Generator:
 
     mutating func function(index: usize) -> !:
         self.index = index
+        if let dw = self.dw:
+            try dw.entry(&self.out)
         self.f = &self.program_unit.functions.items[index]
         try self.fr.plan(self.f)
         try self.fr.layout(self.f, 0, self.f.has_result and self.in_memory(self.f.result_size, self.f.result_shape))
@@ -443,8 +447,15 @@ pub struct Generator:
                 k += 1
             try self.leave_section()
             return
+        if self.dw != none:
+            try self.line(".cfi_startproc")
         try self.line("pushq %rbp")
+        if self.dw != none:
+            try self.line(".cfi_def_cfa_offset 16")
+            try self.line(".cfi_offset 6, -16")
         try self.line("movq %rsp, %rbp")
+        if self.dw != none:
+            try self.line(".cfi_def_cfa_register 6")
         if self.fr.size > 0:
             try self.line("subq $")
             try self.put_u64(self.fr.size)
@@ -457,11 +468,22 @@ pub struct Generator:
         var i: usize = 0
         while i < self.f.instrs.count:
             self.at = i
+            if let dw = self.dw:
+                try dw.mark(&self.out, self.f, index, i)
             try self.instruction(self.f.instrs.get(i))
             i += 1
+        if let dw = self.dw:
+            try dw.mark(&self.out, self.f, index, i)
+            if self.f.debug:
+                try self.put("\nLdw_end_")
+                try self.put_u64((u64)index)
+                try self.put(":\n")
+            try self.line(".cfi_endproc")
+            try dw.function(self.f, &self.fr, index)
         try self.put("\n")
         if self.f.debug:
             try self.describe_frame()
+        try self.leave_section()
 
     ## `lbd_<name>`: the function's name and source, then each named local's name, type
     ## spelling, distance below the frame pointer, and size; every text is a `str`.
@@ -1771,15 +1793,27 @@ pub struct Generator:
                 try self.frame_operand(self.fr.indirect_home)
                 try self.put(", %rax")
         try self.restore_callee_saved()
+        if self.dw != none:
+            try self.line(".cfi_remember_state")
         try self.line("movq %rbp, %rsp")
         try self.line("popq %rbp")
+        if self.dw != none:
+            try self.line(".cfi_def_cfa 7, 8")
+            try self.line(".cfi_restore 6")
         try self.line("ret")
+        if self.dw != none:
+            try self.line(".cfi_restore_state")
 
     mutating func save_callee_saved() -> !:
         var c: usize = 1
         while c <= 5:
             if (self.fr.used_mask & (u32)(1 << (u32)(c - 1))) != 0:
                 try self.frame_store(q_names[c], ir.Class.l, self.fr.save_offset[c])
+                if self.dw != none:
+                    try self.line(".cfi_offset ")
+                    try self.put_u64(3 if c == 1 else (u64)c + 10)
+                    try self.put(", -")
+                    try self.put_u64(self.fr.save_offset[c] + 16)
             c += 1
 
     mutating func restore_callee_saved() -> !:
@@ -1792,6 +1826,8 @@ pub struct Generator:
     # mark: The unit ===========================================================================
 
     pub mutating func generate() -> !:
+        if let dw = self.dw:
+            try dw.begin(&self.out)
         try self.put("    .text\n")
         var i: usize = 0
         while i < self.program_unit.functions.count:
@@ -1876,6 +1912,8 @@ pub struct Generator:
         if self.half_routines:
             try self.put(half_routines_text)
         try self.put("\n    .section .note.GNU-stack,\"\",@progbits\n")
+        if let dw = self.dw:
+            try dw.finish(&self.out)
 
     mutating func c_string(text: str) -> !:
         try self.put("\"")

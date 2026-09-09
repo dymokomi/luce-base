@@ -207,6 +207,8 @@ func drop_expanded(program: ir.Unit*, index: Index*, census: Census*) -> !:
     while i < program.functions.count:
         var f = program.functions.get(i)
         if census.expanded[i] and not census.pinned[i] and not referenced[i]:
+            f.points.destroy()
+            f.debug_scopes.destroy()
             f.locals.destroy()
             f.params.destroy()
             f.slots.destroy()

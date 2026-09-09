@@ -1,0 +1,6 @@
+[package]
+name = "dwarf-mixed"
+version = "0.0.1"
+
+[native]
+sources = ["bridge.c"]

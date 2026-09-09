@@ -1,0 +1,40 @@
+struct Point:
+    var x: i64
+    var y: i64
+
+    pub func x_value() -> i64:
+        return self.x # BREAK_METHOD
+
+struct Box[T]:
+    var value: T
+
+packed struct Packed:
+    var first: u8
+    var second: i64
+
+extern func bridge(callback: func(i64) -> i64, value: i64) -> i64
+
+func inspect(value: i64) -> i64:
+    var point = Point(x = value, y = 4)
+    let pointer = &point
+    let text = "hello"
+    var array: i32[3] = [11, 22, 33]
+    let span = array[0..]
+    let optional: i64? = 17
+    let absent: i64? = none
+    let box = Box[i64](value = 91)
+    let pair: (i32, i64) = (5, 6)
+    let packed = Packed(first = 7, second = 123)
+    var result = point.x + point.y # BREAK_INSPECT
+    if value > 0:
+        let inner: i64 = 77
+        result += inner # BREAK_INNER
+    result += 1 # BREAK_AFTER
+    assert(point.x_value() == 3)
+    return result
+
+pub func main(arguments: str[]) -> i32:
+    let result = bridge(inspect, 3)
+    assert(result == 85)
+    print("ok DWARF")
+    return 0
