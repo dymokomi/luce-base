@@ -15,9 +15,24 @@ import files
 pub let bad_encoding: ErrorCode = ErrorCode.package(1)
 pub let unreadable: ErrorCode = ErrorCode.package(2)
 
+## A position directive (§3.3): a line holding only `#: file:line:column` says that the
+## lines after it, until the next directive, were compiled from that position of another
+## source, and a trap on them reports it (§11.5); a bare `#:` restores the file's own
+## positions (`file` empty).
+pub struct Directive:
+    pub var base_line: u32
+    pub var file: str
+    pub var line: u32
+    pub var column: u32
+
 pub struct Source:
     pub var path: str
     pub var bytes: const u8[]
+    pub var directives: Directive*?
+    pub var directive_count: usize
+    ## Where each line begins, for the positions traps name (§11.5)
+    pub var lines: usize*?
+    pub var line_count: usize
 
     ## Load a file into the current allocator and check it is UTF-8 without NUL.
     pub static func load(path: c.str) -> Source!:
@@ -31,7 +46,54 @@ pub struct Source:
         try refuse_controls(path, body)
         discard(str(body) catch:
             error(bad_encoding, try located(path, body, first_invalid(body), "invalid UTF-8 in source")))
-        return Source(path = path, bytes = body)
+        let count = count_directives(body)
+        var directives: Directive*? = none
+        if count > 0:
+            let room = try alloc Directive[count]
+            fill_directives(body, room)
+            directives = &room[0]
+        var line_count: usize = 1
+        for b in body:
+            if b == '\n':
+                line_count += 1
+        let starts = try alloc usize[line_count]
+        starts[0] = 0
+        var k: usize = 1
+        var i: usize = 0
+        while i < body.length:
+            if body[i] == '\n' and k < line_count:
+                starts[k] = i + 1
+                k += 1
+            i += 1
+        return Source(path = path, bytes = body, directives = directives, directive_count = count, lines = &starts[0], line_count = line_count)
+
+    ## One-based column of the first non-blank byte of a line: where the statement on it
+    ## begins, which is what a trap names (§11.5).
+    pub func statement_column(line: u32) -> u32:
+        let starts = self.lines else return 1
+        if line == 0 or (usize)line > self.line_count:
+            return 1
+        var i = starts[(usize)line - 1]
+        var column: u32 = 1
+        while i < self.bytes.length and self.bytes[i] == ' ':
+            i += 1
+            column += 1
+        return column
+
+    ## What a line of this file was compiled from (§3.3): the position the last directive
+    ## above it names, or the file's own `path:line:column`.
+    pub func mapped(line: u32, column: u32) -> (str, u32, u32):
+        if let all = self.directives:
+            var found: Directive? = none
+            var i: usize = 0
+            while i < self.directive_count:
+                if all[i].base_line <= line:
+                    found = all[i]
+                i += 1
+            if let d = found:
+                if d.file.length > 0:
+                    return (d.file, d.line, d.column)
+        return (self.path, line, column)
 
     ## One-based line and column of a byte offset, counting columns in bytes.
     pub func position(offset: usize) -> (u32, u32):
@@ -115,32 +177,105 @@ func first_invalid(data: const u8[]) -> usize:
         i += need + 1
     return data.length
 
+## The directive on the line beginning at `at`, if the line is one: `#:` first after
+## spaces, then nothing, or `file:line:column` with two numbers; anything else is a
+## comment like any other. The line's end is answered through `stop`.
+func directive_at(body: const u8[], at: usize, base_line: u32, stop: usize*) -> Directive?:
+    var end = at
+    while end < body.length and body[end] != '\n':
+        end += 1
+    *stop = end
+    var i = at
+    while i < end and body[i] == ' ':
+        i += 1
+    if i + 1 >= end or body[i] != '#' or body[i + 1] != ':':
+        return none
+    var s = i + 2
+    while s < end and body[s] == ' ':
+        s += 1
+    var e = end
+    while e > s and (body[e - 1] == ' ' or body[e - 1] == '\r'):
+        e -= 1
+    if s == e:
+        return Directive(base_line = base_line + 1, file = "", line = 0, column = 0)
+    # the two numbers from the right, the file being whatever precedes them
+    var c2 = e
+    while c2 > s and body[c2 - 1] != ':':
+        c2 -= 1
+    if c2 <= s + 1:
+        return none
+    var c1 = c2 - 1
+    while c1 > s and body[c1 - 1] != ':':
+        c1 -= 1
+    if c1 <= s + 1:
+        return none
+    let line = directive_number(body, c1, c2 - 1) else return none
+    let column = directive_number(body, c2, e) else return none
+    return Directive(base_line = base_line + 1, file = (str)body[s..<c1 - 1], line = line, column = column)
+
+func directive_number(body: const u8[], start: usize, end: usize) -> u32?:
+    if start >= end:
+        return none
+    var n: u64 = 0
+    var i = start
+    while i < end:
+        let digit = body[i]
+        if digit < '0' or digit > '9' or n > 100000000:
+            return none
+        n = n * 10 + (u64)(digit - '0')
+        i += 1
+    return u32(n)
+
+func count_directives(body: const u8[]) -> usize:
+    var count: usize = 0
+    var at: usize = 0
+    var line: u32 = 1
+    while at < body.length:
+        var stop: usize = 0
+        if directive_at(body, at, line, &stop) != none:
+            count += 1
+        at = stop + 1
+        line += 1
+    return count
+
+func fill_directives(body: const u8[], room: Directive[]):
+    var k: usize = 0
+    var at: usize = 0
+    var line: u32 = 1
+    while at < body.length and k < room.length:
+        var stop: usize = 0
+        if let d = directive_at(body, at, line, &stop):
+            room[k] = d
+            k += 1
+        at = stop + 1
+        line += 1
+
 test "a control character and invalid UTF-8 are refused at their line and column":
     let bidi = Source.over("t.lucb", "ab\n  \u{202e}x".bytes) catch failure:
         assert(failure.message == "t.lucb:2:3: bidirectional format characters are not allowed in source")
-        recover Source(path = "", bytes = "".bytes)
+        recover Source(path = "", bytes = "".bytes, directives = none, directive_count = 0, lines = none, line_count = 0)
     assert(bidi.path == "")
     var bad: u8[6] = [97, 10, 98, 255, 99, 10]
     let broken = Source.over("t.lucb", bad) catch failure:
         assert(failure.message == "t.lucb:2:2: invalid UTF-8 in source")
-        recover Source(path = "", bytes = "".bytes)
+        recover Source(path = "", bytes = "".bytes, directives = none, directive_count = 0, lines = none, line_count = 0)
     assert(broken.path == "")
     var nul: u8[3] = [97, 0, 98]
     let zero = Source.over("t.lucb", nul) catch failure:
         assert(failure.message == "t.lucb:1:2: NUL byte in source")
-        recover Source(path = "", bytes = "".bytes)
+        recover Source(path = "", bytes = "".bytes, directives = none, directive_count = 0, lines = none, line_count = 0)
     assert(zero.path == "")
 
 test "a byte-order mark is dropped at byte zero and refused elsewhere":
     let bom: u8[6] = [0xEF, 0xBB, 0xBF, 'a', 'b', 'c']
     let src = Source.over("t", bom) catch failure:
-        recover Source(path = "", bytes = "".bytes)
+        recover Source(path = "", bytes = "".bytes, directives = none, directive_count = 0, lines = none, line_count = 0)
     assert(src.bytes.length == 3)
     let inside: u8[5] = ['a', 0xEF, 0xBB, 0xBF, 'b']
     var refused = false
     discard(Source.over("t", inside) catch failure:
         refused = true
-        recover Source(path = "", bytes = "".bytes))
+        recover Source(path = "", bytes = "".bytes, directives = none, directive_count = 0, lines = none, line_count = 0))
     assert(refused)
 
 test "a bidirectional control is refused":
@@ -148,12 +283,12 @@ test "a bidirectional control is refused":
     var refused = false
     discard(Source.over("t", text) catch failure:
         refused = true
-        recover Source(path = "", bytes = "".bytes))
+        recover Source(path = "", bytes = "".bytes, directives = none, directive_count = 0, lines = none, line_count = 0))
     assert(refused)
 
 test "position counts lines and columns":
     let src = Source.over("t", "ab\ncd".bytes) catch failure:
-        recover Source(path = "", bytes = "".bytes)
+        recover Source(path = "", bytes = "".bytes, directives = none, directive_count = 0, lines = none, line_count = 0)
     let (line, column) = src.position(4)
     assert(line == 2)
     assert(column == 2)
@@ -163,5 +298,25 @@ test "NUL is refused":
     var refused = false
     discard(Source.over("t", raw) catch failure:
         refused = failure.code == bad_encoding
-        recover Source(path = "", bytes = "".bytes))
+        recover Source(path = "", bytes = "".bytes, directives = none, directive_count = 0, lines = none, line_count = 0))
     assert(refused)
+
+test "position directives map the lines after them":
+    let text = "func f():\n    #: main.luc:12:8\n    let a = 1\n    let b = 2\n    #:\n    let c = 3\n    #: not one\n    let d = 4\n"
+    let src = try Source.over("t.lucb", text.bytes)
+    assert(src.directive_count == 2)
+    let (f1, l1, c1) = src.mapped(3, 5)
+    assert(f1 == "main.luc" and l1 == 12 and c1 == 8)
+    let (f2, l2, c2) = src.mapped(4, 5)
+    assert(f2 == "main.luc" and l2 == 12 and c2 == 8)
+    let (f3, l3, c3) = src.mapped(6, 5)
+    assert(f3 == "t.lucb" and l3 == 6 and c3 == 5)
+    let (f4, l4, c4) = src.mapped(8, 5)
+    assert(f4 == "t.lucb" and l4 == 8 and c4 == 5)
+    let (f0, l0, c0) = src.mapped(1, 1)
+    assert(f0 == "t.lucb" and l0 == 1 and c0 == 1)
+    assert(src.statement_column(1) == 1)
+    assert(src.statement_column(3) == 5)
+    assert(src.statement_column(8) == 5)
+    assert(src.statement_column(9) == 1)
+

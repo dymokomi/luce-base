@@ -25,6 +25,7 @@ import c
 import back.names
 import back.target as targets
 import front.ast
+import front.source as sources
 import sema.check
 import sema.types
 import support.buffer
@@ -179,14 +180,41 @@ pub struct Emitter:
             try self.globals.put(text)
 
     ## A number literal's digits without the `_` separators C does not read.
-    ## `file:line: assert failed: condition` (§11.6) as adjacent C string literals, which C
-    ## joins, so the condition's source may be any length.
+    ## `assert failed: condition` (§11.6) as adjacent C string literals, which C joins, so
+    ## the condition's source may be any length; the position is the trap's (§11.5).
     mutating func put_assert_text(e: ast.Node*) -> !:
-        try self.put_c_string(self.source_of_current())
-        try self.put(" \":")
-        try self.put_u64((u64)e.line)
-        try self.put(": assert failed: \" ")
+        try self.put("\"assert failed: \" ")
         try self.put_c_string(e.text)
+
+    ## The source a declaration came from, when the checker has it.
+    func source_unit_of(decl: ast.Node*) -> sources.Source?:
+        var i: usize = 0
+        while i < self.c.modules.count:
+            let module = self.c.modules.get(i)
+            if let m = decl.resolved:
+                if module.tree == m:
+                    return module.src
+            elif module.src.path == self.src_file:
+                return module.src
+            i += 1
+        return none
+
+    ## `lb_pos = "file:line:column";` before a statement: what a trap in it names (§11.5),
+    ## through the source's position directives (§3.3).
+    mutating func put_position(n: ast.Node*) -> !:
+        var file = self.src_file
+        var line = n.line
+        var column: u32 = 1
+        if let f = self.current_fn:
+            if let s = self.source_unit_of(f):
+                let (mf, ml, mc) = s.mapped(n.line, s.statement_column(n.line))
+                file = mf
+                line = ml
+                column = mc
+        try self.line("lb_pos = ")
+        let room = try alloc u8[file.length + 24]
+        try self.put_c_string(try format(room, f"{file}:{line}:{column}"))
+        try self.put(";")
 
     ## A float's bits as a hexadecimal float literal, `0x1.8p+1f`: exact in C, whatever the
     ## value, a subnormal included; `f` and `f16` name the narrower widths.
@@ -1183,6 +1211,8 @@ pub struct Emitter:
         if naked:
             try self.naked_body(f)
         elif let body = f.body:
+            # the statement position a trap names is the caller's again once this returns
+            try self.line("const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;")
             var cursor = body.body
             while let s = cursor:
                 try self.stmt(s)
@@ -1414,6 +1444,8 @@ pub struct Emitter:
         try self.line("}")
 
     mutating func stmt(s: ast.Node*) -> !:
+        if s.kind != ast.Kind.block:
+            try self.put_position(s)
         match s.kind:
             .block:
                 try self.block(s)

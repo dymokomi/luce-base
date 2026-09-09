@@ -47,7 +47,7 @@ pub func symbol_part(path: str) -> str:
 
 ## Identifiers the runtime defines with the `lb_` prefix.
 pub func is_runtime_name(name: str) -> bool:
-    let names: str[17] = ["span", "str", "error", "cspan", "out", "fmtbuf", "hash_bytes", "hash_mix", "hash_seed", "utf8_ok", "trap", "check_index", "at", "unknown", "iface", "alloc", "fixed"]
+    let names: str[20] = ["span", "str", "error", "cspan", "out", "fmtbuf", "hash_bytes", "hash_mix", "hash_seed", "utf8_ok", "trap", "check_index", "at", "unknown", "iface", "alloc", "fixed", "pos", "restore_pos", "saved_pos"]
     for n in names:
         if n == name:
             return true

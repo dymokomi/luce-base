@@ -9,5 +9,5 @@ ir 327
 loads 41
 stores 48
 calls 12
-asm-arm64 403
+asm-arm64 419
 asm-x86_64 465

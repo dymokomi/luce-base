@@ -264,7 +264,7 @@ struct Census:
         while i < program.functions.count:
             let f = &program.functions.items[i]
             # the program's entry stays a function: a trace begins there
-            if f.exported or f.used or f.weak or f.naked or f.section.length > 0 or f.name == program.init_function or f.name == program.trap_function or f.name == "lb_main":
+            if f.exported or f.used or f.weak or f.naked or f.section.length > 0 or f.name == program.init_function or f.name == program.trap_function or f.name == program.trap_at_function or f.name == program.trap_two_at_function or f.name == "lb_main":
                 c.pinned[i] = true
             if named_in_asm(&asm_texts, f.name):
                 c.pinned[i] = true

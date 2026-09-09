@@ -162,12 +162,26 @@ int lb_str_compare(lb_str a, lb_str b) {
 }
 
 void lb_trap_two(const char* message, const char* detail) {
-    fprintf(stderr, "trap: %s: %s\n", message != NULL ? message : "", detail != NULL ? detail : "");
+    if (lb_pos != NULL && lb_pos[0] != '\0') {
+        fprintf(stderr, "trap: %s: %s: %s\n", lb_pos, message != NULL ? message : "", detail != NULL ? detail : "");
+    } else {
+        fprintf(stderr, "trap: %s: %s\n", message != NULL ? message : "", detail != NULL ? detail : "");
+    }
     exit(1);
 }
 
+_Thread_local const char* lb_pos = "";
+
+void lb_restore_pos(const char** saved) {
+    lb_pos = *saved;
+}
+
 void lb_trap(const char* message) {
-    fprintf(stderr, "trap: %s\n", message != NULL ? message : "");
+    if (lb_pos != NULL && lb_pos[0] != '\0') {
+        fprintf(stderr, "trap: %s: %s\n", lb_pos, message != NULL ? message : "");
+    } else {
+        fprintf(stderr, "trap: %s\n", message != NULL ? message : "");
+    }
     // `LB_TRACE=1` in the environment adds the C frames, for finding a trap in a C build
     if (getenv("LB_TRACE") != NULL) {
         void* frames[32];

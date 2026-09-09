@@ -22,6 +22,7 @@ import back.isa
 import back.names
 import back.target as targets
 import front.ast
+import front.source as sources
 import memory
 import sema.check
 import sema.types
@@ -72,17 +73,16 @@ pub struct LowerValue:
 
 # mark: The lowerer ============================================================================
 
-## A copy of `text` in the current allocator, for a message the unit keeps by view.
-## `file:line: assert failed: condition`, and `: message` when one is given (§11.6), in
-## an allocation of its own length.
-func assert_text(file: str, line: u32, condition: str, message: str) -> str!:
-    var length = file.length + 32 + condition.length
+## `assert failed: condition`, and `: message` when one is given (§11.6), in an allocation
+## of its own length; the position is the trap's (§11.5).
+func assert_text(condition: str, message: str) -> str!:
+    var length = 32 + condition.length
     if message.length > 0:
         length += 2 + message.length
     let room = try alloc u8[length]
     if message.length > 0:
-        return try format(room, f"{file}:{line}: assert failed: {condition}: {message}")
-    return try format(room, f"{file}:{line}: assert failed: {condition}")
+        return try format(room, f"assert failed: {condition}: {message}")
+    return try format(room, f"assert failed: {condition}")
 
 func kept_text(text: str) -> str!:
     let copy = try alloc u8[text.length]
@@ -122,6 +122,12 @@ pub struct Lowerer:
     var match_slot: u32
     var match_type: u32
     var src_file: str
+    ## The statement being lowered, as a trap names it (§11.5): its mapped position, and
+    ## the unit's text of it once one was needed (index + 1; 0 while none was)
+    var at_file: str
+    var at_line: u32
+    var at_column: u32
+    var at_text: u32
     var mode: u32
     ## The format buffer a `Display` field writes into, while lowering its call.
     var format_sink: ir.Ref
@@ -142,7 +148,7 @@ pub struct Lowerer:
                        locals = try list.List[LowerLocal].create(64), scopes = try list.List[LowerScope].create(32),
                        defers = try list.List[NodeRef].create(32), result_slot = 0, self_slot = 0, catch_slot = 0,
                        catch_done = 0, catch_payload = 0, catch_error_slot = 0, in_catch = false, match_slot = 0,
-                       match_type = 0, src_file = entry.text, mode = 0, format_sink = ir.none_ref(), diagnostic = false, site_line = 0)
+                       match_type = 0, src_file = entry.text, at_file = entry.text, at_line = 0, at_column = 0, at_text = 0, mode = 0, format_sink = ir.none_ref(), diagnostic = false, site_line = 0)
 
     func fail(node: ast.Node*, what: str) -> never!:
         # the checker's scratch outlives the arena the tree lives in, so the report does too
@@ -453,6 +459,49 @@ pub struct Lowerer:
     func source_of_current() -> str:
         let f = self.current_fn else return self.src_file
         return self.source_of(f)
+
+    ## The source a declaration came from, when the checker has it.
+    func source_unit_of(decl: ast.Node*) -> sources.Source?:
+        var i: usize = 0
+        while i < self.c.modules.count:
+            let module = self.c.modules.get(i)
+            if let m = decl.resolved:
+                if module.tree == m:
+                    return module.src
+            elif module.src.path == self.src_file:
+                return module.src
+            i += 1
+        return none
+
+    ## The statement being lowered: what a trap in it names (§11.5), through the source's
+    ## position directives (§3.3).
+    mutating func set_position(n: ast.Node*):
+        self.at_text = 0
+        self.at_file = self.src_file
+        self.at_line = n.line
+        self.at_column = 1
+        if let f = self.current_fn:
+            if let s = self.source_unit_of(f):
+                let (file, line, column) = s.mapped(n.line, s.statement_column(n.line))
+                self.at_file = file
+                self.at_line = line
+                self.at_column = column
+
+    ## The unit's text of the current statement's position, `file:line:column`.
+    mutating func position_ref() -> ir.Ref!:
+        if self.at_text == 0:
+            let room = try alloc u8[self.at_file.length + 24]
+            let text = try format(room, f"{self.at_file}:{self.at_line}:{self.at_column}")
+            self.at_text = (try self.program_unit.text(text)) + 1
+        return ir.text_ref(self.at_text - 1)
+
+    ## The last instruction emitted, a `bounds` or a checked operation, names the current
+    ## statement's position in `extra2` (index + 1) for the trap it may raise.
+    mutating func mark_position() -> !:
+        let p = try self.position_ref()
+        var last = self.f.instrs.get(self.f.instrs.count - 1)
+        last.extra2 = p.index + 1
+        self.f.instrs.set(self.f.instrs.count - 1, last)
 
     ## The path of the file a declaration came from; a standard module's is its name.
     func source_of(decl: ast.Node*) -> str:
@@ -819,6 +868,7 @@ pub struct Lowerer:
         self.fn_args = inst.args
         self.owner_decl = inst.owner
         self.owner_args = inst.owner_args
+        self.set_position(inst.decl)
         let result = try self.result_type_of(d)
         try self.set_result(result)
 
@@ -886,7 +936,8 @@ pub struct Lowerer:
 
     mutating func trap_with(reason: str) -> !:
         let t = try self.program_unit.text(reason)
-        try self.f.emit(ir.Op.trap_, ir.Class.l, 0, ir.text_ref(t), ir.none_ref(), 0)
+        let p = try self.position_ref()
+        try self.f.emit(ir.Op.trap_, ir.Class.l, 0, ir.text_ref(t), p, 0)
 
     # mark: Statements =========================================================================
 
@@ -900,6 +951,8 @@ pub struct Lowerer:
         self.pop_scope()
 
     mutating func stmt(s: ast.Node*) -> !:
+        if s.kind != ast.Kind.block:
+            self.set_position(s)
         if self.f.debug and s.kind != ast.Kind.block and s.line > 0:
             # `--debug`: the descriptor, the line, and the frame, before the statement runs
             let start = u32(self.f.args.count)
@@ -1814,6 +1867,7 @@ pub struct Lowerer:
             let base = try self.place(owner)
             let t = self.c.table.get(ot)
             try self.f.emit(ir.Op.bounds, ir.Class.l, 0, index, ir.const_ref((i64)t.length + slack), 0)
+            try self.mark_position()
             let scaled = try self.f.binary(ir.Op.mul, ir.Class.l, index, ir.const_ref((i64)self.c.table.size_of(t.elem)))
             return try self.f.binary(ir.Op.add, ir.Class.l, base, scaled)
         if self.is_span(ot):
@@ -1823,6 +1877,7 @@ pub struct Lowerer:
             if one_past:
                 length = try self.f.binary(ir.Op.add, ir.Class.l, length, ir.const_ref(1))
             try self.f.emit(ir.Op.bounds, ir.Class.l, 0, index, length, 0)
+            try self.mark_position()
             let scaled = try self.f.binary(ir.Op.mul, ir.Class.l, index, ir.const_ref((i64)self.c.table.size_of(self.elem(ot))))
             return try self.f.binary(ir.Op.add, ir.Class.l, data, scaled)
         if self.is_ptr(ot):
@@ -1860,7 +1915,9 @@ pub struct Lowerer:
             end = try self.widen(ev.ref, ev.type_id, types.usize_id)
         let limit = try self.f.binary(ir.Op.add, ir.Class.l, length, ir.const_ref(1))
         try self.f.emit(ir.Op.bounds, ir.Class.l, 0, start, limit, 0)
+        try self.mark_position()
         try self.f.emit(ir.Op.bounds, ir.Class.l, 0, end, limit, 0)
+        try self.mark_position()
         # start must not pass end
         let ordered = try self.f.binary(ir.Op.cule, ir.Class.l, start, end)
         let ok = self.f.label()
@@ -1971,6 +2028,7 @@ pub struct Lowerer:
             let neg = try self.f.binary(ir.Op.sub, cls, ir.const_ref(0), x)
             return try self.narrow(neg, t)
         let neg = try self.f.binary(ir.Op.subo, cls, ir.const_ref(0), x)
+        try self.mark_position()
         try self.mark_signed(self.signed_of(t))
         try self.check_range(neg, t)
         return neg
@@ -2033,6 +2091,7 @@ pub struct Lowerer:
                 let r = try self.f.binary(checked, cls, a, b)
                 # the target traps on overflow of the full width; signedness is in `extra`
                 try self.mark_signed(signed)
+                try self.mark_position()
                 return r
             # narrower: compute at width, then check the range
             let plain = ir.Op.add if op == "+" else (ir.Op.sub if op == "-" else ir.Op.mul)
@@ -3682,20 +3741,21 @@ pub struct Lowerer:
             try self.f.branch(c.ref, ok, bad)
             try self.f.place_label(bad)
             # the text is as long as the condition's source, however long that is
-            let file = self.source_of_current()
-            var where = try assert_text(file, e.line, e.text, "")
+            var where = try assert_text(e.text, "")
             if let msg = second:
                 if msg.kind == ast.Kind.literal and msg.text.bytes[0] == '"':
-                    where = try assert_text(file, e.line, e.text, check.decode_text(msg.text))
+                    where = try assert_text(e.text, check.decode_text(msg.text))
                     try self.trap_with(where)
                 else:
                     let m = try self.expr(msg)
                     let data = try self.f.load(ir.Op.loadl, ir.Class.l, m.ref)
                     let start = u32(self.f.args.count)
                     let prefix = try self.program_unit.text(where)
+                    let position = try self.position_ref()
+                    try self.f.args.push(ir.Arg(value = try self.f.address_of(position), cls = ir.Class.l, size = 0, align = 8, type_id = types.cstr_id, shape = 0))
                     try self.f.args.push(ir.Arg(value = try self.f.address_of(ir.text_ref(prefix)), cls = ir.Class.l, size = 0, align = 8, type_id = types.cstr_id, shape = 0))
                     try self.f.args.push(ir.Arg(value = data, cls = ir.Class.l, size = 0, align = 8, type_id = types.cstr_id, shape = 0))
-                    discard(try self.call_named("lb_core_trap_two", start, 2, ir.Class.w, false, types.unit_id))
+                    discard(try self.call_named("lb_core_trap_two_at", start, 3, ir.Class.w, false, types.unit_id))
             else:
                 try self.trap_with(where)
             try self.f.place_label(ok)
@@ -3705,8 +3765,10 @@ pub struct Lowerer:
                 let m = try self.expr(msg)
                 let data = try self.f.load(ir.Op.loadl, ir.Class.l, m.ref)
                 let start = u32(self.f.args.count)
+                let position = try self.position_ref()
+                try self.f.args.push(ir.Arg(value = try self.f.address_of(position), cls = ir.Class.l, size = 0, align = 8, type_id = types.cstr_id, shape = 0))
                 try self.f.args.push(ir.Arg(value = data, cls = ir.Class.l, size = 0, align = 8, type_id = types.cstr_id, shape = 0))
-                discard(try self.call_named("lb_core_trap", start, 1, ir.Class.w, false, types.unit_id))
+                discard(try self.call_named("lb_core_trap_at", start, 2, ir.Class.w, false, types.unit_id))
             else:
                 try self.trap_with("trap")
             return LowerValue(ref = ir.const_ref(0), type_id = types.never_id, in_memory = false)
@@ -4287,6 +4349,8 @@ pub struct Lowerer:
     pub mutating func program(mode: u32) -> !:
         self.mode = mode
         self.program_unit.trap_function = "lb_core_trap"
+        self.program_unit.trap_at_function = "lb_core_trap_at"
+        self.program_unit.trap_two_at_function = "lb_core_trap_two_at"
         var i: usize = 0
         while i < self.c.modules.count:
             try self.modules.push(self.c.modules.get(i).tree)

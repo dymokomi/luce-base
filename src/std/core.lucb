@@ -16,6 +16,32 @@ pub func trap(message: c.str) -> never:
     discard(write(2, newline.bytes.data, 1))
     c_exit(1)
 
+## `trap: file:line:column: message`: a trap naming the statement it stopped at (§11.5).
+pub func trap_at(position: c.str, message: c.str) -> never:
+    let prefix = "trap: "
+    discard(write(2, prefix.bytes.data, prefix.length))
+    discard(write(2, (const void*)position, strlen(position)))
+    let sep = ": "
+    discard(write(2, sep.bytes.data, 2))
+    discard(write(2, (const void*)message, strlen(message)))
+    let newline = "\\n"
+    discard(write(2, newline.bytes.data, 1))
+    c_exit(1)
+
+## `trap: file:line:column: message: detail`, for an `assert` whose message is computed.
+pub func trap_two_at(position: c.str, message: c.str, detail: c.str) -> never:
+    let prefix = "trap: "
+    discard(write(2, prefix.bytes.data, prefix.length))
+    discard(write(2, (const void*)position, strlen(position)))
+    let sep = ": "
+    discard(write(2, sep.bytes.data, 2))
+    discard(write(2, (const void*)message, strlen(message)))
+    discard(write(2, sep.bytes.data, 2))
+    discard(write(2, (const void*)detail, strlen(detail)))
+    let newline = "\\n"
+    discard(write(2, newline.bytes.data, 1))
+    c_exit(1)
+
 ## `trap: message: detail`, for an `assert` whose message is computed (§11.6).
 pub func trap_two(message: c.str, detail: c.str) -> never:
     let prefix = "trap: "

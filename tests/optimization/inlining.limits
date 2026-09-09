@@ -9,5 +9,5 @@ ir 96
 loads 4
 stores 20
 calls 6
-asm-arm64 93
+asm-arm64 97
 asm-x86_64 100

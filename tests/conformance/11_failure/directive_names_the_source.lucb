@@ -1,0 +1,8 @@
+## §3.3, §11.5: a trap on a line a directive covers names the other source's position.
+pub func main(arguments: str[]) -> i32:
+    let big: i64 = 9223372036854775807
+    let one: i64 = i64(arguments.length) + 1
+    #: main.luc:20:3
+    let total = big + one
+    print(f"{total}")
+    return 0

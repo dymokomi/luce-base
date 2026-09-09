@@ -851,14 +851,20 @@ pub struct Generator:
             .call:
                 try self.call(n)
             .trap_:
-                try self.address_operand("%rdi", n.a)
-                try self.call_symbol(self.program_unit.trap_function)
+                if n.b.kind == ir.RefKind.text:
+                    # the position first, then the reason (§11.5)
+                    try self.address_operand("%rdi", n.b)
+                    try self.address_operand("%rsi", n.a)
+                    try self.call_symbol(self.program_unit.trap_at_function)
+                else:
+                    try self.address_operand("%rdi", n.a)
+                    try self.call_symbol(self.program_unit.trap_function)
             .bounds:
                 let a = try self.source(n.a, ir.Class.l, "%rax")
                 let b = try self.source(n.b, ir.Class.l, "%rcx")
                 try self.line4("cmpq ", b, ", ", a)
                 try self.line("jb 1f")
-                try self.trap_text("index out of bounds")
+                try self.trap_text("index out of bounds", n.extra2)
                 try self.put("\n1:")
             .addo, .subo, .mulo:
                 try self.checked(n)
@@ -1326,7 +1332,7 @@ pub struct Generator:
             try self.line("pmovmskb %xmm8, %eax")
             try self.line("andl $65535, %eax" if bytes == 16 else "andl $255, %eax")
             try self.line("je 1f")
-        try self.trap_text("integer overflow")
+        try self.trap_text("integer overflow", n.extra2)
         try self.put("\n1:")
         try self.vector_result(n.dst, "%xmm10", bytes)
 
@@ -1396,12 +1402,19 @@ pub struct Generator:
             try self.line5("add" if n.op == ir.Op.addo else "sub", suffix, " ", b, ", ")
             try self.put(a)
             try self.line("jno 1f" if signed else "jnc 1f")
-        try self.trap_text("integer overflow")
+        try self.trap_text("integer overflow", n.extra2)
         try self.put("\n1:")
         try self.store_temp(a, cls, n.dst)
 
-    mutating func trap_text(reason: str) -> !:
+    ## A trap with a fixed reason; `at`, when not zero, is the unit's text of the statement's
+    ## position plus one, which the reporter names first (§11.5).
+    mutating func trap_text(reason: str, at: u32) -> !:
         let index = try self.program_unit.text(reason)
+        if at > 0:
+            try self.address_operand("%rdi", ir.text_ref(at - 1))
+            try self.address_operand("%rsi", ir.text_ref(index))
+            try self.call_symbol(self.program_unit.trap_at_function)
+            return
         try self.address_operand("%rdi", ir.text_ref(index))
         try self.call_symbol(self.program_unit.trap_function)
 

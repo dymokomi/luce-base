@@ -1,0 +1,15 @@
+## §3.3, §11.5: a position directive names what the lines after it were compiled from, and
+## a trap on them reports that position; a bare `#:` restores the file's own.
+func bump(n: i64) -> i64:
+    let big: i64 = 9223372036854775807
+    #: main.luc:12:8
+    let base = big
+    #:
+    return base + n
+
+pub func main(arguments: str[]) -> i32:
+    let one: i64 = i64(arguments.length) + 1
+    #: main.luc:20:3
+    let total = bump(one)
+    print(f"{total}")
+    return 0

@@ -491,12 +491,16 @@ pub struct Unit:
     ## The function a `trap` or a failed `bounds` calls with the reason's text: named here
     ## so the generators spell no symbol of the program, and the inliner keeps it.
     pub var trap_function: str
+    ## The same with the position first (§11.5): `trap_at(position, reason)` and, for an
+    ## assertion whose message is computed, `trap_two_at(position, reason, detail)`.
+    pub var trap_at_function: str
+    pub var trap_two_at_function: str
 
     pub static func create() -> Unit!:
         return Unit(functions = try list.List[Function].create(64), globals = try list.List[Global].create(32),
                     texts = try list.List[Text].create(64), tables = try list.List[WitnessTable].create(16),
                     module_asm = try list.List[Text].create(4), shapes = try list.List[Shape].create(64), leaves = try list.List[Leaf].create(256),
-                    init_function = "", trap_function = "")
+                    init_function = "", trap_function = "", trap_at_function = "", trap_two_at_function = "")
 
     ## The index of a text literal, adding it when new.
     ## The leaves of shape `shape` (1-based), empty for 0.

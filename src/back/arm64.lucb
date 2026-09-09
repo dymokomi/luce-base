@@ -863,15 +863,22 @@ pub struct Generator:
             .call:
                 try self.call(n)
             .trap_:
-                try self.address_operand("x0", n.a)
-                try self.call_trap()
+                if n.b.kind == ir.RefKind.text:
+                    # the position first, then the reason (§11.5)
+                    try self.address_operand("x0", n.b)
+                    try self.address_operand("x1", n.a)
+                    try self.line("bl ")
+                    try self.symbol(self.program_unit.trap_at_function)
+                else:
+                    try self.address_operand("x0", n.a)
+                    try self.call_trap()
             .bounds:
                 let a = try self.source(n.a, ir.Class.l, "x9")
                 let b = try self.source(n.b, ir.Class.l, "x10")
                 try self.line3("cmp ", a, ", ")
                 try self.put(b)
                 try self.line("b.lo 1f")
-                try self.trap_text("index out of bounds")
+                try self.trap_text("index out of bounds", n.extra2)
                 try self.put("\n1:")
             .addo, .subo, .mulo:
                 try self.checked(n)
@@ -1086,7 +1093,7 @@ pub struct Generator:
                 try self.put(all)
                 try self.line("fmov w9, s16")
                 try self.line("cbnz w9, 1f")
-                try self.trap_text("integer overflow")
+                try self.trap_text("integer overflow", n.extra2)
                 try self.put("\n1:")
                 try self.vector_result(n.dst, 2, bytes)
             _:
@@ -1159,7 +1166,7 @@ pub struct Generator:
                     try self.line("umulh x11, x9, x10")
                     try self.line("mul x9, x9, x10")
                     try self.line("cbz x11, 1f")
-            try self.trap_text("integer overflow")
+            try self.trap_text("integer overflow", n.extra2)
             try self.put("\n1:")
             try self.store_temp(a, n.dst)
             return
@@ -1176,12 +1183,20 @@ pub struct Generator:
             try self.line("b.cc 1f")
         else:
             try self.line("b.cs 1f")
-        try self.trap_text("integer overflow")
+        try self.trap_text("integer overflow", n.extra2)
         try self.put("\n1:")
         try self.store_temp(a, n.dst)
 
-    mutating func trap_text(reason: str) -> !:
+    ## A trap with a fixed reason; `at`, when not zero, is the unit's text of the statement's
+    ## position plus one, which the reporter names first (§11.5).
+    mutating func trap_text(reason: str, at: u32) -> !:
         let index = try self.program_unit.text(reason)
+        if at > 0:
+            try self.address_operand("x0", ir.text_ref(at - 1))
+            try self.address_operand("x1", ir.text_ref(index))
+            try self.line("bl ")
+            try self.symbol(self.program_unit.trap_at_function)
+            return
         try self.address_operand("x0", ir.text_ref(index))
         try self.call_trap()
 

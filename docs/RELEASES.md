@@ -5,6 +5,19 @@
 release is a VERSION bump, a tag `luce-base-N`, and a push, the way luce-seed does it
 (`bootstrap/SEED` pins the seed the tree is built against).
 
+## 0.11.25
+
+- A trap names the statement it stopped at, `trap: file:line:column: message`, the
+  innermost statement inside a called function, in the C build and the native one alike
+  (§11.5); `assert` says `assert failed: condition` after it (§11.6). A line holding only
+  `#: file:line:column` is a position directive (§3.3): the lines after it report that
+  position until the next directive, and a bare `#:` restores the file's own, which is
+  how a compiler writing Base carries its author's positions through
+  (`11_failure/directive_*`, positions in the `.trap` expectations). Lowering carries the
+  statement's position into every trap and checked operation; the C backend sets a
+  thread-local `lb_pos` before each statement and restores the caller's on return; the
+  runtime's `trap_at` reports it. Seed 0.76 does the same in its interpreter and C output.
+
 ## 0.11.24
 
 - `Box[((i64, i64), str)]`: a tuple type argument whose first member is a tuple was read
