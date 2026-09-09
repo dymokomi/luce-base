@@ -17,6 +17,10 @@ extern struct Mixed:
     a: i32
     b: f64
 
+extern struct FloatFirst:
+    value: f64
+    tag: u64
+
 extern struct Bytes3:
     bytes: u8[3]
 
@@ -32,6 +36,7 @@ extern func abi_small_make(a: u16, b: u32) -> Small
 extern func abi_point_scale(p: Point, k: f32) -> Point
 extern func abi_mixed_sum(m: Mixed) -> f64
 extern func abi_mixed_make(a: i32, b: f64) -> Mixed
+extern func abi_float_first_make(value: f64, tag: u64) -> FloatFirst
 extern func abi_bytes3_sum(b: Bytes3) -> u32
 extern func abi_bytes3_make(a: u8, b: u8, c: u8) -> Bytes3
 extern func abi_triple_sum(t: Triple) -> f64
@@ -60,6 +65,13 @@ export func base_mixed_sum(m: Mixed) -> f64:
 export func base_mixed_make(a: i32, b: f64) -> Mixed:
     return Mixed(a = a, b = b)
 
+export func base_float_first_make(value: f64, tag: u64) -> FloatFirst:
+    return FloatFirst(value = value, tag = tag)
+
+export func base_float_first_tag(value: FloatFirst) -> u64:
+    assert(value.value == 7.0)
+    return value.tag
+
 export func base_bytes3_sum(b: Bytes3) -> u32:
     return (u32)b.bytes[0] + (u32)b.bytes[1] + (u32)b.bytes[2]
 
@@ -78,6 +90,8 @@ pub func main(arguments: str[]) -> i32:
     let s = abi_small_make(3, 40)
     let q = abi_point_scale(Point(x = 1.5, y = 2.5), 2.0)
     let m = abi_mixed_make(3, 0.5)
+    let ff = abi_float_first_make(7.0, 0x123456789abcdef)
+    assert(ff.value == 7.0 and ff.tag == 0x123456789abcdef)
     let b = abi_bytes3_make(1, 2, 3)
     let t = abi_triple_make(1.0, 2.0, 3.0)
     print(f"{abi_packed_sum(p)} {p.tag} {p.value}")

@@ -627,8 +627,15 @@ pub struct Generator:
         let offset = (u64)k * 8
         let width = (u64)size - offset if (u64)size - offset < 8 else 8
         if sse:
-            try self.line3("movq ", reg, ", %rax")
-            try self.store_bytes("%rax", "%r10", offset, width)
+            # rax may hold the INTEGER half of a mixed SSE/INTEGER return.
+            # Store common widths directly; use non-ABI scratch for short tails.
+            if width == 8 or width == 4:
+                try self.line3("movq " if width == 8 else "movd ", reg, ", ")
+                try self.put_u64(offset)
+                try self.put("(%r10)")
+            else:
+                try self.line3("movq ", reg, ", %r11")
+                try self.store_bytes("%r11", "%r10", offset, width)
         else:
             try self.store_bytes(reg, "%r10", offset, width)
 

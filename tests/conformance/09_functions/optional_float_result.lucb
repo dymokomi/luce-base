@@ -1,0 +1,15 @@
+# An optional f64 returns its payload in an SSE register and presence in an
+# integer register on x86. Receiving the payload must preserve presence.
+noinline func lookup(value: f64, present: bool) -> f64?:
+    return value if present else none
+
+noinline func relay(value: f64, present: bool) -> f64?:
+    return lookup(value, present)
+
+pub func main(arguments: str[]) -> i32:
+    for value in [0.0, 7.0, -2.5]:
+        let found = relay(value, true) else trap("lost optional float")
+        assert(found == value)
+        assert(relay(value, false) == none)
+        print(f"{found}")
+    return 0

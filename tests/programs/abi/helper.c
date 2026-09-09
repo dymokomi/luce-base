@@ -11,6 +11,7 @@ typedef struct __attribute__((packed)) { uint8_t tag; uint64_t value; } Packed;
 typedef struct __attribute__((packed)) { uint16_t a; uint32_t b; } Small;
 typedef struct { float x; float y; } Point;
 typedef struct { int32_t a; double b; } Mixed;
+typedef struct { double value; uint64_t tag; } FloatFirst;
 typedef struct { uint8_t bytes[3]; } Bytes3;
 typedef struct { double a; double b; double c; } Triple;
 
@@ -21,6 +22,7 @@ Small abi_small_make(uint16_t a, uint32_t b) { Small s = { a, b }; return s; }
 Point abi_point_scale(Point p, float k) { Point q = { p.x * k, p.y * k }; return q; }
 double abi_mixed_sum(Mixed m) { return m.a + m.b; }
 Mixed abi_mixed_make(int32_t a, double b) { Mixed m = { a, b }; return m; }
+FloatFirst abi_float_first_make(double value, uint64_t tag) { return (FloatFirst){ value, tag }; }
 uint32_t abi_bytes3_sum(Bytes3 b) { return b.bytes[0] + b.bytes[1] + b.bytes[2]; }
 Bytes3 abi_bytes3_make(uint8_t a, uint8_t b, uint8_t c) { Bytes3 r = { { a, b, c } }; return r; }
 double abi_triple_sum(Triple t) { return t.a + t.b + t.c; }
@@ -40,6 +42,8 @@ Small base_small_make(uint16_t a, uint32_t b);
 Point base_point_scale(Point p, float k);
 double base_mixed_sum(Mixed m);
 Mixed base_mixed_make(int32_t a, double b);
+FloatFirst base_float_first_make(double value, uint64_t tag);
+uint64_t base_float_first_tag(FloatFirst value);
 uint32_t base_bytes3_sum(Bytes3 b);
 double base_triple_sum(Triple t);
 Triple base_triple_make(double a, double b, double c);
@@ -53,6 +57,9 @@ uint64_t abi_call_back(void) {
     Point q = base_point_scale((Point){ 1.5f, 2.5f }, 2.0f);
     Mixed m = base_mixed_make(3, 0.5);
     assert(m.a == 3 && m.b == 0.5);
+    FloatFirst ff = base_float_first_make(7.0, UINT64_C(0x123456789abcdef));
+    assert(ff.value == 7.0 && ff.tag == UINT64_C(0x123456789abcdef));
+    assert(base_float_first_tag(ff) == ff.tag);
     Bytes3 b = { { 1, 2, 3 } };
     Triple t = base_triple_make(1.0, 2.0, 3.0);
     assert(base_packed_sum(p) == 107);
