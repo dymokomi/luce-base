@@ -75,6 +75,11 @@ let to_scratch: u8 = 4
 # mark: The emitter ============================================================================
 
 ## An argument computed into the temporary `_lb_sq<id>` before its call (§7.1).
+## An array temporary declared at the function's top (see `arrays`).
+struct Hoisted:
+    var type_id: u32
+    var n: u32
+
 struct Sequenced:
     var node: ast.Node*
     var id: u32
@@ -139,10 +144,14 @@ pub struct Emitter:
     ## of the function, so a formatted text's bytes live as long as the function does, not
     ## as long as the expression that made them.
     var formats: list.List[u32]
+    ## The array temporaries the function's body took a span or an address of, by type and
+    ## number: each is declared at the top of the function for the same reason, so the
+    ## span outlives the expression that made the array (§5.4, §7.6).
+    var arrays: list.List[Hoisted]
 
     pub static func create(checker: check.Checker*, entry: ast.Node*) -> Emitter!:
         return Emitter(c = checker, out = try buffer.Buffer.create(65536), body = try buffer.Buffer.create(262144), sequenced = try list.List[Sequenced].create(32), chain_left = none, chain_temp = 0,
-                       scratch = try buffer.Buffer.create(65536), formats = try list.List[u32].create(16),
+                       scratch = try buffer.Buffer.create(65536), formats = try list.List[u32].create(16), arrays = try list.List[Hoisted].create(16),
                        globals = try buffer.Buffer.create(4096), protos = try buffer.Buffer.create(16384), target = to_body, indent = 0, counter = 0,
                        modules = try list.List[NodeRef].create(16), entry = entry,
                        funcs = try list.List[Instance].create(64), records = try list.List[Instance].create(64),
@@ -1144,6 +1153,7 @@ pub struct Emitter:
         self.target = to_scratch
         self.scratch.clear()
         self.formats.count = 0
+        self.arrays.count = 0
         self.indent += 1
         # the result type must exist as a typedef
         if f.kind != ast.Kind.test_:
@@ -1185,6 +1195,15 @@ pub struct Emitter:
             try self.put_tmp("fb", self.formats.get(k))
             try self.put("[1024]; lb_fmtbuf ")
             try self.put_tmp("ff", self.formats.get(k))
+            try self.put(";")
+            k += 1
+        k = 0
+        while k < self.arrays.count:
+            let h = self.arrays.get(k)
+            try self.line("")
+            try self.put_type(h.type_id)
+            try self.put(" ")
+            try self.put_tmp("ad", h.n)
             try self.put(";")
             k += 1
         self.indent -= 1
@@ -2347,6 +2366,17 @@ pub struct Emitter:
             try self.put(".d")
             return
         let n = self.tmp()
+        if self.target == to_scratch:
+            # in a function: the array is the function's, so the span outlives the expression
+            try self.arrays.push(Hoisted(type_id = try self.ty(e), n = n))
+            try self.put("(")
+            try self.put_tmp("ad", n)
+            try self.put(" = ")
+            try self.expr(e)
+            try self.put(", ")
+            try self.put_tmp("ad", n)
+            try self.put(".d)")
+            return
         try self.put("({ ")
         try self.put_type(try self.ty(e))
         try self.put(" ")
@@ -2747,6 +2777,16 @@ pub struct Emitter:
             try self.expr(inner)
             return
         let n = self.tmp()
+        if self.target == to_scratch:
+            try self.arrays.push(Hoisted(type_id = try self.ty(e), n = n))
+            try self.put("(")
+            try self.put_tmp("ad", n)
+            try self.put(" = ")
+            try self.expr(e)
+            try self.put(", &")
+            try self.put_tmp("ad", n)
+            try self.put(")")
+            return
         try self.put("({ ")
         try self.put_type(try self.ty(e))
         try self.put(" ")

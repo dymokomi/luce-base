@@ -1,0 +1,14 @@
+## §5.4, §7.6: an array literal passed where a span is wanted lives as long as the call, in
+## every build: the C the backend writes keeps it in the function, not in an inner block.
+func total(pieces: const str[]) -> usize:
+    var n: usize = 0
+    for p in pieces:
+        n += p.length
+    return n
+
+func first(values: const i64[]) -> i64:
+    return values[0] + values[2]
+
+pub func main(arguments: str[]) -> i32:
+    print(f"{total(["a", " ", "bcd"])} {first([10, 20, 30])} {total(["x"])}")
+    return 0

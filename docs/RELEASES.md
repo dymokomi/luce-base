@@ -5,6 +5,14 @@
 release is a VERSION bump, a tag `luce-base-N`, and a push, the way luce-seed does it
 (`bootstrap/SEED` pins the seed the tree is built against).
 
+## 0.11.8
+
+- An array literal passed where a span is wanted, `total(["a", "b"])`, was a temporary of an
+  inner C block whose address the span kept, a stack-use-after-scope the host C compiler
+  exploited under `-O2`. The temporary is now declared at the function's top, as format
+  buffers are (`10_aggregates/array_literal_as_argument`). Found compiling luce's runtime.
+  The seed could not compile the shape at all; pinned to luce-seed-0.55, which can.
+
 ## 0.11.7
 
 - An array left uninitialised with `= ---` and then sliced empty, `room[..<0]`, made the
