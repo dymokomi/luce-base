@@ -1,6 +1,6 @@
 ## DWARF 4 for development builds. Addresses and frame offsets come from the native
 ## generator; types and member offsets come from the checker's target layout.
-import c as abi
+import c
 import back.frame
 import back.ir
 import front.ast
@@ -8,7 +8,7 @@ import sema.check
 import sema.types
 import support.buffer
 import support.list
-extern func getcwd(buffer: u8*, size: usize) -> abi.str?
+extern func getcwd(buffer: u8*, size: usize) -> c.str?
 
 pub struct Emitter:
     var checker: check.Checker*
@@ -137,27 +137,27 @@ pub struct Emitter:
 
     mutating func type_info(id: u32) -> !:
         var format_room: u8[4096]
-        let c = self.checker
-        let t = c.table.get(id)
+        let checker = self.checker
+        let t = checker.table.get(id)
         let o = &self.info
-        let name = try c.spell(id)
-        let size = c.table.size_of(id)
+        let name = try checker.spell(id)
+        let size = checker.table.size_of(id)
         try o.put((try format(format_room, f"Ldw_type_{id}:\n")))
         if t.kind == types.Kind.void_:
             try o.put("    .uleb128 16\n")
             try text(o, name)
             return
-        if c.table.is_integer(id) or c.table.is_float(id) or id == types.bool_id or id == types.char_id or id == types.error_code_id:
-            let encoding: u32 = 4 if c.table.is_float(id) else (2 if id == types.bool_id else (5 if c.table.is_signed(id) else 7))
+        if checker.table.is_integer(id) or checker.table.is_float(id) or id == types.bool_id or id == types.char_id or id == types.error_code_id:
+            let encoding: u32 = 4 if checker.table.is_float(id) else (2 if id == types.bool_id else (5 if checker.table.is_signed(id) else 7))
             try o.put("    .uleb128 6\n")
             try text(o, name)
             try o.put((try format(format_room, f"    .byte {encoding}\n    .uleb128 {size}\n")))
             return
-        if t.kind == types.Kind.pointer or t.kind == types.Kind.cstr_ or c.table.is_opaque_handle(id):
+        if t.kind == types.Kind.pointer or t.kind == types.Kind.cstr_ or checker.table.is_opaque_handle(id):
             try o.put("    .uleb128 7\n    .byte 8\n")
-            try self.reference(types.u8_id if t.kind == types.Kind.cstr_ else (types.void_id if c.table.is_opaque_handle(id) else t.elem))
+            try self.reference(types.u8_id if t.kind == types.Kind.cstr_ else (types.void_id if checker.table.is_opaque_handle(id) else t.elem))
             return
-        if t.kind == types.Kind.atomic or (t.kind == types.Kind.optional and c.table.has_null_niche(t.elem)):
+        if t.kind == types.Kind.atomic or (t.kind == types.Kind.optional and checker.table.has_null_niche(t.elem)):
             try o.put("    .uleb128 10\n")
             try text(o, name)
             try self.reference(t.elem)
@@ -199,30 +199,30 @@ pub struct Emitter:
                 var cursor = decl.body
                 while let field = cursor:
                     if field.kind == ast.Kind.field:
-                        let ft = try c.substitute(field.type_id, decl, t.args)
-                        try self.member(field.text, ft, 0 if t.kind == types.Kind.union_ else c.table.offset_of(id, field.text))
+                        let ft = try checker.substitute(field.type_id, decl, t.args)
+                        try self.member(field.text, ft, 0 if t.kind == types.Kind.union_ else checker.table.offset_of(id, field.text))
                     cursor = field.next
         elif t.kind == types.Kind.str_ or t.kind == types.Kind.fmt_ or t.kind == types.Kind.span:
             let element = t.elem if t.kind == types.Kind.span else types.u8_id
-            try self.member("data", try c.table.pointer(element, t.is_const, false), 0)
+            try self.member("data", try checker.table.pointer(element, t.is_const, false), 0)
             try self.member("length", types.usize_id, 8)
         elif t.kind == types.Kind.interface_:
-            let pointer = try c.table.pointer(types.void_id, false, false)
+            let pointer = try checker.table.pointer(types.void_id, false, false)
             try self.member("data", pointer, 0)
             try self.member("vtable", pointer, 8)
         elif t.kind == types.Kind.tuple:
             var offset: u64 = 0
             var index: usize = 0
             for member in t.args:
-                offset = round_up(offset, c.table.align_of(member))
+                offset = round_up(offset, checker.table.align_of(member))
                 try self.member((try format(format_room, f"_{index}")), member, offset)
-                offset += c.table.size_of(member)
+                offset += checker.table.size_of(member)
                 index += 1
         elif t.kind == types.Kind.optional:
             try self.member("value", t.elem, 0)
-            try self.member("present", types.bool_id, c.table.size_of(t.elem))
+            try self.member("present", types.bool_id, checker.table.size_of(t.elem))
         elif t.kind == types.Kind.fallible:
-            let payload = c.table.size_of(t.elem)
+            let payload = checker.table.size_of(t.elem)
             let error_at = round_up(payload, 8)
             if payload > 0:
                 try self.member("value", t.elem, 0)
@@ -234,7 +234,7 @@ pub struct Emitter:
         elif t.kind == types.Kind.enum_:
             try self.member("tag", types.u32_id, 0)
             if size > 4:
-                try self.member("storage", try c.table.array(types.u8_id, size - 4), 4)
+                try self.member("storage", try checker.table.array(types.u8_id, size - 4), 4)
         try o.put("    .byte 0\n")
 
     pub mutating func finish(out: buffer.Buffer*) -> !:

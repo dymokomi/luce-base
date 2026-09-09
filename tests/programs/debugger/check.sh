@@ -10,5 +10,6 @@ LB=${1:-./build/luce-base}
 if ! cmp -s build/debugger-check.out tests/programs/debugger/check.out; then
     echo "FAIL: the transcript"; cat build/debugger-check.out; exit 1
 fi
-rm -f build/luce-base-d build/debugger-check.out tests/programs/debugger/sample.lucb.debug
+rm -f build/luce-base-d build/debugger-check.out tests/programs/debugger/sample.lucb.debug tests/programs/debugger/sample.lucb.debug.debug
+rm -rf tests/programs/debugger/sample.lucb.debug.dSYM
 echo "ok tests/programs/debugger"
