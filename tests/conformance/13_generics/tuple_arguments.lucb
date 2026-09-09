@@ -1,0 +1,18 @@
+## §13: a tuple is a type argument, in an expression and in a type: `Box[(i64, str)]`
+## holds a pair, and a generic function is called with the pair type written.
+struct Box[T]:
+    var v: T
+
+func first[T](b: Box[T]*) -> T:
+    return b.v
+
+func swap[A, B](p: (A, B)) -> (B, A):
+    return (p.1, p.0)
+
+pub func main(arguments: str[]) -> i32!:
+    var b = Box[(i64, str)](v = (7, "x"))
+    let (n, s) = first[(i64, str)](&b)
+    let t: Box[(bool, i64)] = Box[(bool, i64)](v = (true, 3))
+    let (flag, k) = swap[i64, bool]((3, true))
+    print(f"{n} {s} {b.v.0} {t.v.1} {flag} {k}")
+    return 0

@@ -1304,6 +1304,9 @@ pub struct Parser:
                     depth -= 1
             i += 1
         let first = self.peek(1)
+        if first.kind == token.Kind.operator and self.text_of(first) == "(" and self.tuple_type_at(2):
+            # `first[(i64, str)](...)`: a tuple as a type argument (§13)
+            return self.peek_op(i, "(") or self.peek_op(i, ".")
         if first.kind != token.Kind.name:
             return false
         if self.bracket_holds_expression():
@@ -1313,6 +1316,30 @@ pub struct Parser:
         if not self.is_type_word(self.text_of(first)) and not qualified:
             return false
         return self.peek_op(i, "(") or self.peek_op(i, ".")
+
+    ## Whether a tuple type opens at `at`, just after a `(`: a type word then a comma.
+    func tuple_type_at(at: usize) -> bool:
+        let t = self.peek(at)
+        if t.kind != token.Kind.name or not (self.is_type_word(self.text_of(t)) or self.qualified_type_ahead(at)):
+            return false
+        var j = at + 1
+        var depth: u32 = 0
+        while j < at + 64:
+            let k = self.peek(j)
+            if k.kind == token.Kind.eof or k.kind == token.Kind.newline:
+                return false
+            if k.kind == token.Kind.operator:
+                let s = self.text_of(k)
+                if s == "[" or s == "(":
+                    depth += 1
+                elif s == "]" or s == ")":
+                    if depth == 0:
+                        return false
+                    depth -= 1
+                elif s == "," and depth == 0:
+                    return true
+            j += 1
+        return false
 
     mutating func parse_type_args() -> ast.Node*!:
         let list = try self.node(ast.Kind.type_, "")
@@ -1681,6 +1708,8 @@ pub struct Parser:
         let t = self.peek(1)
         if t.kind == token.Kind.operator and self.text_of(t) == "]":
             return true
+        if t.kind == token.Kind.operator and self.text_of(t) == "(" and self.tuple_type_at(2):
+            return false    # `Box[(i64, str)]`: a tuple type argument, not `T[(n)]`
         if self.bracket_holds_expression():
             return true
         if t.kind == token.Kind.integer or t.kind == token.Kind.keyword:

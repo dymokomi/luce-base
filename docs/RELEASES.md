@@ -5,6 +5,14 @@
 release is a VERSION bump, a tag `luce-base-N`, and a push, the way luce-seed does it
 (`bootstrap/SEED` pins the seed the tree is built against).
 
+## 0.11.17
+
+- A tuple is a type argument (§13): `Box[(i64, str)]` in an expression and in a type. The
+  bracket lookahead read the parenthesis as an index or an array length; the spec's list
+  of what a type argument may be names tuples now (`13_generics/tuple_arguments`). Wanted
+  by luce's lists of tuples and `map.items()`. The seed read it the same way; pinned to
+  luce-seed-0.64.
+
 ## 0.11.16
 
 - A `const T[]` whose elements are pointers: the C backend spelled the element pointer
