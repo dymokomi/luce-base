@@ -54,5 +54,13 @@ for f in tests/optimization/*.limits; do
     done < "$f"
     programs=$((programs + 1))
 done
+# SSA at level 1 leaves a null indirect call in an unreachable optional arm. It must
+# still assemble and link; the default level removes the arm and used to hide the bug.
+for level in 0 1 2 3; do
+    echo "== function_values --opt $level"
+    ./build/luce-base build tests/conformance/05_types/function_values.lucb --native --opt "$level" -o build/opt
+    ./build/opt > build/opt.out
+    cmp build/opt.out tests/conformance/05_types/function_values.expect
+done
 rm -f build/opt build/opt.out build/opt.ir build/opt.s build/opt.counts
 echo "ok optimization: $programs programs"

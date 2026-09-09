@@ -1683,11 +1683,12 @@ pub struct Generator:
             i += 1
         if hidden:
             try self.frame_address("%rdi", self.slot_home(info.result_slot))
-        if n.a.kind == ir.RefKind.temp:
-            try self.load_temp("%r11", ir.Class.l, n.a.index)
+        if n.a.kind == ir.RefKind.temp or n.a.kind == ir.RefKind.constant:
+            # A constant propagated into an indirect call has no symbol name.
+            try self.operand("%r11", ir.Class.l, n.a)
         if info.variadic:
             try self.load_immediate("%eax", (i64)next_float)
-        if n.a.kind == ir.RefKind.temp:
+        if n.a.kind == ir.RefKind.temp or n.a.kind == ir.RefKind.constant:
             try self.line("call *%r11")
         else:
             try self.call_symbol(n.a.name)

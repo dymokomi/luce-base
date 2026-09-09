@@ -1380,9 +1380,11 @@ pub struct Generator:
             self.sp_shift += area
         # the callee's address first, kept in a slot-free register the arguments do not touch
         var through_register = false
-        if n.a.kind == ir.RefKind.temp:
+        if n.a.kind == ir.RefKind.temp or n.a.kind == ir.RefKind.constant:
+            # SSA can expose a constant callee in a branch that remains unreachable.
+            # It is still an indirect call, never an unnamed external symbol.
             through_register = true
-            try self.load_temp("x17", ir.Class.l, n.a.index)
+            try self.operand("x17", ir.Class.l, n.a)
             try self.line("str x17, [sp, #-16]!")
             self.sp_shift += 16
         # stack arguments
