@@ -121,14 +121,14 @@ pub func list(path: c.str) -> str[]!:
             continue
         if count == names.length:
             let grown = alloc str[names.length * 2] catch failure:
-                release_list(names[..<count])
+                release_entries(names, count)
                 discard(closedir(dir))
                 error(memory.exhausted, "memory.exhausted")
             memory.copy(grown, names, count)
             free(names)
             names = grown
         let copy = alloc u8[name.length + 1] catch failure:
-            release_list(names[..<count])
+            release_entries(names, count)
             discard(closedir(dir))
             error(memory.exhausted, "memory.exhausted")
         memory.copy(copy, name.bytes, name.length)
@@ -152,7 +152,7 @@ pub func list(path: c.str) -> str[]!:
         var empty: str[]
         return empty
     let exact = alloc str[count] catch failure:
-        release_list(names[..<count])
+        release_entries(names, count)
         error(memory.exhausted, "memory.exhausted")
     memory.copy(exact, names, count)
     free(names)
@@ -162,7 +162,11 @@ pub func list(path: c.str) -> str[]!:
 ## current, which must be the one `list` allocated from. The names are one byte longer
 ## than they read, the NUL after each (§5.5).
 pub func release_list(names: str[]):
-    for name in names:
+    release_entries(names, names.length)
+
+## Partial lists still own the whole array allocation, including its unfilled capacity.
+func release_entries(names: str[], count: usize):
+    for name in names[..<count]:
         free(u8[]((u8*)name.bytes.data, name.length + 1))
     if names.length > 0:
         free(names)

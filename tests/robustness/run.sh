@@ -22,4 +22,5 @@ for f in tests/robustness/*/*.expect; do
     programs=$((programs + 1))
 done
 rm -f build/robust build/robust.out
+python3 tests/robustness/failures/run.py
 echo "ok robustness: $programs programs"

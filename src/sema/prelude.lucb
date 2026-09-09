@@ -1447,14 +1447,14 @@ pub func list(path: c.str) -> str[]!:
             continue
         if count == names.length:
             let grown = alloc str[names.length * 2] catch failure:
-                release_list(names[..<count])
+                release_entries(names, count)
                 discard(closedir(dir))
                 error(memory.exhausted, "memory.exhausted")
             memory.copy(grown, names, count)
             free(names)
             names = grown
         let copy = alloc u8[name.length + 1] catch failure:
-            release_list(names[..<count])
+            release_entries(names, count)
             discard(closedir(dir))
             error(memory.exhausted, "memory.exhausted")
         memory.copy(copy, name.bytes, name.length)
@@ -1478,7 +1478,7 @@ pub func list(path: c.str) -> str[]!:
         var empty: str[]
         return empty
     let exact = alloc str[count] catch failure:
-        release_list(names[..<count])
+        release_entries(names, count)
         error(memory.exhausted, "memory.exhausted")
     memory.copy(exact, names, count)
     free(names)
@@ -1488,7 +1488,11 @@ pub func list(path: c.str) -> str[]!:
 ## current, which must be the one `list` allocated from. The names are one byte longer
 ## than they read, the NUL after each (§5.5).
 pub func release_list(names: str[]):
-    for name in names:
+    release_entries(names, names.length)
+
+## Partial lists still own the whole array allocation, including its unfilled capacity.
+func release_entries(names: str[], count: usize):
+    for name in names[..<count]:
         free(u8[]((u8*)name.bytes.data, name.length + 1))
     if names.length > 0:
         free(names)
@@ -1506,6 +1510,7 @@ extern func execvp(program: c.str, arguments: void*?*) -> i32
 extern func c_exit as "exit"(code: i32) -> never
 extern func _exit(code: i32) -> never
 extern func waitpid(pid: i32, status: i32*, options: i32) -> i32
+extern func kill(pid: i32, signal: i32) -> i32
 extern func c_read as "read"(descriptor: i32, buffer: void*, count: usize) -> isize
 extern func poll(descriptors: Poll*, count: u32, timeout: i32) -> i32
 extern func fcntl(descriptor: i32, command: i32, ...) -> i32
@@ -1521,6 +1526,7 @@ let poll_error: i16 = 8
 let set_flags: i32 = 4
 ## `O_NONBLOCK`: 4 on macOS, 2048 on Linux.
 let non_blocking: i32 = 4 if platform.macos else 2048
+let would_block: i32 = 35 if platform.macos else 11
 
 pub let failed: ErrorCode = ErrorCode.package(8)
 
@@ -1542,6 +1548,8 @@ struct Capture:
             self.open = false
         elif n > 0:
             self.used += (usize)n
+        elif c.errno() != c.interrupted and c.errno() != would_block:
+            error(failed, "the program's output cannot be read")
 
     ## What was captured, in an allocation exactly its length, or empty with none; the
     ## capture's own storage is given back.
@@ -1567,8 +1575,9 @@ struct Capture:
 ## Run `program` with `arguments`, wait for it, and answer its exit status and what it
 ## wrote to its standard output and error. The two texts are allocations of the current
 ## allocator, each exactly its length, empty ones no allocation at all; `release` gives
-## one back. Nothing is left behind: a failure closes what was opened and reaps what was
-## started, and the child does nothing between `fork` and `exec` but move descriptors,
+## one back. A capture failure terminates and reaps the child, then closes the pipes and
+## releases the captures; waiting never depends on output we stopped reading. The child
+## does nothing between `fork` and `exec` but move descriptors,
 ## so a parent with other threads is safe (§15.3).
 pub func run(program: c.str, arguments: const c.str[]) -> (i32, str, str)!:
     let argv = try alloc void*?[arguments.length + 2]
@@ -1608,17 +1617,29 @@ pub func run(program: c.str, arguments: const c.str[]) -> (i32, str, str)!:
     free(argv)
     discard(close(out_pipe[1]))
     discard(close(err_pipe[1]))
-    discard(fcntl(out_pipe[0], set_flags, non_blocking))
-    discard(fcntl(err_pipe[0], set_flags, non_blocking))
     var empty: u8[]
     var out = Capture(descriptor = out_pipe[0], data = empty, used = 0, open = true)
     var err = Capture(descriptor = err_pipe[0], data = empty, used = 0, open = true)
-    # from here a failure closes the pipes, drops the captures, and reaps the child
-    errdefer discard(close(out_pipe[0]))
-    errdefer discard(close(err_pipe[0]))
-    errdefer out.drop()
-    errdefer err.drop()
-    errdefer reap(pid)
+    defer discard(close(out_pipe[0]))
+    defer discard(close(err_pipe[0]))
+    defer out.drop()
+    defer err.drop()
+    try capture(pid, &out, &err)
+    let status = try wait_for(pid)
+    if (status & 127) != 0:
+        error(failed, "the program was stopped by a signal")
+    let out_text = try out.take()
+    let err_text = err.take() catch failure:
+        release(out_text)
+        error(failure.code, failure.message)
+    return ((status >> 8) & 255, out_text, err_text)
+
+## Only capture owns the cancellation path. Once it returns, result allocation can fail
+## after wait_for has reaped the child; that must never signal a potentially reused pid.
+func capture(pid: i32, out: Capture*, err: Capture*) -> !:
+    errdefer terminate(pid)
+    if fcntl(out.descriptor, set_flags, non_blocking) < 0 or fcntl(err.descriptor, set_flags, non_blocking) < 0:
+        error(failed, "the program's output cannot be read")
     while out.open or err.open:
         var watched: Poll[2] = ---
         watched[0] = Poll(descriptor = out.descriptor if out.open else -1, events = poll_in, returned = 0)
@@ -1631,18 +1652,6 @@ pub func run(program: c.str, arguments: const c.str[]) -> (i32, str, str)!:
             try out.pull()
         if err.open and (watched[1].returned & (poll_in | poll_hang_up | poll_error)) != 0:
             try err.pull()
-    let status = try wait_for(pid)
-    discard(close(out_pipe[0]))
-    discard(close(err_pipe[0]))
-    if (status & 127) != 0:
-        out.drop()
-        err.drop()
-        error(failed, "the program was stopped by a signal")
-    let out_text = try out.take()
-    let err_text = err.take() catch failure:
-        release(out_text)
-        error(failure.code, failure.message)
-    return ((status >> 8) & 255, out_text, err_text)
 
 ## The child's wait status, waited for again when a signal interrupts the wait.
 func wait_for(pid: i32) -> i32!:
@@ -1652,8 +1661,9 @@ func wait_for(pid: i32) -> i32!:
             error(failed, "run")
     return status
 
-## Wait for a child whose result no longer matters, so it is not left a zombie.
-func reap(pid: i32):
+## A child may ignore a broken pipe or SIGTERM. SIGKILL stops its writes before waiting.
+func terminate(pid: i32):
+    discard(kill(pid, 9))
     var status: i32 = 0
     while waitpid(pid, &status, 0) < 0 and c.errno() == c.interrupted:
         continue

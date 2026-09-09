@@ -1,0 +1,48 @@
+## Fail exactly one allocation and check the identity and full extent of every release.
+import memory
+
+pub struct Failing: memory.Allocator:
+    pub var attempts: usize
+    pub var failures: usize
+    var fail_at: usize
+    var addresses: void*?[128]
+    var sizes: usize[128]
+
+    pub static func at(index: usize) -> Failing:
+        var result: Failing
+        result.fail_at = index
+        return result
+
+    pub mutating func allocate(size: usize, alignment: usize) -> u8[]?:
+        self.attempts += 1
+        if self.attempts == self.fail_at:
+            self.failures += 1
+            return none
+        let block = memory.heap.allocate(size, alignment) else return none
+        var i: usize = 0
+        while i < self.addresses.length:
+            if self.addresses[i] == none:
+                self.addresses[i] = (void*)block.data
+                self.sizes[i] = size
+                assert((usize)block.data % alignment == 0)
+                return block
+            i += 1
+        trap("too many live allocations in the failure test")
+
+    pub mutating func resize(block: u8[], size: usize) -> bool:
+        return false
+
+    pub mutating func release(block: u8[]):
+        var i: usize = 0
+        while i < self.addresses.length:
+            if self.addresses[i] == (void*)block.data:
+                assert(block.length == self.sizes[i], "release lost the allocation's extent")
+                self.addresses[i] = none
+                memory.heap.release(block)
+                return
+            i += 1
+        trap("release of an unknown or already released allocation")
+
+    pub func finish():
+        for address in self.addresses:
+            assert(address == none, "an allocation was left alive")

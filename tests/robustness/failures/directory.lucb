@@ -1,0 +1,42 @@
+## Sweep every allocation in empty, partial, and grown directory listings.
+import allocator
+import c
+import files
+import memory
+
+extern func fcntl(descriptor: i32, command: i32, ...) -> i32
+
+func descriptors() -> usize:
+    var count: usize = 0
+    var fd: i32 = 0
+    while fd < 256:
+        if fcntl(fd, 1) >= 0:
+            count += 1
+        fd += 1
+    return count
+
+func attempt(path: c.str, fail_at: usize) -> usize:
+    let before = descriptors()
+    var counter = allocator.Failing.at(fail_at)
+    var rejected = false
+    with counter:
+        let names = files.list(path) catch failure:
+            assert(failure.code == memory.exhausted)
+            rejected = true
+            var empty: str[]
+            recover empty
+        files.release_list(names)
+    assert(rejected == (fail_at != 0))
+    assert(counter.failures == (1 if rejected else 0))
+    counter.finish()
+    assert(descriptors() == before, "a directory was left open")
+    return counter.attempts
+
+pub func main(arguments: c.str[]) -> i32:
+    let steps = attempt(arguments[1], 0)
+    var i: usize = 1
+    while i <= steps:
+        discard(attempt(arguments[1], i))
+        i += 1
+    print("ok directory failures")
+    return 0

@@ -1,0 +1,68 @@
+## Fail every capture/growth/result allocation. The writer ignores SIGPIPE and SIGTERM;
+## the parent must still return the allocation error, close its pipes, and reap its child.
+import allocator
+import c
+import memory
+import process
+
+extern func waitpid(pid: i32, status: i32*, options: i32) -> i32
+extern func fcntl(descriptor: i32, command: i32, ...) -> i32
+
+func descriptors() -> usize:
+    var count: usize = 0
+    var fd: i32 = 0
+    while fd < 256:
+        if fcntl(fd, 1) >= 0:
+            count += 1
+        fd += 1
+    return count
+
+func capture(child: c.str, mode: c.str) -> !:
+    let args: c.str[1] = [mode]
+    let (status, out, err) = try process.run(child, args)
+    defer process.release(out)
+    defer process.release(err)
+    assert(status == 0)
+    assert(out.length == (0 if (str)mode == "stderr" else 1048576))
+    assert(err.length == (0 if (str)mode == "stdout" else 1048576))
+    for byte in out.bytes:
+        assert(byte == 'x')
+    for byte in err.bytes:
+        assert(byte == 'x')
+
+func attempt(child: c.str, mode: c.str, fail_at: usize) -> usize:
+    let before = descriptors()
+    var counter = allocator.Failing.at(fail_at)
+    var rejected = false
+    with counter:
+        capture(child, mode) catch failure:
+            assert(failure.code == memory.exhausted)
+            rejected = true
+    assert(rejected == (fail_at != 0))
+    assert(counter.failures == (1 if rejected else 0))
+    counter.finish()
+    assert(descriptors() == before, "a pipe was left open")
+    var status: i32
+    assert(waitpid(-1, &status, 1) == -1, "a child was not reaped")
+    return counter.attempts
+
+pub func main(arguments: c.str[]) -> i32:
+    let modes: c.str[3] = ["stdout", "stderr", "both"]
+    for mode in modes:
+        let steps = attempt(arguments[1], mode, 0)
+        var i: usize = 1
+        while i <= steps:
+            discard(attempt(arguments[1], mode, i))
+            i += 1
+    let before = descriptors()
+    let args: c.str[1] = ["signal"]
+    let (status, out, err) = process.run(arguments[1], args) catch failure:
+        assert(failure.code == process.failed)
+        assert(descriptors() == before)
+        var child_status: i32
+        assert(waitpid(-1, &child_status, 1) == -1)
+        print("ok process failures")
+        return 0
+    process.release(out)
+    process.release(err)
+    return 1

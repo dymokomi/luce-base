@@ -230,7 +230,7 @@ A counting semaphore whose waiters sleep.
 
 - `let failed: ErrorCode = ErrorCode.package(8)`
 
-- `func run(program: c.str, arguments: const c.str[]) -> (i32, str, str)!` — Run `program` with `arguments`, wait for it, and answer its exit status and what it wrote to its standard output and error. The two texts are allocations of the current allocator, each exactly its length, empty ones no allocation at all; `release` gives one back. Nothing is left behind: a failure closes what was opened and reaps what was started, and the child does nothing between `fork` and `exec` but move descriptors, so a parent with other threads is safe (§15.3).
+- `func run(program: c.str, arguments: const c.str[]) -> (i32, str, str)!` — Run `program` with `arguments`, wait for it, and answer its exit status and what it wrote to its standard output and error. The two texts are allocations of the current allocator, each exactly its length, empty ones no allocation at all; `release` gives one back. A capture failure terminates and reaps the child, then closes the pipes and releases the captures; waiting never depends on output we stopped reading. The child does nothing between `fork` and `exec` but move descriptors, so a parent with other threads is safe (§15.3).
 
 - `func release(text: str)` — Give back a text `run` answered, to the allocator that was current then.
 
