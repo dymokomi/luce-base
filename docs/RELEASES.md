@@ -5,6 +5,14 @@
 release is a VERSION bump, a tag `luce-base-N`, and a push, the way luce-seed does it
 (`bootstrap/SEED` pins the seed the tree is built against).
 
+## 0.11.18
+
+- `consts.flag` inside a file-scope initialiser, `var g: S = S(f = consts.flag)`: the C
+  backend folded an unqualified constant's name to its value but wrote a qualified one as
+  the C global, which C refuses in an initialiser (§6.4;
+  `16_modules/constant_initialisers`). Found by luce's immortal text literals. The seed
+  folded neither and called its checked-arithmetic helpers there; pinned to luce-seed-0.65.
+
 ## 0.11.17
 
 - A tuple is a type argument (§13): `Box[(i64, str)]` in an expression and in a type. The

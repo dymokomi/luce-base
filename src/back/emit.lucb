@@ -3631,6 +3631,14 @@ pub struct Emitter:
             if d.kind == ast.Kind.func_ or d.kind == ast.Kind.extern_func:
                 try self.method_value(e, owner, d)
                 return
+            if d.kind == ast.Kind.constant and self.folding:
+                # `other.flag` in a file-scope initialiser: the constant's value stands in for
+                # its name, as it does unqualified (§6.4)
+                if let init = d.left:
+                    try self.put("(")
+                    try self.value(init, d.type_id)
+                    try self.put(")")
+                    return
             if d.kind == ast.Kind.constant or d.kind == ast.Kind.global or d.kind == ast.Kind.extern_var:
                 try self.put_global_name(d)
                 return

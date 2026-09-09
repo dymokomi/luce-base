@@ -1,0 +1,17 @@
+## §6.4: a top-level `let` name is a constant expression, qualified or not, so it may sit
+## anywhere in a file-scope initialiser: in a struct construction, in arithmetic, alone.
+import consts
+
+struct S:
+    var f: u8
+    var n: i64
+    var tag: str
+
+let local_base: i64 = consts.base + 1
+var g: S = S(f = consts.flag, n = consts.base + 2, tag = consts.name)
+var h: i64 = local_base * 2
+var again: u8 = consts.flag
+
+pub func main(arguments: str[]) -> i32!:
+    print(f"{g.f} {g.n} {g.tag} {h} {again}")
+    return 0

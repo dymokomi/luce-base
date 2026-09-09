@@ -1,0 +1,3 @@
+pub let flag: u8 = 32
+pub let base: i64 = 40
+pub let name: str = "lib"
