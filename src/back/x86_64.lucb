@@ -930,13 +930,13 @@ pub struct Generator:
             return
         if n.op == ir.Op.shl or n.op == ir.Op.lshr or n.op == ir.Op.ashr:
             # the count lives in cl
+            try self.operand(self.reg(cls, 1), cls, n.b)
             let a = try self.source(n.a, cls, self.reg(cls, 0))
             let d = self.target(n.dst, cls, self.reg(cls, 0))
             if a != d:
                 try self.line4("mov", suffix, " ", a)
                 try self.put(", ")
                 try self.put(d)
-            try self.operand(self.reg(cls, 1), cls, n.b)
             try self.line("shl" if n.op == ir.Op.shl else ("shr" if n.op == ir.Op.lshr else "sar"))
             try self.put(suffix)
             try self.put(" %cl, ")
@@ -944,8 +944,15 @@ pub struct Generator:
             try self.finish(n.dst, cls, d)
             return
         let a = try self.source(n.a, cls, self.reg(cls, 0))
-        let b = try self.source(n.b, cls, self.reg(cls, 1))
+        var b = try self.source(n.b, cls, self.reg(cls, 1))
         let d = self.target(n.dst, cls, self.reg(cls, 0))
+        # A dying RHS may share the destination. Preserve it before installing the
+        # LHS: x86's destructive two-operand form must not turn a+b into a+a.
+        if b == d and a != d:
+            try self.line4("mov", suffix, " ", b)
+            try self.put(", ")
+            try self.put(self.reg(cls, 1))
+            b = self.reg(cls, 1)
         if a != d:
             try self.line4("mov", suffix, " ", a)
             try self.put(", ")

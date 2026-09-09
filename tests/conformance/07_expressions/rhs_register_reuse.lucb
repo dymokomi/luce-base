@@ -1,0 +1,31 @@
+# Keep values live while each operation consumes its RHS. A native destination can
+# reuse that dying RHS register, including a pointer index and a shift count.
+func exercise(seed: u64, words: const str[]) -> u64:
+    var a = seed +% 11
+    var b = seed +% 13
+    var c = seed +% 17
+    var d = seed +% 19
+    var e = seed +% 23
+    var f = seed +% 29
+    var total: u64 = 0
+    for word in words:
+        total += (u64)word.length
+    var i: u64 = 1
+    while i < 16:
+        total += ((a +% (b *% i)) ^ (c -% (d *% i))) & 255
+        total += ((e *% (f +% i)) | (b ^ i)) & 255
+        total += (a << (i & 7)) + (c >> (i & 3))
+        a += 1
+        b += 2
+        c += 3
+        d += 4
+        e += 5
+        f += 6
+        i += 1
+    return total
+
+pub func main(arguments: str[]) -> i32:
+    let words: str[4] = ["one", "second", "third", "last"]
+    let result = exercise(7, words[0..])
+    print(f"{result}")
+    return 0
