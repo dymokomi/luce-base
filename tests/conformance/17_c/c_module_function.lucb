@@ -1,0 +1,9 @@
+# oracle: none
+# Ordinary functions in c must not be lowered as standard-stream intrinsics.
+import c
+extern func close(descriptor: i32) -> i32
+pub func main(arguments: str[]) -> i32:
+    assert(close(-1) == -1)
+    assert(c.errno() == 9)
+    print("errno function")
+    return 0

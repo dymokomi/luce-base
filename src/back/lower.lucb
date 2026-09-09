@@ -3835,7 +3835,7 @@ pub struct Lowerer:
             let order = first.left else return try self.fail(e, "no order")
             try self.f.emit(ir.Op.fence, ir.Class.l, 0, ir.const_ref((i64)memory_order(order)), ir.none_ref(), 0)
             return LowerValue(ref = ir.const_ref(0), type_id = types.unit_id, in_memory = false)
-        if module == "c":
+        if module == "c" and (name == "stdin" or name == "stdout" or name == "stderr"):
             let t = self.c.build_target
             let stream = try self.f.address_of(ir.import_ref(t.stdin_symbol if name == "stdin" else (t.stdout_symbol if name == "stdout" else t.stderr_symbol)))
             let value = try self.f.load(ir.Op.loadl, ir.Class.l, stream)
