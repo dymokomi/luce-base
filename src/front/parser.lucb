@@ -94,6 +94,12 @@ pub struct Parser:
         let t = self.peek(ahead)
         return t.kind == token.Kind.operator and self.text_of(t) == spelling
 
+    ## Whether the operand just parsed ended with a suite (a `match` expression's arms):
+    ## the expression ends with it, and what follows on the next line is a statement, not
+    ## an operator, a conditional, an `else` or a `catch` of it (§7.8).
+    func ended_suite() -> bool:
+        return self.pos > 0 and self.tokens[self.pos - 1].kind == token.Kind.dedent
+
     pub mutating func take() -> token.Token:
         let t = self.cur()
         if self.pos + 1 < self.count:
@@ -1029,7 +1035,7 @@ pub struct Parser:
     pub mutating func parse_expression() -> ast.Node*!:
         try self.enter()
         var e = try self.parse_else()
-        if self.at_kw("catch"):
+        if self.at_kw("catch") and not self.ended_suite():
             let handler = try self.node(ast.Kind.catch_, "")
             discard(self.take())
             if self.at(token.Kind.name):
@@ -1043,7 +1049,7 @@ pub struct Parser:
 
     mutating func parse_else() -> ast.Node*!:
         let e = try self.parse_conditional()
-        if self.at_kw("else"):
+        if self.at_kw("else") and not self.ended_suite():
             let n = try self.node(ast.Kind.else_, "")
             discard(self.take())
             n.left = e
@@ -1071,7 +1077,7 @@ pub struct Parser:
 
     mutating func parse_conditional() -> ast.Node*!:
         let value = try self.parse_binary(0)
-        if self.at_kw("if"):
+        if self.at_kw("if") and not self.ended_suite():
             let n = try self.node(ast.Kind.conditional, "")
             discard(self.take())
             n.left = value
@@ -1114,7 +1120,7 @@ pub struct Parser:
     mutating func parse_binary(min_level: u32) -> ast.Node*!:
         var left = try self.parse_unary()
         var chain: u32 = 0
-        while true:
+        while not self.ended_suite():
             let t = self.cur()
             let level = self.level_of(t)
             if level == 0 or level <= min_level:
@@ -1261,7 +1267,7 @@ pub struct Parser:
         # every postfix deepens the tree by one level, and the passes after the parser
         # recurse over that depth: a chain counts like nesting
         var chain: u32 = 0
-        while true:
+        while not self.ended_suite():
             chain += 1
             if self.nest + chain > max_chain:
                 discard(try self.fail("the source nests too deeply"))
@@ -1885,6 +1891,17 @@ test "statements and layout":
     var scratch: u8[256]
     with arena:
         let text = "func f() -> !:\n    var i: usize = 0\n    outer: while i < 3:\n        if let v = g(i):\n            i += 1\n        elif i == 2:\n            break outer\n        else:\n            continue\n    for (k, x) in items.indexed():\n        defer free(x)\n    match k:\n        .a, .b(v): return\n        1..<3 if k > 0: pass_()\n        _: trap()\n    let r = risky() catch failure:\n        recover 0\n"
+        let m = try parse_text(text, scratch)
+        let f = m.body else return
+        let block = f.body else return
+        assert(ast.count(block.body) == 5)
+
+test "a match expression ends with its arms":
+    var backing: u8[65536]
+    var arena = memory.FixedBuffer.over(backing)
+    var scratch: u8[256]
+    with arena:
+        let text = "func f(n: i64, p: i64*) -> i64:\n    let w = match n:\n        0 => 1\n        _ => 2\n    if w == 1:\n        return 3\n    let v = match n:\n        0 => 1\n        _ => 2\n    *p = v\n    return w\n"
         let m = try parse_text(text, scratch)
         let f = m.body else return
         let block = f.body else return

@@ -1,0 +1,28 @@
+## §7.8: a match expression ends with its arms; the statement on the next line, whether it
+## opens with `if`, with `*` or with an operator's spelling, is its own.
+func word(n: i64) -> str:
+    let w = match n:
+        0 => "zero"
+        1..<10 => "digit"
+        _ => "many"
+    if w == "zero":
+        return "none"
+    return w
+
+func store(n: i64, p: i64*) -> i64:
+    let v = match n:
+        0 => 1
+        _ => n * 2
+    *p = v
+    let fallback: i64? = match n:
+        5 => none
+        _ => n
+    if let x = fallback:
+        return *p + x
+    return *p
+
+pub func main(arguments: str[]) -> i32:
+    var slot: i64 = 0
+    print(f"{word(0)} {word(4)} {word(12)}")
+    print(f"{store(0, &slot)} {store(2, &slot)} {store(5, &slot)} {slot}")
+    return 0

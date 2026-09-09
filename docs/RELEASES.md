@@ -5,6 +5,14 @@
 release is a VERSION bump, a tag `luce-base-N`, and a push, the way luce-seed does it
 (`bootstrap/SEED` pins the seed the tree is built against).
 
+## 0.11.23
+
+- A `match` expression ends with its arms (§7.8): `let w = match n: ...` followed by
+  `if w == 1:` was read as a conditional continuing the last arm, and an operator, an
+  `else` or a `catch` on the next line the same way; an expression whose last operand
+  ended a suite is complete (`07_expressions/match_expression_ends_its_line`). Seed 0.73
+  parses it the same way.
+
 ## 0.11.22
 
 - An enum cannot contain itself by value through a payload (§10.2): the checker accepted
