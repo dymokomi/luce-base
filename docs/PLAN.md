@@ -16,6 +16,15 @@ unit tests green in the oracle and the binary agreeing on `tests/samples/`.
 | 9. Targets | the second host: x86_64 Linux, natively, with the gate green there | done (0.2.0): `src/back/x86_64.lucb` behind the `Backend` interface, the host read from the compiler's own `platform` module, per-target bootstrap snapshots, `tests/platform`; the calling convention proved both ways by `tests/programs/abi`; next hosts are arm64-linux (the x86_64 generator's ELF half with the arm64 generator's instructions) and x86_64-macos (the reverse) |
 | 10. Linking | `luce-ld`, a linker of our own, as Zig carries one, in its own repository | a native build that needs nothing from the host toolchain |
 
+## Native-first stabilization
+
+Native assembly is the default output path, including both self-hosting stages after
+the initial snapshot/seed binary. The next reliability work prioritizes IR invariants,
+ABI boundaries, register allocation, optimization-level comparisons and native runtime
+stress on both hosts. C emission remains an explicitly selected comparison and snapshot
+facility; C sanitizers supplement this work and do not establish native correctness.
+Removing the C emitter is a separate bootstrap/oracle design decision.
+
 ## What remains
 
 The one to-do list, in the order to close it. Each item names its gate: the
@@ -87,7 +96,7 @@ longer. Run it for hours on both hosts before a release; every finding becomes a
 
 ```text
 cc bootstrap/luce-base-HOST.c runtime/lucb_rt.c -o build/stage0   # the host's snapshot, with only a C compiler
-build/stage0 build src/main.lucb -o build/stage1             # the compiler from source, through C
+build/stage0 build src/main.lucb --native -o build/stage1     # first native self-hosting stage
 build/stage1 build src/main.lucb --native -o build/luce-base # the product: by itself, natively
 cmp <stage1 asm> <product asm>                               # the native backend's fixpoint
 ```
@@ -97,7 +106,7 @@ seed named in `bootstrap/SEED`.
 
 ```text
 build/luce-base build src/main.lucb --native -o build/native   # the compiler, natively
-build/native build src/main.lucb --emit=c                      # must match the C build's C
+build/native build src/main.lucb --emit=c                      # explicit comparison output
 build/native build src/main.lucb --native --emit=asm           # and its assembly
 ```
 

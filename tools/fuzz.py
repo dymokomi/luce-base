@@ -628,7 +628,7 @@ def differential(text, timeout, findings, label):
     path.write_text(text)
     exe = out / "generated"
     outputs = {}
-    for name, flags in (("c", []), ("release", ["--release"]), ("native", ["--native"])):
+    for name, flags in (("native", []), ("c", ["--backend=c"]), ("release", ["--backend=c", "--release"])):
         status, so, se = run([str(compiler), "build", str(path), *flags, "-o", str(exe)], timeout * 4)
         if status != 0:
             findings.report("build-" + name, text.encode(), f"{label}: the build ({name}) failed: {(so + se).decode('utf-8', 'replace')[:300]!r}")

@@ -14,7 +14,7 @@ for f in tests/robustness/*/*.expect; do
         profile="--profile diagnostic"
     fi
     echo "== $src"
-    for flags in "" "--native"; do
+    for flags in "--backend=c" ""; do
         ./build/luce-base build "$src" $flags $profile -o build/robust
         ./build/robust > build/robust.out
         cmp build/robust.out "$f"

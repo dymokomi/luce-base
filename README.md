@@ -6,9 +6,9 @@ bootstrap and the one that stays:
 ```text
 luce-seed  (C++)                 compiles Luce Base to C, then a binary
      ↓
-luce-base  (this tree, Base)     compiles itself; C first, then native
+luce-base  (this tree, Base)     compiles itself and programs natively by default
      ↓
-luce-full  (Base)                compiles full Luce
+luce       (Base)                compiles full Luce
 ```
 
 `luce-seed` built this tree until this tree built itself. The seed is pinned
@@ -25,6 +25,14 @@ seed implements. What this compiler must do to earn the switch is in
 [`docs/PLAN.md`](docs/PLAN.md); how it is shaped is in
 [`docs/DESIGN.md`](docs/DESIGN.md).
 
+Normal builds, test runners and static libraries use the native backend. `--native`
+remains an explicit alias. `--backend=c` selects the existing C comparison backend;
+`--emit=c` regenerates C snapshots or emits C deliberately. C library interoperability
+also works through the native backend and does not require generated C.
+
+After the initial C snapshot or seed-built compiler, both self-hosting stages use
+the native backend. Native code generation is the primary hardening target.
+
 ## Build and test
 
 ```sh
@@ -35,12 +43,12 @@ The test material lives under `tests/`: `tests/samples` (programs with their exp
 ./build/luce-base lex tests/samples/hello.lucb
 ./build/luce-base parse tests/samples/hello.lucb
 ./build/luce-base check tests/samples/json.lucb                  # silence means it checks
-./build/luce-base build tests/samples/json.lucb -o json          # C through the host cc
-./build/luce-base build tests/samples/json.lucb --native -o json # the host's assembly through as and the linker, no C
+./build/luce-base build tests/samples/json.lucb -o json          # native assembly, assembled and linked
+./build/luce-base build tests/samples/json.lucb --backend=c -o json # explicit C comparison backend
 ./build/luce-base test src/front/parser.lucb               # the module's tests, compiled and run
-./build/luce-base test src/front/parser.lucb --native      # the same tests through the native backend
+./build/luce-base test src/front/parser.lucb --backend=c   # explicit C comparison
 ./build/luce-base build src/main.lucb --native -o B2       # the compiler builds itself, natively
-./build/luce-base build app.lucb --native --debug -o app   # with frame descriptors for luce-base-d
+./build/luce-base build app.lucb --debug -o app            # development DWARF for LLDB/GDB
 ./build/luce-base build app.lucb --native -lSDL3 -L/opt/homebrew/lib -o app   # link a C library
 ./build/luce-base build app.lucb --target x86_64-linux --emit=c -o app.c        # the C for another target
 ```

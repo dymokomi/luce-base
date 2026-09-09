@@ -5,7 +5,7 @@
 set -eu
 cd "$(dirname "$0")/../../.."
 LB=${1:-./build/luce-base}
-"$LB" build tests/programs/abi/main.lucb -o build/abi-check-c
+"$LB" build tests/programs/abi/main.lucb --backend=c -o build/abi-check-c
 "$LB" build tests/programs/abi/main.lucb --native -o build/abi-check
 ./build/abi-check-c > build/abi-check-c.out
 ./build/abi-check > build/abi-check.out
@@ -13,7 +13,7 @@ cmp -s build/abi-check.out build/abi-check-c.out || { echo "FAIL tests/programs/
 printf '107 7 100\n43 3 40\n3 5 3.5 6 6\n200\n3405\n' | cmp -s - build/abi-check.out || { echo "FAIL tests/programs/abi: wrong output"; cat build/abi-check.out; exit 1; }
 rm -f build/abi-check build/abi-check-c build/abi-check.out build/abi-check-c.out
 # the promised export shapes survive the header, a C consumer, linking, and running (§17.6)
-for native in "" "--native"; do
+for native in "--backend=c" ""; do
     "$LB" build tests/programs/abi/exports.lucb --lib $native -o build/abi_exports
     cc -std=c11 -Wall -Werror -Ibuild tests/programs/abi/consumer.c build/abi_exports.a -lm -pthread -o build/abi-consumer
     ./build/abi-consumer > build/abi-consumer.out

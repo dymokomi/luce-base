@@ -31,7 +31,7 @@ done
 for f in tests/samples/*.expect; do
     src="${f%.expect}.lucb"
     echo "== build $src"
-    ./build/luce-base build "$src" -o build/sample
+    ./build/luce-base build "$src" --backend=c -o build/sample
     ./build/sample > build/sample.out
     cmp build/sample.out "$f"
 done
@@ -41,7 +41,7 @@ for f in src/*/*.lucb tests/programs/*/*.lucb; do
     case "$f" in src/std/*) continue;; esac
     if grep -q '^test "' "$f"; then
         echo "== test $f"
-        out=$(./build/luce-base test "$f") || { echo "$out" | tail -3; exit 1; }
+        out=$(./build/luce-base test "$f" --backend=c) || { echo "$out" | tail -3; exit 1; }
         echo "$out" | tail -1
         out=$(./build/luce-base test "$f" --native) || { echo "$out" | tail -3; exit 1; }
         echo "$out" | tail -1
@@ -58,7 +58,7 @@ done
 rm -f build/sample build/sample.out
 # a library and its header, through both backends: a C program includes the header, links
 # the archive, and prints what tests/samples/exports_use.out says
-for native in "" "--native"; do
+for native in "--backend=c" ""; do
     echo "== lib tests/samples/exports.lucb $native"
     ./build/luce-base build tests/samples/exports.lucb --lib $native -o build/pixels
     cc -std=c11 -Wall -Werror -Ibuild tests/samples/exports_use.c build/pixels.a -lm -pthread -o build/use_pixels
@@ -67,7 +67,7 @@ for native in "" "--native"; do
 done
 rm -f build/pixels.a build/pixels.h build/use_pixels build/use_pixels.out
 # the diagnostic profile, through both backends: filled `---` storage, quarantined releases
-for native in "" "--native"; do
+for native in "--backend=c" ""; do
     echo "== diagnostic tests/samples/diagnostic.lucb $native"
     ./build/luce-base build tests/samples/diagnostic.lucb --profile diagnostic $native -o build/sample
     ./build/sample > build/sample.out
@@ -83,7 +83,7 @@ done
 # reported when it has drifted
 echo "== bootstrap"
 ./build/luce-base build src/main.lucb --emit=c -o build/stage1.c
-./build/luce-base build src/main.lucb -o build/stage2
+./build/luce-base build src/main.lucb --backend=c -o build/stage2
 ./build/stage2 build src/main.lucb --emit=c -o build/stage2.c
 cmp build/stage1.c build/stage2.c
 # every target's snapshot is what this compiler emits for that target, from this host: the

@@ -9,8 +9,13 @@ hosts, arm64 macOS and x86_64 Linux.
 
 ## The executions
 
+Native compilation is the default for programs, test runners and libraries. C
+emission is an explicitly selected comparison/snapshot facility (`--backend=c` or
+`--emit=c`). The production bootstrap switches to native after its initial C snapshot
+or seed-built compiler. Native correctness is the primary validation target.
+
 Every positive program of the conformance suite runs through C at `-O0`, C at `-O2`
-(`--release`), and the native backend at `--opt 0`, `1`, `2`, and `3`; all outputs must
+(`--backend=c --release`), and the native backend at `--opt 0`, `1`, `2`, and `3`; all outputs must
 agree. Applicable fixtures also run in the seed's interpreter (`lucb eval`, the reference
 semantics). Each execution has a deadline. Every rejected program is
 rejected by this compiler with exit status 1 and the diagnostic the test names, and by the

@@ -6,7 +6,7 @@ set -eu
 cd "$(dirname "$0")/../../.."
 LB=${1:-./build/luce-base}
 "$LB" build tests/programs/asm/main.lucb --native -o build/asm-check
-"$LB" build tests/programs/asm/main.lucb -o build/asm-check-c
+"$LB" build tests/programs/asm/main.lucb --backend=c -o build/asm-check-c
 ./build/asm-check > build/asm-check.out
 ./build/asm-check-c > build/asm-check-c.out
 cmp -s build/asm-check.out build/asm-check-c.out || { echo "FAIL tests/programs/asm: backends disagree"; exit 1; }

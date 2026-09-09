@@ -26,12 +26,12 @@ for dir in tests/conformance/[0-9]*/; do
         [ -e "$src" ] || src="${f%%.*}/main.lucb"
         echo "== $src"
         echo "   C"
-        run ./build/luce-base build "$src" -o build/conformance
+        run ./build/luce-base build "$src" --backend=c -o build/conformance
         run ./build/conformance > build/conformance.out
         cmp build/conformance.out "$f"
         # the C the host compiler optimises must mean the same as the C it does not (§12.6)
         echo "   C release"
-        run ./build/luce-base build "$src" --release -o build/conformance
+        run ./build/luce-base build "$src" --backend=c --release -o build/conformance
         run ./build/conformance > build/conformance.out
         cmp build/conformance.out "$f"
         for level in 0 1 2 3; do
@@ -46,7 +46,7 @@ for dir in tests/conformance/[0-9]*/; do
         fi
         # `# tests: true`: the program's `test` declarations run under both backends and pass
         if grep -q '^# tests: true' "$src"; then
-            run ./build/luce-base test "$src" > build/conformance.out
+            run ./build/luce-base test "$src" --backend=c > build/conformance.out
             run ./build/luce-base test "$src" --native > build/conformance.out
         fi
         programs=$((programs + 1))
@@ -58,7 +58,7 @@ for dir in tests/conformance/[0-9]*/; do
         [ -e "$src" ] || src="${f%.trap}/main.lucb"
         want=$(cat "$f")
         echo "== $src (traps)"
-        for flags in "" "--release" "--native --opt 0" "--native --opt 1" "--native --opt 2" "--native --opt 3"; do
+        for flags in "--backend=c" "--backend=c --release" "--opt 0" "--opt 1" "--opt 2" "--opt 3"; do
             run ./build/luce-base build "$src" $flags -o build/conformance
             if reject ./build/conformance > build/conformance.out 2> build/conformance.err; then
                 echo "FAIL $src: expected a trap, the program finished"; exit 1

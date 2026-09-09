@@ -1,0 +1,9 @@
+export func answer() -> i32:
+    return 42
+
+test "native default":
+    assert(answer() == 42)
+
+pub func main(arguments: str[]) -> i32:
+    print(f"{answer()}")
+    return 0

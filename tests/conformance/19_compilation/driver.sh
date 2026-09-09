@@ -10,7 +10,7 @@ echo "== $dir/driver.sh"
 $lb check $dir/warnings.lucb -W 2>&1 | cmp - $dir/warnings.warnings
 # without -W the checker is silent
 [ -z "$($lb check $dir/warnings.lucb 2>&1)" ] || { echo "FAIL $dir: warnings without -W"; exit 1; }
-for native in "" "--native"; do
+for native in "--backend=c" ""; do
     # the diagnostic profile: filled storage, quarantined blocks, recorded sites (§19.4)
     $lb build $dir/diagnostic.lucb --profile diagnostic $native -o build/conformance
     ./build/conformance | cmp - $dir/diagnostic.diagnostic
@@ -29,7 +29,7 @@ for native in "" "--native"; do
 done
 # a linked record and an aligned field cross the header exactly (§17.6, §5.11): a C program
 # includes the header, links the archive from either backend, and agrees on every layout
-for native in "" "--native"; do
+for native in "--backend=c" ""; do
     $lb build $dir/library_recursive.lucb --lib $native -o build/conformance
     cc -std=c11 -Wall -Werror -Ibuild $dir/library_recursive_use.c build/conformance.a -lm -pthread -o build/conformance_use
     ./build/conformance_use > build/conformance_use.out

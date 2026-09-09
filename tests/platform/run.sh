@@ -26,7 +26,7 @@ run_program() {
         echo "FAIL $src: no expectation for $host"; exit 1
     fi
     echo "== $src"
-    for flags in "" "--native"; do
+    for flags in "--backend=c" ""; do
         ./build/luce-base build "$src" $flags -o build/platform
         ./build/platform > build/platform.out
         cmp build/platform.out "$expect"

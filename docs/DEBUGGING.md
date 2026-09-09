@@ -1,7 +1,7 @@
 # Native source debugging
 
-Build with `luce-base build main.lucb --native --debug -o program`. `--debug`
-requires the native backend; passing it to a C build reports an error.
+Build with `luce-base build main.lucb --debug -o program`. Native is the default.
+`--backend=c --debug` reports an error because DWARF requires the native backend.
 
 Development builds retain named locals (including unused bindings), keep their
 frame slots, and preserve source statement boundaries. They emit DWARF 4 and

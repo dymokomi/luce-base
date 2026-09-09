@@ -45,7 +45,7 @@ with tempfile.TemporaryDirectory(prefix="luce-base-failures-") as temp:
         for i in range(count):
             (directory / f"entry-{i:02}").touch()
         directories.append(directory)
-    for flags in ([], ["--release"], ["--native"]):
+    for flags in ([], ["--backend=c"], ["--backend=c", "--release"]):
         for name in ("directory", "process"):
             exe = work / name
             source = "capture_failure" if name == "process" else name
@@ -55,7 +55,7 @@ with tempfile.TemporaryDirectory(prefix="luce-base-failures-") as temp:
             for argument in arguments:
                 run([str(exe), str(argument)], timeout=30,
                     expected=f"ok {name} failures\n".encode())
-            print(f"ok allocation failures: {name} {' '.join(flags) or 'C'}", flush=True)
+            print(f"ok allocation failures: {name} {' '.join(flags) or 'native'}", flush=True)
         for name, expected in (("values", b"ok value failures\n"),
                                ("network", b"ok network failures\n"),
                                ("stream", b"pending\nok stream failures\n"),
@@ -64,4 +64,4 @@ with tempfile.TemporaryDirectory(prefix="luce-base-failures-") as temp:
             run([str(root / "build/luce-base"), "build", str(sources / f"{name}.lucb"),
                  *flags, f"-L{work}", "-lfaults", "-o", str(exe)])
             run([str(exe)], timeout=30, expected=expected)
-            print(f"ok library failures: {name} {' '.join(flags) or 'C'}", flush=True)
+            print(f"ok library failures: {name} {' '.join(flags) or 'native'}", flush=True)
