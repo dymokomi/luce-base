@@ -1,0 +1,26 @@
+# `recover` evaluates its value, then runs only cleanup belonging to its catch.
+let bad = ErrorCode.package(1)
+var log: i32 = 0
+func record(n: i32):
+    log = log * 10 + n
+func fail() -> i32!:
+    error(bad, "failure")
+func recovering() -> i32!:
+    defer record(4)
+    let result = fail() catch outer:
+        defer record(3)
+        errdefer record(9)
+        discard(fail() catch inner:
+            defer record(1)
+            recover 0)
+        assert(log == 1)
+        if true:
+            defer record(2)
+            recover log
+        recover -1
+    assert(log == 123)
+    return result
+pub func main(arguments: str[]) -> i32!:
+    assert((try recovering()) == 1)
+    assert(log == 1234)
+    return 0
