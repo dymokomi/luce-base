@@ -5,6 +5,15 @@
 release is a VERSION bump, a tag `luce-base-N`, and a push, the way luce-seed does it
 (`bootstrap/SEED` pins the seed the tree is built against).
 
+## 0.11.22
+
+- An enum cannot contain itself by value through a payload (§10.2): the checker accepted
+  `pair(left: Tree?, right: Tree?)` and the C backend wrote a type C refuses, while the
+  seed did the same; both now reject it as they reject a struct holding itself, directly,
+  through an optional, a tuple, an array or a struct (`10_aggregates/errors/enum_contains_itself*`),
+  and a pointer payload builds a tree as before (`10_aggregates/recursive_enum`). Seed 0.72
+  resolves a payload's type before the check, as it does a field's.
+
 ## 0.11.21
 
 - `pub handle Name:` with `destroy function` beneath (§17.7): an opaque pointer-shaped

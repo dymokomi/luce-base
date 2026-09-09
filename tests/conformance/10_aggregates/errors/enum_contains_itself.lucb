@@ -1,0 +1,8 @@
+# error: enum contains itself
+## §10.2: an enum cannot contain itself by value through a payload; a pointer breaks the cycle.
+enum Tree:
+    leaf(value: i64)
+    pair(left: Tree?, right: Tree?)
+
+pub func main(arguments: str[]) -> i32:
+    return 0

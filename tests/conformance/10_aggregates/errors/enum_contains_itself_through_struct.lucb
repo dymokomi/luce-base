@@ -1,0 +1,11 @@
+# error: enum contains itself
+## §10.2: an enum reaching itself through a struct's optional field contains itself.
+enum Tree:
+    leaf(value: i64)
+    node(cell: Cell)
+
+struct Cell:
+    var inner: Tree?
+
+pub func main(arguments: str[]) -> i32:
+    return 0

@@ -1,0 +1,34 @@
+## §10.2: an enum reaches itself through a pointer payload, never by value; a tree of
+## heap-allocated cases is built, summed by `match`, and freed.
+enum Tree:
+    leaf(value: i64)
+    pair(left: Tree*, right: Tree*)
+
+func sum(t: const Tree*) -> i64:
+    match *t:
+        .leaf(value): return value
+        .pair(left, right): return sum(left) + sum(right)
+
+func release(t: Tree*):
+    match *t:
+        .leaf(value): discard(value)
+        .pair(left, right):
+            release(left)
+            release(right)
+    free(t)
+
+func build(low: i64, high: i64) -> Tree*!:
+    if low == high:
+        return try new Tree.leaf(value = low)
+    let middle = (low + high) // 2
+    let left = try build(low, middle)
+    errdefer release(left)
+    let right = try build(middle + 1, high)
+    errdefer release(right)
+    return try new Tree.pair(left = left, right = right)
+
+pub func main(arguments: str[]) -> i32!:
+    let tree = try build(1, 10)
+    print(f"sum {sum(tree)}")
+    release(tree)
+    return 0

@@ -634,7 +634,7 @@ pub struct Checker:
         try self.resolve_signatures(tree)
         var decl = tree.body
         while let d = decl:
-            if d.kind == ast.Kind.struct_ or d.kind == ast.Kind.union_:
+            if d.kind == ast.Kind.struct_ or d.kind == ast.Kind.union_ or d.kind == ast.Kind.enum_:
                 try self.check_containment(d)
             if d.kind == ast.Kind.extern_type and d.right != none:
                 try self.check_handle(d)
@@ -834,14 +834,22 @@ pub struct Checker:
             _:
                 discard(0)
 
-    ## A struct or union cannot contain itself by value; a pointer, span, or optional
-    ## pointer breaks the cycle (§10.1). The offending field loses its type so no layout recurses.
+    ## A struct, union or enum cannot contain itself by value, an enum through a case's
+    ## payload; a pointer, span, or optional pointer breaks the cycle (§10.1, §10.2). The
+    ## offending field or payload loses its type so no layout recurses.
     mutating func check_containment(d: ast.Node*) -> !:
         var cursor = d.body
         while let m = cursor:
             if m.kind == ast.Kind.field and self.contains_by_value(m.type_id, d, 0):
                 discard(try self.fail(m, "this struct contains itself; use a pointer (§10.1)"))
                 m.type_id = types.error_id
+            if m.kind == ast.Kind.enum_case:
+                var payload = m.body
+                while let p = payload:
+                    if self.contains_by_value(p.type_id, d, 0):
+                        discard(try self.fail(p, "this enum contains itself; use a pointer (§10.2)"))
+                        p.type_id = types.error_id
+                    payload = p.next
             cursor = m.next
 
     func contains_by_value(id: u32, d: ast.Node*, depth: u32) -> bool:
@@ -861,7 +869,7 @@ pub struct Checker:
                     if self.contains_by_value(a, d, depth + 1):
                         return true
                 return false
-            .struct_, .union_:
+            .struct_, .union_, .enum_:
                 let decl = t.decl else return false
                 if decl == d:
                     return true
@@ -869,6 +877,12 @@ pub struct Checker:
                 while let m = cursor:
                     if m.kind == ast.Kind.field and self.contains_by_value(m.type_id, d, depth + 1):
                         return true
+                    if m.kind == ast.Kind.enum_case:
+                        var payload = m.body
+                        while let p = payload:
+                            if self.contains_by_value(p.type_id, d, depth + 1):
+                                return true
+                            payload = p.next
                     cursor = m.next
                 return false
             _:
@@ -5786,6 +5800,11 @@ test "an init assigns every field once and reads none early":
 test "a struct cannot contain itself by value":
     try expect_error("struct N:\n    var next: N\nfunc f() -> i64:\n    return 0\n", "contains itself")
     try expect_error("struct A:\n    var b: B\nstruct B:\n    var a: A\nfunc f() -> i64:\n    return 0\n", "contains itself")
+
+test "an enum cannot contain itself by value through a payload":
+    try expect_error("enum T:\n    leaf(value: i64)\n    pair(left: T?, right: T?)\nfunc f() -> i64:\n    return 0\n", "enum contains itself")
+    try expect_error("enum C:\n    end\n    link(pair: (i64, C))\nfunc f() -> i64:\n    return 0\n", "enum contains itself")
+    try expect_error("enum T:\n    leaf(value: i64)\n    node(cell: Cell)\nstruct Cell:\n    var inner: T?\nfunc f() -> i64:\n    return 0\n", "enum contains itself")
     try expect_ok("struct N:\n    var value: i64\n    var next: N*?\nfunc f() -> i64:\n    let n = N(value = 1, next = none)\n    return n.value\n")
 
 test "integer-backed enums: values for every case, distinct, and the bit operators":
