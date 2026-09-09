@@ -4064,7 +4064,8 @@ pub struct Emitter:
         try self.put_type(st)
         try self.put(" ")
         try self.put_tmp("m", n)
-        try self.put(" = ")
+        # `match true:` with guarded `_` arms never reads its subject; C must not object
+        try self.put(" __attribute__((unused)) = ")
         try self.value(scrutinee, st)
         try self.put(";")
         # a guarded arm may repeat a value or a `_`, which C's `switch` cannot: those go to the chain

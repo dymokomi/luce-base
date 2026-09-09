@@ -1,0 +1,11 @@
+# error: a tuple is not a pattern
+## §8.4: a pattern is a literal, a case, a range, a name or `_`; a tuple literal is none of
+## those, and matching one member at a time says what is meant.
+func pair(p: (i64, i64)) -> i64:
+    return match p:
+        (0, 0) => 0
+        _ => -1
+
+pub func main(arguments: str[]) -> i32!:
+    print(f"{pair((0, 0))}")
+    return 0

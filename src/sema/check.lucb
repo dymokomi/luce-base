@@ -4565,6 +4565,9 @@ pub struct Checker:
             return
         let t = self.table.get(st)
         let v = p.left else return try self.fail(p, "empty pattern")
+        if v.kind == ast.Kind.tuple:
+            # a tuple is not a pattern (§8.4): no backend compares one, so none pretends to
+            return try self.fail(v, "a tuple is not a pattern; match one member at a time, or compare with `==`")
         if v.kind == ast.Kind.case_value and t.kind == types.Kind.optional and (v.text == "some" or v.text == "none"):
             # `.some(name)` and `.none` take an optional apart (§8.4)
             v.type_id = st

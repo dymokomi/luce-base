@@ -1,0 +1,11 @@
+## §8.4: `match true:` with guarded `_` arms is a chain of conditions; the subject is
+## never read by an arm, and the C backend must not mind.
+func sign(n: i64) -> i64:
+    return match true:
+        _ if n > 0 => 1
+        _ if n < 0 => -1
+        _ => 0
+
+pub func main(arguments: str[]) -> i32!:
+    print(f"{sign(5)} {sign(-2)} {sign(0)}")
+    return 0

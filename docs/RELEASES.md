@@ -5,6 +5,17 @@
 release is a VERSION bump, a tag `luce-base-N`, and a push, the way luce-seed does it
 (`bootstrap/SEED` pins the seed the tree is built against).
 
+## 0.11.20
+
+- A tuple literal is not a pattern (§8.4): the checker accepted `(0, 0) =>` in a `match`,
+  the C backend then compared structs with `==` and the native backend matched nothing;
+  the checker refuses it and says to match one member at a time
+  (`08_control/errors/tuple_is_not_a_pattern`). Found probing Base for luce's match
+  expressions. The seed did the same; pinned to luce-seed-0.68.
+- `match true:` whose arms are all guarded `_`: the C backend declared the subject's
+  temporary and no arm read it, so the C compiler's unused-variable error refused the
+  program (`08_control/match_of_guards`). Found by luce's match expressions over tuples.
+
 ## 0.11.19
 
 - The nesting bound is 100 levels, not 200, and a chain of calls or operators, which the
