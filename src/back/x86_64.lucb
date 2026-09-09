@@ -587,8 +587,16 @@ pub struct Generator:
         let offset = (u64)k * 8
         let width = (u64)size - offset if (u64)size - offset < 8 else 8
         if sse:
-            try self.load_bytes("%rax", "%r10", offset, width)
-            try self.line3("movq %rax, ", reg, "")
+            if width == 8 or width == 4:
+                # A preceding INTEGER result may already be in rax. Loading an SSE
+                # eightbyte must not overwrite that other half of a mixed return.
+                try self.offset_move("movq " if width == 8 else "movd ", offset, "(%r10), ")
+                try self.put(reg)
+            else:
+                try self.line("movq %rax, %xmm9")
+                try self.load_bytes("%rax", "%r10", offset, width)
+                try self.line3("movq %rax, ", reg, "")
+                try self.line("movq %xmm9, %rax")
         else:
             try self.load_bytes(reg, "%r10", offset, width)
 

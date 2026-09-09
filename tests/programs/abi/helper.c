@@ -3,6 +3,7 @@
    record with a misaligned field is MEMORY on x86-64 System V whatever its size; a small
    record of floats is SSE; a mixed one is INTEGER then SSE; a record over sixteen bytes
    goes through memory on both native targets; three bytes are one INTEGER eightbyte. */
+#include <assert.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -51,6 +52,7 @@ uint64_t abi_call_back(void) {
     Small s = base_small_make(3, 40);
     Point q = base_point_scale((Point){ 1.5f, 2.5f }, 2.0f);
     Mixed m = base_mixed_make(3, 0.5);
+    assert(m.a == 3 && m.b == 0.5);
     Bytes3 b = { { 1, 2, 3 } };
     Triple t = base_triple_make(1.0, 2.0, 3.0);
     uint64_t sum = 0;
