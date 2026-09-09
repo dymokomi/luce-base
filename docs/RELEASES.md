@@ -5,6 +5,15 @@
 release is a VERSION bump, a tag `luce-base-N`, and a push, the way luce-seed does it
 (`bootstrap/SEED` pins the seed the tree is built against).
 
+## 0.11.16
+
+- A `const T[]` whose elements are pointers: the C backend spelled the element pointer
+  `const T**`, the qualifier on the pointee, where C wants `T* const*` (§5.3), so a span
+  parameter and a `for` over it were refused by the C compiler
+  (`05_types/const_span_of_pointers`). Found by luce's list runtime, `list_of[T]` over
+  `const T[]` with objects as elements. The seed dropped the pointer altogether in its
+  loop; pinned to luce-seed-0.63.
+
 ## 0.11.15
 
 - `(List[T]*)p`: the parser's cast lookahead skips a generic instance's type arguments, as

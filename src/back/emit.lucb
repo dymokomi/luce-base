@@ -384,6 +384,19 @@ pub struct Emitter:
         return self.kind(id) == types.Kind.atomic
 
     ## An optional whose payload is a pointer is the pointer itself (§5.8).
+    ## `T*` to a span's elements: `const T*` for a `const T[]`, and `T* const*` when the
+    ## elements are pointers themselves, since C puts the qualifier after their star (§5.3).
+    mutating func put_element_pointer(span: u32) -> !:
+        let elem = self.elem(span)
+        let constant = self.c.table.get(span).is_const
+        let pointer_elements = self.is_ptr(elem) or self.is_nullable_ptr(elem) or self.kind(elem) == types.Kind.func_
+        if constant and not pointer_elements:
+            try self.put("const ")
+        try self.put_type(elem)
+        if constant and pointer_elements:
+            try self.put(" const")
+        try self.put("*")
+
     func is_nullable_ptr(id: u32) -> bool:
         return self.c.table.is_nullable_pointer(id)
 
@@ -1255,10 +1268,8 @@ pub struct Emitter:
             first = false
             let pt = try self.map(p.type_id)
             if self.is_span(pt):
-                if self.c.table.get(pt).is_const:
-                    try self.put("const ")
-                try self.put_type(self.elem(pt))
-                try self.put("* ")
+                try self.put_element_pointer(pt)
+                try self.put(" ")
                 try self.put_ident(p.text)
                 try self.put(", size_t ")
                 try self.put_ident(p.text)
@@ -1889,10 +1900,8 @@ pub struct Emitter:
             try self.put(")")
         else:
             try self.put("((")
-            if self.c.table.get(it).is_const:
-                try self.put("const ")
-            try self.put_type(self.elem(it))
-            try self.put("*)")
+            try self.put_element_pointer(it)
+            try self.put(")")
             try self.put_tmp("seq", n)
             try self.put(".data)[")
             try self.put_tmp("i", n)

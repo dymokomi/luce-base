@@ -1,0 +1,29 @@
+## §5.3: a `const T[]` whose elements are pointers has `T* const` elements: the pointers
+## are read-only, what they point at is not. A generic over the element type iterates
+## them, and may change what they point at.
+struct Node:
+    var n: i64
+
+func total[T](items: const T[], f: func(T) -> i64) -> i64:
+    var sum: i64 = 0
+    for item in items:
+        sum += f(item)
+    return sum
+
+func bump_all[T](items: const T[], f: func(T) -> unit):
+    for item in items:
+        f(item)
+
+func weight(p: Node*) -> i64:
+    return p.n
+
+func bump(p: Node*):
+    p.n += 1
+
+pub func main(arguments: str[]) -> i32!:
+    var a = Node(n = 1)
+    var b = Node(n = 2)
+    let both: Node*[2] = [&a, &b]
+    bump_all[Node*](both, bump)
+    print(f"{total[Node*](both, weight)} {a.n} {b.n}")
+    return 0
