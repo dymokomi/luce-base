@@ -1,0 +1,21 @@
+## §13.2, §5.7: a tuple whose first member is a tuple is a type argument, as `Box[(i64, str)]`
+## is, and an array of such boxes stays an array.
+struct Box[T]:
+    var item: T
+
+func make(a: i64, b: i64, c: str) -> Box[((i64, i64), str)]:
+    return Box[((i64, i64), str)](item = ((a, b), c))
+
+func total(boxes: const Box[((i64, i64), str)][]) -> i64:
+    var sum: i64 = 0
+    for box in boxes:
+        let (pair, label) = box.item
+        sum += pair.0 + pair.1 + (i64)label.length
+    return sum
+
+pub func main(arguments: str[]) -> i32:
+    let boxes = [make(1, 2, "ab"), make(3, 4, "c")]
+    let first: Box[((i64, i64), str)] = boxes[0]
+    let inner = first.item.0
+    print(f"{total(boxes[0..<2])} {first.item.1} {inner.1}")
+    return 0

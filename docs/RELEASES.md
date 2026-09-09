@@ -5,6 +5,12 @@
 release is a VERSION bump, a tag `luce-base-N`, and a push, the way luce-seed does it
 (`bootstrap/SEED` pins the seed the tree is built against).
 
+## 0.11.24
+
+- `Box[((i64, i64), str)]`: a tuple type argument whose first member is a tuple was read
+  as an array length (§13.2); the lookahead for a tuple type now opens a nested `(`
+  (`13_generics/nested_tuple_argument`). Seed 0.74 reads it the same way.
+
 ## 0.11.23
 
 - A `match` expression ends with its arms (§7.8): `let w = match n: ...` followed by

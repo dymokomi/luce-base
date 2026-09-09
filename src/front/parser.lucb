@@ -1363,9 +1363,12 @@ pub struct Parser:
             return false
         return self.peek_op(i, "(") or self.peek_op(i, ".")
 
-    ## Whether a tuple type opens at `at`, just after a `(`: a type word then a comma.
+    ## Whether a tuple type opens at `at`, just after a `(`: a type word, or a nested `(`
+    ## opening one, then a comma at the same depth before the close.
     func tuple_type_at(at: usize) -> bool:
         let t = self.peek(at)
+        if t.kind == token.Kind.operator and self.text_of(t) == "(":
+            return self.tuple_type_at(at + 1)
         if t.kind != token.Kind.name or not (self.is_type_word(self.text_of(t)) or self.qualified_type_ahead(at)):
             return false
         var j = at + 1
@@ -1906,6 +1909,17 @@ test "a match expression ends with its arms":
         let f = m.body else return
         let block = f.body else return
         assert(ast.count(block.body) == 5)
+
+test "a nested tuple is a type argument":
+    var backing: u8[65536]
+    var arena = memory.FixedBuffer.over(backing)
+    var scratch: u8[256]
+    with arena:
+        let text = "func f() -> Box[((i64, i64), str)]:\n    return Box[((i64, i64), str)](item = ((1, 2), \"s\"))\n"
+        let m = try parse_text(text, scratch)
+        let f = m.body else return
+        let r = f.ty else return
+        assert(r.body != none)
 
 test "types":
     var backing: u8[65536]
