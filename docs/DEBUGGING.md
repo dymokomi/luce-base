@@ -36,8 +36,9 @@ Parameters, method receivers, lexical scopes, scalar types, pointers, arrays,
 spans, strings, tuples, generic records, packed fields, unions, optional and
 fallible representations are described using the compiler's target layouts.
 Integer-backed enum cases have names; payload enums currently expose their tag
-and raw storage. An optional's `present` flag and a fallible value's `failed` flag
-must be checked before interpreting its payload. Debugger expressions use the
+and raw storage. For optionals with a separate `present` flag, check it before reading the payload;
+nullable pointers and views use their null representation instead. Check a fallible
+value's `failed` flag before interpreting its payload. Debugger expressions use the
 C-compatible representation, so a span's elements are under `data[index]`.
 
 Source paths and the compilation directory are recorded. If source moves, use

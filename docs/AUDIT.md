@@ -1,4 +1,4 @@
-# Status, 2026-09-07
+# Status, 2026-09-09
 
 One matrix of what this compiler does, kept current: each promise of the specification
 is **verified** (implemented, and proved by the gate through every execution), **limited**
@@ -9,17 +9,19 @@ hosts, arm64 macOS and x86_64 Linux.
 
 ## The executions
 
-Every positive program of the conformance suite runs four ways, and the outputs must be
-identical: the C backend at `-O0`, the C backend at `-O2` (`--release`), the native backend,
-and the seed's interpreter (`lucb eval`, the reference semantics). Every rejected program is
+Every positive program of the conformance suite runs through C at `-O0`, C at `-O2`
+(`--release`), and the native backend at `--opt 0`, `1`, `2`, and `3`; all outputs must
+agree. Applicable fixtures also run in the seed's interpreter (`lucb eval`, the reference
+semantics). Each execution has a deadline. Every rejected program is
 rejected by this compiler with exit status 1 and the diagnostic the test names, and by the
 seed; a crash or an acceptance fails the gate. The robustness suite counts allocations
 through a measuring allocator; the optimisation suite counts instructions; the platform
 suite proves each host's arms of the standard library and emits every target; the proving
 programs (`tests/programs`) are driven from outside; the seed's own corpus is built
 natively. A host that lacks something a check needs (SDL3, `pkg-config`, a Metal device)
-fails the gate and says what to install: a green gate means every check ran. The one skip
-left is Metal on a host that is not macOS. The tree builds itself through both backends to the same C and assembly, and the
+fails the default local gate and says what to install. Hosted CI explicitly permits a
+missing Metal device and records that missing hardware evidence; it does not replace a
+release check on a GPU-equipped Mac. Metal is inapplicable on non-macOS hosts. The tree builds itself through both backends to the same C and assembly, and the
 seed named in `bootstrap/SEED` builds it to the same C.
 
 ## The matrix
@@ -49,7 +51,7 @@ seed named in `bootstrap/SEED` builds it to the same C.
 | 19.6 | `luce fmt`, `--costs` | planned | |
 | 16.6 | TLS for `net`, a `graphics` module | planned | the SDL3 and Metal proving programs reach their libraries through `extern` alone |
 | — | the optimiser: inlining, single-assignment form, value numbering, load elimination, a register allocator over the exact lives | verified | `tests/optimization`, the native fixpoint; splitting a life at a call is the next step (`docs/PLAN.md`) |
-| — | debugging: `--debug` frame descriptors and `luce-base-d` | limited | `tests/programs/debugger`; not DWARF, not `lldb` or `gdb` |
+| — | debugging: native DWARF and `luce-base-d` | limited | `tests/programs/debugger`, `tests/programs/dwarf`: source breakpoints, mixed C/Base stacks, typed locals, scopes, moved artifacts and static-library consumers; optimized user-variable locations and payload-enum presentation remain future work |
 | plan 10 | `luce-ld` | planned | not started |
 
 ## The fuzzer

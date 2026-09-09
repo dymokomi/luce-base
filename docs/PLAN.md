@@ -46,9 +46,10 @@ history. Nothing is listed here that already exists.
    model and C emission, no native generator, and no gate; wasm32 is named by
    the specification and not modelled at all. Gate: a native generator and a
    green gate on each host, or wasm32 struck from §19.5.
-6. **DWARF.** `--debug` emits frame descriptors for `luce-base-d` and nothing
-   `lldb` or `gdb` can read. Gate: a breakpoint, `bt`, and `p local` in `lldb`
-   on macOS and `gdb` on Linux, scripted under `tests/programs/debugger`.
+6. **Optimized debugging.** Development DWARF and packaged artifacts are implemented
+   (`docs/DEBUGGING.md`). What remains is location tracking for optimized user code and
+   higher-level presentation of payload enums and Luce ARC values. Gate: correct variable
+   locations across optimization, inlining, calls and scope exit in both debuggers.
 7. **Library breadth.** `net` has no TLS and no IPv6, `io` is thin, and there
    is no `graphics` module; the proving programs reach SDL3 and Metal through
    `extern` alone. Gate, in order: TLS for `net` through a bound library, IPv6
@@ -66,25 +67,19 @@ The fuzzer exists (`tools/fuzz.py`, 0.11.1, generator widened to the value langu
 generated programs must agree across the four executions; the gate runs its short deterministic pass, and `--minutes M` runs it for
 longer. Run it for hours on both hosts before a release; every finding becomes a test.
 
-9. **The optimiser under a differential matrix.** `tests/optimization` counts
-    instructions; nothing runs every program at every level. Gate: the
-    conformance runner builds every positive program at `--opt 0` through
-    `--opt 3` and compares the outputs, in the gate.
+9. **Longer optimizer campaigns.** Conformance now runs C, release C and every native
+    optimization level with deadlines and exact expected statuses. Broader and longer
+    generated-program campaigns on both hosts remain useful before major releases.
 10. **Sanitizers and a litmus suite.** No sanitizer run and no test of the
     orderings. Gate: the conformance and robustness programs built through the
     C backend under address, undefined-behaviour, and thread sanitizers as a
     gate step; a litmus suite for the atomic orderings of §15.1 under
     `tests/platform`.
-11. **The Linux pass.** Everything since the last pull is proven on the Mac
-    only; `tests/programs/abi` runs the packed-record convention at run time
-    there for the first time. Gate: `./test.sh` green on x86_64 Linux at each
-    release, recorded in `docs/RELEASES.md`.
-12. **Continuous integration.** No checked-in workflow runs both hosts on every
-    push; "green on both hosts" is a claim about the last time someone ran it.
-    Gate: a workflow that builds and gates on arm64 macOS and x86_64 Linux on
-    every push, with the toolchain versions recorded, and a red gate blocking a
-    release.
-13. **The C backend at `-O2`.** The release pass exists and found one dangling
+11. **Release discipline.** The checked-in workflow runs the full gate on macOS ARM64
+    and Linux x86-64 for every push, preserving toolchain provenance and failures.
+    Releases require both-host execution evidence and a local Mac hardware pass; a
+    hosted missing-GPU result is explicitly incomplete hardware coverage.
+12. **The C backend at `-O2`.** The release pass exists and found one dangling
     buffer on its first run; it is one build flag away from the sanitizer run
     above. Gate: item 10 covers it.
 
