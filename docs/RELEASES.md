@@ -5,6 +5,16 @@
 release is a VERSION bump, a tag `luce-base-N`, and a push, the way luce-seed does it
 (`bootstrap/SEED` pins the seed the tree is built against).
 
+## 0.11.19
+
+- The nesting bound is 100 levels, not 200, and a chain of calls or operators, which the
+  parser builds in a loop but every later pass recurses over, counts one level per link
+  and is bounded at 300 (`03_source/errors/calls_chain_too_deeply`): the checker's
+  recursion over a call chain of a few hundred links overflowed an eight-megabyte stack
+  from one environment and not another, which the gate's mutation fuzzer found. A bound is
+  only a bound when it holds everywhere. 0.11.18 was tagged on that red gate, which this
+  release corrects. The seed's chains bypassed its own bound; pinned to luce-seed-0.67.
+
 ## 0.11.18
 
 - `consts.flag` inside a file-scope initialiser, `var g: S = S(f = consts.flag)`: the C
