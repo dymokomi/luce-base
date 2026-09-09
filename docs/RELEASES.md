@@ -5,6 +5,17 @@
 release is a VERSION bump, a tag `luce-base-N`, and a push, the way luce-seed does it
 (`bootstrap/SEED` pins the seed the tree is built against).
 
+## 0.11.27
+
+- `recover` evaluates its payload before running deferred cleanup for every catch scope
+  it leaves. Nested catches keep their own cleanup boundary; outer function defers
+  remain registered, and error-only cleanup does not run on recovery.
+- Both native backends emit constant callees as indirect calls. At `--opt 1`, SSA can
+  expose a null callee in an unreachable optional arm; it no longer becomes a reference
+  to an empty external symbol. The function-value fixture runs at all four levels in
+  the optimization gate. x86-64 Linux output was cross-assembled on macOS.
+- Pin seed 0.77 for matching catch cleanup in its interpreter and C emitter.
+
 ## 0.11.26
 
 - `files.list` releases initialized names separately from the full array allocation on
