@@ -67,6 +67,8 @@ jobs:
           name: luce-base-${{ matrix.host }}-${{ github.sha }}
           path: |
             luce-base/build/*.log
+            luce-base/build/conformance.out
+            luce-base/build/conformance.err
             luce-base/build/luce-base/build/*.log
             luce-base/build/provenance*.json
             luce-base/build/dwarf/

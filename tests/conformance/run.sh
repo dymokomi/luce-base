@@ -25,14 +25,17 @@ for dir in tests/conformance/[0-9]*/; do
         # a package of several modules: `NAME/main.lucb` beside `NAME.expect`
         [ -e "$src" ] || src="${f%%.*}/main.lucb"
         echo "== $src"
+        echo "   C"
         run ./build/luce-base build "$src" -o build/conformance
         run ./build/conformance > build/conformance.out
         cmp build/conformance.out "$f"
         # the C the host compiler optimises must mean the same as the C it does not (§12.6)
+        echo "   C release"
         run ./build/luce-base build "$src" --release -o build/conformance
         run ./build/conformance > build/conformance.out
         cmp build/conformance.out "$f"
         for level in 0 1 2 3; do
+            echo "   native --opt $level"
             run ./build/luce-base build "$src" --native --opt "$level" -o build/conformance
             run ./build/conformance > build/conformance.out
             cmp build/conformance.out "$f"

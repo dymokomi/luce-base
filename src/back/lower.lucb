@@ -1419,6 +1419,8 @@ pub struct Lowerer:
         # the inputs are computed first, then moved into their registers together, so that
         # computing one cannot touch a register another already holds
         var values: LowerValue[16] = ---
+        var outputs: ir.Ref[16] = ---
+        var output_count: usize = 0
         var count: usize = 0
         var operand = s.right
         while let o = operand:
@@ -1428,6 +1430,18 @@ pub struct Lowerer:
                 let value = o.left else return try self.fail(o, "an asm operand needs a value")
                 values[count] = try self.value(value, self.asm_operand_type(chosen.place_of(o)))
                 count += 1
+            operand = o.next
+        # Compute output addresses before installing input registers. The get_reg
+        # instructions must immediately follow the block, and evaluating an address
+        # after the block could itself overwrite a register holding an output.
+        operand = s.right
+        while let o = operand:
+            if o.text == "out" or o.text == "inout":
+                if output_count >= 16:
+                    return try self.fail(o, "at most sixteen asm outputs")
+                let target = o.left else return try self.fail(o, "an asm output needs a place")
+                outputs[output_count] = ir.none_ref() if target.text == "_" else try self.place(target)
+                output_count += 1
             operand = o.next
         count = 0
         operand = s.right
@@ -1447,6 +1461,7 @@ pub struct Lowerer:
         let body = try self.program_unit.text(try names.keep(&text))
         try self.f.emit(ir.Op.asm_, ir.Class.l, 0, ir.text_ref(arch), ir.text_ref(body), 0)
         # outputs, from their registers back into the named places
+        output_count = 0
         operand = s.right
         while let o = operand:
             if o.text == "out" or o.text == "inout":
@@ -1454,12 +1469,13 @@ pub struct Lowerer:
                 let target = o.left else return try self.fail(o, "an asm output needs a place")
                 if target.text != "_":
                     let want = self.asm_operand_type(place)
-                    let address = try self.place(target)
+                    let address = outputs[output_count]
                     try self.f.emit(ir.Op.get_reg, self.class_of(want), 0, address, ir.text_ref(try self.program_unit.text(place)), 0)
                 else:
                     # a discarded output names a register the block writes; the generator
                     # stores nothing but may need to save the register around the block
                     try self.f.emit(ir.Op.get_reg, ir.Class.l, 0, ir.none_ref(), ir.text_ref(try self.program_unit.text(place)), 0)
+                output_count += 1
             operand = o.next
 
     ## The type an asm operand's register carries, which the instruction set says (`isa`):
