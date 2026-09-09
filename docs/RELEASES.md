@@ -5,6 +5,14 @@
 release is a VERSION bump, a tag `luce-base-N`, and a push, the way luce-seed does it
 (`bootstrap/SEED` pins the seed the tree is built against).
 
+## 0.11.6
+
+- The C backend wrote `?` into C string literals as it was, so a text holding `??)` reached
+  clang as a trigraph and was refused under `-Werror`. Found compiling luce, whose parser
+  tests spell `int??`. Every `?` is now `\?` (`04_literals/text_c_could_misread`). The seed's
+  C emitter had the same gap and wrote NUL, `\r`, controls and non-ASCII bytes raw as well;
+  pinned to luce-seed-0.54, which escapes them all.
+
 ## 0.11.5
 
 - The generator covers memory management and the rest of the value language: heap objects

@@ -1,0 +1,11 @@
+## §4.4, §19: a text that C would misread compiles unchanged: `??)` is not a trigraph, a
+## NUL does not end it, a carriage return and a non-ASCII scalar keep their bytes, and the
+## text of an assertion that holds one reaches the trap reporter intact.
+pub func main(arguments: str[]) -> i32:
+    let a = "a??)b"
+    let b = "x\0y"
+    let c = "\r"
+    let d = "\u{e9}"
+    assert("??=".length == 3)
+    print(f"{a} {a.length} {b.length} {c.length} {d.length} {d}")
+    return 0

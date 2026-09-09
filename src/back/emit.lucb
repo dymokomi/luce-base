@@ -280,11 +280,11 @@ pub struct Emitter:
         try self.put(prefix)
         try self.put_u64((u64)n)
 
-    ## A C string literal for `text`.
+    ## A C string literal for `text`: a `?` is escaped so `??)` is never a trigraph.
     mutating func put_c_string(text: str) -> !:
         try self.put_byte('"')
         for b in text.bytes:
-            if b == '\\' or b == '"':
+            if b == '\\' or b == '"' or b == '?':
                 try self.put_byte('\\')
                 try self.put_byte(b)
             elif b == '\n':
