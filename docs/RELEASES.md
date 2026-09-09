@@ -5,6 +5,18 @@
 release is a VERSION bump, a tag `luce-base-N`, and a push, the way luce-seed does it
 (`bootstrap/SEED` pins the seed the tree is built against).
 
+## 0.11.26
+
+- `files.list` releases initialized names separately from the full array allocation on
+  failure, including an empty partial list and a failed final shrink.
+- `process.run` terminates and reaps its child when output capture fails, and always
+  releases pipes and capture buffers. Allocating the returned text after reaping cannot
+  signal a reused pid. Nonblocking setup and read errors propagate normally.
+- `tests/robustness/failures` sweeps allocation failures through C, C release, and native
+  execution, checking exact allocation extents, descriptors, and child reaping. The
+  writer exceeds pipe capacity and ignores SIGPIPE and SIGTERM. Full gate verified on
+  arm64 macOS; Linux execution has not been rerun for this release.
+
 ## 0.11.25
 
 - A trap names the statement it stopped at, `trap: file:line:column: message`, the
