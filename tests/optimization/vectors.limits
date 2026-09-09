@@ -10,4 +10,4 @@ loads 41
 stores 48
 calls 12
 asm-arm64 419
-asm-x86_64 465
+asm-x86_64 474

@@ -19,6 +19,10 @@ release is a VERSION bump, a tag `luce-base-N`, and a push, the way luce-seed do
   allocator ownership and thread startup failures.
 - x86 destructive integer operations preserve a dying RHS that shares the destination;
   mixed INTEGER/SSE returns preserve the integer half when loading the float half.
+- Correct stale x86 instruction-count baselines: arithmetic 123, calls 48, inlining
+  101, vectors 474 (loops remains 108). Both the released 0.11.27 compiler and this
+  release generate these counts, at CPU levels v1 through v4; these are baseline
+  corrections, not additional instruction growth in 0.11.28.
 - CI runs the full gates on macOS ARM64 and Linux x86-64. Base conformance runs C,
   release C and all four native optimization levels with timeouts and exact statuses.
   Failures retain diagnostics and replay commands. Hosted GPU absence is reported
