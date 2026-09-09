@@ -3661,6 +3661,13 @@ pub struct Emitter:
             try self.put(e.text)
             try self.put(")")
             return
+        if self.is_tuple(raw):
+            try self.put("(")
+            try self.expr(owner)
+            try self.put("->a" if through_ptr else ".a")
+            try self.put(e.text)
+            try self.put(")")
+            return
         if owner.kind == ast.Kind.self_:
             try self.put("self->")
             try self.put(e.text)

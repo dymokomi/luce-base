@@ -1767,6 +1767,18 @@ pub struct Lowerer:
             return base
         if record == types.error_value_id:
             return try self.offset_address(base, 0 if e.text == "code" else 8)
+        if self.kind(record) == types.Kind.tuple:
+            let wanted = try literals.decode_integer(e.text)
+            var offset: u64 = 0
+            var i: u64 = 0
+            for at in self.c.table.get(record).args:
+                let mt = try self.map(at)
+                offset = lower_round_up(offset, self.c.table.align_of(mt))
+                if i == wanted:
+                    return try self.offset_address(base, offset)
+                offset += self.c.table.size_of(mt)
+                i += 1
+            return try self.fail(e, "no such tuple member")
         let field = e.resolved else return try self.fail(e, "no field")
         let d = self.decl_of(record) else return try self.fail(e, "no record")
         let t = self.c.table.get(record)

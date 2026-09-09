@@ -155,13 +155,13 @@ pub struct Parser:
 
     ## After `.`, a reserved word is an ordinary name; a declaration never takes one.
     mutating func expect_member_name() -> str!:
-        if not self.at(token.Kind.name) and not self.at(token.Kind.keyword):
+        if not self.at(token.Kind.name) and not self.at(token.Kind.keyword) and not self.at(token.Kind.integer):
             discard(try self.fail("expected a member name"))
         return self.text_of(self.take())
 
     func at_member_name(ahead: usize) -> bool:
         let k = self.peek(ahead).kind
-        return k == token.Kind.name or k == token.Kind.keyword
+        return k == token.Kind.name or k == token.Kind.keyword or k == token.Kind.integer
 
     mutating func skip_newlines():
         while self.at(token.Kind.newline) or self.at(token.Kind.doc_comment):

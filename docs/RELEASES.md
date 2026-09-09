@@ -5,6 +5,17 @@
 release is a VERSION bump, a tag `luce-base-N`, and a push, the way luce-seed does it
 (`bootstrap/SEED` pins the seed the tree is built against).
 
+## 0.11.9
+
+- A tuple member is read by its position, `pair.0`, `pair.1` (§5.7), in the parser, the
+  checker and both backends; destructuring was the only way before. Luce reads tuples this
+  way, and its emitter needs Base to (`10_aggregates/tuple_members`). Pinned to
+  luce-seed-0.56, which does the same.
+- `none if flag else 3` where the context gave no optional, a `return` of an `i64?` or an
+  argument, was typed as the other arm and wrapped whole, so the C had a `{0}` in a
+  conditional and the native program answered a present zero. The conditional is now an
+  optional of the other arm whatever the context (`08_control/conditional_with_none`).
+
 ## 0.11.8
 
 - An array literal passed where a span is wanted, `total(["a", "b"])`, was a temporary of an

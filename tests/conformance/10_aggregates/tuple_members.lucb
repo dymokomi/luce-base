@@ -1,0 +1,16 @@
+## §5.7: a tuple member is read by its position, `pair.0`, through a value, a pointer, and a
+## function's result; destructuring reads the same members.
+func pair() -> (i64, str):
+    return (40, "ab")
+
+struct Holder:
+    var pair: (i64, f64)
+
+pub func main(arguments: str[]) -> i32:
+    let t = (1, 2.5, "xyz")
+    let p = pair()
+    let h = Holder(pair = (7, 0.5))
+    let hp = &h
+    let (a, b) = p
+    print(f"{t.0} {t.1} {t.2} {p.0} {p.1} {h.pair.0} {hp.pair.1} {a} {b} {t.2.length}")
+    return 0

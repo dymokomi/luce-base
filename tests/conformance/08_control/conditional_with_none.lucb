@@ -1,0 +1,14 @@
+## §7.9, §5.8: a conditional whose arm is `none` has the optional type its context gives it,
+## and the other arm promotes; each execution computes the same value, present or not.
+func pick(flag: bool) -> i64?:
+    return none if flag else 3
+
+func name(flag: bool) -> str?:
+    return "yes" if flag else none
+
+pub func main(arguments: str[]) -> i32:
+    let x: i64? = none if false else 3
+    let y: i64? = 5 if true else none
+    let z = (x else -1) + (y else -1) + (pick(true) else 10) + (pick(false) else 10)
+    print(f"{z} {name(true) else "?"} {name(false) else "?"}")
+    return 0

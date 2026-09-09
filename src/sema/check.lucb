@@ -1801,10 +1801,14 @@ pub struct Checker:
             return try self.mismatch(r, types.f64_id, rt)
         if lt == types.untyped_int_id and rt == types.untyped_float_id:
             return try self.mismatch(r, types.i64_id, rt)
+        # an untyped side takes the typed side's type, which is the whole: `3` under `i64?`
+        # is the optional, not its payload
         if lt == types.untyped_int_id or lt == types.untyped_float_id or lt == types.none_id:
-            return try self.coerce(l, lt, rt)
+            discard(try self.coerce(l, lt, rt))
+            return rt
         if rt == types.untyped_int_id or rt == types.untyped_float_id or rt == types.none_id:
-            return try self.coerce(r, rt, lt)
+            discard(try self.coerce(r, rt, lt))
+            return lt
         if self.assignable(r, rt, lt):
             return lt
         if self.assignable(l, lt, rt):
@@ -1907,6 +1911,17 @@ pub struct Checker:
                     return rt
                 if rt == types.never_id:
                     return lt
+                # `none if c else 3` is an `i64?` whatever the context asked (§5.8)
+                if lt == types.none_id and rt != types.none_id:
+                    let whole = try self.table.optional(self.concrete(rt))
+                    discard(try self.coerce(l, lt, whole))
+                    discard(try self.coerce(r, rt, whole))
+                    return whole
+                if rt == types.none_id and lt != types.none_id:
+                    let whole = try self.table.optional(self.concrete(lt))
+                    discard(try self.coerce(l, lt, whole))
+                    discard(try self.coerce(r, rt, whole))
+                    return whole
                 return try self.unify(l, lt, r, rt)
             .call:
                 return try self.call_type(e, hint)
@@ -3127,6 +3142,13 @@ pub struct Checker:
         if owner.has(ast.flag_type_ref):
             return try self.static_member(e, owner, raw)
         let ot = self.table.get(raw)
+        if ot.kind == types.Kind.tuple and name.length > 0 and name.bytes[0] >= '0' and name.bytes[0] <= '9':
+            # `pair.0`: a member by position (§5.3)
+            let index = literals.decode_integer(name) catch failure:
+                return try self.fail(e, "a tuple member is `.0`, `.1`, ...")
+            if index >= (u64)ot.args.length:
+                return try self.fail(e, "no such tuple member")
+            return ot.args[(usize)index]
         if ot.kind == types.Kind.module:
             let m = ot.decl else return try self.fail(e, "no module")
             if self.is_c_module(m) and c_type_id(name) != types.none_id:
