@@ -7,7 +7,12 @@
 # (arm64-macos, x86_64-linux); what depends on the target is under tests/platform.
 set -eu
 cd "$(dirname "$0")"
+if [ ! -x ../luce-seed/build/lucb ]; then
+    echo "FAIL: the full gate requires ../luce-seed/build/lucb ($(cat bootstrap/SEED))"
+    exit 1
+fi
 ./build.sh
+python3 tools/test_run_case.py
 # what the binary carries is what the sources say: the standard modules, the C runtime, the
 # version, and the library reference are generated, and drift is a failure, not a note
 python3 tools/embed_std.py --check

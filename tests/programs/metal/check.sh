@@ -9,7 +9,13 @@ LB=${1:-./build/luce-base}
 "$LB" build tests/programs/metal/main.lucb --native -lobjc -framework Foundation -framework Metal -o build/metal-check
 OUT=$(./build/metal-check 8)
 case "$OUT" in
-    "no Metal device"*) echo "FAIL tests/programs/metal: this Mac has no Metal device; the gate cannot run in full"; rm -f build/metal-check; exit 1;;
+    "no Metal device"*)
+        if [ "${LUCE_TEST_GPU:-required}" = optional ]; then
+            echo "skip tests/programs/metal: no Metal device (compiled only)" | tee build/hardware-skip.txt
+            rm -f build/metal-check
+            exit 0
+        fi
+        echo "FAIL tests/programs/metal: this Mac has no Metal device; the gate cannot run in full"; rm -f build/metal-check; exit 1;;
     "squared on the GPU: 1 4 9 16 25 36 49 64") ;;
     *) echo "FAIL tests/programs/metal: $OUT"; rm -f build/metal-check; exit 1;;
 esac

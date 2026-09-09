@@ -11,7 +11,9 @@ cd "$(dirname "$0")/../.."
 # a program whose output names the host has one expectation per host, `NAME.HOST.expect`
 host=$(tools/host.sh)
 seed=../luce-seed/build/lucb
-[ -x "$seed" ] || seed=""
+[ -x "$seed" ] || { echo "FAIL: conformance requires the seed oracle at $seed"; exit 1; }
+run() { python3 tools/run_case.py -- "$@"; }
+reject() { python3 tools/run_case.py --expected 1 -- "$@"; }
 programs=0
 rejections=0
 for dir in tests/conformance/[0-9]*/; do
@@ -23,24 +25,26 @@ for dir in tests/conformance/[0-9]*/; do
         # a package of several modules: `NAME/main.lucb` beside `NAME.expect`
         [ -e "$src" ] || src="${f%%.*}/main.lucb"
         echo "== $src"
-        ./build/luce-base build "$src" -o build/conformance
-        ./build/conformance > build/conformance.out
+        run ./build/luce-base build "$src" -o build/conformance
+        run ./build/conformance > build/conformance.out
         cmp build/conformance.out "$f"
         # the C the host compiler optimises must mean the same as the C it does not (§12.6)
-        ./build/luce-base build "$src" --release -o build/conformance
-        ./build/conformance > build/conformance.out
+        run ./build/luce-base build "$src" --release -o build/conformance
+        run ./build/conformance > build/conformance.out
         cmp build/conformance.out "$f"
-        ./build/luce-base build "$src" --native -o build/conformance
-        ./build/conformance > build/conformance.out
-        cmp build/conformance.out "$f"
+        for level in 0 1 2 3; do
+            run ./build/luce-base build "$src" --native --opt "$level" -o build/conformance
+            run ./build/conformance > build/conformance.out
+            cmp build/conformance.out "$f"
+        done
         if [ -n "$seed" ] && ! grep -q '^# oracle: none' "$src"; then
-            "$seed" eval "$src" > build/conformance.out
+            run "$seed" eval "$src" > build/conformance.out
             cmp build/conformance.out "$f"
         fi
         # `# tests: true`: the program's `test` declarations run under both backends and pass
         if grep -q '^# tests: true' "$src"; then
-            ./build/luce-base test "$src" > build/conformance.out
-            ./build/luce-base test "$src" --native > build/conformance.out
+            run ./build/luce-base test "$src" > build/conformance.out
+            run ./build/luce-base test "$src" --native > build/conformance.out
         fi
         programs=$((programs + 1))
     done
@@ -51,16 +55,22 @@ for dir in tests/conformance/[0-9]*/; do
         [ -e "$src" ] || src="${f%.trap}/main.lucb"
         want=$(cat "$f")
         echo "== $src (traps)"
-        for flags in "" "--native"; do
-            ./build/luce-base build "$src" $flags -o build/conformance
-            if ./build/conformance > build/conformance.out 2> build/conformance.err; then
+        for flags in "" "--release" "--native --opt 0" "--native --opt 1" "--native --opt 2" "--native --opt 3"; do
+            run ./build/luce-base build "$src" $flags -o build/conformance
+            if reject ./build/conformance > build/conformance.out 2> build/conformance.err; then
                 echo "FAIL $src: expected a trap, the program finished"; exit 1
+            else
+                rc=$?
+                [ "$rc" -eq 1 ] || { echo "FAIL $src: unexpected status $rc"; exit 1; }
             fi
             grep -q "$want" build/conformance.err || { echo "FAIL $src: expected [$want], got [$(cat build/conformance.err)]"; exit 1; }
         done
         if [ -n "$seed" ] && ! grep -q '^# oracle: none' "$src"; then
-            if "$seed" eval "$src" > build/conformance.out 2> build/conformance.err; then
+            if reject "$seed" eval "$src" > build/conformance.out 2> build/conformance.err; then
                 echo "FAIL $src: expected a trap, the seed finished"; exit 1
+            else
+                rc=$?
+                [ "$rc" -eq 1 ] || { echo "FAIL $src: unexpected status $rc"; exit 1; }
             fi
             grep -q "$want" build/conformance.err || { echo "FAIL $src: the seed said [$(cat build/conformance.err)]"; exit 1; }
         fi
@@ -70,7 +80,7 @@ for dir in tests/conformance/[0-9]*/; do
     for f in "$dir"describe/*.lucb; do
         [ -e "$f" ] || continue
         echo "== $f (describe)"
-        ./build/luce-base describe "$f" > build/conformance.out
+        run ./build/luce-base describe "$f" > build/conformance.out
         cmp build/conformance.out "${f%.lucb}.describe"
     done
     for f in "$dir"errors/*.lucb; do
@@ -78,7 +88,7 @@ for dir in tests/conformance/[0-9]*/; do
         want=$(LC_ALL=C sed -n 's/^# error: //p' "$f")
         # a rejection is a normal exit of 1 with a diagnostic: a crash (a signal's exit, 128 or
         # more) or an acceptance is a failure whatever the text says
-        got=$(./build/luce-base check "$f" 2>&1) && rc=0 || rc=$?
+        got=$(reject ./build/luce-base check "$f" 2>&1) && rc=0 || rc=$?
         if [ "$rc" -eq 0 ]; then
             echo "FAIL $f: this compiler accepts it"; exit 1
         fi
@@ -99,7 +109,7 @@ for dir in tests/conformance/[0-9]*/; do
             *) echo "FAIL $f: expected [$want], got [$got]"; exit 1;;
         esac
         if [ -n "$seed" ] && ! grep -q '^# oracle: none' "$f"; then
-            "$seed" check "$f" > /dev/null 2>&1 && seed_rc=0 || seed_rc=$?
+            reject "$seed" check "$f" > /dev/null 2>&1 && seed_rc=0 || seed_rc=$?
             if [ "$seed_rc" -eq 0 ]; then
                 echo "FAIL $f: the seed accepts what this compiler rejects"; exit 1
             fi
