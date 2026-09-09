@@ -4758,7 +4758,8 @@ pub struct Emitter:
             try self.end_sequence(hoisted)
             try self.receiver_done(ordered)
             return
-        # interface views dispatch through the table
+        # interface views dispatch through the table; `view.method()` on a `Writer*`
+        # auto-dereferences (§7.3), so the fat pointer is copied out of the pointee first
         if self.is_iface(rt):
             let n = self.tmp()
             let fn = try self.map(method.type_id)
@@ -4766,7 +4767,12 @@ pub struct Emitter:
             try self.put("({ lb_iface ")
             try self.put_tmp("if", n)
             try self.put(" = ")
-            try self.expr(receiver)
+            if self.is_ptr(rt_raw):
+                try self.put("(*(")
+                try self.expr(receiver)
+                try self.put("))")
+            else:
+                try self.expr(receiver)
             try self.put("; ")
             let hoisted = try self.begin_sequence(e.body, fn, method)
             try self.put("((lb_vt_")

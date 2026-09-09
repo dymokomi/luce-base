@@ -1,0 +1,28 @@
+## §7.3, §14: a method call on a pointer to an interface view auto-dereferences the
+## pointer; the fat pointer is read out of it and dispatch goes through its table.
+import io
+
+interface Counter:
+    mutating func bump() -> i64
+
+struct Box: Counter:
+    var n: i64
+
+    mutating func bump() -> i64:
+        self.n += 1
+        return self.n
+
+func twice(c: Counter*) -> i64:
+    discard(c.bump())
+    return c.bump()
+
+func greet(out: io.Writer*) -> !:
+    discard(try out.write("hello through a pointer\n"))
+
+pub func main(arguments: str[]) -> i32!:
+    var b = Box(n = 40)
+    var c: Counter = &b
+    print(f"{twice(&c)} {b.n}")
+    var w = io.stdout()
+    try greet(&w)
+    return 0

@@ -5,6 +5,14 @@
 release is a VERSION bump, a tag `luce-base-N`, and a push, the way luce-seed does it
 (`bootstrap/SEED` pins the seed the tree is built against).
 
+## 0.11.13
+
+- `out.write(...)` where `out: io.Writer*` auto-dereferences (§7.3), and the C backend
+  copied the pointer where the fat pointer belonged, so the C compiler refused the program;
+  the native backend already read the view out of the pointee
+  (`14_interfaces/view_through_pointer`). Found building luce's compiler through C. The seed
+  had the same fault in its emitter and its interpreter; pinned to luce-seed-0.59.
+
 ## 0.11.12
 
 - `_ if ((a > b)) => x` was still read as a lambda: a `(` inside a would-be parameter list
