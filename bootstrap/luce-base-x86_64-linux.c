@@ -47148,17 +47148,17 @@ lb_r_unit lb_back_dwarf_Emitter_type_info(lb_back_dwarf_Emitter* self, uint32_t 
     lb_pos = "src/main.lucb:139:5";
     lb_a_u8_arr4096 lb_format_room __attribute__((unused)) = {0};
     lb_pos = "src/main.lucb:140:9";
-    struct lb_sema_check_Checker* lb_c __attribute__((unused)) = self->checker;
+    struct lb_sema_check_Checker* lb_checker __attribute__((unused)) = self->checker;
     lb_pos = "src/main.lucb:141:5";
-    lb_sema_types_Type lb_t __attribute__((unused)) = lb_sema_types_Table_get(&((lb_c)->table), lb_id);
+    lb_sema_types_Type lb_t __attribute__((unused)) = lb_sema_types_Table_get(&((lb_checker)->table), lb_id);
     lb_pos = "src/main.lucb:142:9";
     struct lb_support_buffer_Buffer* lb_o __attribute__((unused)) = &(self->info);
     lb_pos = "src/main.lucb:143:13";
-    lb_str lb_name __attribute__((unused)) = ({ lb_r_str _lb_r7372 = lb_sema_check_Checker_spell(lb_c, lb_id); if (_lb_r7372.failed) {
+    lb_str lb_name __attribute__((unused)) = ({ lb_r_str _lb_r7372 = lb_sema_check_Checker_spell(lb_checker, lb_id); if (_lb_r7372.failed) {
         return ((lb_r_unit){ .error = _lb_r7372.error, .failed = true });
     } _lb_r7372.value; });
     lb_pos = "src/main.lucb:144:13";
-    uint64_t lb_size __attribute__((unused)) = lb_sema_types_Table_size_of(&((lb_c)->table), lb_id);
+    uint64_t lb_size __attribute__((unused)) = lb_sema_types_Table_size_of(&((lb_checker)->table), lb_id);
     lb_pos = "src/main.lucb:145:1";
     (void)(({ lb_r_unit _lb_r7373 = lb_support_buffer_Buffer_put(lb_o, (({ lb_r_str _lb_r7374 = ({ lb_span _lb_ds7375 = ((lb_span){lb_format_room.d, 4096ULL}); lb_fmtbuf _lb_fb7375 = { (char*)_lb_ds7375.data, _lb_ds7375.length, 0 }; (void)lb_fmtbuf_put(&_lb_fb7375, "Ldw_type_", 9); (void)lb_fmtbuf_u64(&_lb_fb7375, (uint64_t)(lb_id)); (void)lb_fmtbuf_put(&_lb_fb7375, ":\n", 2); lb_r_str _lb_out7375; if (_lb_fb7375.used > _lb_fb7375.cap) { _lb_out7375 = ((lb_r_str){ .error = { .code = 208273409, .message = (lb_str){"memory.exhausted: the formatted text does not fit its buffer", 60} }, .failed = true }); } else { _lb_out7375 = ((lb_r_str){ .value = lb_fmtbuf_finish(&_lb_fb7375), .failed = false }); } _lb_out7375; }); if (_lb_r7374.failed) {
         return ((lb_r_unit){ .error = _lb_r7374.error, .failed = true });
@@ -47180,10 +47180,10 @@ lb_r_unit lb_back_dwarf_Emitter_type_info(lb_back_dwarf_Emitter* self, uint32_t 
         return ((lb_r_unit){ .failed = false });
     }
     lb_pos = "src/main.lucb:150:5";
-    if (!!(((((lb_sema_types_Table_is_integer(&((lb_c)->table), lb_id) || lb_sema_types_Table_is_float(&((lb_c)->table), lb_id)) || (lb_id == lb_sema_types_bool_id)) || (lb_id == lb_sema_types_char_id)) || (lb_id == lb_sema_types_error_code_id)))) 
+    if (!!(((((lb_sema_types_Table_is_integer(&((lb_checker)->table), lb_id) || lb_sema_types_Table_is_float(&((lb_checker)->table), lb_id)) || (lb_id == lb_sema_types_bool_id)) || (lb_id == lb_sema_types_char_id)) || (lb_id == lb_sema_types_error_code_id)))) 
     {
         lb_pos = "src/main.lucb:151:9";
-        uint32_t lb_encoding __attribute__((unused)) = (lb_sema_types_Table_is_float(&((lb_c)->table), lb_id) ? 4ULL : (((lb_id == lb_sema_types_bool_id) ? 2ULL : ((lb_sema_types_Table_is_signed(&((lb_c)->table), lb_id) ? 5ULL : 7ULL)))));
+        uint32_t lb_encoding __attribute__((unused)) = (lb_sema_types_Table_is_float(&((lb_checker)->table), lb_id) ? 4ULL : (((lb_id == lb_sema_types_bool_id) ? 2ULL : ((lb_sema_types_Table_is_signed(&((lb_checker)->table), lb_id) ? 5ULL : 7ULL)))));
         lb_pos = "src/main.lucb:152:9";
         (void)(({ lb_r_unit _lb_r7378 = lb_support_buffer_Buffer_put(lb_o, ((lb_str){"    .uleb128 6\n", 15})); if (_lb_r7378.failed) {
             return ((lb_r_unit){ .error = _lb_r7378.error, .failed = true });
@@ -47202,21 +47202,21 @@ lb_r_unit lb_back_dwarf_Emitter_type_info(lb_back_dwarf_Emitter* self, uint32_t 
         return ((lb_r_unit){ .failed = false });
     }
     lb_pos = "src/main.lucb:156:9";
-    if (!!((((lb_t.kind == ((uint8_t)30u)) || (lb_t.kind == ((uint8_t)19u))) || lb_sema_types_Table_is_opaque_handle(&((lb_c)->table), lb_id)))) 
+    if (!!((((lb_t.kind == ((uint8_t)30u)) || (lb_t.kind == ((uint8_t)19u))) || lb_sema_types_Table_is_opaque_handle(&((lb_checker)->table), lb_id)))) 
     {
         lb_pos = "src/main.lucb:157:9";
         (void)(({ lb_r_unit _lb_r7383 = lb_support_buffer_Buffer_put(lb_o, ((lb_str){"    .uleb128 7\n    .byte 8\n", 27})); if (_lb_r7383.failed) {
             return ((lb_r_unit){ .error = _lb_r7383.error, .failed = true });
         } (void)0; }));
         lb_pos = "src/main.lucb:158:9";
-        (void)(({ lb_r_unit _lb_r7384 = lb_back_dwarf_Emitter_reference(self, ((lb_t.kind == ((uint8_t)19u)) ? lb_sema_types_u8_id : ((lb_sema_types_Table_is_opaque_handle(&((lb_c)->table), lb_id) ? lb_sema_types_void_id : lb_t.elem)))); if (_lb_r7384.failed) {
+        (void)(({ lb_r_unit _lb_r7384 = lb_back_dwarf_Emitter_reference(self, ((lb_t.kind == ((uint8_t)19u)) ? lb_sema_types_u8_id : ((lb_sema_types_Table_is_opaque_handle(&((lb_checker)->table), lb_id) ? lb_sema_types_void_id : lb_t.elem)))); if (_lb_r7384.failed) {
             return ((lb_r_unit){ .error = _lb_r7384.error, .failed = true });
         } (void)0; }));
         lb_pos = "src/main.lucb:159:9";
         return ((lb_r_unit){ .failed = false });
     }
     lb_pos = "src/main.lucb:160:9";
-    if (!!(((lb_t.kind == ((uint8_t)37u)) || (((lb_t.kind == ((uint8_t)34u)) && lb_sema_types_Table_has_null_niche(&((lb_c)->table), lb_t.elem)))))) 
+    if (!!(((lb_t.kind == ((uint8_t)37u)) || (((lb_t.kind == ((uint8_t)34u)) && lb_sema_types_Table_has_null_niche(&((lb_checker)->table), lb_t.elem)))))) 
     {
         lb_pos = "src/main.lucb:161:9";
         (void)(({ lb_r_unit _lb_r7385 = lb_support_buffer_Buffer_put(lb_o, ((lb_str){"    .uleb128 10\n", 16})); if (_lb_r7385.failed) {
@@ -47394,11 +47394,11 @@ lb_r_unit lb_back_dwarf_Emitter_type_info(lb_back_dwarf_Emitter* self, uint32_t 
                         if (!!(((lb_field)->kind == ((uint8_t)20u)))) 
                         {
                             lb_pos = "src/main.lucb:202:1";
-                            uint32_t lb_ft __attribute__((unused)) = ({ lb_r_u32 _lb_r7423 = lb_sema_check_Checker_substitute(lb_c, (lb_field)->type_id, lb_decl, lb_t.args); if (_lb_r7423.failed) {
+                            uint32_t lb_ft __attribute__((unused)) = ({ lb_r_u32 _lb_r7423 = lb_sema_check_Checker_substitute(lb_checker, (lb_field)->type_id, lb_decl, lb_t.args); if (_lb_r7423.failed) {
                                 return ((lb_r_unit){ .error = _lb_r7423.error, .failed = true });
                             } _lb_r7423.value; });
                             lb_pos = "src/main.lucb:203:1";
-                            (void)(({ lb_r_unit _lb_r7424 = ({ lb_str _lb_sq7425 = (lb_field)->text; uint32_t _lb_sq7426 = lb_ft; uint64_t _lb_sq7427 = ((lb_t.kind == ((uint8_t)42u)) ? 0ULL : lb_sema_types_Table_offset_of(&((lb_c)->table), lb_id, (lb_field)->text)); lb_back_dwarf_Emitter_member(self, _lb_sq7425, _lb_sq7426, _lb_sq7427); }); if (_lb_r7424.failed) {
+                            (void)(({ lb_r_unit _lb_r7424 = ({ lb_str _lb_sq7425 = (lb_field)->text; uint32_t _lb_sq7426 = lb_ft; uint64_t _lb_sq7427 = ((lb_t.kind == ((uint8_t)42u)) ? 0ULL : lb_sema_types_Table_offset_of(&((lb_checker)->table), lb_id, (lb_field)->text)); lb_back_dwarf_Emitter_member(self, _lb_sq7425, _lb_sq7426, _lb_sq7427); }); if (_lb_r7424.failed) {
                                 return ((lb_r_unit){ .error = _lb_r7424.error, .failed = true });
                             } (void)0; }));
                         }
@@ -47415,7 +47415,7 @@ lb_r_unit lb_back_dwarf_Emitter_type_info(lb_back_dwarf_Emitter* self, uint32_t 
         lb_pos = "src/main.lucb:206:5";
         uint32_t lb_element __attribute__((unused)) = ((lb_t.kind == ((uint8_t)31u)) ? lb_t.elem : lb_sema_types_u8_id);
         lb_pos = "src/main.lucb:207:5";
-        (void)(({ lb_r_unit _lb_r7428 = ({ lb_str _lb_sq7429 = ((lb_str){"data", 4}); uint32_t _lb_sq7430 = ({ lb_r_u32 _lb_r7431 = lb_sema_types_Table_pointer(&((lb_c)->table), lb_element, lb_t.is_const, false); if (_lb_r7431.failed) {
+        (void)(({ lb_r_unit _lb_r7428 = ({ lb_str _lb_sq7429 = ((lb_str){"data", 4}); uint32_t _lb_sq7430 = ({ lb_r_u32 _lb_r7431 = lb_sema_types_Table_pointer(&((lb_checker)->table), lb_element, lb_t.is_const, false); if (_lb_r7431.failed) {
             return ((lb_r_unit){ .error = _lb_r7431.error, .failed = true });
         } _lb_r7431.value; }); uint64_t _lb_sq7432 = 0ULL; lb_back_dwarf_Emitter_member(self, _lb_sq7429, _lb_sq7430, _lb_sq7432); }); if (_lb_r7428.failed) {
             return ((lb_r_unit){ .error = _lb_r7428.error, .failed = true });
@@ -47429,7 +47429,7 @@ lb_r_unit lb_back_dwarf_Emitter_type_info(lb_back_dwarf_Emitter* self, uint32_t 
     if (!!((lb_t.kind == ((uint8_t)43u)))) 
     {
         lb_pos = "src/main.lucb:210:9";
-        uint32_t lb_pointer __attribute__((unused)) = ({ lb_r_u32 _lb_r7434 = lb_sema_types_Table_pointer(&((lb_c)->table), lb_sema_types_void_id, false, false); if (_lb_r7434.failed) {
+        uint32_t lb_pointer __attribute__((unused)) = ({ lb_r_u32 _lb_r7434 = lb_sema_types_Table_pointer(&((lb_checker)->table), lb_sema_types_void_id, false, false); if (_lb_r7434.failed) {
             return ((lb_r_unit){ .error = _lb_r7434.error, .failed = true });
         } _lb_r7434.value; });
         lb_pos = "src/main.lucb:211:13";
@@ -47454,7 +47454,7 @@ lb_r_unit lb_back_dwarf_Emitter_type_info(lb_back_dwarf_Emitter* self, uint32_t 
             uint32_t lb_member __attribute__((unused)) = ((uint32_t*)_lb_seq7437.data)[_lb_i7437];
             {
                 lb_pos = "src/main.lucb:217:1";
-                lb_offset = ({ uint64_t _lb_sq7438 = lb_offset; uint64_t _lb_sq7439 = lb_sema_types_Table_align_of(&((lb_c)->table), lb_member); lb_back_dwarf_round_up(_lb_sq7438, _lb_sq7439); });
+                lb_offset = ({ uint64_t _lb_sq7438 = lb_offset; uint64_t _lb_sq7439 = lb_sema_types_Table_align_of(&((lb_checker)->table), lb_member); lb_back_dwarf_round_up(_lb_sq7438, _lb_sq7439); });
                 lb_pos = "src/main.lucb:218:5";
                 (void)(({ lb_r_unit _lb_r7440 = ({ lb_str _lb_sq7441 = (({ lb_r_str _lb_r7442 = ({ lb_span _lb_ds7443 = ((lb_span){lb_format_room.d, 4096ULL}); lb_fmtbuf _lb_fb7443 = { (char*)_lb_ds7443.data, _lb_ds7443.length, 0 }; (void)lb_fmtbuf_put(&_lb_fb7443, "_", 1); (void)lb_fmtbuf_u64(&_lb_fb7443, (uint64_t)(lb_index)); lb_r_str _lb_out7443; if (_lb_fb7443.used > _lb_fb7443.cap) { _lb_out7443 = ((lb_r_str){ .error = { .code = 208273409, .message = (lb_str){"memory.exhausted: the formatted text does not fit its buffer", 60} }, .failed = true }); } else { _lb_out7443 = ((lb_r_str){ .value = lb_fmtbuf_finish(&_lb_fb7443), .failed = false }); } _lb_out7443; }); if (_lb_r7442.failed) {
                     return ((lb_r_unit){ .error = _lb_r7442.error, .failed = true });
@@ -47463,7 +47463,7 @@ lb_r_unit lb_back_dwarf_Emitter_type_info(lb_back_dwarf_Emitter* self, uint32_t 
                 } (void)0; }));
                 lb_pos = "src/main.lucb:219:5";
                 { uint64_t* lb__cell7446 = &(lb_offset);
-                (*(lb__cell7446)) = (uint64_t)(lb_add_u((uint64_t)((*(lb__cell7446))), (uint64_t)(lb_sema_types_Table_size_of(&((lb_c)->table), lb_member)), 64)); }
+                (*(lb__cell7446)) = (uint64_t)(lb_add_u((uint64_t)((*(lb__cell7446))), (uint64_t)(lb_sema_types_Table_size_of(&((lb_checker)->table), lb_member)), 64)); }
                 lb_pos = "src/main.lucb:220:5";
                 { size_t* lb__cell7447 = &(lb_index);
                 (*(lb__cell7447)) = (size_t)(lb_add_u((uint64_t)((*(lb__cell7447))), (uint64_t)(1ULL), 64)); }
@@ -47478,7 +47478,7 @@ lb_r_unit lb_back_dwarf_Emitter_type_info(lb_back_dwarf_Emitter* self, uint32_t 
             return ((lb_r_unit){ .error = _lb_r7448.error, .failed = true });
         } (void)0; }));
         lb_pos = "src/main.lucb:223:5";
-        (void)(({ lb_r_unit _lb_r7449 = ({ lb_str _lb_sq7450 = ((lb_str){"present", 7}); uint32_t _lb_sq7451 = lb_sema_types_bool_id; uint64_t _lb_sq7452 = lb_sema_types_Table_size_of(&((lb_c)->table), lb_t.elem); lb_back_dwarf_Emitter_member(self, _lb_sq7450, _lb_sq7451, _lb_sq7452); }); if (_lb_r7449.failed) {
+        (void)(({ lb_r_unit _lb_r7449 = ({ lb_str _lb_sq7450 = ((lb_str){"present", 7}); uint32_t _lb_sq7451 = lb_sema_types_bool_id; uint64_t _lb_sq7452 = lb_sema_types_Table_size_of(&((lb_checker)->table), lb_t.elem); lb_back_dwarf_Emitter_member(self, _lb_sq7450, _lb_sq7451, _lb_sq7452); }); if (_lb_r7449.failed) {
             return ((lb_r_unit){ .error = _lb_r7449.error, .failed = true });
         } (void)0; }));
     }
@@ -47486,7 +47486,7 @@ lb_r_unit lb_back_dwarf_Emitter_type_info(lb_back_dwarf_Emitter* self, uint32_t 
     if (!!((lb_t.kind == ((uint8_t)35u)))) 
     {
         lb_pos = "src/main.lucb:225:1";
-        uint64_t lb_payload __attribute__((unused)) = lb_sema_types_Table_size_of(&((lb_c)->table), lb_t.elem);
+        uint64_t lb_payload __attribute__((unused)) = lb_sema_types_Table_size_of(&((lb_checker)->table), lb_t.elem);
         lb_pos = "src/main.lucb:226:1";
         uint64_t lb_error_at __attribute__((unused)) = lb_back_dwarf_round_up(lb_payload, 8ULL);
         lb_pos = "src/main.lucb:227:1";
@@ -47529,7 +47529,7 @@ lb_r_unit lb_back_dwarf_Emitter_type_info(lb_back_dwarf_Emitter* self, uint32_t 
         if (!!((((uint64_t)(lb_size)) > ((uint64_t)(4ULL))))) 
         {
             lb_pos = "src/main.lucb:237:5";
-            (void)(({ lb_r_unit _lb_r7459 = ({ lb_str _lb_sq7460 = ((lb_str){"storage", 7}); uint32_t _lb_sq7461 = ({ lb_r_u32 _lb_r7462 = lb_sema_types_Table_array(&((lb_c)->table), lb_sema_types_u8_id, (uint64_t)(lb_sub_u((uint64_t)(lb_size), (uint64_t)(4ULL), 64))); if (_lb_r7462.failed) {
+            (void)(({ lb_r_unit _lb_r7459 = ({ lb_str _lb_sq7460 = ((lb_str){"storage", 7}); uint32_t _lb_sq7461 = ({ lb_r_u32 _lb_r7462 = lb_sema_types_Table_array(&((lb_checker)->table), lb_sema_types_u8_id, (uint64_t)(lb_sub_u((uint64_t)(lb_size), (uint64_t)(4ULL), 64))); if (_lb_r7462.failed) {
                 return ((lb_r_unit){ .error = _lb_r7462.error, .failed = true });
             } _lb_r7462.value; }); uint64_t _lb_sq7463 = 4ULL; lb_back_dwarf_Emitter_member(self, _lb_sq7460, _lb_sq7461, _lb_sq7463); }); if (_lb_r7459.failed) {
                 return ((lb_r_unit){ .error = _lb_r7459.error, .failed = true });
@@ -60803,7 +60803,7 @@ lb_r_unit lb_back_x86_64_Generator_receive_params(lb_back_x86_64_Generator* self
                 lb_pos = "src/main.lucb:681:5";
                 uint32_t lb_int_count __attribute__((unused)) = (uint32_t)(lb_sub_u((uint64_t)(lb_words), (uint64_t)(lb_sse_count), 32));
                 lb_pos = "src/main.lucb:682:5";
-                if (!!((((((uint32_t)(lb_p.size)) <= ((uint32_t)(16ULL))) && (((uint32_t)((uint32_t)(lb_add_u((uint64_t)(lb_next_int), (uint64_t)(lb_int_count), 32)))) <= ((uint32_t)(6ULL)))) && (((uint32_t)((uint32_t)(lb_add_u((uint64_t)(lb_next_float), (uint64_t)(lb_sse_count), 32)))) <= ((uint32_t)(8ULL)))))) 
+                if (!!((((!lb_back_x86_64_Generator_in_memory(self, lb_p.size, lb_p.shape)) && (((uint32_t)((uint32_t)(lb_add_u((uint64_t)(lb_next_int), (uint64_t)(lb_int_count), 32)))) <= ((uint32_t)(6ULL)))) && (((uint32_t)((uint32_t)(lb_add_u((uint64_t)(lb_next_float), (uint64_t)(lb_sse_count), 32)))) <= ((uint32_t)(8ULL)))))) 
                 {
                     lb_pos = "src/main.lucb:683:5";
                     (void)(({ lb_r_unit _lb_r9681 = lb_back_x86_64_Generator_frame_address(self, ((lb_str){"%r10", 4}), lb_home); if (_lb_r9681.failed) {
@@ -60911,7 +60911,7 @@ lb_r_unit lb_back_x86_64_Generator_receive_params(lb_back_x86_64_Generator* self
                 lb_pos = "src/main.lucb:718:1";
                 uint32_t lb_int_count __attribute__((unused)) = (uint32_t)(lb_sub_u((uint64_t)(lb_words), (uint64_t)(lb_sse_count), 32));
                 lb_pos = "src/main.lucb:719:5";
-                if (!!((((((uint32_t)(lb_p.size)) <= ((uint32_t)(16ULL))) && (((uint32_t)((uint32_t)(lb_add_u((uint64_t)(lb_next_int), (uint64_t)(lb_int_count), 32)))) <= ((uint32_t)(6ULL)))) && (((uint32_t)((uint32_t)(lb_add_u((uint64_t)(lb_next_float), (uint64_t)(lb_sse_count), 32)))) <= ((uint32_t)(8ULL)))))) 
+                if (!!((((!lb_back_x86_64_Generator_in_memory(self, lb_p.size, lb_p.shape)) && (((uint32_t)((uint32_t)(lb_add_u((uint64_t)(lb_next_int), (uint64_t)(lb_int_count), 32)))) <= ((uint32_t)(6ULL)))) && (((uint32_t)((uint32_t)(lb_add_u((uint64_t)(lb_next_float), (uint64_t)(lb_sse_count), 32)))) <= ((uint32_t)(8ULL)))))) 
                 {
                     lb_pos = "src/main.lucb:720:1";
                     { uint32_t* lb__cell9693 = &(lb_next_int);
