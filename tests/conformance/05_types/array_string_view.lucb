@@ -1,0 +1,22 @@
+# oracle: none
+# A string view must retain the array's storage, including an expression temporary.
+func bytes() -> u8[3]:
+    return [97, 98, 99]
+
+func run() -> !:
+    var data: u8[3] = [97, 98, 99]
+    let raw = (str)data
+    let checked = try str(data)
+    data[1] = 120
+    assert(raw == "axc" and checked == "axc")
+    let temporary = (str)bytes()
+    let validated = try str(bytes())
+    var noise: u8[128]
+    noise[1] = 12
+    assert(temporary == "abc" and validated == "abc")
+    print(raw)
+    print(temporary)
+
+pub func main(arguments: str[]) -> i32!:
+    try run()
+    return 0
