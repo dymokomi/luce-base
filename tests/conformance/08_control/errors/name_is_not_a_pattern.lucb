@@ -1,0 +1,8 @@
+# error: a name is not a pattern; patterns are literals, ranges and cases (§8.4)
+## §8.4: patterns are closed; a constant's name is not one.
+let one: u8 = 1
+
+func name(k: u8) -> str:
+    match k:
+        one: return "one"
+        _: return "other"

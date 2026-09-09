@@ -1,0 +1,46 @@
+import c
+
+## A resource module a full Luce program imports (§17.7): a handle, functions over it,
+## constants, a struct and an enum that cross.
+pub handle Counter:
+    destroy release
+
+pub struct Counted:
+    pub var count: i64
+    var secret: u8
+
+pub enum Mode as u32:
+    read = 0
+    write = 1
+
+pub let limit: i64 = 3
+pub let negative_start: ErrorCode = ErrorCode.package(1)
+
+var opened: i64 = 0
+
+pub func open(start: i64) -> Counter!:
+    if start < 0:
+        error(negative_start, "negative start")
+    opened += 1
+    let p = new Counted(count = start, secret = 0) catch failure: trap("out of memory")
+    return (Counter)(void*)p
+
+pub func bump(counter: Counter, by: i64) -> i64:
+    let p = (Counted*)(void*)counter
+    p.count += by
+    return p.count
+
+pub func release(counter: Counter):
+    free((Counted*)(void*)counter)
+    opened -= 1
+
+pub func alive() -> i64:
+    return opened
+
+pub func label(mode: Mode, text: str) -> str:
+    return text
+
+func hidden() -> i64:
+    return 0
+
+extern func puts(s: c.str) -> i32

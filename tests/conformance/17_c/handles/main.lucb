@@ -1,0 +1,14 @@
+## §17.7: a handle is an opaque pointer-shaped type whose `destroy` the module names; inside
+## Base it is used like any extern type, made from and cast back to `void*`.
+import counters
+
+pub func main(arguments: str[]) -> i32:
+    let c = counters.open(5) catch failure: trap("open failed")
+    print(f"{counters.bump(c, 2)} {counters.bump(c, 3)} {counters.alive()}")
+    counters.release(c)
+    let failed = counters.open(-1) catch failure:
+        print(f"refused: {failure.message}")
+        recover c
+    discard(failed)
+    print(f"{counters.alive()} {counters.limit} {counters.label(counters.Mode.write, "w")}")
+    return 0

@@ -1,0 +1,14 @@
+module counters
+handle Counter destroy release
+struct Counted
+    field count: i64
+enum Mode as u32
+    case read = 0
+    case write = 1
+let limit: i64
+let negative_start: ErrorCode
+func open(start: i64) -> Counter!
+func bump(counter: Counter, by: i64) -> i64
+func release(counter: Counter)
+func alive() -> i64
+func label(mode: Mode, text: str) -> str

@@ -1,0 +1,7 @@
+# error: a handle's `destroy` function is `pub` (§17.7)
+## §17.7: full Luce calls `destroy`, so it is public.
+pub handle Counter:
+    destroy release
+
+func release(counter: Counter):
+    discard(counter)

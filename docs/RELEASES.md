@@ -5,6 +5,21 @@
 release is a VERSION bump, a tag `luce-base-N`, and a push, the way luce-seed does it
 (`bootstrap/SEED` pins the seed the tree is built against).
 
+## 0.11.21
+
+- `pub handle Name:` with `destroy function` beneath (§17.7): an opaque pointer-shaped
+  type, as `extern type` declares one, naming the `pub` function of its module that takes
+  the handle and returns nothing without failing; an opaque handle converts to and from
+  `void*` by cast (§7.5), so a module can hand out handles over its own memory
+  (`17_c/handles`). `luce-base describe module.lucb` prints a module's public
+  declarations, one per line (`17_c/describe`). Both for luce's Base boundary (its §16);
+  the seed parses and checks handles the same way, and reads `(Counter)(void*)p` as a
+  cast of a cast.
+- A name is not a pattern (§8.4): the checker accepted a constant's name as a `match`
+  arm and the C backend wrote it as a `case` label C refuses, while the seed compiled a
+  comparison that never matched (`08_control/errors/name_is_not_a_pattern`); both
+  checkers refuse it. Found by luce's description reader. Pinned to luce-seed-0.71.
+
 ## 0.11.20
 
 - A tuple literal is not a pattern (§8.4): the checker accepted `(0, 0) =>` in a `match`,

@@ -1,0 +1,4 @@
+# error: a handle's `destroy` names a function of this module (§17.7)
+## §17.7: `destroy` names a function declared beside the handle.
+pub handle Counter:
+    destroy vanish

@@ -636,6 +636,8 @@ pub struct Checker:
         while let d = decl:
             if d.kind == ast.Kind.struct_ or d.kind == ast.Kind.union_:
                 try self.check_containment(d)
+            if d.kind == ast.Kind.extern_type and d.right != none:
+                try self.check_handle(d)
             decl = d.next
         if index + 1 == self.modules.count:
             try self.check_entry(tree)
@@ -1006,6 +1008,21 @@ pub struct Checker:
                     discard(0)
             cursor = m.next
         self.pop_scope()
+
+    ## A handle's `destroy` is a `pub` function of the module taking the handle and
+    ## returning nothing, never failing (§17.7): full Luce calls it at the last reference.
+    mutating func check_handle(d: ast.Node*) -> !:
+        let name = d.right else return
+        let b = self.lookup(name.text) else return try self.fail(name, "a handle's `destroy` names a function of this module (§17.7)")
+        let f = b.decl else return try self.fail(name, "a handle's `destroy` names a function of this module (§17.7)")
+        if f.kind != ast.Kind.func_:
+            return try self.fail(name, "a handle's `destroy` names a function of this module (§17.7)")
+        if not f.has(ast.flag_pub):
+            return try self.fail(name, "a handle's `destroy` function is `pub` (§17.7)")
+        let t = self.table.get(f.type_id)
+        if t.kind != types.Kind.func_ or t.args.length != 1 or t.args[0] != d.type_id or t.elem != types.unit_id:
+            return try self.fail(name, "a handle's `destroy` takes the handle and returns nothing, without failing (§17.7)")
+        name.resolved = f
 
     ## The function type of `f`. A method's receiver is implicit and not part of it, and so
     ## is an extern's `out` parameter, which the call answers instead (§17.1).
@@ -2967,6 +2984,11 @@ pub struct Checker:
             return want
         if s.kind == types.Kind.pointer and d.kind == types.Kind.pointer:
             return want
+        # an opaque handle is pointer-shaped: it converts to and from `void*` by cast (§7.5)
+        if self.table.is_opaque_handle(want) and s.kind == types.Kind.pointer and s.elem == types.void_id:
+            return want
+        if self.table.is_opaque_handle(have) and d.kind == types.Kind.pointer and d.elem == types.void_id:
+            return want
         if s.kind == types.Kind.pointer and d.kind == types.Kind.optional and self.table.kind(d.elem) == types.Kind.pointer:
             return want
         if s.kind == types.Kind.optional and self.table.kind(s.elem) == types.Kind.pointer and d.kind == types.Kind.pointer:
@@ -4618,6 +4640,10 @@ pub struct Checker:
                 discard(try self.fail(v, "this case carries more values"))
             p.type_id = enum_id
             return
+        if v.kind == ast.Kind.name and not v.has(ast.flag_wildcard):
+            # patterns are closed (§8.4): a name would read as a binding to one reader
+            # and a constant to another, and the C backend cannot label a case with it
+            return try self.fail(v, "a name is not a pattern; patterns are literals, ranges and cases (§8.4)")
         let vt = try self.check_expr(v, st)
         discard(try self.coerce(v, vt, st))
         if let hi = p.right:

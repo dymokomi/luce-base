@@ -1,0 +1,71 @@
+## `luce-base describe module.lucb` (§17.7): the module's public declarations, one per
+## line, for a tool that must know them without parsing Base. Functions, constants,
+## structs with their public fields, integer-backed enums with their cases, handles with
+## their destroyers, and aliases; types spelled as the specification spells them.
+import front.ast
+import io
+import sema.check
+import sema.types
+
+pub func write(out: io.Writer, checker: check.Checker*, tree: ast.Node*, name: str) -> !:
+    try out.write(f"module {name}\n")
+    var cursor = tree.body
+    while let d = cursor:
+        # a generic declaration (its `left` holds the parameters) is Base's own
+        let generic = d.left != none and d.kind != ast.Kind.constant
+        if d.has(ast.flag_pub) and not generic:
+            try declaration(out, checker, d)
+        cursor = d.next
+
+func declaration(out: io.Writer, checker: check.Checker*, d: ast.Node*) -> !:
+    match d.kind:
+        .func_:
+            try out.write(f"func {d.text}(")
+            var first = true
+            var p = d.right
+            while let param = p:
+                if not first:
+                    try out.write(", ")
+                first = false
+                try out.write(f"{param.text}: ")
+                try checker.table.describe(out, param.type_id)
+                p = param.next
+            try out.write(")")
+            let result = checker.table.get(d.type_id).elem
+            if result != types.unit_id:
+                try out.write(" -> ")
+                try checker.table.describe(out, result)
+            try out.write("\n")
+        .constant:
+            try out.write(f"let {d.text}: ")
+            try checker.table.describe(out, d.type_id)
+            try out.write("\n")
+        .struct_, .extern_struct:
+            try out.write(f"struct {d.text}\n")
+            var m = d.body
+            while let member = m:
+                if member.kind == ast.Kind.field and member.has(ast.flag_pub):
+                    try out.write(f"    field {member.text}: ")
+                    try checker.table.describe(out, member.type_id)
+                    try out.write("\n")
+                m = member.next
+        .enum_:
+            # an integer-backed enum crosses; one with payloads is Base's own
+            let backing = d.ty else return
+            try out.write(f"enum {d.text} as ")
+            try checker.table.describe(out, backing.type_id)
+            try out.write("\n")
+            var m = d.body
+            while let member = m:
+                if member.kind == ast.Kind.enum_case:
+                    try out.write(f"    case {member.text} = {types.case_value(d, member)}\n")
+                m = member.next
+        .extern_type:
+            let destroy = d.right else return
+            try out.write(f"handle {d.text} destroy {destroy.text}\n")
+        .type_alias:
+            try out.write(f"type {d.text} = ")
+            try checker.table.describe(out, d.type_id)
+            try out.write("\n")
+        _:
+            discard(0)

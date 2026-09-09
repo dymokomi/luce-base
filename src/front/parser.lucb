@@ -223,7 +223,34 @@ pub struct Parser:
             let d = try self.parse_extern()
             d.flags |= flags
             return d
+        if self.at_name("handle") and self.peek(1).kind == token.Kind.name and self.peek_op(2, ":"):
+            let d = try self.parse_handle()
+            d.flags |= flags
+            return d
         return try self.parse_decl(flags)
+
+    ## `handle Name:` with `destroy function` beneath (§17.7): an opaque pointer-shaped
+    ## type, as `extern type` declares one, whose `right` names the function releasing it.
+    mutating func parse_handle() -> ast.Node*!:
+        let n = try self.node(ast.Kind.extern_type, "")
+        discard(self.take())
+        n.text = try self.expect_name()
+        try self.expect_op(":")
+        try self.expect_newline()
+        try self.expect_indent()
+        if not self.at_name("destroy"):
+            return try self.fail("a handle names its `destroy` function (§17.7)")
+        discard(self.take())
+        let destroy = try self.node(ast.Kind.name, "")
+        destroy.text = try self.expect_name()
+        n.right = destroy
+        try self.expect_newline()
+        while self.at(token.Kind.newline):
+            discard(self.take())
+        if not self.at(token.Kind.dedent):
+            return try self.fail("a handle declares `destroy` and nothing else (§17.7)")
+        discard(self.take())
+        return n
 
     ## A declaration after its visibility: constant, global, alias, function, or a type.
     mutating func parse_decl(visibility: u32) -> ast.Node*!:

@@ -1,0 +1,7 @@
+# error: a handle's `destroy` takes the handle and returns nothing, without failing (§17.7)
+## §17.7: a destructor cannot report a failure to anyone.
+pub handle Counter:
+    destroy release
+
+pub func release(counter: Counter) -> !:
+    discard(counter)

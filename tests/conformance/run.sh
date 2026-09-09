@@ -66,6 +66,13 @@ for dir in tests/conformance/[0-9]*/; do
         fi
         programs=$((programs + 1))
     done
+    # a module under `describe/` prints the description beside it (§17.7)
+    for f in "$dir"describe/*.lucb; do
+        [ -e "$f" ] || continue
+        echo "== $f (describe)"
+        ./build/luce-base describe "$f" > build/conformance.out
+        cmp build/conformance.out "${f%.lucb}.describe"
+    done
     for f in "$dir"errors/*.lucb; do
         [ -e "$f" ] || continue
         want=$(LC_ALL=C sed -n 's/^# error: //p' "$f")

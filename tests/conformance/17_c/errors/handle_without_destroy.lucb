@@ -1,0 +1,4 @@
+# error: a handle names its `destroy` function (§17.7)
+## §17.7: a handle declares `destroy` and nothing else.
+pub handle Counter:
+    size 8
