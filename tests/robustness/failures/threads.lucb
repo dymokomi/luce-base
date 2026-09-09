@@ -1,0 +1,51 @@
+import allocator
+import memory
+import thread
+extern func fault_arm(kind: i32)
+extern func fault_hits() -> i32
+extern func fault_attributes() -> i32
+
+func entry(context: void*?):
+    let p = (i32*)(context else trap("missing thread context"))
+    *p += 1
+
+func restore(heap: memory.Allocator):
+    memory.heap = heap
+
+func attempt(allocation: usize, fault: i32):
+    var owner = allocator.Failing.at(allocation)
+    let heap = memory.heap
+    memory.heap = &owner
+    defer restore(heap)
+    var count: i32 = 0
+    if fault != 0:
+        fault_arm(fault)
+    var rejected = false
+    let handle = thread.spawn(entry, &count, stack = 65536, name = "failure-sweep-long-name") catch failure:
+        assert(failure.code == (memory.exhausted if allocation != 0 else thread.failed))
+        rejected = true
+        recover thread.Handle()
+    if not rejected:
+        handle.join() catch failure:
+            trap(failure.message)
+        assert(count == 1)
+    else:
+        assert(count == 0)
+    assert(rejected == (allocation != 0 or fault != 0))
+    assert(fault_attributes() == 0, "thread attributes were left alive")
+    if fault != 0:
+        assert(fault_hits() == 1)
+    owner.finish()
+
+pub func main(arguments: str[]) -> i32:
+    attempt(1, 0)
+    attempt(2, 0)
+    attempt(0, 9)
+    attempt(0, 10)
+    attempt(0, 11)
+    var i: usize = 0
+    while i < 32:
+        attempt(0, 0)
+        i += 1
+    print("ok thread failures")
+    return 0

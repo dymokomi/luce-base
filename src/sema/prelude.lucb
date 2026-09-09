@@ -988,8 +988,8 @@ pub struct File: Writer:
         var written: usize = 0
         if data.length > 0:
             written = fwrite(data.data, 1, data.length, stream)
-        discard(fflush(stream))
-        if written != data.length:
+        let flushed = fflush(stream)
+        if written != data.length or flushed != 0:
             error(closed, "the stream refused the bytes")
         return written
 
@@ -2397,7 +2397,9 @@ pub struct Listener:
         return Address.from_raw(raw)
 
     pub func accept() -> Connection!:
-        let fd = accept(self.descriptor, none, none)
+        var fd = accept(self.descriptor, none, none)
+        while fd < 0 and c.errno() == c.interrupted:
+            fd = accept(self.descriptor, none, none)
         if fd < 0:
             error(failed, "accept")
         return Connection.over(fd)
@@ -2454,6 +2456,8 @@ pub struct Connection: Writer:
         var done: usize = 0
         while done < data.length:
             let n = send(self.descriptor, data[done..].data, data.length - done, send_flags)
+            if n < 0 and c.errno() == c.interrupted:
+                continue
             if n <= 0:
                 error(closed, "the connection closed")
             done += (usize)n
@@ -2461,7 +2465,9 @@ pub struct Connection: Writer:
 
     ## Receive what is available, up to the buffer; zero means the peer closed.
     pub func receive(buffer: u8[]) -> usize!:
-        let n = recv(self.descriptor, buffer.data, buffer.length, 0)
+        var n = recv(self.descriptor, buffer.data, buffer.length, 0)
+        while n < 0 and c.errno() == c.interrupted:
+            n = recv(self.descriptor, buffer.data, buffer.length, 0)
         if n < 0:
             error(closed, "the connection closed")
         return (usize)n
@@ -2491,13 +2497,19 @@ pub struct Datagram:
 
     pub func send_to(data: const u8[], address: Address) -> !:
         let raw = address.raw()
-        if sendto(self.descriptor, data.data, data.length, 0, &raw, 16) < 0:
+        var n = sendto(self.descriptor, data.data, data.length, 0, &raw, 16)
+        while n < 0 and c.errno() == c.interrupted:
+            n = sendto(self.descriptor, data.data, data.length, 0, &raw, 16)
+        if n < 0 or (usize)n != data.length:
             error(failed, "send")
 
     pub func receive_from(buffer: u8[]) -> (usize, Address)!:
         var raw = SocketAddress(head = 0, port = 0, address = 0, zero = [0, 0, 0, 0, 0, 0, 0, 0])
         var length: u32 = 16
-        let n = recvfrom(self.descriptor, buffer.data, buffer.length, 0, &raw, &length)
+        var n = recvfrom(self.descriptor, buffer.data, buffer.length, 0, &raw, &length)
+        while n < 0 and c.errno() == c.interrupted:
+            length = 16
+            n = recvfrom(self.descriptor, buffer.data, buffer.length, 0, &raw, &length)
         if n < 0:
             error(failed, "receive")
         return ((usize)n, Address.from_raw(raw))

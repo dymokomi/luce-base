@@ -4,12 +4,13 @@ import memory
 pub struct Failing: memory.Allocator:
     pub var attempts: usize
     pub var failures: usize
+    var owner: memory.Allocator
     var fail_at: usize
     var addresses: void*?[128]
     var sizes: usize[128]
 
     pub static func at(index: usize) -> Failing:
-        var result: Failing
+        var result = Failing(owner = memory.heap)
         result.fail_at = index
         return result
 
@@ -18,7 +19,7 @@ pub struct Failing: memory.Allocator:
         if self.attempts == self.fail_at:
             self.failures += 1
             return none
-        let block = memory.heap.allocate(size, alignment) else return none
+        let block = self.owner.allocate(size, alignment) else return none
         var i: usize = 0
         while i < self.addresses.length:
             if self.addresses[i] == none:
@@ -38,7 +39,7 @@ pub struct Failing: memory.Allocator:
             if self.addresses[i] == (void*)block.data:
                 assert(block.length == self.sizes[i], "release lost the allocation's extent")
                 self.addresses[i] = none
-                memory.heap.release(block)
+                self.owner.release(block)
                 return
             i += 1
         trap("release of an unknown or already released allocation")

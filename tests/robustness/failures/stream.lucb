@@ -1,0 +1,14 @@
+import io
+extern func fault_arm(kind: i32)
+extern func fault_hits() -> i32
+pub func main(arguments: str[]) -> i32!:
+    var output = io.stdout()
+    fault_arm(8)
+    var rejected = false
+    discard(output.write("pending".bytes) catch failure:
+        assert(failure.code == io.closed)
+        rejected = true
+        recover 0)
+    assert(rejected and fault_hits() == 1, "flush failure was reported as success")
+    discard(try output.write("\nok stream failures\n".bytes))
+    return 0

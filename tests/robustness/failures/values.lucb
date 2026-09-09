@@ -1,0 +1,110 @@
+## Allocation failures must preserve existing values and use their original allocator.
+import allocator
+import memory
+import strings
+
+func text_work() -> !:
+    let parts = try strings.split("ab,,Cd,", ',')
+    defer free(parts)
+    assert(parts.length == 4 and parts[1] == "" and parts[3] == "")
+    let joined = try strings.join(parts, ":")
+    defer strings.release(joined)
+    assert(joined == "ab::Cd:")
+    let copy = try strings.copy(joined)
+    defer strings.release(copy)
+    let upper = try strings.to_upper(copy)
+    defer strings.release(upper)
+    let lower = try strings.to_lower(upper)
+    defer strings.release(lower)
+    assert(lower == "ab::cd:")
+    let empty = try strings.copy("")
+    defer strings.release(empty)
+    assert(empty.length == 0)
+
+func builder_work(other: memory.Allocator) -> !:
+    var builder = try strings.Builder.create(4)
+    defer builder.destroy()
+    var count: usize = 0
+    while count < 80:
+        with other:
+            builder.put("abcdef") catch failure:
+                let before = builder.view()
+                assert(before.length == count * 6)
+                for b in before.bytes:
+                    assert(b >= 'a' and b <= 'f')
+                error(failure.code, failure.message)
+        count += 1
+    assert(builder.view().length == 480)
+    builder.clear()
+    try builder.put("reused")
+    assert(builder.view() == "reused")
+
+func arena_work(owner: memory.Allocator, other: memory.Allocator) -> !:
+    var arena = try memory.Arena.over(owner, 128)
+    with other:
+        defer arena.destroy()
+        let first = arena.allocate(24, 16) else trap("room in arena")
+        assert((usize)first.data % 16 == 0)
+        let used = arena.in_use()
+        assert(arena.allocate(256, 16) == none)
+        assert(arena.in_use() == used)
+        arena.reset()
+        assert(arena.in_use() == 0)
+        assert(arena.allocate(64, 16) != none)
+
+func grow_work() -> !:
+    var block = try alloc u8[8]
+    defer free(block)
+    memory.set(block, 23)
+    block = memory.grow(block, 256) catch failure:
+        assert(block.length == 8)
+        for b in block:
+            assert(b == 23)
+        error(failure.code, failure.message)
+    assert(block.length == 256)
+    for b in block[..<8]:
+        assert(b == 23)
+
+func attempt(which: i32, fail_at: usize) -> usize:
+    var owner = allocator.Failing.at(fail_at)
+    var other = allocator.Failing.at(1)
+    var rejected = false
+    with owner:
+        if which == 0:
+            text_work() catch failure:
+                assert(failure.code == memory.exhausted)
+                rejected = true
+                recover ()
+        elif which == 1:
+            builder_work(&other) catch failure:
+                assert(failure.code == memory.exhausted)
+                rejected = true
+                recover ()
+        elif which == 2:
+            arena_work(&owner, &other) catch failure:
+                assert(failure.code == memory.exhausted)
+                rejected = true
+                recover ()
+        else:
+            grow_work() catch failure:
+                assert(failure.code == memory.exhausted)
+                rejected = true
+                recover ()
+    assert(rejected == (fail_at != 0))
+    assert(owner.failures == (1 if rejected else 0))
+    assert(other.attempts == 0, "an operation lost its allocator owner")
+    owner.finish()
+    other.finish()
+    return owner.attempts
+
+pub func main(arguments: str[]) -> i32:
+    var which: i32 = 0
+    while which < 4:
+        let steps = attempt(which, 0)
+        var i: usize = 1
+        while i <= steps:
+            discard(attempt(which, i))
+            i += 1
+        which += 1
+    print("ok value failures")
+    return 0

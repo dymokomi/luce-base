@@ -1,0 +1,59 @@
+import net
+extern func socketpair(domain: i32, kind: i32, protocol: i32, pair: i32*) -> i32
+extern func fault_arm(kind: i32)
+extern func fault_hits() -> i32
+
+pub func main(arguments: str[]) -> i32!:
+    var pair: i32[2]
+    assert(socketpair(1, 1, 0, &pair[0]) == 0)
+    var sender = net.Connection.over(pair[0])
+    defer sender.close()
+    let receiver = net.Connection.over(pair[1])
+    fault_arm(1)
+    assert(try sender.write("abcdefgh".bytes) == 8)
+    assert(fault_hits() == 1)
+    var buffer: u8[8]
+    var got: usize = 0
+    fault_arm(2)
+    while got < buffer.length:
+        got += try receiver.receive(buffer[got..])
+    assert(fault_hits() == 1)
+    assert((str)buffer == "abcdefgh")
+    var kind: i32 = 3
+    while kind <= 4:
+        fault_arm(kind)
+        var failed = false
+        discard(sender.write("bad".bytes) catch failure:
+            assert(failure.code == net.closed)
+            failed = true
+            recover 0)
+        assert(failed and fault_hits() == 1)
+        kind += 1
+    receiver.close()
+    var closed = false
+    discard(sender.write("closed".bytes) catch failure:
+        assert(failure.code == net.closed)
+        closed = true
+        recover 0)
+    assert(closed)
+    let listener = try net.Listener.bind(net.Address.loopback(0))
+    defer listener.close()
+    let client = try net.Connection.connect(listener.address())
+    defer client.close()
+    fault_arm(5)
+    let accepted = try listener.accept()
+    defer accepted.close()
+    assert(fault_hits() == 1)
+    let left = try net.Datagram.bind(net.Address.loopback(0))
+    defer left.close()
+    let right = try net.Datagram.bind(net.Address.loopback(0))
+    defer right.close()
+    fault_arm(6)
+    try left.send_to("packet".bytes, right.address())
+    assert(fault_hits() == 1)
+    fault_arm(7)
+    let (count, peer) = try right.receive_from(buffer)
+    assert(count == 6 and peer.port == left.address().port)
+    assert((str)buffer[..<count] == "packet" and fault_hits() == 1)
+    print("ok network failures")
+    return 0

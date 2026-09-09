@@ -35,6 +35,9 @@ with tempfile.TemporaryDirectory(prefix="luce-base-failures-") as temp:
     child = work / "child"
     run([*shlex.split(os.environ.get("CC", "cc")), "-Wall", "-Wextra", "-Werror",
          str(sources / "child.c"), "-o", str(child)])
+    run([*shlex.split(os.environ.get("CC", "cc")), "-Wall", "-Wextra", "-Werror",
+         "-c", str(sources / "faults.c"), "-o", str(work / "faults.o")])
+    run(["ar", "rcs", str(work / "libfaults.a"), str(work / "faults.o")])
     directories = []
     for count in (0, 1, 17, 33):
         directory = work / f"directory-{count}"
@@ -53,3 +56,12 @@ with tempfile.TemporaryDirectory(prefix="luce-base-failures-") as temp:
                 run([str(exe), str(argument)], timeout=30,
                     expected=f"ok {name} failures\n".encode())
             print(f"ok allocation failures: {name} {' '.join(flags) or 'C'}", flush=True)
+        for name, expected in (("values", b"ok value failures\n"),
+                               ("network", b"ok network failures\n"),
+                               ("stream", b"pending\nok stream failures\n"),
+                               ("threads", b"ok thread failures\n")):
+            exe = work / name
+            run([str(root / "build/luce-base"), "build", str(sources / f"{name}.lucb"),
+                 *flags, f"-L{work}", "-lfaults", "-o", str(exe)])
+            run([str(exe)], timeout=30, expected=expected)
+            print(f"ok library failures: {name} {' '.join(flags) or 'C'}", flush=True)

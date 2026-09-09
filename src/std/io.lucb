@@ -29,8 +29,8 @@ pub struct File: Writer:
         var written: usize = 0
         if data.length > 0:
             written = fwrite(data.data, 1, data.length, stream)
-        discard(fflush(stream))
-        if written != data.length:
+        let flushed = fflush(stream)
+        if written != data.length or flushed != 0:
             error(closed, "the stream refused the bytes")
         return written
 
