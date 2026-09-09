@@ -19,6 +19,9 @@ release is a VERSION bump, a tag `luce-base-N`, and a push, the way luce-seed do
   allocator ownership and thread startup failures.
 - x86 destructive integer operations preserve a dying RHS that shares the destination;
   mixed INTEGER/SSE returns preserve the integer half when loading the float half.
+  Incoming packed records use the same MEMORY classification as outgoing arguments.
+- Native asm computes output places before entering the register block, keeping output
+  reads adjacent to the block at every optimization level.
 - Correct stale x86 instruction-count baselines: arithmetic 123, calls 48, inlining
   101, vectors 474 (loops remains 108). Both the released 0.11.27 compiler and this
   release generate these counts, at CPU levels v1 through v4; these are baseline
