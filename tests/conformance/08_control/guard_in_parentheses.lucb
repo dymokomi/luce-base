@@ -1,0 +1,17 @@
+## §8.4: a guard's condition may be parenthesised in a `match` expression: `(n < 0) => x`
+## is a guard, not a lambda, since `n < 0` names no parameter.
+func describe(n: i64) -> str:
+    return match n:
+        0 => "zero"
+        _ if (n < 0) => "negative"
+        _ if (n > 100 and n < 1000) => "hundreds"
+        _ => "some"
+
+func apply(f: func(i64) -> i64, x: i64) -> i64:
+    return f(x)
+
+pub func main(arguments: str[]) -> i32:
+    let doubled = apply((v) => v * 2, 21)
+    let typed = apply((v: i64) => v + 1, 1)
+    print(f"{describe(0)} {describe(-5)} {describe(500)} {describe(7)} {doubled} {typed}")
+    return 0

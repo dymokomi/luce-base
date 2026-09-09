@@ -5,6 +5,14 @@
 release is a VERSION bump, a tag `luce-base-N`, and a push, the way luce-seed does it
 (`bootstrap/SEED` pins the seed the tree is built against).
 
+## 0.11.11
+
+- `_ if (n < 0) => x` in a match expression was read as a lambda `(n < 0) => x`; a lambda's
+  parameter list holds names with optional types, so anything else before `=>` is a
+  parenthesised expression (`08_control/guard_in_parentheses`). Found by luce's emitter,
+  which parenthesises every condition. The seed read it the same way; pinned to
+  luce-seed-0.57.
+
 ## 0.11.10
 
 - A text holding a NUL byte, `"x\0y"` or `b"\0\x01ab"`, came out wrong from the arm64 backend:

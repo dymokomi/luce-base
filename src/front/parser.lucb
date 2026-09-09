@@ -1458,7 +1458,9 @@ pub struct Parser:
             i += 2
         return self.peek_op(i, "[") and self.peek_op(i + 1, "]") and self.peek_op(i + 2, "(")
 
-    ## `(a, b) => body` or `() => body`: a parenthesised list followed by `=>`.
+    ## `(a, b) => body` or `() => body`: a parameter list, names each with an optional
+    ## type, followed by `=>`. `(n < 0) => x` in a match arm is a guard's parenthesised
+    ## condition, not a lambda, because `n < 0` is no parameter (§9.6, §8.4).
     func looks_like_lambda() -> bool:
         var i: usize = 1
         var depth: u32 = 1
@@ -1472,6 +1474,10 @@ pub struct Parser:
                     depth += 1
                 elif s == ")":
                     depth -= 1
+                elif depth == 1 and s != "," and s != ":" and s != "[" and s != "]" and s != "*" and s != "*?" and s != "?" and s != "!" and s != "->" and s != ".":
+                    return false
+            elif depth == 1 and t.kind != token.Kind.name and not (t.kind == token.Kind.keyword and (self.text_of(t) == "func" or self.text_of(t) == "const")):
+                return false
             i += 1
         return self.peek_op(i, "=>")
 
