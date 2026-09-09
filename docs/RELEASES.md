@@ -5,6 +5,19 @@
 release is a VERSION bump, a tag `luce-base-N`, and a push, the way luce-seed does it
 (`bootstrap/SEED` pins the seed the tree is built against).
 
+## 0.11.30
+
+- Native code generation is the default for executable builds, test runners and
+  static libraries. `--native` remains an alias; `--backend=c` explicitly selects
+  the retained C comparison backend. `--release` alone keeps the native default.
+- Both self-hosting stages after the initial C snapshot or seed-built compiler are
+  native, with an assembly fixpoint check. C snapshot regeneration remains explicit.
+- Emission flags select their matching backend independently of backend-flag order.
+  Plain `--debug` now builds native DWARF. Tests block generated-C compilation to
+  verify that the default executable, release, test, archive and debug paths are native.
+- Comparison suites explicitly select C, preserving their independent coverage.
+  Native ABI, optimizer and runtime reliability are the primary hardening focus.
+
 ## 0.11.29
 
 - Receiving a native x86 aggregate with an SSE word before an INTEGER word preserves
