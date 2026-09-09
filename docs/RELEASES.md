@@ -5,6 +5,13 @@
 release is a VERSION bump, a tag `luce-base-N`, and a push, the way luce-seed does it
 (`bootstrap/SEED` pins the seed the tree is built against).
 
+## 0.11.29
+
+- Receiving a native x86 aggregate with an SSE word before an INTEGER word preserves
+  both return registers. Optional `f64` values no longer lose their presence flag.
+  Regressions cover present zero, positive and negative values, absence, forwarding,
+  and both mixed field orders across the C ABI. Luce's calculator exposed this path.
+
 ## 0.11.28
 
 - Native `--debug` emits DWARF 4, source lines, typed frame locals, lexical scopes,
