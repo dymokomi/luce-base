@@ -5720,7 +5720,8 @@ func test_arena_size() -> usize!:
     return capacity
 
 func expect_error(text: str, fragment: str) -> !:
-    let backing = try alloc u8[try test_arena_size()] in memory.heap
+    let capacity = try test_arena_size()
+    let backing = try alloc u8[capacity] in memory.heap
     defer free(backing) in memory.heap
     var arena = memory.FixedBuffer.over(backing)
     var scratch: u8[1024]
@@ -5736,7 +5737,8 @@ func expect_error(text: str, fragment: str) -> !:
         error(type_error, "expected an error, the program checked")
 
 func expect_ok(text: str) -> !:
-    let backing = try alloc u8[try test_arena_size()] in memory.heap
+    let capacity = try test_arena_size()
+    let backing = try alloc u8[capacity] in memory.heap
     defer free(backing) in memory.heap
     var arena = memory.FixedBuffer.over(backing)
     var scratch: u8[1024]
@@ -5928,7 +5930,8 @@ test "error and catch handle failure":
     try expect_ok("let bad: ErrorCode = ErrorCode.package(1)\nfunc g(n: i64) -> i64!:\n    if n < 0:\n        error(bad, \"negative\")\n    return n\nfunc f() -> i64:\n    let v = g(-1) catch e:\n        if e.code == bad:\n            recover 0\n        recover 1\n    return v\n")
 
 test "modules import and qualify names":
-    let backing = try alloc u8[try test_arena_size()] in memory.heap
+    let capacity = try test_arena_size()
+    let backing = try alloc u8[capacity] in memory.heap
     defer free(backing) in memory.heap
     var arena = memory.FixedBuffer.over(backing)
     var scratch: u8[1024]
