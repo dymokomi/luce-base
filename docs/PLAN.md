@@ -4,7 +4,15 @@ The one to-do list, in the order to close it. Each item names its gate: the test
 turns it from open to done. [`STATUS.md`](STATUS.md) is the matrix of what is verified,
 limited, planned, or excluded today; nothing is listed here that already exists.
 
-### Missing
+## Active priority
+
+The order is now **Base standard library → luce-tls → luce-server → luce-pkg**.
+[ECOSYSTEM.md](ECOSYSTEM.md) defines the stage boundaries;
+[STDLIB.md](STDLIB.md) is the active work on `math`, `net`, `io`, `files` and `strings`.
+The compiler items below remain a backlog and are pulled forward only when they block
+that work. Native compilation remains the primary execution and hardening target.
+
+### Compiler backlog
 
 1. **Splitting a life at a call.** The allocator gives each temporary
    one place for its whole life; a value live across a call takes a
@@ -31,12 +39,10 @@ limited, planned, or excluded today; nothing is listed here that already exists.
    (`docs/DEBUGGING.md`). What remains is location tracking for optimized user code and
    higher-level presentation of payload enums and Luce ARC values. Gate: correct variable
    locations across optimization, inlining, calls and scope exit in both debuggers.
-7. **Library breadth.** `net` has no TLS and no IPv6, `io` is thin, and there
-   is no `graphics` module; the proving programs reach SDL3 and Metal through
-   `extern` alone. Gate, in order: TLS for `net` through a bound library, IPv6
-   in `net`, then `graphics` (windows, input, a GPU surface: Metal on macOS,
-   Vulkan elsewhere) reached through `extern` and `luce bind`, each with a
-   proving program under the gate.
+7. **Further library breadth.** The five foundational modules take priority under
+   [STDLIB.md](STDLIB.md), including IPv6; TLS belongs to the subsequent `luce-tls`
+   package. Graphics remains deferred: a portable window/input/GPU interface with a
+   proving program on each supported host.
 8. **`luce-ld`.** Everything links through the host's `ld` or `cc`. A linker
    of our own, as Zig carries one, in its own repository. Gate: a native build
    that needs nothing from the host toolchain.
