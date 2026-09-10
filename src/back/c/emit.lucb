@@ -6658,12 +6658,15 @@ pub struct Emitter:
             try self.line("    lb_r_i32 r = ")
             try self.put(call)
             try self.put(";")
-            try self.line("    if (r.failed) { fprintf(stderr, \"error %d: %.*s\\n\", r.error.code, (int)r.error.message.length, r.error.message.data); return 1; }")
-            try self.line("    return (int)r.value;")
+            try self.line("    if (r.failed) { fprintf(stderr, \"error %d: %.*s\\n\", r.error.code, (int)r.error.message.length, r.error.message.data); }")
+            try self.line("    int result = r.failed ? 1 : (int)r.value;")
         else:
-            try self.line("    return (int)")
+            try self.line("    int result = (int)")
             try self.put(call)
             try self.put(";")
+        if not cstr_args:
+            try self.line("    free(items);")
+        try self.line("    return result;")
         try self.line("}")
 
     ## `lb_answer` for the seed's `answer()` convention, then `start.c` calls it; a

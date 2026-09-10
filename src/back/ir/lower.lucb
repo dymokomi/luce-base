@@ -4597,6 +4597,13 @@ pub struct Lowerer:
             else:
                 let code = try self.call_named("lb_main", s6, main_args, ir.Class.w, true, types.i32_id)
                 try self.f.store(ir.Op.storew, code, try self.slot_address(exit_code))
+            if as_text:
+                # Text argument descriptors are owned by this shim. Release
+                # them after reporting errors, which can borrow argument text.
+                let data = try self.f.load(ir.Op.loadl, ir.Class.l, args.ref)
+                let release_start = u32(self.f.args.count)
+                try self.f.args.push(ir.Arg(value = data, cls = ir.Class.l, size = 0, align = 8, type_id = types.usize_id, shape = 0))
+                discard(try self.call_named("free", release_start, 1, ir.Class.w, false, types.unit_id))
         self.pop_scope()
         let code = try self.f.load(ir.Op.loadsw, ir.Class.w, try self.slot_address(exit_code))
         try self.f.store(ir.Op.storew, code, try self.slot_address(self.result_slot))
