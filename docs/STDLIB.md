@@ -272,4 +272,21 @@ with a 195-byte peak for this temporary path, independent of payload size.
 Normalization used three blocks with a four-MiB peak for a one-MiB input. The verified
 TCP campaign moved 32 MiB of bidirectional payload at about 92 MiB/s. These are one
 machine's observations while other compiler checks were running, not performance
-promises. Hosted Linux measurements remain part of the pending final host gate.
+promises.
+
+The [0.12.0 candidate gate](https://github.com/dymokomi/luce-base/actions/runs/34466037569)
+passed on both hosts at commit `ebfbf7f`. Its retained artifacts record these native
+opt 3 results; rates are MiB/s, with one-MiB text and 16-MiB copy inputs:
+
+| Operation | x86-64 Linux | ARM64 macOS | Allocator bound observed on both hosts |
+| --- | ---: | ---: | --- |
+| Forward/reverse search pair | 29.74 | 40.27 | Zero allocations |
+| Adversarial normalization | 0.75 | 0.99 | Three allocations; four-MiB peak |
+| Stream copy | 5082.26 | 1834.23 | Zero allocations |
+| File copy | 768.42 | 452.64 | Two allocations; payload-independent peak |
+| Verified TCP campaign | 97.37 | 102.44 | Worker allocation refused |
+
+The largest fourfold input increase multiplied search time by 3.99/3.95 and
+normalization time by 4.02/4.12 on Linux/macOS. Copy timings varied with caching and
+scheduling; they do not establish a universal throughput or timing ratio. File-copy
+allocator peaks were 107/195 bytes because temporary path lengths differed.
