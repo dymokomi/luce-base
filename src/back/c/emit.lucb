@@ -2291,9 +2291,11 @@ pub struct Emitter:
             if h.kind == types.Kind.array:
                 try self.put("((")
                 try self.put_type(want)
-                try self.put("){")
+                # Both span kinds store void*. The checker has already enforced
+                # Base constness; explicitly erase the array pointer's C qualifier.
+                try self.put("){(void*)(")
                 try self.array_data(e)
-                try self.put(", ")
+                try self.put("), ")
                 try self.put_u64(h.length)
                 try self.put("ULL})")
                 return

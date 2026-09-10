@@ -1,0 +1,25 @@
+# oracle: none -- The seed does not lower const array fields to spans.
+struct Packet:
+    var bytes: u8[3]
+
+    pub func sum() -> u32:
+        return sum_bytes(self.bytes)
+
+func sum_bytes(bytes: const u8[]) -> u32:
+    var total: u32 = 0
+    for byte in bytes:
+        total += (u32)byte
+    return total
+
+func through_pointer(packet: const Packet*) -> u32:
+    return sum_bytes(packet.bytes)
+
+pub func main(arguments: str[]) -> i32:
+    let packet = Packet(bytes = [1, 2, 3])
+    assert(packet.sum() == 6)
+    assert(sum_bytes(packet.bytes) == 6)
+    assert(through_pointer(&packet) == 6)
+    var mutable = Packet(bytes = [4, 5, 6])
+    assert(sum_bytes(mutable.bytes) == 15)
+    print("ok const array views")
+    return 0
