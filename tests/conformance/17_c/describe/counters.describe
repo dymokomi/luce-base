@@ -2,6 +2,7 @@ module counters
 handle Counter destroy release
 struct Counted
     field count: i64
+    mutable count
 enum Mode as u32
     case read = 0
     case write = 1
