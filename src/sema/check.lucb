@@ -118,6 +118,9 @@ pub struct Checker:
     var at_top_level: bool
     ## The directory of the entry file; dotted imports resolve beneath it.
     var root: str
+    ## Imports on the active load path. Completed modules remain in dependency order;
+    ## this separate stack detects cycles before recursive loading repeats a module.
+    var loading: list.List[str]
     ## The manifest's name (§16.4): the identity of the package's error codes (§11.3).
     pub var package_name: str
     ## Every `ErrorCode.package(n)` folded so far, with its package identity: no two alike.
@@ -139,7 +142,7 @@ pub struct Checker:
                        scope = try list.List[Binding].create(512), warnings = try list.List[str].create(16), depth = 0, scratch = scratch,
                        current = 0, current_func = none, result_type = types.unit_id, fallible = false,
                        self_type = types.none_id, self_mutable = false, in_init = false, loop_depth = 0, in_catch = false,
-                       catch_result = types.none_id, checking_template = false, at_top_level = false, root = "", package_name = "app",
+                       catch_result = types.none_id, checking_template = false, at_top_level = false, root = "", loading = try list.List[str].create(16), package_name = "app",
                        package_codes = try list.List[u64].create(64), export_symbols = try list.List[str].create(32), resolving = try list.List[usize].create(8),
                        build_target = targets.Target.host())
 
@@ -546,6 +549,13 @@ pub struct Checker:
 
     ## Load `path` as module `name`; an imported module keeps its dotted path as its name.
     pub mutating func load_as(path: c.str, name: str) -> !:
+        for i in 0..<self.loading.count:
+            if self.loading.get(i) == name:
+                let half = self.scratch.length // 2
+                let message = try format(self.scratch[..<half], f"module import cycle involving {name}")
+                error(unknown_name, message)
+        try self.loading.push(name)
+        defer self.finish_load()
         let text = (str)path
         let src = source.Source.load(path) catch failure:
             let half = self.scratch.length // 2
@@ -588,6 +598,10 @@ pub struct Checker:
             cursor = d.next
         tree.text = name
         try self.modules.push(Module(name = name, tree = tree, src = src, is_prelude = false))
+
+    ## Leave the active import path on success and on every loading error.
+    mutating func finish_load():
+        self.loading.count -= 1
 
     ## `import front.lexer` is `front/lexer.lucb` under the root. The root starts as the
     ## entry file's directory; when a module under a subdirectory is the entry (its tests,

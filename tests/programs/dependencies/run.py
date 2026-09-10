@@ -10,9 +10,10 @@ COMPILER = Path(sys.argv[1]).resolve()
 MAGIC = b"luce-base-dependencies-v1\0"
 
 
-def invoke(source, expected=0):
-    return subprocess.run([sys.executable, ROOT / "tools/run_case.py", "--expected", str(expected), "--", COMPILER,
-                           "dependencies", source], capture_output=True)
+def invoke(source, expected=0, command="dependencies", options=()):
+    return subprocess.run([sys.executable, ROOT / "tools/run_case.py", "--timeout", "30",
+                           "--expected", str(expected), "--", COMPILER,
+                           command, source, *options], capture_output=True)
 
 
 with tempfile.TemporaryDirectory(prefix="base-dependencies-") as temporary:
@@ -47,4 +48,25 @@ with tempfile.TemporaryDirectory(prefix="base-dependencies-") as temporary:
     entry.write_text("pub func invalid() -> i64:\n    return \"wrong\"\n")
     result = invoke(entry, expected=1)
     assert result.returncode == 1 and result.stdout == b"", result
-print("ok resolved dependency closure: diamond, parent lookup, standard exclusion, path bytes, failure")
+
+    # Exercise the shared loader through metadata and both compilation backends.
+    # These cycles previously exhausted the stack before semantic checking began.
+    cycle_root = Path(temporary) / "cycles"
+    cycle_root.mkdir()
+    alpha = cycle_root / "alpha.lucb"
+    beta = cycle_root / "beta.lucb"
+    gamma = cycle_root / "gamma.lucb"
+    for spelling in ("import alpha", "import beta", "from beta import second"):
+        alpha.write_text(spelling + "\npub func first() -> i64:\n    return 1\n")
+        beta.write_text("import gamma\npub func second() -> i64:\n    return 2\n")
+        gamma.write_text("import alpha\n")
+        for command, options in (("dependencies", ()), ("check", ()),
+                                 ("build", ("--native", "-o", str(cycle_root / "native"))),
+                                 ("build", ("--backend=c", "-o", str(cycle_root / "c")))):
+            result = invoke(alpha, expected=1, command=command, options=options)
+            assert result.returncode == 1 and result.stdout == b"", result
+            assert b"module import cycle involving alpha" in result.stderr, result.stderr
+            assert b":1:1:" in result.stderr, result.stderr
+        assert not (cycle_root / "native").exists()
+        assert not (cycle_root / "c").exists()
+print("ok resolved dependency closure: diamond, parent lookup, standard exclusion, path bytes, failure, cycles")
