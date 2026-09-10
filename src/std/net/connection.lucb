@@ -91,7 +91,10 @@ pub struct Connection: Reader, Writer:
             self.guarded = true
             return true
         var yes: i32 = 1
-        if setsockopt(descriptor, socket_level, no_sigpipe_option, &yes, 4) == 0:
+        var result = setsockopt(descriptor, socket_level, no_sigpipe_option, &yes, 4)
+        while result < 0 and c.errno() == c.interrupted:
+            result = setsockopt(descriptor, socket_level, no_sigpipe_option, &yes, 4)
+        if result == 0:
             self.guarded = true
         return self.guarded
 

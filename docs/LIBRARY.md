@@ -961,6 +961,14 @@ Reusable storage for a fixed number of borrowed descriptors. All slots begin dis
 - `func readiness(index: usize) -> Readiness!` — Borrow a copy of the most recent wait's events for this slot. Disabled slots have no events. Invalid descriptors are reported per slot, not silently closed.
 - `mutating func destroy()`
 
+### `DeadlineStream` (struct: Reader, Writer)
+
+A borrowed Reader/Writer applying one absolute deadline to all its transfers. Use with io.read_exact, io.write_all or buffered adapters; confirmed progress remains available from those helpers when a later call times out or is cancelled. This adapter allocates nothing and never owns/closes the connection. Keep the connection and optional cancellation signal alive, and synchronize their use. The connection must remain nonblocking. This is checked when creating the view and before nonempty transfers; coordinate all descriptor aliases. macOS can block sends despite MSG_DONTWAIT alone. The adapter never changes socket flags. Copying this view preserves the same deadline; it does not restart a timeout.
+
+- `static func over(connection: Connection*, deadline: Deadline = Deadline(), cancellation: Cancellation*? = none) -> DeadlineStream!`
+- `mutating func read(buffer: u8[]) -> usize!` — Read some bytes, waiting only when no data is ready. Zero on a nonempty buffer is EOF. Empty input succeeds on an open connection even after its deadline or cancellation, because it performs no transfer. The connection must remain nonblocking; the adapter never changes its shared status flags.
+- `mutating func write(data: const u8[]) -> usize!` — Write some bytes, waiting only when kernel buffers are full. Each successful count is confirmed before checking the next attempt's deadline/cancellation; do not discard it when a later transfer fails. Empty writes make no syscall.
+
 ## `c`
 
 The C types (`c.int`, `c.long`, `c.char`, `c.str`, `c.va_list`, …) and the standard streams `c.stdin()`, `c.stdout()`, `c.stderr()` (§5.2, §17).
