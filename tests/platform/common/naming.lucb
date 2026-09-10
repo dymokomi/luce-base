@@ -3,8 +3,8 @@
 import net
 
 pub func main(arguments: str[]) -> i32!:
-    let address = try net.resolve("localhost", 8080)
-    print(f"{address.ip == 2130706433} {address.port}")
-    let loopback = net.Address.loopback(9)
-    print(f"{loopback.ip == 2130706433} {loopback.port}")
+    let address = try net.resolve("localhost", 8080, net.IpVersion.ipv4)
+    print(f"{address.ip.ipv4_number() == 2130706433} {address.port}")
+    let loopback = net.SocketAddress.loopback(9)
+    print(f"{loopback.ip.ipv4_number() == 2130706433} {loopback.port}")
     return 0

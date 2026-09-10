@@ -85,7 +85,7 @@ pub func stop_all(queue: Queue*, handles: thread.Handle[], count: usize) -> !:
 
 test "a queue hands out what was pushed, in order":
     var queue: Queue
-    var listener = try net.Listener.bind(net.Address.loopback(0))
+    var listener = try net.Listener.bind(net.SocketAddress.loopback(0))
     defer listener.destroy()
     let address = try listener.address()
     var first = try net.Connection.connect(address)

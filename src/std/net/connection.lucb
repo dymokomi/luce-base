@@ -13,13 +13,16 @@ pub struct Connection: Reader, Writer:
     ## use, so a connection built any other way than `over` is guarded too.
     var guarded: bool
 
-    pub static func connect(address: Address) -> Connection!:
-        let owned = try SocketHandle.create(stream)
+    pub static func connect(address: SocketAddress) -> Connection!:
+        var raw: NativeAddress
+        let length = try address.write_native(&raw)
+        var owned = try SocketHandle.create(stream, address.ip.kind)
+        errdefer owned.destroy()
         let fd = try owned.require()
-        let raw = address.raw()
-        if connect(fd, &raw, 16) != 0:
-            discard(close(fd))
-            error(failed, "connect")
+        if address.ip.kind == IpVersion.ipv6:
+            try set_socket_integer(fd, ipv6_level, ipv6_only_option, 0)
+        if connect(fd, &raw, length) != 0:
+            error(failed, "the connection could not reach its peer")
         return Connection.from_socket(owned)
 
     ## Take ownership of a socket the caller made (a `socketpair`, an inherited
@@ -37,12 +40,12 @@ pub struct Connection: Reader, Writer:
         discard(connection.guard())
         return connection
 
-    ## Query this connection's local IPv4 endpoint, including its assigned port.
-    pub func local_address() -> Address!:
+    ## Query this connection's local IP endpoint, including its assigned port.
+    pub func local_address() -> SocketAddress!:
         return try socket_address(try self.socket.require())
 
-    ## Query the connected peer's IPv4 endpoint; this is an address, not an identity.
-    pub func peer_address() -> Address!:
+    ## Query the connected peer's IP endpoint; this is an address, not an identity.
+    pub func peer_address() -> SocketAddress!:
         return try socket_address(try self.socket.require(), true)
 
     ## Stop one or both directions while retaining ownership. Shutting down writes

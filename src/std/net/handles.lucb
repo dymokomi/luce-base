@@ -15,9 +15,10 @@ struct SocketHandle:
 
     ## Linux sets close-on-exec atomically with creation. macOS requires a
     ## separate fcntl call; callers must serialize concurrent fork/exec there.
-    static func create(kind: i32) -> SocketHandle!:
+    static func create(kind: i32, version: IpVersion) -> SocketHandle!:
         let flags: i32 = 0 if platform.macos else socket_close_on_exec
-        let descriptor = socket(inet, kind | flags, 0)
+        let family = inet if version == IpVersion.ipv4 else inet6
+        let descriptor = socket(family, kind | flags, 0)
         if descriptor < 0:
             error(failed, "a socket could not be created")
         if platform.macos:
@@ -58,20 +59,27 @@ struct SocketHandle:
         self.close() catch failure:
             discard(failure)
 
-func socket_address(descriptor: i32, peer: bool = false) -> Address!:
-    var raw: SocketAddress
-    var length: u32 = 16
+func socket_address(descriptor: i32, peer: bool = false) -> SocketAddress!:
+    var raw: NativeAddress
+    var length: u32 = 28
     var result = query_address(descriptor, &raw, &length, peer)
     while result < 0 and c.errno() == c.interrupted:
-        length = 16
+        length = 28
         result = query_address(descriptor, &raw, &length, peer)
     if result != 0:
         error(failed, "the socket address could not be queried")
-    if length != 16 or raw.head != family_word(2):
-        error(failed, "the socket address is not IPv4")
-    return Address.from_raw(raw)
+    if length > 28:
+        error(failed, "the socket address exceeds the supported IP storage")
+    return try decode_address(&raw, length)
 
-func query_address(descriptor: i32, address: SocketAddress*, length: u32*, peer: bool) -> i32:
+func query_address(descriptor: i32, address: void*, length: u32*, peer: bool) -> i32:
     if peer:
         return getpeername(descriptor, address, length)
     return getsockname(descriptor, address, length)
+
+func set_socket_integer(descriptor: i32, level: i32, option: i32, value: i32) -> !:
+    var result = setsockopt(descriptor, level, option, &value, 4)
+    while result < 0 and c.errno() == c.interrupted:
+        result = setsockopt(descriptor, level, option, &value, 4)
+    if result != 0:
+        error(failed, "the socket option could not be set")

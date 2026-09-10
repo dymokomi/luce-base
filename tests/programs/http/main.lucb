@@ -91,7 +91,7 @@ func handle(connection: net.Connection*, request: http.Request*) -> bool!:
         try http.respond(connection, 200, "text/plain", "bye\n".bytes, false)
         server.stopping.store(true, .release)
         # a connection to the listener wakes the accept loop so it can see the flag
-        var poke = net.Connection.connect(net.Address.loopback(server.port)) catch:
+        var poke = net.Connection.connect(net.SocketAddress.loopback(server.port)) catch:
             return false
         try poke.close()
         return false
@@ -169,7 +169,7 @@ pub func main(arguments: str[]) -> i32!:
         print("usage: http [--port N] [--root DIR] [--threads N]")
         return 2
     server.root = options.root
-    var listener = try net.Listener.bind(net.Address.any(options.port))
+    var listener = try net.Listener.bind(net.SocketAddress.any(options.port))
     let bound = (try listener.address())
     server.port = bound.port
     var worker = pool.Worker(queue = &server.queue, serve = serve)

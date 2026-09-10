@@ -2,30 +2,42 @@
 ## copies must not be independently closed. Synchronize calls on one owner.
 pub struct Datagram:
     var socket: SocketHandle
+    var version: IpVersion
 
-    pub static func bind(address: Address) -> Datagram!:
-        let owned = try SocketHandle.create(datagram)
+    ## IPv6 sockets are IPv6-only by default. Set ipv6_only=false to permit
+    ## mapped IPv4 packets; it has no effect when binding an IPv4 address.
+    pub static func bind(address: SocketAddress, ipv6_only: bool = true) -> Datagram!:
+        var raw: NativeAddress
+        let length = try address.write_native(&raw)
+        var owned = try SocketHandle.create(datagram, address.ip.kind)
+        errdefer owned.destroy()
         let fd = try owned.require()
-        let raw = address.raw()
-        if bind(fd, &raw, 16) != 0:
-            discard(close(fd))
-            error(failed, "bind")
-        return Datagram(socket = owned)
+        if address.ip.kind == IpVersion.ipv6:
+            try set_socket_integer(fd, ipv6_level, ipv6_only_option, 1 if ipv6_only else 0)
+        if bind(fd, &raw, length) != 0:
+            error(failed, "the datagram socket could not bind its address")
+        return Datagram(socket = owned, version = address.ip.kind)
 
     ## Query the bound endpoint, including an automatically assigned port.
-    pub func address() -> Address!:
+    pub func address() -> SocketAddress!:
         return try socket_address(try self.socket.require())
 
-    ## Send one complete IPv4 datagram, including an empty packet. A successful
-    ## send confirms local acceptance, not peer delivery. Oversize packets fail.
-    pub func send_to(data: const u8[], address: Address) -> !:
+    ## Send one complete IP datagram, including an empty packet. A successful
+    ## send confirms local acceptance, not peer delivery. IPv4 permits up to 65507
+    ## payload bytes, IPv6 up to 65527; host/path limits may be smaller. IPv6
+    ## jumbograms are not supported. The destination must match the socket version.
+    pub func send_to(data: const u8[], address: SocketAddress) -> !:
         let descriptor = try self.socket.require()
-        if data.length > 65507:
-            error(message_too_large, "the IPv4 UDP payload exceeds 65507 bytes")
-        let raw = address.raw()
-        var n = sendto(descriptor, data.data, data.length, 0, &raw, 16)
+        if address.ip.kind != self.version:
+            error(invalid_options, "the datagram destination has a different IP version")
+        let maximum: usize = 65507 if self.version == IpVersion.ipv4 else 65527
+        if data.length > maximum:
+            error(message_too_large, "the UDP payload exceeds the IP version's maximum")
+        var raw: NativeAddress
+        let length = try address.write_native(&raw)
+        var n = sendto(descriptor, data.data, data.length, 0, &raw, length)
         while n < 0 and c.errno() == c.interrupted:
-            n = sendto(descriptor, data.data, data.length, 0, &raw, 16)
+            n = sendto(descriptor, data.data, data.length, 0, &raw, length)
         if n < 0:
             error(datagram_error(c.errno()), "the datagram could not be sent")
         if (usize)n != data.length:
@@ -35,9 +47,9 @@ pub struct Datagram:
     ## If storage is too small, consume/discard the packet and report
     ## message_too_large; a copied prefix may remain in the buffer. The next call
     ## receives the next packet. Empty storage can receive only an empty packet.
-    pub func receive_from(buffer: u8[]) -> (usize, Address)!:
+    pub func receive_from(buffer: u8[]) -> (usize, SocketAddress)!:
         let descriptor = try self.socket.require()
-        var raw: SocketAddress
+        var raw: NativeAddress
         # macOS can return immediately without consuming a packet when receive
         # capacity is zero. Probe into one scratch byte so even empty storage
         # consumes exactly one packet and obtains its sender address.
@@ -50,12 +62,12 @@ pub struct Datagram:
             var address_length: u32 = 0
             var flags: i32 = 0
             if platform.macos:
-                var message = MacMessage(address = &raw, address_length = 16, vectors = &vector, vector_count = 1)
+                var message = MacMessage(address = &raw, address_length = 28, vectors = &vector, vector_count = 1)
                 received = receive_message_macos(descriptor, &message, 0)
                 address_length = message.address_length
                 flags = message.flags
             else:
-                var message = LinuxMessage(address = &raw, address_length = 16, vectors = &vector, vector_count = 1)
+                var message = LinuxMessage(address = &raw, address_length = 28, vectors = &vector, vector_count = 1)
                 received = receive_message_linux(descriptor, &message, 0)
                 address_length = message.address_length
                 flags = message.flags
@@ -67,9 +79,9 @@ pub struct Datagram:
             let truncated: i32 = 16 if platform.macos else 32
             if (flags & truncated) != 0 or (usize)received > buffer.length:
                 error(message_too_large, "the receive buffer was too small for the datagram")
-            if address_length != 16 or raw.head != family_word(2):
-                error(failed, "the datagram sender address is not IPv4")
-            return ((usize)received, Address.from_raw(raw))
+            if address_length > 28:
+                error(failed, "the datagram sender address exceeds the supported storage")
+            return ((usize)received, try decode_address(&raw, address_length))
 
     ## Borrow the descriptor; the caller must not close it or retain it past this owner.
     pub func descriptor() -> i32?:

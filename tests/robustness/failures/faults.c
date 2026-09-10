@@ -170,6 +170,9 @@ int getaddrinfo(const char *host, const char *service, const struct addrinfo *hi
         struct sockaddr_in *address = calloc(1, sizeof(*address));
         assert(address);
         address->sin_family = AF_INET;
+#ifdef __APPLE__
+        address->sin_len = sizeof(*address);
+#endif
         address->sin_addr.s_addr = htonl(0x7f00002a);
         entry->ai_addr = (struct sockaddr *)address;
     }
@@ -277,7 +280,7 @@ ssize_t sendto(int fd, const void *p, size_t n, int flags, const struct sockaddr
 ssize_t recvmsg(int fd, struct msghdr *message, int flags) {
     REAL(recvmsg);
     assert(message->msg_iovlen == 1 && message->msg_iov);
-    assert(message->msg_namelen == sizeof(struct sockaddr_in));
+    assert(message->msg_namelen == sizeof(struct sockaddr_in6));
     assert(message->msg_control == NULL && message->msg_controllen == 0);
     if (take(7)) {
         message->msg_namelen = 1;

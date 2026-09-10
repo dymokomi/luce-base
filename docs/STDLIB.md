@@ -22,7 +22,7 @@ Define EOF, zero-length operations, interruption, would-block and timeout separa
 | Module | Current source | Required work |
 | --- | --- | --- |
 | `math`, `math32` | Explicit special-value contracts, f64/f32 libm operations, precision helpers and checked integer operations | Complete per-function accuracy/domain documentation and wider reference campaigns; rounding-mode and boundary coverage beyond the initial vectors |
-| `net` | IPv4/IPv6 value parsing, canonical formatting and byte conversion; IPv4 TCP/UDP, first-address resolution and blocking sockets; TCP Reader/Writer with explicit short transfers and recoverable write progress, closed zero values, checked close/adoption, close-on-exec handles, local/peer endpoint queries, configurable backlog, TCP half-close and explicit UDP truncation/empty-packet behavior | IPv6 socket endpoints and complete resolution results, socket options, nonblocking/readiness support, deadlines/cancellation, broader error categories and sustained transfer coverage |
+| `net` | IPv4/IPv6 value parsing, canonical formatting and byte conversion; IPv4/IPv6 TCP/UDP, first-address resolution and blocking sockets; TCP Reader/Writer with explicit short transfers and recoverable write progress, closed zero values, checked close/adoption, close-on-exec handles, local/peer endpoint queries, configurable backlog, TCP half-close and explicit UDP truncation/empty-packet behavior | Complete resolution results, socket options, nonblocking/readiness support, deadlines/cancellation, broader error categories and sustained transfer coverage |
 | `io` | Reader/Writer contracts, borrowed slice and buffered adapters, exact/all/bounded-copy helpers with confirmed progress, unbuffered stdin, synchronized libc stdout/stderr, explicit flush and formatting sink | Seeking where supported, broader concurrent and sustained-transfer coverage; confirm file/socket adapters are ready for the later TLS stage |
 | `files` | Owned Reader/Writer handles, open modes, seeking/sync, checked close, path/handle metadata and checked length/permission/timestamp updates; bounded streaming whole-file helpers, owned directory iteration, bounded depth-first traversal and descriptor-relative lookup/open, checked existence, single-entry mutation, bounded symlink reads, owned temporary files and atomic replacement and bounded copying with publication status | Broader concurrent filesystem campaigns and error detail |
 | `strings`, `utf8` | Byte searches/slices, byte separator split, ASCII case conversion, decimal i64, an alias-safe builder and strict UTF-8 scalar operations | Document byte offsets/borrowed views; substring search/split/replace and bounded variants; checked size arithmetic, reserve/capacity and aliasing rules; numeric parsing/formatting; streaming UTF-8 decoding and Unicode-aware operations separate from ASCII helpers |
@@ -117,4 +117,11 @@ ports, interface zones and prefix lengths. Formatting follows the zero compressi
 and case rules of [RFC 5952](https://www.rfc-editor.org/rfc/rfc5952.html), with dotted
 IPv4 tails for mapped IPv6. A fixed Python `ipaddress` corpus independently checks
 parsed octets, canonical text, invalid inputs and round trips in all six configurations.
-TCP/UDP endpoints still use the existing IPv4 `Address` until the next migration.
+`SocketAddress` pairs an IP value with a port and numeric IPv6 scope ID. Its
+parser accepts IPv4:port and [IPv6%scope]:port; formatting uses canonical IP text.
+It replaces the former IPv4-only `Address`. Listener and datagram binds default
+to IPv6-only operation; explicit `ipv6_only=false` enables mapped IPv4 peers.
+Resolution accepts either IP version by default, with an optional version filter.
+The IPv6 regression compares endpoints with host socket headers, exercises
+IPv4/IPv6/dual-stack TCP and UDP, and checks nonzero scope layout and ownership
+on bind failure and resolver completion.

@@ -3964,32 +3964,46 @@ import io
 from io import Reader, Writer
 
 extern func socket(domain: i32, kind: i32, protocol: i32) -> i32
-extern func bind(descriptor: i32, address: const SocketAddress*, length: u32) -> i32
+extern func bind(descriptor: i32, address: const void*, length: u32) -> i32
 extern func listen(descriptor: i32, backlog: i32) -> i32
-extern func accept(descriptor: i32, address: SocketAddress*?, length: u32*?) -> i32
-extern func accept4(descriptor: i32, address: SocketAddress*?, length: u32*?, flags: i32) -> i32
+extern func accept(descriptor: i32, address: void*?, length: u32*?) -> i32
+extern func accept4(descriptor: i32, address: void*?, length: u32*?, flags: i32) -> i32
 extern func fcntl(descriptor: i32, command: i32, ...) -> i32
-extern func connect(descriptor: i32, address: const SocketAddress*, length: u32) -> i32
+extern func connect(descriptor: i32, address: const void*, length: u32) -> i32
 extern func send(descriptor: i32, data: const void*, length: usize, flags: i32) -> isize
 extern func recv(descriptor: i32, buffer: void*, length: usize, flags: i32) -> isize
-extern func sendto(descriptor: i32, data: const void*, length: usize, flags: i32, address: const SocketAddress*, address_length: u32) -> isize
+extern func sendto(descriptor: i32, data: const void*, length: usize, flags: i32, address: const void*, address_length: u32) -> isize
 extern func receive_message_macos as "recvmsg"(descriptor: i32, message: MacMessage*, flags: i32) -> isize
 extern func receive_message_linux as "recvmsg"(descriptor: i32, message: LinuxMessage*, flags: i32) -> isize
 extern func close(descriptor: i32) -> i32
 extern func setsockopt(descriptor: i32, level: i32, option: i32, value: const void*, length: u32) -> i32
-extern func getsockname(descriptor: i32, address: SocketAddress*, length: u32*) -> i32
-extern func getpeername(descriptor: i32, address: SocketAddress*, length: u32*) -> i32
+extern func getsockname(descriptor: i32, address: void*, length: u32*) -> i32
+extern func getpeername(descriptor: i32, address: void*, length: u32*) -> i32
 extern func shutdown(descriptor: i32, direction: i32) -> i32
 extern func getaddrinfo(host: c.str, service: c.str?, hints: const AddressInfo*?, result: AddressInfo*?*) -> i32
 extern func freeaddrinfo(info: AddressInfo*)
 
 ## `sockaddr_in`: 16 bytes everywhere; macOS splits the first two into a length and a
 ## one-byte family, Linux keeps a two-byte family. `family_word` reads and writes it.
-extern struct SocketAddress:
+extern struct NativeIpv4Address:
     head: u16
     port: u16
     address: u32
     zero: u8[8]
+
+## sockaddr_in6 is 28 bytes on both native hosts. Flow information is left zero;
+## the scope index is a host-order u32, while the port is network-order u16.
+extern struct NativeIpv6Address:
+    head: u16
+    port: u16
+    flow: u32
+    address: u8[16]
+    scope: u32
+
+## Enough aligned storage for either supported IP sockaddr representation.
+extern union NativeAddress:
+    ipv4: NativeIpv4Address
+    ipv6: NativeIpv6Address
 
 extern struct ReceiveVector:
     data: u8*?
@@ -3998,7 +4012,7 @@ extern struct ReceiveVector:
 ## Host msghdr layouts: macOS uses int for the vector count and socklen_t for
 ## control length; glibc uses size_t for both. Their flags offsets differ.
 extern struct MacMessage:
-    address: SocketAddress*
+    address: void*
     address_length: u32
     vectors: ReceiveVector*
     vector_count: i32
@@ -4007,7 +4021,7 @@ extern struct MacMessage:
     flags: i32
 
 extern struct LinuxMessage:
-    address: SocketAddress*
+    address: void*
     address_length: u32
     vectors: ReceiveVector*
     vector_count: usize
@@ -4017,9 +4031,9 @@ extern struct LinuxMessage:
 
 ## The first two bytes of `sockaddr_in` as one little-endian word: on macOS the length
 ## byte (16) comes first and the family byte second, on Linux the family fills both.
-func family_word(family: u8) -> u16:
+func family_word(family: i32, length: u8) -> u16:
     if platform.macos:
-        return (u16)16 | ((u16)family << 8)
+        return (u16)length | ((u16)family << 8)
     return (u16)family
 
 ## `addrinfo`: macOS puts the canonical name before the address, Linux after it.
@@ -4033,10 +4047,8 @@ extern struct AddressInfo:
     sixth: void*?
     next: AddressInfo*?
 
-func info_address(info: AddressInfo*) -> SocketAddress*?:
-    let raw = info.sixth if platform.macos else info.fifth
-    let p = raw else return none
-    return (SocketAddress*)p
+func info_address(info: AddressInfo*) -> void*?:
+    return info.sixth if platform.macos else info.fifth
 
 let inet: i32 = 2
 let inet6: i32 = 30 if platform.macos else 10
@@ -4048,10 +4060,12 @@ let set_descriptor_flags: i32 = 2
 let descriptor_close_on_exec: i32 = 1
 ## `SOL_SOCKET` and `SO_REUSEADDR`: 65535 and 4 on macOS, 1 and 2 on Linux.
 let socket_level: i32 = 65535 if platform.macos else 1
-let reuse_address: i32 = 4 if platform.macos else 2
+let reuse_address_option: i32 = 4 if platform.macos else 2
 ## A write to a socket the peer closed answers an error, never the process's death:
 ## macOS marks the socket (`SO_NOSIGPIPE`, 4130), Linux marks the send (`MSG_NOSIGNAL`,
 ## 16384).
+let ipv6_level: i32 = 41
+let ipv6_only_option: i32 = 27 if platform.macos else 26
 let no_sigpipe_option: i32 = 4130
 let send_flags: i32 = 0 if platform.macos else 16384
 
@@ -4321,35 +4335,171 @@ func parse_ipv6(text: str) -> IpAddress?:
     elif count != 8:
         return none
     return result
-## An IPv4 address and port, both in host order.
-pub struct Address:
-    pub var ip: u32
+## An IP endpoint: address, port and optional IPv6 interface scope. A zero value is
+## 0.0.0.0:0. The port is host order; scope zero means no explicit interface index.
+## IPv4 endpoints must have scope zero. Values own their inline storage.
+pub struct SocketAddress:
+    pub var ip: IpAddress
     pub var port: u16
+    pub var scope_id: u32
 
-    pub static func loopback(port: u16) -> Address:
-        return Address(ip = 2130706433, port = port)
+    pub static func loopback(port: u16, version: IpVersion = IpVersion.ipv4) -> SocketAddress:
+        if version == IpVersion.ipv4:
+            return SocketAddress(ip = IpAddress.from_ipv4(2130706433), port = port)
+        var ip = IpAddress(kind = version)
+        ip.octets[15] = 1
+        return SocketAddress(ip = ip, port = port)
 
-    pub static func any(port: u16) -> Address:
-        return Address(ip = 0, port = port)
+    pub static func any(port: u16, version: IpVersion = IpVersion.ipv4) -> SocketAddress:
+        return SocketAddress(ip = IpAddress(kind = version), port = port)
 
-    func raw() -> SocketAddress:
-        var zero: u8[8]
-        return SocketAddress(head = family_word(2), port = swap16(self.port), address = swap32(self.ip), zero = zero)
+    ## Parse IPv4:port or [IPv6%scope]:port without DNS. Scope is optional and
+    ## numeric, not an interface name. Ports use 1–5 decimal digits; scope IDs use
+    ## 1–10. Leading zeroes in these numbers are accepted and omitted on output.
+    pub static func parse(text: str) -> SocketAddress?:
+        if text.length == 0 or text.length > 64:
+            return none
+        var ip_start: usize = 0
+        var ip_end: usize = 0
+        var port_start: usize = 0
+        var scope: u32 = 0
+        let bracketed = text.bytes[0] == '['
+        if bracketed:
+            ip_start = 1
+            var end: usize = 1
+            while end < text.length and text.bytes[end] != ']':
+                end += 1
+            if end + 1 >= text.length or text.bytes[end + 1] != ':':
+                return none
+            ip_end = end
+            port_start = end + 2
+            var i: usize = 1
+            while i < end:
+                if text.bytes[i] == '%':
+                    ip_end = i
+                    let parsed = parse_endpoint_number((str)text.bytes[i + 1..<end], 4294967295, 10) else return none
+                    scope = parsed
+                    break
+                i += 1
+        else:
+            while ip_end < text.length and text.bytes[ip_end] != ':':
+                ip_end += 1
+            if ip_end == text.length:
+                return none
+            port_start = ip_end + 1
+        let ip = IpAddress.parse((str)text.bytes[ip_start..<ip_end]) else return none
+        if (ip.kind == IpVersion.ipv6) != bracketed:
+            return none
+        let port = parse_endpoint_number((str)text.bytes[port_start..], 65535, 5) else return none
+        return SocketAddress(ip = ip, port = (u16)port, scope_id = scope)
 
-    static func from_raw(raw: SocketAddress) -> Address:
-        return Address(ip = swap32(raw.address), port = swap16(raw.port))
+    pub func equals(other: SocketAddress) -> bool:
+        return self.ip.equals(other.ip) and self.port == other.port and self.scope_id == other.scope_id
 
-## Host to network byte order and back; the machine is little-endian.
+    ## Canonical numeric endpoint text. IPv6 is bracketed; a nonzero scope is
+    ## decimal. A 58-byte buffer always suffices. The returned view borrows buffer,
+    ## has no trailing NUL, and insufficient storage is left unchanged (io.full).
+    pub func format(buffer: u8[]) -> str!:
+        try self.validate()
+        var text: u8[58]
+        var used: usize = 0
+        if self.ip.kind == IpVersion.ipv6:
+            text[0] = '['
+            let address = try self.ip.format(text[1..<40])
+            used = 1 + address.length
+            if self.scope_id != 0:
+                text[used] = '%'
+                used = render_endpoint_number(self.scope_id, text, used + 1)
+            text[used] = ']'
+            used += 1
+        else:
+            let address = try self.ip.format(text[..<39])
+            used = address.length
+        text[used] = ':'
+        used = render_endpoint_number((u32)self.port, text, used + 1)
+        if buffer.length < used:
+            error(io.full, "the destination cannot hold the formatted socket address")
+        memory.move(buffer, text, used)
+        return (str)buffer[..<used]
+
+    func validate() -> !:
+        if self.ip.kind != IpVersion.ipv4 and self.ip.kind != IpVersion.ipv6:
+            error(invalid_options, "unknown IP address version")
+        if self.ip.kind == IpVersion.ipv4 and self.scope_id != 0:
+            error(invalid_options, "IPv4 endpoints cannot have an interface scope")
+
+    func write_native(output: NativeAddress*) -> u32!:
+        try self.validate()
+        if self.ip.kind == IpVersion.ipv4:
+            let number = self.ip.ipv4_number() else error(invalid_options, "IPv4 address bits are missing")
+            output.ipv4 = NativeIpv4Address(head = family_word(inet, 16), port = swap16(self.port), address = swap32(number))
+            return 16
+        output.ipv6 = NativeIpv6Address(head = family_word(inet6, 28), port = swap16(self.port), address = self.ip.octets, scope = self.scope_id)
+        return 28
+
+func decode_address(storage: const void*, length: u32) -> SocketAddress!:
+    if length < 2:
+        error(failed, "the socket address is shorter than its family field")
+    let head = memory.read[u16](storage)
+    let family = (i32)(head >> 8) if platform.macos else (i32)head
+    if family == inet:
+        if length < 16 or head != family_word(inet, 16):
+            error(failed, "the IPv4 socket address has an invalid layout")
+        let raw = memory.read[NativeIpv4Address](storage)
+        return SocketAddress(ip = IpAddress.from_ipv4(swap32(raw.address)), port = swap16(raw.port))
+    if family == inet6:
+        if length < 28 or head != family_word(inet6, 28):
+            error(failed, "the IPv6 socket address has an invalid layout")
+        let raw = memory.read[NativeIpv6Address](storage)
+        return SocketAddress(ip = IpAddress(kind = IpVersion.ipv6, octets = raw.address), port = swap16(raw.port), scope_id = raw.scope)
+    error(failed, "the socket address is not IPv4 or IPv6")
+
+func parse_endpoint_number(text: str, maximum: u32, width: usize) -> u32?:
+    if text.length == 0 or text.length > width:
+        return none
+    var value: u32 = 0
+    for byte in text.bytes:
+        if byte < '0' or byte > '9':
+            return none
+        let digit = (u32)(byte - '0')
+        if value > (maximum - digit) // 10:
+            return none
+        value = value * 10 + digit
+    return value
+
+func render_endpoint_number(value: u32, output: u8[], start: usize) -> usize:
+    var reversed: u8[10]
+    var count: usize = 0
+    var remaining = value
+    while true:
+        reversed[count] = (u8)(remaining % 10) + '0'
+        count += 1
+        remaining //= 10
+        if remaining == 0:
+            break
+    var used = start
+    while count > 0:
+        count -= 1
+        output[used] = reversed[count]
+        used += 1
+    return used
+
+## Host to network byte order and back; both native targets are little-endian.
 func swap16(value: u16) -> u16:
     return (value << 8) | (value >> 8)
 
 func swap32(value: u32) -> u32:
     return (value << 24) | ((value << 8) & 16711680) | ((value >> 8) & 65280) | (value >> 24)
-
-## The first usable IPv4 stream address of `host`. Resolution may block in the OS.
-## All resolver storage is released before returning, including malformed results.
-pub func resolve(host: c.str, port: u16) -> Address!:
-    var hints = AddressInfo(flags = 0, family = inet, kind = stream, protocol = 0, address_length = 0, fifth = none, sixth = none, next = none)
+## The first usable IPv4 or IPv6 stream endpoint in host resolver order. An
+## explicit version restricts results. Resolution can block in the OS. Every
+## resolver node is released, including on malformed or unusable results.
+pub func resolve(host: c.str, port: u16, version: IpVersion? = none) -> SocketAddress!:
+    var family: i32 = 0
+    if let requested = version:
+        if requested != IpVersion.ipv4 and requested != IpVersion.ipv6:
+            error(invalid_options, "unknown resolver IP version")
+        family = inet if requested == IpVersion.ipv4 else inet6
+    var hints = AddressInfo(family = family, kind = stream)
     var found: AddressInfo*? = none
     if getaddrinfo(host, none, &hints, &found) != 0:
         error(unknown_host, "unknown host")
@@ -4357,14 +4507,21 @@ pub func resolve(host: c.str, port: u16) -> Address!:
     defer freeaddrinfo(info)
     var current: AddressInfo*? = info
     while let entry = current:
-        if entry.family == inet and entry.kind == stream and entry.address_length >= sizeof(SocketAddress):
+        let known = entry.family == inet or entry.family == inet6
+        if known and entry.kind == stream and (family == 0 or entry.family == family):
             if let raw = info_address(entry):
-                var address = Address.from_raw(*raw)
-                address.port = port
-                return address
+                var usable = true
+                var address = decode_address(raw, entry.address_length) catch failure:
+                    discard(failure)
+                    usable = false
+                    recover SocketAddress()
+                if usable:
+                    let matches = (entry.family == inet and address.ip.kind == IpVersion.ipv4) or (entry.family == inet6 and address.ip.kind == IpVersion.ipv6)
+                    if matches:
+                        address.port = port
+                        return address
         current = entry.next
-    error(unknown_host, "the host has no usable IPv4 stream address")
-
+    error(unknown_host, "the host has no usable stream address for the requested IP version")
 ## One owned TCP listener. Zero is closed. Copying does not duplicate ownership;
 ## copies must not be independently closed. Synchronize calls on one owner.
 pub struct Listener:
@@ -4372,29 +4529,30 @@ pub struct Listener:
 
     ## Bind and listen with a positive requested backlog. The OS may cap the
     ## pending connection queue; the value does not limit accepted connections.
-    pub static func bind(address: Address, backlog: i32 = 128) -> Listener!:
+    ## IPv6 listeners default to IPv6-only on both hosts. Set ipv6_only=false to
+    ## also permit mapped IPv4 peers; the option has no effect for IPv4 listeners.
+    pub static func bind(address: SocketAddress, backlog: i32 = 128, ipv6_only: bool = true) -> Listener!:
         if backlog <= 0:
             error(invalid_options, "the listener backlog must be positive")
-        let owned = try SocketHandle.create(stream)
+        var raw: NativeAddress
+        let length = try address.write_native(&raw)
+        var owned = try SocketHandle.create(stream, address.ip.kind)
+        errdefer owned.destroy()
         let fd = try owned.require()
-        var yes: i32 = 1
-        if setsockopt(fd, socket_level, reuse_address, &yes, 4) != 0:
-            discard(close(fd))
-            error(failed, "the listener address reuse option could not be set")
-        let raw = address.raw()
-        if bind(fd, &raw, 16) != 0:
-            discard(close(fd))
-            error(failed, "bind")
+        try set_socket_integer(fd, socket_level, reuse_address_option, 1)
+        if address.ip.kind == IpVersion.ipv6:
+            try set_socket_integer(fd, ipv6_level, ipv6_only_option, 1 if ipv6_only else 0)
+        if bind(fd, &raw, length) != 0:
+            error(failed, "the listener could not bind its address")
         var result = listen(fd, backlog)
         while result < 0 and c.errno() == c.interrupted:
             result = listen(fd, backlog)
         if result != 0:
-            discard(close(fd))
-            error(failed, "listen")
+            error(failed, "the listener could not begin listening")
         return Listener(socket = owned)
 
     ## Query the bound endpoint, including an automatically assigned port.
-    pub func address() -> Address!:
+    pub func address() -> SocketAddress!:
         return try socket_address(try self.socket.require())
 
     pub func accept() -> Connection!:
@@ -4437,13 +4595,16 @@ pub struct Connection: Reader, Writer:
     ## use, so a connection built any other way than `over` is guarded too.
     var guarded: bool
 
-    pub static func connect(address: Address) -> Connection!:
-        let owned = try SocketHandle.create(stream)
+    pub static func connect(address: SocketAddress) -> Connection!:
+        var raw: NativeAddress
+        let length = try address.write_native(&raw)
+        var owned = try SocketHandle.create(stream, address.ip.kind)
+        errdefer owned.destroy()
         let fd = try owned.require()
-        let raw = address.raw()
-        if connect(fd, &raw, 16) != 0:
-            discard(close(fd))
-            error(failed, "connect")
+        if address.ip.kind == IpVersion.ipv6:
+            try set_socket_integer(fd, ipv6_level, ipv6_only_option, 0)
+        if connect(fd, &raw, length) != 0:
+            error(failed, "the connection could not reach its peer")
         return Connection.from_socket(owned)
 
     ## Take ownership of a socket the caller made (a `socketpair`, an inherited
@@ -4461,12 +4622,12 @@ pub struct Connection: Reader, Writer:
         discard(connection.guard())
         return connection
 
-    ## Query this connection's local IPv4 endpoint, including its assigned port.
-    pub func local_address() -> Address!:
+    ## Query this connection's local IP endpoint, including its assigned port.
+    pub func local_address() -> SocketAddress!:
         return try socket_address(try self.socket.require())
 
-    ## Query the connected peer's IPv4 endpoint; this is an address, not an identity.
-    pub func peer_address() -> Address!:
+    ## Query the connected peer's IP endpoint; this is an address, not an identity.
+    pub func peer_address() -> SocketAddress!:
         return try socket_address(try self.socket.require(), true)
 
     ## Stop one or both directions while retaining ownership. Shutting down writes
@@ -4551,30 +4712,42 @@ pub struct Connection: Reader, Writer:
 ## copies must not be independently closed. Synchronize calls on one owner.
 pub struct Datagram:
     var socket: SocketHandle
+    var version: IpVersion
 
-    pub static func bind(address: Address) -> Datagram!:
-        let owned = try SocketHandle.create(datagram)
+    ## IPv6 sockets are IPv6-only by default. Set ipv6_only=false to permit
+    ## mapped IPv4 packets; it has no effect when binding an IPv4 address.
+    pub static func bind(address: SocketAddress, ipv6_only: bool = true) -> Datagram!:
+        var raw: NativeAddress
+        let length = try address.write_native(&raw)
+        var owned = try SocketHandle.create(datagram, address.ip.kind)
+        errdefer owned.destroy()
         let fd = try owned.require()
-        let raw = address.raw()
-        if bind(fd, &raw, 16) != 0:
-            discard(close(fd))
-            error(failed, "bind")
-        return Datagram(socket = owned)
+        if address.ip.kind == IpVersion.ipv6:
+            try set_socket_integer(fd, ipv6_level, ipv6_only_option, 1 if ipv6_only else 0)
+        if bind(fd, &raw, length) != 0:
+            error(failed, "the datagram socket could not bind its address")
+        return Datagram(socket = owned, version = address.ip.kind)
 
     ## Query the bound endpoint, including an automatically assigned port.
-    pub func address() -> Address!:
+    pub func address() -> SocketAddress!:
         return try socket_address(try self.socket.require())
 
-    ## Send one complete IPv4 datagram, including an empty packet. A successful
-    ## send confirms local acceptance, not peer delivery. Oversize packets fail.
-    pub func send_to(data: const u8[], address: Address) -> !:
+    ## Send one complete IP datagram, including an empty packet. A successful
+    ## send confirms local acceptance, not peer delivery. IPv4 permits up to 65507
+    ## payload bytes, IPv6 up to 65527; host/path limits may be smaller. IPv6
+    ## jumbograms are not supported. The destination must match the socket version.
+    pub func send_to(data: const u8[], address: SocketAddress) -> !:
         let descriptor = try self.socket.require()
-        if data.length > 65507:
-            error(message_too_large, "the IPv4 UDP payload exceeds 65507 bytes")
-        let raw = address.raw()
-        var n = sendto(descriptor, data.data, data.length, 0, &raw, 16)
+        if address.ip.kind != self.version:
+            error(invalid_options, "the datagram destination has a different IP version")
+        let maximum: usize = 65507 if self.version == IpVersion.ipv4 else 65527
+        if data.length > maximum:
+            error(message_too_large, "the UDP payload exceeds the IP version's maximum")
+        var raw: NativeAddress
+        let length = try address.write_native(&raw)
+        var n = sendto(descriptor, data.data, data.length, 0, &raw, length)
         while n < 0 and c.errno() == c.interrupted:
-            n = sendto(descriptor, data.data, data.length, 0, &raw, 16)
+            n = sendto(descriptor, data.data, data.length, 0, &raw, length)
         if n < 0:
             error(datagram_error(c.errno()), "the datagram could not be sent")
         if (usize)n != data.length:
@@ -4584,9 +4757,9 @@ pub struct Datagram:
     ## If storage is too small, consume/discard the packet and report
     ## message_too_large; a copied prefix may remain in the buffer. The next call
     ## receives the next packet. Empty storage can receive only an empty packet.
-    pub func receive_from(buffer: u8[]) -> (usize, Address)!:
+    pub func receive_from(buffer: u8[]) -> (usize, SocketAddress)!:
         let descriptor = try self.socket.require()
-        var raw: SocketAddress
+        var raw: NativeAddress
         # macOS can return immediately without consuming a packet when receive
         # capacity is zero. Probe into one scratch byte so even empty storage
         # consumes exactly one packet and obtains its sender address.
@@ -4599,12 +4772,12 @@ pub struct Datagram:
             var address_length: u32 = 0
             var flags: i32 = 0
             if platform.macos:
-                var message = MacMessage(address = &raw, address_length = 16, vectors = &vector, vector_count = 1)
+                var message = MacMessage(address = &raw, address_length = 28, vectors = &vector, vector_count = 1)
                 received = receive_message_macos(descriptor, &message, 0)
                 address_length = message.address_length
                 flags = message.flags
             else:
-                var message = LinuxMessage(address = &raw, address_length = 16, vectors = &vector, vector_count = 1)
+                var message = LinuxMessage(address = &raw, address_length = 28, vectors = &vector, vector_count = 1)
                 received = receive_message_linux(descriptor, &message, 0)
                 address_length = message.address_length
                 flags = message.flags
@@ -4616,9 +4789,9 @@ pub struct Datagram:
             let truncated: i32 = 16 if platform.macos else 32
             if (flags & truncated) != 0 or (usize)received > buffer.length:
                 error(message_too_large, "the receive buffer was too small for the datagram")
-            if address_length != 16 or raw.head != family_word(2):
-                error(failed, "the datagram sender address is not IPv4")
-            return ((usize)received, Address.from_raw(raw))
+            if address_length > 28:
+                error(failed, "the datagram sender address exceeds the supported storage")
+            return ((usize)received, try decode_address(&raw, address_length))
 
     ## Borrow the descriptor; the caller must not close it or retain it past this owner.
     pub func descriptor() -> i32?:
@@ -4653,9 +4826,10 @@ struct SocketHandle:
 
     ## Linux sets close-on-exec atomically with creation. macOS requires a
     ## separate fcntl call; callers must serialize concurrent fork/exec there.
-    static func create(kind: i32) -> SocketHandle!:
+    static func create(kind: i32, version: IpVersion) -> SocketHandle!:
         let flags: i32 = 0 if platform.macos else socket_close_on_exec
-        let descriptor = socket(inet, kind | flags, 0)
+        let family = inet if version == IpVersion.ipv4 else inet6
+        let descriptor = socket(family, kind | flags, 0)
         if descriptor < 0:
             error(failed, "a socket could not be created")
         if platform.macos:
@@ -4696,23 +4870,30 @@ struct SocketHandle:
         self.close() catch failure:
             discard(failure)
 
-func socket_address(descriptor: i32, peer: bool = false) -> Address!:
-    var raw: SocketAddress
-    var length: u32 = 16
+func socket_address(descriptor: i32, peer: bool = false) -> SocketAddress!:
+    var raw: NativeAddress
+    var length: u32 = 28
     var result = query_address(descriptor, &raw, &length, peer)
     while result < 0 and c.errno() == c.interrupted:
-        length = 16
+        length = 28
         result = query_address(descriptor, &raw, &length, peer)
     if result != 0:
         error(failed, "the socket address could not be queried")
-    if length != 16 or raw.head != family_word(2):
-        error(failed, "the socket address is not IPv4")
-    return Address.from_raw(raw)
+    if length > 28:
+        error(failed, "the socket address exceeds the supported IP storage")
+    return try decode_address(&raw, length)
 
-func query_address(descriptor: i32, address: SocketAddress*, length: u32*, peer: bool) -> i32:
+func query_address(descriptor: i32, address: void*, length: u32*, peer: bool) -> i32:
     if peer:
         return getpeername(descriptor, address, length)
     return getsockname(descriptor, address, length)
+
+func set_socket_integer(descriptor: i32, level: i32, option: i32, value: i32) -> !:
+    var result = setsockopt(descriptor, level, option, &value, 4)
+    while result < 0 and c.errno() == c.interrupted:
+        result = setsockopt(descriptor, level, option, &value, 4)
+    if result != 0:
+        error(failed, "the socket option could not be set")
 """),
     Prelude(name = "debug", text = """
 import c

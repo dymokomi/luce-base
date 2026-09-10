@@ -5,7 +5,7 @@ import net
 import thread
 
 struct Peer:
-    var address: net.Address
+    var address: net.SocketAddress
     var datagram_port: u16
 
 func client(context: void*):
@@ -25,7 +25,7 @@ func try_send(connection: net.Connection*) -> !:
     print(f"client got {(str)buffer}")
 
 pub func main(arguments: str[]) -> i32!:
-    var listener = try net.Listener.bind(net.Address.loopback(0))
+    var listener = try net.Listener.bind(net.SocketAddress.loopback(0))
     let bound = (try listener.address())
     var peer = Peer(address = bound, datagram_port = 0)
     let worker = try thread.spawn(client, &peer)
@@ -37,11 +37,11 @@ pub func main(arguments: str[]) -> i32!:
     try worker.join()
     try connection.close()
     try listener.close()
-    var a = try net.Datagram.bind(net.Address.loopback(0))
-    var b = try net.Datagram.bind(net.Address.loopback(0))
+    var a = try net.Datagram.bind(net.SocketAddress.loopback(0))
+    var b = try net.Datagram.bind(net.SocketAddress.loopback(0))
     try a.send_to("hello over udp".bytes, (try b.address()))
     let (count, sender) = try b.receive_from(buffer)
-    print(f"udp got {(str)buffer[..<count]} from the loopback: {sender.ip == 2130706433}")
+    print(f"udp got {(str)buffer[..<count]} from the loopback: {sender.ip.ipv4_number() == 2130706433}")
     try a.close()
     try b.close()
     return 0

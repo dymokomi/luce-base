@@ -1,0 +1,5 @@
+[package]
+name = "ipv6_socket_contracts"
+
+[native]
+sources = ["reference.c"]

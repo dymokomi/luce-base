@@ -827,23 +827,27 @@ An IP value without a port, prefix length or interface scope. Storage is owned i
 - `func write_octets(destination: u8[]) -> usize!` — Copy network-order octets, returning four or sixteen. On insufficient storage report io.full without modifying the destination.
 - `func format(buffer: u8[]) -> str!` — Format into borrowed storage without allocation or a trailing NUL. IPv6 uses lowercase hex, the first longest zero run, and never compresses one zero field. Mapped IPv6 uses ::ffff: followed by dotted IPv4. A 39-byte buffer always suffices; smaller buffers work when the result fits. On io.full the destination is unchanged. The returned view lives only as long as the buffer.
 
-### `Address` (struct)
+### `SocketAddress` (struct)
 
-An IPv4 address and port, both in host order.
+An IP endpoint: address, port and optional IPv6 interface scope. A zero value is 0.0.0.0:0. The port is host order; scope zero means no explicit interface index. IPv4 endpoints must have scope zero. Values own their inline storage.
 
-- `var ip: u32`
+- `var ip: IpAddress`
 - `var port: u16`
-- `static func loopback(port: u16) -> Address`
-- `static func any(port: u16) -> Address`
+- `var scope_id: u32`
+- `static func loopback(port: u16, version: IpVersion = IpVersion.ipv4) -> SocketAddress`
+- `static func any(port: u16, version: IpVersion = IpVersion.ipv4) -> SocketAddress`
+- `static func parse(text: str) -> SocketAddress?` — Parse IPv4:port or [IPv6%scope]:port without DNS. Scope is optional and numeric, not an interface name. Ports use 1–5 decimal digits; scope IDs use 1–10. Leading zeroes in these numbers are accepted and omitted on output.
+- `func equals(other: SocketAddress) -> bool`
+- `func format(buffer: u8[]) -> str!` — Canonical numeric endpoint text. IPv6 is bracketed; a nonzero scope is decimal. A 58-byte buffer always suffices. The returned view borrows buffer, has no trailing NUL, and insufficient storage is left unchanged (io.full).
 
-- `func resolve(host: c.str, port: u16) -> Address!` — The first usable IPv4 stream address of `host`. Resolution may block in the OS. All resolver storage is released before returning, including malformed results.
+- `func resolve(host: c.str, port: u16, version: IpVersion? = none) -> SocketAddress!` — The first usable IPv4 or IPv6 stream endpoint in host resolver order. An explicit version restricts results. Resolution can block in the OS. Every resolver node is released, including on malformed or unusable results.
 
 ### `Listener` (struct)
 
 One owned TCP listener. Zero is closed. Copying does not duplicate ownership; copies must not be independently closed. Synchronize calls on one owner.
 
-- `static func bind(address: Address, backlog: i32 = 128) -> Listener!` — Bind and listen with a positive requested backlog. The OS may cap the pending connection queue; the value does not limit accepted connections.
-- `func address() -> Address!` — Query the bound endpoint, including an automatically assigned port.
+- `static func bind(address: SocketAddress, backlog: i32 = 128, ipv6_only: bool = true) -> Listener!` — Bind and listen with a positive requested backlog. The OS may cap the pending connection queue; the value does not limit accepted connections. IPv6 listeners default to IPv6-only on both hosts. Set ipv6_only=false to also permit mapped IPv4 peers; the option has no effect for IPv4 listeners.
+- `func address() -> SocketAddress!` — Query the bound endpoint, including an automatically assigned port.
 - `func accept() -> Connection!`
 - `func descriptor() -> i32?` — Borrow the descriptor; the caller must not close it or retain it past this owner.
 - `mutating func close() -> !` — Consume ownership before the OS call. Repeated close is safe even after failure.
@@ -857,10 +861,10 @@ Which direction to stop using on a connection. This does not close its owner.
 
 One owned TCP connection implementing borrowed Reader and Writer interfaces. Zero is closed. Copying does not duplicate ownership; copies must not be independently closed. Synchronize calls on one owner.
 
-- `static func connect(address: Address) -> Connection!`
+- `static func connect(address: SocketAddress) -> Connection!`
 - `static func over(descriptor: i32) -> Connection!` — Take ownership of a socket the caller made (a `socketpair`, an inherited descriptor), including on failure. Set close-on-exec, preserving existing flags; this is not atomic with the caller's creation/fork/exec operations. A negative descriptor is rejected. The socket is marked so that a write after the peer closed fails instead of ending the process. Make the connection while the peer is still there: macOS refuses the mark on a socket whose peer has already gone, and a write on such a connection answers `closed` without sending.
-- `func local_address() -> Address!` — Query this connection's local IPv4 endpoint, including its assigned port.
-- `func peer_address() -> Address!` — Query the connected peer's IPv4 endpoint; this is an address, not an identity.
+- `func local_address() -> SocketAddress!` — Query this connection's local IP endpoint, including its assigned port.
+- `func peer_address() -> SocketAddress!` — Query the connected peer's IP endpoint; this is an address, not an identity.
 - `mutating func shutdown(direction: ShutdownDirection = ShutdownDirection.both) -> !` — Stop one or both directions while retaining ownership. Shutting down writes sends EOF after queued TCP bytes, so the peer can still send its response. Use read shutdown only when input is no longer needed; treatment of queued input follows the host. Neither direction flushes user buffers; flush any io.BufferedWriter before shutting down writes.
 - `mutating func write(data: const u8[]) -> usize!` — Send some bytes, retrying interruption. Use io.write_all for a complete payload and its optional progress output to resume after a later failure. An empty input makes no syscall. A closed peer never raises SIGPIPE.
 - `mutating func read(buffer: u8[]) -> usize!` — Receive some bytes. For nonempty storage, zero is peer EOF; empty storage returns zero without probing the peer. This call does not fill the buffer.
@@ -873,10 +877,10 @@ One owned TCP connection implementing borrowed Reader and Writer interfaces. Zer
 
 One owned UDP socket. Zero is closed. Copying does not duplicate ownership; copies must not be independently closed. Synchronize calls on one owner.
 
-- `static func bind(address: Address) -> Datagram!`
-- `func address() -> Address!` — Query the bound endpoint, including an automatically assigned port.
-- `func send_to(data: const u8[], address: Address) -> !` — Send one complete IPv4 datagram, including an empty packet. A successful send confirms local acceptance, not peer delivery. Oversize packets fail.
-- `func receive_from(buffer: u8[]) -> (usize, Address)!` — Consume one packet. Zero means a valid empty datagram, not stream EOF. If storage is too small, consume/discard the packet and report message_too_large; a copied prefix may remain in the buffer. The next call receives the next packet. Empty storage can receive only an empty packet.
+- `static func bind(address: SocketAddress, ipv6_only: bool = true) -> Datagram!` — IPv6 sockets are IPv6-only by default. Set ipv6_only=false to permit mapped IPv4 packets; it has no effect when binding an IPv4 address.
+- `func address() -> SocketAddress!` — Query the bound endpoint, including an automatically assigned port.
+- `func send_to(data: const u8[], address: SocketAddress) -> !` — Send one complete IP datagram, including an empty packet. A successful send confirms local acceptance, not peer delivery. IPv4 permits up to 65507 payload bytes, IPv6 up to 65527; host/path limits may be smaller. IPv6 jumbograms are not supported. The destination must match the socket version.
+- `func receive_from(buffer: u8[]) -> (usize, SocketAddress)!` — Consume one packet. Zero means a valid empty datagram, not stream EOF. If storage is too small, consume/discard the packet and report message_too_large; a copied prefix may remain in the buffer. The next call receives the next packet. Empty storage can receive only an empty packet.
 - `func descriptor() -> i32?` — Borrow the descriptor; the caller must not close it or retain it past this owner.
 - `mutating func close() -> !` — Consume ownership before the OS call. Repeated close is safe even after failure.
 - `mutating func destroy()` — Best-effort cleanup for unwinding; use close to observe delayed errors.
