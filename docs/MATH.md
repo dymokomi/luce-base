@@ -6,6 +6,8 @@ The wrappers allocate no Base storage. They return floating-point values directl
 including NaN and infinity, and do not translate host errno or floating-point
 exception flags into Base errors. Those side effects follow the host library.
 See [the host error model](https://man7.org/linux/man-pages/man7/math_error.7.html).
+Base enforces the exact negative-infinity limit of expm1 and the dividend's sign
+on a zero remainder; some host implementations violate these under directed rounding.
 
 ## Operations
 
@@ -58,6 +60,10 @@ Base does not currently promise identical transcendental bits across supported
 hosts or a certified global ULP bound. The native compiler must preserve the
 specified operation and precision, including fused arithmetic and special values.
 Tests run native optimization levels 0–3 and both C comparison configurations.
+The contract suite exercises all four host rounding directions, including halfway
+fma, subnormal scalbn, sqrt rounding, exact remainder vectors, signed-zero and
+infinity rules, and signaling-NaN classification without raising invalid. It also
+verifies that calls retain the selected rounding direction.
 
 The accuracy gate contains two independent reference campaigns:
 

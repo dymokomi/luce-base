@@ -87,6 +87,9 @@ pub func log1p(x: f32) -> f32:
 
 ## `exp(x) - 1` without cancellation near zero. Signed zero is preserved.
 pub func expm1(x: f32) -> f32:
+    # Preserve the exact negative-infinity limit under directed rounding too.
+    if x.bits() == (sign_mask | exponent_mask):
+        return -1.0
     return c_expm1(x)
 
 ## Multiply `x * y` and add `z` with one final rounding, rather than rounding the
@@ -131,7 +134,9 @@ pub func modf(x: f32) -> (f32, f32):
 ## This differs from `mod`, which truncates the quotient. Zero has the sign of `x`;
 ## a zero divisor or infinite dividend produces NaN.
 pub func remainder(x: f32, y: f32) -> f32:
-    return c_remainder(x, y)
+    let result = c_remainder(x, y)
+    # Match the f64 contract even if a host loses the zero sign while rounding.
+    return copysign(result, x) if (result.bits() & magnitude_mask) == 0 else result
 
 pub func sin(x: f32) -> f32:
     return c_sin(x)

@@ -21,7 +21,7 @@ Define EOF, zero-length operations, interruption, would-block and timeout separa
 
 | Module | Current source | Required work |
 | --- | --- | --- |
-| `math`, `math32` | Explicit special-value contracts, f64/f32 libm operations, precision helpers and checked integer operations; documented numerical contracts and independent reference vectors across 28 operations | Extend rounding-mode and exceptional-argument coverage beyond the existing vectors |
+| `math`, `math32` | Explicit special-value contracts, f64/f32 libm operations, precision helpers and checked integer operations; documented numerical contracts, independent reference vectors across 28 operations and exceptional-value checks under all four rounding directions | Final host gates and continued reference coverage |
 | `net` | IPv4/IPv6 value parsing, canonical formatting and byte conversion; IPv4/IPv6 TCP/UDP, first/all-address resolution with owned results and blocking sockets; TCP Reader/Writer with explicit short transfers and recoverable write progress, closed zero values, checked close/adoption, close-on-exec handles, local/peer endpoint queries, configurable backlog, TCP half-close and explicit UDP truncation/empty-packet behavior; nonblocking controls, explicit accepted-socket mode, TCP no-delay/keepalive and kernel buffer settings; reusable readiness polling, bounded connection setup, borrowed deadline streams with cancellation and typed host error categories | Sustained concurrent transfer coverage |
 | `io` | Reader/Writer contracts, borrowed slice and buffered adapters, exact/all/bounded-copy helpers with confirmed progress, unbuffered stdin, synchronized libc stdout/stderr, explicit flush and formatting sink | Seeking where supported, broader concurrent and sustained-transfer coverage; confirm file/socket adapters are ready for the later TLS stage |
 | `files` | Owned Reader/Writer handles, open modes, seeking/sync, checked close, path/handle metadata and checked length/permission/timestamp updates; bounded streaming whole-file helpers, owned directory iteration, bounded depth-first traversal and descriptor-relative lookup/open, checked existence, single-entry mutation, bounded symlink reads, owned temporary files and atomic replacement and bounded copying with publication status | Broader concurrent filesystem campaigns and error detail |
@@ -46,7 +46,9 @@ These observations prioritize contract tests; they are not a completed library a
   bits. [Numerical contracts and evidence](MATH.md) document the surface and precision
   policy. Live Decimal references for log1p/expm1 and 4,838 offline high-precision
   vectors across 28 operations provide regression coverage, without asserting a
-  global libm error bound. Extend host rounding-mode and exceptional-argument tests.
+  global libm error bound. The contract suite covers all four host rounding directions
+  and exposed two host defects now corrected in the wrappers: the sign of a zero
+  remainder and the exact expm1(-infinity) limit.
 - `net.resolve` now releases complete result chains on every exit and skips missing
   or undersized addresses; deterministic fixtures check cleanup. Sockets now have
   closed zero values, consume-before-close ownership, checked close-on-exec adoption,
