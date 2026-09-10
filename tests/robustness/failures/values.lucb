@@ -4,8 +4,21 @@ import memory
 import strings
 import paths
 import io
+import unicode
 
 func text_work() -> !:
+    let folded = try unicode.case_fold("Straße")
+    defer unicode.release(folded)
+    assert(folded == "strasse")
+    let unicode_upper = try unicode.to_upper("Straße")
+    defer unicode.release(unicode_upper)
+    assert(unicode_upper == "STRASSE")
+    let unicode_lower = try unicode.to_lower("ΟΣ")
+    defer unicode.release(unicode_lower)
+    assert(unicode_lower == "ος")
+    let unicode_empty = try unicode.case_fold("")
+    defer unicode.release(unicode_empty)
+    assert(unicode_empty == "")
     assert(try strings.parse_f64("12.5") == 12.5)
     assert(try strings.parse_f32("-0.125") == (f32)-0.125)
     let parts = try strings.split("ab,,Cd,", ',')

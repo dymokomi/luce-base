@@ -13,6 +13,7 @@ if [ ! -x ../luce-seed/build/lucb ]; then
 fi
 ./build.sh
 python3 tools/test_run_case.py
+python3 tools/unicode_tables.py --check
 # what the binary carries is what the sources say: the standard modules, the C runtime, the
 # version, and the library reference are generated, and drift is a failure, not a note
 python3 tools/embed_std.py --check

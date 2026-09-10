@@ -10,6 +10,7 @@ sync
 process
 utf8
 strings
+unicode
 paths
 files
 math

@@ -411,6 +411,24 @@ Text built piece by piece. The builder keeps the allocator that was current when
 - `mutating func truncate(length: usize) -> !` — Shorten to a byte length without allocation. Reject lengths past the initialized text, preserving it on failure. This does not validate a UTF-8 boundary. Previously borrowed views expire; a destroyed builder is closed.
 - `mutating func destroy()` — Give the bytes back; the builder is empty and holds nothing.
 
+## `unicode`
+
+Unicode 17.0.0 text operations over strict UTF-8. Data is pinned and generated from the vendored Unicode Character Database; no process locale is consulted. Inputs remain borrowed and must stay unchanged during a call. Returned text is owned, NUL-terminated and released with unicode.release in the same allocator. Malformed UTF-8 reports utf8.invalid_sequence. Output limits count bytes and report strings.output_too_large; allocation/size failure is memory.exhausted.
+
+- `let version: str = "17.0.0"`
+
+- `func release(text: str)` — Release text returned by this module, using its original current allocator.
+
+- `func is_whitespace(scalar: u32) -> bool` — Unicode White_Space property; false for unassigned or invalid scalar values.
+
+- `func combining_class(scalar: u32) -> u8` — Canonical combining class, zero for starters and unassigned/invalid values.
+
+- `func to_upper(text: str, max_bytes: usize? = none) -> str!` — Full default uppercase mapping, including multi-scalar expansions. This is locale-independent Unicode casing, without normalization or language tailoring.
+
+- `func to_lower(text: str, max_bytes: usize? = none) -> str!` — Full default lowercase mapping, including contextual final Greek sigma and multi-scalar expansions. Turkish/Azeri/Lithuanian language tailoring is excluded.
+
+- `func case_fold(text: str, turkic: bool = false, max_bytes: usize? = none) -> str!` — Full Unicode case folding for caseless comparison. Optional turkic selects the T mappings in CaseFolding.txt; this is not locale-aware lowercasing. Folding does not normalize text, so canonically equivalent inputs can still differ in bytes.
+
 ## `paths`
 
 File system paths as text, with `/` as the separator.
