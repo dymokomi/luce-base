@@ -125,6 +125,7 @@ pub func websocket_check_request(head: HttpHead) -> str!:
         error(websocket_invalid, "unsupported WebSocket version")
     if head.field_count("sec-websocket-key") != 1:
         error(websocket_invalid, "WebSocket upgrade needs one key")
+    try websocket_protocols(head.fields)
     let key = head.field("sec-websocket-key") else error(websocket_invalid, "missing WebSocket key")
     if not websocket_key_valid(key):
         error(websocket_invalid, "invalid WebSocket request key")
@@ -166,6 +167,7 @@ pub func websocket_encode_request(output: u8[], host: str, target: str, key: str
             if not http_token(part):
                 error(websocket_invalid, "invalid offered WebSocket subprotocol")
         count = 5
+    try websocket_protocols(fields[..<count])
     return try http_encode_head(output, HttpHead(method = "GET", target = target, version = "HTTP/1.1", fields = fields[..<count], body_kind = HttpBodyKind.empty, keep_alive = true, connection_upgrade = true))
 
 ## Encode a successful upgrade after application approval. A selected protocol
@@ -189,3 +191,23 @@ pub func websocket_encode_response(output: u8[], request: HttpHead, protocol: st
     var fields: HttpField[3] = [HttpField(name = "Upgrade", value = "websocket"), HttpField(name = "Sec-WebSocket-Accept", value = accept_value), HttpField(name = "Sec-WebSocket-Protocol", value = protocol)]
     let count: usize = 3 if protocol.length > 0 else 2
     return try http_encode_head(output, HttpHead(method = "GET", version = "HTTP/1.1", status = 101, fields = fields[..<count], body_kind = HttpBodyKind.empty, keep_alive = true, connection_upgrade = true))
+
+## Bound negotiation work as well as bytes. Offers are case-sensitive and unique
+## across repeated fields; no more than 128 subprotocols can be offered.
+func websocket_protocols(fields: const HttpField[]) -> !:
+    var seen: str[128]
+    var count: usize = 0
+    for field in fields:
+        if not http_equal(field.name, "sec-websocket-protocol"):
+            continue
+        var at: usize = 0
+        while let candidate = http_list_next(field.value, &at):
+            if not http_token(candidate):
+                error(websocket_invalid, "invalid offered WebSocket subprotocol")
+            for previous in seen[..<count]:
+                if candidate == previous:
+                    error(websocket_invalid, "duplicate offered WebSocket subprotocol")
+            if count == seen.length:
+                error(websocket_limit, "too many offered WebSocket subprotocols")
+            seen[count] = candidate
+            count += 1

@@ -33,6 +33,12 @@ func test_http() -> !:
     let bad: str[14] = ["GET / HTTP/1.1\r\n\r\n", "GET / HTTP/1.1\r\nHost: a\r\nHost: b\r\n\r\n", "GET / HTTP/1.1\r\nHost: a\r\n folded: x\r\n\r\n", "GET / HTTP/1.1\r\nHost : a\r\n\r\n", "GET / HTTP/1.1\r\nHost: a\r\nContent-Length: -1\r\n\r\n", "GET / HTTP/1.1\r\nHost: a\r\nContent-Length: 1,2\r\n\r\n", "GET / HTTP/1.1\r\nHost: a\r\nContent-Length: 1\r\nTransfer-Encoding: chunked\r\n\r\n", "GET / HTTP/1.1\r\nHost: a\r\nTransfer-Encoding: chunked,chunked\r\n\r\n", "GET / HTTP/1.0\r\nTransfer-Encoding: chunked\r\n\r\n", "GET / HTTP/1.1\r\nHost: a\r\nContent-Length: 18446744073709551616\r\n\r\n", "GET / HTTP/1.1\r\nHost: a\r\nExpect: magic\r\n\r\n", "GET / HTTP/1.1\r\nHost: a\nX: b\r\n\r\n", "GET / HTTP/1.1\r\nHost: a\r\n\r\nx", "GET / HTTP/2.0\r\nHost: a\r\n\r\n"]
     for text in bad:
         request_rejected(text)
+    let bad_targets: str[7] = ["GET * HTTP/1.1\r\nHost: a\r\n\r\n", "CONNECT [::1] HTTP/1.1\r\nHost: a\r\n\r\n", "GET /bad%2 HTTP/1.1\r\nHost: a\r\n\r\n", "GET relative HTTP/1.1\r\nHost: a\r\n\r\n", "GET / HTTP/1.1\r\nHost: [xyz]\r\n\r\n", "GET / HTTP/1.1\r\nHost: bad%GG\r\n\r\n", "CONNECT host: HTTP/1.1\r\nHost: a\r\n\r\n"]
+    for text in bad_targets:
+        request_rejected(text)
+    discard(try net.http_parse_request("OPTIONS * HTTP/1.1\r\nHost: example.test\r\n\r\n".bytes, fields))
+    discard(try net.http_parse_request("CONNECT [::1]:443 HTTP/1.1\r\nHost: [::1]:443\r\n\r\n".bytes, fields))
+    discard(try net.http_parse_request("GET /caf%C3%A9 HTTP/1.1\r\nHost: [v1.future:address]\r\n\r\n".bytes, fields))
     let response = try net.http_parse_response("HTTP/1.1 200 OK\r\nContent-Length: 9999999999\r\n\r\n".bytes, fields, "HEAD")
     assert(response.body_kind == net.HttpBodyKind.empty)
     let tunnel = try net.http_parse_response("HTTP/1.1 200 OK\r\nContent-Length: wrong\r\n\r\n".bytes, fields, "CONNECT")
@@ -118,6 +124,33 @@ func test_websocket() -> !:
     var nonce: u8[24]
     let fresh = try net.websocket_client_key(nonce)
     discard(try net.websocket_accept_key(fresh, accept))
+    var protocol_output: u8[1024]
+    var duplicate = false
+    discard(net.websocket_encode_request(protocol_output, "example.test", "/", key, "chat, chat") catch problem:
+        assert(problem.code == net.websocket_invalid)
+        duplicate = true
+        recover "".bytes)
+    assert(duplicate)
+    discard(try net.websocket_encode_request(protocol_output, "example.test", "/", key, "chat, Chat"))
+    var repeated = head
+    fields[head.fields.length] = net.HttpField(name = "Sec-WebSocket-Protocol", value = "chat")
+    repeated.fields = fields[..<head.fields.length + 1]
+    duplicate = false
+    discard(net.websocket_check_request(repeated) catch problem:
+        duplicate = true
+        recover "")
+    assert(duplicate)
+    # RFC 6455 section 5.7's masked Hello frame is independent of our encoder.
+    let example = b"\x81\x85\x37\xfa\x21\x3d\x7f\x9f\x4d\x51\x58"
+    var example_decoder = net.WebSocketDecoder.create(true)
+    var example_output: u8[5]
+    let example_step = try example_decoder.consume(example, example_output)
+    assert(example_step.consumed == example.length and example_step.message_end and (str)example_output == "Hello")
+    var abnormal = false
+    example_decoder.finish() catch problem:
+        assert(problem.code == io.unexpected_eof)
+        abnormal = true
+    assert(abnormal)
     var wire: u8[4096]
     var sink = io.SliceWriter.over(wire)
     var encoder = net.WebSocketEncoder.create(true)
@@ -235,6 +268,10 @@ func test_mutations() -> !:
     print("ok 10000 deterministic malformed-input cases")
 
 pub func main(arguments: c.str[]) -> i32!:
+    if arguments.length == 4 and (str)arguments[1] == "frame":
+        var encoder = net.WebSocketEncoder.create((str)arguments[2] == "client")
+        try encoder.write(io.stdout(), net.WebSocketOpcode.binary, ((str)arguments[3]).bytes)
+        return 0
     if arguments.length == 3 and (str)arguments[1] == "accept":
         var output: u8[28]
         print(try net.websocket_accept_key((str)arguments[2], output))

@@ -88,45 +88,108 @@ func http_line(data: const u8[], cursor: usize*) -> str!:
         *cursor += 1
     error(http_invalid, "incomplete HTTP line")
 
+func http_uri_letter(byte: u8) -> bool:
+    return (byte >= 'a' and byte <= 'z') or (byte >= 'A' and byte <= 'Z')
+
+func http_uri_name(byte: u8) -> bool:
+    return http_uri_letter(byte) or (byte >= '0' and byte <= '9') or byte == '-' or byte == '.' or byte == '_' or byte == '~' or byte == '!' or byte == '$' or byte == '&' or byte == 39 or byte == '(' or byte == ')' or byte == '*' or byte == '+' or byte == ',' or byte == ';' or byte == '='
+
 func http_target_valid(target: str) -> bool:
     if target.length == 0:
         return false
-    for byte in target.bytes:
-        if byte <= 32 or byte >= 127 or byte == '#':
+    var at: usize = 0
+    while at < target.length:
+        let byte = target.bytes[at]
+        if byte == '%':
+            if target.length - at < 3 or http_hex(target.bytes[at + 1]) == none or http_hex(target.bytes[at + 2]) == none:
+                return false
+            at += 3
+            continue
+        if not http_uri_name(byte) and byte != ':' and byte != '/' and byte != '?' and byte != '@' and byte != '[' and byte != ']':
             return false
+        at += 1
     return true
+
+func http_request_target_valid(method: str, target: str) -> bool:
+    if not http_target_valid(target):
+        return false
+    if method == "CONNECT":
+        var separator: usize? = none
+        for index in 0..<target.length:
+            if target.bytes[index] == ':':
+                separator = index
+        let colon = separator else return false
+        if colon + 1 == target.length:
+            return false
+        for byte in target.bytes[colon + 1..]:
+            if byte < '0' or byte > '9':
+                return false
+        return http_host_valid(target)
+    if target == "*":
+        return method == "OPTIONS"
+    if target.bytes[0] == '/':
+        return true
+    # Absolute-form accepts a syntactically valid URI scheme. Its authority and
+    # scheme-specific interpretation belong to the client/proxy/server policy.
+    if not http_uri_letter(target.bytes[0]):
+        return false
+    for index in 1..<target.length:
+        let byte = target.bytes[index]
+        if byte == ':':
+            return index + 1 < target.length
+        if not http_uri_letter(byte) and not (byte >= '0' and byte <= '9') and byte != '+' and byte != '-' and byte != '.':
+            return false
+    return false
 
 func http_host_valid(host: str) -> bool:
     if host.length == 0:
         return false
-    for byte in host.bytes:
-        if byte <= 32 or byte >= 127 or byte == '/' or byte == '\\\\' or byte == ',' or byte == '@' or byte == '?' or byte == '#':
-            return false
+    var port_start = host.length
     if host.bytes[0] == '[':
         let end = strings.find(host, "]") else return false
-        if end == 1:
+        let literal = (str)host.bytes[1..<end]
+        if not http_ip_literal(literal):
             return false
-        let tail = (str)host.bytes[end + 1..]
-        if tail.length == 0:
-            return true
-        if tail.bytes[0] != ':':
-            return false
-        for byte in tail.bytes[1..]:
-            if byte < '0' or byte > '9':
+        if end + 1 < host.length:
+            if host.bytes[end + 1] != ':':
                 return false
-        return true
-    var colons: usize = 0
-    var colon_at: usize = 0
-    for index in 0..<host.length:
-        if host.bytes[index] == '[' or host.bytes[index] == ']':
+            port_start = end + 2
+    else:
+        var at: usize = 0
+        while at < host.length:
+            let byte = host.bytes[at]
+            if byte == ':':
+                if at == 0:
+                    return false
+                port_start = at + 1
+                break
+            if byte == '%':
+                if host.length - at < 3 or http_hex(host.bytes[at + 1]) == none or http_hex(host.bytes[at + 2]) == none:
+                    return false
+                at += 3
+                continue
+            if not http_uri_name(byte):
+                return false
+            at += 1
+    for byte in host.bytes[port_start..]:
+        if byte < '0' or byte > '9':
             return false
-        if host.bytes[index] == ':':
-            colons += 1
-            colon_at = index
-    if colons > 1 or (colons == 1 and colon_at == 0):
+    return true
+
+func http_ip_literal(text: str) -> bool:
+    if let address = IpAddress.parse(text):
+        return address.kind == IpVersion.ipv6
+    # RFC 3986 IPvFuture: v + hexadecimal version + '.' + nonempty address.
+    if text.length < 4 or (text.bytes[0] != 'v' and text.bytes[0] != 'V'):
         return false
-    if colons == 1:
-        for byte in host.bytes[colon_at + 1..]:
-            if byte < '0' or byte > '9':
-                return false
+    var at: usize = 1
+    while at < text.length and http_hex(text.bytes[at]) != none:
+        at += 1
+    if at == 1 or at + 1 >= text.length or text.bytes[at] != '.':
+        return false
+    at += 1
+    while at < text.length:
+        if not http_uri_name(text.bytes[at]) and text.bytes[at] != ':':
+            return false
+        at += 1
     return true

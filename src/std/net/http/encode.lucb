@@ -9,7 +9,7 @@ pub func http_encode_head(output: u8[], head: HttpHead) -> const u8[]!:
     if head.version != "HTTP/1.0" and head.version != "HTTP/1.1":
         error(http_unsupported, "unsupported HTTP version")
     if head.status == 0:
-        if not http_token(head.method) or not http_target_valid(head.target):
+        if not http_token(head.method) or not http_request_target_valid(head.method, head.target):
             error(http_invalid, "invalid HTTP request line")
         try io.write_all(&sink, head.method.bytes)
         try io.write_all(&sink, " ".bytes)

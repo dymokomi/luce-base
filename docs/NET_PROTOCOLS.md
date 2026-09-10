@@ -26,7 +26,8 @@ are wire bytes, including obs-text, rather than a guarantee of UTF-8. Validate a
 field's encoding before handing its raw value to a text-oriented application API.
 
 HTTP/1.0 and HTTP/1.1 are supported. Parsing validates CRLF, field tokens and values,
-Host cardinality, Content-Length agreement and overflow, Connection token lists,
+Host authority syntax/cardinality, request-target forms and percent escapes,
+Content-Length agreement and overflow, Connection token lists,
 and transfer framing. The only implemented transfer coding is `chunked`; unsupported
 codings and expectations have a distinct error category. No compression is decoded.
 Content-Length together with Transfer-Encoding is rejected. The request method must
@@ -78,7 +79,8 @@ The client/server handshake encoders use the same HTTP validation path.
 the borrowed key. The application must approve the request's Origin, identity and
 service policy before sending the successful upgrade. Subprotocol selection is
 explicit, case-sensitive, and restricted to a protocol the client offered. The
-client rejects unsolicited subprotocols and all selected extensions.
+client rejects unsolicited subprotocols and all selected extensions. Offers must
+contain unique tokens, with at most 128 subprotocols across all fields.
 
 `websocket_accept_key` implements the RFC's fixed SHA-1/base64 transform. This is
 only the public handshake calculation, not a general hashing or identity facility.
@@ -117,7 +119,9 @@ supplemental C comparisons. It exercises fragmented input, pipeline boundaries,
 fixed/chunked/EOF framing, duplicate lengths, malformed headers and trailers,
 WebSocket masking/fragmentation/control/UTF-8, extended length boundaries, short
 writes, deterministic malformed-input mutations, and handshake vectors computed
-independently with Python's SHA-1/base64 implementation. It is included in `test.sh`.
+independently with Python's SHA-1/base64 implementation. Emitted client/server
+frames are also decoded independently in Python at the 125/126 and 65535/65536
+length boundaries. The suite is included in `test.sh`.
 
 The governing references are [RFC 9112](https://www.rfc-editor.org/rfc/rfc9112.html),
 [RFC 9110](https://www.rfc-editor.org/rfc/rfc9110.html), and

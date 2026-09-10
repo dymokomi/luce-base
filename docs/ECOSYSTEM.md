@@ -111,8 +111,8 @@ responses, middleware, application lifecycle and useful errors. Include static f
 streamed uploads/downloads, limits, timeouts, backpressure, cancellation, graceful
 shutdown, logging and deployment configuration.
 
-Start with a precisely specified HTTP/1.1 implementation and streaming API; add further
-protocols/features only with their own contracts and tests. Serve pages, assets and
+Use the standard `net` HTTP/1.1 and WebSocket codecs with a server-owned streaming
+API and raw TCP support. Add further features with their own contracts and tests. Serve pages, assets and
 explicitly registered application handlers. Serving source files must not implicitly
 execute uploaded code. Define path containment, request framing, ranges and conditional
 responses as ordinary server correctness requirements.

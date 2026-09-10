@@ -12,7 +12,7 @@ pub func http_parse_request(data: const u8[], storage: HttpField[], limits: Http
     let second = strings.find(rest, " ") else error(http_invalid, "request line needs a version")
     let target = (str)rest.bytes[..<second]
     let version = (str)rest.bytes[second + 1..]
-    if not http_token(method) or not http_target_valid(target):
+    if not http_token(method) or not http_request_target_valid(method, target):
         error(http_invalid, "invalid request method or target")
     var head = HttpHead(method = method, target = target, version = version)
     try http_finish_head(&head, data, &cursor, storage, limits)
@@ -42,6 +42,8 @@ pub func http_parse_response(data: const u8[], storage: HttpField[], request_met
     let number = try http_number((str)line.bytes[9..<12])
     if number < 100 or number > 599 or not http_field_valid(HttpField(name = "reason", value = (str)line.bytes[13..])):
         error(http_invalid, "invalid HTTP status or reason")
+    if not http_token(request_method):
+        error(http_invalid, "invalid request method for response framing")
     var head = HttpHead(method = request_method, version = (str)line.bytes[..<8], status = (u16)number)
     try http_finish_head(&head, data, &cursor, storage, limits)
     return head

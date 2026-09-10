@@ -31,4 +31,27 @@ for flags in FLAGS:
     for key in keys:
         expected = base64.b64encode(hashlib.sha1(key + b'258EAFA5-E914-47DA-95CA-C5AB0DC85B11').digest()) + b'\n'
         assert checked([binary, 'accept', key.decode()]) == expected
+    for size in (0, 125, 126, 65535, 65536):
+        payload = ('abcXYZ' * ((size + 5) // 6))[:size]
+        for client in (False, True):
+            wire = checked([binary, 'frame', 'client' if client else 'server', payload])
+            assert wire[0] == 0x82 and bool(wire[1] & 0x80) == client
+            length = wire[1] & 0x7f
+            at = 2
+            if length == 126:
+                length = int.from_bytes(wire[2:4], 'big')
+                at = 4
+                assert 126 <= length <= 65535
+            elif length == 127:
+                length = int.from_bytes(wire[2:10], 'big')
+                at = 10
+                assert 65536 <= length < 2**63
+            assert length == size
+            if client:
+                mask = wire[at:at + 4]
+                at += 4
+                body = bytes(value ^ mask[index % 4] for index, value in enumerate(wire[at:]))
+            else:
+                body = wire[at:]
+            assert body == payload.encode() and len(wire) == at + size
     print('PASS protocol contracts and 64 independent handshake vectors:', ' '.join(flags), flush=True)
