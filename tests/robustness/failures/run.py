@@ -45,7 +45,8 @@ with tempfile.TemporaryDirectory(prefix="luce-base-failures-") as temp:
         for i in range(count):
             (directory / f"entry-{i:02}").touch()
         directories.append(directory)
-    for flags in ([], ["--backend=c"], ["--backend=c", "--release"]):
+    for flags in [*[["--opt", str(level)] for level in range(4)],
+                  ["--backend=c"], ["--backend=c", "--release"]]:
         file_reader = work / "file_read"
         run([str(root / "build/luce-base"), "build", str(sources / "file_read.lucb"),
              *flags, "-o", str(file_reader)])

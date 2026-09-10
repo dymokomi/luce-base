@@ -1,10 +1,10 @@
-import c
 ## Text operations over `str` views; what allocates says so and uses the current allocator,
 ## and says how the allocation is given back: `release` for a text made here, `free` for
 ## the array `split` answers.
 
+import c
+import io
 import memory
-from io import Writer
 
 pub func starts_with(text: str, prefix: str) -> bool:
     if prefix.length > text.length:
@@ -80,11 +80,11 @@ pub func join(pieces: const str[], separator: str) -> str!:
     var total: usize = 0
     var i: usize = 0
     while i < pieces.length:
-        total += pieces[i].length
+        total = total +? pieces[i].length else error(memory.exhausted, "the joined text is too large")
         if i + 1 < pieces.length:
-            total += separator.length
+            total = total +? separator.length else error(memory.exhausted, "the joined text is too large")
         i += 1
-    let out = try alloc u8[total + 1]
+    let out = try terminated_buffer(total)
     var n: usize = 0
     i = 0
     while i < pieces.length:
@@ -100,7 +100,7 @@ pub func join(pieces: const str[], separator: str) -> str!:
 ## A copy of `text` in the current allocator, NUL-terminated so it may be a `c.str`;
 ## `release` gives it back.
 pub func copy(text: str) -> str!:
-    let out = try alloc u8[text.length + 1]
+    let out = try terminated_buffer(text.length)
     memory.copy(out, text.bytes, text.length)
     out[text.length] = 0
     return (str)out[..<text.length]
@@ -132,7 +132,7 @@ pub func to_i64(text: str) -> i64?:
 ## ASCII case folding; other bytes pass through. NUL-terminated in the current
 ## allocator; `release` gives the text back.
 pub func to_upper(text: str) -> str!:
-    let out = try alloc u8[text.length + 1]
+    let out = try terminated_buffer(text.length)
     var i: usize = 0
     for b in text.bytes:
         out[i] = b - 32 if b >= 'a' and b <= 'z' else b
@@ -141,7 +141,7 @@ pub func to_upper(text: str) -> str!:
     return (str)out[..<i]
 
 pub func to_lower(text: str) -> str!:
-    let out = try alloc u8[text.length + 1]
+    let out = try terminated_buffer(text.length)
     var i: usize = 0
     for b in text.bytes:
         out[i] = b + 32 if b >= 'A' and b <= 'Z' else b
@@ -154,10 +154,16 @@ pub func to_lower(text: str) -> str!:
 pub func release(text: str):
     free(u8[]((u8*)text.bytes.data, text.length + 1))
 
+## Allocate text storage including its terminator, reporting size overflow as the
+## same fallible outcome as an allocation refusal. Callers initialize every byte.
+func terminated_buffer(length: usize) -> u8[]!:
+    let size = length +? 1 else error(memory.exhausted, "the text is too large")
+    return try alloc u8[size]
+
 ## Text built piece by piece. The builder keeps the allocator that was current when it
 ## was created and grows in it, so it may cross `with` blocks and outlive them; `destroy`
 ## gives its bytes back to that allocator.
-pub struct Builder: Writer:
+pub struct Builder: io.Writer:
     var data: u8[]
     var used: usize
     var owner: memory.Allocator
@@ -165,22 +171,51 @@ pub struct Builder: Writer:
     pub static func create(capacity: usize) -> Builder!:
         return Builder(data = try alloc u8[capacity if capacity > 0 else 64], used = 0, owner = memory.allocator)
 
+    ## Ensure room for this many additional bytes and the NUL terminator. Growth
+    ## uses the original allocator and preserves the old text if allocation fails.
+    ## Growth invalidates borrowed views; a destroyed builder reports io.closed.
+    pub mutating func reserve(additional: usize) -> !:
+        if self.data.length == 0:
+            error(io.closed, "the string builder is destroyed")
+        let total = self.used +? additional else error(memory.exhausted, "the builder size overflows")
+        let required = total +? 1 else error(memory.exhausted, "the builder size overflows")
+        if required <= self.data.length:
+            return
+        var capacity = self.data.length *? 2 else required
+        if capacity < required:
+            capacity = required
+        with self.owner:
+            self.data = try memory.grow(self.data, capacity)
+
+    ## Append bytes, including a view into this builder's current text. Preserve a
+    ## self-view's offset before growth, then rebase it if the allocation moves.
+    ## Aliased input must be wholly inside the initialized text, not spare capacity.
     pub mutating func write(data: const u8[]) -> usize!:
-        if self.used + data.length >= self.data.length:
-            var room = self.data.length * 2
-            while room <= self.used + data.length:
-                room = room * 2
-            with self.owner:
-                self.data = try memory.grow(self.data, room)
-        memory.copy(self.data[self.used..], data, data.length)
+        if self.data.length == 0:
+            error(io.closed, "the string builder is destroyed")
+        if data.length == 0:
+            return 0
+        let start = (usize)self.data.data
+        let source = (usize)data.data
+        var offset: usize? = none
+        if source >= start and source - start < self.data.length:
+            let relative = source - start
+            if relative > self.used or data.length > self.used - relative:
+                error(io.invalid_buffer, "the builder input is outside its initialized text")
+            offset = relative
+        try self.reserve(data.length)
+        if let relative = offset:
+            memory.move(self.data[self.used..], self.data[relative..], data.length)
+        else:
+            memory.move(self.data[self.used..], data, data.length)
         self.used += data.length
         return data.length
 
     pub mutating func put(text: str) -> !:
         discard(try self.write(text.bytes))
 
-    ## The text so far, NUL-terminated in the buffer: a view, invalid after the next write
-    ## and after `destroy`.
+    ## The text so far, NUL-terminated in the buffer: a borrowed view, invalid after
+    ## write, clear, growing reserve, or destroy. A destroyed builder has an empty view.
     pub mutating func view() -> str:
         if self.used < self.data.length:
             self.data[self.used] = 0
@@ -191,7 +226,8 @@ pub struct Builder: Writer:
 
     ## Give the bytes back; the builder is empty and holds nothing.
     pub mutating func destroy():
-        free(self.data) in self.owner
+        if self.data.length > 0:
+            free(self.data) in self.owner
         var empty: u8[]
         self.data = empty
         self.used = 0

@@ -305,6 +305,8 @@ One owned descriptor. The zero value is closed. Borrow through a pointer or an i
 
 ## `strings`
 
+Text operations over `str` views; what allocates says so and uses the current allocator, and says how the allocation is given back: `release` for a text made here, `free` for the array `split` answers.
+
 - `func starts_with(text: str, prefix: str) -> bool`
 
 - `func ends_with(text: str, suffix: str) -> bool`
@@ -331,14 +333,15 @@ One owned descriptor. The zero value is closed. Borrow through a pointer or an i
 
 - `func release(text: str)` — Give back a text `join`, `copy`, `to_upper`, or `to_lower` answered: the allocation is one byte longer than the text, its NUL.
 
-### `Builder` (struct: Writer)
+### `Builder` (struct: io.Writer)
 
 Text built piece by piece. The builder keeps the allocator that was current when it was created and grows in it, so it may cross `with` blocks and outlive them; `destroy` gives its bytes back to that allocator.
 
 - `static func create(capacity: usize) -> Builder!`
-- `mutating func write(data: const u8[]) -> usize!`
+- `mutating func reserve(additional: usize) -> !` — Ensure room for this many additional bytes and the NUL terminator. Growth uses the original allocator and preserves the old text if allocation fails. Growth invalidates borrowed views; a destroyed builder reports io.closed.
+- `mutating func write(data: const u8[]) -> usize!` — Append bytes, including a view into this builder's current text. Preserve a self-view's offset before growth, then rebase it if the allocation moves. Aliased input must be wholly inside the initialized text, not spare capacity.
 - `mutating func put(text: str) -> !`
-- `mutating func view() -> str` — The text so far, NUL-terminated in the buffer: a view, invalid after the next write and after `destroy`.
+- `mutating func view() -> str` — The text so far, NUL-terminated in the buffer: a borrowed view, invalid after write, clear, growing reserve, or destroy. A destroyed builder has an empty view.
 - `mutating func clear()`
 - `mutating func destroy()` — Give the bytes back; the builder is empty and holds nothing.
 
