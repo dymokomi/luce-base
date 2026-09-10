@@ -1,0 +1,5 @@
+[package]
+name = "diagnostic_string_contracts"
+
+[native]
+sources = ["reference.c"]

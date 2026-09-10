@@ -189,6 +189,10 @@ typedef struct lb_str {
     size_t length;
 } lb_str;
 
+/* Base diagnostic messages are byte spans, not NUL-terminated C strings. */
+LB_NORETURN void lb_trap_text(lb_str message);
+LB_NORETURN void lb_trap_detail(const char* prefix, lb_str detail);
+
 typedef struct lb_span {
     void* data;
     size_t length;

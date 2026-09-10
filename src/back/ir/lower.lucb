@@ -3775,21 +3775,16 @@ pub struct Lowerer:
             try self.f.branch(c.ref, ok, bad)
             try self.f.place_label(bad)
             # the text is as long as the condition's source, however long that is
-            var where = try assert_text(e.text, "")
+            let where = try assert_text(e.text, "")
             if let msg = second:
-                if msg.kind == ast.Kind.literal and msg.text.bytes[0] == '"':
-                    where = try assert_text(e.text, check.decode_text(msg.text))
-                    try self.trap_with(where)
-                else:
-                    let m = try self.expr(msg)
-                    let data = try self.f.load(ir.Op.loadl, ir.Class.l, m.ref)
-                    let start = u32(self.f.args.count)
-                    let prefix = try self.program_unit.text(where)
-                    let position = try self.position_ref()
-                    try self.f.args.push(ir.Arg(value = try self.f.address_of(position), cls = ir.Class.l, size = 0, align = 8, type_id = types.cstr_id, shape = 0))
-                    try self.f.args.push(ir.Arg(value = try self.f.address_of(ir.text_ref(prefix)), cls = ir.Class.l, size = 0, align = 8, type_id = types.cstr_id, shape = 0))
-                    try self.f.args.push(ir.Arg(value = data, cls = ir.Class.l, size = 0, align = 8, type_id = types.cstr_id, shape = 0))
-                    discard(try self.call_named("lb_core_trap_two_at", start, 3, ir.Class.w, false, types.unit_id))
+                let detail = try self.expr(msg)
+                let start = u32(self.f.args.count)
+                let prefix = try self.program_unit.text(where)
+                let position = try self.position_ref()
+                try self.f.args.push(ir.Arg(value = try self.f.address_of(position), cls = ir.Class.l, size = 0, align = 8, type_id = types.cstr_id, shape = 0))
+                try self.f.args.push(ir.Arg(value = try self.f.address_of(ir.text_ref(prefix)), cls = ir.Class.l, size = 0, align = 8, type_id = types.cstr_id, shape = 0))
+                try self.f.args.push(try self.arg_of(LowerValue(ref = detail.ref, type_id = types.str_id, in_memory = true)))
+                discard(try self.call_named("lb_core_trap_detail_at", start, 3, ir.Class.w, false, types.unit_id))
             else:
                 try self.trap_with(where)
             try self.f.place_label(ok)
@@ -3797,12 +3792,11 @@ pub struct Lowerer:
         if name == "trap":
             if let msg = arg:
                 let m = try self.expr(msg)
-                let data = try self.f.load(ir.Op.loadl, ir.Class.l, m.ref)
                 let start = u32(self.f.args.count)
                 let position = try self.position_ref()
                 try self.f.args.push(ir.Arg(value = try self.f.address_of(position), cls = ir.Class.l, size = 0, align = 8, type_id = types.cstr_id, shape = 0))
-                try self.f.args.push(ir.Arg(value = data, cls = ir.Class.l, size = 0, align = 8, type_id = types.cstr_id, shape = 0))
-                discard(try self.call_named("lb_core_trap_at", start, 2, ir.Class.w, false, types.unit_id))
+                try self.f.args.push(try self.arg_of(LowerValue(ref = m.ref, type_id = types.str_id, in_memory = true)))
+                discard(try self.call_named("lb_core_trap_text_at", start, 2, ir.Class.w, false, types.unit_id))
             else:
                 try self.trap_with("trap")
             return LowerValue(ref = ir.const_ref(0), type_id = types.never_id, in_memory = false)

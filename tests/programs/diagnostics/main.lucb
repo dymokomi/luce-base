@@ -1,0 +1,41 @@
+extern func diagnostic_edge(empty: bool) -> u8*
+extern func diagnostic_retry_enable()
+
+func evaluated(message: str) -> str:
+    print("evaluated")
+    return message
+
+pub func main(arguments: str[]) -> i32!:
+    let operation = arguments[1]
+    let kind = arguments[2]
+    let storage = "okTAIL"
+    let with_zero = "ok\u{0}xTAIL"
+    var buffer: u8[16]
+    let formatted = try format(buffer, f"ok{2}")
+    if arguments[3] == "faults":
+        diagnostic_retry_enable()
+    var message = (str)storage.bytes[..<2]
+    if kind == "empty":
+        message = (str)storage.bytes[..<0]
+    elif kind == "nul":
+        message = (str)with_zero.bytes[..<4]
+    elif kind == "edge":
+        message = (str)u8[](diagnostic_edge(false), 2)
+    elif kind == "empty-edge":
+        message = (str)u8[](diagnostic_edge(true), 0)
+    if operation == "assert":
+        assert(false, evaluated(message))
+    elif operation == "trap":
+        trap(evaluated(message))
+    elif operation == "literal_assert":
+        assert(false, "ok\u{0}x")
+    elif operation == "literal_trap":
+        trap("ok\u{0}x")
+    elif operation == "formatted_assert":
+        assert(false, formatted)
+    elif operation == "formatted_trap":
+        trap(formatted)
+    else:
+        assert(true, evaluated(message))
+        print("ok")
+    return 0

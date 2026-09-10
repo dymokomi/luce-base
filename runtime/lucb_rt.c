@@ -176,12 +176,7 @@ void lb_restore_pos(const char** saved) {
     lb_pos = *saved;
 }
 
-void lb_trap(const char* message) {
-    if (lb_pos != NULL && lb_pos[0] != '\0') {
-        fprintf(stderr, "trap: %s: %s\n", lb_pos, message != NULL ? message : "");
-    } else {
-        fprintf(stderr, "trap: %s\n", message != NULL ? message : "");
-    }
+static LB_NORETURN void finish_trap(void) {
     // `LB_TRACE=1` in the environment adds the C frames, for finding a trap in a C build
     if (getenv("LB_TRACE") != NULL) {
         void* frames[32];
@@ -189,6 +184,31 @@ void lb_trap(const char* message) {
         backtrace_symbols_fd(frames, depth, 2);
     }
     exit(1);
+}
+
+static void trap_location(void) {
+    if (lb_pos != NULL && lb_pos[0] != '\0') fprintf(stderr, "trap: %s: ", lb_pos);
+    else fputs("trap: ", stderr);
+}
+
+void lb_trap_text(lb_str message) {
+    trap_location();
+    if (message.length != 0) fwrite(message.data, 1, message.length, stderr);
+    fputc('\n', stderr);
+    finish_trap();
+}
+
+void lb_trap_detail(const char* prefix, lb_str detail) {
+    trap_location();
+    fprintf(stderr, "%s: ", prefix != NULL ? prefix : "");
+    if (detail.length != 0) fwrite(detail.data, 1, detail.length, stderr);
+    fputc('\n', stderr);
+    finish_trap();
+}
+
+void lb_trap(const char* message) {
+    lb_str text = {message, message != NULL ? strlen(message) : 0};
+    lb_trap_text(text);
 }
 
 void lb_pause(void) {

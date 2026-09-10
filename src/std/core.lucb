@@ -28,7 +28,8 @@ pub func trap_at(position: c.str, message: c.str) -> never:
     discard(write(2, newline.bytes.data, 1))
     c_exit(1)
 
-## `trap: file:line:column: message: detail`, for an `assert` whose message is computed.
+## Positioned diagnostic with NUL-terminated C strings. Base assertions use
+## trap_detail_at so their message spans retain their explicit lengths.
 pub func trap_two_at(position: c.str, message: c.str, detail: c.str) -> never:
     let prefix = "trap: "
     discard(write(2, prefix.bytes.data, prefix.length))
@@ -42,7 +43,7 @@ pub func trap_two_at(position: c.str, message: c.str, detail: c.str) -> never:
     discard(write(2, newline.bytes.data, 1))
     c_exit(1)
 
-## `trap: message: detail`, for an `assert` whose message is computed (§11.6).
+## Unpositioned diagnostic with NUL-terminated C strings.
 pub func trap_two(message: c.str, detail: c.str) -> never:
     let prefix = "trap: "
     discard(write(2, prefix.bytes.data, prefix.length))
@@ -53,6 +54,44 @@ pub func trap_two(message: c.str, detail: c.str) -> never:
     let newline = "\\n"
     discard(write(2, newline.bytes.data, 1))
     c_exit(1)
+
+## Fatal diagnostic for a Base string. Its explicit byte length permits slices,
+## empty values and embedded NUL; no byte beyond the view is read.
+pub func trap_text_at(position: c.str, message: str) -> never:
+    diagnostic_location(position)
+    write_diagnostic(message.bytes)
+    write_diagnostic("\\n".bytes)
+    c_exit(1)
+
+## Assertion prefix plus a Base string detail, preserving the detail's length.
+pub func trap_detail_at(position: c.str, message: c.str, detail: str) -> never:
+    diagnostic_location(position)
+    let prefix = (str)message
+    write_diagnostic(prefix.bytes)
+    write_diagnostic(": ".bytes)
+    write_diagnostic(detail.bytes)
+    write_diagnostic("\\n".bytes)
+    c_exit(1)
+
+func diagnostic_location(position: c.str):
+    write_diagnostic("trap: ".bytes)
+    let location = (str)position
+    write_diagnostic(location.bytes)
+    write_diagnostic(": ".bytes)
+
+## Panic reporting cannot raise another language error. Retry interruptions and
+## short writes; stop on a terminal write failure or lack of progress.
+func write_diagnostic(data: const u8[]):
+    var written: usize = 0
+    while written < data.length:
+        let remaining = data.length - written
+        let count = remaining if remaining < 1073741824 else 1073741824
+        let result = write(2, data[written..].data, count)
+        if result < 0 and c.errno() == c.interrupted:
+            continue
+        if result <= 0:
+            return
+        written += (usize)result
 
 ## The buffer `format` and f"..." fill: the bytes, their capacity, and the count used.
 pub struct FormatBuffer:

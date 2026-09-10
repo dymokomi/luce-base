@@ -5258,36 +5258,22 @@ pub struct Emitter:
             try self.put("((void)((")
             try self.value(cond, types.bool_id)
             if let msg = second:
-                if msg.kind == ast.Kind.literal and msg.text.bytes[0] == '"':
-                    try self.put(") ? 0 : (lb_trap(")
-                    try self.put_assert_text(e)
-                    try self.put(" \": \" ")
-                    try self.put_c_string(check.decode_text(msg.text))
-                else:
-                    try self.put(") ? 0 : (lb_trap_two(")
-                    try self.put_assert_text(e)
-                    try self.put(", (")
-                    try self.expr(msg)
-                    try self.put(").data")
+                try self.put(") ? 0 : (lb_trap_detail(")
+                try self.put_assert_text(e)
+                try self.put(", ")
+                try self.expr(msg)
             else:
                 try self.put(") ? 0 : (lb_trap(")
                 try self.put_assert_text(e)
             try self.put("), 0)))")
             return
         if name == "trap":
-            try self.put("lb_trap(")
             if let msg = arg:
-                if (try self.ty(msg)) == types.fmt_id:
-                    try self.put("(")
-                    try self.expr(msg)
-                    try self.put(").data")
-                else:
-                    try self.put("(")
-                    try self.expr(msg)
-                    try self.put(").data")
+                try self.put("lb_trap_text(")
+                try self.expr(msg)
+                try self.put(")")
             else:
-                try self.put("\"trap\"")
-            try self.put(")")
+                try self.put("lb_trap(\"trap\")")
             return
         if name == "error":
             # as an expression (in `else error(...)`): the function leaves
