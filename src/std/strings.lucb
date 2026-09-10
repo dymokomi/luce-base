@@ -224,6 +224,17 @@ pub struct Builder: io.Writer:
     pub mutating func clear():
         self.used = 0
 
+    ## Shorten to a byte length without allocation. Reject lengths past the
+    ## initialized text, preserving it on failure. This does not validate a UTF-8
+    ## boundary. Previously borrowed views expire; a destroyed builder is closed.
+    pub mutating func truncate(length: usize) -> !:
+        if self.data.length == 0:
+            error(io.closed, "the string builder is destroyed")
+        if length > self.used:
+            error(io.invalid_buffer, "truncation cannot extend the builder")
+        self.used = length
+        self.data[length] = 0
+
     ## Give the bytes back; the builder is empty and holds nothing.
     pub mutating func destroy():
         if self.data.length > 0:

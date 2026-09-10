@@ -343,6 +343,7 @@ Text built piece by piece. The builder keeps the allocator that was current when
 - `mutating func put(text: str) -> !`
 - `mutating func view() -> str` — The text so far, NUL-terminated in the buffer: a borrowed view, invalid after write, clear, growing reserve, or destroy. A destroyed builder has an empty view.
 - `mutating func clear()`
+- `mutating func truncate(length: usize) -> !` — Shorten to a byte length without allocation. Reject lengths past the initialized text, preserving it on failure. This does not validate a UTF-8 boundary. Previously borrowed views expire; a destroyed builder is closed.
 - `mutating func destroy()` — Give the bytes back; the builder is empty and holds nothing.
 
 ## `paths`
@@ -502,6 +503,16 @@ One owned directory stream; the zero value is closed. Copying does not duplicate
 - `func list(path: c.str) -> str[]!` — The names in a directory, sorted by bytes, without `.` and `..`: each name and the array holding them, exactly as long as the names, are allocations of the current allocator, which `release_list` returns together. On a failure nothing allocated is kept and the directory is closed.
 
 - `func release_list(names: str[])` — Return what `list` allocated: every name, then the array, to the allocator that is current, which must be the one `list` allocated from. The names are one byte longer than they read, the NUL after each (§5.5).
+
+- `let directory_cycle: ErrorCode = ErrorCode.package(33)`
+
+- `let depth_limit: ErrorCode = ErrorCode.package(34)`
+
+### `WalkVisitor` (interface)
+
+A borrowed traversal callback. For directories, true requests descent and false prunes that subtree; the return value is ignored for other entry kinds. Path is a NUL-terminated borrowed label, valid only during this callback. Copy it to retain it. Error-message storage must outlive the walk, as for other borrowed Base errors. Callbacks run serially in depth-first enumeration order.
+
+- `func walk(root: c.str, visitor: WalkVisitor, max_depth: usize = 64) -> !` — Visit root at depth zero, then its descendants, without following directory symlinks below root. Root uses ordinary OS path resolution. Labels are built from the supplied root; directory renames do not redirect handle-based traversal and may leave those labels unusable as OS paths. This is not a filesystem snapshot. A child deeper than max_depth reports depth_limit instead of silently skipping entries. Repeated ancestor identities report directory_cycle. OS/callback errors stop traversal; earlier callback effects remain. All owned resources are cleaned up on failure. Storage is proportional to depth plus the longest path label; cycle detection compares each descended directory with its open ancestors.
 
 ## `math`
 

@@ -43,6 +43,17 @@ with tempfile.TemporaryDirectory(prefix="luce-base-failures-") as temp:
     run(["ar", "rcs", str(work / "libatomic_faults.a"), str(work / "atomic_faults.o")])
     symlink = work / "target-link"
     symlink.symlink_to("missing-target")
+    walk_root = work / "walk-tree"
+    walk_root.mkdir()
+    (walk_root / "file").write_bytes(b"file")
+    (walk_root / "loop").symlink_to(".")
+    (walk_root / "skip").mkdir()
+    (walk_root / "skip/hidden").touch()
+    leaf = walk_root
+    for index in range(24):
+        leaf /= f"level-{index:02}"
+        leaf.mkdir()
+    (leaf / "leaf").write_bytes(b"leaf")
     directories = []
     for count in (0, 1, 17, 33, 257):
         directory = work / f"directory-{count}"
@@ -52,6 +63,11 @@ with tempfile.TemporaryDirectory(prefix="luce-base-failures-") as temp:
         directories.append(directory)
     for flags in [*[["--opt", str(level)] for level in range(4)],
                   ["--backend=c"], ["--backend=c", "--release"]]:
+        walker = work / "walk"
+        run([str(root / "build/luce-base"), "build", str(sources / "walk_tree.lucb"),
+             *flags, f"-L{work}", "-lfaults", "-o", str(walker)])
+        run([str(walker), str(walk_root), str(walk_root / "file")], expected=b"ok walk failures\n")
+        print(f"ok walk failures: {' '.join(flags)}", flush=True)
         atomic_writer = work / "atomic"
         run([str(root / "build/luce-base"), "build", str(sources / "atomic_replace.lucb"),
              *flags, f"-L{work}", "-latomic_faults", "-o", str(atomic_writer)])

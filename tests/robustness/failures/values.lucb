@@ -93,10 +93,24 @@ func builder_alias_work() -> !:
         assert(failure.code == memory.exhausted)
         caught = true
     assert(caught and builder.view() == "abcabcbcab")
+    try builder.truncate(3)
+    assert(builder.view() == "abc")
+    caught = false
+    builder.truncate(4) catch failure:
+        assert(failure.code == io.invalid_buffer)
+        caught = true
+    assert(caught and builder.view() == "abc")
+    try builder.truncate(0)
+    assert(builder.view() == "")
     builder.destroy()
     builder.destroy()
     caught = false
     builder.put("x") catch failure:
+        assert(failure.code == io.closed)
+        caught = true
+    assert(caught)
+    caught = false
+    builder.truncate(0) catch failure:
         assert(failure.code == io.closed)
         caught = true
     assert(caught)

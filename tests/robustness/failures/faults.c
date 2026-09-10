@@ -10,12 +10,16 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
 static int armed, hits, attributes, directory_reads, global_flushes, opened_streams;
-void fault_arm(int kind) { assert(!armed); armed = kind; hits = directory_reads = 0; }
+static int walk_root_seen;
+static dev_t walk_device;
+static ino_t walk_inode;
+void fault_arm(int kind) { assert(!armed); armed = kind; hits = directory_reads = walk_root_seen = 0; }
 int fault_hits(void) { return hits; }
 int fault_attributes(void) { return attributes; }
 int fault_global_flushes(void) { return global_flushes; }
@@ -117,7 +121,25 @@ int openat(int directory, const char *path, int flags, ...) {
 int fstatat(int directory, const char *path, struct stat *result, int flags) {
     REAL(fstatat);
     if (take(36)) return -1;
-    return real(directory, path, result, flags);
+    int status = real(directory, path, result, flags);
+    /* Model an ancestor exposed again through a directory mount. Symlink
+       entries remain real and must never be descended by the walker. */
+    if (!status && armed == 37 && walk_root_seen && S_ISDIR(result->st_mode)
+        && strcmp(path, "skip") != 0 && take(37)) {
+        result->st_dev = walk_device;
+        result->st_ino = walk_inode;
+    }
+    return status;
+}
+int fstat(int descriptor, struct stat *result) {
+    REAL(fstat);
+    int status = real(descriptor, result);
+    if (!status && armed == 37 && !walk_root_seen && S_ISDIR(result->st_mode)) {
+        walk_root_seen = 1;
+        walk_device = result->st_dev;
+        walk_inode = result->st_ino;
+    }
+    return status;
 }
 int closedir(void *directory) {
     REAL(closedir);
