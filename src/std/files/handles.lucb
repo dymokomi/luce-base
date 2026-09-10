@@ -24,19 +24,7 @@ pub struct File: io.Reader, io.Writer:
 
     ## Open a close-on-exec descriptor. Only the named creation modes create paths.
     pub static func open(path: c.str, mode: OpenMode = OpenMode.read, permissions: u32 = 420) -> File!:
-        if permissions > 4095:
-            error(invalid_options, "file permissions must fit the Unix mode bits")
-        var flags = close_on_exec
-        if mode == OpenMode.read_write:
-            flags |= 2
-        elif mode == OpenMode.replace:
-            flags |= write_only | create | truncate
-        elif mode == OpenMode.create_new or mode == OpenMode.create_new_read_write:
-            flags |= create | exclusive_flag | (2 if mode == OpenMode.create_new_read_write else write_only)
-        elif mode == OpenMode.append:
-            flags |= write_only | create | append_flag
-        elif mode != OpenMode.read:
-            error(invalid_options, "unknown file opening mode")
+        let flags = try file_open_flags(mode, permissions)
         var fd = open(path, flags, permissions)
         while fd < 0 and c.errno() == c.interrupted:
             fd = open(path, flags, permissions)
@@ -186,3 +174,20 @@ func classify_error(number: i32) -> ErrorCode:
     if number == would_block_errno:
         return would_block
     return failed
+
+## Shared mode validation for path-based and directory-relative file opening.
+func file_open_flags(mode: OpenMode, permissions: u32) -> i32!:
+    if permissions > 4095:
+        error(invalid_options, "file permissions must fit the Unix mode bits")
+    var flags = close_on_exec
+    if mode == OpenMode.read_write:
+        flags |= 2
+    elif mode == OpenMode.replace:
+        flags |= write_only | create | truncate
+    elif mode == OpenMode.create_new or mode == OpenMode.create_new_read_write:
+        flags |= create | exclusive_flag | (2 if mode == OpenMode.create_new_read_write else write_only)
+    elif mode == OpenMode.append:
+        flags |= write_only | create | append_flag
+    elif mode != OpenMode.read:
+        error(invalid_options, "unknown file opening mode")
+    return flags

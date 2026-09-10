@@ -32,6 +32,25 @@ pub struct Directory:
     pub func open_directory(path: c.str, follow_symlinks: bool = true) -> Directory!:
         return try open_directory_at(try self.descriptor(), path, follow_symlinks)
 
+    ## Open a file relative to this directory. Absolute paths and parent segments
+    ## retain OS semantics; callers implementing containment must walk validated
+    ## individual components. Refusing symlinks applies atomically to the final
+    ## component. Nonblocking mode prevents FIFO opens from waiting for a peer;
+    ## it does not make ordinary filesystem I/O asynchronous.
+    pub func open_file(path: c.str, mode: OpenMode = OpenMode.read, permissions: u32 = 420, follow_symlinks: bool = true, nonblocking: bool = false) -> File!:
+        let parent = try self.descriptor()
+        var flags = try file_open_flags(mode, permissions)
+        if not follow_symlinks:
+            flags |= no_follow_flag
+        if nonblocking:
+            flags |= 4 if platform.macos else 2048
+        var descriptor = openat(parent, path, flags, permissions)
+        while descriptor < 0 and c.errno() == c.interrupted:
+            descriptor = openat(parent, path, flags, permissions)
+        if descriptor < 0:
+            error(classify_error(c.errno()), "the directory-relative file could not be opened")
+        return File(handle = descriptor)
+
     ## The next name excluding dot and dot-dot, or none at end. Names are raw path
     ## bytes, NUL-terminated but not guaranteed UTF-8. The view expires on the next
     ## call or close.

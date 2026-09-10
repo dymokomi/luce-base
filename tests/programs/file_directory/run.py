@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Verify directory handles keep their identity across a pathname rename."""
 from pathlib import Path
+import os
 import shutil
 import subprocess
 import sys
@@ -18,6 +19,8 @@ with tempfile.TemporaryDirectory(prefix="base-file-directory-") as temporary:
         (original / "sub/payload").write_bytes(b"payload")
         (original / "link").symlink_to("sub")
         (original / "dangling").symlink_to("missing")
+        (original / "file_link").symlink_to("data")
+        os.mkfifo(original / "pipe")
         executable = work / "directory"
         for command in ([COMPILER, "build", ROOT / "tests/programs/file_directory/main.lucb",
                          *flags, "-o", executable], [executable, original, moved]):
@@ -25,5 +28,6 @@ with tempfile.TemporaryDirectory(prefix="base-file-directory-") as temporary:
                            cwd=ROOT, check=True)
         assert not original.exists()
         assert (moved / "sub/payload").read_bytes() == b"payload"
+        assert (moved / "created").read_bytes() == b"new"
         shutil.rmtree(moved)
         print("PASS " + " ".join(flags), flush=True)
