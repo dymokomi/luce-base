@@ -127,6 +127,35 @@ func builder_alias_work() -> !:
         caught = true
     assert(caught)
 
+func builder_capacity_work(owner: allocator.Failing*) -> !:
+    let before = owner.attempts
+    var builder = try strings.Builder.create(4)
+    defer builder.destroy()
+    assert(builder.capacity() == 4 and builder.length() == 0)
+    try builder.put("abcd")
+    try builder.reserve(0)
+    assert(builder.length() == 4 and builder.view() == "abcd")
+    assert(owner.attempts == before + 1, "usable capacity unexpectedly needed another allocation")
+    builder.reserve(1) catch failure:
+        assert(builder.capacity() == 4 and builder.length() == 4 and builder.view() == "abcd")
+        error(failure.code, failure.message)
+    assert(builder.capacity() >= 5 and builder.length() == 4)
+    try builder.put("e")
+    assert(builder.length() == 5 and builder.view() == "abcde")
+    builder.clear()
+    assert(builder.length() == 0 and builder.capacity() >= 5)
+    builder.destroy()
+    assert(builder.length() == 0 and builder.capacity() == 0 and builder.view() == "")
+    var default_builder = try strings.Builder.create()
+    defer default_builder.destroy()
+    assert(default_builder.capacity() == 64)
+    var overflow = false
+    discard(strings.Builder.create(18446744073709551615) catch failure:
+        assert(failure.code == memory.exhausted)
+        overflow = true
+        recover default_builder)
+    assert(overflow)
+
 func attempt(which: i32, fail_at: usize) -> usize:
     var owner = allocator.Failing.at(fail_at)
     var other = allocator.Failing.at(1)
@@ -152,8 +181,13 @@ func attempt(which: i32, fail_at: usize) -> usize:
                 assert(failure.code == memory.exhausted)
                 rejected = true
                 recover ()
-        else:
+        elif which == 4:
             builder_alias_work() catch failure:
+                assert(failure.code == memory.exhausted)
+                rejected = true
+                recover ()
+        else:
+            builder_capacity_work(&owner) catch failure:
                 assert(failure.code == memory.exhausted)
                 rejected = true
                 recover ()
@@ -166,7 +200,7 @@ func attempt(which: i32, fail_at: usize) -> usize:
 
 pub func main(arguments: str[]) -> i32:
     var which: i32 = 0
-    while which < 5:
+    while which < 6:
         let steps = attempt(which, 0)
         var i: usize = 1
         while i <= steps:

@@ -360,7 +360,9 @@ Split a borrowed text at a nonempty byte substring. Empty fields, including the 
 
 Text built piece by piece. The builder keeps the allocator that was current when it was created and grows in it, so it may cross `with` blocks and outlive them; `destroy` gives its bytes back to that allocator.
 
-- `static func create(capacity: usize) -> Builder!`
+- `static func create(capacity: usize = 0) -> Builder!` — Reserve this many usable text bytes plus the NUL terminator. Zero chooses a default of 64 usable bytes. Size overflow reports memory.exhausted before allocation. The builder retains the allocating context for its lifetime.
+- `func capacity() -> usize` — Usable text bytes before growth, excluding the terminator. Zero after destroy.
+- `func length() -> usize` — The initialized text length in bytes; querying it does not create a view.
 - `mutating func reserve(additional: usize) -> !` — Ensure room for this many additional bytes and the NUL terminator. Growth uses the original allocator and preserves the old text if allocation fails. Growth invalidates borrowed views; a destroyed builder reports io.closed.
 - `mutating func write(data: const u8[]) -> usize!` — Append bytes, including a view into this builder's current text. Preserve a self-view's offset before growth, then rebase it if the allocation moves. Aliased input must be wholly inside the initialized text, not spare capacity.
 - `mutating func put(text: str) -> !`

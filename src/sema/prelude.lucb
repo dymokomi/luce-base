@@ -2265,8 +2265,21 @@ pub struct Builder: io.Writer:
     var used: usize
     var owner: memory.Allocator
 
-    pub static func create(capacity: usize) -> Builder!:
-        return Builder(data = try alloc u8[capacity if capacity > 0 else 64], used = 0, owner = memory.allocator)
+    ## Reserve this many usable text bytes plus the NUL terminator. Zero chooses
+    ## a default of 64 usable bytes. Size overflow reports memory.exhausted before
+    ## allocation. The builder retains the allocating context for its lifetime.
+    pub static func create(capacity: usize = 0) -> Builder!:
+        let usable = capacity if capacity > 0 else 64
+        let size = usable +? 1 else error(memory.exhausted, "the builder capacity is too large")
+        return Builder(data = try alloc u8[size], used = 0, owner = memory.allocator)
+
+    ## Usable text bytes before growth, excluding the terminator. Zero after destroy.
+    pub func capacity() -> usize:
+        return self.data.length - 1 if self.data.length > 0 else 0
+
+    ## The initialized text length in bytes; querying it does not create a view.
+    pub func length() -> usize:
+        return self.used
 
     ## Ensure room for this many additional bytes and the NUL terminator. Growth
     ## uses the original allocator and preserves the old text if allocation fails.
