@@ -6,6 +6,7 @@ at two precisions and require the same binary result before using it as a vector
 The two-ulp limit is a gate for these vectors, not a proof over the whole domain.
 """
 from decimal import Decimal, localcontext
+import csv
 from pathlib import Path
 import struct
 import subprocess
@@ -65,4 +66,30 @@ for flags in [*[['--native', '--opt', str(level)] for level in range(4)],
         subprocess.run([sys.executable, ROOT / 'tools/run_case.py', '--', *command],
                        cwd=ROOT, check=True)
     print("PASS " + " ".join(flags), flush=True)
+executable.unlink()
+
+# Offline arbitrary-precision references cover the broader libm surface. The
+# generator is pinned separately; ordinary test runs use only Python's stdlib.
+operations = "floor ceil round trunc sqrt cbrt hypot mod pow exp exp2 log log2 log10 log1p expm1 fma sin cos tan asin acos atan atan2 sinh cosh tanh remainder".split()
+corpus = bytearray()
+covered = set()
+with (ROOT / "tests/programs/math_accuracy/reference.csv").open() as stream:
+    for row in csv.DictReader(stream):
+        width = int(row["width"])
+        assert width in (32, 64)
+        expected_limit = 0 if row["operation"] in {"floor", "ceil", "round", "trunc", "sqrt", "mod", "remainder", "fma"} else 4
+        assert int(row["ulp_limit"]) == expected_limit
+        covered.add((row["operation"], width))
+        corpus.extend(struct.pack("<IIQQQQQ", operations.index(row["operation"]), int(row["width"]),
+                                  *[int(row[name], 16) for name in ("x_bits", "y_bits", "z_bits", "result_bits")],
+                                  int(row["ulp_limit"])))
+assert covered == {(operation, width) for operation in operations for width in (32, 64)}
+reference_path = OUTPUT / "reference.bin"
+reference_path.write_bytes(corpus)
+for flags in [*[["--native", "--opt", str(level)] for level in range(4)],
+              ["--backend=c"], ["--backend=c", "--release"]]:
+    for command in ([COMPILER, "build", ROOT / "tests/programs/math_accuracy/reference.lucb",
+                     *flags, "-o", executable], [executable, reference_path]):
+        subprocess.run([sys.executable, ROOT / "tools/run_case.py", "--", *command], cwd=ROOT, check=True)
+    print("PASS broad reference " + " ".join(flags), flush=True)
 executable.unlink()
