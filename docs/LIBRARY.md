@@ -799,7 +799,7 @@ The operating system's view of the process (§16.6): its environment, working di
 
 Blocking socket I/O. Created and accepted sockets are close-on-exec. Linux sets that flag atomically; macOS requires a separate call, so applications must serialize socket creation/acceptance with concurrent fork/exec there. Adopting a caller-created descriptor also needs this coordination on either OS.
 
-- `let failed: ErrorCode = ErrorCode.package(9)`
+- `let failed: ErrorCode = ErrorCode.package(9)` — Stable network error categories. Messages describe the operation and borrow static storage; callers branch on codes rather than host-specific wording.
 
 - `let closed: ErrorCode = ErrorCode.package(10)`
 
@@ -812,6 +812,24 @@ Blocking socket I/O. Created and accepted sockets are close-on-exec. Linux sets 
 - `let cancelled: ErrorCode = ErrorCode.package(37)`
 
 - `let timed_out: ErrorCode = ErrorCode.package(38)`
+
+- `let connection_refused: ErrorCode = ErrorCode.package(39)`
+
+- `let network_unreachable: ErrorCode = ErrorCode.package(40)`
+
+- `let address_in_use: ErrorCode = ErrorCode.package(41)`
+
+- `let address_unavailable: ErrorCode = ErrorCode.package(42)`
+
+- `let permission_denied: ErrorCode = ErrorCode.package(43)`
+
+- `let resource_exhausted: ErrorCode = ErrorCode.package(44)`
+
+- `let connection_aborted: ErrorCode = ErrorCode.package(45)`
+
+- `let unsupported: ErrorCode = ErrorCode.package(46)`
+
+- `let resolution_temporary: ErrorCode = ErrorCode.package(47)`
 
 ### `IpVersion` (enumas u8)
 

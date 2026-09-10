@@ -32,12 +32,12 @@ pub struct Connection: Reader, Writer:
             let in_progress = 36 if platform.macos else 115
             let already_pending = 37 if platform.macos else 114
             if number != in_progress and number != already_pending and number != c.interrupted:
-                error(transfer_error(number), "the connection could not reach its peer")
+                error(socket_error(number), "the connection could not reach its peer")
             discard(try wait_socket(fd, WaitInterest.write, deadline, cancellation))
             try check_operation(deadline, cancellation)
             let pending_error = try get_socket_integer(fd, socket_level, 4103 if platform.macos else 4)
             if pending_error != 0:
-                error(transfer_error(pending_error), "the pending connection failed")
+                error(socket_error(pending_error), "the pending connection failed")
         try check_operation(deadline, cancellation)
         try set_nonblocking(fd, nonblocking)
         return Connection.from_socket(owned)
@@ -78,7 +78,7 @@ pub struct Connection: Reader, Writer:
         while result < 0 and c.errno() == c.interrupted:
             result = shutdown(descriptor, (i32)direction)
         if result != 0:
-            error(transfer_error(c.errno()), "the connection could not be shut down")
+            error(socket_error(c.errno()), "the connection could not be shut down")
 
     ## Whether a write cannot raise `SIGPIPE`. Linux asks with every `send`
     ## (`MSG_NOSIGNAL`); macOS marks the socket once (`SO_NOSIGPIPE`), and refuses the mark
@@ -112,7 +112,7 @@ pub struct Connection: Reader, Writer:
         while sent < 0 and c.errno() == c.interrupted:
             sent = send(descriptor, data.data, count, send_flags)
         if sent < 0:
-            error(transfer_error(c.errno()), "the connection could not send data")
+            error(socket_error(c.errno()), "the connection could not send data")
         if sent == 0:
             error(io.no_progress, "the connection made no write progress")
         return (usize)sent
@@ -132,7 +132,7 @@ pub struct Connection: Reader, Writer:
         while received < 0 and c.errno() == c.interrupted:
             received = recv(descriptor, buffer.data, count, 0)
         if received < 0:
-            error(transfer_error(c.errno()), "the connection could not receive data")
+            error(socket_error(c.errno()), "the connection could not receive data")
         return (usize)received
 
     ## Disable Nagle coalescing when enabled. This is a latency policy, not a

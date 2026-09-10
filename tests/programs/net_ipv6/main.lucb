@@ -133,7 +133,7 @@ pub func main(arguments: c.str[]) -> i32!:
     assert(scoped.equals(expected_scope))
     var rejected = false
     var unavailable = net.Listener.bind(scoped) catch failure:
-        assert(failure.code == net.failed)
+        assert(failure.code == net.invalid_options)
         rejected = true
         recover net.Listener()
     unavailable.destroy()

@@ -172,7 +172,7 @@ func wait_poll(entries: NativePoll[], deadline: Deadline, cancellation: Cancella
         if result < 0:
             if c.errno() == c.interrupted:
                 continue
-            error(failed, "the readiness wait failed")
+            error(socket_error(c.errno()), "the readiness wait failed")
         if result > 0:
             return (usize)result
         if let end = deadline.instant:

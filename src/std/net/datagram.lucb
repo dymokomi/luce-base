@@ -15,7 +15,7 @@ pub struct Datagram:
         if address.ip.kind == IpVersion.ipv6:
             try set_socket_integer(fd, ipv6_level, ipv6_only_option, 1 if ipv6_only else 0)
         if bind(fd, &raw, length) != 0:
-            error(failed, "the datagram socket could not bind its address")
+            error(socket_error(c.errno()), "the datagram socket could not bind its address")
         return Datagram(socket = owned, version = address.ip.kind)
 
     ## Query the bound endpoint, including an automatically assigned port.
@@ -39,7 +39,7 @@ pub struct Datagram:
         while n < 0 and c.errno() == c.interrupted:
             n = sendto(descriptor, data.data, data.length, 0, &raw, length)
         if n < 0:
-            error(datagram_error(c.errno()), "the datagram could not be sent")
+            error(socket_error(c.errno()), "the datagram could not be sent")
         if (usize)n != data.length:
             error(failed, "the datagram send did not confirm the complete packet")
 
@@ -75,7 +75,7 @@ pub struct Datagram:
                 let number = c.errno()
                 if number == c.interrupted:
                     continue
-                error(datagram_error(number), "the datagram could not be received")
+                error(socket_error(number), "the datagram could not be received")
             let truncated: i32 = 16 if platform.macos else 32
             if (flags & truncated) != 0 or (usize)received > buffer.length:
                 error(message_too_large, "the receive buffer was too small for the datagram")
@@ -124,8 +124,3 @@ pub struct Datagram:
     ## Best-effort cleanup for unwinding; use close to observe delayed errors.
     pub mutating func destroy():
         self.socket.destroy()
-
-func datagram_error(number: i32) -> ErrorCode:
-    if number == (40 if platform.macos else 90):
-        return message_too_large
-    return transfer_error(number)

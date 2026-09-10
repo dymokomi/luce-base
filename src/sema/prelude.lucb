@@ -4070,15 +4070,75 @@ let ipv6_level: i32 = 41
 let ipv6_only_option: i32 = 27 if platform.macos else 26
 let no_sigpipe_option: i32 = 4130
 let send_flags: i32 = 0 if platform.macos else 16384
-
+## Stable network error categories. Messages describe the operation and borrow
+## static storage; callers branch on codes rather than host-specific wording.
 pub let failed: ErrorCode = ErrorCode.package(9)
 pub let closed: ErrorCode = ErrorCode.package(10)
 pub let unknown_host: ErrorCode = ErrorCode.package(11)
 pub let invalid_options: ErrorCode = ErrorCode.package(35)
 pub let message_too_large: ErrorCode = ErrorCode.package(36)
-
 pub let cancelled: ErrorCode = ErrorCode.package(37)
 pub let timed_out: ErrorCode = ErrorCode.package(38)
+pub let connection_refused: ErrorCode = ErrorCode.package(39)
+pub let network_unreachable: ErrorCode = ErrorCode.package(40)
+pub let address_in_use: ErrorCode = ErrorCode.package(41)
+pub let address_unavailable: ErrorCode = ErrorCode.package(42)
+pub let permission_denied: ErrorCode = ErrorCode.package(43)
+pub let resource_exhausted: ErrorCode = ErrorCode.package(44)
+pub let connection_aborted: ErrorCode = ErrorCode.package(45)
+pub let unsupported: ErrorCode = ErrorCode.package(46)
+pub let resolution_temporary: ErrorCode = ErrorCode.package(47)
+
+## Shared by socket acquisition, options, transfers and waits. Capture this code
+## before cleanup: even a successful close may overwrite the thread's errno.
+func socket_error(number: i32) -> ErrorCode:
+    if number == (35 if platform.macos else 11):
+        return io.would_block
+    if number == 9 or number == 32 or number == (54 if platform.macos else 104) or number == (57 if platform.macos else 107) or number == (58 if platform.macos else 108) or number == (52 if platform.macos else 102):
+        return closed
+    if number == (60 if platform.macos else 110):
+        return timed_out
+    if number == (89 if platform.macos else 125):
+        return cancelled
+    if number == (61 if platform.macos else 111):
+        return connection_refused
+    if number == (50 if platform.macos else 100) or number == (51 if platform.macos else 101) or number == (64 if platform.macos else 112) or number == (65 if platform.macos else 113):
+        return network_unreachable
+    if number == (48 if platform.macos else 98):
+        return address_in_use
+    if number == (49 if platform.macos else 99):
+        return address_unavailable
+    if number == 1 or number == 13:
+        return permission_denied
+    if number == 12 or number == 23 or number == 24 or number == (55 if platform.macos else 105):
+        return resource_exhausted
+    if number == (53 if platform.macos else 103):
+        return connection_aborted
+    if number == (40 if platform.macos else 90):
+        return message_too_large
+    if number == 22 or number == (38 if platform.macos else 88) or number == (39 if platform.macos else 89) or number == (41 if platform.macos else 91):
+        return invalid_options
+    if number == (42 if platform.macos else 92) or number == (43 if platform.macos else 93) or number == (44 if platform.macos else 94) or number == (45 if platform.macos else 95) or number == (46 if platform.macos else 96) or number == (47 if platform.macos else 97) or number == (78 if platform.macos else 38):
+        return unsupported
+    # Darwin exposes both the historical ENOTSUP and the UNIX03 EOPNOTSUPP.
+    if platform.macos and number == 102:
+        return unsupported
+    return failed
+
+func resolver_error(number: i32) -> ErrorCode:
+    if number == (2 if platform.macos else -3):
+        return resolution_temporary
+    if number == (6 if platform.macos else -10):
+        return resource_exhausted
+    if number == (11 if platform.macos else -11):
+        return socket_error(c.errno())
+    if number == (8 if platform.macos else -2) or number == (7 if platform.macos else -5) or number == (1 if platform.macos else -9):
+        return unknown_host
+    if number == (5 if platform.macos else -6) or number == (10 if platform.macos else -7):
+        return unsupported
+    if number == (3 if platform.macos else -1) or number == (9 if platform.macos else -8):
+        return invalid_options
+    return failed
 ## IP version carried by an address value. IPv4-mapped IPv6 remains IPv6.
 pub enum IpVersion as u8:
     ipv4 = 0
@@ -4571,8 +4631,9 @@ struct ResolverQuery:
             family = inet if requested == IpVersion.ipv4 else inet6
         var hints = AddressInfo(family = family, kind = stream)
         var found: AddressInfo*? = none
-        if getaddrinfo(host, none, &hints, &found) != 0:
-            error(unknown_host, "unknown host")
+        let result = getaddrinfo(host, none, &hints, &found)
+        if result != 0:
+            error(resolver_error(result), "the host could not be resolved")
         let head = found else error(unknown_host, "unknown host")
         return ResolverQuery(head = head, family = family)
 
@@ -4615,12 +4676,12 @@ pub struct Listener:
         if address.ip.kind == IpVersion.ipv6:
             try set_socket_integer(fd, ipv6_level, ipv6_only_option, 1 if ipv6_only else 0)
         if bind(fd, &raw, length) != 0:
-            error(failed, "the listener could not bind its address")
+            error(socket_error(c.errno()), "the listener could not bind its address")
         var result = listen(fd, backlog)
         while result < 0 and c.errno() == c.interrupted:
             result = listen(fd, backlog)
         if result != 0:
-            error(failed, "the listener could not begin listening")
+            error(socket_error(c.errno()), "the listener could not begin listening")
         return Listener(socket = owned)
 
     ## Query the bound endpoint, including an automatically assigned port.
@@ -4636,7 +4697,7 @@ pub struct Listener:
         while fd < 0 and c.errno() == c.interrupted:
             fd = accept_socket(descriptor)
         if fd < 0:
-            error(transfer_error(c.errno()), "the listener could not accept a connection")
+            error(socket_error(c.errno()), "the listener could not accept a connection")
         var connection = try Connection.over(fd)
         errdefer connection.destroy()
         try connection.set_nonblocking(nonblocking)
@@ -4722,12 +4783,12 @@ pub struct Connection: Reader, Writer:
             let in_progress = 36 if platform.macos else 115
             let already_pending = 37 if platform.macos else 114
             if number != in_progress and number != already_pending and number != c.interrupted:
-                error(transfer_error(number), "the connection could not reach its peer")
+                error(socket_error(number), "the connection could not reach its peer")
             discard(try wait_socket(fd, WaitInterest.write, deadline, cancellation))
             try check_operation(deadline, cancellation)
             let pending_error = try get_socket_integer(fd, socket_level, 4103 if platform.macos else 4)
             if pending_error != 0:
-                error(transfer_error(pending_error), "the pending connection failed")
+                error(socket_error(pending_error), "the pending connection failed")
         try check_operation(deadline, cancellation)
         try set_nonblocking(fd, nonblocking)
         return Connection.from_socket(owned)
@@ -4768,7 +4829,7 @@ pub struct Connection: Reader, Writer:
         while result < 0 and c.errno() == c.interrupted:
             result = shutdown(descriptor, (i32)direction)
         if result != 0:
-            error(transfer_error(c.errno()), "the connection could not be shut down")
+            error(socket_error(c.errno()), "the connection could not be shut down")
 
     ## Whether a write cannot raise `SIGPIPE`. Linux asks with every `send`
     ## (`MSG_NOSIGNAL`); macOS marks the socket once (`SO_NOSIGPIPE`), and refuses the mark
@@ -4802,7 +4863,7 @@ pub struct Connection: Reader, Writer:
         while sent < 0 and c.errno() == c.interrupted:
             sent = send(descriptor, data.data, count, send_flags)
         if sent < 0:
-            error(transfer_error(c.errno()), "the connection could not send data")
+            error(socket_error(c.errno()), "the connection could not send data")
         if sent == 0:
             error(io.no_progress, "the connection made no write progress")
         return (usize)sent
@@ -4822,7 +4883,7 @@ pub struct Connection: Reader, Writer:
         while received < 0 and c.errno() == c.interrupted:
             received = recv(descriptor, buffer.data, count, 0)
         if received < 0:
-            error(transfer_error(c.errno()), "the connection could not receive data")
+            error(socket_error(c.errno()), "the connection could not receive data")
         return (usize)received
 
     ## Disable Nagle coalescing when enabled. This is a latency policy, not a
@@ -4899,7 +4960,7 @@ pub struct Datagram:
         if address.ip.kind == IpVersion.ipv6:
             try set_socket_integer(fd, ipv6_level, ipv6_only_option, 1 if ipv6_only else 0)
         if bind(fd, &raw, length) != 0:
-            error(failed, "the datagram socket could not bind its address")
+            error(socket_error(c.errno()), "the datagram socket could not bind its address")
         return Datagram(socket = owned, version = address.ip.kind)
 
     ## Query the bound endpoint, including an automatically assigned port.
@@ -4923,7 +4984,7 @@ pub struct Datagram:
         while n < 0 and c.errno() == c.interrupted:
             n = sendto(descriptor, data.data, data.length, 0, &raw, length)
         if n < 0:
-            error(datagram_error(c.errno()), "the datagram could not be sent")
+            error(socket_error(c.errno()), "the datagram could not be sent")
         if (usize)n != data.length:
             error(failed, "the datagram send did not confirm the complete packet")
 
@@ -4959,7 +5020,7 @@ pub struct Datagram:
                 let number = c.errno()
                 if number == c.interrupted:
                     continue
-                error(datagram_error(number), "the datagram could not be received")
+                error(socket_error(number), "the datagram could not be received")
             let truncated: i32 = 16 if platform.macos else 32
             if (flags & truncated) != 0 or (usize)received > buffer.length:
                 error(message_too_large, "the receive buffer was too small for the datagram")
@@ -5008,20 +5069,8 @@ pub struct Datagram:
     ## Best-effort cleanup for unwinding; use close to observe delayed errors.
     pub mutating func destroy():
         self.socket.destroy()
-
-func datagram_error(number: i32) -> ErrorCode:
-    if number == (40 if platform.macos else 90):
-        return message_too_large
-    return transfer_error(number)
 ## Bound individual transfers below both supported hosts' signed syscall limits.
 let transfer_limit: usize = 1073741824
-
-func transfer_error(number: i32) -> ErrorCode:
-    if number == (35 if platform.macos else 11):
-        return io.would_block
-    if number == 9 or number == 32 or number == (54 if platform.macos else 104) or number == (57 if platform.macos else 107):
-        return closed
-    return failed
 
 ## Shared ownership state for all socket kinds. Consume before close because an
 ## interrupted or failed close may already have released the descriptor for reuse.
@@ -5035,7 +5084,7 @@ struct SocketHandle:
         let family = inet if version == IpVersion.ipv4 else inet6
         let descriptor = socket(family, kind | flags, 0)
         if descriptor < 0:
-            error(failed, "a socket could not be created")
+            error(socket_error(c.errno()), "a socket could not be created")
         if platform.macos:
             return try SocketHandle.adopt(descriptor)
         return SocketHandle(value = descriptor)
@@ -5049,15 +5098,17 @@ struct SocketHandle:
         while flags < 0 and c.errno() == c.interrupted:
             flags = fcntl(descriptor, get_descriptor_flags)
         if flags < 0:
+            let code = socket_error(c.errno())
             discard(close(descriptor))
-            error(failed, "socket descriptor flags could not be queried")
+            error(code, "socket descriptor flags could not be queried")
         if (flags & descriptor_close_on_exec) == 0:
             var result = fcntl(descriptor, set_descriptor_flags, flags | descriptor_close_on_exec)
             while result < 0 and c.errno() == c.interrupted:
                 result = fcntl(descriptor, set_descriptor_flags, flags | descriptor_close_on_exec)
             if result < 0:
+                let code = socket_error(c.errno())
                 discard(close(descriptor))
-                error(failed, "the socket could not be marked close-on-exec")
+                error(code, "the socket could not be marked close-on-exec")
         return SocketHandle(value = descriptor)
 
     func require() -> i32!:
@@ -5068,7 +5119,7 @@ struct SocketHandle:
         let descriptor = self.value else return
         self.value = none
         if close(descriptor) != 0:
-            error(failed, "the socket could not be closed")
+            error(socket_error(c.errno()), "the socket could not be closed")
 
     mutating func destroy():
         self.close() catch failure:
@@ -5082,7 +5133,7 @@ func socket_address(descriptor: i32, peer: bool = false) -> SocketAddress!:
         length = 28
         result = query_address(descriptor, &raw, &length, peer)
     if result != 0:
-        error(failed, "the socket address could not be queried")
+        error(socket_error(c.errno()), "the socket address could not be queried")
     if length > 28:
         error(failed, "the socket address exceeds the supported IP storage")
     return try decode_address(&raw, length)
@@ -5097,7 +5148,7 @@ func set_socket_integer(descriptor: i32, level: i32, option: i32, value: i32) ->
     while result < 0 and c.errno() == c.interrupted:
         result = setsockopt(descriptor, level, option, &value, 4)
     if result != 0:
-        error(failed, "the socket option could not be set")
+        error(socket_error(c.errno()), "the socket option could not be set")
 ## Host option numbers stay private; public methods expose typed policies.
 let nonblocking_flag: i32 = 4 if platform.macos else 2048
 let receive_buffer_option: i32 = 4098 if platform.macos else 8
@@ -5109,7 +5160,7 @@ func socket_status_flags(descriptor: i32) -> i32!:
     while flags < 0 and c.errno() == c.interrupted:
         flags = fcntl(descriptor, 3)
     if flags < 0:
-        error(transfer_error(c.errno()), "socket status flags could not be queried")
+        error(socket_error(c.errno()), "socket status flags could not be queried")
     return flags
 
 func set_nonblocking(descriptor: i32, enabled: bool) -> !:
@@ -5121,7 +5172,7 @@ func set_nonblocking(descriptor: i32, enabled: bool) -> !:
     while result < 0 and c.errno() == c.interrupted:
         result = fcntl(descriptor, 4, after)
     if result < 0:
-        error(transfer_error(c.errno()), "socket nonblocking mode could not be changed")
+        error(socket_error(c.errno()), "socket nonblocking mode could not be changed")
 
 func get_socket_integer(descriptor: i32, level: i32, option: i32) -> i32!:
     var value: i32 = 0
@@ -5130,8 +5181,10 @@ func get_socket_integer(descriptor: i32, level: i32, option: i32) -> i32!:
     while result < 0 and c.errno() == c.interrupted:
         length = 4
         result = getsockopt(descriptor, level, option, &value, &length)
-    if result != 0 or length != 4:
-        error(failed, "the socket option could not be queried")
+    if result != 0:
+        error(socket_error(c.errno()), "the socket option could not be queried")
+    if length != 4:
+        error(failed, "the socket option has an invalid result layout")
     return value
 
 func set_socket_buffer(descriptor: i32, option: i32, bytes: i32) -> !:
@@ -5312,7 +5365,7 @@ func wait_poll(entries: NativePoll[], deadline: Deadline, cancellation: Cancella
         if result < 0:
             if c.errno() == c.interrupted:
                 continue
-            error(failed, "the readiness wait failed")
+            error(socket_error(c.errno()), "the readiness wait failed")
         if result > 0:
             return (usize)result
         if let end = deadline.instant:
@@ -5408,7 +5461,7 @@ let dont_wait_flag: i32 = 128 if platform.macos else 64
 func await_transfer_retry(descriptor: i32, interest: WaitInterest, number: i32, deadline: Deadline, cancellation: Cancellation*?) -> !:
     if number == c.interrupted:
         return
-    let code = transfer_error(number)
+    let code = socket_error(number)
     if code != io.would_block:
         error(code, "the deadline stream transfer failed")
     discard(try wait_socket(descriptor, interest, deadline, cancellation))

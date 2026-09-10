@@ -61,7 +61,7 @@ let dont_wait_flag: i32 = 128 if platform.macos else 64
 func await_transfer_retry(descriptor: i32, interest: WaitInterest, number: i32, deadline: Deadline, cancellation: Cancellation*?) -> !:
     if number == c.interrupted:
         return
-    let code = transfer_error(number)
+    let code = socket_error(number)
     if code != io.would_block:
         error(code, "the deadline stream transfer failed")
     discard(try wait_socket(descriptor, interest, deadline, cancellation))

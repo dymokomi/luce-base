@@ -1,0 +1,69 @@
+## Stable network error categories. Messages describe the operation and borrow
+## static storage; callers branch on codes rather than host-specific wording.
+pub let failed: ErrorCode = ErrorCode.package(9)
+pub let closed: ErrorCode = ErrorCode.package(10)
+pub let unknown_host: ErrorCode = ErrorCode.package(11)
+pub let invalid_options: ErrorCode = ErrorCode.package(35)
+pub let message_too_large: ErrorCode = ErrorCode.package(36)
+pub let cancelled: ErrorCode = ErrorCode.package(37)
+pub let timed_out: ErrorCode = ErrorCode.package(38)
+pub let connection_refused: ErrorCode = ErrorCode.package(39)
+pub let network_unreachable: ErrorCode = ErrorCode.package(40)
+pub let address_in_use: ErrorCode = ErrorCode.package(41)
+pub let address_unavailable: ErrorCode = ErrorCode.package(42)
+pub let permission_denied: ErrorCode = ErrorCode.package(43)
+pub let resource_exhausted: ErrorCode = ErrorCode.package(44)
+pub let connection_aborted: ErrorCode = ErrorCode.package(45)
+pub let unsupported: ErrorCode = ErrorCode.package(46)
+pub let resolution_temporary: ErrorCode = ErrorCode.package(47)
+
+## Shared by socket acquisition, options, transfers and waits. Capture this code
+## before cleanup: even a successful close may overwrite the thread's errno.
+func socket_error(number: i32) -> ErrorCode:
+    if number == (35 if platform.macos else 11):
+        return io.would_block
+    if number == 9 or number == 32 or number == (54 if platform.macos else 104) or number == (57 if platform.macos else 107) or number == (58 if platform.macos else 108) or number == (52 if platform.macos else 102):
+        return closed
+    if number == (60 if platform.macos else 110):
+        return timed_out
+    if number == (89 if platform.macos else 125):
+        return cancelled
+    if number == (61 if platform.macos else 111):
+        return connection_refused
+    if number == (50 if platform.macos else 100) or number == (51 if platform.macos else 101) or number == (64 if platform.macos else 112) or number == (65 if platform.macos else 113):
+        return network_unreachable
+    if number == (48 if platform.macos else 98):
+        return address_in_use
+    if number == (49 if platform.macos else 99):
+        return address_unavailable
+    if number == 1 or number == 13:
+        return permission_denied
+    if number == 12 or number == 23 or number == 24 or number == (55 if platform.macos else 105):
+        return resource_exhausted
+    if number == (53 if platform.macos else 103):
+        return connection_aborted
+    if number == (40 if platform.macos else 90):
+        return message_too_large
+    if number == 22 or number == (38 if platform.macos else 88) or number == (39 if platform.macos else 89) or number == (41 if platform.macos else 91):
+        return invalid_options
+    if number == (42 if platform.macos else 92) or number == (43 if platform.macos else 93) or number == (44 if platform.macos else 94) or number == (45 if platform.macos else 95) or number == (46 if platform.macos else 96) or number == (47 if platform.macos else 97) or number == (78 if platform.macos else 38):
+        return unsupported
+    # Darwin exposes both the historical ENOTSUP and the UNIX03 EOPNOTSUPP.
+    if platform.macos and number == 102:
+        return unsupported
+    return failed
+
+func resolver_error(number: i32) -> ErrorCode:
+    if number == (2 if platform.macos else -3):
+        return resolution_temporary
+    if number == (6 if platform.macos else -10):
+        return resource_exhausted
+    if number == (11 if platform.macos else -11):
+        return socket_error(c.errno())
+    if number == (8 if platform.macos else -2) or number == (7 if platform.macos else -5) or number == (1 if platform.macos else -9):
+        return unknown_host
+    if number == (5 if platform.macos else -6) or number == (10 if platform.macos else -7):
+        return unsupported
+    if number == (3 if platform.macos else -1) or number == (9 if platform.macos else -8):
+        return invalid_options
+    return failed

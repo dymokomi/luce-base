@@ -1,13 +1,6 @@
 ## Bound individual transfers below both supported hosts' signed syscall limits.
 let transfer_limit: usize = 1073741824
 
-func transfer_error(number: i32) -> ErrorCode:
-    if number == (35 if platform.macos else 11):
-        return io.would_block
-    if number == 9 or number == 32 or number == (54 if platform.macos else 104) or number == (57 if platform.macos else 107):
-        return closed
-    return failed
-
 ## Shared ownership state for all socket kinds. Consume before close because an
 ## interrupted or failed close may already have released the descriptor for reuse.
 struct SocketHandle:
@@ -20,7 +13,7 @@ struct SocketHandle:
         let family = inet if version == IpVersion.ipv4 else inet6
         let descriptor = socket(family, kind | flags, 0)
         if descriptor < 0:
-            error(failed, "a socket could not be created")
+            error(socket_error(c.errno()), "a socket could not be created")
         if platform.macos:
             return try SocketHandle.adopt(descriptor)
         return SocketHandle(value = descriptor)
@@ -34,15 +27,17 @@ struct SocketHandle:
         while flags < 0 and c.errno() == c.interrupted:
             flags = fcntl(descriptor, get_descriptor_flags)
         if flags < 0:
+            let code = socket_error(c.errno())
             discard(close(descriptor))
-            error(failed, "socket descriptor flags could not be queried")
+            error(code, "socket descriptor flags could not be queried")
         if (flags & descriptor_close_on_exec) == 0:
             var result = fcntl(descriptor, set_descriptor_flags, flags | descriptor_close_on_exec)
             while result < 0 and c.errno() == c.interrupted:
                 result = fcntl(descriptor, set_descriptor_flags, flags | descriptor_close_on_exec)
             if result < 0:
+                let code = socket_error(c.errno())
                 discard(close(descriptor))
-                error(failed, "the socket could not be marked close-on-exec")
+                error(code, "the socket could not be marked close-on-exec")
         return SocketHandle(value = descriptor)
 
     func require() -> i32!:
@@ -53,7 +48,7 @@ struct SocketHandle:
         let descriptor = self.value else return
         self.value = none
         if close(descriptor) != 0:
-            error(failed, "the socket could not be closed")
+            error(socket_error(c.errno()), "the socket could not be closed")
 
     mutating func destroy():
         self.close() catch failure:
@@ -67,7 +62,7 @@ func socket_address(descriptor: i32, peer: bool = false) -> SocketAddress!:
         length = 28
         result = query_address(descriptor, &raw, &length, peer)
     if result != 0:
-        error(failed, "the socket address could not be queried")
+        error(socket_error(c.errno()), "the socket address could not be queried")
     if length > 28:
         error(failed, "the socket address exceeds the supported IP storage")
     return try decode_address(&raw, length)
@@ -82,4 +77,4 @@ func set_socket_integer(descriptor: i32, level: i32, option: i32, value: i32) ->
     while result < 0 and c.errno() == c.interrupted:
         result = setsockopt(descriptor, level, option, &value, 4)
     if result != 0:
-        error(failed, "the socket option could not be set")
+        error(socket_error(c.errno()), "the socket option could not be set")

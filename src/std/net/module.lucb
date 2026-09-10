@@ -115,12 +115,3 @@ let ipv6_level: i32 = 41
 let ipv6_only_option: i32 = 27 if platform.macos else 26
 let no_sigpipe_option: i32 = 4130
 let send_flags: i32 = 0 if platform.macos else 16384
-
-pub let failed: ErrorCode = ErrorCode.package(9)
-pub let closed: ErrorCode = ErrorCode.package(10)
-pub let unknown_host: ErrorCode = ErrorCode.package(11)
-pub let invalid_options: ErrorCode = ErrorCode.package(35)
-pub let message_too_large: ErrorCode = ErrorCode.package(36)
-
-pub let cancelled: ErrorCode = ErrorCode.package(37)
-pub let timed_out: ErrorCode = ErrorCode.package(38)

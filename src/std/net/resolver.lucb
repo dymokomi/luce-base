@@ -74,8 +74,9 @@ struct ResolverQuery:
             family = inet if requested == IpVersion.ipv4 else inet6
         var hints = AddressInfo(family = family, kind = stream)
         var found: AddressInfo*? = none
-        if getaddrinfo(host, none, &hints, &found) != 0:
-            error(unknown_host, "unknown host")
+        let result = getaddrinfo(host, none, &hints, &found)
+        if result != 0:
+            error(resolver_error(result), "the host could not be resolved")
         let head = found else error(unknown_host, "unknown host")
         return ResolverQuery(head = head, family = family)
 

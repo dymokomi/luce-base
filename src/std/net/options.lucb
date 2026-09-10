@@ -9,7 +9,7 @@ func socket_status_flags(descriptor: i32) -> i32!:
     while flags < 0 and c.errno() == c.interrupted:
         flags = fcntl(descriptor, 3)
     if flags < 0:
-        error(transfer_error(c.errno()), "socket status flags could not be queried")
+        error(socket_error(c.errno()), "socket status flags could not be queried")
     return flags
 
 func set_nonblocking(descriptor: i32, enabled: bool) -> !:
@@ -21,7 +21,7 @@ func set_nonblocking(descriptor: i32, enabled: bool) -> !:
     while result < 0 and c.errno() == c.interrupted:
         result = fcntl(descriptor, 4, after)
     if result < 0:
-        error(transfer_error(c.errno()), "socket nonblocking mode could not be changed")
+        error(socket_error(c.errno()), "socket nonblocking mode could not be changed")
 
 func get_socket_integer(descriptor: i32, level: i32, option: i32) -> i32!:
     var value: i32 = 0
@@ -30,8 +30,10 @@ func get_socket_integer(descriptor: i32, level: i32, option: i32) -> i32!:
     while result < 0 and c.errno() == c.interrupted:
         length = 4
         result = getsockopt(descriptor, level, option, &value, &length)
-    if result != 0 or length != 4:
-        error(failed, "the socket option could not be queried")
+    if result != 0:
+        error(socket_error(c.errno()), "the socket option could not be queried")
+    if length != 4:
+        error(failed, "the socket option has an invalid result layout")
     return value
 
 func set_socket_buffer(descriptor: i32, option: i32, bytes: i32) -> !:

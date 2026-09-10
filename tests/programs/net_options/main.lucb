@@ -112,7 +112,7 @@ pub func main(arguments: c.str[]) -> i32!:
     fault_arm(4)
     refused = false
     packet.set_send_buffer(32768) catch failure:
-        assert(failure.code == net.failed)
+        assert(failure.code == net.invalid_options)
         refused = true
     assert(refused and fault_hits() == 1)
     fault_arm(5)

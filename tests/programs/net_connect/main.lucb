@@ -21,7 +21,7 @@ pub func main(arguments: c.str[]) -> i32!:
         let signal: net.Cancellation*? = &cancellation if kind == 2 else none
         var rejected = false
         var result = net.Connection.connect(target, deadline, signal) catch failure:
-            let expected = net.timed_out if kind == 1 or kind == 8 else (net.cancelled if kind == 2 else net.failed)
+            let expected = net.timed_out if kind == 1 or kind == 8 else (net.cancelled if kind == 2 else (net.connection_refused if kind == 3 else (net.permission_denied if kind == 4 else net.failed)))
             assert(failure.code == expected)
             rejected = true
             recover net.Connection()

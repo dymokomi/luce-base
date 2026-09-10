@@ -19,12 +19,12 @@ pub struct Listener:
         if address.ip.kind == IpVersion.ipv6:
             try set_socket_integer(fd, ipv6_level, ipv6_only_option, 1 if ipv6_only else 0)
         if bind(fd, &raw, length) != 0:
-            error(failed, "the listener could not bind its address")
+            error(socket_error(c.errno()), "the listener could not bind its address")
         var result = listen(fd, backlog)
         while result < 0 and c.errno() == c.interrupted:
             result = listen(fd, backlog)
         if result != 0:
-            error(failed, "the listener could not begin listening")
+            error(socket_error(c.errno()), "the listener could not begin listening")
         return Listener(socket = owned)
 
     ## Query the bound endpoint, including an automatically assigned port.
@@ -40,7 +40,7 @@ pub struct Listener:
         while fd < 0 and c.errno() == c.interrupted:
             fd = accept_socket(descriptor)
         if fd < 0:
-            error(transfer_error(c.errno()), "the listener could not accept a connection")
+            error(socket_error(c.errno()), "the listener could not accept a connection")
         var connection = try Connection.over(fd)
         errdefer connection.destroy()
         try connection.set_nonblocking(nonblocking)
