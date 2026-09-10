@@ -5,10 +5,10 @@ The standard-library stage is complete. At the user's request on 2026-09-10,
 committed identity/dependency checkpoint. Its post-quantum profile remains required
 for later Luce communication and package-client traffic.
 
-Current stage: **standard `net` protocol primitives**, HTTP/1.1 and WebSocket in
-luce-base. At the user's request, stop after this standard-library stage; do not
-resume `luce-server` automatically. The server will be an entirely Base library
-built on `net`; the separate `luce-http-server` example will be written in Luce to
+Completed stage: **standard `net` protocol primitives**, HTTP/1.1 and WebSocket in
+luce-base, verified on both native hosts on 2026-09-10. Work stops here at the user's
+request; do not resume `luce-server` automatically. The server will be an entirely
+Base library built on `net`; the separate `luce-http-server` example will be written in Luce to
 exercise interoperability. [Protocol primitives](NET_PROTOCOLS.md) describes the
 API and tests. TLS remains paused.
 
@@ -121,8 +121,8 @@ Browser-facing HTTPS uses the Internet TLS module. Luce client/server traffic us
 the strict post-quantum Luce profile; ordinary browsers cannot be required to enroll a Luce
 identity. Development can use pinned source checkouts until stage 4 supplies installation.
 
-Exit: package and deployable example written in Luce, independent HTTP client tests,
-streaming and disconnect tests, concurrent load with bounded resource use, graceful
+Exit: Base library package and separate deployable Luce example, independent HTTP
+client tests, streaming and disconnect tests, concurrent load with bounded resource use, graceful
 restart/shutdown and end-to-end HTTPS/static/API serving on both hosts.
 
 ## 4. luce-pkg and pkg.luciaos.com

@@ -68,6 +68,27 @@ Chunk syntax is limited to an 8 KiB line, one million chunks, and trailers total
 32 KiB and 100 fields. Head encoding uses the default head/field limits. Protocol
 limits do not substitute for application deadlines or limits on concurrent peers.
 
+For example, once a complete head has been accumulated, parsing borrows that
+storage and uses a separate field array:
+
+```lucb
+import net
+
+func inspect_request() -> !:
+    let wire = "POST /items HTTP/1.1\r\nHost: example.test\r\nContent-Length: 5\r\n\r\n"
+    var fields: net.HttpField[16]
+    let head = try net.http_parse_request(wire.bytes, fields)
+    assert(head.method == "POST" and head.target == "/items")
+    var body = try net.HttpBodyDecoder.create(head.body_kind, head.body_length)
+    let step = try body.consume("helloNEXT".bytes)
+    assert(step.consumed == 5 and body.finished())
+    assert((str)step.body == "hello")
+    try body.finish()
+```
+
+Here `NEXT` remains unconsumed. A socket loop preserves that suffix, supplies more
+input when needed, and calls `finish` when the transport reaches EOF.
+
 ## WebSocket
 
 The opening handshake implements RFC 6455 version 13 over HTTP/1.1, without
@@ -138,3 +159,15 @@ It checks the handshake and frame codecs through a Base wrapper, copied string
 lifetimes, first-class Base function calls, propagated failures and clean ARC
 shutdown at all four native optimization levels. Its sources are test fixtures;
 this does not build the future `luce-http-server` application.
+
+Validated on 2026-09-10:
+
+- Implementation `4b6294c` passed the full hosted gate on x86-64 Linux and ARM64
+  macOS: [run 34524979514](https://github.com/dymokomi/luce-base/actions/runs/34524979514).
+  Both logs include the protocol suite at native optimization levels 0–3 and both
+  supplemental C comparison modes.
+- The native bootstrap and assembly fixpoint passed locally, and the workspace
+  `build/luce-base` was rebuilt with these primitives.
+- The optional Luce/Base fixture at `543d938` passed all four native optimization
+  levels on ARM64 macOS with Luce 0.1.6, including clean ARC shutdown.
+- The HTTP example above compiled and ran with the native compiler.

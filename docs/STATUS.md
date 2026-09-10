@@ -45,6 +45,7 @@ seed named in `bootstrap/SEED` builds it to the same C.
 | 14 | interfaces, views, `Display`, `Iterator`, `Iterable`, `Writer?` in the null niche | verified | chapter 14 |
 | 15 | atomics with orderings, `volatile`, threads, `sync` | verified | chapter 15, `tests/programs/http`; `thread.spawn` honours `stack` and `name` (`tests/platform/common/thread_options.lucb`) |
 | 16 | modules, packages, the manifest, tests, the standard library | verified | chapter 16, `tests/programs/manifest`, `tests/programs/pkgconfig` |
+| 16.6 | standard `net` HTTP/1.1 and WebSocket primitives | verified | `tests/programs/net_protocols`: framing, fragmented input, limits, short writes, independent handshake/frame vectors and malformed input; [contracts and validation](NET_PROTOCOLS.md) |
 | 17.1–17.4 | `extern` functions, records, variadics, `out` parameters, C sources and libraries | verified | chapter 17, `tests/programs/abi`: records of every ABI class by value both ways, packed records in memory on x86-64 as System V asks |
 | 17.6 | export: methods, function pointers (`luce_fn_N`), spans as pointer and length, fallible functions in the status form, the package's error codes, `--lib` with a header | verified | `tests/programs/abi/exports.lucb` through a C consumer; `tests/samples/exports.lucb` |
 | 17.5 | `luce bind` | planned | a project of its own |

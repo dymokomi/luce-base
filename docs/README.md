@@ -11,3 +11,5 @@
 - [CI](CI.md) — the hosted gate.
 - [Library](LIBRARY.md) — the standard library's public surface, generated
   from its source.
+- [HTTP and WebSocket](NET_PROTOCOLS.md) — standard `net` protocol primitives,
+  ownership contracts, limits and validation.

@@ -75,12 +75,15 @@ appended, when the picture changes.
 
 The standard library (`memory`, `io`, `os`, `files`, `process`, `thread`,
 `sync`, `atomic`, `strings`, `paths`, `math`, `time`, `testing`, `net`, `c`) is
-Base source under `src/std/`, one file per module over `extern` declarations of
-the C library; `tools/embed_std.py` gathers them into `src/sema/prelude.lucb`,
+Base source under `src/std/`, in individual files or ordered source fragments,
+with `extern` declarations for operating-system and C-library calls;
+`tools/embed_std.py` gathers them into `src/sema/prelude.lucb`,
 which the compiler binary carries, and `tools/library_reference.py` writes
 [`docs/LIBRARY.md`](docs/LIBRARY.md) from the same source. The gate fails when
-either has drifted. Everything decided by target lives in `src/back/target.lucb`
-and in the `platform` module the compiler writes for each build (`--target
+either has drifted. `net` also provides transport-independent
+[HTTP/1.1 and WebSocket codecs](docs/NET_PROTOCOLS.md), using caller-owned storage
+and the standard Reader/Writer interfaces. Everything decided by target lives in
+`src/back/target.lucb` and in the `platform` module the compiler writes for each build (`--target
 NAME`); the library branches on `platform.macos` and its kin, and the branch a
 target rules out is pruned; `tests/platform` proves each host's arms. What is
 left in C, under `runtime/`, is what generated code cannot spell itself: traps,
