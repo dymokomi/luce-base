@@ -43,6 +43,16 @@ pub func main(arguments: c.str[]) -> i32!:
     let missing = try files.read_symlink(dangling, 7)
     defer strings.release(missing)
     assert(missing == "missing")
+    var published = false
+    try files.write_atomic(dangling, "atomic".bytes, published = &published)
+    assert(published)
+    let published_contents = try files.read(dangling)
+    defer free(published_contents)
+    assert((str)published_contents == "atomic")
+    try files.write_atomic(dangling, "".bytes)
+    let empty_contents = try files.read(dangling)
+    defer free(empty_contents)
+    assert(empty_contents.length == 0)
     rejected = false
     files.remove_directory(directory) catch failure:
         assert(failure.code == files.not_empty or failure.code == files.already_exists)

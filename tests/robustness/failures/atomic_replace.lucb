@@ -1,0 +1,107 @@
+import allocator
+import c
+import files
+import io
+import memory
+import paths
+import strings
+
+extern func atomic_fault_arm(kind: i32)
+extern func atomic_fault_clear()
+extern func atomic_fault_hits() -> i32
+extern func atomic_descriptors() -> i32
+
+func check_state(path: c.str, directory: c.str, expected: str, descriptors: i32) -> !:
+    let data = try files.read(path)
+    defer free(data)
+    assert((str)data == expected)
+    let entries = try files.list(directory)
+    defer files.release_list(entries)
+    for entry in entries:
+        assert(not strings.starts_with(entry, ".luce-"), "a temporary entry was left behind")
+    assert(atomic_descriptors() == descriptors)
+
+func allocation_case(path: c.str, directory: c.str, fail_at: usize) -> usize!:
+    try files.write(path, "old".bytes)
+    let before = atomic_descriptors()
+    var owner = allocator.Failing.at(fail_at)
+    var rejected = false
+    var published = true
+    with owner:
+        files.write_atomic(path, "replacement".bytes, synchronize = true, published = &published) catch failure:
+            assert(failure.code == memory.exhausted)
+            rejected = true
+    assert(rejected == (fail_at != 0) and published == (fail_at == 0))
+    owner.finish()
+    try check_state(path, directory, "old" if rejected else "replacement", before)
+    return owner.attempts
+
+func syscall_cases(path: c.str, directory: c.str) -> !:
+    var kind: i32 = 1
+    while kind <= 7:
+        try files.write(path, "old".bytes)
+        let before = atomic_descriptors()
+        var owner = allocator.Failing.at(0)
+        var rejected = false
+        var published = false
+        with owner:
+            atomic_fault_arm(kind)
+            files.write_atomic(path, "replacement".bytes, synchronize = true, published = &published) catch failure:
+                assert(failure.code == (files.no_space if kind == 2 else files.failed))
+                rejected = true
+        assert(rejected and atomic_fault_hits() == 1)
+        assert(published == (kind >= 6), "publication status lost a post-rename failure")
+        owner.finish()
+        try check_state(path, directory, "replacement" if published else "old", before)
+        kind += 1
+
+func temporary_cases(directory: c.str) -> !:
+    let before = atomic_descriptors()
+    var owner = allocator.Failing.at(0)
+    var temporary: files.TemporaryFile
+    with owner:
+        atomic_fault_arm(9)
+        temporary = try files.TemporaryFile.create(directory)
+        try io.write_all(&temporary, "kept".bytes)
+        var rejected = false
+        discard(files.TemporaryFile.create(directory) catch failure:
+            assert(failure.code == files.already_exists)
+            rejected = true
+            var empty: files.TemporaryFile
+            recover empty)
+        assert(rejected and atomic_fault_hits() == 129)
+        atomic_fault_clear()
+    # The object retains its pathname allocator across with blocks.
+    discard(try temporary.seek(0))
+    var bytes: u8[4]
+    try io.read_exact(&temporary, bytes)
+    assert((str)bytes == "kept")
+    let contents = try files.read((c.str)temporary.path())
+    defer free(contents)
+    assert((str)contents == "kept")
+    atomic_fault_arm(8)
+    var rejected = false
+    temporary.discard() catch failure:
+        assert(failure.code == files.permission_denied)
+        rejected = true
+    assert(rejected and atomic_fault_hits() == 1 and temporary.path().length > 0)
+    try temporary.discard()
+    try temporary.discard()
+    temporary.destroy()
+    owner.finish()
+    assert(atomic_descriptors() == before)
+
+pub func main(arguments: c.str[]) -> i32!:
+    let path = arguments[1]
+    let parent = try strings.copy(paths.directory((str)path))
+    defer strings.release(parent)
+    let directory = (c.str)parent
+    let steps = try allocation_case(path, directory, 0)
+    var fail_at: usize = 1
+    while fail_at <= steps:
+        discard(try allocation_case(path, directory, fail_at))
+        fail_at += 1
+    try syscall_cases(path, directory)
+    try temporary_cases(directory)
+    print("ok atomic failures")
+    return 0

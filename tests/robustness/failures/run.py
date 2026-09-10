@@ -38,6 +38,9 @@ with tempfile.TemporaryDirectory(prefix="luce-base-failures-") as temp:
     run([*shlex.split(os.environ.get("CC", "cc")), "-Wall", "-Wextra", "-Werror",
          "-c", str(sources / "faults.c"), "-o", str(work / "faults.o")])
     run(["ar", "rcs", str(work / "libfaults.a"), str(work / "faults.o")])
+    run([*shlex.split(os.environ.get("CC", "cc")), "-Wall", "-Wextra", "-Werror",
+         "-c", str(sources / "atomic_faults.c"), "-o", str(work / "atomic_faults.o")])
+    run(["ar", "rcs", str(work / "libatomic_faults.a"), str(work / "atomic_faults.o")])
     symlink = work / "target-link"
     symlink.symlink_to("missing-target")
     directories = []
@@ -49,6 +52,11 @@ with tempfile.TemporaryDirectory(prefix="luce-base-failures-") as temp:
         directories.append(directory)
     for flags in [*[["--opt", str(level)] for level in range(4)],
                   ["--backend=c"], ["--backend=c", "--release"]]:
+        atomic_writer = work / "atomic"
+        run([str(root / "build/luce-base"), "build", str(sources / "atomic_replace.lucb"),
+             *flags, f"-L{work}", "-latomic_faults", "-o", str(atomic_writer)])
+        run([str(atomic_writer), str(work / "atomic-data")], expected=b"ok atomic failures\n")
+        print(f"ok atomic failures: {' '.join(flags)}", flush=True)
         file_reader = work / "file_read"
         run([str(root / "build/luce-base"), "build", str(sources / "file_read.lucb"),
              *flags, "-o", str(file_reader)])

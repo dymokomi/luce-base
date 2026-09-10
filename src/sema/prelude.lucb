@@ -1593,495 +1593,6 @@ pub struct Semaphore:
         discard(self.count.add(1, .release))
         wake_one((void*)&self.count)
 """),
-    Prelude(name = "files", text = """
-import c
-import memory
-import platform
-import io
-
-extern func open(path: c.str, flags: i32, ...) -> i32
-extern func close(descriptor: i32) -> i32
-extern func c_read as "read"(descriptor: i32, buffer: void*, count: usize) -> isize
-extern func c_write as "write"(descriptor: i32, buffer: const void*, count: usize) -> isize
-extern func lseek(descriptor: i32, offset: i64, whence: i32) -> i64
-extern func fsync(descriptor: i32) -> i32
-extern func opendir(path: c.str) -> void*?
-extern func readdir_macos as "readdir"(directory: void*) -> MacEntry*?
-extern func readdir_linux as "readdir"(directory: void*) -> LinuxEntry*?
-extern func closedir(directory: void*) -> i32
-extern func access(path: c.str, mode: i32) -> i32
-extern func mkdir_macos as "mkdir"(path: c.str, permissions: u16) -> i32
-extern func mkdir_linux as "mkdir"(path: c.str, permissions: u32) -> i32
-extern func rmdir(path: c.str) -> i32
-extern func unlink(path: c.str) -> i32
-extern func c_rename as "rename"(source: c.str, destination: c.str) -> i32
-extern func symlink(target: c.str, path: c.str) -> i32
-extern func linkat(source_directory: i32, source: c.str, destination_directory: i32, destination: c.str, flags: i32) -> i32
-extern func readlink(path: c.str, buffer: void*, capacity: usize) -> isize
-
-## A directory entry as macOS lays it out (`struct dirent`, 64-bit inodes).
-extern struct MacEntry:
-    inode: u64
-    seek: u64
-    length: u16
-    name_length: u16
-    kind: u8
-    name: u8[1024]
-
-## A directory entry as Linux lays it out: the name is NUL-terminated, not counted.
-extern struct LinuxEntry:
-    inode: u64
-    offset: i64
-    length: u16
-    kind: u8
-    name: u8[256]
-
-## The next entry's name, or none at the end; `.` and `..` are entries like any other.
-func next_entry(directory: void*) -> str?!:
-    while true:
-        c.set_errno(0)
-        if platform.macos:
-            if let entry = readdir_macos(directory):
-                return (str)entry.name[..<(usize)entry.name_length]
-        else:
-            if let entry = readdir_linux(directory):
-                var n: usize = 0
-                while n < entry.name.length and entry.name[n] != 0:
-                    n += 1
-                return (str)entry.name[..<n]
-        let number = c.errno()
-        if number == c.interrupted:
-            continue
-        if number != 0:
-            error(classify_error(number), "the directory could not be read")
-        return none
-
-## `open` flags: macOS keeps the BSD values, Linux its own (§19.5).
-let write_only: i32 = 1
-let create: i32 = 512 if platform.macos else 64
-let truncate: i32 = 1024 if platform.macos else 512
-let close_on_exec: i32 = 16777216 if platform.macos else 524288
-let append_flag: i32 = 8 if platform.macos else 1024
-let exclusive_flag: i32 = 2048 if platform.macos else 128
-let would_block_errno: i32 = 35 if platform.macos else 11
-let transfer_limit: usize = 1073741824
-
-pub let missing: ErrorCode = ErrorCode.package(6)
-pub let permission_denied: ErrorCode = ErrorCode.package(18)
-pub let already_exists: ErrorCode = ErrorCode.package(19)
-pub let no_space: ErrorCode = ErrorCode.package(20)
-pub let would_block: ErrorCode = ErrorCode.package(21)
-pub let invalid_options: ErrorCode = ErrorCode.package(22)
-pub let too_large: ErrorCode = ErrorCode.package(23)
-pub let not_directory: ErrorCode = ErrorCode.package(25)
-pub let is_directory: ErrorCode = ErrorCode.package(26)
-pub let read_only_filesystem: ErrorCode = ErrorCode.package(27)
-pub let not_empty: ErrorCode = ErrorCode.package(29)
-pub let cross_device: ErrorCode = ErrorCode.package(30)
-pub let symlink_loop: ErrorCode = ErrorCode.package(31)
-pub let name_too_long: ErrorCode = ErrorCode.package(32)
-pub let failed: ErrorCode = ErrorCode.package(7)
-
-## File opening policy. `replace` creates or truncates; `create_new` refuses an
-## existing path; `append` creates if needed and makes each write append atomically.
-## Creation permissions are filtered by the process umask, never changed afterward.
-pub enum OpenMode as u8:
-    read = 0
-    read_write = 1
-    replace = 2
-    create_new = 3
-    append = 4
-
-pub enum SeekOrigin as u8:
-    start = 0
-    current = 1
-    end = 2
-
-## One owned descriptor. The zero value is closed. Borrow through a pointer or an
-## io interface; copying this value does not duplicate ownership or the OS handle.
-## A copied value must not be independently closed. Calls on one handle require
-## external synchronization. `close` reports errors; `destroy` is unwind cleanup.
-pub struct File: io.Reader, io.Writer:
-    var handle: i32?
-
-    ## Open a close-on-exec descriptor. Only the named creation modes create paths.
-    pub static func open(path: c.str, mode: OpenMode = OpenMode.read, permissions: u32 = 420) -> File!:
-        if permissions > 4095:
-            error(invalid_options, "file permissions must fit the Unix mode bits")
-        var flags = close_on_exec
-        if mode == OpenMode.read_write:
-            flags |= 2
-        elif mode == OpenMode.replace:
-            flags |= write_only | create | truncate
-        elif mode == OpenMode.create_new:
-            flags |= write_only | create | exclusive_flag
-        elif mode == OpenMode.append:
-            flags |= write_only | create | append_flag
-        elif mode != OpenMode.read:
-            error(invalid_options, "unknown file opening mode")
-        var fd = open(path, flags, permissions)
-        while fd < 0 and c.errno() == c.interrupted:
-            fd = open(path, flags, permissions)
-        if fd < 0:
-            error(classify_error(c.errno()), "the file could not be opened")
-        return File(handle = fd)
-
-    ## Borrow the descriptor for OS interoperability; none after close. The caller
-    ## must not close it or retain it past this owner's lifetime.
-    pub func descriptor() -> i32?:
-        return self.handle
-
-    ## Read some bytes, retrying interruption. Zero for nonempty storage is EOF;
-    ## empty input makes no system call. The handle must be open even for empty I/O.
-    pub mutating func read(buffer: u8[]) -> usize!:
-        let fd = self.handle else error(io.closed, "the file is closed")
-        if buffer.length == 0:
-            return 0
-        let count = buffer.length if buffer.length < transfer_limit else transfer_limit
-        var received = c_read(fd, buffer.data, count)
-        while received < 0 and c.errno() == c.interrupted:
-            received = c_read(fd, buffer.data, count)
-        if received < 0:
-            error(classify_error(c.errno()), "the file could not be read")
-        return (usize)received
-
-    ## Write some bytes, retrying interruption. Use io.write_all for a full payload.
-    ## Success confirms an OS write, not durable storage; call sync when required.
-    pub mutating func write(data: const u8[]) -> usize!:
-        let fd = self.handle else error(io.closed, "the file is closed")
-        if data.length == 0:
-            return 0
-        let count = data.length if data.length < transfer_limit else transfer_limit
-        var written = c_write(fd, data.data, count)
-        while written < 0 and c.errno() == c.interrupted:
-            written = c_write(fd, data.data, count)
-        if written < 0:
-            error(classify_error(c.errno()), "the file could not be written")
-        return (usize)written
-
-    ## Seek a seekable file and return its resulting byte offset. Pipes and other
-    ## unseekable descriptors report failure instead of pretending their size is zero.
-    pub mutating func seek(offset: i64, origin: SeekOrigin = SeekOrigin.start) -> i64!:
-        let fd = self.handle else error(io.closed, "the file is closed")
-        var position = lseek(fd, offset, (i32)origin)
-        while position < 0 and c.errno() == c.interrupted:
-            position = lseek(fd, offset, (i32)origin)
-        if position < 0:
-            error(classify_error(c.errno()), "the file could not be positioned")
-        return position
-
-    ## Request the OS's fsync durability boundary for this file; this does not sync
-    ## a containing directory or promise persistence beyond the OS/device contract.
-    pub mutating func sync() -> !:
-        let fd = self.handle else error(io.closed, "the file is closed")
-        var result = fsync(fd)
-        while result < 0 and c.errno() == c.interrupted:
-            result = fsync(fd)
-        if result < 0:
-            error(classify_error(c.errno()), "the file could not be synchronized")
-
-    ## Consume ownership before closing, so repeated calls on this value are safe
-    ## even after failure. Never retry close: a reused descriptor may belong to
-    ## another thread. A reported failure must not be retried using descriptor().
-    pub mutating func close() -> !:
-        let fd = self.handle else return
-        self.handle = none
-        if close(fd) != 0:
-            error(classify_error(c.errno()), "the file could not be closed")
-
-    ## Best-effort cleanup while unwinding another error. Use close explicitly on
-    ## the successful path when delayed close errors must be reported to the caller.
-    pub mutating func destroy():
-        self.close() catch failure:
-            discard(failure)
-
-func classify_error(number: i32) -> ErrorCode:
-    if number == 2:
-        return missing
-    if number == 1 or number == 13:
-        return permission_denied
-    if number == 17:
-        return already_exists
-    if number == 28:
-        return no_space
-    if number == 20:
-        return not_directory
-    if number == 21:
-        return is_directory
-    if number == 30:
-        return read_only_filesystem
-    if number == (66 if platform.macos else 39):
-        return not_empty
-    if number == 18:
-        return cross_device
-    if number == (62 if platform.macos else 40):
-        return symlink_loop
-    if number == (63 if platform.macos else 36):
-        return name_too_long
-    if number == would_block_errno:
-        return would_block
-    return failed
-
-## Whether the path currently resolves to an existing object, following symlinks.
-## This convenience form returns false on lookup errors; use exists_checked when
-## permission or I/O failures must be distinguished from absence. It never opens a
-## file, so checking a FIFO cannot block waiting for a writer.
-pub func exists(path: c.str) -> bool:
-    return exists_checked(path) catch failure:
-        discard(failure)
-        recover false
-
-## Checked existence lookup. Missing components, non-directory parent components
-## and dangling symlinks return false. Other failures retain their error category.
-pub func exists_checked(path: c.str) -> bool!:
-    var result = access(path, 0)
-    while result < 0 and c.errno() == c.interrupted:
-        result = access(path, 0)
-    if result == 0:
-        return true
-    let number = c.errno()
-    if number == 2 or number == 20:
-        return false
-    error(classify_error(number), "the path could not be inspected")
-
-## Create one directory; parents must already exist. An existing final entry is
-## already_exists, including a symlink. Permissions are filtered by the process
-## umask. No recursive creation, permission repair, or implicit retry occurs.
-pub func create_directory(path: c.str, permissions: u32 = 493) -> !:
-    if permissions > 4095:
-        error(invalid_options, "directory permissions must fit the Unix mode bits")
-    let result = mkdir_macos(path, (u16)permissions) if platform.macos else mkdir_linux(path, permissions)
-    if result != 0:
-        error(classify_error(c.errno()), "the directory could not be created")
-
-## Remove one non-directory entry. A final symlink is removed without touching
-## its target. Open handles and other hard links keep the object alive. Parents
-## are resolved normally; a missing entry is an error, not successful removal.
-pub func remove_file(path: c.str) -> !:
-    if unlink(path) != 0:
-        error(classify_error(c.errno()), "the file entry could not be removed")
-
-## Remove an empty directory; do not recurse or follow a final symlink. A
-## nonempty directory reports not_empty (or already_exists if the OS uses EEXIST).
-pub func remove_directory(path: c.str) -> !:
-    if rmdir(path) != 0:
-        error(classify_error(c.errno()), "the directory could not be removed")
-
-## Rename an entry, atomically replacing an existing compatible destination on
-## the same filesystem. Final symlinks are entries, not followed targets. Open
-## handles keep referring to their objects. This does not copy across devices,
-## request durable storage, or implement no-replace semantics. On a remote
-## filesystem a reported failure may follow a completed server-side mutation.
-pub func rename(source: c.str, destination: c.str) -> !:
-    if c_rename(source, destination) != 0:
-        error(classify_error(c.errno()), "the entry could not be renamed")
-
-## Create a symlink containing target's bytes; the target need not exist. A
-## relative target is resolved from the link's parent when later followed.
-## Creation refuses an existing link_path, including a dangling symlink.
-pub func create_symlink(target: c.str, link_path: c.str) -> !:
-    if symlink(target, link_path) != 0:
-        error(classify_error(c.errno()), "the symbolic link could not be created")
-
-## Create another name for the source entry on the same filesystem, refusing an
-## existing destination. A final source symlink is linked itself, not followed.
-## Directories cannot be linked. Intermediate path components resolve normally.
-pub func create_hard_link(source: c.str, destination: c.str) -> !:
-    let working_directory: i32 = -2 if platform.macos else -100
-    if linkat(working_directory, source, working_directory, destination, 0) != 0:
-        error(classify_error(c.errno()), "the hard link could not be created")
-
-## Read a final symlink's raw target bytes without following it. Return a
-## NUL-terminated current-allocator allocation released with strings.release.
-## At most limit bytes are accepted; excess reports too_large, never truncates.
-## One extra byte detects excess without trusting metadata. Interrupted reads
-## retry; concurrent replacement may therefore change the observed link target.
-pub func read_symlink(path: c.str, limit: usize = 4096) -> str!:
-    let capacity = limit +? 1 else error(memory.exhausted, "the link target limit overflows")
-    let buffer = try alloc u8[capacity]
-    defer free(buffer)
-    var count = readlink(path, buffer.data, buffer.length)
-    while count < 0 and c.errno() == c.interrupted:
-        count = readlink(path, buffer.data, buffer.length)
-    if count < 0:
-        error(classify_error(c.errno()), "the symbolic link could not be read")
-    if (usize)count > limit:
-        error(too_large, "the link target exceeds the requested limit")
-    let length = (usize)count
-    let exact = try alloc u8[length + 1]
-    memory.copy(exact, buffer, length)
-    exact[length] = 0
-    return (str)exact[..<length]
-
-## Read through EOF, including files whose size changes or cannot be sought. The
-## result is an allocation of the current allocator; free the returned span there.
-## Use read_limit for untrusted or potentially unbounded input.
-pub func read(path: c.str) -> u8[]!:
-    return try read_limit(path, 18446744073709551615)
-
-## Read a whole file up to `limit` bytes. One extra byte may be read to distinguish
-## an exact fit from excess input; excess fails with too_large, never truncates.
-## All allocations and the descriptor are released on failure. An empty result is
-## still an owned zero-length allocation, following read's existing free contract.
-pub func read_limit(path: c.str, limit: usize) -> u8[]!:
-    var file = try File.open(path)
-    defer file.destroy()
-    var bytes: u8[]
-    errdefer release_buffer(bytes)
-    var used: usize = 0
-    var scratch: u8[4096]
-    while true:
-        let remaining = limit - used
-        let requested = 1 if remaining == 0 else (remaining if remaining < scratch.length else scratch.length)
-        let count = try file.read(scratch[..<requested])
-        if count == 0:
-            break
-        if remaining == 0:
-            error(too_large, "the file exceeds the read limit")
-        let needed = used + count
-        if needed > bytes.length:
-            var capacity = bytes.length *? 2 else limit
-            if capacity < 4096:
-                capacity = 4096
-            if capacity < needed:
-                capacity = needed
-            if capacity > limit:
-                capacity = limit
-            if bytes.length == 0:
-                bytes = try alloc u8[capacity]
-            else:
-                bytes = try memory.grow(bytes, capacity)
-        memory.copy(bytes[used..], scratch, count)
-        used += count
-    try file.close()
-    if used == bytes.length and used > 0:
-        return bytes
-    let exact = try alloc u8[used]
-    memory.copy(exact, bytes, used)
-    release_buffer(bytes)
-    return exact
-
-## Create or truncate and write all bytes, reporting write and close failures.
-## This is neither atomic replacement nor durable sync; use those operations
-## explicitly when their guarantees are required.
-pub func write(path: c.str, data: const u8[]) -> !:
-    var file = try File.open(path, OpenMode.replace)
-    defer file.destroy()
-    try io.write_all(&file, data)
-    try file.close()
-
-func release_buffer(bytes: u8[]):
-    if bytes.length > 0:
-        free(bytes)
-
-## One owned directory stream; the zero value is closed. Copying does not duplicate
-## ownership. Borrow it for iteration and serialize access to the stream.
-pub struct Directory:
-    var handle: void*?
-
-    pub static func open(path: c.str) -> Directory!:
-        var stream = opendir(path)
-        while stream == none and c.errno() == c.interrupted:
-            stream = opendir(path)
-        let directory = stream else error(classify_error(c.errno()), "the directory could not be opened")
-        return Directory(handle = directory)
-
-    ## The next name excluding dot and dot-dot, or none at end. Names are raw path
-    ## bytes, not guaranteed UTF-8. The view expires on the next call or close.
-    pub mutating func next() -> str?!:
-        let directory = self.handle else error(io.closed, "the directory is closed")
-        while true:
-            let name = try next_entry(directory) else return none
-            if name != "." and name != "..":
-                return name
-
-    ## Consume ownership even on failure; repeated calls on this value are safe.
-    pub mutating func close() -> !:
-        let directory = self.handle else return
-        self.handle = none
-        if closedir(directory) != 0:
-            error(classify_error(c.errno()), "the directory could not be closed")
-
-    ## Best-effort unwind cleanup; use close to observe an error on the success path.
-    pub mutating func destroy():
-        self.close() catch failure:
-            discard(failure)
-
-## The names in a directory, sorted by bytes, without `.` and `..`: each name and the
-## array holding them, exactly as long as the names, are allocations of the current
-## allocator, which `release_list` returns together. On a failure nothing allocated is
-## kept and the directory is closed.
-pub func list(path: c.str) -> str[]!:
-    var directory = try Directory.open(path)
-    defer directory.destroy()
-    var names = try alloc str[16]
-    var count: usize = 0
-    errdefer release_entries(names, count)
-    while let name = try directory.next():
-        if count == names.length:
-            let capacity = names.length *? 2 else error(memory.exhausted, "the directory listing is too large")
-            let grown = try alloc str[capacity]
-            memory.copy(grown, names, count)
-            free(names)
-            names = grown
-        let copy = try alloc u8[name.length + 1]
-        memory.copy(copy, name.bytes, name.length)
-        copy[name.length] = 0
-        names[count] = (str)copy[..<name.length]
-        count += 1
-    try directory.close()
-    sort_names(names[..<count])
-    # the array as long as the names, so that `release_list` returns what was allocated
-    if count == 0:
-        free(names)
-        var empty: str[]
-        return empty
-    let exact = try alloc str[count]
-    memory.copy(exact, names, count)
-    free(names)
-    return exact
-
-## In-place heapsort gives large directories O(n log n) comparisons without a
-## second allocation or a recursion depth dependent on filesystem enumeration order.
-func sort_names(names: str[]):
-    var root = names.length // 2
-    while root > 0:
-        root -= 1
-        sift_names(names, root, names.length)
-    var end = names.length
-    while end > 1:
-        end -= 1
-        let largest = names[0]
-        names[0] = names[end]
-        names[end] = largest
-        sift_names(names, 0, end)
-
-func sift_names(names: str[], start: usize, end: usize):
-    var parent = start
-    while parent < end // 2:
-        var child = parent * 2 + 1
-        if child + 1 < end and names[child] < names[child + 1]:
-            child += 1
-        if not (names[parent] < names[child]):
-            return
-        let saved = names[parent]
-        names[parent] = names[child]
-        names[child] = saved
-        parent = child
-
-## Return what `list` allocated: every name, then the array, to the allocator that is
-## current, which must be the one `list` allocated from. The names are one byte longer
-## than they read, the NUL after each (§5.5).
-pub func release_list(names: str[]):
-    release_entries(names, names.length)
-
-## Partial lists still own the whole array allocation, including its unfilled capacity.
-func release_entries(names: str[], count: usize):
-    for name in names[..<count]:
-        free(u8[]((u8*)name.bytes.data, name.length + 1))
-    if names.length > 0:
-        free(names)
-"""),
     Prelude(name = "process", text = """
 import c
 import memory
@@ -2630,6 +2141,625 @@ pub func join(left: str, right: str) -> str!:
     let separator = "" if left.bytes[left.length - 1] == '/' else "/"
     let pieces: str[2] = [left, right]
     return try strings.join(pieces, separator)
+"""),
+    Prelude(name = "files", text = """
+import c
+import memory
+import platform
+import io
+import paths
+import strings
+
+extern func open(path: c.str, flags: i32, ...) -> i32
+extern func close(descriptor: i32) -> i32
+extern func c_read as "read"(descriptor: i32, buffer: void*, count: usize) -> isize
+extern func c_write as "write"(descriptor: i32, buffer: const void*, count: usize) -> isize
+extern func lseek(descriptor: i32, offset: i64, whence: i32) -> i64
+extern func fsync(descriptor: i32) -> i32
+extern func opendir(path: c.str) -> void*?
+extern func readdir_macos as "readdir"(directory: void*) -> MacEntry*?
+extern func readdir_linux as "readdir"(directory: void*) -> LinuxEntry*?
+extern func closedir(directory: void*) -> i32
+extern func access(path: c.str, mode: i32) -> i32
+extern func mkdir_macos as "mkdir"(path: c.str, permissions: u16) -> i32
+extern func mkdir_linux as "mkdir"(path: c.str, permissions: u32) -> i32
+extern func rmdir(path: c.str) -> i32
+extern func unlink(path: c.str) -> i32
+extern func c_rename as "rename"(source: c.str, destination: c.str) -> i32
+extern func symlink(target: c.str, path: c.str) -> i32
+extern func linkat(source_directory: i32, source: c.str, destination_directory: i32, destination: c.str, flags: i32) -> i32
+extern func readlink(path: c.str, buffer: void*, capacity: usize) -> isize
+extern func getentropy(buffer: void*, length: usize) -> i32
+
+## A directory entry as macOS lays it out (`struct dirent`, 64-bit inodes).
+extern struct MacEntry:
+    inode: u64
+    seek: u64
+    length: u16
+    name_length: u16
+    kind: u8
+    name: u8[1024]
+
+## A directory entry as Linux lays it out: the name is NUL-terminated, not counted.
+extern struct LinuxEntry:
+    inode: u64
+    offset: i64
+    length: u16
+    kind: u8
+    name: u8[256]
+
+## The next entry's name, or none at the end; `.` and `..` are entries like any other.
+func next_entry(directory: void*) -> str?!:
+    while true:
+        c.set_errno(0)
+        if platform.macos:
+            if let entry = readdir_macos(directory):
+                return (str)entry.name[..<(usize)entry.name_length]
+        else:
+            if let entry = readdir_linux(directory):
+                var n: usize = 0
+                while n < entry.name.length and entry.name[n] != 0:
+                    n += 1
+                return (str)entry.name[..<n]
+        let number = c.errno()
+        if number == c.interrupted:
+            continue
+        if number != 0:
+            error(classify_error(number), "the directory could not be read")
+        return none
+
+## `open` flags: macOS keeps the BSD values, Linux its own (§19.5).
+let write_only: i32 = 1
+let create: i32 = 512 if platform.macos else 64
+let truncate: i32 = 1024 if platform.macos else 512
+let close_on_exec: i32 = 16777216 if platform.macos else 524288
+let append_flag: i32 = 8 if platform.macos else 1024
+let exclusive_flag: i32 = 2048 if platform.macos else 128
+let would_block_errno: i32 = 35 if platform.macos else 11
+let transfer_limit: usize = 1073741824
+
+pub let missing: ErrorCode = ErrorCode.package(6)
+pub let permission_denied: ErrorCode = ErrorCode.package(18)
+pub let already_exists: ErrorCode = ErrorCode.package(19)
+pub let no_space: ErrorCode = ErrorCode.package(20)
+pub let would_block: ErrorCode = ErrorCode.package(21)
+pub let invalid_options: ErrorCode = ErrorCode.package(22)
+pub let too_large: ErrorCode = ErrorCode.package(23)
+pub let not_directory: ErrorCode = ErrorCode.package(25)
+pub let is_directory: ErrorCode = ErrorCode.package(26)
+pub let read_only_filesystem: ErrorCode = ErrorCode.package(27)
+pub let not_empty: ErrorCode = ErrorCode.package(29)
+pub let cross_device: ErrorCode = ErrorCode.package(30)
+pub let symlink_loop: ErrorCode = ErrorCode.package(31)
+pub let name_too_long: ErrorCode = ErrorCode.package(32)
+pub let failed: ErrorCode = ErrorCode.package(7)
+
+## File opening policy. `replace` creates or truncates; `create_new` refuses an
+## existing path; `create_new_read_write` also permits reads. `append` creates if
+## needed and makes each write append atomically.
+## Creation permissions are filtered by the process umask, never changed afterward.
+pub enum OpenMode as u8:
+    read = 0
+    read_write = 1
+    replace = 2
+    create_new = 3
+    append = 4
+    create_new_read_write = 5
+
+pub enum SeekOrigin as u8:
+    start = 0
+    current = 1
+    end = 2
+
+## One owned descriptor. The zero value is closed. Borrow through a pointer or an
+## io interface; copying this value does not duplicate ownership or the OS handle.
+## A copied value must not be independently closed. Calls on one handle require
+## external synchronization. `close` reports errors; `destroy` is unwind cleanup.
+pub struct File: io.Reader, io.Writer:
+    var handle: i32?
+
+    ## Open a close-on-exec descriptor. Only the named creation modes create paths.
+    pub static func open(path: c.str, mode: OpenMode = OpenMode.read, permissions: u32 = 420) -> File!:
+        if permissions > 4095:
+            error(invalid_options, "file permissions must fit the Unix mode bits")
+        var flags = close_on_exec
+        if mode == OpenMode.read_write:
+            flags |= 2
+        elif mode == OpenMode.replace:
+            flags |= write_only | create | truncate
+        elif mode == OpenMode.create_new or mode == OpenMode.create_new_read_write:
+            flags |= create | exclusive_flag | (2 if mode == OpenMode.create_new_read_write else write_only)
+        elif mode == OpenMode.append:
+            flags |= write_only | create | append_flag
+        elif mode != OpenMode.read:
+            error(invalid_options, "unknown file opening mode")
+        var fd = open(path, flags, permissions)
+        while fd < 0 and c.errno() == c.interrupted:
+            fd = open(path, flags, permissions)
+        if fd < 0:
+            error(classify_error(c.errno()), "the file could not be opened")
+        return File(handle = fd)
+
+    ## Borrow the descriptor for OS interoperability; none after close. The caller
+    ## must not close it or retain it past this owner's lifetime.
+    pub func descriptor() -> i32?:
+        return self.handle
+
+    ## Read some bytes, retrying interruption. Zero for nonempty storage is EOF;
+    ## empty input makes no system call. The handle must be open even for empty I/O.
+    pub mutating func read(buffer: u8[]) -> usize!:
+        let fd = self.handle else error(io.closed, "the file is closed")
+        if buffer.length == 0:
+            return 0
+        let count = buffer.length if buffer.length < transfer_limit else transfer_limit
+        var received = c_read(fd, buffer.data, count)
+        while received < 0 and c.errno() == c.interrupted:
+            received = c_read(fd, buffer.data, count)
+        if received < 0:
+            error(classify_error(c.errno()), "the file could not be read")
+        return (usize)received
+
+    ## Write some bytes, retrying interruption. Use io.write_all for a full payload.
+    ## Success confirms an OS write, not durable storage; call sync when required.
+    pub mutating func write(data: const u8[]) -> usize!:
+        let fd = self.handle else error(io.closed, "the file is closed")
+        if data.length == 0:
+            return 0
+        let count = data.length if data.length < transfer_limit else transfer_limit
+        var written = c_write(fd, data.data, count)
+        while written < 0 and c.errno() == c.interrupted:
+            written = c_write(fd, data.data, count)
+        if written < 0:
+            error(classify_error(c.errno()), "the file could not be written")
+        return (usize)written
+
+    ## Seek a seekable file and return its resulting byte offset. Pipes and other
+    ## unseekable descriptors report failure instead of pretending their size is zero.
+    pub mutating func seek(offset: i64, origin: SeekOrigin = SeekOrigin.start) -> i64!:
+        let fd = self.handle else error(io.closed, "the file is closed")
+        var position = lseek(fd, offset, (i32)origin)
+        while position < 0 and c.errno() == c.interrupted:
+            position = lseek(fd, offset, (i32)origin)
+        if position < 0:
+            error(classify_error(c.errno()), "the file could not be positioned")
+        return position
+
+    ## Request the OS's fsync durability boundary for this file; this does not sync
+    ## a containing directory or promise persistence beyond the OS/device contract.
+    pub mutating func sync() -> !:
+        let fd = self.handle else error(io.closed, "the file is closed")
+        var result = fsync(fd)
+        while result < 0 and c.errno() == c.interrupted:
+            result = fsync(fd)
+        if result < 0:
+            error(classify_error(c.errno()), "the file could not be synchronized")
+
+    ## Consume ownership before closing, so repeated calls on this value are safe
+    ## even after failure. Never retry close: a reused descriptor may belong to
+    ## another thread. A reported failure must not be retried using descriptor().
+    pub mutating func close() -> !:
+        let fd = self.handle else return
+        self.handle = none
+        if close(fd) != 0:
+            error(classify_error(c.errno()), "the file could not be closed")
+
+    ## Best-effort cleanup while unwinding another error. Use close explicitly on
+    ## the successful path when delayed close errors must be reported to the caller.
+    pub mutating func destroy():
+        self.close() catch failure:
+            discard(failure)
+
+func classify_error(number: i32) -> ErrorCode:
+    if number == 2:
+        return missing
+    if number == 1 or number == 13:
+        return permission_denied
+    if number == 17:
+        return already_exists
+    if number == 28:
+        return no_space
+    if number == 20:
+        return not_directory
+    if number == 21:
+        return is_directory
+    if number == 30:
+        return read_only_filesystem
+    if number == (66 if platform.macos else 39):
+        return not_empty
+    if number == 18:
+        return cross_device
+    if number == (62 if platform.macos else 40):
+        return symlink_loop
+    if number == (63 if platform.macos else 36):
+        return name_too_long
+    if number == would_block_errno:
+        return would_block
+    return failed
+
+## Whether the path currently resolves to an existing object, following symlinks.
+## This convenience form returns false on lookup errors; use exists_checked when
+## permission or I/O failures must be distinguished from absence. It never opens a
+## file, so checking a FIFO cannot block waiting for a writer.
+pub func exists(path: c.str) -> bool:
+    return exists_checked(path) catch failure:
+        discard(failure)
+        recover false
+
+## Checked existence lookup. Missing components, non-directory parent components
+## and dangling symlinks return false. Other failures retain their error category.
+pub func exists_checked(path: c.str) -> bool!:
+    var result = access(path, 0)
+    while result < 0 and c.errno() == c.interrupted:
+        result = access(path, 0)
+    if result == 0:
+        return true
+    let number = c.errno()
+    if number == 2 or number == 20:
+        return false
+    error(classify_error(number), "the path could not be inspected")
+
+## Create one directory; parents must already exist. An existing final entry is
+## already_exists, including a symlink. Permissions are filtered by the process
+## umask. No recursive creation, permission repair, or implicit retry occurs.
+pub func create_directory(path: c.str, permissions: u32 = 493) -> !:
+    if permissions > 4095:
+        error(invalid_options, "directory permissions must fit the Unix mode bits")
+    let result = mkdir_macos(path, (u16)permissions) if platform.macos else mkdir_linux(path, permissions)
+    if result != 0:
+        error(classify_error(c.errno()), "the directory could not be created")
+
+## Remove one non-directory entry. A final symlink is removed without touching
+## its target. Open handles and other hard links keep the object alive. Parents
+## are resolved normally; a missing entry is an error, not successful removal.
+pub func remove_file(path: c.str) -> !:
+    if unlink(path) != 0:
+        error(classify_error(c.errno()), "the file entry could not be removed")
+
+## Remove an empty directory; do not recurse or follow a final symlink. A
+## nonempty directory reports not_empty (or already_exists if the OS uses EEXIST).
+pub func remove_directory(path: c.str) -> !:
+    if rmdir(path) != 0:
+        error(classify_error(c.errno()), "the directory could not be removed")
+
+## Rename an entry, atomically replacing an existing compatible destination on
+## the same filesystem. Final symlinks are entries, not followed targets. Open
+## handles keep referring to their objects. This does not copy across devices,
+## request durable storage, or implement no-replace semantics. On a remote
+## filesystem a reported failure may follow a completed server-side mutation.
+pub func rename(source: c.str, destination: c.str) -> !:
+    if c_rename(source, destination) != 0:
+        error(classify_error(c.errno()), "the entry could not be renamed")
+
+## Create a symlink containing target's bytes; the target need not exist. A
+## relative target is resolved from the link's parent when later followed.
+## Creation refuses an existing link_path, including a dangling symlink.
+pub func create_symlink(target: c.str, link_path: c.str) -> !:
+    if symlink(target, link_path) != 0:
+        error(classify_error(c.errno()), "the symbolic link could not be created")
+
+## Create another name for the source entry on the same filesystem, refusing an
+## existing destination. A final source symlink is linked itself, not followed.
+## Directories cannot be linked. Intermediate path components resolve normally.
+pub func create_hard_link(source: c.str, destination: c.str) -> !:
+    let working_directory: i32 = -2 if platform.macos else -100
+    if linkat(working_directory, source, working_directory, destination, 0) != 0:
+        error(classify_error(c.errno()), "the hard link could not be created")
+
+## Read a final symlink's raw target bytes without following it. Return a
+## NUL-terminated current-allocator allocation released with strings.release.
+## At most limit bytes are accepted; excess reports too_large, never truncates.
+## One extra byte detects excess without trusting metadata. Interrupted reads
+## retry; concurrent replacement may therefore change the observed link target.
+pub func read_symlink(path: c.str, limit: usize = 4096) -> str!:
+    let capacity = limit +? 1 else error(memory.exhausted, "the link target limit overflows")
+    let buffer = try alloc u8[capacity]
+    defer free(buffer)
+    var count = readlink(path, buffer.data, buffer.length)
+    while count < 0 and c.errno() == c.interrupted:
+        count = readlink(path, buffer.data, buffer.length)
+    if count < 0:
+        error(classify_error(c.errno()), "the symbolic link could not be read")
+    if (usize)count > limit:
+        error(too_large, "the link target exceeds the requested limit")
+    let length = (usize)count
+    let exact = try alloc u8[length + 1]
+    memory.copy(exact, buffer, length)
+    exact[length] = 0
+    return (str)exact[..<length]
+
+## A temporary file and its owned pathname. The zero value is closed. Copying does
+## not duplicate ownership. Borrow the object for I/O and serialize its use.
+## The pathname allocator is retained, so cleanup may occur outside its with block.
+pub struct TemporaryFile: io.Reader, io.Writer:
+    var file: File
+    var name: str
+    var owner: memory.Allocator?
+
+    ## Create an exclusive close-on-exec file in directory, with permissions
+    ## filtered by umask. The OS supplies 128 random filename bits per attempt;
+    ## collisions retry up to 128 times. Entropy acquisition may block. No
+    ## existing entry is opened or overwritten, and failure retains no allocation.
+    pub static func create(directory: c.str, permissions: u32 = 384) -> TemporaryFile!:
+        let candidate = try paths.join((str)directory, ".luce-00000000000000000000000000000000")
+        errdefer strings.release(candidate)
+        let digits = "0123456789abcdef"
+        let data = (u8*)candidate.bytes.data
+        let suffix = candidate.length - 32
+        var attempt: usize = 0
+        while attempt < 128:
+            var random: u8[16]
+            if getentropy(&random[0], random.length) != 0:
+                error(failed, "temporary filename randomness is unavailable")
+            for i in 0..<random.length:
+                data[suffix + i * 2] = digits.bytes[random[i] >> 4]
+                data[suffix + i * 2 + 1] = digits.bytes[random[i] & 15]
+            let file = File.open((c.str)candidate, OpenMode.create_new_read_write, permissions) catch failure:
+                if failure.code == already_exists:
+                    attempt += 1
+                    continue
+                error(failure.code, failure.message)
+            return TemporaryFile(file = file, name = candidate, owner = memory.allocator)
+        error(already_exists, "no unused temporary filename was found")
+
+    ## Borrowed NUL-terminated pathname, valid until publication or cleanup.
+    pub func path() -> str:
+        return self.name
+
+    pub mutating func read(buffer: u8[]) -> usize!:
+        return try self.file.read(buffer)
+
+    pub mutating func write(data: const u8[]) -> usize!:
+        return try self.file.write(data)
+
+    pub mutating func seek(offset: i64, origin: SeekOrigin = SeekOrigin.start) -> i64!:
+        return try self.file.seek(offset, origin)
+
+    pub mutating func sync() -> !:
+        try self.file.sync()
+
+    ## Close successfully, then rename over destination. A close failure does
+    ## not publish. A rename failure leaves the temporary pathname owned here
+    ## for retry or discard. Success consumes ownership and invalidates path().
+    ## This does not synchronize data or the parent directory; call sync first
+    ## and synchronize the destination directory when that guarantee is needed.
+    pub mutating func publish(destination: c.str) -> !:
+        if self.name.length == 0:
+            error(io.closed, "the temporary file has no owned pathname")
+        try self.file.close()
+        try rename((c.str)self.name, destination)
+        self.release_name()
+
+    mutating func release_name():
+        if self.name.length > 0:
+            let owner = self.owner else trap("a temporary pathname lost its allocator")
+            with owner:
+                strings.release(self.name)
+            self.name = ""
+            self.owner = none
+
+    mutating func remove_name() -> !:
+        if self.name.length == 0:
+            return
+        remove_file((c.str)self.name) catch failure:
+            if failure.code != missing:
+                error(failure.code, failure.message)
+        self.release_name()
+
+    ## Close and remove the temporary entry. Report the first failure; still
+    ## attempt removal after a close failure. A failed removal retains path()
+    ## for retry. Repeated successful discard calls are safe.
+    pub mutating func discard() -> !:
+        self.file.close() catch failure:
+            self.remove_name() catch cleanup:
+                discard(cleanup)
+            error(failure.code, failure.message)
+        try self.remove_name()
+
+    ## Best-effort cleanup, releasing pathname memory even if the OS refuses
+    ## removal. Such a refusal can leave a file behind; use discard to observe it.
+    pub mutating func destroy():
+        self.discard() catch failure:
+            discard(failure)
+        self.release_name()
+
+## Write through a temporary sibling, then atomically rename it over path. The
+## replacement receives permissions filtered by umask; existing ownership, mode
+## and extended metadata are not preserved. A final symlink is replaced itself.
+## Parent directories must remain stable throughout the operation.
+## With synchronize, fsync the file before publication and its parent afterward;
+## this also requires read access to the parent directory. Optional published is
+## reset on entry and set immediately after successful rename, before directory
+## sync/close. A later failure can therefore report published=true. It must not
+## overlap input or allocator state. Temporary cleanup on failure is best effort.
+pub func write_atomic(path: c.str, data: const u8[], permissions: u32 = 420, synchronize: bool = false, published: bool*? = none) -> !:
+    if let flag = published:
+        *flag = false
+    let parent_name = try strings.copy(paths.directory((str)path))
+    defer strings.release(parent_name)
+    var parent: File
+    defer parent.destroy()
+    if synchronize:
+        parent = try File.open((c.str)parent_name)
+    var temporary = try TemporaryFile.create((c.str)parent_name, permissions)
+    defer temporary.destroy()
+    try io.write_all(&temporary, data)
+    if synchronize:
+        try temporary.sync()
+    try temporary.publish(path)
+    if let flag = published:
+        *flag = true
+    if synchronize:
+        try parent.sync()
+        try parent.close()
+
+## Read through EOF, including files whose size changes or cannot be sought. The
+## result is an allocation of the current allocator; free the returned span there.
+## Use read_limit for untrusted or potentially unbounded input.
+pub func read(path: c.str) -> u8[]!:
+    return try read_limit(path, 18446744073709551615)
+
+## Read a whole file up to `limit` bytes. One extra byte may be read to distinguish
+## an exact fit from excess input; excess fails with too_large, never truncates.
+## All allocations and the descriptor are released on failure. An empty result is
+## still an owned zero-length allocation, following read's existing free contract.
+pub func read_limit(path: c.str, limit: usize) -> u8[]!:
+    var file = try File.open(path)
+    defer file.destroy()
+    var bytes: u8[]
+    errdefer release_buffer(bytes)
+    var used: usize = 0
+    var scratch: u8[4096]
+    while true:
+        let remaining = limit - used
+        let requested = 1 if remaining == 0 else (remaining if remaining < scratch.length else scratch.length)
+        let count = try file.read(scratch[..<requested])
+        if count == 0:
+            break
+        if remaining == 0:
+            error(too_large, "the file exceeds the read limit")
+        let needed = used + count
+        if needed > bytes.length:
+            var capacity = bytes.length *? 2 else limit
+            if capacity < 4096:
+                capacity = 4096
+            if capacity < needed:
+                capacity = needed
+            if capacity > limit:
+                capacity = limit
+            if bytes.length == 0:
+                bytes = try alloc u8[capacity]
+            else:
+                bytes = try memory.grow(bytes, capacity)
+        memory.copy(bytes[used..], scratch, count)
+        used += count
+    try file.close()
+    if used == bytes.length and used > 0:
+        return bytes
+    let exact = try alloc u8[used]
+    memory.copy(exact, bytes, used)
+    release_buffer(bytes)
+    return exact
+
+## Create or truncate and write all bytes, reporting write and close failures.
+## This is neither atomic replacement nor durable sync; use those operations
+## explicitly when their guarantees are required.
+pub func write(path: c.str, data: const u8[]) -> !:
+    var file = try File.open(path, OpenMode.replace)
+    defer file.destroy()
+    try io.write_all(&file, data)
+    try file.close()
+
+func release_buffer(bytes: u8[]):
+    if bytes.length > 0:
+        free(bytes)
+
+## One owned directory stream; the zero value is closed. Copying does not duplicate
+## ownership. Borrow it for iteration and serialize access to the stream.
+pub struct Directory:
+    var handle: void*?
+
+    pub static func open(path: c.str) -> Directory!:
+        var stream = opendir(path)
+        while stream == none and c.errno() == c.interrupted:
+            stream = opendir(path)
+        let directory = stream else error(classify_error(c.errno()), "the directory could not be opened")
+        return Directory(handle = directory)
+
+    ## The next name excluding dot and dot-dot, or none at end. Names are raw path
+    ## bytes, not guaranteed UTF-8. The view expires on the next call or close.
+    pub mutating func next() -> str?!:
+        let directory = self.handle else error(io.closed, "the directory is closed")
+        while true:
+            let name = try next_entry(directory) else return none
+            if name != "." and name != "..":
+                return name
+
+    ## Consume ownership even on failure; repeated calls on this value are safe.
+    pub mutating func close() -> !:
+        let directory = self.handle else return
+        self.handle = none
+        if closedir(directory) != 0:
+            error(classify_error(c.errno()), "the directory could not be closed")
+
+    ## Best-effort unwind cleanup; use close to observe an error on the success path.
+    pub mutating func destroy():
+        self.close() catch failure:
+            discard(failure)
+
+## The names in a directory, sorted by bytes, without `.` and `..`: each name and the
+## array holding them, exactly as long as the names, are allocations of the current
+## allocator, which `release_list` returns together. On a failure nothing allocated is
+## kept and the directory is closed.
+pub func list(path: c.str) -> str[]!:
+    var directory = try Directory.open(path)
+    defer directory.destroy()
+    var names = try alloc str[16]
+    var count: usize = 0
+    errdefer release_entries(names, count)
+    while let name = try directory.next():
+        if count == names.length:
+            let capacity = names.length *? 2 else error(memory.exhausted, "the directory listing is too large")
+            let grown = try alloc str[capacity]
+            memory.copy(grown, names, count)
+            free(names)
+            names = grown
+        let copy = try alloc u8[name.length + 1]
+        memory.copy(copy, name.bytes, name.length)
+        copy[name.length] = 0
+        names[count] = (str)copy[..<name.length]
+        count += 1
+    try directory.close()
+    sort_names(names[..<count])
+    # the array as long as the names, so that `release_list` returns what was allocated
+    if count == 0:
+        free(names)
+        var empty: str[]
+        return empty
+    let exact = try alloc str[count]
+    memory.copy(exact, names, count)
+    free(names)
+    return exact
+
+## In-place heapsort gives large directories O(n log n) comparisons without a
+## second allocation or a recursion depth dependent on filesystem enumeration order.
+func sort_names(names: str[]):
+    var root = names.length // 2
+    while root > 0:
+        root -= 1
+        sift_names(names, root, names.length)
+    var end = names.length
+    while end > 1:
+        end -= 1
+        let largest = names[0]
+        names[0] = names[end]
+        names[end] = largest
+        sift_names(names, 0, end)
+
+func sift_names(names: str[], start: usize, end: usize):
+    var parent = start
+    while parent < end // 2:
+        var child = parent * 2 + 1
+        if child + 1 < end and names[child] < names[child + 1]:
+            child += 1
+        if not (names[parent] < names[child]):
+            return
+        let saved = names[parent]
+        names[parent] = names[child]
+        names[child] = saved
+        parent = child
+
+## Return what `list` allocated: every name, then the array, to the allocator that is
+## current, which must be the one `list` allocated from. The names are one byte longer
+## than they read, the NUL after each (§5.5).
+pub func release_list(names: str[]):
+    release_entries(names, names.length)
+
+## Partial lists still own the whole array allocation, including its unfilled capacity.
+func release_entries(names: str[], count: usize):
+    for name in names[..<count]:
+        free(u8[]((u8*)name.bytes.data, name.length + 1))
+    if names.length > 0:
+        free(names)
 """),
     Prelude(name = "math", text = """
 ## The mathematical functions of the standard library (§16.6): `import math` for
