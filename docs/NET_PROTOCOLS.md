@@ -126,3 +126,15 @@ length boundaries. The suite is included in `test.sh`.
 The governing references are [RFC 9112](https://www.rfc-editor.org/rfc/rfc9112.html),
 [RFC 9110](https://www.rfc-editor.org/rfc/rfc9110.html), and
 [RFC 6455](https://www.rfc-editor.org/rfc/rfc6455.html).
+
+An optional downstream check uses an existing Luce compiler without making Base's
+bootstrap depend on Luce:
+
+```sh
+python3 tests/programs/net_protocols/interop.py --luce ../luce/build/luce
+```
+
+It checks the handshake and frame codecs through a Base wrapper, copied string
+lifetimes, first-class Base function calls, propagated failures and clean ARC
+shutdown at all four native optimization levels. Its sources are test fixtures;
+this does not build the future `luce-http-server` application.
