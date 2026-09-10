@@ -1,0 +1,5 @@
+pub struct Settings:
+    pub var port: i64
+    pub var label: str
+    pub let version: i64
+    var hidden: i64

@@ -48,6 +48,10 @@ func declaration(out: io.Writer, checker: check.Checker*, d: ast.Node*) -> !:
                     try out.write(f"    field {member.text}: ")
                     try checker.table.describe(out, member.type_id)
                     try out.write("\n")
+                    # Older readers ignore this additive record and retain a
+                    # conservative read-only view of an imported field.
+                    if not member.has(ast.flag_const):
+                        try out.write(f"    mutable {member.text}\n")
                 m = member.next
         .enum_:
             # an integer-backed enum crosses; one with payloads is Base's own
