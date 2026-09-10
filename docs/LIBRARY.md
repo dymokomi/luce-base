@@ -809,6 +809,10 @@ Blocking socket I/O. Created and accepted sockets are close-on-exec. Linux sets 
 
 - `let message_too_large: ErrorCode = ErrorCode.package(36)`
 
+- `let cancelled: ErrorCode = ErrorCode.package(37)`
+
+- `let timed_out: ErrorCode = ErrorCode.package(38)`
+
 ### `IpVersion` (enumas u8)
 
 IP version carried by an address value. IPv4-mapped IPv6 remains IPv6.
@@ -858,6 +862,7 @@ One owned TCP listener. Zero is closed. Copying does not duplicate ownership; co
 - `static func bind(address: SocketAddress, backlog: i32 = 128, ipv6_only: bool = true) -> Listener!` — Bind and listen with a positive requested backlog. The OS may cap the pending connection queue; the value does not limit accepted connections. IPv6 listeners default to IPv6-only on both hosts. Set ipv6_only=false to also permit mapped IPv4 peers; the option has no effect for IPv4 listeners.
 - `func address() -> SocketAddress!` — Query the bound endpoint, including an automatically assigned port.
 - `func accept(nonblocking: bool = false) -> Connection!` — Accept one connection, or io.would_block when a nonblocking listener has none pending. Accepted connections are blocking unless nonblocking=true, independently of the listener setting and host inheritance defaults.
+- `func wait(interest: WaitInterest = WaitInterest.read, deadline: Deadline = Deadline(), cancellation: Cancellation*? = none) -> Readiness!` — Wait for advisory readiness without allocating. Expiration reports timed_out; cancellation reports cancelled. Use nonblocking I/O after readiness because another user can consume it. The socket remains borrowed and open.
 - `mutating func set_nonblocking(enabled: bool) -> !` — Change O_NONBLOCK without changing other status flags. Descriptor aliases share this setting; synchronize changes with all users of this socket.
 - `func is_nonblocking() -> bool!`
 - `mutating func set_receive_buffer(bytes: i32) -> !` — Request kernel buffering in bytes, not a guaranteed transfer size. The OS may cap or round the request; receive_buffer returns its reported setting.
@@ -888,6 +893,7 @@ One owned TCP connection implementing borrowed Reader and Writer interfaces. Zer
 - `func no_delay() -> bool!`
 - `mutating func set_keepalive(enabled: bool) -> !` — Enable OS TCP keepalive probes. Timing and retry defaults remain host policy; keepalive does not provide an application operation deadline.
 - `func keepalive() -> bool!`
+- `func wait(interest: WaitInterest = WaitInterest.read, deadline: Deadline = Deadline(), cancellation: Cancellation*? = none) -> Readiness!` — Wait for advisory readiness without allocating. Expiration reports timed_out; cancellation reports cancelled. Use nonblocking I/O after readiness because another user can consume it. The socket remains borrowed and open.
 - `mutating func set_nonblocking(enabled: bool) -> !` — Change O_NONBLOCK without changing other status flags. Descriptor aliases share this setting; synchronize changes with all users of this socket.
 - `func is_nonblocking() -> bool!`
 - `mutating func set_receive_buffer(bytes: i32) -> !` — Request kernel buffering in bytes, not a guaranteed transfer size. The OS may cap or round the request; receive_buffer returns its reported setting.
@@ -906,6 +912,7 @@ One owned UDP socket. Zero is closed. Copying does not duplicate ownership; copi
 - `func address() -> SocketAddress!` — Query the bound endpoint, including an automatically assigned port.
 - `func send_to(data: const u8[], address: SocketAddress) -> !` — Send one complete IP datagram, including an empty packet. A successful send confirms local acceptance, not peer delivery. IPv4 permits up to 65507 payload bytes, IPv6 up to 65527; host/path limits may be smaller. IPv6 jumbograms are not supported. The destination must match the socket version.
 - `func receive_from(buffer: u8[]) -> (usize, SocketAddress)!` — Consume one packet. Zero means a valid empty datagram, not stream EOF. If storage is too small, consume/discard the packet and report message_too_large; a copied prefix may remain in the buffer. The next call receives the next packet. Empty storage can receive only an empty packet.
+- `func wait(interest: WaitInterest = WaitInterest.read, deadline: Deadline = Deadline(), cancellation: Cancellation*? = none) -> Readiness!` — Wait for advisory readiness without allocating. Expiration reports timed_out; cancellation reports cancelled. Use nonblocking I/O after readiness because another user can consume it. The socket remains borrowed and open.
 - `mutating func set_nonblocking(enabled: bool) -> !` — Change O_NONBLOCK without changing other status flags. Descriptor aliases share this setting; synchronize changes with all users of this socket.
 - `func is_nonblocking() -> bool!`
 - `mutating func set_receive_buffer(bytes: i32) -> !` — Request kernel buffering in bytes, not a guaranteed transfer size. The OS may cap or round the request; receive_buffer returns its reported setting.
@@ -915,6 +922,44 @@ One owned UDP socket. Zero is closed. Copying does not duplicate ownership; copi
 - `func descriptor() -> i32?` — Borrow the descriptor; the caller must not close it or retain it past this owner.
 - `mutating func close() -> !` — Consume ownership before the OS call. Repeated close is safe even after failure.
 - `mutating func destroy()` — Best-effort cleanup for unwinding; use close to observe delayed errors.
+
+### `Deadline` (struct)
+
+A monotonic absolute deadline. Zero has no time limit. Reuse the same value across retries and partial transfers so interruptions cannot restart a timeout.
+
+- `static func after(nanoseconds: u64) -> Deadline!` — Expire this many nanoseconds from now. Zero is an immediate check. A delay that exceeds the clock's representable range reports invalid_options.
+- `static func at(nanoseconds: u64) -> Deadline` — Use an absolute nanosecond instant from the same monotonic origin as time.now.
+
+### `Cancellation` (struct)
+
+A one-way cancellation signal shared by reference. Zero is not requested. Keep this object alive until every waiting thread returns; do not copy or reset it while shared. Requests use release/acquire synchronization.
+
+- `mutating func request()`
+- `func is_requested() -> bool`
+
+### `WaitInterest` (enumas u8)
+
+### `Readiness` (struct)
+
+Events are advisory: another user may consume readiness before the next call. Use nonblocking I/O and handle io.would_block. Hangup can coexist with queued readable bytes; read until EOF rather than discarding data on this flag alone.
+
+- `var readable: bool`
+- `var writable: bool`
+- `var hangup: bool`
+- `var failure: bool`
+- `var invalid: bool`
+
+### `Poller` (struct)
+
+Reusable storage for a fixed number of borrowed descriptors. All slots begin disabled; watch/disable mutate slots without allocation. Copying does not duplicate ownership. The retained allocator must outlive this object. Synchronize all operations; watched descriptors must stay open during wait.
+
+- `static func create(capacity: usize) -> Poller!`
+- `func capacity() -> usize`
+- `mutating func watch(index: usize, descriptor: i32, interest: WaitInterest = WaitInterest.read) -> !` — Watch a nonnegative borrowed descriptor. A descriptor may occupy only one slot: host poll implementations differ on duplicate entries. Use both for combined read/write interest. Replacing a slot clears its events.
+- `mutating func disable(index: usize) -> !`
+- `mutating func wait(deadline: Deadline = Deadline(), cancellation: Cancellation*? = none) -> usize!` — Wait for ready slots, returning their count or zero on deadline expiration. No allocation occurs. Empty interest sets may be used as a timed sleep. Cancellation reports cancelled; it is checked before and after each poll. With cancellation supplied, kernel waits are capped at 10 ms between checks; scheduling can delay return. A simultaneous observed cancellation wins over readiness. Expired deadlines still perform one nonblocking readiness check. Interrupted calls recompute the remaining deadline. Output events are cleared on entry and on error. This does not make later I/O obey the deadline itself.
+- `func readiness(index: usize) -> Readiness!` — Borrow a copy of the most recent wait's events for this slot. Disabled slots have no events. Invalid descriptors are reported per slot, not silently closed.
+- `mutating func destroy()`
 
 ## `c`
 

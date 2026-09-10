@@ -22,7 +22,7 @@ Define EOF, zero-length operations, interruption, would-block and timeout separa
 | Module | Current source | Required work |
 | --- | --- | --- |
 | `math`, `math32` | Explicit special-value contracts, f64/f32 libm operations, precision helpers and checked integer operations | Complete per-function accuracy/domain documentation and wider reference campaigns; rounding-mode and boundary coverage beyond the initial vectors |
-| `net` | IPv4/IPv6 value parsing, canonical formatting and byte conversion; IPv4/IPv6 TCP/UDP, first/all-address resolution with owned results and blocking sockets; TCP Reader/Writer with explicit short transfers and recoverable write progress, closed zero values, checked close/adoption, close-on-exec handles, local/peer endpoint queries, configurable backlog, TCP half-close and explicit UDP truncation/empty-packet behavior; nonblocking controls, explicit accepted-socket mode, TCP no-delay/keepalive and kernel buffer settings | Readiness support, deadlines/cancellation, broader error categories and sustained transfer coverage |
+| `net` | IPv4/IPv6 value parsing, canonical formatting and byte conversion; IPv4/IPv6 TCP/UDP, first/all-address resolution with owned results and blocking sockets; TCP Reader/Writer with explicit short transfers and recoverable write progress, closed zero values, checked close/adoption, close-on-exec handles, local/peer endpoint queries, configurable backlog, TCP half-close and explicit UDP truncation/empty-packet behavior; nonblocking controls, explicit accepted-socket mode, TCP no-delay/keepalive and kernel buffer settings; reusable readiness polling with absolute deadlines and cancellation | Deadline-aware connection establishment and transfer adapters, broader error categories and sustained transfer coverage |
 | `io` | Reader/Writer contracts, borrowed slice and buffered adapters, exact/all/bounded-copy helpers with confirmed progress, unbuffered stdin, synchronized libc stdout/stderr, explicit flush and formatting sink | Seeking where supported, broader concurrent and sustained-transfer coverage; confirm file/socket adapters are ready for the later TLS stage |
 | `files` | Owned Reader/Writer handles, open modes, seeking/sync, checked close, path/handle metadata and checked length/permission/timestamp updates; bounded streaming whole-file helpers, owned directory iteration, bounded depth-first traversal and descriptor-relative lookup/open, checked existence, single-entry mutation, bounded symlink reads, owned temporary files and atomic replacement and bounded copying with publication status | Broader concurrent filesystem campaigns and error detail |
 | `strings`, `utf8` | Byte searches/slices, byte separator split, ASCII case conversion, decimal i64, an alias-safe builder and strict UTF-8 scalar operations | Document byte offsets/borrowed views; substring search/split/replace and bounded variants; checked size arithmetic, reserve/capacity and aliasing rules; numeric parsing/formatting; streaming UTF-8 decoding and Unicode-aware operations separate from ASCII helpers |
@@ -138,3 +138,14 @@ bookkeeping in those values. TCP keepalive uses host timing defaults and is not 
 operation deadline. See [socket options](https://man7.org/linux/man-pages/man7/socket.7.html),
 [TCP controls](https://man7.org/linux/man-pages/man7/tcp.7.html), and
 [file status flags](https://man7.org/linux/man-pages/man2/F_GETFL.2const.html).
+
+`Poller` owns reusable wait storage while borrowing watched descriptors. Individual
+socket waits use stack storage. Both preserve an absolute monotonic `Deadline`
+across interruptions; a readiness result never guarantees that later blocking I/O
+will meet that deadline. Callers use nonblocking transfers and retry would-block.
+Cancellation is a shared one-way atomic signal, checked around each poll with
+kernel waits capped at 10 ms when cancellation is supplied; scheduler delay remains
+possible. A descriptor occupies one slot because macOS poll does not report duplicate
+entries consistently. Deterministic clock/syscall tests cover deadline accounting,
+error cleanup and cancellation precedence, alongside real TCP/UDP readiness and
+cross-thread cancellation. See [poll semantics](https://man7.org/linux/man-pages/man2/poll.2.html).

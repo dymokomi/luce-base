@@ -46,6 +46,12 @@ pub struct Listener:
         try connection.set_nonblocking(nonblocking)
         return connection
 
+    ## Wait for advisory readiness without allocating. Expiration reports timed_out;
+    ## cancellation reports cancelled. Use nonblocking I/O after readiness because
+    ## another user can consume it. The socket remains borrowed and open.
+    pub func wait(interest: WaitInterest = WaitInterest.read, deadline: Deadline = Deadline(), cancellation: Cancellation*? = none) -> Readiness!:
+        return try wait_socket(try self.socket.require(), interest, deadline, cancellation)
+
     ## Change O_NONBLOCK without changing other status flags. Descriptor aliases
     ## share this setting; synchronize changes with all users of this socket.
     pub mutating func set_nonblocking(enabled: bool) -> !:

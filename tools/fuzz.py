@@ -75,10 +75,13 @@ def corpus():
     for pattern in ("tests/samples/*.lucb", "tests/conformance/*/*.lucb", "tests/conformance/*/*/*.lucb"):
         files += sorted(root.glob(pattern))
     sources = [(path.name, path.read_bytes()) for path in files]
+    sources = [(name, data) for name, data in sources if len(data) < 60000]
+    # Every standard module remains a seed as it grows; the sample-size cutoff
+    # must not silently remove the very library implementations being hardened.
     directory = root / "src/std"
     sources += [(f"{name}.lucb", module_source(directory, name).encode())
                 for name in sorted(module_names(directory))]
-    return [(name, data) for name, data in sources if len(data) < 60000]
+    return sources
 
 
 token = re.compile(rb"[A-Za-z_][A-Za-z0-9_]*|\d+|\S", re.S)

@@ -3,6 +3,7 @@
 ## must serialize socket creation/acceptance with concurrent fork/exec there.
 ## Adopting a caller-created descriptor also needs this coordination on either OS.
 import c
+import atomic
 import platform
 import memory
 import io
@@ -76,7 +77,7 @@ extern struct LinuxMessage:
     flags: i32
 
 ## The first two bytes of `sockaddr_in` as one little-endian word: on macOS the length
-## byte (16) comes first and the family byte second, on Linux the family fills both.
+## byte comes first and the family byte second, on Linux the family fills both.
 func family_word(family: i32, length: u8) -> u16:
     if platform.macos:
         return (u16)length | ((u16)family << 8)
@@ -120,3 +121,6 @@ pub let closed: ErrorCode = ErrorCode.package(10)
 pub let unknown_host: ErrorCode = ErrorCode.package(11)
 pub let invalid_options: ErrorCode = ErrorCode.package(35)
 pub let message_too_large: ErrorCode = ErrorCode.package(36)
+
+pub let cancelled: ErrorCode = ErrorCode.package(37)
+pub let timed_out: ErrorCode = ErrorCode.package(38)
