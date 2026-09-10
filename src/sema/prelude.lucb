@@ -2501,7 +2501,6 @@ pub struct Builder: io.Writer:
     Prelude(name = "paths", text = """
 ## File system paths as text, with `/` as the separator.
 
-import memory
 import strings
 
 pub func is_absolute(path: str) -> bool:
@@ -2533,21 +2532,15 @@ pub func stem(path: str) -> str:
     let ext = extension(name)
     return (str)name.bytes[..<name.length - ext.length]
 
-## `left/right`, in the current allocator; an absolute `right` wins.
+## Join with a separator only when needed; an absolute right path wins. This is
+## lexical joining, without normalization or filesystem access. The result is a
+## NUL-terminated current-allocator allocation, released with strings.release.
 pub func join(left: str, right: str) -> str!:
     if is_absolute(right) or left.length == 0:
         return try strings.copy(right)
-    let out = try alloc u8[left.length + right.length + 2]
-    var n: usize = 0
-    memory.copy(out, left.bytes, left.length)
-    n = left.length
-    if left.bytes[left.length - 1] != '/':
-        out[n] = '/'
-        n += 1
-    memory.copy(out[n..], right.bytes, right.length)
-    n += right.length
-    out[n] = 0
-    return (str)out[..<n]
+    let separator = "" if left.bytes[left.length - 1] == '/' else "/"
+    let pieces: str[2] = [left, right]
+    return try strings.join(pieces, separator)
 """),
     Prelude(name = "math", text = """
 ## The mathematical functions of the standard library (§16.6): `import math` for

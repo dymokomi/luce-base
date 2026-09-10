@@ -2,6 +2,7 @@
 import allocator
 import memory
 import strings
+import paths
 import io
 
 func text_work() -> !:
@@ -21,6 +22,13 @@ func text_work() -> !:
     let empty = try strings.copy("")
     defer strings.release(empty)
     assert(empty.length == 0)
+    let left: str[5] = ["a", "a/", "", "ignored", "/"]
+    let right: str[5] = ["b", "b", "b", "/b", ""]
+    let expected: str[5] = ["a/b", "a/b", "b", "/b", "/"]
+    for i in 0..<left.length:
+        let path = try paths.join(left[i], right[i])
+        assert(path == expected[i])
+        strings.release(path)
 
 func builder_work(other: memory.Allocator) -> !:
     var builder = try strings.Builder.create(4)

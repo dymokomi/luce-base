@@ -425,7 +425,7 @@ File system paths as text, with `/` as the separator.
 
 - `func stem(path: str) -> str` — The last component without its extension.
 
-- `func join(left: str, right: str) -> str!` — `left/right`, in the current allocator; an absolute `right` wins.
+- `func join(left: str, right: str) -> str!` — Join with a separator only when needed; an absolute right path wins. This is lexical joining, without normalization or filesystem access. The result is a NUL-terminated current-allocator allocation, released with strings.release.
 
 ## `math`
 
