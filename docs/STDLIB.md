@@ -1,9 +1,17 @@
 # Standard-library readiness
 
-This is the active first stage of [the ecosystem roadmap](ECOSYSTEM.md). Completion
-means a defined API surface with precise contracts and repeatable evidence, rather
-than an unlimited claim that no defect can remain. All five modules must pass before
-`luce-tls` implementation starts.
+The first stage of [the ecosystem roadmap](ECOSYSTEM.md) closed for Base 0.12.0 on
+2026-09-10. Completion means a defined API surface with precise contracts and
+repeatable evidence, rather than an unlimited claim that no defect can remain.
+All five module groups passed before `luce-tls` implementation began.
+
+The [Base candidate gate](https://github.com/dymokomi/luce-base/actions/runs/34466037569)
+passed on ARM64 macOS and x86-64 Linux at `ebfbf7f`. The
+[downstream Luce gate](https://github.com/dymokomi/luce/actions/runs/34471123877)
+also passed on both hosts, building Luce natively against that exact Base commit.
+It includes all native optimization levels, text ownership integration, compiler
+and runtime tests, conformance and fuzzing. Release changes after this tested Base
+commit only record these results in documentation.
 
 ## Contracts first
 
@@ -19,13 +27,13 @@ Define EOF, zero-length operations, interruption, would-block and timeout separa
 
 ## Module scope
 
-| Module | Current source | Required work |
+| Module | Current source | Status and scope |
 | --- | --- | --- |
-| `math`, `math32` | Explicit special-value contracts, f64/f32 libm operations, precision helpers and checked integer operations; documented numerical contracts, independent reference vectors across 28 operations and exceptional-value checks under all four rounding directions | Final host gates and continued reference coverage |
-| `net` | IPv4/IPv6 value parsing, canonical formatting and byte conversion; IPv4/IPv6 TCP/UDP, first/all-address resolution with owned results and blocking sockets; TCP Reader/Writer with explicit short transfers and recoverable write progress, closed zero values, checked close/adoption, close-on-exec handles, local/peer endpoint queries, configurable backlog, TCP half-close and explicit UDP truncation/empty-packet behavior; nonblocking controls, explicit accepted-socket mode, TCP no-delay/keepalive and kernel buffer settings; reusable readiness polling, bounded connection setup, borrowed deadline streams with cancellation and typed host error categories; sustained concurrent buffered transfers | Final host gates |
-| `io` | Reader/Writer contracts, borrowed slice and buffered adapters, exact/all/bounded-copy helpers with confirmed progress, unbuffered stdin, synchronized libc stdout/stderr, explicit flush and formatting sink; sustained concurrent file/socket adapter coverage | Final host gates; seeking remains on file handles rather than the byte-stream interfaces |
-| `files` | Owned Reader/Writer handles, open modes, seeking/sync, checked close, path/handle metadata and checked length/permission/timestamp updates; bounded streaming whole-file helpers, owned directory iteration, bounded depth-first traversal and descriptor-relative lookup/open, checked existence, single-entry mutation, bounded symlink reads, owned temporary files and atomic replacement and bounded copying with publication status; concurrent publication/read campaigns | Final host gates |
-| `strings`, `utf8`, `unicode` | Linear forward/reverse byte searches and offset searches, byte and substring splitting with borrowed iterators, bounded substring replacement, ASCII case conversion, checked signed/unsigned radix conversion, locale-independent floating-point text conversion, an alias-safe builder, strict UTF-8 scalar operations, an allocation-free streaming decoder, pinned Unicode 17 full default casing/case folding, all four normalization forms and allocation-free extended grapheme iteration | Final host and downstream integration gates |
+| `math`, `math32` | Explicit special-value contracts, f64/f32 libm operations, precision helpers and checked integer operations; documented numerical contracts, independent reference vectors across 28 operations and exceptional-value checks under all four rounding directions | Passed; extend reference coverage as the API grows |
+| `net` | IPv4/IPv6 value parsing, canonical formatting and byte conversion; IPv4/IPv6 TCP/UDP, first/all-address resolution with owned results and blocking sockets; TCP Reader/Writer with explicit short transfers and recoverable write progress, closed zero values, checked close/adoption, close-on-exec handles, local/peer endpoint queries, configurable backlog, TCP half-close and explicit UDP truncation/empty-packet behavior; nonblocking controls, explicit accepted-socket mode, TCP no-delay/keepalive and kernel buffer settings; reusable readiness polling, bounded connection setup, borrowed deadline streams with cancellation and typed host error categories; sustained concurrent buffered transfers | Passed on both hosts |
+| `io` | Reader/Writer contracts, borrowed slice and buffered adapters, exact/all/bounded-copy helpers with confirmed progress, unbuffered stdin, synchronized libc stdout/stderr, explicit flush and formatting sink; sustained concurrent file/socket adapter coverage | Passed on both hosts; seeking remains on file handles rather than the byte-stream interfaces |
+| `files` | Owned Reader/Writer handles, open modes, seeking/sync, checked close, path/handle metadata and checked length/permission/timestamp updates; bounded streaming whole-file helpers, owned directory iteration, bounded depth-first traversal and descriptor-relative lookup/open, checked existence, single-entry mutation, bounded symlink reads, owned temporary files and atomic replacement and bounded copying with publication status; concurrent publication/read campaigns | Passed on both hosts |
+| `strings`, `utf8`, `unicode` | Linear forward/reverse byte searches and offset searches, byte and substring splitting with borrowed iterators, bounded substring replacement, ASCII case conversion, checked signed/unsigned radix conversion, locale-independent floating-point text conversion, an alias-safe builder, strict UTF-8 scalar operations, an allocation-free streaming decoder, pinned Unicode 17 full default casing/case folding, all four normalization forms and allocation-free extended grapheme iteration | Passed on both hosts and in downstream Luce |
 
 Do not silently change existing ASCII functions into locale-dependent Unicode
 operations. Define Unicode version and invalid-input policy before exposing Unicode

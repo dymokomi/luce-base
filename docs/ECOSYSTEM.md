@@ -4,6 +4,10 @@ Work proceeds in this order. A stage closes against its acceptance criteria befo
 implementation of the next stage begins. Compiler defects exposed by a stage are
 fixed as prerequisites; unrelated compiler features stay in the backlog.
 
+Current stage: **2, luce-tls**. Stage 1 closed for Base 0.12.0 on 2026-09-10;
+[standard-library readiness](STDLIB.md) records the Base and downstream Luce gates
+on both native hosts.
+
 ## Repository boundaries
 
 | Stage | Repository | Scope |
