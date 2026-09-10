@@ -105,9 +105,43 @@ An allocation the diagnostic profile recorded (§19.4): the block, its size, and
 
 ## `io`
 
+### `Reader` (interface)
+
+A borrowed byte source. A successful read returns at most the buffer length; zero for a nonempty buffer means EOF. Empty reads return zero without consuming input. Errors are distinct from EOF. The implementing object owns its lifetime.
+
 ### `Writer` (interface)
 
-The standard sink (§14.4).
+A borrowed byte sink (§14.4). A write may accept fewer bytes than supplied; callers needing the whole payload use `write_all`. Empty writes return zero. A failure may follow earlier successful writes; the view never owns the sink.
+
+- `let unexpected_eof: ErrorCode = ErrorCode.package(14)`
+
+- `let no_progress: ErrorCode = ErrorCode.package(15)`
+
+- `let invalid_count: ErrorCode = ErrorCode.package(16)`
+
+- `let invalid_buffer: ErrorCode = ErrorCode.package(17)`
+
+- `func read_exact(source: Reader, buffer: u8[], transferred: usize*? = none) -> !` — Fill `buffer`, or fail at EOF or on a source error. Optional `transferred` is reset to zero on entry and updated after each successful read, including before a later failure. It must not overlap the buffer or the source's state. No call reaches the source for an empty buffer. The source remains borrowed and open.
+
+- `func write_all(destination: Writer, data: const u8[], transferred: usize*? = none) -> !` — Write all bytes, preserving confirmed progress through `transferred` on error. The progress pointer must not overlap the data or sink state. A zero-length successful write on nonempty input fails with `no_progress` instead of spinning. This does not flush or close the borrowed sink. Empty input makes no sink call.
+
+- `func copy_limit(source: Reader, destination: Writer, buffer: u8[], limit: usize, transferred: usize*? = none) -> usize!` — Copy at most `limit` bytes through caller-owned scratch storage; stop earlier at EOF. Reads never consume beyond the limit. `transferred` counts confirmed destination bytes, including before a failure; source consumption can be ahead by one scratch buffer if writing fails. Scratch and progress must not overlap either endpoint's state/data or each other. No allocation, flush or close occurs.
+
+### `SliceReader` (struct: Reader)
+
+A cursor over borrowed bytes. Copying the reader copies its position, not its data. The backing storage must outlive the reader and every read using it.
+
+- `static func over(data: const u8[]) -> SliceReader`
+- `func remaining() -> usize`
+- `mutating func read(buffer: u8[]) -> usize!` — Copy up to the buffer length; zero means no bytes remain (or an empty read).
+
+### `SliceWriter` (struct: Writer)
+
+A writer into fixed borrowed storage. Copying it copies the cursor and aliases storage. Writes may be short; once full, a nonempty write fails with `full`.
+
+- `static func over(data: u8[]) -> SliceWriter`
+- `func written() -> const u8[]` — View of confirmed written bytes, borrowed from the caller's storage.
+- `mutating func write(data: const u8[]) -> usize!`
 
 ### `Location` (struct)
 

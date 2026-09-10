@@ -959,13 +959,138 @@ pub func grow(block: u8[], size: usize) -> u8[]!:
     Prelude(name = "io", text = """
 import c
 import core
+import memory
 extern func fwrite(data: const void*, size: usize, count: usize, stream: void*) -> usize
 extern func fflush(stream: void*?) -> i32
 extern func fdopen(descriptor: i32, mode: c.str) -> void*?
 
-## The standard sink (§14.4).
+## A borrowed byte source. A successful read returns at most the buffer length;
+## zero for a nonempty buffer means EOF. Empty reads return zero without consuming
+## input. Errors are distinct from EOF. The implementing object owns its lifetime.
+pub interface Reader:
+    mutating func read(buffer: u8[]) -> usize!
+
+## A borrowed byte sink (§14.4). A write may accept fewer bytes than supplied;
+## callers needing the whole payload use `write_all`. Empty writes return zero.
+## A failure may follow earlier successful writes; the view never owns the sink.
 pub interface Writer:
     mutating func write(data: const u8[]) -> usize!
+
+pub let unexpected_eof: ErrorCode = ErrorCode.package(14)
+pub let no_progress: ErrorCode = ErrorCode.package(15)
+pub let invalid_count: ErrorCode = ErrorCode.package(16)
+pub let invalid_buffer: ErrorCode = ErrorCode.package(17)
+
+## Fill `buffer`, or fail at EOF or on a source error. Optional `transferred` is
+## reset to zero on entry and updated after each successful read, including before
+## a later failure. It must not overlap the buffer or the source's state. No call
+## reaches the source for an empty buffer. The source remains borrowed and open.
+pub func read_exact(source: Reader, buffer: u8[], transferred: usize*? = none) -> !:
+    var done: usize = 0
+    if let progress = transferred:
+        *progress = 0
+    while done < buffer.length:
+        let count = try source.read(buffer[done..])
+        if count > buffer.length - done:
+            error(invalid_count, "the reader returned more bytes than requested")
+        if count == 0:
+            error(unexpected_eof, "the reader ended before the buffer was filled")
+        done += count
+        if let progress = transferred:
+            *progress = done
+
+## Write all bytes, preserving confirmed progress through `transferred` on error.
+## The progress pointer must not overlap the data or sink state. A zero-length
+## successful write on nonempty input fails with `no_progress` instead of spinning.
+## This does not flush or close the borrowed sink. Empty input makes no sink call.
+pub func write_all(destination: Writer, data: const u8[], transferred: usize*? = none) -> !:
+    var done: usize = 0
+    if let progress = transferred:
+        *progress = 0
+    while done < data.length:
+        let count = try destination.write(data[done..])
+        if count > data.length - done:
+            error(invalid_count, "the writer returned more bytes than supplied")
+        if count == 0:
+            error(no_progress, "the writer accepted no bytes")
+        done += count
+        if let progress = transferred:
+            *progress = done
+
+## Copy at most `limit` bytes through caller-owned scratch storage; stop earlier
+## at EOF. Reads never consume beyond the limit. `transferred` counts confirmed
+## destination bytes, including before a failure; source consumption can be ahead
+## by one scratch buffer if writing fails. Scratch and progress must not overlap
+## either endpoint's state/data or each other. No allocation, flush or close occurs.
+pub func copy_limit(source: Reader, destination: Writer, buffer: u8[], limit: usize, transferred: usize*? = none) -> usize!:
+    var done: usize = 0
+    if let progress = transferred:
+        *progress = 0
+    if limit == 0:
+        return 0
+    if buffer.length == 0:
+        error(invalid_buffer, "copying requires a nonempty scratch buffer")
+    while done < limit:
+        let available = limit - done
+        let requested = buffer.length if buffer.length < available else available
+        let count = try source.read(buffer[..<requested])
+        if count > requested:
+            error(invalid_count, "the reader returned more bytes than requested")
+        if count == 0:
+            break
+        var written: usize = 0
+        write_all(destination, buffer[..<count], &written) catch failure:
+            if let progress = transferred:
+                *progress = done + written
+            error(failure.code, failure.message)
+        done += written
+        if let progress = transferred:
+            *progress = done
+    return done
+
+## A cursor over borrowed bytes. Copying the reader copies its position, not its
+## data. The backing storage must outlive the reader and every read using it.
+pub struct SliceReader: Reader:
+    var data: const u8[]
+    var position: usize
+
+    pub static func over(data: const u8[]) -> SliceReader:
+        return SliceReader(data = data, position = 0)
+
+    pub func remaining() -> usize:
+        return self.data.length - self.position
+
+    ## Copy up to the buffer length; zero means no bytes remain (or an empty read).
+    pub mutating func read(buffer: u8[]) -> usize!:
+        let left = self.remaining()
+        let count = buffer.length if buffer.length < left else left
+        memory.move(buffer, self.data[self.position..], count)
+        self.position += count
+        return count
+
+## A writer into fixed borrowed storage. Copying it copies the cursor and aliases
+## storage. Writes may be short; once full, a nonempty write fails with `full`.
+pub struct SliceWriter: Writer:
+    var data: u8[]
+    var used: usize
+
+    pub static func over(data: u8[]) -> SliceWriter:
+        return SliceWriter(data = data, used = 0)
+
+    ## View of confirmed written bytes, borrowed from the caller's storage.
+    pub func written() -> const u8[]:
+        return self.data[..<self.used]
+
+    pub mutating func write(data: const u8[]) -> usize!:
+        if data.length == 0:
+            return 0
+        let left = self.data.length - self.used
+        if left == 0:
+            error(full, "the destination buffer is full")
+        let count = data.length if data.length < left else left
+        memory.move(self.data[self.used..], data, count)
+        self.used += count
+        return count
 
 ## A compile-time source position, the value of `luce.location`.
 pub struct Location:

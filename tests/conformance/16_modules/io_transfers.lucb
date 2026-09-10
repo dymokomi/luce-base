@@ -1,0 +1,153 @@
+# oracle: none -- Reader and transfer helpers are Base library implementations.
+import io
+import memory
+
+## Deliberately fragment every successful operation to exercise progress loops.
+struct FragmentReader: io.Reader:
+    var data: const u8[]
+    var position: usize
+    var calls: usize
+
+    pub mutating func read(buffer: u8[]) -> usize!:
+        self.calls += 1
+        if self.position == self.data.length or buffer.length == 0:
+            return 0
+        buffer[0] = self.data[self.position]
+        self.position += 1
+        return 1
+
+struct FragmentWriter: io.Writer:
+    var output: u8[]
+    var position: usize
+    var calls: usize
+
+    pub mutating func write(data: const u8[]) -> usize!:
+        self.calls += 1
+        if data.length == 0:
+            return 0
+        if self.position == self.output.length:
+            error(io.full, "injected full destination")
+        self.output[self.position] = data[0]
+        self.position += 1
+        return 1
+
+struct InvalidWriter: io.Writer:
+    var oversized: bool
+
+    pub mutating func write(data: const u8[]) -> usize!:
+        return data.length + 1 if self.oversized else 0
+
+struct InvalidReader: io.Reader:
+    var unused: u8
+
+    pub mutating func read(buffer: u8[]) -> usize!:
+        return buffer.length + 1
+
+func exact_read_cases() -> !:
+    var reader = FragmentReader(data = "abcd".bytes, position = 0, calls = 0)
+    var buffer: u8[4]
+    var progress: usize = 99
+    try io.read_exact(&reader, buffer, &progress)
+    assert(progress == 4 and reader.calls == 4)
+    assert((str)buffer == "abcd")
+    try io.read_exact(&reader, buffer[..<0], &progress)
+    assert(progress == 0 and reader.calls == 4)
+    reader.position = 2
+    var caught = false
+    io.read_exact(&reader, buffer, &progress) catch failure:
+        assert(failure.code == io.unexpected_eof)
+        caught = true
+    assert(caught and progress == 2)
+    assert((str)buffer[..<2] == "cd")
+
+func write_progress_cases() -> !:
+    var buffer: u8[3]
+    var writer = FragmentWriter(output = buffer, position = 0, calls = 0)
+    var progress: usize = 99
+    try io.write_all(&writer, "ab".bytes, &progress)
+    assert(progress == 2 and writer.calls == 2)
+    try io.write_all(&writer, "".bytes, &progress)
+    assert(progress == 0 and writer.calls == 2)
+    var caught = false
+    io.write_all(&writer, "cd".bytes, &progress) catch failure:
+        assert(failure.code == io.full)
+        caught = true
+    assert(caught and progress == 1)
+    assert((str)buffer == "abc")
+
+func copy_cases() -> !:
+    var reader = io.SliceReader.over("abcdef".bytes)
+    var buffer: u8[6]
+    var scratch: u8[4]
+    var writer = FragmentWriter(output = buffer, position = 0, calls = 0)
+    var progress: usize = 99
+    assert((try io.copy_limit(&reader, &writer, scratch, 3, &progress)) == 3)
+    assert(progress == 3 and reader.remaining() == 3)
+    assert((str)buffer[..<3] == "abc")
+    assert((try io.copy_limit(&reader, &writer, scratch, 10, &progress)) == 3)
+    assert(progress == 3 and reader.remaining() == 0)
+    assert((str)buffer == "abcdef")
+    assert((try io.copy_limit(&reader, &writer, scratch[..<0], 0, &progress)) == 0)
+    assert(progress == 0)
+    var caught = false
+    io.copy_limit(&reader, &writer, scratch[..<0], 1) catch failure:
+        assert(failure.code == io.invalid_buffer)
+        caught = true
+        recover 0
+    assert(caught)
+    reader = io.SliceReader.over("123456".bytes)
+    writer.position = 5
+    caught = false
+    io.copy_limit(&reader, &writer, scratch, 6, &progress) catch failure:
+        assert(failure.code == io.full)
+        caught = true
+        recover 0
+    assert(caught and progress == 1)
+    assert(reader.remaining() == 2)
+
+func invalid_counts() -> !:
+    var writer = InvalidWriter(oversized = false)
+    var buffer: u8[1]
+    var progress: usize = 99
+    var caught = false
+    io.write_all(&writer, "x".bytes, &progress) catch failure:
+        assert(failure.code == io.no_progress)
+        caught = true
+    assert(caught and progress == 0)
+    writer.oversized = true
+    caught = false
+    io.write_all(&writer, "x".bytes, &progress) catch failure:
+        assert(failure.code == io.invalid_count)
+        caught = true
+    assert(caught and progress == 0)
+    var reader = InvalidReader(unused = 0)
+    caught = false
+    io.read_exact(&reader, buffer, &progress) catch failure:
+        assert(failure.code == io.invalid_count)
+        caught = true
+    assert(caught and progress == 0)
+
+func slice_cases() -> !:
+    var reader = io.SliceReader.over("abc".bytes)
+    var buffer: u8[5]
+    assert((try reader.read(buffer)) == 3)
+    assert((try reader.read(buffer)) == 0)
+    var writer = io.SliceWriter.over(buffer)
+    assert((try writer.write("abcdef".bytes)) == 5)
+    assert((str)writer.written() == "abcde")
+    assert((try writer.write("".bytes)) == 0)
+    var caught = false
+    writer.write("x".bytes) catch failure:
+        assert(failure.code == io.full)
+        caught = true
+        recover 0
+    assert(caught)
+
+pub func main(arguments: str[]) -> i32!:
+    try exact_read_cases()
+    try write_progress_cases()
+    try copy_cases()
+    try invalid_counts()
+    try slice_cases()
+    print("ok io transfers")
+    return 0
