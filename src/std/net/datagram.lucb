@@ -16,26 +16,60 @@ pub struct Datagram:
     pub func address() -> Address!:
         return try socket_address(try self.socket.require())
 
+    ## Send one complete IPv4 datagram, including an empty packet. A successful
+    ## send confirms local acceptance, not peer delivery. Oversize packets fail.
     pub func send_to(data: const u8[], address: Address) -> !:
         let descriptor = try self.socket.require()
+        if data.length > 65507:
+            error(message_too_large, "the IPv4 UDP payload exceeds 65507 bytes")
         let raw = address.raw()
         var n = sendto(descriptor, data.data, data.length, 0, &raw, 16)
         while n < 0 and c.errno() == c.interrupted:
             n = sendto(descriptor, data.data, data.length, 0, &raw, 16)
-        if n < 0 or (usize)n != data.length:
-            error(failed, "send")
+        if n < 0:
+            error(datagram_error(c.errno()), "the datagram could not be sent")
+        if (usize)n != data.length:
+            error(failed, "the datagram send did not confirm the complete packet")
 
+    ## Consume one packet. Zero means a valid empty datagram, not stream EOF.
+    ## If storage is too small, consume/discard the packet and report
+    ## message_too_large; a copied prefix may remain in the buffer. The next call
+    ## receives the next packet. Empty storage can receive only an empty packet.
     pub func receive_from(buffer: u8[]) -> (usize, Address)!:
         let descriptor = try self.socket.require()
-        var raw = SocketAddress(head = 0, port = 0, address = 0, zero = [0, 0, 0, 0, 0, 0, 0, 0])
-        var length: u32 = 16
-        var n = recvfrom(descriptor, buffer.data, buffer.length, 0, &raw, &length)
-        while n < 0 and c.errno() == c.interrupted:
-            length = 16
-            n = recvfrom(descriptor, buffer.data, buffer.length, 0, &raw, &length)
-        if n < 0:
-            error(failed, "receive")
-        return ((usize)n, Address.from_raw(raw))
+        var raw: SocketAddress
+        # macOS can return immediately without consuming a packet when receive
+        # capacity is zero. Probe into one scratch byte so even empty storage
+        # consumes exactly one packet and obtains its sender address.
+        var scratch: u8[1]
+        var vector = ReceiveVector(data = buffer.data, length = buffer.length)
+        if buffer.length == 0:
+            vector = ReceiveVector(data = &scratch[0], length = 1)
+        while true:
+            var received: isize = 0
+            var address_length: u32 = 0
+            var flags: i32 = 0
+            if platform.macos:
+                var message = MacMessage(address = &raw, address_length = 16, vectors = &vector, vector_count = 1)
+                received = receive_message_macos(descriptor, &message, 0)
+                address_length = message.address_length
+                flags = message.flags
+            else:
+                var message = LinuxMessage(address = &raw, address_length = 16, vectors = &vector, vector_count = 1)
+                received = receive_message_linux(descriptor, &message, 0)
+                address_length = message.address_length
+                flags = message.flags
+            if received < 0:
+                let number = c.errno()
+                if number == c.interrupted:
+                    continue
+                error(datagram_error(number), "the datagram could not be received")
+            let truncated: i32 = 16 if platform.macos else 32
+            if (flags & truncated) != 0 or (usize)received > buffer.length:
+                error(message_too_large, "the receive buffer was too small for the datagram")
+            if address_length != 16 or raw.head != family_word(2):
+                error(failed, "the datagram sender address is not IPv4")
+            return ((usize)received, Address.from_raw(raw))
 
     ## Borrow the descriptor; the caller must not close it or retain it past this owner.
     pub func descriptor() -> i32?:
@@ -48,3 +82,8 @@ pub struct Datagram:
     ## Best-effort cleanup for unwinding; use close to observe delayed errors.
     pub mutating func destroy():
         self.socket.destroy()
+
+func datagram_error(number: i32) -> ErrorCode:
+    if number == (40 if platform.macos else 90):
+        return message_too_large
+    return transfer_error(number)

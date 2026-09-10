@@ -22,7 +22,7 @@ Define EOF, zero-length operations, interruption, would-block and timeout separa
 | Module | Current source | Required work |
 | --- | --- | --- |
 | `math`, `math32` | Explicit special-value contracts, f64/f32 libm operations, precision helpers and checked integer operations | Complete per-function accuracy/domain documentation and wider reference campaigns; rounding-mode and boundary coverage beyond the initial vectors |
-| `net` | IPv4 TCP/UDP, first-address resolution and blocking sockets; TCP Reader/Writer with explicit short transfers and recoverable write progress, closed zero values, checked close/adoption, close-on-exec handles, local/peer endpoint queries, configurable backlog and TCP half-close | IPv4/IPv6 address parsing/formatting and resolution results, socket options, nonblocking/readiness support, deadlines/cancellation, precise errors and datagram truncation behavior |
+| `net` | IPv4 TCP/UDP, first-address resolution and blocking sockets; TCP Reader/Writer with explicit short transfers and recoverable write progress, closed zero values, checked close/adoption, close-on-exec handles, local/peer endpoint queries, configurable backlog, TCP half-close and explicit UDP truncation/empty-packet behavior | IPv4/IPv6 address parsing/formatting and resolution results, socket options, nonblocking/readiness support, deadlines/cancellation, broader error categories and sustained transfer coverage |
 | `io` | Reader/Writer contracts, borrowed slice and buffered adapters, exact/all/bounded-copy helpers with confirmed progress, unbuffered stdin, synchronized libc stdout/stderr, explicit flush and formatting sink | Seeking where supported, broader concurrent and sustained-transfer coverage; confirm file/socket adapters are ready for the later TLS stage |
 | `files` | Owned Reader/Writer handles, open modes, seeking/sync, checked close, path/handle metadata and checked length/permission/timestamp updates; bounded streaming whole-file helpers, owned directory iteration, bounded depth-first traversal and descriptor-relative lookup/open, checked existence, single-entry mutation, bounded symlink reads, owned temporary files and atomic replacement and bounded copying with publication status | Broader concurrent filesystem campaigns and error detail |
 | `strings`, `utf8` | Byte searches/slices, byte separator split, ASCII case conversion, decimal i64, an alias-safe builder and strict UTF-8 scalar operations | Document byte offsets/borrowed views; substring search/split/replace and bounded variants; checked size arithmetic, reserve/capacity and aliasing rules; numeric parsing/formatting; streaming UTF-8 decoding and Unicode-aware operations separate from ASCII helpers |
@@ -50,7 +50,7 @@ These observations prioritize contract tests; they are not a completed library a
   or undersized addresses; deterministic fixtures check cleanup. Sockets now have
   closed zero values, consume-before-close ownership, checked close-on-exec adoption,
   checked endpoint queries and recoverable write progress. Extend coverage to IPv6,
-  readiness/deadlines, socket options and datagram truncation.
+  readiness/deadlines, socket options and sustained packet campaigns.
 - Standard output now borrows existing libc streams, locks each write and flushes
   only that stream. Stdin uses explicit unbuffered reads. Tests cover short reads,
   interruption, would-block, closed input, flush failure and sequential C interop
@@ -107,3 +107,7 @@ requires the same fork/exec coordination. See the host contracts for
 [socket creation](https://man7.org/linux/man-pages/man2/socket.2.html),
 [acceptance](https://man7.org/linux/man-pages/man2/accept.2.html), and
 [descriptor flags](https://man7.org/linux/man-pages/man2/F_GETFD.2const.html).
+
+UDP receives use the host `recvmsg` layout and its output truncation flag.
+Oversized packets are consumed with a `message_too_large` error, while a zero
+length packet remains a successful receive. See [recvmsg semantics](https://man7.org/linux/man-pages/man2/recvmsg.2.html).

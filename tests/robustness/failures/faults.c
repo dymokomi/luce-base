@@ -271,12 +271,25 @@ int accept4(int fd, struct sockaddr *p, socklen_t *n, int flags) {
 ssize_t sendto(int fd, const void *p, size_t n, int flags, const struct sockaddr *a, socklen_t z) {
     REAL(sendto);
     if (take(6)) return -1;
+    if (take(60)) { errno = EMSGSIZE; return -1; }
     return real(fd, p, n, flags, a, z);
 }
-ssize_t recvfrom(int fd, void *p, size_t n, int flags, struct sockaddr *a, socklen_t *z) {
-    REAL(recvfrom);
-    if (take(7)) return -1;
-    return real(fd, p, n, flags, a, z);
+ssize_t recvmsg(int fd, struct msghdr *message, int flags) {
+    REAL(recvmsg);
+    assert(message->msg_iovlen == 1 && message->msg_iov);
+    assert(message->msg_namelen == sizeof(struct sockaddr_in));
+    assert(message->msg_control == NULL && message->msg_controllen == 0);
+    if (take(7)) {
+        message->msg_namelen = 1;
+        message->msg_flags = MSG_TRUNC;
+        return -1;
+    }
+    if (take(56)) { errno = EAGAIN; return -1; }
+    if (take(57)) { errno = EIO; return -1; }
+    ssize_t result = real(fd, message, flags);
+    if (result >= 0 && take(58)) ((struct sockaddr *)message->msg_name)->sa_family = AF_UNIX;
+    if (result >= 0 && take(59)) message->msg_namelen = 1;
+    return result;
 }
 int fflush(FILE *stream) {
     REAL(fflush);

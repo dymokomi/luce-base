@@ -12,6 +12,62 @@ extern func fault_descriptor_closed(descriptor: i32) -> i32
 extern func fault_listen_backlog() -> i32
 extern func fault_listener_closed() -> i32
 
+func datagram_cases() -> !:
+    var sender = try net.Datagram.bind(net.Address.loopback(0))
+    defer sender.destroy()
+    var receiver = try net.Datagram.bind(net.Address.loopback(0))
+    defer receiver.destroy()
+    let target = try receiver.address()
+    var buffer: u8[4]
+    try sender.send_to("too large".bytes, target)
+    var rejected = false
+    discard(receiver.receive_from(buffer) catch failure:
+        assert(failure.code == net.message_too_large)
+        rejected = true
+        recover (0, net.Address.any(0)))
+    assert(rejected)
+    try sender.send_to("next".bytes, target)
+    let (count, peer) = try receiver.receive_from(buffer)
+    assert(count == 4 and (str)buffer == "next" and peer.port == (try sender.address()).port)
+    var empty: u8[]
+    try sender.send_to(empty, target)
+    let (empty_count, empty_peer) = try receiver.receive_from(empty)
+    assert(empty_count == 0 and empty_peer.port == peer.port)
+    try sender.send_to("x".bytes, target)
+    rejected = false
+    discard(receiver.receive_from(empty) catch failure:
+        assert(failure.code == net.message_too_large)
+        rejected = true
+        recover (0, net.Address.any(0)))
+    assert(rejected)
+    try sender.send_to(empty, target)
+    let (zero_count, zero_peer) = try receiver.receive_from(buffer)
+    assert(zero_count == 0 and zero_peer.port == peer.port)
+    var kind: i32 = 56
+    while kind <= 59:
+        if kind >= 58:
+            try sender.send_to("addr".bytes, target)
+        fault_arm(kind)
+        rejected = false
+        discard(receiver.receive_from(buffer) catch failure:
+            assert(failure.code == (io.would_block if kind == 56 else net.failed))
+            rejected = true
+            recover (0, net.Address.any(0)))
+        assert(rejected and fault_hits() == 1)
+        kind += 1
+    fault_arm(60)
+    rejected = false
+    sender.send_to("oversize".bytes, target) catch failure:
+        assert(failure.code == net.message_too_large)
+        rejected = true
+    assert(rejected and fault_hits() == 1)
+    var oversize: u8[65508]
+    rejected = false
+    sender.send_to(oversize, target) catch failure:
+        assert(failure.code == net.message_too_large)
+        rejected = true
+    assert(rejected)
+
 func tcp_control_cases() -> !:
     var backlog: i32 = -1
     while backlog <= 0:
@@ -161,6 +217,7 @@ pub func main(arguments: str[]) -> i32!:
     try closed_values()
     try adoption_cases()
     try tcp_control_cases()
+    try datagram_cases()
     try resolver_cases()
     var pair: i32[2]
     assert(socketpair(1, 1, 0, &pair[0]) == 0)

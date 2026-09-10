@@ -807,6 +807,8 @@ Blocking socket I/O. Created and accepted sockets are close-on-exec. Linux sets 
 
 - `let invalid_options: ErrorCode = ErrorCode.package(35)`
 
+- `let message_too_large: ErrorCode = ErrorCode.package(36)`
+
 ### `Address` (struct)
 
 An IPv4 address and port, both in host order.
@@ -855,8 +857,8 @@ One owned UDP socket. Zero is closed. Copying does not duplicate ownership; copi
 
 - `static func bind(address: Address) -> Datagram!`
 - `func address() -> Address!` — Query the bound endpoint, including an automatically assigned port.
-- `func send_to(data: const u8[], address: Address) -> !`
-- `func receive_from(buffer: u8[]) -> (usize, Address)!`
+- `func send_to(data: const u8[], address: Address) -> !` — Send one complete IPv4 datagram, including an empty packet. A successful send confirms local acceptance, not peer delivery. Oversize packets fail.
+- `func receive_from(buffer: u8[]) -> (usize, Address)!` — Consume one packet. Zero means a valid empty datagram, not stream EOF. If storage is too small, consume/discard the packet and report message_too_large; a copied prefix may remain in the buffer. The next call receives the next packet. Empty storage can receive only an empty packet.
 - `func descriptor() -> i32?` — Borrow the descriptor; the caller must not close it or retain it past this owner.
 - `mutating func close() -> !` — Consume ownership before the OS call. Repeated close is safe even after failure.
 - `mutating func destroy()` — Best-effort cleanup for unwinding; use close to observe delayed errors.
