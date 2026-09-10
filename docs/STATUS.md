@@ -1,10 +1,10 @@
-# Status, 2026-09-09
+# Status
 
 One matrix of what this compiler does, kept current: each promise of the specification
 is **verified** (implemented, and proved by the gate through every execution), **limited**
 (implemented with a boundary named here), **planned**, or **excluded** (outside Base by
-decision). History lives in [RELEASES.md](RELEASES.md); the shape of the compiler in
-[DESIGN.md](DESIGN.md). A claim here is only made when the gate proves it on both native
+decision). The shape of the compiler is [DESIGN.md](DESIGN.md); what remains to do is
+[PLAN.md](PLAN.md). A claim here is only made when the gate proves it on both native
 hosts, arm64 macOS and x86_64 Linux.
 
 ## The executions
@@ -57,7 +57,7 @@ seed named in `bootstrap/SEED` builds it to the same C.
 | 16.6 | TLS for `net`, a `graphics` module | planned | the SDL3 and Metal proving programs reach their libraries through `extern` alone |
 | — | the optimiser: inlining, single-assignment form, value numbering, load elimination, a register allocator over the exact lives | verified | `tests/optimization`, the native fixpoint; splitting a life at a call is the next step (`docs/PLAN.md`) |
 | — | debugging: native DWARF and `luce-base-d` | limited | `tests/programs/debugger`, `tests/programs/dwarf`: source breakpoints, mixed C/Base stacks, typed locals, scopes, moved artifacts and static-library consumers; optimized user-variable locations and payload-enum presentation remain future work |
-| plan 10 | `luce-ld` | planned | not started |
+| — | `luce-ld` | planned | not started |
 
 ## The fuzzer
 
@@ -68,14 +68,13 @@ a signal, a hang, or a bare message is a finding. It also generates well-typed p
 over a wide slice of the language (integers of six widths under every arithmetic form and
 cast, bounded floats, structs by value as arguments, results, elements and through
 pointers, spans and `for`, fallible calls, optionals, a backed enum under `match`,
-generics, an interface, lambdas, `defer`, text, and since 0.11.5 payload enums, unions,
+generics, an interface, lambdas, `defer`, text, payload enums, unions,
 generic structs, vectors, nullable functions, tuples, methods, and memory: `new`, `alloc`,
 raw bytes, `free`, `defer free`, linked lists, a `FixedBuffer` arena under `in` and `with`,
 heap trees under `errdefer`) and requires the C, C `-O2`, native, and seed executions to
 agree. The gate runs a short
 deterministic pass; `tools/fuzz.py --minutes M` runs longer, and findings land under
-`build/fuzz/`. What its runs found, release by release, is history and lives in
-[RELEASES.md](RELEASES.md), "What the fuzzer found".
+`build/fuzz/`.
 
 ## Known and accepted
 

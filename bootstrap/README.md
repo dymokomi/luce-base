@@ -4,8 +4,8 @@
 backend on: `arm64-macos` and `x86_64-linux`. Compiling the host's file with the host C
 compiler and `runtime/` gives a working `luce-base` with no other compiler in the picture;
 that binary then builds the compiler from source, and the gate checks that the two agree.
-This is how the seed was pinned: after slice 4 the seed built the compiler one last time,
-and every build since starts from a snapshot.
+Every build starts from a snapshot; the seed named in `bootstrap/SEED` is kept able to
+build the tree too, and the gate proves it.
 
 The snapshots are per target because the compiler prunes the standard library by target
 (§19.6): the C for macOS calls `__ulock_wait`, the C for Linux the futex system call.

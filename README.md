@@ -21,9 +21,8 @@ only this compiler moves. `build/luce-base` is the compiler built by
 itself through the native backend, with no C in its path; `build.sh` checks
 that it reproduces its own assembly. The language is
 [`docs/language/base.md`](docs/language/base.md), the same document the
-seed implements. What this compiler must do to earn the switch is in
-[`docs/PLAN.md`](docs/PLAN.md); how it is shaped is in
-[`docs/DESIGN.md`](docs/DESIGN.md).
+seed implements. What remains to do is [`docs/PLAN.md`](docs/PLAN.md); how the
+compiler is shaped is in [`docs/DESIGN.md`](docs/DESIGN.md).
 
 Normal builds, test runners and static libraries use the native backend. `--native`
 remains an explicit alias. `--backend=c` selects the existing C comparison backend;
@@ -70,7 +69,7 @@ The whole of Base (base.md §3 to §17, §19, §21) through two backends: C for 
 host C compiler, and native assembly for arm64-macos and x86_64-linux, with no
 C in the native path. The compiler builds itself through both to the same C and
 the same assembly, and the seed pinned in `bootstrap/SEED` builds it to the
-same C. [`docs/AUDIT.md`](docs/AUDIT.md) is the one current matrix of what is
+same C. [`docs/STATUS.md`](docs/STATUS.md) is the one current matrix of what is
 verified, what is limited and where, and what is planned; it is rewritten, not
 appended, when the picture changes.
 
@@ -92,8 +91,9 @@ runs the optimiser over it (inlining, single-assignment form, value numbering,
 load elimination), and the target's generator (`arm64.lucb`, `x86_64.lucb`)
 places it on the machine: frames, the calling convention with the ABI's
 aggregate classification, atomics, half floats, vectors at the instruction-set
-level the machine has (`--cpu`). `VERSION` is the tree's version; a release is a
-tag `luce-base-N` ([`docs/RELEASES.md`](docs/RELEASES.md)).
+level the machine has (`--cpu`). `VERSION` is the tree's version, which
+`tools/embed_version.py` writes into the binary; a release is a tag `luce-base-N` on the
+commit that bumps it, and `git log` is the history.
 
 ## Proving programs
 

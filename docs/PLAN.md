@@ -1,36 +1,18 @@
 # Plan
 
-Slices are ordered by what the self-hosting gate needs. Each ends with the
-unit tests green in the oracle and the binary agreeing on `tests/samples/`.
-
-| Slice | Scope | Gate |
-| --- | --- | --- |
-| 1. Lexer | tokens, literals, layout, `luce-base lex` | done: every file under `tests/samples/`, the seed's `testdata/`, and this tree tokenizes |
-| 2. Syntax | arena tree, full grammar of §21, `luce-base parse` | done: every Base file we have parses, including this compiler's own sources |
-| 3. Checking | names, types, effects, `luce-base check` | done: every sample and every source of this tree checks; every program under `tests/samples/errors/` is rejected for its stated reason |
-| 4. C backend | checked tree to C, `luce-base build` and `luce-base test` | done: every sample with `main` builds and runs; every module's tests pass through the binary |
-| 5. Self-hosting | the seed pinned; the standard modules in Base | done: `bootstrap/luce-base-HOST.c` is the compiler's own C for each host and `build.sh` starts from it with only a C compiler; every standard module is Base source under `src/std/` over `extern` declarations, embedded into `src/sema/prelude.lucb`; the C runtime is down to traps, checked arithmetic, formatting, and hashing |
-| 6. Native | one target, arm64-macos, proved against the C backend | done: every sample and every module's tests agree under both backends; the compiler builds itself natively and the native build emits the same C and assembly as the C build; `tools/native_check.sh` runs the seed's corpus natively |
-| 7. Proving | programs big enough to break things, built natively with no C in the path, each driven from outside by its `check.sh` | done: `http` (a threaded server), `editor`, `debugger` (`luce-base-d`), `gui` (SDL3), `metal` (a GPU computation), `asm`, `freestanding`, `manifest`, `abi` (the calling convention both ways), and `pkgconfig` are all under the gate; a host lacking what one needs fails the gate and says what to install |
-| 8. Codegen | the optimiser over the IR, then the release | done: inlining, single-assignment form, value numbering, load elimination, and de-SSA over the IR (`docs/DESIGN.md`, "The optimiser"), measured by `tests/optimization`; a register allocator over the single-assignment form is what remains |
-| 9. Targets | the second host: x86_64 Linux, natively, with the gate green there | done (0.2.0): `src/back/native/x86_64.lucb` behind the `Backend` interface, the host read from the compiler's own `platform` module, per-target bootstrap snapshots, `tests/platform`; the calling convention proved both ways by `tests/programs/abi`; next hosts are arm64-linux (the x86_64 generator's ELF half with the arm64 generator's instructions) and x86_64-macos (the reverse) |
-
-## What remains
-
-The one to-do list, in the order to close it. Each item names its gate: the
-test that turns it from open to done. `docs/AUDIT.md` is the matrix of what is
-verified, limited, planned, or excluded today; `docs/RELEASES.md` is the
-history. Nothing is listed here that already exists.
+The one to-do list, in the order to close it. Each item names its gate: the test that
+turns it from open to done. [`STATUS.md`](STATUS.md) is the matrix of what is verified,
+limited, planned, or excluded today; nothing is listed here that already exists.
 
 ### Missing
 
-1. **Splitting a life at a call.** The allocator (0.11.0) gives each temporary
+1. **Splitting a life at a call.** The allocator gives each temporary
    one place for its whole life; a value live across a call takes a
    callee-saved register or the frame, where a split would let its two halves
    take different registers, and the generators' fixed scratch registers
    (x9–x13, r10, r11, xmm8–xmm11) are not in any pool. Gate: the
    `tests/optimization` limits lowered again, the native fixpoint kept, the
-   compiler's own build time recorded in `docs/RELEASES.md`.
+   compiler's own build time recorded in `docs/STATUS.md`.
 2. **Every error in one pass, with notes.** The checker stops at the first
    error and names no second location. Gate: the rejection suites report every
    error of a program with several, and a note names the other site (the
@@ -66,54 +48,10 @@ across the four executions; the gate runs its short deterministic pass, and `--m
 runs it for longer. Every finding becomes a test.
 
 9. **Fuzzing campaigns before a release.** The generator has run for an hour at a time
-   on one host. Gate: a run of several hours on each host recorded in `docs/RELEASES.md`
+   on one host. Gate: a run of several hours on each host recorded in `docs/STATUS.md`
    with the release it precedes, and no finding open.
 10. **Sanitizers and a litmus suite.** No sanitizer run and no test of the
     orderings. Gate: the conformance and robustness programs built through the
     C backend at `-O0` and `-O2` under address, undefined-behaviour, and thread
     sanitizers as a gate step; a litmus suite for the atomic orderings of §15.1 under
     `tests/platform`.
-
-## The bootstrap gate
-
-```text
-cc bootstrap/luce-base-HOST.c runtime/lucb_rt.c -o build/stage0   # the host's snapshot, with only a C compiler
-build/stage0 build src/main.lucb --native -o build/stage1     # first native self-hosting stage
-build/stage1 build src/main.lucb --native -o build/luce-base # the product: by itself, natively
-cmp <stage1 asm> <product asm>                               # the native backend's fixpoint
-```
-
-`LUCB=../luce-seed/build/lucb ./build.sh` replaces the first line with the
-seed named in `bootstrap/SEED`.
-
-```text
-build/luce-base build src/main.lucb --native -o build/native   # the compiler, natively
-build/native build src/main.lucb --emit=c                      # explicit comparison output
-build/native build src/main.lucb --native --emit=asm           # and its assembly
-```
-
-`test.sh` runs these lines, comparing the C and assembly the generations emit
-rather than the binaries, which differ only in the linker's identifiers. The
-seed is pinned: `LUCB=../luce-seed/build/lucb ./build.sh` still starts from
-it, but nothing requires it. `tools/snapshot.sh` refreshes the snapshot.
-
-The two backends are the two executions now: every module's tests and every
-sample run through both under the gate, and the seed's program corpus runs
-natively through `tools/native_check.sh`.
-
-## The standard library
-
-`luce-base` is also where the standard modules of base.md §16.6 are Base
-source instead of seed builtins. `platform`, `c`, `core`, `memory`, `io`,
-`luce`, `atomic`, `thread`, `sync`, `files`, `process`, `strings`, `paths`,
-`math`, `time`, `os`, `testing`, `net` (TCP and UDP over BSD sockets, with
-`resolve`), and `debug` are `src/std/*.lucb` in the binding order of
-`src/std/ORDER`, each a piece of Base over `extern` declarations of the C
-library; every constant and layout that differs by target is a branch on the
-`platform` module the compiler writes for the build, pruned at compile time,
-and `tests/platform` proves each host's arms. What remains for the library is
-item 7 above.
-
-Each module is Base code over `extern` declarations; nothing in the compiler
-knows their names. That is the point of Base: the operating system's own
-libraries are ordinary packages.

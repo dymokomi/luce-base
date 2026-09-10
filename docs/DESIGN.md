@@ -124,7 +124,7 @@ own parameter list at the call, passes the address of a fresh local for each
 Generic declarations are checked once, against their written constraints,
 with their parameters as opaque types (§13). A use substitutes the arguments
 into the signature and never re-checks the body; inference walks parameter
-types against argument types. The C backend of slice 4 instantiates.
+types against argument types. The backends instantiate.
 
 Diagnostics are `path:line:column: what`, one per run: the first error stops
 the check, because a compiler that is also a bootstrap step needs to be right
@@ -134,8 +134,7 @@ before it needs to be thorough.
 
 Base evaluates left to right, always (§7.1); C promises no order for a call's
 arguments, and GCC takes them right to left where clang takes them left to
-right, which is how the rule went unenforced until the tree was built on
-Linux. A call with more than one argument, any of which may have an effect (a
+right. A call with more than one argument, any of which may have an effect (a
 call, a `try`, a `catch`, an allocation, a formatted string with such a
 field), computes every argument into a temporary first, in order, inside a
 statement expression the call closes (`begin_sequence`, `end_sequence`, and
@@ -634,8 +633,7 @@ positive side, built through the C backend and the native backend and run throug
 the seed's interpreter, every execution printing the expectation; under `errors/`
 it is the negative side, its `# error:` line naming the diagnostic this compiler
 must give, and a program the seed must reject too. `tests/conformance/run.sh`
-runs it as part of the gate. What the suite found in each chapter, and what changed for it, is
-history and lives in [RELEASES.md](RELEASES.md), "What the conformance suite found".
+runs it as part of the gate.
 
 ### The platform suite
 
