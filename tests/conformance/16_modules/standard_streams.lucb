@@ -1,0 +1,15 @@
+# oracle: none -- Explicit standard-stream flushing is a Base library API.
+import c
+import io
+
+extern func fputs(text: c.str, stream: void*) -> i32
+
+pub func main(arguments: str[]) -> i32!:
+    assert(fputs("A", c.stdout()) >= 0)
+    try io.write_all(io.stdout(), "B".bytes)
+    print("C")
+    assert(fputs("D", c.stdout()) >= 0)
+    try io.flush_stdout()
+    print("E")
+    try io.flush_stderr()
+    return 0

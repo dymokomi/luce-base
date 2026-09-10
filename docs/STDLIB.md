@@ -23,7 +23,7 @@ Define EOF, zero-length operations, interruption, would-block and timeout separa
 | --- | --- | --- |
 | `math`, `math32` | Explicit special-value contracts, f64/f32 libm operations, precision helpers and checked integer operations | Complete per-function accuracy/domain documentation and wider reference campaigns; rounding-mode and boundary coverage beyond the initial vectors |
 | `net` | IPv4 TCP/UDP, first-address resolution and blocking sockets | IPv4/IPv6 address parsing/formatting and resolution results, TCP/UDP lifecycle, endpoint queries, socket options, configurable backlog, shutdown, nonblocking/readiness support, deadlines/cancellation, precise errors and datagram truncation behavior |
-| `io` | Reader/Writer contracts, borrowed slice and buffered adapters, exact/all/bounded-copy helpers with confirmed progress, stdout/stderr and formatting sink | Stdin, standard-stream initialization and explicit flush, seeking where supported, ownership and close semantics; integrate the shared substrate with files, sockets and TLS |
+| `io` | Reader/Writer contracts, borrowed slice and buffered adapters, exact/all/bounded-copy helpers with confirmed progress, unbuffered stdin, synchronized libc stdout/stderr, explicit flush and formatting sink | Seeking where supported, broader concurrent and sustained-transfer coverage; integrate the shared substrate with files, sockets and TLS |
 | `files` | Owned Reader/Writer handles, open modes, seeking/sync and checked close; bounded streaming whole-file helpers, owned directory iteration and checked existence | Metadata, directory walk, create/remove/rename/copy, temporary files, atomic replacement, symlink/path behavior and broader error detail |
 | `strings`, `utf8` | Byte searches/slices, byte separator split, ASCII case conversion, decimal i64, an alias-safe builder and strict UTF-8 scalar operations | Document byte offsets/borrowed views; substring search/split/replace and bounded variants; checked size arithmetic, reserve/capacity and aliasing rules; numeric parsing/formatting; streaming UTF-8 decoding and Unicode-aware operations separate from ASCII helpers |
 
@@ -50,9 +50,10 @@ These observations prioritize contract tests; they are not a completed library a
   or undersized addresses; deterministic fixtures check cleanup. Endpoint queries
   still discard `getsockname` errors. Socket close methods need explicit ownership
   and repeated-close contracts, including how copied handles are treated.
-- `io.File.write` flushes all C streams before writing and lazily wraps descriptors.
-  Define buffering, ordering, initialization/thread behavior and resource ownership
-  rather than extending implicit global flushing into the general I/O abstraction.
+- Standard output now borrows existing libc streams, locks each write and flushes
+  only that stream. Stdin uses explicit unbuffered reads. Tests cover short reads,
+  interruption, would-block, closed input, flush failure and sequential C interop
+  ordering. Add sustained concurrent stream campaigns.
 - File and directory helpers now cover interruption, delayed close errors and every
   allocation failure. Whole-file reads support streams and explicit limits; existence
   checks do not open paths. Extend this evidence to metadata and mutation APIs.

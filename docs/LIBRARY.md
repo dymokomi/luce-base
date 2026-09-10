@@ -170,15 +170,26 @@ A compile-time source position, the value of `luce.location`.
 
 - `let closed: ErrorCode = ErrorCode.package(3)`
 
+- `let failed: ErrorCode = ErrorCode.package(24)`
+
+- `let would_block: ErrorCode = ErrorCode.package(28)`
+
 ### `File` (struct: Writer)
 
-A C stream. Every write is flushed so that it never reorders against `print`.
+Borrowed standard output stream. Each nonempty write uses the existing libc stream and flushes only that stream, making completed output visible before a following print. The libc stream lock serializes each write with other libc users; concurrent direct descriptor writes may interleave. No stream is created or owned here. A write/flush failure can follow partial output.
 
+- `mutating func flush() -> !` — Flush this C stream, without closing it or requesting filesystem durability.
 - `mutating func write(data: const u8[]) -> usize!`
+
+- `func stdin() -> Reader` — Borrowed unbuffered standard input. Reads may block; concurrent readers compete for bytes. Do not mix with buffered C stdin reads, which may have prefetched data.
 
 - `func stdout() -> Writer`
 
 - `func stderr() -> Writer`
+
+- `func flush_stdout() -> !` — Explicitly flush C stdout, including bytes written through C interop.
+
+- `func flush_stderr() -> !` — Explicitly flush C stderr, including bytes written through C interop.
 
 - `let full: ErrorCode = ErrorCode.package(4)`
 

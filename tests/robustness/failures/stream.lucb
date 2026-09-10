@@ -1,7 +1,42 @@
 import io
 extern func fault_arm(kind: i32)
 extern func fault_hits() -> i32
+extern func fault_global_flushes() -> i32
+extern func fault_opened_streams() -> i32
+extern func fault_input_begin()
+extern func fault_input_end()
+extern func close(descriptor: i32) -> i32
+
+func input_cases() -> !:
+    fault_input_begin()
+    defer fault_input_end()
+    var input = io.stdin()
+    var buffer: u8[5]
+    fault_arm(29)
+    assert(try input.read(buffer[..<0]) == 0 and fault_hits() == 0)
+    try io.read_exact(input, buffer)
+    assert((str)buffer == "input" and fault_hits() == 1)
+    assert(try input.read(buffer) == 0)
+    var kind: i32 = 30
+    while kind <= 31:
+        fault_arm(kind)
+        var rejected = false
+        discard(input.read(buffer) catch failure:
+            assert(failure.code == (io.would_block if kind == 30 else io.failed))
+            rejected = true
+            recover 0)
+        assert(rejected and fault_hits() == 1)
+        kind += 1
+    assert(close(0) == 0)
+    var rejected = false
+    discard(input.read(buffer) catch failure:
+        assert(failure.code == io.closed)
+        rejected = true
+        recover 0)
+    assert(rejected)
+
 pub func main(arguments: str[]) -> i32!:
+    try input_cases()
     var output = io.stdout()
     fault_arm(8)
     var rejected = false
@@ -10,5 +45,12 @@ pub func main(arguments: str[]) -> i32!:
         rejected = true
         recover 0)
     assert(rejected and fault_hits() == 1, "flush failure was reported as success")
+    assert(fault_global_flushes() == 0 and fault_opened_streams() == 0)
+    fault_arm(8)
+    rejected = false
+    io.flush_stdout() catch failure:
+        assert(failure.code == io.closed)
+        rejected = true
+    assert(rejected and fault_hits() == 1)
     discard(try output.write("\nok stream failures\n".bytes))
     return 0

@@ -11,10 +11,31 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
-static int armed, hits, attributes, directory_reads;
+static int armed, hits, attributes, directory_reads, global_flushes, opened_streams;
 void fault_arm(int kind) { assert(!armed); armed = kind; hits = directory_reads = 0; }
 int fault_hits(void) { return hits; }
 int fault_attributes(void) { return attributes; }
+int fault_global_flushes(void) { return global_flushes; }
+int fault_opened_streams(void) { return opened_streams; }
+static int saved_input = -1;
+void fault_input_begin(void) {
+    int pair[2];
+    saved_input = dup(STDIN_FILENO);
+    assert(pipe(pair) == 0);
+    assert(write(pair[1], "input", 5) == 5);
+    assert(close(pair[1]) == 0);
+    assert(dup2(pair[0], STDIN_FILENO) == STDIN_FILENO);
+    if (pair[0] != STDIN_FILENO) assert(close(pair[0]) == 0);
+}
+void fault_input_end(void) {
+    if (saved_input >= 0) {
+        assert(dup2(saved_input, STDIN_FILENO) == STDIN_FILENO);
+        assert(close(saved_input) == 0);
+        saved_input = -1;
+    } else {
+        close(STDIN_FILENO);
+    }
+}
 static int take(int kind) {
     if (armed != kind) return 0;
     armed = 0; ++hits; errno = EINTR; return 1;
@@ -107,8 +128,24 @@ ssize_t recvfrom(int fd, void *p, size_t n, int flags, struct sockaddr *a, sockl
 }
 int fflush(FILE *stream) {
     REAL(fflush);
+    if (!stream) ++global_flushes;
     if (stream && take(8)) { errno = EIO; return EOF; }
     return real(stream);
+}
+FILE *fdopen(int descriptor, const char *mode) {
+    REAL(fdopen);
+    ++opened_streams;
+    return real(descriptor, mode);
+}
+ssize_t read(int descriptor, void *buffer, size_t count) {
+    REAL(read);
+    if (descriptor == STDIN_FILENO) {
+        if (take(29)) return -1;
+        if (take(30)) { errno = EAGAIN; return -1; }
+        if (take(31)) { errno = EIO; return -1; }
+        if (count > 2) count = 2;
+    }
+    return real(descriptor, buffer, count);
 }
 int pthread_attr_init(pthread_attr_t *a) {
     REAL(pthread_attr_init);

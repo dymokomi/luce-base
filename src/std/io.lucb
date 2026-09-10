@@ -1,9 +1,12 @@
 import c
 import core
 import memory
+import platform
 extern func fwrite(data: const void*, size: usize, count: usize, stream: void*) -> usize
 extern func fflush(stream: void*?) -> i32
-extern func fdopen(descriptor: i32, mode: c.str) -> void*?
+extern func flockfile(stream: void*)
+extern func funlockfile(stream: void*)
+extern func c_read as "read"(descriptor: i32, buffer: void*, count: usize) -> isize
 
 ## A borrowed byte source. A successful read returns at most the buffer length;
 ## zero for a nonempty buffer means EOF. Empty reads return zero without consuming
@@ -220,32 +223,87 @@ pub struct Location:
 
 pub let closed: ErrorCode = ErrorCode.package(3)
 
-## A C stream. Every write is flushed so that it never reorders against `print`.
+pub let failed: ErrorCode = ErrorCode.package(24)
+pub let would_block: ErrorCode = ErrorCode.package(28)
+
+## Borrowed standard output stream. Each nonempty write uses the existing libc
+## stream and flushes only that stream, making completed output visible before a
+## following print. The libc stream lock serializes each write with other libc
+## users; concurrent direct descriptor writes may interleave. No stream is created
+## or owned here. A write/flush failure can follow partial output.
 pub struct File: Writer:
     var descriptor: i32
-    var stream: void*?
+
+    func stream() -> void*!:
+        if self.descriptor == 1:
+            return c.stdout()
+        if self.descriptor == 2:
+            return c.stderr()
+        error(closed, "the standard output stream is unavailable")
+
+    ## Flush this C stream, without closing it or requesting filesystem durability.
+    pub mutating func flush() -> !:
+        let stream = try self.stream()
+        if fflush(stream) != 0:
+            error(closed, "the stream could not be flushed")
 
     pub mutating func write(data: const u8[]) -> usize!:
-        if self.stream == none:
-            self.stream = fdopen(self.descriptor, "w")
-        let stream = self.stream else error(closed, "the stream could not be opened")
-        discard(fflush(none))
-        var written: usize = 0
-        if data.length > 0:
-            written = fwrite(data.data, 1, data.length, stream)
+        if data.length == 0:
+            return 0
+        let stream = try self.stream()
+        flockfile(stream)
+        defer funlockfile(stream)
+        let written = fwrite(data.data, 1, data.length, stream)
         let flushed = fflush(stream)
         if written != data.length or flushed != 0:
             error(closed, "the stream refused the bytes")
         return written
 
-var out_file: File = File(descriptor = 1, stream = none)
-var err_file: File = File(descriptor = 2, stream = none)
+var out_file: File = File(descriptor = 1)
+var err_file: File = File(descriptor = 2)
+
+## Unbuffered input borrows descriptor zero. It retries interrupted calls, reports
+## would-block separately, and never owns or closes the process's descriptor.
+struct StandardInput: Reader:
+    var descriptor: i32
+
+    pub mutating func read(buffer: u8[]) -> usize!:
+        if buffer.length == 0:
+            return 0
+        let requested = 1073741824 if buffer.length > 1073741824 else buffer.length
+        while true:
+            let count = c_read(self.descriptor, buffer.data, requested)
+            if count >= 0:
+                return (usize)count
+            let number = c.errno()
+            if number == c.interrupted:
+                continue
+            if number == (35 if platform.macos else 11):
+                error(would_block, "standard input would block")
+            if number == 9:
+                error(closed, "standard input is closed")
+            error(failed, "standard input could not be read")
+
+var in_file: StandardInput = StandardInput(descriptor = 0)
+
+## Borrowed unbuffered standard input. Reads may block; concurrent readers compete
+## for bytes. Do not mix with buffered C stdin reads, which may have prefetched data.
+pub func stdin() -> Reader:
+    return &in_file
 
 pub func stdout() -> Writer:
     return &out_file
 
 pub func stderr() -> Writer:
     return &err_file
+
+## Explicitly flush C stdout, including bytes written through C interop.
+pub func flush_stdout() -> !:
+    try out_file.flush()
+
+## Explicitly flush C stderr, including bytes written through C interop.
+pub func flush_stderr() -> !:
+    try err_file.flush()
 
 pub let full: ErrorCode = ErrorCode.package(4)
 
