@@ -22,9 +22,9 @@ Define EOF, zero-length operations, interruption, would-block and timeout separa
 | Module | Current source | Required work |
 | --- | --- | --- |
 | `math`, `math32` | Explicit special-value contracts, f64/f32 libm operations, precision helpers and checked integer operations; documented numerical contracts, independent reference vectors across 28 operations and exceptional-value checks under all four rounding directions | Final host gates and continued reference coverage |
-| `net` | IPv4/IPv6 value parsing, canonical formatting and byte conversion; IPv4/IPv6 TCP/UDP, first/all-address resolution with owned results and blocking sockets; TCP Reader/Writer with explicit short transfers and recoverable write progress, closed zero values, checked close/adoption, close-on-exec handles, local/peer endpoint queries, configurable backlog, TCP half-close and explicit UDP truncation/empty-packet behavior; nonblocking controls, explicit accepted-socket mode, TCP no-delay/keepalive and kernel buffer settings; reusable readiness polling, bounded connection setup, borrowed deadline streams with cancellation and typed host error categories | Sustained concurrent transfer coverage |
-| `io` | Reader/Writer contracts, borrowed slice and buffered adapters, exact/all/bounded-copy helpers with confirmed progress, unbuffered stdin, synchronized libc stdout/stderr, explicit flush and formatting sink | Seeking where supported, broader concurrent and sustained-transfer coverage; confirm file/socket adapters are ready for the later TLS stage |
-| `files` | Owned Reader/Writer handles, open modes, seeking/sync, checked close, path/handle metadata and checked length/permission/timestamp updates; bounded streaming whole-file helpers, owned directory iteration, bounded depth-first traversal and descriptor-relative lookup/open, checked existence, single-entry mutation, bounded symlink reads, owned temporary files and atomic replacement and bounded copying with publication status | Broader concurrent filesystem campaigns and error detail |
+| `net` | IPv4/IPv6 value parsing, canonical formatting and byte conversion; IPv4/IPv6 TCP/UDP, first/all-address resolution with owned results and blocking sockets; TCP Reader/Writer with explicit short transfers and recoverable write progress, closed zero values, checked close/adoption, close-on-exec handles, local/peer endpoint queries, configurable backlog, TCP half-close and explicit UDP truncation/empty-packet behavior; nonblocking controls, explicit accepted-socket mode, TCP no-delay/keepalive and kernel buffer settings; reusable readiness polling, bounded connection setup, borrowed deadline streams with cancellation and typed host error categories; sustained concurrent buffered transfers | Final host gates |
+| `io` | Reader/Writer contracts, borrowed slice and buffered adapters, exact/all/bounded-copy helpers with confirmed progress, unbuffered stdin, synchronized libc stdout/stderr, explicit flush and formatting sink; sustained concurrent file/socket adapter coverage | Final host gates; seeking remains on file handles rather than the byte-stream interfaces |
+| `files` | Owned Reader/Writer handles, open modes, seeking/sync, checked close, path/handle metadata and checked length/permission/timestamp updates; bounded streaming whole-file helpers, owned directory iteration, bounded depth-first traversal and descriptor-relative lookup/open, checked existence, single-entry mutation, bounded symlink reads, owned temporary files and atomic replacement and bounded copying with publication status; concurrent publication/read campaigns | Final host gates |
 | `strings`, `utf8` | Linear forward/reverse byte searches and offset searches, byte and substring splitting with borrowed iterators, bounded substring replacement, ASCII case conversion, checked signed/unsigned radix conversion, locale-independent floating-point text conversion, an alias-safe builder, strict UTF-8 scalar operations and an allocation-free streaming decoder | Document byte offsets/borrowed views; Unicode-aware operations separate from ASCII helpers |
 
 Do not silently change existing ASCII functions into locale-dependent Unicode
@@ -52,9 +52,8 @@ These observations prioritize contract tests; they are not a completed library a
 - `net.resolve` now releases complete result chains on every exit and skips missing
   or undersized addresses; deterministic fixtures check cleanup. Sockets now have
   closed zero values, consume-before-close ownership, checked close-on-exec adoption,
-  checked endpoint queries and recoverable write progress, IPv6/dual-stack endpoints
-  and typed socket controls. Extend coverage to readiness/deadlines and sustained
-  packet campaigns.
+  checked endpoint queries and recoverable write progress, IPv6/dual-stack endpoints,
+  typed socket controls, readiness/deadline failure tests and sustained transfers.
 - Standard output now borrows existing libc streams, locks each write and flushes
   only that stream. Stdin uses explicit unbuffered reads. Tests cover short reads,
   interruption, would-block, closed input, flush failure and sequential C interop
@@ -230,3 +229,17 @@ inline state needs no allocator. Scalar and streaming implementations live in
 separate fragments of the same utf8 module. Tests stream every Unicode scalar and
 compare malformed prefixes, failure timing, EOF, reset and repeated errors against
 Python's strict codec in all six configurations under a refusing allocator.
+
+Concurrent transport tests run four Base clients against independent POSIX peers,
+over both IPv4 and IPv6. Each client sends and verifies two MiB through differently
+sized borrowed read/write buffers and a deadline stream, with small socket buffers,
+short peer writes and a final half-close/EOF check. Every byte carries its stream
+identity and position. All six configurations execute the same workload.
+
+Concurrent publication tests run four Base writers, each replacing the same path
+64 times with varying content and length, while three independent POSIX readers
+open and validate snapshots. Base readers also use read_limit during the writes.
+Every read must match a complete published generation and its size; selected writes
+request synchronization, every success reports publication, and the test directory
+must contain no leftover temporary files. This checks live atomicity and ownership;
+it does not simulate power loss or establish crash durability for a filesystem.
