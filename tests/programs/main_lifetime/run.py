@@ -52,7 +52,14 @@ with tempfile.TemporaryDirectory(prefix='base-main-lifetime-') as temporary:
             checking_leaks = platform.system() == 'Darwin'
             if checking_leaks:
                 command = ['/usr/bin/leaks', '--quiet', '--noContent', '--atExit', '--', *command]
-            result = subprocess.run(command, capture_output=True, timeout=30)
+            # Diagnostic helper processes can inherit pipes after leaks exits.
+            # Files keep the wait tied to the checker PID, not descendant EOF.
+            with tempfile.TemporaryFile() as standard, tempfile.TemporaryFile() as diagnostic:
+                result = subprocess.run(command, stdout=standard, stderr=diagnostic, timeout=30)
+                standard.seek(0)
+                diagnostic.seek(0)
+                result.stdout = standard.read()
+                result.stderr = diagnostic.read()
             output = result.stdout + result.stderr
             # leaks reports its own success status rather than the child's.
             assert result.returncode == (0 if checking_leaks else expected), (command, result.returncode, output)
