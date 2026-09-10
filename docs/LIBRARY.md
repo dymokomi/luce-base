@@ -313,6 +313,12 @@ Text operations over `str` views; what allocates says so and uses the current al
 
 - `let invalid_radix: ErrorCode = ErrorCode.package(50)`
 
+- `let invalid_number: ErrorCode = ErrorCode.package(51)`
+
+- `let number_out_of_range: ErrorCode = ErrorCode.package(52)`
+
+- `let conversion_failed: ErrorCode = ErrorCode.package(53)`
+
 - `func starts_with(text: str, prefix: str) -> bool`
 
 - `func ends_with(text: str, suffix: str) -> bool`
@@ -367,6 +373,14 @@ Split a borrowed text at a nonempty byte substring. Empty fields, including the 
 - `func format_i64(value: i64, buffer: u8[], radix: u32 = 10) -> str!` — Canonical lowercase digits, with a minus only for negative values, no prefix, padding or terminator. Return a borrowed view of buffer. A 65-byte buffer always suffices. Invalid radix or insufficient capacity leaves buffer unchanged.
 
 - `func format_u64(value: u64, buffer: u8[], radix: u32 = 10) -> str!` — Unsigned counterpart of format_i64; at most 64 bytes are needed. io.full reports insufficient capacity and invalid_radix reports a radix outside 2 through 36.
+
+- `func parse_f64(text: str) -> f64!` — Parse complete ASCII decimal text with an optional sign, decimal point and exponent. Whitespace, hex, underscores, embedded NUL and trailing bytes are invalid_number. Case-insensitive inf/infinity/nan are also accepted; NaNs are canonical quiet values. Numeric overflow reports number_out_of_range; rounded underflow/subnormals and signed zero are valid. Conversion uses the C numeric locale and the calling thread's rounding mode. Decimal input is copied through the current allocator and uses a temporary libc locale, both released on return.
+
+- `func parse_f32(text: str) -> f32!` — The f32 counterpart of parse_f64. It calls the single-precision converter directly, avoiding a second rounding step through f64.
+
+- `func format_f64(value: f64, buffer: u8[]) -> str!` — Format with 17 significant decimal digits in the C numeric locale. This is sufficient for finite-value round trips under round-to-nearest, not a promise of shortest text. Signed zero is retained; NaN payloads are not. The current rounding mode is honored. Return a borrowed view without a terminator; 32 bytes suffice. The destination is unchanged on failure. A temporary libc locale may allocate; no current-allocator storage is needed and no global locale is changed.
+
+- `func format_f32(value: f32, buffer: u8[]) -> str!` — The f32 counterpart of format_f64, with nine significant decimal digits. The exact promotion to f64 is only for C's variadic formatting argument.
 
 ### `Builder` (struct: io.Writer)
 

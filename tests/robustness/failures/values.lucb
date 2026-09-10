@@ -6,6 +6,8 @@ import paths
 import io
 
 func text_work() -> !:
+    assert(try strings.parse_f64("12.5") == 12.5)
+    assert(try strings.parse_f32("-0.125") == (f32)-0.125)
     let parts = try strings.split("ab,,Cd,", ',')
     defer free(parts)
     assert(parts.length == 4 and parts[1] == "" and parts[3] == "")

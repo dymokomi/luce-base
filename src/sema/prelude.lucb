@@ -1908,12 +1908,16 @@ pub func encode(scalar: u32, buffer: u8[]) -> usize?:
 ## the borrowed-field arrays returned by split and split_by.
 
 import c
+import platform
 import io
 import memory
 
 pub let invalid_separator: ErrorCode = ErrorCode.package(48)
 pub let output_too_large: ErrorCode = ErrorCode.package(49)
 pub let invalid_radix: ErrorCode = ErrorCode.package(50)
+pub let invalid_number: ErrorCode = ErrorCode.package(51)
+pub let number_out_of_range: ErrorCode = ErrorCode.package(52)
+pub let conversion_failed: ErrorCode = ErrorCode.package(53)
 pub func starts_with(text: str, prefix: str) -> bool:
     if prefix.length > text.length:
         return false
@@ -2330,6 +2334,182 @@ func format_integer(value: u64, negative: bool, buffer: u8[], radix: u32) -> str
         buffer[position] = reversed[count - position - 1]
         position += 1
     return (str)buffer[..<count]
+extern func new_numeric_locale as "newlocale"(mask: i32, name: c.str, base: void*?) -> void*?
+extern func free_locale_macos as "freelocale"(locale: void*) -> i32
+extern func free_locale_linux as "freelocale"(locale: void*)
+extern func use_locale as "uselocale"(locale: void*) -> void*?
+extern func convert_f64 as "strtod_l"(text: c.str, end: u8*?*, locale: void*) -> f64
+extern func convert_f32 as "strtof_l"(text: c.str, end: u8*?*, locale: void*) -> f32
+extern func print_float_macos as "snprintf_l"(output: u8*, size: usize, locale: void*, format: c.str, ...) -> i32
+extern func print_float_linux as "snprintf"(output: u8*, size: usize, format: c.str, ...) -> i32
+
+## Parse complete ASCII decimal text with an optional sign, decimal point and
+## exponent. Whitespace, hex, underscores, embedded NUL and trailing bytes are
+## invalid_number. Case-insensitive inf/infinity/nan are also accepted; NaNs are
+## canonical quiet values. Numeric overflow reports number_out_of_range; rounded
+## underflow/subnormals and signed zero are valid. Conversion uses the C numeric
+## locale and the calling thread's rounding mode. Decimal input is copied through
+## the current allocator and uses a temporary libc locale, both released on return.
+pub func parse_f64(text: str) -> f64!:
+    let kind = float_syntax(text) else error(invalid_number, "invalid floating-point text")
+    if kind != 0:
+        var bits: u64 = 9218868437227405312 if kind == 1 else 9221120237041090560
+        if text.bytes[0] == '-':
+            bits |= 9223372036854775808
+        return memory.read[f64](&bits)
+    var locale = try NumericLocale.create()
+    defer locale.destroy()
+    let input = try copy(text)
+    defer release(input)
+    var end: u8*? = none
+    c.set_errno(0)
+    let value = convert_f64((c.str)input, &end, locale.handle())
+    let number = c.errno()
+    try check_float_conversion(input, end, number)
+    let magnitude = memory.read[u64](&value) & 9223372036854775807
+    if magnitude >= 9218868437227405312 or (number == 34 and magnitude >= 4607182418800017408):
+        error(number_out_of_range, "the decimal value exceeds f64 range")
+    return value
+
+## The f32 counterpart of parse_f64. It calls the single-precision converter
+## directly, avoiding a second rounding step through f64.
+pub func parse_f32(text: str) -> f32!:
+    let kind = float_syntax(text) else error(invalid_number, "invalid floating-point text")
+    if kind != 0:
+        var bits: u32 = 2139095040 if kind == 1 else 2143289344
+        if text.bytes[0] == '-':
+            bits |= 2147483648
+        return memory.read[f32](&bits)
+    var locale = try NumericLocale.create()
+    defer locale.destroy()
+    let input = try copy(text)
+    defer release(input)
+    var end: u8*? = none
+    c.set_errno(0)
+    let value = convert_f32((c.str)input, &end, locale.handle())
+    let number = c.errno()
+    try check_float_conversion(input, end, number)
+    let magnitude = memory.read[u32](&value) & 2147483647
+    if magnitude >= 2139095040 or (number == 34 and magnitude >= 1065353216):
+        error(number_out_of_range, "the decimal value exceeds f32 range")
+    return value
+
+## Format with 17 significant decimal digits in the C numeric locale. This is
+## sufficient for finite-value round trips under round-to-nearest, not a promise
+## of shortest text. Signed zero is retained; NaN payloads are not. The current
+## rounding mode is honored. Return a borrowed view without a terminator; 32 bytes
+## suffice. The destination is unchanged on failure. A temporary libc locale may
+## allocate; no current-allocator storage is needed and no global locale is changed.
+pub func format_f64(value: f64, buffer: u8[]) -> str!:
+    return try format_float(value, 17, buffer)
+
+## The f32 counterpart of format_f64, with nine significant decimal digits. The
+## exact promotion to f64 is only for C's variadic formatting argument.
+pub func format_f32(value: f32, buffer: u8[]) -> str!:
+    return try format_float((f64)value, 9, buffer)
+
+struct NumericLocale:
+    var value: void*?
+
+    static func create() -> NumericLocale!:
+        let value = new_numeric_locale(16 if platform.macos else 2, "C", none) else error(memory.exhausted if c.errno() == 12 else conversion_failed, "the C numeric locale could not be created")
+        return NumericLocale(value = value)
+
+    func handle() -> void*:
+        return self.value else trap("the numeric locale is closed")
+
+    mutating func destroy():
+        if let value = self.value:
+            self.value = none
+            if platform.macos:
+                discard(free_locale_macos(value))
+            else:
+                free_locale_linux(value)
+
+func format_float(value: f64, precision: i32, buffer: u8[]) -> str!:
+    var locale = try NumericLocale.create()
+    defer locale.destroy()
+    var temporary: u8[32]
+    var count: i32 = 0
+    if platform.macos:
+        count = print_float_macos(&temporary[0], temporary.length, locale.handle(), "%.*g", precision, value)
+    else:
+        # glibc has no snprintf_l. Change only this thread's locale and restore it
+        # before releasing the temporary locale, including on formatting failure.
+        let previous = use_locale(locale.handle()) else error(conversion_failed, "the thread numeric locale could not be selected")
+        defer restore_numeric_locale(previous)
+        count = print_float_linux(&temporary[0], temporary.length, "%.*g", precision, value)
+    if count < 0 or (usize)count >= temporary.length:
+        error(conversion_failed, "floating-point formatting failed")
+    if buffer.length < (usize)count:
+        error(io.full, "the destination cannot hold the formatted floating-point value")
+    memory.copy(buffer, temporary, (usize)count)
+    return (str)buffer[..<(usize)count]
+
+func restore_numeric_locale(previous: void*):
+    # previous is a valid handle returned by uselocale, including LC_GLOBAL_LOCALE.
+    let restored = use_locale(previous) else trap("a valid thread locale could not be restored")
+    discard(restored)
+
+func check_float_conversion(input: str, end: u8*?, number: i32) -> !:
+    if number == 12:
+        error(memory.exhausted, "floating-point conversion ran out of memory")
+    if number != 0 and number != 34:
+        error(conversion_failed, "floating-point conversion failed")
+    let end_pointer = end else error(invalid_number, "floating-point conversion did not return an end pointer")
+    if (usize)end_pointer != (usize)input.bytes.data + input.length:
+        error(invalid_number, "floating-point conversion did not consume the input")
+
+## Result zero means decimal, one infinity, two NaN; none means invalid syntax.
+func float_syntax(text: str) -> u8?:
+    if text.length == 0:
+        return none
+    var position: usize = 0
+    if text.bytes[0] == '+' or text.bytes[0] == '-':
+        position = 1
+    if position == text.length:
+        return none
+    let word = (str)text.bytes[position..]
+    if ascii_word(word, "inf") or ascii_word(word, "infinity"):
+        return 1
+    if ascii_word(word, "nan"):
+        return 2
+    var digits: usize = 0
+    while position < text.length and decimal_digit(text.bytes[position]):
+        digits += 1
+        position += 1
+    if position < text.length and text.bytes[position] == '.':
+        position += 1
+        while position < text.length and decimal_digit(text.bytes[position]):
+            digits += 1
+            position += 1
+    if digits == 0:
+        return none
+    if position < text.length and (text.bytes[position] == 'e' or text.bytes[position] == 'E'):
+        position += 1
+        if position < text.length and (text.bytes[position] == '+' or text.bytes[position] == '-'):
+            position += 1
+        let start = position
+        while position < text.length and decimal_digit(text.bytes[position]):
+            position += 1
+        if position == start:
+            return none
+    return 0 if position == text.length else none
+
+func decimal_digit(byte: u8) -> bool:
+    return byte >= '0' and byte <= '9'
+
+func ascii_word(text: str, word: str) -> bool:
+    if text.length != word.length:
+        return false
+    var position: usize = 0
+    while position < text.length:
+        let byte = text.bytes[position]
+        let lower = byte + 32 if byte >= 'A' and byte <= 'Z' else byte
+        if lower != word.bytes[position]:
+            return false
+        position += 1
+    return true
 ## Text built piece by piece. The builder keeps the allocator that was current when it
 ## was created and grows in it, so it may cross `with` blocks and outlive them; `destroy`
 ## gives its bytes back to that allocator.
