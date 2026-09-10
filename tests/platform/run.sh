@@ -68,5 +68,14 @@ done
 ./build/luce-base build tests/platform/common/identity.lucb --target "$host" --emit=c -o build/platform.c
 ./build/luce-base build tests/platform/common/identity.lucb --emit=c -o build/platform-host.c
 cmp build/platform.c build/platform-host.c
+# a program for another target is written as C or assembly here and built there: a native
+# build for it is refused, and says so
+for target in x86_64-linux x86_64-macos x86_64-windows arm64-linux arm64-macos; do
+    [ "$target" = "$host" ] && continue
+    if ./build/luce-base build tests/platform/common/identity.lucb --target "$target" -o build/platform 2> build/platform.err; then
+        echo "FAIL: a native build for $target was accepted on $host"; exit 1
+    fi
+    grep -q "written as C with --emit=c" build/platform.err || { echo "FAIL: the refusal for $target says [$(cat build/platform.err)]"; exit 1; }
+done
 rm -f build/platform build/platform.out build/platform.c build/platform-host.c build/platform.s
 echo "ok platform: $programs programs on $host, $targets targets emitted"

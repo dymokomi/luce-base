@@ -28,7 +28,6 @@ import back.ir.ir
 import back.target as build_target
 import memory
 import support.buffer
-import support.list
 
 pub let failed: ErrorCode = ErrorCode.package(21)
 

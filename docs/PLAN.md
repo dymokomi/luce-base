@@ -14,16 +14,6 @@ unit tests green in the oracle and the binary agreeing on `tests/samples/`.
 | 7. Proving | programs big enough to break things, built natively with no C in the path, each driven from outside by its `check.sh` | done: `http` (a threaded server), `editor`, `debugger` (`luce-base-d`), `gui` (SDL3), `metal` (a GPU computation), `asm`, `freestanding`, `manifest`, `abi` (the calling convention both ways), and `pkgconfig` are all under the gate; a host lacking what one needs fails the gate and says what to install |
 | 8. Codegen | the optimiser over the IR, then the release | done: inlining, single-assignment form, value numbering, load elimination, and de-SSA over the IR (`docs/DESIGN.md`, "The optimiser"), measured by `tests/optimization`; a register allocator over the single-assignment form is what remains |
 | 9. Targets | the second host: x86_64 Linux, natively, with the gate green there | done (0.2.0): `src/back/native/x86_64.lucb` behind the `Backend` interface, the host read from the compiler's own `platform` module, per-target bootstrap snapshots, `tests/platform`; the calling convention proved both ways by `tests/programs/abi`; next hosts are arm64-linux (the x86_64 generator's ELF half with the arm64 generator's instructions) and x86_64-macos (the reverse) |
-| 10. Linking | `luce-ld`, a linker of our own, as Zig carries one, in its own repository | a native build that needs nothing from the host toolchain |
-
-## Native-first stabilization
-
-Native assembly is the default output path, including both self-hosting stages after
-the initial snapshot/seed binary. The next reliability work prioritizes IR invariants,
-ABI boundaries, register allocation, optimization-level comparisons and native runtime
-stress on both hosts. C emission remains an explicitly selected comparison and snapshot
-facility; C sanitizers supplement this work and do not establish native correctness.
-Removing the C emitter is a separate bootstrap/oracle design decision.
 
 ## What remains
 
@@ -71,26 +61,18 @@ history. Nothing is listed here that already exists.
 
 ### Hardening
 
-The fuzzer exists (`tools/fuzz.py`, 0.11.1, generator widened to the value language in
-0.11.4 and to memory management in 0.11.5): mutated programs must be accepted or rejected with a positioned diagnostic,
-generated programs must agree across the four executions; the gate runs its short deterministic pass, and `--minutes M` runs it for
-longer. Run it for hours on both hosts before a release; every finding becomes a test.
+The fuzzer (`tools/fuzz.py`) mutates the corpus and generates programs that must agree
+across the four executions; the gate runs its short deterministic pass, and `--minutes M`
+runs it for longer. Every finding becomes a test.
 
-9. **Longer optimizer campaigns.** Conformance now runs C, release C and every native
-    optimization level with deadlines and exact expected statuses. Broader and longer
-    generated-program campaigns on both hosts remain useful before major releases.
+9. **Fuzzing campaigns before a release.** The generator has run for an hour at a time
+   on one host. Gate: a run of several hours on each host recorded in `docs/RELEASES.md`
+   with the release it precedes, and no finding open.
 10. **Sanitizers and a litmus suite.** No sanitizer run and no test of the
     orderings. Gate: the conformance and robustness programs built through the
-    C backend under address, undefined-behaviour, and thread sanitizers as a
-    gate step; a litmus suite for the atomic orderings of §15.1 under
+    C backend at `-O0` and `-O2` under address, undefined-behaviour, and thread
+    sanitizers as a gate step; a litmus suite for the atomic orderings of §15.1 under
     `tests/platform`.
-11. **Release discipline.** The checked-in workflow runs the full gate on macOS ARM64
-    and Linux x86-64 for every push, preserving toolchain provenance and failures.
-    Releases require both-host execution evidence and a local Mac hardware pass; a
-    hosted missing-GPU result is explicitly incomplete hardware coverage.
-12. **The C backend at `-O2`.** The release pass exists and found one dangling
-    buffer on its first run; it is one build flag away from the sanitizer run
-    above. Gate: item 10 covers it.
 
 ## The bootstrap gate
 

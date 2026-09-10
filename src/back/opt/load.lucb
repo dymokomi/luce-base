@@ -17,7 +17,6 @@
 #
 #==============================================================================================
 
-import memory
 import support.list
 import back.ir.cfg
 import back.ir.ir
@@ -442,12 +441,3 @@ func find_value(s: Search*, address: Alias, width: i64, op: ir.Op, cls: ir.Class
 
 func same_alias(a: Alias, b: Alias) -> bool:
     return a.kind == b.kind and a.base == b.base and a.offset == b.offset and a.name == b.name
-
-func same_ref(a: ir.Ref, b: ir.Ref) -> bool:
-    if a.kind != b.kind:
-        return false
-    match a.kind:
-        .temp, .slot, .text: return a.index == b.index
-        .constant: return a.value == b.value
-        .none_: return true
-        _: return a.name == b.name and a.value == b.value

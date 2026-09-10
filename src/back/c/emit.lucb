@@ -21,7 +21,6 @@
 #
 #==============================================================================================
 
-import c
 import back.names
 import back.target as targets
 import front.ast

@@ -5,6 +5,14 @@
 release is a VERSION bump, a tag `luce-base-N`, and a push, the way luce-seed does it
 (`bootstrap/SEED` pins the seed the tree is built against).
 
+## 0.11.31
+
+- A native build for another target is refused again, as §19.5 says: the check had slid
+  under a `return` and never ran; `tests/platform` now proves the refusal for every other
+  target. Dead code left by the last releases is gone: unused imports in fourteen modules,
+  four unused functions, and 4 KiB scratch buffers declared in the DWARF emitter and never
+  read. History moved out of `DESIGN.md`, `AUDIT.md` and `PLAN.md` into this file.
+
 ## 0.11.30
 
 - Native code generation is the default for executable builds, test runners and
@@ -621,3 +629,115 @@ The first versioned tree, arm64-macos. What it holds:
   module the compiler writes for `--target`, pruned at compile time;
 - targets: arm64-macos natively; the C for any of the five targets with `--emit=c`; the
   Linux values are written and untested, the Windows arms marked.
+
+## What the conformance suite found
+
+The suite (`docs/DESIGN.md`, "The conformance suite") was written chapter by chapter
+against `docs/language/base.md`, and each chapter found rules neither compiler enforced or
+behaviour one got wrong; every finding became a program of the suite. In order:
+
+Its first chapters found rules neither compiler
+enforced (a BOM, bidirectional controls, uppercase base prefixes, non-ASCII byte
+literals, a stored formatted string, a negative literal into an unsigned type, a
+core name as a label, a standard module's name bound without an import) and
+behaviour both got wrong (text iterated by byte, a `char` displayed as a number).
+Chapter 5 added the atomic type's constraints, a packed field's address, a
+zero-length array, a struct without fields, `Point.method` as a function value, a
+real wrapper where a plain function meets a fallible function type (the C backend
+had cast the pointer), `const (T*)*` spelled as C's `T* const*`, and a `never`
+branch in a conditional; in the seed, span ends and indexed loops, `sizeof` of a
+member, nullable functions, tail padding, and addresses from pointer casts.
+Chapters 6 and 7 found a `local let`, `u32(-1)`, unary minus on an
+unsigned, a global or module-level `assert` initialised at runtime, a local's
+address stored into a global or through a pointer, a `luce.line` default
+expanding at its declaration rather than the call, a compound assignment
+evaluating its place twice, a checked index evaluated twice, constant
+initialisers written with the trapping helpers that C cannot fold, an untyped
+`3 -| 7` computed in `i64`, and equality of payload enums and structs by
+`memcmp`, which reads padding and stale union bytes; the runner now also proves
+the traps a chapter requires, on every execution. Chapters 8 and 9 found a
+`for` over a pointer to an array copying the array, `defer` skipped under
+`continue`, string patterns compared by pointer, no optional patterns, no
+exhaustiveness checking at all (duplicate, unreachable, and missing arms; the
+`_` an integer-backed enum needs), a guarded enum arm lost in a C `switch`, a
+method named without its call, a default argument that was not a constant, and
+a `-> fmt` return; in the seed, string and optional patterns, defers running
+whole under a pending jump, range bounds, and the same exhaustiveness rules.
+Chapter 10 found a field given twice, `~` refused on an integer-backed enum,
+two cases sharing a value, a backed enum's case without one, a `-1` case whose
+checked conversion never matched (both backends compared the 64-bit value
+against a narrow one; now both sides are masked to the representation), a
+compiler that trapped folding the case after `-1`, a struct containing itself,
+a union without members, equality on a struct holding a union, a `catch`
+handler that neither recovered nor left, and none of the rules of a custom
+`init` (`sema/init_rules.lucb` walks the body with the set of fields assigned
+so far); in the seed, positional construction, a failing `init` that did not
+fail the construction, and a union that lost the bytes beyond a narrow member.
+Chapter 11 found a module-level `assert` never decided (now folded through
+`constant_bool`, as C's `static_assert`), a message formatted on a local
+buffer accepted once a `let` or `try` stood between the buffer and `error`
+(a local array taints the view; a span variable or parameter does not),
+`error` accepted in a handler of a non-fallible function, two constants of one
+package sharing an error code (the prelude's own modules did, six of them on
+code 1, and two test programs), `T!` accepted as a field, parameter, or local,
+and `sizeof` unable to name a pointer, optional, array, or function type; in
+the seed, `break` and `continue` from a handler lost in a loop over an array,
+and the C backend wrapping an optional twice through a group or conditional.
+Chapter 12 found `memory.exhausted` raised as the bare code 1 by both backends
+while the prelude's constant carries the `luce` identity (so a program's
+comparison never held), `new T[n]` of elements with no zero value, `new (T!)`,
+`in arena catch e:` parsed with the handler inside the allocator name, and
+`alloc (T)[n]` taken for the raw form; in the seed, `free` that released
+nothing, `memory.heap` as a view with no methods, `(*p)[i] = v` refused, and the
+same two parses. Chapter 13 found no constraint checked at instantiation, an
+unconstrained parameter compared, hashed, and formatted (the derived protocols
+counted as always carried; `has_written_constraint` now tells what a body may
+rely on), a type parameter shadowing a type, an infinite chain that exhausted
+the compiler's memory (now a nesting limit in both backends' worklists and a
+checker rule for a call nesting its own parameter), and an optional `str`
+compared with C's `==`; in the seed, instantiations checked among the caller's
+locals, `Pair[B, A]` inside `Pair[A, B]`, inference blind to function types,
+`compare` and `Display` under bounds, a zero value assumed for `T`, and a chain
+that grew names until memory ran out. Chapter 14 found a mutating view formed
+from a `let`, `view == none` refused, a generic method accepted in an
+interface, a `mutating` mismatch tolerated in one direction, and the address of
+a temporary taken, a non-fallible implementation of a fallible requirement
+entered in the witness table as it was (the native call read a result that was
+never written; `witness_thunk` now supplies the fallible entry), a `Display`
+parameter formatted as a scalar (now `value.display(__sink)`, with the backends
+falling back to the compiler's display at a scalar instantiation), and a call
+the checker rewrites re-resolving its inferred type arguments; in the seed, no
+optional views at all, views formed from values, `Comparable` unnameable, and a
+struct's `compare` bypassed for the scalar intrinsic. Still open: `Writer?` is
+a tagged optional in this compiler, not the null niche §14.3 promises.
+Chapter 15 found the native backend lowering `hits += 1` on an `@u64` as a
+load, a checked add, and a store, which lost updates under contention (now the
+`atomic_add` family, and `=` the `atomic_store`), `@` marking only the core of a
+type so `@Node*?` was a pointer to an atomic, an atomic that could not take an
+initial value, a plain read of an `@T` refused in `==` and `if let`, `*=` on an
+atomic, checked `+?` on an atomic after the read, `none` of an `@T*?` spelled as
+a brace initialiser in C, and no `cas` ordering rules; in the seed, `_` in a
+tuple binding, `try` for `try_lock`, `spawn` with any entry, bit methods on an
+`@bool`, and `cas` comparing pointers by their word. Still open: a plain read
+of an `@T` in the native backend is a plain load rather than a sequentially
+consistent one.
+
+The keyword `thread_local` became `local` (§3.6): no reserved word carries an
+underscore.
+
+## What the fuzzer found
+
+Its first hour found four defects, each now a test: a lexer diagnostic
+without its file, a self-assignment and a self-comparison the C compiler refused, a
+recursive alias that recursed the checker off its stack, and a bracket depth that
+trapped instead of reporting. Its first thirty-minute run after that (0.11.2) found four
+more: a constant condition folding a cast as transparent, an identifier long enough to
+overflow the diagnostic quoting it (an identifier is now at most 128 bytes, §3.1), an array
+length beyond `u64` reported without a position, and a file name that was no identifier
+reaching the assembler as a symbol. Widening the generator to the whole value language
+(0.11.4) found, before its first long run, a zeroable rule both compilers had loose: an
+integer-backed enum with no zero case and a struct with a field default or an `init` were
+given zero values (§6.1); and the seed typed an `else` fallback under the optional it was
+stored into. Extending it to memory and the remaining forms (0.11.5) found a generic
+struct's instance refused a zero value, a lambda refused where a nullable function was
+expected, and the seed reading `a[(usize)i].x` as a generic instantiation.

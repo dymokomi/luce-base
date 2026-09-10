@@ -23,7 +23,6 @@ import back.names
 import back.target as targets
 import front.ast
 import front.source as sources
-import memory
 import sema.check
 import sema.types
 import support.buffer
@@ -84,11 +83,6 @@ func assert_text(condition: str, message: str) -> str!:
     if message.length > 0:
         return try format(room, f"assert failed: {condition}: {message}")
     return try format(room, f"assert failed: {condition}")
-
-func kept_text(text: str) -> str!:
-    let copy = try alloc u8[text.length]
-    memory.copy(copy, text.bytes, text.length)
-    return (str)copy
 
 pub struct Lowerer:
     var c: check.Checker*
@@ -4762,14 +4756,6 @@ pub func float32_bits(text: str) -> u64:
 
 pub func float16_bits(text: str) -> u64:
     return decimal.bits(text, 16) else 0
-
-func float_to_bits(value: f64) -> u64:
-    var copy_of = value
-    return memory.read[u64]((void*)&copy_of)
-
-func f32_to_bits(value: f32) -> u32:
-    var copy_of = value
-    return memory.read[u32]((void*)&copy_of)
 
 ## The name in `section("name")` on `d`, or empty.
 func section_of(d: ast.Node*) -> str:

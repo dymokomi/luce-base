@@ -121,13 +121,13 @@ cmp build/stage1.c build/native1.c
 ./build/native build src/main.lucb --native --emit=asm -o build/native1.s
 cmp build/stage1.s build/native1.s
 rm -f build/native build/native1.c build/stage1.c build/stage1.s build/native1.s
-# every rejected program must be rejected for the stated reason
 # the checker's warnings, and their exact text, for the sample that exercises each
 if ! ./build/luce-base check tests/samples/warnings.lucb -W 2>&1 | cmp -s - tests/samples/warnings.warnings; then
     echo "FAIL tests/samples/warnings.lucb: warnings differ from tests/samples/warnings.warnings"
     ./build/luce-base check tests/samples/warnings.lucb -W 2>&1 | diff - tests/samples/warnings.warnings | head -10
     exit 1
 fi
+# every rejected program must be rejected for the stated reason
 for f in tests/samples/errors/*.lucb; do
     want=$(LC_ALL=C sed -n 's/^# error: //p' "$f")
     # under `set -e` a failing substitution would end the gate: the status is taken here

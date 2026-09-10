@@ -21,13 +21,11 @@ pub struct Emitter:
     var serial: usize
 
     pub static func over(checker: check.Checker*, program: ir.Unit*, macos: bool) -> Emitter!:
-        var format_room: u8[4096]
         return Emitter(checker = checker, program = program, macos = macos,
             files = try list.List[str].create(0), needed = try list.List[u32].create(0),
             info = try buffer.Buffer.create(0), cwd = "", serial = 0)
 
     mutating func file(path: str) -> usize!:
-        var format_room: u8[4096]
         var i: usize = 0
         while i < self.files.count:
             if self.files.get(i) == path:
@@ -278,7 +276,6 @@ pub struct Emitter:
         try out.put("    .quad 0, 0\n")
 
 func round_up(n: u64, alignment: u64) -> u64:
-    var format_room: u8[4096]
     return (n + alignment - 1) // alignment * alignment if alignment > 0 else n
 
 func section(out: buffer.Buffer*, name: str, macos: bool) -> !:
@@ -286,13 +283,11 @@ func section(out: buffer.Buffer*, name: str, macos: bool) -> !:
     try out.put((try format(format_room, f"\n    .section __DWARF,__debug_{name},regular,debug\n")) if macos else (try format(format_room, f"\n    .section .debug_{name},\"\",@progbits\n")))
 
 func text(out: buffer.Buffer*, value: str) -> !:
-    var format_room: u8[4096]
     try out.put("    .asciz ")
     try quoted(out, value)
     try out.put("\n")
 
 func quoted(out: buffer.Buffer*, value: str) -> !:
-    var format_room: u8[4096]
     try out.put("\"")
     for byte in value.bytes:
         if byte == 34 or byte == 92:

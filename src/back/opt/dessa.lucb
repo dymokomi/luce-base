@@ -15,7 +15,6 @@
 #
 #==============================================================================================
 
-import memory
 import support.list
 import back.ir.cfg
 import back.ir.ir

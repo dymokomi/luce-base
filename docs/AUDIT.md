@@ -74,20 +74,8 @@ raw bytes, `free`, `defer free`, linked lists, a `FixedBuffer` arena under `in` 
 heap trees under `errdefer`) and requires the C, C `-O2`, native, and seed executions to
 agree. The gate runs a short
 deterministic pass; `tools/fuzz.py --minutes M` runs longer, and findings land under
-`build/fuzz/`. Its first hour found four defects, each now a test: a lexer diagnostic
-without its file, a self-assignment and a self-comparison the C compiler refused, a
-recursive alias that recursed the checker off its stack, and a bracket depth that
-trapped instead of reporting. Its first thirty-minute run after that (0.11.2) found four
-more: a constant condition folding a cast as transparent, an identifier long enough to
-overflow the diagnostic quoting it (an identifier is now at most 128 bytes, §3.1), an array
-length beyond `u64` reported without a position, and a file name that was no identifier
-reaching the assembler as a symbol. Widening the generator to the whole value language
-(0.11.4) found, before its first long run, a zeroable rule both compilers had loose: an
-integer-backed enum with no zero case and a struct with a field default or an `init` were
-given zero values (§6.1); and the seed typed an `else` fallback under the optional it was
-stored into. Extending it to memory and the remaining forms (0.11.5) found a generic
-struct's instance refused a zero value, a lambda refused where a nullable function was
-expected, and the seed reading `a[(usize)i].x` as a generic instantiation.
+`build/fuzz/`. What its runs found, release by release, is history and lives in
+[RELEASES.md](RELEASES.md), "What the fuzzer found".
 
 ## Known and accepted
 

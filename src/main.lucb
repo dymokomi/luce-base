@@ -545,10 +545,10 @@ func build_file(path: c.str, options: Options) -> !:
         if options.target.length > 0:
             let chosen = targets.Target.named(options.target) else return try unknown_target()
             build_target_name = chosen.name
-        if options.cpu.length > 0 and build_target().level_named(options.cpu) == none:
-            return try unknown_level(build_target())
             if not chosen.is_host() and not options.emit_c and not options.library:
                 error(build_failed, "a program for another target is written as C with --emit=c and compiled there")
+        if options.cpu.length > 0 and build_target().level_named(options.cpu) == none:
+            return try unknown_level(build_target())
         if options.list_targets:
             try list_targets(path)
             return
