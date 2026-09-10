@@ -5,7 +5,7 @@
 #   DESCRIPTION:
 #       Every C or assembly symbol a Base declaration becomes: `lb_module_name` for a
 #       function or global, `lb_module_Record__args` for a record instance, the method's
-#       owner in front of its name, and `main` and `answer` kept as the entry shims expect.
+#       owner in front of its name, and the entry module's `main` and `answer` kept as their shims expect.
 #       Type arguments are spelled with identifier characters only, so an instance's name
 #       is unique per type. The C backend writes these through a buffer; the native backend
 #       does the same and then prefixes an underscore, as the Mach-O convention wants.
@@ -145,7 +145,7 @@ pub func export_symbol(out: buffer.Buffer*, f: ast.Node*, owner: ast.Node*?) -> 
     try out.put(f.text)
 
 ## The symbol of a function or method instance.
-pub func function_name(out: buffer.Buffer*, table: types.Table*, f: ast.Node*, args: u32[], owner: ast.Node*?, owner_args: u32[]) -> !:
+pub func function_name(out: buffer.Buffer*, table: types.Table*, f: ast.Node*, args: u32[], owner: ast.Node*?, owner_args: u32[], entry: ast.Node*) -> !:
     if f.kind == ast.Kind.extern_func:
         try out.put(c_symbol(f))
         return
@@ -163,7 +163,7 @@ pub func function_name(out: buffer.Buffer*, table: types.Table*, f: ast.Node*, a
             try mangled(out, table, owner_args[i])
             i += 1
         try out.put("_")
-    elif f.text == "main" or f.text == "answer":
+    elif f.resolved == entry and (f.text == "main" or f.text == "answer"):
         if f.text == "answer" and f.has(ast.flag_fallible):
             try out.put("answer_impl")
         else:

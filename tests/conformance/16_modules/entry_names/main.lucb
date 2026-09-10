@@ -1,0 +1,13 @@
+import alpha
+import beta
+import generic
+
+pub func main(arguments: str[]) -> i32:
+    # A qualified call must not collide with a local of the same leaf name in C.
+    let answer = alpha.answer()
+    assert(answer == 7 and beta.answer() == 11)
+    assert(alpha.main(arguments) == 3 and beta.main(arguments) == 5)
+    assert(generic.answer[i64](13) == 13)
+    assert(generic.answer[i32](17) == 17)
+    print("ok imported main and answer names")
+    return 0

@@ -531,7 +531,7 @@ pub struct Lowerer:
 
     mutating func function_name(f: ast.Node*, args: u32[], owner: ast.Node*?, owner_args: u32[]) -> str!:
         self.scratch.clear()
-        try names.function_name(&self.scratch, &self.c.table, f, args, owner, owner_args)
+        try names.function_name(&self.scratch, &self.c.table, f, args, owner, owner_args, self.entry)
         return try names.keep(&self.scratch)
 
     mutating func global_name(d: ast.Node*) -> str!:
