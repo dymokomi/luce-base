@@ -333,6 +333,26 @@ The mathematical functions of the standard library (§16.6): `import math` for `
 
 - `func log10(x: f64) -> f64`
 
+- `func log1p(x: f64) -> f64` — Natural logarithm of `1 + x`, retaining accuracy when adding `x` to one would round it away. At -1 the result is negative infinity; below -1 it is NaN.
+
+- `func expm1(x: f64) -> f64` — `exp(x) - 1` without cancellation near zero. Signed zero is preserved.
+
+- `func fma(x: f64, y: f64, z: f64) -> f64` — Multiply `x * y` and add `z` with one final rounding, rather than rounding the product first. Uses the host's floating-point rounding mode.
+
+- `func nextafter(x: f64, toward: f64) -> f64` — The adjacent representable value toward `toward`; equal arguments return `toward`, including its zero sign. A NaN argument produces NaN.
+
+- `func next_up(x: f64) -> f64` — The adjacent representable value toward positive infinity. Positive infinity stays infinite; either zero becomes the smallest positive subnormal.
+
+- `func next_down(x: f64) -> f64` — The adjacent representable value toward negative infinity. Negative infinity stays infinite; either zero becomes the smallest negative subnormal.
+
+- `func frexp(x: f64) -> (f64, i32)` — Split `x` into `(fraction, exponent)` such that `x = fraction * 2**exponent`. A finite nonzero fraction has magnitude in [0.5, 1). Zero, infinity and NaN are returned unchanged with exponent zero, avoiding an unspecified C exponent.
+
+- `func scalbn(x: f64, exponent: i32) -> f64` — Scale by an integer power of two, without forming that power as an intermediate float. Overflow/underflow follow the host rounding mode; signed zero survives.
+
+- `func modf(x: f64) -> (f64, f64)` — `(fractional, integral)` parts, both with the sign of `x`; the integral part truncates toward zero. Infinity has a signed-zero fraction; NaN gives two NaNs.
+
+- `func remainder(x: f64, y: f64) -> f64` — `x - n*y` for the nearest integer `n` to `x/y`, with ties choosing even `n`. This differs from `mod`, which truncates the quotient. Zero has the sign of `x`; a zero divisor or infinite dividend produces NaN.
+
 - `func sin(x: f64) -> f64`
 
 - `func cos(x: f64) -> f64`
@@ -378,6 +398,12 @@ The mathematical functions of the standard library (§16.6): `import math` for `
 - `func mod_floor(a: i64, b: i64) -> i64`
 
 - `func iabs(a: i64) -> i64`
+
+- `func checked_iabs(a: i64) -> i64?` — Absolute value, or none for the minimum i64 whose positive magnitude cannot fit.
+
+- `func checked_div_floor(a: i64, b: i64) -> i64?` — Floor division, or none for a zero divisor or a quotient outside i64.
+
+- `func checked_mod_floor(a: i64, b: i64) -> i64?` — Remainder with the divisor's sign, or none for a zero divisor. The minimum i64 modulo -1 is zero even though its quotient cannot be represented.
 
 - `func imin(a: i64, b: i64) -> i64`
 

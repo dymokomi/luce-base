@@ -1,0 +1,47 @@
+# oracle: none -- These Base numerical helpers are not supplied by the seed interpreter.
+import math
+
+pub func main(arguments: str[]) -> i32:
+    let tiny = math.scalbn(1.0, -54)
+    # At this scale the correctly rounded answers are x itself: the quadratic
+    # correction is less than half an ulp. Naive exp/log compositions lose x.
+    assert(math.log1p(tiny).bits() == tiny.bits())
+    assert(math.expm1(tiny).bits() == tiny.bits())
+    let increment = math.scalbn(1.0, -27)
+    # Exact arithmetic gives -2^-54; separately rounding the product loses it.
+    assert(math.fma(1.0 + increment, 1.0 - increment, -1.0) == -tiny)
+    assert(math.next_up(1.0).bits() == 4607182418800017409)
+    assert(math.next_down(1.0).bits() == 4607182418800017407)
+    assert(math.next_up(0.0).bits() == 1)
+    assert(math.next_down(0.0).bits() == 9223372036854775809)
+    let negative_zero = f64.bits(9223372036854775808)
+    assert(math.nextafter(0.0, negative_zero).bits() == negative_zero.bits())
+    assert(math.next_up(math.infinity) == math.infinity)
+    assert(math.is_nan(math.nextafter(math.nan, 1.0)))
+    let (fraction, exponent) = math.frexp(f64.bits(1))
+    assert(fraction == 0.5 and exponent == -1073)
+    assert(math.scalbn(fraction, exponent).bits() == 1)
+    let (zero_fraction, zero_exponent) = math.frexp(negative_zero)
+    assert(zero_fraction.bits() == negative_zero.bits() and zero_exponent == 0)
+    let (infinite_fraction, infinite_exponent) = math.frexp(math.infinity)
+    assert(infinite_fraction == math.infinity and infinite_exponent == 0)
+    let (nan_fraction, nan_exponent) = math.frexp(math.nan)
+    assert(math.is_nan(nan_fraction) and nan_exponent == 0)
+    let (decimal, integral) = math.modf(-3.25)
+    assert(decimal == -0.25 and integral == -3.0)
+    let (infinite_decimal, infinite_integral) = math.modf(-math.infinity)
+    assert(infinite_decimal.bits() == negative_zero.bits())
+    assert(infinite_integral == -math.infinity)
+    assert(math.remainder(7.0, 2.0) == -1.0)
+    assert(math.remainder(5.0, 2.0) == 1.0)
+    assert(math.mod(7.0, 2.0) == 1.0)
+    assert(math.is_nan(math.remainder(1.0, 0.0)))
+    assert(math.checked_iabs(-9223372036854775808) == none)
+    assert((math.checked_iabs(-7) else 0) == 7)
+    assert(math.checked_div_floor(-9223372036854775808, -1) == none)
+    assert(math.checked_div_floor(7, 0) == none)
+    assert((math.checked_div_floor(-7, 2) else 0) == -4)
+    assert((math.checked_mod_floor(-7, 2) else 0) == 1)
+    assert((math.checked_mod_floor(-9223372036854775808, -1) else 1) == 0)
+    print("ok math precision")
+    return 0

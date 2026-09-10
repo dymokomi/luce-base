@@ -1954,6 +1954,14 @@ extern func c_atan2 as "atan2"(y: f64, x: f64) -> f64
 extern func c_sinh as "sinh"(x: f64) -> f64
 extern func c_cosh as "cosh"(x: f64) -> f64
 extern func c_tanh as "tanh"(x: f64) -> f64
+extern func c_log1p as "log1p"(x: f64) -> f64
+extern func c_expm1 as "expm1"(x: f64) -> f64
+extern func c_fma as "fma"(x: f64, y: f64, z: f64) -> f64
+extern func c_nextafter as "nextafter"(x: f64, toward: f64) -> f64
+extern func c_frexp as "frexp"(x: f64, out exponent: i32) -> f64
+extern func c_scalbn as "scalbn"(x: f64, exponent: i32) -> f64
+extern func c_modf as "modf"(x: f64, out integral: f64) -> f64
+extern func c_remainder as "remainder"(x: f64, y: f64) -> f64
 
 pub let pi: f64 = 3.141592653589793
 pub let tau: f64 = 6.283185307179586
@@ -1999,6 +2007,59 @@ pub func log2(x: f64) -> f64:
     return c_log2(x)
 pub func log10(x: f64) -> f64:
     return c_log10(x)
+
+## Natural logarithm of `1 + x`, retaining accuracy when adding `x` to one would
+## round it away. At -1 the result is negative infinity; below -1 it is NaN.
+pub func log1p(x: f64) -> f64:
+    return c_log1p(x)
+
+## `exp(x) - 1` without cancellation near zero. Signed zero is preserved.
+pub func expm1(x: f64) -> f64:
+    return c_expm1(x)
+
+## Multiply `x * y` and add `z` with one final rounding, rather than rounding the
+## product first. Uses the host's floating-point rounding mode.
+pub func fma(x: f64, y: f64, z: f64) -> f64:
+    return c_fma(x, y, z)
+
+## The adjacent representable value toward `toward`; equal arguments return
+## `toward`, including its zero sign. A NaN argument produces NaN.
+pub func nextafter(x: f64, toward: f64) -> f64:
+    return c_nextafter(x, toward)
+
+## The adjacent representable value toward positive infinity. Positive infinity
+## stays infinite; either zero becomes the smallest positive subnormal.
+pub func next_up(x: f64) -> f64:
+    return c_nextafter(x, infinity)
+
+## The adjacent representable value toward negative infinity. Negative infinity
+## stays infinite; either zero becomes the smallest negative subnormal.
+pub func next_down(x: f64) -> f64:
+    return c_nextafter(x, copysign(infinity, -1.0))
+
+## Split `x` into `(fraction, exponent)` such that `x = fraction * 2**exponent`.
+## A finite nonzero fraction has magnitude in [0.5, 1). Zero, infinity and NaN
+## are returned unchanged with exponent zero, avoiding an unspecified C exponent.
+pub func frexp(x: f64) -> (f64, i32):
+    if x == 0.0 or not is_finite(x):
+        return (x, 0)
+    return c_frexp(x)
+
+## Scale by an integer power of two, without forming that power as an intermediate
+## float. Overflow/underflow follow the host rounding mode; signed zero survives.
+pub func scalbn(x: f64, exponent: i32) -> f64:
+    return c_scalbn(x, exponent)
+
+## `(fractional, integral)` parts, both with the sign of `x`; the integral part
+## truncates toward zero. Infinity has a signed-zero fraction; NaN gives two NaNs.
+pub func modf(x: f64) -> (f64, f64):
+    return c_modf(x)
+
+## `x - n*y` for the nearest integer `n` to `x/y`, with ties choosing even `n`.
+## This differs from `mod`, which truncates the quotient. Zero has the sign of `x`;
+## a zero divisor or infinite dividend produces NaN.
+pub func remainder(x: f64, y: f64) -> f64:
+    return c_remainder(x, y)
 
 pub func sin(x: f64) -> f64:
     return c_sin(x)
@@ -2092,6 +2153,24 @@ pub func mod_floor(a: i64, b: i64) -> i64:
     return r
 pub func iabs(a: i64) -> i64:
     return 0 - a if a < 0 else a
+## Absolute value, or none for the minimum i64 whose positive magnitude cannot fit.
+pub func checked_iabs(a: i64) -> i64?:
+    if a < 0:
+        return 0 -? a
+    return a
+## Floor division, or none for a zero divisor or a quotient outside i64.
+pub func checked_div_floor(a: i64, b: i64) -> i64?:
+    if b == 0 or (a == -9223372036854775808 and b == -1):
+        return none
+    return div_floor(a, b)
+## Remainder with the divisor's sign, or none for a zero divisor. The minimum i64
+## modulo -1 is zero even though its quotient cannot be represented.
+pub func checked_mod_floor(a: i64, b: i64) -> i64?:
+    if b == 0:
+        return none
+    if b == -1:
+        return 0
+    return mod_floor(a, b)
 pub func imin(a: i64, b: i64) -> i64:
     return a if a < b else b
 pub func imax(a: i64, b: i64) -> i64:
