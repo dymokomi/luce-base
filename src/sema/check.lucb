@@ -5709,11 +5709,18 @@ pub func check_text(text: str, scratch: u8[]) -> !:
     try checker.add_module("test", src, false)
     try checker.check_program()
 
-## The standard modules alone take over two megabytes of tree; the tests' arenas hold eight.
-let test_arena_size: usize = 8388608
+## Budget tree and binding storage from the embedded source size so expanding the
+## standard library does not make unrelated semantic expectations fail with OOM.
+## The factor is test headroom, not a compiler memory limit or an accuracy bound.
+func test_arena_size() -> usize!:
+    var capacity: usize = 1048576
+    for module in prelude.modules:
+        let allowance = module.text.length *? 64 else error(memory.exhausted, "the semantic test arena size overflowed")
+        capacity = capacity +? allowance else error(memory.exhausted, "the semantic test arena size overflowed")
+    return capacity
 
 func expect_error(text: str, fragment: str) -> !:
-    let backing = try alloc u8[test_arena_size] in memory.heap
+    let backing = try alloc u8[try test_arena_size()] in memory.heap
     defer free(backing) in memory.heap
     var arena = memory.FixedBuffer.over(backing)
     var scratch: u8[1024]
@@ -5729,7 +5736,7 @@ func expect_error(text: str, fragment: str) -> !:
         error(type_error, "expected an error, the program checked")
 
 func expect_ok(text: str) -> !:
-    let backing = try alloc u8[test_arena_size] in memory.heap
+    let backing = try alloc u8[try test_arena_size()] in memory.heap
     defer free(backing) in memory.heap
     var arena = memory.FixedBuffer.over(backing)
     var scratch: u8[1024]
@@ -5921,7 +5928,7 @@ test "error and catch handle failure":
     try expect_ok("let bad: ErrorCode = ErrorCode.package(1)\nfunc g(n: i64) -> i64!:\n    if n < 0:\n        error(bad, \"negative\")\n    return n\nfunc f() -> i64:\n    let v = g(-1) catch e:\n        if e.code == bad:\n            recover 0\n        recover 1\n    return v\n")
 
 test "modules import and qualify names":
-    let backing = try alloc u8[test_arena_size] in memory.heap
+    let backing = try alloc u8[try test_arena_size()] in memory.heap
     defer free(backing) in memory.heap
     var arena = memory.FixedBuffer.over(backing)
     var scratch: u8[1024]

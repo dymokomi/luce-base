@@ -44,9 +44,9 @@ for f in $compiler_sources tests/programs/*/*.lucb; do
     case "$f" in src/std/*) continue;; esac
     if grep -q '^test "' "$f"; then
         echo "== test $f"
-        out=$(./build/luce-base test "$f" --backend=c) || { echo "$out" | tail -3; exit 1; }
+        out=$(./build/luce-base test "$f" --backend=c) || { printf '%s\n' "$out"; exit 1; }
         echo "$out" | tail -1
-        out=$(./build/luce-base test "$f" --native) || { echo "$out" | tail -3; exit 1; }
+        out=$(./build/luce-base test "$f" --native) || { printf '%s\n' "$out"; exit 1; }
         echo "$out" | tail -1
     fi
 done
