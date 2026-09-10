@@ -14,6 +14,32 @@ pub func main(arguments: c.str[]) -> i32!:
     assert(original.inode == moved.inode and original.device == moved.device)
     let data = try directory.entry_metadata("data")
     assert(data.kind == files.FileKind.regular and data.size == 4)
+    var opened = try directory.open_file("data", follow_symlinks = false, nonblocking = true)
+    defer opened.destroy()
+    var contents: u8[4]
+    try io.read_exact(&opened, contents)
+    assert((str)contents == "data")
+    assert((try opened.metadata()).inode == data.inode)
+    var created = try directory.open_file("created", files.OpenMode.create_new_read_write, 384, false)
+    try io.write_all(&created, "new".bytes)
+    assert(try created.seek(0) == 0)
+    var copied: u8[3]
+    try io.read_exact(&created, copied)
+    assert((str)copied == "new")
+    try created.close()
+    var pipe = try directory.open_file("pipe", follow_symlinks = false, nonblocking = true)
+    assert((try pipe.metadata()).kind == files.FileKind.fifo)
+    try pipe.close()
+    var through_link = try directory.open_file("file_link")
+    assert((try through_link.metadata()).inode == data.inode)
+    try through_link.close()
+    var link_rejected = false
+    discard(directory.open_file("file_link", follow_symlinks = false) catch failure:
+        assert(failure.code == files.symlink_loop)
+        link_rejected = true
+        var empty: files.File
+        recover empty)
+    assert(link_rejected)
     assert((try directory.entry_metadata("link", false)).kind == files.FileKind.symlink)
     assert((try directory.entry_metadata("link")).kind == files.FileKind.directory)
     assert((try directory.entry_metadata("dangling", false)).kind == files.FileKind.symlink)
@@ -40,6 +66,13 @@ pub func main(arguments: c.str[]) -> i32!:
     assert(child_info.inode == (try followed.metadata()).inode)
     try followed.close()
     try directory.close()
+    var closed_rejected = false
+    discard(directory.open_file("data") catch failure:
+        assert(failure.code == io.closed)
+        closed_rejected = true
+        var empty: files.File
+        recover empty)
+    assert(closed_rejected)
     assert((try child.entry_metadata("payload")).size == 7)
     rejected = false
     discard(directory.entry_metadata("data") catch failure:

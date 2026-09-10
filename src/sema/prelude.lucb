@@ -3593,19 +3593,7 @@ pub struct File: io.Reader, io.Writer:
 
     ## Open a close-on-exec descriptor. Only the named creation modes create paths.
     pub static func open(path: c.str, mode: OpenMode = OpenMode.read, permissions: u32 = 420) -> File!:
-        if permissions > 4095:
-            error(invalid_options, "file permissions must fit the Unix mode bits")
-        var flags = close_on_exec
-        if mode == OpenMode.read_write:
-            flags |= 2
-        elif mode == OpenMode.replace:
-            flags |= write_only | create | truncate
-        elif mode == OpenMode.create_new or mode == OpenMode.create_new_read_write:
-            flags |= create | exclusive_flag | (2 if mode == OpenMode.create_new_read_write else write_only)
-        elif mode == OpenMode.append:
-            flags |= write_only | create | append_flag
-        elif mode != OpenMode.read:
-            error(invalid_options, "unknown file opening mode")
+        let flags = try file_open_flags(mode, permissions)
         var fd = open(path, flags, permissions)
         while fd < 0 and c.errno() == c.interrupted:
             fd = open(path, flags, permissions)
@@ -3755,6 +3743,23 @@ func classify_error(number: i32) -> ErrorCode:
     if number == would_block_errno:
         return would_block
     return failed
+
+## Shared mode validation for path-based and directory-relative file opening.
+func file_open_flags(mode: OpenMode, permissions: u32) -> i32!:
+    if permissions > 4095:
+        error(invalid_options, "file permissions must fit the Unix mode bits")
+    var flags = close_on_exec
+    if mode == OpenMode.read_write:
+        flags |= 2
+    elif mode == OpenMode.replace:
+        flags |= write_only | create | truncate
+    elif mode == OpenMode.create_new or mode == OpenMode.create_new_read_write:
+        flags |= create | exclusive_flag | (2 if mode == OpenMode.create_new_read_write else write_only)
+    elif mode == OpenMode.append:
+        flags |= write_only | create | append_flag
+    elif mode != OpenMode.read:
+        error(invalid_options, "unknown file opening mode")
+    return flags
 ## Whether the path currently resolves to an existing object, following symlinks.
 ## This convenience form returns false on lookup errors; use exists_checked when
 ## permission or I/O failures must be distinguished from absence. It never opens a
@@ -4131,6 +4136,25 @@ pub struct Directory:
     ## With follow_symlinks=false, refuse a final symlink atomically during open.
     pub func open_directory(path: c.str, follow_symlinks: bool = true) -> Directory!:
         return try open_directory_at(try self.descriptor(), path, follow_symlinks)
+
+    ## Open a file relative to this directory. Absolute paths and parent segments
+    ## retain OS semantics; callers implementing containment must walk validated
+    ## individual components. Refusing symlinks applies atomically to the final
+    ## component. Nonblocking mode prevents FIFO opens from waiting for a peer;
+    ## it does not make ordinary filesystem I/O asynchronous.
+    pub func open_file(path: c.str, mode: OpenMode = OpenMode.read, permissions: u32 = 420, follow_symlinks: bool = true, nonblocking: bool = false) -> File!:
+        let parent = try self.descriptor()
+        var flags = try file_open_flags(mode, permissions)
+        if not follow_symlinks:
+            flags |= no_follow_flag
+        if nonblocking:
+            flags |= 4 if platform.macos else 2048
+        var descriptor = openat(parent, path, flags, permissions)
+        while descriptor < 0 and c.errno() == c.interrupted:
+            descriptor = openat(parent, path, flags, permissions)
+        if descriptor < 0:
+            error(classify_error(c.errno()), "the directory-relative file could not be opened")
+        return File(handle = descriptor)
 
     ## The next name excluding dot and dot-dot, or none at end. Names are raw path
     ## bytes, NUL-terminated but not guaranteed UTF-8. The view expires on the next
