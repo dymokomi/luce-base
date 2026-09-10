@@ -10,3 +10,10 @@ handles.lucb
 options.lucb
 readiness.lucb
 deadline_stream.lucb
+http/types.lucb
+http/syntax.lucb
+http/head.lucb
+http/body.lucb
+http/encode.lucb
+websocket/handshake.lucb
+websocket/frame.lucb

@@ -71,3 +71,11 @@ runs it for longer. Every finding becomes a test.
     and observable global initialization remain correct through both backends and
     native bootstrap. Record linked sizes and keep this compiler optimization separate
     from the standard-library correctness milestone.
+
+## Standard net protocol primitives
+
+Add transport-independent HTTP/1.1 and RFC 6455 WebSocket codecs to `net`, with
+caller-owned storage and Reader/Writer integration. See [NET_PROTOCOLS](NET_PROTOCOLS.md).
+The user explicitly requested stopping after this stage, before further work on
+`luce-server`. That future library is entirely Base; `luce-http-server` will be a
+separate Luce interoperability example.

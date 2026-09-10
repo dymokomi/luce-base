@@ -894,7 +894,7 @@ The operating system's view of the process (§16.6): its environment, working di
 
 ## `net`
 
-Blocking socket I/O. Created and accepted sockets are close-on-exec. Linux sets that flag atomically; macOS requires a separate call, so applications must serialize socket creation/acceptance with concurrent fork/exec there. Adopting a caller-created descriptor also needs this coordination on either OS.
+TCP/UDP sockets, readiness, deadline I/O, and HTTP/WebSocket codecs. Created and accepted sockets are close-on-exec. Linux sets that flag atomically; macOS requires a separate call, so applications must serialize socket creation/acceptance with concurrent fork/exec there. Adopting a caller-created descriptor also needs this coordination on either OS.
 
 - `let failed: ErrorCode = ErrorCode.package(9)` — Stable network error categories. Messages describe the operation and borrow static storage; callers branch on codes rather than host-specific wording.
 
@@ -1083,6 +1083,145 @@ A borrowed Reader/Writer applying one absolute deadline to all its transfers. Us
 - `static func over(connection: Connection*, deadline: Deadline = Deadline(), cancellation: Cancellation*? = none) -> DeadlineStream!`
 - `mutating func read(buffer: u8[]) -> usize!` — Read some bytes, waiting only when no data is ready. Zero on a nonempty buffer is EOF. Empty input succeeds on an open connection even after its deadline or cancellation, because it performs no transfer. The connection must remain nonblocking; the adapter never changes its shared status flags.
 - `mutating func write(data: const u8[]) -> usize!` — Write some bytes, waiting only when kernel buffers are full. Each successful count is confirmed before checking the next attempt's deadline/cancellation; do not discard it when a later transfer fails. Empty writes make no syscall.
+
+- `let http_invalid: ErrorCode = ErrorCode.package(80)` — HTTP/1.1 codecs (RFC 9112). All storage is caller-owned. These primitives never read a socket, allocate, start a thread, or decide application policy.
+
+- `let http_limit: ErrorCode = ErrorCode.package(81)`
+
+- `let http_unsupported: ErrorCode = ErrorCode.package(82)`
+
+### `HttpBodyKind` (enumas u8)
+
+### `HttpLimits` (struct)
+
+- `var head_bytes: usize = 32768`
+- `var line_bytes: usize = 8192`
+- `var fields: usize = 100`
+- `var body_bytes: u64 = 1073741824`
+
+### `HttpField` (struct)
+
+A field preserves its original spelling and byte value, including obs-text. These borrowed str views are not promises of UTF-8; interpret values by field.
+
+- `var name: str`
+- `var value: str`
+
+### `HttpHead` (struct)
+
+Request or response metadata. Text borrows the input head; fields borrows the supplied field array. Neither backing store may change while this view is used. body_length is meaningful for fixed framing. A response's method is the request method supplied to its parser, needed for HEAD and successful CONNECT semantics.
+
+- `var method: str`
+- `var target: str`
+- `var version: str`
+- `var status: u16`
+- `var fields: const HttpField[]`
+- `var body_kind: HttpBodyKind`
+- `var body_length: u64`
+- `var keep_alive: bool`
+- `var expect_continue: bool`
+- `var connection_upgrade: bool`
+- `func field(name: str) -> str?` — First occurrence; use fields to retain duplicates for field-specific rules.
+- `func field_count(name: str) -> usize`
+- `func has_token(name: str, token: str) -> bool!` — Token-list lookup across every occurrence. Invalid list members are errors.
+
+- `func http_equal(left: str, right: str) -> bool` — ASCII case-insensitive equality, independent of locale and Unicode folding.
+
+- `func http_head_end(data: const u8[], start: usize = 0) -> usize?` — Find the complete head without consuming body/pipeline bytes. For incremental use pass the previous buffer length minus at most three as start. Incomplete input returns none; malformed line syntax is diagnosed by the head parser.
+
+- `func http_parse_request(data: const u8[], storage: HttpField[], limits: HttpLimits = HttpLimits()) -> HttpHead!` — Parse exactly one complete request head. On failure storage may contain partial field views; only a successful result is usable. Header/body limits are separate.
+
+- `func http_parse_response(data: const u8[], storage: HttpField[], request_method: str = "GET", limits: HttpLimits = HttpLimits()) -> HttpHead!` — The request method determines HEAD/CONNECT response semantics. Informational responses are separate heads; callers continue parsing until a final response.
+
+### `HttpBodyStep` (struct)
+
+One decoding step. body borrows the supplied input. A trailer borrows the decoder's line buffer until its next consume call; copy it before continuing. consumed stops before the next message. Call again with the unconsumed suffix.
+
+- `var consumed: usize`
+- `var body: const u8[]`
+- `var trailer: HttpField?`
+- `var finished: bool`
+
+### `HttpBodyDecoder` (struct)
+
+Incremental fixed, chunked or EOF-delimited body framing, independent of I/O. No payload accumulation: only a bounded line buffer is retained. Failures latch; discard/recreate after failure. Zero initialization describes an empty body.
+
+- `static func create(kind: HttpBodyKind, length: u64 = 0, maximum: u64 = 1073741824) -> HttpBodyDecoder!`
+- `func finished() -> bool`
+- `mutating func consume(data: const u8[]) -> HttpBodyStep!`
+- `mutating func finish() -> !`
+
+- `func http_encode_head(output: u8[], head: HttpHead) -> const u8[]!` — Serialize an HTTP head into caller storage and validate the complete result before returning it. On failure the output may contain a prefix: never transmit it. Output must not overlap the input fields/text. Framing and Connection fields are generated centrally; callers must not supply them in head.fields. Up to 100 fields are supported. Reason phrases are intentionally empty.
+
+- `func http_write_chunk(destination: Writer, data: const u8[]) -> !` — Write a nonempty chunk. Empty writes are no-ops; only http_end_chunks ends a body. A sink error can follow partial output: abandon that message/connection.
+
+- `func http_end_chunks(destination: Writer) -> !` — Terminate a chunked message, without trailers. Trailers can be decoded but the initial writer API deliberately emits only complete trailer-free messages.
+
+### `HttpBodyWriter` (struct: Writer)
+
+Borrowed body writer with fixed-length accounting and chunked finalization. Construct with over; destination outlives this object. Serialize access and do not use independent copies. A write/finish error latches because output may already be partial. finish never flushes or closes the underlying destination.
+
+- `static func over(destination: Writer, kind: HttpBodyKind, length: u64 = 0) -> HttpBodyWriter!`
+- `mutating func write(data: const u8[]) -> usize!`
+- `mutating func finish() -> !`
+
+- `let websocket_invalid: ErrorCode = ErrorCode.package(83)` — RFC 6455 version 13, without extensions. Origin checks, authentication and selection among offered subprotocols belong to the application, not the codec.
+
+- `let websocket_limit: ErrorCode = ErrorCode.package(84)`
+
+- `func websocket_client_key(output: u8[]) -> str!` — Generate a fresh 16-byte nonce and encode its canonical 24-byte request key. output needs 24 bytes. Returned text borrows output and is not NUL-terminated.
+
+- `func websocket_accept_key(key: str, output: u8[]) -> str!` — SHA-1 is used only for the RFC's public handshake transform, never for identity or integrity. The validated 24-byte key plus 36-byte GUID always pads to exactly two blocks; keeping this private avoids presenting a general crypto API.
+
+- `func websocket_check_request(head: HttpHead) -> str!` — Validate the protocol requirements of a parsed upgrade request. Returns its borrowed key. The caller must still apply its Origin/authentication policy.
+
+- `func websocket_check_response(head: HttpHead, key: str, offered_protocols: str = "") -> str!` — Validate a server's upgrade against the client's original key and offered comma-separated subprotocols. Returns the selected token, or empty text. Extensions are not implemented and any selected extension is rejected.
+
+- `func websocket_encode_request(output: u8[], host: str, target: str, key: str, protocols: str = "") -> const u8[]!` — Encode the client's version-13 handshake using its saved fresh key. The offered subprotocol list contains case-sensitive tokens. No extensions are requested.
+
+- `func websocket_encode_response(output: u8[], request: HttpHead, protocol: str = "") -> const u8[]!` — Encode a successful upgrade after application approval. A selected protocol must be an exact token offered by the client. Empty means no subprotocol.
+
+### `WebSocketOpcode` (enumas u8)
+
+RFC 6455 base opcodes. Extensions and reserved bits/opcodes are rejected.
+
+### `WebSocketFrame` (struct)
+
+- `var opcode: WebSocketOpcode`
+- `var final: bool`
+- `var length: u64`
+- `var header_bytes: usize`
+- `var mask: u8[4]`
+- `var masked: bool`
+
+- `func websocket_parse_frame(data: const u8[], from_client: bool, maximum: u64 = 16777216) -> WebSocketFrame?!` — Parse a frame header only. None means incomplete input; no payload is consumed. from_client enforces the direction's mandatory masking rule. Extended lengths must use the shortest encoding and may not set the 64-bit sign bit.
+
+- `func websocket_check_close(payload: const u8[]) -> !` — Validate a close payload, including its optional status and UTF-8 reason. Empty means no status; wire-forbidden/reserved status codes are rejected.
+
+### `WebSocketStep` (struct)
+
+One decoder step. Payload is output[..written], validated up to this point. Consume/frame/message flags delimit data; control payloads must be accumulated until frame_end before acting. On error, earlier fragments must be discarded.
+
+- `var consumed: usize`
+- `var written: usize`
+- `var opcode: WebSocketOpcode`
+- `var frame_start: bool`
+- `var frame_end: bool`
+- `var message_end: bool`
+
+### `WebSocketDecoder` (struct)
+
+Streaming frame/message validation and unmasking. State is connection-local; input, output and decoder storage must not overlap. Output must be nonempty. Failures latch. Control frames may interrupt a fragmented text/binary message.
+
+- `static func create(from_client: bool, maximum_frame: u64 = 16777216, maximum_message: u64 = 16777216) -> WebSocketDecoder`
+- `mutating func consume(input: const u8[], output: u8[]) -> WebSocketStep!`
+- `mutating func finish() -> !` — EOF is valid only after a complete close frame. A TCP EOF without one is abnormal closure, including between otherwise complete messages.
+
+### `WebSocketEncoder` (struct)
+
+Stateful writer: validates message sequencing and UTF-8, masks every client frame using fresh OS entropy, and handles short writes with bounded scratch. A failure latches because some bytes may already have reached the peer.
+
+- `static func create(client: bool, maximum_frame: u64 = 16777216, maximum_message: u64 = 16777216) -> WebSocketEncoder`
+- `mutating func write(destination: Writer, opcode: WebSocketOpcode, payload: const u8[], final: bool = true) -> !`
 
 ## `c`
 

@@ -1,0 +1,69 @@
+## HTTP/1.1 codecs (RFC 9112). All storage is caller-owned. These primitives
+## never read a socket, allocate, start a thread, or decide application policy.
+pub let http_invalid: ErrorCode = ErrorCode.package(80)
+pub let http_limit: ErrorCode = ErrorCode.package(81)
+pub let http_unsupported: ErrorCode = ErrorCode.package(82)
+
+pub enum HttpBodyKind as u8:
+    empty = 0
+    fixed = 1
+    chunked = 2
+    until_eof = 3
+    tunnel = 4
+
+pub struct HttpLimits:
+    pub var head_bytes: usize = 32768
+    pub var line_bytes: usize = 8192
+    pub var fields: usize = 100
+    pub var body_bytes: u64 = 1073741824
+
+## A field preserves its original spelling and byte value, including obs-text.
+## These borrowed str views are not promises of UTF-8; interpret values by field.
+pub struct HttpField:
+    pub var name: str
+    pub var value: str
+
+## Request or response metadata. Text borrows the input head; fields borrows the
+## supplied field array. Neither backing store may change while this view is used.
+## body_length is meaningful for fixed framing. A response's method is the request
+## method supplied to its parser, needed for HEAD and successful CONNECT semantics.
+pub struct HttpHead:
+    pub var method: str
+    pub var target: str
+    pub var version: str
+    pub var status: u16
+    pub var fields: const HttpField[]
+    pub var body_kind: HttpBodyKind
+    pub var body_length: u64
+    pub var keep_alive: bool
+    pub var expect_continue: bool
+    pub var connection_upgrade: bool
+
+    ## First occurrence; use fields to retain duplicates for field-specific rules.
+    pub func field(name: str) -> str?:
+        for item in self.fields:
+            if http_equal(item.name, name):
+                return item.value
+        return none
+
+    pub func field_count(name: str) -> usize:
+        var count: usize = 0
+        for item in self.fields:
+            if http_equal(item.name, name):
+                count += 1
+        return count
+
+    ## Token-list lookup across every occurrence. Invalid list members are errors.
+    pub func has_token(name: str, token: str) -> bool!:
+        var found = false
+        for item in self.fields:
+            if http_equal(item.name, name):
+                var cursor: usize = 0
+                while let part = http_list_next(item.value, &cursor):
+                    if part.length == 0:
+                        continue
+                    if not http_token(part):
+                        error(http_invalid, "invalid HTTP token list")
+                    if http_equal(part, token):
+                        found = true
+        return found

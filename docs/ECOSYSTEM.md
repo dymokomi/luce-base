@@ -5,10 +5,12 @@ The standard-library stage is complete. At the user's request on 2026-09-10,
 committed identity/dependency checkpoint. Its post-quantum profile remains required
 for later Luce communication and package-client traffic.
 
-Current stage: **luce-server**, HTTP and static/file serving in Luce. Keep transport
-separate so TLS can be integrated when its own gate closes. The package-manager stage
-still depends on both packages. Compiler defects exposed by the active stage are
-fixed as prerequisites; unrelated features stay in the backlog.
+Current stage: **standard `net` protocol primitives**, HTTP/1.1 and WebSocket in
+luce-base. At the user's request, stop after this standard-library stage; do not
+resume `luce-server` automatically. The server will be an entirely Base library
+built on `net`; the separate `luce-http-server` example will be written in Luce to
+exercise interoperability. [Protocol primitives](NET_PROTOCOLS.md) describes the
+API and tests. TLS remains paused.
 
 Stage 1 closed for Base 0.12.0 on 2026-09-10; [standard-library readiness](STDLIB.md)
 records the Base and downstream Luce gates on both native hosts.
@@ -19,7 +21,7 @@ records the Base and downstream Luce gates on both native hosts.
 | --- | --- | --- |
 | 1 | Existing `luce-base` | Standard-library hardening and completion |
 | 2 | New `luce-tls` | TLS package, including the required post-quantum Luce profile |
-| 3 | New `luce-server` | HTTP/application server package written in Luce |
+| 3 | New `luce-server` | Universal server library written entirely in luce-base |
 | 4 | New `luce-pkg` | Package manager and registry service |
 
 The three packages are three separate new repositories, created as their stages
@@ -100,7 +102,9 @@ using a new implementation to protect deployed traffic.
 
 ## 3. luce-server
 
-Build a Luce HTTP server package on the completed standard library. TLS integration
+Build an entirely luce-base universal server library on the completed standard
+`net` socket, HTTP and WebSocket primitives. The separate `luce-http-server` Luce
+example will exercise the library boundary. TLS integration
 follows completion of the paused TLS package. Target a
 FastAPI-like programming model: routing, typed request parsing/validation, structured
 responses, middleware, application lifecycle and useful errors. Include static files,

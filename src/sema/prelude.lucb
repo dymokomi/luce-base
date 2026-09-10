@@ -5055,7 +5055,8 @@ pub func expect_text(actual: str, expected: str, message: str):
         trap(message)
 """),
     Prelude(name = "net", text = """
-## Blocking socket I/O. Created and accepted sockets are close-on-exec. Linux
+## TCP/UDP sockets, readiness, deadline I/O, and HTTP/WebSocket codecs.
+## Created and accepted sockets are close-on-exec. Linux
 ## sets that flag atomically; macOS requires a separate call, so applications
 ## must serialize socket creation/acceptance with concurrent fork/exec there.
 ## Adopting a caller-created descriptor also needs this coordination on either OS.
@@ -5064,6 +5065,8 @@ import atomic
 import platform
 import memory
 import io
+import strings
+import utf8
 from io import Reader, Writer
 
 extern func socket(domain: i32, kind: i32, protocol: i32) -> i32
@@ -6571,6 +6574,1138 @@ func await_transfer_retry(descriptor: i32, interest: WaitInterest, number: i32, 
 func require_nonblocking(descriptor: i32) -> !:
     if ((try socket_status_flags(descriptor)) & nonblocking_flag) == 0:
         error(invalid_options, "a deadline stream requires a nonblocking connection")
+## HTTP/1.1 codecs (RFC 9112). All storage is caller-owned. These primitives
+## never read a socket, allocate, start a thread, or decide application policy.
+pub let http_invalid: ErrorCode = ErrorCode.package(80)
+pub let http_limit: ErrorCode = ErrorCode.package(81)
+pub let http_unsupported: ErrorCode = ErrorCode.package(82)
+
+pub enum HttpBodyKind as u8:
+    empty = 0
+    fixed = 1
+    chunked = 2
+    until_eof = 3
+    tunnel = 4
+
+pub struct HttpLimits:
+    pub var head_bytes: usize = 32768
+    pub var line_bytes: usize = 8192
+    pub var fields: usize = 100
+    pub var body_bytes: u64 = 1073741824
+
+## A field preserves its original spelling and byte value, including obs-text.
+## These borrowed str views are not promises of UTF-8; interpret values by field.
+pub struct HttpField:
+    pub var name: str
+    pub var value: str
+
+## Request or response metadata. Text borrows the input head; fields borrows the
+## supplied field array. Neither backing store may change while this view is used.
+## body_length is meaningful for fixed framing. A response's method is the request
+## method supplied to its parser, needed for HEAD and successful CONNECT semantics.
+pub struct HttpHead:
+    pub var method: str
+    pub var target: str
+    pub var version: str
+    pub var status: u16
+    pub var fields: const HttpField[]
+    pub var body_kind: HttpBodyKind
+    pub var body_length: u64
+    pub var keep_alive: bool
+    pub var expect_continue: bool
+    pub var connection_upgrade: bool
+
+    ## First occurrence; use fields to retain duplicates for field-specific rules.
+    pub func field(name: str) -> str?:
+        for item in self.fields:
+            if http_equal(item.name, name):
+                return item.value
+        return none
+
+    pub func field_count(name: str) -> usize:
+        var count: usize = 0
+        for item in self.fields:
+            if http_equal(item.name, name):
+                count += 1
+        return count
+
+    ## Token-list lookup across every occurrence. Invalid list members are errors.
+    pub func has_token(name: str, token: str) -> bool!:
+        var found = false
+        for item in self.fields:
+            if http_equal(item.name, name):
+                var cursor: usize = 0
+                while let part = http_list_next(item.value, &cursor):
+                    if part.length == 0:
+                        continue
+                    if not http_token(part):
+                        error(http_invalid, "invalid HTTP token list")
+                    if http_equal(part, token):
+                        found = true
+        return found
+## ASCII case-insensitive equality, independent of locale and Unicode folding.
+pub func http_equal(left: str, right: str) -> bool:
+    if left.length != right.length:
+        return false
+    for index in 0..<left.length:
+        let a = left.bytes[index]
+        let b = right.bytes[index]
+        let x = a + 32 if a >= 'A' and a <= 'Z' else a
+        let y = b + 32 if b >= 'A' and b <= 'Z' else b
+        if x != y:
+            return false
+    return true
+
+func http_token(text: str) -> bool:
+    if text.length == 0:
+        return false
+    for byte in text.bytes:
+        if (byte >= 'a' and byte <= 'z') or (byte >= 'A' and byte <= 'Z') or (byte >= '0' and byte <= '9'):
+            continue
+        if byte == '!' or byte == '#' or byte == '$' or byte == '%' or byte == '&' or byte == '\\'' or byte == '*' or byte == '+' or byte == '-' or byte == '.' or byte == '^' or byte == '_' or byte == '`' or byte == '|' or byte == '~':
+            continue
+        return false
+    return true
+
+func http_ows(text: str) -> str:
+    var first: usize = 0
+    var last = text.length
+    while first < last and (text.bytes[first] == ' ' or text.bytes[first] == '\\t'):
+        first += 1
+    while last > first and (text.bytes[last - 1] == ' ' or text.bytes[last - 1] == '\\t'):
+        last -= 1
+    return (str)text.bytes[first..<last]
+
+func http_list_next(text: str, cursor: usize*) -> str?:
+    if *cursor > text.length:
+        return none
+    let first = *cursor
+    while *cursor < text.length and text.bytes[*cursor] != ',':
+        *cursor += 1
+    let last = *cursor
+    *cursor += 1
+    return http_ows((str)text.bytes[first..<last])
+
+func http_number(text: str) -> u64!:
+    if text.length == 0:
+        error(http_invalid, "empty HTTP length")
+    var result: u64 = 0
+    for byte in text.bytes:
+        if byte < '0' or byte > '9':
+            error(http_invalid, "invalid HTTP length")
+        let digit = (u64)(byte - '0')
+        if result > (18446744073709551615 - digit) // 10:
+            error(http_limit, "HTTP length overflows u64")
+        result = result * 10 + digit
+    return result
+
+func http_field_valid(item: HttpField) -> bool:
+    if not http_token(item.name):
+        return false
+    for byte in item.value.bytes:
+        if (byte < 32 and byte != '\\t') or byte == 127:
+            return false
+    return true
+
+## Find the complete head without consuming body/pipeline bytes. For incremental
+## use pass the previous buffer length minus at most three as start. Incomplete
+## input returns none; malformed line syntax is diagnosed by the head parser.
+pub func http_head_end(data: const u8[], start: usize = 0) -> usize?:
+    var cursor = start
+    while cursor < data.length and data.length - cursor >= 4:
+        if data[cursor] == '\\r' and data[cursor + 1] == '\\n' and data[cursor + 2] == '\\r' and data[cursor + 3] == '\\n':
+            return cursor + 4
+        cursor += 1
+    return none
+
+func http_line(data: const u8[], cursor: usize*) -> str!:
+    let first = *cursor
+    while *cursor < data.length:
+        let byte = data[*cursor]
+        if byte == '\\n':
+            error(http_invalid, "HTTP lines require CRLF")
+        if byte == '\\r':
+            if data.length - *cursor < 2 or data[*cursor + 1] != '\\n':
+                error(http_invalid, "HTTP lines require CRLF")
+            let last = *cursor
+            *cursor += 2
+            return (str)data[first..<last]
+        *cursor += 1
+    error(http_invalid, "incomplete HTTP line")
+
+func http_target_valid(target: str) -> bool:
+    if target.length == 0:
+        return false
+    for byte in target.bytes:
+        if byte <= 32 or byte >= 127 or byte == '#':
+            return false
+    return true
+
+func http_host_valid(host: str) -> bool:
+    if host.length == 0:
+        return false
+    for byte in host.bytes:
+        if byte <= 32 or byte >= 127 or byte == '/' or byte == '\\\\' or byte == ',' or byte == '@' or byte == '?' or byte == '#':
+            return false
+    if host.bytes[0] == '[':
+        let end = strings.find(host, "]") else return false
+        if end == 1:
+            return false
+        let tail = (str)host.bytes[end + 1..]
+        if tail.length == 0:
+            return true
+        if tail.bytes[0] != ':':
+            return false
+        for byte in tail.bytes[1..]:
+            if byte < '0' or byte > '9':
+                return false
+        return true
+    var colons: usize = 0
+    var colon_at: usize = 0
+    for index in 0..<host.length:
+        if host.bytes[index] == '[' or host.bytes[index] == ']':
+            return false
+        if host.bytes[index] == ':':
+            colons += 1
+            colon_at = index
+    if colons > 1 or (colons == 1 and colon_at == 0):
+        return false
+    if colons == 1:
+        for byte in host.bytes[colon_at + 1..]:
+            if byte < '0' or byte > '9':
+                return false
+    return true
+## Parse exactly one complete request head. On failure storage may contain partial
+## field views; only a successful result is usable. Header/body limits are separate.
+pub func http_parse_request(data: const u8[], storage: HttpField[], limits: HttpLimits = HttpLimits()) -> HttpHead!:
+    var cursor: usize = 0
+    try http_check_head(data, limits)
+    let line = try http_line(data, &cursor)
+    if line.length > limits.line_bytes:
+        error(http_limit, "HTTP request line exceeds its limit")
+    let first = strings.find(line, " ") else error(http_invalid, "request line needs a method")
+    let method = (str)line.bytes[..<first]
+    let rest = (str)line.bytes[first + 1..]
+    let second = strings.find(rest, " ") else error(http_invalid, "request line needs a version")
+    let target = (str)rest.bytes[..<second]
+    let version = (str)rest.bytes[second + 1..]
+    if not http_token(method) or not http_target_valid(target):
+        error(http_invalid, "invalid request method or target")
+    var head = HttpHead(method = method, target = target, version = version)
+    try http_finish_head(&head, data, &cursor, storage, limits)
+    if version == "HTTP/1.1" and head.field_count("host") != 1:
+        error(http_invalid, "HTTP/1.1 requires exactly one Host field")
+    if head.field_count("host") > 1:
+        error(http_invalid, "duplicate Host field")
+    if let host = head.field("host"):
+        if not http_host_valid(host):
+            error(http_invalid, "invalid Host field")
+    if head.field_count("expect") > 0:
+        if version != "HTTP/1.1" or head.field_count("expect") != 1 or not http_equal(head.field("expect") else "", "100-continue"):
+            error(http_unsupported, "unsupported HTTP expectation")
+        head.expect_continue = true
+    return head
+
+## The request method determines HEAD/CONNECT response semantics. Informational
+## responses are separate heads; callers continue parsing until a final response.
+pub func http_parse_response(data: const u8[], storage: HttpField[], request_method: str = "GET", limits: HttpLimits = HttpLimits()) -> HttpHead!:
+    var cursor: usize = 0
+    try http_check_head(data, limits)
+    let line = try http_line(data, &cursor)
+    if line.length > limits.line_bytes:
+        error(http_limit, "HTTP status line exceeds its limit")
+    if line.length < 13 or line.bytes[8] != ' ' or line.bytes[12] != ' ':
+        error(http_invalid, "invalid HTTP status line")
+    let number = try http_number((str)line.bytes[9..<12])
+    if number < 100 or number > 599 or not http_field_valid(HttpField(name = "reason", value = (str)line.bytes[13..])):
+        error(http_invalid, "invalid HTTP status or reason")
+    var head = HttpHead(method = request_method, version = (str)line.bytes[..<8], status = (u16)number)
+    try http_finish_head(&head, data, &cursor, storage, limits)
+    return head
+
+func http_check_head(data: const u8[], limits: HttpLimits) -> !:
+    if data.length > limits.head_bytes:
+        error(http_limit, "HTTP head exceeds its byte limit")
+    let end = http_head_end(data) else error(http_invalid, "incomplete HTTP head")
+    if end != data.length:
+        error(http_invalid, "HTTP head parser does not consume body bytes")
+
+func http_finish_head(head: HttpHead*, data: const u8[], cursor: usize*, storage: HttpField[], limits: HttpLimits) -> !:
+    if head.version != "HTTP/1.0" and head.version != "HTTP/1.1":
+        error(http_unsupported, "unsupported HTTP version")
+    var count: usize = 0
+    while *cursor < data.length:
+        let line = try http_line(data, cursor)
+        if line.length == 0:
+            break
+        if line.length > limits.line_bytes or count >= storage.length or count >= limits.fields:
+            error(http_limit, "HTTP fields exceed caller storage or configured limits")
+        let colon = strings.find(line, ":") else error(http_invalid, "HTTP field needs a colon")
+        let item = HttpField(name = (str)line.bytes[..<colon], value = http_ows((str)line.bytes[colon + 1..]))
+        if not http_field_valid(item):
+            error(http_invalid, "invalid HTTP field name or value")
+        storage[count] = item
+        count += 1
+    head.fields = storage[..<count]
+    head.connection_upgrade = try head.has_token("connection", "upgrade")
+    let closing = try head.has_token("connection", "close")
+    head.keep_alive = not closing and (head.version == "HTTP/1.1" or (try head.has_token("connection", "keep-alive")))
+    # Successful CONNECT changes protocols immediately; RFC 9112 requires ignoring
+    # framing fields even if a peer incorrectly sends them.
+    if head.method == "CONNECT" and head.status >= 200 and head.status < 300:
+        head.body_kind = HttpBodyKind.tunnel
+        return
+    var length: u64? = none
+    var coding_count: usize = 0
+    for item in head.fields:
+        if http_equal(item.name, "content-length"):
+            var at: usize = 0
+            while let part = http_list_next(item.value, &at):
+                let parsed = try http_number(part)
+                if let previous = length:
+                    if parsed != previous:
+                        error(http_invalid, "conflicting Content-Length fields")
+                length = parsed
+        if http_equal(item.name, "transfer-encoding"):
+            var at: usize = 0
+            while let part = http_list_next(item.value, &at):
+                if part.length == 0:
+                    continue
+                if not http_equal(part, "chunked"):
+                    error(http_unsupported, "unsupported HTTP transfer coding")
+                coding_count += 1
+    if head.field_count("transfer-encoding") > 0:
+        if coding_count != 1 or length != none or head.version != "HTTP/1.1":
+            error(http_invalid, "ambiguous HTTP transfer framing")
+    if head.status > 0 and (head.status < 200 or head.status == 204):
+        if length != none or coding_count != 0:
+            error(http_invalid, "body framing is forbidden for this response status")
+    if head.status > 0 and (head.method == "HEAD" or head.status < 200 or head.status == 204 or head.status == 304):
+        head.body_kind = HttpBodyKind.empty
+        return
+    if coding_count != 0:
+        head.body_kind = HttpBodyKind.chunked
+    elif let size = length:
+        if size > limits.body_bytes:
+            error(http_limit, "HTTP body exceeds its byte limit")
+        head.body_kind = HttpBodyKind.fixed
+        head.body_length = size
+    elif head.status > 0:
+        head.body_kind = HttpBodyKind.until_eof
+        head.keep_alive = false
+    else:
+        head.body_kind = HttpBodyKind.empty
+## One decoding step. body borrows the supplied input. A trailer borrows the
+## decoder's line buffer until its next consume call; copy it before continuing.
+## consumed stops before the next message. Call again with the unconsumed suffix.
+pub struct HttpBodyStep:
+    pub var consumed: usize
+    pub var body: const u8[]
+    pub var trailer: HttpField?
+    pub var finished: bool
+
+## Incremental fixed, chunked or EOF-delimited body framing, independent of I/O.
+## No payload accumulation: only a bounded line buffer is retained. Failures latch;
+## discard/recreate after failure. Zero initialization describes an empty body.
+pub struct HttpBodyDecoder:
+    var kind: HttpBodyKind
+    var remaining: u64
+    var total: u64
+    var maximum: u64
+    var phase: u8 = 6
+    var line: u8[8192]
+    var used: usize
+    var line_cr: bool
+    var chunks: usize
+    var trailer_bytes: usize
+    var trailer_fields: usize
+    var failed: bool
+    var failure: ErrorCode
+
+    pub static func create(kind: HttpBodyKind, length: u64 = 0, maximum: u64 = 1073741824) -> HttpBodyDecoder!:
+        if kind == HttpBodyKind.tunnel:
+            error(http_unsupported, "a tunnel has no HTTP body decoder")
+        if kind == HttpBodyKind.fixed and length > maximum:
+            error(http_limit, "HTTP body exceeds its byte limit")
+        var result = HttpBodyDecoder(kind = kind, remaining = length, maximum = maximum)
+        if kind == HttpBodyKind.chunked:
+            result.phase = 1
+        elif kind == HttpBodyKind.until_eof or (kind == HttpBodyKind.fixed and length > 0):
+            result.phase = 0
+        return result
+
+    pub func finished() -> bool:
+        return not self.failed and self.phase == 6
+
+    pub mutating func consume(data: const u8[]) -> HttpBodyStep!:
+        if self.failed:
+            error(self.failure, "HTTP body decoder has failed")
+        return self.advance(data) catch problem:
+            self.failed = true
+            self.failure = problem.code
+            error(problem.code, problem.message)
+
+    pub mutating func finish() -> !:
+        if self.failed:
+            error(self.failure, "HTTP body decoder has failed")
+        if self.kind == HttpBodyKind.until_eof:
+            self.phase = 6
+        if self.phase != 6:
+            self.failed = true
+            self.failure = io.unexpected_eof
+            error(io.unexpected_eof, "HTTP body ended before its framing completed")
+
+    mutating func advance(data: const u8[]) -> HttpBodyStep!:
+        var at: usize = 0
+        while at < data.length and self.phase != 6:
+            if self.phase == 0 or self.phase == 2:
+                var count = data.length - at
+                if self.kind != HttpBodyKind.until_eof and (u64)count > self.remaining:
+                    count = (usize)self.remaining
+                if (u64)count > self.maximum - self.total:
+                    error(http_limit, "HTTP body exceeds its byte limit")
+                self.total += (u64)count
+                if self.kind != HttpBodyKind.until_eof:
+                    self.remaining -= (u64)count
+                    if self.remaining == 0:
+                        self.phase = 3 if self.kind == HttpBodyKind.chunked else 6
+                return HttpBodyStep(consumed = at + count, body = data[at..<at + count], finished = self.phase == 6)
+            let byte = data[at]
+            at += 1
+            if self.phase == 3 or self.phase == 4:
+                let expected: u8 = '\\r' if self.phase == 3 else '\\n'
+                if byte != expected:
+                    error(http_invalid, "chunk data must end with CRLF")
+                self.phase = 4 if self.phase == 3 else 1
+                continue
+            if self.phase == 5:
+                self.trailer_bytes += 1
+                if self.trailer_bytes > 32768:
+                    error(http_limit, "HTTP trailers exceed their byte limit")
+            if self.line_cr:
+                if byte != '\\n':
+                    error(http_invalid, "chunk lines require CRLF")
+                self.line_cr = false
+                let text = (str)self.line[..<self.used]
+                self.used = 0
+                if self.phase == 1:
+                    self.remaining = try http_chunk_size(text)
+                    self.chunks += 1
+                    if self.chunks > 1000000 or self.remaining > self.maximum - self.total:
+                        error(http_limit, "HTTP chunks exceed their count or byte limit")
+                    self.phase = 5 if self.remaining == 0 else 2
+                elif text.length == 0:
+                    self.phase = 6
+                else:
+                    self.trailer_fields += 1
+                    if self.trailer_fields > 100:
+                        error(http_limit, "too many HTTP trailer fields")
+                    let colon = strings.find(text, ":") else error(http_invalid, "trailer needs a colon")
+                    let item = HttpField(name = (str)text.bytes[..<colon], value = http_ows((str)text.bytes[colon + 1..]))
+                    if not http_field_valid(item) or http_forbidden_trailer(item.name):
+                        error(http_invalid, "invalid or forbidden HTTP trailer")
+                    return HttpBodyStep(consumed = at, trailer = item)
+            elif byte == '\\r':
+                self.line_cr = true
+            else:
+                if byte == '\\n':
+                    error(http_invalid, "chunk lines require CRLF")
+                if self.used == self.line.length:
+                    error(http_limit, "chunk line exceeds its byte limit")
+                self.line[self.used] = byte
+                self.used += 1
+        return HttpBodyStep(consumed = at, finished = self.phase == 6)
+
+func http_hex(byte: u8) -> u8?:
+    if byte >= '0' and byte <= '9':
+        return byte - '0'
+    if byte >= 'a' and byte <= 'f':
+        return byte - 'a' + 10
+    if byte >= 'A' and byte <= 'F':
+        return byte - 'A' + 10
+    return none
+
+func http_chunk_size(text: str) -> u64!:
+    var at: usize = 0
+    var size: u64 = 0
+    while at < text.length:
+        let digit = http_hex(text.bytes[at]) else break
+        if size > (18446744073709551615 - (u64)digit) // 16:
+            error(http_limit, "HTTP chunk length overflows u64")
+        size = size * 16 + (u64)digit
+        at += 1
+    if at == 0:
+        error(http_invalid, "chunk size needs hexadecimal digits")
+    while at < text.length:
+        try http_chunk_extension(text, &at)
+    return size
+
+func http_skip_ows(text: str, at: usize*):
+    while *at < text.length and (text.bytes[*at] == ' ' or text.bytes[*at] == '\\t'):
+        *at += 1
+
+func http_chunk_extension(text: str, at: usize*) -> !:
+    http_skip_ows(text, at)
+    if *at == text.length or text.bytes[*at] != ';':
+        error(http_invalid, "invalid chunk extension separator")
+    *at += 1
+    http_skip_ows(text, at)
+    let first = *at
+    while *at < text.length and http_token((str)text.bytes[*at..<*at + 1]):
+        *at += 1
+    if *at == first:
+        error(http_invalid, "chunk extension needs a name")
+    let after_name = *at
+    http_skip_ows(text, at)
+    if *at == text.length:
+        if *at != after_name:
+            error(http_invalid, "trailing whitespace in chunk extension")
+        return
+    if text.bytes[*at] == ';':
+        return
+    if text.bytes[*at] != '=':
+        error(http_invalid, "invalid chunk extension")
+    *at += 1
+    http_skip_ows(text, at)
+    if *at == text.length:
+        error(http_invalid, "chunk extension needs a value")
+    if text.bytes[*at] != '"':
+        let value_start = *at
+        while *at < text.length and http_token((str)text.bytes[*at..<*at + 1]):
+            *at += 1
+        if *at == value_start:
+            error(http_invalid, "invalid chunk extension value")
+        return
+    *at += 1
+    while *at < text.length:
+        var byte = text.bytes[*at]
+        *at += 1
+        if byte == '"':
+            return
+        if byte == '\\\\':
+            if *at == text.length:
+                error(http_invalid, "incomplete chunk quoted pair")
+            byte = text.bytes[*at]
+            *at += 1
+        if (byte < 32 and byte != '\\t') or byte == 127:
+            error(http_invalid, "invalid chunk quoted text")
+    error(http_invalid, "unclosed chunk extension value")
+
+func http_forbidden_trailer(name: str) -> bool:
+    let forbidden: str[11] = ["content-length", "transfer-encoding", "host", "connection", "trailer", "upgrade", "expect", "authorization", "content-type", "content-encoding", "content-range"]
+    for field in forbidden:
+        if http_equal(name, field):
+            return true
+    return false
+## Serialize an HTTP head into caller storage and validate the complete result
+## before returning it. On failure the output may contain a prefix: never transmit
+## it. Output must not overlap the input fields/text. Framing and Connection fields
+## are generated centrally; callers must not supply them in head.fields.
+## Up to 100 fields are supported. Reason phrases are intentionally empty.
+pub func http_encode_head(output: u8[], head: HttpHead) -> const u8[]!:
+    var sink = io.SliceWriter.over(output)
+    var line: u8[64]
+    if head.version != "HTTP/1.0" and head.version != "HTTP/1.1":
+        error(http_unsupported, "unsupported HTTP version")
+    if head.status == 0:
+        if not http_token(head.method) or not http_target_valid(head.target):
+            error(http_invalid, "invalid HTTP request line")
+        try io.write_all(&sink, head.method.bytes)
+        try io.write_all(&sink, " ".bytes)
+        try io.write_all(&sink, head.target.bytes)
+        try io.write_all(&sink, " ".bytes)
+        try io.write_all(&sink, head.version.bytes)
+        try io.write_all(&sink, "\\r\\n".bytes)
+    else:
+        if head.status < 100 or head.status > 599:
+            error(http_invalid, "invalid HTTP status")
+        try io.write_all(&sink, (try format(line, f"{head.version} {head.status} \\r\\n")).bytes)
+    for item in head.fields:
+        if not http_field_valid(item) or http_equal(item.name, "content-length") or http_equal(item.name, "transfer-encoding") or http_equal(item.name, "connection"):
+            error(http_invalid, "invalid or generated HTTP field")
+        try io.write_all(&sink, item.name.bytes)
+        try io.write_all(&sink, ": ".bytes)
+        try io.write_all(&sink, item.value.bytes)
+        try io.write_all(&sink, "\\r\\n".bytes)
+    let no_framing = head.status > 0 and (head.status < 200 or head.status == 204 or (head.method == "CONNECT" and head.status < 300))
+    if no_framing and head.body_kind != HttpBodyKind.empty and head.body_kind != HttpBodyKind.tunnel:
+        error(http_invalid, "framing is forbidden for this response")
+    if not no_framing:
+        if head.status == 304 and head.body_kind == HttpBodyKind.empty:
+            discard(0)
+        elif head.body_kind == HttpBodyKind.fixed or head.body_kind == HttpBodyKind.empty:
+            let size = head.body_length if head.body_kind == HttpBodyKind.fixed else 0
+            try io.write_all(&sink, (try format(line, f"Content-Length: {size}\\r\\n")).bytes)
+        elif head.body_kind == HttpBodyKind.chunked:
+            if head.version != "HTTP/1.1":
+                error(http_invalid, "chunked framing requires HTTP/1.1")
+            try io.write_all(&sink, "Transfer-Encoding: chunked\\r\\n".bytes)
+        elif head.body_kind != HttpBodyKind.until_eof or head.status == 0:
+            error(http_invalid, "invalid outgoing HTTP framing")
+    if head.keep_alive and head.body_kind != HttpBodyKind.until_eof:
+        if head.connection_upgrade:
+            try io.write_all(&sink, "Connection: Upgrade\\r\\n".bytes)
+        else:
+            try io.write_all(&sink, "Connection: keep-alive\\r\\n".bytes)
+    else:
+        try io.write_all(&sink, "Connection: close\\r\\n".bytes)
+    try io.write_all(&sink, "\\r\\n".bytes)
+    var fields: HttpField[100]
+    let generous = HttpLimits(body_bytes = 18446744073709551615)
+    if head.status == 0:
+        discard(try http_parse_request(sink.written(), fields, generous))
+    else:
+        discard(try http_parse_response(sink.written(), fields, head.method, generous))
+    return sink.written()
+
+## Write a nonempty chunk. Empty writes are no-ops; only http_end_chunks ends a
+## body. A sink error can follow partial output: abandon that message/connection.
+pub func http_write_chunk(destination: Writer, data: const u8[]) -> !:
+    if data.length == 0:
+        return
+    var digits: u8[18]
+    let alphabet = "0123456789abcdef"
+    var at: usize = 16
+    var size = data.length
+    while size > 0:
+        at -= 1
+        digits[at] = alphabet.bytes[size % 16]
+        size //= 16
+    digits[16] = '\\r'
+    digits[17] = '\\n'
+    try io.write_all(destination, digits[at..])
+    try io.write_all(destination, data)
+    try io.write_all(destination, "\\r\\n".bytes)
+
+## Terminate a chunked message, without trailers. Trailers can be decoded but the
+## initial writer API deliberately emits only complete trailer-free messages.
+pub func http_end_chunks(destination: Writer) -> !:
+    try io.write_all(destination, "0\\r\\n\\r\\n".bytes)
+
+## Borrowed body writer with fixed-length accounting and chunked finalization.
+## Construct with over; destination outlives this object. Serialize access and do
+## not use independent copies. A write/finish error latches because output may
+## already be partial. finish never flushes or closes the underlying destination.
+pub struct HttpBodyWriter: Writer:
+    var destination: Writer
+    var kind: HttpBodyKind
+    var remaining: u64
+    var active: bool
+    var failed: bool
+    var failure: ErrorCode
+
+    pub static func over(destination: Writer, kind: HttpBodyKind, length: u64 = 0) -> HttpBodyWriter!:
+        if kind == HttpBodyKind.tunnel:
+            error(http_unsupported, "a tunnel has no HTTP body writer")
+        return HttpBodyWriter(destination = destination, kind = kind, remaining = length if kind == HttpBodyKind.fixed else 0, active = true)
+
+    pub mutating func write(data: const u8[]) -> usize!:
+        try self.check()
+        return self.append(data) catch problem:
+            self.failed = true
+            self.failure = problem.code
+            error(problem.code, problem.message)
+
+    mutating func append(data: const u8[]) -> usize!:
+        if data.length == 0:
+            return 0
+        if self.kind == HttpBodyKind.empty or (self.kind == HttpBodyKind.fixed and (u64)data.length > self.remaining):
+            error(http_invalid, "HTTP body exceeds its declared length")
+        if self.kind == HttpBodyKind.chunked:
+            try http_write_chunk(self.destination, data)
+        else:
+            try io.write_all(self.destination, data)
+        if self.kind == HttpBodyKind.fixed:
+            self.remaining -= (u64)data.length
+        return data.length
+
+    pub mutating func finish() -> !:
+        try self.check()
+        self.end_body() catch problem:
+            self.failed = true
+            self.failure = problem.code
+            error(problem.code, problem.message)
+        self.active = false
+
+    mutating func end_body() -> !:
+        if self.kind == HttpBodyKind.fixed and self.remaining != 0:
+            error(io.unexpected_eof, "HTTP body is shorter than its declared length")
+        if self.kind == HttpBodyKind.chunked:
+            try http_end_chunks(self.destination)
+
+    func check() -> !:
+        if self.failed:
+            error(self.failure, "HTTP body writer has failed")
+        if not self.active:
+            error(io.closed, "HTTP body writer is not active")
+## RFC 6455 version 13, without extensions. Origin checks, authentication and
+## selection among offered subprotocols belong to the application, not the codec.
+pub let websocket_invalid: ErrorCode = ErrorCode.package(83)
+pub let websocket_limit: ErrorCode = ErrorCode.package(84)
+
+extern func websocket_entropy as "getentropy"(buffer: void*, count: usize) -> i32
+
+let websocket_alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+let websocket_guid = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
+
+func websocket_sextet(byte: u8) -> u8?:
+    for index in 0..<64:
+        if websocket_alphabet.bytes[index] == byte:
+            return (u8)index
+    return none
+
+func websocket_key_valid(key: str) -> bool:
+    if key.length != 24 or key.bytes[22] != '=' or key.bytes[23] != '=':
+        return false
+    for byte in key.bytes[..<22]:
+        if websocket_sextet(byte) == none:
+            return false
+    let last = websocket_sextet(key.bytes[21]) else return false
+    return last & 15 == 0
+
+func websocket_base64(input: const u8[], output: u8[]) -> str!:
+    let required = ((input.length + 2) // 3) * 4
+    if output.length < required:
+        error(io.full, "WebSocket base64 output is too small")
+    var at: usize = 0
+    var written: usize = 0
+    while at < input.length:
+        let left = input.length - at
+        let a = input[at]
+        let b: u8 = input[at + 1] if left > 1 else 0
+        let d: u8 = input[at + 2] if left > 2 else 0
+        output[written] = websocket_alphabet.bytes[a >> 2]
+        output[written + 1] = websocket_alphabet.bytes[((a & 3) << 4) | (b >> 4)]
+        output[written + 2] = websocket_alphabet.bytes[((b & 15) << 2) | (d >> 6)] if left > 1 else '='
+        output[written + 3] = websocket_alphabet.bytes[d & 63] if left > 2 else '='
+        at += 3
+        written += 4
+    return (str)output[..<written]
+
+## Generate a fresh 16-byte nonce and encode its canonical 24-byte request key.
+## output needs 24 bytes. Returned text borrows output and is not NUL-terminated.
+pub func websocket_client_key(output: u8[]) -> str!:
+    if output.length < 24:
+        error(io.full, "WebSocket key output needs 24 bytes")
+    var nonce: u8[16]
+    if websocket_entropy((void*)&nonce[0], nonce.length) != 0:
+        error(failed, "WebSocket nonce randomness is unavailable")
+    return try websocket_base64(nonce, output)
+
+func websocket_rotate(value: u32, bits: u32) -> u32:
+    return (value << bits) | (value >> (32 - bits))
+
+## SHA-1 is used only for the RFC's public handshake transform, never for identity
+## or integrity. The validated 24-byte key plus 36-byte GUID always pads to exactly
+## two blocks; keeping this private avoids presenting a general crypto API.
+pub func websocket_accept_key(key: str, output: u8[]) -> str!:
+    if not websocket_key_valid(key):
+        error(websocket_invalid, "WebSocket key must encode exactly 16 bytes")
+    if output.length < 28:
+        error(io.full, "WebSocket accept output needs 28 bytes")
+    var blocks: u8[128]
+    memory.copy(blocks, key.bytes, 24)
+    memory.copy(blocks[24..], websocket_guid.bytes, 36)
+    blocks[60] = 128
+    blocks[126] = 1
+    blocks[127] = 224
+    var state: u32[5] = [1732584193, 4023233417, 2562383102, 271733878, 3285377520]
+    for block in 0..<2:
+        var words: u32[80]
+        for index in 0..<16:
+            let offset = block * 64 + index * 4
+            words[index] = ((u32)blocks[offset] << 24) | ((u32)blocks[offset + 1] << 16) | ((u32)blocks[offset + 2] << 8) | (u32)blocks[offset + 3]
+        for index in 16..<80:
+            words[index] = websocket_rotate(words[index - 3] ^ words[index - 8] ^ words[index - 14] ^ words[index - 16], 1)
+        var a = state[0]
+        var b = state[1]
+        var d = state[2]
+        var e = state[3]
+        var f = state[4]
+        for index in 0..<80:
+            var function: u32 = 0
+            var constant: u32 = 0
+            if index < 20:
+                function = (b & d) | ((~b) & e)
+                constant = 1518500249
+            elif index < 40:
+                function = b ^ d ^ e
+                constant = 1859775393
+            elif index < 60:
+                function = (b & d) | (b & e) | (d & e)
+                constant = 2400959708
+            else:
+                function = b ^ d ^ e
+                constant = 3395469782
+            let next = websocket_rotate(a, 5) +% function +% f +% constant +% words[index]
+            f = e
+            e = d
+            d = websocket_rotate(b, 30)
+            b = a
+            a = next
+        state[0] = state[0] +% a
+        state[1] = state[1] +% b
+        state[2] = state[2] +% d
+        state[3] = state[3] +% e
+        state[4] = state[4] +% f
+    var digest: u8[20]
+    for index in 0..<5:
+        for byte in 0..<4:
+            digest[index * 4 + byte] = (u8)(state[index] >> ((3 - byte) * 8))
+    return try websocket_base64(digest, output)
+
+## Validate the protocol requirements of a parsed upgrade request. Returns its
+## borrowed key. The caller must still apply its Origin/authentication policy.
+pub func websocket_check_request(head: HttpHead) -> str!:
+    if head.status != 0 or head.method != "GET" or head.version != "HTTP/1.1" or head.field_count("host") != 1:
+        error(websocket_invalid, "WebSocket upgrade requires HTTP/1.1 GET and Host")
+    if not (try head.has_token("connection", "upgrade")) or not (try head.has_token("upgrade", "websocket")):
+        error(websocket_invalid, "missing WebSocket upgrade tokens")
+    if head.field_count("sec-websocket-version") != 1 or head.field("sec-websocket-version") != "13":
+        error(websocket_invalid, "unsupported WebSocket version")
+    if head.field_count("sec-websocket-key") != 1:
+        error(websocket_invalid, "WebSocket upgrade needs one key")
+    let key = head.field("sec-websocket-key") else error(websocket_invalid, "missing WebSocket key")
+    if not websocket_key_valid(key):
+        error(websocket_invalid, "invalid WebSocket request key")
+    if head.body_kind == HttpBodyKind.chunked or head.body_kind == HttpBodyKind.until_eof or (head.body_kind == HttpBodyKind.fixed and head.body_length != 0):
+        error(websocket_invalid, "WebSocket upgrade request cannot carry a body")
+    return key
+
+## Validate a server's upgrade against the client's original key and offered
+## comma-separated subprotocols. Returns the selected token, or empty text.
+## Extensions are not implemented and any selected extension is rejected.
+pub func websocket_check_response(head: HttpHead, key: str, offered_protocols: str = "") -> str!:
+    if head.status != 101 or head.version != "HTTP/1.1" or not (try head.has_token("connection", "upgrade")) or not (try head.has_token("upgrade", "websocket")):
+        error(websocket_invalid, "invalid WebSocket upgrade response")
+    var expected: u8[28]
+    let accept_value = try websocket_accept_key(key, expected)
+    if head.field_count("sec-websocket-accept") != 1 or head.field("sec-websocket-accept") != accept_value:
+        error(websocket_invalid, "WebSocket accept does not match the client key")
+    if head.field_count("sec-websocket-extensions") != 0 or head.field_count("sec-websocket-protocol") > 1:
+        error(websocket_invalid, "unsupported WebSocket extension or multiple selected protocols")
+    let selected = head.field("sec-websocket-protocol") else return ""
+    if not http_token(selected):
+        error(websocket_invalid, "invalid selected WebSocket subprotocol")
+    var at: usize = 0
+    while let candidate = http_list_next(offered_protocols, &at):
+        if candidate == selected:
+            return selected
+    error(websocket_invalid, "server selected a WebSocket subprotocol that was not offered")
+
+## Encode the client's version-13 handshake using its saved fresh key. The offered
+## subprotocol list contains case-sensitive tokens. No extensions are requested.
+pub func websocket_encode_request(output: u8[], host: str, target: str, key: str, protocols: str = "") -> const u8[]!:
+    if not websocket_key_valid(key):
+        error(websocket_invalid, "invalid WebSocket request key")
+    var fields: HttpField[5] = [HttpField(name = "Host", value = host), HttpField(name = "Upgrade", value = "websocket"), HttpField(name = "Sec-WebSocket-Version", value = "13"), HttpField(name = "Sec-WebSocket-Key", value = key), HttpField(name = "Sec-WebSocket-Protocol", value = protocols)]
+    var count: usize = 4
+    if protocols.length > 0:
+        var at: usize = 0
+        while let part = http_list_next(protocols, &at):
+            if not http_token(part):
+                error(websocket_invalid, "invalid offered WebSocket subprotocol")
+        count = 5
+    return try http_encode_head(output, HttpHead(method = "GET", target = target, version = "HTTP/1.1", fields = fields[..<count], body_kind = HttpBodyKind.empty, keep_alive = true, connection_upgrade = true))
+
+## Encode a successful upgrade after application approval. A selected protocol
+## must be an exact token offered by the client. Empty means no subprotocol.
+pub func websocket_encode_response(output: u8[], request: HttpHead, protocol: str = "") -> const u8[]!:
+    let key = try websocket_check_request(request)
+    if protocol.length > 0:
+        if not http_token(protocol):
+            error(websocket_invalid, "invalid selected WebSocket subprotocol")
+        var found = false
+        for field in request.fields:
+            if http_equal(field.name, "sec-websocket-protocol"):
+                var at: usize = 0
+                while let candidate = http_list_next(field.value, &at):
+                    if candidate == protocol:
+                        found = true
+        if not found:
+            error(websocket_invalid, "selected WebSocket subprotocol was not offered")
+    var accept_buffer: u8[28]
+    let accept_value = try websocket_accept_key(key, accept_buffer)
+    var fields: HttpField[3] = [HttpField(name = "Upgrade", value = "websocket"), HttpField(name = "Sec-WebSocket-Accept", value = accept_value), HttpField(name = "Sec-WebSocket-Protocol", value = protocol)]
+    let count: usize = 3 if protocol.length > 0 else 2
+    return try http_encode_head(output, HttpHead(method = "GET", version = "HTTP/1.1", status = 101, fields = fields[..<count], body_kind = HttpBodyKind.empty, keep_alive = true, connection_upgrade = true))
+## RFC 6455 base opcodes. Extensions and reserved bits/opcodes are rejected.
+pub enum WebSocketOpcode as u8:
+    continuation = 0
+    text = 1
+    binary = 2
+    close = 8
+    ping = 9
+    pong = 10
+
+pub struct WebSocketFrame:
+    pub var opcode: WebSocketOpcode
+    pub var final: bool
+    pub var length: u64
+    pub var header_bytes: usize
+    pub var mask: u8[4]
+    pub var masked: bool
+
+## Parse a frame header only. None means incomplete input; no payload is consumed.
+## from_client enforces the direction's mandatory masking rule. Extended lengths
+## must use the shortest encoding and may not set the 64-bit sign bit.
+pub func websocket_parse_frame(data: const u8[], from_client: bool, maximum: u64 = 16777216) -> WebSocketFrame?!:
+    if data.length < 2:
+        return none
+    if data[0] & 112 != 0:
+        error(websocket_invalid, "WebSocket reserved bits require an extension")
+    let opcode = try websocket_opcode(data[0] & 15)
+    let final = data[0] & 128 != 0
+    let masked = data[1] & 128 != 0
+    if masked != from_client:
+        error(websocket_invalid, "WebSocket masking is wrong for this direction")
+    let short = data[1] & 127
+    var header_bytes: usize = 2
+    var length = (u64)short
+    if short == 126:
+        if data.length < 4:
+            return none
+        length = ((u64)data[2] << 8) | (u64)data[3]
+        header_bytes = 4
+        if length < 126:
+            error(websocket_invalid, "nonminimal WebSocket payload length")
+    elif short == 127:
+        if data.length < 10:
+            return none
+        if data[2] & 128 != 0:
+            error(websocket_invalid, "WebSocket payload length has its sign bit set")
+        length = 0
+        for index in 2..<10:
+            length = (length << 8) | (u64)data[index]
+        header_bytes = 10
+        if length < 65536:
+            error(websocket_invalid, "nonminimal WebSocket payload length")
+    if length > maximum:
+        error(websocket_limit, "WebSocket frame exceeds its byte limit")
+    if (u8)opcode >= 8 and (not final or length > 125):
+        error(websocket_invalid, "WebSocket control frame must be final and at most 125 bytes")
+    var mask: u8[4]
+    if masked:
+        if data.length - header_bytes < 4:
+            return none
+        memory.copy(mask, data[header_bytes..], 4)
+        header_bytes += 4
+    return WebSocketFrame(opcode = opcode, final = final, length = length, header_bytes = header_bytes, mask = mask, masked = masked)
+
+func websocket_opcode(value: u8) -> WebSocketOpcode!:
+    match value:
+        0: return WebSocketOpcode.continuation
+        1: return WebSocketOpcode.text
+        2: return WebSocketOpcode.binary
+        8: return WebSocketOpcode.close
+        9: return WebSocketOpcode.ping
+        10: return WebSocketOpcode.pong
+        _: error(websocket_invalid, "reserved WebSocket opcode")
+
+## Validate a close payload, including its optional status and UTF-8 reason.
+## Empty means no status; wire-forbidden/reserved status codes are rejected.
+pub func websocket_check_close(payload: const u8[]) -> !:
+    if payload.length == 0:
+        return
+    if payload.length < 2 or payload.length > 125:
+        error(websocket_invalid, "invalid WebSocket close payload length")
+    let code = ((u16)payload[0] << 8) | (u16)payload[1]
+    if code < 1000 or code >= 5000 or code == 1004 or code == 1005 or code == 1006 or (code >= 1016 and code < 3000) or code == 1015:
+        error(websocket_invalid, "reserved WebSocket close status")
+    var decoder: utf8.Decoder
+    for byte in payload[2..]:
+        discard(try decoder.push(byte))
+    try decoder.finish()
+
+struct WebSocketSequence:
+    var fragmented: bool
+    var text: bool
+    var total: u64
+    var maximum: u64 = 16777216
+    var decoder: utf8.Decoder
+    var control: u8[125]
+    var control_used: usize
+    var closing: bool
+
+    mutating func begin(frame: WebSocketFrame) -> !:
+        if self.closing:
+            error(websocket_invalid, "WebSocket data follows a close frame")
+        if (u8)frame.opcode >= 8:
+            self.control_used = 0
+            return
+        if frame.opcode == WebSocketOpcode.continuation:
+            if not self.fragmented:
+                error(websocket_invalid, "WebSocket continuation has no initial frame")
+        else:
+            if self.fragmented:
+                error(websocket_invalid, "new WebSocket message interrupts fragmentation")
+            self.text = frame.opcode == WebSocketOpcode.text
+            self.total = 0
+            self.decoder.reset()
+        if frame.length > self.maximum - self.total:
+            error(websocket_limit, "WebSocket message exceeds its byte limit")
+        self.total += frame.length
+        self.fragmented = not frame.final
+
+    mutating func payload(frame: WebSocketFrame, data: const u8[], ended: bool) -> !:
+        if (u8)frame.opcode >= 8:
+            if frame.opcode == WebSocketOpcode.close:
+                memory.copy(self.control[self.control_used..], data, data.length)
+                self.control_used += data.length
+                if ended:
+                    try websocket_check_close(self.control[..<self.control_used])
+                    self.closing = true
+            return
+        if self.text:
+            for byte in data:
+                discard(try self.decoder.push(byte))
+            if ended and frame.final:
+                try self.decoder.finish()
+
+## One decoder step. Payload is output[..written], validated up to this point.
+## Consume/frame/message flags delimit data; control payloads must be accumulated
+## until frame_end before acting. On error, earlier fragments must be discarded.
+pub struct WebSocketStep:
+    pub var consumed: usize
+    pub var written: usize
+    pub var opcode: WebSocketOpcode
+    pub var frame_start: bool
+    pub var frame_end: bool
+    pub var message_end: bool
+
+## Streaming frame/message validation and unmasking. State is connection-local;
+## input, output and decoder storage must not overlap. Output must be nonempty.
+## Failures latch. Control frames may interrupt a fragmented text/binary message.
+pub struct WebSocketDecoder:
+    var from_client: bool
+    var maximum_frame: u64 = 16777216
+    var header: u8[14]
+    var used: usize
+    var active: bool
+    var frame: WebSocketFrame
+    var read: u64
+    var sequence: WebSocketSequence
+    var failed: bool
+    var failure: ErrorCode
+
+    pub static func create(from_client: bool, maximum_frame: u64 = 16777216, maximum_message: u64 = 16777216) -> WebSocketDecoder:
+        return WebSocketDecoder(from_client = from_client, maximum_frame = maximum_frame, sequence = WebSocketSequence(maximum = maximum_message))
+
+    pub mutating func consume(input: const u8[], output: u8[]) -> WebSocketStep!:
+        if self.failed:
+            error(self.failure, "WebSocket decoder has failed")
+        if output.length == 0:
+            error(io.invalid_buffer, "WebSocket output buffer must be nonempty")
+        return self.advance(input, output) catch problem:
+            self.failed = true
+            self.failure = problem.code
+            error(problem.code, problem.message)
+
+    ## EOF is valid only after a complete close frame. A TCP EOF without one is
+    ## abnormal closure, including between otherwise complete messages.
+    pub mutating func finish() -> !:
+        if self.failed:
+            error(self.failure, "WebSocket decoder has failed")
+        if self.active or self.used != 0 or not self.sequence.closing:
+            self.failed = true
+            self.failure = io.unexpected_eof
+            error(io.unexpected_eof, "WebSocket ended without a complete close frame")
+
+    mutating func advance(input: const u8[], output: u8[]) -> WebSocketStep!:
+        var at: usize = 0
+        var started = false
+        while not self.active and at < input.length:
+            self.header[self.used] = input[at]
+            self.used += 1
+            at += 1
+            if let frame = try websocket_parse_frame(self.header[..<self.used], self.from_client, self.maximum_frame):
+                try self.sequence.begin(frame)
+                self.frame = frame
+                self.active = true
+                self.read = 0
+                self.used = 0
+                started = true
+        if not self.active:
+            return WebSocketStep(consumed = at)
+        var count = input.length - at
+        if count > output.length:
+            count = output.length
+        if (u64)count > self.frame.length - self.read:
+            count = (usize)(self.frame.length - self.read)
+        for index in 0..<count:
+            let byte = input[at + index]
+            output[index] = byte ^ self.frame.mask[(usize)((self.read + (u64)index) % 4)] if self.frame.masked else byte
+        self.read += (u64)count
+        let ended = self.read == self.frame.length
+        try self.sequence.payload(self.frame, output[..<count], ended)
+        if ended:
+            self.active = false
+        return WebSocketStep(consumed = at + count, written = count, opcode = self.frame.opcode, frame_start = started, frame_end = ended, message_end = ended and self.frame.final and (u8)self.frame.opcode < 8)
+
+## Stateful writer: validates message sequencing and UTF-8, masks every client
+## frame using fresh OS entropy, and handles short writes with bounded scratch.
+## A failure latches because some bytes may already have reached the peer.
+pub struct WebSocketEncoder:
+    var client: bool
+    var maximum_frame: u64 = 16777216
+    var sequence: WebSocketSequence
+    var failed: bool
+    var failure: ErrorCode
+
+    pub static func create(client: bool, maximum_frame: u64 = 16777216, maximum_message: u64 = 16777216) -> WebSocketEncoder:
+        return WebSocketEncoder(client = client, maximum_frame = maximum_frame, sequence = WebSocketSequence(maximum = maximum_message))
+
+    pub mutating func write(destination: Writer, opcode: WebSocketOpcode, payload: const u8[], final: bool = true) -> !:
+        if self.failed:
+            error(self.failure, "WebSocket encoder has failed")
+        self.emit(destination, opcode, payload, final) catch problem:
+            self.failed = true
+            self.failure = problem.code
+            error(problem.code, problem.message)
+
+    mutating func emit(destination: Writer, opcode: WebSocketOpcode, payload: const u8[], final: bool) -> !:
+        discard(try websocket_opcode((u8)opcode))
+        if (u64)payload.length > self.maximum_frame:
+            error(websocket_limit, "WebSocket frame exceeds its byte limit")
+        if (u8)opcode >= 8 and (not final or payload.length > 125):
+            error(websocket_invalid, "invalid WebSocket control frame")
+        let frame = WebSocketFrame(opcode = opcode, final = final, length = (u64)payload.length)
+        try self.sequence.begin(frame)
+        try self.sequence.payload(frame, payload, true)
+        var header: u8[14]
+        header[0] = (u8)opcode | (128 if final else 0)
+        var count: usize = 2
+        if payload.length < 126:
+            header[1] = (u8)payload.length
+        elif payload.length < 65536:
+            header[1] = 126
+            header[2] = (u8)(payload.length >> 8)
+            header[3] = (u8)payload.length
+            count = 4
+        else:
+            header[1] = 127
+            for index in 0..<8:
+                header[2 + index] = (u8)((u64)payload.length >> ((7 - index) * 8))
+            count = 10
+        var mask: u8[4]
+        if self.client:
+            if websocket_entropy((void*)&mask[0], 4) != 0:
+                error(failed, "WebSocket masking randomness is unavailable")
+            header[1] |= 128
+            memory.copy(header[count..], mask, 4)
+            count += 4
+        try io.write_all(destination, header[..<count])
+        if not self.client:
+            try io.write_all(destination, payload)
+            return
+        var scratch: u8[4096]
+        var at: usize = 0
+        while at < payload.length:
+            let size = payload.length - at if payload.length - at < scratch.length else scratch.length
+            for index in 0..<size:
+                scratch[index] = payload[at + index] ^ mask[(at + index) % 4]
+            try io.write_all(destination, scratch[..<size])
+            at += size
 """),
     Prelude(name = "debug", text = """
 import c

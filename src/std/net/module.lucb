@@ -1,4 +1,5 @@
-## Blocking socket I/O. Created and accepted sockets are close-on-exec. Linux
+## TCP/UDP sockets, readiness, deadline I/O, and HTTP/WebSocket codecs.
+## Created and accepted sockets are close-on-exec. Linux
 ## sets that flag atomically; macOS requires a separate call, so applications
 ## must serialize socket creation/acceptance with concurrent fork/exec there.
 ## Adopting a caller-created descriptor also needs this coordination on either OS.
@@ -7,6 +8,8 @@ import atomic
 import platform
 import memory
 import io
+import strings
+import utf8
 from io import Reader, Writer
 
 extern func socket(domain: i32, kind: i32, protocol: i32) -> i32
