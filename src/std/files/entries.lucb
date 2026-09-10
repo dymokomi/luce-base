@@ -45,11 +45,20 @@ pub func remove_directory(path: c.str) -> !:
 
 ## Rename an entry, atomically replacing an existing compatible destination on
 ## the same filesystem. Final symlinks are entries, not followed targets. Open
-## handles keep referring to their objects. This does not copy across devices,
-## request durable storage, or implement no-replace semantics. On a remote
+## handles keep referring to their objects. This does not copy across devices
+## or request durable storage. With replace=false, atomically refuse an existing
+## destination; unsupported exclusive renames fail without an unsafe fallback.
+## On a remote
 ## filesystem a reported failure may follow a completed server-side mutation.
-pub func rename(source: c.str, destination: c.str) -> !:
-    if c_rename(source, destination) != 0:
+pub func rename(source: c.str, destination: c.str, replace: bool = true) -> !:
+    var result: i32 = 0
+    if replace:
+        result = c_rename(source, destination)
+    elif platform.macos:
+        result = rename_exclusive_macos(source, destination, 4)
+    else:
+        result = rename_exclusive_linux(current_directory_fd, source, current_directory_fd, destination, 1)
+    if result != 0:
         error(classify_error(c.errno()), "the entry could not be renamed")
 
 ## Create a symlink containing target's bytes; the target need not exist. A
@@ -63,8 +72,7 @@ pub func create_symlink(target: c.str, link_path: c.str) -> !:
 ## existing destination. A final source symlink is linked itself, not followed.
 ## Directories cannot be linked. Intermediate path components resolve normally.
 pub func create_hard_link(source: c.str, destination: c.str) -> !:
-    let working_directory: i32 = -2 if platform.macos else -100
-    if linkat(working_directory, source, working_directory, destination, 0) != 0:
+    if linkat(current_directory_fd, source, current_directory_fd, destination, 0) != 0:
         error(classify_error(c.errno()), "the hard link could not be created")
 
 ## Read a final symlink's raw target bytes without following it. Return a
@@ -88,4 +96,3 @@ pub func read_symlink(path: c.str, limit: usize = 4096) -> str!:
     memory.copy(exact, buffer, length)
     exact[length] = 0
     return (str)exact[..<length]
-

@@ -91,6 +91,91 @@ func temporary_cases(directory: c.str) -> !:
     owner.finish()
     assert(atomic_descriptors() == before)
 
+func copy_cases(path: c.str, directory: c.str) -> !:
+    let source_name = try paths.join((str)directory, "copy-source")
+    defer strings.release(source_name)
+    let source = (c.str)source_name
+    try files.write(source, "source".bytes)
+    let before = atomic_descriptors()
+    var rejected = false
+    var published = true
+    discard(files.copy_file(source, source, replace = true, published = &published) catch failure:
+        assert(failure.code == files.invalid_options)
+        rejected = true
+        recover 0)
+    assert(rejected and not published)
+    let alias = try paths.join((str)directory, "copy-alias")
+    defer strings.release(alias)
+    try files.create_hard_link(source, (c.str)alias)
+    rejected = false
+    discard(files.copy_file(source, (c.str)alias, replace = true) catch failure:
+        assert(failure.code == files.invalid_options)
+        rejected = true
+        recover 0)
+    assert(rejected)
+    try files.remove_file((c.str)alias)
+    var allocation_index: usize = 0
+    var allocation_steps: usize = 0
+    while allocation_index <= allocation_steps:
+        try files.write(path, "old".bytes)
+        var owner = allocator.Failing.at(allocation_index)
+        rejected = false
+        published = false
+        with owner:
+            discard(files.copy_file(source, path, replace = true, synchronize = true, published = &published) catch failure:
+                assert(failure.code == memory.exhausted)
+                rejected = true
+                recover 0)
+        if allocation_index == 0:
+            allocation_steps = owner.attempts
+        assert(rejected == (allocation_index != 0) and published == (allocation_index == 0))
+        assert(owner.failures == (1 if rejected else 0))
+        owner.finish()
+        try check_state(path, directory, "old" if rejected else "source", before)
+        allocation_index += 1
+    try files.write(path, "old".bytes)
+    rejected = false
+    discard(files.copy_file(source, path) catch failure:
+        assert(failure.code == files.already_exists)
+        rejected = true
+        recover 0)
+    assert(rejected)
+    rejected = false
+    discard(files.copy_file(source, path, limit = 5, replace = true, published = &published) catch failure:
+        assert(failure.code == files.too_large)
+        rejected = true
+        recover 0)
+    assert(rejected and not published)
+    try check_state(path, directory, "old", before)
+    var kind: i32 = 10
+    while kind <= 13:
+        try files.write(path, "old".bytes)
+        if kind == 12:
+            try files.remove_file(path)
+        var owner = allocator.Failing.at(0)
+        rejected = false
+        published = false
+        var count: usize = 0
+        with owner:
+            atomic_fault_arm(kind)
+            count = files.copy_file(source, path, replace = kind != 12, synchronize = true, published = &published) catch failure:
+                assert(failure.code == (files.already_exists if kind == 12 else files.failed))
+                rejected = true
+                recover 0
+        assert(rejected == (kind != 13) and published == (kind == 13))
+        assert(atomic_fault_hits() == 1)
+        owner.finish()
+        if kind == 13:
+            assert(count == 6)
+        try check_state(path, directory, "source" if kind == 13 else ("racer" if kind == 12 else "old"), before)
+        kind += 1
+    try files.remove_file(path)
+    published = false
+    assert(try files.copy_file(source, path, limit = 6, published = &published) == 6)
+    assert(published)
+    try check_state(path, directory, "source", before)
+    try files.remove_file(source)
+
 pub func main(arguments: c.str[]) -> i32!:
     let path = arguments[1]
     let parent = try strings.copy(paths.directory((str)path))
@@ -103,5 +188,6 @@ pub func main(arguments: c.str[]) -> i32!:
         fail_at += 1
     try syscall_cases(path, directory)
     try temporary_cases(directory)
+    try copy_cases(path, directory)
     print("ok atomic failures")
     return 0

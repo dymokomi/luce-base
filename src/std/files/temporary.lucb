@@ -50,14 +50,15 @@ pub struct TemporaryFile: io.Reader, io.Writer:
 
     ## Close successfully, then rename over destination. A close failure does
     ## not publish. A rename failure leaves the temporary pathname owned here
-    ## for retry or discard. Success consumes ownership and invalidates path().
+    ## for retry or discard. With replace=false, an existing destination is
+    ## atomically refused. Success consumes ownership and invalidates path().
     ## This does not synchronize data or the parent directory; call sync first
     ## and synchronize the destination directory when that guarantee is needed.
-    pub mutating func publish(destination: c.str) -> !:
+    pub mutating func publish(destination: c.str, replace: bool = true) -> !:
         if self.name.length == 0:
             error(io.closed, "the temporary file has no owned pathname")
         try self.file.close()
-        try rename((c.str)self.name, destination)
+        try rename((c.str)self.name, destination, replace)
         self.release_name()
 
     mutating func release_name():
@@ -105,21 +106,37 @@ pub struct TemporaryFile: io.Reader, io.Writer:
 pub func write_atomic(path: c.str, data: const u8[], permissions: u32 = 420, synchronize: bool = false, published: bool*? = none) -> !:
     if let flag = published:
         *flag = false
-    let parent_name = try strings.copy(paths.directory((str)path))
-    defer strings.release(parent_name)
-    var parent: File
-    defer parent.destroy()
-    if synchronize:
-        parent = try File.open((c.str)parent_name)
-    var temporary = try TemporaryFile.create((c.str)parent_name, permissions)
-    defer temporary.destroy()
-    try io.write_all(&temporary, data)
-    if synchronize:
-        try temporary.sync()
-    try temporary.publish(path)
-    if let flag = published:
-        *flag = true
-    if synchronize:
-        try parent.sync()
-        try parent.close()
+    var replacement = try Replacement.prepare(path, permissions, synchronize)
+    defer replacement.destroy()
+    try io.write_all(&replacement.temporary, data)
+    try replacement.finish(path, true, published)
 
+## Shared ownership and publication ordering for atomic writes and file copies.
+struct Replacement:
+    var parent: File
+    var temporary: TemporaryFile
+    var synchronize: bool
+
+    static func prepare(path: c.str, permissions: u32, synchronize: bool) -> Replacement!:
+        let parent_name = try strings.copy(paths.directory((str)path))
+        defer strings.release(parent_name)
+        var parent: File
+        errdefer parent.destroy()
+        if synchronize:
+            parent = try File.open((c.str)parent_name)
+        let temporary = try TemporaryFile.create((c.str)parent_name, permissions)
+        return Replacement(parent = parent, temporary = temporary, synchronize = synchronize)
+
+    mutating func finish(path: c.str, replace: bool, published: bool*?) -> !:
+        if self.synchronize:
+            try self.temporary.sync()
+        try self.temporary.publish(path, replace)
+        if let flag = published:
+            *flag = true
+        if self.synchronize:
+            try self.parent.sync()
+            try self.parent.close()
+
+    mutating func destroy():
+        self.temporary.destroy()
+        self.parent.destroy()

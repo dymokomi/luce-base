@@ -21,6 +21,8 @@ extern func mkdir_linux as "mkdir"(path: c.str, permissions: u32) -> i32
 extern func rmdir(path: c.str) -> i32
 extern func unlink(path: c.str) -> i32
 extern func c_rename as "rename"(source: c.str, destination: c.str) -> i32
+extern func rename_exclusive_macos as "renamex_np"(source: c.str, destination: c.str, flags: u32) -> i32
+extern func rename_exclusive_linux as "renameat2"(source_directory: i32, source: c.str, destination_directory: i32, destination: c.str, flags: u32) -> i32
 extern func symlink(target: c.str, path: c.str) -> i32
 extern func linkat(source_directory: i32, source: c.str, destination_directory: i32, destination: c.str, flags: i32) -> i32
 extern func readlink(path: c.str, buffer: void*, capacity: usize) -> isize
@@ -72,6 +74,7 @@ let append_flag: i32 = 8 if platform.macos else 1024
 let exclusive_flag: i32 = 2048 if platform.macos else 128
 let would_block_errno: i32 = 35 if platform.macos else 11
 let transfer_limit: usize = 1073741824
+let current_directory_fd: i32 = -2 if platform.macos else -100
 
 pub let missing: ErrorCode = ErrorCode.package(6)
 pub let permission_denied: ErrorCode = ErrorCode.package(18)
@@ -88,4 +91,3 @@ pub let cross_device: ErrorCode = ErrorCode.package(30)
 pub let symlink_loop: ErrorCode = ErrorCode.package(31)
 pub let name_too_long: ErrorCode = ErrorCode.package(32)
 pub let failed: ErrorCode = ErrorCode.package(7)
-

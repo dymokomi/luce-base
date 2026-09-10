@@ -12,5 +12,5 @@ then rebuild and refresh bootstrap snapshots as usual.
 
 `files/` separates the C ABI and constants (`module.lucb`), descriptor ownership
 (`handles.lucb`), metadata and host stat layouts (`metadata.lucb`), path mutations and links (`entries.lucb`), temporary ownership and
-atomic publication (`temporary.lucb`), whole-file transfers (`contents.lucb`), and
+atomic publication (`temporary.lucb`), bounded copying (`copy.lucb`), whole-file transfers (`contents.lucb`), and
 directory iteration/listing (`directory.lucb`). Its public import remains `files`.

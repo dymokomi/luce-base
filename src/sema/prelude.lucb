@@ -2166,6 +2166,8 @@ extern func mkdir_linux as "mkdir"(path: c.str, permissions: u32) -> i32
 extern func rmdir(path: c.str) -> i32
 extern func unlink(path: c.str) -> i32
 extern func c_rename as "rename"(source: c.str, destination: c.str) -> i32
+extern func rename_exclusive_macos as "renamex_np"(source: c.str, destination: c.str, flags: u32) -> i32
+extern func rename_exclusive_linux as "renameat2"(source_directory: i32, source: c.str, destination_directory: i32, destination: c.str, flags: u32) -> i32
 extern func symlink(target: c.str, path: c.str) -> i32
 extern func linkat(source_directory: i32, source: c.str, destination_directory: i32, destination: c.str, flags: i32) -> i32
 extern func readlink(path: c.str, buffer: void*, capacity: usize) -> isize
@@ -2217,6 +2219,7 @@ let append_flag: i32 = 8 if platform.macos else 1024
 let exclusive_flag: i32 = 2048 if platform.macos else 128
 let would_block_errno: i32 = 35 if platform.macos else 11
 let transfer_limit: usize = 1073741824
+let current_directory_fd: i32 = -2 if platform.macos else -100
 
 pub let missing: ErrorCode = ErrorCode.package(6)
 pub let permission_denied: ErrorCode = ErrorCode.package(18)
@@ -2233,7 +2236,6 @@ pub let cross_device: ErrorCode = ErrorCode.package(30)
 pub let symlink_loop: ErrorCode = ErrorCode.package(31)
 pub let name_too_long: ErrorCode = ErrorCode.package(32)
 pub let failed: ErrorCode = ErrorCode.package(7)
-
 ## File type from mode bits; unknown preserves support for host-specific kinds.
 pub enum FileKind as u8:
     unknown = 0
@@ -2590,11 +2592,20 @@ pub func remove_directory(path: c.str) -> !:
 
 ## Rename an entry, atomically replacing an existing compatible destination on
 ## the same filesystem. Final symlinks are entries, not followed targets. Open
-## handles keep referring to their objects. This does not copy across devices,
-## request durable storage, or implement no-replace semantics. On a remote
+## handles keep referring to their objects. This does not copy across devices
+## or request durable storage. With replace=false, atomically refuse an existing
+## destination; unsupported exclusive renames fail without an unsafe fallback.
+## On a remote
 ## filesystem a reported failure may follow a completed server-side mutation.
-pub func rename(source: c.str, destination: c.str) -> !:
-    if c_rename(source, destination) != 0:
+pub func rename(source: c.str, destination: c.str, replace: bool = true) -> !:
+    var result: i32 = 0
+    if replace:
+        result = c_rename(source, destination)
+    elif platform.macos:
+        result = rename_exclusive_macos(source, destination, 4)
+    else:
+        result = rename_exclusive_linux(current_directory_fd, source, current_directory_fd, destination, 1)
+    if result != 0:
         error(classify_error(c.errno()), "the entry could not be renamed")
 
 ## Create a symlink containing target's bytes; the target need not exist. A
@@ -2608,8 +2619,7 @@ pub func create_symlink(target: c.str, link_path: c.str) -> !:
 ## existing destination. A final source symlink is linked itself, not followed.
 ## Directories cannot be linked. Intermediate path components resolve normally.
 pub func create_hard_link(source: c.str, destination: c.str) -> !:
-    let working_directory: i32 = -2 if platform.macos else -100
-    if linkat(working_directory, source, working_directory, destination, 0) != 0:
+    if linkat(current_directory_fd, source, current_directory_fd, destination, 0) != 0:
         error(classify_error(c.errno()), "the hard link could not be created")
 
 ## Read a final symlink's raw target bytes without following it. Return a
@@ -2633,7 +2643,6 @@ pub func read_symlink(path: c.str, limit: usize = 4096) -> str!:
     memory.copy(exact, buffer, length)
     exact[length] = 0
     return (str)exact[..<length]
-
 ## A temporary file and its owned pathname. The zero value is closed. Copying does
 ## not duplicate ownership. Borrow the object for I/O and serialize its use.
 ## The pathname allocator is retained, so cleanup may occur outside its with block.
@@ -2686,14 +2695,15 @@ pub struct TemporaryFile: io.Reader, io.Writer:
 
     ## Close successfully, then rename over destination. A close failure does
     ## not publish. A rename failure leaves the temporary pathname owned here
-    ## for retry or discard. Success consumes ownership and invalidates path().
+    ## for retry or discard. With replace=false, an existing destination is
+    ## atomically refused. Success consumes ownership and invalidates path().
     ## This does not synchronize data or the parent directory; call sync first
     ## and synchronize the destination directory when that guarantee is needed.
-    pub mutating func publish(destination: c.str) -> !:
+    pub mutating func publish(destination: c.str, replace: bool = true) -> !:
         if self.name.length == 0:
             error(io.closed, "the temporary file has no owned pathname")
         try self.file.close()
-        try rename((c.str)self.name, destination)
+        try rename((c.str)self.name, destination, replace)
         self.release_name()
 
     mutating func release_name():
@@ -2741,23 +2751,81 @@ pub struct TemporaryFile: io.Reader, io.Writer:
 pub func write_atomic(path: c.str, data: const u8[], permissions: u32 = 420, synchronize: bool = false, published: bool*? = none) -> !:
     if let flag = published:
         *flag = false
-    let parent_name = try strings.copy(paths.directory((str)path))
-    defer strings.release(parent_name)
+    var replacement = try Replacement.prepare(path, permissions, synchronize)
+    defer replacement.destroy()
+    try io.write_all(&replacement.temporary, data)
+    try replacement.finish(path, true, published)
+
+## Shared ownership and publication ordering for atomic writes and file copies.
+struct Replacement:
     var parent: File
-    defer parent.destroy()
-    if synchronize:
-        parent = try File.open((c.str)parent_name)
-    var temporary = try TemporaryFile.create((c.str)parent_name, permissions)
-    defer temporary.destroy()
-    try io.write_all(&temporary, data)
-    if synchronize:
-        try temporary.sync()
-    try temporary.publish(path)
+    var temporary: TemporaryFile
+    var synchronize: bool
+
+    static func prepare(path: c.str, permissions: u32, synchronize: bool) -> Replacement!:
+        let parent_name = try strings.copy(paths.directory((str)path))
+        defer strings.release(parent_name)
+        var parent: File
+        errdefer parent.destroy()
+        if synchronize:
+            parent = try File.open((c.str)parent_name)
+        let temporary = try TemporaryFile.create((c.str)parent_name, permissions)
+        return Replacement(parent = parent, temporary = temporary, synchronize = synchronize)
+
+    mutating func finish(path: c.str, replace: bool, published: bool*?) -> !:
+        if self.synchronize:
+            try self.temporary.sync()
+        try self.temporary.publish(path, replace)
+        if let flag = published:
+            *flag = true
+        if self.synchronize:
+            try self.parent.sync()
+            try self.parent.close()
+
+    mutating func destroy():
+        self.temporary.destroy()
+        self.parent.destroy()
+## Copy through a temporary sibling and atomically publish the complete result.
+## The source is followed and read through EOF; directories are rejected. Refuse
+## an existing destination unless replace=true, and reject an observed source/
+## destination identity match. Final destination symlinks are entries to replace.
+## Use a finite limit for streams: one extra byte detects excess, which fails
+## without publishing. Memory for payload transfer is bounded to 4096 bytes.
+## Concurrent source writes can change the bytes observed; this is not a snapshot.
+## Return bytes copied. Permissions, synchronize, parent-path stability and
+## published have the same contracts as write_atomic; metadata is not copied.
+pub func copy_file(source_path: c.str, destination: c.str, limit: usize = 18446744073709551615, replace: bool = false, permissions: u32 = 420, synchronize: bool = false, published: bool*? = none) -> usize!:
     if let flag = published:
-        *flag = true
-    if synchronize:
-        try parent.sync()
-        try parent.close()
+        *flag = false
+    var source = try File.open(source_path)
+    defer source.destroy()
+    let source_info = try source.metadata()
+    if source_info.kind == FileKind.directory:
+        error(is_directory, "a directory cannot be copied as file bytes")
+    if let destination_info = try metadata_if_present(destination):
+        if not replace:
+            error(already_exists, "the copy destination already exists")
+        if source_info.device == destination_info.device and source_info.inode == destination_info.inode:
+            error(invalid_options, "source and destination identify the same file")
+        if destination_info.kind == FileKind.directory:
+            error(is_directory, "the copy destination is a directory")
+    var replacement = try Replacement.prepare(destination, permissions, synchronize)
+    defer replacement.destroy()
+    var buffer: u8[4096]
+    let count = try io.copy_limit(&source, &replacement.temporary, buffer, limit)
+    if count == limit:
+        if try source.read(buffer[..<1]) != 0:
+            error(too_large, "the copy source exceeds the requested limit")
+    try source.close()
+    try replacement.finish(destination, replace, published)
+    return count
+
+func metadata_if_present(path: c.str) -> Metadata?!:
+    let value = metadata(path, false) catch failure:
+        if failure.code == missing:
+            return none
+        error(failure.code, failure.message)
+    return value
 
 ## Read through EOF, including files whose size changes or cannot be sought. The
 ## result is an allocation of the current allocator; free the returned span there.
