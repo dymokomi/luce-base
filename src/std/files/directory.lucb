@@ -1,0 +1,107 @@
+## One owned directory stream; the zero value is closed. Copying does not duplicate
+## ownership. Borrow it for iteration and serialize access to the stream.
+pub struct Directory:
+    var handle: void*?
+
+    pub static func open(path: c.str) -> Directory!:
+        var stream = opendir(path)
+        while stream == none and c.errno() == c.interrupted:
+            stream = opendir(path)
+        let directory = stream else error(classify_error(c.errno()), "the directory could not be opened")
+        return Directory(handle = directory)
+
+    ## The next name excluding dot and dot-dot, or none at end. Names are raw path
+    ## bytes, not guaranteed UTF-8. The view expires on the next call or close.
+    pub mutating func next() -> str?!:
+        let directory = self.handle else error(io.closed, "the directory is closed")
+        while true:
+            let name = try next_entry(directory) else return none
+            if name != "." and name != "..":
+                return name
+
+    ## Consume ownership even on failure; repeated calls on this value are safe.
+    pub mutating func close() -> !:
+        let directory = self.handle else return
+        self.handle = none
+        if closedir(directory) != 0:
+            error(classify_error(c.errno()), "the directory could not be closed")
+
+    ## Best-effort unwind cleanup; use close to observe an error on the success path.
+    pub mutating func destroy():
+        self.close() catch failure:
+            discard(failure)
+
+## The names in a directory, sorted by bytes, without `.` and `..`: each name and the
+## array holding them, exactly as long as the names, are allocations of the current
+## allocator, which `release_list` returns together. On a failure nothing allocated is
+## kept and the directory is closed.
+pub func list(path: c.str) -> str[]!:
+    var directory = try Directory.open(path)
+    defer directory.destroy()
+    var names = try alloc str[16]
+    var count: usize = 0
+    errdefer release_entries(names, count)
+    while let name = try directory.next():
+        if count == names.length:
+            let capacity = names.length *? 2 else error(memory.exhausted, "the directory listing is too large")
+            let grown = try alloc str[capacity]
+            memory.copy(grown, names, count)
+            free(names)
+            names = grown
+        let copy = try alloc u8[name.length + 1]
+        memory.copy(copy, name.bytes, name.length)
+        copy[name.length] = 0
+        names[count] = (str)copy[..<name.length]
+        count += 1
+    try directory.close()
+    sort_names(names[..<count])
+    # the array as long as the names, so that `release_list` returns what was allocated
+    if count == 0:
+        free(names)
+        var empty: str[]
+        return empty
+    let exact = try alloc str[count]
+    memory.copy(exact, names, count)
+    free(names)
+    return exact
+
+## In-place heapsort gives large directories O(n log n) comparisons without a
+## second allocation or a recursion depth dependent on filesystem enumeration order.
+func sort_names(names: str[]):
+    var root = names.length // 2
+    while root > 0:
+        root -= 1
+        sift_names(names, root, names.length)
+    var end = names.length
+    while end > 1:
+        end -= 1
+        let largest = names[0]
+        names[0] = names[end]
+        names[end] = largest
+        sift_names(names, 0, end)
+
+func sift_names(names: str[], start: usize, end: usize):
+    var parent = start
+    while parent < end // 2:
+        var child = parent * 2 + 1
+        if child + 1 < end and names[child] < names[child + 1]:
+            child += 1
+        if not (names[parent] < names[child]):
+            return
+        let saved = names[parent]
+        names[parent] = names[child]
+        names[child] = saved
+        parent = child
+
+## Return what `list` allocated: every name, then the array, to the allocator that is
+## current, which must be the one `list` allocated from. The names are one byte longer
+## than they read, the NUL after each (§5.5).
+pub func release_list(names: str[]):
+    release_entries(names, names.length)
+
+## Partial lists still own the whole array allocation, including its unfilled capacity.
+func release_entries(names: str[], count: usize):
+    for name in names[..<count]:
+        free(u8[]((u8*)name.bytes.data, name.length + 1))
+    if names.length > 0:
+        free(names)

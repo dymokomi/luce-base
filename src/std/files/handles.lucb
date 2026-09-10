@@ -1,0 +1,142 @@
+## File opening policy. `replace` creates or truncates; `create_new` refuses an
+## existing path; `create_new_read_write` also permits reads. `append` creates if
+## needed and makes each write append atomically.
+## Creation permissions are filtered by the process umask, never changed afterward.
+pub enum OpenMode as u8:
+    read = 0
+    read_write = 1
+    replace = 2
+    create_new = 3
+    append = 4
+    create_new_read_write = 5
+
+pub enum SeekOrigin as u8:
+    start = 0
+    current = 1
+    end = 2
+
+## One owned descriptor. The zero value is closed. Borrow through a pointer or an
+## io interface; copying this value does not duplicate ownership or the OS handle.
+## A copied value must not be independently closed. Calls on one handle require
+## external synchronization. `close` reports errors; `destroy` is unwind cleanup.
+pub struct File: io.Reader, io.Writer:
+    var handle: i32?
+
+    ## Open a close-on-exec descriptor. Only the named creation modes create paths.
+    pub static func open(path: c.str, mode: OpenMode = OpenMode.read, permissions: u32 = 420) -> File!:
+        if permissions > 4095:
+            error(invalid_options, "file permissions must fit the Unix mode bits")
+        var flags = close_on_exec
+        if mode == OpenMode.read_write:
+            flags |= 2
+        elif mode == OpenMode.replace:
+            flags |= write_only | create | truncate
+        elif mode == OpenMode.create_new or mode == OpenMode.create_new_read_write:
+            flags |= create | exclusive_flag | (2 if mode == OpenMode.create_new_read_write else write_only)
+        elif mode == OpenMode.append:
+            flags |= write_only | create | append_flag
+        elif mode != OpenMode.read:
+            error(invalid_options, "unknown file opening mode")
+        var fd = open(path, flags, permissions)
+        while fd < 0 and c.errno() == c.interrupted:
+            fd = open(path, flags, permissions)
+        if fd < 0:
+            error(classify_error(c.errno()), "the file could not be opened")
+        return File(handle = fd)
+
+    ## Borrow the descriptor for OS interoperability; none after close. The caller
+    ## must not close it or retain it past this owner's lifetime.
+    pub func descriptor() -> i32?:
+        return self.handle
+
+    ## Read some bytes, retrying interruption. Zero for nonempty storage is EOF;
+    ## empty input makes no system call. The handle must be open even for empty I/O.
+    pub mutating func read(buffer: u8[]) -> usize!:
+        let fd = self.handle else error(io.closed, "the file is closed")
+        if buffer.length == 0:
+            return 0
+        let count = buffer.length if buffer.length < transfer_limit else transfer_limit
+        var received = c_read(fd, buffer.data, count)
+        while received < 0 and c.errno() == c.interrupted:
+            received = c_read(fd, buffer.data, count)
+        if received < 0:
+            error(classify_error(c.errno()), "the file could not be read")
+        return (usize)received
+
+    ## Write some bytes, retrying interruption. Use io.write_all for a full payload.
+    ## Success confirms an OS write, not durable storage; call sync when required.
+    pub mutating func write(data: const u8[]) -> usize!:
+        let fd = self.handle else error(io.closed, "the file is closed")
+        if data.length == 0:
+            return 0
+        let count = data.length if data.length < transfer_limit else transfer_limit
+        var written = c_write(fd, data.data, count)
+        while written < 0 and c.errno() == c.interrupted:
+            written = c_write(fd, data.data, count)
+        if written < 0:
+            error(classify_error(c.errno()), "the file could not be written")
+        return (usize)written
+
+    ## Seek a seekable file and return its resulting byte offset. Pipes and other
+    ## unseekable descriptors report failure instead of pretending their size is zero.
+    pub mutating func seek(offset: i64, origin: SeekOrigin = SeekOrigin.start) -> i64!:
+        let fd = self.handle else error(io.closed, "the file is closed")
+        var position = lseek(fd, offset, (i32)origin)
+        while position < 0 and c.errno() == c.interrupted:
+            position = lseek(fd, offset, (i32)origin)
+        if position < 0:
+            error(classify_error(c.errno()), "the file could not be positioned")
+        return position
+
+    ## Request the OS's fsync durability boundary for this file; this does not sync
+    ## a containing directory or promise persistence beyond the OS/device contract.
+    pub mutating func sync() -> !:
+        let fd = self.handle else error(io.closed, "the file is closed")
+        var result = fsync(fd)
+        while result < 0 and c.errno() == c.interrupted:
+            result = fsync(fd)
+        if result < 0:
+            error(classify_error(c.errno()), "the file could not be synchronized")
+
+    ## Consume ownership before closing, so repeated calls on this value are safe
+    ## even after failure. Never retry close: a reused descriptor may belong to
+    ## another thread. A reported failure must not be retried using descriptor().
+    pub mutating func close() -> !:
+        let fd = self.handle else return
+        self.handle = none
+        if close(fd) != 0:
+            error(classify_error(c.errno()), "the file could not be closed")
+
+    ## Best-effort cleanup while unwinding another error. Use close explicitly on
+    ## the successful path when delayed close errors must be reported to the caller.
+    pub mutating func destroy():
+        self.close() catch failure:
+            discard(failure)
+
+func classify_error(number: i32) -> ErrorCode:
+    if number == 2:
+        return missing
+    if number == 1 or number == 13:
+        return permission_denied
+    if number == 17:
+        return already_exists
+    if number == 28:
+        return no_space
+    if number == 20:
+        return not_directory
+    if number == 21:
+        return is_directory
+    if number == 30:
+        return read_only_filesystem
+    if number == (66 if platform.macos else 39):
+        return not_empty
+    if number == 18:
+        return cross_device
+    if number == (62 if platform.macos else 40):
+        return symlink_loop
+    if number == (63 if platform.macos else 36):
+        return name_too_long
+    if number == would_block_errno:
+        return would_block
+    return failed
+

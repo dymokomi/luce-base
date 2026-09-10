@@ -1,0 +1,91 @@
+## Whether the path currently resolves to an existing object, following symlinks.
+## This convenience form returns false on lookup errors; use exists_checked when
+## permission or I/O failures must be distinguished from absence. It never opens a
+## file, so checking a FIFO cannot block waiting for a writer.
+pub func exists(path: c.str) -> bool:
+    return exists_checked(path) catch failure:
+        discard(failure)
+        recover false
+
+## Checked existence lookup. Missing components, non-directory parent components
+## and dangling symlinks return false. Other failures retain their error category.
+pub func exists_checked(path: c.str) -> bool!:
+    var result = access(path, 0)
+    while result < 0 and c.errno() == c.interrupted:
+        result = access(path, 0)
+    if result == 0:
+        return true
+    let number = c.errno()
+    if number == 2 or number == 20:
+        return false
+    error(classify_error(number), "the path could not be inspected")
+
+## Create one directory; parents must already exist. An existing final entry is
+## already_exists, including a symlink. Permissions are filtered by the process
+## umask. No recursive creation, permission repair, or implicit retry occurs.
+pub func create_directory(path: c.str, permissions: u32 = 493) -> !:
+    if permissions > 4095:
+        error(invalid_options, "directory permissions must fit the Unix mode bits")
+    let result = mkdir_macos(path, (u16)permissions) if platform.macos else mkdir_linux(path, permissions)
+    if result != 0:
+        error(classify_error(c.errno()), "the directory could not be created")
+
+## Remove one non-directory entry. A final symlink is removed without touching
+## its target. Open handles and other hard links keep the object alive. Parents
+## are resolved normally; a missing entry is an error, not successful removal.
+pub func remove_file(path: c.str) -> !:
+    if unlink(path) != 0:
+        error(classify_error(c.errno()), "the file entry could not be removed")
+
+## Remove an empty directory; do not recurse or follow a final symlink. A
+## nonempty directory reports not_empty (or already_exists if the OS uses EEXIST).
+pub func remove_directory(path: c.str) -> !:
+    if rmdir(path) != 0:
+        error(classify_error(c.errno()), "the directory could not be removed")
+
+## Rename an entry, atomically replacing an existing compatible destination on
+## the same filesystem. Final symlinks are entries, not followed targets. Open
+## handles keep referring to their objects. This does not copy across devices,
+## request durable storage, or implement no-replace semantics. On a remote
+## filesystem a reported failure may follow a completed server-side mutation.
+pub func rename(source: c.str, destination: c.str) -> !:
+    if c_rename(source, destination) != 0:
+        error(classify_error(c.errno()), "the entry could not be renamed")
+
+## Create a symlink containing target's bytes; the target need not exist. A
+## relative target is resolved from the link's parent when later followed.
+## Creation refuses an existing link_path, including a dangling symlink.
+pub func create_symlink(target: c.str, link_path: c.str) -> !:
+    if symlink(target, link_path) != 0:
+        error(classify_error(c.errno()), "the symbolic link could not be created")
+
+## Create another name for the source entry on the same filesystem, refusing an
+## existing destination. A final source symlink is linked itself, not followed.
+## Directories cannot be linked. Intermediate path components resolve normally.
+pub func create_hard_link(source: c.str, destination: c.str) -> !:
+    let working_directory: i32 = -2 if platform.macos else -100
+    if linkat(working_directory, source, working_directory, destination, 0) != 0:
+        error(classify_error(c.errno()), "the hard link could not be created")
+
+## Read a final symlink's raw target bytes without following it. Return a
+## NUL-terminated current-allocator allocation released with strings.release.
+## At most limit bytes are accepted; excess reports too_large, never truncates.
+## One extra byte detects excess without trusting metadata. Interrupted reads
+## retry; concurrent replacement may therefore change the observed link target.
+pub func read_symlink(path: c.str, limit: usize = 4096) -> str!:
+    let capacity = limit +? 1 else error(memory.exhausted, "the link target limit overflows")
+    let buffer = try alloc u8[capacity]
+    defer free(buffer)
+    var count = readlink(path, buffer.data, buffer.length)
+    while count < 0 and c.errno() == c.interrupted:
+        count = readlink(path, buffer.data, buffer.length)
+    if count < 0:
+        error(classify_error(c.errno()), "the symbolic link could not be read")
+    if (usize)count > limit:
+        error(too_large, "the link target exceeds the requested limit")
+    let length = (usize)count
+    let exact = try alloc u8[length + 1]
+    memory.copy(exact, buffer, length)
+    exact[length] = 0
+    return (str)exact[..<length]
+

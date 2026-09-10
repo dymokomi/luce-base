@@ -70,10 +70,15 @@ class Findings:
 # ---- mutation ------------------------------------------------------------------------
 
 def corpus():
+    from standard_library import module_names, module_source
     files = []
-    for pattern in ("tests/samples/*.lucb", "tests/conformance/*/*.lucb", "tests/conformance/*/*/*.lucb", "src/std/*.lucb"):
+    for pattern in ("tests/samples/*.lucb", "tests/conformance/*/*.lucb", "tests/conformance/*/*/*.lucb"):
         files += sorted(root.glob(pattern))
-    return [f for f in files if f.stat().st_size < 60000]
+    sources = [(path.name, path.read_bytes()) for path in files]
+    directory = root / "src/std"
+    sources += [(f"{name}.lucb", module_source(directory, name).encode())
+                for name in sorted(module_names(directory))]
+    return [(name, data) for name, data in sources if len(data) < 60000]
 
 
 token = re.compile(rb"[A-Za-z_][A-Za-z0-9_]*|\d+|\S", re.S)
@@ -684,9 +689,9 @@ def main():
             left = max(0, int(deadline - time.time()))
             print(f"fuzz: round {round_}, {done_m} mutations, {done_p} programs, {findings.count} findings, {left // 60} min left", flush=True)
         for k in range(mutations):
-            f = rng.choice(files)
-            text = mutate(f.read_bytes(), rng)
-            check_one(text, 20, findings, f"mutation {done_m + 1} of {f.name} (seed {seed})")
+            name, source = rng.choice(files)
+            text = mutate(source, rng)
+            check_one(text, 20, findings, f"mutation {done_m + 1} of {name} (seed {seed})")
             done_m += 1
             if deadline and time.time() > deadline:
                 break
