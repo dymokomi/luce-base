@@ -1,12 +1,17 @@
 # Ecosystem roadmap
 
-Work proceeds in this order. A stage closes against its acceptance criteria before
-implementation of the next stage begins. Compiler defects exposed by a stage are
-fixed as prerequisites; unrelated compiler features stay in the backlog.
+The standard-library stage is complete. At the user's request on 2026-09-10,
+`luce-server` now proceeds before TLS completion. `luce-tls` is paused at its
+committed identity/dependency checkpoint. Its post-quantum profile remains required
+for later Luce communication and package-client traffic.
 
-Current stage: **2, luce-tls**. Stage 1 closed for Base 0.12.0 on 2026-09-10;
-[standard-library readiness](STDLIB.md) records the Base and downstream Luce gates
-on both native hosts.
+Current stage: **luce-server**, HTTP and static/file serving in Luce. Keep transport
+separate so TLS can be integrated when its own gate closes. The package-manager stage
+still depends on both packages. Compiler defects exposed by the active stage are
+fixed as prerequisites; unrelated features stay in the backlog.
+
+Stage 1 closed for Base 0.12.0 on 2026-09-10; [standard-library readiness](STDLIB.md)
+records the Base and downstream Luce gates on both native hosts.
 
 ## Repository boundaries
 
@@ -95,7 +100,8 @@ using a new implementation to protect deployed traffic.
 
 ## 3. luce-server
 
-Build a Luce HTTP server package on the completed library and TLS package. Target a
+Build a Luce HTTP server package on the completed standard library. TLS integration
+follows completion of the paused TLS package. Target a
 FastAPI-like programming model: routing, typed request parsing/validation, structured
 responses, middleware, application lifecycle and useful errors. Include static files,
 streamed uploads/downloads, limits, timeouts, backpressure, cancellation, graceful
