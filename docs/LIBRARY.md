@@ -143,6 +143,23 @@ A writer into fixed borrowed storage. Copying it copies the cursor and aliases s
 - `func written() -> const u8[]` — View of confirmed written bytes, borrowed from the caller's storage.
 - `mutating func write(data: const u8[]) -> usize!`
 
+### `BufferedReader` (struct: Reader)
+
+Buffered input over a borrowed source and nonempty caller-owned storage. Both must outlive this adapter. Storage must not overlap source state or read buffers. Construct with `over`; serialize access and do not use copied adapters together. Reads may prefetch beyond the requested bytes. The adapter never closes its source.
+
+- `static func over(source: Reader, storage: u8[]) -> BufferedReader!`
+- `func buffered() -> usize` — Unread bytes already fetched. No source operation occurs.
+- `mutating func read(buffer: u8[]) -> usize!` — Return buffered bytes first, otherwise perform one source read. Empty reads do not call the source. EOF is not cached, allowing a growing source to resume.
+
+### `BufferedWriter` (struct: Writer)
+
+Buffered output over a borrowed sink and nonempty caller-owned storage. Both must outlive this adapter; storage must not overlap sink state or write input. Construct with `over`; serialize access and do not use copied adapters together. Explicitly flush before discarding the adapter. There is no implicit flush/close.
+
+- `static func over(destination: Writer, storage: u8[]) -> BufferedWriter!`
+- `func buffered() -> usize` — Bytes accepted by this adapter but not yet confirmed by the destination.
+- `mutating func flush() -> !` — Drain this buffer, preserving the unconfirmed suffix if the sink fails. Retrying does not resend bytes confirmed by earlier successful sink writes. This neither flushes downstream buffers nor requests filesystem durability.
+- `mutating func write(data: const u8[]) -> usize!` — Accept up to the remaining capacity. A full buffer is drained before any new input is accepted; a failure accepts none of this call's input. Empty writes do not drain the buffer. Use write_all to accept an entire payload.
+
 ### `Location` (struct)
 
 A compile-time source position, the value of `luce.location`.

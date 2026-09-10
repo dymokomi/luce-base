@@ -1100,6 +1100,85 @@ pub struct SliceWriter: Writer:
         self.used += count
         return count
 
+## Buffered input over a borrowed source and nonempty caller-owned storage. Both
+## must outlive this adapter. Storage must not overlap source state or read buffers.
+## Construct with `over`; serialize access and do not use copied adapters together.
+## Reads may prefetch beyond the requested bytes. The adapter never closes its source.
+pub struct BufferedReader: Reader:
+    var source: Reader
+    var storage: u8[]
+    var position: usize
+    var used: usize
+
+    pub static func over(source: Reader, storage: u8[]) -> BufferedReader!:
+        if storage.length == 0:
+            error(invalid_buffer, "buffered input requires nonempty storage")
+        return BufferedReader(source = source, storage = storage, position = 0, used = 0)
+
+    ## Unread bytes already fetched. No source operation occurs.
+    pub func buffered() -> usize:
+        return self.used - self.position
+
+    ## Return buffered bytes first, otherwise perform one source read. Empty reads
+    ## do not call the source. EOF is not cached, allowing a growing source to resume.
+    pub mutating func read(buffer: u8[]) -> usize!:
+        if buffer.length == 0:
+            return 0
+        if self.position == self.used:
+            let count = try self.source.read(self.storage)
+            if count > self.storage.length:
+                error(invalid_count, "the reader returned more bytes than requested")
+            self.position = 0
+            self.used = count
+        let available = self.buffered()
+        let count = buffer.length if buffer.length < available else available
+        memory.copy(buffer, self.storage[self.position..], count)
+        self.position += count
+        return count
+
+## Buffered output over a borrowed sink and nonempty caller-owned storage. Both
+## must outlive this adapter; storage must not overlap sink state or write input.
+## Construct with `over`; serialize access and do not use copied adapters together.
+## Explicitly flush before discarding the adapter. There is no implicit flush/close.
+pub struct BufferedWriter: Writer:
+    var destination: Writer
+    var storage: u8[]
+    var used: usize
+
+    pub static func over(destination: Writer, storage: u8[]) -> BufferedWriter!:
+        if storage.length == 0:
+            error(invalid_buffer, "buffered output requires nonempty storage")
+        return BufferedWriter(destination = destination, storage = storage, used = 0)
+
+    ## Bytes accepted by this adapter but not yet confirmed by the destination.
+    pub func buffered() -> usize:
+        return self.used
+
+    ## Drain this buffer, preserving the unconfirmed suffix if the sink fails.
+    ## Retrying does not resend bytes confirmed by earlier successful sink writes.
+    ## This neither flushes downstream buffers nor requests filesystem durability.
+    pub mutating func flush() -> !:
+        var written: usize = 0
+        write_all(self.destination, self.storage[..<self.used], &written) catch failure:
+            self.used -= written
+            memory.move(self.storage, self.storage[written..], self.used)
+            error(failure.code, failure.message)
+        self.used = 0
+
+    ## Accept up to the remaining capacity. A full buffer is drained before any
+    ## new input is accepted; a failure accepts none of this call's input. Empty
+    ## writes do not drain the buffer. Use write_all to accept an entire payload.
+    pub mutating func write(data: const u8[]) -> usize!:
+        if data.length == 0:
+            return 0
+        if self.used == self.storage.length:
+            try self.flush()
+        let available = self.storage.length - self.used
+        let count = data.length if data.length < available else available
+        memory.copy(self.storage[self.used..], data, count)
+        self.used += count
+        return count
+
 ## A compile-time source position, the value of `luce.location`.
 pub struct Location:
     pub var file: str

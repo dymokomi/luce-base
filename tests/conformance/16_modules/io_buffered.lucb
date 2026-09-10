@@ -1,0 +1,142 @@
+# oracle: none -- Buffered adapters are Base library implementations.
+import io
+import memory
+
+## Confirm two bytes per call and fail once at a chosen boundary. This models a
+## recoverable transport failure between successful writes, not an atomic sink.
+struct RetryWriter: io.Writer:
+    var output: u8[]
+    var used: usize
+    var stop: usize
+    var failed: bool
+    var calls: usize
+
+    pub mutating func write(data: const u8[]) -> usize!:
+        self.calls += 1
+        if self.used == self.stop and not self.failed:
+            self.failed = true
+            error(io.closed, "injected write failure")
+        let count = 2 if data.length > 2 else data.length
+        memory.copy(self.output[self.used..], data, count)
+        self.used += count
+        return count
+
+struct RetryReader: io.Reader:
+    var source: io.SliceReader
+    var fail: bool
+    var calls: usize
+
+    pub mutating func read(buffer: u8[]) -> usize!:
+        self.calls += 1
+        if self.fail:
+            self.fail = false
+            error(io.closed, "injected read failure")
+        return try self.source.read(buffer)
+
+func input_cases() -> !:
+    var storage: u8[4]
+    var output: u8[6]
+    var source = RetryReader(source = io.SliceReader.over("abcdef".bytes), fail = true)
+    var reader = try io.BufferedReader.over(&source, storage)
+    assert(try reader.read(output[..<0]) == 0 and source.calls == 0)
+    var rejected = false
+    discard(reader.read(output) catch failure:
+        assert(failure.code == io.closed)
+        rejected = true
+        recover 0)
+    assert(rejected and reader.buffered() == 0)
+    assert(try reader.read(output[..<1]) == 1)
+    assert(source.calls == 2 and reader.buffered() == 3)
+    try io.read_exact(&reader, output[1..])
+    assert((str)output == "abcdef" and source.calls == 3)
+    assert(try reader.read(output) == 0)
+    # EOF is transient for sources such as files that can grow.
+    source.source = io.SliceReader.over("xy".bytes)
+    assert(try reader.read(output) == 2)
+    assert((str)output[..<2] == "xy")
+    rejected = false
+    discard(io.BufferedReader.over(&source, storage[..<0]) catch failure:
+        assert(failure.code == io.invalid_buffer)
+        rejected = true
+        recover reader)
+    assert(rejected)
+
+func output_cases() -> !:
+    var storage: u8[4]
+    var output: u8[12]
+    var sink = RetryWriter(output = output, stop = 2)
+    var writer = try io.BufferedWriter.over(&sink, storage)
+    try io.write_all(&writer, "abcd".bytes)
+    assert(sink.calls == 0 and writer.buffered() == 4)
+    assert(try writer.write("".bytes) == 0 and sink.calls == 0)
+    var rejected = false
+    # A full buffer drains before accepting new input. Two bytes succeed, then
+    # the fault fires: only cd remains buffered and ef has not been accepted.
+    discard(writer.write("ef".bytes) catch failure:
+        assert(failure.code == io.closed)
+        rejected = true
+        recover 0)
+    assert(rejected and sink.used == 2 and writer.buffered() == 2)
+    assert((str)output[..<2] == "ab")
+    try io.write_all(&writer, "efghij".bytes)
+    try writer.flush()
+    assert((str)output[..<sink.used] == "abcdefghij")
+    assert(writer.buffered() == 0)
+    let calls = sink.calls
+    try writer.flush()
+    assert(sink.calls == calls)
+    rejected = false
+    discard(io.BufferedWriter.over(&sink, storage[..<0]) catch failure:
+        assert(failure.code == io.invalid_buffer)
+        rejected = true
+        recover writer)
+    assert(rejected)
+
+## Invalid endpoints must fail promptly and preserve buffered output for retry.
+struct InvalidSink: io.Writer:
+    var oversized: bool
+    pub mutating func write(data: const u8[]) -> usize!:
+        return data.length + 1 if self.oversized else 0
+
+struct InvalidSource: io.Reader:
+    var unused: u8
+    pub mutating func read(buffer: u8[]) -> usize!:
+        return buffer.length + 1
+
+func invalid_sink_cases() -> !:
+    var storage: u8[3]
+    var sink = InvalidSink(oversized = false)
+    var writer = try io.BufferedWriter.over(&sink, storage)
+    try io.write_all(&writer, "abc".bytes)
+    var rejected = false
+    writer.flush() catch failure:
+        assert(failure.code == io.no_progress)
+        rejected = true
+    assert(rejected and writer.buffered() == 3)
+
+    sink.oversized = true
+    rejected = false
+    writer.flush() catch failure:
+        assert(failure.code == io.invalid_count)
+        rejected = true
+    assert(rejected and writer.buffered() == 3)
+
+func invalid_source_cases() -> !:
+    var storage: u8[3]
+    var output: u8[1]
+    var source = InvalidSource()
+    var reader = try io.BufferedReader.over(&source, storage)
+    var rejected = false
+    discard(reader.read(output) catch failure:
+        assert(failure.code == io.invalid_count)
+        rejected = true
+        recover 0)
+    assert(rejected and reader.buffered() == 0)
+
+pub func main(arguments: str[]) -> i32!:
+    try input_cases()
+    try output_cases()
+    try invalid_sink_cases()
+    try invalid_source_cases()
+    print("ok buffered io")
+    return 0
