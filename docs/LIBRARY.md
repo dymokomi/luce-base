@@ -284,7 +284,11 @@ A counting semaphore whose waiters sleep.
 
 ## `utf8`
 
-Strict UTF-8 scalar encoding and decoding, following RFC 3629 sections 3–4. https://www.rfc-editor.org/rfc/rfc3629.html These allocation-free operations accept raw bytes and do not replace invalid input, normalize text, strip a BOM, or apply locale rules. Noncharacters and unassigned scalar values are valid; surrogate values are not. Storage is borrowed. One decoded scalar and the number of source bytes consumed.
+Strict UTF-8 scalar encoding and decoding, following RFC 3629 sections 3–4. https://www.rfc-editor.org/rfc/rfc3629.html These allocation-free operations accept raw bytes and do not replace invalid input, normalize text, strip a BOM, or apply locale rules. Noncharacters and unassigned scalar values are valid; surrogate values are not. Storage is borrowed.
+
+- `let invalid_sequence: ErrorCode = ErrorCode.package(54)`
+
+- `let incomplete_sequence: ErrorCode = ErrorCode.package(55)`
 
 ### `Decoded` (struct)
 
@@ -302,6 +306,16 @@ One decoded scalar and the number of source bytes consumed.
 - `func valid(data: const u8[]) -> bool` — Whether all bytes form valid UTF-8; empty input is valid.
 
 - `func encode(scalar: u32, buffer: u8[]) -> usize?` — Encode a scalar into the start of the buffer, returning bytes written. None means an invalid scalar or insufficient space; the buffer is then unchanged. Bytes beyond the returned length are untouched. No NUL terminator is appended.
+
+### `Decoder` (struct)
+
+Incremental strict UTF-8 decoder with inline state and no allocation. A zero value is ready for input. Keep one decoder per stream; calls require exclusive access. Chunk boundaries have no meaning: push every byte in order, then call finish at EOF. Malformed input and a truncated final scalar latch a failure; subsequent push/finish calls fail until reset explicitly starts a new stream.
+
+- `mutating func push(byte: u8) -> char?!` — Consume one byte, returning a scalar only when its complete encoding has arrived. None means a valid but incomplete prefix. Reject invalid lead or continuation bytes immediately, including prefixes that can only encode an overlong value, surrogate, or value above U+10FFFF. The failing byte is consumed; no replacement scalar is emitted and input is never replayed.
+- `mutating func finish() -> !` — Validate EOF. Empty streams and complete scalars succeed; an unfinished scalar reports incomplete_sequence. Success is idempotent and does not seal the decoder: more bytes may follow when the caller resumes a stream.
+- `func is_pending() -> bool` — Whether a valid prefix is waiting for continuation bytes. False after a failure, even when the rejected sequence had an unfinished prefix.
+- `func is_failed() -> bool` — Whether malformed input or incomplete EOF has latched a failure.
+- `mutating func reset()` — Discard any partial scalar and latched error; begin an independent stream.
 
 ## `strings`
 

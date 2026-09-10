@@ -1,9 +1,3 @@
-## Strict UTF-8 scalar encoding and decoding, following RFC 3629 sections 3–4.
-## https://www.rfc-editor.org/rfc/rfc3629.html
-## These allocation-free operations accept raw bytes and do not replace invalid
-## input, normalize text, strip a BOM, or apply locale rules. Noncharacters and
-## unassigned scalar values are valid; surrogate values are not. Storage is borrowed.
-
 ## One decoded scalar and the number of source bytes consumed.
 pub struct Decoded:
     pub var scalar: char

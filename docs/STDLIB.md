@@ -25,7 +25,7 @@ Define EOF, zero-length operations, interruption, would-block and timeout separa
 | `net` | IPv4/IPv6 value parsing, canonical formatting and byte conversion; IPv4/IPv6 TCP/UDP, first/all-address resolution with owned results and blocking sockets; TCP Reader/Writer with explicit short transfers and recoverable write progress, closed zero values, checked close/adoption, close-on-exec handles, local/peer endpoint queries, configurable backlog, TCP half-close and explicit UDP truncation/empty-packet behavior; nonblocking controls, explicit accepted-socket mode, TCP no-delay/keepalive and kernel buffer settings; reusable readiness polling, bounded connection setup, borrowed deadline streams with cancellation and typed host error categories | Sustained concurrent transfer coverage |
 | `io` | Reader/Writer contracts, borrowed slice and buffered adapters, exact/all/bounded-copy helpers with confirmed progress, unbuffered stdin, synchronized libc stdout/stderr, explicit flush and formatting sink | Seeking where supported, broader concurrent and sustained-transfer coverage; confirm file/socket adapters are ready for the later TLS stage |
 | `files` | Owned Reader/Writer handles, open modes, seeking/sync, checked close, path/handle metadata and checked length/permission/timestamp updates; bounded streaming whole-file helpers, owned directory iteration, bounded depth-first traversal and descriptor-relative lookup/open, checked existence, single-entry mutation, bounded symlink reads, owned temporary files and atomic replacement and bounded copying with publication status | Broader concurrent filesystem campaigns and error detail |
-| `strings`, `utf8` | Linear forward/reverse byte searches and offset searches, byte and substring splitting with borrowed iterators, bounded substring replacement, ASCII case conversion, checked signed/unsigned radix conversion, locale-independent floating-point text conversion, an alias-safe builder and strict UTF-8 scalar operations | Document byte offsets/borrowed views; streaming UTF-8 decoding and Unicode-aware operations separate from ASCII helpers |
+| `strings`, `utf8` | Linear forward/reverse byte searches and offset searches, byte and substring splitting with borrowed iterators, bounded substring replacement, ASCII case conversion, checked signed/unsigned radix conversion, locale-independent floating-point text conversion, an alias-safe builder, strict UTF-8 scalar operations and an allocation-free streaming decoder | Document byte offsets/borrowed views; Unicode-aware operations separate from ASCII helpers |
 
 Do not silently change existing ASCII functions into locale-dependent Unicode
 operations. Define Unicode version and invalid-input policy before exposing Unicode
@@ -218,3 +218,12 @@ and leave output storage unchanged. Exact-rational IEEE reference vectors, rando
 finite values, midpoint/subnormal/overflow boundaries, rounding-mode checks and
 injected locale/conversion/formatting failures run in all six configurations. Tests
 preserve an existing thread locale, using a comma-decimal locale when installed.
+
+The UTF-8 Decoder retains a partial scalar across arbitrary chunk boundaries and
+returns a scalar only after its final byte. It rejects impossible prefixes as soon
+as they arrive; finish distinguishes incomplete EOF from malformed bytes. Errors
+remain latched until reset, and no replacement characters are synthesized. The
+inline state needs no allocator. Scalar and streaming implementations live in
+separate fragments of the same utf8 module. Tests stream every Unicode scalar and
+compare malformed prefixes, failure timing, EOF, reset and repeated errors against
+Python's strict codec in all six configurations under a refusing allocator.

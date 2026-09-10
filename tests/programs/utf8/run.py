@@ -2,6 +2,7 @@
 """Independent UTF-8 references from Python's strict codec; fixed replay seed."""
 from pathlib import Path
 import random
+import struct
 import subprocess
 import sys
 
@@ -16,6 +17,7 @@ reference = OUTPUT / "scalars.bin"
 reference.write_bytes("".join(chr(n) for n in range(0x110000)
                              if not 0xD800 <= n <= 0xDFFF).encode("utf-8"))
 corpus = bytearray()
+stream_corpus = bytearray()
 
 
 def add(data):
@@ -26,6 +28,32 @@ def add(data):
         invalid = failure.start
     corpus.extend((len(data), invalid))
     corpus.extend(data)
+    results = [0xFFFFFFFF] * len(data)
+    failure_at, failure_kind = 255, 0
+    decoded_count = 0
+    for index, byte in enumerate(data):
+        try:
+            decoded = data[:index + 1].decode("utf-8", errors="strict")
+        except UnicodeDecodeError as failure:
+            # Final decoding distinguishes an incomplete valid prefix from an
+            # impossible prefix. CPython's incremental decoder can defer the
+            # ED A0 surrogate-prefix error until a third byte arrives.
+            if failure.reason == "unexpected end of data":
+                continue
+            failure_at, failure_kind = index, 1
+            break
+        assert len(decoded) == decoded_count + 1
+        results[index] = ord(decoded[-1])
+        decoded_count += 1
+    else:
+        try:
+            data.decode("utf-8", errors="strict")
+        except UnicodeDecodeError:
+            failure_at, failure_kind = len(data), 2
+    stream_corpus.extend((len(data), failure_at, failure_kind))
+    stream_corpus.extend(data)
+    for scalar in results:
+        stream_corpus.extend(struct.pack("<I", scalar))
 
 
 add(b"")
@@ -48,12 +76,16 @@ for _ in range(10000):
     add(bytes(randomizer.randrange(256) for _ in range(randomizer.randrange(9))))
 corpus_path = OUTPUT / "malformed.bin"
 corpus_path.write_bytes(corpus)
+stream_path = OUTPUT / "stream.bin"
+stream_path.write_bytes(stream_corpus)
 
 executable = OUTPUT / "check"
 for flags in [*[["--native", "--opt", str(level)] for level in range(4)],
               ["--backend=c"], ["--backend=c", "--release"]]:
     commands = ([COMPILER, "build", ROOT / "tests/programs/utf8/main.lucb",
-                 *flags, "-o", executable], [executable, reference, corpus_path])
+                 *flags, "-o", executable], [executable, reference, corpus_path],
+                [COMPILER, "build", ROOT / "tests/programs/utf8/stream.lucb",
+                 *flags, "-o", executable], [executable, reference, stream_path])
     for command in commands:
         subprocess.run([sys.executable, ROOT / "tools/run_case.py", "--", *command],
                        cwd=ROOT, check=True)
