@@ -65,7 +65,7 @@ pub func to_lower(text: str) -> str!:
     out[i] = 0
     return (str)out[..<i]
 
-## Give back a text `join`, `copy`, `to_upper`, or `to_lower` answered: the allocation is
+## Give back text from join, copy, replace, to_upper or to_lower: the allocation is
 ## one byte longer than the text, its NUL.
 pub func release(text: str):
     free(u8[]((u8*)text.bytes.data, text.length + 1))

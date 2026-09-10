@@ -4,7 +4,7 @@ pub func split(text: str, separator: u8) -> str[]!:
     var count: usize = 1
     for b in text.bytes:
         if b == separator:
-            count += 1
+            count = count +? 1 else error(memory.exhausted, "the split result is too large")
     let parts = try alloc str[count]
     var n: usize = 0
     var start: usize = 0
@@ -19,3 +19,65 @@ pub func split(text: str, separator: u8) -> str[]!:
     parts[n] = (str)b[start..]
     return parts
 
+## Split a borrowed text at a nonempty byte substring. Empty fields, including the
+## final one after a trailing separator, are preserved. Zero is an exhausted
+## iterator. Keep text and separator storage alive and unchanged while iterating.
+pub struct SplitIterator:
+    var text: str
+    var separator: str
+    var position: usize
+    var remaining: usize
+    var active: bool
+
+    ## max_parts=0 has no limit; one returns the entire input as a single field.
+    ## No allocation occurs. An empty separator reports invalid_separator.
+    pub static func over(text: str, separator: str, max_parts: usize = 0) -> SplitIterator!:
+        if separator.length == 0:
+            error(invalid_separator, "a split iterator requires a nonempty separator")
+        return SplitIterator(text = text, separator = separator, remaining = max_parts, active = true)
+
+    ## The next borrowed field. An empty field is present; none means exhausted.
+    pub mutating func next() -> str?:
+        if not self.active:
+            return none
+        if self.remaining == 1:
+            self.active = false
+            return (str)self.text.bytes[self.position..]
+        let found = find_from(self.text, self.separator, self.position)
+        if let end = found:
+            let start = self.position
+            self.position = end + self.separator.length
+            if self.remaining > 1:
+                self.remaining -= 1
+            return (str)self.text.bytes[start..<end]
+        self.active = false
+        return (str)self.text.bytes[self.position..]
+
+## An allocated array of borrowed fields with SplitIterator semantics. Free the
+## array through the allocator current on entry; its field bytes still borrow text.
+## max_parts=0 has no limit. An empty separator reports invalid_separator.
+pub func split_by(text: str, separator: str, max_parts: usize = 0) -> str[]!:
+    let initial = try SplitIterator.over(text, separator, max_parts)
+    var counter = initial
+    var count: usize = 0
+    while counter.next() != none:
+        count = count +? 1 else error(memory.exhausted, "the split result is too large")
+    let fields = try alloc str[count]
+    var iterator = initial
+    var index: usize = 0
+    while let field = iterator.next():
+        fields[index] = field
+        index += 1
+    return fields
+
+## Borrow the text before and after the first separator, or none if absent. The
+## separator is omitted. An empty separator splits at the start: (empty, text).
+pub func split_once(text: str, separator: str) -> (str, str)?:
+    let position = find(text, separator) else return none
+    return ((str)text.bytes[..<position], (str)text.bytes[position + separator.length..])
+
+## Borrow the text before and after the last separator, including overlapping
+## candidates. An empty separator splits at the end: (text, empty).
+pub func split_last(text: str, separator: str) -> (str, str)?:
+    let position = find_last(text, separator) else return none
+    return ((str)text.bytes[..<position], (str)text.bytes[position + separator.length..])

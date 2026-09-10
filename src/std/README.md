@@ -25,5 +25,5 @@ streams (`deadline_stream.lucb`), and TCP/UDP owners (`listener.lucb`,
 
 `strings/` separates common imports (`module.lucb`), byte searches (`search.lucb`),
 splitting (`split.lucb`), text transformations and owned text allocation
-(`transform.lucb`), numeric conversion (`numbers.lucb`), and the retained-allocator
+(`transform.lucb`), bounded replacement (`replace.lucb`), numeric conversion (`numbers.lucb`), and the retained-allocator
 builder (`builder.lucb`). Its public import remains `strings`.

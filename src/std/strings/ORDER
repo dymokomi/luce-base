@@ -2,5 +2,6 @@ module.lucb
 search.lucb
 split.lucb
 transform.lucb
+replace.lucb
 numbers.lucb
 builder.lucb

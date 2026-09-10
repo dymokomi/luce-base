@@ -305,7 +305,11 @@ One decoded scalar and the number of source bytes consumed.
 
 ## `strings`
 
-Text operations over `str` views; what allocates says so and uses the current allocator, and says how the allocation is given back: `release` for a text made here, `free` for the array `split` answers.
+Text operations over `str` views; what allocates says so and uses the current allocator, and says how the allocation is given back: `release` for a text made here, `free` for the borrowed-field arrays returned by split and split_by.
+
+- `let invalid_separator: ErrorCode = ErrorCode.package(48)`
+
+- `let output_too_large: ErrorCode = ErrorCode.package(49)`
 
 - `func starts_with(text: str, prefix: str) -> bool`
 
@@ -323,6 +327,19 @@ Text operations over `str` views; what allocates says so and uses the current al
 
 - `func split(text: str, separator: u8) -> str[]!` — `text` split at every `separator`, as views into it; the array is an allocation of the current allocator, given back with `free`.
 
+### `SplitIterator` (struct)
+
+Split a borrowed text at a nonempty byte substring. Empty fields, including the final one after a trailing separator, are preserved. Zero is an exhausted iterator. Keep text and separator storage alive and unchanged while iterating.
+
+- `static func over(text: str, separator: str, max_parts: usize = 0) -> SplitIterator!` — max_parts=0 has no limit; one returns the entire input as a single field. No allocation occurs. An empty separator reports invalid_separator.
+- `mutating func next() -> str?` — The next borrowed field. An empty field is present; none means exhausted.
+
+- `func split_by(text: str, separator: str, max_parts: usize = 0) -> str[]!` — An allocated array of borrowed fields with SplitIterator semantics. Free the array through the allocator current on entry; its field bytes still borrow text. max_parts=0 has no limit. An empty separator reports invalid_separator.
+
+- `func split_once(text: str, separator: str) -> (str, str)?` — Borrow the text before and after the first separator, or none if absent. The separator is omitted. An empty separator splits at the start: (empty, text).
+
+- `func split_last(text: str, separator: str) -> (str, str)?` — Borrow the text before and after the last separator, including overlapping candidates. An empty separator splits at the end: (text, empty).
+
 - `func trim(text: str) -> str` — `text` without leading and trailing spaces, tabs, and line ends: a view.
 
 - `func join(pieces: const str[], separator: str) -> str!` — The pieces joined with `separator` between them, NUL-terminated in the current allocator; `release` gives it back.
@@ -333,7 +350,9 @@ Text operations over `str` views; what allocates says so and uses the current al
 
 - `func to_lower(text: str) -> str!` — ASCII lowercase; other bytes pass through unchanged. The result is a NUL-terminated current-allocator allocation released with release.
 
-- `func release(text: str)` — Give back a text `join`, `copy`, `to_upper`, or `to_lower` answered: the allocation is one byte longer than the text, its NUL.
+- `func release(text: str)` — Give back text from join, copy, replace, to_upper or to_lower: the allocation is one byte longer than the text, its NUL.
+
+- `func replace(text: str, needle: str, replacement: str, max_replacements: usize = 0, max_bytes: usize? = none) -> str!` — Replace nonoverlapping byte substrings from left to right. Empty needles report invalid_separator. max_replacements=0 replaces all matches; max_bytes optionally limits result bytes excluding its terminator, reporting output_too_large before allocation. A result is always a fresh NUL-terminated current-allocator allocation, including unchanged or empty results; release gives it back. Inputs remain borrowed and unchanged and may overlap each other. No UTF-8 validation occurs.
 
 - `func to_i64(text: str) -> i64?` — A decimal integer, with an optional sign; none when the text is not one.
 

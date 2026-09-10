@@ -1,0 +1,41 @@
+## Replace nonoverlapping byte substrings from left to right. Empty needles report
+## invalid_separator. max_replacements=0 replaces all matches; max_bytes optionally
+## limits result bytes excluding its terminator, reporting output_too_large before
+## allocation. A result is always a fresh NUL-terminated current-allocator allocation,
+## including unchanged or empty results; release gives it back. Inputs remain borrowed
+## and unchanged and may overlap each other. No UTF-8 validation occurs.
+pub func replace(text: str, needle: str, replacement: str, max_replacements: usize = 0, max_bytes: usize? = none) -> str!:
+    if needle.length == 0:
+        error(invalid_separator, "replacement requires a nonempty needle")
+    var size = text.length
+    var count: usize = 0
+    var position: usize = 0
+    while max_replacements == 0 or count < max_replacements:
+        let found = find_from(text, needle, position) else break
+        if replacement.length >= needle.length:
+            size = size +? (replacement.length - needle.length) else error(memory.exhausted, "the replacement result is too large")
+        else:
+            size -= needle.length - replacement.length
+        position = found + needle.length
+        count += 1
+    if let maximum = max_bytes:
+        if size > maximum:
+            error(output_too_large, "the replacement result exceeds its byte limit")
+    let output = try terminated_buffer(size)
+    var used: usize = 0
+    var copied: usize = 0
+    position = 0
+    while copied < count:
+        let found = find_from(text, needle, position) else trap("replacement input changed between scans")
+        let prefix = found - position
+        memory.copy(output[used..], text.bytes[position..<found], prefix)
+        used += prefix
+        memory.copy(output[used..], replacement.bytes, replacement.length)
+        used += replacement.length
+        position = found + needle.length
+        copied += 1
+    let tail = text.length - position
+    memory.copy(output[used..], text.bytes[position..], tail)
+    used += tail
+    output[used] = 0
+    return (str)output[..<used]

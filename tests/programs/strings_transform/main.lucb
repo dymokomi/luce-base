@@ -1,0 +1,106 @@
+import c
+import files
+import memory
+import strings
+
+pub func main(arguments: c.str[]) -> i32!:
+    let corpus = try files.read(arguments[1])
+    defer free(corpus)
+    var position: usize = 0
+    var cases: usize = 0
+    while position < corpus.length:
+        let text_length = (usize)memory.read[u32](corpus.data + position)
+        let separator_length = (usize)memory.read[u32](corpus.data + position + 4)
+        let replacement_length = (usize)memory.read[u32](corpus.data + position + 8)
+        let max_parts = (usize)memory.read[u32](corpus.data + position + 12)
+        let max_replacements = (usize)memory.read[u32](corpus.data + position + 16)
+        let field_count = (usize)memory.read[u32](corpus.data + position + 20)
+        let result_length = (usize)memory.read[u32](corpus.data + position + 24)
+        let first = memory.read[i32](corpus.data + position + 28)
+        let last = memory.read[i32](corpus.data + position + 32)
+        position += 36
+        let text = (str)corpus[position..<position + text_length]
+        position += text_length
+        let separator = (str)corpus[position..<position + separator_length]
+        position += separator_length
+        let replacement = (str)corpus[position..<position + replacement_length]
+        position += replacement_length
+        let expected_result = (str)corpus[position..<position + result_length]
+        position += result_length
+        let fields = try strings.split_by(text, separator, max_parts)
+        var iterator = try strings.SplitIterator.over(text, separator, max_parts)
+        assert(fields.length == field_count)
+        var index: usize = 0
+        while index < field_count:
+            let length = (usize)memory.read[u32](corpus.data + position)
+            position += 4
+            let expected = (str)corpus[position..<position + length]
+            position += length
+            let field = iterator.next() else trap("split iterator ended early")
+            assert(field == expected and fields[index] == expected)
+            let offset = (usize)field.bytes.data - (usize)text.bytes.data
+            assert(offset <= text.length and field.length <= text.length - offset)
+            index += 1
+        free(fields)
+        assert(iterator.next() == none and iterator.next() == none)
+        let before_first = strings.split_once(text, separator)
+        if first < 0:
+            assert(before_first == none)
+        else:
+            let (before, after) = before_first else trap("first split missing")
+            assert(before == (str)text.bytes[..<(usize)first])
+            assert(after == (str)text.bytes[(usize)first + separator_length..])
+        let before_last = strings.split_last(text, separator)
+        if last < 0:
+            assert(before_last == none)
+        else:
+            let (before, after) = before_last else trap("last split missing")
+            assert(before == (str)text.bytes[..<(usize)last])
+            assert(after == (str)text.bytes[(usize)last + separator_length..])
+        let result = try strings.replace(text, separator, replacement, max_replacements, result_length)
+        assert(result == expected_result)
+        assert(((const u8*)result.bytes.data)[result.length] == 0)
+        strings.release(result)
+        if result_length > 0:
+            var rejected = false
+            discard(strings.replace(text, separator, replacement, max_replacements, result_length - 1) catch failure:
+                assert(failure.code == strings.output_too_large)
+                rejected = true
+                recover "")
+            assert(rejected)
+        cases += 1
+    assert(cases > 5000)
+    var empty: strings.SplitIterator
+    assert(empty.next() == none)
+    var rejected = false
+    discard(strings.SplitIterator.over("abc", "") catch failure:
+        assert(failure.code == strings.invalid_separator)
+        rejected = true
+        recover strings.SplitIterator())
+    assert(rejected)
+    rejected = false
+    discard(strings.replace("abc", "", "x") catch failure:
+        assert(failure.code == strings.invalid_separator)
+        rejected = true
+        recover "")
+    assert(rejected)
+    let (first_before, first_after) = strings.split_once("abc", "") else trap("empty first separator")
+    let (last_before, last_after) = strings.split_last("abc", "") else trap("empty last separator")
+    assert(first_before == "" and first_after == "abc" and last_before == "abc" and last_after == "")
+    var storage: u8[1]
+    var refusing = memory.FixedBuffer.over(storage[..<0])
+    with refusing:
+        var iterator = try strings.SplitIterator.over("a::b::", "::")
+        assert(iterator.next() == "a" and iterator.next() == "b" and iterator.next() == "" and iterator.next() == none)
+        rejected = false
+        discard(strings.replace("a", "a", "bb", max_bytes = 1) catch failure:
+            assert(failure.code == strings.output_too_large)
+            rejected = true
+            recover "")
+        assert(rejected)
+    let source = "abab"
+    let aliased = try strings.replace(source, (str)source.bytes[..<2], (str)source.bytes[1..<3])
+    assert(aliased == "baba" and source == "abab")
+    strings.release(aliased)
+    print("ok substring split and replacement corpus")
+    return 0

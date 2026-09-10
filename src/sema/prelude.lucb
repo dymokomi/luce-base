@@ -1905,12 +1905,14 @@ pub func encode(scalar: u32, buffer: u8[]) -> usize?:
     Prelude(name = "strings", text = """
 ## Text operations over `str` views; what allocates says so and uses the current allocator,
 ## and says how the allocation is given back: `release` for a text made here, `free` for
-## the array `split` answers.
+## the borrowed-field arrays returned by split and split_by.
 
 import c
 import io
 import memory
 
+pub let invalid_separator: ErrorCode = ErrorCode.package(48)
+pub let output_too_large: ErrorCode = ErrorCode.package(49)
 pub func starts_with(text: str, prefix: str) -> bool:
     if prefix.length > text.length:
         return false
@@ -2035,7 +2037,7 @@ pub func split(text: str, separator: u8) -> str[]!:
     var count: usize = 1
     for b in text.bytes:
         if b == separator:
-            count += 1
+            count = count +? 1 else error(memory.exhausted, "the split result is too large")
     let parts = try alloc str[count]
     var n: usize = 0
     var start: usize = 0
@@ -2050,6 +2052,68 @@ pub func split(text: str, separator: u8) -> str[]!:
     parts[n] = (str)b[start..]
     return parts
 
+## Split a borrowed text at a nonempty byte substring. Empty fields, including the
+## final one after a trailing separator, are preserved. Zero is an exhausted
+## iterator. Keep text and separator storage alive and unchanged while iterating.
+pub struct SplitIterator:
+    var text: str
+    var separator: str
+    var position: usize
+    var remaining: usize
+    var active: bool
+
+    ## max_parts=0 has no limit; one returns the entire input as a single field.
+    ## No allocation occurs. An empty separator reports invalid_separator.
+    pub static func over(text: str, separator: str, max_parts: usize = 0) -> SplitIterator!:
+        if separator.length == 0:
+            error(invalid_separator, "a split iterator requires a nonempty separator")
+        return SplitIterator(text = text, separator = separator, remaining = max_parts, active = true)
+
+    ## The next borrowed field. An empty field is present; none means exhausted.
+    pub mutating func next() -> str?:
+        if not self.active:
+            return none
+        if self.remaining == 1:
+            self.active = false
+            return (str)self.text.bytes[self.position..]
+        let found = find_from(self.text, self.separator, self.position)
+        if let end = found:
+            let start = self.position
+            self.position = end + self.separator.length
+            if self.remaining > 1:
+                self.remaining -= 1
+            return (str)self.text.bytes[start..<end]
+        self.active = false
+        return (str)self.text.bytes[self.position..]
+
+## An allocated array of borrowed fields with SplitIterator semantics. Free the
+## array through the allocator current on entry; its field bytes still borrow text.
+## max_parts=0 has no limit. An empty separator reports invalid_separator.
+pub func split_by(text: str, separator: str, max_parts: usize = 0) -> str[]!:
+    let initial = try SplitIterator.over(text, separator, max_parts)
+    var counter = initial
+    var count: usize = 0
+    while counter.next() != none:
+        count = count +? 1 else error(memory.exhausted, "the split result is too large")
+    let fields = try alloc str[count]
+    var iterator = initial
+    var index: usize = 0
+    while let field = iterator.next():
+        fields[index] = field
+        index += 1
+    return fields
+
+## Borrow the text before and after the first separator, or none if absent. The
+## separator is omitted. An empty separator splits at the start: (empty, text).
+pub func split_once(text: str, separator: str) -> (str, str)?:
+    let position = find(text, separator) else return none
+    return ((str)text.bytes[..<position], (str)text.bytes[position + separator.length..])
+
+## Borrow the text before and after the last separator, including overlapping
+## candidates. An empty separator splits at the end: (text, empty).
+pub func split_last(text: str, separator: str) -> (str, str)?:
+    let position = find_last(text, separator) else return none
+    return ((str)text.bytes[..<position], (str)text.bytes[position + separator.length..])
 func is_space(byte: u8) -> bool:
     return byte == ' ' or byte == '\\n' or byte == '\\t' or byte == '\\r'
 
@@ -2117,7 +2181,7 @@ pub func to_lower(text: str) -> str!:
     out[i] = 0
     return (str)out[..<i]
 
-## Give back a text `join`, `copy`, `to_upper`, or `to_lower` answered: the allocation is
+## Give back text from join, copy, replace, to_upper or to_lower: the allocation is
 ## one byte longer than the text, its NUL.
 pub func release(text: str):
     free(u8[]((u8*)text.bytes.data, text.length + 1))
@@ -2128,6 +2192,47 @@ func terminated_buffer(length: usize) -> u8[]!:
     let size = length +? 1 else error(memory.exhausted, "the text is too large")
     return try alloc u8[size]
 
+## Replace nonoverlapping byte substrings from left to right. Empty needles report
+## invalid_separator. max_replacements=0 replaces all matches; max_bytes optionally
+## limits result bytes excluding its terminator, reporting output_too_large before
+## allocation. A result is always a fresh NUL-terminated current-allocator allocation,
+## including unchanged or empty results; release gives it back. Inputs remain borrowed
+## and unchanged and may overlap each other. No UTF-8 validation occurs.
+pub func replace(text: str, needle: str, replacement: str, max_replacements: usize = 0, max_bytes: usize? = none) -> str!:
+    if needle.length == 0:
+        error(invalid_separator, "replacement requires a nonempty needle")
+    var size = text.length
+    var count: usize = 0
+    var position: usize = 0
+    while max_replacements == 0 or count < max_replacements:
+        let found = find_from(text, needle, position) else break
+        if replacement.length >= needle.length:
+            size = size +? (replacement.length - needle.length) else error(memory.exhausted, "the replacement result is too large")
+        else:
+            size -= needle.length - replacement.length
+        position = found + needle.length
+        count += 1
+    if let maximum = max_bytes:
+        if size > maximum:
+            error(output_too_large, "the replacement result exceeds its byte limit")
+    let output = try terminated_buffer(size)
+    var used: usize = 0
+    var copied: usize = 0
+    position = 0
+    while copied < count:
+        let found = find_from(text, needle, position) else trap("replacement input changed between scans")
+        let prefix = found - position
+        memory.copy(output[used..], text.bytes[position..<found], prefix)
+        used += prefix
+        memory.copy(output[used..], replacement.bytes, replacement.length)
+        used += replacement.length
+        position = found + needle.length
+        copied += 1
+    let tail = text.length - position
+    memory.copy(output[used..], text.bytes[position..], tail)
+    used += tail
+    output[used] = 0
+    return (str)output[..<used]
 ## A decimal integer, with an optional sign; none when the text is not one.
 pub func to_i64(text: str) -> i64?:
     let b = text.bytes
