@@ -1,0 +1,67 @@
+import c
+import platform
+import io
+from io import Reader, Writer
+
+extern func socket(domain: i32, kind: i32, protocol: i32) -> i32
+extern func bind(descriptor: i32, address: const SocketAddress*, length: u32) -> i32
+extern func listen(descriptor: i32, backlog: i32) -> i32
+extern func accept(descriptor: i32, address: SocketAddress*?, length: u32*?) -> i32
+extern func connect(descriptor: i32, address: const SocketAddress*, length: u32) -> i32
+extern func send(descriptor: i32, data: const void*, length: usize, flags: i32) -> isize
+extern func recv(descriptor: i32, buffer: void*, length: usize, flags: i32) -> isize
+extern func sendto(descriptor: i32, data: const void*, length: usize, flags: i32, address: const SocketAddress*, address_length: u32) -> isize
+extern func recvfrom(descriptor: i32, buffer: void*, length: usize, flags: i32, address: SocketAddress*?, address_length: u32*?) -> isize
+extern func close(descriptor: i32) -> i32
+extern func setsockopt(descriptor: i32, level: i32, option: i32, value: const void*, length: u32) -> i32
+extern func getsockname(descriptor: i32, address: SocketAddress*, length: u32*) -> i32
+extern func getaddrinfo(host: c.str, service: c.str?, hints: const AddressInfo*?, result: AddressInfo*?*) -> i32
+extern func freeaddrinfo(info: AddressInfo*)
+
+## `sockaddr_in`: 16 bytes everywhere; macOS splits the first two into a length and a
+## one-byte family, Linux keeps a two-byte family. `family_word` reads and writes it.
+extern struct SocketAddress:
+    head: u16
+    port: u16
+    address: u32
+    zero: u8[8]
+
+## The first two bytes of `sockaddr_in` as one little-endian word: on macOS the length
+## byte (16) comes first and the family byte second, on Linux the family fills both.
+func family_word(family: u8) -> u16:
+    if platform.macos:
+        return (u16)16 | ((u16)family << 8)
+    return (u16)family
+
+## `addrinfo`: macOS puts the canonical name before the address, Linux after it.
+extern struct AddressInfo:
+    flags: i32
+    family: i32
+    kind: i32
+    protocol: i32
+    address_length: u32
+    fifth: void*?
+    sixth: void*?
+    next: AddressInfo*?
+
+func info_address(info: AddressInfo*) -> SocketAddress*?:
+    let raw = info.sixth if platform.macos else info.fifth
+    let p = raw else return none
+    return (SocketAddress*)p
+
+let inet: i32 = 2
+let stream: i32 = 1
+let datagram: i32 = 2
+## `SOL_SOCKET` and `SO_REUSEADDR`: 65535 and 4 on macOS, 1 and 2 on Linux.
+let socket_level: i32 = 65535 if platform.macos else 1
+let reuse_address: i32 = 4 if platform.macos else 2
+## A write to a socket the peer closed answers an error, never the process's death:
+## macOS marks the socket (`SO_NOSIGPIPE`, 4130), Linux marks the send (`MSG_NOSIGNAL`,
+## 16384).
+let no_sigpipe_option: i32 = 4130
+let send_flags: i32 = 0 if platform.macos else 16384
+
+pub let failed: ErrorCode = ErrorCode.package(9)
+pub let closed: ErrorCode = ErrorCode.package(10)
+pub let unknown_host: ErrorCode = ErrorCode.package(11)
+

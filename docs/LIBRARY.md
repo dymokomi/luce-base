@@ -816,34 +816,39 @@ An IPv4 address and port, both in host order.
 
 ### `Listener` (struct)
 
-A bound TCP socket waiting for connections.
+One owned TCP listener. Zero is closed. Copying does not duplicate ownership; copies must not be independently closed. Synchronize calls on one owner.
 
 - `static func bind(address: Address) -> Listener!`
-- `func address() -> Address` — The address the socket ended up with; a port of zero asked for any free one.
+- `func address() -> Address!` — Query the bound endpoint, including an automatically assigned port.
 - `func accept() -> Connection!`
-- `func close()`
+- `func descriptor() -> i32?` — Borrow the descriptor; the caller must not close it or retain it past this owner.
+- `mutating func close() -> !` — Consume ownership before the OS call. Repeated close is safe even after failure.
+- `mutating func destroy()` — Best-effort cleanup for unwinding; use close to observe delayed errors.
 
 ### `Connection` (struct: Reader, Writer)
 
-One TCP connection implementing borrowed byte-stream Reader and Writer interfaces.
+One owned TCP connection implementing borrowed Reader and Writer interfaces. Zero is closed. Copying does not duplicate ownership; copies must not be independently closed. Synchronize calls on one owner.
 
-- `var descriptor: i32` — The socket, for callers that poll or pass it on.
 - `static func connect(address: Address) -> Connection!`
-- `static func over(descriptor: i32) -> Connection` — A connection over a socket the caller made (a `socketpair`, an inherited descriptor): the socket is marked so that a write after the peer closed fails instead of ending the process. Make the connection while the peer is still there: macOS refuses the mark on a socket whose peer has already gone, and a write on such a connection answers `closed` without sending.
+- `static func over(descriptor: i32) -> Connection` — Take ownership of a socket the caller made (a `socketpair`, an inherited descriptor). A negative descriptor produces a closed value. The socket is marked so that a write after the peer closed fails instead of ending the process. Make the connection while the peer is still there: macOS refuses the mark on a socket whose peer has already gone, and a write on such a connection answers `closed` without sending.
 - `mutating func write(data: const u8[]) -> usize!` — Send some bytes, retrying interruption. Use io.write_all for a complete payload and its optional progress output to resume after a later failure. An empty input makes no syscall. A closed peer never raises SIGPIPE.
 - `mutating func read(buffer: u8[]) -> usize!` — Receive some bytes. For nonempty storage, zero is peer EOF; empty storage returns zero without probing the peer. This call does not fill the buffer.
 - `func receive(buffer: u8[]) -> usize!` — Compatibility spelling of read; shares its short-read and EOF contract.
-- `func close()`
+- `func descriptor() -> i32?` — Borrow the descriptor; the caller must not close it or retain it past this owner.
+- `mutating func close() -> !` — Consume ownership before the OS call. Repeated close is safe even after failure.
+- `mutating func destroy()` — Best-effort cleanup for unwinding; use close to observe delayed errors.
 
 ### `Datagram` (struct)
 
-A UDP socket.
+One owned UDP socket. Zero is closed. Copying does not duplicate ownership; copies must not be independently closed. Synchronize calls on one owner.
 
 - `static func bind(address: Address) -> Datagram!`
-- `func address() -> Address`
+- `func address() -> Address!` — Query the bound endpoint, including an automatically assigned port.
 - `func send_to(data: const u8[], address: Address) -> !`
 - `func receive_from(buffer: u8[]) -> (usize, Address)!`
-- `func close()`
+- `func descriptor() -> i32?` — Borrow the descriptor; the caller must not close it or retain it past this owner.
+- `mutating func close() -> !` — Consume ownership before the OS call. Repeated close is safe even after failure.
+- `mutating func destroy()` — Best-effort cleanup for unwinding; use close to observe delayed errors.
 
 ## `c`
 

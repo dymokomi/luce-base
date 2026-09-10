@@ -1,0 +1,25 @@
+## An IPv4 address and port, both in host order.
+pub struct Address:
+    pub var ip: u32
+    pub var port: u16
+
+    pub static func loopback(port: u16) -> Address:
+        return Address(ip = 2130706433, port = port)
+
+    pub static func any(port: u16) -> Address:
+        return Address(ip = 0, port = port)
+
+    func raw() -> SocketAddress:
+        var zero: u8[8]
+        return SocketAddress(head = family_word(2), port = swap16(self.port), address = swap32(self.ip), zero = zero)
+
+    static func from_raw(raw: SocketAddress) -> Address:
+        return Address(ip = swap32(raw.address), port = swap16(raw.port))
+
+## Host to network byte order and back; the machine is little-endian.
+func swap16(value: u16) -> u16:
+    return (value << 8) | (value >> 8)
+
+func swap32(value: u32) -> u32:
+    return (value << 24) | ((value << 8) & 16711680) | ((value >> 8) & 65280) | (value >> 24)
+

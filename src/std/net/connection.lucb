@@ -1,0 +1,95 @@
+## One owned TCP connection implementing borrowed Reader and Writer interfaces.
+## Zero is closed. Copying does not duplicate ownership; copies must not be
+## independently closed. Synchronize calls on one owner.
+pub struct Connection: Reader, Writer:
+    var socket: SocketHandle
+    ## Whether the socket is marked against `SIGPIPE` (macOS); `write` marks it on first
+    ## use, so a connection built any other way than `over` is guarded too.
+    var guarded: bool
+
+    pub static func connect(address: Address) -> Connection!:
+        let fd = socket(inet, stream, 0)
+        if fd < 0:
+            error(failed, "socket")
+        let raw = address.raw()
+        if connect(fd, &raw, 16) != 0:
+            discard(close(fd))
+            error(failed, "connect")
+        return Connection.over(fd)
+
+    ## Take ownership of a socket the caller made (a `socketpair`, an inherited
+    ## descriptor). A negative descriptor produces a closed value. The socket is marked so that a write after the peer closed fails
+    ## instead of ending the process. Make the connection while the peer is still there:
+    ## macOS refuses the mark on a socket whose peer has already gone, and a write on
+    ## such a connection answers `closed` without sending.
+    pub static func over(descriptor: i32) -> Connection:
+        if descriptor < 0:
+            return Connection()
+        var connection = Connection(socket = SocketHandle(value = descriptor), guarded = false)
+        discard(connection.guard())
+        return connection
+
+    ## Whether a write cannot raise `SIGPIPE`. Linux asks with every `send`
+    ## (`MSG_NOSIGNAL`); macOS marks the socket once (`SO_NOSIGPIPE`), and refuses the mark
+    ## with `EINVAL` on a socket whose peer has disconnected.
+    mutating func guard() -> bool:
+        let descriptor = self.socket.value else return false
+        if self.guarded:
+            return true
+        if not platform.macos:
+            self.guarded = true
+            return true
+        var yes: i32 = 1
+        if setsockopt(descriptor, socket_level, no_sigpipe_option, &yes, 4) == 0:
+            self.guarded = true
+        return self.guarded
+
+    ## Send some bytes, retrying interruption. Use io.write_all for a complete
+    ## payload and its optional progress output to resume after a later failure.
+    ## An empty input makes no syscall. A closed peer never raises SIGPIPE.
+    pub mutating func write(data: const u8[]) -> usize!:
+        let descriptor = try self.socket.require()
+        if data.length == 0:
+            return 0
+        if not self.guard():
+            error(closed, "the connection closed")
+        let count = data.length if data.length < transfer_limit else transfer_limit
+        var sent = send(descriptor, data.data, count, send_flags)
+        while sent < 0 and c.errno() == c.interrupted:
+            sent = send(descriptor, data.data, count, send_flags)
+        if sent < 0:
+            error(transfer_error(c.errno()), "the connection could not send data")
+        if sent == 0:
+            error(io.no_progress, "the connection made no write progress")
+        return (usize)sent
+
+    ## Receive some bytes. For nonempty storage, zero is peer EOF; empty storage
+    ## returns zero without probing the peer. This call does not fill the buffer.
+    pub mutating func read(buffer: u8[]) -> usize!:
+        return try self.receive(buffer)
+
+    ## Compatibility spelling of read; shares its short-read and EOF contract.
+    pub func receive(buffer: u8[]) -> usize!:
+        let descriptor = try self.socket.require()
+        if buffer.length == 0:
+            return 0
+        let count = buffer.length if buffer.length < transfer_limit else transfer_limit
+        var received = recv(descriptor, buffer.data, count, 0)
+        while received < 0 and c.errno() == c.interrupted:
+            received = recv(descriptor, buffer.data, count, 0)
+        if received < 0:
+            error(transfer_error(c.errno()), "the connection could not receive data")
+        return (usize)received
+
+    ## Borrow the descriptor; the caller must not close it or retain it past this owner.
+    pub func descriptor() -> i32?:
+        return self.socket.value
+
+    ## Consume ownership before the OS call. Repeated close is safe even after failure.
+    pub mutating func close() -> !:
+        try self.socket.close()
+
+    ## Best-effort cleanup for unwinding; use close to observe delayed errors.
+    pub mutating func destroy():
+        self.socket.destroy()
+

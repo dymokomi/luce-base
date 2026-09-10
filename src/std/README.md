@@ -14,3 +14,9 @@ then rebuild and refresh bootstrap snapshots as usual.
 (`handles.lucb`), metadata and host stat layouts (`metadata.lucb`), path mutations and links (`entries.lucb`), temporary ownership and
 atomic publication (`temporary.lucb`), bounded copying (`copy.lucb`), whole-file transfers (`contents.lucb`), and
 directory iteration/listing (`directory.lucb`), and traversal (`walk.lucb`). Its public import remains `files`.
+
+`net/` separates host ABI declarations and constants (`module.lucb`), IPv4 values
+(`address.lucb`), name resolution (`resolver.lucb`), shared descriptor ownership and
+endpoint queries (`handles.lucb`), and the TCP listener, TCP connection, and UDP
+socket APIs (`listener.lucb`, `connection.lucb`, `datagram.lucb`). Its public import
+remains `net`.

@@ -1,0 +1,19 @@
+## The first usable IPv4 stream address of `host`. Resolution may block in the OS.
+## All resolver storage is released before returning, including malformed results.
+pub func resolve(host: c.str, port: u16) -> Address!:
+    var hints = AddressInfo(flags = 0, family = inet, kind = stream, protocol = 0, address_length = 0, fifth = none, sixth = none, next = none)
+    var found: AddressInfo*? = none
+    if getaddrinfo(host, none, &hints, &found) != 0:
+        error(unknown_host, "unknown host")
+    let info = found else error(unknown_host, "unknown host")
+    defer freeaddrinfo(info)
+    var current: AddressInfo*? = info
+    while let entry = current:
+        if entry.family == inet and entry.kind == stream and entry.address_length >= sizeof(SocketAddress):
+            if let raw = info_address(entry):
+                var address = Address.from_raw(*raw)
+                address.port = port
+                return address
+        current = entry.next
+    error(unknown_host, "the host has no usable IPv4 stream address")
+

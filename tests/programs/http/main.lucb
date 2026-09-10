@@ -34,7 +34,7 @@ var server: Server
 ## One connection: read requests until the client closes or asks to.
 func serve(connection: net.Connection):
     var live = connection
-    defer live.close()
+    defer live.destroy()
     var buffer: u8[65536]
     var used: usize = 0
     while true:
@@ -93,7 +93,7 @@ func handle(connection: net.Connection*, request: http.Request*) -> bool!:
         # a connection to the listener wakes the accept loop so it can see the flag
         var poke = net.Connection.connect(net.Address.loopback(server.port)) catch:
             return false
-        poke.close()
+        try poke.close()
         return false
     if route == "/echo":
         if request.method != "POST":
@@ -169,26 +169,26 @@ pub func main(arguments: str[]) -> i32!:
         print("usage: http [--port N] [--root DIR] [--threads N]")
         return 2
     server.root = options.root
-    let listener = try net.Listener.bind(net.Address.any(options.port))
-    let bound = listener.address()
+    var listener = try net.Listener.bind(net.Address.any(options.port))
+    let bound = (try listener.address())
     server.port = bound.port
     var worker = pool.Worker(queue = &server.queue, serve = serve)
     var handles: thread.Handle[64]
     try pool.start(&worker, options.threads, handles)
     print(f"listening on {bound.port} with {options.threads} threads, serving {options.root}")
     while not server.stopping.load(.acquire):
-        let connection = listener.accept() catch:
+        var connection = listener.accept() catch:
             continue
         if server.stopping.load(.acquire):
-            connection.close()
+            try connection.close()
             break
         server.queue.push(connection) catch:
             # every slot taken: turn the client away rather than queue without bound
             var busy = connection
             http.respond(&busy, 500, "text/plain", "busy\n".bytes, false) catch:
                 discard(0)
-            busy.close()
+            try busy.close()
     try pool.stop_all(&server.queue, handles, options.threads)
-    listener.close()
+    try listener.close()
     print(f"served {server.stats.requests.load(.relaxed)} requests")
     return 0

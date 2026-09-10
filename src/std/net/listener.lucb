@@ -1,0 +1,47 @@
+## One owned TCP listener. Zero is closed. Copying does not duplicate ownership;
+## copies must not be independently closed. Synchronize calls on one owner.
+pub struct Listener:
+    var socket: SocketHandle
+
+    pub static func bind(address: Address) -> Listener!:
+        let fd = socket(inet, stream, 0)
+        if fd < 0:
+            error(failed, "socket")
+        var yes: i32 = 1
+        if setsockopt(fd, socket_level, reuse_address, &yes, 4) != 0:
+            discard(close(fd))
+            error(failed, "the listener address reuse option could not be set")
+        let raw = address.raw()
+        if bind(fd, &raw, 16) != 0:
+            discard(close(fd))
+            error(failed, "bind")
+        if listen(fd, 16) != 0:
+            discard(close(fd))
+            error(failed, "listen")
+        return Listener(socket = SocketHandle(value = fd))
+
+    ## Query the bound endpoint, including an automatically assigned port.
+    pub func address() -> Address!:
+        return try socket_address(try self.socket.require())
+
+    pub func accept() -> Connection!:
+        let descriptor = try self.socket.require()
+        var fd = accept(descriptor, none, none)
+        while fd < 0 and c.errno() == c.interrupted:
+            fd = accept(descriptor, none, none)
+        if fd < 0:
+            error(failed, "accept")
+        return Connection.over(fd)
+
+    ## Borrow the descriptor; the caller must not close it or retain it past this owner.
+    pub func descriptor() -> i32?:
+        return self.socket.value
+
+    ## Consume ownership before the OS call. Repeated close is safe even after failure.
+    pub mutating func close() -> !:
+        try self.socket.close()
+
+    ## Best-effort cleanup for unwinding; use close to observe delayed errors.
+    pub mutating func destroy():
+        self.socket.destroy()
+

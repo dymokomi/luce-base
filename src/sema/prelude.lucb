@@ -4025,16 +4025,19 @@ pub func resolve(host: c.str, port: u16) -> Address!:
         current = entry.next
     error(unknown_host, "the host has no usable IPv4 stream address")
 
-## A bound TCP socket waiting for connections.
+## One owned TCP listener. Zero is closed. Copying does not duplicate ownership;
+## copies must not be independently closed. Synchronize calls on one owner.
 pub struct Listener:
-    var descriptor: i32
+    var socket: SocketHandle
 
     pub static func bind(address: Address) -> Listener!:
         let fd = socket(inet, stream, 0)
         if fd < 0:
             error(failed, "socket")
         var yes: i32 = 1
-        discard(setsockopt(fd, socket_level, reuse_address, &yes, 4))
+        if setsockopt(fd, socket_level, reuse_address, &yes, 4) != 0:
+            discard(close(fd))
+            error(failed, "the listener address reuse option could not be set")
         let raw = address.raw()
         if bind(fd, &raw, 16) != 0:
             discard(close(fd))
@@ -4042,30 +4045,38 @@ pub struct Listener:
         if listen(fd, 16) != 0:
             discard(close(fd))
             error(failed, "listen")
-        return Listener(descriptor = fd)
+        return Listener(socket = SocketHandle(value = fd))
 
-    ## The address the socket ended up with; a port of zero asked for any free one.
-    pub func address() -> Address:
-        var raw = SocketAddress(head = 0, port = 0, address = 0, zero = [0, 0, 0, 0, 0, 0, 0, 0])
-        var length: u32 = 16
-        discard(getsockname(self.descriptor, &raw, &length))
-        return Address.from_raw(raw)
+    ## Query the bound endpoint, including an automatically assigned port.
+    pub func address() -> Address!:
+        return try socket_address(try self.socket.require())
 
     pub func accept() -> Connection!:
-        var fd = accept(self.descriptor, none, none)
+        let descriptor = try self.socket.require()
+        var fd = accept(descriptor, none, none)
         while fd < 0 and c.errno() == c.interrupted:
-            fd = accept(self.descriptor, none, none)
+            fd = accept(descriptor, none, none)
         if fd < 0:
             error(failed, "accept")
         return Connection.over(fd)
 
-    pub func close():
-        discard(close(self.descriptor))
+    ## Borrow the descriptor; the caller must not close it or retain it past this owner.
+    pub func descriptor() -> i32?:
+        return self.socket.value
 
-## One TCP connection implementing borrowed byte-stream Reader and Writer interfaces.
+    ## Consume ownership before the OS call. Repeated close is safe even after failure.
+    pub mutating func close() -> !:
+        try self.socket.close()
+
+    ## Best-effort cleanup for unwinding; use close to observe delayed errors.
+    pub mutating func destroy():
+        self.socket.destroy()
+
+## One owned TCP connection implementing borrowed Reader and Writer interfaces.
+## Zero is closed. Copying does not duplicate ownership; copies must not be
+## independently closed. Synchronize calls on one owner.
 pub struct Connection: Reader, Writer:
-    ## The socket, for callers that poll or pass it on.
-    pub var descriptor: i32
+    var socket: SocketHandle
     ## Whether the socket is marked against `SIGPIPE` (macOS); `write` marks it on first
     ## use, so a connection built any other way than `over` is guarded too.
     var guarded: bool
@@ -4080,13 +4091,15 @@ pub struct Connection: Reader, Writer:
             error(failed, "connect")
         return Connection.over(fd)
 
-    ## A connection over a socket the caller made (a `socketpair`, an inherited
-    ## descriptor): the socket is marked so that a write after the peer closed fails
+    ## Take ownership of a socket the caller made (a `socketpair`, an inherited
+    ## descriptor). A negative descriptor produces a closed value. The socket is marked so that a write after the peer closed fails
     ## instead of ending the process. Make the connection while the peer is still there:
     ## macOS refuses the mark on a socket whose peer has already gone, and a write on
     ## such a connection answers `closed` without sending.
     pub static func over(descriptor: i32) -> Connection:
-        var connection = Connection(descriptor = descriptor, guarded = false)
+        if descriptor < 0:
+            return Connection()
+        var connection = Connection(socket = SocketHandle(value = descriptor), guarded = false)
         discard(connection.guard())
         return connection
 
@@ -4094,13 +4107,14 @@ pub struct Connection: Reader, Writer:
     ## (`MSG_NOSIGNAL`); macOS marks the socket once (`SO_NOSIGPIPE`), and refuses the mark
     ## with `EINVAL` on a socket whose peer has disconnected.
     mutating func guard() -> bool:
+        let descriptor = self.socket.value else return false
         if self.guarded:
             return true
         if not platform.macos:
             self.guarded = true
             return true
         var yes: i32 = 1
-        if setsockopt(self.descriptor, socket_level, no_sigpipe_option, &yes, 4) == 0:
+        if setsockopt(descriptor, socket_level, no_sigpipe_option, &yes, 4) == 0:
             self.guarded = true
         return self.guarded
 
@@ -4108,14 +4122,15 @@ pub struct Connection: Reader, Writer:
     ## payload and its optional progress output to resume after a later failure.
     ## An empty input makes no syscall. A closed peer never raises SIGPIPE.
     pub mutating func write(data: const u8[]) -> usize!:
+        let descriptor = try self.socket.require()
         if data.length == 0:
             return 0
         if not self.guard():
             error(closed, "the connection closed")
         let count = data.length if data.length < transfer_limit else transfer_limit
-        var sent = send(self.descriptor, data.data, count, send_flags)
+        var sent = send(descriptor, data.data, count, send_flags)
         while sent < 0 and c.errno() == c.interrupted:
-            sent = send(self.descriptor, data.data, count, send_flags)
+            sent = send(descriptor, data.data, count, send_flags)
         if sent < 0:
             error(transfer_error(c.errno()), "the connection could not send data")
         if sent == 0:
@@ -4129,22 +4144,33 @@ pub struct Connection: Reader, Writer:
 
     ## Compatibility spelling of read; shares its short-read and EOF contract.
     pub func receive(buffer: u8[]) -> usize!:
+        let descriptor = try self.socket.require()
         if buffer.length == 0:
             return 0
         let count = buffer.length if buffer.length < transfer_limit else transfer_limit
-        var received = recv(self.descriptor, buffer.data, count, 0)
+        var received = recv(descriptor, buffer.data, count, 0)
         while received < 0 and c.errno() == c.interrupted:
-            received = recv(self.descriptor, buffer.data, count, 0)
+            received = recv(descriptor, buffer.data, count, 0)
         if received < 0:
             error(transfer_error(c.errno()), "the connection could not receive data")
         return (usize)received
 
-    pub func close():
-        discard(close(self.descriptor))
+    ## Borrow the descriptor; the caller must not close it or retain it past this owner.
+    pub func descriptor() -> i32?:
+        return self.socket.value
 
-## A UDP socket.
+    ## Consume ownership before the OS call. Repeated close is safe even after failure.
+    pub mutating func close() -> !:
+        try self.socket.close()
+
+    ## Best-effort cleanup for unwinding; use close to observe delayed errors.
+    pub mutating func destroy():
+        self.socket.destroy()
+
+## One owned UDP socket. Zero is closed. Copying does not duplicate ownership;
+## copies must not be independently closed. Synchronize calls on one owner.
 pub struct Datagram:
-    var descriptor: i32
+    var socket: SocketHandle
 
     pub static func bind(address: Address) -> Datagram!:
         let fd = socket(inet, datagram, 0)
@@ -4154,35 +4180,44 @@ pub struct Datagram:
         if bind(fd, &raw, 16) != 0:
             discard(close(fd))
             error(failed, "bind")
-        return Datagram(descriptor = fd)
+        return Datagram(socket = SocketHandle(value = fd))
 
-    pub func address() -> Address:
-        var raw = SocketAddress(head = 0, port = 0, address = 0, zero = [0, 0, 0, 0, 0, 0, 0, 0])
-        var length: u32 = 16
-        discard(getsockname(self.descriptor, &raw, &length))
-        return Address.from_raw(raw)
+    ## Query the bound endpoint, including an automatically assigned port.
+    pub func address() -> Address!:
+        return try socket_address(try self.socket.require())
 
     pub func send_to(data: const u8[], address: Address) -> !:
+        let descriptor = try self.socket.require()
         let raw = address.raw()
-        var n = sendto(self.descriptor, data.data, data.length, 0, &raw, 16)
+        var n = sendto(descriptor, data.data, data.length, 0, &raw, 16)
         while n < 0 and c.errno() == c.interrupted:
-            n = sendto(self.descriptor, data.data, data.length, 0, &raw, 16)
+            n = sendto(descriptor, data.data, data.length, 0, &raw, 16)
         if n < 0 or (usize)n != data.length:
             error(failed, "send")
 
     pub func receive_from(buffer: u8[]) -> (usize, Address)!:
+        let descriptor = try self.socket.require()
         var raw = SocketAddress(head = 0, port = 0, address = 0, zero = [0, 0, 0, 0, 0, 0, 0, 0])
         var length: u32 = 16
-        var n = recvfrom(self.descriptor, buffer.data, buffer.length, 0, &raw, &length)
+        var n = recvfrom(descriptor, buffer.data, buffer.length, 0, &raw, &length)
         while n < 0 and c.errno() == c.interrupted:
             length = 16
-            n = recvfrom(self.descriptor, buffer.data, buffer.length, 0, &raw, &length)
+            n = recvfrom(descriptor, buffer.data, buffer.length, 0, &raw, &length)
         if n < 0:
             error(failed, "receive")
         return ((usize)n, Address.from_raw(raw))
 
-    pub func close():
-        discard(close(self.descriptor))
+    ## Borrow the descriptor; the caller must not close it or retain it past this owner.
+    pub func descriptor() -> i32?:
+        return self.socket.value
+
+    ## Consume ownership before the OS call. Repeated close is safe even after failure.
+    pub mutating func close() -> !:
+        try self.socket.close()
+
+    ## Best-effort cleanup for unwinding; use close to observe delayed errors.
+    pub mutating func destroy():
+        self.socket.destroy()
 
 ## Bound individual transfers below both supported hosts' signed syscall limits.
 let transfer_limit: usize = 1073741824
@@ -4193,6 +4228,38 @@ func transfer_error(number: i32) -> ErrorCode:
     if number == 9 or number == 32 or number == (54 if platform.macos else 104) or number == (57 if platform.macos else 107):
         return closed
     return failed
+
+## Shared ownership state for all socket kinds. Consume before close because an
+## interrupted or failed close may already have released the descriptor for reuse.
+struct SocketHandle:
+    var value: i32?
+
+    func require() -> i32!:
+        let descriptor = self.value else error(closed, "the socket is closed")
+        return descriptor
+
+    mutating func close() -> !:
+        let descriptor = self.value else return
+        self.value = none
+        if close(descriptor) != 0:
+            error(failed, "the socket could not be closed")
+
+    mutating func destroy():
+        self.close() catch failure:
+            discard(failure)
+
+func socket_address(descriptor: i32) -> Address!:
+    var raw: SocketAddress
+    var length: u32 = 16
+    var result = getsockname(descriptor, &raw, &length)
+    while result < 0 and c.errno() == c.interrupted:
+        length = 16
+        result = getsockname(descriptor, &raw, &length)
+    if result != 0:
+        error(failed, "the socket address could not be queried")
+    if length != 16 or raw.head != family_word(2):
+        error(failed, "the socket address is not IPv4")
+    return Address.from_raw(raw)
 """),
     Prelude(name = "debug", text = """
 import c

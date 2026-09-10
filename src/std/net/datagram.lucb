@@ -1,0 +1,52 @@
+## One owned UDP socket. Zero is closed. Copying does not duplicate ownership;
+## copies must not be independently closed. Synchronize calls on one owner.
+pub struct Datagram:
+    var socket: SocketHandle
+
+    pub static func bind(address: Address) -> Datagram!:
+        let fd = socket(inet, datagram, 0)
+        if fd < 0:
+            error(failed, "socket")
+        let raw = address.raw()
+        if bind(fd, &raw, 16) != 0:
+            discard(close(fd))
+            error(failed, "bind")
+        return Datagram(socket = SocketHandle(value = fd))
+
+    ## Query the bound endpoint, including an automatically assigned port.
+    pub func address() -> Address!:
+        return try socket_address(try self.socket.require())
+
+    pub func send_to(data: const u8[], address: Address) -> !:
+        let descriptor = try self.socket.require()
+        let raw = address.raw()
+        var n = sendto(descriptor, data.data, data.length, 0, &raw, 16)
+        while n < 0 and c.errno() == c.interrupted:
+            n = sendto(descriptor, data.data, data.length, 0, &raw, 16)
+        if n < 0 or (usize)n != data.length:
+            error(failed, "send")
+
+    pub func receive_from(buffer: u8[]) -> (usize, Address)!:
+        let descriptor = try self.socket.require()
+        var raw = SocketAddress(head = 0, port = 0, address = 0, zero = [0, 0, 0, 0, 0, 0, 0, 0])
+        var length: u32 = 16
+        var n = recvfrom(descriptor, buffer.data, buffer.length, 0, &raw, &length)
+        while n < 0 and c.errno() == c.interrupted:
+            length = 16
+            n = recvfrom(descriptor, buffer.data, buffer.length, 0, &raw, &length)
+        if n < 0:
+            error(failed, "receive")
+        return ((usize)n, Address.from_raw(raw))
+
+    ## Borrow the descriptor; the caller must not close it or retain it past this owner.
+    pub func descriptor() -> i32?:
+        return self.socket.value
+
+    ## Consume ownership before the OS call. Repeated close is safe even after failure.
+    pub mutating func close() -> !:
+        try self.socket.close()
+
+    ## Best-effort cleanup for unwinding; use close to observe delayed errors.
+    pub mutating func destroy():
+        self.socket.destroy()
+

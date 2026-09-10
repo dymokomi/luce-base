@@ -18,6 +18,18 @@
 static int armed, hits, attributes, directory_reads, global_flushes, opened_streams;
 static int walk_root_seen;
 static int socket_sends;
+static int closing_socket = -1;
+static int observed_socket = -1, socket_closes;
+static int failed_socket_option = -1;
+int fault_socket_option_closed(void) {
+    return failed_socket_option >= 0 && fcntl(failed_socket_option, F_GETFD) == -1 && errno == EBADF;
+}
+void fault_socket_close(int descriptor) {
+    assert(closing_socket == -1);
+    closing_socket = observed_socket = descriptor;
+    socket_closes = 0;
+}
+int fault_socket_close_calls(void) { return socket_closes; }
 static dev_t walk_device;
 static ino_t walk_inode;
 void fault_arm(int kind) { assert(!armed); armed = kind; hits = directory_reads = walk_root_seen = socket_sends = 0; }
@@ -49,6 +61,34 @@ static int take(int kind) {
     armed = 0; ++hits; errno = EINTR; return 1;
 }
 #define REAL(name) __typeof__(&name) real = (__typeof__(&name))dlsym(RTLD_NEXT, #name); assert(real)
+int close(int descriptor) {
+    REAL(close);
+    if (descriptor == observed_socket) ++socket_closes;
+    int result = real(descriptor);
+    if (descriptor == closing_socket) {
+        closing_socket = -1;
+        assert(result == 0);
+        errno = EINTR;
+        return -1;
+    }
+    return result;
+}
+int getsockname(int descriptor, struct sockaddr *address, socklen_t *length) {
+    REAL(getsockname);
+    if (take(41)) return -1;
+    if (take(42)) { errno = EIO; return -1; }
+    if (take(43)) { *length = 1; return 0; }
+    return real(descriptor, address, length);
+}
+int setsockopt(int descriptor, int level, int option, const void *value, socklen_t length) {
+    REAL(setsockopt);
+    if (take(44)) {
+        failed_socket_option = descriptor;
+        errno = EIO;
+        return -1;
+    }
+    return real(descriptor, level, option, value, length);
+}
 /* Resolver storage is synthetic so malformed successful results need no DNS.
    Track every node until Base releases the entire chain through freeaddrinfo. */
 static struct addrinfo *resolver_head;

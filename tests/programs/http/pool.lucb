@@ -20,7 +20,8 @@ pub struct Queue:
     var ready: sync.Condition
     var drained: sync.Condition
 
-    ## Hand a connection to a worker; fails when every slot is taken.
+    ## Transfer ownership to a worker on success. On failure the caller still
+    ## owns the connection; on success it must stop using its copied handle.
     pub mutating func push(connection: net.Connection) -> !:
         self.mutex.lock()
         defer self.mutex.unlock()
@@ -39,6 +40,7 @@ pub struct Queue:
         if self.count == 0:
             return none
         let connection = self.items[self.head]
+        self.items[self.head] = net.Connection()
         self.head = (self.head + 1) % capacity
         self.count -= 1
         if self.count == 0:
@@ -93,4 +95,5 @@ test "a queue hands out what was pushed, in order":
 
 func descriptor_of(connection: net.Connection?) -> i32:
     let conn = connection else return -1
-    return conn.descriptor
+    let descriptor = conn.descriptor() else return -1
+    return descriptor

@@ -16,7 +16,7 @@ func client(context: void*):
     try_send(&connection) catch failure:
         print(f"client: {failure.message}")
         recover ()
-    connection.close()
+    connection.destroy()
 
 func try_send(connection: net.Connection*) -> !:
     try io.write_all(connection, "ping".bytes)
@@ -25,8 +25,8 @@ func try_send(connection: net.Connection*) -> !:
     print(f"client got {(str)buffer}")
 
 pub func main(arguments: str[]) -> i32!:
-    let listener = try net.Listener.bind(net.Address.loopback(0))
-    let bound = listener.address()
+    var listener = try net.Listener.bind(net.Address.loopback(0))
+    let bound = (try listener.address())
     var peer = Peer(address = bound, datagram_port = 0)
     let worker = try thread.spawn(client, &peer)
     var connection = try listener.accept()
@@ -35,13 +35,13 @@ pub func main(arguments: str[]) -> i32!:
     print(f"server got {(str)buffer[..<4]}")
     try io.write_all(&connection, "pong".bytes)
     try worker.join()
-    connection.close()
-    listener.close()
-    let a = try net.Datagram.bind(net.Address.loopback(0))
-    let b = try net.Datagram.bind(net.Address.loopback(0))
-    try a.send_to("hello over udp".bytes, b.address())
+    try connection.close()
+    try listener.close()
+    var a = try net.Datagram.bind(net.Address.loopback(0))
+    var b = try net.Datagram.bind(net.Address.loopback(0))
+    try a.send_to("hello over udp".bytes, (try b.address()))
     let (count, sender) = try b.receive_from(buffer)
     print(f"udp got {(str)buffer[..<count]} from the loopback: {sender.ip == 2130706433}")
-    a.close()
-    b.close()
+    try a.close()
+    try b.close()
     return 0

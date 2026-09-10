@@ -4,6 +4,51 @@ extern func socketpair(domain: i32, kind: i32, protocol: i32, pair: i32*) -> i32
 extern func fault_arm(kind: i32)
 extern func fault_hits() -> i32
 extern func fault_resolver_nodes() -> i32
+extern func fault_socket_close(descriptor: i32)
+extern func fault_socket_close_calls() -> i32
+extern func fault_socket_option_closed() -> i32
+
+func closed_values() -> !:
+    var connection: net.Connection
+    var listener: net.Listener
+    var datagram: net.Datagram
+    assert(connection.descriptor() == none and listener.descriptor() == none and datagram.descriptor() == none)
+    try connection.close()
+    try listener.close()
+    try datagram.close()
+    connection.destroy()
+    listener.destroy()
+    datagram.destroy()
+    var buffer: u8[]
+    var rejected = false
+    discard(connection.write(buffer) catch failure:
+        assert(failure.code == net.closed)
+        rejected = true
+        recover 0)
+    assert(rejected)
+    rejected = false
+    discard(connection.read(buffer) catch failure:
+        assert(failure.code == net.closed)
+        rejected = true
+        recover 0)
+    assert(rejected)
+    rejected = false
+    discard(listener.address() catch failure:
+        assert(failure.code == net.closed)
+        rejected = true
+        recover net.Address.any(0))
+    assert(rejected)
+    rejected = false
+    discard(listener.accept() catch failure:
+        assert(failure.code == net.closed)
+        rejected = true
+        recover net.Connection())
+    assert(rejected)
+    rejected = false
+    datagram.send_to(buffer, net.Address.loopback(1)) catch failure:
+        assert(failure.code == net.closed)
+        rejected = true
+    assert(rejected)
 
 func resolver_cases() -> !:
     var kind: i32 = 23
@@ -21,11 +66,12 @@ func resolver_cases() -> !:
         kind += 1
 
 pub func main(arguments: str[]) -> i32!:
+    try closed_values()
     try resolver_cases()
     var pair: i32[2]
     assert(socketpair(1, 1, 0, &pair[0]) == 0)
     var sender = net.Connection.over(pair[0])
-    defer sender.close()
+    defer sender.destroy()
     var receiver = net.Connection.over(pair[1])
     fault_arm(1)
     assert(try sender.write("abcdefgh".bytes) == 3)
@@ -73,31 +119,66 @@ pub func main(arguments: str[]) -> i32!:
         blocked = true
         recover 0)
     assert(blocked and fault_hits() == 1)
-    receiver.close()
+    try receiver.close()
     var closed = false
     discard(sender.write("closed".bytes) catch failure:
         assert(failure.code == net.closed)
         closed = true
         recover 0)
     assert(closed)
-    let listener = try net.Listener.bind(net.Address.loopback(0))
-    defer listener.close()
-    let client = try net.Connection.connect(listener.address())
-    defer client.close()
+    fault_arm(44)
+    var option_failed = false
+    discard(net.Listener.bind(net.Address.loopback(0)) catch failure:
+        assert(failure.code == net.failed)
+        option_failed = true
+        recover net.Listener())
+    assert(option_failed and fault_hits() == 1 and fault_socket_option_closed() == 1)
+    var listener = try net.Listener.bind(net.Address.loopback(0))
+    defer listener.destroy()
+    fault_arm(41)
+    assert((try listener.address()).port != 0 and fault_hits() == 1)
+    kind = 42
+    while kind <= 43:
+        fault_arm(kind)
+        var rejected = false
+        discard(listener.address() catch failure:
+            assert(failure.code == net.failed)
+            rejected = true
+            recover net.Address.any(0))
+        assert(rejected and fault_hits() == 1)
+        kind += 1
+    var client = try net.Connection.connect((try listener.address()))
+    defer client.destroy()
     fault_arm(5)
-    let accepted = try listener.accept()
-    defer accepted.close()
+    var accepted = try listener.accept()
+    defer accepted.destroy()
     assert(fault_hits() == 1)
-    let left = try net.Datagram.bind(net.Address.loopback(0))
-    defer left.close()
-    let right = try net.Datagram.bind(net.Address.loopback(0))
-    defer right.close()
+    var left = try net.Datagram.bind(net.Address.loopback(0))
+    defer left.destroy()
+    var right = try net.Datagram.bind(net.Address.loopback(0))
+    defer right.destroy()
     fault_arm(6)
-    try left.send_to("packet".bytes, right.address())
+    try left.send_to("packet".bytes, (try right.address()))
     assert(fault_hits() == 1)
     fault_arm(7)
     let (count, peer) = try right.receive_from(buffer)
-    assert(count == 6 and peer.port == left.address().port)
+    assert(count == 6 and peer.port == (try left.address()).port)
     assert((str)buffer[..<count] == "packet" and fault_hits() == 1)
+    let descriptor = accepted.descriptor() else trap("accepted socket is not open")
+    fault_socket_close(descriptor)
+    var rejected = false
+    accepted.close() catch failure:
+        assert(failure.code == net.failed)
+        rejected = true
+    assert(rejected and accepted.descriptor() == none)
+    try accepted.close()
+    accepted.destroy()
+    assert(fault_socket_close_calls() == 1)
+    assert((try client.read(buffer)) == 0)
+    try listener.close()
+    try listener.close()
+    try left.close()
+    try left.close()
+    assert(listener.descriptor() == none and left.descriptor() == none)
     print("ok network failures")
     return 0
