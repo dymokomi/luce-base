@@ -393,6 +393,37 @@ File system paths as text, with `/` as the separator.
 
 - `let failed: ErrorCode = ErrorCode.package(7)`
 
+### `FileKind` (enumas u8)
+
+File type from mode bits; unknown preserves support for host-specific kinds.
+
+### `FileTime` (struct)
+
+Unix-epoch seconds plus a nanosecond fraction in 0..999999999. Keeping the components separate preserves negative times and avoids nanosecond overflow.
+
+- `var seconds: i64`
+- `var nanoseconds: u32`
+
+### `Metadata` (struct)
+
+Metadata returned by one OS query, without allocation. Concurrent mutations may affect different fields at different instants. Size and block counts keep the OS's signed representation; their meaning depends on the file kind.
+
+- `var kind: FileKind`
+- `var permissions: u32`
+- `var size: i64`
+- `var device: u64`
+- `var inode: u64`
+- `var links: u64`
+- `var user: u32`
+- `var group: u32`
+- `var blocks_512: i64` — Allocated storage in 512-byte blocks, not the logical file size.
+- `var accessed: FileTime`
+- `var modified: FileTime`
+- `var changed: FileTime` — Last metadata/status change, not creation time.
+- `var created: FileTime?` — The macOS birth-time field; none on Linux's stat interface. Filesystems may report zero when a meaningful birth time is unavailable.
+
+- `func metadata(path: c.str, follow_symlinks: bool = true) -> Metadata!` — Query a path, following its final symlink by default. With follow_symlinks=false, query that entry itself, including dangling links. Intermediate links resolve normally. Interrupted calls retry; failure never returns partly filled metadata.
+
 ### `OpenMode` (enumas u8)
 
 File opening policy. `replace` creates or truncates; `create_new` refuses an existing path; `create_new_read_write` also permits reads. `append` creates if needed and makes each write append atomically. Creation permissions are filtered by the process umask, never changed afterward.
@@ -405,6 +436,7 @@ One owned descriptor. The zero value is closed. Borrow through a pointer or an i
 
 - `static func open(path: c.str, mode: OpenMode = OpenMode.read, permissions: u32 = 420) -> File!` — Open a close-on-exec descriptor. Only the named creation modes create paths.
 - `func descriptor() -> i32?` — Borrow the descriptor for OS interoperability; none after close. The caller must not close it or retain it past this owner's lifetime.
+- `func metadata() -> Metadata!` — Query the open object, even after its pathname has been renamed or removed.
 - `mutating func read(buffer: u8[]) -> usize!` — Read some bytes, retrying interruption. Zero for nonempty storage is EOF; empty input makes no system call. The handle must be open even for empty I/O.
 - `mutating func write(data: const u8[]) -> usize!` — Write some bytes, retrying interruption. Use io.write_all for a full payload. Success confirms an OS write, not durable storage; call sync when required.
 - `mutating func seek(offset: i64, origin: SeekOrigin = SeekOrigin.start) -> i64!` — Seek a seekable file and return its resulting byte offset. Pipes and other unseekable descriptors report failure instead of pretending their size is zero.

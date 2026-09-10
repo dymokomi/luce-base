@@ -49,6 +49,11 @@ pub struct File: io.Reader, io.Writer:
     pub func descriptor() -> i32?:
         return self.handle
 
+    ## Query the open object, even after its pathname has been renamed or removed.
+    pub func metadata() -> Metadata!:
+        let descriptor = self.handle else error(io.closed, "the file is closed")
+        return try metadata_descriptor(descriptor)
+
     ## Read some bytes, retrying interruption. Zero for nonempty storage is EOF;
     ## empty input makes no system call. The handle must be open even for empty I/O.
     pub mutating func read(buffer: u8[]) -> usize!:
@@ -139,4 +144,3 @@ func classify_error(number: i32) -> ErrorCode:
     if number == would_block_errno:
         return would_block
     return failed
-

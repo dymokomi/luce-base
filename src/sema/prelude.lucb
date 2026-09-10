@@ -2234,6 +2234,169 @@ pub let symlink_loop: ErrorCode = ErrorCode.package(31)
 pub let name_too_long: ErrorCode = ErrorCode.package(32)
 pub let failed: ErrorCode = ErrorCode.package(7)
 
+## File type from mode bits; unknown preserves support for host-specific kinds.
+pub enum FileKind as u8:
+    unknown = 0
+    regular = 1
+    directory = 2
+    symlink = 3
+    fifo = 4
+    socket = 5
+    block_device = 6
+    character_device = 7
+
+## Unix-epoch seconds plus a nanosecond fraction in 0..999999999. Keeping the
+## components separate preserves negative times and avoids nanosecond overflow.
+pub struct FileTime:
+    pub var seconds: i64
+    pub var nanoseconds: u32
+
+## Metadata returned by one OS query, without allocation. Concurrent mutations
+## may affect different fields at different instants. Size and block counts keep
+## the OS's signed representation; their meaning depends on the file kind.
+pub struct Metadata:
+    pub var kind: FileKind
+    pub var permissions: u32
+    pub var size: i64
+    pub var device: u64
+    pub var inode: u64
+    pub var links: u64
+    pub var user: u32
+    pub var group: u32
+    ## Allocated storage in 512-byte blocks, not the logical file size.
+    pub var blocks_512: i64
+    pub var accessed: FileTime
+    pub var modified: FileTime
+    ## Last metadata/status change, not creation time.
+    pub var changed: FileTime
+    ## The macOS birth-time field; none on Linux's stat interface. Filesystems
+    ## may report zero when a meaningful birth time is unavailable.
+    pub var created: FileTime?
+
+extern struct NativeFileTime:
+    seconds: i64
+    nanoseconds: i64
+
+## ARM64 Darwin struct stat, including reserved tail space written by libc.
+extern struct MacMetadata:
+    device: i32
+    mode: u16
+    links: u16
+    inode: u64
+    user: u32
+    group: u32
+    special_device: i32
+    accessed: NativeFileTime
+    modified: NativeFileTime
+    changed: NativeFileTime
+    created: NativeFileTime
+    size: i64
+    blocks: i64
+    block_size: i32
+    flags: u32
+    generation: u32
+    reserved_word: i32
+    reserved: i64[2]
+
+## x86-64 Linux struct stat. Layout is checked against the host's C headers by
+## tests/programs/file_metadata, rather than inferred from matching field names.
+extern struct LinuxMetadata:
+    device: u64
+    inode: u64
+    links: u64
+    mode: u32
+    user: u32
+    group: u32
+    padding: i32
+    special_device: u64
+    size: i64
+    block_size: i64
+    blocks: i64
+    accessed: NativeFileTime
+    modified: NativeFileTime
+    changed: NativeFileTime
+    reserved: i64[3]
+
+extern func stat_macos as "stat"(path: c.str, result: MacMetadata*) -> i32
+extern func stat_linux as "stat"(path: c.str, result: LinuxMetadata*) -> i32
+extern func lstat_macos as "lstat"(path: c.str, result: MacMetadata*) -> i32
+extern func lstat_linux as "lstat"(path: c.str, result: LinuxMetadata*) -> i32
+extern func fstat_macos as "fstat"(descriptor: i32, result: MacMetadata*) -> i32
+extern func fstat_linux as "fstat"(descriptor: i32, result: LinuxMetadata*) -> i32
+
+func file_kind(mode: u32) -> FileKind:
+    let kind = mode & 61440
+    if kind == 32768:
+        return FileKind.regular
+    if kind == 16384:
+        return FileKind.directory
+    if kind == 40960:
+        return FileKind.symlink
+    if kind == 4096:
+        return FileKind.fifo
+    if kind == 49152:
+        return FileKind.socket
+    if kind == 24576:
+        return FileKind.block_device
+    if kind == 8192:
+        return FileKind.character_device
+    return FileKind.unknown
+
+func file_time(value: NativeFileTime) -> FileTime:
+    return FileTime(seconds = value.seconds, nanoseconds = (u32)value.nanoseconds)
+
+func mac_metadata(value: MacMetadata) -> Metadata:
+    return Metadata(kind = file_kind((u32)value.mode), permissions = (u32)value.mode & 4095,
+                    size = value.size, device = (u64)(u32)value.device, inode = value.inode,
+                    links = (u64)value.links, user = value.user, group = value.group,
+                    blocks_512 = value.blocks, accessed = file_time(value.accessed),
+                    modified = file_time(value.modified), changed = file_time(value.changed),
+                    created = file_time(value.created))
+
+func linux_metadata(value: LinuxMetadata) -> Metadata:
+    return Metadata(kind = file_kind(value.mode), permissions = value.mode & 4095,
+                    size = value.size, device = value.device, inode = value.inode,
+                    links = value.links, user = value.user, group = value.group,
+                    blocks_512 = value.blocks, accessed = file_time(value.accessed),
+                    modified = file_time(value.modified), changed = file_time(value.changed), created = none)
+
+## Query a path, following its final symlink by default. With follow_symlinks=false,
+## query that entry itself, including dangling links. Intermediate links resolve
+## normally. Interrupted calls retry; failure never returns partly filled metadata.
+pub func metadata(path: c.str, follow_symlinks: bool = true) -> Metadata!:
+    if platform.macos:
+        var raw: MacMetadata
+        while true:
+            let result = stat_macos(path, &raw) if follow_symlinks else lstat_macos(path, &raw)
+            if result == 0:
+                return mac_metadata(raw)
+            if c.errno() != c.interrupted:
+                error(classify_error(c.errno()), "file metadata could not be read")
+    else:
+        var raw: LinuxMetadata
+        while true:
+            let result = stat_linux(path, &raw) if follow_symlinks else lstat_linux(path, &raw)
+            if result == 0:
+                return linux_metadata(raw)
+            if c.errno() != c.interrupted:
+                error(classify_error(c.errno()), "file metadata could not be read")
+
+func metadata_descriptor(descriptor: i32) -> Metadata!:
+    if platform.macos:
+        var raw: MacMetadata
+        while true:
+            if fstat_macos(descriptor, &raw) == 0:
+                return mac_metadata(raw)
+            if c.errno() != c.interrupted:
+                error(classify_error(c.errno()), "open-file metadata could not be read")
+    else:
+        var raw: LinuxMetadata
+        while true:
+            if fstat_linux(descriptor, &raw) == 0:
+                return linux_metadata(raw)
+            if c.errno() != c.interrupted:
+                error(classify_error(c.errno()), "open-file metadata could not be read")
+
 ## File opening policy. `replace` creates or truncates; `create_new` refuses an
 ## existing path; `create_new_read_write` also permits reads. `append` creates if
 ## needed and makes each write append atomically.
@@ -2284,6 +2447,11 @@ pub struct File: io.Reader, io.Writer:
     ## must not close it or retain it past this owner's lifetime.
     pub func descriptor() -> i32?:
         return self.handle
+
+    ## Query the open object, even after its pathname has been renamed or removed.
+    pub func metadata() -> Metadata!:
+        let descriptor = self.handle else error(io.closed, "the file is closed")
+        return try metadata_descriptor(descriptor)
 
     ## Read some bytes, retrying interruption. Zero for nonempty storage is EOF;
     ## empty input makes no system call. The handle must be open even for empty I/O.
@@ -2375,7 +2543,6 @@ func classify_error(number: i32) -> ErrorCode:
     if number == would_block_errno:
         return would_block
     return failed
-
 ## Whether the path currently resolves to an existing object, following symlinks.
 ## This convenience form returns false on lookup errors; use exists_checked when
 ## permission or I/O failures must be distinguished from absence. It never opens a
