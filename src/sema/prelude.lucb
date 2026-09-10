@@ -2151,12 +2151,14 @@ import paths
 import strings
 
 extern func open(path: c.str, flags: i32, ...) -> i32
+extern func openat(directory: i32, path: c.str, flags: i32, ...) -> i32
 extern func close(descriptor: i32) -> i32
 extern func c_read as "read"(descriptor: i32, buffer: void*, count: usize) -> isize
 extern func c_write as "write"(descriptor: i32, buffer: const void*, count: usize) -> isize
 extern func lseek(descriptor: i32, offset: i64, whence: i32) -> i64
 extern func fsync(descriptor: i32) -> i32
-extern func opendir(path: c.str) -> void*?
+extern func fdopendir(descriptor: i32) -> void*?
+extern func dirfd(directory: void*) -> i32
 extern func readdir_macos as "readdir"(directory: void*) -> MacEntry*?
 extern func readdir_linux as "readdir"(directory: void*) -> LinuxEntry*?
 extern func closedir(directory: void*) -> i32
@@ -2220,6 +2222,9 @@ let exclusive_flag: i32 = 2048 if platform.macos else 128
 let would_block_errno: i32 = 35 if platform.macos else 11
 let transfer_limit: usize = 1073741824
 let current_directory_fd: i32 = -2 if platform.macos else -100
+let directory_flag: i32 = 1048576 if platform.macos else 65536
+let no_follow_flag: i32 = 256 if platform.macos else 131072
+let at_no_follow_flag: i32 = 32 if platform.macos else 256
 
 pub let missing: ErrorCode = ErrorCode.package(6)
 pub let permission_denied: ErrorCode = ErrorCode.package(18)
@@ -2325,6 +2330,8 @@ extern func lstat_macos as "lstat"(path: c.str, result: MacMetadata*) -> i32
 extern func lstat_linux as "lstat"(path: c.str, result: LinuxMetadata*) -> i32
 extern func fstat_macos as "fstat"(descriptor: i32, result: MacMetadata*) -> i32
 extern func fstat_linux as "fstat"(descriptor: i32, result: LinuxMetadata*) -> i32
+extern func fstatat_macos as "fstatat"(directory: i32, path: c.str, result: MacMetadata*, flags: i32) -> i32
+extern func fstatat_linux as "fstatat"(directory: i32, path: c.str, result: LinuxMetadata*, flags: i32) -> i32
 
 func file_kind(mode: u32) -> FileKind:
     let kind = mode & 61440
@@ -2391,6 +2398,7 @@ func metadata_descriptor(descriptor: i32) -> Metadata!:
                 return mac_metadata(raw)
             if c.errno() != c.interrupted:
                 error(classify_error(c.errno()), "open-file metadata could not be read")
+
     else:
         var raw: LinuxMetadata
         while true:
@@ -2399,6 +2407,22 @@ func metadata_descriptor(descriptor: i32) -> Metadata!:
             if c.errno() != c.interrupted:
                 error(classify_error(c.errno()), "open-file metadata could not be read")
 
+func metadata_at(directory: i32, path: c.str, follow_symlinks: bool) -> Metadata!:
+    let flags: i32 = 0 if follow_symlinks else at_no_follow_flag
+    if platform.macos:
+        var raw: MacMetadata
+        while true:
+            if fstatat_macos(directory, path, &raw, flags) == 0:
+                return mac_metadata(raw)
+            if c.errno() != c.interrupted:
+                error(classify_error(c.errno()), "directory-entry metadata could not be read")
+    else:
+        var raw: LinuxMetadata
+        while true:
+            if fstatat_linux(directory, path, &raw, flags) == 0:
+                return linux_metadata(raw)
+            if c.errno() != c.interrupted:
+                error(classify_error(c.errno()), "directory-entry metadata could not be read")
 ## File opening policy. `replace` creates or truncates; `create_new` refuses an
 ## existing path; `create_new_read_write` also permits reads. `append` creates if
 ## needed and makes each write append atomically.
@@ -2893,15 +2917,38 @@ func release_buffer(bytes: u8[]):
 pub struct Directory:
     var handle: void*?
 
-    pub static func open(path: c.str) -> Directory!:
-        var stream = opendir(path)
-        while stream == none and c.errno() == c.interrupted:
-            stream = opendir(path)
-        let directory = stream else error(classify_error(c.errno()), "the directory could not be opened")
-        return Directory(handle = directory)
+    ## Open a close-on-exec directory stream. With follow_symlinks=false, refuse
+    ## a final symlink; intermediate path components still resolve normally.
+    pub static func open(path: c.str, follow_symlinks: bool = true) -> Directory!:
+        return try open_directory_at(current_directory_fd, path, follow_symlinks)
+
+    ## Borrow the descriptor until close. Do not close it or change its position.
+    pub func descriptor() -> i32!:
+        let directory = self.handle else error(io.closed, "the directory is closed")
+        let descriptor = dirfd(directory)
+        if descriptor < 0:
+            error(classify_error(c.errno()), "the directory has no usable descriptor")
+        return descriptor
+
+    ## Metadata for the opened directory, independent of its current pathname.
+    pub func metadata() -> Metadata!:
+        return try metadata_descriptor(try self.descriptor())
+
+    ## Resolve a relative path from this open directory, even after it is renamed.
+    ## Absolute paths use normal OS resolution. With follow_symlinks=false, inspect
+    ## the final link itself. Separators and parent components retain OS semantics.
+    pub func entry_metadata(path: c.str, follow_symlinks: bool = true) -> Metadata!:
+        return try metadata_at(try self.descriptor(), path, follow_symlinks)
+
+    ## Open a directory relative to this handle. The new stream owns a separate
+    ## descriptor and position; closing either stream does not close the other.
+    ## With follow_symlinks=false, refuse a final symlink atomically during open.
+    pub func open_directory(path: c.str, follow_symlinks: bool = true) -> Directory!:
+        return try open_directory_at(try self.descriptor(), path, follow_symlinks)
 
     ## The next name excluding dot and dot-dot, or none at end. Names are raw path
-    ## bytes, not guaranteed UTF-8. The view expires on the next call or close.
+    ## bytes, NUL-terminated but not guaranteed UTF-8. The view expires on the next
+    ## call or close.
     pub mutating func next() -> str?!:
         let directory = self.handle else error(io.closed, "the directory is closed")
         while true:
@@ -2920,6 +2967,23 @@ pub struct Directory:
     pub mutating func destroy():
         self.close() catch failure:
             discard(failure)
+
+## Acquire a descriptor first so CLOEXEC and final-symlink policy are atomic.
+## fdopendir takes ownership only on success; capture errno before closing on failure.
+func open_directory_at(parent: i32, path: c.str, follow_symlinks: bool) -> Directory!:
+    var flags = directory_flag | close_on_exec
+    if not follow_symlinks:
+        flags |= no_follow_flag
+    var descriptor = openat(parent, path, flags)
+    while descriptor < 0 and c.errno() == c.interrupted:
+        descriptor = openat(parent, path, flags)
+    if descriptor < 0:
+        error(classify_error(c.errno()), "the directory could not be opened")
+    if let stream = fdopendir(descriptor):
+        return Directory(handle = stream)
+    let number = c.errno()
+    discard(close(descriptor))
+    error(classify_error(number), "the directory stream could not be created")
 
 ## The names in a directory, sorted by bytes, without `.` and `..`: each name and the
 ## array holding them, exactly as long as the names, are allocations of the current

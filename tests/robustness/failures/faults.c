@@ -3,12 +3,15 @@
 #include <assert.h>
 #include <dlfcn.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <netdb.h>
 #include <netinet/in.h>
 #include <pthread.h>
 #include <stdio.h>
+#include <stdarg.h>
 #include <stdlib.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
 static int armed, hits, attributes, directory_reads, global_flushes, opened_streams;
@@ -93,6 +96,28 @@ void *readdir(void *directory) {
     if (take(22)) return NULL;
     if (armed == 20 && ++directory_reads == 4 && take(20)) { errno = EIO; return NULL; }
     return real(directory);
+}
+void *fdopendir(int descriptor) {
+    REAL(fdopendir);
+    if (take(34)) { errno = ENOMEM; return NULL; }
+    return real(descriptor);
+}
+int openat(int directory, const char *path, int flags, ...) {
+    REAL(openat);
+    if (take(35)) return -1;
+    int mode = 0;
+    if (flags & O_CREAT) {
+        va_list arguments;
+        va_start(arguments, flags);
+        mode = va_arg(arguments, int);
+        va_end(arguments);
+    }
+    return real(directory, path, flags, mode);
+}
+int fstatat(int directory, const char *path, struct stat *result, int flags) {
+    REAL(fstatat);
+    if (take(36)) return -1;
+    return real(directory, path, result, flags);
 }
 int closedir(void *directory) {
     REAL(closedir);

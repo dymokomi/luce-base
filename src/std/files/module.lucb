@@ -6,12 +6,14 @@ import paths
 import strings
 
 extern func open(path: c.str, flags: i32, ...) -> i32
+extern func openat(directory: i32, path: c.str, flags: i32, ...) -> i32
 extern func close(descriptor: i32) -> i32
 extern func c_read as "read"(descriptor: i32, buffer: void*, count: usize) -> isize
 extern func c_write as "write"(descriptor: i32, buffer: const void*, count: usize) -> isize
 extern func lseek(descriptor: i32, offset: i64, whence: i32) -> i64
 extern func fsync(descriptor: i32) -> i32
-extern func opendir(path: c.str) -> void*?
+extern func fdopendir(descriptor: i32) -> void*?
+extern func dirfd(directory: void*) -> i32
 extern func readdir_macos as "readdir"(directory: void*) -> MacEntry*?
 extern func readdir_linux as "readdir"(directory: void*) -> LinuxEntry*?
 extern func closedir(directory: void*) -> i32
@@ -75,6 +77,9 @@ let exclusive_flag: i32 = 2048 if platform.macos else 128
 let would_block_errno: i32 = 35 if platform.macos else 11
 let transfer_limit: usize = 1073741824
 let current_directory_fd: i32 = -2 if platform.macos else -100
+let directory_flag: i32 = 1048576 if platform.macos else 65536
+let no_follow_flag: i32 = 256 if platform.macos else 131072
+let at_no_follow_flag: i32 = 32 if platform.macos else 256
 
 pub let missing: ErrorCode = ErrorCode.package(6)
 pub let permission_denied: ErrorCode = ErrorCode.package(18)

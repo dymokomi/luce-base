@@ -87,6 +87,8 @@ extern func lstat_macos as "lstat"(path: c.str, result: MacMetadata*) -> i32
 extern func lstat_linux as "lstat"(path: c.str, result: LinuxMetadata*) -> i32
 extern func fstat_macos as "fstat"(descriptor: i32, result: MacMetadata*) -> i32
 extern func fstat_linux as "fstat"(descriptor: i32, result: LinuxMetadata*) -> i32
+extern func fstatat_macos as "fstatat"(directory: i32, path: c.str, result: MacMetadata*, flags: i32) -> i32
+extern func fstatat_linux as "fstatat"(directory: i32, path: c.str, result: LinuxMetadata*, flags: i32) -> i32
 
 func file_kind(mode: u32) -> FileKind:
     let kind = mode & 61440
@@ -153,6 +155,7 @@ func metadata_descriptor(descriptor: i32) -> Metadata!:
                 return mac_metadata(raw)
             if c.errno() != c.interrupted:
                 error(classify_error(c.errno()), "open-file metadata could not be read")
+
     else:
         var raw: LinuxMetadata
         while true:
@@ -161,3 +164,19 @@ func metadata_descriptor(descriptor: i32) -> Metadata!:
             if c.errno() != c.interrupted:
                 error(classify_error(c.errno()), "open-file metadata could not be read")
 
+func metadata_at(directory: i32, path: c.str, follow_symlinks: bool) -> Metadata!:
+    let flags: i32 = 0 if follow_symlinks else at_no_follow_flag
+    if platform.macos:
+        var raw: MacMetadata
+        while true:
+            if fstatat_macos(directory, path, &raw, flags) == 0:
+                return mac_metadata(raw)
+            if c.errno() != c.interrupted:
+                error(classify_error(c.errno()), "directory-entry metadata could not be read")
+    else:
+        var raw: LinuxMetadata
+        while true:
+            if fstatat_linux(directory, path, &raw, flags) == 0:
+                return linux_metadata(raw)
+            if c.errno() != c.interrupted:
+                error(classify_error(c.errno()), "directory-entry metadata could not be read")

@@ -490,8 +490,12 @@ A temporary file and its owned pathname. The zero value is closed. Copying does 
 
 One owned directory stream; the zero value is closed. Copying does not duplicate ownership. Borrow it for iteration and serialize access to the stream.
 
-- `static func open(path: c.str) -> Directory!`
-- `mutating func next() -> str?!` — The next name excluding dot and dot-dot, or none at end. Names are raw path bytes, not guaranteed UTF-8. The view expires on the next call or close.
+- `static func open(path: c.str, follow_symlinks: bool = true) -> Directory!` — Open a close-on-exec directory stream. With follow_symlinks=false, refuse a final symlink; intermediate path components still resolve normally.
+- `func descriptor() -> i32!` — Borrow the descriptor until close. Do not close it or change its position.
+- `func metadata() -> Metadata!` — Metadata for the opened directory, independent of its current pathname.
+- `func entry_metadata(path: c.str, follow_symlinks: bool = true) -> Metadata!` — Resolve a relative path from this open directory, even after it is renamed. Absolute paths use normal OS resolution. With follow_symlinks=false, inspect the final link itself. Separators and parent components retain OS semantics.
+- `func open_directory(path: c.str, follow_symlinks: bool = true) -> Directory!` — Open a directory relative to this handle. The new stream owns a separate descriptor and position; closing either stream does not close the other. With follow_symlinks=false, refuse a final symlink atomically during open.
+- `mutating func next() -> str?!` — The next name excluding dot and dot-dot, or none at end. Names are raw path bytes, NUL-terminated but not guaranteed UTF-8. The view expires on the next call or close.
 - `mutating func close() -> !` — Consume ownership even on failure; repeated calls on this value are safe.
 - `mutating func destroy()` — Best-effort unwind cleanup; use close to observe an error on the success path.
 

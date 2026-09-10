@@ -48,7 +48,7 @@ func io_failure(path: c.str, kind: i32):
             var empty: str[]
             recover empty
         files.release_list(names)
-    assert(rejected == (kind != 22))
+    assert(rejected == (kind != 22 and kind != 35))
     assert(fault_hits() == 1)
     counter.finish()
     assert(descriptors() == before, "directory I/O failure left a descriptor open")
@@ -66,6 +66,16 @@ pub func main(arguments: c.str[]) -> i32!:
         position += 1
     var directory = try files.Directory.open(arguments[1])
     defer directory.destroy()
+    let descriptor = try directory.descriptor()
+    assert((fcntl(descriptor, 1) & 1) == 1)
+    fault_arm(36)
+    let relative = try directory.entry_metadata(".")
+    assert(relative.kind == files.FileKind.directory and fault_hits() == 1)
+    let own = try directory.metadata()
+    assert(own.device == relative.device and own.inode == relative.inode)
+    var independent = try directory.open_directory(".", false)
+    assert(try independent.descriptor() != descriptor)
+    try independent.close()
     var entries: usize = 0
     while let name = try directory.next():
         assert(name != "." and name != "..")
@@ -86,5 +96,7 @@ pub func main(arguments: c.str[]) -> i32!:
         io_failure(arguments[1], 20)
     io_failure(arguments[1], 21)
     io_failure(arguments[1], 22)
+    io_failure(arguments[1], 34)
+    io_failure(arguments[1], 35)
     print("ok directory failures")
     return 0
