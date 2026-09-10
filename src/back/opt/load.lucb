@@ -19,8 +19,8 @@
 
 import memory
 import support.list
-import back.cfg
-import back.ir
+import back.ir.cfg
+import back.ir.ir
 
 ## How an address is known: what it is an offset from.
 pub enum Kind as u8:

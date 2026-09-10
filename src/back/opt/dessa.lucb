@@ -17,8 +17,8 @@
 
 import memory
 import support.list
-import back.cfg
-import back.ir
+import back.ir.cfg
+import back.ir.ir
 
 ## A copy to place: at the end of block `at`, `dst = value`.
 struct Move:

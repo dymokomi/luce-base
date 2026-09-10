@@ -17,9 +17,9 @@
 #
 #==============================================================================================
 
-import back.cfg
-import back.ir
-import back.regalloc
+import back.ir.cfg
+import back.ir.ir
+import back.native.regalloc
 import memory
 import support.list
 

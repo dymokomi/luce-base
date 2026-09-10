@@ -1,8 +1,8 @@
 ## DWARF 4 for development builds. Addresses and frame offsets come from the native
 ## generator; types and member offsets come from the checker's target layout.
 import c
-import back.frame
-import back.ir
+import back.native.frame
+import back.ir.ir
 import front.ast
 import sema.check
 import sema.types

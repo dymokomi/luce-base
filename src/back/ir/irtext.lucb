@@ -11,7 +11,7 @@
 #
 #==============================================================================================
 
-import back.ir
+import back.ir.ir
 import support.buffer
 
 ## The whole unit as text.

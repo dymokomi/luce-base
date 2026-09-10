@@ -22,9 +22,9 @@
 #
 #==============================================================================================
 
-import back.dwarf
-import back.frame
-import back.ir
+import back.native.dwarf
+import back.native.frame
+import back.ir.ir
 import back.target as build_target
 import memory
 import support.buffer

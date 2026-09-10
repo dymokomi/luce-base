@@ -17,7 +17,7 @@
 #
 #==============================================================================================
 
-import back.ir
+import back.ir.ir
 import back.isa
 import back.names
 import back.target as targets

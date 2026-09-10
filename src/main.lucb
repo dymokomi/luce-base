@@ -13,7 +13,7 @@ import c
 import back.backend
 import back.target as targets
 import platform
-import back.header
+import back.c.header
 import back.names
 import support.manifest
 import files

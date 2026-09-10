@@ -17,21 +17,21 @@
 import c
 import io
 import memory
-import back.dwarf
-import back.arm64
-import back.cfg
-import back.dessa
-import back.gvn
-import back.load
-import back.ssa
+import back.native.dwarf
+import back.native.arm64
+import back.ir.cfg
+import back.opt.dessa
+import back.opt.gvn
+import back.opt.load
+import back.opt.ssa
 import back.target as targets
-import back.x86_64
-import back.emit
-import back.inline
-import back.ir
-import back.irtext
-import back.lower
-import back.opt
+import back.native.x86_64
+import back.c.emit
+import back.opt.inline
+import back.ir.ir
+import back.ir.irtext
+import back.ir.lower
+import back.opt.opt
 import front.ast
 import sema.check
 

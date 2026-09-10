@@ -18,7 +18,7 @@
 #==============================================================================================
 
 import support.list
-import back.ir
+import back.ir.ir
 
 ## After the optimiser's passes: what they leave behind that is dead goes, and a constant
 ## that a copy exposed folds, once, since nothing here feeds anything else.

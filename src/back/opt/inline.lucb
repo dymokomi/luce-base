@@ -24,7 +24,7 @@
 
 import memory
 import support.list
-import back.ir
+import back.ir.ir
 
 ## The most instructions, labels aside, a function may have to be expanded at every call,
 ## and the most one called from one place only may have: it is expanded there, and when

@@ -19,8 +19,8 @@
 
 import memory
 import support.list
-import back.cfg
-import back.ir
+import back.ir.cfg
+import back.ir.ir
 
 ## No temporary, no instruction.
 let none_index: u32 = 0xFFFFFFFF

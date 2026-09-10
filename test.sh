@@ -20,7 +20,10 @@ python3 tools/embed_runtime.py --check
 python3 tools/embed_version.py --check
 python3 tools/library_reference.py --check
 # the standard library under src/std is checked as the prelude, not as modules of its own
-for f in tests/samples/*.lucb src/*.lucb src/*/*.lucb tests/programs/*/*.lucb; do
+# Source paths in this repository contain no whitespace. Discover recursively so
+# reorganizing compiler modules cannot silently remove them from the gate.
+compiler_sources=$(find src -type f -name '*.lucb' ! -path 'src/std/*' | LC_ALL=C sort)
+for f in tests/samples/*.lucb $compiler_sources tests/programs/*/*.lucb; do
     case "$f" in src/std/*) continue;; esac
     echo "== $f"
     ./build/luce-base lex "$f" > /dev/null
@@ -37,7 +40,7 @@ for f in tests/samples/*.expect; do
 done
 rm -f build/sample build/sample.out
 # every module's tests run through both backends: the two executions must agree
-for f in src/*/*.lucb tests/programs/*/*.lucb; do
+for f in $compiler_sources tests/programs/*/*.lucb; do
     case "$f" in src/std/*) continue;; esac
     if grep -q '^test "' "$f"; then
         echo "== test $f"

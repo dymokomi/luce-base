@@ -46,12 +46,12 @@ from wherever it sits.
 | `sema.prelude` | the standard modules of §16.6 as Base source text, and `core`, the runtime in Base |
 | `sema.check` | names, types, and effects; writes `type_id` and `resolved` onto the tree |
 | `back.names` | the symbol every declaration and instance gets, shared by both backends |
-| `back.emit` | the checked tree to C: monomorphisation, conversions, the runtime contract |
-| `back.ir` | the intermediate form: functions of blocks of typed instructions |
-| `back.lower` | the checked tree to IR: the same instantiation and conversion decisions as `emit` |
-| `back.regalloc` | registers for the temporaries: exact lives by dataflow, linear scan with holes, two pools per class, copy hints |
-| `back.arm64` | IR to arm64-macos assembly: frames, the calling convention, atomics |
-| `back.x86_64` | IR to x86_64-linux assembly: the System V convention, eightbyte classification with the MEMORY class for packed records, halves through F16C or software by level |
+| `back.c.emit` | the checked tree to C: monomorphisation, conversions, the runtime contract |
+| `back.ir.ir` | the intermediate form: functions of blocks of typed instructions |
+| `back.ir.lower` | the checked tree to IR: the same instantiation and conversion decisions as `emit` |
+| `back.native.regalloc` | registers for the temporaries: exact lives by dataflow, linear scan with holes, two pools per class, copy hints |
+| `back.native.arm64` | IR to arm64-macos assembly: frames, the calling convention, atomics |
+| `back.native.x86_64` | IR to x86_64-linux assembly: the System V convention, eightbyte classification with the MEMORY class for packed records, halves through F16C or software by level |
 | `back.target` | the targets of §19.5: symbols, streams, libraries, the `platform` module, section names |
 | `support.list` | a growable array over the current allocator |
 | `support.buffer` | growable text the backends stream into |
@@ -333,7 +333,7 @@ by the driver, each C source to an object beside the generated code.
 with no entry: the C backend adds a constructor that starts the runtime when
 the library loads, the native backend an `lb_library_init` reached through
 the Mach-O initialiser section. The driver archives the object (and the C
-runtime's) into `NAME.a`, and `back/header.lucb` writes `NAME.h`: the records
+runtime's) into `NAME.a`, and `back/c/header.lucb` writes `NAME.h`: the records
 every `export` signature mentions, in dependency order and under their Base
 names, each declared before its body so a record may point at itself or at
 one after it, a function type as `typedef R (*luce_fn_N)(...)`, an
@@ -382,7 +382,7 @@ the program's modules are hooked; the standard modules run as built.
 
 The product is the compiler built by itself through the native backend, so
 that backend's quality is what the compiler runs on. Between lowering and the
-target, `back/inline.lucb` expands functions at their call sites: the
+target, `back/opt/inline.lucb` expands functions at their call sites: the
 arguments are stored into the callee's parameter slots (which join the
 caller's frame, and which every expansion of one callee in one caller
 shares), its temporaries, slots, and labels are renumbered into the caller's,
@@ -400,7 +400,7 @@ to four calls each grew its code by a tenth and made it no faster, because
 values still pass through slots between an expanded body and its caller and
 the optimiser forwards them within one block only. A loop over a struct's
 accessors runs a third faster; the compiler's own build, which is not
-call-bound, does not change. Then `back/frame.lucb` shapes each function for
+call-bound, does not change. Then `back/native/frame.lucb` shapes each function for
 its generator. `plan` measures how many temporaries of each class are live at
 once and splits the callee-saved registers accordingly:
 the temporaries keep up to four of each class, the most-used frame slots take
@@ -411,7 +411,7 @@ register for the whole function; its address temporaries are never
 materialised, a narrow load re-extends from the register, and a parameter's
 slot is filled by a move at entry. A slot a call sequence writes into (an
 aggregate result) stays in the frame, as does everything under `--debug`,
-whose frame descriptors need the frame. `back/regalloc.lucb` then gives the
+whose frame descriptors need the frame. `back/native/regalloc.lucb` then gives the
 temporaries their registers by linear scan over their exact lives: liveness
 is computed by dataflow over the blocks (`ssa.Liveness`), so a temporary's
 interval is the set of positions it is live at, with holes, and a value
@@ -447,28 +447,28 @@ copied every type so far.
 Between the inliner and the generators, each function goes through the passes QBE
 runs (its cfg.c, mem.c, ssa.c, gvn.c, alias.c, and load.c, written here for this IR):
 
-- `back/cfg.lucb` reads the flat instruction list as a graph: blocks from the labels
+- `back/ir/cfg.lucb` reads the flat instruction list as a graph: blocks from the labels
   and the jumps, reverse post-order, immediate dominators (Cooper, Harvey, and
   Kennedy), dominance frontiers, dominator-tree depth, and loop weights.
-- `back/ssa.lucb` promotes every slot that is only loaded and stored whole, in one
+- `back/opt/ssa.lucb` promotes every slot that is only loaded and stored whole, in one
   class, into a temporary (a parameter's slot keeps one load at the entry, the value the
   prologue put there), then brings the function to single-assignment form: a phi at
   every block of a temporary's iterated dominance frontier where it is live, and one name
   per definition down the dominator tree. Liveness is a bit set per block.
-- `back/gvn.lucb` walks the dominator tree with a table of the computations available
+- `back/opt/gvn.lucb` walks the dominator tree with a table of the computations available
   where it stands: a repeated computation, a constant computation, an operator's
   identity, and a phi whose arguments agree all become the value they stand for; a
   branch on a constant becomes a jump, and the blocks no longer reached go, their phis
   losing the arguments they supplied. Without global code motion, a value replaces
   another only where its definition dominates the use.
-- `back/load.lucb` classifies every address as an offset from a slot, a symbol, a
+- `back/opt/load.lucb` classifies every address as an offset from a slot, a symbol, a
   constant, or an unknown pointer, so that two accesses must overlap, may, or cannot;
   each load is then answered by the last store or load to its location, backwards
   through its block and its predecessors, a phi joining what several paths supply, and
   through a blit or a zeroing of the bytes to where they came from. A store that may
   alias, a call where the slot's address escaped, an atomic, or a fence ends the search
   and the load stays. Only a whole match of one class is taken.
-- `back/dessa.lucb` gives the generators back their form: each phi's temporary is
+- `back/opt/dessa.lucb` gives the generators back their form: each phi's temporary is
   assigned by a copy at the end of every predecessor (a branching predecessor gets an
   edge block for a successor with other predecessors; the copies of an edge are parallel),
   and `frame` runs a temporary's live range from its first assignment.
@@ -767,10 +767,10 @@ nested and restored under failure, a budget that runs out mid-structure and is
 recovered from, a growing container, the diagnostic profile showing a read
 after `free` and an uninitialised local, and a deliberate leak reported by
 count. `tests/optimization/` measures the IR before the target (`--emit=ir`,
-`back/irtext.lucb`, a text modelled on QBE's) and the assembly after it:
+`back/ir/irtext.lucb`, a text modelled on QBE's) and the assembly after it:
 `NAME.limits` holds the largest instruction, load, store, call, and assembly
 counts allowed for the program's own functions (`asm-arm64` and `asm-x86_64`,
-each checked on its host), a pass lowers them, and nothing raises one silently. `back/opt.lucb` holds the passes that run after
+each checked on its host), a pass lowers them, and nothing raises one silently. `back/opt/opt.lucb` holds the passes that run after
 inlining: forwarding a store to a promotable slot to the loads that follow it
 in the block, reading through copies, folding operators on constants (the
 trapping ones only when they hold), and sweeping unread results and unread

@@ -61,8 +61,8 @@ from either host.
 
 The sources are `src/front` (source, tokens, lexer, tree, parser),
 `src/sema` (types, the standard modules as Base text, the checker),
-`src/back` (names, the C backend, the IR, lowering, the arm64 and x86_64
-generators, the target), and `src/support` (list, buffer, the embedded C runtime).
+`src/back` ([backend layout](src/back/README.md): IR and lowering, optimization,
+native code generation, C emission and shared target definitions), and `src/support` (list, buffer, the embedded C runtime).
 
 ## Status
 
@@ -87,7 +87,7 @@ target rules out is pruned; `tests/platform` proves each host's arms. What is
 left in C, under `runtime/`, is what generated code cannot spell itself: traps,
 checked arithmetic, formatting of scalars, hashing.
 
-The native backend lowers the checked tree to a QBE-like IR (`src/back/lower.lucb`),
+The native backend lowers the checked tree to a QBE-like IR (`src/back/ir/lower.lucb`),
 runs the optimiser over it (inlining, single-assignment form, value numbering,
 load elimination), and the target's generator (`arm64.lucb`, `x86_64.lucb`)
 places it on the machine: frames, the calling convention with the ABI's

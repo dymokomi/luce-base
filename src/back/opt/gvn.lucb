@@ -18,9 +18,9 @@
 
 import memory
 import support.list
-import back.cfg
-import back.ir
-import back.opt
+import back.ir.cfg
+import back.ir.ir
+import back.opt.opt
 
 ## An entry of the table: what an instruction computed, and where its result is.
 struct Entry:

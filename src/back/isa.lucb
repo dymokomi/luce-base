@@ -14,7 +14,7 @@
 #
 #==============================================================================================
 
-import back.ir
+import back.ir.ir
 import back.target as targets
 
 ## What a named register carries: a float or an integer, of `bits` bits.

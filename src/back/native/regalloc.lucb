@@ -1,6 +1,6 @@
 #==============================================================================================
 #
-#   back/regalloc - Registers for the temporaries, by their exact lives
+#   back/native/regalloc - Registers for the temporaries, by their exact lives
 #
 #   DESCRIPTION:
 #       Linear scan over intervals with holes (Wimmer and Franz), after the optimiser has
@@ -19,9 +19,9 @@
 #
 #==============================================================================================
 
-import back.cfg
-import back.ir
-import back.ssa
+import back.ir.cfg
+import back.ir.ir
+import back.opt.ssa
 import memory
 import support.list
 
