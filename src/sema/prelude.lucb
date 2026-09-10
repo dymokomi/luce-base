@@ -60,6 +60,14 @@ pub func errno() -> i32:
         return *mac_errno()
     return *linux_errno()
 
+## Set the calling thread's errno. Clear it immediately before C calls such as
+## readdir whose null result can mean either normal completion or failure.
+pub func set_errno(value: i32):
+    if platform.macos:
+        *mac_errno() = value
+    else:
+        *linux_errno() = value
+
 ## `EINTR`: a call a signal interrupted, to be made again. The same number on both hosts.
 pub let interrupted: i32 = 4
 
@@ -1464,6 +1472,7 @@ extern func opendir(path: c.str) -> void*?
 extern func readdir_macos as "readdir"(directory: void*) -> MacEntry*?
 extern func readdir_linux as "readdir"(directory: void*) -> LinuxEntry*?
 extern func closedir(directory: void*) -> i32
+extern func access(path: c.str, mode: i32) -> i32
 
 ## A directory entry as macOS lays it out (`struct dirent`, 64-bit inodes).
 extern struct MacEntry:
@@ -1483,23 +1492,29 @@ extern struct LinuxEntry:
     name: u8[256]
 
 ## The next entry's name, or none at the end; `.` and `..` are entries like any other.
-func next_entry(directory: void*) -> str?:
-    if platform.macos:
-        let entry = readdir_macos(directory) else return none
-        return (str)entry.name[..<(usize)entry.name_length]
-    let entry = readdir_linux(directory) else return none
-    var n: usize = 0
-    while n < entry.name.length and entry.name[n] != 0:
-        n += 1
-    return (str)entry.name[..<n]
+func next_entry(directory: void*) -> str?!:
+    while true:
+        c.set_errno(0)
+        if platform.macos:
+            if let entry = readdir_macos(directory):
+                return (str)entry.name[..<(usize)entry.name_length]
+        else:
+            if let entry = readdir_linux(directory):
+                var n: usize = 0
+                while n < entry.name.length and entry.name[n] != 0:
+                    n += 1
+                return (str)entry.name[..<n]
+        let number = c.errno()
+        if number == c.interrupted:
+            continue
+        if number != 0:
+            error(classify_error(number), "the directory could not be read")
+        return none
 
 ## `open` flags: macOS keeps the BSD values, Linux its own (§19.5).
-let read_only: i32 = 0
 let write_only: i32 = 1
 let create: i32 = 512 if platform.macos else 64
 let truncate: i32 = 1024 if platform.macos else 512
-let seek_end: i32 = 2
-let seek_set: i32 = 0
 let close_on_exec: i32 = 16777216 if platform.macos else 524288
 let append_flag: i32 = 8 if platform.macos else 1024
 let exclusive_flag: i32 = 2048 if platform.macos else 128
@@ -1513,6 +1528,9 @@ pub let no_space: ErrorCode = ErrorCode.package(20)
 pub let would_block: ErrorCode = ErrorCode.package(21)
 pub let invalid_options: ErrorCode = ErrorCode.package(22)
 pub let too_large: ErrorCode = ErrorCode.package(23)
+pub let not_directory: ErrorCode = ErrorCode.package(25)
+pub let is_directory: ErrorCode = ErrorCode.package(26)
+pub let read_only_filesystem: ErrorCode = ErrorCode.package(27)
 
 ## File opening policy. `replace` creates or truncates; `create_new` refuses an
 ## existing path; `append` creates if needed and makes each write append atomically.
@@ -1636,17 +1654,37 @@ func classify_error(number: i32) -> ErrorCode:
         return already_exists
     if number == 28:
         return no_space
+    if number == 20:
+        return not_directory
+    if number == 21:
+        return is_directory
+    if number == 30:
+        return read_only_filesystem
     if number == would_block_errno:
         return would_block
     return failed
 
-## Whether `path` can be opened for reading.
+## Whether the path currently resolves to an existing object, following symlinks.
+## This convenience form returns false on lookup errors; use exists_checked when
+## permission or I/O failures must be distinguished from absence. It never opens a
+## file, so checking a FIFO cannot block waiting for a writer.
 pub func exists(path: c.str) -> bool:
-    let descriptor = open(path, read_only)
-    if descriptor < 0:
+    return exists_checked(path) catch failure:
+        discard(failure)
+        recover false
+
+## Checked existence lookup. Missing components, non-directory parent components
+## and dangling symlinks return false. Other failures retain their error category.
+pub func exists_checked(path: c.str) -> bool!:
+    var result = access(path, 0)
+    while result < 0 and c.errno() == c.interrupted:
+        result = access(path, 0)
+    if result == 0:
+        return true
+    let number = c.errno()
+    if number == 2 or number == 20:
         return false
-    discard(close(descriptor))
-    return true
+    error(classify_error(number), "the path could not be inspected")
 pub let failed: ErrorCode = ErrorCode.package(7)
 
 ## Read through EOF, including files whose size changes or cannot be sought. The
@@ -1710,57 +1748,100 @@ func release_buffer(bytes: u8[]):
     if bytes.length > 0:
         free(bytes)
 
+## One owned directory stream; the zero value is closed. Copying does not duplicate
+## ownership. Borrow it for iteration and serialize access to the stream.
+pub struct Directory:
+    var handle: void*?
+
+    pub static func open(path: c.str) -> Directory!:
+        var stream = opendir(path)
+        while stream == none and c.errno() == c.interrupted:
+            stream = opendir(path)
+        let directory = stream else error(classify_error(c.errno()), "the directory could not be opened")
+        return Directory(handle = directory)
+
+    ## The next name excluding dot and dot-dot, or none at end. Names are raw path
+    ## bytes, not guaranteed UTF-8. The view expires on the next call or close.
+    pub mutating func next() -> str?!:
+        let directory = self.handle else error(io.closed, "the directory is closed")
+        while true:
+            let name = try next_entry(directory) else return none
+            if name != "." and name != "..":
+                return name
+
+    ## Consume ownership even on failure; repeated calls on this value are safe.
+    pub mutating func close() -> !:
+        let directory = self.handle else return
+        self.handle = none
+        if closedir(directory) != 0:
+            error(classify_error(c.errno()), "the directory could not be closed")
+
+    ## Best-effort unwind cleanup; use close to observe an error on the success path.
+    pub mutating func destroy():
+        self.close() catch failure:
+            discard(failure)
+
 ## The names in a directory, sorted by bytes, without `.` and `..`: each name and the
 ## array holding them, exactly as long as the names, are allocations of the current
 ## allocator, which `release_list` returns together. On a failure nothing allocated is
 ## kept and the directory is closed.
 pub func list(path: c.str) -> str[]!:
-    let dir = opendir(path) else error(missing, "missing")
-    var names = alloc str[16] catch failure:
-        discard(closedir(dir))
-        error(memory.exhausted, "memory.exhausted")
+    var directory = try Directory.open(path)
+    defer directory.destroy()
+    var names = try alloc str[16]
     var count: usize = 0
-    while let name = next_entry(dir):
-        if name == "." or name == "..":
-            continue
+    errdefer release_entries(names, count)
+    while let name = try directory.next():
         if count == names.length:
-            let grown = alloc str[names.length * 2] catch failure:
-                release_entries(names, count)
-                discard(closedir(dir))
-                error(memory.exhausted, "memory.exhausted")
+            let capacity = names.length *? 2 else error(memory.exhausted, "the directory listing is too large")
+            let grown = try alloc str[capacity]
             memory.copy(grown, names, count)
             free(names)
             names = grown
-        let copy = alloc u8[name.length + 1] catch failure:
-            release_entries(names, count)
-            discard(closedir(dir))
-            error(memory.exhausted, "memory.exhausted")
+        let copy = try alloc u8[name.length + 1]
         memory.copy(copy, name.bytes, name.length)
         copy[name.length] = 0
         names[count] = (str)copy[..<name.length]
         count += 1
-    discard(closedir(dir))
-    # insertion sort by bytes; directories are small
-    var i: usize = 1
-    while i < count:
-        let item = names[i]
-        var j = i
-        while j > 0 and item < names[j - 1]:
-            names[j] = names[j - 1]
-            j -= 1
-        names[j] = item
-        i += 1
+    try directory.close()
+    sort_names(names[..<count])
     # the array as long as the names, so that `release_list` returns what was allocated
     if count == 0:
         free(names)
         var empty: str[]
         return empty
-    let exact = alloc str[count] catch failure:
-        release_entries(names, count)
-        error(memory.exhausted, "memory.exhausted")
+    let exact = try alloc str[count]
     memory.copy(exact, names, count)
     free(names)
     return exact
+
+## In-place heapsort gives large directories O(n log n) comparisons without a
+## second allocation or a recursion depth dependent on filesystem enumeration order.
+func sort_names(names: str[]):
+    var root = names.length // 2
+    while root > 0:
+        root -= 1
+        sift_names(names, root, names.length)
+    var end = names.length
+    while end > 1:
+        end -= 1
+        let largest = names[0]
+        names[0] = names[end]
+        names[end] = largest
+        sift_names(names, 0, end)
+
+func sift_names(names: str[], start: usize, end: usize):
+    var parent = start
+    while parent < end // 2:
+        var child = parent * 2 + 1
+        if child + 1 < end and names[child] < names[child + 1]:
+            child += 1
+        if not (names[parent] < names[child]):
+            return
+        let saved = names[parent]
+        names[parent] = names[child]
+        names[child] = saved
+        parent = child
 
 ## Return what `list` allocated: every name, then the array, to the allocator that is
 ## current, which must be the one `list` allocated from. The names are one byte longer

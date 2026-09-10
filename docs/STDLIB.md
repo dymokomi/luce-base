@@ -24,7 +24,7 @@ Define EOF, zero-length operations, interruption, would-block and timeout separa
 | `math`, `math32` | Explicit special-value contracts, f64/f32 libm operations, precision helpers and checked integer operations | Complete per-function accuracy/domain documentation and wider reference campaigns; rounding-mode and boundary coverage beyond the initial vectors |
 | `net` | IPv4 TCP/UDP, first-address resolution and blocking sockets | IPv4/IPv6 address parsing/formatting and resolution results, TCP/UDP lifecycle, endpoint queries, socket options, configurable backlog, shutdown, nonblocking/readiness support, deadlines/cancellation, precise errors and datagram truncation behavior |
 | `io` | Reader/Writer contracts, borrowed slice adapters, exact/all/bounded-copy helpers with confirmed progress, stdout/stderr and formatting sink | Buffered input/output, stdin, explicit flush, seeking where supported, ownership and close semantics; integrate the shared substrate with files, sockets and TLS |
-| `files` | Owned Reader/Writer handles, open modes, seeking/sync and checked close; legacy whole-file helpers and sorted directory names | Bounded streaming helpers, metadata, directories/iteration/walk, create/remove/rename/copy, temporary files, atomic replacement, symlink/path behavior and broader error detail |
+| `files` | Owned Reader/Writer handles, open modes, seeking/sync and checked close; bounded streaming whole-file helpers, owned directory iteration and checked existence | Metadata, directory walk, create/remove/rename/copy, temporary files, atomic replacement, symlink/path behavior and broader error detail |
 | `strings` | Byte searches/slices, byte separator split, ASCII case conversion, decimal i64 and a builder | Document byte offsets/borrowed views; substring search/split/replace and bounded variants; checked size arithmetic, reserve/capacity and aliasing rules; numeric parsing/formatting; explicit UTF-8 validation/decoding and Unicode-aware operations separate from ASCII helpers |
 
 Do not silently change existing ASCII functions into locale-dependent Unicode
@@ -53,14 +53,13 @@ These observations prioritize contract tests; they are not a completed library a
 - `io.File.write` flushes all C streams before writing and lazily wraps descriptors.
   Define buffering, ordering, initialization/thread behavior and resource ownership
   rather than extending implicit global flushing into the general I/O abstraction.
-- `files.read` relies on seek-to-end sizing; define streams, growing/shrinking files
-  and bounded reads. Read/write interruption handling, delayed write/close failures,
-  and directory-read error versus end-of-directory need direct tests. `exists` currently
-  means readable-open succeeds, not general existence.
+- File and directory helpers now cover interruption, delayed close errors and every
+  allocation failure. Whole-file reads support streams and explicit limits; existence
+  checks do not open paths. Extend this evidence to metadata and mutation APIs.
 - String results mix borrowed views and allocations that must be freed through the
   current allocator, while Builder remembers its allocator. Make that distinction
-  explicit. Exercise builder self-append across growth, allocation failure, size
-  overflow, empty inputs and invalid lifecycle calls according to the chosen contract.
+  explicit. Builder self-append across growth, allocation failure, size overflow and closed
+  lifecycle calls now have regression coverage. Extend it to the remaining text APIs.
 
 ## Delivery slices
 

@@ -6,8 +6,8 @@ pub struct Failing: memory.Allocator:
     pub var failures: usize
     var owner: memory.Allocator
     var fail_at: usize
-    var addresses: void*?[128]
-    var sizes: usize[128]
+    var addresses: void*?[512]
+    var sizes: usize[512]
 
     pub static func at(index: usize) -> Failing:
         var result = Failing(owner = memory.heap)

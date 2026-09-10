@@ -13,6 +13,14 @@ pub func errno() -> i32:
         return *mac_errno()
     return *linux_errno()
 
+## Set the calling thread's errno. Clear it immediately before C calls such as
+## readdir whose null result can mean either normal completion or failure.
+pub func set_errno(value: i32):
+    if platform.macos:
+        *mac_errno() = value
+    else:
+        *linux_errno() = value
+
 ## `EINTR`: a call a signal interrupted, to be made again. The same number on both hosts.
 pub let interrupted: i32 = 4
 

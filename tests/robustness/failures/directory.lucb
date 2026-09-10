@@ -2,6 +2,7 @@
 import allocator
 import c
 import files
+import io
 import memory
 
 extern func fcntl(descriptor: i32, command: i32, ...) -> i32
@@ -32,11 +33,58 @@ func attempt(path: c.str, fail_at: usize) -> usize:
     assert(descriptors() == before, "a directory was left open")
     return counter.attempts
 
-pub func main(arguments: c.str[]) -> i32:
+extern func fault_arm(kind: i32)
+extern func fault_hits() -> i32
+
+func io_failure(path: c.str, kind: i32):
+    let before = descriptors()
+    var counter = allocator.Failing.at(0)
+    var rejected = false
+    with counter:
+        fault_arm(kind)
+        let names = files.list(path) catch failure:
+            assert(failure.code == files.failed)
+            rejected = true
+            var empty: str[]
+            recover empty
+        files.release_list(names)
+    assert(rejected == (kind != 22))
+    assert(fault_hits() == 1)
+    counter.finish()
+    assert(descriptors() == before, "directory I/O failure left a descriptor open")
+
+pub func main(arguments: c.str[]) -> i32!:
     let steps = attempt(arguments[1], 0)
     var i: usize = 1
     while i <= steps:
         discard(attempt(arguments[1], i))
         i += 1
+    let names = try files.list(arguments[1])
+    var position: usize = 1
+    while position < names.length:
+        assert(names[position - 1] < names[position], "directory names must be sorted and distinct")
+        position += 1
+    var directory = try files.Directory.open(arguments[1])
+    defer directory.destroy()
+    var entries: usize = 0
+    while let name = try directory.next():
+        assert(name != "." and name != "..")
+        entries += 1
+    assert(entries == names.length)
+    assert(try directory.next() == none)
+    try directory.close()
+    try directory.close()
+    var rejected = false
+    discard(directory.next() catch failure:
+        assert(failure.code == io.closed)
+        rejected = true
+        recover none)
+    assert(rejected)
+    let nonempty = names.length > 0
+    files.release_list(names)
+    if nonempty:
+        io_failure(arguments[1], 20)
+    io_failure(arguments[1], 21)
+    io_failure(arguments[1], 22)
     print("ok directory failures")
     return 0

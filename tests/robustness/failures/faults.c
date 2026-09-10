@@ -8,8 +8,8 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
-static int armed, hits, attributes;
-void fault_arm(int kind) { assert(!armed); armed = kind; hits = 0; }
+static int armed, hits, attributes, directory_reads;
+void fault_arm(int kind) { assert(!armed); armed = kind; hits = directory_reads = 0; }
 int fault_hits(void) { return hits; }
 int fault_attributes(void) { return attributes; }
 static int take(int kind) {
@@ -17,6 +17,19 @@ static int take(int kind) {
     armed = 0; ++hits; errno = EINTR; return 1;
 }
 #define REAL(name) __typeof__(&name) real = (__typeof__(&name))dlsym(RTLD_NEXT, #name); assert(real)
+/* Opaque DIR pointers let us intercept the exact readdir symbol Base imports,
+   without macOS headers redirecting this test to a different inode ABI symbol. */
+void *readdir(void *directory) {
+    REAL(readdir);
+    if (take(22)) return NULL;
+    if (armed == 20 && ++directory_reads == 4 && take(20)) { errno = EIO; return NULL; }
+    return real(directory);
+}
+int closedir(void *directory) {
+    REAL(closedir);
+    if (take(21)) { int result = real(directory); assert(!result); errno = EIO; return -1; }
+    return real(directory);
+}
 ssize_t send(int fd, const void *p, size_t n, int flags) {
     REAL(send);
     if (take(1)) return -1;

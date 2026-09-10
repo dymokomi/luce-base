@@ -260,6 +260,12 @@ A counting semaphore whose waiters sleep.
 
 - `let too_large: ErrorCode = ErrorCode.package(23)`
 
+- `let not_directory: ErrorCode = ErrorCode.package(25)`
+
+- `let is_directory: ErrorCode = ErrorCode.package(26)`
+
+- `let read_only_filesystem: ErrorCode = ErrorCode.package(27)`
+
 ### `OpenMode` (enumas u8)
 
 File opening policy. `replace` creates or truncates; `create_new` refuses an existing path; `append` creates if needed and makes each write append atomically. Creation permissions are filtered by the process umask, never changed afterward.
@@ -279,7 +285,9 @@ One owned descriptor. The zero value is closed. Borrow through a pointer or an i
 - `mutating func close() -> !` — Consume ownership before closing, so repeated calls on this value are safe even after failure. Never retry close: a reused descriptor may belong to another thread. A reported failure must not be retried using descriptor().
 - `mutating func destroy()` — Best-effort cleanup while unwinding another error. Use close explicitly on the successful path when delayed close errors must be reported to the caller.
 
-- `func exists(path: c.str) -> bool` — Whether `path` can be opened for reading.
+- `func exists(path: c.str) -> bool` — Whether the path currently resolves to an existing object, following symlinks. This convenience form returns false on lookup errors; use exists_checked when permission or I/O failures must be distinguished from absence. It never opens a file, so checking a FIFO cannot block waiting for a writer.
+
+- `func exists_checked(path: c.str) -> bool!` — Checked existence lookup. Missing components, non-directory parent components and dangling symlinks return false. Other failures retain their error category.
 
 - `let failed: ErrorCode = ErrorCode.package(7)`
 
@@ -288,6 +296,15 @@ One owned descriptor. The zero value is closed. Borrow through a pointer or an i
 - `func read_limit(path: c.str, limit: usize) -> u8[]!` — Read a whole file up to `limit` bytes. One extra byte may be read to distinguish an exact fit from excess input; excess fails with too_large, never truncates. All allocations and the descriptor are released on failure. An empty result is still an owned zero-length allocation, following read's existing free contract.
 
 - `func write(path: c.str, data: const u8[]) -> !` — Create or truncate and write all bytes, reporting write and close failures. This is neither atomic replacement nor durable sync; use those operations explicitly when their guarantees are required.
+
+### `Directory` (struct)
+
+One owned directory stream; the zero value is closed. Copying does not duplicate ownership. Borrow it for iteration and serialize access to the stream.
+
+- `static func open(path: c.str) -> Directory!`
+- `mutating func next() -> str?!` — The next name excluding dot and dot-dot, or none at end. Names are raw path bytes, not guaranteed UTF-8. The view expires on the next call or close.
+- `mutating func close() -> !` — Consume ownership even on failure; repeated calls on this value are safe.
+- `mutating func destroy()` — Best-effort unwind cleanup; use close to observe an error on the success path.
 
 - `func list(path: c.str) -> str[]!` — The names in a directory, sorted by bytes, without `.` and `..`: each name and the array holding them, exactly as long as the names, are allocations of the current allocator, which `release_list` returns together. On a failure nothing allocated is kept and the directory is closed.
 

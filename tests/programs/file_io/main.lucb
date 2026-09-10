@@ -10,9 +10,12 @@ extern func fcntl(fd: i32, command: i32, ...) -> i32
 pub func main(arguments: str[]) -> i32!:
     assert(arguments.length == 3)
     let path = (c.str)arguments[1]
+    assert(not (try files.exists_checked(path)))
+    assert(files.exists((c.str)arguments[2]), "existence checks must not open a FIFO")
     var file = try files.File.open(path, files.OpenMode.create_new)
     defer file.destroy()
     let original_fd = file.descriptor() else -1
+    assert(try files.exists_checked(path))
     assert(original_fd >= 0)
     assert((fcntl(original_fd, 1) & 1) == 1)
     file_fault_watch(original_fd)

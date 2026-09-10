@@ -39,10 +39,10 @@ with tempfile.TemporaryDirectory(prefix="luce-base-failures-") as temp:
          "-c", str(sources / "faults.c"), "-o", str(work / "faults.o")])
     run(["ar", "rcs", str(work / "libfaults.a"), str(work / "faults.o")])
     directories = []
-    for count in (0, 1, 17, 33):
+    for count in (0, 1, 17, 33, 257):
         directory = work / f"directory-{count}"
         directory.mkdir()
-        for i in range(count):
+        for i in reversed(range(count)):
             (directory / f"entry-{i:02}").touch()
         directories.append(directory)
     for flags in [*[["--opt", str(level)] for level in range(4)],
@@ -59,8 +59,9 @@ with tempfile.TemporaryDirectory(prefix="luce-base-failures-") as temp:
         for name in ("directory", "process"):
             exe = work / name
             source = "capture_failure" if name == "process" else name
+            libraries = [f"-L{work}", "-lfaults"] if name == "directory" else []
             run([str(root / "build/luce-base"), "build", str(sources / f"{source}.lucb"),
-                 *flags, "-o", str(exe)])
+                 *flags, *libraries, "-o", str(exe)])
             arguments = directories if name == "directory" else [child]
             for argument in arguments:
                 run([str(exe), str(argument)], timeout=30,
