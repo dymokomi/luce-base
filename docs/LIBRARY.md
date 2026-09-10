@@ -809,6 +809,24 @@ Blocking socket I/O. Created and accepted sockets are close-on-exec. Linux sets 
 
 - `let message_too_large: ErrorCode = ErrorCode.package(36)`
 
+### `IpVersion` (enumas u8)
+
+IP version carried by an address value. IPv4-mapped IPv6 remains IPv6.
+
+### `IpAddress` (struct)
+
+An IP value without a port, prefix length or interface scope. Storage is owned inline; copying is safe and requires no cleanup. Zero represents 0.0.0.0.
+
+- `static func from_ipv4(number: u32) -> IpAddress`
+- `static func from_bytes(bytes: const u8[]) -> IpAddress!` — Copy exactly four IPv4 or sixteen IPv6 octets in network order.
+- `static func parse(text: str) -> IpAddress?` — Parse one complete address, without DNS. Accept IPv6 compression, uppercase hex and dotted IPv4 tails. IPv4 needs four decimal components without leading zeros. Reject whitespace, NUL, brackets, ports, prefix lengths and zone IDs.
+- `func version() -> IpVersion`
+- `func ipv4_number() -> u32?` — IPv4 in host-order numeric notation; none for IPv6, including mapped values.
+- `func is_ipv4_mapped() -> bool`
+- `func equals(other: IpAddress) -> bool` — Compare address bits and version. Mapped IPv6 and IPv4 are distinct values.
+- `func write_octets(destination: u8[]) -> usize!` — Copy network-order octets, returning four or sixteen. On insufficient storage report io.full without modifying the destination.
+- `func format(buffer: u8[]) -> str!` — Format into borrowed storage without allocation or a trailing NUL. IPv6 uses lowercase hex, the first longest zero run, and never compresses one zero field. Mapped IPv6 uses ::ffff: followed by dotted IPv4. A 39-byte buffer always suffices; smaller buffers work when the result fits. On io.full the destination is unchanged. The returned view lives only as long as the buffer.
+
 ### `Address` (struct)
 
 An IPv4 address and port, both in host order.

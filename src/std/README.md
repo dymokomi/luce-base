@@ -16,7 +16,7 @@ atomic publication (`temporary.lucb`), bounded copying (`copy.lucb`), whole-file
 directory iteration/listing (`directory.lucb`), and traversal (`walk.lucb`). Its public import remains `files`.
 
 `net/` separates host ABI declarations and constants (`module.lucb`), IPv4 values
-(`address.lucb`), name resolution (`resolver.lucb`), shared descriptor ownership and
+(`address.lucb`), versioned IP values and text conversion (`ip_address.lucb`), name resolution (`resolver.lucb`), shared descriptor ownership and
 endpoint queries (`handles.lucb`), and the TCP listener, TCP connection, and UDP
 socket APIs (`listener.lucb`, `connection.lucb`, `datagram.lucb`). Its public import
 remains `net`.

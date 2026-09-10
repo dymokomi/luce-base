@@ -4,6 +4,7 @@
 ## Adopting a caller-created descriptor also needs this coordination on either OS.
 import c
 import platform
+import memory
 import io
 from io import Reader, Writer
 
@@ -83,6 +84,7 @@ func info_address(info: AddressInfo*) -> SocketAddress*?:
     return (SocketAddress*)p
 
 let inet: i32 = 2
+let inet6: i32 = 30 if platform.macos else 10
 let stream: i32 = 1
 let datagram: i32 = 2
 let socket_close_on_exec: i32 = 524288

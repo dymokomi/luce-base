@@ -22,7 +22,7 @@ Define EOF, zero-length operations, interruption, would-block and timeout separa
 | Module | Current source | Required work |
 | --- | --- | --- |
 | `math`, `math32` | Explicit special-value contracts, f64/f32 libm operations, precision helpers and checked integer operations | Complete per-function accuracy/domain documentation and wider reference campaigns; rounding-mode and boundary coverage beyond the initial vectors |
-| `net` | IPv4 TCP/UDP, first-address resolution and blocking sockets; TCP Reader/Writer with explicit short transfers and recoverable write progress, closed zero values, checked close/adoption, close-on-exec handles, local/peer endpoint queries, configurable backlog, TCP half-close and explicit UDP truncation/empty-packet behavior | IPv4/IPv6 address parsing/formatting and resolution results, socket options, nonblocking/readiness support, deadlines/cancellation, broader error categories and sustained transfer coverage |
+| `net` | IPv4/IPv6 value parsing, canonical formatting and byte conversion; IPv4 TCP/UDP, first-address resolution and blocking sockets; TCP Reader/Writer with explicit short transfers and recoverable write progress, closed zero values, checked close/adoption, close-on-exec handles, local/peer endpoint queries, configurable backlog, TCP half-close and explicit UDP truncation/empty-packet behavior | IPv6 socket endpoints and complete resolution results, socket options, nonblocking/readiness support, deadlines/cancellation, broader error categories and sustained transfer coverage |
 | `io` | Reader/Writer contracts, borrowed slice and buffered adapters, exact/all/bounded-copy helpers with confirmed progress, unbuffered stdin, synchronized libc stdout/stderr, explicit flush and formatting sink | Seeking where supported, broader concurrent and sustained-transfer coverage; confirm file/socket adapters are ready for the later TLS stage |
 | `files` | Owned Reader/Writer handles, open modes, seeking/sync, checked close, path/handle metadata and checked length/permission/timestamp updates; bounded streaming whole-file helpers, owned directory iteration, bounded depth-first traversal and descriptor-relative lookup/open, checked existence, single-entry mutation, bounded symlink reads, owned temporary files and atomic replacement and bounded copying with publication status | Broader concurrent filesystem campaigns and error detail |
 | `strings`, `utf8` | Byte searches/slices, byte separator split, ASCII case conversion, decimal i64, an alias-safe builder and strict UTF-8 scalar operations | Document byte offsets/borrowed views; substring search/split/replace and bounded variants; checked size arithmetic, reserve/capacity and aliasing rules; numeric parsing/formatting; streaming UTF-8 decoding and Unicode-aware operations separate from ASCII helpers |
@@ -111,3 +111,10 @@ requires the same fork/exec coordination. See the host contracts for
 UDP receives use the host `recvmsg` layout and its output truncation flag.
 Oversized packets are consumed with a `message_too_large` error, while a zero
 length packet remains a successful receive. See [recvmsg semantics](https://man7.org/linux/man-pages/man2/recvmsg.2.html).
+
+`IpAddress` parsing and formatting are implemented in Base. Bare values exclude
+ports, interface zones and prefix lengths. Formatting follows the zero compression
+and case rules of [RFC 5952](https://www.rfc-editor.org/rfc/rfc5952.html), with dotted
+IPv4 tails for mapped IPv6. A fixed Python `ipaddress` corpus independently checks
+parsed octets, canonical text, invalid inputs and round trips in all six configurations.
+TCP/UDP endpoints still use the existing IPv4 `Address` until the next migration.
