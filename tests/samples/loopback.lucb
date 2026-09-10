@@ -1,5 +1,6 @@
 ## A TCP echo over loopback and a UDP round trip, the client on a second thread.
 
+import io
 import net
 import thread
 
@@ -18,10 +19,10 @@ func client(context: void*):
     connection.close()
 
 func try_send(connection: net.Connection*) -> !:
-    discard(try connection.write("ping".bytes))
-    var buffer: u8[64]
-    let n = try connection.receive(buffer)
-    print(f"client got {(str)buffer[..<n]}")
+    try io.write_all(connection, "ping".bytes)
+    var buffer: u8[4]
+    try io.read_exact(connection, buffer)
+    print(f"client got {(str)buffer}")
 
 pub func main(arguments: str[]) -> i32!:
     let listener = try net.Listener.bind(net.Address.loopback(0))
@@ -30,9 +31,9 @@ pub func main(arguments: str[]) -> i32!:
     let worker = try thread.spawn(client, &peer)
     var connection = try listener.accept()
     var buffer: u8[64]
-    let n = try connection.receive(buffer)
-    print(f"server got {(str)buffer[..<n]}")
-    discard(try connection.write("pong".bytes))
+    try io.read_exact(&connection, buffer[..<4])
+    print(f"server got {(str)buffer[..<4]}")
+    try io.write_all(&connection, "pong".bytes)
     try worker.join()
     connection.close()
     listener.close()

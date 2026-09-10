@@ -1,6 +1,7 @@
 import c
 import platform
-from io import Writer
+import io
+from io import Reader, Writer
 
 extern func socket(domain: i32, kind: i32, protocol: i32) -> i32
 extern func bind(descriptor: i32, address: const SocketAddress*, length: u32) -> i32
@@ -145,8 +146,8 @@ pub struct Listener:
     pub func close():
         discard(close(self.descriptor))
 
-## One TCP connection; it is a `Writer`.
-pub struct Connection: Writer:
+## One TCP connection implementing borrowed byte-stream Reader and Writer interfaces.
+pub struct Connection: Reader, Writer:
     ## The socket, for callers that poll or pass it on.
     pub var descriptor: i32
     ## Whether the socket is marked against `SIGPIPE` (macOS); `write` marks it on first
@@ -187,28 +188,40 @@ pub struct Connection: Writer:
             self.guarded = true
         return self.guarded
 
-    ## Send every byte; a peer that closed is `closed`, never a signal.
+    ## Send some bytes, retrying interruption. Use io.write_all for a complete
+    ## payload and its optional progress output to resume after a later failure.
+    ## An empty input makes no syscall. A closed peer never raises SIGPIPE.
     pub mutating func write(data: const u8[]) -> usize!:
+        if data.length == 0:
+            return 0
         if not self.guard():
             error(closed, "the connection closed")
-        var done: usize = 0
-        while done < data.length:
-            let n = send(self.descriptor, data[done..].data, data.length - done, send_flags)
-            if n < 0 and c.errno() == c.interrupted:
-                continue
-            if n <= 0:
-                error(closed, "the connection closed")
-            done += (usize)n
-        return done
+        let count = data.length if data.length < transfer_limit else transfer_limit
+        var sent = send(self.descriptor, data.data, count, send_flags)
+        while sent < 0 and c.errno() == c.interrupted:
+            sent = send(self.descriptor, data.data, count, send_flags)
+        if sent < 0:
+            error(transfer_error(c.errno()), "the connection could not send data")
+        if sent == 0:
+            error(io.no_progress, "the connection made no write progress")
+        return (usize)sent
 
-    ## Receive what is available, up to the buffer; zero means the peer closed.
+    ## Receive some bytes. For nonempty storage, zero is peer EOF; empty storage
+    ## returns zero without probing the peer. This call does not fill the buffer.
+    pub mutating func read(buffer: u8[]) -> usize!:
+        return try self.receive(buffer)
+
+    ## Compatibility spelling of read; shares its short-read and EOF contract.
     pub func receive(buffer: u8[]) -> usize!:
-        var n = recv(self.descriptor, buffer.data, buffer.length, 0)
-        while n < 0 and c.errno() == c.interrupted:
-            n = recv(self.descriptor, buffer.data, buffer.length, 0)
-        if n < 0:
-            error(closed, "the connection closed")
-        return (usize)n
+        if buffer.length == 0:
+            return 0
+        let count = buffer.length if buffer.length < transfer_limit else transfer_limit
+        var received = recv(self.descriptor, buffer.data, count, 0)
+        while received < 0 and c.errno() == c.interrupted:
+            received = recv(self.descriptor, buffer.data, count, 0)
+        if received < 0:
+            error(transfer_error(c.errno()), "the connection could not receive data")
+        return (usize)received
 
     pub func close():
         discard(close(self.descriptor))
@@ -254,3 +267,13 @@ pub struct Datagram:
 
     pub func close():
         discard(close(self.descriptor))
+
+## Bound individual transfers below both supported hosts' signed syscall limits.
+let transfer_limit: usize = 1073741824
+
+func transfer_error(number: i32) -> ErrorCode:
+    if number == (35 if platform.macos else 11):
+        return io.would_block
+    if number == 9 or number == 32 or number == (54 if platform.macos else 104) or number == (57 if platform.macos else 107):
+        return closed
+    return failed

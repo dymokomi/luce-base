@@ -1,6 +1,7 @@
 ## HTTP/1.1 on a byte buffer: the request line, headers, and a body sized by
 ## Content-Length; responses written as one header block and one body.
 
+import io
 import net
 import strings
 
@@ -146,12 +147,7 @@ pub func respond(connection: net.Connection*, status: u32, kind: str, body: cons
 
 ## `write` may send part of a buffer; keep going until it has all gone.
 pub func write_all(connection: net.Connection*, data: const u8[]) -> !:
-    var sent: usize = 0
-    while sent < data.length:
-        let n = try connection.write(data[sent..])
-        if n == 0:
-            error(net.closed, "the peer went away")
-        sent += n
+    try io.write_all(connection, data)
 
 func empty_request(body: const u8[]) -> Request:
     var empty: Header[32]

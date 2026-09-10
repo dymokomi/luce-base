@@ -1,3 +1,4 @@
+import io
 import net
 extern func socketpair(domain: i32, kind: i32, protocol: i32, pair: i32*) -> i32
 extern func fault_arm(kind: i32)
@@ -25,9 +26,10 @@ pub func main(arguments: str[]) -> i32!:
     assert(socketpair(1, 1, 0, &pair[0]) == 0)
     var sender = net.Connection.over(pair[0])
     defer sender.close()
-    let receiver = net.Connection.over(pair[1])
+    var receiver = net.Connection.over(pair[1])
     fault_arm(1)
-    assert(try sender.write("abcdefgh".bytes) == 8)
+    assert(try sender.write("abcdefgh".bytes) == 3)
+    try io.write_all(&sender, "defgh".bytes)
     assert(fault_hits() == 1)
     var buffer: u8[8]
     var got: usize = 0
@@ -41,11 +43,36 @@ pub func main(arguments: str[]) -> i32!:
         fault_arm(kind)
         var failed = false
         discard(sender.write("bad".bytes) catch failure:
-            assert(failure.code == net.closed)
+            assert(failure.code == (net.closed if kind == 3 else io.no_progress))
             failed = true
             recover 0)
         assert(failed and fault_hits() == 1)
         kind += 1
+    # A failure after the first successful short send must report that prefix.
+    var confirmed: usize = 0
+    fault_arm(38)
+    var blocked = false
+    io.write_all(&sender, "retry-me".bytes, &confirmed) catch failure:
+        assert(failure.code == io.would_block)
+        blocked = true
+    assert(blocked and confirmed == 3 and fault_hits() == 1)
+    try io.write_all(&sender, "retry-me".bytes[confirmed..])
+    try io.read_exact(&receiver, buffer)
+    assert((str)buffer == "retry-me")
+    fault_arm(39)
+    blocked = false
+    discard(receiver.read(buffer) catch failure:
+        assert(failure.code == io.would_block)
+        blocked = true
+        recover 0)
+    assert(blocked and fault_hits() == 1)
+    fault_arm(40)
+    blocked = false
+    discard(sender.write("x".bytes) catch failure:
+        assert(failure.code == net.failed)
+        blocked = true
+        recover 0)
+    assert(blocked and fault_hits() == 1)
     receiver.close()
     var closed = false
     discard(sender.write("closed".bytes) catch failure:

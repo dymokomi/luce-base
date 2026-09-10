@@ -17,9 +17,10 @@
 
 static int armed, hits, attributes, directory_reads, global_flushes, opened_streams;
 static int walk_root_seen;
+static int socket_sends;
 static dev_t walk_device;
 static ino_t walk_inode;
-void fault_arm(int kind) { assert(!armed); armed = kind; hits = directory_reads = walk_root_seen = 0; }
+void fault_arm(int kind) { assert(!armed); armed = kind; hits = directory_reads = walk_root_seen = socket_sends = 0; }
 int fault_hits(void) { return hits; }
 int fault_attributes(void) { return attributes; }
 int fault_global_flushes(void) { return global_flushes; }
@@ -151,11 +152,14 @@ ssize_t send(int fd, const void *p, size_t n, int flags) {
     if (take(1)) return -1;
     if (take(3)) { errno = EPIPE; return -1; }
     if (take(4)) return 0;
+    if (armed == 38 && ++socket_sends == 2 && take(38)) { errno = EAGAIN; return -1; }
+    if (take(40)) { errno = EIO; return -1; }
     return real(fd, p, n > 3 ? 3 : n, flags);
 }
 ssize_t recv(int fd, void *p, size_t n, int flags) {
     REAL(recv);
     if (take(2)) return -1;
+    if (take(39)) { errno = EAGAIN; return -1; }
     return real(fd, p, n > 2 ? 2 : n, flags);
 }
 int accept(int fd, struct sockaddr *p, socklen_t *n) {

@@ -823,15 +823,16 @@ A bound TCP socket waiting for connections.
 - `func accept() -> Connection!`
 - `func close()`
 
-### `Connection` (struct: Writer)
+### `Connection` (struct: Reader, Writer)
 
-One TCP connection; it is a `Writer`.
+One TCP connection implementing borrowed byte-stream Reader and Writer interfaces.
 
 - `var descriptor: i32` — The socket, for callers that poll or pass it on.
 - `static func connect(address: Address) -> Connection!`
 - `static func over(descriptor: i32) -> Connection` — A connection over a socket the caller made (a `socketpair`, an inherited descriptor): the socket is marked so that a write after the peer closed fails instead of ending the process. Make the connection while the peer is still there: macOS refuses the mark on a socket whose peer has already gone, and a write on such a connection answers `closed` without sending.
-- `mutating func write(data: const u8[]) -> usize!` — Send every byte; a peer that closed is `closed`, never a signal.
-- `func receive(buffer: u8[]) -> usize!` — Receive what is available, up to the buffer; zero means the peer closed.
+- `mutating func write(data: const u8[]) -> usize!` — Send some bytes, retrying interruption. Use io.write_all for a complete payload and its optional progress output to resume after a later failure. An empty input makes no syscall. A closed peer never raises SIGPIPE.
+- `mutating func read(buffer: u8[]) -> usize!` — Receive some bytes. For nonempty storage, zero is peer EOF; empty storage returns zero without probing the peer. This call does not fill the buffer.
+- `func receive(buffer: u8[]) -> usize!` — Compatibility spelling of read; shares its short-read and EOF contract.
 - `func close()`
 
 ### `Datagram` (struct)
