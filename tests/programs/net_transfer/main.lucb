@@ -1,6 +1,7 @@
 import c
 import io
 import net
+import memory
 import thread
 
 extern func transfer_start(version: i32) -> u16
@@ -48,8 +49,13 @@ func transfer(client: Client*) -> !:
 func worker(context: void*?):
     let pointer = context else trap("missing transfer context")
     let client = (Client*)pointer
-    transfer(client) catch failure:
-        print(f"transfer client {client.identity}: {failure.message}")
+    # Each worker has independent empty allocator storage. All transport and
+    # buffering work must succeed without acquiring a payload allocation.
+    var empty: u8[]
+    var refusing = memory.FixedBuffer.over(empty)
+    with refusing:
+        transfer(client) catch failure:
+            print(f"transfer client {client.identity}: {failure.message}")
 
 pub func main(arguments: c.str[]) -> i32!:
     for version in [4, 6]:

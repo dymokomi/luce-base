@@ -61,3 +61,13 @@ runs it for longer. Every finding becomes a test.
     C backend at `-O0` and `-O2` under address, undefined-behaviour, and thread
     sanitizers as a gate step; a litmus suite for the atomic orderings of §15.1 under
     `tests/platform`.
+
+
+11. **Emit only required standard-library code.** Both backends currently emit every
+    nongeneric standard function and global, including unused Unicode tables. A tiny
+    native hello program at opt 0 and opt 3 occupies 991,024 bytes on ARM64 macOS with
+    the Unicode 17 library. Gate: unused module functions and passive tables disappear
+    while required runtime roots, callbacks, exported functions, interface witnesses
+    and observable global initialization remain correct through both backends and
+    native bootstrap. Record linked sizes and keep this compiler optimization separate
+    from the standard-library correctness milestone.

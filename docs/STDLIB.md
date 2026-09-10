@@ -59,16 +59,16 @@ These observations prioritize contract tests; they are not a completed library a
 - Standard output now borrows existing libc streams, locks each write and flushes
   only that stream. Stdin uses explicit unbuffered reads. Tests cover short reads,
   interruption, would-block, closed input, flush failure and sequential C interop
-  ordering. Add sustained concurrent stream campaigns.
+  ordering. Concurrent socket campaigns exercise the buffered adapters with allocation refused.
 - File and directory helpers now cover interruption, delayed close errors and every
   allocation failure. Whole-file reads support streams and explicit limits; existence
   checks do not open paths. Metadata is compared with host headers, and mutation,
   atomic replacement/copy and traversal have independent fixtures and injected
-  failures. Broader concurrent mutation campaigns remain.
+  failures. Concurrent replacement campaigns verify complete generations during competing writes.
 - String results mix borrowed views and allocations that must be freed through the
   current allocator, while Builder remembers its allocator. Make that distinction
   explicit. Builder self-append across growth, allocation failure, size overflow and closed
-  lifecycle calls now have regression coverage. Extend it to the remaining text APIs.
+  lifecycle calls have regression coverage, alongside allocation failures in the owned text APIs.
 
 ## Delivery slices
 
@@ -245,3 +245,31 @@ Every read must match a complete published generation and its size; selected wri
 request synchronization, every success reports publication, and the test directory
 must contain no leftover temporary files. This checks live atomicity and ownership;
 it does not simulate power loss or establish crash durability for a filesystem.
+
+
+## Scaling measurements
+
+`tests/programs/stdlib_scaling` records three repetitions at each native optimization
+level, with setup and verification outside the operation timer. It varies byte-search
+and adversarial normalization inputs from 64 KiB to one MiB, and stream/file copying
+from one to 16 MiB. Every result is checked. Allocator counts exclude fixture storage;
+file copying must keep the same allocation count and peak across sizes, streaming and
+search allocate nothing, and normalization has a linear memory bound. Time ratios
+are observations, not noisy pass/fail thresholds. Normalization's stable ordering
+uses an O(n log n) algorithm; a nearly linear measurement is not a stronger guarantee.
+
+The gate retains `build/stdlib-scaling.json` and `build/net-transfer.json` on both
+hosts. The latter measures the entire verified four-client TCP campaign, including
+process startup, two IP versions and both transfer directions. Workers run with an
+allocator that refuses allocation. These measurements include loopback, page cache,
+validation and scheduling effects; file copying does not request durable sync.
+
+Initial ARM64 macOS measurements at native opt 3: a one-MiB search pair took 17.6 ms,
+one-MiB adversarial normalization 692 ms, and a 16-MiB file copy 18.5 ms. Growing the
+largest inputs fourfold multiplied these times by 3.93, 4.05 and 4.01 respectively.
+Stream copying and searching allocated zero blocks; file copying used two blocks
+with a 195-byte peak for this temporary path, independent of payload size.
+Normalization used three blocks with a four-MiB peak for a one-MiB input. The verified
+TCP campaign moved 32 MiB of bidirectional payload at about 92 MiB/s. These are one
+machine's observations while other compiler checks were running, not performance
+promises. Hosted Linux measurements remain part of the pending final host gate.

@@ -70,6 +70,8 @@ jobs:
             luce-base/build/conformance.out
             luce-base/build/conformance.err
             luce-base/build/luce-base/build/*.log
+            luce-base/build/stdlib-scaling.json
+            luce-base/build/net-transfer.json
             luce-base/build/provenance*.json
             luce-base/build/dwarf/
             luce-base/build/failures/
