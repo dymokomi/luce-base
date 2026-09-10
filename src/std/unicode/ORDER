@@ -2,3 +2,4 @@ module.lucb
 tables.lucb
 lookup.lucb
 casing.lucb
+normalization.lucb

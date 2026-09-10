@@ -429,6 +429,12 @@ Unicode 17.0.0 text operations over strict UTF-8. Data is pinned and generated f
 
 - `func case_fold(text: str, turkic: bool = false, max_bytes: usize? = none) -> str!` — Full Unicode case folding for caseless comparison. Optional turkic selects the T mappings in CaseFolding.txt; this is not locale-aware lowercasing. Folding does not normalize text, so canonically equivalent inputs can still differ in bytes.
 
+### `NormalizationForm` (enumas u8)
+
+Standard canonical and compatibility normalization forms from UAX #15.
+
+- `func normalize(text: str, form: NormalizationForm = NormalizationForm.nfc, max_bytes: usize? = none) -> str!` — Normalize complete UTF-8 text. NFC/NFD preserve canonical equivalence; NFKC/NFKD also apply compatibility mappings and can erase distinctions such as presentation forms. No case folding, BOM removal or replacement is performed. Return fresh owned text, even when unchanged. Temporary scalar storage and an optional sorting buffer use the current allocator and are released on return. max_bytes bounds the final result after composition, not intermediate storage.
+
 ## `paths`
 
 File system paths as text, with `/` as the separator.

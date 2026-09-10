@@ -19,6 +19,13 @@ func text_work() -> !:
     let unicode_empty = try unicode.case_fold("")
     defer unicode.release(unicode_empty)
     assert(unicode_empty == "")
+    # U+0315 (class 232) precedes U+0300 (class 230): sorting needs scratch storage.
+    let normalized = try unicode.normalize("À̕")
+    defer unicode.release(normalized)
+    assert(normalized == "À̕")
+    let normalized_empty = try unicode.normalize("")
+    defer unicode.release(normalized_empty)
+    assert(normalized_empty == "")
     assert(try strings.parse_f64("12.5") == 12.5)
     assert(try strings.parse_f32("-0.125") == (f32)-0.125)
     let parts = try strings.split("ab,,Cd,", ',')

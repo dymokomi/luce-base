@@ -32,10 +32,26 @@ context tests for established characters. They cover expansion, NUL, unassigned
 values, contextual sigma, exact output limits and allocation failure in all six
 compiler configurations.
 
-Normalization and extended grapheme iteration are the next additions to this
-module. Word/sentence segmentation, collation and language-tailored casing are
-outside this initial Unicode surface.
+`normalize` supports NFC, NFD, NFKC and NFKD through `NormalizationForm`, defaulting
+to NFC. Canonical forms preserve canonical equivalence; compatibility forms can
+erase presentation distinctions. Normalization does not fold case or remove a
+BOM. It uses fully expanded pinned mappings and algorithmic Hangul decomposition,
+stable canonical ordering, and blocked canonical composition. Sorting is iterative
+O(n log n) for n decomposed scalars, with classes cached during comparisons.
+Scratch storage is needed only for an out-of-order combining run. Temporary arrays
+are freed on every return, and `max_bytes` applies to the final encoded result after
+composition, rather than the intermediate decomposition.
+
+Normalization tests cover every relation in the official NormalizationTest file,
+deduplicating repeated identical cases. Independent Python tests add established
+characters, randomized sequences and long out-of-order combining runs. Together
+they exercise 408,720 relations represented by 158,004 distinct cases, in all six
+configurations. Allocation failures cover scalar, sorting and output buffers.
+
+Extended grapheme iteration is the next addition. Word/sentence segmentation,
+collation and language-tailored casing are outside this initial Unicode surface.
 
 The normative references are [Unicode 17 chapter 3](https://www.unicode.org/versions/Unicode17.0.0/core-spec/chapter-3/)
+the [normalization specification](https://www.unicode.org/reports/tr15/tr15-57.html),
 and the [pinned Unicode Character Database](https://www.unicode.org/Public/17.0.0/ucd/).
 Source provenance and the upstream license are retained in `data/unicode/17.0.0`.
