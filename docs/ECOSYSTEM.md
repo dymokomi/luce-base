@@ -4,6 +4,20 @@ Work proceeds in this order. A stage closes against its acceptance criteria befo
 implementation of the next stage begins. Compiler defects exposed by a stage are
 fixed as prerequisites; unrelated compiler features stay in the backlog.
 
+## Repository boundaries
+
+| Stage | Repository | Scope |
+| --- | --- | --- |
+| 1 | Existing `luce-base` | Standard-library hardening and completion |
+| 2 | New `luce-tls` | TLS package, including the required post-quantum Luce profile |
+| 3 | New `luce-server` | HTTP/application server package written in Luce |
+| 4 | New `luce-pkg` | Package manager and registry service |
+
+The three packages are three separate new repositories, created as their stages
+begin; they are not subdirectories of either compiler repository. `luce-tls` is
+public on GitHub. Compiler integration for installation remains in the existing
+`luce` and `luce-base` repositories, consuming the package tooling from `luce-pkg`.
+
 ## 1. Base standard library
 
 Make `math`, `net`, `io`, `files` and `strings` a dependable, documented systems
