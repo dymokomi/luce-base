@@ -197,3 +197,11 @@ func monotonic_nanoseconds() -> u64!:
         error(failed, "the monotonic clock returned an invalid timestamp")
     let seconds = (u64)stamp.seconds *? 1000000000 else error(failed, "the monotonic clock exceeds its range")
     return seconds +? (u64)stamp.nanoseconds else error(failed, "the monotonic clock exceeds its range")
+
+## Actual operations check before each attempt, unlike a readiness-only zero-time
+## probe. A continuously ready socket must not defeat a transfer's total deadline.
+func check_operation(deadline: Deadline, cancellation: Cancellation*?) -> !:
+    try check_cancellation(cancellation)
+    if let end = deadline.instant:
+        if (try monotonic_nanoseconds()) >= end:
+            error(timed_out, "the operation deadline expired")

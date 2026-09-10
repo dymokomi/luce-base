@@ -881,7 +881,7 @@ Which direction to stop using on a connection. This does not close its owner.
 
 One owned TCP connection implementing borrowed Reader and Writer interfaces. Zero is closed. Copying does not duplicate ownership; copies must not be independently closed. Synchronize calls on one owner.
 
-- `static func connect(address: SocketAddress) -> Connection!`
+- `static func connect(address: SocketAddress, deadline: Deadline = Deadline(), cancellation: Cancellation*? = none, nonblocking: bool = false) -> Connection!` — Establish a TCP connection with an optional absolute deadline/cancellation. Connection setup is nonblocking internally; the returned socket is blocking unless nonblocking=true. Failure closes the newly acquired descriptor. DNS resolution is separate and is not covered by this connection deadline.
 - `static func over(descriptor: i32) -> Connection!` — Take ownership of a socket the caller made (a `socketpair`, an inherited descriptor), including on failure. Set close-on-exec, preserving existing flags; this is not atomic with the caller's creation/fork/exec operations. A negative descriptor is rejected. The socket is marked so that a write after the peer closed fails instead of ending the process. Make the connection while the peer is still there: macOS refuses the mark on a socket whose peer has already gone, and a write on such a connection answers `closed` without sending.
 - `func local_address() -> SocketAddress!` — Query this connection's local IP endpoint, including its assigned port.
 - `func peer_address() -> SocketAddress!` — Query the connected peer's IP endpoint; this is an address, not an identity.

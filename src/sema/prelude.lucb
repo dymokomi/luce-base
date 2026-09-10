@@ -4703,7 +4703,12 @@ pub struct Connection: Reader, Writer:
     ## use, so a connection built any other way than `over` is guarded too.
     var guarded: bool
 
-    pub static func connect(address: SocketAddress) -> Connection!:
+    ## Establish a TCP connection with an optional absolute deadline/cancellation.
+    ## Connection setup is nonblocking internally; the returned socket is blocking
+    ## unless nonblocking=true. Failure closes the newly acquired descriptor. DNS
+    ## resolution is separate and is not covered by this connection deadline.
+    pub static func connect(address: SocketAddress, deadline: Deadline = Deadline(), cancellation: Cancellation*? = none, nonblocking: bool = false) -> Connection!:
+        try check_operation(deadline, cancellation)
         var raw: NativeAddress
         let length = try address.write_native(&raw)
         var owned = try SocketHandle.create(stream, address.ip.kind)
@@ -4711,8 +4716,20 @@ pub struct Connection: Reader, Writer:
         let fd = try owned.require()
         if address.ip.kind == IpVersion.ipv6:
             try set_socket_integer(fd, ipv6_level, ipv6_only_option, 0)
+        try set_nonblocking(fd, true)
         if connect(fd, &raw, length) != 0:
-            error(failed, "the connection could not reach its peer")
+            let number = c.errno()
+            let in_progress = 36 if platform.macos else 115
+            let already_pending = 37 if platform.macos else 114
+            if number != in_progress and number != already_pending and number != c.interrupted:
+                error(transfer_error(number), "the connection could not reach its peer")
+            discard(try wait_socket(fd, WaitInterest.write, deadline, cancellation))
+            try check_operation(deadline, cancellation)
+            let pending_error = try get_socket_integer(fd, socket_level, 4103 if platform.macos else 4)
+            if pending_error != 0:
+                error(transfer_error(pending_error), "the pending connection failed")
+        try check_operation(deadline, cancellation)
+        try set_nonblocking(fd, nonblocking)
         return Connection.from_socket(owned)
 
     ## Take ownership of a socket the caller made (a `socketpair`, an inherited
@@ -5317,6 +5334,14 @@ func monotonic_nanoseconds() -> u64!:
         error(failed, "the monotonic clock returned an invalid timestamp")
     let seconds = (u64)stamp.seconds *? 1000000000 else error(failed, "the monotonic clock exceeds its range")
     return seconds +? (u64)stamp.nanoseconds else error(failed, "the monotonic clock exceeds its range")
+
+## Actual operations check before each attempt, unlike a readiness-only zero-time
+## probe. A continuously ready socket must not defeat a transfer's total deadline.
+func check_operation(deadline: Deadline, cancellation: Cancellation*?) -> !:
+    try check_cancellation(cancellation)
+    if let end = deadline.instant:
+        if (try monotonic_nanoseconds()) >= end:
+            error(timed_out, "the operation deadline expired")
 """),
     Prelude(name = "debug", text = """
 import c
