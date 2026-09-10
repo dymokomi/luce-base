@@ -38,6 +38,8 @@ with tempfile.TemporaryDirectory(prefix="luce-base-failures-") as temp:
     run([*shlex.split(os.environ.get("CC", "cc")), "-Wall", "-Wextra", "-Werror",
          "-c", str(sources / "faults.c"), "-o", str(work / "faults.o")])
     run(["ar", "rcs", str(work / "libfaults.a"), str(work / "faults.o")])
+    symlink = work / "target-link"
+    symlink.symlink_to("missing-target")
     directories = []
     for count in (0, 1, 17, 33, 257):
         directory = work / f"directory-{count}"
@@ -56,13 +58,13 @@ with tempfile.TemporaryDirectory(prefix="luce-base-failures-") as temp:
             run([str(file_reader), str(sample), str(size)],
                 expected=b"ok file read failures\n")
         print(f"ok allocation failures: file_read {' '.join(flags) or 'native'}", flush=True)
-        for name in ("directory", "process"):
+        for name in ("directory", "process", "symlink"):
             exe = work / name
             source = "capture_failure" if name == "process" else name
-            libraries = [f"-L{work}", "-lfaults"] if name == "directory" else []
+            libraries = [f"-L{work}", "-lfaults"] if name in ("directory", "symlink") else []
             run([str(root / "build/luce-base"), "build", str(sources / f"{source}.lucb"),
                  *flags, *libraries, "-o", str(exe)])
-            arguments = directories if name == "directory" else [child]
+            arguments = directories if name == "directory" else ([symlink] if name == "symlink" else [child])
             for argument in arguments:
                 run([str(exe), str(argument)], timeout=30,
                     expected=f"ok {name} failures\n".encode())

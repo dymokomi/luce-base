@@ -1,0 +1,58 @@
+import allocator
+import c
+import files
+import memory
+import strings
+
+extern func fault_arm(kind: i32)
+extern func fault_hits() -> i32
+
+func attempt(path: c.str, fail_at: usize) -> usize:
+    var owner = allocator.Failing.at(fail_at)
+    var rejected = false
+    with owner:
+        let target = files.read_symlink(path) catch failure:
+            assert(failure.code == memory.exhausted)
+            rejected = true
+            recover ""
+        if not rejected:
+            assert(target == "missing-target")
+            strings.release(target)
+    assert(rejected == (fail_at != 0))
+    assert(owner.failures == (1 if rejected else 0))
+    owner.finish()
+    return owner.attempts
+
+pub func main(arguments: c.str[]) -> i32:
+    let steps = attempt(arguments[1], 0)
+    var index: usize = 1
+    while index <= steps:
+        discard(attempt(arguments[1], index))
+        index += 1
+    var kind: i32 = 32
+    while kind <= 33:
+        var owner = allocator.Failing.at(0)
+        var rejected = false
+        with owner:
+            fault_arm(kind)
+            let target = files.read_symlink(arguments[1]) catch failure:
+                assert(failure.code == files.failed)
+                rejected = true
+                recover ""
+            if not rejected:
+                assert(target == "missing-target")
+                strings.release(target)
+        assert(rejected == (kind == 33) and fault_hits() == 1)
+        owner.finish()
+        kind += 1
+    var owner = allocator.Failing.at(0)
+    var rejected = false
+    with owner:
+        discard(files.read_symlink(arguments[1], 0) catch failure:
+            assert(failure.code == files.too_large)
+            rejected = true
+            recover "")
+    assert(rejected)
+    owner.finish()
+    print("ok symlink failures")
+    return 0

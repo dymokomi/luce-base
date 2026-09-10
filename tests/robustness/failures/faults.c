@@ -147,6 +147,12 @@ ssize_t read(int descriptor, void *buffer, size_t count) {
     }
     return real(descriptor, buffer, count);
 }
+ssize_t readlink(const char *path, char *buffer, size_t count) {
+    REAL(readlink);
+    if (take(32)) return -1;
+    if (take(33)) { errno = EIO; return -1; }
+    return real(path, buffer, count);
+}
 int pthread_attr_init(pthread_attr_t *a) {
     REAL(pthread_attr_init);
     if (take(9)) return ENOMEM;

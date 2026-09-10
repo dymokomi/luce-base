@@ -294,6 +294,16 @@ A counting semaphore whose waiters sleep.
 
 - `let read_only_filesystem: ErrorCode = ErrorCode.package(27)`
 
+- `let not_empty: ErrorCode = ErrorCode.package(29)`
+
+- `let cross_device: ErrorCode = ErrorCode.package(30)`
+
+- `let symlink_loop: ErrorCode = ErrorCode.package(31)`
+
+- `let name_too_long: ErrorCode = ErrorCode.package(32)`
+
+- `let failed: ErrorCode = ErrorCode.package(7)`
+
 ### `OpenMode` (enumas u8)
 
 File opening policy. `replace` creates or truncates; `create_new` refuses an existing path; `append` creates if needed and makes each write append atomically. Creation permissions are filtered by the process umask, never changed afterward.
@@ -317,7 +327,19 @@ One owned descriptor. The zero value is closed. Borrow through a pointer or an i
 
 - `func exists_checked(path: c.str) -> bool!` — Checked existence lookup. Missing components, non-directory parent components and dangling symlinks return false. Other failures retain their error category.
 
-- `let failed: ErrorCode = ErrorCode.package(7)`
+- `func create_directory(path: c.str, permissions: u32 = 493) -> !` — Create one directory; parents must already exist. An existing final entry is already_exists, including a symlink. Permissions are filtered by the process umask. No recursive creation, permission repair, or implicit retry occurs.
+
+- `func remove_file(path: c.str) -> !` — Remove one non-directory entry. A final symlink is removed without touching its target. Open handles and other hard links keep the object alive. Parents are resolved normally; a missing entry is an error, not successful removal.
+
+- `func remove_directory(path: c.str) -> !` — Remove an empty directory; do not recurse or follow a final symlink. A nonempty directory reports not_empty (or already_exists if the OS uses EEXIST).
+
+- `func rename(source: c.str, destination: c.str) -> !` — Rename an entry, atomically replacing an existing compatible destination on the same filesystem. Final symlinks are entries, not followed targets. Open handles keep referring to their objects. This does not copy across devices, request durable storage, or implement no-replace semantics. On a remote filesystem a reported failure may follow a completed server-side mutation.
+
+- `func create_symlink(target: c.str, link_path: c.str) -> !` — Create a symlink containing target's bytes; the target need not exist. A relative target is resolved from the link's parent when later followed. Creation refuses an existing link_path, including a dangling symlink.
+
+- `func create_hard_link(source: c.str, destination: c.str) -> !` — Create another name for the source entry on the same filesystem, refusing an existing destination. A final source symlink is linked itself, not followed. Directories cannot be linked. Intermediate path components resolve normally.
+
+- `func read_symlink(path: c.str, limit: usize = 4096) -> str!` — Read a final symlink's raw target bytes without following it. Return a NUL-terminated current-allocator allocation released with strings.release. At most limit bytes are accepted; excess reports too_large, never truncates. One extra byte detects excess without trusting metadata. Interrupted reads retry; concurrent replacement may therefore change the observed link target.
 
 - `func read(path: c.str) -> u8[]!` — Read through EOF, including files whose size changes or cannot be sought. The result is an allocation of the current allocator; free the returned span there. Use read_limit for untrusted or potentially unbounded input.
 
