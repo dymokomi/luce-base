@@ -46,6 +46,15 @@ with tempfile.TemporaryDirectory(prefix="luce-base-failures-") as temp:
             (directory / f"entry-{i:02}").touch()
         directories.append(directory)
     for flags in ([], ["--backend=c"], ["--backend=c", "--release"]):
+        file_reader = work / "file_read"
+        run([str(root / "build/luce-base"), "build", str(sources / "file_read.lucb"),
+             *flags, "-o", str(file_reader)])
+        for size in (0, 1, 4096, 4097, 11003):
+            sample = work / "read-data"
+            sample.write_bytes(bytes(i % 251 for i in range(size)))
+            run([str(file_reader), str(sample), str(size)],
+                expected=b"ok file read failures\n")
+        print(f"ok allocation failures: file_read {' '.join(flags) or 'native'}", flush=True)
         for name in ("directory", "process"):
             exe = work / name
             source = "capture_failure" if name == "process" else name

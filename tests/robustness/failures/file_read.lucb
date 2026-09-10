@@ -1,0 +1,43 @@
+## Fail every allocation in bounded whole-file reading, including final shrinking.
+import allocator
+import c
+import files
+import memory
+import strings
+
+extern func fcntl(fd: i32, command: i32, ...) -> i32
+
+func attempt(path: c.str, length: usize, fail_at: usize) -> usize!:
+    var probe = try files.File.open(path)
+    let descriptor = probe.descriptor() else -1
+    try probe.close()
+    var owner = allocator.Failing.at(fail_at)
+    var rejected = false
+    with owner:
+        let bytes = files.read_limit(path, length) catch failure:
+            assert(failure.code == memory.exhausted)
+            rejected = true
+            var empty: u8[]
+            recover empty
+        if not rejected:
+            assert(bytes.length == length)
+            for i in 0..<bytes.length:
+                assert(bytes[i] == (u8)(i % 251))
+            free(bytes)
+    owner.finish()
+    assert(fcntl(descriptor, 1) == -1, "file reading leaked its descriptor")
+    # A refused zero-byte allocation still represents a valid empty span; the
+    # language only reports exhaustion for a nonzero allocation request.
+    assert(rejected == (fail_at != 0 and length != 0))
+    assert(owner.failures == (1 if fail_at != 0 else 0))
+    return owner.attempts
+
+pub func main(arguments: str[]) -> i32!:
+    assert(arguments.length == 3)
+    let path = (c.str)arguments[1]
+    let length = (usize)(strings.to_i64(arguments[2]) else -1)
+    let attempts = try attempt(path, length, 0)
+    for i in 1..=attempts:
+        discard(try attempt(path, length, i))
+    print("ok file read failures")
+    return 0

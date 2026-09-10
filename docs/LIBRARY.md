@@ -283,9 +283,11 @@ One owned descriptor. The zero value is closed. Borrow through a pointer or an i
 
 - `let failed: ErrorCode = ErrorCode.package(7)`
 
-- `func read(path: c.str) -> u8[]!` — The whole file, allocated from the current allocator.
+- `func read(path: c.str) -> u8[]!` — Read through EOF, including files whose size changes or cannot be sought. The result is an allocation of the current allocator; free the returned span there. Use read_limit for untrusted or potentially unbounded input.
 
-- `func write(path: c.str, data: const u8[]) -> !`
+- `func read_limit(path: c.str, limit: usize) -> u8[]!` — Read a whole file up to `limit` bytes. One extra byte may be read to distinguish an exact fit from excess input; excess fails with too_large, never truncates. All allocations and the descriptor are released on failure. An empty result is still an owned zero-length allocation, following read's existing free contract.
+
+- `func write(path: c.str, data: const u8[]) -> !` — Create or truncate and write all bytes, reporting write and close failures. This is neither atomic replacement nor durable sync; use those operations explicitly when their guarantees are required.
 
 - `func list(path: c.str) -> str[]!` — The names in a directory, sorted by bytes, without `.` and `..`: each name and the array holding them, exactly as long as the names, are allocations of the current allocator, which `release_list` returns together. On a failure nothing allocated is kept and the directory is closed.
 

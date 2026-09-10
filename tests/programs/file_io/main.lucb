@@ -8,7 +8,7 @@ extern func file_fault_hits() -> i32
 extern func fcntl(fd: i32, command: i32, ...) -> i32
 
 pub func main(arguments: str[]) -> i32!:
-    assert(arguments.length == 2)
+    assert(arguments.length == 3)
     let path = (c.str)arguments[1]
     var file = try files.File.open(path, files.OpenMode.create_new)
     defer file.destroy()
@@ -75,5 +75,28 @@ pub func main(arguments: str[]) -> i32!:
         caught = true
         recover 0
     assert(caught)
+    file_fault_watch(original_fd)
+    file_fault_arm(1)
+    let bytes = try files.read_limit(path, 8)
+    defer free(bytes)
+    assert((str)bytes == "abcd12xy" and file_fault_hits() == 1)
+    caught = false
+    files.read_limit(path, 7) catch failure:
+        assert(failure.code == files.too_large)
+        caught = true
+        var empty: u8[]
+        recover empty
+    assert(caught and fcntl(original_fd, 1) == -1)
+    file_fault_arm(4)
+    caught = false
+    files.read_limit(path, 8) catch failure:
+        assert(failure.code == files.failed)
+        caught = true
+        var empty: u8[]
+        recover empty
+    assert(caught and file_fault_hits() == 1 and fcntl(original_fd, 1) == -1)
+    let streamed = try files.read_limit((c.str)arguments[2], 8)
+    defer free(streamed)
+    assert((str)streamed == "streamed")
     print("ok file handles and injected failures")
     return 0
