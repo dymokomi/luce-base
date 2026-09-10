@@ -48,10 +48,20 @@ characters, randomized sequences and long out-of-order combining runs. Together
 they exercise 408,720 relations represented by 158,004 distinct cases, in all six
 configurations. Allocation failures cover scalar, sorting and output buffers.
 
-Extended grapheme iteration is the next addition. Word/sentence segmentation,
-collation and language-tailored casing are outside this initial Unicode surface.
+`GraphemeIterator.over` validates a complete UTF-8 view and returns an iterator
+over default extended grapheme clusters. Construction and iteration allocate
+nothing. Each nonempty result borrows the original bytes; `byte_offset` reports
+the next boundary. EOF is stable, including for a zero iterator. Keep input bytes
+alive and unchanged for the lifetime of the iterator and its returned views.
+Clusters are logical text units, not terminal widths or rendered glyph counts.
+State tracks Indic linker context, emoji ZWJ context and regional-indicator parity
+without rescanning earlier text. Tests run all official GraphemeBreakTest cases
+and long context sequences under a refusing allocator: 784 cases in all six
+configurations. Word/sentence segmentation, collation and language-tailored casing
+are outside this initial Unicode surface.
 
 The normative references are [Unicode 17 chapter 3](https://www.unicode.org/versions/Unicode17.0.0/core-spec/chapter-3/)
 the [normalization specification](https://www.unicode.org/reports/tr15/tr15-57.html),
+the [segmentation specification](https://www.unicode.org/reports/tr29/tr29-47.html),
 and the [pinned Unicode Character Database](https://www.unicode.org/Public/17.0.0/ucd/).
 Source provenance and the upstream license are retained in `data/unicode/17.0.0`.

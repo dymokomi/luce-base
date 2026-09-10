@@ -435,6 +435,14 @@ Standard canonical and compatibility normalization forms from UAX #15.
 
 - `func normalize(text: str, form: NormalizationForm = NormalizationForm.nfc, max_bytes: usize? = none) -> str!` — Normalize complete UTF-8 text. NFC/NFD preserve canonical equivalence; NFKC/NFKD also apply compatibility mappings and can erase distinctions such as presentation forms. No case folding, BOM removal or replacement is performed. Return fresh owned text, even when unchanged. Temporary scalar storage and an optional sorting buffer use the current allocator and are released on return. max_bytes bounds the final result after composition, not intermediate storage.
 
+### `GraphemeIterator` (struct)
+
+Borrowed iterator over default extended grapheme clusters from Unicode 17 UAX #29. Clusters are logical text boundaries, not display-column widths. Construction validates the complete UTF-8 input without allocation. Keep its bytes alive and unchanged until iteration ends; returned views borrow them. The zero value is an exhausted iterator. State is inline and calls are serial.
+
+- `static func over(text: str) -> GraphemeIterator!`
+- `mutating func next() -> str?` — Next nonempty borrowed cluster, or none at EOF; repeated EOF stays none.
+- `func byte_offset() -> usize` — Byte offset of the next cluster, or the input byte length at EOF.
+
 ## `paths`
 
 File system paths as text, with `/` as the separator.
