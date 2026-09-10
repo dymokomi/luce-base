@@ -749,8 +749,9 @@ pub struct Emitter:
                 try self.put_mangled(owner_args[i])
                 i += 1
             try self.put("_")
-        elif f.text == "main" or f.text == "answer":
-            # the entry points keep the names the shims call
+        elif f.resolved == self.entry and (f.text == "main" or f.text == "answer"):
+            # Only entry-module functions keep the shim names. Imported names are
+            # ordinary module-qualified symbols, including generic instances.
             if f.text == "answer" and f.has(ast.flag_fallible):
                 try self.put("answer_impl")
             else:

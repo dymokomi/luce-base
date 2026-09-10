@@ -1,0 +1,2 @@
+pub func answer[T](value: T) -> T:
+    return value
