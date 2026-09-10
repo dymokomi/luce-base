@@ -1511,6 +1511,17 @@ A handle is a pointer-shaped opaque type, as `extern type` declares one, that na
 
 `luce describe module.lucb` prints the module's public declarations, one per line, for a tool that must know them without parsing Base: `handle File destroy close`, `func open(path: str) -> File!`, `let limit: i64`, `struct Point` followed by its public fields indented as `field x: i64`, `enum Mode as u32` followed by `case read = 0`, and `type Name = T` for an alias; types are spelled as this document spells them. Private declarations, and public ones whose signature mentions a type the description cannot spell, are left out.
 
+`luce-base dependencies module.lucb` checks a module and reports the source files
+resolved for its complete nonstandard import closure. The entry module and embedded
+standard modules are excluded. Output begins with `luce-base-dependencies-v1` and a
+NUL byte, then pairs of NUL-terminated module names and source paths in dependency
+order. Names use dotted module syntax; paths are relative to the command's working
+directory unless already absolute. NUL delimiters preserve spaces, tabs and newlines
+in parent paths. Each resolved module appears once. A parse, resolution or semantic
+failure returns status 1 and writes no dependency records. This is a source-packaging
+query, not a native-library or manifest dependency resolver.
+
+
 ## 18. Working with full Luce
 
 This chapter is the contract between a full Luce program and the Base modules it imports. It names full Luce types; a reader who does not use full Luce may skip it. Full Luce's own definitions are in its specification; the one-line glosses here are enough to read the tables.
