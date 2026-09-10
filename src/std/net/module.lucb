@@ -92,7 +92,7 @@ extern struct AddressInfo:
     sixth: void*?
     next: AddressInfo*?
 
-func info_address(info: AddressInfo*) -> void*?:
+func info_address(info: const AddressInfo*) -> void*?:
     return info.sixth if platform.macos else info.fifth
 
 let inet: i32 = 2

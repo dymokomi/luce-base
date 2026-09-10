@@ -840,7 +840,16 @@ An IP endpoint: address, port and optional IPv6 interface scope. A zero value is
 - `func equals(other: SocketAddress) -> bool`
 - `func format(buffer: u8[]) -> str!` — Canonical numeric endpoint text. IPv6 is bracketed; a nonzero scope is decimal. A 58-byte buffer always suffices. The returned view borrows buffer, has no trailing NUL, and insufficient storage is left unchanged (io.full).
 
+### `ResolvedAddresses` (struct)
+
+An owned collection of resolved endpoints. Values preserve host resolver order, including duplicates. Copying the collection does not duplicate ownership. The allocator used by resolve_all must outlive this collection.
+
+- `func view() -> const SocketAddress[]` — Borrow the endpoints until destroy. Individual SocketAddress values may be copied and retained independently. Zero and destroyed collections are empty.
+- `mutating func destroy()` — Release through the original allocator, regardless of the current context. Repeated destruction is safe; previously borrowed views become invalid.
+
 - `func resolve(host: c.str, port: u16, version: IpVersion? = none) -> SocketAddress!` — The first usable IPv4 or IPv6 stream endpoint in host resolver order. An explicit version restricts results. Resolution can block in the OS. Every resolver node is released, including on malformed or unusable results.
+
+- `func resolve_all(host: c.str, port: u16, version: IpVersion? = none) -> ResolvedAddresses!` — All usable stream endpoints from one OS lookup, filtered by optional version. This blocks in the resolver and does not attempt connections or reorder results. No usable result reports unknown_host. Allocation failure releases the complete OS result; successful storage belongs to the returned collection's destroy.
 
 ### `Listener` (struct)
 

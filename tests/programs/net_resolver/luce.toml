@@ -1,0 +1,5 @@
+[package]
+name = "resolver_result_contracts"
+
+[native]
+sources = ["reference.c"]
