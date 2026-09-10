@@ -1,0 +1,5 @@
+[package]
+name = "file_io_contracts"
+
+[native]
+sources = ["faults.c"]

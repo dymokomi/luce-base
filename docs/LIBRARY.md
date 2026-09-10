@@ -248,6 +248,37 @@ A counting semaphore whose waiters sleep.
 
 - `let missing: ErrorCode = ErrorCode.package(6)`
 
+- `let permission_denied: ErrorCode = ErrorCode.package(18)`
+
+- `let already_exists: ErrorCode = ErrorCode.package(19)`
+
+- `let no_space: ErrorCode = ErrorCode.package(20)`
+
+- `let would_block: ErrorCode = ErrorCode.package(21)`
+
+- `let invalid_options: ErrorCode = ErrorCode.package(22)`
+
+- `let too_large: ErrorCode = ErrorCode.package(23)`
+
+### `OpenMode` (enumas u8)
+
+File opening policy. `replace` creates or truncates; `create_new` refuses an existing path; `append` creates if needed and makes each write append atomically. Creation permissions are filtered by the process umask, never changed afterward.
+
+### `SeekOrigin` (enumas u8)
+
+### `File` (struct: io.Reader, io.Writer)
+
+One owned descriptor. The zero value is closed. Borrow through a pointer or an io interface; copying this value does not duplicate ownership or the OS handle. A copied value must not be independently closed. Calls on one handle require external synchronization. `close` reports errors; `destroy` is unwind cleanup.
+
+- `static func open(path: c.str, mode: OpenMode = OpenMode.read, permissions: u32 = 420) -> File!` — Open a close-on-exec descriptor. Only the named creation modes create paths.
+- `func descriptor() -> i32?` — Borrow the descriptor for OS interoperability; none after close. The caller must not close it or retain it past this owner's lifetime.
+- `mutating func read(buffer: u8[]) -> usize!` — Read some bytes, retrying interruption. Zero for nonempty storage is EOF; empty input makes no system call. The handle must be open even for empty I/O.
+- `mutating func write(data: const u8[]) -> usize!` — Write some bytes, retrying interruption. Use io.write_all for a full payload. Success confirms an OS write, not durable storage; call sync when required.
+- `mutating func seek(offset: i64, origin: SeekOrigin = SeekOrigin.start) -> i64!` — Seek a seekable file and return its resulting byte offset. Pipes and other unseekable descriptors report failure instead of pretending their size is zero.
+- `mutating func sync() -> !` — Request the OS's fsync durability boundary for this file; this does not sync a containing directory or promise persistence beyond the OS/device contract.
+- `mutating func close() -> !` — Consume ownership before closing, so repeated calls on this value are safe even after failure. Never retry close: a reused descriptor may belong to another thread. A reported failure must not be retried using descriptor().
+- `mutating func destroy()` — Best-effort cleanup while unwinding another error. Use close explicitly on the successful path when delayed close errors must be reported to the caller.
+
 - `func exists(path: c.str) -> bool` — Whether `path` can be opened for reading.
 
 - `let failed: ErrorCode = ErrorCode.package(7)`
