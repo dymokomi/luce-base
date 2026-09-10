@@ -54,6 +54,48 @@ pub struct File: io.Reader, io.Writer:
         let descriptor = self.handle else error(io.closed, "the file is closed")
         return try metadata_descriptor(descriptor)
 
+    ## Set the logical length without moving the file position. Shrinking
+    ## discards the suffix; extension reads as zero bytes. Requires a writable
+    ## descriptor. Reject negative lengths before calling the OS.
+    pub mutating func truncate(length: i64) -> !:
+        let descriptor = self.handle else error(io.closed, "the file is closed")
+        if length < 0:
+            error(invalid_options, "a file length cannot be negative")
+        var result = ftruncate(descriptor, length)
+        while result != 0 and c.errno() == c.interrupted:
+            result = ftruncate(descriptor, length)
+        if result != 0:
+            error(classify_error(c.errno()), "the file length could not be changed")
+
+    ## Set permission and special mode bits on this opened object, independent
+    ## of pathname changes. Umask is not applied. Host permission rules may
+    ## reject or clear requested special bits; inspect metadata for the result.
+    pub mutating func set_permissions(permissions: u32) -> !:
+        let descriptor = self.handle else error(io.closed, "the file is closed")
+        if permissions > 4095:
+            error(invalid_options, "file permissions must fit the Unix mode bits")
+        while true:
+            let result = fchmod_macos(descriptor, (u16)permissions) if platform.macos else fchmod_linux(descriptor, permissions)
+            if result == 0:
+                return
+            if c.errno() != c.interrupted:
+                error(classify_error(c.errno()), "file permissions could not be changed")
+
+    ## Set explicit access and modification times; creation/status-change times
+    ## are not set by this operation. Validate nanoseconds before the OS call.
+    ## The filesystem's range and timestamp resolution still apply.
+    pub mutating func set_times(accessed: FileTime, modified: FileTime) -> !:
+        let descriptor = self.handle else error(io.closed, "the file is closed")
+        if accessed.nanoseconds >= 1000000000 or modified.nanoseconds >= 1000000000:
+            error(invalid_options, "a timestamp nanosecond fraction must be below one billion")
+        let times: NativeFileTime[2] = [NativeFileTime(seconds = accessed.seconds, nanoseconds = (i64)accessed.nanoseconds),
+                                         NativeFileTime(seconds = modified.seconds, nanoseconds = (i64)modified.nanoseconds)]
+        var result = futimens(descriptor, &times[0])
+        while result != 0 and c.errno() == c.interrupted:
+            result = futimens(descriptor, &times[0])
+        if result != 0:
+            error(classify_error(c.errno()), "file timestamps could not be changed")
+
     ## Read some bytes, retrying interruption. Zero for nonempty storage is EOF;
     ## empty input makes no system call. The handle must be open even for empty I/O.
     pub mutating func read(buffer: u8[]) -> usize!:

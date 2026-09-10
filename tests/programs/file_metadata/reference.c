@@ -30,6 +30,21 @@ int fstat(int descriptor, struct stat *result) {
     if (take(1, EINTR) || take(4, EIO)) return -1;
     return real(descriptor, result);
 }
+int fchmod(int descriptor, mode_t mode) {
+    REAL(fchmod);
+    if (take(7, EINTR) || take(10, EACCES)) return -1;
+    return real(descriptor, mode);
+}
+int ftruncate(int descriptor, off_t length) {
+    REAL(ftruncate);
+    if (take(8, EINTR) || take(11, ENOSPC)) return -1;
+    return real(descriptor, length);
+}
+int futimens(int descriptor, const struct timespec times[2]) {
+    REAL(futimens);
+    if (take(9, EINTR) || take(12, EIO)) return -1;
+    return real(descriptor, times);
+}
 void metadata_prepare(int descriptor) {
     struct timespec times[2] = {{-12345, 123456789}, {1234567890, 987654321}};
     assert(fchmod(descriptor, 0640) == 0);

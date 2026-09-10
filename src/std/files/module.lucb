@@ -12,6 +12,9 @@ extern func c_read as "read"(descriptor: i32, buffer: void*, count: usize) -> is
 extern func c_write as "write"(descriptor: i32, buffer: const void*, count: usize) -> isize
 extern func lseek(descriptor: i32, offset: i64, whence: i32) -> i64
 extern func fsync(descriptor: i32) -> i32
+extern func ftruncate(descriptor: i32, length: i64) -> i32
+extern func fchmod_macos as "fchmod"(descriptor: i32, permissions: u16) -> i32
+extern func fchmod_linux as "fchmod"(descriptor: i32, permissions: u32) -> i32
 extern func fdopendir(descriptor: i32) -> void*?
 extern func dirfd(directory: void*) -> i32
 extern func readdir_macos as "readdir"(directory: void*) -> MacEntry*?
