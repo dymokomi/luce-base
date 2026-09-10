@@ -22,7 +22,7 @@ Define EOF, zero-length operations, interruption, would-block and timeout separa
 | Module | Current source | Required work |
 | --- | --- | --- |
 | `math`, `math32` | Explicit special-value contracts, f64/f32 libm operations, precision helpers and checked integer operations | Complete per-function accuracy/domain documentation and wider reference campaigns; rounding-mode and boundary coverage beyond the initial vectors |
-| `net` | IPv4 TCP/UDP, first-address resolution and blocking sockets; TCP Reader/Writer with explicit short transfers and recoverable write progress, closed zero values, checked close and bound endpoint queries | IPv4/IPv6 address parsing/formatting and resolution results, Close-on-exec creation/adoption, peer endpoint queries, socket options, configurable backlog, shutdown, nonblocking/readiness support, deadlines/cancellation, precise errors and datagram truncation behavior |
+| `net` | IPv4 TCP/UDP, first-address resolution and blocking sockets; TCP Reader/Writer with explicit short transfers and recoverable write progress, closed zero values, checked close/adoption, close-on-exec handles and bound endpoint queries | IPv4/IPv6 address parsing/formatting and resolution results, Peer endpoint queries, socket options, configurable backlog, shutdown, nonblocking/readiness support, deadlines/cancellation, precise errors and datagram truncation behavior |
 | `io` | Reader/Writer contracts, borrowed slice and buffered adapters, exact/all/bounded-copy helpers with confirmed progress, unbuffered stdin, synchronized libc stdout/stderr, explicit flush and formatting sink | Seeking where supported, broader concurrent and sustained-transfer coverage; integrate the shared substrate with files, sockets and TLS |
 | `files` | Owned Reader/Writer handles, open modes, seeking/sync, checked close, path/handle metadata and checked length/permission/timestamp updates; bounded streaming whole-file helpers, owned directory iteration, bounded depth-first traversal and descriptor-relative lookup/open, checked existence, single-entry mutation, bounded symlink reads, owned temporary files and atomic replacement and bounded copying with publication status | Broader concurrent filesystem campaigns and error detail |
 | `strings`, `utf8` | Byte searches/slices, byte separator split, ASCII case conversion, decimal i64, an alias-safe builder and strict UTF-8 scalar operations | Document byte offsets/borrowed views; substring search/split/replace and bounded variants; checked size arithmetic, reserve/capacity and aliasing rules; numeric parsing/formatting; streaming UTF-8 decoding and Unicode-aware operations separate from ASCII helpers |
@@ -95,3 +95,12 @@ These observations prioritize contract tests; they are not a completed library a
 
 TLS and HTTP stay out of this standard-library milestone. Networking supplies their
 transport substrate; the separate packages supply their protocols.
+
+Socket creation uses atomic `SOCK_CLOEXEC`/`accept4` on Linux. macOS requires
+separate descriptor flag updates; applications must coordinate socket
+creation/acceptance with concurrent fork/exec. `Connection.over` transfers
+ownership even on setup failure and is now fallible. Adoption on either host
+requires the same fork/exec coordination. See the host contracts for
+[socket creation](https://man7.org/linux/man-pages/man2/socket.2.html),
+[acceptance](https://man7.org/linux/man-pages/man2/accept.2.html), and
+[descriptor flags](https://man7.org/linux/man-pages/man2/F_GETFD.2const.html).

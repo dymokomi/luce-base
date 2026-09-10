@@ -7,6 +7,35 @@ extern func fault_resolver_nodes() -> i32
 extern func fault_socket_close(descriptor: i32)
 extern func fault_socket_close_calls() -> i32
 extern func fault_socket_option_closed() -> i32
+extern func fault_socket_cloexec(descriptor: i32) -> i32
+extern func fault_descriptor_closed(descriptor: i32) -> i32
+
+func adoption_cases() -> !:
+    var kind: i32 = 45
+    while kind <= 48:
+        var pair: i32[2]
+        assert(socketpair(1, 1, 0, &pair[0]) == 0)
+        var peer = try net.Connection.over(pair[1])
+        defer peer.destroy()
+        fault_arm(kind)
+        var rejected = false
+        var connection = net.Connection.over(pair[0]) catch failure:
+            assert(failure.code == net.failed)
+            rejected = true
+            recover net.Connection()
+        defer connection.destroy()
+        assert(rejected == (kind >= 47) and fault_hits() == 1)
+        if rejected:
+            assert(fault_descriptor_closed(pair[0]) == 1)
+        else:
+            assert(fault_socket_cloexec(pair[0]) == 1)
+        kind += 1
+    var rejected = false
+    discard(net.Connection.over(-1) catch failure:
+        assert(failure.code == net.closed)
+        rejected = true
+        recover net.Connection())
+    assert(rejected)
 
 func closed_values() -> !:
     var connection: net.Connection
@@ -67,12 +96,13 @@ func resolver_cases() -> !:
 
 pub func main(arguments: str[]) -> i32!:
     try closed_values()
+    try adoption_cases()
     try resolver_cases()
     var pair: i32[2]
     assert(socketpair(1, 1, 0, &pair[0]) == 0)
-    var sender = net.Connection.over(pair[0])
+    var sender = try net.Connection.over(pair[0])
     defer sender.destroy()
-    var receiver = net.Connection.over(pair[1])
+    var receiver = try net.Connection.over(pair[1])
     fault_arm(1)
     assert(try sender.write("abcdefgh".bytes) == 3)
     try io.write_all(&sender, "defgh".bytes)
@@ -157,6 +187,12 @@ pub func main(arguments: str[]) -> i32!:
     defer left.destroy()
     var right = try net.Datagram.bind(net.Address.loopback(0))
     defer right.destroy()
+    let listener_fd = listener.descriptor() else trap("listener is closed")
+    let client_fd = client.descriptor() else trap("client is closed")
+    let accepted_fd = accepted.descriptor() else trap("accepted socket is closed")
+    let datagram_fd = right.descriptor() else trap("datagram is closed")
+    assert(fault_socket_cloexec(listener_fd) == 1 and fault_socket_cloexec(client_fd) == 1)
+    assert(fault_socket_cloexec(accepted_fd) == 1 and fault_socket_cloexec(datagram_fd) == 1)
     fault_arm(6)
     try left.send_to("packet".bytes, (try right.address()))
     assert(fault_hits() == 1)

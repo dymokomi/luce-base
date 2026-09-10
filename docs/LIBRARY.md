@@ -797,6 +797,8 @@ The operating system's view of the process (§16.6): its environment, working di
 
 ## `net`
 
+Blocking socket I/O. Created and accepted sockets are close-on-exec. Linux sets that flag atomically; macOS requires a separate call, so applications must serialize socket creation/acceptance with concurrent fork/exec there. Adopting a caller-created descriptor also needs this coordination on either OS.
+
 - `let failed: ErrorCode = ErrorCode.package(9)`
 
 - `let closed: ErrorCode = ErrorCode.package(10)`
@@ -830,7 +832,7 @@ One owned TCP listener. Zero is closed. Copying does not duplicate ownership; co
 One owned TCP connection implementing borrowed Reader and Writer interfaces. Zero is closed. Copying does not duplicate ownership; copies must not be independently closed. Synchronize calls on one owner.
 
 - `static func connect(address: Address) -> Connection!`
-- `static func over(descriptor: i32) -> Connection` — Take ownership of a socket the caller made (a `socketpair`, an inherited descriptor). A negative descriptor produces a closed value. The socket is marked so that a write after the peer closed fails instead of ending the process. Make the connection while the peer is still there: macOS refuses the mark on a socket whose peer has already gone, and a write on such a connection answers `closed` without sending.
+- `static func over(descriptor: i32) -> Connection!` — Take ownership of a socket the caller made (a `socketpair`, an inherited descriptor), including on failure. Set close-on-exec, preserving existing flags; this is not atomic with the caller's creation/fork/exec operations. A negative descriptor is rejected. The socket is marked so that a write after the peer closed fails instead of ending the process. Make the connection while the peer is still there: macOS refuses the mark on a socket whose peer has already gone, and a write on such a connection answers `closed` without sending.
 - `mutating func write(data: const u8[]) -> usize!` — Send some bytes, retrying interruption. Use io.write_all for a complete payload and its optional progress output to resume after a later failure. An empty input makes no syscall. A closed peer never raises SIGPIPE.
 - `mutating func read(buffer: u8[]) -> usize!` — Receive some bytes. For nonempty storage, zero is peer EOF; empty storage returns zero without probing the peer. This call does not fill the buffer.
 - `func receive(buffer: u8[]) -> usize!` — Compatibility spelling of read; shares its short-read and EOF contract.

@@ -8,24 +8,26 @@ pub struct Connection: Reader, Writer:
     var guarded: bool
 
     pub static func connect(address: Address) -> Connection!:
-        let fd = socket(inet, stream, 0)
-        if fd < 0:
-            error(failed, "socket")
+        let owned = try SocketHandle.create(stream)
+        let fd = try owned.require()
         let raw = address.raw()
         if connect(fd, &raw, 16) != 0:
             discard(close(fd))
             error(failed, "connect")
-        return Connection.over(fd)
+        return Connection.from_socket(owned)
 
     ## Take ownership of a socket the caller made (a `socketpair`, an inherited
-    ## descriptor). A negative descriptor produces a closed value. The socket is marked so that a write after the peer closed fails
+    ## descriptor), including on failure. Set close-on-exec, preserving existing
+    ## flags; this is not atomic with the caller's creation/fork/exec operations.
+    ## A negative descriptor is rejected. The socket is marked so that a write after the peer closed fails
     ## instead of ending the process. Make the connection while the peer is still there:
     ## macOS refuses the mark on a socket whose peer has already gone, and a write on
     ## such a connection answers `closed` without sending.
-    pub static func over(descriptor: i32) -> Connection:
-        if descriptor < 0:
-            return Connection()
-        var connection = Connection(socket = SocketHandle(value = descriptor), guarded = false)
+    pub static func over(descriptor: i32) -> Connection!:
+        return Connection.from_socket(try SocketHandle.adopt(descriptor))
+
+    static func from_socket(owned: SocketHandle) -> Connection:
+        var connection = Connection(socket = owned, guarded = false)
         discard(connection.guard())
         return connection
 
@@ -92,4 +94,3 @@ pub struct Connection: Reader, Writer:
     ## Best-effort cleanup for unwinding; use close to observe delayed errors.
     pub mutating func destroy():
         self.socket.destroy()
-

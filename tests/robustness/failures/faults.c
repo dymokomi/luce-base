@@ -61,6 +61,33 @@ static int take(int kind) {
     armed = 0; ++hits; errno = EINTR; return 1;
 }
 #define REAL(name) __typeof__(&name) real = (__typeof__(&name))dlsym(RTLD_NEXT, #name); assert(real)
+/* This suite uses only the no-argument and integer-argument fcntl commands. */
+int fcntl(int descriptor, int command, ...) {
+    REAL(fcntl);
+    if (command == F_GETFD) {
+        if (take(45)) return -1;
+        if (take(47)) { errno = EIO; return -1; }
+        return real(descriptor, command);
+    }
+    if (command == F_GETFL || command == F_GETOWN) return real(descriptor, command);
+    assert(command == F_SETFD || command == F_SETFL || command == F_DUPFD || command == F_DUPFD_CLOEXEC);
+    va_list arguments;
+    va_start(arguments, command);
+    int value = va_arg(arguments, int);
+    va_end(arguments);
+    if (command == F_SETFD) {
+        if (take(46)) return -1;
+        if (take(48)) { errno = EIO; return -1; }
+    }
+    return real(descriptor, command, value);
+}
+int fault_socket_cloexec(int descriptor) {
+    int flags = fcntl(descriptor, F_GETFD);
+    return flags >= 0 && (flags & FD_CLOEXEC) != 0;
+}
+int fault_descriptor_closed(int descriptor) {
+    return fcntl(descriptor, F_GETFD) == -1 && errno == EBADF;
+}
 int close(int descriptor) {
     REAL(close);
     if (descriptor == observed_socket) ++socket_closes;
@@ -207,6 +234,14 @@ int accept(int fd, struct sockaddr *p, socklen_t *n) {
     if (take(5)) return -1;
     return real(fd, p, n);
 }
+#ifndef __APPLE__
+int accept4(int fd, struct sockaddr *p, socklen_t *n, int flags) {
+    REAL(accept4);
+    assert(flags & SOCK_CLOEXEC);
+    if (take(5)) return -1;
+    return real(fd, p, n, flags);
+}
+#endif
 ssize_t sendto(int fd, const void *p, size_t n, int flags, const struct sockaddr *a, socklen_t z) {
     REAL(sendto);
     if (take(6)) return -1;

@@ -4,9 +4,8 @@ pub struct Listener:
     var socket: SocketHandle
 
     pub static func bind(address: Address) -> Listener!:
-        let fd = socket(inet, stream, 0)
-        if fd < 0:
-            error(failed, "socket")
+        let owned = try SocketHandle.create(stream)
+        let fd = try owned.require()
         var yes: i32 = 1
         if setsockopt(fd, socket_level, reuse_address, &yes, 4) != 0:
             discard(close(fd))
@@ -18,7 +17,7 @@ pub struct Listener:
         if listen(fd, 16) != 0:
             discard(close(fd))
             error(failed, "listen")
-        return Listener(socket = SocketHandle(value = fd))
+        return Listener(socket = owned)
 
     ## Query the bound endpoint, including an automatically assigned port.
     pub func address() -> Address!:
@@ -26,12 +25,12 @@ pub struct Listener:
 
     pub func accept() -> Connection!:
         let descriptor = try self.socket.require()
-        var fd = accept(descriptor, none, none)
+        var fd = accept_socket(descriptor)
         while fd < 0 and c.errno() == c.interrupted:
-            fd = accept(descriptor, none, none)
+            fd = accept_socket(descriptor)
         if fd < 0:
             error(failed, "accept")
-        return Connection.over(fd)
+        return try Connection.over(fd)
 
     ## Borrow the descriptor; the caller must not close it or retain it past this owner.
     pub func descriptor() -> i32?:
@@ -45,3 +44,7 @@ pub struct Listener:
     pub mutating func destroy():
         self.socket.destroy()
 
+func accept_socket(descriptor: i32) -> i32:
+    if platform.macos:
+        return accept(descriptor, none, none)
+    return accept4(descriptor, none, none, socket_close_on_exec)

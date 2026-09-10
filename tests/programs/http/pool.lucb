@@ -85,15 +85,27 @@ pub func stop_all(queue: Queue*, handles: thread.Handle[], count: usize) -> !:
 
 test "a queue hands out what was pushed, in order":
     var queue: Queue
-    try queue.push(net.Connection.over(5))
-    try queue.push(net.Connection.over(6))
+    var listener = try net.Listener.bind(net.Address.loopback(0))
+    defer listener.destroy()
+    let address = try listener.address()
+    var first = try net.Connection.connect(address)
+    defer first.destroy()
+    var second = try net.Connection.connect(address)
+    defer second.destroy()
+    let first_descriptor = first.descriptor() else trap("first connection is closed")
+    let second_descriptor = second.descriptor() else trap("second connection is closed")
+    try queue.push(first)
+    first = net.Connection()
+    try queue.push(second)
+    second = net.Connection()
     assert(queue.pending() == 2)
-    assert(descriptor_of(queue.pop()) == 5)
+    var popped = queue.pop() else trap("first connection is missing")
+    defer popped.destroy()
+    assert(popped.descriptor() == first_descriptor)
+    try popped.close()
     queue.stop()
-    assert(descriptor_of(queue.pop()) == 6)
-    assert(descriptor_of(queue.pop()) == -1)
-
-func descriptor_of(connection: net.Connection?) -> i32:
-    let conn = connection else return -1
-    let descriptor = conn.descriptor() else return -1
-    return descriptor
+    var next = queue.pop() else trap("second connection is missing")
+    defer next.destroy()
+    assert(next.descriptor() == second_descriptor)
+    try next.close()
+    assert(queue.pop() == none)

@@ -4,14 +4,13 @@ pub struct Datagram:
     var socket: SocketHandle
 
     pub static func bind(address: Address) -> Datagram!:
-        let fd = socket(inet, datagram, 0)
-        if fd < 0:
-            error(failed, "socket")
+        let owned = try SocketHandle.create(datagram)
+        let fd = try owned.require()
         let raw = address.raw()
         if bind(fd, &raw, 16) != 0:
             discard(close(fd))
             error(failed, "bind")
-        return Datagram(socket = SocketHandle(value = fd))
+        return Datagram(socket = owned)
 
     ## Query the bound endpoint, including an automatically assigned port.
     pub func address() -> Address!:
@@ -49,4 +48,3 @@ pub struct Datagram:
     ## Best-effort cleanup for unwinding; use close to observe delayed errors.
     pub mutating func destroy():
         self.socket.destroy()
-
