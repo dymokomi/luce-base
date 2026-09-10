@@ -115,6 +115,46 @@ pub struct Connection: Reader, Writer:
             error(transfer_error(c.errno()), "the connection could not receive data")
         return (usize)received
 
+    ## Disable Nagle coalescing when enabled. This is a latency policy, not a
+    ## delivery guarantee; writes may still be buffered by the OS or network.
+    pub mutating func set_no_delay(enabled: bool) -> !:
+        try set_socket_integer(try self.socket.require(), 6, 1, 1 if enabled else 0)
+
+    pub func no_delay() -> bool!:
+        return try get_socket_integer(try self.socket.require(), 6, 1) != 0
+
+    ## Enable OS TCP keepalive probes. Timing and retry defaults remain host
+    ## policy; keepalive does not provide an application operation deadline.
+    pub mutating func set_keepalive(enabled: bool) -> !:
+        try set_socket_integer(try self.socket.require(), socket_level, keepalive_option, 1 if enabled else 0)
+
+    pub func keepalive() -> bool!:
+        return try get_socket_integer(try self.socket.require(), socket_level, keepalive_option) != 0
+
+    ## Change O_NONBLOCK without changing other status flags. Descriptor aliases
+    ## share this setting; synchronize changes with all users of this socket.
+    pub mutating func set_nonblocking(enabled: bool) -> !:
+        try set_nonblocking(try self.socket.require(), enabled)
+
+    pub func is_nonblocking() -> bool!:
+        return (try socket_status_flags(try self.socket.require()) & nonblocking_flag) != 0
+
+    ## Request kernel buffering in bytes, not a guaranteed transfer size. The OS
+    ## may cap or round the request; receive_buffer returns its reported setting.
+    pub mutating func set_receive_buffer(bytes: i32) -> !:
+        try set_socket_buffer(try self.socket.require(), receive_buffer_option, bytes)
+
+    pub func receive_buffer() -> i32!:
+        return try get_socket_integer(try self.socket.require(), socket_level, receive_buffer_option)
+
+    ## Request kernel buffering in bytes. Linux reports a doubled bookkeeping
+    ## size; both hosts may adjust the request. This does not change user buffers.
+    pub mutating func set_send_buffer(bytes: i32) -> !:
+        try set_socket_buffer(try self.socket.require(), send_buffer_option, bytes)
+
+    pub func send_buffer() -> i32!:
+        return try get_socket_integer(try self.socket.require(), socket_level, send_buffer_option)
+
     ## Borrow the descriptor; the caller must not close it or retain it past this owner.
     pub func descriptor() -> i32?:
         return self.socket.value

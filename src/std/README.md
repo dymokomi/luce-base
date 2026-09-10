@@ -17,6 +17,6 @@ directory iteration/listing (`directory.lucb`), and traversal (`walk.lucb`). Its
 
 `net/` separates host ABI declarations and constants (`module.lucb`), IP endpoints with ports and interface scopes
 (`address.lucb`), versioned IP values and text conversion (`ip_address.lucb`), name resolution (`resolver.lucb`), shared descriptor ownership and
-endpoint queries (`handles.lucb`), and the TCP listener, TCP connection, and UDP
+endpoint queries (`handles.lucb`), typed socket settings (`options.lucb`), and the TCP listener, TCP connection, and UDP
 socket APIs (`listener.lucb`, `connection.lucb`, `datagram.lucb`). Its public import
 remains `net`.

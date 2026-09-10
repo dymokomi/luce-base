@@ -857,7 +857,13 @@ One owned TCP listener. Zero is closed. Copying does not duplicate ownership; co
 
 - `static func bind(address: SocketAddress, backlog: i32 = 128, ipv6_only: bool = true) -> Listener!` — Bind and listen with a positive requested backlog. The OS may cap the pending connection queue; the value does not limit accepted connections. IPv6 listeners default to IPv6-only on both hosts. Set ipv6_only=false to also permit mapped IPv4 peers; the option has no effect for IPv4 listeners.
 - `func address() -> SocketAddress!` — Query the bound endpoint, including an automatically assigned port.
-- `func accept() -> Connection!`
+- `func accept(nonblocking: bool = false) -> Connection!` — Accept one connection, or io.would_block when a nonblocking listener has none pending. Accepted connections are blocking unless nonblocking=true, independently of the listener setting and host inheritance defaults.
+- `mutating func set_nonblocking(enabled: bool) -> !` — Change O_NONBLOCK without changing other status flags. Descriptor aliases share this setting; synchronize changes with all users of this socket.
+- `func is_nonblocking() -> bool!`
+- `mutating func set_receive_buffer(bytes: i32) -> !` — Request kernel buffering in bytes, not a guaranteed transfer size. The OS may cap or round the request; receive_buffer returns its reported setting.
+- `func receive_buffer() -> i32!`
+- `mutating func set_send_buffer(bytes: i32) -> !` — Request kernel buffering in bytes. Linux reports a doubled bookkeeping size; both hosts may adjust the request. This does not change user buffers.
+- `func send_buffer() -> i32!`
 - `func descriptor() -> i32?` — Borrow the descriptor; the caller must not close it or retain it past this owner.
 - `mutating func close() -> !` — Consume ownership before the OS call. Repeated close is safe even after failure.
 - `mutating func destroy()` — Best-effort cleanup for unwinding; use close to observe delayed errors.
@@ -878,6 +884,16 @@ One owned TCP connection implementing borrowed Reader and Writer interfaces. Zer
 - `mutating func write(data: const u8[]) -> usize!` — Send some bytes, retrying interruption. Use io.write_all for a complete payload and its optional progress output to resume after a later failure. An empty input makes no syscall. A closed peer never raises SIGPIPE.
 - `mutating func read(buffer: u8[]) -> usize!` — Receive some bytes. For nonempty storage, zero is peer EOF; empty storage returns zero without probing the peer. This call does not fill the buffer.
 - `func receive(buffer: u8[]) -> usize!` — Compatibility spelling of read; shares its short-read and EOF contract.
+- `mutating func set_no_delay(enabled: bool) -> !` — Disable Nagle coalescing when enabled. This is a latency policy, not a delivery guarantee; writes may still be buffered by the OS or network.
+- `func no_delay() -> bool!`
+- `mutating func set_keepalive(enabled: bool) -> !` — Enable OS TCP keepalive probes. Timing and retry defaults remain host policy; keepalive does not provide an application operation deadline.
+- `func keepalive() -> bool!`
+- `mutating func set_nonblocking(enabled: bool) -> !` — Change O_NONBLOCK without changing other status flags. Descriptor aliases share this setting; synchronize changes with all users of this socket.
+- `func is_nonblocking() -> bool!`
+- `mutating func set_receive_buffer(bytes: i32) -> !` — Request kernel buffering in bytes, not a guaranteed transfer size. The OS may cap or round the request; receive_buffer returns its reported setting.
+- `func receive_buffer() -> i32!`
+- `mutating func set_send_buffer(bytes: i32) -> !` — Request kernel buffering in bytes. Linux reports a doubled bookkeeping size; both hosts may adjust the request. This does not change user buffers.
+- `func send_buffer() -> i32!`
 - `func descriptor() -> i32?` — Borrow the descriptor; the caller must not close it or retain it past this owner.
 - `mutating func close() -> !` — Consume ownership before the OS call. Repeated close is safe even after failure.
 - `mutating func destroy()` — Best-effort cleanup for unwinding; use close to observe delayed errors.
@@ -890,6 +906,12 @@ One owned UDP socket. Zero is closed. Copying does not duplicate ownership; copi
 - `func address() -> SocketAddress!` — Query the bound endpoint, including an automatically assigned port.
 - `func send_to(data: const u8[], address: SocketAddress) -> !` — Send one complete IP datagram, including an empty packet. A successful send confirms local acceptance, not peer delivery. IPv4 permits up to 65507 payload bytes, IPv6 up to 65527; host/path limits may be smaller. IPv6 jumbograms are not supported. The destination must match the socket version.
 - `func receive_from(buffer: u8[]) -> (usize, SocketAddress)!` — Consume one packet. Zero means a valid empty datagram, not stream EOF. If storage is too small, consume/discard the packet and report message_too_large; a copied prefix may remain in the buffer. The next call receives the next packet. Empty storage can receive only an empty packet.
+- `mutating func set_nonblocking(enabled: bool) -> !` — Change O_NONBLOCK without changing other status flags. Descriptor aliases share this setting; synchronize changes with all users of this socket.
+- `func is_nonblocking() -> bool!`
+- `mutating func set_receive_buffer(bytes: i32) -> !` — Request kernel buffering in bytes, not a guaranteed transfer size. The OS may cap or round the request; receive_buffer returns its reported setting.
+- `func receive_buffer() -> i32!`
+- `mutating func set_send_buffer(bytes: i32) -> !` — Request kernel buffering in bytes. Linux reports a doubled bookkeeping size; both hosts may adjust the request. This does not change user buffers.
+- `func send_buffer() -> i32!`
 - `func descriptor() -> i32?` — Borrow the descriptor; the caller must not close it or retain it past this owner.
 - `mutating func close() -> !` — Consume ownership before the OS call. Repeated close is safe even after failure.
 - `mutating func destroy()` — Best-effort cleanup for unwinding; use close to observe delayed errors.

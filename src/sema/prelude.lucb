@@ -3976,6 +3976,7 @@ extern func sendto(descriptor: i32, data: const void*, length: usize, flags: i32
 extern func receive_message_macos as "recvmsg"(descriptor: i32, message: MacMessage*, flags: i32) -> isize
 extern func receive_message_linux as "recvmsg"(descriptor: i32, message: LinuxMessage*, flags: i32) -> isize
 extern func close(descriptor: i32) -> i32
+extern func getsockopt(descriptor: i32, level: i32, option: i32, value: void*, length: u32*) -> i32
 extern func setsockopt(descriptor: i32, level: i32, option: i32, value: const void*, length: u32) -> i32
 extern func getsockname(descriptor: i32, address: void*, length: u32*) -> i32
 extern func getpeername(descriptor: i32, address: void*, length: u32*) -> i32
@@ -4622,14 +4623,44 @@ pub struct Listener:
     pub func address() -> SocketAddress!:
         return try socket_address(try self.socket.require())
 
-    pub func accept() -> Connection!:
+    ## Accept one connection, or io.would_block when a nonblocking listener has
+    ## none pending. Accepted connections are blocking unless nonblocking=true,
+    ## independently of the listener setting and host inheritance defaults.
+    pub func accept(nonblocking: bool = false) -> Connection!:
         let descriptor = try self.socket.require()
         var fd = accept_socket(descriptor)
         while fd < 0 and c.errno() == c.interrupted:
             fd = accept_socket(descriptor)
         if fd < 0:
-            error(failed, "accept")
-        return try Connection.over(fd)
+            error(transfer_error(c.errno()), "the listener could not accept a connection")
+        var connection = try Connection.over(fd)
+        errdefer connection.destroy()
+        try connection.set_nonblocking(nonblocking)
+        return connection
+
+    ## Change O_NONBLOCK without changing other status flags. Descriptor aliases
+    ## share this setting; synchronize changes with all users of this socket.
+    pub mutating func set_nonblocking(enabled: bool) -> !:
+        try set_nonblocking(try self.socket.require(), enabled)
+
+    pub func is_nonblocking() -> bool!:
+        return (try socket_status_flags(try self.socket.require()) & nonblocking_flag) != 0
+
+    ## Request kernel buffering in bytes, not a guaranteed transfer size. The OS
+    ## may cap or round the request; receive_buffer returns its reported setting.
+    pub mutating func set_receive_buffer(bytes: i32) -> !:
+        try set_socket_buffer(try self.socket.require(), receive_buffer_option, bytes)
+
+    pub func receive_buffer() -> i32!:
+        return try get_socket_integer(try self.socket.require(), socket_level, receive_buffer_option)
+
+    ## Request kernel buffering in bytes. Linux reports a doubled bookkeeping
+    ## size; both hosts may adjust the request. This does not change user buffers.
+    pub mutating func set_send_buffer(bytes: i32) -> !:
+        try set_socket_buffer(try self.socket.require(), send_buffer_option, bytes)
+
+    pub func send_buffer() -> i32!:
+        return try get_socket_integer(try self.socket.require(), socket_level, send_buffer_option)
 
     ## Borrow the descriptor; the caller must not close it or retain it past this owner.
     pub func descriptor() -> i32?:
@@ -4764,6 +4795,46 @@ pub struct Connection: Reader, Writer:
             error(transfer_error(c.errno()), "the connection could not receive data")
         return (usize)received
 
+    ## Disable Nagle coalescing when enabled. This is a latency policy, not a
+    ## delivery guarantee; writes may still be buffered by the OS or network.
+    pub mutating func set_no_delay(enabled: bool) -> !:
+        try set_socket_integer(try self.socket.require(), 6, 1, 1 if enabled else 0)
+
+    pub func no_delay() -> bool!:
+        return try get_socket_integer(try self.socket.require(), 6, 1) != 0
+
+    ## Enable OS TCP keepalive probes. Timing and retry defaults remain host
+    ## policy; keepalive does not provide an application operation deadline.
+    pub mutating func set_keepalive(enabled: bool) -> !:
+        try set_socket_integer(try self.socket.require(), socket_level, keepalive_option, 1 if enabled else 0)
+
+    pub func keepalive() -> bool!:
+        return try get_socket_integer(try self.socket.require(), socket_level, keepalive_option) != 0
+
+    ## Change O_NONBLOCK without changing other status flags. Descriptor aliases
+    ## share this setting; synchronize changes with all users of this socket.
+    pub mutating func set_nonblocking(enabled: bool) -> !:
+        try set_nonblocking(try self.socket.require(), enabled)
+
+    pub func is_nonblocking() -> bool!:
+        return (try socket_status_flags(try self.socket.require()) & nonblocking_flag) != 0
+
+    ## Request kernel buffering in bytes, not a guaranteed transfer size. The OS
+    ## may cap or round the request; receive_buffer returns its reported setting.
+    pub mutating func set_receive_buffer(bytes: i32) -> !:
+        try set_socket_buffer(try self.socket.require(), receive_buffer_option, bytes)
+
+    pub func receive_buffer() -> i32!:
+        return try get_socket_integer(try self.socket.require(), socket_level, receive_buffer_option)
+
+    ## Request kernel buffering in bytes. Linux reports a doubled bookkeeping
+    ## size; both hosts may adjust the request. This does not change user buffers.
+    pub mutating func set_send_buffer(bytes: i32) -> !:
+        try set_socket_buffer(try self.socket.require(), send_buffer_option, bytes)
+
+    pub func send_buffer() -> i32!:
+        return try get_socket_integer(try self.socket.require(), socket_level, send_buffer_option)
+
     ## Borrow the descriptor; the caller must not close it or retain it past this owner.
     pub func descriptor() -> i32?:
         return self.socket.value
@@ -4859,6 +4930,30 @@ pub struct Datagram:
             if address_length > 28:
                 error(failed, "the datagram sender address exceeds the supported storage")
             return ((usize)received, try decode_address(&raw, address_length))
+
+    ## Change O_NONBLOCK without changing other status flags. Descriptor aliases
+    ## share this setting; synchronize changes with all users of this socket.
+    pub mutating func set_nonblocking(enabled: bool) -> !:
+        try set_nonblocking(try self.socket.require(), enabled)
+
+    pub func is_nonblocking() -> bool!:
+        return (try socket_status_flags(try self.socket.require()) & nonblocking_flag) != 0
+
+    ## Request kernel buffering in bytes, not a guaranteed transfer size. The OS
+    ## may cap or round the request; receive_buffer returns its reported setting.
+    pub mutating func set_receive_buffer(bytes: i32) -> !:
+        try set_socket_buffer(try self.socket.require(), receive_buffer_option, bytes)
+
+    pub func receive_buffer() -> i32!:
+        return try get_socket_integer(try self.socket.require(), socket_level, receive_buffer_option)
+
+    ## Request kernel buffering in bytes. Linux reports a doubled bookkeeping
+    ## size; both hosts may adjust the request. This does not change user buffers.
+    pub mutating func set_send_buffer(bytes: i32) -> !:
+        try set_socket_buffer(try self.socket.require(), send_buffer_option, bytes)
+
+    pub func send_buffer() -> i32!:
+        return try get_socket_integer(try self.socket.require(), socket_level, send_buffer_option)
 
     ## Borrow the descriptor; the caller must not close it or retain it past this owner.
     pub func descriptor() -> i32?:
@@ -4961,6 +5056,46 @@ func set_socket_integer(descriptor: i32, level: i32, option: i32, value: i32) ->
         result = setsockopt(descriptor, level, option, &value, 4)
     if result != 0:
         error(failed, "the socket option could not be set")
+## Host option numbers stay private; public methods expose typed policies.
+let nonblocking_flag: i32 = 4 if platform.macos else 2048
+let receive_buffer_option: i32 = 4098 if platform.macos else 8
+let send_buffer_option: i32 = 4097 if platform.macos else 7
+let keepalive_option: i32 = 8 if platform.macos else 9
+
+func socket_status_flags(descriptor: i32) -> i32!:
+    var flags = fcntl(descriptor, 3)
+    while flags < 0 and c.errno() == c.interrupted:
+        flags = fcntl(descriptor, 3)
+    if flags < 0:
+        error(transfer_error(c.errno()), "socket status flags could not be queried")
+    return flags
+
+func set_nonblocking(descriptor: i32, enabled: bool) -> !:
+    let before = try socket_status_flags(descriptor)
+    let after = before | nonblocking_flag if enabled else before & ~nonblocking_flag
+    if after == before:
+        return
+    var result = fcntl(descriptor, 4, after)
+    while result < 0 and c.errno() == c.interrupted:
+        result = fcntl(descriptor, 4, after)
+    if result < 0:
+        error(transfer_error(c.errno()), "socket nonblocking mode could not be changed")
+
+func get_socket_integer(descriptor: i32, level: i32, option: i32) -> i32!:
+    var value: i32 = 0
+    var length: u32 = 4
+    var result = getsockopt(descriptor, level, option, &value, &length)
+    while result < 0 and c.errno() == c.interrupted:
+        length = 4
+        result = getsockopt(descriptor, level, option, &value, &length)
+    if result != 0 or length != 4:
+        error(failed, "the socket option could not be queried")
+    return value
+
+func set_socket_buffer(descriptor: i32, option: i32, bytes: i32) -> !:
+    if bytes <= 0:
+        error(invalid_options, "a socket buffer size must be positive")
+    try set_socket_integer(descriptor, socket_level, option, bytes)
 """),
     Prelude(name = "debug", text = """
 import c

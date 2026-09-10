@@ -21,6 +21,7 @@ extern func sendto(descriptor: i32, data: const void*, length: usize, flags: i32
 extern func receive_message_macos as "recvmsg"(descriptor: i32, message: MacMessage*, flags: i32) -> isize
 extern func receive_message_linux as "recvmsg"(descriptor: i32, message: LinuxMessage*, flags: i32) -> isize
 extern func close(descriptor: i32) -> i32
+extern func getsockopt(descriptor: i32, level: i32, option: i32, value: void*, length: u32*) -> i32
 extern func setsockopt(descriptor: i32, level: i32, option: i32, value: const void*, length: u32) -> i32
 extern func getsockname(descriptor: i32, address: void*, length: u32*) -> i32
 extern func getpeername(descriptor: i32, address: void*, length: u32*) -> i32
