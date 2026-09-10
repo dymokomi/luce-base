@@ -21,7 +21,7 @@ Define EOF, zero-length operations, interruption, would-block and timeout separa
 
 | Module | Current source | Required work |
 | --- | --- | --- |
-| `math` | Mostly f64 libm wrappers, classification and a small integer API | Floating-point contracts for NaN, signed zero, infinities, subnormals, rounding and domain/range errors; documented accuracy per function; f32/f64 coverage; stable elementary helpers such as log1p/expm1, nextafter, copysign, fma and decomposition/scaling; explicit checked integer behavior |
+| `math`, `math32` | Explicit special-value contracts, f64/f32 libm operations, precision helpers and checked integer operations | Complete per-function accuracy/domain documentation and wider reference campaigns; rounding-mode and boundary coverage beyond the initial vectors |
 | `net` | IPv4 TCP/UDP, first-address resolution and blocking sockets | IPv4/IPv6 address parsing/formatting and resolution results, TCP/UDP lifecycle, endpoint queries, socket options, configurable backlog, shutdown, nonblocking/readiness support, deadlines/cancellation, precise errors and datagram truncation behavior |
 | `io` | Writer, stdout/stderr and formatting sink | Reader/Writer contracts and adapters, buffered input/output, stdin, exact/all/copy helpers with limits, explicit flush, seeking where supported, ownership and close semantics; shared substrate for files, sockets and TLS |
 | `files` | Whole-file read/write, readability probe and sorted directory names | Owned file handles and open modes, streaming, seek/position, metadata, directories/iteration/walk, create/remove/rename/copy, temporary files, atomic replacement, explicit sync/durability, symlink/path behavior and actionable errors |
@@ -42,10 +42,10 @@ transcendentals based only on a few approximate comparisons.
 
 These observations prioritize contract tests; they are not a completed library audit.
 
-- `math.abs` uses a comparison/subtraction, so negative zero is retained. `min` and
-  `max` use ordered comparisons, making NaN and equal-zero behavior operand-dependent.
-  Specify intended semantics and test exact bits. Cover integer minimum values,
-  division by zero, overflow and reversed clamp bounds.
+- `math` and `math32` specify NaN propagation and signed-zero behavior and test exact
+  bits. The accuracy gate has independent Decimal references for `log1p` and `expm1`;
+  it does not establish a global error bound for all libm operations. Broaden those
+  numerical campaigns, including host rounding modes and exceptional arguments.
 - `net.resolve` releases its address-info allocation only after obtaining an address;
   cover every unsuccessful exit after acquisition. Endpoint queries currently discard
   `getsockname` errors. Socket close methods need explicit ownership and repeated-close

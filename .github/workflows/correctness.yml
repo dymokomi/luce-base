@@ -74,5 +74,6 @@ jobs:
             luce-base/build/dwarf/
             luce-base/build/failures/
             luce-base/build/fuzz/
+            luce-base/build/math_accuracy/*.lucb
             luce-base/build/hardware-skip.txt
           retention-days: 14

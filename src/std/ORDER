@@ -12,6 +12,7 @@ process
 strings
 paths
 math
+math32
 time
 os
 testing

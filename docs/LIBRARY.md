@@ -411,6 +411,108 @@ The mathematical functions of the standard library (§16.6): `import math` for `
 
 - `func iclamp(x: i64, low: i64, high: i64) -> i64` — Restrict `x` to inclusive ordered bounds. Reversed bounds trap.
 
+## `math32`
+
+Single-precision mathematics. `math32` has the floating-point operations of `math`, with f32 arguments and results and the same special-value contracts. Elementary functions call the host's single-precision libm entry points directly; they do not compute in f64 and then introduce an extra rounding step.
+
+- `let pi: f32 = 3.141592653589793`
+
+- `let tau: f32 = 6.283185307179586`
+
+- `let e: f32 = 2.718281828459045`
+
+- `let infinity: f32 = f32.bits(2139095040)` — Built from bits so that no constant expression needs to overflow.
+
+- `let nan: f32 = f32.bits(2143289344)`
+
+- `func floor(x: f32) -> f32` — Rounding: `floor` toward negative infinity, `ceil` toward positive, `round` to the nearest with halves away from zero, `trunc` toward zero.
+
+- `func ceil(x: f32) -> f32`
+
+- `func round(x: f32) -> f32`
+
+- `func trunc(x: f32) -> f32`
+
+- `func sqrt(x: f32) -> f32`
+
+- `func cbrt(x: f32) -> f32`
+
+- `func hypot(x: f32, y: f32) -> f32` — `sqrt(x * x + y * y)` without overflow in the squares.
+
+- `func mod(x: f32, y: f32) -> f32` — The remainder of `x / y` with the sign of `x`, as C's `fmod`.
+
+- `func pow(x: f32, y: f32) -> f32`
+
+- `func exp(x: f32) -> f32`
+
+- `func exp2(x: f32) -> f32`
+
+- `func log(x: f32) -> f32`
+
+- `func log2(x: f32) -> f32`
+
+- `func log10(x: f32) -> f32`
+
+- `func log1p(x: f32) -> f32` — Natural logarithm of `1 + x`, retaining accuracy when adding `x` to one would round it away. At -1 the result is negative infinity; below -1 it is NaN.
+
+- `func expm1(x: f32) -> f32` — `exp(x) - 1` without cancellation near zero. Signed zero is preserved.
+
+- `func fma(x: f32, y: f32, z: f32) -> f32` — Multiply `x * y` and add `z` with one final rounding, rather than rounding the product first. Uses the host's floating-point rounding mode.
+
+- `func nextafter(x: f32, toward: f32) -> f32` — The adjacent representable value toward `toward`; equal arguments return `toward`, including its zero sign. A NaN argument produces NaN.
+
+- `func next_up(x: f32) -> f32` — The adjacent representable value toward positive infinity. Positive infinity stays infinite; either zero becomes the smallest positive subnormal.
+
+- `func next_down(x: f32) -> f32` — The adjacent representable value toward negative infinity. Negative infinity stays infinite; either zero becomes the smallest negative subnormal.
+
+- `func frexp(x: f32) -> (f32, i32)` — Split `x` into `(fraction, exponent)` such that `x = fraction * 2**exponent`. A finite nonzero fraction has magnitude in [0.5, 1). Zero, infinity and NaN are returned unchanged with exponent zero, avoiding an unspecified C exponent.
+
+- `func scalbn(x: f32, exponent: i32) -> f32` — Scale by an integer power of two, without forming that power as an intermediate float. Overflow/underflow follow the host rounding mode; signed zero survives.
+
+- `func modf(x: f32) -> (f32, f32)` — `(fractional, integral)` parts, both with the sign of `x`; the integral part truncates toward zero. Infinity has a signed-zero fraction; NaN gives two NaNs.
+
+- `func remainder(x: f32, y: f32) -> f32` — `x - n*y` for the nearest integer `n` to `x/y`, with ties choosing even `n`. This differs from `mod`, which truncates the quotient. Zero has the sign of `x`; a zero divisor or infinite dividend produces NaN.
+
+- `func sin(x: f32) -> f32`
+
+- `func cos(x: f32) -> f32`
+
+- `func tan(x: f32) -> f32`
+
+- `func asin(x: f32) -> f32`
+
+- `func acos(x: f32) -> f32`
+
+- `func atan(x: f32) -> f32`
+
+- `func atan2(y: f32, x: f32) -> f32` — The angle of the point `(x, y)`, in all four quadrants.
+
+- `func sinh(x: f32) -> f32`
+
+- `func cosh(x: f32) -> f32`
+
+- `func tanh(x: f32) -> f32`
+
+- `func is_nan(x: f32) -> bool` — True for quiet and signaling NaNs, independent of sign and payload.
+
+- `func is_finite(x: f32) -> bool` — True for zeros, subnormals and normal finite values. Classification inspects the representation and performs no floating-point arithmetic on a signaling NaN.
+
+- `func is_infinite(x: f32) -> bool` — True only for positive or negative infinity.
+
+- `func signbit(x: f32) -> bool` — Whether the sign bit is set, including negative zero and signed NaNs.
+
+- `func abs(x: f32) -> f32` — Clear the sign bit: negative zero becomes positive zero. NaN payload bits survive.
+
+- `func copysign(magnitude: f32, sign_source: f32) -> f32` — The magnitude and payload of `magnitude` with the sign bit of `sign_source`.
+
+- `func sign(x: f32) -> f32` — `-1.0` or `1.0` for nonzero numbers; zero and NaN are returned unchanged.
+
+- `func min(a: f32, b: f32) -> f32` — Minimum with NaN propagation (left NaN wins if both are NaNs). Negative zero wins over positive zero; a selected NaN retains its original bits.
+
+- `func max(a: f32, b: f32) -> f32` — Maximum with NaN propagation (left NaN wins if both are NaNs). Positive zero wins over negative zero; a selected NaN retains its original bits.
+
+- `func clamp(x: f32, low: f32, high: f32) -> f32` — Restrict `x` to inclusive ordered bounds. Reversed or NaN bounds trap. An input NaN or an input equal to a bound is returned unchanged, including its zero sign.
+
 ## `time`
 
 - `func now() -> u64` — Nanoseconds from an arbitrary origin, never going backwards.
