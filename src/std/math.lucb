@@ -33,6 +33,10 @@ pub let e: f64 = 2.718281828459045
 pub let infinity: f64 = f64.bits(9218868437227405312)
 pub let nan: f64 = f64.bits(9221120237041090560)
 
+let sign_mask: u64 = 0x8000000000000000
+let magnitude_mask: u64 = 0x7fffffffffffffff
+let exponent_mask: u64 = 0x7ff0000000000000
+
 ## Rounding: `floor` toward negative infinity, `ceil` toward positive, `round` to the
 ## nearest with halves away from zero, `trunc` toward zero.
 pub func floor(x: f64) -> f64:
@@ -89,26 +93,60 @@ pub func cosh(x: f64) -> f64:
 pub func tanh(x: f64) -> f64:
     return c_tanh(x)
 
+## True for quiet and signaling NaNs, independent of sign and payload.
 pub func is_nan(x: f64) -> bool:
-    return x != x
+    return (x.bits() & magnitude_mask) > exponent_mask
+## True for zeros, subnormals and normal finite values. Classification inspects the
+## representation and performs no floating-point arithmetic on a signaling NaN.
 pub func is_finite(x: f64) -> bool:
-    return x - x == 0.0
+    return (x.bits() & exponent_mask) != exponent_mask
+## True only for positive or negative infinity.
 pub func is_infinite(x: f64) -> bool:
-    return x == infinity or x == 0.0 - infinity
+    return (x.bits() & magnitude_mask) == exponent_mask
+## Whether the sign bit is set, including negative zero and signed NaNs.
+pub func signbit(x: f64) -> bool:
+    return (x.bits() & sign_mask) != 0
+## Clear the sign bit: negative zero becomes positive zero. NaN payload bits survive.
 pub func abs(x: f64) -> f64:
-    return 0.0 - x if x < 0.0 else x
-## `-1.0`, `0.0`, or `1.0`; NaN answers NaN.
+    return f64.bits(x.bits() & magnitude_mask)
+## The magnitude and payload of `magnitude` with the sign bit of `sign_source`.
+pub func copysign(magnitude: f64, sign_source: f64) -> f64:
+    return f64.bits((magnitude.bits() & magnitude_mask) | (sign_source.bits() & sign_mask))
+## `-1.0` or `1.0` for nonzero numbers; zero and NaN are returned unchanged.
 pub func sign(x: f64) -> f64:
+    if is_nan(x):
+        return x
     if x < 0.0:
         return -1.0
     if x > 0.0:
         return 1.0
     return x
+## Minimum with NaN propagation (left NaN wins if both are NaNs). Negative zero
+## wins over positive zero; a selected NaN retains its original bits.
 pub func min(a: f64, b: f64) -> f64:
+    if is_nan(a):
+        return a
+    if is_nan(b):
+        return b
+    if a == 0.0 and b == 0.0:
+        return f64.bits(a.bits() | b.bits())
     return a if a < b else b
+## Maximum with NaN propagation (left NaN wins if both are NaNs). Positive zero
+## wins over negative zero; a selected NaN retains its original bits.
 pub func max(a: f64, b: f64) -> f64:
+    if is_nan(a):
+        return a
+    if is_nan(b):
+        return b
+    if a == 0.0 and b == 0.0:
+        return f64.bits(a.bits() & b.bits())
     return a if a > b else b
+## Restrict `x` to inclusive ordered bounds. Reversed or NaN bounds trap. An input
+## NaN or an input equal to a bound is returned unchanged, including its zero sign.
 pub func clamp(x: f64, low: f64, high: f64) -> f64:
+    assert(low <= high)
+    if is_nan(x):
+        return x
     return low if x < low else (high if x > high else x)
 
 ## The integer functions. `//` and `%` truncate toward zero as C does (§7.2); these two
@@ -129,5 +167,7 @@ pub func imin(a: i64, b: i64) -> i64:
     return a if a < b else b
 pub func imax(a: i64, b: i64) -> i64:
     return a if a > b else b
+## Restrict `x` to inclusive ordered bounds. Reversed bounds trap.
 pub func iclamp(x: i64, low: i64, high: i64) -> i64:
+    assert(low <= high)
     return low if x < low else (high if x > high else x)

@@ -353,21 +353,25 @@ The mathematical functions of the standard library (§16.6): `import math` for `
 
 - `func tanh(x: f64) -> f64`
 
-- `func is_nan(x: f64) -> bool`
+- `func is_nan(x: f64) -> bool` — True for quiet and signaling NaNs, independent of sign and payload.
 
-- `func is_finite(x: f64) -> bool`
+- `func is_finite(x: f64) -> bool` — True for zeros, subnormals and normal finite values. Classification inspects the representation and performs no floating-point arithmetic on a signaling NaN.
 
-- `func is_infinite(x: f64) -> bool`
+- `func is_infinite(x: f64) -> bool` — True only for positive or negative infinity.
 
-- `func abs(x: f64) -> f64`
+- `func signbit(x: f64) -> bool` — Whether the sign bit is set, including negative zero and signed NaNs.
 
-- `func sign(x: f64) -> f64` — `-1.0`, `0.0`, or `1.0`; NaN answers NaN.
+- `func abs(x: f64) -> f64` — Clear the sign bit: negative zero becomes positive zero. NaN payload bits survive.
 
-- `func min(a: f64, b: f64) -> f64`
+- `func copysign(magnitude: f64, sign_source: f64) -> f64` — The magnitude and payload of `magnitude` with the sign bit of `sign_source`.
 
-- `func max(a: f64, b: f64) -> f64`
+- `func sign(x: f64) -> f64` — `-1.0` or `1.0` for nonzero numbers; zero and NaN are returned unchanged.
 
-- `func clamp(x: f64, low: f64, high: f64) -> f64`
+- `func min(a: f64, b: f64) -> f64` — Minimum with NaN propagation (left NaN wins if both are NaNs). Negative zero wins over positive zero; a selected NaN retains its original bits.
+
+- `func max(a: f64, b: f64) -> f64` — Maximum with NaN propagation (left NaN wins if both are NaNs). Positive zero wins over negative zero; a selected NaN retains its original bits.
+
+- `func clamp(x: f64, low: f64, high: f64) -> f64` — Restrict `x` to inclusive ordered bounds. Reversed or NaN bounds trap. An input NaN or an input equal to a bound is returned unchanged, including its zero sign.
 
 - `func div_floor(a: i64, b: i64) -> i64` — The integer functions. `//` and `%` truncate toward zero as C does (§7.2); these two floor, so `div_floor(-7, 2)` is `-4` and `mod_floor(-7, 2)` is `1`.
 
@@ -379,7 +383,7 @@ The mathematical functions of the standard library (§16.6): `import math` for `
 
 - `func imax(a: i64, b: i64) -> i64`
 
-- `func iclamp(x: i64, low: i64, high: i64) -> i64`
+- `func iclamp(x: i64, low: i64, high: i64) -> i64` — Restrict `x` to inclusive ordered bounds. Reversed bounds trap.
 
 ## `time`
 
