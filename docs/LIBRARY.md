@@ -311,27 +311,31 @@ Text operations over `str` views; what allocates says so and uses the current al
 
 - `func ends_with(text: str, suffix: str) -> bool`
 
-- `func find(text: str, needle: str) -> usize?` — The byte offset of the first `needle` in `text`.
+- `func find(text: str, needle: str) -> usize?` — The byte offset of the first exact needle, or none. Empty needles match at zero. No allocation or UTF-8 validation occurs; embedded NUL bytes are ordinary data. The search takes linear time and constant auxiliary space.
+
+- `func find_from(text: str, needle: str, start: usize) -> usize?` — Search at or after a byte offset. An offset past the end returns none, including for an empty needle. This does not require a Unicode scalar boundary.
+
+- `func find_last(text: str, needle: str) -> usize?` — The last exact occurrence, including overlaps. Empty needles match at the end. Like find, this uses byte offsets, linear time, constant space and no allocation.
 
 - `func last(text: str, byte: u8) -> usize?` — The byte offset of the last `byte` in `text`.
 
 - `func contains(text: str, needle: str) -> bool`
 
-- `func trim(text: str) -> str` — `text` without leading and trailing spaces, tabs, and line ends: a view.
-
 - `func split(text: str, separator: u8) -> str[]!` — `text` split at every `separator`, as views into it; the array is an allocation of the current allocator, given back with `free`.
+
+- `func trim(text: str) -> str` — `text` without leading and trailing spaces, tabs, and line ends: a view.
 
 - `func join(pieces: const str[], separator: str) -> str!` — The pieces joined with `separator` between them, NUL-terminated in the current allocator; `release` gives it back.
 
 - `func copy(text: str) -> str!` — A copy of `text` in the current allocator, NUL-terminated so it may be a `c.str`; `release` gives it back.
 
-- `func to_i64(text: str) -> i64?` — A decimal integer, with an optional sign; none when the text is not one.
-
 - `func to_upper(text: str) -> str!` — ASCII case folding; other bytes pass through. NUL-terminated in the current allocator; `release` gives the text back.
 
-- `func to_lower(text: str) -> str!`
+- `func to_lower(text: str) -> str!` — ASCII lowercase; other bytes pass through unchanged. The result is a NUL-terminated current-allocator allocation released with release.
 
 - `func release(text: str)` — Give back a text `join`, `copy`, `to_upper`, or `to_lower` answered: the allocation is one byte longer than the text, its NUL.
+
+- `func to_i64(text: str) -> i64?` — A decimal integer, with an optional sign; none when the text is not one.
 
 ### `Builder` (struct: io.Writer)
 

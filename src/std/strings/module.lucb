@@ -1,0 +1,8 @@
+## Text operations over `str` views; what allocates says so and uses the current allocator,
+## and says how the allocation is given back: `release` for a text made here, `free` for
+## the array `split` answers.
+
+import c
+import io
+import memory
+

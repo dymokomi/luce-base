@@ -1,0 +1,48 @@
+import c
+import files
+import memory
+import strings
+
+pub func main(arguments: c.str[]) -> i32!:
+    let corpus = try files.read(arguments[1])
+    defer free(corpus)
+    var position: usize = 0
+    var cases: usize = 0
+    while position < corpus.length:
+        let text_length = (usize)memory.read[u32](corpus.data + position)
+        let needle_length = (usize)memory.read[u32](corpus.data + position + 4)
+        let start = (usize)memory.read[u32](corpus.data + position + 8)
+        let first = memory.read[i32](corpus.data + position + 12)
+        let last = memory.read[i32](corpus.data + position + 16)
+        let from_start = memory.read[i32](corpus.data + position + 20)
+        position += 24
+        let text = (str)corpus[position..<position + text_length]
+        position += text_length
+        let needle = (str)corpus[position..<position + needle_length]
+        position += needle_length
+        let expected_first: usize? = (usize)first if first >= 0 else none
+        let expected_last: usize? = (usize)last if last >= 0 else none
+        let expected_from: usize? = (usize)from_start if from_start >= 0 else none
+        let actual_first = strings.find(text, needle)
+        let actual_last = strings.find_last(text, needle)
+        let actual_from = strings.find_from(text, needle, start)
+        if actual_first != expected_first or actual_last != expected_last or actual_from != expected_from:
+            print(f"search case {cases}: text {text_length} bytes, needle {needle_length}, start {start}")
+        assert(actual_first == expected_first)
+        assert(actual_last == expected_last)
+        assert(actual_from == expected_from)
+        assert(strings.contains(text, needle) == (first >= 0))
+        assert(strings.starts_with(text, needle) == (first == 0))
+        let suffix = needle_length <= text_length and last >= 0 and (usize)last == text_length - needle_length
+        assert(strings.ends_with(text, needle) == suffix)
+        cases += 1
+    assert(cases > 25000)
+    var empty: u8[]
+    var refusing = memory.FixedBuffer.over(empty)
+    with refusing:
+        assert(strings.find("ababa", "aba") == 0)
+        assert(strings.find_last("ababa", "aba") == 2)
+        assert(strings.find_from("ababa", "aba", 1) == 2)
+    assert(strings.find_from("abc", "", 18446744073709551615) == none)
+    print("ok linear byte-search reference corpus")
+    return 0

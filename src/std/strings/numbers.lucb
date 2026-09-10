@@ -1,0 +1,24 @@
+## A decimal integer, with an optional sign; none when the text is not one.
+pub func to_i64(text: str) -> i64?:
+    let b = text.bytes
+    if b.length == 0:
+        return none
+    var i: usize = 0
+    var negative = false
+    if b[0] == '-' or b[0] == '+':
+        negative = b[0] == '-'
+        i = 1
+    if i >= b.length:
+        return none
+    # the value accumulates on the side of its sign, so the negative endpoint fits
+    var value: i64 = 0
+    while i < b.length:
+        let byte = b[i]
+        if byte < '0' or byte > '9':
+            return none
+        let digit = (i64)(byte - '0')
+        let scaled = value *? 10 else return none
+        value = (scaled -? digit if negative else scaled +? digit) else return none
+        i += 1
+    return value
+

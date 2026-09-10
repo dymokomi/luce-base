@@ -1,0 +1,78 @@
+func is_space(byte: u8) -> bool:
+    return byte == ' ' or byte == '\\n' or byte == '\\t' or byte == '\\r'
+
+## `text` without leading and trailing spaces, tabs, and line ends: a view.
+pub func trim(text: str) -> str:
+    var start: usize = 0
+    var end = text.length
+    let b = text.bytes
+    while start < end and is_space(b[start]):
+        start += 1
+    while end > start and is_space(b[end - 1]):
+        end -= 1
+    return (str)b[start..<end]
+
+## The pieces joined with `separator` between them, NUL-terminated in the current
+## allocator; `release` gives it back.
+pub func join(pieces: const str[], separator: str) -> str!:
+    var total: usize = 0
+    var i: usize = 0
+    while i < pieces.length:
+        total = total +? pieces[i].length else error(memory.exhausted, "the joined text is too large")
+        if i + 1 < pieces.length:
+            total = total +? separator.length else error(memory.exhausted, "the joined text is too large")
+        i += 1
+    let out = try terminated_buffer(total)
+    var n: usize = 0
+    i = 0
+    while i < pieces.length:
+        memory.copy(out[n..], pieces[i].bytes, pieces[i].length)
+        n += pieces[i].length
+        if i + 1 < pieces.length:
+            memory.copy(out[n..], separator.bytes, separator.length)
+            n += separator.length
+        i += 1
+    out[n] = 0
+    return (str)out[..<n]
+
+## A copy of `text` in the current allocator, NUL-terminated so it may be a `c.str`;
+## `release` gives it back.
+pub func copy(text: str) -> str!:
+    let out = try terminated_buffer(text.length)
+    memory.copy(out, text.bytes, text.length)
+    out[text.length] = 0
+    return (str)out[..<text.length]
+
+## ASCII case folding; other bytes pass through. NUL-terminated in the current
+## allocator; `release` gives the text back.
+pub func to_upper(text: str) -> str!:
+    let out = try terminated_buffer(text.length)
+    var i: usize = 0
+    for b in text.bytes:
+        out[i] = b - 32 if b >= 'a' and b <= 'z' else b
+        i += 1
+    out[i] = 0
+    return (str)out[..<i]
+
+## ASCII lowercase; other bytes pass through unchanged. The result is a
+## NUL-terminated current-allocator allocation released with release.
+pub func to_lower(text: str) -> str!:
+    let out = try terminated_buffer(text.length)
+    var i: usize = 0
+    for b in text.bytes:
+        out[i] = b + 32 if b >= 'A' and b <= 'Z' else b
+        i += 1
+    out[i] = 0
+    return (str)out[..<i]
+
+## Give back a text `join`, `copy`, `to_upper`, or `to_lower` answered: the allocation is
+## one byte longer than the text, its NUL.
+pub func release(text: str):
+    free(u8[]((u8*)text.bytes.data, text.length + 1))
+
+## Allocate text storage including its terminator, reporting size overflow as the
+## same fallible outcome as an allocation refusal. Callers initialize every byte.
+func terminated_buffer(length: usize) -> u8[]!:
+    let size = length +? 1 else error(memory.exhausted, "the text is too large")
+    return try alloc u8[size]
+

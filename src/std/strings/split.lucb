@@ -1,0 +1,21 @@
+## `text` split at every `separator`, as views into it; the array is an allocation of the
+## current allocator, given back with `free`.
+pub func split(text: str, separator: u8) -> str[]!:
+    var count: usize = 1
+    for b in text.bytes:
+        if b == separator:
+            count += 1
+    let parts = try alloc str[count]
+    var n: usize = 0
+    var start: usize = 0
+    var i: usize = 0
+    let b = text.bytes
+    while i < b.length:
+        if b[i] == separator:
+            parts[n] = (str)b[start..<i]
+            n += 1
+            start = i + 1
+        i += 1
+    parts[n] = (str)b[start..]
+    return parts
+
