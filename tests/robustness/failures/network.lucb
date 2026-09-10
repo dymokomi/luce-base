@@ -9,6 +9,69 @@ extern func fault_socket_close_calls() -> i32
 extern func fault_socket_option_closed() -> i32
 extern func fault_socket_cloexec(descriptor: i32) -> i32
 extern func fault_descriptor_closed(descriptor: i32) -> i32
+extern func fault_listen_backlog() -> i32
+extern func fault_listener_closed() -> i32
+
+func tcp_control_cases() -> !:
+    var backlog: i32 = -1
+    while backlog <= 0:
+        var rejected = false
+        discard(net.Listener.bind(net.Address.loopback(0), backlog) catch failure:
+            assert(failure.code == net.invalid_options)
+            rejected = true
+            recover net.Listener())
+        assert(rejected)
+        backlog += 1
+    fault_arm(55)
+    var rejected = false
+    discard(net.Listener.bind(net.Address.loopback(0)) catch failure:
+        assert(failure.code == net.failed)
+        rejected = true
+        recover net.Listener())
+    assert(rejected and fault_hits() == 1 and fault_listener_closed() == 1)
+    fault_arm(54)
+    var listener = try net.Listener.bind(net.Address.loopback(0), 37)
+    defer listener.destroy()
+    assert(fault_hits() == 1 and fault_listen_backlog() == 37)
+    var client = try net.Connection.connect(try listener.address())
+    defer client.destroy()
+    var server = try listener.accept()
+    defer server.destroy()
+    let local_endpoint = try client.local_address()
+    fault_arm(49)
+    let peer = try server.peer_address()
+    assert(fault_hits() == 1 and peer.ip == local_endpoint.ip and peer.port == local_endpoint.port)
+    assert((try client.peer_address()).port == (try listener.address()).port)
+    assert((try server.local_address()).port == (try listener.address()).port)
+    var kind: i32 = 50
+    while kind <= 51:
+        fault_arm(kind)
+        rejected = false
+        discard(client.peer_address() catch failure:
+            assert(failure.code == net.failed)
+            rejected = true
+            recover net.Address.any(0))
+        assert(rejected and fault_hits() == 1)
+        kind += 1
+    fault_arm(53)
+    rejected = false
+    client.shutdown() catch failure:
+        assert(failure.code == net.failed)
+        rejected = true
+    assert(rejected and fault_hits() == 1)
+    try io.write_all(&client, "request".bytes)
+    fault_arm(52)
+    try client.shutdown(net.ShutdownDirection.write)
+    assert(fault_hits() == 1 and client.descriptor() != none)
+    var buffer: u8[7]
+    try io.read_exact(&server, buffer)
+    assert((str)buffer == "request")
+    assert((try server.read(buffer)) == 0)
+    try io.write_all(&server, "reply".bytes)
+    try server.shutdown(net.ShutdownDirection.write)
+    try io.read_exact(&client, buffer[..<5])
+    assert((str)buffer[..<5] == "reply" and (try client.read(buffer)) == 0)
+    assert(server.descriptor() != none)
 
 func adoption_cases() -> !:
     var kind: i32 = 45
@@ -97,6 +160,7 @@ func resolver_cases() -> !:
 pub func main(arguments: str[]) -> i32!:
     try closed_values()
     try adoption_cases()
+    try tcp_control_cases()
     try resolver_cases()
     var pair: i32[2]
     assert(socketpair(1, 1, 0, &pair[0]) == 0)

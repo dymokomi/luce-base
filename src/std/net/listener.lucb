@@ -3,7 +3,11 @@
 pub struct Listener:
     var socket: SocketHandle
 
-    pub static func bind(address: Address) -> Listener!:
+    ## Bind and listen with a positive requested backlog. The OS may cap the
+    ## pending connection queue; the value does not limit accepted connections.
+    pub static func bind(address: Address, backlog: i32 = 128) -> Listener!:
+        if backlog <= 0:
+            error(invalid_options, "the listener backlog must be positive")
         let owned = try SocketHandle.create(stream)
         let fd = try owned.require()
         var yes: i32 = 1
@@ -14,7 +18,10 @@ pub struct Listener:
         if bind(fd, &raw, 16) != 0:
             discard(close(fd))
             error(failed, "bind")
-        if listen(fd, 16) != 0:
+        var result = listen(fd, backlog)
+        while result < 0 and c.errno() == c.interrupted:
+            result = listen(fd, backlog)
+        if result != 0:
             discard(close(fd))
             error(failed, "listen")
         return Listener(socket = owned)

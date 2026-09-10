@@ -1,3 +1,9 @@
+## Which direction to stop using on a connection. This does not close its owner.
+pub enum ShutdownDirection as u8:
+    read = 0
+    write = 1
+    both = 2
+
 ## One owned TCP connection implementing borrowed Reader and Writer interfaces.
 ## Zero is closed. Copying does not duplicate ownership; copies must not be
 ## independently closed. Synchronize calls on one owner.
@@ -30,6 +36,29 @@ pub struct Connection: Reader, Writer:
         var connection = Connection(socket = owned, guarded = false)
         discard(connection.guard())
         return connection
+
+    ## Query this connection's local IPv4 endpoint, including its assigned port.
+    pub func local_address() -> Address!:
+        return try socket_address(try self.socket.require())
+
+    ## Query the connected peer's IPv4 endpoint; this is an address, not an identity.
+    pub func peer_address() -> Address!:
+        return try socket_address(try self.socket.require(), true)
+
+    ## Stop one or both directions while retaining ownership. Shutting down writes
+    ## sends EOF after queued TCP bytes, so the peer can still send its response.
+    ## Use read shutdown only when input is no longer needed; treatment of queued
+    ## input follows the host. Neither direction flushes user buffers; flush any
+    ## io.BufferedWriter before shutting down writes.
+    pub mutating func shutdown(direction: ShutdownDirection = ShutdownDirection.both) -> !:
+        let descriptor = try self.socket.require()
+        if direction != ShutdownDirection.read and direction != ShutdownDirection.write and direction != ShutdownDirection.both:
+            error(invalid_options, "unknown socket shutdown direction")
+        var result = shutdown(descriptor, (i32)direction)
+        while result < 0 and c.errno() == c.interrupted:
+            result = shutdown(descriptor, (i32)direction)
+        if result != 0:
+            error(transfer_error(c.errno()), "the connection could not be shut down")
 
     ## Whether a write cannot raise `SIGPIPE`. Linux asks with every `send`
     ## (`MSG_NOSIGNAL`); macOS marks the socket once (`SO_NOSIGPIPE`), and refuses the mark

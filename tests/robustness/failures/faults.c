@@ -21,6 +21,11 @@ static int socket_sends;
 static int closing_socket = -1;
 static int observed_socket = -1, socket_closes;
 static int failed_socket_option = -1;
+static int requested_backlog, failed_listener = -1;
+int fault_listen_backlog(void) { return requested_backlog; }
+int fault_listener_closed(void) {
+    return failed_listener >= 0 && fcntl(failed_listener, F_GETFD) == -1 && errno == EBADF;
+}
 int fault_socket_option_closed(void) {
     return failed_socket_option >= 0 && fcntl(failed_socket_option, F_GETFD) == -1 && errno == EBADF;
 }
@@ -106,6 +111,27 @@ int getsockname(int descriptor, struct sockaddr *address, socklen_t *length) {
     if (take(42)) { errno = EIO; return -1; }
     if (take(43)) { *length = 1; return 0; }
     return real(descriptor, address, length);
+}
+int getpeername(int descriptor, struct sockaddr *address, socklen_t *length) {
+    REAL(getpeername);
+    if (take(49)) return -1;
+    if (take(50)) { errno = EIO; return -1; }
+    int result = real(descriptor, address, length);
+    if (!result && take(51)) address->sa_family = AF_UNIX;
+    return result;
+}
+int shutdown(int descriptor, int direction) {
+    REAL(shutdown);
+    if (take(52)) return -1;
+    if (take(53)) { errno = EIO; return -1; }
+    return real(descriptor, direction);
+}
+int listen(int descriptor, int backlog) {
+    REAL(listen);
+    requested_backlog = backlog;
+    if (take(54)) return -1;
+    if (take(55)) { failed_listener = descriptor; errno = EIO; return -1; }
+    return real(descriptor, backlog);
 }
 int setsockopt(int descriptor, int level, int option, const void *value, socklen_t length) {
     REAL(setsockopt);

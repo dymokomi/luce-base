@@ -805,6 +805,8 @@ Blocking socket I/O. Created and accepted sockets are close-on-exec. Linux sets 
 
 - `let unknown_host: ErrorCode = ErrorCode.package(11)`
 
+- `let invalid_options: ErrorCode = ErrorCode.package(35)`
+
 ### `Address` (struct)
 
 An IPv4 address and port, both in host order.
@@ -820,12 +822,16 @@ An IPv4 address and port, both in host order.
 
 One owned TCP listener. Zero is closed. Copying does not duplicate ownership; copies must not be independently closed. Synchronize calls on one owner.
 
-- `static func bind(address: Address) -> Listener!`
+- `static func bind(address: Address, backlog: i32 = 128) -> Listener!` — Bind and listen with a positive requested backlog. The OS may cap the pending connection queue; the value does not limit accepted connections.
 - `func address() -> Address!` — Query the bound endpoint, including an automatically assigned port.
 - `func accept() -> Connection!`
 - `func descriptor() -> i32?` — Borrow the descriptor; the caller must not close it or retain it past this owner.
 - `mutating func close() -> !` — Consume ownership before the OS call. Repeated close is safe even after failure.
 - `mutating func destroy()` — Best-effort cleanup for unwinding; use close to observe delayed errors.
+
+### `ShutdownDirection` (enumas u8)
+
+Which direction to stop using on a connection. This does not close its owner.
 
 ### `Connection` (struct: Reader, Writer)
 
@@ -833,6 +839,9 @@ One owned TCP connection implementing borrowed Reader and Writer interfaces. Zer
 
 - `static func connect(address: Address) -> Connection!`
 - `static func over(descriptor: i32) -> Connection!` — Take ownership of a socket the caller made (a `socketpair`, an inherited descriptor), including on failure. Set close-on-exec, preserving existing flags; this is not atomic with the caller's creation/fork/exec operations. A negative descriptor is rejected. The socket is marked so that a write after the peer closed fails instead of ending the process. Make the connection while the peer is still there: macOS refuses the mark on a socket whose peer has already gone, and a write on such a connection answers `closed` without sending.
+- `func local_address() -> Address!` — Query this connection's local IPv4 endpoint, including its assigned port.
+- `func peer_address() -> Address!` — Query the connected peer's IPv4 endpoint; this is an address, not an identity.
+- `mutating func shutdown(direction: ShutdownDirection = ShutdownDirection.both) -> !` — Stop one or both directions while retaining ownership. Shutting down writes sends EOF after queued TCP bytes, so the peer can still send its response. Use read shutdown only when input is no longer needed; treatment of queued input follows the host. Neither direction flushes user buffers; flush any io.BufferedWriter before shutting down writes.
 - `mutating func write(data: const u8[]) -> usize!` — Send some bytes, retrying interruption. Use io.write_all for a complete payload and its optional progress output to resume after a later failure. An empty input makes no syscall. A closed peer never raises SIGPIPE.
 - `mutating func read(buffer: u8[]) -> usize!` — Receive some bytes. For nonempty storage, zero is peer EOF; empty storage returns zero without probing the peer. This call does not fill the buffer.
 - `func receive(buffer: u8[]) -> usize!` — Compatibility spelling of read; shares its short-read and EOF contract.

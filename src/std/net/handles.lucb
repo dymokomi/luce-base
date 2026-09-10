@@ -58,15 +58,20 @@ struct SocketHandle:
         self.close() catch failure:
             discard(failure)
 
-func socket_address(descriptor: i32) -> Address!:
+func socket_address(descriptor: i32, peer: bool = false) -> Address!:
     var raw: SocketAddress
     var length: u32 = 16
-    var result = getsockname(descriptor, &raw, &length)
+    var result = query_address(descriptor, &raw, &length, peer)
     while result < 0 and c.errno() == c.interrupted:
         length = 16
-        result = getsockname(descriptor, &raw, &length)
+        result = query_address(descriptor, &raw, &length, peer)
     if result != 0:
         error(failed, "the socket address could not be queried")
     if length != 16 or raw.head != family_word(2):
         error(failed, "the socket address is not IPv4")
     return Address.from_raw(raw)
+
+func query_address(descriptor: i32, address: SocketAddress*, length: u32*, peer: bool) -> i32:
+    if peer:
+        return getpeername(descriptor, address, length)
+    return getsockname(descriptor, address, length)
