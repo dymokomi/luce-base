@@ -242,7 +242,7 @@ int lb_fmtbuf_u64(lb_fmtbuf* b, uint64_t v);
 int lb_fmtbuf_f64(lb_fmtbuf* b, double v);
 int lb_fmtbuf_bool(lb_fmtbuf* b, bool v);
 // The UTF-8 bytes of one scalar, and their count: how a `char` displays (§14.4).
-size_t lb_utf8_encode(uint32_t cp, char out[4]);
+size_t lucb_rt_utf8_encode(uint32_t cp, char out[4]);
 int lb_fmtbuf_char(lb_fmtbuf* b, uint32_t cp);
 lb_str lb_fmtbuf_finish(lb_fmtbuf* b);
 

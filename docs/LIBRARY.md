@@ -337,6 +337,27 @@ One owned directory stream; the zero value is closed. Copying does not duplicate
 
 - `func exit(code: i32) -> never`
 
+## `utf8`
+
+Strict UTF-8 scalar encoding and decoding, following RFC 3629 sections 3–4. https://www.rfc-editor.org/rfc/rfc3629.html These allocation-free operations accept raw bytes and do not replace invalid input, normalize text, strip a BOM, or apply locale rules. Noncharacters and unassigned scalar values are valid; surrogate values are not. Storage is borrowed. One decoded scalar and the number of source bytes consumed.
+
+### `Decoded` (struct)
+
+One decoded scalar and the number of source bytes consumed.
+
+- `var scalar: char`
+- `var width: usize`
+
+- `func encoded_length(scalar: u32) -> usize?` — Encoded byte count, or none for a surrogate or a value beyond U+10FFFF.
+
+- `func decode(data: const u8[], offset: usize = 0) -> Decoded?` — Decode at a byte offset. None means an absent, truncated, overlong or otherwise invalid sequence. Only this scalar is checked, not the preceding/following bytes. Offsets at or beyond the buffer end return none without accessing storage.
+
+- `func invalid_offset(data: const u8[]) -> usize?` — Byte offset of the first invalid sequence's start, or none for valid input. For a truncated final sequence this is its leading byte, not the missing byte.
+
+- `func valid(data: const u8[]) -> bool` — Whether all bytes form valid UTF-8; empty input is valid.
+
+- `func encode(scalar: u32, buffer: u8[]) -> usize?` — Encode a scalar into the start of the buffer, returning bytes written. None means an invalid scalar or insufficient space; the buffer is then unchanged. Bytes beyond the returned length are untouched. No NUL terminator is appended.
+
 ## `strings`
 
 Text operations over `str` views; what allocates says so and uses the current allocator, and says how the allocation is given back: `release` for a text made here, `free` for the array `split` answers.

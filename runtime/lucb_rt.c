@@ -65,7 +65,7 @@ int lb_fmtbuf_bool(lb_fmtbuf* b, bool v) {
     return lb_fmtbuf_put(b, s, v ? 4 : 5);
 }
 
-size_t lb_utf8_encode(uint32_t cp, char out[4]) {
+size_t lucb_rt_utf8_encode(uint32_t cp, char out[4]) {
     size_t n = 0;
     if (cp < 0x80) {
         out[n++] = (char)cp;
@@ -87,7 +87,7 @@ size_t lb_utf8_encode(uint32_t cp, char out[4]) {
 
 int lb_fmtbuf_char(lb_fmtbuf* b, uint32_t cp) {
     char out[4];
-    return lb_fmtbuf_put(b, out, lb_utf8_encode(cp, out));
+    return lb_fmtbuf_put(b, out, lucb_rt_utf8_encode(cp, out));
 }
 
 lb_str lb_fmtbuf_finish(lb_fmtbuf* b) {

@@ -9,6 +9,7 @@ thread
 sync
 files
 process
+utf8
 strings
 paths
 math

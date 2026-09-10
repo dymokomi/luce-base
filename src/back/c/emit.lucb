@@ -6148,7 +6148,7 @@ pub struct Emitter:
                     try self.expr(v)
                     try self.put(") ? \"true\" : \"false\", stdout); ")
                 elif t == types.char_id:
-                    try self.put("{ char lb_cb[4]; fwrite(lb_cb, 1, lb_utf8_encode(")
+                    try self.put("{ char lb_cb[4]; fwrite(lb_cb, 1, lucb_rt_utf8_encode(")
                     try self.expr(v)
                     try self.put(", lb_cb), stdout); } ")
                 elif t == types.str_id or t == types.fmt_id:
