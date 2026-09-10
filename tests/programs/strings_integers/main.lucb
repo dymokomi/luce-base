@@ -1,0 +1,79 @@
+import c
+import files
+import io
+import memory
+import strings
+
+func check_format(value: i64, unsigned_value: u64, signed: bool, radix: u32, expected: str) -> !:
+    var output: u8[65]
+    for index in 0..<output.length:
+        output[index] = 85
+    let rendered = try strings.format_i64(value, output[..<expected.length], radix) if signed else try strings.format_u64(unsigned_value, output[..<expected.length], radix)
+    assert(rendered == expected)
+    var index = expected.length
+    while index < output.length:
+        assert(output[index] == 85)
+        index += 1
+    index = 0
+    while index < output.length:
+        output[index] = 85
+        index += 1
+    var rejected = false
+    if signed:
+        discard(strings.format_i64(value, output[..<expected.length - 1], radix) catch failure:
+            assert(failure.code == io.full)
+            rejected = true
+            recover "")
+    else:
+        discard(strings.format_u64(unsigned_value, output[..<expected.length - 1], radix) catch failure:
+            assert(failure.code == io.full)
+            rejected = true
+            recover "")
+    assert(rejected)
+    for byte in output:
+        assert(byte == 85)
+
+pub func main(arguments: c.str[]) -> i32!:
+    let corpus = try files.read(arguments[1])
+    defer free(corpus)
+    var position: usize = 0
+    var cases: usize = 0
+    var empty: u8[]
+    var refusing = memory.FixedBuffer.over(empty)
+    with refusing:
+        while position < corpus.length:
+            let radix = memory.read[u32](corpus.data + position)
+            let text_length = (usize)memory.read[u32](corpus.data + position + 4)
+            let canonical_length = (usize)memory.read[u32](corpus.data + position + 8)
+            let flags = memory.read[u32](corpus.data + position + 12)
+            let signed_value = memory.read[i64](corpus.data + position + 16)
+            let unsigned_value = memory.read[u64](corpus.data + position + 24)
+            position += 32
+            let text = (str)corpus[position..<position + text_length]
+            position += text_length
+            let canonical = (str)corpus[position..<position + canonical_length]
+            position += canonical_length
+            let expected_signed: i64? = signed_value if (flags & 1) != 0 else none
+            let expected_unsigned: u64? = unsigned_value if (flags & 2) != 0 else none
+            assert(strings.parse_i64(text, radix) == expected_signed)
+            assert(strings.parse_u64(text, radix) == expected_unsigned)
+            if radix == 10:
+                assert(strings.to_i64(text) == expected_signed and strings.to_u64(text) == expected_unsigned)
+            if (flags & 1) != 0:
+                try check_format(signed_value, 0, true, radix, canonical)
+            if (flags & 2) != 0:
+                try check_format(0, unsigned_value, false, radix, canonical)
+            cases += 1
+        let invalid: u32[4] = [0, 1, 37, 4294967295]
+        var output: u8[1]
+        for radix in invalid:
+            output[0] = 85
+            var rejected = false
+            discard(strings.format_i64(0, output, radix) catch failure:
+                assert(failure.code == strings.invalid_radix)
+                rejected = true
+                recover "")
+            assert(rejected and output[0] == 85)
+    assert(cases > 10000)
+    print("ok integer conversion reference corpus")
+    return 0

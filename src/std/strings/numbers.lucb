@@ -1,24 +1,96 @@
-## A decimal integer, with an optional sign; none when the text is not one.
+## A complete decimal signed integer with an optional sign. Whitespace, prefixes,
+## separators and trailing bytes are rejected. None also reports overflow.
 pub func to_i64(text: str) -> i64?:
-    let b = text.bytes
-    if b.length == 0:
+    return parse_i64(text)
+
+## A complete decimal unsigned integer. A leading plus is accepted; minus is not.
+## None reports invalid input or overflow. No allocation or locale lookup occurs.
+pub func to_u64(text: str) -> u64?:
+    return parse_u64(text)
+
+## A signed integer in radix 2 through 36. ASCII letters are case-insensitive
+## digits; prefixes are not interpreted. Optional +/- and leading zeroes are
+## accepted. None reports an invalid radix, invalid byte, missing digit or overflow.
+pub func parse_i64(text: str, radix: u32 = 10) -> i64?:
+    if radix < 2 or radix > 36 or text.length == 0:
         return none
-    var i: usize = 0
+    var position: usize = 0
     var negative = false
-    if b[0] == '-' or b[0] == '+':
-        negative = b[0] == '-'
-        i = 1
-    if i >= b.length:
+    if text.bytes[0] == '-' or text.bytes[0] == '+':
+        negative = text.bytes[0] == '-'
+        position = 1
+    if position == text.length:
         return none
-    # the value accumulates on the side of its sign, so the negative endpoint fits
+    # Accumulate on the sign's side so the negative endpoint fits without abs.
     var value: i64 = 0
-    while i < b.length:
-        let byte = b[i]
-        if byte < '0' or byte > '9':
+    while position < text.length:
+        let digit = integer_digit(text.bytes[position]) else return none
+        if digit >= radix:
             return none
-        let digit = (i64)(byte - '0')
-        let scaled = value *? 10 else return none
-        value = (scaled -? digit if negative else scaled +? digit) else return none
-        i += 1
+        let scaled = value *? (i64)radix else return none
+        value = (scaled -? (i64)digit if negative else scaled +? (i64)digit) else return none
+        position += 1
     return value
 
+## Unsigned counterpart of parse_i64. A leading plus is accepted; every minus,
+## including -0, is rejected. The entire input must fit u64 in the requested radix.
+pub func parse_u64(text: str, radix: u32 = 10) -> u64?:
+    if radix < 2 or radix > 36 or text.length == 0:
+        return none
+    var position: usize = 1 if text.bytes[0] == '+' else 0
+    if position == text.length:
+        return none
+    var value: u64 = 0
+    while position < text.length:
+        let digit = integer_digit(text.bytes[position]) else return none
+        if digit >= radix:
+            return none
+        let scaled = value *? (u64)radix else return none
+        value = scaled +? (u64)digit else return none
+        position += 1
+    return value
+
+## Canonical lowercase digits, with a minus only for negative values, no prefix,
+## padding or terminator. Return a borrowed view of buffer. A 65-byte buffer always
+## suffices. Invalid radix or insufficient capacity leaves buffer unchanged.
+pub func format_i64(value: i64, buffer: u8[], radix: u32 = 10) -> str!:
+    let magnitude = (u64)(-(value + 1)) + 1 if value < 0 else (u64)value
+    return try format_integer(magnitude, value < 0, buffer, radix)
+
+## Unsigned counterpart of format_i64; at most 64 bytes are needed. io.full reports
+## insufficient capacity and invalid_radix reports a radix outside 2 through 36.
+pub func format_u64(value: u64, buffer: u8[], radix: u32 = 10) -> str!:
+    return try format_integer(value, false, buffer, radix)
+
+func integer_digit(byte: u8) -> u32?:
+    if byte >= '0' and byte <= '9':
+        return (u32)(byte - '0')
+    if byte >= 'a' and byte <= 'z':
+        return (u32)(byte - 'a') + 10
+    if byte >= 'A' and byte <= 'Z':
+        return (u32)(byte - 'A') + 10
+    return none
+
+func format_integer(value: u64, negative: bool, buffer: u8[], radix: u32) -> str!:
+    if radix < 2 or radix > 36:
+        error(invalid_radix, "an integer radix must be between 2 and 36")
+    let digits = "0123456789abcdefghijklmnopqrstuvwxyz"
+    var reversed: u8[65]
+    var count: usize = 0
+    var remaining = value
+    while true:
+        reversed[count] = digits.bytes[(usize)(remaining % (u64)radix)]
+        count += 1
+        remaining //= (u64)radix
+        if remaining == 0:
+            break
+    if negative:
+        reversed[count] = '-'
+        count += 1
+    if buffer.length < count:
+        error(io.full, "the destination cannot hold the formatted integer")
+    var position: usize = 0
+    while position < count:
+        buffer[position] = reversed[count - position - 1]
+        position += 1
+    return (str)buffer[..<count]

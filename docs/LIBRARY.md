@@ -311,6 +311,8 @@ Text operations over `str` views; what allocates says so and uses the current al
 
 - `let output_too_large: ErrorCode = ErrorCode.package(49)`
 
+- `let invalid_radix: ErrorCode = ErrorCode.package(50)`
+
 - `func starts_with(text: str, prefix: str) -> bool`
 
 - `func ends_with(text: str, suffix: str) -> bool`
@@ -354,7 +356,17 @@ Split a borrowed text at a nonempty byte substring. Empty fields, including the 
 
 - `func replace(text: str, needle: str, replacement: str, max_replacements: usize = 0, max_bytes: usize? = none) -> str!` — Replace nonoverlapping byte substrings from left to right. Empty needles report invalid_separator. max_replacements=0 replaces all matches; max_bytes optionally limits result bytes excluding its terminator, reporting output_too_large before allocation. A result is always a fresh NUL-terminated current-allocator allocation, including unchanged or empty results; release gives it back. Inputs remain borrowed and unchanged and may overlap each other. No UTF-8 validation occurs.
 
-- `func to_i64(text: str) -> i64?` — A decimal integer, with an optional sign; none when the text is not one.
+- `func to_i64(text: str) -> i64?` — A complete decimal signed integer with an optional sign. Whitespace, prefixes, separators and trailing bytes are rejected. None also reports overflow.
+
+- `func to_u64(text: str) -> u64?` — A complete decimal unsigned integer. A leading plus is accepted; minus is not. None reports invalid input or overflow. No allocation or locale lookup occurs.
+
+- `func parse_i64(text: str, radix: u32 = 10) -> i64?` — A signed integer in radix 2 through 36. ASCII letters are case-insensitive digits; prefixes are not interpreted. Optional +/- and leading zeroes are accepted. None reports an invalid radix, invalid byte, missing digit or overflow.
+
+- `func parse_u64(text: str, radix: u32 = 10) -> u64?` — Unsigned counterpart of parse_i64. A leading plus is accepted; every minus, including -0, is rejected. The entire input must fit u64 in the requested radix.
+
+- `func format_i64(value: i64, buffer: u8[], radix: u32 = 10) -> str!` — Canonical lowercase digits, with a minus only for negative values, no prefix, padding or terminator. Return a borrowed view of buffer. A 65-byte buffer always suffices. Invalid radix or insufficient capacity leaves buffer unchanged.
+
+- `func format_u64(value: u64, buffer: u8[], radix: u32 = 10) -> str!` — Unsigned counterpart of format_i64; at most 64 bytes are needed. io.full reports insufficient capacity and invalid_radix reports a radix outside 2 through 36.
 
 ### `Builder` (struct: io.Writer)
 

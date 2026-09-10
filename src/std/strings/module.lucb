@@ -8,3 +8,4 @@ import memory
 
 pub let invalid_separator: ErrorCode = ErrorCode.package(48)
 pub let output_too_large: ErrorCode = ErrorCode.package(49)
+pub let invalid_radix: ErrorCode = ErrorCode.package(50)
