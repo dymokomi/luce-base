@@ -3,8 +3,11 @@
 #include <assert.h>
 #include <dlfcn.h>
 #include <errno.h>
+#include <netdb.h>
+#include <netinet/in.h>
 #include <pthread.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <sys/socket.h>
 #include <unistd.h>
 
@@ -17,6 +20,51 @@ static int take(int kind) {
     armed = 0; ++hits; errno = EINTR; return 1;
 }
 #define REAL(name) __typeof__(&name) real = (__typeof__(&name))dlsym(RTLD_NEXT, #name); assert(real)
+/* Resolver storage is synthetic so malformed successful results need no DNS.
+   Track every node until Base releases the entire chain through freeaddrinfo. */
+static struct addrinfo *resolver_head;
+static int resolver_nodes;
+int fault_resolver_nodes(void) { return resolver_nodes; }
+int getaddrinfo(const char *host, const char *service, const struct addrinfo *hints,
+                struct addrinfo **result) {
+    REAL(getaddrinfo);
+    int kind = armed;
+    if (kind < 23 || kind > 26 || !take(kind)) return real(host, service, hints, result);
+    assert(!resolver_head && !resolver_nodes);
+    struct addrinfo *entry = calloc(1, sizeof(*entry));
+    assert(entry);
+    resolver_head = *result = entry;
+    ++resolver_nodes;
+    if (kind == 26) {
+        entry->ai_next = calloc(1, sizeof(*entry));
+        assert(entry->ai_next);
+        entry = entry->ai_next;
+        ++resolver_nodes;
+    }
+    entry->ai_family = AF_INET;
+    entry->ai_socktype = SOCK_STREAM;
+    entry->ai_addrlen = kind == 24 ? 1 : sizeof(struct sockaddr_in);
+    if (kind != 23) {
+        struct sockaddr_in *address = calloc(1, sizeof(*address));
+        assert(address);
+        address->sin_family = AF_INET;
+        address->sin_addr.s_addr = htonl(0x7f00002a);
+        entry->ai_addr = (struct sockaddr *)address;
+    }
+    return 0;
+}
+void freeaddrinfo(struct addrinfo *entry) {
+    REAL(freeaddrinfo);
+    if (entry != resolver_head) { real(entry); return; }
+    resolver_head = NULL;
+    while (entry) {
+        struct addrinfo *next = entry->ai_next;
+        free(entry->ai_addr);
+        free(entry);
+        --resolver_nodes;
+        entry = next;
+    }
+}
 /* Opaque DIR pointers let us intercept the exact readdir symbol Base imports,
    without macOS headers redirecting this test to a different inode ABI symbol. */
 void *readdir(void *directory) {

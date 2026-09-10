@@ -3164,18 +3164,24 @@ func swap16(value: u16) -> u16:
 func swap32(value: u32) -> u32:
     return (value << 24) | ((value << 8) & 16711680) | ((value >> 8) & 65280) | (value >> 24)
 
-## The first IPv4 address of `host`.
+## The first usable IPv4 stream address of `host`. Resolution may block in the OS.
+## All resolver storage is released before returning, including malformed results.
 pub func resolve(host: c.str, port: u16) -> Address!:
     var hints = AddressInfo(flags = 0, family = inet, kind = stream, protocol = 0, address_length = 0, fifth = none, sixth = none, next = none)
     var found: AddressInfo*? = none
     if getaddrinfo(host, none, &hints, &found) != 0:
         error(unknown_host, "unknown host")
     let info = found else error(unknown_host, "unknown host")
-    let raw = info_address(info) else error(unknown_host, "unknown host")
-    var address = Address.from_raw(*raw)
-    address.port = port
-    freeaddrinfo(info)
-    return address
+    defer freeaddrinfo(info)
+    var current: AddressInfo*? = info
+    while let entry = current:
+        if entry.family == inet and entry.kind == stream and entry.address_length >= sizeof(SocketAddress):
+            if let raw = info_address(entry):
+                var address = Address.from_raw(*raw)
+                address.port = port
+                return address
+        current = entry.next
+    error(unknown_host, "the host has no usable IPv4 stream address")
 
 ## A bound TCP socket waiting for connections.
 pub struct Listener:

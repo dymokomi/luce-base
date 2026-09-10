@@ -2,8 +2,25 @@ import net
 extern func socketpair(domain: i32, kind: i32, protocol: i32, pair: i32*) -> i32
 extern func fault_arm(kind: i32)
 extern func fault_hits() -> i32
+extern func fault_resolver_nodes() -> i32
+
+func resolver_cases() -> !:
+    var kind: i32 = 23
+    while kind <= 26:
+        fault_arm(kind)
+        var rejected = false
+        let address = net.resolve("injected.invalid", 4321) catch failure:
+            assert(failure.code == net.unknown_host)
+            rejected = true
+            recover net.Address.any(0)
+        assert(rejected == (kind <= 24))
+        if not rejected:
+            assert(address.ip == 2130706474 and address.port == 4321)
+        assert(fault_hits() == 1 and fault_resolver_nodes() == 0)
+        kind += 1
 
 pub func main(arguments: str[]) -> i32!:
+    try resolver_cases()
     var pair: i32[2]
     assert(socketpair(1, 1, 0, &pair[0]) == 0)
     var sender = net.Connection.over(pair[0])

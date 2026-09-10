@@ -690,7 +690,7 @@ An IPv4 address and port, both in host order.
 - `static func loopback(port: u16) -> Address`
 - `static func any(port: u16) -> Address`
 
-- `func resolve(host: c.str, port: u16) -> Address!` — The first IPv4 address of `host`.
+- `func resolve(host: c.str, port: u16) -> Address!` — The first usable IPv4 stream address of `host`. Resolution may block in the OS. All resolver storage is released before returning, including malformed results.
 
 ### `Listener` (struct)
 

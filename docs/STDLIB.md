@@ -46,10 +46,10 @@ These observations prioritize contract tests; they are not a completed library a
   bits. The accuracy gate has independent Decimal references for `log1p` and `expm1`;
   it does not establish a global error bound for all libm operations. Broaden those
   numerical campaigns, including host rounding modes and exceptional arguments.
-- `net.resolve` releases its address-info allocation only after obtaining an address;
-  cover every unsuccessful exit after acquisition. Endpoint queries currently discard
-  `getsockname` errors. Socket close methods need explicit ownership and repeated-close
-  contracts, including how copied handles are treated.
+- `net.resolve` now releases complete result chains on every exit and skips missing
+  or undersized addresses; deterministic fixtures check cleanup. Endpoint queries
+  still discard `getsockname` errors. Socket close methods need explicit ownership
+  and repeated-close contracts, including how copied handles are treated.
 - `io.File.write` flushes all C streams before writing and lazily wraps descriptors.
   Define buffering, ordering, initialization/thread behavior and resource ownership
   rather than extending implicit global flushing into the general I/O abstraction.
