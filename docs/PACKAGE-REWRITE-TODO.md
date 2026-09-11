@@ -106,8 +106,10 @@ backlog. BC05 is a naming simplification, not proven old-version support.
 
 ## 2. Callbacks and application workers
 
-- [ ] C01 — Define callback capture ownership, retention, disconnection, cycles,
+- [x] C01 — Define callback capture ownership, retention, disconnection, cycles,
   reentrancy and error propagation for handlers and signals.
+  Contract: [CALLBACKS-WORKERS.md](CALLBACKS-WORKERS.md). Execution proofs remain
+  C02–C05; this definition alone does not complete those tasks.
 - [ ] C02 — Implement callback/interface adapters with tests for removal during
   delivery, callback failure and attempted escape of borrowed request/frame data.
 - [ ] C03 — Implement runtime-aware worker dispatch with per-worker application
