@@ -4,8 +4,9 @@ Updated: 2026-09-11. This is the working checklist for the ecosystem rewrite.
 [PACKAGE-REWRITE.md](PACKAGE-REWRITE.md) holds the full file inventory, design
 constraints and acceptance criteria. Follow the phases below in order.
 
-**Status:** current description producer/reader implemented; full gates running.
-**Next task:** finish I02 verification, then I03 defaults and nested type identity.
+**Status:** I02 verified; current description producer/reader committed.
+**Next task:** BC01 — remove the Connection.receive compatibility alias, followed
+by BC02–BC05 before I03 defaults and nested type identity.
 
 ## How we track work
 
@@ -45,13 +46,13 @@ default. Preserve recoverable errors and explicit Base ownership.
   affinity. Make ownership explicit rather than guessing it from method names.
   Contract: [BASE-INTEROP.md](BASE-INTEROP.md). Its proof matrix is required by the
   implementation tasks below; defining the contract does not complete those tests.
-- [ ] I02 — Extend Base descriptions with public constructors, instance/static
+- [x] I02 — Extend Base descriptions with public constructors, instance/static
   methods, receiver mutation, interfaces and conformance. Cover private visibility
   and mismatched compiler formats with fixtures and diagnostics. Maintain one
   current producer/reader format without compatibility branches.
-  Implemented in Base and Luce; targeted descriptor/reader checks pass. Full gates
-  are running before this item is checked. Base also fixes C spelling of handle
-  slots and const spans, verified in native opts 0–3 and both C comparison modes.
+  Implemented and verified in Base/Luce. The metadata does not yet implement native
+  constructor/method/interface execution adapters; I04–I07 remain open. Base also
+  fixes C spelling of handle slots and const spans, tested across all six modes.
 - [ ] I03 — Preserve parameter names, defaults, fallibility and qualified type
   identity through aliases, re-exports and nested signatures.
 - [ ] I04 — Import and lower Base constructors through existing `Type(args)` syntax;
@@ -261,6 +262,11 @@ Vulkan implementation remain later work, as specified in the scope document.
 | P01 | Inventory committed in `luce-base` at `0e7e921`; source enumeration accounted for all 35 package/example source files. |
 | P02, P03 | Documentation-only update in this checklist's creation commit: corrected construction, removed the syntax-extension task, checked scope/checklist links and task IDs, and ran `git diff --check`. |
 | I01 | Contract and checklist update committed together. Reviewed Base descriptions, Luce record/handle adapters, ARC/worker runtime, and native UI/GPU owners; recorded category, lifecycle, lease, identity, mutation, cycle, thread and versioning rules in `BASE-INTEROP.md`. Documentation links and `git diff --check` verified; executable implementation proofs remain open. |
+| I02 | Base `6244d71` / `2a9760c`; Luce `6452a2a`. Base description fixtures verify constructors, methods, conformance, visibility and foreign types at native opts 0–3. Luce reader tests pass in native/C modes; foreign records, enums, aliases and handle lists pass all six compiled modes. Private storage/private initialization is rejected pending real adapters. |
+| I02 gates | ARM64 macOS: Base main checks/proving programs passed; after correcting a private identifier collision in the seed C emitter, the unchanged gate remainder from bootstrap onward passed: seed/C/native self-host agreement, snapshots, robustness, optimization, 193 conformance programs / 479 rejections, 11 platform programs / five targets emitted, 66 seed-corpus comparisons, and fuzzing (120 mutations / 12 programs, zero findings). Luce full gate passed: 69 conformance programs / 138 rejections, formatting and fuzzing (60 mutations / six programs, zero findings). Final reader cleanup was rechecked in native/C modes; the final pinned compiler passed the foreign-type fixture in all six modes. No Linux-host gate was run in this slice. |
+| I02 builds | Clean isolated checkout verified exact Base commit selection, native handle interop, cache reuse and invalid-pin rejection. Normal `luce/build.sh` also rebuilt successfully against final Base pin `2a9760c426aa1ca7dafa0e94df5eb22e106098d9`. Default native builds and generated-source cleanup tests passed in the Luce gate. |
+| BC01–BC05 audit | Read-only Sol audit across all eight language/package/example repositories; root checked call sites and runtime references. Four compatibility leftovers and one redundant CLI selector recorded in `ce878ff`; removal tasks remain unchecked. Active Seed infrastructure, current wire-format markers and protocol/platform behavior are explicitly excluded from blanket removal. |
+
 
 For implementation entries, record repository, commit, test commands/results,
 native target/optimization coverage and any remaining limit relevant to the task.
