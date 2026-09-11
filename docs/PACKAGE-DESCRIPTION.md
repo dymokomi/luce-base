@@ -2,7 +2,7 @@
 
 `luce-base describe module.lucb` checks a Base module and writes its public API.
 Luce consumes this description without parsing Base source. There is one current
-format, identified by the first line `description 3`. Both compilers change
+format, identified by the first line `description 4`. Both compilers change
 together; no older reader, alternate format flag or compatibility fallback exists.
 
 The producer is `src/sema/describe.lucb`. The consumer is
@@ -18,7 +18,7 @@ that a struct's representation/constructor records precede its other members and
 conformances follow them. No function body or private field is emitted.
 
 ```text
-description 3
+description 4
 module example
 interface CounterView
     method value() -> i64
@@ -26,6 +26,7 @@ interface CounterView
 struct Counter
     representation private
     constructor init(start: i64) -> !
+    storage value
     method value() -> i64
     mutating method increase(amount: i64) -> !
     static method zero() -> Counter!
@@ -33,13 +34,14 @@ struct Counter
 struct Point
     representation complete
     constructor memberwise
-    field var x: f64
-    field let label: str
+    storage value
+    field var x: f64 = default
+    field let label: str = default
 ```
 
 | Record | Meaning |
 | --- | --- |
-| `description 3` | Required current format marker; Luce rejects a mismatch before importing declarations |
+| `description 4` | Required current format marker; Luce rejects a mismatch before importing declarations |
 | `module name` | Entry module's filename stem; the consumer supplies its resolved package/module identity |
 | `import module as alias` | Nonstandard dependency mentioned by a public signature or conformance |
 | `standard module as alias` | Embedded standard-module dependency; distinct from a package source import |
@@ -54,6 +56,8 @@ struct Point
 | `constructor init(p: T) -> !` | Actual public initializer; the arrow/effect is omitted for an infallible initializer |
 | `constructor memberwise` | Base supplies implicit memberwise construction; normal Base initialization/visibility rules apply |
 | `constructor private` | A private custom initializer suppresses public construction; its parameters/body are not emitted |
+| `storage value` | Complete storage can cross as a copied value; hidden fields contain no untracked borrows, and public text/data can be rebased |
+| `storage unavailable` | The native representation needs an explicit ownership contract before it can cross |
 | `field var name: T` / `field let name: T` | Public mutable/immutable field |
 | `method name(p: T) -> R` | Nonmutating instance method; `self` is implicit |
 | `mutating method name(p: T) -> R` | Instance method requiring mutable native storage |
@@ -78,12 +82,19 @@ Aliases identify the declaration rather than creating a second native type.
 ## Consumer responsibilities and current limits
 
 The reader restores field mutability, implicit receivers, method mutation,
-constructor effects and interface conformance. Existing scalar/text/record/handle
-crossings use the current format. Until complete native value storage and real
-constructor/method adapters are implemented, a record with private storage or a
-private constructor is unavailable to Luce. Its dependent declarations are also
-unavailable. It cannot silently become a public-field snapshot or acquire a
-memberwise constructor that bypasses native initialization.
+constructor effects and interface conformance. Luce constructs the real Base value,
+retains complete native storage, and owns copies of public text/data. Static,
+nonmutating and mutating methods use typed adapters; mutation is written back even
+when the method fails. Error text is owned before cleanup can invalidate it.
+Aliases, bound methods and worker copies retain complete value state. Equality
+compares rebased native values, including private fields.
+
+The producer checks every native field before reporting `storage value`. Private
+scalar state is copyable; private borrowed text/pointers/interfaces are unavailable
+without an ownership contract. A private initializer disables only construction.
+Unsupported methods are omitted individually; an unsupported initializer never
+permits a memberwise bypass. An interface with an unsupported requirement cannot
+lose that requirement and silently acquire a different native ABI.
 
 Default availability is transported; default expressions stay in Base. Luce emits
 used argument shapes with named native arguments, leaving omitted defaults to the
@@ -93,9 +104,8 @@ nesting and native integer spelling remain part of adapter identity even when tw
 native scalar types map to the same Luce type.
 
 Owned-object exports, borrowing metadata and lifetime adapters follow the
-[ownership contract](BASE-INTEROP.md) in I04–I07. Standard type import resolution
-is tracked in I09. Reading method/interface metadata alone does not complete
-their execution adapters.
+[ownership contract](BASE-INTEROP.md) in I06–I07. Standard type import resolution
+is tracked in I09. Interface execution remains a separate ownership gate.
 
 ## Verification
 
@@ -106,7 +116,10 @@ executes the described Base constructor/interface behavior at native opts 0–3.
 `describe_fields` checks record representation and mutability, and the conformance
 suite compares an exact module description.
 
-Luce's reader tests cover the format marker, constructor/method metadata and
-rejection of incomplete storage/private initialization. Its field/package tests
-check ordinary crossings, source relocation and linking with the matching Base
-compiler. Construction, ownership and callback execution remain separate gates.
+Luce's reader tests cover the format marker, defaults, constructors/methods and
+unavailable storage/signatures. `test_base_values.py` exercises real initializers,
+private state, value/static/bound methods, aliases, mutation before failure, text
+ownership, native equality and worker copies at native opts 0–3 and both C modes.
+Its negative cases reject hidden borrows, private constructors, private arguments
+and unhandled initialization failures. Owned objects, interfaces and retained
+callbacks remain separate gates.

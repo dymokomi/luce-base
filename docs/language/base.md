@@ -1525,7 +1525,7 @@ A handle is a pointer-shaped opaque type, as `extern type` declares one, that na
 
 `luce-base describe module.lucb` describes checked public declarations without
 requiring consumers to parse Base. Its single current format starts with
-`description 3` and reports fields with their mutability, actual constructors,
+`description 4` and reports fields with their mutability, actual constructors,
 instance/static methods, interfaces and conformance, functions, constants, enums,
 handles and aliases. Private fields remain private, and a representation record
 states whether the public fields cover the complete native storage. See

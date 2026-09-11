@@ -26,7 +26,7 @@ struct DescriptionWriter:
     var foreign_types: list.List[u32]
 
     mutating func module(name: str) -> !:
-        try self.out.write(f"description 3\nmodule {name}\n")
+        try self.out.write(f"description 4\nmodule {name}\n")
         var cursor = self.tree.body
         while let d = cursor:
             if d.has(ast.flag_pub) and not generic(d):
@@ -96,6 +96,7 @@ struct DescriptionWriter:
                         try self.out.write("    constructor private\n")
                 else:
                     try self.out.write("    constructor memberwise\n")
+                try self.out.write("    storage value\n" if self.value_storage(d.type_id, true) else "    storage unavailable\n")
                 try self.members(d)
                 try self.conformance(d)
             .interface_:
@@ -128,6 +129,41 @@ struct DescriptionWriter:
                 try self.out.write(f"unavailable {d.text} union\n")
             _:
                 discard(0)
+
+    ## A native value may hide scalar storage, but not an untracked borrow. Public
+    ## text/data fields can be rebased onto the consumer's owned copies. Every
+    ## private nested member must therefore be independent of borrowed storage.
+    func value_storage(id: u32, public_path: bool) -> bool:
+        let t = self.checker.table.get(id)
+        match t.kind:
+            .unit_, .bool_, .i8_, .i16_, .i32_, .i64_, .isize_, .u8_, .u16_, .u32_, .u64_, .usize_, .f16_, .f32_, .f64_, .char_, .error_code:
+                return true
+            .str_:
+                return public_path
+            .span:
+                return public_path and t.is_const and t.elem == types.u8_id
+            .optional, .array:
+                return self.value_storage(t.elem, public_path)
+            .tuple:
+                for member in t.args:
+                    if not self.value_storage(member, public_path):
+                        return false
+                return true
+            .enum_:
+                let declaration = t.decl else return false
+                return declaration.ty != none
+            .struct_:
+                let declaration = t.decl else return false
+                if declaration.kind == ast.Kind.extern_type:
+                    return false
+                var cursor = declaration.body
+                while let member = cursor:
+                    if member.kind == ast.Kind.field and not self.value_storage(member.type_id, public_path and member.has(ast.flag_pub)):
+                        return false
+                    cursor = member.next
+                return true
+            _:
+                return false
 
     mutating func members(d: ast.Node*) -> !:
         var cursor = d.body

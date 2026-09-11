@@ -1,9 +1,10 @@
-description 3
+description 4
 module counters
 handle Counter destroy release
 struct Counted
     representation private
     constructor memberwise
+    storage value
     field var count: i64 = default
 enum Mode as u32
     case read = 0

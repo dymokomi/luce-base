@@ -4,8 +4,8 @@ Updated: 2026-09-11. This is the working checklist for the ecosystem rewrite.
 [PACKAGE-REWRITE.md](PACKAGE-REWRITE.md) holds the full file inventory, design
 constraints and acceptance criteria. Follow the phases below in order.
 
-**Status:** sections 1 and 2 in progress; compatibility cleanup verified.
-**Next task:** I04–I11 and C01–C05 in order.
+**Status:** sections 1 and 2 in progress; native value constructors and methods verified.
+**Next task:** I06–I11 and C01–C05 in order.
 
 ## How we track work
 
@@ -54,9 +54,9 @@ default. Preserve recoverable errors and explicit Base ownership.
   fixes C spelling of handle slots and const spans, tested across all six modes.
 - [x] I03 — Preserve parameter names, defaults, fallibility and qualified type
   identity through aliases, re-exports and nested signatures.
-- [ ] I04 — Import and lower Base constructors through existing `Type(args)` syntax;
+- [x] I04 — Import and lower Base constructors through existing `Type(args)` syntax;
   exercise positional, named and default arguments and fallible `init`.
-- [ ] I05 — Implement imported instance/static methods and bound method values
+- [x] I05 — Implement imported instance/static methods and bound method values
   against actual private state, preserving mutation without lossy field copying.
 - [ ] I06 — Implement ARC ownership for imported objects: construction failure,
   close/destruction, aliases, retained children, borrowed arguments/results and
@@ -269,6 +269,7 @@ Vulkan implementation remain later work, as specified in the scope document.
 
 | BC03–BC05 | Base implementation and checklist committed together; Seed `428f77c`. Seed build and all 580 tests passed. Default-backend driver tests passed, including rejection of the removed flag. Arithmetic, signed/unsigned overflow traps, allocation and memory-exhaustion fixtures passed at native opts 0–3 and both C modes. Refreshed runtime and both snapshots; native bootstrap reproduced assembly, and the current Seed-built Base compiler emitted identical C to the native self-hosted compiler. |
 | I03 | Base description/default metadata and this checklist committed together; matching Luce adapters follow with the exact pin. `describe_api` passed native opts 0–3; `describe_fields` and exact description expectations updated. Native self-host and refreshed snapshots passed bootstrap assembly agreement. Luce reader passed native/C tests; `test_base_defaults.py`, `test_base_fields.py` and `test_base_description.py` passed native opts 0–3 and both C modes, covering named/omitted arguments, private native defaults, caller file/function facts, full-arity function values, aliases/reexports, nested foreign tuples/optionals, distinct i64/usize adapters, errors and owned public fields. Native types outside the supported boundary remain unavailable. |
+| I04, I05 | Base native-storage classification/current format and this checklist committed together; matching Luce implementation follows with the exact pin. `test_base_values.py` passes native opts 0–3 and both C modes: real/custom/memberwise/default/private initialization; private scalar preservation; immutable owned text; direct/static/bound struct and enum methods; aliases; escaped bound copies; mutation before failure; complete native equality; value copies through existing Luce workers; and rejected hidden borrows/private arguments/unhandled errors. Reader tests pass native/C. Base description fixtures pass native opts 0–3, exact description comparison passes, and refreshed snapshots reproduce native bootstrap assembly. Owned-object initialization/lifetime and interface dispatch remain I06/I07; these tests verify copied native values. The broader Luce gate is running and its result will be recorded separately. |
 
 For implementation entries, record repository, commit, test commands/results,
 native target/optimization coverage and any remaining limit relevant to the task.
