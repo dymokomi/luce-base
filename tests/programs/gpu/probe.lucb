@@ -96,6 +96,29 @@ func gui() -> !:
     try frame(&surface, &first, "GPU first", gpu.Color(red = 0.25, green = 0.5, blue = 0.75), 137, 188, 225)
     try first.resize(127, 81)
     try frame(&surface, &first, "GPU first", gpu.Color(red = 1.0), 255, 0, 0)
+    # Logical points are not a graphics limit. A legal Retina Window.resize can
+    # exceed Metal's limit; force each backing dimension past it on any display.
+    native.resize_for_test("GPU first", 20000.0, 32.0)
+    assert((try first.size()).pixel_width > 16384.0)
+    rejected = false
+    discard(surface.clear_present() catch failure:
+        assert(failure.code == gpu.surface_too_large)
+        rejected = true
+        recover gpu.PresentResult.skipped)
+    assert(rejected)
+    try first.resize(127, 81)
+    native.large_backing_height("GPU first")
+    defer native.restore_backing()
+    assert((try first.size()).pixel_height > 16384.0)
+    rejected = false
+    discard(surface.clear_present() catch failure:
+        assert(failure.code == gpu.surface_too_large)
+        rejected = true
+        recover gpu.PresentResult.skipped)
+    assert(rejected)
+    native.restore_backing()
+    try first.resize(127, 81)
+    try frame(&surface, &first, "GPU first", gpu.Color(red = 1.0), 255, 0, 0)
     native.begin("GPU first", unavailable = true)
     assert((try surface.clear_present()) == gpu.PresentResult.skipped)
     native.end()

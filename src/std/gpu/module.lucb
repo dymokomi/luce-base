@@ -10,6 +10,7 @@ pub let closed: ErrorCode = ErrorCode.package(94)
 pub let invalid_color: ErrorCode = ErrorCode.package(95)
 pub let failed: ErrorCode = ErrorCode.package(96)
 pub let execution_failed: ErrorCode = ErrorCode.package(97)
+pub let surface_too_large: ErrorCode = ErrorCode.package(98)
 
 ## automatic chooses the implemented native backend. An explicit unsupported
 ## backend fails; it never falls back silently. Vulkan is reserved, not implemented.

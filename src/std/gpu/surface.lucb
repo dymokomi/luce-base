@@ -24,6 +24,8 @@ pub struct Surface:
     ## command is in flight per surface: a later call first waits for its predecessor
     ## and reports execution errors. Acquisition may wait for the backend timeout
     ## (Metal: about one second); this is not a nonblocking operation.
+    ## Backing dimensions beyond the backend's presentation limit return
+    ## surface_too_large; resize smaller and retry without recreating the surface.
     pub func clear_present(color: Color = Color()) -> PresentResult!:
         let state = try self.checked()
         try check_color(color)

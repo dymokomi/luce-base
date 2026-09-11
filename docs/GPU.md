@@ -86,6 +86,13 @@ temporarily unavailable from the backend. Keep polling window events and try on
 a later frame. A window fully covered by another window is still eligible for
 rendering. Resizes and display-scale changes are applied on the next frame.
 
+The first Metal backend caps each backing dimension at 16,384 pixels, a
+conservative baseline for the supported Mac GPU families. A valid window size in
+points can exceed this on a Retina display. Such a frame returns
+`surface_too_large` before acquiring a drawable; resize smaller and retry on the
+same surface. Newer hardware's larger limits can be exposed by a later capability
+API. The limit is in the backend, not the portable window or color types.
+
 This first implementation permits at most one pending command per surface. The
 next frame waits for the preceding command before acquiring a drawable, reporting
 any execution error. Execution failure is sticky until the surface is recreated.
@@ -139,12 +146,17 @@ conversion, alpha, full target coverage, aggregate calling conventions, and
 backing extent after resize. It also exercises skipped acquisition, hidden
 windows, duplicate attachment, invalid colors, worker-thread rejection, separate
 windows, repeated recreation, and both destruction orders with pending work.
+Oversized backing width and height are rejected before Metal validation can
+abort, and pixel readback verifies recovery after resizing smaller.
 Allocation refusal is injected at each Base device/surface construction stage;
 the suite verifies returned leases and balanced Base storage after cleanup.
 
 The pixel observer temporarily replaces `nextDrawable` inside its own process,
 retains the returned drawable and texture, then restores the method and releases
-them. It enables readback only on the test surface. Production targets remain
+them. Because AppKit can constrain window height to the display, a scoped override
+of one view's backing conversion exercises the oversized-height case; the width
+case uses a real native resize. Readback is enabled only on the test surface.
+Production targets remain
 framebuffer-only and the standard library contains no injection hooks. The tests
 do not require screen capture or accessibility permission.
 
@@ -159,4 +171,5 @@ Platform contracts were checked against the installed macOS SDK's Metal,
 QuartzCore, and CoreGraphics headers and these primary references:
 [Apple's custom Metal view](https://developer.apple.com/documentation/metal/creating-a-custom-metal-view),
 [CAMetalLayer drawable acquisition](https://developer.apple.com/documentation/quartzcore/cametallayer/nextdrawable()),
+[Metal implementation limits](https://developer.apple.com/metal/Metal-Feature-Set-Tables.pdf),
 and [Vulkan window-system integration](https://docs.vulkan.org/spec/latest/chapters/VK_KHR_surface/wsi.html).

@@ -8492,6 +8492,7 @@ pub let closed: ErrorCode = ErrorCode.package(94)
 pub let invalid_color: ErrorCode = ErrorCode.package(95)
 pub let failed: ErrorCode = ErrorCode.package(96)
 pub let execution_failed: ErrorCode = ErrorCode.package(97)
+pub let surface_too_large: ErrorCode = ErrorCode.package(98)
 
 ## automatic chooses the implemented native backend. An explicit unsupported
 ## backend fails; it never falls back silently. Vulkan is reserved, not implemented.
@@ -8600,6 +8601,8 @@ pub struct Surface:
     ## command is in flight per surface: a later call first waits for its predecessor
     ## and reports execution errors. Acquisition may wait for the backend timeout
     ## (Metal: about one second); this is not a nonblocking operation.
+    ## Backing dimensions beyond the backend's presentation limit return
+    ## surface_too_large; resize smaller and retry without recreating the surface.
     pub func clear_present(color: Color = Color()) -> PresentResult!:
         let state = try self.checked()
         try check_color(color)
@@ -8751,6 +8754,12 @@ struct MetalSurface:
     var pending: void*?
     var faulted: bool
 
+## Conservative 2D texture baseline across the supported Mac GPU families.
+## Some newer devices allow larger textures; a later capability API can expose
+## that. Do not infer safety from the window's logical-point limit: Retina backing
+## pixels can exceed this limit after a perfectly valid Window.resize call.
+let metal_surface_limit: f64 = 16384.0
+
 func metal_surface_open(device: MetalDevice*, host: window.Presentation) -> MetalSurface*!:
     let pool = objc_autoreleasePoolPush()
     defer objc_autoreleasePoolPop(pool)
@@ -8799,6 +8808,8 @@ func metal_clear_present(device: MetalDevice*, host: window.Presentation, state:
     let size = try host.size()
     if size.pixel_width <= 0.0 or size.pixel_height <= 0.0:
         return PresentResult.skipped
+    if size.pixel_width > metal_surface_limit or size.pixel_height > metal_surface_limit:
+        error(surface_too_large, "Metal presentation supports at most 16384 backing pixels per dimension")
     let layer = metal_required(state.layer)
     metal_double_arg(layer, metal_sel("setContentsScale:"), size.scale)
     metal_size_arg(layer, metal_sel("setDrawableSize:"), LuceGpuMetalSize(width = size.pixel_width, height = size.pixel_height))

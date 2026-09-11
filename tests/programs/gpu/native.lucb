@@ -15,6 +15,16 @@ extern struct GpuProbeExtent:
     height: u64
     depth: u64
 
+extern struct GpuProbeViewSize:
+    width: f64
+    height: f64
+
+extern struct GpuProbeRect:
+    x: f64
+    y: f64
+    width: f64
+    height: f64
+
 extern func objc_getClass(name: c.str) -> void*
 extern func object_getClass(object: void*) -> void*
 extern func sel_registerName(name: c.str) -> void*
@@ -28,6 +38,7 @@ extern func indexed as "objc_msgSend"(object: void*, selector: void*, index: u64
 extern func text as "objc_msgSend"(object: void*, selector: void*) -> c.str
 extern func invoke as "objc_msgSend"(object: void*, selector: void*)
 extern func boolean as "objc_msgSend"(object: void*, selector: void*, value: bool)
+extern func content_size as "objc_msgSend"(object: void*, selector: void*, size: GpuProbeViewSize)
 extern func buffer as "objc_msgSend"(object: void*, selector: void*, length: u64, options: u64) -> void*
 extern func blit as "objc_msgSend"(object: void*, selector: void*, texture: void*, slice: u64, level: u64, origin: GpuProbeOrigin, size: GpuProbeExtent, destination: void*, offset: u64, row_bytes: u64, image_bytes: u64)
 
@@ -36,6 +47,9 @@ var original: void*?
 var captured: void*?
 var captured_texture: void*?
 var return_nil: bool
+var backing_method: void*?
+var backing_original: void*?
+var backing_view: void*?
 
 func sel(name: c.str) -> void*:
     return sel_registerName(name)
@@ -68,6 +82,36 @@ pub func begin(title: str, unavailable: bool = false):
     replaced = method
     return_nil = unavailable
     original = method_setImplementation(method, (void*)next_drawable)
+
+## Bypass only Window.resize's point limit so the backend extent guard can be
+## tested on both 1x and Retina displays. No oversized texture should be acquired.
+pub func resize_for_test(title: str, width: f64, height: f64):
+    content_size(find(title), sel("setContentSize:"), GpuProbeViewSize(width = width, height = height))
+
+## AppKit can constrain window height to the screen. Override just this view's
+## backing conversion for one call so the height limit is covered on every host.
+pub func large_backing_height(title: str):
+    assert(backing_method == none)
+    let view = msg(find(title), sel("contentView"))
+    let method = class_getInstanceMethod(object_getClass(view), sel("convertRectToBacking:"))
+    backing_view = view
+    backing_method = method
+    backing_original = method_setImplementation(method, (void*)backing_rect)
+
+func backing_rect(object: void*, selector: void*, rect: GpuProbeRect) -> GpuProbeRect:
+    let implementation = backing_original else trap("missing backing conversion")
+    let call = (func(void*, void*, GpuProbeRect) -> GpuProbeRect)implementation
+    var result = call(object, selector, rect)
+    if object == backing_view:
+        result.height = 20000.0
+    return result
+
+pub func restore_backing():
+    if let method = backing_method:
+        discard(method_setImplementation(method, backing_original else trap("missing backing conversion")))
+    backing_method = none
+    backing_original = none
+    backing_view = none
 
 func next_drawable(object: void*, selector: void*) -> void*?:
     if return_nil:

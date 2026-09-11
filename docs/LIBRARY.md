@@ -1332,6 +1332,8 @@ Exclusive graphics-host lease. Copies alias ownership: destroy one owner on the 
 
 - `let execution_failed: ErrorCode = ErrorCode.package(97)`
 
+- `let surface_too_large: ErrorCode = ErrorCode.package(98)`
+
 ### `Backend` (enumas u8)
 
 automatic chooses the implemented native backend. An explicit unsupported backend fails; it never falls back silently. Vulkan is reserved, not implemented.
@@ -1364,7 +1366,7 @@ One opaque sRGB presentation surface per window. Copies alias ownership. The sur
 
 - `static func open(device: Device, target: window.Window) -> Surface!`
 - `func size() -> window.Size!` — Extent in logical points and backing pixels; refresh after resized events.
-- `func clear_present(color: Color = Color()) -> PresentResult!` — Clear the entire target and queue presentation, with display synchronization. Refreshes backing dimensions before each acquisition. At most one GPU command is in flight per surface: a later call first waits for its predecessor and reports execution errors. Acquisition may wait for the backend timeout (Metal: about one second); this is not a nonblocking operation.
+- `func clear_present(color: Color = Color()) -> PresentResult!` — Clear the entire target and queue presentation, with display synchronization. Refreshes backing dimensions before each acquisition. At most one GPU command is in flight per surface: a later call first waits for its predecessor and reports execution errors. Acquisition may wait for the backend timeout (Metal: about one second); this is not a nonblocking operation. Backing dimensions beyond the backend's presentation limit return surface_too_large; resize smaller and retry without recreating the surface.
 - `func wait_idle() -> !` — Wait for this surface's last submission and report its execution status. Does not wait for the display to scan out the frame. Valid after Window closure; use before destroy when execution errors must be observed.
 - `mutating func destroy()` — Idempotent on this value. Drain pending work and release all resources. Cleanup cannot return an execution error; call wait_idle to observe it.
 
