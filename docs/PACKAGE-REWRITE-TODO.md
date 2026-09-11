@@ -4,8 +4,8 @@ Updated: 2026-09-11. This is the working checklist for the ecosystem rewrite.
 [PACKAGE-REWRITE.md](PACKAGE-REWRITE.md) holds the full file inventory, design
 constraints and acceptance criteria. Follow the phases below in order.
 
-**Status:** sections 1 and 2 in progress; native value constructors and methods verified.
-**Next task:** I06–I11 and C01–C05 in order.
+**Status:** sections 1 and 2 in progress; native values, owners, views and interfaces verified.
+**Next task:** I08–I11, then C01–C05.
 
 ## How we track work
 
@@ -58,14 +58,13 @@ default. Preserve recoverable errors and explicit Base ownership.
   exercise positional, named and default arguments and fallible `init`.
 - [x] I05 — Implement imported instance/static methods and bound method values
   against actual private state, preserving mutation without lossy field copying.
-- [ ] I06 — Implement ARC ownership for imported objects: construction failure,
+- [x] I06 — Implement ARC ownership for imported objects: construction failure,
   close/destruction, aliases, retained children, borrowed arguments/results and
   cross-module identity. Prevent double destruction and use through closed aliases.
-  Shared `ownership` runtime and typed Base `interop` owners are implemented; native
-  object descriptions and Luce construction/method adapters are verified. Checked
-  borrowed views/leases are verified. Mixed native/Luce cycles and interface
-  identity remain part of I07 before closing the full I06 lifetime matrix.
-- [ ] I07 — Support Base interfaces and concrete conformance in both directions,
+  Shared `ownership`/`interop` owners, checked views, active invocation guards,
+  cross-module/interface identity and mixed native/Luce cycles pass the proof
+  matrix. Retained function callbacks and application workers remain section 2.
+- [x] I07 — Support Base interfaces and concrete conformance in both directions,
   including heterogeneous widget collections and backing-object/view lifetimes.
 - [ ] I08 — Reassess pending handle-identity and span-conversion changes against
   the object contract; retain general mechanisms with focused regression coverage.
@@ -280,6 +279,8 @@ Vulkan implementation remain later work, as specified in the scope document.
 | I06 owned objects (partial) | Base ownership descriptions and Luce canonical-owner adapters committed with this entry. `describe_objects` verifies standard declaration identity, aliases, borrowed parameter/owned result carriers and rejected contracts. `test_base_objects.py` passes native opts 0–3 and both C modes: real/named/default/memberwise constructors; public fields/private state; aliases/reexports; retained children; native/self cycles; static/bound methods; construction errors; destruction; close/state/error behavior; and rejected raw-value, cross-worker and native-storage writes. Existing value/default/field/foreign-description fixtures pass six modes; Base description fixtures pass native 0–3. `new_initializer` additionally verifies allocated memberwise defaults in six modes. Native bootstrap reproduces assembly and snapshots are refreshed. Leased views and interfaces remain open. |
 
 | I06 checked views (partial) | Base implementation and checklist committed together; Luce adapters follow with the exact pin. `interop_views` verifies lease expiry, alias state, read-only policy and deferred disposal during active calls in all six modes. Existing ownership/interop tests pass all six modes; `describe_views` and `describe_objects` pass native 0–3. Native bootstrap reproduces assembly and both snapshots are refreshed. Luce view, object and value fixtures pass all six modes, including captured/bound expired views, owned text snapshots, receiver replacement during argument/RHS evaluation and lazy conditional branches. Mixed native/Luce cycles and interface identity remain open in I07. |
+
+| I06, I07 | Base interface/result primitives, current description and this checklist committed together; matching Luce adapters follow with the exact pin. `interop_interfaces`, `unit_storage`, `describe_interfaces`, ownership and lease fixtures pass native opts 0–3 and both C modes (descriptions are host compiler checks). `describe_api` passes native opts 0–3; 75 Base checker tests pass. `test_base_interfaces.py` builds the same real library for direct Base and Luce consumers in six modes, covering heterogeneous native/managed widgets, real native value witnesses, aliases/re-exports, public retained interface fields, nested optional/tuple results, canonical identity, owned text/errors, Base-handled managed failures, bound/captured expired views, reentrant close and mixed cycles with zero live owners at exit. Rejected cases cover ownerless witnesses, managed borrowed/fallible returns without ownership contracts and worker transfer. Native self-host reproduces assembly; prelude/library reference/snapshots refreshed. Existing Luce object, foreign-description and field fixtures pass six modes. The full ownership/view Luce gate passed at `c07485c`: 69 programs, 138 rejections, formatting and fuzzing (60 mutations / six programs, zero findings). The interface full gate is running; I11 remains open. No Linux-host execution is claimed. |
 
 For implementation entries, record repository, commit, test commands/results,
 native target/optimization coverage and any remaining limit relevant to the task.

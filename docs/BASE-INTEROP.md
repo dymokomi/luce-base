@@ -257,5 +257,10 @@ policy. Views share the resource owner's invocation guard: close is visible
 immediately, while disposal waits until active calls return. Native call operands
 and assignment receivers remain alive across reentrant argument/RHS evaluation.
 The view fixtures verify stored, captured and bound access, owned text snapshots,
-and rejected construction/thread transfer in all six modes. Retained interface
-and callback adapters remain tracked by I07/C02.
+and rejected construction/thread transfer in all six modes. Retained `Interface[I]` witnesses share those guards. Native and managed
+implementations use one tracing graph, including mixed container/child cycles.
+`Owned[T]` and `Outcome[T]` make success storage and dynamic failure ownership
+explicit in Base while presenting ordinary values/results to Luce. Interface
+fixtures cover both implementation directions, identity through aliases, native
+values and objects, borrowed views, bound methods and errors handled entirely in
+Base. Retained function callbacks remain tracked by C02.

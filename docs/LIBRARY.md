@@ -310,6 +310,7 @@ What the collector and the destructor need to know about a class.
 - `var finish: (func(Object*) -> unit)?` — `deinit`, when the class declares one.
 - `var drop: func(Object*) -> unit` — Releases the fields in reverse declaration order, tolerating unassigned ones.
 - `var trace: func(Object*, func(Object*, void*) -> unit, void*) -> unit` — Visits every strong reference the object holds, fields in declaration order.
+- `var identity: (func(Object*) -> u64)? = none` — An interface adapter preserves the identity of its concrete owner.
 
 - `func live_count() -> usize` — Allocated objects not yet finalized on the calling runtime thread.
 
@@ -340,6 +341,8 @@ What the collector and the destructor need to know about a class.
 - `func discard_unpublished(o: Object*)` — Free unpublished storage without invoking the successful object's cleanup. The native initializer owns cleanup of its partially acquired resources.
 
 - `func abandon(o: Object*)` — An `init` that failed: the fields assigned so far go, no `deinit` runs.
+
+- `func identity(object: Object*) -> u64` — The allocation identity, or the concrete owner's identity through an adapter.
 
 - `func mark() -> usize`
 
@@ -424,6 +427,8 @@ A typed reference carrier. Parameters borrow the carrier; clone acquires an addi
 - `func is_closed() -> bool`
 - `func close()`
 - `func lease() -> Lease!`
+- `static func validate_interface(object: ownership.Object*) -> !`
+- `func as_interface[I](native: I) -> Interface[I]` — The supplied witness must point into this owner's stable native storage.
 - `func enter()` — Guards are balanced by generated Luce calls or explicitly by Base callers.
 - `func leave()`
 - `func trace(visit: func(ownership.Object*, void*) -> unit, context: void*)` — Every retained native edge must be visited by the package's trace callback.
@@ -477,7 +482,50 @@ Manual Base carrier for a checked view. The Luce adapter shares this owner and r
 - `func is_valid() -> bool`
 - `func enter() -> !`
 - `func leave()`
+- `static func validate_interface(object: ownership.Object*) -> !`
+- `static func begin_interface(object: ownership.Object*)`
+- `static func end_interface(object: ownership.Object*)`
+- `func as_interface[I](native: I) -> Interface[I]` — The witness borrows this view's storage and preserves its validity lease.
 - `func trace(visit: func(ownership.Object*, void*) -> unit, context: void*)`
+
+### `Interface` (struct[I])
+
+An interface witness paired with explicit ownership and validity. A bare Base interface is only a pointer/table view; this carrier makes retention deliberate.
+
+- `let owner: ownership.Object*`
+- `func init(owner: ownership.Object*, native: I,` — Construction borrows. A returned carrier transfers one retained reference; use clone when the caller already owns the original reference.
+- `func clone() -> Interface[I]`
+- `func release()`
+- `func get() -> I!`
+- `func value() -> I`
+- `func enter() -> !`
+- `func leave()`
+- `func trace(visit: func(ownership.Object*, void*) -> unit, context: void*)`
+
+### `Owned` (struct[T])
+
+A native value with explicit backing storage. The value may borrow that storage; clone retains it, release ends the obligation. Plain/static values need no owner.
+
+- `let value: T`
+- `let owner: ownership.Object*? = none`
+- `func clone() -> Owned[T]`
+- `func release()`
+- `func trace(visit: func(ownership.Object*, void*) -> unit, context: void*)`
+
+### `Outcome` (struct[T])
+
+A callback's success value or failure text, each with an explicit owner. A Base caller can consume a failure without leaving managed error text pending anywhere. get borrows until release; it never transfers ownership of the contained value.
+
+- `let code: ErrorCode`
+- `static func success(value: Owned[T]) -> Outcome[T]`
+- `static func failure(code: ErrorCode, message: Owned[str]) -> Outcome[T]`
+- `func is_success() -> bool`
+- `func get() -> T!`
+- `func clone() -> Outcome[T]`
+- `func release()`
+- `func trace(visit: func(ownership.Object*, void*) -> unit, context: void*)`
+
+- `func copy_text(value: str) -> Owned[str]!` — Own a copy of text from a temporary buffer or a native error before it expires.
 
 ## `utf8`
 

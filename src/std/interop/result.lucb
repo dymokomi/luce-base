@@ -1,0 +1,77 @@
+## A native value with explicit backing storage. The value may borrow that storage;
+## clone retains it, release ends the obligation. Plain/static values need no owner.
+pub struct Owned[T]:
+    pub let value: T
+    pub let owner: ownership.Object*? = none
+
+    pub func clone() -> Owned[T]:
+        if let owner = self.owner:
+            discard(ownership.retain(owner))
+        return self
+
+    pub func release():
+        if let owner = self.owner:
+            ownership.release(owner)
+
+    pub func trace(visit: func(ownership.Object*, void*) -> unit, context: void*):
+        if let owner = self.owner:
+            ownership.check_thread(owner)
+            visit(owner, context)
+
+let no_error: ErrorCode = ErrorCode.package(0)
+
+## A callback's success value or failure text, each with an explicit owner. A Base
+## caller can consume a failure without leaving managed error text pending anywhere.
+## get borrows until release; it never transfers ownership of the contained value.
+pub struct Outcome[T]:
+    let result: Owned[T]?
+    pub let code: ErrorCode
+    let message: Owned[str]?
+
+    pub static func success(value: Owned[T]) -> Outcome[T]:
+        return Outcome[T](value, no_error, none)
+
+    pub static func failure(code: ErrorCode, message: Owned[str]) -> Outcome[T]:
+        return Outcome[T](none, code, message)
+
+    pub func is_success() -> bool:
+        return self.message == none
+
+    pub func get() -> T!:
+        if let message = self.message:
+            error(self.code, message.value)
+        return (self.result else trap("an outcome has no result")).value
+
+    pub func clone() -> Outcome[T]:
+        if let message = self.message:
+            return Outcome[T].failure(self.code, message.clone())
+        return Outcome[T].success((self.result else trap("an outcome has no result")).clone())
+
+    pub func release():
+        if let result = self.result:
+            result.release()
+        if let message = self.message:
+            message.release()
+
+    pub func trace(visit: func(ownership.Object*, void*) -> unit, context: void*):
+        if let result = self.result:
+            result.trace(visit, context)
+        if let message = self.message:
+            message.trace(visit, context)
+
+func drop_text(object: ownership.Object*):
+    discard(object)
+
+func trace_text(object: ownership.Object*, visit: func(ownership.Object*, void*) -> unit, context: void*):
+    discard(object)
+
+var text_info: ownership.Info = ownership.Info(name = "native owned text", size = 0,
+    finish = none, drop = drop_text, trace = trace_text)
+
+## Own a copy of text from a temporary buffer or a native error before it expires.
+pub func copy_text(value: str) -> Owned[str]!:
+    let size = sizeof(ownership.Object) +? value.length else error(memory.exhausted, "owned text is too large")
+    let owner = try ownership.reserve(&text_info, size)
+    let bytes = u8[]((u8*)owner + sizeof(ownership.Object), value.length)
+    memory.copy(bytes, value.bytes, value.length)
+    return Owned[str]((str)bytes, owner)

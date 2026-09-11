@@ -76,6 +76,20 @@ pub struct View[T]:
         self.owner.lease.leave()
         ownership.release(&self.owner.header)
 
+    pub static func validate_interface(object: ownership.Object*) -> !:
+        discard(try View[T]((ViewOwner[T]*)object).get())
+
+    pub static func begin_interface(object: ownership.Object*):
+        View[T]((ViewOwner[T]*)object).enter() catch failure: trap(failure.message)
+
+    pub static func end_interface(object: ownership.Object*):
+        View[T]((ViewOwner[T]*)object).leave()
+
+    ## The witness borrows this view's storage and preserves its validity lease.
+    pub func as_interface[I](native: I) -> Interface[I]:
+        return Interface[I](&self.owner.header, native, View[T].validate_interface,
+            View[T].begin_interface, View[T].end_interface).clone()
+
     pub func trace(visit: func(ownership.Object*, void*) -> unit, context: void*):
         ownership.check_thread(&self.owner.header)
         visit(&self.owner.header, context)

@@ -27,7 +27,7 @@ struct DescriptionWriter:
     var foreign_types: list.List[u32]
 
     mutating func module(name: str) -> !:
-        try self.out.write(f"description 6\nmodule {name}\n")
+        try self.out.write(f"description 7\nmodule {name}\n")
         var cursor = self.tree.body
         while let d = cursor:
             if d.has(ast.flag_pub) and not generic(d):
@@ -147,7 +147,7 @@ struct DescriptionWriter:
                 let owned = try interop.owned(self.checker, d.type_id)
                 if let native = owned:
                     try self.out.write("borrowed[" if native.view else "owned[")
-                try self.type_name(d.type_id)
+                try self.type_name(d.type_id, true)
                 if owned != none:
                     try self.out.write("]")
                 try self.out.write("\n")
@@ -257,7 +257,7 @@ struct DescriptionWriter:
             if let target = decl:
                 if target.has(ast.flag_pub):
                     try self.out.write("    conforms ")
-                    try self.type_name(interface_type.type_id)
+                    try self.type_name(interface_type.type_id, true)
                     try self.out.write("\n")
             cursor = interface_type.next
 
@@ -299,7 +299,24 @@ struct DescriptionWriter:
         for arg in t.args:
             try self.mark(arg)
 
-    mutating func type_name(id: u32) -> !:
+    mutating func type_name(id: u32, nominal: bool = false) -> !:
+        let carrier = self.checker.table.get(id)
+        if carrier.args.length == 1:
+            let iface = interop.standard(self.checker, id, "Interface")
+            let owned = interop.standard(self.checker, id, "Owned")
+            let outcome = interop.standard(self.checker, id, "Outcome")
+            if iface or owned or outcome:
+                if iface and self.checker.table.kind(carrier.args[0]) != types.Kind.interface_:
+                    error(check.type_error, "interop.Interface must name an actual interface")
+                try self.out.write("interface[" if iface else ("owned_value[" if owned else "outcome["))
+                try self.type_name(carrier.args[0], iface)
+                try self.out.write("]")
+                return
+        if carrier.kind == types.Kind.interface_ and not nominal:
+            try self.out.write("unowned_interface[")
+            try self.type_name(id, true)
+            try self.out.write("]")
+            return
         if let native = interop.reference(self.checker, id):
             if let declaration = try interop.owned(self.checker, native):
                 let view = interop.standard(self.checker, id, "View")

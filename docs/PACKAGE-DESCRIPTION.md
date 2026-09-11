@@ -2,7 +2,7 @@
 
 `luce-base describe module.lucb` checks a Base module and writes its public API.
 Luce consumes this description without parsing Base source. There is one current
-format, identified by the first line `description 6`. Both compilers change
+format, identified by the first line `description 7`. Both compilers change
 together; no older reader, alternate format flag or compatibility fallback exists.
 
 The producer is `src/sema/describe.lucb`. The consumer is
@@ -18,7 +18,7 @@ that a struct's representation/constructor records precede its other members and
 conformances follow them. No function body or private field is emitted.
 
 ```text
-description 6
+description 7
 module example
 interface CounterView
     method value() -> i64
@@ -41,7 +41,7 @@ struct Point
 
 | Record | Meaning |
 | --- | --- |
-| `description 6` | Required current format marker; Luce rejects a mismatch before importing declarations |
+| `description 7` | Required current format marker; Luce rejects a mismatch before importing declarations |
 | `module name` | Entry module's filename stem; the consumer supplies its resolved package/module identity |
 | `import module as alias` | Nonstandard dependency mentioned by a public signature or conformance |
 | `standard module as alias` | Embedded standard-module dependency; distinct from a package source import |
@@ -54,6 +54,10 @@ struct Point
 | `owned[Name]` | Typed `interop.Reference[Name]` carrier; parameters borrow and results transfer one strong reference |
 | `view Name descriptor constant mutable bool` | Checked borrowed native struct; construction is private |
 | `borrowed[Name]` | Typed `interop.View[Name]` carrier; aliases retain the same validity lease |
+| `interface[Name]` | An `interop.Interface[Name]` witness with explicit owner and validity guards |
+| `unowned_interface[Name]` | A bare native witness; unavailable as a Luce parameter/result |
+| `owned_value[T]` | `interop.Owned[T]`; a native value with retained backing storage |
+| `outcome[T]` | `interop.Outcome[T]`; maps to `T!` and owns either its success storage or failure text |
 | `struct Name` | Public struct with the member records below |
 | `representation complete` | All direct native fields are public; this does not prove nested ownership or trivial copyability |
 | `representation private` | At least one direct native field is private; the public fields do not describe the complete storage |
@@ -108,8 +112,8 @@ nesting and native integer spelling remain part of adapter identity even when tw
 native scalar types map to the same Luce type.
 
 Owned objects and checked views follow the [ownership contract](BASE-INTEROP.md).
-Interface lifetime adapters remain in I07; standard type import resolution is
-tracked in I09.
+Interface adapters share the same owners, lease checks and cycle tracing.
+Standard type import resolution is tracked in I09.
 
 ## Verification
 
@@ -129,7 +133,8 @@ and unhandled initialization failures. `test_base_objects.py` covers native owne
 and `describe_objects` verifies their metadata. `describe_views` and
 `test_base_views.py` verify view metadata, retained leases, expiry, mutation,
 bound/captured calls, owned snapshots and rejected construction/worker transfer.
-Interfaces and retained callbacks remain separate gates.
+Interface consumers in both languages are covered by `test_base_interfaces.py`;
+retained function callbacks and workers remain the next gate.
 
 ## Owned native structs
 
@@ -173,3 +178,31 @@ through argument evaluation, including replacement of a captured binding. Field
 setters capture their receiver before evaluating the right-hand side and check
 validity at the actual store. Native text results are copied while access is valid,
 so an owned Luce snapshot survives expiry.
+
+## Interface implementations and owned returns
+
+`interop.Interface[I]` pairs the actual native interface witness with a strong
+owner and optional validity/invocation guards. Parameters borrow the carrier;
+results transfer one reference. A native owner or checked view supplies a witness
+using `as_interface[I]`. Bare interface pointers have no ownership proof and do
+not cross. Aliases and re-exports retain the canonical interface declaration.
+
+Native conformers keep their actual Base witness and full storage. Luce conformers
+use a heap adapter which retains and traces the original Luce interface value.
+Retained adapters therefore survive the registering call and participate in mixed
+cycles. Round trips unwrap an existing adapter; class-backed interfaces preserve
+the concrete owner's identity. Value-backed interfaces own their copied value.
+
+A managed implementation must return explicit native ownership. `interop.Owned[T]`
+owns backing storage for a value which may borrow it; `interop.Outcome[T]` owns
+either that success storage or failure text. They appear as ordinary `T` and `T!`
+in Luce. Generated reverse adapters move managed values/errors into these carriers.
+Base callers can handle an error entirely in Base and release it without needing
+a later Luce catch. Forward adapters copy/acquire the result before releasing its
+carrier. Nested references inside tuples and optionals are acquired individually.
+
+A native interface with a raw borrowed or fallible return can be consumed through
+its native implementation. A Luce implementation receives a diagnostic requesting
+`Owned` or `Outcome`, since an unmanaged return alone cannot retain dynamic data.
+Invalid/closed views fail before dispatch, and active invocation guards delay
+physical disposal during a reentrant close.

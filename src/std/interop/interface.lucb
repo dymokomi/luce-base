@@ -1,0 +1,55 @@
+## An interface witness paired with explicit ownership and validity. A bare Base
+## interface is only a pointer/table view; this carrier makes retention deliberate.
+pub struct Interface[I]:
+    pub let owner: ownership.Object*
+    let native: I
+    let validate: (func(ownership.Object*) -> unit!)?
+    let begin: (func(ownership.Object*) -> unit)?
+    let end: (func(ownership.Object*) -> unit)?
+
+    ## Construction borrows. A returned carrier transfers one retained reference;
+    ## use clone when the caller already owns the original reference.
+    pub func init(owner: ownership.Object*, native: I,
+                  validate: (func(ownership.Object*) -> unit!)? = none,
+                  begin: (func(ownership.Object*) -> unit)? = none,
+                  end: (func(ownership.Object*) -> unit)? = none):
+        ownership.check_alive(owner)
+        if (begin == none) != (end == none):
+            trap("an interface needs paired invocation guards")
+        self.owner = owner
+        self.native = native
+        self.validate = validate
+        self.begin = begin
+        self.end = end
+
+    pub func clone() -> Interface[I]:
+        discard(ownership.retain(self.owner))
+        return self
+
+    pub func release():
+        ownership.release(self.owner)
+
+    pub func get() -> I!:
+        ownership.check_alive(self.owner)
+        if let validate = self.validate:
+            try validate(self.owner)
+        return self.native
+
+    pub func value() -> I:
+        return self.get() catch failure: trap(failure.message)
+
+    pub func enter() -> !:
+        discard(try self.get())
+        discard(ownership.retain(self.owner))
+        if let begin = self.begin:
+            begin(self.owner)
+
+    pub func leave():
+        ownership.check_alive(self.owner)
+        if let end = self.end:
+            end(self.owner)
+        ownership.release(self.owner)
+
+    pub func trace(visit: func(ownership.Object*, void*) -> unit, context: void*):
+        ownership.check_thread(self.owner)
+        visit(self.owner, context)

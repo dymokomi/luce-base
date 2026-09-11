@@ -51,6 +51,14 @@ pub struct Reference[T]:
         discard(try self.get())
         return try Lease(&self.owner.header, Owner[T].is_open, Owner[T].enter, Owner[T].leave)
 
+    pub static func validate_interface(object: ownership.Object*) -> !:
+        discard(try Reference[T]((Owner[T]*)object).get())
+
+    ## The supplied witness must point into this owner's stable native storage.
+    pub func as_interface[I](native: I) -> Interface[I]:
+        return Interface[I](&self.owner.header, native, Reference[T].validate_interface,
+            Owner[T].enter, Owner[T].leave).clone()
+
     ## Guards are balanced by generated Luce calls or explicitly by Base callers.
     pub func enter():
         Owner[T].enter(&self.owner.header)

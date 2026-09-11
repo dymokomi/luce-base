@@ -1,0 +1,17 @@
+struct Box[T]:
+    var value: T
+    var number: i64
+
+func nothing(value: unit) -> unit:
+    return value
+
+pub func main(arguments: str[]) -> i32:
+    var box = Box[unit](nothing(()), 17)
+    box.value = nothing(box.value)
+    assert(box.number == 17 and sizeof(Box[unit]) == 8)
+    assert(sizeof(unit) == 0)
+    let pair = (nothing(()), 19)
+    assert(pair.1 == 19)
+    let maybe: unit? = nothing(())
+    assert(maybe != none)
+    return 0

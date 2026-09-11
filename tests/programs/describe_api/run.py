@@ -19,7 +19,7 @@ def run(*arguments):
 
 
 text = run("describe", FIXTURE / "api.lucb")
-assert text.startswith("description 6\nmodule api\n"), text
+assert text.startswith("description 7\nmodule api\n"), text
 alias = re.search(r"^import contracts as (\w+)$", text, re.M)
 assert alias, text
 text = text.replace(alias[1], "contracts")

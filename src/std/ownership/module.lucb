@@ -42,6 +42,8 @@ pub struct Info:
     pub var drop: func(Object*) -> unit
     ## Visits every strong reference the object holds, fields in declaration order.
     pub var trace: func(Object*, func(Object*, void*) -> unit, void*) -> unit
+    ## An interface adapter preserves the identity of its concrete owner.
+    pub var identity: (func(Object*) -> u64)? = none
 
 ## Objects alive: allocated and not yet destroyed.
 local var live: usize = 0
@@ -209,3 +211,10 @@ pub func abandon(o: Object*):
     if not has(o, buffered):
         release_shell(o)
 
+
+## The allocation identity, or the concrete owner's identity through an adapter.
+pub func identity(object: Object*) -> u64:
+    check_alive(object)
+    if let resolve = object.info.identity:
+        return resolve(object)
+    return object.generation

@@ -1,0 +1,9 @@
+import interop
+pub interface Widget:
+    func title() -> interop.Owned[str]
+    mutating func tick() -> interop.Outcome[unit]
+pub type Alias = Widget
+pub func echo(value: interop.Interface[Alias]) -> interop.Interface[Widget]:
+    return value.clone()
+pub func raw(value: Widget) -> Widget:
+    return value

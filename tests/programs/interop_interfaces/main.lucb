@@ -1,0 +1,69 @@
+import interop
+import memory
+import ownership
+
+interface Widget:
+    func value() -> i64
+    mutating func add(amount: i64) -> interop.Outcome[i64]
+
+var disposed: i64 = 0
+
+struct Counter: Widget:
+    var count: i64
+
+    func value() -> i64:
+        return self.count
+
+    mutating func add(amount: i64) -> interop.Outcome[i64]:
+        if amount < 0:
+            return interop.Outcome[i64].failure(interop.invalid,
+                interop.copy_text("negative increment") catch failure: trap(failure.message))
+        self.count += amount
+        return interop.Outcome[i64].success(interop.Owned[i64](self.count))
+
+    mutating func close():
+        disposed += 1
+
+let counter_type: interop.Type[Counter] = interop.Type[Counter](name = "Counter",
+    dispose = Counter.close, closeable = true)
+
+func create() -> interop.Reference[Counter]!:
+    var reservation = try interop.Reservation[Counter](counter_type)
+    errdefer reservation.cancel()
+    return reservation.publish(try new Counter(4) in memory.heap, memory.heap)
+
+func results() -> !:
+    let text = try interop.copy_text("owned answer")
+    let answer = interop.Outcome[str].success(text)
+    let alias = answer.clone()
+    answer.release()
+    assert(try alias.get() == "owned answer")
+    alias.release()
+    let nothing = interop.Outcome[unit].success(interop.Owned[unit](()))
+    discard(try nothing.get())
+    nothing.release()
+
+pub func main(arguments: str[]) -> i32!:
+    try results()
+    let counter = try create()
+    let widget = counter.as_interface[Widget](counter.value())
+    let alias = widget.clone()
+    counter.release()
+    try widget.enter()
+    var native = try widget.get()
+    assert(native.value() == 4)
+    let result = native.add(3)
+    assert(try result.get() == 7)
+    result.release()
+    let failed = native.add(-1)
+    let message = failed.get() catch failure:
+        assert(failure.code == interop.invalid and failure.message == "negative increment")
+        recover -1
+    assert(message == -1)
+    failed.release()
+    widget.leave()
+    widget.release()
+    assert(alias.value().value() == 7 and disposed == 0)
+    alias.release()
+    assert(disposed == 1)
+    return ownership.finish_run(0)
