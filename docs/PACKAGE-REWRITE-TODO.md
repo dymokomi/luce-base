@@ -73,6 +73,33 @@ default. Preserve recoverable errors and explicit Base ownership.
   both Base and Luce. Prove private-state mutation, defaults, identity, bound
   methods, errors, destruction and rejected invalid crossings at native opts 0–3.
 
+## Compatibility cleanup identified during I02
+
+The 2026-09-11 Sol audit found the items below. Complete this small cleanup pass
+between I02 and I03, updating callers directly. The dated report lives in the
+workspace's `audits/legacy-compatibility-2026-09-11.md`; this checklist is the live
+backlog. BC05 is a naming simplification, not proven old-version support.
+
+- [ ] BC01 — Remove `Connection.receive` in `src/std/net/connection.lucb` and put
+  its implementation in mutating `read`. Update HTTP/network fixtures and receiver
+  mutability; preserve short-read, EOF and interruption behavior. Regenerate the
+  library reference, prelude and snapshots and run the connection/HTTP tests.
+- [ ] BC02 — Remove `strings.to_i64`/`to_u64`; use `parse_i64`/`parse_u64` with
+  their existing decimal default. Update Base fixtures and Luce's interpreter,
+  diagnostics and runtime callers. Preserve decimal edge-case coverage, regenerate
+  both compilers' embedded sources, and advance Luce's Base pin with the callers.
+- [ ] BC03 — Remove the six unused `lb_*_i64` scalar arithmetic compatibility
+  wrappers from Base's and Seed's canonical runtime C/header files. Preserve the
+  active width-parametric helpers. Regenerate embedded runtime/snapshots and verify
+  arithmetic, overflow/traps, seed bootstrap and native self-hosting.
+- [ ] BC04 — Remove Base's unused old-snapshot `LB_MEMORY_EXHAUSTED` macro;
+  preserve the active Seed macro. Correct Base's bootstrap README and checker test
+  title, retain its error-identity assertion, regenerate runtime/snapshots and
+  verify allocation failures plus bootstrap agreement.
+- [ ] BC05 — Keep native as the default, `--native` as the explicit native selector
+  and `--backend=c` for comparison; remove the undocumented `--backend=native`
+  alias and its acceptance fixture. Verify driver options and both build modes.
+
 ## 2. Callbacks and application workers
 
 - [ ] C01 — Define callback capture ownership, retention, disconnection, cycles,
