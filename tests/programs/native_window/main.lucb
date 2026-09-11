@@ -16,6 +16,7 @@ pub func main(arguments: str[]) -> i32!:
             match event.kind:
                 .close_requested:
                     running = false
+                    break
                 .key_down:
                     if event.key == input.Key.escape:
                         try surface.request_close()
