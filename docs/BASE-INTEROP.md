@@ -165,6 +165,12 @@ itself never becomes a retained container. Base code that keeps an element must
 explicitly acquire an owning reference through the owner protocol. Copies of a
 raw Base struct/pointer/view do not perform that acquisition.
 
+The original opaque C-handle boundary remains useful for foreign resources with
+a single transferred destruction obligation. It supplies no general retain
+operation. Handle spans borrow existing wrappers for the call; borrowed handle
+fields and handles inside `Owned`/`Outcome` carriers are unavailable. Retainable
+package resources use `Reference`, `View` or `Interface` with their explicit owner.
+
 Owned results transfer one native ownership obligation to the bridge. Borrowed
 results carry their declared owner/lease. Wrapping failure releases any transferred
 ownership; copying a result happens while its borrow is still valid. Optional and
