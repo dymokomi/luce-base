@@ -23,11 +23,15 @@ pub struct Reference[T]:
     pub func release():
         ownership.release(&self.owner.header)
 
-    pub func value() -> T*:
+    pub func get() -> T*!:
         ownership.check_alive(&self.owner.header)
         if self.owner.closed:
-            trap("a native object is closed")
+            error(invalid, "a native object is closed")
         return self.owner.native else trap("a native object has not been initialized")
+
+    ## Infallible access traps; fallible adapters use get to preserve a closed error.
+    pub func value() -> T*:
+        return self.get() catch failure: trap(failure.message)
 
     pub func identity() -> u64:
         ownership.check_alive(&self.owner.header)

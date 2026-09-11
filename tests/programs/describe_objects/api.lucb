@@ -1,0 +1,21 @@
+import interop
+
+pub struct Counter:
+    var hidden: i64
+    pub func init(count: i64 = 7):
+        self.hidden = count
+    pub func value() -> i64:
+        return self.hidden
+    pub mutating func close():
+        self.hidden = 0
+
+pub let counter_type: interop.Type[Counter] = interop.Type[Counter](
+    name = "Counter", dispose = Counter.close, closeable = true)
+
+pub type Count = Counter
+
+pub func echo(value: interop.Reference[Counter]) -> interop.Reference[Counter]:
+    return value.clone()
+
+pub func raw(value: Counter) -> Counter:
+    return value

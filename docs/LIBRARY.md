@@ -413,7 +413,8 @@ A typed reference carrier. Parameters borrow the carrier; clone acquires an addi
 - `static func adopt(native: T*, declaration: Type[T], allocator: memory.Allocator? = none) -> Reference[T]!`
 - `func clone() -> Reference[T]`
 - `func release()`
-- `func value() -> T*`
+- `func get() -> T*!`
+- `func value() -> T*` — Infallible access traps; fallible adapters use get to preserve a closed error.
 - `func identity() -> u64`
 - `func is_closed() -> bool`
 - `func close()`

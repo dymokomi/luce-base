@@ -5,6 +5,7 @@
 import front.ast
 import io
 import sema.check
+import sema.interop
 import sema.types
 import support.list
 
@@ -26,7 +27,7 @@ struct DescriptionWriter:
     var foreign_types: list.List[u32]
 
     mutating func module(name: str) -> !:
-        try self.out.write(f"description 4\nmodule {name}\n")
+        try self.out.write(f"description 5\nmodule {name}\n")
         var cursor = self.tree.body
         while let d = cursor:
             if d.has(ast.flag_pub) and not generic(d):
@@ -54,7 +55,7 @@ struct DescriptionWriter:
                 if decl.kind == ast.Kind.extern_type and decl.right != none:
                     kind = "handle"
                 elif t.kind == types.Kind.struct_:
-                    kind = "struct"
+                    kind = "object" if try interop.owned(self.checker, id) != none else "struct"
                 elif t.kind == types.Kind.enum_ and decl.ty != none:
                     kind = "enum"
                 elif t.kind == types.Kind.interface_:
@@ -74,11 +75,19 @@ struct DescriptionWriter:
             .func_:
                 try self.signature(d, "func ")
             .constant:
+                if interop.standard(self.checker, d.type_id, "Type"):
+                    discard(try interop.owned(self.checker, self.checker.table.get(d.type_id).args[0]))
+                    return
                 try self.out.write(f"let {d.text}: ")
                 try self.type_name(d.type_id)
                 try self.out.write("\n")
             .struct_, .extern_struct:
-                try self.out.write(f"struct {d.text}\n")
+                let owned = try interop.owned(self.checker, d.type_id)
+                if let native = owned:
+                    let close = native.dispose.text if native.closeable else "-"
+                    try self.out.write(f"object {d.text} descriptor {native.descriptor.text} close {close}\n")
+                else:
+                    try self.out.write(f"struct {d.text}\n")
                 var complete = true
                 var init: ast.Node*? = none
                 var cursor = d.body
@@ -96,7 +105,8 @@ struct DescriptionWriter:
                         try self.out.write("    constructor private\n")
                 else:
                     try self.out.write("    constructor memberwise\n")
-                try self.out.write("    storage value\n" if self.value_storage(d.type_id, true) else "    storage unavailable\n")
+                if owned == none:
+                    try self.out.write("    storage value\n" if self.value_storage(d.type_id, true) else "    storage unavailable\n")
                 try self.members(d)
                 try self.conformance(d)
             .interface_:
@@ -123,7 +133,12 @@ struct DescriptionWriter:
                     try self.out.write(f"unavailable {d.text} extern-type\n")
             .type_alias:
                 try self.out.write(f"type {d.text} = ")
+                let owned = try interop.owned(self.checker, d.type_id) != none
+                if owned:
+                    try self.out.write("owned[")
                 try self.type_name(d.type_id)
+                if owned:
+                    try self.out.write("]")
                 try self.out.write("\n")
             .union_, .extern_union:
                 try self.out.write(f"unavailable {d.text} union\n")
@@ -166,8 +181,15 @@ struct DescriptionWriter:
                 return false
 
     mutating func members(d: ast.Node*) -> !:
+        let ownership = try interop.owned(self.checker, d.type_id)
         var cursor = d.body
         while let member = cursor:
+            if let native = ownership:
+                if member == native.dispose and not native.closeable:
+                    cursor = member.next
+                    continue
+                if member.text == "is_closed":
+                    error(check.type_error, "is_closed is the shared native ownership state query; choose another package member name")
             if visible_member(d, member):
                 if generic(member):
                     try self.out.write(f"    unavailable {member.text} generic\n")
@@ -267,6 +289,12 @@ struct DescriptionWriter:
             try self.mark(arg)
 
     mutating func type_name(id: u32) -> !:
+        if let native = interop.reference(self.checker, id):
+            if try interop.owned(self.checker, native) != none:
+                try self.out.write("owned[")
+                try self.type_name(native)
+                try self.out.write("]")
+                return
         let t = self.checker.table.get(id)
         if let module = self.foreign_module(id):
             if t.args.length == 0:

@@ -249,6 +249,7 @@ closed aliases keep their shell but cannot access the native resource. Every
 retained edge must be reported by the declaration's trace callback and released
 by disposal. Main-thread declarations check affinity before reservation.
 
-This establishes the Base lifetime layer. Importing these declarations as Luce
-classes, checked borrowed views and retained callback/interface adapters remains
-tracked by I06/I07/C02.
+Declared native owners now import as Luce classes with real construction, methods,
+identity, retained children and checked field access. The object fixture verifies
+those adapters in all six compiled modes. Checked borrowed views and retained
+callback/interface adapters remain tracked by I06/I07/C02.

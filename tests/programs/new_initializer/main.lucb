@@ -21,6 +21,9 @@ struct Item:
     mutating func remember_address():
         self.address = &self
 
+struct Defaulted:
+    var value: i64 = 99
+
 struct Empty:
     var value: i64
     func init():
@@ -41,6 +44,9 @@ pub func main(arguments: str[]) -> i32!:
     let original = memory.allocator
     defer restore(original)
     memory.allocator = &allocator
+    let memberwise = try new Defaulted()
+    assert(memberwise.value == 99)
+    free(memberwise) in allocator
     let defaulted = try new Item()
     assert(defaulted.value == 7 and defaulted.address == defaulted and calls == 1)
     free(defaulted) in allocator
@@ -59,5 +65,5 @@ pub func main(arguments: str[]) -> i32!:
         recover (Item*)0
     assert(rejected == (Item*)0 and calls == 5)
     assert(allocator.live == 0 and allocator.bytes == 0)
-    assert(allocator.allocations == 5 and allocator.frees == 5)
+    assert(allocator.allocations == 6 and allocator.frees == 6)
     return 0

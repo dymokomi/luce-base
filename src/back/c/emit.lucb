@@ -5720,6 +5720,12 @@ pub struct Emitter:
             else:
                 try self.constructor(e, et)
             try self.put("; ")
+        elif e.text == "()":
+            try self.put("*")
+            try self.put_tmp("p", n)
+            try self.put(" = ")
+            try self.constructor(e, et)
+            try self.put("; ")
         else:
             try self.put("memset(")
             try self.put_tmp("p", n)

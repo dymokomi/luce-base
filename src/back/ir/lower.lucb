@@ -4152,6 +4152,9 @@ pub struct Lowerer:
         elif let body = e.body:
             let value = try self.enum_value(body) if body.kind == ast.Kind.case_value else try self.constructor(e, et)
             try self.f.copy_bytes(p, value.ref, self.size(et))
+        elif e.text == "()":
+            let value = try self.constructor(e, et)
+            try self.f.copy_bytes(p, value.ref, self.size(et))
         else:
             try self.f.zero_bytes(p, self.size(et))
         try self.f.store(ir.Op.storel, p, a)
