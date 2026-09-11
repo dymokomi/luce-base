@@ -38,7 +38,6 @@ let once: usize = 256
 ## reaching the callers has its own calls opened out already and is measured as it will
 ## stand; then drop the functions that were expanded everywhere they were called.
 pub func expand(program: ir.Unit*) -> !:
-    try drop_unused_standard(program)
     var index = try Index.over(program)
     defer index.release()
     var census = try Census.over(program, &index)
@@ -48,6 +47,9 @@ pub func expand(program: ir.Unit*) -> !:
     for fi in order:
         try expand_in(program, &index, &census, fi)
     try drop_expanded(program, &index, &census)
+    # Keep the inliner's call-count heuristics independent of optional standard
+    # modules. Pruning first could turn shared helpers into larger caller bodies.
+    try drop_unused_standard(program)
 
 ## Retain standard functions reachable from application code, initializers,
 ## witness tables, assembly, and explicit retention attributes. User/package
