@@ -7,7 +7,7 @@ import tempfile
 
 ROOT = Path(__file__).resolve().parents[3]
 COMPILER = Path(sys.argv[1]).resolve()
-MAGIC = b"luce-base-dependencies-v1\0"
+MAGIC = b"luce-base-dependencies-v2\0"
 
 
 def invoke(source, expected=0, command="dependencies", options=()):
@@ -35,13 +35,19 @@ with tempfile.TemporaryDirectory(prefix="base-dependencies-") as temporary:
     assert result.returncode == 0, result.stderr.decode()
     assert result.stdout.startswith(MAGIC) and result.stdout.endswith(b"\0")
     fields = result.stdout[len(MAGIC):-1].split(b"\0")
-    assert len(fields) == 6, fields
-    actual = [(fields[i].decode(), fields[i + 1].decode()) for i in range(0, len(fields), 2)]
-    expected = [("shared", str(root / "shared.lucb")),
-                ("internal.left", str(root / "internal/left.lucb")),
-                ("internal.right", str(root / "internal/right.lucb"))]
+    assert len(fields) % 3 == 0, fields
+    actual = [tuple(field.decode() for field in fields[i:i + 3])
+              for i in range(0, len(fields), 3)]
+    expected = [("source", "shared", str(root / "shared.lucb")),
+                ("source", "internal.left", str(root / "internal/left.lucb")),
+                ("source", "internal.right", str(root / "internal/right.lucb")),
+                ("package", "shared", "app"),
+                ("package", "internal.left", "app"),
+                ("package", "internal.right", "app"),
+                ("package", "boundary", "app")]
     assert actual == expected, actual
-    assert invoke(root / "shared.lucb").stdout == MAGIC
+    # The entry has package identity even when its source closure is empty.
+    assert invoke(root / "shared.lucb").stdout == MAGIC + b"package\0shared\0app\0"
     entry.write_text("import missing\n")
     result = invoke(entry, expected=1)
     assert result.returncode == 1 and result.stdout == b"", result
