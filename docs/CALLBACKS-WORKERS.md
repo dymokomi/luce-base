@@ -58,24 +58,59 @@ is not required to rescue an otherwise unreachable cycle.
 
 ## Application workers
 
-Worker boundaries create application state on the worker's runtime thread. Source
-configuration stays pinned until the worker has copied it into its own graph;
-results stay pinned until the receiving thread has copied them. Existing Luce
-transfer rules apply recursively. Owners, views, interfaces, ordinary closures and
-other thread-bound references are not transferable.
+`interop.WorkerEntry[C, M, R]` names a factory from configuration `C` to a
+retained `Callback[M, R]`. The factory creates its application state on the new
+thread and the returned handler stays there. Base supplies a named factory with
+`WorkerEntry.native`; Luce supplies an ordinary named application function returning
+a package's callback type alias. Capturing factories and bound factory methods are
+rejected. An indirect call through an ordinary function value additionally checks
+the factory's immutable, capture-free representation before starting a thread.
 
-Library/runtime code owns thread creation, runtime entry, message queues,
-cancellation and joining. Application code supplies named worker entry behavior
-and transferable configuration/messages, with no integer runtime tokens or
-recursive spawning to establish worker state. A startup error is observable and
-leaves no retained configuration or partially running worker behind.
+`interop.Worker[C, M, R]` owns a persistent thread and two bounded FIFO queues.
+Its fallible initializer waits for factory completion, so a constructed worker is
+ready. A native thread-creation failure or factory failure releases configuration,
+joins any started thread and reports the failure. Startup error text belongs to the
+creator's temporary ownership pool: manual Base callers scope `ownership.mark` and
+`drain` around consuming the failure; generated Luce adapters do that automatically.
 
-Cancellation is cooperative and terminal for new dispatch. It wakes waiters on
-the dispatch queues. The worker finishes an active application invocation, rejects
-late dispatch, releases callbacks/state on its own thread and joins before runtime
-teardown. Operations that can block outside the queue must receive the worker's
-cancellation source. Shutdown must not depend on another application callback
-being scheduled on the closing thread.
+Configuration, messages and replies cross as uniquely owned `Packet[T]` values,
+separate from both ARC graphs. The native library supplies a `Transfer[T]` deep-copy
+policy for each payload. Standard text and byte policies copy heap storage;
+`Transfer[T].plain()` is for pointer-free values only. Custom policies must copy
+all borrowed members and provide a disposer that works on either thread, without
+thread-bound allocators or owners. Enqueuing transfers a packet's release obligation;
+ordinary Base copies borrow. Failed copies leave the queues unchanged.
+
+Luce validates worker payloads with the same recursive transfer policy used by
+language tasks. Owners, views, interfaces, callbacks and native ownership carriers
+cannot cross. Recursion is accepted only when revisiting an already checked nominal
+type; an excessively deep acyclic shape is rejected. The native signature must also
+be representable at the Base boundary; managed collections remain outside this
+worker bridge. No source-thread object is retained by a worker descriptor.
+
+`send` waits for input capacity; `try_send` reports `worker_busy` instead.
+`receive` transfers one `Reply[R]`, in accepted-message order. A reply owns either
+its copied successful payload or copied failure text; `get` borrows and `release`
+ends that obligation. A handler failure affects its message, and later messages
+can still run. Native package wrappers copy results into `Outcome` on the receiving
+thread before releasing their packets. Both queues have the configured capacity
+(default 16); a controller must consume replies while submitting work, or use
+nonblocking submission when its input queue is full.
+
+`cancel` is cooperative and terminal. It wakes blocked senders, receivers and the
+worker, rejects late dispatch, and discards queued messages/replies. Dequeuing a
+message marks its invocation active; cancellation lets that invocation finish.
+Native operations that can wait outside the queues use `worker_cancellation()`
+with standard interruptible socket operations. The signal belongs to the worker,
+and package operations obtain it without exposing runtime setup to application code.
+
+The worker releases its handler and application state on its own thread, then
+collects cycles and verifies that its runtime has no live owners. `close` cancels,
+joins and disposes remaining packets; it is idempotent. Native callers may use
+send/receive/cancel concurrently while keeping the worker alive, and must join
+those callers before closing its owner. Shutdown never needs another callback on
+the closing thread. Luce packages expose an owned, application-specific struct over
+this manual Base carrier, as the shared Base/Luce `workers.Service` fixture does.
 
 The phase gate covers direct Base and Luce consumers: captures, failure ownership,
 disconnection during delivery, reentrancy, expired views, mixed cycles, wrong-thread

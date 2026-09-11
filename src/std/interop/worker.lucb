@@ -1,0 +1,196 @@
+pub let worker_closed: ErrorCode = ErrorCode.package(104)
+pub let worker_busy: ErrorCode = ErrorCode.package(105)
+
+struct WorkerState[C, M, R]:
+    var mutex: sync.Mutex
+    var changed: sync.Condition
+    var cancellation: net.Cancellation
+    var ready: bool
+    var done: bool
+    var startup_error: Reply[unit]?
+    var input: WorkerQueue[Packet[M]]
+    var output: WorkerQueue[Reply[R]]
+    let configuration: Packet[C]
+    let entry: WorkerEntry[C, M, R]
+    let message_transfer: Transfer[M]
+    let result_transfer: Transfer[R]
+    var thread: thread.Handle
+
+    static func start(entry: WorkerEntry[C, M, R], configuration: C,
+                      config_transfer: Transfer[C], message_transfer: Transfer[M], result_transfer: Transfer[R],
+                      capacity: usize, stack: usize) -> WorkerState[C, M, R]*!:
+        if capacity == 0:
+            error(invalid, "a worker queue needs positive capacity")
+        let config = try config_transfer.copy(configuration)
+        errdefer config.release()
+        let input = try alloc (Packet[M]?)[capacity] in memory.heap
+        errdefer free(input) in memory.heap
+        let output = try alloc (Reply[R]?)[capacity] in memory.heap
+        errdefer free(output) in memory.heap
+        let block = try alloc(sizeof(WorkerState[C, M, R]), 16) in memory.heap
+        errdefer free(block) in memory.heap
+        let state = (WorkerState[C, M, R]*)block.data
+        var mutex: sync.Mutex
+        var changed: sync.Condition
+        var cancellation: net.Cancellation
+        var worker_thread: thread.Handle
+        *state = WorkerState[C, M, R](mutex, changed, cancellation, false, false, none,
+            WorkerQueue[Packet[M]](input), WorkerQueue[Reply[R]](output), config,
+            entry, message_transfer, result_transfer, worker_thread)
+        state.thread = try thread.spawn(WorkerState[C, M, R].run, (void*)state, stack)
+        return state
+
+    static func run(raw: void*?):
+        let state = (WorkerState[C, M, R]*)(raw else trap("a worker has no state"))
+        state.entry.enter()
+        active_worker_cancellation = &state.cancellation
+        let opened = state.entry.open(state.entry.context, state.configuration.value)
+        let handler = opened.get() catch failure:
+            let saved = Reply[unit].failure(failure.code, failure.message)
+            opened.release()
+            state.configuration.release()
+            state.mutex.lock()
+            state.startup_error = saved
+            state.ready = true
+            state.changed.broadcast()
+            state.mutex.unlock()
+            WorkerState[C, M, R].finish(state)
+            return
+        # The Outcome owns the handler until this thread has finished delivery.
+        state.configuration.release()
+        state.mutex.lock()
+        state.ready = true
+        state.changed.broadcast()
+        state.mutex.unlock()
+        WorkerState[C, M, R].deliver(state, handler)
+        opened.release()
+        WorkerState[C, M, R].finish(state)
+
+    static func finish(state: WorkerState[C, M, R]*):
+        active_worker_cancellation = none
+        state.entry.leave()
+        state.mutex.lock()
+        state.done = true
+        state.changed.broadcast()
+        state.mutex.unlock()
+
+    static func deliver(state: WorkerState[C, M, R]*, handler: Callback[M, R]):
+        while true:
+            state.mutex.lock()
+            while state.input.count == 0 and not state.cancellation.is_requested():
+                state.changed.wait(&state.mutex)
+            if state.cancellation.is_requested():
+                state.mutex.unlock()
+                return
+            let message = state.input.pop()
+            state.changed.broadcast()
+            state.mutex.unlock()
+            let result = handler.invoke(message.value)
+            let reply = WorkerState[C, M, R].copy_reply(state, result)
+            result.release()
+            message.release()
+            state.mutex.lock()
+            while state.output.full() and not state.cancellation.is_requested():
+                state.changed.wait(&state.mutex)
+            if state.cancellation.is_requested():
+                state.mutex.unlock()
+                reply.release()
+                return
+            state.output.push(reply)
+            state.changed.broadcast()
+            state.mutex.unlock()
+
+    static func copy_reply(state: WorkerState[C, M, R]*, outcome: Outcome[R]) -> Reply[R]:
+        let value = outcome.get() catch failure:
+            return Reply[R].failure(failure.code, failure.message)
+        let copy = state.result_transfer.copy(value) catch failure:
+            return Reply[R].failure(failure.code, failure.message)
+        return Reply[R].success(copy)
+
+## A bounded persistent worker. This carrier is uniquely owned; Base copies borrow.
+## send/receive/cancel may be called concurrently while the owner keeps it alive.
+## close must run after those callers return; it cancels and joins before freeing.
+## Luce libraries expose their own owned application-specific wrapper around it.
+pub struct Worker[C, M, R]:
+    var state: WorkerState[C, M, R]*?
+
+    pub func init(entry: WorkerEntry[C, M, R], configuration: C,
+                  config_transfer: Transfer[C], message_transfer: Transfer[M], result_transfer: Transfer[R],
+                  capacity: usize = 16, stack: usize = 0) -> !:
+        let state = try WorkerState[C, M, R].start(entry, configuration, config_transfer,
+            message_transfer, result_transfer, capacity, stack)
+        self.state = state
+        state.mutex.lock()
+        while not state.ready:
+            state.changed.wait(&state.mutex)
+        state.mutex.unlock()
+        if let failure = state.startup_error:
+            # Copy into the creator's temporary pool before joining/freeing state.
+            # Native callers scope ownership.mark/drain around error consumption.
+            let message = (failure.message else trap("a startup failure has no message")).value
+            let saved = copy_text(message) catch exhausted:
+                self.close()
+                error(memory.exhausted, "out of memory copying a worker startup failure")
+            let code = failure.code
+            discard(ownership.pool_object(saved.owner else trap("copied text has no owner")))
+            self.close()
+            error(code, saved.value)
+
+    pub func send(message: M) -> !:
+        try self.dispatch(message, true)
+
+    ## Nonblocking backpressure: a full input queue returns worker_busy.
+    pub func try_send(message: M) -> !:
+        try self.dispatch(message, false)
+
+    func dispatch(message: M, wait: bool) -> !:
+        let state = self.state else error(worker_closed, "the worker is closed")
+        let packet = try state.message_transfer.copy(message)
+        errdefer packet.release()
+        state.mutex.lock()
+        defer state.mutex.unlock()
+        while state.input.full() and not state.cancellation.is_requested() and not state.done:
+            if not wait:
+                error(worker_busy, "the worker input queue is full")
+            state.changed.wait(&state.mutex)
+        if state.cancellation.is_requested() or state.done:
+            error(worker_closed, "the worker no longer accepts messages")
+        state.input.push(packet)
+        state.changed.broadcast()
+
+    ## Replies preserve accepted-message order. Cancellation is terminal: queued
+    ## replies are discarded by close, and blocked receivers wake with worker_closed.
+    pub func receive() -> Reply[R]!:
+        let state = self.state else error(worker_closed, "the worker is closed")
+        state.mutex.lock()
+        defer state.mutex.unlock()
+        while state.output.count == 0 and not state.cancellation.is_requested() and not state.done:
+            state.changed.wait(&state.mutex)
+        if state.cancellation.is_requested() or state.done:
+            error(worker_closed, "the worker no longer produces replies")
+        let result = state.output.pop()
+        state.changed.broadcast()
+        return result
+
+    pub func cancel():
+        let state = self.state else return
+        state.mutex.lock()
+        state.cancellation.request()
+        state.changed.broadcast()
+        state.mutex.unlock()
+
+    pub mutating func close():
+        let state = self.state else return
+        self.cancel()
+        state.thread.join() catch failure:
+            trap("a worker could not join its thread")
+        self.state = none
+        while state.input.count > 0:
+            state.input.pop().release()
+        while state.output.count > 0:
+            state.output.pop().release()
+        if let failure = state.startup_error:
+            failure.release()
+        free(state.input.slots) in memory.heap
+        free(state.output.slots) in memory.heap
+        free(u8[]((u8*)state, sizeof(WorkerState[C, M, R]))) in memory.heap

@@ -1,0 +1,24 @@
+## A named factory and its runtime hooks, with no retained source-thread state.
+## The factory runs exactly once on the new thread and returns its local handler.
+## Compilers supply the managed entry adapter; Base factories use native().
+pub struct WorkerEntry[C, M, R]:
+    pub let context: void*?
+    pub let open: func(void*?, C) -> Outcome[Callback[M, R]]
+    pub let enter: func() -> unit
+    pub let leave: func() -> unit
+
+    pub static func native(factory: func(C) -> Outcome[Callback[M, R]]) -> WorkerEntry[C, M, R]:
+        return WorkerEntry[C, M, R]((void*)factory, WorkerEntry[C, M, R].open_native,
+            ownership.enter, ownership.finish_task)
+
+    static func open_native(context: void*?, configuration: C) -> Outcome[Callback[M, R]]:
+        let factory = (func(C) -> Outcome[Callback[M, R]])(context else trap("a worker has no factory"))
+        return factory(configuration)
+
+local var active_worker_cancellation: net.Cancellation*? = none
+
+## Native operations called by a worker use this signal for interruptible socket
+## waits. The pointer is borrowed on this worker until its factory/handler returns;
+## it must not be retained outside the worker's lifetime or reset by application code.
+pub func worker_cancellation() -> net.Cancellation*:
+    return active_worker_cancellation else trap("this operation requires an application worker")

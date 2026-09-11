@@ -1568,7 +1568,7 @@ pub struct Emitter:
         elif k == types.Kind.atomic:
             try self.zero_value(self.elem(t))
         else:
-            try self.put("{0}")
+            try self.put("{}")
 
     mutating func assign(s: ast.Node*) -> !:
         let place = s.left else return
@@ -2277,7 +2277,9 @@ pub struct Emitter:
             try self.expr(e)
             try self.put("; (")
             try self.put_type(want)
-            try self.put("){0}; })")
+            try self.put(")")
+            try self.zero_value(want)
+            try self.put("; })")
             return
         if want == types.none_id or have == want or have == types.never_id or have == types.error_id:
             try self.expr(e)
@@ -2377,7 +2379,7 @@ pub struct Emitter:
             try self.put_type(t)
             try self.put("){ .present = false })")
             return
-        try self.put("{0}")
+        try self.put("{}")
 
     ## Under the diagnostic profile, `lb_memory_note_site(block, size, function, line)` after an
     ## allocation succeeded (§19.4); `size_tmp` names the temporary holding the byte count.
@@ -4066,7 +4068,9 @@ pub struct Emitter:
             try self.put("int")
         try self.put(" ")
         try self.put_tmp("v", n)
-        try self.put(" = {0}; if (")
+        try self.put(" = ")
+        try self.zero_value(result if payload != types.unit_id and payload != types.never_id else types.i32_id)
+        try self.put("; if (")
         try self.put_tmp("r", n)
         try self.put(".failed) {")
         self.indent += 1
@@ -4402,7 +4406,9 @@ pub struct Emitter:
         try self.put_type(t)
         try self.put(" ")
         try self.put_tmp("mr", n)
-        try self.put(" = {0};")
+        try self.put(" = ")
+        try self.zero_value(t)
+        try self.put(";")
         try self.match_stmt(m, n)
         try self.line("")
         try self.put_tmp("mr", n)
@@ -5151,7 +5157,7 @@ pub struct Emitter:
 
     ## `(lb_Name){ .field = value, ... }` with defaults for what was omitted.
     mutating func constructor(e: ast.Node*, id: u32) -> !:
-        let d = self.decl_of(id) else return try self.put("{0}")
+        let d = self.decl_of(id) else return try self.put("{}")
         let t = self.c.table.get(id)
         try self.put("((")
         try self.put_type(id)
@@ -5195,8 +5201,6 @@ pub struct Emitter:
                 try self.value(default, try self.map(want))
             position += 1
             field = f.next
-        if first:
-            try self.put("0")
         try self.put("})")
 
     ## A struct with its own `init`: zero the value, run `init`, yield the value or its failure.
@@ -5211,7 +5215,8 @@ pub struct Emitter:
         try self.put_type(id)
         try self.put(" ")
         try self.put_tmp("iv", n)
-        try self.put(" = {0}; ")
+        # Empty braces zero every field, including an initial zero-sized unit.
+        try self.put(" = {}; ")
         if init.has(ast.flag_fallible):
             try self.put("lb_r_unit ")
             try self.put_tmp("ir", n)

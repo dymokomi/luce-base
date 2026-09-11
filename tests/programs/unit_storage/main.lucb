@@ -5,11 +5,32 @@ struct Box[T]:
 func nothing(value: unit) -> unit:
     return value
 
+struct Initialized[T]:
+    var value: T
+    var count: i64
+    pub func init(value: T, count: i64):
+        self.value = value
+        self.count = count
+
+let failed: ErrorCode = ErrorCode.package(1)
+
+func failure() -> Box[unit]!:
+    error(failed, "unit-leading aggregate")
+
 pub func main(arguments: str[]) -> i32:
     var box = Box[unit](nothing(()), 17)
     box.value = nothing(box.value)
     assert(box.number == 17 and sizeof(Box[unit]) == 8)
     assert(sizeof(unit) == 0)
+    var zero: Box[unit]
+    assert(zero.number == 0)
+    let initialized = Initialized[unit](nothing(()), 23)
+    assert(initialized.count == 23)
+    let recovered = failure() catch problem:
+        recover Box[unit]((), 29)
+    assert(recovered.number == 29)
+    let selected = Box[unit]((), 31) if zero.number == 0 else trap("unselected")
+    assert(selected.number == 31)
     let pair = (nothing(()), 19)
     assert(pair.1 == 19)
     let maybe: unit? = nothing(())

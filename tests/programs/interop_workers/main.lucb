@@ -1,0 +1,220 @@
+import interop
+import memory
+import net
+import ownership
+import thread
+import sync
+import time
+
+extern func socketpair(domain: i32, kind: i32, protocol: i32, descriptors: i32*) -> i32
+
+type TextWorker = interop.Worker[str, str, str]
+var packets: @i64 = 0
+var disposed: @i64 = 0
+var entered: @i64 = 0
+var completed: @i64 = 0
+var waiter_started: @i64 = 0
+var waiter_ended: @i64 = 0
+
+struct Tracked:
+    var packet: interop.Packet[str]
+    static func drop(raw: void*):
+        let state = (Tracked*)raw
+        state.packet.release()
+        discard(packets.add(-1, .relaxed))
+        free(state) in memory.heap
+    static func copy(value: str) -> interop.Packet[str]!:
+        if value == "copy failure":
+            error(memory.exhausted, "message copy rejected")
+        let packet = try interop.text_transfer.copy(value)
+        errdefer packet.release()
+        let state = try new Tracked(packet) in memory.heap
+        discard(packets.add(1, .relaxed))
+        return interop.Packet[str](packet.value, (void*)state, Tracked.drop)
+let transfer: interop.Transfer[str] = interop.Transfer[str](Tracked.copy)
+
+struct State:
+    var prefix: interop.Owned[str]
+    var count: i64
+    var context: u64
+    func trace(visit: func(ownership.Object*, void*) -> unit, context: void*):
+        self.prefix.trace(visit, context)
+    mutating func close():
+        assert(self.context == ownership.context_id())
+        self.prefix.release()
+        discard(disposed.add(1, .release))
+    mutating func reply(message: str) -> interop.Outcome[str]:
+        assert(self.context == ownership.context_id())
+        self.count += 1
+        discard(entered.add(1, .release))
+        if message == "wait":
+            var descriptors: i32[2]
+            assert(socketpair(1, 1, 0, &descriptors[0]) == 0)
+            var first = net.Connection.over(descriptors[0]) catch failure: trap(failure.message)
+            var second = net.Connection.over(descriptors[1]) catch failure: trap(failure.message)
+            defer first.close() catch failure: trap(failure.message)
+            defer second.close() catch failure: trap(failure.message)
+            discard(first.wait(cancellation = interop.worker_cancellation()) catch failure:
+                assert(failure.code == net.cancelled)
+                recover net.Readiness(false, false, false, false, false)
+            )
+        if message == "result copy failure":
+            return interop.Outcome[str].success(interop.Owned[str]("copy failure"))
+        if message == "failure":
+            var buffer: u8[128]
+            let text = format(buffer, f"{self.prefix.value} failed") catch failure: trap(failure.message)
+            return interop.Outcome[str].failure(interop.invalid, interop.copy_text(text) catch failure: trap(failure.message))
+        var buffer: u8[256]
+        let text = format(buffer, f"{self.prefix.value}:{message}:{self.count}") catch failure: trap(failure.message)
+        discard(completed.add(1, .release))
+        return interop.Outcome[str].success(interop.copy_text(text) catch failure: trap(failure.message))
+let state_type: interop.Type[State] = interop.Type[State]("worker fixture state", State.close, State.trace)
+
+func factory(configuration: str) -> interop.Outcome[interop.Callback[str, str]]:
+    if configuration == "reject":
+        return interop.Outcome[interop.Callback[str, str]].failure(interop.invalid,
+            interop.copy_text("dynamic startup rejection") catch failure: trap(failure.message))
+    let prefix = interop.copy_text(configuration) catch failure: trap(failure.message)
+    let state = new State(prefix, 0, ownership.context_id()) catch failure: trap(failure.message)
+    let owner = interop.Reference[State].adopt(state, state_type) catch failure: trap(failure.message)
+    defer owner.release()
+    let handler = interop.Callback[str, str].bind_mutating(owner, State.reply) catch failure: trap(failure.message)
+    return interop.Outcome[interop.Callback[str, str]].success(interop.Owned[interop.Callback[str, str]](handler, handler.owner))
+
+func start(configuration: str = "base", capacity: usize = 2, stack: usize = 0) -> TextWorker!:
+    return try TextWorker(interop.WorkerEntry[str, str, str].native(factory), configuration,
+        transfer, transfer, transfer, capacity, stack)
+
+func wait_for(value: (@i64)*, count: i64):
+    let end = time.now() + 5000000000
+    while (*value).load(.acquire) < count:
+        assert(time.now() < end)
+        thread.sleep(1)
+
+func send_waiter(raw: void*?):
+    let worker = (TextWorker*)(raw else trap("missing worker"))
+    discard(waiter_started.add(1, .release))
+    worker.send("late") catch failure:
+        assert(failure.code == interop.worker_closed)
+        discard(waiter_ended.add(1, .release))
+        return
+    trap("a blocked sender ignored cancellation")
+
+func receive_waiter(raw: void*?):
+    let worker = (TextWorker*)(raw else trap("missing worker"))
+    discard(waiter_started.add(1, .release))
+    let result = worker.receive() catch failure:
+        assert(failure.code == interop.worker_closed)
+        discard(waiter_ended.add(1, .release))
+        return
+    result.release()
+    trap("an idle receiver ignored cancellation")
+
+func ordinary() -> !:
+    var config: u8[4] = ['b', 'a', 's', 'e']
+    var worker = try start((str)config)
+    memory.set(config, '?')
+    defer worker.close()
+    for index in 0..<64:
+        var message: u8[5] = ['h', 'e', 'l', 'l', 'o']
+        try worker.send((str)message)
+        memory.set(message, '?')
+        let result = try worker.receive()
+        var buffer: u8[64]
+        assert((try result.get()) == (try format(buffer, f"base:hello:{index + 1}")))
+        result.release()
+    worker.send("copy failure") catch failure:
+        assert(failure.code == memory.exhausted)
+    try worker.send("result copy failure")
+    let copy_failed = try worker.receive()
+    let rejected_copy = copy_failed.get() catch failure:
+        assert(failure.code == memory.exhausted and failure.message == "message copy rejected")
+        recover "copy rejected"
+    assert(rejected_copy == "copy rejected")
+    copy_failed.release()
+    try worker.send("failure")
+    let failed = try worker.receive()
+    let handled = failed.get() catch failure:
+        assert(failure.code == interop.invalid and failure.message == "base failed")
+        recover "handled"
+    assert(handled == "handled")
+    failed.release()
+    try worker.send("after")
+    let after = try worker.receive()
+    assert((try after.get()) == "base:after:67")
+    after.release()
+    worker.close()
+    worker.close()
+    worker.send("late") catch failure:
+        assert(failure.code == interop.worker_closed)
+        return
+    trap("a closed worker accepted a message")
+
+func cancel_active() -> !:
+    entered.store(0, .relaxed)
+    completed.store(0, .relaxed)
+    waiter_started.store(0, .relaxed)
+    waiter_ended.store(0, .relaxed)
+    var worker = try start(capacity = 1)
+    try worker.send("wait")
+    wait_for(&entered, 1)
+    try worker.send("queued")
+    worker.try_send("busy") catch failure:
+        assert(failure.code == interop.worker_busy)
+    let blocked = try thread.spawn(send_waiter, (void*)&worker)
+    wait_for(&waiter_started, 1)
+    worker.cancel()
+    try blocked.join()
+    assert(waiter_ended.load(.acquire) == 1)
+    worker.close()
+    assert(entered.load(.acquire) == 1 and completed.load(.acquire) == 1)
+
+func cancel_idle() -> !:
+    waiter_started.store(0, .relaxed)
+    waiter_ended.store(0, .relaxed)
+    var worker = try start()
+    let blocked = try thread.spawn(receive_waiter, (void*)&worker)
+    wait_for(&waiter_started, 1)
+    worker.cancel()
+    try blocked.join()
+    worker.close()
+    assert(waiter_ended.load(.acquire) == 1)
+
+func cancel_output() -> !:
+    completed.store(0, .relaxed)
+    var worker = try start(capacity = 1)
+    try worker.send("one")
+    try worker.send("two")
+    wait_for(&completed, 2)
+    # One reply fills the bounded output queue; the second producer must wake.
+    worker.close()
+
+func startup_failures() -> !:
+    let mark = ownership.mark()
+    defer ownership.drain(mark)
+    let rejected: TextWorker? = start("reject") catch failure:
+        assert(failure.code == interop.invalid and failure.message == "dynamic startup rejection")
+        recover none
+    assert(rejected == none)
+    let copied: TextWorker? = start("copy failure") catch failure:
+        assert(failure.code == memory.exhausted)
+        recover none
+    assert(copied == none)
+    let empty: TextWorker? = start(capacity = 0) catch failure:
+        assert(failure.code == interop.invalid)
+        recover none
+    assert(empty == none)
+    let refused: TextWorker? = start(stack = 1152921504606846976) catch failure:
+        assert(failure.code == thread.failed)
+        recover none
+    assert(refused == none)
+
+pub func main(arguments: str[]) -> i32!:
+    discard(arguments)
+    try ordinary()
+    try cancel_active()
+    try cancel_idle()
+    try cancel_output()
+    try startup_failures()
+    assert(packets.load(.acquire) == 0 and disposed.load(.acquire) == 4)
+    return ownership.finish_run(0)

@@ -1,0 +1,80 @@
+## A uniquely owned message outside either thread's ARC graph. Copies borrow;
+## passing a packet into a queue transfers its release obligation. Its disposer
+## must work on either thread and must not access thread-bound owners/allocators.
+pub struct Packet[T]:
+    pub let value: T
+    let storage: void*? = none
+    let dispose: (func(void*) -> unit)? = none
+
+    pub func init(value: T, storage: void*? = none, dispose: (func(void*) -> unit)? = none):
+        self.value = value
+        self.storage = storage
+        self.dispose = dispose
+
+    pub func release():
+        if let storage = self.storage:
+            (self.dispose else trap("a packet has storage without a disposer"))(storage)
+
+## Deep-copy policy supplied by the native library for a wire value. All borrowed
+## members must point into the returned packet or immutable process-lifetime data.
+## A policy must never smuggle an ARC owner, checked view or callback across threads.
+pub struct Transfer[T]:
+    pub let copy: func(T) -> Packet[T]!
+
+    ## For pointer-free scalar/record values only. Text/spans need a deep copy.
+    pub static func plain() -> Transfer[T]:
+        return Transfer[T](Transfer[T].copy_plain)
+
+    static func copy_plain(value: T) -> Packet[T]!:
+        return Packet[T](value)
+
+struct PacketBytes:
+    var bytes: u8[]
+
+    static func drop(raw: void*):
+        let storage = (PacketBytes*)raw
+        free(storage.bytes) in memory.heap
+        free(storage) in memory.heap
+
+    static func copy(value: const u8[]) -> Packet[const u8[]]!:
+        let bytes = try alloc u8[value.length] in memory.heap
+        errdefer free(bytes) in memory.heap
+        memory.copy(bytes, value, value.length)
+        let storage = try new PacketBytes(bytes) in memory.heap
+        return Packet[const u8[]](bytes, (void*)storage, PacketBytes.drop)
+
+    static func text(value: str) -> Packet[str]!:
+        let packet = try PacketBytes.copy(value.bytes)
+        return Packet[str]((str)packet.value, packet.storage, packet.dispose)
+
+pub let text_transfer: Transfer[str] = Transfer[str](PacketBytes.text)
+pub let bytes_transfer: Transfer[const u8[]] = Transfer[const u8[]](PacketBytes.copy)
+
+## A reply owns its successful packet or its copied failure text. get borrows;
+## release is required whether the caller handles success or failure.
+pub struct Reply[T]:
+    let result: Packet[T]?
+    pub let code: ErrorCode
+    let message: Packet[str]?
+
+    pub static func success(value: Packet[T]) -> Reply[T]:
+        return Reply[T](value, no_error, none)
+
+    pub static func failure(code: ErrorCode, message: str) -> Reply[T]:
+        let copy = text_transfer.copy(message) catch failure:
+            return Reply[T](none, memory.exhausted, Packet[str]("out of memory copying a worker failure"))
+        return Reply[T](none, code, copy)
+
+    pub func is_success() -> bool:
+        return self.message == none
+
+    pub func get() -> T!:
+        if let message = self.message:
+            error(self.code, message.value)
+        return (self.result else trap("a worker reply has no result")).value
+
+    pub func release():
+        if let result = self.result:
+            result.release()
+        if let message = self.message:
+            message.release()

@@ -1,0 +1,22 @@
+## Queue storage is protected by WorkerState's mutex. Removing a value transfers
+## ownership before waking a producer; disposal runs outside the queue lock.
+struct WorkerQueue[T]:
+    var slots: (T?)[]
+    var head: usize = 0
+    var count: usize = 0
+
+    func full() -> bool:
+        return self.count == self.slots.length
+
+    mutating func push(value: T):
+        assert(not self.full())
+        self.slots[(self.head + self.count) % self.slots.length] = value
+        self.count += 1
+
+    mutating func pop() -> T:
+        assert(self.count > 0)
+        let value = self.slots[self.head] else trap("an occupied worker slot is empty")
+        self.slots[self.head] = none
+        self.head = (self.head + 1) % self.slots.length
+        self.count -= 1
+        return value

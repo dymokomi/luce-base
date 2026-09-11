@@ -372,197 +372,6 @@ What the collector and the destructor need to know about a class.
 
 - `func finish_task()` — A worker's end (§14): its heap is its own, and it too must leave nothing alive once its arguments and result are released; what it does leave stops the program.
 
-## `interop`
-
-Explicit native ownership shared with managed consumers. Package types remain ordinary structs with init and methods; a Type declaration supplies their disposal, trace and affinity contract. Reference values are manual in Base.
-
-- `let invalid: ErrorCode = ErrorCode.package(101)`
-
-- `let wrong_thread: ErrorCode = ErrorCode.package(102)`
-
-- `let expired: ErrorCode = ErrorCode.package(103)`
-
-### `Type` (struct[T])
-
-A package's constant declaration of native ownership. Dispose releases native resources and strong edges exactly once, including after an explicit close. A closeable export binds its public disposal method as the terminal operation.
-
-- `let name: str`
-- `let dispose: func(T*) -> unit`
-- `let trace: (func(const T*, func(ownership.Object*, void*) -> unit, void*) -> unit)? = none`
-- `let closeable: bool = false`
-- `let main_thread: bool = false`
-
-### `Owner` (struct[T])
-
-Stable shell shared by every native reference and managed alias. Its header participates directly in the shared collector; no second reference count exists.
-
-- `var header: ownership.Object`
-- `static func is_open(object: ownership.Object*) -> bool`
-- `static func enter(object: ownership.Object*)`
-- `static func leave(object: ownership.Object*)`
-- `static func finish_owner(object: ownership.Object*)`
-- `static func drop_owner(object: ownership.Object*)`
-- `static func trace_owner(object: ownership.Object*, visit: func(ownership.Object*, void*) -> unit, context: void*)`
-
-### `Reservation` (struct[T])
-
-Unpublished ownership storage. Reserve before running a native initializer; publish only after success, or cancel without running a successful finalizer.
-
-- `func init(declaration: Type[T]) -> !`
-- `mutating func publish(native: T*, allocator: memory.Allocator? = none) -> Reference[T]`
-- `mutating func cancel()`
-
-### `Reference` (struct[T])
-
-A typed reference carrier. Parameters borrow the carrier; clone acquires an additional strong reference. Publish/adopt return one owning reference, whose Base caller releases explicitly. Copying the struct does not acquire ownership.
-
-- `let owner: Owner[T]*`
-- `func init(owner: Owner[T]*)`
-- `static func adopt(native: T*, declaration: Type[T], allocator: memory.Allocator? = none) -> Reference[T]!`
-- `func clone() -> Reference[T]`
-- `func release()`
-- `func get() -> T*!`
-- `func value() -> T*` — Infallible access traps; fallible adapters use get to preserve a closed error.
-- `func identity() -> u64`
-- `func is_closed() -> bool`
-- `func close()`
-- `func lease() -> Lease!`
-- `static func validate_interface(object: ownership.Object*) -> !`
-- `func as_interface[I](native: I) -> Interface[I]` — The supplied witness must point into this owner's stable native storage.
-- `func enter()` — Guards are balanced by generated Luce calls or explicitly by Base callers.
-- `func leave()`
-- `func trace(visit: func(ownership.Object*, void*) -> unit, context: void*)` — Every retained native edge must be visited by the package's trace callback.
-
-### `WeakReference` (struct[T])
-
-A weak carrier keeps the owner shell, never the native resource. Getting a live reference acquires one strong ownership obligation for the Base caller.
-
-- `func init(reference: Reference[T])`
-- `func clone() -> WeakReference[T]`
-- `func release()`
-- `func get() -> Reference[T]?`
-
-### `Lease` (struct)
-
-- `func clone() -> Lease`
-- `func release()`
-- `func invalidate()`
-- `func is_valid() -> bool`
-- `func check() -> !`
-- `func enter() -> !` — An active invocation postpones physical disposal of its native owner. Operational closure/expiry is still visible immediately to every alias.
-- `func leave()`
-- `func trace(visit: func(ownership.Object*, void*) -> unit, context: void*)`
-
-### `ViewType` (struct[T])
-
-An explicit export of a borrowed native struct. Its complete native data is a view, never copied into ownership of the resource it describes.
-
-- `let name: str`
-- `let mutable: bool = false`
-
-### `ViewOwner` (struct[T])
-
-- `var header: ownership.Object`
-- `static func drop_view(object: ownership.Object*)`
-- `static func trace_view(object: ownership.Object*, visit: func(ownership.Object*, void*) -> unit, context: void*)`
-
-### `View` (struct[T])
-
-Manual Base carrier for a checked view. The Luce adapter shares this owner and retains it in aliases/bound methods; every operation checks its lease again.
-
-- `let owner: ViewOwner[T]*`
-- `func init(owner: ViewOwner[T]*)`
-- `static func make(native: T, declaration: ViewType[T], lease: Lease) -> View[T]!`
-- `func clone() -> View[T]`
-- `func release()`
-- `func get() -> const T*!`
-- `func get_mut() -> T*!`
-- `func value() -> const T*`
-- `func value_mut() -> T*`
-- `func is_valid() -> bool`
-- `func enter() -> !`
-- `func leave()`
-- `static func validate_interface(object: ownership.Object*) -> !`
-- `static func begin_interface(object: ownership.Object*)`
-- `static func end_interface(object: ownership.Object*)`
-- `func as_interface[I](native: I) -> Interface[I]` — The witness borrows this view's storage and preserves its validity lease.
-- `func trace(visit: func(ownership.Object*, void*) -> unit, context: void*)`
-
-### `Interface` (struct[I])
-
-An interface witness paired with explicit ownership and validity. A bare Base interface is only a pointer/table view; this carrier makes retention deliberate.
-
-- `let owner: ownership.Object*`
-- `func init(owner: ownership.Object*, native: I,` — Construction borrows. A returned carrier transfers one retained reference; use clone when the caller already owns the original reference.
-- `func clone() -> Interface[I]`
-- `func release()`
-- `func get() -> I!`
-- `func value() -> I`
-- `func enter() -> !`
-- `func leave()`
-- `func trace(visit: func(ownership.Object*, void*) -> unit, context: void*)`
-
-### `Owned` (struct[T])
-
-A native value with explicit backing storage. The value may borrow that storage; clone retains it, release ends the obligation. Plain/static values need no owner.
-
-- `let value: T`
-- `let owner: ownership.Object*? = none`
-- `func clone() -> Owned[T]`
-- `func release()`
-- `func trace(visit: func(ownership.Object*, void*) -> unit, context: void*)`
-
-### `Outcome` (struct[T])
-
-A callback's success value or failure text, each with an explicit owner. A Base caller can consume a failure without leaving managed error text pending anywhere. get borrows until release; it never transfers ownership of the contained value.
-
-- `let code: ErrorCode`
-- `static func success(value: Owned[T]) -> Outcome[T]`
-- `static func failure(code: ErrorCode, message: Owned[str]) -> Outcome[T]`
-- `func is_success() -> bool`
-- `func get() -> T!`
-- `func clone() -> Outcome[T]`
-- `func release()`
-- `func trace(visit: func(ownership.Object*, void*) -> unit, context: void*)`
-
-- `func copy_text(value: str) -> Owned[str]!` — Own a copy of text from a temporary buffer or a native error before it expires.
-
-### `Callback` (struct[A, R])
-
-A retained callable. Copying this carrier borrows; cloning acquires an edge. Managed closures use their existing owner, so captures remain visible to ARC.
-
-- `let owner: ownership.Object*`
-- `let entry: func(ownership.Object*, A) -> Outcome[R]` — Adapter identity. Call through invoke to retain the owner and check affinity.
-- `func init(owner: ownership.Object*, entry: func(ownership.Object*, A) -> Outcome[R])`
-- `func clone() -> Callback[A, R]`
-- `func release()`
-- `func invoke(argument: A) -> Outcome[R]`
-- `func trace(visit: func(ownership.Object*, void*) -> unit, context: void*)`
-- `static func bind[T](source: Reference[T], method: func(const T*, A) -> Outcome[R]) -> Callback[A, R]!` — Native methods receive stable storage under the source owner's call guard.
-- `static func bind_mutating[T](source: Reference[T], method: func(T*, A) -> Outcome[R]) -> Callback[A, R]!`
-
-### `Connection` (struct)
-
-Owning registration token. Dropping its last reference disconnects; explicit disconnection remains queryable and releases its signal-state edge immediately.
-
-- `mutating func disconnect()`
-- `func is_connected() -> bool`
-
-- `let connection_type: Type[Connection] = Type[Connection](name = "Connection",`
-
-### `Signal` (struct[A])
-
-Ordered, thread-bound delivery. Base copies borrow this carrier; clone/release manage ownership. Package owners close their signal before releasing it.
-
-- `func init(allocator: memory.Allocator? = none) -> !` — A custom allocator must outlive the signal and its connection aliases.
-- `func clone() -> Signal[A]`
-- `func release()`
-- `func close()`
-- `func is_closed() -> bool`
-- `func trace(visit: func(ownership.Object*, void*) -> unit, context: void*)`
-- `func connect(callback: Callback[A, unit]) -> Reference[Connection]!`
-- `func emit(argument: A) -> Outcome[unit]`
-
 ## `utf8`
 
 Strict UTF-8 scalar encoding and decoding, following RFC 3629 sections 3–4. https://www.rfc-editor.org/rfc/rfc3629.html These allocation-free operations accept raw bytes and do not replace invalid input, normalize text, strip a BOM, or apply locale rules. Noncharacters and unassigned scalar values are valid; surrogate values are not. Storage is borrowed.
@@ -1499,6 +1308,254 @@ Stateful writer: validates message sequencing and UTF-8, masks every client fram
 
 - `static func create(client: bool, maximum_frame: u64 = 16777216, maximum_message: u64 = 16777216) -> WebSocketEncoder`
 - `mutating func write(destination: Writer, opcode: WebSocketOpcode, payload: const u8[], final: bool = true) -> !`
+
+## `interop`
+
+Explicit native ownership shared with managed consumers. Package types remain ordinary structs with init and methods; a Type declaration supplies their disposal, trace and affinity contract. Reference values are manual in Base.
+
+- `let invalid: ErrorCode = ErrorCode.package(101)`
+
+- `let wrong_thread: ErrorCode = ErrorCode.package(102)`
+
+- `let expired: ErrorCode = ErrorCode.package(103)`
+
+### `Type` (struct[T])
+
+A package's constant declaration of native ownership. Dispose releases native resources and strong edges exactly once, including after an explicit close. A closeable export binds its public disposal method as the terminal operation.
+
+- `let name: str`
+- `let dispose: func(T*) -> unit`
+- `let trace: (func(const T*, func(ownership.Object*, void*) -> unit, void*) -> unit)? = none`
+- `let closeable: bool = false`
+- `let main_thread: bool = false`
+
+### `Owner` (struct[T])
+
+Stable shell shared by every native reference and managed alias. Its header participates directly in the shared collector; no second reference count exists.
+
+- `var header: ownership.Object`
+- `static func is_open(object: ownership.Object*) -> bool`
+- `static func enter(object: ownership.Object*)`
+- `static func leave(object: ownership.Object*)`
+- `static func finish_owner(object: ownership.Object*)`
+- `static func drop_owner(object: ownership.Object*)`
+- `static func trace_owner(object: ownership.Object*, visit: func(ownership.Object*, void*) -> unit, context: void*)`
+
+### `Reservation` (struct[T])
+
+Unpublished ownership storage. Reserve before running a native initializer; publish only after success, or cancel without running a successful finalizer.
+
+- `func init(declaration: Type[T]) -> !`
+- `mutating func publish(native: T*, allocator: memory.Allocator? = none) -> Reference[T]`
+- `mutating func cancel()`
+
+### `Reference` (struct[T])
+
+A typed reference carrier. Parameters borrow the carrier; clone acquires an additional strong reference. Publish/adopt return one owning reference, whose Base caller releases explicitly. Copying the struct does not acquire ownership.
+
+- `let owner: Owner[T]*`
+- `func init(owner: Owner[T]*)`
+- `static func adopt(native: T*, declaration: Type[T], allocator: memory.Allocator? = none) -> Reference[T]!`
+- `func clone() -> Reference[T]`
+- `func release()`
+- `func get() -> T*!`
+- `func value() -> T*` — Infallible access traps; fallible adapters use get to preserve a closed error.
+- `func identity() -> u64`
+- `func is_closed() -> bool`
+- `func close()`
+- `func lease() -> Lease!`
+- `static func validate_interface(object: ownership.Object*) -> !`
+- `func as_interface[I](native: I) -> Interface[I]` — The supplied witness must point into this owner's stable native storage.
+- `func enter()` — Guards are balanced by generated Luce calls or explicitly by Base callers.
+- `func leave()`
+- `func trace(visit: func(ownership.Object*, void*) -> unit, context: void*)` — Every retained native edge must be visited by the package's trace callback.
+
+### `WeakReference` (struct[T])
+
+A weak carrier keeps the owner shell, never the native resource. Getting a live reference acquires one strong ownership obligation for the Base caller.
+
+- `func init(reference: Reference[T])`
+- `func clone() -> WeakReference[T]`
+- `func release()`
+- `func get() -> Reference[T]?`
+
+### `Lease` (struct)
+
+- `func clone() -> Lease`
+- `func release()`
+- `func invalidate()`
+- `func is_valid() -> bool`
+- `func check() -> !`
+- `func enter() -> !` — An active invocation postpones physical disposal of its native owner. Operational closure/expiry is still visible immediately to every alias.
+- `func leave()`
+- `func trace(visit: func(ownership.Object*, void*) -> unit, context: void*)`
+
+### `ViewType` (struct[T])
+
+An explicit export of a borrowed native struct. Its complete native data is a view, never copied into ownership of the resource it describes.
+
+- `let name: str`
+- `let mutable: bool = false`
+
+### `ViewOwner` (struct[T])
+
+- `var header: ownership.Object`
+- `static func drop_view(object: ownership.Object*)`
+- `static func trace_view(object: ownership.Object*, visit: func(ownership.Object*, void*) -> unit, context: void*)`
+
+### `View` (struct[T])
+
+Manual Base carrier for a checked view. The Luce adapter shares this owner and retains it in aliases/bound methods; every operation checks its lease again.
+
+- `let owner: ViewOwner[T]*`
+- `func init(owner: ViewOwner[T]*)`
+- `static func make(native: T, declaration: ViewType[T], lease: Lease) -> View[T]!`
+- `func clone() -> View[T]`
+- `func release()`
+- `func get() -> const T*!`
+- `func get_mut() -> T*!`
+- `func value() -> const T*`
+- `func value_mut() -> T*`
+- `func is_valid() -> bool`
+- `func enter() -> !`
+- `func leave()`
+- `static func validate_interface(object: ownership.Object*) -> !`
+- `static func begin_interface(object: ownership.Object*)`
+- `static func end_interface(object: ownership.Object*)`
+- `func as_interface[I](native: I) -> Interface[I]` — The witness borrows this view's storage and preserves its validity lease.
+- `func trace(visit: func(ownership.Object*, void*) -> unit, context: void*)`
+
+### `Interface` (struct[I])
+
+An interface witness paired with explicit ownership and validity. A bare Base interface is only a pointer/table view; this carrier makes retention deliberate.
+
+- `let owner: ownership.Object*`
+- `func init(owner: ownership.Object*, native: I,` — Construction borrows. A returned carrier transfers one retained reference; use clone when the caller already owns the original reference.
+- `func clone() -> Interface[I]`
+- `func release()`
+- `func get() -> I!`
+- `func value() -> I`
+- `func enter() -> !`
+- `func leave()`
+- `func trace(visit: func(ownership.Object*, void*) -> unit, context: void*)`
+
+### `Owned` (struct[T])
+
+A native value with explicit backing storage. The value may borrow that storage; clone retains it, release ends the obligation. Plain/static values need no owner.
+
+- `let value: T`
+- `let owner: ownership.Object*? = none`
+- `func clone() -> Owned[T]`
+- `func release()`
+- `func trace(visit: func(ownership.Object*, void*) -> unit, context: void*)`
+
+### `Outcome` (struct[T])
+
+A callback's success value or failure text, each with an explicit owner. A Base caller can consume a failure without leaving managed error text pending anywhere. get borrows until release; it never transfers ownership of the contained value.
+
+- `let code: ErrorCode`
+- `static func success(value: Owned[T]) -> Outcome[T]`
+- `static func failure(code: ErrorCode, message: Owned[str]) -> Outcome[T]`
+- `func is_success() -> bool`
+- `func get() -> T!`
+- `func clone() -> Outcome[T]`
+- `func release()`
+- `func trace(visit: func(ownership.Object*, void*) -> unit, context: void*)`
+
+- `func copy_text(value: str) -> Owned[str]!` — Own a copy of text from a temporary buffer or a native error before it expires.
+
+### `Callback` (struct[A, R])
+
+A retained callable. Copying this carrier borrows; cloning acquires an edge. Managed closures use their existing owner, so captures remain visible to ARC.
+
+- `let owner: ownership.Object*`
+- `let entry: func(ownership.Object*, A) -> Outcome[R]` — Adapter identity. Call through invoke to retain the owner and check affinity.
+- `func init(owner: ownership.Object*, entry: func(ownership.Object*, A) -> Outcome[R])`
+- `func clone() -> Callback[A, R]`
+- `func release()`
+- `func invoke(argument: A) -> Outcome[R]`
+- `func trace(visit: func(ownership.Object*, void*) -> unit, context: void*)`
+- `static func bind[T](source: Reference[T], method: func(const T*, A) -> Outcome[R]) -> Callback[A, R]!` — Native methods receive stable storage under the source owner's call guard.
+- `static func bind_mutating[T](source: Reference[T], method: func(T*, A) -> Outcome[R]) -> Callback[A, R]!`
+
+### `Connection` (struct)
+
+Owning registration token. Dropping its last reference disconnects; explicit disconnection remains queryable and releases its signal-state edge immediately.
+
+- `mutating func disconnect()`
+- `func is_connected() -> bool`
+
+- `let connection_type: Type[Connection] = Type[Connection](name = "Connection",`
+
+### `Signal` (struct[A])
+
+Ordered, thread-bound delivery. Base copies borrow this carrier; clone/release manage ownership. Package owners close their signal before releasing it.
+
+- `func init(allocator: memory.Allocator? = none) -> !` — A custom allocator must outlive the signal and its connection aliases.
+- `func clone() -> Signal[A]`
+- `func release()`
+- `func close()`
+- `func is_closed() -> bool`
+- `func trace(visit: func(ownership.Object*, void*) -> unit, context: void*)`
+- `func connect(callback: Callback[A, unit]) -> Reference[Connection]!`
+- `func emit(argument: A) -> Outcome[unit]`
+
+### `Packet` (struct[T])
+
+A uniquely owned message outside either thread's ARC graph. Copies borrow; passing a packet into a queue transfers its release obligation. Its disposer must work on either thread and must not access thread-bound owners/allocators.
+
+- `let value: T`
+- `func init(value: T, storage: void*? = none, dispose: (func(void*) -> unit)? = none)`
+- `func release()`
+
+### `Transfer` (struct[T])
+
+Deep-copy policy supplied by the native library for a wire value. All borrowed members must point into the returned packet or immutable process-lifetime data. A policy must never smuggle an ARC owner, checked view or callback across threads.
+
+- `let copy: func(T) -> Packet[T]!`
+- `static func plain() -> Transfer[T]` — For pointer-free scalar/record values only. Text/spans need a deep copy.
+
+- `let text_transfer: Transfer[str] = Transfer[str](PacketBytes.text)`
+
+- `let bytes_transfer: Transfer[const u8[]] = Transfer[const u8[]](PacketBytes.copy)`
+
+### `Reply` (struct[T])
+
+A reply owns its successful packet or its copied failure text. get borrows; release is required whether the caller handles success or failure.
+
+- `let code: ErrorCode`
+- `static func success(value: Packet[T]) -> Reply[T]`
+- `static func failure(code: ErrorCode, message: str) -> Reply[T]`
+- `func is_success() -> bool`
+- `func get() -> T!`
+- `func release()`
+
+### `WorkerEntry` (struct[C, M, R])
+
+A named factory and its runtime hooks, with no retained source-thread state. The factory runs exactly once on the new thread and returns its local handler. Compilers supply the managed entry adapter; Base factories use native().
+
+- `let context: void*?`
+- `let open: func(void*?, C) -> Outcome[Callback[M, R]]`
+- `let enter: func() -> unit`
+- `let leave: func() -> unit`
+- `static func native(factory: func(C) -> Outcome[Callback[M, R]]) -> WorkerEntry[C, M, R]`
+
+- `func worker_cancellation() -> net.Cancellation*` — Native operations called by a worker use this signal for interruptible socket waits. The pointer is borrowed on this worker until its factory/handler returns; it must not be retained outside the worker's lifetime or reset by application code.
+
+- `let worker_closed: ErrorCode = ErrorCode.package(104)`
+
+- `let worker_busy: ErrorCode = ErrorCode.package(105)`
+
+### `Worker` (struct[C, M, R])
+
+A bounded persistent worker. This carrier is uniquely owned; Base copies borrow. send/receive/cancel may be called concurrently while the owner keeps it alive. close must run after those callers return; it cancels and joins before freeing. Luce libraries expose their own owned application-specific wrapper around it.
+
+- `func init(entry: WorkerEntry[C, M, R], configuration: C,`
+- `func send(message: M) -> !`
+- `func try_send(message: M) -> !` — Nonblocking backpressure: a full input queue returns worker_busy.
+- `func receive() -> Reply[R]!` — Replies preserve accepted-message order. Cancellation is terminal: queued replies are discarded by close, and blocked receivers wake with worker_closed.
+- `func cancel()`
+- `mutating func close()`
 
 ## `input`
 

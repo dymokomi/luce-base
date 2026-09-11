@@ -5,7 +5,7 @@ Updated: 2026-09-11. This is the working checklist for the ecosystem rewrite.
 constraints and acceptance criteria. Follow the phases below in order.
 
 **Status:** section 1 complete; section 2 callback/worker implementation in progress.
-**Next task:** C03–C05.
+**Next task:** C05 — full compiler gates are running.
 
 ## How we track work
 
@@ -112,10 +112,10 @@ backlog. BC05 is a naming simplification, not proven old-version support.
   C02–C05; this definition alone does not complete those tasks.
 - [x] C02 — Implement callback/interface adapters with tests for removal during
   delivery, callback failure and attempted escape of borrowed request/frame data.
-- [ ] C03 — Implement runtime-aware worker dispatch with per-worker application
+- [x] C03 — Implement runtime-aware worker dispatch with per-worker application
   state and enforced Luce transfer rules; keep thread/runtime setup in the library
   and runtime instead of exposing integer tokens or recursive spawning to users.
-- [ ] C04 — Prove cancellation, late callbacks, startup failure and shutdown/join
+- [x] C04 — Prove cancellation, late callbacks, startup failure and shutdown/join
   release retained objects and wake blocked operations correctly.
 - [ ] C05 — **Phase gate:** direct Base and Luce callback/worker fixtures pass
   lifetime, error and concurrency checks before server dispatch uses the bridge.
@@ -294,6 +294,8 @@ Vulkan implementation remain later work, as specified in the scope document.
 | C01 | Contract committed as Base `2825c4d`: capture retention, guards, checked-view escape, traceable cycles, ordered snapshots, disconnect/close during emission and owned callback failures. Implementation evidence remains C02–C05. |
 
 | C02 | Base implementation and checklist committed together; matching Luce adapters follow with the exact pin. `interop_callbacks` passes native opts 0–3 and both C modes: retained/bound handlers, reentrant ordered signals, additions/removals/close during delivery, callback failures, registration/snapshot allocation failure, automatic disconnection, mixed cycles and wrong-thread rejection. `test_base_callbacks.py` passes six modes for captured and bound Luce handlers, native callbacks, text/bytes/tuple results, dynamic errors handled by Base, checked-frame escape, reentrant managed delivery and zero live owners. Interface, public-import and native-value regression matrices pass six modes; reader tests pass native/C. Qualified generic span/function arguments have a dedicated six-mode parser regression. Native bootstrap reproduces assembly; standard sources, reference and both snapshots refreshed. ARM64 macOS execution only. |
+
+| C03, C04 | Base implementation and this checklist committed together; matching Luce adapters follow with the exact pin. Standard WorkerEntry/Worker, neutral Packet/Transfer/Reply storage and bounded queues separate thread transfer from retained callbacks. Native and shared Base/Luce worker fixtures pass native opts 0–3 and both C modes: persistent per-thread state, native value configuration, unit factories/handlers, copied text, dynamic results/errors, local cycles, direct/indirect factory guards and rejected unsafe payloads. Native tests repeat each mode three times and check explicit packet counts, changed source buffers, copy failures, native/factory startup failure, blocked input/output/receivers, cancellation of socket readiness, skipped queued work and joined disposal on the owning thread. Unit-leading aggregate initialization exposed by unit messages is corrected in the C comparison backend with a six-mode regression; callback regression matrices pass. Native bootstrap and refreshed snapshots pass. The full Base/Luce gates remain C05; ARM64 macOS only. |
 
 For implementation entries, record repository, commit, test commands/results,
 native target/optimization coverage and any remaining limit relevant to the task.

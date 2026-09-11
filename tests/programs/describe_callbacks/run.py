@@ -7,7 +7,7 @@ import sys
 source = Path(__file__).with_name('api.lucb')
 result = subprocess.run([sys.argv[1], 'describe', source], capture_output=True, text=True, check=True)
 for record in [
-    'description 8\n',
+    'description 9\n',
     'func echo(handler: callback[str, unit]) -> callback[str, unit]',
     'func answer(callback: callback[(str, i64?), str]) -> str',
     'func ready(callback: callback[unit, unit])',

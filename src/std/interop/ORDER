@@ -9,3 +9,7 @@ result.lucb
 callback.lucb
 connection.lucb
 signal.lucb
+transfer.lucb
+worker_entry.lucb
+worker_queue.lucb
+worker.lucb
