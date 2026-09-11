@@ -1,0 +1,35 @@
+## Stable heap storage is shared only with synchronous main-thread OS callbacks.
+## Keeping native pointers here, outside the portable event types, also lets every
+## partially constructed window use the same unwind path.
+struct State:
+    var native: void*?
+    var view: void*?
+    var delegate: void*?
+    var events: input.Event[256]
+    var head: usize
+    var count: usize
+    var overflowed: bool
+    var close_requested: bool
+
+func push_event(state: State*, event: input.Event):
+    if state.count == state.events.length:
+        state.head = 0
+        state.count = 0
+        state.overflowed = true
+    state.events[(state.head + state.count) % state.events.length] = event
+    state.count += 1
+
+func pop_event(state: State*) -> input.Event?:
+    if state.close_requested:
+        state.close_requested = false
+        return input.Event(kind = input.EventKind.close_requested)
+    if state.overflowed:
+        state.overflowed = false
+        return input.Event(kind = input.EventKind.overflow)
+    if state.count == 0:
+        return none
+    let event = state.events[state.head]
+    state.head = (state.head + 1) % state.events.length
+    state.count -= 1
+    return event
+

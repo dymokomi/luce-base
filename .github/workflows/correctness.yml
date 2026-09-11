@@ -29,6 +29,7 @@ jobs:
       CXX: clang++
       LUCE_CI_HOST: ${{ matrix.host }}
       LUCE_TEST_GPU: optional
+      LUCE_TEST_WINDOW: optional
     steps:
       - uses: actions/checkout@v7
         with:

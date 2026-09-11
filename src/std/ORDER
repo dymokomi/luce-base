@@ -19,4 +19,6 @@ time
 os
 testing
 net
+input
+window
 debug

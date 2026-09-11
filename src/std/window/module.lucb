@@ -1,0 +1,113 @@
+import c
+import input
+import memory
+import platform
+import utf8
+
+pub let unsupported: ErrorCode = ErrorCode.package(85)
+pub let wrong_thread: ErrorCode = ErrorCode.package(86)
+pub let invalid_options: ErrorCode = ErrorCode.package(87)
+pub let failed: ErrorCode = ErrorCode.package(88)
+pub let closed: ErrorCode = ErrorCode.package(89)
+
+## This first backend supports arm64 macOS. Link AppKit, Foundation, and objc.
+## Importing input alone has no window-system dependency. Other targets return
+## unsupported before entering platform code. Linux support is a later increment.
+pub func supported() -> bool:
+    return platform.macos and platform.arm64
+
+pub struct Options:
+    pub var title: str = "Luce"
+    pub var width: u32 = 800
+    pub var height: u32 = 600
+    pub var resizable: bool = true
+
+## Content extent in logical points and backing pixels. Query again after resized;
+## a move between displays can change backing pixels without changing logical size.
+pub struct Size:
+    pub var width: f64
+    pub var height: f64
+    pub var pixel_width: f64
+    pub var pixel_height: f64
+    pub var scale: f64
+
+## One owned native window. The zero value is closed. Copies alias ownership:
+## borrow this value, and destroy exactly one owner on the main thread. All
+## methods, including event pumping, require that thread. Multiple windows are
+## allowed; polling one dispatches OS events for all and queues them per window.
+## The process-global NSApplication and registered runtime classes live until exit.
+pub struct Window:
+    var state: State*?
+
+    ## Open a hidden window. Call show after setup. Titles must be valid UTF-8;
+    ## content dimensions are 1..10000 points. No graphics API is initialized.
+    pub static func open(options: Options = Options()) -> Window!:
+        try check_thread()
+        try check_extent(options.width, options.height)
+        if not utf8.valid(options.title.bytes):
+            error(invalid_options, "the window title is not valid UTF-8")
+        if platform.macos and platform.arm64:
+            return Window(state = try mac_open(options))
+        error(unsupported, "native windows are not implemented for this target")
+
+    pub func show() -> !:
+        let state = try self.checked()
+        if platform.macos and platform.arm64:
+            mac_show(state)
+
+    pub func size() -> Size!:
+        let state = try self.checked()
+        if platform.macos and platform.arm64:
+            return mac_size(state)
+        error(unsupported, "native windows are not implemented for this target")
+
+    pub func resize(width: u32, height: u32) -> !:
+        let state = try self.checked()
+        try check_extent(width, height)
+        if platform.macos and platform.arm64:
+            mac_resize(state, width, height)
+
+    ## Request closure, using the same event as the title-bar close button.
+    ## The application decides whether to destroy the window after receiving it.
+    pub func request_close() -> !:
+        let state = try self.checked()
+        state.close_requested = true
+
+    ## Return the oldest queued event, or none after a bounded nonblocking pump.
+    ## Each window holds 256 events. On exhaustion the queue is discarded and one
+    ## overflow event precedes subsequent events; close requests remain sticky.
+    ## No event holds transient AppKit storage. Call regularly for every window.
+    pub func poll() -> input.Event?!:
+        let state = try self.checked()
+        if let event = pop_event(state):
+            return event
+        if platform.macos and platform.arm64:
+            mac_pump()
+        return pop_event(state)
+
+    ## Idempotent on this value. Detach callbacks before releasing native objects
+    ## and storage. Calling from another thread traps instead of leaking silently.
+    pub mutating func destroy():
+        let state = self.state else return
+        check_thread() catch failure:
+            discard(failure)
+            trap("window destruction requires the main thread")
+        self.state = none
+        if platform.macos and platform.arm64:
+            mac_destroy(state)
+
+    func checked() -> State*!:
+        try check_thread()
+        return self.state else error(closed, "the window is closed")
+
+func check_thread() -> !:
+    if not supported():
+        error(unsupported, "native windows are not implemented for this target")
+    if platform.macos and platform.arm64:
+        if pthread_main_np() == 0:
+            error(wrong_thread, "window operations require the main thread")
+
+func check_extent(width: u32, height: u32) -> !:
+    if width == 0 or height == 0 or width > 10000 or height > 10000:
+        error(invalid_options, "window dimensions must be between 1 and 10000 points")
+

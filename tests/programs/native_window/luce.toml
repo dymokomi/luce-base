@@ -1,0 +1,6 @@
+[package]
+name = "native_window"
+
+[native]
+frameworks = ["AppKit", "Foundation", "CoreGraphics"]
+libraries = ["objc"]

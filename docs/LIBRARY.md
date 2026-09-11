@@ -1224,6 +1224,86 @@ Stateful writer: validates message sequencing and UTF-8, masks every client fram
 - `static func create(client: bool, maximum_frame: u64 = 16777216, maximum_message: u64 = 16777216) -> WebSocketEncoder`
 - `mutating func write(destination: Writer, opcode: WebSocketOpcode, payload: const u8[], final: bool = true) -> !`
 
+## `input`
+
+Window input uses logical points, with the origin at the content's top left. Physical keys describe positions, not characters. Text composition belongs to a separate text-input API; keyboard layouts cannot be decoded from these events.
+
+### `EventKind` (enumas u8)
+
+Window input uses logical points, with the origin at the content's top left. Physical keys describe positions, not characters. Text composition belongs to a separate text-input API; keyboard layouts cannot be decoded from these events.
+
+### `Key` (enumas u16)
+
+USB HID keyboard-page usages, independent of the host's virtual key numbers. Unknown or unsupported positions produce unknown rather than a guessed key.
+
+### `Modifiers` (struct)
+
+- `var shift: bool`
+- `var control: bool`
+- `var alt: bool`
+- `var super: bool`
+- `var caps_lock: bool`
+
+### `ScrollUnit` (enumas u8)
+
+### `Event` (struct)
+
+A self-contained value; it retains no native object or borrowed text. Only the fields associated with kind are meaningful. Pointer buttons are zero-based: 0 left, 1 right, 2 middle, then auxiliary buttons. Scroll deltas retain the OS user preference: positive x/y mean scrolling content right/up on macOS. On focus_lost or overflow, discard application-held pressed-key/button state.
+
+- `var kind: EventKind`
+- `var key: Key`
+- `var modifiers: Modifiers`
+- `var repeated: bool`
+- `var button: u32`
+- `var x: f64`
+- `var y: f64`
+- `var scroll_x: f64`
+- `var scroll_y: f64`
+- `var scroll_unit: ScrollUnit`
+
+## `window`
+
+- `let unsupported: ErrorCode = ErrorCode.package(85)`
+
+- `let wrong_thread: ErrorCode = ErrorCode.package(86)`
+
+- `let invalid_options: ErrorCode = ErrorCode.package(87)`
+
+- `let failed: ErrorCode = ErrorCode.package(88)`
+
+- `let closed: ErrorCode = ErrorCode.package(89)`
+
+- `func supported() -> bool` — This first backend supports arm64 macOS. Link AppKit, Foundation, and objc. Importing input alone has no window-system dependency. Other targets return unsupported before entering platform code. Linux support is a later increment.
+
+### `Options` (struct)
+
+- `var title: str = "Luce"`
+- `var width: u32 = 800`
+- `var height: u32 = 600`
+- `var resizable: bool = true`
+
+### `Size` (struct)
+
+Content extent in logical points and backing pixels. Query again after resized; a move between displays can change backing pixels without changing logical size.
+
+- `var width: f64`
+- `var height: f64`
+- `var pixel_width: f64`
+- `var pixel_height: f64`
+- `var scale: f64`
+
+### `Window` (struct)
+
+One owned native window. The zero value is closed. Copies alias ownership: borrow this value, and destroy exactly one owner on the main thread. All methods, including event pumping, require that thread. Multiple windows are allowed; polling one dispatches OS events for all and queues them per window. The process-global NSApplication and registered runtime classes live until exit.
+
+- `static func open(options: Options = Options()) -> Window!` — Open a hidden window. Call show after setup. Titles must be valid UTF-8; content dimensions are 1..10000 points. No graphics API is initialized.
+- `func show() -> !`
+- `func size() -> Size!`
+- `func resize(width: u32, height: u32) -> !`
+- `func request_close() -> !` — Request closure, using the same event as the title-bar close button. The application decides whether to destroy the window after receiving it.
+- `func poll() -> input.Event?!` — Return the oldest queued event, or none after a bounded nonblocking pump. Each window holds 256 events. On exhaustion the queue is discarded and one overflow event precedes subsequent events; close requests remain sticky. No event holds transient AppKit storage. Call regularly for every window.
+- `mutating func destroy()` — Idempotent on this value. Detach callbacks before releasing native objects and storage. Calling from another thread traps instead of leaking silently.
+
 ## `c`
 
 The C types (`c.int`, `c.long`, `c.char`, `c.str`, `c.va_list`, …) and the standard streams `c.stdin()`, `c.stdout()`, `c.stderr()` (§5.2, §17).

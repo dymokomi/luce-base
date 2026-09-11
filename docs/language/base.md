@@ -1375,6 +1375,13 @@ The language depends on these modules by name. Their full surfaces are in the li
 | `testing` | assertions, seeds, and the per-test allocator of §16.5 |
 | `runtime` | `heap()` inside a full Luce program (§18.9) |
 
+`input` provides portable physical-key, pointer, modifier, and scrolling event
+values. `window` owns native windows and dispatches those events; its first
+backend supports arm64 macOS through AppKit, entirely in Base. Window methods
+require the main thread. Other targets return `window.unsupported`. These
+modules add no compiler intrinsics. See [native windows](../WINDOWS.md) for the
+ownership contract, demonstration, platform linkage, and current scope.
+
 ## 17. Calling C
 
 Base is the layer C bindings are written in. There is no marshalling: a Base pointer is a C pointer, a Base struct is a C struct, `c.str` is `char*`. What full Luce needs three layers for (a foreign declaration, an audited raw module, and a safe wrapper) is one layer in Base, and a safe wrapper for full Luce, when one is wanted, is ordinary Base code behind a `.lucn` module (§18.6).
