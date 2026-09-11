@@ -9,8 +9,9 @@ result = subprocess.run([str(Path(sys.argv[1]).resolve()), "describe",
 text = result.stdout.decode()
 assert not result.stderr, result.stderr
 for name in ("port", "label"):
-    assert f"    field {name}:" in text, text
-    assert f"    mutable {name}\n" in text, text
-assert "    field version: i64\n" in text, text
-assert "mutable version" not in text and "hidden" not in text, text
+    assert f"    field var {name}:" in text, text
+assert text.startswith("description 2\nmodule main\n"), text
+assert "    representation private\n" in text, text
+assert "    field let version: i64\n" in text, text
+assert "field var version" not in text and "hidden" not in text, text
 print("PASS public record mutability description")

@@ -1,0 +1,63 @@
+import contracts
+
+pub let invalid: ErrorCode = ErrorCode.package(1)
+
+pub interface Gauge:
+    func value() -> i64
+    mutating func increase(amount: i64) -> !
+
+interface Internal:
+    func secret_method() -> i64
+
+pub struct Counter: Gauge, Internal:
+    var secret_count: i64
+
+    pub func init(start: i64) -> !:
+        if start < 0:
+            error(invalid, "negative start")
+        self.secret_count = start
+
+    pub func value() -> i64:
+        return self.secret_method()
+
+    pub mutating func increase(amount: i64) -> !:
+        if amount < 0:
+            error(invalid, "negative increase")
+        self.secret_count += amount
+
+    pub static func zero() -> Counter!:
+        return try Counter(0)
+
+    func secret_method() -> i64:
+        return self.secret_count
+
+pub struct Settings:
+    pub let label: str
+    pub var amount: i64
+
+pub struct Locked:
+    pub var marker: i64
+
+    func init(marker: i64):
+        self.marker = marker
+
+pub enum Mode as u8: contracts.Named:
+    off = 0
+    on = 1
+
+    pub func name() -> str:
+        return "on" if self == Mode.on else "off"
+
+pub struct Consumer:
+    pub var enabled: bool
+
+    pub func position(points: const contracts.Point[]) -> (contracts.Point?, contracts.Token?):
+        return (none, none)
+
+pub struct Generic[T]:
+    pub var value: T
+
+pub func identity[T](value: T) -> T:
+    return value
+
+pub type GaugeAlias = Gauge

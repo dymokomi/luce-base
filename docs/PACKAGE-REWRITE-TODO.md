@@ -4,9 +4,8 @@ Updated: 2026-09-11. This is the working checklist for the ecosystem rewrite.
 [PACKAGE-REWRITE.md](PACKAGE-REWRITE.md) holds the full file inventory, design
 constraints and acceptance criteria. Follow the phases below in order.
 
-**Status:** ownership contract defined; description implementation next.
-**Next task:** I02 — replace the Base description and its Luce reader with the
-complete constructor, method and interface format.
+**Status:** current description producer/reader implemented; full gates running.
+**Next task:** finish I02 verification, then I03 defaults and nested type identity.
 
 ## How we track work
 
@@ -50,6 +49,9 @@ default. Preserve recoverable errors and explicit Base ownership.
   methods, receiver mutation, interfaces and conformance. Cover private visibility
   and mismatched compiler formats with fixtures and diagnostics. Maintain one
   current producer/reader format without compatibility branches.
+  Implemented in Base and Luce; targeted descriptor/reader checks pass. Full gates
+  are running before this item is checked. Base also fixes C spelling of handle
+  slots and const spans, verified in native opts 0–3 and both C comparison modes.
 - [ ] I03 — Preserve parameter names, defaults, fallibility and qualified type
   identity through aliases, re-exports and nested signatures.
 - [ ] I04 — Import and lower Base constructors through existing `Type(args)` syntax;

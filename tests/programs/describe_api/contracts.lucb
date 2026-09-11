@@ -1,0 +1,12 @@
+pub interface Named:
+    func name() -> str
+
+pub struct Point:
+    pub var x: f64
+    pub var y: f64
+
+pub handle Token:
+    destroy release
+
+pub func release(token: Token):
+    discard(token)

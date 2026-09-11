@@ -1,0 +1,104 @@
+# Public package description
+
+`luce-base describe module.lucb` checks a Base module and writes its public API.
+Luce consumes this description without parsing Base source. There is one current
+format, identified by the first line `description 2`. Both compilers change
+together; no older reader, alternate format flag or compatibility fallback exists.
+
+The producer is `src/sema/describe.lucb`. The consumer is
+`luce/src/sema/boundary.lucb`. This format describes language declarations; it does
+not imply that every native signature already has an executable Luce adapter.
+[The rewrite checklist](PACKAGE-REWRITE-TODO.md) tracks those adapters separately.
+
+## Records
+
+Records are newline-terminated. Top-level records start at column one; members
+are indented four spaces. Declaration and member order follow the source, except
+that a struct's representation/constructor records precede its other members and
+conformances follow them. No function body or private field is emitted.
+
+```text
+description 2
+module example
+interface CounterView
+    method value() -> i64
+    mutating method increase(amount: i64) -> !
+struct Counter
+    representation private
+    constructor init(start: i64) -> !
+    method value() -> i64
+    mutating method increase(amount: i64) -> !
+    static method zero() -> Counter!
+    conforms CounterView
+struct Point
+    representation complete
+    constructor memberwise
+    field var x: f64
+    field let label: str
+```
+
+| Record | Meaning |
+| --- | --- |
+| `description 2` | Required current format marker; Luce rejects a mismatch before importing declarations |
+| `module name` | Entry module's filename stem; the consumer supplies its resolved package/module identity |
+| `import module as alias` | Nonstandard dependency mentioned by a public signature or conformance |
+| `standard module as alias` | Embedded standard-module dependency; distinct from a package source import |
+| `foreign alias.Type kind` | Referenced foreign nominal type; kind is `struct`, `enum`, `interface`, `handle` or `opaque` |
+| `func name(p: T) -> R` | Public function; a unit result omits the arrow/result |
+| `let name: T` | Public constant and its type |
+| `struct Name` | Public struct with the member records below |
+| `representation complete` | All direct native fields are public; this does not prove nested ownership or trivial copyability |
+| `representation private` | At least one direct native field is private; the public fields do not describe the complete storage |
+| `constructor init(p: T) -> !` | Actual public initializer; the arrow/effect is omitted for an infallible initializer |
+| `constructor memberwise` | Base supplies implicit memberwise construction; normal Base initialization/visibility rules apply |
+| `constructor private` | A private custom initializer suppresses public construction; its parameters/body are not emitted |
+| `field var name: T` / `field let name: T` | Public mutable/immutable field |
+| `method name(p: T) -> R` | Nonmutating instance method; `self` is implicit |
+| `mutating method name(p: T) -> R` | Instance method requiring mutable native storage |
+| `static method name(p: T) -> R` | Type method with no receiver |
+| `interface Name` | Public interface; every requirement is described without needing a `pub` modifier on the requirement |
+| `conforms Interface` | Declared conformance to a public interface; private interfaces are omitted |
+| `enum Name as T` / `case name = N` | Integer-backed enum, its cases and evaluated case values; methods/conformance follow the cases |
+| `handle Name destroy function` | Base's existing opaque-handle declaration and its checked finalizer |
+| `type Name = T` | Alias to the described native type |
+| `unavailable Name reason` | A generic declaration, payload enum, union or extern type outside this description's supported declaration forms |
+
+Types preserve native spelling, including pointer/span qualifiers, arrays,
+optionals, fallible results, tuples and callback signatures. Foreign nominal types
+use the alias of their declaring module even inside those compound types. A native
+handle is described as `handle` even though the Base type table represents it using
+an opaque struct internally.
+
+Imports include public method and constructor signatures and public interface
+conformance. Private method bodies and private conformance must not add imports.
+Aliases identify the declaration rather than creating a second native type.
+
+## Consumer responsibilities and current limits
+
+The reader restores field mutability, implicit receivers, method mutation,
+constructor effects and interface conformance. Existing scalar/text/record/handle
+crossings use the current format. Until complete native value storage and real
+constructor/method adapters are implemented, a record with private storage or a
+private constructor is unavailable to Luce. Its dependent declarations are also
+unavailable. It cannot silently become a public-field snapshot or acquire a
+memberwise constructor that bypasses native initialization.
+
+Default argument/field expressions are not yet transported (I03). Owned-object
+exports, borrowing metadata and lifetime adapters follow the
+[ownership contract](BASE-INTEROP.md) in I04–I07. Standard type import resolution
+is tracked in I09. Reading method/interface metadata alone does not complete
+their execution adapters.
+
+## Verification
+
+`tests/programs/describe_api/check.sh` checks constructors, static/nonmutating/
+mutating methods, interface requirements/conformance, private visibility, foreign
+types inside spans/tuples/optionals and explicit unavailable declarations. It also
+executes the described Base constructor/interface behavior at native opts 0–3.
+`describe_fields` checks record representation and mutability, and the conformance
+suite compares an exact module description.
+
+Luce's reader tests cover the format marker, constructor/method metadata and
+rejection of incomplete storage/private initialization. Its field/package tests
+check ordinary crossings, source relocation and linking with the matching Base
+compiler. Construction, ownership and callback execution remain separate gates.

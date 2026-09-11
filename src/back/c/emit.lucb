@@ -411,13 +411,17 @@ pub struct Emitter:
     func is_atomic(id: u32) -> bool:
         return self.kind(id) == types.Kind.atomic
 
-    ## An optional whose payload is a pointer is the pointer itself (§5.8).
+    ## A pointer-shaped value needs qualifiers after its own star. Opaque handles
+    ## and C strings are emitted as raw pointers even though their Base kinds differ.
+    func has_pointer_spelling(id: u32) -> bool:
+        return self.is_ptr(id) or self.is_nullable_ptr(id) or id == types.cstr_id or self.kind(id) == types.Kind.func_ or self.c.table.is_opaque_handle(id)
+
     ## `T*` to a span's elements: `const T*` for a `const T[]`, and `T* const*` when the
     ## elements are pointers themselves, since C puts the qualifier after their star (§5.3).
     mutating func put_element_pointer(span: u32) -> !:
         let elem = self.elem(span)
         let constant = self.c.table.get(span).is_const
-        let pointer_elements = self.is_ptr(elem) or self.is_nullable_ptr(elem) or self.kind(elem) == types.Kind.func_
+        let pointer_elements = self.has_pointer_spelling(elem)
         if constant and not pointer_elements:
             try self.put("const ")
         try self.put_type(elem)
@@ -528,14 +532,17 @@ pub struct Emitter:
                     return
                 # a qualifier on a pointee that is itself a pointer follows that pointer's
                 # star, as C writes `T* const*` for `const (T*)*` (§5.3)
-                let inner_is_pointer = self.is_ptr(t.elem) or self.is_nullable_ptr(t.elem)
+                let inner_is_pointer = self.has_pointer_spelling(t.elem)
                 if not inner_is_pointer:
                     if t.is_const:
                         try self.put("const ")
                     if t.is_volatile:
                         try self.put("volatile ")
                 if self.is_record(t.elem):
-                    try self.put("union " if self.kind(t.elem) == types.Kind.union_ else "struct ")
+                    let declaration = self.decl_of(t.elem) else error(backend, "a record has no declaration")
+                    # Extern types spell their scalar representation, with no C record tag.
+                    if declaration.kind != ast.Kind.extern_type:
+                        try self.put("union " if self.kind(t.elem) == types.Kind.union_ else "struct ")
                 try self.put_type(t.elem)
                 if inner_is_pointer:
                     if t.is_const:

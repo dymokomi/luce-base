@@ -1,160 +1,262 @@
-## `luce-base describe module.lucb` (§17.7): the module's public declarations, one per
-## line, for a tool that must know them without parsing Base. Functions, constants,
-## structs with their public fields, integer-backed enums with their cases, handles with
-## their destroyers, and aliases; types spelled as the specification spells them.
+## The public module description. This describes checked Base APIs;
+## a consumer decides which signatures it can import. Native representation and
+## public visibility are separate facts, so private fields are never reconstructed
+## from a list of public fields.
 import front.ast
 import io
 import sema.check
 import sema.types
+import support.list
 
 pub func write(out: io.Writer, checker: check.Checker*, tree: ast.Node*, name: str) -> !:
-    try out.write(f"module {name}\n")
-    # Describe only dependencies mentioned by public signatures. Module-qualified
-    # identities keep an imported handle the same type through every package.
-    let used = try alloc bool[checker.modules.count]
-    var zero: usize = 0
-    while zero < used.length:
-        used[zero] = false
-        zero += 1
-    var scan = tree.body
-    while let d = scan:
-        if d.has(ast.flag_pub):
-            mark_type(checker, tree, d.type_id, used)
-            var members = d.body
-            while let member = members:
-                if member.kind == ast.Kind.field and member.has(ast.flag_pub):
-                    mark_type(checker, tree, member.type_id, used)
-                members = member.next
-        scan = d.next
+    var writer = DescriptionWriter(out = out, checker = checker, tree = tree,
+                        used = try alloc bool[checker.modules.count],
+                        foreign_types = try list.List[u32].create(8))
     var i: usize = 0
-    while i < used.length:
-        if used[i]:
-            try out.write(f"import {checker.modules.get(i).name} as __base_{i}\n")
-            var declarations = checker.modules.get(i).tree.body
-            while let d = declarations:
-                if d.kind == ast.Kind.extern_type and d.has(ast.flag_pub) and d.right != none:
-                    try out.write(f"foreign __base_{i}.{d.text} handle\n")
-                declarations = d.next
+    while i < writer.used.length:
+        writer.used[i] = false
         i += 1
-    var cursor = tree.body
-    while let d = cursor:
-        # a generic declaration (its `left` holds the parameters) is Base's own
-        let generic = d.left != none and d.kind != ast.Kind.constant
-        if d.has(ast.flag_pub) and not generic:
-            try declaration(out, checker, tree, d)
-        cursor = d.next
+    try writer.module(name)
 
-func declaration(out: io.Writer, checker: check.Checker*, tree: ast.Node*, d: ast.Node*) -> !:
-    match d.kind:
-        .func_:
-            try out.write(f"func {d.text}(")
-            var first = true
-            var p = d.right
-            while let param = p:
-                if not first:
-                    try out.write(", ")
-                first = false
-                try out.write(f"{param.text}: ")
-                try describe_type(out, checker, tree, param.type_id)
-                p = param.next
-            try out.write(")")
-            let result = checker.table.get(d.type_id).elem
-            if result != types.unit_id:
-                try out.write(" -> ")
-                try describe_type(out, checker, tree, result)
-            try out.write("\n")
-        .constant:
-            try out.write(f"let {d.text}: ")
-            try describe_type(out, checker, tree, d.type_id)
-            try out.write("\n")
-        .struct_, .extern_struct:
-            try out.write(f"struct {d.text}\n")
-            var m = d.body
-            while let member = m:
-                if member.kind == ast.Kind.field and member.has(ast.flag_pub):
-                    try out.write(f"    field {member.text}: ")
-                    try describe_type(out, checker, tree, member.type_id)
-                    try out.write("\n")
-                    # Older readers ignore this additive record and retain a
-                    # conservative read-only view of an imported field.
-                    if not member.has(ast.flag_const):
-                        try out.write(f"    mutable {member.text}\n")
-                m = member.next
-        .enum_:
-            # an integer-backed enum crosses; one with payloads is Base's own
-            let backing = d.ty else return
-            try out.write(f"enum {d.text} as ")
-            try describe_type(out, checker, tree, backing.type_id)
-            try out.write("\n")
-            var m = d.body
-            while let member = m:
-                if member.kind == ast.Kind.enum_case:
-                    try out.write(f"    case {member.text} = {types.case_value(d, member)}\n")
-                m = member.next
-        .extern_type:
-            let destroy = d.right else return
-            try out.write(f"handle {d.text} destroy {destroy.text}\n")
-        .type_alias:
-            try out.write(f"type {d.text} = ")
-            try describe_type(out, checker, tree, d.type_id)
-            try out.write("\n")
-        _:
-            discard(0)
+struct DescriptionWriter:
+    var out: io.Writer
+    var checker: check.Checker*
+    var tree: ast.Node*
+    var used: bool[]
+    var foreign_types: list.List[u32]
 
-func foreign_module(checker: check.Checker*, tree: ast.Node*, id: u32) -> usize?:
-    let target_decl = checker.table.get(id).decl else return none
-    var i: usize = 0
-    while i < checker.modules.count:
-        let module = checker.modules.get(i)
-        if module.tree != tree:
-            var cursor = module.tree.body
-            while let d = cursor:
-                if d == target_decl:
-                    return i
-                cursor = d.next
-        i += 1
-    return none
+    mutating func module(name: str) -> !:
+        try self.out.write(f"description 2\nmodule {name}\n")
+        var cursor = self.tree.body
+        while let d = cursor:
+            if d.has(ast.flag_pub) and not generic(d):
+                try self.mark(d.type_id)
+                try self.mark_conformance(d)
+                var members = d.body
+                while let member = members:
+                    if visible_member(d, member) and not generic(member):
+                        try self.mark(member.type_id)
+                    members = member.next
+            cursor = d.next
+        var i: usize = 0
+        while i < self.used.length:
+            if self.used[i]:
+                let module = self.checker.modules.get(i)
+                let kind = "standard" if module.is_prelude else "import"
+                try self.out.write(f"{kind} {module.name} as __base_{i}\n")
+            i += 1
+        for id in self.foreign_types.span():
+            let t = self.checker.table.get(id)
+            let module = self.foreign_module(id) else continue
+            let decl = t.decl else continue
+            var kind = "opaque"
+            if decl.has(ast.flag_pub):
+                if decl.kind == ast.Kind.extern_type and decl.right != none:
+                    kind = "handle"
+                elif t.kind == types.Kind.struct_:
+                    kind = "struct"
+                elif t.kind == types.Kind.enum_ and decl.ty != none:
+                    kind = "enum"
+                elif t.kind == types.Kind.interface_:
+                    kind = "interface"
+            try self.out.write(f"foreign __base_{module}.{t.name} {kind}\n")
+        cursor = self.tree.body
+        while let d = cursor:
+            if d.has(ast.flag_pub):
+                try self.declaration(d)
+            cursor = d.next
 
-func mark_type(checker: check.Checker*, tree: ast.Node*, id: u32, used: bool[]):
-    if let module = foreign_module(checker, tree, id):
-        if not checker.modules.get(module).is_prelude:
-            used[module] = true
-    let t = checker.table.get(id)
-    if t.elem != 0:
-        mark_type(checker, tree, t.elem, used)
-    for argument in t.args:
-        mark_type(checker, tree, argument, used)
-
-## Diagnostics remain short; the machine-readable boundary additionally spells
-## public foreign types with their import alias. Private/prelude types stay opaque
-## to Luce until an explicit public boundary for them is provided.
-func describe_type(out: io.Writer, checker: check.Checker*, tree: ast.Node*, id: u32) -> !:
-    let t = checker.table.get(id)
-    if let module = foreign_module(checker, tree, id):
-        if t.args.length == 0:
-            try out.write(f"__base_{module}.{t.name}")
+    mutating func declaration(d: ast.Node*) -> !:
+        if generic(d):
+            try self.out.write(f"unavailable {d.text} generic\n")
             return
-    match t.kind:
-        .pointer, .span:
-            if t.is_const:
-                try out.write("const ")
-            if t.is_volatile:
-                try out.write("volatile ")
-            try describe_type(out, checker, tree, t.elem)
-            try out.write("*" if t.kind == types.Kind.pointer else "[]")
-        .optional, .fallible:
-            if t.elem != types.unit_id or t.kind == types.Kind.optional:
-                try describe_type(out, checker, tree, t.elem)
-            try out.write("?" if t.kind == types.Kind.optional else "!")
-        .func_:
-            try out.write("func(")
-            var i: usize = 0
-            while i < t.args.length:
-                if i > 0:
-                    try out.write(", ")
-                try describe_type(out, checker, tree, t.args[i])
-                i += 1
-            try out.write(") -> ")
-            try describe_type(out, checker, tree, t.elem)
-        _:
-            try checker.table.describe(out, id)
+        match d.kind:
+            .func_:
+                try self.signature(d, "func ")
+            .constant:
+                try self.out.write(f"let {d.text}: ")
+                try self.type_name(d.type_id)
+                try self.out.write("\n")
+            .struct_, .extern_struct:
+                try self.out.write(f"struct {d.text}\n")
+                var complete = true
+                var init: ast.Node*? = none
+                var cursor = d.body
+                while let member = cursor:
+                    if member.kind == ast.Kind.field and not member.has(ast.flag_pub):
+                        complete = false
+                    if member.kind == ast.Kind.func_ and member.text == "init":
+                        init = member
+                    cursor = member.next
+                try self.out.write("    representation complete\n" if complete else "    representation private\n")
+                if let initializer = init:
+                    if initializer.has(ast.flag_pub):
+                        try self.signature(initializer, "    constructor ")
+                    else:
+                        try self.out.write("    constructor private\n")
+                else:
+                    try self.out.write("    constructor memberwise\n")
+                try self.members(d)
+                try self.conformance(d)
+            .interface_:
+                try self.out.write(f"interface {d.text}\n")
+                try self.members(d)
+            .enum_:
+                if let backing = d.ty:
+                    try self.out.write(f"enum {d.text} as ")
+                    try self.type_name(backing.type_id)
+                    try self.out.write("\n")
+                    var cursor = d.body
+                    while let member = cursor:
+                        if member.kind == ast.Kind.enum_case:
+                            try self.out.write(f"    case {member.text} = {types.case_value(d, member)}\n")
+                        cursor = member.next
+                    try self.members(d)
+                    try self.conformance(d)
+                else:
+                    try self.out.write(f"unavailable {d.text} payload-enum\n")
+            .extern_type:
+                if let destroy = d.right:
+                    try self.out.write(f"handle {d.text} destroy {destroy.text}\n")
+                else:
+                    try self.out.write(f"unavailable {d.text} extern-type\n")
+            .type_alias:
+                try self.out.write(f"type {d.text} = ")
+                try self.type_name(d.type_id)
+                try self.out.write("\n")
+            .union_, .extern_union:
+                try self.out.write(f"unavailable {d.text} union\n")
+            _:
+                discard(0)
+
+    mutating func members(d: ast.Node*) -> !:
+        var cursor = d.body
+        while let member = cursor:
+            if visible_member(d, member):
+                if generic(member):
+                    try self.out.write(f"    unavailable {member.text} generic\n")
+                elif member.kind == ast.Kind.field:
+                    let mode = "let" if member.has(ast.flag_const) else "var"
+                    try self.out.write(f"    field {mode} {member.text}: ")
+                    try self.type_name(member.type_id)
+                    try self.out.write("\n")
+                elif member.kind == ast.Kind.func_ and member.text != "init":
+                    if member.has(ast.flag_static):
+                        try self.signature(member, "    static method ")
+                    elif member.has(ast.flag_mutating):
+                        try self.signature(member, "    mutating method ")
+                    else:
+                        try self.signature(member, "    method ")
+            cursor = member.next
+
+    mutating func signature(d: ast.Node*, prefix: str) -> !:
+        try self.out.write(f"{prefix}{d.text}(")
+        var first = true
+        var cursor = d.right
+        while let param = cursor:
+            if not first:
+                try self.out.write(", ")
+            first = false
+            try self.out.write(f"{param.text}: ")
+            try self.type_name(param.type_id)
+            cursor = param.next
+        try self.out.write(")")
+        let result = self.checker.table.get(d.type_id).elem
+        if result != types.unit_id:
+            try self.out.write(" -> ")
+            try self.type_name(result)
+        try self.out.write("\n")
+
+    mutating func conformance(d: ast.Node*) -> !:
+        var cursor = d.right if d.kind == ast.Kind.enum_ else d.ty
+        while let iface = cursor:
+            let decl = self.checker.table.get(iface.type_id).decl
+            if let target = decl:
+                if target.has(ast.flag_pub):
+                    try self.out.write("    conforms ")
+                    try self.type_name(iface.type_id)
+                    try self.out.write("\n")
+            cursor = iface.next
+
+    mutating func mark_conformance(d: ast.Node*) -> !:
+        if d.kind != ast.Kind.struct_ and d.kind != ast.Kind.enum_:
+            return
+        var cursor = d.right if d.kind == ast.Kind.enum_ else d.ty
+        while let iface = cursor:
+            if let target = self.checker.table.get(iface.type_id).decl:
+                if target.has(ast.flag_pub):
+                    try self.mark(iface.type_id)
+            cursor = iface.next
+
+    func foreign_module(id: u32) -> usize?:
+        let decl = self.checker.table.get(id).decl else return none
+        var i: usize = 0
+        while i < self.checker.modules.count:
+            let module = self.checker.modules.get(i)
+            if module.tree != self.tree:
+                var cursor = module.tree.body
+                while let d = cursor:
+                    if d == decl:
+                        return i
+                    cursor = d.next
+            i += 1
+        return none
+
+    mutating func mark(id: u32) -> !:
+        if let module = self.foreign_module(id):
+            self.used[module] = true
+            var found = false
+            for known in self.foreign_types.span():
+                found = found or known == id
+            if not found:
+                try self.foreign_types.push(id)
+        let t = self.checker.table.get(id)
+        if t.elem != 0:
+            try self.mark(t.elem)
+        for arg in t.args:
+            try self.mark(arg)
+
+    mutating func type_name(id: u32) -> !:
+        let t = self.checker.table.get(id)
+        if let module = self.foreign_module(id):
+            if t.args.length == 0:
+                try self.out.write(f"__base_{module}.{t.name}")
+                return
+        match t.kind:
+            .pointer, .span:
+                if t.is_const:
+                    try self.out.write("const ")
+                if t.is_volatile:
+                    try self.out.write("volatile ")
+                try self.type_name(t.elem)
+                try self.out.write("*" if t.kind == types.Kind.pointer else "[]")
+            .array:
+                try self.type_name(t.elem)
+                try self.out.write(f"[{t.length}]")
+            .optional, .fallible:
+                if t.elem != types.unit_id or t.kind == types.Kind.optional:
+                    try self.type_name(t.elem)
+                try self.out.write("?" if t.kind == types.Kind.optional else "!")
+            .atomic:
+                try self.out.write("@")
+                try self.type_name(t.elem)
+            .tuple, .func_:
+                try self.out.write("func(" if t.kind == types.Kind.func_ else "(")
+                var i: usize = 0
+                while i < t.args.length:
+                    if i > 0:
+                        try self.out.write(", ")
+                    try self.type_name(t.args[i])
+                    i += 1
+                try self.out.write(")")
+                if t.kind == types.Kind.func_:
+                    try self.out.write(" -> ")
+                    try self.type_name(t.elem)
+            _:
+                try self.checker.table.describe(self.out, id)
+
+func generic(d: ast.Node*) -> bool:
+    return d.left != none and (d.kind == ast.Kind.func_ or d.kind == ast.Kind.struct_ or d.kind == ast.Kind.enum_ or d.kind == ast.Kind.interface_)
+
+func visible_member(owner: ast.Node*, member: ast.Node*) -> bool:
+    return (member.kind == ast.Kind.field or member.kind == ast.Kind.func_) and (owner.kind == ast.Kind.interface_ or member.has(ast.flag_pub))

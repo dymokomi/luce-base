@@ -1,0 +1,17 @@
+import api
+
+pub func main(arguments: str[]) -> i32!:
+    var counter = try api.Counter(4)
+    let gauge: api.Gauge = &counter
+    try gauge.increase(3)
+    assert(gauge.value() == 7)
+    let fresh = try api.Counter.zero()
+    assert(fresh.value() == 0)
+    let mode = api.Mode.on
+    assert(mode.name() == "on")
+    let invalid = api.Counter(-1) catch failure:
+        assert(failure.code == api.invalid)
+        print("constructor failure preserved")
+        return 0
+    discard(invalid)
+    return 1

@@ -1,8 +1,8 @@
 # Documentation
 
 - [Language](language/base.md) — Luce Base, the language this compiler
-  implements and is written in. A copy of the seed's document; the two are
-  kept identical.
+  implements and is written in, including this compiler's tooling contracts.
+  The seed implements the same language; Base's package tooling evolves here.
 - [Design](DESIGN.md) — the shape of the compiler.
 - [Status](STATUS.md) — the one current matrix of what is verified, limited,
   planned, or excluded.
@@ -11,6 +11,8 @@
   checklist, with completion evidence and a [file-level scope](PACKAGE-REWRITE.md).
 - [Base interop contract](BASE-INTEROP.md) — ownership and lifetime rules for the
   package rewrite; implementation progress is tracked in the TODO list.
+- [Package descriptions](PACKAGE-DESCRIPTION.md) — the current compiler-to-compiler
+  API format, its records and executable adapter limits.
 - [Debugging](DEBUGGING.md) — native source debugging.
 - [CI](CI.md) — the hosted gate.
 - [Library](LIBRARY.md) — the standard library's public surface, generated

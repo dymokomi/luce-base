@@ -1,0 +1,66 @@
+## Handle slots are pointers to pointer-shaped values. Const protects the slot;
+## reading it still produces the original handle, with its original payload type.
+# oracle: none
+import c
+
+pub handle Item:
+    destroy release
+
+struct Payload:
+    var number: i64
+
+# The fixture borrows stack payloads; its handles never own their storage.
+pub func release(item: Item):
+    discard(item)
+
+func value(item: Item) -> i64:
+    return ((Payload*)(void*)item).number
+
+func total(items: const Item[]) -> i64:
+    var sum: i64 = 0
+    for item in items:
+        sum += value(item)
+    return sum
+
+func replace(slot: Item*, item: Item):
+    *slot = item
+
+func read(slot: const Item*) -> Item:
+    return *slot
+
+func present(items: const (Item?)[]) -> i64:
+    var sum: i64 = 0
+    for entry in items:
+        if let item = entry:
+            sum += value(item)
+    return sum
+
+extern func strlen(text: c.str) -> usize
+
+pub func main(arguments: str[]) -> i32:
+    var first = Payload(17)
+    var second = Payload(25)
+    let a = (Item)(void*)&first
+    let b = (Item)(void*)&second
+    var slots: Item[2] = [a, b]
+    assert(total(slots) == 42)
+    replace(&slots[0], b)
+    assert(total(slots) == 50 and value(read(&slots[0])) == 25)
+    let fixed: const Item* = &slots[0]
+    let indirect: const (const Item*)* = &fixed
+    assert(value(**indirect) == 25)
+    var optional: Item? = a
+    let maybe: const (Item?)* = &optional
+    let unwrapped = *maybe else return 1
+    assert(value(unwrapped) == 17)
+    let entries: (Item?)[3] = [none, a, b]
+    assert(present(entries) == 42)
+    let strings: c.str[2] = ["one", "four"]
+    let texts: const c.str[] = strings
+    var count: usize = 0
+    for text in texts:
+        count += strlen(text)
+    let text_slot: const c.str* = &strings[0]
+    assert(count == 7 and strlen(*text_slot) == 3)
+    print("handle slots and const spans")
+    return 0
