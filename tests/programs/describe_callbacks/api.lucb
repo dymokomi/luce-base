@@ -1,0 +1,17 @@
+import interop
+
+pub type Handler = interop.Callback[str, unit]
+
+pub func echo(handler: Handler) -> Handler:
+    return handler.clone()
+
+pub func answer(callback: interop.Callback[(str, i64?), str]) -> str:
+    discard(callback)
+    return ""
+
+pub func ready(callback: interop.Callback[unit, unit]):
+    let result = callback.invoke(())
+    result.release()
+
+pub func connection(value: interop.Reference[interop.Connection]) -> bool:
+    return value.value().is_connected()

@@ -2,7 +2,7 @@
 
 `luce-base describe module.lucb` checks a Base module and writes its public API.
 Luce consumes this description without parsing Base source. There is one current
-format, identified by the first line `description 7`. Both compilers change
+format, identified by the first line `description 8`. Both compilers change
 together; no older reader, alternate format flag or compatibility fallback exists.
 
 The producer is `src/sema/describe.lucb`. The consumer is
@@ -18,7 +18,7 @@ that a struct's representation/constructor records precede its other members and
 conformances follow them. No function body or private field is emitted.
 
 ```text
-description 7
+description 8
 module example
 interface CounterView
     method value() -> i64
@@ -41,8 +41,9 @@ struct Point
 
 | Record | Meaning |
 | --- | --- |
-| `description 7` | Required current format marker; Luce rejects a mismatch before importing declarations |
-| `module name` | Entry module's filename stem; the consumer supplies its resolved package/module identity |
+| `description 8` | Required current format marker; Luce rejects a mismatch before importing declarations |
+| `callback[A, R]` | Canonical `interop.Callback[A, R]`; a retained Luce function with owned success/error results |
+| `module name` | Canonical dotted module name under its owning package source root |
 | `import module as alias` | Nonstandard dependency mentioned by a public signature or conformance |
 | `standard module as alias` | Embedded standard-module dependency; distinct from a package source import |
 | `foreign alias.Type kind` | Referenced foreign nominal type; kind is `struct`, `object`, `view`, `enum`, `interface`, `handle` or `opaque` |

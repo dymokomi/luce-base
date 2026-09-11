@@ -1,0 +1,153 @@
+struct Subscription[A]:
+    let identifier: u64
+    let callback: Callback[A, unit]
+    var next: Subscription[A]*?
+
+struct Delivery[A]:
+    let identifier: u64
+    let callback: Callback[A, unit]
+
+struct SignalState[A]:
+    var header: ownership.Object
+    var information: ownership.Info
+    var allocator: memory.Allocator
+    var first: Subscription[A]*?
+    var last: Subscription[A]*?
+    var serial: u64
+    var count: usize
+    var closed: bool
+
+    static func contains(object: ownership.Object*, identifier: u64) -> bool:
+        let state = (SignalState[A]*)object
+        var cursor = state.first
+        while let entry = cursor:
+            if entry.identifier == identifier:
+                return true
+            cursor = entry.next
+        return false
+
+    static func remove(object: ownership.Object*, identifier: u64):
+        let state = (SignalState[A]*)object
+        var previous: Subscription[A]*? = none
+        var cursor = state.first
+        while let entry = cursor:
+            if entry.identifier == identifier:
+                if let before = previous:
+                    before.next = entry.next
+                else:
+                    state.first = entry.next
+                if state.last == entry:
+                    state.last = previous
+                state.count -= 1
+                # Detach before releasing: callback destruction can reenter us.
+                entry.callback.release()
+                free(entry) in state.allocator
+                return
+            previous = entry
+            cursor = entry.next
+
+    static func close(object: ownership.Object*):
+        let state = (SignalState[A]*)object
+        state.closed = true
+        var cursor = state.first
+        state.first = none
+        state.last = none
+        state.count = 0
+        while let entry = cursor:
+            cursor = entry.next
+            entry.callback.release()
+            free(entry) in state.allocator
+
+    static func trace(object: ownership.Object*, visit: func(ownership.Object*, void*) -> unit, context: void*):
+        var cursor = ((SignalState[A]*)object).first
+        while let entry = cursor:
+            entry.callback.trace(visit, context)
+            cursor = entry.next
+
+## Ordered, thread-bound delivery. Base copies borrow this carrier; clone/release
+## manage ownership. Package owners close their signal before releasing it.
+pub struct Signal[A]:
+    let state: SignalState[A]*
+
+    ## A custom allocator must outlive the signal and its connection aliases.
+    pub func init(allocator: memory.Allocator? = none) -> !:
+        let selected = allocator else memory.heap
+        var information = ownership.Info(name = "signal", size = sizeof(SignalState[A]),
+            finish = none, drop = SignalState[A].close, trace = SignalState[A].trace)
+        let state = (SignalState[A]*)try ownership.reserve(&information, sizeof(SignalState[A]), selected)
+        state.information = information
+        state.header.info = &state.information
+        state.allocator = selected
+        self.state = state
+
+    pub func clone() -> Signal[A]:
+        discard(ownership.retain(&self.state.header))
+        return self
+
+    pub func release():
+        ownership.release(&self.state.header)
+
+    pub func close():
+        ownership.check_alive(&self.state.header)
+        SignalState[A].close(&self.state.header)
+
+    pub func is_closed() -> bool:
+        ownership.check_alive(&self.state.header)
+        return self.state.closed
+
+    pub func trace(visit: func(ownership.Object*, void*) -> unit, context: void*):
+        ownership.check_thread(&self.state.header)
+        visit(&self.state.header, context)
+
+    pub func connect(callback: Callback[A, unit]) -> Reference[Connection]!:
+        ownership.check_alive(&self.state.header)
+        ownership.check_alive(callback.owner)
+        if self.state.closed:
+            error(invalid, "a signal is closed")
+        let identifier = self.state.serial +? 1 else error(invalid, "signal registration identities exhausted")
+        var reservation = try Reservation[Connection](connection_type)
+        errdefer reservation.cancel()
+        let token = reservation.publish(try new Connection(&self.state.header, identifier,
+            SignalState[A].remove, SignalState[A].contains) in self.state.allocator, self.state.allocator)
+        errdefer token.release()
+        let allocation = try alloc(sizeof(Subscription[A]), alignof(Subscription[A])) in self.state.allocator
+        let entry = (Subscription[A]*)allocation.data
+        *entry = Subscription[A](identifier, callback.clone(), none)
+        self.state.serial = identifier
+        self.state.count += 1
+        if let last = self.state.last:
+            last.next = entry
+        else:
+            self.state.first = entry
+        self.state.last = entry
+        return token
+
+    pub func emit(argument: A) -> Outcome[unit]:
+        discard(ownership.retain(&self.state.header))
+        defer ownership.release(&self.state.header)
+        if self.state.closed:
+            return Outcome[unit].failure(invalid, Owned[str]("a signal is closed"))
+        if self.state.count == 0:
+            return Outcome[unit].success(Owned[unit](()))
+        let snapshot = alloc Delivery[A][self.state.count] in self.state.allocator catch failure:
+            return failed_outcome[unit](failure.code, failure.message)
+        defer free(snapshot) in self.state.allocator
+        var cursor = self.state.first
+        var count: usize = 0
+        while let entry = cursor:
+            snapshot[count] = Delivery[A](entry.identifier, entry.callback.clone())
+            count += 1
+            cursor = entry.next
+        defer release_deliveries[A](snapshot)
+        for delivery in snapshot:
+            if not SignalState[A].contains(&self.state.header, delivery.identifier):
+                continue
+            let result = delivery.callback.invoke(argument)
+            if not result.is_success():
+                return result
+            result.release()
+        return Outcome[unit].success(Owned[unit](()))
+
+func release_deliveries[A](deliveries: const Delivery[A][]):
+    for delivery in deliveries:
+        delivery.callback.release()

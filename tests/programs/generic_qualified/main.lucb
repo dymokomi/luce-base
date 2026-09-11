@@ -1,0 +1,22 @@
+struct Box[T]:
+    var value: T
+
+func identity[T](value: T) -> T:
+    return value
+
+func double(value: i64) -> i64:
+    return value * 2
+
+func length(value: Box[const u8[]]) -> usize:
+    return value.value.length
+
+pub func main(arguments: str[]) -> i32:
+    let bytes: const u8[] = "payload".bytes
+    let box = Box[const u8[]](bytes)
+    assert(length(box) == 7)
+    assert(identity[const u8[]](bytes).length == 7)
+    let callback = Box[func(i64) -> i64](double)
+    assert(callback.value(21) == 42)
+    let fn = identity[func(i64) -> i64](double)
+    assert(fn(5) == 10)
+    return 0

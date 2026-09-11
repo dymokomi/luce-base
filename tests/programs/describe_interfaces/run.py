@@ -7,7 +7,7 @@ import tempfile
 compiler = Path(sys.argv[1]).resolve()
 source = Path(__file__).with_name('api.lucb')
 text = subprocess.run([compiler, 'describe', source], check=True, capture_output=True, text=True).stdout
-for record in ['description 7\n', 'method title() -> owned_value[str]',
+for record in ['description 8\n', 'method title() -> owned_value[str]',
                'mutating method tick() -> outcome[unit]', 'type Alias = Widget',
                'func echo(value: interface[Widget]) -> interface[Widget]',
                'func raw(value: unowned_interface[Widget]) -> unowned_interface[Widget]']:

@@ -5,7 +5,7 @@ Updated: 2026-09-11. This is the working checklist for the ecosystem rewrite.
 constraints and acceptance criteria. Follow the phases below in order.
 
 **Status:** section 1 complete; section 2 callback/worker implementation in progress.
-**Next task:** C02–C05.
+**Next task:** C03–C05.
 
 ## How we track work
 
@@ -110,7 +110,7 @@ backlog. BC05 is a naming simplification, not proven old-version support.
   reentrancy and error propagation for handlers and signals.
   Contract: [CALLBACKS-WORKERS.md](CALLBACKS-WORKERS.md). Execution proofs remain
   C02–C05; this definition alone does not complete those tasks.
-- [ ] C02 — Implement callback/interface adapters with tests for removal during
+- [x] C02 — Implement callback/interface adapters with tests for removal during
   delivery, callback failure and attempted escape of borrowed request/frame data.
 - [ ] C03 — Implement runtime-aware worker dispatch with per-worker application
   state and enforced Luce transfer rules; keep thread/runtime setup in the library
@@ -292,6 +292,8 @@ Vulkan implementation remain later work, as specified in the scope document.
 | I11 | Luce `73c4ae6` plus diagnostic fix `bbc1c09`, pinned to Base `67081ec`. Full ARM64 macOS gate passed (`luce/build/section-one-full-gate.log`): compiler unit checks in native/C, all boundary/package/cleanup/worker matrices, 69 programs, 138 rejections, 85 parsed, formatting, and fuzzing (60 mutations / six generated programs, zero findings). The real Base/interface library is exercised from both Base and Luce at native opts 0–3 and both C modes, including private storage, defaults, identity, bound methods, failures, destruction and rejected crossings. No Linux-host run is claimed. |
 
 | C01 | Contract committed as Base `2825c4d`: capture retention, guards, checked-view escape, traceable cycles, ordered snapshots, disconnect/close during emission and owned callback failures. Implementation evidence remains C02–C05. |
+
+| C02 | Base implementation and checklist committed together; matching Luce adapters follow with the exact pin. `interop_callbacks` passes native opts 0–3 and both C modes: retained/bound handlers, reentrant ordered signals, additions/removals/close during delivery, callback failures, registration/snapshot allocation failure, automatic disconnection, mixed cycles and wrong-thread rejection. `test_base_callbacks.py` passes six modes for captured and bound Luce handlers, native callbacks, text/bytes/tuple results, dynamic errors handled by Base, checked-frame escape, reentrant managed delivery and zero live owners. Interface, public-import and native-value regression matrices pass six modes; reader tests pass native/C. Qualified generic span/function arguments have a dedicated six-mode parser regression. Native bootstrap reproduces assembly; standard sources, reference and both snapshots refreshed. ARM64 macOS execution only. |
 
 For implementation entries, record repository, commit, test commands/results,
 native target/optimization coverage and any remaining limit relevant to the task.

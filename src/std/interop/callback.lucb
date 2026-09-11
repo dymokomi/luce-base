@@ -1,0 +1,87 @@
+## A retained callable. Copying this carrier borrows; cloning acquires an edge.
+## Managed closures use their existing owner, so captures remain visible to ARC.
+pub struct Callback[A, R]:
+    pub let owner: ownership.Object*
+    ## Adapter identity. Call through invoke to retain the owner and check affinity.
+    pub let entry: func(ownership.Object*, A) -> Outcome[R]
+    let context: u64
+
+    pub func init(owner: ownership.Object*, entry: func(ownership.Object*, A) -> Outcome[R]):
+        ownership.check_alive(owner)
+        self.owner = owner
+        self.entry = entry
+        self.context = ownership.context_id()
+
+    func require_thread():
+        if self.context != ownership.context_id():
+            trap("a callback belongs to another runtime thread")
+
+    pub func clone() -> Callback[A, R]:
+        self.require_thread()
+        discard(ownership.retain(self.owner))
+        return self
+
+    pub func release():
+        self.require_thread()
+        ownership.release(self.owner)
+
+    pub func invoke(argument: A) -> Outcome[R]:
+        self.require_thread()
+        discard(ownership.retain(self.owner))
+        defer ownership.release(self.owner)
+        return self.entry(self.owner, argument)
+
+    pub func trace(visit: func(ownership.Object*, void*) -> unit, context: void*):
+        self.require_thread()
+        ownership.check_thread(self.owner)
+        visit(self.owner, context)
+
+    ## Native methods receive stable storage under the source owner's call guard.
+    pub static func bind[T](source: Reference[T], method: func(const T*, A) -> Outcome[R]) -> Callback[A, R]!:
+        return try BoundCallback[T, A, R].make(source, none, method)
+
+    pub static func bind_mutating[T](source: Reference[T], method: func(T*, A) -> Outcome[R]) -> Callback[A, R]!:
+        return try BoundCallback[T, A, R].make(source, method, none)
+
+struct BoundCallback[T, A, R]:
+    var header: ownership.Object
+    var information: ownership.Info
+    var source: Reference[T]
+    var method: (func(T*, A) -> Outcome[R])?
+    var read: (func(const T*, A) -> Outcome[R])?
+
+    static func make(source: Reference[T], method: (func(T*, A) -> Outcome[R])?,
+                     read: (func(const T*, A) -> Outcome[R])?) -> Callback[A, R]!:
+        discard(try source.get())
+        var information = ownership.Info(name = "bound native callback", size = sizeof(BoundCallback[T, A, R]),
+            finish = none, drop = BoundCallback[T, A, R].drop, trace = BoundCallback[T, A, R].trace)
+        let bound = (BoundCallback[T, A, R]*)try ownership.reserve(&information, sizeof(BoundCallback[T, A, R]))
+        bound.information = information
+        bound.header.info = &bound.information
+        bound.source = source.clone()
+        bound.method = method
+        bound.read = read
+        return Callback[A, R](&bound.header, BoundCallback[T, A, R].invoke)
+
+    static func invoke(object: ownership.Object*, argument: A) -> Outcome[R]:
+        let bound = (BoundCallback[T, A, R]*)object
+        let native = bound.source.get() catch failure:
+            return failed_outcome[R](failure.code, failure.message)
+        bound.source.enter()
+        defer bound.source.leave()
+        if let method = bound.method:
+            return method(native, argument)
+        return (bound.read else trap("a callback binding has no method"))(native, argument)
+
+    static func drop(object: ownership.Object*):
+        ((BoundCallback[T, A, R]*)object).source.release()
+
+    static func trace(object: ownership.Object*, visit: func(ownership.Object*, void*) -> unit, context: void*):
+        ((BoundCallback[T, A, R]*)object).source.trace(visit, context)
+
+## Error views may borrow a closing source. Copy before releasing that source;
+## allocation failure itself has a static message and needs no further allocation.
+func failed_outcome[T](code: ErrorCode, message: str) -> Outcome[T]:
+    let owned = copy_text(message) catch failure:
+        return Outcome[T].failure(memory.exhausted, Owned[str]("out of memory copying a callback failure"))
+    return Outcome[T].failure(code, owned)

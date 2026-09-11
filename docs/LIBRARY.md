@@ -527,6 +527,42 @@ A callback's success value or failure text, each with an explicit owner. A Base 
 
 - `func copy_text(value: str) -> Owned[str]!` — Own a copy of text from a temporary buffer or a native error before it expires.
 
+### `Callback` (struct[A, R])
+
+A retained callable. Copying this carrier borrows; cloning acquires an edge. Managed closures use their existing owner, so captures remain visible to ARC.
+
+- `let owner: ownership.Object*`
+- `let entry: func(ownership.Object*, A) -> Outcome[R]` — Adapter identity. Call through invoke to retain the owner and check affinity.
+- `func init(owner: ownership.Object*, entry: func(ownership.Object*, A) -> Outcome[R])`
+- `func clone() -> Callback[A, R]`
+- `func release()`
+- `func invoke(argument: A) -> Outcome[R]`
+- `func trace(visit: func(ownership.Object*, void*) -> unit, context: void*)`
+- `static func bind[T](source: Reference[T], method: func(const T*, A) -> Outcome[R]) -> Callback[A, R]!` — Native methods receive stable storage under the source owner's call guard.
+- `static func bind_mutating[T](source: Reference[T], method: func(T*, A) -> Outcome[R]) -> Callback[A, R]!`
+
+### `Connection` (struct)
+
+Owning registration token. Dropping its last reference disconnects; explicit disconnection remains queryable and releases its signal-state edge immediately.
+
+- `mutating func disconnect()`
+- `func is_connected() -> bool`
+
+- `let connection_type: Type[Connection] = Type[Connection](name = "Connection",`
+
+### `Signal` (struct[A])
+
+Ordered, thread-bound delivery. Base copies borrow this carrier; clone/release manage ownership. Package owners close their signal before releasing it.
+
+- `func init(allocator: memory.Allocator? = none) -> !` — A custom allocator must outlive the signal and its connection aliases.
+- `func clone() -> Signal[A]`
+- `func release()`
+- `func close()`
+- `func is_closed() -> bool`
+- `func trace(visit: func(ownership.Object*, void*) -> unit, context: void*)`
+- `func connect(callback: Callback[A, unit]) -> Reference[Connection]!`
+- `func emit(argument: A) -> Outcome[unit]`
+
 ## `utf8`
 
 Strict UTF-8 scalar encoding and decoding, following RFC 3629 sections 3–4. https://www.rfc-editor.org/rfc/rfc3629.html These allocation-free operations accept raw bytes and do not replace invalid input, normalize text, strip a BOM, or apply locale rules. Noncharacters and unassigned scalar values are valid; surrogate values are not. Storage is borrowed.

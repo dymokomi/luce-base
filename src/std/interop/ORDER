@@ -6,3 +6,6 @@ lease.lucb
 view.lucb
 interface.lucb
 result.lucb
+callback.lucb
+connection.lucb
+signal.lucb

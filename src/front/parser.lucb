@@ -1348,6 +1348,12 @@ pub struct Parser:
                     depth -= 1
             i += 1
         let first = self.peek(1)
+        if first.kind == token.Kind.keyword:
+            let word = self.text_of(first)
+            if word == "const" or word == "volatile" or word == "func":
+                return self.peek_op(i, "(") or self.peek_op(i, ".")
+        if first.kind == token.Kind.operator and self.text_of(first) == "@":
+            return self.peek_op(i, "(") or self.peek_op(i, ".")
         if first.kind == token.Kind.operator and self.text_of(first) == "(" and self.tuple_type_at(2):
             # `first[(i64, str)](...)`: a tuple as a type argument (§13)
             return self.peek_op(i, "(") or self.peek_op(i, ".")
@@ -1761,7 +1767,12 @@ pub struct Parser:
             return false    # `Box[(i64, str)]`: a tuple type argument, not `T[(n)]`
         if self.bracket_holds_expression():
             return true
-        if t.kind == token.Kind.integer or t.kind == token.Kind.keyword:
+        if t.kind == token.Kind.keyword:
+            let word = self.text_of(t)
+            # Qualifiers and function signatures start type arguments, never
+            # array lengths: `Callback[const u8[], unit]` must reach parse_type.
+            return word != "const" and word != "volatile" and word != "func"
+        if t.kind == token.Kind.integer:
             return true
         if t.kind == token.Kind.operator and self.text_of(t) == "(":
             return true

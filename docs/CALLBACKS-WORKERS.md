@@ -50,7 +50,8 @@ Each emission takes its own retained snapshot in registration order:
   The active invocation finishes, then releases its temporary references.
 
 Allocation failure during connection or snapshot creation leaves the previous
-registrations unchanged. Native storage retains its allocator, and every callback
+registrations unchanged. Signal storage records its allocator, which must outlive all signal aliases and
+collector-buffered allocations; the default is the process heap. Every callback
 edge is traced. Mixed cycles involving a native signal, a managed closure and a
 connection participate in the shared collector; explicit disconnect is useful but
 is not required to rescue an otherwise unreachable cycle.

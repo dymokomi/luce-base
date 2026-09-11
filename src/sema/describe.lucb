@@ -27,7 +27,7 @@ struct DescriptionWriter:
     var foreign_types: list.List[u32]
 
     mutating func module(name: str) -> !:
-        try self.out.write(f"description 7\nmodule {name}\n")
+        try self.out.write(f"description 8\nmodule {name}\n")
         var cursor = self.tree.body
         while let d = cursor:
             if d.has(ast.flag_pub) and not generic(d):
@@ -301,6 +301,13 @@ struct DescriptionWriter:
 
     mutating func type_name(id: u32, nominal: bool = false) -> !:
         let carrier = self.checker.table.get(id)
+        if carrier.args.length == 2 and interop.standard(self.checker, id, "Callback"):
+            try self.out.write("callback[")
+            try self.type_name(carrier.args[0])
+            try self.out.write(", ")
+            try self.type_name(carrier.args[1])
+            try self.out.write("]")
+            return
         if carrier.args.length == 1:
             let iface = interop.standard(self.checker, id, "Interface")
             let owned = interop.standard(self.checker, id, "Owned")

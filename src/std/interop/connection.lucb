@@ -1,0 +1,38 @@
+## Owning registration token. Dropping its last reference disconnects; explicit
+## disconnection remains queryable and releases its signal-state edge immediately.
+pub struct Connection:
+    var state: ownership.Object*?
+    let identifier: u64
+    let remove: func(ownership.Object*, u64) -> unit
+    let contains: func(ownership.Object*, u64) -> bool
+
+    func init(state: ownership.Object*, identifier: u64,
+              remove: func(ownership.Object*, u64) -> unit,
+              contains: func(ownership.Object*, u64) -> bool):
+        self.state = state
+        self.identifier = identifier
+        self.remove = remove
+        self.contains = contains
+        discard(ownership.retain(state))
+
+    pub mutating func disconnect():
+        let state = self.state else return
+        self.state = none
+        self.remove(state, self.identifier)
+        ownership.release(state)
+
+    pub func is_connected() -> bool:
+        let state = self.state else return false
+        ownership.check_alive(state)
+        return self.contains(state, self.identifier)
+
+    mutating func destroy():
+        self.disconnect()
+
+    func trace(visit: func(ownership.Object*, void*) -> unit, context: void*):
+        if let state = self.state:
+            ownership.check_thread(state)
+            visit(state, context)
+
+pub let connection_type: Type[Connection] = Type[Connection](name = "Connection",
+    dispose = Connection.destroy, trace = Connection.trace)

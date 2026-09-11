@@ -36,7 +36,7 @@ with tempfile.TemporaryDirectory(prefix='base-public-exports-') as temporary:
     assert b'alias\0controls\0luce_ui.ui\0' in dependencies, dependencies
     description = run(compiler, 'describe', library).stdout
     assert b'module luce_ui.ui\n' in description, description
-    assert run(compiler, 'describe', '--standard', 'math').stdout.startswith(b'description 7\nmodule math\n')
+    assert run(compiler, 'describe', '--standard', 'math').stdout.startswith(b'description 8\nmodule math\n')
     assert b'unknown standard' in run(compiler, 'describe', '--standard', 'missing', expected=1).stderr
     manifest.write_text(manifest.read_text().replace('luce_ui =', 'wrong ='))
     assert b'match its package name' in run(compiler, 'check', entry, expected=1).stderr

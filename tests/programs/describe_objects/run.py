@@ -10,7 +10,7 @@ compiler = Path(sys.argv[1]).resolve()
 source = Path(__file__).with_name('api.lucb')
 result = subprocess.run([compiler, 'describe', source], capture_output=True, text=True, check=True)
 text = result.stdout
-assert text.startswith('description 7\n'), text
+assert text.startswith('description 8\n'), text
 assert 'object Counter descriptor counter_type close close\n' in text, text
 assert 'constructor init(count: i64 = default)' in text, text
 assert 'type Count = owned[Counter]\n' in text, text
