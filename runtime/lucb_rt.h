@@ -25,12 +25,6 @@
 #define LB_NORETURN
 #endif
 
-/* The code of `memory.exhausted` (base.md §11.7): the standard modules' identity `luce`
-   above 1, the number `check.exhausted_code()` computes; a compiler built from an older
-   snapshot still names this macro. */
-#define LB_MEMORY_EXHAUSTED 208273409ull
-
-
 /* A declaration bound to a symbol by name: `int f(void) LB_SYMBOL("f")` reaches C's `f`
    whatever the declaration is called, so a binding never clashes with a system prototype. */
 #define LB_STR2(x) #x
@@ -303,11 +297,3 @@ int lb_qsub_s(int64_t a, int64_t b, int bits, int64_t* out);
 int lb_qsub_u(uint64_t a, uint64_t b, int bits, uint64_t* out);
 int lb_qmul_s(int64_t a, int64_t b, int bits, int64_t* out);
 int lb_qmul_u(uint64_t a, uint64_t b, int bits, uint64_t* out);
-
-/* Compatibility with the scalar-core helpers. */
-int64_t lb_add_i64(int64_t a, int64_t b);
-int64_t lb_sub_i64(int64_t a, int64_t b);
-int64_t lb_mul_i64(int64_t a, int64_t b);
-int64_t lb_div_i64(int64_t a, int64_t b);
-int64_t lb_mod_i64(int64_t a, int64_t b);
-int64_t lb_neg_i64(int64_t a);

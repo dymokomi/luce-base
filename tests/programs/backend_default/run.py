@@ -30,7 +30,7 @@ with tempfile.TemporaryDirectory(prefix="base-native-default-") as tmp:
         return result
 
     exe = work / "program"
-    for flags in [[], ["--release"], ["--native"], ["--backend=native"]]:
+    for flags in [[], ["--release"], ["--native"]]:
         run(compiler, "build", source, *flags, "-o", exe)
         assert run(exe).stdout == b"42\n"
     assert b"1 passed" in run(compiler, "test", source).stdout
@@ -54,4 +54,6 @@ with tempfile.TemporaryDirectory(prefix="base-native-default-") as tmp:
         run(compiler, "build", source, *flags, "-o", output)
         assert marker in output.read_bytes()
     run(compiler, "build", source, "--backend=missing", expected=2)
+    for command in ("build", "test"):
+        run(compiler, command, source, "--backend=native", expected=2)
 print("ok native defaults: executable, release, tests, archive, DWARF and explicit C comparison")

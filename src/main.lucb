@@ -917,7 +917,7 @@ pub func main(arguments: c.str[]) -> i32!:
                 opt_count = u32(literals.decode_integer((str)arguments[i + 1]) catch failure:
                     recover 0)
                 i += 1
-            elif a == "--native" or a == "--backend=native":
+            elif a == "--native":
                 options.native = true
             elif a == "--backend=c":
                 options.native = false
@@ -962,7 +962,7 @@ pub func main(arguments: c.str[]) -> i32!:
             try io.stderr().write(f"luce-base: {failure.message}\n")
             return 1
         return 0
-    if command == "test" and (positional == 3 or (positional == 4 and (has_argument(arguments, "--native") or has_argument(arguments, "--backend=native") or has_argument(arguments, "--backend=c")))):
+    if command == "test" and (positional == 3 or (positional == 4 and (has_argument(arguments, "--native") or has_argument(arguments, "--backend=c")))):
         let code = test_file(arguments[2], not has_argument(arguments, "--backend=c")) catch failure:
             try io.stderr().write(f"luce-base: {failure.message}\n")
             recover 1

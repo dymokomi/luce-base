@@ -4,8 +4,8 @@ Updated: 2026-09-11. This is the working checklist for the ecosystem rewrite.
 [PACKAGE-REWRITE.md](PACKAGE-REWRITE.md) holds the full file inventory, design
 constraints and acceptance criteria. Follow the phases below in order.
 
-**Status:** sections 1 and 2 in progress; BC01 and BC02 verified.
-**Next task:** BC03–BC05, then I03–I11 and C01–C05 in order.
+**Status:** sections 1 and 2 in progress; compatibility cleanup verified.
+**Next task:** I03–I11 and C01–C05 in order.
 
 ## How we track work
 
@@ -88,15 +88,15 @@ backlog. BC05 is a naming simplification, not proven old-version support.
   their existing decimal default. Update Base fixtures and Luce's interpreter,
   diagnostics and runtime callers. Preserve decimal edge-case coverage, regenerate
   both compilers' embedded sources, and advance Luce's Base pin with the callers.
-- [ ] BC03 — Remove the six unused `lb_*_i64` scalar arithmetic compatibility
+- [x] BC03 — Remove the six unused `lb_*_i64` scalar arithmetic compatibility
   wrappers from Base's and Seed's canonical runtime C/header files. Preserve the
   active width-parametric helpers. Regenerate embedded runtime/snapshots and verify
   arithmetic, overflow/traps, seed bootstrap and native self-hosting.
-- [ ] BC04 — Remove Base's unused old-snapshot `LB_MEMORY_EXHAUSTED` macro;
+- [x] BC04 — Remove Base's unused old-snapshot `LB_MEMORY_EXHAUSTED` macro;
   preserve the active Seed macro. Correct Base's bootstrap README and checker test
   title, retain its error-identity assertion, regenerate runtime/snapshots and
   verify allocation failures plus bootstrap agreement.
-- [ ] BC05 — Keep native as the default, `--native` as the explicit native selector
+- [x] BC05 — Keep native as the default, `--native` as the explicit native selector
   and `--backend=c` for comparison; remove the undocumented `--backend=native`
   alias and its acceptance fixture. Verify driver options and both build modes.
 
@@ -264,9 +264,10 @@ Vulkan implementation remain later work, as specified in the scope document.
 | I02 | Base `6244d71` / `2a9760c`; Luce `6452a2a`. Base description fixtures verify constructors, methods, conformance, visibility and foreign types at native opts 0–3. Luce reader tests pass in native/C modes; foreign records, enums, aliases and handle lists pass all six compiled modes. Private storage/private initialization is rejected pending real adapters. |
 | I02 gates | ARM64 macOS: Base main checks/proving programs passed; after correcting a private identifier collision in the seed C emitter, the unchanged gate remainder from bootstrap onward passed: seed/C/native self-host agreement, snapshots, robustness, optimization, 193 conformance programs / 479 rejections, 11 platform programs / five targets emitted, 66 seed-corpus comparisons, and fuzzing (120 mutations / 12 programs, zero findings). Luce full gate passed: 69 conformance programs / 138 rejections, formatting and fuzzing (60 mutations / six programs, zero findings). Final reader cleanup was rechecked in native/C modes; the final pinned compiler passed the foreign-type fixture in all six modes. No Linux-host gate was run in this slice. |
 | I02 builds | Clean isolated checkout verified exact Base commit selection, native handle interop, cache reuse and invalid-pin rejection. Normal `luce/build.sh` also rebuilt successfully against final Base pin `2a9760c426aa1ca7dafa0e94df5eb22e106098d9`. Default native builds and generated-source cleanup tests passed in the Luce gate. |
-| BC01–BC05 audit | Read-only Sol audit across all eight language/package/example repositories; root checked call sites and runtime references. Four compatibility leftovers and one redundant CLI selector recorded in `ce878ff`; removal tasks remain unchecked. Active Seed infrastructure, current wire-format markers and protocol/platform behavior are explicitly excluded from blanket removal. |
+| BC01–BC05 audit | Read-only Sol audit across all eight language/package/example repositories; root checked call sites and runtime references. Four compatibility leftovers and one redundant CLI selector recorded in `ce878ff`; removal tasks are completed below. Active Seed infrastructure, current wire-format markers and protocol/platform behavior are explicitly excluded from blanket removal. |
 | BC01, BC02 | Implemented in the Base commit containing this checklist update; matching Luce caller/runtime update follows with the exact pin. Removed receive/to_i64/to_u64 outright. Refreshed prelude, library reference and both snapshots; native bootstrap reproduced its assembly. Integer reference corpus, networking/stream/allocation fault injection and socket transfer tests passed at native opts 0–3 and both C modes; the four-worker HTTP fixture passed. Luce decimal conversion passed in its interpreter and six compiled modes. |
 
+| BC03–BC05 | Base implementation and checklist committed together; Seed `428f77c`. Seed build and all 580 tests passed. Default-backend driver tests passed, including rejection of the removed flag. Arithmetic, signed/unsigned overflow traps, allocation and memory-exhaustion fixtures passed at native opts 0–3 and both C modes. Refreshed runtime and both snapshots; native bootstrap reproduced assembly, and the current Seed-built Base compiler emitted identical C to the native self-hosted compiler. |
 
 For implementation entries, record repository, commit, test commands/results,
 native target/optimization coverage and any remaining limit relevant to the task.

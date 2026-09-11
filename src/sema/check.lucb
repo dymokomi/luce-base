@@ -5870,7 +5870,7 @@ test "error needs a fallible function, in a handler too":
 test "sizeof takes every type form":
     try expect_ok("struct P:\n    var x: i64\nfunc f() -> usize:\n    return sizeof(i64*) + sizeof(i64?) + sizeof(P*?) + sizeof(i64[4]) + sizeof((i64?)[2]) + sizeof(func(i64) -> i64) + alignof(P)\n")
 
-test "the code of memory.exhausted is the one the runtime header names":
+test "memory exhaustion keeps its standard error identity":
     assert(exhausted_code() == 208273409)
 
 test "new zeroes its elements and allocates no result":
