@@ -1,7 +1,19 @@
 #!/bin/bash
 set -eu
-seed_tag=$(cat bootstrap/SEED)
-git clone --depth 1 --branch "$seed_tag" https://github.com/dymokomi/luce-seed.git ../luce-seed
+seed_revision=$(cat bootstrap/SEED)
+if [[ ! "$seed_revision" =~ ^[0-9a-f]{40}$ ]]; then
+    echo "bootstrap/SEED must name one exact commit" >&2
+    exit 1
+fi
+if [ -e ../luce-seed ]; then
+    echo "CI seed setup requires an empty ../luce-seed destination" >&2
+    exit 1
+fi
+git init ../luce-seed
+git -C ../luce-seed remote add origin https://github.com/dymokomi/luce-seed.git
+git -C ../luce-seed fetch --depth 1 origin "$seed_revision"
+git -C ../luce-seed checkout --detach FETCH_HEAD
+test "$(git -C ../luce-seed rev-parse HEAD)" = "$seed_revision"
 (cd ../luce-seed && ./build.sh)
 if [ "$(uname -s)" = Darwin ]; then
     brew install sdl3 pkg-config

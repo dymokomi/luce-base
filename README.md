@@ -12,7 +12,7 @@ luce       (Base)                compiles full Luce
 ```
 
 `luce-seed` built this tree until this tree built itself. The seed is pinned
-at the version named in `bootstrap/SEED`: `LUCB=../luce-seed/build/lucb
+at the commit named in `bootstrap/SEED`: `LUCB=../luce-seed/build/lucb
 ./build.sh` still starts from it, the gate proves the compiler it builds
 agrees with the snapshot-built one, and the compiler's own sources stay
 within what the seed provides. `bootstrap/luce-base-HOST.c` is the compiler's

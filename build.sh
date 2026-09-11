@@ -15,14 +15,8 @@ CC=${CC:-cc}
 host=$(tools/host.sh)
 snapshot=bootstrap/luce-base-$host.c
 if [ -n "${LUCB:-}" ]; then
-    # the seed this tree is written against is named in bootstrap/SEED; an older one may
-    # lack what the sources use
-    want=$(sed 's/^luce-seed-//' bootstrap/SEED)
-    have=$("$LUCB" --version | sed 's/^lucb //')
-    if [ "$(printf '%s\n%s\n' "$want" "$have" | sort -V | head -1)" != "$want" ]; then
-        echo "build.sh: $LUCB is lucb $have; this tree needs luce-seed $want or later" >&2
-        exit 1
-    fi
+    # LUCB is an explicit compiler override. CI obtains the exact source commit
+    # in bootstrap/SEED; compiling this tree checks the override's capabilities.
     "$LUCB" build src/main.lucb --release -o build/stage0
 else
     if [ ! -f "$snapshot" ]; then

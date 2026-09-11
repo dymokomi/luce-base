@@ -13,3 +13,8 @@ The snapshots are per target because the compiler prunes the standard library by
 emits C for any target. Keep the snapshots, compiler sources and runtime in the same
 commit whenever a change affects generated code. The gate requires every snapshot
 to match current emission; older snapshot/runtime combinations are unsupported.
+
+`SEED` names an exact Git commit. CI fetches and checks out that commit before
+building Seed. `LUCB=/path/to/lucb` is an explicit local executable override; its
+version banner cannot establish source identity, and the source build checks that
+it supports the compiler. Normal builds start from the checked-in host snapshot.
