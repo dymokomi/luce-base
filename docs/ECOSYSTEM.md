@@ -5,12 +5,18 @@ The standard-library stage is complete. At the user's request on 2026-09-10,
 committed identity/dependency checkpoint. Its post-quantum profile remains required
 for later Luce communication and package-client traffic.
 
-Completed stage: **standard `net` protocol primitives**, HTTP/1.1 and WebSocket in
-luce-base, verified on both native hosts on 2026-09-10. Work stops here at the user's
-request; do not resume `luce-server` automatically. The server will be an entirely
-Base library built on `net`; the separate `luce-http-server` example will be written in Luce to
-exercise interoperability. [Protocol primitives](NET_PROTOCOLS.md) describes the
-API and tests. TLS remains paused.
+Current work, 2026-09-11: **package API and implementation rewrite**. The initial
+Base server, Luce HTTP example and UI/3D prototypes exposed procedural resource
+and worker machinery in application code. Rewrite them using Base structs with
+constructors, methods and interfaces, with proper Luce interoperability. The
+[complete rewrite inventory and delivery order](PACKAGE-REWRITE.md) covers both
+compilers, standard graphics resources, all three libraries and their examples.
+TLS remains paused.
+
+Completed foundation: **standard `net` protocol primitives**, HTTP/1.1 and WebSocket
+in luce-base, verified on both native hosts on 2026-09-10. The server is an entirely
+Base library built on `net`; `luce-http-server` is its Luce consumer.
+[Protocol primitives](NET_PROTOCOLS.md) describes the standard API and tests.
 
 Stage 1 closed for Base 0.12.0 on 2026-09-10; [standard-library readiness](STDLIB.md)
 records the Base and downstream Luce gates on both native hosts.
