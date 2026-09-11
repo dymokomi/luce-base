@@ -173,3 +173,27 @@ QuartzCore, and CoreGraphics headers and these primary references:
 [CAMetalLayer drawable acquisition](https://developer.apple.com/documentation/quartzcore/cametallayer/nextdrawable()),
 [Metal implementation limits](https://developer.apple.com/metal/Metal-Feature-Set-Tables.pdf),
 and [Vulkan window-system integration](https://docs.vulkan.org/spec/latest/chapters/VK_KHR_surface/wsi.html).
+
+## Portable drawing and widget regions
+
+`Canvas` owns a reusable command list. `triangles` copies homogeneous clip-space
+vertices (x/y in -w..w, z in 0..w), straight-alpha linear colors, a pixel scissor,
+and optional pixel viewport. A borrowed `RenderTarget` combines a canvas with
+its viewport and clip, allowing UI and 3D packages to share one frame without
+sharing platform objects. `Surface.render` copies/uploads input before returning.
+It retains GPU resources through completion, so CPU input may be reused at once.
+
+Depth-enabled draws compare less and write depth; overlays leave depth untouched.
+Depth starts at 1 each frame. Draw order is preserved, culling is disabled, and
+colors blend in linear space before sRGB encoding. Empty clipped regions do no
+work. Invalid geometry is rejected before recording. A canvas allows up to
+1,048,576 vertices and 4,096 draws; failed growth preserves its recorded contents.
+`clear` retains capacity; `destroy` releases it.
+
+This first pipeline has a fixed position/color shader inside the backend. It is
+not a general shader language: application transforms and lighting are currently
+computed before recording. Packages depend only on `gpu`, so a Vulkan backend
+can implement the same contract without changes to package drawing code.
+
+Pixel tests additionally cover depth occlusion, clipping, linear alpha blending,
+resize of depth storage, and releasing CPU commands before GPU completion.

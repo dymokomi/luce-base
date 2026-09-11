@@ -8482,6 +8482,7 @@ func mac_free(state: State*):
     Prelude(name = "gpu", text = """
 import c
 import memory
+import math32
 import platform
 import window
 
@@ -8493,6 +8494,8 @@ pub let invalid_color: ErrorCode = ErrorCode.package(95)
 pub let failed: ErrorCode = ErrorCode.package(96)
 pub let execution_failed: ErrorCode = ErrorCode.package(97)
 pub let surface_too_large: ErrorCode = ErrorCode.package(98)
+pub let invalid_geometry: ErrorCode = ErrorCode.package(99)
+pub let command_limit: ErrorCode = ErrorCode.package(100)
 
 ## automatic chooses the implemented native backend. An explicit unsupported
 ## backend fails; it never falls back silently. Vulkan is reserved, not implemented.
@@ -8575,6 +8578,123 @@ func release_device(state: DeviceState*):
     if state.references == 0:
         backend_device_destroy(state.backend, state.native)
         free(state) in memory.heap
+## Portable triangle input. Positions are homogeneous clip coordinates: -w..w
+## for x/y and 0..w for z. Colors are straight-alpha linear sRGB in 0..1.
+## The backend interpolates color perspectively and blends into the sRGB target.
+pub struct Vertex:
+    pub var x: f32
+    pub var y: f32
+    pub var z: f32
+    pub var w: f32 = 1.0
+    pub var red: f32
+    pub var green: f32
+    pub var blue: f32
+    pub var alpha: f32 = 1.0
+
+## Scissor rectangle in backing pixels, measured from the target's top left.
+## Rectangles are intersected with the target at submission; zero extent is empty.
+pub struct Clip:
+    pub var x: u32
+    pub var y: u32
+    pub var width: u32
+    pub var height: u32
+
+## Destination of clip coordinates, in backing pixels from the top left.
+pub struct Viewport:
+    pub var x: f64
+    pub var y: f64
+    pub var width: f64
+    pub var height: f64
+
+## A borrowed recording region. Its owner controls the canvas lifetime. This is
+## the shared rendering boundary for independently implemented UI/3D libraries.
+pub struct RenderTarget:
+    pub var canvas: Canvas*
+    pub var clip: Clip
+    pub var viewport: Viewport
+
+    pub func triangles(vertices: const Vertex[], depth: bool = false) -> !:
+        try self.canvas.triangles(vertices, self.clip, depth, self.viewport)
+
+struct Draw:
+    var first: usize
+    var count: usize
+    var clip: Clip
+    var depth: bool
+    var viewport: Viewport?
+
+## A reusable CPU command list, independent of any backend or window. triangles
+## copies its input, so callers may reuse it immediately. A failed append leaves
+## the visible command list unchanged. Copies alias storage; destroy one owner.
+## Recording is single-threaded but does not require a device or a main thread.
+pub struct Canvas:
+    var vertices: Vertex[]
+    var draws: Draw[]
+    var vertex_count: usize
+    var draw_count: usize
+
+    pub func count() -> usize:
+        return self.vertex_count
+
+    pub mutating func clear():
+        self.vertex_count = 0
+        self.draw_count = 0
+
+    ## Independent triangles, in submission order. Depth-enabled draws use less
+    ## comparison and write depth; other draws leave depth untouched. Each frame
+    ## starts with depth 1.0. No culling, multisampling, or texture sampling yet.
+    pub mutating func triangles(vertices: const Vertex[], clip: Clip, depth: bool = false, viewport: Viewport? = none) -> !:
+        if vertices.length % 3 != 0:
+            error(invalid_geometry, "triangle input must contain a multiple of three vertices")
+        for vertex in vertices:
+            if not valid_vertex(vertex):
+                error(invalid_geometry, "vertices need finite positions and linear colors in 0..1")
+        if let region = viewport:
+            if not (region.x >= 0.0 and region.x <= 16384.0 and region.y >= 0.0 and region.y <= 16384.0 and region.width >= 0.0 and region.width <= 16384.0 and region.height >= 0.0 and region.height <= 16384.0):
+                error(invalid_geometry, "GPU viewport coordinates must be finite and in 0..16384")
+            if region.width == 0.0 or region.height == 0.0:
+                return
+        if vertices.length == 0 or clip.width == 0 or clip.height == 0:
+            return
+        if vertices.length > 1048576 - self.vertex_count or self.draw_count == 4096:
+            error(command_limit, "a canvas supports at most 1048576 vertices and 4096 draws")
+        let needed = self.vertex_count + vertices.length
+        if needed > self.vertices.length:
+            let capacity = canvas_max(needed, canvas_min(1048576, canvas_max(256, self.vertices.length * 2)))
+            let grown = try alloc Vertex[capacity] in memory.heap
+            if self.vertex_count > 0:
+                memory.copy(grown, self.vertices, self.vertex_count)
+            if self.vertices.length > 0:
+                free(self.vertices) in memory.heap
+            self.vertices = grown
+        if self.draw_count == self.draws.length:
+            let capacity = canvas_max(16, self.draws.length * 2)
+            let grown = try alloc Draw[capacity] in memory.heap
+            if self.draw_count > 0:
+                memory.copy(grown, self.draws, self.draw_count)
+            if self.draws.length > 0:
+                free(self.draws) in memory.heap
+            self.draws = grown
+        memory.copy(self.vertices[self.vertex_count..], vertices, vertices.length)
+        self.draws[self.draw_count] = Draw(first = self.vertex_count, count = vertices.length, clip = clip, depth = depth, viewport = viewport)
+        self.vertex_count = needed
+        self.draw_count += 1
+
+    pub mutating func destroy():
+        if self.vertices.length > 0:
+            free(self.vertices) in memory.heap
+        if self.draws.length > 0:
+            free(self.draws) in memory.heap
+        self = Canvas()
+
+func valid_vertex(v: Vertex) -> bool:
+    return math32.is_finite(v.x) and math32.is_finite(v.y) and math32.is_finite(v.z) and math32.is_finite(v.w) and v.red >= 0.0 and v.red <= 1.0 and v.green >= 0.0 and v.green <= 1.0 and v.blue >= 0.0 and v.blue <= 1.0 and v.alpha >= 0.0 and v.alpha <= 1.0
+
+func canvas_min(a: usize, b: usize) -> usize:
+    return a if a < b else b
+
+func canvas_max(a: usize, b: usize) -> usize:
+    return a if a > b else b
 ## One opaque sRGB presentation surface per window. Copies alias ownership.
 ## The surface retains its device and exclusively leases the window's host.
 ## Window closure prevents further rendering, but either destruction order is
@@ -8609,6 +8729,15 @@ pub struct Surface:
         # Test window liveness even if no previous command is pending.
         discard(try state.host.size())
         return try backend_clear_present(state.device, state.host, state.native, color)
+
+    ## Draw and present one canvas. Commands and input storage may be reused after
+    ## this returns; native resources remain alive until GPU completion. The same
+    ## resize, skipped-frame, and completion contracts as clear_present apply.
+    pub func render(canvas: Canvas, color: Color = Color()) -> PresentResult!:
+        let state = try self.checked()
+        try check_color(color)
+        discard(try state.host.size())
+        return try backend_render(state.device, state.host, state.native, canvas, color)
 
     ## Wait for this surface's last submission and report its execution status.
     ## Does not wait for the display to scan out the frame. Valid after Window
@@ -8679,6 +8808,12 @@ func backend_surface_wait(device: DeviceState*, native: void*) -> !:
             return
     error(unsupported, "the GPU backend is not implemented")
 
+func backend_render(device: DeviceState*, host: window.Presentation, native: void*, canvas: Canvas, color: Color) -> PresentResult!:
+    if platform.macos and platform.arm64:
+        if device.backend == Backend.metal:
+            return try metal_render((MetalDevice*)device.native, host, (MetalSurface*)native, canvas, color)
+    error(unsupported, "the GPU backend is not implemented")
+
 func backend_surface_destroy(device: DeviceState*, host: window.Presentation, native: void*):
     if platform.macos and platform.arm64:
         if device.backend == Backend.metal:
@@ -8696,6 +8831,30 @@ extern struct LuceGpuMetalClearColor:
     green: f64
     blue: f64
     alpha: f64
+
+extern struct LuceGpuMetalScissor:
+    x: u64
+    y: u64
+    width: u64
+    height: u64
+
+extern struct LuceGpuMetalViewport:
+    x: f64
+    y: f64
+    width: f64
+    height: f64
+    near: f64
+    far: f64
+
+extern func metal_viewport as "objc_msgSend"(object: void*, selector: void*, rectangle: LuceGpuMetalViewport)
+
+extern func metal_string as "objc_msgSend"(object: void*, selector: void*, value: c.str) -> void*?
+extern func metal_library as "objc_msgSend"(object: void*, selector: void*, source: void*, options: void*?, failure: void*?*) -> void*?
+extern func metal_pipeline as "objc_msgSend"(object: void*, selector: void*, descriptor: void*, failure: void*?*) -> void*?
+extern func metal_buffer as "objc_msgSend"(object: void*, selector: void*, bytes: const void*, length: u64, options: u64) -> void*?
+extern func metal_bind_buffer as "objc_msgSend"(object: void*, selector: void*, buffer: void*, offset: u64, index: u64)
+extern func metal_scissor as "objc_msgSend"(object: void*, selector: void*, rectangle: LuceGpuMetalScissor)
+extern func metal_draw as "objc_msgSend"(object: void*, selector: void*, primitive: u64, start: u64, count: u64)
 
 extern func pthread_main_np() -> i32
 extern func MTLCreateSystemDefaultDevice() -> void*?
@@ -8749,10 +8908,110 @@ func metal_device_destroy(state: MetalDevice*):
     if let device = state.device:
         metal_void(device, metal_sel("release"))
     free(state) in memory.heap
+## Backend implementation of the portable colored-triangle contract. The vertex
+## input uses eight scalar floats, avoiding native vector alignment in the ABI.
+## Applications never supply Metal source or native pipeline objects.
+struct MetalDrawing:
+    var pipeline: void*?
+    var depth_on: void*?
+    var depth_off: void*?
+    var depth_texture: void*?
+    var width: u64
+    var height: u64
+
+func metal_text(value: c.str) -> void*!:
+    return metal_string(try metal_class("NSString"), metal_sel("stringWithUTF8String:"), value) else error(failed, "could not create Metal shader text")
+
+func metal_drawing_open(device: MetalDevice*) -> MetalDrawing*!:
+    let state = try new MetalDrawing() in memory.heap
+    errdefer metal_drawing_destroy(state)
+    let source = try metal_text("#include <metal_stdlib>\\nusing namespace metal; struct V { float4 position [[position]]; float4 color; }; vertex V luce_vertex(const device float* data [[buffer(0)]], uint id [[vertex_id]]) { uint i = id * 8; V v; v.position = float4(data[i], data[i+1], data[i+2], data[i+3]); v.color = float4(data[i+4], data[i+5], data[i+6], data[i+7]); return v; } fragment float4 luce_fragment(V v [[stage_in]]) { return v.color; }")
+    var failure: void*? = none
+    let native = metal_required(device.device)
+    let library = metal_library(native, metal_sel("newLibraryWithSource:options:error:"), source, none, &failure) else error(failed, "could not compile the portable triangle pipeline")
+    defer metal_void(library, metal_sel("release"))
+    let vertex = metal_with_object(library, metal_sel("newFunctionWithName:"), try metal_text("luce_vertex")) else error(failed, "the GPU vertex entry is missing")
+    defer metal_void(vertex, metal_sel("release"))
+    let fragment = metal_with_object(library, metal_sel("newFunctionWithName:"), try metal_text("luce_fragment")) else error(failed, "the GPU fragment entry is missing")
+    defer metal_void(fragment, metal_sel("release"))
+    let descriptor = metal_ptr(try metal_class("MTLRenderPipelineDescriptor"), metal_sel("new")) else error(failed, "could not create a GPU pipeline descriptor")
+    defer metal_void(descriptor, metal_sel("release"))
+    metal_object(descriptor, metal_sel("setVertexFunction:"), vertex)
+    metal_object(descriptor, metal_sel("setFragmentFunction:"), fragment)
+    metal_uint_arg(descriptor, metal_sel("setDepthAttachmentPixelFormat:"), 252)
+    let attachments = metal_required(metal_ptr(descriptor, metal_sel("colorAttachments")))
+    let color = metal_required(metal_index(attachments, metal_sel("objectAtIndexedSubscript:"), 0))
+    metal_uint_arg(color, metal_sel("setPixelFormat:"), 81)
+    metal_bool_arg(color, metal_sel("setBlendingEnabled:"), true)
+    metal_uint_arg(color, metal_sel("setSourceRGBBlendFactor:"), 4)
+    metal_uint_arg(color, metal_sel("setDestinationRGBBlendFactor:"), 5)
+    # Alpha remains opaque over the opaque clear: As + Ad * (1 - As).
+    metal_uint_arg(color, metal_sel("setSourceAlphaBlendFactor:"), 1)
+    metal_uint_arg(color, metal_sel("setDestinationAlphaBlendFactor:"), 5)
+    state.pipeline = metal_pipeline(native, metal_sel("newRenderPipelineStateWithDescriptor:error:"), descriptor, &failure) else error(failed, "could not create the portable triangle pipeline")
+    let depth = metal_ptr(try metal_class("MTLDepthStencilDescriptor"), metal_sel("new")) else error(failed, "could not create a GPU depth descriptor")
+    defer metal_void(depth, metal_sel("release"))
+    metal_uint_arg(depth, metal_sel("setDepthCompareFunction:"), 1)
+    metal_bool_arg(depth, metal_sel("setDepthWriteEnabled:"), true)
+    state.depth_on = metal_with_object(native, metal_sel("newDepthStencilStateWithDescriptor:"), depth) else error(failed, "could not create GPU depth testing")
+    metal_uint_arg(depth, metal_sel("setDepthCompareFunction:"), 7)
+    metal_bool_arg(depth, metal_sel("setDepthWriteEnabled:"), false)
+    state.depth_off = metal_with_object(native, metal_sel("newDepthStencilStateWithDescriptor:"), depth) else error(failed, "could not create GPU overlay state")
+    return state
+
+func metal_depth(device: MetalDevice*, state: MetalDrawing*, width: u64, height: u64) -> void*!:
+    if state.width == width and state.height == height:
+        return metal_required(state.depth_texture)
+    let descriptor = metal_ptr(try metal_class("MTLTextureDescriptor"), metal_sel("new")) else error(failed, "could not create a GPU depth texture descriptor")
+    defer metal_void(descriptor, metal_sel("release"))
+    metal_uint_arg(descriptor, metal_sel("setTextureType:"), 2)
+    metal_uint_arg(descriptor, metal_sel("setPixelFormat:"), 252)
+    metal_uint_arg(descriptor, metal_sel("setWidth:"), width)
+    metal_uint_arg(descriptor, metal_sel("setHeight:"), height)
+    metal_uint_arg(descriptor, metal_sel("setStorageMode:"), 2)
+    metal_uint_arg(descriptor, metal_sel("setUsage:"), 4)
+    let texture = metal_with_object(metal_required(device.device), metal_sel("newTextureWithDescriptor:"), descriptor) else error(failed, "could not allocate GPU depth storage")
+    if let previous = state.depth_texture:
+        metal_void(previous, metal_sel("release"))
+    state.depth_texture = texture
+    state.width = width
+    state.height = height
+    return texture
+
+func metal_drawing_destroy(state: MetalDrawing*):
+    if let texture = state.depth_texture:
+        metal_void(texture, metal_sel("release"))
+    if let pipeline = state.pipeline:
+        metal_void(pipeline, metal_sel("release"))
+    if let depth = state.depth_on:
+        metal_void(depth, metal_sel("release"))
+    if let depth = state.depth_off:
+        metal_void(depth, metal_sel("release"))
+    free(state) in memory.heap
+
+func metal_encode(encoder: void*, drawing: MetalDrawing*, buffer: void*, canvas: Canvas, width: u64, height: u64):
+    metal_object(encoder, metal_sel("setRenderPipelineState:"), drawing.pipeline)
+    metal_bind_buffer(encoder, metal_sel("setVertexBuffer:offset:atIndex:"), buffer, 0, 0)
+    for draw in canvas.draws[..<canvas.draw_count]:
+        let x = metal_min((u64)draw.clip.x, width)
+        let y = metal_min((u64)draw.clip.y, height)
+        let w = metal_min((u64)draw.clip.width, width - x)
+        let h = metal_min((u64)draw.clip.height, height - y)
+        if w == 0 or h == 0:
+            continue
+        let region = draw.viewport else Viewport(width = (f64)width, height = (f64)height)
+        metal_viewport(encoder, metal_sel("setViewport:"), LuceGpuMetalViewport(x = region.x, y = region.y, width = region.width, height = region.height, near = 0.0, far = 1.0))
+        metal_scissor(encoder, metal_sel("setScissorRect:"), LuceGpuMetalScissor(x = x, y = y, width = w, height = h))
+        metal_object(encoder, metal_sel("setDepthStencilState:"), drawing.depth_on if draw.depth else drawing.depth_off)
+        metal_draw(encoder, metal_sel("drawPrimitives:vertexStart:vertexCount:"), 3, (u64)draw.first, (u64)draw.count)
+
+func metal_min(a: u64, b: u64) -> u64:
+    return a if a < b else b
 struct MetalSurface:
     var layer: void*?
     var pending: void*?
     var faulted: bool
+    var drawing: MetalDrawing*?
 
 ## Conservative 2D texture baseline across the supported Mac GPU families.
 ## Some newer devices allow larger textures; a later capability API can expose
@@ -8800,6 +9059,9 @@ func metal_surface_wait(state: MetalSurface*) -> !:
         error(execution_failed, "Metal command execution failed; recreate the GPU surface")
 
 func metal_clear_present(device: MetalDevice*, host: window.Presentation, state: MetalSurface*, color: Color) -> PresentResult!:
+    return try metal_render(device, host, state, Canvas(), color)
+
+func metal_render(device: MetalDevice*, host: window.Presentation, state: MetalSurface*, canvas: Canvas, color: Color) -> PresentResult!:
     let pool = objc_autoreleasePoolPush()
     defer objc_autoreleasePoolPop(pool)
     try metal_surface_wait(state)
@@ -8824,8 +9086,22 @@ func metal_clear_present(device: MetalDevice*, host: window.Presentation, state:
     metal_uint_arg(attachment, metal_sel("setLoadAction:"), 2)
     metal_uint_arg(attachment, metal_sel("setStoreAction:"), 1)
     metal_color_arg(attachment, metal_sel("setClearColor:"), LuceGpuMetalClearColor(red = color.red, green = color.green, blue = color.blue, alpha = 1.0))
+    var buffer: void*? = none
+    defer metal_release_slot(&buffer)
+    if canvas.vertex_count > 0:
+        if state.drawing == none:
+            state.drawing = try metal_drawing_open(device)
+        let drawing = state.drawing else trap("GPU drawing state was not initialized")
+        let depth = metal_required(metal_ptr(descriptor, metal_sel("depthAttachment")))
+        metal_object(depth, metal_sel("setTexture:"), try metal_depth(device, drawing, (u64)size.pixel_width, (u64)size.pixel_height))
+        metal_uint_arg(depth, metal_sel("setLoadAction:"), 2)
+        metal_uint_arg(depth, metal_sel("setStoreAction:"), 0)
+        metal_double_arg(depth, metal_sel("setClearDepth:"), 1.0)
+        buffer = metal_buffer(metal_required(device.device), metal_sel("newBufferWithBytes:length:options:"), canvas.vertices.data, (u64)(canvas.vertex_count * 32), 0) else error(failed, "could not upload GPU triangle data")
     let command = metal_ptr(metal_required(device.queue), metal_sel("commandBuffer")) else error(failed, "could not create a Metal command buffer")
     let encoder = metal_with_object(command, metal_sel("renderCommandEncoderWithDescriptor:"), descriptor) else error(failed, "could not create a Metal render encoder")
+    if let vertices = buffer:
+        metal_encode(encoder, state.drawing else trap("missing GPU drawing state"), vertices, canvas, (u64)size.pixel_width, (u64)size.pixel_height)
     metal_void(encoder, metal_sel("endEncoding"))
     metal_object(command, metal_sel("presentDrawable:"), drawable)
     # Default command buffers retain referenced resources through completion.
@@ -8842,9 +9118,15 @@ func metal_surface_destroy(state: MetalSurface*, host: window.Presentation):
     # Window closure may already have detached its callbacks. Its lease still
     # keeps the native host alive until our pending work and layer are released.
     metal_detach(state, host)
+    if let drawing = state.drawing:
+        metal_drawing_destroy(drawing)
     if let layer = state.layer:
         metal_void(layer, metal_sel("release"))
     free(state) in memory.heap
+
+func metal_release_slot(object: void*?*):
+    if let value = *object:
+        metal_void(value, metal_sel("release"))
 
 func metal_detach(state: MetalSurface*, host: window.Presentation):
     let view = host.macos_view() catch failure:

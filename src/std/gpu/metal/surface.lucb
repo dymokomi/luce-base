@@ -2,6 +2,7 @@ struct MetalSurface:
     var layer: void*?
     var pending: void*?
     var faulted: bool
+    var drawing: MetalDrawing*?
 
 ## Conservative 2D texture baseline across the supported Mac GPU families.
 ## Some newer devices allow larger textures; a later capability API can expose
@@ -49,6 +50,9 @@ func metal_surface_wait(state: MetalSurface*) -> !:
         error(execution_failed, "Metal command execution failed; recreate the GPU surface")
 
 func metal_clear_present(device: MetalDevice*, host: window.Presentation, state: MetalSurface*, color: Color) -> PresentResult!:
+    return try metal_render(device, host, state, Canvas(), color)
+
+func metal_render(device: MetalDevice*, host: window.Presentation, state: MetalSurface*, canvas: Canvas, color: Color) -> PresentResult!:
     let pool = objc_autoreleasePoolPush()
     defer objc_autoreleasePoolPop(pool)
     try metal_surface_wait(state)
@@ -73,8 +77,22 @@ func metal_clear_present(device: MetalDevice*, host: window.Presentation, state:
     metal_uint_arg(attachment, metal_sel("setLoadAction:"), 2)
     metal_uint_arg(attachment, metal_sel("setStoreAction:"), 1)
     metal_color_arg(attachment, metal_sel("setClearColor:"), LuceGpuMetalClearColor(red = color.red, green = color.green, blue = color.blue, alpha = 1.0))
+    var buffer: void*? = none
+    defer metal_release_slot(&buffer)
+    if canvas.vertex_count > 0:
+        if state.drawing == none:
+            state.drawing = try metal_drawing_open(device)
+        let drawing = state.drawing else trap("GPU drawing state was not initialized")
+        let depth = metal_required(metal_ptr(descriptor, metal_sel("depthAttachment")))
+        metal_object(depth, metal_sel("setTexture:"), try metal_depth(device, drawing, (u64)size.pixel_width, (u64)size.pixel_height))
+        metal_uint_arg(depth, metal_sel("setLoadAction:"), 2)
+        metal_uint_arg(depth, metal_sel("setStoreAction:"), 0)
+        metal_double_arg(depth, metal_sel("setClearDepth:"), 1.0)
+        buffer = metal_buffer(metal_required(device.device), metal_sel("newBufferWithBytes:length:options:"), canvas.vertices.data, (u64)(canvas.vertex_count * 32), 0) else error(failed, "could not upload GPU triangle data")
     let command = metal_ptr(metal_required(device.queue), metal_sel("commandBuffer")) else error(failed, "could not create a Metal command buffer")
     let encoder = metal_with_object(command, metal_sel("renderCommandEncoderWithDescriptor:"), descriptor) else error(failed, "could not create a Metal render encoder")
+    if let vertices = buffer:
+        metal_encode(encoder, state.drawing else trap("missing GPU drawing state"), vertices, canvas, (u64)size.pixel_width, (u64)size.pixel_height)
     metal_void(encoder, metal_sel("endEncoding"))
     metal_object(command, metal_sel("presentDrawable:"), drawable)
     # Default command buffers retain referenced resources through completion.
@@ -91,9 +109,15 @@ func metal_surface_destroy(state: MetalSurface*, host: window.Presentation):
     # Window closure may already have detached its callbacks. Its lease still
     # keeps the native host alive until our pending work and layer are released.
     metal_detach(state, host)
+    if let drawing = state.drawing:
+        metal_drawing_destroy(drawing)
     if let layer = state.layer:
         metal_void(layer, metal_sel("release"))
     free(state) in memory.heap
+
+func metal_release_slot(object: void*?*):
+    if let value = *object:
+        metal_void(value, metal_sel("release"))
 
 func metal_detach(state: MetalSurface*, host: window.Presentation):
     let view = host.macos_view() catch failure:

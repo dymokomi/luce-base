@@ -170,3 +170,23 @@ pub func pixels(width: u64, height: u64, red: u8, green: u8, blue: u8):
 func near(actual: u8, expected: u8):
     let difference = (i32)actual - (i32)expected
     assert(difference >= -1 and difference <= 1)
+
+pub func pixel(x: u64, y: u64, red: u8, green: u8, blue: u8):
+    let texture = captured_texture else trap("the GPU did not acquire a texture")
+    let device = msg(texture, sel("device"))
+    let queue = msg(device, sel("newCommandQueue"))
+    defer invoke(queue, sel("release"))
+    let storage = buffer(device, sel("newBufferWithLength:options:"), 256, 0)
+    defer invoke(storage, sel("release"))
+    let command = msg(queue, sel("commandBuffer"))
+    let encoder = msg(command, sel("blitCommandEncoder"))
+    blit(encoder, sel("copyFromTexture:sourceSlice:sourceLevel:sourceOrigin:sourceSize:toBuffer:destinationOffset:destinationBytesPerRow:destinationBytesPerImage:"), texture, 0, 0, GpuProbeOrigin(x = x, y = y), GpuProbeExtent(width = 1, height = 1, depth = 1), storage, 0, 256, 256)
+    invoke(encoder, sel("endEncoding"))
+    invoke(command, sel("commit"))
+    invoke(command, sel("waitUntilCompleted"))
+    assert(uint(command, sel("status")) == 4)
+    let bytes = (const u8*)msg(storage, sel("contents"))
+    near(bytes[0], blue)
+    near(bytes[1], green)
+    near(bytes[2], red)
+    assert(bytes[3] == 255)

@@ -33,6 +33,15 @@ pub struct Surface:
         discard(try state.host.size())
         return try backend_clear_present(state.device, state.host, state.native, color)
 
+    ## Draw and present one canvas. Commands and input storage may be reused after
+    ## this returns; native resources remain alive until GPU completion. The same
+    ## resize, skipped-frame, and completion contracts as clear_present apply.
+    pub func render(canvas: Canvas, color: Color = Color()) -> PresentResult!:
+        let state = try self.checked()
+        try check_color(color)
+        discard(try state.host.size())
+        return try backend_render(state.device, state.host, state.native, canvas, color)
+
     ## Wait for this surface's last submission and report its execution status.
     ## Does not wait for the display to scan out the frame. Valid after Window
     ## closure; use before destroy when execution errors must be observed.

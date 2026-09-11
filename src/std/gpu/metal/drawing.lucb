@@ -1,0 +1,99 @@
+## Backend implementation of the portable colored-triangle contract. The vertex
+## input uses eight scalar floats, avoiding native vector alignment in the ABI.
+## Applications never supply Metal source or native pipeline objects.
+struct MetalDrawing:
+    var pipeline: void*?
+    var depth_on: void*?
+    var depth_off: void*?
+    var depth_texture: void*?
+    var width: u64
+    var height: u64
+
+func metal_text(value: c.str) -> void*!:
+    return metal_string(try metal_class("NSString"), metal_sel("stringWithUTF8String:"), value) else error(failed, "could not create Metal shader text")
+
+func metal_drawing_open(device: MetalDevice*) -> MetalDrawing*!:
+    let state = try new MetalDrawing() in memory.heap
+    errdefer metal_drawing_destroy(state)
+    let source = try metal_text("#include <metal_stdlib>\\nusing namespace metal; struct V { float4 position [[position]]; float4 color; }; vertex V luce_vertex(const device float* data [[buffer(0)]], uint id [[vertex_id]]) { uint i = id * 8; V v; v.position = float4(data[i], data[i+1], data[i+2], data[i+3]); v.color = float4(data[i+4], data[i+5], data[i+6], data[i+7]); return v; } fragment float4 luce_fragment(V v [[stage_in]]) { return v.color; }")
+    var failure: void*? = none
+    let native = metal_required(device.device)
+    let library = metal_library(native, metal_sel("newLibraryWithSource:options:error:"), source, none, &failure) else error(failed, "could not compile the portable triangle pipeline")
+    defer metal_void(library, metal_sel("release"))
+    let vertex = metal_with_object(library, metal_sel("newFunctionWithName:"), try metal_text("luce_vertex")) else error(failed, "the GPU vertex entry is missing")
+    defer metal_void(vertex, metal_sel("release"))
+    let fragment = metal_with_object(library, metal_sel("newFunctionWithName:"), try metal_text("luce_fragment")) else error(failed, "the GPU fragment entry is missing")
+    defer metal_void(fragment, metal_sel("release"))
+    let descriptor = metal_ptr(try metal_class("MTLRenderPipelineDescriptor"), metal_sel("new")) else error(failed, "could not create a GPU pipeline descriptor")
+    defer metal_void(descriptor, metal_sel("release"))
+    metal_object(descriptor, metal_sel("setVertexFunction:"), vertex)
+    metal_object(descriptor, metal_sel("setFragmentFunction:"), fragment)
+    metal_uint_arg(descriptor, metal_sel("setDepthAttachmentPixelFormat:"), 252)
+    let attachments = metal_required(metal_ptr(descriptor, metal_sel("colorAttachments")))
+    let color = metal_required(metal_index(attachments, metal_sel("objectAtIndexedSubscript:"), 0))
+    metal_uint_arg(color, metal_sel("setPixelFormat:"), 81)
+    metal_bool_arg(color, metal_sel("setBlendingEnabled:"), true)
+    metal_uint_arg(color, metal_sel("setSourceRGBBlendFactor:"), 4)
+    metal_uint_arg(color, metal_sel("setDestinationRGBBlendFactor:"), 5)
+    # Alpha remains opaque over the opaque clear: As + Ad * (1 - As).
+    metal_uint_arg(color, metal_sel("setSourceAlphaBlendFactor:"), 1)
+    metal_uint_arg(color, metal_sel("setDestinationAlphaBlendFactor:"), 5)
+    state.pipeline = metal_pipeline(native, metal_sel("newRenderPipelineStateWithDescriptor:error:"), descriptor, &failure) else error(failed, "could not create the portable triangle pipeline")
+    let depth = metal_ptr(try metal_class("MTLDepthStencilDescriptor"), metal_sel("new")) else error(failed, "could not create a GPU depth descriptor")
+    defer metal_void(depth, metal_sel("release"))
+    metal_uint_arg(depth, metal_sel("setDepthCompareFunction:"), 1)
+    metal_bool_arg(depth, metal_sel("setDepthWriteEnabled:"), true)
+    state.depth_on = metal_with_object(native, metal_sel("newDepthStencilStateWithDescriptor:"), depth) else error(failed, "could not create GPU depth testing")
+    metal_uint_arg(depth, metal_sel("setDepthCompareFunction:"), 7)
+    metal_bool_arg(depth, metal_sel("setDepthWriteEnabled:"), false)
+    state.depth_off = metal_with_object(native, metal_sel("newDepthStencilStateWithDescriptor:"), depth) else error(failed, "could not create GPU overlay state")
+    return state
+
+func metal_depth(device: MetalDevice*, state: MetalDrawing*, width: u64, height: u64) -> void*!:
+    if state.width == width and state.height == height:
+        return metal_required(state.depth_texture)
+    let descriptor = metal_ptr(try metal_class("MTLTextureDescriptor"), metal_sel("new")) else error(failed, "could not create a GPU depth texture descriptor")
+    defer metal_void(descriptor, metal_sel("release"))
+    metal_uint_arg(descriptor, metal_sel("setTextureType:"), 2)
+    metal_uint_arg(descriptor, metal_sel("setPixelFormat:"), 252)
+    metal_uint_arg(descriptor, metal_sel("setWidth:"), width)
+    metal_uint_arg(descriptor, metal_sel("setHeight:"), height)
+    metal_uint_arg(descriptor, metal_sel("setStorageMode:"), 2)
+    metal_uint_arg(descriptor, metal_sel("setUsage:"), 4)
+    let texture = metal_with_object(metal_required(device.device), metal_sel("newTextureWithDescriptor:"), descriptor) else error(failed, "could not allocate GPU depth storage")
+    if let previous = state.depth_texture:
+        metal_void(previous, metal_sel("release"))
+    state.depth_texture = texture
+    state.width = width
+    state.height = height
+    return texture
+
+func metal_drawing_destroy(state: MetalDrawing*):
+    if let texture = state.depth_texture:
+        metal_void(texture, metal_sel("release"))
+    if let pipeline = state.pipeline:
+        metal_void(pipeline, metal_sel("release"))
+    if let depth = state.depth_on:
+        metal_void(depth, metal_sel("release"))
+    if let depth = state.depth_off:
+        metal_void(depth, metal_sel("release"))
+    free(state) in memory.heap
+
+func metal_encode(encoder: void*, drawing: MetalDrawing*, buffer: void*, canvas: Canvas, width: u64, height: u64):
+    metal_object(encoder, metal_sel("setRenderPipelineState:"), drawing.pipeline)
+    metal_bind_buffer(encoder, metal_sel("setVertexBuffer:offset:atIndex:"), buffer, 0, 0)
+    for draw in canvas.draws[..<canvas.draw_count]:
+        let x = metal_min((u64)draw.clip.x, width)
+        let y = metal_min((u64)draw.clip.y, height)
+        let w = metal_min((u64)draw.clip.width, width - x)
+        let h = metal_min((u64)draw.clip.height, height - y)
+        if w == 0 or h == 0:
+            continue
+        let region = draw.viewport else Viewport(width = (f64)width, height = (f64)height)
+        metal_viewport(encoder, metal_sel("setViewport:"), LuceGpuMetalViewport(x = region.x, y = region.y, width = region.width, height = region.height, near = 0.0, far = 1.0))
+        metal_scissor(encoder, metal_sel("setScissorRect:"), LuceGpuMetalScissor(x = x, y = y, width = w, height = h))
+        metal_object(encoder, metal_sel("setDepthStencilState:"), drawing.depth_on if draw.depth else drawing.depth_off)
+        metal_draw(encoder, metal_sel("drawPrimitives:vertexStart:vertexCount:"), 3, (u64)draw.first, (u64)draw.count)
+
+func metal_min(a: u64, b: u64) -> u64:
+    return a if a < b else b

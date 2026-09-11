@@ -1334,6 +1334,10 @@ Exclusive graphics-host lease. Copies alias ownership: destroy one owner on the 
 
 - `let surface_too_large: ErrorCode = ErrorCode.package(98)`
 
+- `let invalid_geometry: ErrorCode = ErrorCode.package(99)`
+
+- `let command_limit: ErrorCode = ErrorCode.package(100)`
+
 ### `Backend` (enumas u8)
 
 automatic chooses the implemented native backend. An explicit unsupported backend fails; it never falls back silently. Vulkan is reserved, not implemented.
@@ -1360,6 +1364,55 @@ An owned device. All GPU operations currently require the main thread. The zero 
 - `func backend() -> Backend!`
 - `mutating func destroy()`
 
+### `Vertex` (struct)
+
+Portable triangle input. Positions are homogeneous clip coordinates: -w..w for x/y and 0..w for z. Colors are straight-alpha linear sRGB in 0..1. The backend interpolates color perspectively and blends into the sRGB target.
+
+- `var x: f32`
+- `var y: f32`
+- `var z: f32`
+- `var w: f32 = 1.0`
+- `var red: f32`
+- `var green: f32`
+- `var blue: f32`
+- `var alpha: f32 = 1.0`
+
+### `Clip` (struct)
+
+Scissor rectangle in backing pixels, measured from the target's top left. Rectangles are intersected with the target at submission; zero extent is empty.
+
+- `var x: u32`
+- `var y: u32`
+- `var width: u32`
+- `var height: u32`
+
+### `Viewport` (struct)
+
+Destination of clip coordinates, in backing pixels from the top left.
+
+- `var x: f64`
+- `var y: f64`
+- `var width: f64`
+- `var height: f64`
+
+### `RenderTarget` (struct)
+
+A borrowed recording region. Its owner controls the canvas lifetime. This is the shared rendering boundary for independently implemented UI/3D libraries.
+
+- `var canvas: Canvas*`
+- `var clip: Clip`
+- `var viewport: Viewport`
+- `func triangles(vertices: const Vertex[], depth: bool = false) -> !`
+
+### `Canvas` (struct)
+
+A reusable CPU command list, independent of any backend or window. triangles copies its input, so callers may reuse it immediately. A failed append leaves the visible command list unchanged. Copies alias storage; destroy one owner. Recording is single-threaded but does not require a device or a main thread.
+
+- `func count() -> usize`
+- `mutating func clear()`
+- `mutating func triangles(vertices: const Vertex[], clip: Clip, depth: bool = false, viewport: Viewport? = none) -> !` — Independent triangles, in submission order. Depth-enabled draws use less comparison and write depth; other draws leave depth untouched. Each frame starts with depth 1.0. No culling, multisampling, or texture sampling yet.
+- `mutating func destroy()`
+
 ### `Surface` (struct)
 
 One opaque sRGB presentation surface per window. Copies alias ownership. The surface retains its device and exclusively leases the window's host. Window closure prevents further rendering, but either destruction order is safe. Destroy on the main thread; always destroy surfaces even after closing.
@@ -1367,6 +1420,7 @@ One opaque sRGB presentation surface per window. Copies alias ownership. The sur
 - `static func open(device: Device, target: window.Window) -> Surface!`
 - `func size() -> window.Size!` — Extent in logical points and backing pixels; refresh after resized events.
 - `func clear_present(color: Color = Color()) -> PresentResult!` — Clear the entire target and queue presentation, with display synchronization. Refreshes backing dimensions before each acquisition. At most one GPU command is in flight per surface: a later call first waits for its predecessor and reports execution errors. Acquisition may wait for the backend timeout (Metal: about one second); this is not a nonblocking operation. Backing dimensions beyond the backend's presentation limit return surface_too_large; resize smaller and retry without recreating the surface.
+- `func render(canvas: Canvas, color: Color = Color()) -> PresentResult!` — Draw and present one canvas. Commands and input storage may be reused after this returns; native resources remain alive until GPU completion. The same resize, skipped-frame, and completion contracts as clear_present apply.
 - `func wait_idle() -> !` — Wait for this surface's last submission and report its execution status. Does not wait for the display to scan out the frame. Valid after Window closure; use before destroy when execution errors must be observed.
 - `mutating func destroy()` — Idempotent on this value. Drain pending work and release all resources. Cleanup cannot return an execution error; call wait_idle to observe it.
 

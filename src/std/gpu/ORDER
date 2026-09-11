@@ -1,7 +1,9 @@
 module.lucb
 device.lucb
+canvas.lucb
 surface.lucb
 backend.lucb
 metal/objc.lucb
 metal/device.lucb
+metal/drawing.lucb
 metal/surface.lucb

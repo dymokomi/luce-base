@@ -3,3 +3,10 @@ pub struct Settings:
     pub var label: str
     pub let version: i64
     var hidden: i64
+
+pub handle Resource:
+    destroy close_resource
+
+## A doc comment following a handle must not be parsed as a handle member.
+pub func close_resource(resource: Resource):
+    discard(resource)

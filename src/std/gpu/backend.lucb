@@ -41,6 +41,12 @@ func backend_surface_wait(device: DeviceState*, native: void*) -> !:
             return
     error(unsupported, "the GPU backend is not implemented")
 
+func backend_render(device: DeviceState*, host: window.Presentation, native: void*, canvas: Canvas, color: Color) -> PresentResult!:
+    if platform.macos and platform.arm64:
+        if device.backend == Backend.metal:
+            return try metal_render((MetalDevice*)device.native, host, (MetalSurface*)native, canvas, color)
+    error(unsupported, "the GPU backend is not implemented")
+
 func backend_surface_destroy(device: DeviceState*, host: window.Presentation, native: void*):
     if platform.macos and platform.arm64:
         if device.backend == Backend.metal:

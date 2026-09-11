@@ -10,6 +10,30 @@ extern struct LuceGpuMetalClearColor:
     blue: f64
     alpha: f64
 
+extern struct LuceGpuMetalScissor:
+    x: u64
+    y: u64
+    width: u64
+    height: u64
+
+extern struct LuceGpuMetalViewport:
+    x: f64
+    y: f64
+    width: f64
+    height: f64
+    near: f64
+    far: f64
+
+extern func metal_viewport as "objc_msgSend"(object: void*, selector: void*, rectangle: LuceGpuMetalViewport)
+
+extern func metal_string as "objc_msgSend"(object: void*, selector: void*, value: c.str) -> void*?
+extern func metal_library as "objc_msgSend"(object: void*, selector: void*, source: void*, options: void*?, failure: void*?*) -> void*?
+extern func metal_pipeline as "objc_msgSend"(object: void*, selector: void*, descriptor: void*, failure: void*?*) -> void*?
+extern func metal_buffer as "objc_msgSend"(object: void*, selector: void*, bytes: const void*, length: u64, options: u64) -> void*?
+extern func metal_bind_buffer as "objc_msgSend"(object: void*, selector: void*, buffer: void*, offset: u64, index: u64)
+extern func metal_scissor as "objc_msgSend"(object: void*, selector: void*, rectangle: LuceGpuMetalScissor)
+extern func metal_draw as "objc_msgSend"(object: void*, selector: void*, primitive: u64, start: u64, count: u64)
+
 extern func pthread_main_np() -> i32
 extern func MTLCreateSystemDefaultDevice() -> void*?
 extern func objc_getClass(name: c.str) -> void*?

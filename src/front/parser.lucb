@@ -250,8 +250,7 @@ pub struct Parser:
         destroy.text = try self.expect_name()
         n.right = destroy
         try self.expect_newline()
-        while self.at(token.Kind.newline):
-            discard(self.take())
+        self.skip_newlines()
         if not self.at(token.Kind.dedent):
             return try self.fail("a handle declares `destroy` and nothing else (§17.7)")
         discard(self.take())
