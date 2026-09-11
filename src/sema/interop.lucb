@@ -6,8 +6,10 @@ import sema.types
 
 pub struct Declaration:
     pub let descriptor: ast.Node*
-    pub let dispose: ast.Node*
+    pub let dispose: ast.Node*?
     pub let closeable: bool
+    pub let view: bool
+    pub let mutable: bool
 
 pub func standard(checker: check.Checker*, id: u32, name: str) -> bool:
     let native = checker.table.get(id)
@@ -20,7 +22,7 @@ pub func standard(checker: check.Checker*, id: u32, name: str) -> bool:
 ## A carrier names its concrete owner independently of aliases and import spelling.
 pub func reference(checker: check.Checker*, id: u32) -> u32?:
     let native = checker.table.get(id)
-    if native.args.length == 1 and standard(checker, id, "Reference"):
+    if native.args.length == 1 and (standard(checker, id, "Reference") or standard(checker, id, "View")):
         return native.args[0]
     return none
 
@@ -49,23 +51,37 @@ pub func owned(checker: check.Checker*, id: u32) -> Declaration?!:
             if declaration.kind != ast.Kind.constant or not declaration.has(ast.flag_pub):
                 continue
             let carrier = checker.table.get(declaration.type_id)
-            if carrier.args.length != 1 or carrier.args[0] != id or not standard(checker, declaration.type_id, "Type"):
+            let view = standard(checker, declaration.type_id, "ViewType")
+            if carrier.args.length != 1 or carrier.args[0] != id or not (view or standard(checker, declaration.type_id, "Type")):
                 continue
             if found != none:
-                error(check.type_error, "a native type must have exactly one public interop.Type declaration")
+                error(check.type_error, "a native type must have exactly one public interop ownership declaration")
             if not type_decl.has(ast.flag_pub):
                 error(check.type_error, "a public interop.Type must describe a public struct")
             let value = declaration.left else error(check.type_error, "an interop.Type needs its constant constructor")
             if value.kind != ast.Kind.call:
                 error(check.type_error, "declare native ownership with a direct constant interop.Type constructor")
-            let cleanup = argument(value, "dispose") else error(check.type_error, "name the interop.Type disposal argument explicitly")
-            let dispose = cleanup.resolved else error(check.type_error, "interop.Type disposal must name a concrete method or function")
+            var dispose: ast.Node*? = none
             var closeable = false
-            if let option = argument(value, "closeable"):
-                closeable = checker.constant_bool(option) else error(check.type_error, "interop.Type closeable must be constant")
-            if closeable:
-                if check.find_decl(type_decl, dispose.text) != dispose or not dispose.has(ast.flag_pub) or not dispose.has(ast.flag_mutating) or dispose.right != none:
-                    error(check.type_error, "closeable ownership requires a public mutating disposal method without parameters")
-            found = Declaration(descriptor = declaration, dispose = dispose, closeable = closeable)
+            var mutable = false
+            if view:
+                if let option = argument(value, "mutable"):
+                    mutable = checker.constant_bool(option) else error(check.type_error, "interop.ViewType mutable must be constant")
+                if not mutable:
+                    var members = type_decl.body
+                    while let member = members:
+                        if member.has(ast.flag_pub) and member.has(ast.flag_mutating) and member.text != "init":
+                            error(check.type_error, "a view with public mutating methods must declare mutable = true")
+                        members = member.next
+            else:
+                let cleanup = argument(value, "dispose") else error(check.type_error, "name the interop.Type disposal argument explicitly")
+                dispose = cleanup.resolved else error(check.type_error, "interop.Type disposal must name a concrete method or function")
+                if let option = argument(value, "closeable"):
+                    closeable = checker.constant_bool(option) else error(check.type_error, "interop.Type closeable must be constant")
+                if closeable:
+                    let method = dispose else error(check.type_error, "a closeable owner needs its disposal method")
+                    if check.find_decl(type_decl, method.text) != method or not method.has(ast.flag_pub) or not method.has(ast.flag_mutating) or method.right != none:
+                        error(check.type_error, "closeable ownership requires a public mutating disposal method without parameters")
+            found = Declaration(descriptor = declaration, dispose = dispose, closeable = closeable, view = view, mutable = mutable)
         return found
     return none

@@ -251,5 +251,11 @@ by disposal. Main-thread declarations check affinity before reservation.
 
 Declared native owners now import as Luce classes with real construction, methods,
 identity, retained children and checked field access. The object fixture verifies
-those adapters in all six compiled modes. Checked borrowed views and retained
-callback/interface adapters remain tracked by I06/I07/C02.
+those adapters in all six compiled modes. `ViewType[T]`, `View[T]` and `Lease`
+provide checked borrowed views with permanent expiry and explicit read/write
+policy. Views share the resource owner's invocation guard: close is visible
+immediately, while disposal waits until active calls return. Native call operands
+and assignment receivers remain alive across reentrant argument/RHS evaluation.
+The view fixtures verify stored, captured and bound access, owned text snapshots,
+and rejected construction/thread transfer in all six modes. Retained interface
+and callback adapters remain tracked by I07/C02.

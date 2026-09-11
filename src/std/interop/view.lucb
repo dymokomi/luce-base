@@ -1,0 +1,81 @@
+## An explicit export of a borrowed native struct. Its complete native data is a
+## view, never copied into ownership of the resource it describes.
+pub struct ViewType[T]:
+    pub let name: str
+    pub let mutable: bool = false
+
+pub struct ViewOwner[T]:
+    pub var header: ownership.Object
+    var information: ownership.Info
+    var native: T
+    var declaration: ViewType[T]
+    var lease: Lease
+
+    pub static func drop_view(object: ownership.Object*):
+        ((ViewOwner[T]*)object).lease.release()
+
+    pub static func trace_view(object: ownership.Object*, visit: func(ownership.Object*, void*) -> unit, context: void*):
+        ((ViewOwner[T]*)object).lease.trace(visit, context)
+
+## Manual Base carrier for a checked view. The Luce adapter shares this owner and
+## retains it in aliases/bound methods; every operation checks its lease again.
+pub struct View[T]:
+    pub let owner: ViewOwner[T]*
+
+    pub func init(owner: ViewOwner[T]*):
+        ownership.check_alive(&owner.header)
+        self.owner = owner
+
+    pub static func make(native: T, declaration: ViewType[T], lease: Lease) -> View[T]!:
+        try lease.check()
+        var information = ownership.Info(name = declaration.name, size = sizeof(ViewOwner[T]),
+            finish = none, drop = ViewOwner[T].drop_view, trace = ViewOwner[T].trace_view)
+        let owner = (ViewOwner[T]*)try ownership.reserve(&information, sizeof(ViewOwner[T]))
+        owner.information = information
+        owner.header.info = &owner.information
+        owner.native = native
+        owner.declaration = declaration
+        owner.lease = lease.clone()
+        return View[T](owner)
+
+    pub func clone() -> View[T]:
+        discard(ownership.retain(&self.owner.header))
+        return self
+
+    pub func release():
+        ownership.release(&self.owner.header)
+
+    pub func get() -> const T*!:
+        ownership.check_alive(&self.owner.header)
+        try self.owner.lease.check()
+        return &self.owner.native
+
+    pub func get_mut() -> T*!:
+        discard(try self.get())
+        if not self.owner.declaration.mutable:
+            error(invalid, "a native view is read-only")
+        return &self.owner.native
+
+    pub func value() -> const T*:
+        return self.get() catch failure: trap(failure.message)
+
+    pub func value_mut() -> T*:
+        return self.get_mut() catch failure: trap(failure.message)
+
+    pub func is_valid() -> bool:
+        ownership.check_alive(&self.owner.header)
+        return self.owner.lease.is_valid()
+
+    pub func enter() -> !:
+        ownership.check_alive(&self.owner.header)
+        try self.owner.lease.enter()
+        discard(ownership.retain(&self.owner.header))
+
+    pub func leave():
+        ownership.check_alive(&self.owner.header)
+        self.owner.lease.leave()
+        ownership.release(&self.owner.header)
+
+    pub func trace(visit: func(ownership.Object*, void*) -> unit, context: void*):
+        ownership.check_thread(&self.owner.header)
+        visit(&self.owner.header, context)

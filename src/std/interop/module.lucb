@@ -7,6 +7,7 @@ import thread
 
 pub let invalid: ErrorCode = ErrorCode.package(101)
 pub let wrong_thread: ErrorCode = ErrorCode.package(102)
+pub let expired: ErrorCode = ErrorCode.package(103)
 
 ## A package's constant declaration of native ownership. Dispose releases native
 ## resources and strong edges exactly once, including after an explicit close.

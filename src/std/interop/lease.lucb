@@ -1,0 +1,77 @@
+## A one-shot validity scope tied to an owning native object. Keeping a lease
+## alive keeps its checks safe; invalidation never extends the resource's scope.
+struct LeaseState:
+    var header: ownership.Object
+    var owner: ownership.Object*
+    var open: func(ownership.Object*) -> bool
+    var begin: func(ownership.Object*) -> unit
+    var end: func(ownership.Object*) -> unit
+    var valid: bool
+
+func drop_lease(object: ownership.Object*):
+    let state = (LeaseState*)object
+    ownership.release(state.owner)
+
+func trace_lease(object: ownership.Object*, visit: func(ownership.Object*, void*) -> unit, context: void*):
+    visit(((LeaseState*)object).owner, context)
+
+var lease_info: ownership.Info = ownership.Info(name = "native lease", size = sizeof(LeaseState),
+    finish = none, drop = drop_lease, trace = trace_lease)
+
+pub struct Lease:
+    var state: LeaseState*
+    var generation: u64
+
+    func init(owner: ownership.Object*, open: func(ownership.Object*) -> bool,
+              begin: func(ownership.Object*) -> unit, end: func(ownership.Object*) -> unit) -> !:
+        ownership.check_alive(owner)
+        let state = (LeaseState*)try ownership.reserve(&lease_info, sizeof(LeaseState))
+        state.owner = ownership.retain(owner)
+        state.open = open
+        state.begin = begin
+        state.end = end
+        state.valid = true
+        self.state = state
+        self.generation = state.header.generation
+
+    func alive():
+        ownership.check_alive(&self.state.header)
+        if self.generation != self.state.header.generation:
+            trap("a native lease has a stale generation")
+
+    pub func clone() -> Lease:
+        self.alive()
+        discard(ownership.retain(&self.state.header))
+        return self
+
+    pub func release():
+        self.alive()
+        ownership.release(&self.state.header)
+
+    pub func invalidate():
+        self.alive()
+        self.state.valid = false
+
+    pub func is_valid() -> bool:
+        self.alive()
+        return self.state.valid and self.state.open(self.state.owner)
+
+    pub func check() -> !:
+        if not self.is_valid():
+            error(expired, "a native view has expired")
+
+    ## An active invocation postpones physical disposal of its native owner.
+    ## Operational closure/expiry is still visible immediately to every alias.
+    pub func enter() -> !:
+        try self.check()
+        discard(ownership.retain(&self.state.header))
+        self.state.begin(self.state.owner)
+
+    pub func leave():
+        self.alive()
+        self.state.end(self.state.owner)
+        ownership.release(&self.state.header)
+
+    pub func trace(visit: func(ownership.Object*, void*) -> unit, context: void*):
+        ownership.check_thread(&self.state.header)
+        visit(&self.state.header, context)

@@ -1,0 +1,65 @@
+import interop
+import memory
+import ownership
+import strings
+
+var disposed: i64 = 0
+
+struct Resource:
+    var bytes: u8[]
+    func init() -> !:
+        self.bytes = try alloc u8[4] in memory.heap
+        self.fill()
+    mutating func fill():
+        memory.copy(self.bytes, "view".bytes, 4)
+    mutating func close():
+        disposed += 1
+        free(self.bytes) in memory.heap
+
+let resource_type: interop.Type[Resource] = interop.Type[Resource](
+    name = "Resource", dispose = Resource.close, closeable = true)
+
+struct Frame:
+    var text: str
+    func read() -> str:
+        return self.text
+
+let frame_type: interop.ViewType[Frame] = interop.ViewType[Frame](name = "Frame")
+
+func open() -> interop.Reference[Resource]!:
+    var reservation = try interop.Reservation[Resource](resource_type)
+    errdefer reservation.cancel()
+    let native = try new Resource() in memory.heap
+    return reservation.publish(native, memory.heap)
+
+pub func main(arguments: str[]) -> i32!:
+    let mode = strings.parse_i64(arguments[1]) else trap("mode missing")
+    let resource = try open()
+    let lease = try resource.lease()
+    let frame = try interop.View[Frame].make(Frame(text = (str)resource.value().bytes), frame_type, lease)
+    assert(frame.value().read() == "view" and frame.is_valid())
+    if mode == 1:
+        lease.invalidate()
+        discard(frame.value())
+        return 1
+    if mode == 2:
+        discard(frame.value_mut())
+        return 1
+    let alias = frame.clone()
+    try frame.enter()
+    resource.close()
+    assert(resource.is_closed() and disposed == 0)
+    assert(not frame.is_valid())
+    # The guard keeps storage until the active invocation has returned.
+    frame.leave()
+    assert(disposed == 1)
+    let invalidated = alias.get() catch failure:
+        assert(failure.code == interop.expired)
+        recover (const Frame*)0
+    assert(invalidated == (const Frame*)0)
+    alias.release()
+    frame.release()
+    lease.release()
+    resource.release()
+    assert(disposed == 1)
+    return ownership.finish_run(0)

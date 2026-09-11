@@ -7,6 +7,26 @@ pub struct Owner[T]:
     var native: T*?
     var native_allocator: memory.Allocator?
     var closed: bool
+    var disposed: bool
+    var active: usize
+
+    pub static func is_open(object: ownership.Object*) -> bool:
+        ownership.check_alive(object)
+        return not ((Owner[T]*)object).closed
+
+    pub static func enter(object: ownership.Object*):
+        discard(ownership.retain(object))
+        ((Owner[T]*)object).active += 1
+
+    pub static func leave(object: ownership.Object*):
+        ownership.check_alive(object)
+        let owner = (Owner[T]*)object
+        if owner.active == 0:
+            trap("a native call guard was left twice")
+        owner.active -= 1
+        if owner.closed and owner.active == 0:
+            dispose_owner[T](owner)
+        ownership.release(object)
 
     pub static func finish_owner(object: ownership.Object*):
         close_owner[T]((Owner[T]*)object)
@@ -20,7 +40,7 @@ pub struct Owner[T]:
 
     pub static func trace_owner(object: ownership.Object*, visit: func(ownership.Object*, void*) -> unit, context: void*):
         let owner = (Owner[T]*)object
-        if owner.closed:
+        if owner.disposed:
             return
         if let native = owner.native:
             if let trace = owner.declaration.trace:
@@ -33,6 +53,13 @@ func close_owner[T](owner: Owner[T]*):
         return
     # Publish closure before package cleanup can call back into an alias.
     owner.closed = true
+    if owner.active == 0:
+        dispose_owner[T](owner)
+
+func dispose_owner[T](owner: Owner[T]*):
+    if owner.disposed:
+        return
+    owner.disposed = true
     if let native = owner.native:
         owner.declaration.dispose(native)
 

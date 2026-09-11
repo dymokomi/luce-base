@@ -1,0 +1,15 @@
+import interop
+
+pub struct Frame:
+    pub var text: str
+    pub func read() -> str:
+        return self.text
+
+pub let frame_type: interop.ViewType[Frame] = interop.ViewType[Frame](name = "Frame")
+pub type Scope = Frame
+
+pub func echo(frame: interop.View[Frame]) -> interop.View[Frame]:
+    return frame.clone()
+
+pub func wrong(frame: interop.Reference[Frame]) -> interop.Reference[Frame]:
+    return frame.clone()

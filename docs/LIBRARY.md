@@ -377,6 +377,8 @@ Explicit native ownership shared with managed consumers. Package types remain or
 
 - `let wrong_thread: ErrorCode = ErrorCode.package(102)`
 
+- `let expired: ErrorCode = ErrorCode.package(103)`
+
 ### `Type` (struct[T])
 
 A package's constant declaration of native ownership. Dispose releases native resources and strong edges exactly once, including after an explicit close. A closeable export binds its public disposal method as the terminal operation.
@@ -392,6 +394,9 @@ A package's constant declaration of native ownership. Dispose releases native re
 Stable shell shared by every native reference and managed alias. Its header participates directly in the shared collector; no second reference count exists.
 
 - `var header: ownership.Object`
+- `static func is_open(object: ownership.Object*) -> bool`
+- `static func enter(object: ownership.Object*)`
+- `static func leave(object: ownership.Object*)`
 - `static func finish_owner(object: ownership.Object*)`
 - `static func drop_owner(object: ownership.Object*)`
 - `static func trace_owner(object: ownership.Object*, visit: func(ownership.Object*, void*) -> unit, context: void*)`
@@ -418,6 +423,9 @@ A typed reference carrier. Parameters borrow the carrier; clone acquires an addi
 - `func identity() -> u64`
 - `func is_closed() -> bool`
 - `func close()`
+- `func lease() -> Lease!`
+- `func enter()` — Guards are balanced by generated Luce calls or explicitly by Base callers.
+- `func leave()`
 - `func trace(visit: func(ownership.Object*, void*) -> unit, context: void*)` — Every retained native edge must be visited by the package's trace callback.
 
 ### `WeakReference` (struct[T])
@@ -428,6 +436,48 @@ A weak carrier keeps the owner shell, never the native resource. Getting a live 
 - `func clone() -> WeakReference[T]`
 - `func release()`
 - `func get() -> Reference[T]?`
+
+### `Lease` (struct)
+
+- `func clone() -> Lease`
+- `func release()`
+- `func invalidate()`
+- `func is_valid() -> bool`
+- `func check() -> !`
+- `func enter() -> !` — An active invocation postpones physical disposal of its native owner. Operational closure/expiry is still visible immediately to every alias.
+- `func leave()`
+- `func trace(visit: func(ownership.Object*, void*) -> unit, context: void*)`
+
+### `ViewType` (struct[T])
+
+An explicit export of a borrowed native struct. Its complete native data is a view, never copied into ownership of the resource it describes.
+
+- `let name: str`
+- `let mutable: bool = false`
+
+### `ViewOwner` (struct[T])
+
+- `var header: ownership.Object`
+- `static func drop_view(object: ownership.Object*)`
+- `static func trace_view(object: ownership.Object*, visit: func(ownership.Object*, void*) -> unit, context: void*)`
+
+### `View` (struct[T])
+
+Manual Base carrier for a checked view. The Luce adapter shares this owner and retains it in aliases/bound methods; every operation checks its lease again.
+
+- `let owner: ViewOwner[T]*`
+- `func init(owner: ViewOwner[T]*)`
+- `static func make(native: T, declaration: ViewType[T], lease: Lease) -> View[T]!`
+- `func clone() -> View[T]`
+- `func release()`
+- `func get() -> const T*!`
+- `func get_mut() -> T*!`
+- `func value() -> const T*`
+- `func value_mut() -> T*`
+- `func is_valid() -> bool`
+- `func enter() -> !`
+- `func leave()`
+- `func trace(visit: func(ownership.Object*, void*) -> unit, context: void*)`
 
 ## `utf8`
 

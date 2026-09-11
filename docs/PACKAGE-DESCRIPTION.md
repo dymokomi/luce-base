@@ -2,7 +2,7 @@
 
 `luce-base describe module.lucb` checks a Base module and writes its public API.
 Luce consumes this description without parsing Base source. There is one current
-format, identified by the first line `description 5`. Both compilers change
+format, identified by the first line `description 6`. Both compilers change
 together; no older reader, alternate format flag or compatibility fallback exists.
 
 The producer is `src/sema/describe.lucb`. The consumer is
@@ -18,7 +18,7 @@ that a struct's representation/constructor records precede its other members and
 conformances follow them. No function body or private field is emitted.
 
 ```text
-description 5
+description 6
 module example
 interface CounterView
     method value() -> i64
@@ -41,17 +41,19 @@ struct Point
 
 | Record | Meaning |
 | --- | --- |
-| `description 5` | Required current format marker; Luce rejects a mismatch before importing declarations |
+| `description 6` | Required current format marker; Luce rejects a mismatch before importing declarations |
 | `module name` | Entry module's filename stem; the consumer supplies its resolved package/module identity |
 | `import module as alias` | Nonstandard dependency mentioned by a public signature or conformance |
 | `standard module as alias` | Embedded standard-module dependency; distinct from a package source import |
-| `foreign alias.Type kind` | Referenced foreign nominal type; kind is `struct`, `object`, `enum`, `interface`, `handle` or `opaque` |
+| `foreign alias.Type kind` | Referenced foreign nominal type; kind is `struct`, `object`, `view`, `enum`, `interface`, `handle` or `opaque` |
 | `func name(p: T) -> R` | Public function; a unit result omits the arrow/result |
 | `p: T = default` / `field var name: T = default` | An omittable argument/field; Base evaluates the original checked expression or zero initialization |
 | `p: T = caller.file` / `caller.line` / `caller.function` / `caller.location` | A caller fact evaluated at the consumer source call |
 | `let name: T` | Public constant and its type |
 | `object Name descriptor constant close method` | Explicit native ownership; `-` disables explicit close |
 | `owned[Name]` | Typed `interop.Reference[Name]` carrier; parameters borrow and results transfer one strong reference |
+| `view Name descriptor constant mutable bool` | Checked borrowed native struct; construction is private |
+| `borrowed[Name]` | Typed `interop.View[Name]` carrier; aliases retain the same validity lease |
 | `struct Name` | Public struct with the member records below |
 | `representation complete` | All direct native fields are public; this does not prove nested ownership or trivial copyability |
 | `representation private` | At least one direct native field is private; the public fields do not describe the complete storage |
@@ -105,9 +107,9 @@ whose native type cannot cross makes that signature unavailable. Tuple/optional
 nesting and native integer spelling remain part of adapter identity even when two
 native scalar types map to the same Luce type.
 
-Owned objects follow the [ownership contract](BASE-INTEROP.md). Checked borrowed
-views and interface lifetime adapters remain in I06–I07. Standard type import resolution
-is tracked in I09. Interface execution remains a separate ownership gate.
+Owned objects and checked views follow the [ownership contract](BASE-INTEROP.md).
+Interface lifetime adapters remain in I07; standard type import resolution is
+tracked in I09.
 
 ## Verification
 
@@ -124,8 +126,10 @@ private state, value/static/bound methods, aliases, mutation before failure, tex
 ownership, native equality and worker copies at native opts 0–3 and both C modes.
 Its negative cases reject hidden borrows, private constructors, private arguments
 and unhandled initialization failures. `test_base_objects.py` covers native owners
-and `describe_objects` verifies their metadata. Interfaces, leases and retained
-callbacks remain separate gates.
+and `describe_objects` verifies their metadata. `describe_views` and
+`test_base_views.py` verify view metadata, retained leases, expiry, mutation,
+bound/captured calls, owned snapshots and rejected construction/worker transfer.
+Interfaces and retained callbacks remain separate gates.
 
 ## Owned native structs
 
@@ -149,3 +153,23 @@ child references are acquired. Direct stores are supported for `i64`, `f64` and
 its lifetime rules; the checker diagnoses direct assignment. Closed aliases allow
 only the shared state query and declared close operation. Other fallible methods
 return `interop.invalid`; infallible access traps before reaching native storage.
+
+
+## Checked native views
+
+A public `interop.ViewType[T](name = ..., mutable = ...)` declares a borrowed
+struct. It imports as a nonconstructible Luce reference. Base creates an
+`interop.View[T]` with the complete native view and a lease from its resource
+owner. The view keeps the owner and validity state alive; it does not extend the
+resource's valid period. Explicit invalidation is permanent, and closing the
+resource invalidates its leases. All aliases, captured values and bound methods
+check the same lease before accessing native storage. Read-only declarations
+cannot expose mutating methods. `is_valid` remains callable after expiry.
+
+A generated native method holds an invocation guard through argument conversion,
+the native call and result/error conversion. Close becomes visible immediately;
+physical disposal waits for active invocations to leave. Call operands stay alive
+through argument evaluation, including replacement of a captured binding. Field
+setters capture their receiver before evaluating the right-hand side and check
+validity at the actual store. Native text results are copied while access is valid,
+so an owned Luce snapshot survives expiry.

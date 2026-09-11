@@ -47,6 +47,17 @@ pub struct Reference[T]:
             trap("this native type does not support explicit close")
         close_owner[T](self.owner)
 
+    pub func lease() -> Lease!:
+        discard(try self.get())
+        return try Lease(&self.owner.header, Owner[T].is_open, Owner[T].enter, Owner[T].leave)
+
+    ## Guards are balanced by generated Luce calls or explicitly by Base callers.
+    pub func enter():
+        Owner[T].enter(&self.owner.header)
+
+    pub func leave():
+        Owner[T].leave(&self.owner.header)
+
     ## Every retained native edge must be visited by the package's trace callback.
     pub func trace(visit: func(ownership.Object*, void*) -> unit, context: void*):
         # Trial deletion temporarily subtracts internal strong references.

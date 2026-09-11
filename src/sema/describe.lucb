@@ -27,7 +27,7 @@ struct DescriptionWriter:
     var foreign_types: list.List[u32]
 
     mutating func module(name: str) -> !:
-        try self.out.write(f"description 5\nmodule {name}\n")
+        try self.out.write(f"description 6\nmodule {name}\n")
         var cursor = self.tree.body
         while let d = cursor:
             if d.has(ast.flag_pub) and not generic(d):
@@ -55,7 +55,9 @@ struct DescriptionWriter:
                 if decl.kind == ast.Kind.extern_type and decl.right != none:
                     kind = "handle"
                 elif t.kind == types.Kind.struct_:
-                    kind = "object" if try interop.owned(self.checker, id) != none else "struct"
+                    kind = "struct"
+                    if let declaration = try interop.owned(self.checker, id):
+                        kind = "view" if declaration.view else "object"
                 elif t.kind == types.Kind.enum_ and decl.ty != none:
                     kind = "enum"
                 elif t.kind == types.Kind.interface_:
@@ -75,7 +77,7 @@ struct DescriptionWriter:
             .func_:
                 try self.signature(d, "func ")
             .constant:
-                if interop.standard(self.checker, d.type_id, "Type"):
+                if interop.standard(self.checker, d.type_id, "Type") or interop.standard(self.checker, d.type_id, "ViewType"):
                     discard(try interop.owned(self.checker, self.checker.table.get(d.type_id).args[0]))
                     return
                 try self.out.write(f"let {d.text}: ")
@@ -84,8 +86,12 @@ struct DescriptionWriter:
             .struct_, .extern_struct:
                 let owned = try interop.owned(self.checker, d.type_id)
                 if let native = owned:
-                    let close = native.dispose.text if native.closeable else "-"
-                    try self.out.write(f"object {d.text} descriptor {native.descriptor.text} close {close}\n")
+                    if native.view:
+                        try self.out.write(f"view {d.text} descriptor {native.descriptor.text} mutable {native.mutable}\n")
+                    else:
+                        let dispose = native.dispose else error(check.type_error, "an owned declaration has no disposal")
+                        let close = dispose.text if native.closeable else "-"
+                        try self.out.write(f"object {d.text} descriptor {native.descriptor.text} close {close}\n")
                 else:
                     try self.out.write(f"struct {d.text}\n")
                 var complete = true
@@ -98,7 +104,12 @@ struct DescriptionWriter:
                         init = member
                     cursor = member.next
                 try self.out.write("    representation complete\n" if complete else "    representation private\n")
-                if let initializer = init:
+                var view = false
+                if let native = owned:
+                    view = native.view
+                if view:
+                    try self.out.write("    constructor private\n")
+                elif let initializer = init:
                     if initializer.has(ast.flag_pub):
                         try self.signature(initializer, "    constructor ")
                     else:
@@ -133,11 +144,11 @@ struct DescriptionWriter:
                     try self.out.write(f"unavailable {d.text} extern-type\n")
             .type_alias:
                 try self.out.write(f"type {d.text} = ")
-                let owned = try interop.owned(self.checker, d.type_id) != none
-                if owned:
-                    try self.out.write("owned[")
+                let owned = try interop.owned(self.checker, d.type_id)
+                if let native = owned:
+                    try self.out.write("borrowed[" if native.view else "owned[")
                 try self.type_name(d.type_id)
-                if owned:
+                if owned != none:
                     try self.out.write("]")
                 try self.out.write("\n")
             .union_, .extern_union:
@@ -188,8 +199,8 @@ struct DescriptionWriter:
                 if member == native.dispose and not native.closeable:
                     cursor = member.next
                     continue
-                if member.text == "is_closed":
-                    error(check.type_error, "is_closed is the shared native ownership state query; choose another package member name")
+                if member.text == ("is_valid" if native.view else "is_closed"):
+                    error(check.type_error, "this name is the shared native ownership state query; choose another package member name")
             if visible_member(d, member):
                 if generic(member):
                     try self.out.write(f"    unavailable {member.text} generic\n")
@@ -290,11 +301,13 @@ struct DescriptionWriter:
 
     mutating func type_name(id: u32) -> !:
         if let native = interop.reference(self.checker, id):
-            if try interop.owned(self.checker, native) != none:
-                try self.out.write("owned[")
-                try self.type_name(native)
-                try self.out.write("]")
-                return
+            if let declaration = try interop.owned(self.checker, native):
+                let view = interop.standard(self.checker, id, "View")
+                if view == declaration.view:
+                    try self.out.write("borrowed[" if view else "owned[")
+                    try self.type_name(native)
+                    try self.out.write("]")
+                    return
         let t = self.checker.table.get(id)
         if let module = self.foreign_module(id):
             if t.args.length == 0:

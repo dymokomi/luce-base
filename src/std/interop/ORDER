@@ -2,3 +2,5 @@ module.lucb
 object.lucb
 reference.lucb
 weak.lucb
+lease.lucb
+view.lucb
