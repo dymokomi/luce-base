@@ -4,8 +4,8 @@ Updated: 2026-09-11. This is the working checklist for the ecosystem rewrite.
 [PACKAGE-REWRITE.md](PACKAGE-REWRITE.md) holds the full file inventory, design
 constraints and acceptance criteria. Follow the phases below in order.
 
-**Status:** sections 1 and 2 in progress; native values, owners, views and interfaces verified.
-**Next task:** I08–I11, then C01–C05.
+**Status:** section 1 complete; section 2 callback/worker implementation in progress.
+**Next task:** C02–C05.
 
 ## How we track work
 
@@ -73,7 +73,7 @@ default. Preserve recoverable errors and explicit Base ownership.
   Contract: [PACKAGE-IMPORTS.md](PACKAGE-IMPORTS.md).
 - [x] I10 — Separate boundary conversion/ownership code into focused compiler
   modules; update interop/runtime documentation and generated sources as needed.
-- [ ] I11 — **Phase gate:** run a small real Base struct/interface library from
+- [x] I11 — **Phase gate:** run a small real Base struct/interface library from
   both Base and Luce. Prove private-state mutation, defaults, identity, bound
   methods, errors, destruction and rejected invalid crossings at native opts 0–3.
 
@@ -288,6 +288,10 @@ Vulkan implementation remain later work, as specified in the scope document.
 | I09 | Base public resolver, exports, canonical standard descriptions and this checklist committed together; matching Luce reader/packager follows with the exact pin. `package_exports` and `test_public_imports.py` pass native opts 0–3 and both C modes, including `Button("pause")`, aliases, transitive exports, standard math/net identity, distinct package error codes and rebuilding a relocated emitted bundle after deleting its original sources. Existing package diamond/collision/protocol fixtures pass six modes; availability reader tests pass native/C; 75 Base checker tests pass. Native self-host reproduces assembly and both snapshots are refreshed. Local filesystem dependencies are implemented; registry fetching/version selection remain later work. |
 
 | I08, I10 | Luce implementation and matching Base contract/checklist committed as a verified slice. `back.crossings`, `back.emission` and `back.native_types` own conversion code, shared output/type spelling and signature identity; the real interface fixture emits byte-identical Base before/after extraction. Extended `test_base_interfaces.py` passes direct Base and Luce at native opts 0–3 and both C modes, including retained owner/interface/view span elements and empty-span failure cleanup. Description/foreign-record fixtures pass six modes; nine reader tests pass native/C, including rejection of raw handle fields and `Owned`/`Outcome` payloads through aliases. Reverse interface adapters require borrowable parameters. The section-one full gate is running; I11 stays open until it passes. |
+
+| I11 | Luce `73c4ae6` plus diagnostic fix `bbc1c09`, pinned to Base `67081ec`. Full ARM64 macOS gate passed (`luce/build/section-one-full-gate.log`): compiler unit checks in native/C, all boundary/package/cleanup/worker matrices, 69 programs, 138 rejections, 85 parsed, formatting, and fuzzing (60 mutations / six generated programs, zero findings). The real Base/interface library is exercised from both Base and Luce at native opts 0–3 and both C modes, including private storage, defaults, identity, bound methods, failures, destruction and rejected crossings. No Linux-host run is claimed. |
+
+| C01 | Contract committed as Base `2825c4d`: capture retention, guards, checked-view escape, traceable cycles, ordered snapshots, disconnect/close during emission and owned callback failures. Implementation evidence remains C02–C05. |
 
 For implementation entries, record repository, commit, test commands/results,
 native target/optimization coverage and any remaining limit relevant to the task.
