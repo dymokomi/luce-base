@@ -1382,6 +1382,13 @@ require the main thread. Other targets return `window.unsupported`. These
 modules add no compiler intrinsics. See [native windows](../WINDOWS.md) for the
 ownership contract, demonstration, platform linkage, and current scope.
 
+`gpu` provides portable device and presentation ownership, with Metal clear/present
+on arm64 macOS. Its backend dispatch separates application types from native
+graphics objects so later Vulkan support can implement the same contracts.
+Surfaces retain their device and lease their window host; GPU methods currently
+require the main thread. See [GPU devices and presentation](../GPU.md) for the
+API, color space, synchronization, linkage, tests, and deferred shader/resource work.
+
 ## 17. Calling C
 
 Base is the layer C bindings are written in. There is no marshalling: a Base pointer is a C pointer, a Base struct is a C struct, `c.str` is `char*`. What full Luce needs three layers for (a foreign declaration, an audited raw module, and a safe wrapper) is one layer in Base, and a safe wrapper for full Luce, when one is wanted, is ordinary Base code behind a `.lucn` module (§18.6).

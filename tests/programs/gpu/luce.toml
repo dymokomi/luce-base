@@ -1,0 +1,6 @@
+[package]
+name = "gpu"
+
+[native]
+frameworks = ["AppKit", "Foundation", "CoreGraphics", "QuartzCore", "Metal"]
+libraries = ["objc"]

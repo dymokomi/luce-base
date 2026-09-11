@@ -21,4 +21,5 @@ testing
 net
 input
 window
+gpu
 debug

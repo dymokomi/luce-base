@@ -1,0 +1,56 @@
+import c
+import memory
+import platform
+import window
+
+pub let unsupported: ErrorCode = ErrorCode.package(91)
+pub let unavailable: ErrorCode = ErrorCode.package(92)
+pub let wrong_thread: ErrorCode = ErrorCode.package(93)
+pub let closed: ErrorCode = ErrorCode.package(94)
+pub let invalid_color: ErrorCode = ErrorCode.package(95)
+pub let failed: ErrorCode = ErrorCode.package(96)
+pub let execution_failed: ErrorCode = ErrorCode.package(97)
+
+## automatic chooses the implemented native backend. An explicit unsupported
+## backend fails; it never falls back silently. Vulkan is reserved, not implemented.
+pub enum Backend as u8:
+    automatic = 0
+    metal = 1
+    vulkan = 2
+
+## Whether this build contains a backend, not whether hardware is available.
+## Device.open probes the hardware separately and may return unavailable.
+pub func supported(backend: Backend = Backend.automatic) -> bool:
+    return (platform.macos and platform.arm64) and (backend == Backend.automatic or backend == Backend.metal)
+
+## Linear-light sRGB components, each finite and in 0..1. Presentation is opaque;
+## alpha is fixed at one. Conversion to the sRGB display encoding occurs in the
+## render target, not in application code. HDR/transparency are not yet exposed.
+pub struct Color:
+    pub var red: f64
+    pub var green: f64
+    pub var blue: f64
+
+## Submission does not guarantee that a frame has appeared on the display.
+## skipped means hidden/minimized, zero drawable extent, or no drawable available;
+## keep pumping events and retry on a later frame. It is not an execution failure.
+pub enum PresentResult as u8:
+    submitted = 0
+    skipped = 1
+
+func check_thread() -> !:
+    if not supported():
+        error(unsupported, "no GPU backend is implemented for this target")
+    if platform.macos and platform.arm64:
+        if pthread_main_np() == 0:
+            error(wrong_thread, "GPU operations currently require the main thread")
+
+func require_thread():
+    check_thread() catch failure:
+        discard(failure)
+        trap("GPU destruction requires the main thread")
+
+func check_color(color: Color) -> !:
+    # Positive comparisons also reject NaNs, without depending on math linkage.
+    if not (color.red >= 0.0 and color.red <= 1.0 and color.green >= 0.0 and color.green <= 1.0 and color.blue >= 0.0 and color.blue <= 1.0):
+        error(invalid_color, "GPU clear colors must be finite linear sRGB values in 0..1")

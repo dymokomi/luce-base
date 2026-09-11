@@ -9,6 +9,7 @@ pub let wrong_thread: ErrorCode = ErrorCode.package(86)
 pub let invalid_options: ErrorCode = ErrorCode.package(87)
 pub let failed: ErrorCode = ErrorCode.package(88)
 pub let closed: ErrorCode = ErrorCode.package(89)
+pub let presentation_in_use: ErrorCode = ErrorCode.package(90)
 
 ## This first backend supports arm64 macOS. Link AppKit, Foundation, and objc.
 ## Importing input alone has no window-system dependency. Other targets return
@@ -67,6 +68,15 @@ pub struct Window:
         if platform.macos and platform.arm64:
             mac_resize(state, width, height)
 
+    ## Reserve this window for one graphics surface. Normally gpu.Surface calls
+    ## this; applications need not manage the lease themselves.
+    pub func acquire_presentation() -> Presentation!:
+        let state = try self.checked()
+        if state.presentation_held:
+            error(presentation_in_use, "the window already has a presentation surface")
+        state.presentation_held = true
+        return Presentation(state = state)
+
     ## Request closure, using the same event as the title-bar close button.
     ## The application decides whether to destroy the window after receiving it.
     pub func request_close() -> !:
@@ -110,4 +120,3 @@ func check_thread() -> !:
 func check_extent(width: u32, height: u32) -> !:
     if width == 0 or height == 0 or width > 10000 or height > 10000:
         error(invalid_options, "window dimensions must be between 1 and 10000 points")
-

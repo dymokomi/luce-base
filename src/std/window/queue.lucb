@@ -10,6 +10,8 @@ struct State:
     var count: usize
     var overflowed: bool
     var close_requested: bool
+    var presentation_held: bool
+    var destroyed: bool
 
 func push_event(state: State*, event: input.Event):
     if state.count == state.events.length:
@@ -32,4 +34,3 @@ func pop_event(state: State*) -> input.Event?:
     state.head = (state.head + 1) % state.events.length
     state.count -= 1
     return event
-

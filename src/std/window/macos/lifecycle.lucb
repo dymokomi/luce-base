@@ -134,6 +134,7 @@ func mac_pump():
 func mac_destroy(state: State*):
     let pool = objc_autoreleasePoolPush()
     defer objc_autoreleasePoolPop(pool)
+    state.destroyed = true
     if let view = state.view:
         set_state(view, none)
     if let delegate = state.delegate:
@@ -142,6 +143,15 @@ func mac_destroy(state: State*):
         msg_object(native, sel("setDelegate:"), none)
         msg_object(native, sel("orderOut:"), none)
         msg_void(native, sel("close"))
+    # A graphics backend may still own resources referring to the native host.
+    # Close immediately, but keep the host alive until its lease is returned.
+    if not state.presentation_held:
+        mac_free(state)
+
+func mac_free(state: State*):
+    let pool = objc_autoreleasePoolPush()
+    defer objc_autoreleasePoolPop(pool)
+    if let native = state.native:
         msg_void(native, sel("release"))
     if let view = state.view:
         msg_void(view, sel("release"))

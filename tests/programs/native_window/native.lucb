@@ -1,5 +1,5 @@
 ## Test-only AppKit calls manufacture native events and find windows by title.
-## The production library exports no injection hooks or raw native pointers.
+## The production library exports no event injection hooks.
 import c
 
 extern struct ProbePoint:

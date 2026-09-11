@@ -21,7 +21,8 @@ On arm64 macOS, from the repository root:
 
 This uses the default native backend. The demonstration opens a window and
 reports resize and display-scale changes. Escape or the title-bar close
-button requests closure. Rendering is intentionally absent in this increment.
+button requests closure. This example draws nothing; the separate
+[GPU demonstration](GPU.md) attaches a Metal presentation surface.
 
 An application using `window` declares its system dependencies in `luce.toml`:
 
@@ -56,8 +57,10 @@ can import `window` and receive `window.unsupported` without linking AppKit.
   input. Close requests have priority and survive overflow. Discard held-key and
   held-button state on overflow or focus loss.
 - A close request is a decision for the application; it does not release the
-  window. `destroy` detaches callbacks before releasing AppKit objects and Base
-  storage. The process-wide NSApplication and registered runtime classes remain
+  window. `destroy` closes the window and detaches callbacks. A live
+  `Presentation` lease retains its native host and Base storage until the graphics
+  surface releases the lease; otherwise destruction releases them immediately.
+  The process-wide NSApplication and registered runtime classes remain
   until process exit. This API manages application activation policy and is
   intended for Base-owned application event loops.
 - Pointer coordinates use logical points, with the origin at the content's top
@@ -94,18 +97,19 @@ to check native stack packing, signed extension, floating spills, and varargs.
 
 ## Following increments
 
-1. Add a minimal `gpu` surface and Metal clear/present path, tied to window
-   lifetime and backing-size changes.
-2. Implement Linux window/input support and Vulkan presentation, then revise the
+The [GPU foundation](GPU.md) now provides Metal clear/present, tied to window
+lifetime and backing-size changes. Next:
+
+1. Implement Linux window/input support and Vulkan presentation, then revise the
    shared contracts using evidence from both platforms.
-3. Define a portable shader and resource model before exposing application
+2. Define a portable shader and resource model before exposing application
    shaders as a stable API.
-4. Build `luce-ui` as a Base package over `window`, `input`, and `gpu`, starting
+3. Build `luce-ui` as a Base package over `window`, `input`, and `gpu`, starting
    with a button; then demonstrate it from high-level Luce.
 
 Text composition/IME, clipboard, drag and drop, accessibility, fullscreen,
 application menus, and richer touchpad gestures are separate work. No platform
-rendering API or shader-language promise is implied by this first increment.
+shader-language promise is implied by the window/input API.
 
 Implementation references: [Apple NSWindow](https://developer.apple.com/documentation/appkit/nswindow),
 [AppKit event retrieval](https://developer.apple.com/documentation/appkit/nsapplication/nextevent%28matching%3Auntil%3Ainmode%3Adequeue%3A%29),

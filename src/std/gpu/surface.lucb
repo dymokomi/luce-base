@@ -1,0 +1,59 @@
+## One opaque sRGB presentation surface per window. Copies alias ownership.
+## The surface retains its device and exclusively leases the window's host.
+## Window closure prevents further rendering, but either destruction order is
+## safe. Destroy on the main thread; always destroy surfaces even after closing.
+pub struct Surface:
+    var state: SurfaceState*?
+
+    pub static func open(device: Device, target: window.Window) -> Surface!:
+        let device_state = try device.checked()
+        var host = try target.acquire_presentation()
+        errdefer host.destroy()
+        let native = try backend_surface_open(device_state, host)
+        errdefer backend_surface_destroy(device_state, host, native)
+        let state = try new SurfaceState(device = device_state, host = host, native = native) in memory.heap
+        device_state.references += 1
+        return Surface(state = state)
+
+    ## Extent in logical points and backing pixels; refresh after resized events.
+    pub func size() -> window.Size!:
+        return try (try self.checked()).host.size()
+
+    ## Clear the entire target and queue presentation, with display synchronization.
+    ## Refreshes backing dimensions before each acquisition. At most one GPU
+    ## command is in flight per surface: a later call first waits for its predecessor
+    ## and reports execution errors. Acquisition may wait for the backend timeout
+    ## (Metal: about one second); this is not a nonblocking operation.
+    pub func clear_present(color: Color = Color()) -> PresentResult!:
+        let state = try self.checked()
+        try check_color(color)
+        # Test window liveness even if no previous command is pending.
+        discard(try state.host.size())
+        return try backend_clear_present(state.device, state.host, state.native, color)
+
+    ## Wait for this surface's last submission and report its execution status.
+    ## Does not wait for the display to scan out the frame. Valid after Window
+    ## closure; use before destroy when execution errors must be observed.
+    pub func wait_idle() -> !:
+        let state = try self.checked()
+        try backend_surface_wait(state.device, state.native)
+
+    ## Idempotent on this value. Drain pending work and release all resources.
+    ## Cleanup cannot return an execution error; call wait_idle to observe it.
+    pub mutating func destroy():
+        let state = self.state else return
+        require_thread()
+        self.state = none
+        backend_surface_destroy(state.device, state.host, state.native)
+        state.host.destroy()
+        release_device(state.device)
+        free(state) in memory.heap
+
+    func checked() -> SurfaceState*!:
+        try check_thread()
+        return self.state else error(closed, "the GPU surface is closed")
+
+struct SurfaceState:
+    var device: DeviceState*
+    var host: window.Presentation
+    var native: void*
