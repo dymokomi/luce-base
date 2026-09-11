@@ -35,7 +35,7 @@ func attempt(path: c.str, length: usize, fail_at: usize) -> usize!:
 pub func main(arguments: str[]) -> i32!:
     assert(arguments.length == 3)
     let path = (c.str)arguments[1]
-    let length = (usize)(strings.to_i64(arguments[2]) else -1)
+    let length = (usize)(strings.parse_i64(arguments[2]) else -1)
     let attempts = try attempt(path, length, 0)
     for i in 1..=attempts:
         discard(try attempt(path, length, i))

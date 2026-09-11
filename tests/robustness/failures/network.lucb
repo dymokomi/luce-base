@@ -232,7 +232,7 @@ pub func main(arguments: str[]) -> i32!:
     var got: usize = 0
     fault_arm(2)
     while got < buffer.length:
-        got += try receiver.receive(buffer[got..])
+        got += try receiver.read(buffer[got..])
     assert(fault_hits() == 1)
     assert((str)buffer == "abcdefgh")
     var kind: i32 = 3

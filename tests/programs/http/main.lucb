@@ -44,7 +44,7 @@ func serve(connection: net.Connection):
             if used == max_request:
                 fail(&live, 413)
                 return
-            let n = live.receive(buffer[used..]) catch:
+            let n = live.read(buffer[used..]) catch:
                 return
             if n == 0:
                 return
@@ -59,7 +59,7 @@ func serve(connection: net.Connection):
             fail(&live, 413)
             return
         while used < head_end + length:
-            let n = live.receive(buffer[used..]) catch:
+            let n = live.read(buffer[used..]) catch:
                 return
             if n == 0:
                 return
@@ -149,12 +149,12 @@ func parse_options(arguments: str[]) -> Options!:
         let flag = arguments[i]
         let value = arguments[i + 1]
         if flag == "--port":
-            let n = strings.to_i64(value) else error(bad_option, "--port needs a number")
+            let n = strings.parse_i64(value) else error(bad_option, "--port needs a number")
             options.port = (u16)n
         elif flag == "--root":
             options.root = value
         elif flag == "--threads":
-            let n = strings.to_i64(value) else error(bad_option, "--threads needs a number")
+            let n = strings.parse_i64(value) else error(bad_option, "--threads needs a number")
             options.threads = (usize)n if n > 0 and n <= 64 else 4
         else:
             error(bad_option, "unknown option")

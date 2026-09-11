@@ -376,10 +376,6 @@ Split a borrowed text at a nonempty byte substring. Empty fields, including the 
 
 - `func replace(text: str, needle: str, replacement: str, max_replacements: usize = 0, max_bytes: usize? = none) -> str!` — Replace nonoverlapping byte substrings from left to right. Empty needles report invalid_separator. max_replacements=0 replaces all matches; max_bytes optionally limits result bytes excluding its terminator, reporting output_too_large before allocation. A result is always a fresh NUL-terminated current-allocator allocation, including unchanged or empty results; release gives it back. Inputs remain borrowed and unchanged and may overlap each other. No UTF-8 validation occurs.
 
-- `func to_i64(text: str) -> i64?` — A complete decimal signed integer with an optional sign. Whitespace, prefixes, separators and trailing bytes are rejected. None also reports overflow.
-
-- `func to_u64(text: str) -> u64?` — A complete decimal unsigned integer. A leading plus is accepted; minus is not. None reports invalid input or overflow. No allocation or locale lookup occurs.
-
 - `func parse_i64(text: str, radix: u32 = 10) -> i64?` — A signed integer in radix 2 through 36. ASCII letters are case-insensitive digits; prefixes are not interpreted. Optional +/- and leading zeroes are accepted. None reports an invalid radix, invalid byte, missing digit or overflow.
 
 - `func parse_u64(text: str, radix: u32 = 10) -> u64?` — Unsigned counterpart of parse_i64. A leading plus is accepted; every minus, including -0, is rejected. The entire input must fit u64 in the requested radix.
@@ -1004,7 +1000,6 @@ One owned TCP connection implementing borrowed Reader and Writer interfaces. Zer
 - `mutating func shutdown(direction: ShutdownDirection = ShutdownDirection.both) -> !` — Stop one or both directions while retaining ownership. Shutting down writes sends EOF after queued TCP bytes, so the peer can still send its response. Use read shutdown only when input is no longer needed; treatment of queued input follows the host. Neither direction flushes user buffers; flush any io.BufferedWriter before shutting down writes.
 - `mutating func write(data: const u8[]) -> usize!` — Send some bytes, retrying interruption. Use io.write_all for a complete payload and its optional progress output to resume after a later failure. An empty input makes no syscall. A closed peer never raises SIGPIPE.
 - `mutating func read(buffer: u8[]) -> usize!` — Receive some bytes. For nonempty storage, zero is peer EOF; empty storage returns zero without probing the peer. This call does not fill the buffer.
-- `func receive(buffer: u8[]) -> usize!` — Compatibility spelling of read; shares its short-read and EOF contract.
 - `mutating func set_no_delay(enabled: bool) -> !` — Disable Nagle coalescing when enabled. This is a latency policy, not a delivery guarantee; writes may still be buffered by the OS or network.
 - `func no_delay() -> bool!`
 - `mutating func set_keepalive(enabled: bool) -> !` — Enable OS TCP keepalive probes. Timing and retry defaults remain host policy; keepalive does not provide an application operation deadline.

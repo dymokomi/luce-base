@@ -17,8 +17,8 @@ pub func main(arguments: str[]) -> i32!:
         print(strings.trim("  padded \n"))
         let at = strings.find("hello world", "world") else 99
         print(f"{at} {strings.starts_with("hello", "he")} {strings.ends_with("hello", "lo")}")
-        let n = strings.to_i64("-42") else 0
-        let bad = strings.to_i64("4x") else 7
+        let n = strings.parse_i64("-42") else 0
+        let bad = strings.parse_i64("4x") else 7
         print(f"{n} {bad} {try strings.to_upper("Luce")}")
         var b = try strings.Builder.create(8)
         try b.put("one")

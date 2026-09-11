@@ -67,7 +67,7 @@ func no_metal() -> i32:
 pub func main(arguments: str[]) -> i32!:
     var count: usize = 8
     if arguments.length > 1:
-        if let n = strings.to_i64(arguments[1]):
+        if let n = strings.parse_i64(arguments[1]):
             count = (usize)n if n > 0 and n <= 4096 else 8
     let device = MTLCreateSystemDefaultDevice() else return no_metal()
     # the input: 1.0, 2.0, ... count

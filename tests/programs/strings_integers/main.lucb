@@ -58,7 +58,7 @@ pub func main(arguments: c.str[]) -> i32!:
             assert(strings.parse_i64(text, radix) == expected_signed)
             assert(strings.parse_u64(text, radix) == expected_unsigned)
             if radix == 10:
-                assert(strings.to_i64(text) == expected_signed and strings.to_u64(text) == expected_unsigned)
+                assert(strings.parse_i64(text) == expected_signed and strings.parse_u64(text) == expected_unsigned)
             if (flags & 1) != 0:
                 try check_format(signed_value, 0, true, radix, canonical)
             if (flags & 2) != 0:

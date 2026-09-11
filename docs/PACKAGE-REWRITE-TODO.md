@@ -4,9 +4,8 @@ Updated: 2026-09-11. This is the working checklist for the ecosystem rewrite.
 [PACKAGE-REWRITE.md](PACKAGE-REWRITE.md) holds the full file inventory, design
 constraints and acceptance criteria. Follow the phases below in order.
 
-**Status:** I02 verified; current description producer/reader committed.
-**Next task:** BC01 — remove the Connection.receive compatibility alias, followed
-by BC02–BC05 before I03 defaults and nested type identity.
+**Status:** sections 1 and 2 in progress; BC01 and BC02 verified.
+**Next task:** BC03–BC05, then I03–I11 and C01–C05 in order.
 
 ## How we track work
 
@@ -81,11 +80,11 @@ between I02 and I03, updating callers directly. The dated report lives in the
 workspace's `audits/legacy-compatibility-2026-09-11.md`; this checklist is the live
 backlog. BC05 is a naming simplification, not proven old-version support.
 
-- [ ] BC01 — Remove `Connection.receive` in `src/std/net/connection.lucb` and put
+- [x] BC01 — Remove `Connection.receive` in `src/std/net/connection.lucb` and put
   its implementation in mutating `read`. Update HTTP/network fixtures and receiver
   mutability; preserve short-read, EOF and interruption behavior. Regenerate the
   library reference, prelude and snapshots and run the connection/HTTP tests.
-- [ ] BC02 — Remove `strings.to_i64`/`to_u64`; use `parse_i64`/`parse_u64` with
+- [x] BC02 — Remove `strings.to_i64`/`to_u64`; use `parse_i64`/`parse_u64` with
   their existing decimal default. Update Base fixtures and Luce's interpreter,
   diagnostics and runtime callers. Preserve decimal edge-case coverage, regenerate
   both compilers' embedded sources, and advance Luce's Base pin with the callers.
@@ -266,6 +265,7 @@ Vulkan implementation remain later work, as specified in the scope document.
 | I02 gates | ARM64 macOS: Base main checks/proving programs passed; after correcting a private identifier collision in the seed C emitter, the unchanged gate remainder from bootstrap onward passed: seed/C/native self-host agreement, snapshots, robustness, optimization, 193 conformance programs / 479 rejections, 11 platform programs / five targets emitted, 66 seed-corpus comparisons, and fuzzing (120 mutations / 12 programs, zero findings). Luce full gate passed: 69 conformance programs / 138 rejections, formatting and fuzzing (60 mutations / six programs, zero findings). Final reader cleanup was rechecked in native/C modes; the final pinned compiler passed the foreign-type fixture in all six modes. No Linux-host gate was run in this slice. |
 | I02 builds | Clean isolated checkout verified exact Base commit selection, native handle interop, cache reuse and invalid-pin rejection. Normal `luce/build.sh` also rebuilt successfully against final Base pin `2a9760c426aa1ca7dafa0e94df5eb22e106098d9`. Default native builds and generated-source cleanup tests passed in the Luce gate. |
 | BC01–BC05 audit | Read-only Sol audit across all eight language/package/example repositories; root checked call sites and runtime references. Four compatibility leftovers and one redundant CLI selector recorded in `ce878ff`; removal tasks remain unchecked. Active Seed infrastructure, current wire-format markers and protocol/platform behavior are explicitly excluded from blanket removal. |
+| BC01, BC02 | Implemented in the Base commit containing this checklist update; matching Luce caller/runtime update follows with the exact pin. Removed receive/to_i64/to_u64 outright. Refreshed prelude, library reference and both snapshots; native bootstrap reproduced its assembly. Integer reference corpus, networking/stream/allocation fault injection and socket transfer tests passed at native opts 0–3 and both C modes; the four-worker HTTP fixture passed. Luce decimal conversion passed in its interpreter and six compiled modes. |
 
 
 For implementation entries, record repository, commit, test commands/results,

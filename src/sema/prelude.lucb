@@ -2329,16 +2329,6 @@ pub func replace(text: str, needle: str, replacement: str, max_replacements: usi
     used += tail
     output[used] = 0
     return (str)output[..<used]
-## A complete decimal signed integer with an optional sign. Whitespace, prefixes,
-## separators and trailing bytes are rejected. None also reports overflow.
-pub func to_i64(text: str) -> i64?:
-    return parse_i64(text)
-
-## A complete decimal unsigned integer. A leading plus is accepted; minus is not.
-## None reports invalid input or overflow. No allocation or locale lookup occurs.
-pub func to_u64(text: str) -> u64?:
-    return parse_u64(text)
-
 ## A signed integer in radix 2 through 36. ASCII letters are case-insensitive
 ## digits; prefixes are not interpreted. Optional +/- and leading zeroes are
 ## accepted. None reports an invalid radix, invalid byte, missing digit or overflow.
@@ -6000,10 +5990,6 @@ pub struct Connection: Reader, Writer:
     ## Receive some bytes. For nonempty storage, zero is peer EOF; empty storage
     ## returns zero without probing the peer. This call does not fill the buffer.
     pub mutating func read(buffer: u8[]) -> usize!:
-        return try self.receive(buffer)
-
-    ## Compatibility spelling of read; shares its short-read and EOF contract.
-    pub func receive(buffer: u8[]) -> usize!:
         let descriptor = try self.socket.require()
         if buffer.length == 0:
             return 0

@@ -34,7 +34,7 @@ pub struct Request:
 
     pub func content_length() -> usize:
         let text = self.header("Content-Length") else return 0
-        let n = strings.to_i64(strings.trim(text)) else return 0
+        let n = strings.parse_i64(strings.trim(text)) else return 0
         return (usize)n if n > 0 else 0
 
 ## Case-insensitive ASCII equality, for header names.

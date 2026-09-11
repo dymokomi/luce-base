@@ -1,13 +1,3 @@
-## A complete decimal signed integer with an optional sign. Whitespace, prefixes,
-## separators and trailing bytes are rejected. None also reports overflow.
-pub func to_i64(text: str) -> i64?:
-    return parse_i64(text)
-
-## A complete decimal unsigned integer. A leading plus is accepted; minus is not.
-## None reports invalid input or overflow. No allocation or locale lookup occurs.
-pub func to_u64(text: str) -> u64?:
-    return parse_u64(text)
-
 ## A signed integer in radix 2 through 36. ASCII letters are case-insensitive
 ## digits; prefixes are not interpreted. Optional +/- and leading zeroes are
 ## accepted. None reports an invalid radix, invalid byte, missing digit or overflow.

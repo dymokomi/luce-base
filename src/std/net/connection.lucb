@@ -120,10 +120,6 @@ pub struct Connection: Reader, Writer:
     ## Receive some bytes. For nonempty storage, zero is peer EOF; empty storage
     ## returns zero without probing the peer. This call does not fill the buffer.
     pub mutating func read(buffer: u8[]) -> usize!:
-        return try self.receive(buffer)
-
-    ## Compatibility spelling of read; shares its short-read and EOF contract.
-    pub func receive(buffer: u8[]) -> usize!:
         let descriptor = try self.socket.require()
         if buffer.length == 0:
             return 0

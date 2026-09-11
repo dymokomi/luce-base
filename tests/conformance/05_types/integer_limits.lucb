@@ -4,7 +4,7 @@
 import strings
 
 func show(text: str):
-    if let value = strings.to_i64(text):
+    if let value = strings.parse_i64(text):
         print(f"{value}")
     else:
         print("none")
