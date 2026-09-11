@@ -4,8 +4,9 @@ Updated: 2026-09-11. This is the working checklist for the ecosystem rewrite.
 [PACKAGE-REWRITE.md](PACKAGE-REWRITE.md) holds the full file inventory, design
 constraints and acceptance criteria. Follow the phases below in order.
 
-**Status:** planning complete; rewrite implementation pending.
-**Next task:** I01 — define the Base-to-Luce object and value ownership contract.
+**Status:** ownership contract defined; description implementation next.
+**Next task:** I02 — expose constructors, methods and interfaces in a versioned
+Base description.
 
 ## How we track work
 
@@ -37,9 +38,11 @@ default. Preserve recoverable errors and explicit Base ownership.
 
 ## 1. Constructors, methods, interfaces and ownership
 
-- [ ] I01 — Define which Base types cross as values, owned objects or borrowed
+- [x] I01 — Define which Base types cross as values, owned objects or borrowed
   views; specify identity, copying, mutation, private state, destruction and thread
   affinity. Make ownership explicit rather than guessing it from method names.
+  Contract: [BASE-INTEROP.md](BASE-INTEROP.md). Its proof matrix is required by the
+  implementation tasks below; defining the contract does not complete those tests.
 - [ ] I02 — Extend Base descriptions with public constructors, instance/static
   methods, receiver mutation, interfaces and conformance. Cover private visibility
   and incompatible description versions with fixtures and diagnostics.
@@ -224,6 +227,7 @@ Vulkan implementation remain later work, as specified in the scope document.
 | --- | --- |
 | P01 | Inventory committed in `luce-base` at `0e7e921`; source enumeration accounted for all 35 package/example source files. |
 | P02, P03 | Documentation-only update in this checklist's creation commit: corrected construction, removed the syntax-extension task, checked scope/checklist links and task IDs, and ran `git diff --check`. |
+| I01 | Contract and checklist update committed together. Reviewed Base descriptions, Luce record/handle adapters, ARC/worker runtime, and native UI/GPU owners; recorded category, lifecycle, lease, identity, mutation, cycle, thread and versioning rules in `BASE-INTEROP.md`. Documentation links and `git diff --check` verified; executable implementation proofs remain open. |
 
 For implementation entries, record repository, commit, test commands/results,
 native target/optimization coverage and any remaining limit relevant to the task.

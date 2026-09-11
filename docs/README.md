@@ -9,6 +9,8 @@
 - [Plan](PLAN.md) — what remains, in order, and the gate that closes each item.
 - [Package rewrite TODO](PACKAGE-REWRITE-TODO.md) — the active cross-project
   checklist, with completion evidence and a [file-level scope](PACKAGE-REWRITE.md).
+- [Base interop contract](BASE-INTEROP.md) — ownership and lifetime rules for the
+  package rewrite; implementation progress is tracked in the TODO list.
 - [Debugging](DEBUGGING.md) — native source debugging.
 - [CI](CI.md) — the hosted gate.
 - [Library](LIBRARY.md) — the standard library's public surface, generated

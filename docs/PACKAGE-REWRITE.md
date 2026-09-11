@@ -36,6 +36,9 @@ borrowing, mutation, destruction, callback retention and thread affinity. Privat
 state must remain private and intact. A struct with hidden state cannot be imported
 by copying only its public fields.
 
+[BASE-INTEROP.md](BASE-INTEROP.md) defines the ownership contract for implementing
+this boundary, including copied values, owned objects, leases and runtime threads.
+
 ## Repository inventory
 
 | Project | State at inventory | Rewrite responsibility |
