@@ -1701,6 +1701,12 @@ Exclusive graphics-host lease. Copies alias ownership: destroy one owner on the 
 
 - `let command_limit: ErrorCode = ErrorCode.package(100)`
 
+- `let frame_finished: ErrorCode = ErrorCode.package(114)`
+
+- `let frame_in_use: ErrorCode = ErrorCode.package(115)`
+
+- `let frame_resized: ErrorCode = ErrorCode.package(116)`
+
 ### `Backend` (enumas u8)
 
 automatic chooses the implemented native backend. An explicit unsupported backend fails; it never falls back silently. Vulkan is reserved, not implemented.
@@ -1758,15 +1764,6 @@ Destination of clip coordinates, in backing pixels from the top left.
 - `var width: f64`
 - `var height: f64`
 
-### `RenderTarget` (struct)
-
-A borrowed recording region. Its owner controls the canvas lifetime. This is the shared rendering boundary for independently implemented UI/3D libraries.
-
-- `var canvas: Canvas*`
-- `var clip: Clip`
-- `var viewport: Viewport`
-- `func triangles(vertices: const Vertex[], depth: bool = false) -> !`
-
 ### `Canvas` (struct)
 
 A reusable CPU command list, independent of any backend or window. triangles copies its input, so callers may reuse it immediately. A failed append leaves the visible command list unchanged. Copies alias storage; destroy one owner. Recording is single-threaded but does not require a device or a main thread.
@@ -1784,8 +1781,42 @@ One opaque sRGB presentation surface per window. Copies alias ownership. The sur
 - `func size() -> window.Size!` — Extent in logical points and backing pixels; refresh after resized events.
 - `func clear_present(color: Color = Color()) -> PresentResult!` — Clear the entire target and queue presentation, with display synchronization. Refreshes backing dimensions before each acquisition. At most one GPU command is in flight per surface: a later call first waits for its predecessor and reports execution errors. Acquisition may wait for the backend timeout (Metal: about one second); this is not a nonblocking operation. Backing dimensions beyond the backend's presentation limit return surface_too_large; resize smaller and retry without recreating the surface.
 - `func render(canvas: Canvas, color: Color = Color()) -> PresentResult!` — Draw and present one canvas. Commands and input storage may be reused after this returns; native resources remain alive until GPU completion. The same resize, skipped-frame, and completion contracts as clear_present apply.
+- `func frame() -> interop.Reference[Frame]!` — Begin one scoped recording frame. Resize, parent closure, presentation or cancellation invalidates drawing; retaining a target does not extend it.
 - `func wait_idle() -> !` — Wait for this surface's last submission and report its execution status. Does not wait for the display to scan out the frame. Valid after Window closure; use before destroy when execution errors must be observed.
 - `mutating func destroy()` — Idempotent on this value. Drain pending work and release all resources. Cleanup cannot return an execution error; call wait_idle to observe it.
+
+### `Rect` (struct)
+
+A logical rectangle in points, relative to its parent's render region.
+
+- `var x: f64`
+- `var y: f64`
+- `var width: f64`
+- `var height: f64`
+
+### `Frame` (struct)
+
+One recording scope. A standalone Frame records portable commands for a supplied extent. Surface.frame attaches one to a presentation surface. Base copies borrow; Luce owns the exported object through ordinary ARC.
+
+- `func init(size: window.Size) -> !`
+- `func size() -> window.Size!`
+- `func target() -> interop.View[RenderTarget]!`
+- `mutating func present(color: Color = Color()) -> PresentResult!` — End the scope on success or failure. A frame records the extent acquired at its start; resize requires a new frame instead of stretching stale commands.
+- `mutating func close()`
+- `func trace(visit: func(ownership.Object*, void*) -> unit, context: void*)`
+
+- `let frame_type: interop.Type[Frame] = interop.Type[Frame]("GPU frame", Frame.close, Frame.trace, closeable = true)`
+
+### `RenderTarget` (struct)
+
+A checked drawing view. Its private canvas never escapes. Child regions intersect their parent's clip, while vertices retain their own clip coordinates.
+
+- `func size() -> window.Size!`
+- `func region(rectangle: Rect) -> interop.View[RenderTarget]!`
+- `func clipped(rectangle: Rect) -> interop.View[RenderTarget]!` — Narrow drawing without changing the coordinate system. Useful when a layout clips a child whose geometry is already in its parent's coordinates.
+- `func triangles(vertices: const Vertex[], depth: bool = false) -> !`
+
+- `let render_target_type: interop.ViewType[RenderTarget] = interop.ViewType[RenderTarget]("GPU render target")`
 
 ## `c`
 

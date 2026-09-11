@@ -1,0 +1,25 @@
+{
+  "target": "arm64-macos",
+  "requirements": [
+    {
+      "symbols": [
+        "NSApplicationDidFinishLaunchingNotification",
+        "NSDefaultRunLoopMode"
+      ],
+      "frameworks": [
+        "AppKit",
+        "Foundation"
+      ]
+    },
+    {
+      "symbols": [
+        "objc_msgSend",
+        "objc_getClass",
+        "objc_autoreleasePoolPush"
+      ],
+      "libraries": [
+        "objc"
+      ]
+    }
+  ]
+}

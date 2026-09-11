@@ -64,8 +64,6 @@ def main():
         for source in SOURCE.glob('*.lucb'):
             shutil.copy2(source, work / source.name)
         manifest = '[package]\nname = "gpu_test"\n'
-        if mac:
-            manifest += '[native]\nframeworks = ["AppKit", "Foundation", "CoreGraphics", "QuartzCore", "Metal"]\nlibraries = ["objc"]\n'
         (work / 'luce.toml').write_text(manifest)
         modes = [(f'native-{level}', ['--native', '--opt', str(level)]) for level in range(4)]
         modes += [('c', ['--backend=c']), ('c-release', ['--backend=c', '--release'])]
@@ -75,6 +73,8 @@ def main():
             run([str(COMPILER), 'build', str(entry), *flags, '-o', str(binary)])
             run([str(binary)], expected='ok GPU contracts without hardware' if mac else 'ok unsupported GPU target')
             if mac:
+                rejected = subprocess.run([str(binary), 'wrong-thread'], capture_output=True, text=True, timeout=10)
+                assert rejected.returncode == 1 and 'an object belongs to another runtime thread' in rejected.stderr, rejected
                 outcome = run([str(binary), 'device'])
                 assert outcome in {'ok GPU device', 'skip no Metal device'}, outcome
                 available = outcome == 'ok GPU device'
@@ -99,7 +99,7 @@ def main():
             run([str(binary)])
             if mac:
                 dependencies = run(['otool', '-L', str(binary)])
-                assert all(lib not in dependencies for lib in ['AppKit', 'Metal', 'QuartzCore', 'SDL'])
+                assert all(lib not in dependencies for lib in ['AppKit', 'Metal', 'QuartzCore', 'SDL', 'libobjc'])
 
         # Cross-target emission must type-check the public API without importing
         # test-only Cocoa helpers. Native Linux must contain no Apple linkage.
@@ -112,7 +112,7 @@ def main():
 
         if mac:
             # Device ownership does not initialize/link a window system.
-            (work / 'luce.toml').write_text('[package]\nname = "gpu_device"\n[native]\nframeworks = ["Metal"]\nlibraries = ["objc"]\n')
+            (work / 'luce.toml').write_text('[package]\nname = "gpu_device"\n')
             device = work / 'device.lucb'
             device.write_text('import gpu\npub func main(arguments: str[]) -> i32!:\n    discard(arguments)\n    var device = gpu.Device.open() catch failure:\n        if failure.code == gpu.unavailable:\n            return 0\n        error(failure.code, failure.message)\n    device.destroy()\n    return 0\n')
             for name, flags in [('native', ['--native']), ('c', ['--backend=c'])]:

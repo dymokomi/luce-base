@@ -31,7 +31,7 @@ with tempfile.TemporaryDirectory(prefix='base-public-exports-') as temporary:
     resolved = run(compiler, 'resolve', entry, entry.parent, 'ui', '--base').stdout.split(b'\0')
     assert resolved == [b'luce-base-module-v1', b'base', b'luce_ui.ui', str(library.resolve()).encode(), str(library.parents[1].resolve()).encode(), b''], resolved
     dependencies = run(compiler, 'dependencies', entry).stdout
-    assert dependencies.startswith(b'luce-base-dependencies-v2\0'), dependencies
+    assert dependencies.startswith(b'luce-base-dependencies-v3\0'), dependencies
     assert b'alias\0ui\0luce_ui.ui\0' in dependencies, dependencies
     assert b'alias\0controls\0luce_ui.ui\0' in dependencies, dependencies
     description = run(compiler, 'describe', library).stdout

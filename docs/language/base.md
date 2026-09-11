@@ -1536,8 +1536,8 @@ updated together when the format changes.
 `luce-base dependencies module.lucb` checks a module and reports the source files
 resolved for its complete nonstandard import closure. The entry module and embedded
 standard modules are excluded from source records. Output begins with
-`luce-base-dependencies-v2` and a NUL byte, then tagged triples describing sources,
-public aliases and original package owners. Every field is NUL-terminated, so paths
+`luce-base-dependencies-v3` and a NUL byte, then tagged triples describing sources,
+public aliases, original package owners and resolved native inputs. Every field is NUL-terminated, so paths
 retain whitespace. A parse, resolution or semantic failure returns status 1 without
 dependency records. See [public package imports](../PACKAGE-IMPORTS.md) for the
 manifest and resolver contracts, standard module descriptions and relocation.

@@ -1,4 +1,6 @@
 import gpu
+import frames
+import ownership
 import drawing
 import allocation
 import memory
@@ -173,13 +175,19 @@ func gui() -> !:
     lease.destroy()
 
 pub func main(arguments: str[]) -> i32!:
+    if arguments.length > 1 and arguments[1] == "wrong-thread":
+        try frames.wrong_thread()
     try contracts()
     try drawing.contracts()
+    try frames.contracts()
+    ownership.collect()
+    try frames.failures()
+    ownership.collect()
     if arguments.length > 1 and arguments[1] == "device":
         var device = gpu.Device.open() catch failure:
             if failure.code == gpu.unavailable:
                 print("skip no Metal device")
-                return 0
+                return ownership.finish_run(0)
             error(failure.code, failure.message)
         device.destroy()
         print("ok GPU device")
@@ -194,7 +202,10 @@ pub func main(arguments: str[]) -> i32!:
         assert(tracker.live == 0)
         try drawing.pixels()
         assert(tracker.live == 0)
+        try frames.pixels()
+        ownership.collect()
+        assert(tracker.live == 0)
         print("ok GPU pixels, sRGB, resize, acquisition, ownership, and isolation")
     else:
         print("ok GPU contracts without hardware")
-    return 0
+    return ownership.finish_run(0)

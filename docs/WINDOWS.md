@@ -24,16 +24,8 @@ reports resize and display-scale changes. Escape or the title-bar close
 button requests closure. This example draws nothing; the separate
 [GPU demonstration](GPU.md) attaches a Metal presentation surface.
 
-An application using `window` declares its system dependencies in `luce.toml`:
-
-```toml
-[package]
-name = "window_example"
-
-[native]
-frameworks = ["AppKit", "Foundation"]
-libraries = ["objc"]
-```
+Standard `window` usage automatically links the backend’s AppKit, Foundation
+and Objective-C requirements. Applications need no platform link declarations.
 
 The test directory additionally links CoreGraphics to manufacture scroll
 events. The standard window implementation does not call CoreGraphics.

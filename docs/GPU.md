@@ -2,13 +2,11 @@
 
 `gpu` is a luce-base standard module with a portable application API and a Metal
 backend for arm64 macOS. It currently opens devices, attaches a surface to a
-standard `window`, clears it, and submits it for display. All implementation code
+standard `window`, and records colored triangles into scoped drawing regions for display. All implementation code
 is Base calling system APIs directly. There is no SDL dependency or C/Objective-C
 implementation shim.
 
-This is the presentation foundation. Buffers, textures, pipelines, draw/compute
-commands, portable shaders, Vulkan, and the `luce-ui` framework are subsequent
-increments. The API remains provisional while those contracts are exercised.
+This is the presentation foundation. General buffers, textures, programmable pipelines, compute commands, portable shaders and Vulkan are subsequent increments. The API remains provisional while those contracts are exercised.
 
 ## Run the example
 
@@ -36,16 +34,11 @@ discard(try surface.clear_present(gpu.Color(red = 0.025, green = 0.06, blue = 0.
 try surface.wait_idle()
 ```
 
-Applications declare their system link dependencies in `luce.toml`:
-
-```toml
-[package]
-name = "gpu_example"
-
-[native]
-frameworks = ["AppKit", "Foundation", "CoreGraphics", "QuartzCore", "Metal"]
-libraries = ["objc"]
-```
+Backend link requirements are automatic. A normal package needs no `[native]`
+framework or library list for standard `window`/`gpu`. Requirements live beside
+the backend in `links.json`; the compiler inspects the emitted object’s actual
+unresolved symbols before selecting them. This applies to native builds, C
+comparison builds, and Luce applications using Base packages.
 
 Device-only programs need Metal and objc, without AppKit initialization or
 linkage. Using just portable values such as `gpu.Color` needs none of these
@@ -76,7 +69,7 @@ Each surface retains the underlying device. Destroying the public `Device`
 handle does not invalidate existing surfaces. Each surface also owns an exclusive
 `window.Presentation` lease. Destroying the window closes it and detaches input
 callbacks immediately; its native host remains allocated until the surface is
-destroyed. Rendering and size queries then return `window.closed`, while
+and all recording frames are released. Rendering and size queries then return `window.closed`, while
 `wait_idle` and destruction remain valid. Surface-first destruction returns the
 lease and permits a new surface on the same window.
 
@@ -101,6 +94,53 @@ GPU completion waits have no application deadline. This API is not a nonblocking
 render loop or a latency guarantee. Pipelined frames and explicit synchronization
 belong with the later command/resource API.
 
+## Scoped recording and composition
+
+`Surface.frame()` returns an owned `Frame` and allows one recording scope per
+surface. A second acquisition returns `frame_in_use`. `Frame.target()` grants a
+checked `RenderTarget` view; no public canvas pointer escapes. In Luce, these are
+ordinary objects, constructed or returned through the interop ownership contract.
+Base explicitly releases returned references/views.
+
+```luce
+let frame = try surface.frame()
+defer frame.release()
+let target = try frame.value().target()
+defer target.release()
+let widget = try target.value().region(gpu.Rect(x = 20.0, y = 20.0, width = 200.0, height = 150.0))
+defer widget.release()
+try widget.value().triangles(vertices, true)
+discard(try frame.value().present())
+```
+
+Rectangles use logical points. The frame snapshots logical and backing extents;
+`region` selects a local viewport and intersects its parent’s clip. `clipped`
+narrows the clip while preserving that viewport. Child clipping cannot expand a
+parent clip. GPU vertices remain homogeneous clip coordinates; depth-enabled
+triangles share the frame’s depth attachment and compare smaller depth as nearer.
+Pixel scissors round outward at fractional backing coordinates.
+
+Presentation ends the frame on success, skipped acquisition, or failure. Explicit
+`close()` cancels recording and is idempotent. Both invalidate every target and
+bound method immediately. Keeping a view alive retains only the storage needed
+for safe expiry checks. Resize rejects stale drawing with `frame_resized`; begin
+a new frame. Window or surface closure also rejects drawing. A frame keeps the
+surface’s physical resources alive until closure; a closed surface releases its
+window presentation lease when its last frame finishes.
+
+`Frame(window.Size(...))` records portable commands without a presentation surface;
+its `present` returns `unavailable` and ends the scope. This supports CPU-only
+layout/recording tests and Luce interop without native graphics libraries.
+Frames, views and their bound methods belong to the creating ownership context;
+cross-thread access is rejected by the standard ownership checks. Attached
+frames are created and disposed on the window’s main thread. Allocation failure
+before publication leaves no active frame and permits retry.
+
+OS event translation remains in `window`/`input`; hit testing, focus and framework
+signal dispatch belong to UI. `gpu` neither interprets input nor accesses widget
+internals. UI and 3D consume the same portable drawing scope. Vulkan requests
+continue to return `unsupported` until that backend is implemented.
+
 ## Backend boundary
 
 The files under `src/std/gpu/` share one standard module scope:
@@ -108,7 +148,7 @@ The files under `src/std/gpu/` share one standard module scope:
 | Files | Responsibility |
 | --- | --- |
 | `module.lucb` | Portable values, errors, validation, and thread policy. |
-| `device.lucb`, `surface.lucb` | Public ownership, device references, window leases, and API contracts. |
+| `device.lucb`, `surface.lucb`, `frame.lucb` | Public ownership, device references, window leases, and API contracts. |
 | `backend.lucb` | Backend selection and dispatch using opaque device/surface payloads. |
 | `metal/objc.lucb` | Exact typed system ABI declarations, including native aggregates. |
 | `metal/device.lucb` | Metal device and queue creation and release. |
@@ -146,6 +186,7 @@ conversion, alpha, full target coverage, aggregate calling conventions, and
 backing extent after resize. It also exercises skipped acquisition, hidden
 windows, duplicate attachment, invalid colors, worker-thread rejection, separate
 windows, repeated recreation, and both destruction orders with pending work.
+Scoped-frame tests also cover escaped targets, nested clipping/depth pixels, resize, parent closure, failed allocation and reuse after cancellation. A Luce fixture exercises constructors, regions and an expired retained bound method in all six modes.
 Oversized backing width and height are rejected before Metal validation can
 abort, and pixel readback verifies recovery after resizing smaller.
 Allocation refusal is injected at each Base device/surface construction stage;

@@ -1,0 +1,50 @@
+## Select backend-owned requirements from the actual object's unresolved symbols.
+## Dead standard code therefore adds no frameworks in native or C comparison builds.
+import c
+import process
+import support.list
+import support.native_link_table
+import back.target
+
+pub let failed: ErrorCode = ErrorCode.package(113)
+
+pub struct Requirements:
+    pub let libraries: c.str[]
+    pub let frameworks: c.str[]
+
+pub func collect(object: c.str, platform: target.Target) -> Requirements!:
+    var libraries = try list.List[c.str].create(4)
+    var frameworks = try list.List[c.str].create(4)
+    if platform.os != target.Os.macos:
+        return Requirements(libraries.span(), frameworks.span())
+    let arguments: c.str[2] = ["-u", object]
+    let (status, output, errors) = try process.run("nm", arguments)
+    if status != 0:
+        error(failed, "could not inspect native object link requirements")
+    discard(errors)
+    var at: usize = 0
+    while at < output.length:
+        var end = at
+        while end < output.length and output.bytes[end] != '\n':
+            end += 1
+        var start = at
+        for index in at..<end:
+            if output.bytes[index] == ' ' or output.bytes[index] == '\t':
+                start = index + 1
+        if start < end and output.bytes[start] == '_':
+            start += 1
+        let symbol = (str)output.bytes[start..<end]
+        for rule in native_link_table.rules:
+            if rule.target == platform.name and rule.symbol == symbol:
+                if rule.framework:
+                    try append_unique(&frameworks, rule.name)
+                else:
+                    try append_unique(&libraries, rule.name)
+        at = end + 1
+    return Requirements(libraries.span(), frameworks.span())
+
+func append_unique(values: list.List[c.str]*, name: c.str) -> !:
+    for existing in values.span():
+        if (str)existing == (str)name:
+            return
+    try values.push(name)

@@ -1,0 +1,27 @@
+{
+  "target": "arm64-macos",
+  "description": "Device use requires only Metal. Presentation color-space symbols also select the dynamically resolved CAMetalLayer in QuartzCore.",
+  "requirements": [
+    {
+      "symbols": [
+        "MTLCreateSystemDefaultDevice"
+      ],
+      "frameworks": [
+        "Metal"
+      ],
+      "libraries": [
+        "objc"
+      ]
+    },
+    {
+      "symbols": [
+        "CGColorSpaceCreateWithName",
+        "kCGColorSpaceSRGB"
+      ],
+      "frameworks": [
+        "CoreGraphics",
+        "QuartzCore"
+      ]
+    }
+  ]
+}

@@ -26,16 +26,6 @@ pub struct Viewport:
     pub var width: f64
     pub var height: f64
 
-## A borrowed recording region. Its owner controls the canvas lifetime. This is
-## the shared rendering boundary for independently implemented UI/3D libraries.
-pub struct RenderTarget:
-    pub var canvas: Canvas*
-    pub var clip: Clip
-    pub var viewport: Viewport
-
-    pub func triangles(vertices: const Vertex[], depth: bool = false) -> !:
-        try self.canvas.triangles(vertices, self.clip, depth, self.viewport)
-
 struct Draw:
     var first: usize
     var count: usize
@@ -70,8 +60,8 @@ pub struct Canvas:
             if not valid_vertex(vertex):
                 error(invalid_geometry, "vertices need finite positions and linear colors in 0..1")
         if let region = viewport:
-            if not (region.x >= 0.0 and region.x <= 16384.0 and region.y >= 0.0 and region.y <= 16384.0 and region.width >= 0.0 and region.width <= 16384.0 and region.height >= 0.0 and region.height <= 16384.0):
-                error(invalid_geometry, "GPU viewport coordinates must be finite and in 0..16384")
+            if not (region.x >= -16384.0 and region.x <= 16384.0 and region.y >= -16384.0 and region.y <= 16384.0 and region.width >= 0.0 and region.width <= 16384.0 and region.height >= 0.0 and region.height <= 16384.0):
+                error(invalid_geometry, "GPU viewport origins must be finite and in -16384..16384; extents in 0..16384")
             if region.width == 0.0 or region.height == 0.0:
                 return
         if vertices.length == 0 or clip.width == 0 or clip.height == 0:

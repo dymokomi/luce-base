@@ -4,8 +4,8 @@ Updated: 2026-09-11. This is the working checklist for the ecosystem rewrite.
 [PACKAGE-REWRITE.md](PACKAGE-REWRITE.md) holds the full file inventory, design
 constraints and acceptance criteria. Follow the phases below in order.
 
-**Status:** full sections 1 and 2 complete and verified.
-**Next task:** S01 — begin section 3, the server and HTTP application rewrite.
+**Status:** full sections 1–3 complete and verified; section 4 in progress.
+**Current work:** G01–G05 implementations pass their focused gates; final Base/Luce compiler gates are running before pin updates.
 
 ## How we track work
 
@@ -124,47 +124,47 @@ backlog. BC05 is a naming simplification, not proven old-version support.
 
 ### luce-server
 
-- [ ] S01 — Define public `Server`, `ServerConfig`, `Router`, `Route`, `Request`
+- [x] S01 — Define public `Server`, `ServerConfig`, `Router`, `Route`, `Request`
   and `Response` contracts, including construction, configuration and run/close.
-- [ ] S02 — Split server lifecycle, dispatch queues, connection/session state and
+- [x] S02 — Split server lifecycle, dispatch queues, connection/session state and
   request state into focused owners; replace the generic handle/state facade.
-- [ ] S03 — Move bounded worker startup, handler dispatch, cancellation, draining
+- [x] S03 — Move bounded worker startup, handler dispatch, cancellation, draining
   and joining into the package using the verified runtime bridge.
-- [ ] S04 — Bind route declarations directly to handlers and implement typed
+- [x] S04 — Bind route declarations directly to handlers and implement typed
   request/header/parameter/query access with documented borrowed/owned results.
-- [ ] S05 — Implement response values/builders, one response commit boundary and
+- [x] S05 — Implement response values/builders, one response commit boundary and
   consistent handler-error translation.
-- [ ] S06 — Define the structured JSON representation and implement its tested
+- [x] S06 — Define the structured JSON representation and implement its tested
   serializer boundary; put general JSON support in the standard library where
   needed. Cover escaping, supported values, malformed inputs and non-finite numbers.
-- [ ] S07 — Implement owned body/file/static-root APIs, bounded streaming,
+- [x] S07 — Implement owned body/file/static-root APIs, bounded streaming,
   upload publication and file responses while preserving ranges and validators.
-- [ ] S08 — Separate HTTP, WebSocket and TCP state machines; preserve common
+- [x] S08 — Separate HTTP, WebSocket and TCP state machines; preserve common
   transport machinery without treating TCP chunks as HTTP request events.
-- [ ] S09 — Implement WebSocket session/message APIs, server-initiated sending
+- [x] S09 — Implement WebSocket session/message APIs, server-initiated sending
   and explicit session lifetime; preserve fragmentation and control-frame behavior.
-- [ ] S10 — Implement TCP session/stream APIs with explicit chunk/framing semantics.
-- [ ] S11 — Integrate opt-in signal handling, observation and graceful shutdown
+- [x] S10 — Implement TCP session/stream APIs with explicit chunk/framing semantics.
+- [x] S11 — Integrate opt-in signal handling, observation and graceful shutdown
   through the owning server/session objects.
-- [ ] S12 — Rewrite Base consumers, unit/heap fixtures and independent wire tests;
+- [x] S12 — Rewrite Base consumers, unit/heap fixtures and independent wire tests;
   preserve routing, keep-alive, pipelining, chunking, `100 Continue`, HEAD/OPTIONS,
   file transfer, limits, deadlines, backpressure and concurrent shutdown coverage.
-- [ ] S13 — Update server API/design/validation docs, build/test tooling, manifest,
+- [x] S13 — Update server API/design/validation docs, build/test tooling, manifest,
   compiler pins and CI for the rewritten library.
 
 ### luce-http-server
 
-- [ ] H01 — Rewrite `src/main.luc` to construct/configure the server, register
+- [x] H01 — Rewrite `src/main.luc` to construct/configure the server, register
   application behavior and run it.
-- [ ] H02 — Rewrite `src/application.luc` as route/static/lifecycle declarations;
+- [x] H02 — Rewrite `src/application.luc` as route/static/lifecycle declarations;
   remove worker attachment, integer dispatch and recursive worker spawning.
-- [ ] H03 — Rewrite `src/api.luc` with request methods, structured responses and
+- [x] H03 — Rewrite `src/api.luc` with request methods, structured responses and
   file/session APIs; remove manual JSON escaping and generic protocol-event logic.
-- [ ] H04 — Adapt `src/settings.luc` to validated server configuration while
+- [x] H04 — Adapt `src/settings.luc` to validated server configuration while
   keeping CLI and application settings in the example.
-- [ ] H05 — Preserve health, item, greeting, echo, upload, download, WebSocket and
+- [x] H05 — Preserve health, item, greeting, echo, upload, download, WebSocket and
   static-page behavior; update documentation, assets where needed, tests and pins.
-- [ ] H06 — **Phase gate:** Base and Luce server consumers pass independent HTTP,
+- [x] H06 — **Phase gate:** Base and Luce server consumers pass independent HTTP,
   WebSocket, TCP, file-transfer, resource-bound and concurrency tests at native
   opts 0–3 on macOS and Linux. Adding an endpoint requires only application code.
 
@@ -298,6 +298,10 @@ Vulkan implementation remain later work, as specified in the scope document.
 | C03, C04 | Base `85cb79c`; Luce `7a74247`. Standard WorkerEntry/Worker, neutral Packet/Transfer/Reply storage and bounded queues separate thread transfer from retained callbacks. Native and shared Base/Luce worker fixtures pass native opts 0–3 and both C modes: persistent per-thread state, native value configuration, unit factories/handlers, copied text, dynamic results/errors, local cycles, direct/indirect factory guards and rejected unsafe payloads. Native tests repeat each mode three times and check explicit packet counts, changed source buffers, copy failures, native/factory startup failure, blocked input/output/receivers, cancellation of socket readiness, skipped queued work and joined disposal on the owning thread. Unit-leading aggregate initialization exposed by unit messages is corrected in the C comparison backend with a six-mode regression; callback regression matrices pass. Native bootstrap and refreshed snapshots pass. Full gate completion is recorded in C05 below; ARM64 macOS only. |
 
 | C05 | Full sections-one/two gate passed on ARM64 macOS. Base: compiler unit/profile/archive/proving checks, native/C/Seed bootstrap agreement and snapshot consistency, robustness and optimization, 193 conformance programs / 479 rejections, 11 platform programs / five targets emitted, 66 native corpus comparisons, and fuzzing (120 mutations / 12 generated programs, zero findings). After correcting the stale dependency fixture (`c94e8e0`) and restoring Seed bootstrap parity (`luce-seed` `68b3638`, all 581 tests passed), the unchanged remaining gate stages passed; logs are `luce-base/build/sections-one-two-full-gate.log`, `sections-one-two-gate-remainder.log`, and `sections-one-two-bootstrap-remainder.log`. Base `81e0355` pins that exact Seed commit. Luce's full gate at `7a74247` passed all boundary/worker matrices, native/C compiler tests, 69 programs / 138 rejections / 85 parsed, formatting, and fuzzing (60 mutations / six programs, zero findings); log: `luce/build/sections-one-two-full-gate.log`. Final Luce pin `cf8f517` rebuilt successfully and passed the shared Base/Luce worker matrix and cleanup tests. Native opts 0–3 and both C modes are covered. No Linux-host run is claimed; that remains in R02. |
+
+| S01–S13, H01–H06 | Base `98df767` (standard JSON), server `7f32b12` and `3c6a489` (direct type imports), Luce `5c62a6a`, application `7892d6f`. Server/application native opts 0–3 pass independent HTTP/WebSocket/TCP, files, lifetime, cancellation and concurrency checks. macOS heap checks report zero leaked blocks. Both repositories’ macOS/Linux native test steps pass (server run 34657570240, application run 34657623914); server post-job checkout cleanup is still finishing. Public API, examples, design and validation documentation rewritten; no application worker tokens, route IDs or manual JSON construction remain. |
+
+| G01–G05 implementation | This Base implementation commit contains scoped frames/checked regions, nested clipping and depth, parent/resize/expiry checks, acquisition/allocation unwind, portable presentation hooks and backend-owned automatic linking. `tests/programs/gpu/check.sh` passes native opts 0–3 and C/C-release with required Metal pixels, wrong-thread rejection and zero retained Base allocations. `native_packages/check.sh` passes transitive sources/archives/search paths including quoted/comma paths in six modes. Luce GPU-bound-method and package-link fixtures pass six modes; UI/sphere prototypes build without framework manifests and pass Metal validation smoke runs. Bootstrap builds a native compiler linking only libSystem. Full compiler gates and final pins are pending. |
 
 For implementation entries, record repository, commit, test commands/results,
 native target/optimization coverage and any remaining limit relevant to the task.

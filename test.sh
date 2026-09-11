@@ -17,6 +17,7 @@ python3 tools/unicode_tables.py --check
 # what the binary carries is what the sources say: the standard modules, the C runtime, the
 # version, and the library reference are generated, and drift is a failure, not a note
 python3 tools/embed_std.py --check
+python3 tools/embed_native_links.py --check
 python3 tools/test_std_embedding.py ./build/luce-base
 python3 tools/embed_runtime.py --check
 python3 tools/embed_version.py --check

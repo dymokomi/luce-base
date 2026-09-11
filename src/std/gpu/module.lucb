@@ -3,6 +3,9 @@ import memory
 import math32
 import platform
 import window
+import interop
+import ownership
+import math
 
 pub let unsupported: ErrorCode = ErrorCode.package(91)
 pub let unavailable: ErrorCode = ErrorCode.package(92)
@@ -14,6 +17,9 @@ pub let execution_failed: ErrorCode = ErrorCode.package(97)
 pub let surface_too_large: ErrorCode = ErrorCode.package(98)
 pub let invalid_geometry: ErrorCode = ErrorCode.package(99)
 pub let command_limit: ErrorCode = ErrorCode.package(100)
+pub let frame_finished: ErrorCode = ErrorCode.package(114)
+pub let frame_in_use: ErrorCode = ErrorCode.package(115)
+pub let frame_resized: ErrorCode = ErrorCode.package(116)
 
 ## automatic chooses the implemented native backend. An explicit unsupported
 ## backend fails; it never falls back silently. Vulkan is reserved, not implemented.

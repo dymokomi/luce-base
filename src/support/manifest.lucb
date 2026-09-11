@@ -93,15 +93,53 @@ func items_of(value: str) -> c.str[]!:
         body = (str)body.bytes[1..<body.length - 1]
     var out = try alloc c.str[body.length + 1]
     var count: usize = 0
-    var rest = body
-    while rest.length > 0:
-        let cut = find_byte(rest, ',')
-        let item = unquote(trim((str)rest.bytes[..<cut]))
-        rest = (str)rest.bytes[cut + 1..] if cut < rest.length else ""
-        if item.length > 0:
-            var copy = try alloc u8[item.length + 1]
-            out[count] = (c.str)(try format(copy, f"{item}"))
-            count += 1
+    var at: usize = 0
+    while at < body.length:
+        while at < body.length and (body.bytes[at] == ' ' or body.bytes[at] == '\t'):
+            at += 1
+        if at == body.length or body.bytes[at] == '#':
+            break
+        let quote = body.bytes[at]
+        if quote != '"' and quote != '\'':
+            error(malformed, "native inputs must be quoted strings")
+        at += 1
+        let text = try alloc u8[body.length + 1]
+        var used: usize = 0
+        var ended = false
+        while at < body.length:
+            var byte = body.bytes[at]
+            at += 1
+            if byte == quote:
+                ended = true
+                break
+            if byte == '\\' and quote == '"':
+                if at == body.length:
+                    error(malformed, "unterminated native input escape")
+                byte = body.bytes[at]
+                at += 1
+                if byte == 'n':
+                    byte = '\n'
+                elif byte == 'r':
+                    byte = '\r'
+                elif byte == 't':
+                    byte = '\t'
+                elif byte != '"' and byte != '\\':
+                    error(malformed, "unsupported native input escape")
+            if byte == 0:
+                error(malformed, "native inputs cannot contain NUL")
+            text[used] = byte
+            used += 1
+        if not ended or used == 0:
+            error(malformed, "native inputs must be nonempty terminated strings")
+        text[used] = 0
+        out[count] = (c.str)text.data
+        count += 1
+        while at < body.length and (body.bytes[at] == ' ' or body.bytes[at] == '\t'):
+            at += 1
+        if at < body.length:
+            if body.bytes[at] != ',':
+                error(malformed, "native input strings must be separated by commas")
+            at += 1
     return out[..<count]
 
 func unquote(value: str) -> str:

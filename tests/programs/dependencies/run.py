@@ -7,7 +7,7 @@ import tempfile
 
 ROOT = Path(__file__).resolve().parents[3]
 COMPILER = Path(sys.argv[1]).resolve()
-MAGIC = b"luce-base-dependencies-v2\0"
+MAGIC = b"luce-base-dependencies-v3\0"
 
 
 def invoke(source, expected=0, command="dependencies", options=()):

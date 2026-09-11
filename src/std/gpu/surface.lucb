@@ -31,6 +31,8 @@ pub struct Surface:
         try check_color(color)
         # Test window liveness even if no previous command is pending.
         discard(try state.host.size())
+        if state.active_frame:
+            error(frame_in_use, "finish the active frame before presenting")
         return try backend_clear_present(state.device, state.host, state.native, color)
 
     ## Draw and present one canvas. Commands and input storage may be reused after
@@ -40,7 +42,28 @@ pub struct Surface:
         let state = try self.checked()
         try check_color(color)
         discard(try state.host.size())
+        if state.active_frame:
+            error(frame_in_use, "finish the active frame before presenting")
         return try backend_render(state.device, state.host, state.native, canvas, color)
+
+    ## Begin one scoped recording frame. Resize, parent closure, presentation or
+    ## cancellation invalidates drawing; retaining a target does not extend it.
+    pub func frame() -> interop.Reference[Frame]!:
+        let state = try self.checked()
+        if state.active_frame:
+            error(frame_in_use, "the surface already has an active frame")
+        let size = try state.host.size()
+        let native = try new Frame(size)
+        let owner = try interop.Reference[Frame].adopt(native, frame_type)
+        errdefer owner.release()
+        let recording = (try native.state_value()).value()
+        recording.presentation = (void*)state
+        recording.validate = check_surface_frame
+        recording.submit = submit_surface_frame
+        recording.release = release_surface_frame
+        state.references += 1
+        state.active_frame = true
+        return owner
 
     ## Wait for this surface's last submission and report its execution status.
     ## Does not wait for the display to scan out the frame. Valid after Window
@@ -55,16 +78,50 @@ pub struct Surface:
         let state = self.state else return
         require_thread()
         self.state = none
-        backend_surface_destroy(state.device, state.host, state.native)
-        state.host.destroy()
-        release_device(state.device)
-        free(state) in memory.heap
+        state.closed = true
+        release_surface(state)
 
     func checked() -> SurfaceState*!:
         try check_thread()
-        return self.state else error(closed, "the GPU surface is closed")
+        let state = self.state else error(closed, "the GPU surface is closed")
+        if state.closed:
+            error(closed, "the GPU surface is closed")
+        return state
 
 struct SurfaceState:
     var device: DeviceState*
     var host: window.Presentation
     var native: void*
+    var references: usize = 1
+    var closed: bool
+    var active_frame: bool
+
+## Frames retain physical surface storage after operational closure. Backend work
+## and its presentation lease are released only when every frame has finished.
+func release_surface(state: SurfaceState*):
+    state.references -= 1
+    if state.references == 0:
+        backend_surface_destroy(state.device, state.host, state.native)
+        state.host.destroy()
+        release_device(state.device)
+        free(state) in memory.heap
+
+## Adapter from portable recording ownership to this presentation resource.
+func check_surface_frame(context: void*, acquired: window.Size) -> !:
+    let state = (SurfaceState*)context
+    try check_thread()
+    if state.closed:
+        error(closed, "the frame's surface is closed")
+    let size = try state.host.size()
+    if size.width != acquired.width or size.height != acquired.height or size.pixel_width != acquired.pixel_width or size.pixel_height != acquired.pixel_height:
+        error(frame_resized, "the surface changed size; begin a new frame")
+
+func submit_surface_frame(context: void*, canvas: Canvas, color: Color) -> PresentResult!:
+    let state = (SurfaceState*)context
+    return try backend_render(state.device, state.host, state.native, canvas, color)
+
+func release_surface_frame(context: void*):
+    require_thread()
+    let state = (SurfaceState*)context
+    state.active_frame = false
+    release_surface(state)

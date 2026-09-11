@@ -2,6 +2,8 @@
 ## Native Objective-C allocations are covered by Metal validation and the native
 ## ownership review; this allocator specifically proves Base storage unwinding.
 import gpu
+import interop
+import ownership
 import memory
 import window
 
@@ -66,3 +68,24 @@ pub func failures(tracker: Tracker*) -> !:
         again.destroy()
         assert(tracker.live == owned)
         stage += 1
+
+    var surface = try gpu.Surface.open(device, target)
+    defer surface.destroy()
+    let recording_baseline = tracker.live
+    for frame_stage in 0..<10:
+        tracker.remaining = (usize)frame_stage
+        with tracker:
+            let acquired: interop.Reference[gpu.Frame]? = surface.frame() catch failure:
+                assert(failure.code == memory.exhausted)
+                recover none
+            if let frame = acquired:
+                frame.release()
+        tracker.remaining = none
+        ownership.collect()
+        assert(tracker.live == recording_baseline)
+        # Failed construction must not consume the surface's recording slot.
+        with tracker:
+            let retry = try surface.frame()
+            retry.release()
+        ownership.collect()
+        assert(tracker.live == recording_baseline)

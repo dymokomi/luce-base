@@ -1,0 +1,62 @@
+## Native inputs belong to their declaring package. Resolve relative paths before
+## merging import closures or handing sources to another compiler's workspace.
+import c
+import io
+import paths
+import strings
+import support.list
+import support.manifest
+import support.modules
+
+pub struct Input:
+    pub let kind: str
+    pub let value: c.str
+
+pub struct Inputs:
+    pub var entries: list.List[Input]
+    var roots: list.List[str]
+
+    pub static func create() -> Inputs!:
+        return Inputs(try list.List[Input].create(8), try list.List[str].create(8))
+
+    pub mutating func collect(path: str) -> !:
+        let package = try manifest.load(try modules.canonical(path))
+        if package.root.length == 0:
+            return
+        for root in self.roots.span():
+            if root == package.root:
+                return
+        try self.roots.push(package.root)
+        try self.add("sources", package.sources, package.root)
+        try self.add("link_search", package.link_search, package.root)
+        try self.add("libraries", package.libraries, "")
+        try self.add("frameworks", package.frameworks, "")
+        try self.add("pkg_config", package.pkg_config, "")
+
+    mutating func add(kind: str, values: c.str[], root: str) -> !:
+        for value in values:
+            let resolved = try paths.join(root, (str)value)
+            var duplicate = false
+            for existing in self.entries.span():
+                if existing.kind == kind and (str)existing.value == resolved:
+                    duplicate = true
+            if not duplicate:
+                try self.entries.push(Input(kind, (c.str)resolved))
+
+    pub func values(kind: str) -> c.str[]!:
+        var selected = try list.List[c.str].create(4)
+        for entry in self.entries.span():
+            if entry.kind == kind:
+                try selected.push(entry.value)
+        return selected.span()
+
+    pub func apply(package: manifest.Manifest*) -> !:
+        package.sources = try self.values("sources")
+        package.link_search = try self.values("link_search")
+        package.libraries = try self.values("libraries")
+        package.frameworks = try self.values("frameworks")
+        package.pkg_config = try self.values("pkg_config")
+
+    pub func write(out: io.Writer) -> !:
+        for entry in self.entries.span():
+            try out.write(f"native\0{entry.kind}\0{(str)entry.value}\0")

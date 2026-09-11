@@ -15,6 +15,8 @@ import back.target as targets
 import platform
 import back.c.header
 import back.names
+import support.native_packages
+import support.native_links
 import support.manifest
 import support.modules as module_paths
 import files
@@ -36,7 +38,7 @@ import support.runtime
 import support.version
 
 func usage(out: io.Writer) -> !:
-    try out.write("usage: luce-base lex FILE\n       luce-base parse FILE\n       luce-base check FILE\n       luce-base describe FILE\n       luce-base describe --standard MODULE\n       luce-base dependencies FILE\n       luce-base resolve FILE SOURCE_ROOT MODULE [--base]\n       luce-base build FILE [-o OUT] [--release] [--emit=c] [--backend=c] [--native] [--debug] [--emit=asm] [--emit=ir] [--lib] [--freestanding] [--target] [--profile diagnostic] [-W] [-lNAME] [-LDIR] [-framework NAME]\n       luce-base test FILE [--backend=c] [--native]\n       luce-base --version\n")
+    try out.write("usage: luce-base lex FILE\n       luce-base parse FILE\n       luce-base check FILE\n       luce-base describe FILE\n       luce-base describe --standard MODULE\n       luce-base dependencies FILE\n       luce-base native-inputs FILE\n       luce-base resolve FILE SOURCE_ROOT MODULE [--base]\n       luce-base build FILE [-o OUT] [--release] [--emit=c] [--backend=c] [--native] [--debug] [--emit=asm] [--emit=ir] [--lib] [--freestanding] [--target] [--profile diagnostic] [-W] [-lNAME] [-LDIR] [-framework NAME]\n       luce-base test FILE [--backend=c] [--native]\n       luce-base --version\n")
 
 # mark: Building ===============================================================================
 
@@ -150,9 +152,7 @@ func link_flags(arguments: Arguments*, with_frameworks: bool) -> !:
 func compile_sources(dir: str, arguments: Arguments*) -> !:
     var s: usize = 0
     while s < package.sources.length:
-        let name = (str)package.sources[s]
-        let source_path = try alloc u8[package.root.length + name.length + 1]
-        let source_text = try format(source_path, f"{package.root}{name}")
+        let source_text = (str)package.sources[s]
         let compiled_path = try alloc u8[dir.length + 32]
         let compiled = try format(compiled_path, f"{dir}/source{s}.o")
         var source_args = try Arguments.create()
@@ -237,6 +237,8 @@ func checked(path: c.str) -> check.Checker!:
     try checker.add_prelude()
     try checker.load(path)
     try checker.check_program()
+    let inputs = try native_inputs(&checker)
+    try inputs.apply(&package)
     try report_warnings(&checker)
     return checker
 
@@ -369,36 +371,34 @@ func compile(text: str, exe: str, release: bool, with_start: bool) -> !:
     let header_path = try format(name_bytes[512..<1024], f"{dir}/lucb_rt.h")
     let runtime_path = try format(name_bytes[1024..<1536], f"{dir}/lucb_rt.c")
     let start_path = try format(name_bytes[1536..<2048], f"{dir}/start.c")
-    let err_path = try format(name_bytes[2048..<2560], f"{dir}/cc.err")
+    let object_path = try format(name_bytes[2048..<2560], f"{dir}/gen.o")
     try files.write((c.str)gen_path, text.bytes)
     try files.write((c.str)header_path, runtime.header.bytes)
     try files.write((c.str)runtime_path, runtime.source.bytes)
     if with_start:
         try files.write((c.str)start_path, runtime.start.bytes)
-    var include = try format(name_bytes[2560..<3072], f"-I{dir}")
-    var cc_args = try Arguments.create()
-    try cc_args.add("-std=gnu11")
-    try cc_args.add("-Wall")
-    # Base has no type-based aliasing rule (§12.6): the C compiler must not assume one
-    try cc_args.add("-fno-strict-aliasing")
-    try cc_args.add("-Werror")
-    try cc_args.add("-O2" if release and not native_backend else "-O0")
+    let include = try format(name_bytes[2560..<3072], f"-I{dir}")
+    var object_args = try c_arguments(release)
+    try object_args.add((c.str)include)
+    try object_args.add("-c")
+    try object_args.add((c.str)gen_path)
+    try object_args.add("-o")
+    try object_args.add((c.str)object_path)
+    try run_tool("cc", object_args.span(), "the C compiler rejected the generated code")
+    var cc_args = try c_arguments(release)
     try cc_args.add((c.str)include)
-    try cc_args.add((c.str)gen_path)
+    try cc_args.add((c.str)object_path)
     try cc_args.add((c.str)runtime_path)
-    try cc_args.add((c.str)start_path if with_start else "-fno-common")
+    if with_start:
+        try cc_args.add((c.str)start_path)
     try cc_args.add("-lm")
     try cc_args.add("-pthread")
     try cc_args.add("-o")
     try cc_args.add((c.str)exe)
-    # a C format string is the program's business, not the host compiler's (§17.2), and a
-    # style the generated C may have, a self-assignment or a comparison of a value with
-    # itself, is the program's too: only the C compiler's type checks stay
-    for flag in generated_c_silences:
-        try cc_args.add(flag)
+    try automatic_links(&cc_args, (c.str)object_path)
     # the manifest's C sources, under the package root (§17.4), and what it links
     for file in package.sources:
-        try cc_args.flag(package.root, (str)file)
+        try cc_args.add(file)
     for library in package.libraries:
         try cc_args.flag("-l", (str)library)
     for search in package.link_search:
@@ -417,7 +417,26 @@ func compile(text: str, exe: str, release: bool, with_start: bool) -> !:
         let out = io.stderr()
         try out.write(cc_err)
         error(build_failed, "the C compiler rejected the generated code")
-    discard(err_path)
+
+## Shared diagnostics and ABI flags for generated C and its runtime.
+func c_arguments(release: bool) -> Arguments!:
+    var arguments = try Arguments.create()
+    try arguments.add("-std=gnu11")
+    try arguments.add("-Wall")
+    try arguments.add("-fno-strict-aliasing")
+    try arguments.add("-Werror")
+    try arguments.add("-O2" if release else "-O0")
+    for flag in generated_c_silences:
+        try arguments.add(flag)
+    return arguments
+
+func automatic_links(arguments: Arguments*, object: c.str) -> !:
+    let required = try native_links.collect(object, build_target())
+    for library in required.libraries:
+        try arguments.flag("-l", (str)library)
+    for framework in required.frameworks:
+        try arguments.add("-framework")
+        try arguments.add(framework)
 
 ## Finish debug artifacts before the scratch objects disappear. ELF keeps a linked
 ## sidecar; Mach-O's debug map is resolved into a dSYM while its inputs still exist.
@@ -471,6 +490,7 @@ func assemble_and_link(dir: str, name_bytes: u8[], text: str, exe: str) -> !:
     try ld_args.add("-o")
     try ld_args.add((c.str)exe)
     try ld_args.add((c.str)object_path)
+    try automatic_links(&ld_args, (c.str)object_path)
     for library in t.system_libraries:
         try ld_args.add((c.str)library)
     if freestanding:
@@ -828,7 +848,9 @@ func dependencies_file(path: c.str, out: io.Writer) -> !:
         try checker.add_prelude()
         try checker.load(path)
         try checker.check_program()
-        try out.write("luce-base-dependencies-v2\0")
+        let inputs = try native_inputs(&checker)
+        try out.write("luce-base-dependencies-v3\0")
+        try inputs.write(out)
         var index: usize = 0
         while index + 1 < checker.modules.count:
             let item = checker.modules.get(index)
@@ -845,6 +867,26 @@ func dependencies_file(path: c.str, out: io.Writer) -> !:
         for module in checker.modules.span():
             if not module.is_prelude:
                 try out.write(f"package\0{module.name}\0{module.package_name}\0")
+
+## Collect the packages actually loaded, including the entry and private imports.
+func native_inputs(checker: check.Checker*) -> native_packages.Inputs!:
+    var inputs = try native_packages.Inputs.create()
+    for module in checker.modules.span():
+        if not module.is_prelude:
+            try inputs.collect(module.src.path)
+    return inputs
+
+## Luce also has native inputs on its own source packages. Share Base's manifest
+## interpretation without requiring a Luce source file to parse as Base.
+func native_inputs_file(path: str, out: io.Writer) -> !:
+    let backing = try reserve_arena()
+    defer free(backing) in memory.heap
+    var arena = memory.FixedBuffer.over(backing)
+    with arena:
+        var inputs = try native_packages.Inputs.create()
+        try inputs.collect(path)
+        try out.write("luce-base-dependencies-v3\0")
+        try inputs.write(out)
 
 ## Trees and tokens live in one arena taken from the process heap; nothing is
 ## freed until the command ends.
@@ -1012,6 +1054,11 @@ pub func main(arguments: c.str[]) -> i32!:
         return 0
     if command == "resolve" and (positional == 5 or (positional == 6 and (str)arguments[5] == "--base")):
         resolve_module((str)arguments[2], (str)arguments[3], (str)arguments[4], positional == 6, out) catch failure:
+            try io.stderr().write(f"luce-base: {failure.message}\n")
+            return 1
+        return 0
+    if command == "native-inputs" and positional == 3:
+        native_inputs_file((str)arguments[2], out) catch failure:
             try io.stderr().write(f"luce-base: {failure.message}\n")
             return 1
         return 0

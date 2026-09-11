@@ -1,0 +1,167 @@
+## A logical rectangle in points, relative to its parent's render region.
+pub struct Rect:
+    pub var x: f64
+    pub var y: f64
+    pub var width: f64
+    pub var height: f64
+
+struct FrameState:
+    var canvas: Canvas
+    var size: window.Size
+    # Presentation hooks are installed only by Surface.frame. Portable recording
+    # and its ownership metadata therefore have no native backend dependency.
+    var presentation: void*?
+    var validate: (func(void*, window.Size) -> unit!)?
+    var submit: (func(void*, Canvas, Color) -> PresentResult!)?
+    var release: (func(void*) -> unit)?
+    var ended: bool
+
+    func check() -> !:
+        if self.ended:
+            error(frame_finished, "the recording frame is finished")
+        if let context = self.presentation:
+            try (self.validate else trap("frame presentation has no validator"))(context, self.size)
+
+    mutating func close():
+        self.ended = true
+        self.canvas.destroy()
+        if let context = self.presentation:
+            self.presentation = none
+            (self.release else trap("frame presentation has no release operation"))(context)
+
+let frame_state_type: interop.Type[FrameState] = interop.Type[FrameState]("GPU frame state", FrameState.close, closeable = true)
+
+## One recording scope. A standalone Frame records portable commands for a
+## supplied extent. Surface.frame attaches one to a presentation surface.
+## Base copies borrow; Luce owns the exported object through ordinary ARC.
+pub struct Frame:
+    var state: interop.Reference[FrameState]?
+    var lease: interop.Lease?
+
+    pub func init(size: window.Size) -> !:
+        try check_frame_size(size)
+        let native = try new FrameState(canvas = Canvas(), size = size)
+        let state = try interop.Reference[FrameState].adopt(native, frame_state_type)
+        errdefer state.release()
+        let lease = try state.lease()
+        self.state = state
+        self.lease = lease
+
+    func state_value() -> interop.Reference[FrameState]!:
+        return self.state else error(frame_finished, "the recording frame is finished")
+
+    pub func size() -> window.Size!:
+        let state = try self.state_value()
+        try state.value().check()
+        return state.value().size
+
+    pub func target() -> interop.View[RenderTarget]!:
+        let state = (try self.state_value()).value()
+        try state.check()
+        let lease = self.lease else error(frame_finished, "the recording frame is finished")
+        let region = Rect(width = state.size.width, height = state.size.height)
+        let clip = Clip(width = (u32)state.size.pixel_width, height = (u32)state.size.pixel_height)
+        return try interop.View[RenderTarget].make(RenderTarget(state, lease, region, clip), render_target_type, lease)
+
+    ## End the scope on success or failure. A frame records the extent acquired at
+    ## its start; resize requires a new frame instead of stretching stale commands.
+    pub mutating func present(color: Color = Color()) -> PresentResult!:
+        let state = (try self.state_value()).value()
+        defer self.close()
+        try state.check()
+        try check_color(color)
+        let context = state.presentation else error(unavailable, "a standalone frame has no presentation surface")
+        let submit = state.submit else trap("frame presentation has no submit operation")
+        (self.lease else trap("an open frame has no lease")).invalidate()
+        state.ended = true
+        return try submit(context, state.canvas, color)
+
+    pub mutating func close():
+        if let lease = self.lease:
+            self.lease = none
+            lease.invalidate()
+            lease.release()
+        if let state = self.state:
+            self.state = none
+            state.close()
+            state.release()
+
+    pub func trace(visit: func(ownership.Object*, void*) -> unit, context: void*):
+        if let state = self.state:
+            state.trace(visit, context)
+        if let lease = self.lease:
+            lease.trace(visit, context)
+
+pub let frame_type: interop.Type[Frame] = interop.Type[Frame]("GPU frame", Frame.close, Frame.trace, closeable = true)
+
+## A checked drawing view. Its private canvas never escapes. Child regions
+## intersect their parent's clip, while vertices retain their own clip coordinates.
+pub struct RenderTarget:
+    var frame: FrameState*
+    var lease: interop.Lease
+    var rectangle: Rect
+    var clipping: Clip
+
+    pub func size() -> window.Size!:
+        try self.frame.check()
+        let scale_x = frame_scale(self.frame.size.pixel_width, self.frame.size.width)
+        let scale_y = frame_scale(self.frame.size.pixel_height, self.frame.size.height)
+        return window.Size(width = self.rectangle.width, height = self.rectangle.height,
+            pixel_width = self.rectangle.width * scale_x, pixel_height = self.rectangle.height * scale_y,
+            scale = self.frame.size.scale)
+
+    pub func region(rectangle: Rect) -> interop.View[RenderTarget]!:
+        try self.frame.check()
+        try check_region(rectangle)
+        let absolute = Rect(self.rectangle.x + rectangle.x, self.rectangle.y + rectangle.y, rectangle.width, rectangle.height)
+        try check_region(absolute)
+        let scale_x = frame_scale(self.frame.size.pixel_width, self.frame.size.width)
+        let scale_y = frame_scale(self.frame.size.pixel_height, self.frame.size.height)
+        let clip = intersect_clip(self.clipping, absolute, scale_x, scale_y)
+        return try interop.View[RenderTarget].make(RenderTarget(self.frame, self.lease, absolute, clip), render_target_type, self.lease)
+
+    ## Narrow drawing without changing the coordinate system. Useful when a
+    ## layout clips a child whose geometry is already in its parent's coordinates.
+    pub func clipped(rectangle: Rect) -> interop.View[RenderTarget]!:
+        try self.frame.check()
+        try check_region(rectangle)
+        let absolute = Rect(self.rectangle.x + rectangle.x, self.rectangle.y + rectangle.y, rectangle.width, rectangle.height)
+        try check_region(absolute)
+        let scale_x = frame_scale(self.frame.size.pixel_width, self.frame.size.width)
+        let scale_y = frame_scale(self.frame.size.pixel_height, self.frame.size.height)
+        let clip = intersect_clip(self.clipping, absolute, scale_x, scale_y)
+        return try interop.View[RenderTarget].make(RenderTarget(self.frame, self.lease, self.rectangle, clip), render_target_type, self.lease)
+
+    pub func triangles(vertices: const Vertex[], depth: bool = false) -> !:
+        try self.frame.check()
+        let scale_x = frame_scale(self.frame.size.pixel_width, self.frame.size.width)
+        let scale_y = frame_scale(self.frame.size.pixel_height, self.frame.size.height)
+        let viewport = Viewport(self.rectangle.x * scale_x, self.rectangle.y * scale_y,
+            self.rectangle.width * scale_x, self.rectangle.height * scale_y)
+        try self.frame.canvas.triangles(vertices, self.clipping, depth, viewport)
+
+pub let render_target_type: interop.ViewType[RenderTarget] = interop.ViewType[RenderTarget]("GPU render target")
+
+func frame_scale(pixels: f64, points: f64) -> f64:
+    return pixels / points if points > 0.0 else 0.0
+
+func check_frame_size(size: window.Size) -> !:
+    if not (size.width >= 0.0 and size.width <= 16384.0 and size.height >= 0.0 and size.height <= 16384.0 and size.pixel_width >= 0.0 and size.pixel_width <= 16384.0 and size.pixel_height >= 0.0 and size.pixel_height <= 16384.0 and size.scale > 0.0 and size.scale <= 16.0):
+        error(invalid_geometry, "frame extents must be finite, nonnegative and at most 16384 pixels/points")
+    if math.floor(size.pixel_width) != size.pixel_width or math.floor(size.pixel_height) != size.pixel_height:
+        error(invalid_geometry, "frame backing extents must be whole pixels")
+    if (size.width == 0.0) != (size.pixel_width == 0.0) or (size.height == 0.0) != (size.pixel_height == 0.0):
+        error(invalid_geometry, "empty logical and backing dimensions must agree")
+
+func check_region(region: Rect) -> !:
+    if not (region.x >= -16384.0 and region.x <= 16384.0 and region.y >= -16384.0 and region.y <= 16384.0 and region.width >= 0.0 and region.width <= 16384.0 and region.height >= 0.0 and region.height <= 16384.0):
+        error(invalid_geometry, "render regions need finite origins and nonnegative extents")
+
+func intersect_clip(parent: Clip, region: Rect, scale_x: f64, scale_y: f64) -> Clip:
+    let left = math.floor(math.max((f64)parent.x, region.x * scale_x))
+    let top = math.floor(math.max((f64)parent.y, region.y * scale_y))
+    let right = math.ceil(math.min((f64)parent.x + (f64)parent.width, (region.x + region.width) * scale_x))
+    let bottom = math.ceil(math.min((f64)parent.y + (f64)parent.height, (region.y + region.height) * scale_y))
+    if right <= left or bottom <= top:
+        return Clip()
+    return Clip((u32)left, (u32)top, (u32)(right - left), (u32)(bottom - top))
