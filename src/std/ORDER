@@ -21,6 +21,7 @@ os
 testing
 net
 interop
+json
 input
 window
 gpu

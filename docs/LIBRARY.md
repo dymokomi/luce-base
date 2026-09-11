@@ -1557,6 +1557,36 @@ A bounded persistent worker. This carrier is uniquely owned; Base copies borrow.
 - `func cancel()`
 - `mutating func close()`
 
+## `json`
+
+Structured JSON values own their UTF-8 encoding. Containers snapshot inserted values: later changes to a child do not mutate its parent or create ARC cycles. No API accepts unchecked JSON fragments. All growth is bounded and transactional.
+
+- `let invalid: ErrorCode = ErrorCode.package(110)`
+
+- `let limit_exceeded: ErrorCode = ErrorCode.package(111)`
+
+### `Value` (struct)
+
+Value() creates an object. Arrays and scalar values use the named constructors. Base copies borrow; an exported Value has normal shared interop ownership.
+
+- `func init(maximum_bytes: usize = 1048576) -> !`
+- `static func array(maximum_bytes: usize = 1048576) -> interop.Reference[Value]!`
+- `static func text(value: str) -> interop.Reference[Value]!`
+- `static func integer(value: i64) -> interop.Reference[Value]!`
+- `static func number(value: f64) -> interop.Reference[Value]!`
+- `static func boolean(value: bool) -> interop.Reference[Value]!`
+- `static func null() -> interop.Reference[Value]!`
+- `func encode() -> str` — Borrowed until the next mutation or close; Luce copies the result.
+- `mutating func set(name: str, value: interop.Reference[Value]) -> !`
+- `mutating func append(value: interop.Reference[Value]) -> !`
+- `mutating func set_text(name: str, value: str) -> !`
+- `mutating func set_integer(name: str, value: i64) -> !`
+- `mutating func set_number(name: str, value: f64) -> !`
+- `mutating func set_boolean(name: str, value: bool) -> !`
+- `mutating func close()`
+
+- `let value_type: interop.Type[Value] = interop.Type[Value]("JSON value", Value.close, closeable = true)`
+
 ## `input`
 
 Window input uses logical points, with the origin at the content's top left. Physical keys describe positions, not characters. Text composition belongs to a separate text-input API; keyboard layouts cannot be decoded from these events.

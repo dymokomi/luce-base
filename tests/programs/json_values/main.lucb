@@ -1,0 +1,55 @@
+import json
+import ownership
+import interop
+import memory
+import math
+
+func exercise() -> !:
+    var object = try json.Value()
+    defer object.close()
+    try object.set_text("message", "café\n\t\0\"\\")
+    try object.set_integer("integer", -9223372036854775807 - 1)
+    try object.set_boolean("ok", true)
+    assert(object.encode() == "{\"message\":\"café\\u000a\\u0009\\u0000\\\"\\\\\",\"integer\":-9223372036854775808,\"ok\":true}")
+    let saved = try interop.copy_text(object.encode())
+    defer saved.release()
+    var rejected = false
+    object.set_text("message", "duplicate") catch failure:
+        assert(failure.code == json.invalid)
+        rejected = true
+    assert(rejected and object.encode() == saved.value)
+    let array = try json.Value.array()
+    defer array.release()
+    let number = try json.Value.number(0.1)
+    defer number.release()
+    let null = try json.Value.null()
+    defer null.release()
+    try array.value().append(number)
+    try array.value().append(null)
+    try object.set("array", array)
+    try array.value().append(array)
+    assert(array.value().encode() == "[0.10000000000000001,null,[0.10000000000000001,null]]")
+    var tiny = try json.Value(8)
+    defer tiny.close()
+    rejected = false
+    tiny.set_text("key", "too big") catch failure:
+        assert(failure.code == json.limit_exceeded)
+        rejected = true
+    assert(rejected and tiny.encode() == "{}")
+    rejected = false
+    let invalid_utf8: u8[1] = [255]
+    tiny.set_text("x", (str)invalid_utf8) catch:
+        rejected = true
+    assert(rejected and tiny.encode() == "{}")
+    rejected = false
+    discard(json.Value.number(math.infinity) catch failure:
+        assert(failure.code == json.invalid)
+        rejected = true
+        recover number)
+    assert(rejected)
+    print(object.encode())
+
+pub func main(arguments: str[]) -> i32!:
+    discard(arguments)
+    try exercise()
+    return ownership.finish_run(0)
