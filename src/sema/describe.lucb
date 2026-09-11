@@ -169,24 +169,24 @@ struct DescriptionWriter:
 
     mutating func conformance(d: ast.Node*) -> !:
         var cursor = d.right if d.kind == ast.Kind.enum_ else d.ty
-        while let iface = cursor:
-            let decl = self.checker.table.get(iface.type_id).decl
+        while let interface_type = cursor:
+            let decl = self.checker.table.get(interface_type.type_id).decl
             if let target = decl:
                 if target.has(ast.flag_pub):
                     try self.out.write("    conforms ")
-                    try self.type_name(iface.type_id)
+                    try self.type_name(interface_type.type_id)
                     try self.out.write("\n")
-            cursor = iface.next
+            cursor = interface_type.next
 
     mutating func mark_conformance(d: ast.Node*) -> !:
         if d.kind != ast.Kind.struct_ and d.kind != ast.Kind.enum_:
             return
         var cursor = d.right if d.kind == ast.Kind.enum_ else d.ty
-        while let iface = cursor:
-            if let target = self.checker.table.get(iface.type_id).decl:
+        while let interface_type = cursor:
+            if let target = self.checker.table.get(interface_type.type_id).decl:
                 if target.has(ast.flag_pub):
-                    try self.mark(iface.type_id)
-            cursor = iface.next
+                    try self.mark(interface_type.type_id)
+            cursor = interface_type.next
 
     func foreign_module(id: u32) -> usize?:
         let decl = self.checker.table.get(id).decl else return none

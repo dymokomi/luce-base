@@ -128795,10 +128795,10 @@ lb_r_unit lb_sema_describe_DescriptionWriter_conformance(lb_sema_describe_Descri
     while (1) {
         struct lb_front_ast_Node* _lb_o23959 = lb_cursor;
         if (!(_lb_o23959 != ((void*)0))) break;
-        struct lb_front_ast_Node* lb_iface_ __attribute__((unused)) = _lb_o23959;
+        struct lb_front_ast_Node* lb_interface_type __attribute__((unused)) = _lb_o23959;
         {
             lb_pos = "src/main.lucb:173:1";
-            struct lb_front_ast_Node* lb_decl __attribute__((unused)) = lb_sema_types_Table_get(&((self->checker)->table), (lb_iface_)->type_id).decl;
+            struct lb_front_ast_Node* lb_decl __attribute__((unused)) = lb_sema_types_Table_get(&((self->checker)->table), (lb_interface_type)->type_id).decl;
             lb_pos = "src/main.lucb:174:1";
             struct lb_front_ast_Node* _lb_o23960 = lb_decl;
             if (_lb_o23960 != ((void*)0)) {
@@ -128812,7 +128812,7 @@ lb_r_unit lb_sema_describe_DescriptionWriter_conformance(lb_sema_describe_Descri
                             return ((lb_r_unit){ .error = _lb_r23961.error, .failed = true });
                         } _lb_r23961.value; }));
                         lb_pos = "src/main.lucb:177:5";
-                        (void)(({ lb_r_unit _lb_r23964 = lb_sema_describe_DescriptionWriter_type_name(self, (lb_iface_)->type_id); if (_lb_r23964.failed) {
+                        (void)(({ lb_r_unit _lb_r23964 = lb_sema_describe_DescriptionWriter_type_name(self, (lb_interface_type)->type_id); if (_lb_r23964.failed) {
                             return ((lb_r_unit){ .error = _lb_r23964.error, .failed = true });
                         } (void)0; }));
                         lb_pos = "src/main.lucb:178:5";
@@ -128823,7 +128823,7 @@ lb_r_unit lb_sema_describe_DescriptionWriter_conformance(lb_sema_describe_Descri
                 }
             }
             lb_pos = "src/main.lucb:179:9";
-            lb_cursor = (lb_iface_)->next;
+            lb_cursor = (lb_interface_type)->next;
         }
     }
     return ((lb_r_unit){ .failed = false });
@@ -128842,10 +128842,10 @@ lb_r_unit lb_sema_describe_DescriptionWriter_mark_conformance(lb_sema_describe_D
     while (1) {
         struct lb_front_ast_Node* _lb_o23968 = lb_cursor;
         if (!(_lb_o23968 != ((void*)0))) break;
-        struct lb_front_ast_Node* lb_iface_ __attribute__((unused)) = _lb_o23968;
+        struct lb_front_ast_Node* lb_interface_type __attribute__((unused)) = _lb_o23968;
         {
             lb_pos = "src/main.lucb:186:5";
-            struct lb_front_ast_Node* _lb_o23969 = lb_sema_types_Table_get(&((self->checker)->table), (lb_iface_)->type_id).decl;
+            struct lb_front_ast_Node* _lb_o23969 = lb_sema_types_Table_get(&((self->checker)->table), (lb_interface_type)->type_id).decl;
             if (_lb_o23969 != ((void*)0)) {
                 struct lb_front_ast_Node* lb_target __attribute__((unused)) = _lb_o23969;
                 {
@@ -128853,14 +128853,14 @@ lb_r_unit lb_sema_describe_DescriptionWriter_mark_conformance(lb_sema_describe_D
                     if (!!(lb_front_ast_Node_has(lb_target, lb_front_ast_flag_pub))) 
                     {
                         lb_pos = "src/main.lucb:188:13";
-                        (void)(({ lb_r_unit _lb_r23970 = lb_sema_describe_DescriptionWriter_mark(self, (lb_iface_)->type_id); if (_lb_r23970.failed) {
+                        (void)(({ lb_r_unit _lb_r23970 = lb_sema_describe_DescriptionWriter_mark(self, (lb_interface_type)->type_id); if (_lb_r23970.failed) {
                             return ((lb_r_unit){ .error = _lb_r23970.error, .failed = true });
                         } (void)0; }));
                     }
                 }
             }
             lb_pos = "src/main.lucb:189:5";
-            lb_cursor = (lb_iface_)->next;
+            lb_cursor = (lb_interface_type)->next;
         }
     }
     return ((lb_r_unit){ .failed = false });
