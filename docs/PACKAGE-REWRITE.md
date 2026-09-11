@@ -7,6 +7,12 @@ scope and required contracts. Historical audit reports are not this backlog.
 
 ## Required result
 
+There are no external users or released compatibility obligations. Replace APIs
+and implementations directly, updating all consumers, tests and documentation in
+the same rewrite. Do not retain legacy formats, deprecated aliases, compatibility
+wrappers or migration machinery. Format markers may detect mismatched tools;
+they do not require supporting older formats.
+
 The infrastructure packages are written in Base, using structs, `init`, methods,
 and interfaces. Their Luce consumers should construct objects, declare application
 behavior and call methods. Libraries own their internal state machines, threads,
@@ -78,8 +84,8 @@ in `docs/language/base.md`, description fixtures in
 - Specify ownership information needed at the boundary. Distinguish transferable
   values, owned object references and borrowed views. Do not infer ownership from
   method names or treat every resource struct as a trivially copyable value.
-- Version changes that alter the meaning of a description; provide an actionable
-  compiler compatibility diagnostic rather than silently omitting required APIs.
+- Use one current description format with a marker to detect mismatched compiler
+  builds. Update both compilers directly; reject mismatches before reading APIs.
 
 ### Import and execute those APIs in Luce
 

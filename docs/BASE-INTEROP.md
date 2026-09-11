@@ -200,13 +200,13 @@ runtime state. Cancellation cannot forcibly unwind arbitrary application code.
 The server must retain state needed by still-running handlers and document the
 limits of bounded shutdown. C03/C04 implement and test this protocol.
 
-## Description and migration requirements
+## Description format
 
-Use an explicitly requested, versioned description format for the extended
-contract. A consumer requests a version it understands; an unsupported version is
-an error before declarations are consumed. Preserve the current unversioned
-description while existing Luce consumers use it. Never silently fall back from
-required object semantics to public-field copying or opaque handles.
+Maintain one current description format and update its producer, consumer and
+fixtures together. Its format marker detects mismatched compiler builds and is
+checked before consuming declarations. There is no format selection, older reader
+or fallback path. The language has no released compatibility contract to preserve;
+replace obsolete APIs and machinery directly throughout the rewrite.
 
 The new format must report public constructors/methods/interfaces, conformance,
 defaults and whether a public-field record describes the full representation.
@@ -227,7 +227,7 @@ ownership declarations and the owner bridge belong to I06.
 | Leases | Stored request/frame/interface views reject access after expiry, including captured and bound-method uses |
 | Mixed cycles | Native-held callbacks and child/parent edges are traced or weak; disconnected and unreachable graphs leave no owners alive |
 | Thread affinity | Wrong-thread calls/releases are rejected before touching ARC/native state; valid worker shutdown drains its own graph |
-| Version negotiation | Unsupported description versions fail explicitly; legacy callers keep their previous protocol |
+| Matching tools | A mismatched description marker fails explicitly before declarations are consumed; one writer and reader implement the current contract |
 
 These are acceptance requirements for implementation tasks, not claims that the
 current compiler passes them. I01 is complete when this contract is recorded;

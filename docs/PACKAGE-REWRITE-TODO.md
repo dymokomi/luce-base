@@ -5,8 +5,8 @@ Updated: 2026-09-11. This is the working checklist for the ecosystem rewrite.
 constraints and acceptance criteria. Follow the phases below in order.
 
 **Status:** ownership contract defined; description implementation next.
-**Next task:** I02 — expose constructors, methods and interfaces in a versioned
-Base description.
+**Next task:** I02 — replace the Base description and its Luce reader with the
+complete constructor, method and interface format.
 
 ## How we track work
 
@@ -18,6 +18,9 @@ Base description.
   part of that implementation commit, say so instead of inventing its future hash.
 - Update this checklist with each completed slice and commit fixes promptly.
   Update the next task and any unresolved dependency when changing phases.
+- Rebuild directly: there are no external users or released compatibility
+  obligations. Update consumers/tests with each changed API; remove legacy paths,
+  compatibility aliases and migration scaffolding instead of preserving them.
 - Existing prototype behavior and earlier tests are regression baselines, not
   evidence that the replacement API is complete. Phase gates require the rewritten
   implementation and its consumers to pass.
@@ -45,7 +48,8 @@ default. Preserve recoverable errors and explicit Base ownership.
   implementation tasks below; defining the contract does not complete those tests.
 - [ ] I02 — Extend Base descriptions with public constructors, instance/static
   methods, receiver mutation, interfaces and conformance. Cover private visibility
-  and incompatible description versions with fixtures and diagnostics.
+  and mismatched compiler formats with fixtures and diagnostics. Maintain one
+  current producer/reader format without compatibility branches.
 - [ ] I03 — Preserve parameter names, defaults, fallibility and qualified type
   identity through aliases, re-exports and nested signatures.
 - [ ] I04 — Import and lower Base constructors through existing `Type(args)` syntax;
