@@ -307,6 +307,9 @@ pub struct Arg:
     pub var align: u32
     pub var type_id: u32
     pub var shape: u32
+    ## Scalar storage width before register promotion; zero uses the IR class width.
+    ## Apple arm64 packs fixed stack arguments using this width, even for i8/u16.
+    pub var scalar_width: u32
 
 ## A call's result: a scalar class, or an aggregate written to `slot` of `size` bytes.
 pub struct CallInfo:
@@ -336,6 +339,8 @@ pub struct Param:
     ## The slot the parameter is stored into on entry.
     pub var slot: u32
     pub var shape: u32
+    pub var scalar_width: u32
+    pub var scalar_signed: bool
 
 # mark: Functions and the unit ================================================================
 
@@ -369,6 +374,8 @@ pub struct DebugScope:
 pub struct Function:
     pub var name: str
     pub var exported: bool
+    ## Optional standard modules must not impose link dependencies on every program.
+    pub var standard: bool
     ## `--debug`: the source file, and every named local for the frame's descriptor.
     pub var debug: bool
     pub var source: str

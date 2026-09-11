@@ -1,0 +1,23 @@
+## Scalar stack packing is part of the platform ABI, in both directions.
+extern func abi_scalars(r0: u64, r1: u64, r2: u64, r3: u64, r4: u64, r5: u64, r6: u64, r7: u64, flag: bool, byte: i8, small: u16, signed_small: i16, word: u32, signed_word: i32, wide: u64) -> bool
+extern func abi_floats(r0: u64, r1: u64, r2: u64, r3: u64, r4: u64, r5: u64, r6: u64, r7: u64, f0: f64, f1: f64, f2: f64, f3: f64, f4: f64, f5: f64, f6: f64, f7: f64, flag: bool, small: u16, x: f32, y: f32, z: f64) -> bool
+extern func abi_variadic(r0: u64, r1: u64, r2: u64, r3: u64, r4: u64, r5: u64, r6: u64, r7: u64, flag: i32, ...) -> bool
+extern func abi_incoming() -> bool
+
+export func base_scalars(r0: u64, r1: u64, r2: u64, r3: u64, r4: u64, r5: u64, r6: u64, r7: u64, flag: bool, byte: i8, small: u16, signed_small: i16, word: u32, signed_word: i32, wide: u64) -> bool:
+    assert(r0 + r1 + r2 + r3 + r4 + r5 + r6 + r7 == 36)
+    return flag and byte == -7 and small == 60001 and signed_small == -1234 and word == 4000000001 and signed_word == -1234567 and wide == 9000000001
+
+export func base_floats(r0: u64, r1: u64, r2: u64, r3: u64, r4: u64, r5: u64, r6: u64, r7: u64, f0: f64, f1: f64, f2: f64, f3: f64, f4: f64, f5: f64, f6: f64, f7: f64, flag: bool, small: u16, x: f32, y: f32, z: f64) -> bool:
+    assert(r0 + r1 + r2 + r3 + r4 + r5 + r6 + r7 == 36)
+    assert(f0 + f1 + f2 + f3 + f4 + f5 + f6 + f7 == 36.0)
+    return flag and small == 60001 and x == 1.25 and y == -2.5 and z == 19.75
+
+pub func main(arguments: str[]) -> i32:
+    discard(arguments)
+    assert(abi_scalars(1, 2, 3, 4, 5, 6, 7, 8, true, -7, 60001, -1234, 4000000001, -1234567, 9000000001))
+    assert(abi_floats(1, 2, 3, 4, 5, 6, 7, 8, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, true, 60001, 1.25, -2.5, 19.75))
+    assert(abi_variadic(1, 2, 3, 4, 5, 6, 7, 8, 1, i32(53), i32(-7), f64(1.25)))
+    assert(abi_incoming())
+    print("ok scalar stack ABI in both directions")
+    return 0

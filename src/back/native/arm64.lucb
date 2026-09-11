@@ -636,7 +636,10 @@ pub struct Generator:
                             try self.put(", [x16]")
                         next_float += 1
                     else:
-                        try self.line("ldr x9, [x29, #")
+                        let width = scalar_stack_width(p.cls, p.scalar_width)
+                        stack_offset = arm_round_up(stack_offset, (u64)width)
+                        try self.line(scalar_stack_load(width, false))
+                        try self.put(" [x29, #")
                         try self.put_u64(stack_offset)
                         try self.put("]")
                         if code != 0:
@@ -644,7 +647,7 @@ pub struct Generator:
                         else:
                             try self.frame_address("x16", home)
                             try self.line("str x9, [x16]")
-                        stack_offset += 8
+                        stack_offset += (u64)width
                 elif next_int < 8:
                     if code != 0:
                         try self.line("mov ")
@@ -659,7 +662,10 @@ pub struct Generator:
                         try self.put(", [x16]")
                     next_int += 1
                 else:
-                    try self.line("ldr x9, [x29, #")
+                    let width = scalar_stack_width(p.cls, p.scalar_width)
+                    stack_offset = arm_round_up(stack_offset, (u64)width)
+                    try self.line(scalar_stack_load(width, p.scalar_signed))
+                    try self.put(" [x29, #")
                     try self.put_u64(stack_offset)
                     try self.put("]")
                     if code != 0:
@@ -667,7 +673,7 @@ pub struct Generator:
                     else:
                         try self.frame_address("x16", home)
                         try self.line("str w9, [x16]" if p.cls == ir.Class.w else "str x9, [x16]")
-                    stack_offset += 8
+                    stack_offset += (u64)width
             elif self.hfa(p.shape) > 0 and next_float + self.hfa(p.shape) <= 8:
                 # a homogeneous float aggregate in d or s registers
                 let each = (u64)p.size // (u64)self.hfa(p.shape)
@@ -696,6 +702,7 @@ pub struct Generator:
                     next_int += words
                 else:
                     next_int = 8
+                    stack_offset = arm_round_up(stack_offset, 8)
                     var k: u32 = 0
                     while k < words:
                         try self.line("ldr x9, [x29, #")
@@ -717,6 +724,7 @@ pub struct Generator:
                     try self.put(", [x16]")
                     next_int += 1
                 else:
+                    stack_offset = arm_round_up(stack_offset, 8)
                     try self.line("ldr x9, [x29, #")
                     try self.put_u64(stack_offset)
                     try self.put("]")
@@ -1342,15 +1350,19 @@ pub struct Generator:
                     let p = ArgPlacement(where = 1, first = *next_float, count = 1, stack_offset = 0)
                     *next_float += 1
                     return p
+                let width = scalar_stack_width(a.cls, a.scalar_width)
+                *stack = (u32)arm_round_up((u64)*stack, (u64)width)
                 let p = ArgPlacement(where = 2, first = 0, count = 1, stack_offset = *stack)
-                *stack += 8
+                *stack += width
                 return p
             if *next_int < 8:
                 let p = ArgPlacement(where = 0, first = *next_int, count = 1, stack_offset = 0)
                 *next_int += 1
                 return p
+            let width = scalar_stack_width(a.cls, a.scalar_width)
+            *stack = (u32)arm_round_up((u64)*stack, (u64)width)
             let p = ArgPlacement(where = 2, first = 0, count = 1, stack_offset = *stack)
-            *stack += 8
+            *stack += width
             return p
         let floats = self.hfa(a.shape)
         if floats > 0 and *next_float + floats <= 8:
@@ -1364,6 +1376,7 @@ pub struct Generator:
                 *next_int += words
                 return p
             *next_int = 8
+            *stack = (u32)arm_round_up((u64)*stack, 8)
             let p = ArgPlacement(where = 2, first = 0, count = words, stack_offset = *stack)
             *stack += words * 8
             return p
@@ -1371,6 +1384,7 @@ pub struct Generator:
             let p = ArgPlacement(where = 3, first = *next_int, count = 1, stack_offset = 0)
             *next_int += 1
             return p
+        *stack = (u32)arm_round_up((u64)*stack, 8)
         let p = ArgPlacement(where = 2, first = 0, count = 1, stack_offset = *stack)
         *stack += 8
         return p
@@ -1390,6 +1404,7 @@ pub struct Generator:
             let a = self.f.args.get((usize)(info.args_start + i))
             if info.variadic and i >= info.fixed_count:
                 # Apple passes every variadic argument on the stack, eight bytes each
+                stack = (u32)arm_round_up((u64)stack, 8)
                 placements[i] = ArgPlacement(where = 2, first = 0, count = 1, stack_offset = stack)
                 stack += 8
             else:
@@ -1418,8 +1433,16 @@ pub struct Generator:
                 let base_offset = (u64)p.stack_offset + (16 if through_register else 0)
                 if a.size == 0:
                     try self.operand(self.reg(a.cls, 0), a.cls, a.value)
-                    try self.line("str ")
-                    try self.put(self.wide(a.cls, 0))
+                    let width = scalar_stack_width(a.cls, a.scalar_width)
+                    if info.variadic and i >= info.fixed_count:
+                        try self.line("str ")
+                        try self.put(self.wide(a.cls, 0))
+                    elif ir.is_float_class(a.cls):
+                        try self.line("str ")
+                        try self.put(self.reg(a.cls, 0))
+                    else:
+                        try self.line("strb " if width == 1 else ("strh " if width == 2 else "str "))
+                        try self.put(self.reg(ir.Class.w if width < 8 else ir.Class.l, 0))
                     try self.put(", [sp, #")
                     try self.put_u64(base_offset)
                     try self.put("]")
@@ -1954,6 +1977,23 @@ func width_suffix(width: u32) -> str:
     if width == 2:
         return "h"
     return ""
+
+## Apple fixed arguments retain their storage width on the stack. The IR's
+## register class alone loses bool/i8/u16 widths; compiler-internal calls may
+## omit the extra metadata when their arguments already have full class width.
+func scalar_stack_width(cls: ir.Class, declared: u32) -> u32:
+    if declared != 0:
+        return declared
+    if cls == ir.Class.h:
+        return 2
+    return 4 if cls == ir.Class.w or cls == ir.Class.s else 8
+
+func scalar_stack_load(width: u32, signed: bool) -> str:
+    if width == 1:
+        return "ldrsb w9," if signed else "ldrb w9,"
+    if width == 2:
+        return "ldrsh w9," if signed else "ldrh w9,"
+    return "ldr w9," if width == 4 else "ldr x9,"
 
 func arm_round_up(value: u64, align: u64) -> u64:
     if align <= 1:

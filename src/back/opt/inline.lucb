@@ -38,6 +38,7 @@ let once: usize = 256
 ## reaching the callers has its own calls opened out already and is measured as it will
 ## stand; then drop the functions that were expanded everywhere they were called.
 pub func expand(program: ir.Unit*) -> !:
+    try drop_unused_standard(program)
     var index = try Index.over(program)
     defer index.release()
     var census = try Census.over(program, &index)
@@ -47,6 +48,68 @@ pub func expand(program: ir.Unit*) -> !:
     for fi in order:
         try expand_in(program, &index, &census, fi)
     try drop_expanded(program, &index, &census)
+
+## Retain standard functions reachable from application code, initializers,
+## witness tables, assembly, and explicit retention attributes. User/package
+## functions keep their existing linkage. In particular, merely embedding the
+## window module must not require AppKit in a console program or a Linux build.
+## Function addresses are graph edges too: native callbacks remain callable.
+func drop_unused_standard(program: ir.Unit*) -> !:
+    var index = try Index.over(program)
+    defer index.release()
+    let count = program.functions.count
+    let retained = try alloc bool[count + 1]
+    defer free(retained)
+    clear_flags(retained)
+    var texts = try asm_texts_of(program)
+    defer texts.destroy()
+    var i: usize = 0
+    while i < count:
+        let f = &program.functions.items[i]
+        retained[i] = not f.standard or f.exported or f.used or f.weak or f.naked or f.section.length > 0 or f.name == program.init_function or f.name == program.trap_function or f.name == program.trap_at_function or f.name == program.trap_two_at_function or named_in_asm(&texts, f.name)
+        i += 1
+    for table in program.tables.span():
+        for name in table.entries.span():
+            if let position = index.find(name):
+                retained[position] = true
+    let visited = try alloc bool[count + 1]
+    defer free(visited)
+    clear_flags(visited)
+    var changed = true
+    while changed:
+        changed = false
+        i = 0
+        while i < count:
+            if retained[i] and not visited[i]:
+                visited[i] = true
+                changed = true
+                let f = &program.functions.items[i]
+                for instruction in f.instrs.span():
+                    note_reference(&index, retained, instruction.a)
+                    note_reference(&index, retained, instruction.b)
+                for argument in f.args.span():
+                    note_reference(&index, retained, argument.value)
+            i += 1
+    var kept = try list.List[ir.Function].create(count)
+    i = 0
+    while i < count:
+        var f = program.functions.get(i)
+        if retained[i]:
+            try kept.push(f)
+        else:
+            f.points.destroy()
+            f.debug_scopes.destroy()
+            f.locals.destroy()
+            f.params.destroy()
+            f.slots.destroy()
+            f.instrs.destroy()
+            f.args.destroy()
+            f.calls.destroy()
+            f.temps.destroy()
+            f.phi_args.destroy()
+        i += 1
+    program.functions.destroy()
+    program.functions = kept
 
 ## The functions in an order that puts every callee before its callers, cycles apart: a
 ## depth-first walk of the call graph from each function, finishing a function after the

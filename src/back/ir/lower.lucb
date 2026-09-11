@@ -657,6 +657,7 @@ pub struct Lowerer:
         let d = inst.decl
         let name = try self.function_name(d, inst.args, inst.owner, inst.owner_args)
         try self.begin_function(name, d, inst)
+        self.f.standard = check.is_standard_module(names.module_of(inst.owner else d))
         self.f.naked = ast.has_attribute(d, "naked")
         self.f.weak = ast.has_attribute(d, "weak")
         self.f.used = ast.has_attribute(d, "used")
@@ -852,7 +853,7 @@ pub struct Lowerer:
     ## A parameter description from its type and slot.
     mutating func param_of(id: u32, slot: u32) -> ir.Param!:
         if self.is_scalar(id):
-            return ir.Param(cls = self.class_of(id), size = 0, align = 8, type_id = id, slot = slot, shape = 0)
+            return ir.Param(cls = self.class_of(id), size = 0, align = 8, type_id = id, slot = slot, shape = 0, scalar_width = (u32)self.scalar_size(id), scalar_signed = self.signed_of(id))
         return ir.Param(cls = ir.Class.l, size = self.size(id), align = self.align(id), type_id = id, slot = slot, shape = try self.shape_of(id))
 
     ## Open a function: its result shape and the slot the result is built in.
@@ -3242,7 +3243,7 @@ pub struct Lowerer:
         var cls = self.class_of(v.type_id)
         if v.type_id == types.unit_id or v.type_id == types.never_id:
             cls = ir.Class.w
-        return ir.Arg(value = v.ref, cls = cls, size = 0, align = 8, type_id = v.type_id, shape = 0)
+        return ir.Arg(value = v.ref, cls = cls, size = 0, align = 8, type_id = v.type_id, shape = 0, scalar_width = (u32)self.scalar_size(v.type_id))
 
     ## A call of a named symbol whose arguments are already pushed; the scalar result.
     mutating func call_named(name: str, start: u32, count: u32, cls: ir.Class, has_result: bool, result_type: u32) -> ir.Ref!:

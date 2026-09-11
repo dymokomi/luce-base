@@ -1145,6 +1145,11 @@ pub struct Emitter:
             try self.put_u64((u64)index)
             try self.put("(void)")
         else:
+            # Standard functions belong to this artifact, unless explicitly exported
+            # or given linkage attributes. Internal linkage lets the host compiler
+            # omit unused platform code (for example AppKit in a console program).
+            if check.is_standard_module(names.module_of(self.owner_decl else f)) and not f.has(ast.flag_export) and f.attrs == none:
+                try self.put("static __attribute__((unused)) ")
             try self.attribute_prefix(f, true)
             try self.put_result_type(f)
             try self.put(" ")
