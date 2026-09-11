@@ -1,7 +1,7 @@
 # Base-to-Luce ownership contract
 
-Rewrite task I01, 2026-09-11. This document defines the contract the package rewrite
-will implement. Implementation remains in progress; the checklist distinguishes verified work from the remaining contract.
+Updated 2026-09-11. This contract is implemented by the Base/Luce compiler boundary.
+Sections 1 and 2 of the rewrite are complete; package adoption follows in later phases.
 Implementation and verification are tracked in
 [PACKAGE-REWRITE-TODO.md](PACKAGE-REWRITE-TODO.md).
 
@@ -235,9 +235,9 @@ ownership declarations and the owner bridge belong to I06.
 | Thread affinity | Wrong-thread calls/releases are rejected before touching ARC/native state; valid worker shutdown drains its own graph |
 | Matching tools | A mismatched description marker fails explicitly before declarations are consumed; one writer and reader implement the current contract |
 
-These are acceptance requirements for implementation tasks, not claims that the
-current compiler passes them. I01 is complete when this contract is recorded;
-I02–I11 and C01–C05 remain open until their executable fixtures pass.
+These requirements are covered by the section-one/two fixtures and phase gates.
+The checklist records exact commits, execution modes and host coverage; later
+package phases must prove their own use of the same contracts.
 
 ## Shared ownership implementation
 
@@ -269,4 +269,8 @@ implementations use one tracing graph, including mixed container/child cycles.
 explicit in Base while presenting ordinary values/results to Luce. Interface
 fixtures cover both implementation directions, identity through aliases, native
 values and objects, borrowed views, bound methods and errors handled entirely in
-Base. Retained function callbacks remain tracked by C02.
+Base. Retained `Callback[A, R]` carriers and ordered `Signal[A]` delivery use the
+same graph, with connection ownership, reentrancy and failure handling verified in
+C02. `WorkerEntry` and `Worker` create per-thread application state and transfer
+copied packets through bounded queues. Cancellation and joined cleanup are verified
+in C03–C05; [CALLBACKS-WORKERS.md](CALLBACKS-WORKERS.md) defines those lifecycles.

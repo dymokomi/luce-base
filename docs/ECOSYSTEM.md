@@ -15,7 +15,9 @@ Follow the [rewrite TODO list](PACKAGE-REWRITE-TODO.md) and check off verified
 slices as they are completed. Luce uses existing `Type(args)` construction.
 There are no external users or released compatibility obligations: replace APIs
 directly and update their consumers, without legacy paths or migration scaffolding.
-TLS remains paused.
+TLS remains paused. The compiler object/ownership boundary and retained callback/
+worker foundation are complete (rewrite sections 1 and 2). Next is section 3:
+the Base server library and its Luce HTTP application.
 
 Completed foundation: **standard `net` protocol primitives**, HTTP/1.1 and WebSocket
 in luce-base, verified on both native hosts on 2026-09-10. The server is an entirely
