@@ -5211,7 +5211,7 @@ pub struct Emitter:
         try self.put_func_name(init, try types.no_args(), t.decl, t.args)
         try self.put("(&")
         try self.put_tmp("iv", n)
-        if e.body != none:
+        if init.right != none:
             try self.put(", ")
             try self.arguments(e.body, fn, init, try types.no_args())
         try self.put(")")
@@ -5670,32 +5670,56 @@ pub struct Emitter:
         try self.put("*)")
         try self.put_tmp("ao", n)
         try self.put(".value.data; ")
-        if let body = e.body:
+        var failed_init = false
+        if let init = e.initializer():
+            let native_type = self.c.table.get(et)
+            var fn = try self.map(init.type_id)
+            if let declaration = native_type.decl:
+                fn = try self.c.substitute(fn, declaration, native_type.args)
+            discard(try self.add_func(init, try types.no_args(), native_type.decl, native_type.args))
+            try self.put("memset(")
+            try self.put_tmp("p", n)
+            try self.put(", 0, sizeof(")
+            try self.put_type(et)
+            try self.put(")); ")
+            failed_init = init.has(ast.flag_fallible)
+            if failed_init:
+                try self.put("lb_r_unit ")
+                try self.put_tmp("init", n)
+                try self.put(" = ")
+            let hoisted = try self.begin_sequence(e.body, fn, init)
+            try self.put_func_name(init, try types.no_args(), native_type.decl, native_type.args)
+            try self.put("(")
+            try self.put_tmp("p", n)
+            if init.right != none:
+                try self.put(", ")
+                try self.arguments(e.body, fn, init, try types.no_args())
+            try self.put(")")
+            try self.end_sequence(hoisted)
+            try self.put("; ")
+            if failed_init:
+                try self.put("if (")
+                try self.put_tmp("init", n)
+                try self.put(".failed) { ")
+                try self.put_tmp("r", n)
+                try self.put(".failed = true; ")
+                try self.put_tmp("r", n)
+                try self.put(".error = ")
+                try self.put_tmp("init", n)
+                try self.put(".error; lb_release_call(")
+                try self.put_tmp("a", n)
+                try self.put(", ")
+                try self.put_tmp("ao", n)
+                try self.put(".value); } else { ")
+        elif let body = e.body:
+            try self.put("*")
+            try self.put_tmp("p", n)
+            try self.put(" = ")
             if body.kind == ast.Kind.case_value:
-                try self.put("*")
-                try self.put_tmp("p", n)
-                try self.put(" = ")
                 try self.enum_value(body)
-                try self.put("; ")
-            elif let init = e.resolved:
-                if init.kind == ast.Kind.func_ and init.text == "init":
-                    try self.put("*")
-                    try self.put_tmp("p", n)
-                    try self.put(" = ")
-                    try self.init_call(e, init, et)
-                    try self.put("; ")
-                else:
-                    try self.put("*")
-                    try self.put_tmp("p", n)
-                    try self.put(" = ")
-                    try self.constructor(e, et)
-                    try self.put("; ")
             else:
-                try self.put("*")
-                try self.put_tmp("p", n)
-                try self.put(" = ")
                 try self.constructor(e, et)
-                try self.put("; ")
+            try self.put("; ")
         else:
             try self.put("memset(")
             try self.put_tmp("p", n)
@@ -5707,7 +5731,10 @@ pub struct Emitter:
         try self.put_tmp("p", n)
         try self.put("; ")
         try self.put_tmp("r", n)
-        try self.put(".failed = false; } ")
+        try self.put(".failed = false; ")
+        if failed_init:
+            try self.put("} ")
+        try self.put("} ")
         try self.put_tmp("r", n)
         try self.put("; })")
 

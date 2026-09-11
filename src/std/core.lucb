@@ -12,7 +12,7 @@ pub func trap(message: c.str) -> never:
     let prefix = "trap: "
     discard(write(2, prefix.bytes.data, prefix.length))
     discard(write(2, (const void*)message, strlen(message)))
-    let newline = "\\n"
+    let newline = "\n"
     discard(write(2, newline.bytes.data, 1))
     c_exit(1)
 
@@ -24,7 +24,7 @@ pub func trap_at(position: c.str, message: c.str) -> never:
     let sep = ": "
     discard(write(2, sep.bytes.data, 2))
     discard(write(2, (const void*)message, strlen(message)))
-    let newline = "\\n"
+    let newline = "\n"
     discard(write(2, newline.bytes.data, 1))
     c_exit(1)
 
@@ -39,7 +39,7 @@ pub func trap_two_at(position: c.str, message: c.str, detail: c.str) -> never:
     discard(write(2, (const void*)message, strlen(message)))
     discard(write(2, sep.bytes.data, 2))
     discard(write(2, (const void*)detail, strlen(detail)))
-    let newline = "\\n"
+    let newline = "\n"
     discard(write(2, newline.bytes.data, 1))
     c_exit(1)
 
@@ -51,7 +51,7 @@ pub func trap_two(message: c.str, detail: c.str) -> never:
     let sep = ": "
     discard(write(2, sep.bytes.data, 2))
     discard(write(2, (const void*)detail, strlen(detail)))
-    let newline = "\\n"
+    let newline = "\n"
     discard(write(2, newline.bytes.data, 1))
     c_exit(1)
 
@@ -60,7 +60,7 @@ pub func trap_two(message: c.str, detail: c.str) -> never:
 pub func trap_text_at(position: c.str, message: str) -> never:
     diagnostic_location(position)
     write_diagnostic(message.bytes)
-    write_diagnostic("\\n".bytes)
+    write_diagnostic("\n".bytes)
     c_exit(1)
 
 ## Assertion prefix plus a Base string detail, preserving the detail's length.
@@ -70,7 +70,7 @@ pub func trap_detail_at(position: c.str, message: c.str, detail: str) -> never:
     write_diagnostic(prefix.bytes)
     write_diagnostic(": ".bytes)
     write_diagnostic(detail.bytes)
-    write_diagnostic("\\n".bytes)
+    write_diagnostic("\n".bytes)
     c_exit(1)
 
 func diagnostic_location(position: c.str):
@@ -254,7 +254,7 @@ pub func raw_arguments(count: i32, vector: c.str*) -> c.str[]:
 ## A failed `main`: its error on stderr, exit status 1.
 pub func main_failed(code: i32, message: str) -> i32:
     var bytes: u8[1024] = ---
-    let line = format(bytes, f"error {code}: {message}\\n") catch:
+    let line = format(bytes, f"error {code}: {message}\n") catch:
         return 1
     discard(write(2, line.bytes.data, line.length))
     return 1
@@ -262,13 +262,13 @@ pub func main_failed(code: i32, message: str) -> i32:
 ## The test runner's report line and its summary.
 pub func test_report(name: str, failed: bool, message: str):
     var bytes: u8[1024] = ---
-    let line = format(bytes, f"FAIL  {name}\\n      error: {message}\\n" if failed else f"ok    {name}\\n") catch:
+    let line = format(bytes, f"FAIL  {name}\n      error: {message}\n" if failed else f"ok    {name}\n") catch:
         return
     discard(write(1, line.bytes.data, line.length))
 
 pub func test_summary(total: i32, failed: i32) -> i32:
     var bytes: u8[64] = ---
-    let line = format(bytes, f"{total - failed} passed\\n") catch:
+    let line = format(bytes, f"{total - failed} passed\n") catch:
         return 1
     discard(write(1, line.bytes.data, line.length))
     return 0 if failed == 0 else 1
@@ -276,7 +276,7 @@ pub func test_summary(total: i32, failed: i32) -> i32:
 ## `print`: the text and a newline on stdout; `answer()` programs print their number.
 pub func print_str(text: str):
     discard(write(1, text.bytes.data, text.length))
-    let newline = "\\n"
+    let newline = "\n"
     discard(write(1, newline.bytes.data, 1))
 
 pub func print_i64(value: i64):
@@ -285,7 +285,7 @@ pub func print_i64(value: i64):
     var b = FormatBuffer(data = all.data, capacity = 32, used = 0)
     discard(format_i64(&b, value))
     discard(write(1, all.data, b.used))
-    let newline = "\\n"
+    let newline = "\n"
     discard(write(1, newline.bytes.data, 1))
 
 ## Ordering of text: bytewise, then by length (§7.4).

@@ -1,0 +1,132 @@
+import memory
+from ownership import Object, Info, allocate, retain, release, reserve, discard_unpublished, context_id, weak_make, weak_drop, weak_get, pool_object, mark, drain, collect, finish_run, live_count
+
+## A hand-built class, shaped as the emitter shapes one: the header first, then the fields.
+struct Node:
+    var header: Object
+    var value: i64
+    var next: Node*?
+
+local var log: u8[64]
+local var logged: usize = 0
+
+func note(byte: u8):
+    if logged < log.length:
+        log[logged] = byte
+        logged += 1
+
+func node_finish(o: Object*):
+    let n = (Node*)o
+    note(u8(48 + n.value))
+
+func node_drop(o: Object*):
+    let n = (Node*)o
+    if let next = n.next:
+        n.next = none
+        release((Object*)next)
+
+func node_trace(o: Object*, visit: func(Object*, void*) -> unit, context: void*):
+    let n = (Node*)o
+    if let next = n.next:
+        visit((Object*)next, context)
+
+var node_info: Info = Info(name = "Node", size = sizeof(Node), finish = node_finish, drop = node_drop, trace = node_trace)
+
+func node(value: i64) -> Node*:
+    let n = (Node*)allocate(&node_info)
+    n.value = value
+    return n
+
+## The shared runtime uses stable heap storage between isolated test arenas.
+func fresh():
+    assert(finish_run(0) == 0)
+    logged = 0
+
+test "a release at zero destroys: deinit, then the fields":
+    fresh()
+    let a = node(1)
+    a.next = node(2)
+    release((Object*)a)
+    assert((str)log[..<logged] == "12")
+    assert(live_count() == 0)
+
+test "a cycle is collected with its deinits in discovery order":
+    fresh()
+    let a = node(3)
+    let b = node(4)
+    a.next = (Node*)retain((Object*)b)
+    b.next = (Node*)retain((Object*)a)
+    release((Object*)b)
+    release((Object*)a)
+    assert(live_count() == 2)
+    collect()
+    assert(live_count() == 0)
+    # `b` became a candidate first, so the walk finds it first
+    assert((str)log[..<logged] == "43")
+
+test "a weak reference outlives its object and answers none":
+    fresh()
+    let a = node(5)
+    let w = weak_make((Object*)a)
+    assert(weak_get(w) != none)
+    release((Object*)a)   # the get above retained
+    assert(live_count() == 1)
+    release((Object*)a)
+    assert(live_count() == 0)
+    assert(weak_get(w) == none)
+    weak_drop(w)
+    assert((str)log[..<logged] == "5")
+
+test "temporaries drain in the order they were pooled":
+    fresh()
+    let m = mark()
+    discard(pool_object((Object*)node(6)))
+    discard(pool_object((Object*)node(7)))
+    assert(logged == 0)
+    drain(m)
+    assert((str)log[..<logged] == "67")
+    assert(live_count() == 0)
+
+test "the run's end reports what is alive":
+    fresh()
+    let a = node(8)
+    # this writes `runtime: 1 objects alive at exit` to stderr on purpose: the report is
+    # what is under test, and the test output carries the line after `passed`
+    assert(finish_run(0) == 3)
+    release((Object*)a)
+    assert(finish_run(0) == 0)
+
+test "unpublished native failure skips successful-object finalization":
+    fresh()
+    let value = try reserve(&node_info, sizeof(Node))
+    discard_unpublished(value)
+    assert(live_count() == 0 and logged == 0)
+    assert(finish_run(0) == 0)
+
+test "an allocation records its allocator and does not reuse its identity":
+    fresh()
+    var storage: u8[2048]
+    var arena = memory.FixedBuffer.over(storage)
+    let allocator: memory.Allocator = &arena
+    let first = try reserve(&node_info, sizeof(Node), allocator)
+    let address = (usize)first
+    let generation = first.generation
+    discard_unpublished(first)
+    let second = try reserve(&node_info, sizeof(Node), allocator)
+    assert((usize)second == address)
+    assert(second.generation != generation)
+    assert(second.context == context_id())
+    discard_unpublished(second)
+    assert(finish_run(0) == 0)
+
+test "reservation propagates allocation failure without publishing ownership":
+    fresh()
+    var storage: u8[1]
+    var arena = memory.FixedBuffer.over(storage)
+    let allocator: memory.Allocator = &arena
+    let value = reserve(&node_info, sizeof(Node), allocator) catch failure:
+        assert(failure.code == memory.exhausted)
+        assert(live_count() == 0 and logged == 0)
+        return
+    discard(value)
+    assert(false)

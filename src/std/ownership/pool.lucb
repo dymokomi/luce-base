@@ -1,0 +1,59 @@
+# mark: The temporaries pool ===================================================================
+
+struct Pending:
+    var object: Object*?
+    var cell: void*?
+    var drop: (func(void*) -> unit)?
+    var size: usize
+
+local var pending: Pending[]
+local var pending_count: usize = 0
+
+pub func mark() -> usize:
+    return pending_count
+
+func push_pending(p: Pending):
+    if pending_count == pending.length:
+        let grown = alloc Pending[pending.length * 2 if pending.length > 0 else 64] in memory.heap catch failure:
+            trap("out of memory")
+        var i: usize = 0
+        while i < pending_count:
+            grown[i] = pending[i]
+            i += 1
+        if pending.length > 0:
+            free(pending) in memory.heap
+        pending = grown
+    pending[pending_count] = p
+    pending_count += 1
+
+## An owned object handed on as a temporary: released by the next `drain`.
+pub func pool_object(o: Object*) -> Object*:
+    push_pending(Pending(object = o, cell = none, drop = none, size = 0))
+    return o
+
+## An owned value of any type handed on as a temporary; `drop` releases what it holds.
+pub func pool_value[T](v: T, drop: func(void*) -> unit) -> T:
+    let block = alloc(sizeof(T), alignof(T)) in memory.heap catch failure:
+        trap("out of memory")
+    memory.write[T](block.data, v)
+    push_pending(Pending(object = none, cell = block.data, drop = drop, size = sizeof(T)))
+    return v
+
+## Releases every temporary pooled since `mark`, in the order they were pooled.
+pub func drain(since: usize):
+    if pending_count <= since:
+        return
+    let count = pending_count
+    var i = since
+    while i < count:
+        let p = pending[i]
+        if let o = p.object:
+            release(o)
+        elif let cell = p.cell:
+            if let d = p.drop:
+                d(cell)
+            free(u8[]((u8*)cell, p.size)) in memory.heap
+        i += 1
+    # a release pools nothing of its own, so nothing was added above `count`
+    pending_count = since
+

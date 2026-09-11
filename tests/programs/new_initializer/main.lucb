@@ -1,0 +1,63 @@
+import counting
+import memory
+
+let failed: ErrorCode = ErrorCode.package(1)
+var calls: i64 = 0
+
+struct Item:
+    var address: Item*
+    var value: i64
+
+    func init(value: i64 = 7) -> !:
+        calls += 1
+        self.address = (Item*)0
+        self.value = value
+        self.remember_address()
+        if value < 0:
+            # Allocation cleanup must use the allocator captured before init.
+            memory.allocator = memory.heap
+            error(failed, "initializer failed")
+
+    mutating func remember_address():
+        self.address = &self
+
+struct Empty:
+    var value: i64
+    func init():
+        calls += 1
+        self.value = 11
+
+struct Broken:
+    var value: i64
+    func init() -> !:
+        calls += 1
+        error(failed, "empty initializer failed")
+
+func restore(allocator: memory.Allocator):
+    memory.allocator = allocator
+
+pub func main(arguments: str[]) -> i32!:
+    var allocator = counting.Counting.unlimited()
+    let original = memory.allocator
+    defer restore(original)
+    memory.allocator = &allocator
+    let defaulted = try new Item()
+    assert(defaulted.value == 7 and defaulted.address == defaulted and calls == 1)
+    free(defaulted) in allocator
+    let explicit = try new Item(9)
+    assert(explicit.value == 9 and explicit.address == explicit and calls == 2)
+    free(explicit) in allocator
+    let empty = try new Empty()
+    assert(empty.value == 11 and calls == 3)
+    free(empty) in allocator
+    let broken = new Broken() catch failure:
+        assert(failure.code == failed and failure.message == "empty initializer failed")
+        recover (Broken*)0
+    assert(broken == (Broken*)0 and calls == 4)
+    let rejected = new Item(-1) catch failure:
+        assert(failure.code == failed and failure.message == "initializer failed")
+        recover (Item*)0
+    assert(rejected == (Item*)0 and calls == 5)
+    assert(allocator.live == 0 and allocator.bytes == 0)
+    assert(allocator.allocations == 5 and allocator.frees == 5)
+    return 0

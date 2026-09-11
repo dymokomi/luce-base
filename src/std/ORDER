@@ -8,6 +8,8 @@ atomic
 thread
 sync
 process
+ownership
+interop
 utf8
 strings
 unicode

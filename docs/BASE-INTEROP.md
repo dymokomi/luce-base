@@ -1,7 +1,7 @@
 # Base-to-Luce ownership contract
 
 Rewrite task I01, 2026-09-11. This document defines the contract the package rewrite
-will implement. It does not describe features already available in the compilers.
+will implement. Implementation remains in progress; the checklist distinguishes verified work from the remaining contract.
 Implementation and verification are tracked in
 [PACKAGE-REWRITE-TODO.md](PACKAGE-REWRITE-TODO.md).
 
@@ -232,3 +232,23 @@ ownership declarations and the owner bridge belong to I06.
 These are acceptance requirements for implementation tasks, not claims that the
 current compiler passes them. I01 is complete when this contract is recorded;
 I02–I11 and C01–C05 remain open until their executable fixtures pass.
+
+## Shared ownership implementation
+
+The standard `ownership` module now owns the intrusive header, per-thread cycle
+collector, weak shells and temporary pools used by compiled Luce. The interpreter
+keeps its own evaluation heap. Base libraries use explicit retain/release operations;
+there is no implicit Base ARC or independent native reference counter.
+
+The standard `interop` module provides a typed `Type[T]` disposal/trace/affinity
+declaration, unpublished `Reservation[T]`, strong `Reference[T]` and
+`WeakReference[T]`. A reference parameter borrows; `clone` acquires a reference,
+`release` relinquishes it, and successful publication transfers one reference.
+A carrier's ordinary Base struct copy acquires nothing. Disposal runs once;
+closed aliases keep their shell but cannot access the native resource. Every
+retained edge must be reported by the declaration's trace callback and released
+by disposal. Main-thread declarations check affinity before reservation.
+
+This establishes the Base lifetime layer. Importing these declarations as Luce
+classes, checked borrowed views and retained callback/interface adapters remains
+tracked by I06/I07/C02.

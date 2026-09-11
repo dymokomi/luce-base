@@ -204,7 +204,7 @@ extern func getpagesize() -> i32
 ## is ordinary and says nothing.
 func note_refusal(who: str, size: usize, alignment: usize, used: usize):
     var text: u8[160]
-    let line = format(text, f"memory: the {who} refused {size} bytes at alignment {alignment} (used {used})\\n") catch failure:
+    let line = format(text, f"memory: the {who} refused {size} bytes at alignment {alignment} (used {used})\n") catch failure:
         return
     discard(write_bytes(2, line.bytes.data, line.length))
 

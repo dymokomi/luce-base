@@ -1617,6 +1617,8 @@ pub struct Parser:
         try self.expect_kw("new")
         n.ty = try self.parse_type()
         if self.at_op("("):
+            # Preserve an explicit empty constructor call separately from zeroed `new T`.
+            n.text = "()"
             n.body = try self.parse_arguments()
         elif self.eat_op("."):
             let value = try self.node(ast.Kind.case_value, "")

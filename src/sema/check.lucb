@@ -3102,7 +3102,9 @@ pub struct Checker:
         let id = try self.resolve_type(t)
         try self.storable(id, t)
         let pointer = try self.table.pointer(id, false, false)
-        if let body = e.body:
+        if e.text == "()":
+            discard(try self.construct(e, id, e.body))
+        elif let body = e.body:
             if body.kind == ast.Kind.case_value:
                 body.type_id = try self.case_type(body, id)
             else:

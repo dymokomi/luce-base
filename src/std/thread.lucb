@@ -6,6 +6,9 @@ extern func pthread_create(thread: void*?*, attributes: void*?, start: func(void
 extern func pthread_join(thread: void*, result: void*?*?) -> i32
 extern func pthread_detach(thread: void*) -> i32
 extern func pthread_self() -> void*
+extern func pthread_main_np() -> i32
+extern func getpid() -> i32
+extern func gettid() -> i32
 extern func pthread_attr_init(attributes: void*) -> i32
 extern func pthread_attr_setstacksize(attributes: void*, size: usize) -> i32
 extern func pthread_attr_destroy(attributes: void*) -> i32
@@ -101,6 +104,14 @@ pub func spawn(entry: func(void*?) -> unit, context: void*?, stack: usize = 0, n
 
 pub func current() -> Handle:
     return Handle(id = pthread_self())
+
+## Whether this is the process's initial thread, for main-thread native resources.
+pub func is_main() -> bool:
+    if platform.macos:
+        return pthread_main_np() != 0
+    if platform.linux:
+        return gettid() == getpid()
+    return false
 
 ## A hint to the processor inside a spin loop.
 pub func pause():

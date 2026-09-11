@@ -3725,17 +3725,21 @@ pub struct Lowerer:
             field = f.next
         return LowerValue(ref = a, type_id = id, in_memory = true)
 
-    mutating func init_call(e: ast.Node*, init: ast.Node*, id: u32) -> LowerValue!:
+    ## Run initialization in its final storage; `new` must not relocate `self`.
+    mutating func initialize_at(e: ast.Node*, init: ast.Node*, id: u32, address: ir.Ref) -> LowerValue!:
         let t = self.c.table.get(id)
         var fn = try self.map(init.type_id)
         if let o = t.decl:
             fn = try self.c.substitute(fn, o, t.args)
         discard(try self.add_func(init, try types.no_args(), t.decl, t.args))
         let name = try self.function_name(init, try types.no_args(), t.decl, t.args)
+        try self.f.zero_bytes(address, self.size(id))
+        return try self.call_through(ir.function_ref(name), fn, init, e.body, address, true, none, try types.no_args())
+
+    mutating func init_call(e: ast.Node*, init: ast.Node*, id: u32) -> LowerValue!:
         let slot = try self.new_slot(id)
         let a = try self.slot_address(slot)
-        try self.f.zero_bytes(a, self.size(id))
-        let r = try self.call_through(ir.function_ref(name), fn, init, e.body, a, true, none, try types.no_args())
+        let r = try self.initialize_at(e, init, id, a)
         if not init.has(ast.flag_fallible):
             return LowerValue(ref = a, type_id = id, in_memory = true)
         let result = try self.c.table.fallible(id)
@@ -4109,7 +4113,10 @@ pub struct Lowerer:
         let t = e.ty else return try self.fail(e, "no type")
         let result = try self.ty(e)
         let payload = self.elem(result)
-        let view = try self.allocator_of(e.right)
+        let source_view = try self.allocator_of(e.right)
+        let view_slot = try self.f.slot(16, 8)
+        let view = try self.slot_address(view_slot)
+        try self.f.copy_bytes(view, source_view, 16)
         if self.is_span(payload):
             let count = t.right else return try self.fail(e, "no count")
             let cv = try self.value(count, types.usize_id)
@@ -4129,33 +4136,22 @@ pub struct Lowerer:
         try self.f.jump(done)
         try self.f.place_label(ok)
         let p = try self.f.load(ir.Op.loadl, ir.Class.l, block)
-        if let body = e.body:
-            if body.kind == ast.Kind.case_value:
-                let v = try self.enum_value(body)
-                try self.f.copy_bytes(p, v.ref, self.size(et))
-            elif let init = e.resolved:
-                if init.kind == ast.Kind.func_ and init.text == "init":
-                    let v = try self.init_call(e, init, et)
-                    if self.is_fail(v.type_id):
-                        # a failing init is the failure of `new`
-                        let failed = try self.f.load(ir.Op.loadub, ir.Class.w, try self.offset_address(v.ref, self.failed_offset(v.type_id)))
-                        let fine = self.f.label()
-                        let broke = self.f.label()
-                        try self.f.branch(failed, broke, fine)
-                        try self.f.place_label(broke)
-                        try self.f.copy_bytes(try self.offset_address(a, self.error_offset(result)), try self.offset_address(v.ref, self.error_offset(v.type_id)), 24)
-                        try self.f.store(ir.Op.storeb, ir.const_ref(1), try self.offset_address(a, self.failed_offset(result)))
-                        try self.f.jump(done)
-                        try self.f.place_label(fine)
-                        try self.f.copy_bytes(p, v.ref, self.size(et))
-                    else:
-                        try self.f.copy_bytes(p, v.ref, self.size(et))
-                else:
-                    let v = try self.constructor(e, et)
-                    try self.f.copy_bytes(p, v.ref, self.size(et))
-            else:
-                let v = try self.constructor(e, et)
-                try self.f.copy_bytes(p, v.ref, self.size(et))
+        if let init = e.initializer():
+            let status = try self.initialize_at(e, init, et, p)
+            if self.is_fail(status.type_id):
+                let failed = try self.f.load(ir.Op.loadub, ir.Class.w, try self.offset_address(status.ref, self.failed_offset(status.type_id)))
+                let fine = self.f.label()
+                let broke = self.f.label()
+                try self.f.branch(failed, broke, fine)
+                try self.f.place_label(broke)
+                try self.f.copy_bytes(try self.offset_address(a, self.error_offset(result)), try self.offset_address(status.ref, self.error_offset(status.type_id)), 24)
+                try self.f.store(ir.Op.storeb, ir.const_ref(1), try self.offset_address(a, self.failed_offset(result)))
+                try self.allocator_release(view, block)
+                try self.f.jump(done)
+                try self.f.place_label(fine)
+        elif let body = e.body:
+            let value = try self.enum_value(body) if body.kind == ast.Kind.case_value else try self.constructor(e, et)
+            try self.f.copy_bytes(p, value.ref, self.size(et))
         else:
             try self.f.zero_bytes(p, self.size(et))
         try self.f.store(ir.Op.storel, p, a)

@@ -4,7 +4,7 @@ checker binds before a program's own modules, so the compiler binary carries the
 standard library. src/std/ORDER lists the modules in binding order. With `--check`, write
 nothing: exit 1 when the embedded text is not what src/std/ says, so the gate sees drift."""
 import pathlib, sys
-from standard_library import module_names, module_source
+from standard_library import module_names, module_source, source_literal
 
 root = pathlib.Path(__file__).resolve().parent.parent
 std = root / "src" / "std"
@@ -42,8 +42,7 @@ pub struct Prelude:
 out = [header, f"pub let modules: Prelude[{len(names)}] = [\n"]
 for name in names:
     text = module_source(std, name)
-    assert '"""' not in text, name
-    out.append(f'    Prelude(name = "{name}", text = """\n{text}"""),\n')
+    out.append(f'    Prelude(name = "{name}", text = {source_literal(text)}),\n')
 out.append("]\n")
 target = root / "src" / "sema" / "prelude.lucb"
 if "--check" in sys.argv:

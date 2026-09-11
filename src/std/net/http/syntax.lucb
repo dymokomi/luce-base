@@ -17,7 +17,7 @@ func http_token(text: str) -> bool:
     for byte in text.bytes:
         if (byte >= 'a' and byte <= 'z') or (byte >= 'A' and byte <= 'Z') or (byte >= '0' and byte <= '9'):
             continue
-        if byte == '!' or byte == '#' or byte == '$' or byte == '%' or byte == '&' or byte == '\\'' or byte == '*' or byte == '+' or byte == '-' or byte == '.' or byte == '^' or byte == '_' or byte == '`' or byte == '|' or byte == '~':
+        if byte == '!' or byte == '#' or byte == '$' or byte == '%' or byte == '&' or byte == '\'' or byte == '*' or byte == '+' or byte == '-' or byte == '.' or byte == '^' or byte == '_' or byte == '`' or byte == '|' or byte == '~':
             continue
         return false
     return true
@@ -25,9 +25,9 @@ func http_token(text: str) -> bool:
 func http_ows(text: str) -> str:
     var first: usize = 0
     var last = text.length
-    while first < last and (text.bytes[first] == ' ' or text.bytes[first] == '\\t'):
+    while first < last and (text.bytes[first] == ' ' or text.bytes[first] == '\t'):
         first += 1
-    while last > first and (text.bytes[last - 1] == ' ' or text.bytes[last - 1] == '\\t'):
+    while last > first and (text.bytes[last - 1] == ' ' or text.bytes[last - 1] == '\t'):
         last -= 1
     return (str)text.bytes[first..<last]
 
@@ -58,7 +58,7 @@ func http_field_valid(item: HttpField) -> bool:
     if not http_token(item.name):
         return false
     for byte in item.value.bytes:
-        if (byte < 32 and byte != '\\t') or byte == 127:
+        if (byte < 32 and byte != '\t') or byte == 127:
             return false
     return true
 
@@ -68,7 +68,7 @@ func http_field_valid(item: HttpField) -> bool:
 pub func http_head_end(data: const u8[], start: usize = 0) -> usize?:
     var cursor = start
     while cursor < data.length and data.length - cursor >= 4:
-        if data[cursor] == '\\r' and data[cursor + 1] == '\\n' and data[cursor + 2] == '\\r' and data[cursor + 3] == '\\n':
+        if data[cursor] == '\r' and data[cursor + 1] == '\n' and data[cursor + 2] == '\r' and data[cursor + 3] == '\n':
             return cursor + 4
         cursor += 1
     return none
@@ -77,10 +77,10 @@ func http_line(data: const u8[], cursor: usize*) -> str!:
     let first = *cursor
     while *cursor < data.length:
         let byte = data[*cursor]
-        if byte == '\\n':
+        if byte == '\n':
             error(http_invalid, "HTTP lines require CRLF")
-        if byte == '\\r':
-            if data.length - *cursor < 2 or data[*cursor + 1] != '\\n':
+        if byte == '\r':
+            if data.length - *cursor < 2 or data[*cursor + 1] != '\n':
                 error(http_invalid, "HTTP lines require CRLF")
             let last = *cursor
             *cursor += 2

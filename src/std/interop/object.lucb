@@ -1,0 +1,66 @@
+## Stable shell shared by every native reference and managed alias. Its header
+## participates directly in the shared collector; no second reference count exists.
+pub struct Owner[T]:
+    pub var header: ownership.Object
+    var information: ownership.Info
+    var declaration: Type[T]
+    var native: T*?
+    var native_allocator: memory.Allocator?
+    var closed: bool
+
+    pub static func finish_owner(object: ownership.Object*):
+        close_owner[T]((Owner[T]*)object)
+
+    pub static func drop_owner(object: ownership.Object*):
+        let owner = (Owner[T]*)object
+        if let native = owner.native:
+            let allocator = owner.native_allocator else trap("native storage has no allocator")
+            owner.native = none
+            free(native) in allocator
+
+    pub static func trace_owner(object: ownership.Object*, visit: func(ownership.Object*, void*) -> unit, context: void*):
+        let owner = (Owner[T]*)object
+        if owner.closed:
+            return
+        if let native = owner.native:
+            if let trace = owner.declaration.trace:
+                trace(native, visit, context)
+
+
+func close_owner[T](owner: Owner[T]*):
+    ownership.check_alive(&owner.header)
+    if owner.closed:
+        return
+    # Publish closure before package cleanup can call back into an alias.
+    owner.closed = true
+    if let native = owner.native:
+        owner.declaration.dispose(native)
+
+## Unpublished ownership storage. Reserve before running a native initializer;
+## publish only after success, or cancel without running a successful finalizer.
+pub struct Reservation[T]:
+    var owner: Owner[T]*?
+
+    pub func init(declaration: Type[T]) -> !:
+        if declaration.main_thread and not thread.is_main():
+            error(wrong_thread, "this native type requires the process main thread")
+        var information = ownership.Info(name = declaration.name, size = sizeof(Owner[T]),
+            finish = Owner[T].finish_owner, drop = Owner[T].drop_owner, trace = Owner[T].trace_owner)
+        let owner = (Owner[T]*)try ownership.reserve(&information, sizeof(Owner[T]))
+        owner.information = information
+        owner.header.info = &owner.information
+        owner.declaration = declaration
+        self.owner = owner
+
+    pub mutating func publish(native: T*, allocator: memory.Allocator? = none) -> Reference[T]:
+        let owner = self.owner else trap("native ownership has already been published or cancelled")
+        owner.native = native
+        owner.native_allocator = allocator else memory.allocator
+        self.owner = none
+        return Reference[T](owner)
+
+    pub mutating func cancel():
+        if let owner = self.owner:
+            self.owner = none
+            ownership.discard_unpublished(&owner.header)
+

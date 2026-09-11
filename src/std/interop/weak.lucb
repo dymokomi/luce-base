@@ -1,0 +1,19 @@
+## A weak carrier keeps the owner shell, never the native resource. Getting a
+## live reference acquires one strong ownership obligation for the Base caller.
+pub struct WeakReference[T]:
+    var weak: ownership.Weak
+
+    pub func init(reference: Reference[T]):
+        self.weak = ownership.weak_make(&reference.owner.header)
+
+    pub func clone() -> WeakReference[T]:
+        var result = self
+        result.weak = ownership.weak_copy(self.weak)
+        return result
+
+    pub func release():
+        ownership.weak_drop(self.weak)
+
+    pub func get() -> Reference[T]?:
+        let owner = ownership.weak_get(self.weak) else return none
+        return Reference[T]((Owner[T]*)owner)

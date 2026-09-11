@@ -1,0 +1,33 @@
+# mark: Weak references ========================================================================
+
+pub struct Weak:
+    pub var target: Object*?
+
+pub func weak_make(o: Object*) -> Weak:
+    check_alive(o)
+    if not has(o, immortal):
+        o.weak += 1
+    return Weak(target = o)
+
+pub func weak_copy(w: Weak) -> Weak:
+    if let o = w.target:
+        check_thread(o)
+        if not has(o, immortal):
+            o.weak += 1
+    return w
+
+pub func weak_drop(w: Weak):
+    if let o = w.target:
+        check_thread(o)
+        if not has(o, immortal):
+            o.weak -= 1
+            release_shell(o)
+
+## The object with a fresh strong reference, or none once it is dead.
+pub func weak_get(w: Weak) -> Object*?:
+    if let o = w.target:
+        check_thread(o)
+        if not has(o, dead):
+            return retain(o)
+    return none
+

@@ -1,0 +1,50 @@
+## A typed reference carrier. Parameters borrow the carrier; clone acquires an
+## additional strong reference. Publish/adopt return one owning reference, whose
+## Base caller releases explicitly. Copying the struct does not acquire ownership.
+pub struct Reference[T]:
+    pub let owner: Owner[T]*
+
+    pub func init(owner: Owner[T]*):
+        ownership.check_alive(&owner.header)
+        self.owner = owner
+
+    pub static func adopt(native: T*, declaration: Type[T], allocator: memory.Allocator? = none) -> Reference[T]!:
+        let selected = allocator else memory.allocator
+        var reservation = Reservation[T](declaration) catch failure:
+            declaration.dispose(native)
+            free(native) in selected
+            error(failure.code, failure.message)
+        return reservation.publish(native, selected)
+
+    pub func clone() -> Reference[T]:
+        discard(ownership.retain(&self.owner.header))
+        return Reference[T](self.owner)
+
+    pub func release():
+        ownership.release(&self.owner.header)
+
+    pub func value() -> T*:
+        ownership.check_alive(&self.owner.header)
+        if self.owner.closed:
+            trap("a native object is closed")
+        return self.owner.native else trap("a native object has not been initialized")
+
+    pub func identity() -> u64:
+        ownership.check_alive(&self.owner.header)
+        return self.owner.header.generation
+
+    pub func is_closed() -> bool:
+        ownership.check_alive(&self.owner.header)
+        return self.owner.closed
+
+    pub func close():
+        ownership.check_alive(&self.owner.header)
+        if not self.owner.declaration.closeable:
+            trap("this native type does not support explicit close")
+        close_owner[T](self.owner)
+
+    ## Every retained native edge must be visited by the package's trace callback.
+    pub func trace(visit: func(ownership.Object*, void*) -> unit, context: void*):
+        # Trial deletion temporarily subtracts internal strong references.
+        ownership.check_thread(&self.owner.header)
+        visit(&self.owner.header, context)

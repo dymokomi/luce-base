@@ -1,5 +1,5 @@
 func is_space(byte: u8) -> bool:
-    return byte == ' ' or byte == '\\n' or byte == '\\t' or byte == '\\r'
+    return byte == ' ' or byte == '\n' or byte == '\t' or byte == '\r'
 
 ## `text` without leading and trailing spaces, tabs, and line ends: a view.
 pub func trim(text: str) -> str:

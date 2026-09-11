@@ -216,10 +216,10 @@ func show(described: Local*, frame: void*?):
         print(f"{described.name}: {kind} = {memory.read[f32](address)}")
     elif kind == "str":
         let text = memory.read[str](address)
-        print(f"{described.name}: {kind} = \\"{text}\\"")
+        print(f"{described.name}: {kind} = \"{text}\"")
     elif kind == "c.str":
         let text = memory.read[c.str](address)
-        print(f"{described.name}: {kind} = \\"{(str)text}\\"")
+        print(f"{described.name}: {kind} = \"{(str)text}\"")
     elif ends_with(kind, "*") or ends_with(kind, "*?"):
         print(f"{described.name}: {kind} = 0x{hex(memory.read[usize](address))}")
     else:
@@ -250,7 +250,7 @@ func trim(text: str) -> str:
     var end = text.length
     while start < end and text.bytes[start] == ' ':
         start += 1
-    while end > start and (text.bytes[end - 1] == ' ' or text.bytes[end - 1] == '\\r'):
+    while end > start and (text.bytes[end - 1] == ' ' or text.bytes[end - 1] == '\r'):
         end -= 1
     return (str)text.bytes[start..<end]
 
@@ -264,7 +264,7 @@ func read_line() -> str?:
             if used == 0:
                 return none
             break
-        if byte[0] == '\\n':
+        if byte[0] == '\n':
             break
         line_bytes[used] = byte[0]
         used += 1

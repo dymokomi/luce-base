@@ -1,0 +1,58 @@
+## Each failure case runs in a separate process: the wrong thread must be rejected
+## before it can modify a count or touch allocator/collector state.
+import ownership
+import strings
+import thread
+
+struct Value:
+    var header: ownership.Object
+    var number: i64
+
+var destroyed: i64 = 0
+
+func drop(value: ownership.Object*):
+    destroyed += 1
+
+func trace(value: ownership.Object*, visit: func(ownership.Object*, void*) -> unit, context: void*):
+    discard(value)
+
+var info: ownership.Info = ownership.Info(name = "Value", size = sizeof(Value), finish = none, drop = drop, trace = trace)
+
+struct Delivery:
+    var value: ownership.Object*
+    var operation: i64
+
+func worker(context: void*?):
+    let delivery = (Delivery*)(context else trap("missing delivery"))
+    match delivery.operation:
+        1: discard(ownership.retain(delivery.value))
+        2: ownership.release(delivery.value)
+        3: discard(ownership.weak_make(delivery.value))
+        4: ownership.require_context()
+        _: trap("unknown test operation")
+
+pub func main(arguments: str[]) -> i32!:
+    let operation = strings.parse_i64(arguments[1]) else trap("invalid operation")
+    let value = ownership.allocate(&info)
+    if operation != 0:
+        var delivery = Delivery(value, operation)
+        let handle = try thread.spawn(worker, (void*)&delivery)
+        try handle.join()
+        return 2
+    ownership.enter()
+    ownership.require_context()
+    let generation = value.generation
+    let context = value.context
+    assert(generation != 0 and context != 0)
+    let weak = ownership.weak_make(value)
+    discard(ownership.retain(value))
+    ownership.release(value)
+    assert(destroyed == 0)
+    ownership.release(value)
+    assert(destroyed == 1)
+    assert(ownership.weak_get(weak) == none)
+    ownership.weak_drop(weak)
+    assert(ownership.finish_run(0) == 0)
+    ownership.enter()
+    assert(ownership.context_id() != context)
+    return ownership.finish_run(0)

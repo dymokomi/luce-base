@@ -1,0 +1,84 @@
+import interop
+import memory
+import ownership
+import strings
+
+let invalid: ErrorCode = ErrorCode.package(1)
+var disposed: i64 = 0
+
+struct Counter:
+    var count: i64
+    var next: interop.Reference[Counter]?
+
+    func init(count: i64 = 7) -> !:
+        if count < 0:
+            error(invalid, "invalid counter")
+        self.count = count
+        self.next = none
+
+    mutating func dispose():
+        disposed += 1
+        if let next = self.next:
+            self.next = none
+            next.release()
+
+    func trace(visit: func(ownership.Object*, void*) -> unit, context: void*):
+        if let next = self.next:
+            next.trace(visit, context)
+
+let counter_type: interop.Type[Counter] = interop.Type[Counter](
+    name = "Counter", dispose = Counter.dispose, trace = Counter.trace, closeable = true)
+
+func make(count: i64 = 7) -> interop.Reference[Counter]!:
+    var reservation = try interop.Reservation[Counter](counter_type)
+    errdefer reservation.cancel()
+    let allocator = memory.allocator
+    let native = try new Counter(count)
+    return reservation.publish(native, allocator)
+
+pub func main(arguments: str[]) -> i32!:
+    let mode = strings.parse_i64(arguments[1]) else trap("mode missing")
+    if mode == 1:
+        let closed = try make()
+        closed.close()
+        discard(closed.value())
+        return 1
+    let first = try make()
+    let weak = interop.WeakReference[Counter](first)
+    let alias = first.clone()
+    assert(first.identity() == alias.identity())
+    first.release()
+    assert(alias.value().count == 7 and disposed == 0)
+    alias.close()
+    assert(alias.is_closed() and disposed == 1)
+    alias.close()
+    alias.release()
+    assert(disposed == 1)
+    assert(weak.get() == none)
+    weak.release()
+    assert(ownership.finish_run(0) == 0)
+
+    let left = try make(1)
+    let right = try make(2)
+    left.value().next = right.clone()
+    right.value().next = left.clone()
+    left.release()
+    right.release()
+    assert(disposed == 1)
+    ownership.collect()
+    assert(disposed == 3)
+    assert(ownership.finish_run(0) == 0)
+
+    let self_cycle = try make()
+    self_cycle.value().next = self_cycle.clone()
+    self_cycle.release()
+    ownership.collect()
+    assert(disposed == 4)
+    assert(ownership.finish_run(0) == 0)
+
+    let failed = make(-1) catch failure:
+        assert(failure.code == invalid and failure.message == "invalid counter")
+        assert(disposed == 4)
+        return ownership.finish_run(0)
+    discard(failed)
+    return 1

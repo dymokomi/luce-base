@@ -76,7 +76,7 @@ pub struct HttpBodyDecoder:
             let byte = data[at]
             at += 1
             if self.phase == 3 or self.phase == 4:
-                let expected: u8 = '\\r' if self.phase == 3 else '\\n'
+                let expected: u8 = '\r' if self.phase == 3 else '\n'
                 if byte != expected:
                     error(http_invalid, "chunk data must end with CRLF")
                 self.phase = 4 if self.phase == 3 else 1
@@ -86,7 +86,7 @@ pub struct HttpBodyDecoder:
                 if self.trailer_bytes > 32768:
                     error(http_limit, "HTTP trailers exceed their byte limit")
             if self.line_cr:
-                if byte != '\\n':
+                if byte != '\n':
                     error(http_invalid, "chunk lines require CRLF")
                 self.line_cr = false
                 let text = (str)self.line[..<self.used]
@@ -108,10 +108,10 @@ pub struct HttpBodyDecoder:
                     if not http_field_valid(item) or http_forbidden_trailer(item.name):
                         error(http_invalid, "invalid or forbidden HTTP trailer")
                     return HttpBodyStep(consumed = at, trailer = item)
-            elif byte == '\\r':
+            elif byte == '\r':
                 self.line_cr = true
             else:
-                if byte == '\\n':
+                if byte == '\n':
                     error(http_invalid, "chunk lines require CRLF")
                 if self.used == self.line.length:
                     error(http_limit, "chunk line exceeds its byte limit")
@@ -144,7 +144,7 @@ func http_chunk_size(text: str) -> u64!:
     return size
 
 func http_skip_ows(text: str, at: usize*):
-    while *at < text.length and (text.bytes[*at] == ' ' or text.bytes[*at] == '\\t'):
+    while *at < text.length and (text.bytes[*at] == ' ' or text.bytes[*at] == '\t'):
         *at += 1
 
 func http_chunk_extension(text: str, at: usize*) -> !:
@@ -185,12 +185,12 @@ func http_chunk_extension(text: str, at: usize*) -> !:
         *at += 1
         if byte == '"':
             return
-        if byte == '\\\\':
+        if byte == '\\':
             if *at == text.length:
                 error(http_invalid, "incomplete chunk quoted pair")
             byte = text.bytes[*at]
             *at += 1
-        if (byte < 32 and byte != '\\t') or byte == 127:
+        if (byte < 32 and byte != '\t') or byte == 127:
             error(http_invalid, "invalid chunk quoted text")
     error(http_invalid, "unclosed chunk extension value")
 

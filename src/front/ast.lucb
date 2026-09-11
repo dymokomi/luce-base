@@ -159,6 +159,13 @@ pub struct Node:
                             flags = 0, left = none, right = none, body = none, ty = none, next = none,
                             type_id = 0, resolved = none)
 
+    ## A checked constructor call records the actual initializer on its node.
+    pub func initializer() -> Node*?:
+        let declaration = self.resolved else return none
+        if declaration.kind == Kind.func_ and declaration.text == "init":
+            return declaration
+        return none
+
     pub func has(flag: u32) -> bool:
         return (self.flags & flag) != 0
 

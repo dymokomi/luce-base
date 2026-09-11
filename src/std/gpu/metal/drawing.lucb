@@ -15,7 +15,7 @@ func metal_text(value: c.str) -> void*!:
 func metal_drawing_open(device: MetalDevice*) -> MetalDrawing*!:
     let state = try new MetalDrawing() in memory.heap
     errdefer metal_drawing_destroy(state)
-    let source = try metal_text("#include <metal_stdlib>\\nusing namespace metal; struct V { float4 position [[position]]; float4 color; }; vertex V luce_vertex(const device float* data [[buffer(0)]], uint id [[vertex_id]]) { uint i = id * 8; V v; v.position = float4(data[i], data[i+1], data[i+2], data[i+3]); v.color = float4(data[i+4], data[i+5], data[i+6], data[i+7]); return v; } fragment float4 luce_fragment(V v [[stage_in]]) { return v.color; }")
+    let source = try metal_text("#include <metal_stdlib>\nusing namespace metal; struct V { float4 position [[position]]; float4 color; }; vertex V luce_vertex(const device float* data [[buffer(0)]], uint id [[vertex_id]]) { uint i = id * 8; V v; v.position = float4(data[i], data[i+1], data[i+2], data[i+3]); v.color = float4(data[i+4], data[i+5], data[i+6], data[i+7]); return v; } fragment float4 luce_fragment(V v [[stage_in]]) { return v.color; }")
     var failure: void*? = none
     let native = metal_required(device.device)
     let library = metal_library(native, metal_sel("newLibraryWithSource:options:error:"), source, none, &failure) else error(failed, "could not compile the portable triangle pipeline")

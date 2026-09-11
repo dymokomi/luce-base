@@ -1,0 +1,211 @@
+## Intrusive ownership shared by Base libraries and compiled Luce programs.
+## Base callers retain and release explicitly; Luce inserts those operations.
+## One header and trace protocol cover native/managed cycles on the owning thread.
+## Runtime allocations use the system heap; an explicit allocator can be supplied
+## to reserve when its lifetime is guaranteed by the native owner.
+
+import io
+import memory
+import process
+
+# mark: Objects ================================================================================
+
+let black: u8 = 0
+let gray: u8 = 1
+let white: u8 = 2
+let purple: u8 = 3
+let color_mask: u8 = 3
+let buffered: u8 = 4
+let dead: u8 = 8
+let collecting: u8 = 16
+## A literal's text: never counted, never released, never alive at the end.
+pub let immortal: u8 = 32
+
+pub struct Object:
+    pub var strong: u32
+    pub var weak: u32
+    pub var flags: u8
+    pub var info: Info*
+    ## Allocation identity never repeats, even when an allocator reuses an address.
+    pub var generation: u64
+    pub var context: u64
+    pub var allocation_size: usize
+    pub var allocator: memory.Allocator?
+
+## What the collector and the destructor need to know about a class.
+pub struct Info:
+    pub var name: str
+    pub var size: usize
+    ## `deinit`, when the class declares one.
+    pub var finish: (func(Object*) -> unit)?
+    ## Releases the fields in reverse declaration order, tolerating unassigned ones.
+    pub var drop: func(Object*) -> unit
+    ## Visits every strong reference the object holds, fields in declaration order.
+    pub var trace: func(Object*, func(Object*, void*) -> unit, void*) -> unit
+
+## Objects alive: allocated and not yet destroyed.
+local var live: usize = 0
+
+## Allocated objects not yet finalized on the calling runtime thread.
+pub func live_count() -> usize:
+    return live
+
+## Where the thread's program is: `file:line:column` of the Luce statement running, set by
+## the compiled code before each statement and restored when a function returns; what a
+## trap names (§12.4).
+pub local var site: str
+
+## The caller's site again, deferred by every function the compiler writes.
+pub func restore_site(saved: str):
+    site = saved
+
+## Stop the program with `trap: file:line:column: message` on standard error and status 1.
+pub func stop(message: str) -> never:
+    var e = io.stderr()
+    let prefix = "trap: "
+    discard(e.write(prefix.bytes) catch failure: recover 0)
+    discard(e.write(site.bytes) catch failure: recover 0)
+    let sep = ": "
+    discard(e.write(sep.bytes) catch failure: recover 0)
+    discard(e.write(message.bytes) catch failure: recover 0)
+    let newline = "\n"
+    discard(e.write(newline.bytes) catch failure: recover 0)
+    process.exit(1)
+
+func color_of(o: Object*) -> u8:
+    return o.flags & color_mask
+
+func set_color(o: Object*, c: u8):
+    o.flags = (o.flags & ~color_mask) | c
+
+func has(o: Object*, flag: u8) -> bool:
+    return (o.flags & flag) != 0
+
+var next_context: @u64 = 1
+var next_generation: @u64 = 1
+local var thread_context: u64 = 0
+local var runtime_depth: u32 = 0
+
+## A unique runtime identity for this thread, independent of recycled OS thread IDs.
+pub func context_id() -> u64:
+    if thread_context == 0:
+        thread_context = next_context.add(1, .relaxed)
+        if thread_context == 0:
+            stop("runtime context identity exhausted")
+    return thread_context
+
+## Application runtime entry is separate from ordinary manual Base ownership.
+## Generated callbacks require entry; native worker adapters establish it internally.
+pub func enter():
+    discard(context_id())
+    runtime_depth += 1
+
+pub func require_context():
+    if runtime_depth == 0:
+        stop("a managed callback needs a runtime entry on this thread")
+
+pub func check_thread(o: Object*):
+    if not has(o, immortal) and o.context != context_id():
+        stop("an object belongs to another runtime thread")
+
+pub func check_alive(o: Object*):
+    check_thread(o)
+    if has(o, dead) or o.strong == 0:
+        stop("an object has already been destroyed")
+
+## Reserve unpublished storage. The caller supplies a stable descriptor before
+## publishing the object and abandons the storage if native initialization fails.
+pub func reserve(info: Info*, size: usize, allocator: memory.Allocator? = none) -> Object*!:
+    if size < sizeof(Object):
+        stop("an object allocation is smaller than its header")
+    let selected = allocator else memory.heap
+    let block = try alloc(size, 16) in selected
+    memory.set(block, 0)
+    let o = (Object*)block.data
+    o.strong = 1
+    o.info = info
+    o.context = context_id()
+    o.generation = next_generation.add(1, .relaxed)
+    if o.generation == 0:
+        stop("object allocation identity exhausted")
+    o.allocation_size = block.length
+    o.allocator = selected
+    live += 1
+    return o
+
+pub func allocate(info: Info*) -> Object*:
+    return allocate_sized(info, info.size)
+
+## Runtime wrapper/text allocation retains Luce's trap-on-exhaustion policy.
+pub func allocate_sized(info: Info*, size: usize) -> Object*:
+    return reserve(info, size) catch failure:
+        trap("out of memory")
+
+pub func retain(o: Object*) -> Object*:
+    check_alive(o)
+    if has(o, immortal):
+        return o
+    o.strong += 1
+    set_color(o, black)
+    return o
+
+pub func release(o: Object*):
+    check_thread(o)
+    if has(o, immortal):
+        return
+    if has(o, collecting):
+        # a white object's field, released while the collector drops it: the count is
+        # bookkeeping only, the collector frees the object
+        if o.strong > 0:
+            o.strong -= 1
+        return
+    check_alive(o)
+    o.strong -= 1
+    if o.strong == 0:
+        destroy(o)
+    else:
+        possible_root(o)
+
+## `deinit`, then the fields, then the storage unless a weak reference keeps the shell.
+func destroy(o: Object*):
+    set_color(o, black)
+    if let f = o.info.finish:
+        o.strong = 1
+        f(o)
+        if o.strong != 1:
+            trap("`deinit` published `self`")
+        o.strong = 0
+    o.info.drop(o)
+    live -= 1
+    o.flags |= dead
+    if not has(o, buffered):
+        release_shell(o)
+
+## The storage goes when nothing, strong or weak or the candidate buffer, refers to it.
+func release_shell(o: Object*):
+    if o.weak == 0 and has(o, dead) and not has(o, buffered):
+        let allocator = o.allocator else stop("an object has no allocation owner")
+        let block = u8[]((u8*)o, o.allocation_size)
+        free(block) in allocator
+
+## Free unpublished storage without invoking the successful object's cleanup.
+## The native initializer owns cleanup of its partially acquired resources.
+pub func discard_unpublished(o: Object*):
+    check_alive(o)
+    if o.strong != 1 or o.weak != 0 or has(o, buffered):
+        stop("an incomplete object was published")
+    live -= 1
+    o.strong = 0
+    o.flags |= dead
+    release_shell(o)
+
+## An `init` that failed: the fields assigned so far go, no `deinit` runs.
+pub func abandon(o: Object*):
+    check_alive(o)
+    o.info.drop(o)
+    live -= 1
+    o.strong = 0
+    o.flags |= dead
+    if not has(o, buffered):
+        release_shell(o)
+

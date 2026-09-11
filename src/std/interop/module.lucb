@@ -1,0 +1,20 @@
+## Explicit native ownership shared with managed consumers. Package types remain
+## ordinary structs with init and methods; a Type declaration supplies their
+## disposal, trace and affinity contract. Reference values are manual in Base.
+import memory
+import ownership
+import thread
+
+pub let invalid: ErrorCode = ErrorCode.package(101)
+pub let wrong_thread: ErrorCode = ErrorCode.package(102)
+
+## A package's constant declaration of native ownership. Dispose releases native
+## resources and strong edges exactly once, including after an explicit close.
+## A closeable export binds its public disposal method as the terminal operation.
+pub struct Type[T]:
+    pub let name: str
+    pub let dispose: func(T*) -> unit
+    pub let trace: (func(const T*, func(ownership.Object*, void*) -> unit, void*) -> unit)? = none
+    pub let closeable: bool = false
+    pub let main_thread: bool = false
+

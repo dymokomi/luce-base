@@ -235,6 +235,8 @@ A running thread; the zero value is no thread at all, so arrays of handles exist
 
 - `func current() -> Handle`
 
+- `func is_main() -> bool` — Whether this is the process's initial thread, for main-thread native resources.
+
 - `func pause()` — A hint to the processor inside a spin loop.
 
 - `func yield()`
@@ -281,6 +283,150 @@ A counting semaphore whose waiters sleep.
 - `func release(text: str)` — Give back a text `run` answered, to the allocator that was current then.
 
 - `func exit(code: i32) -> never`
+
+## `ownership`
+
+Intrusive ownership shared by Base libraries and compiled Luce programs. Base callers retain and release explicitly; Luce inserts those operations. One header and trace protocol cover native/managed cycles on the owning thread. Runtime allocations use the system heap; an explicit allocator can be supplied to reserve when its lifetime is guaranteed by the native owner.
+
+- `let immortal: u8 = 32` — A literal's text: never counted, never released, never alive at the end.
+
+### `Object` (struct)
+
+- `var strong: u32`
+- `var weak: u32`
+- `var flags: u8`
+- `var info: Info*`
+- `var generation: u64` — Allocation identity never repeats, even when an allocator reuses an address.
+- `var context: u64`
+- `var allocation_size: usize`
+- `var allocator: memory.Allocator?`
+
+### `Info` (struct)
+
+What the collector and the destructor need to know about a class.
+
+- `var name: str`
+- `var size: usize`
+- `var finish: (func(Object*) -> unit)?` — `deinit`, when the class declares one.
+- `var drop: func(Object*) -> unit` — Releases the fields in reverse declaration order, tolerating unassigned ones.
+- `var trace: func(Object*, func(Object*, void*) -> unit, void*) -> unit` — Visits every strong reference the object holds, fields in declaration order.
+
+- `func live_count() -> usize` — Allocated objects not yet finalized on the calling runtime thread.
+
+- `func restore_site(saved: str)` — The caller's site again, deferred by every function the compiler writes.
+
+- `func stop(message: str) -> never` — Stop the program with `trap: file:line:column: message` on standard error and status 1.
+
+- `func context_id() -> u64` — A unique runtime identity for this thread, independent of recycled OS thread IDs.
+
+- `func enter()` — Application runtime entry is separate from ordinary manual Base ownership. Generated callbacks require entry; native worker adapters establish it internally.
+
+- `func require_context()`
+
+- `func check_thread(o: Object*)`
+
+- `func check_alive(o: Object*)`
+
+- `func reserve(info: Info*, size: usize, allocator: memory.Allocator? = none) -> Object*!` — Reserve unpublished storage. The caller supplies a stable descriptor before publishing the object and abandons the storage if native initialization fails.
+
+- `func allocate(info: Info*) -> Object*`
+
+- `func allocate_sized(info: Info*, size: usize) -> Object*` — Runtime wrapper/text allocation retains Luce's trap-on-exhaustion policy.
+
+- `func retain(o: Object*) -> Object*`
+
+- `func release(o: Object*)`
+
+- `func discard_unpublished(o: Object*)` — Free unpublished storage without invoking the successful object's cleanup. The native initializer owns cleanup of its partially acquired resources.
+
+- `func abandon(o: Object*)` — An `init` that failed: the fields assigned so far go, no `deinit` runs.
+
+- `func mark() -> usize`
+
+- `func pool_object(o: Object*) -> Object*` — An owned object handed on as a temporary: released by the next `drain`.
+
+- `func pool_value[T](v: T, drop: func(void*) -> unit) -> T` — An owned value of any type handed on as a temporary; `drop` releases what it holds.
+
+- `func drain(since: usize)` — Releases every temporary pooled since `mark`, in the order they were pooled.
+
+- `let candidate_limit: usize = 1024`
+
+- `func collect()` — Free the garbage: deinits first, then every object's fields, then the storage.
+
+### `Weak` (struct)
+
+- `var target: Object*?`
+
+- `func weak_make(o: Object*) -> Weak`
+
+- `func weak_copy(w: Weak) -> Weak`
+
+- `func weak_drop(w: Weak)`
+
+- `func weak_get(w: Weak) -> Object*?` — The object with a fresh strong reference, or none once it is dead.
+
+- `func finish_run(status: i32) -> i32` — After `main`: the collector runs, and anything still alive is a defect. The exit status.
+
+- `func finish_task()` — A worker's end (§14): its heap is its own, and it too must leave nothing alive once its arguments and result are released; what it does leave stops the program.
+
+## `interop`
+
+Explicit native ownership shared with managed consumers. Package types remain ordinary structs with init and methods; a Type declaration supplies their disposal, trace and affinity contract. Reference values are manual in Base.
+
+- `let invalid: ErrorCode = ErrorCode.package(101)`
+
+- `let wrong_thread: ErrorCode = ErrorCode.package(102)`
+
+### `Type` (struct[T])
+
+A package's constant declaration of native ownership. Dispose releases native resources and strong edges exactly once, including after an explicit close. A closeable export binds its public disposal method as the terminal operation.
+
+- `let name: str`
+- `let dispose: func(T*) -> unit`
+- `let trace: (func(const T*, func(ownership.Object*, void*) -> unit, void*) -> unit)? = none`
+- `let closeable: bool = false`
+- `let main_thread: bool = false`
+
+### `Owner` (struct[T])
+
+Stable shell shared by every native reference and managed alias. Its header participates directly in the shared collector; no second reference count exists.
+
+- `var header: ownership.Object`
+- `static func finish_owner(object: ownership.Object*)`
+- `static func drop_owner(object: ownership.Object*)`
+- `static func trace_owner(object: ownership.Object*, visit: func(ownership.Object*, void*) -> unit, context: void*)`
+
+### `Reservation` (struct[T])
+
+Unpublished ownership storage. Reserve before running a native initializer; publish only after success, or cancel without running a successful finalizer.
+
+- `func init(declaration: Type[T]) -> !`
+- `mutating func publish(native: T*, allocator: memory.Allocator? = none) -> Reference[T]`
+- `mutating func cancel()`
+
+### `Reference` (struct[T])
+
+A typed reference carrier. Parameters borrow the carrier; clone acquires an additional strong reference. Publish/adopt return one owning reference, whose Base caller releases explicitly. Copying the struct does not acquire ownership.
+
+- `let owner: Owner[T]*`
+- `func init(owner: Owner[T]*)`
+- `static func adopt(native: T*, declaration: Type[T], allocator: memory.Allocator? = none) -> Reference[T]!`
+- `func clone() -> Reference[T]`
+- `func release()`
+- `func value() -> T*`
+- `func identity() -> u64`
+- `func is_closed() -> bool`
+- `func close()`
+- `func trace(visit: func(ownership.Object*, void*) -> unit, context: void*)` — Every retained native edge must be visited by the package's trace callback.
+
+### `WeakReference` (struct[T])
+
+A weak carrier keeps the owner shell, never the native resource. Getting a live reference acquires one strong ownership obligation for the Base caller.
+
+- `func init(reference: Reference[T])`
+- `func clone() -> WeakReference[T]`
+- `func release()`
+- `func get() -> Reference[T]?`
 
 ## `utf8`
 

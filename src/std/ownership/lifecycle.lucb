@@ -1,0 +1,51 @@
+# mark: The end of a run =======================================================================
+
+## After `main`: the collector runs, and anything still alive is a defect. The exit status.
+pub func finish_run(status: i32) -> i32:
+    drain(0)
+    collect()
+    if live != 0:
+        var room: u8[96]
+        let text = format(room, f"runtime: {live} objects alive at exit\n") catch failure:
+            recover "runtime: objects alive at exit\n"
+        var e = io.stderr()
+        discard(e.write(text.bytes) catch failure: recover 0)
+        return 3
+    release_buffers()
+    runtime_depth = 0
+    thread_context = 0
+    return status
+
+## A worker's end (§14): its heap is its own, and it too must leave nothing alive once
+## its arguments and result are released; what it does leave stops the program.
+pub func finish_task():
+    drain(0)
+    collect()
+    if live != 0:
+        var room: u8[96]
+        let text = format(room, f"runtime: {live} objects alive when a task ended\n") catch failure:
+            recover "runtime: objects alive when a task ended\n"
+        var e = io.stderr()
+        discard(e.write(text.bytes) catch failure: recover 0)
+        process.exit(3)
+    release_buffers()
+    runtime_depth = 0
+    thread_context = 0
+
+## Empty object counts do not include the collector's and temporaries pool's
+## backing allocations. A finished thread must release those too: its TLS roots
+## disappear at thread exit, so retaining capacity would leak on every spawn.
+func release_buffers():
+    assert(pending_count == 0 and root_count == 0 and white_count == 0)
+    if pending.length > 0:
+        free(pending) in memory.heap
+    if roots.length > 0:
+        free(roots) in memory.heap
+    if whites.length > 0:
+        free(whites) in memory.heap
+    var empty_pending: Pending[]
+    var empty_objects: Object*[]
+    pending = empty_pending
+    roots = empty_objects
+    whites = empty_objects
+
