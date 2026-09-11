@@ -7,6 +7,8 @@
 - [Status](STATUS.md) — the one current matrix of what is verified, limited,
   planned, or excluded.
 - [Plan](PLAN.md) — what remains, in order, and the gate that closes each item.
+- [Package rewrite TODO](PACKAGE-REWRITE-TODO.md) — the active cross-project
+  checklist, with completion evidence and a [file-level scope](PACKAGE-REWRITE.md).
 - [Debugging](DEBUGGING.md) — native source debugging.
 - [CI](CI.md) — the hosted gate.
 - [Library](LIBRARY.md) — the standard library's public surface, generated

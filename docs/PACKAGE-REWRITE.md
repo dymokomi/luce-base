@@ -1,8 +1,9 @@
 # Package API and implementation rewrite
 
-Inventory date: 2026-09-11. This is the current rewrite scope, linked from
-[the ecosystem roadmap](ECOSYSTEM.md). The inventory is complete; implementation
-items below are pending. Historical audit reports are not this backlog.
+Inventory date: 2026-09-11. This is the rewrite scope, linked from
+[the ecosystem roadmap](ECOSYSTEM.md). Track implementation and completion in the
+[rewrite TODO list](PACKAGE-REWRITE-TODO.md); this document records the file-level
+scope and required contracts. Historical audit reports are not this backlog.
 
 ## Required result
 
@@ -16,13 +17,13 @@ The requested Luce construction shape is:
 
 ```luce
 from ui import Button
-let button = new Button("pause")
+let button = Button("pause")
 ```
 
-This is a target, not a currently compiling example. Base already has `init`,
-methods, interfaces and `new`. Luce currently spells construction `Type(args)`;
-its parser, checking, tools and specification need to support the requested `new`
-form. Its Base boundary also needs to expose actual constructors and methods.
+This uses Luce's existing `Type(args)` construction syntax. No construction syntax
+change is part of this rewrite. Base already has structs, `init`, methods and
+interfaces. The work is to expose those APIs correctly through the Base boundary
+and implement the concrete components; the package example is still a target API.
 
 Construction of a declarative component should not open a native window or acquire
 a GPU. Keep fallible acquisition in explicit operations such as opening/running
@@ -80,14 +81,13 @@ in `docs/language/base.md`, description fixtures in
 ### Import and execute those APIs in Luce
 
 Primary files: `luce/src/sema/boundary.lucb`, `check.lucb`, `bodies.lucb`,
-`src/back/base.lucb`, `src/front/`, affected HIR/interpreter/tooling code,
+`src/back/base.lucb`, affected type representation and tooling code,
 `rt/heap.lucb`, `rt/kernel.lucb`, generated `src/support/runtime.lucb`,
 `docs/luce.md` and `docs/RUNTIME.md`.
 
-- Implement the requested construction syntax consistently in parsing, checking,
-  formatting, diagnostics, interpretation for Luce types and native lowering.
-  Define compatibility with existing `Type(args)` construction.
-- Import real Base constructors and methods, including bound method values.
+- Import real Base constructors through existing `Type(args)` construction,
+  and methods including bound method values. Test positional/named/default
+  arguments and fallible initializers through this existing syntax.
   Forward calls to the object's actual private state; preserve mutations and
   avoid copying a resource into temporary field-conversion shims.
 - Support Base interfaces and concrete conformance, including heterogeneous
@@ -305,7 +305,7 @@ manifest, bootstrap pins, build/test tooling and CI.
 
 1. **Interop contract and minimal working example:** actual Base struct constructor,
    private state and methods callable from Luce, then interfaces and ownership.
-   Establish requested `new` construction and documented module imports.
+   Use existing `Type(args)` construction and documented module imports.
 2. **Callbacks and worker dispatch:** prove lifecycle, capture, error and thread
    behavior with focused compiler/runtime fixtures.
 3. **Server plus HTTP application:** rewrite the Base library and replace example
