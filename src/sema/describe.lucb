@@ -26,7 +26,7 @@ struct DescriptionWriter:
     var foreign_types: list.List[u32]
 
     mutating func module(name: str) -> !:
-        try self.out.write(f"description 2\nmodule {name}\n")
+        try self.out.write(f"description 3\nmodule {name}\n")
         var cursor = self.tree.body
         while let d = cursor:
             if d.has(ast.flag_pub) and not generic(d):
@@ -139,6 +139,8 @@ struct DescriptionWriter:
                     let mode = "let" if member.has(ast.flag_const) else "var"
                     try self.out.write(f"    field {mode} {member.text}: ")
                     try self.type_name(member.type_id)
+                    if member.left != none or self.checker.table.zeroable(member.type_id):
+                        try self.out.write(" = default")
                     try self.out.write("\n")
                 elif member.kind == ast.Kind.func_ and member.text != "init":
                     if member.has(ast.flag_static):
@@ -159,6 +161,8 @@ struct DescriptionWriter:
             first = false
             try self.out.write(f"{param.text}: ")
             try self.type_name(param.type_id)
+            if let value = param.left:
+                try self.default(value)
             cursor = param.next
         try self.out.write(")")
         let result = self.checker.table.get(d.type_id).elem
@@ -166,6 +170,16 @@ struct DescriptionWriter:
             try self.out.write(" -> ")
             try self.type_name(result)
         try self.out.write("\n")
+
+    ## Caller facts are expanded by the consumer at its source call. Other
+    ## defaults stay native so private constants and language semantics survive.
+    mutating func default(value: ast.Node*) -> !:
+        if value.kind == ast.Kind.member:
+            if let owner = value.left:
+                if owner.kind == ast.Kind.name and owner.text == "luce" and (value.text == "file" or value.text == "line" or value.text == "function" or value.text == "location"):
+                    try self.out.write(f" = caller.{value.text}")
+                    return
+        try self.out.write(" = default")
 
     mutating func conformance(d: ast.Node*) -> !:
         var cursor = d.right if d.kind == ast.Kind.enum_ else d.ty

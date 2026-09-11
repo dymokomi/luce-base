@@ -5,7 +5,7 @@ Updated: 2026-09-11. This is the working checklist for the ecosystem rewrite.
 constraints and acceptance criteria. Follow the phases below in order.
 
 **Status:** sections 1 and 2 in progress; compatibility cleanup verified.
-**Next task:** I03–I11 and C01–C05 in order.
+**Next task:** I04–I11 and C01–C05 in order.
 
 ## How we track work
 
@@ -52,7 +52,7 @@ default. Preserve recoverable errors and explicit Base ownership.
   Implemented and verified in Base/Luce. The metadata does not yet implement native
   constructor/method/interface execution adapters; I04–I07 remain open. Base also
   fixes C spelling of handle slots and const spans, tested across all six modes.
-- [ ] I03 — Preserve parameter names, defaults, fallibility and qualified type
+- [x] I03 — Preserve parameter names, defaults, fallibility and qualified type
   identity through aliases, re-exports and nested signatures.
 - [ ] I04 — Import and lower Base constructors through existing `Type(args)` syntax;
   exercise positional, named and default arguments and fallible `init`.
@@ -268,6 +268,7 @@ Vulkan implementation remain later work, as specified in the scope document.
 | BC01, BC02 | Implemented in the Base commit containing this checklist update; matching Luce caller/runtime update follows with the exact pin. Removed receive/to_i64/to_u64 outright. Refreshed prelude, library reference and both snapshots; native bootstrap reproduced its assembly. Integer reference corpus, networking/stream/allocation fault injection and socket transfer tests passed at native opts 0–3 and both C modes; the four-worker HTTP fixture passed. Luce decimal conversion passed in its interpreter and six compiled modes. |
 
 | BC03–BC05 | Base implementation and checklist committed together; Seed `428f77c`. Seed build and all 580 tests passed. Default-backend driver tests passed, including rejection of the removed flag. Arithmetic, signed/unsigned overflow traps, allocation and memory-exhaustion fixtures passed at native opts 0–3 and both C modes. Refreshed runtime and both snapshots; native bootstrap reproduced assembly, and the current Seed-built Base compiler emitted identical C to the native self-hosted compiler. |
+| I03 | Base description/default metadata and this checklist committed together; matching Luce adapters follow with the exact pin. `describe_api` passed native opts 0–3; `describe_fields` and exact description expectations updated. Native self-host and refreshed snapshots passed bootstrap assembly agreement. Luce reader passed native/C tests; `test_base_defaults.py`, `test_base_fields.py` and `test_base_description.py` passed native opts 0–3 and both C modes, covering named/omitted arguments, private native defaults, caller file/function facts, full-arity function values, aliases/reexports, nested foreign tuples/optionals, distinct i64/usize adapters, errors and owned public fields. Native types outside the supported boundary remain unavailable. |
 
 For implementation entries, record repository, commit, test commands/results,
 native target/optimization coverage and any remaining limit relevant to the task.

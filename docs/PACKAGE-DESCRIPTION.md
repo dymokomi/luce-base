@@ -2,7 +2,7 @@
 
 `luce-base describe module.lucb` checks a Base module and writes its public API.
 Luce consumes this description without parsing Base source. There is one current
-format, identified by the first line `description 2`. Both compilers change
+format, identified by the first line `description 3`. Both compilers change
 together; no older reader, alternate format flag or compatibility fallback exists.
 
 The producer is `src/sema/describe.lucb`. The consumer is
@@ -18,7 +18,7 @@ that a struct's representation/constructor records precede its other members and
 conformances follow them. No function body or private field is emitted.
 
 ```text
-description 2
+description 3
 module example
 interface CounterView
     method value() -> i64
@@ -39,12 +39,14 @@ struct Point
 
 | Record | Meaning |
 | --- | --- |
-| `description 2` | Required current format marker; Luce rejects a mismatch before importing declarations |
+| `description 3` | Required current format marker; Luce rejects a mismatch before importing declarations |
 | `module name` | Entry module's filename stem; the consumer supplies its resolved package/module identity |
 | `import module as alias` | Nonstandard dependency mentioned by a public signature or conformance |
 | `standard module as alias` | Embedded standard-module dependency; distinct from a package source import |
 | `foreign alias.Type kind` | Referenced foreign nominal type; kind is `struct`, `enum`, `interface`, `handle` or `opaque` |
 | `func name(p: T) -> R` | Public function; a unit result omits the arrow/result |
+| `p: T = default` / `field var name: T = default` | An omittable argument/field; Base evaluates the original checked expression or zero initialization |
+| `p: T = caller.file` / `caller.line` / `caller.function` / `caller.location` | A caller fact evaluated at the consumer source call |
 | `let name: T` | Public constant and its type |
 | `struct Name` | Public struct with the member records below |
 | `representation complete` | All direct native fields are public; this does not prove nested ownership or trivial copyability |
@@ -83,8 +85,14 @@ private constructor is unavailable to Luce. Its dependent declarations are also
 unavailable. It cannot silently become a public-field snapshot or acquire a
 memberwise constructor that bypasses native initialization.
 
-Default argument/field expressions are not yet transported (I03). Owned-object
-exports, borrowing metadata and lifetime adapters follow the
+Default availability is transported; default expressions stay in Base. Luce emits
+used argument shapes with named native arguments, leaving omitted defaults to the
+Base checker. Supported caller facts are materialized from the Luce source; a fact
+whose native type cannot cross makes that signature unavailable. Tuple/optional
+nesting and native integer spelling remain part of adapter identity even when two
+native scalar types map to the same Luce type.
+
+Owned-object exports, borrowing metadata and lifetime adapters follow the
 [ownership contract](BASE-INTEROP.md) in I04–I07. Standard type import resolution
 is tracked in I09. Reading method/interface metadata alone does not complete
 their execution adapters.

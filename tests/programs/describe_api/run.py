@@ -19,7 +19,7 @@ def run(*arguments):
 
 
 text = run("describe", FIXTURE / "api.lucb")
-assert text.startswith("description 2\nmodule api\n"), text
+assert text.startswith("description 3\nmodule api\n"), text
 alias = re.search(r"^import contracts as (\w+)$", text, re.M)
 assert alias, text
 text = text.replace(alias[1], "contracts")
@@ -34,7 +34,7 @@ expected = [
     "    static method zero() -> Counter!",
     "    conforms Gauge",
     "struct Settings\n    representation complete\n    constructor memberwise",
-    "    field let label: str\n    field var amount: i64",
+    "    field let label: str = default\n    field var amount: i64 = default",
     "struct Locked\n    representation complete\n    constructor private",
     "enum Mode as u8\n    case off = 0\n    case on = 1\n    method name() -> str\n    conforms contracts.Named",
     "    method position(points: const contracts.Point[]) -> (contracts.Point?, contracts.Token?)",

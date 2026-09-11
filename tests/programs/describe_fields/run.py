@@ -10,8 +10,8 @@ text = result.stdout.decode()
 assert not result.stderr, result.stderr
 for name in ("port", "label"):
     assert f"    field var {name}:" in text, text
-assert text.startswith("description 2\nmodule main\n"), text
+assert text.startswith("description 3\nmodule main\n"), text
 assert "    representation private\n" in text, text
-assert "    field let version: i64\n" in text, text
+assert "    field let version: i64 = default\n" in text, text
 assert "field var version" not in text and "hidden" not in text, text
 print("PASS public record mutability description")
