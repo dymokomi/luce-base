@@ -36,6 +36,7 @@ import sema.prelude
 import sema.prune
 import sema.types
 import support.list
+import support.modules as module_paths
 
 pub let unknown_name: ErrorCode = ErrorCode.package(9)
 pub let type_error: ErrorCode = ErrorCode.package(10)
@@ -58,6 +59,11 @@ struct Binding:
     ## Some expression read or assigned the name; a local nothing used is pruned (§19.6).
     var used: bool
 
+## Public package exports resolve to the canonical module which owns the type.
+pub struct ModuleAlias:
+    pub let name: str
+    pub let target: str
+
 ## One module of the program: its tree, its source for positions, and whether
 ## the checker supplied it from the prelude.
 pub struct Module:
@@ -65,6 +71,8 @@ pub struct Module:
     pub var tree: ast.Node*
     pub var src: source.Source
     pub var is_prelude: bool
+    pub var canonical: str = ""
+    pub var package_name: str = ""
 
 ## A `Writer` over a caller's buffer, for spelling types into diagnostics.
 struct SpanWriter: io.Writer:
@@ -121,6 +129,7 @@ pub struct Checker:
     ## Imports on the active load path. Completed modules remain in dependency order;
     ## this separate stack detects cycles before recursive loading repeats a module.
     var loading: list.List[str]
+    pub var module_aliases: list.List[ModuleAlias]
     ## The manifest's name (§16.4): the identity of the package's error codes (§11.3).
     pub var package_name: str
     ## Every `ErrorCode.package(n)` folded so far, with its package identity: no two alike.
@@ -142,7 +151,7 @@ pub struct Checker:
                        scope = try list.List[Binding].create(512), warnings = try list.List[str].create(16), depth = 0, scratch = scratch,
                        current = 0, current_func = none, result_type = types.unit_id, fallible = false,
                        self_type = types.none_id, self_mutable = false, in_init = false, loop_depth = 0, in_catch = false,
-                       catch_result = types.none_id, checking_template = false, at_top_level = false, root = "", loading = try list.List[str].create(16), package_name = "app",
+                       catch_result = types.none_id, checking_template = false, at_top_level = false, root = "", loading = try list.List[str].create(16), module_aliases = try list.List[ModuleAlias].create(8), package_name = "app",
                        package_codes = try list.List[u64].create(64), export_symbols = try list.List[str].create(32), resolving = try list.List[usize].create(8),
                        build_target = targets.Target.host())
 
@@ -545,7 +554,7 @@ pub struct Checker:
     ## Load `path` and, first, every module it imports from the same directory.
     pub mutating func load(path: c.str) -> !:
         self.root = directory_of((str)path)
-        try self.load_as(path, module_name_of((str)path))
+        try self.load_as(path, try module_paths.name_of((str)path))
 
     ## Load `path` as module `name`; an imported module keeps its dotted path as its name.
     pub mutating func load_as(path: c.str, name: str) -> !:
@@ -567,6 +576,11 @@ pub struct Checker:
                 error(unknown_name, located)
             let message = try format(self.scratch[..<half], f"cannot read {text}: {failure.message}")
             error(unknown_name, message)
+        let canonical = try module_paths.canonical(text)
+        for loaded in self.modules.span():
+            if not loaded.is_prelude and loaded.canonical == canonical:
+                try self.module_alias(name, loaded.name)
+                return
         var p = try parser.Parser.over(src, self.scratch)
         let tree = try p.parse_module()
         if is_standard_module(name):
@@ -578,15 +592,28 @@ pub struct Checker:
             let message = try format(self.scratch[..<half], f"{text}:1:1: a module's file name is an identifier (§16.1)")
             error(unknown_name, message)
         if self.find_module(name) != none:
-            return
+            error(unknown_name, "different source files use the same canonical module name")
         var cursor = tree.body
         while let d = cursor:
             if d.kind == ast.Kind.import_ or d.kind == ast.Kind.from_import:
-                if self.find_module(d.text) == none and not is_standard_module(d.text):
-                    let sibling = try self.resolve_import(d.text)
+                if not is_standard_module(d.text):
+                    let exported = try module_paths.package_import(text, d.text)
+                    let saved_root = self.root
+                    var sibling: str
+                    var canonical_name = d.text
+                    if let public_module = exported:
+                        sibling = public_module.path
+                        canonical_name = public_module.name
+                        try self.module_alias(d.text, canonical_name)
+                        self.root = public_module.root
+                        if self.root.length > 0 and self.root.bytes[self.root.length - 1] != '/':
+                            let room = try alloc u8[self.root.length + 2]
+                            self.root = try format(room, f"{self.root}/")
+                    else:
+                        sibling = try self.resolve_import(d.text)
                     # a module that cannot be read is reported at the import that named it;
                     # a message that already names a place stands as it is
-                    self.load_as((c.str)sibling, d.text) catch failure:
+                    self.load_as((c.str)sibling, canonical_name) catch failure:
                         if failure.code == unknown_name and not names_a_place(failure.message):
                             # the message sits in the scratch's lower half; the located one
                             # goes to the upper half
@@ -595,9 +622,11 @@ pub struct Checker:
                             let located = try format(self.scratch[half..], f"{src.path}:{line}:{column}: {failure.message}")
                             error(unknown_name, located)
                         error(failure.code, failure.message)
+                    if exported != none:
+                        self.root = saved_root
             cursor = d.next
         tree.text = name
-        try self.modules.push(Module(name = name, tree = tree, src = src, is_prelude = false))
+        try self.modules.push(Module(name = name, tree = tree, src = src, is_prelude = false, canonical = canonical, package_name = try module_paths.package_of(text, name, self.package_name)))
 
     ## Leave the active import path on success and on every loading error.
     mutating func finish_load():
@@ -624,10 +653,24 @@ pub struct Checker:
         let index = self.find_module("c") else return false
         return self.modules.get(index).tree == m
 
+    mutating func module_alias(name: str, target: str) -> !:
+        if name == target:
+            return
+        for alias in self.module_aliases.span():
+            if alias.name == name:
+                if alias.target != target:
+                    error(unknown_name, "package exports disagree on the identity of a module")
+                return
+        try self.module_aliases.push(ModuleAlias(name, target))
+
     pub func find_module(name: str) -> usize?:
+        var canonical = name
+        for alias in self.module_aliases.span():
+            if alias.name == name:
+                canonical = alias.target
         var i: usize = 0
         while i < self.modules.count:
-            if self.modules.get(i).name == name:
+            if self.modules.get(i).name == canonical:
                 return i
             i += 1
         return none
@@ -3387,7 +3430,8 @@ pub struct Checker:
             return try self.fail(v, "integer literal does not fit")
         if code > 65535:
             return try self.fail(v, "an error code is at most 65535; the package's identity takes the high half")
-        let name = "luce" if self.in_prelude() else self.package_name
+        let declared = self.modules.get(self.current).package_name
+        let name = "luce" if self.in_prelude() else (declared if declared.length > 0 else self.package_name)
         let full = ((u64)package_identity(name) << 16) | code
         for known in self.package_codes.span():
             if known == full:

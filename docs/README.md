@@ -11,6 +11,8 @@
   checklist, with completion evidence and a [file-level scope](PACKAGE-REWRITE.md).
 - [Base interop contract](BASE-INTEROP.md) — ownership and lifetime rules for the
   package rewrite; implementation progress is tracked in the TODO list.
+- [Public package imports](PACKAGE-IMPORTS.md) — exports, local dependencies,
+  canonical standard modules and relocatable source bundles.
 - [Package descriptions](PACKAGE-DESCRIPTION.md) — the current compiler-to-compiler
   API format, its records and executable adapter limits.
 - [Debugging](DEBUGGING.md) — native source debugging.

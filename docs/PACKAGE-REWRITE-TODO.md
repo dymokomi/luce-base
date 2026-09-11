@@ -68,8 +68,9 @@ default. Preserve recoverable errors and explicit Base ownership.
   including heterogeneous widget collections and backing-object/view lifetimes.
 - [ ] I08 — Reassess pending handle-identity and span-conversion changes against
   the object contract; retain general mechanisms with focused regression coverage.
-- [ ] I09 — Establish documented public imports and exports, including
+- [x] I09 — Establish documented public imports and exports, including
   `from ui import Button`, in a clean consumer without staging-specific aliases.
+  Contract: [PACKAGE-IMPORTS.md](PACKAGE-IMPORTS.md).
 - [ ] I10 — Separate boundary conversion/ownership code into focused compiler
   modules; update interop/runtime documentation and generated sources as needed.
 - [ ] I11 — **Phase gate:** run a small real Base struct/interface library from
@@ -281,6 +282,8 @@ Vulkan implementation remain later work, as specified in the scope document.
 | I06 checked views (partial) | Base implementation and checklist committed together; Luce adapters follow with the exact pin. `interop_views` verifies lease expiry, alias state, read-only policy and deferred disposal during active calls in all six modes. Existing ownership/interop tests pass all six modes; `describe_views` and `describe_objects` pass native 0–3. Native bootstrap reproduces assembly and both snapshots are refreshed. Luce view, object and value fixtures pass all six modes, including captured/bound expired views, owned text snapshots, receiver replacement during argument/RHS evaluation and lazy conditional branches. Mixed native/Luce cycles and interface identity remain open in I07. |
 
 | I06, I07 | Base interface/result primitives, current description and this checklist committed together; matching Luce adapters follow with the exact pin. `interop_interfaces`, `unit_storage`, `describe_interfaces`, ownership and lease fixtures pass native opts 0–3 and both C modes (descriptions are host compiler checks). `describe_api` passes native opts 0–3; 75 Base checker tests pass. `test_base_interfaces.py` builds the same real library for direct Base and Luce consumers in six modes, covering heterogeneous native/managed widgets, real native value witnesses, aliases/re-exports, public retained interface fields, nested optional/tuple results, canonical identity, owned text/errors, Base-handled managed failures, bound/captured expired views, reentrant close and mixed cycles with zero live owners at exit. Rejected cases cover ownerless witnesses, managed borrowed/fallible returns without ownership contracts and worker transfer. Native self-host reproduces assembly; prelude/library reference/snapshots refreshed. Existing Luce object, foreign-description and field fixtures pass six modes. The full ownership/view Luce gate passed at `c07485c`: 69 programs, 138 rejections, formatting and fuzzing (60 mutations / six programs, zero findings). The interface full gate is running; I11 remains open. No Linux-host execution is claimed. |
+
+| I09 | Base public resolver, exports, canonical standard descriptions and this checklist committed together; matching Luce reader/packager follows with the exact pin. `package_exports` and `test_public_imports.py` pass native opts 0–3 and both C modes, including `Button("pause")`, aliases, transitive exports, standard math/net identity, distinct package error codes and rebuilding a relocated emitted bundle after deleting its original sources. Existing package diamond/collision/protocol fixtures pass six modes; availability reader tests pass native/C; 75 Base checker tests pass. Native self-host reproduces assembly and both snapshots are refreshed. Local filesystem dependencies are implemented; registry fetching/version selection remain later work. |
 
 For implementation entries, record repository, commit, test commands/results,
 native target/optimization coverage and any remaining limit relevant to the task.

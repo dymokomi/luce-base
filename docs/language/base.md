@@ -1535,13 +1535,12 @@ updated together when the format changes.
 
 `luce-base dependencies module.lucb` checks a module and reports the source files
 resolved for its complete nonstandard import closure. The entry module and embedded
-standard modules are excluded. Output begins with `luce-base-dependencies-v1` and a
-NUL byte, then pairs of NUL-terminated module names and source paths in dependency
-order. Names use dotted module syntax; paths are relative to the command's working
-directory unless already absolute. NUL delimiters preserve spaces, tabs and newlines
-in parent paths. Each resolved module appears once. A parse, resolution or semantic
-failure returns status 1 and writes no dependency records. This is a source-packaging
-query, not a native-library or manifest dependency resolver.
+standard modules are excluded from source records. Output begins with
+`luce-base-dependencies-v2` and a NUL byte, then tagged triples describing sources,
+public aliases and original package owners. Every field is NUL-terminated, so paths
+retain whitespace. A parse, resolution or semantic failure returns status 1 without
+dependency records. See [public package imports](../PACKAGE-IMPORTS.md) for the
+manifest and resolver contracts, standard module descriptions and relocation.
 
 
 ## 18. Working with full Luce
