@@ -1,159 +1,182 @@
 # Native Base performance against C
 
-Measured 2026-09-12 UTC on an Apple M4 (10 cores, 24 GiB RAM), macOS 15.7.9,
-on AC power. Native Base is close to C on integer mixing, but needs substantial
-loop optimization: array summation takes 14.03× as long as optimized C, array
-transformation 9.08×, byte classification 5.86×, and matrix multiplication 6.46×.
-These results describe the seven workloads below, not a universal language ratio.
+Measured again on 2026-09-12 after implementing range proofs, scalar loop
+optimization and automatic SIMD. On the same Apple M4, native Base's integer
+array sum now takes **1.26× C's time, down from 14.03×**; the float transformation
+takes **1.51×, down from 9.08×**. Integer mixing is at parity. Byte classification
+and matrix multiplication improved substantially but remain the largest gaps.
+These seven workloads do not define a universal language speed ratio.
 
-## Measured runtime
+## Before and after
 
-Each entry is the median of nine trials. Lower elapsed time is better. C uses
-Apple Clang 17.0.0, `-O3 -march=armv8-a -ffp-contract=off`; Base uses the native
-`--cpu neon --opt 3` backend with normal safety checks and without debug mode.
-The same C driver links to both implementations. Base does not emit C in this
-comparison. Compilation, allocation, input setup, warmup and output hashing are
-outside the measured kernel call.
+The ratio is native Base `--opt 3` elapsed time divided by Clang `-O3` elapsed
+time: **1.00 means parity; lower is better**. Each number uses the median of nine
+trials. The primary run calibrated repetitions to about 100 ms in C; an independent
+30 ms calibration repeated all measurements using the identical binaries.
 
-| Workload | C -O3 (ms) | Native Base (ms) | Base / C time |
+| Workload | Before: Base / C | After: Base / C | Confirmation: Base / C |
 | --- | ---: | ---: | ---: |
-| Integer mixing | 100.08 | 102.60 | 1.03× |
-| Floating-point recurrence | 101.56 | 159.23 | 1.57× |
-| Integer array sum | 109.65 | 1537.97 | 14.03× |
-| Float array transformation | 99.60 | 904.32 | 9.08× |
-| Byte classification | 99.82 | 584.58 | 5.86× |
-| Dependent indexed loads | 99.79 | 131.79 | 1.32× |
-| 96 × 96 matrix multiplication | 101.22 | 653.74 | 6.46× |
+| Integer mixing | 1.03× | 1.00× | 1.00× |
+| Floating-point recurrence | 1.57× | 1.49× | 1.49× |
+| Integer array sum | 14.03× | 1.26× | 1.26× |
+| Float array transformation | 9.08× | 1.51× | 1.51× |
+| Byte classification | 5.86× | 3.16× | 3.16× |
+| Dependent indexed loads | 1.32× | 1.26× | 1.23× |
+| 96 × 96 matrix multiplication | 6.46× | 2.59× | 2.68× |
 
-The initial 30 ms calibration run and the longer 100 ms run agree within about
-2% on these ratios. Some individual Base trials were faster than their median:
-the long-run array-sum range was 1,232–1,613 ms and the matrix range 598–670 ms.
-Median absolute deviation was 1.1% for the sum and 2.5% for the matrix; it was
-below 0.4% for the other Base workloads. This is a shared desktop without CPU
-affinity or fixed frequency. The raw samples preserve the spread.
+The sum's Base/C ratio improved by 11.17×, the transformation's by 6.01×, byte
+classification's by 1.86× and the matrix's by 2.49×. These compare normalized
+ratios, since each run recalibrates its repetition count. Small changes near
+parity should not be interpreted as a reliable speed advantage over C.
 
-Inputs are runtime-generated from seed 812. The working sets are 2 MiB for
-integer sums, 6 MiB across the three float transformation buffers, 1 MiB for
-byte classification, 1 MiB of dependent links plus their setup permutation,
-and three 96 × 96 double matrices. Exact repetitions are in the raw records.
-Every timed result agrees bit for bit across all six variants. Verification
-also checks three seeds and three small/remainder sizes for every workload.
+The two new runs agree within 0.3% for the first five workloads. Dependent loads
+differ by 2.7% and the matrix by 3.2%. In the primary run, Base's median absolute
+deviation is below 0.3% except for the matrix at 1.3%. This is a shared desktop
+without CPU affinity or a fixed frequency; the raw samples retain the spread.
+Local builds and test suites finished before measurement began.
 
-## What explains the gaps
+## Method and current timings
 
-Three additional observations distinguish compiler costs from algorithm changes:
+Host: Apple M4, 10 cores, 24 GiB RAM, macOS 15.7.9, on AC power. C uses Apple
+Clang 17.0.0 with `-O3 -march=armv8-a -ffp-contract=off`. Base uses its native
+ARM64 backend with `--cpu neon`, normal safety checks and no debug mode. A common
+C driver links directly to the native Base library. Compilation, allocation,
+input setup, warmup and output hashing are outside the timed kernel call.
 
-1. **SIMD explains part of the array gap.** Disabling Clang loop and SLP
-   vectorization makes the C sum 3.57× slower and the C transformation 1.64×
-   slower. Base still takes 3.93× and 5.53× the time of those scalar C versions.
-   Clang emits NEON vector loops for both; Base emits scalar loops. SIMD is
-   therefore a substantial opportunity, with additional scalar overhead left.
-2. **The scalar loops repeat avoidable work.** The Base sum checks the same
-   `index < length` relationship at loop entry and at the following load. The
-   transformation performs three bounds checks per element and reconstructs
-   floating-point constants inside the loop. Loop-counter overflow checks remain
-   even where the loop bound proves the increment safe. The matrix repeats
-   checked index arithmetic and bounds checks in its innermost loop. These are
-   observations of the emitted assembly, not estimates of each instruction’s
-   individual contribution to elapsed time.
-3. **Instruction selection and control flow matter too.** Clang classifies bytes
-   with a compact bit test and conditional increment. Base uses several branches.
-   The C byte, matrix and dependent-load results barely change with vectorization
-   disabled, so their gaps cannot be attributed to missing SIMD. Base also emits
-   explicit multiply/add addressing and compare/materialize-boolean/branch
-   sequences where the target offers more compact forms.
+The driver, both kernel sources and harness have exactly the same SHA-256 hashes
+as the original baseline. Both C executables also have identical hashes. No
+algorithm, input generator, traversal order, C flag, intrinsic, `restrict`, fast
+math or LTO change contributes to the improvement. All six variants pass bitwise
+output comparisons for three seeds and three sizes per workload before timing;
+the timed outputs also agree. Floating operations retain their specified order.
 
-Two-second macOS `sample` profiles of the long-running native sum, transformation
-and matrix kernels recorded 1,556, 1,557 and 1,559 main-thread samples respectively;
-all were inside the corresponding kernel. The measured hot paths are computation
-and indexing, rather than allocation or error-message handling. Sampling confirms
-the location of the cost; assembly inspection provides the specific hypotheses.
+| Workload | C -O3 (ms) | C scalar (ms) | Base opt 0 (ms) | Opt 1 (ms) | Opt 2 (ms) | Opt 3 (ms) |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Integer mixing | 101.37 | 101.32 | 106.07 | 105.28 | 102.96 | 100.98 |
+| Floating-point recurrence | 96.28 | 96.39 | 187.65 | 187.98 | 147.77 | 143.26 |
+| Integer array sum | 105.62 | 378.92 | 1435.19 | 1387.07 | 757.53 | 132.67 |
+| Float array transformation | 98.12 | 160.88 | 873.32 | 938.94 | 639.67 | 148.32 |
+| Byte classification | 99.65 | 99.71 | 581.95 | 488.34 | 338.74 | 314.45 |
+| Dependent indexed loads | 97.17 | 97.12 | 129.75 | 130.13 | 124.25 | 122.88 |
+| 96 × 96 matrix multiplication | 101.03 | 100.99 | 597.46 | 586.92 | 535.79 | 262.11 |
 
-## Native optimization levels
+The scalar C variant disables Clang's loop and SLP vectorizers. Base opt 3 now
+outperforms that variant on both the sum and transformation, while optimized C
+still wins. Optimization levels are not isolated pass-ablation experiments:
+native instruction selection also changes lower levels, range proofs run at
+levels 2 and 3, and loop motion and automatic vectorization run at level 3.
 
-All levels passed the same output checks. Current levels 0 and 1 are often close;
-levels 2 and 3 help some workloads but do not solve the loop bottlenecks.
+Inputs use runtime seed 812. Working sets are 2 MiB for integer sums, 6 MiB across
+the three transformation buffers, 1 MiB for byte classification, 1 MiB of
+dependent links plus their setup permutation, and three 96 × 96 double matrices.
+Exact repetition counts and trial order are in the raw records.
 
-| Workload | Opt 0 (ms) | Opt 1 (ms) | Opt 2 (ms) | Opt 3 (ms) |
-| --- | ---: | ---: | ---: | ---: |
-| Integer mixing | 104.28 | 103.79 | 102.67 | 102.60 |
-| Floating-point recurrence | 195.06 | 196.82 | 157.85 | 159.23 |
-| Integer array sum | 1573.96 | 1574.02 | 1573.18 | 1537.97 |
-| Float array transformation | 1133.33 | 1206.22 | 905.10 | 904.32 |
-| Byte classification | 667.74 | 677.37 | 587.41 | 584.58 |
-| Dependent indexed loads | 139.34 | 139.63 | 133.42 | 131.79 |
-| 96 × 96 matrix multiplication | 673.26 | 674.30 | 673.24 | 653.74 |
+## What changed, and what remains
+
+The implementation is documented in [NATIVE-OPTIMIZATIONS.md](NATIVE-OPTIMIZATIONS.md).
+It applies to eligible IR loops generally, without matching benchmark names.
+
+1. **Range proofs remove redundant checks.** Dominating guards and successful
+   checks establish facts about immutable SSA values. Safe unsigned increments,
+   duplicate bounds checks and proved row-major index arithmetic no longer need
+   repeated checks. Uncertain accesses, signed arithmetic and changed values
+   retain their checks and failure ordering.
+2. **Scalar loops do less repeated work.** Pure invariants move to safe loop
+   preheaders; redundant phis, dead frame homes and avoidable jumps disappear.
+   Native selection uses immediate arithmetic, direct register addresses and
+   combined comparison/branch sequences. Calls remain memory barriers, including
+   hidden ABI result writes; potentially trapping work is not speculated.
+3. **Suitable loops use SIMD automatically.** Wrapping integer reductions and
+   independent 32/64-bit element operations use portable 128-bit vector IR,
+   implemented by ARM64 NEON and x86-64 SSE2. Partial overlap falls back to the
+   original scalar loop; short inputs and tails remain safe. Floating reductions
+   are not reassociated, and multiply/add operations are not fused.
+
+Assembly inspection identifies the next runtime opportunities:
+
+- **Byte classification (3.16× C):** its branchy boolean chain stays scalar and
+  materializes intermediate booleans. Clang's compact bit test/conditional count
+  suggests better boolean simplification and conditional instruction selection.
+- **Matrix multiplication (2.59× C):** the same i/j/k algorithm retains scalar
+  floating accumulation, address work and register pressure. Improve induction
+  addressing and register allocation while preserving strict accumulation order.
+- **Floating recurrence (1.49× C):** the hot loop still copies its floating
+  accumulator and loop counter across the backedge. Better copy coalescing and
+  loop scheduling are candidates; the precise cost of each has not been isolated.
+- **SIMD maps and sums (1.51× and 1.26× C):** compare generated loop scheduling,
+  unrolling and register use with Clang. The current vectorizer intentionally
+  handles a bounded set of straight-line loops.
+
+Dependent loads retain a necessary data-dependent bounds check. A C comparison
+without per-access checks cannot establish that every remaining difference is
+removable without changing the language's guarantees.
 
 ## Binary size and memory
 
-The normal native executable is **687,656 bytes**, versus **34,424 bytes** for
-C: approximately 20× the file size. Both contain the same driver and seven
-exported kernels. The native image has 91,628 bytes of machine code and 520,128
-bytes in `__TEXT,__const`; C has 3,912 bytes of machine code. Base also reserves
-roughly 1.03 MiB of zero-filled global/thread storage. These virtual sections are
-not the same as resident memory.
+The current opt-3 executable is **671,128 bytes**, versus **34,424 bytes** for C
+and **687,656 bytes** for the original Base binary. The roughly 19.5× file-size
+gap remains. This work does not implement unused code/data elimination; the
+[original footprint analysis](NATIVE-PERFORMANCE-BASELINE.md#binary-size-and-memory)
+documents retained unrelated runtime code and data. Its detailed section sizes
+describe the baseline binary, not the current one.
 
-The native lowerer currently visits every nongeneric function and global of
-every loaded module, and emission keeps every collected text. The arithmetic-only
-library consequently contains unrelated GPU selector strings and ownership/interop
-state. Linking with `-Wl,-dead_strip` only reduces Base to 687,504 bytes: a linker
-flag alone does not solve this. All seven checksums still match after that relink.
+Median peak RSS remains 48–64 KiB higher for Base in this common driver. Inputs
+are allocated by the driver and kernels allocate nothing, so this is not an
+allocator-throughput benchmark. Unused code/data elimination should be a separate
+task with explicit exported, address-taken and initialization roots.
 
-Median peak RSS in the shared driver is only 48–64 KiB higher for Base in these
-tests. For example, the transformation uses 7,376 KiB versus C’s 7,328 KiB.
-This does not measure Base allocator performance: input allocation is performed
-by the common driver, and the kernels allocate nothing.
+## Correctness and consumers
 
-## Recommended implementation order
+The new loop fixture compares native levels 0–3 with both Base C modes. It covers
+overflow and bounds failures, output before a trap, zero-trip behavior, changed
+views and loop limits, optional and discarded aggregate call results, overlapping
+maps in both directions, every tested vector tail, guard pages and special
+floating values. It also checks emitted SIMD and complete x86 vector spills.
 
-1. **Prove and remove redundant loop checks.** Add branch/range facts and
-   induction-variable reasoning in `src/back/opt`. Start with bounds checks
-   already implied by a loop guard, duplicate checks, and provably safe loop
-   increments. Keep checks that cannot be proved, including the dependent-load
-   index check. Tests must cover zero-length loops, maximum integers, aliases,
-   side effects, and the position/order of failures. The target is faster safe
-   code, without changing Base’s failure semantics.
-2. **Simplify scalar loop code.** Move pure invariant constants and addresses out
-   of loops; strengthen parameter/slot promotion, eliminate jump chains and
-   redundant moves, and select scaled loads/stores and direct conditional
-   branches. Preserve zero-trip behavior and never hoist a possible trap into
-   a path that previously skipped it. Re-measure the scalar C comparison after
-   each coherent change. The relevant components are `src/back/opt`,
-   `src/back/native/arm64.lucb`, and `src/back/native/frame.lucb`.
-3. **Add automatic vectorization on that foundation.** Start with wrapping integer
-   reductions and independent float element operations, using the existing vector
-   IR and architecture abstraction. Prove alias independence or use guarded loop
-   versions, handle tails, and preserve float operation order within each lane.
-   Do not reassociate floating reductions or enable fast math to improve scores.
+Local validation passed Seed's 584 sanitized tests and runtime checks, Base's
+bootstrap comparisons and native fixed point, compiler and standard-library
+checks, 193 conformance programs, 479 rejections, 11 platform programs,
+66 native-corpus cases and 132 fuzz cases with no findings. Luce passed its
+complete gate, including interop and 66 fuzz cases with no findings.
 
-Treat **unused code/data elimination** as a separate footprint task: retain
-exported functions, address-taken functions, used/assembly roots and observable
-initializers, then retain only reachable functions, tables, globals and texts.
-This should also reduce compiler work, but that benefit has not been measured.
+The server, UI, 3D package, HTTP application and demos were rebuilt and tested
+with the optimized compiler. Checks include network concurrency and shutdown,
+REST/static/streamed files/WebSocket, Base/Luce interop, actual Metal rendering,
+GUI interaction and clean application output. The HTTP application's native
+shutdown heap check reported zero leaks. Compiler and package dependency pins
+are committed in each consumer repository.
 
-Use the existing native/C/interpreter and fuzz gates for correctness, then this
-baseline for performance. Once these compiler paths improve, add allocator,
-parsing/string, file/network and whole-application measurements, and collect an
-independent x86-64 Linux baseline. No Linux performance claim is made here.
+Cross-platform validation results are recorded in the
+[work checklist](NATIVE-OPTIMIZATION-TODO.md). M4 runtime measurements
+do not imply Linux or Windows performance; collect an independent x86-64 baseline
+and application, allocator, string, file/network and multithreading measurements
+before drawing broader conclusions.
 
 ## Reproduction and evidence
 
-Compiler implementation: Base `cd44f1d393b312613b437fa8ef581bac94bb1bc3`.
-Benchmark harness: `979829ffb1d79496238fc342201ab86ce119f618`.
-The native compiler hash, exact commands, source and binary hashes, build times,
-hardware/power metadata, trial order, checksums, peak RSS and process times are
-retained in the records below.
+Baseline compiler implementation: `cd44f1d393b312613b437fa8ef581bac94bb1bc3`.
+Measured final source: `8fbce59241bcf5bd63ec2b67e5e516ad25f08f42`, built through
+the native bootstrap and fixed point. Seed pin:
+`bb485fadf2b109add01724303a330d39d7299908`.
+Unchanged benchmark harness: `979829ffb1d79496238fc342201ab86ce119f618`.
+The raw records retain compiler/source/binary hashes, commands, build durations,
+host and power metadata, trial order, checksums, peak RSS and process times.
 
 - [Harness and methodology](../benchmarks/native_vs_c/README.md)
-- [Longer-trial raw results](../benchmarks/native_vs_c/results/2026-09-12-m4-100ms.json)
-- [Initial-trial raw results](../benchmarks/native_vs_c/results/2026-09-12-m4-30ms.json)
-- [Linked section sizes](../benchmarks/native_vs_c/results/2026-09-12-m4-link-size.json)
+- [Final primary results, 100 ms calibration](../benchmarks/native_vs_c/results/2026-09-12-m4-optimized-100ms.json)
+- [Final confirmation, 30 ms calibration](../benchmarks/native_vs_c/results/2026-09-12-m4-optimized-30ms.json)
+- [Original baseline report](NATIVE-PERFORMANCE-BASELINE.md)
+- [Original primary results](../benchmarks/native_vs_c/results/2026-09-12-m4-100ms.json)
+- [Original confirmation](../benchmarks/native_vs_c/results/2026-09-12-m4-30ms.json)
+- [Original linked section sizes](../benchmarks/native_vs_c/results/2026-09-12-m4-link-size.json)
 
 ```sh
 ./build.sh
-python3 benchmarks/native_vs_c/run.py --verify-only
-python3 benchmarks/native_vs_c/run.py --reuse-build --target-ms 100
+python3 benchmarks/native_vs_c/run.py --output build/native-vs-c-final --samples 9 --target-ms 100
+cp build/native-vs-c-final/results.json build/native-vs-c-final/results-100ms.json
+python3 benchmarks/native_vs_c/run.py --output build/native-vs-c-final --reuse-build --samples 9 --target-ms 30
 ```
 
-Future optimization commits should demonstrate their improvement on unchanged
-workloads while retaining the correctness gates and specified arithmetic behavior.
+Finish other CPU-heavy work before timing. Keep the primary result before a
+confirmation run overwrites `results.json`, and rebuild instead of using
+`--reuse-build` whenever the compiler or sources change.
