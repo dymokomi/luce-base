@@ -1,0 +1,199 @@
+## Facts about immutable SSA values, scoped by dominance. A successful bounds
+## check supplies a fact just like a branch does. Unknown ranges retain checks;
+## this pass never derives facts about a memory location from an earlier load.
+import back.ir.cfg
+import back.ir.ir
+import support.list
+
+enum Relation as u8:
+    less = 1
+    at_most = 2
+    equal = 3
+
+struct Fact:
+    var relation: Relation
+    var cls: ir.Class
+    var left: ir.Ref
+    var right: ir.Ref
+
+struct Search:
+    var f: ir.Function*
+    var g: cfg.Graph*
+    var definitions: u32[]
+    var facts: list.List[Fact]
+    var changed: bool = false
+
+    ## Equalities are followed only to a bounded depth. Exhausting the search
+    ## loses an optimization, never a check that would have been necessary.
+    func equal(a: ir.Ref, b: ir.Ref, cls: ir.Class, depth: u32 = 0) -> bool:
+        if same(a, b):
+            return true
+        if depth >= 3:
+            return false
+        for fact in self.facts.span():
+            if fact.relation != Relation.equal or fact.cls != cls:
+                continue
+            if same(a, fact.left) and self.equal(fact.right, b, cls, depth + 1):
+                return true
+            if same(a, fact.right) and self.equal(fact.left, b, cls, depth + 1):
+                return true
+        return false
+
+    func upper(value: ir.Ref, cls: ir.Class, depth: u32 = 0) -> u64:
+        let maximum = limit(cls)
+        if value.kind == ir.RefKind.constant:
+            return bits(value, cls)
+        if depth >= 4:
+            return maximum
+        var result = maximum
+        if value.kind == ir.RefKind.temp and self.definitions[value.index] != 0:
+            let definition = self.f.instrs.get(self.definitions[value.index] - 1)
+            if definition.op == ir.Op.extub:
+                result = 255
+            elif definition.op == ir.Op.extuh:
+                result = 65535
+            elif definition.op == ir.Op.extuw:
+                result = self.upper(definition.a, ir.Class.w, depth + 1)
+            elif definition.op == ir.Op.and_ and definition.b.kind == ir.RefKind.constant:
+                result = bits(definition.b, cls)
+        for fact in self.facts.span():
+            if fact.cls != cls:
+                continue
+            var bound = maximum
+            if same(value, fact.left):
+                bound = self.upper(fact.right, cls, depth + 1)
+                if fact.relation == Relation.less and bound > 0:
+                    bound -= 1
+            elif fact.relation == Relation.equal and same(value, fact.right):
+                bound = self.upper(fact.left, cls, depth + 1)
+            if bound < result:
+                result = bound
+        return result
+
+    func at_most(a: ir.Ref, b: ir.Ref, cls: ir.Class, strict: bool, depth: u32 = 0) -> bool:
+        if a.kind == ir.RefKind.constant and b.kind == ir.RefKind.constant:
+            return bits(a, cls) < bits(b, cls) if strict else bits(a, cls) <= bits(b, cls)
+        if not strict and self.equal(a, b, cls):
+            return true
+        if b.kind == ir.RefKind.constant:
+            let high = self.upper(a, cls)
+            if high < bits(b, cls) or (not strict and high == bits(b, cls)):
+                return true
+        if depth >= 3:
+            return false
+        for fact in self.facts.span():
+            if fact.cls != cls:
+                continue
+            if self.equal(a, fact.left, cls):
+                if self.at_most(fact.right, b, cls, strict and fact.relation != Relation.less, depth + 1):
+                    return true
+            if fact.relation == Relation.equal and same(a, fact.right):
+                if self.at_most(fact.left, b, cls, strict, depth + 1):
+                    return true
+        return false
+
+    mutating func add(relation: Relation, cls: ir.Class, left: ir.Ref, right: ir.Ref) -> !:
+        if not same(left, right):
+            try self.facts.push(Fact(relation = relation, cls = cls, left = left, right = right))
+
+    ## A single predecessor makes this incoming edge unavoidable. This excludes
+    ## joins and loop headers whose backedges could bypass the tested condition.
+    mutating func incoming(block: cfg.Block) -> !:
+        if block.preds.count != 1:
+            return
+        let predecessor = self.g.blocks.get(block.preds.get(0))
+        if predecessor.end <= predecessor.start:
+            return
+        let branch = self.f.instrs.get(predecessor.end - 1)
+        if branch.op != ir.Op.jnz or branch.extra == branch.extra2 or branch.a.kind != ir.RefKind.temp:
+            return
+        let index = self.definitions[branch.a.index]
+        if index == 0:
+            return
+        let comparison = self.f.instrs.get(index - 1)
+        if comparison.cls != ir.Class.w and comparison.cls != ir.Class.l:
+            return
+        let yes = branch.extra == block.label
+        let a = comparison.a
+        let b = comparison.b
+        match comparison.op:
+            .cult: try self.add(Relation.less if yes else Relation.at_most, comparison.cls, a if yes else b, b if yes else a)
+            .cule: try self.add(Relation.at_most if yes else Relation.less, comparison.cls, a if yes else b, b if yes else a)
+            .cugt: try self.add(Relation.less if yes else Relation.at_most, comparison.cls, b if yes else a, a if yes else b)
+            .cuge: try self.add(Relation.at_most if yes else Relation.less, comparison.cls, b if yes else a, a if yes else b)
+            .ceq, .cne:
+                if yes == (comparison.op == ir.Op.ceq):
+                    try self.add(Relation.equal, comparison.cls, a, b)
+            _: discard(0)
+
+    mutating func visit(index: u32) -> !:
+        let mark = self.facts.count
+        let block = self.g.blocks.get(index)
+        try self.incoming(block)
+        var at = block.start
+        while at < block.end:
+            var instruction = self.f.instrs.get(at)
+            if instruction.op == ir.Op.bounds:
+                if self.at_most(instruction.a, instruction.b, ir.Class.l, true):
+                    # Keep graph instruction ranges stable until the walk ends.
+                    instruction = ir.Instr(op = ir.Op.copy, cls = ir.Class.l, dst = 0, a = ir.none_ref(), b = ir.none_ref(), extra = 0, extra2 = 0)
+                    self.f.instrs.set(at, instruction)
+                    self.changed = true
+                else:
+                    try self.add(Relation.less, ir.Class.l, instruction.a, instruction.b)
+            elif (instruction.op == ir.Op.addo or instruction.op == ir.Op.subo or instruction.op == ir.Op.mulo) and instruction.extra == 0:
+                let high_a = self.upper(instruction.a, instruction.cls)
+                let high_b = self.upper(instruction.b, instruction.cls)
+                let maximum = limit(instruction.cls)
+                var safe = false
+                var operation = ir.Op.add
+                if instruction.op == ir.Op.addo:
+                    safe = high_a <= maximum - high_b
+                elif instruction.op == ir.Op.subo:
+                    safe = self.at_most(instruction.b, instruction.a, instruction.cls, false)
+                    operation = ir.Op.sub
+                else:
+                    safe = high_b == 0 or high_a <= maximum // high_b
+                    operation = ir.Op.mul
+                if safe:
+                    instruction.op = operation
+                    instruction.extra = 0
+                    instruction.extra2 = 0
+                    self.f.instrs.set(at, instruction)
+                    self.changed = true
+            at += 1
+        for child in block.children.span():
+            try self.visit(child)
+        self.facts.count = mark
+
+## Run after value numbering/load forwarding, while temporaries still have one
+## definition. The caller rebuilds its graph when instructions were removed.
+pub func run(f: ir.Function*, g: cfg.Graph*) -> bool!:
+    var search = Search(f = f, g = g, definitions = try alloc u32[f.temps.count + 1], facts = try list.List[Fact].create(32))
+    defer free(search.definitions)
+    defer search.facts.destroy()
+    for index in 0..<search.definitions.length:
+        search.definitions[index] = 0
+    for index in 0..<f.instrs.count:
+        let instruction = f.instrs.get(index)
+        if instruction.dst != 0:
+            search.definitions[instruction.dst] = (u32)index + 1
+    if g.count() > 0:
+        try search.visit(0)
+    if search.changed:
+        var kept = try list.List[ir.Instr].create(f.instrs.count)
+        for instruction in f.instrs.span():
+            if instruction.op != ir.Op.copy or instruction.dst != 0:
+                try kept.push(instruction)
+        f.instrs.destroy()
+        f.instrs = kept
+    return search.changed
+
+func same(a: ir.Ref, b: ir.Ref) -> bool:
+    return a.kind == b.kind and a.index == b.index and a.value == b.value and a.name == b.name
+
+func limit(cls: ir.Class) -> u64:
+    return 4294967295 if cls == ir.Class.w else 18446744073709551615
+
+func bits(value: ir.Ref, cls: ir.Class) -> u64:
+    return (u64)(u32)value.value if cls == ir.Class.w else (u64)value.value

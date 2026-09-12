@@ -1,0 +1,59 @@
+## Observable loops and failure paths used by an independent C driver. These
+## exports stay callable so optimizer checks inspect runtime inputs, not folds.
+export func safe_total(values: const u64[]) -> u64:
+    var total: u64 = 0
+    var index: usize = 0
+    while index < values.length:
+        total +%= values[index]
+        index += 1
+    return total
+
+export func repeated(values: const u64[], index: usize) -> u64:
+    return values[index] +% values[index]
+
+export func changed_index(values: const u64[], index: usize) -> u64:
+    if index < values.length:
+        print("before bounds")
+        return values[index + 1]
+    return 0
+
+export func changed_length(values: const u64[], index: usize) -> u64:
+    var view = values
+    if index < view.length:
+        print("before bounds")
+        view = view[..<index]
+        return view[index]
+    return 0
+
+export func joined(values: const u64[], index: usize, guarded: bool) -> u64:
+    if guarded:
+        if index >= values.length:
+            return 0
+    return values[index]
+
+export func checked_next(value: u64) -> u64:
+    if value <= 18446744073709551615:
+        return value + 1
+    return 0
+
+export func signed_next(value: i64) -> i64:
+    return value + 1
+
+export func distance(left: u64, right: u64) -> u64:
+    return left - right if left >= right else right - left
+
+export func small_product(left: u32, right: u32) -> u32:
+    if left < 65536 and right < 65536:
+        return left * right
+    return left * right
+
+export func uncertain(values: const u64[], index: usize) -> u64:
+    return values[index]
+
+export func empty_division(iterations: usize, divisor: u64) -> u64:
+    var total: u64 = 0
+    var at: usize = 0
+    while at < iterations:
+        total +%= 100 // divisor
+        at += 1
+    return total

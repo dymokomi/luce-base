@@ -23,6 +23,7 @@ import back.ir.cfg
 import back.opt.dessa
 import back.opt.gvn
 import back.opt.load
+import back.opt.ranges
 import back.opt.ssa
 import back.target as targets
 import back.native.x86_64
@@ -184,6 +185,12 @@ func optimise_functions(program: ir.Unit*, level: u32, count: u32) -> !:
                 g3 = g4
                 try note(&at, 4)
             try note(&at, 5)
+            if try ranges.run(f, &g3):
+                g3.release()
+                g3 = try cfg.Graph.over(f)
+                var simplified = try gvn.run(f, &g3)
+                g3.release()
+                g3 = simplified
             try dessa.run(f, &g3)
             g3.release()
             try note(&at, 6)
