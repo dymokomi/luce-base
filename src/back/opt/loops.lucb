@@ -31,7 +31,8 @@ pub struct Natural:
             if members[index]:
                 continue
             members[index] = true
-            for pred in g.blocks.get(index).preds.span():
+            let predecessor = g.blocks.get(index)
+            for pred in predecessor.preds.span():
                 try pending.push(pred)
         var preheader = cfg.none_block
         for pred in block.preds.span():
