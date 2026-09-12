@@ -85,6 +85,8 @@ pub enum Kind as u8:
     type_ = 90
     pattern = 91
     argument = 92
+    ## Checked propagation of one fallible operation, inserted before lowering.
+    propagate = 93
 
 # mark: Flags =================================================================================
 
@@ -192,6 +194,7 @@ pub func count(list: Node*?) -> usize:
 ## The kind as it prints in a dump.
 pub func kind_name(kind: Kind) -> str:
     match kind:
+        .propagate: return "propagate"
         .module: return "module"
         .import_: return "import"
         .from_import: return "from_import"

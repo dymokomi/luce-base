@@ -53,6 +53,11 @@ struct LowerLocal:
     var decl: ast.Node*
     var slot: u32
 
+## A supplied argument evaluated in source order, before ABI parameter ordering.
+struct LowerCallArgument:
+    var node: ast.Node*
+    var value: ir.Arg
+
 ## A lexical scope: its deferred calls, whether it is a loop and how to leave it,
 ## and the allocator it restores.
 struct LowerScope:
@@ -115,6 +120,10 @@ pub struct Lowerer:
     var catch_payload: u32
     var catch_error_slot: u32
     var in_catch: bool
+    ## While evaluating a handled operand, propagation enters this local handler.
+    var failure_target: u32 = 0
+    var failure_slot: u32 = 0
+    var failure_scope: usize = 0
     var match_slot: u32
     var match_type: u32
     var src_file: str
@@ -1342,18 +1351,26 @@ pub struct Lowerer:
         let code = first.left else return
         let second = first.next else return
         let message = second.left else return
-        let r = try self.slot_address(self.result_slot)
-        let err = try self.offset_address(r, self.error_offset(self.f.result_type))
+        let err = try self.slot_address(self.failure_slot) if self.failure_target != 0 else try self.offset_address(try self.slot_address(self.result_slot), self.error_offset(self.f.result_type))
         let c = try self.value(code, types.error_code_id)
         try self.f.store(ir.Op.storew, c.ref, err)
         let m = try self.value(message, types.str_id)
         try self.f.copy_bytes(try self.offset_address(err, 8), m.ref, 16)
-        try self.leave(true)
+        if self.failure_target != 0:
+            try self.unwind_from(self.failure_scope, true)
+            try self.f.jump(self.failure_target)
+        else:
+            try self.leave(true)
 
     ## Copy the failure of a result at `source` into the function's result and leave.
     mutating func propagate(source: ir.Ref, source_type: u32) -> !:
-        let r = try self.slot_address(self.result_slot)
         let source_error = try self.offset_address(source, self.error_offset(source_type))
+        if self.failure_target != 0:
+            try self.f.copy_bytes(try self.slot_address(self.failure_slot), source_error, 24)
+            try self.unwind_from(self.failure_scope, true)
+            try self.f.jump(self.failure_target)
+            return
+        let r = try self.slot_address(self.result_slot)
         let target_error = try self.offset_address(r, self.error_offset(self.f.result_type))
         try self.f.copy_bytes(target_error, source_error, 24)
         try self.leave(true)
@@ -1631,6 +1648,8 @@ pub struct Lowerer:
                 return try self.expr(inner)
             .unary:
                 return try self.unary(e)
+            .propagate:
+                return try self.try_expr(e)
             .binary:
                 return try self.binary(e)
             .conditional:
@@ -3026,33 +3045,29 @@ pub struct Lowerer:
     mutating func catch_expr(e: ast.Node*) -> LowerValue!:
         let l = e.left else return try self.fail(e, "no operand")
         let body = e.body else return try self.fail(e, "no handler")
-        let ft = try self.ty(l)
-        let payload = self.elem(ft)
-        # the expression's own type: the payload, or the `T?` it was expected to be (§11.4)
+        let payload = try self.ty(l)
         let result = try self.ty(e)
-        let v = try self.expr(l)
         let has_value = payload != types.unit_id and payload != types.never_id
-        var slot: u32 = 0
-        if has_value:
-            slot = try self.new_slot(result)
-        let failed = try self.f.load(ir.Op.loadub, ir.Class.w, try self.offset_address(v.ref, self.failed_offset(ft)))
+        let slot = try self.new_slot(result) if has_value else 0
+        let error_slot = try self.new_slot(types.error_value_id)
         let handler = self.f.label()
-        let fine = self.f.label()
         let done = self.f.label()
-        try self.f.branch(failed, handler, fine)
-        try self.f.place_label(fine)
+        let saved_target = self.failure_target
+        let saved_error = self.failure_slot
+        let saved_failure_scope = self.failure_scope
+        self.failure_target = handler
+        self.failure_slot = error_slot
+        self.failure_scope = self.scopes.count
+        let v = try self.value(l, result)
+        self.failure_target = saved_target
+        self.failure_slot = saved_error
+        self.failure_scope = saved_failure_scope
         if has_value:
-            let inner = try self.load_from(v.ref, payload)
-            let a = try self.slot_address(slot)
-            try self.store_to(a, inner)
-            if result != payload and not self.is_nullable_ptr(result) and not self.is_nullable_view(result):
-                # a tagged optional: the payload, then its presence
-                try self.f.store(ir.Op.storeb, ir.const_ref(1), try self.offset_address(a, self.c.table.size_of(payload)))
+            try self.store_to(try self.slot_address(slot), v)
         try self.f.jump(done)
         try self.f.place_label(handler)
         if e.text.length > 0:
-            let error_slot = try self.bind_local(e, types.error_value_id)
-            try self.f.copy_bytes(try self.slot_address(error_slot), try self.offset_address(v.ref, self.error_offset(ft)), 24)
+            try self.locals.push(LowerLocal(decl = e, slot = error_slot))
         let saved_slot = self.catch_slot
         let saved_done = self.catch_done
         let saved_scope = self.catch_scope
@@ -3233,7 +3248,11 @@ pub struct Lowerer:
     ## An argument description from a value.
     mutating func arg_of(v: LowerValue) -> ir.Arg!:
         if v.in_memory:
-            return ir.Arg(value = v.ref, cls = ir.Class.l, size = self.size(v.type_id), align = self.align(v.type_id), type_id = v.type_id, shape = try self.shape_of(v.type_id))
+            # A later argument may mutate the original record. Freeze this value
+            # when it is evaluated, before the call's ABI reads its bytes.
+            let snapshot = try self.slot_address(try self.new_slot(v.type_id))
+            try self.f.copy_bytes(snapshot, v.ref, self.size(v.type_id))
+            return ir.Arg(value = snapshot, cls = ir.Class.l, size = self.size(v.type_id), align = self.align(v.type_id), type_id = v.type_id, shape = try self.shape_of(v.type_id))
         var cls = self.class_of(v.type_id)
         if v.type_id == types.unit_id or v.type_id == types.never_id:
             cls = ir.Class.w
@@ -3264,6 +3283,24 @@ pub struct Lowerer:
         var out_types: u32[8] = ---
         var outs: usize = 0
         if let d = decl:
+            var supplied = try list.List[LowerCallArgument].create(8)
+            var source_position: usize = 0
+            var source = args
+            while let argument = source:
+                var index: usize = 0
+                var parameter = d.right
+                while let p = parameter:
+                    if not p.has(ast.flag_out):
+                        if (argument.text.length > 0 and argument.text == p.text) or (argument.text.length == 0 and index == source_position):
+                            break
+                        index += 1
+                    parameter = p.next
+                let expression = argument.left else return try self.fail(argument, "empty argument")
+                let value = try self.argument_value(expression, f.args[index]) if index < f.args.length else try self.variadic_value(expression)
+                try supplied.push(LowerCallArgument(node = argument, value = try self.arg_of(value)))
+                if argument.text.length == 0:
+                    source_position += 1
+                source = argument.next
             var pi: usize = 0
             var param = d.right
             while let p = param:
@@ -3290,9 +3327,13 @@ pub struct Lowerer:
                     a = arg.next
                 let want = f.args[pi] if pi < f.args.length else types.none_id
                 if let g = given:
-                    let v = g.left else return try self.fail(g, "empty argument")
-                    let av = try self.argument_value(v, want)
-                    try pending.push(try self.arg_of(av))
+                    var at: usize = 0
+                    while at < supplied.count:
+                        let evaluated = supplied.get(at)
+                        if evaluated.node == g:
+                            try pending.push(evaluated.value)
+                            break
+                        at += 1
                 elif let default = p.left:
                     let dv = try self.value(default, want)
                     try pending.push(try self.arg_of(dv))
@@ -3307,9 +3348,13 @@ pub struct Lowerer:
                 while let arg = a:
                     if arg.text.length == 0:
                         if position >= pi:
-                            let v = arg.left else return try self.fail(arg, "empty argument")
-                            let vv = try self.variadic_value(v)
-                            try pending.push(try self.arg_of(vv))
+                            var at: usize = 0
+                            while at < supplied.count:
+                                let evaluated = supplied.get(at)
+                                if evaluated.node == arg:
+                                    try pending.push(evaluated.value)
+                                    break
+                                at += 1
                         position += 1
                     a = arg.next
         else:
@@ -3678,45 +3723,35 @@ pub struct Lowerer:
         discard(callee)
         return try self.conversion(v, target, true)
 
-    ## A struct value built field by field in a slot, defaults and zeros for the rest.
+    ## Store supplied fields in source order, then defaults in declaration order.
+    ## Each store snapshots its value before another initializer can mutate it.
     mutating func constructor(e: ast.Node*, id: u32) -> LowerValue!:
         let d = self.decl_of(id) else return try self.fail(e, "no record")
         let t = self.c.table.get(id)
-        let slot = try self.new_slot(id)
-        let a = try self.slot_address(slot)
+        let a = try self.slot_address(try self.new_slot(id))
         try self.f.zero_bytes(a, self.size(id))
-        var position: usize = 0
-        var offset: u64 = 0
-        var field = d.body
-        while let f = field:
-            if f.kind != ast.Kind.field:
-                field = f.next
-                continue
-            let ft = try self.map(try self.c.substitute(f.type_id, d, t.args))
-            if not d.has(ast.flag_packed):
-                offset = lower_round_up(offset, self.c.table.field_alignment(ft, f))
-            var given: ast.Node*? = none
-            var pos: usize = 0
-            var arg = e.body
-            while let x = arg:
-                if x.text.length > 0:
-                    if x.text == f.text:
-                        given = x
-                else:
-                    if pos == position:
-                        given = x
-                    pos += 1
-                arg = x.next
-            if let g = given:
-                let v = g.left else return try self.fail(g, "empty argument")
-                let fv = try self.value(v, ft)
-                try self.store_to(try self.offset_address(a, offset), fv)
-            elif let default = f.left:
-                let dv = try self.value(default, ft)
-                try self.store_to(try self.offset_address(a, offset), dv)
-            offset += self.c.table.size_of(ft)
-            position += 1
-            field = f.next
+        var argument = e.body
+        while let given = argument:
+            let field = given.resolved else return try self.fail(given, "unresolved field")
+            let expression = given.left else return try self.fail(given, "empty argument")
+            let ft = try self.map(try self.c.substitute(field.type_id, d, t.args))
+            let value = try self.value(expression, ft)
+            try self.store_to(try self.offset_address(a, self.c.table.offset_of(id, field.text)), value)
+            argument = given.next
+        var member = d.body
+        while let field = member:
+            var supplied = false
+            argument = e.body
+            while let given = argument:
+                if given.resolved == field:
+                    supplied = true
+                argument = given.next
+            if field.kind == ast.Kind.field and not supplied:
+                if let default = field.left:
+                    let ft = try self.map(try self.c.substitute(field.type_id, d, t.args))
+                    let value = try self.value(default, ft)
+                    try self.store_to(try self.offset_address(a, self.c.table.offset_of(id, field.text)), value)
+            member = field.next
         return LowerValue(ref = a, type_id = id, in_memory = true)
 
     ## Run initialization in its final storage; `new` must not relocate `self`.

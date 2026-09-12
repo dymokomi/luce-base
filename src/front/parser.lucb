@@ -1046,6 +1046,14 @@ pub struct Parser:
         return e
 
     mutating func parse_else() -> ast.Node*!:
+        # A leading marker covers the conditional and fallback, stopping before
+        # an attached catch. Infix arithmetic keeps its ordinary precedence.
+        if self.at_kw("try"):
+            let marked = try self.taken(ast.Kind.unary)
+            try self.enter()
+            marked.left = try self.parse_else()
+            self.leave()
+            return marked
         let e = try self.parse_conditional()
         if self.at_kw("else") and not self.ended_suite():
             let n = try self.node(ast.Kind.else_, "")

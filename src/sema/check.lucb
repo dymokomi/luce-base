@@ -108,6 +108,9 @@ pub struct Checker:
     ## The unwrapped result type of the function being checked, and whether it may fail.
     var result_type: u32
     var fallible: bool
+    ## An expression marker or handler permits checked propagation in its operand.
+    var expression_effect: bool = false
+    var effect_count: u64 = 0
     var self_type: u32
     var self_mutable: bool
     ## Inside `init`, where `let` fields take their first value.
@@ -1968,10 +1971,29 @@ pub struct Checker:
     pub mutating func check_expr(e: ast.Node*, hint: u32) -> u32!:
         let id = try self.expr_type(e, hint)
         e.type_id = id
+        # The formatter handles its synthetic Display call itself; user operands
+        # inside that call still use the surrounding expression's effect context.
+        if self.expression_effect and self.table.kind(id) == types.Kind.fallible and not e.has(ast.flag_format_sink):
+            let inner = try ast.Node.make(e.kind, e.text, e.start, e.line)
+            *inner = *e
+            inner.next = none
+            e.kind = ast.Kind.propagate
+            e.text = "try"
+            e.left = inner
+            e.right = none
+            e.body = none
+            e.ty = none
+            e.resolved = none
+            e.type_id = self.table.get(id).elem
+            self.effect_count += 1
+            return e.type_id
         return id
 
     mutating func expr_type(e: ast.Node*, hint: u32) -> u32!:
         match e.kind:
+            .propagate:
+                self.effect_count += 1
+                return e.type_id
             .literal:
                 return try self.literal_type(e, hint)
             .name:
@@ -2418,14 +2440,20 @@ pub struct Checker:
     mutating func unary_type(e: ast.Node*, hint: u32) -> u32!:
         let inner = e.left else return try self.fail(e, "missing operand")
         if e.text == "try":
-            let it = try self.check_expr(inner, types.none_id)
-            if self.table.kind(it) != types.Kind.fallible:
-                return try self.fail(e, "`try` needs a fallible expression")
-            if not self.fallible:
+            if not self.fallible and not self.expression_effect:
                 return try self.fail(e, "`try` is only valid in a fallible function")
+            let saved = self.expression_effect
+            let before = self.effect_count
+            self.expression_effect = true
+            let it = try self.check_expr(inner, hint)
+            self.expression_effect = saved
+            if self.effect_count == before:
+                return try self.fail(e, "`try` needs a fallible expression")
             if self.is_local_value(inner):
                 self.mark_local(e)    # the value still views the local it came from (§6.6)
-            return self.table.get(it).elem
+            e.kind = ast.Kind.group
+            e.text = ""
+            return it
         if e.text == "not":
             discard(try self.expect(inner, types.bool_id))
             return types.bool_id
@@ -2838,6 +2866,9 @@ pub struct Checker:
         let saved_result = self.result_type
         let saved_fallible = self.fallible
         self.result_type = want
+        let saved_effect = self.expression_effect
+        let saved_count = self.effect_count
+        self.expression_effect = false
         self.fallible = self.table.kind(want) == types.Kind.fallible
         let bt = try self.check_expr(body, want)
         var result = self.concrete(bt)
@@ -2849,6 +2880,8 @@ pub struct Checker:
         self.result_type = saved_result
         self.fallible = saved_fallible
         self.pop_scope()
+        self.expression_effect = saved_effect
+        self.effect_count = saved_count
         self.lambda_floor = saved_floor
         self.self_type = saved_self
         let fn_type = try self.table.function(params, result, false)
@@ -2982,14 +3015,17 @@ pub struct Checker:
     mutating func catch_type(e: ast.Node*, hint: u32) -> u32!:
         let l = e.left else return try self.fail(e, "missing operand")
         let body = e.body else return try self.fail(e, "`catch` needs a handler")
+        let saved_effect = self.expression_effect
+        let before = self.effect_count
+        self.expression_effect = true
         let lt = try self.check_expr(l, types.none_id)
-        let t = self.table.get(lt)
-        if t.kind != types.Kind.fallible:
+        self.expression_effect = saved_effect
+        if self.effect_count == before:
             return try self.fail(l, "`catch` needs a fallible value")
         if self.is_local_value(l):
             self.mark_local(e)    # the handled value still views what it viewed (§6.6)
-        var result = t.elem
-        if hint != types.none_id and self.table.kind(hint) == types.Kind.optional and self.table.get(hint).elem == t.elem:
+        var result = lt
+        if hint != types.none_id and self.table.kind(hint) == types.Kind.optional and self.table.get(hint).elem == lt:
             result = hint
         self.push_scope()
         if e.text.length > 0:
@@ -3003,7 +3039,7 @@ pub struct Checker:
         self.catch_result = saved_result
         self.pop_scope()
         # a handler for a value recovers one or leaves; one for `unit` may fall through (§11.4)
-        if t.elem != types.unit_id and not handler_leaves(body):
+        if lt != types.unit_id and not handler_leaves(body):
             discard(try self.fail(e, "a `catch` handler must `recover` a value or leave with `return`, `error`, `trap`, `break`, or `continue`"))
         return result
 
@@ -4069,7 +4105,7 @@ pub struct Checker:
                     return try self.fail(mv, "`trap` takes text")
             return types.never_id
         if name == "error":
-            if not self.fallible:
+            if not self.fallible and not self.expression_effect:
                 return try self.fail(e, "`error` is only valid in a fallible function, in a handler or not")
             let first = e.body else return try self.fail(e, "`error(code, message)` takes two arguments")
             let cv = first.left else return try self.fail(e, "empty argument")
@@ -5424,7 +5460,7 @@ func is_call_statement(e: ast.Node*) -> bool:
     match e.kind:
         .call:
             return true
-        .group, .catch_:
+        .group, .catch_, .propagate:
             let inner = e.left else return false
             return is_call_statement(inner)
         .unary:

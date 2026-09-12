@@ -115,6 +115,9 @@ pub struct Emitter:
     var catch_var: u32
     var catch_done: u32
     var catch_scope: usize
+    ## A handler target is active only while its left expression is evaluated.
+    var failure_target: u32 = 0
+    var failure_scope: usize = 0
     var catch_payload: u32
     var match_result: u32
     var in_catch: bool
@@ -2016,10 +2019,30 @@ pub struct Emitter:
 
     ## `error(code, message)` as a statement: the failing result leaves the function.
     mutating func error_return(e: ast.Node*) -> !:
-        if self.in_catch:
-            # inside a handler the error replaces the handled one and leaves the function
-            let n = self.tmp()
+        let n = self.tmp()
+        try self.line("")
+        if self.failure_target != 0:
+            let first = e.body else return
+            let code = first.left else return
+            let second = first.next else return
+            let message = second.left else return
+            try self.put("lb_error ")
+            try self.put_tmp("err", n)
+            try self.put(" = { .code = (int32_t)(")
+            try self.value(code, types.error_code_id)
+            try self.put("), .message = ")
+            try self.value(message, types.str_id)
+            try self.put(" };")
             try self.line("")
+            try self.put_tmp("fe", self.failure_target)
+            try self.put(" = ")
+            try self.put_tmp("err", n)
+            try self.put(";")
+            try self.unwind_from(self.failure_scope, true)
+            try self.line("goto ")
+            try self.put_tmp("fh", self.failure_target)
+            try self.put(";")
+        else:
             try self.put_result_type(self.current_fn else return)
             try self.put(" ")
             try self.put_tmp("err", n)
@@ -2030,19 +2053,6 @@ pub struct Emitter:
             try self.line("return ")
             try self.put_tmp("err", n)
             try self.put(";")
-            return
-        let n = self.tmp()
-        try self.line("")
-        try self.put_result_type(self.current_fn else return)
-        try self.put(" ")
-        try self.put_tmp("err", n)
-        try self.put(" = ")
-        try self.error_value(e)
-        try self.put(";")
-        try self.unwind_from(0, true)
-        try self.line("return ")
-        try self.put_tmp("err", n)
-        try self.put(";")
 
     ## The failing result value of the current function for `error(code, message)`.
     mutating func error_value(e: ast.Node*) -> !:
@@ -2486,6 +2496,8 @@ pub struct Emitter:
                 try self.put(")")
             .unary:
                 try self.unary(e)
+            .propagate:
+                try self.try_expr(e)
             .binary:
                 try self.binary(e)
             .conditional:
@@ -3948,17 +3960,28 @@ pub struct Emitter:
         try self.put_tmp("r", n)
         try self.put(".failed) {")
         self.indent += 1
-        try self.unwind_from(0, true)
-        try self.line("return ")
-        if self.fn_fallible():
-            try self.put("((")
-            try self.put_result_type(self.current_fn else return)
-            try self.put("){ .error = ")
+        if self.failure_target != 0:
+            try self.line("")
+            try self.put_tmp("fe", self.failure_target)
+            try self.put(" = ")
             try self.put_tmp("r", n)
-            try self.put(".error, .failed = true })")
+            try self.put(".error;")
+            try self.unwind_from(self.failure_scope, true)
+            try self.line("goto ")
+            try self.put_tmp("fh", self.failure_target)
+            try self.put(";")
         else:
-            try self.put_tmp("r", n)
-        try self.put(";")
+            try self.unwind_from(0, true)
+            try self.line("return ")
+            if self.fn_fallible():
+                try self.put("((")
+                try self.put_result_type(self.current_fn else return)
+                try self.put("){ .error = ")
+                try self.put_tmp("r", n)
+                try self.put(".error, .failed = true })")
+            else:
+                try self.put_tmp("r", n)
+            try self.put(";")
         self.indent -= 1
         try self.line("} ")
         if payload == types.unit_id or payload == types.never_id:
@@ -4045,41 +4068,50 @@ pub struct Emitter:
     mutating func catch_expr(e: ast.Node*) -> !:
         let l = e.left else return
         let body = e.body else return
-        let ft = try self.ty(l)
-        let payload = self.elem(ft)
-        # the expression's own type: the payload, or the `T?` it was expected to be (§11.4)
         let result = try self.ty(e)
+        let has_value = result != types.unit_id and result != types.never_id
         let n = self.tmp()
+        let saved_target = self.failure_target
+        let saved_failure_scope = self.failure_scope
         let saved_var = self.catch_var
         let saved_done = self.catch_done
         let saved_scope = self.catch_scope
         let saved_payload = self.catch_payload
         let saved_in = self.in_catch
-        try self.put("({ ")
-        try self.put_type(ft)
-        try self.put(" ")
-        try self.put_tmp("r", n)
-        try self.put(" = ")
-        try self.expr(l)
-        try self.put("; ")
-        if payload != types.unit_id and payload != types.never_id:
-            try self.put_type(result)
-        else:
-            try self.put("int")
+        try self.put("({ lb_error ")
+        try self.put_tmp("fe", n)
+        try self.put(" __attribute__((unused)); ")
+        try self.put_type(result if has_value else types.i32_id)
         try self.put(" ")
         try self.put_tmp("v", n)
-        try self.put(" = ")
-        try self.zero_value(result if payload != types.unit_id and payload != types.never_id else types.i32_id)
-        try self.put("; if (")
-        try self.put_tmp("r", n)
-        try self.put(".failed) {")
+        try self.put(" __attribute__((unused)) = ")
+        try self.zero_value(result if has_value else types.i32_id)
+        try self.put("; ")
+        if has_value:
+            try self.put_tmp("v", n)
+            try self.put(" = ")
+        self.failure_target = n
+        self.failure_scope = self.scopes.count
+        if has_value:
+            try self.value(l, result)
+        else:
+            try self.put("(void)(")
+            try self.expr(l)
+            try self.put(")")
+        self.failure_target = saved_target
+        self.failure_scope = saved_failure_scope
+        try self.put("; goto ")
+        try self.put_tmp("cd", n)
+        try self.put("; ")
+        try self.put_tmp("fh", n)
+        try self.put(": { ")
         self.indent += 1
         if e.text.length > 0:
             try self.line("lb_error ")
             try self.put_ident(e.text)
             try self.put(" __attribute__((unused)) = ")
-            try self.put_tmp("r", n)
-            try self.put(".error;")
+            try self.put_tmp("fe", n)
+            try self.put(";")
         self.catch_var = n
         self.catch_done = n
         self.catch_scope = self.scopes.count
@@ -4091,26 +4123,15 @@ pub struct Emitter:
         self.catch_scope = saved_scope
         self.catch_payload = saved_payload
         self.in_catch = saved_in
-        try self.line("")
-        try self.put_tmp("cd", n)
-        try self.put(": __attribute__((unused));")
         self.indent -= 1
-        try self.line("} else { ")
-        if payload != types.unit_id and payload != types.never_id:
+        try self.line("} ")
+        try self.put_tmp("cd", n)
+        try self.put(": __attribute__((unused)); ")
+        if has_value:
             try self.put_tmp("v", n)
-            try self.put(" = ")
-            if result != payload and not self.c.table.has_null_niche(payload):
-                try self.put("((")
-                try self.put_type(result)
-                try self.put("){ .value = ")
-                try self.put_tmp("r", n)
-                try self.put(".value, .present = true }); ")
-            else:
-                try self.put_tmp("r", n)
-                try self.put(".value; ")
-        try self.put("} ")
-        try self.put_tmp("v", n)
-        try self.put("; })")
+            try self.put("; })")
+        else:
+            try self.put("(void)0; })")
 
     # -- match ----------------------------------------------------------------------------
 
@@ -5159,6 +5180,39 @@ pub struct Emitter:
     mutating func constructor(e: ast.Node*, id: u32) -> !:
         let d = self.decl_of(id) else return try self.put("{}")
         let t = self.c.table.get(id)
+        var effects = arguments_have_effect(e.body)
+        var member = d.body
+        while let f = member:
+            if f.kind == ast.Kind.field:
+                if let default = f.left:
+                    effects = effects or may_have_effect(default)
+            member = f.next
+        # Global initializers have already been checked as constants; calls such
+        # as `sizeof` must remain valid C constant expressions at file scope.
+        effects = effects and self.current_fn != none
+        var hoisted: usize = 0
+        if effects:
+            try self.put("({ ")
+            var argument = e.body
+            while let given = argument:
+                let field = given.resolved else return
+                let expression = given.left else return
+                let want = try self.map(try self.c.substitute(field.type_id, d, t.args))
+                hoisted += try self.hoist(expression, want)
+                argument = given.next
+            member = d.body
+            while let field = member:
+                var supplied = false
+                argument = e.body
+                while let given = argument:
+                    if given.resolved == field:
+                        supplied = true
+                    argument = given.next
+                if field.kind == ast.Kind.field and not supplied:
+                    if let default = field.left:
+                        let want = try self.map(try self.c.substitute(field.type_id, d, t.args))
+                        hoisted += try self.hoist(default, want)
+                member = field.next
         try self.put("((")
         try self.put_type(id)
         try self.put("){")
@@ -5190,7 +5244,7 @@ pub struct Emitter:
                 try self.put(".")
                 try self.put(f.text)
                 try self.put(" = ")
-                try self.value(v, try self.map(want))
+                try self.argument_value(v, try self.map(want))
             elif let default = f.left:
                 if not first:
                     try self.put(", ")
@@ -5198,10 +5252,11 @@ pub struct Emitter:
                 try self.put(".")
                 try self.put(f.text)
                 try self.put(" = ")
-                try self.value(default, try self.map(want))
+                try self.argument_value(default, try self.map(want))
             position += 1
             field = f.next
         try self.put("})")
+        try self.end_sequence(hoisted)
 
     ## A struct with its own `init`: zero the value, run `init`, yield the value or its failure.
     mutating func init_call(e: ast.Node*, init: ast.Node*, id: u32) -> !:
