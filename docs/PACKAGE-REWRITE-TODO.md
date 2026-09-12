@@ -265,8 +265,8 @@ repository, distinguish confirmed defects from invalid preconditions, and commit
 verified fixes promptly. Track the final disposition in the issues directory.
 
 - [x] B01 — Allocation byte-size overflow in native lowering.
-- [ ] B02 — Buffer reserve arithmetic overflow.
-- [ ] B03 — List growth capacity overflow.
+- [x] B02 — Buffer reserve arithmetic overflow.
+- [x] B03 — List growth capacity overflow.
 - [ ] B04 — Page allocator size rounding overflow.
 - [ ] B05 — Release byte-size multiplication overflow.
 - [ ] B06 — C string terminator check reads outside its input.
@@ -343,3 +343,5 @@ native target/optimization coverage and any remaining limit relevant to the task
 | R02 | Full compiler CI passed on ARM64 macOS and x86-64 Linux: Base implementation `51a02e5`, run `34667953294`; Luce `29c64f6`, run `34668262003`. Final UI CI `34668668832` and HTTP application CI `34668963281` passed on both hosts. Server `bf57286`, run `34668959554`, passed native tests on both hosts and the macOS heap check; only GitHub checkout post-job cleanup remains. Local server/application heap checks report zero leaked bytes. Normal Luce build succeeds from its isolated exact Base pin. 3D/demo public CI awaits R06 publication approval; their local matrices and Metal evidence are recorded above. |
 
 | B01 | Fixed and tested in the allocation-limit commit containing this entry. Native lowering checks element counts before multiplication; the C comparison path uses the same inclusive 2^62 byte limit. `allocation_limits/check.sh` passes all six modes: wrap-to-zero/eight, maximal counts, non-power-of-two stride, boundary rejection, zero counts, allocator invocation counts and ordinary release sizes. Both snapshots regenerated and native bootstrap agreement passed. The supplied original native reproduction segfaulted before the fix. |
+
+| B02, B03 | Fixed in the compiler/growth commit containing this entry. Buffer required-size addition and doubling, and List doubling, use checked optional arithmetic and report `memory.exhausted` before mutating storage. Native/C module tests preserve content after failure. The supplied Buffer arithmetic example additionally exposed native constant folding treating unsigned checked operations as signed at every optimization level: the folder and GVN now carry signedness, and signed MIN × -1 cannot trap the compiler during folding. `integer_limits/check.sh` passes native 0–3 and C debug/release for 32/64-bit overflow and valid high-bit results. Optimization metrics/behavior suite passes; both snapshots regenerated and native bootstrap agreed. Reports 02/03 do not themselves demonstrate a valid giant buffer/list: their reproductions use impossible metadata or isolated arithmetic. |

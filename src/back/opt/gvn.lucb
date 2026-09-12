@@ -283,7 +283,7 @@ func folded(x: ir.Instr) -> ir.Ref?:
     if x.a.kind != ir.RefKind.constant:
         return none
     if x.b.kind == ir.RefKind.constant:
-        if let v = opt.constant_of(x.op, x.cls, x.a.value, x.b.value):
+        if let v = opt.constant_of(x.op, x.cls, x.a.value, x.b.value, x.extra == 1):
             return ir.const_ref(v)
         return none
     if x.b.kind == ir.RefKind.none_:

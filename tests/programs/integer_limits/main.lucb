@@ -1,0 +1,60 @@
+import strings
+
+func unsigned_add() -> u64:
+    var value: u64 = 18446744073709551615
+    let amount: u64 = 1
+    return value + amount
+
+func unsigned_subtract() -> u64:
+    var value: u64 = 0
+    let amount: u64 = 18446744073709551615
+    return value - amount
+
+func unsigned_multiply() -> u64:
+    var value: u64 = 18446744073709551615
+    let amount: u64 = 2
+    return value * amount
+
+func word_add() -> u32:
+    var value: u32 = 4294967295
+    let amount: u32 = 1
+    return value + amount
+
+func word_subtract() -> u32:
+    var value: u32 = 0
+    let amount: u32 = 4294967295
+    return value - amount
+
+func word_multiply() -> u32:
+    var value: u32 = 4294967295
+    let amount: u32 = 2
+    return value * amount
+
+func signed_multiply() -> i64:
+    var value: i64 = -1
+    let amount: i64 = -9223372036854775807 - 1
+    return value * amount
+
+pub func main(arguments: str[]) -> i32:
+    let mode = strings.parse_i64(arguments[1]) else trap("missing mode")
+    match mode:
+        1: print(f"{unsigned_add()}")
+        2: print(f"{unsigned_subtract()}")
+        3: print(f"{unsigned_multiply()}")
+        4: print(f"{word_add()}")
+        5: print(f"{word_subtract()}")
+        6: print(f"{word_multiply()}")
+        7: print(f"{signed_multiply()}")
+        0:
+            var top: u64 = 18446744073709551615
+            assert(top - (u64)1 == 18446744073709551614)
+            assert(top * (u64)1 == top)
+            var high: u64 = 9223372036854775808
+            assert(high + (u64)1 == 9223372036854775809)
+            assert(high - (u64)1 == 9223372036854775807)
+            var word: u32 = 2147483648
+            assert(word + (u32)1 == 2147483649)
+            assert(word * (u32)1 == word)
+            print("ok high-bit unsigned arithmetic")
+        _: trap("invalid mode")
+    return 0

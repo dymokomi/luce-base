@@ -1,15 +1,5 @@
-#==============================================================================================
-#
-#   list - A growable span over the current allocator
-#
-#   DESCRIPTION:
-#       Base has no built-in collections (base.md §1.3); this is the one the compiler
-#       uses. `List[T]` owns a span it doubles when full, allocated from the allocator
-#       current at creation, and never frees an old block until `destroy`, so element
-#       pointers taken between pushes are valid only until the next growth.
-#
-#==============================================================================================
-
+## The compiler's growable collection. Growth copies live elements, then releases
+## the previous storage through its captured allocator. Element borrows expire on growth.
 import memory
 
 pub struct List[T]:
@@ -24,7 +14,8 @@ pub struct List[T]:
 
     pub mutating func push(item: T) -> !:
         if self.count == self.items.length:
-            let grown = try alloc T[self.items.length * 2] in self.allocator
+            let capacity = self.items.length *? 2 else error(memory.exhausted, "the list capacity overflows")
+            let grown = try alloc T[capacity] in self.allocator
             memory.copy(grown, self.items, self.count)
             free(self.items) in self.allocator
             self.items = grown
@@ -59,3 +50,22 @@ test "a list grows and keeps order":
         for x in xs.span():
             total += x
         assert(total == 570)
+
+test "an impossible list capacity is rejected before storage is accessed":
+    var values = try List[i64].create(1)
+    defer values.destroy()
+    let original = values.items
+    # Exercise arithmetic at its numeric boundary without allocating or reading
+    # a giant buffer. Restore the real descriptor before using or releasing it.
+    values.items = i64[](original.data, 9223372036854775808)
+    values.count = values.items.length
+    var failed = false
+    values.push(7) catch failure:
+        assert(failure.code == memory.exhausted)
+        failed = true
+    assert(failed and values.items.length == values.count)
+    values.items = original
+    values.count = 0
+    try values.push(11)
+    try values.push(13)
+    assert(values.count == 2 and values.get(0) == 11 and values.get(1) == 13)

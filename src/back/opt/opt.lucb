@@ -260,7 +260,7 @@ func fold(f: ir.Function*) -> bool:
     while i < f.instrs.count:
         let x = &f.instrs.items[i]
         if x.dst != 0 and x.a.kind == ir.RefKind.constant and x.b.kind == ir.RefKind.constant:
-            if let v = constant_of(x.op, x.cls, x.a.value, x.b.value):
+            if let v = constant_of(x.op, x.cls, x.a.value, x.b.value, x.extra == 1):
                 x.op = ir.Op.copy
                 x.a = ir.const_ref(v)
                 x.b = ir.none_ref()
@@ -284,10 +284,21 @@ pub func unary_constant(op: ir.Op, cls: ir.Class, a: i64) -> i64?:
         _: return none
 
 ## `a op b` at class `cls`, or `none` when the operator is not folded here or would trap.
-pub func constant_of(op: ir.Op, cls: ir.Class, a: i64, b: i64) -> i64?:
+pub func constant_of(op: ir.Op, cls: ir.Class, a: i64, b: i64, is_signed: bool) -> i64?:
     let wide = cls == ir.Class.l
     if cls != ir.Class.w and cls != ir.Class.l:
         return none
+    # Checked instructions carry signedness separately from their class. A high
+    # unsigned bit pattern must never be folded using signed overflow rules.
+    if not is_signed and (op == ir.Op.addo or op == ir.Op.subo or op == ir.Op.mulo):
+        let left = unsigned(a, wide)
+        let right = unsigned(b, wide)
+        let maximum: u64 = 18446744073709551615 if wide else 4294967295
+        if op == ir.Op.addo:
+            return none if right > maximum - left else narrow((i64)(left +% right), wide)
+        if op == ir.Op.subo:
+            return none if left < right else narrow((i64)(left -% right), wide)
+        return none if right != 0 and left > maximum // right else narrow((i64)(left *% right), wide)
     match op:
         .add: return narrow(a +% b, wide)
         .sub: return narrow(a -% b, wide)
@@ -362,7 +373,7 @@ func checked_sub(a: i64, b: i64, wide: bool) -> (i64, bool):
 func checked_mul(a: i64, b: i64, wide: bool) -> (i64, bool):
     if wide:
         let p = a *% b
-        let overflow = a != 0 and (p // a != b or (a == -1 and b == -9223372036854775807 - 1) or (b == -1 and a == -9223372036854775807 - 1))
+        let overflow = a != 0 and ((a == -1 and b == -9223372036854775807 - 1) or (b == -1 and a == -9223372036854775807 - 1) or p // a != b)
         return (p, overflow)
     let p = a * b
     return (p, p != (i64)(i32)p)
