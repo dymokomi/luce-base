@@ -9,6 +9,10 @@
 - [Plan](PLAN.md) — what remains, in order, and the gate that closes each item.
 - [Package rewrite TODO](PACKAGE-REWRITE-TODO.md) — the active cross-project
   checklist, with completion evidence and a [file-level scope](PACKAGE-REWRITE.md).
+- [Reported defects](REPORTED-DEFECTS.md) — dispositions and regression evidence
+  for the nine supplied correctness reports.
+- [Error-handling research](ERROR-HANDLING-RESEARCH.md) — a cited proposal for
+  reducing repeated `try`, with current compiler limitations and safety criteria.
 - [Base interop contract](BASE-INTEROP.md) — ownership and lifetime rules for the
   package rewrite; implementation progress is tracked in the TODO list.
 - [Public package imports](PACKAGE-IMPORTS.md) — exports, local dependencies,
