@@ -5,22 +5,21 @@ The standard-library stage is complete. At the user's request on 2026-09-10,
 committed identity/dependency checkpoint. Its post-quantum profile remains required
 for later Luce communication and package-client traffic.
 
-Current work, 2026-09-11: **package API and implementation rewrite**. The initial
-Base server, Luce HTTP example and UI/3D prototypes exposed procedural resource
-and worker machinery in application code. Rewrite them using Base structs with
-constructors, methods and interfaces, with proper Luce interoperability. The
-[complete rewrite inventory and delivery order](PACKAGE-REWRITE.md) covers both
-compilers, standard graphics resources, all three libraries and their examples.
-Follow the [rewrite TODO list](PACKAGE-REWRITE-TODO.md) and check off verified
-slices as they are completed. Luce uses existing `Type(args)` construction.
-There are no external users or released compatibility obligations: replace APIs
-directly and update their consumers, without legacy paths or migration scaffolding.
+Current stage: **error-handling design discussion**. The package API rewrite is
+complete, using Base structs, constructors, methods and interfaces with Luce
+interoperability. The [rewrite inventory](PACKAGE-REWRITE.md) and
+[completed checklist](PACKAGE-REWRITE-TODO.md) record the source boundaries,
+implementation commits and validation evidence. Luce uses existing `Type(args)`
+construction. There are no external users or released compatibility obligations;
+future design changes should update consumers directly without legacy paths.
 TLS remains paused. Rewrite sections 1–7 are implemented: typed Base/Luce
 ownership, callbacks/workers, the server/application, scoped GPU resources, UI
 controls and 3D scene composition. UI, 3D and demos are public under `dymokomi`.
 The nine supplied correctness reports have [recorded dispositions](REPORTED-DEFECTS.md),
-fixes and focused regressions; full local compiler and downstream gates pass.
-Exact commits and hosted verification are recorded in the checklist.
+fixes and focused regressions; full local compiler and downstream gates pass. Base and Luce also pass their
+complete hosted gates on ARM64 macOS and x86-64 Linux. Package checks pass on both
+hosts; the server workflow was cancelled after successful testing because its
+checkout cleanup stalled. Exact commits and verification are in the checklist.
 
 Implementation now stops for the [error-handling design discussion](ERROR-HANDLING-RESEARCH.md).
 The research recommends checked automatic propagation within Luce's declared

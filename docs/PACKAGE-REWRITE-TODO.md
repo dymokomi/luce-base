@@ -4,8 +4,8 @@ Updated: 2026-09-11. This is the working checklist for the ecosystem rewrite.
 [PACKAGE-REWRITE.md](PACKAGE-REWRITE.md) holds the full file inventory, design
 constraints and acceptance criteria. Follow the phases below in order.
 
-**Status:** sections 1–8 are implemented and locally verified; UI, 3D and demos are public under `dymokomi`. The cited section-9 research is complete. Final hosted gates for the reported-defect dependency set are finishing; no error-handling syntax or semantics have been changed.
-**Next task:** record the final hosted gate results, then discuss [error-handling ergonomics](ERROR-HANDLING-RESEARCH.md). Implementation stops here pending that design discussion.
+**Status:** sections 1–9 complete. UI, 3D and demos are public under `dymokomi`; fixes and exact dependency pins are committed/pushed. Full Base/Luce gates pass on ARM64 macOS and x86-64 Linux. Package checks pass on both hosts; the server workflow was cancelled after successful tests because checkout cleanup stalled. The cited research is complete, with no error-handling syntax or semantics changes.
+**Next task:** discuss [error-handling ergonomics](ERROR-HANDLING-RESEARCH.md). Implementation stops here pending that design decision.
 
 ## How we track work
 
@@ -253,7 +253,7 @@ backlog. BC05 is a naming simplification, not proven old-version support.
 - [x] R06 — Create/publish separate `luce-ui`, `luce-3d` and `luce-demos`
   repositories with tested APIs, licenses, manifests, pins and CI; commit/push
   coherent tested changes in the existing repositories.
-- [ ] R07 — Verify every implementation item and phase gate is checked with
+- [x] R07 — Verify every implementation item and phase gate is checked with
   evidence, record remaining limitations and update the ecosystem roadmap before
   selecting the next stage.
 
@@ -356,4 +356,6 @@ native target/optimization coverage and any remaining limit relevant to the task
 | Final package dependency set | UI `b7a6699`, 3D `e4ba812`, server `31251e5`, HTTP application `2f8916a`, demos `4c997fe` are committed/pushed with coherent Base `04b7dec` / Luce `c88a1eb` pins. UI/3D direct Base and Luce consumers pass all six modes. Server/HTTP native 0–3 integration tests pass. UI/3D real Metal pixel, clipping, resize and lifetime follow-ups pass native 0; both demo windows and application interactions pass native 0–3 with API/shader validation. Clean output checks pass, and the normal demo build contains only `ui` and `sphere`. |
 | E01 | `ERROR-HANDLING-RESEARCH.md` is a roughly 4,600-word report with 15 primary sources, actual demo counts, current compiler probes, alternatives, a concrete recommendation, ownership/ABI/cleanup constraints and an implementation acceptance matrix. It recommends checked function-level propagation for Luce and expression-wide `try` for Base. It also records the preexisting stored-result checker/lowering discrepancy and missing nonfallible callback conversion as design prerequisites. Research changed no language syntax or runtime semantics. |
 
-| Final hosted verification (in progress) | Luce `c88a1eb` full CI `34671044282`, UI `b7a6699` CI `34671083104`, and HTTP application `2f8916a` CI `34671096818` passed on ARM64 macOS and x86-64 Linux. 3D `e4ba812` CI `34671092686` and demos `4c997fe` CI `34671124535` also passed on both hosts, including Metal validation on macOS. Seed CI `34670985594` passed. Base `04b7dec` CI `34671008927` is finishing. Server `31251e5` CI `34671088582` passed its Linux job; macOS is in post-checkout cleanup after its test and heap steps. Superseded Base `4872df6`/`525ff81` CI runs were cancelled to release runners for the final implementation gate; Base `28afe3a` full CI `34669662056` passed on both hosts. |
+| Final hosted verification | Luce `c88a1eb` full CI `34671044282`, UI `b7a6699` CI `34671083104`, and HTTP application `2f8916a` CI `34671096818` passed on ARM64 macOS and x86-64 Linux. 3D `e4ba812` CI `34671092686` and demos `4c997fe` CI `34671124535` also passed on both hosts, including Metal validation on macOS. Seed CI `34670985594` passed. Base `04b7dec` full CI `34671008927` passed on both hosts. Server `31251e5` CI `34671088582` passed its Linux job; macOS test, heap-check and log-upload steps passed, but checkout post-job cleanup stalled. The workflow was cancelled after that cleanup stall; all testing steps succeeded and the cancellation is not recorded as a green workflow. Superseded Base `4872df6`/`525ff81` CI runs were cancelled to release runners for the final implementation gate; Base `28afe3a` full CI `34669662056` passed on both hosts. |
+
+| R07 | All 87 checklist items are checked with implementation/validation evidence. Final compiler and package pins are recorded above; both compilers' complete local and macOS/Linux hosted gates pass. Standard embedding, snapshots and native bootstrap agree. Public examples compile and normal demo output contains only the two binaries. Remaining scope is explicit: Metal presentation only; Linux graphics exercise portable code until Vulkan is implemented; 3D transforms/lighting are currently prepared on the CPU; UI text is a bounded bitmap font without shaping/IME; no database/TLS/registry work resumes here. Server test/heap checks passed despite its cancelled checkout-cleanup stage. The two additional Luce result/callback limitations found by research are documented for the next design discussion, not silently changed. Research is committed as `11d9044`; implementation stops for review of that proposal. |
