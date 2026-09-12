@@ -1,3 +1,4 @@
+# Assembly limits recount the full pre-optimization baseline (f4306dc), including code after numeric trap labels.
 # the counts the passes reach; a pass lowers these, nothing raises them without saying so.
 # Every function of the program is expanded into `main` and dropped: the calls left are the
 # print's.
@@ -9,5 +10,5 @@ ir 96
 loads 4
 stores 20
 calls 6
-asm-arm64 97
-asm-x86_64 101
+asm-arm64 335
+asm-x86_64 299

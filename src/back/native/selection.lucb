@@ -1,0 +1,46 @@
+## Shared, local instruction-selection facts. Counting every use prevents a
+## comparison needed elsewhere from being consumed by a fused branch.
+import back.ir.ir
+
+pub func uses(f: ir.Function*) -> u32[]!:
+    var counts = try alloc u32[f.temps.count + 1]
+    for i in 0..<counts.length:
+        counts[i] = 0
+    for x in f.instrs.span():
+        mark(counts, x.a)
+        mark(counts, x.b)
+        let (start, count) = ir.argument_range(f, x)
+        for k in 0..<count:
+            mark(counts, f.args.get(start + k).value)
+    return counts
+
+func mark(counts: u32[], value: ir.Ref):
+    if value.kind == ir.RefKind.temp:
+        counts[value.index] += 1
+
+pub func label_at(f: ir.Function*, at: usize) -> u32:
+    if at < f.instrs.count:
+        let x = f.instrs.get(at)
+        if x.op == ir.Op.label:
+            return x.extra
+    return 0
+
+pub func branch(f: ir.Function*, at: usize, counts: u32[]) -> bool:
+    if f.debug or at + 1 >= f.instrs.count:
+        return false
+    let x = f.instrs.get(at)
+    let next = f.instrs.get(at + 1)
+    return ir.is_comparison(x.op) and (x.cls == ir.Class.w or x.cls == ir.Class.l) and x.dst != 0 and counts[x.dst] == 1 and next.op == ir.Op.jnz and next.a.kind == ir.RefKind.temp and next.a.index == x.dst
+
+pub func inverse(op: ir.Op) -> ir.Op:
+    match op:
+        .ceq: return ir.Op.cne
+        .cne: return ir.Op.ceq
+        .cslt: return ir.Op.csge
+        .csle: return ir.Op.csgt
+        .csgt: return ir.Op.csle
+        .csge: return ir.Op.cslt
+        .cult: return ir.Op.cuge
+        .cule: return ir.Op.cugt
+        .cugt: return ir.Op.cule
+        _: return ir.Op.cult

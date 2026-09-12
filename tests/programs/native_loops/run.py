@@ -52,4 +52,15 @@ with tempfile.TemporaryDirectory(prefix="luce-native-loops-") as temporary:
     assert "bounds " in body("uncertain")
     assert "addo " in body("checked_next")
     assert "addo " in body("signed_next")
+    recurrence = body("invariant_float")
+    assert "cast " in recurrence
+    assert "cast " not in recurrence[recurrence.index("@L"):]
     print("PASS range proofs remove only established checks")
+
+    # Cross-assembly catches target instruction/operand errors on the other host;
+    # CI executes this same fixture on both native targets.
+    if sys.platform == "darwin":
+        run([COMPILER, "build", HERE / "kernels.lucb", "--native", "--lib",
+             "--target", "x86_64-linux", "--emit=asm", "-o", root / "linux.s"])
+        run(["clang", "--target=x86_64-linux-gnu", "-c", root / "linux.s", "-o", root / "linux.o"])
+        print("PASS x86_64 cross-assembly")

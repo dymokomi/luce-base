@@ -11,21 +11,22 @@
 set -eu
 cd "$(dirname "$0")/../.."
 report=${1:-}
+compiler=${LUCE_BASE_COMPILER:-./build/luce-base}
 programs=0
 # Only the program's own functions count, named `lb_<stem>_...` and `lb_main`; the standard
 # modules beside them are the same in every program and are measured nowhere.
 measure() {
     src=$1
     stem=$(basename "$src" .lucb)
-    ./build/luce-base build "$src" --emit=ir -o build/opt.ir
-    ./build/luce-base build "$src" --emit=asm --native -o build/opt.s
+    "$compiler" build "$src" --emit=ir -o build/opt.ir
+    "$compiler" build "$src" --emit=asm --native -o build/opt.s
     awk -v stem="$stem" '
         /^function / { keep = ($0 ~ ("\\$lb_" stem "_") || $0 ~ /\$lb_main\(/) ; next }
         keep && /^    / && !/^    slot / { ir++; if ($0 ~ / =. (load|atomic_load)/) loads++; if ($0 ~ /^    (store|atomic_store)/) stores++; if ($0 ~ /call \$/) calls++ }
         END { printf "%d %d %d %d\n", ir, loads, stores, calls }' build/opt.ir > build/opt.counts
     read -r ir loads stores calls < build/opt.counts
     asm=$(awk -v stem="$stem" '
-        /^_?[A-Za-z0-9_]+:$/ { if ($0 !~ /^\.?L[0-9]/) keep = ($0 ~ ("^_?lb_" stem "_") || $0 ~ /^_?lb_main:/) ; next }
+        /^_?[A-Za-z_][A-Za-z0-9_]*:$/ { if ($0 !~ /^\.?L[0-9]/) keep = ($0 ~ ("^_?lb_" stem "_") || $0 ~ /^_?lb_main:/) ; next }
         keep && /^    [a-z]/ { n++ }
         END { print n + 0 }' build/opt.s)
 }
@@ -35,7 +36,7 @@ for f in tests/optimization/*.limits; do
     src="${f%.limits}.lucb"
     echo "== $src"
     measure "$src"
-    ./build/luce-base build "$src" --native -o build/opt
+    "$compiler" build "$src" --native -o build/opt
     ./build/opt > build/opt.out
     cmp build/opt.out "${f%.limits}.expect"
     while read -r key max; do
@@ -58,7 +59,7 @@ done
 # still assemble and link; the default level removes the arm and used to hide the bug.
 for level in 0 1 2 3; do
     echo "== function_values --opt $level"
-    ./build/luce-base build tests/conformance/05_types/function_values.lucb --native --opt "$level" -o build/opt
+    "$compiler" build tests/conformance/05_types/function_values.lucb --native --opt "$level" -o build/opt
     ./build/opt > build/opt.out
     cmp build/opt.out tests/conformance/05_types/function_values.expect
 done

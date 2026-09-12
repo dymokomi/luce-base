@@ -1,0 +1,241 @@
+## Natural loops and conservative motion in SSA. Only computations that cannot
+## fail may execute before a zero-trip loop. Memory motion is restricted further
+## to unescaped, unchanged stack storage with a statically valid access.
+import back.ir.cfg
+import back.ir.ir
+import back.opt.load
+import support.list
+
+pub struct Natural:
+    pub var header: u32
+    pub var preheader: u32
+    pub var members: bool[]
+
+    pub static func find(g: cfg.Graph*, header: u32) -> Natural?!:
+        let block = g.blocks.get(header)
+        var members = try alloc bool[g.count()]
+        for i in 0..<members.length:
+            members[i] = false
+        members[header] = true
+        var pending = try list.List[u32].create(8)
+        defer pending.destroy()
+        for pred in block.preds.span():
+            if g.dominates(header, pred):
+                try pending.push(pred)
+        if pending.count == 0:
+            free(members)
+            return none
+        while pending.count > 0:
+            pending.count -= 1
+            let index = pending.items[pending.count]
+            if members[index]:
+                continue
+            members[index] = true
+            for pred in g.blocks.get(index).preds.span():
+                try pending.push(pred)
+        var preheader = cfg.none_block
+        for pred in block.preds.span():
+            if not members[pred]:
+                if preheader != cfg.none_block:
+                    free(members)
+                    return none
+                preheader = pred
+        if preheader == cfg.none_block:
+            free(members)
+            return none
+        let entry = g.blocks.get(preheader)
+        if entry.succ1 != header or entry.succ2 != cfg.none_block:
+            free(members)
+            return none
+        return Natural(header = header, preheader = preheader, members = members)
+
+    pub mutating func release():
+        free(self.members)
+
+## Mutually recursive load phis can all denote one value from before a loop.
+## Follow only phis, require exactly one external value, and require that value
+## to dominate the root. A bounded search leaves larger components unchanged.
+pub func simplify_phis(f: ir.Function*, g: cfg.Graph*) -> bool!:
+    var definitions = try alloc u32[f.temps.count + 1]
+    defer free(definitions)
+    var blocks = try definition_blocks(f, g)
+    defer free(blocks)
+    var replacements = try alloc ir.Ref[f.temps.count + 1]
+    defer free(replacements)
+    var visited = try alloc u32[f.temps.count + 1]
+    defer free(visited)
+    for i in 0..<definitions.length:
+        definitions[i] = 0
+        replacements[i] = ir.none_ref()
+        visited[i] = 0
+    for i in 0..<f.instrs.count:
+        let x = f.instrs.get(i)
+        if x.dst != 0:
+            definitions[x.dst] = (u32)i + 1
+    var pending = try list.List[u32].create(16)
+    defer pending.destroy()
+    var changed = false
+    for root in f.instrs.span():
+        if root.op != ir.Op.phi:
+            continue
+        pending.count = 0
+        try pending.push(root.dst)
+        var external = ir.none_ref()
+        var valid = true
+        var examined: u32 = 0
+        while pending.count > 0 and valid:
+            pending.count -= 1
+            let temp = pending.items[pending.count]
+            if visited[temp] == root.dst:
+                continue
+            visited[temp] = root.dst
+            examined += 1
+            if examined > 64:
+                valid = false
+                break
+            let phi = f.instrs.get(definitions[temp] - 1)
+            for k in 0..<phi.extra2:
+                let value = f.phi_args.get(phi.extra + k).value
+                if value.kind == ir.RefKind.temp and definitions[value.index] != 0 and f.instrs.get(definitions[value.index] - 1).op == ir.Op.phi:
+                    try pending.push(value.index)
+                elif external.kind == ir.RefKind.none_:
+                    external = value
+                elif not same(external, value):
+                    valid = false
+                    break
+        if external.kind == ir.RefKind.temp:
+            valid = valid and blocks[external.index] != cfg.none_block and g.strictly_dominates(blocks[external.index], blocks[root.dst])
+        if valid and external.kind != ir.RefKind.none_:
+            replacements[root.dst] = external
+            changed = true
+    if changed:
+        for i in 0..<f.instrs.count:
+            var x = f.instrs.get(i)
+            if x.op == ir.Op.phi and replacements[x.dst].kind != ir.RefKind.none_:
+                x.op = ir.Op.copy
+                x.a = replacements[x.dst]
+                x.b = ir.none_ref()
+                x.extra = 0
+                x.extra2 = 0
+                f.instrs.set(i, x)
+    return changed
+
+pub func definition_blocks(f: ir.Function*, g: cfg.Graph*) -> u32[]!:
+    var definitions = try alloc u32[f.temps.count + 1]
+    for i in 0..<definitions.length:
+        definitions[i] = cfg.none_block
+    for b in 0..<g.count():
+        let block = g.blocks.get(b)
+        for i in block.start..<block.end:
+            let x = f.instrs.get(i)
+            if x.dst != 0:
+                definitions[x.dst] = (u32)b
+    return definitions
+
+pub func invariant(r: ir.Ref, members: bool[], definitions: u32[]) -> bool:
+    return r.kind != ir.RefKind.temp or (definitions[r.index] != cfg.none_block and not members[definitions[r.index]])
+
+## Rebuild after each moved group: instruction ranges and definition blocks have
+## changed. The bound limits compile time on generated functions with many loops.
+pub func run(f: ir.Function*) -> !:
+    for round in 0..<32:
+        var g = try cfg.Graph.over(f)
+        defer g.release()
+        var changed = false
+        var at = g.order.count
+        while at > 0:
+            at -= 1
+            if let loop = try Natural.find(&g, g.order.get(at)):
+                var natural = loop
+                defer natural.release()
+                if try hoist(f, &g, &natural):
+                    changed = true
+                    break
+        if not changed:
+            return
+
+func hoist(f: ir.Function*, g: cfg.Graph*, loop: Natural*) -> bool!:
+    var definitions = try definition_blocks(f, g)
+    defer free(definitions)
+    var aliases = try load.Aliases.over(f, g)
+    defer aliases.release()
+    var moved = try alloc bool[f.instrs.count]
+    defer free(moved)
+    for i in 0..<moved.length:
+        moved[i] = false
+    var ordered = try list.List[ir.Instr].create(16)
+    defer ordered.destroy()
+    # Iteration finds dependent invariants even across unusual block layouts.
+    for round in 0..<8:
+        var changed = false
+        for b in g.order.span():
+            if not loop.members[b]:
+                continue
+            let block = g.blocks.get(b)
+            for i in block.start..<block.end:
+                let x = f.instrs.get(i)
+                if moved[i] or x.dst == 0 or not invariant(x.a, loop.members, definitions) or not invariant(x.b, loop.members, definitions):
+                    continue
+                if not movable(x.op) and not stable_load(f, g, loop, &aliases, x):
+                    continue
+                try ordered.push(x)
+                moved[i] = true
+                definitions[x.dst] = loop.preheader
+                changed = true
+        if not changed:
+            break
+    if ordered.count == 0:
+        return false
+    let preheader = g.blocks.get(loop.preheader)
+    var insertion = preheader.end
+    if insertion > preheader.start and ir.is_terminator(f.instrs.get(insertion - 1).op):
+        insertion -= 1
+    var out = try list.List[ir.Instr].create(f.instrs.count)
+    for i in 0..=f.instrs.count:
+        if i == insertion:
+            for x in ordered.span():
+                try out.push(x)
+        if i < f.instrs.count and not moved[i]:
+            try out.push(f.instrs.get(i))
+    f.instrs.destroy()
+    f.instrs = out
+    return true
+
+func stable_load(f: ir.Function*, g: cfg.Graph*, loop: Natural*, aliases: load.Aliases*, x: ir.Instr) -> bool:
+    if not load.is_load(x.op):
+        return false
+    let address = aliases.at(x.a, 0)
+    let bytes = width(x.op)
+    if address.kind != load.Kind.slot or aliases.escaped(address) or address.offset < 0:
+        return false
+    if (u64)address.offset + (u64)bytes > (u64)f.slots.get(address.base).size:
+        return false
+    for b in 0..<g.count():
+        if not loop.members[b]:
+            continue
+        let block = g.blocks.get(b)
+        for i in block.start..<block.end:
+            let y = f.instrs.get(i)
+            if load.is_store(y.op):
+                if aliases.relation(address, bytes, y.b, width(y.op)) != load.no_alias:
+                    return false
+            elif y.op == ir.Op.blit or y.op == ir.Op.zero or y.op == ir.Op.fill or y.op == ir.Op.storev or y.op == ir.Op.asm_ or ((u8)y.op >= (u8)ir.Op.atomic_load and (u8)y.op <= (u8)ir.Op.fence):
+                return false
+    return true
+
+func width(op: ir.Op) -> i64:
+    match op:
+        .loadsb, .loadub, .storeb: return 1
+        .loadsh, .loaduh, .loadhf, .storeh, .storehf: return 2
+        .loadsw, .loaduw, .loads, .storew, .stores: return 4
+        _: return 8
+
+func movable(op: ir.Op) -> bool:
+    match op:
+        .copy, .addr, .add, .sub, .mul, .and_, .or_, .xor, .shl, .lshr, .ashr, .neg: return true
+        .ceq, .cne, .cslt, .csle, .csgt, .csge, .cult, .cule, .cugt, .cuge: return true
+        .extsb, .extub, .extsh, .extuh, .extsw, .extuw, .cast, .exth, .exts, .truncs, .truncd: return true
+        _: return false
+
+pub func same(a: ir.Ref, b: ir.Ref) -> bool:
+    return a.kind == b.kind and a.index == b.index and a.value == b.value and a.name == b.name

@@ -121,6 +121,26 @@ pub struct Frame:
     pub mutating func layout(f: ir.Function*, base: u64, indirect_result: bool) -> !:
         self.temp_homes.count = 0
         self.slot_homes.count = 0
+        var live_slots = try alloc bool[f.slots.count + 1]
+        defer free(live_slots)
+        var live_temps = try alloc bool[f.temps.count + 1]
+        defer free(live_temps)
+        for i in 0..<live_slots.length:
+            live_slots[i] = f.debug
+        for i in 0..<live_temps.length:
+            live_temps[i] = f.debug
+        # Parameters are written by the prologue; debug builds also retain every
+        # local's described home. Otherwise only surviving IR needs storage.
+        for parameter in f.params.span():
+            live_slots[parameter.slot] = true
+        for x in f.instrs.span():
+            mark_home(x.a, live_slots, live_temps)
+            mark_home(x.b, live_slots, live_temps)
+            if x.dst != 0:
+                live_temps[x.dst] = true
+            let (start, count) = ir.argument_range(f, x)
+            for k in 0..<count:
+                mark_home(f.args.get(start + k).value, live_slots, live_temps)
         var offset = base
         if indirect_result:
             offset = round_up(offset, 8) + 8
@@ -137,6 +157,10 @@ pub struct Frame:
             c += 1
         var i: usize = 0
         while i < f.slots.count:
+            if not live_slots[i]:
+                try self.slot_homes.push(0)
+                i += 1
+                continue
             let s = f.slots.get(i)
             let size = (u64)s.size if s.size > 0 else 1
             offset = round_up(offset + size, (u64)s.align if s.align > 0 else 1)
@@ -144,7 +168,7 @@ pub struct Frame:
             i += 1
         i = 0
         while i < f.temps.count:
-            if self.temp_regs.get(i) == 0:
+            if self.temp_regs.get(i) == 0 and live_temps[i + 1]:
                 # a vector temporary has a sixteen-byte home at a sixteen-byte boundary
                 let wide = f.temp_class(u32(i + 1)) == ir.Class.v
                 offset = round_up(offset + (16 if wide else 8), 16 if wide else 8)
@@ -309,6 +333,12 @@ pub struct Frame:
 
 ## How many of a class's `pool` the promoted slots may take: what the temporaries do not
 ## keep, and they keep up to `keep` when the pressure asks for that many.
+func mark_home(value: ir.Ref, slots: bool[], temps: bool[]):
+    if value.kind == ir.RefKind.temp:
+        temps[value.index] = true
+    elif value.kind == ir.RefKind.slot:
+        slots[value.index] = true
+
 func budget(need: u32, pool: u8, keep: u8) -> u8:
     let kept = need if need < (u32)keep else (u32)keep
     return (u8)((u32)pool - kept)

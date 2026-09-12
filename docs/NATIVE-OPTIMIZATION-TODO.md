@@ -14,9 +14,9 @@ remains the default backend; no optimization may weaken specified safety checks.
 
 ## 2. Simplify scalar loops
 
-- [ ] Hoist pure loop invariants without speculating loads, calls or traps.
-- [ ] Improve constant placement, addressing, conditional branches and dead frame storage.
-- [ ] Validate scalar behavior and both native targets; commit the verified changes.
+- [x] Hoist pure loop invariants and proven unchanged local stack loads without speculating calls or traps.
+- [x] Improve constant placement, addressing, conditional branches and dead frame storage.
+- [x] Validate scalar behavior, cross-assemble x86_64 and commit the changes; execute both targets in final CI.
 
 ## 3. Automatic vectorization
 

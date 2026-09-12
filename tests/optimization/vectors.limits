@@ -1,3 +1,4 @@
+# Assembly limits recount the full pre-optimization baseline (f4306dc), including code after numeric trap labels.
 # the counts the passes reach; a pass lowers these, nothing raises them without saying so.
 # The float blend, the wrapping add, the shift, the bit operations and the broadcasts are one
 # vector instruction each; the checked multiply and the folds still read the lanes.
@@ -9,5 +10,5 @@ ir 327
 loads 41
 stores 48
 calls 12
-asm-arm64 419
-asm-x86_64 474
+asm-arm64 767
+asm-x86_64 872

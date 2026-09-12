@@ -19,6 +19,7 @@
 
 import back.native.dwarf
 import back.native.frame
+import back.native.selection
 import back.ir.ir
 import back.target as build_target
 import memory
@@ -555,11 +556,22 @@ pub struct Generator:
             try self.line("str x8, [x16]")
         try self.save_callee_saved()
         try self.receive_params()
+        var uses = try selection.uses(self.f)
+        defer free(uses)
         var i: usize = 0
         while i < self.f.instrs.count:
             if let dw = self.dw:
                 try dw.mark(&self.out, self.f, index, i)
-            try self.instruction(self.f.instrs.get(i))
+            if selection.branch(self.f, i, uses):
+                let branch = self.f.instrs.get(i + 1)
+                var comparison = self.f.instrs.get(i)
+                let next = selection.label_at(self.f, i + 2)
+                if next == branch.extra:
+                    comparison.op = selection.inverse(comparison.op)
+                try self.comparison(comparison, branch, next)
+                i += 2
+                continue
+            try self.instruction(self.f.instrs.get(i), selection.label_at(self.f, i + 1))
             i += 1
         if let dw = self.dw:
             try dw.mark(&self.out, self.f, index, i)
@@ -763,13 +775,15 @@ pub struct Generator:
 
     # mark: Instructions =======================================================================
 
-    mutating func instruction(n: ir.Instr) -> !:
+    mutating func instruction(n: ir.Instr, next_label: u32 = 0) -> !:
         match n.op:
             .label:
                 try self.put("\n")
                 try self.label_name(n.extra)
                 try self.put(":")
             .jmp:
+                if n.extra == next_label:
+                    return
                 try self.line("b ")
                 try self.label_name(n.extra)
             .jnz:
@@ -783,6 +797,10 @@ pub struct Generator:
             .ret:
                 try self.return_value(n)
             .copy:
+                if n.cls == ir.Class.v:
+                    try self.vector_source(0, n.a, 16)
+                    try self.vector_result(n.dst, 0, 16)
+                    return
                 let v = try self.source(n.a, n.cls, self.reg(n.cls, 0))
                 let d = self.target(n.dst, n.cls, self.reg(n.cls, 0))
                 if v != d:
@@ -810,11 +828,13 @@ pub struct Generator:
                 if from_slot != 0:
                     try self.load_promoted(n.op, from_slot, d)
                 else:
-                    try self.address_operand("x9", n.a)
+                    let address = try self.source(n.a, ir.Class.l, "x9")
                     try self.line(load_mnemonic(n.op))
                     try self.put(" ")
                     try self.put(d)
-                    try self.put(", [x9]")
+                    try self.put(", [")
+                    try self.put(address)
+                    try self.put("]")
                 try self.finish(n.dst, lc, d)
             .storeb, .storeh, .storew, .storel, .stores, .stored, .storehf:
                 let cls = store_class(n.op)
@@ -823,11 +843,13 @@ pub struct Generator:
                 if to_slot != 0:
                     try self.store_promoted(n.op, to_slot, v)
                 else:
-                    try self.address_operand("x10", n.b)
+                    let address = try self.source(n.b, ir.Class.l, "x10")
                     try self.line(store_mnemonic(n.op))
                     try self.put(" ")
                     try self.put(v)
-                    try self.put(", [x10]")
+                    try self.put(", [")
+                    try self.put(address)
+                    try self.put("]")
             .frame:
                 let d = self.target(n.dst, ir.Class.l, "x9")
                 try self.line("mov ")
@@ -977,6 +999,29 @@ pub struct Generator:
 
     mutating func arithmetic(n: ir.Instr) -> !:
         let a = try self.source(n.a, n.cls, self.reg(n.cls, 0))
+        if (n.cls == ir.Class.w or n.cls == ir.Class.l) and n.b.kind == ir.RefKind.constant:
+            let value = n.b.value
+            let immediate = ((n.op == ir.Op.add or n.op == ir.Op.sub) and value >= 0 and value <= 4095) or ((n.op == ir.Op.shl or n.op == ir.Op.lshr or n.op == ir.Op.ashr) and value >= 0 and value < (64 if n.cls == ir.Class.l else 32))
+            var shift: i64 = 0
+            if n.op == ir.Op.mul and value > 0 and ((u64)value & ((u64)value - 1)) == 0:
+                var bits = (u64)value
+                while bits > 1:
+                    bits >>= 1
+                    shift += 1
+            if immediate or (n.op == ir.Op.mul and shift > 0 and shift < (64 if n.cls == ir.Class.l else 32)):
+                let d = self.target(n.dst, n.cls, self.reg(n.cls, 0))
+                var mnemonic = "add "
+                match n.op:
+                    .sub: mnemonic = "sub "
+                    .shl, .mul: mnemonic = "lsl "
+                    .lshr: mnemonic = "lsr "
+                    .ashr: mnemonic = "asr "
+                    _: discard(0)
+                try self.line4(mnemonic, d, ", ", a)
+                try self.put(", #")
+                try self.put_i64(shift if n.op == ir.Op.mul else value)
+                try self.finish(n.dst, n.cls, d)
+                return
         let b = try self.source(n.b, n.cls, self.reg(n.cls, 1))
         let d = self.target(n.dst, n.cls, self.reg(n.cls, 0))
         let is_float = ir.is_float_class(n.cls)
@@ -1020,7 +1065,7 @@ pub struct Generator:
         try self.put(b)
         try self.finish(n.dst, n.cls, d)
 
-    mutating func comparison(n: ir.Instr) -> !:
+    mutating func comparison(n: ir.Instr, branch: ir.Instr? = none, next_label: u32 = 0) -> !:
         let a = try self.source(n.a, n.cls, self.reg(n.cls, 0))
         let b = try self.source(n.b, n.cls, self.reg(n.cls, 1))
         let is_float = ir.is_float_class(n.cls)
@@ -1041,6 +1086,15 @@ pub struct Generator:
             .cugt: cond = "hi"
             .cuge: cond = "hs"
             _: cond = "eq"
+        if let jump = branch:
+            try self.line("b.")
+            try self.put(cond)
+            try self.put(" ")
+            try self.label_name(jump.extra2 if next_label == jump.extra else jump.extra)
+            if next_label != jump.extra and next_label != jump.extra2:
+                try self.line("b ")
+                try self.label_name(jump.extra2)
+            return
         let d = self.target(n.dst, ir.Class.w, "w9")
         try self.line3("cset ", d, ", ")
         try self.put(cond)

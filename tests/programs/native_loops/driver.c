@@ -35,5 +35,12 @@ int main(int argc, char **argv) {
     assert(small_product(65535, 65535) == UINT32_C(4294836225));
     assert(empty_division(0, 0) == 0);
     assert(empty_division(5, 4) == 125);
+    size_t limit = 4;
+    assert(changing_limit(&limit) == 2 && limit == 2);
+    double value = 17.0;
+    for (size_t n = 0; n < 30; ++n) {
+        assert(invariant_float(n, 17.0) == value);
+        value = value * 0.125 + 0.375;
+    }
     puts("ok native loop semantics");
 }

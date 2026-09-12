@@ -24,6 +24,7 @@
 
 import back.native.dwarf
 import back.native.frame
+import back.native.selection
 import back.ir.ir
 import back.target as build_target
 import memory
@@ -464,12 +465,23 @@ pub struct Generator:
             try self.frame_operand(self.fr.indirect_home)
         try self.save_callee_saved()
         try self.receive_params()
+        var uses = try selection.uses(self.f)
+        defer free(uses)
         var i: usize = 0
         while i < self.f.instrs.count:
             self.at = i
             if let dw = self.dw:
                 try dw.mark(&self.out, self.f, index, i)
-            try self.instruction(self.f.instrs.get(i))
+            if selection.branch(self.f, i, uses):
+                let branch = self.f.instrs.get(i + 1)
+                var comparison = self.f.instrs.get(i)
+                let next = selection.label_at(self.f, i + 2)
+                if next == branch.extra:
+                    comparison.op = selection.inverse(comparison.op)
+                try self.comparison(comparison, branch, next)
+                i += 2
+                continue
+            try self.instruction(self.f.instrs.get(i), selection.label_at(self.f, i + 1))
             i += 1
         if let dw = self.dw:
             try dw.mark(&self.out, self.f, index, i)
@@ -757,13 +769,15 @@ pub struct Generator:
 
     # mark: Instructions =======================================================================
 
-    mutating func instruction(n: ir.Instr) -> !:
+    mutating func instruction(n: ir.Instr, next_label: u32 = 0) -> !:
         match n.op:
             .label:
                 try self.put("\n")
                 try self.label_name(n.extra)
                 try self.put(":")
             .jmp:
+                if n.extra == next_label:
+                    return
                 try self.line("jmp ")
                 try self.label_name(n.extra)
             .jnz:
@@ -777,6 +791,10 @@ pub struct Generator:
             .ret:
                 try self.return_value(n)
             .copy:
+                if n.cls == ir.Class.v:
+                    try self.vector_source(n.a, "%xmm8", 16)
+                    try self.vector_result(n.dst, "%xmm8", 16)
+                    return
                 let v = try self.source(n.a, n.cls, self.reg(n.cls, 0))
                 let d = self.target(n.dst, n.cls, self.reg(n.cls, 0))
                 if v != d:
@@ -1080,7 +1098,7 @@ pub struct Generator:
             try self.line3("movd %eax, ", d, "")
         try self.finish(n.dst, cls, d)
 
-    mutating func comparison(n: ir.Instr) -> !:
+    mutating func comparison(n: ir.Instr, branch: ir.Instr? = none, next_label: u32 = 0) -> !:
         let cls = n.cls
         let a = try self.source(n.a, cls, self.reg(cls, 0))
         let b = try self.source(n.b, cls, self.reg(cls, 1))
@@ -1098,6 +1116,15 @@ pub struct Generator:
             .cugt: cond = "a"
             .cuge: cond = "ae"
             _: cond = "e"
+        if let jump = branch:
+            try self.line("j")
+            try self.put(cond)
+            try self.put(" ")
+            try self.label_name(jump.extra2 if next_label == jump.extra else jump.extra)
+            if next_label != jump.extra and next_label != jump.extra2:
+                try self.line("jmp ")
+                try self.label_name(jump.extra2)
+            return
         try self.line3("set", cond, " %al")
         let d = self.target(n.dst, ir.Class.w, "%eax")
         try self.line3("movzbl %al, ", d, "")
