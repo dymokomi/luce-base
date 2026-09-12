@@ -1,0 +1,83 @@
+## The same algorithms and traversal order as kernels.c. Exporting keeps the
+## measurement driver identical and prevents whole-program constant folding.
+
+export func integer_mix(iterations: usize, seed: u64) -> u64:
+    var value = seed
+    var at: usize = 0
+    while at < iterations:
+        value ^= value >> 12
+        value ^= value << 25
+        value ^= value >> 27
+        value *%= 2685821657736338717
+        at += 1
+    return value
+
+export func float_recurrence(iterations: usize, seed: f64) -> f64:
+    var value = seed
+    var at: usize = 0
+    while at < iterations:
+        value = value * 0.99999994 + 0.00000003
+        at += 1
+    return value
+
+export func sum_words(values: const u64[], rounds: usize) -> u64:
+    var result: u64 = 0
+    var round: usize = 0
+    while round < rounds:
+        var at: usize = 0
+        while at < values.length:
+            result +%= values[at]
+            at += 1
+        round += 1
+    return result
+
+export func transform(values: f64[], source: const f64[], rounds: usize):
+    assert(values.length == source.length)
+    var round: usize = 0
+    while round < rounds:
+        var at: usize = 0
+        while at < values.length:
+            values[at] = values[at] * 0.999 + source[at] * 0.001
+            at += 1
+        round += 1
+
+export func byte_scan(data: const u8[], rounds: usize) -> u64:
+    var count: u64 = 0
+    var round: usize = 0
+    while round < rounds:
+        var at: usize = 0
+        while at < data.length:
+            let value = data[at]
+            if value == 10 or value == 13 or value == 32:
+                count +%= 1
+            at += 1
+        round += 1
+    return count
+
+## An unpredictable dependent load isolates indexing and memory latency.
+export func chase(links: const u32[], steps: usize, start: u32) -> u32:
+    var current = start
+    var at: usize = 0
+    while at < steps:
+        current = links[current]
+        at += 1
+    return current
+
+## Deliberately ordinary i/j/k multiplication, without tiling in either language.
+export func matrix_product(a: const f64[], b: const f64[], out: f64[], width: usize, rounds: usize):
+    assert(a.length == width * width and b.length == a.length and out.length == a.length)
+    var round: usize = 0
+    while round < rounds:
+        var row: usize = 0
+        while row < width:
+            var column: usize = 0
+            while column < width:
+                var value: f64 = 0.0
+                var inner: usize = 0
+                while inner < width:
+                    value += a[row * width + inner] * b[inner * width + column]
+                    inner += 1
+                out[row * width + column] = value
+                column += 1
+            row += 1
+        round += 1

@@ -26,14 +26,19 @@ implemented before section 2, so Luce can use the native handler paths directly.
 
 ## 2. Luce checked propagation
 
-- [ ] Normalize propagation into explicit checked nodes before ownership lowering.
-- [ ] Propagate unmarked calls in declared fallible functions and cover nested
+- [x] Normalize propagation into explicit checked nodes before ownership lowering.
+- [x] Propagate unmarked calls in declared fallible functions and cover nested
       operations with the nearest `catch`; reset effects at callback boundaries.
-- [ ] Preserve lazy evaluation, evaluation order, partial-value cleanup, receiver
+- [x] Preserve lazy evaluation, evaluation order, partial-value cleanup, receiver
       lifetimes and owned dynamic errors through nested handlers and workers.
-- [ ] Reject unhandled operations in nonfallible functions; update diagnostics,
+- [x] Reject unhandled operations in nonfallible functions; update diagnostics,
       language reference, formatter/interpreter and conformance cases.
-- [ ] Run focused compiler/runtime/interop gates and commit the verified slice.
+- [x] Run focused compiler/runtime/interop gates and commit the verified slice.
+
+Delivered in Luce `2503fb0`. The focused effect and imported-handle fixtures pass
+all six compiled modes. Native callbacks, views, interfaces, workers and JSON/GPU
+interop pass their six-mode gates. The automatic-propagation heap fixture reports
+zero leaked bytes. The complete compiler gate and CI are finishing in section 4.
 
 ## 3. Base expression-wide `try`
 
@@ -48,17 +53,24 @@ implemented before section 2, so Luce can use the native handler paths directly.
 Seed `fc6129e` passed all 583 sanitized tests and the runtime boundary tests.
 Base passed the new source-order/cleanup fixture in native levels 0–3 and both
 C modes, and rebuilt itself with identical native assembly. The complete Base
-gate is running as part of section 4.
+gate passed on native ARM64 macOS, including 193 conformance programs, 479
+rejections, 66 native corpus checks and 132 fuzz cases. Seed and Base also passed
+their macOS/Linux CI gates; Base implementation head is `cd44f1d`.
 
 ## 4. Applications and final verification
 
-- [ ] Rewrite UI, sphere and HTTP examples in canonical Luce style; simplify Base
+- [x] Rewrite UI, sphere and HTTP examples in canonical Luce style; simplify Base
       nesting where useful and keep mutation consistency explicit.
-- [ ] Update toolchain/package pins and run real UI/Metal, HTTP, callback and worker
+- [x] Update toolchain/package pins and run real UI/Metal, HTTP, callback and worker
       tests, including failure paths and generated-file cleanup.
 - [ ] Run complete Base/Seed/Luce gates and package CI on macOS and Linux.
 - [ ] Push tested commits promptly, record evidence and outstanding limitations,
       and complete this checklist only when the checks have passed.
+
+Package/application commits: server `4695d96`, UI `c1637dd`, 3D `b28160c`,
+HTTP app `8b8e982`, demos `a430f59`. UI/3D ownership and Metal readback passed
+all six modes; both real demos and HTTP integration passed native levels 0–3.
+The HTTP application heap check reports zero leaked blocks and bytes.
 
 Deferred: Base `try:` suites, typed error sets/effect polymorphism, recoverable
 collector allocation and broad API failure-contract changes.
