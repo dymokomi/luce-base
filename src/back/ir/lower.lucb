@@ -1382,7 +1382,9 @@ pub struct Lowerer:
         else:
             let data = try self.f.load(ir.Op.loadl, ir.Class.l, block.ref)
             let length = try self.f.load(ir.Op.loadl, ir.Class.l, try self.offset_address(block.ref, 8))
-            let bytes = try self.f.binary(ir.Op.mul, ir.Class.l, length, ir.const_ref((i64)self.c.table.size_of(self.elem(t))))
+            let bytes = try self.f.binary(ir.Op.mulo, ir.Class.l, length, ir.const_ref((i64)self.c.table.size_of(self.elem(t))))
+            try self.mark_signed(false)
+            try self.mark_position()
             try self.f.store(ir.Op.storel, data, span)
             try self.f.store(ir.Op.storel, bytes, try self.offset_address(span, 8))
         try self.allocator_release(view, span)
@@ -2716,18 +2718,10 @@ pub struct Lowerer:
         if dest == types.str_id and (st == types.cstr_id or ((s.kind == types.Kind.span or s.kind == types.Kind.array) and s.elem == types.u8_id)):
             return try self.str_conversion(src, checked)
         if dest == types.cstr_id and st == types.str_id:
-            # `(c.str)text`: C's text ends at a NUL, so the byte after the view must be one (§5.2)
+            # A raw C cast borrows the address. A span carries no proof that its
+            # following byte is readable, so checking that byte is itself invalid.
             let text = try self.expr(src)
             let data = try self.f.load(ir.Op.loadl, ir.Class.l, text.ref)
-            let length = try self.f.load(ir.Op.loadl, ir.Class.l, try self.offset_address(text.ref, 8))
-            let end = try self.f.binary(ir.Op.add, ir.Class.l, data, length)
-            let terminator = try self.f.load(ir.Op.loadub, ir.Class.w, end)
-            let ok = self.f.label()
-            let bad = self.f.label()
-            try self.f.branch(terminator, bad, ok)
-            try self.f.place_label(bad)
-            try self.trap_with("c.str: the text is not NUL-terminated")
-            try self.f.place_label(ok)
             return LowerValue(ref = data, type_id = dest, in_memory = false)
         let v = try self.expr(src)
         if self.is_int_enum(dest):

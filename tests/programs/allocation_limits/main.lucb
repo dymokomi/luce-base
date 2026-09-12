@@ -34,6 +34,12 @@ func huge[T](count: usize, probe: Probe*) -> !:
 
 pub func main(arguments: str[]) -> i32!:
     var probe: Probe
+    if arguments.length > 1:
+        # Invalid span metadata must trap before reaching the allocator. The
+        # pointer is never dereferenced and does not represent an allocation.
+        let invalid = u64[]((u64*)8, 2305843009213693952)
+        free(invalid) in probe
+        trap("overflowing release reached the allocator")
     try huge[u64](2305843009213693952, &probe)  # formerly wrapped to zero bytes
     try huge[u64](2305843009213693953, &probe)  # formerly wrapped to eight bytes
     try huge[u64](18446744073709551615, &probe)

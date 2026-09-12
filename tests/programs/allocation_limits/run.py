@@ -12,4 +12,6 @@ with tempfile.TemporaryDirectory(prefix='luce-allocation-limits-') as temporary:
     for flags in MODES:
         subprocess.run([str(COMPILER), 'build', str(Path(__file__).with_name('main.lucb')), *flags, '-o', str(binary)], check=True, timeout=120)
         subprocess.run([str(binary)], check=True, timeout=10)
-print('PASS allocation byte limits and allocator behavior; six modes')
+        result = subprocess.run([str(binary), 'invalid-release'], capture_output=True, text=True, timeout=10)
+        assert result.returncode == 1 and 'integer overflow' in result.stderr, (flags, result)
+print('PASS allocation/release byte limits and allocator behavior; six modes')

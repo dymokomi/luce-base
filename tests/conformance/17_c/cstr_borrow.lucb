@@ -1,0 +1,17 @@
+## §5.5: a C string cast borrows the address; termination belongs to the caller.
+# oracle: none
+import c
+import strings
+
+pub func main(arguments: str[]) -> i32!:
+    let text: str = "wlsd"
+    print((str)(c.str)text)
+    let suffix = (str)text.bytes[2..]
+    print((str)(c.str)suffix)
+    let middle = (str)text.bytes[2..<3]
+    assert((usize)(u8*)(c.str)middle == (usize)middle.bytes.data)
+    # Copy an arbitrary view before passing it to a NUL-terminated C consumer.
+    let copied = try strings.copy(middle)
+    defer strings.release(copied)
+    print((str)(c.str)copied)
+    return 0

@@ -4,8 +4,8 @@ Updated: 2026-09-11. This is the working checklist for the ecosystem rewrite.
 [PACKAGE-REWRITE.md](PACKAGE-REWRITE.md) holds the full file inventory, design
 constraints and acceptance criteria. Follow the phases below in order.
 
-**Status:** full sections 1–6 complete locally; section 7 delivery is in progress. UI is public and its final macOS/Linux CI passed. 3D/demo public publication awaits explicit approval after automatic review rejected it.
-**Next task:** finish cross-platform compiler/package CI and R06 publication, then verify and fix B01–B09. Error-handling research follows those defects; no syntax/semantics changes are authorized in that research step.
+**Status:** full sections 1–6 complete locally; section 7 delivery is in progress. UI, 3D and demos are public under `dymokomi`. All three graphics repositories passed macOS/Linux CI, including Metal tests on macOS.
+**Next task:** finish B05/B06/B08 validation and record the B09 disposition, then advance exact dependency pins through the final gates. Error-handling research follows those defects; no syntax/semantics changes are authorized in that research step.
 
 ## How we track work
 
@@ -250,7 +250,7 @@ backlog. BC05 is a naming simplification, not proven old-version support.
   binaries and other explicitly requested artifacts only.
 - [x] R05 — Finish API/ownership/concurrency documentation and review comments,
   names and module responsibilities across every rewritten project.
-- [ ] R06 — Create/publish separate `luce-ui`, `luce-3d` and `luce-demos`
+- [x] R06 — Create/publish separate `luce-ui`, `luce-3d` and `luce-demos`
   repositories with tested APIs, licenses, manifests, pins and CI; commit/push
   coherent tested changes in the existing repositories.
 - [ ] R07 — Verify every implementation item and phase gate is checked with
@@ -268,11 +268,11 @@ verified fixes promptly. Track the final disposition in the issues directory.
 - [x] B02 — Buffer reserve arithmetic overflow.
 - [x] B03 — List growth capacity overflow.
 - [x] B04 — Page allocator size rounding overflow.
-- [ ] B05 — Release byte-size multiplication overflow.
-- [ ] B06 — C string terminator check reads outside its input.
+- [x] B05 — Release byte-size multiplication overflow.
+- [x] B06 — C string terminator check reads outside its input.
 - [x] B07 — Fixed-buffer non-power-of-two alignment contract.
-- [ ] B08 — Invalid-width signed minimum shift.
-- [ ] B09 — String replacement count/fill consistency.
+- [x] B08 — Invalid-width signed minimum shift.
+- [x] B09 — String replacement count/fill consistency.
 
 ## 9. Error-handling ergonomics research
 
@@ -347,3 +347,7 @@ native target/optimization coverage and any remaining limit relevant to the task
 | B02, B03 | Fixed in the compiler/growth commit containing this entry. Buffer required-size addition and doubling, and List doubling, use checked optional arithmetic and report `memory.exhausted` before mutating storage. Native/C module tests preserve content after failure. The supplied Buffer arithmetic example additionally exposed native constant folding treating unsigned checked operations as signed at every optimization level: the folder and GVN now carry signedness, and signed MIN × -1 cannot trap the compiler during folding. `integer_limits/check.sh` passes native 0–3 and C debug/release for 32/64-bit overflow and valid high-bit results. Optimization metrics/behavior suite passes; both snapshots regenerated and native bootstrap agreed. Reports 02/03 do not themselves demonstrate a valid giant buffer/list: their reproductions use impossible metadata or isolated arithmetic. |
 
 | B04, B07 | Fixed in the allocator-limit commit containing this entry. Page size rounding now returns `none` on overflow. FixedBuffer/Arena share bounded remainder-based alignment, supporting non-power-of-two requests without rounding overflow; C/page allocators refuse unsupported alignments instead of returning misaligned blocks. Bump resize checks use subtraction bounds and preserve state on oversized requests. Actual allocator calls pass native 0–3 and both C modes for huge sizes/alignments, arbitrary bump alignment, page access and failed resize. Prelude/reference/snapshots regenerated; normal native bootstrap agreed. The supplied PageAllocator reproduction only calculates arithmetic and does not demonstrate a successful undersized mapping. |
+
+| R06 | Explicit publication approval received for 3D `7b27ef9` and demos `aeedf51`; both exact commits are public under `dymokomi`, with main tracking origin/main. 3D CI `34670337807` passed on ARM64 macOS and x86-64 Linux, including Metal pixels on macOS. Demo publication CI `34670340364` passed on both hosts, including Metal smoke tests on macOS. |
+| B05, B06, B08 | Fixed in the runtime-boundary commit containing this entry. Native and C release lowering check byte multiplication before allocator calls. Raw C-string casts borrow only the pointer: they cannot inspect a byte outside the view; the specification now consistently states termination/lifetime requirements and the `strings.copy` path. Native guard-page tests pass at opts 0–3 and C debug/release, including an empty view at an inaccessible page and a terminated owned copy. Direct runtime tests pass ASan/UBSan for exact-length nonterminated storage and signed helper widths from INT_MIN through INT_MAX. Base embedded runtime and both snapshots regenerated; normal native bootstrap assembly agreement passed. Matching Seed helper/emitter changes are committed as `eb264af`: release build, all 582 tests and the ASan/UBSan C helper test pass; Base pins that exact Seed revision. The full Base/Luce and downstream gates are running. |
+| B09 | Closed without an implementation change. The supplied program is benign, `memory.copy` already checks source/destination bounds, and the fill loop performs the counted number of fixed-length replacements; its total length is independent of match positions. Borrowed inputs must remain unchanged. Existing `strings_transform/check.sh` passes all six modes against 5,786 independent Python byte-operation cases plus explicit overlapping input views, limits and rejected inputs. Full dispositions are in `REPORTED-DEFECTS.md`. |

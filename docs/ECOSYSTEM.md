@@ -18,8 +18,8 @@ directly and update their consumers, without legacy paths or migration scaffoldi
 TLS remains paused. Rewrite sections 1–6 are implemented and locally verified:
 typed Base/Luce ownership, callbacks/workers, the server/application, scoped GPU
 resources, UI controls and 3D scene composition. Section 7 is completing exact-pin
-cross-platform CI and repository publication. UI is public; tested 3D/demo commits
-await explicit publication approval following automatic review. Next come the nine
+cross-platform CI and repository publication. UI, 3D and demos are public under `dymokomi`; their tested commits and
+CI evidence are recorded in the checklist. Next come the nine
 reports under the workspace `issues/` directory, followed by a cited design study
 of safe ways to reduce repeated `try`. Stop implementation for that discussion;
 do not resume TLS or change error-handling semantics as part of the study.

@@ -1,0 +1,23 @@
+import c
+import strings
+
+extern func guarded_bytes() -> u8*
+extern func guarded_length() -> usize
+extern func guarded_release()
+extern func strlen(text: c.str) -> usize
+
+pub func main(arguments: str[]) -> i32!:
+    let data = guarded_bytes()
+    assert((usize)data != 0)
+    defer guarded_release()
+    let length = guarded_length()
+    let text = (str)u8[](data, length)
+    assert((usize)(u8*)(c.str)text == (usize)data)
+    # Even an empty view at the inaccessible page must not trigger a read.
+    let empty = (str)u8[]((u8*)((usize)data + length), 0)
+    assert((usize)(u8*)(c.str)empty == (usize)data + length)
+    let copied = try strings.copy(text)
+    defer strings.release(copied)
+    assert(strlen((c.str)copied) == length)
+    print("ok raw C borrows and terminated copies at a guard page")
+    return 0
