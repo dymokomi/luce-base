@@ -146,8 +146,9 @@ GUI interaction and clean application output. The HTTP application's native
 shutdown heap check reported zero leaks. Compiler and package dependency pins
 are committed in each consumer repository.
 
-Cross-platform validation results are recorded in the
-[work checklist](NATIVE-OPTIMIZATION-TODO.md). M4 runtime measurements
+The full Base CI gate passed on ARM64 macOS and x86-64 Linux at the measured
+implementation commit. Run links and consumer results are recorded in the
+[completed checklist](NATIVE-OPTIMIZATION-TODO.md). M4 runtime measurements
 do not imply Linux or Windows performance; collect an independent x86-64 baseline
 and application, allocator, string, file/network and multithreading measurements
 before drawing broader conclusions.
