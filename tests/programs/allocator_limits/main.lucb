@@ -1,0 +1,50 @@
+import memory
+
+func fixed() -> !:
+    var storage: u8[1024]
+    var allocator = memory.FixedBuffer.over(storage[1..])
+    for alignment in [(usize)1, 2, 3, 7, 8, 12, 24, 32]:
+        let block = allocator.allocate(5, alignment) else trap("fixed allocation refused")
+        assert((usize)block.data % alignment == 0 and block.length == 5)
+    assert(allocator.allocate(1, 18446744073709551615) == none)
+    assert(allocator.allocate(18446744073709551615, 1) == none)
+    let last = allocator.allocate(4, 1) else trap("last allocation refused")
+    assert(not allocator.resize(last, 18446744073709551615))
+    assert(allocator.resize(last, 8))
+
+func arena() -> !:
+    var allocator = try memory.Arena.over(memory.heap, 1024)
+    defer allocator.destroy()
+    for alignment in [(usize)1, 2, 3, 7, 8, 12, 24, 32]:
+        let block = allocator.allocate(5, alignment) else trap("arena allocation refused")
+        assert((usize)block.data % alignment == 0 and block.length == 5)
+    let before = allocator.in_use()
+    assert(allocator.allocate(1, 18446744073709551615) == none)
+    assert(allocator.allocate(18446744073709551615, 1) == none)
+    assert(allocator.in_use() == before)
+    let last = allocator.allocate(4, 1) else trap("last arena allocation refused")
+    assert(not allocator.resize(last, 18446744073709551615))
+    assert(allocator.resize(last, 8))
+
+func pages():
+    var allocator: memory.PageAllocator
+    assert(allocator.allocate(18446744073709551615, 1) == none)
+    assert(allocator.allocate(18446744073709551607, 1) == none)
+    assert(allocator.allocate(32, 3) == none)
+    let block = allocator.allocate(17, 16) else trap("page allocation refused")
+    defer allocator.release(block)
+    assert(block.length >= 17 and (usize)block.data % 16 == 0)
+    block[0] = 7
+    block[16] = 11
+    assert(block[0] == 7 and block[16] == 11)
+    assert(allocator.allocate(0, 1) != none)
+    var heap: memory.CAllocator
+    assert(heap.allocate(32, 3) == none)
+    assert(heap.allocate(32, 24) == none)
+
+pub func main(arguments: str[]) -> i32!:
+    try fixed()
+    try arena()
+    pages()
+    print("ok allocator size limits, arbitrary bump alignment and failed resize")
+    return 0

@@ -267,10 +267,10 @@ verified fixes promptly. Track the final disposition in the issues directory.
 - [x] B01 — Allocation byte-size overflow in native lowering.
 - [x] B02 — Buffer reserve arithmetic overflow.
 - [x] B03 — List growth capacity overflow.
-- [ ] B04 — Page allocator size rounding overflow.
+- [x] B04 — Page allocator size rounding overflow.
 - [ ] B05 — Release byte-size multiplication overflow.
 - [ ] B06 — C string terminator check reads outside its input.
-- [ ] B07 — Fixed-buffer non-power-of-two alignment contract.
+- [x] B07 — Fixed-buffer non-power-of-two alignment contract.
 - [ ] B08 — Invalid-width signed minimum shift.
 - [ ] B09 — String replacement count/fill consistency.
 
@@ -345,3 +345,5 @@ native target/optimization coverage and any remaining limit relevant to the task
 | B01 | Fixed and tested in the allocation-limit commit containing this entry. Native lowering checks element counts before multiplication; the C comparison path uses the same inclusive 2^62 byte limit. `allocation_limits/check.sh` passes all six modes: wrap-to-zero/eight, maximal counts, non-power-of-two stride, boundary rejection, zero counts, allocator invocation counts and ordinary release sizes. Both snapshots regenerated and native bootstrap agreement passed. The supplied original native reproduction segfaulted before the fix. |
 
 | B02, B03 | Fixed in the compiler/growth commit containing this entry. Buffer required-size addition and doubling, and List doubling, use checked optional arithmetic and report `memory.exhausted` before mutating storage. Native/C module tests preserve content after failure. The supplied Buffer arithmetic example additionally exposed native constant folding treating unsigned checked operations as signed at every optimization level: the folder and GVN now carry signedness, and signed MIN × -1 cannot trap the compiler during folding. `integer_limits/check.sh` passes native 0–3 and C debug/release for 32/64-bit overflow and valid high-bit results. Optimization metrics/behavior suite passes; both snapshots regenerated and native bootstrap agreed. Reports 02/03 do not themselves demonstrate a valid giant buffer/list: their reproductions use impossible metadata or isolated arithmetic. |
+
+| B04, B07 | Fixed in the allocator-limit commit containing this entry. Page size rounding now returns `none` on overflow. FixedBuffer/Arena share bounded remainder-based alignment, supporting non-power-of-two requests without rounding overflow; C/page allocators refuse unsupported alignments instead of returning misaligned blocks. Bump resize checks use subtraction bounds and preserve state on oversized requests. Actual allocator calls pass native 0–3 and both C modes for huge sizes/alignments, arbitrary bump alignment, page access and failed resize. Prelude/reference/snapshots regenerated; normal native bootstrap agreed. The supplied PageAllocator reproduction only calculates arithmetic and does not demonstrate a successful undersized mapping. |

@@ -8,7 +8,9 @@ extern func memmove(target: void*, source: const void*, count: usize) -> void*
 extern func memset(target: void*, value: i32, count: usize) -> void*
 
 ## What every allocator offers: blocks of bytes at an alignment, optionally
-## resized in place, and given back (§12.4).
+## resized in place, and given back (§12.4). Zero alignment means one. A nonempty
+## block must meet the requested alignment; an allocator may refuse an unsupported
+## alignment. Bump allocators support every positive alignment, not only powers of two.
 pub interface Allocator:
     mutating func allocate(size: usize, alignment: usize) -> u8[]?
     mutating func resize(block: u8[], size: usize) -> bool
@@ -27,14 +29,7 @@ pub struct FixedBuffer: Allocator:
         if size == 0:
             return self.data[..<0]
         let align = alignment if alignment > 0 else 1
-        # the address is what must be aligned, not the offset: the backing span starts
-        # wherever its owner put it
-        let base = (usize)self.data.data
-        let free_at = base + self.used
-        let aligned = (free_at + (align - 1)) & ~(align - 1)
-        if aligned < free_at:
-            return none
-        let start = aligned - base
+        let start = aligned_offset(self.data, self.used, align) else return none
         if start > self.data.length or size > self.data.length - start:
             note_refusal("fixed buffer", size, align, self.used)
             return none
@@ -46,10 +41,10 @@ pub struct FixedBuffer: Allocator:
             return true
         if block.length == 0:
             return false
-        let start = (usize)block.data - (usize)self.data.data
-        if start + block.length != self.used:
+        let start = (usize)block.data -? (usize)self.data.data else return false
+        if start > self.used or block.length != self.used - start:
             return false
-        if start + size > self.data.length:
+        if start > self.data.length or size > self.data.length - start:
             return false
         self.used = start + size
         return true
@@ -63,6 +58,18 @@ pub struct FixedBuffer: Allocator:
         if start + block.length == self.used:
             self.used = start
 
+## Align the address inside a bounded span, without rounding an addition past
+## usize's range. The remainder works for arbitrary positive byte alignments.
+func aligned_offset(storage: u8[], used: usize, alignment: usize) -> usize?:
+    if used > storage.length:
+        return none
+    let address = (usize)storage.data +? used else return none
+    let remainder = address % alignment
+    let padding = 0 if remainder == 0 else alignment - remainder
+    if padding > storage.length - used:
+        return none
+    return used + padding
+
 ## The C library's heap.
 pub struct CAllocator: Allocator:
     var unused: u8
@@ -70,7 +77,9 @@ pub struct CAllocator: Allocator:
     pub mutating func allocate(size: usize, alignment: usize) -> u8[]?:
         if size == 0:
             return u8[]((u8*)8, 0)
-        var align = alignment if alignment > 8 else 8
+        if alignment != 0 and (alignment & (alignment - 1)) != 0:
+            return none
+        let align = alignment if alignment > 8 else 8
         var p: void*? = none
         if posix_memalign(&p, align, size) != 0:
             note_refusal("heap", size, align, 0)
@@ -113,8 +122,7 @@ pub struct Arena: Allocator:
         if size == 0:
             return self.block[..<0]
         let align = alignment if alignment > 0 else 1
-        let base = (usize)self.block.data
-        let start = ((base + self.used + align - 1) // align * align) - base
+        let start = aligned_offset(self.block, self.used, align) else return none
         let end = start +? size else return none
         if end > self.block.length:
             note_refusal("arena", size, align, self.used)
@@ -128,8 +136,10 @@ pub struct Arena: Allocator:
         if block.length == 0:
             return false
         # the last block may grow or shrink in place
-        let start = (usize)block.data - (usize)self.block.data
-        if start + block.length != self.used or start + size > self.block.length:
+        let start = (usize)block.data -? (usize)self.block.data else return false
+        if start > self.used or block.length != self.used - start:
+            return false
+        if start > self.block.length or size > self.block.length - start:
             return false
         self.used = start + size
         return true
@@ -162,10 +172,11 @@ pub struct PageAllocator: Allocator:
         if size == 0:
             return u8[]((u8*)8, 0)
         let page = (usize)getpagesize()
-        if alignment > page:
+        if alignment > page or (alignment != 0 and page % alignment != 0):
             note_refusal("page allocator", size, alignment, 0)
             return none
-        let rounded = (size + page - 1) // page * page
+        let padded = size +? (page - 1) else return none
+        let rounded = padded // page * page
         let mapped = mmap(none, rounded, 3, private_anonymous, -1, 0) else return none
         if (usize)mapped == 18446744073709551615:
             note_refusal("page allocator", size, alignment, 0)
