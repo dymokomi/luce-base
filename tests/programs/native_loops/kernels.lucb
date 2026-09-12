@@ -72,3 +72,56 @@ export func invariant_float(iterations: usize, value: f64) -> f64:
         result = result * 0.125 + 0.375
         index += 1
     return result
+
+struct LargeValue:
+    var first: u64
+    var second: u64
+    var third: u64
+
+noinline func optional_large(index: usize) -> LargeValue?:
+    if index % 2 == 0:
+        return none
+    return LargeValue(first = (u64)index, second = 7, third = 11)
+
+export func changing_call_result(iterations: usize) -> u64:
+    var result: u64 = 0
+    var index: usize = 0
+    while index < iterations:
+        if let value = optional_large(index):
+            result +%= value.first +% value.second +% value.third
+        index += 1
+    return result
+
+export func discarded_call_result() -> u64:
+    discard(optional_large(1))
+    return 77
+
+export func map_doubles(target: f64[], source: const f64[]):
+    assert(target.length == source.length)
+    var index: usize = 0
+    while index < target.length:
+        target[index] = target[index] * 0.125 + source[index] * 0.375
+        index += 1
+
+export func map_floats(target: f32[], source: const f32[]):
+    assert(target.length == source.length)
+    var index: usize = 0
+    while index < target.length:
+        target[index] = target[index] * 0.125 + source[index] * 0.375
+        index += 1
+
+export func sum_dwords(values: const u32[], initial: u32) -> u32:
+    var result = initial
+    var index: usize = 0
+    while index < values.length:
+        result +%= values[index]
+        index += 1
+    return result
+
+export func checked_total(values: const u64[]) -> u64:
+    var result: u64 = 0
+    var index: usize = 0
+    while index < values.length:
+        result += values[index]
+        index += 1
+    return result

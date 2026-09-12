@@ -219,7 +219,9 @@ func stable_load(f: ir.Function*, g: cfg.Graph*, loop: Natural*, aliases: load.A
             if load.is_store(y.op):
                 if aliases.relation(address, bytes, y.b, width(y.op)) != load.no_alias:
                     return false
-            elif y.op == ir.Op.blit or y.op == ir.Op.zero or y.op == ir.Op.fill or y.op == ir.Op.storev or y.op == ir.Op.asm_ or ((u8)y.op >= (u8)ir.Op.atomic_load and (u8)y.op <= (u8)ir.Op.fence):
+            # A call also writes its ABI result slot, which need not appear in
+            # its ordinary arguments. Treat every call as a memory barrier here.
+            elif y.op == ir.Op.call or y.op == ir.Op.blit or y.op == ir.Op.zero or y.op == ir.Op.fill or y.op == ir.Op.storev or y.op == ir.Op.asm_ or ((u8)y.op >= (u8)ir.Op.atomic_load and (u8)y.op <= (u8)ir.Op.fence):
                 return false
     return true
 

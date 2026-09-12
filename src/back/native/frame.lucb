@@ -138,6 +138,10 @@ pub struct Frame:
             mark_home(x.b, live_slots, live_temps)
             if x.dst != 0:
                 live_temps[x.dst] = true
+            if x.op == ir.Op.call:
+                let call = f.calls.get(x.extra)
+                if call.has_result and call.result_size > 0:
+                    live_slots[call.result_slot] = true
             let (start, count) = ir.argument_range(f, x)
             for k in 0..<count:
                 mark_home(f.args.get(start + k).value, live_slots, live_temps)

@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include <math.h>
 
 int main(int argc, char **argv) {
     uint64_t values[257];
@@ -41,6 +42,47 @@ int main(int argc, char **argv) {
     for (size_t n = 0; n < 30; ++n) {
         assert(invariant_float(n, 17.0) == value);
         value = value * 0.125 + 0.375;
+    }
+    assert(changing_call_result(8) == 88);
+    assert(discarded_call_result() == 77);
+    uint32_t words[257];
+    for (size_t i = 0; i < 257; ++i) words[i] = UINT32_MAX - (uint32_t)i;
+    uint32_t sum = UINT32_MAX;
+    for (size_t n = 0; n <= 257; ++n) {
+        assert(sum_dwords(words, n, UINT32_MAX) == sum);
+        if (n < 257) sum += words[n];
+    }
+    /* Both overlap directions, exact aliasing, disjoint views and every tail.
+       Compare the entire backing store to catch writes beyond either view. */
+    for (size_t n = 0; n <= 65; ++n) {
+        for (int delta = -8; delta <= 80; ++delta) {
+            double actual[256], expected_map[256];
+            float actual_f[256], expected_f[256];
+            for (size_t i = 0; i < 256; ++i) {
+                actual[i] = expected_map[i] = (double)i * 0.125 - 7.0;
+                actual_f[i] = expected_f[i] = (float)i * 0.125f - 7.0f;
+            }
+            size_t src = (size_t)(16 + delta);
+            for (size_t i = 0; i < n; ++i) {
+                expected_map[16 + i] = expected_map[16 + i] * 0.125 + expected_map[src + i] * 0.375;
+                expected_f[16 + i] = expected_f[16 + i] * 0.125f + expected_f[src + i] * 0.375f;
+            }
+            map_doubles(actual + 16, n, actual + src, n);
+            map_floats(actual_f + 16, n, actual_f + src, n);
+            assert(!memcmp(actual, expected_map, sizeof actual));
+            assert(!memcmp(actual_f, expected_f, sizeof actual_f));
+        }
+    }
+    map_doubles(NULL, 0, NULL, 0);
+    map_floats(NULL, 0, NULL, 0);
+    double special[] = {INFINITY, -INFINITY, NAN, -0.0, 0.0, 0x1p-1074, -0x1p-1074};
+    double other[] = {1.0, INFINITY, 2.0, -0.0, 0.0, 0x1p-1074, -0x1p-1074};
+    double expected_special[7];
+    for (size_t i = 0; i < 7; ++i) expected_special[i] = special[i] * 0.125 + other[i] * 0.375;
+    map_doubles(special, 7, other, 7);
+    for (size_t i = 0; i < 7; ++i) {
+        if (isnan(expected_special[i])) assert(isnan(special[i]));
+        else assert(!memcmp(special + i, expected_special + i, sizeof(double)));
     }
     puts("ok native loop semantics");
 }
