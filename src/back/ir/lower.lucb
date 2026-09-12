@@ -4070,18 +4070,20 @@ pub struct Lowerer:
         let slot = try self.new_slot(result_type)
         let a = try self.slot_address(slot)
         let stride = self.c.table.size_of(elem)
-        let bytes = try self.f.binary(ir.Op.mul, ir.Class.l, count, ir.const_ref((i64)stride))
-        # overflow of the byte count reads as exhaustion
+        # Compare elements before multiplying: a wrapped product can appear small
+        # while the resulting span still advertises the original element count.
         let too_big = self.f.label()
         let fits = self.f.label()
         let done = self.f.label()
-        let limit = ir.const_ref(4611686018427387904)
-        let big = try self.f.binary(ir.Op.cugt, ir.Class.l, bytes, limit)
+        let maximum = 18446744073709551615 if stride == 0 else 4611686018427387904 // stride
+        let limit = ir.const_ref((i64)maximum)
+        let big = try self.f.binary(ir.Op.cugt, ir.Class.l, count, limit)
         try self.f.branch(big, too_big, fits)
         try self.f.place_label(too_big)
         try self.store_error(a, result_type, (i64)check.exhausted_code(), "memory.exhausted: the allocation size overflows")
         try self.f.jump(done)
         try self.f.place_label(fits)
+        let bytes = try self.f.binary(ir.Op.mul, ir.Class.l, count, ir.const_ref((i64)stride))
         let block = try self.allocate_bytes(view, bytes, ir.const_ref((i64)self.c.table.align_of(elem)))
         let present = try self.f.load(ir.Op.loadub, ir.Class.w, try self.offset_address(block, 16))
         let nonzero = try self.f.binary(ir.Op.cne, ir.Class.l, bytes, ir.const_ref(0))

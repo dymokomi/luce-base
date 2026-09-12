@@ -1,0 +1,62 @@
+import memory
+
+struct Probe: memory.Allocator:
+    var calls: usize
+    var releases: usize
+    var size: usize
+    var bytes: u8[64]
+
+    pub mutating func allocate(size: usize, alignment: usize) -> u8[]?:
+        self.calls += 1
+        self.size = size
+        if size > self.bytes.length:
+            return none
+        return self.bytes[..<size]
+
+    pub mutating func resize(block: u8[], size: usize) -> bool:
+        return false
+
+    pub mutating func release(block: u8[]):
+        self.releases += 1
+        assert(block.length == self.size)
+
+struct Triple:
+    var bytes: u8[3]
+
+func huge[T](count: usize, probe: Probe*) -> !:
+    let before = probe.calls
+    var failed = false
+    let raw: T[]? = alloc T[count] in *probe catch failure:
+        assert(failure.code == memory.exhausted)
+        failed = true
+        recover none
+    assert(failed and raw == none and probe.calls == before)
+
+pub func main(arguments: str[]) -> i32!:
+    var probe: Probe
+    try huge[u64](2305843009213693952, &probe)  # formerly wrapped to zero bytes
+    try huge[u64](2305843009213693953, &probe)  # formerly wrapped to eight bytes
+    try huge[u64](18446744073709551615, &probe)
+    try huge[Triple](1537228672809129302, &probe) # one element above the byte limit
+    try huge[u8](4611686018427387905, &probe)
+    var failed = false
+    let zeroed: u64[]? = new u64[2305843009213693952] in probe catch failure:
+        assert(failure.code == memory.exhausted)
+        failed = true
+        recover none
+    assert(failed and zeroed == none and probe.calls == 0)
+    # The inclusive boundary reaches the allocator intact and can be refused.
+    let boundary: u64[]? = alloc u64[576460752303423488] in probe catch failure:
+        assert(failure.code == memory.exhausted)
+        recover none
+    assert(boundary == none and probe.calls == 1 and probe.size == 4611686018427387904)
+    let small = try alloc u64[3] in probe
+    assert(small.length == 3 and probe.size == 24)
+    free(small) in probe
+    assert(probe.releases == 1)
+    let empty = try new u64[0] in probe
+    assert(empty.length == 0 and probe.size == 0)
+    free(empty) in probe
+    assert(probe.releases == 2)
+    print("ok checked element counts, byte limits, zero counts and allocator calls")
+    return 0

@@ -264,7 +264,7 @@ Preserve the supplied reproductions, add focused regressions in the affected
 repository, distinguish confirmed defects from invalid preconditions, and commit
 verified fixes promptly. Track the final disposition in the issues directory.
 
-- [ ] B01 — Allocation byte-size overflow in native lowering.
+- [x] B01 — Allocation byte-size overflow in native lowering.
 - [ ] B02 — Buffer reserve arithmetic overflow.
 - [ ] B03 — List growth capacity overflow.
 - [ ] B04 — Page allocator size rounding overflow.
@@ -341,3 +341,5 @@ native target/optimization coverage and any remaining limit relevant to the task
 | R01, R03–R05 (local delivery) | UI and 3D README examples compile; documented server/application fragments are exercised in the real rewritten consumers. Standard embedding/reference/runtime unchanged; HFA snapshots regenerated and native bootstrap agreed. All package consumers use real exports; core 3D contains no UI/platform calls. Demo success/failure output checks pass and the final build directory contains only its two binaries (host xcrun's separate SDK cache is allowed in TMPDIR). Existing Luce cleanup gate covers backend failure, explicit emission and concurrent builds. APIs/ownership/affinity/callback/CPU–GPU division and limits documented. Server native 0–3 gate passes at `bf57286`; HTTP native 0–3 passes at `92ce88c`, with exact current pins committed/pushed. Full cross-platform CI/publication remain R02/R06. |
 
 | R02 | Full compiler CI passed on ARM64 macOS and x86-64 Linux: Base implementation `51a02e5`, run `34667953294`; Luce `29c64f6`, run `34668262003`. Final UI CI `34668668832` and HTTP application CI `34668963281` passed on both hosts. Server `bf57286`, run `34668959554`, passed native tests on both hosts and the macOS heap check; only GitHub checkout post-job cleanup remains. Local server/application heap checks report zero leaked bytes. Normal Luce build succeeds from its isolated exact Base pin. 3D/demo public CI awaits R06 publication approval; their local matrices and Metal evidence are recorded above. |
+
+| B01 | Fixed and tested in the allocation-limit commit containing this entry. Native lowering checks element counts before multiplication; the C comparison path uses the same inclusive 2^62 byte limit. `allocation_limits/check.sh` passes all six modes: wrap-to-zero/eight, maximal counts, non-power-of-two stride, boundary rejection, zero counts, allocator invocation counts and ordinary release sizes. Both snapshots regenerated and native bootstrap agreement passed. The supplied original native reproduction segfaulted before the fix. |
