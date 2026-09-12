@@ -17,6 +17,7 @@
 #
 #==============================================================================================
 
+from back.effects import arguments_have_effect
 import back.ir.ir
 import back.isa
 import back.names
@@ -3246,12 +3247,14 @@ pub struct Lowerer:
     # mark: Calls ==============================================================================
 
     ## An argument description from a value.
-    mutating func arg_of(v: LowerValue) -> ir.Arg!:
+    mutating func arg_of(v: LowerValue, freeze: bool = false) -> ir.Arg!:
         if v.in_memory:
             # A later argument may mutate the original record. Freeze this value
             # when it is evaluated, before the call's ABI reads its bytes.
-            let snapshot = try self.slot_address(try self.new_slot(v.type_id))
-            try self.f.copy_bytes(snapshot, v.ref, self.size(v.type_id))
+            var snapshot = v.ref
+            if freeze:
+                snapshot = try self.slot_address(try self.new_slot(v.type_id))
+                try self.f.copy_bytes(snapshot, v.ref, self.size(v.type_id))
             return ir.Arg(value = snapshot, cls = ir.Class.l, size = self.size(v.type_id), align = self.align(v.type_id), type_id = v.type_id, shape = try self.shape_of(v.type_id))
         var cls = self.class_of(v.type_id)
         if v.type_id == types.unit_id or v.type_id == types.never_id:
@@ -3297,7 +3300,7 @@ pub struct Lowerer:
                     parameter = p.next
                 let expression = argument.left else return try self.fail(argument, "empty argument")
                 let value = try self.argument_value(expression, f.args[index]) if index < f.args.length else try self.variadic_value(expression)
-                try supplied.push(LowerCallArgument(node = argument, value = try self.arg_of(value)))
+                try supplied.push(LowerCallArgument(node = argument, value = try self.arg_of(value, arguments_have_effect(argument.next))))
                 if argument.text.length == 0:
                     source_position += 1
                 source = argument.next
@@ -3363,7 +3366,7 @@ pub struct Lowerer:
             while let a = cursor:
                 let v = a.left else return try self.fail(a, "empty argument")
                 let av = try self.argument_value(v, f.args[i] if i < f.args.length else types.none_id)
-                try pending.push(try self.arg_of(av))
+                try pending.push(try self.arg_of(av, arguments_have_effect(a.next)))
                 i += 1
                 cursor = a.next
             fixed = u32(pending.count)

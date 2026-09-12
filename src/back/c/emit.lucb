@@ -21,6 +21,7 @@
 #
 #==============================================================================================
 
+from back.effects import may_have_effect, arguments_have_effect
 import back.names
 import back.target as targets
 import front.ast
@@ -7040,43 +7041,6 @@ func same_args(a: const u32[], b: const u32[]) -> bool:
             return false
         i += 1
     return true
-
-## Whether evaluating `e` may have an effect another operand could observe (§7.1): a call,
-## a `try`, a `catch`, an allocation, or a formatted string with such a field. A lambda's
-## body runs later, not here.
-pub func may_have_effect(e: ast.Node*) -> bool:
-    match e.kind:
-        .call, .catch_, .new_, .alloc_, .match_expr:
-            return true
-        .unary:
-            if e.text == "try":
-                return true
-        .lambda:
-            return false
-        _:
-            discard(e)
-    if let l = e.left:
-        if may_have_effect(l):
-            return true
-    if let r = e.right:
-        if may_have_effect(r):
-            return true
-    var cursor = e.body
-    while let b = cursor:
-        if may_have_effect(b):
-            return true
-        cursor = b.next
-    return false
-
-## Whether any argument of a call may have an effect.
-pub func arguments_have_effect(args: ast.Node*?) -> bool:
-    var cursor = args
-    while let a = cursor:
-        if let v = a.left:
-            if may_have_effect(v):
-                return true
-        cursor = a.next
-    return false
 
 ## Whether an `in` or `inout` operand of the asm block `s` names the register `place`.
 func asm_block_reads(s: ast.Node*, place: str) -> bool:
