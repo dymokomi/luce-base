@@ -26,6 +26,7 @@ import back.opt.load
 import back.opt.loops
 import back.opt.ranges
 import back.opt.ssa
+import back.opt.vectorize
 import back.target as targets
 import back.native.x86_64
 import back.c.emit
@@ -199,6 +200,7 @@ func optimise_functions(program: ir.Unit*, level: u32, count: u32) -> !:
             if level >= 3:
                 g3.release()
                 try loops.run(f)
+                try vectorize.run(f)
                 g3 = try cfg.Graph.over(f)
             try dessa.run(f, &g3)
             g3.release()

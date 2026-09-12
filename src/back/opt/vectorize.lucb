@@ -1,0 +1,402 @@
+## Version straight-line counted loops for portable 128-bit SIMD. Recognized
+## loops contain only contiguous loads, arithmetic and at most one store, or
+## one wrapping integer sum. Everything else keeps its scalar implementation.
+## Floating-point expressions retain their original operation order; floating
+## reductions are deliberately excluded.
+import back.ir.cfg
+import back.ir.ir
+import back.opt.loops
+import support.list
+
+struct Analysis:
+    var f: ir.Function*
+    var g: cfg.Graph*
+    var loop: loops.Natural*
+    var definitions: u32[]
+    var kinds: u8[]
+    var bases: ir.Ref[]
+    var streams: list.List[ir.Ref]
+    var header: cfg.Block
+    var body: cfg.Block
+    var counter: u32 = 0
+    var increment: u32 = 0
+    var accumulator: u32 = 0
+    var reduction: u32 = 0
+    var initial: ir.Ref
+    var bound: ir.Ref
+    var store_base: ir.Ref
+    var cls: ir.Class = ir.Class.l
+    var width: u32 = 0
+    var stride: u32 = 0
+
+    func invariant(value: ir.Ref) -> bool:
+        return loops.invariant(value, self.loop.members, self.definitions)
+
+    func kind(value: ir.Ref) -> u8:
+        return self.kinds[value.index] if value.kind == ir.RefKind.temp else 0
+
+    func definition(temp: u32) -> ir.Instr?:
+        let block = self.g.blocks.get(self.definitions[temp])
+        for i in block.start..<block.end:
+            let x = self.f.instrs.get(i)
+            if x.dst == temp:
+                return x
+        return none
+
+    ## Each accepted phi has one entry and one backedge. Returning references
+    ## separately keeps the original scalar recurrence available for the tail.
+    func incoming(phi: ir.Instr) -> (ir.Ref, ir.Ref)?:
+        if phi.extra2 != 2:
+            return none
+        var entry = ir.none_ref()
+        var back = ir.none_ref()
+        let label = self.g.blocks.get(self.loop.preheader).label
+        for k in 0..<phi.extra2:
+            let arg = self.f.phi_args.get(phi.extra + k)
+            if arg.pred == label:
+                entry = arg.value
+            elif arg.pred == self.body.label:
+                back = arg.value
+        if entry.kind == ir.RefKind.none_ or back.kind == ir.RefKind.none_:
+            return none
+        return (entry, back)
+
+    mutating func recognize() -> bool!:
+        var count: u32 = 0
+        for member in self.loop.members:
+            if member:
+                count += 1
+        if count != 2 or self.header.end <= self.header.start:
+            return false
+        let branch = self.f.instrs.get(self.header.end - 1)
+        if branch.op != ir.Op.jnz or branch.a.kind != ir.RefKind.temp:
+            return false
+        let body_index = self.g.block_of(branch.extra)
+        if body_index == self.loop.header or not self.loop.members[body_index] or self.loop.members[self.g.block_of(branch.extra2)]:
+            return false
+        self.body = self.g.blocks.get(body_index)
+        if self.body.preds.count != 1 or self.body.end <= self.body.start:
+            return false
+        let tail = self.f.instrs.get(self.body.end - 1)
+        if tail.op != ir.Op.jmp or tail.extra != self.header.label:
+            return false
+        let comparison = self.definition(branch.a.index) else return false
+        if comparison.op != ir.Op.cult or comparison.cls != ir.Class.l or comparison.a.kind != ir.RefKind.temp or not self.invariant(comparison.b):
+            return false
+        self.counter = comparison.a.index
+        self.bound = comparison.b
+        let counter = self.definition(self.counter) else return false
+        if counter.op != ir.Op.phi or counter.cls != ir.Class.l:
+            return false
+        let (initial, step) = self.incoming(counter) else return false
+        if initial.kind != ir.RefKind.constant or initial.value != 0 or step.kind != ir.RefKind.temp:
+            return false
+        let increment = self.definition(step.index) else return false
+        if increment.op != ir.Op.add or increment.cls != ir.Class.l or not ((is_temp(increment.a, self.counter) and is_constant(increment.b, 1)) or (is_temp(increment.b, self.counter) and is_constant(increment.a, 1))):
+            return false
+        self.increment = step.index
+        for i in self.header.start..<self.header.end:
+            let x = self.f.instrs.get(i)
+            if x.dst == self.counter or x.dst == comparison.dst or x.op == ir.Op.jnz:
+                continue
+            if x.op != ir.Op.phi or self.accumulator != 0 or (x.cls != ir.Class.w and x.cls != ir.Class.l):
+                return false
+            let (seed, next) = self.incoming(x) else return false
+            if next.kind != ir.RefKind.temp:
+                return false
+            let reduction = self.definition(next.index) else return false
+            if reduction.op != ir.Op.add or reduction.cls != x.cls or (is_temp(reduction.a, x.dst) == is_temp(reduction.b, x.dst)):
+                return false
+            self.accumulator = x.dst
+            self.reduction = next.index
+            self.initial = seed
+            self.cls = x.cls
+            self.width = 8 if x.cls == ir.Class.l else 4
+            self.kinds[x.dst] = 3
+        for i in self.body.start..<self.body.end:
+            let x = self.f.instrs.get(i)
+            if x.dst == self.increment or x.op == ir.Op.jmp:
+                continue
+            if self.accumulator != 0 and x.dst != self.reduction and (is_temp(x.a, self.accumulator) or is_temp(x.b, self.accumulator)):
+                return false
+            if x.op == ir.Op.mul and x.cls == ir.Class.l:
+                let scale = x.b if is_temp(x.a, self.counter) else x.a
+                if (is_temp(x.a, self.counter) or is_temp(x.b, self.counter)) and scale.kind == ir.RefKind.constant and (scale.value == 4 or scale.value == 8):
+                    if self.stride != 0 and self.stride != (u32)scale.value:
+                        return false
+                    self.stride = (u32)scale.value
+                    self.kinds[x.dst] = 1
+                    continue
+            if x.op == ir.Op.add and x.cls == ir.Class.l:
+                let base = x.b if self.kind(x.a) == 1 else x.a
+                if (self.kind(x.a) == 1 or self.kind(x.b) == 1) and self.invariant(base):
+                    self.kinds[x.dst] = 2
+                    self.bases[x.dst] = base
+                    continue
+            if x.op == ir.Op.loadl or x.op == ir.Op.loaduw or x.op == ir.Op.loadd or x.op == ir.Op.loads:
+                let width: u32 = 8 if x.op == ir.Op.loadl or x.op == ir.Op.loadd else 4
+                if self.kind(x.a) != 2 or (self.width != 0 and (self.width != width or self.cls != x.cls)):
+                    return false
+                self.width = width
+                self.cls = x.cls
+                self.kinds[x.dst] = 3
+                try self.streams.push(self.bases[x.a.index])
+                continue
+            if x.op == ir.Op.storel or x.op == ir.Op.storew or x.op == ir.Op.stored or x.op == ir.Op.stores:
+                let store_class = ir.Class.d if x.op == ir.Op.stored else (ir.Class.s if x.op == ir.Op.stores else (ir.Class.w if x.op == ir.Op.storew else ir.Class.l))
+                if self.accumulator != 0 or self.store_base.kind != ir.RefKind.none_ or self.kind(x.a) != 3 or self.kind(x.b) != 2 or store_class != self.cls:
+                    return false
+                self.store_base = self.bases[x.b.index]
+                continue
+            if vector_op(x.op, x.cls) == ir.Op.copy or x.cls != self.cls or not self.data(x.a) or not self.data(x.b) or (self.kind(x.a) != 3 and self.kind(x.b) != 3):
+                return false
+            self.kinds[x.dst] = 3
+        return self.streams.count > 0 and self.width == self.stride and (self.accumulator != 0 or self.store_base.kind != ir.RefKind.none_)
+
+    func data(value: ir.Ref) -> bool:
+        return self.kind(value) == 3 or (self.invariant(value) and (value.kind == ir.RefKind.constant or (value.kind == ir.RefKind.temp and self.f.temp_class(value.index) == self.cls)))
+
+struct Builder:
+    var f: ir.Function*
+    var analysis: Analysis*
+    var pre: list.List[ir.Instr]
+    var body: list.List[ir.Instr]
+    var values: ir.Ref[]
+    var index: ir.Ref
+    var shape: u32
+
+    mutating func value(original: ir.Ref) -> ir.Ref!:
+        if original.kind == ir.RefKind.temp and self.values[original.index].kind != ir.RefKind.none_:
+            return self.values[original.index]
+        let value = try result(self.f, &self.pre, ir.Op.vsplat, ir.Class.v, original, ir.none_ref(), self.shape)
+        if original.kind == ir.RefKind.temp:
+            self.values[original.index] = value
+        return value
+
+    mutating func address(original: ir.Ref) -> ir.Ref!:
+        let base = self.analysis.bases[original.index]
+        let offset = try result(self.f, &self.body, ir.Op.mul, ir.Class.l, self.index, ir.const_ref((i64)self.analysis.width))
+        return try result(self.f, &self.body, ir.Op.add, ir.Class.l, base, offset)
+
+    mutating func translate() -> !:
+        let block = self.analysis.body
+        for i in block.start..<block.end:
+            let x = self.f.instrs.get(i)
+            if x.dst == self.analysis.increment or x.op == ir.Op.jmp or (x.dst != 0 and self.analysis.kinds[x.dst] != 3):
+                continue
+            if x.op == ir.Op.loadl or x.op == ir.Op.loaduw or x.op == ir.Op.loadd or x.op == ir.Op.loads:
+                let address = try self.address(x.a)
+                self.values[x.dst] = try result(self.f, &self.body, ir.Op.loadv, ir.Class.v, address, ir.none_ref(), self.shape)
+            elif x.dst == 0:
+                let value = try self.value(x.a)
+                let address = try self.address(x.b)
+                try self.body.push(instruction(ir.Op.storev, ir.Class.v, 0, value, address, self.shape))
+            else:
+                let a = try self.value(x.a)
+                let b = try self.value(x.b)
+                self.values[x.dst] = try result(self.f, &self.body, vector_op(x.op, x.cls), ir.Class.v, a, b, self.shape)
+
+pub func run(f: ir.Function*) -> !:
+    # Newly made vector loops contain vector operations, so cannot match again.
+    # Remember original headers: their scalar tails must not be versioned again.
+    let original_labels = f.labels
+    var handled = try alloc bool[(usize)original_labels + 1]
+    defer free(handled)
+    for i in 0..<handled.length:
+        handled[i] = false
+    for round in 0..<16:
+        var g = try cfg.Graph.over(f)
+        defer g.release()
+        var transformed = false
+        for h in g.order.span():
+            let header = g.blocks.get(h)
+            if header.label > original_labels or handled[header.label]:
+                continue
+            handled[header.label] = true
+            if let found = try loops.Natural.find(&g, h):
+                var loop = found
+                defer loop.release()
+                var analysis = Analysis(f = f, g = &g, loop = &loop, definitions = try loops.definition_blocks(f, &g), kinds = try alloc u8[f.temps.count + 1], bases = try alloc ir.Ref[f.temps.count + 1], streams = try list.List[ir.Ref].create(4), header = header, body = header, initial = ir.none_ref(), bound = ir.none_ref(), store_base = ir.none_ref())
+                defer free(analysis.definitions)
+                defer free(analysis.kinds)
+                defer free(analysis.bases)
+                defer analysis.streams.destroy()
+                for i in 0..<analysis.kinds.length:
+                    analysis.kinds[i] = 0
+                    analysis.bases[i] = ir.none_ref()
+                if try analysis.recognize():
+                    try rewrite(&analysis)
+                    transformed = true
+                    break
+        if not transformed:
+            return
+
+func rewrite(a: Analysis*) -> !:
+    let f = a.f
+    let lanes = 16 // a.width
+    # Independent accumulators avoid serializing every vector load behind one
+    # add latency. Maps keep one vector per iteration to limit code growth.
+    let unroll: u32 = 4 if a.accumulator != 0 else 1
+    let step = lanes * unroll
+    let shape = ir.lanes(a.width * 8, lanes, ir.is_float_class(a.cls), false)
+    let guard_label = f.label()
+    let pre_label = f.label()
+    let head_label = f.label()
+    let body_label = f.label()
+    let finish_label = f.label()
+    let join_label = f.label()
+    let index = ir.temp_ref(try f.temp(ir.Class.l))
+    var accumulators = try alloc ir.Ref[unroll]
+    defer free(accumulators)
+    var backedges = try alloc ir.Ref[unroll]
+    defer free(backedges)
+    var builder = Builder(f = f, analysis = a, pre = try list.List[ir.Instr].create(8), body = try list.List[ir.Instr].create(32), values = try alloc ir.Ref[f.temps.count + 1], index = index, shape = shape)
+    defer builder.pre.destroy()
+    defer builder.body.destroy()
+    defer free(builder.values)
+    for i in 0..<builder.values.length:
+        builder.values[i] = ir.none_ref()
+    for group in 0..<unroll:
+        accumulators[group] = ir.none_ref()
+        backedges[group] = ir.none_ref()
+        if group > 0:
+            builder.index = try result(f, &builder.body, ir.Op.add, ir.Class.l, index, ir.const_ref((i64)(group * lanes)))
+        if a.accumulator != 0:
+            accumulators[group] = ir.temp_ref(try f.temp(ir.Class.v))
+            builder.values[a.accumulator] = accumulators[group]
+        try builder.translate()
+        if a.accumulator != 0:
+            backedges[group] = builder.values[a.reduction]
+    var code = try list.List[ir.Instr].create(64)
+    defer code.destroy()
+    try emit_label(&code, guard_label)
+    let end = try result(f, &code, ir.Op.and_, ir.Class.l, a.bound, ir.const_ref(0 - (i64)step))
+    var allowed = try result(f, &code, ir.Op.cuge, ir.Class.l, a.bound, ir.const_ref((i64)step))
+    if a.store_base.kind != ir.RefKind.none_:
+        # Unsigned differences avoid pointer-end overflow. Bound the byte count
+        # before relying on it. Exact aliasing is safe for equal-stride streams;
+        # partial overlap executes the original scalar loop in its original order.
+        let fits = try result(f, &code, ir.Op.cule, ir.Class.l, a.bound, ir.const_ref((i64)(18446744073709551615 // (u64)a.width)))
+        allowed = try result(f, &code, ir.Op.and_, ir.Class.w, allowed, fits)
+        let bytes = try result(f, &code, ir.Op.mul, ir.Class.l, a.bound, ir.const_ref((i64)a.width))
+        for source in a.streams.span():
+            if loops.same(source, a.store_base):
+                continue
+            let forward = try result(f, &code, ir.Op.sub, ir.Class.l, source, a.store_base)
+            let backward = try result(f, &code, ir.Op.sub, ir.Class.l, a.store_base, source)
+            let beyond_a = try result(f, &code, ir.Op.cuge, ir.Class.l, forward, bytes)
+            let beyond_b = try result(f, &code, ir.Op.cuge, ir.Class.l, backward, bytes)
+            let disjoint = try result(f, &code, ir.Op.and_, ir.Class.w, beyond_a, beyond_b)
+            let equal = try result(f, &code, ir.Op.ceq, ir.Class.l, source, a.store_base)
+            let independent = try result(f, &code, ir.Op.or_, ir.Class.w, disjoint, equal)
+            allowed = try result(f, &code, ir.Op.and_, ir.Class.w, allowed, independent)
+    try emit_branch(&code, allowed, pre_label, join_label)
+    try emit_label(&code, pre_label)
+    for x in builder.pre.span():
+        try code.push(x)
+    let zero = try result(f, &code, ir.Op.vsplat, ir.Class.v, ir.const_ref(0), ir.none_ref(), shape) if a.accumulator != 0 else ir.none_ref()
+    try emit_jump(&code, head_label)
+    try emit_label(&code, head_label)
+    let next_index = ir.temp_ref(try f.temp(ir.Class.l))
+    try emit_phi(f, &code, index, ir.Class.l, ir.const_ref(0), pre_label, next_index, body_label)
+    if a.accumulator != 0:
+        for group in 0..<unroll:
+            try emit_phi(f, &code, accumulators[group], ir.Class.v, zero, pre_label, backedges[group], body_label)
+    let more = try result(f, &code, ir.Op.cult, ir.Class.l, index, end)
+    try emit_branch(&code, more, body_label, finish_label)
+    try emit_label(&code, body_label)
+    for x in builder.body.span():
+        try code.push(x)
+    try code.push(instruction(ir.Op.add, ir.Class.l, next_index.index, index, ir.const_ref((i64)step)))
+    try emit_jump(&code, head_label)
+    try emit_label(&code, finish_label)
+    var reduced = a.initial
+    if a.accumulator != 0:
+        let slot = ir.slot_ref(try f.slot(16, 16))
+        var combined = accumulators[0]
+        for group in (u32)1..<unroll:
+            combined = try result(f, &code, ir.Op.vaddw, ir.Class.v, combined, accumulators[group], shape)
+        try code.push(instruction(ir.Op.storev, ir.Class.v, 0, combined, slot, shape))
+        for lane in 0..<lanes:
+            let address = try result(f, &code, ir.Op.add, ir.Class.l, slot, ir.const_ref((i64)(lane * a.width)))
+            let value = try result(f, &code, ir.Op.loadl if a.width == 8 else ir.Op.loaduw, a.cls, address, ir.none_ref())
+            reduced = try result(f, &code, ir.Op.add, a.cls, reduced, value)
+    try emit_jump(&code, join_label)
+    try emit_label(&code, join_label)
+    let scalar_index = ir.temp_ref(try f.temp(ir.Class.l))
+    try emit_phi(f, &code, scalar_index, ir.Class.l, ir.const_ref(0), guard_label, end, finish_label)
+    var scalar_acc = ir.none_ref()
+    if a.accumulator != 0:
+        scalar_acc = ir.temp_ref(try f.temp(a.cls))
+        try emit_phi(f, &code, scalar_acc, a.cls, a.initial, guard_label, reduced, finish_label)
+    try emit_jump(&code, a.header.label)
+    let old_label = a.g.blocks.get(a.loop.preheader).label
+    for i in a.header.start..<a.header.end:
+        let x = f.instrs.get(i)
+        if x.op != ir.Op.phi:
+            continue
+        for k in 0..<x.extra2:
+            var arg = f.phi_args.get(x.extra + k)
+            if arg.pred == old_label:
+                arg.pred = join_label
+                arg.value = scalar_index if x.dst == a.counter else scalar_acc
+                f.phi_args.set(x.extra + k, arg)
+    let preheader = a.g.blocks.get(a.loop.preheader)
+    let replaces_jump = preheader.end > preheader.start and f.instrs.get(preheader.end - 1).op == ir.Op.jmp
+    let insertion = preheader.end - 1 if replaces_jump else preheader.end
+    var out = try list.List[ir.Instr].create(f.instrs.count + code.count)
+    for i in 0..=f.instrs.count:
+        if i == insertion:
+            try emit_jump(&out, guard_label)
+            for x in code.span():
+                try out.push(x)
+        if i < f.instrs.count and (i != insertion or not replaces_jump):
+            try out.push(f.instrs.get(i))
+    f.instrs.destroy()
+    f.instrs = out
+
+func instruction(op: ir.Op, cls: ir.Class, dst: u32, a: ir.Ref, b: ir.Ref, extra: u32 = 0, extra2: u32 = 0) -> ir.Instr:
+    return ir.Instr(op = op, cls = cls, dst = dst, a = a, b = b, extra = extra, extra2 = extra2)
+
+func result(f: ir.Function*, out: list.List[ir.Instr]*, op: ir.Op, cls: ir.Class, a: ir.Ref, b: ir.Ref, shape: u32 = 0) -> ir.Ref!:
+    let temp = try f.temp(ir.Class.w if ir.is_comparison(op) else cls)
+    try out.push(instruction(op, cls, temp, a, b, shape))
+    return ir.temp_ref(temp)
+
+func emit_label(out: list.List[ir.Instr]*, label: u32) -> !:
+    try out.push(instruction(ir.Op.label, ir.Class.l, 0, ir.none_ref(), ir.none_ref(), label))
+
+func emit_jump(out: list.List[ir.Instr]*, label: u32) -> !:
+    try out.push(instruction(ir.Op.jmp, ir.Class.l, 0, ir.none_ref(), ir.none_ref(), label))
+
+func emit_branch(out: list.List[ir.Instr]*, condition: ir.Ref, yes: u32, no: u32) -> !:
+    try out.push(instruction(ir.Op.jnz, ir.Class.w, 0, condition, ir.none_ref(), yes, no))
+
+func emit_phi(f: ir.Function*, out: list.List[ir.Instr]*, dst: ir.Ref, cls: ir.Class, first: ir.Ref, first_label: u32, second: ir.Ref, second_label: u32) -> !:
+    let start = (u32)f.phi_args.count
+    try f.phi_args.push(ir.PhiArg(value = first, pred = first_label))
+    try f.phi_args.push(ir.PhiArg(value = second, pred = second_label))
+    try out.push(instruction(ir.Op.phi, cls, dst.index, ir.none_ref(), ir.none_ref(), start, 2))
+
+func is_temp(value: ir.Ref, index: u32) -> bool:
+    return value.kind == ir.RefKind.temp and value.index == index
+
+func is_constant(value: ir.Ref, number: i64) -> bool:
+    return value.kind == ir.RefKind.constant and value.value == number
+
+func vector_op(op: ir.Op, cls: ir.Class) -> ir.Op:
+    if cls == ir.Class.s or cls == ir.Class.d:
+        match op:
+            .add: return ir.Op.vadd
+            .sub: return ir.Op.vsub
+            .mul: return ir.Op.vmul
+            _: return ir.Op.copy
+    if cls == ir.Class.w or cls == ir.Class.l:
+        match op:
+            .add: return ir.Op.vaddw
+            .sub: return ir.Op.vsubw
+            .and_: return ir.Op.vand
+            .or_: return ir.Op.vor
+            .xor: return ir.Op.vxor
+            _: return ir.Op.copy
+    return ir.Op.copy

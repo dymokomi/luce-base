@@ -16,11 +16,21 @@ struct Fact:
     var left: ir.Ref
     var right: ir.Ref
 
+## A multiplication that has already completed without overflow. Its factors
+## bound smaller products and row-major indexes without requiring a constant
+## dimension. The result remains an immutable SSA value.
+struct Product:
+    var cls: ir.Class
+    var left: ir.Ref
+    var right: ir.Ref
+    var value: ir.Ref
+
 struct Search:
     var f: ir.Function*
     var g: cfg.Graph*
     var definitions: u32[]
     var facts: list.List[Fact]
+    var products: list.List[Product]
     var changed: bool = false
 
     ## Equalities are followed only to a bounded depth. Exhausting the search
@@ -96,6 +106,44 @@ struct Search:
         if not same(left, right):
             try self.facts.push(Fact(relation = relation, cls = cls, left = left, right = right))
 
+    func product_fits(a: ir.Ref, b: ir.Ref, cls: ir.Class) -> bool:
+        for product in self.products.span():
+            if product.cls != cls:
+                continue
+            if (self.at_most(a, product.left, cls, false) and self.at_most(b, product.right, cls, false)) or (self.at_most(a, product.right, cls, false) and self.at_most(b, product.left, cls, false)):
+                return true
+        return false
+
+    ## row * width + column < rows * width when row < rows and
+    ## column < width. The checked product supplies the finite upper bound.
+    func packed(a: ir.Ref, b: ir.Ref, product: Product) -> bool:
+        if a.kind != ir.RefKind.temp or self.definitions[a.index] == 0:
+            return false
+        let multiply = self.f.instrs.get(self.definitions[a.index] - 1)
+        if multiply.cls != product.cls or (multiply.op != ir.Op.mul and not (multiply.op == ir.Op.mulo and multiply.extra == 0)):
+            return false
+        return self.row(multiply.a, multiply.b, b, product.left, product.right, product.cls) or self.row(multiply.b, multiply.a, b, product.left, product.right, product.cls) or self.row(multiply.a, multiply.b, b, product.right, product.left, product.cls) or self.row(multiply.b, multiply.a, b, product.right, product.left, product.cls)
+
+    func row(index: ir.Ref, stride: ir.Ref, column: ir.Ref, rows: ir.Ref, width: ir.Ref, cls: ir.Class) -> bool:
+        return self.equal(stride, width, cls) and self.at_most(index, rows, cls, true) and self.at_most(column, width, cls, true)
+
+    func sum_fits(a: ir.Ref, b: ir.Ref, cls: ir.Class) -> bool:
+        for product in self.products.span():
+            if product.cls == cls and (self.packed(a, b, product) or self.packed(b, a, product)):
+                return true
+        return false
+
+    func packed_bound(index: ir.Ref, length: ir.Ref) -> bool:
+        if index.kind != ir.RefKind.temp or self.definitions[index.index] == 0:
+            return false
+        let sum = self.f.instrs.get(self.definitions[index.index] - 1)
+        if sum.cls != ir.Class.l or (sum.op != ir.Op.add and not (sum.op == ir.Op.addo and sum.extra == 0)):
+            return false
+        for product in self.products.span():
+            if product.cls == ir.Class.l and self.equal(length, product.value, ir.Class.l) and (self.packed(sum.a, sum.b, product) or self.packed(sum.b, sum.a, product)):
+                return true
+        return false
+
     ## A single predecessor makes this incoming edge unavoidable. This excludes
     ## joins and loop headers whose backedges could bypass the tested condition.
     mutating func incoming(block: cfg.Block) -> !:
@@ -128,13 +176,15 @@ struct Search:
 
     mutating func visit(index: u32) -> !:
         let mark = self.facts.count
+        let product_mark = self.products.count
         let block = self.g.blocks.get(index)
         try self.incoming(block)
         var at = block.start
         while at < block.end:
             var instruction = self.f.instrs.get(at)
+            let checked_product = instruction.op == ir.Op.mulo and instruction.extra == 0
             if instruction.op == ir.Op.bounds:
-                if self.at_most(instruction.a, instruction.b, ir.Class.l, true):
+                if self.at_most(instruction.a, instruction.b, ir.Class.l, true) or self.packed_bound(instruction.a, instruction.b):
                     # Keep graph instruction ranges stable until the walk ends.
                     instruction = ir.Instr(op = ir.Op.copy, cls = ir.Class.l, dst = 0, a = ir.none_ref(), b = ir.none_ref(), extra = 0, extra2 = 0)
                     self.f.instrs.set(at, instruction)
@@ -148,12 +198,12 @@ struct Search:
                 var safe = false
                 var operation = ir.Op.add
                 if instruction.op == ir.Op.addo:
-                    safe = high_a <= maximum - high_b
+                    safe = high_a <= maximum - high_b or self.sum_fits(instruction.a, instruction.b, instruction.cls)
                 elif instruction.op == ir.Op.subo:
                     safe = self.at_most(instruction.b, instruction.a, instruction.cls, false)
                     operation = ir.Op.sub
                 else:
-                    safe = high_b == 0 or high_a <= maximum // high_b
+                    safe = high_b == 0 or high_a <= maximum // high_b or self.product_fits(instruction.a, instruction.b, instruction.cls)
                     operation = ir.Op.mul
                 if safe:
                     instruction.op = operation
@@ -161,17 +211,21 @@ struct Search:
                     instruction.extra2 = 0
                     self.f.instrs.set(at, instruction)
                     self.changed = true
+            if checked_product:
+                try self.products.push(Product(cls = instruction.cls, left = instruction.a, right = instruction.b, value = ir.temp_ref(instruction.dst)))
             at += 1
         for child in block.children.span():
             try self.visit(child)
         self.facts.count = mark
+        self.products.count = product_mark
 
 ## Run after value numbering/load forwarding, while temporaries still have one
 ## definition. The caller rebuilds its graph when instructions were removed.
 pub func run(f: ir.Function*, g: cfg.Graph*) -> bool!:
-    var search = Search(f = f, g = g, definitions = try alloc u32[f.temps.count + 1], facts = try list.List[Fact].create(32))
+    var search = Search(f = f, g = g, definitions = try alloc u32[f.temps.count + 1], facts = try list.List[Fact].create(32), products = try list.List[Product].create(8))
     defer free(search.definitions)
     defer search.facts.destroy()
+    defer search.products.destroy()
     for index in 0..<search.definitions.length:
         search.definitions[index] = 0
     for index in 0..<f.instrs.count:

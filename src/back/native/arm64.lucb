@@ -798,8 +798,12 @@ pub struct Generator:
                 try self.return_value(n)
             .copy:
                 if n.cls == ir.Class.v:
-                    try self.vector_source(0, n.a, 16)
-                    try self.vector_result(n.dst, 0, 16)
+                    let v = try self.source(n.a, ir.Class.v, "q16")
+                    let d = self.target(n.dst, ir.Class.v, "q16")
+                    if v != d:
+                        try self.line4("mov ", vector_view(d), ".16b, ", vector_view(v))
+                        try self.put(".16b")
+                    try self.finish(n.dst, ir.Class.v, d)
                     return
                 let v = try self.source(n.a, n.cls, self.reg(n.cls, 0))
                 let d = self.target(n.dst, n.cls, self.reg(n.cls, 0))
@@ -1126,6 +1130,39 @@ pub struct Generator:
         let bytes = ir.vector_bytes(shape)
         let arr = arrangement(shape)
         let all = ".16b" if bytes == 16 else ".8b"
+        # Full-width operations can read and write their allocated registers
+        # directly. Narrow and checked vectors keep the specialized sequences.
+        if bytes == 16:
+            if n.op == ir.Op.loadv:
+                let address = try self.source(n.a, ir.Class.l, "x9")
+                let d = self.target(n.dst, ir.Class.v, "q16")
+                try self.line4("ldr ", d, ", [", address)
+                try self.put("]")
+                try self.finish(n.dst, ir.Class.v, d)
+                return
+            if n.op == ir.Op.storev:
+                let value = try self.source(n.a, ir.Class.v, "q16")
+                let address = try self.source(n.b, ir.Class.l, "x9")
+                try self.line4("str ", value, ", [", address)
+                try self.put("]")
+                return
+            if n.op == ir.Op.vadd or n.op == ir.Op.vsub or n.op == ir.Op.vmul or n.op == ir.Op.vdiv or n.op == ir.Op.vand or n.op == ir.Op.vor or n.op == ir.Op.vxor or n.op == ir.Op.vaddw or n.op == ir.Op.vsubw or n.op == ir.Op.vmulw:
+                let a = try self.source(n.a, ir.Class.v, "q16")
+                let b = try self.source(n.b, ir.Class.v, "q17")
+                let d = self.target(n.dst, ir.Class.v, "q16")
+                let form = all if n.op == ir.Op.vand or n.op == ir.Op.vor or n.op == ir.Op.vxor else arr
+                try self.line(vector_mnemonic(n.op, ir.lanes_signed(shape)))
+                try self.put(" ")
+                try self.put(vector_view(d))
+                try self.put(form)
+                try self.put(", ")
+                try self.put(vector_view(a))
+                try self.put(form)
+                try self.put(", ")
+                try self.put(vector_view(b))
+                try self.put(form)
+                try self.finish(n.dst, ir.Class.v, d)
+                return
         match n.op:
             .loadv:
                 try self.address_operand("x9", n.a)

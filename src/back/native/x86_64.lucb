@@ -792,8 +792,11 @@ pub struct Generator:
                 try self.return_value(n)
             .copy:
                 if n.cls == ir.Class.v:
-                    try self.vector_source(n.a, "%xmm8", 16)
-                    try self.vector_result(n.dst, "%xmm8", 16)
+                    let value = try self.source(n.a, ir.Class.v, "%xmm8")
+                    let d = self.target(n.dst, ir.Class.v, "%xmm8")
+                    if value != d:
+                        try self.line4("movdqa ", value, ", ", d)
+                    try self.finish(n.dst, ir.Class.v, d)
                     return
                 let v = try self.source(n.a, n.cls, self.reg(n.cls, 0))
                 let d = self.target(n.dst, n.cls, self.reg(n.cls, 0))
@@ -1302,6 +1305,33 @@ pub struct Generator:
         let bytes = ir.vector_bytes(shape)
         let bits = ir.lane_bits(shape)
         let signed = ir.lanes_signed(shape)
+        if bytes == 16:
+            if n.op == ir.Op.loadv:
+                try self.address_operand("%r10", n.a)
+                let d = self.target(n.dst, ir.Class.v, "%xmm8")
+                try self.line3("movdqu (%r10), ", d, "")
+                try self.finish(n.dst, ir.Class.v, d)
+                return
+            if n.op == ir.Op.storev:
+                let value = try self.source(n.a, ir.Class.v, "%xmm8")
+                try self.address_operand("%r10", n.b)
+                try self.line3("movdqu ", value, ", (%r10)")
+                return
+            if n.op == ir.Op.vadd or n.op == ir.Op.vsub or n.op == ir.Op.vmul or n.op == ir.Op.vdiv or n.op == ir.Op.vand or n.op == ir.Op.vor or n.op == ir.Op.vxor or n.op == ir.Op.vaddw or n.op == ir.Op.vsubw or n.op == ir.Op.vmulw:
+                let a = try self.source(n.a, ir.Class.v, "%xmm8")
+                let b = try self.source(n.b, ir.Class.v, "%xmm9")
+                var d = self.target(n.dst, ir.Class.v, "%xmm8")
+                # SSE uses a destructive destination. Preserve a distinct right
+                # operand when the allocator gave its register to the result.
+                if d == b and d != a:
+                    d = "%xmm8"
+                if a != d:
+                    try self.line4("movdqa ", a, ", ", d)
+                let mnemonic = "pmulld" if n.op == ir.Op.vmulw and bits == 32 else vector_mnemonic(n.op, shape)
+                try self.line4(mnemonic, " ", b, ", ")
+                try self.put(d)
+                try self.finish(n.dst, ir.Class.v, d)
+                return
         match n.op:
             .loadv:
                 try self.address_operand("%r10", n.a)

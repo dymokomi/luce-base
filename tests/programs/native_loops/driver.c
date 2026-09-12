@@ -1,9 +1,41 @@
+#define _DEFAULT_SOURCE 1
 #include "kernels.h"
 #include <assert.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
+#include <sys/mman.h>
+#include <unistd.h>
+
+/* End every view immediately before an inaccessible page. A vector iteration
+   or tail that reads even one element too far fails instead of seeing padding. */
+static void guard_pages(void) {
+    size_t page = (size_t)sysconf(_SC_PAGESIZE);
+    unsigned char *storage = mmap(NULL, page * 2, PROT_READ | PROT_WRITE,
+                                  MAP_PRIVATE | MAP_ANON, -1, 0);
+    assert(storage != MAP_FAILED);
+    assert(!mprotect(storage + page, page, PROT_NONE));
+    for (size_t n = 0; n <= 65; ++n) {
+        uint64_t *values = (uint64_t *)(storage + page) - n;
+        uint64_t total = 0;
+        for (size_t i = 0; i < n; ++i) total += values[i] = UINT64_MAX - i;
+        assert(safe_total(values, n) == total);
+        uint32_t *words = (uint32_t *)(storage + page) - n;
+        uint32_t sum = 7;
+        for (size_t i = 0; i < n; ++i) sum += words[i] = UINT32_MAX - (uint32_t)i;
+        assert(sum_dwords(words, n, 7) == sum);
+        double *doubles = (double *)(storage + page) - n;
+        for (size_t i = 0; i < n; ++i) doubles[i] = (double)i;
+        map_doubles(doubles, n, doubles, n);
+        for (size_t i = 0; i < n; ++i) assert(doubles[i] == (double)i * 0.5);
+        float *floats = (float *)(storage + page) - n;
+        for (size_t i = 0; i < n; ++i) floats[i] = (float)i;
+        map_floats(floats, n, floats, n);
+        for (size_t i = 0; i < n; ++i) assert(floats[i] == (float)i * 0.5f);
+    }
+    assert(!munmap(storage, page * 2));
+}
 
 int main(int argc, char **argv) {
     uint64_t values[257];
@@ -17,6 +49,12 @@ int main(int argc, char **argv) {
         else if (!strcmp(argv[1], "multiply")) (void)small_product(65536, 65536);
         else if (!strcmp(argv[1], "negative")) (void)uncertain(values, 4, (size_t)-1);
         else if (!strcmp(argv[1], "divide")) (void)empty_division(1, 0);
+        else if (!strcmp(argv[1], "dimension")) (void)grid_read(values, 0, SIZE_MAX, 2, 0, 0);
+        else if (!strcmp(argv[1], "edge")) (void)grid_edge(1, UINT64_MAX, 1, 1);
+        else if (!strcmp(argv[1], "sum")) {
+            const uint64_t overflowing[] = {UINT64_MAX, 1};
+            (void)checked_total(overflowing, 2);
+        }
         else return 2;
         return 3; /* Every named failure case must trap first. */
     }
@@ -45,6 +83,17 @@ int main(int argc, char **argv) {
     }
     assert(changing_call_result(8) == 88);
     assert(discarded_call_result() == 77);
+    for (size_t rows = 0; rows <= 8; ++rows) {
+        for (size_t columns = 0; columns <= 8; ++columns) {
+            for (size_t row = 0; row <= rows; ++row) {
+                for (size_t column = 0; column <= columns; ++column) {
+                    uint64_t want = row < rows && column < columns ? values[row * columns + column] : 0;
+                    assert(grid_read(values, rows * columns, rows, columns, row, column) == want);
+                }
+            }
+        }
+    }
+    assert(grid_edge(1, UINT64_MAX, 0, UINT64_MAX - 1) == UINT64_MAX - 1);
     uint32_t words[257];
     for (size_t i = 0; i < 257; ++i) words[i] = UINT32_MAX - (uint32_t)i;
     uint32_t sum = UINT32_MAX;
@@ -84,5 +133,6 @@ int main(int argc, char **argv) {
         if (isnan(expected_special[i])) assert(isnan(special[i]));
         else assert(!memcmp(special + i, expected_special + i, sizeof(double)));
     }
+    guard_pages();
     puts("ok native loop semantics");
 }

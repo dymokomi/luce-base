@@ -20,11 +20,12 @@ remains the default backend; no optimization may weaken specified safety checks.
 
 ## 3. Automatic vectorization
 
-- [ ] Vectorize wrapping integer reductions and independent float element operations.
-- [ ] Prove or guard alias independence and preserve scalar tails and zero-trip behavior.
-- [ ] Preserve floating-point operation order; keep uncertain or effectful loops scalar.
-- [ ] Verify actual vector instructions, results and fallback paths on both native targets.
-- [ ] Commit the verified vectorizer.
+- [x] Vectorize wrapping integer reductions and independent float element operations.
+- [x] Prove or guard alias independence and preserve scalar tails and zero-trip behavior.
+- [x] Preserve floating-point operation order; keep uncertain or effectful loops scalar.
+- [x] Verify SIMD selection, tails, overlap fallbacks, guard pages and x86_64 assembly locally.
+- [ ] Execute vectorized regressions on both native targets in final CI.
+- [x] Commit the verified vectorizer and dimension-product range proofs.
 
 ## 4. Final validation and measurement
 

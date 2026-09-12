@@ -130,6 +130,11 @@ pub struct Lives:
                     a += 1
                 if x.op == ir.Op.copy and x.a.kind == ir.RefKind.temp and x.dst != 0:
                     l.hint[(usize)x.dst] = x.a.index
+                    # A loop phi is usually allocated before its backedge value.
+                    # The reverse preference lets that later value reuse the phi's
+                    # register when their live ranges do not overlap.
+                    if l.hint[(usize)x.a.index] == 0:
+                        l.hint[(usize)x.a.index] = x.dst
         # what a call or an asm block clobbers: the caller-saved registers of every
         # temporary live across it; a copy, a zeroing, or a fill of many bytes is a call
         # to the C library's routine in either generator. The barriers' positions in

@@ -26,12 +26,12 @@ with tempfile.TemporaryDirectory(prefix="luce-native-loops-") as temporary:
     compilers = [(COMPILER, flags) for flags in MODES]
     for compiler, flags in compilers:
         run([compiler, "build", HERE / "kernels.lucb", "--lib", *flags, "-o", root / "kernels"])
-        run([os.environ.get("CC", "cc"), "-std=c11", "-O2", "-Wall", "-Werror",
+        run([os.environ.get("CC", "cc"), "-std=c11", "-O2", "-ffp-contract=off", "-Wall", "-Werror",
              "-I", root, HERE / "driver.c", root / "kernels.a", "-lm", "-pthread", "-o", root / "test"])
         assert run([root / "test"]).stdout == "ok native loop semantics\n"
-        for case in ("index", "length", "join", "unsigned", "signed", "multiply", "negative", "divide"):
+        for case in ("index", "length", "join", "unsigned", "signed", "multiply", "negative", "divide", "dimension", "edge", "sum"):
             failed = run([root / "test", case], expected=1)
-            message = "integer overflow" if case in ("unsigned", "signed", "multiply") else (
+            message = "integer overflow" if case in ("unsigned", "signed", "multiply", "dimension", "edge", "sum") else (
                 "division by zero" if case == "divide" else "index out of bounds")
             assert message in failed.stderr, (case, flags, failed.stderr)
             assert failed.stdout == ("before bounds\n" if case in ("index", "length") else ""), failed.stdout
@@ -56,6 +56,18 @@ with tempfile.TemporaryDirectory(prefix="luce-native-loops-") as temporary:
     assert "cast " in recurrence
     assert "cast " not in recurrence[recurrence.index("@L"):]
     print("PASS range proofs remove only established checks")
+    for name in ("safe_total", "sum_dwords", "map_doubles", "map_floats"):
+        assert "loadv " in body(name), name
+    assert "vaddw " in body("safe_total")
+    assert "storev " in body("map_doubles")
+    assert "loadv " not in body("checked_total")
+    assert "addo " in body("checked_total")
+    assert "loadv " not in body("invariant_float")
+    assert "bounds " not in body("grid_read")
+    assert "addo " not in body("grid_read")
+    assert body("grid_read").count("mulo ") == 1
+    assert "addo " in body("grid_edge")
+    print("PASS SIMD selection and conservative scalar fallbacks")
 
     # Cross-assembly catches target instruction/operand errors on the other host;
     # CI executes this same fixture on both native targets.
