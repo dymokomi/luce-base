@@ -38,7 +38,9 @@ implemented before section 2, so Luce can use the native handler paths directly.
 Delivered in Luce `2503fb0`. The focused effect and imported-handle fixtures pass
 all six compiled modes. Native callbacks, views, interfaces, workers and JSON/GPU
 interop pass their six-mode gates. The automatic-propagation heap fixture reports
-zero leaked bytes. The complete compiler gate and CI are finishing in section 4.
+zero leaked bytes. The complete local compiler gate passed: 72 conformance programs, 146 rejections,
+88 parsed/formatted sources and 66 fuzz cases, with no findings. Remote CI is
+finishing in section 4.
 
 ## 3. Base expression-wide `try`
 
@@ -79,10 +81,15 @@ collector allocation and broad API failure-contract changes.
 
 Requested after the implementation and correctness gates above are complete.
 
-- [ ] Build equivalent representative Base/native and optimized C workloads with
+- [x] Build equivalent representative Base/native and optimized C workloads with
       matching inputs, algorithms and observable outputs.
-- [ ] Record compiler versions, flags, hardware, repeated timings, variability,
+- [x] Record compiler versions, flags, hardware, repeated timings, variability,
       memory use and binary size; keep setup and compilation outside runtime timing.
-- [ ] Inspect generated code and profiles for meaningful gaps, distinguish safety
+- [x] Inspect generated code and profiles for meaningful gaps, distinguish safety
       checks from avoidable compiler/runtime overhead, and propose measured priorities.
-- [ ] Commit reproducible benchmarks and a report stating results and limitations.
+- [x] Commit reproducible benchmarks and a report stating results and limitations.
+
+Measured baseline: [native performance report](NATIVE-PERFORMANCE.md), with two
+nine-trial runs on Apple M4, matched checksums across all native levels and C,
+profiles, raw samples and linked section sizes. The report orders the next
+compiler improvements; no performance optimization has been mixed into this baseline.

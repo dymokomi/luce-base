@@ -1,0 +1,18 @@
+{
+  "base-3": {
+    "bytes": 687656,
+    "sections": "Segment __PAGEZERO: 4294967296 (zero fill) \nSegment __TEXT: 622592\n\tSection __text: 91628\n\tSection __stubs: 348\n\tSection __init_offsets: 4\n\tSection __cstring: 167\n\tSection __const: 520128\n\tSection __unwind_info: 104\n\ttotal 612379\nSegment __DATA_CONST: 16384\n\tSection __got: 248\n\tSection __const: 232\n\ttotal 480\nSegment __DATA: 1097728\n\tSection __thread_vars: 360\n\tSection __thread_bss: 1240 (zerofill)\n\tSection __bss: 1080144 (zerofill)\n\ttotal 1081744\nSegment __LINKEDIT: 32768\ntotal 4296736768\n"
+  },
+  "c-O3": {
+    "bytes": 34424,
+    "sections": "Segment __PAGEZERO: 4294967296 (zero fill) \nSegment __TEXT: 16384\n\tSection __text: 3912\n\tSection __stubs: 144\n\tSection __cstring: 277\n\tSection __unwind_info: 112\n\ttotal 4445\nSegment __DATA_CONST: 16384\n\tSection __got: 104\n\ttotal 104\nSegment __LINKEDIT: 16384\ntotal 4295016448\n"
+  },
+  "base-3-dead-strip": {
+    "bytes": 687504,
+    "sections": "Segment __PAGEZERO: 4294967296 (zero fill) \nSegment __TEXT: 622592\n\tSection __text: 91628\n\tSection __stubs: 348\n\tSection __init_offsets: 4\n\tSection __cstring: 167\n\tSection __const: 520128\n\tSection __unwind_info: 104\n\ttotal 612379\nSegment __DATA_CONST: 16384\n\tSection __got: 248\n\tSection __const: 232\n\ttotal 480\nSegment __DATA: 1097728\n\tSection __thread_vars: 288\n\tSection __thread_bss: 1240 (zerofill)\n\tSection __bss: 1080144 (zerofill)\n\ttotal 1081672\nSegment __LINKEDIT: 32768\ntotal 4296736768\n"
+  },
+  "c-O3-dead-strip": {
+    "bytes": 34432,
+    "sections": "Segment __PAGEZERO: 4294967296 (zero fill) \nSegment __TEXT: 16384\n\tSection __text: 3912\n\tSection __stubs: 144\n\tSection __cstring: 277\n\tSection __unwind_info: 112\n\ttotal 4445\nSegment __DATA_CONST: 16384\n\tSection __got: 104\n\ttotal 104\nSegment __LINKEDIT: 16384\ntotal 4295016448\n"
+  }
+}
