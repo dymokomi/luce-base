@@ -19,5 +19,35 @@ pub func main(arguments: str[]) -> i32:
     assert(abi_floats(1, 2, 3, 4, 5, 6, 7, 8, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, true, 60001, 1.25, -2.5, 19.75))
     assert(abi_variadic(1, 2, 3, 4, 5, 6, 7, 8, 1, i32(53), i32(-7), f64(1.25)))
     assert(abi_incoming())
+    hfa_spills()
     print("ok scalar stack ABI in both directions")
     return 0
+
+extern struct HfaD3:
+    x: f64
+    y: f64
+    z: f64
+
+extern struct HfaF3:
+    x: f32
+    y: f32
+    z: f32
+
+extern func abi_hfa_d3(a: HfaD3, b: HfaD3, c: HfaD3, tail: f64, marker: u64) -> bool
+extern func abi_hfa_f3(r0: u64, r1: u64, r2: u64, r3: u64, r4: u64, r5: u64, r6: u64, r7: u64,
+                       f0: f64, f1: f64, f2: f64, f3: f64, f4: f64, f5: f64, f6: f64,
+                       flag: u8, value: HfaF3, tail: f32) -> bool
+extern func abi_hfa_incoming() -> bool
+
+export func base_hfa_d3(a: HfaD3, b: HfaD3, c: HfaD3, tail: f64, marker: u64) -> bool:
+    return a.x == 1.0 and a.y == 2.0 and a.z == 3.0 and b.x == 4.0 and b.y == 5.0 and b.z == 6.0 and c.x == 7.0 and c.y == 8.0 and c.z == 9.0 and tail == 10.0 and marker == 11
+
+export func base_hfa_f3(r0: u64, r1: u64, r2: u64, r3: u64, r4: u64, r5: u64, r6: u64, r7: u64,
+                       f0: f64, f1: f64, f2: f64, f3: f64, f4: f64, f5: f64, f6: f64,
+                       flag: u8, value: HfaF3, tail: f32) -> bool:
+    return r0 + r1 + r2 + r3 + r4 + r5 + r6 + r7 == 36 and f0 + f1 + f2 + f3 + f4 + f5 + f6 == 28.0 and flag == 29 and value.x == 1.25 and value.y == -2.5 and value.z == 3.75 and tail == 8.5
+
+func hfa_spills():
+    assert(abi_hfa_d3(HfaD3(1.0, 2.0, 3.0), HfaD3(4.0, 5.0, 6.0), HfaD3(7.0, 8.0, 9.0), 10.0, 11))
+    assert(abi_hfa_f3(1, 2, 3, 4, 5, 6, 7, 8, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 29, HfaF3(1.25, -2.5, 3.75), 8.5))
+    assert(abi_hfa_incoming())

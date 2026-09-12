@@ -688,6 +688,24 @@ pub struct Generator:
                     try self.put("]")
                     k += 1
                 next_float += self.hfa(p.shape)
+            elif self.hfa(p.shape) > 0:
+                # An HFA that cannot fit stays an aggregate on the stack. It
+                # never falls back to integer registers or an indirect pointer,
+                # and later floating arguments must spill as well (AAPCS64 C.3).
+                next_float = 8
+                stack_offset = arm_round_up(stack_offset, (u64)p.align)
+                let each = (u64)self.program_unit.leaves_of(p.shape)[0].size
+                var k: u32 = 0
+                while k < self.hfa(p.shape):
+                    try self.line("ldr x9, [x29, #" if each == 8 else ("ldr w9, [x29, #" if each == 4 else "ldrh w9, [x29, #"))
+                    try self.put_u64(stack_offset + (u64)k * each)
+                    try self.put("]")
+                    try self.frame_address("x16", home)
+                    try self.line("str x9, [x16, #" if each == 8 else ("str w9, [x16, #" if each == 4 else "strh w9, [x16, #"))
+                    try self.put_u64((u64)k * each)
+                    try self.put("]")
+                    k += 1
+                stack_offset += (u64)p.size
             elif p.size <= 16:
                 let words = (p.size + 7) // 8
                 if next_int + words <= 8:
@@ -1369,6 +1387,12 @@ pub struct Generator:
             let p = ArgPlacement(where = 1, first = *next_float, count = floats, stack_offset = 0)
             *next_float += floats
             return p
+        if floats > 0:
+            *next_float = 8
+            *stack = (u32)arm_round_up((u64)*stack, (u64)a.align)
+            let p = ArgPlacement(where = 2, first = 0, count = floats, stack_offset = *stack)
+            *stack += a.size
+            return p
         if a.size <= 16:
             let words = (a.size + 7) // 8
             if *next_int + words <= 8:
@@ -1446,6 +1470,18 @@ pub struct Generator:
                     try self.put(", [sp, #")
                     try self.put_u64(base_offset)
                     try self.put("]")
+                elif self.hfa(a.shape) > 0:
+                    try self.address_operand("x9", a.value)
+                    let each = (u64)self.program_unit.leaves_of(a.shape)[0].size
+                    var k: u32 = 0
+                    while k < self.hfa(a.shape):
+                        try self.line("ldr x10, [x9, #" if each == 8 else ("ldr w10, [x9, #" if each == 4 else "ldrh w10, [x9, #"))
+                        try self.put_u64((u64)k * each)
+                        try self.put("]")
+                        try self.line("str x10, [sp, #" if each == 8 else ("str w10, [sp, #" if each == 4 else "strh w10, [sp, #"))
+                        try self.put_u64(base_offset + (u64)k * each)
+                        try self.put("]")
+                        k += 1
                 elif a.size <= 16:
                     try self.address_operand("x9", a.value)
                     try self.line("ldr x10, [x9]")
