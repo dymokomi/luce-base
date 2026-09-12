@@ -23,13 +23,14 @@ The requested Luce construction shape is:
 
 ```luce
 from ui import Button
-let button = Button("pause")
+let button = try Button("pause")
 ```
 
 This uses Luce's existing `Type(args)` construction syntax. No construction syntax
 change is part of this rewrite. Base already has structs, `init`, methods and
 interfaces. The work is to expose those APIs correctly through the Base boundary
-and implement the concrete components; the package example is still a target API.
+and implement the concrete components; the rewritten packages now implement this object shape. Fallible construction
+retains explicit `try`; the requested error-handling research follows the bug reports.
 
 Construction of a declarative component should not open a native window or acquire
 a GPU. Keep fallible acquisition in explicit operations such as opening/running
@@ -63,7 +64,7 @@ the default. Standard `gpu` owns the Metal/Vulkan backend boundary. There is no 
 dependency, and packages must not embed platform graphics calls.
 
 Repository names such as `luce-ui` and language import names are different layers.
-Use the short public module names `ui` and `graphics`, with `http`, `websocket` and
+Use the short public module names `ui`, `three` and `three_ui`, with `http`, `websocket` and
 `socket` under the server package. Resolve these names through real package/module
 exports, keeping implementation namespaces private. Prove imports from a clean
 consumer; do not make an example depend on arbitrary staging-directory aliases.

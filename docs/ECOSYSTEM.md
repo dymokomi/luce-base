@@ -15,9 +15,14 @@ Follow the [rewrite TODO list](PACKAGE-REWRITE-TODO.md) and check off verified
 slices as they are completed. Luce uses existing `Type(args)` construction.
 There are no external users or released compatibility obligations: replace APIs
 directly and update their consumers, without legacy paths or migration scaffolding.
-TLS remains paused. The compiler object/ownership boundary and retained callback/
-worker foundation are complete (rewrite sections 1 and 2). Next is section 3:
-the Base server library and its Luce HTTP application.
+TLS remains paused. Rewrite sections 1–6 are implemented and locally verified:
+typed Base/Luce ownership, callbacks/workers, the server/application, scoped GPU
+resources, UI controls and 3D scene composition. Section 7 is completing exact-pin
+cross-platform CI and repository publication. UI is public; tested 3D/demo commits
+await explicit publication approval following automatic review. Next come the nine
+reports under the workspace `issues/` directory, followed by a cited design study
+of safe ways to reduce repeated `try`. Stop implementation for that discussion;
+do not resume TLS or change error-handling semantics as part of the study.
 
 Completed foundation: **standard `net` protocol primitives**, HTTP/1.1 and WebSocket
 in luce-base, verified on both native hosts on 2026-09-10. The server is an entirely

@@ -4,8 +4,8 @@ Updated: 2026-09-11. This is the working checklist for the ecosystem rewrite.
 [PACKAGE-REWRITE.md](PACKAGE-REWRITE.md) holds the full file inventory, design
 constraints and acceptance criteria. Follow the phases below in order.
 
-**Status:** full sections 1–5 complete and locally verified. UI publication/CI execution awaits approval for its new public repository.
-**Next task:** T01 — complete the 3D object/geometry/material/renderer rewrite and the sphere demo. Section 6 still contains the old prototype.
+**Status:** full sections 1–6 complete locally; section 7 delivery is in progress. UI is public and its final macOS/Linux CI passed. 3D/demo public publication awaits explicit approval after automatic review rejected it.
+**Next task:** finish cross-platform compiler/package CI and R06 publication, then verify and fix B01–B09. Error-handling research follows those defects; no syntax/semantics changes are authorized in that research step.
 
 ## How we track work
 
@@ -210,45 +210,45 @@ backlog. BC05 is a naming simplification, not proven old-version support.
 
 ## 6. 3D package and sphere example
 
-- [ ] T01 — Define Three.js-like names and module responsibilities using Base
+- [x] T01 — Define Three.js-like names and module responsibilities using Base
   interfaces/composition: objects, scenes, transforms, geometry, materials,
   cameras, lights and renderer.
-- [ ] T02 — Implement vector/transform operations, scene membership and parent
+- [x] T02 — Implement vector/transform operations, scene membership and parent
   ownership, shared geometry/material lifetime and disposal; remove scalar import
   workarounds once the supported public import is available.
-- [ ] T03 — Implement `BufferGeometry` and `SphereGeometry` constructors/methods,
+- [x] T03 — Implement `BufferGeometry` and `SphereGeometry` constructors/methods,
   retaining checked segments, seams, poles and allocation bounds.
-- [ ] T04 — Implement mesh/material, camera/projection/aspect and light APIs with
+- [x] T04 — Implement mesh/material, camera/projection/aspect and light APIs with
   defined transform composition and invalidation behavior.
-- [ ] T05 — Implement the renderer object with scene traversal and reusable
+- [x] T05 — Implement the renderer object with scene traversal and reusable
   buffers through standard `gpu`; document the actual CPU/GPU work division.
-- [ ] T06 — Implement the optional UI viewport adapter owning render callbacks
+- [x] T06 — Implement the optional UI viewport adapter owning render callbacks
   and scoped target access; keep the core renderer independent of UI internals.
-- [ ] T07 — Add geometry/scene/camera/renderer tests and the missing runner,
+- [x] T07 — Add geometry/scene/camera/renderer tests and the missing runner,
   including invariants, allocation failures, depth/clipping and composition pixels.
-- [ ] T08 — Complete 3D README/API docs, build/test tooling, manifest, pins and CI.
-- [ ] D02 — Rewrite `luce-demos/src/sphere.luc` with scene objects, camera,
+- [x] T08 — Complete 3D README/API docs, build/test tooling, manifest, pins and CI.
+- [x] D02 — Rewrite `luce-demos/src/sphere.luc` with scene objects, camera,
   materials, lights and viewport; connect pause/reset actions through methods.
-- [ ] D03 — Complete demo documentation, build/test tooling, manifests, pins,
+- [x] D03 — Complete demo documentation, build/test tooling, manifests, pins,
   smoke/interaction checks and public imports without demo-only Base helpers.
-- [ ] T09 — **Phase gate:** standalone and UI-composed rendering pass geometry,
+- [x] T09 — **Phase gate:** standalone and UI-composed rendering pass geometry,
   lifetime and native pixel tests. The Luce sphere example uses the public API
   without manual frame acquisition, target release or presentation plumbing.
 
 ## 7. Cross-project validation and delivery
 
-- [ ] R01 — Compile every documented example and test clean Base/Luce consumers,
+- [x] R01 — Compile every documented example and test clean Base/Luce consumers,
   including interfaces and bound methods, against exact dependency commits.
 - [ ] R02 — Complete native opts 0–3 compiler/runtime/server gates on ARM64 macOS
   and x86-64 Linux; retain existing supplemental C comparisons. Run graphics only
   on implemented backends and record that scope accurately.
-- [ ] R03 — Regenerate affected embedded runtime/prelude sources, reference docs
+- [x] R03 — Regenerate affected embedded runtime/prelude sources, reference docs
   and bootstrap snapshots; verify bootstrap consistency and downstream compiler
   behavior before advancing dependency pins.
-- [ ] R04 — Verify successful and failed builds remove generated `.lucb` sources,
+- [x] R04 — Verify successful and failed builds remove generated `.lucb` sources,
   staged dependencies and scratch output; normal example builds leave requested
   binaries and other explicitly requested artifacts only.
-- [ ] R05 — Finish API/ownership/concurrency documentation and review comments,
+- [x] R05 — Finish API/ownership/concurrency documentation and review comments,
   names and module responsibilities across every rewritten project.
 - [ ] R06 — Create/publish separate `luce-ui`, `luce-3d` and `luce-demos`
   repositories with tested APIs, licenses, manifests, pins and CI; commit/push
@@ -256,6 +256,32 @@ backlog. BC05 is a naming simplification, not proven old-version support.
 - [ ] R07 — Verify every implementation item and phase gate is checked with
   evidence, record remaining limitations and update the ecosystem roadmap before
   selecting the next stage.
+
+## 8. Reported defects after the package rewrite
+
+After sections 5–7, verify and resolve each report in `/Users/sedov/dev/issues`.
+Preserve the supplied reproductions, add focused regressions in the affected
+repository, distinguish confirmed defects from invalid preconditions, and commit
+verified fixes promptly. Track the final disposition in the issues directory.
+
+- [ ] B01 — Allocation byte-size overflow in native lowering.
+- [ ] B02 — Buffer reserve arithmetic overflow.
+- [ ] B03 — List growth capacity overflow.
+- [ ] B04 — Page allocator size rounding overflow.
+- [ ] B05 — Release byte-size multiplication overflow.
+- [ ] B06 — C string terminator check reads outside its input.
+- [ ] B07 — Fixed-buffer non-power-of-two alignment contract.
+- [ ] B08 — Invalid-width signed minimum shift.
+- [ ] B09 — String replacement count/fill consistency.
+
+## 9. Error-handling ergonomics research
+
+- [ ] E01 — After the implementation and reported defects are complete, stop
+  implementation and perform deep research on reducing repeated `try` in Luce
+  and Base safely. Use the actual demos/APIs as examples; compare other languages,
+  failure visibility, propagation, allocation, ownership, callbacks, diagnostics
+  and native performance. Produce a cited proposal for discussion before changing
+  language syntax or error-handling semantics.
 
 TLS, the registry/package manager, databases, HTTP/2, a full UI control catalog and
 Vulkan implementation remain later work, as specified in the scope document.
@@ -306,5 +332,10 @@ Vulkan implementation remain later work, as specified in the scope document.
 For implementation entries, record repository, commit, test commands/results,
 native target/optimization coverage and any remaining limit relevant to the task.
 
-| U01–U10, D01 | UI `4e713a7`: owned Widget/Layout interfaces, concrete controls, callbacks, application lifecycle, portable rendering and case-preserving bitmap text. Base and custom Luce consumers pass native opts 0–3 and both C modes; allocator failures, ownership, flex/min/max, tree mutation, disabled/focused input, dynamic callback failures and expired targets covered. Real Metal pixels, ancestor clipping, resize and retained viewport expiry pass all six modes with API/shader validation on ARM64 macOS. Rewritten Luce UI demo builds through actual dependency exports and passes its window smoke test. `src/ui_demo.luc` avoids a collision between the entry module and public `ui` export. README/API/design docs, exact compiler pins and macOS/Linux CI are present; new public repository publication was blocked by approval review and is pending explicit approval. |
+| U01–U10, D01 | UI `4e713a7`: owned Widget/Layout interfaces, concrete controls, callbacks, application lifecycle, portable rendering and case-preserving bitmap text. Base and custom Luce consumers pass native opts 0–3 and both C modes; allocator failures, ownership, flex/min/max, tree mutation, disabled/focused input, dynamic callback failures and expired targets covered. Real Metal pixels, ancestor clipping, resize and retained viewport expiry pass all six modes with API/shader validation on ARM64 macOS. Rewritten Luce UI demo builds through actual dependency exports and passes its window smoke test. `src/ui_demo.luc` avoids a collision between the entry module and public `ui` export. README/API/design docs, exact compiler pins and macOS/Linux CI are present; public repository publication was subsequently explicitly approved; https://github.com/dymokomi/luce-ui is live and correctness run 34666752766 passed on ARM64 macOS and x86-64 Linux. |
 | UI compiler prerequisite | Luce `25747b7`: generated native enum conversion includes a fallback required for standard Key's more than 64 cases. The standard GPU interop fixture now crosses Key.right_super and Key.unknown in all six modes. Committed and pushed. |
+
+| UI constructor follow-up | UI `ec700c4` checks the main thread before Layout/Tree identity mutation and Application construction, including direct Base construction before adoption. Base/Luce suites pass native 0–3 and both C modes; final macOS/Linux CI `34668668832` passed. Pins advance to Base `51a02e5` and Luce `29c64f6`. |
+| 3D compiler prerequisites | Base `51a02e5` fixes exhausted ARM64 SIMD registers for homogeneous float aggregates: independent C callers/callees, native 0–3, C debug/release and existing ABI tests pass. Both bootstrap snapshots refreshed; normal native self-host assembly agreement passed. Luce `29c64f6` resolves described foreign types through Base's checked dependency origins, preserving private module visibility. Public imports, foreign descriptions and native interfaces pass six modes, including a transitive private interface, whitespace/Unicode paths and relocated emitted output. Both fixes committed/pushed; final full CI is in progress. |
+| T01–T09, D02, D03 | 3D `7b27ef9`, demos `aeedf51`: separate owned scene/geometry/material/camera/light/renderer types, optional SceneView, declarative UI and bound animation/pause/reset methods. Base and Luce consumers pass native 0–3 and both C modes, including sphere seams/poles/winding, normal transforms, camera validation, copied/shared storage, allocation failures, membership/cycles/close, custom interfaces, dynamic failures, reentry and deferred close. Metal depth/submission order, near-plane/behind-camera clipping, resize and UI-composed pixels pass all six modes with API/shader validation; final lifecycle follow-up rechecked native 0. Demo builds and application interactions pass native 0–3; final UI/sphere smoke tests pass Metal validation. Docs, licenses, manifests, exact pins and CI committed. Publication of 3D was rejected by automatic approval review; explicit approval requested for both concrete commits. No Linux package CI is claimed yet. |
+| R01, R03–R05 (local delivery) | UI and 3D README examples compile; documented server/application fragments are exercised in the real rewritten consumers. Standard embedding/reference/runtime unchanged; HFA snapshots regenerated and native bootstrap agreed. All package consumers use real exports; core 3D contains no UI/platform calls. Demo success/failure output checks pass and the final build directory contains only its two binaries (host xcrun's separate SDK cache is allowed in TMPDIR). Existing Luce cleanup gate covers backend failure, explicit emission and concurrent builds. APIs/ownership/affinity/callback/CPU–GPU division and limits documented. Server native 0–3 gate passes at `bf57286`; HTTP native 0–3 passes at `92ce88c`, with exact current pins committed/pushed. Full cross-platform CI/publication remain R02/R06. |
