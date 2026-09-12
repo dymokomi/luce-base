@@ -75,4 +75,8 @@ with tempfile.TemporaryDirectory(prefix="luce-native-loops-") as temporary:
         run([COMPILER, "build", HERE / "kernels.lucb", "--native", "--lib",
              "--target", "x86_64-linux", "--emit=asm", "-o", root / "linux.s"])
         run(["clang", "--target=x86_64-linux-gnu", "-c", root / "linux.s", "-o", root / "linux.o"])
+        assembly = (root / "linux.s").read_text()
+        total = assembly.split("\nsafe_total:\n", 1)[1].split("    .globl", 1)[0]
+        assert "paddq " in total and "movdqu " in total
+        assert "movss " not in total, "integer vectors must spill all sixteen bytes"
         print("PASS x86_64 cross-assembly")

@@ -159,6 +159,8 @@ pub struct Generator:
 
     ## The move that carries a register of class `cls` to or from memory.
     func move_of(cls: ir.Class) -> str:
+        if cls == ir.Class.v:
+            return "movdqu "
         if cls == ir.Class.w:
             return "movl "
         if cls == ir.Class.l:
