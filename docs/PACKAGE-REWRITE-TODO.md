@@ -4,8 +4,8 @@ Updated: 2026-09-11. This is the working checklist for the ecosystem rewrite.
 [PACKAGE-REWRITE.md](PACKAGE-REWRITE.md) holds the full file inventory, design
 constraints and acceptance criteria. Follow the phases below in order.
 
-**Status:** full sections 1–3 complete and verified; section 4 in progress.
-**Current work:** G01–G05 implementations pass their focused gates; final Base/Luce compiler gates are running before pin updates.
+**Status:** full sections 1–4 complete and verified.
+**Next task:** U01 — define the UI widget/application contracts, then complete section 5. Sections 5 and 6 have not been rewritten; their existing prototypes were adapted to the new graphics scope.
 
 ## How we track work
 
@@ -170,16 +170,16 @@ backlog. BC05 is a naming simplification, not proven old-version support.
 
 ## 4. Standard graphics resources and package linking
 
-- [ ] G01 — Specify coherent window/presentation/device/surface ownership and
+- [x] G01 — Specify coherent window/presentation/device/surface ownership and
   behavior after parent closure, resize and failed acquisition.
-- [ ] G02 — Implement scoped frame/render-target lifetime shared by UI and 3D,
+- [x] G02 — Implement scoped frame/render-target lifetime shared by UI and 3D,
   with explicit clipping, logical/backing coordinates, depth and thread affinity.
-- [ ] G03 — Keep OS input translation in standard window/input and framework
+- [x] G03 — Keep OS input translation in standard window/input and framework
   dispatch in UI; preserve portable backend selection and capability errors.
-- [ ] G04 — Propagate native backend link requirements through package tooling;
+- [x] G04 — Propagate native backend link requirements through package tooling;
   reassess pending native-manifest changes and remove duplicated macOS frameworks
   and `objc` declarations from UI, 3D and demo manifests.
-- [ ] G05 — **Phase gate:** ownership/expiry/resize/failure tests and actual Metal
+- [x] G05 — **Phase gate:** ownership/expiry/resize/failure tests and actual Metal
   pixel checks pass; a clean consumer links through standard `gpu` without
   package-level platform calls. Report unsupported backends explicitly.
 
@@ -299,9 +299,9 @@ Vulkan implementation remain later work, as specified in the scope document.
 
 | C05 | Full sections-one/two gate passed on ARM64 macOS. Base: compiler unit/profile/archive/proving checks, native/C/Seed bootstrap agreement and snapshot consistency, robustness and optimization, 193 conformance programs / 479 rejections, 11 platform programs / five targets emitted, 66 native corpus comparisons, and fuzzing (120 mutations / 12 generated programs, zero findings). After correcting the stale dependency fixture (`c94e8e0`) and restoring Seed bootstrap parity (`luce-seed` `68b3638`, all 581 tests passed), the unchanged remaining gate stages passed; logs are `luce-base/build/sections-one-two-full-gate.log`, `sections-one-two-gate-remainder.log`, and `sections-one-two-bootstrap-remainder.log`. Base `81e0355` pins that exact Seed commit. Luce's full gate at `7a74247` passed all boundary/worker matrices, native/C compiler tests, 69 programs / 138 rejections / 85 parsed, formatting, and fuzzing (60 mutations / six programs, zero findings); log: `luce/build/sections-one-two-full-gate.log`. Final Luce pin `cf8f517` rebuilt successfully and passed the shared Base/Luce worker matrix and cleanup tests. Native opts 0–3 and both C modes are covered. No Linux-host run is claimed; that remains in R02. |
 
-| S01–S13, H01–H06 | Base `98df767` (standard JSON), server `7f32b12` and `3c6a489` (direct type imports), Luce `5c62a6a`, application `7892d6f`. Server/application native opts 0–3 pass independent HTTP/WebSocket/TCP, files, lifetime, cancellation and concurrency checks. macOS heap checks report zero leaked blocks. Both repositories’ macOS/Linux native test steps pass (server run 34657570240, application run 34657623914); server post-job checkout cleanup is still finishing. Public API, examples, design and validation documentation rewritten; no application worker tokens, route IDs or manual JSON construction remain. |
+| S01–S13, H01–H06 | Base `98df767` (standard JSON), server `7f32b12` and `3c6a489` (direct type imports), Luce `5c62a6a`, application `7892d6f`. Server/application native opts 0–3 pass independent HTTP/WebSocket/TCP, files, lifetime, cancellation and concurrency checks. macOS heap checks report zero leaked blocks. Final pins: Base `1e39cbd`, Luce `8c1941d`, server `3f5d529`, application `2d1c53b`. Native opts 0–3 also pass with these pins locally and in macOS/Linux CI (server run 34659992094, application run 34660083950); macOS server test/heap steps are green while its post-job cleanup remains in progress. Public API, examples, design and validation documentation rewritten; no application worker tokens, route IDs or manual JSON construction remain. |
 
-| G01–G05 implementation | This Base implementation commit contains scoped frames/checked regions, nested clipping and depth, parent/resize/expiry checks, acquisition/allocation unwind, portable presentation hooks and backend-owned automatic linking. `tests/programs/gpu/check.sh` passes native opts 0–3 and C/C-release with required Metal pixels, wrong-thread rejection and zero retained Base allocations. `native_packages/check.sh` passes transitive sources/archives/search paths including quoted/comma paths in six modes. Luce GPU-bound-method and package-link fixtures pass six modes; UI/sphere prototypes build without framework manifests and pass Metal validation smoke runs. Bootstrap builds a native compiler linking only libSystem. Full compiler gates and final pins are pending. |
+| G01–G05 | Base `1e39cbd` and Luce `8c1941d` contain scoped frames/checked regions, nested clipping and depth, parent/resize/expiry checks, acquisition/allocation unwind, portable presentation hooks and backend-owned automatic linking. `tests/programs/gpu/check.sh` passes native opts 0–3 and C/C-release with required Metal pixels, wrong-thread rejection and zero retained Base allocations. `native_packages/check.sh` passes transitive sources/archives/search paths including quoted/comma paths in six modes. Luce GPU-bound-method and package-link fixtures pass six modes; UI/sphere prototypes build without framework manifests and pass Metal validation smoke runs. Bootstrap builds a native compiler linking only libSystem. Both full local compiler gates pass. Base: native/C/seed bootstrap agreement, exact snapshots, robustness, optimization, 193 conformance programs / 479 expected rejections, 11 host platform programs / five targets emitted, 66 seed-corpus comparisons and fuzzing (120 mutations / 12 generated programs, zero findings). Luce: full interop/worker/package gates, 69 conformance programs / 138 rejections, formatting and fuzzing (60 mutations / six programs, zero findings). Luce’s Linux full CI gate passes; full Base macOS/Linux CI remains in progress. A normal Luce build also succeeds from its exact isolated Base checkout. Local UI tests and final UI/sphere Metal smoke runs pass; those prototypes remain local until R06 and their API rewrites remain sections 5–6. |
 
 For implementation entries, record repository, commit, test commands/results,
 native target/optimization coverage and any remaining limit relevant to the task.
