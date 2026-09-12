@@ -4,8 +4,8 @@ Updated: 2026-09-11. This is the working checklist for the ecosystem rewrite.
 [PACKAGE-REWRITE.md](PACKAGE-REWRITE.md) holds the full file inventory, design
 constraints and acceptance criteria. Follow the phases below in order.
 
-**Status:** full sections 1–4 complete and verified.
-**Next task:** U01 — define the UI widget/application contracts, then complete section 5. Sections 5 and 6 have not been rewritten; their existing prototypes were adapted to the new graphics scope.
+**Status:** full sections 1–5 complete and locally verified. UI publication/CI execution awaits approval for its new public repository.
+**Next task:** T01 — complete the 3D object/geometry/material/renderer rewrite and the sphere demo. Section 6 still contains the old prototype.
 
 ## How we track work
 
@@ -185,26 +185,26 @@ backlog. BC05 is a naming simplification, not proven old-version support.
 
 ## 5. UI framework and button example
 
-- [ ] U01 — Define the public `Widget` interface, application, layout and rendering
+- [x] U01 — Define the public `Widget` interface, application, layout and rendering
   contracts, including custom components and tree/application ownership.
-- [ ] U02 — Implement concrete `Button`, `Text`, `Spacer`, `VStack`, `HStack` and
+- [x] U02 — Implement concrete `Button`, `Text`, `Spacer`, `VStack`, `HStack` and
   viewport structs with `init` and methods; replace the closed `Kind`/`Node` model.
-- [ ] U03 — Implement measurement/placement through the layout contract, covering
+- [x] U03 — Implement measurement/placement through the layout contract, covering
   constraints, spacing, padding, flex, clipping and invalidation.
-- [ ] U04 — Implement framework-owned event routing, pointer capture and keyboard
+- [x] U04 — Implement framework-owned event routing, pointer capture and keyboard
   focus, including cancellation and input delivery after component changes.
-- [ ] U05 — Implement actual signals/connections with retained callbacks and
+- [x] U05 — Implement actual signals/connections with retained callbacks and
   defined disconnect/reentrancy/cycle behavior; remove pending-count polling.
-- [ ] U06 — Give `Application` ownership of the event/render loop, frame recording
+- [x] U06 — Give `Application` ownership of the event/render loop, frame recording
   and presentation; keep declarative construction separate from native acquisition.
-- [ ] U07 — Provide scoped custom-widget/viewport drawing over standard `gpu`.
-- [ ] U08 — Isolate text measurement/rendering; remove silent case conversion and
+- [x] U07 — Provide scoped custom-widget/viewport drawing over standard `gpu`.
+- [x] U08 — Isolate text measurement/rendering; remove silent case conversion and
   document supported characters and replacement behavior.
-- [ ] U09 — Rewrite UI tests, add the missing test runner and complete README/API
+- [x] U09 — Rewrite UI tests, add the missing test runner and complete README/API
   docs, build scripts, manifest, pins and CI.
-- [ ] D01 — Rewrite `luce-demos/src/ui.luc` with existing `Button("pause")`
+- [x] D01 — Rewrite `luce-demos/src/ui_demo.luc` with existing `Button("pause")`
   construction, layout and connected actions; use the framework's run operation.
-- [ ] U10 — **Phase gate:** Base/Luce and custom-widget tests pass for ownership,
+- [x] U10 — **Phase gate:** Base/Luce and custom-widget tests pass for ownership,
   layout, signals, input/focus, resize and real Metal drawing. The button demo
   contains application behavior instead of framework/event-loop implementation.
 
@@ -305,3 +305,6 @@ Vulkan implementation remain later work, as specified in the scope document.
 
 For implementation entries, record repository, commit, test commands/results,
 native target/optimization coverage and any remaining limit relevant to the task.
+
+| U01–U10, D01 | UI `4e713a7`: owned Widget/Layout interfaces, concrete controls, callbacks, application lifecycle, portable rendering and case-preserving bitmap text. Base and custom Luce consumers pass native opts 0–3 and both C modes; allocator failures, ownership, flex/min/max, tree mutation, disabled/focused input, dynamic callback failures and expired targets covered. Real Metal pixels, ancestor clipping, resize and retained viewport expiry pass all six modes with API/shader validation on ARM64 macOS. Rewritten Luce UI demo builds through actual dependency exports and passes its window smoke test. `src/ui_demo.luc` avoids a collision between the entry module and public `ui` export. README/API/design docs, exact compiler pins and macOS/Linux CI are present; new public repository publication was blocked by approval review and is pending explicit approval. |
+| UI compiler prerequisite | Luce `25747b7`: generated native enum conversion includes a fallback required for standard Key's more than 64 cases. The standard GPU interop fixture now crosses Key.right_super and Key.unknown in all six modes. Committed and pushed. |
