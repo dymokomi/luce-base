@@ -1769,6 +1769,35 @@ Desktop text clipboard. Values returned to Base or Luce own their bytes. Access 
 
 - `func write_text(text: str) -> !`
 
+## `fonts`
+
+Native font resources and grayscale rasterization. UI typography and caches belong to the UI package; this module owns only the operating-system boundary.
+
+- `let failed: ErrorCode = ErrorCode.package(118)`
+
+### `Bitmap` (struct)
+
+A top-down tightly packed coverage image. Copies borrow; close one owner.
+
+- `var pixels: u8[]`
+- `var width: u32`
+- `var height: u32`
+- `var padding: f64`
+- `mutating func close()`
+
+### `Face` (struct)
+
+An installed monospace face, in logical points. An empty family selects Menlo on macOS, Consolas on Windows and the fontconfig monospace family on Linux. Loading and rasterization require the UI thread. Copies borrow one native owner.
+
+- `let size: f64`
+- `let advance: f64`
+- `let ascent: f64`
+- `let descent: f64`
+- `func init(size: f64 = 14.0, family: str = "") -> !`
+- `func measure(text: str) -> f64!`
+- `func rasterize(text: str, scale: f64 = 1.0) -> Bitmap!` — One scalar per monospace cell, with native glyph fallback where available. This is code-grid text, not paragraph shaping or bidirectional layout.
+- `mutating func close()`
+
 ## `gpu`
 
 - `let unsupported: ErrorCode = ErrorCode.package(91)`
@@ -1905,6 +1934,7 @@ A checked drawing view. Its private canvas never escapes. Child regions intersec
 - `func region(rectangle: Rect) -> interop.View[RenderTarget]!`
 - `func clipped(rectangle: Rect) -> interop.View[RenderTarget]!` — Narrow drawing without changing the coordinate system. Useful when a layout clips a child whose geometry is already in its parent's coordinates.
 - `func triangles(vertices: const Vertex[], depth: bool = false) -> !`
+- `func mask(pixels: const u8[], width: u32, height: u32, rectangle: Rect, color: Color) -> !` — Draw a top-down, tightly packed 8-bit coverage image tinted with a linear color. Pixels are copied into the frame; the caller can reuse them at once. Sampling is bilinear and clipped to this target, on every GPU backend.
 
 - `let render_target_type: interop.ViewType[RenderTarget] = interop.ViewType[RenderTarget]("GPU render target")`
 

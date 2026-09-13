@@ -1,6 +1,7 @@
 module.lucb
 device.lucb
 canvas.lucb
+mask.lucb
 surface.lucb
 frame.lucb
 backend.lucb

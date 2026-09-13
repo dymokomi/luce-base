@@ -1,0 +1,1 @@
+{"target":"x86_64-linux","requirements":[{"symbols":["cairo_image_surface_create","cairo_scaled_font_destroy"],"libraries":["cairo"]}]}

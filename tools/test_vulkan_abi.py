@@ -29,7 +29,7 @@ for name, body in structures:
                              re.sub(r', (\w+)\)', r', vk_\1)', item)) for item in expressions]
     base.append('    print(f"' + name + ' ' + ' '.join('{' + item + '}' for item in base_expressions) + '")')
     native.append('printf("' + name + ' ' + ' '.join(['%zu'] * len(expressions)) + '\\n", ' +
-                  ', '.join(item.replace('alignof(', '_Alignof(') for item in expressions) + ');')
+                  ', '.join(item.replace('alignof(', '_Alignof(').replace('offsetof(VkDescriptorPoolSize, descriptorType)', 'offsetof(VkDescriptorPoolSize, type)') for item in expressions) + ');')
 constants = re.findall(r'^let (VK_\w+): (u32|i32|c.str) =', bindings, re.MULTILINE)
 for name, kind in constants:
     if kind == 'c.str':

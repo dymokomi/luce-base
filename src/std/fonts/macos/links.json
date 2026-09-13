@@ -1,0 +1,1 @@
+{"target":"arm64-macos","requirements":[{"symbols":["CTFontCreateWithName","CTFontDrawGlyphs"],"frameworks":["CoreText","CoreGraphics","CoreFoundation"]}]}

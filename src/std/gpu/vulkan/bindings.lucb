@@ -10,6 +10,7 @@ let VK_ATTACHMENT_STORE_OP_STORE: u32 = 0
 let VK_BLEND_FACTOR_ONE: u32 = 1
 let VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA: u32 = 7
 let VK_BLEND_FACTOR_SRC_ALPHA: u32 = 6
+let VK_BUFFER_USAGE_STORAGE_BUFFER_BIT: u32 = 32
 let VK_BUFFER_USAGE_VERTEX_BUFFER_BIT: u32 = 128
 let VK_COLOR_COMPONENT_A_BIT: u32 = 8
 let VK_COLOR_COMPONENT_B_BIT: u32 = 4
@@ -19,6 +20,7 @@ let VK_COLOR_SPACE_SRGB_NONLINEAR_KHR: u32 = 0
 let VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT: u32 = 1
 let VK_COMPARE_OP_LESS: u32 = 1
 let VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR: u32 = 1
+let VK_DESCRIPTOR_TYPE_STORAGE_BUFFER: u32 = 7
 let VK_DYNAMIC_STATE_SCISSOR: u32 = 1
 let VK_DYNAMIC_STATE_VIEWPORT: u32 = 0
 let VK_ERROR_OUT_OF_DATE_KHR: i32 = -1000001004
@@ -148,6 +150,68 @@ extern struct VkComponentMapping:
     g: u32
     b: u32
     a: u32
+
+extern struct VkCopyDescriptorSet:
+    sType: u32
+    pNext: void*?
+    srcSet: u64
+    srcBinding: u32
+    srcArrayElement: u32
+    dstSet: u64
+    dstBinding: u32
+    dstArrayElement: u32
+    descriptorCount: u32
+
+let VK_STRUCTURE_TYPE_COPY_DESCRIPTOR_SET: u32 = 36
+
+extern struct VkDescriptorBufferInfo:
+    buffer: u64
+    offset: u64
+    range: u64
+
+extern struct VkDescriptorImageInfo:
+    sampler: u64
+    imageView: u64
+    imageLayout: u32
+
+extern struct VkDescriptorPoolCreateInfo:
+    sType: u32
+    pNext: void*?
+    flags: u32
+    maxSets: u32
+    poolSizeCount: u32
+    pPoolSizes: VkDescriptorPoolSize*?
+
+let VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO: u32 = 33
+
+extern struct VkDescriptorPoolSize:
+    descriptorType: u32
+    descriptorCount: u32
+
+extern struct VkDescriptorSetAllocateInfo:
+    sType: u32
+    pNext: void*?
+    descriptorPool: u64
+    descriptorSetCount: u32
+    pSetLayouts: u64*?
+
+let VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO: u32 = 34
+
+extern struct VkDescriptorSetLayoutBinding:
+    binding: u32
+    descriptorType: u32
+    descriptorCount: u32
+    stageFlags: u32
+    pImmutableSamplers: u64*?
+
+extern struct VkDescriptorSetLayoutCreateInfo:
+    sType: u32
+    pNext: void*?
+    flags: u32
+    bindingCount: u32
+    pBindings: VkDescriptorSetLayoutBinding*?
+
+let VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO: u32 = 32
 
 extern struct VkDeviceCreateInfo:
     sType: u32
@@ -693,6 +757,20 @@ extern struct VkWin32SurfaceCreateInfoKHR:
 
 let VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR: u32 = 1000009000
 
+extern struct VkWriteDescriptorSet:
+    sType: u32
+    pNext: void*?
+    dstSet: u64
+    dstBinding: u32
+    dstArrayElement: u32
+    descriptorCount: u32
+    descriptorType: u32
+    pImageInfo: VkDescriptorImageInfo*?
+    pBufferInfo: VkDescriptorBufferInfo*?
+    pTexelBufferView: u64*?
+
+let VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET: u32 = 35
+
 extern func vkCreateInstance(pCreateInfo: VkInstanceCreateInfo*?, pAllocator: void*?, pInstance: u64*?) -> i32
 extern func vkDestroyInstance(instance: u64, pAllocator: void*?)
 extern func vkEnumeratePhysicalDevices(instance: u64, pPhysicalDeviceCount: u32*?, pPhysicalDevices: u64*?) -> i32
@@ -759,3 +837,11 @@ extern func vkCreateFence(device: u64, pCreateInfo: VkFenceCreateInfo*?, pAlloca
 extern func vkDestroyFence(device: u64, fence: u64, pAllocator: void*?)
 extern func vkWaitForFences(device: u64, fenceCount: u32, pFences: u64*?, waitAll: u32, timeout: u64) -> i32
 extern func vkResetFences(device: u64, fenceCount: u32, pFences: u64*?) -> i32
+extern func vkCreateDescriptorSetLayout(device: u64, pCreateInfo: VkDescriptorSetLayoutCreateInfo*?, pAllocator: void*?, pSetLayout: u64*?) -> i32
+extern func vkDestroyDescriptorSetLayout(device: u64, descriptorSetLayout: u64, pAllocator: void*?)
+extern func vkCreateDescriptorPool(device: u64, pCreateInfo: VkDescriptorPoolCreateInfo*?, pAllocator: void*?, pDescriptorPool: u64*?) -> i32
+extern func vkDestroyDescriptorPool(device: u64, descriptorPool: u64, pAllocator: void*?)
+extern func vkAllocateDescriptorSets(device: u64, pAllocateInfo: VkDescriptorSetAllocateInfo*?, pDescriptorSets: u64*?) -> i32
+extern func vkUpdateDescriptorSets(device: u64, descriptorWriteCount: u32, pDescriptorWrites: VkWriteDescriptorSet*?, descriptorCopyCount: u32, pDescriptorCopies: VkCopyDescriptorSet*?)
+extern func vkCmdBindDescriptorSets(commandBuffer: u64, pipelineBindPoint: u32, layout: u64, firstSet: u32, descriptorSetCount: u32, pDescriptorSets: u64*?, dynamicOffsetCount: u32, pDynamicOffsets: u32*?)
+extern func vkCmdPushConstants(commandBuffer: u64, layout: u64, stageFlags: u32, offset: u32, size: u32, pValues: void*?)

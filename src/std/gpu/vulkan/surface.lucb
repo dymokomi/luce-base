@@ -12,6 +12,7 @@ struct VulkanSurface:
     var height: u32
     var format: u32
     var render_pass: u64
+    var descriptor_layout: u64
     var layout: u64
     var overlay: u64
     var depth_test: u64
@@ -133,6 +134,8 @@ func vulkan_swapchain_destroy(device: VulkanDevice*, state: VulkanSurface*):
     state.images = empty
     if state.overlay != 0: vkDestroyPipeline(device.device, state.overlay, none)
     if state.depth_test != 0: vkDestroyPipeline(device.device, state.depth_test, none)
+    if state.descriptor_layout != 0: vkDestroyDescriptorSetLayout(device.device, state.descriptor_layout, none)
+    state.descriptor_layout = 0
     if state.layout != 0: vkDestroyPipelineLayout(device.device, state.layout, none)
     if state.render_pass != 0: vkDestroyRenderPass(device.device, state.render_pass, none)
     if state.depth_view != 0: vkDestroyImageView(device.device, state.depth_view, none)

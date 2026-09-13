@@ -62,6 +62,7 @@ jobs:
           python tools/test_window_targets.py --compiler build/luce-base.exe
           python tools/test_windows_native.py
           python tools/test_desktop_services.py --compiler build/luce-base.exe
+          python tests/programs/fonts/run.py build/luce-base.exe
           python tools/test_windows_debug.py
           python tests/programs/external_storage/run.py build/luce-base.exe
           python tests/programs/net_protocols/run.py build/luce-base.exe

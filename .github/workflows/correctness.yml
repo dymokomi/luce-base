@@ -37,6 +37,9 @@ jobs:
           fetch-depth: 0
       - name: Build pinned seed and install SDL3
         run: bash tools/ci_dependencies.sh
+      - name: Install Linux font backend
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libcairo2-dev fonts-dejavu-core
       - name: Select Clang for generated C
         run: |
           mkdir -p "$RUNNER_TEMP/luce-bin"

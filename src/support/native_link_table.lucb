@@ -7,9 +7,15 @@ pub struct Rule:
     pub let name: c.str
     pub let framework: bool
 
-pub let rules: Rule[40] = [
+pub let rules: Rule[52] = [
     Rule("arm64-macos", "CGColorSpaceCreateWithName", "CoreGraphics", true),
     Rule("arm64-macos", "CGColorSpaceCreateWithName", "QuartzCore", true),
+    Rule("arm64-macos", "CTFontCreateWithName", "CoreFoundation", true),
+    Rule("arm64-macos", "CTFontCreateWithName", "CoreGraphics", true),
+    Rule("arm64-macos", "CTFontCreateWithName", "CoreText", true),
+    Rule("arm64-macos", "CTFontDrawGlyphs", "CoreFoundation", true),
+    Rule("arm64-macos", "CTFontDrawGlyphs", "CoreGraphics", true),
+    Rule("arm64-macos", "CTFontDrawGlyphs", "CoreText", true),
     Rule("arm64-macos", "MTLCreateSystemDefaultDevice", "Metal", true),
     Rule("arm64-macos", "MTLCreateSystemDefaultDevice", "objc", false),
     Rule("arm64-macos", "NSApplicationDidFinishLaunchingNotification", "AppKit", true),
@@ -23,13 +29,19 @@ pub let rules: Rule[40] = [
     Rule("arm64-macos", "objc_autoreleasePoolPush", "objc", false),
     Rule("arm64-macos", "objc_getClass", "objc", false),
     Rule("arm64-macos", "objc_msgSend", "objc", false),
+    Rule("x86_64-linux", "cairo_image_surface_create", "cairo", false),
+    Rule("x86_64-linux", "cairo_scaled_font_destroy", "cairo", false),
     Rule("x86_64-windows", "BCryptGenRandom", "bcrypt", false),
     Rule("x86_64-windows", "CloseClipboard", "user32", false),
+    Rule("x86_64-windows", "CreateFontIndirectW", "gdi32", false),
     Rule("x86_64-windows", "CreateWindowExW", "user32", false),
     Rule("x86_64-windows", "DefWindowProcW", "user32", false),
     Rule("x86_64-windows", "GetActiveWindow", "user32", false),
     Rule("x86_64-windows", "GetClipboardData", "user32", false),
     Rule("x86_64-windows", "GetDpiForWindow", "user32", false),
+    Rule("x86_64-windows", "GetGlyphOutlineW", "gdi32", false),
+    Rule("x86_64-windows", "GetObjectW", "gdi32", false),
+    Rule("x86_64-windows", "GetTextMetricsW", "gdi32", false),
     Rule("x86_64-windows", "OpenClipboard", "user32", false),
     Rule("x86_64-windows", "PeekMessageW", "user32", false),
     Rule("x86_64-windows", "RegisterClassExW", "user32", false),

@@ -29,6 +29,8 @@ vkBeginCommandBuffer vkEndCommandBuffer vkCmdBeginRenderPass vkCmdEndRenderPass
 vkCmdBindPipeline vkCmdSetViewport vkCmdSetScissor vkCmdBindVertexBuffers vkCmdDraw
 vkCreateSemaphore vkDestroySemaphore vkCreateFence vkDestroyFence
 vkWaitForFences vkResetFences
+vkCreateDescriptorSetLayout vkDestroyDescriptorSetLayout vkCreateDescriptorPool vkDestroyDescriptorPool
+vkAllocateDescriptorSets vkUpdateDescriptorSets vkCmdBindDescriptorSets vkCmdPushConstants
 '''.split()
 
 
@@ -116,7 +118,11 @@ def main():
     def declaration(node):
         name = node.findtext('name')
         kind = node.findtext('type')
-        text = ''.join(node.itertext())
+        # Registry comments can contain brackets such as STORAGE_BUFFER[_DYNAMIC].
+        # Only declaration tokens may contribute a fixed array extent.
+        text = (node.text or '') + ''.join(
+            (''.join(child.itertext()) if child.tag != 'comment' else '') + (child.tail or '')
+            for child in node)
         before = text.split(name)[0]
         depth = before.count('*')
         if kind == 'VkAllocationCallbacks':
@@ -166,7 +172,7 @@ def main():
         lines.append(f'extern struct {name}:')
         for member in members(item):
             n, t = declaration(member)
-            lines.append(f'    {n}: {t}')
+            lines.append(f'    {"descriptorType" if n == "type" else n}: {t}')
         lines.append('')
         tag = item.find('member[@values]')
         if tag is not None:

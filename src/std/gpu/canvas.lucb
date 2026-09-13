@@ -32,6 +32,7 @@ struct Draw:
     var clip: Clip
     var depth: bool
     var viewport: Viewport?
+    var mask: MaskRegion
 
 ## A reusable CPU command list, independent of any backend or window. triangles
 ## copies its input, so callers may reuse it immediately. A failed append leaves
@@ -42,6 +43,8 @@ pub struct Canvas:
     var draws: Draw[]
     var vertex_count: usize
     var draw_count: usize
+    var coverage: u32[]
+    var coverage_count: usize
 
     pub func count() -> usize:
         return self.vertex_count
@@ -49,6 +52,7 @@ pub struct Canvas:
     pub mutating func clear():
         self.vertex_count = 0
         self.draw_count = 0
+        self.coverage_count = 0
 
     ## Independent triangles, in submission order. Depth-enabled draws use less
     ## comparison and write depth; other draws leave depth untouched. Each frame
@@ -91,6 +95,8 @@ pub struct Canvas:
         self.draw_count += 1
 
     pub mutating func destroy():
+        if self.coverage.length > 0:
+            free(self.coverage) in memory.heap
         if self.vertices.length > 0:
             free(self.vertices) in memory.heap
         if self.draws.length > 0:
