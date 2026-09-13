@@ -4470,7 +4470,7 @@ pub struct Lowerer:
 
     mutating func declare_global(d: ast.Node*) -> !:
         let name = try self.global_name(d)
-        try self.program_unit.globals.push(ir.Global(name = name, size = self.size(d.type_id), align = self.align(d.type_id), is_thread_local = d.has(ast.flag_thread_local), exported = false, weak = ast.has_attribute(d, "weak"), used = ast.has_attribute(d, "used"), section = section_of(d)))
+        try self.program_unit.globals.push(ir.Global(name = name, standard = check.is_standard_module(names.module_of(d)), size = self.size(d.type_id), align = self.align(d.type_id), is_thread_local = d.has(ast.flag_thread_local), exported = false, weak = ast.has_attribute(d, "weak"), used = ast.has_attribute(d, "used"), section = section_of(d)))
 
     ## `lb_init_globals`: every top-level initialiser, in module order.
     mutating func globals_initialiser() -> !:

@@ -486,6 +486,7 @@ pub struct Text:
 ## Data for a global: its symbol, its size, its alignment, and whether it is thread-local.
 pub struct Global:
     pub var name: str
+    pub var standard: bool
     pub var size: u32
     pub var align: u32
     pub var is_thread_local: bool

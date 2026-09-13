@@ -23,6 +23,7 @@
 
 from back.effects import may_have_effect, arguments_have_effect
 import back.names
+import strings
 import back.target as targets
 import front.ast
 import front.source as sources
@@ -96,8 +97,8 @@ pub struct Emitter:
     var counter: u32
     ## Program modules in dependency order; the prelude is never emitted.
     var modules: list.List[NodeRef]
-    ## External storage referenced by emitted bodies or global initializers.
-    var external_storage: list.List[NodeRef]
+    ## Storage referenced by emitted bodies or global initializers.
+    var referenced_storage: list.List[NodeRef]
     var entry: ast.Node*
     var funcs: list.List[Instance]
     var records: list.List[Instance]
@@ -160,7 +161,7 @@ pub struct Emitter:
         return Emitter(c = checker, out = try buffer.Buffer.create(65536), body = try buffer.Buffer.create(262144), sequenced = try list.List[Sequenced].create(32), chain_left = none, chain_temp = 0,
                        scratch = try buffer.Buffer.create(65536), formats = try list.List[u32].create(16), arrays = try list.List[Hoisted].create(16),
                        globals = try buffer.Buffer.create(4096), protos = try buffer.Buffer.create(16384), target = to_body, indent = 0, counter = 0,
-                       modules = try list.List[NodeRef].create(16), external_storage = try list.List[NodeRef].create(8), entry = entry,
+                       modules = try list.List[NodeRef].create(16), referenced_storage = try list.List[NodeRef].create(8), entry = entry,
                        funcs = try list.List[Instance].create(64), records = try list.List[Instance].create(64),
                        needed = try list.List[u32].create(256), defined = try list.List[u32].create(256),
                        decls_done = try list.List[NodeRef].create(64), tests = try list.List[NodeRef].create(32),
@@ -784,9 +785,9 @@ pub struct Emitter:
 
     ## `lb_module_name` for a top-level `let` or `var`.
     mutating func put_global_name(d: ast.Node*) -> !:
+        if not self.uses_storage(d):
+            try self.referenced_storage.push(d)
         if d.kind == ast.Kind.extern_var:
-            if not self.uses_external_storage(d):
-                try self.external_storage.push(d)
             try self.put(d.text)
             return
         try self.put("lb_")
@@ -794,8 +795,8 @@ pub struct Emitter:
         try self.put("_")
         try self.put(d.text)
 
-    func uses_external_storage(declaration: ast.Node*) -> bool:
-        for referenced in self.external_storage.span():
+    func uses_storage(declaration: ast.Node*) -> bool:
+        for referenced in self.referenced_storage.span():
             if referenced == declaration:
                 return true
         return false
@@ -6517,14 +6518,19 @@ pub struct Emitter:
         while i < self.c.modules.count:
             try self.modules.push(self.c.modules.get(i).tree)
             i += 1
-        # globals first, into their own buffer
+        # Initializers run independently of function reachability. Plain standard
+        # storage is declared after the emitted bodies establish its references.
+        var deferred_storage = try list.List[NodeRef].create(32)
         self.target = to_globals
         i = 0
         while i < self.modules.count:
             var cursor = self.modules.get(i).body
             while let d = cursor:
                 if d.kind == ast.Kind.global or d.kind == ast.Kind.constant:
-                    try self.global(d)
+                    if self.defer_storage(d):
+                        try deferred_storage.push(d)
+                    else:
+                        try self.global(d)
                 elif d.kind == ast.Kind.asm_ and d.text == "arm64":
                     try self.module_asm(d)
                 cursor = d.next
@@ -6573,6 +6579,26 @@ pub struct Emitter:
             while tests_done < self.tests.count and next >= self.funcs.count:
                 try self.test_body(self.tests.get(tests_done))
                 tests_done += 1
+        self.target = to_globals
+        var initialized_storage = self.globals
+        self.globals = try buffer.Buffer.create(4096)
+        for declaration in deferred_storage.span():
+            var spelling = try buffer.Buffer.create(128)
+            defer spelling.destroy()
+            try spelling.put("lb_")
+            try spelling.put(self.module_name(declaration))
+            try spelling.put("_")
+            try spelling.put(declaration.text)
+            let symbol = spelling.view()
+            # Assembly may name storage directly; conservative text matching also
+            # preserves symbols named by handwritten runtime glue.
+            if self.uses_storage(declaration) or strings.contains(self.body.view(), symbol) or strings.contains(initialized_storage.view(), symbol):
+                try self.global(declaration)
+        # Initializers may take these objects' addresses, so declarations precede
+        # them even though reachability was discovered after their emission.
+        try self.globals.put(initialized_storage.view())
+        initialized_storage.destroy()
+        deferred_storage.destroy()
         # the prototypes first, so the types they spell are noted before the typedefs
         self.target = to_protos
         try self.prototypes()
@@ -6618,7 +6644,7 @@ pub struct Emitter:
             while let d = cursor:
                 if d.kind == ast.Kind.extern_func:
                     try self.extern_prototype(d)
-                elif d.kind == ast.Kind.extern_var and self.uses_external_storage(d):
+                elif d.kind == ast.Kind.extern_var and self.uses_storage(d):
                     try self.line("extern ")
                     try self.put_type(d.type_id)
                     try self.put(" ")
@@ -6703,6 +6729,13 @@ pub struct Emitter:
         try self.put(names.module_of(d))
         try self.put("_")
         try self.put(d.text)
+
+    ## Keep user linkage and initialized/attributed storage. These runtime modules
+    ## also have names referenced directly by the C prologue and entry shims.
+    func defer_storage(d: ast.Node*) -> bool:
+        let module = self.module_name(d)
+        let runtime = module == "core" or module == "memory" or module == "io" or module == "testing"
+        return check.is_standard_module(module) and not runtime and d.left == none and d.attrs == none
 
     ## A top-level `let` or `var` as a C global.
     mutating func global(d: ast.Node*) -> !:

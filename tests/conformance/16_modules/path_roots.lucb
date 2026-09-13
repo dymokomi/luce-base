@@ -1,3 +1,4 @@
+# oracle: none -- Path normalization and Windows root semantics belong to Base's library.
 import paths
 import os
 import strings

@@ -126,6 +126,61 @@ func drop_unused_standard(program: ir.Unit*) -> !:
         i += 1
     program.functions.destroy()
     program.functions = kept
+    try drop_unused_storage(program, &texts)
+
+## Retained bodies and initializers determine which standard storage exists. In
+## particular, an unused OS adapter must not reserve its TLS on another target.
+## Application linkage, explicit retention attributes and raw assembly stay intact.
+func drop_unused_storage(program: ir.Unit*, assembly: list.List[str]*) -> !:
+    let retained = try alloc bool[program.globals.count + 1]
+    defer free(retained)
+    for i in 0..<program.globals.count:
+        let global = program.globals.get(i)
+        retained[i] = not global.standard or global.exported or global.used or global.weak or global.section.length > 0 or named_in_asm(assembly, global.name)
+    for function in program.functions.span():
+        for instruction in function.instrs.span():
+            retain_storage(program, retained, instruction.a)
+            retain_storage(program, retained, instruction.b)
+        for argument in function.args.span():
+            retain_storage(program, retained, argument.value)
+    var kept = try list.List[ir.Global].create(program.globals.count)
+    for i in 0..<program.globals.count:
+        if retained[i]:
+            try kept.push(program.globals.get(i))
+    program.globals.destroy()
+    program.globals = kept
+
+func retain_storage(program: ir.Unit*, retained: bool[], reference: ir.Ref):
+    if reference.kind != ir.RefKind.global:
+        return
+    for i in 0..<program.globals.count:
+        if program.globals.get(i).name == reference.name:
+            retained[i] = true
+            return
+
+test "standard storage follows retained code without changing user linkage":
+    var backing: u8[131072]
+    var arena = memory.FixedBuffer.over(backing)
+    with arena:
+        var program = try ir.Unit.create()
+        let names: str[8] = ["unused", "read", "initialized", "assembly", "used", "weak", "section", "user"]
+        for i in 0..<names.length:
+            try program.globals.push(ir.Global(name = names[i], standard = i != 7, size = 8, align = 8,
+                is_thread_local = true, used = i == 4, weak = i == 5, section = "custom" if i == 6 else ""))
+        var entry = try ir.Function.create("entry")
+        discard(try entry.load(ir.Op.loadl, ir.Class.l, ir.global_ref("read")))
+        try entry.store(ir.Op.storel, ir.const_ref(42), ir.global_ref("initialized"))
+        try program.functions.push(entry)
+        var dead = try ir.Function.create("dead")
+        dead.standard = true
+        discard(try dead.load(ir.Op.loadl, ir.Class.l, ir.global_ref("unused")))
+        try program.functions.push(dead)
+        try program.module_asm.push(ir.Text(bytes = "address of assembly"))
+        try drop_unused_standard(&program)
+        assert(program.functions.count == 1)
+        assert(program.globals.count == 7)
+        for i in 0..<program.globals.count:
+            assert(program.globals.get(i).name == names[i + 1])
 
 ## A witness table is live when reachable code or assembly takes its address.
 ## Treating every table as a root would pull unused platform modules into every binary.
