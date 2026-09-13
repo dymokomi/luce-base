@@ -7,6 +7,7 @@
 | `ir/` | Native intermediate representation, textual dumps, control-flow graph and lowering from the checked tree |
 | `opt/` | Inlining, local optimization, SSA construction, value numbering, load elimination and de-SSA |
 | `native/` | ARM64 and x86-64 assembly, register allocation, frame layout and DWARF emission |
+| `native/x86_64/` | x86 calling-convention, object-format and unwind policy, separate from instruction selection |
 | `c/` | Explicit C comparison/snapshot emission and C library headers |
 | `names.lucb` | Symbol naming shared by both backends |
 | `target.lucb` | Target platform and toolchain definitions |

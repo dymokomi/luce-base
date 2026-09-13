@@ -23,6 +23,9 @@ that it reproduces its own assembly. The language is
 [`docs/language/base.md`](docs/language/base.md), the same document the
 seed implements. What remains to do is [`docs/PLAN.md`](docs/PLAN.md); how the
 compiler is shaped is in [`docs/DESIGN.md`](docs/DESIGN.md).
+The [platform architecture](docs/PLATFORM-ARCHITECTURE.md) describes OS, CPU and
+GPU boundaries; the [September platform audit results](docs/PLATFORM-HARDENING-RESULTS.md)
+record the tested revisions and remaining coverage limits.
 
 Normal builds, test runners and static libraries use the native backend. `--native`
 remains an explicit alias. `--backend=c` selects the existing C comparison backend;
@@ -43,7 +46,6 @@ For Windows x64, use `python tools/build_windows.py`; see [Windows setup, OS con
 ./build.sh                            # the host's bootstrap snapshot with cc, then the compiler from source
 ./test.sh                             # the gate: both backends over every sample, test, and the compiler
 
-The test material lives under `tests/`: `tests/samples` (programs with their expected output and the rejected programs), `tests/programs` (the proving programs, each with a `check.sh`), and `tests/conformance` (one positive and one negative program per point of the specification, run through both backends and the seed).
 ./build/luce-base lex tests/samples/hello.lucb
 ./build/luce-base parse tests/samples/hello.lucb
 ./build/luce-base check tests/samples/json.lucb                  # silence means it checks
@@ -56,6 +58,10 @@ The test material lives under `tests/`: `tests/samples` (programs with their exp
 ./build/luce-base build app.lucb --native -lSDL3 -L/opt/homebrew/lib -o app   # link a C library
 ./build/luce-base build app.lucb --target x86_64-linux --emit=c -o app.c        # the C for another target
 ```
+
+Test material lives under `tests/samples` (programs and expected output),
+`tests/programs` (integration checks), and `tests/conformance` (accepted and
+rejected language cases checked through both backends and the Seed oracle).
 
 The Unix gate runs on arm64 macOS and x86_64 Linux. Windows x64 has a native
 bootstrap and a Python-based gate described in the Windows guide. `tests/platform` holds what depends on the target.

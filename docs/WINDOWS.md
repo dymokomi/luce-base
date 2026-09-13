@@ -112,9 +112,11 @@ python tools/test_vulkan_abi.py --help
 ```
 
 The native contract runner covers files, IPv4/IPv6 TCP and UDP, cancellation,
-deadlines and stack unwinding through an independent C/Windows SDK oracle. Its
-optional GUI cases exercise Win32 and actual Vulkan presentation. Each runs in
-native opt 0–3 and C debug/release modes. JSON results are retained in `build/`.
+deadlines and stack unwinding through independent Windows counters and C/Windows
+SDK oracles. Repeated short sleeps must meet their requested duration even across
+timer ticks. Its optional GUI cases exercise Win32 and actual Vulkan presentation.
+Each runs in native opt 0–3, native debug and C debug/release modes. JSON results
+are retained in `build/`.
 Vulkan ABI checks compare all fields of 63 records against the installed SDK.
 See [the local validation record](WINDOWS_VALIDATION.md) for observed results and
 the distinction between Windows execution and Unix cross-compilation.

@@ -10,7 +10,7 @@ on. No compatibility layers are required.
 - [x] Restore deterministic UTF-8/LF generation with a documented Python prerequisite.
 - [x] Repair Seed comment/help encoding and commit it.
 - [x] Preserve Windows test identity, child cleanup and partial results on every failure.
-- [ ] Make Unicode source/output/TEMP builds work without requiring short filenames.
+- [x] Make Unicode source/output/TEMP builds work without requiring short filenames.
 
 ## Standard OS primitives and consumers
 
@@ -26,11 +26,15 @@ on. No compatibility layers are required.
 - [x] Replace authored Vulkan numeric enums/flags with named constants.
 - [x] Separate x86 ABI and object/unwind policy from instruction selection; update comments.
 - [x] Add focused checks that enforce the intended platform boundaries.
+- [x] Remove unused standard storage along with unreachable platform code; preserve retention roots.
 
 ## Final gates and handoff
 
-- [ ] Refresh all bootstrap snapshots and verify native fixed points.
-- [ ] Update and publish dependency pins in dependency order.
-- [ ] Pass local compiler, standard-library, interop and consumer checks, including Metal rendering.
-- [ ] Pass macOS, Linux and Windows CI for Seed, Base, Luce and all packages/applications.
-- [ ] Record final architecture and validation evidence; verify every repository is clean and pushed.
+- [x] Refresh all bootstrap snapshots and verify native fixed points.
+- [x] Update and publish dependency pins in dependency order.
+- [x] Pass local compiler, standard-library, interop and consumer checks, including Metal rendering.
+- [x] Pass macOS, Linux and Windows CI for Seed, Base, Luce and all packages/applications.
+- [x] Record final architecture and validation evidence; verify every repository is clean and pushed.
+
+Completed results and tested revisions: [validation report](PLATFORM-HARDENING-RESULTS.md).
+The resulting boundaries are described in [platform architecture](PLATFORM-ARCHITECTURE.md).

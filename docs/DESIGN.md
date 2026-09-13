@@ -602,18 +602,21 @@ compiler-chosen `reg` form is the C backend's for now.
 ## Waiting
 
 `sync` sleeps in the kernel: `Mutex`, `Condition`, `Once`, and `Semaphore`
-are one `@u32` each over `__ulock_wait` and `__ulock_wake`, the futex of
-macOS, or the `futex` system call on Linux, with the three-state mutex of
-Drepper's paper. A pool of workers
+are one `@u32` each over `__ulock_wait` and `__ulock_wake` on macOS, the `futex`
+system call on Linux, or `WaitOnAddress` and `WakeByAddress*` on Windows, with the
+three-state mutex of Drepper's paper. A pool of workers
 waiting on a condition costs nothing while it waits, which the HTTP server
 under `tests/programs/` relies on.
 
 ## Memory
 
 One arena per compilation, made current with `with`, owns everything with
-the lifetime of the run: tokens, nodes, types, interned names. Growable
-buffers use the current allocator and free their old block. Nothing is
-freed individually.
+the lifetime of the run: tokens, nodes, types, interned names. The compiler-owned
+arena in `support/arena.lucb` grows by adding stable chunks and releases them at
+command exit; it has no OS-dependent fixed capacity. Growable buffers use the current allocator
+and retire old blocks into that arena lifetime. See
+[platform ownership](PLATFORM-ARCHITECTURE.md) for the host-tool and standard
+resource boundaries.
 
 ## Two executions
 
