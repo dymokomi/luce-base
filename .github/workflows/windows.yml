@@ -39,6 +39,8 @@ jobs:
           python tools/build_windows.py --seed build/seed/build-windows/lucb.exe
       - name: Compiler unit tests
         run: ./build/luce-base.exe test src/main.lucb
+      - name: Test runner process ownership
+        run: python tools/test_validation_process.py
       - name: Native and C conformance
         run: python tools/test_windows.py --suite conformance --c
       - name: Samples and Windows OS contracts
@@ -56,5 +58,6 @@ jobs:
           name: luce-base-windows-${{ github.sha }}
           path: |
             build/windows-*.json
+            build/windows-*.jsonl
             build/windows-fixedpoint-*
           retention-days: 14
