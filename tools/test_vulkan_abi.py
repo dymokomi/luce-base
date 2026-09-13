@@ -15,6 +15,9 @@ bindings = (ROOT / 'src/std/gpu/vulkan/bindings.lucb').read_text(encoding='utf-8
 native = ['#define VK_USE_PLATFORM_WIN32_KHR', '#include <windows.h>',
           '#include <vulkan/vulkan.h>', '#include <stdio.h>', '#include <stddef.h>', 'int main(void) {']
 test_bindings = re.sub(r'^extern func .*\n', '', bindings, flags=re.MULTILINE)
+# Extern records keep their C names. Give this independent layout fixture its
+# own names so it can coexist with the embedded GPU module in generated C.
+test_bindings = re.sub(r'\bVk\w+\b', lambda match: 'Oracle' + match[0], test_bindings)
 # Standard modules may use intrinsic names as fields; ordinary test modules may not.
 test_bindings = re.sub(r'^    (\w+):', r'    vk_\1:', test_bindings, flags=re.MULTILINE)
 base = ['import c', test_bindings, 'pub func main(arguments: str[]) -> i32:']
@@ -22,7 +25,8 @@ structures = re.findall(r'extern struct (\w+):\n((?:    [^\n]+\n)+)', bindings)
 for name, body in structures:
     expressions = [f'sizeof({name})', f'alignof({name})']
     expressions += [f'offsetof({name}, {field})' for field in re.findall(r'    (\w+):', body)]
-    base_expressions = [re.sub(r', (\w+)\)', r', vk_\1)', item) for item in expressions]
+    base_expressions = [re.sub(r'\bVk\w+\b', lambda match: 'Oracle' + match[0],
+                             re.sub(r', (\w+)\)', r', vk_\1)', item)) for item in expressions]
     base.append('    print(f"' + name + ' ' + ' '.join('{' + item + '}' for item in base_expressions) + '")')
     native.append('printf("' + name + ' ' + ' '.join(['%zu'] * len(expressions)) + '\\n", ' +
                   ', '.join(item.replace('alignof(', '_Alignof(') for item in expressions) + ');')
