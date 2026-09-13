@@ -77,6 +77,20 @@ pub struct Window:
         if platform.windows:
             try win_resize(state, width, height)
 
+    ## Enable committed text from the active keyboard layout and input method.
+    ## Disable when no editable control has focus; this cancels pending composition.
+    pub func set_text_input(enabled: bool) -> !:
+        let state = try self.checked()
+        if state.text_input == enabled:
+            return
+        state.text_input = enabled
+        state.pending_surrogate = 0
+        if not enabled and platform.macos:
+            mac_clear_marked(state)
+            if let view = state.view:
+                if let context = msg_ptr(view, sel("inputContext")):
+                    msg_void(context, sel("discardMarkedText"))
+
     ## Reserve this window for one graphics surface. Normally gpu.Surface calls
     ## this; applications need not manage the lease themselves.
     pub func acquire_presentation() -> Presentation!:
@@ -101,9 +115,9 @@ pub struct Window:
         if let event = pop_event(state):
             return event
         if platform.macos and platform.arm64:
-            mac_pump()
+            mac_pump(state)
         if platform.windows:
-            win_pump()
+            win_pump(state)
         return pop_event(state)
 
     ## Idempotent on this value. Detach callbacks before releasing native objects

@@ -1,6 +1,6 @@
 ## Window input uses logical points, with the origin at the content's top left.
-## Physical keys describe positions, not characters. Text composition belongs to
-## a separate text-input API; keyboard layouts cannot be decoded from these events.
+## Physical keys describe positions, not characters. text_input carries committed
+## Unicode scalars supplied by the OS text service when a window enables text input.
 pub enum EventKind as u8:
     idle = 0
     close_requested = 1
@@ -15,6 +15,7 @@ pub enum EventKind as u8:
     pointer_up = 10
     scroll = 11
     overflow = 12
+    text_input = 13
 
 ## USB HID keyboard-page usages, independent of the host's virtual key numbers.
 ## Unknown or unsupported positions produce unknown rather than a guessed key.
@@ -130,4 +131,4 @@ pub struct Event:
     pub var scroll_x: f64
     pub var scroll_y: f64
     pub var scroll_unit: ScrollUnit
-
+    pub var codepoint: u32

@@ -64,7 +64,20 @@ func win_callback(native: void*, message: u32, word: usize, value: isize) -> isi
     if message == 5:
         push_event(state, input.Event(kind = input.EventKind.resized))
     elif message == 7 or message == 8:
+        state.pending_surrogate = 0
         push_event(state, input.Event(kind = input.EventKind.focus_gained if message == 7 else input.EventKind.focus_lost))
+    elif message == 258:
+        # WM_CHAR supplies UTF-16, including surrogate pairs and AltGr text.
+        if state.text_input:
+            push_utf16(state, (u16)word)
+        return 0
+    elif message == 265:
+        # WM_UNICHAR probes support with UNICODE_NOCHAR, then supplies UTF-32.
+        if word == 0xFFFF:
+            return 1
+        if state.text_input and word <= 0x10FFFF:
+            push_scalar(state, (u32)word)
+        return 0
     elif message == 736:
         let rect = (WinRect*)(void*)value
         discard(SetWindowPos(native, none, rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, 20))

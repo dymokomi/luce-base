@@ -1,5 +1,6 @@
 ## AppKit invokes these methods synchronously while the main thread pumps events.
-## No callback allocates, fails, or retains NSEvent/NSNotification objects.
+## Queued events retain no NSEvent/NSNotification objects. AppKit's text service
+## may allocate its own composition state while interpreting a key event.
 func close_callback(object: void*, selector: void*, sender: void*) -> bool:
     discard(selector)
     discard(sender)
@@ -17,6 +18,8 @@ func focus_callback(object: void*, selector: void*, notification: void*):
     discard(notification)
     if let state = get_state(object):
         let gained = selector == sel("windowDidBecomeKey:")
+        if not gained:
+            mac_clear_marked(state)
         push_event(state, input.Event(kind = input.EventKind.focus_gained if gained else input.EventKind.focus_lost))
 
 func view_accepts(object: void*, selector: void*) -> bool:
@@ -37,7 +40,14 @@ func key_callback(object: void*, selector: void*, native: void*):
     if native_type == 10 or native_type == 11:
         event.kind = input.EventKind.key_down if native_type == 10 else input.EventKind.key_up
         event.repeated = msg_bool(native, sel("isARepeat"))
-    push_event(state, event)
+    # Composition navigation belongs to AppKit until the marked text is committed.
+    let composing = state.marked_text != none
+    if not composing:
+        push_event(state, event)
+    if native_type == 10 and state.text_input and not event.modifiers.super and not event.modifiers.control:
+        let array_class = objc_getClass("NSArray") else return
+        let events = msg_one_object(array_class, sel("arrayWithObject:"), native) else return
+        msg_object(object, sel("interpretKeyEvents:"), events)
 
 func pointer_callback(object: void*, selector: void*, native: void*):
     discard(selector)
@@ -76,4 +86,3 @@ func physical_key(code: u16) -> input.Key:
     if code >= key_positions.length:
         return input.Key.unknown
     return (input.Key)key_positions[code]
-

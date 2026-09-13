@@ -107,13 +107,15 @@ func win_resize(state: State*, width: u32, height: u32) -> !:
     if AdjustWindowRectExForDpi(&rect, style, 0, 0, dpi) == 0 or SetWindowPos(native, none, 0, 0, rect.right - rect.left, rect.bottom - rect.top, 22) == 0:
         error(failed, "the native window could not be resized")
 
-func win_pump():
+func win_pump(waiting: State*):
     var message: WinMessage
     var count: usize = 0
     while count < 256 and PeekMessageW(&message, none, 0, 0, 1) != 0:
         discard(TranslateMessage(&message))
         discard(DispatchMessageW(&message))
         count += 1
+        if waiting.count > 0 or waiting.close_requested or waiting.overflowed:
+            break
 
 func win_destroy(state: State*):
     state.destroyed = true

@@ -12,6 +12,33 @@ struct State:
     var close_requested: bool
     var presentation_held: bool
     var destroyed: bool
+    var text_input: bool
+    var pending_surrogate: u16
+    var marked_text: void*?
+    var marked_selection: usize
+    var marked_length: usize
+
+## Committed characters own their value. Control keys remain physical events;
+## no queued event borrows native string storage or a composition buffer.
+func push_scalar(state: State*, scalar: u32):
+    if scalar >= 32 and scalar != 127 and scalar <= 0x10FFFF and not (scalar >= 0xD800 and scalar <= 0xDFFF):
+        push_event(state, input.Event(kind = input.EventKind.text_input, codepoint = scalar))
+
+func push_utf16(state: State*, code: u16):
+    if code >= 0xD800 and code <= 0xDBFF:
+        if state.pending_surrogate != 0:
+            push_scalar(state, 0xFFFD)
+        state.pending_surrogate = code
+        return
+    if code >= 0xDC00 and code <= 0xDFFF:
+        let high = state.pending_surrogate
+        state.pending_surrogate = 0
+        push_scalar(state, 0x10000 + ((u32)high - 0xD800) * 1024 + (u32)code - 0xDC00 if high != 0 else 0xFFFD)
+        return
+    if state.pending_surrogate != 0:
+        state.pending_surrogate = 0
+        push_scalar(state, 0xFFFD)
+    push_scalar(state, (u32)code)
 
 func push_event(state: State*, event: input.Event):
     if state.count == state.events.length:

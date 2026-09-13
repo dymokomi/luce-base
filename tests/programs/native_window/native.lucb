@@ -6,6 +6,40 @@ extern struct ProbePoint:
     x: f64
     y: f64
 
+extern struct ProbeRange:
+    location: usize
+    length: usize
+
+extern func init_text as "objc_msgSend"(object: void*, selector: void*, bytes: const u8*, length: usize, encoding: u64) -> void*
+extern func insert_text as "objc_msgSend"(object: void*, selector: void*, value: void*, range: ProbeRange)
+extern func mark_text as "objc_msgSend"(object: void*, selector: void*, value: void*, selection: ProbeRange, replacement: ProbeRange)
+extern func bool_result as "objc_msgSend"(object: void*, selector: void*) -> bool
+
+func native_text(value: str) -> void*:
+    let allocated = msg(objc_getClass("NSString"), sel_registerName("alloc"))
+    return init_text(allocated, sel_registerName("initWithBytes:length:encoding:"), value.bytes.data, value.length, 4)
+
+pub func commit_text(window: void*, value: str):
+    let string = native_text(value)
+    defer invoke(string, sel_registerName("release"))
+    let view = msg(window, sel_registerName("contentView"))
+    insert_text(view, sel_registerName("insertText:replacementRange:"), string, ProbeRange(0x7FFFFFFFFFFFFFFF, 0))
+
+pub func composition(window: void*, value: str):
+    let string = native_text(value)
+    defer invoke(string, sel_registerName("release"))
+    let view = msg(window, sel_registerName("contentView"))
+    mark_text(view, sel_registerName("setMarkedText:selectedRange:replacementRange:"), string, ProbeRange(0, 0), ProbeRange(0x7FFFFFFFFFFFFFFF, 0))
+
+pub func composing(window: void*) -> bool:
+    return bool_result(msg(window, sel_registerName("contentView")), sel_registerName("hasMarkedText"))
+
+pub func typed_key(window: void*, value: str):
+    let string = native_text(value)
+    defer invoke(string, sel_registerName("release"))
+    let event = key_event(objc_getClass("NSEvent"), sel_registerName("keyEventWithType:location:modifierFlags:timestamp:windowNumber:context:characters:charactersIgnoringModifiers:isARepeat:keyCode:"), 10, ProbePoint(), 0, 0.0, (i64)uint(window, sel_registerName("windowNumber")), none, string, string, false, 0)
+    call(msg(window, sel_registerName("contentView")), sel_registerName("keyDown:"), event)
+
 extern func objc_getClass(name: c.str) -> void*
 extern func sel_registerName(name: c.str) -> void*
 extern func objc_autoreleasePoolPush() -> void*

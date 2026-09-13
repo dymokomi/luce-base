@@ -32,6 +32,24 @@ pub func main(arguments: str[]) -> i32!:
             if event.kind == input.EventKind.pointer_moved: pointer = true
         thread.sleep(10)
     assert(key_down and key_up and pointer)
+    try first.set_text_input(true)
+    assert(PostMessageW(handle, 258, 233, 1) != 0)
+    assert(PostMessageW(handle, 258, 0xD83D, 1) != 0)
+    assert(PostMessageW(handle, 258, 0xDE00, 1) != 0)
+    assert(PostMessageW(handle, 265, 0x4E16, 1) != 0)
+    var committed: u32[3]
+    var received: usize = 0
+    for tick in 0..<60:
+        while let event = try first.poll():
+            if event.kind == input.EventKind.text_input:
+                assert(received < committed.length)
+                committed[received] = event.codepoint
+                received += 1
+        if received == 3:
+            break
+        thread.sleep(10)
+    assert(received == 3 and committed[0] == 233 and committed[1] == 128512 and committed[2] == 0x4E16)
+    try first.set_text_input(false)
     assert(PostMessageW(handle, 16, 0, 0) != 0)
     var close_received = false
     while let event = try first.poll():

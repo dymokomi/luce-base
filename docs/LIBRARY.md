@@ -1630,11 +1630,11 @@ Value() creates an object. Arrays and scalar values use the named constructors. 
 
 ## `input`
 
-Window input uses logical points, with the origin at the content's top left. Physical keys describe positions, not characters. Text composition belongs to a separate text-input API; keyboard layouts cannot be decoded from these events.
+Window input uses logical points, with the origin at the content's top left. Physical keys describe positions, not characters. text_input carries committed Unicode scalars supplied by the OS text service when a window enables text input.
 
 ### `EventKind` (enumas u8)
 
-Window input uses logical points, with the origin at the content's top left. Physical keys describe positions, not characters. Text composition belongs to a separate text-input API; keyboard layouts cannot be decoded from these events.
+Window input uses logical points, with the origin at the content's top left. Physical keys describe positions, not characters. text_input carries committed Unicode scalars supplied by the OS text service when a window enables text input.
 
 ### `Key` (enumas u16)
 
@@ -1664,6 +1664,7 @@ A self-contained value; it retains no native object or borrowed text. Only the f
 - `var scroll_x: f64`
 - `var scroll_y: f64`
 - `var scroll_unit: ScrollUnit`
+- `var codepoint: u32`
 
 ## `window`
 
@@ -1706,6 +1707,7 @@ One owned native window. The zero value is closed. Copies alias ownership: borro
 - `func show() -> !`
 - `func size() -> Size!`
 - `func resize(width: u32, height: u32) -> !`
+- `func set_text_input(enabled: bool) -> !` — Enable committed text from the active keyboard layout and input method. Disable when no editable control has focus; this cancels pending composition.
 - `func acquire_presentation() -> Presentation!` — Reserve this window for one graphics surface. Normally gpu.Surface calls this; applications need not manage the lease themselves.
 - `func request_close() -> !` — Request closure, using the same event as the title-bar close button. The application decides whether to destroy the window after receiving it.
 - `func poll() -> input.Event?!` — Return the oldest queued event, or none after a bounded nonblocking pump. Each window holds 256 events. On exhaustion the queue is discarded and one overflow event precedes subsequent events; close requests remain sticky. No event holds transient AppKit storage. Call regularly for every window.

@@ -30,6 +30,7 @@ func setup_classes() -> !:
         errdefer objc_disposeClassPair(native_type)
         try add_method(native_type, "acceptsFirstResponder", (void*)view_accepts, "B@:")
         try add_method(native_type, "isFlipped", (void*)view_accepts, "B@:")
+        try mac_register_text_input(native_type)
         var keys: c.str[3] = ["keyDown:", "keyUp:", "flagsChanged:"]
         for name in keys:
             try add_method(native_type, name, (void*)key_callback, "v@:@")
@@ -118,7 +119,7 @@ func mac_resize(state: State*, width: u32, height: u32):
     defer objc_autoreleasePoolPop(pool)
     msg_extent(required(state.native), sel("setContentSize:"), LuceWindowMacExtent(width = (f64)width, height = (f64)height))
 
-func mac_pump():
+func mac_pump(waiting: State*):
     let app = application else return
     let pool = objc_autoreleasePoolPush()
     defer objc_autoreleasePoolPop(pool)
@@ -129,12 +130,16 @@ func mac_pump():
         let event = msg_next(app, sel("nextEventMatchingMask:untilDate:inMode:dequeue:"), ~(u64)0, past, NSDefaultRunLoopMode, true) else break
         msg_object(app, sel("sendEvent:"), event)
         count += 1
+        # Return after delivery so the UI can update text focus before the next key.
+        if waiting.count > 0 or waiting.close_requested or waiting.overflowed:
+            break
     msg_void(app, sel("updateWindows"))
 
 func mac_destroy(state: State*):
     let pool = objc_autoreleasePoolPush()
     defer objc_autoreleasePoolPop(pool)
     state.destroyed = true
+    mac_clear_marked(state)
     if let view = state.view:
         set_state(view, none)
     if let delegate = state.delegate:
