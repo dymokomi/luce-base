@@ -1,4 +1,5 @@
 import c
+import core
 import memory
 import platform
 
@@ -18,6 +19,14 @@ extern func linux_setname as "pthread_setname_np"(thread: void*, name: c.str) ->
 extern func sched_yield() -> i32
 extern func nanosleep(request: const Duration*, remaining: Duration*?) -> i32
 extern func getpagesize() -> i32
+extern func GetSystemInfo(info: void*)
+
+func page_size() -> usize:
+    if platform.windows:
+        var info: u64[6]
+        GetSystemInfo(&info[0])
+        return (usize)((u32*)&info[0])[1]
+    return (usize)getpagesize()
 
 extern struct Duration:
     seconds: i64
@@ -84,7 +93,7 @@ pub func spawn(entry: func(void*?) -> unit, context: void*?, stack: usize = 0, n
         free(start) in memory.heap
         error(failed, "spawn")
     if stack > 0:
-        let page = (usize)getpagesize()
+        let page = page_size()
         var size = stack if stack > least_stack else least_stack
         size = (size + page - 1) // page * page
         if pthread_attr_setstacksize((void*)&attributes[0], size) != 0:
@@ -107,6 +116,8 @@ pub func current() -> Handle:
 
 ## Whether this is the process's initial thread, for main-thread native resources.
 pub func is_main() -> bool:
+    if platform.windows:
+        return core.on_initial_thread()
     if platform.macos:
         return pthread_main_np() != 0
     if platform.linux:

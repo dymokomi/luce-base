@@ -13,7 +13,7 @@ extern func float_fault_begin(mode: i32)
 extern func float_fault_end(expected_hits: i32)
 
 func check_failures() -> !:
-    for mode in 1..<(8 if platform.macos else 9):
+    for mode in 1..<(8 if platform.macos or platform.windows else 9):
         let expected = memory.exhausted if mode == 1 or mode == 3 else strings.invalid_number if mode == 5 else strings.conversion_failed
         for narrow in 0..<2:
             var failed = false

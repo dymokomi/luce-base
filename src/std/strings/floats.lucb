@@ -6,6 +6,21 @@ extern func convert_f64 as "strtod_l"(text: c.str, end: u8*?*, locale: void*) ->
 extern func convert_f32 as "strtof_l"(text: c.str, end: u8*?*, locale: void*) -> f32
 extern func print_float_macos as "snprintf_l"(output: u8*, size: usize, locale: void*, format: c.str, ...) -> i32
 extern func print_float_linux as "snprintf"(output: u8*, size: usize, format: c.str, ...) -> i32
+extern func create_locale_windows as "_create_locale"(category: i32, name: c.str) -> void*?
+extern func free_locale_windows as "_free_locale"(locale: void*)
+extern func convert_f64_windows as "_strtod_l"(text: c.str, end: u8*?*, locale: void*) -> f64
+extern func convert_f32_windows as "_strtof_l"(text: c.str, end: u8*?*, locale: void*) -> f32
+extern func print_float_windows as "_snprintf_l"(output: u8*, size: usize, format: c.str, locale: void*, ...) -> i32
+
+func parse_native_f64(text: c.str, end: u8*?*, locale: void*) -> f64:
+    if platform.windows:
+        return convert_f64_windows(text, end, locale)
+    return convert_f64(text, end, locale)
+
+func parse_native_f32(text: c.str, end: u8*?*, locale: void*) -> f32:
+    if platform.windows:
+        return convert_f32_windows(text, end, locale)
+    return convert_f32(text, end, locale)
 
 ## Parse complete ASCII decimal text with an optional sign, decimal point and
 ## exponent. Whitespace, hex, underscores, embedded NUL and trailing bytes are
@@ -27,7 +42,7 @@ pub func parse_f64(text: str) -> f64!:
     defer release(input)
     var end: u8*? = none
     c.set_errno(0)
-    let value = convert_f64((c.str)input, &end, locale.handle())
+    let value = parse_native_f64((c.str)input, &end, locale.handle())
     let number = c.errno()
     try check_float_conversion(input, end, number)
     let magnitude = memory.read[u64](&value) & 9223372036854775807
@@ -50,7 +65,7 @@ pub func parse_f32(text: str) -> f32!:
     defer release(input)
     var end: u8*? = none
     c.set_errno(0)
-    let value = convert_f32((c.str)input, &end, locale.handle())
+    let value = parse_native_f32((c.str)input, &end, locale.handle())
     let number = c.errno()
     try check_float_conversion(input, end, number)
     let magnitude = memory.read[u32](&value) & 2147483647
@@ -76,6 +91,9 @@ struct NumericLocale:
     var value: void*?
 
     static func create() -> NumericLocale!:
+        if platform.windows:
+            let handle = create_locale_windows(4, "C") else error(memory.exhausted if c.errno() == 12 else conversion_failed, "the C numeric locale could not be created")
+            return NumericLocale(value = handle)
         let value = new_numeric_locale(16 if platform.macos else 2, "C", none) else error(memory.exhausted if c.errno() == 12 else conversion_failed, "the C numeric locale could not be created")
         return NumericLocale(value = value)
 
@@ -85,17 +103,29 @@ struct NumericLocale:
     mutating func destroy():
         if let value = self.value:
             self.value = none
-            if platform.macos:
+            if platform.windows:
+                free_locale_windows(value)
+            elif platform.macos:
                 discard(free_locale_macos(value))
             else:
                 free_locale_linux(value)
 
 func format_float(value: f64, precision: i32, buffer: u8[]) -> str!:
+    let bits = memory.read[u64](&value)
+    let magnitude = bits & 9223372036854775807
+    if magnitude >= 9218868437227405312:
+        let word = "nan" if magnitude > 9218868437227405312 else "-inf" if (bits >> 63) != 0 else "inf"
+        if buffer.length < word.length:
+            error(io.full, "the destination cannot hold the formatted floating-point value")
+        memory.copy(buffer, word.bytes, word.length)
+        return (str)buffer[..<word.length]
     var locale = try NumericLocale.create()
     defer locale.destroy()
     var temporary: u8[32]
     var count: i32 = 0
-    if platform.macos:
+    if platform.windows:
+        count = print_float_windows(&temporary[0], temporary.length, "%.*g", locale.handle(), precision, value)
+    elif platform.macos:
         count = print_float_macos(&temporary[0], temporary.length, locale.handle(), "%.*g", precision, value)
     else:
         # glibc has no snprintf_l. Change only this thread's locale and restore it

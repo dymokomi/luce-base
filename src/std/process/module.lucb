@@ -1,6 +1,7 @@
 import c
 import memory
 import platform
+import os
 
 extern func pipe(descriptors: i32*) -> i32
 extern func fork() -> i32
@@ -80,6 +81,8 @@ struct Capture:
 ## does nothing between `fork` and `exec` but move descriptors,
 ## so a parent with other threads is safe (§15.3).
 pub func run(program: c.str, arguments: const c.str[]) -> (i32, str, str)!:
+    if platform.windows:
+        return try run_windows(program, arguments)
     let argv = try alloc void*?[arguments.length + 2]
     argv[0] = (void*)program
     var i: usize = 0

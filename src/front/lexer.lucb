@@ -204,7 +204,9 @@ pub struct Lexer:
         self.offset = i
         while self.peek() != '\n' and self.peek() != 0:
             self.offset += 1
-        let t = self.make(token.Kind.raw_line, start)
+        var t = self.make(token.Kind.raw_line, start)
+        if t.end > t.start and self.src.bytes[t.end - 1] == '\r' and self.peek() == '\n':
+            t.end -= 1
         if self.peek() == '\n':
             self.newline_here()
         return t
@@ -442,7 +444,7 @@ pub struct Lexer:
         while i > 0:
             i -= 1
             let c = self.src.bytes[i]
-            if c == ' ':
+            if c == ' ' or c == '\r':
                 continue
             return c == ':'
         return false
@@ -523,6 +525,18 @@ test "asm suites are raw":
     assert(toks[5].kind == token.Kind.raw_line)
     assert(toks[6].kind == token.Kind.raw_line)
 
+test "CRLF asm lines exclude the physical line ending":
+    let src = try source.Source.over("test", "asm x86_64:\r\n    cpuid\r\nx\r\n".bytes)
+    var lexer = Lexer.over(src)
+    var found = false
+    for index in 0..<8:
+        discard(index)
+        let t = try lexer.next()
+        if t.kind == token.Kind.raw_line:
+            assert(lexer.text(t) == "cpuid")
+            found = true
+    assert(found)
+
 test "a tab is an error":
     var toks: token.Token[8] = ---
     var refused = false
@@ -535,6 +549,14 @@ test "a suite inside brackets closes with the bracket":
     var toks: token.Token[64] = ---
     let n = tokenize("f(x catch e:\n    recover 0)\ny\n", toks) catch failure: recover 0
     # f ( x catch e : newline indent recover 0 dedent ) newline y newline
+    assert(n == 15)
+    assert(toks[7].kind == token.Kind.indent)
+    assert(toks[10].kind == token.Kind.dedent)
+    assert(toks[11].kind == token.Kind.operator)
+
+test "a CRLF suite inside brackets closes with the bracket":
+    var toks: token.Token[64] = ---
+    let n = tokenize("f(x catch e:\r\n    recover 0)\r\ny\r\n", toks) catch failure: recover 0
     assert(n == 15)
     assert(toks[7].kind == token.Kind.indent)
     assert(toks[10].kind == token.Kind.dedent)

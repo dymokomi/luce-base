@@ -1,0 +1,58 @@
+import paths
+import os
+import strings
+
+func joined(left: str, right: str, expected: str) -> !:
+    let value = try paths.join(left, right)
+    defer strings.release(value)
+    assert(value == expected)
+
+func normalized(path: str, expected: str) -> !:
+    let value = try paths.normalize(path)
+    defer strings.release(value)
+    assert(value == expected)
+
+pub func main(arguments: str[]) -> i32!:
+    try normalized("a/./b/../c", "a/c")
+    try normalized("../../a/..", "../..")
+    try normalized("/../../a//b/", "/a/b")
+    try normalized("a/..", ".")
+    try normalized("", ".")
+    assert(paths.directory("/hello") == "/")
+    assert(paths.directory("hello") == ".")
+    assert(paths.base("hello.txt") == "hello.txt")
+    assert(paths.extension(".hidden") == "")
+    assert(paths.stem("some/hello.txt") == "hello")
+    try joined("some", "hello", "some/hello")
+    if os.windows:
+        try normalized("C:foo/../../bar", "C:../bar")
+        try normalized("C:/foo/../../bar", "C:/bar")
+        try normalized("//server/share/../child/.", "//server/share/child")
+        try normalized("//?/C:/a/../b", "//?/C:/b")
+        assert(paths.is_absolute("C:\\hello"))
+        assert(paths.is_absolute("C:/hello"))
+        assert(not paths.is_absolute("C:hello"))
+        assert(not paths.is_absolute("\\hello"))
+        assert(paths.is_rooted("\\hello"))
+        assert(paths.directory("C:\\hello") == "C:\\")
+        assert(paths.directory("C:hello") == "C:")
+        assert(paths.base("C:hello") == "hello")
+        assert(paths.root("\\\\server\\share\\hello") == "\\\\server\\share\\")
+        assert(paths.directory("\\\\server\\share") == "\\\\server\\share")
+        assert(paths.base("\\\\server\\share") == "")
+        assert(paths.is_absolute("\\\\server\\share"))
+        assert(not paths.is_absolute("\\\\server"))
+        assert(paths.root("\\\\?\\C:\\hello") == "\\\\?\\C:\\")
+        assert(paths.root("\\\\?\\UNC\\server\\share\\hello") == "\\\\?\\UNC\\server\\share\\")
+        assert(paths.base("mixed/slash\\file.txt") == "file.txt")
+        try joined("C:", "hello", "C:hello")
+        try joined("C:/some", "D:hello", "D:hello")
+        try joined("C:/some", "\\hello", "C:\\hello")
+        try joined("\\\\server\\share\\some", "\\hello", "\\\\server\\share\\hello")
+    else:
+        assert(paths.is_absolute("/hello"))
+        assert(not paths.is_absolute("C:/hello"))
+        assert(paths.base("hello\\there") == "hello\\there")
+        try joined("some", "C:hello", "some/C:hello")
+    print("paths ok")
+    return 0

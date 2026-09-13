@@ -1,0 +1,194 @@
+## Compiler-owned flat scratch directories, created atomically and removed without a shell.
+import c
+import memory
+import strings
+import platform
+import os
+import process
+
+extern func GetTempPathW(capacity: u32, output: u16*) -> u32
+extern func GetShortPathNameW(path: u16*, output: u16*, capacity: u32) -> u32
+extern func CreateDirectoryW(path: u16*, security: void*?) -> i32
+extern func RemoveDirectoryW(path: u16*) -> i32
+extern func MoveFileExW(source: u16*, destination: u16*, flags: u32) -> i32
+extern func DeleteFileW(path: u16*) -> i32
+extern func GetCurrentProcessId() -> u32
+extern func GetTickCount64() -> u64
+extern func GetLastError() -> u32
+extern func SetEnvironmentVariableW(name: u16*, value: u16*?) -> i32
+extern func GetEnvironmentVariableW(name: u16*, value: u16*, capacity: u32) -> u32
+extern func MultiByteToWideChar(page: u32, flags: u32, input: c.str, length: i32, output: u16*, capacity: i32) -> i32
+extern func WideCharToMultiByte(page: u32, flags: u32, input: const u16*, length: i32, output: u8*, capacity: i32, fallback: void*?, used_fallback: void*?) -> i32
+extern func FindFirstFileW(path: u16*, data: FindData*) -> void*
+extern func FindNextFileW(search: void*, data: FindData*) -> i32
+extern func FindClose(search: void*) -> i32
+
+extern struct FindData:
+    attributes: u32
+    created: u32[2]
+    accessed: u32[2]
+    modified: u32[2]
+    size_high: u32
+    size_low: u32
+    reserved: u32[2]
+    name: u16[260]
+    alternate: u16[14]
+
+pub let failed: ErrorCode = ErrorCode.package(114)
+var sequence: u64
+
+## GNU tools also create their own temporary files. Give each invocation an ASCII
+## temporary environment, restoring it even when launching the tool fails.
+pub func run(program: c.str, arguments: const c.str[]) -> (i32, str, str)!:
+    if platform.windows:
+        let executable = try strings.copy((str)program)
+        defer strings.release(executable)
+        let directory = try create()
+        defer strings.release(directory)
+        defer remove(directory)
+        var key: u16[7] = [84, 77, 80, 68, 73, 82, 0]
+        var previous: u16[32768]
+        var temp_key: u16[5] = [84, 69, 77, 80, 0]
+        var tmp_key: u16[4] = [84, 77, 80, 0]
+        var previous_temp: u16[32768]
+        var previous_tmp: u16[32768]
+        var value: u16[32768]
+        let saved = os.env("TMPDIR")
+        if let text = saved:
+            try wide(text, previous)
+        try wide(directory, value)
+        if SetEnvironmentVariableW(&key[0], &value[0]) == 0:
+            error(failed, "the host tool temporary directory could not be selected")
+        defer discard(SetEnvironmentVariableW(&key[0], &previous[0] if saved != none else none))
+        let temp_size = GetEnvironmentVariableW(&temp_key[0], &previous_temp[0], (u32)previous_temp.length)
+        let tmp_size = GetEnvironmentVariableW(&tmp_key[0], &previous_tmp[0], (u32)previous_tmp.length)
+        if temp_size >= previous_temp.length or tmp_size >= previous_tmp.length:
+            error(failed, "the host temporary environment is too long")
+        if SetEnvironmentVariableW(&temp_key[0], &value[0]) == 0:
+            error(failed, "the host tool TEMP could not be selected")
+        defer discard(SetEnvironmentVariableW(&temp_key[0], &previous_temp[0] if temp_size > 0 else none))
+        if SetEnvironmentVariableW(&tmp_key[0], &value[0]) == 0:
+            error(failed, "the host tool TMP could not be selected")
+        defer discard(SetEnvironmentVariableW(&tmp_key[0], &previous_tmp[0] if tmp_size > 0 else none))
+        return try process.run((c.str)executable, arguments)
+    return try process.run(program, arguments)
+
+## Host linkers may narrow argv to an ANSI code page. Link in our ASCII scratch
+## workspace, then publish the completed artifact through Unicode OS operations.
+pub func publish(source: str, destination: str) -> !:
+    if platform.windows:
+        var source_wide: u16[32768]
+        var destination_wide: u16[32768]
+        try wide(source, source_wide)
+        try wide(destination, destination_wide)
+        if MoveFileExW(&source_wide[0], &destination_wide[0], 3) == 0:
+            error(failed, "the completed build could not be moved to its output path")
+        return
+    error(failed, "this host operation requires Windows")
+
+func wide(path: str, output: u16[]) -> !:
+    if platform.windows:
+        let copy = try strings.copy(path)
+        defer strings.release(copy)
+        if MultiByteToWideChar(65001, 8, (c.str)copy, -1, output.data, (i32)output.length) == 0:
+            error(failed, "a scratch path is invalid UTF-8 or too long")
+        var index: usize = 0
+        while index < output.length and output[index] != 0:
+            if output[index] == 47:
+                output[index] = 92
+            index += 1
+        return
+    error(failed, "this host operation requires Windows")
+
+## GNU host tools use narrow argv. The language keeps UTF-8 paths; only this
+## external-tool boundary requests an ASCII filesystem alias when needed.
+func tool_path(path: str) -> str!:
+    if platform.windows:
+        var ascii = true
+        for byte in path.bytes:
+            if byte >= 128: ascii = false
+        if ascii: return try strings.copy(path)
+        var input: u16[32768]
+        var output: u16[32768]
+        try wide(path, input)
+        let count = GetShortPathNameW(&input[0], &output[0], (u32)output.length)
+        if count == 0 or count >= output.length:
+            error(failed, "GNU tools need an ASCII temporary path; set TEMP to an ASCII directory or enable short filenames")
+        let buffer = try alloc u8[(usize)count + 1]
+        errdefer free(buffer)
+        for index in 0..<(usize)count:
+            if output[index] >= 128:
+                error(failed, "GNU tools need an ASCII temporary path; set TEMP to an ASCII directory")
+            buffer[index] = (u8)output[index]
+        buffer[(usize)count] = 0
+        return (str)buffer[..<(usize)count]
+    error(failed, "this host operation requires Windows")
+
+pub func create() -> str!:
+    if platform.windows:
+        var temp: u16[32768]
+        let length = GetTempPathW((u32)temp.length, &temp[0])
+        if length == 0 or length >= temp.length:
+            error(failed, "the Windows temporary directory is unavailable")
+        let root = try alloc u8[(usize)length * 4 + 1]
+        defer free(root)
+        let count = WideCharToMultiByte(65001, 128, &temp[0], (i32)length, root.data, (i32)(root.length - 1), none, none)
+        if count == 0:
+            error(failed, "the temporary directory could not be encoded as UTF-8")
+        root[(usize)count] = 0
+        var attempt: usize = 0
+        while attempt < 128:
+            sequence += 1
+            let buffer = try alloc u8[(usize)count + 100]
+            let name = try format(buffer, f"{(str)root[..<(usize)count]}luce-base-{GetCurrentProcessId()}-{GetTickCount64()}-{sequence}")
+            try wide(name, temp)
+            if CreateDirectoryW(&temp[0], none) != 0:
+                errdefer discard(RemoveDirectoryW(&temp[0]))
+                errdefer free(buffer)
+                let copy = try tool_path(name)
+                free(buffer)
+                return copy
+            let failure = GetLastError()
+            free(buffer)
+            if failure != 183:
+                error(failed, "a Windows scratch directory could not be created")
+            attempt += 1
+        error(failed, "no unused scratch directory name was found")
+    error(failed, "this host operation requires Windows")
+
+pub func remove(path: str):
+    if platform.windows:
+        cleanup(path) catch failure:
+            discard(failure)
+
+func cleanup(path: str) -> !:
+    if platform.windows:
+        var pattern: u16[32768]
+        let buffer = try alloc u8[path.length + 4]
+        defer free(buffer)
+        let glob = try format(buffer, f"{path}/*")
+        try wide(glob, pattern)
+        var data: FindData
+        let search = FindFirstFileW(&pattern[0], &data)
+        if (usize)search != 0xFFFFFFFFFFFFFFFF:
+            defer discard(FindClose(search))
+            while true:
+                if (data.attributes & 16) == 0:
+                    try wide(path, pattern)
+                    var used: usize = 0
+                    while pattern[used] != 0:
+                        used += 1
+                    pattern[used] = 92
+                    used += 1
+                    var i: usize = 0
+                    while i < data.name.length and data.name[i] != 0 and used + i + 1 < pattern.length:
+                        pattern[used + i] = data.name[i]
+                        i += 1
+                    pattern[used + i] = 0
+                    discard(DeleteFileW(&pattern[0]))
+                if FindNextFileW(search, &data) == 0:
+                    break
+        try wide(path, pattern)
+        discard(RemoveDirectoryW(&pattern[0]))
+        return
+    error(failed, "this host operation requires Windows")

@@ -39,7 +39,7 @@ pub func arch_name(arch: Arch) -> str:
 
 let macos_libraries: str[1] = ["-lSystem"]
 let linux_libraries: str[2] = ["-lm", "-lpthread"]
-let windows_libraries: str[1] = ["-lmsvcrt"]
+let windows_libraries: str[3] = ["-lm", "-lsynchronization", "-Wl,--stack,16777216"]
 
 pub struct Target:
     pub var name: str
@@ -117,7 +117,8 @@ pub struct Target:
     ## through `os`, a program branch on. A top-level `let` is a constant (§6.4), so the
     ## branches prune (§19.6).
     pub func module_text(buffer: u8[]) -> str!:
-        return try format(buffer, f"## The target this program is compiled for (§19.5), decided by `--target`.\npub let name: str = \"{self.name}\"\npub let macos: bool = {self.os == Os.macos}\npub let linux: bool = {self.os == Os.linux}\npub let windows: bool = {self.os == Os.windows}\npub let posix: bool = {self.os != Os.windows}\npub let arm64: bool = {self.arch == Arch.arm64}\npub let x86_64: bool = {self.arch == Arch.x86_64}\npub let pointer_bits: u32 = {self.pointer_bits}\npub let cpu_level: u32 = {self.level}\n")
+        let socket_type = "isize" if self.os == Os.windows else "i32"
+        return try format(buffer, f"## The target this program is compiled for (§19.5), decided by `--target`.\npub let name: str = \"{self.name}\"\npub let macos: bool = {self.os == Os.macos}\npub let linux: bool = {self.os == Os.linux}\npub let windows: bool = {self.os == Os.windows}\npub let posix: bool = {self.os != Os.windows}\npub let arm64: bool = {self.arch == Arch.arm64}\npub let x86_64: bool = {self.arch == Arch.x86_64}\npub let pointer_bits: u32 = {self.pointer_bits}\npub let cpu_level: u32 = {self.level}\npub type SocketDescriptor = {socket_type}\n")
 
 ## The section a `section("name")` attribute places its declaration in, for the object
 ## format of `os` (§9.8): the name as written, except that Mach-O sections live in segments,

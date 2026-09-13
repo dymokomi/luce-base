@@ -1,0 +1,24 @@
+var value: i64 = 7
+
+func read() -> i64:
+    return value
+
+func bump():
+    value += 1
+
+func change() -> i64:
+    defer bump()
+    return value
+
+pub func main(arguments: str[]) -> i32:
+    assert(read() +% change() == 14)
+    assert(value == 8)
+    assert(value +% change() == 16)
+    assert(value == 9)
+    assert(read() == change())
+    assert(value == 10)
+    assert(not (false and change() > 0))
+    assert(true or change() > 0)
+    assert(value == 10)
+    print("ok binary evaluation order")
+    return 0

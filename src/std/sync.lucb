@@ -5,6 +5,9 @@ extern func __ulock_wait(operation: u32, address: void*, value: u64, timeout: u3
 extern func __ulock_wake(operation: u32, address: void*, wake_value: u64) -> i32
 ## Linux: the futex system call, through `syscall`; the number is the architecture's.
 extern func syscall(number: i64, ...) -> i64
+extern func WaitOnAddress(address: void*, comparison: u32*, size: usize, milliseconds: u32) -> i32
+extern func WakeByAddressSingle(address: void*)
+extern func WakeByAddressAll(address: void*)
 
 let compare_and_wait: u32 = 1
 let wake_all: u32 = 256
@@ -15,20 +18,27 @@ let futex_wake_private: i32 = 129
 ## Sleep in the kernel while the word at `address` still holds `value`; a change
 ## or a wake returns, and so may nothing at all, so every caller loops.
 func sleep_on(address: void*, value: u32):
-    if platform.macos:
+    if platform.windows:
+        var expected = value
+        discard(WaitOnAddress(address, &expected, 4, 4294967295))
+    elif platform.macos:
         discard(__ulock_wait(compare_and_wait, address, (u64)value, 0))
     else:
         let no_timeout: void*? = none
         discard(syscall(futex_number, address, futex_wait_private, value, no_timeout))
 
 func wake_one(address: void*):
-    if platform.macos:
+    if platform.windows:
+        WakeByAddressSingle(address)
+    elif platform.macos:
         discard(__ulock_wake(compare_and_wait, address, 0))
     else:
         discard(syscall(futex_number, address, futex_wake_private, 1))
 
 func wake_every(address: void*):
-    if platform.macos:
+    if platform.windows:
+        WakeByAddressAll(address)
+    elif platform.macos:
         discard(__ulock_wake(compare_and_wait | wake_all, address, 0))
     else:
         discard(syscall(futex_number, address, futex_wake_private, 2147483647))

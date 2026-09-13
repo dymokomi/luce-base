@@ -181,6 +181,22 @@ pub struct Table:
             i += 1
         return t
 
+    ## C uses LLP64 on Windows: long is 32 bits and wchar_t is unsigned 16 bits.
+    ## Configure before interning any target-dependent compound types.
+    pub mutating func configure_c(windows: bool):
+        var signed_long = self.types.get((usize)c_long_id)
+        signed_long.kind = Kind.i32_ if windows else Kind.i64_
+        self.types.set((usize)c_long_id, signed_long)
+        var unsigned_long = self.types.get((usize)c_ulong_id)
+        unsigned_long.kind = Kind.u32_ if windows else Kind.u64_
+        self.types.set((usize)c_ulong_id, unsigned_long)
+        var wide = self.types.get((usize)c_wchar_id)
+        wide.kind = Kind.u16_ if windows else Kind.i32_
+        self.types.set((usize)c_wchar_id, wide)
+        zero_index(self.index)
+        for i in 0..<self.types.count:
+            self.index_add((u32)i)
+
     pub func get(id: u32) -> Type:
         return self.types.get((usize)id)
 

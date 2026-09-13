@@ -16,6 +16,23 @@ extern func gethostname(buffer: u8*, size: usize) -> i32
 extern func c_exit as "exit"(code: i32) -> never
 extern func sysconf(option: i32) -> i64
 extern func getpagesize() -> i32
+extern func getentropy(buffer: void*, count: usize) -> i32
+extern func BCryptGenRandom(algorithm: void*?, buffer: u8*, count: u32, flags: u32) -> i32
+
+## Fill bytes from the operating system's cryptographic random generator.
+## A failure is reported; weak process IDs or timestamps are never substituted.
+pub func random_bytes(buffer: u8[]) -> !:
+    var offset: usize = 0
+    while offset < buffer.length:
+        let count = buffer.length - offset if buffer.length - offset < 256 else 256
+        var result: i32 = 0
+        if platform.windows:
+            result = BCryptGenRandom(none, &buffer[offset], (u32)count, 2)
+        else:
+            result = getentropy(&buffer[offset], count)
+        if result != 0:
+            error(failed, "operating system randomness is unavailable")
+        offset += count
 
 pub let failed: ErrorCode = ErrorCode.package(12)
 
@@ -67,28 +84,54 @@ let processors_online: i32 = 58 if platform.macos else 84
 
 ## The processors available to this process, at least one.
 pub func cpus() -> u32:
+    if platform.windows:
+        let count = GetActiveProcessorCount(65535)
+        return count if count > 0 else 1
     let n = sysconf(processors_online)
     return (u32)n if n > 0 else 1
 
 pub func page_size() -> usize:
+    if platform.windows:
+        var info: u64[6]
+        GetSystemInfo((void*)&info[0])
+        return (usize)((u32*)&info[0])[1]
     return (usize)getpagesize()
 
-## The value of an environment variable, or none when it is not set.
+## The value of an environment variable, or none when it is not set. Copy a view
+## that must survive another env call on this thread or an environment mutation.
 pub func env(variable: c.str) -> str?:
+    if platform.windows:
+        return windows_env(variable)
     let value = getenv(variable) else return none
     return (str)value
 
 ## Set an environment variable for this process and the ones it starts.
 pub func set_env(variable: c.str, value: c.str) -> !:
+    if platform.windows:
+        let key = try wide_text(variable)
+        defer free(key)
+        let text = try wide_text(value)
+        defer free(text)
+        if SetEnvironmentVariableW(key.data, text.data) == 0:
+            error(failed, "the environment variable cannot be set")
+        return
     if setenv(variable, value, 1) != 0:
         error(failed, "the environment variable cannot be set")
 
 pub func unset_env(variable: c.str) -> !:
+    if platform.windows:
+        let key = try wide_text(variable)
+        defer free(key)
+        if SetEnvironmentVariableW(key.data, none) == 0 and GetLastError() != 203:
+            error(failed, "the environment variable cannot be unset")
+        return
     if unsetenv(variable) != 0:
         error(failed, "the environment variable cannot be unset")
 
 ## The working directory, in storage from the current allocator.
 pub func cwd() -> str!:
+    if platform.windows:
+        return try windows_cwd()
     let buffer = try alloc u8[4096]
     let found = getcwd(buffer.data, buffer.length)
     if found == none:
@@ -98,17 +141,33 @@ pub func cwd() -> str!:
     return (str)path
 
 pub func change_dir(path: c.str) -> !:
+    if platform.windows:
+        let text = try wide_text(path)
+        defer free(text)
+        if SetCurrentDirectoryW(text.data) == 0:
+            error(failed, "the directory cannot be entered")
+        return
     if chdir(path) != 0:
         error(failed, "the directory cannot be entered")
 
 pub func pid() -> i32:
+    if platform.windows:
+        return (i32)GetCurrentProcessId()
     return getpid()
 
 pub func parent_pid() -> i32:
+    if platform.windows:
+        return windows_parent_pid()
     return getppid()
 
 ## The host's name, in storage from the current allocator.
 pub func hostname() -> str!:
+    if platform.windows:
+        var host_text: u16[256]
+        var count: u32 = 256
+        if GetComputerNameW(&host_text[0], &count) == 0:
+            error(failed, "the host name cannot be read")
+        return try narrow_text(host_text[..<(usize)count])
     let buffer = try alloc u8[256]
     if gethostname(buffer.data, buffer.length) != 0:
         free(buffer)

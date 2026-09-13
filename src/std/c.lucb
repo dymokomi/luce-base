@@ -6,9 +6,12 @@ import platform
 
 extern func mac_errno as "__error"() -> i32*
 extern func linux_errno as "__errno_location"() -> i32*
+extern func windows_errno as "_errno"() -> i32*
 
 ## The calling thread's `errno`: the C library's account of its last failure.
 pub func errno() -> i32:
+    if platform.windows:
+        return *windows_errno()
     if platform.macos:
         return *mac_errno()
     return *linux_errno()
@@ -16,7 +19,9 @@ pub func errno() -> i32:
 ## Set the calling thread's errno. Clear it immediately before C calls such as
 ## readdir whose null result can mean either normal completion or failure.
 pub func set_errno(value: i32):
-    if platform.macos:
+    if platform.windows:
+        *windows_errno() = value
+    elif platform.macos:
         *mac_errno() = value
     else:
         *linux_errno() = value

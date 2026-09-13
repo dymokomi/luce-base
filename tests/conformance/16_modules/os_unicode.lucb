@@ -1,0 +1,40 @@
+import c
+import os
+import files
+import strings
+import paths
+
+pub func main(arguments: str[]) -> i32!:
+    try os.set_env("LUCE_UNICODE_名字", "café/日本語/😀")
+    defer os.unset_env("LUCE_UNICODE_名字") catch: discard(0)
+    assert((os.env("LUCE_UNICODE_名字") else "") == "café/日本語/😀")
+    try os.set_env("LUCE_EMPTY_TEST", "")
+    assert(os.env("LUCE_EMPTY_TEST") != none)
+    assert((os.env("LUCE_EMPTY_TEST") else "missing") == "")
+    try os.unset_env("LUCE_EMPTY_TEST")
+    assert(os.env("LUCE_EMPTY_TEST") == none)
+    let original = try os.cwd()
+    defer strings.release(original)
+    var scratch: u8[256]
+    let folder = try format(scratch, f"luce-path-名字-😀-{os.pid()}")
+    let full = try paths.join(original, folder)
+    defer strings.release(full)
+    try files.create_directory((c.str)full)
+    defer files.remove_directory((c.str)full) catch: discard(0)
+    try os.change_dir((c.str)full)
+    defer os.change_dir((c.str)original) catch: discard(0)
+    let current = try os.cwd()
+    defer strings.release(current)
+    assert(paths.base(current) == folder)
+    try files.write("café-😀.txt", "hello\nworld\r\n".bytes)
+    defer files.remove_file("renamed-日本語.txt") catch: discard(0)
+    try files.rename("café-😀.txt", "renamed-日本語.txt")
+    let content = try files.read("renamed-日本語.txt")
+    defer free(content)
+    assert((str)content == "hello\nworld\r\n")
+    let entries = try files.list(".")
+    defer files.release_list(entries)
+    assert(entries.length == 1 and entries[0] == "renamed-日本語.txt")
+    assert(os.parent_pid() > 0)
+    print("unicode OS paths ok")
+    return 0

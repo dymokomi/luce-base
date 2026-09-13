@@ -1,0 +1,45 @@
+#!/usr/bin/env python3
+"""Compare every Vulkan struct size, alignment and field offset with SDK headers."""
+import argparse
+from pathlib import Path
+import re
+import subprocess
+import tempfile
+
+ROOT = Path(__file__).resolve().parents[1]
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('--compiler', required=True, type=Path)
+parser.add_argument('--sdk', required=True, type=Path)
+args = parser.parse_args()
+bindings = (ROOT / 'src/std/gpu/vulkan/bindings.lucb').read_text(encoding='utf-8')
+native = ['#define VK_USE_PLATFORM_WIN32_KHR', '#include <windows.h>',
+          '#include <vulkan/vulkan.h>', '#include <stdio.h>', '#include <stddef.h>', 'int main(void) {']
+test_bindings = re.sub(r'^extern func .*\n', '', bindings, flags=re.MULTILINE)
+# Standard modules may use intrinsic names as fields; ordinary test modules may not.
+test_bindings = re.sub(r'^    (\w+):', r'    vk_\1:', test_bindings, flags=re.MULTILINE)
+base = ['import c', test_bindings, 'pub func main(arguments: str[]) -> i32:']
+structures = re.findall(r'extern struct (\w+):\n((?:    [^\n]+\n)+)', bindings)
+for name, body in structures:
+    expressions = [f'sizeof({name})', f'alignof({name})']
+    expressions += [f'offsetof({name}, {field})' for field in re.findall(r'    (\w+):', body)]
+    base_expressions = [re.sub(r', (\w+)\)', r', vk_\1)', item) for item in expressions]
+    base.append('    print(f"' + name + ' ' + ' '.join('{' + item + '}' for item in base_expressions) + '")')
+    native.append('printf("' + name + ' ' + ' '.join(['%zu'] * len(expressions)) + '\\n", ' +
+                  ', '.join(item.replace('alignof(', '_Alignof(') for item in expressions) + ');')
+base.append('    return 0')
+native.append('return 0; }')
+with tempfile.TemporaryDirectory(prefix='luce-vulkan-abi-') as folder:
+    work = Path(folder)
+    (work / 'abi.c').write_text('\n'.join(native), encoding='utf-8', newline='\n')
+    (work / 'abi.lucb').write_text('\n'.join(base), encoding='utf-8', newline='\n')
+    subprocess.run(['gcc', '-std=c11', '-I' + str(args.sdk / 'Include'), str(work / 'abi.c'), '-o', str(work / 'c.exe')], check=True)
+    expected = subprocess.check_output([work / 'c.exe']).splitlines()
+    for flags in (['--native'], ['--backend=c']):
+        subprocess.run([args.compiler.resolve(), 'build', work / 'abi.lucb', *flags, '-o', work / 'base.exe'], check=True)
+        actual = subprocess.check_output([work / 'base.exe']).splitlines()
+        if actual != expected:
+            for left, right in zip(actual, expected):
+                if left != right:
+                    print('BASE', left.decode(), '\nSDK ', right.decode())
+            raise SystemExit('Vulkan ABI mismatch')
+        print(f'PASS {len(structures)} Vulkan structures and every field offset ({flags[0]})')

@@ -25,9 +25,9 @@ pub struct File: io.Reader, io.Writer:
     ## Open a close-on-exec descriptor. Only the named creation modes create paths.
     pub static func open(path: c.str, mode: OpenMode = OpenMode.read, permissions: u32 = 420) -> File!:
         let flags = try file_open_flags(mode, permissions)
-        var fd = open(path, flags, permissions)
+        var fd = try open_descriptor(path, flags, permissions)
         while fd < 0 and c.errno() == c.interrupted:
-            fd = open(path, flags, permissions)
+            fd = try open_descriptor(path, flags, permissions)
         if fd < 0:
             error(classify_error(c.errno()), "the file could not be opened")
         return File(handle = fd)
@@ -62,6 +62,9 @@ pub struct File: io.Reader, io.Writer:
         let descriptor = self.handle else error(io.closed, "the file is closed")
         if permissions > 4095:
             error(invalid_options, "file permissions must fit the Unix mode bits")
+        if platform.windows:
+            try windows_permissions(descriptor, permissions)
+            return
         while true:
             let result = fchmod_macos(descriptor, (u16)permissions) if platform.macos else fchmod_linux(descriptor, permissions)
             if result == 0:
@@ -76,6 +79,9 @@ pub struct File: io.Reader, io.Writer:
         let descriptor = self.handle else error(io.closed, "the file is closed")
         if accessed.nanoseconds >= 1000000000 or modified.nanoseconds >= 1000000000:
             error(invalid_options, "a timestamp nanosecond fraction must be below one billion")
+        if platform.windows:
+            try windows_set_times(descriptor, accessed, modified)
+            return
         let times: NativeFileTime[2] = [NativeFileTime(seconds = accessed.seconds, nanoseconds = (i64)accessed.nanoseconds),
                                          NativeFileTime(seconds = modified.seconds, nanoseconds = (i64)modified.nanoseconds)]
         var result = futimens(descriptor, &times[0])
@@ -176,10 +182,17 @@ func classify_error(number: i32) -> ErrorCode:
     return failed
 
 ## Shared mode validation for path-based and directory-relative file opening.
+func open_descriptor(path: c.str, flags: i32, permissions: u32) -> i32!:
+    if platform.windows:
+        return try windows_open(path, flags, permissions)
+    return open(path, flags, permissions)
+
 func file_open_flags(mode: OpenMode, permissions: u32) -> i32!:
     if permissions > 4095:
         error(invalid_options, "file permissions must fit the Unix mode bits")
     var flags = close_on_exec
+    if platform.windows:
+        flags |= 32768
     if mode == OpenMode.read_write:
         flags |= 2
     elif mode == OpenMode.replace:

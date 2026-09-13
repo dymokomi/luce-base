@@ -70,10 +70,12 @@ func drop_unused_standard(program: ir.Unit*) -> !:
         let f = &program.functions.items[i]
         retained[i] = not f.standard or f.exported or f.used or f.weak or f.naked or f.section.length > 0 or f.name == program.init_function or f.name == program.trap_function or f.name == program.trap_at_function or f.name == program.trap_two_at_function or named_in_asm(&texts, f.name)
         i += 1
+    let retained_tables = try alloc bool[program.tables.count + 1]
+    defer free(retained_tables)
+    clear_flags(retained_tables)
     for table in program.tables.span():
-        for name in table.entries.span():
-            if let position = index.find(name):
-                retained[position] = true
+        if named_in_asm(&texts, table.name):
+            retain_table(program, &index, retained, retained_tables, ir.global_ref(table.name))
     let visited = try alloc bool[count + 1]
     defer free(visited)
     clear_flags(visited)
@@ -89,9 +91,21 @@ func drop_unused_standard(program: ir.Unit*) -> !:
                 for instruction in f.instrs.span():
                     note_reference(&index, retained, instruction.a)
                     note_reference(&index, retained, instruction.b)
+                    retain_table(program, &index, retained, retained_tables, instruction.a)
+                    retain_table(program, &index, retained, retained_tables, instruction.b)
                 for argument in f.args.span():
                     note_reference(&index, retained, argument.value)
+                    retain_table(program, &index, retained, retained_tables, argument.value)
             i += 1
+    var kept_tables = try list.List[ir.WitnessTable].create(program.tables.count)
+    for ti in 0..<program.tables.count:
+        var table = program.tables.get(ti)
+        if retained_tables[ti]:
+            try kept_tables.push(table)
+        else:
+            table.entries.destroy()
+    program.tables.destroy()
+    program.tables = kept_tables
     var kept = try list.List[ir.Function].create(count)
     i = 0
     while i < count:
@@ -112,6 +126,19 @@ func drop_unused_standard(program: ir.Unit*) -> !:
         i += 1
     program.functions.destroy()
     program.functions = kept
+
+## A witness table is live when reachable code or assembly takes its address.
+## Treating every table as a root would pull unused platform modules into every binary.
+func retain_table(program: ir.Unit*, index: Index*, retained: bool[], tables: bool[], reference: ir.Ref):
+    if reference.kind != ir.RefKind.global and reference.kind != ir.RefKind.function:
+        return
+    for ti in 0..<program.tables.count:
+        var table = program.tables.get(ti)
+        if not tables[ti] and table.name == reference.name:
+            tables[ti] = true
+            for name in table.entries.span():
+                if let position = index.find(name):
+                    retained[position] = true
 
 ## The functions in an order that puts every callee before its callers, cycles apart: a
 ## depth-first walk of the call graph from each function, finishing a function after the

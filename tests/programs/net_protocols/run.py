@@ -33,8 +33,10 @@ for flags in FLAGS:
         assert checked([binary, 'accept', key.decode()]) == expected
     for size in (0, 125, 126, 65535, 65536):
         payload = ('abcXYZ' * ((size + 5) // 6))[:size]
+        payload_file = ROOT / 'build/net-protocol-payload.bin'
+        payload_file.write_bytes(payload.encode())
         for client in (False, True):
-            wire = checked([binary, 'frame', 'client' if client else 'server', payload])
+            wire = checked([binary, 'frame-file', 'client' if client else 'server', payload_file])
             assert wire[0] == 0x82 and bool(wire[1] & 0x80) == client
             length = wire[1] & 0x7f
             at = 2

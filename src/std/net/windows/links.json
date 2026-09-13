@@ -1,0 +1,9 @@
+{
+  "target": "x86_64-windows",
+  "requirements": [
+    {
+      "symbols": ["WSAStartup", "WSACleanup", "WSAGetLastError", "WSASocketW", "WSAPoll", "getaddrinfo", "freeaddrinfo", "closesocket"],
+      "libraries": ["ws2_32"]
+    }
+  ]
+}

@@ -20,7 +20,9 @@
 #
 #==============================================================================================
 
+import paths
 import c
+import platform
 import files
 import back.target as targets
 import front.ast
@@ -545,6 +547,7 @@ pub struct Checker:
     ## the pointer-shaped types (§19.5).
     pub mutating func add_prelude() -> !:
         self.table.word = (u64)self.build_target.pointer_bits // 8
+        self.table.configure_c(self.build_target.os == targets.Os.windows)
         for p in prelude.modules:
             var text = p.text
             if p.name == "platform":
@@ -5732,20 +5735,7 @@ func last_component(path: str) -> str:
 
 ## `dir/name.lucb` -> `name`.
 pub func module_name_of(path: str) -> str:
-    let b = path.bytes
-    var start: usize = 0
-    var end: usize = b.length
-    var i: usize = 0
-    while i < b.length:
-        if b[i] == '/':
-            start = i + 1
-        i += 1
-    i = start
-    while i < b.length:
-        if b[i] == '.':
-            end = i
-        i += 1
-    return (str)b[start..<end]
+    return paths.stem(path)
 
 ## A module's name is spelled like any other name: a letter or `_`, then letters, digits,
 ## or `_` (§3.1, §16.1).
@@ -5766,11 +5756,13 @@ pub func is_identifier(name: str) -> bool:
 ## `dir/name.lucb` -> `dir/`; a bare name yields the empty string.
 ## `a/b/` for `a/b/c/`, `` for `c/`.
 pub func parent_of(dir: str) -> str:
+    if paths.root(dir).length == dir.length:
+        return ""
     let b = dir.bytes
     var end: usize = 0
     var i: usize = 0
     while i + 1 < b.length:
-        if b[i] == '/':
+        if paths.separator(b[i]):
             end = i + 1
         i += 1
     return (str)b[..<end]
@@ -5785,7 +5777,7 @@ pub func directory_of(path: str) -> str:
     var end: usize = 0
     var i: usize = 0
     while i < b.length:
-        if b[i] == '/':
+        if paths.separator(b[i]):
             end = i + 1
         i += 1
     return (str)b[..<end]

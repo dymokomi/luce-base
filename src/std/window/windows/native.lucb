@@ -1,0 +1,130 @@
+## Win32 types use fixed widths: LONG remains i32 on 64-bit Windows.
+extern struct WinClass:
+    size: u32
+    style: u32
+    procedure: func(void*, u32, usize, isize) -> isize
+    class_extra: i32
+    window_extra: i32
+    instance: void*?
+    icon: void*?
+    cursor: void*?
+    brush: void*?
+    menu: u16*?
+    name: u16*?
+    small_icon: void*?
+
+extern struct WinRect:
+    left: i32
+    top: i32
+    right: i32
+    bottom: i32
+
+extern struct WinPoint:
+    x: i32
+    y: i32
+
+extern struct WinMessage:
+    window: void*?
+    message: u32
+    word: usize
+    value: isize
+    time: u32
+    point: WinPoint
+    private_value: u32
+
+extern func RegisterClassExW(info: WinClass*) -> u16
+extern func GetModuleHandleW(name: u16*?) -> void*
+extern func LoadCursorW(instance: void*?, name: u16*) -> void*?
+extern func CreateWindowExW(extra: u32, kind: u16*, title: u16*, style: u32, x: i32, y: i32, width: i32, height: i32, parent: void*?, menu: void*?, instance: void*, parameter: void*) -> void*?
+extern func DestroyWindow(window: void*) -> i32
+extern func ShowWindow(window: void*, command: i32) -> i32
+extern func IsWindowVisible(window: void*) -> i32
+extern func IsIconic(window: void*) -> i32
+extern func DefWindowProcW(window: void*, message: u32, word: usize, value: isize) -> isize
+extern func GetWindowLongPtrW(window: void*, index: i32) -> isize
+extern func SetWindowLongPtrW(window: void*, index: i32, value: isize) -> isize
+extern func GetClientRect(window: void*, rect: WinRect*) -> i32
+extern func GetDpiForWindow(window: void*) -> u32
+extern func GetDpiForSystem() -> u32
+extern func SetProcessDpiAwarenessContext(context: void*) -> i32
+extern func AdjustWindowRectExForDpi(rect: WinRect*, style: u32, menu: i32, extra: u32, dpi: u32) -> i32
+extern func SetWindowPos(window: void*, after: void*?, x: i32, y: i32, width: i32, height: i32, flags: u32) -> i32
+extern func PeekMessageW(message: WinMessage*, window: void*?, first: u32, last: u32, remove: u32) -> i32
+extern func TranslateMessage(message: WinMessage*) -> i32
+extern func DispatchMessageW(message: WinMessage*) -> isize
+extern func MultiByteToWideChar(page: u32, flags: u32, text: const u8*, length: i32, output: u16*?, capacity: i32) -> i32
+
+var win_class_atom: u16
+var win_class_name: u16[11] = [76, 117, 99, 101, 87, 105, 110, 100, 111, 119, 0]
+
+func win_setup() -> !:
+    if win_class_atom != 0:
+        return
+    discard(SetProcessDpiAwarenessContext((void*)(isize)-4))
+    var info = WinClass(size = (u32)sizeof(WinClass), procedure = win_callback,
+        instance = GetModuleHandleW(none), cursor = LoadCursorW(none, (u16*)32512),
+        brush = (void*)6, name = &win_class_name[0])
+    win_class_atom = RegisterClassExW(&info)
+    if win_class_atom == 0:
+        error(failed, "the native window class could not be registered")
+
+func win_open(options: Options) -> State*!:
+    try win_setup()
+    let state = try new State() in memory.heap
+    errdefer win_destroy(state)
+    let title = try alloc u16[options.title.length + 1]
+    defer free(title)
+    var count: i32 = 0
+    if options.title.length > 0:
+        count = MultiByteToWideChar(65001, 8, options.title.bytes.data, (i32)options.title.length, title.data, (i32)title.length - 1)
+        if count == 0:
+            error(invalid_options, "the window title could not be converted to UTF-16")
+    title[(usize)count] = 0
+    let style: u32 = 13565952 if options.resizable else 13238272
+    let dpi = GetDpiForSystem()
+    var rect = WinRect(right = (i32)((u64)options.width * (u64)dpi // 96), bottom = (i32)((u64)options.height * (u64)dpi // 96))
+    if AdjustWindowRectExForDpi(&rect, style, 0, 0, dpi) == 0:
+        error(failed, "the native window dimensions could not be calculated")
+    let native = CreateWindowExW(0, &win_class_name[0], title.data, style, -2147483648, -2147483648,
+        rect.right - rect.left, rect.bottom - rect.top, none, none, GetModuleHandleW(none), (void*)state) else error(failed, "the native window could not be created")
+    state.native = native
+    return state
+
+func win_size(state: State*) -> Size:
+    let native = required(state.native)
+    var rect: WinRect
+    discard(GetClientRect(native, &rect))
+    let dpi = GetDpiForWindow(native)
+    let scale = (f64)dpi / 96.0 if dpi > 0 else 1.0
+    let width = (f64)(rect.right - rect.left)
+    let height = (f64)(rect.bottom - rect.top)
+    return Size(width = width / scale, height = height / scale, pixel_width = width, pixel_height = height, scale = scale)
+
+func win_resize(state: State*, width: u32, height: u32) -> !:
+    let native = required(state.native)
+    let dpi = GetDpiForWindow(native)
+    let style = (u32)GetWindowLongPtrW(native, -16)
+    var rect = WinRect(right = (i32)((u64)width * (u64)dpi // 96), bottom = (i32)((u64)height * (u64)dpi // 96))
+    if AdjustWindowRectExForDpi(&rect, style, 0, 0, dpi) == 0 or SetWindowPos(native, none, 0, 0, rect.right - rect.left, rect.bottom - rect.top, 22) == 0:
+        error(failed, "the native window could not be resized")
+
+func win_pump():
+    var message: WinMessage
+    var count: usize = 0
+    while count < 256 and PeekMessageW(&message, none, 0, 0, 1) != 0:
+        discard(TranslateMessage(&message))
+        discard(DispatchMessageW(&message))
+        count += 1
+
+func win_destroy(state: State*):
+    state.destroyed = true
+    if let native = state.native:
+        discard(ShowWindow(native, 0))
+    if not state.presentation_held:
+        win_free(state)
+
+func win_free(state: State*):
+    if let native = state.native:
+        discard(SetWindowLongPtrW(native, -21, 0))
+        discard(DestroyWindow(native))
+    free(state) in memory.heap

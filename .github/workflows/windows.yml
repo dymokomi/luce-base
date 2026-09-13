@@ -1,0 +1,60 @@
+name: Windows x64
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-2025
+    timeout-minutes: 90
+    defaults:
+      run:
+        shell: msys2 {0}
+    env:
+      CC: gcc
+    steps:
+      - uses: actions/checkout@v7
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: >-
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-python
+            mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-ninja
+      - name: Bootstrap and verify native self-hosting
+        run: python tools/build_windows.py
+      - name: Read seed pin
+        id: seed
+        run: echo "revision=$(cat bootstrap/SEED)" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@v7
+        with:
+          repository: dymokomi/luce-seed
+          ref: ${{ steps.seed.outputs.revision }}
+          path: build/seed
+      - name: Verify fresh seed bootstrap
+        run: |
+          cmake -S build/seed -B build/seed/build-windows -G Ninja -DCMAKE_BUILD_TYPE=Release
+          cmake --build build/seed/build-windows -j 4
+          python tools/build_windows.py --seed build/seed/build-windows/lucb.exe
+      - name: Compiler unit tests
+        run: ./build/luce-base.exe test src/main.lucb
+      - name: Native and C conformance
+        run: python tools/test_windows.py --suite conformance --c
+      - name: Samples and Windows OS contracts
+        run: |
+          python tools/test_windows.py --suite samples --c
+          python tools/test_windows_arguments.py --compiler build/luce-base.exe
+          python tools/test_windows_native.py
+          python tests/programs/net_protocols/run.py build/luce-base.exe
+          python tests/programs/strings_floats/run.py build/luce-base.exe
+          python tools/fuzz.py --gate
+      - name: Retain diagnostics
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: luce-base-windows-${{ github.sha }}
+          path: |
+            build/windows-*.json
+            build/windows-fixedpoint-*
+          retention-days: 14

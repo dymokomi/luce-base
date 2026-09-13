@@ -15,7 +15,7 @@ pub struct Requirements:
 pub func collect(object: c.str, platform: target.Target) -> Requirements!:
     var libraries = try list.List[c.str].create(4)
     var frameworks = try list.List[c.str].create(4)
-    if platform.os != target.Os.macos:
+    if platform.os != target.Os.macos and platform.os != target.Os.windows:
         return Requirements(libraries.span(), frameworks.span())
     let arguments: c.str[2] = ["-u", object]
     let (status, output, errors) = try process.run("nm", arguments)
@@ -31,9 +31,10 @@ pub func collect(object: c.str, platform: target.Target) -> Requirements!:
         for index in at..<end:
             if output.bytes[index] == ' ' or output.bytes[index] == '\t':
                 start = index + 1
-        if start < end and output.bytes[start] == '_':
+        if platform.os == target.Os.macos and start < end and output.bytes[start] == '_':
             start += 1
-        let symbol = (str)output.bytes[start..<end]
+        let symbol_end = end - 1 if end > start and output.bytes[end - 1] == '\r' else end
+        let symbol = (str)output.bytes[start..<symbol_end]
         for rule in native_link_table.rules:
             if rule.target == platform.name and rule.symbol == symbol:
                 if rule.framework:

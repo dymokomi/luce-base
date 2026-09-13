@@ -1,0 +1,17 @@
+extern func windows_unwind_count(function: void*, required: u32) -> u32
+extern func memset(destination: void*, value: i32, count: usize) -> void*
+
+noinline func walk(depth: u32) -> u32:
+    var storage: u8[8192]
+    discard(memset(&storage[0], (i32)depth, storage.length))
+    if depth > 0:
+        let nested = walk(depth - 1)
+        assert(storage[0] == (u8)depth and storage[8191] == (u8)depth)
+        return nested + 1
+    assert(windows_unwind_count((void*)walk, 13) == 13)
+    return 0
+
+pub func main(arguments: str[]) -> i32:
+    assert(walk(12) == 12)
+    print("ok Windows unwind metadata across recursive probed stack frames")
+    return 0

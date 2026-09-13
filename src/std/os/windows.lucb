@@ -1,0 +1,102 @@
+## Native Windows calls stay behind the portable os interface. Public text is UTF-8.
+extern func MultiByteToWideChar(page: u32, flags: u32, input: c.str, length: i32, output: u16*?, capacity: i32) -> i32
+extern func WideCharToMultiByte(page: u32, flags: u32, input: const u16*, length: i32, output: u8*?, capacity: i32, fallback: void*?, used_fallback: void*?) -> i32
+extern func GetEnvironmentVariableW(name: u16*, output: u16*, capacity: u32) -> u32
+extern func SetEnvironmentVariableW(name: u16*, value: u16*?) -> i32
+extern func GetCurrentDirectoryW(capacity: u32, output: u16*?) -> u32
+extern func SetCurrentDirectoryW(path: u16*) -> i32
+extern func GetComputerNameW(output: u16*, capacity: u32*) -> i32
+extern func GetCurrentProcessId() -> u32
+extern func GetActiveProcessorCount(group: u16) -> u32
+extern func GetSystemInfo(info: void*)
+extern func GetLastError() -> u32
+extern func SetLastError(error: u32)
+extern func CreateToolhelp32Snapshot(flags: u32, process: u32) -> void*
+extern func Process32FirstW(snapshot: void*, entry: WinProcessEntry*) -> i32
+extern func Process32NextW(snapshot: void*, entry: WinProcessEntry*) -> i32
+extern func CloseHandle(handle: void*) -> i32
+
+extern struct WinProcessEntry:
+    size: u32
+    usage: u32
+    pid: u32
+    heap: usize
+    module: u32
+    threads: u32
+    parent: u32
+    priority: i32
+    flags: u32
+    executable: u16[260]
+
+# Environment views last until the next env call on this thread. Fixed bounds are
+# the Windows environment limit, independent of the caller's current allocator.
+local var environment_wide: u16[32768]
+local var environment_utf8: u8[131073]
+local var environment_key: u16[32768]
+
+func wide_text(text: c.str) -> u16[]!:
+    let count = MultiByteToWideChar(65001, 8, text, -1, none, 0)
+    if count <= 0:
+        error(failed, "OS text is not valid UTF-8")
+    let result = try alloc u16[(usize)count]
+    if MultiByteToWideChar(65001, 8, text, -1, result.data, count) != count:
+        free(result)
+        error(failed, "OS text could not be converted to UTF-16")
+    return result
+
+func narrow_text(text: const u16[]) -> str!:
+    let count = WideCharToMultiByte(65001, 128, text.data, (i32)text.length, none, 0, none, none)
+    if count == 0 and text.length > 0:
+        error(failed, "OS text is not valid UTF-16")
+    let result = try alloc u8[(usize)count + 1]
+    if count > 0 and WideCharToMultiByte(65001, 128, text.data, (i32)text.length, result.data, count, none, none) != count:
+        free(result)
+        error(failed, "OS text could not be converted to UTF-8")
+    result[(usize)count] = 0
+    return (str)result[..<(usize)count]
+
+func windows_env(variable: c.str) -> str?:
+    if MultiByteToWideChar(65001, 8, variable, -1, &environment_key[0], 32768) == 0:
+        return none
+    SetLastError(0)
+    let count = GetEnvironmentVariableW(&environment_key[0], &environment_wide[0], 32768)
+    if count >= 32768 or (count == 0 and GetLastError() != 0):
+        return none
+    var size: i32 = 0
+    if count > 0:
+        size = WideCharToMultiByte(65001, 128, &environment_wide[0], (i32)count, &environment_utf8[0], 131072, none, none)
+        if size == 0:
+            return none
+    environment_utf8[(usize)size] = 0
+    return (str)environment_utf8[..<(usize)size]
+
+func windows_cwd() -> str!:
+    var attempt: usize = 0
+    while attempt < 8:
+        let capacity = GetCurrentDirectoryW(0, none)
+        if capacity == 0:
+            break
+        let text = try alloc u16[(usize)capacity]
+        defer free(text)
+        let count = GetCurrentDirectoryW(capacity, text.data)
+        if count == 0:
+            break
+        if count < capacity:
+            return try narrow_text(text[..<(usize)count])
+        attempt += 1
+    error(failed, "the working directory cannot be read")
+
+func windows_parent_pid() -> i32:
+    let snapshot = CreateToolhelp32Snapshot(2, 0)
+    if (usize)snapshot == 0xFFFFFFFFFFFFFFFF:
+        return 0
+    defer discard(CloseHandle(snapshot))
+    var entry: WinProcessEntry
+    entry.size = (u32)sizeof(WinProcessEntry)
+    var found = Process32FirstW(snapshot, &entry)
+    let current = GetCurrentProcessId()
+    while found != 0:
+        if entry.pid == current:
+            return (i32)entry.parent
+        found = Process32NextW(snapshot, &entry)
+    return 0

@@ -7,7 +7,7 @@ pub struct Rule:
     pub let name: c.str
     pub let framework: bool
 
-pub let rules: Rule[13] = [
+pub let rules: Rule[33] = [
     Rule("arm64-macos", "CGColorSpaceCreateWithName", "CoreGraphics", true),
     Rule("arm64-macos", "CGColorSpaceCreateWithName", "QuartzCore", true),
     Rule("arm64-macos", "MTLCreateSystemDefaultDevice", "Metal", true),
@@ -21,4 +21,24 @@ pub let rules: Rule[13] = [
     Rule("arm64-macos", "objc_autoreleasePoolPush", "objc", false),
     Rule("arm64-macos", "objc_getClass", "objc", false),
     Rule("arm64-macos", "objc_msgSend", "objc", false),
+    Rule("x86_64-windows", "BCryptGenRandom", "bcrypt", false),
+    Rule("x86_64-windows", "CreateWindowExW", "user32", false),
+    Rule("x86_64-windows", "DefWindowProcW", "user32", false),
+    Rule("x86_64-windows", "GetDpiForWindow", "user32", false),
+    Rule("x86_64-windows", "PeekMessageW", "user32", false),
+    Rule("x86_64-windows", "RegisterClassExW", "user32", false),
+    Rule("x86_64-windows", "ShowWindow", "user32", false),
+    Rule("x86_64-windows", "WSACleanup", "ws2_32", false),
+    Rule("x86_64-windows", "WSAGetLastError", "ws2_32", false),
+    Rule("x86_64-windows", "WSAPoll", "ws2_32", false),
+    Rule("x86_64-windows", "WSASocketW", "ws2_32", false),
+    Rule("x86_64-windows", "WSAStartup", "ws2_32", false),
+    Rule("x86_64-windows", "closesocket", "ws2_32", false),
+    Rule("x86_64-windows", "freeaddrinfo", "ws2_32", false),
+    Rule("x86_64-windows", "getaddrinfo", "ws2_32", false),
+    Rule("x86_64-windows", "vkCreateInstance", "vulkan-1", false),
+    Rule("x86_64-windows", "vkCreateWin32SurfaceKHR", "vulkan-1", false),
+    Rule("x86_64-windows", "vkDestroyInstance", "vulkan-1", false),
+    Rule("x86_64-windows", "vkDeviceWaitIdle", "vulkan-1", false),
+    Rule("x86_64-windows", "vkQueuePresentKHR", "vulkan-1", false),
 ]

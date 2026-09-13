@@ -11,6 +11,8 @@ pub struct Directory:
     ## Borrow the descriptor until close. Do not close it or change its position.
     pub func descriptor() -> i32!:
         let directory = self.handle else error(io.closed, "the directory is closed")
+        if platform.windows:
+            return ((WinDirectory*)directory).descriptor
         let descriptor = dirfd(directory)
         if descriptor < 0:
             error(classify_error(c.errno()), "the directory has no usable descriptor")
@@ -40,6 +42,10 @@ pub struct Directory:
     pub func open_file(path: c.str, mode: OpenMode = OpenMode.read, permissions: u32 = 420, follow_symlinks: bool = true, nonblocking: bool = false) -> File!:
         let parent = try self.descriptor()
         var flags = try file_open_flags(mode, permissions)
+        if platform.windows:
+            let joined = try windows_relative(parent, path)
+            defer strings.release(joined)
+            return File(handle = try windows_open((c.str)joined, flags, permissions, follow_symlinks, nonblocking))
         if not follow_symlinks:
             flags |= no_follow_flag
         if nonblocking:
@@ -65,6 +71,9 @@ pub struct Directory:
     pub mutating func close() -> !:
         let directory = self.handle else return
         self.handle = none
+        if platform.windows:
+            try windows_directory_close((WinDirectory*)directory)
+            return
         if closedir(directory) != 0:
             error(classify_error(c.errno()), "the directory could not be closed")
 
@@ -76,6 +85,8 @@ pub struct Directory:
 ## Acquire a descriptor first so CLOEXEC and final-symlink policy are atomic.
 ## fdopendir takes ownership only on success; capture errno before closing on failure.
 func open_directory_at(parent: i32, path: c.str, follow_symlinks: bool) -> Directory!:
+    if platform.windows:
+        return try windows_directory_open(parent, path, follow_symlinks)
     var flags = directory_flag | close_on_exec
     if not follow_symlinks:
         flags |= no_follow_flag

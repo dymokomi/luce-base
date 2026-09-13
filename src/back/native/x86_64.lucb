@@ -153,8 +153,11 @@ pub struct Generator:
 
     ## `-offset(%rbp)`: the home `offset` bytes below the frame pointer.
     mutating func frame_operand(offset: u64) -> !:
-        try self.put("-")
-        try self.put_u64(offset)
+        if self.os == build_target.Os.windows:
+            try self.put_u64(self.fr.size - offset)
+        else:
+            try self.put("-")
+            try self.put_u64(offset)
         try self.put("(%rbp)")
 
     ## The move that carries a register of class `cls` to or from memory.
@@ -294,9 +297,9 @@ pub struct Generator:
         elif r.kind == ir.RefKind.global or r.kind == ir.RefKind.function:
             # a function's address, or another image's data (`import_ref`), goes through the
             # GOT, so a symbol defined in a linked shared object resolves
-            try self.line("movq ")
+            try self.line("leaq " if self.os == build_target.Os.windows else "movq ")
             try self.symbol(r.name)
-            try self.put("@GOTPCREL(%rip), ")
+            try self.put("(%rip), " if self.os == build_target.Os.windows else "@GOTPCREL(%rip), ")
             try self.put(reg)
         elif r.kind == ir.RefKind.text:
             try self.line("leaq ")
@@ -409,7 +412,7 @@ pub struct Generator:
     ## `.weak` for a weak symbol (§9.8); ELF has no directive for `used`, which only matters
     ## to a linker that discards sections, so it is left to the section's own flags.
     mutating func linkage_directives(name: str, weak: bool, used: bool) -> !:
-        if weak:
+        if weak and self.os != build_target.Os.windows:
             try self.put("    .weak ")
             try self.symbol(name)
             try self.put("\n")
@@ -417,7 +420,7 @@ pub struct Generator:
 
     ## Back to the text section after a function placed in a named one.
     mutating func leave_section() -> !:
-        if self.f.section.length > 0:
+        if self.f.section.length > 0 or (self.os == build_target.Os.windows and self.f.weak):
             try self.put("\n    .text\n")
 
     mutating func function(index: usize) -> !:
@@ -426,17 +429,23 @@ pub struct Generator:
             try dw.entry(&self.out)
         self.f = &self.program_unit.functions.items[index]
         try self.fr.plan(self.f)
-        try self.fr.layout(self.f, 0, self.f.has_result and self.in_memory(self.f.result_size, self.f.result_shape))
-        if self.f.section.length > 0:
+        try self.fr.layout(self.f, 176 if self.os == build_target.Os.windows else 0, self.f.has_result and self.in_memory(self.f.result_size, self.f.result_shape))
+        if self.os == build_target.Os.windows and self.f.weak:
+            try self.put("\n    .section .text$")
+            try self.symbol(self.f.name)
+            try self.put(",\"xr\"")
+        elif self.f.section.length > 0:
             try self.put("\n    .section ")
             try self.put(build_target.section_name(self.f.section, true, self.os))
-            try self.put(",\"ax\",@progbits")
+            try self.put(",\"xr\"" if self.os == build_target.Os.windows else ",\"ax\",@progbits")
         try self.put("\n    .p2align 4\n")
         try self.put("    .globl ")
         try self.symbol(self.f.name)
-        try self.put("\n    .type ")
-        try self.symbol(self.f.name)
-        try self.put(", @function\n")
+        if self.os != build_target.Os.windows:
+            try self.put("\n    .type ")
+            try self.symbol(self.f.name)
+            try self.put(", @function")
+        try self.put("\n")
         try self.linkage_directives(self.f.name, self.f.weak, self.f.used)
         try self.symbol(self.f.name)
         try self.put(":")
@@ -451,21 +460,38 @@ pub struct Generator:
             return
         if self.dw != none:
             try self.line(".cfi_startproc")
+        if self.os == build_target.Os.windows:
+            try self.line(".seh_proc ")
+            try self.symbol(self.f.name)
         try self.line("pushq %rbp")
+        if self.os == build_target.Os.windows:
+            try self.line(".seh_pushreg %rbp")
         if self.dw != none:
             try self.line(".cfi_def_cfa_offset 16")
             try self.line(".cfi_offset 6, -16")
-        try self.line("movq %rsp, %rbp")
+        if self.os != build_target.Os.windows:
+            try self.line("movq %rsp, %rbp")
         if self.dw != none:
             try self.line(".cfi_def_cfa_register 6")
+        if self.os == build_target.Os.windows and self.fr.size >= 4096:
+            try self.load_immediate("%rax", (i64)self.fr.size)
+            try self.line("call ___chkstk_ms")
         if self.fr.size > 0:
             try self.line("subq $")
             try self.put_u64(self.fr.size)
             try self.put(", %rsp")
+            if self.os == build_target.Os.windows:
+                try self.line(".seh_stackalloc ")
+                try self.put_u64(self.fr.size)
+        if self.os == build_target.Os.windows:
+            try self.line("movq %rsp, %rbp")
+            try self.line(".seh_setframe %rbp, 0")
         if self.f.has_result and self.in_memory(self.f.result_size, self.f.result_shape):
-            try self.line("movq %rdi, ")
+            try self.line("movq %rcx, " if self.os == build_target.Os.windows else "movq %rdi, ")
             try self.frame_operand(self.fr.indirect_home)
         try self.save_callee_saved()
+        if self.os == build_target.Os.windows:
+            try self.line(".seh_endprologue")
         try self.receive_params()
         var uses = try selection.uses(self.f)
         defer free(uses)
@@ -493,6 +519,8 @@ pub struct Generator:
                 try self.put(":\n")
             try self.line(".cfi_endproc")
             try dw.function(self.f, &self.fr, index)
+        if self.os == build_target.Os.windows:
+            try self.line(".seh_endproc")
         try self.put("\n")
         if self.f.debug:
             try self.describe_frame()
@@ -549,6 +577,8 @@ pub struct Generator:
     ## (System V §3.2.3): over sixteen bytes, or holding a field that is not aligned to its
     ## own size, which a packed record has and which the ABI classes MEMORY at any size.
     func in_memory(size: u32, shape: u32) -> bool:
+        if self.os == build_target.Os.windows:
+            return size != 0 and size != 1 and size != 2 and size != 4 and size != 8
         if size > 16:
             return true
         if size == 0 or shape == 0:
@@ -558,7 +588,7 @@ pub struct Generator:
     func sse_of(cls: ir.Class, size: u32, shape: u32) -> u8:
         if size == 0:
             return 1 if ir.is_float_class(cls) else 0
-        if shape == 0:
+        if shape == 0 or self.os == build_target.Os.windows:
             return 0
         var words: u8 = 3 if size > 8 else 1
         for leaf in self.program_unit.leaves_of(shape):
@@ -654,6 +684,9 @@ pub struct Generator:
 
     ## Store the incoming arguments into their slots.
     mutating func receive_params() -> !:
+        if self.os == build_target.Os.windows:
+            try self.receive_windows()
+            return
         var next_int: u32 = 1 if self.f.has_result and self.in_memory(self.f.result_size, self.f.result_shape) else 0
         var next_float: u32 = 0
         var stack_offset: u64 = 16
@@ -750,7 +783,7 @@ pub struct Generator:
 
     mutating func stack_param_load(reg: str, offset: u64) -> !:
         try self.line("movq ")
-        try self.put_u64(offset)
+        try self.put_u64(offset + (self.fr.size if self.os == build_target.Os.windows else 0))
         try self.put("(%rbp), ")
         try self.put(reg)
 
@@ -765,9 +798,18 @@ pub struct Generator:
         try self.call_symbol("memcpy")
 
     mutating func call_symbol(name: str) -> !:
+        if self.os == build_target.Os.windows:
+            # Generator helpers use at most three integer arguments in SysV scratch names.
+            try self.line("movq %rdx, %r8")
+            try self.line("movq %rsi, %rdx")
+            try self.line("movq %rdi, %rcx")
+            try self.line("subq $32, %rsp")
         try self.line("call ")
         try self.symbol(name)
-        try self.put("@PLT")
+        if self.os == build_target.Os.windows:
+            try self.line("addq $32, %rsp")
+        else:
+            try self.put("@PLT")
 
     # mark: Instructions =======================================================================
 
@@ -850,7 +892,10 @@ pub struct Generator:
                         try self.line3(store_mnemonic(n.op), v, ", (%r10)")
             .frame:
                 let d = self.target(n.dst, ir.Class.l, "%rax")
-                try self.line3("movq %rbp, ", d, "")
+                if self.os == build_target.Os.windows:
+                    try self.frame_address(d, 0)
+                else:
+                    try self.line3("movq %rbp, ", d, "")
                 try self.finish(n.dst, ir.Class.l, d)
             .extsb, .extub, .extsh, .extuh, .extsw, .extuw:
                 let v = try self.source(n.a, ir.Class.w, "%eax")
@@ -878,10 +923,18 @@ pub struct Generator:
             .addr_tls:
                 # the initial-exec model: the thread pointer plus the variable's offset in
                 # the static thread block, which the linker writes into the GOT
-                try self.line("movq %fs:0, %rax")
-                try self.line("addq ")
-                try self.symbol(n.a.name)
-                try self.put("@GOTTPOFF(%rip), %rax")
+                if self.os == build_target.Os.windows:
+                    try self.line("movl _tls_index(%rip), %eax")
+                    try self.line("movq %gs:88, %r11")
+                    try self.line("movq (%r11,%rax,8), %rax")
+                    try self.line("leaq ")
+                    try self.symbol(n.a.name)
+                    try self.put("@SECREL32(%rax), %rax")
+                else:
+                    try self.line("movq %fs:0, %rax")
+                    try self.line("addq ")
+                    try self.symbol(n.a.name)
+                    try self.put("@GOTTPOFF(%rip), %rax")
                 try self.store_temp("%rax", ir.Class.l, n.dst)
             .blit:
                 if n.extra <= 128:
@@ -1678,6 +1731,135 @@ pub struct Generator:
 
     # mark: Calls ==============================================================================
 
+    ## Preserve Windows' additional nonvolatile registers used by shared instruction code.
+    mutating func windows_saved(restore: bool) -> !:
+        let regs: str[12] = ["%rdi", "%rsi", "%xmm6", "%xmm7", "%xmm8", "%xmm9", "%xmm10", "%xmm11", "%xmm12", "%xmm13", "%xmm14", "%xmm15"]
+        for i in 0..<12:
+            let cls = ir.Class.l if i < 2 else ir.Class.v
+            let offset = (i + 1) * 8 if i < 2 else (i - 1) * 16 + 16
+            if restore:
+                try self.frame_load(regs[i], cls, (u64)offset)
+            else:
+                try self.frame_store(regs[i], cls, (u64)offset)
+                try self.line(".seh_savereg " if i < 2 else ".seh_savexmm ")
+                try self.put(regs[i])
+                try self.put(", ")
+                try self.put_u64(self.fr.size - (u64)offset)
+
+    mutating func receive_windows() -> !:
+        let hidden: usize = 1 if self.f.has_result and self.in_memory(self.f.result_size, self.f.result_shape) else 0
+        for i in 0..<4:
+            try self.line3("movq ", windows_arguments[i], ", ")
+            try self.put_u64(self.fr.size + (u64)(16 + i * 8))
+            try self.put("(%rbp)")
+        for i in 0..<self.f.params.count:
+            let p = self.f.params.get(i)
+            let ordinal = i + hidden
+            if ordinal < 4 and p.size == 0 and ir.is_float_class(p.cls):
+                try self.line3("movsd ", float_argument_names[ordinal], ", ")
+                try self.put_u64(self.fr.size + (u64)(16 + ordinal * 8))
+                try self.put("(%rbp)")
+        for i in 0..<self.f.params.count:
+            let p = self.f.params.get(i)
+            let home = self.slot_home(p.slot)
+            let ordinal = i + hidden
+            if p.size == 0:
+                try self.stack_param_load("%rax", (u64)(16 + ordinal * 8))
+                if ir.is_float_class(p.cls):
+                    let width: u64 = 2 if p.cls == ir.Class.h else (4 if p.cls == ir.Class.s else 8)
+                    try self.line2(store_word_mnemonic(width), register_of_width("%rax", width))
+                    try self.put(", ")
+                    try self.frame_operand(home)
+                else:
+                    let code = self.fr.slot_regs.get((usize)p.slot)
+                    if code != 0:
+                        try self.line4("movq " if p.cls == ir.Class.l else "movl ", "%rax" if p.cls == ir.Class.l else "%eax", ", ", class_name((u8)code, p.cls))
+                    else:
+                        try self.frame_store("%rax" if p.cls == ir.Class.l else "%eax", p.cls, home)
+            elif self.in_memory(p.size, p.shape):
+                try self.stack_param_load("%r10", (u64)(16 + ordinal * 8))
+                try self.frame_address("%r11", home)
+                try self.copy_r10_to_r11((u64)p.size)
+            else:
+                try self.stack_param_load("%rax", (u64)(16 + ordinal * 8))
+                try self.frame_address("%r10", home)
+                try self.store_bytes("%rax", "%r10", 0, (u64)p.size)
+
+    mutating func call_windows(n: ir.Instr) -> !:
+        let info = self.f.calls.get((usize)n.extra)
+        let hidden = info.has_result and self.in_memory(info.result_size, info.result_shape)
+        let first: u64 = 1 if hidden else 0
+        let count = (u64)info.args_count + first
+        let slots = round_up((count if count > 4 else 4) * 8, 16)
+        var area = slots
+        for i in 0..<info.args_count:
+            let a = self.f.args.get((usize)(info.args_start + i))
+            if self.in_memory(a.size, a.shape):
+                area += round_up((u64)a.size, 16)
+        if area >= 4096:
+            try self.load_immediate("%rax", (i64)area)
+            try self.line("call ___chkstk_ms")
+        try self.line("subq $")
+        try self.put_u64(area)
+        try self.put(", %rsp")
+        var copy_offset = slots
+        for i in 0..<info.args_count:
+            let a = self.f.args.get((usize)(info.args_start + i))
+            let offset = ((u64)i + first) * 8
+            if a.size == 0:
+                if ir.is_float_class(a.cls):
+                    try self.operand("%xmm0", a.cls, a.value)
+                    try self.line("movq %xmm0, %rax")
+                else:
+                    try self.operand("%rax" if a.cls == ir.Class.l else "%eax", a.cls, a.value)
+            elif self.in_memory(a.size, a.shape):
+                try self.address_operand("%r10", a.value)
+                try self.line("leaq ")
+                try self.put_u64(copy_offset)
+                try self.put("(%rsp), %r11")
+                try self.copy_r10_to_r11((u64)a.size)
+                try self.line("leaq ")
+                try self.put_u64(copy_offset)
+                try self.put("(%rsp), %rax")
+                copy_offset += round_up((u64)a.size, 16)
+            else:
+                try self.address_operand("%r10", a.value)
+                try self.load_bytes("%rax", "%r10", 0, (u64)a.size)
+            try self.line("movq %rax, ")
+            try self.put_u64(offset)
+            try self.put("(%rsp)")
+        if hidden:
+            try self.frame_address("%rax", self.slot_home(info.result_slot))
+            try self.line("movq %rax, (%rsp)")
+        for i in 0..<(count if count < 4 else 4):
+            try self.line("movq ")
+            try self.put_u64(i * 8)
+            try self.put("(%rsp), ")
+            try self.put(windows_arguments[i])
+            if i >= first:
+                let a = self.f.args.get((usize)((u64)info.args_start + i - first))
+                if a.size == 0 and ir.is_float_class(a.cls):
+                    try self.line4("movq ", windows_arguments[i], ", ", float_argument_names[i])
+        if n.a.kind == ir.RefKind.temp or n.a.kind == ir.RefKind.constant:
+            try self.operand("%r11", ir.Class.l, n.a)
+            try self.line("call *%r11")
+        else:
+            try self.line("call ")
+            try self.symbol(n.a.name)
+        try self.line("addq $")
+        try self.put_u64(area)
+        try self.put(", %rsp")
+        if not info.has_result or hidden:
+            return
+        if info.result_size == 0:
+            if ir.is_float_class(info.result_cls):
+                try self.store_temp("%xmm0", info.result_cls, n.dst)
+            else:
+                try self.store_temp("%rax" if info.result_cls == ir.Class.l else "%eax", info.result_cls, n.dst)
+        else:
+            try self.frame_address("%r10", self.slot_home(info.result_slot))
+            try self.store_bytes("%rax", "%r10", 0, (u64)info.result_size)
+
     ## Classify one argument under the System V convention, advancing the counters: every
     ## eightbyte of a small aggregate takes a register of its class, or the whole aggregate
     ## goes to the stack; a large one always does.
@@ -1710,6 +1892,9 @@ pub struct Generator:
         return p
 
     mutating func call(n: ir.Instr) -> !:
+        if self.os == build_target.Os.windows:
+            try self.call_windows(n)
+            return
         let info = self.f.calls.get((usize)n.extra)
         let hidden = info.has_result and self.in_memory(info.result_size, info.result_shape)
         var next_int: u32 = 1 if hidden else 0
@@ -1860,7 +2045,10 @@ pub struct Generator:
         try self.restore_callee_saved()
         if self.dw != none:
             try self.line(".cfi_remember_state")
-        try self.line("movq %rbp, %rsp")
+        if self.os == build_target.Os.windows:
+            try self.frame_address("%rsp", 0)
+        else:
+            try self.line("movq %rbp, %rsp")
         try self.line("popq %rbp")
         if self.dw != none:
             try self.line(".cfi_def_cfa 7, 8")
@@ -1870,10 +2058,15 @@ pub struct Generator:
             try self.line(".cfi_restore_state")
 
     mutating func save_callee_saved() -> !:
+        if self.os == build_target.Os.windows:
+            try self.windows_saved(false)
         var c: usize = 1
         while c <= 5:
             if (self.fr.used_mask & (u32)(1 << (u32)(c - 1))) != 0:
                 try self.frame_store(q_names[c], ir.Class.l, self.fr.save_offset[c])
+                if self.os == build_target.Os.windows:
+                    try self.line3(".seh_savereg ", q_names[c], ", ")
+                    try self.put_u64(self.fr.size - self.fr.save_offset[c])
                 if self.dw != none:
                     try self.line(".cfi_offset ")
                     try self.put_u64(3 if c == 1 else (u64)c + 10)
@@ -1882,6 +2075,8 @@ pub struct Generator:
             c += 1
 
     mutating func restore_callee_saved() -> !:
+        if self.os == build_target.Os.windows:
+            try self.windows_saved(true)
         var c: usize = 1
         while c <= 5:
             if (self.fr.used_mask & (u32)(1 << (u32)(c - 1))) != 0:
@@ -1891,6 +2086,19 @@ pub struct Generator:
     # mark: The unit ===========================================================================
 
     pub mutating func generate() -> !:
+        # Declare COFF weak references before emitting code. Weak definitions
+        # receive individual sections so their fallback symbol has zero offset.
+        if self.os == build_target.Os.windows:
+            for global in self.program_unit.globals.span():
+                if global.weak:
+                    try self.put("    .weak ")
+                    try self.symbol(global.name)
+                    try self.put("\n")
+            for function in self.program_unit.functions.span():
+                if function.weak:
+                    try self.put("    .weak ")
+                    try self.symbol(function.name)
+                    try self.put("\n")
         if let dw = self.dw:
             try dw.begin(&self.out)
         try self.put("    .text\n")
@@ -1909,12 +2117,15 @@ pub struct Generator:
         if self.program_unit.init_function.length > 0:
             if self.os == build_target.Os.macos:
                 try self.put("\n    .section __DATA,__mod_init_func,mod_init_funcs\n    .p2align 3\n    .quad ")
+            elif self.os == build_target.Os.windows:
+                try self.put("\n    .section .CRT$XCU,\"dr\"\n    .p2align 3\n    .quad ")
             else:
                 try self.put("\n    .section .init_array,\"aw\"\n    .p2align 3\n    .quad ")
             try self.symbol(self.program_unit.init_function)
             try self.put("\n    .text\n")
         # text literals, after the sign masks vector negation and unsigned lane checks read
-        try self.put("\n    .section .rodata\n    .p2align 4\n.Lvsign32:\n    .long 2147483648, 2147483648, 2147483648, 2147483648\n.Lvsign64:\n    .quad -9223372036854775808, -9223372036854775808\n")
+        try self.put("\n    .section .rdata,\"dr\"" if self.os == build_target.Os.windows else "\n    .section .rodata")
+        try self.put("\n    .p2align 4\n.Lvsign32:\n    .long 2147483648, 2147483648, 2147483648, 2147483648\n.Lvsign64:\n    .quad -9223372036854775808, -9223372036854775808\n")
         i = 0
         while i < self.program_unit.texts.count:
             try self.text_label(u32(i))
@@ -1924,7 +2135,7 @@ pub struct Generator:
             i += 1
         # witness tables and frame descriptors hold addresses, which a position-independent
         # image relocates when it loads
-        try self.put("\n    .section .data.rel.ro,\"aw\"\n    .p2align 3\n")
+        try self.put("\n    .section .rdata,\"dr\"\n    .p2align 3\n" if self.os == build_target.Os.windows else "\n    .section .data.rel.ro,\"aw\"\n    .p2align 3\n")
         i = 0
         while i < self.program_unit.tables.count:
             let t = self.program_unit.tables.get(i)
@@ -1952,19 +2163,25 @@ pub struct Generator:
             let g = self.program_unit.globals.get(i)
             let size = (u64)g.size if g.size > 0 else 1
             let align = log2((u64)g.align if g.align > 0 else 1)
-            if g.is_thread_local:
-                try self.put("\n    .section .tbss,\"awT\",@nobits\n")
+            if g.weak and self.os == build_target.Os.windows:
+                try self.put("\n    .section .data$")
+                try self.symbol(g.name)
+                try self.put(",\"dw\"\n")
+            elif g.is_thread_local:
+                try self.put("\n    .section .tls$LUCE,\"dw\"\n" if self.os == build_target.Os.windows else "\n    .section .tbss,\"awT\",@nobits\n")
             elif g.section.length > 0:
                 try self.put("\n    .section ")
                 try self.put(build_target.section_name(g.section, false, self.os))
-                try self.put(",\"aw\"\n")
+                try self.put(",\"dw\"\n" if self.os == build_target.Os.windows else ",\"aw\"\n")
             else:
                 try self.put("\n    .bss\n")
             try self.put("    .globl ")
             try self.symbol(g.name)
-            try self.put("\n    .type ")
-            try self.symbol(g.name)
-            try self.put(", @object\n")
+            if self.os != build_target.Os.windows:
+                try self.put("\n    .type ")
+                try self.symbol(g.name)
+                try self.put(", @object")
+            try self.put("\n")
             try self.linkage_directives(g.name, g.weak, g.used)
             try self.put("    .p2align ")
             try self.put_u64(align)
@@ -1976,7 +2193,8 @@ pub struct Generator:
             i += 1
         if self.half_routines:
             try self.put(half_routines_text)
-        try self.put("\n    .section .note.GNU-stack,\"\",@progbits\n")
+        if self.os != build_target.Os.windows:
+            try self.put("\n    .section .note.GNU-stack,\"\",@progbits\n")
         if let dw = self.dw:
             try dw.finish(&self.out)
 
@@ -2000,6 +2218,7 @@ pub struct Generator:
         try self.put("\"")
 
 # mark: Helpers ================================================================================
+let windows_arguments: str[4] = ["%rcx", "%rdx", "%r8", "%r9"]
 
 ## The callee-saved registers the allocator hands out, codes 1..5, in their four widths.
 ## Register codes: 1–5 the callee-saved rbx and r12–r15; 6–9 the caller-saved xmm12–xmm15,

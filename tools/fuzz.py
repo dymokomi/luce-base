@@ -39,7 +39,7 @@ import os, random, re, subprocess, sys, time, pathlib, signal
 
 root = pathlib.Path(__file__).resolve().parent.parent
 os.chdir(root)
-compiler = root / "build" / "luce-base"
+compiler = pathlib.Path(os.environ.get("LUCE_BASE_COMPILER", root / "build" / ("luce-base.exe" if os.name == "nt" else "luce-base")))
 seed_binary = root.parent / "luce-seed" / "build" / "lucb"
 out = root / "build" / "fuzz"
 out.mkdir(parents=True, exist_ok=True)

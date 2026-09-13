@@ -15,8 +15,10 @@
 
 int64_t lb_answer(void);
 void lb_memory_startup(void);
+void lb_core_process_start(void);
 
 int main(void) {
+    lb_core_process_start();
     lb_memory_startup();
     int64_t value = lb_answer();
     printf("%" PRId64 "\n", value);

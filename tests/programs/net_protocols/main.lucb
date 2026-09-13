@@ -1,4 +1,5 @@
 import c
+import files
 import io
 import memory
 import net
@@ -268,6 +269,12 @@ func test_mutations() -> !:
     print("ok 10000 deterministic malformed-input cases")
 
 pub func main(arguments: c.str[]) -> i32!:
+    if arguments.length == 4 and (str)arguments[1] == "frame-file":
+        let payload = try files.read(arguments[3])
+        defer free(payload)
+        var encoder = net.WebSocketEncoder.create((str)arguments[2] == "client")
+        try encoder.write(io.stdout(), net.WebSocketOpcode.binary, payload)
+        return 0
     if arguments.length == 4 and (str)arguments[1] == "frame":
         var encoder = net.WebSocketEncoder.create((str)arguments[2] == "client")
         try encoder.write(io.stdout(), net.WebSocketOpcode.binary, ((str)arguments[3]).bytes)

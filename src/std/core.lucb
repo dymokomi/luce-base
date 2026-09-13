@@ -1,5 +1,29 @@
 import c
-extern func write(descriptor: i32, buffer: const void*, count: usize) -> isize
+import platform
+extern func set_binary_mode as "_setmode"(descriptor: i32, mode: i32) -> i32
+extern func GetCurrentThreadId() -> u32
+var initial_thread: u32
+
+pub func on_initial_thread() -> bool:
+    if platform.windows:
+        return initial_thread != 0 and GetCurrentThreadId() == initial_thread
+    return false
+
+## Standard streams carry language bytes, including LF, without CRT text translation.
+pub func process_start():
+    if platform.windows:
+        initial_thread = GetCurrentThreadId()
+        discard(set_binary_mode(0, 32768))
+        discard(set_binary_mode(1, 32768))
+        discard(set_binary_mode(2, 32768))
+
+extern func posix_write as "write"(descriptor: i32, buffer: const void*, count: usize) -> isize
+extern func windows_write as "_write"(descriptor: i32, buffer: const void*, count: u32) -> i32
+
+func write(descriptor: i32, buffer: const void*, count: usize) -> isize:
+    if platform.windows:
+        return (isize)windows_write(descriptor, buffer, (u32)(count if count < 2147483647 else 2147483647))
+    return posix_write(descriptor, buffer, count)
 extern func c_exit as "exit"(code: i32) -> never
 extern func malloc(size: usize) -> void*?
 extern func memcpy(target: void*, source: const void*, count: usize) -> void*
@@ -236,12 +260,13 @@ pub func show_pad(inner: str, width: usize) -> str:
 
 ## The startup shim's pieces: the argument vector as `str[]` (checked) or `c.str[]`.
 pub func arguments(count: i32, vector: c.str*) -> str[]:
-    let n = (usize)count
+    let raw = raw_arguments(count, vector)
+    let n = raw.length
     let block = malloc((n if n > 0 else 1) * sizeof(str)) else trap("memory.exhausted")
     let items = (str*)block
     var i: usize = 0
     while i < n:
-        let text = (str)vector[i]
+        let text = (str)raw[i]
         if not utf8_ok(text.bytes.data, text.length):
             trap("invalid_utf8")
         items[i] = text
@@ -249,7 +274,45 @@ pub func arguments(count: i32, vector: c.str*) -> str[]:
     return str[](items, n)
 
 pub func raw_arguments(count: i32, vector: c.str*) -> c.str[]:
+    if platform.windows:
+        return windows_arguments()
     return c.str[](vector, (usize)count)
+
+extern func GetCommandLineW() -> u16*
+extern func CommandLineToArgvW(command: u16*, count: i32*) -> u16**?
+extern func LocalFree(block: void*) -> void*?
+extern func WideCharToMultiByte(page: u32, flags: u32, input: const u16*, length: i32, output: u8*?, capacity: i32, fallback: void*?, used_fallback: void*?) -> i32
+extern func release_argument_block as "free"(block: void*)
+extern func atexit(callback: func() -> unit) -> i32
+var windows_argument_vector: c.str[]
+
+func free_windows_arguments():
+    for text in windows_argument_vector:
+        release_argument_block((void*)text)
+    release_argument_block((void*)windows_argument_vector.data)
+
+## The wide command line preserves names the Windows ANSI code page cannot encode.
+func windows_arguments() -> c.str[]:
+    if platform.windows:
+        if windows_argument_vector.length > 0:
+            return windows_argument_vector
+        var count: i32 = 0
+        let wide = CommandLineToArgvW(GetCommandLineW(), &count) else trap("could not read the Windows command line")
+        defer discard(LocalFree((void*)wide))
+        let block = malloc((usize)count * sizeof(c.str)) else trap("memory.exhausted")
+        let items = (c.str*)block
+        for index in 0..<(usize)count:
+            let size = WideCharToMultiByte(65001, 128, wide[index], -1, none, 0, none, none)
+            if size <= 0: trap("the command line contains invalid UTF-16")
+            let text = malloc((usize)size) else trap("memory.exhausted")
+            if WideCharToMultiByte(65001, 128, wide[index], -1, (u8*)text, size, none, none) != size:
+                trap("could not encode the command line as UTF-8")
+            items[index] = (c.str)text
+        windows_argument_vector = c.str[](items, (usize)count)
+        if atexit(free_windows_arguments) != 0:
+            trap("could not register command line cleanup")
+        return windows_argument_vector
+    return c.str[]((c.str*)0, 0)
 
 ## A failed `main`: its error on stderr, exit status 1.
 pub func main_failed(code: i32, message: str) -> i32:

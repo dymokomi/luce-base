@@ -19,7 +19,7 @@ pub struct TemporaryFile: io.Reader, io.Writer:
         var attempt: usize = 0
         while attempt < 128:
             var random: u8[16]
-            if getentropy(&random[0], random.length) != 0:
+            os.random_bytes(random) catch:
                 error(failed, "temporary filename randomness is unavailable")
             for i in 0..<random.length:
                 data[suffix + i * 2] = digits.bytes[random[i] >> 4]

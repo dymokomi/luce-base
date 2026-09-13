@@ -6,6 +6,7 @@ import window
 import interop
 import ownership
 import math
+import thread
 
 pub let unsupported: ErrorCode = ErrorCode.package(91)
 pub let unavailable: ErrorCode = ErrorCode.package(92)
@@ -22,7 +23,8 @@ pub let frame_in_use: ErrorCode = ErrorCode.package(115)
 pub let frame_resized: ErrorCode = ErrorCode.package(116)
 
 ## automatic chooses the implemented native backend. An explicit unsupported
-## backend fails; it never falls back silently. Vulkan is reserved, not implemented.
+## backend fails; it never falls back silently. Windows x64 uses Vulkan; macOS
+## ARM64 uses Metal. Link dependencies are selected by the compiler.
 pub enum Backend as u8:
     automatic = 0
     metal = 1
@@ -31,6 +33,8 @@ pub enum Backend as u8:
 ## Whether this build contains a backend, not whether hardware is available.
 ## Device.open probes the hardware separately and may return unavailable.
 pub func supported(backend: Backend = Backend.automatic) -> bool:
+    if platform.windows and platform.x86_64:
+        return backend == Backend.automatic or backend == Backend.vulkan
     return (platform.macos and platform.arm64) and (backend == Backend.automatic or backend == Backend.metal)
 
 ## Linear-light sRGB components, each finite and in 0..1. Presentation is opaque;
@@ -54,6 +58,8 @@ func check_thread() -> !:
     if platform.macos and platform.arm64:
         if pthread_main_np() == 0:
             error(wrong_thread, "GPU operations currently require the main thread")
+    if platform.windows and not thread.is_main():
+        error(wrong_thread, "GPU operations currently require the main thread")
 
 func require_thread():
     check_thread() catch failure:

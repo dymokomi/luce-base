@@ -9,6 +9,8 @@
 #
 #==============================================================================================
 
+import paths
+import os
 import c
 import back.backend
 import back.target as targets
@@ -36,6 +38,7 @@ import support.list
 import support.literals
 import support.runtime
 import support.version
+import support.windows_scratch
 
 func usage(out: io.Writer) -> !:
     try out.write("usage: luce-base lex FILE\n       luce-base parse FILE\n       luce-base check FILE\n       luce-base describe FILE\n       luce-base describe --standard MODULE\n       luce-base dependencies FILE\n       luce-base native-inputs FILE\n       luce-base resolve FILE SOURCE_ROOT MODULE [--base]\n       luce-base build FILE [-o OUT] [--release] [--emit=c] [--backend=c] [--native] [--debug] [--emit=asm] [--emit=ir] [--lib] [--freestanding] [--target] [--profile diagnostic] [-W] [-lNAME] [-LDIR] [-framework NAME]\n       luce-base test FILE [--backend=c] [--native]\n       luce-base --version\n")
@@ -351,19 +354,35 @@ func scratch_of() -> u8[]:
 
 ## Turn the generated text into `exe` in a scratch directory: assembly through the
 ## host assembler and linker, C through the host C compiler.
-func compile(text: str, exe: str, release: bool, with_start: bool) -> !:
-    let mktemp_args: c.str[2] = ["-d", "/tmp/luce-base.XXXXXX"]
-    let made = try process.run("mktemp", mktemp_args)
-    let (status, dir_text, unused_err) = made
-    discard(unused_err.length)
+func scratch_directory() -> str!:
+    if platform.windows:
+        return try windows_scratch.create()
+    let arguments: c.str[2] = ["-d", "/tmp/luce-base.XXXXXX"]
+    let (status, output, errors) = try process.run("mktemp", arguments)
+    discard(errors)
     if status != 0:
         error(build_failed, "could not create a scratch directory")
+    return trim(output)
+
+func host_c_compiler() -> c.str:
+    if let selected = os.env("CC"):
+        return (c.str)selected
+    return "gcc" if platform.windows else "cc"
+
+func compile(text: str, requested_exe: str, release: bool, with_start: bool) -> !:
+    let output_buffer = try alloc u8[requested_exe.length + 5]
+    defer free(output_buffer)
+    let exe = try format(output_buffer, f"{requested_exe}.exe") if platform.windows and paths.extension(requested_exe).length == 0 else requested_exe
+    let dir_text = try scratch_directory()
     # the scratch names must end in NUL for the C library; `format` appends one
     var name_bytes: u8[4096]
     let dir = try format(name_bytes[3072..], f"{trim(dir_text)}")
     defer remove_tree((c.str)dir)
+    let linked_exe = try paths.join(dir, "program.exe") if platform.windows else exe
     if native_backend:
-        try assemble_and_link(dir, name_bytes[..<3072], text, exe)
+        try assemble_and_link(dir, name_bytes[..<3072], text, linked_exe)
+        if platform.windows:
+            try windows_scratch.publish(linked_exe, exe)
         if debug_backend:
             try finish_debug(exe)
         return
@@ -393,8 +412,10 @@ func compile(text: str, exe: str, release: bool, with_start: bool) -> !:
         try cc_args.add((c.str)start_path)
     try cc_args.add("-lm")
     try cc_args.add("-pthread")
+    if platform.windows:
+        try cc_args.add("-lsynchronization")
     try cc_args.add("-o")
-    try cc_args.add((c.str)exe)
+    try cc_args.add((c.str)linked_exe)
     try automatic_links(&cc_args, (c.str)object_path)
     # the manifest's C sources, under the package root (§17.4), and what it links
     for file in package.sources:
@@ -410,13 +431,15 @@ func compile(text: str, exe: str, release: bool, with_start: bool) -> !:
         try pkg_config_flags(&cc_args, name, "--cflags", false)
         try pkg_config_flags(&cc_args, name, "--libs", false)
     try link_flags(&cc_args, true)
-    let result = try process.run("cc", cc_args.span())
+    let result = try windows_scratch.run(host_c_compiler(), cc_args.span())
     let (cc_status, cc_out, cc_err) = result
     discard(cc_out.length)
     if cc_status != 0:
         let out = io.stderr()
         try out.write(cc_err)
         error(build_failed, "the C compiler rejected the generated code")
+    if platform.windows:
+        try windows_scratch.publish(linked_exe, exe)
 
 ## Shared diagnostics and ABI flags for generated C and its runtime.
 func c_arguments(release: bool) -> Arguments!:
@@ -426,6 +449,10 @@ func c_arguments(release: bool) -> Arguments!:
     try arguments.add("-fno-strict-aliasing")
     try arguments.add("-Werror")
     try arguments.add("-O2" if release else "-O0")
+    if platform.windows:
+        try arguments.add("-ffunction-sections")
+        try arguments.add("-fdata-sections")
+        try arguments.add("-Wl,--gc-sections")
     for flag in generated_c_silences:
         try arguments.add(flag)
     return arguments
@@ -433,6 +460,10 @@ func c_arguments(release: bool) -> Arguments!:
 func automatic_links(arguments: Arguments*, object: c.str) -> !:
     let required = try native_links.collect(object, build_target())
     for library in required.libraries:
+        if platform.windows and (str)library == "vulkan-1":
+            if let sdk = os.env("VULKAN_SDK"):
+                let directory = try paths.join(sdk, "Lib")
+                try arguments.flag("-L", directory)
         try arguments.flag("-l", (str)library)
     for framework in required.frameworks:
         try arguments.add("-framework")
@@ -546,6 +577,7 @@ func link_with_driver(dir: str, object_path: str, exe: str, t: targets.Target) -
     for name in package.pkg_config:
         try pkg_config_flags(&cc_args, name, "--libs", false)
     try link_flags(&cc_args, false)
+    try automatic_links(&cc_args, (c.str)object_path)
     for library in t.system_libraries:
         try cc_args.add((c.str)library)
     try run_tool("cc", cc_args.span(), "the linker rejected the generated code")
@@ -651,12 +683,7 @@ func note_architecture(arch: str, arm64: bool*, x86_64: bool*):
 ## `--lib`: `NAME.a` from the generated code (and the C runtime when the code is C), and
 ## `NAME.h` with the exported surface (§17.6).
 func build_library(code: str, header_text: str, name: str) -> !:
-    let mktemp_args: c.str[2] = ["-d", "/tmp/luce-base.XXXXXX"]
-    let made = try process.run("mktemp", mktemp_args)
-    let (status, dir_text, unused_err) = made
-    discard(unused_err.length)
-    if status != 0:
-        error(build_failed, "could not create a scratch directory")
+    let dir_text = try scratch_directory()
     var names_bytes: u8[4096]
     let dir = try format(names_bytes[3072..], f"{trim(dir_text)}")
     defer remove_tree((c.str)dir)
@@ -700,7 +727,7 @@ func build_library(code: str, header_text: str, name: str) -> !:
 
 ## Run a build tool; its standard error is shown when it fails.
 func run_tool(program: c.str, arguments: c.str[], what: str) -> !:
-    let ran = try process.run(program, arguments)
+    let ran = try windows_scratch.run(host_c_compiler() if (str)program == "cc" else program, arguments)
     let (status, out, err) = ran
     discard(out.length)
     if status != 0:
@@ -715,16 +742,10 @@ func test_file(path: c.str, native: bool) -> i32!:
     with arena:
         native_backend = native
         let text = try generate(path, 1)
-        let mktemp_args: c.str[1] = ["/tmp/luce-base-test.XXXXXX"]
-        let made = try process.run("mktemp", mktemp_args)
-        let (status, exe_text, unused_err) = made
-        discard(unused_err.length)
-        if status != 0:
-            error(build_failed, "could not create a scratch file")
-        var exe_name: u8[512]
-        let exe = try format(exe_name, f"{trim(exe_text)}")
-        # the scratch file goes whether the build or the run fails
-        defer remove_file((c.str)exe)
+        let directory = try scratch_directory()
+        defer remove_tree((c.str)directory)
+        let exe_name = try alloc u8[directory.length + 16]
+        let exe = try format(exe_name, f"{directory}/test.exe" if platform.windows else f"{directory}/test")
         try compile(text, exe, false, false)
         var run_args: c.str[1] = ---
         run_args[0] = (c.str)exe
@@ -738,7 +759,10 @@ func remove_file(path: c.str):
     remove_path("-f", path)
 
 func remove_tree(path: c.str):
-    remove_path("-rf", path)
+    if platform.windows:
+        windows_scratch.remove((str)path)
+    else:
+        remove_path("-rf", path)
 
 func remove_path(flag: c.str, path: c.str):
     var rm_args: c.str[2] = ---
@@ -781,7 +805,7 @@ func stem_of(path: str) -> str:
     var end = path.length
     var i: usize = 0
     while i < path.length:
-        if path.bytes[i] == '/':
+        if paths.separator(path.bytes[i]):
             start = i + 1
         i += 1
     if end >= 5 and (str)path.bytes[end - 5..] == ".lucb":
@@ -890,7 +914,7 @@ func native_inputs_file(path: str, out: io.Writer) -> !:
 
 ## Trees and tokens live in one arena taken from the process heap; nothing is
 ## freed until the command ends.
-let arena_size: usize = 536870912
+let arena_size: usize = 1073741824 if platform.windows else 536870912
 
 ## The command's arena: the full size, or a smaller one when the machine cannot spare it,
 ## since a small program needs far less than the compiler itself.

@@ -4,3 +4,5 @@ presentation.lucb
 macos/objc.lucb
 macos/events.lucb
 macos/lifecycle.lucb
+windows/native.lucb
+windows/events.lucb

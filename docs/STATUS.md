@@ -4,8 +4,9 @@ One matrix of what this compiler does, kept current: each promise of the specifi
 is **verified** (implemented, and proved by the gate through every execution), **limited**
 (implemented with a boundary named here), **planned**, or **excluded** (outside Base by
 decision). The shape of the compiler is [DESIGN.md](DESIGN.md); what remains to do is
-[PLAN.md](PLAN.md). A claim here is only made when the gate proves it on both native
-hosts, arm64 macOS and x86_64 Linux.
+[PLAN.md](PLAN.md). The historical Unix gate covers arm64 macOS and x86_64 Linux. Windows x64
+execution evidence and current platform boundaries are recorded in
+[WINDOWS_VALIDATION.md](WINDOWS_VALIDATION.md) and [WINDOWS.md](WINDOWS.md).
 
 ## The executions
 
@@ -51,7 +52,7 @@ seed named in `bootstrap/SEED` builds it to the same C.
 | 17.5 | `luce bind` | planned | a project of its own |
 | 18 | working with full Luce | excluded | the contract of the full language, which this compiler does not implement; nothing in Base depends on it |
 | 19.1–19.4 | the driver, `--emit`, `--lib`, `--freestanding`, `--profile diagnostic` | verified | chapter 19, `tests/programs/freestanding`, `tests/samples/diagnostic.lucb`, `tests/robustness/memory/sites_ring.lucb` |
-| 19.5 | targets | limited | arm64-macos and x86_64-linux: native, gate green on each host. arm64-linux, x86_64-macos, x86_64-windows: the target model and C emission exist (`tests/platform` emits and syntax-checks them); no native generator, no gate on such a host. wasm32: named by the specification, not modelled by this compiler |
+| 19.5 | targets | limited | arm64-macos and x86_64-linux: native, gate green on each host. x86_64-windows: native Win64/COFF, self-hosting and Windows execution tests; see the Windows validation record. arm64-linux, x86_64-macos: the target model and C emission exist (`tests/platform` emits and syntax-checks them); no native generator, no gate on such a host. wasm32: named by the specification, not modelled by this compiler |
 | 19.5 | instruction-set levels: `--cpu`, the running level, snapshots at the baseline | verified | `tests/platform/common/level.lucb`, `halves.lucb` |
 | 19.6 | warnings and pruning | limited | unused locals, imports, private functions, unreachable code, and literal branches are pruned and reported with `-W`; the specification's allocation-leak and unjoined-thread lints do not exist in this compiler |
 | 19.6 | `luce fmt`, `--costs` | planned | |

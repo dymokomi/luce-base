@@ -5,11 +5,17 @@ import c
 import files
 import memory
 import paths
+import platform
 import strings
 import support.list
 
 extern func real_path as "realpath"(path: c.str, buffer: u8*?) -> u8*?
 extern func release_path as "free"(path: void*)
+extern func MultiByteToWideChar(page: u32, flags: u32, text: c.str, length: i32, output: u16*, capacity: i32) -> i32
+extern func WideCharToMultiByte(page: u32, flags: u32, text: const u16*, length: i32, output: u8*, capacity: i32, fallback: void*?, used_fallback: void*?) -> i32
+extern func CreateFileW(path: u16*, access: u32, share: u32, security: void*?, disposition: u32, flags: u32, template: void*?) -> void*
+extern func GetFinalPathNameByHandleW(file: void*, output: u16*, capacity: u32, flags: u32) -> u32
+extern func CloseHandle(handle: void*) -> i32
 
 pub let invalid: ErrorCode = ErrorCode.package(28)
 
@@ -34,9 +40,43 @@ struct Package:
 ## identify one module even if more than one public export names it.
 pub func canonical(path: str) -> str!:
     let terminated = try strings.copy(path)
+    if platform.windows:
+        return try canonical_windows((c.str)terminated)
     let resolved = real_path((c.str)terminated, none) else error(invalid, "a module or package path does not exist")
     defer release_path((void*)resolved)
     return try strings.copy((str)(c.str)resolved)
+
+func canonical_windows(path: c.str) -> str!:
+    if platform.windows:
+        let wide = try alloc u16[32768]
+        defer free(wide)
+        if MultiByteToWideChar(65001, 8, path, -1, wide.data, (i32)wide.length) == 0:
+            error(invalid, "a module or package path is not valid UTF-8 or is too long")
+        let handle = CreateFileW(wide.data, 0, 7, none, 3, 33554432, none)
+        if (usize)handle == 0xFFFFFFFFFFFFFFFF:
+            error(invalid, "a module or package path does not exist")
+        defer discard(CloseHandle(handle))
+        let length = GetFinalPathNameByHandleW(handle, wide.data, (u32)wide.length, 0)
+        if length == 0 or length >= wide.length:
+            error(invalid, "a module or package path could not be resolved")
+        # Strip the extended DOS prefix; UNC paths retain their two leading separators.
+        var start: usize = 0
+        if length >= 4 and wide[0] == 92 and wide[1] == 92 and wide[2] == 63 and wide[3] == 92:
+            start = 4
+            if length >= 8 and wide[4] == 85 and wide[5] == 78 and wide[6] == 67 and wide[7] == 92:
+                wide[6] = 92
+                start = 6
+        let output = try alloc u8[(usize)length * 4 + 1]
+        let count = WideCharToMultiByte(65001, 128, &wide[start], (i32)((usize)length - start), output.data, (i32)(output.length - 1), none, none)
+        if count == 0:
+            free(output)
+            error(invalid, "a canonical path could not be encoded as UTF-8")
+        for index in 0..<(usize)count:
+            if output[index] == 92:
+                output[index] = '/'
+        output[(usize)count] = 0
+        return (str)output[..<(usize)count]
+    error(invalid, "Windows path resolution requires Windows")
 
 func present(path: str) -> bool!:
     return files.exists((c.str)try strings.copy(path))

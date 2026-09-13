@@ -2481,6 +2481,9 @@ pub struct Emitter:
 
     ## An expression by its own type.
     mutating func expr(e: ast.Node*) -> !:
+        if let id = self.sequenced_id(e):
+            try self.put_tmp("sq", id)
+            return
         match e.kind:
             .literal:
                 try self.literal(e)
@@ -2980,6 +2983,18 @@ pub struct Emitter:
         let lt = try self.ty(l)
         let rt = try self.ty(r)
         let t = try self.ty(e)
+        # C arithmetic operators and helper-call arguments have no evaluation
+        # order. Snapshot both operands before an effect can change either value.
+        if self.sequenced_id(l) == none and self.sequenced_id(r) == none and (may_have_effect(l) or may_have_effect(r)):
+            try self.put("({ ")
+            var ordered: usize = 0
+            if lt != types.none_id:
+                ordered += try self.hoist(l, types.i64_id if lt == types.untyped_int_id else types.f64_id if lt == types.untyped_float_id else lt)
+            if rt != types.none_id:
+                ordered += try self.hoist(r, types.i64_id if rt == types.untyped_int_id else types.f64_id if rt == types.untyped_float_id else rt)
+            try self.binary(e)
+            try self.end_sequence(ordered)
+            return
         if self.is_vector(t):
             try self.vector_binary(e, l, lt, r, rt, t)
             return
@@ -4558,7 +4573,7 @@ pub struct Emitter:
         try self.put_type(want)
         try self.put(" ")
         try self.put_tmp("sq", n)
-        try self.put(" = ")
+        try self.put(" __attribute__((unused)) = ")
         try self.argument_value(v, want)
         try self.put("; ")
         try self.sequenced.push(Sequenced(node = v, id = n))
@@ -6507,11 +6522,16 @@ pub struct Emitter:
         self.target = to_body
         i = 0
         while i < self.modules.count:
+            # Standard functions are discovered by calls and interface conversions.
+            # Runtime glue also refers to these four modules by their C names.
+            let module_info = self.c.modules.get(i)
+            let runtime_root = module_info.name == "core" or module_info.name == "memory" or module_info.name == "io" or module_info.name == "testing"
+            let eager = not module_info.is_prelude or runtime_root
             var cursor = self.modules.get(i).body
             while let d = cursor:
-                if d.kind == ast.Kind.func_ and check.generic_params_of(d) == none:
+                if d.kind == ast.Kind.func_ and check.generic_params_of(d) == none and (eager or d.has(ast.flag_export) or d.attrs != none):
                     discard(try self.add_func(d, try types.no_args(), none, try types.no_args()))
-                elif (d.kind == ast.Kind.struct_ or d.kind == ast.Kind.enum_ or d.kind == ast.Kind.union_) and check.generic_params_of(d) == none:
+                elif eager and (d.kind == ast.Kind.struct_ or d.kind == ast.Kind.enum_ or d.kind == ast.Kind.union_) and check.generic_params_of(d) == none:
                     var member = d.body
                     while let m = member:
                         if m.kind == ast.Kind.func_ and check.generic_params_of(m) == none:
@@ -6758,14 +6778,12 @@ pub struct Emitter:
         if ft.args.length > 0:
             cstr_args = self.elem(ft.args[0]) == types.cstr_id
         try self.line("int main(int argc, char** argv) {")
+        try self.line("    lb_core_process_start();")
         try self.startup_lines()
         if cstr_args:
-            try self.line("    lb_span args = { (void*)argv, (size_t)argc };")
+            try self.line("    lb_span args = lb_core_raw_arguments(argc, argv);")
         else:
-            try self.line("    lb_str* items = (lb_str*)malloc((size_t)argc * sizeof(lb_str));")
-            try self.line("    if (items == NULL) { return 1; }")
-            try self.line("    for (int i = 0; i < argc; i++) { size_t n = 0; while (argv[i][n]) n++; lb_check_utf8(argv[i], n); items[i].data = argv[i]; items[i].length = n; }")
-            try self.line("    lb_span args = { items, (size_t)argc };")
+            try self.line("    lb_span args = lb_core_arguments(argc, argv);")
         # `main()` may also take no arguments at all
         let call = "lb_main(args)" if ft.args.length > 0 else "lb_main()"
         if ft.args.length == 0:
@@ -6781,7 +6799,7 @@ pub struct Emitter:
             try self.put(call)
             try self.put(";")
         if not cstr_args:
-            try self.line("    free(items);")
+            try self.line("    free(args.data);")
         try self.line("    return result;")
         try self.line("}")
 
@@ -6806,6 +6824,7 @@ pub struct Emitter:
 
     mutating func test_runner() -> !:
         try self.line("int main(void) {")
+        try self.line("    lb_core_process_start();")
         try self.startup_lines()
         try self.line("    int failed = 0;")
         var i: usize = 0

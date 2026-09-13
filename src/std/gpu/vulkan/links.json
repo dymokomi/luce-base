@@ -1,0 +1,9 @@
+{
+  "target": "x86_64-windows",
+  "requirements": [
+    {
+      "symbols": ["vkCreateInstance", "vkDestroyInstance", "vkCreateWin32SurfaceKHR", "vkQueuePresentKHR", "vkDeviceWaitIdle"],
+      "libraries": ["vulkan-1"]
+    }
+  ]
+}

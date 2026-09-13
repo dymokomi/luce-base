@@ -12,7 +12,12 @@
 
 #include "lucb_rt.h"
 
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#else
 #include <execinfo.h>
+#endif
 #include <inttypes.h>
 #include <math.h>
 #include <stdio.h>
@@ -180,8 +185,13 @@ static LB_NORETURN void finish_trap(void) {
     // `LB_TRACE=1` in the environment adds the C frames, for finding a trap in a C build
     if (getenv("LB_TRACE") != NULL) {
         void* frames[32];
+#ifdef _WIN32
+        USHORT depth = CaptureStackBackTrace(0, 32, frames, NULL);
+        for (USHORT i = 0; i < depth; ++i) fprintf(stderr, "%p\n", frames[i]);
+#else
         int depth = backtrace(frames, 32);
         backtrace_symbols_fd(frames, depth, 2);
+#endif
     }
     exit(1);
 }

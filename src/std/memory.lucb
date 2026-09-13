@@ -3,6 +3,8 @@ import platform
 extern func malloc(size: usize) -> void*?
 extern func c_free as "free"(block: void*)
 extern func posix_memalign(memptr: void*?*, alignment: usize, size: usize) -> i32
+extern func aligned_malloc as "_aligned_malloc"(size: usize, alignment: usize) -> void*?
+extern func aligned_free as "_aligned_free"(block: void*)
 extern func memcpy(target: void*, source: const void*, count: usize) -> void*
 extern func memmove(target: void*, source: const void*, count: usize) -> void*
 extern func memset(target: void*, value: i32, count: usize) -> void*
@@ -81,7 +83,9 @@ pub struct CAllocator: Allocator:
             return none
         let align = alignment if alignment > 8 else 8
         var p: void*? = none
-        if posix_memalign(&p, align, size) != 0:
+        if platform.windows:
+            p = aligned_malloc(size, align)
+        elif posix_memalign(&p, align, size) != 0:
             note_refusal("heap", size, align, 0)
             return none
         let block = p else return none
@@ -94,7 +98,7 @@ pub struct CAllocator: Allocator:
         if block.length == 0:
             return
         if not diagnostic:
-            c_free(block.data)
+            release_heap(block.data)
             return
         # the diagnostic profile (§19.4): the block is filled with a pattern and held back, so
         # a use after release reads the pattern rather than the next allocation
@@ -102,10 +106,16 @@ pub struct CAllocator: Allocator:
         lock(&records_lock)
         let slot = quarantine_next % quarantine.length
         if let old = quarantine[slot]:
-            c_free(old.data)
+            release_heap(old.data)
         quarantine[slot] = block
         quarantine_next += 1
         unlock(&records_lock)
+
+func release_heap(block: void*):
+    if platform.windows:
+        aligned_free(block)
+    else:
+        c_free(block)
 
 ## Bump allocation over a parent allocator, released all at once by `reset` or `destroy`
 ## (§12.4, §24.3). One thread at a time.
@@ -171,13 +181,13 @@ pub struct PageAllocator: Allocator:
     pub mutating func allocate(size: usize, alignment: usize) -> u8[]?:
         if size == 0:
             return u8[]((u8*)8, 0)
-        let page = (usize)getpagesize()
+        let page = system_page_size()
         if alignment > page or (alignment != 0 and page % alignment != 0):
             note_refusal("page allocator", size, alignment, 0)
             return none
         let padded = size +? (page - 1) else return none
         let rounded = padded // page * page
-        let mapped = mmap(none, rounded, 3, private_anonymous, -1, 0) else return none
+        let mapped = map_pages(rounded) else return none
         if (usize)mapped == 18446744073709551615:
             note_refusal("page allocator", size, alignment, 0)
             return none
@@ -190,7 +200,7 @@ pub struct PageAllocator: Allocator:
         if block.length == 0:
             return
         if not diagnostic:
-            discard(munmap(block.data, block.length))
+            unmap_pages(block)
             return
         # the diagnostic profile (§19.4): the mapping is filled and kept for a while, so a
         # use after release reads the pattern rather than faulting or reading a new mapping
@@ -198,7 +208,7 @@ pub struct PageAllocator: Allocator:
         lock(&records_lock)
         let slot = held_next % held_pages.length
         if let old = held_pages[slot]:
-            discard(munmap(old.data, old.length))
+            unmap_pages(old)
         held_pages[slot] = block
         held_next += 1
         unlock(&records_lock)
@@ -209,6 +219,27 @@ extern func mmap(address: void*?, length: usize, protection: i32, flags: i32, de
 let private_anonymous: i32 = 4098 if platform.macos else 34
 extern func munmap(address: void*, length: usize) -> i32
 extern func getpagesize() -> i32
+extern func GetSystemInfo(info: void*)
+extern func VirtualAlloc(address: void*?, size: usize, kind: u32, protection: u32) -> void*?
+extern func VirtualFree(address: void*, size: usize, kind: u32) -> i32
+
+func system_page_size() -> usize:
+    if platform.windows:
+        var info: u64[6]
+        GetSystemInfo(&info[0])
+        return (usize)((u32*)&info[0])[1]
+    return (usize)getpagesize()
+
+func map_pages(size: usize) -> void*?:
+    if platform.windows:
+        return VirtualAlloc(none, size, 12288, 4)
+    return mmap(none, size, 3, private_anonymous, -1, 0)
+
+func unmap_pages(block: u8[]):
+    if platform.windows:
+        discard(VirtualFree(block.data, 0, 32768))
+    else:
+        discard(munmap(block.data, block.length))
 
 ## The heap refusing a request is rare and worth a line on standard error: what was asked,
 ## so an exhaustion in the field says more than its error code. A fixed buffer running out

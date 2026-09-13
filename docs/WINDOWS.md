@@ -1,111 +1,117 @@
-# Native windows and input
+# Windows x64
 
-The first window backend is implemented entirely in luce-base, using macOS
-AppKit and the Objective-C runtime directly. SDL is not a dependency of this
-API. The existing SDL proving program is independent and remains in the test
-suite.
+Windows is a native `x86_64-windows` target. Base emits Win64 assembly and COFF
+objects, including shadow space, register preservation, aggregate calls and
+returns, TLS, stack probes and SEH unwind records. MinGW GCC supplies the assembler,
+linker, CRT and pthread library. `--backend=c` is the comparison backend.
 
-`input` contains portable, self-contained event values. `window` owns native
-window resources, enforces main-thread access, and dispatches OS events into
-one bounded queue per window. The API is provisional until a Linux backend
-has exercised the same contracts.
+## Build
 
-## Build the demonstration
+Install Python 3 and MinGW-w64 GCC with pthread support, and put `python`, `gcc`,
+`ar` and `nm` on PATH. MSYS2 UCRT64 is used by the Windows CI workflow. In PowerShell:
 
-On arm64 macOS, from the repository root:
-
-```sh
-./build/luce-base build tests/programs/native_window/main.lucb -o build/native-window
-./build/native-window
+```powershell
+python tools/build_windows.py
+.\build\luce-base.exe --version
+.\build\luce-base.exe build tests/samples/hello.lucb -o build/hello.exe
+.\build\hello.exe
 ```
 
-This uses the default native backend. The demonstration opens a window and
-reports resize and display-scale changes. Escape or the title-bar close
-button requests closure. This example draws nothing; the separate
-[GPU demonstration](GPU.md) attaches a Metal presentation surface.
+The first compiler comes from the checked-in Windows C snapshot. Two subsequent
+native generations must emit byte-identical C and assembly. To verify the C++
+bootstrap separately, build luce-seed with CMake and pass
+`--seed ../luce-seed/build-windows/lucb.exe` to this script.
 
-Standard `window` usage automatically links the backend’s AppKit, Foundation
-and Objective-C requirements. Applications need no platform link declarations.
+For a sibling Luce checkout:
 
-The test directory additionally links CoreGraphics to manufacture scroll
-events. The standard window implementation does not call CoreGraphics.
-Input-only and console programs require no AppKit linkage. Unsupported targets
-can import `window` and receive `window.unsupported` without linking AppKit.
+```powershell
+Set-Location ../luce
+python tools/build_windows.py
+$env:LUCE_BASE = (Resolve-Path ../luce-base/build/luce-base.exe).Path
+.\build\luce.exe build tests/programs/calc/main.luc -o build/calc.exe
+```
 
-## Ownership and events
+Native builds append `.exe` to an output name with no extension. Source is UTF-8,
+with an optional leading UTF-8 BOM; LF and CRLF source lines are accepted. UTF-16
+source files must be saved as UTF-8. Generators explicitly read and write UTF-8.
 
-- `Window.open` creates a hidden window with a UTF-8 title and content dimensions
-  between 1 and 10000 logical points. `show` makes it visible and requests
-  activation; macOS controls foreground focus.
-- Every operation runs on the main thread. Fallible methods report
-  `wrong_thread`; destroying an open window on another thread traps. The zero
-  value is closed, and destroying the same value again is harmless. Copying a
-  window aliases ownership: borrow it and destroy exactly one owner.
-- `poll` first drains that window's events, then pumps at most 256 OS events
-  without waiting for a new event. AppKit may enter its own tracking loop while
-  dragging or resizing a window. Poll regularly for every open window.
-- Each window stores 256 events without allocating during dispatch. On overflow,
-  queued events are discarded and an `overflow` event precedes retained newer
-  input. Close requests have priority and survive overflow. Discard held-key and
-  held-button state on overflow or focus loss.
-- A close request is a decision for the application; it does not release the
-  window. `destroy` closes the window and detaches callbacks. A live
-  `Presentation` lease retains its native host and Base storage until the graphics
-  surface releases the lease; otherwise destruction releases them immediately.
-  The process-wide NSApplication and registered runtime classes remain
-  until process exit. This API manages application activation policy and is
-  intended for Base-owned application event loops.
-- Pointer coordinates use logical points, with the origin at the content's top
-  left. `size` separately returns logical extent, backing-pixel extent, and
-  display scale. Query it after a `resized` event, including display changes.
-- Physical keys use USB HID keyboard-page positions. They are not characters.
-  The initial map covers the main keyboard, navigation, modifiers, and F1–F12;
-  unmapped keypad and international positions return `unknown`. Modifier changes
-  have their own event and include the current aggregate modifier state.
-- Mouse wheels report line deltas; precise scrolling reports point deltas.
-  Both retain macOS's user-selected scrolling direction. Touchpad scrolling is
-  supported; raw touches, gesture phases, and momentum phases are not yet exposed.
+## OS contracts
+
+Application code uses `paths`, `files`, `os`, `process`, `net`, `window` and `gpu`.
+Target facts and ABI types live in `platform` and `back/target`; platform-specific
+operations sit behind the corresponding standard module. Unix implementations
+remain selected on Unix. Windows filesystem, environment, command-line and window
+text crosses Win32 boundaries as UTF-16 and is exposed to Base as UTF-8.
+
+`paths.separator`, `root`, `is_rooted`, `is_absolute`, `directory`, `base`, `stem`,
+`join` and `normalize` share the target's path rules. Windows accepts both slash
+styles, drive roots, drive-relative names, UNC shares and extended namespaces.
+`C:child` is relative to the drive's current directory; `C:\child` is absolute.
+`normalize` removes lexical dot segments and redundant separators; it does not
+resolve symlinks or establish containment. Do not use lexical normalization as a
+filesystem security check. Allocated path results must be released as documented.
+
+Files support 64-bit offsets, Unicode names, hardlinks, symlinks, no-follow opening,
+rename while open, timestamps and temporary publication. Windows permission bits
+represent the read-only attribute, not POSIX ownership or NTFS ACLs. Directory-
+relative operations resolve the directory handle's current name before the wide
+filesystem call; they do not provide Unix `openat` atomicity across a concurrent
+directory rename. Symlink creation requires Windows Developer Mode or the relevant
+privilege; creating a dangling directory symlink requires the directory hint.
+
+Subprocess arguments use CRT quoting and `CreateProcessW`. Captured streams use
+Unicode, atomic, delete-on-close temporary files, so large stdout and stderr do
+not deadlock each other. Windows sockets use pointer-sized handles and Winsock
+errors rather than CRT file descriptors. Deadlines and nonblocking behavior are
+implemented through Winsock polling. Server shutdown uses console control events.
+
+GNU tools still have a narrow filename boundary: the compiler links in a private
+ASCII scratch directory and publishes the result with Unicode filesystem calls.
+A Unicode TEMP directory needs an ASCII short-name alias; if the filesystem has
+short names disabled, set TEMP and TMP to an existing ASCII directory. Public
+source and output paths remain UTF-8. External C source and library paths must
+also be representable to the selected GNU toolchain.
+
+## Windows and Vulkan
+
+Install the LunarG Vulkan SDK and a graphics driver with Vulkan presentation
+support. Start a fresh terminal after installation so `VULKAN_SDK` is available.
+The compiler selects Win32 and Vulkan link libraries from actual module usage;
+ordinary CPU programs do not require the SDK. Checked-in SPIR-V avoids a shader
+compiler dependency for normal builds. Shader regeneration uses
+`python tools/embed_vulkan_shaders.py`.
+
+`window` implements Win32 windows, DPI sizing, keyboard/mouse input, close events
+and presentation ownership. `gpu` selects Vulkan on Windows and Metal on macOS.
+The Vulkan backend implements the existing triangle/UI frame API, depth testing,
+blending, scissoring, swapchain resize and presentation. It currently waits for
+the presentation queue each frame and uploads into host-visible coherent memory;
+performance tuning and broader GPU feature coverage remain future work.
+
+From `luce-demos`, `python tools/build.py --help` describes the UI and sphere
+builds. `python tests/run.py --gui` creates real windows and exercises both demos
+at all four native optimization levels. These checks need an interactive desktop
+and a Vulkan-capable driver; hosted CI runs the CPU contracts separately.
 
 ## Validation
 
-```sh
-tests/programs/abi_scalars/check.sh
-LUCE_TEST_WINDOW=required tests/programs/native_window/check.sh
+```powershell
+.\build\luce-base.exe test src/main.lucb
+python tools/test_windows.py --suite conformance --c
+python tools/test_windows.py --suite samples --c
+python tools/test_windows_arguments.py --compiler build/luce-base.exe
+python tools/test_windows_native.py
+python tests/programs/net_protocols/run.py build/luce-base.exe
+$env:VK_INSTANCE_LAYERS = 'VK_LAYER_KHRONOS_validation'
+$env:VK_LAYER_VALIDATE_SYNC = '1'
+python tools/test_windows_native.py --gpu
+python tools/test_vulkan_abi.py --help
 ```
 
-The window checks build and run native optimization levels 0–3 and C debug and
-release comparisons. They exercise actual AppKit windows, aggregate ABI calls,
-resize/backing extent, native keyboard and mouse dispatch, modifiers, scrolling,
-multiple-window isolation, overflow, close requests, and repeated destruction.
-Focus notifications are injected through NSNotificationCenter because automated
-tests cannot require macOS to grant foreground activation. They do not simulate
-physical system-wide input or require accessibility permission.
-
-Non-GUI contracts always run. `LUCE_TEST_WINDOW=optional` (the default) records
-a GUI skip when no desktop session is available; `off` explicitly runs contracts
-only. A required GUI run fails when no desktop exists. All test artifacts are
-temporary. The separate scalar ABI test uses independent C callers and callees
-to check native stack packing, signed extension, floating spills, and varargs.
-
-## Following increments
-
-The [GPU foundation](GPU.md) now provides Metal clear/present, tied to window
-lifetime and backing-size changes. Next:
-
-1. Implement Linux window/input support and Vulkan presentation, then revise the
-   shared contracts using evidence from both platforms.
-2. Define a portable shader and resource model before exposing application
-   shaders as a stable API.
-3. Build `luce-ui` as a Base package over `window`, `input`, and `gpu`, starting
-   with a button; then demonstrate it from high-level Luce.
-
-Text composition/IME, clipboard, drag and drop, accessibility, fullscreen,
-application menus, and richer touchpad gestures are separate work. No platform
-shader-language promise is implied by the window/input API.
-
-Implementation references: [Apple NSWindow](https://developer.apple.com/documentation/appkit/nswindow),
-[AppKit event retrieval](https://developer.apple.com/documentation/appkit/nsapplication/nextevent%28matching%3Auntil%3Ainmode%3Adequeue%3A%29),
-the installed macOS SDK's Objective-C and AppKit headers,
-[SDL Cocoa event handling](https://github.com/libsdl-org/SDL/blob/main/src/video/cocoa/SDL_cocoaevents.m),
-and [GLFW Cocoa initialization](https://github.com/glfw/glfw/blob/master/src/cocoa_init.m).
-The Base implementation uses those projects as references, without linking them.
+The native contract runner covers files, IPv4/IPv6 TCP and UDP, cancellation,
+deadlines and stack unwinding through an independent C/Windows SDK oracle. Its
+optional GUI cases exercise Win32 and actual Vulkan presentation. Each runs in
+native opt 0–3 and C debug/release modes. JSON results are retained in `build/`.
+Vulkan ABI checks compare all fields of 63 records against the installed SDK.
+See [the local validation record](WINDOWS_VALIDATION.md) for observed results and
+the distinction between Windows execution and Unix cross-compilation.

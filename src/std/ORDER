@@ -2,6 +2,7 @@ platform
 c
 core
 memory
+os
 io
 luce
 atomic
@@ -17,7 +18,6 @@ files
 math
 math32
 time
-os
 testing
 net
 interop

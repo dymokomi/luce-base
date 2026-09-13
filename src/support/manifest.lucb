@@ -12,7 +12,9 @@
 #
 #==============================================================================================
 
+import paths
 import c
+import platform
 import files
 import memory
 
@@ -178,20 +180,22 @@ pub func directory_of(path: str) -> str:
     var end: usize = 0
     var i: usize = 0
     while i < b.length:
-        if b[i] == '/':
+        if paths.separator(b[i]):
             end = i + 1
         i += 1
     return (str)b[..<end]
 
 ## The directory above `dir`, with its trailing slash; empty at the top.
 pub func parent_of(dir: str) -> str:
+    if paths.root(dir).length == dir.length:
+        return ""
     let b = dir.bytes
     if b.length == 0:
         return ""
     var end: usize = 0
     var i: usize = 0
     while i + 1 < b.length:
-        if b[i] == '/':
+        if paths.separator(b[i]):
             end = i + 1
         i += 1
     return (str)b[..<end]

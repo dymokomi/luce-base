@@ -131,6 +131,10 @@ func linux_metadata(value: LinuxMetadata) -> Metadata:
 ## query that entry itself, including dangling links. Intermediate links resolve
 ## normally. Interrupted calls retry; failure never returns partly filled metadata.
 pub func metadata(path: c.str, follow_symlinks: bool = true) -> Metadata!:
+    if platform.windows:
+        let handle = try windows_path_handle(path, follow_symlinks)
+        defer discard(CloseHandle(handle))
+        return try windows_metadata(handle, follow_symlinks)
     if platform.macos:
         var raw: MacMetadata
         while true:
@@ -149,6 +153,8 @@ pub func metadata(path: c.str, follow_symlinks: bool = true) -> Metadata!:
                 error(classify_error(c.errno()), "file metadata could not be read")
 
 func metadata_descriptor(descriptor: i32) -> Metadata!:
+    if platform.windows:
+        return try windows_metadata((void*)win_handle(descriptor), true)
     if platform.macos:
         var raw: MacMetadata
         while true:
@@ -166,6 +172,10 @@ func metadata_descriptor(descriptor: i32) -> Metadata!:
                 error(classify_error(c.errno()), "open-file metadata could not be read")
 
 func metadata_at(directory: i32, path: c.str, follow_symlinks: bool) -> Metadata!:
+    if platform.windows:
+        let joined = try windows_relative(directory, path)
+        defer strings.release(joined)
+        return try metadata((c.str)joined, follow_symlinks)
     let flags: i32 = 0 if follow_symlinks else at_no_follow_flag
     if platform.macos:
         var raw: MacMetadata

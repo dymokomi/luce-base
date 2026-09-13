@@ -1,0 +1,74 @@
+extern func GetModuleHandleW(name: u16*?) -> void*
+
+struct VulkanDevice:
+    var instance: u64
+    var physical: u64
+    var device: u64
+    var queue: u64
+    var family: u32
+    var memory: VkPhysicalDeviceMemoryProperties
+
+func vulkan_check(result: i32, message: str) -> !:
+    if result != 0:
+        error(failed, message)
+
+func vulkan_device_open() -> VulkanDevice*!:
+    let state = try new VulkanDevice() in memory.heap
+    errdefer vulkan_device_destroy(state)
+    var application = VkApplicationInfo(sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
+        pApplicationName = "Luce", pEngineName = "Luce", apiVersion = 4194304)
+    var extensions: c.str[2] = ["VK_KHR_surface", "VK_KHR_win32_surface"]
+    var instance_info = VkInstanceCreateInfo(sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
+        pApplicationInfo = &application, enabledExtensionCount = 2, ppEnabledExtensionNames = &extensions[0])
+    if vkCreateInstance(&instance_info, none, &state.instance) != 0:
+        error(unavailable, "a Vulkan instance with Windows presentation is unavailable")
+    var count: u32 = 0
+    try vulkan_check(vkEnumeratePhysicalDevices(state.instance, &count, none), "Vulkan devices could not be enumerated")
+    if count == 0:
+        error(unavailable, "no Vulkan device is available")
+    let devices = try alloc u64[(usize)count]
+    defer free(devices)
+    try vulkan_check(vkEnumeratePhysicalDevices(state.instance, &count, devices.data), "Vulkan devices changed during enumeration")
+    for index in 0..<(usize)count:
+        let physical = devices[index]
+        var families: u32 = 0
+        vkGetPhysicalDeviceQueueFamilyProperties(physical, &families, none)
+        let properties = try alloc VkQueueFamilyProperties[(usize)families]
+        defer free(properties)
+        vkGetPhysicalDeviceQueueFamilyProperties(physical, &families, properties.data)
+        for family in 0..<(usize)families:
+            if properties[family].queueCount == 0 or (properties[family].queueFlags & 1) == 0 or vkGetPhysicalDeviceWin32PresentationSupportKHR(physical, (u32)family) == 0:
+                continue
+            var priority: f32 = 1.0
+            var queue_info = VkDeviceQueueCreateInfo(sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+                queueFamilyIndex = (u32)family, queueCount = 1, pQueuePriorities = &priority)
+            var device_extension: c.str = "VK_KHR_swapchain"
+            var device_info = VkDeviceCreateInfo(sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
+                queueCreateInfoCount = 1, pQueueCreateInfos = &queue_info,
+                enabledExtensionCount = 1, ppEnabledExtensionNames = &device_extension)
+            if vkCreateDevice(physical, &device_info, none, &state.device) != 0:
+                continue
+            state.physical = physical
+            state.family = (u32)family
+            vkGetDeviceQueue(state.device, state.family, 0, &state.queue)
+            vkGetPhysicalDeviceMemoryProperties(physical, &state.memory)
+            return state
+    error(unavailable, "no Vulkan graphics queue supports Windows presentation")
+
+func vulkan_device_destroy(state: VulkanDevice*):
+    if state.device != 0:
+        discard(vkDeviceWaitIdle(state.device))
+        vkDestroyDevice(state.device, none)
+    if state.instance != 0:
+        vkDestroyInstance(state.instance, none)
+    free(state) in memory.heap
+
+func vulkan_memory(device: VulkanDevice*, requirements: VkMemoryRequirements, flags: u32) -> u64!:
+    for index in 0..<(usize)device.memory.memoryTypeCount:
+        if (requirements.memoryTypeBits & (1u32 << (u32)index)) != 0 and (device.memory.memoryTypes[index].propertyFlags & flags) == flags:
+            var info = VkMemoryAllocateInfo(sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+                allocationSize = requirements.size, memoryTypeIndex = (u32)index)
+            var block: u64 = 0
+            try vulkan_check(vkAllocateMemory(device.device, &info, none, &block), "Vulkan device memory allocation failed")
+            return block
+    error(unavailable, "no compatible Vulkan memory type is available")

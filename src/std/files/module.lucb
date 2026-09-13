@@ -4,15 +4,48 @@ import platform
 import io
 import paths
 import strings
+import os
 
 extern func open(path: c.str, flags: i32, ...) -> i32
 extern func openat(directory: i32, path: c.str, flags: i32, ...) -> i32
 extern func close(descriptor: i32) -> i32
-extern func c_read as "read"(descriptor: i32, buffer: void*, count: usize) -> isize
-extern func c_write as "write"(descriptor: i32, buffer: const void*, count: usize) -> isize
-extern func lseek(descriptor: i32, offset: i64, whence: i32) -> i64
-extern func fsync(descriptor: i32) -> i32
-extern func ftruncate(descriptor: i32, length: i64) -> i32
+extern func posix_read as "read"(descriptor: i32, buffer: void*, count: usize) -> isize
+extern func posix_write as "write"(descriptor: i32, buffer: const void*, count: usize) -> isize
+extern func win_read as "_read"(descriptor: i32, buffer: void*, count: u32) -> i32
+extern func win_write as "_write"(descriptor: i32, buffer: const void*, count: u32) -> i32
+
+func c_read(descriptor: i32, buffer: void*, count: usize) -> isize:
+    if platform.windows:
+        return (isize)win_read(descriptor, buffer, (u32)(count if count < 2147483647 else 2147483647))
+    return posix_read(descriptor, buffer, count)
+
+func c_write(descriptor: i32, buffer: const void*, count: usize) -> isize:
+    if platform.windows:
+        return (isize)win_write(descriptor, buffer, (u32)(count if count < 2147483647 else 2147483647))
+    return posix_write(descriptor, buffer, count)
+extern func posix_lseek as "lseek"(descriptor: i32, offset: i64, whence: i32) -> i64
+extern func windows_lseek as "_lseeki64"(descriptor: i32, offset: i64, whence: i32) -> i64
+extern func posix_fsync as "fsync"(descriptor: i32) -> i32
+extern func windows_fsync as "_commit"(descriptor: i32) -> i32
+extern func posix_ftruncate as "ftruncate"(descriptor: i32, length: i64) -> i32
+extern func windows_ftruncate as "_chsize_s"(descriptor: i32, length: i64) -> i32
+
+func lseek(descriptor: i32, offset: i64, whence: i32) -> i64:
+    if platform.windows: return windows_lseek(descriptor, offset, whence)
+    return posix_lseek(descriptor, offset, whence)
+
+func fsync(descriptor: i32) -> i32:
+    if platform.windows: return windows_fsync(descriptor)
+    return posix_fsync(descriptor)
+
+func ftruncate(descriptor: i32, length: i64) -> i32:
+    if platform.windows:
+        let result = windows_ftruncate(descriptor, length)
+        if result != 0:
+            c.set_errno(result)
+            return -1
+        return 0
+    return posix_ftruncate(descriptor, length)
 extern func fchmod_macos as "fchmod"(descriptor: i32, permissions: u16) -> i32
 extern func fchmod_linux as "fchmod"(descriptor: i32, permissions: u32) -> i32
 extern func fdopendir(descriptor: i32) -> void*?
@@ -52,6 +85,8 @@ extern struct LinuxEntry:
 
 ## The next entry's name, or none at the end; `.` and `..` are entries like any other.
 func next_entry(directory: void*) -> str?!:
+    if platform.windows:
+        return try windows_next((WinDirectory*)directory)
     while true:
         c.set_errno(0)
         if platform.macos:
@@ -72,11 +107,11 @@ func next_entry(directory: void*) -> str?!:
 
 ## `open` flags: macOS keeps the BSD values, Linux its own (§19.5).
 let write_only: i32 = 1
-let create: i32 = 512 if platform.macos else 64
-let truncate: i32 = 1024 if platform.macos else 512
-let close_on_exec: i32 = 16777216 if platform.macos else 524288
-let append_flag: i32 = 8 if platform.macos else 1024
-let exclusive_flag: i32 = 2048 if platform.macos else 128
+let create: i32 = 256 if platform.windows else (512 if platform.macos else 64)
+let truncate: i32 = 512 if platform.windows else (1024 if platform.macos else 512)
+let close_on_exec: i32 = 128 if platform.windows else (16777216 if platform.macos else 524288)
+let append_flag: i32 = 8 if platform.windows or platform.macos else 1024
+let exclusive_flag: i32 = 1024 if platform.windows else (2048 if platform.macos else 128)
 let would_block_errno: i32 = 35 if platform.macos else 11
 let transfer_limit: usize = 1073741824
 let current_directory_fd: i32 = -2 if platform.macos else -100

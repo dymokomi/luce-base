@@ -21,15 +21,15 @@ out.append('''#=================================================================
 
 ''')
 for name, file in files:
-    text = (root / "runtime" / file).read_text()
+    text = (root / "runtime" / file).read_text(encoding="utf-8")
     assert '"""' not in text, file
     out.append(f"## The text of `runtime/{file}`.\npub let {name}: str = r\"\"\"{text}\"\"\"\n\n")
 target = root / "src" / "support" / "runtime.lucb"
 text = "".join(out).rstrip("\n") + "\n"
 if "--check" in sys.argv:
-    if target.read_text() != text:
+    if target.read_text(encoding="utf-8") != text:
         print("src/support/runtime.lucb is not what runtime/ says; run tools/embed_runtime.py")
         sys.exit(1)
     sys.exit(0)
-target.write_text(text)
+target.write_text(text, encoding="utf-8", newline="\n")
 print("wrote src/support/runtime.lucb")

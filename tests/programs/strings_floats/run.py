@@ -93,6 +93,9 @@ for exponent in (-1075, -1074, -150, -149, -54, -53, -25, -24, 0, 100):
 
 
 def run(command):
+    if os.name == 'nt':
+        subprocess.run(list(map(str, command)), cwd=ROOT, check=True, timeout=180)
+        return
     subprocess.run([sys.executable, ROOT / "tools/run_case.py", "--", *command], cwd=ROOT, check=True)
 
 
@@ -101,7 +104,7 @@ with tempfile.TemporaryDirectory(prefix="base-string-floats-") as temporary:
     reference_file = work / "corpus.bin"
     reference_file.write_bytes(corpus)
     run([*shlex.split(os.environ.get("CC", "cc")), "-Wall", "-Wextra", "-Werror",
-         "-c", SOURCE / "reference.c", "-o", work / "reference.o"])
+         "-c", SOURCE / ("reference_windows.c" if os.name == 'nt' else "reference.c"), "-o", work / "reference.o"])
     run(["ar", "rcs", work / "libreference.a", work / "reference.o"])
     for flags in [*[["--native", "--opt", str(level)] for level in range(4)],
                   ["--backend=c"], ["--backend=c", "--release"]]:

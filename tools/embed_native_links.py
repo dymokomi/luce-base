@@ -7,7 +7,7 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 rows = set()
 for path in sorted((ROOT / 'src/std').rglob('links.json')):
-    data = json.loads(path.read_text())
+    data = json.loads(path.read_text(encoding="utf-8"))
     for requirement in data['requirements']:
         for symbol in requirement['symbols']:
             for kind in ('libraries', 'frameworks'):
@@ -23,8 +23,8 @@ lines.append(']')
 text = '\n'.join(lines) + '\n'
 output = ROOT / 'src/support/native_link_table.lucb'
 if '--check' in sys.argv:
-    if not output.exists() or output.read_text() != text:
+    if not output.exists() or output.read_text(encoding="utf-8") != text:
         raise SystemExit('native link table is stale; run tools/embed_native_links.py')
 else:
-    output.write_text(text)
+    output.write_text(text, encoding="utf-8", newline="\n")
     print('wrote src/support/native_link_table.lucb')

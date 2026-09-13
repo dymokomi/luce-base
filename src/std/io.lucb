@@ -2,11 +2,20 @@ import c
 import core
 import memory
 import platform
+import os
 extern func fwrite(data: const void*, size: usize, count: usize, stream: void*) -> usize
 extern func fflush(stream: void*?) -> i32
 extern func flockfile(stream: void*)
 extern func funlockfile(stream: void*)
-extern func c_read as "read"(descriptor: i32, buffer: void*, count: usize) -> isize
+extern func win_lock_file as "_lock_file"(stream: void*)
+extern func win_unlock_file as "_unlock_file"(stream: void*)
+extern func posix_read as "read"(descriptor: i32, buffer: void*, count: usize) -> isize
+extern func windows_read as "_read"(descriptor: i32, buffer: void*, count: u32) -> i32
+
+func c_read(descriptor: i32, buffer: void*, count: usize) -> isize:
+    if platform.windows:
+        return (isize)windows_read(descriptor, buffer, (u32)(count if count < 2147483647 else 2147483647))
+    return posix_read(descriptor, buffer, count)
 
 ## A borrowed byte source. A successful read returns at most the buffer length;
 ## zero for a nonempty buffer means EOF. Empty reads return zero without consuming
@@ -251,13 +260,25 @@ pub struct File: Writer:
         if data.length == 0:
             return 0
         let stream = try self.stream()
-        flockfile(stream)
-        defer funlockfile(stream)
+        lock_stream(stream)
+        defer unlock_stream(stream)
         let written = fwrite(data.data, 1, data.length, stream)
         let flushed = fflush(stream)
         if written != data.length or flushed != 0:
             error(closed, "the stream refused the bytes")
         return written
+
+func lock_stream(stream: void*):
+    if platform.windows:
+        win_lock_file(stream)
+    else:
+        flockfile(stream)
+
+func unlock_stream(stream: void*):
+    if platform.windows:
+        win_unlock_file(stream)
+    else:
+        funlockfile(stream)
 
 var out_file: File = File(descriptor = 1)
 var err_file: File = File(descriptor = 2)
@@ -323,26 +344,37 @@ pub struct FormatSink: Writer:
 pub struct path:
     var unused: u8
 
-    ## The user's home directory: `$HOME`.
+    ## The user's home directory: USERPROFILE on Windows, HOME on POSIX.
     pub static func user() -> str!:
-        let home = getenv("HOME") else error(io_path_failed, "no home directory")
-        return (str)home
+        let home = os.env("USERPROFILE" if platform.windows else "HOME") else error(io_path_failed, "no home directory")
+        return home
 
     pub static func home() -> str!:
         return try path.user()
 
     ## Where temporary files go: `$TMPDIR`, else `/tmp`.
     pub static func temp() -> str:
-        let dir = getenv("TMPDIR") else return "/tmp"
-        return (str)dir
+        if platform.windows:
+            if let dir = os.env("TEMP"):
+                if dir.length > 0: return dir
+            if let dir = os.env("TMP"):
+                if dir.length > 0: return dir
+            return "."
+        let dir = os.env("TMPDIR") else return "/tmp"
+        return dir
 
     ## Where configuration lives: `$XDG_CONFIG_HOME`, else `$HOME/.config`.
     pub static func config() -> str!:
-        if let set = getenv("XDG_CONFIG_HOME"):
-            return (str)set
+        if platform.windows:
+            if let set = os.env("APPDATA"):
+                if set.length > 0: return set
+            let home = try path.user()
+            let buffer = try alloc u8[home.length + 17]
+            return try format(buffer, f"{home}/AppData/Roaming")
+        if let set = os.env("XDG_CONFIG_HOME"):
+            return set
         let home = try path.user()
-        let buffer = try alloc u8[home.length + 8]
+        let buffer = try alloc u8[home.length + 9]
         return try format(buffer, f"{home}/.config")
 
-extern func getenv(name: c.str) -> c.str?
 pub let io_path_failed: ErrorCode = ErrorCode.package(13)

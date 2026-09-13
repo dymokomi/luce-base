@@ -75,9 +75,9 @@ doc.append("## `c`\n\nThe C types (`c.int`, `c.long`, `c.char`, `c.str`, `c.va_l
 target = root / "docs" / "LIBRARY.md"
 text = "\n".join(doc)
 if "--check" in sys.argv:
-    if target.read_text() != text:
+    if target.read_text(encoding="utf-8") != text:
         print("docs/LIBRARY.md is not what src/std/ says; run tools/library_reference.py")
         sys.exit(1)
     sys.exit(0)
-target.write_text(text)
+target.write_text(text, encoding="utf-8", newline="\n")
 print("wrote docs/LIBRARY.md")

@@ -46,9 +46,9 @@ for name in names:
 out.append("]\n")
 target = root / "src" / "sema" / "prelude.lucb"
 if "--check" in sys.argv:
-    if target.read_text() != "".join(out):
+    if target.read_text(encoding="utf-8") != "".join(out):
         print("src/sema/prelude.lucb is not what src/std/ says; run tools/embed_std.py")
         sys.exit(1)
     sys.exit(0)
-target.write_text("".join(out))
+target.write_text("".join(out), encoding="utf-8", newline="\n")
 print(f"wrote src/sema/prelude.lucb ({len(names)} modules)")

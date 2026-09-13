@@ -3897,6 +3897,11 @@ pub struct Lowerer:
             return LowerValue(ref = ir.const_ref(0), type_id = types.unit_id, in_memory = false)
         if module == "c" and (name == "stdin" or name == "stdout" or name == "stderr"):
             let t = self.c.build_target
+            if t.os == targets.Os.windows:
+                let start = u32(self.f.args.count)
+                try self.f.args.push(ir.Arg(value = ir.const_ref(0 if name == "stdin" else (1 if name == "stdout" else 2)), cls = ir.Class.w, size = 0, align = 4, type_id = types.u32_id, shape = 0))
+                let value = try self.call_named("__acrt_iob_func", start, 1, ir.Class.l, true, types.usize_id)
+                return LowerValue(ref = value, type_id = try self.ty(e), in_memory = false)
             let stream = try self.f.address_of(ir.import_ref(t.stdin_symbol if name == "stdin" else (t.stdout_symbol if name == "stdout" else t.stderr_symbol)))
             let value = try self.f.load(ir.Op.loadl, ir.Class.l, stream)
             return LowerValue(ref = value, type_id = try self.ty(e), in_memory = false)
@@ -4536,6 +4541,7 @@ pub struct Lowerer:
         if self.diagnostic:
             # the allocator quarantines what is released (§19.4)
             try self.f.store(ir.Op.storeb, ir.const_ref(1), try self.f.address_of(ir.global_ref("lb_memory_diagnostic")))
+        discard(try self.call_named("lb_core_process_start", u32(self.f.args.count), 0, ir.Class.w, false, types.unit_id))
         discard(try self.call_named("lb_memory_startup", u32(self.f.args.count), 0, ir.Class.w, false, types.unit_id))
         let exit_code = try self.f.slot(4, 4)
         try self.f.store(ir.Op.storew, ir.const_ref(0), try self.slot_address(exit_code))

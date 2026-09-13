@@ -67,6 +67,8 @@ struct ResolverQuery:
     var family: i32
 
     static func open(host: c.str, version: IpVersion?) -> ResolverQuery!:
+        if platform.windows:
+            try windows_socket_startup()
         var family: i32 = 0
         if let requested = version:
             if requested != IpVersion.ipv4 and requested != IpVersion.ipv6:

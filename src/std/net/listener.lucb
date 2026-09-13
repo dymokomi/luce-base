@@ -19,12 +19,12 @@ pub struct Listener:
         if address.ip.kind == IpVersion.ipv6:
             try set_socket_integer(fd, ipv6_level, ipv6_only_option, 1 if ipv6_only else 0)
         if bind(fd, &raw, length) != 0:
-            error(socket_error(c.errno()), "the listener could not bind its address")
+            error(socket_error(socket_errno()), "the listener could not bind its address")
         var result = listen(fd, backlog)
-        while result < 0 and c.errno() == c.interrupted:
+        while result < 0 and socket_errno() == socket_interrupted:
             result = listen(fd, backlog)
         if result != 0:
-            error(socket_error(c.errno()), "the listener could not begin listening")
+            error(socket_error(socket_errno()), "the listener could not begin listening")
         return Listener(socket = owned)
 
     ## Query the bound endpoint, including an automatically assigned port.
@@ -37,10 +37,10 @@ pub struct Listener:
     pub func accept(nonblocking: bool = false) -> Connection!:
         let descriptor = try self.socket.require()
         var fd = accept_socket(descriptor)
-        while fd < 0 and c.errno() == c.interrupted:
+        while fd < 0 and socket_errno() == socket_interrupted:
             fd = accept_socket(descriptor)
         if fd < 0:
-            error(socket_error(c.errno()), "the listener could not accept a connection")
+            error(socket_error(socket_errno()), "the listener could not accept a connection")
         var connection = try Connection.over(fd)
         errdefer connection.destroy()
         try connection.set_nonblocking(nonblocking)
@@ -56,8 +56,12 @@ pub struct Listener:
     ## share this setting; synchronize changes with all users of this socket.
     pub mutating func set_nonblocking(enabled: bool) -> !:
         try set_nonblocking(try self.socket.require(), enabled)
+        self.socket.nonblocking = enabled
 
     pub func is_nonblocking() -> bool!:
+        if platform.windows:
+            discard(try self.socket.require())
+            return self.socket.nonblocking
         return (try socket_status_flags(try self.socket.require()) & nonblocking_flag) != 0
 
     ## Request kernel buffering in bytes, not a guaranteed transfer size. The OS
@@ -77,7 +81,7 @@ pub struct Listener:
         return try get_socket_integer(try self.socket.require(), socket_level, send_buffer_option)
 
     ## Borrow the descriptor; the caller must not close it or retain it past this owner.
-    pub func descriptor() -> i32?:
+    pub func descriptor() -> platform.SocketDescriptor?:
         return self.socket.value
 
     ## Consume ownership before the OS call. Repeated close is safe even after failure.
@@ -88,7 +92,7 @@ pub struct Listener:
     pub mutating func destroy():
         self.socket.destroy()
 
-func accept_socket(descriptor: i32) -> i32:
-    if platform.macos:
+func accept_socket(descriptor: platform.SocketDescriptor) -> platform.SocketDescriptor:
+    if platform.macos or platform.windows:
         return accept(descriptor, none, none)
     return accept4(descriptor, none, none, socket_close_on_exec)

@@ -3,6 +3,7 @@ import input
 import memory
 import platform
 import utf8
+import thread
 
 pub let unsupported: ErrorCode = ErrorCode.package(85)
 pub let wrong_thread: ErrorCode = ErrorCode.package(86)
@@ -11,11 +12,11 @@ pub let failed: ErrorCode = ErrorCode.package(88)
 pub let closed: ErrorCode = ErrorCode.package(89)
 pub let presentation_in_use: ErrorCode = ErrorCode.package(90)
 
-## This first backend supports arm64 macOS. Link AppKit, Foundation, and objc.
-## Importing input alone has no window-system dependency. Other targets return
+## Native windows support arm64 macOS and x86_64 Windows. The compiler selects
+## system link dependencies. Importing input alone has no window-system dependency. Other targets return
 ## unsupported before entering platform code. Linux support is a later increment.
 pub func supported() -> bool:
-    return platform.macos and platform.arm64
+    return (platform.macos and platform.arm64) or (platform.windows and platform.x86_64)
 
 pub struct Options:
     pub var title: str = "Luce"
@@ -49,17 +50,23 @@ pub struct Window:
             error(invalid_options, "the window title is not valid UTF-8")
         if platform.macos and platform.arm64:
             return Window(state = try mac_open(options))
+        if platform.windows:
+            return Window(state = try win_open(options))
         error(unsupported, "native windows are not implemented for this target")
 
     pub func show() -> !:
         let state = try self.checked()
         if platform.macos and platform.arm64:
             mac_show(state)
+        if platform.windows:
+            discard(ShowWindow(required(state.native), 5))
 
     pub func size() -> Size!:
         let state = try self.checked()
         if platform.macos and platform.arm64:
             return mac_size(state)
+        if platform.windows:
+            return win_size(state)
         error(unsupported, "native windows are not implemented for this target")
 
     pub func resize(width: u32, height: u32) -> !:
@@ -67,6 +74,8 @@ pub struct Window:
         try check_extent(width, height)
         if platform.macos and platform.arm64:
             mac_resize(state, width, height)
+        if platform.windows:
+            try win_resize(state, width, height)
 
     ## Reserve this window for one graphics surface. Normally gpu.Surface calls
     ## this; applications need not manage the lease themselves.
@@ -93,6 +102,8 @@ pub struct Window:
             return event
         if platform.macos and platform.arm64:
             mac_pump()
+        if platform.windows:
+            win_pump()
         return pop_event(state)
 
     ## Idempotent on this value. Detach callbacks before releasing native objects
@@ -105,6 +116,8 @@ pub struct Window:
         self.state = none
         if platform.macos and platform.arm64:
             mac_destroy(state)
+        if platform.windows:
+            win_destroy(state)
 
     func checked() -> State*!:
         try check_thread()
@@ -116,6 +129,8 @@ func check_thread() -> !:
     if platform.macos and platform.arm64:
         if pthread_main_np() == 0:
             error(wrong_thread, "window operations require the main thread")
+    if platform.windows and not thread.is_main():
+        error(wrong_thread, "window operations require the main thread")
 
 func check_extent(width: u32, height: u32) -> !:
     if width == 0 or height == 0 or width > 10000 or height > 10000:

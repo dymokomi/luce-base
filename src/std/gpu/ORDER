@@ -8,3 +8,9 @@ metal/objc.lucb
 metal/device.lucb
 metal/drawing.lucb
 metal/surface.lucb
+vulkan/bindings.lucb
+vulkan/shaders.lucb
+vulkan/device.lucb
+vulkan/surface.lucb
+vulkan/pipeline.lucb
+vulkan/render.lucb

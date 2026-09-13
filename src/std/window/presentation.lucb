@@ -9,6 +9,8 @@ pub struct Presentation:
         let state = try self.checked()
         if platform.macos and platform.arm64:
             return mac_size(state)
+        if platform.windows:
+            return win_size(state)
         error(unsupported, "native windows are not implemented for this target")
 
     ## Hidden or minimized windows should not acquire display buffers. Occlusion
@@ -18,6 +20,9 @@ pub struct Presentation:
         if platform.macos and platform.arm64:
             let native = required(state.native)
             return msg_bool(native, sel("isVisible")) and not msg_bool(native, sel("isMiniaturized"))
+        if platform.windows:
+            let native = required(state.native)
+            return IsWindowVisible(native) != 0 and IsIconic(native) == 0
         error(unsupported, "native windows are not implemented for this target")
 
     ## Platform bridge for graphics backends, not a drawing API. The borrowed
@@ -30,6 +35,13 @@ pub struct Presentation:
             return required(state.view)
         error(unsupported, "this window has no macOS view")
 
+    ## Borrowed HWND for graphics backends, valid until window destruction.
+    pub func windows_handle() -> void*!:
+        let state = try self.checked()
+        if platform.windows:
+            return required(state.native)
+        error(unsupported, "this window has no Windows handle")
+
     pub mutating func destroy():
         let state = self.state else return
         check_thread() catch failure:
@@ -40,6 +52,8 @@ pub struct Presentation:
         if platform.macos and platform.arm64:
             if state.destroyed:
                 mac_free(state)
+        if platform.windows and state.destroyed:
+            win_free(state)
 
     func checked() -> State*!:
         try check_thread()

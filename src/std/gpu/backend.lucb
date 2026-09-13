@@ -4,18 +4,26 @@
 ## its VkSurfaceKHR/swapchain/synchronization in its surface payload. It must
 ## satisfy the same sRGB, lease, resize, completion, and skipped-frame contracts.
 func select_backend(requested: Backend) -> Backend!:
+    if platform.windows and platform.x86_64:
+        if requested == Backend.automatic or requested == Backend.vulkan:
+            return Backend.vulkan
     if platform.macos and platform.arm64:
         if requested == Backend.automatic or requested == Backend.metal:
             return Backend.metal
     error(unsupported, "the requested GPU backend is not implemented")
 
 func backend_device_open(backend: Backend) -> void*!:
+    if platform.windows and backend == Backend.vulkan:
+        return (void*)try vulkan_device_open()
     if platform.macos and platform.arm64:
         if backend == Backend.metal:
             return (void*)try metal_device_open()
     error(unsupported, "the GPU backend is not implemented")
 
 func backend_device_destroy(backend: Backend, native: void*):
+    if platform.windows and backend == Backend.vulkan:
+        vulkan_device_destroy((VulkanDevice*)native)
+        return
     if platform.macos and platform.arm64:
         if backend == Backend.metal:
             metal_device_destroy((MetalDevice*)native)
@@ -23,18 +31,25 @@ func backend_device_destroy(backend: Backend, native: void*):
     trap("invalid GPU backend during device destruction")
 
 func backend_surface_open(device: DeviceState*, host: window.Presentation) -> void*!:
+    if platform.windows and device.backend == Backend.vulkan:
+        return (void*)try vulkan_surface_open((VulkanDevice*)device.native, host)
     if platform.macos and platform.arm64:
         if device.backend == Backend.metal:
             return (void*)try metal_surface_open((MetalDevice*)device.native, host)
     error(unsupported, "the GPU backend is not implemented")
 
 func backend_clear_present(device: DeviceState*, host: window.Presentation, native: void*, color: Color) -> PresentResult!:
+    if platform.windows and device.backend == Backend.vulkan:
+        return try vulkan_render((VulkanDevice*)device.native, host, (VulkanSurface*)native, Canvas(), color)
     if platform.macos and platform.arm64:
         if device.backend == Backend.metal:
             return try metal_clear_present((MetalDevice*)device.native, host, (MetalSurface*)native, color)
     error(unsupported, "the GPU backend is not implemented")
 
 func backend_surface_wait(device: DeviceState*, native: void*) -> !:
+    if platform.windows and device.backend == Backend.vulkan:
+        try vulkan_check(vkQueueWaitIdle(((VulkanDevice*)device.native).queue), "Vulkan execution failed")
+        return
     if platform.macos and platform.arm64:
         if device.backend == Backend.metal:
             try metal_surface_wait((MetalSurface*)native)
@@ -42,12 +57,17 @@ func backend_surface_wait(device: DeviceState*, native: void*) -> !:
     error(unsupported, "the GPU backend is not implemented")
 
 func backend_render(device: DeviceState*, host: window.Presentation, native: void*, canvas: Canvas, color: Color) -> PresentResult!:
+    if platform.windows and device.backend == Backend.vulkan:
+        return try vulkan_render((VulkanDevice*)device.native, host, (VulkanSurface*)native, canvas, color)
     if platform.macos and platform.arm64:
         if device.backend == Backend.metal:
             return try metal_render((MetalDevice*)device.native, host, (MetalSurface*)native, canvas, color)
     error(unsupported, "the GPU backend is not implemented")
 
 func backend_surface_destroy(device: DeviceState*, host: window.Presentation, native: void*):
+    if platform.windows and device.backend == Backend.vulkan:
+        vulkan_surface_destroy((VulkanDevice*)device.native, (VulkanSurface*)native)
+        return
     if platform.macos and platform.arm64:
         if device.backend == Backend.metal:
             metal_surface_destroy((MetalSurface*)native, host)

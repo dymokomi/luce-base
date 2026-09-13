@@ -20,6 +20,23 @@ pub let resolution_temporary: ErrorCode = ErrorCode.package(47)
 ## Shared by socket acquisition, options, transfers and waits. Capture this code
 ## before cleanup: even a successful close may overwrite the thread's errno.
 func socket_error(number: i32) -> ErrorCode:
+    if platform.windows:
+        match number:
+            10035: return io.would_block
+            10038, 10052, 10054, 10057, 10058: return closed
+            10060: return timed_out
+            995: return cancelled
+            10061: return connection_refused
+            10050, 10051, 10064, 10065: return network_unreachable
+            10048: return address_in_use
+            10049: return address_unavailable
+            10013: return permission_denied
+            10024, 10055: return resource_exhausted
+            10053: return connection_aborted
+            10040: return message_too_large
+            10022, 10039, 10041: return invalid_options
+            10042, 10043, 10044, 10045, 10046, 10047: return unsupported
+            _: return failed
     if number == (35 if platform.macos else 11):
         return io.would_block
     if number == 9 or number == 32 or number == (54 if platform.macos else 104) or number == (57 if platform.macos else 107) or number == (58 if platform.macos else 108) or number == (52 if platform.macos else 102):
@@ -54,12 +71,20 @@ func socket_error(number: i32) -> ErrorCode:
     return failed
 
 func resolver_error(number: i32) -> ErrorCode:
+    if platform.windows:
+        if number == 11001 or number == 11004:
+            return unknown_host
+        if number == 11002:
+            return resolution_temporary
+        if number == 8:
+            return resource_exhausted
+        return socket_error(number)
     if number == (2 if platform.macos else -3):
         return resolution_temporary
     if number == (6 if platform.macos else -10):
         return resource_exhausted
     if number == (11 if platform.macos else -11):
-        return socket_error(c.errno())
+        return socket_error(socket_errno())
     if number == (8 if platform.macos else -2) or number == (7 if platform.macos else -5) or number == (1 if platform.macos else -9):
         return unknown_host
     if number == (5 if platform.macos else -6) or number == (10 if platform.macos else -7):

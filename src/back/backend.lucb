@@ -82,7 +82,7 @@ pub struct NativeBackend: Backend:
 
     pub mutating func compile(mode: u32) -> str!:
         let t = self.target
-        let has_generator = (t.arch == targets.Arch.arm64 and t.os == targets.Os.macos) or (t.arch == targets.Arch.x86_64 and t.os == targets.Os.linux)
+        let has_generator = (t.arch == targets.Arch.arm64 and t.os == targets.Os.macos) or (t.arch == targets.Arch.x86_64 and (t.os == targets.Os.linux or t.os == targets.Os.windows))
         if not has_generator:
             error(unsupported_target, "the native backend emits arm64-macos and x86_64-linux; write the C for another target with --emit=c")
         self.lowerer.debug = self.debug
