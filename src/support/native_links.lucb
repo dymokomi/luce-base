@@ -15,7 +15,7 @@ pub struct Requirements:
 pub func collect(object: c.str, platform: target.Target, directory: str) -> Requirements!:
     var libraries = try list.List[c.str].create(4)
     var frameworks = try list.List[c.str].create(4)
-    if platform.os != target.Os.macos and platform.os != target.Os.windows:
+    if platform.os != target.Os.macos and platform.os != target.Os.windows and platform.os != target.Os.linux:
         return Requirements(libraries.span(), frameworks.span())
     let arguments: c.str[2] = ["-u", object]
     let (status, output, errors) = try host_tools.run("nm", arguments, directory)

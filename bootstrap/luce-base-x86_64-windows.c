@@ -121079,7 +121079,7 @@ lb_r_support_native_links_Requirements lb_support_native_links_collect(char* lb_
         return ((lb_r_support_native_links_Requirements){ .error = _lb_r24389.error, .failed = true });
     } _lb_r24389.value; }));
     lb_pos = "src/support/native_links.lucb:18:5";
-    if (!!(((!(lb_platform.os == ((uint8_t)1u))) && (!(lb_platform.os == ((uint8_t)3u)))))) 
+    if (!!((((!(lb_platform.os == ((uint8_t)1u))) && (!(lb_platform.os == ((uint8_t)3u)))) && (!(lb_platform.os == ((uint8_t)2u)))))) 
     {
         lb_pos = "src/support/native_links.lucb:19:9";
         lb_support_native_links_Requirements _lb_ret24390 = ({ lb_span _lb_sq24391 __attribute__((unused)) = lb_support_list_List__c_str_span(&(lb_libraries)); lb_span _lb_sq24392 __attribute__((unused)) = lb_support_list_List__c_str_span(&(lb_frameworks)); ((lb_support_native_links_Requirements){.libraries = _lb_sq24391, .frameworks = _lb_sq24392}); });
