@@ -9,7 +9,7 @@ on. No compatibility layers are required.
 - [x] Replace the compiler's OS-dependent fixed allocation ceiling with stable, growing storage.
 - [x] Restore deterministic UTF-8/LF generation with a documented Python prerequisite.
 - [x] Repair Seed comment/help encoding and commit it.
-- [ ] Preserve Windows test identity, child cleanup and partial results on every failure.
+- [x] Preserve Windows test identity, child cleanup and partial results on every failure.
 - [ ] Make Unicode source/output/TEMP builds work without requiring short filenames.
 
 ## Standard OS primitives and consumers
@@ -17,7 +17,7 @@ on. No compatibility layers are required.
 - [x] Consolidate shared Windows ABI/text helpers beneath public standard modules.
 - [ ] Add owned temporary directories and filesystem canonical paths; use them in both compilers.
 - [ ] Separate portable compiler host-tool policy from native workspace operations.
-- [ ] Add portable termination subscriptions with bounded Windows close acknowledgement.
+- [x] Add portable termination subscriptions with bounded Windows close acknowledgement.
 - [ ] Use that abstraction in the server and test console close independently of Ctrl-Break.
 
 ## GPU and CPU boundaries

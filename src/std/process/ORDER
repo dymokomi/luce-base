@@ -1,2 +1,5 @@
 module.lucb
 windows.lucb
+termination/module.lucb
+termination/posix.lucb
+termination/windows.lucb

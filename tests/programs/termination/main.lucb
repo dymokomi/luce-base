@@ -1,0 +1,30 @@
+import c
+import files
+import io
+import process
+import thread
+
+pub func main(arguments: str[]) -> i32!:
+    assert(arguments.length == 3)
+    var first = try process.Termination()
+    defer first.close()
+    var second = try process.Termination()
+    defer second.close()
+    let status = second.status()
+    assert(not status.requested())
+    print("READY")
+    try io.flush_stdout()
+    while not status.requested():
+        thread.sleep(1)
+    first.close()
+    first.close()
+    if arguments[2] == "timeout":
+        # The Windows callback must stop waiting even if an owner never closes.
+        thread.sleep(10000)
+        return 2
+    thread.sleep(150)
+    assert(status.requested())
+    try files.write((c.str)arguments[1], "all owners drained".bytes)
+    second.close()
+    second.close()
+    return 0

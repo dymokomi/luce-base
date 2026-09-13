@@ -44,6 +44,8 @@ jobs:
           ./build/luce-base.exe test src/support/arena.lucb --backend=c
       - name: Test runner process ownership
         run: python tools/test_validation_process.py
+      - name: Console termination and cleanup acknowledgement
+        run: python tests/programs/termination/run.py build/luce-base.exe
       - uses: actions/checkout@v7
         with:
           repository: KhronosGroup/Vulkan-Headers

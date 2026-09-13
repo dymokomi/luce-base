@@ -125,3 +125,12 @@ The Windows gate compares generated Vulkan layouts and named constants against
 Khronos Vulkan-Headers `v1.4.341`, without requiring a GPU. Regenerate with
 `python tools/generate_vulkan.py PATH/registry/vk.xml`; verify with
 `python tools/test_vulkan_abi.py --compiler build/luce-base.exe --headers PATH/include`.
+
+`process.Termination` owns opt-in console notifications. Pass its copyable
+`TerminationStatus` to workers and close the owner after cleanup. For console
+close, logoff and shutdown notifications, the callback waits for all owners to
+close for at most four seconds; the OS may impose an earlier limit. Ctrl-C and
+Ctrl-Break request cancellation without this wait. These distinctions follow
+the [Windows HandlerRoutine contract](https://learn.microsoft.com/en-us/windows/console/handlerroutine).
+The Windows gate delivers actual console close, tests multiple subscribers and
+checks the bound when a subscriber does not acknowledge.

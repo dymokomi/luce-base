@@ -336,6 +336,20 @@ A counting semaphore whose waiters sleep.
 
 - `func exit(code: i32) -> never`
 
+### `TerminationStatus` (struct)
+
+Copyable observation of termination requests since subscription. Poll this from ordinary application threads; native handlers perform no application work.
+
+- `func requested() -> bool`
+
+### `Termination` (struct)
+
+Opt-in ownership of SIGINT/SIGTERM or Windows console notifications. Borrow this owner; copying does not acquire another subscription. Close it only after the work observing its status has drained and released its resources. The last close restores native handlers. Windows console close/logoff/shutdown handlers wait for all owners to close, bounded to four seconds; the OS may impose a shorter deadline. Ctrl-C/Ctrl-Break only request cancellation.
+
+- `func init() -> !`
+- `func status() -> TerminationStatus`
+- `mutating func close()`
+
 ## `ownership`
 
 Intrusive ownership shared by Base libraries and compiled Luce programs. Base callers retain and release explicitly; Luce inserts those operations. One header and trace protocol cover native/managed cycles on the owning thread. Runtime allocations use the system heap; an explicit allocator can be supplied to reserve when its lifetime is guaranteed by the native owner.
