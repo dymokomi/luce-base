@@ -65,12 +65,13 @@ not deadlock each other. Windows sockets use pointer-sized handles and Winsock
 errors rather than CRT file descriptors. Deadlines and nonblocking behavior are
 implemented through Winsock polling. Server shutdown uses console control events.
 
-GNU tools still have a narrow filename boundary: the compiler links in a private
-ASCII scratch directory and publishes the result with Unicode filesystem calls.
-A Unicode TEMP directory needs an ASCII short-name alias; if the filesystem has
-short names disabled, set TEMP and TMP to an existing ASCII directory. Public
-source and output paths remain UTF-8. External C source and library paths must
-also be representable to the selected GNU toolchain.
+GNU tools run with relative generated filenames inside a private workspace beside
+the destination. The child receives that working directory through `CreateProcessW`
+and private `TMPDIR`, `TEMP` and `TMP` overrides. Publishing uses Unicode filesystem
+operations on the same volume. Source, output and temporary-directory paths need
+no short-name aliases, and the parent process environment is unchanged. External
+C source and library operands still follow the selected GNU toolchain's filename
+support.
 
 ## Windows and Vulkan
 
@@ -134,3 +135,11 @@ Ctrl-Break request cancellation without this wait. These distinctions follow
 the [Windows HandlerRoutine contract](https://learn.microsoft.com/en-us/windows/console/handlerroutine).
 The Windows gate delivers actual console close, tests multiple subscribers and
 checks the bound when a subscriber does not acknowledge.
+
+## Debug artifacts
+
+Native `--debug` builds keep DWARF 4 in the PE executable. COFF debug sections use
+section-relative relocations; local-variable locations account for the Windows
+frame pointer's position after stack allocation. SEH records remain present in
+ordinary builds as well. Mach-O dSYM and ELF sidecar processing are separate host
+policies and do not run for PE outputs.

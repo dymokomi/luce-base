@@ -1,0 +1,85 @@
+## Describe emitted frame operations using DWARF CFI or Windows SEH. Frame layout
+## and instructions stay with the generator; every unwind directive is owned here.
+import support.buffer
+
+pub struct FrameUnwind:
+    let windows: bool
+    let cfi: bool
+
+    pub func init(windows: bool, cfi: bool):
+        self.windows = windows
+        self.cfi = cfi
+
+    pub func begin(out: buffer.Buffer*, prefix: str, name: str) -> !:
+        if self.cfi:
+            try line(out, ".cfi_startproc")
+        if self.windows:
+            try line(out, ".seh_proc ")
+            try out.put(prefix)
+            try out.put(name)
+
+    pub func pushed_frame_pointer(out: buffer.Buffer*) -> !:
+        if self.windows:
+            try line(out, ".seh_pushreg %rbp")
+        if self.cfi:
+            try line(out, ".cfi_def_cfa_offset 16")
+            try line(out, ".cfi_offset 6, -16")
+
+    pub func cfa_frame_pointer(out: buffer.Buffer*) -> !:
+        if self.cfi and not self.windows:
+            try line(out, ".cfi_def_cfa_register 6")
+
+    pub func allocated_stack(out: buffer.Buffer*, size: u64) -> !:
+        if self.windows:
+            try line(out, ".seh_stackalloc ")
+            try out.put_u64(size)
+
+    pub func established_frame(out: buffer.Buffer*, size: u64) -> !:
+        if self.windows:
+            try line(out, ".seh_setframe %rbp, 0")
+            if self.cfi:
+                try line(out, ".cfi_def_cfa 6, ")
+                try out.put_u64(size + 16)
+
+    pub func saved_register(out: buffer.Buffer*, name: str, stack_offset: u64, vector: bool) -> !:
+        if self.windows:
+            try line(out, ".seh_savexmm " if vector else ".seh_savereg ")
+            try out.put(name)
+            try out.put(", ")
+            try out.put_u64(stack_offset)
+
+    pub func saved_cfi_register(out: buffer.Buffer*, number: u64, cfa_offset: u64) -> !:
+        if self.cfi:
+            try line(out, ".cfi_offset ")
+            try out.put_u64(number)
+            try out.put(", -")
+            try out.put_u64(cfa_offset)
+
+    pub func prologue_complete(out: buffer.Buffer*) -> !:
+        if self.windows:
+            try line(out, ".seh_endprologue")
+
+    pub func begin_epilogue(out: buffer.Buffer*) -> !:
+        if self.cfi:
+            try line(out, ".cfi_remember_state")
+
+    pub func popped_frame_pointer(out: buffer.Buffer*) -> !:
+        if self.cfi:
+            try line(out, ".cfi_def_cfa 7, 8")
+            try line(out, ".cfi_restore 6")
+
+    pub func end_epilogue(out: buffer.Buffer*) -> !:
+        if self.cfi:
+            try line(out, ".cfi_restore_state")
+
+    pub func cfi_complete(out: buffer.Buffer*) -> !:
+        if self.cfi:
+            try line(out, ".cfi_endproc")
+
+    pub func complete(out: buffer.Buffer*) -> !:
+        if self.windows:
+            try line(out, ".seh_endproc")
+
+func line(out: buffer.Buffer*, text: str) -> !:
+    try out.put("\n    ")
+    try out.put(text)

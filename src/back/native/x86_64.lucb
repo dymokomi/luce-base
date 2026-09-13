@@ -3,25 +3,22 @@
 #   x86_64 - The x86_64 code generator
 #
 #   DESCRIPTION:
-#       Turns an `ir.Unit` into assembly text for the GNU assembler, in the AT&T syntax the
-#       C backend's inline assembly also uses: ELF sections, unprefixed symbols, rip-relative
-#       addressing with the GOT and the PLT for what another image defines (so the output
-#       links as position-independent code), thread-locals through the initial-exec model,
-#       and calls under the System V convention (base.md §19.5): integers in rdi, rsi, rdx,
-#       rcx, r8, r9, floats in xmm0-xmm7, an aggregate of up to sixteen bytes split into
-#       eightbytes that each take an integer or an SSE register by what they hold, larger
-#       ones copied onto the stack, results in rax/rdx and xmm0/xmm1 the same way or through
-#       a hidden pointer, variadic calls with the SSE register count in al.
+#       Emits AT&T assembly for x86-64. Calling-convention classification lives in
+#       x86_64/abi; object sections and relocations live in x86_64/object; frame
+#       unwind directives live in x86_64/unwind. Instruction selection consumes
+#       these policies for System V on Linux and Microsoft x64 on Windows.
 #
-#       The shape is the arm64 generator's: a frame slot for every temporary and stack slot
-#       below rbp, the most-used slots promoted into callee-saved registers, temporaries
-#       given the rest by linear scan. The convention has no callee-saved SSE registers, so
-#       floats stay in the frame between instructions. Half floats convert through the F16C
-#       instructions and compute in single precision, rounding once to a half, which is what
-#       the C compiler does for `_Float16` on this target.
+#       The shared frame planner and linear scan allocator assign temporaries and
+#       frame slots. Floating-point values stay in memory between instructions;
+#       Windows' additional nonvolatile registers are preserved when used by helpers.
+#       Half operations use F16C at v3, and conversion routines at lower CPU levels.
 #
 #==============================================================================================
 
+from back.native.x86_64.abi import Convention
+from back.native.x86_64.abi import Placement
+from back.native.x86_64.object import Format
+from back.native.x86_64.unwind import FrameUnwind
 import back.native.dwarf
 import back.native.frame
 import back.native.selection
@@ -33,24 +30,15 @@ import support.buffer
 pub let failed: ErrorCode = ErrorCode.package(21)
 
 
-## One argument's placement for a call: in registers, one per eightbyte, or on the stack.
-struct Placement:
-    ## 0 = registers, 2 = stack
-    var where: u8
-    ## bit k set when eightbyte k takes an SSE register
-    var sse: u8
-    var first_int: u32
-    var first_float: u32
-    var words: u32
-    var stack_offset: u32
-
 pub struct Generator:
     pub var dw: dwarf.Emitter*?
     var out: buffer.Buffer
     ## What precedes a C symbol in this target's assembler: nothing on Linux (§19.5).
-    pub var symbol_prefix: str
-    ## The target's operating system decides the section names and the initialiser section.
-    pub var os: build_target.Os
+    let symbol_prefix: str
+    let object_format: Format
+    ## Independent calling-convention and unwind policies.
+    let convention: Convention
+    var unwinding: FrameUnwind
     ## The instruction-set level (§19.5): which forms the generator may emit.
     pub var level: u32
     var program_unit: ir.Unit*
@@ -72,8 +60,8 @@ pub struct Generator:
     ## Register allocation: for each temporary, the callee-saved register it lives in
     ## The callee-saved register code a promoted frame slot lives in, 0 when it stays in the
 
-    pub static func create(program_unit: ir.Unit*) -> Generator!:
-        return Generator(symbol_prefix = "", os = build_target.Os.linux, level = 1, out = try buffer.Buffer.create(262144), program_unit = program_unit, f = program_unit.functions.span().data, index = 0,
+    pub static func create(program_unit: ir.Unit*, os: build_target.Os = build_target.Os.linux, symbol_prefix: str = "") -> Generator!:
+        return Generator(symbol_prefix = symbol_prefix, object_format = Format(os, symbol_prefix), convention = Convention(program_unit, os), unwinding = FrameUnwind(os == build_target.Os.windows, false), level = 1, out = try buffer.Buffer.create(262144), program_unit = program_unit, f = program_unit.functions.span().data, index = 0,
                          at = 0, saved = ["", "", "", "", "", "", "", ""], pending = 0, half_routines = false,
                          fr = try frame.Frame.create(frame.Registers(ints = 5, floats = 0, keep_ints = 2, keep_floats = 0, scratch_ints = 0, scratch_floats = 4)), descriptors = try buffer.Buffer.create(4096))
 
@@ -153,7 +141,7 @@ pub struct Generator:
 
     ## `-offset(%rbp)`: the home `offset` bytes below the frame pointer.
     mutating func frame_operand(offset: u64) -> !:
-        if self.os == build_target.Os.windows:
+        if self.convention.windows:
             try self.put_u64(self.fr.size - offset)
         else:
             try self.put("-")
@@ -295,12 +283,7 @@ pub struct Generator:
             try self.put("(%rip), ")
             try self.put(reg)
         elif r.kind == ir.RefKind.global or r.kind == ir.RefKind.function:
-            # a function's address, or another image's data (`import_ref`), goes through the
-            # GOT, so a symbol defined in a linked shared object resolves
-            try self.line("leaq " if self.os == build_target.Os.windows else "movq ")
-            try self.symbol(r.name)
-            try self.put("(%rip), " if self.os == build_target.Os.windows else "@GOTPCREL(%rip), ")
-            try self.put(reg)
+            try self.object_format.external_address(&self.out, r.name, reg)
         elif r.kind == ir.RefKind.text:
             try self.line("leaq ")
             try self.text_label(r.index)
@@ -411,44 +394,14 @@ pub struct Generator:
 
     ## `.weak` for a weak symbol (§9.8); ELF has no directive for `used`, which only matters
     ## to a linker that discards sections, so it is left to the section's own flags.
-    mutating func linkage_directives(name: str, weak: bool, used: bool) -> !:
-        if weak and self.os != build_target.Os.windows:
-            try self.put("    .weak ")
-            try self.symbol(name)
-            try self.put("\n")
-        discard(used)
-
-    ## Back to the text section after a function placed in a named one.
-    mutating func leave_section() -> !:
-        if self.f.section.length > 0 or (self.os == build_target.Os.windows and self.f.weak):
-            try self.put("\n    .text\n")
-
     mutating func function(index: usize) -> !:
         self.index = index
         if let dw = self.dw:
             try dw.entry(&self.out)
         self.f = &self.program_unit.functions.items[index]
         try self.fr.plan(self.f)
-        try self.fr.layout(self.f, 176 if self.os == build_target.Os.windows else 0, self.f.has_result and self.in_memory(self.f.result_size, self.f.result_shape))
-        if self.os == build_target.Os.windows and self.f.weak:
-            try self.put("\n    .section .text$")
-            try self.symbol(self.f.name)
-            try self.put(",\"xr\"")
-        elif self.f.section.length > 0:
-            try self.put("\n    .section ")
-            try self.put(build_target.section_name(self.f.section, true, self.os))
-            try self.put(",\"xr\"" if self.os == build_target.Os.windows else ",\"ax\",@progbits")
-        try self.put("\n    .p2align 4\n")
-        try self.put("    .globl ")
-        try self.symbol(self.f.name)
-        if self.os != build_target.Os.windows:
-            try self.put("\n    .type ")
-            try self.symbol(self.f.name)
-            try self.put(", @function")
-        try self.put("\n")
-        try self.linkage_directives(self.f.name, self.f.weak, self.f.used)
-        try self.symbol(self.f.name)
-        try self.put(":")
+        try self.fr.layout(self.f, 176 if self.convention.windows else 0, self.f.has_result and self.convention.in_memory(self.f.result_size, self.f.result_shape))
+        try self.object_format.function_start(&self.out, self.f)
         if self.f.naked:
             # the body is asm blocks only (§9.8): no frame, no prologue, nothing after
             var k: usize = 0
@@ -456,42 +409,30 @@ pub struct Generator:
                 self.at = k
                 try self.instruction(self.f.instrs.get(k))
                 k += 1
-            try self.leave_section()
+            try self.object_format.leave_section(&self.out, self.f)
             return
-        if self.dw != none:
-            try self.line(".cfi_startproc")
-        if self.os == build_target.Os.windows:
-            try self.line(".seh_proc ")
-            try self.symbol(self.f.name)
+        try self.unwinding.begin(&self.out, self.symbol_prefix, self.f.name)
         try self.line("pushq %rbp")
-        if self.os == build_target.Os.windows:
-            try self.line(".seh_pushreg %rbp")
-        if self.dw != none:
-            try self.line(".cfi_def_cfa_offset 16")
-            try self.line(".cfi_offset 6, -16")
-        if self.os != build_target.Os.windows:
+        try self.unwinding.pushed_frame_pointer(&self.out)
+        if not self.convention.windows:
             try self.line("movq %rsp, %rbp")
-        if self.dw != none:
-            try self.line(".cfi_def_cfa_register 6")
-        if self.os == build_target.Os.windows and self.fr.size >= 4096:
+        try self.unwinding.cfa_frame_pointer(&self.out)
+        if self.convention.windows and self.fr.size >= 4096:
             try self.load_immediate("%rax", (i64)self.fr.size)
             try self.line("call ___chkstk_ms")
         if self.fr.size > 0:
             try self.line("subq $")
             try self.put_u64(self.fr.size)
             try self.put(", %rsp")
-            if self.os == build_target.Os.windows:
-                try self.line(".seh_stackalloc ")
-                try self.put_u64(self.fr.size)
-        if self.os == build_target.Os.windows:
+            try self.unwinding.allocated_stack(&self.out, self.fr.size)
+        if self.convention.windows:
             try self.line("movq %rsp, %rbp")
-            try self.line(".seh_setframe %rbp, 0")
-        if self.f.has_result and self.in_memory(self.f.result_size, self.f.result_shape):
-            try self.line("movq %rcx, " if self.os == build_target.Os.windows else "movq %rdi, ")
+            try self.unwinding.established_frame(&self.out, self.fr.size)
+        if self.f.has_result and self.convention.in_memory(self.f.result_size, self.f.result_shape):
+            try self.line("movq %rcx, " if self.convention.windows else "movq %rdi, ")
             try self.frame_operand(self.fr.indirect_home)
         try self.save_callee_saved()
-        if self.os == build_target.Os.windows:
-            try self.line(".seh_endprologue")
+        try self.unwinding.prologue_complete(&self.out)
         try self.receive_params()
         var uses = try selection.uses(self.f)
         defer free(uses)
@@ -517,14 +458,13 @@ pub struct Generator:
                 try self.put("\nLdw_end_")
                 try self.put_u64((u64)index)
                 try self.put(":\n")
-            try self.line(".cfi_endproc")
+            try self.unwinding.cfi_complete(&self.out)
             try dw.function(self.f, &self.fr, index)
-        if self.os == build_target.Os.windows:
-            try self.line(".seh_endproc")
+        try self.unwinding.complete(&self.out)
         try self.put("\n")
         if self.f.debug:
             try self.describe_frame()
-        try self.leave_section()
+        try self.object_format.leave_section(&self.out, self.f)
 
     ## `lbd_<name>`: the function's name and source, then each named local's name, type
     ## spelling, distance below the frame pointer, and size; every text is a `str`.
@@ -565,41 +505,7 @@ pub struct Generator:
         try d.put_u64((u64)text.length)
         try d.put("\n")
 
-    # mark: Eightbytes =========================================================================
-
-    ## Classify an argument or result of `size` bytes: bit k of the answer is set when
-    ## eightbyte k takes an SSE register. A scalar is its own class; an aggregate carries the
-    ## lowerer's classification of its first sixteen bytes.
-    ## Which of an argument's first two eightbytes take SSE registers (System V §3.2.3):
-    ## bit k is set when a float leaf covers eightbyte k and no integer leaf touches it.
-    ## A scalar is its own class; an aggregate without a shape is opaque bytes, INTEGER.
-    ## Whether an aggregate of `size` bytes with `shape` is passed and returned in memory
-    ## (System V §3.2.3): over sixteen bytes, or holding a field that is not aligned to its
-    ## own size, which a packed record has and which the ABI classes MEMORY at any size.
-    func in_memory(size: u32, shape: u32) -> bool:
-        if self.os == build_target.Os.windows:
-            return size != 0 and size != 1 and size != 2 and size != 4 and size != 8
-        if size > 16:
-            return true
-        if size == 0 or shape == 0:
-            return false
-        return has_unaligned_leaf(self.program_unit.leaves_of(shape))
-
-    func sse_of(cls: ir.Class, size: u32, shape: u32) -> u8:
-        if size == 0:
-            return 1 if ir.is_float_class(cls) else 0
-        if shape == 0 or self.os == build_target.Os.windows:
-            return 0
-        var words: u8 = 3 if size > 8 else 1
-        for leaf in self.program_unit.leaves_of(shape):
-            if ir.is_float_class(leaf.cls):
-                continue
-            var k = (u64)leaf.offset // 8
-            let last = ((u64)leaf.offset + (u64)leaf.size - 1) // 8
-            while k <= last and k < 2:
-                words = words & ~(u8)(1 << k)
-                k += 1
-        return words
+    # mark: Eightbyte transfers ================================================================
 
     ## Exactly `width` bytes (1..8) at `offset(base)` into the 64-bit register `reg`, zero
     ## above; `%r11` helps with the odd widths.
@@ -684,10 +590,10 @@ pub struct Generator:
 
     ## Store the incoming arguments into their slots.
     mutating func receive_params() -> !:
-        if self.os == build_target.Os.windows:
+        if self.convention.windows:
             try self.receive_windows()
             return
-        var next_int: u32 = 1 if self.f.has_result and self.in_memory(self.f.result_size, self.f.result_shape) else 0
+        var next_int: u32 = 1 if self.f.has_result and self.convention.in_memory(self.f.result_size, self.f.result_shape) else 0
         var next_float: u32 = 0
         var stack_offset: u64 = 16
         var i: usize = 0
@@ -728,11 +634,11 @@ pub struct Generator:
                         try self.frame_store("%rax" if p.cls == ir.Class.l else "%eax", p.cls, home)
                     stack_offset += 8
             else:
-                let sse = self.sse_of(p.cls, p.size, p.shape)
+                let sse = self.convention.sse_of(p.cls, p.size, p.shape)
                 let words: u32 = 2 if p.size > 8 else 1
                 let sse_count = count_bits(sse)
                 let int_count = words - sse_count
-                if not self.in_memory(p.size, p.shape) and next_int + int_count <= 6 and next_float + sse_count <= 8:
+                if not self.convention.in_memory(p.size, p.shape) and next_int + int_count <= 6 and next_float + sse_count <= 8:
                     try self.frame_address("%r10", home)
                     var k: u32 = 0
                     while k < words:
@@ -749,7 +655,7 @@ pub struct Generator:
                     stack_offset += round_up((u64)p.size, 8)
             i += 1
         stack_offset = 16
-        next_int = 1 if self.f.has_result and self.in_memory(self.f.result_size, self.f.result_shape) else 0
+        next_int = 1 if self.f.has_result and self.convention.in_memory(self.f.result_size, self.f.result_shape) else 0
         next_float = 0
         i = 0
         while i < self.f.params.count:
@@ -765,11 +671,11 @@ pub struct Generator:
                 else:
                     stack_offset += 8
             else:
-                let sse = self.sse_of(p.cls, p.size, p.shape)
+                let sse = self.convention.sse_of(p.cls, p.size, p.shape)
                 let words: u32 = 2 if p.size > 8 else 1
                 let sse_count = count_bits(sse)
                 let int_count = words - sse_count
-                if not self.in_memory(p.size, p.shape) and next_int + int_count <= 6 and next_float + sse_count <= 8:
+                if not self.convention.in_memory(p.size, p.shape) and next_int + int_count <= 6 and next_float + sse_count <= 8:
                     next_int += int_count
                     next_float += sse_count
                 else:
@@ -783,7 +689,7 @@ pub struct Generator:
 
     mutating func stack_param_load(reg: str, offset: u64) -> !:
         try self.line("movq ")
-        try self.put_u64(offset + (self.fr.size if self.os == build_target.Os.windows else 0))
+        try self.put_u64(offset + (self.fr.size if self.convention.windows else 0))
         try self.put("(%rbp), ")
         try self.put(reg)
 
@@ -798,7 +704,7 @@ pub struct Generator:
         try self.call_symbol("memcpy")
 
     mutating func call_symbol(name: str) -> !:
-        if self.os == build_target.Os.windows:
+        if self.convention.windows:
             # Generator helpers use at most three integer arguments in SysV scratch names.
             try self.line("movq %rdx, %r8")
             try self.line("movq %rsi, %rdx")
@@ -806,7 +712,7 @@ pub struct Generator:
             try self.line("subq $32, %rsp")
         try self.line("call ")
         try self.symbol(name)
-        if self.os == build_target.Os.windows:
+        if self.convention.windows:
             try self.line("addq $32, %rsp")
         else:
             try self.put("@PLT")
@@ -892,7 +798,7 @@ pub struct Generator:
                         try self.line3(store_mnemonic(n.op), v, ", (%r10)")
             .frame:
                 let d = self.target(n.dst, ir.Class.l, "%rax")
-                if self.os == build_target.Os.windows:
+                if self.convention.windows:
                     try self.frame_address(d, 0)
                 else:
                     try self.line3("movq %rbp, ", d, "")
@@ -921,20 +827,7 @@ pub struct Generator:
                     try self.address_operand(d, n.a)
                     try self.finish(n.dst, ir.Class.l, d)
             .addr_tls:
-                # the initial-exec model: the thread pointer plus the variable's offset in
-                # the static thread block, which the linker writes into the GOT
-                if self.os == build_target.Os.windows:
-                    try self.line("movl _tls_index(%rip), %eax")
-                    try self.line("movq %gs:88, %r11")
-                    try self.line("movq (%r11,%rax,8), %rax")
-                    try self.line("leaq ")
-                    try self.symbol(n.a.name)
-                    try self.put("@SECREL32(%rax), %rax")
-                else:
-                    try self.line("movq %fs:0, %rax")
-                    try self.line("addq ")
-                    try self.symbol(n.a.name)
-                    try self.put("@GOTTPOFF(%rip), %rax")
+                try self.object_format.thread_address(&self.out, n.a.name)
                 try self.store_temp("%rax", ir.Class.l, n.dst)
             .blit:
                 if n.extra <= 128:
@@ -1741,13 +1634,10 @@ pub struct Generator:
                 try self.frame_load(regs[i], cls, (u64)offset)
             else:
                 try self.frame_store(regs[i], cls, (u64)offset)
-                try self.line(".seh_savereg " if i < 2 else ".seh_savexmm ")
-                try self.put(regs[i])
-                try self.put(", ")
-                try self.put_u64(self.fr.size - (u64)offset)
+                try self.unwinding.saved_register(&self.out, regs[i], self.fr.size - (u64)offset, i >= 2)
 
     mutating func receive_windows() -> !:
-        let hidden: usize = 1 if self.f.has_result and self.in_memory(self.f.result_size, self.f.result_shape) else 0
+        let hidden: usize = 1 if self.f.has_result and self.convention.in_memory(self.f.result_size, self.f.result_shape) else 0
         for i in 0..<4:
             try self.line3("movq ", windows_arguments[i], ", ")
             try self.put_u64(self.fr.size + (u64)(16 + i * 8))
@@ -1776,7 +1666,7 @@ pub struct Generator:
                         try self.line4("movq " if p.cls == ir.Class.l else "movl ", "%rax" if p.cls == ir.Class.l else "%eax", ", ", class_name((u8)code, p.cls))
                     else:
                         try self.frame_store("%rax" if p.cls == ir.Class.l else "%eax", p.cls, home)
-            elif self.in_memory(p.size, p.shape):
+            elif self.convention.in_memory(p.size, p.shape):
                 try self.stack_param_load("%r10", (u64)(16 + ordinal * 8))
                 try self.frame_address("%r11", home)
                 try self.copy_r10_to_r11((u64)p.size)
@@ -1787,14 +1677,14 @@ pub struct Generator:
 
     mutating func call_windows(n: ir.Instr) -> !:
         let info = self.f.calls.get((usize)n.extra)
-        let hidden = info.has_result and self.in_memory(info.result_size, info.result_shape)
+        let hidden = info.has_result and self.convention.in_memory(info.result_size, info.result_shape)
         let first: u64 = 1 if hidden else 0
         let count = (u64)info.args_count + first
         let slots = round_up((count if count > 4 else 4) * 8, 16)
         var area = slots
         for i in 0..<info.args_count:
             let a = self.f.args.get((usize)(info.args_start + i))
-            if self.in_memory(a.size, a.shape):
+            if self.convention.in_memory(a.size, a.shape):
                 area += round_up((u64)a.size, 16)
         if area >= 4096:
             try self.load_immediate("%rax", (i64)area)
@@ -1812,7 +1702,7 @@ pub struct Generator:
                     try self.line("movq %xmm0, %rax")
                 else:
                     try self.operand("%rax" if a.cls == ir.Class.l else "%eax", a.cls, a.value)
-            elif self.in_memory(a.size, a.shape):
+            elif self.convention.in_memory(a.size, a.shape):
                 try self.address_operand("%r10", a.value)
                 try self.line("leaq ")
                 try self.put_u64(copy_offset)
@@ -1860,43 +1750,12 @@ pub struct Generator:
             try self.frame_address("%r10", self.slot_home(info.result_slot))
             try self.store_bytes("%rax", "%r10", 0, (u64)info.result_size)
 
-    ## Classify one argument under the System V convention, advancing the counters: every
-    ## eightbyte of a small aggregate takes a register of its class, or the whole aggregate
-    ## goes to the stack; a large one always does.
-    func place(a: ir.Arg, next_int: u32*, next_float: u32*, stack: u32*) -> Placement:
-        if a.size == 0:
-            if ir.is_float_class(a.cls):
-                if *next_float < 8:
-                    let p = Placement(where = 0, sse = 1, first_int = 0, first_float = *next_float, words = 1, stack_offset = 0)
-                    *next_float += 1
-                    return p
-            elif *next_int < 6:
-                let p = Placement(where = 0, sse = 0, first_int = *next_int, first_float = 0, words = 1, stack_offset = 0)
-                *next_int += 1
-                return p
-            let p = Placement(where = 2, sse = 0, first_int = 0, first_float = 0, words = 1, stack_offset = *stack)
-            *stack += 8
-            return p
-        let sse = self.sse_of(a.cls, a.size, a.shape)
-        let words: u32 = 2 if a.size > 8 else 1
-        let sse_count = count_bits(sse)
-        let int_count = words - sse_count
-        if not self.in_memory(a.size, a.shape) and *next_int + int_count <= 6 and *next_float + sse_count <= 8:
-            let p = Placement(where = 0, sse = sse, first_int = *next_int, first_float = *next_float, words = words, stack_offset = 0)
-            *next_int += int_count
-            *next_float += sse_count
-            return p
-        let start = round_up((u64)*stack, (u64)a.align if a.align > 8 else 8)
-        let p = Placement(where = 2, sse = 0, first_int = 0, first_float = 0, words = words, stack_offset = (u32)start)
-        *stack = (u32)(start + round_up((u64)a.size, 8))
-        return p
-
     mutating func call(n: ir.Instr) -> !:
-        if self.os == build_target.Os.windows:
+        if self.convention.windows:
             try self.call_windows(n)
             return
         let info = self.f.calls.get((usize)n.extra)
-        let hidden = info.has_result and self.in_memory(info.result_size, info.result_shape)
+        let hidden = info.has_result and self.convention.in_memory(info.result_size, info.result_shape)
         var next_int: u32 = 1 if hidden else 0
         var next_float: u32 = 0
         var stack: u32 = 0
@@ -1907,7 +1766,7 @@ pub struct Generator:
         var i: u32 = 0
         while i < info.args_count:
             let a = self.f.args.get((usize)(info.args_start + i))
-            placements[i] = self.place(a, &next_int, &next_float, &stack)
+            placements[i] = self.convention.place(a, &next_int, &next_float, &stack)
             i += 1
         let area = round_up((u64)stack, 16)
         if area > 0:
@@ -1994,7 +1853,7 @@ pub struct Generator:
         if hidden:
             return
         try self.frame_address("%r10", self.slot_home(info.result_slot))
-        let sse = self.sse_of(info.result_cls, info.result_size, info.result_shape)
+        let sse = self.convention.sse_of(info.result_cls, info.result_size, info.result_shape)
         try self.result_eightbytes(info.result_size, sse, true)
 
     ## The eightbytes of a small aggregate result between (%r10) and rax/rdx and xmm0/xmm1,
@@ -2028,9 +1887,9 @@ pub struct Generator:
                     try self.operand("%xmm0", self.f.result_cls, n.a)
                 else:
                     try self.operand("%rax" if self.f.result_cls == ir.Class.l else "%eax", self.f.result_cls, n.a)
-            elif not self.in_memory(self.f.result_size, self.f.result_shape):
+            elif not self.convention.in_memory(self.f.result_size, self.f.result_shape):
                 try self.address_operand("%r10", n.a)
-                let sse = self.sse_of(self.f.result_cls, self.f.result_size, self.f.result_shape)
+                let sse = self.convention.sse_of(self.f.result_cls, self.f.result_size, self.f.result_shape)
                 try self.result_eightbytes(self.f.result_size, sse, false)
             else:
                 try self.address_operand("%rsi", n.a)
@@ -2043,39 +1902,29 @@ pub struct Generator:
                 try self.frame_operand(self.fr.indirect_home)
                 try self.put(", %rax")
         try self.restore_callee_saved()
-        if self.dw != none:
-            try self.line(".cfi_remember_state")
-        if self.os == build_target.Os.windows:
+        try self.unwinding.begin_epilogue(&self.out)
+        if self.convention.windows:
             try self.frame_address("%rsp", 0)
         else:
             try self.line("movq %rbp, %rsp")
         try self.line("popq %rbp")
-        if self.dw != none:
-            try self.line(".cfi_def_cfa 7, 8")
-            try self.line(".cfi_restore 6")
+        try self.unwinding.popped_frame_pointer(&self.out)
         try self.line("ret")
-        if self.dw != none:
-            try self.line(".cfi_restore_state")
+        try self.unwinding.end_epilogue(&self.out)
 
     mutating func save_callee_saved() -> !:
-        if self.os == build_target.Os.windows:
+        if self.convention.windows:
             try self.windows_saved(false)
         var c: usize = 1
         while c <= 5:
             if (self.fr.used_mask & (u32)(1 << (u32)(c - 1))) != 0:
                 try self.frame_store(q_names[c], ir.Class.l, self.fr.save_offset[c])
-                if self.os == build_target.Os.windows:
-                    try self.line3(".seh_savereg ", q_names[c], ", ")
-                    try self.put_u64(self.fr.size - self.fr.save_offset[c])
-                if self.dw != none:
-                    try self.line(".cfi_offset ")
-                    try self.put_u64(3 if c == 1 else (u64)c + 10)
-                    try self.put(", -")
-                    try self.put_u64(self.fr.save_offset[c] + 16)
+                try self.unwinding.saved_register(&self.out, q_names[c], self.fr.size - self.fr.save_offset[c], false)
+                try self.unwinding.saved_cfi_register(&self.out, 3 if c == 1 else (u64)c + 10, self.fr.save_offset[c] + 16)
             c += 1
 
     mutating func restore_callee_saved() -> !:
-        if self.os == build_target.Os.windows:
+        if self.convention.windows:
             try self.windows_saved(true)
         var c: usize = 1
         while c <= 5:
@@ -2086,19 +1935,8 @@ pub struct Generator:
     # mark: The unit ===========================================================================
 
     pub mutating func generate() -> !:
-        # Declare COFF weak references before emitting code. Weak definitions
-        # receive individual sections so their fallback symbol has zero offset.
-        if self.os == build_target.Os.windows:
-            for global in self.program_unit.globals.span():
-                if global.weak:
-                    try self.put("    .weak ")
-                    try self.symbol(global.name)
-                    try self.put("\n")
-            for function in self.program_unit.functions.span():
-                if function.weak:
-                    try self.put("    .weak ")
-                    try self.symbol(function.name)
-                    try self.put("\n")
+        self.unwinding = FrameUnwind(self.convention.windows, self.dw != none)
+        try self.object_format.begin(&self.out, self.program_unit)
         if let dw = self.dw:
             try dw.begin(&self.out)
         try self.put("    .text\n")
@@ -2112,19 +1950,9 @@ pub struct Generator:
             try self.put("\n")
             try self.put(self.program_unit.module_asm.get(i).bytes)
             i += 1
-        # the loader runs the unit's initialiser: ELF's `.init_array`, Mach-O's
-        # `__mod_init_func` (§17.6)
-        if self.program_unit.init_function.length > 0:
-            if self.os == build_target.Os.macos:
-                try self.put("\n    .section __DATA,__mod_init_func,mod_init_funcs\n    .p2align 3\n    .quad ")
-            elif self.os == build_target.Os.windows:
-                try self.put("\n    .section .CRT$XCU,\"dr\"\n    .p2align 3\n    .quad ")
-            else:
-                try self.put("\n    .section .init_array,\"aw\"\n    .p2align 3\n    .quad ")
-            try self.symbol(self.program_unit.init_function)
-            try self.put("\n    .text\n")
+        try self.object_format.initializer(&self.out, self.program_unit.init_function)
         # text literals, after the sign masks vector negation and unsigned lane checks read
-        try self.put("\n    .section .rdata,\"dr\"" if self.os == build_target.Os.windows else "\n    .section .rodata")
+        try self.put(self.object_format.read_only())
         try self.put("\n    .p2align 4\n.Lvsign32:\n    .long 2147483648, 2147483648, 2147483648, 2147483648\n.Lvsign64:\n    .quad -9223372036854775808, -9223372036854775808\n")
         i = 0
         while i < self.program_unit.texts.count:
@@ -2135,7 +1963,7 @@ pub struct Generator:
             i += 1
         # witness tables and frame descriptors hold addresses, which a position-independent
         # image relocates when it loads
-        try self.put("\n    .section .rdata,\"dr\"\n    .p2align 3\n" if self.os == build_target.Os.windows else "\n    .section .data.rel.ro,\"aw\"\n    .p2align 3\n")
+        try self.put(self.object_format.relocated_read_only())
         i = 0
         while i < self.program_unit.tables.count:
             let t = self.program_unit.tables.get(i)
@@ -2157,44 +1985,10 @@ pub struct Generator:
             i += 1
         if self.descriptors.used > 0:
             try self.put(self.descriptors.view())
-        # globals
-        i = 0
-        while i < self.program_unit.globals.count:
-            let g = self.program_unit.globals.get(i)
-            let size = (u64)g.size if g.size > 0 else 1
-            let align = log2((u64)g.align if g.align > 0 else 1)
-            if g.weak and self.os == build_target.Os.windows:
-                try self.put("\n    .section .data$")
-                try self.symbol(g.name)
-                try self.put(",\"dw\"\n")
-            elif g.is_thread_local:
-                try self.put("\n    .section .tls$LUCE,\"dw\"\n" if self.os == build_target.Os.windows else "\n    .section .tbss,\"awT\",@nobits\n")
-            elif g.section.length > 0:
-                try self.put("\n    .section ")
-                try self.put(build_target.section_name(g.section, false, self.os))
-                try self.put(",\"dw\"\n" if self.os == build_target.Os.windows else ",\"aw\"\n")
-            else:
-                try self.put("\n    .bss\n")
-            try self.put("    .globl ")
-            try self.symbol(g.name)
-            if self.os != build_target.Os.windows:
-                try self.put("\n    .type ")
-                try self.symbol(g.name)
-                try self.put(", @object")
-            try self.put("\n")
-            try self.linkage_directives(g.name, g.weak, g.used)
-            try self.put("    .p2align ")
-            try self.put_u64(align)
-            try self.put("\n")
-            try self.symbol(g.name)
-            try self.put(":\n    .zero ")
-            try self.put_u64(size)
-            try self.put("\n")
-            i += 1
+        try self.object_format.globals(&self.out, self.program_unit)
         if self.half_routines:
             try self.put(half_routines_text)
-        if self.os != build_target.Os.windows:
-            try self.put("\n    .section .note.GNU-stack,\"\",@progbits\n")
+        try self.object_format.finish(&self.out)
         if let dw = self.dw:
             try dw.finish(&self.out)
 
@@ -2392,67 +2186,6 @@ func round_up(value: u64, align: u64) -> u64:
     if align <= 1:
         return value
     return (value + align - 1) // align * align
-
-func log2(value: u64) -> u64:
-    var n: u64 = 0
-    var v = value
-    while v > 1:
-        v = v // 2
-        n += 1
-    return n
-
-## A leaf not aligned to its own size: a packed record's field, which makes the whole
-## aggregate MEMORY class (System V §3.2.3).
-func has_unaligned_leaf(leaves: const ir.Leaf[]) -> bool:
-    for leaf in leaves:
-        if leaf.size > 1 and (u64)leaf.offset % (u64)leaf.size != 0:
-            return true
-    return false
-
-test "a packed aggregate with a misaligned field is MEMORY class at any size":
-    var backing: u8[1048576]
-    var arena = memory.FixedBuffer.over(backing)
-    with arena:
-        var u = try ir.Unit.create()
-        # { u8 tag; u64 value } packed: nine bytes, the u64 at offset 1
-        let packed_start = u.leaves.count
-        try u.leaves.push(ir.Leaf(offset = 0, size = 1, cls = ir.Class.w))
-        try u.leaves.push(ir.Leaf(offset = 1, size = 8, cls = ir.Class.l))
-        let packed = try u.shape_from(packed_start)
-        # { u16 a; u32 b } packed: six bytes, the u32 at offset 2
-        let small_start = u.leaves.count
-        try u.leaves.push(ir.Leaf(offset = 0, size = 2, cls = ir.Class.w))
-        try u.leaves.push(ir.Leaf(offset = 2, size = 4, cls = ir.Class.w))
-        let small = try u.shape_from(small_start)
-        # { u8 tag; u64 value } with padding: sixteen bytes, two INTEGER eightbytes
-        let padded_start = u.leaves.count
-        try u.leaves.push(ir.Leaf(offset = 0, size = 1, cls = ir.Class.w))
-        try u.leaves.push(ir.Leaf(offset = 8, size = 8, cls = ir.Class.l))
-        let padded = try u.shape_from(padded_start)
-        # { f32 x; f32 y }: one SSE eightbyte
-        let point_start = u.leaves.count
-        try u.leaves.push(ir.Leaf(offset = 0, size = 4, cls = ir.Class.s))
-        try u.leaves.push(ir.Leaf(offset = 4, size = 4, cls = ir.Class.s))
-        let point = try u.shape_from(point_start)
-        var g = try Generator.create(&u)
-        assert(g.in_memory(9, packed))
-        assert(g.in_memory(6, small))
-        assert(not g.in_memory(16, padded))
-        assert(not g.in_memory(8, point))
-        assert(g.in_memory(24, 0))
-        assert(not g.in_memory(0, 0))
-        assert(g.sse_of(ir.Class.l, 8, point) == 1)
-        assert(g.sse_of(ir.Class.l, 16, padded) == 0)
-        var next_int: u32 = 0
-        var next_float: u32 = 0
-        var stack: u32 = 0
-        let placed = g.place(ir.Arg(value = ir.none_ref(), cls = ir.Class.l, size = 9, align = 1, type_id = 0, shape = packed), &next_int, &next_float, &stack)
-        assert(placed.where == 2)
-        assert(next_int == 0)
-        assert(stack == 16)
-        let in_registers = g.place(ir.Arg(value = ir.none_ref(), cls = ir.Class.l, size = 16, align = 8, type_id = 0, shape = padded), &next_int, &next_float, &stack)
-        assert(in_registers.where == 0)
-        assert(next_int == 2)
 
 test "immediates, views, and byte moves assemble":
     var backing: u8[1048576]

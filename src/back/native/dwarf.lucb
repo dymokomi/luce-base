@@ -1,6 +1,7 @@
 ## DWARF 4 for development builds. Addresses and frame offsets come from the native
 ## generator; types and member offsets come from the checker's target layout.
-import c
+import files
+import back.target as targets
 import back.native.frame
 import back.ir.ir
 import front.ast
@@ -8,20 +9,19 @@ import sema.check
 import sema.types
 import support.buffer
 import support.list
-extern func getcwd(buffer: u8*, size: usize) -> c.str?
 
 pub struct Emitter:
     var checker: check.Checker*
     var program: ir.Unit*
-    var macos: bool
+    var os: targets.Os
     var files: list.List[str]
     var needed: list.List[u32]
     var info: buffer.Buffer
     var cwd: str
     var serial: usize
 
-    pub static func over(checker: check.Checker*, program: ir.Unit*, macos: bool) -> Emitter!:
-        return Emitter(checker = checker, program = program, macos = macos,
+    pub static func over(checker: check.Checker*, program: ir.Unit*, os: targets.Os) -> Emitter!:
+        return Emitter(checker = checker, program = program, os = os,
             files = try list.List[str].create(0), needed = try list.List[u32].create(0),
             info = try buffer.Buffer.create(0), cwd = "", serial = 0)
 
@@ -36,10 +36,8 @@ pub struct Emitter:
 
     pub mutating func begin(out: buffer.Buffer*) -> !:
         var format_room: u8[4096]
-        let room = try alloc u8[4096]
-        if let path = getcwd(room.data, room.length):
-            self.cwd = (str)path
-        try section(out, "line", self.macos)
+        self.cwd = try files.canonical(".")
+        try section(out, "line", self.os)
         try out.put("Ldw_line:\n")
         var i: usize = 0
         while i < self.program.functions.count:
@@ -83,10 +81,16 @@ pub struct Emitter:
         try text(o, f.source_name)
         try text(o, f.name)
         try o.put((try format(format_room, f"    .uleb128 {file}\n    .uleb128 {f.source_line}\n    .quad ")))
-        try o.put("_" if self.macos else "")
+        try o.put("_" if (self.os == targets.Os.macos) else "")
         try o.put(f.name)
-        try o.put((try format(format_room, f"\n    .quad Ldw_end_{index}\n    .uleb128 1\n    .byte ")))
-        try o.put("109\n" if self.macos else "86\n") # DW_OP_reg29 / DW_OP_reg6
+        try o.put(try format(format_room, f"\n    .quad Ldw_end_{index}\n"))
+        if self.os == targets.Os.windows:
+            # rbp points at the allocated frame's bottom on Windows. Present the
+            # logical frame top so shared DW_OP_fbreg locations retain their meaning.
+            try o.put(try format(format_room, f"    .uleb128 Ldw_base_end_{index}-Ldw_base_{index}\nLdw_base_{index}:\n    .byte 118\n    .sleb128 {fr.size}\nLdw_base_end_{index}:\n"))
+        else:
+            try o.put("    .uleb128 1\n    .byte ")
+            try o.put("109\n" if self.os == targets.Os.macos else "86\n") # DW_OP_reg29 / DW_OP_reg6
         try self.reference(f.result_type)
         try self.scope(f, fr, index, 0)
         try o.put("    .byte 0\n")
@@ -245,31 +249,32 @@ pub struct Emitter:
         while i < self.needed.count:
             try self.type_info(self.needed.get(i))
             i += 1
-        try section(out, "abbrev", self.macos)
+        try section(out, "abbrev", self.os)
         try out.put("Ldw_abbrev:\n")
         try out.put(abbreviations)
-        try section(out, "info", self.macos)
+        try section(out, "info", self.os)
         try out.put("Ldw_info:\n    .long Ldw_info_end-Ldw_info-4\n    .short 4\n")
         # Mach-O's debug linker rebases each object's offsets. ELF concatenates
         # sections, so offsets into other sections must carry relocations.
-        try out.put("    .long 0\n" if self.macos else "    .long Ldw_abbrev\n")
+        try section_offset(out, "Ldw_abbrev", self.os)
         try out.put("    .byte 8\n    .uleb128 1\n")
         try text(out, "luce-base native DWARF 4")
         try out.put("    .short 12\n") # C99 representation understood by both debuggers
         try text(out, self.files.get(0))
         try text(out, self.cwd)
-        try out.put("    .long 0\n    .long 0\n" if self.macos else "    .long Ldw_line\n    .long Ldw_ranges\n")
+        try section_offset(out, "Ldw_line", self.os)
+        try section_offset(out, "Ldw_ranges", self.os)
         try out.put("    .quad 0\n") # statement list and ranges, section offsets
         try out.put(self.info.view())
         try out.put("    .byte 0\nLdw_info_end:\n")
-        try section(out, "ranges", self.macos)
+        try section(out, "ranges", self.os)
         try out.put("Ldw_ranges:\n")
         i = 0
         while i < self.program.functions.count:
             let f = &self.program.functions.items[i]
             if f.debug and not f.naked:
                 try out.put("    .quad ")
-                try out.put("_" if self.macos else "")
+                try out.put("_" if (self.os == targets.Os.macos) else "")
                 try out.put(f.name)
                 try out.put((try format(format_room, f", Ldw_end_{i}\n")))
             i += 1
@@ -278,9 +283,24 @@ pub struct Emitter:
 func round_up(n: u64, alignment: u64) -> u64:
     return (n + alignment - 1) // alignment * alignment if alignment > 0 else n
 
-func section(out: buffer.Buffer*, name: str, macos: bool) -> !:
+## Debug sections are non-allocating ELF sections, Mach-O debug sections, or
+## discardable read-only COFF sections. Cross-section references use the matching relocation.
+func section(out: buffer.Buffer*, name: str, os: targets.Os) -> !:
     var format_room: u8[4096]
-    try out.put((try format(format_room, f"\n    .section __DWARF,__debug_{name},regular,debug\n")) if macos else (try format(format_room, f"\n    .section .debug_{name},\"\",@progbits\n")))
+    if os == targets.Os.macos:
+        try out.put(try format(format_room, f"\n    .section __DWARF,__debug_{name},regular,debug\n"))
+    elif os == targets.Os.windows:
+        try out.put(try format(format_room, f"\n    .section .debug_{name},\"dr\"\n"))
+    else:
+        try out.put(try format(format_room, f"\n    .section .debug_{name},\"\",@progbits\n"))
+
+func section_offset(out: buffer.Buffer*, label: str, os: targets.Os) -> !:
+    if os == targets.Os.macos:
+        try out.put("    .long 0\n")
+        return
+    try out.put("    .secrel32 " if os == targets.Os.windows else "    .long ")
+    try out.put(label)
+    try out.put("\n")
 
 func text(out: buffer.Buffer*, value: str) -> !:
     try out.put("    .asciz ")

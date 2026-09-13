@@ -101,14 +101,12 @@ pub struct NativeBackend: Backend:
         try note(&at, 7)
         if self.dump_ir:
             return try irtext.render(&self.lowerer.program_unit)
-        var dw = try dwarf.Emitter.over(self.checker, &self.lowerer.program_unit, t.os == targets.Os.macos)
+        var dw = try dwarf.Emitter.over(self.checker, &self.lowerer.program_unit, t.os)
         var text = ""
         if t.arch == targets.Arch.x86_64:
-            var generator = try x86_64.Generator.create(&self.lowerer.program_unit)
+            var generator = try x86_64.Generator.create(&self.lowerer.program_unit, t.os, t.symbol_prefix)
             if self.debug:
                 generator.dw = &dw
-            generator.symbol_prefix = t.symbol_prefix
-            generator.os = t.os
             generator.level = t.level
             try generator.generate()
             text = generator.text()

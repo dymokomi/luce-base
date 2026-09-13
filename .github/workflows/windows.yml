@@ -18,6 +18,7 @@ jobs:
           msystem: UCRT64
           update: true
           install: >-
+            mingw-w64-ucrt-x86_64-gdb
             mingw-w64-ucrt-x86_64-gcc
             mingw-w64-ucrt-x86_64-python
             mingw-w64-ucrt-x86_64-cmake
@@ -44,6 +45,7 @@ jobs:
           ./build/luce-base.exe test src/support/arena.lucb --backend=c
       - name: Test runner process ownership
         run: python tools/test_validation_process.py
+          python tools/test_platform_boundaries.py
       - name: Console termination and cleanup acknowledgement
         run: python tests/programs/termination/run.py build/luce-base.exe
       - uses: actions/checkout@v7
@@ -60,6 +62,7 @@ jobs:
           python tools/test_windows.py --suite samples --c
           python tools/test_windows_arguments.py --compiler build/luce-base.exe
           python tools/test_windows_native.py
+          python tools/test_windows_debug.py
           python tests/programs/external_storage/run.py build/luce-base.exe
           python tests/programs/net_protocols/run.py build/luce-base.exe
           python tests/programs/strings_floats/run.py build/luce-base.exe

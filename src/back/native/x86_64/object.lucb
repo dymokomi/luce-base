@@ -1,0 +1,159 @@
+## ELF/COFF sections, symbols and relocations for x86-64. The instruction
+## selector requests storage and addresses without spelling object-format rules.
+import back.ir.ir
+import back.target as build_target
+import support.buffer
+
+pub struct Format:
+    let os: build_target.Os
+    let symbol_prefix: str
+
+    pub func init(os: build_target.Os, symbol_prefix: str):
+        self.os = os
+        self.symbol_prefix = symbol_prefix
+
+    func symbol(out: buffer.Buffer*, name: str) -> !:
+        try out.put(self.symbol_prefix)
+        try out.put(name)
+
+    func linkage(out: buffer.Buffer*, name: str, weak: bool, used: bool) -> !:
+        if weak and self.os != build_target.Os.windows:
+            try out.put("    .weak ")
+            try self.symbol(out, name)
+            try out.put("\n")
+        discard(used)
+
+    ## Back to the text section after a function placed in a named one.
+    pub func leave_section(out: buffer.Buffer*, function: ir.Function*) -> !:
+        if function.section.length > 0 or (self.os == build_target.Os.windows and function.weak):
+            try out.put("\n    .text\n")
+
+    pub func function_start(out: buffer.Buffer*, function: ir.Function*) -> !:
+        if self.os == build_target.Os.windows and function.weak:
+            try out.put("\n    .section .text$")
+            try self.symbol(out, function.name)
+            try out.put(",\"xr\"")
+        elif function.section.length > 0:
+            try out.put("\n    .section ")
+            try out.put(build_target.section_name(function.section, true, self.os))
+            try out.put(",\"xr\"" if self.os == build_target.Os.windows else ",\"ax\",@progbits")
+        try out.put("\n    .p2align 4\n")
+        try out.put("    .globl ")
+        try self.symbol(out, function.name)
+        if self.os != build_target.Os.windows:
+            try out.put("\n    .type ")
+            try self.symbol(out, function.name)
+            try out.put(", @function")
+        try out.put("\n")
+        try self.linkage(out, function.name, function.weak, function.used)
+        try self.symbol(out, function.name)
+        try out.put(":")
+
+    pub func begin(out: buffer.Buffer*, program_unit: ir.Unit*) -> !:
+        # Declare COFF weak references before emitting code. Weak definitions
+        # receive individual sections so their fallback symbol has zero offset.
+        if self.os == build_target.Os.windows:
+            for global in program_unit.globals.span():
+                if global.weak:
+                    try out.put("    .weak ")
+                    try self.symbol(out, global.name)
+                    try out.put("\n")
+            for function in program_unit.functions.span():
+                if function.weak:
+                    try out.put("    .weak ")
+                    try self.symbol(out, function.name)
+                    try out.put("\n")
+
+    pub func initializer(out: buffer.Buffer*, name: str) -> !:
+        # the loader runs the unit's initialiser: ELF's `.init_array`, Mach-O's
+        # `__mod_init_func` (§17.6)
+        if name.length > 0:
+            if self.os == build_target.Os.macos:
+                try out.put("\n    .section __DATA,__mod_init_func,mod_init_funcs\n    .p2align 3\n    .quad ")
+            elif self.os == build_target.Os.windows:
+                try out.put("\n    .section .CRT$XCU,\"dr\"\n    .p2align 3\n    .quad ")
+            else:
+                try out.put("\n    .section .init_array,\"aw\"\n    .p2align 3\n    .quad ")
+            try self.symbol(out, name)
+            try out.put("\n    .text\n")
+
+    pub func globals(out: buffer.Buffer*, program_unit: ir.Unit*) -> !:
+        var i: usize = 0
+        while i < program_unit.globals.count:
+            let g = program_unit.globals.get(i)
+            let size = (u64)g.size if g.size > 0 else 1
+            let align = log2((u64)g.align if g.align > 0 else 1)
+            if g.weak and self.os == build_target.Os.windows:
+                try out.put("\n    .section .data$")
+                try self.symbol(out, g.name)
+                try out.put(",\"dw\"\n")
+            elif g.is_thread_local:
+                try out.put("\n    .section .tls$LUCE,\"dw\"\n" if self.os == build_target.Os.windows else "\n    .section .tbss,\"awT\",@nobits\n")
+            elif g.section.length > 0:
+                try out.put("\n    .section ")
+                try out.put(build_target.section_name(g.section, false, self.os))
+                try out.put(",\"dw\"\n" if self.os == build_target.Os.windows else ",\"aw\"\n")
+            else:
+                try out.put("\n    .bss\n")
+            try out.put("    .globl ")
+            try self.symbol(out, g.name)
+            if self.os != build_target.Os.windows:
+                try out.put("\n    .type ")
+                try self.symbol(out, g.name)
+                try out.put(", @object")
+            try out.put("\n")
+            try self.linkage(out, g.name, g.weak, g.used)
+            try out.put("    .p2align ")
+            try out.put_u64(align)
+            try out.put("\n")
+            try self.symbol(out, g.name)
+            try out.put(":\n    .zero ")
+            try out.put_u64(size)
+            try out.put("\n")
+            i += 1
+
+    pub func finish(out: buffer.Buffer*) -> !:
+        if self.os != build_target.Os.windows:
+            try out.put("\n    .section .note.GNU-stack,\"\",@progbits\n")
+
+    pub func external_address(out: buffer.Buffer*, name: str, reg: str) -> !:
+        # a function's address, or another image's data (`import_ref`), goes through the
+        # GOT, so a symbol defined in a linked shared object resolves
+        try line(out, "leaq " if self.os == build_target.Os.windows else "movq ")
+        try self.symbol(out, name)
+        try out.put("(%rip), " if self.os == build_target.Os.windows else "@GOTPCREL(%rip), ")
+        try out.put(reg)
+
+    pub func thread_address(out: buffer.Buffer*, name: str) -> !:
+        # the initial-exec model: the thread pointer plus the variable's offset in
+        # the static thread block, which the linker writes into the GOT
+        if self.os == build_target.Os.windows:
+            try line(out, "movl _tls_index(%rip), %eax")
+            try line(out, "movq %gs:88, %r11")
+            try line(out, "movq (%r11,%rax,8), %rax")
+            try line(out, "leaq ")
+            try self.symbol(out, name)
+            try out.put("@SECREL32(%rax), %rax")
+        else:
+            try line(out, "movq %fs:0, %rax")
+            try line(out, "addq ")
+            try self.symbol(out, name)
+            try out.put("@GOTTPOFF(%rip), %rax")
+
+    pub func read_only() -> str:
+        return "\n    .section .rdata,\"dr\"" if self.os == build_target.Os.windows else "\n    .section .rodata"
+
+    pub func relocated_read_only() -> str:
+        return "\n    .section .rdata,\"dr\"\n    .p2align 3\n" if self.os == build_target.Os.windows else "\n    .section .data.rel.ro,\"aw\"\n    .p2align 3\n"
+
+func line(out: buffer.Buffer*, text: str) -> !:
+    try out.put("\n    ")
+    try out.put(text)
+
+func log2(value: u64) -> u64:
+    var result: u64 = 0
+    var remaining = value
+    while remaining > 1:
+        remaining = remaining // 2
+        result += 1
+    return result

@@ -18,7 +18,7 @@ if args.window or args.gpu:
     cases += ['main']
 if args.gpu:
     cases += ['render']
-modes = [['--native', '--opt', str(level)] for level in range(4)] + [
+modes = [['--native', '--opt', str(level)] for level in range(4)] + [['--native', '--debug']] + [
     ['--backend=c'], ['--backend=c', '--release']]
 results = []
 for case in cases:

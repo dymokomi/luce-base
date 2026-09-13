@@ -465,6 +465,10 @@ func automatic_links(arguments: Arguments*, object: c.str, directory: str) -> !:
 ## Finish debug artifacts before the scratch objects disappear. ELF keeps a linked
 ## sidecar; Mach-O's debug map is resolved into a dSYM while its inputs still exist.
 func finish_debug(exe: str) -> !:
+    if build_target().os == targets.Os.windows:
+        # PE keeps source-level DWARF in the executable; SEH remains available
+        # independently of debug mode. No external debug-link path is required.
+        return
     if build_target().os == targets.Os.macos:
         var arguments: c.str[1] = [(c.str)exe]
         try run_tool("dsymutil", arguments, "could not produce the dSYM")

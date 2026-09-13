@@ -20,7 +20,7 @@ with tempfile.TemporaryDirectory(prefix='luce-名字-😀-') as directory:
                       '        print(argument)\n'
                       '    return 0\n').replace('\n', '\r\n').encode('utf-8'))
     environment = dict(os.environ, TEMP=str(work), TMP=str(work))
-    for flags in (['--native'], ['--backend=c']):
+    for flags in (['--native'], ['--native', '--debug'], ['--backend=c']):
         output = work / '引数.exe'
         subprocess.run([compiler, 'build', source, *flags, '-o', output], check=True, env=environment)
         expected = ''.join(value + '\n' for value in values).encode('utf-8')

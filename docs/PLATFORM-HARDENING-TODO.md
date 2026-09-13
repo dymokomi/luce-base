@@ -24,8 +24,8 @@ on. No compatibility layers are required.
 
 - [x] Separate Vulkan rendering from native presentation adapters.
 - [x] Replace authored Vulkan numeric enums/flags with named constants.
-- [ ] Separate x86 ABI and object/unwind policy from instruction selection; update comments.
-- [ ] Add focused checks that enforce the intended platform boundaries.
+- [x] Separate x86 ABI and object/unwind policy from instruction selection; update comments.
+- [x] Add focused checks that enforce the intended platform boundaries.
 
 ## Final gates and handoff
 

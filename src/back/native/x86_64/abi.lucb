@@ -1,0 +1,150 @@
+## x86-64 calling-convention policy. Classification and argument placement are
+## independent of instruction emission, sections, relocations and unwind records.
+import back.ir.ir
+import back.target
+import memory
+
+## One argument's placement for a call: in registers, one per eightbyte, or on the stack.
+pub struct Placement:
+    ## 0 = registers, 2 = stack
+    pub var where: u8
+    ## bit k set when eightbyte k takes an SSE register
+    pub var sse: u8
+    pub var first_int: u32
+    pub var first_float: u32
+    pub var words: u32
+    pub var stack_offset: u32
+
+pub struct Convention:
+    pub let windows: bool
+    let program_unit: ir.Unit*
+
+    pub func init(program_unit: ir.Unit*, os: target.Os):
+        self.windows = os == target.Os.windows
+        self.program_unit = program_unit
+
+    ## Microsoft x64 passes only scalar-sized aggregates directly. System V
+    ## classifies up to two eightbytes, except records with unaligned fields.
+    pub func in_memory(size: u32, shape: u32) -> bool:
+        if self.windows:
+            return size != 0 and size != 1 and size != 2 and size != 4 and size != 8
+        if size > 16:
+            return true
+        if size == 0 or shape == 0:
+            return false
+        return has_unaligned_leaf(self.program_unit.leaves_of(shape))
+
+    pub func sse_of(cls: ir.Class, size: u32, shape: u32) -> u8:
+        if size == 0:
+            return 1 if ir.is_float_class(cls) else 0
+        if shape == 0 or self.windows:
+            return 0
+        var words: u8 = 3 if size > 8 else 1
+        for leaf in self.program_unit.leaves_of(shape):
+            if ir.is_float_class(leaf.cls):
+                continue
+            var k = (u64)leaf.offset // 8
+            let last = ((u64)leaf.offset + (u64)leaf.size - 1) // 8
+            while k <= last and k < 2:
+                words = words & ~(u8)(1 << k)
+                k += 1
+        return words
+
+    ## Classify one argument under the System V convention, advancing the counters: every
+    ## eightbyte of a small aggregate takes a register of its class, or the whole aggregate
+    ## goes to the stack; a large one always does.
+    pub func place(a: ir.Arg, next_int: u32*, next_float: u32*, stack: u32*) -> Placement:
+        if a.size == 0:
+            if ir.is_float_class(a.cls):
+                if *next_float < 8:
+                    let p = Placement(where = 0, sse = 1, first_int = 0, first_float = *next_float, words = 1, stack_offset = 0)
+                    *next_float += 1
+                    return p
+            elif *next_int < 6:
+                let p = Placement(where = 0, sse = 0, first_int = *next_int, first_float = 0, words = 1, stack_offset = 0)
+                *next_int += 1
+                return p
+            let p = Placement(where = 2, sse = 0, first_int = 0, first_float = 0, words = 1, stack_offset = *stack)
+            *stack += 8
+            return p
+        let sse = self.sse_of(a.cls, a.size, a.shape)
+        let words: u32 = 2 if a.size > 8 else 1
+        let sse_count = count_bits(sse)
+        let int_count = words - sse_count
+        if not self.in_memory(a.size, a.shape) and *next_int + int_count <= 6 and *next_float + sse_count <= 8:
+            let p = Placement(where = 0, sse = sse, first_int = *next_int, first_float = *next_float, words = words, stack_offset = 0)
+            *next_int += int_count
+            *next_float += sse_count
+            return p
+        let start = round_up((u64)*stack, (u64)a.align if a.align > 8 else 8)
+        let p = Placement(where = 2, sse = 0, first_int = 0, first_float = 0, words = words, stack_offset = (u32)start)
+        *stack = (u32)(start + round_up((u64)a.size, 8))
+        return p
+
+## A leaf not aligned to its own size: a packed record's field, which makes the whole
+## aggregate MEMORY class (System V §3.2.3).
+func has_unaligned_leaf(leaves: const ir.Leaf[]) -> bool:
+    for leaf in leaves:
+        if leaf.size > 1 and (u64)leaf.offset % (u64)leaf.size != 0:
+            return true
+    return false
+
+func round_up(value: u64, alignment: u64) -> u64:
+    return (value + alignment - 1) // alignment * alignment
+
+func count_bits(value: u8) -> u32:
+    return (u32)(value & 1) + (u32)((value >> 1) & 1)
+
+test "a packed aggregate with a misaligned field is MEMORY class at any size":
+    var backing: u8[1048576]
+    var arena = memory.FixedBuffer.over(backing)
+    with arena:
+        var u = try ir.Unit.create()
+        # { u8 tag; u64 value } packed: nine bytes, the u64 at offset 1
+        let packed_start = u.leaves.count
+        try u.leaves.push(ir.Leaf(offset = 0, size = 1, cls = ir.Class.w))
+        try u.leaves.push(ir.Leaf(offset = 1, size = 8, cls = ir.Class.l))
+        let packed = try u.shape_from(packed_start)
+        # { u16 a; u32 b } packed: six bytes, the u32 at offset 2
+        let small_start = u.leaves.count
+        try u.leaves.push(ir.Leaf(offset = 0, size = 2, cls = ir.Class.w))
+        try u.leaves.push(ir.Leaf(offset = 2, size = 4, cls = ir.Class.w))
+        let small = try u.shape_from(small_start)
+        # { u8 tag; u64 value } with padding: sixteen bytes, two INTEGER eightbytes
+        let padded_start = u.leaves.count
+        try u.leaves.push(ir.Leaf(offset = 0, size = 1, cls = ir.Class.w))
+        try u.leaves.push(ir.Leaf(offset = 8, size = 8, cls = ir.Class.l))
+        let padded = try u.shape_from(padded_start)
+        # { f32 x; f32 y }: one SSE eightbyte
+        let point_start = u.leaves.count
+        try u.leaves.push(ir.Leaf(offset = 0, size = 4, cls = ir.Class.s))
+        try u.leaves.push(ir.Leaf(offset = 4, size = 4, cls = ir.Class.s))
+        let point = try u.shape_from(point_start)
+        let g = Convention(&u, target.Os.linux)
+        assert(g.in_memory(9, packed))
+        assert(g.in_memory(6, small))
+        assert(not g.in_memory(16, padded))
+        assert(not g.in_memory(8, point))
+        assert(g.in_memory(24, 0))
+        assert(not g.in_memory(0, 0))
+        assert(g.sse_of(ir.Class.l, 8, point) == 1)
+        assert(g.sse_of(ir.Class.l, 16, padded) == 0)
+        var next_int: u32 = 0
+        var next_float: u32 = 0
+        var stack: u32 = 0
+        let placed = g.place(ir.Arg(value = ir.none_ref(), cls = ir.Class.l, size = 9, align = 1, type_id = 0, shape = packed), &next_int, &next_float, &stack)
+        assert(placed.where == 2)
+        assert(next_int == 0)
+        assert(stack == 16)
+        let in_registers = g.place(ir.Arg(value = ir.none_ref(), cls = ir.Class.l, size = 16, align = 8, type_id = 0, shape = padded), &next_int, &next_float, &stack)
+        assert(in_registers.where == 0)
+        assert(next_int == 2)
+
+test "Microsoft x64 aggregates use scalar widths or an indirect pointer":
+    var backing: u8[1048576]
+    var arena = memory.FixedBuffer.over(backing)
+    with arena:
+        var program_unit = try ir.Unit.create()
+        let convention = Convention(&program_unit, target.Os.windows)
+        for size in 0..<33:
+            assert(convention.in_memory((u32)size, 0) == (size != 0 and size != 1 and size != 2 and size != 4 and size != 8))
