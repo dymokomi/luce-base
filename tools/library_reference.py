@@ -79,5 +79,5 @@ if "--check" in sys.argv:
         print("docs/LIBRARY.md is not what src/std/ says; run tools/library_reference.py")
         sys.exit(1)
     sys.exit(0)
-target.write_text(text, encoding="utf-8", newline="\n")
+target.write_bytes((text).encode("utf-8"))
 print("wrote docs/LIBRARY.md")

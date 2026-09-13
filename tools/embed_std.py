@@ -50,5 +50,5 @@ if "--check" in sys.argv:
         print("src/sema/prelude.lucb is not what src/std/ says; run tools/embed_std.py")
         sys.exit(1)
     sys.exit(0)
-target.write_text("".join(out), encoding="utf-8", newline="\n")
+target.write_bytes(("".join(out)).encode("utf-8"))
 print(f"wrote src/sema/prelude.lucb ({len(names)} modules)")

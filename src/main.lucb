@@ -29,6 +29,7 @@ import front.source
 import front.token
 import io
 import memory
+from support.arena import Arena
 import process
 import strings
 import sema.check
@@ -584,9 +585,8 @@ func link_with_driver(dir: str, object_path: str, exe: str, t: targets.Target) -
 
 ## `build FILE`: check, generate, compile.
 func build_file(path: c.str, options: Options) -> !:
-    let backing = try reserve_arena()
-    defer free(backing) in memory.heap
-    var arena = memory.FixedBuffer.over(backing)
+    var arena = Arena(memory.heap)
+    defer arena.destroy()
     with arena:
         if options.debug and not options.native:
             error(build_failed, "--debug requires the native backend")
@@ -736,9 +736,8 @@ func run_tool(program: c.str, arguments: c.str[], what: str) -> !:
 
 ## `test FILE`: build the test runner into a scratch file and run it.
 func test_file(path: c.str, native: bool) -> i32!:
-    let backing = try reserve_arena()
-    defer free(backing) in memory.heap
-    var arena = memory.FixedBuffer.over(backing)
+    var arena = Arena(memory.heap)
+    defer arena.destroy()
     with arena:
         native_backend = native
         let text = try generate(path, 1)
@@ -787,9 +786,8 @@ func trim(text: str) -> str:
 
 ## Check FILE and the modules it imports from its directory; silence means success.
 func check_file(path: c.str) -> !:
-    let backing = try reserve_arena()
-    defer free(backing) in memory.heap
-    var arena = memory.FixedBuffer.over(backing)
+    var arena = Arena(memory.heap)
+    defer arena.destroy()
     var scratch: u8[4096]
     with arena:
         var checker = try check.Checker.create(scratch)
@@ -814,9 +812,8 @@ func stem_of(path: str) -> str:
 
 ## Check the module and print its public declarations (§17.7).
 func describe_file(path: c.str, out: io.Writer) -> !:
-    let backing = try reserve_arena()
-    defer free(backing) in memory.heap
-    var arena = memory.FixedBuffer.over(backing)
+    var arena = Arena(memory.heap)
+    defer arena.destroy()
     var scratch: u8[4096]
     with arena:
         var checker = try check.Checker.create(scratch)
@@ -830,9 +827,8 @@ func describe_file(path: c.str, out: io.Writer) -> !:
 ## Describe the compiler's canonical embedded module, without copying it into a
 ## temporary user module or changing the standard declarations' type identities.
 func describe_standard(name: str, out: io.Writer) -> !:
-    let backing = try reserve_arena()
-    defer free(backing) in memory.heap
-    var arena = memory.FixedBuffer.over(backing)
+    var arena = Arena(memory.heap)
+    defer arena.destroy()
     var scratch: u8[4096]
     with arena:
         var checker = try check.Checker.create(scratch)
@@ -845,9 +841,8 @@ func describe_standard(name: str, out: io.Writer) -> !:
 ## Resolve through the same package exports as a Base build. The names/paths use
 ## NUL delimiters so directory names containing whitespace remain lossless.
 func resolve_module(importer: str, root: str, name: str, base_only: bool, out: io.Writer) -> !:
-    let backing = try reserve_arena()
-    defer free(backing) in memory.heap
-    var arena = memory.FixedBuffer.over(backing)
+    var arena = Arena(memory.heap)
+    defer arena.destroy()
     with arena:
         if check.is_standard_module(name):
             try out.write(f"luce-base-module-v1\0standard\0{name}\0\0\0")
@@ -862,9 +857,8 @@ func resolve_module(importer: str, root: str, name: str, base_only: bool, out: i
 ## Load through the same resolver as a build; source text is never approximated by
 ## matching import-looking lines. Validate before writing any protocol bytes.
 func dependencies_file(path: c.str, out: io.Writer) -> !:
-    let backing = try reserve_arena()
-    defer free(backing) in memory.heap
-    var arena = memory.FixedBuffer.over(backing)
+    var arena = Arena(memory.heap)
+    defer arena.destroy()
     var scratch: u8[4096]
     with arena:
         var checker = try check.Checker.create(scratch)
@@ -903,35 +897,17 @@ func native_inputs(checker: check.Checker*) -> native_packages.Inputs!:
 ## Luce also has native inputs on its own source packages. Share Base's manifest
 ## interpretation without requiring a Luce source file to parse as Base.
 func native_inputs_file(path: str, out: io.Writer) -> !:
-    let backing = try reserve_arena()
-    defer free(backing) in memory.heap
-    var arena = memory.FixedBuffer.over(backing)
+    var arena = Arena(memory.heap)
+    defer arena.destroy()
     with arena:
         var inputs = try native_packages.Inputs.create()
         try inputs.collect(path)
         try out.write("luce-base-dependencies-v3\0")
         try inputs.write(out)
 
-## Trees and tokens live in one arena taken from the process heap; nothing is
-## freed until the command ends.
-let arena_size: usize = 1073741824 if platform.windows else 536870912
-
-## The command's arena: the full size, or a smaller one when the machine cannot spare it,
-## since a small program needs far less than the compiler itself.
-func reserve_arena() -> u8[]!:
-    var size = arena_size
-    while size >= 33554432:
-        if let backing = memory.heap.allocate(size, 16):
-            if size < arena_size:
-                try io.stderr().write(f"luce-base: note: the machine spared {size // 1048576} MB for the arena\n")
-            return backing
-        size = size // 2
-    error(memory.exhausted, "no room for the compiler's arena")
-
 func parse_file(path: c.str, out: io.Writer) -> !:
-    let backing = try reserve_arena()
-    defer free(backing) in memory.heap
-    var arena = memory.FixedBuffer.over(backing)
+    var arena = Arena(memory.heap)
+    defer arena.destroy()
     var scratch: u8[4096]
     with arena:
         let src = try source.Source.load(path)
@@ -940,9 +916,8 @@ func parse_file(path: c.str, out: io.Writer) -> !:
         try ast.dump(out, module, 0)
 
 func lex_file(path: c.str, out: io.Writer) -> !:
-    let backing = try reserve_arena()
-    defer free(backing) in memory.heap
-    var arena = memory.FixedBuffer.over(backing)
+    var arena = Arena(memory.heap)
+    defer arena.destroy()
     with arena:
         let src = try source.Source.load(path)
         var lx = lexer.Lexer.over(src)

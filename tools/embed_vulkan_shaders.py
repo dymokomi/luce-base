@@ -23,4 +23,4 @@ with tempfile.TemporaryDirectory(prefix='luce-shader-') as temporary:
         for offset in range(0, len(words), 8):
             lines.append('    ' + ', '.join(f'0x{word:08x}' for word in words[offset:offset + 8]) + ',')
         lines += [']', '']
-(ROOT / 'shaders.lucb').write_text('\n'.join(lines), encoding='utf-8', newline='\n')
+(ROOT / 'shaders.lucb').write_bytes(('\n'.join(lines)).encode("utf-8"))

@@ -34,6 +34,9 @@ the native backend. Native code generation is the primary hardening target.
 
 ## Build and test
 
+Build scripts require Python 3.9 or newer. Generated sources are written as UTF-8
+bytes with LF line endings, independently of the host text-file defaults.
+
 For Windows x64, use `python tools/build_windows.py`; see [Windows setup, OS contracts and validation](docs/WINDOWS.md).
 
 ```sh

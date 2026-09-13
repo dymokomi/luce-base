@@ -26,5 +26,5 @@ if '--check' in sys.argv:
     if not output.exists() or output.read_text(encoding="utf-8") != text:
         raise SystemExit('native link table is stale; run tools/embed_native_links.py')
 else:
-    output.write_text(text, encoding="utf-8", newline="\n")
+    output.write_bytes((text).encode("utf-8"))
     print('wrote src/support/native_link_table.lucb')

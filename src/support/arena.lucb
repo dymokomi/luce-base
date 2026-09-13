@@ -1,0 +1,157 @@
+## Compiler command storage. Chunk ownership lives here; allocation mechanics
+## are supplied by the standard memory.Allocator interface on every host.
+import memory
+
+## An arena that acquires additional chunks without moving earlier allocations.
+## The parent is retained by value; it must outlive this owner. Borrow the arena
+## on one thread, and destroy exactly one owner. Reset reuses its chunks.
+pub struct Arena: memory.Allocator:
+    var parent: memory.Allocator
+    var first: ArenaChunk*?
+    var last: ArenaChunk*?
+    var active: ArenaChunk*?
+    var chunk_size: usize
+
+    pub func init(parent: memory.Allocator, chunk_size: usize = 65536):
+        self.parent = parent
+        self.first = none
+        self.last = none
+        self.active = none
+        self.chunk_size = chunk_size if chunk_size > 0 else 65536
+
+    pub mutating func allocate(size: usize, alignment: usize) -> u8[]?:
+        if size == 0:
+            return u8[]((u8*)(usize)8, 0)
+        let align = alignment if alignment > 0 else 1
+        # Reserve enough padding for an arbitrary positive alignment. Refusing
+        # overflowing requests leaves both the list and existing data unchanged.
+        let minimum = size +? (align - 1) else return none
+        var cursor = self.active
+        while let chunk = cursor:
+            if let start = aligned_offset(chunk.bytes, chunk.used, align):
+                if size <= chunk.bytes.length - start:
+                    chunk.used = start + size
+                    self.active = chunk
+                    return chunk.bytes[start..<chunk.used]
+            cursor = chunk.next
+        let capacity = minimum if minimum > self.chunk_size else self.chunk_size
+        let total = capacity +? sizeof(ArenaChunk) else return none
+        let backing = self.parent.allocate(total, alignof(ArenaChunk)) else return none
+        let chunk = (ArenaChunk*)backing.data
+        *chunk = ArenaChunk(backing = backing, bytes = backing[sizeof(ArenaChunk)..])
+        let start = aligned_offset(chunk.bytes, 0, align) else trap("arena chunk alignment")
+        chunk.used = start + size
+        if let previous = self.last:
+            previous.next = chunk
+        else:
+            self.first = chunk
+        self.last = chunk
+        self.active = chunk
+        return chunk.bytes[start..<chunk.used]
+
+    ## Only the most recent allocation in the active chunk can change in place.
+    pub mutating func resize(block: u8[], size: usize) -> bool:
+        if size == block.length:
+            return true
+        if block.length == 0:
+            return false
+        let chunk = self.active else return false
+        let start = (usize)block.data -? (usize)chunk.bytes.data else return false
+        if start > chunk.used or block.length != chunk.used - start:
+            return false
+        if size > chunk.bytes.length - start:
+            return false
+        chunk.used = start + size
+        return true
+
+    pub mutating func release(block: u8[]):
+        let chunk = self.active else return
+        let start = (usize)block.data -? (usize)chunk.bytes.data else return
+        if start <= chunk.used and block.length == chunk.used - start:
+            chunk.used = start
+
+    pub mutating func reset():
+        var cursor = self.first
+        while let chunk = cursor:
+            chunk.used = 0
+            cursor = chunk.next
+        self.active = self.first
+
+    pub mutating func destroy():
+        var cursor = self.first
+        self.first = none
+        self.last = none
+        self.active = none
+        while let chunk = cursor:
+            let next = chunk.next
+            let backing = chunk.backing
+            self.parent.release(backing)
+            cursor = next
+
+## Chunk metadata shares its parent's allocation, so allocation failure cannot
+## strand a separate list node. All links are captured before releasing a chunk.
+struct ArenaChunk:
+    var backing: u8[]
+    var bytes: u8[]
+    var next: ArenaChunk*?
+    var used: usize
+
+## Align the address inside a bounded span, without rounding an addition past
+## usize's range. The remainder works for arbitrary positive byte alignments.
+func aligned_offset(storage: u8[], used: usize, alignment: usize) -> usize?:
+    if used > storage.length:
+        return none
+    let address = (usize)storage.data +? used else return none
+    let remainder = address % alignment
+    let padding = 0 if remainder == 0 else alignment - remainder
+    if padding > storage.length - used:
+        return none
+    return used + padding
+
+
+struct Budget: memory.Allocator:
+    var remaining: usize = 2
+    var outstanding: usize
+
+    mutating func allocate(size: usize, alignment: usize) -> u8[]?:
+        if self.remaining == 0:
+            return none
+        let block = memory.heap.allocate(size, alignment) else return none
+        self.remaining -= 1
+        self.outstanding += 1
+        return block
+
+    mutating func resize(block: u8[], size: usize) -> bool:
+        return false
+
+    mutating func release(block: u8[]):
+        memory.heap.release(block)
+        self.outstanding -= 1
+
+test "arena growth preserves addresses, handles refusal and reuses released storage":
+    var owner = Budget()
+    var allocator = Arena(&owner, 64)
+    let first = allocator.allocate(17, 7) else trap("first chunk")
+    assert((usize)first.data % 7 == 0)
+    memory.set(first, 19)
+    let large = allocator.allocate(4096, 32) else trap("larger chunk")
+    assert((usize)large.data % 32 == 0)
+    memory.set(large, 71)
+    assert(owner.outstanding == 2)
+    assert(allocator.allocate(8192, 16) == none)
+    assert(allocator.allocate(18446744073709551615, 16) == none)
+    assert(allocator.allocate(1, 18446744073709551615) == none)
+    for value in first:
+        assert(value == 19)
+    for value in large:
+        assert(value == 71)
+    assert(not allocator.resize(first, 20))
+    assert(allocator.resize(large, 1024))
+    assert(allocator.resize(large[..<1024], 4096))
+    allocator.reset()
+    let reused = allocator.allocate(4096, 32) else trap("reset must reuse chunks")
+    assert(reused.data == large.data and owner.outstanding == 2)
+    allocator.destroy()
+    allocator.destroy()
+    assert(owner.outstanding == 0)
+

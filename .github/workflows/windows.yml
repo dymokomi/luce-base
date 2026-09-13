@@ -38,7 +38,10 @@ jobs:
           cmake --build build/seed/build-windows -j 4
           python tools/build_windows.py --seed build/seed/build-windows/lucb.exe
       - name: Compiler unit tests
-        run: ./build/luce-base.exe test src/main.lucb
+        run: |
+          ./build/luce-base.exe test src/main.lucb
+          ./build/luce-base.exe test src/support/arena.lucb
+          ./build/luce-base.exe test src/support/arena.lucb --backend=c
       - name: Test runner process ownership
         run: python tools/test_validation_process.py
       - name: Native and C conformance
