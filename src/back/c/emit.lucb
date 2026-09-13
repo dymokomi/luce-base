@@ -96,6 +96,8 @@ pub struct Emitter:
     var counter: u32
     ## Program modules in dependency order; the prelude is never emitted.
     var modules: list.List[NodeRef]
+    ## External storage referenced by emitted bodies or global initializers.
+    var external_storage: list.List[NodeRef]
     var entry: ast.Node*
     var funcs: list.List[Instance]
     var records: list.List[Instance]
@@ -158,7 +160,7 @@ pub struct Emitter:
         return Emitter(c = checker, out = try buffer.Buffer.create(65536), body = try buffer.Buffer.create(262144), sequenced = try list.List[Sequenced].create(32), chain_left = none, chain_temp = 0,
                        scratch = try buffer.Buffer.create(65536), formats = try list.List[u32].create(16), arrays = try list.List[Hoisted].create(16),
                        globals = try buffer.Buffer.create(4096), protos = try buffer.Buffer.create(16384), target = to_body, indent = 0, counter = 0,
-                       modules = try list.List[NodeRef].create(16), entry = entry,
+                       modules = try list.List[NodeRef].create(16), external_storage = try list.List[NodeRef].create(8), entry = entry,
                        funcs = try list.List[Instance].create(64), records = try list.List[Instance].create(64),
                        needed = try list.List[u32].create(256), defined = try list.List[u32].create(256),
                        decls_done = try list.List[NodeRef].create(64), tests = try list.List[NodeRef].create(32),
@@ -783,12 +785,20 @@ pub struct Emitter:
     ## `lb_module_name` for a top-level `let` or `var`.
     mutating func put_global_name(d: ast.Node*) -> !:
         if d.kind == ast.Kind.extern_var:
+            if not self.uses_external_storage(d):
+                try self.external_storage.push(d)
             try self.put(d.text)
             return
         try self.put("lb_")
         try self.put(self.module_name(d))
         try self.put("_")
         try self.put(d.text)
+
+    func uses_external_storage(declaration: ast.Node*) -> bool:
+        for referenced in self.external_storage.span():
+            if referenced == declaration:
+                return true
+        return false
 
     ## The C name of the function the emission context is inside.
     mutating func put_current_name() -> !:
@@ -6608,7 +6618,7 @@ pub struct Emitter:
             while let d = cursor:
                 if d.kind == ast.Kind.extern_func:
                     try self.extern_prototype(d)
-                elif d.kind == ast.Kind.extern_var:
+                elif d.kind == ast.Kind.extern_var and self.uses_external_storage(d):
                     try self.line("extern ")
                     try self.put_type(d.type_id)
                     try self.put(" ")

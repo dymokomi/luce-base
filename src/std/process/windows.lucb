@@ -147,11 +147,11 @@ func run_windows(program: c.str, arguments: const c.str[], directory: c.str, env
     var selected_directory: u16[]
     if ((str)directory).length > 0:
         selected_directory = try windows_text.wide(directory, failed)
-    defer free(selected_directory)
+    defer release_storage(selected_directory)
     var selected_environment: u16[]
     if let overrides = environment:
         selected_environment = try environment_windows(overrides)
-    defer free(selected_environment)
+    defer release_storage(selected_environment)
     let output = try temporary_windows()
     defer discard(fclose(output))
     let errors = try temporary_windows()

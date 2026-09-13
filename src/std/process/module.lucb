@@ -92,7 +92,7 @@ pub func run(program: c.str, arguments: const c.str[], directory: c.str = "", en
     var selected: (c.str?)[]
     if let overrides = environment:
         selected = try environment_posix(overrides, *slot)
-    defer free(selected)
+    defer release_storage(selected)
     let argv = try alloc void*?[arguments.length + 2]
     argv[0] = (void*)program
     var i: usize = 0
@@ -150,6 +150,11 @@ pub func run(program: c.str, arguments: const c.str[], directory: c.str = "", en
         release(out_text)
         error(failure.code, failure.message)
     return ((status >> 8) & 255, out_text, err_text)
+
+## Optional child state has no allocation when inherited unchanged.
+func release_storage[T](storage: T[]):
+    if storage.length > 0:
+        free(storage)
 
 ## Only capture owns the cancellation path. Once it returns, result allocation can fail
 ## after wait_for has reaped the child; that must never signal a potentially reused pid.

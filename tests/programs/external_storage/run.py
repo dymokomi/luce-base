@@ -15,3 +15,9 @@ with tempfile.TemporaryDirectory(prefix='luce-external-storage-') as folder:
         result = subprocess.run([binary], check=True, capture_output=True)
         assert result.stdout == b'ok external global storage\n' and not result.stderr, result
         print('PASS external storage', *flags)
+    generated = Path(folder) / 'program.c'
+    subprocess.run([compiler, 'build', source, '--emit=c', '-o', generated], check=True)
+    text = generated.read_text(encoding='utf-8')
+    assert 'unused_external_counter' not in text
+    assert 'extern int32_t external_counter;' in text
+    print('PASS only referenced external storage is declared')

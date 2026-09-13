@@ -1,3 +1,6 @@
 pub extern var external_counter: i32
 pub func address() -> i32*:
     return &external_counter
+
+# An unused external has no declaration in generated C.
+pub extern var unused_external_counter: i32
