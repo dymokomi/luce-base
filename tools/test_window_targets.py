@@ -1,0 +1,34 @@
+#!/usr/bin/env python3
+"""Ensure the public text-input API emits only the selected host's native calls."""
+import argparse
+from pathlib import Path
+import subprocess
+import tempfile
+ROOT = Path(__file__).resolve().parents[1]
+p = argparse.ArgumentParser(description=__doc__)
+p.add_argument('--compiler', type=Path, default=ROOT / 'build/luce-base')
+a = p.parse_args()
+with tempfile.TemporaryDirectory(prefix='luce-window-targets-') as directory:
+    work = Path(directory)
+    source = work / 'probe.lucb'
+    source.write_text('''import window
+pub func main(arguments: str[]) -> i32!:
+    var host = try window.Window.open(window.Options(title = "Input target contract"))
+    defer host.destroy()
+    try host.set_text_input(true)
+    try host.set_text_input(false)
+    return 0
+''')
+    for target in ['arm64-macos', 'x86_64-windows', 'x86_64-linux']:
+        for level in [0, 3]:
+            output = work / 'probe.s'
+            subprocess.run([str(a.compiler.resolve()), 'build', str(source), '--target', target,
+                            '--native', '--opt', str(level), '--emit=asm', '-o', str(output)], check=True, timeout=120)
+            assembly = output.read_text()
+            if not target.endswith('macos'):
+                for symbol in ['objc_msgSend', 'sel_registerName', 'objc_getClass']:
+                    assert symbol not in assembly, (target, level, symbol)
+            if target.endswith('linux'):
+                for symbol in ['CreateWindowExW', 'DefWindowProcW', 'GetModuleHandleW']:
+                    assert symbol not in assembly, (target, level, symbol)
+            print('PASS text input target', target, level, flush=True)

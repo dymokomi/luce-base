@@ -85,11 +85,9 @@ pub struct Window:
             return
         state.text_input = enabled
         state.pending_surrogate = 0
-        if not enabled and platform.macos:
-            mac_clear_marked(state)
-            if let view = state.view:
-                if let context = msg_ptr(view, sel("inputContext")):
-                    msg_void(context, sel("discardMarkedText"))
+        if platform.macos and platform.arm64:
+            if not enabled:
+                mac_cancel_text_input(state)
 
     ## Reserve this window for one graphics surface. Normally gpu.Surface calls
     ## this; applications need not manage the lease themselves.

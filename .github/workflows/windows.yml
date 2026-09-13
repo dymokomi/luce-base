@@ -59,6 +59,7 @@ jobs:
       - name: Windows OS contracts
         run: |
           python tools/test_windows_arguments.py --compiler build/luce-base.exe
+          python tools/test_window_targets.py --compiler build/luce-base.exe
           python tools/test_windows_native.py
           python tools/test_desktop_services.py --compiler build/luce-base.exe
           python tools/test_windows_debug.py
