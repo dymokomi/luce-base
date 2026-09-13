@@ -68,7 +68,9 @@ implemented through Winsock polling. Server shutdown uses console control events
 GNU tools run with relative generated filenames inside a private workspace beside
 the destination. The child receives that working directory through `CreateProcessW`
 and private `TMPDIR`, `TEMP` and `TMP` overrides. Publishing uses Unicode filesystem
-operations on the same volume. Source, output and temporary-directory paths need
+operations on the same volume. Compiler-driver intermediates use relative output
+names (`-save-temps=obj`) to avoid GCC's ANSI temporary-path expansion; the owned
+workspace removes them after both successful and failed builds. Source, output and temporary-directory paths need
 no short-name aliases, and the parent process environment is unchanged. External
 C source and library operands still follow the selected GNU toolchain's filename
 support.

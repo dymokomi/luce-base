@@ -424,7 +424,7 @@ func compile(text: str, requested_exe: str, release: bool, with_start: bool) -> 
         try pkg_config_flags(&cc_args, name, "--cflags", false)
         try pkg_config_flags(&cc_args, name, "--libs", false)
     try link_flags(&cc_args, true)
-    let result = try host_tools.run(host_c_compiler(), cc_args.span(), dir)
+    let result = try host_tools.run_compiler(host_c_compiler(), cc_args.span(), dir)
     let (cc_status, cc_out, cc_err) = result
     discard(cc_out.length)
     if cc_status != 0:
@@ -726,7 +726,7 @@ func build_library(code: str, header_text: str, name: str) -> !:
 
 ## Run a build tool; its standard error is shown when it fails.
 func run_tool(program: c.str, arguments: c.str[], what: str, directory: str = "") -> !:
-    let ran = try host_tools.run(host_c_compiler() if (str)program == "cc" else program, arguments, directory)
+    let ran = try host_tools.run_compiler(host_c_compiler(), arguments, directory) if (str)program == "cc" else try host_tools.run(program, arguments, directory)
     let (status, out, err) = ran
     discard(out.length)
     if status != 0:

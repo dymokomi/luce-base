@@ -56,17 +56,19 @@ jobs:
           path: build/vulkan-headers
       - name: Vulkan ABI and constant oracle
         run: python tools/test_vulkan_abi.py --compiler build/luce-base.exe --headers build/vulkan-headers/include
-      - name: Native and C conformance
-        run: python tools/test_windows.py --suite conformance --c
-      - name: Samples and Windows OS contracts
+      - name: Windows OS contracts
         run: |
-          python tools/test_windows.py --suite samples --c
           python tools/test_windows_arguments.py --compiler build/luce-base.exe
           python tools/test_windows_native.py
           python tools/test_windows_debug.py
           python tests/programs/external_storage/run.py build/luce-base.exe
           python tests/programs/net_protocols/run.py build/luce-base.exe
           python tests/programs/strings_floats/run.py build/luce-base.exe
+      - name: Native and C conformance
+        run: python tools/test_windows.py --suite conformance --c
+      - name: Samples and fuzzing
+        run: |
+          python tools/test_windows.py --suite samples --c
           python tools/fuzz.py --gate
       - name: Retain diagnostics
         if: always()

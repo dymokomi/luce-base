@@ -40,4 +40,14 @@ with tempfile.TemporaryDirectory(prefix='luce-名字-😀-') as directory:
         subprocess.run([compiler, 'build', parent, *flags, '-o', binary], check=True, env=environment)
         result = subprocess.run([binary], check=True, capture_output=True)
         assert result.stdout == expected, result.stdout
+        library_source = work / 'library.lucb'
+        library_source.write_bytes(b'export func answer() -> i32:\n    return 42\n')
+        library = work / '共有'
+        subprocess.run([compiler, 'build', library_source, *flags, '--lib', '-o', library],
+                       check=True, env=environment)
+        assert library.with_suffix('.a').stat().st_size > 0
+        assert library.with_suffix('.h').stat().st_size > 0
+        expected_files = {'child.lucb', '引数.exe', 'parent.lucb', '親.exe',
+                          'library.lucb', '共有.a', '共有.h'}
+        assert {path.name for path in work.iterdir()} == expected_files
         print('PASS Unicode source/output paths, CRLF source, argv and process.run', flags[0])

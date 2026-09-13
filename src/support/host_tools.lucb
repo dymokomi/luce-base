@@ -4,6 +4,7 @@
 import c
 import files
 import paths
+import platform
 import process
 import strings
 
@@ -40,6 +41,18 @@ func operand(text: str, directory: str) -> str!:
     if not paths.is_absolute(text) and files.exists((c.str)terminated):
         return try files.canonical((c.str)terminated)
     return terminated
+
+## GCC's Windows temporary-path API expands even "." through the ANSI code page.
+## Keep its intermediates beside the relative output instead, including collect2's
+## constructor files. The workspace owner removes all of them after publication.
+pub func run_compiler(program: c.str, arguments: const c.str[], directory: str) -> (i32, str, str)!:
+    if platform.windows:
+        let selected = try alloc c.str[arguments.length + 1]
+        for index in 0..<arguments.length:
+            selected[index] = arguments[index]
+        selected[arguments.length] = "-save-temps=obj"
+        return try run(program, selected, directory)
+    return try run(program, arguments, directory)
 
 pub func run(program: c.str, arguments: const c.str[], directory: str = "") -> (i32, str, str)!:
     if directory.length == 0:
