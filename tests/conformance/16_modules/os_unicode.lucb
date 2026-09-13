@@ -1,3 +1,5 @@
+# oracle: none
+# Native OS ownership and Unicode APIs are supplied by Base, not Seed.
 import c
 import os
 import files

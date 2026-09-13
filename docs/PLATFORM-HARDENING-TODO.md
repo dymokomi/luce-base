@@ -15,10 +15,10 @@ on. No compatibility layers are required.
 ## Standard OS primitives and consumers
 
 - [x] Consolidate shared Windows ABI/text helpers beneath public standard modules.
-- [ ] Add owned temporary directories and filesystem canonical paths; use them in both compilers.
-- [ ] Separate portable compiler host-tool policy from native workspace operations.
+- [x] Add owned temporary directories and filesystem canonical paths; use them in both compilers.
+- [x] Separate portable compiler host-tool policy from native workspace operations.
 - [x] Add portable termination subscriptions with bounded Windows close acknowledgement.
-- [ ] Use that abstraction in the server and test console close independently of Ctrl-Break.
+- [x] Use that abstraction in the server and test console close independently of Ctrl-Break.
 
 ## GPU and CPU boundaries
 

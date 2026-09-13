@@ -1,0 +1,39 @@
+import c
+import files
+import os
+import paths
+import process
+import strings
+
+pub func main(arguments: str[]) -> i32!:
+    if arguments.length == 2:
+        assert(os.env("LUCE_CHILD_ENV") == "東京")
+        let here = try os.cwd()
+        defer strings.release(here)
+        assert(strings.ends_with(here, "京都"))
+        print("child")
+        return 0
+    try os.set_env("LUCE_CHILD_ENV", "parent")
+    let before = try os.cwd()
+    defer strings.release(before)
+    var root = try files.TemporaryDirectory()
+    defer root.destroy()
+    let folder = try paths.join(root.path(), "京都")
+    defer strings.release(folder)
+    try files.create_directory((c.str)folder)
+    let options: c.str[1] = ["LUCE_CHILD_ENV=東京"]
+    let child: c.str[1] = ["child"]
+    let (status, output, errors) = try process.run((c.str)arguments[0], child, (c.str)folder, options)
+    defer process.release(output)
+    defer process.release(errors)
+    assert(status == 0 and output == "child\n" and errors.length == 0)
+    assert(os.env("LUCE_CHILD_ENV") == "parent")
+    let after = try os.cwd()
+    defer strings.release(after)
+    assert(before == after)
+    let invalid: c.str[1] = ["missing separator"]
+    process.run((c.str)arguments[0], child, environment = invalid) catch failure:
+        assert(failure.code == process.failed)
+        print("ok child working directory and environment are isolated from the parent")
+        return 0
+    trap("invalid environment override was accepted")

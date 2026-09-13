@@ -15,10 +15,10 @@ values = ['café 日本語 😀', '', 'a"b', 'two words\\', '&|<>^%literal%']
 with tempfile.TemporaryDirectory(prefix='luce-名字-😀-') as directory:
     work = Path(directory)
     source = work / 'child.lucb'
-    source.write_text('pub func main(arguments: str[]) -> i32:\n'
+    source.write_bytes(('pub func main(arguments: str[]) -> i32:\n'
                       '    for argument in arguments[1..]:\n'
                       '        print(argument)\n'
-                      '    return 0\n', encoding='utf-8', newline='\r\n')
+                      '    return 0\n').replace('\n', '\r\n').encode('utf-8'))
     environment = dict(os.environ, TEMP=str(work), TMP=str(work))
     for flags in (['--native'], ['--backend=c']):
         output = work / '引数.exe'
@@ -29,13 +29,13 @@ with tempfile.TemporaryDirectory(prefix='luce-名字-😀-') as directory:
         # Base literals use the same escapes needed here; values contain no JSON-only escapes.
         literal = lambda value: json.dumps(value, ensure_ascii=False)
         parent = work / 'parent.lucb'
-        parent.write_text('import c\nimport process\nimport io\n'
+        parent.write_bytes(('import c\nimport process\nimport io\n'
                           'pub func main(arguments: str[]) -> i32!:\n'
                           f'    let child: c.str[{len(values)}] = [' + ', '.join(map(literal, values)) + ']\n'
                           f'    let (status, output, errors) = try process.run({literal(str(output))}, child)\n'
                           '    assert(status == 0 and errors.length == 0)\n'
                           '    try io.stdout().write(output)\n'
-                          '    return 0\n', encoding='utf-8', newline='\n')
+                          '    return 0\n').encode('utf-8'))
         binary = work / '親.exe'
         subprocess.run([compiler, 'build', parent, *flags, '-o', binary], check=True, env=environment)
         result = subprocess.run([binary], check=True, capture_output=True)

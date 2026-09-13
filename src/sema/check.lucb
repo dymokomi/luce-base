@@ -378,7 +378,7 @@ pub struct Checker:
             .member:
                 let owner = e.left else return false
                 let d = e.resolved else return false
-                if d.kind == ast.Kind.global or d.kind == ast.Kind.constant:
+                if d.kind == ast.Kind.global or d.kind == ast.Kind.extern_var or d.kind == ast.Kind.constant:
                     return true    # `module.global`
                 return d.kind == ast.Kind.field and self.global_place(owner)
             _:
@@ -389,7 +389,7 @@ pub struct Checker:
         if e.kind != ast.Kind.name:
             return false
         let d = e.resolved else return false
-        return d.kind == ast.Kind.global or d.kind == ast.Kind.constant or d.kind == ast.Kind.func_
+        return d.kind == ast.Kind.global or d.kind == ast.Kind.extern_var or d.kind == ast.Kind.constant or d.kind == ast.Kind.func_
 
     ## A tuple or array literal holding a local's address is as local as that address:
     ## `return (1, &n)` leaves the frame through the tuple (§6.6).
@@ -415,7 +415,7 @@ pub struct Checker:
             .name:
                 let b = self.lookup(e.text) else return false
                 let d = b.decl else return false
-                if d.kind == ast.Kind.global or d.kind == ast.Kind.constant:
+                if d.kind == ast.Kind.global or d.kind == ast.Kind.extern_var or d.kind == ast.Kind.constant:
                     return false
                 return b.depth > 0
             .self_:
@@ -759,7 +759,7 @@ pub struct Checker:
         if self.lookup(name) != none:
             return
         let d = find_decl(tree, name) else return
-        try self.bind(d, name, d.type_id, d, d.kind == ast.Kind.global)
+        try self.bind(d, name, d.type_id, d, d.kind == ast.Kind.global or d.kind == ast.Kind.extern_var)
 
     mutating func bind_imports(tree: ast.Node*) -> !:
         var cursor = tree.body
@@ -794,7 +794,7 @@ pub struct Checker:
                     if not member.has(ast.flag_pub):
                         discard(try self.fail(n, "that name is not public"))
                     n.resolved = member
-                    try self.bind(n, n.text, member.type_id, member, member.kind == ast.Kind.global)
+                    try self.bind(n, n.text, member.type_id, member, member.kind == ast.Kind.global or member.kind == ast.Kind.extern_var)
                     self.set_origin(d)
                     names = n.next
             cursor = d.next
@@ -1936,7 +1936,7 @@ pub struct Checker:
                     # `init` gives every field its first value, `let` fields included (§9.4)
                     if field.kind == ast.Kind.field and field.has(ast.flag_const) and not self.in_init:
                         return false
-                    if field.kind == ast.Kind.global:
+                    if field.kind == ast.Kind.global or field.kind == ast.Kind.extern_var:
                         return true
                 let ot = self.table.get(owner.type_id)
                 if ot.kind == types.Kind.pointer:

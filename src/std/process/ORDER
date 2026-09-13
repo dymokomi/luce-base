@@ -3,3 +3,5 @@ windows.lucb
 termination/module.lucb
 termination/posix.lucb
 termination/windows.lucb
+environment/posix.lucb
+environment/windows.lucb

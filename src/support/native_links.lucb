@@ -1,7 +1,7 @@
 ## Select backend-owned requirements from the actual object's unresolved symbols.
 ## Dead standard code therefore adds no frameworks in native or C comparison builds.
 import c
-import process
+import support.host_tools
 import support.list
 import support.native_link_table
 import back.target
@@ -12,13 +12,13 @@ pub struct Requirements:
     pub let libraries: c.str[]
     pub let frameworks: c.str[]
 
-pub func collect(object: c.str, platform: target.Target) -> Requirements!:
+pub func collect(object: c.str, platform: target.Target, directory: str) -> Requirements!:
     var libraries = try list.List[c.str].create(4)
     var frameworks = try list.List[c.str].create(4)
     if platform.os != target.Os.macos and platform.os != target.Os.windows:
         return Requirements(libraries.span(), frameworks.span())
     let arguments: c.str[2] = ["-u", object]
-    let (status, output, errors) = try process.run("nm", arguments)
+    let (status, output, errors) = try host_tools.run("nm", arguments, directory)
     if status != 0:
         error(failed, "could not inspect native object link requirements")
     discard(errors)

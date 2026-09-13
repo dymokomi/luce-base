@@ -1,0 +1,13 @@
+import storage
+from storage import external_counter
+func imported_address() -> i32*:
+    return &external_counter
+pub func main(arguments: str[]) -> i32:
+    assert(storage.address() == imported_address())
+    *storage.address() = 17
+    assert(storage.external_counter == 17)
+    storage.external_counter = 25
+    external_counter = 42
+    assert(*imported_address() == 42)
+    print("ok external global storage")
+    return 0

@@ -1,0 +1,63 @@
+## Host tools run inside an owned workspace with private child state. Generated
+## filenames remain relative ASCII names even when the output directory is Unicode.
+## Storage belongs to the compiler command arena; close releases filesystem state.
+import c
+import files
+import paths
+import process
+import strings
+
+pub struct Workspace:
+    let directory: str
+
+    pub func init(output: str) -> !:
+        let parent = try strings.copy(paths.directory(output))
+        let absolute = try files.canonical((c.str)parent)
+        self.directory = try files.create_temporary_directory((c.str)absolute, 448u32)
+
+    pub func path() -> str:
+        return self.directory
+
+    pub func publish(source: str, destination: str) -> !:
+        let target = try strings.copy(destination)
+        try files.rename((c.str)source, (c.str)target, true)
+
+    pub func close() -> !:
+        try files.remove_tree((c.str)self.directory)
+
+    pub func destroy():
+        self.close() catch failure:
+            discard(failure)
+
+## Rebase only filesystem operands. Flags, library names and framework names are
+## preserved. Existing external inputs become absolute before changing child cwd.
+func operand(text: str, directory: str) -> str!:
+    if text == directory:
+        return "."
+    if strings.starts_with(text, directory) and text.length > directory.length and paths.separator(text.bytes[directory.length]):
+        return try strings.copy((str)text.bytes[directory.length + 1..])
+    let terminated = try strings.copy(text)
+    if not paths.is_absolute(text) and files.exists((c.str)terminated):
+        return try files.canonical((c.str)terminated)
+    return terminated
+
+pub func run(program: c.str, arguments: const c.str[], directory: str = "") -> (i32, str, str)!:
+    if directory.length == 0:
+        return try process.run(program, arguments)
+    let converted = try alloc c.str[arguments.length]
+    for index in 0..<arguments.length:
+        let text = (str)arguments[index]
+        if strings.starts_with(text, "-I") or strings.starts_with(text, "-L"):
+            let path = try operand((str)text.bytes[2..], directory)
+            let buffer = try alloc u8[path.length + 3]
+            converted[index] = (c.str)try format(buffer, f"{(str)text.bytes[..<2]}{path}")
+        elif text.length > 0 and text.bytes[0] == '-':
+            converted[index] = arguments[index]
+        else:
+            converted[index] = (c.str)try operand(text, directory)
+    let overrides: c.str[3] = ["TMPDIR=.", "TEMP=.", "TMP=."]
+    # A bare tool name is resolved through PATH. Explicit relative executables
+    # refer to the caller's directory, just like input files.
+    let executable = try operand((str)program, directory) if paths.directory((str)program) != "." else (str)program
+    let environment: const c.str[] = overrides
+    return try process.run((c.str)executable, converted, (c.str)directory, environment)

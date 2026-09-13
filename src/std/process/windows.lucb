@@ -123,7 +123,7 @@ func temporary_windows() -> void*!:
         error(failed, "a child capture stream could not be created")
     error(failed, "no unused child capture name was found")
 
-func run_windows(program: c.str, arguments: const c.str[]) -> (i32, str, str)!:
+func run_windows(program: c.str, arguments: const c.str[], directory: c.str, environment: const c.str[]?) -> (i32, str, str)!:
     let name = (str)program
     var room = name.length *? 2 else error(failed, "the process command is too long")
     room = room +? 4 else error(failed, "the process command is too long")
@@ -144,6 +144,14 @@ func run_windows(program: c.str, arguments: const c.str[]) -> (i32, str, str)!:
     defer free(wide)
     if wide.length > 32768:
         error(failed, "the process command is too long")
+    var selected_directory: u16[]
+    if ((str)directory).length > 0:
+        selected_directory = try windows_text.wide(directory, failed)
+    defer free(selected_directory)
+    var selected_environment: u16[]
+    if let overrides = environment:
+        selected_environment = try environment_windows(overrides)
+    defer free(selected_environment)
     let output = try temporary_windows()
     defer discard(fclose(output))
     let errors = try temporary_windows()
@@ -163,7 +171,9 @@ func run_windows(program: c.str, arguments: const c.str[]) -> (i32, str, str)!:
     startup.output = out_handle
     startup.errors = err_handle
     var child: WinProcess
-    if CreateProcessW(none, wide.data, none, none, 1, 134217728, none, none, &startup, &child) == 0:
+    if CreateProcessW(none, wide.data, none, none, 1, 134217728 | 1024,
+        selected_environment.data if selected_environment.length > 0 else none,
+        selected_directory.data if selected_directory.length > 0 else none, &startup, &child) == 0:
         error(failed, "the process could not be started")
     let process = child.process else trap("CreateProcess returned no process")
     let thread = child.thread else trap("CreateProcess returned no thread")

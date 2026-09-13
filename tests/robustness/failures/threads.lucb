@@ -31,6 +31,8 @@ func attempt(allocation: usize, fault: i32):
         assert(count == 1)
     else:
         assert(count == 0)
+    if rejected != (allocation != 0 or fault != 0):
+        print(f"thread failure mismatch: allocation={allocation}, attempts={owner.attempts}, fault={fault}, hits={fault_hits()}")
     assert(rejected == (allocation != 0 or fault != 0))
     assert(fault_attributes() == 0, "thread attributes were left alive")
     if fault != 0:

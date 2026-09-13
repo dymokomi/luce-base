@@ -60,6 +60,7 @@ jobs:
           python tools/test_windows.py --suite samples --c
           python tools/test_windows_arguments.py --compiler build/luce-base.exe
           python tools/test_windows_native.py
+          python tests/programs/external_storage/run.py build/luce-base.exe
           python tests/programs/net_protocols/run.py build/luce-base.exe
           python tests/programs/strings_floats/run.py build/luce-base.exe
           python tools/fuzz.py --gate
