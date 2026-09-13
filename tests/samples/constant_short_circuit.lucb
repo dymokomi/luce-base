@@ -1,0 +1,23 @@
+## An unreachable platform entry point must never be required by the linker.
+## A constant right operand must still preserve a dynamic left operand's effects.
+extern func absent_platform_entry() -> bool
+let disabled = false
+let enabled = true
+var calls: i32
+
+func touch() -> bool:
+    calls += 1
+    return true
+
+pub func main(arguments: str[]) -> i32:
+    if disabled and absent_platform_entry():
+        trap("unreachable platform branch")
+    if enabled or absent_platform_entry():
+        calls += 10
+    if touch() and disabled:
+        trap("false conjunction")
+    if touch() or enabled:
+        calls += 10
+    assert(calls == 22)
+    print("ok short-circuit target pruning and evaluation order")
+    return 0

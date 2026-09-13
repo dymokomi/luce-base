@@ -2372,6 +2372,10 @@ pub struct Checker:
                 let r = e.right else return none
                 if e.text == "and" or e.text == "or":
                     let a = self.constant_bool(l) else return none
+                    # A known left operand can skip the right entirely. Never
+                    # fold from the right alone: the left may have side effects.
+                    if (e.text == "and" and not a) or (e.text == "or" and a):
+                        return a
                     let b = self.constant_bool(r) else return none
                     return (a and b) if e.text == "and" else (a or b)
                 let a = self.constant_u64(l) else return none

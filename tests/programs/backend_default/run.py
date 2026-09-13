@@ -15,12 +15,12 @@ with tempfile.TemporaryDirectory(prefix="base-native-default-") as tmp:
     work = Path(tmp)
     guard = work / "cc"
     guard.write_text("#!/usr/bin/env python3\nimport os, sys\n"
-                     "if any(a.endswith('/gen.c') for a in sys.argv[1:]):\n"
+                     "if any(a.replace('\\\\', '/').split('/')[-1] == 'gen.c' for a in sys.argv[1:]):\n"
                      "    sys.stderr.write('generated C blocked by native-default test\\n')\n"
                      "    sys.exit(97)\n"
                      "os.execv(os.environ['LUCE_REAL_CC'], [os.environ['LUCE_REAL_CC'], *sys.argv[1:]])\n")
     guard.chmod(0o755)
-    env = dict(os.environ, LUCE_REAL_CC=shutil.which("cc"), PATH=f"{work}:{os.environ['PATH']}")
+    env = dict(os.environ, LUCE_REAL_CC=shutil.which("cc"), CC=str(guard), PATH=f"{work}:{os.environ['PATH']}")
 
     def run(*args, expected=0, guarded=True):
         command = [sys.executable, str(root / "tools/run_case.py"), "--expected", str(expected), "--", *map(str, args)]
