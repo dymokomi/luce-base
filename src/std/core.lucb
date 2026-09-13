@@ -665,3 +665,7 @@ pub func qmul_u(x: u64, y: u64, bits: i32, out: u64*) -> bool:
         return false
     *out = a *% b
     return true
+
+## Terminate the process through the minimal runtime layer.
+pub func exit(code: i32) -> never:
+    c_exit(code)

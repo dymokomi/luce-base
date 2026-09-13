@@ -1,0 +1,17 @@
+{
+  "target": "x86_64-windows",
+  "requirements": [
+    {
+      "symbols": [
+        "OpenClipboard",
+        "CloseClipboard",
+        "SetClipboardData",
+        "GetClipboardData",
+        "GetActiveWindow"
+      ],
+      "libraries": [
+        "user32"
+      ]
+    }
+  ]
+}

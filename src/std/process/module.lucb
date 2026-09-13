@@ -1,4 +1,5 @@
 import c
+import core
 import memory
 import windows_text
 import platform
@@ -9,7 +10,6 @@ extern func fork() -> i32
 extern func dup2(from_fd: i32, to_fd: i32) -> i32
 extern func close(descriptor: i32) -> i32
 extern func execvp(program: c.str, arguments: void*?*) -> i32
-extern func c_exit as "exit"(code: i32) -> never
 extern func _exit(code: i32) -> never
 extern func waitpid(pid: i32, status: i32*, options: i32) -> i32
 extern func kill(pid: i32, signal: i32) -> i32
@@ -86,8 +86,11 @@ struct Capture:
 ## Duplicate names are rejected (case-insensitively on Windows). The parent must
 ## serialize mutations of its process-wide environment during process creation.
 pub func run(program: c.str, arguments: const c.str[], directory: c.str = "", environment: const c.str[]? = none) -> (i32, str, str)!:
+    return try run_controlled(program, arguments, directory, environment, none)
+
+func run_controlled(program: c.str, arguments: const c.str[], directory: c.str, environment: const c.str[]?, control: CommandState*?) -> (i32, str, str)!:
     if platform.windows:
-        return try run_windows(program, arguments, directory, environment)
+        return try run_windows(program, arguments, directory, environment, control)
     let slot = environment_address()
     var selected: (c.str?)[]
     if let overrides = environment:
@@ -119,6 +122,14 @@ pub func run(program: c.str, arguments: const c.str[], directory: c.str = "", en
         free(argv)
         error(failed, "run")
     if pid == 0:
+        if control != none:
+            if setpgid(0, 0) != 0:
+                _exit(127)
+            let input = open("/dev/null", 0)
+            if input < 0 or dup2(input, 0) < 0:
+                _exit(127)
+            if input > 2:
+                discard(close(input))
         discard(close(out_pipe[0]))
         discard(close(err_pipe[0]))
         if dup2(out_pipe[1], 1) < 0 or dup2(err_pipe[1], 2) < 0:
@@ -131,6 +142,8 @@ pub func run(program: c.str, arguments: const c.str[], directory: c.str = "", en
             *slot = selected.data
         discard(execvp(program, argv.data))
         _exit(127)
+    if control != none:
+        discard(setpgid(pid, pid))
     free(argv)
     discard(close(out_pipe[1]))
     discard(close(err_pipe[1]))
@@ -141,8 +154,12 @@ pub func run(program: c.str, arguments: const c.str[], directory: c.str = "", en
     defer discard(close(err_pipe[0]))
     defer out.drop()
     defer err.drop()
-    try capture(pid, &out, &err)
-    let status = try wait_for(pid)
+    var status: i32 = 0
+    if let observer = control:
+        status = try capture_command(pid, &out, &err, observer)
+    else:
+        try capture(pid, &out, &err)
+        status = try wait_for(pid)
     if (status & 127) != 0:
         error(failed, "the program was stopped by a signal")
     let out_text = try out.take()
@@ -196,4 +213,4 @@ pub func release(text: str):
         free(u8[]((u8*)text.bytes.data, text.length))
 
 pub func exit(code: i32) -> never:
-    c_exit(code)
+    core.exit(code)

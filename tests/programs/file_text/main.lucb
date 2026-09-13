@@ -1,0 +1,53 @@
+import c
+import clipboard
+import files
+import interop
+import memory
+import paths
+import strings
+
+pub func main(arguments: str[]) -> i32!:
+    let path = try paths.join(arguments[1], "héllo.txt")
+    defer strings.release(path)
+    try files.write_text(path, "")
+    let empty = try files.read_text(path)
+    defer empty.release()
+    assert(empty.value == "")
+    try files.write_text(path, "éλ😀\r\n")
+    let loaded = try files.read_text(path)
+    defer loaded.release()
+    assert(loaded.value == "éλ😀\r\n")
+    assert((try files.path_kind(path)) == files.FileKind.regular)
+    let absolute = try files.absolute_path(path)
+    defer absolute.release()
+    var entries = try files.Entries(arguments[1])
+    defer entries.close()
+    var found = false
+    for index in 0..<(usize)entries.count():
+        let name = try entries.name((i64)index)
+        if name.value == "héllo.txt":
+            found = true
+        name.release()
+    assert(found)
+    var rejected = false
+    discard(files.read_text(path, limit = 1) catch failure:
+        rejected = true
+        recover interop.Owned[str](""))
+    assert(rejected)
+    try files.write((c.str)path, [255])
+    rejected = false
+    discard(files.read_text(path) catch failure:
+        rejected = true
+        recover interop.Owned[str](""))
+    assert(rejected)
+    rejected = false
+    files.write_text("bad\0path", "safe") catch failure:
+        rejected = true
+    assert(rejected)
+    # Invalid clipboard writes fail before accessing the user's pasteboard.
+    # Unsupported desktop targets may reject access earlier, which is also valid.
+    rejected = false
+    clipboard.write_text("bad\0text") catch failure:
+        rejected = true
+    assert(rejected)
+    return 0

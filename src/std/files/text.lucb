@@ -1,0 +1,97 @@
+## Owned UTF-8 file operations for managed consumers. Paths are counted text,
+## validated before entering the native filesystem boundary.
+import interop
+import utf8
+
+func text_path(path: str) -> str!:
+    if path.length == 0 or not utf8.valid(path.bytes):
+        error(invalid_options, "a path must be nonempty UTF-8")
+    for byte in path.bytes:
+        if byte == 0:
+            error(invalid_options, "a path cannot contain NUL")
+    return try strings.copy(path)
+
+## Return an owned text, refusing oversized or malformed files before publication.
+pub func read_text(path: str, limit: usize = 4194304) -> interop.Owned[str]!:
+    let native = try text_path(path)
+    defer strings.release(native)
+    let data = try read_limit((c.str)native, limit)
+    defer free(data)
+    if not utf8.valid(data):
+        error(invalid_options, "the file is not valid UTF-8")
+    return try interop.copy_text((str)data)
+
+## Replace atomically in the destination directory, preserving existing mode bits.
+## Resolve an existing symlink to its target before replacement.
+pub func write_text(path: str, text: str) -> !:
+    if not utf8.valid(text.bytes):
+        error(invalid_options, "file text must be valid UTF-8")
+    let native = try text_path(path)
+    defer strings.release(native)
+    let resolved = canonical((c.str)native) catch failure:
+        if failure.code != missing:
+            error(failure.code, failure.message)
+        recover try strings.copy(native)
+    defer strings.release(resolved)
+    let info = metadata((c.str)resolved) catch failure:
+        if failure.code != missing:
+            error(failure.code, failure.message)
+        recover Metadata(kind = FileKind.regular, permissions = 420)
+    if info.kind != FileKind.regular:
+        error(invalid_options, "text can only replace a regular file")
+    try write_atomic((c.str)resolved, text.bytes, permissions = info.permissions)
+
+pub func absolute_path(path: str) -> interop.Owned[str]!:
+    let native = try text_path(path)
+    defer strings.release(native)
+    let resolved = try canonical((c.str)native)
+    defer strings.release(resolved)
+    return try interop.copy_text(resolved)
+
+pub func path_kind(path: str, follow_symlinks: bool = true) -> FileKind!:
+    let native = try text_path(path)
+    defer strings.release(native)
+    return (try metadata((c.str)native, follow_symlinks)).kind
+
+## A sorted snapshot owns all entry names. Reading another entry never invalidates
+## an earlier owned name, and closing releases the complete snapshot.
+pub struct Entries:
+    var names: str[]
+
+    pub func init(path: str) -> !:
+        let native = try text_path(path)
+        defer strings.release(native)
+        self.names = try text_entries((c.str)native)
+
+    pub func count() -> i64:
+        return (i64)self.names.length
+
+    pub func name(index: i64) -> interop.Owned[str]!:
+        if index < 0 or (usize)index >= self.names.length:
+            error(invalid_options, "the directory entry index is outside the snapshot")
+        let name = self.names[(usize)index]
+        if not utf8.valid(name.bytes):
+            error(invalid_options, "the directory entry is not valid UTF-8")
+        return try interop.copy_text(name)
+
+    pub mutating func close():
+        with memory.heap:
+            release_list(self.names)
+        var empty: str[]
+        self.names = empty
+
+pub let entries_type: interop.Type[Entries] = interop.Type[Entries]("Directory entries", Entries.close, closeable = true)
+
+func text_entries(path: c.str) -> str[]!:
+    with memory.heap:
+        return try list(path)
+
+## Ensure a single directory exists; its parent must already exist.
+pub func ensure_directory(path: str) -> !:
+    let native = try text_path(path)
+    defer strings.release(native)
+    create_directory((c.str)native) catch failure:
+        if failure.code != already_exists:
+            error(failure.code, failure.message)
+        if (try metadata((c.str)native)).kind != FileKind.directory:
+            error(not_directory, "the existing path is not a directory")

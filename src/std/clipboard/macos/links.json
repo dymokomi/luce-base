@@ -1,0 +1,14 @@
+{
+  "target": "arm64-macos",
+  "requirements": [
+    {
+      "symbols": [
+        "NSPasteboardTypeString"
+      ],
+      "frameworks": [
+        "AppKit",
+        "Foundation"
+      ]
+    }
+  ]
+}

@@ -6,7 +6,7 @@
 
 import io
 import memory
-import process
+import core
 
 # mark: Objects ================================================================================
 
@@ -72,7 +72,7 @@ pub func stop(message: str) -> never:
     discard(e.write(message.bytes) catch failure: recover 0)
     let newline = "\n"
     discard(e.write(newline.bytes) catch failure: recover 0)
-    process.exit(1)
+    core.exit(1)
 
 func color_of(o: Object*) -> u8:
     return o.flags & color_mask

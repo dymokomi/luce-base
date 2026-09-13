@@ -20,6 +20,7 @@ python3 tools/unicode_tables.py --check
 python3 tools/embed_std.py --check
 python3 tools/embed_native_links.py --check
 python3 tools/test_std_embedding.py ./build/luce-base
+python3 tools/test_desktop_services.py --compiler build/luce-base
 python3 tools/embed_runtime.py --check
 python3 tools/embed_version.py --check
 python3 tools/library_reference.py --check

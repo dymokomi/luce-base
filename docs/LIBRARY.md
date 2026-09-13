@@ -334,30 +334,6 @@ A counting semaphore whose waiters sleep.
 - `mutating func acquire()`
 - `mutating func release()`
 
-## `process`
-
-- `let failed: ErrorCode = ErrorCode.package(8)`
-
-- `func run(program: c.str, arguments: const c.str[], directory: c.str = "", environment: const c.str[]? = none) -> (i32, str, str)!` — Run `program` with `arguments`, wait for it, and answer its exit status and what it wrote to its standard output and error. The two texts are allocations of the current allocator, each exactly its length, empty ones no allocation at all; `release` gives one back. A capture failure terminates and reaps the child, then closes the pipes and releases the captures; waiting never depends on output we stopped reading. The child only uses async-signal-safe operations between `fork` and `exec`, so a parent with other threads is safe (§15.3). directory="" inherits the working directory. environment overrides selected inherited variables with NAME=value strings; none inherits everything unchanged. Duplicate names are rejected (case-insensitively on Windows). The parent must serialize mutations of its process-wide environment during process creation.
-
-- `func release(text: str)` — Give back a text `run` answered, to the allocator that was current then.
-
-- `func exit(code: i32) -> never`
-
-### `TerminationStatus` (struct)
-
-Copyable observation of termination requests since subscription. Poll this from ordinary application threads; native handlers perform no application work.
-
-- `func requested() -> bool`
-
-### `Termination` (struct)
-
-Opt-in ownership of SIGINT/SIGTERM or Windows console notifications. Borrow this owner; copying does not acquire another subscription. Close it only after the work observing its status has drained and released its resources. The last close restores native handlers. Windows console close/logoff/shutdown handlers wait for all owners to close, bounded to four seconds; the OS may impose a shorter deadline. Ctrl-C/Ctrl-Break only request cancellation.
-
-- `func init() -> !`
-- `func status() -> TerminationStatus`
-- `mutating func close()`
-
 ## `ownership`
 
 Intrusive ownership shared by Base libraries and compiled Luce programs. Base callers retain and release explicitly; Luce inserts those operations. One header and trace protocol cover native/managed cycles on the owning thread. Runtime allocations use the system heap; an explicit allocator can be supplied to reserve when its lifetime is guaranteed by the native owner.
@@ -626,177 +602,6 @@ Lexical filesystem paths. Both slash styles separate components on Windows; on P
 - `func join(left: str, right: str) -> str!` — Join with a separator only when needed; an absolute right path wins. This is lexical joining, without normalization or filesystem access. The result is a NUL-terminated current-allocator allocation, released with strings.release.
 
 - `func normalize(path: str) -> str!` — Lexically remove dot components, redundant separators and cancellable parent components. This does not resolve symbolic links; use filesystem resolution when identity matters. Roots cannot be crossed. Relative leading parents and Windows drive-relative prefixes are retained. Release with strings.release.
-
-## `files`
-
-- `let missing: ErrorCode = ErrorCode.package(6)`
-
-- `let permission_denied: ErrorCode = ErrorCode.package(18)`
-
-- `let already_exists: ErrorCode = ErrorCode.package(19)`
-
-- `let no_space: ErrorCode = ErrorCode.package(20)`
-
-- `let would_block: ErrorCode = ErrorCode.package(21)`
-
-- `let invalid_options: ErrorCode = ErrorCode.package(22)`
-
-- `let too_large: ErrorCode = ErrorCode.package(23)`
-
-- `let not_directory: ErrorCode = ErrorCode.package(25)`
-
-- `let is_directory: ErrorCode = ErrorCode.package(26)`
-
-- `let read_only_filesystem: ErrorCode = ErrorCode.package(27)`
-
-- `let not_empty: ErrorCode = ErrorCode.package(29)`
-
-- `let cross_device: ErrorCode = ErrorCode.package(30)`
-
-- `let symlink_loop: ErrorCode = ErrorCode.package(31)`
-
-- `let name_too_long: ErrorCode = ErrorCode.package(32)`
-
-- `let failed: ErrorCode = ErrorCode.package(7)`
-
-### `FileKind` (enumas u8)
-
-File type from mode bits; unknown preserves support for host-specific kinds.
-
-### `FileTime` (struct)
-
-Unix-epoch seconds plus a nanosecond fraction in 0..999999999. Keeping the components separate preserves negative times and avoids nanosecond overflow.
-
-- `var seconds: i64`
-- `var nanoseconds: u32`
-
-### `Metadata` (struct)
-
-Metadata returned by one OS query, without allocation. Concurrent mutations may affect different fields at different instants. Size and block counts keep the OS's signed representation; their meaning depends on the file kind.
-
-- `var kind: FileKind`
-- `var permissions: u32`
-- `var size: i64`
-- `var device: u64`
-- `var inode: u64`
-- `var links: u64`
-- `var user: u32`
-- `var group: u32`
-- `var blocks_512: i64` — Allocated storage in 512-byte blocks, not the logical file size.
-- `var accessed: FileTime`
-- `var modified: FileTime`
-- `var changed: FileTime` — Last metadata/status change, not creation time.
-- `var created: FileTime?` — The macOS birth-time field; none on Linux's stat interface. Filesystems may report zero when a meaningful birth time is unavailable.
-
-- `func metadata(path: c.str, follow_symlinks: bool = true) -> Metadata!` — Query a path, following its final symlink by default. With follow_symlinks=false, query that entry itself, including dangling links. Intermediate links resolve normally. Interrupted calls retry; failure never returns partly filled metadata.
-
-### `OpenMode` (enumas u8)
-
-File opening policy. `replace` creates or truncates; `create_new` refuses an existing path; `create_new_read_write` also permits reads. `append` creates if needed and makes each write append atomically. Creation permissions are filtered by the process umask, never changed afterward.
-
-### `SeekOrigin` (enumas u8)
-
-### `File` (struct: io.Reader, io.Writer)
-
-One owned descriptor. The zero value is closed. Borrow through a pointer or an io interface; copying this value does not duplicate ownership or the OS handle. A copied value must not be independently closed. Calls on one handle require external synchronization. `close` reports errors; `destroy` is unwind cleanup.
-
-- `static func open(path: c.str, mode: OpenMode = OpenMode.read, permissions: u32 = 420) -> File!` — Open a close-on-exec descriptor. Only the named creation modes create paths.
-- `func descriptor() -> i32?` — Borrow the descriptor for OS interoperability; none after close. The caller must not close it or retain it past this owner's lifetime.
-- `func metadata() -> Metadata!` — Query the open object, even after its pathname has been renamed or removed.
-- `mutating func truncate(length: i64) -> !` — Set the logical length without moving the file position. Shrinking discards the suffix; extension reads as zero bytes. Requires a writable descriptor. Reject negative lengths before calling the OS.
-- `mutating func set_permissions(permissions: u32) -> !` — Set permission and special mode bits on this opened object, independent of pathname changes. Umask is not applied. Host permission rules may reject or clear requested special bits; inspect metadata for the result.
-- `mutating func set_times(accessed: FileTime, modified: FileTime) -> !` — Set explicit access and modification times; creation/status-change times are not set by this operation. Validate nanoseconds before the OS call. The filesystem's range and timestamp resolution still apply.
-- `mutating func read(buffer: u8[]) -> usize!` — Read some bytes, retrying interruption. Zero for nonempty storage is EOF; empty input makes no system call. The handle must be open even for empty I/O.
-- `mutating func write(data: const u8[]) -> usize!` — Write some bytes, retrying interruption. Use io.write_all for a full payload. Success confirms an OS write, not durable storage; call sync when required.
-- `mutating func seek(offset: i64, origin: SeekOrigin = SeekOrigin.start) -> i64!` — Seek a seekable file and return its resulting byte offset. Pipes and other unseekable descriptors report failure instead of pretending their size is zero.
-- `mutating func sync() -> !` — Request the OS's fsync durability boundary for this file; this does not sync a containing directory or promise persistence beyond the OS/device contract.
-- `mutating func close() -> !` — Consume ownership before closing, so repeated calls on this value are safe even after failure. Never retry close: a reused descriptor may belong to another thread. A reported failure must not be retried using descriptor().
-- `mutating func destroy()` — Best-effort cleanup while unwinding another error. Use close explicitly on the successful path when delayed close errors must be reported to the caller.
-
-- `func exists(path: c.str) -> bool` — Whether the path currently resolves to an existing object, following symlinks. This convenience form returns false on lookup errors; use exists_checked when permission or I/O failures must be distinguished from absence. It never opens a file, so checking a FIFO cannot block waiting for a writer.
-
-- `func exists_checked(path: c.str) -> bool!` — Checked existence lookup. Missing components, non-directory parent components and dangling symlinks return false. Other failures retain their error category.
-
-- `func create_directory(path: c.str, permissions: u32 = 493) -> !` — Create one directory; parents must already exist. An existing final entry is already_exists, including a symlink. Permissions are filtered by the process umask. No recursive creation, permission repair, or implicit retry occurs.
-
-- `func remove_file(path: c.str) -> !` — Remove one non-directory entry. A final symlink is removed without touching its target. Open handles and other hard links keep the object alive. Parents are resolved normally; a missing entry is an error, not successful removal.
-
-- `func remove_directory(path: c.str) -> !` — Remove an empty directory; do not recurse or follow a final symlink. A nonempty directory reports not_empty (or already_exists if the OS uses EEXIST).
-
-- `func rename(source: c.str, destination: c.str, replace: bool = true) -> !` — Rename an entry, atomically replacing an existing compatible destination on the same filesystem. Final symlinks are entries, not followed targets. Open handles keep referring to their objects. This does not copy across devices or request durable storage. With replace=false, atomically refuse an existing destination; unsupported exclusive renames fail without an unsafe fallback. On a remote filesystem a reported failure may follow a completed server-side mutation.
-
-- `func create_symlink(target: c.str, link_path: c.str, directory: bool? = none) -> !` — Create a symlink containing target's bytes; the target need not exist. A relative target is resolved from the link's parent when later followed. Creation refuses an existing link_path, including a dangling symlink. Windows requires the target kind at creation. Omit directory to infer an existing target's kind; specify true for a dangling directory link. Unix symlinks do not encode this distinction and ignore the hint.
-
-- `func create_hard_link(source: c.str, destination: c.str) -> !` — Create another name for the source entry on the same filesystem, refusing an existing destination. A final source symlink is linked itself, not followed. Directories cannot be linked. Intermediate path components resolve normally.
-
-- `func read_symlink(path: c.str, limit: usize = 4096) -> str!` — Read a final symlink's raw target bytes without following it. Return a NUL-terminated current-allocator allocation released with strings.release. At most limit bytes are accepted; excess reports too_large, never truncates. One extra byte detects excess without trusting metadata. Interrupted reads retry; concurrent replacement may therefore change the observed link target.
-
-### `TemporaryFile` (struct: io.Reader, io.Writer)
-
-A temporary file and its owned pathname. The zero value is closed. Copying does not duplicate ownership. Borrow the object for I/O and serialize its use. The pathname allocator is retained, so cleanup may occur outside its with block.
-
-- `static func create(directory: c.str, permissions: u32 = 384) -> TemporaryFile!` — Create an exclusive close-on-exec file in directory, with permissions filtered by umask. The OS supplies 128 random filename bits per attempt; collisions retry up to 128 times. Entropy acquisition may block. No existing entry is opened or overwritten, and failure retains no allocation.
-- `func path() -> str` — Borrowed NUL-terminated pathname, valid until publication or cleanup.
-- `mutating func read(buffer: u8[]) -> usize!`
-- `mutating func write(data: const u8[]) -> usize!`
-- `mutating func seek(offset: i64, origin: SeekOrigin = SeekOrigin.start) -> i64!`
-- `mutating func sync() -> !`
-- `mutating func publish(destination: c.str, replace: bool = true) -> !` — Close successfully, then rename over destination. A close failure does not publish. A rename failure leaves the temporary pathname owned here for retry or discard. With replace=false, an existing destination is atomically refused. Success consumes ownership and invalidates path(). This does not synchronize data or the parent directory; call sync first and synchronize the destination directory when that guarantee is needed.
-- `mutating func discard() -> !` — Close and remove the temporary entry. Report the first failure; still attempt removal after a close failure. A failed removal retains path() for retry. Repeated successful discard calls are safe.
-- `mutating func destroy()` — Best-effort cleanup, releasing pathname memory even if the OS refuses removal. Such a refusal can leave a file behind; use discard to observe it.
-
-- `func write_atomic(path: c.str, data: const u8[], permissions: u32 = 420, synchronize: bool = false, published: bool*? = none) -> !` — Write through a temporary sibling, then atomically rename it over path. The replacement receives permissions filtered by umask; existing ownership, mode and extended metadata are not preserved. A final symlink is replaced itself. Parent directories must remain stable throughout the operation. With synchronize, fsync the file before publication and its parent afterward; this also requires read access to the parent directory. Optional published is reset on entry and set immediately after successful rename, before directory sync/close. A later failure can therefore report published=true. It must not overlap input or allocator state. Temporary cleanup on failure is best effort.
-
-- `func copy_file(source_path: c.str, destination: c.str, limit: usize = 18446744073709551615, replace: bool = false, permissions: u32 = 420, synchronize: bool = false, published: bool*? = none) -> usize!` — Copy through a temporary sibling and atomically publish the complete result. The source is followed and read through EOF; directories are rejected. Refuse an existing destination unless replace=true, and reject an observed source/ destination identity match. Final destination symlinks are entries to replace. Use a finite limit for streams: one extra byte detects excess, which fails without publishing. Memory for payload transfer is bounded to 4096 bytes. Concurrent source writes can change the bytes observed; this is not a snapshot. Return bytes copied. Permissions, synchronize, parent-path stability and published have the same contracts as write_atomic; metadata is not copied.
-
-- `func read(path: c.str) -> u8[]!` — Read through EOF, including files whose size changes or cannot be sought. The result is an allocation of the current allocator; free the returned span there. Use read_limit for untrusted or potentially unbounded input.
-
-- `func read_limit(path: c.str, limit: usize) -> u8[]!` — Read a whole file up to `limit` bytes. One extra byte may be read to distinguish an exact fit from excess input; excess fails with too_large, never truncates. All allocations and the descriptor are released on failure. An empty result is still an owned zero-length allocation, following read's existing free contract.
-
-- `func write(path: c.str, data: const u8[]) -> !` — Create or truncate and write all bytes, reporting write and close failures. This is neither atomic replacement nor durable sync; use those operations explicitly when their guarantees are required.
-
-### `Directory` (struct)
-
-One owned directory stream; the zero value is closed. Copying does not duplicate ownership. Borrow it for iteration and serialize access to the stream.
-
-- `static func open(path: c.str, follow_symlinks: bool = true) -> Directory!` — Open a close-on-exec directory stream. With follow_symlinks=false, refuse a final symlink; intermediate path components still resolve normally.
-- `func descriptor() -> i32!` — Borrow the descriptor until close. Do not close it or change its position.
-- `func metadata() -> Metadata!` — Metadata for the opened directory, independent of its current pathname.
-- `func entry_metadata(path: c.str, follow_symlinks: bool = true) -> Metadata!` — Resolve a relative path from this open directory, even after it is renamed. Absolute paths use normal OS resolution. With follow_symlinks=false, inspect the final link itself. Separators and parent components retain OS semantics.
-- `func open_directory(path: c.str, follow_symlinks: bool = true) -> Directory!` — Open a directory relative to this handle. The new stream owns a separate descriptor and position; closing either stream does not close the other. With follow_symlinks=false, refuse a final symlink atomically during open.
-- `func open_file(path: c.str, mode: OpenMode = OpenMode.read, permissions: u32 = 420, follow_symlinks: bool = true, nonblocking: bool = false) -> File!` — Open a file relative to this directory. Absolute paths and parent segments retain OS semantics; callers implementing containment must walk validated individual components. Refusing symlinks applies atomically to the final component. Nonblocking mode prevents FIFO opens from waiting for a peer; it does not make ordinary filesystem I/O asynchronous.
-- `mutating func next() -> str?!` — The next name excluding dot and dot-dot, or none at end. Names are raw path bytes, NUL-terminated but not guaranteed UTF-8. The view expires on the next call or close.
-- `mutating func close() -> !` — Consume ownership even on failure; repeated calls on this value are safe.
-- `mutating func destroy()` — Best-effort unwind cleanup; use close to observe an error on the success path.
-
-- `func list(path: c.str) -> str[]!` — The names in a directory, sorted by bytes, without `.` and `..`: each name and the array holding them, exactly as long as the names, are allocations of the current allocator, which `release_list` returns together. On a failure nothing allocated is kept and the directory is closed.
-
-- `func release_list(names: str[])` — Return what `list` allocated: every name, then the array, to the allocator that is current, which must be the one `list` allocated from. The names are one byte longer than they read, the NUL after each (§5.5).
-
-- `let directory_cycle: ErrorCode = ErrorCode.package(33)`
-
-- `let depth_limit: ErrorCode = ErrorCode.package(34)`
-
-### `WalkVisitor` (interface)
-
-A borrowed traversal callback. For directories, true requests descent and false prunes that subtree; the return value is ignored for other entry kinds. Path is a NUL-terminated borrowed label, valid only during this callback. Copy it to retain it. Error-message storage must outlive the walk, as for other borrowed Base errors. Callbacks run serially in depth-first enumeration order.
-
-- `func walk(root: c.str, visitor: WalkVisitor, max_depth: usize = 64) -> !` — Visit root at depth zero, then its descendants, without following directory symlinks below root. Root uses ordinary OS path resolution. Labels are built from the supplied root; directory renames do not redirect handle-based traversal and may leave those labels unusable as OS paths. This is not a filesystem snapshot. A child deeper than max_depth reports depth_limit instead of silently skipping entries. Repeated ancestor identities report directory_cycle. OS/callback errors stop traversal; earlier callback effects remain. All owned resources are cleaned up on failure. Storage is proportional to depth plus the longest path label; cycle detection compares each descended directory with its open ancestors.
-
-- `func canonical(path: c.str) -> str!` — Resolve an existing entry through symlinks to its absolute filesystem path. Windows extended DOS/UNC prefixes are normalized to ordinary UTF-8 paths with forward slashes. This resolves identity; it does not fold case or authorize access. Release the returned NUL-terminated allocation with strings.release.
-
-- `func create_temporary_directory(parent: c.str, permissions: u32 = 448) -> str!` — Atomically create an unused directory with 128 random filename bits. The returned path is owned by the caller. The parent must already exist.
-
-- `func remove_tree(path: c.str) -> !` — Remove this entry and its children. Symlinks are unlinked rather than followed; a missing entry is already removed. Other failures stop and remain reportable.
-
-### `TemporaryDirectory` (struct)
-
-Own one directory tree. Borrow this owner; copying it does not copy ownership. close reports cleanup failures and retains ownership for a retry. destroy makes a final cleanup attempt and always releases the pathname allocation.
-
-- `func init(parent: c.str = "") -> !`
-- `func path() -> str` — Borrowed NUL-terminated pathname, valid until close or destroy.
-- `mutating func close() -> !`
-- `mutating func destroy()`
 
 ## `math`
 
@@ -1598,6 +1403,237 @@ A bounded persistent worker. This carrier is uniquely owned; Base copies borrow.
 - `func cancel()`
 - `mutating func close()`
 
+## `files`
+
+- `let missing: ErrorCode = ErrorCode.package(6)`
+
+- `let permission_denied: ErrorCode = ErrorCode.package(18)`
+
+- `let already_exists: ErrorCode = ErrorCode.package(19)`
+
+- `let no_space: ErrorCode = ErrorCode.package(20)`
+
+- `let would_block: ErrorCode = ErrorCode.package(21)`
+
+- `let invalid_options: ErrorCode = ErrorCode.package(22)`
+
+- `let too_large: ErrorCode = ErrorCode.package(23)`
+
+- `let not_directory: ErrorCode = ErrorCode.package(25)`
+
+- `let is_directory: ErrorCode = ErrorCode.package(26)`
+
+- `let read_only_filesystem: ErrorCode = ErrorCode.package(27)`
+
+- `let not_empty: ErrorCode = ErrorCode.package(29)`
+
+- `let cross_device: ErrorCode = ErrorCode.package(30)`
+
+- `let symlink_loop: ErrorCode = ErrorCode.package(31)`
+
+- `let name_too_long: ErrorCode = ErrorCode.package(32)`
+
+- `let failed: ErrorCode = ErrorCode.package(7)`
+
+### `FileKind` (enumas u8)
+
+File type from mode bits; unknown preserves support for host-specific kinds.
+
+### `FileTime` (struct)
+
+Unix-epoch seconds plus a nanosecond fraction in 0..999999999. Keeping the components separate preserves negative times and avoids nanosecond overflow.
+
+- `var seconds: i64`
+- `var nanoseconds: u32`
+
+### `Metadata` (struct)
+
+Metadata returned by one OS query, without allocation. Concurrent mutations may affect different fields at different instants. Size and block counts keep the OS's signed representation; their meaning depends on the file kind.
+
+- `var kind: FileKind`
+- `var permissions: u32`
+- `var size: i64`
+- `var device: u64`
+- `var inode: u64`
+- `var links: u64`
+- `var user: u32`
+- `var group: u32`
+- `var blocks_512: i64` — Allocated storage in 512-byte blocks, not the logical file size.
+- `var accessed: FileTime`
+- `var modified: FileTime`
+- `var changed: FileTime` — Last metadata/status change, not creation time.
+- `var created: FileTime?` — The macOS birth-time field; none on Linux's stat interface. Filesystems may report zero when a meaningful birth time is unavailable.
+
+- `func metadata(path: c.str, follow_symlinks: bool = true) -> Metadata!` — Query a path, following its final symlink by default. With follow_symlinks=false, query that entry itself, including dangling links. Intermediate links resolve normally. Interrupted calls retry; failure never returns partly filled metadata.
+
+### `OpenMode` (enumas u8)
+
+File opening policy. `replace` creates or truncates; `create_new` refuses an existing path; `create_new_read_write` also permits reads. `append` creates if needed and makes each write append atomically. Creation permissions are filtered by the process umask, never changed afterward.
+
+### `SeekOrigin` (enumas u8)
+
+### `File` (struct: io.Reader, io.Writer)
+
+One owned descriptor. The zero value is closed. Borrow through a pointer or an io interface; copying this value does not duplicate ownership or the OS handle. A copied value must not be independently closed. Calls on one handle require external synchronization. `close` reports errors; `destroy` is unwind cleanup.
+
+- `static func open(path: c.str, mode: OpenMode = OpenMode.read, permissions: u32 = 420) -> File!` — Open a close-on-exec descriptor. Only the named creation modes create paths.
+- `func descriptor() -> i32?` — Borrow the descriptor for OS interoperability; none after close. The caller must not close it or retain it past this owner's lifetime.
+- `func metadata() -> Metadata!` — Query the open object, even after its pathname has been renamed or removed.
+- `mutating func truncate(length: i64) -> !` — Set the logical length without moving the file position. Shrinking discards the suffix; extension reads as zero bytes. Requires a writable descriptor. Reject negative lengths before calling the OS.
+- `mutating func set_permissions(permissions: u32) -> !` — Set permission and special mode bits on this opened object, independent of pathname changes. Umask is not applied. Host permission rules may reject or clear requested special bits; inspect metadata for the result.
+- `mutating func set_times(accessed: FileTime, modified: FileTime) -> !` — Set explicit access and modification times; creation/status-change times are not set by this operation. Validate nanoseconds before the OS call. The filesystem's range and timestamp resolution still apply.
+- `mutating func read(buffer: u8[]) -> usize!` — Read some bytes, retrying interruption. Zero for nonempty storage is EOF; empty input makes no system call. The handle must be open even for empty I/O.
+- `mutating func write(data: const u8[]) -> usize!` — Write some bytes, retrying interruption. Use io.write_all for a full payload. Success confirms an OS write, not durable storage; call sync when required.
+- `mutating func seek(offset: i64, origin: SeekOrigin = SeekOrigin.start) -> i64!` — Seek a seekable file and return its resulting byte offset. Pipes and other unseekable descriptors report failure instead of pretending their size is zero.
+- `mutating func sync() -> !` — Request the OS's fsync durability boundary for this file; this does not sync a containing directory or promise persistence beyond the OS/device contract.
+- `mutating func close() -> !` — Consume ownership before closing, so repeated calls on this value are safe even after failure. Never retry close: a reused descriptor may belong to another thread. A reported failure must not be retried using descriptor().
+- `mutating func destroy()` — Best-effort cleanup while unwinding another error. Use close explicitly on the successful path when delayed close errors must be reported to the caller.
+
+- `func exists(path: c.str) -> bool` — Whether the path currently resolves to an existing object, following symlinks. This convenience form returns false on lookup errors; use exists_checked when permission or I/O failures must be distinguished from absence. It never opens a file, so checking a FIFO cannot block waiting for a writer.
+
+- `func exists_checked(path: c.str) -> bool!` — Checked existence lookup. Missing components, non-directory parent components and dangling symlinks return false. Other failures retain their error category.
+
+- `func create_directory(path: c.str, permissions: u32 = 493) -> !` — Create one directory; parents must already exist. An existing final entry is already_exists, including a symlink. Permissions are filtered by the process umask. No recursive creation, permission repair, or implicit retry occurs.
+
+- `func remove_file(path: c.str) -> !` — Remove one non-directory entry. A final symlink is removed without touching its target. Open handles and other hard links keep the object alive. Parents are resolved normally; a missing entry is an error, not successful removal.
+
+- `func remove_directory(path: c.str) -> !` — Remove an empty directory; do not recurse or follow a final symlink. A nonempty directory reports not_empty (or already_exists if the OS uses EEXIST).
+
+- `func rename(source: c.str, destination: c.str, replace: bool = true) -> !` — Rename an entry, atomically replacing an existing compatible destination on the same filesystem. Final symlinks are entries, not followed targets. Open handles keep referring to their objects. This does not copy across devices or request durable storage. With replace=false, atomically refuse an existing destination; unsupported exclusive renames fail without an unsafe fallback. On a remote filesystem a reported failure may follow a completed server-side mutation.
+
+- `func create_symlink(target: c.str, link_path: c.str, directory: bool? = none) -> !` — Create a symlink containing target's bytes; the target need not exist. A relative target is resolved from the link's parent when later followed. Creation refuses an existing link_path, including a dangling symlink. Windows requires the target kind at creation. Omit directory to infer an existing target's kind; specify true for a dangling directory link. Unix symlinks do not encode this distinction and ignore the hint.
+
+- `func create_hard_link(source: c.str, destination: c.str) -> !` — Create another name for the source entry on the same filesystem, refusing an existing destination. A final source symlink is linked itself, not followed. Directories cannot be linked. Intermediate path components resolve normally.
+
+- `func read_symlink(path: c.str, limit: usize = 4096) -> str!` — Read a final symlink's raw target bytes without following it. Return a NUL-terminated current-allocator allocation released with strings.release. At most limit bytes are accepted; excess reports too_large, never truncates. One extra byte detects excess without trusting metadata. Interrupted reads retry; concurrent replacement may therefore change the observed link target.
+
+### `TemporaryFile` (struct: io.Reader, io.Writer)
+
+A temporary file and its owned pathname. The zero value is closed. Copying does not duplicate ownership. Borrow the object for I/O and serialize its use. The pathname allocator is retained, so cleanup may occur outside its with block.
+
+- `static func create(directory: c.str, permissions: u32 = 384) -> TemporaryFile!` — Create an exclusive close-on-exec file in directory, with permissions filtered by umask. The OS supplies 128 random filename bits per attempt; collisions retry up to 128 times. Entropy acquisition may block. No existing entry is opened or overwritten, and failure retains no allocation.
+- `func path() -> str` — Borrowed NUL-terminated pathname, valid until publication or cleanup.
+- `mutating func read(buffer: u8[]) -> usize!`
+- `mutating func write(data: const u8[]) -> usize!`
+- `mutating func seek(offset: i64, origin: SeekOrigin = SeekOrigin.start) -> i64!`
+- `mutating func sync() -> !`
+- `mutating func publish(destination: c.str, replace: bool = true) -> !` — Close successfully, then rename over destination. A close failure does not publish. A rename failure leaves the temporary pathname owned here for retry or discard. With replace=false, an existing destination is atomically refused. Success consumes ownership and invalidates path(). This does not synchronize data or the parent directory; call sync first and synchronize the destination directory when that guarantee is needed.
+- `mutating func discard() -> !` — Close and remove the temporary entry. Report the first failure; still attempt removal after a close failure. A failed removal retains path() for retry. Repeated successful discard calls are safe.
+- `mutating func destroy()` — Best-effort cleanup, releasing pathname memory even if the OS refuses removal. Such a refusal can leave a file behind; use discard to observe it.
+
+- `func write_atomic(path: c.str, data: const u8[], permissions: u32 = 420, synchronize: bool = false, published: bool*? = none) -> !` — Write through a temporary sibling, then atomically rename it over path. The replacement receives permissions filtered by umask; existing ownership, mode and extended metadata are not preserved. A final symlink is replaced itself. Parent directories must remain stable throughout the operation. With synchronize, fsync the file before publication and its parent afterward; this also requires read access to the parent directory. Optional published is reset on entry and set immediately after successful rename, before directory sync/close. A later failure can therefore report published=true. It must not overlap input or allocator state. Temporary cleanup on failure is best effort.
+
+- `func copy_file(source_path: c.str, destination: c.str, limit: usize = 18446744073709551615, replace: bool = false, permissions: u32 = 420, synchronize: bool = false, published: bool*? = none) -> usize!` — Copy through a temporary sibling and atomically publish the complete result. The source is followed and read through EOF; directories are rejected. Refuse an existing destination unless replace=true, and reject an observed source/ destination identity match. Final destination symlinks are entries to replace. Use a finite limit for streams: one extra byte detects excess, which fails without publishing. Memory for payload transfer is bounded to 4096 bytes. Concurrent source writes can change the bytes observed; this is not a snapshot. Return bytes copied. Permissions, synchronize, parent-path stability and published have the same contracts as write_atomic; metadata is not copied.
+
+- `func read(path: c.str) -> u8[]!` — Read through EOF, including files whose size changes or cannot be sought. The result is an allocation of the current allocator; free the returned span there. Use read_limit for untrusted or potentially unbounded input.
+
+- `func read_limit(path: c.str, limit: usize) -> u8[]!` — Read a whole file up to `limit` bytes. One extra byte may be read to distinguish an exact fit from excess input; excess fails with too_large, never truncates. All allocations and the descriptor are released on failure. An empty result is still an owned zero-length allocation, following read's existing free contract.
+
+- `func write(path: c.str, data: const u8[]) -> !` — Create or truncate and write all bytes, reporting write and close failures. This is neither atomic replacement nor durable sync; use those operations explicitly when their guarantees are required.
+
+### `Directory` (struct)
+
+One owned directory stream; the zero value is closed. Copying does not duplicate ownership. Borrow it for iteration and serialize access to the stream.
+
+- `static func open(path: c.str, follow_symlinks: bool = true) -> Directory!` — Open a close-on-exec directory stream. With follow_symlinks=false, refuse a final symlink; intermediate path components still resolve normally.
+- `func descriptor() -> i32!` — Borrow the descriptor until close. Do not close it or change its position.
+- `func metadata() -> Metadata!` — Metadata for the opened directory, independent of its current pathname.
+- `func entry_metadata(path: c.str, follow_symlinks: bool = true) -> Metadata!` — Resolve a relative path from this open directory, even after it is renamed. Absolute paths use normal OS resolution. With follow_symlinks=false, inspect the final link itself. Separators and parent components retain OS semantics.
+- `func open_directory(path: c.str, follow_symlinks: bool = true) -> Directory!` — Open a directory relative to this handle. The new stream owns a separate descriptor and position; closing either stream does not close the other. With follow_symlinks=false, refuse a final symlink atomically during open.
+- `func open_file(path: c.str, mode: OpenMode = OpenMode.read, permissions: u32 = 420, follow_symlinks: bool = true, nonblocking: bool = false) -> File!` — Open a file relative to this directory. Absolute paths and parent segments retain OS semantics; callers implementing containment must walk validated individual components. Refusing symlinks applies atomically to the final component. Nonblocking mode prevents FIFO opens from waiting for a peer; it does not make ordinary filesystem I/O asynchronous.
+- `mutating func next() -> str?!` — The next name excluding dot and dot-dot, or none at end. Names are raw path bytes, NUL-terminated but not guaranteed UTF-8. The view expires on the next call or close.
+- `mutating func close() -> !` — Consume ownership even on failure; repeated calls on this value are safe.
+- `mutating func destroy()` — Best-effort unwind cleanup; use close to observe an error on the success path.
+
+- `func list(path: c.str) -> str[]!` — The names in a directory, sorted by bytes, without `.` and `..`: each name and the array holding them, exactly as long as the names, are allocations of the current allocator, which `release_list` returns together. On a failure nothing allocated is kept and the directory is closed.
+
+- `func release_list(names: str[])` — Return what `list` allocated: every name, then the array, to the allocator that is current, which must be the one `list` allocated from. The names are one byte longer than they read, the NUL after each (§5.5).
+
+- `let directory_cycle: ErrorCode = ErrorCode.package(33)`
+
+- `let depth_limit: ErrorCode = ErrorCode.package(34)`
+
+### `WalkVisitor` (interface)
+
+A borrowed traversal callback. For directories, true requests descent and false prunes that subtree; the return value is ignored for other entry kinds. Path is a NUL-terminated borrowed label, valid only during this callback. Copy it to retain it. Error-message storage must outlive the walk, as for other borrowed Base errors. Callbacks run serially in depth-first enumeration order.
+
+- `func walk(root: c.str, visitor: WalkVisitor, max_depth: usize = 64) -> !` — Visit root at depth zero, then its descendants, without following directory symlinks below root. Root uses ordinary OS path resolution. Labels are built from the supplied root; directory renames do not redirect handle-based traversal and may leave those labels unusable as OS paths. This is not a filesystem snapshot. A child deeper than max_depth reports depth_limit instead of silently skipping entries. Repeated ancestor identities report directory_cycle. OS/callback errors stop traversal; earlier callback effects remain. All owned resources are cleaned up on failure. Storage is proportional to depth plus the longest path label; cycle detection compares each descended directory with its open ancestors.
+
+- `func canonical(path: c.str) -> str!` — Resolve an existing entry through symlinks to its absolute filesystem path. Windows extended DOS/UNC prefixes are normalized to ordinary UTF-8 paths with forward slashes. This resolves identity; it does not fold case or authorize access. Release the returned NUL-terminated allocation with strings.release.
+
+- `func create_temporary_directory(parent: c.str, permissions: u32 = 448) -> str!` — Atomically create an unused directory with 128 random filename bits. The returned path is owned by the caller. The parent must already exist.
+
+- `func remove_tree(path: c.str) -> !` — Remove this entry and its children. Symlinks are unlinked rather than followed; a missing entry is already removed. Other failures stop and remain reportable.
+
+### `TemporaryDirectory` (struct)
+
+Own one directory tree. Borrow this owner; copying it does not copy ownership. close reports cleanup failures and retains ownership for a retry. destroy makes a final cleanup attempt and always releases the pathname allocation.
+
+- `func init(parent: c.str = "") -> !`
+- `func path() -> str` — Borrowed NUL-terminated pathname, valid until close or destroy.
+- `mutating func close() -> !`
+- `mutating func destroy()`
+
+- `func read_text(path: str, limit: usize = 4194304) -> interop.Owned[str]!` — Return an owned text, refusing oversized or malformed files before publication.
+
+- `func write_text(path: str, text: str) -> !` — Replace atomically in the destination directory, preserving existing mode bits. Resolve an existing symlink to its target before replacement.
+
+- `func absolute_path(path: str) -> interop.Owned[str]!`
+
+- `func path_kind(path: str, follow_symlinks: bool = true) -> FileKind!`
+
+### `Entries` (struct)
+
+A sorted snapshot owns all entry names. Reading another entry never invalidates an earlier owned name, and closing releases the complete snapshot.
+
+- `func init(path: str) -> !`
+- `func count() -> i64`
+- `func name(index: i64) -> interop.Owned[str]!`
+- `mutating func close()`
+
+- `let entries_type: interop.Type[Entries] = interop.Type[Entries]("Directory entries", Entries.close, closeable = true)`
+
+- `func ensure_directory(path: str) -> !` — Ensure a single directory exists; its parent must already exist.
+
+## `process`
+
+- `let failed: ErrorCode = ErrorCode.package(8)`
+
+- `func run(program: c.str, arguments: const c.str[], directory: c.str = "", environment: const c.str[]? = none) -> (i32, str, str)!` — Run `program` with `arguments`, wait for it, and answer its exit status and what it wrote to its standard output and error. The two texts are allocations of the current allocator, each exactly its length, empty ones no allocation at all; `release` gives one back. A capture failure terminates and reaps the child, then closes the pipes and releases the captures; waiting never depends on output we stopped reading. The child only uses async-signal-safe operations between `fork` and `exec`, so a parent with other threads is safe (§15.3). directory="" inherits the working directory. environment overrides selected inherited variables with NAME=value strings; none inherits everything unchanged. Duplicate names are rejected (case-insensitively on Windows). The parent must serialize mutations of its process-wide environment during process creation.
+
+- `func release(text: str)` — Give back a text `run` answered, to the allocator that was current then.
+
+- `func exit(code: i32) -> never`
+
+### `TerminationStatus` (struct)
+
+Copyable observation of termination requests since subscription. Poll this from ordinary application threads; native handlers perform no application work.
+
+- `func requested() -> bool`
+
+### `Termination` (struct)
+
+Opt-in ownership of SIGINT/SIGTERM or Windows console notifications. Borrow this owner; copying does not acquire another subscription. Close it only after the work observing its status has drained and released its resources. The last close restores native handlers. Windows console close/logoff/shutdown handlers wait for all owners to close, bounded to four seconds; the OS may impose a shorter deadline. Ctrl-C/Ctrl-Break only request cancellation.
+
+- `func init() -> !`
+- `func status() -> TerminationStatus`
+- `mutating func close()`
+
+### `Command` (struct)
+
+Launch without invoking a shell. `arguments` excludes the program name. Output merges stdout/stderr in observation order, bounded by output_limit. close cancels and joins; poll with is_finished without blocking the UI.
+
+- `func init(program: str, arguments: const str[], directory: str = "", output_limit: usize = 1048576, environment: const str[]? = none) -> !`
+- `func is_finished() -> bool`
+- `func revision() -> i64`
+- `func exit_code() -> i64?`
+- `func output() -> interop.Owned[str]!` — A stable UTF-8 snapshot. Invalid bytes and NUL are shown as replacement characters; split multibyte output is repaired by the next full snapshot.
+- `func error_message() -> interop.Owned[str]!`
+- `func cancel()`
+- `mutating func close()`
+
+- `let command_type: interop.Type[Command] = interop.Type[Command]("Command", Command.close, closeable = true)`
+
 ## `json`
 
 Structured JSON values own their UTF-8 encoding. Containers snapshot inserted values: later changes to a child do not mutate its parent or create ARC cycles. No API accepts unchecked JSON fragments. All growth is bounded and transactional.
@@ -1722,6 +1758,16 @@ Exclusive graphics-host lease. Copies alias ownership: destroy one owner on the 
 - `func macos_view() -> void*!` — Platform bridge for graphics backends, not a drawing API. The borrowed NSView remains allocated until lease destruction, but must not be used after Window.destroy. Never release it or replace its input callbacks. Future window backends provide their own host accessors alongside this one.
 - `func windows_handle() -> void*!` — Borrowed HWND for graphics backends, valid until window destruction.
 - `mutating func destroy()`
+
+## `clipboard`
+
+Desktop text clipboard. Values returned to Base or Luce own their bytes. Access belongs to the UI thread; clipboard contention is a recoverable error.
+
+- `let failed: ErrorCode = ErrorCode.package(117)`
+
+- `func read_text() -> interop.Owned[str]!`
+
+- `func write_text(text: str) -> !`
 
 ## `gpu`
 

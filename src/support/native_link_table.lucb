@@ -7,7 +7,7 @@ pub struct Rule:
     pub let name: c.str
     pub let framework: bool
 
-pub let rules: Rule[33] = [
+pub let rules: Rule[40] = [
     Rule("arm64-macos", "CGColorSpaceCreateWithName", "CoreGraphics", true),
     Rule("arm64-macos", "CGColorSpaceCreateWithName", "QuartzCore", true),
     Rule("arm64-macos", "MTLCreateSystemDefaultDevice", "Metal", true),
@@ -16,17 +16,24 @@ pub let rules: Rule[33] = [
     Rule("arm64-macos", "NSApplicationDidFinishLaunchingNotification", "Foundation", true),
     Rule("arm64-macos", "NSDefaultRunLoopMode", "AppKit", true),
     Rule("arm64-macos", "NSDefaultRunLoopMode", "Foundation", true),
+    Rule("arm64-macos", "NSPasteboardTypeString", "AppKit", true),
+    Rule("arm64-macos", "NSPasteboardTypeString", "Foundation", true),
     Rule("arm64-macos", "kCGColorSpaceSRGB", "CoreGraphics", true),
     Rule("arm64-macos", "kCGColorSpaceSRGB", "QuartzCore", true),
     Rule("arm64-macos", "objc_autoreleasePoolPush", "objc", false),
     Rule("arm64-macos", "objc_getClass", "objc", false),
     Rule("arm64-macos", "objc_msgSend", "objc", false),
     Rule("x86_64-windows", "BCryptGenRandom", "bcrypt", false),
+    Rule("x86_64-windows", "CloseClipboard", "user32", false),
     Rule("x86_64-windows", "CreateWindowExW", "user32", false),
     Rule("x86_64-windows", "DefWindowProcW", "user32", false),
+    Rule("x86_64-windows", "GetActiveWindow", "user32", false),
+    Rule("x86_64-windows", "GetClipboardData", "user32", false),
     Rule("x86_64-windows", "GetDpiForWindow", "user32", false),
+    Rule("x86_64-windows", "OpenClipboard", "user32", false),
     Rule("x86_64-windows", "PeekMessageW", "user32", false),
     Rule("x86_64-windows", "RegisterClassExW", "user32", false),
+    Rule("x86_64-windows", "SetClipboardData", "user32", false),
     Rule("x86_64-windows", "ShowWindow", "user32", false),
     Rule("x86_64-windows", "WSACleanup", "ws2_32", false),
     Rule("x86_64-windows", "WSAGetLastError", "ws2_32", false),

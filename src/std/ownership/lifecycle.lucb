@@ -27,7 +27,7 @@ pub func finish_task():
             recover "runtime: objects alive when a task ended\n"
         var e = io.stderr()
         discard(e.write(text.bytes) catch failure: recover 0)
-        process.exit(3)
+        core.exit(3)
     release_buffers()
     runtime_depth = 0
     thread_context = 0
