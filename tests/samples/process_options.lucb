@@ -22,8 +22,10 @@ pub func main(arguments: str[]) -> i32!:
     defer strings.release(folder)
     try files.create_directory((c.str)folder)
     let options: c.str[1] = ["LUCE_CHILD_ENV=東京"]
+    let executable = try files.canonical((c.str)arguments[0])
+    defer strings.release(executable)
     let child: c.str[1] = ["child"]
-    let (status, output, errors) = try process.run((c.str)arguments[0], child, (c.str)folder, options)
+    let (status, output, errors) = try process.run((c.str)executable, child, (c.str)folder, options)
     defer process.release(output)
     defer process.release(errors)
     assert(status == 0 and output == "child\n" and errors.length == 0)
@@ -32,7 +34,7 @@ pub func main(arguments: str[]) -> i32!:
     defer strings.release(after)
     assert(before == after)
     let invalid: c.str[1] = ["missing separator"]
-    process.run((c.str)arguments[0], child, environment = invalid) catch failure:
+    process.run((c.str)executable, child, environment = invalid) catch failure:
         assert(failure.code == process.failed)
         print("ok child working directory and environment are isolated from the parent")
         return 0
