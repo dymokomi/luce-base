@@ -44,7 +44,8 @@ jobs:
           ./build/luce-base.exe test src/support/arena.lucb
           ./build/luce-base.exe test src/support/arena.lucb --backend=c
       - name: Test runner process ownership
-        run: python tools/test_validation_process.py
+        run: |
+          python tools/test_validation_process.py
           python tools/test_platform_boundaries.py
       - name: Console termination and cleanup acknowledgement
         run: python tests/programs/termination/run.py build/luce-base.exe
