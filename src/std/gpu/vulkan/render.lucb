@@ -12,11 +12,11 @@ func vulkan_upload(device: VulkanDevice*, canvas: Canvas) -> VulkanUpload!:
     if canvas.vertex_count == 0:
         return upload
     let bytes = canvas.vertex_count * sizeof(Vertex)
-    var info = VkBufferCreateInfo(sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO, size = (u64)bytes, usage = 128)
+    var info = VkBufferCreateInfo(sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO, size = (u64)bytes, usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT)
     try vulkan_check(vkCreateBuffer(device.device, &info, none, &upload.buffer), "the Vulkan vertex buffer could not be created")
     var requirements: VkMemoryRequirements
     vkGetBufferMemoryRequirements(device.device, upload.buffer, &requirements)
-    upload.block = try vulkan_memory(device, requirements, 6)
+    upload.block = try vulkan_memory(device, requirements, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)
     try vulkan_check(vkBindBufferMemory(device.device, upload.buffer, upload.block, 0), "Vulkan vertex memory could not be bound")
     var mapped: void*? = none
     try vulkan_check(vkMapMemory(device.device, upload.block, 0, (u64)bytes, 0, &mapped), "Vulkan vertex memory could not be mapped")
@@ -49,18 +49,18 @@ func vulkan_render(device: VulkanDevice*, host: window.Presentation, state: Vulk
     try vulkan_check(vkResetCommandPool(device.device, state.pool, 0), "the Vulkan command pool could not be reset")
     var index: u32 = 0
     let acquired = vkAcquireNextImageKHR(device.device, state.swapchain, 1000000000, state.acquired, 0, &index)
-    if acquired == 1 or acquired == 2:
+    if acquired == VK_NOT_READY or acquired == VK_TIMEOUT:
         return PresentResult.skipped
-    if acquired == -1000001004:
+    if acquired == VK_ERROR_OUT_OF_DATE_KHR:
         state.dirty = true
         return PresentResult.skipped
-    if acquired != 0 and acquired != 1000001003:
+    if acquired != VK_SUCCESS and acquired != VK_SUBOPTIMAL_KHR:
         error(execution_failed, "Vulkan could not acquire a presentation image")
     # Never reuse synchronization after a partially failed submission.
     errdefer vulkan_poison(state)
     # A failure after queue submission still waits before releasing upload memory.
     errdefer discard(vkDeviceWaitIdle(device.device))
-    var begin = VkCommandBufferBeginInfo(sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO, flags = 1)
+    var begin = VkCommandBufferBeginInfo(sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO, flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT)
     try vulkan_check(vkBeginCommandBuffer(state.command, &begin), "Vulkan command recording could not begin")
     var clears: VkClearValue[2]
     clears[0].color = [(f32)color.red, (f32)color.green, (f32)color.blue, 1.0f32]
@@ -68,7 +68,7 @@ func vulkan_render(device: VulkanDevice*, host: window.Presentation, state: Vulk
     var pass = VkRenderPassBeginInfo(sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO, renderPass = state.render_pass,
         framebuffer = state.images[(usize)index].framebuffer, renderArea = VkRect2D(extent = VkExtent2D(width = state.width, height = state.height)),
         clearValueCount = 2, pClearValues = &clears[0])
-    vkCmdBeginRenderPass(state.command, &pass, 0)
+    vkCmdBeginRenderPass(state.command, &pass, VK_SUBPASS_CONTENTS_INLINE)
     if canvas.vertex_count > 0:
         var buffer = upload.buffer
         var offset: u64 = 0
@@ -89,11 +89,11 @@ func vulkan_render(device: VulkanDevice*, host: window.Presentation, state: Vulk
                 viewport.height = (f32)region.height
             vkCmdSetViewport(state.command, 0, 1, &viewport)
             vkCmdSetScissor(state.command, 0, 1, &scissor)
-            vkCmdBindPipeline(state.command, 0, state.depth_test if draw.depth else state.overlay)
+            vkCmdBindPipeline(state.command, VK_PIPELINE_BIND_POINT_GRAPHICS, state.depth_test if draw.depth else state.overlay)
             vkCmdDraw(state.command, (u32)draw.count, 1, (u32)draw.first, 0)
     vkCmdEndRenderPass(state.command)
     try vulkan_check(vkEndCommandBuffer(state.command), "Vulkan command recording could not finish")
-    var wait_stage: u32 = 1024
+    var wait_stage: u32 = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
     var signal = state.images[(usize)index].presented
     var submit = VkSubmitInfo(sType = VK_STRUCTURE_TYPE_SUBMIT_INFO, waitSemaphoreCount = 1, pWaitSemaphores = &state.acquired,
         pWaitDstStageMask = &wait_stage, commandBufferCount = 1, pCommandBuffers = &state.command,
@@ -103,8 +103,8 @@ func vulkan_render(device: VulkanDevice*, host: window.Presentation, state: Vulk
         swapchainCount = 1, pSwapchains = &state.swapchain, pImageIndices = &index)
     let result = vkQueuePresentKHR(device.queue, &present)
     try vulkan_check(vkQueueWaitIdle(device.queue), "Vulkan execution failed")
-    if result == -1000001004 or result == 1000001003 or acquired == 1000001003:
+    if result == VK_ERROR_OUT_OF_DATE_KHR or result == VK_SUBOPTIMAL_KHR or acquired == VK_SUBOPTIMAL_KHR:
         state.dirty = true
-    if result != 0 and result != -1000001004 and result != 1000001003:
+    if result != VK_SUCCESS and result != VK_ERROR_OUT_OF_DATE_KHR and result != VK_SUBOPTIMAL_KHR:
         error(execution_failed, "Vulkan presentation failed")
     return PresentResult.submitted

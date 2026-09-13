@@ -115,3 +115,13 @@ native opt 0–3 and C debug/release modes. JSON results are retained in `build/
 Vulkan ABI checks compare all fields of 63 records against the installed SDK.
 See [the local validation record](WINDOWS_VALIDATION.md) for observed results and
 the distinction between Windows execution and Unix cross-compilation.
+
+Shared Win32 ABI declarations and UTF-8/UTF-16 conversion live in the internal
+`windows_abi` and `windows_text` standard modules. Filesystem, process and window
+behavior remains in each adapter. Vulkan native presentation is isolated under
+`src/std/gpu/vulkan/presentation/`; rendering and swapchain code use that boundary.
+
+The Windows gate compares generated Vulkan layouts and named constants against
+Khronos Vulkan-Headers `v1.4.341`, without requiring a GPU. Regenerate with
+`python tools/generate_vulkan.py PATH/registry/vk.xml`; verify with
+`python tools/test_vulkan_abi.py --compiler build/luce-base.exe --headers PATH/include`.

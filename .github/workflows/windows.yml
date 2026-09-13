@@ -44,6 +44,13 @@ jobs:
           ./build/luce-base.exe test src/support/arena.lucb --backend=c
       - name: Test runner process ownership
         run: python tools/test_validation_process.py
+      - uses: actions/checkout@v7
+        with:
+          repository: KhronosGroup/Vulkan-Headers
+          ref: v1.4.341
+          path: build/vulkan-headers
+      - name: Vulkan ABI and constant oracle
+        run: python tools/test_vulkan_abi.py --compiler build/luce-base.exe --headers build/vulkan-headers/include
       - name: Native and C conformance
         run: python tools/test_windows.py --suite conformance --c
       - name: Samples and Windows OS contracts

@@ -1,3 +1,4 @@
+from windows_abi import MultiByteToWideChar, GetModuleHandleW
 ## Win32 types use fixed widths: LONG remains i32 on 64-bit Windows.
 extern struct WinClass:
     size: u32
@@ -33,7 +34,6 @@ extern struct WinMessage:
     private_value: u32
 
 extern func RegisterClassExW(info: WinClass*) -> u16
-extern func GetModuleHandleW(name: u16*?) -> void*
 extern func LoadCursorW(instance: void*?, name: u16*) -> void*?
 extern func CreateWindowExW(extra: u32, kind: u16*, title: u16*, style: u32, x: i32, y: i32, width: i32, height: i32, parent: void*?, menu: void*?, instance: void*, parameter: void*) -> void*?
 extern func DestroyWindow(window: void*) -> i32
@@ -52,7 +52,6 @@ extern func SetWindowPos(window: void*, after: void*?, x: i32, y: i32, width: i3
 extern func PeekMessageW(message: WinMessage*, window: void*?, first: u32, last: u32, remove: u32) -> i32
 extern func TranslateMessage(message: WinMessage*) -> i32
 extern func DispatchMessageW(message: WinMessage*) -> isize
-extern func MultiByteToWideChar(page: u32, flags: u32, text: const u8*, length: i32, output: u16*?, capacity: i32) -> i32
 
 var win_class_atom: u16
 var win_class_name: u16[11] = [76, 117, 99, 101, 87, 105, 110, 100, 111, 119, 0]
@@ -76,7 +75,7 @@ func win_open(options: Options) -> State*!:
     defer free(title)
     var count: i32 = 0
     if options.title.length > 0:
-        count = MultiByteToWideChar(65001, 8, options.title.bytes.data, (i32)options.title.length, title.data, (i32)title.length - 1)
+        count = MultiByteToWideChar(65001, 8, (c.str)options.title, (i32)options.title.length, title.data, (i32)title.length - 1)
         if count == 0:
             error(invalid_options, "the window title could not be converted to UTF-16")
     title[(usize)count] = 0

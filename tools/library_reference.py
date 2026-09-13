@@ -9,7 +9,7 @@ from standard_library import module_names, module_source
 root = pathlib.Path(__file__).resolve().parent.parent
 std = root / "src" / "std"
 names = module_names(std)
-skip = {"core", "luce", "debug", "testing"}   # the compiler's own, not a program's
+skip = {"core", "luce", "debug", "testing", "windows_abi", "windows_text"}   # the compiler's own, not a program's
 
 def comment_block(lines, i):
     """The `##` lines ending just before line i, as one paragraph."""

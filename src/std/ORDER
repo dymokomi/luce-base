@@ -1,7 +1,9 @@
 platform
 c
+windows_abi
 core
 memory
+windows_text
 os
 io
 luce

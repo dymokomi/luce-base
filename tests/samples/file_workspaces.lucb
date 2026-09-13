@@ -1,0 +1,34 @@
+import c
+import files
+import paths
+import strings
+
+pub func main(arguments: str[]) -> i32!:
+    var root = try files.TemporaryDirectory()
+    defer root.destroy()
+    let parent = try paths.join(root.path(), "日本語 😀")
+    defer strings.release(parent)
+    try files.create_directory((c.str)parent)
+    var work = try files.TemporaryDirectory((c.str)parent)
+    defer work.destroy()
+    let saved = try strings.copy(work.path())
+    defer strings.release(saved)
+    let file = try paths.join(work.path(), "data.txt")
+    defer strings.release(file)
+    try files.write((c.str)file, "owned contents".bytes)
+    let equivalent = try paths.join(work.path(), "./data.txt")
+    defer strings.release(equivalent)
+    let identity = try files.canonical((c.str)file)
+    defer strings.release(identity)
+    let same = try files.canonical((c.str)equivalent)
+    defer strings.release(same)
+    assert(identity == same)
+    try work.close()
+    try work.close()
+    work.destroy()
+    assert(not files.exists((c.str)saved))
+    files.canonical((c.str)saved) catch failure:
+        assert(failure.code == files.missing)
+        print("ok temporary directory ownership, Unicode paths and canonical identity")
+        return 0
+    trap("canonical resolution accepted a missing path")

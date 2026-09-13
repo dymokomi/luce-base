@@ -48,17 +48,40 @@ def main():
     types = {t.get('name') or t.findtext('name'): t for t in registry.findall('types/type') if vulkan(t)}
     commands = {c.findtext('proto/name'): c for c in registry.findall('commands/command') if c.find('proto') is not None and vulkan(c)}
     values = {}
+    aliases = {}
+    result_names = {e.get('name') for e in registry.findall("enums[@name='VkResult']/enum")}
     for e in registry.findall('.//enum'):
         if e.get('value'):
             values[e.get('name')] = e.get('value')
+        elif e.get('bitpos'):
+            values[e.get('name')] = str(1 << int(e.get('bitpos')))
+        elif e.get('alias'):
+            aliases[e.get('name')] = e.get('alias')
         elif e.get('offset'):
             extension = e.get('extnumber')
             if extension:
-                values[e.get('name')] = str(1000000000 + (int(extension) - 1) * 1000 + int(e.get('offset')))
+                value = 1000000000 + (int(extension) - 1) * 1000 + int(e.get('offset'))
+                values[e.get('name')] = str(-value if e.get('dir') == '-' else value)
+        if e.get('extends') == 'VkResult':
+            result_names.add(e.get('name'))
     for extension in registry.findall('extensions/extension'):
         for e in extension.findall('require/enum'):
             if e.get('offset'):
-                values[e.get('name')] = str(1000000000 + (int(e.get('extnumber', extension.get('number'))) - 1) * 1000 + int(e.get('offset')))
+                value = 1000000000 + (int(e.get('extnumber', extension.get('number'))) - 1) * 1000 + int(e.get('offset'))
+                values[e.get('name')] = str(-value if e.get('dir') == '-' else value)
+
+    def constant_value(name):
+        if name in aliases:
+            return constant_value(aliases[name])
+        value = values[name]
+        if value.startswith('"'):
+            return 'c.str', value
+        # Registry sentinel constants use C unsigned complements and suffixes.
+        complement = re.fullmatch(r'\(~(\d+)U\)', value)
+        if complement:
+            value = str(0xffffffff ^ int(complement.group(1)))
+        value = re.sub(r'[uU]$', '', value)
+        return ('i32' if name in result_names else 'u32'), value
 
     needed = set()
     scalars = {'void': 'void', 'char': 'u8', 'float': 'f32', 'double': 'f64',
@@ -119,7 +142,19 @@ def main():
         params = ', '.join(f'{n}: {t}' for n, t in parameters)
         functions.append(f'extern func {name}({params})' + (f' -> {result}' if result != 'void' else ''))
     lines = ['## Generated from the Khronos Vulkan registry by tools/generate_vulkan.py.',
-             '## All handles are 64-bit in this x86_64 backend; no Vulkan headers are required.', '']
+             '## Handles use the 64-bit Vulkan ABI; no Vulkan headers are required.', '']
+    authored = ROOT / 'src/std/gpu/vulkan'
+    constants = set()
+    for source in authored.rglob('*.lucb'):
+        if source.name not in ('bindings.lucb', 'shaders.lucb'):
+            constants.update(re.findall(r'\bVK_[A-Z0-9_]+\b', source.read_text(encoding='utf-8')))
+    constants.discard('VK_MAKE_API_VERSION')  # documented expression, not an enum
+    # Structure tags are emitted alongside their declarations below.
+    for name in sorted(constants):
+        if not name.startswith('VK_STRUCTURE_TYPE_'):
+            kind, value = constant_value(name)
+            lines.append(f'let {name}: {kind} = {value}')
+    lines.append('')
     for name in sorted(needed):
         item = types[name]
         # Clear unions have a fixed 16-byte ABI; color floats also store depth/stencil.
@@ -140,7 +175,7 @@ def main():
     lines += functions
     output = ROOT / 'src/std/gpu/vulkan/bindings.lucb'
     output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text('\n'.join(lines) + '\n', encoding='utf-8', newline='\n')
+    output.write_bytes(('\n'.join(lines) + '\n').encode("utf-8"))
     print(f'wrote {output.relative_to(ROOT)} ({len(needed)} structures, {len(functions)} functions)')
 
 

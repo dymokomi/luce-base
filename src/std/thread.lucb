@@ -1,3 +1,5 @@
+from windows_abi import SystemInfo
+from windows_abi import GetSystemInfo
 import c
 import core
 import memory
@@ -19,13 +21,12 @@ extern func linux_setname as "pthread_setname_np"(thread: void*, name: c.str) ->
 extern func sched_yield() -> i32
 extern func nanosleep(request: const Duration*, remaining: Duration*?) -> i32
 extern func getpagesize() -> i32
-extern func GetSystemInfo(info: void*)
 
 func page_size() -> usize:
     if platform.windows:
-        var info: u64[6]
-        GetSystemInfo(&info[0])
-        return (usize)((u32*)&info[0])[1]
+        var info: SystemInfo = ---
+        GetSystemInfo(&info)
+        return (usize)info.page_size
     return (usize)getpagesize()
 
 extern struct Duration:

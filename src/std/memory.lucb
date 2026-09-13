@@ -1,3 +1,5 @@
+from windows_abi import SystemInfo
+from windows_abi import GetSystemInfo
 import platform
 
 extern func malloc(size: usize) -> void*?
@@ -219,15 +221,14 @@ extern func mmap(address: void*?, length: usize, protection: i32, flags: i32, de
 let private_anonymous: i32 = 4098 if platform.macos else 34
 extern func munmap(address: void*, length: usize) -> i32
 extern func getpagesize() -> i32
-extern func GetSystemInfo(info: void*)
 extern func VirtualAlloc(address: void*?, size: usize, kind: u32, protection: u32) -> void*?
 extern func VirtualFree(address: void*, size: usize, kind: u32) -> i32
 
 func system_page_size() -> usize:
     if platform.windows:
-        var info: u64[6]
-        GetSystemInfo(&info[0])
-        return (usize)((u32*)&info[0])[1]
+        var info: SystemInfo = ---
+        GetSystemInfo(&info)
+        return (usize)info.page_size
     return (usize)getpagesize()
 
 func map_pages(size: usize) -> void*?:

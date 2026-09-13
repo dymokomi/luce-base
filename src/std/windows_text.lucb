@@ -1,0 +1,29 @@
+## Allocating Windows text conversions. Returned storage belongs to the current
+## allocator and includes a NUL terminator. Callers select their API's error code.
+import c
+import memory
+import windows_abi
+
+pub func wide(text: c.str, invalid: ErrorCode) -> u16[]!:
+    let count = windows_abi.MultiByteToWideChar(windows_abi.utf8_page, windows_abi.reject_invalid_utf8, text, -1, none, 0)
+    if count <= 0:
+        error(invalid, "OS text is not valid UTF-8")
+    let result = try alloc u16[(usize)count]
+    if windows_abi.MultiByteToWideChar(windows_abi.utf8_page, windows_abi.reject_invalid_utf8, text, -1, result.data, count) != count:
+        free(result)
+        error(invalid, "OS text could not be converted to UTF-16")
+    return result
+
+pub func narrow(text: const u16[], invalid: ErrorCode) -> str!:
+    if text.length > 2147483647:
+        error(invalid, "OS text exceeds the conversion limit")
+    let count = windows_abi.WideCharToMultiByte(windows_abi.utf8_page, windows_abi.reject_invalid_utf16, text.data, (i32)text.length, none, 0, none, none)
+    if count == 0 and text.length > 0:
+        error(invalid, "OS text is not valid UTF-16")
+    let result = try alloc u8[(usize)count + 1]
+    if count > 0 and windows_abi.WideCharToMultiByte(windows_abi.utf8_page, windows_abi.reject_invalid_utf16, text.data, (i32)text.length, result.data, count, none, none) != count:
+        free(result)
+        error(invalid, "OS text could not be converted to UTF-8")
+    result[(usize)count] = 0
+    return (str)result[..<(usize)count]
+

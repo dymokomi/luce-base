@@ -1,3 +1,4 @@
+from windows_abi import WideCharToMultiByte
 import c
 import platform
 extern func set_binary_mode as "_setmode"(descriptor: i32, mode: i32) -> i32
@@ -281,7 +282,6 @@ pub func raw_arguments(count: i32, vector: c.str*) -> c.str[]:
 extern func GetCommandLineW() -> u16*
 extern func CommandLineToArgvW(command: u16*, count: i32*) -> u16**?
 extern func LocalFree(block: void*) -> void*?
-extern func WideCharToMultiByte(page: u32, flags: u32, input: const u16*, length: i32, output: u8*?, capacity: i32, fallback: void*?, used_fallback: void*?) -> i32
 extern func release_argument_block as "free"(block: void*)
 extern func atexit(callback: func() -> unit) -> i32
 var windows_argument_vector: c.str[]

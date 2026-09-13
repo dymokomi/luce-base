@@ -1,4 +1,5 @@
-extern func GetModuleHandleW(name: u16*?) -> void*
+## Vulkan 1.0: VK_MAKE_API_VERSION(0, 1, 0, 0).
+let vulkan_api_version_1_0: u32 = 1u32 << 22
 
 struct VulkanDevice:
     var instance: u64
@@ -9,19 +10,19 @@ struct VulkanDevice:
     var memory: VkPhysicalDeviceMemoryProperties
 
 func vulkan_check(result: i32, message: str) -> !:
-    if result != 0:
+    if result != VK_SUCCESS:
         error(failed, message)
 
 func vulkan_device_open() -> VulkanDevice*!:
     let state = try new VulkanDevice() in memory.heap
     errdefer vulkan_device_destroy(state)
     var application = VkApplicationInfo(sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
-        pApplicationName = "Luce", pEngineName = "Luce", apiVersion = 4194304)
-    var extensions: c.str[2] = ["VK_KHR_surface", "VK_KHR_win32_surface"]
+        pApplicationName = "Luce", pEngineName = "Luce", apiVersion = vulkan_api_version_1_0)
+    let extensions = try vulkan_presentation_extensions()
     var instance_info = VkInstanceCreateInfo(sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
-        pApplicationInfo = &application, enabledExtensionCount = 2, ppEnabledExtensionNames = &extensions[0])
+        pApplicationInfo = &application, enabledExtensionCount = (u32)extensions.length, ppEnabledExtensionNames = (c.str*)extensions.data)
     if vkCreateInstance(&instance_info, none, &state.instance) != 0:
-        error(unavailable, "a Vulkan instance with Windows presentation is unavailable")
+        error(unavailable, "a Vulkan instance with native presentation is unavailable")
     var count: u32 = 0
     try vulkan_check(vkEnumeratePhysicalDevices(state.instance, &count, none), "Vulkan devices could not be enumerated")
     if count == 0:
@@ -37,12 +38,12 @@ func vulkan_device_open() -> VulkanDevice*!:
         defer free(properties)
         vkGetPhysicalDeviceQueueFamilyProperties(physical, &families, properties.data)
         for family in 0..<(usize)families:
-            if properties[family].queueCount == 0 or (properties[family].queueFlags & 1) == 0 or vkGetPhysicalDeviceWin32PresentationSupportKHR(physical, (u32)family) == 0:
+            if properties[family].queueCount == 0 or (properties[family].queueFlags & VK_QUEUE_GRAPHICS_BIT) == 0 or not vulkan_presentation_support(physical, (u32)family):
                 continue
             var priority: f32 = 1.0
             var queue_info = VkDeviceQueueCreateInfo(sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
                 queueFamilyIndex = (u32)family, queueCount = 1, pQueuePriorities = &priority)
-            var device_extension: c.str = "VK_KHR_swapchain"
+            var device_extension: c.str = VK_KHR_SWAPCHAIN_EXTENSION_NAME
             var device_info = VkDeviceCreateInfo(sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
                 queueCreateInfoCount = 1, pQueueCreateInfos = &queue_info,
                 enabledExtensionCount = 1, ppEnabledExtensionNames = &device_extension)
@@ -53,7 +54,7 @@ func vulkan_device_open() -> VulkanDevice*!:
             vkGetDeviceQueue(state.device, state.family, 0, &state.queue)
             vkGetPhysicalDeviceMemoryProperties(physical, &state.memory)
             return state
-    error(unavailable, "no Vulkan graphics queue supports Windows presentation")
+    error(unavailable, "no Vulkan graphics queue supports native presentation")
 
 func vulkan_device_destroy(state: VulkanDevice*):
     if state.device != 0:

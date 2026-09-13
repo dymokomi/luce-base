@@ -761,6 +761,21 @@ A borrowed traversal callback. For directories, true requests descent and false 
 
 - `func walk(root: c.str, visitor: WalkVisitor, max_depth: usize = 64) -> !` — Visit root at depth zero, then its descendants, without following directory symlinks below root. Root uses ordinary OS path resolution. Labels are built from the supplied root; directory renames do not redirect handle-based traversal and may leave those labels unusable as OS paths. This is not a filesystem snapshot. A child deeper than max_depth reports depth_limit instead of silently skipping entries. Repeated ancestor identities report directory_cycle. OS/callback errors stop traversal; earlier callback effects remain. All owned resources are cleaned up on failure. Storage is proportional to depth plus the longest path label; cycle detection compares each descended directory with its open ancestors.
 
+- `func canonical(path: c.str) -> str!` — Resolve an existing entry through symlinks to its absolute filesystem path. Windows extended DOS/UNC prefixes are normalized to ordinary UTF-8 paths with forward slashes. This resolves identity; it does not fold case or authorize access. Release the returned NUL-terminated allocation with strings.release.
+
+- `func create_temporary_directory(parent: c.str, permissions: u32 = 448) -> str!` — Atomically create an unused directory with 128 random filename bits. The returned path is owned by the caller. The parent must already exist.
+
+- `func remove_tree(path: c.str) -> !` — Remove this entry and its children. Symlinks are unlinked rather than followed; a missing entry is already removed. Other failures stop and remain reportable.
+
+### `TemporaryDirectory` (struct)
+
+Own one directory tree. Borrow this owner; copying it does not copy ownership. close reports cleanup failures and retains ownership for a retry. destroy makes a final cleanup attempt and always releases the pathname allocation.
+
+- `func init(parent: c.str = "") -> !`
+- `func path() -> str` — Borrowed NUL-terminated pathname, valid until close or destroy.
+- `mutating func close() -> !`
+- `mutating func destroy()`
+
 ## `math`
 
 The mathematical functions of the standard library (§16.6): `import math` for `math.sqrt(x)`, `from math import sqrt` for `sqrt(x)`. The float functions are the C library's, declared here with the types Base gives them; the integer functions are Base.

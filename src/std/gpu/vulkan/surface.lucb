@@ -27,9 +27,7 @@ struct VulkanSurface:
 func vulkan_surface_open(device: VulkanDevice*, host: window.Presentation) -> VulkanSurface*!:
     let state = try new VulkanSurface() in memory.heap
     errdefer vulkan_surface_destroy(device, state)
-    var info = VkWin32SurfaceCreateInfoKHR(sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR,
-        hinstance = GetModuleHandleW(none), hwnd = try host.windows_handle())
-    try vulkan_check(vkCreateWin32SurfaceKHR(device.instance, &info, none, &state.surface), "the Vulkan Windows surface could not be created")
+    state.surface = try vulkan_presentation_surface(device.instance, host)
     var can_present: u32 = 0
     try vulkan_check(vkGetPhysicalDeviceSurfaceSupportKHR(device.physical, device.family, state.surface, &can_present), "Vulkan presentation support could not be checked")
     if can_present == 0:
@@ -44,7 +42,7 @@ func vulkan_surface_open(device: VulkanDevice*, host: window.Presentation) -> Vu
 
 func vulkan_image_view(device: VulkanDevice*, image: u64, format: u32, aspect: u32) -> u64!:
     var info = VkImageViewCreateInfo(sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO, image = image,
-        viewType = 1, format = format, subresourceRange = VkImageSubresourceRange(aspectMask = aspect, levelCount = 1, layerCount = 1))
+        viewType = VK_IMAGE_VIEW_TYPE_2D, format = format, subresourceRange = VkImageSubresourceRange(aspectMask = aspect, levelCount = 1, layerCount = 1))
     var view: u64 = 0
     try vulkan_check(vkCreateImageView(device.device, &info, none, &view), "a Vulkan image view could not be created")
     return view
@@ -63,7 +61,7 @@ func vulkan_swapchain(device: VulkanDevice*, state: VulkanSurface*, width: u32, 
         return
     if extent.width > 16384 or extent.height > 16384:
         error(surface_too_large, "Vulkan presentation supports at most 16384 pixels per dimension")
-    if (capabilities.supportedUsageFlags & 16) == 0 or (capabilities.supportedCompositeAlpha & 1) == 0:
+    if (capabilities.supportedUsageFlags & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT) == 0 or (capabilities.supportedCompositeAlpha & VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR) == 0:
         error(unavailable, "the Vulkan surface cannot provide opaque color attachments")
     var count: u32 = 0
     try vulkan_check(vkGetPhysicalDeviceSurfaceFormatsKHR(device.physical, state.surface, &count, none), "Vulkan surface formats are unavailable")
@@ -72,21 +70,21 @@ func vulkan_swapchain(device: VulkanDevice*, state: VulkanSurface*, width: u32, 
     try vulkan_check(vkGetPhysicalDeviceSurfaceFormatsKHR(device.physical, state.surface, &count, formats.data), "Vulkan surface formats changed")
     var format: u32 = 0
     for index in 0..<(usize)count:
-        if formats[index].colorSpace == 0:
-            if formats[index].format == 50 or formats[index].format == 43:
+        if formats[index].colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR:
+            if formats[index].format == VK_FORMAT_B8G8R8A8_SRGB or formats[index].format == VK_FORMAT_R8G8B8A8_SRGB:
                 format = formats[index].format
                 break
-            if formats[index].format == 0:
-                format = 50
+            if formats[index].format == VK_FORMAT_UNDEFINED:
+                format = VK_FORMAT_B8G8R8A8_SRGB
     if format == 0:
         error(unavailable, "the Vulkan surface has no sRGB render target")
     var desired = capabilities.minImageCount + 1
     if capabilities.maxImageCount > 0 and desired > capabilities.maxImageCount:
         desired = capabilities.maxImageCount
     var info = VkSwapchainCreateInfoKHR(sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
-        surface = state.surface, minImageCount = desired, imageFormat = format, imageColorSpace = 0,
-        imageExtent = extent, imageArrayLayers = 1, imageUsage = 16,
-        preTransform = capabilities.currentTransform, compositeAlpha = 1, presentMode = 2, clipped = 1)
+        surface = state.surface, minImageCount = desired, imageFormat = format, imageColorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR,
+        imageExtent = extent, imageArrayLayers = 1, imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+        preTransform = capabilities.currentTransform, compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR, presentMode = VK_PRESENT_MODE_FIFO_KHR, clipped = VK_TRUE)
     try vulkan_check(vkCreateSwapchainKHR(device.device, &info, none, &state.swapchain), "the Vulkan swapchain could not be created")
     state.width = extent.width
     state.height = extent.height
@@ -101,7 +99,7 @@ func vulkan_swapchain(device: VulkanDevice*, state: VulkanSurface*, width: u32, 
     state.images = try alloc VulkanImage[(usize)count] in memory.heap
     for index in 0..<(usize)count:
         state.images[index].image = images[index]
-        state.images[index].view = try vulkan_image_view(device, images[index], format, 1)
+        state.images[index].view = try vulkan_image_view(device, images[index], format, VK_IMAGE_ASPECT_COLOR_BIT)
         var attachments: u64[2] = [state.images[index].view, state.depth_view]
         var framebuffer_info = VkFramebufferCreateInfo(sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
             renderPass = state.render_pass, attachmentCount = 2, pAttachments = &attachments[0], width = extent.width, height = extent.height, layers = 1)
@@ -112,17 +110,17 @@ func vulkan_swapchain(device: VulkanDevice*, state: VulkanSurface*, width: u32, 
 
 func vulkan_depth(device: VulkanDevice*, state: VulkanSurface*) -> !:
     var properties: VkFormatProperties
-    vkGetPhysicalDeviceFormatProperties(device.physical, 126, &properties)
-    if (properties.optimalTilingFeatures & 512) == 0:
+    vkGetPhysicalDeviceFormatProperties(device.physical, VK_FORMAT_D32_SFLOAT, &properties)
+    if (properties.optimalTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT) == 0:
         error(unavailable, "the Vulkan device has no 32-bit depth attachment support")
-    var info = VkImageCreateInfo(sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO, imageType = 1, format = 126,
-        extent = VkExtent3D(width = state.width, height = state.height, depth = 1), mipLevels = 1, arrayLayers = 1, samples = 1, usage = 32)
+    var info = VkImageCreateInfo(sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO, imageType = VK_IMAGE_TYPE_2D, format = VK_FORMAT_D32_SFLOAT,
+        extent = VkExtent3D(width = state.width, height = state.height, depth = 1), mipLevels = 1, arrayLayers = 1, samples = VK_SAMPLE_COUNT_1_BIT, usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT)
     try vulkan_check(vkCreateImage(device.device, &info, none, &state.depth_image), "the Vulkan depth image could not be created")
     var requirements: VkMemoryRequirements
     vkGetImageMemoryRequirements(device.device, state.depth_image, &requirements)
-    state.depth_memory = try vulkan_memory(device, requirements, 1)
+    state.depth_memory = try vulkan_memory(device, requirements, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
     try vulkan_check(vkBindImageMemory(device.device, state.depth_image, state.depth_memory, 0), "Vulkan depth memory could not be bound")
-    state.depth_view = try vulkan_image_view(device, state.depth_image, 126, 2)
+    state.depth_view = try vulkan_image_view(device, state.depth_image, VK_FORMAT_D32_SFLOAT, VK_IMAGE_ASPECT_DEPTH_BIT)
 
 func vulkan_swapchain_destroy(device: VulkanDevice*, state: VulkanSurface*):
     for image in state.images:

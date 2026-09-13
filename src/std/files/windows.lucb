@@ -1,9 +1,5 @@
+from windows_abi import MultiByteToWideChar, WideCharToMultiByte, GetLastError, CloseHandle, CreateFileW
 ## UTF-8 paths at the language boundary, UTF-16 at the Windows filesystem boundary.
-extern func MultiByteToWideChar(page: u32, flags: u32, input: c.str, length: i32, output: u16*?, capacity: i32) -> i32
-extern func WideCharToMultiByte(page: u32, flags: u32, input: const u16*, length: i32, output: u8*, capacity: i32, fallback: void*?, used_fallback: void*?) -> i32
-extern func CreateFileW(path: u16*, access: u32, share: u32, security: void*?, disposition: u32, flags: u32, template: void*?) -> void*
-extern func CloseHandle(handle: void*) -> i32
-extern func GetLastError() -> u32
 extern func GetFileInformationByHandle(handle: void*, info: WinInformation*) -> i32
 extern func GetFileInformationByHandleEx(handle: void*, kind: i32, info: void*, size: u32) -> i32
 extern func GetFinalPathNameByHandleW(handle: void*, output: u16*, capacity: u32, flags: u32) -> u32
@@ -149,13 +145,7 @@ struct WinDirectory:
     var name: u8[1041]
 
 func wide_path(path: c.str) -> u16[]!:
-    let length = MultiByteToWideChar(65001, 8, path, -1, none, 0)
-    if length <= 0:
-        error(invalid_options, "a file path is invalid UTF-8")
-    let result = try alloc u16[(usize)length]
-    if MultiByteToWideChar(65001, 8, path, -1, result.data, length) != length:
-        free(result)
-        error(invalid_options, "a file path could not be converted to UTF-16")
+    let result = try windows_text.wide(path, invalid_options)
     for index in 0..<result.length:
         if result[index] == 47:
             result[index] = 92

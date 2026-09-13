@@ -14,7 +14,7 @@ on. No compatibility layers are required.
 
 ## Standard OS primitives and consumers
 
-- [ ] Consolidate shared Windows ABI/text helpers beneath public standard modules.
+- [x] Consolidate shared Windows ABI/text helpers beneath public standard modules.
 - [ ] Add owned temporary directories and filesystem canonical paths; use them in both compilers.
 - [ ] Separate portable compiler host-tool policy from native workspace operations.
 - [ ] Add portable termination subscriptions with bounded Windows close acknowledgement.
@@ -22,8 +22,8 @@ on. No compatibility layers are required.
 
 ## GPU and CPU boundaries
 
-- [ ] Separate Vulkan rendering from native presentation adapters.
-- [ ] Replace authored Vulkan numeric enums/flags with named constants.
+- [x] Separate Vulkan rendering from native presentation adapters.
+- [x] Replace authored Vulkan numeric enums/flags with named constants.
 - [ ] Separate x86 ABI and object/unwind policy from instruction selection; update comments.
 - [ ] Add focused checks that enforce the intended platform boundaries.
 

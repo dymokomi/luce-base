@@ -3,6 +3,7 @@
 ## system owns; copy what must outlive the next call.
 import c
 import memory
+import windows_text
 import platform
 
 extern func getenv(variable: c.str) -> c.str?
@@ -92,9 +93,9 @@ pub func cpus() -> u32:
 
 pub func page_size() -> usize:
     if platform.windows:
-        var info: u64[6]
-        GetSystemInfo((void*)&info[0])
-        return (usize)((u32*)&info[0])[1]
+        var info: SystemInfo = ---
+        GetSystemInfo(&info)
+        return (usize)info.page_size
     return (usize)getpagesize()
 
 ## The value of an environment variable, or none when it is not set. Copy a view
@@ -108,9 +109,9 @@ pub func env(variable: c.str) -> str?:
 ## Set an environment variable for this process and the ones it starts.
 pub func set_env(variable: c.str, value: c.str) -> !:
     if platform.windows:
-        let key = try wide_text(variable)
+        let key = try windows_text.wide(variable, failed)
         defer free(key)
-        let text = try wide_text(value)
+        let text = try windows_text.wide(value, failed)
         defer free(text)
         if SetEnvironmentVariableW(key.data, text.data) == 0:
             error(failed, "the environment variable cannot be set")
@@ -120,7 +121,7 @@ pub func set_env(variable: c.str, value: c.str) -> !:
 
 pub func unset_env(variable: c.str) -> !:
     if platform.windows:
-        let key = try wide_text(variable)
+        let key = try windows_text.wide(variable, failed)
         defer free(key)
         if SetEnvironmentVariableW(key.data, none) == 0 and GetLastError() != 203:
             error(failed, "the environment variable cannot be unset")
@@ -142,7 +143,7 @@ pub func cwd() -> str!:
 
 pub func change_dir(path: c.str) -> !:
     if platform.windows:
-        let text = try wide_text(path)
+        let text = try windows_text.wide(path, failed)
         defer free(text)
         if SetCurrentDirectoryW(text.data) == 0:
             error(failed, "the directory cannot be entered")
@@ -167,7 +168,7 @@ pub func hostname() -> str!:
         var count: u32 = 256
         if GetComputerNameW(&host_text[0], &count) == 0:
             error(failed, "the host name cannot be read")
-        return try narrow_text(host_text[..<(usize)count])
+        return try windows_text.narrow(host_text[..<(usize)count], failed)
     let buffer = try alloc u8[256]
     if gethostname(buffer.data, buffer.length) != 0:
         free(buffer)

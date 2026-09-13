@@ -6,15 +6,15 @@ func vulkan_shader(device: VulkanDevice*, words: u32[]) -> u64!:
 
 func vulkan_pipeline(device: VulkanDevice*, state: VulkanSurface*) -> !:
     var attachments: VkAttachmentDescription[2] = [
-        VkAttachmentDescription(format = state.format, samples = 1, loadOp = 1, storeOp = 0,
-            stencilLoadOp = 2, stencilStoreOp = 1, finalLayout = 1000001002),
-        VkAttachmentDescription(format = 126, samples = 1, loadOp = 1, storeOp = 1,
-            stencilLoadOp = 2, stencilStoreOp = 1, finalLayout = 3)]
-    var color_attachment = VkAttachmentReference(attachment = 0, layout = 2)
-    var depth_attachment = VkAttachmentReference(attachment = 1, layout = 3)
+        VkAttachmentDescription(format = state.format, samples = VK_SAMPLE_COUNT_1_BIT, loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR, storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+            stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE, stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE, finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR),
+        VkAttachmentDescription(format = VK_FORMAT_D32_SFLOAT, samples = VK_SAMPLE_COUNT_1_BIT, loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR, storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+            stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE, stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE, finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL)]
+    var color_attachment = VkAttachmentReference(attachment = 0, layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL)
+    var depth_attachment = VkAttachmentReference(attachment = 1, layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
     var subpass = VkSubpassDescription(colorAttachmentCount = 1, pColorAttachments = &color_attachment, pDepthStencilAttachment = &depth_attachment)
-    var dependency = VkSubpassDependency(srcSubpass = 4294967295, dstSubpass = 0,
-        srcStageMask = 1024 | 256, dstStageMask = 1024 | 256, dstAccessMask = 256 | 1024)
+    var dependency = VkSubpassDependency(srcSubpass = VK_SUBPASS_EXTERNAL, dstSubpass = 0,
+        srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT, dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT, dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT)
     var render_info = VkRenderPassCreateInfo(sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
         attachmentCount = 2, pAttachments = &attachments[0], subpassCount = 1, pSubpasses = &subpass,
         dependencyCount = 1, pDependencies = &dependency)
@@ -26,24 +26,24 @@ func vulkan_pipeline(device: VulkanDevice*, state: VulkanSurface*) -> !:
     let fragment_shader = try vulkan_shader(device, vulkan_frag_words)
     defer vkDestroyShaderModule(device.device, fragment_shader, none)
     var stages: VkPipelineShaderStageCreateInfo[2] = [
-        VkPipelineShaderStageCreateInfo(sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, stage = 1, module = vertex_shader, pName = "main"),
-        VkPipelineShaderStageCreateInfo(sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, stage = 16, module = fragment_shader, pName = "main")]
+        VkPipelineShaderStageCreateInfo(sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, stage = VK_SHADER_STAGE_VERTEX_BIT, module = vertex_shader, pName = "main"),
+        VkPipelineShaderStageCreateInfo(sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, stage = VK_SHADER_STAGE_FRAGMENT_BIT, module = fragment_shader, pName = "main")]
     var binding = VkVertexInputBindingDescription(stride = 32)
     var attributes: VkVertexInputAttributeDescription[2] = [
-        VkVertexInputAttributeDescription(location = 0, format = 109, offset = 0),
-        VkVertexInputAttributeDescription(location = 1, format = 109, offset = 16)]
+        VkVertexInputAttributeDescription(location = 0, format = VK_FORMAT_R32G32B32A32_SFLOAT, offset = 0),
+        VkVertexInputAttributeDescription(location = 1, format = VK_FORMAT_R32G32B32A32_SFLOAT, offset = 16)]
     var vertex_info = VkPipelineVertexInputStateCreateInfo(sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
         vertexBindingDescriptionCount = 1, pVertexBindingDescriptions = &binding,
         vertexAttributeDescriptionCount = 2, pVertexAttributeDescriptions = &attributes[0])
-    var assembly = VkPipelineInputAssemblyStateCreateInfo(sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO, topology = 3)
+    var assembly = VkPipelineInputAssemblyStateCreateInfo(sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO, topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST)
     var viewport_info = VkPipelineViewportStateCreateInfo(sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO, viewportCount = 1, scissorCount = 1)
     var raster = VkPipelineRasterizationStateCreateInfo(sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO, lineWidth = 1.0)
-    var multisample = VkPipelineMultisampleStateCreateInfo(sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO, rasterizationSamples = 1)
-    var depth_info = VkPipelineDepthStencilStateCreateInfo(sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO, depthCompareOp = 1)
-    var blend = VkPipelineColorBlendAttachmentState(blendEnable = 1, srcColorBlendFactor = 6, dstColorBlendFactor = 7,
-        srcAlphaBlendFactor = 1, dstAlphaBlendFactor = 7, colorWriteMask = 15)
+    var multisample = VkPipelineMultisampleStateCreateInfo(sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO, rasterizationSamples = VK_SAMPLE_COUNT_1_BIT)
+    var depth_info = VkPipelineDepthStencilStateCreateInfo(sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO, depthCompareOp = VK_COMPARE_OP_LESS)
+    var blend = VkPipelineColorBlendAttachmentState(blendEnable = VK_TRUE, srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA, dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
+        srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE, dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA, colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT)
     var blend_info = VkPipelineColorBlendStateCreateInfo(sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO, attachmentCount = 1, pAttachments = &blend)
-    var dynamic_states: u32[2] = [0, 1]
+    var dynamic_states: u32[2] = [VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR]
     var dynamic_info = VkPipelineDynamicStateCreateInfo(sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO, dynamicStateCount = 2, pDynamicStates = &dynamic_states[0])
     var pipeline_info = VkGraphicsPipelineCreateInfo(sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
         stageCount = 2, pStages = &stages[0], pVertexInputState = &vertex_info, pInputAssemblyState = &assembly,
@@ -51,6 +51,6 @@ func vulkan_pipeline(device: VulkanDevice*, state: VulkanSurface*) -> !:
         pDepthStencilState = &depth_info, pColorBlendState = &blend_info, pDynamicState = &dynamic_info,
         layout = state.layout, renderPass = state.render_pass, basePipelineIndex = -1)
     try vulkan_check(vkCreateGraphicsPipelines(device.device, 0, 1, &pipeline_info, none, &state.overlay), "the Vulkan overlay pipeline could not be created")
-    depth_info.depthTestEnable = 1
-    depth_info.depthWriteEnable = 1
+    depth_info.depthTestEnable = VK_TRUE
+    depth_info.depthWriteEnable = VK_TRUE
     try vulkan_check(vkCreateGraphicsPipelines(device.device, 0, 1, &pipeline_info, none, &state.depth_test), "the Vulkan depth pipeline could not be created")

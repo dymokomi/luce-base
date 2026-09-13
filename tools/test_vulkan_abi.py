@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compare every Vulkan struct size, alignment and field offset with SDK headers."""
+"""Compare Vulkan layouts and named constants with the Khronos header oracle."""
 import argparse
 from pathlib import Path
 import re
@@ -9,7 +9,7 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[1]
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--compiler', required=True, type=Path)
-parser.add_argument('--sdk', required=True, type=Path)
+parser.add_argument('--headers', required=True, type=Path, help='directory containing vulkan/vulkan.h')
 args = parser.parse_args()
 bindings = (ROOT / 'src/std/gpu/vulkan/bindings.lucb').read_text(encoding='utf-8')
 native = ['#define VK_USE_PLATFORM_WIN32_KHR', '#include <windows.h>',
@@ -26,13 +26,21 @@ for name, body in structures:
     base.append('    print(f"' + name + ' ' + ' '.join('{' + item + '}' for item in base_expressions) + '")')
     native.append('printf("' + name + ' ' + ' '.join(['%zu'] * len(expressions)) + '\\n", ' +
                   ', '.join(item.replace('alignof(', '_Alignof(') for item in expressions) + ');')
+constants = re.findall(r'^let (VK_\w+): (u32|i32|c.str) =', bindings, re.MULTILINE)
+for name, kind in constants:
+    if kind == 'c.str':
+        base.append(f'    print(f"{name} {{(str){name}}}")')
+        native.append(f'printf("{name} %s\\n", {name});')
+    else:
+        base.append(f'    print(f"{name} {{(i64){name}}}")')
+        native.append(f'printf("{name} %lld\\n", (long long){name});')
 base.append('    return 0')
 native.append('return 0; }')
 with tempfile.TemporaryDirectory(prefix='luce-vulkan-abi-') as folder:
     work = Path(folder)
-    (work / 'abi.c').write_text('\n'.join(native), encoding='utf-8', newline='\n')
-    (work / 'abi.lucb').write_text('\n'.join(base), encoding='utf-8', newline='\n')
-    subprocess.run(['gcc', '-std=c11', '-I' + str(args.sdk / 'Include'), str(work / 'abi.c'), '-o', str(work / 'c.exe')], check=True)
+    (work / 'abi.c').write_bytes(('\n'.join(native)).encode("utf-8"))
+    (work / 'abi.lucb').write_bytes(('\n'.join(base)).encode("utf-8"))
+    subprocess.run(['gcc', '-std=c11', '-I' + str(args.headers), str(work / 'abi.c'), '-o', str(work / 'c.exe')], check=True)
     expected = subprocess.check_output([work / 'c.exe']).splitlines()
     for flags in (['--native'], ['--backend=c']):
         subprocess.run([args.compiler.resolve(), 'build', work / 'abi.lucb', *flags, '-o', work / 'base.exe'], check=True)
@@ -42,4 +50,4 @@ with tempfile.TemporaryDirectory(prefix='luce-vulkan-abi-') as folder:
                 if left != right:
                     print('BASE', left.decode(), '\nSDK ', right.decode())
             raise SystemExit('Vulkan ABI mismatch')
-        print(f'PASS {len(structures)} Vulkan structures and every field offset ({flags[0]})')
+        print(f'PASS {len(structures)} Vulkan layouts and {len(constants)} constants ({flags[0]})')

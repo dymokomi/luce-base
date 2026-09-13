@@ -10,6 +10,8 @@ metal/drawing.lucb
 metal/surface.lucb
 vulkan/bindings.lucb
 vulkan/shaders.lucb
+vulkan/presentation/module.lucb
+vulkan/presentation/windows.lucb
 vulkan/device.lucb
 vulkan/surface.lucb
 vulkan/pipeline.lucb
