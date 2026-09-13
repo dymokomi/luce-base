@@ -1697,7 +1697,7 @@ A self-contained value; it retains no native object or borrowed text. Only the f
 - `var button: u32`
 - `var x: f64`
 - `var y: f64`
-- `var scroll_x: f64`
+- `var scroll_x: f64` — Content displacement: positive x moves content right, positive y down. Controls subtract these values from viewport offsets on both axes.
 - `var scroll_y: f64`
 - `var scroll_unit: ScrollUnit`
 - `var codepoint: u32`

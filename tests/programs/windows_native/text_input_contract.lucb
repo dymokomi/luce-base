@@ -35,5 +35,26 @@ pub func main(arguments: str[]) -> i32!:
         while let event = try host.poll():
             assert(event.kind != input.EventKind.text_input)
         thread.sleep(1)
-    print("ok Windows Unicode text input")
+    # A rightward wheel request advances the viewport, hence negative content
+    # displacement. Fractional wheel steps retain precision on either axis.
+    assert(PostMessageW(handle, 526, (usize)120 << 16, 0) != 0)
+    assert(PostMessageW(handle, 526, (usize)65476 << 16, 0) != 0)
+    assert(PostMessageW(handle, 522, (usize)60 << 16, 0) != 0)
+    var wheel: usize = 0
+    for tick in 0..<200:
+        while let event = try host.poll():
+            if event.kind == input.EventKind.scroll:
+                assert(event.scroll_unit == input.ScrollUnit.lines)
+                if wheel == 0:
+                    assert(event.scroll_x == -1.0 and event.scroll_y == 0.0)
+                elif wheel == 1:
+                    assert(event.scroll_x == 0.5 and event.scroll_y == 0.0)
+                else:
+                    assert(wheel == 2 and event.scroll_x == 0.0 and event.scroll_y == 0.5)
+                wheel += 1
+        if wheel == 3:
+            break
+        thread.sleep(1)
+    assert(wheel == 3)
+    print("ok Windows Unicode text input and wheel direction")
     return 0

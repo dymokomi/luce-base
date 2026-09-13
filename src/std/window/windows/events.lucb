@@ -103,7 +103,9 @@ func win_callback(native: void*, message: u32, word: usize, value: isize) -> isi
         if scrolling:
             event.kind = input.EventKind.scroll
             let delta = (f64)signed_half((isize)(word >> 16)) / 120.0
-            event.scroll_x = delta if message == 526 else 0.0
+            # WM_MOUSEHWHEEL is positive toward the right of the document.
+            # Portable deltas describe content movement, matching AppKit.
+            event.scroll_x = -delta if message == 526 else 0.0
             event.scroll_y = delta if message == 522 else 0.0
             event.scroll_unit = input.ScrollUnit.lines
         elif message != 512:

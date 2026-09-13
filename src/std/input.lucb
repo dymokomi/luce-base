@@ -128,6 +128,8 @@ pub struct Event:
     pub var button: u32
     pub var x: f64
     pub var y: f64
+    ## Content displacement: positive x moves content right, positive y down.
+    ## Controls subtract these values from viewport offsets on both axes.
     pub var scroll_x: f64
     pub var scroll_y: f64
     pub var scroll_unit: ScrollUnit
