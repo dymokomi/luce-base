@@ -1,9 +1,11 @@
 from windows_abi import SystemInfo
 from windows_abi import GetSystemInfo
+from windows_abi import Sleep
 import c
 import core
 import memory
 import platform
+import time
 
 extern func pthread_create(thread: void*?*, attributes: void*?, start: func(void*) -> void*?, argument: void*) -> i32
 extern func pthread_join(thread: void*, result: void*?*?) -> i32
@@ -138,7 +140,25 @@ pub func yield():
 ## Sleep for at least `milliseconds`: a signal that interrupts the sleep leaves the time
 ## remaining, which is slept again.
 pub func sleep(milliseconds: u64):
+    if platform.windows:
+        sleep_windows(milliseconds)
+        return
     var request = Duration(seconds = (i64)(milliseconds // 1000), nanoseconds = (i64)(milliseconds % 1000) * 1000000)
     var remaining = Duration(seconds = 0, nanoseconds = 0)
     while nanosleep(&request, &remaining) != 0 and c.errno() == c.interrupted:
         request = remaining
+
+## Windows rounds waits to clock ticks and may wake before the requested interval.
+## Recheck a monotonic deadline without changing system-wide timer resolution. A
+## finite chunk also avoids narrowing long durations to Sleep's INFINITE sentinel.
+func sleep_windows(milliseconds: u64):
+    if milliseconds == 0:
+        Sleep(0)
+        return
+    let longest_finite_wait: u64 = 0xFFFFFFFE
+    let start = time.now()
+    var elapsed: u64 = 0
+    while elapsed < milliseconds:
+        let remaining = milliseconds - elapsed
+        Sleep((u32)(remaining if remaining < longest_finite_wait else longest_finite_wait))
+        elapsed = time.since(start) // 1000000

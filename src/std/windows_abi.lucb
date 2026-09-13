@@ -28,6 +28,7 @@ pub extern func CloseHandle(handle: void*) -> i32
 pub extern func GetCurrentProcessId() -> u32
 pub extern func GetCurrentProcess() -> void*
 pub extern func GetSystemInfo(info: SystemInfo*)
+pub extern func Sleep(milliseconds: u32)
 pub extern func GetTempPathW(capacity: u32, output: u16*) -> u32
 pub extern func GetModuleHandleW(name: u16*?) -> void*
 pub extern func CreateFileW(path: u16*, access: u32, share: u32, security: void*?, disposition: u32, flags: u32, template: void*?) -> void*

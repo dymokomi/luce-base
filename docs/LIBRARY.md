@@ -272,6 +272,14 @@ Memory orderings for the operations of `@T` (§15.1).
 
 - `func fence(order: Ordering)` — A standalone fence; the backend supplies the instruction.
 
+## `time`
+
+- `func now() -> u64` — Nanoseconds from an arbitrary origin, never going backwards.
+
+- `func unix() -> i64` — Seconds since the Unix epoch.
+
+- `func since(start: u64) -> u64` — Nanoseconds elapsed since `start`, from `now()`.
+
 ## `thread`
 
 - `let failed: ErrorCode = ErrorCode.package(5)`
@@ -1011,14 +1019,6 @@ Single-precision mathematics. `math32` has the floating-point operations of `mat
 - `func max(a: f32, b: f32) -> f32` — Maximum with NaN propagation (left NaN wins if both are NaNs). Positive zero wins over negative zero; a selected NaN retains its original bits.
 
 - `func clamp(x: f32, low: f32, high: f32) -> f32` — Restrict `x` to inclusive ordered bounds. Reversed or NaN bounds trap. An input NaN or an input equal to a bound is returned unchanged, including its zero sign.
-
-## `time`
-
-- `func now() -> u64` — Nanoseconds from an arbitrary origin, never going backwards.
-
-- `func unix() -> i64` — Seconds since the Unix epoch.
-
-- `func since(start: u64) -> u64` — Nanoseconds elapsed since `start`, from `now()`.
 
 ## `net`
 

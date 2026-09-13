@@ -8,6 +8,7 @@ os
 io
 luce
 atomic
+time
 thread
 sync
 process
@@ -19,7 +20,6 @@ paths
 files
 math
 math32
-time
 testing
 net
 interop

@@ -13,7 +13,7 @@ parser.add_argument('--match', default='')
 parser.add_argument('--window', action='store_true', help='exercise real Win32 windows and input')
 parser.add_argument('--gpu', action='store_true', help='also exercise actual Vulkan presentation')
 args = parser.parse_args()
-cases = ['file_contract', 'network_contract', 'unwind_contract']
+cases = ['file_contract', 'network_contract', 'sleep_contract', 'unwind_contract']
 if args.window or args.gpu:
     cases += ['main']
 if args.gpu:

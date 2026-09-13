@@ -1,0 +1,22 @@
+## Independent Windows performance counters verify short waits across clock ticks.
+import thread
+
+extern func QueryPerformanceCounter(value: i64*) -> i32
+extern func QueryPerformanceFrequency(value: i64*) -> i32
+
+pub func main(arguments: str[]) -> i32:
+    var frequency: i64 = 0
+    assert(QueryPerformanceFrequency(&frequency) != 0 and frequency > 0)
+    thread.sleep(0)
+    let durations: u64[4] = [1, 2, 3, 17]
+    for milliseconds in durations:
+        for repetition in 0..<64:
+            var before: i64 = 0
+            var after: i64 = 0
+            assert(QueryPerformanceCounter(&before) != 0)
+            thread.sleep(milliseconds)
+            assert(QueryPerformanceCounter(&after) != 0 and after >= before)
+            assert((u64)(after - before) * 1000 >= milliseconds * (u64)frequency,
+                "thread.sleep returned before its requested duration")
+    print("ok Windows sleep deadlines")
+    return 0
