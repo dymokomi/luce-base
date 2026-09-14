@@ -1,0 +1,7 @@
+## §7.5: `i64(f)` traps at `2^63`, which `f64` holds exactly, although `(f64)i64.max`
+## rounds up to that same value.
+pub func main(arguments: str[]) -> i32:
+    let scale = (f64)arguments.length
+    let edge = 9223372036854775808.0 * scale
+    print(f"{i64(edge)}")
+    return 0

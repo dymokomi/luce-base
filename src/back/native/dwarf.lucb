@@ -189,9 +189,15 @@ pub struct Emitter:
                     var cursor = decl.body
                     while let item = cursor:
                         if item.kind == ast.Kind.enum_case:
-                            try o.put("    .uleb128 18\n")
+                            # a signed backing's cases are `sdata` (abbreviation 19)
+                            let signed_backing = self.checker.table.is_signed(backing.type_id)
+                            try o.put("    .uleb128 19\n" if signed_backing else "    .uleb128 18\n")
                             try text(o, item.text)
-                            try o.put((try format(format_room, f"    .uleb128 {types.case_value(decl, item)}\n")))
+                            let case_bits = types.case_value(decl, item)
+                            if signed_backing:
+                                try o.put((try format(format_room, f"    .sleb128 {(i64)case_bits}\n")))
+                            else:
+                                try o.put((try format(format_room, f"    .uleb128 {case_bits}\n")))
                         cursor = item.next
                     try o.put("    .byte 0\n")
                     return
@@ -346,5 +352,6 @@ let abbreviations: str = r"""
     .byte 16,59,0,3,8,0,0
     .byte 17,4,1,3,8,11,15,73,19,0,0
     .byte 18,40,0,3,8,28,15,0,0
+    .byte 19,40,0,3,8,28,13,0,0
     .byte 0
 """

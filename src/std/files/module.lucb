@@ -116,8 +116,9 @@ let exclusive_flag: i32 = 1024 if platform.windows else (2048 if platform.macos 
 let would_block_errno: i32 = 35 if platform.macos else 11
 let transfer_limit: usize = 1073741824
 let current_directory_fd: i32 = -2 if platform.macos else -100
-let directory_flag: i32 = 1048576 if platform.macos else 65536
-let no_follow_flag: i32 = 256 if platform.macos else 131072
+## Linux keeps the generic `open` flag values on aarch64 and the x86-64 ones elsewhere.
+let directory_flag: i32 = 1048576 if platform.macos else (16384 if platform.arm64 else 65536)
+let no_follow_flag: i32 = 256 if platform.macos else (32768 if platform.arm64 else 131072)
 let at_no_follow_flag: i32 = 32 if platform.macos else 256
 
 pub let missing: ErrorCode = ErrorCode.package(6)

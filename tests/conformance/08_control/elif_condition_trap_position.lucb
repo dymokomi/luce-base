@@ -1,0 +1,10 @@
+## §11.5: a trap in an `elif` condition names the `elif`, not the `if` or the statement
+## before it.
+pub func main(arguments: str[]) -> i32:
+    let items: i64[2] = [1, 2]
+    let n = arguments.length + 8
+    if n < 2:
+        print("small")
+    elif items[n] > 0:
+        print("big")
+    return 0

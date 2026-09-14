@@ -4,11 +4,13 @@
 #
 #   DESCRIPTION:
 #       Every C or assembly symbol a Base declaration becomes: `lb_module_name` for a
-#       function or global, `lb_module_Record__args` for a record instance, the method's
-#       owner in front of its name, and the entry module's `main` and `answer` kept as their shims expect.
-#       Type arguments are spelled with identifier characters only, so an instance's name
-#       is unique per type. The C backend writes these through a buffer; the native backend
-#       does the same and then prefixes an underscore, as the Mach-O convention wants.
+#       function or global, the method's owner in front of its name, a record instance's
+#       arguments after `_0g`, and the entry module's `main` and `answer` kept as their
+#       shims expect. A symbol reads back piece by piece: a piece holding an underscore
+#       carries its length in front (`11front_lexer`), and every shape marker starts with
+#       `_0`, which no piece can, so `a.b_c` and `a_b.c` never share a symbol. The C backend
+#       writes these through a buffer; the native backend does the same and then prefixes
+#       an underscore, as the Mach-O convention wants.
 #
 #==============================================================================================
 
@@ -44,6 +46,26 @@ pub func symbol_part(path: str) -> str:
         i += 1
     return (str)out[..<i]
 
+## A name as one piece of a symbol. A piece holding an underscore is written with its length
+## in front, so the pieces of a symbol are read back unambiguously: a bare piece ends at the
+## first underscore, a counted one after its count.
+pub func put_piece(out: buffer.Buffer*, text: str) -> !:
+    for b in text.bytes:
+        if b == '_':
+            try out.put_u64((u64)text.length)
+            break
+    try out.put(text)
+
+## `_0g`, the count, and each argument of a generic instance; nothing for none.
+func put_args(out: buffer.Buffer*, table: types.Table*, args: u32[]) -> !:
+    if args.length == 0:
+        return
+    try out.put("_0g")
+    try out.put_u64((u64)args.length)
+    for a in args:
+        try out.put("_")
+        try mangled(out, table, a)
+
 ## Identifiers the runtime defines with the `lb_` prefix.
 pub func is_runtime_name(name: str) -> bool:
     let names: str[20] = ["span", "str", "error", "cspan", "out", "fmtbuf", "hash_bytes", "hash_mix", "hash_seed", "utf8_ok", "trap", "check_index", "at", "unknown", "iface", "alloc", "fixed", "pos", "restore_pos", "saved_pos"]
@@ -61,65 +83,59 @@ pub func c_symbol(f: ast.Node*) -> str:
                 return (str)b[1..<b.length - 1]
     return f.text
 
-## A spelling of a type made of identifier characters only, unique per type.
+## A spelling of a type made of identifier characters only, unique per type and read back
+## piece by piece: a name is a piece; a shape follows its element as `_0` and a letter
+## (`_0p` pointer, `_0q` const pointer, `_0s` span, `_0c` const span, `_0aN` array of N,
+## `_0o` optional, `_0r` result, `_0t` atomic); a tuple or function type leads with its
+## arity (`0T2_i64_f64`, `0F1_i64_str`); a record instance carries its arguments after `_0g`.
 pub func mangled(out: buffer.Buffer*, table: types.Table*, id: u32) -> !:
     let t = table.get(id)
     if types.is_distinct_c(id):
-        # `c.long`, `c.va_list`: the `c` module's types spell their dot as an underscore
-        for byte in t.name.bytes:
-            try out.put_byte('_' if byte == '.' else byte)
+        # `c.long`, `c.va_list`: the `c` module's types are one piece, dot as underscore
+        try put_piece(out, symbol_part(t.name))
         return
     match t.kind:
         .pointer:
             try mangled(out, table, t.elem)
-            try out.put("_cptr" if t.is_const else "_ptr")
+            try out.put("_0q" if t.is_const else "_0p")
         .span:
             try mangled(out, table, t.elem)
-            try out.put("_cspan" if t.is_const else "_span")
+            try out.put("_0c" if t.is_const else "_0s")
         .array:
             try mangled(out, table, t.elem)
-            try out.put("_arr")
+            try out.put("_0a")
             try out.put_u64(t.length)
         .optional:
             try mangled(out, table, t.elem)
-            try out.put("_opt")
+            try out.put("_0o")
         .fallible:
             try mangled(out, table, t.elem)
-            try out.put("_res")
+            try out.put("_0r")
         .atomic:
             try mangled(out, table, t.elem)
-            try out.put("_atomic")
+            try out.put("_0t")
         .tuple:
-            try out.put("tup")
-            var i: usize = 0
-            while i < t.args.length:
+            try out.put("0T")
+            try out.put_u64((u64)t.args.length)
+            for a in t.args:
                 try out.put("_")
-                try mangled(out, table, t.args[i])
-                i += 1
-            try out.put("_end")
+                try mangled(out, table, a)
         .func_:
-            try out.put("fn")
-            var i: usize = 0
-            while i < t.args.length:
+            try out.put("0F")
+            try out.put_u64((u64)t.args.length)
+            for a in t.args:
                 try out.put("_")
-                try mangled(out, table, t.args[i])
-                i += 1
-            try out.put("_to_")
+                try mangled(out, table, a)
+            try out.put("_")
             try mangled(out, table, t.elem)
         .struct_, .union_, .enum_, .interface_:
             let d = t.decl else return try out.put("X")
-            try out.put(module_of(d))
+            try put_piece(out, module_of(d))
             try out.put("_")
-            try out.put(d.text)
-            var i: usize = 0
-            while i < t.args.length:
-                try out.put("__")
-                try mangled(out, table, t.args[i])
-                i += 1
+            try put_piece(out, d.text)
+            try put_args(out, table, t.args)
         _:
-            # `c.str` spells its dot as an underscore
-            for byte in t.name.bytes:
-                try out.put_byte('_' if byte == '.' else byte)
+            try put_piece(out, symbol_part(t.name))
 
 ## Whether an export's C face differs from the function itself (§17.6): a fallible
 ## function is exported in its status form, and a span parameter arrives as a pointer and
@@ -154,14 +170,10 @@ pub func function_name(out: buffer.Buffer*, table: types.Table*, f: ast.Node*, a
         return
     try out.put("lb_")
     if let o = owner:
-        try out.put(module_of(o))
+        try put_piece(out, module_of(o))
         try out.put("_")
-        try out.put(o.text)
-        var i: usize = 0
-        while i < owner_args.length:
-            try out.put("__")
-            try mangled(out, table, owner_args[i])
-            i += 1
+        try put_piece(out, o.text)
+        try put_args(out, table, owner_args)
         try out.put("_")
     elif f.resolved == entry and (f.text == "main" or f.text == "answer"):
         if f.text == "answer" and f.has(ast.flag_fallible):
@@ -170,14 +182,10 @@ pub func function_name(out: buffer.Buffer*, table: types.Table*, f: ast.Node*, a
             try out.put(f.text)
         return
     else:
-        try out.put(module_of(f))
+        try put_piece(out, module_of(f))
         try out.put("_")
-    try out.put(f.text)
-    var i: usize = 0
-    while i < args.length:
-        try out.put("__")
-        try mangled(out, table, args[i])
-        i += 1
+    try put_piece(out, f.text)
+    try put_args(out, table, args)
 
 ## The symbol of a top-level `let` or `var`.
 pub func global_name(out: buffer.Buffer*, d: ast.Node*) -> !:
@@ -185,16 +193,16 @@ pub func global_name(out: buffer.Buffer*, d: ast.Node*) -> !:
         try out.put(d.text)
         return
     try out.put("lb_")
-    try out.put(module_of(d))
+    try put_piece(out, module_of(d))
     try out.put("_")
-    try out.put(d.text)
+    try put_piece(out, d.text)
 
 ## The witness table of a record viewed as an interface.
 pub func vtable_name(out: buffer.Buffer*, table: types.Table*, record: u32, iface: ast.Node*) -> !:
     try out.put("lb_vt_")
     try mangled(out, table, record)
     try out.put("_")
-    try out.put(iface.text)
+    try put_piece(out, iface.text)
 
 ## The symbol of the `index`th test.
 pub func test_name(out: buffer.Buffer*, index: u32) -> !:
@@ -208,3 +216,12 @@ pub func keep(out: buffer.Buffer*) -> str!:
     memory.copy(copy, text.bytes, text.length)
     copy[text.length] = 0
     return (str)copy[..<text.length]
+
+# mark: Tests ==================================================================================
+
+test "a piece with an underscore carries its length":
+    var out = try buffer.Buffer.create(64)
+    try put_piece(&out, "lexer")
+    try put_piece(&out, "_start")
+    try put_piece(&out, "front_lexer")
+    assert(out.view() == "lexer6_start11front_lexer")

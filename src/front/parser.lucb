@@ -42,7 +42,7 @@ pub struct Parser:
         while true:
             # a lexing error is reported where the lexer stopped
             let t = lx.next() catch failure:
-                let (line, column) = lx.position()
+                let (line, column) = lx.error_position()
                 let half = scratch.length // 2
                 let message = try format(scratch[..<half], f"{lx.src.path}:{line}:{column}: {failure.message}")
                 error(failure.code, message)
@@ -293,6 +293,8 @@ pub struct Parser:
             n.flags |= flags
             n.attrs = attributes
             return n
+        if attributes != none and not (self.at_kw("static") or self.at_kw("mutating") or self.at_kw("func")):
+            return try self.fail("an attribute goes before `func` or a top-level `var` (§9.8)")
         if self.at_kw("type"):
             let n = try self.node(ast.Kind.type_alias, "")
             discard(self.take())

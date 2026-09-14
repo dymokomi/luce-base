@@ -4,7 +4,7 @@
 //
 //   DESCRIPTION:
 //       Calls `answer()` and prints the result; a program with `main` gets its shim from the
-//       emitter instead.
+//       emitter instead. The startup symbols are spelled as `back/names.lucb` spells them.
 //
 //==============================================================================================
 
@@ -15,10 +15,10 @@
 
 int64_t lb_answer(void);
 void lb_memory_startup(void);
-void lb_core_process_start(void);
+void lb_core_13process_start(void);
 
 int main(void) {
-    lb_core_process_start();
+    lb_core_13process_start();
     lb_memory_startup();
     int64_t value = lb_answer();
     printf("%" PRId64 "\n", value);

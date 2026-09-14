@@ -1,0 +1,8 @@
+pub func b_c() -> i64:
+    return 1
+
+pub struct Box[T]:
+    pub var value: T
+
+    pub func get() -> T:
+        return self.value

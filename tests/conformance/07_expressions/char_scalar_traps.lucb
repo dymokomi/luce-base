@@ -1,0 +1,6 @@
+## §5.1, §7.5: a `char` is a Unicode scalar value, so `char(n)` traps past U+10FFFF and
+## for a surrogate.
+pub func main(arguments: str[]) -> i32:
+    let n: u32 = 1114111 + (u32)arguments.length
+    print(f"{(u32)char(n)}")
+    return 0

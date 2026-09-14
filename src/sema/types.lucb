@@ -779,7 +779,7 @@ test "scalars are seeded at fixed ids and interning deduplicates":
 
 ## The `N` of `align(N)` (§5.11) on a declaration or a field, a decimal literal, or 0 when
 ## there is none.
-func explicit_align(n: ast.Node*?) -> u64:
+pub func explicit_align(n: ast.Node*?) -> u64:
     let e = n else return 0
     if e.kind != ast.Kind.literal:
         return 0

@@ -1,0 +1,9 @@
+## §6.4: `luce.file` names the file of its use site in every execution, so an imported
+## module sees its own path, not the entry's.
+import luce
+import where
+
+pub func main(arguments: str[]) -> i32:
+    print(f"{luce.file}")
+    print(f"{where.here()}")
+    return 0

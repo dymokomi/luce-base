@@ -1,0 +1,5 @@
+## `luce.file` in a module is that module's file, wherever the program's entry is.
+import luce
+
+pub func here() -> str:
+    return luce.file

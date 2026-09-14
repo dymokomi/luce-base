@@ -1,0 +1,4 @@
+# error: C-representable
+extern var name: str
+pub func main(arguments: str[]) -> i32:
+    return 0

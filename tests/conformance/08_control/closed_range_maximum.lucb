@@ -1,0 +1,22 @@
+## §8.3: a closed range visits its last value and stops, including when that value is the
+## type's maximum, at every width and signedness.
+pub func main(arguments: str[]) -> i32:
+    var bytes: i64 = 0
+    for i: u8 in 250..=255:
+        bytes += 1
+    var signed: i64 = 0
+    for j: i8 in 125..=127:
+        signed += 1
+    var wide: i64 = 0
+    for k: u64 in 18446744073709551614..=18446744073709551615:
+        wide += 1
+    var widest: i64 = 0
+    outer: for m: i64 in 9223372036854775806..=9223372036854775807:
+        for n: u16 in 65535..=65535:
+            widest += 1
+            continue outer
+    var empty: i64 = 0
+    for e: u8 in 255..<255:
+        empty += 1
+    print(f"{bytes} {signed} {wide} {widest} {empty}")
+    return 0

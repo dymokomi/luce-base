@@ -1,0 +1,5 @@
+# error: an attribute goes before
+weak struct S:
+    var x: i64
+pub func main(arguments: str[]) -> i32:
+    return 0

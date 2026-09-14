@@ -1,0 +1,4 @@
+# error: neither overflows nor divides by zero
+pub func main(arguments: str[]) -> i32:
+    var a: u8[2 - 3]
+    return 0

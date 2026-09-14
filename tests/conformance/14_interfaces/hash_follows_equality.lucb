@@ -1,0 +1,37 @@
+## §14.4: equal values hash the same, whatever bytes lie between them: a record with padding
+## written two ways, both zeros of a float, text at two addresses, a tuple, an array, an
+## optional, and a payload enum; different values may hash differently.
+struct Padded:
+    var a: u8
+    var b: u64
+
+struct Named:
+    var name: str
+
+enum Shape:
+    dot
+    circle(radius: f64)
+
+pub func main(arguments: str[]) -> i32!:
+    var written: Padded = ---
+    written.a = 1
+    written.b = 2
+    let built = Padded(a = 1, b = 2)
+    let zero: f64 = 0.0
+    let negative_zero = zero * -1.0
+    var room: u8[16]
+    let other = try format(room, f"same")
+    let first = Named(name = "same")
+    let second = Named(name = other)
+    let floats: f64[2] = [1.0, negative_zero]
+    let plain: f64[2] = [1.0, zero]
+    let some: u64? = 5
+    let same: u64? = 5
+    let none_at_all: u64? = none
+    print(f"{written == built} {hash(written) == hash(built)}")
+    print(f"{zero == negative_zero} {hash(zero) == hash(negative_zero)}")
+    print(f"{first == second} {hash(first) == hash(second)}")
+    print(f"{hash((written.a, written.b)) == hash((built.a, built.b))} {hash(floats) == hash(plain)}")
+    print(f"{hash(some) == hash(same)} {hash(some) == hash(none_at_all)}")
+    print(f"{hash(Shape.circle(radius = 1.0)) == hash(Shape.circle(radius = 1.0))} {hash(Shape.dot) == hash(Shape.circle(radius = 0.0))}")
+    return 0

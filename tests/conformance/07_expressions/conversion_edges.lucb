@@ -1,0 +1,12 @@
+## §7.5: the checked conversions accept the values at the edges of every range: the
+## largest float below `2^63`, `i64.max` from a `u64`, U+10FFFF, and the saturating casts
+## clamp at those same edges.
+pub func main(arguments: str[]) -> i32:
+    let scale = (f64)arguments.length
+    let below = 9223372036854774784.0 * scale
+    let above = 9223372036854775808.0 * scale
+    let unsigned_edge = 18446744073709551616.0 * scale
+    let big: u64 = 9223372036854775806 + (u64)arguments.length
+    let last: u32 = 1114110 + (u32)arguments.length
+    print(f"{i64(below)} {(i64)above} {(u64)unsigned_edge} {u64(9223372036854775808.0 * scale)} {i64(big)} {(u32)char(last)} {(u32)(char)(1114112 * arguments.length)}")
+    return 0

@@ -1,0 +1,5 @@
+# error: not generic
+extern struct Pair[T]:
+    first: T
+pub func main(arguments: str[]) -> i32:
+    return 0

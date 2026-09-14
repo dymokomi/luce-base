@@ -58,16 +58,25 @@ pub struct Lexer:
     var bracket_base: usize[64]
     ## A colon ended a line inside brackets: the next line's indentation counts.
     var reopened: bool
+    ## Where the token being read began, for a diagnostic (`error_position`).
+    var token_start: usize
 
     pub static func over(src: source.Source) -> Lexer:
         return Lexer(src = src, offset = 0, line = 1, line_start = 0, at_line_start = true,
                      depth = 0, pending_dedents = 0, delimiters = 0, mode_depth = 0,
                      asm_header = false, raw_level = 0, in_raw = false, comment_end = 0,
-                     reopened = false)
+                     reopened = false, token_start = 0)
 
     ## The one-based line and column of the byte about to be read, for diagnostics.
     pub func position() -> (u32, u32):
         return (self.line, u32(self.offset - self.line_start) + 1)
+
+    ## Where the token `next` failed in begins, when it began on the current line; else
+    ## where the lexer stopped.
+    pub func error_position() -> (u32, u32):
+        if self.token_start >= self.line_start:
+            return (self.line, u32(self.token_start - self.line_start) + 1)
+        return self.position()
 
     func peek() -> u8:
         if self.offset >= self.src.bytes.length:
@@ -216,28 +225,51 @@ pub struct Lexer:
         if self.peek() == '0' and (self.peek_at(1) == 'X' or self.peek_at(1) == 'O' or self.peek_at(1) == 'B'):
             error(bad_character, "a based integer prefix is lowercase: `0x`, `0o`, or `0b`")
         if self.peek() == '0' and (self.peek_at(1) == 'x' or self.peek_at(1) == 'o' or self.peek_at(1) == 'b'):
+            let base: u8 = 16 if self.peek_at(1) == 'x' else (8 if self.peek_at(1) == 'o' else 2)
             self.offset += 2
-            while self.is_hex(self.peek()) or self.peek() == '_':
-                self.offset += 1
+            try self.digits(base)
         else:
-            while self.is_digit(self.peek()) or self.peek() == '_':
-                self.offset += 1
+            try self.digits(10)
             if self.peek() == '.' and self.is_digit(self.peek_at(1)):
                 kind = token.Kind.float
                 self.offset += 1
-                while self.is_digit(self.peek()) or self.peek() == '_':
-                    self.offset += 1
+                try self.digits(10)
             if (self.peek() == 'e' or self.peek() == 'E') and (self.is_digit(self.peek_at(1)) or ((self.peek_at(1) == '+' or self.peek_at(1) == '-') and self.is_digit(self.peek_at(2)))):
                 kind = token.Kind.float
-                self.offset += 2
-                while self.is_digit(self.peek()):
+                self.offset += 1
+                if self.peek() == '+' or self.peek() == '-':
                     self.offset += 1
+                try self.digits(10)
         let digits_end = self.offset
         while self.is_letter(self.peek()) or self.is_digit(self.peek()):
             self.offset += 1                    # a suffix such as u8 or f32
         if self.offset > digits_end and not is_literal_suffix(self.src.text(digits_end, self.offset)):
             error(bad_character, "a literal suffix names an integer or float type: `255u8`, `0.5f32`")
         return self.make(kind, start)
+
+    ## The digits of a number in `base` with `_` between digits (§4.2): at least one digit,
+    ## no separator at either end or doubled, and no digit of a wider base after them.
+    mutating func digits(base: u8) -> !:
+        var count: usize = 0
+        var separator = false
+        while true:
+            let c = self.peek()
+            if c == '_':
+                if count == 0 or separator:
+                    error(bad_character, "a `_` in a number separates two digits")
+                separator = true
+            elif digit_value(c) < base:
+                count += 1
+                separator = false
+            else:
+                break
+            self.offset += 1
+        if separator:
+            error(bad_character, "a `_` in a number separates two digits")
+        if count == 0:
+            error(bad_character, "a number needs a digit")
+        if self.is_digit(self.peek()):
+            error(bad_character, "a digit outside the number's base")
 
     ## The escapes of §4.2: `\\ \" \' \n \r \t \0 \u{HEX}`, and `\xNN` in a byte literal only.
     mutating func escape(bytes: bool) -> !:
@@ -335,6 +367,7 @@ pub struct Lexer:
         error(bad_character, "unexpected character")
 
     pub mutating func next() -> token.Token!:
+        self.token_start = self.offset
         if self.in_raw:
             return try self.raw_line()
         if self.pending_dedents > 0:
@@ -348,6 +381,7 @@ pub struct Lexer:
         if let comment = try self.skip_trivia():
             return comment
         let start = self.offset
+        self.token_start = start
         let c = self.peek()
         if c == 0:
             if self.depth > 0:
@@ -400,6 +434,8 @@ pub struct Lexer:
             return try self.quoted(token.Kind.text, start, false, false)
         if c == '\'':
             self.offset += 1
+            if self.peek() == '\n' or self.peek() == 0:
+                error(unterminated, "unterminated character literal")
             if self.peek() == '\\':
                 try self.escape(false)
             else:
@@ -566,3 +602,13 @@ test "a colon in a trailing comment does not open a suite":
     var toks: token.Token[64] = ---
     let n = tokenize("f(1,   # note:\n  2)\n", toks) catch failure: recover 0
     assert(n == 7)
+
+## The value of a digit in any base up to 16, or 16 for a byte that is no digit.
+func digit_value(c: u8) -> u8:
+    if c >= '0' and c <= '9':
+        return c - '0'
+    if c >= 'a' and c <= 'f':
+        return c - 'a' + 10
+    if c >= 'A' and c <= 'F':
+        return c - 'A' + 10
+    return 16

@@ -18,6 +18,8 @@ programs=0
 measure() {
     src=$1
     stem=$(basename "$src" .lucb)
+    # a symbol piece holding an underscore carries its length in front (back/names.lucb)
+    case "$stem" in *_*) stem="${#stem}$stem";; esac
     "$compiler" build "$src" --emit=ir -o build/opt.ir
     "$compiler" build "$src" --emit=asm --native -o build/opt.s
     awk -v stem="$stem" '

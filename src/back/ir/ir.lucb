@@ -404,6 +404,8 @@ pub struct Function:
     pub var weak: bool
     pub var used: bool
     pub var section: str
+    ## `noinline`: the body stands in for no call of it (§9.8).
+    pub var noinline: bool
 
     pub static func create(name: str) -> Function!:
         return Function(name = name, exported = false, debug = false, source = "", source_name = name, source_line = 1, points = try list.List[DebugPoint].create(0), debug_scopes = try list.List[DebugScope].create(0), locals = try list.List[LocalInfo].create(8),

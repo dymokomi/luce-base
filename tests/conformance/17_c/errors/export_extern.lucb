@@ -1,0 +1,5 @@
+# error: not exported
+import c
+export extern func puts(text: c.str) -> i32
+pub func main(arguments: str[]) -> i32:
+    return 0

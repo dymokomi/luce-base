@@ -1,0 +1,5 @@
+# error: by pointer
+pub func main(arguments: str[]) -> i32:
+    for p in &"text":
+        discard(p)
+    return 0

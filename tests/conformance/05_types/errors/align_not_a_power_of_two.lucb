@@ -1,0 +1,5 @@
+# error: takes a power of two
+align(3) struct P:
+    var x: u8
+pub func main(arguments: str[]) -> i32:
+    return 0

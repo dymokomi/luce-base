@@ -133,6 +133,15 @@ if ! ./build/luce-base check tests/samples/warnings.lucb -W 2>&1 | cmp -s - test
     ./build/luce-base check tests/samples/warnings.lucb -W 2>&1 | diff - tests/samples/warnings.warnings | head -10
     exit 1
 fi
+# a bad option is refused with status 2, never defaulted, and a library for another target
+# is written with --emit, never assembled here
+if ./build/luce-base build tests/samples/exports.lucb --opt abc -o build/sample 2>/dev/null; then
+    echo "FAIL: --opt abc was accepted"; exit 1
+fi
+if ./build/luce-base build tests/samples/exports.lucb --lib --target x86_64-linux -o build/sample 2>/dev/null; then
+    echo "FAIL: a library for another target was assembled on this host"; exit 1
+fi
+rm -f build/sample build/sample.a build/sample.h
 # every rejected program must be rejected for the stated reason
 for f in tests/samples/errors/*.lucb; do
     want=$(LC_ALL=C sed -n 's/^# error: //p' "$f")

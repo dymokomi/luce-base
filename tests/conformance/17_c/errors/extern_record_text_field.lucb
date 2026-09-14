@@ -1,0 +1,5 @@
+# error: C-representable
+extern struct Record:
+    label: str
+pub func main(arguments: str[]) -> i32:
+    return 0

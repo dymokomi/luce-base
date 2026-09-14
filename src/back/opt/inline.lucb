@@ -306,7 +306,7 @@ func try_size(census: Census*, program: ir.Unit*, gi: usize) -> usize?:
 ## How many instructions, labels aside, a function's body has; none when the body may not
 ## stand in for a call of it at all.
 func body_size(g: ir.Function*) -> usize?:
-    if g.variadic or g.naked or g.debug or g.instrs.count == 0:
+    if g.variadic or g.naked or g.noinline or g.debug or g.instrs.count == 0:
         return none
     var count: usize = 0
     var ix: usize = 0

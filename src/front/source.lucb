@@ -169,6 +169,16 @@ func first_invalid(data: const u8[]) -> usize:
             need = 3
         else:
             return i
+        if need > 0:
+            # the second byte's range excludes overlong forms, surrogates, and code points
+            # past U+10FFFF (RFC 3629)
+            if i + 1 >= data.length:
+                return i
+            let second = data[i + 1]
+            let low: u8 = 0xA0 if b == 0xE0 else (0x90 if b == 0xF0 else 0x80)
+            let high: u8 = 0x9F if b == 0xED else (0x8F if b == 0xF4 else 0xBF)
+            if second < low or second > high:
+                return i
         var k: usize = 1
         while k <= need:
             if i + k >= data.length or (data[i + k] & 0xC0) != 0x80:

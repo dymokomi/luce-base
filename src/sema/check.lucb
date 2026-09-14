@@ -958,6 +958,8 @@ pub struct Checker:
     ## (§17.1, §17.6); an export's symbol is unique in the program.
     mutating func check_foreign_signature(f: ast.Node*, owner: ast.Node*?) -> !:
         let exported = f.has(ast.flag_export)
+        if exported and f.kind == ast.Kind.extern_func:
+            return try self.fail(f, "an `extern` declaration is not exported (§17.6)")
         let which = "an `export`" if exported else "an `extern`"
         if generic_params_of(f) != none:
             var text: u8[128]
@@ -973,6 +975,8 @@ pub struct Checker:
         let ft = self.table.get(f.type_id)
         var result = ft.elem
         if self.table.kind(result) == types.Kind.fallible:
+            if not exported:
+                return try self.fail(f, "an `extern` cannot be fallible; C reports failure through its result (§17.1)")
             result = self.table.get(result).elem
         if self.table.kind(result) == types.Kind.tuple:
             for m in self.table.get(result).args:
@@ -1054,6 +1058,15 @@ pub struct Checker:
     mutating func resolve_members(d: ast.Node*) -> !:
         self.push_scope()
         try self.bind_generics(d)
+        if let twice = duplicate_member(d):
+            var text: u8[160]
+            return try self.fail(twice, try format(text, f"`{twice.text}` is already a member of this type"))
+        if d.has(ast.flag_packed) and d.kind != ast.Kind.struct_ and d.kind != ast.Kind.extern_struct:
+            return try self.fail(d, "`packed` lays out a struct (§5.11)")
+        if (d.kind == ast.Kind.extern_struct or d.kind == ast.Kind.extern_union) and generic_params_of(d) != none:
+            return try self.fail(d, "an `extern` record is not generic (§17.6)")
+        if d.kind == ast.Kind.struct_:
+            try self.check_align(d.right, d)
         if d.kind == ast.Kind.enum_:
             if let backing = d.ty:
                 let bt = try self.resolve_type(backing)
@@ -1072,6 +1085,9 @@ pub struct Checker:
                     let t = m.ty else return try self.fail(m, "a field needs a type")
                     m.type_id = try self.resolve_type(t)
                     try self.storable(m.type_id, t)
+                    try self.check_align(m.right, m)
+                    if m.type_id == types.fmt_id:
+                        return try self.fail(t, "`fmt` is a parameter type only (§9.1)")
                 .enum_case:
                     var pcursor = m.body
                     while let p = pcursor:
@@ -1087,6 +1103,27 @@ pub struct Checker:
                     discard(0)
             cursor = m.next
         self.pop_scope()
+
+    ## An `extern` variable, handle, or record names only C-representable types (§17.1,
+    ## §17.6); checked once every type is resolved, since a field may name a later record.
+    mutating func check_foreign_declaration(d: ast.Node*) -> !:
+        if d.kind == ast.Kind.extern_var and not self.c_representable(d.type_id, false):
+            return try self.fail(d, "an `extern` variable has a C-representable type (§17.6)")
+        if d.kind == ast.Kind.extern_type:
+            let shape = d.ty else return
+            if not self.c_representable(shape.type_id, false):
+                return try self.fail(shape, "an `extern` handle is shaped like a C integer or pointer (§17.1)")
+        var cursor = d.body
+        while let m = cursor:
+            if m.kind == ast.Kind.field and not self.c_representable(m.type_id, false):
+                return try self.fail(m, "an `extern` record's field has a C-representable type (§17.6)")
+            cursor = m.next
+
+    ## `align(N)` (§5.11) names a power of two.
+    mutating func check_align(attribute: ast.Node*?, at: ast.Node*) -> !:
+        let n = types.explicit_align(attribute)
+        if n != 0 and (n & (n - 1)) != 0:
+            return try self.fail(at, "`align(N)` takes a power of two (§5.11)")
 
     ## A handle's `destroy` is a `pub` function of the module taking the handle and
     ## returning nothing, never failing (§17.7): full Luce calls it at the last reference.
@@ -1393,16 +1430,8 @@ pub struct Checker:
             let r = e.right else return 0
             let a = try self.constant_length(l)
             let b = try self.constant_length(r)
-            if e.text == "*":
-                return a * b
-            if e.text == "+":
-                return a + b
-            if e.text == "-":
-                return a - b
-            if e.text == "//":
-                return a // b
-            if e.text == "<<":
-                return a << b
+            let v = length_arith(e.text, a, b) else return try self.fail(e, "an array length is a constant that neither overflows nor divides by zero")
+            return v
         if e.kind == ast.Kind.call:
             let callee = e.left else return 0
             if callee.kind == ast.Kind.name and (callee.text == "sizeof" or callee.text == "alignof"):
@@ -4297,7 +4326,7 @@ pub struct Checker:
                         return try self.fail(l, "an unclosed `{` in assembly text")
                     let name = (str)b[i + 1..<j]
                     if not asm_names_operand(s, name):
-                        let message = try format(self.scratch, f"the assembly text names `{name}`, which is not a `reg` operand")
+                        let message = try format(self.scratch[self.scratch.length // 2..<self.scratch.length], f"the assembly text names `{name}`, which is not a `reg` operand")
                         return try self.fail(l, message)
                     i = j
                 i += 1
@@ -4493,6 +4522,8 @@ pub struct Checker:
             if s.has(ast.flag_by_pointer):
                 let const_elem = t.is_const if t.kind == types.Kind.span else not self.is_mutable_place(iterable)
                 elem = try self.table.pointer(t.elem, const_elem, false)
+        elif s.has(ast.flag_by_pointer):
+            return try self.fail(iterable, "`&` iterates a span or an array by pointer (§8.3)")
         elif got == types.str_id:
             elem = types.char_id
         elif self.iterator_method(got) != none:
@@ -4799,6 +4830,8 @@ pub struct Checker:
                 try self.check_type_body(d)
             .interface_:
                 discard(0)
+            .extern_var, .extern_type, .extern_struct, .extern_union:
+                try self.check_foreign_declaration(d)
             .test_:
                 try self.check_test(d)
             .assert_:
@@ -4816,7 +4849,7 @@ pub struct Checker:
                                 if mv.kind == ast.Kind.literal and mv.text.length >= 2:
                                     reason = (str)mv.text.bytes[1..<mv.text.length - 1]
                         discard(try self.fail(cv, try format(text, f"a module-level `assert` failed: {reason}")))
-            .extern_func, .extern_type, .extern_var, .extern_struct, .extern_union, .type_alias, .import_, .from_import, .asm_:
+            .extern_func, .type_alias, .import_, .from_import, .asm_:
                 discard(0)
             _:
                 discard(try self.fail(d, "unsupported declaration"))
@@ -4825,6 +4858,8 @@ pub struct Checker:
     mutating func check_function(f: ast.Node*, owner: ast.Node*?) -> !:
         if f.has(ast.flag_mutating) and f.has(ast.flag_static):
             discard(try self.fail(f, "a static method has no receiver to mutate"))
+        if owner == none and (f.has(ast.flag_static) or f.has(ast.flag_mutating)):
+            discard(try self.fail(f, "`static` and `mutating` mark methods; a top-level function has no owner (§9.5)"))
         self.push_scope()
         try self.bind_generics(f)
         let saved_template = self.checking_template
@@ -4953,6 +4988,8 @@ pub struct Checker:
             var req = iface.body
             while let r = req:
                 let m = find_member(d, r.text, ast.Kind.func_) else return try self.fail(l, "a required method is missing")
+                if m.has(ast.flag_static):
+                    return try self.fail(m, "a static method does not satisfy an interface requirement (§14.1)")
                 var want = try self.substitute(r.type_id, iface, it.args)
                 if is_derived_bound(iface):
                     # `compare(other: void*)` in the prelude is `compare(other: Self)` here
@@ -5074,6 +5111,39 @@ pub func find_member(owner: ast.Node*, name: str, kind: ast.Kind) -> ast.Node*?:
     return none
 
 ## The generic parameter list of a declaration, or none.
+## `a op b` for an array length: none when the result overflows `u64`, divides by zero,
+## or the operator is not one of `+ - * // %`.
+func length_arith(op: str, a: u64, b: u64) -> u64?:
+    if op == "+":
+        return (a + b) if a +% b >= a else none
+    if op == "-":
+        return (a - b) if a >= b else none
+    if op == "*":
+        return (a * b) if b == 0 or (a *% b) // b == a else none
+    if op == "//":
+        return (a // b) if b != 0 else none
+    if op == "%":
+        return (a % b) if b != 0 else none
+    return none
+
+## The first field, case, or method of `d` whose name an earlier member already took.
+func duplicate_member(d: ast.Node*) -> ast.Node*?:
+    var cursor = d.body
+    while let m = cursor:
+        if is_named_member(m):
+            var earlier = d.body
+            while let e = earlier:
+                if e == m:
+                    break
+                if is_named_member(e) and e.text == m.text:
+                    return m
+                earlier = e.next
+        cursor = m.next
+    return none
+
+func is_named_member(m: ast.Node*) -> bool:
+    return m.kind == ast.Kind.field or m.kind == ast.Kind.enum_case or m.kind == ast.Kind.func_
+
 ## The first name in `later` that `earlier` already lists, if any.
 func repeated_name(earlier: ast.Node*?, later: ast.Node*?) -> ast.Node*?:
     var cursor = later

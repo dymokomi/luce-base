@@ -1,0 +1,9 @@
+# error: is already a member of this type
+struct P:
+    var x: i64
+    func g() -> i64:
+        return 1
+    func g() -> i64:
+        return 2
+pub func main(arguments: str[]) -> i32:
+    return 0

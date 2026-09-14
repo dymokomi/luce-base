@@ -1,0 +1,31 @@
+## §16.1, §17.6: a symbol is read back piece by piece, so module `a` with `b_c` and module
+## `a_b` with `c`, a method `b_c` of `A` and a method `c` of `A_b`, a generic instance
+## `id[i64]` and a function named `id__i64`, and `Box[i64*]` beside `Box[i64]` are all
+## distinct symbols in every execution.
+import a
+import a_b
+
+struct A:
+    var n: i64
+
+    func b_c() -> i64:
+        return 10 + self.n
+
+struct A_b:
+    var n: i64
+
+    func c() -> i64:
+        return 20 + self.n
+
+func id[T](value: T) -> T:
+    return value
+
+func id__i64(value: i64) -> i64:
+    return value + 100
+
+pub func main(arguments: str[]) -> i32:
+    var seven: i64 = 7
+    let boxed = a.Box[i64*](value = &seven)
+    let plain = a.Box[i64](value = 8)
+    print(f"{a.b_c()} {a_b.c()} {A(n = 1).b_c()} {A_b(n = 2).c()} {id[i64](3)} {id__i64(3)} {*boxed.get()} {plain.get()}")
+    return 0

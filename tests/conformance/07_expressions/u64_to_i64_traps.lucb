@@ -1,0 +1,6 @@
+## §7.5: `i64(u)` traps for a `u64` above `i64.max`, which the unchecked cast would read
+## as negative.
+pub func main(arguments: str[]) -> i32:
+    let big: u64 = 9223372036854775807 + (u64)arguments.length
+    print(f"{i64(big)}")
+    return 0

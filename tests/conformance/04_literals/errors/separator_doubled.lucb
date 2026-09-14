@@ -1,0 +1,4 @@
+# error: separates two digits
+pub func main(arguments: str[]) -> i32:
+    let x = 1__0
+    return 0

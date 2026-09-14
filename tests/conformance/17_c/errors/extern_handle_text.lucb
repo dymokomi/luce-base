@@ -1,0 +1,4 @@
+# error: C integer or pointer
+extern type Handle = str
+pub func main(arguments: str[]) -> i32:
+    return 0

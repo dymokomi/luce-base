@@ -1,0 +1,5 @@
+# error: top-level function has no owner
+mutating func f() -> i64:
+    return 1
+pub func main(arguments: str[]) -> i32:
+    return 0

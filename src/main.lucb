@@ -231,7 +231,7 @@ func generate_library(path: c.str) -> (str, str)!:
 
 ## The program at `path`, checked, with its warnings reported.
 func checked(path: c.str) -> check.Checker!:
-    let m = try manifest.load((str)path)
+    let m = try manifest.load(try module_paths.canonical((str)path))
     package = m
     names.export_prefix = m.symbol_prefix
     var checker = try check.Checker.create(scratch_of())
@@ -595,7 +595,7 @@ func build_file(path: c.str, options: Options) -> !:
         if options.target.length > 0:
             let chosen = targets.Target.named(options.target) else return try unknown_target()
             build_target_name = chosen.name
-            if not chosen.is_host() and not options.emit_c and not options.library:
+            if not chosen.is_host() and not options.emit_c:
                 error(build_failed, "a program for another target is written as C with --emit=c and compiled there")
         if options.cpu.length > 0 and build_target().level_named(options.cpu) == none:
             return try unknown_level(build_target())
@@ -970,14 +970,21 @@ pub func main(arguments: c.str[]) -> i32!:
                 dump_ir = true
                 emission_backend = 2
             elif a == "--opt" and i + 1 < arguments.length:
-                opt_level = u32(literals.decode_integer((str)arguments[i + 1]) catch failure:
-                    recover 3)
+                let wanted_level = literals.decode_integer((str)arguments[i + 1]) catch failure:
+                    try io.stderr().write("luce-base: --opt takes a level 0, 1, 2, or 3\n")
+                    return 2
+                if wanted_level > 3:
+                    try io.stderr().write("luce-base: --opt takes a level 0, 1, 2, or 3\n")
+                    return 2
+                opt_level = u32(wanted_level)
                 i += 1
             elif a == "--opt-report":
                 opt_report = true
             elif a == "--opt-count" and i + 1 < arguments.length:
-                opt_count = u32(literals.decode_integer((str)arguments[i + 1]) catch failure:
-                    recover 0)
+                let wanted_count = literals.decode_integer((str)arguments[i + 1]) catch failure:
+                    try io.stderr().write("luce-base: --opt-count takes a number of rewrites\n")
+                    return 2
+                opt_count = u32(wanted_count)
                 i += 1
             elif a == "--native":
                 options.native = true

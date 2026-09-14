@@ -6,17 +6,17 @@ extern func c_read as "read"(descriptor: i32, buffer: void*, count: usize) -> is
 extern func c_exit as "exit"(code: i32) -> never
 
 ## A frame as the compiler described it under `--debug`: the function's name and
-## source, then `count` locals laid out after it.
-extern struct Shape:
-    name: str
-    source: str
-    count: u64
+## source, then `count` locals laid out after it, in this record's own layout.
+struct Shape:
+    var name: str
+    var source: str
+    var count: u64
 
-extern struct Local:
-    name: str
-    kind: str
-    offset: u64
-    size: u64
+struct Local:
+    var name: str
+    var kind: str
+    var offset: u64
+    var size: u64
 
 struct Activation:
     var shape: Shape*?

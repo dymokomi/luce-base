@@ -186,7 +186,18 @@ pub struct Emitter:
         else:
             try self.globals.put(text)
 
-    ## A number literal's digits without the `_` separators C does not read.
+    ## The buffer `put` writes to now, for the names `names` spells straight into it.
+    mutating func sink() -> buffer.Buffer*:
+        if self.target == to_scratch:
+            return &self.scratch
+        if self.target == to_body:
+            return &self.body
+        if self.target == to_out:
+            return &self.out
+        if self.target == to_protos:
+            return &self.protos
+        return &self.globals
+
     ## `assert failed: condition` (§11.6) as adjacent C string literals, which C joins, so
     ## the condition's source may be any length; the position is the trap's (§11.5).
     mutating func put_assert_text(e: ast.Node*) -> !:
@@ -593,7 +604,7 @@ pub struct Emitter:
     func module_name(d: ast.Node*) -> str:
         return names.module_of(d)
 
-    ## `lb_module_Name` or `lb_module_Name__args` for a record type.
+    ## The C name of a record type: an extern's own, otherwise what `names` says.
     mutating func put_record_name(id: u32) -> !:
         let t = self.c.table.get(id)
         let d = t.decl else return try self.put("void")
@@ -608,14 +619,7 @@ pub struct Emitter:
             try self.put(d.text)
             return
         try self.put("lb_")
-        try self.put(self.module_name(d))
-        try self.put("_")
-        try self.put(d.text)
-        var i: usize = 0
-        while i < t.args.length:
-            try self.put("__")
-            try self.put_mangled(t.args[i])
-            i += 1
+        try names.mangled(self.sink(), &self.c.table, id)
 
     ## The typedef name of an array, tuple, function, optional, or result type.
     mutating func put_mangled_name(id: u32) -> !:
@@ -634,63 +638,7 @@ pub struct Emitter:
 
     ## A spelling of a type made of identifier characters only, unique per type.
     mutating func put_mangled(id: u32) -> !:
-        let t = self.c.table.get(id)
-        if types.is_distinct_c(id):
-            # `c.long`, `c.va_list`: the `c` module's types spell their dot as an underscore
-            for byte in t.name.bytes:
-                try self.put_byte('_' if byte == '.' else byte)
-            return
-        match t.kind:
-            .pointer:
-                try self.put_mangled(t.elem)
-                try self.put("_cptr" if t.is_const else "_ptr")
-            .span:
-                try self.put_mangled(t.elem)
-                try self.put("_cspan" if t.is_const else "_span")
-            .array:
-                try self.put_mangled(t.elem)
-                try self.put("_arr")
-                try self.put_u64(t.length)
-            .optional:
-                try self.put_mangled(t.elem)
-                try self.put("_opt")
-            .fallible:
-                try self.put_mangled(t.elem)
-                try self.put("_res")
-            .atomic:
-                try self.put_mangled(t.elem)
-                try self.put("_atomic")
-            .tuple:
-                try self.put("tup")
-                var i: usize = 0
-                while i < t.args.length:
-                    try self.put("_")
-                    try self.put_mangled(t.args[i])
-                    i += 1
-                try self.put("_end")
-            .func_:
-                try self.put("fn")
-                var i: usize = 0
-                while i < t.args.length:
-                    try self.put("_")
-                    try self.put_mangled(t.args[i])
-                    i += 1
-                try self.put("_to_")
-                try self.put_mangled(t.elem)
-            .struct_, .union_, .enum_, .interface_:
-                let d = t.decl else return try self.put("X")
-                try self.put(self.module_name(d))
-                try self.put("_")
-                try self.put(d.text)
-                var i: usize = 0
-                while i < t.args.length:
-                    try self.put("__")
-                    try self.put_mangled(t.args[i])
-                    i += 1
-            _:
-                # `c.str` spells its dot as an underscore
-                for byte in t.name.bytes:
-                    try self.put_byte('_' if byte == '.' else byte)
+        try names.mangled(self.sink(), &self.c.table, id)
 
     ## Remember that `id` needs a typedef, and register record instances.
     mutating func note(id: u32) -> !:
@@ -742,58 +690,18 @@ pub struct Emitter:
         if names.is_runtime_name(name):
             try self.put("_")
 
-    ## The C name of a function or method instance.
+    ## The C name of a function or method instance: an extern's binding, else what `names` says.
     mutating func put_func_name(f: ast.Node*, args: u32[], owner: ast.Node*?, owner_args: u32[]) -> !:
         if f.kind == ast.Kind.extern_func:
             try self.put_extern_name(f)
             return
-        if f.has(ast.flag_export) and not names.export_wrapped(&self.c.table, f):
-            try self.put(names.export_prefix)
-            if let o = owner:
-                try self.put(o.text)
-                try self.put("_")
-            try self.put(f.text)
-            return
-        try self.put("lb_")
-        if let o = owner:
-            try self.put(self.module_name(o))
-            try self.put("_")
-            try self.put(o.text)
-            var i: usize = 0
-            while i < owner_args.length:
-                try self.put("__")
-                try self.put_mangled(owner_args[i])
-                i += 1
-            try self.put("_")
-        elif f.resolved == self.entry and (f.text == "main" or f.text == "answer"):
-            # Only entry-module functions keep the shim names. Imported names are
-            # ordinary module-qualified symbols, including generic instances.
-            if f.text == "answer" and f.has(ast.flag_fallible):
-                try self.put("answer_impl")
-            else:
-                try self.put(f.text)
-            return
-        else:
-            try self.put(self.module_name(f))
-            try self.put("_")
-        try self.put(f.text)
-        var i: usize = 0
-        while i < args.length:
-            try self.put("__")
-            try self.put_mangled(args[i])
-            i += 1
+        try names.function_name(self.sink(), &self.c.table, f, args, owner, owner_args, self.entry)
 
-    ## `lb_module_name` for a top-level `let` or `var`.
+    ## `lb_module_name` for a top-level `let` or `var`, noted as storage the program uses.
     mutating func put_global_name(d: ast.Node*) -> !:
         if not self.uses_storage(d):
             try self.referenced_storage.push(d)
-        if d.kind == ast.Kind.extern_var:
-            try self.put(d.text)
-            return
-        try self.put("lb_")
-        try self.put(self.module_name(d))
-        try self.put("_")
-        try self.put(d.text)
+        try names.global_name(self.sink(), d)
 
     func uses_storage(declaration: ast.Node*) -> bool:
         for referenced in self.referenced_storage.span():
@@ -1779,15 +1687,14 @@ pub struct Emitter:
         let rest = s.right else return
         try self.line("else ")
         if rest.kind == ast.Kind.if_:
-            # `elif let` declares a temporary, which needs its own block
-            let braces = rest.has(ast.flag_if_let)
-            if braces:
-                try self.put("{")
-                self.indent += 1
+            # its own block: the `elif` names its position for a trap in its condition, and
+            # an `elif let` declares a temporary
+            try self.put("{")
+            self.indent += 1
+            try self.put_position(rest)
             try self.if_stmt(rest)
-            if braces:
-                self.indent -= 1
-                try self.line("}")
+            self.indent -= 1
+            try self.line("}")
         else:
             try self.block(rest)
 
@@ -1797,17 +1704,21 @@ pub struct Emitter:
             let n = self.tmp()
             try self.line("while (1) {")
             self.indent += 1
+            try self.put_position(s)
             try self.if_let_head(s, n)
             try self.line("if (!(")
             try self.if_let_test(s, n)
             try self.put(")) break;")
             try self.if_let_bind(s, n)
         else:
+            # the condition is tested inside the loop, after the position a trap in it names
             let cond = s.left else return
-            try self.line("while (!!(")
-            try self.value(cond, types.bool_id)
-            try self.put(")) {")
+            try self.line("for (;;) {")
             self.indent += 1
+            try self.put_position(s)
+            try self.line("if (!(")
+            try self.value(cond, types.bool_id)
+            try self.put(")) break;")
         if let body = s.body:
             try self.block(body)
         if s.text.length > 0:
@@ -1831,6 +1742,13 @@ pub struct Emitter:
             let lo = seq.left else return
             let hi = seq.right else return
             let t = try self.map(binding.type_id)
+            let closed = seq.text == "..="
+            let done = self.tmp()
+            if closed:
+                # the last value is visited before the increment, so `..=T.max` cannot wrap
+                try self.line("int ")
+                try self.put_tmp("done", done)
+                try self.put(" = 0;")
             try self.line("for (")
             try self.put_type(t)
             try self.put(" ")
@@ -1840,14 +1758,32 @@ pub struct Emitter:
             try self.put(")(")
             try self.value(lo, t)
             try self.put("); ")
+            if closed:
+                try self.put("!")
+                try self.put_tmp("done", done)
+                try self.put(" && ")
             try self.put_ident(binding.text)
-            try self.put(" <= (" if seq.text == "..=" else " < (")
+            try self.put(" <= (" if closed else " < (")
             try self.put_type(t)
             try self.put(")(")
             try self.value(hi, t)
             try self.put("); ")
-            try self.put_ident(binding.text)
-            try self.put("++) {")
+            if closed:
+                try self.put_tmp("done", done)
+                try self.put(" = (")
+                try self.put_ident(binding.text)
+                try self.put(" == (")
+                try self.put_type(t)
+                try self.put(")(")
+                try self.value(hi, t)
+                try self.put(")), ")
+                try self.put_ident(binding.text)
+                try self.put(" += !")
+                try self.put_tmp("done", done)
+                try self.put(") {")
+            else:
+                try self.put_ident(binding.text)
+                try self.put("++) {")
         else:
             let it = try self.ty(seq)
             let n = self.tmp()
@@ -2403,14 +2339,14 @@ pub struct Emitter:
             return
         try self.put("{}")
 
-    ## Under the diagnostic profile, `lb_memory_note_site(block, size, function, line)` after an
+    ## Under the diagnostic profile, `lb_memory_9note_site(block, size, function, line)` after an
     ## allocation succeeded (§19.4); `size_tmp` names the temporary holding the byte count.
     mutating func note_allocation(n: u32, size_tmp: str) -> !:
         if not self.diagnostic:
             return
         try self.put("if (")
         try self.put_tmp("ao", n)
-        try self.put(".present) lb_memory_note_site(")
+        try self.put(".present) lb_memory_9note_site(")
         try self.put_tmp("ao", n)
         try self.put(".value.data, ")
         try self.put_tmp(size_tmp, n)
@@ -3583,6 +3519,8 @@ pub struct Emitter:
             try self.put("((")
             try self.put_type(dest)
             try self.put(")")
+            if dest == types.char_id:
+                try self.put("lb_to_char(")
             try self.put("lb_conv_s(" if fs else "lb_conv_u(")
             try self.put("(int64_t)(" if fs else "(uint64_t)(")
             try self.expr(src)
@@ -3596,6 +3534,9 @@ pub struct Emitter:
             try self.put("1" if ts else "0")
             try self.put(", ")
             try self.put(mode)
+            if dest == types.char_id:
+                try self.put("), ")
+                try self.put(mode)
             try self.put("))")
             return
         # pointers, spans, and everything else C converts by itself
@@ -3799,7 +3740,7 @@ pub struct Emitter:
             if e.text == "location":
                 try self.location_value(e)
             elif e.text == "file":
-                try self.put_str_literal(self.src_file)
+                try self.put_str_literal(self.source_of_current())
             elif e.text == "line":
                 try self.put_u64((u64)e.line)
                 try self.put("u")
@@ -3810,7 +3751,7 @@ pub struct Emitter:
 
     mutating func location_value(e: ast.Node*) -> !:
         try self.put("((lb_io_Location){ .file = ")
-        try self.put_str_literal(self.src_file)
+        try self.put_str_literal(self.source_of_current())
         try self.put(", .line = ")
         try self.put_u64((u64)e.line)
         try self.put("u, .function = ")
@@ -6348,66 +6289,128 @@ pub struct Emitter:
         try self.put("; })")
 
     ## `hash(value)` (§7.4) over the runtime's mixer.
+    ## `hash(v)` (§14.4): equal values hash the same, so a record, tuple, array, or optional
+    ## hashes its members in the order `==` compares them, text hashes its bytes, a float its
+    ## bits with both zeros as one, and a pointer its address.
     mutating func hash_of(t: u32, v: ast.Node*) -> !:
-        if t == types.str_id:
-            let n = self.tmp()
-            try self.put("({ lb_str ")
-            try self.put_tmp("hs", n)
-            try self.put(" = ")
-            try self.expr(v)
-            try self.put("; lb_hash_bytes(lb_hash_seed(), ")
-            try self.put_tmp("hs", n)
-            try self.put(".data, ")
-            try self.put_tmp("hs", n)
-            try self.put(".length); })")
-            return
-        if t == types.bool_id:
-            try self.put("lb_hash_mix(lb_hash_seed(), (uint64_t)((")
-            try self.expr(v)
-            try self.put(") ? 1 : 0))")
-            return
-        if self.is_float(t):
-            let n = self.tmp()
-            try self.put("({ ")
-            try self.put_type(t)
-            try self.put(" ")
-            try self.put_tmp("hf", n)
-            try self.put(" = ")
-            try self.expr(v)
-            try self.put("; uint64_t ")
-            try self.put_tmp("hb", n)
-            try self.put(" = 0; memcpy(&")
-            try self.put_tmp("hb", n)
-            try self.put(", &")
-            try self.put_tmp("hf", n)
-            try self.put(", sizeof(")
-            try self.put_tmp("hf", n)
-            try self.put(")); lb_hash_mix(lb_hash_seed(), ")
-            try self.put_tmp("hb", n)
-            try self.put("); })")
-            return
-        if self.is_ptr(t) or t == types.cstr_id:
-            try self.put("lb_hash_mix(lb_hash_seed(), (uint64_t)(uintptr_t)(")
-            try self.expr(v)
-            try self.put("))")
-            return
-        if self.is_record(t) or self.is_tuple(t) or self.is_array(t) or self.is_opt(t):
-            let n = self.tmp()
-            try self.put("({ ")
-            try self.put_type(t)
-            try self.put(" ")
-            try self.put_tmp("hv", n)
-            try self.put(" = ")
-            try self.expr(v)
-            try self.put("; lb_hash_bytes(lb_hash_seed(), &")
-            try self.put_tmp("hv", n)
-            try self.put(", sizeof(")
-            try self.put_tmp("hv", n)
-            try self.put(")); })")
-            return
-        try self.put("lb_hash_mix(lb_hash_seed(), (uint64_t)(")
+        let n = self.tmp()
+        let value = try self.tmp_name("hv", n)
+        try self.put("({ ")
+        try self.put_type(t)
+        try self.put(" ")
+        try self.put(value)
+        try self.put(" = ")
         try self.expr(v)
-        try self.put("))")
+        try self.put("; ")
+        try self.hash_value(t, value, "lb_hash_seed()")
+        try self.put("; })")
+
+    ## The hash of the C value `a` of type `t` folded onto the hash `seed`, as one expression.
+    mutating func hash_value(t: u32, a: str, seed: str) -> !:
+        let k = self.kind(t)
+        if t == types.str_id or t == types.fmt_id:
+            try self.put_all("lb_hash_bytes(", seed, ", ")
+            try self.put_all(a, ".data, ", a)
+            try self.put(".length)")
+        elif t == types.bool_id:
+            try self.put_all("lb_hash_mix(", seed, ", (uint64_t)(")
+            try self.put_all(a, " ? 1 : 0))", "")
+        elif self.is_float(t):
+            let bits = try self.tmp_name("hb", self.tmp())
+            try self.put_all("({ uint64_t ", bits, " = 0; if (")
+            try self.put_all(a, " != 0) memcpy(&", bits)
+            try self.put_all(", &", a, ", sizeof(")
+            try self.put_all(a, ")); lb_hash_mix(", seed)
+            try self.put_all(", ", bits, "); })")
+        elif self.is_ptr(t) or t == types.cstr_id:
+            try self.put_all("lb_hash_mix(", seed, ", (uint64_t)(uintptr_t)(")
+            try self.put_all(a, "))", "")
+        elif self.is_tagged_opt(t):
+            let present = try self.path(a, ".present")
+            try self.put_all("(", present, " ? ")
+            var inner = try alloc u8[seed.length + 20]
+            try self.hash_value(self.elem(t), try self.path(a, ".value"), try format(inner, f"lb_hash_mix({seed}, 1)"))
+            try self.put_all(" : lb_hash_mix(", seed, ", 0))")
+        elif k == types.Kind.array or k == types.Kind.tuple or k == types.Kind.struct_ or (k == types.Kind.enum_ and not self.is_int_enum(t)):
+            try self.hash_members(t, a, seed)
+        else:
+            try self.put_all("lb_hash_mix(", seed, ", (uint64_t)(")
+            try self.put_all(a, "))", "")
+
+    ## An aggregate's hash: `seed` folded through every member in order, in a running
+    ## variable, so the members' hashes nest no deeper than the members do.
+    mutating func hash_members(t: u32, a: str, seed: str) -> !:
+        let k = self.kind(t)
+        let n = self.tmp()
+        let h = try self.tmp_name("h", n)
+        try self.put_all("({ uint64_t ", h, " = ")
+        if k == types.Kind.array:
+            let i = try self.tmp_name("i", n)
+            try self.put_all(seed, "; for (size_t ", i)
+            try self.put_all(" = 0; ", i, " < ")
+            try self.put_u64(self.c.table.get(t).length)
+            try self.put_all("ULL; ", i, "++) ")
+            try self.put_all(h, " = ", "")
+            var index_bytes = try alloc u8[i.length + 5]
+            try self.hash_value(self.elem(t), try self.path(a, try format(index_bytes, f".d[{i}]")), h)
+            try self.put(";")
+        elif k == types.Kind.tuple:
+            try self.put_all(seed, ";", "")
+            let members = self.c.table.get(t).args
+            var j: usize = 0
+            while j < members.length:
+                var member_bytes = try alloc u8[16]
+                try self.hash_member(members[j], try self.path(a, try format(member_bytes, f".a{j}")), h)
+                j += 1
+        elif k == types.Kind.struct_:
+            try self.put_all(seed, ";", "")
+            let record = self.c.table.get(t)
+            if let d = record.decl:
+                var cursor = d.body
+                while let m = cursor:
+                    if m.kind == ast.Kind.field:
+                        var ft = m.type_id
+                        if record.args.length > 0:
+                            ft = try self.c.substitute(ft, d, record.args)
+                        try self.hash_member(ft, try self.path(a, try self.path(".", m.text)), h)
+                    cursor = m.next
+        else:
+            # a payload enum: the tag, then the payload of the case it carries
+            try self.put_all("lb_hash_mix(", seed, ", (uint64_t)")
+            try self.put_all(a, ".tag); switch ((int)", a)
+            try self.put(".tag) { ")
+            let record = self.c.table.get(t)
+            if let d = record.decl:
+                var cursor = d.body
+                while let case_decl = cursor:
+                    if case_decl.kind == ast.Kind.enum_case and case_decl.body != none:
+                        try self.put("case ")
+                        try self.put_u64((u64)case_tag(d, case_decl))
+                        try self.put(": ")
+                        var param = case_decl.body
+                        while let p = param:
+                            var pt = p.type_id
+                            if record.args.length > 0:
+                                pt = try self.c.substitute(pt, d, record.args)
+                            var member_bytes = try alloc u8[case_decl.text.length + p.text.length + 4]
+                            try self.hash_member(pt, try self.path(a, try format(member_bytes, f".u.{case_decl.text}.{p.text}")), h)
+                            param = p.next
+                        try self.put("break; ")
+                    cursor = case_decl.next
+            try self.put("default: break; }")
+        try self.put_all(" ", h, "; })")
+
+    ## `h = hash of member;` folding one member onto the running hash `h`.
+    mutating func hash_member(t: u32, member: str, h: str) -> !:
+        try self.put_all(" ", h, " = ")
+        try self.hash_value(t, member, h)
+        try self.put(";")
+
+    ## Three pieces of text in a row.
+    mutating func put_all(a: str, b: str, c: str) -> !:
+        try self.put(a)
+        try self.put(b)
+        try self.put(c)
 
     # mark: Interfaces =========================================================================
 
@@ -6586,9 +6589,9 @@ pub struct Emitter:
             var spelling = try buffer.Buffer.create(128)
             defer spelling.destroy()
             try spelling.put("lb_")
-            try spelling.put(self.module_name(declaration))
+            try names.put_piece(&spelling, self.module_name(declaration))
             try spelling.put("_")
-            try spelling.put(declaration.text)
+            try names.put_piece(&spelling, declaration.text)
             let symbol = spelling.view()
             # Assembly may name storage directly; conservative text matching also
             # preserves symbols named by handwritten runtime glue.
@@ -6726,9 +6729,9 @@ pub struct Emitter:
     ## module is part of it, since two modules may bind one symbol with different shapes.
     mutating func put_extern_name(d: ast.Node*) -> !:
         try self.put("lb_x_")
-        try self.put(names.module_of(d))
+        try names.put_piece(self.sink(), names.module_of(d))
         try self.put("_")
-        try self.put(d.text)
+        try names.put_piece(self.sink(), d.text)
 
     ## Keep user linkage and initialized/attributed storage. These runtime modules
     ## also have names referenced directly by the C prologue and entry shims.
@@ -6821,10 +6824,10 @@ pub struct Emitter:
         if ft.args.length > 0:
             cstr_args = self.elem(ft.args[0]) == types.cstr_id
         try self.line("int main(int argc, char** argv) {")
-        try self.line("    lb_core_process_start();")
+        try self.line("    lb_core_13process_start();")
         try self.startup_lines()
         if cstr_args:
-            try self.line("    lb_span args = lb_core_raw_arguments(argc, argv);")
+            try self.line("    lb_span args = lb_core_13raw_arguments(argc, argv);")
         else:
             try self.line("    lb_span args = lb_core_arguments(argc, argv);")
         # `main()` may also take no arguments at all
@@ -6867,7 +6870,7 @@ pub struct Emitter:
 
     mutating func test_runner() -> !:
         try self.line("int main(void) {")
-        try self.line("    lb_core_process_start();")
+        try self.line("    lb_core_13process_start();")
         try self.startup_lines()
         try self.line("    int failed = 0;")
         var i: usize = 0

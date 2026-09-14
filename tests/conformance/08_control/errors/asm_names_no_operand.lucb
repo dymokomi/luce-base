@@ -1,0 +1,6 @@
+# error: names `y`, which is not a `reg` operand
+pub func main(arguments: str[]) -> i32:
+    var x: i64 = 1
+    asm arm64(in(reg) x):
+        mov {y}, {x}
+    return 0

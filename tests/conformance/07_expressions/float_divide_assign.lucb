@@ -1,0 +1,6 @@
+## §7.10: `/=` is an assignment operator, for the floats `/` divides.
+pub func main(arguments: str[]) -> i32:
+    var x: f64 = 9.0
+    x /= 2.0
+    print(f"{x}")
+    return 0

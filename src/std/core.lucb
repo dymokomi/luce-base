@@ -490,48 +490,70 @@ func fits_signed(value: i64, bits: i32) -> bool:
 func fits_unsigned(value: u64, bits: i32) -> bool:
     return value <= mask_of(bits)
 
-## `T(x)` between integers (`mode` 0, checked) and `(T)x` (`mode` 1, truncating).
-pub func conv_s(value: i64, from_bits: i32, from_signed: i32, to_bits: i32, to_signed: i32, mode: i32) -> i64:
-    var a = value
+## The source of an integer conversion as a sign and a magnitude, so a `u64` above
+## `i64.max` stays itself.
+struct Magnitude:
+    var negative: bool
+    var bits: u64
+
+func magnitude(value: u64, from_bits: i32, from_signed: i32) -> Magnitude:
     if from_signed != 0:
-        a = sign_extend(a, from_bits)
+        let v = sign_extend((i64)value, from_bits)
+        return Magnitude(negative = v < 0, bits = (u64)v)
+    return Magnitude(negative = false, bits = zero_extend(value, from_bits))
+
+## A checked conversion's result as bits: outside the destination's range traps (§7.5),
+## naming the statement at `at`.
+func checked_bits(m: Magnitude, to_bits: i32, to_signed: i32, at: c.str) -> u64:
+    var bad = false
+    if to_signed != 0:
+        bad = (i64)m.bits < signed_min(to_bits) if m.negative else m.bits > (u64)signed_max(to_bits)
     else:
-        a = (i64)zero_extend((u64)a, from_bits)
+        bad = m.negative or not fits_unsigned(m.bits, to_bits)
+    if bad:
+        trap_at(at, "integer conversion out of range")
+    return m.bits
+
+## `T(x)` between integers (`mode` 0, checked) and `(T)x` (`mode` 1, truncating).
+pub func conv_s(value: i64, from_bits: i32, from_signed: i32, to_bits: i32, to_signed: i32, mode: i32, at: c.str) -> i64:
+    let m = magnitude((u64)value, from_bits, from_signed)
     if mode == 0:
-        if to_signed != 0:
-            if not fits_signed(a, to_bits):
-                trap("integer conversion out of range")
-            return a
-        if a < 0 or not fits_unsigned((u64)a, to_bits):
-            trap("integer conversion out of range")
-        return a
-    let bits = (u64)a & mask_of(to_bits)
+        return (i64)checked_bits(m, to_bits, to_signed, at)
+    let bits = m.bits & mask_of(to_bits)
     if to_signed != 0:
         return sign_extend((i64)bits, to_bits)
     return (i64)bits
 
-pub func conv_u(value: u64, from_bits: i32, from_signed: i32, to_bits: i32, to_signed: i32, mode: i32) -> u64:
-    let s = sign_extend((i64)value, from_bits) if from_signed != 0 else (i64)zero_extend(value, from_bits)
+pub func conv_u(value: u64, from_bits: i32, from_signed: i32, to_bits: i32, to_signed: i32, mode: i32, at: c.str) -> u64:
+    let m = magnitude(value, from_bits, from_signed)
     if mode == 0:
-        if to_signed != 0:
-            if not fits_signed(s, to_bits):
-                trap("integer conversion out of range")
-            return (u64)s
-        if s < 0 or not fits_unsigned((u64)s, to_bits):
-            trap("integer conversion out of range")
-        return (u64)s
-    return zero_extend((u64)s, to_bits)
+        return checked_bits(m, to_bits, to_signed, at)
+    return zero_extend(m.bits, to_bits)
+
+## A `char` from an integer's bits: a scalar value, or a trap when checked (`mode` 0).
+pub func to_char(value: u64, mode: i32, at: c.str) -> u64:
+    let bad = value > 1114111 or (value >= 55296 and value <= 57343)
+    if bad and mode == 0:
+        trap_at(at, "integer conversion out of range")
+    return value & 4294967295
 
 func is_finite(value: f64) -> bool:
     return value - value == 0.0
 
+## `2^(bits-1)` and `2^bits` as floats: exact, where `(f64)signed_max(64)` rounds up to `2^63`.
+func float_bound_s(bits: i32) -> f64:
+    return (f64)((u64)1 << (u64)(bits - 1))
+
+func float_bound_u(bits: i32) -> f64:
+    return float_bound_s(bits) * 2.0
+
 ## Float to integer: checked (`mode` 0) or saturating (`mode` 1); the cast inside is the target's own.
-pub func f_to_s(value: f64, bits: i32, mode: i32) -> i64:
-    let low = (f64)signed_min(bits)
-    let high = (f64)signed_max(bits)
+pub func f_to_s(value: f64, bits: i32, mode: i32, at: c.str) -> i64:
+    let high = float_bound_s(bits)
+    let low = 0.0 - high
     if mode == 0:
-        if not is_finite(value) or value < low or value > high:
-            trap("integer conversion out of range")
+        if not is_finite(value) or value < low or value >= high:
+            trap_at(at, "integer conversion out of range")
         return (i64)value
     if value != value:
         return 0
@@ -541,11 +563,11 @@ pub func f_to_s(value: f64, bits: i32, mode: i32) -> i64:
         return signed_max(bits)
     return (i64)value
 
-pub func f_to_u(value: f64, bits: i32, mode: i32) -> u64:
-    let high = (f64)mask_of(bits)
+pub func f_to_u(value: f64, bits: i32, mode: i32, at: c.str) -> u64:
+    let high = float_bound_u(bits)
     if mode == 0:
-        if not is_finite(value) or value < 0.0 or value > high:
-            trap("integer conversion out of range")
+        if not is_finite(value) or value < 0.0 or value >= high:
+            trap_at(at, "integer conversion out of range")
         return (u64)value
     if value != value or value < 0.0:
         return 0

@@ -81,6 +81,29 @@ extern struct LinuxMetadata:
     changed: NativeFileTime
     reserved: i64[3]
 
+## aarch64 Linux struct stat: the generic layout, 128 bytes, `st_nlink` after the mode.
+extern struct LinuxArm64Metadata:
+    device: u64
+    inode: u64
+    mode: u32
+    links: u32
+    user: u32
+    group: u32
+    special_device: u64
+    padding: u64
+    size: i64
+    block_size: i32
+    padding2: i32
+    blocks: i64
+    accessed: NativeFileTime
+    modified: NativeFileTime
+    changed: NativeFileTime
+    reserved: i32[2]
+
+extern func stat_linux_arm64 as "stat"(path: c.str, result: LinuxArm64Metadata*) -> i32
+extern func lstat_linux_arm64 as "lstat"(path: c.str, result: LinuxArm64Metadata*) -> i32
+extern func fstat_linux_arm64 as "fstat"(descriptor: i32, result: LinuxArm64Metadata*) -> i32
+extern func fstatat_linux_arm64 as "fstatat"(directory: i32, path: c.str, result: LinuxArm64Metadata*, flags: i32) -> i32
 extern func stat_macos as "stat"(path: c.str, result: MacMetadata*) -> i32
 extern func stat_linux as "stat"(path: c.str, result: LinuxMetadata*) -> i32
 extern func lstat_macos as "lstat"(path: c.str, result: MacMetadata*) -> i32
@@ -120,6 +143,13 @@ func mac_metadata(value: MacMetadata) -> Metadata:
                     modified = file_time(value.modified), changed = file_time(value.changed),
                     created = file_time(value.created))
 
+func linux_arm64_metadata(value: LinuxArm64Metadata) -> Metadata:
+    return Metadata(kind = file_kind(value.mode), permissions = value.mode & 4095,
+                    size = value.size, device = value.device, inode = value.inode,
+                    links = (u64)value.links, user = value.user, group = value.group,
+                    blocks_512 = value.blocks, accessed = file_time(value.accessed),
+                    modified = file_time(value.modified), changed = file_time(value.changed), created = none)
+
 func linux_metadata(value: LinuxMetadata) -> Metadata:
     return Metadata(kind = file_kind(value.mode), permissions = value.mode & 4095,
                     size = value.size, device = value.device, inode = value.inode,
@@ -143,6 +173,14 @@ pub func metadata(path: c.str, follow_symlinks: bool = true) -> Metadata!:
                 return mac_metadata(raw)
             if c.errno() != c.interrupted:
                 error(classify_error(c.errno()), "file metadata could not be read")
+    elif platform.arm64:
+        var raw64: LinuxArm64Metadata
+        while true:
+            let result = stat_linux_arm64(path, &raw64) if follow_symlinks else lstat_linux_arm64(path, &raw64)
+            if result == 0:
+                return linux_arm64_metadata(raw64)
+            if c.errno() != c.interrupted:
+                error(classify_error(c.errno()), "file metadata could not be read")
     else:
         var raw: LinuxMetadata
         while true:
@@ -163,6 +201,13 @@ func metadata_descriptor(descriptor: i32) -> Metadata!:
             if c.errno() != c.interrupted:
                 error(classify_error(c.errno()), "open-file metadata could not be read")
 
+    elif platform.arm64:
+        var raw64: LinuxArm64Metadata
+        while true:
+            if fstat_linux_arm64(descriptor, &raw64) == 0:
+                return linux_arm64_metadata(raw64)
+            if c.errno() != c.interrupted:
+                error(classify_error(c.errno()), "open-file metadata could not be read")
     else:
         var raw: LinuxMetadata
         while true:
@@ -182,6 +227,13 @@ func metadata_at(directory: i32, path: c.str, follow_symlinks: bool) -> Metadata
         while true:
             if fstatat_macos(directory, path, &raw, flags) == 0:
                 return mac_metadata(raw)
+            if c.errno() != c.interrupted:
+                error(classify_error(c.errno()), "directory-entry metadata could not be read")
+    elif platform.arm64:
+        var raw64: LinuxArm64Metadata
+        while true:
+            if fstatat_linux_arm64(directory, path, &raw64, flags) == 0:
+                return linux_arm64_metadata(raw64)
             if c.errno() != c.interrupted:
                 error(classify_error(c.errno()), "directory-entry metadata could not be read")
     else:

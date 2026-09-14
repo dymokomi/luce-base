@@ -1,0 +1,7 @@
+## §12.6: the most negative `i8` divided by `-1` has no `i8` result, so `//` traps, as it
+## does at every width.
+pub func main(arguments: str[]) -> i32:
+    let lowest = (i8)(arguments.length - 129)
+    let minus_one = (i8)(0 - arguments.length)
+    print(f"{lowest // minus_one}")
+    return 0

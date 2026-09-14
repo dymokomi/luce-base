@@ -1,0 +1,6 @@
+# error: lays out a struct
+packed union Bits:
+    real: f64
+    whole: i64
+pub func main(arguments: str[]) -> i32:
+    return 0
