@@ -7,6 +7,7 @@ import memory
 import paths
 import strings
 import support.list
+import support.manifest
 
 pub let invalid: ErrorCode = ErrorCode.package(28)
 
@@ -55,20 +56,11 @@ func identifier(name: str) -> bool:
             return false
     return not first
 
+## A package module setting's value, which is never empty.
 func quoted(value: str) -> str!:
-    if value.length < 2 or value.bytes[0] != '"':
+    if value.length == 0:
         error(invalid, "package module settings are quoted strings")
-    var end: usize = 1
-    while end < value.length and value.bytes[end] != '"':
-        if value.bytes[end] == '\\':
-            error(invalid, "package module paths use literal forward slashes")
-        end += 1
-    if end == value.length:
-        error(invalid, "an unterminated package module setting")
-    let tail = strings.trim((str)value.bytes[end + 1..])
-    if tail.length > 0 and tail.bytes[0] != '#':
-        error(invalid, "unexpected text after a package module setting")
-    return (str)value.bytes[1..<end]
+    return value
 
 func mapping(entries: list.List[Mapping]*, name: str, value: str) -> !:
     if not identifier(name):
@@ -83,26 +75,16 @@ func read_package(path: str) -> Package!:
     let contents = (str)try files.read((c.str)try strings.copy(path))
     var package = Package(name = "", root = root, source = "src",
         dependencies = try list.List[Mapping].create(4), exports = try list.List[Mapping].create(4), module_packages = try list.List[Mapping].create(4))
-    var section = ""
-    var rest = contents
     var named = false
     var sourced = false
-    while rest.length > 0:
-        let end = strings.find(rest, "\n") else rest.length
-        let line = strings.trim((str)rest.bytes[..<end])
-        rest = (str)rest.bytes[end + 1..] if end < rest.length else ""
-        if line.length == 0 or line.bytes[0] == '#':
-            continue
-        if line.bytes[0] == '[':
-            section = line
-            continue
+    for setting in try manifest.settings(contents):
+        let section = setting.section
+        let key = setting.key
         if section != "[package]" and section != "[dependencies]" and section != "[exports]" and section != "[module_packages]":
             continue
-        let equal = strings.find(line, "=") else error(invalid, "a package module setting needs key = value")
-        let key = strings.trim((str)line.bytes[..<equal])
         if section == "[package]" and key != "name" and key != "source":
             continue
-        let value = try quoted(strings.trim((str)line.bytes[equal + 1..]))
+        let value = try quoted(setting.value)
         if section == "[dependencies]":
             try mapping(&package.dependencies, key, value)
         elif section == "[module_packages]":
@@ -129,9 +111,9 @@ func read_package(path: str) -> Package!:
 func enclosing(path: str) -> Package?!:
     var directory = paths.directory(path)
     while directory.length > 0:
-        let manifest = try paths.join(directory, "luce.toml")
-        if try present(manifest):
-            return try read_package(manifest)
+        let candidate = try paths.join(directory, "luce.toml")
+        if try present(candidate):
+            return try read_package(candidate)
         let parent = paths.directory(directory)
         if parent == directory:
             break

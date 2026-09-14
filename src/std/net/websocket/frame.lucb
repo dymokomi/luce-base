@@ -97,7 +97,8 @@ struct WebSocketSequence:
     var closing: bool
 
     mutating func begin(frame: WebSocketFrame) -> !:
-        if self.closing:
+        # a control frame the peer had queued may still follow its close (RFC 6455 §5.5.1)
+        if self.closing and (u8)frame.opcode < 8:
             error(websocket_invalid, "WebSocket data follows a close frame")
         if (u8)frame.opcode >= 8:
             self.control_used = 0

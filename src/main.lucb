@@ -423,7 +423,7 @@ func compile(text: str, requested_exe: str, release: bool, with_start: bool) -> 
     for name in package.pkg_config:
         try pkg_config_flags(&cc_args, name, "--cflags", false)
         try pkg_config_flags(&cc_args, name, "--libs", false)
-    try link_flags(&cc_args, true)
+    try link_flags(&cc_args, platform.macos)
     let result = try host_tools.run_compiler(host_c_compiler(), cc_args.span(), dir)
     let (cc_status, cc_out, cc_err) = result
     discard(cc_out.length)

@@ -71,12 +71,14 @@ func x86_level() -> u32:
     let sse42 = (c1 & (1 << 20)) != 0
     let popcnt = (c1 & (1 << 23)) != 0
     let fma = (c1 & (1 << 12)) != 0
+    # the operating system saves the wide registers only with `OSXSAVE` set
+    let osxsave = (c1 & (1 << 27)) != 0
     let avx2 = (b7 & (1 << 5)) != 0
     let bmi2 = (b7 & (1 << 8)) != 0
     let avx512f = (b7 & (1 << 16)) != 0
     if not (sse42 and popcnt):
         return 1
-    if not (avx2 and fma and bmi2):
+    if not (avx2 and fma and bmi2 and osxsave):
         return 2
     return 4 if avx512f else 3
 

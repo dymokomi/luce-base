@@ -1,0 +1,5 @@
+## §16.4: a manifest's unrelated sections and TOML's two quotings are read the same way by
+## every command, so this program builds under every one of them.
+pub func main(arguments: str[]) -> i32:
+    print("sections read")
+    return 0

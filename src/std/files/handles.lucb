@@ -169,13 +169,14 @@ func classify_error(number: i32) -> ErrorCode:
         return is_directory
     if number == 30:
         return read_only_filesystem
-    if number == (66 if platform.macos else 39):
+    # the UCRT numbers its errors its own way: `ENOTEMPTY` 41, `ENAMETOOLONG` 38, no `ELOOP`
+    if number == (66 if platform.macos else (41 if platform.windows else 39)):
         return not_empty
     if number == 18:
         return cross_device
-    if number == (62 if platform.macos else 40):
+    if number == (62 if platform.macos else 40) and not platform.windows:
         return symlink_loop
-    if number == (63 if platform.macos else 36):
+    if number == (63 if platform.macos else (38 if platform.windows else 36)):
         return name_too_long
     if number == would_block_errno:
         return would_block

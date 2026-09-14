@@ -38,6 +38,7 @@ import sema.prelude
 import sema.prune
 import sema.types
 import support.list
+import support.manifest
 import support.modules as module_paths
 
 pub let unknown_name: ErrorCode = ErrorCode.package(9)
@@ -118,7 +119,8 @@ pub struct Checker:
     ## Inside `init`, where `let` fields take their first value.
     var in_init: bool
     var loop_depth: u32
-    ## The labels of the loops open around the statement being checked (§8.5).
+    ## The labels of the loops open around the statement being checked (§8.5); deeper
+    ## nesting is refused.
     var labels: str[16]
     var label_count: usize
     var in_catch: bool
@@ -559,7 +561,7 @@ pub struct Checker:
 
     ## Load `path` and, first, every module it imports from the same directory.
     pub mutating func load(path: c.str) -> !:
-        self.root = directory_of((str)path)
+        self.root = manifest.directory_of((str)path)
         try self.load_as(path, try module_paths.name_of((str)path))
 
     ## Load `path` as module `name`; an imported module keeps its dotted path as its name.
@@ -652,7 +654,7 @@ pub struct Checker:
             if file_exists((c.str)candidate) or dir.length == 0:
                 self.root = dir
                 return candidate
-            dir = parent_of(dir)
+            dir = manifest.parent_of(dir)
 
     ## Whether `m` is the standard `c` module, whose types the checker supplies (§5.2).
     func is_c_module(m: ast.Node*) -> bool:
@@ -847,6 +849,10 @@ pub struct Checker:
 
     ## Bind a declaration's generic parameters and resolve their constraints.
     mutating func bind_generics(d: ast.Node*) -> !:
+        if ast.count(generic_params_of(d)) > types.max_type_arguments:
+            let first = generic_params_of(d) else return
+            var text: u8[96]
+            return try self.fail(first, try format(text, f"a declaration has at most {types.max_type_arguments} type parameters"))
         var cursor = generic_params_of(d)
         while let g = cursor:
             if let existing = self.lookup(g.text):
@@ -4355,8 +4361,10 @@ pub struct Checker:
             discard(try self.fail(s, "this name belongs to the language; a label cannot take it (§3.5)"))
         elif self.has_label(s.text):
             discard(try self.fail(s, "this label is already open"))
-        if self.label_count < self.labels.length:
-            self.labels[self.label_count] = s.text
+        if self.label_count == self.labels.length:
+            var text: u8[96]
+            return try self.fail(s, try format(text, f"at most {self.labels.length} labeled loops nest"))
+        self.labels[self.label_count] = s.text
         self.label_count += 1
 
     mutating func leave_loop(s: ast.Node*):
@@ -4618,7 +4626,7 @@ pub struct Checker:
         if st == types.untyped_int_id or st == types.untyped_float_id:
             st = try self.coerce(scrutinee, st, self.concrete(st))
         var result = hint
-        var coverage = Coverage(wildcard = false, some = false, none_ = false, truth = false, falsity = false, cases = 0, seen = 0)
+        var coverage = Coverage(wildcard = false, some = false, none_ = false, truth = false, falsity = false, cases = 0)
         var arm = m.body
         while let a = arm:
             self.push_scope()
@@ -4626,6 +4634,8 @@ pub struct Checker:
             var first = true
             while let p = pattern:
                 try self.check_pattern(p, st, first)
+                if literal_repeats(m, a, p):
+                    return try self.fail(p, "duplicate pattern")
                 try self.note_pattern(p, st, a.right == none, &coverage)
                 first = false
                 pattern = p.next
@@ -4690,14 +4700,6 @@ pub struct Checker:
                     else:
                         coverage.falsity = true
                 return
-            var i: usize = 0
-            while i < coverage.seen and i < coverage.texts.length:
-                if coverage.texts[i] == v.text:
-                    return try self.fail(p, "duplicate pattern")
-                i += 1
-            if coverage.seen < coverage.texts.length:
-                coverage.texts[coverage.seen] = v.text
-            coverage.seen += 1
 
     ## Every `match` is exhaustive (§8.4): the compiler names what is missing.
     mutating func check_exhaustive(m: ast.Node*, st: u32, coverage: Coverage) -> !:
@@ -5144,6 +5146,10 @@ func duplicate_member(d: ast.Node*) -> ast.Node*?:
 func is_named_member(m: ast.Node*) -> bool:
     return m.kind == ast.Kind.field or m.kind == ast.Kind.enum_case or m.kind == ast.Kind.func_
 
+## Whether a file exists at `path`.
+func file_exists(path: c.str) -> bool:
+    return files.exists(path)
+
 ## The first name in `later` that `earlier` already lists, if any.
 func repeated_name(earlier: ast.Node*?, later: ast.Node*?) -> ast.Node*?:
     var cursor = later
@@ -5408,8 +5414,26 @@ struct Coverage:
     var truth: bool
     var falsity: bool
     var cases: u64
-    var seen: usize
-    var texts: str[64]
+
+## Whether the literal pattern `p` of arm `a` repeats a literal pattern of an earlier arm
+## of `m`, or of the same arm.
+func literal_repeats(m: ast.Node*, a: ast.Node*, p: ast.Node*) -> bool:
+    let v = p.left else return false
+    if v.kind != ast.Kind.literal or p.right != none or v.text == "true" or v.text == "false":
+        return false
+    var arm = m.body
+    while let earlier = arm:
+        var pattern = earlier.left
+        while let q = pattern:
+            if q == p:
+                return false
+            if q.right == none:
+                if let w = q.left:
+                    if w.kind == ast.Kind.literal and w.text == v.text:
+                        return true
+            pattern = q.next
+        arm = earlier.next
+    return false
 
 ## The position of a case among its enum's cases, in declaration order.
 func case_index(d: ast.Node*, case_decl: ast.Node*) -> usize:
@@ -5829,32 +5853,6 @@ pub func is_identifier(name: str) -> bool:
 
 ## `dir/name.lucb` -> `dir/`; a bare name yields the empty string.
 ## `a/b/` for `a/b/c/`, `` for `c/`.
-pub func parent_of(dir: str) -> str:
-    if paths.root(dir).length == dir.length:
-        return ""
-    let b = dir.bytes
-    var end: usize = 0
-    var i: usize = 0
-    while i + 1 < b.length:
-        if paths.separator(b[i]):
-            end = i + 1
-        i += 1
-    return (str)b[..<end]
-
-func file_exists(path: c.str) -> bool:
-    let data = files.read(path) catch:
-        return false
-    return data.length >= 0
-
-pub func directory_of(path: str) -> str:
-    let b = path.bytes
-    var end: usize = 0
-    var i: usize = 0
-    while i < b.length:
-        if paths.separator(b[i]):
-            end = i + 1
-        i += 1
-    return (str)b[..<end]
 
 func one_arg(id: u32) -> u32[]!:
     var one = try alloc u32[1]

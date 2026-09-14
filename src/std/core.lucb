@@ -201,7 +201,8 @@ pub func format_finish(b: FormatBuffer*) -> str:
         return ""
     return (str)u8[](b.data, b.used)
 
-## `hex`, `bin`, and `pad` return text in one of four rotating thread-local slots.
+## `hex`, `bin`, and `pad` return text in one of four rotating thread-local slots of 255
+## bytes each: the fifth call reuses the first's, and longer text is cut to 255 bytes.
 local var show_bytes: u8[1024]
 local var show_next: u32
 

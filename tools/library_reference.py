@@ -32,6 +32,11 @@ def render(name):
             break
     if head:
         out.append(" ".join(head) + "\n")
+    # the module's paragraph is not the first declaration's
+    i = 0
+    while i < len(lines) and (lines[i].startswith("##") or lines[i].strip() == ""):
+        lines[i] = ""
+        i += 1
     i = 0
     while i < len(lines):
         l = lines[i]
@@ -39,7 +44,7 @@ def render(name):
         if m:
             kind, ident, rest = m.groups()
             doc = comment_block(lines, i)
-            out.append(f"### `{ident}`" + (f" ({kind}{rest.strip()})" if rest.strip() else f" ({kind})") + "\n")
+            out.append(f"### `{ident}`" + (f" ({kind} {rest.strip()})" if rest.strip() else f" ({kind})") + "\n")
             if doc:
                 out.append(doc + "\n")
             members = []

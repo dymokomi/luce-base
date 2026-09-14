@@ -66,6 +66,10 @@ pub enum Kind as u8:
 # mark: Fixed ids ==============================================================================
 
 ## Ids of the pre-seeded types, in the order `Table.create` seeds them.
+## How many type parameters a declaration may have: the checker refuses more, so the
+## fixed rooms an instance's arguments are resolved into are never short.
+pub let max_type_arguments: usize = 16
+
 pub let none_id: u32 = 0
 pub let error_id: u32 = 1
 pub let never_id: u32 = 2
@@ -434,7 +438,7 @@ pub struct Table:
                 # a struct with a field default or a custom `init` has no zero value: the
                 # zero would bypass what they establish (§6.1)
                 if let decl = t.decl:
-                    var room: u32[16]
+                    var room: u32[max_type_arguments]
                     let inner = self.instance_args(t, env_decl, env_args, room)
                     var cursor = decl.body
                     while let member = cursor:
@@ -546,7 +550,7 @@ pub struct Table:
                 var offset: u64 = 0
                 var largest: u64 = 1
                 let decl = t.decl else return 0
-                var room: u32[16]
+                var room: u32[max_type_arguments]
                 let inner = self.instance_args(t, env_decl, env_args, room)
                 var cursor = decl.body
                 while let member = cursor:
@@ -564,7 +568,7 @@ pub struct Table:
                 var largest: u64 = 0
                 var widest: u64 = 1
                 let decl = t.decl else return 0
-                var room: u32[16]
+                var room: u32[max_type_arguments]
                 let inner = self.instance_args(t, env_decl, env_args, room)
                 var cursor = decl.body
                 while let member = cursor:
@@ -579,7 +583,7 @@ pub struct Table:
                 let decl = t.decl else return 4
                 if let backing = decl.ty:
                     return self.sized(backing.type_id, none, no_args_view()) if backing.type_id != none_id else 4
-                var room: u32[16]
+                var room: u32[max_type_arguments]
                 let inner = self.instance_args(t, env_decl, env_args, room)
                 var largest: u64 = 0
                 var widest: u64 = 4
@@ -627,7 +631,7 @@ pub struct Table:
                 if t.kind == Kind.enum_:
                     if let backing = decl.ty:
                         return self.aligned(backing.type_id, none, no_args_view()) if backing.type_id != none_id else 4
-                var room: u32[16]
+                var room: u32[max_type_arguments]
                 let inner = self.instance_args(t, env_decl, env_args, room)
                 var widest: u64 = 4 if t.kind == Kind.enum_ else 1
                 var cursor = decl.body
@@ -657,7 +661,7 @@ pub struct Table:
     pub func offset_of(id: u32, field: str) -> u64:
         let t = self.get(id)
         let decl = t.decl else return 0
-        var room: u32[16]
+        var room: u32[max_type_arguments]
         let inner = self.instance_args(t, none, no_args_view(), room)
         var offset: u64 = 0
         var cursor = decl.body

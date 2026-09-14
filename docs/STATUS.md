@@ -86,6 +86,12 @@ deterministic pass; `tools/fuzz.py --minutes M` runs longer, and findings land u
   allocates. The record's updates are guarded.
 - The native path's offsets for the second word of a two-word value are the literal 8:
   the one 64-bit assumption left (DESIGN.md).
+- Two limits of this compiler, not of the language, each refused with a diagnostic: a
+  declaration has at most 16 type parameters (`types.max_type_arguments`), and at most 16
+  labeled loops nest.
+- A symbol is read back piece by piece (`back/names.lucb`): a piece holding an underscore
+  carries its length in front, so `lb_core_6f_to_s` is `core.f_to_s`, and every shape
+  marker starts with `_0`.
 
 ## The order
 

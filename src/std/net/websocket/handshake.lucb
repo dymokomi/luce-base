@@ -167,7 +167,7 @@ pub func websocket_encode_request(output: u8[], host: str, target: str, key: str
     if protocols.length > 0:
         var at: usize = 0
         while let part = http_list_next(protocols, &at):
-            if not http_token(part):
+            if part.length > 0 and not http_token(part):
                 error(websocket_invalid, "invalid offered WebSocket subprotocol")
         count = 5
     try websocket_protocols(fields[..<count])
@@ -205,6 +205,8 @@ func websocket_protocols(fields: const HttpField[]) -> !:
             continue
         var at: usize = 0
         while let candidate = http_list_next(field.value, &at):
+            if candidate.length == 0:
+                continue    # an empty list element is ignored (RFC 9110 §5.6.1.2)
             if not http_token(candidate):
                 error(websocket_invalid, "invalid offered WebSocket subprotocol")
             for previous in seen[..<count]:

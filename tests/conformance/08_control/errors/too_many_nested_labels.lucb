@@ -1,0 +1,22 @@
+# error: at most 16 labeled loops nest
+# oracle: none -- a limit of this compiler, not of the language
+pub func main(arguments: str[]) -> i32:
+    loop0: for n0 in 0..<1:
+        loop1: for n1 in 0..<1:
+            loop2: for n2 in 0..<1:
+                loop3: for n3 in 0..<1:
+                    loop4: for n4 in 0..<1:
+                        loop5: for n5 in 0..<1:
+                            loop6: for n6 in 0..<1:
+                                loop7: for n7 in 0..<1:
+                                    loop8: for n8 in 0..<1:
+                                        loop9: for n9 in 0..<1:
+                                            loop10: for n10 in 0..<1:
+                                                loop11: for n11 in 0..<1:
+                                                    loop12: for n12 in 0..<1:
+                                                        loop13: for n13 in 0..<1:
+                                                            loop14: for n14 in 0..<1:
+                                                                loop15: for n15 in 0..<1:
+                                                                    loop16: for n16 in 0..<1:
+                                                                        break loop0
+    return 0

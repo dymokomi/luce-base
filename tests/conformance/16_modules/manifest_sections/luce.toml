@@ -1,0 +1,5 @@
+[package]
+name = 'sections'  # single quotes, and a comment
+
+[tool]
+setting = "ignored"

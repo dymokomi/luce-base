@@ -62,7 +62,23 @@ runs it for longer. Every finding becomes a test.
     `tests/platform`.
 
 
-11. **Emit only required standard-library code.** Both backends currently emit every
+11. **The shape of the compiler, from the audit of 2026-09-14.** The remaining work
+    of `~/dev/luce-base-audit-2026-09-14.md`, in order: unit tests for the standard
+    library, which first needs the backends to run prelude `test` blocks only for the
+    module under test and `library_reference.py` to read a header box; every runtime
+    layout and mode named once and shared by the C emitter and the lowerer (error
+    layout, allocator vtable, `lb_fmtbuf`, memory orders, program modes) and the Win32,
+    AppKit, Metal, and GDI numbers named in the adapters; `back/c/emit.lucb`,
+    `sema/check.lucb`, `back/ir/lower.lucb`, and the native generators split along the
+    seams the audit names, with the tree helpers and type layout written once; the
+    header box and `# mark:` sections in every file and `##` on every public
+    declaration; the 36 functions over 100 lines split at their named seams; fallback
+    glyphs confined to their cell and an unknown font family refused by name; the
+    window adapters deciding modifier, focus, and minimize events once. Gate: the
+    audit's metrics table reads header 55/55, marks in every file over 150 lines, no
+    function over 100 lines but the named dispatches, and `src/std` with `test` blocks
+    run by `test.sh`.
+12. **Emit only required standard-library code.** Both backends currently emit every
     nongeneric standard function and global, including unused Unicode tables. A tiny
     native hello program at opt 0 and opt 3 occupies 991,024 bytes on ARM64 macOS with
     the Unicode 17 library. Gate: unused module functions and passive tables disappear

@@ -323,7 +323,7 @@ struct Header:
             .i16_: try self.out.put("int16_t")
             .i32_: try self.out.put("int32_t" if id != types.c_wchar_id else "wchar_t")
             .i64_: try self.out.put("int64_t" if id != types.c_long_id else "long")
-            .isize_: try self.out.put("ptrdiff_t")
+            .isize_: try self.out.put("intptr_t")
             .u8_: try self.out.put("uint8_t")
             .u16_: try self.out.put("uint16_t")
             .u32_: try self.out.put("uint32_t")

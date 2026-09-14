@@ -1,0 +1,6 @@
+# error: at most 16 type parameters
+# oracle: none -- a limit of this compiler, not of the language
+struct Wide[A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q]:
+    var a: A
+pub func main(arguments: str[]) -> i32:
+    return 0
