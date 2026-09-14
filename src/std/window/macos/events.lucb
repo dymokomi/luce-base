@@ -20,6 +20,8 @@ func focus_callback(object: void*, selector: void*, notification: void*):
         let gained = selector == sel("windowDidBecomeKey:")
         if not gained:
             mac_clear_marked(state)
+            state.primary_down = false
+            state.pointer_inside = false
         push_event(state, input.Event(kind = input.EventKind.focus_gained if gained else input.EventKind.focus_lost))
 
 func view_accepts(object: void*, selector: void*) -> bool:
@@ -59,6 +61,7 @@ func pointer_callback(object: void*, selector: void*, native: void*):
     if native_type == 8:
         event.kind = input.EventKind.pointer_entered
     elif native_type == 9:
+        state.pointer_inside = false
         push_event(state, input.Event(kind = input.EventKind.pointer_left))
         return
     elif native_type == 1 or native_type == 3 or native_type == 25:
@@ -72,6 +75,11 @@ func pointer_callback(object: void*, selector: void*, native: void*):
         event.scroll_x = msg_double(native, sel("scrollingDeltaX"))
         event.scroll_y = msg_double(native, sel("scrollingDeltaY"))
         event.scroll_unit = input.ScrollUnit.points if msg_bool(native, sel("hasPreciseScrollingDeltas")) else input.ScrollUnit.lines
+    let bounds = msg_rect(object, sel("bounds"))
+    state.pointer_inside = position.x >= 0.0 and position.y >= 0.0 and position.x < bounds.size.width and position.y < bounds.size.height
+    if event.button == 0:
+        if event.kind == input.EventKind.pointer_down: state.primary_down = true
+        if event.kind == input.EventKind.pointer_up: state.primary_down = false
     push_event(state, event)
 
 ## Hardware positions from the macOS HIToolbox virtual-key table. Zero slots

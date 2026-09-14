@@ -71,6 +71,7 @@ func win_open(options: Options) -> State*!:
     try win_setup()
     let state = try new State() in memory.heap
     errdefer win_destroy(state)
+    state.native_cursor = try win_cursor(input.Cursor.arrow)
     let title = try alloc u16[options.title.length + 1]
     defer free(title)
     var count: i32 = 0

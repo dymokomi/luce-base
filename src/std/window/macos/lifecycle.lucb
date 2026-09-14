@@ -30,6 +30,7 @@ func setup_classes() -> !:
         errdefer objc_disposeClassPair(native_type)
         try add_method(native_type, "acceptsFirstResponder", (void*)view_accepts, "B@:")
         try add_method(native_type, "isFlipped", (void*)view_accepts, "B@:")
+        try add_method(native_type, "cursorUpdate:", (void*)cursor_callback, "v@:@")
         try mac_register_text_input(native_type)
         var keys: c.str[3] = ["keyDown:", "keyUp:", "flagsChanged:"]
         for name in keys:
@@ -52,6 +53,7 @@ func mac_open(options: Options) -> State*!:
         application = app
     let state = try new State() in memory.heap
     errdefer mac_destroy(state)
+    state.native_cursor = try mac_cursor(input.Cursor.arrow)
     let rect = LuceWindowMacRect(size = LuceWindowMacExtent(width = (f64)options.width, height = (f64)options.height))
     let allocated = msg_ptr(try native_class("NSWindow"), sel("alloc")) else error(failed, "could not allocate a native window")
     # An Objective-C init owns its alloc reference even when it returns nil.
@@ -66,7 +68,7 @@ func mac_open(options: Options) -> State*!:
     # The view retains its tracking area. InVisibleRect lets AppKit update its
     # bounds on resize; enter/leave remain paired while a captured drag moves out.
     let tracking_allocated = msg_ptr(try native_class("NSTrackingArea"), sel("alloc")) else error(failed, "could not allocate pointer tracking")
-    let tracking = msg_init_tracking(tracking_allocated, sel("initWithRect:options:owner:userInfo:"), rect, 0x01 | 0x20 | 0x200 | 0x400, view, none) else error(failed, "could not initialize pointer tracking")
+    let tracking = msg_init_tracking(tracking_allocated, sel("initWithRect:options:owner:userInfo:"), rect, 0x01 | 0x04 | 0x20 | 0x200 | 0x400, view, none) else error(failed, "could not initialize pointer tracking")
     msg_object(view, sel("addTrackingArea:"), tracking)
     msg_void(tracking, sel("release"))
     let delegate = msg_ptr(required(delegate_class), sel("new")) else error(failed, "could not allocate a window delegate")

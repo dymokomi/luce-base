@@ -89,6 +89,20 @@ pub struct Window:
             if not enabled:
                 mac_cancel_text_input(state)
 
+    ## Choose the cursor for this window's content. Native chrome and other
+    ## windows keep their own cursors. The choice survives OS cursor updates.
+    pub func set_cursor(cursor: input.Cursor) -> !:
+        let state = try self.checked()
+        if (u8)cursor > (u8)input.Cursor.not_allowed:
+            error(invalid_options, "unknown system cursor")
+        if platform.macos and platform.arm64:
+            try mac_set_cursor(state, cursor)
+        if platform.windows:
+            try win_set_cursor(state, cursor)
+
+    pub func cursor() -> input.Cursor!:
+        return (try self.checked()).cursor
+
     ## Reserve this window for one graphics surface. Normally gpu.Surface calls
     ## this; applications need not manage the lease themselves.
     pub func acquire_presentation() -> Presentation!:

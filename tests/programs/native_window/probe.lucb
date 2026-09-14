@@ -1,3 +1,4 @@
+import c
 import input
 import window
 import native
@@ -65,6 +66,11 @@ pub func main(arguments: str[]) -> i32!:
             recover none)
         assert(rejected)
         zero.destroy()
+        rejected = false
+        zero.set_cursor(input.Cursor.text) catch failure:
+            assert(failure.code == window.closed)
+            rejected = true
+        assert(rejected)
         if arguments.length < 2 or arguments[1] != "gui":
             print("ok window contracts without WindowServer")
             return 0
@@ -94,6 +100,22 @@ pub func main(arguments: str[]) -> i32!:
         assert((try second.size()).width == 400.0)
         let a = native.find("Luce test A")
         let b = native.find("Luce test B")
+        # Per-window choices survive native cursor-update events and do not
+        # depend on a GPU frame or changing the actual desktop pointer position.
+        let names: c.str[8] = ["arrowCursor", "IBeamCursor", "pointingHandCursor", "resizeLeftRightCursor", "resizeUpDownCursor", "openHandCursor", "closedHandCursor", "operationNotAllowedCursor"]
+        for index in 0..<names.length:
+            try first.set_cursor((input.Cursor)(u8)index)
+            assert((try first.cursor()) == (input.Cursor)(u8)index)
+            native.cursor_update(a)
+            assert(native.cursor_is(names[index]))
+            native.cursor_update(b)
+            assert(native.cursor_is("arrowCursor"))
+        try first.set_cursor(input.Cursor.arrow)
+        rejected = false
+        first.set_cursor((input.Cursor)255) catch failure:
+            assert(failure.code == window.invalid_options)
+            rejected = true
+        assert(rejected and (try first.cursor()) == input.Cursor.arrow)
         try flush(&first)
         native.key(a, 10, 0, true)
         let key = try expect(&first, input.EventKind.key_down)

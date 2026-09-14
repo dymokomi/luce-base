@@ -12,11 +12,15 @@ with tempfile.TemporaryDirectory(prefix='luce-window-targets-') as directory:
     work = Path(directory)
     source = work / 'probe.lucb'
     source.write_text('''import window
+import input
 pub func main(arguments: str[]) -> i32!:
     var host = try window.Window.open(window.Options(title = "Input target contract"))
     defer host.destroy()
     try host.set_text_input(true)
     try host.set_text_input(false)
+    try host.set_cursor(input.Cursor.text)
+    try host.set_cursor(input.Cursor.resize_horizontal)
+    assert((try host.cursor()) == input.Cursor.resize_horizontal)
     return 0
 ''')
     for target in ['arm64-macos', 'x86_64-windows', 'x86_64-linux']:
@@ -29,6 +33,6 @@ pub func main(arguments: str[]) -> i32!:
                 for symbol in ['objc_msgSend', 'sel_registerName', 'objc_getClass']:
                     assert symbol not in assembly, (target, level, symbol)
             if target.endswith('linux'):
-                for symbol in ['CreateWindowExW', 'DefWindowProcW', 'GetModuleHandleW']:
+                for symbol in ['CreateWindowExW', 'DefWindowProcW', 'GetModuleHandleW', 'LoadCursorW', 'SetCursor', 'GetCursorPos']:
                     assert symbol not in assembly, (target, level, symbol)
-            print('PASS text input target', target, level, flush=True)
+            print('PASS text input and cursor target', target, level, flush=True)

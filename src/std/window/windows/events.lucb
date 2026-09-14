@@ -67,6 +67,9 @@ func win_callback(native: void*, message: u32, word: usize, value: isize) -> isi
     let state = (State*)(void*)stored
     if state.destroyed:
         return DefWindowProcW(native, message, word, value)
+    if message == 32 and (value & 65535) == 1:
+        discard(SetCursor(state.native_cursor))
+        return 1
     if message == 16:
         state.close_requested = true
         return 0

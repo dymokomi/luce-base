@@ -15,6 +15,10 @@ struct State:
     var text_input: bool
     var pending_surrogate: u16
     var pointer_tracking: bool
+    var cursor: input.Cursor
+    var native_cursor: void*?
+    var pointer_inside: bool
+    var primary_down: bool
     var marked_text: void*?
     var marked_selection: usize
     var marked_length: usize

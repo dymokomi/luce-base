@@ -110,6 +110,13 @@ pub func pointer_boundary(window: void*, entered: bool):
     let event = tracking_event(objc_getClass("NSEvent"), sel_registerName("enterExitEventWithType:location:modifierFlags:timestamp:windowNumber:context:eventNumber:trackingNumber:userData:"), 8 if entered else 9, ProbePoint(12.0, 20.0), 0, 0.0, (i64)uint(window, sel_registerName("windowNumber")), none, 1, 0, none)
     call(view, sel_registerName("mouseEntered:" if entered else "mouseExited:"), event)
 
+pub func cursor_update(window: void*):
+    call(msg(window, sel_registerName("contentView")), sel_registerName("cursorUpdate:"), none)
+
+pub func cursor_is(name: c.str) -> bool:
+    let kind = objc_getClass("NSCursor")
+    return msg(kind, sel_registerName("currentCursor")) == msg(kind, sel_registerName(name))
+
 pub func scroll(window: void*, points: bool):
     let cg = CGEventCreateScrollWheelEvent(none, 0 if points else 1, 2, i32(3), i32(-2))
     defer CFRelease(cg)
