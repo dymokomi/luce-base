@@ -42,7 +42,7 @@ pub struct Source:
 
     ## The fragments a directory's `ORDER` lists, in order, as one source at `path`: each
     ## fragment is one segment, ending with a newline of its own.
-    pub static func assembled(path: str, names: str[], texts: const u8[][]) -> Source!:
+    pub static func assembled(path: str, names: str[], texts: u8[][]) -> Source!:
         var total: usize = 0
         for text in texts:
             total += text.length + 1
@@ -72,11 +72,27 @@ pub struct Source:
         src.segment_count = names.length
         return src
 
-    ## The file, line, and column a position names: a directive's, a fragment's, or this
-    ## source's own.
+    ## The file, line, and column a diagnostic names for a byte offset: the fragment's when
+    ## the module was assembled, else this source's own. Directives are for traps (`mapped`):
+    ## a diagnostic names the Base text the checker read.
     pub func located(offset: usize) -> (str, u32, u32):
         let (line, column) = self.position(offset)
-        return self.mapped(line, column)
+        return self.fragment_of(line, column)
+
+    ## The fragment file and line a line of an assembled module came from; this source's own
+    ## for a module read from one file.
+    pub func fragment_of(line: u32, column: u32) -> (str, u32, u32):
+        if let paths = self.segment_paths:
+            if let starts = self.segment_starts:
+                var k: usize = 0
+                var found: usize = 0
+                while k < self.segment_count:
+                    if starts[k] <= line:
+                        found = k
+                    k += 1
+                if self.segment_count > 0:
+                    return (paths[found], line - starts[found] + 1, column)
+        return (self.path, line, column)
 
     ## Load a file into the current allocator and check it is UTF-8 without NUL.
     pub static func load(path: c.str) -> Source!:
@@ -137,17 +153,7 @@ pub struct Source:
             if let d = found:
                 if d.file.length > 0:
                     return (d.file, d.line, d.column)
-        if let paths = self.segment_paths:
-            if let starts = self.segment_starts:
-                var k: usize = 0
-                var found: usize = 0
-                while k < self.segment_count:
-                    if starts[k] <= line:
-                        found = k
-                    k += 1
-                if self.segment_count > 0:
-                    return (paths[found], line - starts[found] + 1, column)
-        return (self.path, line, column)
+        return self.fragment_of(line, column)
 
     ## One-based line and column of a byte offset, counting columns in bytes.
     pub func position(offset: usize) -> (u32, u32):

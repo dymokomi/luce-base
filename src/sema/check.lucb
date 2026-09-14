@@ -677,7 +677,7 @@ pub struct Checker:
         let order = files.read((c.str)try format(order_bytes, f"{text}/ORDER")) catch:
             return try source.Source.load(path)
         var names = try list.List[str].create(8)
-        var texts = try list.List[const u8[]].create(8)
+        var texts = try list.List[u8[]].create(8)
         var start: usize = 0
         var i: usize = 0
         while i <= order.length:

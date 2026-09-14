@@ -44,7 +44,7 @@ pub struct Parser:
             let t = lx.next() catch failure:
                 let (line, column) = lx.error_position()
                 let half = scratch.length // 2
-                let (file, mapped_line, mapped_column) = lx.src.mapped(line, column)
+                let (file, mapped_line, mapped_column) = lx.src.fragment_of(line, column)
                 let message = try format(scratch[..<half], f"{file}:{mapped_line}:{mapped_column}: {failure.message}")
                 error(failure.code, message)
             if n == buffer.length:
@@ -122,7 +122,7 @@ pub struct Parser:
     pub func fail(what: str) -> ast.Node*!:
         let t = self.cur()
         let half = self.scratch.length // 2
-        let (file, line, column) = self.src.mapped(t.line, t.column)
+        let (file, line, column) = self.src.fragment_of(t.line, t.column)
         let message = try format(self.scratch[..<half], f"{file}:{line}:{column}: {what}")
         error(syntax, message)
 
