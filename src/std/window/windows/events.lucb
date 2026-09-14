@@ -3,6 +3,15 @@ extern func SetCapture(window: void*) -> void*?
 extern func ReleaseCapture() -> i32
 extern func ScreenToClient(window: void*, point: WinPoint*) -> i32
 
+## TRACKMOUSEEVENT uses the native pointer alignment on each Windows target.
+struct WinMouseTracking:
+    var size: u32
+    var flags: u32
+    var window: void*
+    var hover_time: u32
+
+extern func TrackMouseEvent(tracking: WinMouseTracking*) -> i32
+
 func win_modifiers() -> input.Modifiers:
     return input.Modifiers(shift = GetKeyState(16) < 0, control = GetKeyState(17) < 0,
         alt = GetKeyState(18) < 0, super = GetKeyState(91) < 0 or GetKeyState(92) < 0,
@@ -92,6 +101,11 @@ func win_callback(native: void*, message: u32, word: usize, value: isize) -> isi
         if (u16)key >= 224 or key == input.Key.caps_lock:
             push_event(state, input.Event(kind = input.EventKind.modifiers_changed, modifiers = key_modifiers))
         # Let DefWindowProc retain system shortcuts such as Alt+F4.
+    elif message == 675:
+        # WM_MOUSELEAVE disarms tracking; the next move starts a new interval.
+        state.pointer_tracking = false
+        push_event(state, input.Event(kind = input.EventKind.pointer_left))
+        return 0
     elif message >= 512 and message <= 526:
         var point = WinPoint(x = signed_half(value), y = signed_half(value >> 16))
         let scrolling = message == 522 or message == 526
@@ -100,6 +114,12 @@ func win_callback(native: void*, message: u32, word: usize, value: isize) -> isi
         let dpi = GetDpiForWindow(native)
         let scale = (f64)dpi / 96.0 if dpi > 0 else 1.0
         var event = input.Event(kind = input.EventKind.pointer_moved, modifiers = win_modifiers(), x = (f64)point.x / scale, y = (f64)point.y / scale)
+        if message == 512 and not state.pointer_tracking:
+            var tracking = WinMouseTracking(size = (u32)sizeof(WinMouseTracking), flags = 2, window = native)
+            state.pointer_tracking = TrackMouseEvent(&tracking) != 0
+            var entered = event
+            entered.kind = input.EventKind.pointer_entered
+            push_event(state, entered)
         if scrolling:
             event.kind = input.EventKind.scroll
             let delta = (f64)signed_half((isize)(word >> 16)) / 120.0

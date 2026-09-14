@@ -54,6 +54,7 @@ extern func msg_convert as "objc_msgSend"(object: void*, selector: void*, point:
 extern func msg_extent as "objc_msgSend"(object: void*, selector: void*, size: LuceWindowMacExtent)
 extern func msg_init_window as "objc_msgSend"(object: void*, selector: void*, rect: LuceWindowMacRect, style: u64, backing: u64, deferred: bool) -> void*?
 extern func msg_init_view as "objc_msgSend"(object: void*, selector: void*, rect: LuceWindowMacRect) -> void*?
+extern func msg_init_tracking as "objc_msgSend"(object: void*, selector: void*, rect: LuceWindowMacRect, options: u64, owner: void*, user_info: void*?) -> void*?
 extern func msg_init_text as "objc_msgSend"(object: void*, selector: void*, bytes: const u8*, length: usize, encoding: u64) -> void*?
 extern func msg_next as "objc_msgSend"(object: void*, selector: void*, mask: u64, until: void*, mode: void*, dequeue: bool) -> void*?
 extern func msg_observe as "objc_msgSend"(object: void*, selector: void*, observer: void*, callback: void*, name: void*, sender: void*)

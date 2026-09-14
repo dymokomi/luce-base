@@ -1700,7 +1700,7 @@ USB HID keyboard-page usages, independent of the host's virtual key numbers. Unk
 
 ### `Event` (struct)
 
-A self-contained value; it retains no native object or borrowed text. Only the fields associated with kind are meaningful. Pointer buttons are zero-based: 0 left, 1 right, 2 middle, then auxiliary buttons. Scroll deltas retain the OS user preference: positive x/y mean scrolling content right/up on macOS. On focus_lost or overflow, discard application-held pressed-key/button state.
+A self-contained value; it retains no native object or borrowed text. Only the fields associated with kind are meaningful. Pointer buttons are zero-based: 0 left, 1 right, 2 middle, then auxiliary buttons. Scroll deltas retain the OS user preference: positive x/y mean scrolling content right/up on macOS. On focus_lost or overflow, discard application-held pressed-key/button state. pointer_left clears hover, not a captured drag. Pointer coordinates are valid on pointer_entered; pointer_left carries no position.
 
 - `var kind: EventKind`
 - `var key: Key`

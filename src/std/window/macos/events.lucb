@@ -56,7 +56,12 @@ func pointer_callback(object: void*, selector: void*, native: void*):
     let position = msg_convert(object, sel("convertPoint:fromView:"), msg_point(native, sel("locationInWindow")), none)
     var event = input.Event(kind = input.EventKind.pointer_moved, x = position.x, y = position.y)
     event.modifiers = modifiers(msg_uint(native, sel("modifierFlags")))
-    if native_type == 1 or native_type == 3 or native_type == 25:
+    if native_type == 8:
+        event.kind = input.EventKind.pointer_entered
+    elif native_type == 9:
+        push_event(state, input.Event(kind = input.EventKind.pointer_left))
+        return
+    elif native_type == 1 or native_type == 3 or native_type == 25:
         event.kind = input.EventKind.pointer_down
         event.button = (u32)msg_uint(native, sel("buttonNumber"))
     elif native_type == 2 or native_type == 4 or native_type == 26:

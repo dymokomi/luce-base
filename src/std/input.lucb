@@ -16,6 +16,8 @@ pub enum EventKind as u8:
     scroll = 11
     overflow = 12
     text_input = 13
+    pointer_entered = 14
+    pointer_left = 15
 
 ## USB HID keyboard-page usages, independent of the host's virtual key numbers.
 ## Unknown or unsupported positions produce unknown rather than a guessed key.
@@ -120,6 +122,8 @@ pub enum ScrollUnit as u8:
 ## 0 left, 1 right, 2 middle, then auxiliary buttons. Scroll deltas retain the OS
 ## user preference: positive x/y mean scrolling content right/up on macOS.
 ## On focus_lost or overflow, discard application-held pressed-key/button state.
+## pointer_left clears hover, not a captured drag. Pointer coordinates are valid
+## on pointer_entered; pointer_left carries no position.
 pub struct Event:
     pub var kind: EventKind
     pub var key: Key

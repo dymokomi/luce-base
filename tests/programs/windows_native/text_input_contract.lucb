@@ -56,5 +56,16 @@ pub func main(arguments: str[]) -> i32!:
             break
         thread.sleep(1)
     assert(wheel == 3)
+    assert(PostMessageW(handle, 512, 0, 12 | (20 << 16)) != 0)
+    assert(PostMessageW(handle, 675, 0, 0) != 0)
+    var entered = false
+    var left = false
+    for tick in 0..<200:
+        while let event = try host.poll():
+            if event.kind == input.EventKind.pointer_entered: entered = true
+            if event.kind == input.EventKind.pointer_left: left = true
+        if entered and left: break
+        thread.sleep(1)
+    assert(entered and left)
     print("ok Windows Unicode text input and wheel direction")
     return 0

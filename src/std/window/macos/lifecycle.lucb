@@ -34,7 +34,7 @@ func setup_classes() -> !:
         var keys: c.str[3] = ["keyDown:", "keyUp:", "flagsChanged:"]
         for name in keys:
             try add_method(native_type, name, (void*)key_callback, "v@:@")
-        var pointer: c.str[11] = ["mouseDown:", "mouseUp:", "rightMouseDown:", "rightMouseUp:", "otherMouseDown:", "otherMouseUp:", "mouseMoved:", "mouseDragged:", "rightMouseDragged:", "otherMouseDragged:", "scrollWheel:"]
+        var pointer: c.str[13] = ["mouseDown:", "mouseUp:", "rightMouseDown:", "rightMouseUp:", "otherMouseDown:", "otherMouseUp:", "mouseMoved:", "mouseDragged:", "rightMouseDragged:", "otherMouseDragged:", "scrollWheel:", "mouseEntered:", "mouseExited:"]
         for name in pointer:
             try add_method(native_type, name, (void*)pointer_callback, "v@:@")
         objc_registerClassPair(native_type)
@@ -63,6 +63,12 @@ func mac_open(options: Options) -> State*!:
     state.view = view
     set_state(view, state)
     msg_object(native, sel("setContentView:"), view)
+    # The view retains its tracking area. InVisibleRect lets AppKit update its
+    # bounds on resize; enter/leave remain paired while a captured drag moves out.
+    let tracking_allocated = msg_ptr(try native_class("NSTrackingArea"), sel("alloc")) else error(failed, "could not allocate pointer tracking")
+    let tracking = msg_init_tracking(tracking_allocated, sel("initWithRect:options:owner:userInfo:"), rect, 0x01 | 0x20 | 0x200 | 0x400, view, none) else error(failed, "could not initialize pointer tracking")
+    msg_object(view, sel("addTrackingArea:"), tracking)
+    msg_void(tracking, sel("release"))
     let delegate = msg_ptr(required(delegate_class), sel("new")) else error(failed, "could not allocate a window delegate")
     state.delegate = delegate
     set_state(delegate, state)
