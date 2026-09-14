@@ -3802,15 +3802,24 @@ pub struct Emitter:
             try self.put("ULL)])")
             return
         if self.is_span(ot):
-            try self.put("(((")
+            # the span is read once: its data for the element and its length for the check,
+            # so a call that produces it runs once (§7.1)
+            let n = self.tmp()
+            try self.put("(*({ ")
+            try self.put_type(ot)
+            try self.put(" ")
+            try self.put_tmp("ix", n)
+            try self.put(" = ")
+            try self.expr(owner)
+            try self.put("; &((")
             try self.put_type(self.elem(ot))
             try self.put("*)")
-            try self.expr(owner)
+            try self.put_tmp("ix", n)
             try self.put(".data)[lb_at((uint64_t)(")
             try self.expr(i)
             try self.put("), ")
-            try self.expr(owner)
-            try self.put(".length + 1ULL)])" if one_past else ".length)])")
+            try self.put_tmp("ix", n)
+            try self.put(".length + 1ULL)]; }))" if one_past else ".length)]; }))")
             return
         if self.is_ptr(ot):
             # element-scaled by the pointee, an array included (§7.7)

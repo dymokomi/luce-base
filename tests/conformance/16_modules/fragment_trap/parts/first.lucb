@@ -1,0 +1,2 @@
+pub func first() -> i64:
+    return 1

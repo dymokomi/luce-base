@@ -132,6 +132,10 @@ func source_file(root: str, name: str, base_only: bool) -> str?!:
     let base = try strings.join([prefix, ".lucb"], "")
     if try present(base):
         return try canonical(base)
+    # a directory whose `ORDER` lists the module's fragments stands for the file
+    let order = try strings.join([prefix, "/ORDER"], "")
+    if try present(order):
+        return try canonical(prefix)
     return none
 
 func exported(package: Package, name: str, base_only: bool) -> Resolution?!:

@@ -1,0 +1,4 @@
+## The second fragment shares the first's scope: `shared` is private to the module, not
+## to a fragment.
+pub func second() -> i64:
+    return shared() + first()

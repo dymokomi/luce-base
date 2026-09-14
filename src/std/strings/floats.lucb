@@ -10,7 +10,9 @@ extern func create_locale_windows as "_create_locale"(category: i32, name: c.str
 extern func free_locale_windows as "_free_locale"(locale: void*)
 extern func convert_f64_windows as "_strtod_l"(text: c.str, end: u8*?*, locale: void*) -> f64
 extern func convert_f32_windows as "_strtof_l"(text: c.str, end: u8*?*, locale: void*) -> f32
-extern func print_float_windows as "_snprintf_l"(output: u8*, size: usize, format: c.str, locale: void*, ...) -> i32
+## The UCRT's `_snprintf_l` is a header inline no native program can link; the export
+## behind it takes the arguments as a `va_list`, which on x64 points at them, eight bytes each.
+extern func print_float_windows as "__stdio_common_vsprintf"(options: u64, output: u8*, size: usize, format: c.str, locale: void*?, arguments: void*) -> i32
 
 func parse_native_f64(text: c.str, end: u8*?*, locale: void*) -> f64:
     if platform.windows:
@@ -124,7 +126,9 @@ func format_float(value: f64, precision: i32, buffer: u8[]) -> str!:
     var temporary: u8[32]
     var count: i32 = 0
     if platform.windows:
-        count = print_float_windows(&temporary[0], temporary.length, "%.*g", locale.handle(), precision, value)
+        # `_CRT_INTERNAL_PRINTF_STANDARD_SNPRINTF_BEHAVIOR`: C99's count and termination
+        var arguments: u64[2] = [(u64)precision, memory.read[u64](&value)]
+        count = print_float_windows(2, &temporary[0], temporary.length, "%.*g", locale.handle(), (void*)&arguments[0])
     elif platform.macos:
         count = print_float_macos(&temporary[0], temporary.length, locale.handle(), "%.*g", precision, value)
     else:

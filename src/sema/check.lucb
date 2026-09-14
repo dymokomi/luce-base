@@ -172,8 +172,8 @@ pub struct Checker:
         var column: u32 = 0
         if self.current < self.modules.count:
             let m = self.modules.get(self.current)
-            name = m.src.path
-            let (l, col) = m.src.position(node.start)
+            let (file, l, col) = m.src.located(node.start)
+            name = file
             line = l
             column = col
         let message = try format(self.scratch[..<half], f"{name}:{line}:{column}: {what}")
@@ -574,7 +574,7 @@ pub struct Checker:
         try self.loading.push(name)
         defer self.finish_load()
         let text = (str)path
-        let src = source.Source.load(path) catch failure:
+        let src = self.load_source(path) catch failure:
             let half = self.scratch.length // 2
             # a located message (`path:line:column: ...`) stands as it is, copied into the
             # scratch that outlives the build's arena; only a file that cannot be opened is
@@ -626,8 +626,8 @@ pub struct Checker:
                             # the message sits in the scratch's lower half; the located one
                             # goes to the upper half
                             let half = self.scratch.length // 2
-                            let (line, column) = src.position(d.start)
-                            let located = try format(self.scratch[half..], f"{src.path}:{line}:{column}: {failure.message}")
+                            let (file, line, column) = src.located(d.start)
+                            let located = try format(self.scratch[half..], f"{file}:{line}:{column}: {failure.message}")
                             error(unknown_name, located)
                         error(failure.code, failure.message)
                     if exported != none:
@@ -651,10 +651,49 @@ pub struct Checker:
             for i in dir.length..<candidate.length:
                 if candidate.bytes[i] == '.' and i + 5 < candidate.length:
                     buffer[i] = '/'
-            if file_exists((c.str)candidate) or dir.length == 0:
+            if file_exists((c.str)candidate):
+                self.root = dir
+                return candidate
+            # a directory whose `ORDER` lists the module's fragments stands for the file; its
+            # path gets a terminated buffer of its own, since the candidate's runs on
+            let stem = (str)candidate.bytes[..<candidate.length - 5]
+            var directory_buffer = try alloc u8[stem.length + 1]
+            let directory = try format(directory_buffer, f"{stem}")
+            var order_buffer = try alloc u8[directory.length + 8]
+            if file_exists((c.str)try format(order_buffer, f"{directory}/ORDER")):
+                self.root = dir
+                return directory
+            if dir.length == 0:
+                # nowhere left to look: the file's own name goes into the diagnostic
                 self.root = dir
                 return candidate
             dir = manifest.parent_of(dir)
+
+    ## The source at `path`: one file, or the fragments its `ORDER` lists when `path` is a
+    ## directory, assembled in order as one module whose positions name the fragment files.
+    func load_source(path: c.str) -> source.Source!:
+        let text = (str)path
+        var order_bytes = try alloc u8[text.length + 8]
+        let order = files.read((c.str)try format(order_bytes, f"{text}/ORDER")) catch:
+            return try source.Source.load(path)
+        var names = try list.List[str].create(8)
+        var texts = try list.List[const u8[]].create(8)
+        var start: usize = 0
+        var i: usize = 0
+        while i <= order.length:
+            let blank = i == order.length or order[i] == '\n' or order[i] == ' ' or order[i] == '\r' or order[i] == '\t'
+            if blank and i > start:
+                let part = (str)order[start..<i]
+                var fragment_bytes = try alloc u8[text.length + part.length + 2]
+                let fragment = try format(fragment_bytes, f"{text}/{part}")
+                try names.push(fragment)
+                try texts.push(try files.read((c.str)fragment))
+            if blank:
+                start = i + 1
+            i += 1
+        if names.count == 0:
+            error(unknown_name, "an `ORDER` names at least one fragment")
+        return try source.Source.assembled(text, names.span(), texts.span())
 
     ## Whether `m` is the standard `c` module, whose types the checker supplies (§5.2).
     func is_c_module(m: ast.Node*) -> bool:

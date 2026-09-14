@@ -11,6 +11,7 @@
 
 import c
 import files
+import memory
 
 pub let bad_encoding: ErrorCode = ErrorCode.package(1)
 pub let unreadable: ErrorCode = ErrorCode.package(2)
@@ -33,6 +34,49 @@ pub struct Source:
     ## Where each line begins, for the positions traps name (§11.5)
     pub var lines: usize*?
     pub var line_count: usize
+    ## A module assembled from fragments: each fragment's path and the line it begins at,
+    ## so a position names the fragment file (`mapped`); empty for one file.
+    pub var segment_paths: str*?
+    pub var segment_starts: u32*?
+    pub var segment_count: usize
+
+    ## The fragments a directory's `ORDER` lists, in order, as one source at `path`: each
+    ## fragment is one segment, ending with a newline of its own.
+    pub static func assembled(path: str, names: str[], texts: const u8[][]) -> Source!:
+        var total: usize = 0
+        for text in texts:
+            total += text.length + 1
+        let data = try alloc u8[total]
+        let paths = try alloc str[names.length]
+        let starts = try alloc u32[names.length]
+        var at: usize = 0
+        var line: u32 = 1
+        var k: usize = 0
+        while k < names.length:
+            paths[k] = names[k]
+            starts[k] = line
+            let text = texts[k]
+            memory.copy(data[at..], text, text.length)
+            at += text.length
+            for b in text:
+                if b == '\n':
+                    line += 1
+            if text.length == 0 or text[text.length - 1] != '\n':
+                data[at] = '\n'
+                at += 1
+                line += 1
+            k += 1
+        var src = try Source.over(path, data[..<at])
+        src.segment_paths = &paths[0] if names.length > 0 else none
+        src.segment_starts = &starts[0] if names.length > 0 else none
+        src.segment_count = names.length
+        return src
+
+    ## The file, line, and column a position names: a directive's, a fragment's, or this
+    ## source's own.
+    pub func located(offset: usize) -> (str, u32, u32):
+        let (line, column) = self.position(offset)
+        return self.mapped(line, column)
 
     ## Load a file into the current allocator and check it is UTF-8 without NUL.
     pub static func load(path: c.str) -> Source!:
@@ -65,7 +109,7 @@ pub struct Source:
                 starts[k] = i + 1
                 k += 1
             i += 1
-        return Source(path = path, bytes = body, directives = directives, directive_count = count, lines = &starts[0], line_count = line_count)
+        return Source(path = path, bytes = body, directives = directives, directive_count = count, lines = &starts[0], line_count = line_count, segment_paths = none, segment_starts = none, segment_count = 0)
 
     ## One-based column of the first non-blank byte of a line: where the statement on it
     ## begins, which is what a trap names (§11.5).
@@ -93,6 +137,16 @@ pub struct Source:
             if let d = found:
                 if d.file.length > 0:
                     return (d.file, d.line, d.column)
+        if let paths = self.segment_paths:
+            if let starts = self.segment_starts:
+                var k: usize = 0
+                var found: usize = 0
+                while k < self.segment_count:
+                    if starts[k] <= line:
+                        found = k
+                    k += 1
+                if self.segment_count > 0:
+                    return (paths[found], line - starts[found] + 1, column)
         return (self.path, line, column)
 
     ## One-based line and column of a byte offset, counting columns in bytes.

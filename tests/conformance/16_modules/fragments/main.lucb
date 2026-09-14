@@ -1,0 +1,8 @@
+# oracle: none -- fragment directories are this compiler's module layout; the seed reads one file per module
+## §16.1: a module may be a directory whose `ORDER` lists its source fragments, which share
+## one module scope, exactly as the standard library is laid out.
+import parts
+
+pub func main(arguments: str[]) -> i32:
+    print(f"{parts.first()} {parts.second()}")
+    return 0

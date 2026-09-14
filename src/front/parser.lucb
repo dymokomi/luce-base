@@ -44,7 +44,8 @@ pub struct Parser:
             let t = lx.next() catch failure:
                 let (line, column) = lx.error_position()
                 let half = scratch.length // 2
-                let message = try format(scratch[..<half], f"{lx.src.path}:{line}:{column}: {failure.message}")
+                let (file, mapped_line, mapped_column) = lx.src.mapped(line, column)
+                let message = try format(scratch[..<half], f"{file}:{mapped_line}:{mapped_column}: {failure.message}")
                 error(failure.code, message)
             if n == buffer.length:
                 let grown = try alloc token.Token[buffer.length * 2]
@@ -121,7 +122,8 @@ pub struct Parser:
     pub func fail(what: str) -> ast.Node*!:
         let t = self.cur()
         let half = self.scratch.length // 2
-        let message = try format(self.scratch[..<half], f"{self.src.path}:{t.line}:{t.column}: {what}")
+        let (file, line, column) = self.src.mapped(t.line, t.column)
+        let message = try format(self.scratch[..<half], f"{file}:{line}:{column}: {what}")
         error(syntax, message)
 
     func spelled(prefix: str, spelling: str) -> str!:

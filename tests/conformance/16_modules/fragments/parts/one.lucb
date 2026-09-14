@@ -1,0 +1,6 @@
+## The first fragment of `parts`: what the second one completes.
+pub func first() -> i64:
+    return 1
+
+func shared() -> i64:
+    return 40

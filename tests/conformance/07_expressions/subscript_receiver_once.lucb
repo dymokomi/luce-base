@@ -1,0 +1,20 @@
+## §7.1, §7.7: the receiver of a subscript is evaluated once, so a call that produces the
+## span runs once, in every execution, whether the element is read or its address taken.
+struct Reader:
+    var calls: i64
+    var bytes: u8[4]
+
+    mutating func take() -> const u8[]!:
+        self.calls += 1
+        return self.bytes[..<2]
+
+    mutating func first() -> u8!:
+        return (try self.take())[0]
+
+pub func main(arguments: str[]) -> i32!:
+    var reader = Reader(calls = 0, bytes = [7, 8, 9, 10])
+    let a = try reader.first()
+    let b = (try reader.take())[1]
+    let p = &(try reader.take())[0]
+    print(f"{a} {b} {*p} {reader.calls}")
+    return 0

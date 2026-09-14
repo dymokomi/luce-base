@@ -1320,7 +1320,7 @@ pub func main(arguments: str[]) -> i32!:
 
 ### 16.1 Files and modules
 
-One file is one module; its path is its package-relative path: `src/image/color.lucb` is `image.color`, so a file's name without `.lucb` is an identifier. There is no module declaration and no re-export. Module cycles are errors. Declarations are private unless `pub`, and a public signature may mention only public types.
+One file is one module; its path is its package-relative path: `src/image/color.lucb` is `image.color`, so a file's name without `.lucb` is an identifier. A larger module may be a directory of that name instead, whose `ORDER` file lists its source fragments in order; the fragments share the one module scope, a diagnostic or a trap names the fragment file, and nothing else about the module changes. There is no module declaration and no re-export. Module cycles are errors. Declarations are private unless `pub`, and a public signature may mention only public types.
 
 ### 16.2 The three module kinds
 

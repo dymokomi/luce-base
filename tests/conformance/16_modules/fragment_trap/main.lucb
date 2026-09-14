@@ -1,0 +1,7 @@
+# oracle: none -- fragment directories are this compiler's module layout; the seed reads one file per module
+import parts
+
+pub func main(arguments: str[]) -> i32:
+    let items: i64[2] = [1, 2]
+    print(f"{parts.pick(items, arguments.length + 5)}")
+    return 0

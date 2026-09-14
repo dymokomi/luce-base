@@ -1,0 +1,3 @@
+## A trap in a fragment names the fragment's file and its own line.
+pub func pick(items: const i64[], at: usize) -> i64:
+    return items[at]
