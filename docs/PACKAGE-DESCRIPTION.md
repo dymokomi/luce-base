@@ -8,7 +8,6 @@ together; no older reader, alternate format flag or compatibility fallback exist
 The producer is `src/sema/describe.lucb`. The consumer is
 `luce/src/sema/boundary.lucb`. This format describes language declarations; it does
 not imply that every native signature already has an executable Luce adapter.
-[The rewrite checklist](PACKAGE-REWRITE-TODO.md) tracks those adapters separately.
 
 ## Records
 

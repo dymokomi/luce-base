@@ -4,9 +4,8 @@ One matrix of what this compiler does, kept current: each promise of the specifi
 is **verified** (implemented, and proved by the gate through every execution), **limited**
 (implemented with a boundary named here), **planned**, or **excluded** (outside Base by
 decision). The shape of the compiler is [DESIGN.md](DESIGN.md); what remains to do is
-[PLAN.md](PLAN.md). The historical Unix gate covers arm64 macOS and x86_64 Linux. Windows x64
-execution evidence and current platform boundaries are recorded in
-[WINDOWS_VALIDATION.md](WINDOWS_VALIDATION.md) and [WINDOWS.md](WINDOWS.md).
+[PLAN.md](PLAN.md). The Unix gate covers arm64 macOS and x86_64 Linux; the Windows x64 target and its
+checks are in [WINDOWS.md](WINDOWS.md).
 
 ## The executions
 

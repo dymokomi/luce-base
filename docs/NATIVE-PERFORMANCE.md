@@ -115,10 +115,9 @@ removable without changing the language's guarantees.
 
 The current opt-3 executable is **671,128 bytes**, versus **34,424 bytes** for C
 and **687,656 bytes** for the original Base binary. The roughly 19.5× file-size
-gap remains. This work does not implement unused code/data elimination; the
-[original footprint analysis](NATIVE-PERFORMANCE-BASELINE.md#binary-size-and-memory)
-documents retained unrelated runtime code and data. Its detailed section sizes
-describe the baseline binary, not the current one.
+gap remains. This work does not implement unused code/data elimination; the gap is retained
+runtime code and data, recorded in
+[the linked section sizes](../benchmarks/native_vs_c/results/2026-09-12-m4-link-size.json).
 
 Median peak RSS remains 48–64 KiB higher for Base in this common driver. Inputs
 are allocated by the driver and kernels allocate nothing, so this is not an
@@ -146,9 +145,7 @@ GUI interaction and clean application output. The HTTP application's native
 shutdown heap check reported zero leaks. Compiler and package dependency pins
 are committed in each consumer repository.
 
-The full Base CI gate passed on ARM64 macOS and x86-64 Linux at the measured
-implementation commit. Run links and consumer results are recorded in the
-[completed checklist](NATIVE-OPTIMIZATION-TODO.md). M4 runtime measurements
+M4 runtime measurements
 do not imply Linux or Windows performance; collect an independent x86-64 baseline
 and application, allocator, string, file/network and multithreading measurements
 before drawing broader conclusions.
@@ -166,7 +163,6 @@ host and power metadata, trial order, checksums, peak RSS and process times.
 - [Harness and methodology](../benchmarks/native_vs_c/README.md)
 - [Final primary results, 100 ms calibration](../benchmarks/native_vs_c/results/2026-09-12-m4-optimized-100ms.json)
 - [Final confirmation, 30 ms calibration](../benchmarks/native_vs_c/results/2026-09-12-m4-optimized-30ms.json)
-- [Original baseline report](NATIVE-PERFORMANCE-BASELINE.md)
 - [Original primary results](../benchmarks/native_vs_c/results/2026-09-12-m4-100ms.json)
 - [Original confirmation](../benchmarks/native_vs_c/results/2026-09-12-m4-30ms.json)
 - [Original linked section sizes](../benchmarks/native_vs_c/results/2026-09-12-m4-link-size.json)

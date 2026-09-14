@@ -1,42 +1,16 @@
 # Ecosystem roadmap
 
-The standard-library stage is complete. At the user's request on 2026-09-10,
-`luce-server` now proceeds before TLS completion. `luce-tls` is paused at its
-committed identity/dependency checkpoint. Its post-quantum profile remains required
-for later Luce communication and package-client traffic.
-
-Current stage: **error-handling design discussion**. The package API rewrite is
-complete, using Base structs, constructors, methods and interfaces with Luce
-interoperability. The [rewrite inventory](PACKAGE-REWRITE.md) and
-[completed checklist](PACKAGE-REWRITE-TODO.md) record the source boundaries,
-implementation commits and validation evidence. Luce uses existing `Type(args)`
-construction. There are no external users or released compatibility obligations;
-future design changes should update consumers directly without legacy paths.
-TLS remains paused. Rewrite sections 1–7 are implemented: typed Base/Luce
-ownership, callbacks/workers, the server/application, scoped GPU resources, UI
-controls and 3D scene composition. UI, 3D and demos are public under `dymokomi`.
-The nine supplied correctness reports have [recorded dispositions](REPORTED-DEFECTS.md),
-fixes and focused regressions; full local compiler and downstream gates pass. Base and Luce also pass their
-complete hosted gates on ARM64 macOS and x86-64 Linux. Package checks pass on both
-hosts; the server workflow was cancelled after successful testing because its
-checkout cleanup stalled. Exact commits and verification are in the checklist.
-
-Implementation now stops for the [error-handling design discussion](ERROR-HANDLING-RESEARCH.md).
-The research recommends checked automatic propagation within Luce's declared
-fallible functions and broader expression coverage for Base's `try`. The report
-covers alternatives, ownership, callbacks, allocation policy, native lowering and
-acceptance criteria. It also records two existing Luce result/callback limitations
-that the design must address. No syntax or error-handling semantics have been
-changed by the study. Do not resume TLS or implement that proposal before the
-next design decision.
-
-Completed foundation: **standard `net` protocol primitives**, HTTP/1.1 and WebSocket
-in luce-base, verified on both native hosts on 2026-09-10. The server is an entirely
-Base library built on `net`; `luce-http-server` is its Luce consumer.
-[Protocol primitives](NET_PROTOCOLS.md) describes the standard API and tests.
-
-Stage 1 closed for Base 0.12.0 on 2026-09-10; [standard-library readiness](STDLIB.md)
-records the Base and downstream Luce gates on both native hosts.
+The packages around the compiler, their boundaries, and what each still needs. The
+package API is Base structs, constructors, methods and interfaces with Luce
+interoperability ([BASE-INTEROP.md](BASE-INTEROP.md), [CALLBACKS-WORKERS.md](CALLBACKS-WORKERS.md));
+Luce constructs with `Type(args)`. There are no external users or compatibility
+obligations: a design change updates its consumers directly, without legacy paths.
+`luce-tls` is paused at its identity/dependency checkpoint; its post-quantum profile
+remains required for later Luce communication and package-client traffic. The open
+design question is error-handling ergonomics ([ERROR-HANDLING-RESEARCH.md](ERROR-HANDLING-RESEARCH.md)):
+checked automatic propagation inside Luce's declared fallible functions, and broader
+expression coverage for Base's `try`. Neither TLS nor that proposal proceeds before
+that decision.
 
 ## Repository boundaries
 
@@ -54,8 +28,8 @@ public on GitHub. Compiler integration for installation remains in the existing
 
 ## 1. Base standard library
 
-Make `math`, `net`, `io`, `files` and `strings` a dependable, documented systems
-library before building TLS. [STDLIB.md](STDLIB.md) defines the work and exit gate.
+`math`, `net`, `io`, `files` and `strings` are the dependable, documented systems
+library TLS builds on.
 Native ARM64 macOS and x86-64 Linux are the execution targets; all native
 optimization levels matter. C comparisons are supplemental.
 

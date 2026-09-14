@@ -24,8 +24,7 @@ that it reproduces its own assembly. The language is
 seed implements. What remains to do is [`docs/PLAN.md`](docs/PLAN.md); how the
 compiler is shaped is in [`docs/DESIGN.md`](docs/DESIGN.md).
 The [platform architecture](docs/PLATFORM-ARCHITECTURE.md) describes OS, CPU and
-GPU boundaries; the [September platform audit results](docs/PLATFORM-HARDENING-RESULTS.md)
-record the tested revisions and remaining coverage limits.
+GPU boundaries.
 
 Normal builds, test runners and static libraries use the native backend. `--native`
 remains an explicit alias. `--backend=c` selects the existing C comparison backend;

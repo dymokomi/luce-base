@@ -1,7 +1,6 @@
 # Callbacks and application workers
 
-This is the section-two implementation contract. Implementation and execution
-evidence are tracked separately in [the rewrite checklist](PACKAGE-REWRITE-TODO.md).
+The contract for callbacks and worker threads across the Base/Luce boundary.
 
 ## Retained callbacks
 

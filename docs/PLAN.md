@@ -6,13 +6,10 @@ limited, planned, or excluded today; nothing is listed here that already exists.
 
 ## Active priority
 
-The foundational standard-library stage is complete; [STDLIB.md](STDLIB.md) records
-the results for `math`, `net`, `io`, `files` and `strings`.
-Standard `net` HTTP/1.1 and WebSocket primitives are also complete;
-[NET_PROTOCOLS.md](NET_PROTOCOLS.md) records their contracts and passing validation
-on both native hosts. Work stops here at the user's request. TLS is paused, and
-`luce-server` requires a separate next step. [ECOSYSTEM.md](ECOSYSTEM.md) defines
-those boundaries.
+The standard library (`math`, `net` with HTTP/1.1 and WebSocket, `io`, `files`,
+`strings`) is in place; [NET_PROTOCOLS.md](NET_PROTOCOLS.md) holds the protocol
+contracts. TLS is paused and `luce-server` is a separate package;
+[ECOSYSTEM.md](ECOSYSTEM.md) defines those boundaries.
 The compiler items below remain a backlog and are pulled forward only when they block
 that work. Native compilation remains the primary execution and hardening target.
 
@@ -43,9 +40,7 @@ that work. Native compilation remains the primary execution and hardening target
    (`docs/DEBUGGING.md`). What remains is location tracking for optimized user code and
    higher-level presentation of payload enums and Luce ARC values. Gate: correct variable
    locations across optimization, inlining, calls and scope exit in both debuggers.
-7. **Further library breadth.** The five foundational modules, including IPv6,
-   completed the milestone in [STDLIB.md](STDLIB.md). TLS belongs to the paused
-   `luce-tls` package. Graphics remains deferred: a portable window/input/GPU
+7. **Further library breadth.** TLS belongs to the paused `luce-tls` package. Graphics remains deferred: a portable window/input/GPU
    interface with a proving program on each supported host.
 8. **`luce-ld`.** Everything links through the host's `ld` or `cc`. A linker
    of our own, as Zig carries one, in its own repository. Gate: a native build

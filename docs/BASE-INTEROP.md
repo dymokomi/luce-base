@@ -1,9 +1,6 @@
 # Base-to-Luce ownership contract
 
-Updated 2026-09-11. This contract is implemented by the Base/Luce compiler boundary.
-Sections 1 and 2 of the rewrite are complete; package adoption follows in later phases.
-Implementation and verification are tracked in
-[PACKAGE-REWRITE-TODO.md](PACKAGE-REWRITE-TODO.md).
+This contract is implemented by the Base/Luce compiler boundary.
 
 ## Language and representation
 

@@ -118,8 +118,8 @@ timer ticks. Its optional GUI cases exercise Win32 and actual Vulkan presentatio
 Each runs in native opt 0–3, native debug and C debug/release modes. JSON results
 are retained in `build/`.
 Vulkan ABI checks compare all fields of 63 records against the installed SDK.
-See [the local validation record](WINDOWS_VALIDATION.md) for observed results and
-the distinction between Windows execution and Unix cross-compilation.
+Windows execution is proved only by those runs; the Unix hosts cross-compile the
+target's C and assembly without running them.
 
 Shared Win32 ABI declarations and UTF-8/UTF-16 conversion live in the internal
 `windows_abi` and `windows_text` standard modules. Filesystem, process and window
