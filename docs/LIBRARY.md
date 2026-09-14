@@ -1595,6 +1595,18 @@ A sorted snapshot owns all entry names. Reading another entry never invalidates 
 
 - `func ensure_directory(path: str) -> !` — Ensure a single directory exists; its parent must already exist.
 
+- `func home_directory() -> interop.Owned[str]!` — Owned home-directory text, independent of later environment reads. Uses the same OS policy as io.path.user: HOME on POSIX, USERPROFILE on Windows.
+
+- `func create_text(path: str, text: str = "") -> !` — Publish complete UTF-8 text only if the destination is unused. A racing creator is refused atomically; existing files and symlinks are never replaced.
+
+- `func copy_path(source: str, destination: str) -> !` — Counted-path operations for managed consumers. Copy and move refuse existing destinations; deletion removes a single entry unless recursive is explicit.
+
+- `func move_path(source: str, destination: str) -> !`
+
+- `func make_directory(path: str) -> !`
+
+- `func delete_path(path: str, recursive: bool = false) -> !`
+
 ## `process`
 
 - `let failed: ErrorCode = ErrorCode.package(8)`

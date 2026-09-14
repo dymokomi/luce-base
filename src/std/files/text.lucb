@@ -95,3 +95,54 @@ pub func ensure_directory(path: str) -> !:
             error(failure.code, failure.message)
         if (try metadata((c.str)native)).kind != FileKind.directory:
             error(not_directory, "the existing path is not a directory")
+
+## Owned home-directory text, independent of later environment reads. Uses the
+## same OS policy as io.path.user: HOME on POSIX, USERPROFILE on Windows.
+pub func home_directory() -> interop.Owned[str]!:
+    let home = try io.path.user()
+    if home.length == 0:
+        error(invalid_options, "the user home directory is empty")
+    return try interop.copy_text(home)
+
+## Publish complete UTF-8 text only if the destination is unused. A racing
+## creator is refused atomically; existing files and symlinks are never replaced.
+pub func create_text(path: str, text: str = "") -> !:
+    if not utf8.valid(text.bytes):
+        error(invalid_options, "file text must be valid UTF-8")
+    let native = try text_path(path)
+    defer strings.release(native)
+    var replacement = try Replacement.prepare((c.str)native, 420, false)
+    defer replacement.destroy()
+    try io.write_all(&replacement.temporary, text.bytes)
+    try replacement.finish((c.str)native, false, none)
+
+## Counted-path operations for managed consumers. Copy and move refuse existing
+## destinations; deletion removes a single entry unless recursive is explicit.
+pub func copy_path(source: str, destination: str) -> !:
+    let origin = try text_path(source)
+    defer strings.release(origin)
+    let target = try text_path(destination)
+    defer strings.release(target)
+    discard(try copy_file((c.str)origin, (c.str)target))
+
+pub func move_path(source: str, destination: str) -> !:
+    let origin = try text_path(source)
+    defer strings.release(origin)
+    let target = try text_path(destination)
+    defer strings.release(target)
+    try rename((c.str)origin, (c.str)target, replace = false)
+
+pub func make_directory(path: str) -> !:
+    let native = try text_path(path)
+    defer strings.release(native)
+    try create_directory((c.str)native)
+
+pub func delete_path(path: str, recursive: bool = false) -> !:
+    let native = try text_path(path)
+    defer strings.release(native)
+    if recursive:
+        try remove_tree((c.str)native)
+    elif (try metadata((c.str)native, follow_symlinks = false)).kind == FileKind.directory:
+        try remove_directory((c.str)native)
+    else:
+        try remove_file((c.str)native)
