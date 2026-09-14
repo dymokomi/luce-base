@@ -1678,11 +1678,13 @@ Value() creates an object. Arrays and scalar values use the named constructors. 
 
 ## `input`
 
-Window input uses logical points, with the origin at the content's top left. Physical keys describe positions, not characters. text_input carries committed Unicode scalars supplied by the OS text service when a window enables text input.
+Window input uses logical points, with the origin at the content's top left. Physical keys describe positions, not characters. text_input carries committed Unicode scalars supplied by the OS text service when a window enables text input. Semantic system cursors. These values carry no native window dependency; window.Window maps them to the host's standard, DPI-aware cursor resources.
+
+### `Cursor` (enumas u8)
+
+Window input uses logical points, with the origin at the content's top left. Physical keys describe positions, not characters. text_input carries committed Unicode scalars supplied by the OS text service when a window enables text input. Semantic system cursors. These values carry no native window dependency; window.Window maps them to the host's standard, DPI-aware cursor resources.
 
 ### `EventKind` (enumas u8)
-
-Window input uses logical points, with the origin at the content's top left. Physical keys describe positions, not characters. text_input carries committed Unicode scalars supplied by the OS text service when a window enables text input.
 
 ### `Key` (enumas u16)
 
@@ -1756,6 +1758,8 @@ One owned native window. The zero value is closed. Copies alias ownership: borro
 - `func size() -> Size!`
 - `func resize(width: u32, height: u32) -> !`
 - `func set_text_input(enabled: bool) -> !` — Enable committed text from the active keyboard layout and input method. Disable when no editable control has focus; this cancels pending composition.
+- `func set_cursor(cursor: input.Cursor) -> !` — Choose the cursor for this window's content. Native chrome and other windows keep their own cursors. The choice survives OS cursor updates.
+- `func cursor() -> input.Cursor!`
 - `func acquire_presentation() -> Presentation!` — Reserve this window for one graphics surface. Normally gpu.Surface calls this; applications need not manage the lease themselves.
 - `func request_close() -> !` — Request closure, using the same event as the title-bar close button. The application decides whether to destroy the window after receiving it.
 - `func poll() -> input.Event?!` — Return the oldest queued event, or none after a bounded nonblocking pump. Each window holds 256 events. On exhaustion the queue is discarded and one overflow event precedes subsequent events; close requests remain sticky. No event holds transient AppKit storage. Call regularly for every window.
