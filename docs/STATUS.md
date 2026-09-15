@@ -79,6 +79,14 @@ agree. The gate runs a short
 deterministic pass; `tools/fuzz.py --minutes M` runs longer, and findings land under
 `build/fuzz/`.
 
+## The standard library's unit tests
+
+`tests/std/*_test.lucb` are programs of `test` blocks over each module's public surface,
+run against the archive through both backends by the gate (`luce-base test`): `strings`,
+`paths`, `math` and `math32`, `time`, `utf8`, `io`, `memory`, `files`, and `thread` with
+`sync` and `atomic`. A test lives beside the module's users rather than in the module,
+since a standard module's own file is the prelude and cannot be built as a program.
+
 ## Sanitizers and the other C compilers
 
 `tests/sanitize/run.sh`, a gate step, builds every positive program of the conformance

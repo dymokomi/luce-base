@@ -1,0 +1,28 @@
+## The `memory` module against its archive: copies, fills and the allocators.
+import memory
+
+test "copy, move and set act on bytes":
+    var source: u8[4] = [1, 2, 3, 4]
+    var target: u8[4]
+    memory.copy(target[0..], source[0..], 4)
+    assert(target[0] == 1 and target[3] == 4)
+    memory.set(target[0..], 9)
+    assert(target[0] == 9 and target[3] == 9)
+    memory.move(source[1..], source[0..], 3)
+    assert(source[1] == 1 and source[2] == 2 and source[3] == 3)
+
+test "a fixed buffer hands out its bytes and an arena grows":
+    var backing: u8[256]
+    var fixed = memory.FixedBuffer.over(backing)
+    with fixed:
+        let block = try alloc u8[64]
+        assert(block.length == 64)
+        block[0] = 7
+        assert(block[0] == 7)
+    var arena = try memory.Arena.over(memory.heap, 65536)
+    with arena:
+        let many = try alloc u32[10000]
+        assert(many.length == 10000)
+        many[9999] = 5
+        assert(many[9999] == 5)
+        assert(arena.in_use() >= 40000)

@@ -1,0 +1,29 @@
+## The `io` module against its archive: readers and writers over memory.
+import io
+
+test "a slice reader and writer move bytes":
+    var storage: u8[16]
+    var writer = io.SliceWriter.over(storage[0..])
+    assert(try writer.write("hello".bytes) == 5)
+    assert(try writer.write(" io".bytes) == 3)
+    assert((str)writer.written() == "hello io")
+    var reader = io.SliceReader.over(writer.written())
+    assert(reader.remaining() == 8)
+    var room: u8[5]
+    assert(try reader.read(room[0..]) == 5 and (str)room[0..] == "hello")
+    assert(reader.remaining() == 3)
+    var rest: u8[8]
+    let got = try reader.read(rest[0..])
+    assert(got == 3 and (str)rest[..<3] == " io")
+    assert(try reader.read(rest[0..]) == 0)
+
+test "a buffered writer holds bytes until it flushes":
+    var storage: u8[32]
+    var sink = io.SliceWriter.over(storage[0..])
+    let destination: io.Writer = &sink
+    var buffer: u8[8]
+    var buffered = try io.BufferedWriter.over(destination, buffer[0..])
+    assert(try buffered.write("abc".bytes) == 3)
+    assert(buffered.buffered() == 3 and sink.written().length == 0)
+    try buffered.flush()
+    assert(buffered.buffered() == 0 and (str)sink.written() == "abc")

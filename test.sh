@@ -92,6 +92,13 @@ for native in "--backend=c" ""; do
     cmp build/sample.out tests/samples/diagnostic.out
 done
 rm -f build/sample build/sample.out
+# the standard library's unit tests, programs under tests/std that link the archive and
+# hold `test` blocks over each module's public surface, through both backends
+for f in tests/std/*.lucb; do
+    echo "== std test $f"
+    ./build/luce-base test "$f" --backend=c > /dev/null
+    ./build/luce-base test "$f" --native > /dev/null
+done
 # the proving programs build natively and are driven from outside
 for f in tests/programs/*/check.sh; do
     "$f"

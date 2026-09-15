@@ -1,0 +1,8 @@
+## The `time` module against its archive: the clocks run forward.
+import time
+
+test "the clocks run forward":
+    let start = time.now()
+    assert(time.unix() > 1600000000)
+    assert(time.now() >= start)
+    assert(time.since(start) < 60000000000)

@@ -1,0 +1,13 @@
+## The `paths` module against its archive: lexical splitting and joining.
+import paths
+
+test "paths split into their parts and join":
+    assert(paths.is_absolute("/usr/lib") and not paths.is_absolute("usr/lib"))
+    assert(paths.directory("/usr/lib/x.a") == "/usr/lib" and paths.directory("x.a") == ".")
+    assert(paths.base("/usr/lib/x.a") == "x.a" and paths.base("x.a") == "x.a")
+    assert(paths.extension("x.tar.gz") == ".gz" and paths.extension("x") == "")
+    assert(paths.stem("/usr/lib/x.a") == "x" and paths.stem("noext") == "noext")
+    let joined = try paths.join("/usr", "lib")
+    assert(joined == "/usr/lib")
+    let absolute_wins = try paths.join("/usr", "/etc")
+    assert(absolute_wins == "/etc")

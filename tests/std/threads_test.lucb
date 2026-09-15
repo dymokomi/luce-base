@@ -1,0 +1,32 @@
+## The `thread`, `sync` and `atomic` modules against their archive: a counter under a
+## mutex and an atomic one agree after every thread joins.
+import atomic
+import sync
+import thread
+
+struct Counter:
+    var lock: sync.Mutex
+    var plain: u64
+    var atomic_hits: @u64
+
+func bump(context: void*?):
+    let raw = context else trap("no counter")
+    let counter = (Counter*)raw
+    var i: u32 = 0
+    while i < 1000:
+        counter.lock.lock()
+        counter.plain += 1
+        counter.lock.unlock()
+        counter.atomic_hits += 1
+        i += 1
+    atomic.fence(.seq_cst)
+
+test "threads count under a mutex and an atomic":
+    var counter: Counter
+    var handles: thread.Handle[4]
+    for index in 0..<4:
+        handles[index] = try thread.spawn(bump, &counter)
+    for handle in handles:
+        try handle.join()
+    assert(counter.plain == 4000)
+    assert(counter.atomic_hits.load(.acquire) == 4000)

@@ -1,0 +1,72 @@
+## The `strings` module against its archive: search, transforms, splitting, numbers,
+## floats and replacement, as their contracts in `docs/LIBRARY.md` say.
+import strings
+
+test "search finds what is there and reports what is not":
+    assert(strings.starts_with("luce base", "luce") and not strings.starts_with("luce", "luce base"))
+    assert(strings.ends_with("luce base", "base") and not strings.ends_with("base", "luce base"))
+    assert(strings.find("a needle in a haystack", "needle") == 2)
+    assert(strings.find("haystack", "needle") == none)
+    assert(strings.find_from("abcabc", "abc", 1) == 3)
+    assert(strings.find_last("abcabc", "abc") == 3)
+    assert(strings.last("a/b/c", '/') == 3)
+    assert(strings.contains("wasm runs base", "runs") and not strings.contains("", "x"))
+
+test "trim, join, copy and case changes":
+    assert(strings.trim("  padded\t\n") == "padded" and strings.trim("") == "")
+    let pieces: str[3] = ["a", "b", "c"]
+    let joined = try strings.join(pieces, ", ")
+    defer strings.release(joined)
+    assert(joined == "a, b, c")
+    let upper = try strings.to_upper("mixed Case 7")
+    defer strings.release(upper)
+    assert(upper == "MIXED CASE 7")
+    let lower = try strings.to_lower("MIXED Case 7")
+    defer strings.release(lower)
+    assert(lower == "mixed case 7")
+    let copied = try strings.copy("keep")
+    defer strings.release(copied)
+    assert(copied == "keep")
+
+test "splitting by a byte, by text, once and last":
+    let parts = try strings.split("a,b,,c", ',')
+    assert(parts.length == 4 and parts[0] == "a" and parts[2] == "" and parts[3] == "c")
+    let words = try strings.split_by("one::two::three", "::")
+    assert(words.length == 3 and words[1] == "two")
+    let limited = try strings.split_by("one::two::three", "::", 2)
+    assert(limited.length == 2 and limited[1] == "two::three")
+    let once = strings.split_once("key=value=more", "=") else trap("no separator")
+    assert(once.0 == "key" and once.1 == "value=more")
+    let final = strings.split_last("key=value=more", "=") else trap("no separator")
+    assert(final.0 == "key=value" and final.1 == "more")
+    assert(strings.split_once("plain", "=") == none)
+
+test "integers parse and format in several bases":
+    assert(strings.parse_i64("-42") == -42 and strings.parse_u64("42") == 42)
+    assert(strings.parse_i64("ff", 16) == 255 and strings.parse_u64("101", 2) == 5)
+    assert(strings.parse_i64("12x") == none and strings.parse_u64("-1") == none and strings.parse_i64("") == none)
+    assert(strings.parse_i64("9223372036854775807") == 9223372036854775807)
+    assert(strings.parse_u64("18446744073709551616") == none)
+    var room: u8[32]
+    assert(try strings.format_i64(-255, room[0..], 16) == "-ff")
+    assert(try strings.format_u64(255, room[0..], 2) == "11111111")
+    assert(try strings.format_u64(0, room[0..]) == "0")
+
+test "floats parse and format and come back the same":
+    assert(try strings.parse_f64("1.5") == 1.5 and try strings.parse_f64("-2.5e3") == -2500.0)
+    assert(try strings.parse_f32("0.25") == 0.25)
+    var room: u8[64]
+    let text = try strings.format_f64(3.25, room[0..])
+    assert(try strings.parse_f64(text) == 3.25)
+    let small = try strings.format_f32(0.5, room[0..])
+    assert(try strings.parse_f32(small) == 0.5)
+
+test "replacing every occurrence, some, or none":
+    let all = try strings.replace("a-b-c-d", "-", "+")
+    assert(all == "a+b+c+d")
+    let two = try strings.replace("a-b-c-d", "-", "+", 2)
+    assert(two == "a+b+c-d")
+    let longer = try strings.replace("x", "x", "long")
+    assert(longer == "long")
+    let untouched = try strings.replace("abc", "z", "y")
+    assert(untouched == "abc")
