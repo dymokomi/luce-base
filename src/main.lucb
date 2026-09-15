@@ -896,6 +896,10 @@ func std_build(source_dir: str, out_dir: str) -> !:
         try objects.add("rcs")
         var archive_bytes: u8[600]
         let archive = try format(archive_bytes, f"{out_dir}/libstd.a" if native_backend else f"{out_dir}/libstd-c.a")
+        # `ar` adds to an archive it finds, so an older one goes first: its members are
+        # not this library's
+        if files.exists((c.str)archive):
+            try files.remove_tree((c.str)archive)
         try objects.add((c.str)archive)
         if not native_backend:
             var header_bytes: u8[600]

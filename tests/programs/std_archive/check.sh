@@ -36,4 +36,8 @@ nm "$out/files-module.o" | grep -q " T ${u}lb_files_6c_read$"
 nm "$out/gpu-metal-device.o" | grep -q " T ${u}lb_gpu_12metal_device_0init$"
 # a generic instance is weak in every member that carries it, so the copies coalesce
 case "$host" in *-macos) nm -m "$out"/*.o | grep -q "weak.*${u}lb_";; *) nm "$out"/*.o | grep -q " [Ww] lb_";; esac
+# a second build into the same directory replaces the archive rather than adding to it
+members=$(ar t "$out/libstd.a" | wc -l)
+"$compiler" std-build src/std "$out"
+[ "$(ar t "$out/libstd.a" | wc -l)" = "$members" ] || { echo "FAIL: std-build added to the previous archive"; exit 1; }
 echo "ok std archive: $(ar t "$out/libstd.a" | wc -l | tr -d ' ') native members, $(ar t "$out/libstd-c.a" | wc -l | tr -d ' ') C members"
