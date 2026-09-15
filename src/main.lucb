@@ -1273,16 +1273,23 @@ func fmt_file(path: c.str, mode: str, out: io.Writer) -> i32!:
         try out.write(text)
         return 0
 
+## A writer into a buffer, for comparing two dumps.
+struct Sink: io.Writer:
+    var out: buffer.Buffer
+
+    mutating func write(data: const u8[]) -> usize!:
+        try self.out.put_bytes(data)
+        return data.length
+
 ## Whether two trees dump the same, the dump naming every kind, text and child.
 func same_tree(a: ast.Node*, b: ast.Node*) -> bool!:
-    let room = try alloc u8[16777216]
-    var first = io.SliceWriter.over(room[..<8388608])
-    var second = io.SliceWriter.over(room[8388608..])
+    var first = Sink(out = try buffer.Buffer.create(65536))
+    var second = Sink(out = try buffer.Buffer.create(65536))
     let first_writer: io.Writer = &first
     let second_writer: io.Writer = &second
     try ast.dump(first_writer, a, 0)
     try ast.dump(second_writer, b, 0)
-    return (str)first.written() == (str)second.written()
+    return first.out.view() == second.out.view()
 
 func lex_file(path: c.str, out: io.Writer) -> !:
     var arena = Arena(memory.heap)
