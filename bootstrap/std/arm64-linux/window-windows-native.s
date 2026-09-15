@@ -44,12 +44,12 @@ lb_window_14windows_native_0init:
     add x15, x15, :lo12:lb_window_14win_class_name
     mov x10, x14
     mov x11, x15
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr w12, [x10, #16]
-    str w12, [x11, #16]
-    ldrh w12, [x10, #20]
-    strh w12, [x11, #20]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr w16, [x10, #16]
+    str w16, [x11, #16]
+    ldrh w16, [x10, #20]
+    strh w16, [x11, #20]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret

@@ -32,23 +32,22 @@ lb_clipboard_9read_text:
     sub x16, x29, #24
     str x8, [x16]
     str x19, [sp, #112]
-    str x20, [sp, #104]
-    sub x8, x29, #128
+    sub x8, x29, #120
     bl lb_clipboard_12check_access
-    sub x15, x29, #128
+    sub x15, x29, #120
     add x14, x15, #24
     ldrb w14, [x14]
     cbnz w14, .L1_2
     b .L1_1
 .L1_2:
-    sub x19, x29, #96
+    sub x19, x29, #88
     add x14, x19, #24
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #48
     movz x9, #1
     strb w9, [x14]
@@ -60,13 +59,12 @@ lb_clipboard_9read_text:
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #112]
-    ldr x20, [sp, #104]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
 .L1_3:
 .L1_1:
-    sub x19, x29, #96
+    sub x19, x29, #88
     add x14, x19, #24
     adrp x15, lb_window_unsupported
     add x15, x15, :lo12:lb_window_unsupported
@@ -74,16 +72,16 @@ lb_clipboard_9read_text:
     str w15, [x14]
     adrp x15, .Ltext_0
     add x15, x15, :lo12:.Ltext_0
-    sub x20, x29, #144
-    str x15, [x20]
-    add x15, x20, #8
+    sub x12, x29, #136
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #51
     str x9, [x15]
     add x14, x14, #8
-    mov x10, x20
+    mov x10, x12
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #48
     movz x9, #1
     strb w9, [x14]
@@ -95,7 +93,6 @@ lb_clipboard_9read_text:
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #112]
-    ldr x20, [sp, #104]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -119,25 +116,24 @@ lb_clipboard_10write_text:
     str x8, [x16]
     str x19, [sp, #144]
     str x20, [sp, #136]
-    str x21, [sp, #128]
-    sub x16, x29, #96
+    sub x16, x29, #88
     str x0, [x16]
     str x1, [x16, #8]
-    sub x8, x29, #128
+    sub x8, x29, #120
     bl lb_clipboard_12check_access
-    sub x15, x29, #128
+    sub x15, x29, #120
     add x14, x15, #24
     ldrb w14, [x14]
     cbnz w14, .L2_2
     b .L2_1
 .L2_2:
-    sub x19, x29, #80
+    sub x19, x29, #72
     mov x10, x15
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
@@ -150,13 +146,12 @@ lb_clipboard_10write_text:
     ldr x0, [x16]
     ldr x19, [sp, #144]
     ldr x20, [sp, #136]
-    ldr x21, [sp, #128]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
 .L2_3:
 .L2_1:
-    sub x19, x29, #96
+    sub x19, x29, #88
     add x20, x19, #8
     ldr x14, [x20]
     adrp x15, lb_clipboard_10text_limit
@@ -183,14 +178,14 @@ lb_clipboard_10write_text:
     cbnz w14, .L2_4
     b .L2_5
 .L2_4:
-    sub x19, x29, #80
+    sub x19, x29, #72
     adrp x14, lb_clipboard_failed
     add x14, x14, :lo12:lb_clipboard_failed
     ldr w14, [x14]
     str w14, [x19]
     adrp x14, .Ltext_3
     add x14, x14, :lo12:.Ltext_3
-    sub x15, x29, #144
+    sub x15, x29, #136
     str x14, [x15]
     add x14, x15, #8
     movz x9, #47
@@ -198,8 +193,8 @@ lb_clipboard_10write_text:
     add x14, x19, #8
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
@@ -212,7 +207,6 @@ lb_clipboard_10write_text:
     ldr x0, [x16]
     ldr x19, [sp, #144]
     ldr x20, [sp, #136]
-    ldr x21, [sp, #128]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -223,26 +217,26 @@ lb_clipboard_10write_text:
     ldr x14, [x19]
     ldr x15, [x20]
     mov x9, #0
-    mov x21, x9
+    mov x12, x9
 .L2_10:
-    cmp x21, x15
+    cmp x12, x15
     b.hs .L2_13
 .L2_11:
-    add x19, x14, x21
-    ldrb w19, [x19]
-    and w19, w19, #255
+    add x13, x14, x12
+    ldrb w13, [x13]
+    and w13, w13, #255
     mov x10, #0
-    cmp w19, w10
+    cmp w13, w10
     b.ne .L2_15
 .L2_14:
-    sub x19, x29, #80
+    sub x19, x29, #72
     adrp x14, lb_clipboard_failed
     add x14, x14, :lo12:lb_clipboard_failed
     ldr w14, [x14]
     str w14, [x19]
     adrp x14, .Ltext_4
     add x14, x14, :lo12:.Ltext_4
-    sub x15, x29, #160
+    sub x15, x29, #152
     str x14, [x15]
     add x14, x15, #8
     movz x9, #33
@@ -250,8 +244,8 @@ lb_clipboard_10write_text:
     add x14, x19, #8
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
@@ -264,7 +258,6 @@ lb_clipboard_10write_text:
     ldr x0, [x16]
     ldr x19, [sp, #144]
     ldr x20, [sp, #136]
-    ldr x21, [sp, #128]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -273,18 +266,18 @@ lb_clipboard_10write_text:
 .L2_15:
 .L2_16:
 .L2_12:
-    add x19, x21, #1
-    mov x21, x19
+    add x13, x12, #1
+    mov x12, x13
     b .L2_10
 .L2_13:
-    sub x19, x29, #80
+    sub x19, x29, #72
     adrp x14, lb_window_unsupported
     add x14, x14, :lo12:lb_window_unsupported
     ldr w14, [x14]
     str w14, [x19]
     adrp x14, .Ltext_0
     add x14, x14, :lo12:.Ltext_0
-    sub x15, x29, #176
+    sub x15, x29, #168
     str x14, [x15]
     add x14, x15, #8
     movz x9, #51
@@ -292,8 +285,8 @@ lb_clipboard_10write_text:
     add x14, x19, #8
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
@@ -306,12 +299,11 @@ lb_clipboard_10write_text:
     ldr x0, [x16]
     ldr x19, [sp, #144]
     ldr x20, [sp, #136]
-    ldr x21, [sp, #128]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
 .L2_18:
-    sub x14, x29, #80
+    sub x14, x29, #72
     add x15, x14, #24
     mov x9, #0
     strb w9, [x15]
@@ -324,7 +316,6 @@ lb_clipboard_10write_text:
     ldr x0, [x16]
     ldr x19, [sp, #144]
     ldr x20, [sp, #136]
-    ldr x21, [sp, #128]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -362,8 +353,8 @@ lb_clipboard_12check_access:
     add x14, x19, #8
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
@@ -403,8 +394,8 @@ lb_clipboard_12check_access:
     add x14, x19, #8
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]

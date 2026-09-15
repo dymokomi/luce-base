@@ -32,8 +32,8 @@ _lb_window_10mac_cursor:
     sub x20, x29, #98
     mov x10, x15
     mov x11, x20
-    ldrb w12, [x10, #0]
-    strb w12, [x11, #0]
+    ldrb w16, [x10, #0]
+    strb w16, [x11, #0]
     ldrb w14, [x20]
     movz x10, #1
     cmp w14, w10
@@ -126,13 +126,13 @@ L1_1:
 L1_27:
     add x14, x15, #8
     sub x19, x29, #80
-    add x20, x19, #8
+    add x12, x19, #8
     mov x10, x14
-    mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    mov x11, x12
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #32
     movz x9, #1
     strb w9, [x14]
@@ -171,16 +171,16 @@ L1_30:
     str w15, [x14]
     adrp x15, l_text_9@PAGE
     add x15, x15, l_text_9@PAGEOFF
-    sub x20, x29, #160
-    str x15, [x20]
-    add x15, x20, #8
+    sub x12, x29, #160
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #37
     str x9, [x15]
     add x14, x14, #8
-    mov x10, x20
+    mov x10, x12
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #32
     movz x9, #1
     strb w9, [x14]
@@ -200,9 +200,9 @@ L1_32:
 L1_31:
     sub x15, x29, #80
     str x14, [x15]
-    add x19, x15, #32
+    add x12, x15, #32
     mov x9, #0
-    strb w9, [x19]
+    strb w9, [x12]
     mov x1, x15
     sub x16, x29, #24
     ldr x0, [x16]
@@ -341,10 +341,10 @@ L2_15:
     sub x19, x29, #88
     mov x10, x14
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]

@@ -16,19 +16,19 @@ _lb_12windows_text_0init:
 _lb_12windows_text_wide:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #336
+    sub sp, sp, #320
     sub x16, x29, #24
     str x8, [x16]
-    str x19, [sp, #304]
-    str x20, [sp, #296]
-    str x21, [sp, #288]
-    str x22, [sp, #280]
-    str x23, [sp, #272]
-    str x24, [sp, #264]
-    str x25, [sp, #256]
-    str x26, [sp, #248]
-    str x27, [sp, #240]
-    str x28, [sp, #232]
+    str x19, [sp, #288]
+    str x20, [sp, #280]
+    str x21, [sp, #272]
+    str x22, [sp, #264]
+    str x23, [sp, #256]
+    str x24, [sp, #248]
+    str x25, [sp, #240]
+    str x26, [sp, #232]
+    str x27, [sp, #224]
+    str x28, [sp, #216]
     sub x16, x29, #168
     str x0, [x16]
     sub x16, x29, #184
@@ -39,12 +39,11 @@ _lb_12windows_text_wide:
     adrp x20, _lb_11windows_abi_19reject_invalid_utf8@PAGE
     add x20, x20, _lb_11windows_abi_19reject_invalid_utf8@PAGEOFF
     ldr w15, [x20]
-    sub x21, x29, #168
-    ldr x9, [x21]
-    str x9, [sp, #8]
+    sub x12, x29, #168
+    ldr x21, [x12]
     mov x0, x14
     mov x1, x15
-    ldr x2, [sp, #8]
+    mov x2, x21
     movn x3, #0
     mov x4, #0
     mov x5, #0
@@ -61,16 +60,16 @@ L1_1:
     str w15, [x14]
     adrp x15, l_text_0@PAGE
     add x15, x15, l_text_0@PAGEOFF
-    sub x20, x29, #200
-    str x15, [x20]
-    add x15, x20, #8
+    sub x12, x29, #200
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #26
     str x9, [x15]
     add x14, x14, #8
-    mov x10, x20
+    mov x10, x12
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #40
     movz x9, #1
     strb w9, [x14]
@@ -81,16 +80,16 @@ L1_1:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #304]
-    ldr x20, [sp, #296]
-    ldr x21, [sp, #288]
-    ldr x22, [sp, #280]
-    ldr x23, [sp, #272]
-    ldr x24, [sp, #264]
-    ldr x25, [sp, #256]
-    ldr x26, [sp, #248]
-    ldr x27, [sp, #240]
-    ldr x28, [sp, #232]
+    ldr x19, [sp, #288]
+    ldr x20, [sp, #280]
+    ldr x21, [sp, #272]
+    ldr x22, [sp, #264]
+    ldr x23, [sp, #256]
+    ldr x24, [sp, #248]
+    ldr x25, [sp, #240]
+    ldr x26, [sp, #232]
+    ldr x27, [sp, #224]
+    ldr x28, [sp, #216]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -103,7 +102,7 @@ L1_3:
     ldr x0, [x0, _lb_memory_allocator@TLVPPAGEOFF]
     ldr x16, [x0]
     blr x16
-    str x0, [sp, #0]
+    mov x24, x0
     sxtw x25, w22
     sub x26, x29, #264
     movz x10, #8192, lsl #48
@@ -116,8 +115,8 @@ L1_5:
     str w9, [x14]
     adrp x15, l_text_1@PAGE
     add x15, x15, l_text_1@PAGEOFF
-    add x25, x14, #8
-    str x15, [x25]
+    add x12, x14, #8
+    str x15, [x12]
     add x14, x14, #16
     movz x9, #47
     str x9, [x14]
@@ -127,10 +126,8 @@ L1_5:
     b L1_7
 L1_6:
     lsl x27, x25, #1
-    ldr x9, [sp, #0]
-    ldr x14, [x9]
-    ldr x9, [sp, #0]
-    add x15, x9, #8
+    ldr x14, [x24]
+    add x15, x24, #8
     ldr x15, [x15]
     cbnz x15, L1_8
     b L1_9
@@ -141,8 +138,8 @@ L1_9:
     add x1, x1, l_text_2@PAGEOFF
     bl _lb_core_7trap_at
 L1_8:
-    ldr x28, [x15]
-    mov x17, x28
+    ldr x12, [x15]
+    mov x17, x12
     str x17, [sp, #-16]!
     mov x0, x14
     mov x1, x27
@@ -150,17 +147,17 @@ L1_8:
     sub x8, x29, #288
     ldr x17, [sp], #16
     blr x17
-    sub x21, x29, #288
-    add x28, x21, #16
-    ldrb w28, [x28]
+    sub x28, x29, #288
+    add x12, x28, #16
+    ldrb w12, [x12]
     mov x10, #0
     cmp x27, x10
-    cset w24, ne
+    cset w13, ne
     mov x10, #0
-    cmp w28, w10
-    cset w28, eq
-    and w24, w24, w28
-    cbnz w24, L1_10
+    cmp w12, w10
+    cset w12, eq
+    and w12, w13, w12
+    cbnz w12, L1_10
     b L1_11
 L1_10:
     add x14, x26, #16
@@ -169,8 +166,8 @@ L1_10:
     str w9, [x14]
     adrp x15, l_text_4@PAGE
     add x15, x15, l_text_4@PAGEOFF
-    add x21, x14, #8
-    str x15, [x21]
+    add x12, x14, #8
+    str x15, [x12]
     add x14, x14, #16
     movz x9, #16
     str x9, [x14]
@@ -179,7 +176,7 @@ L1_10:
     strb w9, [x14]
     b L1_7
 L1_11:
-    ldr x14, [x21]
+    ldr x14, [x28]
     str x14, [x26]
     add x14, x26, #8
     str x25, [x14]
@@ -197,10 +194,10 @@ L1_13:
     add x15, x19, #16
     mov x10, x14
     mov x11, x15
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #40
     movz x9, #1
     strb w9, [x14]
@@ -211,16 +208,16 @@ L1_13:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #304]
-    ldr x20, [sp, #296]
-    ldr x21, [sp, #288]
-    ldr x22, [sp, #280]
-    ldr x23, [sp, #272]
-    ldr x24, [sp, #264]
-    ldr x25, [sp, #256]
-    ldr x26, [sp, #248]
-    ldr x27, [sp, #240]
-    ldr x28, [sp, #232]
+    ldr x19, [sp, #288]
+    ldr x20, [sp, #280]
+    ldr x21, [sp, #272]
+    ldr x22, [sp, #264]
+    ldr x23, [sp, #256]
+    ldr x24, [sp, #248]
+    ldr x25, [sp, #240]
+    ldr x26, [sp, #232]
+    ldr x27, [sp, #224]
+    ldr x28, [sp, #216]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -228,16 +225,16 @@ L1_14:
 L1_12:
     mov x10, x26
     mov x11, x23
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     ldr w14, [x19]
     ldr w15, [x20]
-    ldr x21, [x23]
+    ldr x25, [x23]
     mov x0, x14
     mov x1, x15
-    ldr x2, [sp, #8]
+    mov x2, x21
     movn x3, #0
-    mov x4, x21
+    mov x4, x25
     mov x5, x22
     bl _MultiByteToWideChar
     mov w14, w0
@@ -262,20 +259,18 @@ L1_15:
     bl _lb_core_7trap_at
 1:
     mov x15, x9
-    str x21, [x14]
-    add x19, x14, #8
-    str x15, [x19]
-    ldr x9, [sp, #0]
-    ldr x15, [x9]
-    ldr x9, [sp, #0]
-    add x19, x9, #8
-    ldr x19, [x19]
-    cbnz x19, L1_19
+    str x25, [x14]
+    add x12, x14, #8
+    str x15, [x12]
+    ldr x15, [x24]
+    add x12, x24, #8
+    ldr x12, [x12]
+    cbnz x12, L1_19
     b L1_18
 L1_19:
-    add x20, x19, #16
-    ldr x20, [x20]
-    mov x17, x20
+    add x13, x12, #16
+    ldr x13, [x13]
+    mov x17, x13
     str x17, [sp, #-16]!
     mov x0, x15
     mov x9, x14
@@ -291,16 +286,16 @@ L1_18:
     str w15, [x14]
     adrp x15, l_text_6@PAGE
     add x15, x15, l_text_6@PAGEOFF
-    sub x20, x29, #320
-    str x15, [x20]
-    add x15, x20, #8
+    sub x12, x29, #320
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #40
     str x9, [x15]
     add x14, x14, #8
-    mov x10, x20
+    mov x10, x12
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #40
     movz x9, #1
     strb w9, [x14]
@@ -311,16 +306,16 @@ L1_18:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #304]
-    ldr x20, [sp, #296]
-    ldr x21, [sp, #288]
-    ldr x22, [sp, #280]
-    ldr x23, [sp, #272]
-    ldr x24, [sp, #264]
-    ldr x25, [sp, #256]
-    ldr x26, [sp, #248]
-    ldr x27, [sp, #240]
-    ldr x28, [sp, #232]
+    ldr x19, [sp, #288]
+    ldr x20, [sp, #280]
+    ldr x21, [sp, #272]
+    ldr x22, [sp, #264]
+    ldr x23, [sp, #256]
+    ldr x24, [sp, #248]
+    ldr x25, [sp, #240]
+    ldr x26, [sp, #232]
+    ldr x27, [sp, #224]
+    ldr x28, [sp, #216]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -331,8 +326,8 @@ L1_17:
     sub x19, x29, #152
     mov x10, x23
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #40
     mov x9, #0
     strb w9, [x14]
@@ -343,16 +338,16 @@ L1_17:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #304]
-    ldr x20, [sp, #296]
-    ldr x21, [sp, #288]
-    ldr x22, [sp, #280]
-    ldr x23, [sp, #272]
-    ldr x24, [sp, #264]
-    ldr x25, [sp, #256]
-    ldr x26, [sp, #248]
-    ldr x27, [sp, #240]
-    ldr x28, [sp, #232]
+    ldr x19, [sp, #288]
+    ldr x20, [sp, #280]
+    ldr x21, [sp, #272]
+    ldr x22, [sp, #264]
+    ldr x23, [sp, #256]
+    ldr x24, [sp, #248]
+    ldr x25, [sp, #240]
+    ldr x26, [sp, #232]
+    ldr x27, [sp, #224]
+    ldr x28, [sp, #216]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -369,19 +364,19 @@ L1_21:
 _lb_12windows_text_narrow:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #400
+    sub sp, sp, #384
     sub x16, x29, #24
     str x8, [x16]
-    str x19, [sp, #368]
-    str x20, [sp, #360]
-    str x21, [sp, #352]
-    str x22, [sp, #344]
-    str x23, [sp, #336]
-    str x24, [sp, #328]
-    str x25, [sp, #320]
-    str x26, [sp, #312]
-    str x27, [sp, #304]
-    str x28, [sp, #296]
+    str x19, [sp, #352]
+    str x20, [sp, #344]
+    str x21, [sp, #336]
+    str x22, [sp, #328]
+    str x23, [sp, #320]
+    str x24, [sp, #312]
+    str x25, [sp, #304]
+    str x26, [sp, #296]
+    str x27, [sp, #288]
+    str x28, [sp, #280]
     sub x16, x29, #168
     str x0, [x16]
     str x1, [x16, #8]
@@ -389,12 +384,10 @@ _lb_12windows_text_narrow:
     str w2, [x16]
     sub x14, x29, #168
     add x15, x14, #8
-    ldr x9, [x15]
-    str x9, [sp, #24]
-    ldr x9, [sp, #24]
+    ldr x19, [x15]
     movz x10, #65535
     movk x10, #32767, lsl #16
-    cmp x9, x10
+    cmp x19, x10
     b.ls L2_2
 L2_1:
     sub x19, x29, #152
@@ -404,16 +397,16 @@ L2_1:
     str w15, [x14]
     adrp x15, l_text_9@PAGE
     add x15, x15, l_text_9@PAGEOFF
-    sub x20, x29, #200
-    str x15, [x20]
-    add x15, x20, #8
+    sub x12, x29, #200
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #36
     str x9, [x15]
     add x14, x14, #8
-    mov x10, x20
+    mov x10, x12
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #40
     movz x9, #1
     strb w9, [x14]
@@ -424,16 +417,16 @@ L2_1:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #368]
-    ldr x20, [sp, #360]
-    ldr x21, [sp, #352]
-    ldr x22, [sp, #344]
-    ldr x23, [sp, #336]
-    ldr x24, [sp, #328]
-    ldr x25, [sp, #320]
-    ldr x26, [sp, #312]
-    ldr x27, [sp, #304]
-    ldr x28, [sp, #296]
+    ldr x19, [sp, #352]
+    ldr x20, [sp, #344]
+    ldr x21, [sp, #336]
+    ldr x22, [sp, #328]
+    ldr x23, [sp, #320]
+    ldr x24, [sp, #312]
+    ldr x25, [sp, #304]
+    ldr x26, [sp, #296]
+    ldr x27, [sp, #288]
+    ldr x28, [sp, #280]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -446,20 +439,20 @@ L2_3:
     ldr w15, [x20]
     adrp x21, _lb_11windows_abi_20reject_invalid_utf16@PAGE
     add x21, x21, _lb_11windows_abi_20reject_invalid_utf16@PAGEOFF
-    ldr w22, [x21]
-    ldr x23, [x14]
+    ldr w12, [x21]
+    ldr x22, [x14]
     mov x0, x15
-    mov x1, x22
-    mov x2, x23
-    ldr x3, [sp, #24]
+    mov x1, x12
+    mov x2, x22
+    mov x3, x19
     mov x4, #0
     mov x5, #0
     mov x6, #0
     mov x7, #0
     bl _WideCharToMultiByte
-    mov w22, w0
+    mov w23, w0
     mov x10, #0
-    cmp w22, w10
+    cmp w23, w10
     cset w15, eq
     cbnz w15, L2_8
     b L2_32
@@ -467,9 +460,8 @@ L2_32:
     mov w14, w15
     b L2_9
 L2_8:
-    ldr x9, [sp, #24]
     mov x10, #0
-    cmp x9, x10
+    cmp x19, x10
     cset w14, hi
 L2_9:
     and w15, w14, #255
@@ -483,16 +475,16 @@ L2_5:
     str w15, [x14]
     adrp x15, l_text_10@PAGE
     add x15, x15, l_text_10@PAGEOFF
-    sub x20, x29, #216
-    str x15, [x20]
-    add x15, x20, #8
+    sub x12, x29, #216
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #27
     str x9, [x15]
     add x14, x14, #8
-    mov x10, x20
+    mov x10, x12
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #40
     movz x9, #1
     strb w9, [x14]
@@ -503,16 +495,16 @@ L2_5:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #368]
-    ldr x20, [sp, #360]
-    ldr x21, [sp, #352]
-    ldr x22, [sp, #344]
-    ldr x23, [sp, #336]
-    ldr x24, [sp, #328]
-    ldr x25, [sp, #320]
-    ldr x26, [sp, #312]
-    ldr x27, [sp, #304]
-    ldr x28, [sp, #296]
+    ldr x19, [sp, #352]
+    ldr x20, [sp, #344]
+    ldr x21, [sp, #336]
+    ldr x22, [sp, #328]
+    ldr x23, [sp, #320]
+    ldr x24, [sp, #312]
+    ldr x25, [sp, #304]
+    ldr x26, [sp, #296]
+    ldr x27, [sp, #288]
+    ldr x28, [sp, #280]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -525,10 +517,10 @@ L2_7:
     ldr x0, [x0, _lb_memory_allocator@TLVPPAGEOFF]
     ldr x16, [x0]
     blr x16
-    str x0, [sp, #8]
-    sxtw x9, w22
-    str x9, [sp, #16]
-    ldr x9, [sp, #16]
+    mov x26, x0
+    sxtw x9, w23
+    str x9, [sp, #8]
+    ldr x9, [sp, #8]
     movz x10, #1
     adds x9, x9, x10
     b.cc 1f
@@ -550,8 +542,8 @@ L2_11:
     str w9, [x14]
     adrp x15, l_text_1@PAGE
     add x15, x15, l_text_1@PAGEOFF
-    add x27, x14, #8
-    str x15, [x27]
+    add x12, x14, #8
+    str x15, [x12]
     add x14, x14, #16
     movz x9, #47
     str x9, [x14]
@@ -560,10 +552,8 @@ L2_11:
     strb w9, [x14]
     b L2_13
 L2_12:
-    ldr x9, [sp, #8]
-    ldr x14, [x9]
-    ldr x9, [sp, #8]
-    add x15, x9, #8
+    ldr x14, [x26]
+    add x15, x26, #8
     ldr x15, [x15]
     cbnz x15, L2_14
     b L2_15
@@ -574,8 +564,8 @@ L2_15:
     add x1, x1, l_text_2@PAGEOFF
     bl _lb_core_7trap_at
 L2_14:
-    ldr x24, [x15]
-    mov x17, x24
+    ldr x12, [x15]
+    mov x17, x12
     str x17, [sp, #-16]!
     mov x0, x14
     mov x1, x27
@@ -583,17 +573,17 @@ L2_14:
     sub x8, x29, #304
     ldr x17, [sp], #16
     blr x17
-    sub x19, x29, #304
-    add x24, x19, #16
-    ldrb w24, [x24]
+    sub x24, x29, #304
+    add x12, x24, #16
+    ldrb w12, [x12]
     mov x10, #0
     cmp x27, x10
-    cset w26, ne
+    cset w13, ne
     mov x10, #0
-    cmp w24, w10
-    cset w24, eq
-    and w24, w26, w24
-    cbnz w24, L2_16
+    cmp w12, w10
+    cset w12, eq
+    and w12, w13, w12
+    cbnz w12, L2_16
     b L2_17
 L2_16:
     add x14, x28, #16
@@ -602,8 +592,8 @@ L2_16:
     str w9, [x14]
     adrp x15, l_text_4@PAGE
     add x15, x15, l_text_4@PAGEOFF
-    add x19, x14, #8
-    str x15, [x19]
+    add x12, x14, #8
+    str x15, [x12]
     add x14, x14, #16
     movz x9, #16
     str x9, [x14]
@@ -612,7 +602,7 @@ L2_16:
     strb w9, [x14]
     b L2_13
 L2_17:
-    ldr x14, [x19]
+    ldr x14, [x24]
     str x14, [x28]
     add x14, x28, #8
     str x27, [x14]
@@ -630,10 +620,10 @@ L2_19:
     add x15, x19, #16
     mov x10, x14
     mov x11, x15
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #40
     movz x9, #1
     strb w9, [x14]
@@ -644,16 +634,16 @@ L2_19:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #368]
-    ldr x20, [sp, #360]
-    ldr x21, [sp, #352]
-    ldr x22, [sp, #344]
-    ldr x23, [sp, #336]
-    ldr x24, [sp, #328]
-    ldr x25, [sp, #320]
-    ldr x26, [sp, #312]
-    ldr x27, [sp, #304]
-    ldr x28, [sp, #296]
+    ldr x19, [sp, #352]
+    ldr x20, [sp, #344]
+    ldr x21, [sp, #336]
+    ldr x22, [sp, #328]
+    ldr x23, [sp, #320]
+    ldr x24, [sp, #312]
+    ldr x25, [sp, #304]
+    ldr x26, [sp, #296]
+    ldr x27, [sp, #288]
+    ldr x28, [sp, #280]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -661,10 +651,10 @@ L2_20:
 L2_18:
     mov x10, x28
     mov x11, x25
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     mov x10, #0
-    cmp w22, w10
+    cmp w23, w10
     cset w14, gt
     cbnz w14, L2_24
     b L2_33
@@ -674,18 +664,18 @@ L2_33:
 L2_24:
     ldr w14, [x20]
     ldr w15, [x21]
-    ldr x19, [x25]
+    ldr x12, [x25]
     mov x0, x14
     mov x1, x15
-    mov x2, x23
-    ldr x3, [sp, #24]
-    mov x4, x19
-    mov x5, x22
+    mov x2, x22
+    mov x3, x19
+    mov x4, x12
+    mov x5, x23
     mov x6, #0
     mov x7, #0
     bl _WideCharToMultiByte
     mov w14, w0
-    cmp w22, w14
+    cmp w23, w14
     cset w14, eq
     mov x10, #0
     cmp w14, w10
@@ -697,22 +687,20 @@ L2_25:
 L2_21:
     sub x14, x29, #320
     ldr x15, [x25]
-    add x19, x25, #8
-    ldr x19, [x19]
+    add x12, x25, #8
+    ldr x12, [x12]
     str x15, [x14]
     add x15, x14, #8
-    str x19, [x15]
-    ldr x9, [sp, #8]
-    ldr x15, [x9]
-    ldr x9, [sp, #8]
-    add x19, x9, #8
-    ldr x19, [x19]
-    cbnz x19, L2_27
+    str x12, [x15]
+    ldr x15, [x26]
+    add x12, x26, #8
+    ldr x12, [x12]
+    cbnz x12, L2_27
     b L2_26
 L2_27:
-    add x20, x19, #16
-    ldr x20, [x20]
-    mov x17, x20
+    add x13, x12, #16
+    ldr x13, [x13]
+    mov x17, x13
     str x17, [sp, #-16]!
     mov x0, x15
     mov x9, x14
@@ -728,16 +716,16 @@ L2_26:
     str w15, [x14]
     adrp x15, l_text_13@PAGE
     add x15, x15, l_text_13@PAGEOFF
-    sub x20, x29, #336
-    str x15, [x20]
-    add x15, x20, #8
+    sub x12, x29, #336
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #39
     str x9, [x15]
     add x14, x14, #8
-    mov x10, x20
+    mov x10, x12
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #40
     movz x9, #1
     strb w9, [x14]
@@ -748,16 +736,16 @@ L2_26:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #368]
-    ldr x20, [sp, #360]
-    ldr x21, [sp, #352]
-    ldr x22, [sp, #344]
-    ldr x23, [sp, #336]
-    ldr x24, [sp, #328]
-    ldr x25, [sp, #320]
-    ldr x26, [sp, #312]
-    ldr x27, [sp, #304]
-    ldr x28, [sp, #296]
+    ldr x19, [sp, #352]
+    ldr x20, [sp, #344]
+    ldr x21, [sp, #336]
+    ldr x22, [sp, #328]
+    ldr x23, [sp, #320]
+    ldr x24, [sp, #312]
+    ldr x25, [sp, #304]
+    ldr x26, [sp, #296]
+    ldr x27, [sp, #288]
+    ldr x28, [sp, #280]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -768,7 +756,7 @@ L2_23:
     ldr x14, [x25]
     add x15, x25, #8
     ldr x15, [x15]
-    ldr x9, [sp, #16]
+    ldr x9, [sp, #8]
     cmp x9, x15
     b.lo 1f
     adrp x0, l_text_14@PAGE
@@ -777,10 +765,10 @@ L2_23:
     add x1, x1, l_text_16@PAGEOFF
     bl _lb_core_7trap_at
 1:
-    ldr x9, [sp, #16]
-    add x19, x9, x14
+    ldr x9, [sp, #8]
+    add x12, x9, x14
     mov x9, #0
-    strb w9, [x19]
+    strb w9, [x12]
     add x15, x15, #1
     mov x9, #0
     cmp x9, x15
@@ -791,7 +779,7 @@ L2_23:
     add x1, x1, l_text_16@PAGEOFF
     bl _lb_core_7trap_at
 1:
-    ldr x9, [sp, #16]
+    ldr x9, [sp, #8]
     cmp x9, x15
     b.lo 1f
     adrp x0, l_text_15@PAGE
@@ -801,7 +789,7 @@ L2_23:
     bl _lb_core_7trap_at
 1:
     mov x9, #0
-    ldr x10, [sp, #16]
+    ldr x10, [sp, #8]
     cmp x9, x10
     b.ls L2_29
 L2_30:
@@ -814,18 +802,18 @@ L2_29:
     sub x15, x29, #352
     str x14, [x15]
     add x15, x15, #8
-    ldr x9, [sp, #16]
+    ldr x9, [sp, #8]
     str x9, [x15]
     sub x15, x29, #368
     str x14, [x15]
-    add x19, x15, #8
-    ldr x9, [sp, #16]
-    str x9, [x19]
+    add x12, x15, #8
+    ldr x9, [sp, #8]
+    str x9, [x12]
     sub x19, x29, #152
     mov x10, x15
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x15, x19, #40
     mov x9, #0
     strb w9, [x15]
@@ -836,16 +824,16 @@ L2_29:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #368]
-    ldr x20, [sp, #360]
-    ldr x21, [sp, #352]
-    ldr x22, [sp, #344]
-    ldr x23, [sp, #336]
-    ldr x24, [sp, #328]
-    ldr x25, [sp, #320]
-    ldr x26, [sp, #312]
-    ldr x27, [sp, #304]
-    ldr x28, [sp, #296]
+    ldr x19, [sp, #352]
+    ldr x20, [sp, #344]
+    ldr x21, [sp, #336]
+    ldr x22, [sp, #328]
+    ldr x23, [sp, #320]
+    ldr x24, [sp, #312]
+    ldr x25, [sp, #304]
+    ldr x26, [sp, #296]
+    ldr x27, [sp, #288]
+    ldr x28, [sp, #280]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret

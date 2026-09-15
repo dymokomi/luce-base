@@ -247,7 +247,7 @@ func post_order(program: ir.Unit*, index: Index*) -> usize[]!:
 ## are dead past its exit, so the next expansion may have them.
 func expand_in(program: ir.Unit*, index: Index*, census: Census*, fi: usize) -> !:
     var f = &program.functions.items[fi]
-    if f.debug or not has_expandable_call(program, index, census, fi):
+    if f.debug or f.symbols or not has_expandable_call(program, index, census, fi):
         return
     var out = Sink(instrs = try list.List[ir.Instr].create(f.instrs.count + 64))
     var bases = try alloc u32[program.functions.count + 1]
@@ -306,7 +306,7 @@ func try_size(census: Census*, program: ir.Unit*, gi: usize) -> usize?:
 ## How many instructions, labels aside, a function's body has; none when the body may not
 ## stand in for a call of it at all.
 func body_size(g: ir.Function*) -> usize?:
-    if g.variadic or g.naked or g.noinline or g.debug or g.instrs.count == 0:
+    if g.variadic or g.naked or g.noinline or g.debug or g.symbols or g.instrs.count == 0:
         return none
     var count: usize = 0
     var ix: usize = 0
@@ -547,7 +547,7 @@ struct Expansion:
         while ix < self.g.instrs.count:
             try self.copy_instr(self.g.instrs.get(ix), out)
             ix += 1
-        try out.push(ir.Instr(op = ir.Op.label, cls = ir.Class.l, dst = 0, a = ir.none_ref(), b = ir.none_ref(), extra = self.exit_label, extra2 = 0))
+        try out.push(ir.Instr(op = ir.Op.label, cls = ir.Class.l, dst = 0, a = ir.none_ref(), b = ir.none_ref(), extra = self.exit_label, extra2 = 0, line = 0, file = 0))
         try self.take_result(out)
 
     ## The callee's slots and temporaries join the caller's; its labels get fresh numbers,
@@ -574,9 +574,9 @@ struct Expansion:
             let a = self.f.args.get((usize)self.info.args_start + i)
             let target = ir.slot_ref(self.slot_base + p.slot)
             if p.size == 0:
-                try out.push(ir.Instr(op = store_op(p.cls), cls = ir.Class.l, dst = 0, a = a.value, b = target, extra = 0, extra2 = 0))
+                try out.push(ir.Instr(op = store_op(p.cls), cls = ir.Class.l, dst = 0, a = a.value, b = target, extra = 0, extra2 = 0, line = 0, file = 0))
             else:
-                try out.push(ir.Instr(op = ir.Op.blit, cls = ir.Class.l, dst = 0, a = target, b = a.value, extra = p.size, extra2 = 0))
+                try out.push(ir.Instr(op = ir.Op.blit, cls = ir.Class.l, dst = 0, a = target, b = a.value, extra = p.size, extra2 = 0, line = 0, file = 0))
             i += 1
 
     ## The caller's destination takes the result from its slot, after the exit label.
@@ -584,7 +584,7 @@ struct Expansion:
         if self.result_slot == 0 or self.call.dst == 0:
             return
         let cls = self.info.result_cls
-        try out.push(ir.Instr(op = load_op(cls), cls = cls, dst = self.call.dst, a = ir.slot_ref(self.result_slot), b = ir.none_ref(), extra = 0, extra2 = 0))
+        try out.push(ir.Instr(op = load_op(cls), cls = cls, dst = self.call.dst, a = ir.slot_ref(self.result_slot), b = ir.none_ref(), extra = 0, extra2 = 0, line = 0, file = 0))
 
     ## One instruction of the body, renumbered; `ret` becomes the result's store and the exit.
     mutating func copy_instr(n: ir.Instr, out: Sink*) -> !:
@@ -612,11 +612,11 @@ struct Expansion:
     func leave(value: ir.Ref, out: Sink*) -> !:
         if self.info.has_result:
             if self.info.result_size == 0:
-                try out.push(ir.Instr(op = store_op(self.info.result_cls), cls = ir.Class.l, dst = 0, a = value, b = ir.slot_ref(self.result_slot), extra = 0, extra2 = 0))
+                try out.push(ir.Instr(op = store_op(self.info.result_cls), cls = ir.Class.l, dst = 0, a = value, b = ir.slot_ref(self.result_slot), extra = 0, extra2 = 0, line = 0, file = 0))
             else:
                 # a record result is built where the caller's call sequence would have put it
-                try out.push(ir.Instr(op = ir.Op.blit, cls = ir.Class.l, dst = 0, a = ir.slot_ref(self.info.result_slot), b = value, extra = self.info.result_size, extra2 = 0))
-        try out.push(ir.Instr(op = ir.Op.jmp, cls = ir.Class.l, dst = 0, a = ir.none_ref(), b = ir.none_ref(), extra = self.exit_label, extra2 = 0))
+                try out.push(ir.Instr(op = ir.Op.blit, cls = ir.Class.l, dst = 0, a = ir.slot_ref(self.info.result_slot), b = value, extra = self.info.result_size, extra2 = 0, line = 0, file = 0))
+        try out.push(ir.Instr(op = ir.Op.jmp, cls = ir.Class.l, dst = 0, a = ir.none_ref(), b = ir.none_ref(), extra = self.exit_label, extra2 = 0, line = 0, file = 0))
 
     ## A call inside the body: its description and arguments join the caller's lists.
     func copy_call(extra: u32) -> u32!:

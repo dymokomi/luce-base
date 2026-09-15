@@ -19,15 +19,13 @@ lb_process_windows_0init:
 lb_process_15release_storage_0g1_u16:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #80
-    str x19, [sp, #56]
-    str x20, [sp, #48]
-    str x21, [sp, #40]
-    str x22, [sp, #32]
-    sub x16, x29, #64
+    sub sp, sp, #64
+    str x19, [sp, #40]
+    str x20, [sp, #32]
+    sub x16, x29, #48
     str x0, [x16]
     str x1, [x16, #8]
-    sub x14, x29, #64
+    sub x14, x29, #48
     add x15, x14, #8
     ldr x15, [x15]
     mov x10, #0
@@ -38,9 +36,9 @@ lb_process_15release_storage_0g1_u16:
     ldr x0, [x0, :gottprel_lo12:lb_memory_allocator]
     mrs x16, tpidr_el0
     add x0, x16, x0
-    mov x19, x0
-    sub x20, x29, #80
-    ldr x21, [x14]
+    mov x12, x0
+    sub x13, x29, #64
+    ldr x19, [x14]
     mov x9, x15
     movz x10, #2
     umulh x11, x9, x10
@@ -52,22 +50,22 @@ lb_process_15release_storage_0g1_u16:
     add x1, x1, :lo12:.Ltext_80
     bl lb_core_7trap_at
 1:
-    mov x22, x9
-    str x21, [x20]
-    add x21, x20, #8
-    str x22, [x21]
-    ldr x21, [x19]
-    add x19, x19, #8
-    ldr x19, [x19]
-    cbnz x19, .L1_5
+    mov x20, x9
+    str x19, [x13]
+    add x19, x13, #8
+    str x20, [x19]
+    ldr x19, [x12]
+    add x12, x12, #8
+    ldr x12, [x12]
+    cbnz x12, .L1_5
     b .L1_4
 .L1_5:
-    add x14, x19, #16
+    add x14, x12, #16
     ldr x14, [x14]
     mov x17, x14
     str x17, [sp, #-16]!
-    mov x0, x21
-    mov x9, x20
+    mov x0, x19
+    mov x9, x13
     ldr x1, [x9]
     ldr x2, [x9, #8]
     ldr x17, [sp], #16
@@ -76,10 +74,8 @@ lb_process_15release_storage_0g1_u16:
     b .L1_3
 .L1_2:
 .L1_3:
-    ldr x19, [sp, #56]
-    ldr x20, [sp, #48]
-    ldr x21, [sp, #40]
-    ldr x22, [sp, #32]
+    ldr x19, [sp, #40]
+    ldr x20, [sp, #32]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret

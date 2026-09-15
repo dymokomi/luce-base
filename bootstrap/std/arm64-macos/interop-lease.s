@@ -22,8 +22,8 @@ _lb_interop_lease_0init:
     str x9, [x14]
     mov x10, x15
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #16
     movz x9, #104
     str x9, [x14]
@@ -45,14 +45,14 @@ _lb_interop_lease_0init:
     add x14, x14, _lb_interop_10lease_info@PAGEOFF
     mov x10, x19
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldp x12, x13, [x10, #16]
-    stp x12, x13, [x11, #16]
-    ldp x12, x13, [x10, #32]
-    stp x12, x13, [x11, #32]
-    ldr x12, [x10, #48]
-    str x12, [x11, #48]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldp x16, x17, [x10, #16]
+    stp x16, x17, [x11, #16]
+    ldp x16, x17, [x10, #32]
+    stp x16, x17, [x11, #32]
+    ldr x16, [x10, #48]
+    str x16, [x11, #48]
     ldr x19, [sp, #72]
     mov sp, x29
     ldp x29, x30, [sp], #16
@@ -81,29 +81,27 @@ _lb_interop_10drop_lease:
 _lb_interop_11trace_lease:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #80
-    str x19, [sp, #56]
-    sub x16, x29, #40
+    sub sp, sp, #64
+    sub x16, x29, #32
     str x0, [x16]
-    sub x16, x29, #56
+    sub x16, x29, #48
     str x1, [x16]
-    sub x16, x29, #72
+    sub x16, x29, #64
     str x2, [x16]
-    sub x14, x29, #56
+    sub x14, x29, #48
     ldr x14, [x14]
-    sub x15, x29, #40
+    sub x15, x29, #32
     ldr x15, [x15]
     add x15, x15, #64
     ldr x15, [x15]
-    sub x19, x29, #72
-    ldr x19, [x19]
+    sub x12, x29, #64
+    ldr x12, [x12]
     mov x17, x14
     str x17, [sp, #-16]!
     mov x0, x15
-    mov x1, x19
+    mov x1, x12
     ldr x17, [sp], #16
     blr x17
-    ldr x19, [sp, #56]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -159,10 +157,10 @@ L3_2:
     sub x19, x29, #88
     mov x10, x14
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
@@ -189,29 +187,29 @@ L3_1:
     mov x14, x0
     str x14, [x21]
     add x14, x20, #72
-    sub x21, x29, #128
-    ldr x21, [x21]
-    str x21, [x14]
+    sub x12, x29, #128
+    ldr x12, [x12]
+    str x12, [x14]
     add x14, x20, #80
-    sub x21, x29, #144
-    ldr x21, [x21]
-    str x21, [x14]
+    sub x12, x29, #144
+    ldr x12, [x12]
+    str x12, [x14]
     add x14, x20, #88
-    sub x21, x29, #160
-    ldr x21, [x21]
-    str x21, [x14]
+    sub x12, x29, #160
+    ldr x12, [x12]
+    str x12, [x14]
     add x14, x20, #96
     movz x9, #1
     strb w9, [x14]
     str x20, [x22]
     add x14, x22, #8
-    add x20, x20, #24
-    ldr x20, [x20]
-    str x20, [x14]
+    add x12, x20, #24
+    ldr x12, [x12]
+    str x12, [x14]
     sub x14, x29, #88
-    add x20, x14, #24
+    add x12, x14, #24
     mov x9, #0
-    strb w9, [x20]
+    strb w9, [x12]
     mov x1, x14
     sub x16, x29, #24
     ldr x0, [x16]
@@ -296,8 +294,8 @@ _lb_interop_Lease_clone:
     sub x19, x29, #48
     mov x10, x20
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     mov x16, x19
     ldr x0, [x16, #0]
     ldr x1, [x16, #8]
@@ -383,11 +381,11 @@ L8_4:
 L8_1:
     add x15, x14, #72
     ldr x15, [x15]
-    add x19, x14, #64
-    ldr x19, [x19]
+    add x12, x14, #64
+    ldr x12, [x12]
     mov x17, x15
     str x17, [sp, #-16]!
-    mov x0, x19
+    mov x0, x12
     ldr x17, [sp], #16
     blr x17
     mov w15, w0
@@ -444,8 +442,8 @@ L9_1:
     add x14, x19, #8
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
@@ -506,10 +504,10 @@ L10_2:
     sub x19, x29, #64
     mov x10, x15
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
@@ -610,12 +608,12 @@ _lb_interop_Lease_trace:
     sub x14, x29, #48
     ldr x14, [x14]
     ldr x15, [x19]
-    sub x19, x29, #64
-    ldr x19, [x19]
+    sub x12, x29, #64
+    ldr x12, [x12]
     mov x17, x14
     str x17, [sp, #-16]!
     mov x0, x15
-    mov x1, x19
+    mov x1, x12
     ldr x17, [sp], #16
     blr x17
     ldr x19, [sp, #40]

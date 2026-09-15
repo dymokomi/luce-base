@@ -417,6 +417,13 @@ of the prelude keeps a shadow stack of activations, matches breakpoints,
 and reads locals straight out of the frame by their described offsets. Only
 the program's modules are hooked; the standard modules run as built.
 
+`--release --debug` keeps the DWARF and drops the hooks: the lowerer stamps every
+instruction with its line and file (`Instr.line`, `Instr.file`), which the passes
+carry, so the line table of an optimised function comes from its instructions;
+named locals are recorded as under `--debug` and `ssa` leaves their slots in memory,
+where the frame planner may still promote them to callee-saved registers, which the
+DWARF then names; the program's own functions are kept out of inlining.
+
 ## The native backend's code quality
 
 The product is the compiler built by itself through the native backend, so

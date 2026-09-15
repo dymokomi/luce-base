@@ -206,8 +206,8 @@ lb_files_20linux_arm64_metadata:
     add x14, x19, #72
     mov x10, x14
     sub x11, x29, #568
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     sub x20, x29, #584
     mov x11, x20
     stp xzr, xzr, [x11, #0]
@@ -221,12 +221,12 @@ lb_files_20linux_arm64_metadata:
     sub x24, x29, #552
     mov x10, x20
     mov x11, x24
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     mov x10, x24
     sub x11, x29, #480
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     b .L2_3
 .L2_2:
     adrp x0, .Ltext_2
@@ -239,13 +239,13 @@ lb_files_20linux_arm64_metadata:
     add x15, x25, #56
     mov x10, x14
     mov x11, x15
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #88
     mov x10, x14
     sub x11, x29, #568
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     mov x11, x20
     stp xzr, xzr, [x11, #0]
     ldr x14, [x21]
@@ -254,12 +254,12 @@ lb_files_20linux_arm64_metadata:
     str w14, [x23]
     mov x10, x20
     mov x11, x24
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     mov x10, x24
     sub x11, x29, #496
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     b .L2_5
 .L2_4:
     adrp x0, .Ltext_2
@@ -272,13 +272,13 @@ lb_files_20linux_arm64_metadata:
     add x15, x25, #72
     mov x10, x14
     mov x11, x15
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #104
     mov x10, x14
     sub x11, x29, #568
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     mov x11, x20
     stp xzr, xzr, [x11, #0]
     ldr x14, [x21]
@@ -287,12 +287,12 @@ lb_files_20linux_arm64_metadata:
     str w14, [x23]
     mov x10, x20
     mov x11, x24
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     mov x10, x24
     sub x11, x29, #512
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     b .L2_7
 .L2_6:
     adrp x0, .Ltext_2
@@ -305,8 +305,8 @@ lb_files_20linux_arm64_metadata:
     add x15, x25, #88
     mov x10, x14
     mov x11, x15
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     sub x19, x29, #536
     mov x11, x19
     stp xzr, xzr, [x11, #0]
@@ -314,29 +314,29 @@ lb_files_20linux_arm64_metadata:
     add x14, x25, #104
     mov x10, x19
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     sub x19, x29, #208
     mov x10, x25
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldp x12, x13, [x10, #16]
-    stp x12, x13, [x11, #16]
-    ldp x12, x13, [x10, #32]
-    stp x12, x13, [x11, #32]
-    ldp x12, x13, [x10, #48]
-    stp x12, x13, [x11, #48]
-    ldp x12, x13, [x10, #64]
-    stp x12, x13, [x11, #64]
-    ldp x12, x13, [x10, #80]
-    stp x12, x13, [x11, #80]
-    ldp x12, x13, [x10, #96]
-    stp x12, x13, [x11, #96]
-    ldp x12, x13, [x10, #112]
-    stp x12, x13, [x11, #112]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldp x16, x17, [x10, #16]
+    stp x16, x17, [x11, #16]
+    ldp x16, x17, [x10, #32]
+    stp x16, x17, [x11, #32]
+    ldp x16, x17, [x10, #48]
+    stp x16, x17, [x11, #48]
+    ldp x16, x17, [x10, #64]
+    stp x16, x17, [x11, #64]
+    ldp x16, x17, [x10, #80]
+    stp x16, x17, [x11, #80]
+    ldp x16, x17, [x10, #96]
+    stp x16, x17, [x11, #96]
+    ldp x16, x17, [x10, #112]
+    stp x16, x17, [x11, #112]
     mov x1, x19
     sub x16, x29, #24
     ldr x0, [x16]
@@ -427,22 +427,22 @@ lb_files_metadata:
     sub x20, x29, #224
     mov x10, x14
     mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldp x12, x13, [x10, #16]
-    stp x12, x13, [x11, #16]
-    ldp x12, x13, [x10, #32]
-    stp x12, x13, [x11, #32]
-    ldp x12, x13, [x10, #48]
-    stp x12, x13, [x11, #48]
-    ldp x12, x13, [x10, #64]
-    stp x12, x13, [x11, #64]
-    ldp x12, x13, [x10, #80]
-    stp x12, x13, [x11, #80]
-    ldp x12, x13, [x10, #96]
-    stp x12, x13, [x11, #96]
-    ldp x12, x13, [x10, #112]
-    stp x12, x13, [x11, #112]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldp x16, x17, [x10, #16]
+    stp x16, x17, [x11, #16]
+    ldp x16, x17, [x10, #32]
+    stp x16, x17, [x11, #32]
+    ldp x16, x17, [x10, #48]
+    stp x16, x17, [x11, #48]
+    ldp x16, x17, [x10, #64]
+    stp x16, x17, [x11, #64]
+    ldp x16, x17, [x10, #80]
+    stp x16, x17, [x11, #80]
+    ldp x16, x17, [x10, #96]
+    stp x16, x17, [x11, #96]
+    ldp x16, x17, [x10, #112]
+    stp x16, x17, [x11, #112]
     add x14, x20, #152
     mov x9, #0
     strb w9, [x14]
@@ -490,8 +490,8 @@ lb_files_metadata:
     add x14, x20, #8
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #152
     movz x9, #1
     strb w9, [x14]
@@ -562,22 +562,22 @@ lb_files_19metadata_descriptor:
     sub x20, x29, #208
     mov x10, x14
     mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldp x12, x13, [x10, #16]
-    stp x12, x13, [x11, #16]
-    ldp x12, x13, [x10, #32]
-    stp x12, x13, [x11, #32]
-    ldp x12, x13, [x10, #48]
-    stp x12, x13, [x11, #48]
-    ldp x12, x13, [x10, #64]
-    stp x12, x13, [x11, #64]
-    ldp x12, x13, [x10, #80]
-    stp x12, x13, [x11, #80]
-    ldp x12, x13, [x10, #96]
-    stp x12, x13, [x11, #96]
-    ldp x12, x13, [x10, #112]
-    stp x12, x13, [x11, #112]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldp x16, x17, [x10, #16]
+    stp x16, x17, [x11, #16]
+    ldp x16, x17, [x10, #32]
+    stp x16, x17, [x11, #32]
+    ldp x16, x17, [x10, #48]
+    stp x16, x17, [x11, #48]
+    ldp x16, x17, [x10, #64]
+    stp x16, x17, [x11, #64]
+    ldp x16, x17, [x10, #80]
+    stp x16, x17, [x11, #80]
+    ldp x16, x17, [x10, #96]
+    stp x16, x17, [x11, #96]
+    ldp x16, x17, [x10, #112]
+    stp x16, x17, [x11, #112]
     add x14, x20, #152
     mov x9, #0
     strb w9, [x14]
@@ -623,8 +623,8 @@ lb_files_19metadata_descriptor:
     add x14, x20, #8
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #152
     movz x9, #1
     strb w9, [x14]
@@ -716,22 +716,22 @@ lb_files_11metadata_at:
     sub x19, x29, #224
     mov x10, x14
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldp x12, x13, [x10, #16]
-    stp x12, x13, [x11, #16]
-    ldp x12, x13, [x10, #32]
-    stp x12, x13, [x11, #32]
-    ldp x12, x13, [x10, #48]
-    stp x12, x13, [x11, #48]
-    ldp x12, x13, [x10, #64]
-    stp x12, x13, [x11, #64]
-    ldp x12, x13, [x10, #80]
-    stp x12, x13, [x11, #80]
-    ldp x12, x13, [x10, #96]
-    stp x12, x13, [x11, #96]
-    ldp x12, x13, [x10, #112]
-    stp x12, x13, [x11, #112]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldp x16, x17, [x10, #16]
+    stp x16, x17, [x11, #16]
+    ldp x16, x17, [x10, #32]
+    stp x16, x17, [x11, #32]
+    ldp x16, x17, [x10, #48]
+    stp x16, x17, [x11, #48]
+    ldp x16, x17, [x10, #64]
+    stp x16, x17, [x11, #64]
+    ldp x16, x17, [x10, #80]
+    stp x16, x17, [x11, #80]
+    ldp x16, x17, [x10, #96]
+    stp x16, x17, [x11, #96]
+    ldp x16, x17, [x10, #112]
+    stp x16, x17, [x11, #112]
     add x14, x19, #152
     mov x9, #0
     strb w9, [x14]
@@ -779,8 +779,8 @@ lb_files_11metadata_at:
     add x14, x20, #8
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #152
     movz x9, #1
     strb w9, [x14]

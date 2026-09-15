@@ -59,7 +59,7 @@ seed named in `bootstrap/SEED` builds it to the same C.
 | 19.6 | `--costs` | planned | |
 | 16.6 | TLS for `net`, a `graphics` module | planned | the SDL3 and Metal proving programs reach their libraries through `extern` alone |
 | — | the optimiser: inlining, single-assignment form, value numbering, load elimination, a register allocator over the exact lives | verified | `tests/optimization`, the native fixpoint; splitting a life at a call is the next step (`docs/PLAN.md`); the allocator's caller-saved integer pool on arm64 is x12–x15 (0.15.0: x12 and x13 joined it, the generator's copies and atomics moved to x16 and x17; the compiler's own build, `src/main.lucb` to assembly on an M-series Mac, went from 4.9 s to 3.9 s and its frame accesses down 3.4%; splitting lives at calls was measured on the same build and gained nothing) |
-| — | debugging: native DWARF and `luce-base-d` | limited | `tests/programs/debugger`, `tests/programs/dwarf`: source breakpoints, mixed C/Base stacks, typed locals, scopes, moved artifacts and static-library consumers; optimized user-variable locations and payload-enum presentation remain future work |
+| — | debugging: native DWARF and `luce-base-d` | limited | `tests/programs/debugger`, `tests/programs/dwarf`: source breakpoints, mixed C/Base stacks, typed locals, scopes, moved artifacts and static-library consumers; optimized user-variable locations and payload-enum presentation remain future work; `--release --debug` (0.15.0): the optimised program with exact lines and its named locals in frame slots or callee-saved registers, checked in `tests/programs/dwarf` at the same breakpoints; without scopes, inlined frames, or locations for values in temporaries |
 | — | `luce-ld` | planned | not started |
 
 ## The fuzzer

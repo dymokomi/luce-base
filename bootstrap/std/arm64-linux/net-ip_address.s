@@ -19,23 +19,21 @@ lb_net_10ip_address_0init:
 lb_net_IpAddress_9from_ipv4:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #128
+    sub sp, sp, #112
     sub x16, x29, #24
     str x8, [x16]
-    str x19, [sp, #96]
-    str x20, [sp, #88]
-    str x21, [sp, #80]
-    str x22, [sp, #72]
-    str x23, [sp, #64]
-    sub x16, x29, #104
+    str x19, [sp, #80]
+    str x20, [sp, #72]
+    str x21, [sp, #64]
+    sub x16, x29, #88
     str w0, [x16]
-    sub x19, x29, #121
+    sub x19, x29, #105
     mov x11, x19
     stp xzr, xzr, [x11, #0]
     strb wzr, [x11, #16]
     add x14, x19, #1
-    sub x15, x29, #104
-    ldr w20, [x15]
+    sub x15, x29, #88
+    ldr w12, [x15]
     mov x9, #0
     mov x15, x9
 .L1_1:
@@ -43,10 +41,10 @@ lb_net_IpAddress_9from_ipv4:
     cmp x15, x10
     b.hs .L1_3
 .L1_2:
-    add x22, x14, x15
+    add x20, x14, x15
     movz x9, #3
-    sub x21, x9, x15
-    mov x9, x21
+    sub x13, x9, x15
+    mov x9, x13
     movz x10, #8
     umulh x11, x9, x10
     mul x9, x9, x10
@@ -57,10 +55,10 @@ lb_net_IpAddress_9from_ipv4:
     add x1, x1, :lo12:.Ltext_43
     bl lb_core_7trap_at
 1:
-    mov x23, x9
-    mov w21, w23
+    mov x21, x9
+    mov w13, w21
     movz x10, #32
-    cmp x21, x10
+    cmp x13, x10
     b.lo .L1_5
 .L1_4:
     adrp x0, .Ltext_0
@@ -69,23 +67,23 @@ lb_net_IpAddress_9from_ipv4:
     add x1, x1, :lo12:.Ltext_1
     bl lb_core_7trap_at
 .L1_5:
-    lsr w21, w20, w23
+    lsr w13, w12, w21
     movz x10, #255
-    and w21, w21, w10
-    mov w21, w21
-    and w21, w21, #255
-    strb w21, [x22]
-    add x21, x15, #1
-    mov x15, x21
+    and w13, w13, w10
+    mov w13, w13
+    and w13, w13, #255
+    strb w13, [x20]
+    add x13, x15, #1
+    mov x15, x13
     b .L1_1
 .L1_3:
-    sub x20, x29, #81
+    sub x20, x29, #65
     mov x10, x19
     mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldrb w12, [x10, #16]
-    strb w12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldrb w16, [x10, #16]
+    strb w16, [x11, #16]
     mov x1, x20
     sub x16, x29, #24
     ldr x0, [x16]
@@ -93,11 +91,9 @@ lb_net_IpAddress_9from_ipv4:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #96]
-    ldr x20, [sp, #88]
-    ldr x21, [sp, #80]
-    ldr x22, [sp, #72]
-    ldr x23, [sp, #64]
+    ldr x19, [sp, #80]
+    ldr x20, [sp, #72]
+    ldr x21, [sp, #64]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -161,16 +157,16 @@ lb_net_IpAddress_10from_bytes:
     str w15, [x14]
     adrp x15, .Ltext_5
     add x15, x15, :lo12:.Ltext_5
-    sub x20, x29, #152
-    str x15, [x20]
-    add x15, x20, #8
+    sub x12, x29, #152
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #42
     str x9, [x15]
     add x14, x14, #8
-    mov x10, x20
+    mov x10, x12
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #48
     movz x9, #1
     strb w9, [x14]
@@ -212,17 +208,17 @@ lb_net_IpAddress_10from_bytes:
     strb w15, [x23]
     mov x10, x23
     mov x11, x22
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldrb w12, [x10, #16]
-    strb w12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldrb w16, [x10, #16]
+    strb w16, [x11, #16]
     add x15, x22, #1
-    sub x21, x29, #208
-    str x15, [x21]
-    add x15, x21, #8
+    sub x12, x29, #208
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #16
     str x9, [x15]
-    mov x9, x21
+    mov x9, x12
     ldr x0, [x9]
     ldr x1, [x9, #8]
     mov x9, x19
@@ -233,10 +229,10 @@ lb_net_IpAddress_10from_bytes:
     sub x21, x29, #120
     mov x10, x22
     mov x11, x21
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldrb w12, [x10, #16]
-    strb w12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldrb w16, [x10, #16]
+    strb w16, [x11, #16]
     add x15, x21, #48
     mov x9, #0
     strb w9, [x15]
@@ -270,50 +266,48 @@ lb_net_IpAddress_10from_bytes:
 lb_net_IpAddress_parse:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #240
+    sub sp, sp, #224
     sub x16, x29, #24
     str x8, [x16]
-    str x19, [sp, #208]
-    str x20, [sp, #200]
-    str x21, [sp, #192]
-    str x22, [sp, #184]
-    str x23, [sp, #176]
-    str x24, [sp, #168]
-    str x25, [sp, #160]
-    sub x16, x29, #120
+    str x19, [sp, #192]
+    str x20, [sp, #184]
+    str x21, [sp, #176]
+    str x22, [sp, #168]
+    str x23, [sp, #160]
+    sub x16, x29, #104
     str x0, [x16]
     str x1, [x16, #8]
-    sub x14, x29, #120
+    sub x14, x29, #104
     add x15, x14, #8
     ldr x15, [x15]
     mov x10, #0
     cmp x15, x10
-    cset w19, eq
-    cbnz w19, .L3_40
+    cset w12, eq
+    cbnz w12, .L3_40
     b .L3_4
 .L3_40:
-    mov w20, w19
+    mov w13, w12
     b .L3_5
 .L3_4:
     movz x10, #45
     cmp x15, x10
-    cset w20, hi
+    cset w13, hi
 .L3_5:
-    and w19, w20, #255
-    cbnz w19, .L3_1
+    and w12, w13, #255
+    cbnz w12, .L3_1
     b .L3_2
 .L3_1:
-    sub x19, x29, #138
+    sub x19, x29, #122
     mov x11, x19
     stp xzr, xzr, [x11, #0]
     strh wzr, [x11, #16]
-    sub x20, x29, #98
+    sub x20, x29, #82
     mov x10, x19
     mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldrh w12, [x10, #16]
-    strh w12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldrh w16, [x10, #16]
+    strh w16, [x11, #16]
     mov x1, x20
     sub x16, x29, #24
     ldr x0, [x16]
@@ -321,13 +315,11 @@ lb_net_IpAddress_parse:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #208]
-    ldr x20, [sp, #200]
-    ldr x21, [sp, #192]
-    ldr x22, [sp, #184]
-    ldr x23, [sp, #176]
-    ldr x24, [sp, #168]
-    ldr x25, [sp, #160]
+    ldr x19, [sp, #192]
+    ldr x20, [sp, #184]
+    ldr x21, [sp, #176]
+    ldr x22, [sp, #168]
+    ldr x23, [sp, #160]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -336,125 +328,125 @@ lb_net_IpAddress_parse:
 .L3_2:
 .L3_3:
     mov x9, #0
-    mov w19, w9
+    mov w12, w9
     mov x9, #0
-    mov x20, x9
+    mov x13, x9
 .L3_7:
-    cmp x20, x15
+    cmp x13, x15
     b.hs .L3_9
 .L3_8:
-    ldr x21, [x14]
-    add x21, x21, x20
-    ldrb w21, [x21]
-    and w21, w21, #255
+    ldr x19, [x14]
+    add x19, x19, x13
+    ldrb w19, [x19]
+    and w19, w19, #255
     movz x10, #48
-    cmp w21, w10
-    cset w22, hs
-    cbnz w22, .L3_10
+    cmp w19, w10
+    cset w20, hs
+    cbnz w20, .L3_10
     b .L3_41
 .L3_41:
-    mov w23, w22
+    mov w21, w20
     b .L3_11
 .L3_10:
     movz x10, #57
-    cmp w21, w10
-    cset w23, ls
+    cmp w19, w10
+    cset w21, ls
 .L3_11:
-    and w22, w23, #255
+    and w20, w21, #255
     movz x10, #97
-    cmp w21, w10
-    cset w24, hs
-    cbnz w24, .L3_12
+    cmp w19, w10
+    cset w22, hs
+    cbnz w22, .L3_12
     b .L3_42
 .L3_42:
-    mov w23, w24
+    mov w21, w22
     b .L3_13
 .L3_12:
     movz x10, #102
-    cmp w21, w10
-    cset w23, ls
+    cmp w19, w10
+    cset w21, ls
 .L3_13:
-    and w24, w23, #255
-    cbnz w24, .L3_43
+    and w22, w21, #255
+    cbnz w22, .L3_43
     b .L3_14
 .L3_43:
-    mov w23, w24
+    mov w21, w22
     b .L3_15
 .L3_14:
     movz x10, #65
-    cmp w21, w10
-    cset w23, hs
-    cbnz w23, .L3_16
+    cmp w19, w10
+    cset w21, hs
+    cbnz w21, .L3_16
     b .L3_44
 .L3_44:
-    mov w24, w23
+    mov w22, w21
     b .L3_17
 .L3_16:
     movz x10, #70
-    cmp w21, w10
-    cset w24, ls
+    cmp w19, w10
+    cset w22, ls
 .L3_17:
-    and w23, w24, #255
+    and w21, w22, #255
 .L3_15:
-    and w24, w23, #255
-    and w25, w22, #255
+    and w22, w21, #255
+    and w23, w20, #255
     mov x10, #0
-    cmp w25, w10
-    cset w25, eq
-    cbnz w25, .L3_21
+    cmp w23, w10
+    cset w23, eq
+    cbnz w23, .L3_21
     b .L3_45
 .L3_45:
-    mov w22, w25
+    mov w20, w23
     b .L3_22
 .L3_21:
-    and w22, w24, #255
+    and w20, w22, #255
     mov x10, #0
-    cmp w22, w10
-    cset w22, eq
+    cmp w20, w10
+    cset w20, eq
 .L3_22:
-    and w23, w22, #255
-    cbnz w23, .L3_23
+    and w21, w20, #255
+    cbnz w21, .L3_23
     b .L3_46
 .L3_46:
-    mov w22, w23
+    mov w20, w21
     b .L3_24
 .L3_23:
     movz x10, #58
-    cmp w21, w10
-    cset w22, eq
+    cmp w19, w10
+    cset w20, eq
     mov x10, #0
-    cmp w22, w10
-    cset w22, eq
+    cmp w20, w10
+    cset w20, eq
 .L3_24:
-    and w23, w22, #255
-    cbnz w23, .L3_25
+    and w21, w20, #255
+    cbnz w21, .L3_25
     b .L3_47
 .L3_47:
-    mov w22, w23
+    mov w20, w21
     b .L3_26
 .L3_25:
     movz x10, #46
-    cmp w21, w10
-    cset w22, eq
+    cmp w19, w10
+    cset w20, eq
     mov x10, #0
-    cmp w22, w10
-    cset w22, eq
+    cmp w20, w10
+    cset w20, eq
 .L3_26:
-    and w23, w22, #255
-    cbnz w23, .L3_18
+    and w21, w20, #255
+    cbnz w21, .L3_18
     b .L3_19
 .L3_18:
-    sub x19, x29, #156
+    sub x19, x29, #140
     mov x11, x19
     stp xzr, xzr, [x11, #0]
     strh wzr, [x11, #16]
-    sub x20, x29, #98
+    sub x20, x29, #82
     mov x10, x19
     mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldrh w12, [x10, #16]
-    strh w12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldrh w16, [x10, #16]
+    strh w16, [x11, #16]
     mov x1, x20
     sub x16, x29, #24
     ldr x0, [x16]
@@ -462,13 +454,11 @@ lb_net_IpAddress_parse:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #208]
-    ldr x20, [sp, #200]
-    ldr x21, [sp, #192]
-    ldr x22, [sp, #184]
-    ldr x23, [sp, #176]
-    ldr x24, [sp, #168]
-    ldr x25, [sp, #160]
+    ldr x19, [sp, #192]
+    ldr x20, [sp, #184]
+    ldr x21, [sp, #176]
+    ldr x22, [sp, #168]
+    ldr x23, [sp, #160]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -477,19 +467,19 @@ lb_net_IpAddress_parse:
 .L3_19:
 .L3_20:
     movz x10, #58
-    cmp w21, w10
+    cmp w19, w10
     b.ne .L3_29
 .L3_28:
     movz x9, #1
-    mov w19, w9
+    mov w12, w9
     b .L3_30
 .L3_29:
 .L3_30:
-    add x21, x20, #1
-    mov x20, x21
+    add x19, x13, #1
+    mov x13, x19
     b .L3_7
 .L3_9:
-    and w15, w19, #255
+    and w15, w12, #255
     mov x10, #0
     cmp w15, w10
     b.ne .L3_32
@@ -498,28 +488,28 @@ lb_net_IpAddress_parse:
     ldr x0, [x9]
     ldr x1, [x9, #8]
     bl lb_net_17parse_ipv4_number
-    sub x16, x29, #164
+    sub x16, x29, #148
     str x0, [x16, #0]
-    sub x19, x29, #164
-    add x15, x19, #4
+    sub x12, x29, #148
+    add x15, x12, #4
     ldrb w15, [x15]
     cbnz w15, .L3_34
     b .L3_35
 .L3_34:
-    ldr w14, [x19]
+    ldr w14, [x12]
     b .L3_36
 .L3_35:
-    sub x19, x29, #182
+    sub x19, x29, #166
     mov x11, x19
     stp xzr, xzr, [x11, #0]
     strh wzr, [x11, #16]
-    sub x20, x29, #98
+    sub x20, x29, #82
     mov x10, x19
     mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldrh w12, [x10, #16]
-    strh w12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldrh w16, [x10, #16]
+    strh w16, [x11, #16]
     mov x1, x20
     sub x16, x29, #24
     ldr x0, [x16]
@@ -527,39 +517,37 @@ lb_net_IpAddress_parse:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #208]
-    ldr x20, [sp, #200]
-    ldr x21, [sp, #192]
-    ldr x22, [sp, #184]
-    ldr x23, [sp, #176]
-    ldr x24, [sp, #168]
-    ldr x25, [sp, #160]
+    ldr x19, [sp, #192]
+    ldr x20, [sp, #184]
+    ldr x21, [sp, #176]
+    ldr x22, [sp, #168]
+    ldr x23, [sp, #160]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
 .L3_37:
 .L3_36:
     mov x0, x14
-    sub x8, x29, #199
+    sub x8, x29, #183
     bl lb_net_IpAddress_9from_ipv4
-    sub x15, x29, #199
-    sub x19, x29, #217
+    sub x15, x29, #183
+    sub x19, x29, #201
     mov x10, x15
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldrb w12, [x10, #16]
-    strb w12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldrb w16, [x10, #16]
+    strb w16, [x11, #16]
     add x15, x19, #17
     movz x9, #1
     strb w9, [x15]
-    sub x20, x29, #98
+    sub x20, x29, #82
     mov x10, x19
     mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldrh w12, [x10, #16]
-    strh w12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldrh w16, [x10, #16]
+    strh w16, [x11, #16]
     mov x1, x20
     sub x16, x29, #24
     ldr x0, [x16]
@@ -567,13 +555,11 @@ lb_net_IpAddress_parse:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #208]
-    ldr x20, [sp, #200]
-    ldr x21, [sp, #192]
-    ldr x22, [sp, #184]
-    ldr x23, [sp, #176]
-    ldr x24, [sp, #168]
-    ldr x25, [sp, #160]
+    ldr x19, [sp, #192]
+    ldr x20, [sp, #184]
+    ldr x21, [sp, #176]
+    ldr x22, [sp, #168]
+    ldr x23, [sp, #160]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -584,16 +570,16 @@ lb_net_IpAddress_parse:
     mov x9, x14
     ldr x0, [x9]
     ldr x1, [x9, #8]
-    sub x8, x29, #235
+    sub x8, x29, #219
     bl lb_net_10parse_ipv6
-    sub x15, x29, #235
-    sub x19, x29, #98
+    sub x15, x29, #219
+    sub x19, x29, #82
     mov x10, x15
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldrh w12, [x10, #16]
-    strh w12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldrh w16, [x10, #16]
+    strh w16, [x11, #16]
     mov x1, x19
     sub x16, x29, #24
     ldr x0, [x16]
@@ -601,13 +587,11 @@ lb_net_IpAddress_parse:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #208]
-    ldr x20, [sp, #200]
-    ldr x21, [sp, #192]
-    ldr x22, [sp, #184]
-    ldr x23, [sp, #176]
-    ldr x24, [sp, #168]
-    ldr x25, [sp, #160]
+    ldr x19, [sp, #192]
+    ldr x20, [sp, #184]
+    ldr x21, [sp, #176]
+    ldr x22, [sp, #168]
+    ldr x23, [sp, #160]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -653,14 +637,12 @@ lb_net_IpAddress_version:
 lb_net_IpAddress_11ipv4_number:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #80
-    str x19, [sp, #56]
-    str x20, [sp, #48]
-    str x21, [sp, #40]
-    str x22, [sp, #32]
-    sub x16, x29, #64
+    sub sp, sp, #64
+    str x19, [sp, #40]
+    str x20, [sp, #32]
+    sub x16, x29, #48
     str x0, [x16]
-    sub x9, x29, #64
+    sub x9, x29, #48
     ldr x15, [x9]
     ldrb w14, [x15]
     mov x10, #0
@@ -670,62 +652,58 @@ lb_net_IpAddress_11ipv4_number:
     cmp w14, w10
     b.ne .L5_2
 .L5_1:
-    sub x19, x29, #72
+    sub x19, x29, #56
     mov x11, x19
     str xzr, [x11, #0]
-    sub x20, x29, #56
+    sub x20, x29, #40
     mov x10, x19
     mov x11, x20
-    ldr x12, [x10, #0]
-    str x12, [x11, #0]
+    ldr x16, [x10, #0]
+    str x16, [x11, #0]
     mov x16, x20
     ldr x0, [x16, #0]
-    ldr x19, [sp, #56]
-    ldr x20, [sp, #48]
-    ldr x21, [sp, #40]
-    ldr x22, [sp, #32]
+    ldr x19, [sp, #40]
+    ldr x20, [sp, #32]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
 .L5_2:
 .L5_3:
     add x14, x15, #1
-    ldrb w19, [x14]
-    mov w19, w19
+    ldrb w12, [x14]
+    mov w12, w12
 .L5_6:
-    lsl w20, w19, #24
+    lsl w13, w12, #24
     add x15, x14, #1
     ldrb w15, [x15]
     mov w15, w15
 .L5_8:
-    lsl w19, w15, #16
-    orr w21, w19, w20
-    add x19, x14, #2
-    ldrb w19, [x19]
-    mov w19, w19
+    lsl w12, w15, #16
+    orr w19, w12, w13
+    add x12, x14, #2
+    ldrb w12, [x12]
+    mov w12, w12
 .L5_10:
-    lsl w15, w19, #8
-    orr w15, w15, w21
-    add x20, x14, #3
-    ldrb w20, [x20]
-    mov w20, w20
-    orr w15, w15, w20
-    sub x20, x29, #80
-    str w15, [x20]
-    add x15, x20, #4
+    lsl w15, w12, #8
+    orr w15, w15, w19
+    add x13, x14, #3
+    ldrb w13, [x13]
+    mov w13, w13
+    orr w15, w15, w13
+    sub x13, x29, #64
+    str w15, [x13]
+    add x15, x13, #4
     movz x9, #1
     strb w9, [x15]
-    sub x22, x29, #56
-    mov x10, x20
-    mov x11, x22
-    ldr x12, [x10, #0]
-    str x12, [x11, #0]
-    mov x16, x22
+    sub x20, x29, #40
+    mov x10, x13
+    mov x11, x20
+    ldr x16, [x10, #0]
+    str x16, [x11, #0]
+    mov x16, x20
     ldr x0, [x16, #0]
-    ldr x19, [sp, #56]
-    ldr x20, [sp, #48]
-    ldr x21, [sp, #40]
-    ldr x22, [sp, #32]
+    ldr x19, [sp, #40]
+    ldr x20, [sp, #32]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -738,12 +716,10 @@ lb_net_IpAddress_11ipv4_number:
 lb_net_IpAddress_14is_ipv4_mapped:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #48
-    str x19, [sp, #24]
-    str x20, [sp, #16]
-    sub x16, x29, #40
+    sub sp, sp, #32
+    sub x16, x29, #24
     str x0, [x16]
-    sub x9, x29, #40
+    sub x9, x29, #24
     ldr x15, [x9]
     ldrb w14, [x15]
     movz x10, #1
@@ -755,8 +731,6 @@ lb_net_IpAddress_14is_ipv4_mapped:
 .L6_1:
     mov x9, #0
     mov x0, x9
-    ldr x19, [sp, #24]
-    ldr x20, [sp, #16]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -766,25 +740,23 @@ lb_net_IpAddress_14is_ipv4_mapped:
 .L6_3:
     add x14, x15, #1
     mov x9, #0
-    mov x19, x9
+    mov x12, x9
 .L6_5:
     movz x10, #10
-    cmp x19, x10
+    cmp x12, x10
     b.hs .L6_7
 .L6_6:
-    add x20, x14, x19
-    ldrb w20, [x20]
+    add x13, x14, x12
+    ldrb w13, [x13]
     mov x10, #0
-    cmp w20, w10
-    cset w20, eq
+    cmp w13, w10
+    cset w13, eq
     mov x10, #0
-    cmp w20, w10
+    cmp w13, w10
     b.ne .L6_9
 .L6_8:
     mov x9, #0
     mov x0, x9
-    ldr x19, [sp, #24]
-    ldr x20, [sp, #16]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -792,20 +764,20 @@ lb_net_IpAddress_14is_ipv4_mapped:
     b .L6_10
 .L6_9:
 .L6_10:
-    add x20, x19, #1
-    mov x19, x20
+    add x13, x12, #1
+    mov x12, x13
     b .L6_5
 .L6_7:
     add x14, x15, #1
-    add x19, x14, #10
-    ldrb w19, [x19]
+    add x12, x14, #10
+    ldrb w12, [x12]
     movz x10, #255
-    cmp w19, w10
-    cset w19, eq
-    cbnz w19, .L6_12
+    cmp w12, w10
+    cset w12, eq
+    cbnz w12, .L6_12
     b .L6_15
 .L6_15:
-    mov w14, w19
+    mov w14, w12
     b .L6_13
 .L6_12:
     add x15, x14, #11
@@ -819,8 +791,6 @@ lb_net_IpAddress_14is_ipv4_mapped:
     and w15, w15, #255
     mov x9, x15
     mov x0, x9
-    ldr x19, [sp, #24]
-    ldr x20, [sp, #16]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -839,24 +809,22 @@ lb_net_IpAddress_14is_ipv4_mapped:
 lb_net_IpAddress_equals:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #80
-    str x19, [sp, #56]
-    str x20, [sp, #48]
-    str x21, [sp, #40]
-    sub x16, x29, #48
+    sub sp, sp, #64
+    str x19, [sp, #40]
+    sub x16, x29, #32
     str x0, [x16]
-    sub x16, x29, #72
+    sub x16, x29, #56
     str x1, [x16]
-    sub x0, x29, #72
+    sub x0, x29, #56
     ldr x1, [x0]
     movz x2, #17
     bl _memcpy
-    sub x9, x29, #48
-    ldr x20, [x9]
-    ldrb w14, [x20]
-    sub x15, x29, #72
-    ldrb w19, [x15]
-    cmp w14, w19
+    sub x9, x29, #32
+    ldr x13, [x9]
+    ldrb w14, [x13]
+    sub x15, x29, #56
+    ldrb w12, [x15]
+    cmp w14, w12
     cset w14, eq
     mov x10, #0
     cmp w14, w10
@@ -864,9 +832,7 @@ lb_net_IpAddress_equals:
 .L7_1:
     mov x9, #0
     mov x0, x9
-    ldr x19, [sp, #56]
-    ldr x20, [sp, #48]
-    ldr x21, [sp, #40]
+    ldr x19, [sp, #40]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -874,20 +840,20 @@ lb_net_IpAddress_equals:
     b .L7_3
 .L7_2:
 .L7_3:
-    add x14, x20, #1
-    add x19, x15, #1
+    add x14, x13, #1
+    add x12, x15, #1
     mov x9, #0
-    mov x21, x9
+    mov x19, x9
 .L7_5:
     movz x10, #16
-    cmp x21, x10
+    cmp x19, x10
     b.hs .L7_7
 .L7_6:
-    add x15, x14, x21
+    add x15, x14, x19
     ldrb w15, [x15]
-    add x20, x19, x21
-    ldrb w20, [x20]
-    cmp w15, w20
+    add x13, x12, x19
+    ldrb w13, [x13]
+    cmp w15, w13
     cset w15, eq
     mov x10, #0
     cmp w15, w10
@@ -895,9 +861,7 @@ lb_net_IpAddress_equals:
 .L7_8:
     mov x9, #0
     mov x0, x9
-    ldr x19, [sp, #56]
-    ldr x20, [sp, #48]
-    ldr x21, [sp, #40]
+    ldr x19, [sp, #40]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -905,15 +869,13 @@ lb_net_IpAddress_equals:
     b .L7_10
 .L7_9:
 .L7_10:
-    add x15, x21, #1
-    mov x21, x15
+    add x15, x19, #1
+    mov x19, x15
     b .L7_5
 .L7_7:
     movz x9, #1
     mov x0, x9
-    ldr x19, [sp, #56]
-    ldr x20, [sp, #48]
-    ldr x21, [sp, #40]
+    ldr x19, [sp, #40]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -932,18 +894,16 @@ lb_net_IpAddress_equals:
 lb_net_IpAddress_12write_octets:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #144
+    sub sp, sp, #128
     sub x16, x29, #24
     str x8, [x16]
-    str x19, [sp, #112]
-    str x20, [sp, #104]
-    str x21, [sp, #96]
-    sub x16, x29, #96
+    str x19, [sp, #96]
+    sub x16, x29, #80
     str x0, [x16]
-    sub x16, x29, #112
+    sub x16, x29, #96
     str x1, [x16]
     str x2, [x16, #8]
-    sub x9, x29, #96
+    sub x9, x29, #80
     ldr x15, [x9]
     ldrb w14, [x15]
     mov x10, #0
@@ -957,13 +917,13 @@ lb_net_IpAddress_12write_octets:
     movz x9, #16
     mov x19, x9
 .L8_3:
-    sub x14, x29, #112
-    add x20, x14, #8
-    ldr x20, [x20]
-    cmp x20, x19
+    sub x14, x29, #96
+    add x12, x14, #8
+    ldr x12, [x12]
+    cmp x12, x19
     b.hs .L8_5
 .L8_4:
-    sub x19, x29, #88
+    sub x19, x29, #72
     add x14, x19, #8
     adrp x15, lb_io_full
     add x15, x15, :lo12:lb_io_full
@@ -971,16 +931,16 @@ lb_net_IpAddress_12write_octets:
     str w15, [x14]
     adrp x15, .Ltext_18
     add x15, x15, :lo12:.Ltext_18
-    sub x20, x29, #128
-    str x15, [x20]
-    add x15, x20, #8
+    sub x12, x29, #112
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #49
     str x9, [x15]
     add x14, x14, #8
-    mov x10, x20
+    mov x10, x12
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #32
     movz x9, #1
     strb w9, [x14]
@@ -991,9 +951,7 @@ lb_net_IpAddress_12write_octets:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #112]
-    ldr x20, [sp, #104]
-    ldr x21, [sp, #96]
+    ldr x19, [sp, #96]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -1001,7 +959,7 @@ lb_net_IpAddress_12write_octets:
     b .L8_6
 .L8_5:
 .L8_6:
-    add x21, x15, #1
+    add x13, x15, #1
     movz x10, #17
     cmp x19, x10
     b.lo 1f
@@ -1021,10 +979,10 @@ lb_net_IpAddress_12write_octets:
     add x1, x1, :lo12:.Ltext_20
     bl lb_core_7trap_at
 .L8_8:
-    sub x15, x29, #144
-    str x21, [x15]
-    add x20, x15, #8
-    str x19, [x20]
+    sub x15, x29, #128
+    str x13, [x15]
+    add x12, x15, #8
+    str x19, [x12]
     mov x9, x14
     ldr x0, [x9]
     ldr x1, [x9, #8]
@@ -1033,11 +991,11 @@ lb_net_IpAddress_12write_octets:
     ldr x3, [x9, #8]
     mov x4, x19
     bl lb_memory_move_0g1_u8
-    sub x15, x29, #88
+    sub x15, x29, #72
     str x19, [x15]
-    add x20, x15, #32
+    add x12, x15, #32
     mov x9, #0
-    strb w9, [x20]
+    strb w9, [x12]
     mov x1, x15
     sub x16, x29, #24
     ldr x0, [x16]
@@ -1045,9 +1003,7 @@ lb_net_IpAddress_12write_octets:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #112]
-    ldr x20, [sp, #104]
-    ldr x21, [sp, #96]
+    ldr x19, [sp, #96]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -1066,19 +1022,19 @@ lb_net_IpAddress_12write_octets:
 lb_net_IpAddress_format:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #560
+    sub sp, sp, #528
     sub x16, x29, #24
     str x8, [x16]
-    str x19, [sp, #528]
-    str x20, [sp, #520]
-    str x21, [sp, #512]
-    str x22, [sp, #504]
-    str x23, [sp, #496]
-    str x24, [sp, #488]
-    str x25, [sp, #480]
-    str x26, [sp, #472]
-    str x27, [sp, #464]
-    str x28, [sp, #456]
+    str x19, [sp, #496]
+    str x20, [sp, #488]
+    str x21, [sp, #480]
+    str x22, [sp, #472]
+    str x23, [sp, #464]
+    str x24, [sp, #456]
+    str x25, [sp, #448]
+    str x26, [sp, #440]
+    str x27, [sp, #432]
+    str x28, [sp, #424]
     sub x16, x29, #160
     str x0, [x16]
     sub x16, x29, #176
@@ -1086,7 +1042,7 @@ lb_net_IpAddress_format:
     str x2, [x16, #8]
     sub x9, x29, #160
     ldr x9, [x9]
-    str x9, [sp, #48]
+    str x9, [sp, #32]
     sub x19, x29, #215
     mov x11, x19
     stp xzr, xzr, [x11, #0]
@@ -1094,29 +1050,29 @@ lb_net_IpAddress_format:
     str wzr, [x11, #32]
     strh wzr, [x11, #36]
     strb wzr, [x11, #38]
-    ldr x9, [sp, #48]
+    ldr x9, [sp, #32]
     ldrb w14, [x9]
     mov x10, #0
     cmp w14, w10
     b.ne .L9_2
 .L9_1:
-    ldr x9, [sp, #48]
+    ldr x9, [sp, #32]
     add x14, x9, #1
 .L9_4:
     sub x15, x29, #232
     str x14, [x15]
-    add x20, x15, #8
+    add x12, x15, #8
     movz x9, #4
-    str x9, [x20]
-    sub x20, x29, #248
-    str x19, [x20]
-    add x21, x20, #8
+    str x9, [x12]
+    sub x12, x29, #248
+    str x19, [x12]
+    add x13, x12, #8
     movz x9, #39
-    str x9, [x21]
+    str x9, [x13]
     mov x9, x15
     ldr x0, [x9]
     ldr x1, [x9, #8]
-    mov x9, x20
+    mov x9, x12
     ldr x2, [x9]
     ldr x3, [x9, #8]
     mov x4, #0
@@ -1126,7 +1082,7 @@ lb_net_IpAddress_format:
     str x9, [sp, #8]
     b .L9_3
 .L9_2:
-    ldr x0, [sp, #48]
+    ldr x0, [sp, #32]
     bl lb_net_IpAddress_14is_ipv4_mapped
     mov w14, w0
     cbnz w14, .L9_6
@@ -1139,34 +1095,34 @@ lb_net_IpAddress_format:
     str x9, [x15]
     adrp x15, .Ltext_23
     add x15, x15, :lo12:.Ltext_23
-    sub x21, x29, #280
-    str x15, [x21]
-    add x15, x21, #8
+    sub x12, x29, #280
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #7
     str x9, [x15]
     mov x9, x14
     ldr x0, [x9]
     ldr x1, [x9, #8]
-    mov x9, x21
+    mov x9, x12
     ldr x2, [x9]
     ldr x3, [x9, #8]
     movz x4, #7
     bl lb_memory_copy_0g1_u8
-    ldr x9, [sp, #48]
+    ldr x9, [sp, #32]
     add x14, x9, #1
 .L9_9:
     add x15, x14, #12
-    sub x20, x29, #296
-    str x15, [x20]
-    add x15, x20, #8
+    sub x12, x29, #296
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #4
     str x9, [x15]
     sub x15, x29, #312
     str x19, [x15]
-    add x21, x15, #8
+    add x13, x15, #8
     movz x9, #39
-    str x9, [x21]
-    mov x9, x20
+    str x9, [x13]
+    mov x9, x12
     ldr x0, [x9]
     ldr x1, [x9, #8]
     mov x9, x15
@@ -1178,9 +1134,9 @@ lb_net_IpAddress_format:
     b .L9_8
 .L9_7:
     movz x9, #8
-    str x9, [sp, #40]
+    str x9, [sp, #24]
     movz x9, #1
-    str x9, [sp, #32]
+    str x9, [sp, #16]
     mov x9, #0
     mov x23, x9
 .L9_11:
@@ -1188,7 +1144,7 @@ lb_net_IpAddress_format:
     cmp x23, x10
     b.hs .L9_13
 .L9_12:
-    ldr x0, [sp, #48]
+    ldr x0, [sp, #32]
     mov x1, x23
     bl lb_net_IpAddress_word
     mov w14, w0
@@ -1215,7 +1171,7 @@ lb_net_IpAddress_format:
     mov w15, w14
     b .L9_22
 .L9_21:
-    ldr x0, [sp, #48]
+    ldr x0, [sp, #32]
     mov x1, x24
     bl lb_net_IpAddress_word
     mov w14, w0
@@ -1252,41 +1208,39 @@ lb_net_IpAddress_format:
     bl lb_core_7trap_at
 1:
     mov x14, x9
-    ldr x10, [sp, #32]
+    ldr x10, [sp, #16]
     cmp x14, x10
     b.ls .L9_24
 .L9_23:
     mov x15, x23
-    mov x22, x14
+    mov x12, x14
     b .L9_25
 .L9_24:
-    ldr x9, [sp, #40]
+    ldr x9, [sp, #24]
     mov x15, x9
-    ldr x9, [sp, #32]
-    mov x22, x9
+    ldr x9, [sp, #16]
+    mov x12, x9
 .L9_25:
     mov x9, x15
-    str x9, [sp, #40]
-    mov x9, x22
-    str x9, [sp, #32]
+    str x9, [sp, #24]
+    mov x9, x12
+    str x9, [sp, #16]
     mov x23, x24
     b .L9_11
 .L9_13:
-    sub x9, x29, #328
-    str x9, [sp, #72]
-    ldr x9, [sp, #72]
-    add x24, x9, #8
+    sub x23, x29, #328
+    add x24, x23, #8
     sub x9, x29, #456
-    str x9, [sp, #64]
+    str x9, [sp, #48]
     adrp x26, .Ltext_63
     add x26, x26, :lo12:.Ltext_63
     sub x27, x29, #472
     add x28, x27, #8
     sub x9, x29, #408
-    str x9, [sp, #56]
+    str x9, [sp, #40]
     sub x14, x29, #424
     mov x9, #0
-    str x9, [sp, #24]
+    mov x14, x9
     mov x9, #0
     mov x25, x9
 .L9_26:
@@ -1294,13 +1248,12 @@ lb_net_IpAddress_format:
     cmp x25, x10
     b.hs .L9_28
 .L9_27:
-    ldr x9, [sp, #40]
+    ldr x9, [sp, #24]
     cmp x9, x25
     b.ne .L9_30
 .L9_29:
-    ldr x9, [sp, #24]
     movz x10, #39
-    cmp x9, x10
+    cmp x14, x10
     b.lo 1f
     adrp x0, .Ltext_29
     add x0, x0, :lo12:.Ltext_29
@@ -1308,12 +1261,10 @@ lb_net_IpAddress_format:
     add x1, x1, :lo12:.Ltext_20
     bl lb_core_7trap_at
 1:
-    ldr x10, [sp, #24]
-    add x15, x19, x10
+    add x15, x19, x14
     movz x9, #58
     strb w9, [x15]
-    ldr x9, [sp, #24]
-    add x15, x9, #1
+    add x15, x14, #1
     movz x10, #39
     cmp x15, x10
     b.lo 1f
@@ -1326,9 +1277,8 @@ lb_net_IpAddress_format:
     add x15, x19, x15
     movz x9, #58
     strb w9, [x15]
-    ldr x9, [sp, #24]
-    add x15, x9, #2
-    ldr x9, [sp, #32]
+    add x15, x14, #2
+    ldr x9, [sp, #16]
     mov x10, x25
     adds x9, x9, x10
     b.cc 1f
@@ -1338,24 +1288,22 @@ lb_net_IpAddress_format:
     add x1, x1, :lo12:.Ltext_43
     bl lb_core_7trap_at
 1:
-    mov x21, x9
-    mov x9, x15
-    str x9, [sp, #24]
-    mov x25, x21
+    mov x12, x9
+    mov x14, x15
+    mov x25, x12
     b .L9_26
 .L9_30:
 .L9_31:
-    ldr x9, [sp, #24]
     mov x10, #0
-    cmp x9, x10
+    cmp x14, x10
     cset w15, hi
     cbnz w15, .L9_36
     b .L9_60
 .L9_60:
-    mov w21, w15
+    mov w12, w15
     b .L9_37
 .L9_36:
-    ldr x9, [sp, #24]
+    mov x9, x14
     movz x10, #1
     subs x9, x9, x10
     b.cs 1f
@@ -1382,15 +1330,14 @@ lb_net_IpAddress_format:
     cset w15, eq
     mov x10, #0
     cmp w15, w10
-    cset w21, eq
+    cset w12, eq
 .L9_37:
-    and w15, w21, #255
+    and w15, w12, #255
     cbnz w15, .L9_33
     b .L9_34
 .L9_33:
-    ldr x9, [sp, #24]
     movz x10, #39
-    cmp x9, x10
+    cmp x14, x10
     b.lo 1f
     adrp x0, .Ltext_34
     add x0, x0, :lo12:.Ltext_34
@@ -1398,50 +1345,44 @@ lb_net_IpAddress_format:
     add x1, x1, :lo12:.Ltext_20
     bl lb_core_7trap_at
 1:
-    ldr x10, [sp, #24]
-    add x15, x19, x10
+    add x15, x19, x14
     movz x9, #58
     strb w9, [x15]
-    ldr x9, [sp, #24]
-    add x15, x9, #1
+    add x15, x14, #1
     mov x21, x15
     b .L9_35
 .L9_34:
-    ldr x9, [sp, #24]
-    mov x21, x9
+    mov x21, x14
 .L9_35:
-    ldr x0, [sp, #48]
+    ldr x0, [sp, #32]
     mov x1, x25
     bl lb_net_IpAddress_word
-    str w0, [sp, #80]
-    ldr x10, [sp, #72]
-    str x19, [x10]
+    mov w14, w0
+    str x19, [x23]
     movz x9, #39
     str x9, [x24]
-    ldr w9, [sp, #80]
     sub x10, x29, #408
-    str w9, [x10]
-    ldr x10, [sp, #72]
+    str w14, [x10]
+    mov x10, x23
     sub x11, x29, #424
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     sub x10, x29, #440
     str x21, [x10]
     str x26, [x27]
     movz x9, #16
     str x9, [x28]
     mov x10, x27
-    ldr x11, [sp, #64]
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x9, [sp, #56]
-    ldrh w14, [x9]
-    mov x9, x21
-    str x9, [sp, #16]
+    ldr x11, [sp, #48]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x9, [sp, #40]
+    ldrh w13, [x9]
+    mov x14, x21
     movz x9, #12
     mov w15, w9
     mov x9, #0
-    mov w22, w9
+    mov w12, w9
 .L9_45:
     mov x10, #0
     cmp w15, w10
@@ -1458,7 +1399,7 @@ lb_net_IpAddress_format:
     add x1, x1, :lo12:.Ltext_1
     bl lb_core_7trap_at
 .L9_49:
-    lsr w21, w14, w15
+    lsr w21, w13, w15
     and w21, w21, #65535
     movz x10, #15
     and w21, w21, w10
@@ -1472,29 +1413,28 @@ lb_net_IpAddress_format:
     cbnz w20, .L9_61
     b .L9_53
 .L9_61:
-    mov w23, w20
+    mov w22, w20
     b .L9_54
 .L9_53:
-    and w23, w22, #255
+    and w22, w12, #255
 .L9_54:
-    and w20, w23, #255
+    and w20, w22, #255
     cbnz w20, .L9_62
     b .L9_55
 .L9_62:
-    mov w23, w20
+    mov w22, w20
     b .L9_56
 .L9_55:
     mov x10, #0
     cmp w15, w10
-    cset w23, eq
+    cset w22, eq
 .L9_56:
-    and w20, w23, #255
+    and w20, w22, #255
     cbnz w20, .L9_50
     b .L9_51
 .L9_50:
-    ldr x9, [sp, #16]
     movz x10, #39
-    cmp x9, x10
+    cmp x14, x10
     b.lo 1f
     adrp x0, .Ltext_65
     add x0, x0, :lo12:.Ltext_65
@@ -1502,19 +1442,17 @@ lb_net_IpAddress_format:
     add x1, x1, :lo12:.Ltext_20
     bl lb_core_7trap_at
 1:
-    ldr x10, [sp, #16]
-    add x20, x19, x10
-    add x22, x26, x21
-    ldrb w22, [x22]
-    strb w22, [x20]
-    ldr x9, [sp, #16]
-    add x20, x9, #1
+    add x12, x19, x14
+    add x20, x26, x21
+    ldrb w20, [x20]
+    strb w20, [x12]
+    add x12, x14, #1
+    mov x20, x12
     movz x9, #1
-    mov w22, w9
+    mov w12, w9
     b .L9_52
 .L9_51:
-    ldr x9, [sp, #16]
-    mov x20, x9
+    mov x20, x14
 .L9_52:
     mov w9, w15
     movz x10, #4
@@ -1527,20 +1465,16 @@ lb_net_IpAddress_format:
     bl lb_core_7trap_at
 1:
     mov w21, w9
-    mov x9, x20
-    str x9, [sp, #16]
+    mov x14, x20
     mov w15, w21
     b .L9_45
 .L9_47:
 .L9_58:
-    add x14, x25, #1
-    ldr x9, [sp, #16]
-    str x9, [sp, #24]
-    mov x25, x14
+    add x15, x25, #1
+    mov x25, x15
     b .L9_26
 .L9_28:
-    ldr x9, [sp, #24]
-    mov x15, x9
+    mov x15, x14
 .L9_8:
     mov x9, x15
     str x9, [sp, #8]
@@ -1560,16 +1494,16 @@ lb_net_IpAddress_format:
     str w15, [x14]
     adrp x15, .Ltext_37
     add x15, x15, :lo12:.Ltext_37
-    sub x20, x29, #344
-    str x15, [x20]
-    add x15, x20, #8
+    sub x12, x29, #344
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #52
     str x9, [x15]
     add x14, x14, #8
-    mov x10, x20
+    mov x10, x12
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #40
     movz x9, #1
     strb w9, [x14]
@@ -1580,16 +1514,16 @@ lb_net_IpAddress_format:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #528]
-    ldr x20, [sp, #520]
-    ldr x21, [sp, #512]
-    ldr x22, [sp, #504]
-    ldr x23, [sp, #496]
-    ldr x24, [sp, #488]
-    ldr x25, [sp, #480]
-    ldr x26, [sp, #472]
-    ldr x27, [sp, #464]
-    ldr x28, [sp, #456]
+    ldr x19, [sp, #496]
+    ldr x20, [sp, #488]
+    ldr x21, [sp, #480]
+    ldr x22, [sp, #472]
+    ldr x23, [sp, #464]
+    ldr x24, [sp, #456]
+    ldr x25, [sp, #448]
+    ldr x26, [sp, #440]
+    ldr x27, [sp, #432]
+    ldr x28, [sp, #424]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -1647,14 +1581,14 @@ lb_net_IpAddress_format:
     str x9, [x14]
     sub x14, x29, #392
     str x15, [x14]
-    add x19, x14, #8
+    add x12, x14, #8
     ldr x9, [sp, #8]
-    str x9, [x19]
+    str x9, [x12]
     sub x19, x29, #152
     mov x10, x14
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #40
     mov x9, #0
     strb w9, [x14]
@@ -1665,16 +1599,16 @@ lb_net_IpAddress_format:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #528]
-    ldr x20, [sp, #520]
-    ldr x21, [sp, #512]
-    ldr x22, [sp, #504]
-    ldr x23, [sp, #496]
-    ldr x24, [sp, #488]
-    ldr x25, [sp, #480]
-    ldr x26, [sp, #472]
-    ldr x27, [sp, #464]
-    ldr x28, [sp, #456]
+    ldr x19, [sp, #496]
+    ldr x20, [sp, #488]
+    ldr x21, [sp, #480]
+    ldr x22, [sp, #472]
+    ldr x23, [sp, #464]
+    ldr x24, [sp, #456]
+    ldr x25, [sp, #448]
+    ldr x26, [sp, #440]
+    ldr x27, [sp, #432]
+    ldr x28, [sp, #424]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -1687,17 +1621,15 @@ lb_net_IpAddress_format:
 lb_net_IpAddress_word:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #64
-    str x19, [sp, #40]
-    str x20, [sp, #32]
-    str x21, [sp, #24]
-    sub x16, x29, #48
+    sub sp, sp, #48
+    str x19, [sp, #24]
+    sub x16, x29, #32
     str x0, [x16]
-    sub x16, x29, #64
+    sub x16, x29, #48
     str x1, [x16]
-    sub x9, x29, #48
+    sub x9, x29, #32
     ldr x15, [x9]
-    sub x14, x29, #64
+    sub x14, x29, #48
     ldr x14, [x14]
     mov x9, x14
     movz x10, #2
@@ -1721,16 +1653,16 @@ lb_net_IpAddress_word:
     add x1, x1, :lo12:.Ltext_20
     bl lb_core_7trap_at
 1:
-    add x19, x14, x15
-    ldrb w19, [x19]
-    mov w19, w19
-    and w19, w19, #65535
+    add x12, x14, x15
+    ldrb w12, [x12]
+    mov w12, w12
+    and w12, w12, #65535
 .L10_2:
-    lsl w20, w19, #8
-    and w20, w20, #65535
-    add x21, x14, #1
+    lsl w13, w12, #8
+    and w13, w13, #65535
+    add x19, x14, #1
     movz x10, #16
-    cmp x21, x10
+    cmp x19, x10
     b.lo 1f
     adrp x0, .Ltext_39
     add x0, x0, :lo12:.Ltext_39
@@ -1738,17 +1670,15 @@ lb_net_IpAddress_word:
     add x1, x1, :lo12:.Ltext_20
     bl lb_core_7trap_at
 1:
-    add x21, x15, x21
-    ldrb w21, [x21]
-    mov w21, w21
-    and w21, w21, #65535
-    orr w20, w20, w21
-    and w20, w20, #65535
-    mov x9, x20
+    add x19, x15, x19
+    ldrb w19, [x19]
+    mov w19, w19
+    and w19, w19, #65535
+    orr w13, w13, w19
+    and w13, w13, #65535
+    mov x9, x13
     mov x0, x9
-    ldr x19, [sp, #40]
-    ldr x20, [sp, #32]
-    ldr x21, [sp, #24]
+    ldr x19, [sp, #24]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -1761,68 +1691,65 @@ lb_net_IpAddress_word:
 lb_net_17parse_ipv4_number:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #192
-    str x19, [sp, #168]
-    str x20, [sp, #160]
-    str x21, [sp, #152]
-    str x22, [sp, #144]
-    str x23, [sp, #136]
-    str x24, [sp, #128]
-    str x25, [sp, #120]
-    str x26, [sp, #112]
-    str x27, [sp, #104]
-    str x28, [sp, #96]
+    sub sp, sp, #176
+    str x19, [sp, #152]
+    str x20, [sp, #144]
+    str x21, [sp, #136]
+    str x22, [sp, #128]
+    str x23, [sp, #120]
+    str x24, [sp, #112]
+    str x25, [sp, #104]
+    str x26, [sp, #96]
+    str x27, [sp, #88]
+    str x28, [sp, #80]
     sub x16, x29, #120
     str x0, [x16]
     str x1, [x16, #8]
     sub x14, x29, #120
     add x15, x14, #8
     ldr x15, [x15]
-    ldr x9, [x14]
-    str x9, [sp, #16]
+    ldr x12, [x14]
+    ldr x13, [x14]
+    ldr x19, [x14]
     ldr x20, [x14]
-    ldr x21, [x14]
-    ldr x22, [x14]
-    ldr x9, [x14]
-    str x9, [sp, #8]
+    ldr x14, [x14]
     mov x9, #0
-    mov w23, w9
+    mov w21, w9
     mov x9, #0
-    mov x24, x9
+    mov x22, x9
     mov x9, #0
-    mov x25, x9
+    mov x23, x9
 .L11_1:
     movz x10, #4
-    cmp x25, x10
+    cmp x23, x10
     b.hs .L11_3
 .L11_2:
-    mov x26, x24
+    mov x24, x22
     mov x9, #0
-    mov w27, w9
+    mov w25, w9
 .L11_4:
-    cmp x26, x15
-    cset w28, lo
-    cbnz w28, .L11_7
+    cmp x24, x15
+    cset w26, lo
+    cbnz w26, .L11_7
     b .L11_45
 .L11_45:
-    mov w14, w28
+    mov w27, w26
     b .L11_8
 .L11_7:
-    ldr x9, [sp, #16]
-    add x14, x9, x26
-    ldrb w14, [x14]
+    add x26, x12, x24
+    ldrb w26, [x26]
     movz x10, #48
-    cmp w14, w10
-    cset w14, hs
+    cmp w26, w10
+    cset w27, hs
 .L11_8:
-    and w28, w14, #255
-    cbnz w28, .L11_9
+    and w26, w27, #255
+    cbnz w26, .L11_9
     b .L11_46
 .L11_46:
-    mov w14, w28
+    mov w27, w26
     b .L11_10
 .L11_9:
-    cmp x26, x15
+    cmp x24, x15
     b.lo 1f
     adrp x0, .Ltext_40
     add x0, x0, :lo12:.Ltext_40
@@ -1830,18 +1757,18 @@ lb_net_17parse_ipv4_number:
     add x1, x1, :lo12:.Ltext_20
     bl lb_core_7trap_at
 1:
-    add x14, x20, x26
-    ldrb w14, [x14]
+    add x26, x13, x24
+    ldrb w26, [x26]
     movz x10, #57
-    cmp w14, w10
-    cset w14, ls
+    cmp w26, w10
+    cset w27, ls
 .L11_10:
-    and w28, w14, #255
-    cbnz w28, .L11_5
+    and w26, w27, #255
+    cbnz w26, .L11_5
     b .L11_6
 .L11_5:
-    mov x9, x26
-    mov x10, x24
+    mov x9, x24
+    mov x10, x22
     subs x9, x9, x10
     b.cs 1f
     adrp x0, .Ltext_41
@@ -1850,9 +1777,9 @@ lb_net_17parse_ipv4_number:
     add x1, x1, :lo12:.Ltext_43
     bl lb_core_7trap_at
 1:
-    mov x14, x9
+    mov x26, x9
     movz x10, #3
-    cmp x14, x10
+    cmp x26, x10
     b.ne .L11_12
 .L11_11:
     sub x19, x29, #128
@@ -1861,26 +1788,26 @@ lb_net_17parse_ipv4_number:
     sub x20, x29, #104
     mov x10, x19
     mov x11, x20
-    ldr x12, [x10, #0]
-    str x12, [x11, #0]
+    ldr x16, [x10, #0]
+    str x16, [x11, #0]
     mov x16, x20
     ldr x0, [x16, #0]
-    ldr x19, [sp, #168]
-    ldr x20, [sp, #160]
-    ldr x21, [sp, #152]
-    ldr x22, [sp, #144]
-    ldr x23, [sp, #136]
-    ldr x24, [sp, #128]
-    ldr x25, [sp, #120]
-    ldr x26, [sp, #112]
-    ldr x27, [sp, #104]
-    ldr x28, [sp, #96]
+    ldr x19, [sp, #152]
+    ldr x20, [sp, #144]
+    ldr x21, [sp, #136]
+    ldr x22, [sp, #128]
+    ldr x23, [sp, #120]
+    ldr x24, [sp, #112]
+    ldr x25, [sp, #104]
+    ldr x26, [sp, #96]
+    ldr x27, [sp, #88]
+    ldr x28, [sp, #80]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
 .L11_12:
 .L11_13:
-    mov w9, w27
+    mov w9, w25
     movz x10, #10
     mov w9, w9
     mov w10, w10
@@ -1893,8 +1820,8 @@ lb_net_17parse_ipv4_number:
     add x1, x1, :lo12:.Ltext_43
     bl lb_core_7trap_at
 1:
-    mov w28, w9
-    cmp x26, x15
+    mov w27, w9
+    cmp x24, x15
     b.lo 1f
     adrp x0, .Ltext_42
     add x0, x0, :lo12:.Ltext_42
@@ -1902,11 +1829,11 @@ lb_net_17parse_ipv4_number:
     add x1, x1, :lo12:.Ltext_20
     bl lb_core_7trap_at
 1:
-    add x14, x21, x26
-    ldrb w14, [x14]
-    sub w19, w14, #48
-    and w14, w19, #255
-    cmp w14, w19
+    add x26, x19, x24
+    ldrb w26, [x26]
+    sub w28, w26, #48
+    and w26, w28, #255
+    cmp w26, w28
     b.eq .L11_15
 .L11_16:
     adrp x0, .Ltext_42
@@ -1915,9 +1842,9 @@ lb_net_17parse_ipv4_number:
     add x1, x1, :lo12:.Ltext_43
     bl lb_core_7trap_at
 .L11_15:
-    mov w14, w19
-    mov w9, w14
-    mov w10, w28
+    mov w25, w28
+    mov w9, w25
+    mov w10, w27
     adds w9, w9, w10
     b.cc 1f
     adrp x0, .Ltext_42
@@ -1926,25 +1853,25 @@ lb_net_17parse_ipv4_number:
     add x1, x1, :lo12:.Ltext_43
     bl lb_core_7trap_at
 1:
-    mov w27, w9
-    add x14, x26, #1
-    mov x26, x14
+    mov w25, w9
+    add x26, x24, #1
+    mov x24, x26
     b .L11_4
 .L11_6:
-    cmp x24, x26
-    cset w14, eq
-    cbnz w14, .L11_47
+    cmp x22, x24
+    cset w26, eq
+    cbnz w26, .L11_47
     b .L11_20
 .L11_47:
-    mov w19, w14
+    mov w27, w26
     b .L11_21
 .L11_20:
     movz x10, #255
-    cmp w27, w10
-    cset w19, hi
+    cmp w25, w10
+    cset w27, hi
 .L11_21:
-    and w14, w19, #255
-    cbnz w14, .L11_17
+    and w26, w27, #255
+    cbnz w26, .L11_17
     b .L11_18
 .L11_17:
     sub x19, x29, #136
@@ -1953,27 +1880,27 @@ lb_net_17parse_ipv4_number:
     sub x20, x29, #104
     mov x10, x19
     mov x11, x20
-    ldr x12, [x10, #0]
-    str x12, [x11, #0]
+    ldr x16, [x10, #0]
+    str x16, [x11, #0]
     mov x16, x20
     ldr x0, [x16, #0]
-    ldr x19, [sp, #168]
-    ldr x20, [sp, #160]
-    ldr x21, [sp, #152]
-    ldr x22, [sp, #144]
-    ldr x23, [sp, #136]
-    ldr x24, [sp, #128]
-    ldr x25, [sp, #120]
-    ldr x26, [sp, #112]
-    ldr x27, [sp, #104]
-    ldr x28, [sp, #96]
+    ldr x19, [sp, #152]
+    ldr x20, [sp, #144]
+    ldr x21, [sp, #136]
+    ldr x22, [sp, #128]
+    ldr x23, [sp, #120]
+    ldr x24, [sp, #112]
+    ldr x25, [sp, #104]
+    ldr x26, [sp, #96]
+    ldr x27, [sp, #88]
+    ldr x28, [sp, #80]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
 .L11_18:
 .L11_19:
-    mov x9, x26
-    mov x10, x24
+    mov x9, x24
+    mov x10, x22
     subs x9, x9, x10
     b.cs 1f
     adrp x0, .Ltext_45
@@ -1982,17 +1909,17 @@ lb_net_17parse_ipv4_number:
     add x1, x1, :lo12:.Ltext_43
     bl lb_core_7trap_at
 1:
-    mov x14, x9
+    mov x26, x9
     movz x10, #1
-    cmp x14, x10
-    cset w14, hi
-    cbnz w14, .L11_26
+    cmp x26, x10
+    cset w26, hi
+    cbnz w26, .L11_26
     b .L11_48
 .L11_48:
-    mov w19, w14
+    mov w22, w26
     b .L11_27
 .L11_26:
-    cmp x24, x15
+    cmp x22, x15
     b.lo 1f
     adrp x0, .Ltext_45
     add x0, x0, :lo12:.Ltext_45
@@ -2000,14 +1927,15 @@ lb_net_17parse_ipv4_number:
     add x1, x1, :lo12:.Ltext_20
     bl lb_core_7trap_at
 1:
-    add x14, x22, x24
-    ldrb w14, [x14]
+    add x26, x20, x22
+    ldrb w26, [x26]
     movz x10, #48
-    cmp w14, w10
-    cset w19, eq
+    cmp w26, w10
+    cset w26, eq
+    mov w22, w26
 .L11_27:
-    and w14, w19, #255
-    cbnz w14, .L11_23
+    and w26, w22, #255
+    cbnz w26, .L11_23
     b .L11_24
 .L11_23:
     sub x19, x29, #144
@@ -2016,42 +1944,42 @@ lb_net_17parse_ipv4_number:
     sub x20, x29, #104
     mov x10, x19
     mov x11, x20
-    ldr x12, [x10, #0]
-    str x12, [x11, #0]
+    ldr x16, [x10, #0]
+    str x16, [x11, #0]
     mov x16, x20
     ldr x0, [x16, #0]
-    ldr x19, [sp, #168]
-    ldr x20, [sp, #160]
-    ldr x21, [sp, #152]
-    ldr x22, [sp, #144]
-    ldr x23, [sp, #136]
-    ldr x24, [sp, #128]
-    ldr x25, [sp, #120]
-    ldr x26, [sp, #112]
-    ldr x27, [sp, #104]
-    ldr x28, [sp, #96]
+    ldr x19, [sp, #152]
+    ldr x20, [sp, #144]
+    ldr x21, [sp, #136]
+    ldr x22, [sp, #128]
+    ldr x23, [sp, #120]
+    ldr x24, [sp, #112]
+    ldr x25, [sp, #104]
+    ldr x26, [sp, #96]
+    ldr x27, [sp, #88]
+    ldr x28, [sp, #80]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
 .L11_24:
 .L11_25:
 .L11_30:
-    lsl w14, w23, #8
-    orr w14, w14, w27
-    add x19, x25, #1
+    lsl w22, w21, #8
+    orr w22, w22, w25
+    add x26, x23, #1
     movz x10, #4
-    cmp x19, x10
+    cmp x26, x10
     b.hs .L11_32
 .L11_31:
-    cmp x15, x26
-    cset w23, eq
-    cbnz w23, .L11_49
+    cmp x15, x24
+    cset w21, eq
+    cbnz w21, .L11_49
     b .L11_37
 .L11_49:
-    mov w24, w23
+    mov w23, w21
     b .L11_38
 .L11_37:
-    cmp x26, x15
+    cmp x24, x15
     b.lo 1f
     adrp x0, .Ltext_48
     add x0, x0, :lo12:.Ltext_48
@@ -2059,18 +1987,17 @@ lb_net_17parse_ipv4_number:
     add x1, x1, :lo12:.Ltext_20
     bl lb_core_7trap_at
 1:
-    ldr x9, [sp, #8]
-    add x23, x9, x26
-    ldrb w23, [x23]
+    add x21, x14, x24
+    ldrb w21, [x21]
     movz x10, #46
-    cmp w23, w10
-    cset w23, eq
+    cmp w21, w10
+    cset w21, eq
     mov x10, #0
-    cmp w23, w10
-    cset w24, eq
+    cmp w21, w10
+    cset w23, eq
 .L11_38:
-    and w23, w24, #255
-    cbnz w23, .L11_34
+    and w21, w23, #255
+    cbnz w21, .L11_34
     b .L11_35
 .L11_34:
     sub x19, x29, #152
@@ -2079,26 +2006,26 @@ lb_net_17parse_ipv4_number:
     sub x20, x29, #104
     mov x10, x19
     mov x11, x20
-    ldr x12, [x10, #0]
-    str x12, [x11, #0]
+    ldr x16, [x10, #0]
+    str x16, [x11, #0]
     mov x16, x20
     ldr x0, [x16, #0]
-    ldr x19, [sp, #168]
-    ldr x20, [sp, #160]
-    ldr x21, [sp, #152]
-    ldr x22, [sp, #144]
-    ldr x23, [sp, #136]
-    ldr x24, [sp, #128]
-    ldr x25, [sp, #120]
-    ldr x26, [sp, #112]
-    ldr x27, [sp, #104]
-    ldr x28, [sp, #96]
+    ldr x19, [sp, #152]
+    ldr x20, [sp, #144]
+    ldr x21, [sp, #136]
+    ldr x22, [sp, #128]
+    ldr x23, [sp, #120]
+    ldr x24, [sp, #112]
+    ldr x25, [sp, #104]
+    ldr x26, [sp, #96]
+    ldr x27, [sp, #88]
+    ldr x28, [sp, #80]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
 .L11_35:
 .L11_36:
-    mov x9, x26
+    mov x9, x24
     movz x10, #1
     adds x9, x9, x10
     b.cc 1f
@@ -2108,20 +2035,21 @@ lb_net_17parse_ipv4_number:
     add x1, x1, :lo12:.Ltext_43
     bl lb_core_7trap_at
 1:
-    mov x23, x9
-    mov x24, x23
+    mov x21, x9
+    mov x23, x21
     b .L11_33
 .L11_32:
-    mov x24, x26
+    mov x23, x24
 .L11_33:
-    mov w23, w14
-    mov x25, x19
+    mov w21, w22
+    mov x22, x23
+    mov x23, x26
     b .L11_1
 .L11_3:
     sub x14, x29, #120
     add x14, x14, #8
     ldr x14, [x14]
-    cmp x14, x24
+    cmp x14, x22
     cset w14, eq
     mov x10, #0
     cmp w14, w10
@@ -2133,47 +2061,47 @@ lb_net_17parse_ipv4_number:
     sub x20, x29, #104
     mov x10, x19
     mov x11, x20
-    ldr x12, [x10, #0]
-    str x12, [x11, #0]
+    ldr x16, [x10, #0]
+    str x16, [x11, #0]
     mov x16, x20
     ldr x0, [x16, #0]
-    ldr x19, [sp, #168]
-    ldr x20, [sp, #160]
-    ldr x21, [sp, #152]
-    ldr x22, [sp, #144]
-    ldr x23, [sp, #136]
-    ldr x24, [sp, #128]
-    ldr x25, [sp, #120]
-    ldr x26, [sp, #112]
-    ldr x27, [sp, #104]
-    ldr x28, [sp, #96]
+    ldr x19, [sp, #152]
+    ldr x20, [sp, #144]
+    ldr x21, [sp, #136]
+    ldr x22, [sp, #128]
+    ldr x23, [sp, #120]
+    ldr x24, [sp, #112]
+    ldr x25, [sp, #104]
+    ldr x26, [sp, #96]
+    ldr x27, [sp, #88]
+    ldr x28, [sp, #80]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
 .L11_41:
 .L11_42:
     sub x14, x29, #168
-    str w23, [x14]
+    str w21, [x14]
     add x15, x14, #4
     movz x9, #1
     strb w9, [x15]
     sub x19, x29, #104
     mov x10, x14
     mov x11, x19
-    ldr x12, [x10, #0]
-    str x12, [x11, #0]
+    ldr x16, [x10, #0]
+    str x16, [x11, #0]
     mov x16, x19
     ldr x0, [x16, #0]
-    ldr x19, [sp, #168]
-    ldr x20, [sp, #160]
-    ldr x21, [sp, #152]
-    ldr x22, [sp, #144]
-    ldr x23, [sp, #136]
-    ldr x24, [sp, #128]
-    ldr x25, [sp, #120]
-    ldr x26, [sp, #112]
-    ldr x27, [sp, #104]
-    ldr x28, [sp, #96]
+    ldr x19, [sp, #152]
+    ldr x20, [sp, #144]
+    ldr x21, [sp, #136]
+    ldr x22, [sp, #128]
+    ldr x23, [sp, #120]
+    ldr x24, [sp, #112]
+    ldr x25, [sp, #104]
+    ldr x26, [sp, #96]
+    ldr x27, [sp, #88]
+    ldr x28, [sp, #80]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -2186,17 +2114,17 @@ lb_net_17parse_ipv4_number:
 lb_net_11render_ipv4:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #192
-    str x19, [sp, #168]
-    str x20, [sp, #160]
-    str x21, [sp, #152]
-    str x22, [sp, #144]
-    str x23, [sp, #136]
-    str x24, [sp, #128]
-    str x25, [sp, #120]
-    str x26, [sp, #112]
-    str x27, [sp, #104]
-    str x28, [sp, #96]
+    sub sp, sp, #176
+    str x19, [sp, #152]
+    str x20, [sp, #144]
+    str x21, [sp, #136]
+    str x22, [sp, #128]
+    str x23, [sp, #120]
+    str x24, [sp, #112]
+    str x25, [sp, #104]
+    str x26, [sp, #96]
+    str x27, [sp, #88]
+    str x28, [sp, #80]
     sub x16, x29, #112
     str x0, [x16]
     str x1, [x16, #8]
@@ -2208,39 +2136,37 @@ lb_net_11render_ipv4:
     sub x14, x29, #144
     ldr x14, [x14]
     sub x15, x29, #128
-    ldr x9, [x15]
-    str x9, [sp, #40]
+    ldr x12, [x15]
     add x15, x15, #8
     ldr x15, [x15]
-    sub x20, x29, #112
+    sub x13, x29, #112
+    ldr x9, [x13]
+    str x9, [sp, #24]
+    add x13, x13, #8
+    ldr x13, [x13]
+    sub x20, x29, #128
     ldr x9, [x20]
-    str x9, [sp, #32]
+    str x9, [sp, #16]
     add x20, x20, #8
     ldr x9, [x20]
-    str x9, [sp, #24]
+    str x9, [sp, #8]
     sub x22, x29, #128
     ldr x23, [x22]
     add x22, x22, #8
-    ldr x9, [x22]
-    str x9, [sp, #16]
+    ldr x22, [x22]
     sub x24, x29, #128
     ldr x25, [x24]
     add x24, x24, #8
     ldr x24, [x24]
-    sub x26, x29, #128
-    ldr x9, [x26]
-    str x9, [sp, #8]
-    add x26, x26, #8
-    ldr x26, [x26]
     mov x9, #0
-    mov x28, x9
+    mov x26, x9
 .L12_1:
     movz x10, #4
-    cmp x28, x10
+    cmp x26, x10
     b.hs .L12_3
 .L12_2:
     mov x10, #0
-    cmp x28, x10
+    cmp x26, x10
     b.ls .L12_5
 .L12_4:
     cmp x14, x15
@@ -2251,8 +2177,7 @@ lb_net_11render_ipv4:
     add x1, x1, :lo12:.Ltext_20
     bl lb_core_7trap_at
 1:
-    ldr x9, [sp, #40]
-    add x27, x9, x14
+    add x27, x12, x14
     movz x9, #46
     strb w9, [x27]
     add x27, x14, #1
@@ -2260,8 +2185,7 @@ lb_net_11render_ipv4:
 .L12_5:
     mov x27, x14
 .L12_6:
-    ldr x10, [sp, #24]
-    cmp x28, x10
+    cmp x26, x13
     b.lo 1f
     adrp x0, .Ltext_53
     add x0, x0, :lo12:.Ltext_53
@@ -2269,15 +2193,15 @@ lb_net_11render_ipv4:
     add x1, x1, :lo12:.Ltext_20
     bl lb_core_7trap_at
 1:
-    ldr x9, [sp, #32]
-    add x14, x9, x28
+    ldr x9, [sp, #24]
+    add x14, x9, x26
     ldrb w14, [x14]
     and w14, w14, #255
     movz x10, #100
     cmp w14, w10
     b.lo .L12_8
 .L12_7:
-    ldr x10, [sp, #16]
+    ldr x10, [sp, #8]
     cmp x27, x10
     b.lo 1f
     adrp x0, .Ltext_54
@@ -2286,14 +2210,15 @@ lb_net_11render_ipv4:
     add x1, x1, :lo12:.Ltext_20
     bl lb_core_7trap_at
 1:
-    add x19, x23, x27
+    ldr x9, [sp, #16]
+    add x28, x9, x27
 .L12_11:
     movz x10, #100
-    udiv w20, w14, w10
-    and w20, w20, #255
-    add w21, w20, #48
-    and w20, w21, #255
-    cmp w20, w21
+    udiv w19, w14, w10
+    and w19, w19, #255
+    add w20, w19, #48
+    and w19, w20, #255
+    cmp w19, w20
     b.eq .L12_12
 .L12_13:
     adrp x0, .Ltext_54
@@ -2302,17 +2227,17 @@ lb_net_11render_ipv4:
     add x1, x1, :lo12:.Ltext_43
     bl lb_core_7trap_at
 .L12_12:
-    strb w21, [x19]
-    add x20, x27, #1
+    strb w20, [x28]
+    add x19, x27, #1
     b .L12_9
 .L12_8:
-    mov x20, x27
+    mov x19, x27
 .L12_9:
     movz x10, #10
     cmp w14, w10
     b.lo .L12_15
 .L12_14:
-    cmp x20, x24
+    cmp x19, x22
     b.lo 1f
     adrp x0, .Ltext_57
     add x0, x0, :lo12:.Ltext_57
@@ -2320,19 +2245,19 @@ lb_net_11render_ipv4:
     add x1, x1, :lo12:.Ltext_20
     bl lb_core_7trap_at
 1:
-    add x19, x25, x20
+    add x20, x23, x19
 .L12_18:
     movz x10, #10
-    udiv w21, w14, w10
-    and w21, w21, #255
+    udiv w27, w14, w10
+    and w27, w27, #255
 .L12_20:
     movz x10, #10
-    udiv w11, w21, w10
-    msub w27, w11, w10, w21
-    and w27, w27, #255
-    add w22, w27, #48
-    and w27, w22, #255
-    cmp w27, w22
+    udiv w11, w27, w10
+    msub w28, w11, w10, w27
+    and w28, w28, #255
+    add w21, w28, #48
+    and w28, w21, #255
+    cmp w28, w21
     b.eq .L12_21
 .L12_22:
     adrp x0, .Ltext_57
@@ -2341,13 +2266,13 @@ lb_net_11render_ipv4:
     add x1, x1, :lo12:.Ltext_43
     bl lb_core_7trap_at
 .L12_21:
-    strb w22, [x19]
-    add x21, x20, #1
+    strb w21, [x20]
+    add x27, x19, #1
     b .L12_16
 .L12_15:
-    mov x21, x20
+    mov x27, x19
 .L12_16:
-    cmp x21, x26
+    cmp x27, x24
     b.lo 1f
     adrp x0, .Ltext_59
     add x0, x0, :lo12:.Ltext_59
@@ -2355,16 +2280,15 @@ lb_net_11render_ipv4:
     add x1, x1, :lo12:.Ltext_20
     bl lb_core_7trap_at
 1:
-    ldr x9, [sp, #8]
-    add x19, x9, x21
+    add x19, x25, x27
 .L12_24:
     movz x10, #10
     udiv w11, w14, w10
     msub w20, w11, w10, w14
     and w20, w20, #255
-    add w22, w20, #48
-    and w20, w22, #255
-    cmp w20, w22
+    add w21, w20, #48
+    and w20, w21, #255
+    cmp w20, w21
     b.eq .L12_25
 .L12_26:
     adrp x0, .Ltext_59
@@ -2373,24 +2297,24 @@ lb_net_11render_ipv4:
     add x1, x1, :lo12:.Ltext_43
     bl lb_core_7trap_at
 .L12_25:
-    strb w22, [x19]
-    add x14, x21, #1
-    add x20, x28, #1
-    mov x28, x20
+    strb w21, [x19]
+    add x14, x27, #1
+    add x20, x26, #1
+    mov x26, x20
     b .L12_1
 .L12_3:
     mov x9, x14
     mov x0, x9
-    ldr x19, [sp, #168]
-    ldr x20, [sp, #160]
-    ldr x21, [sp, #152]
-    ldr x22, [sp, #144]
-    ldr x23, [sp, #136]
-    ldr x24, [sp, #128]
-    ldr x25, [sp, #120]
-    ldr x26, [sp, #112]
-    ldr x27, [sp, #104]
-    ldr x28, [sp, #96]
+    ldr x19, [sp, #152]
+    ldr x20, [sp, #144]
+    ldr x21, [sp, #136]
+    ldr x22, [sp, #128]
+    ldr x23, [sp, #120]
+    ldr x24, [sp, #112]
+    ldr x25, [sp, #104]
+    ldr x26, [sp, #96]
+    ldr x27, [sp, #88]
+    ldr x28, [sp, #80]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -2403,19 +2327,19 @@ lb_net_11render_ipv4:
 lb_net_10parse_ipv6:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #528
+    sub sp, sp, #512
     sub x16, x29, #24
     str x8, [x16]
-    str x19, [sp, #496]
-    str x20, [sp, #488]
-    str x21, [sp, #480]
-    str x22, [sp, #472]
-    str x23, [sp, #464]
-    str x24, [sp, #456]
-    str x25, [sp, #448]
-    str x26, [sp, #440]
-    str x27, [sp, #432]
-    str x28, [sp, #424]
+    str x19, [sp, #480]
+    str x20, [sp, #472]
+    str x21, [sp, #464]
+    str x22, [sp, #456]
+    str x23, [sp, #448]
+    str x24, [sp, #440]
+    str x25, [sp, #432]
+    str x26, [sp, #424]
+    str x27, [sp, #416]
+    str x28, [sp, #408]
     sub x16, x29, #144
     str x0, [x16]
     str x1, [x16, #8]
@@ -2428,19 +2352,19 @@ lb_net_10parse_ipv6:
     strb w9, [x20]
     mov x10, x20
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldrb w12, [x10, #16]
-    strb w12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldrb w16, [x10, #16]
+    strb w16, [x11, #16]
     sub x9, x29, #200
-    str x9, [sp, #24]
+    str x9, [sp, #8]
     sub x21, x29, #216
     mov x11, x21
     stp xzr, xzr, [x11, #0]
     mov x10, x21
-    ldr x11, [sp, #24]
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldr x11, [sp, #8]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     sub x14, x29, #144
     ldr x21, [x14]
     add x14, x14, #8
@@ -2497,10 +2421,10 @@ lb_net_10parse_ipv6:
     sub x20, x29, #122
     mov x10, x19
     mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldrh w12, [x10, #16]
-    strh w12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldrh w16, [x10, #16]
+    strh w16, [x11, #16]
     mov x1, x20
     sub x16, x29, #24
     ldr x0, [x16]
@@ -2508,16 +2432,16 @@ lb_net_10parse_ipv6:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #496]
-    ldr x20, [sp, #488]
-    ldr x21, [sp, #480]
-    ldr x22, [sp, #472]
-    ldr x23, [sp, #464]
-    ldr x24, [sp, #456]
-    ldr x25, [sp, #448]
-    ldr x26, [sp, #440]
-    ldr x27, [sp, #432]
-    ldr x28, [sp, #424]
+    ldr x19, [sp, #480]
+    ldr x20, [sp, #472]
+    ldr x21, [sp, #464]
+    ldr x22, [sp, #456]
+    ldr x23, [sp, #448]
+    ldr x24, [sp, #440]
+    ldr x25, [sp, #432]
+    ldr x26, [sp, #424]
+    ldr x27, [sp, #416]
+    ldr x28, [sp, #408]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -2530,9 +2454,9 @@ lb_net_10parse_ipv6:
     movz x9, #1
     strb w9, [x15]
     mov x10, x14
-    ldr x11, [sp, #24]
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldr x11, [sp, #8]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     movz x9, #2
     mov x14, x9
     b .L13_3
@@ -2541,13 +2465,10 @@ lb_net_10parse_ipv6:
     mov x14, x9
 .L13_3:
     add x23, x19, #1
-    ldr x9, [sp, #24]
+    ldr x9, [sp, #8]
     add x24, x9, #8
-    sub x9, x29, #440
-    str x9, [sp, #16]
-    ldr x9, [sp, #16]
-    add x9, x9, #8
-    str x9, [sp, #8]
+    sub x25, x29, #440
+    add x26, x25, #8
     mov x15, x14
     mov x9, #0
     mov x27, x9
@@ -2571,10 +2492,10 @@ lb_net_10parse_ipv6:
     sub x20, x29, #122
     mov x10, x19
     mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldrh w12, [x10, #16]
-    strh w12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldrh w16, [x10, #16]
+    strh w16, [x11, #16]
     mov x1, x20
     sub x16, x29, #24
     ldr x0, [x16]
@@ -2582,16 +2503,16 @@ lb_net_10parse_ipv6:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #496]
-    ldr x20, [sp, #488]
-    ldr x21, [sp, #480]
-    ldr x22, [sp, #472]
-    ldr x23, [sp, #464]
-    ldr x24, [sp, #456]
-    ldr x25, [sp, #448]
-    ldr x26, [sp, #440]
-    ldr x27, [sp, #432]
-    ldr x28, [sp, #424]
+    ldr x19, [sp, #480]
+    ldr x20, [sp, #472]
+    ldr x21, [sp, #464]
+    ldr x22, [sp, #456]
+    ldr x23, [sp, #448]
+    ldr x24, [sp, #440]
+    ldr x25, [sp, #432]
+    ldr x26, [sp, #424]
+    ldr x27, [sp, #416]
+    ldr x28, [sp, #408]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -2599,30 +2520,30 @@ lb_net_10parse_ipv6:
 .L13_15:
     mov x14, x15
     mov x9, #0
-    mov w28, w9
+    mov w12, w9
 .L13_17:
     cmp x14, x22
-    cset w20, lo
-    cbnz w20, .L13_20
+    cset w13, lo
+    cbnz w13, .L13_20
     b .L13_109
 .L13_109:
-    mov w26, w20
+    mov w28, w13
     b .L13_21
 .L13_20:
-    add x26, x21, x14
-    ldrb w26, [x26]
+    add x28, x21, x14
+    ldrb w28, [x28]
     movz x10, #58
-    cmp w26, w10
-    cset w26, eq
+    cmp w28, w10
+    cset w28, eq
     mov x10, #0
-    cmp w26, w10
-    cset w26, eq
+    cmp w28, w10
+    cset w28, eq
 .L13_21:
-    and w25, w26, #255
-    cbnz w25, .L13_22
+    and w20, w28, #255
+    cbnz w20, .L13_22
     b .L13_110
 .L13_110:
-    mov w26, w25
+    mov w28, w20
     b .L13_23
 .L13_22:
     cmp x14, x22
@@ -2633,17 +2554,17 @@ lb_net_10parse_ipv6:
     add x1, x1, :lo12:.Ltext_20
     bl lb_core_7trap_at
 1:
-    add x25, x21, x14
-    ldrb w25, [x25]
+    add x20, x21, x14
+    ldrb w20, [x20]
     movz x10, #46
-    cmp w25, w10
-    cset w25, eq
+    cmp w20, w10
+    cset w20, eq
     mov x10, #0
-    cmp w25, w10
-    cset w26, eq
+    cmp w20, w10
+    cset w28, eq
 .L13_23:
-    and w25, w26, #255
-    cbnz w25, .L13_18
+    and w20, w28, #255
+    cbnz w20, .L13_18
     b .L13_19
 .L13_18:
     mov x9, x14
@@ -2656,9 +2577,9 @@ lb_net_10parse_ipv6:
     add x1, x1, :lo12:.Ltext_43
     bl lb_core_7trap_at
 1:
-    mov x20, x9
+    mov x13, x9
     movz x10, #4
-    cmp x20, x10
+    cmp x13, x10
     b.ne .L13_25
 .L13_24:
     sub x19, x29, #292
@@ -2668,10 +2589,10 @@ lb_net_10parse_ipv6:
     sub x20, x29, #122
     mov x10, x19
     mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldrh w12, [x10, #16]
-    strh w12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldrh w16, [x10, #16]
+    strh w16, [x11, #16]
     mov x1, x20
     sub x16, x29, #24
     ldr x0, [x16]
@@ -2679,16 +2600,16 @@ lb_net_10parse_ipv6:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #496]
-    ldr x20, [sp, #488]
-    ldr x21, [sp, #480]
-    ldr x22, [sp, #472]
-    ldr x23, [sp, #464]
-    ldr x24, [sp, #456]
-    ldr x25, [sp, #448]
-    ldr x26, [sp, #440]
-    ldr x27, [sp, #432]
-    ldr x28, [sp, #424]
+    ldr x19, [sp, #480]
+    ldr x20, [sp, #472]
+    ldr x21, [sp, #464]
+    ldr x22, [sp, #456]
+    ldr x23, [sp, #448]
+    ldr x24, [sp, #440]
+    ldr x25, [sp, #432]
+    ldr x26, [sp, #424]
+    ldr x27, [sp, #416]
+    ldr x28, [sp, #408]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -2702,16 +2623,16 @@ lb_net_10parse_ipv6:
     add x1, x1, :lo12:.Ltext_20
     bl lb_core_7trap_at
 1:
-    add x20, x21, x14
-    ldrb w20, [x20]
-    and w20, w20, #255
+    add x13, x21, x14
+    ldrb w13, [x13]
+    and w13, w13, #255
     movz x10, #57
-    cmp w20, w10
+    cmp w13, w10
     b.hi .L13_29
 .L13_28:
-    sub w26, w20, #48
-    and w25, w26, #255
-    cmp w25, w26
+    sub w28, w13, #48
+    and w20, w28, #255
+    cmp w20, w28
     b.eq .L13_31
 .L13_32:
     adrp x0, .Ltext_74
@@ -2720,17 +2641,17 @@ lb_net_10parse_ipv6:
     add x1, x1, :lo12:.Ltext_43
     bl lb_core_7trap_at
 .L13_31:
-    mov w20, w26
-    and w20, w20, #65535
+    mov w13, w28
+    and w13, w13, #65535
     b .L13_30
 .L13_29:
     movz x10, #70
-    cmp w20, w10
+    cmp w13, w10
     b.hi .L13_34
 .L13_33:
-    sub w26, w20, #65
-    and w25, w26, #255
-    cmp w25, w26
+    sub w28, w13, #65
+    and w20, w28, #255
+    cmp w20, w28
     b.eq .L13_36
 .L13_37:
     adrp x0, .Ltext_74
@@ -2739,9 +2660,9 @@ lb_net_10parse_ipv6:
     add x1, x1, :lo12:.Ltext_43
     bl lb_core_7trap_at
 .L13_36:
-    add w25, w26, #10
-    and w20, w25, #255
-    cmp w20, w25
+    add w20, w28, #10
+    and w13, w20, #255
+    cmp w13, w20
     b.eq .L13_38
 .L13_39:
     adrp x0, .Ltext_74
@@ -2750,13 +2671,13 @@ lb_net_10parse_ipv6:
     add x1, x1, :lo12:.Ltext_43
     bl lb_core_7trap_at
 .L13_38:
-    mov w20, w25
-    and w20, w20, #65535
+    mov w13, w20
+    and w13, w13, #65535
     b .L13_35
 .L13_34:
-    sub w26, w20, #97
-    and w25, w26, #255
-    cmp w25, w26
+    sub w28, w13, #97
+    and w20, w28, #255
+    cmp w20, w28
     b.eq .L13_40
 .L13_41:
     adrp x0, .Ltext_74
@@ -2765,9 +2686,9 @@ lb_net_10parse_ipv6:
     add x1, x1, :lo12:.Ltext_43
     bl lb_core_7trap_at
 .L13_40:
-    add w25, w26, #10
-    and w20, w25, #255
-    cmp w20, w25
+    add w20, w28, #10
+    and w13, w20, #255
+    cmp w13, w20
     b.eq .L13_42
 .L13_43:
     adrp x0, .Ltext_74
@@ -2776,37 +2697,37 @@ lb_net_10parse_ipv6:
     add x1, x1, :lo12:.Ltext_43
     bl lb_core_7trap_at
 .L13_42:
-    mov w20, w25
-    and w20, w20, #65535
+    mov w13, w20
+    and w13, w13, #65535
 .L13_35:
-    and w25, w20, #65535
-    mov w20, w25
+    and w20, w13, #65535
+    mov w13, w20
 .L13_30:
-    and w25, w20, #65535
-    and w26, w28, #65535
+    and w20, w13, #65535
+    and w28, w12, #65535
 .L13_45:
-    lsl w20, w26, #4
-    and w20, w20, #65535
-    and w28, w25, #65535
-    orr w28, w20, w28
-    add x20, x14, #1
-    mov x14, x20
+    lsl w12, w28, #4
+    and w12, w12, #65535
+    and w13, w20, #65535
+    orr w12, w12, w13
+    add x13, x14, #1
+    mov x14, x13
     b .L13_17
 .L13_19:
-    cbnz w20, .L13_49
+    cbnz w13, .L13_49
     b .L13_111
 .L13_111:
-    mov w25, w20
+    mov w20, w13
     b .L13_50
 .L13_49:
-    add x20, x21, x14
-    ldrb w20, [x20]
+    add x13, x21, x14
+    ldrb w13, [x13]
     movz x10, #46
-    cmp w20, w10
-    cset w25, eq
+    cmp w13, w10
+    cset w20, eq
 .L13_50:
-    and w20, w25, #255
-    cbnz w20, .L13_46
+    and w13, w20, #255
+    cbnz w13, .L13_46
     b .L13_47
 .L13_46:
     movz x10, #6
@@ -2820,10 +2741,10 @@ lb_net_10parse_ipv6:
     sub x20, x29, #122
     mov x10, x19
     mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldrh w12, [x10, #16]
-    strh w12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldrh w16, [x10, #16]
+    strh w16, [x11, #16]
     mov x1, x20
     sub x16, x29, #24
     ldr x0, [x16]
@@ -2831,16 +2752,16 @@ lb_net_10parse_ipv6:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #496]
-    ldr x20, [sp, #488]
-    ldr x21, [sp, #480]
-    ldr x22, [sp, #472]
-    ldr x23, [sp, #464]
-    ldr x24, [sp, #456]
-    ldr x25, [sp, #448]
-    ldr x26, [sp, #440]
-    ldr x27, [sp, #432]
-    ldr x28, [sp, #424]
+    ldr x19, [sp, #480]
+    ldr x20, [sp, #472]
+    ldr x21, [sp, #464]
+    ldr x22, [sp, #456]
+    ldr x23, [sp, #448]
+    ldr x24, [sp, #440]
+    ldr x25, [sp, #432]
+    ldr x26, [sp, #424]
+    ldr x27, [sp, #416]
+    ldr x28, [sp, #408]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -2873,28 +2794,28 @@ lb_net_10parse_ipv6:
     bl lb_core_7trap_at
 .L13_55:
     add x14, x21, x15
-    sub x20, x22, x15
-    sub x23, x29, #328
-    str x14, [x23]
-    add x23, x23, #8
-    str x20, [x23]
-    sub x23, x29, #344
-    str x14, [x23]
-    add x14, x23, #8
-    str x20, [x14]
-    mov x9, x23
+    sub x12, x22, x15
+    sub x13, x29, #328
+    str x14, [x13]
+    add x13, x13, #8
+    str x12, [x13]
+    sub x13, x29, #344
+    str x14, [x13]
+    add x14, x13, #8
+    str x12, [x14]
+    mov x9, x13
     ldr x0, [x9]
     ldr x1, [x9, #8]
     bl lb_net_17parse_ipv4_number
     sub x16, x29, #352
     str x0, [x16, #0]
-    sub x20, x29, #352
-    add x14, x20, #4
+    sub x12, x29, #352
+    add x14, x12, #4
     ldrb w14, [x14]
     cbnz w14, .L13_57
     b .L13_58
 .L13_57:
-    ldr w14, [x20]
+    ldr w14, [x12]
     b .L13_59
 .L13_58:
     sub x19, x29, #370
@@ -2904,10 +2825,10 @@ lb_net_10parse_ipv6:
     sub x20, x29, #122
     mov x10, x19
     mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldrh w12, [x10, #16]
-    strh w12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldrh w16, [x10, #16]
+    strh w16, [x11, #16]
     mov x1, x20
     sub x16, x29, #24
     ldr x0, [x16]
@@ -2915,31 +2836,31 @@ lb_net_10parse_ipv6:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #496]
-    ldr x20, [sp, #488]
-    ldr x21, [sp, #480]
-    ldr x22, [sp, #472]
-    ldr x23, [sp, #464]
-    ldr x24, [sp, #456]
-    ldr x25, [sp, #448]
-    ldr x26, [sp, #440]
-    ldr x27, [sp, #432]
-    ldr x28, [sp, #424]
+    ldr x19, [sp, #480]
+    ldr x20, [sp, #472]
+    ldr x21, [sp, #464]
+    ldr x22, [sp, #456]
+    ldr x23, [sp, #448]
+    ldr x24, [sp, #440]
+    ldr x25, [sp, #432]
+    ldr x26, [sp, #424]
+    ldr x27, [sp, #416]
+    ldr x28, [sp, #408]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
 .L13_59:
     lsl x15, x27, #1
-    add x20, x19, #1
+    add x12, x19, #1
     mov x9, #0
-    mov x21, x9
+    mov x13, x9
 .L13_61:
     movz x10, #4
-    cmp x21, x10
+    cmp x13, x10
     b.hs .L13_63
 .L13_62:
     mov x9, x15
-    mov x10, x21
+    mov x10, x13
     adds x9, x9, x10
     b.cc 1f
     adrp x0, .Ltext_79
@@ -2948,9 +2869,9 @@ lb_net_10parse_ipv6:
     add x1, x1, :lo12:.Ltext_43
     bl lb_core_7trap_at
 1:
-    mov x22, x9
+    mov x20, x9
     movz x10, #16
-    cmp x22, x10
+    cmp x20, x10
     b.lo 1f
     adrp x0, .Ltext_79
     add x0, x0, :lo12:.Ltext_79
@@ -2958,10 +2879,10 @@ lb_net_10parse_ipv6:
     add x1, x1, :lo12:.Ltext_20
     bl lb_core_7trap_at
 1:
-    add x23, x22, x20
+    add x21, x20, x12
     movz x9, #3
-    sub x22, x9, x21
-    mov x9, x22
+    sub x20, x9, x13
+    mov x9, x20
     movz x10, #8
     umulh x11, x9, x10
     mul x9, x9, x10
@@ -2972,10 +2893,10 @@ lb_net_10parse_ipv6:
     add x1, x1, :lo12:.Ltext_43
     bl lb_core_7trap_at
 1:
-    mov x24, x9
-    mov w22, w24
+    mov x22, x9
+    mov w20, w22
     movz x10, #32
-    cmp x22, x10
+    cmp x20, x10
     b.lo .L13_65
 .L13_64:
     adrp x0, .Ltext_79
@@ -2984,14 +2905,14 @@ lb_net_10parse_ipv6:
     add x1, x1, :lo12:.Ltext_1
     bl lb_core_7trap_at
 .L13_65:
-    lsr w22, w14, w24
+    lsr w20, w14, w22
     movz x10, #255
-    and w22, w22, w10
-    mov w22, w22
-    and w22, w22, #255
-    strb w22, [x23]
-    add x22, x21, #1
-    mov x21, x22
+    and w20, w20, w10
+    mov w20, w20
+    and w20, w20, #255
+    strb w20, [x21]
+    add x20, x13, #1
+    mov x13, x20
     b .L13_61
 .L13_63:
     add x14, x27, #2
@@ -3008,10 +2929,10 @@ lb_net_10parse_ipv6:
     sub x20, x29, #122
     mov x10, x19
     mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldrh w12, [x10, #16]
-    strh w12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldrh w16, [x10, #16]
+    strh w16, [x11, #16]
     mov x1, x20
     sub x16, x29, #24
     ldr x0, [x16]
@@ -3019,16 +2940,16 @@ lb_net_10parse_ipv6:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #496]
-    ldr x20, [sp, #488]
-    ldr x21, [sp, #480]
-    ldr x22, [sp, #472]
-    ldr x23, [sp, #464]
-    ldr x24, [sp, #456]
-    ldr x25, [sp, #448]
-    ldr x26, [sp, #440]
-    ldr x27, [sp, #432]
-    ldr x28, [sp, #424]
+    ldr x19, [sp, #480]
+    ldr x20, [sp, #472]
+    ldr x21, [sp, #464]
+    ldr x22, [sp, #456]
+    ldr x23, [sp, #448]
+    ldr x24, [sp, #440]
+    ldr x25, [sp, #432]
+    ldr x26, [sp, #424]
+    ldr x27, [sp, #416]
+    ldr x28, [sp, #408]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -3044,17 +2965,17 @@ lb_net_10parse_ipv6:
     add x1, x1, :lo12:.Ltext_20
     bl lb_core_7trap_at
 1:
-    add x20, x15, x23
-    and w25, w28, #65535
+    add x13, x15, x23
+    and w20, w12, #65535
 .L13_72:
-    lsr w26, w25, #8
-    and w26, w26, #65535
-    mov w26, w26
-    and w26, w26, #255
-    strb w26, [x20]
-    add x26, x15, #1
+    lsr w12, w20, #8
+    and w12, w12, #65535
+    mov w12, w12
+    and w12, w12, #255
+    strb w12, [x13]
+    add x12, x15, #1
     movz x10, #16
-    cmp x26, x10
+    cmp x12, x10
     b.lo 1f
     adrp x0, .Ltext_83
     add x0, x0, :lo12:.Ltext_83
@@ -3062,17 +2983,17 @@ lb_net_10parse_ipv6:
     add x1, x1, :lo12:.Ltext_20
     bl lb_core_7trap_at
 1:
-    add x26, x23, x26
+    add x12, x23, x12
     movz x10, #255
-    and w28, w25, w10
+    and w28, w20, w10
     mov w28, w28
     and w28, w28, #255
-    strb w28, [x26]
-    add x26, x27, #1
+    strb w28, [x12]
+    add x28, x27, #1
     cmp x22, x14
     b.ne .L13_74
 .L13_73:
-    mov x14, x26
+    mov x14, x28
     b .L13_12
 .L13_74:
 .L13_75:
@@ -3097,10 +3018,10 @@ lb_net_10parse_ipv6:
     sub x20, x29, #122
     mov x10, x19
     mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldrh w12, [x10, #16]
-    strh w12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldrh w16, [x10, #16]
+    strh w16, [x11, #16]
     mov x1, x20
     sub x16, x29, #24
     ldr x0, [x16]
@@ -3108,16 +3029,16 @@ lb_net_10parse_ipv6:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #496]
-    ldr x20, [sp, #488]
-    ldr x21, [sp, #480]
-    ldr x22, [sp, #472]
-    ldr x23, [sp, #464]
-    ldr x24, [sp, #456]
-    ldr x25, [sp, #448]
-    ldr x26, [sp, #440]
-    ldr x27, [sp, #432]
-    ldr x28, [sp, #424]
+    ldr x19, [sp, #480]
+    ldr x20, [sp, #472]
+    ldr x21, [sp, #464]
+    ldr x22, [sp, #456]
+    ldr x23, [sp, #448]
+    ldr x24, [sp, #440]
+    ldr x25, [sp, #432]
+    ldr x26, [sp, #424]
+    ldr x27, [sp, #416]
+    ldr x28, [sp, #408]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -3152,10 +3073,10 @@ lb_net_10parse_ipv6:
     sub x20, x29, #122
     mov x10, x19
     mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldrh w12, [x10, #16]
-    strh w12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldrh w16, [x10, #16]
+    strh w16, [x11, #16]
     mov x1, x20
     sub x16, x29, #24
     ldr x0, [x16]
@@ -3163,45 +3084,43 @@ lb_net_10parse_ipv6:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #496]
-    ldr x20, [sp, #488]
-    ldr x21, [sp, #480]
-    ldr x22, [sp, #472]
-    ldr x23, [sp, #464]
-    ldr x24, [sp, #456]
-    ldr x25, [sp, #448]
-    ldr x26, [sp, #440]
-    ldr x27, [sp, #432]
-    ldr x28, [sp, #424]
+    ldr x19, [sp, #480]
+    ldr x20, [sp, #472]
+    ldr x21, [sp, #464]
+    ldr x22, [sp, #456]
+    ldr x23, [sp, #448]
+    ldr x24, [sp, #440]
+    ldr x25, [sp, #432]
+    ldr x26, [sp, #424]
+    ldr x27, [sp, #416]
+    ldr x28, [sp, #408]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
 .L13_85:
 .L13_86:
-    ldr x10, [sp, #16]
-    str x26, [x10]
+    str x28, [x25]
     movz x9, #1
-    ldr x10, [sp, #8]
-    strb w9, [x10]
-    ldr x10, [sp, #16]
-    ldr x11, [sp, #24]
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    strb w9, [x26]
+    mov x10, x25
+    ldr x11, [sp, #8]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x20, #1
-    mov x25, x26
+    mov x12, x28
     b .L13_83
 .L13_82:
     mov x14, x20
     ldr x9, [sp, #0]
-    mov x25, x9
+    mov x12, x9
 .L13_83:
     mov x15, x14
-    mov x27, x26
-    mov x9, x25
+    mov x27, x28
+    mov x9, x12
     str x9, [sp, #0]
     b .L13_10
 .L13_12:
-    ldr x9, [sp, #24]
+    ldr x9, [sp, #8]
     add x15, x9, #8
     ldrb w15, [x15]
     cbnz w15, .L13_91
@@ -3219,10 +3138,10 @@ lb_net_10parse_ipv6:
     sub x20, x29, #122
     mov x10, x19
     mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldrh w12, [x10, #16]
-    strh w12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldrh w16, [x10, #16]
+    strh w16, [x11, #16]
     mov x1, x20
     sub x16, x29, #24
     ldr x0, [x16]
@@ -3230,16 +3149,16 @@ lb_net_10parse_ipv6:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #496]
-    ldr x20, [sp, #488]
-    ldr x21, [sp, #480]
-    ldr x22, [sp, #472]
-    ldr x23, [sp, #464]
-    ldr x24, [sp, #456]
-    ldr x25, [sp, #448]
-    ldr x26, [sp, #440]
-    ldr x27, [sp, #432]
-    ldr x28, [sp, #424]
+    ldr x19, [sp, #480]
+    ldr x20, [sp, #472]
+    ldr x21, [sp, #464]
+    ldr x22, [sp, #456]
+    ldr x23, [sp, #448]
+    ldr x24, [sp, #440]
+    ldr x25, [sp, #432]
+    ldr x26, [sp, #424]
+    ldr x27, [sp, #416]
+    ldr x28, [sp, #408]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -3259,8 +3178,8 @@ lb_net_10parse_ipv6:
     bl lb_core_7trap_at
 1:
     mov x15, x9
-    lsl x20, x14, #1
-    add x21, x19, #1
+    lsl x12, x14, #1
+    add x13, x19, #1
 .L13_96:
     ldr x9, [sp, #0]
     movz x10, #2
@@ -3274,10 +3193,10 @@ lb_net_10parse_ipv6:
     bl lb_core_7trap_at
 1:
     mov x14, x9
-    cmp x20, x14
+    cmp x12, x14
     b.ls .L13_98
 .L13_97:
-    mov x9, x20
+    mov x9, x12
     movz x10, #1
     subs x9, x9, x10
     b.cs 1f
@@ -3298,9 +3217,9 @@ lb_net_10parse_ipv6:
     add x1, x1, :lo12:.Ltext_43
     bl lb_core_7trap_at
 1:
-    mov x22, x9
+    mov x20, x9
     movz x10, #16
-    cmp x22, x10
+    cmp x20, x10
     b.lo 1f
     adrp x0, .Ltext_92
     add x0, x0, :lo12:.Ltext_92
@@ -3308,7 +3227,7 @@ lb_net_10parse_ipv6:
     add x1, x1, :lo12:.Ltext_20
     bl lb_core_7trap_at
 1:
-    add x22, x22, x21
+    add x20, x20, x13
     movz x10, #16
     cmp x14, x10
     b.lo 1f
@@ -3318,14 +3237,14 @@ lb_net_10parse_ipv6:
     add x1, x1, :lo12:.Ltext_20
     bl lb_core_7trap_at
 1:
-    add x23, x14, x21
-    ldrb w23, [x23]
-    strb w23, [x22]
-    mov x20, x14
+    add x21, x14, x13
+    ldrb w21, [x21]
+    strb w21, [x20]
+    mov x12, x14
     b .L13_96
 .L13_98:
-    add x20, x19, #1
-    mov x21, x14
+    add x12, x19, #1
+    mov x13, x14
 .L13_99:
     mov x9, x15
     mov x10, x14
@@ -3337,12 +3256,12 @@ lb_net_10parse_ipv6:
     add x1, x1, :lo12:.Ltext_43
     bl lb_core_7trap_at
 1:
-    mov x22, x9
-    cmp x21, x22
+    mov x20, x9
+    cmp x13, x20
     b.hs .L13_101
 .L13_100:
     movz x10, #16
-    cmp x21, x10
+    cmp x13, x10
     b.lo 1f
     adrp x0, .Ltext_95
     add x0, x0, :lo12:.Ltext_95
@@ -3350,11 +3269,11 @@ lb_net_10parse_ipv6:
     add x1, x1, :lo12:.Ltext_20
     bl lb_core_7trap_at
 1:
-    add x22, x20, x21
+    add x20, x12, x13
     mov x9, #0
-    strb w9, [x22]
-    add x22, x21, #1
-    mov x21, x22
+    strb w9, [x20]
+    add x20, x13, #1
+    mov x13, x20
     b .L13_99
 .L13_101:
     b .L13_90
@@ -3373,10 +3292,10 @@ lb_net_10parse_ipv6:
     sub x20, x29, #122
     mov x10, x19
     mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldrh w12, [x10, #16]
-    strh w12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldrh w16, [x10, #16]
+    strh w16, [x11, #16]
     mov x1, x20
     sub x16, x29, #24
     ldr x0, [x16]
@@ -3384,16 +3303,16 @@ lb_net_10parse_ipv6:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #496]
-    ldr x20, [sp, #488]
-    ldr x21, [sp, #480]
-    ldr x22, [sp, #472]
-    ldr x23, [sp, #464]
-    ldr x24, [sp, #456]
-    ldr x25, [sp, #448]
-    ldr x26, [sp, #440]
-    ldr x27, [sp, #432]
-    ldr x28, [sp, #424]
+    ldr x19, [sp, #480]
+    ldr x20, [sp, #472]
+    ldr x21, [sp, #464]
+    ldr x22, [sp, #456]
+    ldr x23, [sp, #448]
+    ldr x24, [sp, #440]
+    ldr x25, [sp, #432]
+    ldr x26, [sp, #424]
+    ldr x27, [sp, #416]
+    ldr x28, [sp, #408]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -3403,20 +3322,20 @@ lb_net_10parse_ipv6:
     sub x20, x29, #494
     mov x10, x19
     mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldrb w12, [x10, #16]
-    strb w12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldrb w16, [x10, #16]
+    strb w16, [x11, #16]
     add x14, x20, #17
     movz x9, #1
     strb w9, [x14]
     sub x21, x29, #122
     mov x10, x20
     mov x11, x21
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldrh w12, [x10, #16]
-    strh w12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldrh w16, [x10, #16]
+    strh w16, [x11, #16]
     mov x1, x21
     sub x16, x29, #24
     ldr x0, [x16]
@@ -3424,16 +3343,16 @@ lb_net_10parse_ipv6:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #496]
-    ldr x20, [sp, #488]
-    ldr x21, [sp, #480]
-    ldr x22, [sp, #472]
-    ldr x23, [sp, #464]
-    ldr x24, [sp, #456]
-    ldr x25, [sp, #448]
-    ldr x26, [sp, #440]
-    ldr x27, [sp, #432]
-    ldr x28, [sp, #424]
+    ldr x19, [sp, #480]
+    ldr x20, [sp, #472]
+    ldr x21, [sp, #464]
+    ldr x22, [sp, #456]
+    ldr x23, [sp, #448]
+    ldr x24, [sp, #440]
+    ldr x25, [sp, #432]
+    ldr x26, [sp, #424]
+    ldr x27, [sp, #416]
+    ldr x28, [sp, #408]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret

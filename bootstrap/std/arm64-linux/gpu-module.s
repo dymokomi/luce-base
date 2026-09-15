@@ -173,8 +173,8 @@ lb_gpu_12check_thread:
     add x14, x19, #8
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
@@ -241,17 +241,17 @@ lb_gpu_14require_thread:
     add x14, x19, #8
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
     mov x10, x19
     sub x11, x29, #80
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldp x12, x13, [x10, #16]
-    stp x12, x13, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldp x16, x17, [x10, #16]
+    stp x16, x17, [x11, #16]
     b .L3_9
 .L3_8:
     b .L3_7
@@ -263,10 +263,10 @@ lb_gpu_14require_thread:
     strb w9, [x15]
     mov x10, x14
     sub x11, x29, #80
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldp x12, x13, [x10, #16]
-    stp x12, x13, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldp x16, x17, [x10, #16]
+    stp x16, x17, [x11, #16]
 .L3_9:
     sub x15, x29, #80
     add x14, x15, #24
@@ -277,10 +277,10 @@ lb_gpu_14require_thread:
     sub x14, x29, #48
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     b .L3_1
 .L3_3:
     b .L3_2
@@ -332,31 +332,31 @@ lb_gpu_11check_color:
     cbnz w15, .L4_4
     b .L4_15
 .L4_15:
-    mov w19, w15
+    mov w12, w15
     b .L4_5
 .L4_4:
     movz x9, #16368, lsl #48
     fmov d26, x9
     fcmp d24, d26
-    cset w19, ls
+    cset w12, ls
 .L4_5:
-    and w15, w19, #255
+    and w15, w12, #255
     cbnz w15, .L4_6
     b .L4_16
 .L4_16:
-    mov w19, w15
+    mov w12, w15
     b .L4_7
 .L4_6:
     add x15, x14, #8
     ldr d24, [x15]
     fcmp d24, d25
-    cset w19, ge
+    cset w12, ge
 .L4_7:
-    and w15, w19, #255
+    and w15, w12, #255
     cbnz w15, .L4_8
     b .L4_17
 .L4_17:
-    mov w19, w15
+    mov w12, w15
     b .L4_9
 .L4_8:
     add x15, x14, #8
@@ -364,21 +364,21 @@ lb_gpu_11check_color:
     movz x9, #16368, lsl #48
     fmov d26, x9
     fcmp d24, d26
-    cset w19, ls
+    cset w12, ls
 .L4_9:
-    and w15, w19, #255
+    and w15, w12, #255
     cbnz w15, .L4_10
     b .L4_18
 .L4_18:
-    mov w19, w15
+    mov w12, w15
     b .L4_11
 .L4_10:
     add x15, x14, #16
     ldr d24, [x15]
     fcmp d24, d25
-    cset w19, ge
+    cset w12, ge
 .L4_11:
-    and w15, w19, #255
+    and w15, w12, #255
     cbnz w15, .L4_12
     b .L4_19
 .L4_19:
@@ -413,8 +413,8 @@ lb_gpu_11check_color:
     add x14, x19, #8
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]

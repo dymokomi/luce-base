@@ -46,16 +46,16 @@ lb_unicode_GraphemeIterator_over:
     str w15, [x14]
     adrp x15, .Ltext_0
     add x15, x15, :lo12:.Ltext_0
-    sub x20, x29, #136
-    str x15, [x20]
-    add x15, x20, #8
+    sub x12, x29, #136
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #18
     str x9, [x15]
     add x14, x14, #8
-    mov x10, x20
+    mov x10, x12
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #48
     movz x9, #1
     strb w9, [x14]
@@ -82,15 +82,15 @@ lb_unicode_GraphemeIterator_over:
     str xzr, [x11, #16]
     mov x10, x19
     mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     sub x21, x29, #104
     mov x10, x20
     mov x11, x21
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x21, #48
     mov x9, #0
     strb w9, [x14]
@@ -155,10 +155,10 @@ lb_unicode_GraphemeIterator_next:
     sub x20, x29, #128
     mov x10, x19
     mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     mov x1, x20
     sub x16, x29, #24
     ldr x0, [x16]
@@ -199,8 +199,8 @@ lb_unicode_GraphemeIterator_next:
     sub x24, x29, #216
     mov x10, x15
     mov x11, x24
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     b .L2_7
 .L2_6:
     adrp x14, .Ltext_3
@@ -225,8 +225,8 @@ lb_unicode_GraphemeIterator_next:
 .L2_7:
     mov x10, x24
     mov x11, x23
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     sub x25, x29, #237
     mov x11, x25
     str wzr, [x11, #0]
@@ -264,10 +264,10 @@ lb_unicode_GraphemeIterator_next:
     mov x2, x14
     bl lb_unicode_GraphemeState_accept
     ldr x15, [x19]
-    add x24, x23, #8
-    ldr x24, [x24]
+    add x12, x23, #8
+    ldr x12, [x12]
     mov x9, x15
-    mov x10, x24
+    mov x10, x12
     adds x9, x9, x10
     b.cc 1f
     adrp x0, .Ltext_5
@@ -301,8 +301,8 @@ lb_unicode_GraphemeIterator_next:
 .L2_11:
     mov x10, x27
     mov x11, x28
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     b .L2_13
 .L2_12:
     adrp x14, .Ltext_3
@@ -327,8 +327,8 @@ lb_unicode_GraphemeIterator_next:
 .L2_13:
     mov x10, x28
     mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     ldr w14, [x20]
     mov w23, w14
     sub x10, x29, #384
@@ -391,7 +391,7 @@ lb_unicode_GraphemeIterator_next:
 .L2_10:
     ldr x15, [x22]
     ldr x14, [x21]
-    ldr x20, [x19]
+    ldr x12, [x19]
     add x14, x14, #1
     ldr x9, [sp, #24]
     cmp x9, x14
@@ -402,7 +402,7 @@ lb_unicode_GraphemeIterator_next:
     add x1, x1, :lo12:.Ltext_9
     bl lb_core_7trap_at
 1:
-    cmp x20, x14
+    cmp x12, x14
     b.lo 1f
     adrp x0, .Ltext_8
     add x0, x0, :lo12:.Ltext_8
@@ -411,7 +411,7 @@ lb_unicode_GraphemeIterator_next:
     bl lb_core_7trap_at
 1:
     ldr x9, [sp, #24]
-    cmp x9, x20
+    cmp x9, x12
     b.ls .L2_18
 .L2_19:
     adrp x0, .Ltext_8
@@ -423,31 +423,31 @@ lb_unicode_GraphemeIterator_next:
     ldr x9, [sp, #24]
     add x14, x9, x15
     ldr x10, [sp, #24]
-    sub x19, x20, x10
-    sub x21, x29, #328
-    str x14, [x21]
-    add x21, x21, #8
-    str x19, [x21]
-    sub x21, x29, #344
-    str x14, [x21]
-    add x14, x21, #8
-    str x19, [x14]
-    sub x19, x29, #368
-    mov x10, x21
-    mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    add x14, x19, #16
+    sub x13, x12, x10
+    sub x19, x29, #328
+    str x14, [x19]
+    add x19, x19, #8
+    str x13, [x19]
+    sub x19, x29, #344
+    str x14, [x19]
+    add x14, x19, #8
+    str x13, [x14]
+    sub x20, x29, #368
+    mov x10, x19
+    mov x11, x20
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    add x14, x20, #16
     movz x9, #1
     strb w9, [x14]
-    sub x21, x29, #128
-    mov x10, x19
-    mov x11, x21
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
-    mov x1, x21
+    sub x19, x29, #128
+    mov x10, x20
+    mov x11, x19
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
+    mov x1, x19
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #24
@@ -529,16 +529,16 @@ lb_unicode_GraphemeState_12break_before:
     cbnz w15, .L4_4
     b .L4_82
 .L4_82:
-    mov w20, w15
+    mov w12, w15
     b .L4_5
 .L4_4:
     sub x15, x29, #88
     ldrb w15, [x15]
     movz x10, #2
     cmp w15, w10
-    cset w20, eq
+    cset w12, eq
 .L4_5:
-    and w15, w20, #255
+    and w15, w12, #255
     cbnz w15, .L4_1
     b .L4_2
 .L4_1:
@@ -601,8 +601,8 @@ lb_unicode_GraphemeState_12break_before:
     sub x22, x29, #122
     mov x10, x15
     mov x11, x22
-    ldrb w12, [x10, #0]
-    strb w12, [x11, #0]
+    ldrb w16, [x10, #0]
+    strb w16, [x11, #0]
     ldrb w14, [x22]
     movz x10, #9
     cmp w14, w10
@@ -618,25 +618,25 @@ lb_unicode_GraphemeState_12break_before:
     cbnz w15, .L4_84
     b .L4_56
 .L4_84:
-    mov w22, w15
+    mov w12, w15
     b .L4_57
 .L4_56:
     movz x10, #10
     cmp w14, w10
-    cset w22, eq
+    cset w12, eq
 .L4_57:
-    and w15, w22, #255
+    and w15, w12, #255
     cbnz w15, .L4_85
     b .L4_58
 .L4_85:
-    mov w22, w15
+    mov w12, w15
     b .L4_59
 .L4_58:
     movz x10, #12
     cmp w14, w10
-    cset w22, eq
+    cset w12, eq
 .L4_59:
-    and w15, w22, #255
+    and w15, w12, #255
     cbnz w15, .L4_86
     b .L4_60
 .L4_86:
@@ -988,17 +988,16 @@ lb_unicode_GraphemeState_accept:
     str x19, [sp, #88]
     str x20, [sp, #80]
     str x21, [sp, #72]
-    str x22, [sp, #64]
-    sub x16, x29, #56
+    sub x16, x29, #48
     str x0, [x16]
-    sub x16, x29, #72
+    sub x16, x29, #64
     str w1, [x16]
-    sub x16, x29, #88
+    sub x16, x29, #80
     str w2, [x16]
-    sub x9, x29, #56
+    sub x9, x29, #48
     ldr x20, [x9]
     add x15, x20, #3
-    sub x14, x29, #88
+    sub x14, x29, #80
     ldrb w19, [x14]
     movz x10, #5
     cmp w19, w10
@@ -1006,22 +1005,22 @@ lb_unicode_GraphemeState_accept:
     cbnz w14, .L5_1
     b .L5_26
 .L5_26:
-    mov w21, w14
+    mov w12, w14
     b .L5_2
 .L5_1:
     add x14, x20, #2
-    ldrb w21, [x14]
+    ldrb w12, [x14]
 .L5_2:
-    and w14, w21, #255
+    and w14, w12, #255
     strb w14, [x15]
     adrp x14, lb_unicode_19pictographic_ranges
     add x14, x14, :lo12:lb_unicode_19pictographic_ranges
-    sub x22, x29, #72
-    ldr w22, [x22]
+    sub x13, x29, #64
+    ldr w21, [x13]
     mov x9, x14
     ldr x0, [x9]
     ldr x1, [x9, #8]
-    mov x2, x22
+    mov x2, x21
     bl lb_unicode_11range_value
     mov w14, w0
     mov x10, #0
@@ -1064,25 +1063,25 @@ lb_unicode_GraphemeState_accept:
     mov x9, #0
     mov w14, w9
 .L5_11:
-    and w21, w14, #255
-    strb w21, [x15]
-    sub x10, x29, #104
-    str w22, [x10]
-    adrp x21, lb_unicode_12indic_ranges
-    add x21, x21, :lo12:lb_unicode_12indic_ranges
-    mov x9, x21
+    and w12, w14, #255
+    strb w12, [x15]
+    sub x10, x29, #96
+    str w21, [x10]
+    adrp x12, lb_unicode_12indic_ranges
+    add x12, x12, :lo12:lb_unicode_12indic_ranges
+    mov x9, x12
     ldr x0, [x9]
     ldr x1, [x9, #8]
-    mov x2, x22
+    mov x2, x21
     bl lb_unicode_11range_value
-    mov w21, w0
-    mov w21, w21
-    and w21, w21, #255
-    mov w21, w21
-    and w21, w21, #255
-    and w21, w21, #255
-    sub x10, x29, #112
-    str w21, [x10]
+    mov w12, w0
+    mov w12, w12
+    and w12, w12, #255
+    mov w12, w12
+    and w12, w12, #255
+    and w12, w12, #255
+    sub x10, x29, #104
+    str w12, [x10]
     b .L5_25
 .L5_24:
     adrp x0, .Ltext_13
@@ -1091,7 +1090,7 @@ lb_unicode_GraphemeState_accept:
     add x1, x1, :lo12:.Ltext_1
     bl lb_core_7trap_at
 .L5_25:
-    and w14, w21, #255
+    and w14, w12, #255
     movz x10, #1
     cmp w14, w10
     b.ne .L5_13
@@ -1140,7 +1139,6 @@ lb_unicode_GraphemeState_accept:
     ldr x19, [sp, #88]
     ldr x20, [sp, #80]
     ldr x21, [sp, #72]
-    ldr x22, [sp, #64]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -1153,11 +1151,10 @@ lb_unicode_GraphemeState_accept:
 lb_unicode_16grapheme_control:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #48
-    str x19, [sp, #24]
-    sub x16, x29, #40
+    sub sp, sp, #32
+    sub x16, x29, #32
     str w0, [x16]
-    sub x14, x29, #40
+    sub x14, x29, #32
     ldrb w14, [x14]
     movz x10, #3
     cmp w14, w10
@@ -1165,14 +1162,14 @@ lb_unicode_16grapheme_control:
     cbnz w15, .L6_6
     b .L6_1
 .L6_6:
-    mov w19, w15
+    mov w12, w15
     b .L6_2
 .L6_1:
     movz x10, #1
     cmp w14, w10
-    cset w19, eq
+    cset w12, eq
 .L6_2:
-    and w15, w19, #255
+    and w15, w12, #255
     cbnz w15, .L6_7
     b .L6_3
 .L6_7:
@@ -1188,7 +1185,6 @@ lb_unicode_16grapheme_control:
     and w15, w15, #255
     mov x9, x15
     mov x0, x9
-    ldr x19, [sp, #24]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret

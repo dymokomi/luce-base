@@ -26,10 +26,12 @@ that work. Native compilation remains the primary execution and hardening target
    the pools, and a parallel move for call arguments, so the argument registers could.
    Gate: the `tests/optimization` limits lowered again, the native fixpoint kept, the
    compiler's own build time in `docs/STATUS.md` lowered again.
-2. **Optimized debugging.** Development DWARF and packaged artifacts are implemented
-   (`docs/DEBUGGING.md`). What remains is location tracking for optimized user code and
-   higher-level presentation of payload enums and Luce ARC values. Gate: correct variable
-   locations across optimization, inlining, calls and scope exit in both debuggers.
+2. **Optimized debugging, the rest.** `--release --debug` optimises with exact lines and
+   pins named locals to their slots (`docs/DEBUGGING.md`). What remains: location lists
+   for values that live in temporaries, so the pinning can go; `DW_TAG_inlined_subroutine`
+   so the program's own functions may be inlined; lexical scopes carried through the
+   passes; payload enums as variant parts; Luce ARC values. Gate: the same breakpoints
+   under full optimisation and inlining, in both debuggers.
 3. **Further library breadth.** TLS belongs to the paused `luce-tls` package. Graphics remains deferred: a portable window/input/GPU
    interface with a proving program on each supported host.
 4. **`luce-ld`.** Everything links through the host's `ld` or `cc`. A linker

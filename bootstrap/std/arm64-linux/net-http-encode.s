@@ -53,10 +53,10 @@ lb_net_16http_encode_head:
     sub x14, x29, #312
     mov x10, x14
     ldr x11, [sp, #256]
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     sub x9, x29, #376
     str x9, [sp, #248]
     ldr x11, [sp, #248]
@@ -83,24 +83,24 @@ lb_net_16http_encode_head:
     ldr x15, [x9]
     movz x10, #8
     cmp x15, x10
-    cset w23, eq
-    cbnz w23, .L1_4
+    cset w12, eq
+    cbnz w12, .L1_4
     b .L1_170
 .L1_170:
-    mov w14, w23
+    mov w14, w12
     b .L1_5
 .L1_4:
     ldr x9, [sp, #24]
-    ldr x23, [x9]
-    mov x0, x23
+    ldr x12, [x9]
+    mov x0, x12
     mov x1, x14
     mov x2, x15
     bl memcmp
-    mov w23, w0
+    mov w12, w0
     mov x10, #0
-    cmp w23, w10
-    cset w23, eq
-    mov w14, w23
+    cmp w12, w10
+    cset w12, eq
+    mov w14, w12
 .L1_5:
     and w15, w14, #255
     mov x10, #0
@@ -123,24 +123,24 @@ lb_net_16http_encode_head:
     ldr x15, [x9]
     movz x10, #8
     cmp x15, x10
-    cset w23, eq
-    cbnz w23, .L1_8
+    cset w12, eq
+    cbnz w12, .L1_8
     b .L1_172
 .L1_172:
-    mov w14, w23
+    mov w14, w12
     b .L1_9
 .L1_8:
     ldr x9, [sp, #24]
-    ldr x23, [x9]
-    mov x0, x23
+    ldr x12, [x9]
+    mov x0, x12
     mov x1, x14
     mov x2, x15
     bl memcmp
-    mov w23, w0
+    mov w12, w0
     mov x10, #0
-    cmp w23, w10
-    cset w23, eq
-    mov w14, w23
+    cmp w12, w10
+    cset w12, eq
+    mov w14, w12
 .L1_9:
     and w15, w14, #255
     mov x10, #0
@@ -160,16 +160,16 @@ lb_net_16http_encode_head:
     str w15, [x14]
     adrp x15, .Ltext_2
     add x15, x15, :lo12:.Ltext_2
-    sub x20, x29, #424
-    str x15, [x20]
-    add x15, x20, #8
+    sub x12, x29, #424
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #24
     str x9, [x15]
     add x14, x14, #8
-    mov x10, x20
+    mov x10, x12
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #40
     movz x9, #1
     strb w9, [x14]
@@ -246,16 +246,16 @@ lb_net_16http_encode_head:
     str w15, [x14]
     adrp x15, .Ltext_3
     add x15, x15, :lo12:.Ltext_3
-    sub x20, x29, #440
-    str x15, [x20]
-    add x15, x20, #8
+    sub x12, x29, #440
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #25
     str x9, [x15]
     add x14, x14, #8
-    mov x10, x20
+    mov x10, x12
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #40
     movz x9, #1
     strb w9, [x14]
@@ -309,10 +309,10 @@ lb_net_16http_encode_head:
     add x14, x19, #16
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #40
     movz x9, #1
     strb w9, [x14]
@@ -347,9 +347,9 @@ lb_net_16http_encode_head:
     add x26, x26, :lo12:.Ltext_4
     sub x15, x29, #520
     str x26, [x15]
-    add x27, x15, #8
+    add x12, x15, #8
     movz x9, #1
-    str x9, [x27]
+    str x9, [x12]
     mov x9, x14
     ldr x0, [x9]
     ldr x1, [x9, #8]
@@ -369,10 +369,10 @@ lb_net_16http_encode_head:
     add x14, x19, #16
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #40
     movz x9, #1
     strb w9, [x14]
@@ -424,10 +424,10 @@ lb_net_16http_encode_head:
     add x14, x19, #16
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #40
     movz x9, #1
     strb w9, [x14]
@@ -460,9 +460,9 @@ lb_net_16http_encode_head:
     str x25, [x15]
     sub x15, x29, #632
     str x26, [x15]
-    add x27, x15, #8
+    add x12, x15, #8
     movz x9, #1
-    str x9, [x27]
+    str x9, [x12]
     mov x9, x14
     ldr x0, [x9]
     ldr x1, [x9, #8]
@@ -482,10 +482,10 @@ lb_net_16http_encode_head:
     add x14, x19, #16
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #40
     movz x9, #1
     strb w9, [x14]
@@ -535,10 +535,10 @@ lb_net_16http_encode_head:
     add x14, x19, #16
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #40
     movz x9, #1
     strb w9, [x14]
@@ -571,15 +571,15 @@ lb_net_16http_encode_head:
     str x25, [x15]
     adrp x15, .Ltext_5
     add x15, x15, :lo12:.Ltext_5
-    sub x26, x29, #744
-    str x15, [x26]
-    add x15, x26, #8
+    sub x12, x29, #744
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #2
     str x9, [x15]
     mov x9, x14
     ldr x0, [x9]
     ldr x1, [x9, #8]
-    mov x9, x26
+    mov x9, x12
     ldr x2, [x9]
     ldr x3, [x9, #8]
     mov x4, #0
@@ -595,10 +595,10 @@ lb_net_16http_encode_head:
     add x14, x19, #16
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #40
     movz x9, #1
     strb w9, [x14]
@@ -652,16 +652,16 @@ lb_net_16http_encode_head:
     str w15, [x14]
     adrp x15, .Ltext_6
     add x15, x15, :lo12:.Ltext_6
-    sub x20, x29, #792
-    str x15, [x20]
-    add x15, x20, #8
+    sub x12, x29, #792
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #19
     str x9, [x15]
     add x14, x14, #8
-    mov x10, x20
+    mov x10, x12
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #40
     movz x9, #1
     strb w9, [x14]
@@ -694,13 +694,13 @@ lb_net_16http_encode_head:
     str x9, [x14]
     adrp x15, lb_vt_io_SliceWriter_Writer
     add x15, x15, :lo12:lb_vt_io_SliceWriter_Writer
-    add x25, x14, #8
-    str x15, [x25]
+    add x12, x14, #8
+    str x15, [x12]
     sub x25, x29, #824
     mov x10, x14
     mov x11, x25
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     sub x14, x29, #840
     ldr x9, [sp, #248]
     str x9, [x14]
@@ -758,8 +758,8 @@ lb_net_16http_encode_head:
     str w9, [x14]
     adrp x15, .Ltext_8
     add x15, x15, :lo12:.Ltext_8
-    add x26, x14, #8
-    str x15, [x26]
+    add x12, x14, #8
+    str x15, [x12]
     add x14, x14, #16
     movz x9, #60
     str x9, [x14]
@@ -776,8 +776,8 @@ lb_net_16http_encode_head:
     sub x14, x29, #928
     mov x10, x14
     mov x11, x21
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x21, #40
     mov x9, #0
     strb w9, [x14]
@@ -792,10 +792,10 @@ lb_net_16http_encode_head:
     add x15, x19, #16
     mov x10, x14
     mov x11, x15
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #40
     movz x9, #1
     strb w9, [x14]
@@ -840,10 +840,10 @@ lb_net_16http_encode_head:
     add x14, x19, #16
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #40
     movz x9, #1
     strb w9, [x14]
@@ -879,7 +879,7 @@ lb_net_16http_encode_head:
     adrp x27, .Ltext_9
     add x27, x27, :lo12:.Ltext_9
     sub x28, x29, #1008
-    add x24, x28, #8
+    add x23, x28, #8
     adrp x22, .Ltext_10
     add x22, x22, :lo12:.Ltext_10
     sub x20, x29, #1024
@@ -949,8 +949,8 @@ lb_net_16http_encode_head:
     ldr x9, [sp, #48]
     add x9, x9, #8
     str x9, [sp, #40]
-    sub x23, x29, #1280
-    add x9, x23, #24
+    sub x24, x29, #1280
+    add x9, x24, #24
     str x9, [sp, #32]
     mov x9, #0
     mov x19, x9
@@ -962,10 +962,10 @@ lb_net_16http_encode_head:
     add x14, x21, x14
     mov x10, x14
     mov x11, x26
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldp x12, x13, [x10, #16]
-    stp x12, x13, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldp x16, x17, [x10, #16]
+    stp x16, x17, [x11, #16]
     mov x9, x26
     mov x0, x9
     bl lb_net_16http_field_valid
@@ -981,7 +981,7 @@ lb_net_16http_encode_head:
 .L1_60:
     str x27, [x28]
     movz x9, #14
-    str x9, [x24]
+    str x9, [x23]
     mov x9, x26
     ldr x0, [x9]
     ldr x1, [x9, #8]
@@ -1045,16 +1045,16 @@ lb_net_16http_encode_head:
     str w15, [x14]
     adrp x15, .Ltext_12
     add x15, x15, :lo12:.Ltext_12
-    sub x20, x29, #1056
-    str x15, [x20]
-    add x15, x20, #8
+    sub x12, x29, #1056
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #31
     str x9, [x15]
     add x14, x14, #8
-    mov x10, x20
+    mov x10, x12
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #40
     movz x9, #1
     strb w9, [x14]
@@ -1106,10 +1106,10 @@ lb_net_16http_encode_head:
     add x14, x19, #16
     ldr x10, [sp, #16]
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #40
     movz x9, #1
     strb w9, [x14]
@@ -1165,10 +1165,10 @@ lb_net_16http_encode_head:
     add x14, x19, #16
     ldr x10, [sp, #8]
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #40
     movz x9, #1
     strb w9, [x14]
@@ -1218,10 +1218,10 @@ lb_net_16http_encode_head:
     add x14, x19, #16
     ldr x10, [sp, #0]
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #40
     movz x9, #1
     strb w9, [x14]
@@ -1275,12 +1275,12 @@ lb_net_16http_encode_head:
 .L1_77:
     sub x19, x29, #152
     add x14, x19, #16
-    mov x10, x23
+    mov x10, x24
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #40
     movz x9, #1
     strb w9, [x14]
@@ -1355,24 +1355,24 @@ lb_net_16http_encode_head:
     ldr x15, [x15]
     movz x10, #7
     cmp x15, x10
-    cset w19, eq
-    cbnz w19, .L1_85
+    cset w12, eq
+    cbnz w12, .L1_85
     b .L1_181
 .L1_181:
-    mov w14, w19
+    mov w14, w12
     b .L1_86
 .L1_85:
     ldr x9, [sp, #240]
-    ldr x19, [x9]
-    mov x0, x19
+    ldr x12, [x9]
+    mov x0, x12
     mov x1, x14
     mov x2, x15
     bl memcmp
-    mov w19, w0
+    mov w12, w0
     mov x10, #0
-    cmp w19, w10
-    cset w19, eq
-    mov w14, w19
+    cmp w12, w10
+    cset w12, eq
+    mov w14, w12
 .L1_86:
     and w15, w14, #255
     cbnz w15, .L1_87
@@ -1411,11 +1411,11 @@ lb_net_16http_encode_head:
     cmp w14, w10
     cset w14, eq
 .L1_93:
-    and w19, w14, #255
-    cbnz w19, .L1_94
+    and w12, w14, #255
+    cbnz w12, .L1_94
     b .L1_184
 .L1_184:
-    mov w14, w19
+    mov w14, w12
     b .L1_95
 .L1_94:
     ldr x9, [sp, #240]
@@ -1428,8 +1428,8 @@ lb_net_16http_encode_head:
     cmp w14, w10
     cset w14, eq
 .L1_95:
-    and w19, w14, #255
-    cbnz w19, .L1_89
+    and w12, w14, #255
+    cbnz w12, .L1_89
     b .L1_90
 .L1_89:
     sub x19, x29, #152
@@ -1440,16 +1440,16 @@ lb_net_16http_encode_head:
     str w15, [x14]
     adrp x15, .Ltext_15
     add x15, x15, :lo12:.Ltext_15
-    sub x20, x29, #1312
-    str x15, [x20]
-    add x15, x20, #8
+    sub x12, x29, #1312
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #38
     str x9, [x15]
     add x14, x14, #8
-    mov x10, x20
+    mov x10, x12
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #40
     movz x9, #1
     strb w9, [x14]
@@ -1489,7 +1489,7 @@ lb_net_16http_encode_head:
     cbnz w15, .L1_103
     b .L1_185
 .L1_185:
-    mov w19, w15
+    mov w12, w15
     b .L1_104
 .L1_103:
     ldr x9, [sp, #240]
@@ -1497,9 +1497,9 @@ lb_net_16http_encode_head:
     ldrb w15, [x15]
     mov x10, #0
     cmp w15, w10
-    cset w19, eq
+    cset w12, eq
 .L1_104:
-    and w15, w19, #255
+    and w15, w12, #255
     cbnz w15, .L1_100
     b .L1_101
 .L1_100:
@@ -1510,22 +1510,22 @@ lb_net_16http_encode_head:
     ldrb w15, [x15]
     movz x10, #1
     cmp w15, w10
-    cset w19, eq
-    cbnz w19, .L1_186
+    cset w12, eq
+    cbnz w12, .L1_186
     b .L1_108
 .L1_186:
-    mov w20, w19
+    mov w13, w12
     b .L1_109
 .L1_108:
     mov x10, #0
     cmp w15, w10
-    cset w20, eq
+    cset w13, eq
 .L1_109:
-    and w21, w20, #255
-    cbnz w21, .L1_105
+    and w19, w13, #255
+    cbnz w19, .L1_105
     b .L1_106
 .L1_105:
-    cbnz w19, .L1_110
+    cbnz w12, .L1_110
     b .L1_111
 .L1_110:
     ldr x9, [sp, #240]
@@ -1542,13 +1542,13 @@ lb_net_16http_encode_head:
     str x9, [x14]
     adrp x15, lb_vt_io_SliceWriter_Writer
     add x15, x15, :lo12:lb_vt_io_SliceWriter_Writer
-    add x20, x14, #8
-    str x15, [x20]
+    add x12, x14, #8
+    str x15, [x12]
     sub x20, x29, #1344
     mov x10, x14
     mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     sub x14, x29, #1360
     ldr x9, [sp, #248]
     str x9, [x14]
@@ -1594,8 +1594,8 @@ lb_net_16http_encode_head:
     str w9, [x14]
     adrp x15, .Ltext_8
     add x15, x15, :lo12:.Ltext_8
-    add x19, x14, #8
-    str x15, [x19]
+    add x12, x14, #8
+    str x15, [x12]
     add x14, x14, #16
     movz x9, #60
     str x9, [x14]
@@ -1612,8 +1612,8 @@ lb_net_16http_encode_head:
     sub x14, x29, #1448
     mov x10, x14
     mov x11, x24
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x24, #40
     mov x9, #0
     strb w9, [x14]
@@ -1628,10 +1628,10 @@ lb_net_16http_encode_head:
     add x15, x19, #16
     mov x10, x14
     mov x11, x15
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #40
     movz x9, #1
     strb w9, [x14]
@@ -1676,10 +1676,10 @@ lb_net_16http_encode_head:
     add x14, x19, #16
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #40
     movz x9, #1
     strb w9, [x14]
@@ -1722,24 +1722,24 @@ lb_net_16http_encode_head:
     ldr x15, [x9]
     movz x10, #8
     cmp x15, x10
-    cset w19, eq
-    cbnz w19, .L1_128
+    cset w12, eq
+    cbnz w12, .L1_128
     b .L1_187
 .L1_187:
-    mov w14, w19
+    mov w14, w12
     b .L1_129
 .L1_128:
     ldr x9, [sp, #24]
-    ldr x19, [x9]
-    mov x0, x19
+    ldr x12, [x9]
+    mov x0, x12
     mov x1, x14
     mov x2, x15
     bl memcmp
-    mov w19, w0
+    mov w12, w0
     mov x10, #0
-    cmp w19, w10
-    cset w19, eq
-    mov w14, w19
+    cmp w12, w10
+    cset w12, eq
+    mov w14, w12
 .L1_129:
     and w15, w14, #255
     mov x10, #0
@@ -1754,16 +1754,16 @@ lb_net_16http_encode_head:
     str w15, [x14]
     adrp x15, .Ltext_17
     add x15, x15, :lo12:.Ltext_17
-    sub x20, x29, #1512
-    str x15, [x20]
-    add x15, x20, #8
+    sub x12, x29, #1512
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #33
     str x9, [x15]
     add x14, x14, #8
-    mov x10, x20
+    mov x10, x12
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #40
     movz x9, #1
     strb w9, [x14]
@@ -1796,19 +1796,19 @@ lb_net_16http_encode_head:
     str x9, [x14]
     adrp x15, lb_vt_io_SliceWriter_Writer
     add x15, x15, :lo12:lb_vt_io_SliceWriter_Writer
-    add x19, x14, #8
-    str x15, [x19]
+    add x12, x14, #8
+    str x15, [x12]
     adrp x15, .Ltext_18
     add x15, x15, :lo12:.Ltext_18
-    sub x19, x29, #1544
-    str x15, [x19]
-    add x15, x19, #8
+    sub x12, x29, #1544
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #28
     str x9, [x15]
     mov x9, x14
     ldr x0, [x9]
     ldr x1, [x9, #8]
-    mov x9, x19
+    mov x9, x12
     ldr x2, [x9]
     ldr x3, [x9, #8]
     mov x4, #0
@@ -1824,10 +1824,10 @@ lb_net_16http_encode_head:
     add x14, x19, #16
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #40
     movz x9, #1
     strb w9, [x14]
@@ -1857,14 +1857,14 @@ lb_net_16http_encode_head:
 .L1_123:
     movz x10, #3
     cmp w15, w10
-    cset w19, eq
+    cset w12, eq
     mov x10, #0
-    cmp w19, w10
-    cset w19, eq
-    cbnz w19, .L1_188
+    cmp w12, w10
+    cset w12, eq
+    cbnz w12, .L1_188
     b .L1_137
 .L1_188:
-    mov w14, w19
+    mov w14, w12
     b .L1_138
 .L1_137:
     mov x10, #0
@@ -1884,16 +1884,16 @@ lb_net_16http_encode_head:
     str w15, [x14]
     adrp x15, .Ltext_19
     add x15, x15, :lo12:.Ltext_19
-    sub x20, x29, #1592
-    str x15, [x20]
-    add x15, x20, #8
+    sub x12, x29, #1592
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #29
     str x9, [x15]
     add x14, x14, #8
-    mov x10, x20
+    mov x10, x12
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #40
     movz x9, #1
     strb w9, [x14]
@@ -1961,19 +1961,19 @@ lb_net_16http_encode_head:
     str x9, [x14]
     adrp x15, lb_vt_io_SliceWriter_Writer
     add x15, x15, :lo12:lb_vt_io_SliceWriter_Writer
-    add x19, x14, #8
-    str x15, [x19]
+    add x12, x14, #8
+    str x15, [x12]
     adrp x15, .Ltext_20
     add x15, x15, :lo12:.Ltext_20
-    sub x19, x29, #1624
-    str x15, [x19]
-    add x15, x19, #8
+    sub x12, x29, #1624
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #21
     str x9, [x15]
     mov x9, x14
     ldr x0, [x9]
     ldr x1, [x9, #8]
-    mov x9, x19
+    mov x9, x12
     ldr x2, [x9]
     ldr x3, [x9, #8]
     mov x4, #0
@@ -1989,10 +1989,10 @@ lb_net_16http_encode_head:
     add x14, x19, #16
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #40
     movz x9, #1
     strb w9, [x14]
@@ -2025,19 +2025,19 @@ lb_net_16http_encode_head:
     str x9, [x14]
     adrp x15, lb_vt_io_SliceWriter_Writer
     add x15, x15, :lo12:lb_vt_io_SliceWriter_Writer
-    add x19, x14, #8
-    str x15, [x19]
+    add x12, x14, #8
+    str x15, [x12]
     adrp x15, .Ltext_21
     add x15, x15, :lo12:.Ltext_21
-    sub x19, x29, #1688
-    str x15, [x19]
-    add x15, x19, #8
+    sub x12, x29, #1688
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #24
     str x9, [x15]
     mov x9, x14
     ldr x0, [x9]
     ldr x1, [x9, #8]
-    mov x9, x19
+    mov x9, x12
     ldr x2, [x9]
     ldr x3, [x9, #8]
     mov x4, #0
@@ -2053,10 +2053,10 @@ lb_net_16http_encode_head:
     add x14, x19, #16
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #40
     movz x9, #1
     strb w9, [x14]
@@ -2090,19 +2090,19 @@ lb_net_16http_encode_head:
     str x9, [x14]
     adrp x15, lb_vt_io_SliceWriter_Writer
     add x15, x15, :lo12:lb_vt_io_SliceWriter_Writer
-    add x19, x14, #8
-    str x15, [x19]
+    add x12, x14, #8
+    str x15, [x12]
     adrp x15, .Ltext_22
     add x15, x15, :lo12:.Ltext_22
-    sub x19, x29, #1752
-    str x15, [x19]
-    add x15, x19, #8
+    sub x12, x29, #1752
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #19
     str x9, [x15]
     mov x9, x14
     ldr x0, [x9]
     ldr x1, [x9, #8]
-    mov x9, x19
+    mov x9, x12
     ldr x2, [x9]
     ldr x3, [x9, #8]
     mov x4, #0
@@ -2118,10 +2118,10 @@ lb_net_16http_encode_head:
     add x14, x19, #16
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #40
     movz x9, #1
     strb w9, [x14]
@@ -2153,19 +2153,19 @@ lb_net_16http_encode_head:
     str x9, [x14]
     adrp x15, lb_vt_io_SliceWriter_Writer
     add x15, x15, :lo12:lb_vt_io_SliceWriter_Writer
-    add x19, x14, #8
-    str x15, [x19]
+    add x12, x14, #8
+    str x15, [x12]
     adrp x15, .Ltext_5
     add x15, x15, :lo12:.Ltext_5
-    sub x19, x29, #1816
-    str x15, [x19]
-    add x15, x19, #8
+    sub x12, x29, #1816
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #2
     str x9, [x15]
     mov x9, x14
     ldr x0, [x9]
     ldr x1, [x9, #8]
-    mov x9, x19
+    mov x9, x12
     ldr x2, [x9]
     ldr x3, [x9, #8]
     mov x4, #0
@@ -2181,10 +2181,10 @@ lb_net_16http_encode_head:
     add x14, x19, #16
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #40
     movz x9, #1
     strb w9, [x14]
@@ -2236,10 +2236,10 @@ lb_net_16http_encode_head:
     str x9, [x14]
     mov x10, x21
     mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldp x12, x13, [x10, #16]
-    stp x12, x13, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldp x16, x17, [x10, #16]
+    stp x16, x17, [x11, #16]
     ldr x9, [sp, #224]
     ldrh w14, [x9]
     mov x10, #0
@@ -2257,9 +2257,9 @@ lb_net_16http_encode_head:
     movz x16, #5144
     sub x15, x29, x16
     str x19, [x15]
-    add x21, x15, #8
+    add x12, x15, #8
     movz x9, #100
-    str x9, [x21]
+    str x9, [x12]
     mov x9, x14
     ldr x0, [x9]
     ldr x1, [x9, #8]
@@ -2280,13 +2280,13 @@ lb_net_16http_encode_head:
 .L1_164:
     add x14, x15, #96
     sub x19, x29, #152
-    add x20, x19, #16
+    add x12, x19, #16
     mov x10, x14
-    mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    mov x11, x12
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #40
     movz x9, #1
     strb w9, [x14]
@@ -2325,9 +2325,9 @@ lb_net_16http_encode_head:
     movz x16, #5304
     sub x15, x29, x16
     str x19, [x15]
-    add x21, x15, #8
+    add x12, x15, #8
     movz x9, #100
-    str x9, [x21]
+    str x9, [x12]
     mov x9, x14
     ldr x0, [x9]
     ldr x1, [x9, #8]
@@ -2351,13 +2351,13 @@ lb_net_16http_encode_head:
 .L1_167:
     add x14, x15, #96
     sub x19, x29, #152
-    add x20, x19, #16
+    add x12, x19, #16
     mov x10, x14
-    mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    mov x11, x12
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #40
     movz x9, #1
     strb w9, [x14]
@@ -2395,8 +2395,8 @@ lb_net_16http_encode_head:
     sub x19, x29, #152
     mov x10, x14
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #40
     mov x9, #0
     strb w9, [x14]
@@ -2435,28 +2435,27 @@ lb_net_16http_encode_head:
 lb_net_16http_write_chunk:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #320
+    sub sp, sp, #304
     sub x16, x29, #24
     str x8, [x16]
-    str x19, [sp, #288]
-    str x20, [sp, #280]
-    str x21, [sp, #272]
-    str x22, [sp, #264]
-    str x23, [sp, #256]
-    sub x16, x29, #112
+    str x19, [sp, #272]
+    str x20, [sp, #264]
+    str x21, [sp, #256]
+    str x22, [sp, #248]
+    sub x16, x29, #104
     str x0, [x16]
     str x1, [x16, #8]
-    sub x16, x29, #128
+    sub x16, x29, #120
     str x2, [x16]
     str x3, [x16, #8]
-    sub x19, x29, #128
+    sub x19, x29, #120
     add x14, x19, #8
     ldr x20, [x14]
     mov x10, #0
     cmp x20, x10
     b.ne .L2_2
 .L2_1:
-    sub x14, x29, #96
+    sub x14, x29, #88
     add x15, x14, #24
     mov x9, #0
     strb w9, [x15]
@@ -2467,32 +2466,31 @@ lb_net_16http_write_chunk:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #288]
-    ldr x20, [sp, #280]
-    ldr x21, [sp, #272]
-    ldr x22, [sp, #264]
-    ldr x23, [sp, #256]
+    ldr x19, [sp, #272]
+    ldr x20, [sp, #264]
+    ldr x21, [sp, #256]
+    ldr x22, [sp, #248]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
 .L2_2:
 .L2_3:
-    sub x21, x29, #146
+    sub x21, x29, #138
     mov x11, x21
     stp xzr, xzr, [x11, #0]
     strh wzr, [x11, #16]
-    sub x14, x29, #168
+    sub x14, x29, #160
     adrp x22, .Ltext_25
     add x22, x22, :lo12:.Ltext_25
-    sub x15, x29, #184
+    sub x15, x29, #176
     str x22, [x15]
-    add x23, x15, #8
+    add x12, x15, #8
     movz x9, #16
-    str x9, [x23]
+    str x9, [x12]
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     movz x9, #16
     mov x14, x9
     mov x15, x20
@@ -2511,9 +2509,9 @@ lb_net_16http_write_chunk:
     add x1, x1, :lo12:.Ltext_44
     bl lb_core_7trap_at
 1:
-    mov x20, x9
+    mov x12, x9
     movz x10, #18
-    cmp x20, x10
+    cmp x12, x10
     b.lo 1f
     adrp x0, .Ltext_27
     add x0, x0, :lo12:.Ltext_27
@@ -2521,7 +2519,7 @@ lb_net_16http_write_chunk:
     add x1, x1, :lo12:.Ltext_33
     bl lb_core_7trap_at
 1:
-    add x23, x21, x20
+    add x13, x21, x12
 .L2_9:
     movz x10, #16
     udiv x11, x15, x10
@@ -2537,12 +2535,12 @@ lb_net_16http_write_chunk:
 1:
     add x14, x22, x14
     ldrb w14, [x14]
-    strb w14, [x23]
+    strb w14, [x13]
 .L2_11:
     movz x10, #16
-    udiv x23, x15, x10
-    mov x14, x20
-    mov x15, x23
+    udiv x13, x15, x10
+    mov x14, x12
+    mov x15, x13
     b .L2_5
 .L2_7:
     add x15, x21, #16
@@ -2551,7 +2549,7 @@ lb_net_16http_write_chunk:
     add x15, x21, #17
     movz x9, #10
     strb w9, [x15]
-    sub x20, x29, #112
+    sub x20, x29, #104
     movz x10, #19
     cmp x14, x10
     b.lo 1f
@@ -2573,33 +2571,33 @@ lb_net_16http_write_chunk:
 .L2_12:
     add x15, x21, x14
     movz x9, #18
-    sub x22, x9, x14
-    sub x23, x29, #200
-    str x15, [x23]
-    add x15, x23, #8
-    str x22, [x15]
+    sub x12, x9, x14
+    sub x13, x29, #192
+    str x15, [x13]
+    add x15, x13, #8
+    str x12, [x15]
     mov x9, x20
     ldr x0, [x9]
     ldr x1, [x9, #8]
-    mov x9, x23
+    mov x9, x13
     ldr x2, [x9]
     ldr x3, [x9, #8]
     mov x4, #0
-    sub x8, x29, #232
+    sub x8, x29, #224
     bl lb_io_9write_all
-    sub x22, x29, #232
-    add x15, x22, #24
+    sub x12, x29, #224
+    add x15, x12, #24
     ldrb w15, [x15]
     cbnz w15, .L2_15
     b .L2_14
 .L2_15:
-    sub x19, x29, #96
-    mov x10, x22
+    sub x19, x29, #88
+    mov x10, x12
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
@@ -2610,11 +2608,10 @@ lb_net_16http_write_chunk:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #288]
-    ldr x20, [sp, #280]
-    ldr x21, [sp, #272]
-    ldr x22, [sp, #264]
-    ldr x23, [sp, #256]
+    ldr x19, [sp, #272]
+    ldr x20, [sp, #264]
+    ldr x21, [sp, #256]
+    ldr x22, [sp, #248]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -2626,21 +2623,21 @@ lb_net_16http_write_chunk:
     ldr x2, [x9]
     ldr x3, [x9, #8]
     mov x4, #0
-    sub x8, x29, #264
+    sub x8, x29, #256
     bl lb_io_9write_all
-    sub x15, x29, #264
+    sub x15, x29, #256
     add x14, x15, #24
     ldrb w14, [x14]
     cbnz w14, .L2_18
     b .L2_17
 .L2_18:
-    sub x19, x29, #96
+    sub x19, x29, #88
     mov x10, x15
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
@@ -2651,18 +2648,17 @@ lb_net_16http_write_chunk:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #288]
-    ldr x20, [sp, #280]
-    ldr x21, [sp, #272]
-    ldr x22, [sp, #264]
-    ldr x23, [sp, #256]
+    ldr x19, [sp, #272]
+    ldr x20, [sp, #264]
+    ldr x21, [sp, #256]
+    ldr x22, [sp, #248]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
 .L2_17:
     adrp x14, .Ltext_5
     add x14, x14, :lo12:.Ltext_5
-    sub x15, x29, #280
+    sub x15, x29, #272
     str x14, [x15]
     add x14, x15, #8
     movz x9, #2
@@ -2674,21 +2670,21 @@ lb_net_16http_write_chunk:
     ldr x2, [x9]
     ldr x3, [x9, #8]
     mov x4, #0
-    sub x8, x29, #312
+    sub x8, x29, #304
     bl lb_io_9write_all
-    sub x15, x29, #312
+    sub x15, x29, #304
     add x14, x15, #24
     ldrb w14, [x14]
     cbnz w14, .L2_21
     b .L2_20
 .L2_21:
-    sub x19, x29, #96
+    sub x19, x29, #88
     mov x10, x15
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
@@ -2699,16 +2695,15 @@ lb_net_16http_write_chunk:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #288]
-    ldr x20, [sp, #280]
-    ldr x21, [sp, #272]
-    ldr x22, [sp, #264]
-    ldr x23, [sp, #256]
+    ldr x19, [sp, #272]
+    ldr x20, [sp, #264]
+    ldr x21, [sp, #256]
+    ldr x22, [sp, #248]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
 .L2_20:
-    sub x14, x29, #96
+    sub x14, x29, #88
     add x15, x14, #24
     mov x9, #0
     strb w9, [x15]
@@ -2719,11 +2714,10 @@ lb_net_16http_write_chunk:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #288]
-    ldr x20, [sp, #280]
-    ldr x21, [sp, #272]
-    ldr x22, [sp, #264]
-    ldr x23, [sp, #256]
+    ldr x19, [sp, #272]
+    ldr x20, [sp, #264]
+    ldr x21, [sp, #256]
+    ldr x22, [sp, #248]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -2746,15 +2740,15 @@ lb_net_15http_end_chunks:
     sub x14, x29, #80
     adrp x15, .Ltext_34
     add x15, x15, :lo12:.Ltext_34
-    sub x19, x29, #96
-    str x15, [x19]
-    add x15, x19, #8
+    sub x12, x29, #96
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #5
     str x9, [x15]
     mov x9, x14
     ldr x0, [x9]
     ldr x1, [x9, #8]
-    mov x9, x19
+    mov x9, x12
     ldr x2, [x9]
     ldr x3, [x9, #8]
     mov x4, #0
@@ -2769,10 +2763,10 @@ lb_net_15http_end_chunks:
     sub x19, x29, #64
     mov x10, x15
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
@@ -2839,16 +2833,16 @@ lb_net_HttpBodyWriter_over:
     str w15, [x14]
     adrp x15, .Ltext_35
     add x15, x15, :lo12:.Ltext_35
-    sub x20, x29, #176
-    str x15, [x20]
-    add x15, x20, #8
+    sub x12, x29, #176
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #32
     str x9, [x15]
     add x14, x14, #8
-    mov x10, x20
+    mov x10, x12
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #64
     movz x9, #1
     strb w9, [x14]
@@ -2876,8 +2870,8 @@ lb_net_HttpBodyWriter_over:
     sub x14, x29, #128
     mov x10, x14
     mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x20, #16
     strb w19, [x14]
     movz x10, #1
@@ -2899,12 +2893,12 @@ lb_net_HttpBodyWriter_over:
     sub x19, x29, #112
     mov x10, x20
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldp x12, x13, [x10, #16]
-    stp x12, x13, [x11, #16]
-    ldr x12, [x10, #32]
-    str x12, [x11, #32]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldp x16, x17, [x10, #16]
+    stp x16, x17, [x11, #16]
+    ldr x16, [x10, #32]
+    str x16, [x11, #32]
     add x15, x19, #64
     mov x9, #0
     strb w9, [x15]
@@ -2935,38 +2929,36 @@ lb_net_HttpBodyWriter_over:
 lb_net_HttpBodyWriter_write:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #368
+    sub sp, sp, #352
     sub x16, x29, #24
     str x8, [x16]
-    str x19, [sp, #336]
-    str x20, [sp, #328]
-    str x21, [sp, #320]
-    str x22, [sp, #312]
-    str x23, [sp, #304]
-    sub x16, x29, #112
+    str x19, [sp, #320]
+    str x20, [sp, #312]
+    str x21, [sp, #304]
+    sub x16, x29, #96
     str x0, [x16]
-    sub x16, x29, #128
+    sub x16, x29, #112
     str x1, [x16]
     str x2, [x16, #8]
-    sub x9, x29, #112
+    sub x9, x29, #96
     ldr x19, [x9]
     mov x0, x19
-    sub x8, x29, #160
+    sub x8, x29, #144
     bl lb_net_HttpBodyWriter_check
-    sub x15, x29, #160
+    sub x15, x29, #144
     add x14, x15, #24
     ldrb w14, [x14]
     cbnz w14, .L5_2
     b .L5_1
 .L5_2:
-    sub x19, x29, #104
+    sub x19, x29, #88
     add x14, x19, #8
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #32
     movz x9, #1
     strb w9, [x14]
@@ -2977,81 +2969,79 @@ lb_net_HttpBodyWriter_write:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #336]
-    ldr x20, [sp, #328]
-    ldr x21, [sp, #320]
-    ldr x22, [sp, #312]
-    ldr x23, [sp, #304]
+    ldr x19, [sp, #320]
+    ldr x20, [sp, #312]
+    ldr x21, [sp, #304]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
 .L5_3:
 .L5_1:
-    sub x14, x29, #128
+    sub x14, x29, #112
     mov x10, x14
-    sub x11, x29, #280
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    sub x14, x29, #280
+    sub x11, x29, #264
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    sub x14, x29, #264
     add x20, x14, #8
     ldr x15, [x20]
     mov x10, #0
     cmp x15, x10
     b.ne .L5_11
 .L5_10:
-    sub x14, x29, #264
+    sub x14, x29, #248
     mov x9, #0
     str x9, [x14]
     add x15, x14, #32
     mov x9, #0
     strb w9, [x15]
     mov x10, x14
-    sub x11, x29, #224
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldp x12, x13, [x10, #16]
-    stp x12, x13, [x11, #16]
-    ldr x12, [x10, #32]
-    str x12, [x11, #32]
+    sub x11, x29, #208
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldp x16, x17, [x10, #16]
+    stp x16, x17, [x11, #16]
+    ldr x16, [x10, #32]
+    str x16, [x11, #32]
     b .L5_35
 .L5_13:
     b .L5_12
 .L5_11:
 .L5_12:
     add x21, x19, #16
-    ldrb w22, [x21]
+    ldrb w12, [x21]
     mov x10, #0
-    cmp w22, w10
-    cset w23, eq
-    cbnz w23, .L5_36
+    cmp w12, w10
+    cset w13, eq
+    cbnz w13, .L5_36
     b .L5_17
 .L5_36:
-    mov w15, w23
+    mov w15, w13
     b .L5_18
 .L5_17:
     movz x10, #1
-    cmp w22, w10
-    cset w23, eq
-    cbnz w23, .L5_19
+    cmp w12, w10
+    cset w13, eq
+    cbnz w13, .L5_19
     b .L5_37
 .L5_37:
-    mov w15, w23
+    mov w15, w13
     b .L5_20
 .L5_19:
-    add x23, x19, #24
-    ldr x23, [x23]
-    cmp x15, x23
-    cset w23, hi
-    mov w15, w23
+    add x13, x19, #24
+    ldr x13, [x13]
+    cmp x15, x13
+    cset w13, hi
+    mov w15, w13
 .L5_20:
-    and w23, w15, #255
-    mov w15, w23
+    and w13, w15, #255
+    mov w15, w13
 .L5_18:
-    and w23, w15, #255
-    cbnz w23, .L5_14
+    and w13, w15, #255
+    cbnz w13, .L5_14
     b .L5_15
 .L5_14:
-    sub x20, x29, #264
+    sub x20, x29, #248
     add x14, x20, #8
     adrp x15, lb_net_12http_invalid
     add x15, x15, :lo12:lb_net_12http_invalid
@@ -3059,34 +3049,34 @@ lb_net_HttpBodyWriter_write:
     str w15, [x14]
     adrp x15, .Ltext_38
     add x15, x15, :lo12:.Ltext_38
-    sub x21, x29, #296
-    str x15, [x21]
-    add x15, x21, #8
+    sub x12, x29, #280
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #37
     str x9, [x15]
     add x14, x14, #8
-    mov x10, x21
+    mov x10, x12
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x20, #32
     movz x9, #1
     strb w9, [x14]
     mov x10, x20
-    sub x11, x29, #224
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldp x12, x13, [x10, #16]
-    stp x12, x13, [x11, #16]
-    ldr x12, [x10, #32]
-    str x12, [x11, #32]
+    sub x11, x29, #208
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldp x16, x17, [x10, #16]
+    stp x16, x17, [x11, #16]
+    ldr x16, [x10, #32]
+    str x16, [x11, #32]
     b .L5_35
 .L5_21:
     b .L5_16
 .L5_15:
 .L5_16:
     movz x10, #2
-    cmp w22, w10
+    cmp w12, w10
     b.ne .L5_23
 .L5_22:
     mov x9, x19
@@ -3095,33 +3085,33 @@ lb_net_HttpBodyWriter_write:
     mov x9, x14
     ldr x2, [x9]
     ldr x3, [x9, #8]
-    sub x8, x29, #328
+    sub x8, x29, #312
     bl lb_net_16http_write_chunk
-    sub x22, x29, #328
-    add x15, x22, #24
+    sub x12, x29, #312
+    add x15, x12, #24
     ldrb w15, [x15]
     cbnz w15, .L5_26
     b .L5_25
 .L5_26:
-    sub x20, x29, #264
+    sub x20, x29, #248
     add x14, x20, #8
-    mov x10, x22
+    mov x10, x12
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x20, #32
     movz x9, #1
     strb w9, [x14]
     mov x10, x20
-    sub x11, x29, #224
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldp x12, x13, [x10, #16]
-    stp x12, x13, [x11, #16]
-    ldr x12, [x10, #32]
-    str x12, [x11, #32]
+    sub x11, x29, #208
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldp x16, x17, [x10, #16]
+    stp x16, x17, [x11, #16]
+    ldr x16, [x10, #32]
+    str x16, [x11, #32]
     b .L5_35
 .L5_27:
 .L5_25:
@@ -3134,33 +3124,33 @@ lb_net_HttpBodyWriter_write:
     ldr x2, [x9]
     ldr x3, [x9, #8]
     mov x4, #0
-    sub x8, x29, #360
+    sub x8, x29, #344
     bl lb_io_9write_all
-    sub x22, x29, #360
-    add x15, x22, #24
+    sub x12, x29, #344
+    add x15, x12, #24
     ldrb w15, [x15]
     cbnz w15, .L5_29
     b .L5_28
 .L5_29:
-    sub x20, x29, #264
+    sub x20, x29, #248
     add x14, x20, #8
-    mov x10, x22
+    mov x10, x12
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x20, #32
     movz x9, #1
     strb w9, [x14]
     mov x10, x20
-    sub x11, x29, #224
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldp x12, x13, [x10, #16]
-    stp x12, x13, [x11, #16]
-    ldr x12, [x10, #32]
-    str x12, [x11, #32]
+    sub x11, x29, #208
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldp x16, x17, [x10, #16]
+    stp x16, x17, [x11, #16]
+    ldr x16, [x10, #32]
+    str x16, [x11, #32]
     b .L5_35
 .L5_30:
 .L5_28:
@@ -3172,9 +3162,9 @@ lb_net_HttpBodyWriter_write:
 .L5_31:
     add x14, x19, #24
     ldr x15, [x14]
-    ldr x21, [x20]
+    ldr x12, [x20]
     mov x9, x15
-    mov x10, x21
+    mov x10, x12
     subs x9, x9, x10
     b.cs 1f
     adrp x0, .Ltext_39
@@ -3189,19 +3179,19 @@ lb_net_HttpBodyWriter_write:
 .L5_32:
 .L5_33:
     ldr x14, [x20]
-    sub x15, x29, #264
+    sub x15, x29, #248
     str x14, [x15]
     add x14, x15, #32
     mov x9, #0
     strb w9, [x14]
     mov x10, x15
-    sub x11, x29, #224
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldp x12, x13, [x10, #16]
-    stp x12, x13, [x11, #16]
-    ldr x12, [x10, #32]
-    str x12, [x11, #32]
+    sub x11, x29, #208
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldp x16, x17, [x10, #16]
+    stp x16, x17, [x11, #16]
+    ldr x16, [x10, #32]
+    str x16, [x11, #32]
     b .L5_35
 .L5_34:
     adrp x0, .Ltext_40
@@ -3210,20 +3200,20 @@ lb_net_HttpBodyWriter_write:
     add x1, x1, :lo12:.Ltext_23
     bl lb_core_7trap_at
 .L5_35:
-    sub x15, x29, #224
+    sub x15, x29, #208
     add x14, x15, #32
     ldrb w14, [x14]
     cbnz w14, .L5_7
     b .L5_6
 .L5_7:
     add x14, x15, #8
-    sub x20, x29, #184
+    sub x20, x29, #168
     mov x10, x14
     mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     b .L5_4
 .L5_6:
     ldr x14, [x15]
@@ -3235,15 +3225,15 @@ lb_net_HttpBodyWriter_write:
     add x14, x19, #36
     ldr w15, [x20]
     str w15, [x14]
-    sub x21, x29, #104
+    sub x21, x29, #88
     add x14, x21, #8
     str w15, [x14]
     add x15, x20, #8
     add x14, x14, #8
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x21, #32
     movz x9, #1
     strb w9, [x14]
@@ -3254,21 +3244,19 @@ lb_net_HttpBodyWriter_write:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #336]
-    ldr x20, [sp, #328]
-    ldr x21, [sp, #320]
-    ldr x22, [sp, #312]
-    ldr x23, [sp, #304]
+    ldr x19, [sp, #320]
+    ldr x20, [sp, #312]
+    ldr x21, [sp, #304]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
 .L5_8:
 .L5_5:
-    sub x15, x29, #104
+    sub x15, x29, #88
     str x14, [x15]
-    add x19, x15, #32
+    add x12, x15, #32
     mov x9, #0
-    strb w9, [x19]
+    strb w9, [x12]
     mov x1, x15
     sub x16, x29, #24
     ldr x0, [x16]
@@ -3276,11 +3264,9 @@ lb_net_HttpBodyWriter_write:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #336]
-    ldr x20, [sp, #328]
-    ldr x21, [sp, #320]
-    ldr x22, [sp, #312]
-    ldr x23, [sp, #304]
+    ldr x19, [sp, #320]
+    ldr x20, [sp, #312]
+    ldr x21, [sp, #304]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -3321,10 +3307,10 @@ lb_net_HttpBodyWriter_finish:
     sub x19, x29, #80
     mov x10, x15
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
@@ -3351,7 +3337,7 @@ lb_net_HttpBodyWriter_finish:
     cbnz w15, .L6_12
     b .L6_26
 .L6_26:
-    mov w20, w15
+    mov w12, w15
     b .L6_13
 .L6_12:
     add x15, x19, #24
@@ -3361,9 +3347,9 @@ lb_net_HttpBodyWriter_finish:
     cset w15, eq
     mov x10, #0
     cmp w15, w10
-    cset w20, eq
+    cset w12, eq
 .L6_13:
-    and w15, w20, #255
+    and w15, w12, #255
     cbnz w15, .L6_9
     b .L6_10
 .L6_9:
@@ -3382,17 +3368,17 @@ lb_net_HttpBodyWriter_finish:
     add x14, x20, #8
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x20, #24
     movz x9, #1
     strb w9, [x14]
     mov x10, x20
     sub x11, x29, #176
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldp x12, x13, [x10, #16]
-    stp x12, x13, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldp x16, x17, [x10, #16]
+    stp x16, x17, [x11, #16]
     b .L6_25
 .L6_14:
     b .L6_11
@@ -3404,20 +3390,20 @@ lb_net_HttpBodyWriter_finish:
 .L6_15:
     mov x10, x19
     sub x11, x29, #304
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     sub x14, x29, #304
     adrp x15, .Ltext_34
     add x15, x15, :lo12:.Ltext_34
-    sub x20, x29, #320
-    str x15, [x20]
-    add x15, x20, #8
+    sub x12, x29, #320
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #5
     str x9, [x15]
     mov x9, x14
     ldr x0, [x9]
     ldr x1, [x9, #8]
-    mov x9, x20
+    mov x9, x12
     ldr x2, [x9]
     ldr x3, [x9, #8]
     mov x4, #0
@@ -3432,19 +3418,19 @@ lb_net_HttpBodyWriter_finish:
     sub x20, x29, #288
     mov x10, x15
     mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x20, #24
     movz x9, #1
     strb w9, [x14]
     mov x10, x20
     sub x11, x29, #256
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldp x12, x13, [x10, #16]
-    stp x12, x13, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldp x16, x17, [x10, #16]
+    stp x16, x17, [x11, #16]
     b .L6_24
 .L6_23:
 .L6_21:
@@ -3454,10 +3440,10 @@ lb_net_HttpBodyWriter_finish:
     strb w9, [x15]
     mov x10, x14
     sub x11, x29, #256
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldp x12, x13, [x10, #16]
-    stp x12, x13, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldp x16, x17, [x10, #16]
+    stp x16, x17, [x11, #16]
 .L6_24:
     sub x15, x29, #256
     add x14, x15, #24
@@ -3468,19 +3454,19 @@ lb_net_HttpBodyWriter_finish:
     sub x20, x29, #208
     mov x10, x15
     mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x20, #24
     movz x9, #1
     strb w9, [x14]
     mov x10, x20
     sub x11, x29, #176
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldp x12, x13, [x10, #16]
-    stp x12, x13, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldp x16, x17, [x10, #16]
+    stp x16, x17, [x11, #16]
     b .L6_25
 .L6_20:
 .L6_18:
@@ -3493,10 +3479,10 @@ lb_net_HttpBodyWriter_finish:
     strb w9, [x15]
     mov x10, x14
     sub x11, x29, #176
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldp x12, x13, [x10, #16]
-    stp x12, x13, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldp x16, x17, [x10, #16]
+    stp x16, x17, [x11, #16]
 .L6_25:
     sub x15, x29, #176
     add x14, x15, #24
@@ -3507,10 +3493,10 @@ lb_net_HttpBodyWriter_finish:
     sub x20, x29, #144
     mov x10, x15
     mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     b .L6_4
 .L6_6:
     b .L6_5
@@ -3527,8 +3513,8 @@ lb_net_HttpBodyWriter_finish:
     add x15, x21, #8
     mov x10, x14
     mov x11, x15
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x21, #24
     movz x9, #1
     strb w9, [x14]
@@ -3580,32 +3566,31 @@ lb_net_HttpBodyWriter_check:
     sub x16, x29, #24
     str x8, [x16]
     str x19, [sp, #80]
-    str x20, [sp, #72]
-    sub x16, x29, #80
+    sub x16, x29, #72
     str x0, [x16]
-    sub x9, x29, #80
+    sub x9, x29, #72
     ldr x15, [x9]
     add x14, x15, #33
     ldrb w14, [x14]
     cbnz w14, .L7_1
     b .L7_2
 .L7_1:
-    sub x19, x29, #72
+    sub x19, x29, #64
     add x14, x15, #36
     ldr w14, [x14]
     str w14, [x19]
     adrp x14, .Ltext_42
     add x14, x14, :lo12:.Ltext_42
-    sub x20, x29, #96
-    str x14, [x20]
-    add x14, x20, #8
+    sub x12, x29, #88
+    str x14, [x12]
+    add x14, x12, #8
     movz x9, #27
     str x9, [x14]
     add x14, x19, #8
-    mov x10, x20
+    mov x10, x12
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
@@ -3617,7 +3602,6 @@ lb_net_HttpBodyWriter_check:
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #80]
-    ldr x20, [sp, #72]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -3631,14 +3615,14 @@ lb_net_HttpBodyWriter_check:
     cmp w14, w10
     b.ne .L7_6
 .L7_5:
-    sub x19, x29, #72
+    sub x19, x29, #64
     adrp x14, lb_io_closed
     add x14, x14, :lo12:lb_io_closed
     ldr w14, [x14]
     str w14, [x19]
     adrp x14, .Ltext_43
     add x14, x14, :lo12:.Ltext_43
-    sub x15, x29, #112
+    sub x15, x29, #104
     str x14, [x15]
     add x14, x15, #8
     movz x9, #30
@@ -3646,8 +3630,8 @@ lb_net_HttpBodyWriter_check:
     add x14, x19, #8
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
@@ -3659,7 +3643,6 @@ lb_net_HttpBodyWriter_check:
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #80]
-    ldr x20, [sp, #72]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -3667,7 +3650,7 @@ lb_net_HttpBodyWriter_check:
     b .L7_7
 .L7_6:
 .L7_7:
-    sub x14, x29, #72
+    sub x14, x29, #64
     add x15, x14, #24
     mov x9, #0
     strb w9, [x15]
@@ -3679,7 +3662,6 @@ lb_net_HttpBodyWriter_check:
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #80]
-    ldr x20, [sp, #72]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret

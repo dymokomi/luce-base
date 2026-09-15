@@ -16,14 +16,13 @@ _lb_gpu_12metal_device_0init:
 _lb_gpu_17metal_device_open:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #240
+    sub sp, sp, #224
     sub x16, x29, #24
     str x8, [x16]
-    str x19, [sp, #208]
-    str x20, [sp, #200]
-    str x21, [sp, #192]
-    str x22, [sp, #184]
-    str x23, [sp, #176]
+    str x19, [sp, #192]
+    str x20, [sp, #184]
+    str x21, [sp, #176]
+    str x22, [sp, #168]
     bl _objc_autoreleasePoolPush
     mov x19, x0
     cbnz x19, L1_1
@@ -37,12 +36,12 @@ L1_2:
 L1_1:
     adrp x14, _lb_memory_heap@PAGE
     add x14, x14, _lb_memory_heap@PAGEOFF
-    sub x20, x29, #120
+    sub x20, x29, #112
     mov x10, x14
     mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    sub x21, x29, #160
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    sub x21, x29, #152
     ldr x14, [x20]
     add x15, x20, #8
     ldr x15, [x15]
@@ -55,19 +54,19 @@ L1_4:
     add x1, x1, l_text_2@PAGEOFF
     bl _lb_core_7trap_at
 L1_3:
-    ldr x20, [x15]
-    mov x17, x20
+    ldr x12, [x15]
+    mov x17, x12
     str x17, [sp, #-16]!
     mov x0, x14
     movz x1, #16
     movz x2, #8
-    sub x8, x29, #184
+    sub x8, x29, #176
     ldr x17, [sp], #16
     blr x17
-    sub x22, x29, #184
-    add x20, x22, #16
-    ldrb w20, [x20]
-    cbnz w20, L1_5
+    sub x13, x29, #176
+    add x12, x13, #16
+    ldrb w12, [x12]
+    cbnz w12, L1_5
     b L1_6
 L1_6:
     add x14, x21, #8
@@ -76,8 +75,8 @@ L1_6:
     str w9, [x14]
     adrp x15, l_text_4@PAGE
     add x15, x15, l_text_4@PAGEOFF
-    add x20, x14, #8
-    str x15, [x20]
+    add x12, x14, #8
+    str x15, [x12]
     add x14, x14, #16
     movz x9, #16
     str x9, [x14]
@@ -86,14 +85,14 @@ L1_6:
     strb w9, [x14]
     b L1_7
 L1_5:
-    ldr x20, [x22]
-    sub x23, x29, #200
-    mov x11, x23
+    ldr x20, [x13]
+    sub x22, x29, #192
+    mov x11, x22
     stp xzr, xzr, [x11, #0]
-    mov x10, x23
+    mov x10, x22
     mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     str x20, [x21]
     add x14, x21, #32
     mov x9, #0
@@ -105,14 +104,14 @@ L1_7:
     b L1_8
 L1_9:
     add x14, x21, #8
-    sub x20, x29, #104
+    sub x20, x29, #96
     add x15, x20, #8
     mov x10, x14
     mov x11, x15
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x20, #32
     movz x9, #1
     strb w9, [x14]
@@ -125,11 +124,10 @@ L1_9:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #208]
-    ldr x20, [sp, #200]
-    ldr x21, [sp, #192]
-    ldr x22, [sp, #184]
-    ldr x23, [sp, #176]
+    ldr x19, [sp, #192]
+    ldr x20, [sp, #184]
+    ldr x21, [sp, #176]
+    ldr x22, [sp, #168]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -143,7 +141,7 @@ L1_8:
 L1_11:
     b L1_13
 L1_12:
-    sub x21, x29, #104
+    sub x21, x29, #96
     add x14, x21, #8
     adrp x15, _lb_gpu_unavailable@PAGE
     add x15, x15, _lb_gpu_unavailable@PAGEOFF
@@ -151,16 +149,16 @@ L1_12:
     str w15, [x14]
     adrp x15, l_text_5@PAGE
     add x15, x15, l_text_5@PAGEOFF
-    sub x22, x29, #216
-    str x15, [x22]
-    add x15, x22, #8
+    sub x12, x29, #208
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #28
     str x9, [x15]
     add x14, x14, #8
-    mov x10, x22
+    mov x10, x12
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x21, #32
     movz x9, #1
     strb w9, [x14]
@@ -175,11 +173,10 @@ L1_12:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #208]
-    ldr x20, [sp, #200]
-    ldr x21, [sp, #192]
-    ldr x22, [sp, #184]
-    ldr x23, [sp, #176]
+    ldr x19, [sp, #192]
+    ldr x20, [sp, #184]
+    ldr x21, [sp, #176]
+    ldr x22, [sp, #168]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -204,7 +201,7 @@ L1_13:
 L1_15:
     b L1_17
 L1_16:
-    sub x21, x29, #104
+    sub x21, x29, #96
     add x14, x21, #8
     adrp x15, _lb_gpu_failed@PAGE
     add x15, x15, _lb_gpu_failed@PAGEOFF
@@ -212,16 +209,16 @@ L1_16:
     str w15, [x14]
     adrp x15, l_text_7@PAGE
     add x15, x15, l_text_7@PAGEOFF
-    sub x22, x29, #232
-    str x15, [x22]
-    add x15, x22, #8
+    sub x12, x29, #224
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #38
     str x9, [x15]
     add x14, x14, #8
-    mov x10, x22
+    mov x10, x12
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x21, #32
     movz x9, #1
     strb w9, [x14]
@@ -236,18 +233,17 @@ L1_16:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #208]
-    ldr x20, [sp, #200]
-    ldr x21, [sp, #192]
-    ldr x22, [sp, #184]
-    ldr x23, [sp, #176]
+    ldr x19, [sp, #192]
+    ldr x20, [sp, #184]
+    ldr x21, [sp, #176]
+    ldr x22, [sp, #168]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
 L1_18:
 L1_17:
     str x15, [x22]
-    sub x21, x29, #104
+    sub x21, x29, #96
     str x20, [x21]
     add x14, x21, #32
     mov x9, #0
@@ -261,11 +257,10 @@ L1_17:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #208]
-    ldr x20, [sp, #200]
-    ldr x21, [sp, #192]
-    ldr x22, [sp, #184]
-    ldr x23, [sp, #176]
+    ldr x19, [sp, #192]
+    ldr x20, [sp, #184]
+    ldr x21, [sp, #176]
+    ldr x22, [sp, #168]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -340,20 +335,20 @@ L2_9:
     add x14, x14, _lb_memory_heap@PAGEOFF
     sub x15, x29, #72
     str x20, [x15]
-    add x21, x15, #8
+    add x12, x15, #8
     movz x9, #16
-    str x9, [x21]
-    ldr x21, [x14]
+    str x9, [x12]
+    ldr x12, [x14]
     add x14, x14, #8
     ldr x14, [x14]
     cbnz x14, L2_12
     b L2_11
 L2_12:
-    add x20, x14, #16
-    ldr x20, [x20]
-    mov x17, x20
+    add x13, x14, #16
+    ldr x13, [x13]
+    mov x17, x13
     str x17, [sp, #-16]!
-    mov x0, x21
+    mov x0, x12
     mov x9, x15
     ldr x1, [x9]
     ldr x2, [x9, #8]

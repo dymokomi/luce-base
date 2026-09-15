@@ -33,8 +33,8 @@ lb_window_9pop_event:
     ldr x14, [x14]
     movz x10, #14377
     add x15, x14, x10
-    ldrb w19, [x15]
-    cbnz w19, .L1_1
+    ldrb w12, [x15]
+    cbnz w12, .L1_1
     b .L1_2
 .L1_1:
     mov x9, #0
@@ -50,28 +50,28 @@ lb_window_9pop_event:
     sub x20, x29, #264
     mov x10, x19
     mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldp x12, x13, [x10, #16]
-    stp x12, x13, [x11, #16]
-    ldp x12, x13, [x10, #32]
-    stp x12, x13, [x11, #32]
-    ldr x12, [x10, #48]
-    str x12, [x11, #48]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldp x16, x17, [x10, #16]
+    stp x16, x17, [x11, #16]
+    ldp x16, x17, [x10, #32]
+    stp x16, x17, [x11, #32]
+    ldr x16, [x10, #48]
+    str x16, [x11, #48]
     add x14, x20, #56
     movz x9, #1
     strb w9, [x14]
     sub x19, x29, #128
     mov x10, x20
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldp x12, x13, [x10, #16]
-    stp x12, x13, [x11, #16]
-    ldp x12, x13, [x10, #32]
-    stp x12, x13, [x11, #32]
-    ldp x12, x13, [x10, #48]
-    stp x12, x13, [x11, #48]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldp x16, x17, [x10, #16]
+    stp x16, x17, [x11, #16]
+    ldp x16, x17, [x10, #32]
+    stp x16, x17, [x11, #32]
+    ldp x16, x17, [x10, #48]
+    stp x16, x17, [x11, #48]
     mov x1, x19
     sub x16, x29, #24
     ldr x0, [x16]
@@ -91,8 +91,8 @@ lb_window_9pop_event:
 .L1_3:
     movz x10, #14376
     add x15, x14, x10
-    ldrb w19, [x15]
-    cbnz w19, .L1_5
+    ldrb w12, [x15]
+    cbnz w12, .L1_5
     b .L1_6
 .L1_5:
     mov x9, #0
@@ -108,28 +108,28 @@ lb_window_9pop_event:
     sub x20, x29, #384
     mov x10, x19
     mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldp x12, x13, [x10, #16]
-    stp x12, x13, [x11, #16]
-    ldp x12, x13, [x10, #32]
-    stp x12, x13, [x11, #32]
-    ldr x12, [x10, #48]
-    str x12, [x11, #48]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldp x16, x17, [x10, #16]
+    stp x16, x17, [x11, #16]
+    ldp x16, x17, [x10, #32]
+    stp x16, x17, [x11, #32]
+    ldr x16, [x10, #48]
+    str x16, [x11, #48]
     add x14, x20, #56
     movz x9, #1
     strb w9, [x14]
     sub x19, x29, #128
     mov x10, x20
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldp x12, x13, [x10, #16]
-    stp x12, x13, [x11, #16]
-    ldp x12, x13, [x10, #32]
-    stp x12, x13, [x11, #32]
-    ldp x12, x13, [x10, #48]
-    stp x12, x13, [x11, #48]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldp x16, x17, [x10, #16]
+    stp x16, x17, [x11, #16]
+    ldp x16, x17, [x10, #32]
+    stp x16, x17, [x11, #32]
+    ldp x16, x17, [x10, #48]
+    stp x16, x17, [x11, #48]
     mov x1, x19
     sub x16, x29, #24
     ldr x0, [x16]
@@ -163,14 +163,14 @@ lb_window_9pop_event:
     sub x20, x29, #128
     mov x10, x19
     mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldp x12, x13, [x10, #16]
-    stp x12, x13, [x11, #16]
-    ldp x12, x13, [x10, #32]
-    stp x12, x13, [x11, #32]
-    ldp x12, x13, [x10, #48]
-    stp x12, x13, [x11, #48]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldp x16, x17, [x10, #16]
+    stp x16, x17, [x11, #16]
+    ldp x16, x17, [x10, #32]
+    stp x16, x17, [x11, #32]
+    ldp x16, x17, [x10, #48]
+    stp x16, x17, [x11, #48]
     mov x1, x20
     sub x16, x29, #24
     ldr x0, [x16]
@@ -192,7 +192,7 @@ lb_window_9pop_event:
     movz x10, #14360
     add x21, x14, x10
     ldr x15, [x21]
-    add x22, x14, #24
+    add x12, x14, #24
     movz x10, #256
     cmp x15, x10
     b.lo 1f
@@ -204,17 +204,17 @@ lb_window_9pop_event:
 1:
     movz x10, #56
     mul x15, x15, x10
-    add x15, x22, x15
+    add x15, x12, x15
     mov x10, x15
     mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldp x12, x13, [x10, #16]
-    stp x12, x13, [x11, #16]
-    ldp x12, x13, [x10, #32]
-    stp x12, x13, [x11, #32]
-    ldr x12, [x10, #48]
-    str x12, [x11, #48]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldp x16, x17, [x10, #16]
+    stp x16, x17, [x11, #16]
+    ldp x16, x17, [x10, #32]
+    stp x16, x17, [x11, #32]
+    ldr x16, [x10, #48]
+    str x16, [x11, #48]
     ldr x15, [x21]
     mov x9, x15
     movz x10, #1
@@ -248,28 +248,28 @@ lb_window_9pop_event:
     sub x22, x29, #568
     mov x10, x20
     mov x11, x22
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldp x12, x13, [x10, #16]
-    stp x12, x13, [x11, #16]
-    ldp x12, x13, [x10, #32]
-    stp x12, x13, [x11, #32]
-    ldr x12, [x10, #48]
-    str x12, [x11, #48]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldp x16, x17, [x10, #16]
+    stp x16, x17, [x11, #16]
+    ldp x16, x17, [x10, #32]
+    stp x16, x17, [x11, #32]
+    ldr x16, [x10, #48]
+    str x16, [x11, #48]
     add x14, x22, #56
     movz x9, #1
     strb w9, [x14]
     sub x23, x29, #128
     mov x10, x22
     mov x11, x23
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldp x12, x13, [x10, #16]
-    stp x12, x13, [x11, #16]
-    ldp x12, x13, [x10, #32]
-    stp x12, x13, [x11, #32]
-    ldp x12, x13, [x10, #48]
-    stp x12, x13, [x11, #48]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldp x16, x17, [x10, #16]
+    stp x16, x17, [x11, #16]
+    ldp x16, x17, [x10, #32]
+    stp x16, x17, [x11, #32]
+    ldp x16, x17, [x10, #48]
+    stp x16, x17, [x11, #48]
     mov x1, x23
     sub x16, x29, #24
     ldr x0, [x16]

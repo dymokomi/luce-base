@@ -19,41 +19,37 @@ lb_strings_search_0init:
 lb_strings_11starts_with:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #112
-    str x19, [sp, #88]
-    str x20, [sp, #80]
-    str x21, [sp, #72]
-    str x22, [sp, #64]
-    sub x16, x29, #64
+    sub sp, sp, #96
+    str x19, [sp, #72]
+    str x20, [sp, #64]
+    sub x16, x29, #48
     str x0, [x16]
     str x1, [x16, #8]
-    sub x16, x29, #80
+    sub x16, x29, #64
     str x2, [x16]
     str x3, [x16, #8]
-    sub x14, x29, #80
+    sub x14, x29, #64
     add x15, x14, #8
     ldr x15, [x15]
-    sub x19, x29, #64
-    add x20, x19, #8
-    ldr x20, [x20]
-    cmp x15, x20
+    sub x12, x29, #48
+    add x13, x12, #8
+    ldr x13, [x13]
+    cmp x15, x13
     b.ls .L1_2
 .L1_1:
     mov x9, #0
     mov x0, x9
-    ldr x19, [sp, #88]
-    ldr x20, [sp, #80]
-    ldr x21, [sp, #72]
-    ldr x22, [sp, #64]
+    ldr x19, [sp, #72]
+    ldr x20, [sp, #64]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
 .L1_2:
 .L1_3:
-    ldr x22, [x19]
-    add x21, x20, #1
+    ldr x20, [x12]
+    add x19, x13, #1
     mov x9, #0
-    cmp x9, x21
+    cmp x9, x19
     b.lo 1f
     adrp x0, .Ltext_0
     add x0, x0, :lo12:.Ltext_0
@@ -61,7 +57,7 @@ lb_strings_11starts_with:
     add x1, x1, :lo12:.Ltext_1
     bl lb_core_7trap_at
 1:
-    cmp x15, x21
+    cmp x15, x19
     b.lo 1f
     adrp x0, .Ltext_0
     add x0, x0, :lo12:.Ltext_0
@@ -79,33 +75,31 @@ lb_strings_11starts_with:
     add x1, x1, :lo12:.Ltext_1
     bl lb_core_7trap_at
 .L1_5:
-    sub x19, x29, #96
-    str x22, [x19]
-    add x19, x19, #8
-    str x15, [x19]
-    sub x19, x29, #112
-    str x22, [x19]
-    add x19, x19, #8
-    str x15, [x19]
+    sub x12, x29, #80
+    str x20, [x12]
+    add x12, x12, #8
+    str x15, [x12]
+    sub x12, x29, #96
+    str x20, [x12]
+    add x12, x12, #8
+    str x15, [x12]
 .L1_7:
-    ldr x19, [x14]
-    mov x0, x22
-    mov x1, x19
+    ldr x12, [x14]
+    mov x0, x20
+    mov x1, x12
     mov x2, x15
     bl memcmp
-    mov w19, w0
+    mov w12, w0
     mov x10, #0
-    cmp w19, w10
-    cset w19, eq
+    cmp w12, w10
+    cset w12, eq
 .L1_8:
-    and w14, w19, #255
+    and w14, w12, #255
     and w14, w14, #255
     mov x9, x14
     mov x0, x9
-    ldr x19, [sp, #88]
-    ldr x20, [sp, #80]
-    ldr x21, [sp, #72]
-    ldr x22, [sp, #64]
+    ldr x19, [sp, #72]
+    ldr x20, [sp, #64]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -118,36 +112,32 @@ lb_strings_11starts_with:
 lb_strings_9ends_with:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #128
-    str x19, [sp, #104]
-    str x20, [sp, #96]
-    str x21, [sp, #88]
-    str x22, [sp, #80]
-    str x23, [sp, #72]
-    str x24, [sp, #64]
-    sub x16, x29, #80
+    sub sp, sp, #112
+    str x19, [sp, #88]
+    str x20, [sp, #80]
+    str x21, [sp, #72]
+    str x22, [sp, #64]
+    sub x16, x29, #64
     str x0, [x16]
     str x1, [x16, #8]
-    sub x16, x29, #96
+    sub x16, x29, #80
     str x2, [x16]
     str x3, [x16, #8]
-    sub x14, x29, #96
+    sub x14, x29, #80
     add x15, x14, #8
     ldr x15, [x15]
-    sub x19, x29, #80
-    add x20, x19, #8
-    ldr x20, [x20]
-    cmp x15, x20
+    sub x12, x29, #64
+    add x13, x12, #8
+    ldr x13, [x13]
+    cmp x15, x13
     b.ls .L2_2
 .L2_1:
     mov x9, #0
     mov x0, x9
-    ldr x19, [sp, #104]
-    ldr x20, [sp, #96]
-    ldr x21, [sp, #88]
-    ldr x22, [sp, #80]
-    ldr x23, [sp, #72]
-    ldr x24, [sp, #64]
+    ldr x19, [sp, #88]
+    ldr x20, [sp, #80]
+    ldr x21, [sp, #72]
+    ldr x22, [sp, #64]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -155,10 +145,10 @@ lb_strings_9ends_with:
     b .L2_3
 .L2_2:
 .L2_3:
-    ldr x22, [x19]
-    sub x23, x20, x15
-    add x21, x20, #1
-    cmp x23, x21
+    ldr x20, [x12]
+    sub x21, x13, x15
+    add x19, x13, #1
+    cmp x21, x19
     b.lo 1f
     adrp x0, .Ltext_3
     add x0, x0, :lo12:.Ltext_3
@@ -166,7 +156,7 @@ lb_strings_9ends_with:
     add x1, x1, :lo12:.Ltext_1
     bl lb_core_7trap_at
 1:
-    cmp x20, x21
+    cmp x13, x19
     b.lo 1f
     adrp x0, .Ltext_3
     add x0, x0, :lo12:.Ltext_3
@@ -174,7 +164,7 @@ lb_strings_9ends_with:
     add x1, x1, :lo12:.Ltext_1
     bl lb_core_7trap_at
 1:
-    cmp x23, x20
+    cmp x21, x13
     b.ls .L2_5
 .L2_6:
     adrp x0, .Ltext_3
@@ -183,28 +173,28 @@ lb_strings_9ends_with:
     add x1, x1, :lo12:.Ltext_1
     bl lb_core_7trap_at
 .L2_5:
-    add x19, x22, x23
-    sub x21, x20, x23
-    sub x24, x29, #112
-    str x19, [x24]
-    add x24, x24, #8
-    str x21, [x24]
-    sub x24, x29, #128
-    str x19, [x24]
-    add x24, x24, #8
-    str x21, [x24]
-    cmp x15, x21
-    cset w24, eq
-    cbnz w24, .L2_7
+    add x12, x20, x21
+    sub x19, x13, x21
+    sub x22, x29, #96
+    str x12, [x22]
+    add x22, x22, #8
+    str x19, [x22]
+    sub x22, x29, #112
+    str x12, [x22]
+    add x22, x22, #8
+    str x19, [x22]
+    cmp x15, x19
+    cset w22, eq
+    cbnz w22, .L2_7
     b .L2_10
 .L2_10:
-    mov w14, w24
+    mov w14, w22
     b .L2_8
 .L2_7:
     ldr x15, [x14]
-    mov x0, x19
+    mov x0, x12
     mov x1, x15
-    mov x2, x21
+    mov x2, x19
     bl memcmp
     mov w15, w0
     mov x10, #0
@@ -216,12 +206,10 @@ lb_strings_9ends_with:
     and w15, w15, #255
     mov x9, x15
     mov x0, x9
-    ldr x19, [sp, #104]
-    ldr x20, [sp, #96]
-    ldr x21, [sp, #88]
-    ldr x22, [sp, #80]
-    ldr x23, [sp, #72]
-    ldr x24, [sp, #64]
+    ldr x19, [sp, #88]
+    ldr x20, [sp, #80]
+    ldr x21, [sp, #72]
+    ldr x22, [sp, #64]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -265,8 +253,8 @@ lb_strings_find:
     sub x19, x29, #40
     mov x10, x14
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     mov x16, x19
     ldr x0, [x16, #0]
     ldr x1, [x16, #8]
@@ -289,42 +277,38 @@ lb_strings_find:
 lb_strings_9find_from:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #192
-    str x19, [sp, #168]
-    str x20, [sp, #160]
-    str x21, [sp, #152]
-    str x22, [sp, #144]
-    sub x16, x29, #80
+    sub sp, sp, #176
+    str x19, [sp, #152]
+    str x20, [sp, #144]
+    sub x16, x29, #64
     str x0, [x16]
     str x1, [x16, #8]
-    sub x16, x29, #96
+    sub x16, x29, #80
     str x2, [x16]
     str x3, [x16, #8]
-    sub x16, x29, #112
+    sub x16, x29, #96
     str x4, [x16]
-    sub x14, x29, #112
+    sub x14, x29, #96
     ldr x19, [x14]
-    sub x14, x29, #80
+    sub x14, x29, #64
     add x15, x14, #8
     ldr x15, [x15]
     cmp x19, x15
     b.ls .L4_2
 .L4_1:
-    sub x19, x29, #128
+    sub x19, x29, #112
     mov x11, x19
     stp xzr, xzr, [x11, #0]
-    sub x20, x29, #64
+    sub x20, x29, #48
     mov x10, x19
     mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     mov x16, x20
     ldr x0, [x16, #0]
     ldr x1, [x16, #8]
-    ldr x19, [sp, #168]
-    ldr x20, [sp, #160]
-    ldr x21, [sp, #152]
-    ldr x22, [sp, #144]
+    ldr x19, [sp, #152]
+    ldr x20, [sp, #144]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -332,9 +316,9 @@ lb_strings_9find_from:
     b .L4_3
 .L4_2:
 .L4_3:
-    ldr x21, [x14]
-    add x20, x15, #1
-    cmp x19, x20
+    ldr x13, [x14]
+    add x12, x15, #1
+    cmp x19, x12
     b.lo 1f
     adrp x0, .Ltext_5
     add x0, x0, :lo12:.Ltext_5
@@ -342,7 +326,7 @@ lb_strings_9find_from:
     add x1, x1, :lo12:.Ltext_1
     bl lb_core_7trap_at
 1:
-    cmp x15, x20
+    cmp x15, x12
     b.lo 1f
     adrp x0, .Ltext_5
     add x0, x0, :lo12:.Ltext_5
@@ -359,14 +343,14 @@ lb_strings_9find_from:
     add x1, x1, :lo12:.Ltext_1
     bl lb_core_7trap_at
 .L4_5:
-    add x14, x19, x21
-    sub x20, x15, x19
-    sub x22, x29, #144
-    str x14, [x22]
-    add x14, x22, #8
-    str x20, [x14]
-    sub x14, x29, #96
-    mov x9, x22
+    add x14, x19, x13
+    sub x12, x15, x19
+    sub x20, x29, #128
+    str x14, [x20]
+    add x14, x20, #8
+    str x12, [x14]
+    sub x14, x29, #80
+    mov x9, x20
     ldr x0, [x9]
     ldr x1, [x9, #8]
     mov x9, x14
@@ -374,33 +358,31 @@ lb_strings_9find_from:
     ldr x3, [x9, #8]
     mov x4, #0
     bl lb_strings_12search_bytes
-    sub x16, x29, #160
+    sub x16, x29, #144
     str x0, [x16, #0]
     str x1, [x16, #8]
-    sub x20, x29, #160
-    add x14, x20, #8
+    sub x12, x29, #144
+    add x14, x12, #8
     ldrb w14, [x14]
     cbnz w14, .L4_7
     b .L4_8
 .L4_7:
-    ldr x14, [x20]
+    ldr x14, [x12]
     b .L4_9
 .L4_8:
-    sub x19, x29, #176
+    sub x19, x29, #160
     mov x11, x19
     stp xzr, xzr, [x11, #0]
-    sub x20, x29, #64
+    sub x20, x29, #48
     mov x10, x19
     mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     mov x16, x20
     ldr x0, [x16, #0]
     ldr x1, [x16, #8]
-    ldr x19, [sp, #168]
-    ldr x20, [sp, #160]
-    ldr x21, [sp, #152]
-    ldr x22, [sp, #144]
+    ldr x19, [sp, #152]
+    ldr x20, [sp, #144]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -417,23 +399,21 @@ lb_strings_9find_from:
     bl lb_core_7trap_at
 1:
     mov x15, x9
-    sub x20, x29, #192
-    str x15, [x20]
-    add x15, x20, #8
+    sub x12, x29, #176
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #1
     strb w9, [x15]
-    sub x21, x29, #64
-    mov x10, x20
-    mov x11, x21
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    mov x16, x21
+    sub x20, x29, #48
+    mov x10, x12
+    mov x11, x20
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    mov x16, x20
     ldr x0, [x16, #0]
     ldr x1, [x16, #8]
-    ldr x19, [sp, #168]
-    ldr x20, [sp, #160]
-    ldr x21, [sp, #152]
-    ldr x22, [sp, #144]
+    ldr x19, [sp, #152]
+    ldr x20, [sp, #144]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -456,15 +436,14 @@ lb_strings_9find_last:
     str x19, [sp, #120]
     str x20, [sp, #112]
     str x21, [sp, #104]
-    str x22, [sp, #96]
-    sub x16, x29, #80
+    sub x16, x29, #72
     str x0, [x16]
     str x1, [x16, #8]
-    sub x16, x29, #96
+    sub x16, x29, #88
     str x2, [x16]
     str x3, [x16, #8]
-    sub x19, x29, #80
-    sub x20, x29, #96
+    sub x19, x29, #72
+    sub x20, x29, #88
     mov x9, x19
     ldr x0, [x9]
     ldr x1, [x9, #8]
@@ -473,10 +452,10 @@ lb_strings_9find_last:
     ldr x3, [x9, #8]
     movz x4, #1
     bl lb_strings_12search_bytes
-    sub x16, x29, #112
+    sub x16, x29, #104
     str x0, [x16, #0]
     str x1, [x16, #8]
-    sub x15, x29, #112
+    sub x15, x29, #104
     add x14, x15, #8
     ldrb w14, [x14]
     cbnz w14, .L5_1
@@ -485,21 +464,20 @@ lb_strings_9find_last:
     ldr x14, [x15]
     b .L5_3
 .L5_2:
-    sub x19, x29, #128
+    sub x19, x29, #120
     mov x11, x19
     stp xzr, xzr, [x11, #0]
-    sub x20, x29, #64
+    sub x20, x29, #56
     mov x10, x19
     mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     mov x16, x20
     ldr x0, [x16, #0]
     ldr x1, [x16, #8]
     ldr x19, [sp, #120]
     ldr x20, [sp, #112]
     ldr x21, [sp, #104]
-    ldr x22, [sp, #96]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -507,10 +485,10 @@ lb_strings_9find_last:
 .L5_3:
     add x15, x19, #8
     ldr x15, [x15]
-    add x21, x20, #8
-    ldr x21, [x21]
+    add x12, x20, #8
+    ldr x12, [x12]
     mov x9, x15
-    mov x10, x21
+    mov x10, x12
     subs x9, x9, x10
     b.cs 1f
     adrp x0, .Ltext_7
@@ -531,23 +509,22 @@ lb_strings_9find_last:
     bl lb_core_7trap_at
 1:
     mov x15, x9
-    sub x21, x29, #144
-    str x15, [x21]
-    add x15, x21, #8
+    sub x12, x29, #136
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #1
     strb w9, [x15]
-    sub x22, x29, #64
-    mov x10, x21
-    mov x11, x22
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    mov x16, x22
+    sub x21, x29, #56
+    mov x10, x12
+    mov x11, x21
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    mov x16, x21
     ldr x0, [x16, #0]
     ldr x1, [x16, #8]
     ldr x19, [sp, #120]
     ldr x20, [sp, #112]
     ldr x21, [sp, #104]
-    ldr x22, [sp, #96]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -566,29 +543,27 @@ lb_strings_9find_last:
 lb_strings_last:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #128
-    str x19, [sp, #104]
-    str x20, [sp, #96]
-    str x21, [sp, #88]
-    str x22, [sp, #80]
-    sub x16, x29, #80
+    sub sp, sp, #112
+    str x19, [sp, #88]
+    str x20, [sp, #80]
+    sub x16, x29, #64
     str x0, [x16]
     str x1, [x16, #8]
-    sub x16, x29, #96
+    sub x16, x29, #80
     str w2, [x16]
-    sub x14, x29, #80
+    sub x14, x29, #64
     add x15, x14, #8
     ldr x15, [x15]
     ldr x14, [x14]
-    sub x19, x29, #96
-    ldrb w19, [x19]
-    mov x20, x15
+    sub x12, x29, #80
+    ldrb w12, [x12]
+    mov x13, x15
 .L6_1:
     mov x10, #0
-    cmp x20, x10
+    cmp x13, x10
     b.ls .L6_3
 .L6_2:
-    mov x9, x20
+    mov x9, x13
     movz x10, #1
     subs x9, x9, x10
     b.cs 1f
@@ -598,8 +573,8 @@ lb_strings_last:
     add x1, x1, :lo12:.Ltext_36
     bl lb_core_7trap_at
 1:
-    mov x21, x9
-    cmp x21, x15
+    mov x19, x9
+    cmp x19, x15
     b.lo 1f
     adrp x0, .Ltext_9
     add x0, x0, :lo12:.Ltext_9
@@ -607,28 +582,26 @@ lb_strings_last:
     add x1, x1, :lo12:.Ltext_1
     bl lb_core_7trap_at
 1:
-    add x22, x21, x14
-    ldrb w22, [x22]
-    cmp w22, w19
+    add x20, x19, x14
+    ldrb w20, [x20]
+    cmp w20, w12
     b.ne .L6_5
 .L6_4:
-    sub x14, x29, #112
-    str x21, [x14]
+    sub x14, x29, #96
+    str x19, [x14]
     add x15, x14, #8
     movz x9, #1
     strb w9, [x15]
-    sub x19, x29, #64
+    sub x20, x29, #48
     mov x10, x14
-    mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    mov x16, x19
+    mov x11, x20
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    mov x16, x20
     ldr x0, [x16, #0]
     ldr x1, [x16, #8]
-    ldr x19, [sp, #104]
-    ldr x20, [sp, #96]
-    ldr x21, [sp, #88]
-    ldr x22, [sp, #80]
+    ldr x19, [sp, #88]
+    ldr x20, [sp, #80]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -636,24 +609,22 @@ lb_strings_last:
     b .L6_6
 .L6_5:
 .L6_6:
-    mov x20, x21
+    mov x13, x19
     b .L6_1
 .L6_3:
-    sub x19, x29, #128
+    sub x19, x29, #112
     mov x11, x19
     stp xzr, xzr, [x11, #0]
-    sub x20, x29, #64
+    sub x20, x29, #48
     mov x10, x19
     mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     mov x16, x20
     ldr x0, [x16, #0]
     ldr x1, [x16, #8]
-    ldr x19, [sp, #104]
-    ldr x20, [sp, #96]
-    ldr x21, [sp, #88]
-    ldr x22, [sp, #80]
+    ldr x19, [sp, #88]
+    ldr x20, [sp, #80]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -684,12 +655,12 @@ lb_strings_contains:
     sub x19, x29, #56
     mov x10, x14
     sub x11, x29, #104
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     mov x10, x19
     sub x11, x29, #120
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     sub x14, x29, #104
     sub x15, x29, #120
     mov x9, x14
@@ -707,12 +678,12 @@ lb_strings_contains:
     sub x19, x29, #88
     mov x10, x14
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     mov x10, x19
     sub x11, x29, #72
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     b .L7_3
 .L7_2:
     adrp x0, .Ltext_4
@@ -787,8 +758,8 @@ lb_strings_12search_bytes:
     sub x19, x29, #112
     mov x10, x14
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     mov x16, x19
     ldr x0, [x16, #0]
     ldr x1, [x16, #8]
@@ -823,8 +794,8 @@ lb_strings_12search_bytes:
     sub x20, x29, #112
     mov x10, x19
     mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     mov x16, x20
     ldr x0, [x16, #0]
     ldr x1, [x16, #8]
@@ -909,8 +880,8 @@ lb_strings_12search_bytes:
     cmp x27, x24
     cset w15, lo
 .L8_16:
-    and w28, w15, #255
-    cbnz w28, .L8_13
+    and w12, w15, #255
+    cbnz w12, .L8_13
     b .L8_14
 .L8_13:
     mov x9, x19
@@ -1238,8 +1209,8 @@ lb_strings_12search_bytes:
     sub x19, x29, #112
     mov x10, x14
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     mov x16, x19
     ldr x0, [x16, #0]
     ldr x1, [x16, #8]
@@ -1282,8 +1253,8 @@ lb_strings_12search_bytes:
     sub x20, x29, #112
     mov x10, x19
     mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     mov x16, x20
     ldr x0, [x16, #0]
     ldr x1, [x16, #8]
@@ -1438,19 +1409,19 @@ lb_strings_14maximal_suffix:
 .L9_10:
     mov x15, x24
 .L9_11:
-    mov x24, x23
-    mov x25, x15
-    mov x27, x14
-    mov x28, x26
+    mov x12, x23
+    mov x13, x15
+    mov x25, x14
+    mov x27, x26
     b .L9_8
 .L9_7:
     cmp w15, w14
-    cset w26, lo
-    ldrb w27, [x22]
-    cmp w26, w27
-    cset w26, eq
+    cset w12, lo
+    ldrb w13, [x22]
+    cmp w12, w13
+    cset w12, eq
     mov x10, #0
-    cmp w26, w10
+    cmp w12, w10
     b.ne .L9_13
 .L9_12:
     mov x9, x25
@@ -1486,7 +1457,7 @@ lb_strings_14maximal_suffix:
     bl lb_core_7trap_at
 1:
     mov x15, x9
-    mov x26, x23
+    mov x12, x23
     b .L9_14
 .L9_13:
     mov x9, x24
@@ -1500,20 +1471,18 @@ lb_strings_14maximal_suffix:
     bl lb_core_7trap_at
 1:
     mov x14, x9
-    mov x26, x24
+    mov x12, x24
     movz x9, #1
     mov x15, x9
 .L9_14:
-    mov x24, x26
-    mov x25, x14
+    mov x13, x14
     mov x9, #0
-    mov x27, x9
-    mov x28, x15
+    mov x25, x9
+    mov x27, x15
 .L9_8:
-    mov x23, x24
-    mov x24, x25
-    mov x25, x27
-    mov x26, x28
+    mov x23, x12
+    mov x24, x13
+    mov x26, x27
     b .L9_1
 .L9_3:
     sub x14, x29, #176
@@ -1523,8 +1492,8 @@ lb_strings_14maximal_suffix:
     sub x19, x29, #112
     mov x10, x14
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     mov x16, x19
     ldr x0, [x16, #0]
     ldr x1, [x16, #8]
@@ -1556,27 +1525,26 @@ lb_strings_14maximal_suffix:
 lb_strings_11search_byte:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #80
-    str x19, [sp, #56]
-    sub x16, x29, #40
+    sub sp, sp, #64
+    sub x16, x29, #32
     str x0, [x16]
     str x1, [x16, #8]
-    sub x16, x29, #56
+    sub x16, x29, #48
     str x2, [x16]
-    sub x16, x29, #72
+    sub x16, x29, #64
     str w3, [x16]
-    sub x14, x29, #72
+    sub x14, x29, #64
     ldrb w14, [x14]
     cbnz w14, .L10_1
     b .L10_2
 .L10_1:
-    sub x14, x29, #40
+    sub x14, x29, #32
     add x15, x14, #8
     ldr x15, [x15]
-    sub x19, x29, #56
-    ldr x19, [x19]
+    sub x12, x29, #48
+    ldr x12, [x12]
     mov x9, x15
-    mov x10, x19
+    mov x10, x12
     subs x9, x9, x10
     b.cs 1f
     adrp x0, .Ltext_35
@@ -1585,8 +1553,8 @@ lb_strings_11search_byte:
     add x1, x1, :lo12:.Ltext_36
     bl lb_core_7trap_at
 1:
-    mov x19, x9
-    mov x9, x19
+    mov x12, x9
+    mov x9, x12
     movz x10, #1
     subs x9, x9, x10
     b.cs 1f
@@ -1596,9 +1564,9 @@ lb_strings_11search_byte:
     add x1, x1, :lo12:.Ltext_36
     bl lb_core_7trap_at
 1:
-    mov x19, x9
+    mov x12, x9
     ldr x14, [x14]
-    cmp x19, x15
+    cmp x12, x15
     b.lo 1f
     adrp x0, .Ltext_35
     add x0, x0, :lo12:.Ltext_35
@@ -1606,14 +1574,14 @@ lb_strings_11search_byte:
     add x1, x1, :lo12:.Ltext_1
     bl lb_core_7trap_at
 1:
-    add x14, x19, x14
+    add x14, x12, x14
     ldrb w14, [x14]
     b .L10_3
 .L10_2:
-    sub x14, x29, #56
+    sub x14, x29, #48
     ldr x14, [x14]
-    sub x15, x29, #40
-    ldr x19, [x15]
+    sub x15, x29, #32
+    ldr x12, [x15]
     add x15, x15, #8
     ldr x15, [x15]
     cmp x14, x15
@@ -1624,14 +1592,13 @@ lb_strings_11search_byte:
     add x1, x1, :lo12:.Ltext_1
     bl lb_core_7trap_at
 1:
-    add x14, x14, x19
+    add x14, x14, x12
     ldrb w14, [x14]
 .L10_3:
     and w15, w14, #255
     and w15, w15, #255
     mov x9, x15
     mov x0, x9
-    ldr x19, [sp, #56]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret

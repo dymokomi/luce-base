@@ -80,6 +80,11 @@ func promotable_slots(f: ir.Function*, slot_of: u32[]) -> bool[]!:
     while k < ok.length:
         ok[k] = true
         k += 1
+    # `--release --debug`: a named local's stores stay, since the debugger reads its slot
+    if f.symbols:
+        for described in f.locals.span():
+            if (usize)described.slot < ok.length:
+                ok[(usize)described.slot] = false
     var i: usize = 0
     while i < f.instrs.count:
         let x = f.instrs.get(i)

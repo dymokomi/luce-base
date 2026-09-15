@@ -513,20 +513,19 @@ lb_math32_log1p:
 lb_math32_expm1:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #48
-    str x19, [sp, #24]
-    sub x16, x29, #40
+    sub sp, sp, #32
+    sub x16, x29, #32
     str s0, [x16]
-    sub x14, x29, #40
+    sub x14, x29, #32
     ldr s24, [x14]
     fmov w14, s24
     adrp x15, lb_math32_9sign_mask
     add x15, x15, :lo12:lb_math32_9sign_mask
     ldr w15, [x15]
-    adrp x19, lb_math32_13exponent_mask
-    add x19, x19, :lo12:lb_math32_13exponent_mask
-    ldr w19, [x19]
-    orr w15, w15, w19
+    adrp x12, lb_math32_13exponent_mask
+    add x12, x12, :lo12:lb_math32_13exponent_mask
+    ldr w12, [x12]
+    orr w15, w15, w12
     cmp w14, w15
     b.ne .L16_2
 .L16_1:
@@ -535,7 +534,6 @@ lb_math32_expm1:
     fneg s24, s24
     fmov s16, s24
     fmov s0, s16
-    ldr x19, [sp, #24]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -549,7 +547,6 @@ lb_math32_expm1:
     fmov s25, s0
     fmov s16, s25
     fmov s0, s16
-    ldr x19, [sp, #24]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -679,10 +676,9 @@ lb_math32_9next_down:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
     sub sp, sp, #80
-    str x19, [sp, #56]
-    sub x16, x29, #40
+    sub x16, x29, #32
     str s0, [x16]
-    sub x14, x29, #40
+    sub x14, x29, #32
     ldr s24, [x14]
     adrp x14, lb_math32_infinity
     add x14, x14, :lo12:lb_math32_infinity
@@ -690,9 +686,9 @@ lb_math32_9next_down:
     movz x9, #16256, lsl #16
     fmov s26, w9
     fneg s26, s26
-    sub x10, x29, #56
+    sub x10, x29, #48
     str s25, [x10]
-    sub x10, x29, #72
+    sub x10, x29, #64
     str s26, [x10]
     fmov w14, s25
     adrp x15, lb_math32_14magnitude_mask
@@ -700,13 +696,13 @@ lb_math32_9next_down:
     ldr w15, [x15]
     and w14, w14, w15
     fmov w15, s26
-    adrp x19, lb_math32_9sign_mask
-    add x19, x19, :lo12:lb_math32_9sign_mask
-    ldr w19, [x19]
-    and w15, w15, w19
+    adrp x12, lb_math32_9sign_mask
+    add x12, x12, :lo12:lb_math32_9sign_mask
+    ldr w12, [x12]
+    and w15, w15, w12
     orr w14, w14, w15
     fmov s25, w14
-    sub x10, x29, #80
+    sub x10, x29, #72
     str s25, [x10]
     b .L20_3
 .L20_2:
@@ -724,7 +720,6 @@ lb_math32_9next_down:
     fmov s26, s0
     fmov s16, s26
     fmov s0, s16
-    ldr x19, [sp, #56]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -798,8 +793,8 @@ lb_math32_frexp:
     sub x19, x29, #32
     mov x10, x14
     mov x11, x19
-    ldr x12, [x10, #0]
-    str x12, [x11, #0]
+    ldr x16, [x10, #0]
+    str x16, [x11, #0]
     mov x16, x19
     ldr x0, [x16, #0]
     ldr x19, [sp, #72]
@@ -819,13 +814,13 @@ lb_math32_frexp:
     sub x14, x29, #68
     str s25, [x14]
     ldrsw x15, [x19]
-    add x19, x14, #4
-    str w15, [x19]
+    add x12, x14, #4
+    str w15, [x12]
     sub x19, x29, #32
     mov x10, x14
     mov x11, x19
-    ldr x12, [x10, #0]
-    str x12, [x11, #0]
+    ldr x16, [x10, #0]
+    str x16, [x11, #0]
     mov x16, x19
     ldr x0, [x16, #0]
     ldr x19, [sp, #72]
@@ -901,8 +896,8 @@ lb_math32_modf:
     sub x19, x29, #32
     mov x10, x14
     mov x11, x19
-    ldr x12, [x10, #0]
-    str x12, [x11, #0]
+    ldr x16, [x10, #0]
+    str x16, [x11, #0]
     mov x9, x19
     ldr s0, [x9, #0]
     ldr s1, [x9, #4]
@@ -925,16 +920,15 @@ lb_math32_modf:
 lb_math32_remainder:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #112
-    str x19, [sp, #88]
-    str d8, [sp, #80]
-    sub x16, x29, #48
+    sub sp, sp, #96
+    str d8, [sp, #72]
+    sub x16, x29, #40
     str s0, [x16]
-    sub x16, x29, #64
+    sub x16, x29, #56
     str s1, [x16]
-    sub x14, x29, #48
+    sub x14, x29, #40
     ldr s8, [x14]
-    sub x14, x29, #64
+    sub x14, x29, #56
     ldr s24, [x14]
     fmov s16, s8
     fmov s0, s16
@@ -951,18 +945,18 @@ lb_math32_remainder:
     cmp w14, w10
     b.ne .L24_2
 .L24_1:
-    sub x10, x29, #80
+    sub x10, x29, #72
     str s24, [x10]
-    sub x10, x29, #96
+    sub x10, x29, #88
     str s8, [x10]
     fmov w15, s8
-    adrp x19, lb_math32_9sign_mask
-    add x19, x19, :lo12:lb_math32_9sign_mask
-    ldr w19, [x19]
-    and w15, w15, w19
+    adrp x12, lb_math32_9sign_mask
+    add x12, x12, :lo12:lb_math32_9sign_mask
+    ldr w12, [x12]
+    and w15, w15, w12
     orr w15, w14, w15
     fmov s25, w15
-    sub x10, x29, #104
+    sub x10, x29, #96
     str s25, [x10]
     b .L24_6
 .L24_5:
@@ -978,8 +972,7 @@ lb_math32_remainder:
 .L24_3:
     fmov s16, s24
     fmov s0, s16
-    ldr x19, [sp, #88]
-    ldr d8, [sp, #80]
+    ldr d8, [sp, #72]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -1470,31 +1463,29 @@ lb_math32_abs:
 lb_math32_copysign:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #64
-    str x19, [sp, #40]
-    sub x16, x29, #40
+    sub sp, sp, #48
+    sub x16, x29, #32
     str s0, [x16]
-    sub x16, x29, #56
+    sub x16, x29, #48
     str s1, [x16]
-    sub x14, x29, #40
+    sub x14, x29, #32
     ldr s24, [x14]
     fmov w14, s24
     adrp x15, lb_math32_14magnitude_mask
     add x15, x15, :lo12:lb_math32_14magnitude_mask
     ldr w15, [x15]
     and w14, w14, w15
-    sub x15, x29, #56
+    sub x15, x29, #48
     ldr s24, [x15]
     fmov w15, s24
-    adrp x19, lb_math32_9sign_mask
-    add x19, x19, :lo12:lb_math32_9sign_mask
-    ldr w19, [x19]
-    and w15, w15, w19
+    adrp x12, lb_math32_9sign_mask
+    add x12, x12, :lo12:lb_math32_9sign_mask
+    ldr w12, [x12]
+    and w15, w15, w12
     orr w14, w14, w15
     fmov s24, w14
     fmov s16, s24
     fmov s0, s16
-    ldr x19, [sp, #40]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -1608,31 +1599,29 @@ lb_math32_sign:
 lb_math32_min:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #112
-    str x19, [sp, #88]
-    str x20, [sp, #80]
-    str x21, [sp, #72]
-    sub x16, x29, #56
+    sub sp, sp, #96
+    str x19, [sp, #72]
+    sub x16, x29, #40
     str s0, [x16]
-    sub x16, x29, #72
+    sub x16, x29, #56
     str s1, [x16]
-    sub x14, x29, #56
+    sub x14, x29, #40
     ldr s24, [x14]
-    sub x10, x29, #88
+    sub x10, x29, #72
     str s24, [x10]
     fmov w14, s24
     adrp x15, lb_math32_14magnitude_mask
     add x15, x15, :lo12:lb_math32_14magnitude_mask
     ldr w15, [x15]
-    and w19, w14, w15
-    adrp x20, lb_math32_13exponent_mask
-    add x20, x20, :lo12:lb_math32_13exponent_mask
-    ldr w20, [x20]
-    cmp w19, w20
-    cset w19, hi
-    and w19, w19, #255
-    sub x10, x29, #96
-    str w19, [x10]
+    and w12, w14, w15
+    adrp x13, lb_math32_13exponent_mask
+    add x13, x13, :lo12:lb_math32_13exponent_mask
+    ldr w13, [x13]
+    cmp w12, w13
+    cset w12, hi
+    and w12, w12, #255
+    sub x10, x29, #80
+    str w12, [x10]
     b .L42_20
 .L42_19:
     adrp x0, .Ltext_35
@@ -1641,14 +1630,12 @@ lb_math32_min:
     add x1, x1, :lo12:.Ltext_0
     bl lb_core_7trap_at
 .L42_20:
-    cbnz w19, .L42_1
+    cbnz w12, .L42_1
     b .L42_2
 .L42_1:
     fmov s16, s24
     fmov s0, s16
-    ldr x19, [sp, #88]
-    ldr x20, [sp, #80]
-    ldr x21, [sp, #72]
+    ldr x19, [sp, #72]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -1656,17 +1643,17 @@ lb_math32_min:
     b .L42_3
 .L42_2:
 .L42_3:
-    sub x19, x29, #72
-    ldr s25, [x19]
-    sub x10, x29, #88
+    sub x12, x29, #56
+    ldr s25, [x12]
+    sub x10, x29, #72
     str s25, [x10]
-    fmov w19, s25
-    and w21, w15, w19
-    cmp w21, w20
-    cset w21, hi
-    and w21, w21, #255
-    sub x10, x29, #104
-    str w21, [x10]
+    fmov w12, s25
+    and w19, w15, w12
+    cmp w19, w13
+    cset w19, hi
+    and w19, w19, #255
+    sub x10, x29, #88
+    str w19, [x10]
     b .L42_22
 .L42_21:
     adrp x0, .Ltext_35
@@ -1675,14 +1662,12 @@ lb_math32_min:
     add x1, x1, :lo12:.Ltext_0
     bl lb_core_7trap_at
 .L42_22:
-    cbnz w21, .L42_5
+    cbnz w19, .L42_5
     b .L42_6
 .L42_5:
     fmov s16, s25
     fmov s0, s16
-    ldr x19, [sp, #88]
-    ldr x20, [sp, #80]
-    ldr x21, [sp, #72]
+    ldr x19, [sp, #72]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -1697,23 +1682,21 @@ lb_math32_min:
     cbnz w15, .L42_12
     b .L42_23
 .L42_23:
-    mov w20, w15
+    mov w13, w15
     b .L42_13
 .L42_12:
     fcmp s25, s26
-    cset w20, eq
+    cset w13, eq
 .L42_13:
-    and w15, w20, #255
+    and w15, w13, #255
     cbnz w15, .L42_9
     b .L42_10
 .L42_9:
-    orr w15, w14, w19
+    orr w15, w14, w12
     fmov s24, w15
     fmov s16, s24
     fmov s0, s16
-    ldr x19, [sp, #88]
-    ldr x20, [sp, #80]
-    ldr x21, [sp, #72]
+    ldr x19, [sp, #72]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -1732,9 +1715,7 @@ lb_math32_min:
 .L42_17:
     fmov s16, s25
     fmov s0, s16
-    ldr x19, [sp, #88]
-    ldr x20, [sp, #80]
-    ldr x21, [sp, #72]
+    ldr x19, [sp, #72]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -1753,31 +1734,29 @@ lb_math32_min:
 lb_math32_max:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #112
-    str x19, [sp, #88]
-    str x20, [sp, #80]
-    str x21, [sp, #72]
-    sub x16, x29, #56
+    sub sp, sp, #96
+    str x19, [sp, #72]
+    sub x16, x29, #40
     str s0, [x16]
-    sub x16, x29, #72
+    sub x16, x29, #56
     str s1, [x16]
-    sub x14, x29, #56
+    sub x14, x29, #40
     ldr s24, [x14]
-    sub x10, x29, #88
+    sub x10, x29, #72
     str s24, [x10]
     fmov w14, s24
     adrp x15, lb_math32_14magnitude_mask
     add x15, x15, :lo12:lb_math32_14magnitude_mask
     ldr w15, [x15]
-    and w19, w14, w15
-    adrp x20, lb_math32_13exponent_mask
-    add x20, x20, :lo12:lb_math32_13exponent_mask
-    ldr w20, [x20]
-    cmp w19, w20
-    cset w19, hi
-    and w19, w19, #255
-    sub x10, x29, #96
-    str w19, [x10]
+    and w12, w14, w15
+    adrp x13, lb_math32_13exponent_mask
+    add x13, x13, :lo12:lb_math32_13exponent_mask
+    ldr w13, [x13]
+    cmp w12, w13
+    cset w12, hi
+    and w12, w12, #255
+    sub x10, x29, #80
+    str w12, [x10]
     b .L43_20
 .L43_19:
     adrp x0, .Ltext_35
@@ -1786,14 +1765,12 @@ lb_math32_max:
     add x1, x1, :lo12:.Ltext_0
     bl lb_core_7trap_at
 .L43_20:
-    cbnz w19, .L43_1
+    cbnz w12, .L43_1
     b .L43_2
 .L43_1:
     fmov s16, s24
     fmov s0, s16
-    ldr x19, [sp, #88]
-    ldr x20, [sp, #80]
-    ldr x21, [sp, #72]
+    ldr x19, [sp, #72]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -1801,17 +1778,17 @@ lb_math32_max:
     b .L43_3
 .L43_2:
 .L43_3:
-    sub x19, x29, #72
-    ldr s25, [x19]
-    sub x10, x29, #88
+    sub x12, x29, #56
+    ldr s25, [x12]
+    sub x10, x29, #72
     str s25, [x10]
-    fmov w19, s25
-    and w21, w15, w19
-    cmp w21, w20
-    cset w21, hi
-    and w21, w21, #255
-    sub x10, x29, #104
-    str w21, [x10]
+    fmov w12, s25
+    and w19, w15, w12
+    cmp w19, w13
+    cset w19, hi
+    and w19, w19, #255
+    sub x10, x29, #88
+    str w19, [x10]
     b .L43_22
 .L43_21:
     adrp x0, .Ltext_35
@@ -1820,14 +1797,12 @@ lb_math32_max:
     add x1, x1, :lo12:.Ltext_0
     bl lb_core_7trap_at
 .L43_22:
-    cbnz w21, .L43_5
+    cbnz w19, .L43_5
     b .L43_6
 .L43_5:
     fmov s16, s25
     fmov s0, s16
-    ldr x19, [sp, #88]
-    ldr x20, [sp, #80]
-    ldr x21, [sp, #72]
+    ldr x19, [sp, #72]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -1842,23 +1817,21 @@ lb_math32_max:
     cbnz w15, .L43_12
     b .L43_23
 .L43_23:
-    mov w20, w15
+    mov w13, w15
     b .L43_13
 .L43_12:
     fcmp s25, s26
-    cset w20, eq
+    cset w13, eq
 .L43_13:
-    and w15, w20, #255
+    and w15, w13, #255
     cbnz w15, .L43_9
     b .L43_10
 .L43_9:
-    and w15, w14, w19
+    and w15, w14, w12
     fmov s24, w15
     fmov s16, s24
     fmov s0, s16
-    ldr x19, [sp, #88]
-    ldr x20, [sp, #80]
-    ldr x21, [sp, #72]
+    ldr x19, [sp, #72]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -1877,9 +1850,7 @@ lb_math32_max:
 .L43_17:
     fmov s16, s25
     fmov s0, s16
-    ldr x19, [sp, #88]
-    ldr x20, [sp, #80]
-    ldr x21, [sp, #72]
+    ldr x19, [sp, #72]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret

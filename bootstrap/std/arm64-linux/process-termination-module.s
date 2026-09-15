@@ -94,8 +94,8 @@ lb_process_Termination_init:
     add x14, x20, #8
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x20, #24
     movz x9, #1
     strb w9, [x14]
@@ -130,8 +130,8 @@ lb_process_Termination_init:
     str x14, [x21]
     mov x10, x21
     mov x11, x20
-    ldr x12, [x10, #0]
-    str x12, [x11, #0]
+    ldr x16, [x10, #0]
+    str x16, [x11, #0]
     adrp x21, lb_process_18termination_owners
     add x21, x21, :lo12:lb_process_18termination_owners
     mov x9, x21
@@ -166,19 +166,19 @@ lb_process_Termination_init:
     sub x22, x29, #208
     mov x10, x15
     mov x11, x22
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x22, #24
     movz x9, #1
     strb w9, [x14]
     mov x10, x22
     sub x11, x29, #176
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldp x12, x13, [x10, #16]
-    stp x12, x13, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldp x16, x17, [x10, #16]
+    stp x16, x17, [x11, #16]
     b .L2_16
 .L2_15:
 .L2_13:
@@ -188,10 +188,10 @@ lb_process_Termination_init:
     strb w9, [x15]
     mov x10, x14
     sub x11, x29, #176
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldp x12, x13, [x10, #16]
-    stp x12, x13, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldp x16, x17, [x10, #16]
+    stp x16, x17, [x11, #16]
 .L2_16:
     sub x15, x29, #176
     add x14, x15, #24
@@ -202,10 +202,10 @@ lb_process_Termination_init:
     sub x20, x29, #144
     mov x10, x15
     mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     b .L2_8
 .L2_10:
     b .L2_9
@@ -220,8 +220,8 @@ lb_process_Termination_init:
     add x15, x22, #8
     mov x10, x14
     mov x11, x15
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x22, #24
     movz x9, #1
     strb w9, [x14]
@@ -287,8 +287,8 @@ lb_process_Termination_status:
     sub x19, x29, #32
     mov x10, x14
     mov x11, x19
-    ldr x12, [x10, #0]
-    str x12, [x11, #0]
+    ldr x16, [x10, #0]
+    str x16, [x11, #0]
     mov x16, x19
     ldr x0, [x16, #0]
     ldr x19, [sp, #24]
@@ -341,12 +341,12 @@ lb_process_Termination_close:
     adrp x14, lb_process_18termination_owners
     add x14, x14, :lo12:lb_process_18termination_owners
     movz x10, #1
-    mov x12, x14
+    mov x17, x14
 1:
-    ldaxr x9, [x12]
+    ldaxr x9, [x17]
     sub x11, x9, x10
-    stlxr w13, x11, [x12]
-    cbnz w13, 1b
+    stlxr w16, x11, [x17]
+    cbnz w16, 1b
     mov x14, x9
     movz x10, #1
     cmp x14, x10

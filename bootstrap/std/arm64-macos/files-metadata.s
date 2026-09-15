@@ -203,8 +203,8 @@ _lb_files_12mac_metadata:
     add x14, x19, #32
     mov x10, x14
     sub x11, x29, #600
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     sub x20, x29, #616
     mov x11, x20
     stp xzr, xzr, [x11, #0]
@@ -218,12 +218,12 @@ _lb_files_12mac_metadata:
     sub x24, x29, #584
     mov x10, x20
     mov x11, x24
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     mov x10, x24
     sub x11, x29, #496
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     b L2_3
 L2_2:
     adrp x0, l_text_2@PAGE
@@ -236,13 +236,13 @@ L2_3:
     add x15, x25, #56
     mov x10, x14
     mov x11, x15
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #48
     mov x10, x14
     sub x11, x29, #600
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     mov x11, x20
     stp xzr, xzr, [x11, #0]
     ldr x14, [x21]
@@ -251,12 +251,12 @@ L2_3:
     str w14, [x23]
     mov x10, x20
     mov x11, x24
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     mov x10, x24
     sub x11, x29, #512
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     b L2_5
 L2_4:
     adrp x0, l_text_2@PAGE
@@ -269,13 +269,13 @@ L2_5:
     add x15, x25, #72
     mov x10, x14
     mov x11, x15
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #64
     mov x10, x14
     sub x11, x29, #600
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     mov x11, x20
     stp xzr, xzr, [x11, #0]
     ldr x14, [x21]
@@ -284,12 +284,12 @@ L2_5:
     str w14, [x23]
     mov x10, x20
     mov x11, x24
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     mov x10, x24
     sub x11, x29, #528
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     b L2_7
 L2_6:
     adrp x0, l_text_2@PAGE
@@ -302,13 +302,13 @@ L2_7:
     add x15, x25, #88
     mov x10, x14
     mov x11, x15
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #80
     mov x10, x14
     sub x11, x29, #600
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     mov x11, x20
     stp xzr, xzr, [x11, #0]
     ldr x14, [x21]
@@ -317,12 +317,12 @@ L2_7:
     str w14, [x23]
     mov x10, x20
     mov x11, x24
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     mov x10, x24
     sub x11, x29, #544
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     b L2_9
 L2_8:
     adrp x0, l_text_2@PAGE
@@ -335,37 +335,37 @@ L2_9:
     sub x19, x29, #568
     mov x10, x14
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #16
     movz x9, #1
     strb w9, [x14]
     add x14, x25, #104
     mov x10, x19
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     sub x19, x29, #208
     mov x10, x25
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldp x12, x13, [x10, #16]
-    stp x12, x13, [x11, #16]
-    ldp x12, x13, [x10, #32]
-    stp x12, x13, [x11, #32]
-    ldp x12, x13, [x10, #48]
-    stp x12, x13, [x11, #48]
-    ldp x12, x13, [x10, #64]
-    stp x12, x13, [x11, #64]
-    ldp x12, x13, [x10, #80]
-    stp x12, x13, [x11, #80]
-    ldp x12, x13, [x10, #96]
-    stp x12, x13, [x11, #96]
-    ldp x12, x13, [x10, #112]
-    stp x12, x13, [x11, #112]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldp x16, x17, [x10, #16]
+    stp x16, x17, [x11, #16]
+    ldp x16, x17, [x10, #32]
+    stp x16, x17, [x11, #32]
+    ldp x16, x17, [x10, #48]
+    stp x16, x17, [x11, #48]
+    ldp x16, x17, [x10, #64]
+    stp x16, x17, [x11, #64]
+    ldp x16, x17, [x10, #80]
+    stp x16, x17, [x11, #80]
+    ldp x16, x17, [x10, #96]
+    stp x16, x17, [x11, #96]
+    ldp x16, x17, [x10, #112]
+    stp x16, x17, [x11, #112]
     mov x1, x19
     sub x16, x29, #24
     ldr x0, [x16]
@@ -449,22 +449,22 @@ L3_7:
     sub x20, x29, #224
     mov x10, x14
     mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldp x12, x13, [x10, #16]
-    stp x12, x13, [x11, #16]
-    ldp x12, x13, [x10, #32]
-    stp x12, x13, [x11, #32]
-    ldp x12, x13, [x10, #48]
-    stp x12, x13, [x11, #48]
-    ldp x12, x13, [x10, #64]
-    stp x12, x13, [x11, #64]
-    ldp x12, x13, [x10, #80]
-    stp x12, x13, [x11, #80]
-    ldp x12, x13, [x10, #96]
-    stp x12, x13, [x11, #96]
-    ldp x12, x13, [x10, #112]
-    stp x12, x13, [x11, #112]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldp x16, x17, [x10, #16]
+    stp x16, x17, [x11, #16]
+    ldp x16, x17, [x10, #32]
+    stp x16, x17, [x11, #32]
+    ldp x16, x17, [x10, #48]
+    stp x16, x17, [x11, #48]
+    ldp x16, x17, [x10, #64]
+    stp x16, x17, [x11, #64]
+    ldp x16, x17, [x10, #80]
+    stp x16, x17, [x11, #80]
+    ldp x16, x17, [x10, #96]
+    stp x16, x17, [x11, #96]
+    ldp x16, x17, [x10, #112]
+    stp x16, x17, [x11, #112]
     add x14, x20, #152
     mov x9, #0
     strb w9, [x14]
@@ -512,8 +512,8 @@ L3_11:
     add x14, x20, #8
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #152
     movz x9, #1
     strb w9, [x14]
@@ -577,22 +577,22 @@ L4_4:
     sub x20, x29, #208
     mov x10, x14
     mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldp x12, x13, [x10, #16]
-    stp x12, x13, [x11, #16]
-    ldp x12, x13, [x10, #32]
-    stp x12, x13, [x11, #32]
-    ldp x12, x13, [x10, #48]
-    stp x12, x13, [x11, #48]
-    ldp x12, x13, [x10, #64]
-    stp x12, x13, [x11, #64]
-    ldp x12, x13, [x10, #80]
-    stp x12, x13, [x11, #80]
-    ldp x12, x13, [x10, #96]
-    stp x12, x13, [x11, #96]
-    ldp x12, x13, [x10, #112]
-    stp x12, x13, [x11, #112]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldp x16, x17, [x10, #16]
+    stp x16, x17, [x11, #16]
+    ldp x16, x17, [x10, #32]
+    stp x16, x17, [x11, #32]
+    ldp x16, x17, [x10, #48]
+    stp x16, x17, [x11, #48]
+    ldp x16, x17, [x10, #64]
+    stp x16, x17, [x11, #64]
+    ldp x16, x17, [x10, #80]
+    stp x16, x17, [x11, #80]
+    ldp x16, x17, [x10, #96]
+    stp x16, x17, [x11, #96]
+    ldp x16, x17, [x10, #112]
+    stp x16, x17, [x11, #112]
     add x14, x20, #152
     mov x9, #0
     strb w9, [x14]
@@ -638,8 +638,8 @@ L4_8:
     add x14, x20, #8
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #152
     movz x9, #1
     strb w9, [x14]
@@ -724,22 +724,22 @@ L5_7:
     sub x19, x29, #224
     mov x10, x14
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldp x12, x13, [x10, #16]
-    stp x12, x13, [x11, #16]
-    ldp x12, x13, [x10, #32]
-    stp x12, x13, [x11, #32]
-    ldp x12, x13, [x10, #48]
-    stp x12, x13, [x11, #48]
-    ldp x12, x13, [x10, #64]
-    stp x12, x13, [x11, #64]
-    ldp x12, x13, [x10, #80]
-    stp x12, x13, [x11, #80]
-    ldp x12, x13, [x10, #96]
-    stp x12, x13, [x11, #96]
-    ldp x12, x13, [x10, #112]
-    stp x12, x13, [x11, #112]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldp x16, x17, [x10, #16]
+    stp x16, x17, [x11, #16]
+    ldp x16, x17, [x10, #32]
+    stp x16, x17, [x11, #32]
+    ldp x16, x17, [x10, #48]
+    stp x16, x17, [x11, #48]
+    ldp x16, x17, [x10, #64]
+    stp x16, x17, [x11, #64]
+    ldp x16, x17, [x10, #80]
+    stp x16, x17, [x11, #80]
+    ldp x16, x17, [x10, #96]
+    stp x16, x17, [x11, #96]
+    ldp x16, x17, [x10, #112]
+    stp x16, x17, [x11, #112]
     add x14, x19, #152
     mov x9, #0
     strb w9, [x14]
@@ -787,8 +787,8 @@ L5_11:
     add x14, x20, #8
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #152
     movz x9, #1
     strb w9, [x14]

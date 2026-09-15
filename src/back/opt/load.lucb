@@ -274,7 +274,7 @@ struct Search:
                     while q < join.args_count:
                         try self.f.phi_args.push(self.join_args.get((usize)(join.args_start + q)))
                         q += 1
-                    try out.push(ir.Instr(op = ir.Op.phi, cls = join.cls, dst = join.temp, a = ir.none_ref(), b = ir.none_ref(), extra = start, extra2 = join.args_count))
+                    try out.push(ir.Instr(op = ir.Op.phi, cls = join.cls, dst = join.temp, a = ir.none_ref(), b = ir.none_ref(), extra = start, extra2 = join.args_count, line = 0, file = 0))
                 j += 1
             while i < block.end:
                 try out.push(self.f.instrs.get((usize)i))

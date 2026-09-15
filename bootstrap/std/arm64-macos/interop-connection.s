@@ -21,8 +21,8 @@ _lb_interop_connection_0init:
     str x9, [x14]
     mov x10, x15
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     adrp x14, _lb_interop_Connection_destroy@GOTPAGE
     ldr x14, [x14, _lb_interop_Connection_destroy@GOTPAGEOFF]
     add x15, x19, #16
@@ -41,12 +41,12 @@ _lb_interop_connection_0init:
     add x14, x14, _lb_interop_15connection_type@PAGEOFF
     mov x10, x19
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldp x12, x13, [x10, #16]
-    stp x12, x13, [x11, #16]
-    ldr x12, [x10, #32]
-    str x12, [x11, #32]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldp x16, x17, [x10, #16]
+    stp x16, x17, [x11, #16]
+    ldr x16, [x10, #32]
+    str x16, [x11, #32]
     ldr x19, [sp, #56]
     mov sp, x29
     ldp x29, x30, [sp], #16
@@ -58,41 +58,37 @@ _lb_interop_connection_0init:
 _lb_interop_Connection_init:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #112
-    str x19, [sp, #88]
-    str x20, [sp, #80]
-    sub x16, x29, #40
+    sub sp, sp, #96
+    sub x16, x29, #24
     str x0, [x16]
-    sub x16, x29, #56
+    sub x16, x29, #40
     str x1, [x16]
-    sub x16, x29, #72
+    sub x16, x29, #56
     str x2, [x16]
-    sub x16, x29, #88
+    sub x16, x29, #72
     str x3, [x16]
-    sub x16, x29, #104
+    sub x16, x29, #88
     str x4, [x16]
-    sub x9, x29, #40
-    ldr x20, [x9]
-    sub x14, x29, #56
+    sub x9, x29, #24
+    ldr x13, [x9]
+    sub x14, x29, #40
     ldr x14, [x14]
-    str x14, [x20]
-    add x15, x20, #8
-    sub x19, x29, #72
-    ldr x19, [x19]
-    str x19, [x15]
-    add x15, x20, #16
-    sub x19, x29, #88
-    ldr x19, [x19]
-    str x19, [x15]
-    add x15, x20, #24
-    sub x19, x29, #104
-    ldr x19, [x19]
-    str x19, [x15]
+    str x14, [x13]
+    add x15, x13, #8
+    sub x12, x29, #56
+    ldr x12, [x12]
+    str x12, [x15]
+    add x15, x13, #16
+    sub x12, x29, #72
+    ldr x12, [x12]
+    str x12, [x15]
+    add x15, x13, #24
+    sub x12, x29, #88
+    ldr x12, [x12]
+    str x12, [x15]
     mov x0, x14
     bl _lb_ownership_retain
     mov x14, x0
-    ldr x19, [sp, #88]
-    ldr x20, [sp, #80]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -103,12 +99,11 @@ _lb_interop_Connection_init:
 _lb_interop_Connection_disconnect:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #48
-    str x19, [sp, #24]
-    str x20, [sp, #16]
-    sub x16, x29, #40
+    sub sp, sp, #32
+    str x19, [sp, #8]
+    sub x16, x29, #32
     str x0, [x16]
-    sub x9, x29, #40
+    sub x9, x29, #32
     ldr x14, [x9]
     ldr x19, [x14]
     cbnz x19, L2_1
@@ -116,8 +111,7 @@ _lb_interop_Connection_disconnect:
 L2_1:
     b L2_3
 L2_2:
-    ldr x19, [sp, #24]
-    ldr x20, [sp, #16]
+    ldr x19, [sp, #8]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -127,18 +121,17 @@ L2_3:
     str x9, [x14]
     add x15, x14, #16
     ldr x15, [x15]
-    add x20, x14, #8
-    ldr x20, [x20]
+    add x12, x14, #8
+    ldr x12, [x12]
     mov x17, x15
     str x17, [sp, #-16]!
     mov x0, x19
-    mov x1, x20
+    mov x1, x12
     ldr x17, [sp], #16
     blr x17
     mov x0, x19
     bl _lb_ownership_release
-    ldr x19, [sp, #24]
-    ldr x20, [sp, #16]
+    ldr x19, [sp, #8]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret

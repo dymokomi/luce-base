@@ -55,10 +55,9 @@ _lb_window_12native_class:
     sub x16, x29, #24
     str x8, [x16]
     str x19, [sp, #80]
-    str x20, [sp, #72]
-    sub x16, x29, #96
+    sub x16, x29, #88
     str x0, [x16]
-    sub x14, x29, #96
+    sub x14, x29, #88
     ldr x14, [x14]
     mov x0, x14
     bl _objc_getClass
@@ -68,7 +67,7 @@ _lb_window_12native_class:
 L2_1:
     b L2_3
 L2_2:
-    sub x19, x29, #80
+    sub x19, x29, #72
     add x14, x19, #8
     adrp x15, _lb_window_failed@PAGE
     add x15, x15, _lb_window_failed@PAGEOFF
@@ -76,16 +75,16 @@ L2_2:
     str w15, [x14]
     adrp x15, l_text_3@PAGE
     add x15, x15, l_text_3@PAGEOFF
-    sub x20, x29, #112
-    str x15, [x20]
-    add x15, x20, #8
+    sub x12, x29, #104
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #66
     str x9, [x15]
     add x14, x14, #8
-    mov x10, x20
+    mov x10, x12
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #32
     movz x9, #1
     strb w9, [x14]
@@ -97,17 +96,16 @@ L2_2:
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #80]
-    ldr x20, [sp, #72]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
 L2_4:
 L2_3:
-    sub x15, x29, #80
+    sub x15, x29, #72
     str x14, [x15]
-    add x19, x15, #32
+    add x12, x15, #32
     mov x9, #0
-    strb w9, [x19]
+    strb w9, [x12]
     mov x1, x15
     sub x16, x29, #24
     ldr x0, [x16]
@@ -116,7 +114,6 @@ L2_3:
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #80]
-    ldr x20, [sp, #72]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -230,30 +227,29 @@ L4_5:
 _lb_window_9set_state:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #64
-    str x19, [sp, #40]
-    sub x16, x29, #40
+    sub sp, sp, #48
+    sub x16, x29, #32
     str x0, [x16]
-    sub x16, x29, #56
+    sub x16, x29, #48
     str x1, [x16]
-    sub x14, x29, #56
+    sub x14, x29, #48
     ldr x14, [x14]
     cbnz x14, L5_4
     b L5_2
 L5_4:
 L5_1:
-    sub x15, x29, #40
+    sub x15, x29, #32
     ldr x15, [x15]
-    adrp x19, l_text_7@PAGE
-    add x19, x19, l_text_7@PAGEOFF
+    adrp x12, l_text_7@PAGE
+    add x12, x12, l_text_7@PAGEOFF
     mov x0, x15
-    mov x1, x19
+    mov x1, x12
     mov x2, x14
     bl _object_setInstanceVariable
     mov x14, x0
     b L5_3
 L5_2:
-    sub x14, x29, #40
+    sub x14, x29, #32
     ldr x14, [x14]
     adrp x15, l_text_7@PAGE
     add x15, x15, l_text_7@PAGEOFF
@@ -263,7 +259,6 @@ L5_2:
     bl _object_setInstanceVariable
     mov x14, x0
 L5_3:
-    ldr x19, [sp, #40]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -274,24 +269,23 @@ L5_3:
 _lb_window_10add_method:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #176
+    sub sp, sp, #160
     sub x16, x29, #24
     str x8, [x16]
-    str x19, [sp, #144]
-    str x20, [sp, #136]
-    sub x16, x29, #88
+    str x19, [sp, #128]
+    sub x16, x29, #80
     str x0, [x16]
-    sub x16, x29, #104
+    sub x16, x29, #96
     str x1, [x16]
-    sub x16, x29, #120
+    sub x16, x29, #112
     str x2, [x16]
-    sub x16, x29, #136
+    sub x16, x29, #128
     str x3, [x16]
-    sub x14, x29, #88
+    sub x14, x29, #80
     ldr x19, [x14]
-    sub x14, x29, #104
+    sub x14, x29, #96
     ldr x14, [x14]
-    sub x10, x29, #168
+    sub x10, x29, #160
     str x14, [x10]
     mov x0, x14
     bl _sel_registerName
@@ -313,28 +307,28 @@ L6_7:
     add x1, x1, l_text_2@PAGEOFF
     bl _lb_core_7trap_at
 L6_8:
-    sub x15, x29, #120
+    sub x15, x29, #112
     ldr x15, [x15]
-    sub x20, x29, #136
-    ldr x20, [x20]
+    sub x12, x29, #128
+    ldr x12, [x12]
     mov x0, x19
     mov x1, x14
     mov x2, x15
-    mov x3, x20
+    mov x3, x12
     bl _class_addMethod
     mov w15, w0
     mov x10, #0
     cmp w15, w10
     b.ne L6_2
 L6_1:
-    sub x19, x29, #72
+    sub x19, x29, #64
     adrp x14, _lb_window_failed@PAGE
     add x14, x14, _lb_window_failed@PAGEOFF
     ldr w14, [x14]
     str w14, [x19]
     adrp x14, l_text_9@PAGE
     add x14, x14, l_text_9@PAGEOFF
-    sub x15, x29, #152
+    sub x15, x29, #144
     str x14, [x15]
     add x14, x15, #8
     movz x9, #43
@@ -342,8 +336,8 @@ L6_1:
     add x14, x19, #8
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
@@ -354,8 +348,7 @@ L6_1:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #144]
-    ldr x20, [sp, #136]
+    ldr x19, [sp, #128]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -363,7 +356,7 @@ L6_4:
     b L6_3
 L6_2:
 L6_3:
-    sub x14, x29, #72
+    sub x14, x29, #64
     add x15, x14, #24
     mov x9, #0
     strb w9, [x15]
@@ -374,8 +367,7 @@ L6_3:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #144]
-    ldr x20, [sp, #136]
+    ldr x19, [sp, #128]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret

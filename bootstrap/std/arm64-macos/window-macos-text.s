@@ -48,8 +48,8 @@ L1_2:
     add x14, x19, #8
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
@@ -92,8 +92,8 @@ L1_5:
     add x14, x19, #8
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
@@ -117,12 +117,12 @@ L1_7:
     add x14, x14, l_text_6@PAGEOFF
     adrp x15, _lb_window_15mac_insert_text@GOTPAGE
     ldr x15, [x15, _lb_window_15mac_insert_text@GOTPAGEOFF]
-    adrp x20, l_text_7@PAGE
-    add x20, x20, l_text_7@PAGEOFF
+    adrp x12, l_text_7@PAGE
+    add x12, x12, l_text_7@PAGEOFF
     mov x0, x19
     mov x1, x14
     mov x2, x15
-    mov x3, x20
+    mov x3, x12
     sub x8, x29, #152
     bl _lb_window_10add_method
     sub x15, x29, #152
@@ -134,10 +134,10 @@ L1_10:
     sub x19, x29, #72
     mov x10, x15
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
@@ -159,12 +159,12 @@ L1_9:
     add x14, x14, l_text_8@PAGEOFF
     adrp x15, _lb_window_14mac_set_marked@GOTPAGE
     ldr x15, [x15, _lb_window_14mac_set_marked@GOTPAGEOFF]
-    adrp x20, l_text_9@PAGE
-    add x20, x20, l_text_9@PAGEOFF
+    adrp x12, l_text_9@PAGE
+    add x12, x12, l_text_9@PAGEOFF
     mov x0, x19
     mov x1, x14
     mov x2, x15
-    mov x3, x20
+    mov x3, x12
     sub x8, x29, #184
     bl _lb_window_10add_method
     sub x15, x29, #184
@@ -176,10 +176,10 @@ L1_13:
     sub x19, x29, #72
     mov x10, x15
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
@@ -201,12 +201,12 @@ L1_12:
     add x14, x14, l_text_10@PAGEOFF
     adrp x15, _lb_window_10mac_unmark@GOTPAGE
     ldr x15, [x15, _lb_window_10mac_unmark@GOTPAGEOFF]
-    adrp x20, l_text_11@PAGE
-    add x20, x20, l_text_11@PAGEOFF
+    adrp x12, l_text_11@PAGE
+    add x12, x12, l_text_11@PAGEOFF
     mov x0, x19
     mov x1, x14
     mov x2, x15
-    mov x3, x20
+    mov x3, x12
     sub x8, x29, #216
     bl _lb_window_10add_method
     sub x15, x29, #216
@@ -218,10 +218,10 @@ L1_16:
     sub x19, x29, #72
     mov x10, x15
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
@@ -243,12 +243,12 @@ L1_15:
     add x14, x14, l_text_12@PAGEOFF
     adrp x15, _lb_window_14mac_has_marked@GOTPAGE
     ldr x15, [x15, _lb_window_14mac_has_marked@GOTPAGEOFF]
-    adrp x20, l_text_13@PAGE
-    add x20, x20, l_text_13@PAGEOFF
+    adrp x12, l_text_13@PAGE
+    add x12, x12, l_text_13@PAGEOFF
     mov x0, x19
     mov x1, x14
     mov x2, x15
-    mov x3, x20
+    mov x3, x12
     sub x8, x29, #248
     bl _lb_window_10add_method
     sub x15, x29, #248
@@ -260,10 +260,10 @@ L1_19:
     sub x19, x29, #72
     mov x10, x15
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
@@ -302,10 +302,10 @@ L1_22:
     sub x19, x29, #72
     mov x10, x15
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
@@ -342,10 +342,10 @@ L1_25:
     sub x19, x29, #72
     mov x10, x15
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
@@ -367,12 +367,12 @@ L1_24:
     add x14, x14, l_text_17@PAGEOFF
     adrp x15, _lb_window_21mac_marked_attributes@GOTPAGE
     ldr x15, [x15, _lb_window_21mac_marked_attributes@GOTPAGEOFF]
-    adrp x20, l_text_18@PAGE
-    add x20, x20, l_text_18@PAGEOFF
+    adrp x12, l_text_18@PAGE
+    add x12, x12, l_text_18@PAGEOFF
     mov x0, x19
     mov x1, x14
     mov x2, x15
-    mov x3, x20
+    mov x3, x12
     sub x8, x29, #344
     bl _lb_window_10add_method
     sub x15, x29, #344
@@ -384,10 +384,10 @@ L1_28:
     sub x19, x29, #72
     mov x10, x15
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
@@ -409,12 +409,12 @@ L1_27:
     add x14, x14, l_text_19@PAGEOFF
     adrp x15, _lb_window_18mac_text_substring@GOTPAGE
     ldr x15, [x15, _lb_window_18mac_text_substring@GOTPAGEOFF]
-    adrp x20, l_text_20@PAGE
-    add x20, x20, l_text_20@PAGEOFF
+    adrp x12, l_text_20@PAGE
+    add x12, x12, l_text_20@PAGEOFF
     mov x0, x19
     mov x1, x14
     mov x2, x15
-    mov x3, x20
+    mov x3, x12
     sub x8, x29, #376
     bl _lb_window_10add_method
     sub x15, x29, #376
@@ -426,10 +426,10 @@ L1_31:
     sub x19, x29, #72
     mov x10, x15
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
@@ -451,12 +451,12 @@ L1_30:
     add x14, x14, l_text_21@PAGEOFF
     adrp x15, _lb_window_14mac_text_index@GOTPAGE
     ldr x15, [x15, _lb_window_14mac_text_index@GOTPAGEOFF]
-    adrp x20, l_text_22@PAGE
-    add x20, x20, l_text_22@PAGEOFF
+    adrp x12, l_text_22@PAGE
+    add x12, x12, l_text_22@PAGEOFF
     mov x0, x19
     mov x1, x14
     mov x2, x15
-    mov x3, x20
+    mov x3, x12
     sub x8, x29, #408
     bl _lb_window_10add_method
     sub x15, x29, #408
@@ -468,10 +468,10 @@ L1_34:
     sub x19, x29, #72
     mov x10, x15
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
@@ -493,12 +493,12 @@ L1_33:
     add x14, x14, l_text_23@PAGEOFF
     adrp x15, _lb_window_13mac_text_rect@GOTPAGE
     ldr x15, [x15, _lb_window_13mac_text_rect@GOTPAGEOFF]
-    adrp x20, l_text_24@PAGE
-    add x20, x20, l_text_24@PAGEOFF
+    adrp x12, l_text_24@PAGE
+    add x12, x12, l_text_24@PAGEOFF
     mov x0, x19
     mov x1, x14
     mov x2, x15
-    mov x3, x20
+    mov x3, x12
     sub x8, x29, #440
     bl _lb_window_10add_method
     sub x15, x29, #440
@@ -510,10 +510,10 @@ L1_37:
     sub x19, x29, #72
     mov x10, x15
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
@@ -535,12 +535,12 @@ L1_36:
     add x14, x14, l_text_25@PAGEOFF
     adrp x15, _lb_window_16mac_text_command@GOTPAGE
     ldr x15, [x15, _lb_window_16mac_text_command@GOTPAGEOFF]
-    adrp x20, l_text_26@PAGE
-    add x20, x20, l_text_26@PAGEOFF
+    adrp x12, l_text_26@PAGE
+    add x12, x12, l_text_26@PAGEOFF
     mov x0, x19
     mov x1, x14
     mov x2, x15
-    mov x3, x20
+    mov x3, x12
     sub x8, x29, #472
     bl _lb_window_10add_method
     sub x15, x29, #472
@@ -552,10 +552,10 @@ L1_40:
     sub x19, x29, #72
     mov x10, x15
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
@@ -995,8 +995,8 @@ L5_13:
     movz x10, #14416
     add x14, x19, x10
     sub x15, x29, #104
-    ldr x21, [x15]
-    str x21, [x14]
+    ldr x12, [x15]
+    str x12, [x14]
     movz x10, #14424
     add x14, x19, x10
     add x15, x15, #8
@@ -1128,8 +1128,8 @@ L8_13:
     sub x20, x29, #56
     mov x10, x19
     mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     mov x16, x20
     ldr x0, [x16, #0]
     ldr x1, [x16, #8]
@@ -1164,8 +1164,8 @@ L8_17:
     sub x20, x29, #56
     mov x10, x19
     mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     mov x16, x20
     ldr x0, [x16, #0]
     ldr x1, [x16, #8]
@@ -1195,8 +1195,8 @@ L8_7:
     sub x21, x29, #56
     mov x10, x20
     mov x11, x21
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     mov x16, x21
     ldr x0, [x16, #0]
     ldr x1, [x16, #8]
@@ -1241,8 +1241,8 @@ L9_2:
     sub x20, x29, #56
     mov x10, x19
     mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     mov x16, x20
     ldr x0, [x16, #0]
     ldr x1, [x16, #8]
@@ -1269,8 +1269,8 @@ L9_3:
     sub x21, x29, #56
     mov x10, x20
     mov x11, x21
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     mov x16, x21
     ldr x0, [x16, #0]
     ldr x1, [x16, #8]
@@ -1376,8 +1376,8 @@ L11_9:
     str x9, [x14]
     mov x10, x20
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     b L11_3
 L11_2:
 L11_3:
@@ -1442,8 +1442,8 @@ L13_1:
     sub x15, x29, #128
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     b L13_3
 L13_2:
 L13_3:
@@ -1464,10 +1464,10 @@ L13_6:
     sub x20, x29, #80
     mov x10, x19
     mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldp x12, x13, [x10, #16]
-    stp x12, x13, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldp x16, x17, [x10, #16]
+    stp x16, x17, [x11, #16]
     mov x9, x20
     ldr d0, [x9, #0]
     ldr d1, [x9, #8]
@@ -1495,10 +1495,10 @@ L13_10:
     sub x20, x29, #80
     mov x10, x19
     mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldp x12, x13, [x10, #16]
-    stp x12, x13, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldp x16, x17, [x10, #16]
+    stp x16, x17, [x11, #16]
     mov x9, x20
     ldr d0, [x9, #0]
     ldr d1, [x9, #8]
@@ -1535,8 +1535,8 @@ L13_11:
     add x14, x21, #16
     mov x10, x22
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     mov x9, x21
     ldr d0, [x9, #0]
     ldr d1, [x9, #8]
@@ -1557,10 +1557,10 @@ L13_11:
     sub x20, x29, #80
     mov x10, x14
     mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldp x12, x13, [x10, #16]
-    stp x12, x13, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldp x16, x17, [x10, #16]
+    stp x16, x17, [x11, #16]
     mov x9, x20
     ldr d0, [x9, #0]
     ldr d1, [x9, #8]

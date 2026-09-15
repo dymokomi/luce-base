@@ -6,8 +6,7 @@
 lb_process_module_0init:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #32
-    str x19, [sp, #8]
+    sub sp, sp, #16
     adrp x14, lb_process_7poll_in
     add x14, x14, :lo12:lb_process_7poll_in
     movz x9, #1
@@ -37,11 +36,11 @@ lb_process_module_0init:
     movz x9, #2048
     mov w15, w9
 .L0_3:
-    adrp x19, lb_process_12non_blocking
-    add x19, x19, :lo12:lb_process_12non_blocking
-    str w15, [x19]
-    ldrb w19, [x14]
-    cbnz w19, .L0_4
+    adrp x12, lb_process_12non_blocking
+    add x12, x12, :lo12:lb_process_12non_blocking
+    str w15, [x12]
+    ldrb w12, [x14]
+    cbnz w12, .L0_4
     b .L0_5
 .L0_4:
     movz x9, #35
@@ -59,7 +58,6 @@ lb_process_module_0init:
     movz x9, #8
     movk x9, #3178, lsl #16
     str w9, [x15]
-    ldr x19, [sp, #8]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -72,19 +70,17 @@ lb_process_module_0init:
 lb_process_Capture_pull:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #272
+    sub sp, sp, #256
     sub x16, x29, #24
     str x8, [x16]
-    str x19, [sp, #240]
-    str x20, [sp, #232]
-    str x21, [sp, #224]
-    str x22, [sp, #216]
-    str x23, [sp, #208]
-    str x24, [sp, #200]
-    str x25, [sp, #192]
-    sub x16, x29, #120
+    str x19, [sp, #224]
+    str x20, [sp, #216]
+    str x21, [sp, #208]
+    str x22, [sp, #200]
+    str x23, [sp, #192]
+    sub x16, x29, #104
     str x0, [x16]
-    sub x9, x29, #120
+    sub x9, x29, #104
     ldr x22, [x9]
     add x19, x22, #8
     add x20, x19, #8
@@ -115,12 +111,12 @@ lb_process_Capture_pull:
     mrs x16, tpidr_el0
     add x0, x16, x0
     mov x14, x0
-    sub x23, x29, #168
+    sub x23, x29, #152
 .L1_8:
     ldr x15, [x14]
-    add x24, x14, #8
-    ldr x24, [x24]
-    cbnz x24, .L1_10
+    add x12, x14, #8
+    ldr x12, [x12]
+    cbnz x12, .L1_10
     b .L1_11
 .L1_11:
     adrp x0, .Ltext_3
@@ -129,17 +125,17 @@ lb_process_Capture_pull:
     add x1, x1, :lo12:.Ltext_2
     bl lb_core_7trap_at
 .L1_10:
-    ldr x14, [x24]
+    ldr x14, [x12]
     mov x17, x14
     str x17, [sp, #-16]!
     mov x0, x15
     movz x1, #1024
     movz x2, #1
-    sub x8, x29, #192
+    sub x8, x29, #176
     ldr x17, [sp], #16
     blr x17
-    sub x25, x29, #192
-    add x14, x25, #16
+    sub x13, x29, #176
+    add x14, x13, #16
     ldrb w14, [x14]
     mov x10, #0
     cmp w14, w10
@@ -155,8 +151,8 @@ lb_process_Capture_pull:
     str w9, [x14]
     adrp x15, .Ltext_4
     add x15, x15, :lo12:.Ltext_4
-    add x24, x14, #8
-    str x15, [x24]
+    add x12, x14, #8
+    str x15, [x12]
     add x14, x14, #16
     movz x9, #16
     str x9, [x14]
@@ -165,7 +161,7 @@ lb_process_Capture_pull:
     strb w9, [x14]
     b .L1_9
 .L1_13:
-    ldr x14, [x25]
+    ldr x14, [x13]
     str x14, [x23]
     add x14, x23, #8
     movz x9, #1024
@@ -180,13 +176,13 @@ lb_process_Capture_pull:
     b .L1_14
 .L1_15:
     add x14, x23, #16
-    sub x19, x29, #112
+    sub x19, x29, #96
     mov x10, x14
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
@@ -197,21 +193,19 @@ lb_process_Capture_pull:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #240]
-    ldr x20, [sp, #232]
-    ldr x21, [sp, #224]
-    ldr x22, [sp, #216]
-    ldr x23, [sp, #208]
-    ldr x24, [sp, #200]
-    ldr x25, [sp, #192]
+    ldr x19, [sp, #224]
+    ldr x20, [sp, #216]
+    ldr x21, [sp, #208]
+    ldr x22, [sp, #200]
+    ldr x23, [sp, #192]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
 .L1_14:
     mov x10, x23
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     b .L1_6
 .L1_5:
     mov x9, x14
@@ -230,22 +224,22 @@ lb_process_Capture_pull:
     ldr x0, [x9]
     ldr x1, [x9, #8]
     mov x2, x15
-    sub x8, x29, #240
+    sub x8, x29, #224
     bl lb_memory_grow
-    sub x23, x29, #240
-    add x15, x23, #40
+    sub x12, x29, #224
+    add x15, x12, #40
     ldrb w15, [x15]
     cbnz w15, .L1_18
     b .L1_17
 .L1_18:
-    add x14, x23, #16
-    sub x19, x29, #112
+    add x14, x12, #16
+    sub x19, x29, #96
     mov x10, x14
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
@@ -256,31 +250,29 @@ lb_process_Capture_pull:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #240]
-    ldr x20, [sp, #232]
-    ldr x21, [sp, #224]
-    ldr x22, [sp, #216]
-    ldr x23, [sp, #208]
-    ldr x24, [sp, #200]
-    ldr x25, [sp, #192]
+    ldr x19, [sp, #224]
+    ldr x20, [sp, #216]
+    ldr x21, [sp, #208]
+    ldr x22, [sp, #200]
+    ldr x23, [sp, #192]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
 .L1_17:
-    mov x10, x23
+    mov x10, x12
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
 .L1_6:
     b .L1_3
 .L1_2:
 .L1_3:
     ldrsw x14, [x22]
-    ldr x23, [x19]
-    ldr x24, [x20]
-    ldr x25, [x21]
-    add x15, x24, #1
-    cmp x25, x15
+    ldr x12, [x19]
+    ldr x13, [x20]
+    ldr x23, [x21]
+    add x15, x13, #1
+    cmp x23, x15
     b.lo 1f
     adrp x0, .Ltext_6
     add x0, x0, :lo12:.Ltext_6
@@ -288,7 +280,7 @@ lb_process_Capture_pull:
     add x1, x1, :lo12:.Ltext_7
     bl lb_core_7trap_at
 1:
-    cmp x24, x15
+    cmp x13, x15
     b.lo 1f
     adrp x0, .Ltext_6
     add x0, x0, :lo12:.Ltext_6
@@ -296,7 +288,7 @@ lb_process_Capture_pull:
     add x1, x1, :lo12:.Ltext_7
     bl lb_core_7trap_at
 1:
-    cmp x25, x24
+    cmp x23, x13
     b.ls .L1_20
 .L1_21:
     adrp x0, .Ltext_6
@@ -305,9 +297,9 @@ lb_process_Capture_pull:
     add x1, x1, :lo12:.Ltext_7
     bl lb_core_7trap_at
 .L1_20:
-    add x15, x23, x25
-    sub x19, x24, x25
-    sub x20, x29, #256
+    add x15, x12, x23
+    sub x19, x13, x23
+    sub x20, x29, #240
     str x15, [x20]
     add x20, x20, #8
     str x19, [x20]
@@ -375,14 +367,14 @@ lb_process_Capture_pull:
     cbnz w14, .L1_28
     b .L1_29
 .L1_28:
-    sub x19, x29, #112
+    sub x19, x29, #96
     adrp x14, lb_process_failed
     add x14, x14, :lo12:lb_process_failed
     ldr w14, [x14]
     str w14, [x19]
     adrp x14, .Ltext_9
     add x14, x14, :lo12:.Ltext_9
-    sub x15, x29, #272
+    sub x15, x29, #256
     str x14, [x15]
     add x14, x15, #8
     movz x9, #35
@@ -390,8 +382,8 @@ lb_process_Capture_pull:
     add x14, x19, #8
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
@@ -402,13 +394,11 @@ lb_process_Capture_pull:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #240]
-    ldr x20, [sp, #232]
-    ldr x21, [sp, #224]
-    ldr x22, [sp, #216]
-    ldr x23, [sp, #208]
-    ldr x24, [sp, #200]
-    ldr x25, [sp, #192]
+    ldr x19, [sp, #224]
+    ldr x20, [sp, #216]
+    ldr x21, [sp, #208]
+    ldr x22, [sp, #200]
+    ldr x23, [sp, #192]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -416,7 +406,7 @@ lb_process_Capture_pull:
 .L1_30:
 .L1_27:
 .L1_24:
-    sub x14, x29, #112
+    sub x14, x29, #96
     add x15, x14, #24
     mov x9, #0
     strb w9, [x15]
@@ -427,13 +417,11 @@ lb_process_Capture_pull:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #240]
-    ldr x20, [sp, #232]
-    ldr x21, [sp, #224]
-    ldr x22, [sp, #216]
-    ldr x23, [sp, #208]
-    ldr x24, [sp, #200]
-    ldr x25, [sp, #192]
+    ldr x19, [sp, #224]
+    ldr x20, [sp, #216]
+    ldr x21, [sp, #208]
+    ldr x22, [sp, #200]
+    ldr x23, [sp, #192]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -446,24 +434,22 @@ lb_process_Capture_pull:
 lb_process_Capture_take:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #336
+    sub sp, sp, #320
     sub x16, x29, #24
     str x8, [x16]
-    str x19, [sp, #304]
-    str x20, [sp, #296]
-    str x21, [sp, #288]
-    str x22, [sp, #280]
-    str x23, [sp, #272]
-    str x24, [sp, #264]
-    str x25, [sp, #256]
-    str x26, [sp, #248]
-    str x27, [sp, #240]
-    str x28, [sp, #232]
-    sub x16, x29, #160
+    str x19, [sp, #288]
+    str x20, [sp, #280]
+    str x21, [sp, #272]
+    str x22, [sp, #264]
+    str x23, [sp, #256]
+    str x24, [sp, #248]
+    str x25, [sp, #240]
+    str x26, [sp, #232]
+    sub x16, x29, #144
     str x0, [x16]
-    sub x9, x29, #160
+    sub x9, x29, #144
     ldr x22, [x9]
-    sub x19, x29, #176
+    sub x19, x29, #160
     mov x11, x19
     stp xzr, xzr, [x11, #0]
     add x20, x22, #24
@@ -484,12 +470,12 @@ lb_process_Capture_take:
     mrs x16, tpidr_el0
     add x0, x16, x0
     mov x15, x0
-    sub x21, x29, #192
-    ldr x22, [x20]
-    str x22, [x21]
-    add x22, x21, #8
-    str x14, [x22]
-    ldr x22, [x15]
+    sub x12, x29, #176
+    ldr x13, [x20]
+    str x13, [x12]
+    add x13, x12, #8
+    str x14, [x13]
+    ldr x13, [x15]
     add x15, x15, #8
     ldr x15, [x15]
     cbnz x15, .L2_8
@@ -499,8 +485,8 @@ lb_process_Capture_take:
     ldr x14, [x14]
     mov x17, x14
     str x17, [sp, #-16]!
-    mov x0, x22
-    mov x9, x21
+    mov x0, x13
+    mov x9, x12
     ldr x1, [x9]
     ldr x2, [x9, #8]
     ldr x17, [sp], #16
@@ -508,22 +494,22 @@ lb_process_Capture_take:
 .L2_7:
     mov x10, x19
     mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     b .L2_6
 .L2_5:
 .L2_6:
-    sub x14, x29, #208
+    sub x14, x29, #192
     mov x9, #0
     str x9, [x14]
     add x15, x14, #8
     mov x9, #0
     str x9, [x15]
-    sub x19, x29, #152
+    sub x19, x29, #136
     mov x10, x14
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #40
     mov x9, #0
     strb w9, [x14]
@@ -534,16 +520,14 @@ lb_process_Capture_take:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #304]
-    ldr x20, [sp, #296]
-    ldr x21, [sp, #288]
-    ldr x22, [sp, #280]
-    ldr x23, [sp, #272]
-    ldr x24, [sp, #264]
-    ldr x25, [sp, #256]
-    ldr x26, [sp, #248]
-    ldr x27, [sp, #240]
-    ldr x28, [sp, #232]
+    ldr x19, [sp, #288]
+    ldr x20, [sp, #280]
+    ldr x21, [sp, #272]
+    ldr x22, [sp, #264]
+    ldr x23, [sp, #256]
+    ldr x24, [sp, #248]
+    ldr x25, [sp, #240]
+    ldr x26, [sp, #232]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -551,13 +535,13 @@ lb_process_Capture_take:
     b .L2_3
 .L2_2:
 .L2_3:
-    sub x23, x29, #224
+    sub x23, x29, #208
     adrp x0, :gottprel:lb_memory_allocator
     ldr x0, [x0, :gottprel_lo12:lb_memory_allocator]
     mrs x16, tpidr_el0
     add x0, x16, x0
     mov x24, x0
-    sub x25, x29, #272
+    sub x25, x29, #256
     movz x10, #16384, lsl #48
     cmp x21, x10
     b.ls .L2_11
@@ -568,8 +552,8 @@ lb_process_Capture_take:
     str w9, [x14]
     adrp x15, .Ltext_1
     add x15, x15, :lo12:.Ltext_1
-    add x21, x14, #8
-    str x15, [x21]
+    add x12, x14, #8
+    str x15, [x12]
     add x14, x14, #16
     movz x9, #47
     str x9, [x14]
@@ -590,26 +574,26 @@ lb_process_Capture_take:
     add x1, x1, :lo12:.Ltext_2
     bl lb_core_7trap_at
 .L2_13:
-    ldr x26, [x15]
-    mov x17, x26
+    ldr x12, [x15]
+    mov x17, x12
     str x17, [sp, #-16]!
     mov x0, x14
     mov x1, x21
     movz x2, #1
-    sub x8, x29, #296
+    sub x8, x29, #280
     ldr x17, [sp], #16
     blr x17
-    sub x28, x29, #296
-    add x26, x28, #16
-    ldrb w26, [x26]
+    sub x26, x29, #280
+    add x12, x26, #16
+    ldrb w12, [x12]
     mov x10, #0
     cmp x21, x10
-    cset w27, ne
+    cset w13, ne
     mov x10, #0
-    cmp w26, w10
-    cset w26, eq
-    and w26, w27, w26
-    cbnz w26, .L2_15
+    cmp w12, w10
+    cset w12, eq
+    and w12, w13, w12
+    cbnz w12, .L2_15
     b .L2_16
 .L2_15:
     add x14, x25, #16
@@ -618,8 +602,8 @@ lb_process_Capture_take:
     str w9, [x14]
     adrp x15, .Ltext_4
     add x15, x15, :lo12:.Ltext_4
-    add x21, x14, #8
-    str x15, [x21]
+    add x12, x14, #8
+    str x15, [x12]
     add x14, x14, #16
     movz x9, #16
     str x9, [x14]
@@ -628,7 +612,7 @@ lb_process_Capture_take:
     strb w9, [x14]
     b .L2_12
 .L2_16:
-    ldr x14, [x28]
+    ldr x14, [x26]
     str x14, [x25]
     add x14, x25, #8
     str x21, [x14]
@@ -642,14 +626,14 @@ lb_process_Capture_take:
     b .L2_17
 .L2_18:
     add x14, x25, #16
-    sub x19, x29, #152
+    sub x19, x29, #136
     add x15, x19, #16
     mov x10, x14
     mov x11, x15
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #40
     movz x9, #1
     strb w9, [x14]
@@ -660,16 +644,14 @@ lb_process_Capture_take:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #304]
-    ldr x20, [sp, #296]
-    ldr x21, [sp, #288]
-    ldr x22, [sp, #280]
-    ldr x23, [sp, #272]
-    ldr x24, [sp, #264]
-    ldr x25, [sp, #256]
-    ldr x26, [sp, #248]
-    ldr x27, [sp, #240]
-    ldr x28, [sp, #232]
+    ldr x19, [sp, #288]
+    ldr x20, [sp, #280]
+    ldr x21, [sp, #272]
+    ldr x22, [sp, #264]
+    ldr x23, [sp, #256]
+    ldr x24, [sp, #248]
+    ldr x25, [sp, #240]
+    ldr x26, [sp, #232]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -677,8 +659,8 @@ lb_process_Capture_take:
 .L2_17:
     mov x10, x25
     mov x11, x23
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x21, x22, #8
     ldr x14, [x20]
     mov x9, x23
@@ -689,22 +671,22 @@ lb_process_Capture_take:
     ldr x3, [x9, #8]
     mov x4, x14
     bl lb_memory_copy_0g1_u8
-    sub x14, x29, #312
+    sub x14, x29, #296
     ldr x15, [x21]
-    add x26, x21, #8
-    ldr x26, [x26]
+    add x12, x21, #8
+    ldr x12, [x12]
     str x15, [x14]
     add x15, x14, #8
-    str x26, [x15]
+    str x12, [x15]
     ldr x15, [x24]
-    add x26, x24, #8
-    ldr x26, [x26]
-    cbnz x26, .L2_21
+    add x12, x24, #8
+    ldr x12, [x12]
+    cbnz x12, .L2_21
     b .L2_20
 .L2_21:
-    add x20, x26, #16
-    ldr x20, [x20]
-    mov x17, x20
+    add x13, x12, #16
+    ldr x13, [x13]
+    mov x17, x13
     str x17, [sp, #-16]!
     mov x0, x15
     mov x9, x14
@@ -715,40 +697,38 @@ lb_process_Capture_take:
 .L2_20:
     mov x10, x19
     mov x11, x21
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     ldr x14, [x23]
     add x15, x23, #8
     ldr x15, [x15]
-    sub x20, x29, #328
-    str x14, [x20]
-    add x14, x20, #8
+    sub x12, x29, #312
+    str x14, [x12]
+    add x14, x12, #8
     str x15, [x14]
-    sub x22, x29, #152
-    mov x10, x20
-    mov x11, x22
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    add x14, x22, #40
+    sub x20, x29, #136
+    mov x10, x12
+    mov x11, x20
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    add x14, x20, #40
     mov x9, #0
     strb w9, [x14]
-    mov x1, x22
+    mov x1, x20
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #304]
-    ldr x20, [sp, #296]
-    ldr x21, [sp, #288]
-    ldr x22, [sp, #280]
-    ldr x23, [sp, #272]
-    ldr x24, [sp, #264]
-    ldr x25, [sp, #256]
-    ldr x26, [sp, #248]
-    ldr x27, [sp, #240]
-    ldr x28, [sp, #232]
+    ldr x19, [sp, #288]
+    ldr x20, [sp, #280]
+    ldr x21, [sp, #272]
+    ldr x22, [sp, #264]
+    ldr x23, [sp, #256]
+    ldr x24, [sp, #248]
+    ldr x25, [sp, #240]
+    ldr x26, [sp, #232]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -770,10 +750,9 @@ lb_process_Capture_drop:
     sub sp, sp, #80
     str x19, [sp, #56]
     str x20, [sp, #48]
-    str x21, [sp, #40]
-    sub x16, x29, #48
+    sub x16, x29, #40
     str x0, [x16]
-    sub x9, x29, #48
+    sub x9, x29, #40
     ldr x14, [x9]
     add x19, x14, #8
     add x14, x19, #8
@@ -787,12 +766,12 @@ lb_process_Capture_drop:
     mrs x16, tpidr_el0
     add x0, x16, x0
     mov x15, x0
-    sub x20, x29, #64
-    ldr x21, [x19]
-    str x21, [x20]
-    add x21, x20, #8
-    str x14, [x21]
-    ldr x21, [x15]
+    sub x12, x29, #56
+    ldr x13, [x19]
+    str x13, [x12]
+    add x13, x12, #8
+    str x14, [x13]
+    ldr x13, [x15]
     add x15, x15, #8
     ldr x15, [x15]
     cbnz x15, .L3_5
@@ -802,26 +781,25 @@ lb_process_Capture_drop:
     ldr x14, [x14]
     mov x17, x14
     str x17, [sp, #-16]!
-    mov x0, x21
-    mov x9, x20
+    mov x0, x13
+    mov x9, x12
     ldr x1, [x9]
     ldr x2, [x9, #8]
     ldr x17, [sp], #16
     blr x17
 .L3_4:
-    sub x20, x29, #80
+    sub x20, x29, #72
     mov x11, x20
     stp xzr, xzr, [x11, #0]
     mov x10, x20
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     b .L3_3
 .L3_2:
 .L3_3:
     ldr x19, [sp, #56]
     ldr x20, [sp, #48]
-    ldr x21, [sp, #40]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -838,51 +816,50 @@ lb_process_run:
     sub x16, x29, #24
     str x8, [x16]
     str x19, [sp, #224]
-    str x20, [sp, #216]
-    sub x16, x29, #128
+    sub x16, x29, #120
     str x0, [x16]
-    sub x16, x29, #144
+    sub x16, x29, #136
     str x1, [x16]
     str x2, [x16, #8]
-    sub x16, x29, #160
+    sub x16, x29, #152
     str x3, [x16]
-    sub x16, x29, #184
+    sub x16, x29, #176
     str x4, [x16]
-    sub x0, x29, #184
+    sub x0, x29, #176
     ldr x1, [x0]
     movz x2, #24
     bl _memcpy
-    sub x14, x29, #128
+    sub x14, x29, #120
     ldr x14, [x14]
-    sub x15, x29, #144
-    sub x19, x29, #160
-    ldr x19, [x19]
-    sub x20, x29, #184
+    sub x15, x29, #136
+    sub x12, x29, #152
+    ldr x12, [x12]
+    sub x13, x29, #176
     mov x0, x14
     mov x9, x15
     ldr x1, [x9]
     ldr x2, [x9, #8]
-    mov x3, x19
-    mov x9, x20
+    mov x3, x12
+    mov x9, x13
     mov x4, x9
     mov x5, #0
-    sub x8, x29, #256
+    sub x8, x29, #248
     bl lb_process_14run_controlled
-    sub x15, x29, #256
+    sub x15, x29, #248
     add x14, x15, #64
     ldrb w14, [x14]
     cbnz w14, .L4_2
     b .L4_1
 .L4_2:
     add x14, x15, #40
-    sub x19, x29, #112
-    add x20, x19, #40
+    sub x19, x29, #104
+    add x12, x19, #40
     mov x10, x14
-    mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    mov x11, x12
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #64
     movz x9, #1
     strb w9, [x14]
@@ -894,21 +871,20 @@ lb_process_run:
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #224]
-    ldr x20, [sp, #216]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
 .L4_3:
 .L4_1:
-    sub x19, x29, #112
+    sub x19, x29, #104
     mov x10, x15
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldp x12, x13, [x10, #16]
-    stp x12, x13, [x11, #16]
-    ldr x12, [x10, #32]
-    str x12, [x11, #32]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldp x16, x17, [x10, #16]
+    stp x16, x17, [x11, #16]
+    ldr x16, [x10, #32]
+    str x16, [x11, #32]
     add x14, x19, #64
     mov x9, #0
     strb w9, [x14]
@@ -920,7 +896,6 @@ lb_process_run:
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #224]
-    ldr x20, [sp, #216]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -939,19 +914,19 @@ lb_process_run:
 lb_process_14run_controlled:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #1552
+    sub sp, sp, #1536
     sub x16, x29, #24
     str x8, [x16]
-    str x19, [sp, #1520]
-    str x20, [sp, #1512]
-    str x21, [sp, #1504]
-    str x22, [sp, #1496]
-    str x23, [sp, #1488]
-    str x24, [sp, #1480]
-    str x25, [sp, #1472]
-    str x26, [sp, #1464]
-    str x27, [sp, #1456]
-    str x28, [sp, #1448]
+    str x19, [sp, #1504]
+    str x20, [sp, #1496]
+    str x21, [sp, #1488]
+    str x22, [sp, #1480]
+    str x23, [sp, #1472]
+    str x24, [sp, #1464]
+    str x25, [sp, #1456]
+    str x26, [sp, #1448]
+    str x27, [sp, #1440]
+    str x28, [sp, #1432]
     sub x16, x29, #192
     str x0, [x16]
     sub x16, x29, #208
@@ -968,10 +943,10 @@ lb_process_14run_controlled:
     movz x2, #24
     bl _memcpy
     bl lb_process_19environment_address
-    str x0, [sp, #168]
+    mov x19, x0
     sub x9, x29, #280
-    str x9, [sp, #160]
-    ldr x11, [sp, #160]
+    str x9, [sp, #152]
+    ldr x11, [sp, #152]
     stp xzr, xzr, [x11, #0]
     sub x15, x29, #248
     add x14, x15, #16
@@ -982,11 +957,10 @@ lb_process_14run_controlled:
     sub x21, x29, #296
     mov x10, x15
     mov x11, x21
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
 .L5_1:
-    ldr x9, [sp, #168]
-    ldr x14, [x9]
+    ldr x14, [x19]
     mov x9, x21
     ldr x0, [x9]
     ldr x1, [x9, #8]
@@ -1001,13 +975,13 @@ lb_process_14run_controlled:
 .L5_6:
     add x14, x15, #16
     sub x19, x29, #176
-    add x20, x19, #40
+    add x12, x19, #40
     mov x10, x14
-    mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    mov x11, x12
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #64
     movz x9, #1
     strb w9, [x14]
@@ -1018,24 +992,24 @@ lb_process_14run_controlled:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #1520]
-    ldr x20, [sp, #1512]
-    ldr x21, [sp, #1504]
-    ldr x22, [sp, #1496]
-    ldr x23, [sp, #1488]
-    ldr x24, [sp, #1480]
-    ldr x25, [sp, #1472]
-    ldr x26, [sp, #1464]
-    ldr x27, [sp, #1456]
-    ldr x28, [sp, #1448]
+    ldr x19, [sp, #1504]
+    ldr x20, [sp, #1496]
+    ldr x21, [sp, #1488]
+    ldr x22, [sp, #1480]
+    ldr x23, [sp, #1472]
+    ldr x24, [sp, #1464]
+    ldr x25, [sp, #1456]
+    ldr x26, [sp, #1448]
+    ldr x27, [sp, #1440]
+    ldr x28, [sp, #1432]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
 .L5_5:
     mov x10, x15
-    ldr x11, [sp, #160]
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldr x11, [sp, #152]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     b .L5_3
 .L5_2:
 .L5_3:
@@ -1044,7 +1018,7 @@ lb_process_14run_controlled:
     ldr x0, [x0, :gottprel_lo12:lb_memory_allocator]
     mrs x16, tpidr_el0
     add x0, x16, x0
-    str x0, [sp, #16]
+    mov x24, x0
     sub x21, x29, #208
     add x14, x21, #8
     ldr x22, [x14]
@@ -1070,8 +1044,8 @@ lb_process_14run_controlled:
     str w9, [x14]
     adrp x15, .Ltext_1
     add x15, x15, :lo12:.Ltext_1
-    add x25, x14, #8
-    str x15, [x25]
+    add x12, x14, #8
+    str x15, [x12]
     add x14, x14, #16
     movz x9, #47
     str x9, [x14]
@@ -1081,10 +1055,8 @@ lb_process_14run_controlled:
     b .L5_10
 .L5_9:
     lsl x27, x25, #3
-    ldr x9, [sp, #16]
-    ldr x14, [x9]
-    ldr x9, [sp, #16]
-    add x15, x9, #8
+    ldr x14, [x24]
+    add x15, x24, #8
     ldr x15, [x15]
     cbnz x15, .L5_11
     b .L5_12
@@ -1095,8 +1067,8 @@ lb_process_14run_controlled:
     add x1, x1, :lo12:.Ltext_2
     bl lb_core_7trap_at
 .L5_11:
-    ldr x28, [x15]
-    mov x17, x28
+    ldr x12, [x15]
+    mov x17, x12
     str x17, [sp, #-16]!
     mov x0, x14
     mov x1, x27
@@ -1104,17 +1076,17 @@ lb_process_14run_controlled:
     sub x8, x29, #432
     ldr x17, [sp], #16
     blr x17
-    sub x24, x29, #432
-    add x28, x24, #16
-    ldrb w28, [x28]
+    sub x28, x29, #432
+    add x12, x28, #16
+    ldrb w12, [x12]
     mov x10, #0
     cmp x27, x10
-    cset w19, ne
+    cset w13, ne
     mov x10, #0
-    cmp w28, w10
-    cset w28, eq
-    and w19, w19, w28
-    cbnz w19, .L5_13
+    cmp w12, w10
+    cset w12, eq
+    and w12, w13, w12
+    cbnz w12, .L5_13
     b .L5_14
 .L5_13:
     add x14, x26, #16
@@ -1123,8 +1095,8 @@ lb_process_14run_controlled:
     str w9, [x14]
     adrp x15, .Ltext_4
     add x15, x15, :lo12:.Ltext_4
-    add x19, x14, #8
-    str x15, [x19]
+    add x12, x14, #8
+    str x15, [x12]
     add x14, x14, #16
     movz x9, #16
     str x9, [x14]
@@ -1133,7 +1105,7 @@ lb_process_14run_controlled:
     strb w9, [x14]
     b .L5_10
 .L5_14:
-    ldr x14, [x24]
+    ldr x14, [x28]
     str x14, [x26]
     add x14, x26, #8
     str x25, [x14]
@@ -1151,14 +1123,14 @@ lb_process_14run_controlled:
     add x15, x19, #40
     mov x10, x14
     mov x11, x15
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #64
     movz x9, #1
     strb w9, [x14]
-    ldr x9, [sp, #160]
+    ldr x9, [sp, #152]
     ldr x0, [x9]
     ldr x1, [x9, #8]
     bl lb_process_15release_storage_0g1_5c_str_0o
@@ -1169,29 +1141,29 @@ lb_process_14run_controlled:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #1520]
-    ldr x20, [sp, #1512]
-    ldr x21, [sp, #1504]
-    ldr x22, [sp, #1496]
-    ldr x23, [sp, #1488]
-    ldr x24, [sp, #1480]
-    ldr x25, [sp, #1472]
-    ldr x26, [sp, #1464]
-    ldr x27, [sp, #1456]
-    ldr x28, [sp, #1448]
+    ldr x19, [sp, #1504]
+    ldr x20, [sp, #1496]
+    ldr x21, [sp, #1488]
+    ldr x22, [sp, #1480]
+    ldr x23, [sp, #1472]
+    ldr x24, [sp, #1464]
+    ldr x25, [sp, #1456]
+    ldr x26, [sp, #1448]
+    ldr x27, [sp, #1440]
+    ldr x28, [sp, #1432]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
 .L5_15:
     mov x10, x26
     mov x11, x23
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x19, [x23]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x25, [x23]
     add x14, x23, #8
-    ldr x24, [x14]
+    ldr x27, [x14]
     mov x9, #0
-    cmp x9, x24
+    cmp x9, x27
     b.lo 1f
     adrp x0, .Ltext_18
     add x0, x0, :lo12:.Ltext_18
@@ -1200,8 +1172,8 @@ lb_process_14run_controlled:
     bl lb_core_7trap_at
 1:
     sub x14, x29, #192
-    ldr x25, [x14]
-    str x25, [x19]
+    ldr x28, [x14]
+    str x28, [x25]
     ldr x14, [x21]
     mov x9, #0
     mov x15, x9
@@ -1209,8 +1181,8 @@ lb_process_14run_controlled:
     cmp x15, x22
     b.hs .L5_20
 .L5_19:
-    add x21, x15, #1
-    cmp x21, x24
+    add x12, x15, #1
+    cmp x12, x27
     b.lo 1f
     adrp x0, .Ltext_19
     add x0, x0, :lo12:.Ltext_19
@@ -1218,13 +1190,13 @@ lb_process_14run_controlled:
     add x1, x1, :lo12:.Ltext_7
     bl lb_core_7trap_at
 1:
-    lsl x23, x21, #3
-    add x23, x19, x23
-    lsl x26, x15, #3
-    add x26, x14, x26
-    ldr x26, [x26]
-    str x26, [x23]
-    mov x15, x21
+    lsl x13, x12, #3
+    add x13, x25, x13
+    lsl x21, x15, #3
+    add x21, x14, x21
+    ldr x21, [x21]
+    str x21, [x13]
+    mov x15, x12
     b .L5_18
 .L5_20:
     mov x9, x22
@@ -1238,7 +1210,7 @@ lb_process_14run_controlled:
     bl lb_core_7trap_at
 1:
     mov x14, x9
-    cmp x14, x24
+    cmp x14, x27
     b.lo 1f
     adrp x0, .Ltext_21
     add x0, x0, :lo12:.Ltext_21
@@ -1247,18 +1219,18 @@ lb_process_14run_controlled:
     bl lb_core_7trap_at
 1:
     lsl x14, x14, #3
-    add x14, x19, x14
+    add x14, x25, x14
     mov x9, #0
     str x9, [x14]
     sub x9, x29, #440
-    str x9, [sp, #152]
-    ldr x11, [sp, #152]
-    str xzr, [x11, #0]
-    sub x9, x29, #448
     str x9, [sp, #144]
     ldr x11, [sp, #144]
     str xzr, [x11, #0]
-    ldr x0, [sp, #152]
+    sub x9, x29, #448
+    str x9, [sp, #136]
+    ldr x11, [sp, #136]
+    str xzr, [x11, #0]
+    ldr x0, [sp, #144]
     bl pipe
     mov w14, w0
     mov x10, #0
@@ -1269,7 +1241,7 @@ lb_process_14run_controlled:
     b.ne .L5_22
 .L5_21:
     sub x14, x29, #464
-    mov x9, x24
+    mov x9, x27
     movz x10, #8
     umulh x11, x9, x10
     mul x9, x9, x10
@@ -1281,20 +1253,18 @@ lb_process_14run_controlled:
     bl lb_core_7trap_at
 1:
     mov x15, x9
-    str x19, [x14]
-    add x21, x14, #8
-    str x15, [x21]
-    ldr x9, [sp, #16]
-    ldr x15, [x9]
-    ldr x9, [sp, #16]
-    add x21, x9, #8
-    ldr x21, [x21]
-    cbnz x21, .L5_25
+    str x25, [x14]
+    add x12, x14, #8
+    str x15, [x12]
+    ldr x15, [x24]
+    add x12, x24, #8
+    ldr x12, [x12]
+    cbnz x12, .L5_25
     b .L5_24
 .L5_25:
-    add x19, x21, #16
-    ldr x19, [x19]
-    mov x17, x19
+    add x13, x12, #16
+    ldr x13, [x13]
+    mov x17, x13
     str x17, [sp, #-16]!
     mov x0, x15
     mov x9, x14
@@ -1311,20 +1281,20 @@ lb_process_14run_controlled:
     str w15, [x14]
     adrp x15, .Ltext_23
     add x15, x15, :lo12:.Ltext_23
-    sub x21, x29, #480
-    str x15, [x21]
-    add x15, x21, #8
+    sub x12, x29, #480
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #3
     str x9, [x15]
     add x14, x14, #8
-    mov x10, x21
+    mov x10, x12
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #64
     movz x9, #1
     strb w9, [x14]
-    ldr x9, [sp, #160]
+    ldr x9, [sp, #152]
     ldr x0, [x9]
     ldr x1, [x9, #8]
     bl lb_process_15release_storage_0g1_5c_str_0o
@@ -1335,22 +1305,22 @@ lb_process_14run_controlled:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #1520]
-    ldr x20, [sp, #1512]
-    ldr x21, [sp, #1504]
-    ldr x22, [sp, #1496]
-    ldr x23, [sp, #1488]
-    ldr x24, [sp, #1480]
-    ldr x25, [sp, #1472]
-    ldr x26, [sp, #1464]
-    ldr x27, [sp, #1456]
-    ldr x28, [sp, #1448]
+    ldr x19, [sp, #1504]
+    ldr x20, [sp, #1496]
+    ldr x21, [sp, #1488]
+    ldr x22, [sp, #1480]
+    ldr x23, [sp, #1472]
+    ldr x24, [sp, #1464]
+    ldr x25, [sp, #1456]
+    ldr x26, [sp, #1448]
+    ldr x27, [sp, #1440]
+    ldr x28, [sp, #1432]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
 .L5_22:
 .L5_23:
-    ldr x0, [sp, #144]
+    ldr x0, [sp, #136]
     bl pipe
     mov w14, w0
     mov x10, #0
@@ -1360,19 +1330,19 @@ lb_process_14run_controlled:
     cmp w14, w10
     b.ne .L5_28
 .L5_27:
-    ldr x9, [sp, #152]
+    ldr x9, [sp, #144]
     ldrsw x14, [x9]
     mov x0, x14
     bl close
     mov w14, w0
-    ldr x9, [sp, #152]
+    ldr x9, [sp, #144]
     add x14, x9, #4
     ldrsw x14, [x14]
     mov x0, x14
     bl close
     mov w14, w0
     sub x14, x29, #496
-    mov x9, x24
+    mov x9, x27
     movz x10, #8
     umulh x11, x9, x10
     mul x9, x9, x10
@@ -1384,20 +1354,18 @@ lb_process_14run_controlled:
     bl lb_core_7trap_at
 1:
     mov x15, x9
-    str x19, [x14]
-    add x22, x14, #8
-    str x15, [x22]
-    ldr x9, [sp, #16]
-    ldr x15, [x9]
-    ldr x9, [sp, #16]
-    add x22, x9, #8
-    ldr x22, [x22]
-    cbnz x22, .L5_31
+    str x25, [x14]
+    add x12, x14, #8
+    str x15, [x12]
+    ldr x15, [x24]
+    add x12, x24, #8
+    ldr x12, [x12]
+    cbnz x12, .L5_31
     b .L5_30
 .L5_31:
-    add x19, x22, #16
-    ldr x19, [x19]
-    mov x17, x19
+    add x13, x12, #16
+    ldr x13, [x13]
+    mov x17, x13
     str x17, [sp, #-16]!
     mov x0, x15
     mov x9, x14
@@ -1414,20 +1382,20 @@ lb_process_14run_controlled:
     str w15, [x14]
     adrp x15, .Ltext_23
     add x15, x15, :lo12:.Ltext_23
-    sub x21, x29, #512
-    str x15, [x21]
-    add x15, x21, #8
+    sub x12, x29, #512
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #3
     str x9, [x15]
     add x14, x14, #8
-    mov x10, x21
+    mov x10, x12
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #64
     movz x9, #1
     strb w9, [x14]
-    ldr x9, [sp, #160]
+    ldr x9, [sp, #152]
     ldr x0, [x9]
     ldr x1, [x9, #8]
     bl lb_process_15release_storage_0g1_5c_str_0o
@@ -1438,52 +1406,52 @@ lb_process_14run_controlled:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #1520]
-    ldr x20, [sp, #1512]
-    ldr x21, [sp, #1504]
-    ldr x22, [sp, #1496]
-    ldr x23, [sp, #1488]
-    ldr x24, [sp, #1480]
-    ldr x25, [sp, #1472]
-    ldr x26, [sp, #1464]
-    ldr x27, [sp, #1456]
-    ldr x28, [sp, #1448]
+    ldr x19, [sp, #1504]
+    ldr x20, [sp, #1496]
+    ldr x21, [sp, #1488]
+    ldr x22, [sp, #1480]
+    ldr x23, [sp, #1472]
+    ldr x24, [sp, #1464]
+    ldr x25, [sp, #1456]
+    ldr x26, [sp, #1448]
+    ldr x27, [sp, #1440]
+    ldr x28, [sp, #1432]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
 .L5_28:
 .L5_29:
     bl fork
-    str w0, [sp, #136]
-    ldr w9, [sp, #136]
+    str w0, [sp, #128]
+    ldr w9, [sp, #128]
     mov x10, #0
     cmp w9, w10
     b.ge .L5_34
 .L5_33:
-    ldr x9, [sp, #152]
+    ldr x9, [sp, #144]
     ldrsw x14, [x9]
     mov x0, x14
     bl close
     mov w14, w0
-    ldr x9, [sp, #152]
+    ldr x9, [sp, #144]
     add x14, x9, #4
     ldrsw x14, [x14]
     mov x0, x14
     bl close
     mov w14, w0
-    ldr x9, [sp, #144]
+    ldr x9, [sp, #136]
     ldrsw x14, [x9]
     mov x0, x14
     bl close
     mov w14, w0
-    ldr x9, [sp, #144]
+    ldr x9, [sp, #136]
     add x14, x9, #4
     ldrsw x14, [x14]
     mov x0, x14
     bl close
     mov w14, w0
     sub x14, x29, #528
-    mov x9, x24
+    mov x9, x27
     movz x10, #8
     umulh x11, x9, x10
     mul x9, x9, x10
@@ -1495,20 +1463,18 @@ lb_process_14run_controlled:
     bl lb_core_7trap_at
 1:
     mov x15, x9
-    str x19, [x14]
-    add x22, x14, #8
-    str x15, [x22]
-    ldr x9, [sp, #16]
-    ldr x15, [x9]
-    ldr x9, [sp, #16]
-    add x22, x9, #8
-    ldr x22, [x22]
-    cbnz x22, .L5_37
+    str x25, [x14]
+    add x12, x14, #8
+    str x15, [x12]
+    ldr x15, [x24]
+    add x12, x24, #8
+    ldr x12, [x12]
+    cbnz x12, .L5_37
     b .L5_36
 .L5_37:
-    add x19, x22, #16
-    ldr x19, [x19]
-    mov x17, x19
+    add x13, x12, #16
+    ldr x13, [x13]
+    mov x17, x13
     str x17, [sp, #-16]!
     mov x0, x15
     mov x9, x14
@@ -1525,20 +1491,20 @@ lb_process_14run_controlled:
     str w15, [x14]
     adrp x15, .Ltext_23
     add x15, x15, :lo12:.Ltext_23
-    sub x21, x29, #544
-    str x15, [x21]
-    add x15, x21, #8
+    sub x12, x29, #544
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #3
     str x9, [x15]
     add x14, x14, #8
-    mov x10, x21
+    mov x10, x12
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #64
     movz x9, #1
     strb w9, [x14]
-    ldr x9, [sp, #160]
+    ldr x9, [sp, #152]
     ldr x0, [x9]
     ldr x1, [x9, #8]
     bl lb_process_15release_storage_0g1_5c_str_0o
@@ -1549,22 +1515,22 @@ lb_process_14run_controlled:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #1520]
-    ldr x20, [sp, #1512]
-    ldr x21, [sp, #1504]
-    ldr x22, [sp, #1496]
-    ldr x23, [sp, #1488]
-    ldr x24, [sp, #1480]
-    ldr x25, [sp, #1472]
-    ldr x26, [sp, #1464]
-    ldr x27, [sp, #1456]
-    ldr x28, [sp, #1448]
+    ldr x19, [sp, #1504]
+    ldr x20, [sp, #1496]
+    ldr x21, [sp, #1488]
+    ldr x22, [sp, #1480]
+    ldr x23, [sp, #1472]
+    ldr x24, [sp, #1464]
+    ldr x25, [sp, #1456]
+    ldr x26, [sp, #1448]
+    ldr x27, [sp, #1440]
+    ldr x28, [sp, #1432]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
 .L5_34:
 .L5_35:
-    ldr w9, [sp, #136]
+    ldr w9, [sp, #128]
     mov x10, #0
     cmp w9, w10
     b.ne .L5_40
@@ -1639,17 +1605,17 @@ lb_process_14run_controlled:
     b .L5_44
 .L5_43:
 .L5_44:
-    ldr x9, [sp, #152]
-    ldrsw x14, [x9]
-    mov x0, x14
-    bl close
-    mov w14, w0
     ldr x9, [sp, #144]
     ldrsw x14, [x9]
     mov x0, x14
     bl close
     mov w14, w0
-    ldr x9, [sp, #152]
+    ldr x9, [sp, #136]
+    ldrsw x14, [x9]
+    mov x0, x14
+    bl close
+    mov w14, w0
+    ldr x9, [sp, #144]
     add x26, x9, #4
     ldrsw x14, [x26]
     mov x0, x14
@@ -1665,7 +1631,7 @@ lb_process_14run_controlled:
     mov w15, w14
     b .L5_60
 .L5_59:
-    ldr x9, [sp, #144]
+    ldr x9, [sp, #136]
     add x14, x9, #4
     ldrsw x14, [x14]
     mov x0, x14
@@ -1689,19 +1655,19 @@ lb_process_14run_controlled:
     mov x0, x14
     bl close
     mov w14, w0
-    ldr x9, [sp, #144]
+    ldr x9, [sp, #136]
     add x14, x9, #4
     ldrsw x14, [x14]
     mov x0, x14
     bl close
     mov w14, w0
     sub x14, x29, #224
-    ldr x27, [x14]
-    mov x0, x27
+    ldr x21, [x14]
+    mov x0, x21
     bl strlen
     mov x14, x0
     sub x15, x29, #560
-    str x27, [x15]
+    str x21, [x15]
     add x15, x15, #8
     str x14, [x15]
     mov x10, #0
@@ -1713,7 +1679,7 @@ lb_process_14run_controlled:
     mov w15, w14
     b .L5_65
 .L5_64:
-    mov x0, x27
+    mov x0, x21
     bl chdir
     mov w14, w0
     mov x10, #0
@@ -1732,22 +1698,21 @@ lb_process_14run_controlled:
     b .L5_63
 .L5_62:
 .L5_63:
-    ldr x9, [sp, #160]
+    ldr x9, [sp, #152]
     add x14, x9, #8
     ldr x14, [x14]
     mov x10, #0
     cmp x14, x10
     b.ls .L5_67
 .L5_66:
-    ldr x9, [sp, #160]
+    ldr x9, [sp, #152]
     ldr x14, [x9]
-    ldr x10, [sp, #168]
-    str x14, [x10]
+    str x14, [x19]
     b .L5_68
 .L5_67:
 .L5_68:
-    mov x0, x25
-    mov x1, x19
+    mov x0, x28
+    mov x1, x25
     bl execvp
     mov w14, w0
     movz x0, #127
@@ -1756,23 +1721,23 @@ lb_process_14run_controlled:
 .L5_40:
 .L5_41:
     sub x14, x29, #264
-    ldr x25, [x14]
+    ldr x19, [x14]
     mov x10, #0
-    cmp x25, x10
+    cmp x19, x10
     cset w14, eq
     mov x10, #0
     cmp w14, w10
     b.ne .L5_70
 .L5_69:
-    ldr x0, [sp, #136]
-    ldr x1, [sp, #136]
+    ldr x0, [sp, #128]
+    ldr x1, [sp, #128]
     bl setpgid
     mov w14, w0
     b .L5_71
 .L5_70:
 .L5_71:
     sub x14, x29, #576
-    mov x9, x24
+    mov x9, x27
     movz x10, #8
     umulh x11, x9, x10
     mul x9, x9, x10
@@ -1784,20 +1749,18 @@ lb_process_14run_controlled:
     bl lb_core_7trap_at
 1:
     mov x15, x9
-    str x19, [x14]
-    add x26, x14, #8
-    str x15, [x26]
-    ldr x9, [sp, #16]
-    ldr x15, [x9]
-    ldr x9, [sp, #16]
-    add x26, x9, #8
-    ldr x26, [x26]
-    cbnz x26, .L5_73
+    str x25, [x14]
+    add x12, x14, #8
+    str x15, [x12]
+    ldr x15, [x24]
+    add x12, x24, #8
+    ldr x12, [x12]
+    cbnz x12, .L5_73
     b .L5_72
 .L5_73:
-    add x19, x26, #16
-    ldr x19, [x19]
-    mov x17, x19
+    add x13, x12, #16
+    ldr x13, [x13]
+    mov x17, x13
     str x17, [sp, #-16]!
     mov x0, x15
     mov x9, x14
@@ -1806,35 +1769,63 @@ lb_process_14run_controlled:
     ldr x17, [sp], #16
     blr x17
 .L5_72:
-    ldr x9, [sp, #152]
-    add x14, x9, #4
-    ldrsw x14, [x14]
-    mov x0, x14
-    bl close
-    mov w14, w0
     ldr x9, [sp, #144]
     add x14, x9, #4
     ldrsw x14, [x14]
     mov x0, x14
     bl close
     mov w14, w0
-    sub x19, x29, #592
-    mov x11, x19
+    ldr x9, [sp, #136]
+    add x14, x9, #4
+    ldrsw x14, [x14]
+    mov x0, x14
+    bl close
+    mov w14, w0
+    sub x21, x29, #592
+    mov x11, x21
     stp xzr, xzr, [x11, #0]
     sub x24, x29, #632
-    sub x26, x29, #672
+    sub x25, x29, #672
+    mov x11, x25
+    stp xzr, xzr, [x11, #0]
+    stp xzr, xzr, [x11, #16]
+    str xzr, [x11, #32]
+    ldr x9, [sp, #144]
+    ldrsw x14, [x9]
+    str w14, [x25]
+    add x14, x25, #8
+    mov x10, x21
+    mov x11, x14
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    add x14, x25, #24
+    mov x9, #0
+    str x9, [x14]
+    add x14, x25, #32
+    movz x9, #1
+    strb w9, [x14]
+    mov x10, x25
+    mov x11, x24
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldp x16, x17, [x10, #16]
+    stp x16, x17, [x11, #16]
+    ldr x16, [x10, #32]
+    str x16, [x11, #32]
+    sub x25, x29, #712
+    sub x26, x29, #752
     mov x11, x26
     stp xzr, xzr, [x11, #0]
     stp xzr, xzr, [x11, #16]
     str xzr, [x11, #32]
-    ldr x9, [sp, #152]
+    ldr x9, [sp, #136]
     ldrsw x14, [x9]
     str w14, [x26]
     add x14, x26, #8
-    mov x10, x19
+    mov x10, x21
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x26, #24
     mov x9, #0
     str x9, [x14]
@@ -1842,49 +1833,21 @@ lb_process_14run_controlled:
     movz x9, #1
     strb w9, [x14]
     mov x10, x26
-    mov x11, x24
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldp x12, x13, [x10, #16]
-    stp x12, x13, [x11, #16]
-    ldr x12, [x10, #32]
-    str x12, [x11, #32]
-    sub x26, x29, #712
-    sub x27, x29, #752
-    mov x11, x27
-    stp xzr, xzr, [x11, #0]
-    stp xzr, xzr, [x11, #16]
-    str xzr, [x11, #32]
-    ldr x9, [sp, #144]
-    ldrsw x14, [x9]
-    str w14, [x27]
-    add x14, x27, #8
-    mov x10, x19
-    mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    add x14, x27, #24
-    mov x9, #0
-    str x9, [x14]
-    add x14, x27, #32
-    movz x9, #1
-    strb w9, [x14]
-    mov x10, x27
-    mov x11, x26
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldp x12, x13, [x10, #16]
-    stp x12, x13, [x11, #16]
-    ldr x12, [x10, #32]
-    str x12, [x11, #32]
-    cbnz x25, .L5_77
+    mov x11, x25
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldp x16, x17, [x10, #16]
+    stp x16, x17, [x11, #16]
+    ldr x16, [x10, #32]
+    str x16, [x11, #32]
+    cbnz x19, .L5_77
     b .L5_75
 .L5_77:
 .L5_74:
-    ldr x0, [sp, #136]
+    ldr x0, [sp, #128]
     mov x1, x24
-    mov x2, x26
-    mov x3, x25
+    mov x2, x25
+    mov x3, x19
     sub x8, x29, #792
     bl lb_process_15capture_command
     sub x15, x29, #792
@@ -1895,31 +1858,31 @@ lb_process_14run_controlled:
 .L5_79:
     add x14, x15, #8
     sub x19, x29, #176
-    add x22, x19, #40
+    add x12, x19, #40
     mov x10, x14
-    mov x11, x22
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    mov x11, x12
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #64
     movz x9, #1
     strb w9, [x14]
-    mov x0, x26
+    mov x0, x25
     bl lb_process_Capture_drop
     mov x0, x24
     bl lb_process_Capture_drop
+    ldr x9, [sp, #136]
+    ldrsw x14, [x9]
+    mov x0, x14
+    bl close
+    mov w14, w0
     ldr x9, [sp, #144]
     ldrsw x14, [x9]
     mov x0, x14
     bl close
     mov w14, w0
     ldr x9, [sp, #152]
-    ldrsw x14, [x9]
-    mov x0, x14
-    bl close
-    mov w14, w0
-    ldr x9, [sp, #160]
     ldr x0, [x9]
     ldr x1, [x9, #8]
     bl lb_process_15release_storage_0g1_5c_str_0o
@@ -1930,16 +1893,16 @@ lb_process_14run_controlled:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #1520]
-    ldr x20, [sp, #1512]
-    ldr x21, [sp, #1504]
-    ldr x22, [sp, #1496]
-    ldr x23, [sp, #1488]
-    ldr x24, [sp, #1480]
-    ldr x25, [sp, #1472]
-    ldr x26, [sp, #1464]
-    ldr x27, [sp, #1456]
-    ldr x28, [sp, #1448]
+    ldr x19, [sp, #1504]
+    ldr x20, [sp, #1496]
+    ldr x21, [sp, #1488]
+    ldr x22, [sp, #1480]
+    ldr x23, [sp, #1472]
+    ldr x24, [sp, #1464]
+    ldr x25, [sp, #1456]
+    ldr x26, [sp, #1448]
+    ldr x27, [sp, #1440]
+    ldr x28, [sp, #1432]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -1948,23 +1911,23 @@ lb_process_14run_controlled:
     mov w19, w14
     b .L5_76
 .L5_75:
-    ldr w9, [sp, #136]
+    ldr w9, [sp, #128]
     sub x10, x29, #1136
     str w9, [x10]
     sub x10, x29, #1152
     str x24, [x10]
     sub x10, x29, #1168
-    str x26, [x10]
+    str x25, [x10]
     ldrsw x14, [x24]
     adrp x19, lb_process_9set_flags
     add x19, x19, :lo12:lb_process_9set_flags
     ldrsw x15, [x19]
-    adrp x25, lb_process_12non_blocking
-    add x25, x25, :lo12:lb_process_12non_blocking
-    ldrsw x27, [x25]
+    adrp x21, lb_process_12non_blocking
+    add x21, x21, :lo12:lb_process_12non_blocking
+    ldrsw x12, [x21]
     mov x0, x14
     mov x1, x15
-    mov x2, x27
+    mov x2, x12
     bl fcntl
     mov w14, w0
     mov x10, #0
@@ -1976,12 +1939,12 @@ lb_process_14run_controlled:
     mov w15, w14
     b .L5_106
 .L5_105:
-    ldrsw x14, [x26]
+    ldrsw x14, [x25]
     ldrsw x15, [x19]
-    ldrsw x27, [x25]
+    ldrsw x12, [x21]
     mov x0, x14
     mov x1, x15
-    mov x2, x27
+    mov x2, x12
     bl fcntl
     mov w14, w0
     mov x10, #0
@@ -2007,70 +1970,70 @@ lb_process_14run_controlled:
     add x14, x19, #8
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
-    ldr x0, [sp, #136]
+    ldr x0, [sp, #128]
     bl lb_process_terminate
     mov x10, x19
     sub x11, x29, #824
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldp x12, x13, [x10, #16]
-    stp x12, x13, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldp x16, x17, [x10, #16]
+    stp x16, x17, [x11, #16]
     b .L5_143
 .L5_103:
 .L5_104:
     add x19, x24, #32
-    add x9, x26, #32
-    str x9, [sp, #128]
-    sub x27, x29, #1200
-    sub x22, x29, #1208
-    adrp x28, lb_process_7poll_in
-    add x28, x28, :lo12:lb_process_7poll_in
-    add x20, x22, #4
-    add x9, x22, #6
+    add x9, x25, #32
     str x9, [sp, #120]
-    add x23, x27, #8
+    sub x26, x29, #1200
+    sub x22, x29, #1208
+    adrp x27, lb_process_7poll_in
+    add x27, x27, :lo12:lb_process_7poll_in
+    add x28, x22, #4
+    add x9, x22, #6
+    str x9, [sp, #112]
+    add x23, x26, #8
     sub x9, x29, #1216
     str x9, [sp, #8]
-    add x9, x26, #32
-    str x9, [sp, #112]
-    ldr x9, [sp, #8]
-    add x9, x9, #4
+    add x9, x25, #32
     str x9, [sp, #104]
     ldr x9, [sp, #8]
-    add x9, x9, #6
+    add x9, x9, #4
     str x9, [sp, #96]
-    add x9, x27, #6
-    str x9, [sp, #80]
+    ldr x9, [sp, #8]
+    add x9, x9, #6
+    str x9, [sp, #88]
+    add x9, x26, #6
+    str x9, [sp, #72]
     adrp x9, lb_process_12poll_hang_up
     add x9, x9, :lo12:lb_process_12poll_hang_up
-    str x9, [sp, #72]
+    str x9, [sp, #64]
     adrp x9, lb_process_10poll_error
     add x9, x9, :lo12:lb_process_10poll_error
-    str x9, [sp, #64]
+    str x9, [sp, #56]
     sub x9, x29, #1264
     str x9, [sp, #0]
     ldr x9, [sp, #0]
     add x9, x9, #24
-    str x9, [sp, #56]
-    add x9, x23, #6
     str x9, [sp, #48]
+    add x9, x23, #6
+    str x9, [sp, #40]
     adrp x9, lb_process_12poll_hang_up
     add x9, x9, :lo12:lb_process_12poll_hang_up
-    str x9, [sp, #40]
+    str x9, [sp, #32]
     adrp x9, lb_process_10poll_error
     add x9, x9, :lo12:lb_process_10poll_error
-    str x9, [sp, #32]
-    sub x21, x29, #1296
-    add x9, x21, #24
     str x9, [sp, #24]
+    sub x20, x29, #1296
+    add x9, x20, #24
+    str x9, [sp, #16]
     adrp x9, lb_c_interrupted
     add x9, x9, :lo12:lb_c_interrupted
-    str x9, [sp, #88]
+    str x9, [sp, #80]
 .L5_108:
     ldrb w14, [x19]
     cbnz w14, .L5_157
@@ -2079,7 +2042,7 @@ lb_process_14run_controlled:
     mov w15, w14
     b .L5_112
 .L5_111:
-    ldr x9, [sp, #128]
+    ldr x9, [sp, #120]
     ldrb w15, [x9]
 .L5_112:
     and w14, w15, #255
@@ -2099,23 +2062,23 @@ lb_process_14run_controlled:
     mov w14, w9
 .L5_115:
     str w14, [x22]
-    ldrsh w25, [x28]
-    strh w25, [x20]
+    ldrsh w21, [x27]
+    strh w21, [x28]
     mov x9, #0
-    ldr x10, [sp, #120]
+    ldr x10, [sp, #112]
     strh w9, [x10]
     mov x10, x22
-    mov x11, x27
-    ldr x12, [x10, #0]
-    str x12, [x11, #0]
+    mov x11, x26
+    ldr x16, [x10, #0]
+    str x16, [x11, #0]
     ldr x11, [sp, #8]
     str xzr, [x11, #0]
-    ldr x9, [sp, #112]
+    ldr x9, [sp, #104]
     ldrb w15, [x9]
     cbnz w15, .L5_116
     b .L5_117
 .L5_116:
-    ldrsw x14, [x26]
+    ldrsw x14, [x25]
     b .L5_118
 .L5_117:
     movn x9, #0
@@ -2123,16 +2086,16 @@ lb_process_14run_controlled:
 .L5_118:
     ldr x10, [sp, #8]
     str w14, [x10]
-    ldr x10, [sp, #104]
-    strh w25, [x10]
-    mov x9, #0
     ldr x10, [sp, #96]
+    strh w21, [x10]
+    mov x9, #0
+    ldr x10, [sp, #88]
     strh w9, [x10]
     ldr x10, [sp, #8]
     mov x11, x23
-    ldr x12, [x10, #0]
-    str x12, [x11, #0]
-    mov x0, x27
+    ldr x16, [x10, #0]
+    str x16, [x11, #0]
+    mov x0, x26
     movz x1, #2
     movn x2, #0
     bl poll
@@ -2143,7 +2106,7 @@ lb_process_14run_controlled:
 .L5_119:
     bl lb_c_errno
     mov w14, w0
-    ldr x9, [sp, #88]
+    ldr x9, [sp, #80]
     ldrsw x15, [x9]
     cmp w14, w15
     b.ne .L5_123
@@ -2166,19 +2129,19 @@ lb_process_14run_controlled:
     add x14, x19, #8
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
-    ldr x0, [sp, #136]
+    ldr x0, [sp, #128]
     bl lb_process_terminate
     mov x10, x19
     sub x11, x29, #824
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldp x12, x13, [x10, #16]
-    stp x12, x13, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldp x16, x17, [x10, #16]
+    stp x16, x17, [x11, #16]
     b .L5_143
 .L5_120:
 .L5_121:
@@ -2189,15 +2152,15 @@ lb_process_14run_controlled:
     mov w15, w14
     b .L5_131
 .L5_130:
-    ldr x9, [sp, #80]
-    ldrsh w14, [x9]
-    ldrsh w15, [x28]
     ldr x9, [sp, #72]
-    ldrsh w25, [x9]
-    orr w15, w15, w25
+    ldrsh w14, [x9]
+    ldrsh w15, [x27]
     ldr x9, [sp, #64]
-    ldrsh w25, [x9]
-    orr w15, w15, w25
+    ldrsh w12, [x9]
+    orr w15, w15, w12
+    ldr x9, [sp, #56]
+    ldrsh w12, [x9]
+    orr w15, w15, w12
     and w14, w14, w15
     mov x10, #0
     cmp w14, w10
@@ -2213,7 +2176,7 @@ lb_process_14run_controlled:
     mov x0, x24
     sub x8, x29, #1264
     bl lb_process_Capture_pull
-    ldr x9, [sp, #56]
+    ldr x9, [sp, #48]
     ldrb w14, [x9]
     cbnz w14, .L5_133
     b .L5_132
@@ -2221,27 +2184,27 @@ lb_process_14run_controlled:
     sub x19, x29, #1120
     ldr x10, [sp, #0]
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
-    ldr x0, [sp, #136]
+    ldr x0, [sp, #128]
     bl lb_process_terminate
     mov x10, x19
     sub x11, x29, #824
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldp x12, x13, [x10, #16]
-    stp x12, x13, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldp x16, x17, [x10, #16]
+    stp x16, x17, [x11, #16]
     b .L5_143
 .L5_132:
     b .L5_129
 .L5_128:
 .L5_129:
-    ldr x9, [sp, #112]
+    ldr x9, [sp, #104]
     ldrb w14, [x9]
     cbnz w14, .L5_138
     b .L5_159
@@ -2249,15 +2212,15 @@ lb_process_14run_controlled:
     mov w15, w14
     b .L5_139
 .L5_138:
-    ldr x9, [sp, #48]
-    ldrsh w14, [x9]
-    ldrsh w15, [x28]
     ldr x9, [sp, #40]
-    ldrsh w25, [x9]
-    orr w15, w15, w25
+    ldrsh w14, [x9]
+    ldrsh w15, [x27]
     ldr x9, [sp, #32]
-    ldrsh w25, [x9]
-    orr w15, w15, w25
+    ldrsh w12, [x9]
+    orr w15, w15, w12
+    ldr x9, [sp, #24]
+    ldrsh w12, [x9]
+    orr w15, w15, w12
     and w14, w14, w15
     mov x10, #0
     cmp w14, w10
@@ -2270,32 +2233,32 @@ lb_process_14run_controlled:
     cbnz w14, .L5_135
     b .L5_136
 .L5_135:
-    mov x0, x26
+    mov x0, x25
     sub x8, x29, #1296
     bl lb_process_Capture_pull
-    ldr x9, [sp, #24]
+    ldr x9, [sp, #16]
     ldrb w14, [x9]
     cbnz w14, .L5_141
     b .L5_140
 .L5_141:
     sub x19, x29, #1120
-    mov x10, x21
+    mov x10, x20
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
-    ldr x0, [sp, #136]
+    ldr x0, [sp, #128]
     bl lb_process_terminate
     mov x10, x19
     sub x11, x29, #824
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldp x12, x13, [x10, #16]
-    stp x12, x13, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldp x16, x17, [x10, #16]
+    stp x16, x17, [x11, #16]
     b .L5_143
 .L5_140:
     b .L5_137
@@ -2309,10 +2272,10 @@ lb_process_14run_controlled:
     strb w9, [x15]
     mov x10, x14
     sub x11, x29, #824
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldp x12, x13, [x10, #16]
-    stp x12, x13, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldp x16, x17, [x10, #16]
+    stp x16, x17, [x11, #16]
 .L5_143:
     sub x15, x29, #824
     add x14, x15, #24
@@ -2324,28 +2287,28 @@ lb_process_14run_controlled:
     add x14, x19, #40
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #64
     movz x9, #1
     strb w9, [x14]
-    mov x0, x26
+    mov x0, x25
     bl lb_process_Capture_drop
     mov x0, x24
     bl lb_process_Capture_drop
+    ldr x9, [sp, #136]
+    ldrsw x14, [x9]
+    mov x0, x14
+    bl close
+    mov w14, w0
     ldr x9, [sp, #144]
     ldrsw x14, [x9]
     mov x0, x14
     bl close
     mov w14, w0
     ldr x9, [sp, #152]
-    ldrsw x14, [x9]
-    mov x0, x14
-    bl close
-    mov w14, w0
-    ldr x9, [sp, #160]
     ldr x0, [x9]
     ldr x1, [x9, #8]
     bl lb_process_15release_storage_0g1_5c_str_0o
@@ -2356,21 +2319,21 @@ lb_process_14run_controlled:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #1520]
-    ldr x20, [sp, #1512]
-    ldr x21, [sp, #1504]
-    ldr x22, [sp, #1496]
-    ldr x23, [sp, #1488]
-    ldr x24, [sp, #1480]
-    ldr x25, [sp, #1472]
-    ldr x26, [sp, #1464]
-    ldr x27, [sp, #1456]
-    ldr x28, [sp, #1448]
+    ldr x19, [sp, #1504]
+    ldr x20, [sp, #1496]
+    ldr x21, [sp, #1488]
+    ldr x22, [sp, #1480]
+    ldr x23, [sp, #1472]
+    ldr x24, [sp, #1464]
+    ldr x25, [sp, #1456]
+    ldr x26, [sp, #1448]
+    ldr x27, [sp, #1440]
+    ldr x28, [sp, #1432]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
 .L5_81:
-    ldr w9, [sp, #136]
+    ldr w9, [sp, #128]
     sub x10, x29, #1352
     str w9, [x10]
     sub x19, x29, #1356
@@ -2379,7 +2342,7 @@ lb_process_14run_controlled:
     adrp x20, lb_c_interrupted
     add x20, x20, :lo12:lb_c_interrupted
 .L5_144:
-    ldr x0, [sp, #136]
+    ldr x0, [sp, #128]
     mov x1, x19
     mov x2, #0
     bl waitpid
@@ -2405,27 +2368,27 @@ lb_process_14run_controlled:
     str w15, [x14]
     adrp x15, .Ltext_23
     add x15, x15, :lo12:.Ltext_23
-    sub x20, x29, #1376
-    str x15, [x20]
-    add x15, x20, #8
+    sub x12, x29, #1376
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #3
     str x9, [x15]
     add x14, x14, #8
-    mov x10, x20
+    mov x10, x12
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #32
     movz x9, #1
     strb w9, [x14]
     mov x10, x19
     sub x11, x29, #864
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldp x12, x13, [x10, #16]
-    stp x12, x13, [x11, #16]
-    ldr x12, [x10, #32]
-    str x12, [x11, #32]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldp x16, x17, [x10, #16]
+    stp x16, x17, [x11, #16]
+    ldr x16, [x10, #32]
+    str x16, [x11, #32]
     b .L5_152
 .L5_148:
 .L5_149:
@@ -2439,12 +2402,12 @@ lb_process_14run_controlled:
     strb w9, [x14]
     mov x10, x15
     sub x11, x29, #864
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldp x12, x13, [x10, #16]
-    stp x12, x13, [x11, #16]
-    ldr x12, [x10, #32]
-    str x12, [x11, #32]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldp x16, x17, [x10, #16]
+    stp x16, x17, [x11, #16]
+    ldr x16, [x10, #32]
+    str x16, [x11, #32]
 .L5_152:
     sub x15, x29, #864
     add x14, x15, #32
@@ -2454,31 +2417,31 @@ lb_process_14run_controlled:
 .L5_85:
     add x14, x15, #8
     sub x19, x29, #176
-    add x20, x19, #40
+    add x12, x19, #40
     mov x10, x14
-    mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    mov x11, x12
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #64
     movz x9, #1
     strb w9, [x14]
-    mov x0, x26
+    mov x0, x25
     bl lb_process_Capture_drop
     mov x0, x24
     bl lb_process_Capture_drop
+    ldr x9, [sp, #136]
+    ldrsw x14, [x9]
+    mov x0, x14
+    bl close
+    mov w14, w0
     ldr x9, [sp, #144]
     ldrsw x14, [x9]
     mov x0, x14
     bl close
     mov w14, w0
     ldr x9, [sp, #152]
-    ldrsw x14, [x9]
-    mov x0, x14
-    bl close
-    mov w14, w0
-    ldr x9, [sp, #160]
     ldr x0, [x9]
     ldr x1, [x9, #8]
     bl lb_process_15release_storage_0g1_5c_str_0o
@@ -2489,16 +2452,16 @@ lb_process_14run_controlled:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #1520]
-    ldr x20, [sp, #1512]
-    ldr x21, [sp, #1504]
-    ldr x22, [sp, #1496]
-    ldr x23, [sp, #1488]
-    ldr x24, [sp, #1480]
-    ldr x25, [sp, #1472]
-    ldr x26, [sp, #1464]
-    ldr x27, [sp, #1456]
-    ldr x28, [sp, #1448]
+    ldr x19, [sp, #1504]
+    ldr x20, [sp, #1496]
+    ldr x21, [sp, #1488]
+    ldr x22, [sp, #1480]
+    ldr x23, [sp, #1472]
+    ldr x24, [sp, #1464]
+    ldr x25, [sp, #1456]
+    ldr x26, [sp, #1448]
+    ldr x27, [sp, #1440]
+    ldr x28, [sp, #1432]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -2522,34 +2485,34 @@ lb_process_14run_controlled:
     str w15, [x14]
     adrp x15, .Ltext_46
     add x15, x15, :lo12:.Ltext_46
-    sub x20, x29, #880
-    str x15, [x20]
-    add x15, x20, #8
+    sub x12, x29, #880
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #35
     str x9, [x15]
     add x14, x14, #8
-    mov x10, x20
+    mov x10, x12
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #64
     movz x9, #1
     strb w9, [x14]
-    mov x0, x26
+    mov x0, x25
     bl lb_process_Capture_drop
     mov x0, x24
     bl lb_process_Capture_drop
+    ldr x9, [sp, #136]
+    ldrsw x14, [x9]
+    mov x0, x14
+    bl close
+    mov w14, w0
     ldr x9, [sp, #144]
     ldrsw x14, [x9]
     mov x0, x14
     bl close
     mov w14, w0
     ldr x9, [sp, #152]
-    ldrsw x14, [x9]
-    mov x0, x14
-    bl close
-    mov w14, w0
-    ldr x9, [sp, #160]
     ldr x0, [x9]
     ldr x1, [x9, #8]
     bl lb_process_15release_storage_0g1_5c_str_0o
@@ -2560,16 +2523,16 @@ lb_process_14run_controlled:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #1520]
-    ldr x20, [sp, #1512]
-    ldr x21, [sp, #1504]
-    ldr x22, [sp, #1496]
-    ldr x23, [sp, #1488]
-    ldr x24, [sp, #1480]
-    ldr x25, [sp, #1472]
-    ldr x26, [sp, #1464]
-    ldr x27, [sp, #1456]
-    ldr x28, [sp, #1448]
+    ldr x19, [sp, #1504]
+    ldr x20, [sp, #1496]
+    ldr x21, [sp, #1488]
+    ldr x22, [sp, #1480]
+    ldr x23, [sp, #1472]
+    ldr x24, [sp, #1464]
+    ldr x25, [sp, #1456]
+    ldr x26, [sp, #1448]
+    ldr x27, [sp, #1440]
+    ldr x28, [sp, #1432]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -2587,31 +2550,31 @@ lb_process_14run_controlled:
 .L5_92:
     add x14, x15, #16
     sub x19, x29, #176
-    add x20, x19, #40
+    add x12, x19, #40
     mov x10, x14
-    mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    mov x11, x12
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #64
     movz x9, #1
     strb w9, [x14]
-    mov x0, x26
+    mov x0, x25
     bl lb_process_Capture_drop
     mov x0, x24
     bl lb_process_Capture_drop
+    ldr x9, [sp, #136]
+    ldrsw x14, [x9]
+    mov x0, x14
+    bl close
+    mov w14, w0
     ldr x9, [sp, #144]
     ldrsw x14, [x9]
     mov x0, x14
     bl close
     mov w14, w0
     ldr x9, [sp, #152]
-    ldrsw x14, [x9]
-    mov x0, x14
-    bl close
-    mov w14, w0
-    ldr x9, [sp, #160]
     ldr x0, [x9]
     ldr x1, [x9, #8]
     bl lb_process_15release_storage_0g1_5c_str_0o
@@ -2622,49 +2585,49 @@ lb_process_14run_controlled:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #1520]
-    ldr x20, [sp, #1512]
-    ldr x21, [sp, #1504]
-    ldr x22, [sp, #1496]
-    ldr x23, [sp, #1488]
-    ldr x24, [sp, #1480]
-    ldr x25, [sp, #1472]
-    ldr x26, [sp, #1464]
-    ldr x27, [sp, #1456]
-    ldr x28, [sp, #1448]
+    ldr x19, [sp, #1504]
+    ldr x20, [sp, #1496]
+    ldr x21, [sp, #1488]
+    ldr x22, [sp, #1480]
+    ldr x23, [sp, #1472]
+    ldr x24, [sp, #1464]
+    ldr x25, [sp, #1456]
+    ldr x26, [sp, #1448]
+    ldr x27, [sp, #1440]
+    ldr x28, [sp, #1432]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
 .L5_91:
     mov x10, x15
     mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     sub x21, x29, #960
-    mov x0, x26
+    mov x0, x25
     sub x8, x29, #1048
     bl lb_process_Capture_take
-    sub x22, x29, #1048
-    add x14, x22, #40
+    sub x12, x29, #1048
+    add x14, x12, #40
     ldrb w14, [x14]
     cbnz w14, .L5_97
     b .L5_96
 .L5_97:
-    add x14, x22, #16
+    add x14, x12, #16
     sub x19, x29, #1000
     mov x10, x14
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     b .L5_94
 .L5_96:
-    sub x23, x29, #976
-    mov x10, x22
-    mov x11, x23
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    sub x22, x29, #976
+    mov x10, x12
+    mov x11, x22
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     b .L5_95
 .L5_94:
     mov x9, x20
@@ -2679,26 +2642,26 @@ lb_process_14run_controlled:
     add x14, x14, #8
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x21, #64
     movz x9, #1
     strb w9, [x14]
-    mov x0, x26
+    mov x0, x25
     bl lb_process_Capture_drop
     mov x0, x24
     bl lb_process_Capture_drop
+    ldr x9, [sp, #136]
+    ldrsw x14, [x9]
+    mov x0, x14
+    bl close
+    mov w14, w0
     ldr x9, [sp, #144]
     ldrsw x14, [x9]
     mov x0, x14
     bl close
     mov w14, w0
     ldr x9, [sp, #152]
-    ldrsw x14, [x9]
-    mov x0, x14
-    bl close
-    mov w14, w0
-    ldr x9, [sp, #160]
     ldr x0, [x9]
     ldr x1, [x9, #8]
     bl lb_process_15release_storage_0g1_5c_str_0o
@@ -2709,87 +2672,87 @@ lb_process_14run_controlled:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #1520]
-    ldr x20, [sp, #1512]
-    ldr x21, [sp, #1504]
-    ldr x22, [sp, #1496]
-    ldr x23, [sp, #1488]
-    ldr x24, [sp, #1480]
-    ldr x25, [sp, #1472]
-    ldr x26, [sp, #1464]
-    ldr x27, [sp, #1456]
-    ldr x28, [sp, #1448]
+    ldr x19, [sp, #1504]
+    ldr x20, [sp, #1496]
+    ldr x21, [sp, #1488]
+    ldr x22, [sp, #1480]
+    ldr x23, [sp, #1472]
+    ldr x24, [sp, #1464]
+    ldr x25, [sp, #1456]
+    ldr x26, [sp, #1448]
+    ldr x27, [sp, #1440]
+    ldr x28, [sp, #1432]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
 .L5_95:
-    mov x10, x23
+    mov x10, x22
     mov x11, x21
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    sub x22, x29, #1088
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    sub x23, x29, #1088
 .L5_100:
     asr w14, w19, #8
     movz x10, #255
     and w14, w14, w10
-    str w14, [x22]
-    add x14, x22, #8
+    str w14, [x23]
+    add x14, x23, #8
     mov x10, x20
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    add x14, x22, #24
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    add x14, x23, #24
     mov x10, x21
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    sub x23, x29, #176
-    mov x10, x22
-    mov x11, x23
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldp x12, x13, [x10, #16]
-    stp x12, x13, [x11, #16]
-    ldr x12, [x10, #32]
-    str x12, [x11, #32]
-    add x14, x23, #64
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    sub x22, x29, #176
+    mov x10, x23
+    mov x11, x22
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldp x16, x17, [x10, #16]
+    stp x16, x17, [x11, #16]
+    ldr x16, [x10, #32]
+    str x16, [x11, #32]
+    add x14, x22, #64
     mov x9, #0
     strb w9, [x14]
-    mov x0, x26
+    mov x0, x25
     bl lb_process_Capture_drop
     mov x0, x24
     bl lb_process_Capture_drop
+    ldr x9, [sp, #136]
+    ldrsw x14, [x9]
+    mov x0, x14
+    bl close
+    mov w14, w0
     ldr x9, [sp, #144]
     ldrsw x14, [x9]
     mov x0, x14
     bl close
     mov w14, w0
     ldr x9, [sp, #152]
-    ldrsw x14, [x9]
-    mov x0, x14
-    bl close
-    mov w14, w0
-    ldr x9, [sp, #160]
     ldr x0, [x9]
     ldr x1, [x9, #8]
     bl lb_process_15release_storage_0g1_5c_str_0o
-    mov x1, x23
+    mov x1, x22
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #72
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #1520]
-    ldr x20, [sp, #1512]
-    ldr x21, [sp, #1504]
-    ldr x22, [sp, #1496]
-    ldr x23, [sp, #1488]
-    ldr x24, [sp, #1480]
-    ldr x25, [sp, #1472]
-    ldr x26, [sp, #1464]
-    ldr x27, [sp, #1456]
-    ldr x28, [sp, #1448]
+    ldr x19, [sp, #1504]
+    ldr x20, [sp, #1496]
+    ldr x21, [sp, #1488]
+    ldr x22, [sp, #1480]
+    ldr x23, [sp, #1472]
+    ldr x24, [sp, #1464]
+    ldr x25, [sp, #1456]
+    ldr x26, [sp, #1448]
+    ldr x27, [sp, #1440]
+    ldr x28, [sp, #1432]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -2863,46 +2826,44 @@ lb_process_terminate:
 lb_process_release:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #96
-    str x19, [sp, #72]
-    str x20, [sp, #64]
-    str x21, [sp, #56]
-    sub x16, x29, #56
+    sub sp, sp, #80
+    str x19, [sp, #56]
+    sub x16, x29, #40
     str x0, [x16]
     str x1, [x16, #8]
-    sub x14, x29, #56
+    sub x14, x29, #40
     add x15, x14, #8
     ldr x15, [x15]
     mov x10, #0
     cmp x15, x10
     b.ls .L7_2
 .L7_1:
-    ldr x19, [x14]
-    sub x20, x29, #72
-    str x19, [x20]
-    add x20, x20, #8
-    str x15, [x20]
+    ldr x12, [x14]
+    sub x13, x29, #56
+    str x12, [x13]
+    add x13, x13, #8
+    str x15, [x13]
     adrp x0, :gottprel:lb_memory_allocator
     ldr x0, [x0, :gottprel_lo12:lb_memory_allocator]
     mrs x16, tpidr_el0
     add x0, x16, x0
-    mov x20, x0
-    sub x21, x29, #88
-    str x19, [x21]
-    add x19, x21, #8
-    str x15, [x19]
-    ldr x19, [x20]
-    add x20, x20, #8
-    ldr x20, [x20]
-    cbnz x20, .L7_5
+    mov x13, x0
+    sub x19, x29, #72
+    str x12, [x19]
+    add x12, x19, #8
+    str x15, [x12]
+    ldr x12, [x13]
+    add x13, x13, #8
+    ldr x13, [x13]
+    cbnz x13, .L7_5
     b .L7_4
 .L7_5:
-    add x14, x20, #16
+    add x14, x13, #16
     ldr x14, [x14]
     mov x17, x14
     str x17, [sp, #-16]!
-    mov x0, x19
-    mov x9, x21
+    mov x0, x12
+    mov x9, x19
     ldr x1, [x9]
     ldr x2, [x9, #8]
     ldr x17, [sp], #16
@@ -2911,9 +2872,7 @@ lb_process_release:
     b .L7_3
 .L7_2:
 .L7_3:
-    ldr x19, [sp, #72]
-    ldr x20, [sp, #64]
-    ldr x21, [sp, #56]
+    ldr x19, [sp, #56]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -3034,15 +2993,13 @@ lb_memory_copy_0g1_u8:
 lb_process_15release_storage_0g1_5c_str_0o:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #80
-    str x19, [sp, #56]
-    str x20, [sp, #48]
-    str x21, [sp, #40]
-    str x22, [sp, #32]
-    sub x16, x29, #64
+    sub sp, sp, #64
+    str x19, [sp, #40]
+    str x20, [sp, #32]
+    sub x16, x29, #48
     str x0, [x16]
     str x1, [x16, #8]
-    sub x14, x29, #64
+    sub x14, x29, #48
     add x15, x14, #8
     ldr x15, [x15]
     mov x10, #0
@@ -3053,9 +3010,9 @@ lb_process_15release_storage_0g1_5c_str_0o:
     ldr x0, [x0, :gottprel_lo12:lb_memory_allocator]
     mrs x16, tpidr_el0
     add x0, x16, x0
-    mov x19, x0
-    sub x20, x29, #80
-    ldr x21, [x14]
+    mov x12, x0
+    sub x13, x29, #64
+    ldr x19, [x14]
     mov x9, x15
     movz x10, #8
     umulh x11, x9, x10
@@ -3067,22 +3024,22 @@ lb_process_15release_storage_0g1_5c_str_0o:
     add x1, x1, :lo12:.Ltext_62
     bl lb_core_7trap_at
 1:
-    mov x22, x9
-    str x21, [x20]
-    add x21, x20, #8
-    str x22, [x21]
-    ldr x21, [x19]
-    add x19, x19, #8
-    ldr x19, [x19]
-    cbnz x19, .L10_5
+    mov x20, x9
+    str x19, [x13]
+    add x19, x13, #8
+    str x20, [x19]
+    ldr x19, [x12]
+    add x12, x12, #8
+    ldr x12, [x12]
+    cbnz x12, .L10_5
     b .L10_4
 .L10_5:
-    add x14, x19, #16
+    add x14, x12, #16
     ldr x14, [x14]
     mov x17, x14
     str x17, [sp, #-16]!
-    mov x0, x21
-    mov x9, x20
+    mov x0, x19
+    mov x9, x13
     ldr x1, [x9]
     ldr x2, [x9, #8]
     ldr x17, [sp], #16
@@ -3091,10 +3048,8 @@ lb_process_15release_storage_0g1_5c_str_0o:
     b .L10_3
 .L10_2:
 .L10_3:
-    ldr x19, [sp, #56]
-    ldr x20, [sp, #48]
-    ldr x21, [sp, #40]
-    ldr x22, [sp, #32]
+    ldr x19, [sp, #40]
+    ldr x20, [sp, #32]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret

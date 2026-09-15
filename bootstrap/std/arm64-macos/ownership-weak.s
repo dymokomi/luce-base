@@ -61,8 +61,8 @@ L1_3:
     sub x21, x29, #48
     mov x10, x20
     mov x11, x21
-    ldr x12, [x10, #0]
-    str x12, [x11, #0]
+    ldr x16, [x10, #0]
+    str x16, [x11, #0]
     mov x16, x21
     ldr x0, [x16, #0]
     ldr x19, [sp, #56]
@@ -131,8 +131,8 @@ L2_3:
     sub x20, x29, #40
     mov x10, x19
     mov x11, x20
-    ldr x12, [x10, #0]
-    str x12, [x11, #0]
+    ldr x16, [x10, #0]
+    str x16, [x11, #0]
     mov x16, x20
     ldr x0, [x16, #0]
     ldr x19, [sp, #40]

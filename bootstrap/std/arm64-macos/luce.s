@@ -19,8 +19,8 @@ _lb_luce_0init:
     add x15, x15, _lb_luce_file@PAGEOFF
     mov x10, x14
     mov x11, x15
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     adrp x14, _lb_luce_line@PAGE
     add x14, x14, _lb_luce_line@PAGEOFF
     mov x9, #0
@@ -34,8 +34,8 @@ _lb_luce_0init:
     add x15, x15, _lb_luce_function@PAGEOFF
     mov x10, x14
     mov x11, x15
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     sub x20, x29, #104
     mov x11, x20
     stp xzr, xzr, [x11, #0]
@@ -48,8 +48,8 @@ _lb_luce_0init:
     str x9, [x15]
     mov x10, x14
     mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x20, #16
     mov x9, #0
     str w9, [x14]
@@ -61,18 +61,18 @@ _lb_luce_0init:
     add x15, x20, #24
     mov x10, x14
     mov x11, x15
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     adrp x14, _lb_luce_location@PAGE
     add x14, x14, _lb_luce_location@PAGEOFF
     mov x10, x20
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldp x12, x13, [x10, #16]
-    stp x12, x13, [x11, #16]
-    ldr x12, [x10, #32]
-    str x12, [x11, #32]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldp x16, x17, [x10, #16]
+    stp x16, x17, [x11, #16]
+    ldr x16, [x10, #32]
+    str x16, [x11, #32]
     ldr x19, [sp, #120]
     ldr x20, [sp, #112]
     mov sp, x29

@@ -18,8 +18,8 @@ lb_unicode_tables_0init:
     add x14, x14, :lo12:lb_unicode_18canonical_mappings
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     adrp x14, .Ltext_1
     add x14, x14, :lo12:.Ltext_1
     sub x15, x29, #48
@@ -32,8 +32,8 @@ lb_unicode_tables_0init:
     add x14, x14, :lo12:lb_unicode_22compatibility_mappings
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     adrp x14, .Ltext_2
     add x14, x14, :lo12:.Ltext_2
     sub x15, x29, #64
@@ -45,8 +45,8 @@ lb_unicode_tables_0init:
     add x14, x14, :lo12:lb_unicode_14upper_mappings
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     adrp x14, .Ltext_3
     add x14, x14, :lo12:.Ltext_3
     sub x15, x29, #80
@@ -58,8 +58,8 @@ lb_unicode_tables_0init:
     add x14, x14, :lo12:lb_unicode_14lower_mappings
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     adrp x14, .Ltext_4
     add x14, x14, :lo12:.Ltext_4
     sub x15, x29, #96
@@ -71,8 +71,8 @@ lb_unicode_tables_0init:
     add x14, x14, :lo12:lb_unicode_13fold_mappings
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     adrp x14, .Ltext_5
     add x14, x14, :lo12:.Ltext_5
     sub x15, x29, #112
@@ -84,8 +84,8 @@ lb_unicode_tables_0init:
     add x14, x14, :lo12:lb_unicode_15turkic_mappings
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     adrp x14, .Ltext_6
     add x14, x14, :lo12:.Ltext_6
     sub x15, x29, #128
@@ -98,8 +98,8 @@ lb_unicode_tables_0init:
     add x14, x14, :lo12:lb_unicode_15mapping_scalars
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     adrp x14, .Ltext_7
     add x14, x14, :lo12:.Ltext_7
     sub x15, x29, #144
@@ -111,8 +111,8 @@ lb_unicode_tables_0init:
     add x14, x14, :lo12:lb_unicode_20composition_mappings
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     adrp x14, .Ltext_8
     add x14, x14, :lo12:.Ltext_8
     sub x15, x29, #160
@@ -124,8 +124,8 @@ lb_unicode_tables_0init:
     add x14, x14, :lo12:lb_unicode_16combining_ranges
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     adrp x14, .Ltext_9
     add x14, x14, :lo12:.Ltext_9
     sub x15, x29, #176
@@ -137,8 +137,8 @@ lb_unicode_tables_0init:
     add x14, x14, :lo12:lb_unicode_12cased_ranges
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     adrp x14, .Ltext_10
     add x14, x14, :lo12:.Ltext_10
     sub x15, x29, #192
@@ -150,8 +150,8 @@ lb_unicode_tables_0init:
     add x14, x14, :lo12:lb_unicode_21case_ignorable_ranges
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     adrp x14, .Ltext_11
     add x14, x14, :lo12:.Ltext_11
     sub x15, x29, #208
@@ -163,8 +163,8 @@ lb_unicode_tables_0init:
     add x14, x14, :lo12:lb_unicode_17whitespace_ranges
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     adrp x14, .Ltext_12
     add x14, x14, :lo12:.Ltext_12
     sub x15, x29, #224
@@ -176,8 +176,8 @@ lb_unicode_tables_0init:
     add x14, x14, :lo12:lb_unicode_15grapheme_ranges
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     adrp x14, .Ltext_13
     add x14, x14, :lo12:.Ltext_13
     sub x15, x29, #240
@@ -189,8 +189,8 @@ lb_unicode_tables_0init:
     add x14, x14, :lo12:lb_unicode_19pictographic_ranges
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     adrp x14, .Ltext_14
     add x14, x14, :lo12:.Ltext_14
     sub x15, x29, #256
@@ -202,8 +202,8 @@ lb_unicode_tables_0init:
     add x14, x14, :lo12:lb_unicode_12indic_ranges
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret

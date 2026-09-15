@@ -61,8 +61,8 @@ lb_thread_Handle_join:
     add x14, x19, #8
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
@@ -105,8 +105,8 @@ lb_thread_Handle_join:
     add x14, x19, #8
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
@@ -180,17 +180,15 @@ lb_thread_Handle_detach:
 lb_thread_trampoline:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #160
-    str x19, [sp, #136]
-    str x20, [sp, #128]
-    str x21, [sp, #120]
-    str x22, [sp, #112]
-    str x23, [sp, #104]
-    str x24, [sp, #96]
-    str x25, [sp, #88]
-    sub x16, x29, #88
+    sub sp, sp, #144
+    str x19, [sp, #120]
+    str x20, [sp, #112]
+    str x21, [sp, #104]
+    str x22, [sp, #96]
+    str x23, [sp, #88]
+    sub x16, x29, #72
     str x0, [x16]
-    sub x14, x29, #88
+    sub x14, x29, #72
     ldr x19, [x14]
     adrp x20, lb_memory_heap
     add x20, x20, :lo12:lb_memory_heap
@@ -201,8 +199,8 @@ lb_thread_trampoline:
     mov x14, x0
     mov x10, x20
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     ldr x21, [x19]
     add x14, x19, #8
     ldr x22, [x14]
@@ -244,11 +242,11 @@ lb_thread_trampoline:
     add x1, x1, :lo12:.Ltext_5
     bl lb_core_7trap_at
 .L3_4:
-    sub x15, x29, #104
+    sub x15, x29, #88
     str x23, [x15]
     add x15, x15, #8
     str x14, [x15]
-    sub x15, x29, #120
+    sub x15, x29, #104
     str x23, [x15]
     add x15, x15, #8
     str x14, [x15]
@@ -271,22 +269,22 @@ lb_thread_trampoline:
 .L3_2:
 .L3_3:
     add x14, x19, #16
-    sub x15, x29, #136
-    ldr x23, [x14]
+    sub x15, x29, #120
+    ldr x12, [x14]
     add x14, x14, #8
     ldr x14, [x14]
-    str x23, [x15]
-    add x23, x15, #8
-    str x14, [x23]
+    str x12, [x15]
+    add x12, x15, #8
+    str x14, [x12]
     ldr x14, [x20]
     add x23, x20, #8
-    ldr x24, [x23]
-    cbnz x24, .L3_9
+    ldr x12, [x23]
+    cbnz x12, .L3_9
     b .L3_8
 .L3_9:
-    add x25, x24, #16
-    ldr x25, [x25]
-    mov x17, x25
+    add x13, x12, #16
+    ldr x13, [x13]
+    mov x17, x13
     str x17, [sp, #-16]!
     mov x0, x14
     mov x9, x15
@@ -295,19 +293,19 @@ lb_thread_trampoline:
     ldr x17, [sp], #16
     blr x17
 .L3_8:
-    sub x14, x29, #152
+    sub x14, x29, #136
     str x19, [x14]
     add x15, x14, #8
     movz x9, #40
     str x9, [x15]
     ldr x15, [x20]
-    ldr x24, [x23]
-    cbnz x24, .L3_11
+    ldr x12, [x23]
+    cbnz x12, .L3_11
     b .L3_10
 .L3_11:
-    add x19, x24, #16
-    ldr x19, [x19]
-    mov x17, x19
+    add x13, x12, #16
+    ldr x13, [x13]
+    mov x17, x13
     str x17, [sp, #-16]!
     mov x0, x15
     mov x9, x14
@@ -323,13 +321,11 @@ lb_thread_trampoline:
     blr x17
     mov x9, #0
     mov x0, x9
-    ldr x19, [sp, #136]
-    ldr x20, [sp, #128]
-    ldr x21, [sp, #120]
-    ldr x22, [sp, #112]
-    ldr x23, [sp, #104]
-    ldr x24, [sp, #96]
-    ldr x25, [sp, #88]
+    ldr x19, [sp, #120]
+    ldr x20, [sp, #112]
+    ldr x21, [sp, #104]
+    ldr x22, [sp, #96]
+    ldr x23, [sp, #88]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -348,33 +344,32 @@ lb_thread_trampoline:
 lb_thread_spawn:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #768
+    sub sp, sp, #752
     sub x16, x29, #24
     str x8, [x16]
-    str x19, [sp, #736]
-    str x20, [sp, #728]
-    str x21, [sp, #720]
-    str x22, [sp, #712]
-    str x23, [sp, #704]
-    str x24, [sp, #696]
-    str x25, [sp, #688]
-    str x26, [sp, #680]
-    sub x16, x29, #144
+    str x19, [sp, #720]
+    str x20, [sp, #712]
+    str x21, [sp, #704]
+    str x22, [sp, #696]
+    str x23, [sp, #688]
+    str x24, [sp, #680]
+    str x25, [sp, #672]
+    sub x16, x29, #136
     str x0, [x16]
-    sub x16, x29, #160
+    sub x16, x29, #152
     str x1, [x16]
-    sub x16, x29, #176
+    sub x16, x29, #168
     str x2, [x16]
-    sub x16, x29, #192
+    sub x16, x29, #184
     str x3, [x16]
     str x4, [x16, #8]
-    sub x20, x29, #208
+    sub x20, x29, #200
     adrp x21, lb_memory_heap
     add x21, x21, :lo12:lb_memory_heap
     adrp x19, lb_thread_9name_room
     add x19, x19, :lo12:lb_thread_9name_room
     ldr x22, [x19]
-    sub x23, x29, #256
+    sub x23, x29, #248
     movz x10, #16384, lsl #48
     cmp x22, x10
     b.ls .L4_2
@@ -385,8 +380,8 @@ lb_thread_spawn:
     str w9, [x14]
     adrp x15, .Ltext_10
     add x15, x15, :lo12:.Ltext_10
-    add x22, x14, #8
-    str x15, [x22]
+    add x12, x14, #8
+    str x15, [x12]
     add x14, x14, #16
     movz x9, #47
     str x9, [x14]
@@ -407,26 +402,26 @@ lb_thread_spawn:
     add x1, x1, :lo12:.Ltext_11
     bl lb_core_7trap_at
 .L4_4:
-    ldr x24, [x15]
-    mov x17, x24
+    ldr x12, [x15]
+    mov x17, x12
     str x17, [sp, #-16]!
     mov x0, x14
     mov x1, x22
     movz x2, #1
-    sub x8, x29, #280
+    sub x8, x29, #272
     ldr x17, [sp], #16
     blr x17
-    sub x26, x29, #280
-    add x24, x26, #16
-    ldrb w24, [x24]
+    sub x24, x29, #272
+    add x12, x24, #16
+    ldrb w12, [x12]
     mov x10, #0
     cmp x22, x10
-    cset w25, ne
+    cset w13, ne
     mov x10, #0
-    cmp w24, w10
-    cset w24, eq
-    and w24, w25, w24
-    cbnz w24, .L4_6
+    cmp w12, w10
+    cset w12, eq
+    and w12, w13, w12
+    cbnz w12, .L4_6
     b .L4_7
 .L4_6:
     add x14, x23, #16
@@ -435,8 +430,8 @@ lb_thread_spawn:
     str w9, [x14]
     adrp x15, .Ltext_13
     add x15, x15, :lo12:.Ltext_13
-    add x22, x14, #8
-    str x15, [x22]
+    add x12, x14, #8
+    str x15, [x12]
     add x14, x14, #16
     movz x9, #16
     str x9, [x14]
@@ -445,7 +440,7 @@ lb_thread_spawn:
     strb w9, [x14]
     b .L4_3
 .L4_7:
-    ldr x14, [x26]
+    ldr x14, [x24]
     str x14, [x23]
     add x14, x23, #8
     str x22, [x14]
@@ -459,14 +454,14 @@ lb_thread_spawn:
     b .L4_8
 .L4_9:
     add x14, x23, #16
-    sub x19, x29, #128
+    sub x19, x29, #120
     add x15, x19, #8
     mov x10, x14
     mov x11, x15
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #32
     movz x9, #1
     strb w9, [x14]
@@ -477,14 +472,13 @@ lb_thread_spawn:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #736]
-    ldr x20, [sp, #728]
-    ldr x21, [sp, #720]
-    ldr x22, [sp, #712]
-    ldr x23, [sp, #704]
-    ldr x24, [sp, #696]
-    ldr x25, [sp, #688]
-    ldr x26, [sp, #680]
+    ldr x19, [sp, #720]
+    ldr x20, [sp, #712]
+    ldr x21, [sp, #704]
+    ldr x22, [sp, #696]
+    ldr x23, [sp, #688]
+    ldr x24, [sp, #680]
+    ldr x25, [sp, #672]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -492,13 +486,13 @@ lb_thread_spawn:
 .L4_8:
     mov x10, x23
     mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    sub x14, x29, #192
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    sub x14, x29, #184
     add x15, x14, #8
     ldr x15, [x15]
-    ldr x22, [x19]
-    mov x9, x22
+    ldr x12, [x19]
+    mov x9, x12
     movz x10, #1
     subs x9, x9, x10
     b.cs 1f
@@ -508,14 +502,14 @@ lb_thread_spawn:
     add x1, x1, :lo12:.Ltext_40
     bl lb_core_7trap_at
 1:
-    mov x22, x9
-    cmp x15, x22
+    mov x12, x9
+    cmp x15, x12
     b.hs .L4_12
 .L4_11:
     mov x19, x15
     b .L4_13
 .L4_12:
-    mov x19, x22
+    mov x19, x12
 .L4_13:
     mov x9, x20
     ldr x0, [x9]
@@ -527,8 +521,8 @@ lb_thread_spawn:
     bl lb_memory_copy_0g1_u8
     ldr x15, [x20]
     add x22, x20, #8
-    ldr x23, [x22]
-    cmp x19, x23
+    ldr x12, [x22]
+    cmp x19, x12
     b.lo 1f
     adrp x0, .Ltext_15
     add x0, x0, :lo12:.Ltext_15
@@ -539,16 +533,16 @@ lb_thread_spawn:
     add x15, x15, x19
     mov x9, #0
     strb w9, [x15]
-    sub x23, x29, #320
+    sub x23, x29, #312
     mov x10, x21
     mov x11, x23
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    sub x24, x29, #360
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    sub x24, x29, #352
     ldr x15, [x23]
-    add x23, x23, #8
-    ldr x23, [x23]
-    cbnz x23, .L4_16
+    add x12, x23, #8
+    ldr x12, [x12]
+    cbnz x12, .L4_16
     b .L4_17
 .L4_17:
     adrp x0, .Ltext_16
@@ -557,17 +551,17 @@ lb_thread_spawn:
     add x1, x1, :lo12:.Ltext_11
     bl lb_core_7trap_at
 .L4_16:
-    ldr x14, [x23]
+    ldr x14, [x12]
     mov x17, x14
     str x17, [sp, #-16]!
     mov x0, x15
     movz x1, #40
     movz x2, #8
-    sub x8, x29, #384
+    sub x8, x29, #376
     ldr x17, [sp], #16
     blr x17
-    sub x25, x29, #384
-    add x14, x25, #16
+    sub x13, x29, #376
+    add x14, x13, #16
     ldrb w14, [x14]
     cbnz w14, .L4_18
     b .L4_19
@@ -578,8 +572,8 @@ lb_thread_spawn:
     str w9, [x14]
     adrp x15, .Ltext_13
     add x15, x15, :lo12:.Ltext_13
-    add x19, x14, #8
-    str x15, [x19]
+    add x12, x14, #8
+    str x15, [x12]
     add x14, x14, #16
     movz x9, #16
     str x9, [x14]
@@ -588,34 +582,34 @@ lb_thread_spawn:
     strb w9, [x14]
     b .L4_20
 .L4_18:
-    ldr x23, [x25]
-    sub x26, x29, #424
-    mov x11, x26
+    ldr x23, [x13]
+    sub x25, x29, #416
+    mov x11, x25
     stp xzr, xzr, [x11, #0]
     stp xzr, xzr, [x11, #16]
     str xzr, [x11, #32]
-    sub x14, x29, #144
+    sub x14, x29, #136
     ldr x14, [x14]
-    str x14, [x26]
-    sub x14, x29, #160
+    str x14, [x25]
+    sub x14, x29, #152
     ldr x14, [x14]
-    add x15, x26, #8
+    add x15, x25, #8
     str x14, [x15]
-    add x14, x26, #16
+    add x14, x25, #16
     mov x10, x20
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    add x14, x26, #32
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    add x14, x25, #32
     str x19, [x14]
-    mov x10, x26
+    mov x10, x25
     mov x11, x23
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldp x12, x13, [x10, #16]
-    stp x12, x13, [x11, #16]
-    ldr x12, [x10, #32]
-    str x12, [x11, #32]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldp x16, x17, [x10, #16]
+    stp x16, x17, [x11, #16]
+    ldr x16, [x10, #32]
+    str x16, [x11, #32]
     str x23, [x24]
     add x14, x24, #32
     mov x9, #0
@@ -627,33 +621,33 @@ lb_thread_spawn:
     b .L4_21
 .L4_22:
     add x14, x24, #8
-    sub x15, x29, #304
+    sub x15, x29, #296
     mov x10, x14
     mov x11, x15
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     b .L4_14
 .L4_21:
     ldr x19, [x24]
     b .L4_15
 .L4_14:
-    sub x14, x29, #440
+    sub x14, x29, #432
     ldr x15, [x20]
-    ldr x19, [x22]
+    ldr x12, [x22]
     str x15, [x14]
     add x15, x14, #8
-    str x19, [x15]
+    str x12, [x15]
     ldr x15, [x21]
-    add x19, x21, #8
-    ldr x19, [x19]
-    cbnz x19, .L4_24
+    add x12, x21, #8
+    ldr x12, [x12]
+    cbnz x12, .L4_24
     b .L4_23
 .L4_24:
-    add x20, x19, #16
-    ldr x20, [x20]
-    mov x17, x20
+    add x13, x12, #16
+    ldr x13, [x13]
+    mov x17, x13
     str x17, [sp, #-16]!
     mov x0, x15
     mov x9, x14
@@ -662,7 +656,7 @@ lb_thread_spawn:
     ldr x17, [sp], #16
     blr x17
 .L4_23:
-    sub x19, x29, #128
+    sub x19, x29, #120
     add x14, x19, #8
     adrp x15, lb_memory_exhausted
     add x15, x15, :lo12:lb_memory_exhausted
@@ -670,16 +664,16 @@ lb_thread_spawn:
     str w15, [x14]
     adrp x15, .Ltext_13
     add x15, x15, :lo12:.Ltext_13
-    sub x20, x29, #456
-    str x15, [x20]
-    add x15, x20, #8
+    sub x12, x29, #448
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #16
     str x9, [x15]
     add x14, x14, #8
-    mov x10, x20
+    mov x10, x12
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #32
     movz x9, #1
     strb w9, [x14]
@@ -690,20 +684,19 @@ lb_thread_spawn:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #736]
-    ldr x20, [sp, #728]
-    ldr x21, [sp, #720]
-    ldr x22, [sp, #712]
-    ldr x23, [sp, #704]
-    ldr x24, [sp, #696]
-    ldr x25, [sp, #688]
-    ldr x26, [sp, #680]
+    ldr x19, [sp, #720]
+    ldr x20, [sp, #712]
+    ldr x21, [sp, #704]
+    ldr x22, [sp, #696]
+    ldr x23, [sp, #688]
+    ldr x24, [sp, #680]
+    ldr x25, [sp, #672]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
 .L4_25:
 .L4_15:
-    sub x23, x29, #584
+    sub x23, x29, #576
     mov x11, x23
     stp xzr, xzr, [x11, #0]
     stp xzr, xzr, [x11, #16]
@@ -723,21 +716,21 @@ lb_thread_spawn:
     cmp w14, w10
     b.ne .L4_27
 .L4_26:
-    sub x14, x29, #600
+    sub x14, x29, #592
     ldr x15, [x20]
-    ldr x23, [x22]
+    ldr x12, [x22]
     str x15, [x14]
     add x15, x14, #8
-    str x23, [x15]
+    str x12, [x15]
     ldr x15, [x21]
     add x23, x21, #8
-    ldr x24, [x23]
-    cbnz x24, .L4_30
+    ldr x12, [x23]
+    cbnz x12, .L4_30
     b .L4_29
 .L4_30:
-    add x20, x24, #16
-    ldr x20, [x20]
-    mov x17, x20
+    add x13, x12, #16
+    ldr x13, [x13]
+    mov x17, x13
     str x17, [sp, #-16]!
     mov x0, x15
     mov x9, x14
@@ -746,19 +739,19 @@ lb_thread_spawn:
     ldr x17, [sp], #16
     blr x17
 .L4_29:
-    sub x14, x29, #616
+    sub x14, x29, #608
     str x19, [x14]
     add x15, x14, #8
     movz x9, #40
     str x9, [x15]
     ldr x15, [x21]
-    ldr x20, [x23]
-    cbnz x20, .L4_32
+    ldr x12, [x23]
+    cbnz x12, .L4_32
     b .L4_31
 .L4_32:
-    add x19, x20, #16
-    ldr x19, [x19]
-    mov x17, x19
+    add x13, x12, #16
+    ldr x13, [x13]
+    mov x17, x13
     str x17, [sp, #-16]!
     mov x0, x15
     mov x9, x14
@@ -767,7 +760,7 @@ lb_thread_spawn:
     ldr x17, [sp], #16
     blr x17
 .L4_31:
-    sub x19, x29, #128
+    sub x19, x29, #120
     add x14, x19, #8
     adrp x15, lb_thread_failed
     add x15, x15, :lo12:lb_thread_failed
@@ -775,16 +768,16 @@ lb_thread_spawn:
     str w15, [x14]
     adrp x15, .Ltext_20
     add x15, x15, :lo12:.Ltext_20
-    sub x20, x29, #632
-    str x15, [x20]
-    add x15, x20, #8
+    sub x12, x29, #624
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #5
     str x9, [x15]
     add x14, x14, #8
-    mov x10, x20
+    mov x10, x12
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #32
     movz x9, #1
     strb w9, [x14]
@@ -795,14 +788,13 @@ lb_thread_spawn:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #736]
-    ldr x20, [sp, #728]
-    ldr x21, [sp, #720]
-    ldr x22, [sp, #712]
-    ldr x23, [sp, #704]
-    ldr x24, [sp, #696]
-    ldr x25, [sp, #688]
-    ldr x26, [sp, #680]
+    ldr x19, [sp, #720]
+    ldr x20, [sp, #712]
+    ldr x21, [sp, #704]
+    ldr x22, [sp, #696]
+    ldr x23, [sp, #688]
+    ldr x24, [sp, #680]
+    ldr x25, [sp, #672]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -810,7 +802,7 @@ lb_thread_spawn:
     b .L4_28
 .L4_27:
 .L4_28:
-    sub x14, x29, #176
+    sub x14, x29, #168
     ldr x24, [x14]
     mov x10, #0
     cmp x24, x10
@@ -847,8 +839,8 @@ lb_thread_spawn:
     add x1, x1, :lo12:.Ltext_40
     bl lb_core_7trap_at
 1:
-    mov x24, x9
-    mov x9, x24
+    mov x12, x9
+    mov x9, x12
     movz x10, #1
     subs x9, x9, x10
     b.cs 1f
@@ -858,7 +850,7 @@ lb_thread_spawn:
     add x1, x1, :lo12:.Ltext_40
     bl lb_core_7trap_at
 1:
-    mov x25, x9
+    mov x13, x9
     mov x10, #0
     cmp x14, x10
     b.ne .L4_41
@@ -869,7 +861,7 @@ lb_thread_spawn:
     add x1, x1, :lo12:.Ltext_22
     bl lb_core_7trap_at
 .L4_41:
-    udiv x15, x25, x14
+    udiv x15, x13, x14
     mov x9, x15
     mov x10, x14
     umulh x11, x9, x10
@@ -896,21 +888,21 @@ lb_thread_spawn:
     mov x0, x23
     bl pthread_attr_destroy
     mov w14, w0
-    sub x14, x29, #648
+    sub x14, x29, #640
     ldr x15, [x20]
-    ldr x24, [x22]
+    ldr x12, [x22]
     str x15, [x14]
     add x15, x14, #8
-    str x24, [x15]
+    str x12, [x15]
     ldr x15, [x21]
     add x24, x21, #8
-    ldr x25, [x24]
-    cbnz x25, .L4_46
+    ldr x12, [x24]
+    cbnz x12, .L4_46
     b .L4_45
 .L4_46:
-    add x20, x25, #16
-    ldr x20, [x20]
-    mov x17, x20
+    add x13, x12, #16
+    ldr x13, [x13]
+    mov x17, x13
     str x17, [sp, #-16]!
     mov x0, x15
     mov x9, x14
@@ -919,19 +911,19 @@ lb_thread_spawn:
     ldr x17, [sp], #16
     blr x17
 .L4_45:
-    sub x14, x29, #664
+    sub x14, x29, #656
     str x19, [x14]
     add x15, x14, #8
     movz x9, #40
     str x9, [x15]
     ldr x15, [x21]
-    ldr x20, [x24]
-    cbnz x20, .L4_48
+    ldr x12, [x24]
+    cbnz x12, .L4_48
     b .L4_47
 .L4_48:
-    add x19, x20, #16
-    ldr x19, [x19]
-    mov x17, x19
+    add x13, x12, #16
+    ldr x13, [x13]
+    mov x17, x13
     str x17, [sp, #-16]!
     mov x0, x15
     mov x9, x14
@@ -940,7 +932,7 @@ lb_thread_spawn:
     ldr x17, [sp], #16
     blr x17
 .L4_47:
-    sub x19, x29, #128
+    sub x19, x29, #120
     add x14, x19, #8
     adrp x15, lb_thread_failed
     add x15, x15, :lo12:lb_thread_failed
@@ -948,16 +940,16 @@ lb_thread_spawn:
     str w15, [x14]
     adrp x15, .Ltext_26
     add x15, x15, :lo12:.Ltext_26
-    sub x20, x29, #680
-    str x15, [x20]
-    add x15, x20, #8
+    sub x12, x29, #672
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #25
     str x9, [x15]
     add x14, x14, #8
-    mov x10, x20
+    mov x10, x12
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #32
     movz x9, #1
     strb w9, [x14]
@@ -968,14 +960,13 @@ lb_thread_spawn:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #736]
-    ldr x20, [sp, #728]
-    ldr x21, [sp, #720]
-    ldr x22, [sp, #712]
-    ldr x23, [sp, #704]
-    ldr x24, [sp, #696]
-    ldr x25, [sp, #688]
-    ldr x26, [sp, #680]
+    ldr x19, [sp, #720]
+    ldr x20, [sp, #712]
+    ldr x21, [sp, #704]
+    ldr x22, [sp, #696]
+    ldr x23, [sp, #688]
+    ldr x24, [sp, #680]
+    ldr x25, [sp, #672]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -986,7 +977,7 @@ lb_thread_spawn:
     b .L4_36
 .L4_35:
 .L4_36:
-    sub x24, x29, #688
+    sub x24, x29, #680
     mov x9, #0
     str x9, [x24]
     adrp x14, :got:lb_thread_trampoline
@@ -1007,21 +998,21 @@ lb_thread_spawn:
     cmp w14, w10
     b.ne .L4_51
 .L4_50:
-    sub x14, x29, #704
+    sub x14, x29, #696
     ldr x15, [x20]
-    ldr x23, [x22]
+    ldr x12, [x22]
     str x15, [x14]
     add x15, x14, #8
-    str x23, [x15]
+    str x12, [x15]
     ldr x15, [x21]
     add x23, x21, #8
-    ldr x24, [x23]
-    cbnz x24, .L4_54
+    ldr x12, [x23]
+    cbnz x12, .L4_54
     b .L4_53
 .L4_54:
-    add x20, x24, #16
-    ldr x20, [x20]
-    mov x17, x20
+    add x13, x12, #16
+    ldr x13, [x13]
+    mov x17, x13
     str x17, [sp, #-16]!
     mov x0, x15
     mov x9, x14
@@ -1030,19 +1021,19 @@ lb_thread_spawn:
     ldr x17, [sp], #16
     blr x17
 .L4_53:
-    sub x14, x29, #720
+    sub x14, x29, #712
     str x19, [x14]
     add x15, x14, #8
     movz x9, #40
     str x9, [x15]
     ldr x15, [x21]
-    ldr x20, [x23]
-    cbnz x20, .L4_56
+    ldr x12, [x23]
+    cbnz x12, .L4_56
     b .L4_55
 .L4_56:
-    add x19, x20, #16
-    ldr x19, [x19]
-    mov x17, x19
+    add x13, x12, #16
+    ldr x13, [x13]
+    mov x17, x13
     str x17, [sp, #-16]!
     mov x0, x15
     mov x9, x14
@@ -1051,7 +1042,7 @@ lb_thread_spawn:
     ldr x17, [sp], #16
     blr x17
 .L4_55:
-    sub x19, x29, #128
+    sub x19, x29, #120
     add x14, x19, #8
     adrp x15, lb_thread_failed
     add x15, x15, :lo12:lb_thread_failed
@@ -1059,16 +1050,16 @@ lb_thread_spawn:
     str w15, [x14]
     adrp x15, .Ltext_20
     add x15, x15, :lo12:.Ltext_20
-    sub x20, x29, #736
-    str x15, [x20]
-    add x15, x20, #8
+    sub x12, x29, #728
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #5
     str x9, [x15]
     add x14, x14, #8
-    mov x10, x20
+    mov x10, x12
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #32
     movz x9, #1
     strb w9, [x14]
@@ -1079,14 +1070,13 @@ lb_thread_spawn:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #736]
-    ldr x20, [sp, #728]
-    ldr x21, [sp, #720]
-    ldr x22, [sp, #712]
-    ldr x23, [sp, #704]
-    ldr x24, [sp, #696]
-    ldr x25, [sp, #688]
-    ldr x26, [sp, #680]
+    ldr x19, [sp, #720]
+    ldr x20, [sp, #712]
+    ldr x21, [sp, #704]
+    ldr x22, [sp, #696]
+    ldr x23, [sp, #688]
+    ldr x24, [sp, #680]
+    ldr x25, [sp, #672]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -1100,7 +1090,7 @@ lb_thread_spawn:
 .L4_58:
     b .L4_60
 .L4_59:
-    sub x19, x29, #128
+    sub x19, x29, #120
     add x14, x19, #8
     adrp x15, lb_thread_failed
     add x15, x15, :lo12:lb_thread_failed
@@ -1108,16 +1098,16 @@ lb_thread_spawn:
     str w15, [x14]
     adrp x15, .Ltext_20
     add x15, x15, :lo12:.Ltext_20
-    sub x20, x29, #752
-    str x15, [x20]
-    add x15, x20, #8
+    sub x12, x29, #744
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #5
     str x9, [x15]
     add x14, x14, #8
-    mov x10, x20
+    mov x10, x12
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #32
     movz x9, #1
     strb w9, [x14]
@@ -1128,28 +1118,27 @@ lb_thread_spawn:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #736]
-    ldr x20, [sp, #728]
-    ldr x21, [sp, #720]
-    ldr x22, [sp, #712]
-    ldr x23, [sp, #704]
-    ldr x24, [sp, #696]
-    ldr x25, [sp, #688]
-    ldr x26, [sp, #680]
+    ldr x19, [sp, #720]
+    ldr x20, [sp, #712]
+    ldr x21, [sp, #704]
+    ldr x22, [sp, #696]
+    ldr x23, [sp, #688]
+    ldr x24, [sp, #680]
+    ldr x25, [sp, #672]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
 .L4_61:
 .L4_60:
-    sub x20, x29, #760
+    sub x20, x29, #752
     mov x11, x20
     str xzr, [x11, #0]
     str x19, [x20]
-    sub x21, x29, #128
+    sub x21, x29, #120
     mov x10, x20
     mov x11, x21
-    ldr x12, [x10, #0]
-    str x12, [x11, #0]
+    ldr x16, [x10, #0]
+    str x16, [x11, #0]
     add x14, x21, #32
     mov x9, #0
     strb w9, [x14]
@@ -1160,14 +1149,13 @@ lb_thread_spawn:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #736]
-    ldr x20, [sp, #728]
-    ldr x21, [sp, #720]
-    ldr x22, [sp, #712]
-    ldr x23, [sp, #704]
-    ldr x24, [sp, #696]
-    ldr x25, [sp, #688]
-    ldr x26, [sp, #680]
+    ldr x19, [sp, #720]
+    ldr x20, [sp, #712]
+    ldr x21, [sp, #704]
+    ldr x22, [sp, #696]
+    ldr x23, [sp, #688]
+    ldr x24, [sp, #680]
+    ldr x25, [sp, #672]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -1207,8 +1195,8 @@ lb_thread_current:
     sub x20, x29, #40
     mov x10, x19
     mov x11, x20
-    ldr x12, [x10, #0]
-    str x12, [x11, #0]
+    ldr x16, [x10, #0]
+    str x16, [x11, #0]
     mov x16, x20
     ldr x0, [x16, #0]
     ldr x19, [sp, #24]
@@ -1326,12 +1314,12 @@ lb_thread_sleep:
     bl lb_core_7trap_at
 1:
     mov x15, x9
-    add x21, x20, #8
-    str x15, [x21]
+    add x12, x20, #8
+    str x15, [x12]
     mov x10, x20
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     sub x21, x29, #112
     sub x22, x29, #128
     mov x11, x22
@@ -1343,8 +1331,8 @@ lb_thread_sleep:
     str x9, [x15]
     mov x10, x22
     mov x11, x21
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     adrp x22, lb_c_interrupted
     add x22, x22, :lo12:lb_c_interrupted
 .L9_5:
@@ -1376,8 +1364,8 @@ lb_thread_sleep:
 .L9_6:
     mov x10, x21
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     b .L9_5
 .L9_7:
     ldr x19, [sp, #104]

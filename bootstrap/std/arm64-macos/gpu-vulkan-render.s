@@ -17,21 +17,20 @@ _lb_gpu_13vulkan_render_0init:
 _lb_memory_copy_0g1_u32:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #112
-    str x19, [sp, #88]
-    str x20, [sp, #80]
-    str x21, [sp, #72]
-    sub x16, x29, #56
+    sub sp, sp, #96
+    str x19, [sp, #72]
+    str x20, [sp, #64]
+    sub x16, x29, #48
     str x0, [x16]
     str x1, [x16, #8]
-    sub x16, x29, #72
+    sub x16, x29, #64
     str x2, [x16]
     str x3, [x16, #8]
-    sub x16, x29, #88
+    sub x16, x29, #80
     str x4, [x16]
-    sub x14, x29, #88
+    sub x14, x29, #80
     ldr x19, [x14]
-    sub x20, x29, #56
+    sub x20, x29, #48
     add x14, x20, #8
     ldr x14, [x14]
     cmp x19, x14
@@ -42,7 +41,7 @@ L1_11:
     mov w15, w14
     b L1_5
 L1_4:
-    sub x14, x29, #72
+    sub x14, x29, #64
     add x14, x14, #8
     ldr x14, [x14]
     cmp x19, x14
@@ -54,7 +53,7 @@ L1_5:
 L1_1:
     adrp x14, l_text_26@PAGE
     add x14, x14, l_text_26@PAGEOFF
-    sub x15, x29, #104
+    sub x15, x29, #96
     str x14, [x15]
     add x14, x15, #8
     movz x9, #19
@@ -74,7 +73,7 @@ L1_3:
     b.ls L1_7
 L1_6:
     ldr x14, [x20]
-    sub x15, x29, #72
+    sub x15, x29, #64
     ldr x15, [x15]
     mov x9, x19
     movz x10, #4
@@ -87,10 +86,10 @@ L1_6:
     add x1, x1, l_text_37@PAGEOFF
     bl _lb_core_7trap_at
 1:
-    mov x21, x9
+    mov x12, x9
     mov x0, x14
     mov x1, x15
-    mov x2, x21
+    mov x2, x12
     bl _memcpy
     mov x14, x0
     cbnz x14, L1_9
@@ -105,9 +104,8 @@ L1_9:
     b L1_8
 L1_7:
 L1_8:
-    ldr x19, [sp, #88]
-    ldr x20, [sp, #80]
-    ldr x21, [sp, #72]
+    ldr x19, [sp, #72]
+    ldr x20, [sp, #64]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret

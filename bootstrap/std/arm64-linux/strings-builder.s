@@ -19,19 +19,17 @@ lb_strings_builder_0init:
 lb_strings_Builder_create:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #320
+    sub sp, sp, #304
     sub x16, x29, #24
     str x8, [x16]
-    str x19, [sp, #288]
-    str x20, [sp, #280]
-    str x21, [sp, #272]
-    str x22, [sp, #264]
-    str x23, [sp, #256]
-    str x24, [sp, #248]
-    str x25, [sp, #240]
-    sub x16, x29, #168
+    str x19, [sp, #272]
+    str x20, [sp, #264]
+    str x21, [sp, #256]
+    str x22, [sp, #248]
+    str x23, [sp, #240]
+    sub x16, x29, #152
     str x0, [x16]
-    sub x14, x29, #168
+    sub x14, x29, #152
     ldr x14, [x14]
     mov x10, #0
     cmp x14, x10
@@ -43,25 +41,25 @@ lb_strings_Builder_create:
     movz x9, #64
     mov x15, x9
 .L1_3:
-    sub x19, x29, #176
+    sub x19, x29, #160
     mov x0, x15
     movz x1, #1
     movz x2, #64
     mov x3, x19
     bl lb_core_6qadd_u
     mov w14, w0
-    sub x20, x29, #192
+    sub x12, x29, #176
     ldr x19, [x19]
-    str x19, [x20]
-    add x20, x20, #8
-    strb w14, [x20]
-    ldrb w14, [x20]
+    str x19, [x12]
+    add x12, x12, #8
+    strb w14, [x12]
+    ldrb w14, [x12]
     cbnz w14, .L1_4
     b .L1_5
 .L1_4:
     b .L1_6
 .L1_5:
-    sub x19, x29, #152
+    sub x19, x29, #136
     add x14, x19, #40
     adrp x15, lb_memory_exhausted
     add x15, x15, :lo12:lb_memory_exhausted
@@ -69,16 +67,16 @@ lb_strings_Builder_create:
     str w15, [x14]
     adrp x15, .Ltext_0
     add x15, x15, :lo12:.Ltext_0
-    sub x20, x29, #208
-    str x15, [x20]
-    add x15, x20, #8
+    sub x12, x29, #192
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #33
     str x9, [x15]
     add x14, x14, #8
-    mov x10, x20
+    mov x10, x12
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #64
     movz x9, #1
     strb w9, [x14]
@@ -89,19 +87,17 @@ lb_strings_Builder_create:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #288]
-    ldr x20, [sp, #280]
-    ldr x21, [sp, #272]
-    ldr x22, [sp, #264]
-    ldr x23, [sp, #256]
-    ldr x24, [sp, #248]
-    ldr x25, [sp, #240]
+    ldr x19, [sp, #272]
+    ldr x20, [sp, #264]
+    ldr x21, [sp, #256]
+    ldr x22, [sp, #248]
+    ldr x23, [sp, #240]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
 .L1_7:
 .L1_6:
-    sub x20, x29, #248
+    sub x20, x29, #232
     mov x11, x20
     stp xzr, xzr, [x11, #0]
     stp xzr, xzr, [x11, #16]
@@ -111,7 +107,7 @@ lb_strings_Builder_create:
     mrs x16, tpidr_el0
     add x0, x16, x0
     mov x21, x0
-    sub x22, x29, #296
+    sub x22, x29, #280
     movz x10, #16384, lsl #48
     cmp x19, x10
     b.ls .L1_9
@@ -122,8 +118,8 @@ lb_strings_Builder_create:
     str w9, [x14]
     adrp x15, .Ltext_1
     add x15, x15, :lo12:.Ltext_1
-    add x19, x14, #8
-    str x15, [x19]
+    add x12, x14, #8
+    str x15, [x12]
     add x14, x14, #16
     movz x9, #47
     str x9, [x14]
@@ -144,26 +140,26 @@ lb_strings_Builder_create:
     add x1, x1, :lo12:.Ltext_2
     bl lb_core_7trap_at
 .L1_11:
-    ldr x23, [x15]
-    mov x17, x23
+    ldr x12, [x15]
+    mov x17, x12
     str x17, [sp, #-16]!
     mov x0, x14
     mov x1, x19
     movz x2, #1
-    sub x8, x29, #320
+    sub x8, x29, #304
     ldr x17, [sp], #16
     blr x17
-    sub x25, x29, #320
-    add x23, x25, #16
-    ldrb w23, [x23]
+    sub x23, x29, #304
+    add x12, x23, #16
+    ldrb w12, [x12]
     mov x10, #0
     cmp x19, x10
-    cset w24, ne
+    cset w13, ne
     mov x10, #0
-    cmp w23, w10
-    cset w23, eq
-    and w23, w24, w23
-    cbnz w23, .L1_13
+    cmp w12, w10
+    cset w12, eq
+    and w12, w13, w12
+    cbnz w12, .L1_13
     b .L1_14
 .L1_13:
     add x14, x22, #16
@@ -172,8 +168,8 @@ lb_strings_Builder_create:
     str w9, [x14]
     adrp x15, .Ltext_4
     add x15, x15, :lo12:.Ltext_4
-    add x19, x14, #8
-    str x15, [x19]
+    add x12, x14, #8
+    str x15, [x12]
     add x14, x14, #16
     movz x9, #16
     str x9, [x14]
@@ -182,7 +178,7 @@ lb_strings_Builder_create:
     strb w9, [x14]
     b .L1_10
 .L1_14:
-    ldr x14, [x25]
+    ldr x14, [x23]
     str x14, [x22]
     add x14, x22, #8
     str x19, [x14]
@@ -196,14 +192,14 @@ lb_strings_Builder_create:
     b .L1_15
 .L1_16:
     add x14, x22, #16
-    sub x19, x29, #152
+    sub x19, x29, #136
     add x15, x19, #40
     mov x10, x14
     mov x11, x15
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #64
     movz x9, #1
     strb w9, [x14]
@@ -214,13 +210,11 @@ lb_strings_Builder_create:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #288]
-    ldr x20, [sp, #280]
-    ldr x21, [sp, #272]
-    ldr x22, [sp, #264]
-    ldr x23, [sp, #256]
-    ldr x24, [sp, #248]
-    ldr x25, [sp, #240]
+    ldr x19, [sp, #272]
+    ldr x20, [sp, #264]
+    ldr x21, [sp, #256]
+    ldr x22, [sp, #248]
+    ldr x23, [sp, #240]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -228,25 +222,25 @@ lb_strings_Builder_create:
 .L1_15:
     mov x10, x22
     mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x20, #16
     mov x9, #0
     str x9, [x14]
     add x14, x20, #24
     mov x10, x21
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    sub x19, x29, #152
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    sub x19, x29, #136
     mov x10, x20
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldp x12, x13, [x10, #16]
-    stp x12, x13, [x11, #16]
-    ldr x12, [x10, #32]
-    str x12, [x11, #32]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldp x16, x17, [x10, #16]
+    stp x16, x17, [x11, #16]
+    ldr x16, [x10, #32]
+    str x16, [x11, #32]
     add x14, x19, #64
     mov x9, #0
     strb w9, [x14]
@@ -257,13 +251,11 @@ lb_strings_Builder_create:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #288]
-    ldr x20, [sp, #280]
-    ldr x21, [sp, #272]
-    ldr x22, [sp, #264]
-    ldr x23, [sp, #256]
-    ldr x24, [sp, #248]
-    ldr x25, [sp, #240]
+    ldr x19, [sp, #272]
+    ldr x20, [sp, #264]
+    ldr x21, [sp, #256]
+    ldr x22, [sp, #248]
+    ldr x23, [sp, #240]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -390,8 +382,8 @@ lb_strings_Builder_reserve:
     add x14, x19, #8
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
@@ -424,12 +416,12 @@ lb_strings_Builder_reserve:
     mov x3, x21
     bl lb_core_6qadd_u
     mov w14, w0
-    sub x22, x29, #152
+    sub x12, x29, #152
     ldr x15, [x21]
-    str x15, [x22]
-    add x21, x22, #8
-    strb w14, [x21]
-    ldrb w14, [x21]
+    str x15, [x12]
+    add x12, x12, #8
+    strb w14, [x12]
+    ldrb w14, [x12]
     cbnz w14, .L4_5
     b .L4_6
 .L4_5:
@@ -450,8 +442,8 @@ lb_strings_Builder_reserve:
     add x14, x19, #8
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
@@ -478,12 +470,12 @@ lb_strings_Builder_reserve:
     mov x3, x21
     bl lb_core_6qadd_u
     mov w14, w0
-    sub x22, x29, #192
+    sub x12, x29, #192
     ldr x21, [x21]
-    str x21, [x22]
-    add x22, x22, #8
-    strb w14, [x22]
-    ldrb w14, [x22]
+    str x21, [x12]
+    add x12, x12, #8
+    strb w14, [x12]
+    ldrb w14, [x12]
     cbnz w14, .L4_9
     b .L4_10
 .L4_9:
@@ -504,8 +496,8 @@ lb_strings_Builder_reserve:
     add x14, x19, #8
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
@@ -558,16 +550,16 @@ lb_strings_Builder_reserve:
     mov x3, x19
     bl lb_core_6qmul_u
     mov w15, w0
-    sub x22, x29, #232
-    ldr x19, [x19]
-    str x19, [x22]
-    add x22, x22, #8
-    strb w15, [x22]
-    ldrb w15, [x22]
+    sub x13, x29, #232
+    ldr x12, [x19]
+    str x12, [x13]
+    add x13, x13, #8
+    strb w15, [x13]
+    ldrb w15, [x13]
     cbnz w15, .L4_17
     b .L4_18
 .L4_17:
-    mov x14, x19
+    mov x14, x12
     b .L4_19
 .L4_18:
     mov x14, x21
@@ -588,13 +580,13 @@ lb_strings_Builder_reserve:
     mov x22, x0
     mov x10, x22
     mov x11, x21
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x20, #24
     mov x10, x14
     mov x11, x22
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     mov x9, x20
     ldr x0, [x9]
     ldr x1, [x9, #8]
@@ -611,17 +603,17 @@ lb_strings_Builder_reserve:
     sub x19, x29, #88
     mov x10, x14
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
     mov x10, x21
     mov x11, x22
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     mov x1, x19
     sub x16, x29, #24
     ldr x0, [x16]
@@ -640,16 +632,16 @@ lb_strings_Builder_reserve:
 .L4_23:
     mov x10, x15
     mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     mov x10, x21
     mov x11, x22
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     sub x14, x29, #88
-    add x19, x14, #24
+    add x12, x14, #24
     mov x9, #0
-    strb w9, [x19]
+    strb w9, [x12]
     mov x1, x14
     sub x16, x29, #24
     ldr x0, [x16]
@@ -707,16 +699,16 @@ lb_strings_Builder_write:
     str w15, [x14]
     adrp x15, .Ltext_8
     add x15, x15, :lo12:.Ltext_8
-    sub x20, x29, #184
-    str x15, [x20]
-    add x15, x20, #8
+    sub x12, x29, #184
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #31
     str x9, [x15]
     add x14, x14, #8
-    mov x10, x20
+    mov x10, x12
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #32
     movz x9, #1
     strb w9, [x14]
@@ -789,8 +781,8 @@ lb_strings_Builder_write:
     stp xzr, xzr, [x11, #0]
     mov x10, x28
     mov x11, x27
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     cmp x26, x25
     cset w14, hs
     cbnz w14, .L5_12
@@ -845,16 +837,16 @@ lb_strings_Builder_write:
     str w15, [x14]
     adrp x15, .Ltext_13
     add x15, x15, :lo12:.Ltext_13
-    sub x20, x29, #232
-    str x15, [x20]
-    add x15, x20, #8
+    sub x12, x29, #232
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #49
     str x9, [x15]
     add x14, x14, #8
-    mov x10, x20
+    mov x10, x12
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #32
     movz x9, #1
     strb w9, [x14]
@@ -889,8 +881,8 @@ lb_strings_Builder_write:
     strb w9, [x15]
     mov x10, x14
     mov x11, x27
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     mov x25, x20
     b .L5_11
 .L5_10:
@@ -911,10 +903,10 @@ lb_strings_Builder_write:
     add x14, x19, #8
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #32
     movz x9, #1
     strb w9, [x14]
@@ -947,11 +939,11 @@ lb_strings_Builder_write:
 .L5_26:
 .L5_23:
     ldr x15, [x21]
-    ldr x20, [x19]
+    ldr x12, [x19]
     add x14, x21, #16
-    ldr x22, [x14]
-    add x14, x20, #1
-    cmp x22, x14
+    ldr x13, [x14]
+    add x14, x12, #1
+    cmp x13, x14
     b.lo 1f
     adrp x0, .Ltext_14
     add x0, x0, :lo12:.Ltext_14
@@ -959,7 +951,7 @@ lb_strings_Builder_write:
     add x1, x1, :lo12:.Ltext_15
     bl lb_core_7trap_at
 1:
-    cmp x20, x14
+    cmp x12, x14
     b.lo 1f
     adrp x0, .Ltext_14
     add x0, x0, :lo12:.Ltext_14
@@ -967,7 +959,7 @@ lb_strings_Builder_write:
     add x1, x1, :lo12:.Ltext_15
     bl lb_core_7trap_at
 1:
-    cmp x22, x20
+    cmp x13, x12
     b.ls .L5_27
 .L5_28:
     adrp x0, .Ltext_14
@@ -976,15 +968,15 @@ lb_strings_Builder_write:
     add x1, x1, :lo12:.Ltext_15
     bl lb_core_7trap_at
 .L5_27:
-    add x14, x15, x22
-    sub x24, x20, x22
-    sub x26, x29, #296
-    str x14, [x26]
-    add x14, x26, #8
-    str x24, [x14]
-    ldr x24, [x21]
-    ldr x27, [x19]
-    add x14, x27, #1
+    add x14, x15, x13
+    sub x20, x12, x13
+    sub x22, x29, #296
+    str x14, [x22]
+    add x14, x22, #8
+    str x20, [x14]
+    ldr x20, [x21]
+    ldr x24, [x19]
+    add x14, x24, #1
     cmp x25, x14
     b.lo 1f
     adrp x0, .Ltext_14
@@ -993,7 +985,7 @@ lb_strings_Builder_write:
     add x1, x1, :lo12:.Ltext_15
     bl lb_core_7trap_at
 1:
-    cmp x27, x14
+    cmp x24, x14
     b.lo 1f
     adrp x0, .Ltext_14
     add x0, x0, :lo12:.Ltext_14
@@ -1001,7 +993,7 @@ lb_strings_Builder_write:
     add x1, x1, :lo12:.Ltext_15
     bl lb_core_7trap_at
 1:
-    cmp x25, x27
+    cmp x25, x24
     b.ls .L5_29
 .L5_30:
     adrp x0, .Ltext_14
@@ -1010,17 +1002,17 @@ lb_strings_Builder_write:
     add x1, x1, :lo12:.Ltext_15
     bl lb_core_7trap_at
 .L5_29:
-    add x14, x24, x25
-    sub x15, x27, x25
-    sub x19, x29, #312
-    str x14, [x19]
-    add x14, x19, #8
+    add x14, x20, x25
+    sub x15, x24, x25
+    sub x12, x29, #312
+    str x14, [x12]
+    add x14, x12, #8
     str x15, [x14]
     ldr x14, [x23]
-    mov x9, x26
+    mov x9, x22
     ldr x0, [x9]
     ldr x1, [x9, #8]
-    mov x9, x19
+    mov x9, x12
     ldr x2, [x9]
     ldr x3, [x9, #8]
     mov x4, x14
@@ -1028,11 +1020,11 @@ lb_strings_Builder_write:
     b .L5_25
 .L5_24:
     ldr x15, [x21]
-    ldr x20, [x19]
+    ldr x12, [x19]
     add x14, x21, #16
-    ldr x24, [x14]
-    add x14, x20, #1
-    cmp x24, x14
+    ldr x13, [x14]
+    add x14, x12, #1
+    cmp x13, x14
     b.lo 1f
     adrp x0, .Ltext_16
     add x0, x0, :lo12:.Ltext_16
@@ -1040,7 +1032,7 @@ lb_strings_Builder_write:
     add x1, x1, :lo12:.Ltext_15
     bl lb_core_7trap_at
 1:
-    cmp x20, x14
+    cmp x12, x14
     b.lo 1f
     adrp x0, .Ltext_16
     add x0, x0, :lo12:.Ltext_16
@@ -1048,7 +1040,7 @@ lb_strings_Builder_write:
     add x1, x1, :lo12:.Ltext_15
     bl lb_core_7trap_at
 1:
-    cmp x24, x20
+    cmp x13, x12
     b.ls .L5_31
 .L5_32:
     adrp x0, .Ltext_16
@@ -1057,14 +1049,14 @@ lb_strings_Builder_write:
     add x1, x1, :lo12:.Ltext_15
     bl lb_core_7trap_at
 .L5_31:
-    add x14, x15, x24
-    sub x19, x20, x24
-    sub x25, x29, #328
-    str x14, [x25]
-    add x14, x25, #8
+    add x14, x15, x13
+    sub x19, x12, x13
+    sub x20, x29, #328
+    str x14, [x20]
+    add x14, x20, #8
     str x19, [x14]
     ldr x14, [x23]
-    mov x9, x25
+    mov x9, x20
     ldr x0, [x9]
     ldr x1, [x9, #8]
     mov x9, x22
@@ -1075,9 +1067,9 @@ lb_strings_Builder_write:
 .L5_25:
     add x14, x21, #16
     ldr x15, [x14]
-    ldr x19, [x23]
+    ldr x12, [x23]
     mov x9, x15
-    mov x10, x19
+    mov x10, x12
     adds x9, x9, x10
     b.cc 1f
     adrp x0, .Ltext_17
@@ -1157,10 +1149,10 @@ lb_strings_Builder_put:
     sub x19, x29, #64
     mov x10, x14
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
@@ -1201,32 +1193,30 @@ lb_strings_Builder_put:
 lb_strings_Builder_view:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #112
-    str x19, [sp, #88]
-    str x20, [sp, #80]
-    str x21, [sp, #72]
-    str x22, [sp, #64]
-    sub x16, x29, #72
+    sub sp, sp, #96
+    str x19, [sp, #72]
+    str x20, [sp, #64]
+    sub x16, x29, #56
     str x0, [x16]
-    sub x9, x29, #72
-    ldr x21, [x9]
-    add x14, x21, #16
+    sub x9, x29, #56
+    ldr x19, [x9]
+    add x14, x19, #16
     ldr x15, [x14]
-    add x19, x21, #8
-    ldr x20, [x19]
-    cmp x15, x20
+    add x12, x19, #8
+    ldr x13, [x12]
+    cmp x15, x13
     b.hs .L7_2
 .L7_1:
-    ldr x20, [x21]
-    add x20, x15, x20
+    ldr x13, [x19]
+    add x13, x15, x13
     mov x9, #0
-    strb w9, [x20]
+    strb w9, [x13]
     b .L7_3
 .L7_2:
 .L7_3:
-    ldr x20, [x21]
-    ldr x15, [x19]
-    ldr x22, [x14]
+    ldr x13, [x19]
+    ldr x15, [x12]
+    ldr x20, [x14]
     add x15, x15, #1
     mov x9, #0
     cmp x9, x15
@@ -1237,7 +1227,7 @@ lb_strings_Builder_view:
     add x1, x1, :lo12:.Ltext_15
     bl lb_core_7trap_at
 1:
-    cmp x22, x15
+    cmp x20, x15
     b.lo 1f
     adrp x0, .Ltext_20
     add x0, x0, :lo12:.Ltext_20
@@ -1246,7 +1236,7 @@ lb_strings_Builder_view:
     bl lb_core_7trap_at
 1:
     mov x9, #0
-    cmp x9, x22
+    cmp x9, x20
     b.ls .L7_4
 .L7_5:
     adrp x0, .Ltext_20
@@ -1255,26 +1245,24 @@ lb_strings_Builder_view:
     add x1, x1, :lo12:.Ltext_15
     bl lb_core_7trap_at
 .L7_4:
-    sub x14, x29, #88
-    str x20, [x14]
+    sub x14, x29, #72
+    str x13, [x14]
     add x14, x14, #8
-    str x22, [x14]
-    sub x14, x29, #104
     str x20, [x14]
+    sub x14, x29, #88
+    str x13, [x14]
     add x15, x14, #8
-    str x22, [x15]
-    sub x19, x29, #64
+    str x20, [x15]
+    sub x19, x29, #48
     mov x10, x14
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     mov x16, x19
     ldr x0, [x16, #0]
     ldr x1, [x16, #8]
-    ldr x19, [sp, #88]
-    ldr x20, [sp, #80]
-    ldr x21, [sp, #72]
-    ldr x22, [sp, #64]
+    ldr x19, [sp, #72]
+    ldr x20, [sp, #64]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -1313,33 +1301,31 @@ lb_strings_Builder_clear:
 lb_strings_Builder_truncate:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #144
+    sub sp, sp, #128
     sub x16, x29, #24
     str x8, [x16]
-    str x19, [sp, #112]
-    str x20, [sp, #104]
-    str x21, [sp, #96]
-    str x22, [sp, #88]
-    sub x16, x29, #96
+    str x19, [sp, #96]
+    str x20, [sp, #88]
+    sub x16, x29, #80
     str x0, [x16]
-    sub x16, x29, #112
+    sub x16, x29, #96
     str x1, [x16]
-    sub x9, x29, #96
-    ldr x19, [x9]
-    add x14, x19, #8
+    sub x9, x29, #80
+    ldr x12, [x9]
+    add x14, x12, #8
     ldr x14, [x14]
     mov x10, #0
     cmp x14, x10
     b.ne .L9_2
 .L9_1:
-    sub x19, x29, #88
+    sub x19, x29, #72
     adrp x14, lb_io_closed
     add x14, x14, :lo12:lb_io_closed
     ldr w14, [x14]
     str w14, [x19]
     adrp x14, .Ltext_8
     add x14, x14, :lo12:.Ltext_8
-    sub x15, x29, #128
+    sub x15, x29, #112
     str x14, [x15]
     add x14, x15, #8
     movz x9, #31
@@ -1347,8 +1333,8 @@ lb_strings_Builder_truncate:
     add x14, x19, #8
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
@@ -1359,10 +1345,8 @@ lb_strings_Builder_truncate:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #112]
-    ldr x20, [sp, #104]
-    ldr x21, [sp, #96]
-    ldr x22, [sp, #88]
+    ldr x19, [sp, #96]
+    ldr x20, [sp, #88]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -1370,21 +1354,21 @@ lb_strings_Builder_truncate:
     b .L9_3
 .L9_2:
 .L9_3:
-    sub x15, x29, #112
+    sub x15, x29, #96
     ldr x15, [x15]
-    add x20, x19, #16
-    ldr x21, [x20]
-    cmp x15, x21
+    add x13, x12, #16
+    ldr x19, [x13]
+    cmp x15, x19
     b.ls .L9_6
 .L9_5:
-    sub x19, x29, #88
+    sub x19, x29, #72
     adrp x14, lb_io_14invalid_buffer
     add x14, x14, :lo12:lb_io_14invalid_buffer
     ldr w14, [x14]
     str w14, [x19]
     adrp x14, .Ltext_21
     add x14, x14, :lo12:.Ltext_21
-    sub x15, x29, #144
+    sub x15, x29, #128
     str x14, [x15]
     add x14, x15, #8
     movz x9, #36
@@ -1392,8 +1376,8 @@ lb_strings_Builder_truncate:
     add x14, x19, #8
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
@@ -1404,10 +1388,8 @@ lb_strings_Builder_truncate:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #112]
-    ldr x20, [sp, #104]
-    ldr x21, [sp, #96]
-    ldr x22, [sp, #88]
+    ldr x19, [sp, #96]
+    ldr x20, [sp, #88]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -1415,8 +1397,8 @@ lb_strings_Builder_truncate:
     b .L9_7
 .L9_6:
 .L9_7:
-    str x15, [x20]
-    ldr x21, [x19]
+    str x15, [x13]
+    ldr x19, [x12]
     cmp x15, x14
     b.lo 1f
     adrp x0, .Ltext_22
@@ -1425,24 +1407,22 @@ lb_strings_Builder_truncate:
     add x1, x1, :lo12:.Ltext_15
     bl lb_core_7trap_at
 1:
-    add x21, x15, x21
+    add x19, x15, x19
     mov x9, #0
-    strb w9, [x21]
-    sub x21, x29, #88
-    add x22, x21, #24
+    strb w9, [x19]
+    sub x19, x29, #72
+    add x20, x19, #24
     mov x9, #0
-    strb w9, [x22]
-    mov x1, x21
+    strb w9, [x20]
+    mov x1, x19
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #112]
-    ldr x20, [sp, #104]
-    ldr x21, [sp, #96]
-    ldr x22, [sp, #88]
+    ldr x19, [sp, #96]
+    ldr x20, [sp, #88]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -1458,10 +1438,9 @@ lb_strings_Builder_destroy:
     sub sp, sp, #80
     str x19, [sp, #56]
     str x20, [sp, #48]
-    str x21, [sp, #40]
-    sub x16, x29, #48
+    sub x16, x29, #40
     str x0, [x16]
-    sub x9, x29, #48
+    sub x9, x29, #40
     ldr x19, [x9]
     add x14, x19, #8
     ldr x14, [x14]
@@ -1470,12 +1449,12 @@ lb_strings_Builder_destroy:
     b.ls .L10_2
 .L10_1:
     add x15, x19, #24
-    sub x20, x29, #64
-    ldr x21, [x19]
-    str x21, [x20]
-    add x21, x20, #8
-    str x14, [x21]
-    ldr x21, [x15]
+    sub x12, x29, #56
+    ldr x13, [x19]
+    str x13, [x12]
+    add x13, x12, #8
+    str x14, [x13]
+    ldr x13, [x15]
     add x15, x15, #8
     ldr x15, [x15]
     cbnz x15, .L10_5
@@ -1485,8 +1464,8 @@ lb_strings_Builder_destroy:
     ldr x14, [x14]
     mov x17, x14
     str x17, [sp, #-16]!
-    mov x0, x21
-    mov x9, x20
+    mov x0, x13
+    mov x9, x12
     ldr x1, [x9]
     ldr x2, [x9, #8]
     ldr x17, [sp], #16
@@ -1495,19 +1474,18 @@ lb_strings_Builder_destroy:
     b .L10_3
 .L10_2:
 .L10_3:
-    sub x20, x29, #80
+    sub x20, x29, #72
     mov x11, x20
     stp xzr, xzr, [x11, #0]
     mov x10, x20
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #16
     mov x9, #0
     str x9, [x14]
     ldr x19, [sp, #56]
     ldr x20, [sp, #48]
-    ldr x21, [sp, #40]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret

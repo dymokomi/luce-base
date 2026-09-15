@@ -45,10 +45,10 @@ lb_testing_begin:
     sub x14, x29, #88
     mov x10, x14
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     adrp x14, lb_testing_saved
     add x14, x14, :lo12:lb_testing_saved
     adrp x0, :gottprel:lb_memory_allocator
@@ -58,18 +58,18 @@ lb_testing_begin:
     mov x20, x0
     mov x10, x20
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     sub x14, x29, #104
     str x19, [x14]
     adrp x15, lb_vt_memory_FixedBuffer_Allocator
     add x15, x15, :lo12:lb_vt_memory_FixedBuffer_Allocator
-    add x19, x14, #8
-    str x15, [x19]
+    add x12, x14, #8
+    str x15, [x12]
     mov x10, x14
     mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     adrp x14, lb_testing_12current_seed
     add x14, x14, :lo12:lb_testing_12current_seed
     sub x15, x29, #48
@@ -123,8 +123,8 @@ lb_testing_end:
     mov x15, x0
     mov x10, x14
     mov x11, x15
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -161,24 +161,22 @@ lb_testing_seed:
 lb_testing_random:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #32
-    str x19, [sp, #8]
+    sub sp, sp, #16
     adrp x14, lb_testing_12current_seed
     add x14, x14, :lo12:lb_testing_12current_seed
     ldr x15, [x14]
 .L4_2:
-    lsl x19, x15, #13
-    eor x19, x15, x19
+    lsl x12, x15, #13
+    eor x12, x15, x12
 .L4_4:
-    lsr x15, x19, #7
-    eor x15, x19, x15
+    lsr x15, x12, #7
+    eor x15, x12, x15
 .L4_6:
-    lsl x19, x15, #17
-    eor x19, x15, x19
-    str x19, [x14]
-    mov x9, x19
+    lsl x12, x15, #17
+    eor x12, x15, x12
+    str x12, [x14]
+    mov x9, x12
     mov x0, x9
-    ldr x19, [sp, #8]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret

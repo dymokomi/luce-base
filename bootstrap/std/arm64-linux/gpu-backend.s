@@ -23,10 +23,9 @@ lb_gpu_14select_backend:
     sub x16, x29, #24
     str x8, [x16]
     str x19, [sp, #80]
-    str x20, [sp, #72]
-    sub x16, x29, #96
+    sub x16, x29, #88
     str w0, [x16]
-    sub x19, x29, #80
+    sub x19, x29, #72
     add x14, x19, #8
     adrp x15, lb_gpu_unsupported
     add x15, x15, :lo12:lb_gpu_unsupported
@@ -34,16 +33,16 @@ lb_gpu_14select_backend:
     str w15, [x14]
     adrp x15, .Ltext_0
     add x15, x15, :lo12:.Ltext_0
-    sub x20, x29, #112
-    str x15, [x20]
-    add x15, x20, #8
+    sub x12, x29, #104
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #44
     str x9, [x15]
     add x14, x14, #8
-    mov x10, x20
+    mov x10, x12
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #32
     movz x9, #1
     strb w9, [x14]
@@ -55,7 +54,6 @@ lb_gpu_14select_backend:
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #80]
-    ldr x20, [sp, #72]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -78,10 +76,9 @@ lb_gpu_19backend_device_open:
     sub x16, x29, #24
     str x8, [x16]
     str x19, [sp, #80]
-    str x20, [sp, #72]
-    sub x16, x29, #96
+    sub x16, x29, #88
     str w0, [x16]
-    sub x19, x29, #80
+    sub x19, x29, #72
     add x14, x19, #8
     adrp x15, lb_gpu_unsupported
     add x15, x15, :lo12:lb_gpu_unsupported
@@ -89,16 +86,16 @@ lb_gpu_19backend_device_open:
     str w15, [x14]
     adrp x15, .Ltext_3
     add x15, x15, :lo12:.Ltext_3
-    sub x20, x29, #112
-    str x15, [x20]
-    add x15, x20, #8
+    sub x12, x29, #104
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #34
     str x9, [x15]
     add x14, x14, #8
-    mov x10, x20
+    mov x10, x12
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #32
     movz x9, #1
     strb w9, [x14]
@@ -110,7 +107,6 @@ lb_gpu_19backend_device_open:
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #80]
-    ldr x20, [sp, #72]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret

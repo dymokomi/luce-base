@@ -17,8 +17,8 @@ _lb_unicode_module_0init:
     add x14, x14, _lb_unicode_version@PAGEOFF
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret

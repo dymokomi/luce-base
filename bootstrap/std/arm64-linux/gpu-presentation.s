@@ -23,12 +23,11 @@ lb_gpu_20backend_surface_open:
     sub x16, x29, #24
     str x8, [x16]
     str x19, [sp, #96]
-    str x20, [sp, #88]
-    sub x16, x29, #96
+    sub x16, x29, #88
     str x0, [x16]
-    sub x16, x29, #112
+    sub x16, x29, #104
     str x1, [x16]
-    sub x19, x29, #80
+    sub x19, x29, #72
     add x14, x19, #8
     adrp x15, lb_gpu_unsupported
     add x15, x15, :lo12:lb_gpu_unsupported
@@ -36,16 +35,16 @@ lb_gpu_20backend_surface_open:
     str w15, [x14]
     adrp x15, .Ltext_0
     add x15, x15, :lo12:.Ltext_0
-    sub x20, x29, #128
-    str x15, [x20]
-    add x15, x20, #8
+    sub x12, x29, #120
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #34
     str x9, [x15]
     add x14, x14, #8
-    mov x10, x20
+    mov x10, x12
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #32
     movz x9, #1
     strb w9, [x14]
@@ -57,7 +56,6 @@ lb_gpu_20backend_surface_open:
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #96]
-    ldr x20, [sp, #88]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -76,24 +74,23 @@ lb_gpu_20backend_surface_open:
 lb_gpu_21backend_clear_present:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #176
+    sub sp, sp, #160
     sub x16, x29, #24
     str x8, [x16]
-    str x19, [sp, #144]
-    str x20, [sp, #136]
-    sub x16, x29, #96
+    str x19, [sp, #128]
+    sub x16, x29, #88
     str x0, [x16]
-    sub x16, x29, #112
+    sub x16, x29, #104
     str x1, [x16]
-    sub x16, x29, #128
+    sub x16, x29, #120
     str x2, [x16]
-    sub x16, x29, #152
+    sub x16, x29, #144
     str d0, [x16, #0]
-    sub x16, x29, #152
+    sub x16, x29, #144
     str d1, [x16, #8]
-    sub x16, x29, #152
+    sub x16, x29, #144
     str d2, [x16, #16]
-    sub x19, x29, #80
+    sub x19, x29, #72
     add x14, x19, #8
     adrp x15, lb_gpu_unsupported
     add x15, x15, :lo12:lb_gpu_unsupported
@@ -101,16 +98,16 @@ lb_gpu_21backend_clear_present:
     str w15, [x14]
     adrp x15, .Ltext_0
     add x15, x15, :lo12:.Ltext_0
-    sub x20, x29, #168
-    str x15, [x20]
-    add x15, x20, #8
+    sub x12, x29, #160
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #34
     str x9, [x15]
     add x14, x14, #8
-    mov x10, x20
+    mov x10, x12
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #32
     movz x9, #1
     strb w9, [x14]
@@ -121,8 +118,7 @@ lb_gpu_21backend_clear_present:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #144]
-    ldr x20, [sp, #136]
+    ldr x19, [sp, #128]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -164,8 +160,8 @@ lb_gpu_20backend_surface_wait:
     add x14, x19, #8
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
@@ -209,26 +205,25 @@ lb_gpu_14backend_render:
     sub x16, x29, #24
     str x8, [x16]
     str x19, [sp, #208]
-    str x20, [sp, #200]
-    sub x16, x29, #96
+    sub x16, x29, #88
     str x0, [x16]
-    sub x16, x29, #112
+    sub x16, x29, #104
     str x1, [x16]
-    sub x16, x29, #128
+    sub x16, x29, #120
     str x2, [x16]
-    sub x16, x29, #200
+    sub x16, x29, #192
     str x3, [x16]
-    sub x16, x29, #224
+    sub x16, x29, #216
     str d0, [x16, #0]
-    sub x16, x29, #224
+    sub x16, x29, #216
     str d1, [x16, #8]
-    sub x16, x29, #224
+    sub x16, x29, #216
     str d2, [x16, #16]
-    sub x0, x29, #200
+    sub x0, x29, #192
     ldr x1, [x0]
     movz x2, #72
     bl _memcpy
-    sub x19, x29, #80
+    sub x19, x29, #72
     add x14, x19, #8
     adrp x15, lb_gpu_unsupported
     add x15, x15, :lo12:lb_gpu_unsupported
@@ -236,16 +231,16 @@ lb_gpu_14backend_render:
     str w15, [x14]
     adrp x15, .Ltext_0
     add x15, x15, :lo12:.Ltext_0
-    sub x20, x29, #240
-    str x15, [x20]
-    add x15, x20, #8
+    sub x12, x29, #232
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #34
     str x9, [x15]
     add x14, x14, #8
-    mov x10, x20
+    mov x10, x12
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #32
     movz x9, #1
     strb w9, [x14]
@@ -257,7 +252,6 @@ lb_gpu_14backend_render:
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #208]
-    ldr x20, [sp, #200]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret

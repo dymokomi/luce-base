@@ -521,20 +521,19 @@ lb_math_log1p:
 lb_math_expm1:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #48
-    str x19, [sp, #24]
-    sub x16, x29, #40
+    sub sp, sp, #32
+    sub x16, x29, #32
     str d0, [x16]
-    sub x14, x29, #40
+    sub x14, x29, #32
     ldr d24, [x14]
     fmov x14, d24
     adrp x15, lb_math_9sign_mask
     add x15, x15, :lo12:lb_math_9sign_mask
     ldr x15, [x15]
-    adrp x19, lb_math_13exponent_mask
-    add x19, x19, :lo12:lb_math_13exponent_mask
-    ldr x19, [x19]
-    orr x15, x15, x19
+    adrp x12, lb_math_13exponent_mask
+    add x12, x12, :lo12:lb_math_13exponent_mask
+    ldr x12, [x12]
+    orr x15, x15, x12
     cmp x14, x15
     b.ne .L16_2
 .L16_1:
@@ -543,7 +542,6 @@ lb_math_expm1:
     fneg d24, d24
     fmov d16, d24
     fmov d0, d16
-    ldr x19, [sp, #24]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -557,7 +555,6 @@ lb_math_expm1:
     fmov d25, d0
     fmov d16, d25
     fmov d0, d16
-    ldr x19, [sp, #24]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -686,11 +683,10 @@ lb_math_7next_up:
 lb_math_9next_down:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #80
-    str x19, [sp, #56]
-    sub x16, x29, #40
+    sub sp, sp, #64
+    sub x16, x29, #32
     str d0, [x16]
-    sub x14, x29, #40
+    sub x14, x29, #32
     ldr d24, [x14]
     adrp x14, lb_math_infinity
     add x14, x14, :lo12:lb_math_infinity
@@ -698,9 +694,9 @@ lb_math_9next_down:
     movz x9, #16368, lsl #48
     fmov d26, x9
     fneg d26, d26
-    sub x10, x29, #56
+    sub x10, x29, #48
     str d25, [x10]
-    sub x10, x29, #72
+    sub x10, x29, #64
     str d26, [x10]
     fmov x14, d25
     adrp x15, lb_math_14magnitude_mask
@@ -708,10 +704,10 @@ lb_math_9next_down:
     ldr x15, [x15]
     and x14, x14, x15
     fmov x15, d26
-    adrp x19, lb_math_9sign_mask
-    add x19, x19, :lo12:lb_math_9sign_mask
-    ldr x19, [x19]
-    and x15, x15, x19
+    adrp x12, lb_math_9sign_mask
+    add x12, x12, :lo12:lb_math_9sign_mask
+    ldr x12, [x12]
+    and x15, x15, x12
     orr x14, x14, x15
     fmov d25, x14
     b .L20_3
@@ -730,7 +726,6 @@ lb_math_9next_down:
     fmov d26, d0
     fmov d16, d26
     fmov d0, d16
-    ldr x19, [sp, #56]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -804,8 +799,8 @@ lb_math_frexp:
     sub x19, x29, #40
     mov x10, x14
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     mov x16, x19
     ldr x0, [x16, #0]
     ldr x1, [x16, #8]
@@ -826,13 +821,13 @@ lb_math_frexp:
     sub x14, x29, #96
     str d25, [x14]
     ldrsw x15, [x19]
-    add x19, x14, #8
-    str w15, [x19]
+    add x12, x14, #8
+    str w15, [x12]
     sub x19, x29, #40
     mov x10, x14
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     mov x16, x19
     ldr x0, [x16, #0]
     ldr x1, [x16, #8]
@@ -909,8 +904,8 @@ lb_math_modf:
     sub x19, x29, #40
     mov x10, x14
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     mov x9, x19
     ldr d0, [x9, #0]
     ldr d1, [x9, #8]
@@ -934,15 +929,14 @@ lb_math_remainder:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
     sub sp, sp, #96
-    str x19, [sp, #72]
-    str d8, [sp, #64]
-    sub x16, x29, #48
+    str d8, [sp, #72]
+    sub x16, x29, #40
     str d0, [x16]
-    sub x16, x29, #64
+    sub x16, x29, #56
     str d1, [x16]
-    sub x14, x29, #48
+    sub x14, x29, #40
     ldr d8, [x14]
-    sub x14, x29, #64
+    sub x14, x29, #56
     ldr d24, [x14]
     fmov d16, d8
     fmov d0, d16
@@ -959,15 +953,15 @@ lb_math_remainder:
     cmp x14, x10
     b.ne .L24_2
 .L24_1:
-    sub x10, x29, #80
+    sub x10, x29, #72
     str d24, [x10]
-    sub x10, x29, #96
+    sub x10, x29, #88
     str d8, [x10]
     fmov x15, d8
-    adrp x19, lb_math_9sign_mask
-    add x19, x19, :lo12:lb_math_9sign_mask
-    ldr x19, [x19]
-    and x15, x15, x19
+    adrp x12, lb_math_9sign_mask
+    add x12, x12, :lo12:lb_math_9sign_mask
+    ldr x12, [x12]
+    and x15, x15, x12
     orr x15, x14, x15
     fmov d25, x15
     b .L24_6
@@ -984,8 +978,7 @@ lb_math_remainder:
 .L24_3:
     fmov d16, d24
     fmov d0, d16
-    ldr x19, [sp, #72]
-    ldr d8, [sp, #64]
+    ldr d8, [sp, #72]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -1476,31 +1469,29 @@ lb_math_abs:
 lb_math_copysign:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #64
-    str x19, [sp, #40]
-    sub x16, x29, #40
+    sub sp, sp, #48
+    sub x16, x29, #32
     str d0, [x16]
-    sub x16, x29, #56
+    sub x16, x29, #48
     str d1, [x16]
-    sub x14, x29, #40
+    sub x14, x29, #32
     ldr d24, [x14]
     fmov x14, d24
     adrp x15, lb_math_14magnitude_mask
     add x15, x15, :lo12:lb_math_14magnitude_mask
     ldr x15, [x15]
     and x14, x14, x15
-    sub x15, x29, #56
+    sub x15, x29, #48
     ldr d24, [x15]
     fmov x15, d24
-    adrp x19, lb_math_9sign_mask
-    add x19, x19, :lo12:lb_math_9sign_mask
-    ldr x19, [x19]
-    and x15, x15, x19
+    adrp x12, lb_math_9sign_mask
+    add x12, x12, :lo12:lb_math_9sign_mask
+    ldr x12, [x12]
+    and x15, x15, x12
     orr x14, x14, x15
     fmov d24, x14
     fmov d16, d24
     fmov d0, d16
-    ldr x19, [sp, #40]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -1614,31 +1605,29 @@ lb_math_sign:
 lb_math_min:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #112
-    str x19, [sp, #88]
-    str x20, [sp, #80]
-    str x21, [sp, #72]
-    sub x16, x29, #56
+    sub sp, sp, #96
+    str x19, [sp, #72]
+    sub x16, x29, #40
     str d0, [x16]
-    sub x16, x29, #72
+    sub x16, x29, #56
     str d1, [x16]
-    sub x14, x29, #56
+    sub x14, x29, #40
     ldr d24, [x14]
-    sub x10, x29, #88
+    sub x10, x29, #72
     str d24, [x10]
     fmov x14, d24
     adrp x15, lb_math_14magnitude_mask
     add x15, x15, :lo12:lb_math_14magnitude_mask
     ldr x15, [x15]
-    and x19, x14, x15
-    adrp x20, lb_math_13exponent_mask
-    add x20, x20, :lo12:lb_math_13exponent_mask
-    ldr x20, [x20]
-    cmp x19, x20
-    cset w19, hi
-    and w19, w19, #255
-    sub x10, x29, #96
-    str w19, [x10]
+    and x12, x14, x15
+    adrp x13, lb_math_13exponent_mask
+    add x13, x13, :lo12:lb_math_13exponent_mask
+    ldr x13, [x13]
+    cmp x12, x13
+    cset w12, hi
+    and w12, w12, #255
+    sub x10, x29, #80
+    str w12, [x10]
     b .L42_20
 .L42_19:
     adrp x0, .Ltext_35
@@ -1647,14 +1636,12 @@ lb_math_min:
     add x1, x1, :lo12:.Ltext_0
     bl lb_core_7trap_at
 .L42_20:
-    cbnz w19, .L42_1
+    cbnz w12, .L42_1
     b .L42_2
 .L42_1:
     fmov d16, d24
     fmov d0, d16
-    ldr x19, [sp, #88]
-    ldr x20, [sp, #80]
-    ldr x21, [sp, #72]
+    ldr x19, [sp, #72]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -1662,17 +1649,17 @@ lb_math_min:
     b .L42_3
 .L42_2:
 .L42_3:
-    sub x19, x29, #72
-    ldr d25, [x19]
-    sub x10, x29, #88
+    sub x12, x29, #56
+    ldr d25, [x12]
+    sub x10, x29, #72
     str d25, [x10]
-    fmov x19, d25
-    and x21, x15, x19
-    cmp x21, x20
-    cset w21, hi
-    and w21, w21, #255
-    sub x10, x29, #104
-    str w21, [x10]
+    fmov x12, d25
+    and x19, x15, x12
+    cmp x19, x13
+    cset w19, hi
+    and w19, w19, #255
+    sub x10, x29, #88
+    str w19, [x10]
     b .L42_22
 .L42_21:
     adrp x0, .Ltext_35
@@ -1681,14 +1668,12 @@ lb_math_min:
     add x1, x1, :lo12:.Ltext_0
     bl lb_core_7trap_at
 .L42_22:
-    cbnz w21, .L42_5
+    cbnz w19, .L42_5
     b .L42_6
 .L42_5:
     fmov d16, d25
     fmov d0, d16
-    ldr x19, [sp, #88]
-    ldr x20, [sp, #80]
-    ldr x21, [sp, #72]
+    ldr x19, [sp, #72]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -1703,23 +1688,21 @@ lb_math_min:
     cbnz w15, .L42_12
     b .L42_23
 .L42_23:
-    mov w20, w15
+    mov w13, w15
     b .L42_13
 .L42_12:
     fcmp d25, d26
-    cset w20, eq
+    cset w13, eq
 .L42_13:
-    and w15, w20, #255
+    and w15, w13, #255
     cbnz w15, .L42_9
     b .L42_10
 .L42_9:
-    orr x15, x14, x19
+    orr x15, x14, x12
     fmov d24, x15
     fmov d16, d24
     fmov d0, d16
-    ldr x19, [sp, #88]
-    ldr x20, [sp, #80]
-    ldr x21, [sp, #72]
+    ldr x19, [sp, #72]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -1738,9 +1721,7 @@ lb_math_min:
 .L42_17:
     fmov d16, d25
     fmov d0, d16
-    ldr x19, [sp, #88]
-    ldr x20, [sp, #80]
-    ldr x21, [sp, #72]
+    ldr x19, [sp, #72]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -1759,31 +1740,29 @@ lb_math_min:
 lb_math_max:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #112
-    str x19, [sp, #88]
-    str x20, [sp, #80]
-    str x21, [sp, #72]
-    sub x16, x29, #56
+    sub sp, sp, #96
+    str x19, [sp, #72]
+    sub x16, x29, #40
     str d0, [x16]
-    sub x16, x29, #72
+    sub x16, x29, #56
     str d1, [x16]
-    sub x14, x29, #56
+    sub x14, x29, #40
     ldr d24, [x14]
-    sub x10, x29, #88
+    sub x10, x29, #72
     str d24, [x10]
     fmov x14, d24
     adrp x15, lb_math_14magnitude_mask
     add x15, x15, :lo12:lb_math_14magnitude_mask
     ldr x15, [x15]
-    and x19, x14, x15
-    adrp x20, lb_math_13exponent_mask
-    add x20, x20, :lo12:lb_math_13exponent_mask
-    ldr x20, [x20]
-    cmp x19, x20
-    cset w19, hi
-    and w19, w19, #255
-    sub x10, x29, #96
-    str w19, [x10]
+    and x12, x14, x15
+    adrp x13, lb_math_13exponent_mask
+    add x13, x13, :lo12:lb_math_13exponent_mask
+    ldr x13, [x13]
+    cmp x12, x13
+    cset w12, hi
+    and w12, w12, #255
+    sub x10, x29, #80
+    str w12, [x10]
     b .L43_20
 .L43_19:
     adrp x0, .Ltext_35
@@ -1792,14 +1771,12 @@ lb_math_max:
     add x1, x1, :lo12:.Ltext_0
     bl lb_core_7trap_at
 .L43_20:
-    cbnz w19, .L43_1
+    cbnz w12, .L43_1
     b .L43_2
 .L43_1:
     fmov d16, d24
     fmov d0, d16
-    ldr x19, [sp, #88]
-    ldr x20, [sp, #80]
-    ldr x21, [sp, #72]
+    ldr x19, [sp, #72]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -1807,17 +1784,17 @@ lb_math_max:
     b .L43_3
 .L43_2:
 .L43_3:
-    sub x19, x29, #72
-    ldr d25, [x19]
-    sub x10, x29, #88
+    sub x12, x29, #56
+    ldr d25, [x12]
+    sub x10, x29, #72
     str d25, [x10]
-    fmov x19, d25
-    and x21, x15, x19
-    cmp x21, x20
-    cset w21, hi
-    and w21, w21, #255
-    sub x10, x29, #104
-    str w21, [x10]
+    fmov x12, d25
+    and x19, x15, x12
+    cmp x19, x13
+    cset w19, hi
+    and w19, w19, #255
+    sub x10, x29, #88
+    str w19, [x10]
     b .L43_22
 .L43_21:
     adrp x0, .Ltext_35
@@ -1826,14 +1803,12 @@ lb_math_max:
     add x1, x1, :lo12:.Ltext_0
     bl lb_core_7trap_at
 .L43_22:
-    cbnz w21, .L43_5
+    cbnz w19, .L43_5
     b .L43_6
 .L43_5:
     fmov d16, d25
     fmov d0, d16
-    ldr x19, [sp, #88]
-    ldr x20, [sp, #80]
-    ldr x21, [sp, #72]
+    ldr x19, [sp, #72]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -1848,23 +1823,21 @@ lb_math_max:
     cbnz w15, .L43_12
     b .L43_23
 .L43_23:
-    mov w20, w15
+    mov w13, w15
     b .L43_13
 .L43_12:
     fcmp d25, d26
-    cset w20, eq
+    cset w13, eq
 .L43_13:
-    and w15, w20, #255
+    and w15, w13, #255
     cbnz w15, .L43_9
     b .L43_10
 .L43_9:
-    and x15, x14, x19
+    and x15, x14, x12
     fmov d24, x15
     fmov d16, d24
     fmov d0, d16
-    ldr x19, [sp, #88]
-    ldr x20, [sp, #80]
-    ldr x21, [sp, #72]
+    ldr x19, [sp, #72]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -1883,9 +1856,7 @@ lb_math_max:
 .L43_17:
     fmov d16, d25
     fmov d0, d16
-    ldr x19, [sp, #88]
-    ldr x20, [sp, #80]
-    ldr x21, [sp, #72]
+    ldr x19, [sp, #72]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -2003,20 +1974,18 @@ lb_math_clamp:
 lb_math_9div_floor:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #80
-    str x19, [sp, #56]
-    str x20, [sp, #48]
-    str x21, [sp, #40]
-    sub x16, x29, #56
+    sub sp, sp, #64
+    str x19, [sp, #40]
+    sub x16, x29, #40
     str x0, [x16]
-    sub x16, x29, #72
+    sub x16, x29, #56
     str x1, [x16]
-    sub x14, x29, #56
+    sub x14, x29, #40
     ldr x15, [x14]
-    sub x14, x29, #72
-    ldr x19, [x14]
+    sub x14, x29, #56
+    ldr x12, [x14]
     mov x10, #0
-    cmp x19, x10
+    cmp x12, x10
     cset w14, eq
     cbnz w14, .L45_1
     b .L45_2
@@ -2029,12 +1998,12 @@ lb_math_9div_floor:
 .L45_2:
     movz x10, #32768, lsl #48
     cmp x15, x10
-    cset w20, eq
+    cset w13, eq
     movn x10, #0
-    cmp x19, x10
-    cset w21, eq
-    and w20, w20, w21
-    cbnz w20, .L45_3
+    cmp x12, x10
+    cset w19, eq
+    and w13, w13, w19
+    cbnz w13, .L45_3
     b .L45_4
 .L45_3:
     adrp x0, .Ltext_48
@@ -2043,7 +2012,7 @@ lb_math_9div_floor:
     add x1, x1, :lo12:.Ltext_49
     bl lb_core_7trap_at
 .L45_4:
-    sdiv x21, x15, x19
+    sdiv x19, x15, x12
     cbnz w14, .L45_8
     b .L45_9
 .L45_8:
@@ -2053,7 +2022,7 @@ lb_math_9div_floor:
     add x1, x1, :lo12:.Ltext_47
     bl lb_core_7trap_at
 .L45_9:
-    cbnz w20, .L45_10
+    cbnz w13, .L45_10
     b .L45_11
 .L45_10:
     adrp x0, .Ltext_50
@@ -2062,8 +2031,8 @@ lb_math_9div_floor:
     add x1, x1, :lo12:.Ltext_49
     bl lb_core_7trap_at
 .L45_11:
-    sdiv x11, x15, x19
-    msub x14, x11, x19, x15
+    sdiv x11, x15, x12
+    msub x14, x11, x12, x15
     mov x10, #0
     cmp x14, x10
     cset w14, eq
@@ -2080,9 +2049,9 @@ lb_math_9div_floor:
     cmp x15, x10
     cset w14, lt
     mov x10, #0
-    cmp x19, x10
-    cset w20, lt
-    cmp w14, w20
+    cmp x12, x10
+    cset w13, lt
+    cmp w14, w13
     cset w14, eq
     mov x10, #0
     cmp w14, w10
@@ -2093,7 +2062,7 @@ lb_math_9div_floor:
     cbnz w14, .L45_5
     b .L45_6
 .L45_5:
-    mov x9, x21
+    mov x9, x19
     movz x10, #1
     subs x9, x9, x10
     b.vc 1f
@@ -2106,9 +2075,7 @@ lb_math_9div_floor:
     mov x14, x9
     mov x9, x14
     mov x0, x9
-    ldr x19, [sp, #56]
-    ldr x20, [sp, #48]
-    ldr x21, [sp, #40]
+    ldr x19, [sp, #40]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -2116,11 +2083,9 @@ lb_math_9div_floor:
     b .L45_7
 .L45_6:
 .L45_7:
-    mov x9, x21
+    mov x9, x19
     mov x0, x9
-    ldr x19, [sp, #56]
-    ldr x20, [sp, #48]
-    ldr x21, [sp, #40]
+    ldr x19, [sp, #40]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -2139,14 +2104,12 @@ lb_math_9div_floor:
 lb_math_9mod_floor:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #64
-    str x19, [sp, #40]
-    str x20, [sp, #32]
-    sub x16, x29, #48
+    sub sp, sp, #48
+    sub x16, x29, #32
     str x0, [x16]
-    sub x16, x29, #64
+    sub x16, x29, #48
     str x1, [x16]
-    sub x14, x29, #64
+    sub x14, x29, #48
     ldr x14, [x14]
     movn x10, #0
     cmp x14, x10
@@ -2156,8 +2119,6 @@ lb_math_9mod_floor:
 .L46_1:
     mov x9, #0
     mov x0, x9
-    ldr x19, [sp, #40]
-    ldr x20, [sp, #32]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -2165,8 +2126,8 @@ lb_math_9mod_floor:
     b .L46_3
 .L46_2:
 .L46_3:
-    sub x19, x29, #48
-    ldr x20, [x19]
+    sub x12, x29, #32
+    ldr x13, [x12]
     mov x10, #0
     cmp x14, x10
     b.ne .L46_6
@@ -2178,10 +2139,10 @@ lb_math_9mod_floor:
     bl lb_core_7trap_at
 .L46_6:
     movz x10, #32768, lsl #48
-    cmp x20, x10
-    cset w19, eq
-    and w19, w15, w19
-    cbnz w19, .L46_7
+    cmp x13, x10
+    cset w12, eq
+    and w12, w15, w12
+    cbnz w12, .L46_7
     b .L46_8
 .L46_7:
     adrp x0, .Ltext_53
@@ -2190,34 +2151,34 @@ lb_math_9mod_floor:
     add x1, x1, :lo12:.Ltext_49
     bl lb_core_7trap_at
 .L46_8:
-    sdiv x11, x20, x14
-    msub x15, x11, x14, x20
+    sdiv x11, x13, x14
+    msub x15, x11, x14, x13
     mov x10, #0
     cmp x15, x10
-    cset w19, eq
+    cset w12, eq
     mov x10, #0
-    cmp w19, w10
-    cset w19, eq
-    cbnz w19, .L46_12
+    cmp w12, w10
+    cset w12, eq
+    cbnz w12, .L46_12
     b .L46_16
 .L46_16:
-    mov w20, w19
+    mov w13, w12
     b .L46_13
 .L46_12:
     mov x10, #0
     cmp x15, x10
-    cset w19, lt
+    cset w12, lt
     mov x10, #0
     cmp x14, x10
-    cset w20, lt
-    cmp w19, w20
-    cset w19, eq
+    cset w13, lt
+    cmp w12, w13
+    cset w12, eq
     mov x10, #0
-    cmp w19, w10
-    cset w20, eq
+    cmp w12, w10
+    cset w13, eq
 .L46_13:
-    and w19, w20, #255
-    cbnz w19, .L46_9
+    and w12, w13, #255
+    cbnz w12, .L46_9
     b .L46_10
 .L46_9:
     mov x9, x14
@@ -2230,11 +2191,9 @@ lb_math_9mod_floor:
     add x1, x1, :lo12:.Ltext_49
     bl lb_core_7trap_at
 1:
-    mov x19, x9
-    mov x9, x19
+    mov x12, x9
+    mov x9, x12
     mov x0, x9
-    ldr x19, [sp, #40]
-    ldr x20, [sp, #32]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -2244,8 +2203,6 @@ lb_math_9mod_floor:
 .L46_11:
     mov x9, x15
     mov x0, x9
-    ldr x19, [sp, #40]
-    ldr x20, [sp, #32]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -2308,39 +2265,37 @@ lb_math_iabs:
 lb_math_12checked_iabs:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #112
-    str x19, [sp, #88]
-    str x20, [sp, #80]
-    sub x16, x29, #64
+    sub sp, sp, #96
+    str x19, [sp, #72]
+    sub x16, x29, #56
     str x0, [x16]
-    sub x14, x29, #64
+    sub x14, x29, #56
     ldr x14, [x14]
     mov x10, #0
     cmp x14, x10
     b.ge .L48_2
 .L48_1:
-    sub x19, x29, #72
+    sub x19, x29, #64
     mov x0, #0
     mov x1, x14
     movz x2, #64
     mov x3, x19
     bl lb_core_6qsub_s
     mov w15, w0
-    sub x20, x29, #88
-    ldr x19, [x19]
-    str x19, [x20]
-    add x19, x20, #8
-    strb w15, [x19]
-    sub x19, x29, #48
-    mov x10, x20
+    sub x12, x29, #80
+    ldr x13, [x19]
+    str x13, [x12]
+    add x13, x12, #8
+    strb w15, [x13]
+    sub x19, x29, #40
+    mov x10, x12
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     mov x16, x19
     ldr x0, [x16, #0]
     ldr x1, [x16, #8]
-    ldr x19, [sp, #88]
-    ldr x20, [sp, #80]
+    ldr x19, [sp, #72]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -2348,21 +2303,20 @@ lb_math_12checked_iabs:
     b .L48_3
 .L48_2:
 .L48_3:
-    sub x15, x29, #104
+    sub x15, x29, #96
     str x14, [x15]
-    add x19, x15, #8
+    add x12, x15, #8
     movz x9, #1
-    strb w9, [x19]
-    sub x19, x29, #48
+    strb w9, [x12]
+    sub x19, x29, #40
     mov x10, x15
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     mov x16, x19
     ldr x0, [x16, #0]
     ldr x1, [x16, #8]
-    ldr x19, [sp, #88]
-    ldr x20, [sp, #80]
+    ldr x19, [sp, #72]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -2396,7 +2350,7 @@ lb_math_17checked_div_floor:
     cbnz w15, .L49_10
     b .L49_4
 .L49_10:
-    mov w19, w15
+    mov w12, w15
     b .L49_5
 .L49_4:
     sub x15, x29, #64
@@ -2407,17 +2361,17 @@ lb_math_17checked_div_floor:
     cbnz w15, .L49_6
     b .L49_11
 .L49_11:
-    mov w19, w15
+    mov w12, w15
     b .L49_7
 .L49_6:
     movn x10, #0
     cmp x14, x10
-    cset w19, eq
+    cset w12, eq
 .L49_7:
-    and w15, w19, #255
-    mov w19, w15
+    and w15, w12, #255
+    mov w12, w15
 .L49_5:
-    and w15, w19, #255
+    and w15, w12, #255
     cbnz w15, .L49_1
     b .L49_2
 .L49_1:
@@ -2427,8 +2381,8 @@ lb_math_17checked_div_floor:
     sub x20, x29, #48
     mov x10, x19
     mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     mov x16, x20
     ldr x0, [x16, #0]
     ldr x1, [x16, #8]
@@ -2447,17 +2401,17 @@ lb_math_17checked_div_floor:
     mov x1, x14
     bl lb_math_9div_floor
     mov x15, x0
-    sub x19, x29, #112
-    str x15, [x19]
-    add x15, x19, #8
+    sub x12, x29, #112
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #1
     strb w9, [x15]
-    sub x20, x29, #48
-    mov x10, x19
-    mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    mov x16, x20
+    sub x19, x29, #48
+    mov x10, x12
+    mov x11, x19
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    mov x16, x19
     ldr x0, [x16, #0]
     ldr x1, [x16, #8]
     ldr x19, [sp, #88]
@@ -2499,8 +2453,8 @@ lb_math_17checked_mod_floor:
     sub x20, x29, #48
     mov x10, x19
     mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     mov x16, x20
     ldr x0, [x16, #0]
     ldr x1, [x16, #8]
@@ -2526,8 +2480,8 @@ lb_math_17checked_mod_floor:
     sub x19, x29, #48
     mov x10, x14
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     mov x16, x19
     ldr x0, [x16, #0]
     ldr x1, [x16, #8]
@@ -2546,17 +2500,17 @@ lb_math_17checked_mod_floor:
     mov x1, x14
     bl lb_math_9mod_floor
     mov x15, x0
-    sub x19, x29, #128
-    str x15, [x19]
-    add x15, x19, #8
+    sub x12, x29, #128
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #1
     strb w9, [x15]
-    sub x20, x29, #48
-    mov x10, x19
-    mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    mov x16, x20
+    sub x19, x29, #48
+    mov x10, x12
+    mov x11, x19
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    mov x16, x19
     ldr x0, [x16, #0]
     ldr x1, [x16, #8]
     ldr x19, [sp, #104]
@@ -2579,15 +2533,14 @@ lb_math_17checked_mod_floor:
 lb_math_imin:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #64
-    str x19, [sp, #40]
-    sub x16, x29, #40
+    sub sp, sp, #48
+    sub x16, x29, #32
     str x0, [x16]
-    sub x16, x29, #56
+    sub x16, x29, #48
     str x1, [x16]
-    sub x14, x29, #40
+    sub x14, x29, #32
     ldr x14, [x14]
-    sub x15, x29, #56
+    sub x15, x29, #48
     ldr x15, [x15]
     cmp x14, x15
     b.ge .L51_2
@@ -2598,7 +2551,6 @@ lb_math_imin:
 .L51_3:
     mov x9, x15
     mov x0, x9
-    ldr x19, [sp, #40]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -2617,15 +2569,14 @@ lb_math_imin:
 lb_math_imax:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #64
-    str x19, [sp, #40]
-    sub x16, x29, #40
+    sub sp, sp, #48
+    sub x16, x29, #32
     str x0, [x16]
-    sub x16, x29, #56
+    sub x16, x29, #48
     str x1, [x16]
-    sub x14, x29, #40
+    sub x14, x29, #32
     ldr x14, [x14]
-    sub x15, x29, #56
+    sub x15, x29, #48
     ldr x15, [x15]
     cmp x14, x15
     b.le .L52_2
@@ -2636,7 +2587,6 @@ lb_math_imax:
 .L52_3:
     mov x9, x15
     mov x0, x9
-    ldr x19, [sp, #40]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -2655,18 +2605,16 @@ lb_math_imax:
 lb_math_iclamp:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #80
-    str x19, [sp, #56]
-    str x20, [sp, #48]
-    sub x16, x29, #48
+    sub sp, sp, #64
+    sub x16, x29, #32
     str x0, [x16]
-    sub x16, x29, #64
+    sub x16, x29, #48
     str x1, [x16]
-    sub x16, x29, #80
+    sub x16, x29, #64
     str x2, [x16]
-    sub x14, x29, #64
+    sub x14, x29, #48
     ldr x14, [x14]
-    sub x15, x29, #80
+    sub x15, x29, #64
     ldr x15, [x15]
     cmp x14, x15
     b.le .L53_1
@@ -2677,28 +2625,26 @@ lb_math_iclamp:
     add x1, x1, :lo12:.Ltext_44
     bl lb_core_7trap_at
 .L53_1:
-    sub x19, x29, #48
-    ldr x19, [x19]
-    cmp x19, x14
+    sub x12, x29, #32
+    ldr x12, [x12]
+    cmp x12, x14
     b.ge .L53_4
 .L53_3:
     mov x15, x14
     b .L53_5
 .L53_4:
-    cmp x19, x15
+    cmp x12, x15
     b.le .L53_7
 .L53_6:
     mov x14, x15
     b .L53_8
 .L53_7:
-    mov x14, x19
+    mov x14, x12
 .L53_8:
     mov x15, x14
 .L53_5:
     mov x9, x15
     mov x0, x9
-    ldr x19, [sp, #56]
-    ldr x20, [sp, #48]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret

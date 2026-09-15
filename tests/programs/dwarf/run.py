@@ -117,6 +117,24 @@ transcript = debug("mixed-moved", package / exe.name, moved / "main.lucb", [
     ("BREAK_METHOD", {"self->x": 3, "self->y": 4}, ())], (original, moved))
 if not re.search(r"bridge.*bridge.c", transcript):
     raise SystemExit("FAIL DWARF: the mixed C frame has no source location")
+# the optimised program with DWARF (`--release --debug`): the same lines and named locals,
+# no debugger hooks, and every statement's line survives the optimiser
+optimised = work / "optimised"
+run("build-optimised", [compiler, "build", moved / "main.lucb", "--native", "--release", "--debug", "-o", optimised])
+assert run("execute-optimised", [optimised]) == "ok DWARF\n"
+run("emit-optimised", [compiler, "build", moved / "main.lucb", "--native", "--release", "--debug", "--emit=asm", "-o", work / "optimised.s"])
+listing = (work / "optimised.s").read_text()
+if "lb_debug_at" in listing or ".loc " not in listing:
+    raise SystemExit("FAIL DWARF: the optimised build must carry lines and no debugger hooks")
+if mac:
+    run("verify-optimised", ["xcrun", "dwarfdump", "--verify", str(optimised) + ".dSYM"])
+else:
+    run("verify-optimised", ["llvm-dwarfdump", "--verify", str(optimised) + ".debug"])
+debug("optimised", optimised, moved / "main.lucb", [
+    ("BREAK_INSPECT", {"value": 3, "point.x": 3, "point.y": 4, "optional.value": 17, "pair._0": 5, "pair._1": 6, "packed.second": 123}, ()),
+    ("BREAK_INNER", {"inner": 77, "result": 7}, ()),
+    ("BREAK_AFTER", {"result": 84}, ()),
+    ("BREAK_METHOD", {"self->x": 3, "self->y": 4}, ())])
 lib = work / "library"
 run("build-library", [compiler, "build", fixtures / "library/main.lucb", "--native", "--debug", "--lib", "-o", lib])
 cc = shlex.split(os.environ.get("CC", "cc"))
@@ -130,4 +148,4 @@ else:
     run("verify-consumer", ["llvm-dwarfdump", "--verify", consumer])
 debug("library-consumer", consumer, fixtures / "library/main.lucb", [
     ("BREAK_LIBRARY", {"value": 21, "doubled": 42}, ())])
-print("ok DWARF: source breakpoints, mixed backtraces, typed locals, scopes, moved sources and libraries")
+print("ok DWARF: source breakpoints, mixed backtraces, typed locals, scopes, moved sources, libraries, and the optimised build")

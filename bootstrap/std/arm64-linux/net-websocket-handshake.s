@@ -28,8 +28,8 @@ lb_net_19websocket_handshake_0init:
     add x14, x14, :lo12:lb_net_18websocket_alphabet
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     adrp x14, .Ltext_1
     add x14, x14, :lo12:.Ltext_1
     sub x15, x29, #48
@@ -41,8 +41,8 @@ lb_net_19websocket_handshake_0init:
     add x14, x14, :lo12:lb_net_14websocket_guid
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -56,44 +56,42 @@ lb_net_17websocket_entropy:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
     sub sp, sp, #128
-    str x19, [sp, #104]
-    sub x16, x29, #40
+    sub x16, x29, #32
     str x0, [x16]
-    sub x16, x29, #56
+    sub x16, x29, #48
     str x1, [x16]
-    sub x14, x29, #40
+    sub x14, x29, #32
     ldr x14, [x14]
-    sub x15, x29, #56
+    sub x15, x29, #48
     ldr x15, [x15]
-    sub x19, x29, #96
-    str x14, [x19]
-    add x14, x19, #8
+    sub x12, x29, #88
+    str x14, [x12]
+    add x14, x12, #8
     str x15, [x14]
-    mov x9, x19
+    mov x9, x12
     ldr x0, [x9]
     ldr x1, [x9, #8]
-    sub x8, x29, #128
+    sub x8, x29, #120
     bl lb_os_12random_bytes
-    sub x15, x29, #128
+    sub x15, x29, #120
     add x14, x15, #24
     ldrb w14, [x14]
     cbnz w14, .L1_4
     b .L1_3
 .L1_4:
-    sub x14, x29, #80
+    sub x14, x29, #72
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     b .L1_1
 .L1_3:
     b .L1_2
 .L1_1:
     movn x9, #0
     mov x0, x9
-    ldr x19, [sp, #104]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -101,7 +99,6 @@ lb_net_17websocket_entropy:
 .L1_2:
     mov x9, #0
     mov x0, x9
-    ldr x19, [sp, #104]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -120,28 +117,26 @@ lb_net_17websocket_entropy:
 lb_net_16websocket_sextet:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #80
-    str x19, [sp, #56]
-    str x20, [sp, #48]
-    str x21, [sp, #40]
-    str x22, [sp, #32]
-    sub x16, x29, #72
+    sub sp, sp, #64
+    str x19, [sp, #40]
+    str x20, [sp, #32]
+    sub x16, x29, #56
     str w0, [x16]
     adrp x14, lb_net_18websocket_alphabet
     add x14, x14, :lo12:lb_net_18websocket_alphabet
     add x15, x14, #8
-    sub x19, x29, #72
-    ldrb w19, [x19]
+    sub x12, x29, #56
+    ldrb w12, [x12]
     mov x9, #0
-    mov x20, x9
+    mov x13, x9
 .L2_1:
     movz x10, #64
-    cmp x20, x10
+    cmp x13, x10
     b.ge .L2_4
 .L2_2:
-    ldr x21, [x14]
-    ldr x22, [x15]
-    cmp x20, x22
+    ldr x19, [x14]
+    ldr x20, [x15]
+    cmp x13, x20
     b.lo 1f
     adrp x0, .Ltext_4
     add x0, x0, :lo12:.Ltext_4
@@ -149,28 +144,26 @@ lb_net_16websocket_sextet:
     add x1, x1, :lo12:.Ltext_8
     bl lb_core_7trap_at
 1:
-    add x21, x21, x20
-    ldrb w21, [x21]
-    cmp w21, w19
+    add x19, x19, x13
+    ldrb w19, [x19]
+    cmp w19, w12
     b.ne .L2_6
 .L2_5:
-    and w14, w20, #255
-    sub x15, x29, #74
+    and w14, w13, #255
+    sub x15, x29, #58
     strb w14, [x15]
     add x14, x15, #1
     movz x9, #1
     strb w9, [x14]
-    sub x19, x29, #50
+    sub x19, x29, #34
     mov x10, x15
     mov x11, x19
-    ldrh w12, [x10, #0]
-    strh w12, [x11, #0]
+    ldrh w16, [x10, #0]
+    strh w16, [x11, #0]
     mov x16, x19
     ldrh w0, [x16, #0]
-    ldr x19, [sp, #56]
-    ldr x20, [sp, #48]
-    ldr x21, [sp, #40]
-    ldr x22, [sp, #32]
+    ldr x19, [sp, #40]
+    ldr x20, [sp, #32]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -179,24 +172,22 @@ lb_net_16websocket_sextet:
 .L2_6:
 .L2_7:
 .L2_3:
-    add x21, x20, #1
-    mov x20, x21
+    add x19, x13, #1
+    mov x13, x19
     b .L2_1
 .L2_4:
-    sub x19, x29, #76
+    sub x19, x29, #60
     mov x11, x19
     strh wzr, [x11, #0]
-    sub x20, x29, #50
+    sub x20, x29, #34
     mov x10, x19
     mov x11, x20
-    ldrh w12, [x10, #0]
-    strh w12, [x11, #0]
+    ldrh w16, [x10, #0]
+    strh w16, [x11, #0]
     mov x16, x20
     ldrh w0, [x16, #0]
-    ldr x19, [sp, #56]
-    ldr x20, [sp, #48]
-    ldr x21, [sp, #40]
-    ldr x22, [sp, #32]
+    ldr x19, [sp, #40]
+    ldr x20, [sp, #32]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -235,7 +226,7 @@ lb_net_19websocket_key_valid:
     cbnz w15, .L3_24
     b .L3_4
 .L3_24:
-    mov w20, w15
+    mov w12, w15
     b .L3_5
 .L3_4:
     ldr x15, [x14]
@@ -255,13 +246,13 @@ lb_net_19websocket_key_valid:
     cset w15, eq
     mov x10, #0
     cmp w15, w10
-    cset w20, eq
+    cset w12, eq
 .L3_5:
-    and w15, w20, #255
+    and w15, w12, #255
     cbnz w15, .L3_25
     b .L3_6
 .L3_25:
-    mov w20, w15
+    mov w12, w15
     b .L3_7
 .L3_6:
     ldr x15, [x14]
@@ -281,9 +272,9 @@ lb_net_19websocket_key_valid:
     cset w15, eq
     mov x10, #0
     cmp w15, w10
-    cset w20, eq
+    cset w12, eq
 .L3_7:
-    and w15, w20, #255
+    and w15, w12, #255
     cbnz w15, .L3_1
     b .L3_2
 .L3_1:
@@ -421,19 +412,19 @@ lb_net_19websocket_key_valid:
 lb_net_16websocket_base64:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #288
+    sub sp, sp, #272
     sub x16, x29, #24
     str x8, [x16]
-    str x19, [sp, #256]
-    str x20, [sp, #248]
-    str x21, [sp, #240]
-    str x22, [sp, #232]
-    str x23, [sp, #224]
-    str x24, [sp, #216]
-    str x25, [sp, #208]
-    str x26, [sp, #200]
-    str x27, [sp, #192]
-    str x28, [sp, #184]
+    str x19, [sp, #240]
+    str x20, [sp, #232]
+    str x21, [sp, #224]
+    str x22, [sp, #216]
+    str x23, [sp, #208]
+    str x24, [sp, #200]
+    str x25, [sp, #192]
+    str x26, [sp, #184]
+    str x27, [sp, #176]
+    str x28, [sp, #168]
     sub x16, x29, #168
     str x0, [x16]
     str x1, [x16, #8]
@@ -443,8 +434,8 @@ lb_net_16websocket_base64:
     sub x14, x29, #168
     add x15, x14, #8
     ldr x9, [x15]
-    str x9, [sp, #48]
-    ldr x9, [sp, #48]
+    str x9, [sp, #32]
+    ldr x9, [sp, #32]
     movz x10, #2
     adds x9, x9, x10
     b.cc 1f
@@ -454,11 +445,11 @@ lb_net_16websocket_base64:
     add x1, x1, :lo12:.Ltext_99
     bl lb_core_7trap_at
 1:
-    mov x19, x9
+    mov x12, x9
 .L4_2:
     movz x10, #3
-    udiv x20, x19, x10
-    mov x9, x20
+    udiv x13, x12, x10
+    mov x9, x13
     movz x10, #4
     umulh x11, x9, x10
     mul x9, x9, x10
@@ -469,13 +460,13 @@ lb_net_16websocket_base64:
     add x1, x1, :lo12:.Ltext_99
     bl lb_core_7trap_at
 1:
-    mov x20, x9
+    mov x13, x9
     sub x9, x29, #184
-    str x9, [sp, #40]
-    ldr x9, [sp, #40]
-    add x22, x9, #8
-    ldr x22, [x22]
-    cmp x22, x20
+    str x9, [sp, #24]
+    ldr x9, [sp, #24]
+    add x20, x9, #8
+    ldr x20, [x20]
+    cmp x20, x13
     b.hs .L4_4
 .L4_3:
     sub x19, x29, #152
@@ -486,16 +477,16 @@ lb_net_16websocket_base64:
     str w15, [x14]
     adrp x15, .Ltext_13
     add x15, x15, :lo12:.Ltext_13
-    sub x20, x29, #200
-    str x15, [x20]
-    add x15, x20, #8
+    sub x12, x29, #200
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #36
     str x9, [x15]
     add x14, x14, #8
-    mov x10, x20
+    mov x10, x12
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #40
     movz x9, #1
     strb w9, [x14]
@@ -506,57 +497,55 @@ lb_net_16websocket_base64:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #256]
-    ldr x20, [sp, #248]
-    ldr x21, [sp, #240]
-    ldr x22, [sp, #232]
-    ldr x23, [sp, #224]
-    ldr x24, [sp, #216]
-    ldr x25, [sp, #208]
-    ldr x26, [sp, #200]
-    ldr x27, [sp, #192]
-    ldr x28, [sp, #184]
+    ldr x19, [sp, #240]
+    ldr x20, [sp, #232]
+    ldr x21, [sp, #224]
+    ldr x22, [sp, #216]
+    ldr x23, [sp, #208]
+    ldr x24, [sp, #200]
+    ldr x25, [sp, #192]
+    ldr x26, [sp, #184]
+    ldr x27, [sp, #176]
+    ldr x28, [sp, #168]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
 .L4_4:
 .L4_5:
     ldr x9, [x14]
-    str x9, [sp, #32]
-    ldr x9, [sp, #40]
-    ldr x20, [x9]
-    adrp x23, lb_net_18websocket_alphabet
-    add x23, x23, :lo12:lb_net_18websocket_alphabet
-    add x24, x23, #8
+    str x9, [sp, #16]
+    ldr x9, [sp, #24]
+    ldr x13, [x9]
+    adrp x21, lb_net_18websocket_alphabet
+    add x21, x21, :lo12:lb_net_18websocket_alphabet
+    add x22, x21, #8
     mov x9, #0
-    str x9, [sp, #0]
+    str x9, [sp, #8]
     mov x9, #0
-    mov x26, x9
+    mov x24, x9
 .L4_7:
-    ldr x9, [sp, #0]
-    ldr x10, [sp, #48]
+    ldr x9, [sp, #8]
+    ldr x10, [sp, #32]
     cmp x9, x10
     b.hs .L4_9
 .L4_8:
-    ldr x9, [sp, #48]
-    ldr x10, [sp, #0]
-    sub x14, x9, x10
     ldr x9, [sp, #32]
-    ldr x10, [sp, #0]
-    add x27, x9, x10
-    ldrb w27, [x27]
+    ldr x10, [sp, #8]
+    sub x14, x9, x10
+    ldr x9, [sp, #16]
+    ldr x10, [sp, #8]
+    add x25, x9, x10
+    ldrb w25, [x25]
     movz x10, #1
     cmp x14, x10
-    cset w9, hi
-    str w9, [sp, #24]
-    ldr w9, [sp, #24]
-    cbnz w9, .L4_10
+    cset w26, hi
+    cbnz w26, .L4_10
     b .L4_11
 .L4_10:
-    ldr x9, [sp, #0]
-    add x21, x9, #1
-    ldr x10, [sp, #48]
-    cmp x21, x10
+    ldr x9, [sp, #8]
+    add x27, x9, #1
+    ldr x10, [sp, #32]
+    cmp x27, x10
     b.lo 1f
     adrp x0, .Ltext_16
     add x0, x0, :lo12:.Ltext_16
@@ -564,25 +553,22 @@ lb_net_16websocket_base64:
     add x1, x1, :lo12:.Ltext_8
     bl lb_core_7trap_at
 1:
-    ldr x9, [sp, #32]
-    add x21, x9, x21
-    ldrb w21, [x21]
+    ldr x9, [sp, #16]
+    add x27, x9, x27
+    ldrb w27, [x27]
     b .L4_12
 .L4_11:
     mov x9, #0
-    mov w21, w9
+    mov w27, w9
 .L4_12:
-    and w9, w21, #255
-    str w9, [sp, #16]
+    and w28, w27, #255
     movz x10, #2
     cmp x14, x10
-    cset w9, hi
-    str w9, [sp, #8]
-    ldr w9, [sp, #8]
-    cbnz w9, .L4_13
+    cset w19, hi
+    cbnz w19, .L4_13
     b .L4_14
 .L4_13:
-    ldr x9, [sp, #0]
+    ldr x9, [sp, #8]
     movz x10, #2
     adds x9, x9, x10
     b.cc 1f
@@ -593,7 +579,7 @@ lb_net_16websocket_base64:
     bl lb_core_7trap_at
 1:
     mov x14, x9
-    ldr x10, [sp, #48]
+    ldr x10, [sp, #32]
     cmp x14, x10
     b.lo 1f
     adrp x0, .Ltext_17
@@ -602,7 +588,7 @@ lb_net_16websocket_base64:
     add x1, x1, :lo12:.Ltext_8
     bl lb_core_7trap_at
 1:
-    ldr x9, [sp, #32]
+    ldr x9, [sp, #16]
     add x14, x9, x14
     ldrb w14, [x14]
     b .L4_15
@@ -610,8 +596,8 @@ lb_net_16websocket_base64:
     mov x9, #0
     mov w14, w9
 .L4_15:
-    and w21, w14, #255
-    cmp x26, x22
+    and w27, w14, #255
+    cmp x24, x20
     b.lo 1f
     adrp x0, .Ltext_18
     add x0, x0, :lo12:.Ltext_18
@@ -619,15 +605,15 @@ lb_net_16websocket_base64:
     add x1, x1, :lo12:.Ltext_8
     bl lb_core_7trap_at
 1:
-    add x19, x20, x26
-    and w15, w27, #255
+    add x15, x13, x24
+    and w12, w25, #255
 .L4_17:
-    lsr w14, w15, #2
+    lsr w14, w12, #2
     and w14, w14, #255
     mov w14, w14
-    ldr x27, [x23]
-    ldr x25, [x24]
-    cmp x14, x25
+    ldr x25, [x21]
+    ldr x23, [x22]
+    cmp x14, x23
     b.lo 1f
     adrp x0, .Ltext_18
     add x0, x0, :lo12:.Ltext_18
@@ -635,11 +621,11 @@ lb_net_16websocket_base64:
     add x1, x1, :lo12:.Ltext_8
     bl lb_core_7trap_at
 1:
-    add x14, x14, x27
+    add x14, x14, x25
     ldrb w14, [x14]
-    strb w14, [x19]
-    add x14, x26, #1
-    cmp x14, x22
+    strb w14, [x15]
+    add x14, x24, #1
+    cmp x14, x20
     b.lo 1f
     adrp x0, .Ltext_20
     add x0, x0, :lo12:.Ltext_20
@@ -647,22 +633,21 @@ lb_net_16websocket_base64:
     add x1, x1, :lo12:.Ltext_8
     bl lb_core_7trap_at
 1:
-    add x14, x20, x14
+    add x14, x13, x14
     movz x10, #3
-    and w25, w15, w10
+    and w23, w12, w10
 .L4_19:
-    lsl w15, w25, #4
+    lsl w15, w23, #4
     and w15, w15, #255
-    ldr w9, [sp, #16]
-    and w19, w9, #255
+    and w12, w28, #255
 .L4_21:
-    lsr w25, w19, #4
-    and w25, w25, #255
-    orr w25, w25, w15
-    mov w25, w25
-    ldr x27, [x23]
-    ldr x28, [x24]
-    cmp x25, x28
+    lsr w23, w12, #4
+    and w23, w23, #255
+    orr w23, w23, w15
+    mov w23, w23
+    ldr x25, [x21]
+    ldr x28, [x22]
+    cmp x23, x28
     b.lo 1f
     adrp x0, .Ltext_20
     add x0, x0, :lo12:.Ltext_20
@@ -670,10 +655,10 @@ lb_net_16websocket_base64:
     add x1, x1, :lo12:.Ltext_8
     bl lb_core_7trap_at
 1:
-    add x25, x25, x27
-    ldrb w25, [x25]
-    strb w25, [x14]
-    mov x9, x26
+    add x23, x23, x25
+    ldrb w23, [x23]
+    strb w23, [x14]
+    mov x9, x24
     movz x10, #2
     adds x9, x9, x10
     b.cc 1f
@@ -683,8 +668,8 @@ lb_net_16websocket_base64:
     add x1, x1, :lo12:.Ltext_99
     bl lb_core_7trap_at
 1:
-    mov x25, x9
-    cmp x25, x22
+    mov x23, x9
+    cmp x23, x20
     b.lo 1f
     adrp x0, .Ltext_21
     add x0, x0, :lo12:.Ltext_21
@@ -692,25 +677,24 @@ lb_net_16websocket_base64:
     add x1, x1, :lo12:.Ltext_8
     bl lb_core_7trap_at
 1:
-    add x25, x20, x25
-    ldr w9, [sp, #24]
-    cbnz w9, .L4_22
+    add x23, x13, x23
+    cbnz w26, .L4_22
     b .L4_23
 .L4_22:
     movz x10, #15
-    and w14, w19, w10
+    and w14, w12, w10
 .L4_26:
     lsl w15, w14, #2
     and w15, w15, #255
-    and w19, w21, #255
+    and w12, w27, #255
 .L4_28:
-    lsr w14, w19, #6
+    lsr w14, w12, #6
     and w14, w14, #255
     orr w14, w14, w15
     mov w14, w14
-    ldr x27, [x23]
-    ldr x28, [x24]
-    cmp x14, x28
+    ldr x25, [x21]
+    ldr x26, [x22]
+    cmp x14, x26
     b.lo 1f
     adrp x0, .Ltext_21
     add x0, x0, :lo12:.Ltext_21
@@ -718,7 +702,7 @@ lb_net_16websocket_base64:
     add x1, x1, :lo12:.Ltext_8
     bl lb_core_7trap_at
 1:
-    add x14, x14, x27
+    add x14, x14, x25
     ldrb w14, [x14]
     b .L4_24
 .L4_23:
@@ -726,8 +710,8 @@ lb_net_16websocket_base64:
     mov w14, w9
 .L4_24:
     and w15, w14, #255
-    strb w15, [x25]
-    mov x9, x26
+    strb w15, [x23]
+    mov x9, x24
     movz x10, #3
     adds x9, x9, x10
     b.cc 1f
@@ -738,7 +722,7 @@ lb_net_16websocket_base64:
     bl lb_core_7trap_at
 1:
     mov x15, x9
-    cmp x15, x22
+    cmp x15, x20
     b.lo 1f
     adrp x0, .Ltext_22
     add x0, x0, :lo12:.Ltext_22
@@ -746,18 +730,17 @@ lb_net_16websocket_base64:
     add x1, x1, :lo12:.Ltext_8
     bl lb_core_7trap_at
 1:
-    add x15, x20, x15
-    ldr w9, [sp, #8]
-    cbnz w9, .L4_29
+    add x15, x13, x15
+    cbnz w19, .L4_29
     b .L4_30
 .L4_29:
-    and w14, w21, #255
+    and w14, w27, #255
     movz x10, #63
     and w14, w14, w10
     mov w14, w14
-    ldr x19, [x23]
-    ldr x25, [x24]
-    cmp x14, x25
+    ldr x12, [x21]
+    ldr x19, [x22]
+    cmp x14, x19
     b.lo 1f
     adrp x0, .Ltext_22
     add x0, x0, :lo12:.Ltext_22
@@ -765,16 +748,16 @@ lb_net_16websocket_base64:
     add x1, x1, :lo12:.Ltext_8
     bl lb_core_7trap_at
 1:
-    add x14, x14, x19
+    add x14, x14, x12
     ldrb w14, [x14]
     b .L4_31
 .L4_30:
     movz x9, #61
     mov w14, w9
 .L4_31:
-    and w19, w14, #255
-    strb w19, [x15]
-    ldr x9, [sp, #0]
+    and w12, w14, #255
+    strb w12, [x15]
+    ldr x9, [sp, #8]
     movz x10, #3
     adds x9, x9, x10
     b.cc 1f
@@ -784,8 +767,8 @@ lb_net_16websocket_base64:
     add x1, x1, :lo12:.Ltext_99
     bl lb_core_7trap_at
 1:
-    mov x19, x9
-    mov x9, x26
+    mov x12, x9
+    mov x9, x24
     movz x10, #4
     adds x9, x9, x10
     b.cc 1f
@@ -795,15 +778,15 @@ lb_net_16websocket_base64:
     add x1, x1, :lo12:.Ltext_99
     bl lb_core_7trap_at
 1:
-    mov x21, x9
-    mov x9, x19
-    str x9, [sp, #0]
-    mov x26, x21
+    mov x19, x9
+    mov x9, x12
+    str x9, [sp, #8]
+    mov x24, x19
     b .L4_7
 .L4_9:
-    ldr x9, [sp, #40]
+    ldr x9, [sp, #24]
     ldr x15, [x9]
-    add x14, x22, #1
+    add x14, x20, #1
     mov x9, #0
     cmp x9, x14
     b.lo 1f
@@ -813,7 +796,7 @@ lb_net_16websocket_base64:
     add x1, x1, :lo12:.Ltext_8
     bl lb_core_7trap_at
 1:
-    cmp x26, x14
+    cmp x24, x14
     b.lo 1f
     adrp x0, .Ltext_25
     add x0, x0, :lo12:.Ltext_25
@@ -822,7 +805,7 @@ lb_net_16websocket_base64:
     bl lb_core_7trap_at
 1:
     mov x9, #0
-    cmp x9, x26
+    cmp x9, x24
     b.ls .L4_32
 .L4_33:
     adrp x0, .Ltext_25
@@ -834,16 +817,16 @@ lb_net_16websocket_base64:
     sub x14, x29, #216
     str x15, [x14]
     add x14, x14, #8
-    str x26, [x14]
+    str x24, [x14]
     sub x14, x29, #232
     str x15, [x14]
-    add x19, x14, #8
-    str x26, [x19]
+    add x12, x14, #8
+    str x24, [x12]
     sub x19, x29, #152
     mov x10, x14
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #40
     mov x9, #0
     strb w9, [x14]
@@ -854,16 +837,16 @@ lb_net_16websocket_base64:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #256]
-    ldr x20, [sp, #248]
-    ldr x21, [sp, #240]
-    ldr x22, [sp, #232]
-    ldr x23, [sp, #224]
-    ldr x24, [sp, #216]
-    ldr x25, [sp, #208]
-    ldr x26, [sp, #200]
-    ldr x27, [sp, #192]
-    ldr x28, [sp, #184]
+    ldr x19, [sp, #240]
+    ldr x20, [sp, #232]
+    ldr x21, [sp, #224]
+    ldr x22, [sp, #216]
+    ldr x23, [sp, #208]
+    ldr x24, [sp, #200]
+    ldr x25, [sp, #192]
+    ldr x26, [sp, #184]
+    ldr x27, [sp, #176]
+    ldr x28, [sp, #168]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -899,16 +882,16 @@ lb_net_20websocket_client_key:
     str w15, [x14]
     adrp x15, .Ltext_26
     add x15, x15, :lo12:.Ltext_26
-    sub x20, x29, #120
-    str x15, [x20]
-    add x15, x20, #8
+    sub x12, x29, #120
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #35
     str x9, [x15]
     add x14, x14, #8
-    mov x10, x20
+    mov x10, x12
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #40
     movz x9, #1
     strb w9, [x14]
@@ -950,16 +933,16 @@ lb_net_20websocket_client_key:
     str w15, [x14]
     adrp x15, .Ltext_28
     add x15, x15, :lo12:.Ltext_28
-    sub x20, x29, #152
-    str x15, [x20]
-    add x15, x20, #8
+    sub x12, x29, #152
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #41
     str x9, [x15]
     add x14, x14, #8
-    mov x10, x20
+    mov x10, x12
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #40
     movz x9, #1
     strb w9, [x14]
@@ -1000,13 +983,13 @@ lb_net_20websocket_client_key:
 .L5_10:
     add x14, x15, #16
     sub x19, x29, #88
-    add x20, x19, #16
+    add x12, x19, #16
     mov x10, x14
-    mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    mov x11, x12
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #40
     movz x9, #1
     strb w9, [x14]
@@ -1027,8 +1010,8 @@ lb_net_20websocket_client_key:
     sub x19, x29, #88
     mov x10, x15
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #40
     mov x9, #0
     strb w9, [x14]
@@ -1059,19 +1042,17 @@ lb_net_20websocket_client_key:
 lb_net_16websocket_rotate:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #80
-    str x19, [sp, #56]
-    str x20, [sp, #48]
-    str x21, [sp, #40]
-    sub x16, x29, #56
+    sub sp, sp, #64
+    str x19, [sp, #40]
+    sub x16, x29, #40
     str w0, [x16]
-    sub x16, x29, #72
+    sub x16, x29, #56
     str w1, [x16]
-    sub x14, x29, #56
+    sub x14, x29, #40
     ldr w15, [x14]
-    sub x14, x29, #72
-    ldr w19, [x14]
-    mov w14, w19
+    sub x14, x29, #56
+    ldr w12, [x14]
+    mov w14, w12
     movz x10, #32
     cmp x14, x10
     b.lo .L6_2
@@ -1082,9 +1063,9 @@ lb_net_16websocket_rotate:
     add x1, x1, :lo12:.Ltext_19
     bl lb_core_7trap_at
 .L6_2:
-    lsl w20, w15, w19
+    lsl w13, w15, w12
     movz x9, #32
-    mov w10, w19
+    mov w10, w12
     subs w9, w9, w10
     b.cs 1f
     adrp x0, .Ltext_30
@@ -1093,8 +1074,8 @@ lb_net_16websocket_rotate:
     add x1, x1, :lo12:.Ltext_99
     bl lb_core_7trap_at
 1:
-    mov w21, w9
-    mov w14, w21
+    mov w19, w9
+    mov w14, w19
     movz x10, #32
     cmp x14, x10
     b.lo .L6_4
@@ -1105,13 +1086,11 @@ lb_net_16websocket_rotate:
     add x1, x1, :lo12:.Ltext_19
     bl lb_core_7trap_at
 .L6_4:
-    lsr w14, w15, w21
-    orr w14, w14, w20
+    lsr w14, w15, w19
+    orr w14, w14, w13
     mov x9, x14
     mov x0, x9
-    ldr x19, [sp, #56]
-    ldr x20, [sp, #48]
-    ldr x21, [sp, #40]
+    ldr x19, [sp, #40]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -1167,16 +1146,16 @@ lb_net_20websocket_accept_key:
     str w15, [x14]
     adrp x15, .Ltext_31
     add x15, x15, :lo12:.Ltext_31
-    sub x20, x29, #200
-    str x15, [x20]
-    add x15, x20, #8
+    sub x12, x29, #200
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #42
     str x9, [x15]
     add x14, x14, #8
-    mov x10, x20
+    mov x10, x12
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #40
     movz x9, #1
     strb w9, [x14]
@@ -1219,16 +1198,16 @@ lb_net_20websocket_accept_key:
     str w15, [x14]
     adrp x15, .Ltext_32
     add x15, x15, :lo12:.Ltext_32
-    sub x20, x29, #216
-    str x15, [x20]
-    add x15, x20, #8
+    sub x12, x29, #216
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #38
     str x9, [x15]
     add x14, x14, #8
-    mov x10, x20
+    mov x10, x12
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #40
     movz x9, #1
     strb w9, [x14]
@@ -1309,8 +1288,7 @@ lb_net_20websocket_accept_key:
     add x14, x9, #127
     movz x9, #224
     strb w9, [x14]
-    sub x9, x29, #396
-    str x9, [sp, #64]
+    sub x19, x29, #396
     sub x14, x29, #416
     movz x9, #8961
     movk x9, #26437, lsl #16
@@ -1332,34 +1310,29 @@ lb_net_20websocket_accept_key:
     movk x9, #50130, lsl #16
     str w9, [x15]
     mov x10, x14
-    ldr x11, [sp, #64]
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr w12, [x10, #16]
-    str w12, [x11, #16]
+    mov x11, x19
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr w16, [x10, #16]
+    str w16, [x11, #16]
     sub x9, x29, #736
+    str x9, [sp, #64]
+    add x23, x19, #4
+    add x9, x19, #8
     str x9, [sp, #56]
-    ldr x9, [sp, #64]
-    add x9, x9, #4
+    add x9, x19, #12
     str x9, [sp, #48]
-    ldr x9, [sp, #64]
-    add x9, x9, #8
+    add x9, x19, #16
     str x9, [sp, #40]
-    ldr x9, [sp, #64]
-    add x9, x9, #12
-    str x9, [sp, #32]
-    ldr x9, [sp, #64]
-    add x9, x9, #16
-    str x9, [sp, #24]
     mov x9, #0
-    str x9, [sp, #16]
+    str x9, [sp, #24]
 .L7_11:
-    ldr x9, [sp, #16]
+    ldr x9, [sp, #24]
     movz x10, #2
     cmp x9, x10
     b.ge .L7_14
 .L7_12:
-    ldr x0, [sp, #56]
+    ldr x0, [sp, #64]
     mov x1, #0
     movz x2, #320
     bl _memset
@@ -1370,7 +1343,7 @@ lb_net_20websocket_accept_key:
     cmp x14, x10
     b.ge .L7_18
 .L7_16:
-    ldr x9, [sp, #16]
+    ldr x9, [sp, #24]
     movz x10, #64
     smulh x11, x9, x10
     mul x9, x9, x10
@@ -1395,9 +1368,9 @@ lb_net_20websocket_accept_key:
     add x1, x1, :lo12:.Ltext_99
     bl lb_core_7trap_at
 1:
-    mov x28, x9
+    mov x12, x9
     mov x9, x15
-    mov x10, x28
+    mov x10, x12
     adds x9, x9, x10
     b.vc 1f
     adrp x0, .Ltext_37
@@ -1416,9 +1389,9 @@ lb_net_20websocket_accept_key:
     add x1, x1, :lo12:.Ltext_8
     bl lb_core_7trap_at
 1:
-    lsl x28, x14, #2
-    ldr x9, [sp, #56]
-    add x20, x9, x28
+    lsl x12, x14, #2
+    ldr x9, [sp, #64]
+    add x13, x9, x12
     movz x10, #128
     cmp x15, x10
     b.lo 1f
@@ -1429,40 +1402,13 @@ lb_net_20websocket_accept_key:
     bl lb_core_7trap_at
 1:
     ldr x9, [sp, #72]
-    add x28, x9, x15
-    ldrb w28, [x28]
-    mov w28, w28
+    add x12, x9, x15
+    ldrb w12, [x12]
+    mov w12, w12
 .L7_20:
-    lsl w26, w28, #24
+    lsl w20, w12, #24
     mov x9, x15
     movz x10, #1
-    adds x9, x9, x10
-    b.vc 1f
-    adrp x0, .Ltext_38
-    add x0, x0, :lo12:.Ltext_38
-    adrp x1, .Ltext_99
-    add x1, x1, :lo12:.Ltext_99
-    bl lb_core_7trap_at
-1:
-    mov x27, x9
-    movz x10, #128
-    cmp x27, x10
-    b.lo 1f
-    adrp x0, .Ltext_38
-    add x0, x0, :lo12:.Ltext_38
-    adrp x1, .Ltext_8
-    add x1, x1, :lo12:.Ltext_8
-    bl lb_core_7trap_at
-1:
-    ldr x9, [sp, #72]
-    add x27, x9, x27
-    ldrb w27, [x27]
-    mov w27, w27
-.L7_22:
-    lsl w28, w27, #16
-    orr w25, w28, w26
-    mov x9, x15
-    movz x10, #2
     adds x9, x9, x10
     b.vc 1f
     adrp x0, .Ltext_38
@@ -1485,9 +1431,36 @@ lb_net_20websocket_accept_key:
     add x28, x9, x28
     ldrb w28, [x28]
     mov w28, w28
+.L7_22:
+    lsl w12, w28, #16
+    orr w27, w12, w20
+    mov x9, x15
+    movz x10, #2
+    adds x9, x9, x10
+    b.vc 1f
+    adrp x0, .Ltext_38
+    add x0, x0, :lo12:.Ltext_38
+    adrp x1, .Ltext_99
+    add x1, x1, :lo12:.Ltext_99
+    bl lb_core_7trap_at
+1:
+    mov x12, x9
+    movz x10, #128
+    cmp x12, x10
+    b.lo 1f
+    adrp x0, .Ltext_38
+    add x0, x0, :lo12:.Ltext_38
+    adrp x1, .Ltext_8
+    add x1, x1, :lo12:.Ltext_8
+    bl lb_core_7trap_at
+1:
+    ldr x9, [sp, #72]
+    add x12, x9, x12
+    ldrb w12, [x12]
+    mov w12, w12
 .L7_24:
-    lsl w26, w28, #8
-    orr w26, w26, w25
+    lsl w20, w12, #8
+    orr w20, w20, w27
     mov x9, x15
     movz x10, #3
     adds x9, x9, x10
@@ -1498,9 +1471,9 @@ lb_net_20websocket_accept_key:
     add x1, x1, :lo12:.Ltext_99
     bl lb_core_7trap_at
 1:
-    mov x27, x9
+    mov x28, x9
     movz x10, #128
-    cmp x27, x10
+    cmp x28, x10
     b.lo 1f
     adrp x0, .Ltext_38
     add x0, x0, :lo12:.Ltext_38
@@ -1509,11 +1482,11 @@ lb_net_20websocket_accept_key:
     bl lb_core_7trap_at
 1:
     ldr x9, [sp, #72]
-    add x27, x9, x27
-    ldrb w27, [x27]
-    mov w27, w27
-    orr w26, w26, w27
-    str w26, [x20]
+    add x28, x9, x28
+    ldrb w28, [x28]
+    mov w28, w28
+    orr w20, w20, w28
+    str w20, [x13]
 .L7_17:
     add x15, x14, #1
     mov x14, x15
@@ -1536,8 +1509,8 @@ lb_net_20websocket_accept_key:
     bl lb_core_7trap_at
 1:
     lsl x14, x20, #2
-    ldr x9, [sp, #56]
-    add x25, x9, x14
+    ldr x9, [sp, #64]
+    add x27, x9, x14
     mov x9, x20
     movz x10, #3
     subs x9, x9, x10
@@ -1559,7 +1532,7 @@ lb_net_20websocket_accept_key:
     bl lb_core_7trap_at
 1:
     lsl x14, x14, #2
-    ldr x9, [sp, #56]
+    ldr x9, [sp, #64]
     add x14, x9, x14
     ldr w14, [x14]
     mov x9, x20
@@ -1583,7 +1556,7 @@ lb_net_20websocket_accept_key:
     bl lb_core_7trap_at
 1:
     lsl x15, x15, #2
-    ldr x9, [sp, #56]
+    ldr x9, [sp, #64]
     add x15, x9, x15
     ldr w15, [x15]
     eor w14, w14, w15
@@ -1608,7 +1581,7 @@ lb_net_20websocket_accept_key:
     bl lb_core_7trap_at
 1:
     lsl x15, x15, #2
-    ldr x9, [sp, #56]
+    ldr x9, [sp, #64]
     add x15, x9, x15
     ldr w15, [x15]
     eor w14, w14, w15
@@ -1633,7 +1606,7 @@ lb_net_20websocket_accept_key:
     bl lb_core_7trap_at
 1:
     lsl x15, x15, #2
-    ldr x9, [sp, #56]
+    ldr x9, [sp, #64]
     add x15, x9, x15
     ldr w15, [x15]
     eor w14, w14, w15
@@ -1641,97 +1614,101 @@ lb_net_20websocket_accept_key:
     movz x1, #1
     bl lb_net_16websocket_rotate
     mov w14, w0
-    str w14, [x25]
+    str w14, [x27]
 .L7_27:
     add x14, x20, #1
     mov x20, x14
     b .L7_25
 .L7_28:
-    ldr x9, [sp, #64]
-    ldr w14, [x9]
+    ldr w14, [x19]
+    ldr w15, [x23]
+    ldr x9, [sp, #56]
+    ldr w12, [x9]
     ldr x9, [sp, #48]
-    ldr w15, [x9]
+    ldr w13, [x9]
     ldr x9, [sp, #40]
-    ldr w20, [x9]
-    ldr x9, [sp, #32]
-    ldr w25, [x9]
-    ldr x9, [sp, #24]
-    ldr w26, [x9]
+    ldr w9, [x9]
+    str w9, [sp, #32]
     mov w27, w14
     mov w9, w15
+    str w9, [sp, #16]
+    mov w21, w12
+    mov w22, w13
+    ldr w9, [sp, #32]
     str w9, [sp, #8]
     mov x9, #0
-    mov x21, x9
+    mov x20, x9
 .L7_29:
     movz x10, #80
-    cmp x21, x10
+    cmp x20, x10
     b.ge .L7_32
 .L7_30:
     movz x10, #20
-    cmp x21, x10
+    cmp x20, x10
     b.ge .L7_34
 .L7_33:
-    ldr w9, [sp, #8]
-    and w14, w9, w20
-    ldr w9, [sp, #8]
+    ldr w9, [sp, #16]
+    and w14, w9, w21
+    ldr w9, [sp, #16]
     movn x10, #0
     eor w15, w9, w10
-    and w15, w15, w25
+    and w15, w15, w22
     orr w14, w14, w15
-    mov w24, w14
+    mov w26, w14
     movz x9, #31129
     movk x9, #23170, lsl #16
-    mov w23, w9
+    mov w25, w9
     b .L7_35
 .L7_34:
     movz x10, #40
-    cmp x21, x10
+    cmp x20, x10
     b.ge .L7_37
 .L7_36:
-    ldr w9, [sp, #8]
-    eor w14, w9, w20
-    eor w14, w14, w25
+    ldr w9, [sp, #16]
+    eor w14, w9, w21
+    eor w14, w14, w22
     movz x9, #60321
     movk x9, #28377, lsl #16
     mov w15, w9
     b .L7_38
 .L7_37:
     movz x10, #60
-    cmp x21, x10
+    cmp x20, x10
     b.ge .L7_40
 .L7_39:
-    ldr w9, [sp, #8]
-    and w14, w9, w20
-    ldr w9, [sp, #8]
-    and w15, w9, w25
+    ldr w9, [sp, #16]
+    and w14, w9, w21
+    ldr w9, [sp, #16]
+    and w15, w9, w22
     orr w14, w14, w15
-    and w15, w20, w25
+    and w15, w21, w22
     orr w14, w14, w15
     movz x9, #48348
     movk x9, #36635, lsl #16
     mov w15, w9
     b .L7_41
 .L7_40:
-    ldr w9, [sp, #8]
-    eor w14, w9, w20
-    eor w14, w14, w25
+    ldr w9, [sp, #16]
+    eor w14, w9, w21
+    eor w14, w14, w22
     movz x9, #49622
     movk x9, #51810, lsl #16
     mov w15, w9
 .L7_41:
 .L7_38:
-    mov w24, w14
-    mov w23, w15
+    mov w26, w14
+    mov w25, w15
 .L7_35:
     mov x0, x27
     movz x1, #5
     bl lb_net_16websocket_rotate
     mov w14, w0
-    add w14, w14, w24
     add w14, w14, w26
-    add w14, w14, w23
+    ldr w10, [sp, #8]
+    add w14, w14, w10
+    add w14, w14, w25
     movz x10, #80
-    cmp x21, x10
+    cmp x20, x10
     b.lo 1f
     adrp x0, .Ltext_45
     add x0, x0, :lo12:.Ltext_45
@@ -1739,66 +1716,64 @@ lb_net_20websocket_accept_key:
     add x1, x1, :lo12:.Ltext_8
     bl lb_core_7trap_at
 1:
-    lsl x15, x21, #2
-    ldr x9, [sp, #56]
+    lsl x15, x20, #2
+    ldr x9, [sp, #64]
     add x15, x9, x15
     ldr w15, [x15]
-    add w19, w14, w15
-    ldr x0, [sp, #8]
+    add w24, w14, w15
+    ldr x0, [sp, #16]
     movz x1, #30
     bl lb_net_16websocket_rotate
     mov w14, w0
 .L7_31:
-    add x15, x21, #1
-    mov w23, w19
-    mov w24, w27
-    mov w26, w14
-    mov w22, w20
-    mov w28, w25
-    mov w27, w23
-    mov w9, w24
+    add x15, x20, #1
+    mov w12, w24
+    mov w13, w27
+    mov w25, w14
+    mov w26, w21
+    mov w28, w22
+    mov w27, w12
+    mov w9, w13
+    str w9, [sp, #16]
+    mov w21, w25
+    mov w22, w26
+    mov w9, w28
     str w9, [sp, #8]
-    mov w20, w26
-    mov w25, w22
-    mov w26, w28
-    mov x21, x15
+    mov x20, x15
     b .L7_29
 .L7_32:
-    ldr x9, [sp, #64]
-    ldr w14, [x9]
+    ldr w14, [x19]
     add w14, w14, w27
-    ldr x10, [sp, #64]
+    str w14, [x19]
+    ldr w14, [x23]
+    ldr w10, [sp, #16]
+    add w14, w14, w10
+    str w14, [x23]
+    ldr x9, [sp, #56]
+    ldr w14, [x9]
+    add w14, w14, w21
+    ldr x10, [sp, #56]
     str w14, [x10]
     ldr x9, [sp, #48]
     ldr w14, [x9]
-    ldr w10, [sp, #8]
-    add w14, w14, w10
+    add w14, w14, w22
     ldr x10, [sp, #48]
     str w14, [x10]
     ldr x9, [sp, #40]
     ldr w14, [x9]
-    add w14, w14, w20
+    ldr w10, [sp, #8]
+    add w14, w14, w10
     ldr x10, [sp, #40]
     str w14, [x10]
-    ldr x9, [sp, #32]
-    ldr w14, [x9]
-    add w14, w14, w25
-    ldr x10, [sp, #32]
-    str w14, [x10]
-    ldr x9, [sp, #24]
-    ldr w14, [x9]
-    add w14, w14, w26
-    ldr x10, [sp, #24]
-    str w14, [x10]
 .L7_13:
-    ldr x9, [sp, #16]
+    ldr x9, [sp, #24]
     add x14, x9, #1
     mov x9, x14
-    str x9, [sp, #16]
+    str x9, [sp, #24]
     b .L7_11
 .L7_14:
-    sub x19, x29, #756
-    mov x11, x19
+    sub x20, x29, #756
+    mov x11, x20
     stp xzr, xzr, [x11, #0]
     str wzr, [x11, #16]
     mov x9, #0
@@ -1809,13 +1784,12 @@ lb_net_20websocket_accept_key:
     b.ge .L7_45
 .L7_43:
     lsl x15, x14, #2
-    ldr x9, [sp, #64]
-    add x15, x9, x15
+    add x15, x19, x15
     mov x9, #0
-    mov x20, x9
+    mov x12, x9
 .L7_46:
     movz x10, #4
-    cmp x20, x10
+    cmp x12, x10
     b.ge .L7_49
 .L7_47:
     mov x9, x14
@@ -1830,9 +1804,9 @@ lb_net_20websocket_accept_key:
     add x1, x1, :lo12:.Ltext_99
     bl lb_core_7trap_at
 1:
-    mov x21, x9
-    mov x9, x21
-    mov x10, x20
+    mov x13, x9
+    mov x9, x13
+    mov x10, x12
     adds x9, x9, x10
     b.vc 1f
     adrp x0, .Ltext_51
@@ -1841,9 +1815,9 @@ lb_net_20websocket_accept_key:
     add x1, x1, :lo12:.Ltext_99
     bl lb_core_7trap_at
 1:
-    mov x21, x9
+    mov x13, x9
     movz x10, #20
-    cmp x21, x10
+    cmp x13, x10
     b.lo 1f
     adrp x0, .Ltext_51
     add x0, x0, :lo12:.Ltext_51
@@ -1851,7 +1825,7 @@ lb_net_20websocket_accept_key:
     add x1, x1, :lo12:.Ltext_8
     bl lb_core_7trap_at
 1:
-    add x22, x19, x21
+    add x21, x20, x13
     movz x10, #5
     cmp x14, x10
     b.lo 1f
@@ -1861,9 +1835,9 @@ lb_net_20websocket_accept_key:
     add x1, x1, :lo12:.Ltext_8
     bl lb_core_7trap_at
 1:
-    ldr w23, [x15]
+    ldr w22, [x15]
     movz x9, #3
-    mov x10, x20
+    mov x10, x12
     subs x9, x9, x10
     b.vc 1f
     adrp x0, .Ltext_51
@@ -1872,8 +1846,8 @@ lb_net_20websocket_accept_key:
     add x1, x1, :lo12:.Ltext_99
     bl lb_core_7trap_at
 1:
-    mov x21, x9
-    mov x9, x21
+    mov x13, x9
+    mov x9, x13
     movz x10, #8
     smulh x11, x9, x10
     mul x9, x9, x10
@@ -1885,10 +1859,10 @@ lb_net_20websocket_accept_key:
     add x1, x1, :lo12:.Ltext_99
     bl lb_core_7trap_at
 1:
-    mov x24, x9
-    mov w21, w24
+    mov x23, x9
+    mov w13, w23
     movz x10, #32
-    cmp x21, x10
+    cmp x13, x10
     b.lo .L7_51
 .L7_50:
     adrp x0, .Ltext_51
@@ -1897,13 +1871,13 @@ lb_net_20websocket_accept_key:
     add x1, x1, :lo12:.Ltext_19
     bl lb_core_7trap_at
 .L7_51:
-    lsr w21, w23, w24
-    mov w21, w21
-    and w21, w21, #255
-    strb w21, [x22]
+    lsr w13, w22, w23
+    mov w13, w13
+    and w13, w13, #255
+    strb w13, [x21]
 .L7_48:
-    add x21, x20, #1
-    mov x20, x21
+    add x13, x12, #1
+    mov x12, x13
     b .L7_46
 .L7_49:
 .L7_44:
@@ -1912,7 +1886,7 @@ lb_net_20websocket_accept_key:
     b .L7_42
 .L7_45:
     sub x14, x29, #776
-    str x19, [x14]
+    str x20, [x14]
     add x15, x14, #8
     movz x9, #20
     str x9, [x15]
@@ -1932,13 +1906,13 @@ lb_net_20websocket_accept_key:
 .L7_53:
     add x14, x15, #16
     sub x19, x29, #152
-    add x20, x19, #16
+    add x12, x19, #16
     mov x10, x14
-    mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    mov x11, x12
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #40
     movz x9, #1
     strb w9, [x14]
@@ -1966,8 +1940,8 @@ lb_net_20websocket_accept_key:
     sub x19, x29, #152
     mov x10, x15
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #40
     mov x9, #0
     strb w9, [x14]
@@ -2040,23 +2014,23 @@ lb_net_23websocket_check_request:
     ldr x15, [x15]
     movz x10, #3
     cmp x15, x10
-    cset w20, eq
-    cbnz w20, .L8_6
+    cset w12, eq
+    cbnz w12, .L8_6
     b .L8_64
 .L8_64:
-    mov w14, w20
+    mov w14, w12
     b .L8_7
 .L8_6:
-    ldr x20, [x19]
-    mov x0, x20
+    ldr x12, [x19]
+    mov x0, x12
     mov x1, x14
     mov x2, x15
     bl memcmp
-    mov w20, w0
+    mov w12, w0
     mov x10, #0
-    cmp w20, w10
-    cset w20, eq
-    mov w14, w20
+    cmp w12, w10
+    cset w12, eq
+    mov w14, w12
 .L8_7:
     and w15, w14, #255
     mov x10, #0
@@ -2070,7 +2044,7 @@ lb_net_23websocket_check_request:
     mov w15, w14
     b .L8_9
 .L8_8:
-    add x21, x19, #32
+    add x13, x19, #32
     adrp x14, .Ltext_54
     add x14, x14, :lo12:.Ltext_54
     sub x15, x29, #240
@@ -2078,27 +2052,27 @@ lb_net_23websocket_check_request:
     add x15, x15, #8
     movz x9, #8
     str x9, [x15]
-    add x15, x21, #8
+    add x15, x13, #8
     ldr x15, [x15]
     movz x10, #8
     cmp x15, x10
-    cset w20, eq
-    cbnz w20, .L8_10
+    cset w12, eq
+    cbnz w12, .L8_10
     b .L8_66
 .L8_66:
-    mov w14, w20
+    mov w14, w12
     b .L8_11
 .L8_10:
-    ldr x20, [x21]
-    mov x0, x20
+    ldr x12, [x13]
+    mov x0, x12
     mov x1, x14
     mov x2, x15
     bl memcmp
-    mov w20, w0
+    mov w12, w0
     mov x10, #0
-    cmp w20, w10
-    cset w20, eq
-    mov w14, w20
+    cmp w12, w10
+    cset w12, eq
+    mov w14, w12
 .L8_11:
     and w15, w14, #255
     mov x10, #0
@@ -2144,16 +2118,16 @@ lb_net_23websocket_check_request:
     str w15, [x14]
     adrp x15, .Ltext_56
     add x15, x15, :lo12:.Ltext_56
-    sub x20, x29, #272
-    str x15, [x20]
-    add x15, x20, #8
+    sub x12, x29, #272
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #48
     str x9, [x15]
     add x14, x14, #8
-    mov x10, x20
+    mov x10, x12
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #40
     movz x9, #1
     strb w9, [x14]
@@ -2187,9 +2161,9 @@ lb_net_23websocket_check_request:
     add x20, x20, :lo12:.Ltext_58
     sub x14, x29, #304
     str x20, [x14]
-    add x21, x14, #8
+    add x12, x14, #8
     movz x9, #7
-    str x9, [x21]
+    str x9, [x12]
     mov x0, x19
     mov x9, x15
     ldr x1, [x9]
@@ -2207,13 +2181,13 @@ lb_net_23websocket_check_request:
 .L8_19:
     add x14, x15, #8
     sub x19, x29, #112
-    add x20, x19, #16
+    add x12, x19, #16
     mov x10, x14
-    mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    mov x11, x12
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #40
     movz x9, #1
     strb w9, [x14]
@@ -2251,16 +2225,16 @@ lb_net_23websocket_check_request:
     str x9, [x15]
     adrp x15, .Ltext_59
     add x15, x15, :lo12:.Ltext_59
-    sub x21, x29, #376
-    str x15, [x21]
-    add x15, x21, #8
+    sub x12, x29, #376
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #9
     str x9, [x15]
     mov x0, x19
     mov x9, x14
     ldr x1, [x9]
     ldr x2, [x9, #8]
-    mov x9, x21
+    mov x9, x12
     ldr x3, [x9]
     ldr x4, [x9, #8]
     sub x8, x29, #416
@@ -2273,13 +2247,13 @@ lb_net_23websocket_check_request:
 .L8_24:
     add x14, x15, #8
     sub x19, x29, #112
-    add x20, x19, #16
+    add x12, x19, #16
     mov x10, x14
-    mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    mov x11, x12
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #40
     movz x9, #1
     strb w9, [x14]
@@ -2318,16 +2292,16 @@ lb_net_23websocket_check_request:
     str w15, [x14]
     adrp x15, .Ltext_60
     add x15, x15, :lo12:.Ltext_60
-    sub x20, x29, #432
-    str x15, [x20]
-    add x15, x20, #8
+    sub x12, x29, #432
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #32
     str x9, [x15]
     add x14, x14, #8
-    mov x10, x20
+    mov x10, x12
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #40
     movz x9, #1
     strb w9, [x14]
@@ -2386,7 +2360,7 @@ lb_net_23websocket_check_request:
     ldr x2, [x9, #8]
     sub x8, x29, #488
     bl lb_net_HttpHead_field
-    sub x23, x29, #488
+    sub x22, x29, #488
     adrp x21, .Ltext_62
     add x21, x21, :lo12:.Ltext_62
     sub x14, x29, #504
@@ -2394,27 +2368,27 @@ lb_net_23websocket_check_request:
     add x15, x14, #8
     movz x9, #2
     str x9, [x15]
-    sub x22, x29, #528
+    sub x23, x29, #528
     mov x10, x14
-    mov x11, x22
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    add x14, x22, #16
+    mov x11, x23
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    add x14, x23, #16
     movz x9, #1
     strb w9, [x14]
-    add x15, x23, #16
+    add x15, x22, #16
     ldrb w15, [x15]
     ldrb w14, [x14]
     cmp w15, w14
-    cset w22, eq
+    cset w12, eq
     and w14, w15, w14
     cbnz w14, .L8_32
     b .L8_70
 .L8_70:
-    mov w14, w22
+    mov w14, w12
     b .L8_33
 .L8_32:
-    add x14, x23, #8
+    add x14, x22, #8
     ldr x14, [x14]
     movz x10, #2
     cmp x14, x10
@@ -2425,7 +2399,7 @@ lb_net_23websocket_check_request:
     mov w14, w15
     b .L8_35
 .L8_34:
-    ldr x15, [x23]
+    ldr x15, [x22]
     mov x0, x15
     mov x1, x21
     mov x2, x14
@@ -2456,16 +2430,16 @@ lb_net_23websocket_check_request:
     str w15, [x14]
     adrp x15, .Ltext_63
     add x15, x15, :lo12:.Ltext_63
-    sub x20, x29, #544
-    str x15, [x20]
-    add x15, x20, #8
+    sub x12, x29, #544
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #29
     str x9, [x15]
     add x14, x14, #8
-    mov x10, x20
+    mov x10, x12
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #40
     movz x9, #1
     strb w9, [x14]
@@ -2516,16 +2490,16 @@ lb_net_23websocket_check_request:
     str w15, [x14]
     adrp x15, .Ltext_65
     add x15, x15, :lo12:.Ltext_65
-    sub x20, x29, #576
-    str x15, [x20]
-    add x15, x20, #8
+    sub x12, x29, #576
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #31
     str x9, [x15]
     add x14, x14, #8
-    mov x10, x20
+    mov x10, x12
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #40
     movz x9, #1
     strb w9, [x14]
@@ -2564,10 +2538,10 @@ lb_net_23websocket_check_request:
     add x14, x19, #16
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #40
     movz x9, #1
     strb w9, [x14]
@@ -2609,8 +2583,8 @@ lb_net_23websocket_check_request:
     sub x20, x29, #680
     mov x10, x15
     mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     b .L8_46
 .L8_45:
     sub x19, x29, #112
@@ -2621,16 +2595,16 @@ lb_net_23websocket_check_request:
     str w15, [x14]
     adrp x15, .Ltext_66
     add x15, x15, :lo12:.Ltext_66
-    sub x20, x29, #696
-    str x15, [x20]
-    add x15, x20, #8
+    sub x12, x29, #696
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #21
     str x9, [x15]
     add x14, x14, #8
-    mov x10, x20
+    mov x10, x12
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #40
     movz x9, #1
     strb w9, [x14]
@@ -2653,8 +2627,8 @@ lb_net_23websocket_check_request:
 .L8_46:
     mov x10, x20
     mov x11, x21
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     mov x9, x21
     ldr x0, [x9]
     ldr x1, [x9, #8]
@@ -2672,16 +2646,16 @@ lb_net_23websocket_check_request:
     str w15, [x14]
     adrp x15, .Ltext_67
     add x15, x15, :lo12:.Ltext_67
-    sub x20, x29, #712
-    str x15, [x20]
-    add x15, x20, #8
+    sub x12, x29, #712
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #29
     str x9, [x15]
     add x14, x14, #8
-    mov x10, x20
+    mov x10, x12
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #40
     movz x9, #1
     strb w9, [x14]
@@ -2712,14 +2686,14 @@ lb_net_23websocket_check_request:
     cbnz w15, .L8_72
     b .L8_55
 .L8_72:
-    mov w20, w15
+    mov w12, w15
     b .L8_56
 .L8_55:
     movz x10, #3
     cmp w14, w10
-    cset w20, eq
+    cset w12, eq
 .L8_56:
-    and w15, w20, #255
+    and w15, w12, #255
     cbnz w15, .L8_73
     b .L8_57
 .L8_73:
@@ -2759,16 +2733,16 @@ lb_net_23websocket_check_request:
     str w15, [x14]
     adrp x15, .Ltext_68
     add x15, x15, :lo12:.Ltext_68
-    sub x20, x29, #728
-    str x15, [x20]
-    add x15, x20, #8
+    sub x12, x29, #728
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #45
     str x9, [x15]
     add x14, x14, #8
-    mov x10, x20
+    mov x10, x12
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #40
     movz x9, #1
     strb w9, [x14]
@@ -2794,8 +2768,8 @@ lb_net_23websocket_check_request:
     sub x19, x29, #112
     mov x10, x21
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #40
     mov x9, #0
     strb w9, [x14]
@@ -2829,31 +2803,30 @@ lb_net_23websocket_check_request:
 lb_net_24websocket_check_response:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #880
+    sub sp, sp, #864
     sub x16, x29, #24
     str x8, [x16]
-    str x19, [sp, #848]
-    str x20, [sp, #840]
-    str x21, [sp, #832]
-    str x22, [sp, #824]
-    str x23, [sp, #816]
-    str x24, [sp, #808]
-    str x25, [sp, #800]
-    str x26, [sp, #792]
-    str x27, [sp, #784]
-    sub x16, x29, #240
+    str x19, [sp, #832]
+    str x20, [sp, #824]
+    str x21, [sp, #816]
+    str x22, [sp, #808]
+    str x23, [sp, #800]
+    str x24, [sp, #792]
+    str x25, [sp, #784]
+    str x26, [sp, #776]
+    sub x16, x29, #232
     str x0, [x16]
-    sub x16, x29, #256
+    sub x16, x29, #248
     str x1, [x16]
     str x2, [x16, #8]
-    sub x16, x29, #272
+    sub x16, x29, #264
     str x3, [x16]
     str x4, [x16, #8]
-    sub x0, x29, #240
+    sub x0, x29, #232
     ldr x1, [x0]
     movz x2, #96
     bl _memcpy
-    sub x19, x29, #240
+    sub x19, x29, #232
     add x14, x19, #48
     ldrh w14, [x14]
     movz x10, #101
@@ -2868,35 +2841,35 @@ lb_net_24websocket_check_response:
     mov w15, w14
     b .L9_5
 .L9_4:
-    add x21, x19, #32
+    add x13, x19, #32
     adrp x14, .Ltext_54
     add x14, x14, :lo12:.Ltext_54
-    sub x15, x29, #288
+    sub x15, x29, #280
     str x14, [x15]
     add x15, x15, #8
     movz x9, #8
     str x9, [x15]
-    add x15, x21, #8
+    add x15, x13, #8
     ldr x15, [x15]
     movz x10, #8
     cmp x15, x10
-    cset w20, eq
-    cbnz w20, .L9_6
+    cset w12, eq
+    cbnz w12, .L9_6
     b .L9_58
 .L9_58:
-    mov w14, w20
+    mov w14, w12
     b .L9_7
 .L9_6:
-    ldr x20, [x21]
-    mov x0, x20
+    ldr x12, [x13]
+    mov x0, x12
     mov x1, x14
     mov x2, x15
     bl memcmp
-    mov w20, w0
+    mov w12, w0
     mov x10, #0
-    cmp w20, w10
-    cset w20, eq
-    mov w14, w20
+    cmp w12, w10
+    cset w12, eq
+    mov w14, w12
 .L9_7:
     and w15, w14, #255
     mov x10, #0
@@ -2912,42 +2885,42 @@ lb_net_24websocket_check_response:
 .L9_8:
     adrp x14, .Ltext_57
     add x14, x14, :lo12:.Ltext_57
-    sub x15, x29, #304
+    sub x15, x29, #296
     str x14, [x15]
     add x14, x15, #8
     movz x9, #10
     str x9, [x14]
     adrp x14, .Ltext_58
     add x14, x14, :lo12:.Ltext_58
-    sub x20, x29, #320
-    str x14, [x20]
-    add x14, x20, #8
+    sub x12, x29, #312
+    str x14, [x12]
+    add x14, x12, #8
     movz x9, #7
     str x9, [x14]
     mov x0, x19
     mov x9, x15
     ldr x1, [x9]
     ldr x2, [x9, #8]
-    mov x9, x20
+    mov x9, x12
     ldr x3, [x9]
     ldr x4, [x9, #8]
-    sub x8, x29, #360
+    sub x8, x29, #352
     bl lb_net_HttpHead_9has_token
-    sub x15, x29, #360
+    sub x15, x29, #352
     add x14, x15, #32
     ldrb w14, [x14]
     cbnz w14, .L9_11
     b .L9_10
 .L9_11:
     add x14, x15, #8
-    sub x19, x29, #144
-    add x20, x19, #16
+    sub x19, x29, #136
+    add x12, x19, #16
     mov x10, x14
-    mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    mov x11, x12
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #40
     movz x9, #1
     strb w9, [x14]
@@ -2958,15 +2931,14 @@ lb_net_24websocket_check_response:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #848]
-    ldr x20, [sp, #840]
-    ldr x21, [sp, #832]
-    ldr x22, [sp, #824]
-    ldr x23, [sp, #816]
-    ldr x24, [sp, #808]
-    ldr x25, [sp, #800]
-    ldr x26, [sp, #792]
-    ldr x27, [sp, #784]
+    ldr x19, [sp, #832]
+    ldr x20, [sp, #824]
+    ldr x21, [sp, #816]
+    ldr x22, [sp, #808]
+    ldr x23, [sp, #800]
+    ldr x24, [sp, #792]
+    ldr x25, [sp, #784]
+    ldr x26, [sp, #776]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -2987,42 +2959,42 @@ lb_net_24websocket_check_response:
 .L9_13:
     adrp x14, .Ltext_58
     add x14, x14, :lo12:.Ltext_58
-    sub x15, x29, #376
+    sub x15, x29, #368
     str x14, [x15]
     add x14, x15, #8
     movz x9, #7
     str x9, [x14]
     adrp x14, .Ltext_59
     add x14, x14, :lo12:.Ltext_59
-    sub x20, x29, #392
-    str x14, [x20]
-    add x14, x20, #8
+    sub x12, x29, #384
+    str x14, [x12]
+    add x14, x12, #8
     movz x9, #9
     str x9, [x14]
     mov x0, x19
     mov x9, x15
     ldr x1, [x9]
     ldr x2, [x9, #8]
-    mov x9, x20
+    mov x9, x12
     ldr x3, [x9]
     ldr x4, [x9, #8]
-    sub x8, x29, #432
+    sub x8, x29, #424
     bl lb_net_HttpHead_9has_token
-    sub x15, x29, #432
+    sub x15, x29, #424
     add x14, x15, #32
     ldrb w14, [x14]
     cbnz w14, .L9_16
     b .L9_15
 .L9_16:
     add x14, x15, #8
-    sub x19, x29, #144
-    add x20, x19, #16
+    sub x19, x29, #136
+    add x12, x19, #16
     mov x10, x14
-    mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    mov x11, x12
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #40
     movz x9, #1
     strb w9, [x14]
@@ -3033,15 +3005,14 @@ lb_net_24websocket_check_response:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #848]
-    ldr x20, [sp, #840]
-    ldr x21, [sp, #832]
-    ldr x22, [sp, #824]
-    ldr x23, [sp, #816]
-    ldr x24, [sp, #808]
-    ldr x25, [sp, #800]
-    ldr x26, [sp, #792]
-    ldr x27, [sp, #784]
+    ldr x19, [sp, #832]
+    ldr x20, [sp, #824]
+    ldr x21, [sp, #816]
+    ldr x22, [sp, #808]
+    ldr x23, [sp, #800]
+    ldr x24, [sp, #792]
+    ldr x25, [sp, #784]
+    ldr x26, [sp, #776]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -3057,7 +3028,7 @@ lb_net_24websocket_check_response:
     cbnz w14, .L9_1
     b .L9_2
 .L9_1:
-    sub x19, x29, #144
+    sub x19, x29, #136
     add x14, x19, #16
     adrp x15, lb_net_17websocket_invalid
     add x15, x15, :lo12:lb_net_17websocket_invalid
@@ -3065,16 +3036,16 @@ lb_net_24websocket_check_response:
     str w15, [x14]
     adrp x15, .Ltext_70
     add x15, x15, :lo12:.Ltext_70
-    sub x20, x29, #448
-    str x15, [x20]
-    add x15, x20, #8
+    sub x12, x29, #440
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #34
     str x9, [x15]
     add x14, x14, #8
-    mov x10, x20
+    mov x10, x12
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #40
     movz x9, #1
     strb w9, [x14]
@@ -3085,15 +3056,14 @@ lb_net_24websocket_check_response:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #848]
-    ldr x20, [sp, #840]
-    ldr x21, [sp, #832]
-    ldr x22, [sp, #824]
-    ldr x23, [sp, #816]
-    ldr x24, [sp, #808]
-    ldr x25, [sp, #800]
-    ldr x26, [sp, #792]
-    ldr x27, [sp, #784]
+    ldr x19, [sp, #832]
+    ldr x20, [sp, #824]
+    ldr x21, [sp, #816]
+    ldr x22, [sp, #808]
+    ldr x23, [sp, #800]
+    ldr x24, [sp, #792]
+    ldr x25, [sp, #784]
+    ldr x26, [sp, #776]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -3101,41 +3071,41 @@ lb_net_24websocket_check_response:
     b .L9_3
 .L9_2:
 .L9_3:
-    sub x20, x29, #476
+    sub x20, x29, #468
     mov x11, x20
     stp xzr, xzr, [x11, #0]
     str xzr, [x11, #16]
     str wzr, [x11, #24]
-    sub x21, x29, #496
-    sub x14, x29, #256
-    sub x15, x29, #512
+    sub x21, x29, #488
+    sub x14, x29, #248
+    sub x15, x29, #504
     str x20, [x15]
-    add x20, x15, #8
+    add x12, x15, #8
     movz x9, #28
-    str x9, [x20]
+    str x9, [x12]
     mov x9, x14
     ldr x0, [x9]
     ldr x1, [x9, #8]
     mov x9, x15
     ldr x2, [x9]
     ldr x3, [x9, #8]
-    sub x8, x29, #560
+    sub x8, x29, #552
     bl lb_net_20websocket_accept_key
-    sub x15, x29, #560
+    sub x15, x29, #552
     add x14, x15, #40
     ldrb w14, [x14]
     cbnz w14, .L9_20
     b .L9_19
 .L9_20:
     add x14, x15, #16
-    sub x19, x29, #144
-    add x20, x19, #16
+    sub x19, x29, #136
+    add x12, x19, #16
     mov x10, x14
-    mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    mov x11, x12
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #40
     movz x9, #1
     strb w9, [x14]
@@ -3146,15 +3116,14 @@ lb_net_24websocket_check_response:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #848]
-    ldr x20, [sp, #840]
-    ldr x21, [sp, #832]
-    ldr x22, [sp, #824]
-    ldr x23, [sp, #816]
-    ldr x24, [sp, #808]
-    ldr x25, [sp, #800]
-    ldr x26, [sp, #792]
-    ldr x27, [sp, #784]
+    ldr x19, [sp, #832]
+    ldr x20, [sp, #824]
+    ldr x21, [sp, #816]
+    ldr x22, [sp, #808]
+    ldr x23, [sp, #800]
+    ldr x24, [sp, #792]
+    ldr x25, [sp, #784]
+    ldr x26, [sp, #776]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -3162,15 +3131,15 @@ lb_net_24websocket_check_response:
 .L9_19:
     mov x10, x15
     mov x11, x21
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     adrp x20, .Ltext_71
     add x20, x20, :lo12:.Ltext_71
-    sub x14, x29, #576
+    sub x14, x29, #568
     str x20, [x14]
-    add x22, x14, #8
+    add x12, x14, #8
     movz x9, #20
-    str x9, [x22]
+    str x9, [x12]
     mov x0, x19
     mov x9, x14
     ldr x1, [x9]
@@ -3189,7 +3158,7 @@ lb_net_24websocket_check_response:
     mov w15, w14
     b .L9_26
 .L9_25:
-    sub x14, x29, #592
+    sub x14, x29, #584
     str x20, [x14]
     add x15, x14, #8
     movz x9, #20
@@ -3198,32 +3167,32 @@ lb_net_24websocket_check_response:
     mov x9, x14
     ldr x1, [x9]
     ldr x2, [x9, #8]
-    sub x8, x29, #616
+    sub x8, x29, #608
     bl lb_net_HttpHead_field
-    sub x23, x29, #616
-    sub x24, x29, #640
+    sub x22, x29, #608
+    sub x23, x29, #632
     mov x10, x21
-    mov x11, x24
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    add x14, x24, #16
+    mov x11, x23
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    add x14, x23, #16
     movz x9, #1
     strb w9, [x14]
-    add x15, x23, #16
+    add x15, x22, #16
     ldrb w15, [x15]
     ldrb w14, [x14]
     cmp w15, w14
-    cset w22, eq
+    cset w12, eq
     and w14, w15, w14
     cbnz w14, .L9_27
     b .L9_62
 .L9_62:
-    mov w14, w22
+    mov w14, w12
     b .L9_28
 .L9_27:
-    add x14, x23, #8
+    add x14, x22, #8
     ldr x14, [x14]
-    add x15, x24, #8
+    add x15, x23, #8
     ldr x15, [x15]
     cmp x14, x15
     cset w15, eq
@@ -3233,10 +3202,10 @@ lb_net_24websocket_check_response:
     mov w14, w15
     b .L9_30
 .L9_29:
-    ldr x15, [x23]
-    ldr x20, [x24]
+    ldr x15, [x22]
+    ldr x12, [x23]
     mov x0, x15
-    mov x1, x20
+    mov x1, x12
     mov x2, x14
     bl memcmp
     mov w15, w0
@@ -3257,7 +3226,7 @@ lb_net_24websocket_check_response:
     cbnz w14, .L9_22
     b .L9_23
 .L9_22:
-    sub x19, x29, #144
+    sub x19, x29, #136
     add x14, x19, #16
     adrp x15, lb_net_17websocket_invalid
     add x15, x15, :lo12:lb_net_17websocket_invalid
@@ -3265,16 +3234,16 @@ lb_net_24websocket_check_response:
     str w15, [x14]
     adrp x15, .Ltext_72
     add x15, x15, :lo12:.Ltext_72
-    sub x20, x29, #656
-    str x15, [x20]
-    add x15, x20, #8
+    sub x12, x29, #648
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #46
     str x9, [x15]
     add x14, x14, #8
-    mov x10, x20
+    mov x10, x12
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #40
     movz x9, #1
     strb w9, [x14]
@@ -3285,15 +3254,14 @@ lb_net_24websocket_check_response:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #848]
-    ldr x20, [sp, #840]
-    ldr x21, [sp, #832]
-    ldr x22, [sp, #824]
-    ldr x23, [sp, #816]
-    ldr x24, [sp, #808]
-    ldr x25, [sp, #800]
-    ldr x26, [sp, #792]
-    ldr x27, [sp, #784]
+    ldr x19, [sp, #832]
+    ldr x20, [sp, #824]
+    ldr x21, [sp, #816]
+    ldr x22, [sp, #808]
+    ldr x23, [sp, #800]
+    ldr x24, [sp, #792]
+    ldr x25, [sp, #784]
+    ldr x26, [sp, #776]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -3303,7 +3271,7 @@ lb_net_24websocket_check_response:
 .L9_24:
     adrp x14, .Ltext_73
     add x14, x14, :lo12:.Ltext_73
-    sub x15, x29, #672
+    sub x15, x29, #664
     str x14, [x15]
     add x14, x15, #8
     movz x9, #24
@@ -3328,7 +3296,7 @@ lb_net_24websocket_check_response:
 .L9_35:
     adrp x14, .Ltext_74
     add x14, x14, :lo12:.Ltext_74
-    sub x15, x29, #688
+    sub x15, x29, #680
     str x14, [x15]
     add x14, x15, #8
     movz x9, #22
@@ -3347,7 +3315,7 @@ lb_net_24websocket_check_response:
     cbnz w14, .L9_32
     b .L9_33
 .L9_32:
-    sub x19, x29, #144
+    sub x19, x29, #136
     add x14, x19, #16
     adrp x15, lb_net_17websocket_invalid
     add x15, x15, :lo12:lb_net_17websocket_invalid
@@ -3355,16 +3323,16 @@ lb_net_24websocket_check_response:
     str w15, [x14]
     adrp x15, .Ltext_75
     add x15, x15, :lo12:.Ltext_75
-    sub x20, x29, #704
-    str x15, [x20]
-    add x15, x20, #8
+    sub x12, x29, #696
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #62
     str x9, [x15]
     add x14, x14, #8
-    mov x10, x20
+    mov x10, x12
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #40
     movz x9, #1
     strb w9, [x14]
@@ -3375,15 +3343,14 @@ lb_net_24websocket_check_response:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #848]
-    ldr x20, [sp, #840]
-    ldr x21, [sp, #832]
-    ldr x22, [sp, #824]
-    ldr x23, [sp, #816]
-    ldr x24, [sp, #808]
-    ldr x25, [sp, #800]
-    ldr x26, [sp, #792]
-    ldr x27, [sp, #784]
+    ldr x19, [sp, #832]
+    ldr x20, [sp, #824]
+    ldr x21, [sp, #816]
+    ldr x22, [sp, #808]
+    ldr x23, [sp, #800]
+    ldr x24, [sp, #792]
+    ldr x25, [sp, #784]
+    ldr x26, [sp, #776]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -3391,10 +3358,10 @@ lb_net_24websocket_check_response:
     b .L9_34
 .L9_33:
 .L9_34:
-    sub x20, x29, #720
+    sub x20, x29, #712
     adrp x14, .Ltext_74
     add x14, x14, :lo12:.Ltext_74
-    sub x15, x29, #736
+    sub x15, x29, #728
     str x14, [x15]
     add x14, x15, #8
     movz x9, #22
@@ -3403,33 +3370,33 @@ lb_net_24websocket_check_response:
     mov x9, x15
     ldr x1, [x9]
     ldr x2, [x9, #8]
-    sub x8, x29, #760
+    sub x8, x29, #752
     bl lb_net_HttpHead_field
-    sub x15, x29, #760
+    sub x15, x29, #752
     add x14, x15, #16
     ldrb w14, [x14]
     cbnz w14, .L9_38
     b .L9_39
 .L9_38:
-    sub x19, x29, #776
+    sub x19, x29, #768
     mov x10, x15
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     b .L9_40
 .L9_39:
     adrp x14, .Ltext_76
     add x14, x14, :lo12:.Ltext_76
-    sub x15, x29, #792
+    sub x15, x29, #784
     str x14, [x15]
     add x14, x15, #8
     mov x9, #0
     str x9, [x14]
-    sub x19, x29, #144
+    sub x19, x29, #136
     mov x10, x15
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #40
     mov x9, #0
     strb w9, [x14]
@@ -3440,15 +3407,14 @@ lb_net_24websocket_check_response:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #848]
-    ldr x20, [sp, #840]
-    ldr x21, [sp, #832]
-    ldr x22, [sp, #824]
-    ldr x23, [sp, #816]
-    ldr x24, [sp, #808]
-    ldr x25, [sp, #800]
-    ldr x26, [sp, #792]
-    ldr x27, [sp, #784]
+    ldr x19, [sp, #832]
+    ldr x20, [sp, #824]
+    ldr x21, [sp, #816]
+    ldr x22, [sp, #808]
+    ldr x23, [sp, #800]
+    ldr x24, [sp, #792]
+    ldr x25, [sp, #784]
+    ldr x26, [sp, #776]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -3456,8 +3422,8 @@ lb_net_24websocket_check_response:
 .L9_40:
     mov x10, x19
     mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     mov x9, x20
     ldr x0, [x9]
     ldr x1, [x9, #8]
@@ -3467,7 +3433,7 @@ lb_net_24websocket_check_response:
     cmp w14, w10
     b.ne .L9_43
 .L9_42:
-    sub x19, x29, #144
+    sub x19, x29, #136
     add x14, x19, #16
     adrp x15, lb_net_17websocket_invalid
     add x15, x15, :lo12:lb_net_17websocket_invalid
@@ -3475,16 +3441,16 @@ lb_net_24websocket_check_response:
     str w15, [x14]
     adrp x15, .Ltext_77
     add x15, x15, :lo12:.Ltext_77
-    sub x20, x29, #808
-    str x15, [x20]
-    add x15, x20, #8
+    sub x12, x29, #800
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #38
     str x9, [x15]
     add x14, x14, #8
-    mov x10, x20
+    mov x10, x12
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #40
     movz x9, #1
     strb w9, [x14]
@@ -3495,15 +3461,14 @@ lb_net_24websocket_check_response:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #848]
-    ldr x20, [sp, #840]
-    ldr x21, [sp, #832]
-    ldr x22, [sp, #824]
-    ldr x23, [sp, #816]
-    ldr x24, [sp, #808]
-    ldr x25, [sp, #800]
-    ldr x26, [sp, #792]
-    ldr x27, [sp, #784]
+    ldr x19, [sp, #832]
+    ldr x20, [sp, #824]
+    ldr x21, [sp, #816]
+    ldr x22, [sp, #808]
+    ldr x23, [sp, #800]
+    ldr x24, [sp, #792]
+    ldr x25, [sp, #784]
+    ldr x26, [sp, #776]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -3511,13 +3476,13 @@ lb_net_24websocket_check_response:
     b .L9_44
 .L9_43:
 .L9_44:
-    sub x19, x29, #816
+    sub x19, x29, #808
     mov x9, #0
     str x9, [x19]
-    sub x21, x29, #272
-    sub x26, x29, #840
+    sub x21, x29, #264
+    sub x26, x29, #832
     add x22, x26, #16
-    sub x23, x29, #856
+    sub x23, x29, #848
     add x24, x23, #8
     add x25, x20, #8
 .L9_46:
@@ -3525,7 +3490,7 @@ lb_net_24websocket_check_response:
     ldr x0, [x9]
     ldr x1, [x9, #8]
     mov x2, x19
-    sub x8, x29, #840
+    sub x8, x29, #832
     bl lb_net_14http_list_next
     ldrb w14, [x22]
     cbnz w14, .L9_49
@@ -3533,8 +3498,8 @@ lb_net_24websocket_check_response:
 .L9_49:
     mov x10, x26
     mov x11, x23
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
 .L9_47:
     ldr x14, [x24]
     ldr x15, [x25]
@@ -3547,9 +3512,9 @@ lb_net_24websocket_check_response:
     b .L9_54
 .L9_53:
     ldr x15, [x23]
-    ldr x27, [x20]
+    ldr x12, [x20]
     mov x0, x15
-    mov x1, x27
+    mov x1, x12
     mov x2, x14
     bl memcmp
     mov w15, w0
@@ -3562,11 +3527,11 @@ lb_net_24websocket_check_response:
     cbnz w15, .L9_50
     b .L9_51
 .L9_50:
-    sub x19, x29, #144
+    sub x19, x29, #136
     mov x10, x20
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #40
     mov x9, #0
     strb w9, [x14]
@@ -3577,15 +3542,14 @@ lb_net_24websocket_check_response:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #848]
-    ldr x20, [sp, #840]
-    ldr x21, [sp, #832]
-    ldr x22, [sp, #824]
-    ldr x23, [sp, #816]
-    ldr x24, [sp, #808]
-    ldr x25, [sp, #800]
-    ldr x26, [sp, #792]
-    ldr x27, [sp, #784]
+    ldr x19, [sp, #832]
+    ldr x20, [sp, #824]
+    ldr x21, [sp, #816]
+    ldr x22, [sp, #808]
+    ldr x23, [sp, #800]
+    ldr x24, [sp, #792]
+    ldr x25, [sp, #784]
+    ldr x26, [sp, #776]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -3595,7 +3559,7 @@ lb_net_24websocket_check_response:
 .L9_52:
     b .L9_46
 .L9_48:
-    sub x19, x29, #144
+    sub x19, x29, #136
     add x14, x19, #16
     adrp x15, lb_net_17websocket_invalid
     add x15, x15, :lo12:lb_net_17websocket_invalid
@@ -3603,16 +3567,16 @@ lb_net_24websocket_check_response:
     str w15, [x14]
     adrp x15, .Ltext_78
     add x15, x15, :lo12:.Ltext_78
-    sub x20, x29, #872
-    str x15, [x20]
-    add x15, x20, #8
+    sub x12, x29, #864
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #60
     str x9, [x15]
     add x14, x14, #8
-    mov x10, x20
+    mov x10, x12
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #40
     movz x9, #1
     strb w9, [x14]
@@ -3623,15 +3587,14 @@ lb_net_24websocket_check_response:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #848]
-    ldr x20, [sp, #840]
-    ldr x21, [sp, #832]
-    ldr x22, [sp, #824]
-    ldr x23, [sp, #816]
-    ldr x24, [sp, #808]
-    ldr x25, [sp, #800]
-    ldr x26, [sp, #792]
-    ldr x27, [sp, #784]
+    ldr x19, [sp, #832]
+    ldr x20, [sp, #824]
+    ldr x21, [sp, #816]
+    ldr x22, [sp, #808]
+    ldr x23, [sp, #800]
+    ldr x24, [sp, #792]
+    ldr x25, [sp, #784]
+    ldr x26, [sp, #776]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -3696,16 +3659,16 @@ lb_net_24websocket_encode_request:
     str w15, [x14]
     adrp x15, .Ltext_67
     add x15, x15, :lo12:.Ltext_67
-    sub x20, x29, #224
-    str x15, [x20]
-    add x15, x20, #8
+    sub x12, x29, #224
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #29
     str x9, [x15]
     add x14, x14, #8
-    mov x10, x20
+    mov x10, x12
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #40
     movz x9, #1
     strb w9, [x14]
@@ -3745,20 +3708,20 @@ lb_net_24websocket_encode_request:
     str x9, [x14]
     mov x10, x15
     mov x11, x22
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     sub x14, x29, #160
     add x15, x22, #16
     mov x10, x14
     mov x11, x15
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     mov x10, x22
     mov x11, x21
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldp x12, x13, [x10, #16]
-    stp x12, x13, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldp x16, x17, [x10, #16]
+    stp x16, x17, [x11, #16]
     sub x22, x29, #624
     mov x11, x22
     stp xzr, xzr, [x11, #0]
@@ -3772,8 +3735,8 @@ lb_net_24websocket_encode_request:
     str x9, [x14]
     mov x10, x15
     mov x11, x22
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     adrp x14, .Ltext_59
     add x14, x14, :lo12:.Ltext_59
     sub x15, x29, #656
@@ -3784,15 +3747,15 @@ lb_net_24websocket_encode_request:
     add x14, x22, #16
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x21, #32
     mov x10, x22
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldp x12, x13, [x10, #16]
-    stp x12, x13, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldp x16, x17, [x10, #16]
+    stp x16, x17, [x11, #16]
     sub x22, x29, #688
     mov x11, x22
     stp xzr, xzr, [x11, #0]
@@ -3806,8 +3769,8 @@ lb_net_24websocket_encode_request:
     str x9, [x14]
     mov x10, x15
     mov x11, x22
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     adrp x14, .Ltext_62
     add x14, x14, :lo12:.Ltext_62
     sub x15, x29, #720
@@ -3818,15 +3781,15 @@ lb_net_24websocket_encode_request:
     add x14, x22, #16
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x21, #64
     mov x10, x22
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldp x12, x13, [x10, #16]
-    stp x12, x13, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldp x16, x17, [x10, #16]
+    stp x16, x17, [x11, #16]
     sub x22, x29, #752
     mov x11, x22
     stp xzr, xzr, [x11, #0]
@@ -3840,20 +3803,20 @@ lb_net_24websocket_encode_request:
     str x9, [x14]
     mov x10, x15
     mov x11, x22
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x22, #16
     mov x10, x19
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x21, #96
     mov x10, x22
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldp x12, x13, [x10, #16]
-    stp x12, x13, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldp x16, x17, [x10, #16]
+    stp x16, x17, [x11, #16]
     sub x22, x29, #800
     mov x11, x22
     stp xzr, xzr, [x11, #0]
@@ -3867,21 +3830,21 @@ lb_net_24websocket_encode_request:
     str x9, [x14]
     mov x10, x15
     mov x11, x22
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     sub x23, x29, #208
     add x14, x22, #16
     mov x10, x23
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x21, #128
     mov x10, x22
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldp x12, x13, [x10, #16]
-    stp x12, x13, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldp x16, x17, [x10, #16]
+    stp x16, x17, [x11, #16]
     mov x0, x20
     mov x1, x21
     movz x2, #160
@@ -3912,8 +3875,8 @@ lb_net_24websocket_encode_request:
 .L10_11:
     mov x10, x25
     mov x11, x22
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
 .L10_9:
     ldr x14, [x24]
     mov x10, #0
@@ -3946,16 +3909,16 @@ lb_net_24websocket_encode_request:
     str w15, [x14]
     adrp x15, .Ltext_85
     add x15, x15, :lo12:.Ltext_85
-    sub x20, x29, #880
-    str x15, [x20]
-    add x15, x20, #8
+    sub x12, x29, #880
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #37
     str x9, [x15]
     add x14, x14, #8
-    mov x10, x20
+    mov x10, x12
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #40
     movz x9, #1
     strb w9, [x14]
@@ -4029,10 +3992,10 @@ lb_net_24websocket_encode_request:
     add x14, x19, #16
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #40
     movz x9, #1
     strb w9, [x14]
@@ -4059,8 +4022,8 @@ lb_net_24websocket_encode_request:
     sub x22, x29, #944
     mov x10, x14
     mov x11, x22
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     sub x23, x29, #1040
     mov x11, x23
     stp xzr, xzr, [x11, #0]
@@ -4078,14 +4041,14 @@ lb_net_24websocket_encode_request:
     str x9, [x14]
     mov x10, x15
     mov x11, x23
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     sub x14, x29, #176
     add x15, x23, #16
     mov x10, x14
     mov x11, x15
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     adrp x14, .Ltext_54
     add x14, x14, :lo12:.Ltext_54
     sub x15, x29, #1072
@@ -4096,8 +4059,8 @@ lb_net_24websocket_encode_request:
     add x14, x23, #32
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     cbnz w21, .L10_23
     b .L10_24
 .L10_24:
@@ -4114,8 +4077,8 @@ lb_net_24websocket_encode_request:
     add x15, x23, #56
     mov x10, x14
     mov x11, x15
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x23, #72
     mov x9, #0
     strb w9, [x14]
@@ -4140,13 +4103,13 @@ lb_net_24websocket_encode_request:
 .L10_26:
     add x14, x15, #16
     sub x19, x29, #128
-    add x20, x19, #16
+    add x12, x19, #16
     mov x10, x14
-    mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    mov x11, x12
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #40
     movz x9, #1
     strb w9, [x14]
@@ -4172,8 +4135,8 @@ lb_net_24websocket_encode_request:
     sub x19, x29, #128
     mov x10, x15
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #40
     mov x9, #0
     strb w9, [x14]
@@ -4235,7 +4198,7 @@ lb_net_25websocket_encode_response:
     movz x2, #96
     bl _memcpy
     sub x9, x29, #296
-    str x9, [sp, #8]
+    str x9, [sp, #16]
     sub x19, x29, #264
     mov x9, x19
     mov x0, x9
@@ -4249,13 +4212,13 @@ lb_net_25websocket_encode_response:
 .L11_2:
     add x14, x15, #16
     sub x19, x29, #152
-    add x20, x19, #16
+    add x12, x19, #16
     mov x10, x14
-    mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    mov x11, x12
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #40
     movz x9, #1
     strb w9, [x14]
@@ -4282,9 +4245,9 @@ lb_net_25websocket_encode_response:
 .L11_3:
 .L11_1:
     mov x10, x15
-    ldr x11, [sp, #8]
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldr x11, [sp, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     sub x9, x29, #280
     str x9, [sp, #64]
     ldr x9, [sp, #64]
@@ -4313,16 +4276,16 @@ lb_net_25websocket_encode_response:
     str w15, [x14]
     adrp x15, .Ltext_77
     add x15, x15, :lo12:.Ltext_77
-    sub x20, x29, #360
-    str x15, [x20]
-    add x15, x20, #8
+    sub x12, x29, #360
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #38
     str x9, [x15]
     add x14, x14, #8
-    mov x10, x20
+    mov x10, x12
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #40
     movz x9, #1
     strb w9, [x14]
@@ -4359,20 +4322,19 @@ lb_net_25websocket_encode_response:
     add x26, x26, :lo12:.Ltext_74
     sub x27, x29, #408
     add x28, x27, #8
-    sub x9, x29, #416
-    str x9, [sp, #48]
+    sub x20, x29, #416
     add x9, x25, #16
-    str x9, [sp, #40]
+    str x9, [sp, #48]
     sub x22, x29, #440
     add x9, x22, #16
-    str x9, [sp, #32]
+    str x9, [sp, #40]
     sub x9, x29, #456
-    str x9, [sp, #24]
-    ldr x9, [sp, #24]
+    str x9, [sp, #32]
+    ldr x9, [sp, #32]
     add x9, x9, #8
-    str x9, [sp, #16]
+    str x9, [sp, #24]
     mov x9, #0
-    str w9, [sp, #0]
+    str w9, [sp, #8]
     mov x9, #0
     mov x21, x9
 .L11_11:
@@ -4383,10 +4345,10 @@ lb_net_25websocket_encode_response:
     add x14, x23, x14
     mov x10, x14
     mov x11, x25
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldp x12, x13, [x10, #16]
-    stp x12, x13, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldp x16, x17, [x10, #16]
+    stp x16, x17, [x11, #16]
     str x26, [x27]
     movz x9, #22
     str x9, [x28]
@@ -4402,28 +4364,27 @@ lb_net_25websocket_encode_response:
     b .L11_16
 .L11_15:
     mov x9, #0
-    ldr x10, [sp, #48]
-    str x9, [x10]
-    ldr w9, [sp, #0]
+    str x9, [x20]
+    ldr w9, [sp, #8]
     mov w19, w9
 .L11_18:
-    ldr x9, [sp, #40]
+    ldr x9, [sp, #48]
     ldr x0, [x9]
     ldr x1, [x9, #8]
-    ldr x2, [sp, #48]
+    mov x2, x20
     sub x8, x29, #440
     bl lb_net_14http_list_next
-    ldr x9, [sp, #32]
+    ldr x9, [sp, #40]
     ldrb w14, [x9]
     cbnz w14, .L11_21
     b .L11_20
 .L11_21:
     mov x10, x22
-    ldr x11, [sp, #24]
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldr x11, [sp, #32]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
 .L11_19:
-    ldr x9, [sp, #16]
+    ldr x9, [sp, #24]
     ldr x14, [x9]
     ldr x9, [sp, #56]
     ldr x15, [x9]
@@ -4435,12 +4396,12 @@ lb_net_25websocket_encode_response:
     mov w14, w15
     b .L11_26
 .L11_25:
-    ldr x9, [sp, #24]
+    ldr x9, [sp, #32]
     ldr x15, [x9]
     ldr x9, [sp, #64]
-    ldr x20, [x9]
+    ldr x12, [x9]
     mov x0, x15
-    mov x1, x20
+    mov x1, x12
     mov x2, x14
     bl memcmp
     mov w15, w0
@@ -4463,17 +4424,17 @@ lb_net_25websocket_encode_response:
     mov w14, w19
     b .L11_17
 .L11_16:
-    ldr w9, [sp, #0]
+    ldr w9, [sp, #8]
     mov w14, w9
 .L11_17:
 .L11_13:
     add x15, x21, #1
     mov w9, w14
-    str w9, [sp, #0]
+    str w9, [sp, #8]
     mov x21, x15
     b .L11_11
 .L11_14:
-    ldr w9, [sp, #0]
+    ldr w9, [sp, #8]
     and w14, w9, #255
     mov x10, #0
     cmp w14, w10
@@ -4487,16 +4448,16 @@ lb_net_25websocket_encode_response:
     str w15, [x14]
     adrp x15, .Ltext_88
     add x15, x15, :lo12:.Ltext_88
-    sub x20, x29, #472
-    str x15, [x20]
-    add x15, x20, #8
+    sub x12, x29, #472
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #46
     str x9, [x15]
     add x14, x14, #8
-    mov x10, x20
+    mov x10, x12
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #40
     movz x9, #1
     strb w9, [x14]
@@ -4538,7 +4499,7 @@ lb_net_25websocket_encode_response:
     add x15, x14, #8
     movz x9, #28
     str x9, [x15]
-    ldr x9, [sp, #8]
+    ldr x9, [sp, #16]
     ldr x0, [x9]
     ldr x1, [x9, #8]
     mov x9, x14
@@ -4554,13 +4515,13 @@ lb_net_25websocket_encode_response:
 .L11_32:
     add x14, x15, #16
     sub x19, x29, #152
-    add x20, x19, #16
+    add x12, x19, #16
     mov x10, x14
-    mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    mov x11, x12
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #40
     movz x9, #1
     strb w9, [x14]
@@ -4588,8 +4549,8 @@ lb_net_25websocket_encode_response:
 .L11_31:
     mov x10, x15
     mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     sub x19, x29, #680
     sub x21, x29, #776
     sub x22, x29, #808
@@ -4598,101 +4559,101 @@ lb_net_25websocket_encode_response:
     stp xzr, xzr, [x11, #16]
     adrp x14, .Ltext_81
     add x14, x14, :lo12:.Ltext_81
-    sub x23, x29, #824
-    str x14, [x23]
-    add x14, x23, #8
+    sub x12, x29, #824
+    str x14, [x12]
+    add x14, x12, #8
     movz x9, #7
     str x9, [x14]
-    mov x10, x23
+    mov x10, x12
     mov x11, x22
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     adrp x14, .Ltext_59
     add x14, x14, :lo12:.Ltext_59
-    sub x23, x29, #840
-    str x14, [x23]
-    add x14, x23, #8
+    sub x12, x29, #840
+    str x14, [x12]
+    add x14, x12, #8
     movz x9, #9
     str x9, [x14]
     add x14, x22, #16
-    mov x10, x23
+    mov x10, x12
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     mov x10, x22
     mov x11, x21
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldp x12, x13, [x10, #16]
-    stp x12, x13, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldp x16, x17, [x10, #16]
+    stp x16, x17, [x11, #16]
     sub x22, x29, #872
     mov x11, x22
     stp xzr, xzr, [x11, #0]
     stp xzr, xzr, [x11, #16]
     adrp x14, .Ltext_89
     add x14, x14, :lo12:.Ltext_89
-    sub x23, x29, #888
-    str x14, [x23]
-    add x14, x23, #8
+    sub x12, x29, #888
+    str x14, [x12]
+    add x14, x12, #8
     movz x9, #20
     str x9, [x14]
-    mov x10, x23
+    mov x10, x12
     mov x11, x22
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x22, #16
     mov x10, x20
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x21, #32
     mov x10, x22
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldp x12, x13, [x10, #16]
-    stp x12, x13, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldp x16, x17, [x10, #16]
+    stp x16, x17, [x11, #16]
     sub x22, x29, #920
     mov x11, x22
     stp xzr, xzr, [x11, #0]
     stp xzr, xzr, [x11, #16]
     adrp x14, .Ltext_84
     add x14, x14, :lo12:.Ltext_84
-    sub x23, x29, #936
-    str x14, [x23]
-    add x14, x23, #8
+    sub x12, x29, #936
+    str x14, [x12]
+    add x14, x12, #8
     movz x9, #22
     str x9, [x14]
-    mov x10, x23
+    mov x10, x12
     mov x11, x22
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x22, #16
     ldr x10, [sp, #64]
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x21, #64
     mov x10, x22
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldp x12, x13, [x10, #16]
-    stp x12, x13, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldp x16, x17, [x10, #16]
+    stp x16, x17, [x11, #16]
     mov x10, x21
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldp x12, x13, [x10, #16]
-    stp x12, x13, [x11, #16]
-    ldp x12, x13, [x10, #32]
-    stp x12, x13, [x11, #32]
-    ldp x12, x13, [x10, #48]
-    stp x12, x13, [x11, #48]
-    ldp x12, x13, [x10, #64]
-    stp x12, x13, [x11, #64]
-    ldp x12, x13, [x10, #80]
-    stp x12, x13, [x11, #80]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldp x16, x17, [x10, #16]
+    stp x16, x17, [x11, #16]
+    ldp x16, x17, [x10, #32]
+    stp x16, x17, [x11, #32]
+    ldp x16, x17, [x10, #48]
+    stp x16, x17, [x11, #48]
+    ldp x16, x17, [x10, #64]
+    stp x16, x17, [x11, #64]
+    ldp x16, x17, [x10, #80]
+    stp x16, x17, [x11, #80]
     ldr x9, [sp, #56]
     ldr x14, [x9]
     mov x10, #0
@@ -4710,8 +4671,8 @@ lb_net_25websocket_encode_response:
     sub x21, x29, #952
     mov x10, x14
     mov x11, x21
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     sub x22, x29, #1048
     mov x11, x22
     stp xzr, xzr, [x11, #0]
@@ -4729,8 +4690,8 @@ lb_net_25websocket_encode_response:
     str x9, [x14]
     mov x10, x15
     mov x11, x22
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     adrp x14, .Ltext_54
     add x14, x14, :lo12:.Ltext_54
     sub x15, x29, #1080
@@ -4741,8 +4702,8 @@ lb_net_25websocket_encode_response:
     add x14, x22, #32
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x22, #48
     movz x9, #101
     strh w9, [x14]
@@ -4772,8 +4733,8 @@ lb_net_25websocket_encode_response:
     add x15, x22, #56
     mov x10, x14
     mov x11, x15
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x22, #72
     mov x9, #0
     strb w9, [x14]
@@ -4798,13 +4759,13 @@ lb_net_25websocket_encode_response:
 .L11_40:
     add x14, x15, #16
     sub x19, x29, #152
-    add x20, x19, #16
+    add x12, x19, #16
     mov x10, x14
-    mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    mov x11, x12
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #40
     movz x9, #1
     strb w9, [x14]
@@ -4833,8 +4794,8 @@ lb_net_25websocket_encode_response:
     sub x19, x29, #152
     mov x10, x15
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #40
     mov x9, #0
     strb w9, [x14]
@@ -4899,8 +4860,7 @@ lb_net_19websocket_protocols:
     ldr x9, [x14]
     str x9, [sp, #72]
     add x14, x14, #8
-    ldr x9, [x14]
-    str x9, [sp, #64]
+    ldr x21, [x14]
     sub x22, x29, #2232
     adrp x23, .Ltext_74
     add x23, x23, :lo12:.Ltext_74
@@ -4908,32 +4868,31 @@ lb_net_19websocket_protocols:
     add x25, x24, #8
     sub x26, x29, #2256
     add x9, x22, #16
-    str x9, [sp, #56]
+    str x9, [sp, #64]
     sub x27, x29, #2280
     add x9, x27, #16
-    str x9, [sp, #48]
+    str x9, [sp, #56]
     sub x9, x29, #2296
+    str x9, [sp, #48]
+    ldr x9, [sp, #48]
+    add x9, x9, #8
     str x9, [sp, #40]
-    ldr x9, [sp, #40]
-    add x9, x9, #8
-    str x9, [sp, #32]
     sub x9, x29, #2328
+    str x9, [sp, #32]
+    ldr x9, [sp, #32]
+    add x9, x9, #8
     str x9, [sp, #24]
-    ldr x9, [sp, #24]
-    add x9, x9, #8
-    str x9, [sp, #16]
     sub x9, x29, #2344
-    str x9, [sp, #8]
-    ldr x9, [sp, #8]
+    str x9, [sp, #16]
+    ldr x9, [sp, #16]
     add x9, x9, #8
-    str x9, [sp, #0]
+    str x9, [sp, #8]
     mov x9, #0
     mov x19, x9
     mov x9, #0
     mov x28, x9
 .L12_1:
-    ldr x10, [sp, #64]
-    cmp x28, x10
+    cmp x28, x21
     b.hs .L12_4
 .L12_2:
     lsl x14, x28, #5
@@ -4941,10 +4900,10 @@ lb_net_19websocket_protocols:
     add x14, x9, x14
     mov x10, x14
     mov x11, x22
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldp x12, x13, [x10, #16]
-    stp x12, x13, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldp x16, x17, [x10, #16]
+    stp x16, x17, [x11, #16]
     str x23, [x24]
     movz x9, #22
     str x9, [x25]
@@ -4970,23 +4929,23 @@ lb_net_19websocket_protocols:
     str x9, [x26]
     mov x20, x19
 .L12_9:
-    ldr x9, [sp, #56]
+    ldr x9, [sp, #64]
     ldr x0, [x9]
     ldr x1, [x9, #8]
     mov x2, x26
     sub x8, x29, #2280
     bl lb_net_14http_list_next
-    ldr x9, [sp, #48]
+    ldr x9, [sp, #56]
     ldrb w14, [x9]
     cbnz w14, .L12_12
     b .L12_11
 .L12_12:
     mov x10, x27
-    ldr x11, [sp, #40]
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldr x11, [sp, #48]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
 .L12_10:
-    ldr x9, [sp, #32]
+    ldr x9, [sp, #40]
     ldr x14, [x9]
     mov x10, #0
     cmp x14, x10
@@ -4997,7 +4956,7 @@ lb_net_19websocket_protocols:
     b .L12_15
 .L12_14:
 .L12_15:
-    ldr x9, [sp, #40]
+    ldr x9, [sp, #48]
     ldr x0, [x9]
     ldr x1, [x9, #8]
     bl lb_net_10http_token
@@ -5021,8 +4980,8 @@ lb_net_19websocket_protocols:
     add x14, x19, #8
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
@@ -5070,9 +5029,9 @@ lb_net_19websocket_protocols:
     bl lb_core_7trap_at
 .L12_25:
     ldr x9, [sp, #80]
-    ldr x10, [sp, #24]
+    ldr x10, [sp, #32]
     str x9, [x10]
-    ldr x10, [sp, #16]
+    ldr x10, [sp, #24]
     str x20, [x10]
     mov x9, #0
     mov x19, x9
@@ -5084,12 +5043,12 @@ lb_net_19websocket_protocols:
     ldr x9, [sp, #80]
     add x14, x9, x14
     mov x10, x14
-    ldr x11, [sp, #8]
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x9, [sp, #32]
+    ldr x11, [sp, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x9, [sp, #40]
     ldr x14, [x9]
-    ldr x9, [sp, #0]
+    ldr x9, [sp, #8]
     ldr x15, [x9]
     cmp x14, x15
     cset w15, eq
@@ -5099,12 +5058,12 @@ lb_net_19websocket_protocols:
     mov w14, w15
     b .L12_31
 .L12_30:
-    ldr x9, [sp, #40]
+    ldr x9, [sp, #48]
     ldr x15, [x9]
-    ldr x9, [sp, #8]
-    ldr x21, [x9]
+    ldr x9, [sp, #16]
+    ldr x12, [x9]
     mov x0, x15
-    mov x1, x21
+    mov x1, x12
     mov x2, x14
     bl memcmp
     mov w15, w0
@@ -5132,8 +5091,8 @@ lb_net_19websocket_protocols:
     add x14, x19, #8
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
@@ -5185,8 +5144,8 @@ lb_net_19websocket_protocols:
     add x14, x19, #8
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
@@ -5226,10 +5185,10 @@ lb_net_19websocket_protocols:
     lsl x14, x20, #4
     ldr x9, [sp, #80]
     add x14, x9, x14
-    ldr x10, [sp, #40]
+    ldr x10, [sp, #48]
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x20, #1
     mov x20, x14
     b .L12_9

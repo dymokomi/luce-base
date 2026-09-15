@@ -14,14 +14,18 @@ pub struct Emitter:
     var checker: check.Checker*
     var program: ir.Unit*
     var os: targets.Os
+    var arch: targets.Arch
+    ## The line and file of the last `.loc` of an optimised function (`--release --debug`).
+    var last_line: u32
+    var last_file: u32
     var files: list.List[str]
     var needed: list.List[u32]
     var info: buffer.Buffer
     var cwd: str
     var serial: usize
 
-    pub static func over(checker: check.Checker*, program: ir.Unit*, os: targets.Os) -> Emitter!:
-        return Emitter(checker = checker, program = program, os = os,
+    pub static func over(checker: check.Checker*, program: ir.Unit*, os: targets.Os, arch: targets.Arch = targets.Arch.arm64) -> Emitter!:
+        return Emitter(checker = checker, program = program, os = os, arch = arch, last_line = 0, last_file = 0,
                        files = try list.List[str].create(0), needed = try list.List[u32].create(0),
                        info = try buffer.Buffer.create(0), cwd = "", serial = 0)
 
@@ -42,11 +46,14 @@ pub struct Emitter:
         var i: usize = 0
         while i < self.program.functions.count:
             let f = &self.program.functions.items[i]
-            if f.debug:
+            if f.debug or f.symbols:
                 discard(try self.file(f.source))
                 for point in f.points.span():
                     discard(try self.file(point.file))
             i += 1
+        # the files the optimised functions' instructions name (`--release --debug`)
+        for path in self.program.files.span():
+            discard(try self.file(path))
         i = 0
         while i < self.files.count:
             try out.put((try format(format_room, f"\n    .file {i + 1} ")))
@@ -60,6 +67,22 @@ pub struct Emitter:
 
     pub mutating func mark(out: buffer.Buffer*, f: ir.Function*, index: usize, instruction: usize) -> !:
         var format_room: u8[4096]
+        if f.symbols:
+            # the optimised function: a line per instruction where the source changes
+            if instruction == 0:
+                let file = try self.file(f.source)
+                try out.put(try format(format_room, f"\n    .loc {file} {f.source_line} 0 prologue_end is_stmt 1"))
+                self.last_line = 0
+                self.last_file = 0
+            if instruction < f.instrs.count:
+                let x = f.instrs.get(instruction)
+                if x.line != 0 and (x.line != self.last_line or x.file != self.last_file):
+                    let path = self.program.files.get((usize)x.file - 1) if x.file != 0 else f.source
+                    let file = try self.file(path)
+                    try out.put(try format(format_room, f"\n    .loc {file} {x.line} 0 is_stmt 1"))
+                    self.last_line = x.line
+                    self.last_file = x.file
+            return
         if not f.debug:
             return
         try out.put((try format(format_room, f"\nLdw_pc_{index}_{instruction}:\n")))
@@ -73,7 +96,7 @@ pub struct Emitter:
 
     pub mutating func function(f: ir.Function*, fr: frame.Frame*, index: usize) -> !:
         var format_room: u8[4096]
-        if not f.debug or f.naked:
+        if not (f.debug or f.symbols) or f.naked:
             return
         let file = try self.file(f.source)
         let o = &self.info
@@ -109,9 +132,21 @@ pub struct Emitter:
             try self.reference(described.type_id)
             try o.put((try format(format_room, f"    .uleb128 {described.line}\n")))
             let home = fr.slot_home(described.slot)
+            let register = fr.slot_register(described.slot)
             let serial = self.serial
             self.serial += 1
-            try o.put((try format(format_room, f"    .uleb128 Ldw_expr_end_{serial}-Ldw_expr_{serial}\nLdw_expr_{serial}:\n    .byte 145\n    .sleb128 -{home}\nLdw_expr_end_{serial}:\n")))
+            if register != 0:
+                # a promoted local lives in a callee-saved register for the whole function
+                let number = dwarf_register(self.arch, register)
+                if number < 32:
+                    try o.put((try format(format_room, f"    .uleb128 1\n    .byte {80 + number}\n")))
+                else:
+                    try o.put((try format(format_room, f"    .uleb128 Ldw_expr_end_{serial}-Ldw_expr_{serial}\nLdw_expr_{serial}:\n    .byte 144\n    .uleb128 {number}\nLdw_expr_end_{serial}:\n")))
+            elif f.symbols and home == 0:
+                # optimised away: no location, as C compilers say it
+                try o.put("    .uleb128 0\n")
+            else:
+                try o.put((try format(format_room, f"    .uleb128 Ldw_expr_end_{serial}-Ldw_expr_{serial}\nLdw_expr_{serial}:\n    .byte 145\n    .sleb128 -{home}\nLdw_expr_end_{serial}:\n")))
         var i: usize = 1
         while i < f.debug_scopes.count:
             if f.debug_scopes.get(i).parent == scope:
@@ -355,3 +390,16 @@ let abbreviations: str = r"""
     .byte 19,40,0,3,8,28,13,0,0
     .byte 0
 """
+
+## The DWARF register number of an allocator code: arm64's x19–x28 are 19–28 and d8–d15
+## are 72–79; x86-64's rbx is 3, r12–r15 are 12–15, and xmm12–xmm15 are 29–32.
+func dwarf_register(arch: targets.Arch, code: u8) -> u32:
+    if arch == targets.Arch.arm64:
+        if code <= 10:
+            return 18 + (u32)code
+        return 61 + (u32)code
+    if code == 1:
+        return 3
+    if code <= 5:
+        return 10 + (u32)code
+    return 23 + (u32)code

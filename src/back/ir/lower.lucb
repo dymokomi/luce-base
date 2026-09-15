@@ -112,6 +112,9 @@ pub struct Lowerer:
     var vtables: list.List[LowerWitness]
     ## `--debug`: describe every frame and call the `debug` module at every statement.
     pub var debug: bool
+    ## `--release --debug`: the program's functions carry lines and describe their locals
+    ## without the debugger's hooks (`Function.symbols`).
+    pub var symbols: bool
     var current_fn: ast.Node*?
     var fn_decl: ast.Node*?
     var fn_args: u32[]
@@ -154,7 +157,7 @@ pub struct Lowerer:
     var site_line: u32
 
     pub static func create(c: check.Checker*, entry: ast.Node*) -> Lowerer!:
-        return Lowerer(c = c, program_unit = try ir.Unit.create(), shape_cache = try list.List[u32].create(256), f = try ir.Function.create(""), scratch = try buffer.Buffer.create(256), debug = false, only_module = "", only_fragment = "", member_name = "", target = targets.Target.host(),
+        return Lowerer(c = c, program_unit = try ir.Unit.create(), shape_cache = try list.List[u32].create(256), f = try ir.Function.create(""), scratch = try buffer.Buffer.create(256), debug = false, symbols = false, only_module = "", only_fragment = "", member_name = "", target = targets.Target.host(),
                        modules = try list.List[NodeRef].create(16), entry = entry,
                        funcs = try list.List[LowerInstance].create(64), tests = try list.List[NodeRef].create(32), roots = try list.List[ast.Node*].create(1),
                        vtables = try list.List[LowerWitness].create(16), current_fn = none, fn_decl = none,
@@ -432,7 +435,7 @@ pub struct Lowerer:
             let et = self.elem(id)
             let cls = self.class_of(et)
             let t = try self.f.temp(cls)
-            try self.f.instrs.push(ir.Instr(op = ir.Op.atomic_load, cls = cls, dst = t, a = address, b = ir.none_ref(), extra = u32(self.scalar_size(et)), extra2 = 5))
+            try self.f.instrs.push(ir.Instr(op = ir.Op.atomic_load, cls = cls, dst = t, a = address, b = ir.none_ref(), extra = u32(self.scalar_size(et)), extra2 = 5, line = 0, file = 0))
             return LowerValue(ref = ir.temp_ref(t), type_id = id, in_memory = false)
         if not self.is_scalar(id):
             return LowerValue(ref = address, type_id = id, in_memory = true)
@@ -501,7 +504,14 @@ pub struct Lowerer:
                 self.at_line = line
                 self.at_column = column
 
-    ## The unit's text of the current statement's position, `file:line:column`.
+        ## The unit's text of the current statement's position, `file:line:column`.
+        # the instructions emitted from here carry the position (`--release --debug`)
+        if self.f.symbols:
+            self.f.at_line = self.at_line
+            self.f.at_file = self.program_unit.file_index(self.at_file) catch failure:
+                discard(failure)
+                recover 0
+
     mutating func position_ref() -> ir.Ref!:
         if self.at_text == 0:
             let room = try alloc u8[self.at_file.length + 24]
@@ -530,7 +540,7 @@ pub struct Lowerer:
 
     ## `--debug`: a named local joins the frame's descriptor.
     mutating func describe_local(decl: ast.Node*, slot: u32, id: u32) -> !:
-        if not self.f.debug or decl.text.length == 0 or decl.text == "_":
+        if not (self.f.debug or self.f.symbols) or decl.text.length == 0 or decl.text == "_":
             return
         try self.f.locals.push(ir.LocalInfo(name = decl.text, slot = slot, kind = try self.c.spell(id), size = self.size(id), type_id = id, line = decl.line, parameter = decl.kind == ast.Kind.param, scope = self.scopes.get(self.scopes.count - 1).debug_scope if self.scopes.count > 0 else 0))
 
@@ -694,7 +704,7 @@ pub struct Lowerer:
                 let pointer = try self.c.table.pointer(oid, not (d.has(ast.flag_mutating) or d.text == "init"), false)
                 let s = try self.f.slot(8, 8)
                 self.self_slot = s
-                if self.f.debug:
+                if self.f.debug or self.f.symbols:
                     try self.f.locals.push(ir.LocalInfo(name = "self", slot = s, kind = try self.c.spell(pointer), size = 8, type_id = pointer, line = d.line, parameter = true, scope = 0))
                 try self.f.params.push(ir.Param(cls = ir.Class.l, size = 0, align = 8, type_id = pointer, slot = s, shape = 0))
         var cursor = d.right
@@ -886,9 +896,12 @@ pub struct Lowerer:
         self.f = try ir.Function.create(name)
         # the program's own functions are described and hooked; the standard modules are not
         self.f.debug = false
+        self.f.symbols = false
         if let decl = d:
             let owner = inst.owner else decl
-            self.f.debug = self.debug and not check.is_standard_module(names.module_of(owner))
+            let own = not check.is_standard_module(names.module_of(owner))
+            self.f.debug = self.debug and own
+            self.f.symbols = self.symbols and own
             self.src_file = self.source_of(owner)
         self.f.source = self.src_file
         if let decl = d:
@@ -1104,7 +1117,7 @@ pub struct Lowerer:
         let width = u32(self.scalar_size(et))
         let vv = try self.value(value, et)
         if s.text == "=":
-            try self.f.instrs.push(ir.Instr(op = ir.Op.atomic_store, cls = cls, dst = 0, a = vv.ref, b = address, extra = width, extra2 = 5))
+            try self.f.instrs.push(ir.Instr(op = ir.Op.atomic_store, cls = cls, dst = 0, a = vv.ref, b = address, extra = width, extra2 = 5, line = 0, file = 0))
             return
         let op = (str)s.text.bytes[..<s.text.length - 1]
         var operand = vv.ref
@@ -1119,7 +1132,7 @@ pub struct Lowerer:
             instr = ir.Op.atomic_and_not
             operand = try self.f.binary(ir.Op.xor, cls, vv.ref, ir.const_ref(-1))
         let t = try self.f.temp(cls)
-        try self.f.instrs.push(ir.Instr(op = instr, cls = cls, dst = t, a = operand, b = address, extra = width, extra2 = 5))
+        try self.f.instrs.push(ir.Instr(op = instr, cls = cls, dst = t, a = operand, b = address, extra = width, extra2 = 5, line = 0, file = 0))
 
     mutating func if_stmt(s: ast.Node*) -> !:
         let then_label = self.f.label()
@@ -3984,12 +3997,12 @@ pub struct Lowerer:
             order = memory_order(o)
         if name == "load":
             let t = try self.f.temp(cls)
-            try self.f.instrs.push(ir.Instr(op = ir.Op.atomic_load, cls = cls, dst = t, a = address, b = ir.none_ref(), extra = width, extra2 = order))
+            try self.f.instrs.push(ir.Instr(op = ir.Op.atomic_load, cls = cls, dst = t, a = address, b = ir.none_ref(), extra = width, extra2 = order, line = 0, file = 0))
             return LowerValue(ref = ir.temp_ref(t), type_id = et, in_memory = false)
         if name == "store":
             let v = args[0] else return try self.fail(e, "no value")
             let vv = try self.value(v, et)
-            try self.f.instrs.push(ir.Instr(op = ir.Op.atomic_store, cls = cls, dst = 0, a = vv.ref, b = address, extra = width, extra2 = order))
+            try self.f.instrs.push(ir.Instr(op = ir.Op.atomic_store, cls = cls, dst = 0, a = vv.ref, b = address, extra = width, extra2 = order, line = 0, file = 0))
             return LowerValue(ref = ir.const_ref(0), type_id = types.unit_id, in_memory = false)
         if name == "wait":
             let v = args[0] else return try self.fail(e, "no value")
@@ -4000,7 +4013,7 @@ pub struct Lowerer:
             let keep = try self.materialise(vv)
             try self.f.place_label(head)
             let t = try self.f.temp(cls)
-            try self.f.instrs.push(ir.Instr(op = ir.Op.atomic_load, cls = cls, dst = t, a = address, b = ir.none_ref(), extra = width, extra2 = 5))
+            try self.f.instrs.push(ir.Instr(op = ir.Op.atomic_load, cls = cls, dst = t, a = address, b = ir.none_ref(), extra = width, extra2 = 5, line = 0, file = 0))
             let expected = try self.load_from(keep, et)
             let same = try self.f.binary(ir.Op.ceq, cls, ir.temp_ref(t), expected.ref)
             try self.f.branch(same, spin, done)
@@ -4023,7 +4036,7 @@ pub struct Lowerer:
             try self.f.args.push(ir.Arg(value = ev.ref, cls = cls, size = 0, align = 8, type_id = et, shape = 0))
             try self.f.args.push(ir.Arg(value = dv.ref, cls = cls, size = 0, align = 8, type_id = et, shape = 0))
             let observed = try self.f.temp(cls)
-            try self.f.instrs.push(ir.Instr(op = ir.Op.atomic_cas, cls = cls, dst = observed, a = address, b = ir.const_ref((i64)start), extra = width, extra2 = order))
+            try self.f.instrs.push(ir.Instr(op = ir.Op.atomic_cas, cls = cls, dst = observed, a = address, b = ir.const_ref((i64)start), extra = width, extra2 = order, line = 0, file = 0))
             let swapped = try self.f.binary(ir.Op.ceq, cls, ir.temp_ref(observed), ev.ref)
             try self.f.store(ir.Op.storeb, swapped, a)
             let offset = lower_round_up(1, self.c.table.align_of(et))
@@ -4047,7 +4060,7 @@ pub struct Lowerer:
         elif name == "min":
             op = ir.Op.atomic_min
         let t = try self.f.temp(cls)
-        try self.f.instrs.push(ir.Instr(op = op, cls = cls, dst = t, a = vv.ref, b = address, extra = width, extra2 = order))
+        try self.f.instrs.push(ir.Instr(op = op, cls = cls, dst = t, a = vv.ref, b = address, extra = width, extra2 = order, line = 0, file = 0))
         return LowerValue(ref = ir.temp_ref(t), type_id = et, in_memory = false)
 
     # mark: Memory =============================================================================

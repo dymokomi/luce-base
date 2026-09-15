@@ -33,12 +33,12 @@ lb_process_20termination_received:
     adrp x14, lb_process_22termination_generation
     add x14, x14, :lo12:lb_process_22termination_generation
     movz x10, #1
-    mov x12, x14
+    mov x17, x14
 1:
-    ldxr x9, [x12]
+    ldxr x9, [x17]
     add x11, x9, x10
-    stlxr w13, x11, [x12]
-    cbnz w13, 1b
+    stlxr w16, x11, [x17]
+    cbnz w16, 1b
     mov x14, x9
     mov sp, x29
     ldp x29, x30, [sp], #16
@@ -119,8 +119,8 @@ lb_process_25termination_posix_install:
     add x14, x19, #8
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
@@ -206,8 +206,8 @@ lb_process_25termination_posix_install:
     add x14, x21, #8
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x21, #24
     movz x9, #1
     strb w9, [x14]

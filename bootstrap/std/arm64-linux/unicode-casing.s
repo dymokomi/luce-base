@@ -19,19 +19,18 @@ lb_unicode_casing_0init:
 lb_unicode_8to_upper:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #176
+    sub sp, sp, #160
     sub x16, x29, #24
     str x8, [x16]
-    str x19, [sp, #144]
-    str x20, [sp, #136]
-    sub x16, x29, #104
+    str x19, [sp, #128]
+    sub x16, x29, #96
     str x0, [x16]
     str x1, [x16, #8]
-    sub x16, x29, #120
+    sub x16, x29, #112
     str x2, [x16]
     str x3, [x16, #8]
-    sub x14, x29, #104
-    sub x15, x29, #120
+    sub x14, x29, #96
+    sub x15, x29, #112
     mov x9, x14
     ldr x0, [x9]
     ldr x1, [x9, #8]
@@ -40,23 +39,23 @@ lb_unicode_8to_upper:
     mov x9, x15
     ldr x4, [x9]
     ldr x5, [x9, #8]
-    sub x8, x29, #168
+    sub x8, x29, #160
     bl lb_unicode_12convert_case
-    sub x15, x29, #168
+    sub x15, x29, #160
     add x14, x15, #40
     ldrb w14, [x14]
     cbnz w14, .L1_2
     b .L1_1
 .L1_2:
     add x14, x15, #16
-    sub x19, x29, #88
-    add x20, x19, #16
+    sub x19, x29, #80
+    add x12, x19, #16
     mov x10, x14
-    mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    mov x11, x12
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #40
     movz x9, #1
     strb w9, [x14]
@@ -67,18 +66,17 @@ lb_unicode_8to_upper:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #144]
-    ldr x20, [sp, #136]
+    ldr x19, [sp, #128]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
 .L1_3:
 .L1_1:
-    sub x19, x29, #88
+    sub x19, x29, #80
     mov x10, x15
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #40
     mov x9, #0
     strb w9, [x14]
@@ -89,8 +87,7 @@ lb_unicode_8to_upper:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #144]
-    ldr x20, [sp, #136]
+    ldr x19, [sp, #128]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -109,19 +106,18 @@ lb_unicode_8to_upper:
 lb_unicode_8to_lower:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #176
+    sub sp, sp, #160
     sub x16, x29, #24
     str x8, [x16]
-    str x19, [sp, #144]
-    str x20, [sp, #136]
-    sub x16, x29, #104
+    str x19, [sp, #128]
+    sub x16, x29, #96
     str x0, [x16]
     str x1, [x16, #8]
-    sub x16, x29, #120
+    sub x16, x29, #112
     str x2, [x16]
     str x3, [x16, #8]
-    sub x14, x29, #104
-    sub x15, x29, #120
+    sub x14, x29, #96
+    sub x15, x29, #112
     mov x9, x14
     ldr x0, [x9]
     ldr x1, [x9, #8]
@@ -130,23 +126,23 @@ lb_unicode_8to_lower:
     mov x9, x15
     ldr x4, [x9]
     ldr x5, [x9, #8]
-    sub x8, x29, #168
+    sub x8, x29, #160
     bl lb_unicode_12convert_case
-    sub x15, x29, #168
+    sub x15, x29, #160
     add x14, x15, #40
     ldrb w14, [x14]
     cbnz w14, .L2_2
     b .L2_1
 .L2_2:
     add x14, x15, #16
-    sub x19, x29, #88
-    add x20, x19, #16
+    sub x19, x29, #80
+    add x12, x19, #16
     mov x10, x14
-    mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    mov x11, x12
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #40
     movz x9, #1
     strb w9, [x14]
@@ -157,18 +153,17 @@ lb_unicode_8to_lower:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #144]
-    ldr x20, [sp, #136]
+    ldr x19, [sp, #128]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
 .L2_3:
 .L2_1:
-    sub x19, x29, #88
+    sub x19, x29, #80
     mov x10, x15
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #40
     mov x9, #0
     strb w9, [x14]
@@ -179,8 +174,7 @@ lb_unicode_8to_lower:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #144]
-    ldr x20, [sp, #136]
+    ldr x19, [sp, #128]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -199,48 +193,47 @@ lb_unicode_8to_lower:
 lb_unicode_9case_fold:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #192
+    sub sp, sp, #176
     sub x16, x29, #24
     str x8, [x16]
-    str x19, [sp, #160]
-    str x20, [sp, #152]
-    sub x16, x29, #104
+    str x19, [sp, #144]
+    sub x16, x29, #96
     str x0, [x16]
     str x1, [x16, #8]
-    sub x16, x29, #120
+    sub x16, x29, #112
     str w2, [x16]
-    sub x16, x29, #136
+    sub x16, x29, #128
     str x3, [x16]
     str x4, [x16, #8]
-    sub x14, x29, #104
-    sub x15, x29, #120
+    sub x14, x29, #96
+    sub x15, x29, #112
     ldrb w15, [x15]
-    sub x19, x29, #136
+    sub x12, x29, #128
     mov x9, x14
     ldr x0, [x9]
     ldr x1, [x9, #8]
     movz x2, #2
     mov x3, x15
-    mov x9, x19
+    mov x9, x12
     ldr x4, [x9]
     ldr x5, [x9, #8]
-    sub x8, x29, #184
+    sub x8, x29, #176
     bl lb_unicode_12convert_case
-    sub x15, x29, #184
+    sub x15, x29, #176
     add x14, x15, #40
     ldrb w14, [x14]
     cbnz w14, .L3_2
     b .L3_1
 .L3_2:
     add x14, x15, #16
-    sub x19, x29, #88
-    add x20, x19, #16
+    sub x19, x29, #80
+    add x12, x19, #16
     mov x10, x14
-    mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    mov x11, x12
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #40
     movz x9, #1
     strb w9, [x14]
@@ -251,18 +244,17 @@ lb_unicode_9case_fold:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #160]
-    ldr x20, [sp, #152]
+    ldr x19, [sp, #144]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
 .L3_3:
 .L3_1:
-    sub x19, x29, #88
+    sub x19, x29, #80
     mov x10, x15
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #40
     mov x9, #0
     strb w9, [x14]
@@ -273,8 +265,7 @@ lb_unicode_9case_fold:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #160]
-    ldr x20, [sp, #152]
+    ldr x19, [sp, #144]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -293,19 +284,19 @@ lb_unicode_9case_fold:
 lb_unicode_12convert_case:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #560
+    sub sp, sp, #544
     sub x16, x29, #24
     str x8, [x16]
-    str x19, [sp, #528]
-    str x20, [sp, #520]
-    str x21, [sp, #512]
-    str x22, [sp, #504]
-    str x23, [sp, #496]
-    str x24, [sp, #488]
-    str x25, [sp, #480]
-    str x26, [sp, #472]
-    str x27, [sp, #464]
-    str x28, [sp, #456]
+    str x19, [sp, #512]
+    str x20, [sp, #504]
+    str x21, [sp, #496]
+    str x22, [sp, #488]
+    str x23, [sp, #480]
+    str x24, [sp, #472]
+    str x25, [sp, #464]
+    str x26, [sp, #456]
+    str x27, [sp, #448]
+    str x28, [sp, #440]
     sub x16, x29, #168
     str x0, [x16]
     str x1, [x16, #8]
@@ -319,8 +310,7 @@ lb_unicode_12convert_case:
     sub x19, x29, #232
     mov x11, x19
     stp xzr, xzr, [x11, #0]
-    sub x9, x29, #168
-    str x9, [sp, #16]
+    sub x20, x29, #168
     sub x14, x29, #184
     ldrb w21, [x14]
     sub x14, x29, #200
@@ -333,7 +323,7 @@ lb_unicode_12convert_case:
     str x10, [sp, #0]
     ldr x10, [x9, #8]
     str x10, [sp, #8]
-    ldr x9, [sp, #32]
+    mov x9, x20
     ldr x0, [x9]
     ldr x1, [x9, #8]
     mov x2, x21
@@ -354,13 +344,13 @@ lb_unicode_12convert_case:
 .L4_2:
     add x14, x15, #8
     sub x19, x29, #152
-    add x20, x19, #16
+    add x12, x19, #16
     mov x10, x14
-    mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    mov x11, x12
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #40
     movz x9, #1
     strb w9, [x14]
@@ -371,16 +361,16 @@ lb_unicode_12convert_case:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #528]
-    ldr x20, [sp, #520]
-    ldr x21, [sp, #512]
-    ldr x22, [sp, #504]
-    ldr x23, [sp, #496]
-    ldr x24, [sp, #488]
-    ldr x25, [sp, #480]
-    ldr x26, [sp, #472]
-    ldr x27, [sp, #464]
-    ldr x28, [sp, #456]
+    ldr x19, [sp, #512]
+    ldr x20, [sp, #504]
+    ldr x21, [sp, #496]
+    ldr x22, [sp, #488]
+    ldr x23, [sp, #480]
+    ldr x24, [sp, #472]
+    ldr x25, [sp, #464]
+    ldr x26, [sp, #456]
+    ldr x27, [sp, #448]
+    ldr x28, [sp, #440]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -394,12 +384,12 @@ lb_unicode_12convert_case:
     mov x3, x24
     bl lb_core_6qadd_u
     mov w14, w0
-    sub x25, x29, #296
+    sub x12, x29, #296
     ldr x24, [x24]
-    str x24, [x25]
-    add x25, x25, #8
-    strb w14, [x25]
-    ldrb w14, [x25]
+    str x24, [x12]
+    add x12, x12, #8
+    strb w14, [x12]
+    ldrb w14, [x12]
     cbnz w14, .L4_4
     b .L4_5
 .L4_4:
@@ -413,16 +403,16 @@ lb_unicode_12convert_case:
     str w15, [x14]
     adrp x15, .Ltext_4
     add x15, x15, :lo12:.Ltext_4
-    sub x20, x29, #312
-    str x15, [x20]
-    add x15, x20, #8
+    sub x12, x29, #312
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #30
     str x9, [x15]
     add x14, x14, #8
-    mov x10, x20
+    mov x10, x12
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #40
     movz x9, #1
     strb w9, [x14]
@@ -433,16 +423,16 @@ lb_unicode_12convert_case:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #528]
-    ldr x20, [sp, #520]
-    ldr x21, [sp, #512]
-    ldr x22, [sp, #504]
-    ldr x23, [sp, #496]
-    ldr x24, [sp, #488]
-    ldr x25, [sp, #480]
-    ldr x26, [sp, #472]
-    ldr x27, [sp, #464]
-    ldr x28, [sp, #456]
+    ldr x19, [sp, #512]
+    ldr x20, [sp, #504]
+    ldr x21, [sp, #496]
+    ldr x22, [sp, #488]
+    ldr x23, [sp, #480]
+    ldr x24, [sp, #472]
+    ldr x25, [sp, #464]
+    ldr x26, [sp, #456]
+    ldr x27, [sp, #448]
+    ldr x28, [sp, #440]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -453,7 +443,7 @@ lb_unicode_12convert_case:
     ldr x0, [x0, :gottprel_lo12:lb_memory_allocator]
     mrs x16, tpidr_el0
     add x0, x16, x0
-    str x0, [sp, #8]
+    str x0, [sp, #0]
     sub x27, x29, #376
     movz x10, #16384, lsl #48
     cmp x24, x10
@@ -465,8 +455,8 @@ lb_unicode_12convert_case:
     str w9, [x14]
     adrp x15, .Ltext_5
     add x15, x15, :lo12:.Ltext_5
-    add x24, x14, #8
-    str x15, [x24]
+    add x12, x14, #8
+    str x15, [x12]
     add x14, x14, #16
     movz x9, #47
     str x9, [x14]
@@ -475,9 +465,9 @@ lb_unicode_12convert_case:
     strb w9, [x14]
     b .L4_10
 .L4_9:
-    ldr x9, [sp, #8]
+    ldr x9, [sp, #0]
     ldr x14, [x9]
-    ldr x9, [sp, #8]
+    ldr x9, [sp, #0]
     add x15, x9, #8
     ldr x15, [x15]
     cbnz x15, .L4_11
@@ -489,8 +479,8 @@ lb_unicode_12convert_case:
     add x1, x1, :lo12:.Ltext_6
     bl lb_core_7trap_at
 .L4_11:
-    ldr x28, [x15]
-    mov x17, x28
+    ldr x12, [x15]
+    mov x17, x12
     str x17, [sp, #-16]!
     mov x0, x14
     mov x1, x24
@@ -498,17 +488,17 @@ lb_unicode_12convert_case:
     sub x8, x29, #400
     ldr x17, [sp], #16
     blr x17
-    sub x20, x29, #400
-    add x28, x20, #16
-    ldrb w28, [x28]
+    sub x28, x29, #400
+    add x12, x28, #16
+    ldrb w12, [x12]
     mov x10, #0
     cmp x24, x10
-    cset w26, ne
+    cset w13, ne
     mov x10, #0
-    cmp w28, w10
-    cset w28, eq
-    and w26, w26, w28
-    cbnz w26, .L4_13
+    cmp w12, w10
+    cset w12, eq
+    and w12, w13, w12
+    cbnz w12, .L4_13
     b .L4_14
 .L4_13:
     add x14, x27, #16
@@ -517,8 +507,8 @@ lb_unicode_12convert_case:
     str w9, [x14]
     adrp x15, .Ltext_8
     add x15, x15, :lo12:.Ltext_8
-    add x20, x14, #8
-    str x15, [x20]
+    add x12, x14, #8
+    str x15, [x12]
     add x14, x14, #16
     movz x9, #16
     str x9, [x14]
@@ -527,7 +517,7 @@ lb_unicode_12convert_case:
     strb w9, [x14]
     b .L4_10
 .L4_14:
-    ldr x14, [x20]
+    ldr x14, [x28]
     str x14, [x27]
     add x14, x27, #8
     str x24, [x14]
@@ -545,10 +535,10 @@ lb_unicode_12convert_case:
     add x15, x19, #16
     mov x10, x14
     mov x11, x15
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #40
     movz x9, #1
     strb w9, [x14]
@@ -559,16 +549,16 @@ lb_unicode_12convert_case:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #528]
-    ldr x20, [sp, #520]
-    ldr x21, [sp, #512]
-    ldr x22, [sp, #504]
-    ldr x23, [sp, #496]
-    ldr x24, [sp, #488]
-    ldr x25, [sp, #480]
-    ldr x26, [sp, #472]
-    ldr x27, [sp, #464]
-    ldr x28, [sp, #456]
+    ldr x19, [sp, #512]
+    ldr x20, [sp, #504]
+    ldr x21, [sp, #496]
+    ldr x22, [sp, #488]
+    ldr x23, [sp, #480]
+    ldr x24, [sp, #472]
+    ldr x25, [sp, #464]
+    ldr x26, [sp, #456]
+    ldr x27, [sp, #448]
+    ldr x28, [sp, #440]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -576,12 +566,12 @@ lb_unicode_12convert_case:
 .L4_15:
     mov x10, x27
     mov x11, x25
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     ldr x26, [x25]
     add x14, x25, #8
-    ldr x20, [x14]
-    add x14, x20, #1
+    ldr x24, [x14]
+    add x14, x24, #1
     mov x9, #0
     cmp x9, x14
     b.lo 1f
@@ -601,8 +591,8 @@ lb_unicode_12convert_case:
 1:
     mov x9, #0
     cmp x9, x19
-    cset w24, ls
-    cbnz w24, .L4_18
+    cset w28, ls
+    cbnz w28, .L4_18
     b .L4_19
 .L4_19:
     adrp x0, .Ltext_9
@@ -622,7 +612,7 @@ lb_unicode_12convert_case:
     str x10, [sp, #0]
     ldr x10, [x9, #8]
     str x10, [sp, #8]
-    ldr x9, [sp, #32]
+    mov x9, x20
     ldr x0, [x9]
     ldr x1, [x9, #8]
     mov x2, x21
@@ -643,33 +633,33 @@ lb_unicode_12convert_case:
 .L4_21:
     add x14, x15, #8
     sub x19, x29, #152
-    add x21, x19, #16
+    add x12, x19, #16
     mov x10, x14
-    mov x11, x21
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    mov x11, x12
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #40
     movz x9, #1
     strb w9, [x14]
     sub x14, x29, #472
     str x26, [x14]
-    add x21, x14, #8
-    str x20, [x21]
-    ldr x9, [sp, #8]
-    ldr x21, [x9]
-    ldr x9, [sp, #8]
-    add x22, x9, #8
-    ldr x22, [x22]
-    cbnz x22, .L4_23
+    add x12, x14, #8
+    str x24, [x12]
+    ldr x9, [sp, #0]
+    ldr x12, [x9]
+    ldr x9, [sp, #0]
+    add x13, x9, #8
+    ldr x13, [x13]
+    cbnz x13, .L4_23
     b .L4_22
 .L4_23:
-    add x15, x22, #16
+    add x15, x13, #16
     ldr x15, [x15]
     mov x17, x15
     str x17, [sp, #-16]!
-    mov x0, x21
+    mov x0, x12
     mov x9, x14
     ldr x1, [x9]
     ldr x2, [x9, #8]
@@ -683,16 +673,16 @@ lb_unicode_12convert_case:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #528]
-    ldr x20, [sp, #520]
-    ldr x21, [sp, #512]
-    ldr x22, [sp, #504]
-    ldr x23, [sp, #496]
-    ldr x24, [sp, #488]
-    ldr x25, [sp, #480]
-    ldr x26, [sp, #472]
-    ldr x27, [sp, #464]
-    ldr x28, [sp, #456]
+    ldr x19, [sp, #512]
+    ldr x20, [sp, #504]
+    ldr x21, [sp, #496]
+    ldr x22, [sp, #488]
+    ldr x23, [sp, #480]
+    ldr x24, [sp, #472]
+    ldr x25, [sp, #464]
+    ldr x26, [sp, #456]
+    ldr x27, [sp, #448]
+    ldr x28, [sp, #440]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -713,34 +703,34 @@ lb_unicode_12convert_case:
     str w15, [x14]
     adrp x15, .Ltext_11
     add x15, x15, :lo12:.Ltext_11
-    sub x21, x29, #488
-    str x15, [x21]
-    add x15, x21, #8
+    sub x12, x29, #488
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #38
     str x9, [x15]
     add x14, x14, #8
-    mov x10, x21
+    mov x10, x12
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #40
     movz x9, #1
     strb w9, [x14]
     sub x14, x29, #504
     str x26, [x14]
     add x15, x14, #8
-    str x20, [x15]
-    ldr x9, [sp, #8]
+    str x24, [x15]
+    ldr x9, [sp, #0]
     ldr x15, [x9]
-    ldr x9, [sp, #8]
-    add x21, x9, #8
-    ldr x21, [x21]
-    cbnz x21, .L4_29
+    ldr x9, [sp, #0]
+    add x12, x9, #8
+    ldr x12, [x12]
+    cbnz x12, .L4_29
     b .L4_28
 .L4_29:
-    add x20, x21, #16
-    ldr x20, [x20]
-    mov x17, x20
+    add x13, x12, #16
+    ldr x13, [x13]
+    mov x17, x13
     str x17, [sp, #-16]!
     mov x0, x15
     mov x9, x14
@@ -756,16 +746,16 @@ lb_unicode_12convert_case:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #528]
-    ldr x20, [sp, #520]
-    ldr x21, [sp, #512]
-    ldr x22, [sp, #504]
-    ldr x23, [sp, #496]
-    ldr x24, [sp, #488]
-    ldr x25, [sp, #480]
-    ldr x26, [sp, #472]
-    ldr x27, [sp, #464]
-    ldr x28, [sp, #456]
+    ldr x19, [sp, #512]
+    ldr x20, [sp, #504]
+    ldr x21, [sp, #496]
+    ldr x22, [sp, #488]
+    ldr x23, [sp, #480]
+    ldr x24, [sp, #472]
+    ldr x25, [sp, #464]
+    ldr x26, [sp, #456]
+    ldr x27, [sp, #448]
+    ldr x28, [sp, #440]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -773,7 +763,7 @@ lb_unicode_12convert_case:
     b .L4_27
 .L4_26:
 .L4_27:
-    cmp x19, x20
+    cmp x19, x24
     b.lo 1f
     adrp x0, .Ltext_13
     add x0, x0, :lo12:.Ltext_13
@@ -784,7 +774,7 @@ lb_unicode_12convert_case:
     add x14, x19, x26
     mov x9, #0
     strb w9, [x14]
-    cbnz w24, .L4_31
+    cbnz w28, .L4_31
     b .L4_32
 .L4_32:
     adrp x0, .Ltext_14
@@ -804,8 +794,8 @@ lb_unicode_12convert_case:
     sub x20, x29, #152
     mov x10, x14
     mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x20, #40
     mov x9, #0
     strb w9, [x14]
@@ -816,16 +806,16 @@ lb_unicode_12convert_case:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #528]
-    ldr x20, [sp, #520]
-    ldr x21, [sp, #512]
-    ldr x22, [sp, #504]
-    ldr x23, [sp, #496]
-    ldr x24, [sp, #488]
-    ldr x25, [sp, #480]
-    ldr x26, [sp, #472]
-    ldr x27, [sp, #464]
-    ldr x28, [sp, #456]
+    ldr x19, [sp, #512]
+    ldr x20, [sp, #504]
+    ldr x21, [sp, #496]
+    ldr x22, [sp, #488]
+    ldr x23, [sp, #480]
+    ldr x24, [sp, #472]
+    ldr x25, [sp, #464]
+    ldr x26, [sp, #456]
+    ldr x27, [sp, #448]
+    ldr x28, [sp, #440]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -882,168 +872,167 @@ lb_unicode_9case_pass:
     str x9, [sp, #552]
     sub x27, x29, #256
     sub x9, x29, #280
-    str x9, [sp, #72]
-    ldr x9, [sp, #72]
+    str x9, [sp, #80]
+    ldr x9, [sp, #80]
     add x9, x9, #16
     str x9, [sp, #544]
-    sub x9, x29, #296
-    str x9, [sp, #536]
+    sub x22, x29, #296
     add x9, x27, #8
-    str x9, [sp, #528]
+    str x9, [sp, #536]
     sub x9, x29, #336
-    str x9, [sp, #64]
+    str x9, [sp, #72]
     sub x9, x29, #176
-    str x9, [sp, #520]
+    str x9, [sp, #528]
     sub x9, x29, #192
-    str x9, [sp, #512]
+    str x9, [sp, #520]
     sub x9, x29, #600
-    str x9, [sp, #392]
+    str x9, [sp, #400]
     sub x9, x29, #616
-    str x9, [sp, #240]
+    str x9, [sp, #248]
     adrp x9, lb_unicode_15turkic_mappings
     add x9, x9, :lo12:lb_unicode_15turkic_mappings
-    str x9, [sp, #232]
+    str x9, [sp, #240]
     sub x9, x29, #848
+    str x9, [sp, #64]
+    ldr x9, [sp, #64]
+    add x9, x9, #24
+    str x9, [sp, #232]
+    adrp x9, lb_unicode_13fold_mappings
+    add x9, x9, :lo12:lb_unicode_13fold_mappings
+    str x9, [sp, #208]
+    sub x9, x29, #904
     str x9, [sp, #56]
     ldr x9, [sp, #56]
     add x9, x9, #24
-    str x9, [sp, #224]
-    adrp x9, lb_unicode_13fold_mappings
-    add x9, x9, :lo12:lb_unicode_13fold_mappings
     str x9, [sp, #200]
-    sub x9, x29, #904
-    str x9, [sp, #48]
-    ldr x9, [sp, #48]
-    add x9, x9, #24
-    str x9, [sp, #192]
     sub x9, x29, #952
-    str x9, [sp, #176]
-    sub x9, x29, #928
-    str x9, [sp, #168]
-    sub x9, x29, #928
     str x9, [sp, #184]
     sub x9, x29, #928
+    str x9, [sp, #176]
+    sub x9, x29, #928
+    str x9, [sp, #192]
+    sub x9, x29, #928
+    str x9, [sp, #168]
+    sub x9, x29, #536
     str x9, [sp, #160]
-    sub x9, x29, #536
-    str x9, [sp, #152]
     sub x9, x29, #872
-    str x9, [sp, #216]
+    str x9, [sp, #224]
     sub x9, x29, #536
-    str x9, [sp, #208]
+    str x9, [sp, #216]
     sub x9, x29, #632
-    str x9, [sp, #328]
+    str x9, [sp, #336]
     sub x9, x29, #552
-    str x9, [sp, #320]
+    str x9, [sp, #328]
     sub x9, x29, #968
+    str x9, [sp, #152]
+    ldr x9, [sp, #152]
+    add x9, x9, #8
     str x9, [sp, #144]
-    ldr x9, [sp, #144]
-    add x9, x9, #8
-    str x9, [sp, #136]
     sub x9, x29, #1000
-    str x9, [sp, #40]
+    str x9, [sp, #48]
     sub x9, x29, #1024
-    str x9, [sp, #32]
-    ldr x9, [sp, #32]
-    add x9, x9, #16
-    str x9, [sp, #128]
-    sub x9, x29, #1040
-    str x9, [sp, #120]
+    str x9, [sp, #40]
     ldr x9, [sp, #40]
+    add x9, x9, #16
+    str x9, [sp, #136]
+    sub x9, x29, #1040
+    str x9, [sp, #128]
+    ldr x9, [sp, #48]
     add x9, x9, #8
-    str x9, [sp, #112]
+    str x9, [sp, #120]
     adrp x9, lb_unicode_21case_ignorable_ranges
     add x9, x9, :lo12:lb_unicode_21case_ignorable_ranges
-    str x9, [sp, #104]
+    str x9, [sp, #112]
     adrp x9, lb_unicode_12cased_ranges
     add x9, x9, :lo12:lb_unicode_12cased_ranges
-    str x9, [sp, #96]
+    str x9, [sp, #104]
     adrp x9, lb_unicode_14lower_mappings
     add x9, x9, :lo12:lb_unicode_14lower_mappings
-    str x9, [sp, #296]
+    str x9, [sp, #304]
     sub x9, x29, #768
-    str x9, [sp, #24]
-    ldr x9, [sp, #24]
+    str x9, [sp, #32]
+    ldr x9, [sp, #32]
     add x9, x9, #24
-    str x9, [sp, #288]
+    str x9, [sp, #296]
     sub x9, x29, #816
-    str x9, [sp, #272]
-    sub x9, x29, #792
-    str x9, [sp, #264]
-    sub x9, x29, #792
     str x9, [sp, #280]
     sub x9, x29, #792
+    str x9, [sp, #272]
+    sub x9, x29, #792
+    str x9, [sp, #288]
+    sub x9, x29, #792
+    str x9, [sp, #264]
+    sub x9, x29, #536
     str x9, [sp, #256]
-    sub x9, x29, #536
-    str x9, [sp, #248]
     sub x9, x29, #736
-    str x9, [sp, #312]
+    str x9, [sp, #320]
     sub x9, x29, #536
-    str x9, [sp, #304]
+    str x9, [sp, #312]
     adrp x9, lb_unicode_14upper_mappings
     add x9, x9, :lo12:lb_unicode_14upper_mappings
-    str x9, [sp, #384]
+    str x9, [sp, #392]
     sub x24, x29, #664
     add x9, x24, #24
-    str x9, [sp, #376]
+    str x9, [sp, #384]
     sub x9, x29, #712
-    str x9, [sp, #360]
-    sub x9, x29, #688
-    str x9, [sp, #352]
-    sub x9, x29, #688
     str x9, [sp, #368]
     sub x9, x29, #688
-    str x9, [sp, #344]
+    str x9, [sp, #360]
+    sub x9, x29, #688
+    str x9, [sp, #376]
+    sub x9, x29, #688
+    str x9, [sp, #352]
     sub x9, x29, #536
-    str x9, [sp, #336]
+    str x9, [sp, #344]
     sub x9, x29, #360
+    str x9, [sp, #512]
+    ldr x9, [sp, #72]
+    add x9, x9, #8
     str x9, [sp, #504]
-    ldr x9, [sp, #64]
+    sub x9, x29, #376
+    str x9, [sp, #24]
+    ldr x9, [sp, #24]
     add x9, x9, #8
     str x9, [sp, #496]
-    sub x9, x29, #376
+    sub x9, x29, #400
+    str x9, [sp, #488]
+    sub x9, x29, #416
     str x9, [sp, #16]
     ldr x9, [sp, #16]
     add x9, x9, #8
-    str x9, [sp, #488]
-    sub x9, x29, #400
     str x9, [sp, #480]
-    sub x9, x29, #416
+    sub x9, x29, #240
     str x9, [sp, #8]
     ldr x9, [sp, #8]
     add x9, x9, #8
     str x9, [sp, #472]
-    sub x9, x29, #240
-    str x9, [sp, #0]
-    ldr x9, [sp, #0]
-    add x9, x9, #8
-    str x9, [sp, #464]
     sub x9, x29, #224
-    str x9, [sp, #456]
+    str x9, [sp, #464]
     sub x9, x29, #208
+    str x9, [sp, #456]
+    ldr x9, [sp, #456]
+    add x9, x9, #8
     str x9, [sp, #448]
-    ldr x9, [sp, #448]
-    add x9, x9, #8
-    str x9, [sp, #440]
     sub x9, x29, #480
-    str x9, [sp, #432]
-    ldr x9, [sp, #432]
+    str x9, [sp, #440]
+    ldr x9, [sp, #440]
     add x9, x9, #8
-    str x9, [sp, #424]
+    str x9, [sp, #432]
     sub x14, x29, #496
     add x9, x14, #8
-    str x9, [sp, #416]
+    str x9, [sp, #424]
     adrp x9, lb_unicode_21case_ignorable_ranges
     add x9, x9, :lo12:lb_unicode_21case_ignorable_ranges
-    str x9, [sp, #408]
+    str x9, [sp, #416]
     adrp x9, lb_unicode_12cased_ranges
     add x9, x9, :lo12:lb_unicode_12cased_ranges
-    str x9, [sp, #400]
+    str x9, [sp, #408]
     mov x9, #0
     mov x28, x9
     mov x9, #0
-    str x9, [sp, #88]
+    str x9, [sp, #96]
     mov x9, #0
-    str w9, [sp, #80]
+    str w9, [sp, #88]
 .L5_1:
     ldr x9, [sp, #552]
     ldr x14, [x9]
@@ -1061,10 +1050,10 @@ lb_unicode_9case_pass:
     cbnz w14, .L5_4
     b .L5_5
 .L5_4:
-    ldr x10, [sp, #72]
-    ldr x11, [sp, #536]
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldr x10, [sp, #80]
+    mov x11, x22
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     b .L5_6
 .L5_5:
     sub x19, x29, #144
@@ -1075,16 +1064,16 @@ lb_unicode_9case_pass:
     str w15, [x14]
     adrp x15, .Ltext_15
     add x15, x15, :lo12:.Ltext_15
-    sub x20, x29, #312
-    str x15, [x20]
-    add x15, x20, #8
+    sub x12, x29, #312
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #18
     str x9, [x15]
     add x14, x14, #8
-    mov x10, x20
+    mov x10, x12
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #32
     movz x9, #1
     strb w9, [x14]
@@ -1110,11 +1099,11 @@ lb_unicode_9case_pass:
     ret
 .L5_7:
 .L5_6:
-    ldr x10, [sp, #536]
+    mov x10, x22
     mov x11, x27
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x9, [sp, #528]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x9, [sp, #536]
     ldr x14, [x9]
     mov x9, x14
     mov x10, x28
@@ -1129,16 +1118,16 @@ lb_unicode_9case_pass:
     mov x20, x9
     ldr w14, [x27]
     mov w21, w14
-    ldr x9, [sp, #520]
+    ldr x9, [sp, #528]
     ldrb w26, [x9]
-    ldr x9, [sp, #512]
+    ldr x9, [sp, #520]
     ldrb w25, [x9]
-    ldr w9, [sp, #80]
+    ldr w9, [sp, #88]
     and w23, w9, #255
     ldr x10, [sp, #560]
     sub x11, x29, #552
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     sub x10, x29, #568
     str x20, [x10]
     sub x10, x29, #584
@@ -1149,53 +1138,53 @@ lb_unicode_9case_pass:
     str w25, [x10]
     sub x10, x29, #632
     str w23, [x10]
-    ldr x9, [sp, #392]
+    ldr x9, [sp, #400]
     ldrb w14, [x9]
     mov x10, #0
     cmp w14, w10
     b.ne .L5_44
 .L5_43:
-    ldr x9, [sp, #384]
+    ldr x9, [sp, #392]
     ldr x0, [x9]
     ldr x1, [x9, #8]
     mov x2, x21
     sub x8, x29, #664
     bl lb_unicode_mapped
-    ldr x9, [sp, #376]
+    ldr x9, [sp, #384]
     ldrb w14, [x9]
     cbnz w14, .L5_46
     b .L5_47
 .L5_46:
     mov x10, x24
-    ldr x11, [sp, #368]
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldr x11, [sp, #376]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     b .L5_48
 .L5_47:
     mov x0, x21
     sub x8, x29, #712
     bl lb_unicode_16identity_mapping
-    ldr x10, [sp, #360]
-    ldr x11, [sp, #352]
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldr x10, [sp, #368]
+    ldr x11, [sp, #360]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
 .L5_48:
+    ldr x10, [sp, #352]
+    ldr x11, [sp, #344]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     ldr x10, [sp, #344]
-    ldr x11, [sp, #336]
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
-    ldr x10, [sp, #336]
     sub x11, x29, #360
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     b .L5_90
 .L5_49:
     b .L5_45
@@ -1214,7 +1203,7 @@ lb_unicode_9case_pass:
     mov w15, w14
     b .L5_57
 .L5_56:
-    ldr x9, [sp, #328]
+    ldr x9, [sp, #336]
     ldrb w15, [x9]
 .L5_57:
     and w14, w15, #255
@@ -1224,34 +1213,34 @@ lb_unicode_9case_pass:
     mov w15, w14
     b .L5_59
 .L5_58:
-    ldr x10, [sp, #320]
+    ldr x10, [sp, #328]
     sub x11, x29, #968
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     sub x10, x29, #984
     str x20, [x10]
     mov x23, x20
 .L5_77:
-    ldr x9, [sp, #136]
+    ldr x9, [sp, #144]
     ldr x14, [x9]
     cmp x23, x14
     b.hs .L5_79
 .L5_78:
-    ldr x9, [sp, #144]
+    ldr x9, [sp, #152]
     ldr x0, [x9]
     ldr x1, [x9, #8]
     mov x2, x23
     sub x8, x29, #1024
     bl lb_utf8_decode
-    ldr x9, [sp, #128]
+    ldr x9, [sp, #136]
     ldrb w14, [x9]
     cbnz w14, .L5_80
     b .L5_81
 .L5_80:
-    ldr x10, [sp, #32]
-    ldr x11, [sp, #120]
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldr x10, [sp, #40]
+    ldr x11, [sp, #128]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     b .L5_82
 .L5_81:
     mov x9, #0
@@ -1262,11 +1251,11 @@ lb_unicode_9case_pass:
     b .L5_89
 .L5_83:
 .L5_82:
-    ldr x10, [sp, #120]
-    ldr x11, [sp, #40]
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x9, [sp, #112]
+    ldr x10, [sp, #128]
+    ldr x11, [sp, #48]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x9, [sp, #120]
     ldr x14, [x9]
     mov x9, x14
     mov x10, x23
@@ -1279,10 +1268,10 @@ lb_unicode_9case_pass:
     bl lb_core_7trap_at
 1:
     mov x25, x9
-    ldr x9, [sp, #40]
+    ldr x9, [sp, #48]
     ldr w14, [x9]
     mov w26, w14
-    ldr x9, [sp, #104]
+    ldr x9, [sp, #112]
     ldr x0, [x9]
     ldr x1, [x9, #8]
     mov x2, x26
@@ -1292,7 +1281,7 @@ lb_unicode_9case_pass:
     cmp w14, w10
     b.ne .L5_85
 .L5_84:
-    ldr x9, [sp, #96]
+    ldr x9, [sp, #104]
     ldr x0, [x9]
     ldr x1, [x9, #8]
     mov x2, x26
@@ -1339,104 +1328,104 @@ lb_unicode_9case_pass:
     movz x0, #962
     sub x8, x29, #736
     bl lb_unicode_16identity_mapping
+    ldr x10, [sp, #320]
+    ldr x11, [sp, #312]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     ldr x10, [sp, #312]
-    ldr x11, [sp, #304]
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
-    ldr x10, [sp, #304]
     sub x11, x29, #360
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     b .L5_90
 .L5_60:
     b .L5_55
 .L5_54:
 .L5_55:
-    ldr x9, [sp, #296]
+    ldr x9, [sp, #304]
     ldr x0, [x9]
     ldr x1, [x9, #8]
     mov x2, x21
     sub x8, x29, #768
     bl lb_unicode_mapped
-    ldr x9, [sp, #288]
+    ldr x9, [sp, #296]
     ldrb w14, [x9]
     cbnz w14, .L5_61
     b .L5_62
 .L5_61:
-    ldr x10, [sp, #24]
-    ldr x11, [sp, #280]
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldr x10, [sp, #32]
+    ldr x11, [sp, #288]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     b .L5_63
 .L5_62:
     mov x0, x21
     sub x8, x29, #816
     bl lb_unicode_16identity_mapping
-    ldr x10, [sp, #272]
-    ldr x11, [sp, #264]
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldr x10, [sp, #280]
+    ldr x11, [sp, #272]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
 .L5_63:
+    ldr x10, [sp, #264]
+    ldr x11, [sp, #256]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     ldr x10, [sp, #256]
-    ldr x11, [sp, #248]
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
-    ldr x10, [sp, #248]
     sub x11, x29, #360
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     b .L5_90
 .L5_64:
     b .L5_52
 .L5_51:
 .L5_52:
-    ldr x9, [sp, #240]
+    ldr x9, [sp, #248]
     ldrb w14, [x9]
     cbnz w14, .L5_65
     b .L5_66
 .L5_65:
-    ldr x9, [sp, #232]
+    ldr x9, [sp, #240]
     ldr x0, [x9]
     ldr x1, [x9, #8]
     mov x2, x21
     sub x8, x29, #848
     bl lb_unicode_mapped
-    ldr x9, [sp, #224]
+    ldr x9, [sp, #232]
     ldrb w14, [x9]
     cbnz w14, .L5_71
     b .L5_69
 .L5_71:
-    ldr x10, [sp, #56]
-    ldr x11, [sp, #216]
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldr x10, [sp, #64]
+    ldr x11, [sp, #224]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
 .L5_68:
+    ldr x10, [sp, #224]
+    ldr x11, [sp, #216]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     ldr x10, [sp, #216]
-    ldr x11, [sp, #208]
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
-    ldr x10, [sp, #208]
     sub x11, x29, #360
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     b .L5_90
 .L5_72:
     b .L5_70
@@ -1445,47 +1434,47 @@ lb_unicode_9case_pass:
     b .L5_67
 .L5_66:
 .L5_67:
-    ldr x9, [sp, #200]
+    ldr x9, [sp, #208]
     ldr x0, [x9]
     ldr x1, [x9, #8]
     mov x2, x21
     sub x8, x29, #904
     bl lb_unicode_mapped
-    ldr x9, [sp, #192]
+    ldr x9, [sp, #200]
     ldrb w14, [x9]
     cbnz w14, .L5_73
     b .L5_74
 .L5_73:
-    ldr x10, [sp, #48]
-    ldr x11, [sp, #184]
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldr x10, [sp, #56]
+    ldr x11, [sp, #192]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     b .L5_75
 .L5_74:
     mov x0, x21
     sub x8, x29, #952
     bl lb_unicode_16identity_mapping
-    ldr x10, [sp, #176]
-    ldr x11, [sp, #168]
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldr x10, [sp, #184]
+    ldr x11, [sp, #176]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
 .L5_75:
+    ldr x10, [sp, #168]
+    ldr x11, [sp, #160]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     ldr x10, [sp, #160]
-    ldr x11, [sp, #152]
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
-    ldr x10, [sp, #152]
     sub x11, x29, #360
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     b .L5_90
 .L5_76:
     adrp x0, .Ltext_23
@@ -1494,15 +1483,15 @@ lb_unicode_9case_pass:
     add x1, x1, :lo12:.Ltext_0
     bl lb_core_7trap_at
 .L5_90:
-    ldr x10, [sp, #504]
-    ldr x11, [sp, #64]
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
-    ldr x9, [sp, #496]
+    ldr x10, [sp, #512]
+    ldr x11, [sp, #72]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
+    ldr x9, [sp, #504]
     ldr x23, [x9]
-    ldr x9, [sp, #88]
+    ldr x9, [sp, #96]
     mov x25, x9
     mov x9, #0
     mov x26, x9
@@ -1510,7 +1499,7 @@ lb_unicode_9case_pass:
     cmp x26, x23
     b.hs .L5_11
 .L5_9:
-    ldr x0, [sp, #64]
+    ldr x0, [sp, #72]
     mov x1, x26
     bl lb_unicode_Mapping_at
     mov w28, w0
@@ -1519,12 +1508,12 @@ lb_unicode_9case_pass:
     sub x16, x29, #376
     str x0, [x16, #0]
     str x1, [x16, #8]
-    ldr x9, [sp, #488]
+    ldr x9, [sp, #496]
     ldrb w14, [x9]
     cbnz w14, .L5_12
     b .L5_13
 .L5_12:
-    ldr x9, [sp, #16]
+    ldr x9, [sp, #24]
     ldr x14, [x9]
     b .L5_14
 .L5_13:
@@ -1551,16 +1540,16 @@ lb_unicode_9case_pass:
     mov x0, x25
     mov x1, x14
     movz x2, #64
-    ldr x3, [sp, #480]
+    ldr x3, [sp, #488]
     bl lb_core_6qadd_u
     mov w15, w0
-    ldr x9, [sp, #480]
+    ldr x9, [sp, #488]
     ldr x19, [x9]
-    ldr x10, [sp, #8]
+    ldr x10, [sp, #16]
     str x19, [x10]
-    ldr x10, [sp, #472]
+    ldr x10, [sp, #480]
     strb w15, [x10]
-    ldr x9, [sp, #472]
+    ldr x9, [sp, #480]
     ldrb w15, [x9]
     cbnz w15, .L5_15
     b .L5_16
@@ -1575,16 +1564,16 @@ lb_unicode_9case_pass:
     str w15, [x14]
     adrp x15, .Ltext_4
     add x15, x15, :lo12:.Ltext_4
-    sub x20, x29, #432
-    str x15, [x20]
-    add x15, x20, #8
+    sub x12, x29, #432
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #30
     str x9, [x15]
     add x14, x14, #8
-    mov x10, x20
+    mov x10, x12
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #32
     movz x9, #1
     strb w9, [x14]
@@ -1610,12 +1599,12 @@ lb_unicode_9case_pass:
     ret
 .L5_18:
 .L5_17:
-    ldr x9, [sp, #464]
+    ldr x9, [sp, #472]
     ldrb w14, [x9]
     cbnz w14, .L5_22
     b .L5_20
 .L5_22:
-    ldr x9, [sp, #0]
+    ldr x9, [sp, #8]
     ldr x14, [x9]
 .L5_19:
     cmp x19, x14
@@ -1629,16 +1618,16 @@ lb_unicode_9case_pass:
     str w15, [x14]
     adrp x15, .Ltext_19
     add x15, x15, :lo12:.Ltext_19
-    sub x20, x29, #448
-    str x15, [x20]
-    add x15, x20, #8
+    sub x12, x29, #448
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #37
     str x9, [x15]
     add x14, x14, #8
-    mov x10, x20
+    mov x10, x12
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #32
     movz x9, #1
     strb w9, [x14]
@@ -1669,12 +1658,12 @@ lb_unicode_9case_pass:
     b .L5_21
 .L5_20:
 .L5_21:
-    ldr x9, [sp, #456]
+    ldr x9, [sp, #464]
     ldrb w14, [x9]
     cbnz w14, .L5_27
     b .L5_28
 .L5_27:
-    ldr x9, [sp, #440]
+    ldr x9, [sp, #448]
     ldr x14, [x9]
     cmp x19, x14
     b.ls .L5_31
@@ -1687,16 +1676,16 @@ lb_unicode_9case_pass:
     str w15, [x14]
     adrp x15, .Ltext_11
     add x15, x15, :lo12:.Ltext_11
-    sub x20, x29, #464
-    str x15, [x20]
-    add x15, x20, #8
+    sub x12, x29, #464
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #38
     str x9, [x15]
     add x14, x14, #8
-    mov x10, x20
+    mov x10, x12
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #32
     movz x9, #1
     strb w9, [x14]
@@ -1724,8 +1713,8 @@ lb_unicode_9case_pass:
     b .L5_32
 .L5_31:
 .L5_32:
-    ldr x9, [sp, #448]
-    ldr x22, [x9]
+    ldr x9, [sp, #456]
+    ldr x12, [x9]
     add x15, x14, #1
     cmp x25, x15
     b.lo 1f
@@ -1752,21 +1741,21 @@ lb_unicode_9case_pass:
     add x1, x1, :lo12:.Ltext_10
     bl lb_core_7trap_at
 .L5_34:
-    add x14, x25, x22
+    add x14, x25, x12
     sub x15, x19, x25
-    ldr x10, [sp, #432]
+    ldr x10, [sp, #440]
     str x14, [x10]
-    ldr x10, [sp, #424]
+    ldr x10, [sp, #432]
     str x15, [x10]
     mov x0, x28
-    ldr x9, [sp, #432]
+    ldr x9, [sp, #440]
     ldr x1, [x9]
     ldr x2, [x9, #8]
     bl lb_utf8_encode
     sub x16, x29, #496
     str x0, [x16, #0]
     str x1, [x16, #8]
-    ldr x9, [sp, #416]
+    ldr x9, [sp, #424]
     ldrb w14, [x9]
     cbnz w14, .L5_36
     b .L5_37
@@ -1802,7 +1791,7 @@ lb_unicode_9case_pass:
     mov x26, x14
     b .L5_8
 .L5_11:
-    ldr x9, [sp, #408]
+    ldr x9, [sp, #416]
     ldr x0, [x9]
     ldr x1, [x9, #8]
     mov x2, x21
@@ -1812,7 +1801,7 @@ lb_unicode_9case_pass:
     cmp w14, w10
     b.ne .L5_40
 .L5_39:
-    ldr x9, [sp, #400]
+    ldr x9, [sp, #408]
     ldr x0, [x9]
     ldr x1, [x9, #8]
     mov x2, x21
@@ -1826,18 +1815,18 @@ lb_unicode_9case_pass:
     cset w14, eq
     b .L5_41
 .L5_40:
-    ldr w9, [sp, #80]
+    ldr w9, [sp, #88]
     mov w14, w9
 .L5_41:
     mov x28, x20
     mov x9, x25
-    str x9, [sp, #88]
+    str x9, [sp, #96]
     mov w9, w14
-    str w9, [sp, #80]
+    str w9, [sp, #88]
     b .L5_1
 .L5_3:
     sub x14, x29, #144
-    ldr x9, [sp, #88]
+    ldr x9, [sp, #96]
     str x9, [x14]
     add x15, x14, #32
     mov x9, #0

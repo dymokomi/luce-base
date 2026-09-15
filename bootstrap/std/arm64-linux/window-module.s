@@ -112,10 +112,9 @@ lb_window_Window_open:
     sub x16, x29, #24
     str x8, [x16]
     str x19, [sp, #224]
-    str x20, [sp, #216]
-    sub x16, x29, #112
+    sub x16, x29, #104
     str x0, [x16]
-    sub x0, x29, #112
+    sub x0, x29, #104
     ldr x1, [x0]
     movz x2, #32
     bl _memcpy
@@ -125,14 +124,14 @@ lb_window_Window_open:
     cmp w14, w10
     b.ne .L2_13
 .L2_12:
-    sub x19, x29, #240
+    sub x19, x29, #232
     adrp x14, lb_window_unsupported
     add x14, x14, :lo12:lb_window_unsupported
     ldr w14, [x14]
     str w14, [x19]
     adrp x14, .Ltext_3
     add x14, x14, :lo12:.Ltext_3
-    sub x15, x29, #256
+    sub x15, x29, #248
     str x14, [x15]
     add x14, x15, #8
     movz x9, #50
@@ -140,47 +139,47 @@ lb_window_Window_open:
     add x14, x19, #8
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
     mov x10, x19
-    sub x11, x29, #144
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldp x12, x13, [x10, #16]
-    stp x12, x13, [x11, #16]
+    sub x11, x29, #136
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldp x16, x17, [x10, #16]
+    stp x16, x17, [x11, #16]
     b .L2_16
 .L2_15:
     b .L2_14
 .L2_13:
 .L2_14:
-    sub x14, x29, #240
+    sub x14, x29, #232
     add x15, x14, #24
     mov x9, #0
     strb w9, [x15]
     mov x10, x14
-    sub x11, x29, #144
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldp x12, x13, [x10, #16]
-    stp x12, x13, [x11, #16]
+    sub x11, x29, #136
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldp x16, x17, [x10, #16]
+    stp x16, x17, [x11, #16]
 .L2_16:
-    sub x15, x29, #144
+    sub x15, x29, #136
     add x14, x15, #24
     ldrb w14, [x14]
     cbnz w14, .L2_2
     b .L2_1
 .L2_2:
-    sub x19, x29, #80
+    sub x19, x29, #72
     add x14, x19, #8
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #32
     movz x9, #1
     strb w9, [x14]
@@ -192,35 +191,34 @@ lb_window_Window_open:
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #224]
-    ldr x20, [sp, #216]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
 .L2_3:
 .L2_1:
-    sub x19, x29, #112
+    sub x19, x29, #104
     add x14, x19, #16
     ldr w14, [x14]
     add x15, x19, #20
     ldr w15, [x15]
     mov x0, x14
     mov x1, x15
-    sub x8, x29, #176
+    sub x8, x29, #168
     bl lb_window_12check_extent
-    sub x15, x29, #176
+    sub x15, x29, #168
     add x14, x15, #24
     ldrb w14, [x14]
     cbnz w14, .L2_5
     b .L2_4
 .L2_5:
-    sub x19, x29, #80
+    sub x19, x29, #72
     add x14, x19, #8
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #32
     movz x9, #1
     strb w9, [x14]
@@ -232,7 +230,6 @@ lb_window_Window_open:
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #224]
-    ldr x20, [sp, #216]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -247,7 +244,7 @@ lb_window_Window_open:
     cmp w14, w10
     b.ne .L2_8
 .L2_7:
-    sub x19, x29, #80
+    sub x19, x29, #72
     add x14, x19, #8
     adrp x15, lb_window_15invalid_options
     add x15, x15, :lo12:lb_window_15invalid_options
@@ -255,16 +252,16 @@ lb_window_Window_open:
     str w15, [x14]
     adrp x15, .Ltext_2
     add x15, x15, :lo12:.Ltext_2
-    sub x20, x29, #192
-    str x15, [x20]
-    add x15, x20, #8
+    sub x12, x29, #184
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #35
     str x9, [x15]
     add x14, x14, #8
-    mov x10, x20
+    mov x10, x12
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #32
     movz x9, #1
     strb w9, [x14]
@@ -276,7 +273,6 @@ lb_window_Window_open:
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #224]
-    ldr x20, [sp, #216]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -284,7 +280,7 @@ lb_window_Window_open:
     b .L2_9
 .L2_8:
 .L2_9:
-    sub x19, x29, #80
+    sub x19, x29, #72
     add x14, x19, #8
     adrp x15, lb_window_unsupported
     add x15, x15, :lo12:lb_window_unsupported
@@ -292,16 +288,16 @@ lb_window_Window_open:
     str w15, [x14]
     adrp x15, .Ltext_3
     add x15, x15, :lo12:.Ltext_3
-    sub x20, x29, #208
-    str x15, [x20]
-    add x15, x20, #8
+    sub x12, x29, #200
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #50
     str x9, [x15]
     add x14, x14, #8
-    mov x10, x20
+    mov x10, x12
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #32
     movz x9, #1
     strb w9, [x14]
@@ -313,7 +309,6 @@ lb_window_Window_open:
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #224]
-    ldr x20, [sp, #216]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -353,10 +348,10 @@ lb_window_Window_show:
     sub x19, x29, #64
     mov x10, x14
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
@@ -401,29 +396,28 @@ lb_window_Window_size:
     sub x16, x29, #24
     str x8, [x16]
     str x19, [sp, #144]
-    str x20, [sp, #136]
-    sub x16, x29, #120
+    sub x16, x29, #112
     str x0, [x16]
-    sub x9, x29, #120
+    sub x9, x29, #112
     ldr x14, [x9]
     mov x0, x14
-    sub x8, x29, #160
+    sub x8, x29, #152
     bl lb_window_Window_checked
-    sub x15, x29, #160
+    sub x15, x29, #152
     add x14, x15, #32
     ldrb w14, [x14]
     cbnz w14, .L4_2
     b .L4_1
 .L4_2:
     add x14, x15, #8
-    sub x19, x29, #112
-    add x20, x19, #40
+    sub x19, x29, #104
+    add x12, x19, #40
     mov x10, x14
-    mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    mov x11, x12
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #64
     movz x9, #1
     strb w9, [x14]
@@ -435,13 +429,12 @@ lb_window_Window_size:
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #144]
-    ldr x20, [sp, #136]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
 .L4_3:
 .L4_1:
-    sub x19, x29, #112
+    sub x19, x29, #104
     add x14, x19, #40
     adrp x15, lb_window_unsupported
     add x15, x15, :lo12:lb_window_unsupported
@@ -449,16 +442,16 @@ lb_window_Window_size:
     str w15, [x14]
     adrp x15, .Ltext_3
     add x15, x15, :lo12:.Ltext_3
-    sub x20, x29, #176
-    str x15, [x20]
-    add x15, x20, #8
+    sub x12, x29, #168
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #50
     str x9, [x15]
     add x14, x14, #8
-    mov x10, x20
+    mov x10, x12
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #64
     movz x9, #1
     strb w9, [x14]
@@ -470,7 +463,6 @@ lb_window_Window_size:
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #144]
-    ldr x20, [sp, #136]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -514,10 +506,10 @@ lb_window_Window_resize:
     sub x19, x29, #64
     mov x10, x14
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
@@ -551,10 +543,10 @@ lb_window_Window_resize:
     sub x19, x29, #64
     mov x10, x15
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
@@ -595,35 +587,33 @@ lb_window_Window_resize:
 lb_window_Window_14set_text_input:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #144
+    sub sp, sp, #128
     sub x16, x29, #24
     str x8, [x16]
-    str x19, [sp, #112]
-    str x20, [sp, #104]
-    str x21, [sp, #96]
-    sub x16, x29, #88
+    str x19, [sp, #96]
+    sub x16, x29, #72
     str x0, [x16]
-    sub x16, x29, #104
+    sub x16, x29, #88
     str w1, [x16]
-    sub x9, x29, #88
+    sub x9, x29, #72
     ldr x14, [x9]
     mov x0, x14
-    sub x8, x29, #144
+    sub x8, x29, #128
     bl lb_window_Window_checked
-    sub x15, x29, #144
+    sub x15, x29, #128
     add x14, x15, #32
     ldrb w14, [x14]
     cbnz w14, .L6_2
     b .L6_1
 .L6_2:
     add x14, x15, #8
-    sub x19, x29, #80
+    sub x19, x29, #64
     mov x10, x14
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
@@ -634,9 +624,7 @@ lb_window_Window_14set_text_input:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #112]
-    ldr x20, [sp, #104]
-    ldr x21, [sp, #96]
+    ldr x19, [sp, #96]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -644,14 +632,14 @@ lb_window_Window_14set_text_input:
 .L6_1:
     ldr x14, [x15]
     movz x10, #14380
-    add x19, x14, x10
-    ldrb w20, [x19]
-    sub x21, x29, #104
-    ldrb w21, [x21]
-    cmp w20, w21
+    add x12, x14, x10
+    ldrb w13, [x12]
+    sub x19, x29, #88
+    ldrb w19, [x19]
+    cmp w13, w19
     b.ne .L6_5
 .L6_4:
-    sub x14, x29, #80
+    sub x14, x29, #64
     add x15, x14, #24
     mov x9, #0
     strb w9, [x15]
@@ -662,9 +650,7 @@ lb_window_Window_14set_text_input:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #112]
-    ldr x20, [sp, #104]
-    ldr x21, [sp, #96]
+    ldr x19, [sp, #96]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -672,15 +658,15 @@ lb_window_Window_14set_text_input:
     b .L6_6
 .L6_5:
 .L6_6:
-    strb w21, [x19]
+    strb w19, [x12]
     movz x10, #14382
     add x15, x14, x10
     mov x9, #0
     strh w9, [x15]
-    sub x15, x29, #80
-    add x20, x15, #24
+    sub x15, x29, #64
+    add x13, x15, #24
     mov x9, #0
-    strb w9, [x20]
+    strb w9, [x13]
     mov x1, x15
     sub x16, x29, #24
     ldr x0, [x16]
@@ -688,9 +674,7 @@ lb_window_Window_14set_text_input:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #112]
-    ldr x20, [sp, #104]
-    ldr x21, [sp, #96]
+    ldr x19, [sp, #96]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -726,10 +710,10 @@ lb_window_Window_10set_cursor:
     sub x19, x29, #64
     mov x10, x14
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
@@ -769,8 +753,8 @@ lb_window_Window_10set_cursor:
     add x14, x19, #8
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
@@ -817,29 +801,28 @@ lb_window_Window_cursor:
     sub x16, x29, #24
     str x8, [x16]
     str x19, [sp, #96]
-    str x20, [sp, #88]
-    sub x16, x29, #88
+    sub x16, x29, #80
     str x0, [x16]
-    sub x9, x29, #88
+    sub x9, x29, #80
     ldr x14, [x9]
     mov x0, x14
-    sub x8, x29, #128
+    sub x8, x29, #120
     bl lb_window_Window_checked
-    sub x15, x29, #128
+    sub x15, x29, #120
     add x14, x15, #32
     ldrb w14, [x14]
     cbnz w14, .L8_2
     b .L8_1
 .L8_2:
     add x14, x15, #8
-    sub x19, x29, #80
-    add x20, x19, #8
+    sub x19, x29, #72
+    add x12, x19, #8
     mov x10, x14
-    mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    mov x11, x12
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #32
     movz x9, #1
     strb w9, [x14]
@@ -851,7 +834,6 @@ lb_window_Window_cursor:
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #96]
-    ldr x20, [sp, #88]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -861,12 +843,12 @@ lb_window_Window_cursor:
     movz x10, #14385
     add x14, x14, x10
     ldrb w14, [x14]
-    sub x19, x29, #80
-    strb w14, [x19]
-    add x14, x19, #32
+    sub x12, x29, #72
+    strb w14, [x12]
+    add x14, x12, #32
     mov x9, #0
     strb w9, [x14]
-    mov x1, x19
+    mov x1, x12
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
@@ -874,7 +856,6 @@ lb_window_Window_cursor:
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #96]
-    ldr x20, [sp, #88]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -914,13 +895,13 @@ lb_window_Window_20acquire_presentation:
 .L9_2:
     add x14, x15, #8
     sub x19, x29, #88
-    add x20, x19, #8
+    add x12, x19, #8
     mov x10, x14
-    mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    mov x11, x12
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #32
     movz x9, #1
     strb w9, [x14]
@@ -942,8 +923,8 @@ lb_window_Window_20acquire_presentation:
     ldr x19, [x15]
     movz x10, #14378
     add x14, x19, x10
-    ldrb w20, [x14]
-    cbnz w20, .L9_4
+    ldrb w12, [x14]
+    cbnz w12, .L9_4
     b .L9_5
 .L9_4:
     sub x19, x29, #88
@@ -954,16 +935,16 @@ lb_window_Window_20acquire_presentation:
     str w15, [x14]
     adrp x15, .Ltext_8
     add x15, x15, :lo12:.Ltext_8
-    sub x20, x29, #152
-    str x15, [x20]
-    add x15, x20, #8
+    sub x12, x29, #152
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #45
     str x9, [x15]
     add x14, x14, #8
-    mov x10, x20
+    mov x10, x12
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #32
     movz x9, #1
     strb w9, [x14]
@@ -993,8 +974,8 @@ lb_window_Window_20acquire_presentation:
     sub x21, x29, #88
     mov x10, x20
     mov x11, x21
-    ldr x12, [x10, #0]
-    str x12, [x11, #0]
+    ldr x16, [x10, #0]
+    str x16, [x11, #0]
     add x15, x21, #32
     mov x9, #0
     strb w9, [x15]
@@ -1047,10 +1028,10 @@ lb_window_Window_13request_close:
     sub x19, x29, #64
     mov x10, x14
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
@@ -1073,9 +1054,9 @@ lb_window_Window_13request_close:
     movz x9, #1
     strb w9, [x14]
     sub x14, x29, #64
-    add x19, x14, #24
+    add x12, x14, #24
     mov x9, #0
-    strb w9, [x19]
+    strb w9, [x12]
     mov x1, x14
     sub x16, x29, #24
     ldr x0, [x16]
@@ -1117,13 +1098,13 @@ lb_window_Window_poll:
 .L11_2:
     add x14, x15, #8
     sub x19, x29, #144
-    add x20, x19, #64
+    add x12, x19, #64
     mov x10, x14
-    mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    mov x11, x12
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #88
     movz x9, #1
     strb w9, [x14]
@@ -1146,49 +1127,49 @@ lb_window_Window_poll:
     mov x0, x19
     sub x8, x29, #256
     bl lb_window_9pop_event
-    sub x20, x29, #256
-    add x14, x20, #56
+    sub x12, x29, #256
+    add x14, x12, #56
     ldrb w14, [x14]
     cbnz w14, .L11_7
     b .L11_5
 .L11_7:
     sub x19, x29, #312
-    mov x10, x20
+    mov x10, x12
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldp x12, x13, [x10, #16]
-    stp x12, x13, [x11, #16]
-    ldp x12, x13, [x10, #32]
-    stp x12, x13, [x11, #32]
-    ldr x12, [x10, #48]
-    str x12, [x11, #48]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldp x16, x17, [x10, #16]
+    stp x16, x17, [x11, #16]
+    ldp x16, x17, [x10, #32]
+    stp x16, x17, [x11, #32]
+    ldr x16, [x10, #48]
+    str x16, [x11, #48]
 .L11_4:
     sub x20, x29, #376
     mov x10, x19
     mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldp x12, x13, [x10, #16]
-    stp x12, x13, [x11, #16]
-    ldp x12, x13, [x10, #32]
-    stp x12, x13, [x11, #32]
-    ldr x12, [x10, #48]
-    str x12, [x11, #48]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldp x16, x17, [x10, #16]
+    stp x16, x17, [x11, #16]
+    ldp x16, x17, [x10, #32]
+    stp x16, x17, [x11, #32]
+    ldr x16, [x10, #48]
+    str x16, [x11, #48]
     add x14, x20, #56
     movz x9, #1
     strb w9, [x14]
     sub x21, x29, #144
     mov x10, x20
     mov x11, x21
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldp x12, x13, [x10, #16]
-    stp x12, x13, [x11, #16]
-    ldp x12, x13, [x10, #32]
-    stp x12, x13, [x11, #32]
-    ldp x12, x13, [x10, #48]
-    stp x12, x13, [x11, #48]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldp x16, x17, [x10, #16]
+    stp x16, x17, [x11, #16]
+    ldp x16, x17, [x10, #32]
+    stp x16, x17, [x11, #32]
+    ldp x16, x17, [x10, #48]
+    stp x16, x17, [x11, #48]
     add x14, x21, #88
     mov x9, #0
     strb w9, [x14]
@@ -1216,14 +1197,14 @@ lb_window_Window_poll:
     sub x20, x29, #144
     mov x10, x14
     mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldp x12, x13, [x10, #16]
-    stp x12, x13, [x11, #16]
-    ldp x12, x13, [x10, #32]
-    stp x12, x13, [x11, #32]
-    ldp x12, x13, [x10, #48]
-    stp x12, x13, [x11, #48]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldp x16, x17, [x10, #16]
+    stp x16, x17, [x11, #16]
+    ldp x16, x17, [x10, #32]
+    stp x16, x17, [x11, #32]
+    ldp x16, x17, [x10, #48]
+    stp x16, x17, [x11, #48]
     add x14, x20, #88
     mov x9, #0
     strb w9, [x14]
@@ -1296,17 +1277,17 @@ lb_window_Window_destroy:
     add x14, x20, #8
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x20, #24
     movz x9, #1
     strb w9, [x14]
     mov x10, x20
     sub x11, x29, #96
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldp x12, x13, [x10, #16]
-    stp x12, x13, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldp x16, x17, [x10, #16]
+    stp x16, x17, [x11, #16]
     b .L12_13
 .L12_12:
     b .L12_11
@@ -1318,10 +1299,10 @@ lb_window_Window_destroy:
     strb w9, [x15]
     mov x10, x14
     sub x11, x29, #96
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldp x12, x13, [x10, #16]
-    stp x12, x13, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldp x16, x17, [x10, #16]
+    stp x16, x17, [x11, #16]
 .L12_13:
     sub x15, x29, #96
     add x14, x15, #24
@@ -1332,10 +1313,10 @@ lb_window_Window_destroy:
     sub x14, x29, #64
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     b .L12_5
 .L12_7:
     b .L12_6
@@ -1401,17 +1382,17 @@ lb_window_Window_checked:
     add x14, x20, #8
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x20, #24
     movz x9, #1
     strb w9, [x14]
     mov x10, x20
     sub x11, x29, #120
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldp x12, x13, [x10, #16]
-    stp x12, x13, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldp x16, x17, [x10, #16]
+    stp x16, x17, [x11, #16]
     b .L13_13
 .L13_12:
     b .L13_11
@@ -1423,10 +1404,10 @@ lb_window_Window_checked:
     strb w9, [x15]
     mov x10, x14
     sub x11, x29, #120
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldp x12, x13, [x10, #16]
-    stp x12, x13, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldp x16, x17, [x10, #16]
+    stp x16, x17, [x11, #16]
 .L13_13:
     sub x15, x29, #120
     add x14, x15, #24
@@ -1438,10 +1419,10 @@ lb_window_Window_checked:
     add x14, x19, #8
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #32
     movz x9, #1
     strb w9, [x14]
@@ -1473,16 +1454,16 @@ lb_window_Window_checked:
     str w15, [x14]
     adrp x15, .Ltext_13
     add x15, x15, :lo12:.Ltext_13
-    sub x20, x29, #136
-    str x15, [x20]
-    add x15, x20, #8
+    sub x12, x29, #136
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #20
     str x9, [x15]
     add x14, x14, #8
-    mov x10, x20
+    mov x10, x12
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #32
     movz x9, #1
     strb w9, [x14]
@@ -1502,9 +1483,9 @@ lb_window_Window_checked:
 .L13_6:
     sub x15, x29, #80
     str x14, [x15]
-    add x19, x15, #32
+    add x12, x15, #32
     mov x9, #0
-    strb w9, [x19]
+    strb w9, [x12]
     mov x1, x15
     sub x16, x29, #24
     ldr x0, [x16]
@@ -1557,8 +1538,8 @@ lb_window_12check_thread:
     add x14, x19, #8
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
@@ -1617,16 +1598,16 @@ lb_window_12check_extent:
     cbnz w15, .L15_11
     b .L15_4
 .L15_11:
-    mov w19, w15
+    mov w12, w15
     b .L15_5
 .L15_4:
     sub x15, x29, #96
     ldr w15, [x15]
     mov x10, #0
     cmp w15, w10
-    cset w19, eq
+    cset w12, eq
 .L15_5:
-    and w15, w19, #255
+    and w15, w12, #255
     cbnz w15, .L15_12
     b .L15_6
 .L15_12:
@@ -1670,8 +1651,8 @@ lb_window_12check_extent:
     add x14, x19, #8
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]

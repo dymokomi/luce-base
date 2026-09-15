@@ -19,35 +19,33 @@ lb_unicode_lookup_0init:
 lb_unicode_10table_word:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #96
-    str x19, [sp, #72]
-    str x20, [sp, #64]
-    str x21, [sp, #56]
-    str x22, [sp, #48]
-    str x23, [sp, #40]
-    str x24, [sp, #32]
-    sub x16, x29, #80
+    sub sp, sp, #80
+    str x19, [sp, #56]
+    str x20, [sp, #48]
+    str x21, [sp, #40]
+    str x22, [sp, #32]
+    sub x16, x29, #64
     str x0, [x16]
     str x1, [x16, #8]
-    sub x16, x29, #96
+    sub x16, x29, #80
     str x2, [x16]
-    sub x14, x29, #96
+    sub x14, x29, #80
     ldr x14, [x14]
-    sub x15, x29, #80
-    ldr x19, [x15]
+    sub x15, x29, #64
+    ldr x12, [x15]
     add x15, x15, #8
     ldr x15, [x15]
     mov x9, #0
-    mov w20, w9
+    mov w13, w9
     mov x9, #0
-    mov x21, x9
+    mov x19, x9
 .L1_1:
     movz x10, #8
-    cmp x21, x10
+    cmp x19, x10
     b.hs .L1_4
 .L1_2:
     mov x9, x14
-    mov x10, x21
+    mov x10, x19
     adds x9, x9, x10
     b.cc 1f
     adrp x0, .Ltext_0
@@ -56,8 +54,8 @@ lb_unicode_10table_word:
     add x1, x1, :lo12:.Ltext_1
     bl lb_core_7trap_at
 1:
-    mov x22, x9
-    cmp x22, x15
+    mov x20, x9
+    cmp x20, x15
     b.lo 1f
     adrp x0, .Ltext_0
     add x0, x0, :lo12:.Ltext_0
@@ -65,16 +63,16 @@ lb_unicode_10table_word:
     add x1, x1, :lo12:.Ltext_26
     bl lb_core_7trap_at
 1:
-    add x22, x22, x19
-    ldrb w22, [x22]
-    and w22, w22, #255
+    add x20, x20, x12
+    ldrb w20, [x20]
+    and w20, w20, #255
     movz x10, #57
-    cmp w22, w10
+    cmp w20, w10
     b.hi .L1_6
 .L1_5:
-    sub w24, w22, #48
-    and w23, w24, #255
-    cmp w23, w24
+    sub w22, w20, #48
+    and w21, w22, #255
+    cmp w21, w22
     b.eq .L1_8
 .L1_9:
     adrp x0, .Ltext_2
@@ -83,12 +81,12 @@ lb_unicode_10table_word:
     add x1, x1, :lo12:.Ltext_1
     bl lb_core_7trap_at
 .L1_8:
-    mov w22, w24
+    mov w20, w22
     b .L1_7
 .L1_6:
-    sub w24, w22, #97
-    and w23, w24, #255
-    cmp w23, w24
+    sub w22, w20, #97
+    and w21, w22, #255
+    cmp w21, w22
     b.eq .L1_10
 .L1_11:
     adrp x0, .Ltext_2
@@ -97,9 +95,9 @@ lb_unicode_10table_word:
     add x1, x1, :lo12:.Ltext_1
     bl lb_core_7trap_at
 .L1_10:
-    add w23, w24, #10
-    and w22, w23, #255
-    cmp w22, w23
+    add w21, w22, #10
+    and w20, w21, #255
+    cmp w20, w21
     b.eq .L1_12
 .L1_13:
     adrp x0, .Ltext_2
@@ -108,28 +106,26 @@ lb_unicode_10table_word:
     add x1, x1, :lo12:.Ltext_1
     bl lb_core_7trap_at
 .L1_12:
-    mov w22, w23
+    mov w20, w21
 .L1_7:
-    and w23, w22, #255
+    and w21, w20, #255
 .L1_15:
-    lsl w22, w20, #4
-    and w24, w23, #255
-    mov w24, w24
-    orr w22, w22, w24
+    lsl w20, w13, #4
+    and w22, w21, #255
+    mov w22, w22
+    orr w20, w20, w22
 .L1_3:
-    add x23, x21, #1
-    mov w20, w22
-    mov x21, x23
+    add x21, x19, #1
+    mov w13, w20
+    mov x19, x21
     b .L1_1
 .L1_4:
-    mov x9, x20
+    mov x9, x13
     mov x0, x9
-    ldr x19, [sp, #72]
-    ldr x20, [sp, #64]
-    ldr x21, [sp, #56]
-    ldr x22, [sp, #48]
-    ldr x23, [sp, #40]
-    ldr x24, [sp, #32]
+    ldr x19, [sp, #56]
+    ldr x20, [sp, #48]
+    ldr x21, [sp, #40]
+    ldr x22, [sp, #32]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -300,18 +296,16 @@ lb_unicode_11range_value:
 lb_unicode_Mapping_at:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #64
-    str x19, [sp, #40]
-    str x20, [sp, #32]
-    sub x16, x29, #40
+    sub sp, sp, #48
+    sub x16, x29, #24
     str x0, [x16]
-    sub x16, x29, #56
+    sub x16, x29, #40
     str x1, [x16]
-    sub x9, x29, #40
-    ldr x19, [x9]
-    sub x14, x29, #56
+    sub x9, x29, #24
+    ldr x12, [x9]
+    sub x14, x29, #40
     ldr x14, [x14]
-    add x15, x19, #8
+    add x15, x12, #8
     ldr x15, [x15]
     cmp x14, x15
     b.lo .L3_1
@@ -322,20 +316,20 @@ lb_unicode_Mapping_at:
     add x1, x1, :lo12:.Ltext_21
     bl lb_core_7trap_at
 .L3_1:
-    add x15, x19, #20
+    add x15, x12, #20
     ldrb w15, [x15]
     cbnz w15, .L3_3
     b .L3_4
 .L3_3:
-    add x14, x19, #16
+    add x14, x12, #16
     ldr w14, [x14]
     b .L3_5
 .L3_4:
     adrp x15, lb_unicode_15mapping_scalars
     add x15, x15, :lo12:lb_unicode_15mapping_scalars
-    ldr x20, [x19]
+    ldr x13, [x12]
     mov x9, x14
-    mov x10, x20
+    mov x10, x13
     adds x9, x9, x10
     b.cc 1f
     adrp x0, .Ltext_23
@@ -344,8 +338,8 @@ lb_unicode_Mapping_at:
     add x1, x1, :lo12:.Ltext_1
     bl lb_core_7trap_at
 1:
-    mov x20, x9
-    mov x9, x20
+    mov x13, x9
+    mov x9, x13
     movz x10, #8
     umulh x11, x9, x10
     mul x9, x9, x10
@@ -356,19 +350,17 @@ lb_unicode_Mapping_at:
     add x1, x1, :lo12:.Ltext_1
     bl lb_core_7trap_at
 1:
-    mov x20, x9
+    mov x13, x9
     mov x9, x15
     ldr x0, [x9]
     ldr x1, [x9, #8]
-    mov x2, x20
+    mov x2, x13
     bl lb_unicode_10table_word
     mov w15, w0
     mov w14, w15
 .L3_5:
     mov x9, x14
     mov x0, x9
-    ldr x19, [sp, #40]
-    ldr x20, [sp, #32]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -397,22 +389,21 @@ lb_unicode_mapped:
     str x23, [sp, #272]
     str x24, [sp, #264]
     str x25, [sp, #256]
-    str x26, [sp, #248]
-    sub x16, x29, #136
+    sub x16, x29, #128
     str x0, [x16]
     str x1, [x16, #8]
-    sub x16, x29, #152
+    sub x16, x29, #144
     str w2, [x16]
-    sub x19, x29, #136
-    sub x14, x29, #152
+    sub x19, x29, #128
+    sub x14, x29, #144
     ldr w20, [x14]
     mov x10, x19
-    sub x11, x29, #288
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    sub x10, x29, #304
+    sub x11, x29, #280
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    sub x10, x29, #296
     str w20, [x10]
-    sub x21, x29, #288
+    sub x21, x29, #280
     add x14, x21, #8
     ldr x14, [x14]
 .L4_7:
@@ -480,20 +471,20 @@ lb_unicode_mapped:
 .L4_16:
     b .L4_18
 .L4_17:
-    sub x14, x29, #320
+    sub x14, x29, #312
     str x25, [x14]
     add x15, x14, #8
     movz x9, #1
     strb w9, [x15]
-    sub x20, x29, #272
+    sub x20, x29, #264
     mov x10, x14
     mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     mov x10, x20
-    sub x11, x29, #168
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    sub x11, x29, #160
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     mov x20, x25
     b .L4_21
 .L4_18:
@@ -504,22 +495,22 @@ lb_unicode_mapped:
     mov x23, x15
     b .L4_8
 .L4_10:
-    sub x20, x29, #336
+    sub x20, x29, #328
     mov x11, x20
     stp xzr, xzr, [x11, #0]
-    sub x21, x29, #272
+    sub x21, x29, #264
     mov x10, x20
     mov x11, x21
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     mov x10, x21
-    sub x11, x29, #168
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    sub x11, x29, #160
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     mov x9, #0
     mov x20, x9
 .L4_21:
-    sub x14, x29, #168
+    sub x14, x29, #160
     add x14, x14, #8
     ldrb w14, [x14]
     cbnz w14, .L4_1
@@ -527,17 +518,17 @@ lb_unicode_mapped:
 .L4_1:
     b .L4_3
 .L4_2:
-    sub x19, x29, #200
+    sub x19, x29, #192
     mov x11, x19
     stp xzr, xzr, [x11, #0]
     stp xzr, xzr, [x11, #16]
-    sub x20, x29, #120
+    sub x20, x29, #112
     mov x10, x19
     mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldp x12, x13, [x10, #16]
-    stp x12, x13, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldp x16, x17, [x10, #16]
+    stp x16, x17, [x11, #16]
     mov x1, x20
     sub x16, x29, #24
     ldr x0, [x16]
@@ -552,12 +543,11 @@ lb_unicode_mapped:
     ldr x23, [sp, #272]
     ldr x24, [sp, #264]
     ldr x25, [sp, #256]
-    ldr x26, [sp, #248]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
 .L4_3:
-    sub x21, x29, #224
+    sub x21, x29, #216
     mov x11, x21
     stp xzr, xzr, [x11, #0]
     str xzr, [x11, #16]
@@ -600,23 +590,23 @@ lb_unicode_mapped:
     mov w14, w14
     add x15, x21, #8
     str x14, [x15]
-    sub x22, x29, #256
+    sub x22, x29, #248
     mov x10, x21
     mov x11, x22
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x22, #24
     movz x9, #1
     strb w9, [x14]
-    sub x21, x29, #120
+    sub x21, x29, #112
     mov x10, x22
     mov x11, x21
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldp x12, x13, [x10, #16]
-    stp x12, x13, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldp x16, x17, [x10, #16]
+    stp x16, x17, [x11, #16]
     mov x1, x21
     sub x16, x29, #24
     ldr x0, [x16]
@@ -631,7 +621,6 @@ lb_unicode_mapped:
     ldr x23, [sp, #272]
     ldr x24, [sp, #264]
     ldr x25, [sp, #256]
-    ldr x26, [sp, #248]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -668,10 +657,10 @@ lb_unicode_16identity_mapping:
     sub x20, x29, #64
     mov x10, x19
     mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     mov x1, x20
     sub x16, x29, #24
     ldr x0, [x16]

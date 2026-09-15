@@ -163,7 +163,7 @@ pub struct Graph:
         var i: usize = 0
         while i < self.blocks.count:
             var b = self.blocks.get(i)
-            let last = f.instrs.get((usize)b.end - 1) if b.end > b.start else ir.Instr(op = ir.Op.label, cls = ir.Class.l, dst = 0, a = ir.none_ref(), b = ir.none_ref(), extra = 0, extra2 = 0)
+            let last = f.instrs.get((usize)b.end - 1) if b.end > b.start else ir.Instr(op = ir.Op.label, cls = ir.Class.l, dst = 0, a = ir.none_ref(), b = ir.none_ref(), extra = 0, extra2 = 0, line = 0, file = 0)
             if b.end > b.start and last.op == ir.Op.jmp:
                 b.succ1 = self.by_label[(usize)last.extra]
             elif b.end > b.start and last.op == ir.Op.jnz:

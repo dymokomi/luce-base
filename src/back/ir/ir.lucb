@@ -282,6 +282,11 @@ pub struct Instr:
     pub var b: Ref
     pub var extra: u32
     pub var extra2: u32
+    ## The source line and file (an index into the unit's `files`, 1-based, 0 for none)
+    ## the instruction came from, for the line table of an optimised build (`--release
+    ## --debug`); the passes carry them with the instruction.
+    pub var line: u32
+    pub var file: u32
 
 ## One scalar member of an aggregate, wherever it lies: what a calling convention reads to
 ## classify the aggregate. A union's members overlap; padding has no leaf.
@@ -377,6 +382,12 @@ pub struct Function:
     pub var standard: bool
     ## `--debug`: the source file, and every named local for the frame's descriptor.
     pub var debug: bool
+    ## `--release --debug`: DWARF for the optimised function, lines on every instruction,
+    ## the named locals pinned to their slots; no hooks, no descriptor.
+    pub var symbols: bool
+    ## The position `emit` stamps on each instruction.
+    pub var at_line: u32
+    pub var at_file: u32
     pub var source: str
     pub var source_name: str
     pub var source_line: u32
@@ -407,7 +418,7 @@ pub struct Function:
     pub var noinline: bool
 
     pub static func create(name: str) -> Function!:
-        return Function(name = name, exported = false, debug = false, source = "", source_name = name, source_line = 1, points = try list.List[DebugPoint].create(0), debug_scopes = try list.List[DebugScope].create(0), locals = try list.List[LocalInfo].create(8),
+        return Function(name = name, exported = false, debug = false, symbols = false, at_line = 0, at_file = 0, source = "", source_name = name, source_line = 1, points = try list.List[DebugPoint].create(0), debug_scopes = try list.List[DebugScope].create(0), locals = try list.List[LocalInfo].create(8),
                         params = try list.List[Param].create(8),
                         slots = try list.List[Slot].create(32), instrs = try list.List[Instr].create(256),
                         args = try list.List[Arg].create(32), calls = try list.List[CallInfo].create(16),
@@ -433,7 +444,7 @@ pub struct Function:
         return self.labels
 
     pub mutating func emit(op: Op, cls: Class, dst: u32, a: Ref, b: Ref, extra: u32) -> !:
-        try self.instrs.push(Instr(op = op, cls = cls, dst = dst, a = a, b = b, extra = extra, extra2 = 0))
+        try self.instrs.push(Instr(op = op, cls = cls, dst = dst, a = a, b = b, extra = extra, extra2 = 0, line = self.at_line, file = self.at_file))
 
     ## `dst = op a, b` with a fresh temporary.
     ## `dst = a op b` at class `cls`; a comparison compares at `cls` and answers a word.
@@ -459,7 +470,7 @@ pub struct Function:
         var cls = Class.l
         if condition.kind == RefKind.temp and (usize)condition.index <= self.temps.count:
             cls = self.temps.get((usize)condition.index - 1)
-        try self.instrs.push(Instr(op = Op.jnz, cls = cls, dst = 0, a = condition, b = none_ref(), extra = then_label, extra2 = else_label))
+        try self.instrs.push(Instr(op = Op.jnz, cls = cls, dst = 0, a = condition, b = none_ref(), extra = then_label, extra2 = else_label, line = 0, file = 0))
 
     pub mutating func load(op: Op, cls: Class, address: Ref) -> Ref!:
         let t = try self.temp(cls)
@@ -509,6 +520,8 @@ pub struct WitnessTable:
 ## The whole program as the target sees it.
 pub struct Unit:
     pub var functions: list.List[Function]
+    ## The source files instructions name by index (`Instr.file`), 1-based.
+    pub var files: list.List[str]
     pub var globals: list.List[Global]
     pub var texts: list.List[Text]
     pub var tables: list.List[WitnessTable]
@@ -530,10 +543,20 @@ pub struct Unit:
     pub var trap_two_at_function: str
 
     pub static func create() -> Unit!:
-        return Unit(functions = try list.List[Function].create(64), globals = try list.List[Global].create(32),
+        return Unit(functions = try list.List[Function].create(64), files = try list.List[str].create(8), globals = try list.List[Global].create(32),
                     texts = try list.List[Text].create(64), tables = try list.List[WitnessTable].create(16),
                     module_asm = try list.List[Text].create(4), shapes = try list.List[Shape].create(64), leaves = try list.List[Leaf].create(256),
                     init_function = "", trap_function = "", trap_at_function = "", trap_two_at_function = "")
+
+    ## The index of a source file in `files`, adding it when new; 1-based.
+    pub mutating func file_index(path: str) -> u32!:
+        var i: usize = 0
+        while i < self.files.count:
+            if self.files.get(i) == path:
+                return u32(i + 1)
+            i += 1
+        try self.files.push(path)
+        return u32(self.files.count)
 
     ## The index of a text literal, adding it when new.
     ## The leaves of shape `shape` (1-based), empty for 0.

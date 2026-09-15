@@ -50,8 +50,8 @@ _lb_time_now:
     str x9, [x14]
     mov x10, x20
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     movz x9, #1
     sub x10, x29, #80
     str w9, [x10]
@@ -154,26 +154,24 @@ L2_1:
 _lb_time_since:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #48
-    str x19, [sp, #24]
-    sub x16, x29, #40
+    sub sp, sp, #32
+    sub x16, x29, #32
     str x0, [x16]
     bl _lb_time_now
     mov x14, x0
-    sub x15, x29, #40
+    sub x15, x29, #32
     ldr x15, [x15]
     cmp x14, x15
     b.ls L3_2
 L3_1:
-    sub x19, x14, x15
+    sub x12, x14, x15
     b L3_3
 L3_2:
     mov x9, #0
-    mov x19, x9
+    mov x12, x9
 L3_3:
-    mov x9, x19
+    mov x9, x12
     mov x0, x9
-    ldr x19, [sp, #24]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret

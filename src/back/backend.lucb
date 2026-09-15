@@ -87,9 +87,10 @@ pub struct NativeBackend: Backend:
     pub var only_fragment: str
     pub var member_name: str
 
-    pub static func over(checker: check.Checker*, entry: ast.Node*, debug: bool, diagnostic: bool) -> NativeBackend!:
+    pub static func over(checker: check.Checker*, entry: ast.Node*, debug: bool, diagnostic: bool, symbols: bool = false) -> NativeBackend!:
         var lowerer = try lower.Lowerer.create(checker, entry)
         lowerer.diagnostic = diagnostic
+        lowerer.symbols = symbols
         return NativeBackend(checker = checker, lowerer = lowerer, debug = debug, dump_ir = false, opt_level = 3, opt_count = 0xFFFFFFFF, report = false, target = checker.build_target, only_module = "", only_fragment = "", member_name = "")
 
     pub mutating func compile(mode: u32) -> str!:
@@ -116,11 +117,11 @@ pub struct NativeBackend: Backend:
         try note(&at, 7)
         if self.dump_ir:
             return try irtext.render(&self.lowerer.program_unit)
-        var dw = try dwarf.Emitter.over(self.checker, &self.lowerer.program_unit, t.os)
+        var dw = try dwarf.Emitter.over(self.checker, &self.lowerer.program_unit, t.os, t.arch)
         var text = ""
         if t.arch == targets.Arch.x86_64:
             var generator = try x86_64.Generator.create(&self.lowerer.program_unit, t.os, t.symbol_prefix)
-            if self.debug:
+            if self.debug or self.lowerer.symbols:
                 generator.dw = &dw
             generator.level = t.level
             try generator.generate()
@@ -130,7 +131,7 @@ pub struct NativeBackend: Backend:
             # Apple's arm64 has half-precision arithmetic; ARMv8.0-A does not, and SVE
             # (level 2) implies ARMv8.2-A, which does
             generator.fp16 = t.os == targets.Os.macos or t.level >= 2
-            if self.debug:
+            if self.debug or self.lowerer.symbols:
                 generator.dw = &dw
             try generator.generate()
             text = generator.text()

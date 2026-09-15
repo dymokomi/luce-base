@@ -32,8 +32,8 @@ lb_json_0init:
     str x9, [x14]
     mov x10, x15
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     adrp x14, :got:lb_json_Value_close
     ldr x14, [x14, :got_lo12:lb_json_Value_close]
     add x15, x19, #16
@@ -51,12 +51,12 @@ lb_json_0init:
     add x14, x14, :lo12:lb_json_10value_type
     mov x10, x19
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldp x12, x13, [x10, #16]
-    stp x12, x13, [x11, #16]
-    ldr x12, [x10, #32]
-    str x12, [x11, #32]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldp x16, x17, [x10, #16]
+    stp x16, x17, [x11, #16]
+    ldr x16, [x10, #32]
+    str x16, [x11, #32]
     ldr x19, [sp, #56]
     mov sp, x29
     ldp x29, x30, [sp], #16
@@ -70,41 +70,39 @@ lb_json_0init:
 lb_json_Bytes_reserve:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #288
+    sub sp, sp, #272
     sub x16, x29, #24
     str x8, [x16]
-    str x19, [sp, #256]
-    str x20, [sp, #248]
-    str x21, [sp, #240]
-    str x22, [sp, #232]
-    str x23, [sp, #224]
-    str x24, [sp, #216]
-    str x25, [sp, #208]
-    str x26, [sp, #200]
-    str x27, [sp, #192]
-    sub x16, x29, #136
+    str x19, [sp, #240]
+    str x20, [sp, #232]
+    str x21, [sp, #224]
+    str x22, [sp, #216]
+    str x23, [sp, #208]
+    str x24, [sp, #200]
+    str x25, [sp, #192]
+    sub x16, x29, #120
     str x0, [x16]
-    sub x16, x29, #152
+    sub x16, x29, #136
     str x1, [x16]
-    sub x16, x29, #168
+    sub x16, x29, #152
     str x2, [x16]
-    sub x9, x29, #136
-    ldr x20, [x9]
-    sub x14, x29, #152
+    sub x9, x29, #120
+    ldr x19, [x9]
+    sub x14, x29, #136
     ldr x14, [x14]
-    sub x15, x29, #168
+    sub x15, x29, #152
     ldr x15, [x15]
     cmp x14, x15
     b.ls .L1_2
 .L1_1:
-    sub x19, x29, #128
+    sub x19, x29, #112
     adrp x14, lb_json_14limit_exceeded
     add x14, x14, :lo12:lb_json_14limit_exceeded
     ldr w14, [x14]
     str w14, [x19]
     adrp x14, .Ltext_1
     add x14, x14, :lo12:.Ltext_1
-    sub x15, x29, #184
+    sub x15, x29, #168
     str x14, [x15]
     add x14, x15, #8
     movz x9, #38
@@ -112,8 +110,8 @@ lb_json_Bytes_reserve:
     add x14, x19, #8
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
@@ -124,26 +122,24 @@ lb_json_Bytes_reserve:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #256]
-    ldr x20, [sp, #248]
-    ldr x21, [sp, #240]
-    ldr x22, [sp, #232]
-    ldr x23, [sp, #224]
-    ldr x24, [sp, #216]
-    ldr x25, [sp, #208]
-    ldr x26, [sp, #200]
-    ldr x27, [sp, #192]
+    ldr x19, [sp, #240]
+    ldr x20, [sp, #232]
+    ldr x21, [sp, #224]
+    ldr x22, [sp, #216]
+    ldr x23, [sp, #208]
+    ldr x24, [sp, #200]
+    ldr x25, [sp, #192]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
 .L1_2:
 .L1_3:
-    add x19, x20, #8
-    ldr x21, [x19]
-    cmp x14, x21
+    add x20, x19, #8
+    ldr x12, [x20]
+    cmp x14, x12
     b.hi .L1_6
 .L1_5:
-    sub x14, x29, #128
+    sub x14, x29, #112
     add x15, x14, #24
     mov x9, #0
     strb w9, [x15]
@@ -154,44 +150,42 @@ lb_json_Bytes_reserve:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #256]
-    ldr x20, [sp, #248]
-    ldr x21, [sp, #240]
-    ldr x22, [sp, #232]
-    ldr x23, [sp, #224]
-    ldr x24, [sp, #216]
-    ldr x25, [sp, #208]
-    ldr x26, [sp, #200]
-    ldr x27, [sp, #192]
+    ldr x19, [sp, #240]
+    ldr x20, [sp, #232]
+    ldr x21, [sp, #224]
+    ldr x22, [sp, #216]
+    ldr x23, [sp, #208]
+    ldr x24, [sp, #200]
+    ldr x25, [sp, #192]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
 .L1_6:
 .L1_7:
     mov x10, #0
-    cmp x21, x10
+    cmp x12, x10
     b.ne .L1_10
 .L1_9:
     movz x9, #64
-    mov x21, x9
+    mov x12, x9
     b .L1_11
 .L1_10:
 .L1_11:
-    mov x22, x21
+    mov x13, x12
 .L1_12:
-    cmp x22, x14
+    cmp x13, x14
     b.hs .L1_14
 .L1_13:
 .L1_19:
     movz x10, #2
-    udiv x21, x15, x10
-    cmp x22, x21
+    udiv x12, x15, x10
+    cmp x13, x12
     b.ls .L1_16
 .L1_15:
-    mov x21, x15
+    mov x12, x15
     b .L1_17
 .L1_16:
-    mov x9, x22
+    mov x9, x13
     movz x10, #2
     umulh x11, x9, x10
     mul x9, x9, x10
@@ -202,23 +196,23 @@ lb_json_Bytes_reserve:
     add x1, x1, :lo12:.Ltext_68
     bl lb_core_7trap_at
 1:
-    mov x21, x9
+    mov x12, x9
 .L1_17:
-    mov x22, x21
+    mov x13, x12
     b .L1_12
 .L1_14:
-    cmp x22, x15
+    cmp x13, x15
     b.ls .L1_21
 .L1_20:
     mov x21, x15
     b .L1_22
 .L1_21:
-    mov x21, x22
+    mov x21, x13
 .L1_22:
-    sub x22, x29, #200
+    sub x22, x29, #184
     adrp x23, lb_memory_heap
     add x23, x23, :lo12:lb_memory_heap
-    sub x24, x29, #248
+    sub x24, x29, #232
     movz x10, #16384, lsl #48
     cmp x21, x10
     b.ls .L1_24
@@ -229,8 +223,8 @@ lb_json_Bytes_reserve:
     str w9, [x14]
     adrp x15, .Ltext_4
     add x15, x15, :lo12:.Ltext_4
-    add x21, x14, #8
-    str x15, [x21]
+    add x12, x14, #8
+    str x15, [x12]
     add x14, x14, #16
     movz x9, #47
     str x9, [x14]
@@ -251,26 +245,26 @@ lb_json_Bytes_reserve:
     add x1, x1, :lo12:.Ltext_5
     bl lb_core_7trap_at
 .L1_26:
-    ldr x25, [x15]
-    mov x17, x25
+    ldr x12, [x15]
+    mov x17, x12
     str x17, [sp, #-16]!
     mov x0, x14
     mov x1, x21
     movz x2, #1
-    sub x8, x29, #272
+    sub x8, x29, #256
     ldr x17, [sp], #16
     blr x17
-    sub x27, x29, #272
-    add x25, x27, #16
-    ldrb w25, [x25]
+    sub x25, x29, #256
+    add x12, x25, #16
+    ldrb w12, [x12]
     mov x10, #0
     cmp x21, x10
-    cset w26, ne
+    cset w13, ne
     mov x10, #0
-    cmp w25, w10
-    cset w25, eq
-    and w25, w26, w25
-    cbnz w25, .L1_28
+    cmp w12, w10
+    cset w12, eq
+    and w12, w13, w12
+    cbnz w12, .L1_28
     b .L1_29
 .L1_28:
     add x14, x24, #16
@@ -279,8 +273,8 @@ lb_json_Bytes_reserve:
     str w9, [x14]
     adrp x15, .Ltext_7
     add x15, x15, :lo12:.Ltext_7
-    add x21, x14, #8
-    str x15, [x21]
+    add x12, x14, #8
+    str x15, [x12]
     add x14, x14, #16
     movz x9, #16
     str x9, [x14]
@@ -289,7 +283,7 @@ lb_json_Bytes_reserve:
     strb w9, [x14]
     b .L1_25
 .L1_29:
-    ldr x14, [x27]
+    ldr x14, [x25]
     str x14, [x24]
     add x14, x24, #8
     str x21, [x14]
@@ -303,13 +297,13 @@ lb_json_Bytes_reserve:
     b .L1_30
 .L1_31:
     add x14, x24, #16
-    sub x19, x29, #128
+    sub x19, x29, #112
     mov x10, x14
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
@@ -320,54 +314,52 @@ lb_json_Bytes_reserve:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #256]
-    ldr x20, [sp, #248]
-    ldr x21, [sp, #240]
-    ldr x22, [sp, #232]
-    ldr x23, [sp, #224]
-    ldr x24, [sp, #216]
-    ldr x25, [sp, #208]
-    ldr x26, [sp, #200]
-    ldr x27, [sp, #192]
+    ldr x19, [sp, #240]
+    ldr x20, [sp, #232]
+    ldr x21, [sp, #224]
+    ldr x22, [sp, #216]
+    ldr x23, [sp, #208]
+    ldr x24, [sp, #200]
+    ldr x25, [sp, #192]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
 .L1_30:
     mov x10, x24
     mov x11, x22
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    add x14, x20, #16
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    add x14, x19, #16
     ldr x14, [x14]
     mov x9, x22
     ldr x0, [x9]
     ldr x1, [x9, #8]
-    mov x9, x20
+    mov x9, x19
     ldr x2, [x9]
     ldr x3, [x9, #8]
     mov x4, x14
     bl lb_memory_copy_0g1_u8
-    ldr x14, [x19]
+    ldr x14, [x20]
     mov x10, #0
     cmp x14, x10
     b.ls .L1_34
 .L1_33:
-    sub x15, x29, #288
-    ldr x19, [x20]
-    str x19, [x15]
-    add x19, x15, #8
-    str x14, [x19]
-    ldr x19, [x23]
-    add x21, x23, #8
-    ldr x21, [x21]
-    cbnz x21, .L1_37
+    sub x15, x29, #272
+    ldr x12, [x19]
+    str x12, [x15]
+    add x12, x15, #8
+    str x14, [x12]
+    ldr x12, [x23]
+    add x13, x23, #8
+    ldr x13, [x13]
+    cbnz x13, .L1_37
     b .L1_36
 .L1_37:
-    add x14, x21, #16
+    add x14, x13, #16
     ldr x14, [x14]
     mov x17, x14
     str x17, [sp, #-16]!
-    mov x0, x19
+    mov x0, x12
     mov x9, x15
     ldr x1, [x9]
     ldr x2, [x9, #8]
@@ -378,10 +370,10 @@ lb_json_Bytes_reserve:
 .L1_34:
 .L1_35:
     mov x10, x22
-    mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    sub x14, x29, #128
+    mov x11, x19
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    sub x14, x29, #112
     add x15, x14, #24
     mov x9, #0
     strb w9, [x15]
@@ -392,15 +384,13 @@ lb_json_Bytes_reserve:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #256]
-    ldr x20, [sp, #248]
-    ldr x21, [sp, #240]
-    ldr x22, [sp, #232]
-    ldr x23, [sp, #224]
-    ldr x24, [sp, #216]
-    ldr x25, [sp, #208]
-    ldr x26, [sp, #200]
-    ldr x27, [sp, #192]
+    ldr x19, [sp, #240]
+    ldr x20, [sp, #232]
+    ldr x21, [sp, #224]
+    ldr x22, [sp, #216]
+    ldr x23, [sp, #208]
+    ldr x24, [sp, #200]
+    ldr x25, [sp, #192]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -413,39 +403,37 @@ lb_json_Bytes_reserve:
 lb_json_Bytes_append:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #256
+    sub sp, sp, #240
     sub x16, x29, #24
     str x8, [x16]
-    str x19, [sp, #224]
-    str x20, [sp, #216]
-    str x21, [sp, #208]
-    str x22, [sp, #200]
-    str x23, [sp, #192]
-    str x24, [sp, #184]
-    str x25, [sp, #176]
-    str x26, [sp, #168]
-    sub x16, x29, #128
+    str x19, [sp, #208]
+    str x20, [sp, #200]
+    str x21, [sp, #192]
+    str x22, [sp, #184]
+    str x23, [sp, #176]
+    str x24, [sp, #168]
+    sub x16, x29, #112
     str x0, [x16]
-    sub x16, x29, #144
+    sub x16, x29, #128
     str x1, [x16]
     str x2, [x16, #8]
-    sub x16, x29, #160
+    sub x16, x29, #144
     str x3, [x16]
-    sub x9, x29, #128
+    sub x9, x29, #112
     ldr x23, [x9]
     add x19, x23, #16
     ldr x14, [x19]
-    sub x20, x29, #144
+    sub x20, x29, #128
     add x21, x20, #8
     ldr x15, [x21]
-    sub x22, x29, #168
+    sub x22, x29, #152
     mov x0, x14
     mov x1, x15
     movz x2, #64
     mov x3, x22
     bl lb_core_6qadd_u
     mov w14, w0
-    sub x15, x29, #184
+    sub x15, x29, #168
     ldr x22, [x22]
     str x22, [x15]
     add x15, x15, #8
@@ -456,14 +444,14 @@ lb_json_Bytes_append:
 .L2_1:
     b .L2_3
 .L2_2:
-    sub x19, x29, #120
+    sub x19, x29, #104
     adrp x14, lb_json_14limit_exceeded
     add x14, x14, :lo12:lb_json_14limit_exceeded
     ldr w14, [x14]
     str w14, [x19]
     adrp x14, .Ltext_9
     add x14, x14, :lo12:.Ltext_9
-    sub x15, x29, #200
+    sub x15, x29, #184
     str x14, [x15]
     add x14, x15, #8
     movz x9, #18
@@ -471,8 +459,8 @@ lb_json_Bytes_append:
     add x14, x19, #8
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
@@ -483,39 +471,37 @@ lb_json_Bytes_append:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #224]
-    ldr x20, [sp, #216]
-    ldr x21, [sp, #208]
-    ldr x22, [sp, #200]
-    ldr x23, [sp, #192]
-    ldr x24, [sp, #184]
-    ldr x25, [sp, #176]
-    ldr x26, [sp, #168]
+    ldr x19, [sp, #208]
+    ldr x20, [sp, #200]
+    ldr x21, [sp, #192]
+    ldr x22, [sp, #184]
+    ldr x23, [sp, #176]
+    ldr x24, [sp, #168]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
 .L2_4:
 .L2_3:
-    sub x14, x29, #160
+    sub x14, x29, #144
     ldr x14, [x14]
     mov x0, x23
     mov x1, x22
     mov x2, x14
-    sub x8, x29, #232
+    sub x8, x29, #216
     bl lb_json_Bytes_reserve
-    sub x15, x29, #232
+    sub x15, x29, #216
     add x14, x15, #24
     ldrb w14, [x14]
     cbnz w14, .L2_6
     b .L2_5
 .L2_6:
-    sub x19, x29, #120
+    sub x19, x29, #104
     mov x10, x15
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
@@ -526,14 +512,12 @@ lb_json_Bytes_append:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #224]
-    ldr x20, [sp, #216]
-    ldr x21, [sp, #208]
-    ldr x22, [sp, #200]
-    ldr x23, [sp, #192]
-    ldr x24, [sp, #184]
-    ldr x25, [sp, #176]
-    ldr x26, [sp, #168]
+    ldr x19, [sp, #208]
+    ldr x20, [sp, #200]
+    ldr x21, [sp, #192]
+    ldr x22, [sp, #184]
+    ldr x23, [sp, #176]
+    ldr x24, [sp, #168]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -541,10 +525,10 @@ lb_json_Bytes_append:
 .L2_5:
     ldr x15, [x23]
     add x14, x23, #8
-    ldr x24, [x14]
-    ldr x25, [x19]
-    add x14, x24, #1
-    cmp x25, x14
+    ldr x12, [x14]
+    ldr x13, [x19]
+    add x14, x12, #1
+    cmp x13, x14
     b.lo 1f
     adrp x0, .Ltext_10
     add x0, x0, :lo12:.Ltext_10
@@ -552,7 +536,7 @@ lb_json_Bytes_append:
     add x1, x1, :lo12:.Ltext_11
     bl lb_core_7trap_at
 1:
-    cmp x24, x14
+    cmp x12, x14
     b.lo 1f
     adrp x0, .Ltext_10
     add x0, x0, :lo12:.Ltext_10
@@ -560,7 +544,7 @@ lb_json_Bytes_append:
     add x1, x1, :lo12:.Ltext_11
     bl lb_core_7trap_at
 1:
-    cmp x25, x24
+    cmp x13, x12
     b.ls .L2_8
 .L2_9:
     adrp x0, .Ltext_10
@@ -569,14 +553,14 @@ lb_json_Bytes_append:
     add x1, x1, :lo12:.Ltext_11
     bl lb_core_7trap_at
 .L2_8:
-    add x14, x15, x25
-    sub x23, x24, x25
-    sub x26, x29, #248
-    str x14, [x26]
-    add x14, x26, #8
+    add x14, x15, x13
+    sub x23, x12, x13
+    sub x24, x29, #232
+    str x14, [x24]
+    add x14, x24, #8
     str x23, [x14]
     ldr x14, [x21]
-    mov x9, x26
+    mov x9, x24
     ldr x0, [x9]
     ldr x1, [x9, #8]
     mov x9, x20
@@ -585,7 +569,7 @@ lb_json_Bytes_append:
     mov x4, x14
     bl lb_memory_copy_0g1_u8
     str x22, [x19]
-    sub x14, x29, #120
+    sub x14, x29, #104
     add x23, x14, #24
     mov x9, #0
     strb w9, [x23]
@@ -596,14 +580,12 @@ lb_json_Bytes_append:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #224]
-    ldr x20, [sp, #216]
-    ldr x21, [sp, #208]
-    ldr x22, [sp, #200]
-    ldr x23, [sp, #192]
-    ldr x24, [sp, #184]
-    ldr x25, [sp, #176]
-    ldr x26, [sp, #168]
+    ldr x19, [sp, #208]
+    ldr x20, [sp, #200]
+    ldr x21, [sp, #192]
+    ldr x22, [sp, #184]
+    ldr x23, [sp, #176]
+    ldr x24, [sp, #168]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -616,14 +598,13 @@ lb_json_Bytes_append:
 lb_json_Bytes_view:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #80
-    str x19, [sp, #56]
-    str x20, [sp, #48]
-    sub x16, x29, #56
+    sub sp, sp, #64
+    str x19, [sp, #40]
+    sub x16, x29, #48
     str x0, [x16]
-    sub x9, x29, #56
+    sub x9, x29, #48
     ldr x15, [x9]
-    ldr x19, [x15]
+    ldr x12, [x15]
     add x14, x15, #8
     ldr x14, [x14]
     add x15, x15, #16
@@ -656,20 +637,19 @@ lb_json_Bytes_view:
     add x1, x1, :lo12:.Ltext_11
     bl lb_core_7trap_at
 .L3_1:
-    sub x14, x29, #72
-    str x19, [x14]
-    add x20, x14, #8
-    str x15, [x20]
-    sub x20, x29, #48
+    sub x14, x29, #64
+    str x12, [x14]
+    add x13, x14, #8
+    str x15, [x13]
+    sub x19, x29, #40
     mov x10, x14
-    mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    mov x16, x20
+    mov x11, x19
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    mov x16, x19
     ldr x0, [x16, #0]
     ldr x1, [x16, #8]
-    ldr x19, [sp, #56]
-    ldr x20, [sp, #48]
+    ldr x19, [sp, #40]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -691,10 +671,9 @@ lb_json_Bytes_close:
     sub sp, sp, #80
     str x19, [sp, #56]
     str x20, [sp, #48]
-    str x21, [sp, #40]
-    sub x16, x29, #48
+    sub x16, x29, #40
     str x0, [x16]
-    sub x9, x29, #48
+    sub x9, x29, #40
     ldr x19, [x9]
     add x14, x19, #8
     ldr x14, [x14]
@@ -704,12 +683,12 @@ lb_json_Bytes_close:
 .L4_1:
     adrp x15, lb_memory_heap
     add x15, x15, :lo12:lb_memory_heap
-    sub x20, x29, #64
-    ldr x21, [x19]
-    str x21, [x20]
-    add x21, x20, #8
-    str x14, [x21]
-    ldr x21, [x15]
+    sub x12, x29, #56
+    ldr x13, [x19]
+    str x13, [x12]
+    add x13, x12, #8
+    str x14, [x13]
+    ldr x13, [x15]
     add x15, x15, #8
     ldr x15, [x15]
     cbnz x15, .L4_5
@@ -719,8 +698,8 @@ lb_json_Bytes_close:
     ldr x14, [x14]
     mov x17, x14
     str x17, [sp, #-16]!
-    mov x0, x21
-    mov x9, x20
+    mov x0, x13
+    mov x9, x12
     ldr x1, [x9]
     ldr x2, [x9, #8]
     ldr x17, [sp], #16
@@ -729,19 +708,18 @@ lb_json_Bytes_close:
     b .L4_3
 .L4_2:
 .L4_3:
-    sub x20, x29, #80
+    sub x20, x29, #72
     mov x11, x20
     stp xzr, xzr, [x11, #0]
     mov x10, x20
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #16
     mov x9, #0
     str x9, [x14]
     ldr x19, [sp, #56]
     ldr x20, [sp, #48]
-    ldr x21, [sp, #40]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -806,10 +784,10 @@ lb_json_quoted:
     sub x19, x29, #136
     mov x10, x14
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
@@ -851,10 +829,10 @@ lb_json_quoted:
     sub x19, x29, #136
     mov x10, x15
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
@@ -910,10 +888,10 @@ lb_json_quoted:
     sub x19, x29, #136
     mov x10, x15
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
@@ -1025,8 +1003,8 @@ lb_json_quoted:
     strb w21, [x26]
     mov x10, x25
     mov x11, x24
-    ldrh w12, [x10, #0]
-    strh w12, [x11, #0]
+    ldrh w16, [x10, #0]
+    strh w16, [x11, #0]
     str x24, [x27]
     movz x9, #2
     str x9, [x28]
@@ -1045,10 +1023,10 @@ lb_json_quoted:
     sub x19, x29, #136
     mov x10, x22
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
@@ -1087,8 +1065,8 @@ lb_json_quoted:
     str x9, [x10]
     ldr x10, [sp, #136]
     ldr x11, [sp, #152]
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     movz x9, #92
     strb w9, [x23]
     movz x9, #117
@@ -1128,10 +1106,10 @@ lb_json_quoted:
     strb w14, [x10]
     mov x10, x23
     ldr x11, [sp, #8]
-    ldr w12, [x10, #0]
-    str w12, [x11, #0]
-    ldrh w12, [x10, #4]
-    strh w12, [x11, #4]
+    ldr w16, [x10, #0]
+    str w16, [x11, #0]
+    ldrh w16, [x10, #4]
+    strh w16, [x11, #4]
     ldr x9, [sp, #8]
     ldr x10, [sp, #80]
     str x9, [x10]
@@ -1153,10 +1131,10 @@ lb_json_quoted:
     sub x19, x29, #136
     ldr x10, [sp, #0]
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
@@ -1187,8 +1165,8 @@ lb_json_quoted:
     strb w21, [x10]
     ldr x10, [sp, #48]
     ldr x11, [sp, #56]
-    ldrb w12, [x10, #0]
-    strb w12, [x11, #0]
+    ldrb w16, [x10, #0]
+    strb w16, [x11, #0]
     ldr x9, [sp, #56]
     ldr x10, [sp, #40]
     str x9, [x10]
@@ -1210,10 +1188,10 @@ lb_json_quoted:
     sub x19, x29, #136
     ldr x10, [sp, #16]
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
@@ -1267,10 +1245,10 @@ lb_json_quoted:
     sub x19, x29, #136
     mov x10, x15
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
@@ -1375,8 +1353,8 @@ lb_json_Value_init:
     add x14, x19, #8
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
@@ -1404,10 +1382,10 @@ lb_json_Value_init:
     str xzr, [x11, #16]
     mov x10, x21
     mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x21, x20, #24
     sub x22, x29, #176
     mov x11, x22
@@ -1415,10 +1393,10 @@ lb_json_Value_init:
     str xzr, [x11, #16]
     mov x10, x22
     mov x11, x21
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x20, #48
     movz x9, #123
     strb w9, [x14]
@@ -1429,14 +1407,14 @@ lb_json_Value_init:
     str x19, [x14]
     adrp x15, .Ltext_20
     add x15, x15, :lo12:.Ltext_20
-    sub x21, x29, #192
-    str x15, [x21]
-    add x15, x21, #8
+    sub x12, x29, #192
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #2
     str x9, [x15]
     ldr x14, [x14]
     mov x0, x20
-    mov x9, x21
+    mov x9, x12
     ldr x1, [x9]
     ldr x2, [x9, #8]
     mov x3, x14
@@ -1451,10 +1429,10 @@ lb_json_Value_init:
     sub x19, x29, #88
     mov x10, x15
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
@@ -1532,13 +1510,13 @@ lb_json_Value_own:
 .L7_2:
     add x14, x15, #8
     sub x19, x29, #88
-    add x20, x19, #8
+    add x12, x19, #8
     mov x10, x14
-    mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    mov x11, x12
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #32
     movz x9, #1
     strb w9, [x14]
@@ -1560,8 +1538,8 @@ lb_json_Value_own:
     sub x19, x29, #88
     mov x10, x15
     mov x11, x19
-    ldr x12, [x10, #0]
-    str x12, [x11, #0]
+    ldr x16, [x10, #0]
+    str x16, [x11, #0]
     add x14, x19, #32
     mov x9, #0
     strb w9, [x14]
@@ -1611,8 +1589,8 @@ lb_json_Value_array:
     sub x20, x29, #136
     mov x10, x14
     mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     sub x21, x29, #176
     ldr x19, [x20]
     add x14, x20, #8
@@ -1647,8 +1625,8 @@ lb_json_Value_array:
     str w9, [x14]
     adrp x15, .Ltext_7
     add x15, x15, :lo12:.Ltext_7
-    add x19, x14, #8
-    str x15, [x19]
+    add x12, x14, #8
+    str x15, [x12]
     add x14, x14, #16
     movz x9, #16
     str x9, [x14]
@@ -1679,10 +1657,10 @@ lb_json_Value_array:
     add x14, x21, #8
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x21, #32
     movz x9, #1
     strb w9, [x14]
@@ -1717,10 +1695,10 @@ lb_json_Value_array:
     add x15, x19, #8
     mov x10, x14
     mov x11, x15
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #32
     movz x9, #1
     strb w9, [x14]
@@ -1746,10 +1724,10 @@ lb_json_Value_array:
     movz x9, #91
     strb w9, [x15]
     ldr x15, [x14]
-    add x19, x14, #8
-    ldr x20, [x19]
+    add x12, x14, #8
+    ldr x13, [x12]
     mov x9, #0
-    cmp x9, x20
+    cmp x9, x13
     b.lo 1f
     adrp x0, .Ltext_23
     add x0, x0, :lo12:.Ltext_23
@@ -1760,9 +1738,9 @@ lb_json_Value_array:
     movz x9, #91
     strb w9, [x15]
     ldr x15, [x14]
-    ldr x19, [x19]
+    ldr x12, [x12]
     movz x9, #1
-    cmp x9, x19
+    cmp x9, x12
     b.lo 1f
     adrp x0, .Ltext_24
     add x0, x0, :lo12:.Ltext_24
@@ -1784,13 +1762,13 @@ lb_json_Value_array:
 .L8_14:
     add x14, x15, #8
     sub x19, x29, #104
-    add x20, x19, #8
+    add x12, x19, #8
     mov x10, x14
-    mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    mov x11, x12
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #32
     movz x9, #1
     strb w9, [x14]
@@ -1814,8 +1792,8 @@ lb_json_Value_array:
     sub x19, x29, #104
     mov x10, x15
     mov x11, x19
-    ldr x12, [x10, #0]
-    str x12, [x11, #0]
+    ldr x16, [x10, #0]
+    str x16, [x11, #0]
     add x14, x19, #32
     mov x9, #0
     strb w9, [x14]
@@ -1869,8 +1847,8 @@ lb_json_Value_scalar:
     sub x21, x29, #144
     mov x10, x19
     mov x11, x21
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     sub x22, x29, #184
     ldr x20, [x21]
     add x14, x21, #8
@@ -1905,8 +1883,8 @@ lb_json_Value_scalar:
     str w9, [x14]
     adrp x15, .Ltext_7
     add x15, x15, :lo12:.Ltext_7
-    add x20, x14, #8
-    str x15, [x20]
+    add x12, x14, #8
+    str x15, [x12]
     add x14, x14, #16
     movz x9, #16
     str x9, [x14]
@@ -1935,10 +1913,10 @@ lb_json_Value_scalar:
     add x14, x22, #8
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x22, #32
     movz x9, #1
     strb w9, [x14]
@@ -1973,10 +1951,10 @@ lb_json_Value_scalar:
     add x15, x19, #8
     mov x10, x14
     mov x11, x15
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #32
     movz x9, #1
     strb w9, [x14]
@@ -2024,10 +2002,10 @@ lb_json_Value_scalar:
     sub x21, x29, #264
     mov x10, x15
     mov x11, x21
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     b .L9_13
 .L9_15:
     b .L9_14
@@ -2044,14 +2022,14 @@ lb_json_Value_scalar:
     movz x9, #72
     str x9, [x15]
     ldr x15, [x19]
-    add x22, x19, #8
-    ldr x22, [x22]
-    cbnz x22, .L9_18
+    add x12, x19, #8
+    ldr x12, [x12]
+    cbnz x12, .L9_18
     b .L9_17
 .L9_18:
-    add x19, x22, #16
-    ldr x19, [x19]
-    mov x17, x19
+    add x13, x12, #16
+    ldr x13, [x13]
+    mov x17, x13
     str x17, [sp, #-16]!
     mov x0, x15
     mov x9, x14
@@ -2068,8 +2046,8 @@ lb_json_Value_scalar:
     add x14, x14, #8
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #32
     movz x9, #1
     strb w9, [x14]
@@ -2102,13 +2080,13 @@ lb_json_Value_scalar:
 .L9_21:
     add x14, x15, #8
     sub x19, x29, #112
-    add x20, x19, #8
+    add x12, x19, #8
     mov x10, x14
-    mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    mov x11, x12
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #32
     movz x9, #1
     strb w9, [x14]
@@ -2133,8 +2111,8 @@ lb_json_Value_scalar:
     sub x19, x29, #112
     mov x10, x15
     mov x11, x19
-    ldr x12, [x10, #0]
-    str x12, [x11, #0]
+    ldr x16, [x10, #0]
+    str x16, [x11, #0]
     add x14, x19, #32
     mov x9, #0
     strb w9, [x14]
@@ -2169,41 +2147,40 @@ lb_json_Value_scalar:
 lb_json_Value_text:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #240
+    sub sp, sp, #224
     sub x16, x29, #24
     str x8, [x16]
-    str x19, [sp, #208]
-    str x20, [sp, #200]
-    str x21, [sp, #192]
-    sub x16, x29, #104
+    str x19, [sp, #192]
+    str x20, [sp, #184]
+    sub x16, x29, #96
     str x0, [x16]
     str x1, [x16, #8]
-    sub x19, x29, #128
+    sub x19, x29, #120
     mov x11, x19
     stp xzr, xzr, [x11, #0]
     str xzr, [x11, #16]
-    sub x14, x29, #104
+    sub x14, x29, #96
     mov x9, x14
     ldr x0, [x9]
     ldr x1, [x9, #8]
     mov x2, x19
     movz x3, #16, lsl #16
-    sub x8, x29, #160
+    sub x8, x29, #152
     bl lb_json_quoted
-    sub x15, x29, #160
+    sub x15, x29, #152
     add x14, x15, #24
     ldrb w14, [x14]
     cbnz w14, .L10_2
     b .L10_1
 .L10_2:
-    sub x20, x29, #88
+    sub x20, x29, #80
     add x14, x20, #8
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x20, #32
     movz x9, #1
     strb w9, [x14]
@@ -2216,9 +2193,8 @@ lb_json_Value_text:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #208]
-    ldr x20, [sp, #200]
-    ldr x21, [sp, #192]
+    ldr x19, [sp, #192]
+    ldr x20, [sp, #184]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -2226,37 +2202,37 @@ lb_json_Value_text:
 .L10_1:
     mov x0, x19
     bl lb_json_Bytes_view
-    sub x16, x29, #176
+    sub x16, x29, #168
     str x0, [x16, #0]
     str x1, [x16, #8]
-    sub x14, x29, #176
+    sub x14, x29, #168
     ldr x15, [x14]
     add x14, x14, #8
     ldr x14, [x14]
-    sub x20, x29, #192
-    str x15, [x20]
-    add x15, x20, #8
+    sub x12, x29, #184
+    str x15, [x12]
+    add x15, x12, #8
     str x14, [x15]
-    mov x9, x20
+    mov x9, x12
     ldr x0, [x9]
     ldr x1, [x9, #8]
-    sub x8, x29, #232
+    sub x8, x29, #224
     bl lb_json_Value_scalar
-    sub x15, x29, #232
+    sub x15, x29, #224
     add x14, x15, #32
     ldrb w14, [x14]
     cbnz w14, .L10_5
     b .L10_4
 .L10_5:
     add x14, x15, #8
-    sub x20, x29, #88
-    add x21, x20, #8
+    sub x20, x29, #80
+    add x12, x20, #8
     mov x10, x14
-    mov x11, x21
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    mov x11, x12
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x20, #32
     movz x9, #1
     strb w9, [x14]
@@ -2269,19 +2245,18 @@ lb_json_Value_text:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #208]
-    ldr x20, [sp, #200]
-    ldr x21, [sp, #192]
+    ldr x19, [sp, #192]
+    ldr x20, [sp, #184]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
 .L10_6:
 .L10_4:
-    sub x20, x29, #88
+    sub x20, x29, #80
     mov x10, x15
     mov x11, x20
-    ldr x12, [x10, #0]
-    str x12, [x11, #0]
+    ldr x16, [x10, #0]
+    str x16, [x11, #0]
     add x14, x20, #32
     mov x9, #0
     strb w9, [x14]
@@ -2294,14 +2269,13 @@ lb_json_Value_text:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #208]
-    ldr x20, [sp, #200]
-    ldr x21, [sp, #192]
+    ldr x19, [sp, #192]
+    ldr x20, [sp, #184]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
 .L10_7:
-    sub x14, x29, #128
+    sub x14, x29, #120
     mov x0, x14
     bl lb_json_Bytes_close
     adrp x0, .Ltext_28
@@ -2362,8 +2336,8 @@ lb_json_Value_integer:
     str w9, [x14]
     adrp x15, .Ltext_29
     add x15, x15, :lo12:.Ltext_29
-    add x19, x14, #8
-    str x15, [x19]
+    add x12, x14, #8
+    str x15, [x12]
     add x14, x14, #16
     movz x9, #60
     str x9, [x14]
@@ -2380,8 +2354,8 @@ lb_json_Value_integer:
     sub x14, x29, #248
     mov x10, x14
     mov x11, x22
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x22, #40
     mov x9, #0
     strb w9, [x14]
@@ -2396,10 +2370,10 @@ lb_json_Value_integer:
     add x15, x19, #8
     mov x10, x14
     mov x11, x15
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #32
     movz x9, #1
     strb w9, [x14]
@@ -2432,13 +2406,13 @@ lb_json_Value_integer:
 .L11_8:
     add x14, x15, #8
     sub x19, x29, #96
-    add x20, x19, #8
+    add x12, x19, #8
     mov x10, x14
-    mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    mov x11, x12
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #32
     movz x9, #1
     strb w9, [x14]
@@ -2461,8 +2435,8 @@ lb_json_Value_integer:
     sub x19, x29, #96
     mov x10, x15
     mov x11, x19
-    ldr x12, [x10, #0]
-    str x12, [x11, #0]
+    ldr x16, [x10, #0]
+    str x16, [x11, #0]
     add x14, x19, #32
     mov x9, #0
     strb w9, [x14]
@@ -2499,11 +2473,10 @@ lb_json_Value_number:
     sub x16, x29, #24
     str x8, [x16]
     str x19, [sp, #256]
-    str x20, [sp, #248]
-    str d8, [sp, #240]
-    sub x16, x29, #104
+    str d8, [sp, #248]
+    sub x16, x29, #96
     str d0, [x16]
-    sub x14, x29, #104
+    sub x14, x29, #96
     ldr d8, [x14]
     fmov d16, d8
     fmov d0, d16
@@ -2513,7 +2486,7 @@ lb_json_Value_number:
     cmp w14, w10
     b.ne .L12_2
 .L12_1:
-    sub x19, x29, #88
+    sub x19, x29, #80
     add x14, x19, #8
     adrp x15, lb_json_invalid
     add x15, x15, :lo12:lb_json_invalid
@@ -2521,16 +2494,16 @@ lb_json_Value_number:
     str w15, [x14]
     adrp x15, .Ltext_31
     add x15, x15, :lo12:.Ltext_31
-    sub x20, x29, #120
-    str x15, [x20]
-    add x15, x20, #8
+    sub x12, x29, #112
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #27
     str x9, [x15]
     add x14, x14, #8
-    mov x10, x20
+    mov x10, x12
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #32
     movz x9, #1
     strb w9, [x14]
@@ -2542,8 +2515,7 @@ lb_json_Value_number:
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #256]
-    ldr x20, [sp, #248]
-    ldr d8, [sp, #240]
+    ldr d8, [sp, #248]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -2551,13 +2523,13 @@ lb_json_Value_number:
     b .L12_3
 .L12_2:
 .L12_3:
-    sub x19, x29, #184
+    sub x19, x29, #176
     mov x11, x19
     stp xzr, xzr, [x11, #0]
     stp xzr, xzr, [x11, #16]
     stp xzr, xzr, [x11, #32]
     stp xzr, xzr, [x11, #48]
-    sub x14, x29, #200
+    sub x14, x29, #192
     str x19, [x14]
     add x15, x14, #8
     movz x9, #64
@@ -2567,23 +2539,23 @@ lb_json_Value_number:
     mov x9, x14
     ldr x0, [x9]
     ldr x1, [x9, #8]
-    sub x8, x29, #248
+    sub x8, x29, #240
     bl lb_strings_10format_f64
-    sub x15, x29, #248
+    sub x15, x29, #240
     add x14, x15, #40
     ldrb w14, [x14]
     cbnz w14, .L12_6
     b .L12_5
 .L12_6:
     add x14, x15, #16
-    sub x19, x29, #88
-    add x20, x19, #8
+    sub x19, x29, #80
+    add x12, x19, #8
     mov x10, x14
-    mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    mov x11, x12
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #32
     movz x9, #1
     strb w9, [x14]
@@ -2595,8 +2567,7 @@ lb_json_Value_number:
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #256]
-    ldr x20, [sp, #248]
-    ldr d8, [sp, #240]
+    ldr d8, [sp, #248]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -2605,27 +2576,27 @@ lb_json_Value_number:
     mov x9, x15
     ldr x0, [x9]
     ldr x1, [x9, #8]
-    sub x8, x29, #288
+    sub x8, x29, #280
     bl lb_json_Value_scalar
-    sub x19, x29, #288
-    add x14, x19, #32
+    sub x12, x29, #280
+    add x14, x12, #32
     ldrb w14, [x14]
     cbnz w14, .L12_9
     b .L12_8
 .L12_9:
-    add x14, x19, #8
-    sub x20, x29, #88
-    add x15, x20, #8
+    add x14, x12, #8
+    sub x19, x29, #80
+    add x15, x19, #8
     mov x10, x14
     mov x11, x15
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
-    add x14, x20, #32
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
+    add x14, x19, #32
     movz x9, #1
     strb w9, [x14]
-    mov x1, x20
+    mov x1, x19
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
@@ -2633,22 +2604,21 @@ lb_json_Value_number:
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #256]
-    ldr x20, [sp, #248]
-    ldr d8, [sp, #240]
+    ldr d8, [sp, #248]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
 .L12_10:
 .L12_8:
-    sub x20, x29, #88
-    mov x10, x19
-    mov x11, x20
-    ldr x12, [x10, #0]
-    str x12, [x11, #0]
-    add x14, x20, #32
+    sub x19, x29, #80
+    mov x10, x12
+    mov x11, x19
+    ldr x16, [x10, #0]
+    str x16, [x11, #0]
+    add x14, x19, #32
     mov x9, #0
     strb w9, [x14]
-    mov x1, x20
+    mov x1, x19
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
@@ -2656,8 +2626,7 @@ lb_json_Value_number:
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #256]
-    ldr x20, [sp, #248]
-    ldr d8, [sp, #240]
+    ldr d8, [sp, #248]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -2676,66 +2645,65 @@ lb_json_Value_number:
 lb_json_Value_boolean:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #192
+    sub sp, sp, #176
     sub x16, x29, #24
     str x8, [x16]
-    str x19, [sp, #160]
-    str x20, [sp, #152]
-    sub x16, x29, #96
+    str x19, [sp, #144]
+    sub x16, x29, #88
     str w0, [x16]
-    sub x14, x29, #96
+    sub x14, x29, #88
     ldrb w14, [x14]
     cbnz w14, .L13_1
     b .L13_2
 .L13_1:
     adrp x14, .Ltext_33
     add x14, x14, :lo12:.Ltext_33
-    sub x15, x29, #128
+    sub x15, x29, #120
     str x14, [x15]
     add x14, x15, #8
     movz x9, #4
     str x9, [x14]
-    sub x14, x29, #112
+    sub x14, x29, #104
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     b .L13_3
 .L13_2:
     adrp x14, .Ltext_34
     add x14, x14, :lo12:.Ltext_34
-    sub x15, x29, #144
+    sub x15, x29, #136
     str x14, [x15]
     add x14, x15, #8
     movz x9, #5
     str x9, [x14]
-    sub x14, x29, #112
+    sub x14, x29, #104
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
 .L13_3:
-    sub x14, x29, #112
+    sub x14, x29, #104
     mov x9, x14
     ldr x0, [x9]
     ldr x1, [x9, #8]
-    sub x8, x29, #184
+    sub x8, x29, #176
     bl lb_json_Value_scalar
-    sub x15, x29, #184
+    sub x15, x29, #176
     add x14, x15, #32
     ldrb w14, [x14]
     cbnz w14, .L13_5
     b .L13_4
 .L13_5:
     add x14, x15, #8
-    sub x19, x29, #80
-    add x20, x19, #8
+    sub x19, x29, #72
+    add x12, x19, #8
     mov x10, x14
-    mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    mov x11, x12
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #32
     movz x9, #1
     strb w9, [x14]
@@ -2746,18 +2714,17 @@ lb_json_Value_boolean:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #160]
-    ldr x20, [sp, #152]
+    ldr x19, [sp, #144]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
 .L13_6:
 .L13_4:
-    sub x19, x29, #80
+    sub x19, x29, #72
     mov x10, x15
     mov x11, x19
-    ldr x12, [x10, #0]
-    str x12, [x11, #0]
+    ldr x16, [x10, #0]
+    str x16, [x11, #0]
     add x14, x19, #32
     mov x9, #0
     strb w9, [x14]
@@ -2768,8 +2735,7 @@ lb_json_Value_boolean:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #160]
-    ldr x20, [sp, #152]
+    ldr x19, [sp, #144]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -2788,14 +2754,13 @@ lb_json_Value_boolean:
 lb_json_Value_null:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #144
+    sub sp, sp, #128
     sub x16, x29, #24
     str x8, [x16]
-    str x19, [sp, #112]
-    str x20, [sp, #104]
+    str x19, [sp, #96]
     adrp x14, .Ltext_36
     add x14, x14, :lo12:.Ltext_36
-    sub x15, x29, #96
+    sub x15, x29, #88
     str x14, [x15]
     add x14, x15, #8
     movz x9, #4
@@ -2803,23 +2768,23 @@ lb_json_Value_null:
     mov x9, x15
     ldr x0, [x9]
     ldr x1, [x9, #8]
-    sub x8, x29, #136
+    sub x8, x29, #128
     bl lb_json_Value_scalar
-    sub x15, x29, #136
+    sub x15, x29, #128
     add x14, x15, #32
     ldrb w14, [x14]
     cbnz w14, .L14_2
     b .L14_1
 .L14_2:
     add x14, x15, #8
-    sub x19, x29, #80
-    add x20, x19, #8
+    sub x19, x29, #72
+    add x12, x19, #8
     mov x10, x14
-    mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    mov x11, x12
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #32
     movz x9, #1
     strb w9, [x14]
@@ -2830,18 +2795,17 @@ lb_json_Value_null:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #112]
-    ldr x20, [sp, #104]
+    ldr x19, [sp, #96]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
 .L14_3:
 .L14_1:
-    sub x19, x29, #80
+    sub x19, x29, #72
     mov x10, x15
     mov x11, x19
-    ldr x12, [x10, #0]
-    str x12, [x11, #0]
+    ldr x16, [x10, #0]
+    str x16, [x11, #0]
     add x14, x19, #32
     mov x9, #0
     strb w9, [x14]
@@ -2852,8 +2816,7 @@ lb_json_Value_null:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #112]
-    ldr x20, [sp, #104]
+    ldr x19, [sp, #96]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -2872,36 +2835,34 @@ lb_json_Value_null:
 lb_json_Value_encode:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #96
-    str x19, [sp, #72]
-    str x20, [sp, #64]
-    sub x16, x29, #56
+    sub sp, sp, #80
+    str x19, [sp, #56]
+    sub x16, x29, #48
     str x0, [x16]
-    sub x9, x29, #56
+    sub x9, x29, #48
     ldr x14, [x9]
     mov x0, x14
     bl lb_json_Bytes_view
-    sub x16, x29, #72
+    sub x16, x29, #64
     str x0, [x16, #0]
     str x1, [x16, #8]
-    sub x14, x29, #72
+    sub x14, x29, #64
     ldr x15, [x14]
     add x14, x14, #8
     ldr x14, [x14]
-    sub x19, x29, #88
-    str x15, [x19]
-    add x15, x19, #8
+    sub x12, x29, #80
+    str x15, [x12]
+    add x15, x12, #8
     str x14, [x15]
-    sub x20, x29, #48
-    mov x10, x19
-    mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    mov x16, x20
+    sub x19, x29, #40
+    mov x10, x12
+    mov x11, x19
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    mov x16, x19
     ldr x0, [x16, #0]
     ldr x1, [x16, #8]
-    ldr x19, [sp, #72]
-    ldr x20, [sp, #64]
+    ldr x19, [sp, #56]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -2920,19 +2881,19 @@ lb_json_Value_encode:
 lb_json_Value_insert:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #960
+    sub sp, sp, #944
     sub x16, x29, #24
     str x8, [x16]
-    str x19, [sp, #928]
-    str x20, [sp, #920]
-    str x21, [sp, #912]
-    str x22, [sp, #904]
-    str x23, [sp, #896]
-    str x24, [sp, #888]
-    str x25, [sp, #880]
-    str x26, [sp, #872]
-    str x27, [sp, #864]
-    str x28, [sp, #856]
+    str x19, [sp, #912]
+    str x20, [sp, #904]
+    str x21, [sp, #896]
+    str x22, [sp, #888]
+    str x23, [sp, #880]
+    str x24, [sp, #872]
+    str x25, [sp, #864]
+    str x26, [sp, #856]
+    str x27, [sp, #848]
+    str x28, [sp, #840]
     sub x16, x29, #144
     str x0, [x16]
     sub x16, x29, #168
@@ -2944,12 +2905,10 @@ lb_json_Value_insert:
     movz x2, #24
     bl _memcpy
     sub x9, x29, #144
-    ldr x9, [x9]
-    str x9, [sp, #0]
-    ldr x9, [sp, #0]
-    add x9, x9, #48
-    str x9, [sp, #104]
-    ldr x9, [sp, #104]
+    ldr x20, [x9]
+    add x9, x20, #48
+    str x9, [sp, #88]
+    ldr x9, [sp, #88]
     ldrb w14, [x9]
     mov x10, #0
     cmp w14, w10
@@ -2963,16 +2922,16 @@ lb_json_Value_insert:
     movz x10, #123
     cmp w14, w10
     cset w15, eq
-    sub x21, x29, #168
-    add x21, x21, #16
-    ldrb w21, [x21]
+    sub x12, x29, #168
+    add x12, x12, #16
+    ldrb w12, [x12]
     mov x10, #0
-    cmp w21, w10
-    cset w21, eq
+    cmp w12, w10
+    cset w12, eq
     mov x10, #0
-    cmp w21, w10
-    cset w21, eq
-    cmp w15, w21
+    cmp w12, w10
+    cset w12, eq
+    cmp w15, w12
     cset w15, eq
     mov x10, #0
     cmp w15, w10
@@ -2998,8 +2957,8 @@ lb_json_Value_insert:
     add x14, x19, #8
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
@@ -3010,16 +2969,16 @@ lb_json_Value_insert:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #928]
-    ldr x20, [sp, #920]
-    ldr x21, [sp, #912]
-    ldr x22, [sp, #904]
-    ldr x23, [sp, #896]
-    ldr x24, [sp, #888]
-    ldr x25, [sp, #880]
-    ldr x26, [sp, #872]
-    ldr x27, [sp, #864]
-    ldr x28, [sp, #856]
+    ldr x19, [sp, #912]
+    ldr x20, [sp, #904]
+    ldr x21, [sp, #896]
+    ldr x22, [sp, #888]
+    ldr x23, [sp, #880]
+    ldr x24, [sp, #872]
+    ldr x25, [sp, #864]
+    ldr x26, [sp, #856]
+    ldr x27, [sp, #848]
+    ldr x28, [sp, #840]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -3028,31 +2987,30 @@ lb_json_Value_insert:
 .L16_2:
 .L16_3:
     sub x9, x29, #224
-    str x9, [sp, #96]
-    ldr x11, [sp, #96]
+    str x9, [sp, #80]
+    ldr x11, [sp, #80]
     stp xzr, xzr, [x11, #0]
     str xzr, [x11, #16]
     sub x15, x29, #168
     add x14, x15, #16
     ldrb w9, [x14]
-    str w9, [sp, #88]
-    ldr w9, [sp, #88]
+    str w9, [sp, #72]
+    ldr w9, [sp, #72]
     cbnz w9, .L16_10
     b .L16_8
 .L16_10:
     sub x23, x29, #240
     mov x10, x15
     mov x11, x23
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
 .L16_7:
-    ldr x9, [sp, #0]
-    add x14, x9, #64
+    add x14, x20, #64
     ldr x14, [x14]
     mov x9, x23
     ldr x0, [x9]
     ldr x1, [x9, #8]
-    ldr x2, [sp, #96]
+    ldr x2, [sp, #80]
     mov x3, x14
     sub x8, x29, #272
     bl lb_json_quoted
@@ -3065,14 +3023,14 @@ lb_json_Value_insert:
     sub x19, x29, #136
     mov x10, x15
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
-    ldr x0, [sp, #96]
+    ldr x0, [sp, #80]
     bl lb_json_Bytes_close
     mov x1, x19
     sub x16, x29, #24
@@ -3081,57 +3039,54 @@ lb_json_Value_insert:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #928]
-    ldr x20, [sp, #920]
-    ldr x21, [sp, #912]
-    ldr x22, [sp, #904]
-    ldr x23, [sp, #896]
-    ldr x24, [sp, #888]
-    ldr x25, [sp, #880]
-    ldr x26, [sp, #872]
-    ldr x27, [sp, #864]
-    ldr x28, [sp, #856]
+    ldr x19, [sp, #912]
+    ldr x20, [sp, #904]
+    ldr x21, [sp, #896]
+    ldr x22, [sp, #888]
+    ldr x23, [sp, #880]
+    ldr x24, [sp, #872]
+    ldr x25, [sp, #864]
+    ldr x26, [sp, #856]
+    ldr x27, [sp, #848]
+    ldr x28, [sp, #840]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
 .L16_13:
 .L16_11:
-    ldr x9, [sp, #0]
-    add x9, x9, #24
-    str x9, [sp, #80]
-    ldr x9, [sp, #80]
+    add x9, x20, #24
+    str x9, [sp, #64]
+    ldr x9, [sp, #64]
     add x14, x9, #16
     ldr x9, [x14]
-    str x9, [sp, #72]
-    ldr x9, [sp, #80]
-    add x9, x9, #8
-    str x9, [sp, #64]
+    str x9, [sp, #56]
+    ldr x9, [sp, #64]
+    add x25, x9, #8
     sub x26, x29, #288
     add x27, x26, #8
     sub x21, x29, #304
     add x28, x21, #8
     sub x9, x29, #320
-    str x9, [sp, #56]
-    ldr x9, [sp, #56]
-    add x9, x9, #8
     str x9, [sp, #48]
+    ldr x9, [sp, #48]
+    add x9, x9, #8
+    str x9, [sp, #40]
     sub x19, x29, #336
     add x9, x19, #8
-    str x9, [sp, #40]
+    str x9, [sp, #32]
     mov x9, #0
     mov x14, x9
     mov x9, #0
     mov x22, x9
 .L16_14:
-    ldr x10, [sp, #72]
+    ldr x10, [sp, #56]
     cmp x22, x10
     b.hs .L16_17
 .L16_15:
-    ldr x9, [sp, #80]
-    ldr x15, [x9]
     ldr x9, [sp, #64]
-    ldr x24, [x9]
-    cmp x22, x24
+    ldr x15, [x9]
+    ldr x12, [x25]
+    cmp x22, x12
     b.lo 1f
     adrp x0, .Ltext_40
     add x0, x0, :lo12:.Ltext_40
@@ -3139,14 +3094,14 @@ lb_json_Value_insert:
     add x1, x1, :lo12:.Ltext_11
     bl lb_core_7trap_at
 1:
-    add x20, x15, x22
-    ldrb w20, [x20]
+    add x13, x15, x22
+    ldrb w13, [x13]
     movz x10, #10
-    cmp w20, w10
+    cmp w13, w10
     b.ne .L16_19
 .L16_18:
-    add x20, x24, #1
-    cmp x14, x20
+    add x13, x12, #1
+    cmp x14, x13
     b.lo 1f
     adrp x0, .Ltext_41
     add x0, x0, :lo12:.Ltext_41
@@ -3154,7 +3109,7 @@ lb_json_Value_insert:
     add x1, x1, :lo12:.Ltext_11
     bl lb_core_7trap_at
 1:
-    cmp x22, x20
+    cmp x22, x13
     b.lo 1f
     adrp x0, .Ltext_41
     add x0, x0, :lo12:.Ltext_41
@@ -3171,34 +3126,34 @@ lb_json_Value_insert:
     add x1, x1, :lo12:.Ltext_11
     bl lb_core_7trap_at
 .L16_24:
-    add x20, x15, x14
+    add x23, x15, x14
     sub x24, x22, x14
-    str x20, [x26]
+    str x23, [x26]
     str x24, [x27]
-    str x20, [x21]
+    str x23, [x21]
     str x24, [x28]
-    ldr x0, [sp, #96]
+    ldr x0, [sp, #80]
     bl lb_json_Bytes_view
     sub x16, x29, #320
     str x0, [x16, #0]
     str x1, [x16, #8]
-    ldr x9, [sp, #56]
-    ldr x23, [x9]
     ldr x9, [sp, #48]
-    ldr x25, [x9]
-    str x23, [x19]
-    ldr x10, [sp, #40]
-    str x25, [x10]
-    cmp x24, x25
-    cset w25, eq
-    cbnz w25, .L16_26
+    ldr x12, [x9]
+    ldr x9, [sp, #40]
+    ldr x13, [x9]
+    str x12, [x19]
+    ldr x10, [sp, #32]
+    str x13, [x10]
+    cmp x24, x13
+    cset w13, eq
+    cbnz w13, .L16_26
     b .L16_79
 .L16_79:
-    mov w14, w25
+    mov w14, w13
     b .L16_27
 .L16_26:
-    mov x0, x20
-    mov x1, x23
+    mov x0, x23
+    mov x1, x12
     mov x2, x24
     bl memcmp
     mov w14, w0
@@ -3225,12 +3180,12 @@ lb_json_Value_insert:
     add x14, x19, #8
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
-    ldr x0, [sp, #96]
+    ldr x0, [sp, #80]
     bl lb_json_Bytes_close
     mov x1, x19
     sub x16, x29, #24
@@ -3239,16 +3194,16 @@ lb_json_Value_insert:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #928]
-    ldr x20, [sp, #920]
-    ldr x21, [sp, #912]
-    ldr x22, [sp, #904]
-    ldr x23, [sp, #896]
-    ldr x24, [sp, #888]
-    ldr x25, [sp, #880]
-    ldr x26, [sp, #872]
-    ldr x27, [sp, #864]
-    ldr x28, [sp, #856]
+    ldr x19, [sp, #912]
+    ldr x20, [sp, #904]
+    ldr x21, [sp, #896]
+    ldr x22, [sp, #888]
+    ldr x23, [sp, #880]
+    ldr x24, [sp, #872]
+    ldr x25, [sp, #864]
+    ldr x26, [sp, #856]
+    ldr x27, [sp, #848]
+    ldr x28, [sp, #840]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -3272,10 +3227,9 @@ lb_json_Value_insert:
     mov x11, x19
     stp xzr, xzr, [x11, #0]
     str xzr, [x11, #16]
-    ldr x9, [sp, #0]
-    add x9, x9, #56
-    str x9, [sp, #32]
-    ldr x9, [sp, #32]
+    add x9, x20, #56
+    str x9, [sp, #24]
+    ldr x9, [sp, #24]
     ldr x14, [x9]
     mov x10, #0
     cmp x14, x10
@@ -3288,8 +3242,7 @@ lb_json_Value_insert:
     add x14, x15, #8
     movz x9, #1
     str x9, [x14]
-    ldr x9, [sp, #0]
-    add x14, x9, #64
+    add x14, x20, #64
     ldr x14, [x14]
     mov x0, x19
     mov x9, x15
@@ -3307,16 +3260,16 @@ lb_json_Value_insert:
     sub x20, x29, #136
     mov x10, x15
     mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x20, #24
     movz x9, #1
     strb w9, [x14]
     mov x0, x19
     bl lb_json_Bytes_close
-    ldr x0, [sp, #96]
+    ldr x0, [sp, #80]
     bl lb_json_Bytes_close
     mov x1, x20
     sub x16, x29, #24
@@ -3325,16 +3278,16 @@ lb_json_Value_insert:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #928]
-    ldr x20, [sp, #920]
-    ldr x21, [sp, #912]
-    ldr x22, [sp, #904]
-    ldr x23, [sp, #896]
-    ldr x24, [sp, #888]
-    ldr x25, [sp, #880]
-    ldr x26, [sp, #872]
-    ldr x27, [sp, #864]
-    ldr x28, [sp, #856]
+    ldr x19, [sp, #912]
+    ldr x20, [sp, #904]
+    ldr x21, [sp, #896]
+    ldr x22, [sp, #888]
+    ldr x23, [sp, #880]
+    ldr x24, [sp, #872]
+    ldr x25, [sp, #864]
+    ldr x26, [sp, #856]
+    ldr x27, [sp, #848]
+    ldr x28, [sp, #840]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -3343,25 +3296,24 @@ lb_json_Value_insert:
     b .L16_31
 .L16_30:
 .L16_31:
-    ldr w9, [sp, #88]
+    ldr w9, [sp, #72]
     mov x10, #0
     cmp w9, w10
     cset w14, eq
     mov x10, #0
     cmp w14, w10
-    cset w21, eq
-    cbnz w21, .L16_35
+    cset w22, eq
+    cbnz w22, .L16_35
     b .L16_36
 .L16_35:
-    ldr x0, [sp, #96]
+    ldr x0, [sp, #80]
     bl lb_json_Bytes_view
     sub x16, x29, #440
     str x0, [x16, #0]
     str x1, [x16, #8]
     sub x14, x29, #440
-    ldr x9, [sp, #0]
-    add x22, x9, #64
-    ldr x15, [x22]
+    add x23, x20, #64
+    ldr x15, [x23]
     mov x0, x19
     mov x9, x14
     ldr x1, [x9]
@@ -3378,16 +3330,16 @@ lb_json_Value_insert:
     sub x20, x29, #136
     mov x10, x15
     mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x20, #24
     movz x9, #1
     strb w9, [x14]
     mov x0, x19
     bl lb_json_Bytes_close
-    ldr x0, [sp, #96]
+    ldr x0, [sp, #80]
     bl lb_json_Bytes_close
     mov x1, x20
     sub x16, x29, #24
@@ -3396,16 +3348,16 @@ lb_json_Value_insert:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #928]
-    ldr x20, [sp, #920]
-    ldr x21, [sp, #912]
-    ldr x22, [sp, #904]
-    ldr x23, [sp, #896]
-    ldr x24, [sp, #888]
-    ldr x25, [sp, #880]
-    ldr x26, [sp, #872]
-    ldr x27, [sp, #864]
-    ldr x28, [sp, #856]
+    ldr x19, [sp, #912]
+    ldr x20, [sp, #904]
+    ldr x21, [sp, #896]
+    ldr x22, [sp, #888]
+    ldr x23, [sp, #880]
+    ldr x24, [sp, #872]
+    ldr x25, [sp, #864]
+    ldr x26, [sp, #856]
+    ldr x27, [sp, #848]
+    ldr x28, [sp, #840]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -3418,7 +3370,7 @@ lb_json_Value_insert:
     add x14, x15, #8
     movz x9, #1
     str x9, [x14]
-    ldr x14, [x22]
+    ldr x14, [x23]
     mov x0, x19
     mov x9, x15
     ldr x1, [x9]
@@ -3435,16 +3387,16 @@ lb_json_Value_insert:
     sub x20, x29, #136
     mov x10, x15
     mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x20, #24
     movz x9, #1
     strb w9, [x14]
     mov x0, x19
     bl lb_json_Bytes_close
-    ldr x0, [sp, #96]
+    ldr x0, [sp, #80]
     bl lb_json_Bytes_close
     mov x1, x20
     sub x16, x29, #24
@@ -3453,16 +3405,16 @@ lb_json_Value_insert:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #928]
-    ldr x20, [sp, #920]
-    ldr x21, [sp, #912]
-    ldr x22, [sp, #904]
-    ldr x23, [sp, #896]
-    ldr x24, [sp, #888]
-    ldr x25, [sp, #880]
-    ldr x26, [sp, #872]
-    ldr x27, [sp, #864]
-    ldr x28, [sp, #856]
+    ldr x19, [sp, #912]
+    ldr x20, [sp, #904]
+    ldr x21, [sp, #896]
+    ldr x22, [sp, #888]
+    ldr x23, [sp, #880]
+    ldr x24, [sp, #872]
+    ldr x25, [sp, #864]
+    ldr x26, [sp, #856]
+    ldr x27, [sp, #848]
+    ldr x28, [sp, #840]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -3479,9 +3431,8 @@ lb_json_Value_insert:
     str x0, [x16, #0]
     str x1, [x16, #8]
     sub x14, x29, #536
-    ldr x9, [sp, #0]
-    add x22, x9, #64
-    ldr x15, [x22]
+    add x23, x20, #64
+    ldr x15, [x23]
     mov x0, x19
     mov x9, x14
     ldr x1, [x9]
@@ -3498,16 +3449,16 @@ lb_json_Value_insert:
     sub x20, x29, #136
     mov x10, x15
     mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x20, #24
     movz x9, #1
     strb w9, [x14]
     mov x0, x19
     bl lb_json_Bytes_close
-    ldr x0, [sp, #96]
+    ldr x0, [sp, #80]
     bl lb_json_Bytes_close
     mov x1, x20
     sub x16, x29, #24
@@ -3516,36 +3467,35 @@ lb_json_Value_insert:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #928]
-    ldr x20, [sp, #920]
-    ldr x21, [sp, #912]
-    ldr x22, [sp, #904]
-    ldr x23, [sp, #896]
-    ldr x24, [sp, #888]
-    ldr x25, [sp, #880]
-    ldr x26, [sp, #872]
-    ldr x27, [sp, #864]
-    ldr x28, [sp, #856]
+    ldr x19, [sp, #912]
+    ldr x20, [sp, #904]
+    ldr x21, [sp, #896]
+    ldr x22, [sp, #888]
+    ldr x23, [sp, #880]
+    ldr x24, [sp, #872]
+    ldr x25, [sp, #864]
+    ldr x26, [sp, #856]
+    ldr x27, [sp, #848]
+    ldr x28, [sp, #840]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
 .L16_46:
 .L16_44:
-    ldr x9, [sp, #0]
-    add x23, x9, #16
-    ldr x14, [x23]
-    add x24, x19, #16
-    ldr x15, [x24]
-    sub x25, x29, #576
+    add x24, x20, #16
+    ldr x14, [x24]
+    add x25, x19, #16
+    ldr x15, [x25]
+    sub x26, x29, #576
     mov x0, x14
     mov x1, x15
     movz x2, #64
-    mov x3, x25
+    mov x3, x26
     bl lb_core_6qadd_u
     mov w14, w0
     sub x15, x29, #592
-    ldr x25, [x25]
-    str x25, [x15]
+    ldr x26, [x26]
+    str x26, [x15]
     add x15, x15, #8
     strb w14, [x15]
     ldrb w14, [x15]
@@ -3569,14 +3519,14 @@ lb_json_Value_insert:
     add x14, x20, #8
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x20, #24
     movz x9, #1
     strb w9, [x14]
     mov x0, x19
     bl lb_json_Bytes_close
-    ldr x0, [sp, #96]
+    ldr x0, [sp, #80]
     bl lb_json_Bytes_close
     mov x1, x20
     sub x16, x29, #24
@@ -3585,47 +3535,44 @@ lb_json_Value_insert:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #928]
-    ldr x20, [sp, #920]
-    ldr x21, [sp, #912]
-    ldr x22, [sp, #904]
-    ldr x23, [sp, #896]
-    ldr x24, [sp, #888]
-    ldr x25, [sp, #880]
-    ldr x26, [sp, #872]
-    ldr x27, [sp, #864]
-    ldr x28, [sp, #856]
+    ldr x19, [sp, #912]
+    ldr x20, [sp, #904]
+    ldr x21, [sp, #896]
+    ldr x22, [sp, #888]
+    ldr x23, [sp, #880]
+    ldr x24, [sp, #872]
+    ldr x25, [sp, #864]
+    ldr x26, [sp, #856]
+    ldr x27, [sp, #848]
+    ldr x28, [sp, #840]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
 .L16_50:
 .L16_49:
-    ldr x9, [sp, #0]
-    add x9, x9, #24
-    str x9, [sp, #24]
-    ldr x9, [sp, #24]
-    add x9, x9, #16
+    add x27, x20, #24
+    add x9, x27, #16
     str x9, [sp, #16]
     ldr x9, [sp, #16]
     ldr x14, [x9]
-    ldr x9, [sp, #96]
+    ldr x9, [sp, #80]
     add x9, x9, #16
     str x9, [sp, #8]
     ldr x9, [sp, #8]
     ldr x15, [x9]
-    sub x20, x29, #616
+    sub x21, x29, #616
     mov x0, x14
     mov x1, x15
     movz x2, #64
-    mov x3, x20
+    mov x3, x21
     bl lb_core_6qadd_u
     mov w14, w0
-    sub x28, x29, #632
-    ldr x15, [x20]
-    str x15, [x28]
-    add x20, x28, #8
-    strb w14, [x20]
-    ldrb w14, [x20]
+    sub x12, x29, #632
+    ldr x15, [x21]
+    str x15, [x12]
+    add x12, x12, #8
+    strb w14, [x12]
+    ldrb w14, [x12]
     cbnz w14, .L16_51
     b .L16_52
 .L16_51:
@@ -3646,14 +3593,14 @@ lb_json_Value_insert:
     add x14, x20, #8
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x20, #24
     movz x9, #1
     strb w9, [x14]
     mov x0, x19
     bl lb_json_Bytes_close
-    ldr x0, [sp, #96]
+    ldr x0, [sp, #80]
     bl lb_json_Bytes_close
     mov x1, x20
     sub x16, x29, #24
@@ -3662,34 +3609,34 @@ lb_json_Value_insert:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #928]
-    ldr x20, [sp, #920]
-    ldr x21, [sp, #912]
-    ldr x22, [sp, #904]
-    ldr x23, [sp, #896]
-    ldr x24, [sp, #888]
-    ldr x25, [sp, #880]
-    ldr x26, [sp, #872]
-    ldr x27, [sp, #864]
-    ldr x28, [sp, #856]
+    ldr x19, [sp, #912]
+    ldr x20, [sp, #904]
+    ldr x21, [sp, #896]
+    ldr x22, [sp, #888]
+    ldr x23, [sp, #880]
+    ldr x24, [sp, #872]
+    ldr x25, [sp, #864]
+    ldr x26, [sp, #856]
+    ldr x27, [sp, #848]
+    ldr x28, [sp, #840]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
 .L16_54:
 .L16_53:
-    sub x20, x29, #656
+    sub x21, x29, #656
     mov x0, x15
     movz x1, #1
     movz x2, #64
-    mov x3, x20
+    mov x3, x21
     bl lb_core_6qadd_u
     mov w14, w0
-    sub x28, x29, #672
-    ldr x20, [x20]
-    str x20, [x28]
-    add x28, x28, #8
-    strb w14, [x28]
-    ldrb w14, [x28]
+    sub x12, x29, #672
+    ldr x21, [x21]
+    str x21, [x12]
+    add x12, x12, #8
+    strb w14, [x12]
+    ldrb w14, [x12]
     cbnz w14, .L16_55
     b .L16_56
 .L16_55:
@@ -3710,14 +3657,14 @@ lb_json_Value_insert:
     add x14, x20, #8
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x20, #24
     movz x9, #1
     strb w9, [x14]
     mov x0, x19
     bl lb_json_Bytes_close
-    ldr x0, [sp, #96]
+    ldr x0, [sp, #80]
     bl lb_json_Bytes_close
     mov x1, x20
     sub x16, x29, #24
@@ -3726,24 +3673,24 @@ lb_json_Value_insert:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #928]
-    ldr x20, [sp, #920]
-    ldr x21, [sp, #912]
-    ldr x22, [sp, #904]
-    ldr x23, [sp, #896]
-    ldr x24, [sp, #888]
-    ldr x25, [sp, #880]
-    ldr x26, [sp, #872]
-    ldr x27, [sp, #864]
-    ldr x28, [sp, #856]
+    ldr x19, [sp, #912]
+    ldr x20, [sp, #904]
+    ldr x21, [sp, #896]
+    ldr x22, [sp, #888]
+    ldr x23, [sp, #880]
+    ldr x24, [sp, #872]
+    ldr x25, [sp, #864]
+    ldr x26, [sp, #856]
+    ldr x27, [sp, #848]
+    ldr x28, [sp, #840]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
 .L16_58:
 .L16_57:
-    ldr x14, [x22]
-    ldr x0, [sp, #0]
-    mov x1, x25
+    ldr x14, [x23]
+    mov x0, x20
+    mov x1, x26
     mov x2, x14
     sub x8, x29, #720
     bl lb_json_Bytes_reserve
@@ -3756,16 +3703,16 @@ lb_json_Value_insert:
     sub x20, x29, #136
     mov x10, x15
     mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x20, #24
     movz x9, #1
     strb w9, [x14]
     mov x0, x19
     bl lb_json_Bytes_close
-    ldr x0, [sp, #96]
+    ldr x0, [sp, #80]
     bl lb_json_Bytes_close
     mov x1, x20
     sub x16, x29, #24
@@ -3774,27 +3721,27 @@ lb_json_Value_insert:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #928]
-    ldr x20, [sp, #920]
-    ldr x21, [sp, #912]
-    ldr x22, [sp, #904]
-    ldr x23, [sp, #896]
-    ldr x24, [sp, #888]
-    ldr x25, [sp, #880]
-    ldr x26, [sp, #872]
-    ldr x27, [sp, #864]
-    ldr x28, [sp, #856]
+    ldr x19, [sp, #912]
+    ldr x20, [sp, #904]
+    ldr x21, [sp, #896]
+    ldr x22, [sp, #888]
+    ldr x23, [sp, #880]
+    ldr x24, [sp, #872]
+    ldr x25, [sp, #864]
+    ldr x26, [sp, #856]
+    ldr x27, [sp, #848]
+    ldr x28, [sp, #840]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
 .L16_61:
 .L16_59:
-    cbnz w21, .L16_62
+    cbnz w22, .L16_62
     b .L16_63
 .L16_62:
-    ldr x14, [x22]
-    ldr x0, [sp, #24]
-    mov x1, x20
+    ldr x14, [x23]
+    mov x0, x27
+    mov x1, x21
     mov x2, x14
     sub x8, x29, #752
     bl lb_json_Bytes_reserve
@@ -3807,16 +3754,16 @@ lb_json_Value_insert:
     sub x20, x29, #136
     mov x10, x15
     mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x20, #24
     movz x9, #1
     strb w9, [x14]
     mov x0, x19
     bl lb_json_Bytes_close
-    ldr x0, [sp, #96]
+    ldr x0, [sp, #80]
     bl lb_json_Bytes_close
     mov x1, x20
     sub x16, x29, #24
@@ -3825,16 +3772,16 @@ lb_json_Value_insert:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #928]
-    ldr x20, [sp, #920]
-    ldr x21, [sp, #912]
-    ldr x22, [sp, #904]
-    ldr x23, [sp, #896]
-    ldr x24, [sp, #888]
-    ldr x25, [sp, #880]
-    ldr x26, [sp, #872]
-    ldr x27, [sp, #864]
-    ldr x28, [sp, #856]
+    ldr x19, [sp, #912]
+    ldr x20, [sp, #904]
+    ldr x21, [sp, #896]
+    ldr x22, [sp, #888]
+    ldr x23, [sp, #880]
+    ldr x24, [sp, #872]
+    ldr x25, [sp, #864]
+    ldr x26, [sp, #856]
+    ldr x27, [sp, #848]
+    ldr x28, [sp, #840]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -3843,7 +3790,7 @@ lb_json_Value_insert:
     b .L16_64
 .L16_63:
 .L16_64:
-    ldr x14, [x23]
+    ldr x14, [x24]
     mov x9, x14
     movz x10, #1
     subs x9, x9, x10
@@ -3855,12 +3802,10 @@ lb_json_Value_insert:
     bl lb_core_7trap_at
 1:
     mov x14, x9
-    ldr x9, [sp, #0]
-    ldr x22, [x9]
-    ldr x9, [sp, #0]
-    add x20, x9, #8
-    ldr x28, [x20]
-    add x15, x28, #1
+    ldr x12, [x20]
+    add x21, x20, #8
+    ldr x13, [x21]
+    add x15, x13, #1
     cmp x14, x15
     b.lo 1f
     adrp x0, .Ltext_48
@@ -3869,7 +3814,7 @@ lb_json_Value_insert:
     add x1, x1, :lo12:.Ltext_11
     bl lb_core_7trap_at
 1:
-    cmp x28, x15
+    cmp x13, x15
     b.lo 1f
     adrp x0, .Ltext_48
     add x0, x0, :lo12:.Ltext_48
@@ -3877,7 +3822,7 @@ lb_json_Value_insert:
     add x1, x1, :lo12:.Ltext_11
     bl lb_core_7trap_at
 1:
-    cmp x14, x28
+    cmp x14, x13
     b.ls .L16_68
 .L16_69:
     adrp x0, .Ltext_48
@@ -3886,34 +3831,34 @@ lb_json_Value_insert:
     add x1, x1, :lo12:.Ltext_11
     bl lb_core_7trap_at
 .L16_68:
-    add x15, x14, x22
-    sub x27, x28, x14
-    sub x26, x29, #768
-    str x15, [x26]
-    add x15, x26, #8
-    str x27, [x15]
-    sub x27, x29, #784
-    mov x10, x26
-    mov x11, x27
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    add x15, x14, x12
+    sub x23, x13, x14
+    sub x28, x29, #768
+    str x15, [x28]
+    add x15, x28, #8
+    str x23, [x15]
+    sub x23, x29, #784
+    mov x10, x28
+    mov x11, x23
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     mov x0, x19
     bl lb_json_Bytes_view
     sub x16, x29, #800
     str x0, [x16, #0]
     str x1, [x16, #8]
     sub x15, x29, #800
-    ldr x26, [x24]
-    mov x9, x27
+    ldr x28, [x25]
+    mov x9, x23
     ldr x0, [x9]
     ldr x1, [x9, #8]
     mov x9, x15
     ldr x2, [x9]
     ldr x3, [x9, #8]
-    mov x4, x26
+    mov x4, x28
     bl lb_memory_copy_0g1_u8
-    str x25, [x23]
-    mov x9, x25
+    str x26, [x24]
+    mov x9, x26
     movz x10, #1
     subs x9, x9, x10
     b.cs 1f
@@ -3924,10 +3869,9 @@ lb_json_Value_insert:
     bl lb_core_7trap_at
 1:
     mov x15, x9
-    ldr x9, [sp, #0]
-    ldr x26, [x9]
-    ldr x27, [x20]
-    cmp x15, x27
+    ldr x23, [x20]
+    ldr x28, [x21]
+    cmp x15, x28
     b.lo 1f
     adrp x0, .Ltext_49
     add x0, x0, :lo12:.Ltext_49
@@ -3935,8 +3879,8 @@ lb_json_Value_insert:
     add x1, x1, :lo12:.Ltext_11
     bl lb_core_7trap_at
 1:
-    add x26, x15, x26
-    ldr x9, [sp, #104]
+    add x23, x15, x23
+    ldr x9, [sp, #88]
     ldrb w15, [x9]
     movz x10, #123
     cmp w15, w10
@@ -3950,19 +3894,17 @@ lb_json_Value_insert:
     mov w14, w9
 .L16_72:
     and w15, w14, #255
-    strb w15, [x26]
-    cbnz w21, .L16_73
+    strb w15, [x23]
+    cbnz w22, .L16_73
     b .L16_74
 .L16_73:
-    ldr x9, [sp, #24]
-    ldr x15, [x9]
-    ldr x9, [sp, #24]
-    add x20, x9, #8
-    ldr x21, [x20]
+    ldr x15, [x27]
+    add x20, x27, #8
+    ldr x12, [x20]
     ldr x9, [sp, #16]
-    ldr x22, [x9]
-    add x14, x21, #1
-    cmp x22, x14
+    ldr x13, [x9]
+    add x14, x12, #1
+    cmp x13, x14
     b.lo 1f
     adrp x0, .Ltext_50
     add x0, x0, :lo12:.Ltext_50
@@ -3970,7 +3912,7 @@ lb_json_Value_insert:
     add x1, x1, :lo12:.Ltext_11
     bl lb_core_7trap_at
 1:
-    cmp x21, x14
+    cmp x12, x14
     b.lo 1f
     adrp x0, .Ltext_50
     add x0, x0, :lo12:.Ltext_50
@@ -3978,7 +3920,7 @@ lb_json_Value_insert:
     add x1, x1, :lo12:.Ltext_11
     bl lb_core_7trap_at
 1:
-    cmp x22, x21
+    cmp x13, x12
     b.ls .L16_76
 .L16_77:
     adrp x0, .Ltext_50
@@ -3987,39 +3929,39 @@ lb_json_Value_insert:
     add x1, x1, :lo12:.Ltext_11
     bl lb_core_7trap_at
 .L16_76:
-    add x14, x15, x22
-    sub x23, x21, x22
-    sub x24, x29, #816
-    str x14, [x24]
-    add x14, x24, #8
-    str x23, [x14]
-    sub x23, x29, #832
-    mov x10, x24
-    mov x11, x23
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x0, [sp, #96]
+    add x14, x15, x13
+    sub x21, x12, x13
+    sub x22, x29, #816
+    str x14, [x22]
+    add x14, x22, #8
+    str x21, [x14]
+    sub x21, x29, #832
+    mov x10, x22
+    mov x11, x21
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x0, [sp, #80]
     bl lb_json_Bytes_view
     sub x16, x29, #848
     str x0, [x16, #0]
     str x1, [x16, #8]
     sub x14, x29, #848
     ldr x9, [sp, #8]
-    ldr x24, [x9]
-    mov x9, x23
+    ldr x22, [x9]
+    mov x9, x21
     ldr x0, [x9]
     ldr x1, [x9, #8]
     mov x9, x14
     ldr x2, [x9]
     ldr x3, [x9, #8]
-    mov x4, x24
+    mov x4, x22
     bl lb_memory_copy_0g1_u8
     ldr x9, [sp, #16]
     ldr x14, [x9]
     ldr x9, [sp, #8]
-    ldr x23, [x9]
+    ldr x21, [x9]
     mov x9, x14
-    mov x10, x23
+    mov x10, x21
     adds x9, x9, x10
     b.cc 1f
     adrp x0, .Ltext_51
@@ -4031,10 +3973,9 @@ lb_json_Value_insert:
     mov x14, x9
     ldr x10, [sp, #16]
     str x14, [x10]
-    ldr x9, [sp, #24]
-    ldr x23, [x9]
-    ldr x24, [x20]
-    cmp x14, x24
+    ldr x21, [x27]
+    ldr x22, [x20]
+    cmp x14, x22
     b.lo 1f
     adrp x0, .Ltext_52
     add x0, x0, :lo12:.Ltext_52
@@ -4042,7 +3983,7 @@ lb_json_Value_insert:
     add x1, x1, :lo12:.Ltext_11
     bl lb_core_7trap_at
 1:
-    add x14, x14, x23
+    add x14, x14, x21
     movz x9, #10
     strb w9, [x14]
     ldr x9, [sp, #16]
@@ -4063,7 +4004,7 @@ lb_json_Value_insert:
     b .L16_75
 .L16_74:
 .L16_75:
-    ldr x9, [sp, #32]
+    ldr x9, [sp, #24]
     ldr x14, [x9]
     mov x9, x14
     movz x10, #1
@@ -4076,11 +4017,11 @@ lb_json_Value_insert:
     bl lb_core_7trap_at
 1:
     mov x14, x9
-    ldr x10, [sp, #32]
+    ldr x10, [sp, #24]
     str x14, [x10]
     mov x0, x19
     bl lb_json_Bytes_close
-    ldr x0, [sp, #96]
+    ldr x0, [sp, #80]
     bl lb_json_Bytes_close
     sub x14, x29, #136
     add x15, x14, #24
@@ -4093,16 +4034,16 @@ lb_json_Value_insert:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #928]
-    ldr x20, [sp, #920]
-    ldr x21, [sp, #912]
-    ldr x22, [sp, #904]
-    ldr x23, [sp, #896]
-    ldr x24, [sp, #888]
-    ldr x25, [sp, #880]
-    ldr x26, [sp, #872]
-    ldr x27, [sp, #864]
-    ldr x28, [sp, #856]
+    ldr x19, [sp, #912]
+    ldr x20, [sp, #904]
+    ldr x21, [sp, #896]
+    ldr x22, [sp, #888]
+    ldr x23, [sp, #880]
+    ldr x24, [sp, #872]
+    ldr x25, [sp, #864]
+    ldr x26, [sp, #856]
+    ldr x27, [sp, #848]
+    ldr x28, [sp, #840]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -4134,18 +4075,18 @@ lb_json_Value_set:
     sub x19, x29, #144
     mov x10, x14
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #16
     movz x9, #1
     strb w9, [x14]
     sub x20, x29, #168
     mov x10, x19
     mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     sub x14, x29, #120
     mov x0, x14
     sub x8, x29, #208
@@ -4160,10 +4101,10 @@ lb_json_Value_set:
     sub x19, x29, #80
     mov x10, x14
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
@@ -4189,23 +4130,23 @@ lb_json_Value_set:
     mov x2, x14
     sub x8, x29, #240
     bl lb_json_Value_insert
-    sub x19, x29, #240
-    add x14, x19, #24
+    sub x12, x29, #240
+    add x14, x12, #24
     ldrb w14, [x14]
     cbnz w14, .L17_5
     b .L17_4
 .L17_5:
-    sub x20, x29, #80
-    mov x10, x19
-    mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
-    add x14, x20, #24
+    sub x19, x29, #80
+    mov x10, x12
+    mov x11, x19
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
+    add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
-    mov x1, x20
+    mov x1, x19
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
@@ -4265,10 +4206,10 @@ lb_json_Value_append:
     sub x20, x29, #152
     mov x10, x19
     mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     sub x14, x29, #104
     mov x0, x14
     sub x8, x29, #192
@@ -4283,10 +4224,10 @@ lb_json_Value_append:
     sub x19, x29, #80
     mov x10, x14
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
@@ -4312,23 +4253,23 @@ lb_json_Value_append:
     mov x2, x14
     sub x8, x29, #224
     bl lb_json_Value_insert
-    sub x19, x29, #224
-    add x14, x19, #24
+    sub x12, x29, #224
+    add x14, x12, #24
     ldrb w14, [x14]
     cbnz w14, .L18_5
     b .L18_4
 .L18_5:
-    sub x20, x29, #80
-    mov x10, x19
-    mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
-    add x14, x20, #24
+    sub x19, x29, #80
+    mov x10, x12
+    mov x11, x19
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
+    add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
-    mov x1, x20
+    mov x1, x19
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
@@ -4369,43 +4310,42 @@ lb_json_Value_append:
 lb_json_Value_8set_text:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #208
+    sub sp, sp, #192
     sub x16, x29, #24
     str x8, [x16]
-    str x19, [sp, #176]
-    str x20, [sp, #168]
-    str x21, [sp, #160]
-    sub x16, x29, #88
+    str x19, [sp, #160]
+    str x20, [sp, #152]
+    sub x16, x29, #80
     str x0, [x16]
-    sub x16, x29, #104
+    sub x16, x29, #96
     str x1, [x16]
     str x2, [x16, #8]
-    sub x16, x29, #120
+    sub x16, x29, #112
     str x3, [x16]
     str x4, [x16, #8]
-    sub x9, x29, #88
+    sub x9, x29, #80
     ldr x19, [x9]
-    sub x20, x29, #128
-    sub x14, x29, #120
+    sub x20, x29, #120
+    sub x14, x29, #112
     mov x9, x14
     ldr x0, [x9]
     ldr x1, [x9, #8]
-    sub x8, x29, #168
+    sub x8, x29, #160
     bl lb_json_Value_text
-    sub x15, x29, #168
+    sub x15, x29, #160
     add x14, x15, #32
     ldrb w14, [x14]
     cbnz w14, .L19_2
     b .L19_1
 .L19_2:
     add x14, x15, #8
-    sub x19, x29, #80
+    sub x19, x29, #72
     mov x10, x14
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
@@ -4416,9 +4356,8 @@ lb_json_Value_8set_text:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #176]
-    ldr x20, [sp, #168]
-    ldr x21, [sp, #160]
+    ldr x19, [sp, #160]
+    ldr x20, [sp, #152]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -4426,30 +4365,30 @@ lb_json_Value_8set_text:
 .L19_1:
     mov x10, x15
     mov x11, x20
-    ldr x12, [x10, #0]
-    str x12, [x11, #0]
-    sub x14, x29, #104
+    ldr x16, [x10, #0]
+    str x16, [x11, #0]
+    sub x14, x29, #96
     mov x0, x19
     mov x9, x14
     ldr x1, [x9]
     ldr x2, [x9, #8]
     mov x9, x20
     ldr x3, [x9]
-    sub x8, x29, #200
+    sub x8, x29, #192
     bl lb_json_Value_set
-    sub x21, x29, #200
-    add x14, x21, #24
+    sub x12, x29, #192
+    add x14, x12, #24
     ldrb w14, [x14]
     cbnz w14, .L19_5
     b .L19_4
 .L19_5:
-    sub x19, x29, #80
-    mov x10, x21
+    sub x19, x29, #72
+    mov x10, x12
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
@@ -4464,9 +4403,8 @@ lb_json_Value_8set_text:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #176]
-    ldr x20, [sp, #168]
-    ldr x21, [sp, #160]
+    ldr x19, [sp, #160]
+    ldr x20, [sp, #152]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -4476,7 +4414,7 @@ lb_json_Value_8set_text:
     mov x0, x14
     bl lb_ownership_release
 .L19_8:
-    sub x14, x29, #80
+    sub x14, x29, #72
     add x15, x14, #24
     mov x9, #0
     strb w9, [x15]
@@ -4487,9 +4425,8 @@ lb_json_Value_8set_text:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #176]
-    ldr x20, [sp, #168]
-    ldr x21, [sp, #160]
+    ldr x19, [sp, #160]
+    ldr x20, [sp, #152]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -4502,41 +4439,40 @@ lb_json_Value_8set_text:
 lb_json_Value_11set_integer:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #208
+    sub sp, sp, #192
     sub x16, x29, #24
     str x8, [x16]
-    str x19, [sp, #176]
-    str x20, [sp, #168]
-    str x21, [sp, #160]
-    sub x16, x29, #88
+    str x19, [sp, #160]
+    str x20, [sp, #152]
+    sub x16, x29, #80
     str x0, [x16]
-    sub x16, x29, #104
+    sub x16, x29, #96
     str x1, [x16]
     str x2, [x16, #8]
-    sub x16, x29, #120
+    sub x16, x29, #112
     str x3, [x16]
-    sub x9, x29, #88
+    sub x9, x29, #80
     ldr x19, [x9]
-    sub x20, x29, #128
-    sub x14, x29, #120
+    sub x20, x29, #120
+    sub x14, x29, #112
     ldr x14, [x14]
     mov x0, x14
-    sub x8, x29, #168
+    sub x8, x29, #160
     bl lb_json_Value_integer
-    sub x15, x29, #168
+    sub x15, x29, #160
     add x14, x15, #32
     ldrb w14, [x14]
     cbnz w14, .L20_2
     b .L20_1
 .L20_2:
     add x14, x15, #8
-    sub x19, x29, #80
+    sub x19, x29, #72
     mov x10, x14
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
@@ -4547,9 +4483,8 @@ lb_json_Value_11set_integer:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #176]
-    ldr x20, [sp, #168]
-    ldr x21, [sp, #160]
+    ldr x19, [sp, #160]
+    ldr x20, [sp, #152]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -4557,30 +4492,30 @@ lb_json_Value_11set_integer:
 .L20_1:
     mov x10, x15
     mov x11, x20
-    ldr x12, [x10, #0]
-    str x12, [x11, #0]
-    sub x14, x29, #104
+    ldr x16, [x10, #0]
+    str x16, [x11, #0]
+    sub x14, x29, #96
     mov x0, x19
     mov x9, x14
     ldr x1, [x9]
     ldr x2, [x9, #8]
     mov x9, x20
     ldr x3, [x9]
-    sub x8, x29, #200
+    sub x8, x29, #192
     bl lb_json_Value_set
-    sub x21, x29, #200
-    add x14, x21, #24
+    sub x12, x29, #192
+    add x14, x12, #24
     ldrb w14, [x14]
     cbnz w14, .L20_5
     b .L20_4
 .L20_5:
-    sub x19, x29, #80
-    mov x10, x21
+    sub x19, x29, #72
+    mov x10, x12
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
@@ -4595,9 +4530,8 @@ lb_json_Value_11set_integer:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #176]
-    ldr x20, [sp, #168]
-    ldr x21, [sp, #160]
+    ldr x19, [sp, #160]
+    ldr x20, [sp, #152]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -4607,7 +4541,7 @@ lb_json_Value_11set_integer:
     mov x0, x14
     bl lb_ownership_release
 .L20_8:
-    sub x14, x29, #80
+    sub x14, x29, #72
     add x15, x14, #24
     mov x9, #0
     strb w9, [x15]
@@ -4618,9 +4552,8 @@ lb_json_Value_11set_integer:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #176]
-    ldr x20, [sp, #168]
-    ldr x21, [sp, #160]
+    ldr x19, [sp, #160]
+    ldr x20, [sp, #152]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -4633,42 +4566,41 @@ lb_json_Value_11set_integer:
 lb_json_Value_10set_number:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #208
+    sub sp, sp, #192
     sub x16, x29, #24
     str x8, [x16]
-    str x19, [sp, #176]
-    str x20, [sp, #168]
-    str x21, [sp, #160]
-    sub x16, x29, #88
+    str x19, [sp, #160]
+    str x20, [sp, #152]
+    sub x16, x29, #80
     str x0, [x16]
-    sub x16, x29, #104
+    sub x16, x29, #96
     str x1, [x16]
     str x2, [x16, #8]
-    sub x16, x29, #120
+    sub x16, x29, #112
     str d0, [x16]
-    sub x9, x29, #88
+    sub x9, x29, #80
     ldr x19, [x9]
-    sub x20, x29, #128
-    sub x14, x29, #120
+    sub x20, x29, #120
+    sub x14, x29, #112
     ldr d24, [x14]
     fmov d16, d24
     fmov d0, d16
-    sub x8, x29, #168
+    sub x8, x29, #160
     bl lb_json_Value_number
-    sub x15, x29, #168
+    sub x15, x29, #160
     add x14, x15, #32
     ldrb w14, [x14]
     cbnz w14, .L21_2
     b .L21_1
 .L21_2:
     add x14, x15, #8
-    sub x19, x29, #80
+    sub x19, x29, #72
     mov x10, x14
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
@@ -4679,9 +4611,8 @@ lb_json_Value_10set_number:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #176]
-    ldr x20, [sp, #168]
-    ldr x21, [sp, #160]
+    ldr x19, [sp, #160]
+    ldr x20, [sp, #152]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -4689,30 +4620,30 @@ lb_json_Value_10set_number:
 .L21_1:
     mov x10, x15
     mov x11, x20
-    ldr x12, [x10, #0]
-    str x12, [x11, #0]
-    sub x14, x29, #104
+    ldr x16, [x10, #0]
+    str x16, [x11, #0]
+    sub x14, x29, #96
     mov x0, x19
     mov x9, x14
     ldr x1, [x9]
     ldr x2, [x9, #8]
     mov x9, x20
     ldr x3, [x9]
-    sub x8, x29, #200
+    sub x8, x29, #192
     bl lb_json_Value_set
-    sub x21, x29, #200
-    add x14, x21, #24
+    sub x12, x29, #192
+    add x14, x12, #24
     ldrb w14, [x14]
     cbnz w14, .L21_5
     b .L21_4
 .L21_5:
-    sub x19, x29, #80
-    mov x10, x21
+    sub x19, x29, #72
+    mov x10, x12
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
@@ -4727,9 +4658,8 @@ lb_json_Value_10set_number:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #176]
-    ldr x20, [sp, #168]
-    ldr x21, [sp, #160]
+    ldr x19, [sp, #160]
+    ldr x20, [sp, #152]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -4739,7 +4669,7 @@ lb_json_Value_10set_number:
     mov x0, x14
     bl lb_ownership_release
 .L21_8:
-    sub x14, x29, #80
+    sub x14, x29, #72
     add x15, x14, #24
     mov x9, #0
     strb w9, [x15]
@@ -4750,9 +4680,8 @@ lb_json_Value_10set_number:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #176]
-    ldr x20, [sp, #168]
-    ldr x21, [sp, #160]
+    ldr x19, [sp, #160]
+    ldr x20, [sp, #152]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -4765,41 +4694,40 @@ lb_json_Value_10set_number:
 lb_json_Value_11set_boolean:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #208
+    sub sp, sp, #192
     sub x16, x29, #24
     str x8, [x16]
-    str x19, [sp, #176]
-    str x20, [sp, #168]
-    str x21, [sp, #160]
-    sub x16, x29, #88
+    str x19, [sp, #160]
+    str x20, [sp, #152]
+    sub x16, x29, #80
     str x0, [x16]
-    sub x16, x29, #104
+    sub x16, x29, #96
     str x1, [x16]
     str x2, [x16, #8]
-    sub x16, x29, #120
+    sub x16, x29, #112
     str w3, [x16]
-    sub x9, x29, #88
+    sub x9, x29, #80
     ldr x19, [x9]
-    sub x20, x29, #128
-    sub x14, x29, #120
+    sub x20, x29, #120
+    sub x14, x29, #112
     ldrb w14, [x14]
     mov x0, x14
-    sub x8, x29, #168
+    sub x8, x29, #160
     bl lb_json_Value_boolean
-    sub x15, x29, #168
+    sub x15, x29, #160
     add x14, x15, #32
     ldrb w14, [x14]
     cbnz w14, .L22_2
     b .L22_1
 .L22_2:
     add x14, x15, #8
-    sub x19, x29, #80
+    sub x19, x29, #72
     mov x10, x14
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
@@ -4810,9 +4738,8 @@ lb_json_Value_11set_boolean:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #176]
-    ldr x20, [sp, #168]
-    ldr x21, [sp, #160]
+    ldr x19, [sp, #160]
+    ldr x20, [sp, #152]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -4820,30 +4747,30 @@ lb_json_Value_11set_boolean:
 .L22_1:
     mov x10, x15
     mov x11, x20
-    ldr x12, [x10, #0]
-    str x12, [x11, #0]
-    sub x14, x29, #104
+    ldr x16, [x10, #0]
+    str x16, [x11, #0]
+    sub x14, x29, #96
     mov x0, x19
     mov x9, x14
     ldr x1, [x9]
     ldr x2, [x9, #8]
     mov x9, x20
     ldr x3, [x9]
-    sub x8, x29, #200
+    sub x8, x29, #192
     bl lb_json_Value_set
-    sub x21, x29, #200
-    add x14, x21, #24
+    sub x12, x29, #192
+    add x14, x12, #24
     ldrb w14, [x14]
     cbnz w14, .L22_5
     b .L22_4
 .L22_5:
-    sub x19, x29, #80
-    mov x10, x21
+    sub x19, x29, #72
+    mov x10, x12
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
@@ -4858,9 +4785,8 @@ lb_json_Value_11set_boolean:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #176]
-    ldr x20, [sp, #168]
-    ldr x21, [sp, #160]
+    ldr x19, [sp, #160]
+    ldr x20, [sp, #152]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -4870,7 +4796,7 @@ lb_json_Value_11set_boolean:
     mov x0, x14
     bl lb_ownership_release
 .L22_8:
-    sub x14, x29, #80
+    sub x14, x29, #72
     add x15, x14, #24
     mov x9, #0
     strb w9, [x15]
@@ -4881,9 +4807,8 @@ lb_json_Value_11set_boolean:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #176]
-    ldr x20, [sp, #168]
-    ldr x21, [sp, #160]
+    ldr x19, [sp, #160]
+    ldr x20, [sp, #152]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -5039,8 +4964,8 @@ lb_interop_Reference_0g1_json_Value_adopt:
     sub x14, x29, #224
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     b .L25_3
 .L25_2:
     adrp x0, :gottprel:lb_memory_allocator
@@ -5051,14 +4976,14 @@ lb_interop_Reference_0g1_json_Value_adopt:
     sub x15, x29, #224
     mov x10, x14
     mov x11, x15
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
 .L25_3:
     sub x14, x29, #224
     mov x10, x14
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     sub x24, x29, #232
     sub x20, x29, #272
     mov x11, x20
@@ -5074,18 +4999,18 @@ lb_interop_Reference_0g1_json_Value_adopt:
     add x23, x25, #8
     mov x10, x22
     mov x11, x23
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x22, #24
     ldrb w14, [x14]
     add x22, x25, #32
     strb w14, [x22]
     mov x10, x20
     mov x11, x25
-    ldr x12, [x10, #0]
-    str x12, [x11, #0]
+    ldr x16, [x10, #0]
+    str x16, [x11, #0]
     ldrb w14, [x22]
     cbnz w14, .L25_7
     b .L25_6
@@ -5093,17 +5018,17 @@ lb_interop_Reference_0g1_json_Value_adopt:
     sub x20, x29, #264
     mov x10, x23
     mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     b .L25_4
 .L25_6:
     sub x20, x29, #240
     mov x10, x25
     mov x11, x20
-    ldr x12, [x10, #0]
-    str x12, [x11, #0]
+    ldr x16, [x10, #0]
+    str x16, [x11, #0]
     b .L25_5
 .L25_4:
     add x14, x21, #16
@@ -5121,14 +5046,14 @@ lb_interop_Reference_0g1_json_Value_adopt:
     movz x9, #72
     str x9, [x15]
     ldr x15, [x19]
-    add x22, x19, #8
-    ldr x22, [x22]
-    cbnz x22, .L25_9
+    add x12, x19, #8
+    ldr x12, [x12]
+    cbnz x12, .L25_9
     b .L25_8
 .L25_9:
-    add x19, x22, #16
-    ldr x19, [x19]
-    mov x17, x19
+    add x13, x12, #16
+    ldr x13, [x13]
+    mov x17, x13
     str x17, [sp, #-16]!
     mov x0, x15
     mov x9, x14
@@ -5145,8 +5070,8 @@ lb_interop_Reference_0g1_json_Value_adopt:
     add x14, x14, #8
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #32
     movz x9, #1
     strb w9, [x14]
@@ -5171,8 +5096,8 @@ lb_interop_Reference_0g1_json_Value_adopt:
 .L25_5:
     mov x10, x20
     mov x11, x24
-    ldr x12, [x10, #0]
-    str x12, [x11, #0]
+    ldr x16, [x10, #0]
+    str x16, [x11, #0]
     sub x14, x29, #136
     ldr x14, [x14]
     mov x0, x24
@@ -5187,8 +5112,8 @@ lb_interop_Reference_0g1_json_Value_adopt:
     sub x21, x29, #120
     mov x10, x14
     mov x11, x21
-    ldr x12, [x10, #0]
-    str x12, [x11, #0]
+    ldr x16, [x10, #0]
+    str x16, [x11, #0]
     add x14, x21, #32
     mov x9, #0
     strb w9, [x14]
@@ -5224,14 +5149,13 @@ lb_interop_Reference_0g1_json_Value_adopt:
 lb_interop_Reference_0g1_json_Value_get:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #128
+    sub sp, sp, #112
     sub x16, x29, #24
     str x8, [x16]
-    str x19, [sp, #96]
-    str x20, [sp, #88]
-    sub x16, x29, #88
+    str x19, [sp, #80]
+    sub x16, x29, #80
     str x0, [x16]
-    sub x9, x29, #88
+    sub x9, x29, #80
     ldr x19, [x9]
     ldr x14, [x19]
     mov x0, x14
@@ -5242,7 +5166,7 @@ lb_interop_Reference_0g1_json_Value_get:
     cbnz w15, .L26_1
     b .L26_2
 .L26_1:
-    sub x19, x29, #80
+    sub x19, x29, #72
     add x14, x19, #8
     adrp x15, lb_interop_invalid
     add x15, x15, :lo12:lb_interop_invalid
@@ -5250,16 +5174,16 @@ lb_interop_Reference_0g1_json_Value_get:
     str w15, [x14]
     adrp x15, .Ltext_59
     add x15, x15, :lo12:.Ltext_59
-    sub x20, x29, #104
-    str x15, [x20]
-    add x15, x20, #8
+    sub x12, x29, #96
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #25
     str x9, [x15]
     add x14, x14, #8
-    mov x10, x20
+    mov x10, x12
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #32
     movz x9, #1
     strb w9, [x14]
@@ -5270,8 +5194,7 @@ lb_interop_Reference_0g1_json_Value_get:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #96]
-    ldr x20, [sp, #88]
+    ldr x19, [sp, #80]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -5288,7 +5211,7 @@ lb_interop_Reference_0g1_json_Value_get:
 .L26_6:
     adrp x14, .Ltext_60
     add x14, x14, :lo12:.Ltext_60
-    sub x15, x29, #120
+    sub x15, x29, #112
     str x14, [x15]
     add x14, x15, #8
     movz x9, #40
@@ -5306,11 +5229,11 @@ lb_interop_Reference_0g1_json_Value_get:
     add x1, x1, :lo12:.Ltext_13
     bl lb_core_7trap_at
 .L26_7:
-    sub x14, x29, #80
+    sub x14, x29, #72
     str x15, [x14]
-    add x19, x14, #32
+    add x12, x14, #32
     mov x9, #0
-    strb w9, [x19]
+    strb w9, [x12]
     mov x1, x14
     sub x16, x29, #24
     ldr x0, [x16]
@@ -5318,8 +5241,7 @@ lb_interop_Reference_0g1_json_Value_get:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #96]
-    ldr x20, [sp, #88]
+    ldr x19, [sp, #80]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -5410,8 +5332,8 @@ lb_interop_Reservation_0g1_json_Value_init:
     add x14, x19, #8
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
@@ -5443,8 +5365,8 @@ lb_interop_Reservation_0g1_json_Value_init:
     str xzr, [x11, #48]
     mov x10, x19
     mov x11, x22
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x22, #16
     movz x9, #200
     str x9, [x14]
@@ -5465,14 +5387,14 @@ lb_interop_Reservation_0g1_json_Value_init:
     str x9, [x14]
     mov x10, x22
     mov x11, x21
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldp x12, x13, [x10, #16]
-    stp x12, x13, [x11, #16]
-    ldp x12, x13, [x10, #32]
-    stp x12, x13, [x11, #32]
-    ldr x12, [x10, #48]
-    str x12, [x11, #48]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldp x16, x17, [x10, #16]
+    stp x16, x17, [x11, #16]
+    ldp x16, x17, [x10, #32]
+    stp x16, x17, [x11, #32]
+    ldr x16, [x10, #48]
+    str x16, [x11, #48]
     sub x22, x29, #288
     mov x11, x22
     stp xzr, xzr, [x11, #0]
@@ -5493,10 +5415,10 @@ lb_interop_Reservation_0g1_json_Value_init:
     sub x19, x29, #96
     mov x10, x14
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
@@ -5521,30 +5443,30 @@ lb_interop_Reservation_0g1_json_Value_init:
     add x23, x22, #64
     mov x10, x21
     mov x11, x23
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldp x12, x13, [x10, #16]
-    stp x12, x13, [x11, #16]
-    ldp x12, x13, [x10, #32]
-    stp x12, x13, [x11, #32]
-    ldr x12, [x10, #48]
-    str x12, [x11, #48]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldp x16, x17, [x10, #16]
+    stp x16, x17, [x11, #16]
+    ldp x16, x17, [x10, #32]
+    stp x16, x17, [x11, #32]
+    ldr x16, [x10, #48]
+    str x16, [x11, #48]
     add x14, x22, #16
     str x23, [x14]
     add x14, x22, #120
     mov x10, x19
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldp x12, x13, [x10, #16]
-    stp x12, x13, [x11, #16]
-    ldr x12, [x10, #32]
-    str x12, [x11, #32]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldp x16, x17, [x10, #16]
+    stp x16, x17, [x11, #16]
+    ldr x16, [x10, #32]
+    str x16, [x11, #32]
     str x22, [x20]
     sub x14, x29, #96
-    add x22, x14, #24
+    add x12, x14, #24
     mov x9, #0
-    strb w9, [x22]
+    strb w9, [x12]
     mov x1, x14
     sub x16, x29, #24
     ldr x0, [x16]
@@ -5622,8 +5544,8 @@ lb_interop_Reservation_0g1_json_Value_publish:
     sub x14, x29, #128
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     b .L29_6
 .L29_5:
     adrp x0, :gottprel:lb_memory_allocator
@@ -5634,14 +5556,14 @@ lb_interop_Reservation_0g1_json_Value_publish:
     sub x15, x29, #128
     mov x10, x14
     mov x11, x15
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
 .L29_6:
     sub x14, x29, #128
     mov x10, x14
     mov x11, x21
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     mov x9, #0
     str x9, [x19]
     sub x22, x29, #136
@@ -5656,8 +5578,8 @@ lb_interop_Reservation_0g1_json_Value_publish:
     sub x19, x29, #56
     mov x10, x22
     mov x11, x19
-    ldr x12, [x10, #0]
-    str x12, [x11, #0]
+    ldr x16, [x10, #0]
+    str x16, [x11, #0]
     mov x16, x19
     ldr x0, [x16, #0]
     ldr x19, [sp, #136]
@@ -5726,8 +5648,8 @@ lb_interop_Owner_0g1_json_Value_10drop_owner:
     sub x23, x29, #104
     mov x10, x15
     mov x11, x23
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     b .L31_7
 .L31_6:
     adrp x14, .Ltext_66
@@ -5752,8 +5674,8 @@ lb_interop_Owner_0g1_json_Value_10drop_owner:
 .L31_7:
     mov x10, x23
     mov x11, x22
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     mov x9, #0
     str x9, [x19]
     sub x14, x29, #136
@@ -5766,9 +5688,9 @@ lb_interop_Owner_0g1_json_Value_10drop_owner:
     cbnz x15, .L31_9
     b .L31_8
 .L31_9:
-    add x19, x15, #16
-    ldr x19, [x19]
-    mov x17, x19
+    add x12, x15, #16
+    ldr x12, [x12]
+    mov x17, x12
     str x17, [sp, #-16]!
     mov x0, x21
     mov x9, x14
@@ -5797,24 +5719,20 @@ lb_interop_Owner_0g1_json_Value_10drop_owner:
 lb_interop_Owner_0g1_json_Value_11trace_owner:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #80
-    str x19, [sp, #56]
-    str x20, [sp, #48]
-    sub x16, x29, #48
+    sub sp, sp, #64
+    sub x16, x29, #32
     str x0, [x16]
-    sub x16, x29, #64
+    sub x16, x29, #48
     str x1, [x16]
-    sub x16, x29, #80
+    sub x16, x29, #64
     str x2, [x16]
-    sub x14, x29, #48
+    sub x14, x29, #32
     ldr x14, [x14]
     add x15, x14, #185
     ldrb w15, [x15]
     cbnz w15, .L32_1
     b .L32_2
 .L32_1:
-    ldr x19, [sp, #56]
-    ldr x20, [sp, #48]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -5828,22 +5746,22 @@ lb_interop_Owner_0g1_json_Value_11trace_owner:
     b .L32_6
 .L32_8:
 .L32_5:
-    add x19, x14, #120
-    add x19, x19, #24
-    ldr x19, [x19]
-    cbnz x19, .L32_12
+    add x12, x14, #120
+    add x12, x12, #24
+    ldr x12, [x12]
+    cbnz x12, .L32_12
     b .L32_10
 .L32_12:
 .L32_9:
-    sub x14, x29, #64
+    sub x14, x29, #48
     ldr x14, [x14]
-    sub x20, x29, #80
-    ldr x20, [x20]
-    mov x17, x19
+    sub x13, x29, #64
+    ldr x13, [x13]
+    mov x17, x12
     str x17, [sp, #-16]!
     mov x0, x15
     mov x1, x14
-    mov x2, x20
+    mov x2, x13
     ldr x17, [sp], #16
     blr x17
     b .L32_11
@@ -5852,8 +5770,6 @@ lb_interop_Owner_0g1_json_Value_11trace_owner:
     b .L32_7
 .L32_6:
 .L32_7:
-    ldr x19, [sp, #56]
-    ldr x20, [sp, #48]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -5941,18 +5857,16 @@ lb_interop_11close_owner_0g1_json_Value:
 lb_interop_13dispose_owner_0g1_json_Value:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #48
-    str x19, [sp, #24]
-    sub x16, x29, #40
+    sub sp, sp, #32
+    sub x16, x29, #32
     str x0, [x16]
-    sub x14, x29, #40
+    sub x14, x29, #32
     ldr x14, [x14]
     add x15, x14, #185
-    ldrb w19, [x15]
-    cbnz w19, .L35_1
+    ldrb w12, [x15]
+    cbnz w12, .L35_1
     b .L35_2
 .L35_1:
-    ldr x19, [sp, #24]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -5962,9 +5876,9 @@ lb_interop_13dispose_owner_0g1_json_Value:
 .L35_3:
     movz x9, #1
     strb w9, [x15]
-    add x19, x14, #160
-    ldr x19, [x19]
-    cbnz x19, .L35_8
+    add x12, x14, #160
+    ldr x12, [x12]
+    cbnz x12, .L35_8
     b .L35_6
 .L35_8:
 .L35_5:
@@ -5973,13 +5887,12 @@ lb_interop_13dispose_owner_0g1_json_Value:
     ldr x15, [x15]
     mov x17, x15
     str x17, [sp, #-16]!
-    mov x0, x19
+    mov x0, x12
     ldr x17, [sp], #16
     blr x17
     b .L35_7
 .L35_6:
 .L35_7:
-    ldr x19, [sp, #24]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret

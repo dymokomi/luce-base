@@ -17,8 +17,8 @@ _lb_unicode_tables_0init:
     add x14, x14, _lb_unicode_18canonical_mappings@PAGEOFF
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     adrp x14, l_text_1@PAGE
     add x14, x14, l_text_1@PAGEOFF
     sub x15, x29, #48
@@ -31,8 +31,8 @@ _lb_unicode_tables_0init:
     add x14, x14, _lb_unicode_22compatibility_mappings@PAGEOFF
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     adrp x14, l_text_2@PAGE
     add x14, x14, l_text_2@PAGEOFF
     sub x15, x29, #64
@@ -44,8 +44,8 @@ _lb_unicode_tables_0init:
     add x14, x14, _lb_unicode_14upper_mappings@PAGEOFF
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     adrp x14, l_text_3@PAGE
     add x14, x14, l_text_3@PAGEOFF
     sub x15, x29, #80
@@ -57,8 +57,8 @@ _lb_unicode_tables_0init:
     add x14, x14, _lb_unicode_14lower_mappings@PAGEOFF
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     adrp x14, l_text_4@PAGE
     add x14, x14, l_text_4@PAGEOFF
     sub x15, x29, #96
@@ -70,8 +70,8 @@ _lb_unicode_tables_0init:
     add x14, x14, _lb_unicode_13fold_mappings@PAGEOFF
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     adrp x14, l_text_5@PAGE
     add x14, x14, l_text_5@PAGEOFF
     sub x15, x29, #112
@@ -83,8 +83,8 @@ _lb_unicode_tables_0init:
     add x14, x14, _lb_unicode_15turkic_mappings@PAGEOFF
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     adrp x14, l_text_6@PAGE
     add x14, x14, l_text_6@PAGEOFF
     sub x15, x29, #128
@@ -97,8 +97,8 @@ _lb_unicode_tables_0init:
     add x14, x14, _lb_unicode_15mapping_scalars@PAGEOFF
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     adrp x14, l_text_7@PAGE
     add x14, x14, l_text_7@PAGEOFF
     sub x15, x29, #144
@@ -110,8 +110,8 @@ _lb_unicode_tables_0init:
     add x14, x14, _lb_unicode_20composition_mappings@PAGEOFF
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     adrp x14, l_text_8@PAGE
     add x14, x14, l_text_8@PAGEOFF
     sub x15, x29, #160
@@ -123,8 +123,8 @@ _lb_unicode_tables_0init:
     add x14, x14, _lb_unicode_16combining_ranges@PAGEOFF
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     adrp x14, l_text_9@PAGE
     add x14, x14, l_text_9@PAGEOFF
     sub x15, x29, #176
@@ -136,8 +136,8 @@ _lb_unicode_tables_0init:
     add x14, x14, _lb_unicode_12cased_ranges@PAGEOFF
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     adrp x14, l_text_10@PAGE
     add x14, x14, l_text_10@PAGEOFF
     sub x15, x29, #192
@@ -149,8 +149,8 @@ _lb_unicode_tables_0init:
     add x14, x14, _lb_unicode_21case_ignorable_ranges@PAGEOFF
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     adrp x14, l_text_11@PAGE
     add x14, x14, l_text_11@PAGEOFF
     sub x15, x29, #208
@@ -162,8 +162,8 @@ _lb_unicode_tables_0init:
     add x14, x14, _lb_unicode_17whitespace_ranges@PAGEOFF
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     adrp x14, l_text_12@PAGE
     add x14, x14, l_text_12@PAGEOFF
     sub x15, x29, #224
@@ -175,8 +175,8 @@ _lb_unicode_tables_0init:
     add x14, x14, _lb_unicode_15grapheme_ranges@PAGEOFF
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     adrp x14, l_text_13@PAGE
     add x14, x14, l_text_13@PAGEOFF
     sub x15, x29, #240
@@ -188,8 +188,8 @@ _lb_unicode_tables_0init:
     add x14, x14, _lb_unicode_19pictographic_ranges@PAGEOFF
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     adrp x14, l_text_14@PAGE
     add x14, x14, l_text_14@PAGEOFF
     sub x15, x29, #256
@@ -201,8 +201,8 @@ _lb_unicode_tables_0init:
     add x14, x14, _lb_unicode_12indic_ranges@PAGEOFF
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret

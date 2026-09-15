@@ -269,7 +269,7 @@ func checked(path: c.str) -> check.Checker!:
 ## The checked program through the backend the command chose.
 func translate(checker: check.Checker*, entry: ast.Node*, mode: u32) -> str!:
     if native_backend:
-        var native = try backend.NativeBackend.over(checker, entry, debug_backend, diagnostic_profile)
+        var native = try backend.NativeBackend.over(checker, entry, debug_backend and not symbols_backend, diagnostic_profile, symbols_backend)
         native.dump_ir = dump_ir
         native.opt_level = opt_level
         native.opt_count = opt_count
@@ -355,6 +355,8 @@ var opt_count: u32 = 0xFFFFFFFF
 var opt_report: bool = false
 ## `--debug`: the native backend describes every frame and calls the `debug` module.
 var debug_backend: bool
+## `--release --debug`: DWARF over the optimised code, without the in-program debugger.
+var symbols_backend: bool
 ## `--freestanding`: the program's own `_start` is the entry, and no shim is linked (§19.4).
 var freestanding: bool
 ## `--profile diagnostic`: filled `---` storage and a quarantining allocator (§19.4).
@@ -712,6 +714,8 @@ func build_file(path: c.str, options: Options) -> !:
             error(build_failed, "--debug requires the native backend")
         native_backend = options.native
         debug_backend = options.debug and options.native
+        # `--release --debug`: the optimised program with DWARF, no debugger hooks
+        symbols_backend = options.debug and options.native and options.release
         link_libraries = options.libraries.span()
         link_directories = options.library_dirs.span()
         link_frameworks = options.frameworks.span()

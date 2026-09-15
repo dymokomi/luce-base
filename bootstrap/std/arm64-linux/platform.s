@@ -18,8 +18,8 @@ lb_platform_0init:
     add x14, x14, :lo12:lb_platform_name
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     adrp x14, lb_platform_macos
     add x14, x14, :lo12:lb_platform_macos
     mov x9, #0

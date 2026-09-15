@@ -18,8 +18,8 @@ lb_interop_transfer_0init:
     add x14, x14, :lo12:lb_interop_13text_transfer
     mov x10, x19
     mov x11, x14
-    ldr x12, [x10, #0]
-    str x12, [x11, #0]
+    ldr x16, [x10, #0]
+    str x16, [x11, #0]
     sub x19, x29, #40
     mov x11, x19
     str xzr, [x11, #0]
@@ -30,8 +30,8 @@ lb_interop_transfer_0init:
     add x14, x14, :lo12:lb_interop_14bytes_transfer
     mov x10, x19
     mov x11, x14
-    ldr x12, [x10, #0]
-    str x12, [x11, #0]
+    ldr x16, [x10, #0]
+    str x16, [x11, #0]
     ldr x19, [sp, #24]
     mov sp, x29
     ldp x29, x30, [sp], #16
@@ -45,34 +45,32 @@ lb_interop_transfer_0init:
 lb_interop_PacketBytes_drop:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #112
-    str x19, [sp, #88]
-    str x20, [sp, #80]
-    str x21, [sp, #72]
-    str x22, [sp, #64]
-    str x23, [sp, #56]
-    sub x16, x29, #72
+    sub sp, sp, #96
+    str x19, [sp, #72]
+    str x20, [sp, #64]
+    str x21, [sp, #56]
+    sub x16, x29, #56
     str x0, [x16]
-    sub x14, x29, #72
+    sub x14, x29, #56
     ldr x19, [x14]
     adrp x20, lb_memory_heap
     add x20, x20, :lo12:lb_memory_heap
-    sub x14, x29, #88
+    sub x14, x29, #72
     ldr x15, [x19]
-    add x21, x19, #8
-    ldr x21, [x21]
+    add x12, x19, #8
+    ldr x12, [x12]
     str x15, [x14]
     add x15, x14, #8
-    str x21, [x15]
+    str x12, [x15]
     ldr x15, [x20]
     add x21, x20, #8
-    ldr x22, [x21]
-    cbnz x22, .L1_2
+    ldr x12, [x21]
+    cbnz x12, .L1_2
     b .L1_1
 .L1_2:
-    add x23, x22, #16
-    ldr x23, [x23]
-    mov x17, x23
+    add x13, x12, #16
+    ldr x13, [x13]
+    mov x17, x13
     str x17, [sp, #-16]!
     mov x0, x15
     mov x9, x14
@@ -81,19 +79,19 @@ lb_interop_PacketBytes_drop:
     ldr x17, [sp], #16
     blr x17
 .L1_1:
-    sub x14, x29, #104
+    sub x14, x29, #88
     str x19, [x14]
     add x15, x14, #8
     movz x9, #16
     str x9, [x15]
     ldr x15, [x20]
-    ldr x22, [x21]
-    cbnz x22, .L1_4
+    ldr x12, [x21]
+    cbnz x12, .L1_4
     b .L1_3
 .L1_4:
-    add x19, x22, #16
-    ldr x19, [x19]
-    mov x17, x19
+    add x13, x12, #16
+    ldr x13, [x13]
+    mov x17, x13
     str x17, [sp, #-16]!
     mov x0, x15
     mov x9, x14
@@ -102,11 +100,9 @@ lb_interop_PacketBytes_drop:
     ldr x17, [sp], #16
     blr x17
 .L1_3:
-    ldr x19, [sp, #88]
-    ldr x20, [sp, #80]
-    ldr x21, [sp, #72]
-    ldr x22, [sp, #64]
-    ldr x23, [sp, #56]
+    ldr x19, [sp, #72]
+    ldr x20, [sp, #64]
+    ldr x21, [sp, #56]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -119,28 +115,26 @@ lb_interop_PacketBytes_drop:
 lb_interop_PacketBytes_copy:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #464
+    sub sp, sp, #448
     sub x16, x29, #24
     str x8, [x16]
-    str x19, [sp, #432]
-    str x20, [sp, #424]
-    str x21, [sp, #416]
-    str x22, [sp, #408]
-    str x23, [sp, #400]
-    str x24, [sp, #392]
-    str x25, [sp, #384]
-    str x26, [sp, #376]
-    str x27, [sp, #368]
-    sub x16, x29, #176
+    str x19, [sp, #416]
+    str x20, [sp, #408]
+    str x21, [sp, #400]
+    str x22, [sp, #392]
+    str x23, [sp, #384]
+    str x24, [sp, #376]
+    str x25, [sp, #368]
+    sub x16, x29, #160
     str x0, [x16]
     str x1, [x16, #8]
-    sub x21, x29, #192
+    sub x21, x29, #176
     adrp x22, lb_memory_heap
     add x22, x22, :lo12:lb_memory_heap
-    sub x19, x29, #176
+    sub x19, x29, #160
     add x20, x19, #8
     ldr x23, [x20]
-    sub x24, x29, #240
+    sub x24, x29, #224
     movz x10, #16384, lsl #48
     cmp x23, x10
     b.ls .L2_2
@@ -151,8 +145,8 @@ lb_interop_PacketBytes_copy:
     str w9, [x14]
     adrp x15, .Ltext_1
     add x15, x15, :lo12:.Ltext_1
-    add x23, x14, #8
-    str x15, [x23]
+    add x12, x14, #8
+    str x15, [x12]
     add x14, x14, #16
     movz x9, #47
     str x9, [x14]
@@ -173,26 +167,26 @@ lb_interop_PacketBytes_copy:
     add x1, x1, :lo12:.Ltext_2
     bl lb_core_7trap_at
 .L2_4:
-    ldr x25, [x15]
-    mov x17, x25
+    ldr x12, [x15]
+    mov x17, x12
     str x17, [sp, #-16]!
     mov x0, x14
     mov x1, x23
     movz x2, #1
-    sub x8, x29, #264
+    sub x8, x29, #248
     ldr x17, [sp], #16
     blr x17
-    sub x27, x29, #264
-    add x25, x27, #16
-    ldrb w25, [x25]
+    sub x25, x29, #248
+    add x12, x25, #16
+    ldrb w12, [x12]
     mov x10, #0
     cmp x23, x10
-    cset w26, ne
+    cset w13, ne
     mov x10, #0
-    cmp w25, w10
-    cset w25, eq
-    and w25, w26, w25
-    cbnz w25, .L2_6
+    cmp w12, w10
+    cset w12, eq
+    and w12, w13, w12
+    cbnz w12, .L2_6
     b .L2_7
 .L2_6:
     add x14, x24, #16
@@ -201,8 +195,8 @@ lb_interop_PacketBytes_copy:
     str w9, [x14]
     adrp x15, .Ltext_4
     add x15, x15, :lo12:.Ltext_4
-    add x23, x14, #8
-    str x15, [x23]
+    add x12, x14, #8
+    str x15, [x12]
     add x14, x14, #16
     movz x9, #16
     str x9, [x14]
@@ -211,7 +205,7 @@ lb_interop_PacketBytes_copy:
     strb w9, [x14]
     b .L2_3
 .L2_7:
-    ldr x14, [x27]
+    ldr x14, [x25]
     str x14, [x24]
     add x14, x24, #8
     str x23, [x14]
@@ -225,14 +219,14 @@ lb_interop_PacketBytes_copy:
     b .L2_8
 .L2_9:
     add x14, x24, #16
-    sub x19, x29, #160
+    sub x19, x29, #144
     add x15, x19, #32
     mov x10, x14
     mov x11, x15
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #56
     movz x9, #1
     strb w9, [x14]
@@ -243,15 +237,13 @@ lb_interop_PacketBytes_copy:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #432]
-    ldr x20, [sp, #424]
-    ldr x21, [sp, #416]
-    ldr x22, [sp, #408]
-    ldr x23, [sp, #400]
-    ldr x24, [sp, #392]
-    ldr x25, [sp, #384]
-    ldr x26, [sp, #376]
-    ldr x27, [sp, #368]
+    ldr x19, [sp, #416]
+    ldr x20, [sp, #408]
+    ldr x21, [sp, #400]
+    ldr x22, [sp, #392]
+    ldr x23, [sp, #384]
+    ldr x24, [sp, #376]
+    ldr x25, [sp, #368]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -259,8 +251,8 @@ lb_interop_PacketBytes_copy:
 .L2_8:
     mov x10, x24
     mov x11, x21
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     ldr x14, [x20]
     mov x9, x21
     ldr x0, [x9]
@@ -270,12 +262,12 @@ lb_interop_PacketBytes_copy:
     ldr x3, [x9, #8]
     mov x4, x14
     bl lb_memory_copy_0g1_u8
-    sub x23, x29, #280
+    sub x23, x29, #264
     mov x10, x22
     mov x11, x23
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    sub x25, x29, #320
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    sub x25, x29, #304
     ldr x14, [x23]
     add x15, x23, #8
     ldr x15, [x15]
@@ -288,19 +280,19 @@ lb_interop_PacketBytes_copy:
     add x1, x1, :lo12:.Ltext_2
     bl lb_core_7trap_at
 .L2_11:
-    ldr x19, [x15]
-    mov x17, x19
+    ldr x12, [x15]
+    mov x17, x12
     str x17, [sp, #-16]!
     mov x0, x14
     movz x1, #16
     movz x2, #8
-    sub x8, x29, #344
+    sub x8, x29, #328
     ldr x17, [sp], #16
     blr x17
-    sub x20, x29, #344
-    add x19, x20, #16
-    ldrb w19, [x19]
-    cbnz w19, .L2_13
+    sub x13, x29, #328
+    add x12, x13, #16
+    ldrb w12, [x12]
+    cbnz w12, .L2_13
     b .L2_14
 .L2_14:
     add x14, x25, #8
@@ -309,8 +301,8 @@ lb_interop_PacketBytes_copy:
     str w9, [x14]
     adrp x15, .Ltext_4
     add x15, x15, :lo12:.Ltext_4
-    add x19, x14, #8
-    str x15, [x19]
+    add x12, x14, #8
+    str x15, [x12]
     add x14, x14, #16
     movz x9, #16
     str x9, [x14]
@@ -319,18 +311,18 @@ lb_interop_PacketBytes_copy:
     strb w9, [x14]
     b .L2_15
 .L2_13:
-    ldr x19, [x20]
-    sub x23, x29, #360
-    mov x11, x23
+    ldr x19, [x13]
+    sub x20, x29, #344
+    mov x11, x20
     stp xzr, xzr, [x11, #0]
     mov x10, x21
-    mov x11, x23
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    mov x10, x23
+    mov x11, x20
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    mov x10, x20
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     str x19, [x25]
     add x14, x25, #32
     mov x9, #0
@@ -342,33 +334,33 @@ lb_interop_PacketBytes_copy:
     b .L2_16
 .L2_17:
     add x14, x25, #8
-    sub x19, x29, #160
+    sub x19, x29, #144
     add x15, x19, #32
     mov x10, x14
     mov x11, x15
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #56
     movz x9, #1
     strb w9, [x14]
-    sub x14, x29, #376
+    sub x14, x29, #360
     ldr x15, [x21]
-    add x20, x21, #8
-    ldr x20, [x20]
+    add x12, x21, #8
+    ldr x12, [x12]
     str x15, [x14]
     add x15, x14, #8
-    str x20, [x15]
+    str x12, [x15]
     ldr x15, [x22]
-    add x20, x22, #8
-    ldr x20, [x20]
-    cbnz x20, .L2_19
+    add x12, x22, #8
+    ldr x12, [x12]
+    cbnz x12, .L2_19
     b .L2_18
 .L2_19:
-    add x21, x20, #16
-    ldr x21, [x21]
-    mov x17, x21
+    add x13, x12, #16
+    ldr x13, [x13]
+    mov x17, x13
     str x17, [sp, #-16]!
     mov x0, x15
     mov x9, x14
@@ -384,52 +376,50 @@ lb_interop_PacketBytes_copy:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #432]
-    ldr x20, [sp, #424]
-    ldr x21, [sp, #416]
-    ldr x22, [sp, #408]
-    ldr x23, [sp, #400]
-    ldr x24, [sp, #392]
-    ldr x25, [sp, #384]
-    ldr x26, [sp, #376]
-    ldr x27, [sp, #368]
+    ldr x19, [sp, #416]
+    ldr x20, [sp, #408]
+    ldr x21, [sp, #400]
+    ldr x22, [sp, #392]
+    ldr x23, [sp, #384]
+    ldr x24, [sp, #376]
+    ldr x25, [sp, #368]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
 .L2_20:
 .L2_16:
     ldr x19, [x25]
-    sub x22, x29, #408
+    sub x22, x29, #392
     mov x11, x22
     stp xzr, xzr, [x11, #0]
     stp xzr, xzr, [x11, #16]
     adrp x20, :got:lb_interop_PacketBytes_drop
     ldr x20, [x20, :got_lo12:lb_interop_PacketBytes_drop]
     mov x10, x21
-    sub x11, x29, #424
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    sub x10, x29, #440
+    sub x11, x29, #408
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    sub x10, x29, #424
     str x19, [x10]
-    sub x10, x29, #456
+    sub x10, x29, #440
     str x20, [x10]
-    sub x14, x29, #424
+    sub x14, x29, #408
     mov x10, x14
     mov x11, x22
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x22, #16
     str x19, [x14]
     add x14, x22, #24
     str x20, [x14]
 .L2_22:
-    sub x19, x29, #160
+    sub x19, x29, #144
     mov x10, x22
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldp x12, x13, [x10, #16]
-    stp x12, x13, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldp x16, x17, [x10, #16]
+    stp x16, x17, [x11, #16]
     add x14, x19, #56
     mov x9, #0
     strb w9, [x14]
@@ -440,15 +430,13 @@ lb_interop_PacketBytes_copy:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #432]
-    ldr x20, [sp, #424]
-    ldr x21, [sp, #416]
-    ldr x22, [sp, #408]
-    ldr x23, [sp, #400]
-    ldr x24, [sp, #392]
-    ldr x25, [sp, #384]
-    ldr x26, [sp, #376]
-    ldr x27, [sp, #368]
+    ldr x19, [sp, #416]
+    ldr x20, [sp, #408]
+    ldr x21, [sp, #400]
+    ldr x22, [sp, #392]
+    ldr x23, [sp, #384]
+    ldr x24, [sp, #376]
+    ldr x25, [sp, #368]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -474,32 +462,31 @@ lb_interop_PacketBytes_text:
     str x20, [sp, #296]
     str x21, [sp, #288]
     str x22, [sp, #280]
-    str x23, [sp, #272]
-    sub x16, x29, #144
+    sub x16, x29, #136
     str x0, [x16]
     str x1, [x16, #8]
-    sub x19, x29, #176
-    sub x14, x29, #144
+    sub x19, x29, #168
+    sub x14, x29, #136
     mov x9, x14
     ldr x0, [x9]
     ldr x1, [x9, #8]
-    sub x8, x29, #240
+    sub x8, x29, #232
     bl lb_interop_PacketBytes_copy
-    sub x15, x29, #240
+    sub x15, x29, #232
     add x14, x15, #56
     ldrb w14, [x14]
     cbnz w14, .L3_2
     b .L3_1
 .L3_2:
     add x14, x15, #32
-    sub x19, x29, #128
-    add x20, x19, #32
+    sub x19, x29, #120
+    add x12, x19, #32
     mov x10, x14
-    mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    mov x11, x12
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #56
     movz x9, #1
     strb w9, [x14]
@@ -514,7 +501,6 @@ lb_interop_PacketBytes_text:
     ldr x20, [sp, #296]
     ldr x21, [sp, #288]
     ldr x22, [sp, #280]
-    ldr x23, [sp, #272]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -522,50 +508,50 @@ lb_interop_PacketBytes_text:
 .L3_1:
     mov x10, x15
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldp x12, x13, [x10, #16]
-    stp x12, x13, [x11, #16]
-    sub x23, x29, #272
-    mov x11, x23
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldp x16, x17, [x10, #16]
+    stp x16, x17, [x11, #16]
+    sub x22, x29, #264
+    mov x11, x22
     stp xzr, xzr, [x11, #0]
     stp xzr, xzr, [x11, #16]
     ldr x14, [x19]
-    add x20, x19, #8
-    ldr x20, [x20]
-    sub x21, x29, #288
-    str x14, [x21]
-    add x14, x21, #8
-    str x20, [x14]
+    add x12, x19, #8
+    ldr x12, [x12]
+    sub x13, x29, #280
+    str x14, [x13]
+    add x14, x13, #8
+    str x12, [x14]
     add x14, x19, #16
     ldr x20, [x14]
     add x14, x19, #24
-    ldr x22, [x14]
-    mov x10, x21
-    sub x11, x29, #304
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    sub x10, x29, #320
+    ldr x21, [x14]
+    mov x10, x13
+    sub x11, x29, #296
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    sub x10, x29, #312
     str x20, [x10]
-    sub x10, x29, #336
-    str x22, [x10]
-    sub x14, x29, #304
+    sub x10, x29, #328
+    str x21, [x10]
+    sub x14, x29, #296
     mov x10, x14
-    mov x11, x23
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    add x14, x23, #16
+    mov x11, x22
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    add x14, x22, #16
     str x20, [x14]
-    add x14, x23, #24
-    str x22, [x14]
+    add x14, x22, #24
+    str x21, [x14]
 .L3_5:
-    sub x19, x29, #128
-    mov x10, x23
+    sub x19, x29, #120
+    mov x10, x22
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldp x12, x13, [x10, #16]
-    stp x12, x13, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldp x16, x17, [x10, #16]
+    stp x16, x17, [x11, #16]
     add x14, x19, #56
     mov x9, #0
     strb w9, [x14]
@@ -580,7 +566,6 @@ lb_interop_PacketBytes_text:
     ldr x20, [sp, #296]
     ldr x21, [sp, #288]
     ldr x22, [sp, #280]
-    ldr x23, [sp, #272]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -704,8 +689,8 @@ lb_interop_Packet_0g1_u8_0c_init:
     sub x14, x29, #48
     mov x10, x14
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #16
     sub x15, x29, #64
     ldr x15, [x15]
@@ -743,8 +728,8 @@ lb_interop_Packet_0g1_str_init:
     sub x14, x29, #48
     mov x10, x14
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #16
     sub x15, x29, #64
     ldr x15, [x15]

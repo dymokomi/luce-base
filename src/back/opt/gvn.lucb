@@ -147,7 +147,7 @@ pub func run(f: ir.Function*, g: cfg.Graph*) -> cfg.Graph!:
         var x = f.instrs.get(i)
         if x.op == ir.Op.jnz and (x.a.kind == ir.RefKind.constant or x.extra == x.extra2):
             let taken = x.extra2 if x.a.kind == ir.RefKind.constant and x.a.value == 0 else x.extra
-            x = ir.Instr(op = ir.Op.jmp, cls = ir.Class.l, dst = 0, a = ir.none_ref(), b = ir.none_ref(), extra = taken, extra2 = 0)
+            x = ir.Instr(op = ir.Op.jmp, cls = ir.Class.l, dst = 0, a = ir.none_ref(), b = ir.none_ref(), extra = taken, extra2 = 0, line = 0, file = 0)
             f.instrs.set(i, x)
             branched = true
         i += 1

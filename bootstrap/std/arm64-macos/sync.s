@@ -54,26 +54,26 @@ _lb_sync_Mutex_lock:
     sub x16, x29, #40
     str x0, [x16]
     sub x9, x29, #40
-    ldr x20, [x9]
+    ldr x19, [x9]
     sub x14, x29, #48
     mov x10, #0
     movz x11, #1
-    mov x12, x20
+    mov x17, x19
 1:
-    ldaxr w9, [x12]
+    ldaxr w9, [x17]
     cmp w9, w10
     b.ne 2f
-    stlxr w13, w11, [x12]
-    cbnz w13, 1b
+    stlxr w16, w11, [x17]
+    cbnz w16, 1b
 2:
     clrex
     mov w15, w9
     mov x10, #0
     cmp w15, w10
-    cset w19, eq
-    strb w19, [x14]
-    add x19, x14, #4
-    str w15, [x19]
+    cset w12, eq
+    strb w12, [x14]
+    add x12, x14, #4
+    str w15, [x12]
     ldrb w14, [x14]
     and w14, w14, #255
     cbnz w14, L1_1
@@ -96,19 +96,19 @@ L1_3:
     b.ne L1_6
 L1_5:
     movz x10, #2
-    mov x12, x20
+    mov x17, x19
 1:
-    ldaxr w9, [x12]
+    ldaxr w9, [x17]
     mov w11, w10
-    stxr w13, w11, [x12]
-    cbnz w13, 1b
+    stxr w16, w11, [x17]
+    cbnz w16, 1b
     mov w14, w9
     b L1_7
 L1_6:
     mov w14, w15
 L1_7:
-    adrp x19, _lb_sync_16compare_and_wait@PAGE
-    add x19, x19, _lb_sync_16compare_and_wait@PAGEOFF
+    adrp x20, _lb_sync_16compare_and_wait@PAGE
+    add x20, x20, _lb_sync_16compare_and_wait@PAGEOFF
     mov w15, w14
 L1_8:
     mov x10, #0
@@ -119,25 +119,25 @@ L1_8:
     b.ne L1_10
 L1_9:
     sub x10, x29, #64
-    str x20, [x10]
+    str x19, [x10]
     movz x9, #2
     sub x10, x29, #80
     str w9, [x10]
-    ldr w14, [x19]
+    ldr w14, [x20]
     mov x0, x14
-    mov x1, x20
+    mov x1, x19
     movz x2, #2
     mov x3, #0
     bl ___ulock_wait
     mov w14, w0
 L1_11:
     movz x10, #2
-    mov x12, x20
+    mov x17, x19
 1:
-    ldaxr w9, [x12]
+    ldaxr w9, [x17]
     mov w11, w10
-    stxr w13, w11, [x12]
-    cbnz w13, 1b
+    stxr w16, w11, [x17]
+    cbnz w16, 1b
     mov w15, w9
     b L1_8
 L1_10:
@@ -159,12 +159,12 @@ _lb_sync_Mutex_unlock:
     sub x9, x29, #24
     ldr x15, [x9]
     mov x10, #0
-    mov x12, x15
+    mov x17, x15
 1:
-    ldxr w9, [x12]
+    ldxr w9, [x17]
     mov w11, w10
-    stlxr w13, w11, [x12]
-    cbnz w13, 1b
+    stlxr w16, w11, [x17]
+    cbnz w16, 1b
     mov w14, w9
     movz x10, #2
     cmp w14, w10
@@ -194,37 +194,35 @@ L2_3:
 _lb_sync_Mutex_8try_lock:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #48
-    str x19, [sp, #24]
-    sub x16, x29, #32
+    sub sp, sp, #32
+    sub x16, x29, #24
     str x0, [x16]
-    sub x9, x29, #32
+    sub x9, x29, #24
     ldr x15, [x9]
-    sub x14, x29, #40
+    sub x14, x29, #32
     mov x10, #0
     movz x11, #1
-    mov x12, x15
+    mov x17, x15
 1:
-    ldaxr w9, [x12]
+    ldaxr w9, [x17]
     cmp w9, w10
     b.ne 2f
-    stlxr w13, w11, [x12]
-    cbnz w13, 1b
+    stlxr w16, w11, [x17]
+    cbnz w16, 1b
 2:
     clrex
     mov w15, w9
     mov x10, #0
     cmp w15, w10
-    cset w19, eq
-    strb w19, [x14]
-    add x19, x14, #4
-    str w15, [x19]
+    cset w12, eq
+    strb w12, [x14]
+    add x12, x14, #4
+    str w15, [x12]
     ldrb w14, [x14]
     and w14, w14, #255
     and w14, w14, #255
     mov x9, x14
     mov x0, x9
-    ldr x19, [sp, #24]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -294,12 +292,12 @@ _lb_sync_Condition_signal:
     sub x9, x29, #24
     ldr x15, [x9]
     movz x10, #1
-    mov x12, x15
+    mov x17, x15
 1:
-    ldxr w9, [x12]
+    ldxr w9, [x17]
     add w11, w9, w10
-    stlxr w13, w11, [x12]
-    cbnz w13, 1b
+    stlxr w16, w11, [x17]
+    cbnz w16, 1b
     mov w14, w9
     sub x10, x29, #40
     str x15, [x10]
@@ -323,21 +321,20 @@ _lb_sync_Condition_broadcast:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
     sub sp, sp, #48
-    str x19, [sp, #24]
-    sub x16, x29, #32
+    sub x16, x29, #24
     str x0, [x16]
-    sub x9, x29, #32
-    ldr x19, [x9]
+    sub x9, x29, #24
+    ldr x12, [x9]
     movz x10, #1
-    mov x12, x19
+    mov x17, x12
 1:
-    ldxr w9, [x12]
+    ldxr w9, [x17]
     add w11, w9, w10
-    stlxr w13, w11, [x12]
-    cbnz w13, 1b
+    stlxr w16, w11, [x17]
+    cbnz w16, 1b
     mov w14, w9
-    sub x10, x29, #48
-    str x19, [x10]
+    sub x10, x29, #40
+    str x12, [x10]
     adrp x14, _lb_sync_16compare_and_wait@PAGE
     add x14, x14, _lb_sync_16compare_and_wait@PAGEOFF
     ldr w14, [x14]
@@ -346,12 +343,11 @@ _lb_sync_Condition_broadcast:
     ldr w15, [x15]
     orr w14, w14, w15
     mov x0, x14
-    mov x1, x19
+    mov x1, x12
     mov x2, #0
     bl ___ulock_wake
     mov w14, w0
 L6_1:
-    ldr x19, [sp, #24]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -370,26 +366,26 @@ _lb_sync_Once_run:
     sub x16, x29, #56
     str x1, [x16]
     sub x9, x29, #40
-    ldr x20, [x9]
+    ldr x19, [x9]
     sub x14, x29, #64
     mov x10, #0
     movz x11, #1
-    mov x12, x20
+    mov x17, x19
 1:
-    ldaxr w9, [x12]
+    ldaxr w9, [x17]
     cmp w9, w10
     b.ne 2f
-    stlxr w13, w11, [x12]
-    cbnz w13, 1b
+    stlxr w16, w11, [x17]
+    cbnz w16, 1b
 2:
     clrex
     mov w15, w9
     mov x10, #0
     cmp w15, w10
-    cset w19, eq
-    strb w19, [x14]
-    add x19, x14, #4
-    str w15, [x19]
+    cset w12, eq
+    strb w12, [x14]
+    add x12, x14, #4
+    str w15, [x12]
     ldrb w14, [x14]
     and w14, w14, #255
     cbnz w14, L7_1
@@ -402,10 +398,10 @@ L7_1:
     ldr x17, [sp], #16
     blr x17
     movz x9, #2
-    mov x10, x20
+    mov x10, x19
     stlr w9, [x10]
     sub x10, x29, #80
-    str x20, [x10]
+    str x19, [x10]
     adrp x14, _lb_sync_16compare_and_wait@PAGE
     add x14, x14, _lb_sync_16compare_and_wait@PAGEOFF
     ldr w14, [x14]
@@ -414,7 +410,7 @@ L7_1:
     ldr w15, [x15]
     orr w14, w14, w15
     mov x0, x14
-    mov x1, x20
+    mov x1, x19
     mov x2, #0
     bl ___ulock_wake
     mov w14, w0
@@ -428,10 +424,10 @@ L7_4:
     b L7_3
 L7_2:
 L7_3:
-    adrp x19, _lb_sync_16compare_and_wait@PAGE
-    add x19, x19, _lb_sync_16compare_and_wait@PAGEOFF
+    adrp x20, _lb_sync_16compare_and_wait@PAGE
+    add x20, x20, _lb_sync_16compare_and_wait@PAGEOFF
 L7_5:
-    mov x9, x20
+    mov x9, x19
     ldar w9, [x9]
     mov w14, w9
     movz x10, #2
@@ -442,13 +438,13 @@ L7_5:
     b.ne L7_7
 L7_6:
     sub x10, x29, #96
-    str x20, [x10]
+    str x19, [x10]
     movz x9, #1
     sub x10, x29, #112
     str w9, [x10]
-    ldr w14, [x19]
+    ldr w14, [x20]
     mov x0, x14
-    mov x1, x20
+    mov x1, x19
     movz x2, #1
     mov x3, #0
     bl ___ulock_wait
@@ -468,19 +464,18 @@ L7_7:
 _lb_sync_Semaphore_acquire:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #112
-    str x19, [sp, #88]
-    str x20, [sp, #80]
-    str x21, [sp, #72]
-    str x22, [sp, #64]
-    str x23, [sp, #56]
-    sub x16, x29, #64
+    sub sp, sp, #96
+    str x19, [sp, #72]
+    str x20, [sp, #64]
+    str x21, [sp, #56]
+    str x22, [sp, #48]
+    sub x16, x29, #56
     str x0, [x16]
-    sub x9, x29, #64
+    sub x9, x29, #56
     ldr x22, [x9]
     adrp x21, _lb_sync_16compare_and_wait@PAGE
     add x21, x21, _lb_sync_16compare_and_wait@PAGEOFF
-    sub x19, x29, #72
+    sub x19, x29, #64
     add x20, x19, #4
 L8_1:
 L8_2:
@@ -504,30 +499,29 @@ L8_4:
     mov w15, w9
     mov w10, w14
     mov w11, w15
-    mov x12, x22
+    mov x17, x22
 1:
-    ldaxr w9, [x12]
+    ldaxr w9, [x17]
     cmp w9, w10
     b.ne 2f
-    stlxr w13, w11, [x12]
-    cbnz w13, 1b
+    stlxr w16, w11, [x17]
+    cbnz w16, 1b
 2:
     clrex
     mov w15, w9
     cmp w14, w15
-    cset w23, eq
-    strb w23, [x19]
+    cset w12, eq
+    strb w12, [x19]
     str w15, [x20]
     ldrb w15, [x19]
     and w15, w15, #255
     cbnz w15, L8_7
     b L8_8
 L8_7:
-    ldr x19, [sp, #88]
-    ldr x20, [sp, #80]
-    ldr x21, [sp, #72]
-    ldr x22, [sp, #64]
-    ldr x23, [sp, #56]
+    ldr x19, [sp, #72]
+    ldr x20, [sp, #64]
+    ldr x21, [sp, #56]
+    ldr x22, [sp, #48]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -535,10 +529,10 @@ L8_8:
 L8_9:
     b L8_6
 L8_5:
-    sub x10, x29, #88
+    sub x10, x29, #80
     str x22, [x10]
     mov x9, #0
-    sub x10, x29, #104
+    sub x10, x29, #96
     str w9, [x10]
     ldr w14, [x21]
     mov x0, x14
@@ -563,12 +557,12 @@ _lb_sync_Semaphore_release:
     sub x9, x29, #24
     ldr x15, [x9]
     movz x10, #1
-    mov x12, x15
+    mov x17, x15
 1:
-    ldxr w9, [x12]
+    ldxr w9, [x17]
     add w11, w9, w10
-    stlxr w13, w11, [x12]
-    cbnz w13, 1b
+    stlxr w16, w11, [x17]
+    cbnz w16, 1b
     mov w14, w9
     sub x10, x29, #40
     str x15, [x10]

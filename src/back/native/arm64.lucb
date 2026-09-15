@@ -560,7 +560,7 @@ pub struct Generator:
             i += 1
         if let dw = self.dw:
             try dw.mark(&self.out, self.f, index, i)
-            if self.f.debug:
+            if self.f.debug or self.f.symbols:
                 try self.put("\nLdw_end_")
                 try self.put_u64((u64)index)
                 try self.put(":\n")

@@ -50,10 +50,10 @@ lb_process_15capture_command:
     ldrsw x15, [x20]
     adrp x21, lb_process_12non_blocking
     add x21, x21, :lo12:lb_process_12non_blocking
-    ldrsw x22, [x21]
+    ldrsw x12, [x21]
     mov x0, x14
     mov x1, x15
-    mov x2, x22
+    mov x2, x12
     bl fcntl
     mov w14, w0
     mov x10, #0
@@ -69,10 +69,10 @@ lb_process_15capture_command:
     ldr x14, [x14]
     ldrsw x14, [x14]
     ldrsw x15, [x20]
-    ldrsw x22, [x21]
+    ldrsw x12, [x21]
     mov x0, x14
     mov x1, x15
-    mov x2, x22
+    mov x2, x12
     bl fcntl
     mov w14, w0
     mov x10, #0
@@ -91,16 +91,16 @@ lb_process_15capture_command:
     str w15, [x14]
     adrp x15, .Ltext_1
     add x15, x15, :lo12:.Ltext_1
-    sub x20, x29, #224
-    str x15, [x20]
-    add x15, x20, #8
+    sub x12, x29, #224
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #33
     str x9, [x15]
     add x14, x14, #8
-    mov x10, x20
+    mov x10, x12
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #32
     movz x9, #1
     strb w9, [x14]
@@ -206,16 +206,16 @@ lb_process_15capture_command:
     str w15, [x14]
     adrp x15, .Ltext_2
     add x15, x15, :lo12:.Ltext_2
-    sub x20, x29, #240
-    str x15, [x20]
-    add x15, x20, #8
+    sub x12, x29, #240
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #17
     str x9, [x15]
     add x14, x14, #8
-    mov x10, x20
+    mov x10, x12
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #32
     movz x9, #1
     strb w9, [x14]
@@ -290,8 +290,8 @@ lb_process_15capture_command:
     strh w9, [x24]
     mov x10, x28
     mov x11, x21
-    ldr x12, [x10, #0]
-    str x12, [x11, #0]
+    ldr x16, [x10, #0]
+    str x16, [x11, #0]
     mov x11, x26
     str xzr, [x11, #0]
     ldr x9, [sp, #96]
@@ -315,8 +315,8 @@ lb_process_15capture_command:
     strh w9, [x10]
     mov x10, x26
     mov x11, x27
-    ldr x12, [x10, #0]
-    str x12, [x11, #0]
+    ldr x16, [x10, #0]
+    str x16, [x11, #0]
     mov x0, x21
     movz x1, #2
     movz x2, #20
@@ -344,16 +344,16 @@ lb_process_15capture_command:
     str w15, [x14]
     adrp x15, .Ltext_1
     add x15, x15, :lo12:.Ltext_1
-    sub x20, x29, #288
-    str x15, [x20]
-    add x15, x20, #8
+    sub x12, x29, #288
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #33
     str x9, [x15]
     add x14, x14, #8
-    mov x10, x20
+    mov x10, x12
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #32
     movz x9, #1
     strb w9, [x14]
@@ -437,10 +437,10 @@ lb_process_15capture_command:
     add x14, x19, #8
     ldr x10, [sp, #8]
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #32
     movz x9, #1
     strb w9, [x14]
@@ -525,10 +525,10 @@ lb_process_15capture_command:
     add x14, x19, #8
     ldr x10, [sp, #0]
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #32
     movz x9, #1
     strb w9, [x14]
@@ -671,16 +671,16 @@ lb_process_15capture_command:
     str w15, [x14]
     adrp x15, .Ltext_7
     add x15, x15, :lo12:.Ltext_7
-    sub x21, x29, #376
-    str x15, [x21]
-    add x15, x21, #8
+    sub x12, x29, #376
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #33
     str x9, [x15]
     add x14, x14, #8
-    mov x10, x21
+    mov x10, x12
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x20, #32
     movz x9, #1
     strb w9, [x14]
@@ -745,18 +745,17 @@ lb_process_12pull_command:
     str x8, [x16]
     str x19, [sp, #4240]
     str x20, [sp, #4232]
-    str x21, [sp, #4224]
-    sub x16, x29, #96
+    sub x16, x29, #88
     str x0, [x16]
-    sub x16, x29, #112
+    sub x16, x29, #104
     str x1, [x16]
-    movz x16, #4208
+    movz x16, #4200
     sub x19, x29, x16
     mov x0, x19
     mov x1, #0
     movz x2, #4096
     bl _memset
-    sub x14, x29, #96
+    sub x14, x29, #88
     ldr x20, [x14]
     ldrsw x14, [x20]
     mov x0, x14
@@ -777,7 +776,7 @@ lb_process_12pull_command:
     cmp x14, x10
     b.le .L2_5
 .L2_4:
-    sub x15, x29, #112
+    sub x15, x29, #104
     ldr x15, [x15]
     movz x10, #4097
     cmp x14, x10
@@ -798,32 +797,32 @@ lb_process_12pull_command:
     add x1, x1, :lo12:.Ltext_12
     bl lb_core_7trap_at
 .L2_7:
-    movz x16, #4224
-    sub x20, x29, x16
-    str x19, [x20]
-    add x21, x20, #8
-    str x14, [x21]
+    movz x16, #4216
+    sub x12, x29, x16
+    str x19, [x12]
+    add x13, x12, #8
+    str x14, [x13]
     mov x0, x15
-    mov x9, x20
+    mov x9, x12
     ldr x1, [x9]
     ldr x2, [x9, #8]
-    movz x16, #4256
+    movz x16, #4248
     sub x8, x29, x16
     bl lb_process_14command_append
-    movz x16, #4256
-    sub x21, x29, x16
-    add x20, x21, #24
-    ldrb w20, [x20]
-    cbnz w20, .L2_10
+    movz x16, #4248
+    sub x13, x29, x16
+    add x12, x13, #24
+    ldrb w12, [x12]
+    cbnz w12, .L2_10
     b .L2_9
 .L2_10:
-    sub x19, x29, #80
-    mov x10, x21
+    sub x19, x29, #72
+    mov x10, x13
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
@@ -836,7 +835,6 @@ lb_process_12pull_command:
     ldr x0, [x16]
     ldr x19, [sp, #4240]
     ldr x20, [sp, #4232]
-    ldr x21, [sp, #4224]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -875,14 +873,14 @@ lb_process_12pull_command:
     cbnz w14, .L2_12
     b .L2_13
 .L2_12:
-    sub x19, x29, #80
+    sub x19, x29, #72
     adrp x14, lb_process_failed
     add x14, x14, :lo12:lb_process_failed
     ldr w14, [x14]
     str w14, [x19]
     adrp x14, .Ltext_1
     add x14, x14, :lo12:.Ltext_1
-    movz x16, #4272
+    movz x16, #4264
     sub x15, x29, x16
     str x14, [x15]
     add x14, x15, #8
@@ -891,8 +889,8 @@ lb_process_12pull_command:
     add x14, x19, #8
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
@@ -905,7 +903,6 @@ lb_process_12pull_command:
     ldr x0, [x16]
     ldr x19, [sp, #4240]
     ldr x20, [sp, #4232]
-    ldr x21, [sp, #4224]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -915,7 +912,7 @@ lb_process_12pull_command:
 .L2_14:
 .L2_6:
 .L2_3:
-    sub x14, x29, #80
+    sub x14, x29, #72
     add x15, x14, #24
     mov x9, #0
     strb w9, [x15]
@@ -928,7 +925,6 @@ lb_process_12pull_command:
     ldr x0, [x16]
     ldr x19, [sp, #4240]
     ldr x20, [sp, #4232]
-    ldr x21, [sp, #4224]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret

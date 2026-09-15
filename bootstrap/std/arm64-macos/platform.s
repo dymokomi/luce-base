@@ -17,8 +17,8 @@ _lb_platform_0init:
     add x14, x14, _lb_platform_name@PAGEOFF
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     adrp x14, _lb_platform_macos@PAGE
     add x14, x14, _lb_platform_macos@PAGEOFF
     movz x9, #1

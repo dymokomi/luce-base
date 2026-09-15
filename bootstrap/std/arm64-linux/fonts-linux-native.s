@@ -31,14 +31,13 @@ lb_fonts_10linux_face:
     str x25, [sp, #480]
     str x26, [sp, #472]
     str x27, [sp, #464]
-    str x28, [sp, #456]
-    sub x16, x29, #192
+    sub x16, x29, #184
     str d0, [x16]
-    sub x16, x29, #208
+    sub x16, x29, #200
     str x0, [x16]
     str x1, [x16, #8]
-    sub x19, x29, #224
-    sub x14, x29, #208
+    sub x19, x29, #216
+    sub x14, x29, #200
     add x15, x14, #8
     ldr x15, [x15]
     mov x10, #0
@@ -47,45 +46,45 @@ lb_fonts_10linux_face:
 .L1_1:
     adrp x14, .Ltext_2
     add x14, x14, :lo12:.Ltext_2
-    sub x15, x29, #256
+    sub x15, x29, #248
     str x14, [x15]
     add x14, x15, #8
     movz x9, #9
     str x9, [x14]
-    sub x14, x29, #240
+    sub x14, x29, #232
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     b .L1_3
 .L1_2:
-    sub x15, x29, #240
+    sub x15, x29, #232
     mov x10, x14
     mov x11, x15
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
 .L1_3:
-    sub x14, x29, #240
+    sub x14, x29, #232
     mov x9, x14
     ldr x0, [x9]
     ldr x1, [x9, #8]
-    sub x8, x29, #304
+    sub x8, x29, #296
     bl lb_fonts_12family_bytes
-    sub x15, x29, #304
+    sub x15, x29, #296
     add x14, x15, #40
     ldrb w14, [x14]
     cbnz w14, .L1_5
     b .L1_4
 .L1_5:
     add x14, x15, #16
-    sub x19, x29, #176
-    add x20, x19, #40
+    sub x19, x29, #168
+    add x12, x19, #40
     mov x10, x14
-    mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x12, [x10, #16]
-    str x12, [x11, #16]
+    mov x11, x12
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldr x16, [x10, #16]
+    str x16, [x11, #16]
     add x14, x19, #64
     movz x9, #1
     strb w9, [x14]
@@ -105,7 +104,6 @@ lb_fonts_10linux_face:
     ldr x25, [sp, #480]
     ldr x26, [sp, #472]
     ldr x27, [sp, #464]
-    ldr x28, [sp, #456]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -113,8 +111,8 @@ lb_fonts_10linux_face:
 .L1_4:
     mov x10, x15
     mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     movz x0, #2
     movz x1, #1
     movz x2, #1
@@ -141,7 +139,7 @@ lb_fonts_10linux_face:
     add x1, x1, :lo12:.Ltext_0
     bl lb_core_7trap_at
 .L1_9:
-    sub x10, x29, #560
+    sub x10, x29, #552
     str x21, [x10]
     bl cairo_font_options_create
     mov x22, x0
@@ -172,13 +170,13 @@ lb_fonts_10linux_face:
     mov x2, #0
     mov x3, #0
     bl cairo_select_font_face
-    sub x14, x29, #192
+    sub x14, x29, #184
     ldr d24, [x14]
     fmov d16, d24
     fmov d0, d16
     mov x0, x21
     bl cairo_set_font_size
-    sub x23, x29, #344
+    sub x23, x29, #336
     mov x11, x23
     stp xzr, xzr, [x11, #0]
     stp xzr, xzr, [x11, #16]
@@ -186,12 +184,12 @@ lb_fonts_10linux_face:
     mov x0, x21
     mov x1, x23
     bl cairo_font_extents
-    sub x24, x29, #392
+    sub x24, x29, #384
     mov x11, x24
     stp xzr, xzr, [x11, #0]
     stp xzr, xzr, [x11, #16]
     stp xzr, xzr, [x11, #32]
-    sub x25, x29, #440
+    sub x25, x29, #432
     mov x11, x25
     stp xzr, xzr, [x11, #0]
     stp xzr, xzr, [x11, #16]
@@ -258,7 +256,7 @@ lb_fonts_10linux_face:
     cbnz w14, .L1_11
     b .L1_12
 .L1_11:
-    sub x23, x29, #176
+    sub x23, x29, #168
     add x14, x23, #40
     adrp x15, lb_fonts_failed
     add x15, x15, :lo12:lb_fonts_failed
@@ -266,16 +264,16 @@ lb_fonts_10linux_face:
     str w15, [x14]
     adrp x15, .Ltext_7
     add x15, x15, :lo12:.Ltext_7
-    sub x24, x29, #456
-    str x15, [x24]
-    add x15, x24, #8
+    sub x12, x29, #448
+    str x15, [x12]
+    add x15, x12, #8
     movz x9, #54
     str x9, [x15]
     add x14, x14, #8
-    mov x10, x24
+    mov x10, x12
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x23, #64
     movz x9, #1
     strb w9, [x14]
@@ -288,23 +286,23 @@ lb_fonts_10linux_face:
     mrs x16, tpidr_el0
     add x0, x16, x0
     mov x14, x0
-    sub x15, x29, #472
-    add x24, x19, #8
-    ldr x24, [x24]
+    sub x15, x29, #464
+    add x12, x19, #8
+    ldr x12, [x12]
     str x22, [x15]
-    add x25, x15, #8
-    str x24, [x25]
-    ldr x24, [x14]
+    add x13, x15, #8
+    str x12, [x13]
+    ldr x12, [x14]
     add x14, x14, #8
     ldr x14, [x14]
     cbnz x14, .L1_19
     b .L1_18
 .L1_19:
-    add x19, x14, #16
-    ldr x19, [x19]
-    mov x17, x19
+    add x13, x14, #16
+    ldr x13, [x13]
+    mov x17, x13
     str x17, [sp, #-16]!
-    mov x0, x24
+    mov x0, x12
     mov x9, x15
     ldr x1, [x9]
     ldr x2, [x9, #8]
@@ -327,7 +325,6 @@ lb_fonts_10linux_face:
     ldr x25, [sp, #480]
     ldr x26, [sp, #472]
     ldr x27, [sp, #464]
-    ldr x28, [sp, #456]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -359,7 +356,7 @@ lb_fonts_10linux_face:
     add x1, x1, :lo12:.Ltext_0
     bl lb_core_7trap_at
 .L1_23:
-    sub x26, x29, #512
+    sub x26, x29, #504
     mov x11, x26
     stp xzr, xzr, [x11, #0]
     stp xzr, xzr, [x11, #16]
@@ -379,15 +376,15 @@ lb_fonts_10linux_face:
     ldr d24, [x14]
     add x14, x26, #32
     str d24, [x14]
-    sub x27, x29, #176
+    sub x27, x29, #168
     mov x10, x26
     mov x11, x27
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldp x12, x13, [x10, #16]
-    stp x12, x13, [x11, #16]
-    ldr x12, [x10, #32]
-    str x12, [x11, #32]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
+    ldp x16, x17, [x10, #16]
+    stp x16, x17, [x11, #16]
+    ldr x16, [x10, #32]
+    str x16, [x11, #32]
     add x14, x27, #64
     mov x9, #0
     strb w9, [x14]
@@ -400,23 +397,23 @@ lb_fonts_10linux_face:
     mrs x16, tpidr_el0
     add x0, x16, x0
     mov x14, x0
-    sub x15, x29, #528
-    add x26, x19, #8
-    ldr x26, [x26]
+    sub x15, x29, #520
+    add x12, x19, #8
+    ldr x12, [x12]
     str x22, [x15]
-    add x28, x15, #8
-    str x26, [x28]
-    ldr x26, [x14]
+    add x13, x15, #8
+    str x12, [x13]
+    ldr x12, [x14]
     add x14, x14, #8
     ldr x14, [x14]
     cbnz x14, .L1_26
     b .L1_25
 .L1_26:
-    add x19, x14, #16
-    ldr x19, [x19]
-    mov x17, x19
+    add x13, x14, #16
+    ldr x13, [x13]
+    mov x17, x13
     str x17, [sp, #-16]!
-    mov x0, x26
+    mov x0, x12
     mov x9, x15
     ldr x1, [x9]
     ldr x2, [x9, #8]
@@ -439,7 +436,6 @@ lb_fonts_10linux_face:
     ldr x25, [sp, #480]
     ldr x26, [sp, #472]
     ldr x27, [sp, #464]
-    ldr x28, [sp, #456]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -449,14 +445,14 @@ lb_fonts_10linux_face:
     mov x14, x19
     mov x0, x14
     bl cairo_surface_destroy
-    sub x14, x29, #224
+    sub x14, x29, #216
     adrp x0, :gottprel:lb_memory_allocator
     ldr x0, [x0, :gottprel_lo12:lb_memory_allocator]
     mrs x16, tpidr_el0
     add x0, x16, x0
     mov x15, x0
-    sub x19, x29, #544
-    ldr x20, [x14]
+    sub x12, x29, #536
+    ldr x13, [x14]
     add x14, x14, #8
     ldr x14, [x14]
     mov x9, x14
@@ -471,10 +467,10 @@ lb_fonts_10linux_face:
     bl lb_core_7trap_at
 1:
     mov x14, x9
-    str x20, [x19]
-    add x19, x19, #8
-    str x14, [x19]
-    ldr x20, [x15]
+    str x13, [x12]
+    add x12, x12, #8
+    str x14, [x12]
+    ldr x13, [x15]
     add x14, x15, #8
     ldr x14, [x14]
     cbnz x14, .L1_29
@@ -484,8 +480,8 @@ lb_fonts_10linux_face:
     ldr x15, [x15]
     mov x17, x15
     str x17, [sp, #-16]!
-    mov x0, x20
-    mov x9, x19
+    mov x0, x13
+    mov x9, x12
     ldr x1, [x9]
     ldr x2, [x9, #8]
     ldr x17, [sp], #16
@@ -505,21 +501,21 @@ lb_fonts_10linux_face:
 lb_fonts_12linux_raster:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #544
+    sub sp, sp, #512
     sub x16, x29, #24
     str x8, [x16]
-    str x19, [sp, #512]
-    str x20, [sp, #504]
-    str x21, [sp, #496]
-    str x22, [sp, #488]
-    str x23, [sp, #480]
-    str x24, [sp, #472]
-    str x25, [sp, #464]
-    str x26, [sp, #456]
-    str x27, [sp, #448]
-    str x28, [sp, #440]
-    str d8, [sp, #432]
-    str d9, [sp, #424]
+    str x19, [sp, #480]
+    str x20, [sp, #472]
+    str x21, [sp, #464]
+    str x22, [sp, #456]
+    str x23, [sp, #448]
+    str x24, [sp, #440]
+    str x25, [sp, #432]
+    str x26, [sp, #424]
+    str x27, [sp, #416]
+    str x28, [sp, #408]
+    str d8, [sp, #400]
+    str d9, [sp, #392]
     sub x16, x29, #200
     str x0, [x16]
     sub x16, x29, #216
@@ -555,8 +551,8 @@ lb_fonts_12linux_raster:
     add x14, x19, #8
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
@@ -567,18 +563,18 @@ lb_fonts_12linux_raster:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #512]
-    ldr x20, [sp, #504]
-    ldr x21, [sp, #496]
-    ldr x22, [sp, #488]
-    ldr x23, [sp, #480]
-    ldr x24, [sp, #472]
-    ldr x25, [sp, #464]
-    ldr x26, [sp, #456]
-    ldr x27, [sp, #448]
-    ldr x28, [sp, #440]
-    ldr d8, [sp, #432]
-    ldr d9, [sp, #424]
+    ldr x19, [sp, #480]
+    ldr x20, [sp, #472]
+    ldr x21, [sp, #464]
+    ldr x22, [sp, #456]
+    ldr x23, [sp, #448]
+    ldr x24, [sp, #440]
+    ldr x25, [sp, #432]
+    ldr x26, [sp, #424]
+    ldr x27, [sp, #416]
+    ldr x28, [sp, #408]
+    ldr d8, [sp, #400]
+    ldr d9, [sp, #392]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -586,25 +582,25 @@ lb_fonts_12linux_raster:
 .L2_3:
     sub x14, x29, #248
     ldr x9, [x14]
-    str x9, [sp, #112]
-    ldr x9, [sp, #112]
+    str x9, [sp, #80]
+    ldr x9, [sp, #80]
     add x9, x9, #16
-    str x9, [sp, #104]
-    ldr x9, [sp, #104]
+    str x9, [sp, #72]
+    ldr x9, [sp, #72]
     ldr w14, [x9]
     mov w14, w14
-    ldr x9, [sp, #112]
+    ldr x9, [sp, #80]
     add x9, x9, #20
-    str x9, [sp, #96]
-    ldr x9, [sp, #96]
+    str x9, [sp, #64]
+    ldr x9, [sp, #64]
     ldr w15, [x9]
     mov w15, w15
     movz x0, #2
     mov x1, x14
     mov x2, x15
     bl cairo_image_surface_create
-    str x0, [sp, #40]
-    ldr x9, [sp, #40]
+    str x0, [sp, #24]
+    ldr x9, [sp, #24]
     cbnz x9, .L2_5
     b .L2_6
 .L2_6:
@@ -614,7 +610,7 @@ lb_fonts_12linux_raster:
     add x1, x1, :lo12:.Ltext_0
     bl lb_core_7trap_at
 .L2_5:
-    ldr x0, [sp, #40]
+    ldr x0, [sp, #24]
     bl cairo_surface_status
     mov w14, w0
     mov x10, #0
@@ -639,12 +635,12 @@ lb_fonts_12linux_raster:
     add x14, x19, #8
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
-    ldr x0, [sp, #40]
+    ldr x0, [sp, #24]
     bl cairo_surface_destroy
     mov x1, x19
     sub x16, x29, #24
@@ -653,18 +649,18 @@ lb_fonts_12linux_raster:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #512]
-    ldr x20, [sp, #504]
-    ldr x21, [sp, #496]
-    ldr x22, [sp, #488]
-    ldr x23, [sp, #480]
-    ldr x24, [sp, #472]
-    ldr x25, [sp, #464]
-    ldr x26, [sp, #456]
-    ldr x27, [sp, #448]
-    ldr x28, [sp, #440]
-    ldr d8, [sp, #432]
-    ldr d9, [sp, #424]
+    ldr x19, [sp, #480]
+    ldr x20, [sp, #472]
+    ldr x21, [sp, #464]
+    ldr x22, [sp, #456]
+    ldr x23, [sp, #448]
+    ldr x24, [sp, #440]
+    ldr x25, [sp, #432]
+    ldr x26, [sp, #424]
+    ldr x27, [sp, #416]
+    ldr x28, [sp, #408]
+    ldr d8, [sp, #400]
+    ldr d9, [sp, #392]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -672,11 +668,10 @@ lb_fonts_12linux_raster:
     b .L2_9
 .L2_8:
 .L2_9:
-    ldr x0, [sp, #40]
+    ldr x0, [sp, #24]
     bl cairo_create
-    str x0, [sp, #32]
-    ldr x9, [sp, #32]
-    cbnz x9, .L2_11
+    mov x25, x0
+    cbnz x25, .L2_11
     b .L2_12
 .L2_12:
     adrp x0, .Ltext_15
@@ -685,9 +680,8 @@ lb_fonts_12linux_raster:
     add x1, x1, :lo12:.Ltext_0
     bl lb_core_7trap_at
 .L2_11:
-    ldr x9, [sp, #32]
     sub x10, x29, #424
-    str x9, [x10]
+    str x25, [x10]
     bl cairo_font_options_create
     mov x26, x0
     cbnz x26, .L2_37
@@ -705,7 +699,7 @@ lb_fonts_12linux_raster:
     mov x0, x26
     movz x1, #1
     bl cairo_font_options_set_hint_metrics
-    ldr x0, [sp, #32]
+    mov x0, x25
     mov x1, x26
     bl cairo_set_font_options
     mov x0, x26
@@ -723,7 +717,7 @@ lb_fonts_12linux_raster:
     add x1, x1, :lo12:.Ltext_0
     bl lb_core_7trap_at
 .L2_13:
-    ldr x0, [sp, #32]
+    mov x0, x25
     mov x1, x14
     bl cairo_set_font_face
     add x15, x19, #16
@@ -733,7 +727,7 @@ lb_fonts_12linux_raster:
     fmul d24, d24, d8
     fmov d16, d24
     fmov d0, d16
-    ldr x0, [sp, #32]
+    mov x0, x25
     bl cairo_set_font_size
     movz x9, #16368, lsl #48
     fmov d24, x9
@@ -745,32 +739,29 @@ lb_fonts_12linux_raster:
     fmov d2, d16
     fmov d16, d24
     fmov d3, d16
-    ldr x0, [sp, #32]
+    mov x0, x25
     bl cairo_set_source_rgba
     sub x20, x29, #216
     add x26, x20, #8
-    sub x9, x29, #296
-    str x9, [sp, #16]
+    sub x23, x29, #296
     sub x9, x29, #320
     str x9, [sp, #8]
     ldr x9, [sp, #8]
-    add x9, x9, #16
-    str x9, [sp, #88]
+    add x27, x9, #16
     sub x28, x29, #336
     sub x22, x29, #357
-    ldr x9, [sp, #16]
-    add x9, x9, #8
-    str x9, [sp, #80]
+    add x9, x23, #8
+    str x9, [sp, #56]
     movz x9, #16384, lsl #48
     fmov d9, x9
     add x9, x19, #24
-    str x9, [sp, #72]
+    str x9, [sp, #48]
     add x9, x19, #32
-    str x9, [sp, #64]
+    str x9, [sp, #40]
     mov x9, #0
     mov x24, x9
     mov x9, #0
-    str x9, [sp, #24]
+    str x9, [sp, #16]
 .L2_15:
     ldr x14, [x26]
     cmp x24, x14
@@ -782,15 +773,14 @@ lb_fonts_12linux_raster:
     mov x2, x24
     sub x8, x29, #320
     bl lb_utf8_decode
-    ldr x9, [sp, #88]
-    ldrb w14, [x9]
+    ldrb w14, [x27]
     cbnz w14, .L2_18
     b .L2_19
 .L2_18:
     ldr x10, [sp, #8]
     mov x11, x28
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     b .L2_20
 .L2_19:
     adrp x14, .Ltext_17
@@ -814,13 +804,13 @@ lb_fonts_12linux_raster:
     bl lb_core_7trap_at
 .L2_20:
     mov x10, x28
-    ldr x11, [sp, #16]
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    mov x11, x23
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     mov x11, x22
     str wzr, [x11, #0]
     strb wzr, [x11, #4]
-    ldr x9, [sp, #80]
+    ldr x9, [sp, #56]
     ldr x19, [x9]
     mov x9, #0
     mov x14, x9
@@ -848,10 +838,10 @@ lb_fonts_12linux_raster:
     add x1, x1, :lo12:.Ltext_30
     bl lb_core_7trap_at
 1:
-    mov x21, x9
-    ldr x23, [x20]
-    ldr x27, [x26]
-    cmp x21, x27
+    mov x12, x9
+    ldr x13, [x20]
+    ldr x21, [x26]
+    cmp x12, x21
     b.lo 1f
     adrp x0, .Ltext_19
     add x0, x0, :lo12:.Ltext_19
@@ -859,9 +849,9 @@ lb_fonts_12linux_raster:
     add x1, x1, :lo12:.Ltext_27
     bl lb_core_7trap_at
 1:
-    add x21, x21, x23
-    ldrb w21, [x21]
-    strb w21, [x15]
+    add x12, x12, x13
+    ldrb w12, [x12]
+    strb w12, [x15]
 .L2_23:
     add x15, x14, #1
     mov x14, x15
@@ -879,14 +869,14 @@ lb_fonts_12linux_raster:
     add x14, x22, x19
     mov x9, #0
     strb w9, [x14]
-    ldr x9, [sp, #24]
+    ldr x9, [sp, #16]
     ucvtf d24, x9
-    ldr x9, [sp, #72]
+    ldr x9, [sp, #48]
     ldr d25, [x9]
     fmul d24, d24, d25
     fmul d24, d8, d24
     fadd d24, d9, d24
-    ldr x9, [sp, #64]
+    ldr x9, [sp, #40]
     ldr d25, [x9]
     fmul d25, d8, d25
     fadd d25, d9, d25
@@ -894,9 +884,9 @@ lb_fonts_12linux_raster:
     fmov d0, d16
     fmov d16, d25
     fmov d1, d16
-    ldr x0, [sp, #32]
+    mov x0, x25
     bl cairo_move_to
-    ldr x0, [sp, #32]
+    mov x0, x25
     mov x1, x22
     bl cairo_show_text
     mov x9, x19
@@ -910,7 +900,7 @@ lb_fonts_12linux_raster:
     bl lb_core_7trap_at
 1:
     mov x14, x9
-    ldr x9, [sp, #24]
+    ldr x9, [sp, #16]
     movz x10, #1
     adds x9, x9, x10
     b.cc 1f
@@ -923,10 +913,10 @@ lb_fonts_12linux_raster:
     mov x15, x9
     mov x24, x14
     mov x9, x15
-    str x9, [sp, #24]
+    str x9, [sp, #16]
     b .L2_15
 .L2_17:
-    ldr x0, [sp, #32]
+    mov x0, x25
     bl cairo_status
     mov w14, w0
     mov x10, #0
@@ -951,14 +941,14 @@ lb_fonts_12linux_raster:
     add x14, x19, #8
     mov x10, x15
     mov x11, x14
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
-    ldr x0, [sp, #32]
+    mov x0, x25
     bl cairo_destroy
-    ldr x0, [sp, #40]
+    ldr x0, [sp, #24]
     bl cairo_surface_destroy
     mov x1, x19
     sub x16, x29, #24
@@ -967,18 +957,18 @@ lb_fonts_12linux_raster:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #512]
-    ldr x20, [sp, #504]
-    ldr x21, [sp, #496]
-    ldr x22, [sp, #488]
-    ldr x23, [sp, #480]
-    ldr x24, [sp, #472]
-    ldr x25, [sp, #464]
-    ldr x26, [sp, #456]
-    ldr x27, [sp, #448]
-    ldr x28, [sp, #440]
-    ldr d8, [sp, #432]
-    ldr d9, [sp, #424]
+    ldr x19, [sp, #480]
+    ldr x20, [sp, #472]
+    ldr x21, [sp, #464]
+    ldr x22, [sp, #456]
+    ldr x23, [sp, #448]
+    ldr x24, [sp, #440]
+    ldr x25, [sp, #432]
+    ldr x26, [sp, #424]
+    ldr x27, [sp, #416]
+    ldr x28, [sp, #408]
+    ldr d8, [sp, #400]
+    ldr d9, [sp, #392]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -986,9 +976,9 @@ lb_fonts_12linux_raster:
     b .L2_27
 .L2_26:
 .L2_27:
-    ldr x0, [sp, #40]
+    ldr x0, [sp, #24]
     bl cairo_surface_flush
-    ldr x0, [sp, #40]
+    ldr x0, [sp, #24]
     bl cairo_image_surface_get_data
     mov x19, x0
     cbnz x19, .L2_29
@@ -1000,17 +990,16 @@ lb_fonts_12linux_raster:
     add x1, x1, :lo12:.Ltext_0
     bl lb_core_7trap_at
 .L2_29:
-    ldr x0, [sp, #40]
+    ldr x0, [sp, #24]
     bl cairo_image_surface_get_stride
     mov w14, w0
     sxtw x20, w14
-    ldr x9, [sp, #96]
+    ldr x9, [sp, #64]
     ldr w14, [x9]
     mov w9, w14
-    str x9, [sp, #56]
-    ldr x9, [sp, #112]
-    add x9, x9, #8
-    str x9, [sp, #48]
+    str x9, [sp, #32]
+    ldr x9, [sp, #80]
+    add x22, x9, #8
     sub x23, x29, #392
     add x24, x23, #8
     sub x26, x29, #408
@@ -1018,20 +1007,19 @@ lb_fonts_12linux_raster:
     mov x9, #0
     mov x28, x9
 .L2_31:
-    ldr x10, [sp, #56]
+    ldr x10, [sp, #32]
     cmp x28, x10
     b.hs .L2_34
 .L2_32:
-    ldr x9, [sp, #112]
+    ldr x9, [sp, #80]
     ldr x15, [x9]
-    ldr x9, [sp, #48]
-    ldr x21, [x9]
-    ldr x9, [sp, #104]
+    ldr x12, [x22]
+    ldr x9, [sp, #72]
     ldr w14, [x9]
     mov w14, w14
-    mul x25, x14, x28
-    add x14, x21, #1
-    cmp x25, x14
+    mul x13, x14, x28
+    add x14, x12, #1
+    cmp x13, x14
     b.lo 1f
     adrp x0, .Ltext_26
     add x0, x0, :lo12:.Ltext_26
@@ -1039,7 +1027,7 @@ lb_fonts_12linux_raster:
     add x1, x1, :lo12:.Ltext_27
     bl lb_core_7trap_at
 1:
-    cmp x21, x14
+    cmp x12, x14
     b.lo 1f
     adrp x0, .Ltext_26
     add x0, x0, :lo12:.Ltext_26
@@ -1047,7 +1035,7 @@ lb_fonts_12linux_raster:
     add x1, x1, :lo12:.Ltext_27
     bl lb_core_7trap_at
 1:
-    cmp x25, x21
+    cmp x13, x12
     b.ls .L2_35
 .L2_36:
     adrp x0, .Ltext_26
@@ -1056,10 +1044,10 @@ lb_fonts_12linux_raster:
     add x1, x1, :lo12:.Ltext_27
     bl lb_core_7trap_at
 .L2_35:
-    add x14, x15, x25
-    sub x22, x21, x25
+    add x14, x15, x13
+    sub x21, x12, x13
     str x14, [x23]
-    str x22, [x24]
+    str x21, [x24]
     mov x9, x20
     mov x10, x28
     umulh x11, x9, x10
@@ -1073,12 +1061,12 @@ lb_fonts_12linux_raster:
 1:
     mov x14, x9
     add x14, x14, x19
-    ldr x9, [sp, #104]
-    ldr w22, [x9]
-    mov w22, w22
+    ldr x9, [sp, #72]
+    ldr w21, [x9]
+    mov w21, w21
     str x14, [x26]
-    str x22, [x27]
-    ldr x9, [sp, #104]
+    str x21, [x27]
+    ldr x9, [sp, #72]
     ldr w14, [x9]
     mov w14, w14
     mov x9, x23
@@ -1094,9 +1082,9 @@ lb_fonts_12linux_raster:
     mov x28, x14
     b .L2_31
 .L2_34:
-    ldr x0, [sp, #32]
+    mov x0, x25
     bl cairo_destroy
-    ldr x0, [sp, #40]
+    ldr x0, [sp, #24]
     bl cairo_surface_destroy
     sub x14, x29, #152
     add x15, x14, #24
@@ -1109,18 +1097,18 @@ lb_fonts_12linux_raster:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #512]
-    ldr x20, [sp, #504]
-    ldr x21, [sp, #496]
-    ldr x22, [sp, #488]
-    ldr x23, [sp, #480]
-    ldr x24, [sp, #472]
-    ldr x25, [sp, #464]
-    ldr x26, [sp, #456]
-    ldr x27, [sp, #448]
-    ldr x28, [sp, #440]
-    ldr d8, [sp, #432]
-    ldr d9, [sp, #424]
+    ldr x19, [sp, #480]
+    ldr x20, [sp, #472]
+    ldr x21, [sp, #464]
+    ldr x22, [sp, #456]
+    ldr x23, [sp, #448]
+    ldr x24, [sp, #440]
+    ldr x25, [sp, #432]
+    ldr x26, [sp, #424]
+    ldr x27, [sp, #416]
+    ldr x28, [sp, #408]
+    ldr d8, [sp, #400]
+    ldr d9, [sp, #392]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret

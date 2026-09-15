@@ -5,9 +5,8 @@
 _lb_gpu_27vulkan_presentation_windows_0init:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #48
-    str x19, [sp, #24]
-    sub x14, x29, #40
+    sub sp, sp, #32
+    sub x14, x29, #32
     adrp x15, _lb_gpu_29VK_KHR_SURFACE_EXTENSION_NAME@PAGE
     add x15, x15, _lb_gpu_29VK_KHR_SURFACE_EXTENSION_NAME@PAGEOFF
     ldr x15, [x15]
@@ -15,15 +14,14 @@ _lb_gpu_27vulkan_presentation_windows_0init:
     adrp x15, _lb_gpu_35VK_KHR_WIN32_SURFACE_EXTENSION_NAME@PAGE
     add x15, x15, _lb_gpu_35VK_KHR_WIN32_SURFACE_EXTENSION_NAME@PAGEOFF
     ldr x15, [x15]
-    add x19, x14, #8
-    str x15, [x19]
+    add x12, x14, #8
+    str x15, [x12]
     adrp x15, _lb_gpu_25vulkan_windows_extensions@PAGE
     add x15, x15, _lb_gpu_25vulkan_windows_extensions@PAGEOFF
     mov x10, x14
     mov x11, x15
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    ldr x19, [sp, #24]
+    ldp x16, x17, [x10, #0]
+    stp x16, x17, [x11, #0]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret

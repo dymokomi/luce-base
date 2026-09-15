@@ -7,8 +7,18 @@ Development builds retain named locals (including unused bindings), keep their
 frame slots, and preserve source statement boundaries. They emit DWARF 4 and
 unwind information alongside the existing `luce-base-d` frame descriptors.
 The native optimizer continues to optimize standard-library functions; user
-functions under `--debug` keep their development layout. Optimized user-variable
-locations and Luce ARC pretty-printers are separate future work.
+functions under `--debug` keep their development layout.
+
+`--release --debug` is the optimised program with DWARF and without the in-program
+debugger: every pass runs on the program's own functions, except that a named local
+stays in its frame slot (or the callee-saved register the frame planner promotes it
+to, which the DWARF names), and that the program's own functions are not inlined.
+Each instruction carries the line it came from through the passes, so source
+breakpoints and backtraces are exact; a named local reads correctly at every statement
+boundary, and a local the optimiser removed entirely says so rather than showing a
+stale value. What this build does not have: lexical scopes (every local is described
+at function scope), locations for values that live only in temporaries, inlined
+frames, and payload enums beyond their tag and storage.
 
 On macOS, the compiler runs `dsymutil` before deleting its temporary object files.
 Keep `program` and `program.dSYM` together. On Linux, it runs `objcopy` to create

@@ -80,6 +80,12 @@ pub struct Frame:
     pub func slot_home(s: u32) -> u64:
         return self.slot_homes.get((usize)s)
 
+    ## The callee-saved register code a promoted slot lives in, 0 when it stays in the frame.
+    pub func slot_register(s: u32) -> u8:
+        if (usize)s >= self.slot_regs.count:
+            return 0
+        return self.slot_regs.get((usize)s)
+
     pub func uses(code: u8) -> bool:
         return (self.used_mask & (u32)(1 << (u32)(code - 1))) != 0
 
