@@ -1790,12 +1790,8 @@ l_text_33:
 
     .section __DATA,__const
     .p2align 3
-    .section __DATA,__data
-    .p2align 2
     .globl _lb_fonts_failed
-    .weak_definition _lb_fonts_failed
     .no_dead_strip _lb_fonts_failed
-_lb_fonts_failed:
-    .zero 4
+    .zerofill __DATA,__bss,_lb_fonts_failed,4,2
 
 .subsections_via_symbols

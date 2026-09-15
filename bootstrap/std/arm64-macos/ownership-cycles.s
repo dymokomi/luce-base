@@ -1867,13 +1867,9 @@ l_text_48:
 
     .section __DATA,__const
     .p2align 3
-    .section __DATA,__data
-    .p2align 3
     .globl _lb_ownership_15candidate_limit
-    .weak_definition _lb_ownership_15candidate_limit
     .no_dead_strip _lb_ownership_15candidate_limit
-_lb_ownership_15candidate_limit:
-    .zero 8
+    .zerofill __DATA,__bss,_lb_ownership_15candidate_limit,8,3
 
     .section __DATA,__thread_bss,thread_local_zerofill
     .p2align 4

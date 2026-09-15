@@ -39,7 +39,6 @@ lb_utf8_module_0init:
     .bss
     .globl lb_utf8_16invalid_sequence
     .type lb_utf8_16invalid_sequence, @object
-    .weak lb_utf8_16invalid_sequence
     .p2align 2
 lb_utf8_16invalid_sequence:
     .zero 4
@@ -47,7 +46,6 @@ lb_utf8_16invalid_sequence:
     .bss
     .globl lb_utf8_19incomplete_sequence
     .type lb_utf8_19incomplete_sequence, @object
-    .weak lb_utf8_19incomplete_sequence
     .p2align 2
 lb_utf8_19incomplete_sequence:
     .zero 4

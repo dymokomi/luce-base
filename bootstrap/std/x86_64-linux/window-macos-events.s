@@ -846,7 +846,6 @@ lb_window_12macos_events_0init:
     .bss
     .globl lb_window_13key_positions
     .type lb_window_13key_positions, @object
-    .weak lb_window_13key_positions
     .p2align 1
 lb_window_13key_positions:
     .zero 256

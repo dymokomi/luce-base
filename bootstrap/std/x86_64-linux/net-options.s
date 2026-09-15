@@ -898,7 +898,6 @@ lb_net_17set_socket_buffer:
     .bss
     .globl lb_net_16nonblocking_flag
     .type lb_net_16nonblocking_flag, @object
-    .weak lb_net_16nonblocking_flag
     .p2align 2
 lb_net_16nonblocking_flag:
     .zero 4
@@ -906,7 +905,6 @@ lb_net_16nonblocking_flag:
     .bss
     .globl lb_net_21receive_buffer_option
     .type lb_net_21receive_buffer_option, @object
-    .weak lb_net_21receive_buffer_option
     .p2align 2
 lb_net_21receive_buffer_option:
     .zero 4
@@ -914,7 +912,6 @@ lb_net_21receive_buffer_option:
     .bss
     .globl lb_net_18send_buffer_option
     .type lb_net_18send_buffer_option, @object
-    .weak lb_net_18send_buffer_option
     .p2align 2
 lb_net_18send_buffer_option:
     .zero 4
@@ -922,7 +919,6 @@ lb_net_18send_buffer_option:
     .bss
     .globl lb_net_16keepalive_option
     .type lb_net_16keepalive_option, @object
-    .weak lb_net_16keepalive_option
     .p2align 2
 lb_net_16keepalive_option:
     .zero 4

@@ -1196,12 +1196,8 @@ l_text_14:
 
     .section __DATA,__const
     .p2align 3
-    .section __DATA,__data
-    .p2align 3
     .globl _lb_net_14transfer_limit
-    .weak_definition _lb_net_14transfer_limit
     .no_dead_strip _lb_net_14transfer_limit
-_lb_net_14transfer_limit:
-    .zero 8
+    .zerofill __DATA,__bss,_lb_net_14transfer_limit,8,3
 
 .subsections_via_symbols

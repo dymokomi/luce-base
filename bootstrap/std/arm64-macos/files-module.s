@@ -692,194 +692,86 @@ l_text_9:
 
     .section __DATA,__const
     .p2align 3
-    .section __DATA,__data
-    .p2align 2
     .globl _lb_files_10write_only
-    .weak_definition _lb_files_10write_only
     .no_dead_strip _lb_files_10write_only
-_lb_files_10write_only:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_files_10write_only,4,2
     .globl _lb_files_create
-    .weak_definition _lb_files_create
     .no_dead_strip _lb_files_create
-_lb_files_create:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_files_create,4,2
     .globl _lb_files_truncate
-    .weak_definition _lb_files_truncate
     .no_dead_strip _lb_files_truncate
-_lb_files_truncate:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_files_truncate,4,2
     .globl _lb_files_13close_on_exec
-    .weak_definition _lb_files_13close_on_exec
     .no_dead_strip _lb_files_13close_on_exec
-_lb_files_13close_on_exec:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_files_13close_on_exec,4,2
     .globl _lb_files_11append_flag
-    .weak_definition _lb_files_11append_flag
     .no_dead_strip _lb_files_11append_flag
-_lb_files_11append_flag:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_files_11append_flag,4,2
     .globl _lb_files_14exclusive_flag
-    .weak_definition _lb_files_14exclusive_flag
     .no_dead_strip _lb_files_14exclusive_flag
-_lb_files_14exclusive_flag:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_files_14exclusive_flag,4,2
     .globl _lb_files_17would_block_errno
-    .weak_definition _lb_files_17would_block_errno
     .no_dead_strip _lb_files_17would_block_errno
-_lb_files_17would_block_errno:
-    .zero 4
-    .section __DATA,__data
-    .p2align 3
+    .zerofill __DATA,__bss,_lb_files_17would_block_errno,4,2
     .globl _lb_files_14transfer_limit
-    .weak_definition _lb_files_14transfer_limit
     .no_dead_strip _lb_files_14transfer_limit
-_lb_files_14transfer_limit:
-    .zero 8
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_files_14transfer_limit,8,3
     .globl _lb_files_20current_directory_fd
-    .weak_definition _lb_files_20current_directory_fd
     .no_dead_strip _lb_files_20current_directory_fd
-_lb_files_20current_directory_fd:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_files_20current_directory_fd,4,2
     .globl _lb_files_14directory_flag
-    .weak_definition _lb_files_14directory_flag
     .no_dead_strip _lb_files_14directory_flag
-_lb_files_14directory_flag:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_files_14directory_flag,4,2
     .globl _lb_files_14no_follow_flag
-    .weak_definition _lb_files_14no_follow_flag
     .no_dead_strip _lb_files_14no_follow_flag
-_lb_files_14no_follow_flag:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_files_14no_follow_flag,4,2
     .globl _lb_files_17at_no_follow_flag
-    .weak_definition _lb_files_17at_no_follow_flag
     .no_dead_strip _lb_files_17at_no_follow_flag
-_lb_files_17at_no_follow_flag:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_files_17at_no_follow_flag,4,2
     .globl _lb_files_missing
-    .weak_definition _lb_files_missing
     .no_dead_strip _lb_files_missing
-_lb_files_missing:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_files_missing,4,2
     .globl _lb_files_17permission_denied
-    .weak_definition _lb_files_17permission_denied
     .no_dead_strip _lb_files_17permission_denied
-_lb_files_17permission_denied:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_files_17permission_denied,4,2
     .globl _lb_files_14already_exists
-    .weak_definition _lb_files_14already_exists
     .no_dead_strip _lb_files_14already_exists
-_lb_files_14already_exists:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_files_14already_exists,4,2
     .globl _lb_files_8no_space
-    .weak_definition _lb_files_8no_space
     .no_dead_strip _lb_files_8no_space
-_lb_files_8no_space:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_files_8no_space,4,2
     .globl _lb_files_11would_block
-    .weak_definition _lb_files_11would_block
     .no_dead_strip _lb_files_11would_block
-_lb_files_11would_block:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_files_11would_block,4,2
     .globl _lb_files_15invalid_options
-    .weak_definition _lb_files_15invalid_options
     .no_dead_strip _lb_files_15invalid_options
-_lb_files_15invalid_options:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_files_15invalid_options,4,2
     .globl _lb_files_9too_large
-    .weak_definition _lb_files_9too_large
     .no_dead_strip _lb_files_9too_large
-_lb_files_9too_large:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_files_9too_large,4,2
     .globl _lb_files_13not_directory
-    .weak_definition _lb_files_13not_directory
     .no_dead_strip _lb_files_13not_directory
-_lb_files_13not_directory:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_files_13not_directory,4,2
     .globl _lb_files_12is_directory
-    .weak_definition _lb_files_12is_directory
     .no_dead_strip _lb_files_12is_directory
-_lb_files_12is_directory:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_files_12is_directory,4,2
     .globl _lb_files_20read_only_filesystem
-    .weak_definition _lb_files_20read_only_filesystem
     .no_dead_strip _lb_files_20read_only_filesystem
-_lb_files_20read_only_filesystem:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_files_20read_only_filesystem,4,2
     .globl _lb_files_9not_empty
-    .weak_definition _lb_files_9not_empty
     .no_dead_strip _lb_files_9not_empty
-_lb_files_9not_empty:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_files_9not_empty,4,2
     .globl _lb_files_12cross_device
-    .weak_definition _lb_files_12cross_device
     .no_dead_strip _lb_files_12cross_device
-_lb_files_12cross_device:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_files_12cross_device,4,2
     .globl _lb_files_12symlink_loop
-    .weak_definition _lb_files_12symlink_loop
     .no_dead_strip _lb_files_12symlink_loop
-_lb_files_12symlink_loop:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_files_12symlink_loop,4,2
     .globl _lb_files_13name_too_long
-    .weak_definition _lb_files_13name_too_long
     .no_dead_strip _lb_files_13name_too_long
-_lb_files_13name_too_long:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_files_13name_too_long,4,2
     .globl _lb_files_failed
-    .weak_definition _lb_files_failed
     .no_dead_strip _lb_files_failed
-_lb_files_failed:
-    .zero 4
+    .zerofill __DATA,__bss,_lb_files_failed,4,2
 
 .subsections_via_symbols

@@ -106,13 +106,14 @@ pub struct Format:
                 try out.put(",\"dw\"\n" if self.os == build_target.Os.windows else ",\"aw\"\n")
             else:
                 try out.put("\n    .bss\n")
-            try out.put("    .globl ")
-            try self.symbol(out, g.name)
-            if self.os != build_target.Os.windows:
-                try out.put("\n    .type ")
+            if not g.private:
+                try out.put("    .globl ")
                 try self.symbol(out, g.name)
-                try out.put(", @object")
-            try out.put("\n")
+                try out.put("\n")
+            if self.os != build_target.Os.windows:
+                try out.put("    .type ")
+                try self.symbol(out, g.name)
+                try out.put(", @object\n")
             try self.linkage(out, g.name, g.weak, g.used)
             try out.put("    .p2align ")
             try out.put_u64(align)

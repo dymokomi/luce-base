@@ -1267,11 +1267,7 @@ l_text_8:
 
     .section __DATA,__const
     .p2align 3
-    .section __DATA,__data
-    .p2align 2
     .globl _lb_net_14dont_wait_flag
-    .weak_definition _lb_net_14dont_wait_flag
-_lb_net_14dont_wait_flag:
-    .zero 4
+    .zerofill __DATA,__bss,_lb_net_14dont_wait_flag,4,2
 
 .subsections_via_symbols

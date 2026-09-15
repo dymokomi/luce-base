@@ -1769,11 +1769,7 @@ l_text_46:
 
     .section __DATA,__const
     .p2align 3
-    .section __DATA,__data
-    .p2align 3
     .globl _lb_window_13mac_not_found
-    .weak_definition _lb_window_13mac_not_found
-_lb_window_13mac_not_found:
-    .zero 8
+    .zerofill __DATA,__bss,_lb_window_13mac_not_found,8,3
 
 .subsections_via_symbols

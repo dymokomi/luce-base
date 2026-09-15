@@ -5638,25 +5638,13 @@ l_text_51:
 
     .section __DATA,__const
     .p2align 3
-    .section __DATA,__data
-    .p2align 3
     .globl _lb_gpu_16frame_state_type
-    .weak_definition _lb_gpu_16frame_state_type
-_lb_gpu_16frame_state_type:
-    .zero 40
-    .section __DATA,__data
-    .p2align 3
+    .zerofill __DATA,__bss,_lb_gpu_16frame_state_type,40,3
     .globl _lb_gpu_10frame_type
-    .weak_definition _lb_gpu_10frame_type
     .no_dead_strip _lb_gpu_10frame_type
-_lb_gpu_10frame_type:
-    .zero 40
-    .section __DATA,__data
-    .p2align 3
+    .zerofill __DATA,__bss,_lb_gpu_10frame_type,40,3
     .globl _lb_gpu_18render_target_type
-    .weak_definition _lb_gpu_18render_target_type
     .no_dead_strip _lb_gpu_18render_target_type
-_lb_gpu_18render_target_type:
-    .zero 24
+    .zerofill __DATA,__bss,_lb_gpu_18render_target_type,24,3
 
 .subsections_via_symbols

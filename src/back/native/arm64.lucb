@@ -1897,6 +1897,15 @@ pub struct Generator:
                 try self.put(":\n    .space ")
                 try self.put_u64((u64)g.size if g.size > 0 else 1)
                 try self.put("\n")
+            elif g.private:
+                # a symbol of this unit alone
+                try self.put("    .zerofill __DATA,__bss,")
+                try self.symbol(g.name)
+                try self.put(",")
+                try self.put_u64((u64)g.size if g.size > 0 else 1)
+                try self.put(",")
+                try self.put_u64(log2((u64)g.align if g.align > 0 else 1))
+                try self.put("\n")
             elif g.weak:
                 # the linker coalesces weak storage only when it is data, not zero-fill
                 try self.put("    .section __DATA,__data\n    .p2align ")

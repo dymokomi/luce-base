@@ -48,11 +48,7 @@ l_text_5:
 
     .section __DATA,__const
     .p2align 3
-    .section __DATA,__data
-    .p2align 3
     .globl _lb_gpu_25vulkan_windows_extensions
-    .weak_definition _lb_gpu_25vulkan_windows_extensions
-_lb_gpu_25vulkan_windows_extensions:
-    .zero 16
+    .zerofill __DATA,__bss,_lb_gpu_25vulkan_windows_extensions,16,3
 
 .subsections_via_symbols

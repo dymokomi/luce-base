@@ -6752,15 +6752,17 @@ pub struct Emitter:
     ## An `extern func` is declared under its own C name and bound to the symbol by an asm
     ## label, so a binding of `fputc` never clashes with the prototype `<stdio.h>` carries.
     ## An `extern func` bound to a C symbol under another name (`as "sym"`, §17.1) is
-    ## declared `void NAME(void)` and called through a cast to its own type: one symbol may
-    ## be declared under several names with different types (`objc_msgSend`), and the C
-    ## compiler keeps one declaration per symbol, so a typed one could be the wrong one.
+    ## declared as an object, `char NAME`, and called through its address cast to the
+    ## function's own type: one symbol may be declared under several names with different
+    ## types (`objc_msgSend`), and a C compiler keeps one declaration per symbol, so a typed
+    ## one could be the wrong one, while a call through a cast of a function it knows is
+    ## a diagnostic to another.
     mutating func extern_prototype(d: ast.Node*) -> !:
         try self.line("extern ")
         if renamed(d):
-            try self.put("void ")
+            try self.put("char ")
             try self.put_extern_name(d)
-            try self.put("(void) LB_SYMBOL(")
+            try self.put(" LB_SYMBOL(")
             try self.put_c_string(names.c_symbol(d))
             try self.put(");")
             return
@@ -6783,7 +6785,7 @@ pub struct Emitter:
         try self.put_extern_result(d)
         try self.put(" (*)(")
         try self.put_extern_parameters(d)
-        try self.put("))")
+        try self.put("))(void*)&")
         try self.put_extern_name(d)
         try self.put(")")
 
@@ -6845,10 +6847,11 @@ pub struct Emitter:
         try self.line("")
         if ast.is_linked(d) or not self.owns(d):
             try self.put("extern ")
-        elif d.kind == ast.Kind.constant and check.is_standard_module(names.module_of(d)):
-            # a standard constant's storage is in its library member and in every program
-            # that reads it through the interface: weak, so the linker keeps one copy
-            try self.put("__attribute__((weak)) ")
+        elif not self.library and d.kind == ast.Kind.constant and check.is_standard_module(names.module_of(d)):
+            # a standard constant's storage is in its library member and, read through the
+            # interface, in every program: the program's copy is its own, since not every
+            # linker coalesces weak data
+            try self.put("static __attribute__((unused)) ")
         try self.attribute_prefix(d, false)
         if d.has(ast.flag_thread_local):
             try self.put("_Thread_local ")

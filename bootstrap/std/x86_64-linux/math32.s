@@ -2030,7 +2030,6 @@ lb_math32_clamp:
     .bss
     .globl lb_math32_pi
     .type lb_math32_pi, @object
-    .weak lb_math32_pi
     .p2align 2
 lb_math32_pi:
     .zero 4
@@ -2038,7 +2037,6 @@ lb_math32_pi:
     .bss
     .globl lb_math32_tau
     .type lb_math32_tau, @object
-    .weak lb_math32_tau
     .p2align 2
 lb_math32_tau:
     .zero 4
@@ -2046,7 +2044,6 @@ lb_math32_tau:
     .bss
     .globl lb_math32_e
     .type lb_math32_e, @object
-    .weak lb_math32_e
     .p2align 2
 lb_math32_e:
     .zero 4
@@ -2054,7 +2051,6 @@ lb_math32_e:
     .bss
     .globl lb_math32_infinity
     .type lb_math32_infinity, @object
-    .weak lb_math32_infinity
     .p2align 2
 lb_math32_infinity:
     .zero 4
@@ -2062,7 +2058,6 @@ lb_math32_infinity:
     .bss
     .globl lb_math32_nan
     .type lb_math32_nan, @object
-    .weak lb_math32_nan
     .p2align 2
 lb_math32_nan:
     .zero 4
@@ -2070,7 +2065,6 @@ lb_math32_nan:
     .bss
     .globl lb_math32_9sign_mask
     .type lb_math32_9sign_mask, @object
-    .weak lb_math32_9sign_mask
     .p2align 2
 lb_math32_9sign_mask:
     .zero 4
@@ -2078,7 +2072,6 @@ lb_math32_9sign_mask:
     .bss
     .globl lb_math32_14magnitude_mask
     .type lb_math32_14magnitude_mask, @object
-    .weak lb_math32_14magnitude_mask
     .p2align 2
 lb_math32_14magnitude_mask:
     .zero 4
@@ -2086,7 +2079,6 @@ lb_math32_14magnitude_mask:
     .bss
     .globl lb_math32_13exponent_mask
     .type lb_math32_13exponent_mask, @object
-    .weak lb_math32_13exponent_mask
     .p2align 2
 lb_math32_13exponent_mask:
     .zero 4

@@ -3817,7 +3817,6 @@ lb_process_15release_storage_0g1_5c_str_0o:
     .bss
     .globl lb_process_7poll_in
     .type lb_process_7poll_in, @object
-    .weak lb_process_7poll_in
     .p2align 1
 lb_process_7poll_in:
     .zero 2
@@ -3825,7 +3824,6 @@ lb_process_7poll_in:
     .bss
     .globl lb_process_12poll_hang_up
     .type lb_process_12poll_hang_up, @object
-    .weak lb_process_12poll_hang_up
     .p2align 1
 lb_process_12poll_hang_up:
     .zero 2
@@ -3833,7 +3831,6 @@ lb_process_12poll_hang_up:
     .bss
     .globl lb_process_10poll_error
     .type lb_process_10poll_error, @object
-    .weak lb_process_10poll_error
     .p2align 1
 lb_process_10poll_error:
     .zero 2
@@ -3841,7 +3838,6 @@ lb_process_10poll_error:
     .bss
     .globl lb_process_9set_flags
     .type lb_process_9set_flags, @object
-    .weak lb_process_9set_flags
     .p2align 2
 lb_process_9set_flags:
     .zero 4
@@ -3849,7 +3845,6 @@ lb_process_9set_flags:
     .bss
     .globl lb_process_12non_blocking
     .type lb_process_12non_blocking, @object
-    .weak lb_process_12non_blocking
     .p2align 2
 lb_process_12non_blocking:
     .zero 4
@@ -3857,7 +3852,6 @@ lb_process_12non_blocking:
     .bss
     .globl lb_process_11would_block
     .type lb_process_11would_block, @object
-    .weak lb_process_11would_block
     .p2align 2
 lb_process_11would_block:
     .zero 4
@@ -3865,7 +3859,6 @@ lb_process_11would_block:
     .bss
     .globl lb_process_failed
     .type lb_process_failed, @object
-    .weak lb_process_failed
     .p2align 2
 lb_process_failed:
     .zero 4

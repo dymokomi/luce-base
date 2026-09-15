@@ -1406,7 +1406,6 @@ lb_net_19require_nonblocking:
     .bss
     .globl lb_net_14dont_wait_flag
     .type lb_net_14dont_wait_flag, @object
-    .weak lb_net_14dont_wait_flag
     .p2align 2
 lb_net_14dont_wait_flag:
     .zero 4

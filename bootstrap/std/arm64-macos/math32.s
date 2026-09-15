@@ -2002,58 +2002,26 @@ l_text_46:
 
     .section __DATA,__const
     .p2align 3
-    .section __DATA,__data
-    .p2align 2
     .globl _lb_math32_pi
-    .weak_definition _lb_math32_pi
     .no_dead_strip _lb_math32_pi
-_lb_math32_pi:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_math32_pi,4,2
     .globl _lb_math32_tau
-    .weak_definition _lb_math32_tau
     .no_dead_strip _lb_math32_tau
-_lb_math32_tau:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_math32_tau,4,2
     .globl _lb_math32_e
-    .weak_definition _lb_math32_e
     .no_dead_strip _lb_math32_e
-_lb_math32_e:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_math32_e,4,2
     .globl _lb_math32_infinity
-    .weak_definition _lb_math32_infinity
     .no_dead_strip _lb_math32_infinity
-_lb_math32_infinity:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_math32_infinity,4,2
     .globl _lb_math32_nan
-    .weak_definition _lb_math32_nan
     .no_dead_strip _lb_math32_nan
-_lb_math32_nan:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_math32_nan,4,2
     .globl _lb_math32_9sign_mask
-    .weak_definition _lb_math32_9sign_mask
-_lb_math32_9sign_mask:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_math32_9sign_mask,4,2
     .globl _lb_math32_14magnitude_mask
-    .weak_definition _lb_math32_14magnitude_mask
-_lb_math32_14magnitude_mask:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_math32_14magnitude_mask,4,2
     .globl _lb_math32_13exponent_mask
-    .weak_definition _lb_math32_13exponent_mask
-_lb_math32_13exponent_mask:
-    .zero 4
+    .zerofill __DATA,__bss,_lb_math32_13exponent_mask,4,2
 
 .subsections_via_symbols

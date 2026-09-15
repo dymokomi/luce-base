@@ -6481,7 +6481,6 @@ lb_memory_copy_0g1_u8:
     .bss
     .globl lb_net_17websocket_invalid
     .type lb_net_17websocket_invalid, @object
-    .weak lb_net_17websocket_invalid
     .p2align 2
 lb_net_17websocket_invalid:
     .zero 4
@@ -6489,7 +6488,6 @@ lb_net_17websocket_invalid:
     .bss
     .globl lb_net_15websocket_limit
     .type lb_net_15websocket_limit, @object
-    .weak lb_net_15websocket_limit
     .p2align 2
 lb_net_15websocket_limit:
     .zero 4
@@ -6497,7 +6495,6 @@ lb_net_15websocket_limit:
     .bss
     .globl lb_net_18websocket_alphabet
     .type lb_net_18websocket_alphabet, @object
-    .weak lb_net_18websocket_alphabet
     .p2align 3
 lb_net_18websocket_alphabet:
     .zero 16
@@ -6505,7 +6502,6 @@ lb_net_18websocket_alphabet:
     .bss
     .globl lb_net_14websocket_guid
     .type lb_net_14websocket_guid, @object
-    .weak lb_net_14websocket_guid
     .p2align 3
 lb_net_14websocket_guid:
     .zero 16

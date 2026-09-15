@@ -5532,31 +5532,15 @@ l_text_99:
 
     .section __DATA,__const
     .p2align 3
-    .section __DATA,__data
-    .p2align 2
     .globl _lb_net_17websocket_invalid
-    .weak_definition _lb_net_17websocket_invalid
     .no_dead_strip _lb_net_17websocket_invalid
-_lb_net_17websocket_invalid:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_net_17websocket_invalid,4,2
     .globl _lb_net_15websocket_limit
-    .weak_definition _lb_net_15websocket_limit
     .no_dead_strip _lb_net_15websocket_limit
-_lb_net_15websocket_limit:
-    .zero 4
-    .section __DATA,__data
-    .p2align 3
+    .zerofill __DATA,__bss,_lb_net_15websocket_limit,4,2
     .globl _lb_net_18websocket_alphabet
-    .weak_definition _lb_net_18websocket_alphabet
-_lb_net_18websocket_alphabet:
-    .zero 16
-    .section __DATA,__data
-    .p2align 3
+    .zerofill __DATA,__bss,_lb_net_18websocket_alphabet,16,3
     .globl _lb_net_14websocket_guid
-    .weak_definition _lb_net_14websocket_guid
-_lb_net_14websocket_guid:
-    .zero 16
+    .zerofill __DATA,__bss,_lb_net_14websocket_guid,16,3
 
 .subsections_via_symbols

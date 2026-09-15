@@ -43,7 +43,6 @@ lb_interop_module_0init:
     .bss
     .globl lb_interop_invalid
     .type lb_interop_invalid, @object
-    .weak lb_interop_invalid
     .p2align 2
 lb_interop_invalid:
     .zero 4
@@ -51,7 +50,6 @@ lb_interop_invalid:
     .bss
     .globl lb_interop_12wrong_thread
     .type lb_interop_12wrong_thread, @object
-    .weak lb_interop_12wrong_thread
     .p2align 2
 lb_interop_12wrong_thread:
     .zero 4
@@ -59,7 +57,6 @@ lb_interop_12wrong_thread:
     .bss
     .globl lb_interop_expired
     .type lb_interop_expired, @object
-    .weak lb_interop_expired
     .p2align 2
 lb_interop_expired:
     .zero 4

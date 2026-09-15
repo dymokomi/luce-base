@@ -485,26 +485,14 @@ l_text_6:
 
     .section __DATA,__const
     .p2align 3
-    .section __DATA,__data
-    .p2align 2
     .globl _lb_net_12http_invalid
-    .weak_definition _lb_net_12http_invalid
     .no_dead_strip _lb_net_12http_invalid
-_lb_net_12http_invalid:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_net_12http_invalid,4,2
     .globl _lb_net_10http_limit
-    .weak_definition _lb_net_10http_limit
     .no_dead_strip _lb_net_10http_limit
-_lb_net_10http_limit:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_net_10http_limit,4,2
     .globl _lb_net_16http_unsupported
-    .weak_definition _lb_net_16http_unsupported
     .no_dead_strip _lb_net_16http_unsupported
-_lb_net_16http_unsupported:
-    .zero 4
+    .zerofill __DATA,__bss,_lb_net_16http_unsupported,4,2
 
 .subsections_via_symbols

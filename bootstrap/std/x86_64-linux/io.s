@@ -5250,7 +5250,6 @@ lb_vt_io_StandardInput_Reader:
     .bss
     .globl lb_io_14unexpected_eof
     .type lb_io_14unexpected_eof, @object
-    .weak lb_io_14unexpected_eof
     .p2align 2
 lb_io_14unexpected_eof:
     .zero 4
@@ -5258,7 +5257,6 @@ lb_io_14unexpected_eof:
     .bss
     .globl lb_io_11no_progress
     .type lb_io_11no_progress, @object
-    .weak lb_io_11no_progress
     .p2align 2
 lb_io_11no_progress:
     .zero 4
@@ -5266,7 +5264,6 @@ lb_io_11no_progress:
     .bss
     .globl lb_io_13invalid_count
     .type lb_io_13invalid_count, @object
-    .weak lb_io_13invalid_count
     .p2align 2
 lb_io_13invalid_count:
     .zero 4
@@ -5274,7 +5271,6 @@ lb_io_13invalid_count:
     .bss
     .globl lb_io_14invalid_buffer
     .type lb_io_14invalid_buffer, @object
-    .weak lb_io_14invalid_buffer
     .p2align 2
 lb_io_14invalid_buffer:
     .zero 4
@@ -5282,7 +5278,6 @@ lb_io_14invalid_buffer:
     .bss
     .globl lb_io_closed
     .type lb_io_closed, @object
-    .weak lb_io_closed
     .p2align 2
 lb_io_closed:
     .zero 4
@@ -5290,7 +5285,6 @@ lb_io_closed:
     .bss
     .globl lb_io_failed
     .type lb_io_failed, @object
-    .weak lb_io_failed
     .p2align 2
 lb_io_failed:
     .zero 4
@@ -5298,7 +5292,6 @@ lb_io_failed:
     .bss
     .globl lb_io_11would_block
     .type lb_io_11would_block, @object
-    .weak lb_io_11would_block
     .p2align 2
 lb_io_11would_block:
     .zero 4
@@ -5327,7 +5320,6 @@ lb_io_7in_file:
     .bss
     .globl lb_io_full
     .type lb_io_full, @object
-    .weak lb_io_full
     .p2align 2
 lb_io_full:
     .zero 4
@@ -5335,7 +5327,6 @@ lb_io_full:
     .bss
     .globl lb_io_14io_path_failed
     .type lb_io_14io_path_failed, @object
-    .weak lb_io_14io_path_failed
     .p2align 2
 lb_io_14io_path_failed:
     .zero 4

@@ -71,11 +71,7 @@ l_text_23:
 
     .section __DATA,__const
     .p2align 3
-    .section __DATA,__data
-    .p2align 2
     .globl _lb_gpu_22vulkan_api_version_1_0
-    .weak_definition _lb_gpu_22vulkan_api_version_1_0
-_lb_gpu_22vulkan_api_version_1_0:
-    .zero 4
+    .zerofill __DATA,__bss,_lb_gpu_22vulkan_api_version_1_0,4,2
 
 .subsections_via_symbols

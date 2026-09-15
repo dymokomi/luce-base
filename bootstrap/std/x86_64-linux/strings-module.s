@@ -55,7 +55,6 @@ lb_strings_module_0init:
     .bss
     .globl lb_strings_17invalid_separator
     .type lb_strings_17invalid_separator, @object
-    .weak lb_strings_17invalid_separator
     .p2align 2
 lb_strings_17invalid_separator:
     .zero 4
@@ -63,7 +62,6 @@ lb_strings_17invalid_separator:
     .bss
     .globl lb_strings_16output_too_large
     .type lb_strings_16output_too_large, @object
-    .weak lb_strings_16output_too_large
     .p2align 2
 lb_strings_16output_too_large:
     .zero 4
@@ -71,7 +69,6 @@ lb_strings_16output_too_large:
     .bss
     .globl lb_strings_13invalid_radix
     .type lb_strings_13invalid_radix, @object
-    .weak lb_strings_13invalid_radix
     .p2align 2
 lb_strings_13invalid_radix:
     .zero 4
@@ -79,7 +76,6 @@ lb_strings_13invalid_radix:
     .bss
     .globl lb_strings_14invalid_number
     .type lb_strings_14invalid_number, @object
-    .weak lb_strings_14invalid_number
     .p2align 2
 lb_strings_14invalid_number:
     .zero 4
@@ -87,7 +83,6 @@ lb_strings_14invalid_number:
     .bss
     .globl lb_strings_19number_out_of_range
     .type lb_strings_19number_out_of_range, @object
-    .weak lb_strings_19number_out_of_range
     .p2align 2
 lb_strings_19number_out_of_range:
     .zero 4
@@ -95,7 +90,6 @@ lb_strings_19number_out_of_range:
     .bss
     .globl lb_strings_17conversion_failed
     .type lb_strings_17conversion_failed, @object
-    .weak lb_strings_17conversion_failed
     .p2align 2
 lb_strings_17conversion_failed:
     .zero 4

@@ -245,110 +245,50 @@ l_text_14:
 
     .section __DATA,__const
     .p2align 3
-    .section __DATA,__data
-    .p2align 3
     .globl _lb_unicode_18canonical_mappings
-    .weak_definition _lb_unicode_18canonical_mappings
     .no_dead_strip _lb_unicode_18canonical_mappings
-_lb_unicode_18canonical_mappings:
-    .zero 16
-    .section __DATA,__data
-    .p2align 3
+    .zerofill __DATA,__bss,_lb_unicode_18canonical_mappings,16,3
     .globl _lb_unicode_22compatibility_mappings
-    .weak_definition _lb_unicode_22compatibility_mappings
     .no_dead_strip _lb_unicode_22compatibility_mappings
-_lb_unicode_22compatibility_mappings:
-    .zero 16
-    .section __DATA,__data
-    .p2align 3
+    .zerofill __DATA,__bss,_lb_unicode_22compatibility_mappings,16,3
     .globl _lb_unicode_14upper_mappings
-    .weak_definition _lb_unicode_14upper_mappings
     .no_dead_strip _lb_unicode_14upper_mappings
-_lb_unicode_14upper_mappings:
-    .zero 16
-    .section __DATA,__data
-    .p2align 3
+    .zerofill __DATA,__bss,_lb_unicode_14upper_mappings,16,3
     .globl _lb_unicode_14lower_mappings
-    .weak_definition _lb_unicode_14lower_mappings
     .no_dead_strip _lb_unicode_14lower_mappings
-_lb_unicode_14lower_mappings:
-    .zero 16
-    .section __DATA,__data
-    .p2align 3
+    .zerofill __DATA,__bss,_lb_unicode_14lower_mappings,16,3
     .globl _lb_unicode_13fold_mappings
-    .weak_definition _lb_unicode_13fold_mappings
     .no_dead_strip _lb_unicode_13fold_mappings
-_lb_unicode_13fold_mappings:
-    .zero 16
-    .section __DATA,__data
-    .p2align 3
+    .zerofill __DATA,__bss,_lb_unicode_13fold_mappings,16,3
     .globl _lb_unicode_15turkic_mappings
-    .weak_definition _lb_unicode_15turkic_mappings
     .no_dead_strip _lb_unicode_15turkic_mappings
-_lb_unicode_15turkic_mappings:
-    .zero 16
-    .section __DATA,__data
-    .p2align 3
+    .zerofill __DATA,__bss,_lb_unicode_15turkic_mappings,16,3
     .globl _lb_unicode_15mapping_scalars
-    .weak_definition _lb_unicode_15mapping_scalars
     .no_dead_strip _lb_unicode_15mapping_scalars
-_lb_unicode_15mapping_scalars:
-    .zero 16
-    .section __DATA,__data
-    .p2align 3
+    .zerofill __DATA,__bss,_lb_unicode_15mapping_scalars,16,3
     .globl _lb_unicode_20composition_mappings
-    .weak_definition _lb_unicode_20composition_mappings
     .no_dead_strip _lb_unicode_20composition_mappings
-_lb_unicode_20composition_mappings:
-    .zero 16
-    .section __DATA,__data
-    .p2align 3
+    .zerofill __DATA,__bss,_lb_unicode_20composition_mappings,16,3
     .globl _lb_unicode_16combining_ranges
-    .weak_definition _lb_unicode_16combining_ranges
     .no_dead_strip _lb_unicode_16combining_ranges
-_lb_unicode_16combining_ranges:
-    .zero 16
-    .section __DATA,__data
-    .p2align 3
+    .zerofill __DATA,__bss,_lb_unicode_16combining_ranges,16,3
     .globl _lb_unicode_12cased_ranges
-    .weak_definition _lb_unicode_12cased_ranges
     .no_dead_strip _lb_unicode_12cased_ranges
-_lb_unicode_12cased_ranges:
-    .zero 16
-    .section __DATA,__data
-    .p2align 3
+    .zerofill __DATA,__bss,_lb_unicode_12cased_ranges,16,3
     .globl _lb_unicode_21case_ignorable_ranges
-    .weak_definition _lb_unicode_21case_ignorable_ranges
     .no_dead_strip _lb_unicode_21case_ignorable_ranges
-_lb_unicode_21case_ignorable_ranges:
-    .zero 16
-    .section __DATA,__data
-    .p2align 3
+    .zerofill __DATA,__bss,_lb_unicode_21case_ignorable_ranges,16,3
     .globl _lb_unicode_17whitespace_ranges
-    .weak_definition _lb_unicode_17whitespace_ranges
     .no_dead_strip _lb_unicode_17whitespace_ranges
-_lb_unicode_17whitespace_ranges:
-    .zero 16
-    .section __DATA,__data
-    .p2align 3
+    .zerofill __DATA,__bss,_lb_unicode_17whitespace_ranges,16,3
     .globl _lb_unicode_15grapheme_ranges
-    .weak_definition _lb_unicode_15grapheme_ranges
     .no_dead_strip _lb_unicode_15grapheme_ranges
-_lb_unicode_15grapheme_ranges:
-    .zero 16
-    .section __DATA,__data
-    .p2align 3
+    .zerofill __DATA,__bss,_lb_unicode_15grapheme_ranges,16,3
     .globl _lb_unicode_19pictographic_ranges
-    .weak_definition _lb_unicode_19pictographic_ranges
     .no_dead_strip _lb_unicode_19pictographic_ranges
-_lb_unicode_19pictographic_ranges:
-    .zero 16
-    .section __DATA,__data
-    .p2align 3
+    .zerofill __DATA,__bss,_lb_unicode_19pictographic_ranges,16,3
     .globl _lb_unicode_12indic_ranges
-    .weak_definition _lb_unicode_12indic_ranges
     .no_dead_strip _lb_unicode_12indic_ranges
-_lb_unicode_12indic_ranges:
-    .zero 16
+    .zerofill __DATA,__bss,_lb_unicode_12indic_ranges,16,3
 
 .subsections_via_symbols

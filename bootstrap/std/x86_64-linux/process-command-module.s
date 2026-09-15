@@ -4163,7 +4163,6 @@ lb_memory_copy_0g1_u8:
     .bss
     .globl lb_process_12command_type
     .type lb_process_12command_type, @object
-    .weak lb_process_12command_type
     .p2align 3
 lb_process_12command_type:
     .zero 40

@@ -555,7 +555,6 @@ lb_clipboard_12check_access:
     .bss
     .globl lb_clipboard_failed
     .type lb_clipboard_failed, @object
-    .weak lb_clipboard_failed
     .p2align 2
 lb_clipboard_failed:
     .zero 4
@@ -563,7 +562,6 @@ lb_clipboard_failed:
     .bss
     .globl lb_clipboard_10text_limit
     .type lb_clipboard_10text_limit, @object
-    .weak lb_clipboard_10text_limit
     .p2align 3
 lb_clipboard_10text_limit:
     .zero 8

@@ -2056,68 +2056,32 @@ l_text_37:
 
     .section __DATA,__const
     .p2align 3
-    .section __DATA,__data
-    .p2align 0
     .globl _lb_ownership_black
-    .weak_definition _lb_ownership_black
     .no_dead_strip _lb_ownership_black
-_lb_ownership_black:
-    .zero 1
-    .section __DATA,__data
-    .p2align 0
+    .zerofill __DATA,__bss,_lb_ownership_black,1,0
     .globl _lb_ownership_gray
-    .weak_definition _lb_ownership_gray
     .no_dead_strip _lb_ownership_gray
-_lb_ownership_gray:
-    .zero 1
-    .section __DATA,__data
-    .p2align 0
+    .zerofill __DATA,__bss,_lb_ownership_gray,1,0
     .globl _lb_ownership_white
-    .weak_definition _lb_ownership_white
     .no_dead_strip _lb_ownership_white
-_lb_ownership_white:
-    .zero 1
-    .section __DATA,__data
-    .p2align 0
+    .zerofill __DATA,__bss,_lb_ownership_white,1,0
     .globl _lb_ownership_purple
-    .weak_definition _lb_ownership_purple
     .no_dead_strip _lb_ownership_purple
-_lb_ownership_purple:
-    .zero 1
-    .section __DATA,__data
-    .p2align 0
+    .zerofill __DATA,__bss,_lb_ownership_purple,1,0
     .globl _lb_ownership_10color_mask
-    .weak_definition _lb_ownership_10color_mask
-_lb_ownership_10color_mask:
-    .zero 1
-    .section __DATA,__data
-    .p2align 0
+    .zerofill __DATA,__bss,_lb_ownership_10color_mask,1,0
     .globl _lb_ownership_buffered
-    .weak_definition _lb_ownership_buffered
     .no_dead_strip _lb_ownership_buffered
-_lb_ownership_buffered:
-    .zero 1
-    .section __DATA,__data
-    .p2align 0
+    .zerofill __DATA,__bss,_lb_ownership_buffered,1,0
     .globl _lb_ownership_dead
-    .weak_definition _lb_ownership_dead
     .no_dead_strip _lb_ownership_dead
-_lb_ownership_dead:
-    .zero 1
-    .section __DATA,__data
-    .p2align 0
+    .zerofill __DATA,__bss,_lb_ownership_dead,1,0
     .globl _lb_ownership_collecting
-    .weak_definition _lb_ownership_collecting
     .no_dead_strip _lb_ownership_collecting
-_lb_ownership_collecting:
-    .zero 1
-    .section __DATA,__data
-    .p2align 0
+    .zerofill __DATA,__bss,_lb_ownership_collecting,1,0
     .globl _lb_ownership_immortal
-    .weak_definition _lb_ownership_immortal
     .no_dead_strip _lb_ownership_immortal
-_lb_ownership_immortal:
-    .zero 1
+    .zerofill __DATA,__bss,_lb_ownership_immortal,1,0
 
     .section __DATA,__thread_bss,thread_local_zerofill
     .p2align 4

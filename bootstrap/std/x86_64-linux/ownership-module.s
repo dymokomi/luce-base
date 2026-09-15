@@ -2361,7 +2361,6 @@ lb_ownership_identity:
     .bss
     .globl lb_ownership_black
     .type lb_ownership_black, @object
-    .weak lb_ownership_black
     .p2align 0
 lb_ownership_black:
     .zero 1
@@ -2369,7 +2368,6 @@ lb_ownership_black:
     .bss
     .globl lb_ownership_gray
     .type lb_ownership_gray, @object
-    .weak lb_ownership_gray
     .p2align 0
 lb_ownership_gray:
     .zero 1
@@ -2377,7 +2375,6 @@ lb_ownership_gray:
     .bss
     .globl lb_ownership_white
     .type lb_ownership_white, @object
-    .weak lb_ownership_white
     .p2align 0
 lb_ownership_white:
     .zero 1
@@ -2385,7 +2382,6 @@ lb_ownership_white:
     .bss
     .globl lb_ownership_purple
     .type lb_ownership_purple, @object
-    .weak lb_ownership_purple
     .p2align 0
 lb_ownership_purple:
     .zero 1
@@ -2393,7 +2389,6 @@ lb_ownership_purple:
     .bss
     .globl lb_ownership_10color_mask
     .type lb_ownership_10color_mask, @object
-    .weak lb_ownership_10color_mask
     .p2align 0
 lb_ownership_10color_mask:
     .zero 1
@@ -2401,7 +2396,6 @@ lb_ownership_10color_mask:
     .bss
     .globl lb_ownership_buffered
     .type lb_ownership_buffered, @object
-    .weak lb_ownership_buffered
     .p2align 0
 lb_ownership_buffered:
     .zero 1
@@ -2409,7 +2403,6 @@ lb_ownership_buffered:
     .bss
     .globl lb_ownership_dead
     .type lb_ownership_dead, @object
-    .weak lb_ownership_dead
     .p2align 0
 lb_ownership_dead:
     .zero 1
@@ -2417,7 +2410,6 @@ lb_ownership_dead:
     .bss
     .globl lb_ownership_collecting
     .type lb_ownership_collecting, @object
-    .weak lb_ownership_collecting
     .p2align 0
 lb_ownership_collecting:
     .zero 1
@@ -2425,7 +2417,6 @@ lb_ownership_collecting:
     .bss
     .globl lb_ownership_immortal
     .type lb_ownership_immortal, @object
-    .weak lb_ownership_immortal
     .p2align 0
 lb_ownership_immortal:
     .zero 1

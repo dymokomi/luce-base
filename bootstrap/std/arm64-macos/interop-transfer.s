@@ -779,19 +779,11 @@ l_text_12:
 
     .section __DATA,__const
     .p2align 3
-    .section __DATA,__data
-    .p2align 3
     .globl _lb_interop_13text_transfer
-    .weak_definition _lb_interop_13text_transfer
     .no_dead_strip _lb_interop_13text_transfer
-_lb_interop_13text_transfer:
-    .zero 8
-    .section __DATA,__data
-    .p2align 3
+    .zerofill __DATA,__bss,_lb_interop_13text_transfer,8,3
     .globl _lb_interop_14bytes_transfer
-    .weak_definition _lb_interop_14bytes_transfer
     .no_dead_strip _lb_interop_14bytes_transfer
-_lb_interop_14bytes_transfer:
-    .zero 8
+    .zerofill __DATA,__bss,_lb_interop_14bytes_transfer,8,3
 
 .subsections_via_symbols

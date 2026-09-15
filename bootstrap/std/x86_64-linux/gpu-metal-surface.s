@@ -168,7 +168,6 @@ lb_gpu_13metal_surface_0init:
     .bss
     .globl lb_gpu_19metal_surface_limit
     .type lb_gpu_19metal_surface_limit, @object
-    .weak lb_gpu_19metal_surface_limit
     .p2align 3
 lb_gpu_19metal_surface_limit:
     .zero 8

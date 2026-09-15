@@ -28,19 +28,11 @@ _lb_interop_worker_0init:
 
     .section __DATA,__const
     .p2align 3
-    .section __DATA,__data
-    .p2align 2
     .globl _lb_interop_13worker_closed
-    .weak_definition _lb_interop_13worker_closed
     .no_dead_strip _lb_interop_13worker_closed
-_lb_interop_13worker_closed:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_interop_13worker_closed,4,2
     .globl _lb_interop_11worker_busy
-    .weak_definition _lb_interop_11worker_busy
     .no_dead_strip _lb_interop_11worker_busy
-_lb_interop_11worker_busy:
-    .zero 4
+    .zerofill __DATA,__bss,_lb_interop_11worker_busy,4,2
 
 .subsections_via_symbols

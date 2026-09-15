@@ -4137,7 +4137,6 @@ lb_vt_files_TemporaryFile_Writer:
     .bss
     .globl lb_files_12entries_type
     .type lb_files_12entries_type, @object
-    .weak lb_files_12entries_type
     .p2align 3
 lb_files_12entries_type:
     .zero 40

@@ -524,7 +524,6 @@ lb_net_sendto:
     .bss
     .globl lb_net_inet
     .type lb_net_inet, @object
-    .weak lb_net_inet
     .p2align 2
 lb_net_inet:
     .zero 4
@@ -532,7 +531,6 @@ lb_net_inet:
     .bss
     .globl lb_net_inet6
     .type lb_net_inet6, @object
-    .weak lb_net_inet6
     .p2align 2
 lb_net_inet6:
     .zero 4
@@ -540,7 +538,6 @@ lb_net_inet6:
     .bss
     .globl lb_net_stream
     .type lb_net_stream, @object
-    .weak lb_net_stream
     .p2align 2
 lb_net_stream:
     .zero 4
@@ -548,7 +545,6 @@ lb_net_stream:
     .bss
     .globl lb_net_datagram
     .type lb_net_datagram, @object
-    .weak lb_net_datagram
     .p2align 2
 lb_net_datagram:
     .zero 4
@@ -556,7 +552,6 @@ lb_net_datagram:
     .bss
     .globl lb_net_20socket_close_on_exec
     .type lb_net_20socket_close_on_exec, @object
-    .weak lb_net_20socket_close_on_exec
     .p2align 2
 lb_net_20socket_close_on_exec:
     .zero 4
@@ -564,7 +559,6 @@ lb_net_20socket_close_on_exec:
     .bss
     .globl lb_net_20get_descriptor_flags
     .type lb_net_20get_descriptor_flags, @object
-    .weak lb_net_20get_descriptor_flags
     .p2align 2
 lb_net_20get_descriptor_flags:
     .zero 4
@@ -572,7 +566,6 @@ lb_net_20get_descriptor_flags:
     .bss
     .globl lb_net_20set_descriptor_flags
     .type lb_net_20set_descriptor_flags, @object
-    .weak lb_net_20set_descriptor_flags
     .p2align 2
 lb_net_20set_descriptor_flags:
     .zero 4
@@ -580,7 +573,6 @@ lb_net_20set_descriptor_flags:
     .bss
     .globl lb_net_24descriptor_close_on_exec
     .type lb_net_24descriptor_close_on_exec, @object
-    .weak lb_net_24descriptor_close_on_exec
     .p2align 2
 lb_net_24descriptor_close_on_exec:
     .zero 4
@@ -588,7 +580,6 @@ lb_net_24descriptor_close_on_exec:
     .bss
     .globl lb_net_12socket_level
     .type lb_net_12socket_level, @object
-    .weak lb_net_12socket_level
     .p2align 2
 lb_net_12socket_level:
     .zero 4
@@ -596,7 +587,6 @@ lb_net_12socket_level:
     .bss
     .globl lb_net_20reuse_address_option
     .type lb_net_20reuse_address_option, @object
-    .weak lb_net_20reuse_address_option
     .p2align 2
 lb_net_20reuse_address_option:
     .zero 4
@@ -604,7 +594,6 @@ lb_net_20reuse_address_option:
     .bss
     .globl lb_net_10ipv6_level
     .type lb_net_10ipv6_level, @object
-    .weak lb_net_10ipv6_level
     .p2align 2
 lb_net_10ipv6_level:
     .zero 4
@@ -612,7 +601,6 @@ lb_net_10ipv6_level:
     .bss
     .globl lb_net_16ipv6_only_option
     .type lb_net_16ipv6_only_option, @object
-    .weak lb_net_16ipv6_only_option
     .p2align 2
 lb_net_16ipv6_only_option:
     .zero 4
@@ -620,7 +608,6 @@ lb_net_16ipv6_only_option:
     .bss
     .globl lb_net_17no_sigpipe_option
     .type lb_net_17no_sigpipe_option, @object
-    .weak lb_net_17no_sigpipe_option
     .p2align 2
 lb_net_17no_sigpipe_option:
     .zero 4
@@ -628,7 +615,6 @@ lb_net_17no_sigpipe_option:
     .bss
     .globl lb_net_10send_flags
     .type lb_net_10send_flags, @object
-    .weak lb_net_10send_flags
     .p2align 2
 lb_net_10send_flags:
     .zero 4
@@ -636,7 +622,6 @@ lb_net_10send_flags:
     .bss
     .globl lb_net_18socket_interrupted
     .type lb_net_18socket_interrupted, @object
-    .weak lb_net_18socket_interrupted
     .p2align 2
 lb_net_18socket_interrupted:
     .zero 4

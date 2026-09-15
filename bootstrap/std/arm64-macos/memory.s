@@ -3716,12 +3716,8 @@ _lb_vt_memory_CAllocator_Allocator:
     .quad _lb_memory_CAllocator_allocate
     .quad _lb_memory_CAllocator_resize
     .quad _lb_memory_CAllocator_release
-    .section __DATA,__data
-    .p2align 2
     .globl _lb_memory_17private_anonymous
-    .weak_definition _lb_memory_17private_anonymous
-_lb_memory_17private_anonymous:
-    .zero 4
+    .zerofill __DATA,__bss,_lb_memory_17private_anonymous,4,2
     .globl _lb_memory_diagnostic
     .no_dead_strip _lb_memory_diagnostic
     .zerofill __DATA,__bss,_lb_memory_diagnostic,1,0
@@ -3739,20 +3735,12 @@ _lb_memory_17private_anonymous:
     .zerofill __DATA,__bss,_lb_memory_10held_pages,192,3
     .globl _lb_memory_9held_next
     .zerofill __DATA,__bss,_lb_memory_9held_next,8,3
-    .section __DATA,__data
-    .p2align 2
     .globl _lb_memory_exhausted
-    .weak_definition _lb_memory_exhausted
     .no_dead_strip _lb_memory_exhausted
-_lb_memory_exhausted:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_memory_exhausted,4,2
     .globl _lb_memory_unset
-    .weak_definition _lb_memory_unset
     .no_dead_strip _lb_memory_unset
-_lb_memory_unset:
-    .zero 4
+    .zerofill __DATA,__bss,_lb_memory_unset,4,2
     .globl _lb_memory_11c_allocator
     .zerofill __DATA,__bss,_lb_memory_11c_allocator,1,0
 

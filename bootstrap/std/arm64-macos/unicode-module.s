@@ -130,12 +130,8 @@ l_text_3:
 
     .section __DATA,__const
     .p2align 3
-    .section __DATA,__data
-    .p2align 3
     .globl _lb_unicode_version
-    .weak_definition _lb_unicode_version
     .no_dead_strip _lb_unicode_version
-_lb_unicode_version:
-    .zero 16
+    .zerofill __DATA,__bss,_lb_unicode_version,16,3
 
 .subsections_via_symbols

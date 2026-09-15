@@ -454,96 +454,44 @@ l_text_6:
 
     .section __DATA,__const
     .p2align 3
-    .section __DATA,__data
-    .p2align 2
     .globl _lb_gpu_unsupported
-    .weak_definition _lb_gpu_unsupported
     .no_dead_strip _lb_gpu_unsupported
-_lb_gpu_unsupported:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_gpu_unsupported,4,2
     .globl _lb_gpu_unavailable
-    .weak_definition _lb_gpu_unavailable
     .no_dead_strip _lb_gpu_unavailable
-_lb_gpu_unavailable:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_gpu_unavailable,4,2
     .globl _lb_gpu_12wrong_thread
-    .weak_definition _lb_gpu_12wrong_thread
     .no_dead_strip _lb_gpu_12wrong_thread
-_lb_gpu_12wrong_thread:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_gpu_12wrong_thread,4,2
     .globl _lb_gpu_closed
-    .weak_definition _lb_gpu_closed
     .no_dead_strip _lb_gpu_closed
-_lb_gpu_closed:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_gpu_closed,4,2
     .globl _lb_gpu_13invalid_color
-    .weak_definition _lb_gpu_13invalid_color
     .no_dead_strip _lb_gpu_13invalid_color
-_lb_gpu_13invalid_color:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_gpu_13invalid_color,4,2
     .globl _lb_gpu_failed
-    .weak_definition _lb_gpu_failed
     .no_dead_strip _lb_gpu_failed
-_lb_gpu_failed:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_gpu_failed,4,2
     .globl _lb_gpu_16execution_failed
-    .weak_definition _lb_gpu_16execution_failed
     .no_dead_strip _lb_gpu_16execution_failed
-_lb_gpu_16execution_failed:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_gpu_16execution_failed,4,2
     .globl _lb_gpu_17surface_too_large
-    .weak_definition _lb_gpu_17surface_too_large
     .no_dead_strip _lb_gpu_17surface_too_large
-_lb_gpu_17surface_too_large:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_gpu_17surface_too_large,4,2
     .globl _lb_gpu_16invalid_geometry
-    .weak_definition _lb_gpu_16invalid_geometry
     .no_dead_strip _lb_gpu_16invalid_geometry
-_lb_gpu_16invalid_geometry:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_gpu_16invalid_geometry,4,2
     .globl _lb_gpu_13command_limit
-    .weak_definition _lb_gpu_13command_limit
     .no_dead_strip _lb_gpu_13command_limit
-_lb_gpu_13command_limit:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_gpu_13command_limit,4,2
     .globl _lb_gpu_14frame_finished
-    .weak_definition _lb_gpu_14frame_finished
     .no_dead_strip _lb_gpu_14frame_finished
-_lb_gpu_14frame_finished:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_gpu_14frame_finished,4,2
     .globl _lb_gpu_12frame_in_use
-    .weak_definition _lb_gpu_12frame_in_use
     .no_dead_strip _lb_gpu_12frame_in_use
-_lb_gpu_12frame_in_use:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_gpu_12frame_in_use,4,2
     .globl _lb_gpu_13frame_resized
-    .weak_definition _lb_gpu_13frame_resized
     .no_dead_strip _lb_gpu_13frame_resized
-_lb_gpu_13frame_resized:
-    .zero 4
+    .zerofill __DATA,__bss,_lb_gpu_13frame_resized,4,2
 
 .subsections_via_symbols

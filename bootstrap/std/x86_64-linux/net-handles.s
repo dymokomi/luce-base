@@ -1346,7 +1346,6 @@ lb_net_18set_socket_integer:
     .bss
     .globl lb_net_14transfer_limit
     .type lb_net_14transfer_limit, @object
-    .weak lb_net_14transfer_limit
     .p2align 3
 lb_net_14transfer_limit:
     .zero 8

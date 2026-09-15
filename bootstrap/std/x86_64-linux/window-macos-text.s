@@ -127,7 +127,6 @@ lb_window_10macos_text_0init:
     .bss
     .globl lb_window_13mac_not_found
     .type lb_window_13mac_not_found, @object
-    .weak lb_window_13mac_not_found
     .p2align 3
 lb_window_13mac_not_found:
     .zero 8

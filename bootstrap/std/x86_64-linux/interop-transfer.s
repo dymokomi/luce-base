@@ -987,7 +987,6 @@ lb_interop_Packet_0g1_str_init:
     .bss
     .globl lb_interop_13text_transfer
     .type lb_interop_13text_transfer, @object
-    .weak lb_interop_13text_transfer
     .p2align 3
 lb_interop_13text_transfer:
     .zero 8
@@ -995,7 +994,6 @@ lb_interop_13text_transfer:
     .bss
     .globl lb_interop_14bytes_transfer
     .type lb_interop_14bytes_transfer, @object
-    .weak lb_interop_14bytes_transfer
     .p2align 3
 lb_interop_14bytes_transfer:
     .zero 8

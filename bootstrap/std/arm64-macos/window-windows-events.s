@@ -256,11 +256,7 @@ l_text_12:
 
     .section __DATA,__const
     .p2align 3
-    .section __DATA,__data
-    .p2align 1
     .globl _lb_window_13win_scan_keys
-    .weak_definition _lb_window_13win_scan_keys
-_lb_window_13win_scan_keys:
-    .zero 128
+    .zerofill __DATA,__bss,_lb_window_13win_scan_keys,128,1
 
 .subsections_via_symbols

@@ -269,12 +269,8 @@ l_text_2:
 
     .section __DATA,__const
     .p2align 3
-    .section __DATA,__data
-    .p2align 3
     .globl _lb_interop_15connection_type
-    .weak_definition _lb_interop_15connection_type
     .no_dead_strip _lb_interop_15connection_type
-_lb_interop_15connection_type:
-    .zero 40
+    .zerofill __DATA,__bss,_lb_interop_15connection_type,40,3
 
 .subsections_via_symbols

@@ -2402,7 +2402,6 @@ lb_memory_copy_0g1_u8:
     .bss
     .globl lb_fonts_failed
     .type lb_fonts_failed, @object
-    .weak lb_fonts_failed
     .p2align 2
 lb_fonts_failed:
     .zero 4

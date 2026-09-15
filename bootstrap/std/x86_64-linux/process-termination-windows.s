@@ -61,7 +61,6 @@ lb_process_19termination_windows_0init:
     .bss
     .globl lb_process_17console_interrupt
     .type lb_process_17console_interrupt, @object
-    .weak lb_process_17console_interrupt
     .p2align 2
 lb_process_17console_interrupt:
     .zero 4
@@ -69,7 +68,6 @@ lb_process_17console_interrupt:
     .bss
     .globl lb_process_13console_break
     .type lb_process_13console_break, @object
-    .weak lb_process_13console_break
     .p2align 2
 lb_process_13console_break:
     .zero 4
@@ -77,7 +75,6 @@ lb_process_13console_break:
     .bss
     .globl lb_process_13console_close
     .type lb_process_13console_close, @object
-    .weak lb_process_13console_close
     .p2align 2
 lb_process_13console_close:
     .zero 4
@@ -85,7 +82,6 @@ lb_process_13console_close:
     .bss
     .globl lb_process_14console_logoff
     .type lb_process_14console_logoff, @object
-    .weak lb_process_14console_logoff
     .p2align 2
 lb_process_14console_logoff:
     .zero 4
@@ -93,7 +89,6 @@ lb_process_14console_logoff:
     .bss
     .globl lb_process_16console_shutdown
     .type lb_process_16console_shutdown, @object
-    .weak lb_process_16console_shutdown
     .p2align 2
 lb_process_16console_shutdown:
     .zero 4
@@ -101,7 +96,6 @@ lb_process_16console_shutdown:
     .bss
     .globl lb_process_26console_acknowledgement_ms
     .type lb_process_26console_acknowledgement_ms, @object
-    .weak lb_process_26console_acknowledgement_ms
     .p2align 3
 lb_process_26console_acknowledgement_ms:
     .zero 8

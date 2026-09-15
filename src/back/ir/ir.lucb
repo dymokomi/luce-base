@@ -498,6 +498,9 @@ pub struct Global:
     pub var section: str
     ## `linked`: another object defines the storage; the program only refers to it.
     pub var external: bool
+    ## The program's own copy of a standard constant, read through the interface: a local
+    ## symbol, beside the library member's own, which nothing else may see or coalesce.
+    pub var private: bool
 
 ## A witness table: the symbol and the functions it points at, in requirement order.
 pub struct WitnessTable:

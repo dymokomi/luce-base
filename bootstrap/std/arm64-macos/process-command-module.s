@@ -3531,12 +3531,8 @@ l_text_49:
 
     .section __DATA,__const
     .p2align 3
-    .section __DATA,__data
-    .p2align 3
     .globl _lb_process_12command_type
-    .weak_definition _lb_process_12command_type
     .no_dead_strip _lb_process_12command_type
-_lb_process_12command_type:
-    .zero 40
+    .zerofill __DATA,__bss,_lb_process_12command_type,40,3
 
 .subsections_via_symbols

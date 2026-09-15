@@ -1200,117 +1200,53 @@ l_text_2:
 
     .section __DATA,__const
     .p2align 3
-    .section __DATA,__data
-    .p2align 2
     .globl _lb_net_failed
-    .weak_definition _lb_net_failed
     .no_dead_strip _lb_net_failed
-_lb_net_failed:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_net_failed,4,2
     .globl _lb_net_closed
-    .weak_definition _lb_net_closed
     .no_dead_strip _lb_net_closed
-_lb_net_closed:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_net_closed,4,2
     .globl _lb_net_12unknown_host
-    .weak_definition _lb_net_12unknown_host
     .no_dead_strip _lb_net_12unknown_host
-_lb_net_12unknown_host:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_net_12unknown_host,4,2
     .globl _lb_net_15invalid_options
-    .weak_definition _lb_net_15invalid_options
     .no_dead_strip _lb_net_15invalid_options
-_lb_net_15invalid_options:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_net_15invalid_options,4,2
     .globl _lb_net_17message_too_large
-    .weak_definition _lb_net_17message_too_large
     .no_dead_strip _lb_net_17message_too_large
-_lb_net_17message_too_large:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_net_17message_too_large,4,2
     .globl _lb_net_cancelled
-    .weak_definition _lb_net_cancelled
     .no_dead_strip _lb_net_cancelled
-_lb_net_cancelled:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_net_cancelled,4,2
     .globl _lb_net_9timed_out
-    .weak_definition _lb_net_9timed_out
     .no_dead_strip _lb_net_9timed_out
-_lb_net_9timed_out:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_net_9timed_out,4,2
     .globl _lb_net_18connection_refused
-    .weak_definition _lb_net_18connection_refused
     .no_dead_strip _lb_net_18connection_refused
-_lb_net_18connection_refused:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_net_18connection_refused,4,2
     .globl _lb_net_19network_unreachable
-    .weak_definition _lb_net_19network_unreachable
     .no_dead_strip _lb_net_19network_unreachable
-_lb_net_19network_unreachable:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_net_19network_unreachable,4,2
     .globl _lb_net_14address_in_use
-    .weak_definition _lb_net_14address_in_use
     .no_dead_strip _lb_net_14address_in_use
-_lb_net_14address_in_use:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_net_14address_in_use,4,2
     .globl _lb_net_19address_unavailable
-    .weak_definition _lb_net_19address_unavailable
     .no_dead_strip _lb_net_19address_unavailable
-_lb_net_19address_unavailable:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_net_19address_unavailable,4,2
     .globl _lb_net_17permission_denied
-    .weak_definition _lb_net_17permission_denied
     .no_dead_strip _lb_net_17permission_denied
-_lb_net_17permission_denied:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_net_17permission_denied,4,2
     .globl _lb_net_18resource_exhausted
-    .weak_definition _lb_net_18resource_exhausted
     .no_dead_strip _lb_net_18resource_exhausted
-_lb_net_18resource_exhausted:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_net_18resource_exhausted,4,2
     .globl _lb_net_18connection_aborted
-    .weak_definition _lb_net_18connection_aborted
     .no_dead_strip _lb_net_18connection_aborted
-_lb_net_18connection_aborted:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_net_18connection_aborted,4,2
     .globl _lb_net_unsupported
-    .weak_definition _lb_net_unsupported
     .no_dead_strip _lb_net_unsupported
-_lb_net_unsupported:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_net_unsupported,4,2
     .globl _lb_net_20resolution_temporary
-    .weak_definition _lb_net_20resolution_temporary
     .no_dead_strip _lb_net_20resolution_temporary
-_lb_net_20resolution_temporary:
-    .zero 4
+    .zerofill __DATA,__bss,_lb_net_20resolution_temporary,4,2
 
 .subsections_via_symbols

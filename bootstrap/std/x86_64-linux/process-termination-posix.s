@@ -338,7 +338,6 @@ lb_process_18previous_terminate:
     .bss
     .globl lb_process_16interrupt_signal
     .type lb_process_16interrupt_signal, @object
-    .weak lb_process_16interrupt_signal
     .p2align 2
 lb_process_16interrupt_signal:
     .zero 4
@@ -346,7 +345,6 @@ lb_process_16interrupt_signal:
     .bss
     .globl lb_process_16terminate_signal
     .type lb_process_16terminate_signal, @object
-    .weak lb_process_16terminate_signal
     .p2align 2
 lb_process_16terminate_signal:
     .zero 4

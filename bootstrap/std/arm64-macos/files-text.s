@@ -3524,12 +3524,8 @@ l_text_22:
     .weak_definition _lb_vt_files_TemporaryFile_Writer
 _lb_vt_files_TemporaryFile_Writer:
     .quad _lb_files_TemporaryFile_write
-    .section __DATA,__data
-    .p2align 3
     .globl _lb_files_12entries_type
-    .weak_definition _lb_files_12entries_type
     .no_dead_strip _lb_files_12entries_type
-_lb_files_12entries_type:
-    .zero 40
+    .zerofill __DATA,__bss,_lb_files_12entries_type,40,3
 
 .subsections_via_symbols

@@ -778,33 +778,17 @@ l_text_7:
 
     .section __DATA,__const
     .p2align 3
-    .section __DATA,__data
-    .p2align 2
     .globl _lb_net_16nonblocking_flag
-    .weak_definition _lb_net_16nonblocking_flag
     .no_dead_strip _lb_net_16nonblocking_flag
-_lb_net_16nonblocking_flag:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_net_16nonblocking_flag,4,2
     .globl _lb_net_21receive_buffer_option
-    .weak_definition _lb_net_21receive_buffer_option
     .no_dead_strip _lb_net_21receive_buffer_option
-_lb_net_21receive_buffer_option:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_net_21receive_buffer_option,4,2
     .globl _lb_net_18send_buffer_option
-    .weak_definition _lb_net_18send_buffer_option
     .no_dead_strip _lb_net_18send_buffer_option
-_lb_net_18send_buffer_option:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_net_18send_buffer_option,4,2
     .globl _lb_net_16keepalive_option
-    .weak_definition _lb_net_16keepalive_option
     .no_dead_strip _lb_net_16keepalive_option
-_lb_net_16keepalive_option:
-    .zero 4
+    .zerofill __DATA,__bss,_lb_net_16keepalive_option,4,2
 
 .subsections_via_symbols

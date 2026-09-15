@@ -3220,52 +3220,24 @@ l_text_62:
 
     .section __DATA,__const
     .p2align 3
-    .section __DATA,__data
-    .p2align 1
     .globl _lb_process_7poll_in
-    .weak_definition _lb_process_7poll_in
     .no_dead_strip _lb_process_7poll_in
-_lb_process_7poll_in:
-    .zero 2
-    .section __DATA,__data
-    .p2align 1
+    .zerofill __DATA,__bss,_lb_process_7poll_in,2,1
     .globl _lb_process_12poll_hang_up
-    .weak_definition _lb_process_12poll_hang_up
-_lb_process_12poll_hang_up:
-    .zero 2
-    .section __DATA,__data
-    .p2align 1
+    .zerofill __DATA,__bss,_lb_process_12poll_hang_up,2,1
     .globl _lb_process_10poll_error
-    .weak_definition _lb_process_10poll_error
-_lb_process_10poll_error:
-    .zero 2
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_process_10poll_error,2,1
     .globl _lb_process_9set_flags
-    .weak_definition _lb_process_9set_flags
     .no_dead_strip _lb_process_9set_flags
-_lb_process_9set_flags:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_process_9set_flags,4,2
     .globl _lb_process_12non_blocking
-    .weak_definition _lb_process_12non_blocking
     .no_dead_strip _lb_process_12non_blocking
-_lb_process_12non_blocking:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_process_12non_blocking,4,2
     .globl _lb_process_11would_block
-    .weak_definition _lb_process_11would_block
     .no_dead_strip _lb_process_11would_block
-_lb_process_11would_block:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_process_11would_block,4,2
     .globl _lb_process_failed
-    .weak_definition _lb_process_failed
     .no_dead_strip _lb_process_failed
-_lb_process_failed:
-    .zero 4
+    .zerofill __DATA,__bss,_lb_process_failed,4,2
 
 .subsections_via_symbols

@@ -533,7 +533,6 @@ lb_net_HttpHead_9has_token:
     .bss
     .globl lb_net_12http_invalid
     .type lb_net_12http_invalid, @object
-    .weak lb_net_12http_invalid
     .p2align 2
 lb_net_12http_invalid:
     .zero 4
@@ -541,7 +540,6 @@ lb_net_12http_invalid:
     .bss
     .globl lb_net_10http_limit
     .type lb_net_10http_limit, @object
-    .weak lb_net_10http_limit
     .p2align 2
 lb_net_10http_limit:
     .zero 4
@@ -549,7 +547,6 @@ lb_net_10http_limit:
     .bss
     .globl lb_net_16http_unsupported
     .type lb_net_16http_unsupported, @object
-    .weak lb_net_16http_unsupported
     .p2align 2
 lb_net_16http_unsupported:
     .zero 4

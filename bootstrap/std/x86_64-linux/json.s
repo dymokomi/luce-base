@@ -7099,7 +7099,6 @@ lb_interop_13dispose_owner_0g1_json_Value:
     .bss
     .globl lb_json_invalid
     .type lb_json_invalid, @object
-    .weak lb_json_invalid
     .p2align 2
 lb_json_invalid:
     .zero 4
@@ -7107,7 +7106,6 @@ lb_json_invalid:
     .bss
     .globl lb_json_14limit_exceeded
     .type lb_json_14limit_exceeded, @object
-    .weak lb_json_14limit_exceeded
     .p2align 2
 lb_json_14limit_exceeded:
     .zero 4
@@ -7115,7 +7113,6 @@ lb_json_14limit_exceeded:
     .bss
     .globl lb_json_10value_type
     .type lb_json_10value_type, @object
-    .weak lb_json_10value_type
     .p2align 3
 lb_json_10value_type:
     .zero 40

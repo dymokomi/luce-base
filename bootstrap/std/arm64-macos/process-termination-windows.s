@@ -48,41 +48,17 @@ l_text_2:
 
     .section __DATA,__const
     .p2align 3
-    .section __DATA,__data
-    .p2align 2
     .globl _lb_process_17console_interrupt
-    .weak_definition _lb_process_17console_interrupt
-_lb_process_17console_interrupt:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_process_17console_interrupt,4,2
     .globl _lb_process_13console_break
-    .weak_definition _lb_process_13console_break
-_lb_process_13console_break:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_process_13console_break,4,2
     .globl _lb_process_13console_close
-    .weak_definition _lb_process_13console_close
-_lb_process_13console_close:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_process_13console_close,4,2
     .globl _lb_process_14console_logoff
-    .weak_definition _lb_process_14console_logoff
-_lb_process_14console_logoff:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_process_14console_logoff,4,2
     .globl _lb_process_16console_shutdown
-    .weak_definition _lb_process_16console_shutdown
-_lb_process_16console_shutdown:
-    .zero 4
-    .section __DATA,__data
-    .p2align 3
+    .zerofill __DATA,__bss,_lb_process_16console_shutdown,4,2
     .globl _lb_process_26console_acknowledgement_ms
-    .weak_definition _lb_process_26console_acknowledgement_ms
-_lb_process_26console_acknowledgement_ms:
-    .zero 8
+    .zerofill __DATA,__bss,_lb_process_26console_acknowledgement_ms,8,3
 
 .subsections_via_symbols

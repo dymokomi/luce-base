@@ -288,7 +288,6 @@ lb_unicode_tables_0init:
     .bss
     .globl lb_unicode_18canonical_mappings
     .type lb_unicode_18canonical_mappings, @object
-    .weak lb_unicode_18canonical_mappings
     .p2align 3
 lb_unicode_18canonical_mappings:
     .zero 16
@@ -296,7 +295,6 @@ lb_unicode_18canonical_mappings:
     .bss
     .globl lb_unicode_22compatibility_mappings
     .type lb_unicode_22compatibility_mappings, @object
-    .weak lb_unicode_22compatibility_mappings
     .p2align 3
 lb_unicode_22compatibility_mappings:
     .zero 16
@@ -304,7 +302,6 @@ lb_unicode_22compatibility_mappings:
     .bss
     .globl lb_unicode_14upper_mappings
     .type lb_unicode_14upper_mappings, @object
-    .weak lb_unicode_14upper_mappings
     .p2align 3
 lb_unicode_14upper_mappings:
     .zero 16
@@ -312,7 +309,6 @@ lb_unicode_14upper_mappings:
     .bss
     .globl lb_unicode_14lower_mappings
     .type lb_unicode_14lower_mappings, @object
-    .weak lb_unicode_14lower_mappings
     .p2align 3
 lb_unicode_14lower_mappings:
     .zero 16
@@ -320,7 +316,6 @@ lb_unicode_14lower_mappings:
     .bss
     .globl lb_unicode_13fold_mappings
     .type lb_unicode_13fold_mappings, @object
-    .weak lb_unicode_13fold_mappings
     .p2align 3
 lb_unicode_13fold_mappings:
     .zero 16
@@ -328,7 +323,6 @@ lb_unicode_13fold_mappings:
     .bss
     .globl lb_unicode_15turkic_mappings
     .type lb_unicode_15turkic_mappings, @object
-    .weak lb_unicode_15turkic_mappings
     .p2align 3
 lb_unicode_15turkic_mappings:
     .zero 16
@@ -336,7 +330,6 @@ lb_unicode_15turkic_mappings:
     .bss
     .globl lb_unicode_15mapping_scalars
     .type lb_unicode_15mapping_scalars, @object
-    .weak lb_unicode_15mapping_scalars
     .p2align 3
 lb_unicode_15mapping_scalars:
     .zero 16
@@ -344,7 +337,6 @@ lb_unicode_15mapping_scalars:
     .bss
     .globl lb_unicode_20composition_mappings
     .type lb_unicode_20composition_mappings, @object
-    .weak lb_unicode_20composition_mappings
     .p2align 3
 lb_unicode_20composition_mappings:
     .zero 16
@@ -352,7 +344,6 @@ lb_unicode_20composition_mappings:
     .bss
     .globl lb_unicode_16combining_ranges
     .type lb_unicode_16combining_ranges, @object
-    .weak lb_unicode_16combining_ranges
     .p2align 3
 lb_unicode_16combining_ranges:
     .zero 16
@@ -360,7 +351,6 @@ lb_unicode_16combining_ranges:
     .bss
     .globl lb_unicode_12cased_ranges
     .type lb_unicode_12cased_ranges, @object
-    .weak lb_unicode_12cased_ranges
     .p2align 3
 lb_unicode_12cased_ranges:
     .zero 16
@@ -368,7 +358,6 @@ lb_unicode_12cased_ranges:
     .bss
     .globl lb_unicode_21case_ignorable_ranges
     .type lb_unicode_21case_ignorable_ranges, @object
-    .weak lb_unicode_21case_ignorable_ranges
     .p2align 3
 lb_unicode_21case_ignorable_ranges:
     .zero 16
@@ -376,7 +365,6 @@ lb_unicode_21case_ignorable_ranges:
     .bss
     .globl lb_unicode_17whitespace_ranges
     .type lb_unicode_17whitespace_ranges, @object
-    .weak lb_unicode_17whitespace_ranges
     .p2align 3
 lb_unicode_17whitespace_ranges:
     .zero 16
@@ -384,7 +372,6 @@ lb_unicode_17whitespace_ranges:
     .bss
     .globl lb_unicode_15grapheme_ranges
     .type lb_unicode_15grapheme_ranges, @object
-    .weak lb_unicode_15grapheme_ranges
     .p2align 3
 lb_unicode_15grapheme_ranges:
     .zero 16
@@ -392,7 +379,6 @@ lb_unicode_15grapheme_ranges:
     .bss
     .globl lb_unicode_19pictographic_ranges
     .type lb_unicode_19pictographic_ranges, @object
-    .weak lb_unicode_19pictographic_ranges
     .p2align 3
 lb_unicode_19pictographic_ranges:
     .zero 16
@@ -400,7 +386,6 @@ lb_unicode_19pictographic_ranges:
     .bss
     .globl lb_unicode_12indic_ranges
     .type lb_unicode_12indic_ranges, @object
-    .weak lb_unicode_12indic_ranges
     .p2align 3
 lb_unicode_12indic_ranges:
     .zero 16

@@ -2041,7 +2041,6 @@ lb_window_12check_extent:
     .bss
     .globl lb_window_unsupported
     .type lb_window_unsupported, @object
-    .weak lb_window_unsupported
     .p2align 2
 lb_window_unsupported:
     .zero 4
@@ -2049,7 +2048,6 @@ lb_window_unsupported:
     .bss
     .globl lb_window_12wrong_thread
     .type lb_window_12wrong_thread, @object
-    .weak lb_window_12wrong_thread
     .p2align 2
 lb_window_12wrong_thread:
     .zero 4
@@ -2057,7 +2055,6 @@ lb_window_12wrong_thread:
     .bss
     .globl lb_window_15invalid_options
     .type lb_window_15invalid_options, @object
-    .weak lb_window_15invalid_options
     .p2align 2
 lb_window_15invalid_options:
     .zero 4
@@ -2065,7 +2062,6 @@ lb_window_15invalid_options:
     .bss
     .globl lb_window_failed
     .type lb_window_failed, @object
-    .weak lb_window_failed
     .p2align 2
 lb_window_failed:
     .zero 4
@@ -2073,7 +2069,6 @@ lb_window_failed:
     .bss
     .globl lb_window_closed
     .type lb_window_closed, @object
-    .weak lb_window_closed
     .p2align 2
 lb_window_closed:
     .zero 4
@@ -2081,7 +2076,6 @@ lb_window_closed:
     .bss
     .globl lb_window_19presentation_in_use
     .type lb_window_19presentation_in_use, @object
-    .weak lb_window_19presentation_in_use
     .p2align 2
 lb_window_19presentation_in_use:
     .zero 4

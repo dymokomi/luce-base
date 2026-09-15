@@ -489,110 +489,50 @@ l_text_8:
 
     .section __DATA,__const
     .p2align 3
-    .section __DATA,__data
-    .p2align 2
     .globl _lb_net_inet
-    .weak_definition _lb_net_inet
     .no_dead_strip _lb_net_inet
-_lb_net_inet:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_net_inet,4,2
     .globl _lb_net_inet6
-    .weak_definition _lb_net_inet6
     .no_dead_strip _lb_net_inet6
-_lb_net_inet6:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_net_inet6,4,2
     .globl _lb_net_stream
-    .weak_definition _lb_net_stream
     .no_dead_strip _lb_net_stream
-_lb_net_stream:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_net_stream,4,2
     .globl _lb_net_datagram
-    .weak_definition _lb_net_datagram
     .no_dead_strip _lb_net_datagram
-_lb_net_datagram:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_net_datagram,4,2
     .globl _lb_net_20socket_close_on_exec
-    .weak_definition _lb_net_20socket_close_on_exec
     .no_dead_strip _lb_net_20socket_close_on_exec
-_lb_net_20socket_close_on_exec:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_net_20socket_close_on_exec,4,2
     .globl _lb_net_20get_descriptor_flags
-    .weak_definition _lb_net_20get_descriptor_flags
     .no_dead_strip _lb_net_20get_descriptor_flags
-_lb_net_20get_descriptor_flags:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_net_20get_descriptor_flags,4,2
     .globl _lb_net_20set_descriptor_flags
-    .weak_definition _lb_net_20set_descriptor_flags
     .no_dead_strip _lb_net_20set_descriptor_flags
-_lb_net_20set_descriptor_flags:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_net_20set_descriptor_flags,4,2
     .globl _lb_net_24descriptor_close_on_exec
-    .weak_definition _lb_net_24descriptor_close_on_exec
     .no_dead_strip _lb_net_24descriptor_close_on_exec
-_lb_net_24descriptor_close_on_exec:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_net_24descriptor_close_on_exec,4,2
     .globl _lb_net_12socket_level
-    .weak_definition _lb_net_12socket_level
     .no_dead_strip _lb_net_12socket_level
-_lb_net_12socket_level:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_net_12socket_level,4,2
     .globl _lb_net_20reuse_address_option
-    .weak_definition _lb_net_20reuse_address_option
     .no_dead_strip _lb_net_20reuse_address_option
-_lb_net_20reuse_address_option:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_net_20reuse_address_option,4,2
     .globl _lb_net_10ipv6_level
-    .weak_definition _lb_net_10ipv6_level
     .no_dead_strip _lb_net_10ipv6_level
-_lb_net_10ipv6_level:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_net_10ipv6_level,4,2
     .globl _lb_net_16ipv6_only_option
-    .weak_definition _lb_net_16ipv6_only_option
     .no_dead_strip _lb_net_16ipv6_only_option
-_lb_net_16ipv6_only_option:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_net_16ipv6_only_option,4,2
     .globl _lb_net_17no_sigpipe_option
-    .weak_definition _lb_net_17no_sigpipe_option
     .no_dead_strip _lb_net_17no_sigpipe_option
-_lb_net_17no_sigpipe_option:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_net_17no_sigpipe_option,4,2
     .globl _lb_net_10send_flags
-    .weak_definition _lb_net_10send_flags
     .no_dead_strip _lb_net_10send_flags
-_lb_net_10send_flags:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_net_10send_flags,4,2
     .globl _lb_net_18socket_interrupted
-    .weak_definition _lb_net_18socket_interrupted
     .no_dead_strip _lb_net_18socket_interrupted
-_lb_net_18socket_interrupted:
-    .zero 4
+    .zerofill __DATA,__bss,_lb_net_18socket_interrupted,4,2
 
 .subsections_via_symbols

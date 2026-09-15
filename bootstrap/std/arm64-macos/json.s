@@ -6052,26 +6052,14 @@ l_text_68:
 
     .section __DATA,__const
     .p2align 3
-    .section __DATA,__data
-    .p2align 2
     .globl _lb_json_invalid
-    .weak_definition _lb_json_invalid
     .no_dead_strip _lb_json_invalid
-_lb_json_invalid:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_json_invalid,4,2
     .globl _lb_json_14limit_exceeded
-    .weak_definition _lb_json_14limit_exceeded
     .no_dead_strip _lb_json_14limit_exceeded
-_lb_json_14limit_exceeded:
-    .zero 4
-    .section __DATA,__data
-    .p2align 3
+    .zerofill __DATA,__bss,_lb_json_14limit_exceeded,4,2
     .globl _lb_json_10value_type
-    .weak_definition _lb_json_10value_type
     .no_dead_strip _lb_json_10value_type
-_lb_json_10value_type:
-    .zero 40
+    .zerofill __DATA,__bss,_lb_json_10value_type,40,3
 
 .subsections_via_symbols

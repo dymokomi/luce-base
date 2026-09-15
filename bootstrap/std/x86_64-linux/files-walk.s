@@ -3241,7 +3241,6 @@ lb_memory_copy_0g1_files_WalkFrame:
     .bss
     .globl lb_files_15directory_cycle
     .type lb_files_15directory_cycle, @object
-    .weak lb_files_15directory_cycle
     .p2align 2
 lb_files_15directory_cycle:
     .zero 4
@@ -3249,7 +3248,6 @@ lb_files_15directory_cycle:
     .bss
     .globl lb_files_11depth_limit
     .type lb_files_11depth_limit, @object
-    .weak lb_files_11depth_limit
     .p2align 2
 lb_files_11depth_limit:
     .zero 4

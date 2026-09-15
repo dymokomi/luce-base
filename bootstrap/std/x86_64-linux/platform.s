@@ -82,7 +82,6 @@ lb_platform_0init:
     .bss
     .globl lb_platform_name
     .type lb_platform_name, @object
-    .weak lb_platform_name
     .p2align 3
 lb_platform_name:
     .zero 16
@@ -90,7 +89,6 @@ lb_platform_name:
     .bss
     .globl lb_platform_macos
     .type lb_platform_macos, @object
-    .weak lb_platform_macos
     .p2align 0
 lb_platform_macos:
     .zero 1
@@ -98,7 +96,6 @@ lb_platform_macos:
     .bss
     .globl lb_platform_linux
     .type lb_platform_linux, @object
-    .weak lb_platform_linux
     .p2align 0
 lb_platform_linux:
     .zero 1
@@ -106,7 +103,6 @@ lb_platform_linux:
     .bss
     .globl lb_platform_windows
     .type lb_platform_windows, @object
-    .weak lb_platform_windows
     .p2align 0
 lb_platform_windows:
     .zero 1
@@ -114,7 +110,6 @@ lb_platform_windows:
     .bss
     .globl lb_platform_posix
     .type lb_platform_posix, @object
-    .weak lb_platform_posix
     .p2align 0
 lb_platform_posix:
     .zero 1
@@ -122,7 +117,6 @@ lb_platform_posix:
     .bss
     .globl lb_platform_arm64
     .type lb_platform_arm64, @object
-    .weak lb_platform_arm64
     .p2align 0
 lb_platform_arm64:
     .zero 1
@@ -130,7 +124,6 @@ lb_platform_arm64:
     .bss
     .globl lb_platform_6x86_64
     .type lb_platform_6x86_64, @object
-    .weak lb_platform_6x86_64
     .p2align 0
 lb_platform_6x86_64:
     .zero 1
@@ -138,7 +131,6 @@ lb_platform_6x86_64:
     .bss
     .globl lb_platform_12pointer_bits
     .type lb_platform_12pointer_bits, @object
-    .weak lb_platform_12pointer_bits
     .p2align 2
 lb_platform_12pointer_bits:
     .zero 4
@@ -146,7 +138,6 @@ lb_platform_12pointer_bits:
     .bss
     .globl lb_platform_9cpu_level
     .type lb_platform_9cpu_level, @object
-    .weak lb_platform_9cpu_level
     .p2align 2
 lb_platform_9cpu_level:
     .zero 4

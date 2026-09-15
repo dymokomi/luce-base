@@ -201,7 +201,6 @@ lb_c_stderr:
     .bss
     .globl lb_c_interrupted
     .type lb_c_interrupted, @object
-    .weak lb_c_interrupted
     .p2align 2
 lb_c_interrupted:
     .zero 4

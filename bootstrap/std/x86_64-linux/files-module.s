@@ -794,7 +794,6 @@ lb_files_10next_entry:
     .bss
     .globl lb_files_10write_only
     .type lb_files_10write_only, @object
-    .weak lb_files_10write_only
     .p2align 2
 lb_files_10write_only:
     .zero 4
@@ -802,7 +801,6 @@ lb_files_10write_only:
     .bss
     .globl lb_files_create
     .type lb_files_create, @object
-    .weak lb_files_create
     .p2align 2
 lb_files_create:
     .zero 4
@@ -810,7 +808,6 @@ lb_files_create:
     .bss
     .globl lb_files_truncate
     .type lb_files_truncate, @object
-    .weak lb_files_truncate
     .p2align 2
 lb_files_truncate:
     .zero 4
@@ -818,7 +815,6 @@ lb_files_truncate:
     .bss
     .globl lb_files_13close_on_exec
     .type lb_files_13close_on_exec, @object
-    .weak lb_files_13close_on_exec
     .p2align 2
 lb_files_13close_on_exec:
     .zero 4
@@ -826,7 +822,6 @@ lb_files_13close_on_exec:
     .bss
     .globl lb_files_11append_flag
     .type lb_files_11append_flag, @object
-    .weak lb_files_11append_flag
     .p2align 2
 lb_files_11append_flag:
     .zero 4
@@ -834,7 +829,6 @@ lb_files_11append_flag:
     .bss
     .globl lb_files_14exclusive_flag
     .type lb_files_14exclusive_flag, @object
-    .weak lb_files_14exclusive_flag
     .p2align 2
 lb_files_14exclusive_flag:
     .zero 4
@@ -842,7 +836,6 @@ lb_files_14exclusive_flag:
     .bss
     .globl lb_files_17would_block_errno
     .type lb_files_17would_block_errno, @object
-    .weak lb_files_17would_block_errno
     .p2align 2
 lb_files_17would_block_errno:
     .zero 4
@@ -850,7 +843,6 @@ lb_files_17would_block_errno:
     .bss
     .globl lb_files_14transfer_limit
     .type lb_files_14transfer_limit, @object
-    .weak lb_files_14transfer_limit
     .p2align 3
 lb_files_14transfer_limit:
     .zero 8
@@ -858,7 +850,6 @@ lb_files_14transfer_limit:
     .bss
     .globl lb_files_20current_directory_fd
     .type lb_files_20current_directory_fd, @object
-    .weak lb_files_20current_directory_fd
     .p2align 2
 lb_files_20current_directory_fd:
     .zero 4
@@ -866,7 +857,6 @@ lb_files_20current_directory_fd:
     .bss
     .globl lb_files_14directory_flag
     .type lb_files_14directory_flag, @object
-    .weak lb_files_14directory_flag
     .p2align 2
 lb_files_14directory_flag:
     .zero 4
@@ -874,7 +864,6 @@ lb_files_14directory_flag:
     .bss
     .globl lb_files_14no_follow_flag
     .type lb_files_14no_follow_flag, @object
-    .weak lb_files_14no_follow_flag
     .p2align 2
 lb_files_14no_follow_flag:
     .zero 4
@@ -882,7 +871,6 @@ lb_files_14no_follow_flag:
     .bss
     .globl lb_files_17at_no_follow_flag
     .type lb_files_17at_no_follow_flag, @object
-    .weak lb_files_17at_no_follow_flag
     .p2align 2
 lb_files_17at_no_follow_flag:
     .zero 4
@@ -890,7 +878,6 @@ lb_files_17at_no_follow_flag:
     .bss
     .globl lb_files_missing
     .type lb_files_missing, @object
-    .weak lb_files_missing
     .p2align 2
 lb_files_missing:
     .zero 4
@@ -898,7 +885,6 @@ lb_files_missing:
     .bss
     .globl lb_files_17permission_denied
     .type lb_files_17permission_denied, @object
-    .weak lb_files_17permission_denied
     .p2align 2
 lb_files_17permission_denied:
     .zero 4
@@ -906,7 +892,6 @@ lb_files_17permission_denied:
     .bss
     .globl lb_files_14already_exists
     .type lb_files_14already_exists, @object
-    .weak lb_files_14already_exists
     .p2align 2
 lb_files_14already_exists:
     .zero 4
@@ -914,7 +899,6 @@ lb_files_14already_exists:
     .bss
     .globl lb_files_8no_space
     .type lb_files_8no_space, @object
-    .weak lb_files_8no_space
     .p2align 2
 lb_files_8no_space:
     .zero 4
@@ -922,7 +906,6 @@ lb_files_8no_space:
     .bss
     .globl lb_files_11would_block
     .type lb_files_11would_block, @object
-    .weak lb_files_11would_block
     .p2align 2
 lb_files_11would_block:
     .zero 4
@@ -930,7 +913,6 @@ lb_files_11would_block:
     .bss
     .globl lb_files_15invalid_options
     .type lb_files_15invalid_options, @object
-    .weak lb_files_15invalid_options
     .p2align 2
 lb_files_15invalid_options:
     .zero 4
@@ -938,7 +920,6 @@ lb_files_15invalid_options:
     .bss
     .globl lb_files_9too_large
     .type lb_files_9too_large, @object
-    .weak lb_files_9too_large
     .p2align 2
 lb_files_9too_large:
     .zero 4
@@ -946,7 +927,6 @@ lb_files_9too_large:
     .bss
     .globl lb_files_13not_directory
     .type lb_files_13not_directory, @object
-    .weak lb_files_13not_directory
     .p2align 2
 lb_files_13not_directory:
     .zero 4
@@ -954,7 +934,6 @@ lb_files_13not_directory:
     .bss
     .globl lb_files_12is_directory
     .type lb_files_12is_directory, @object
-    .weak lb_files_12is_directory
     .p2align 2
 lb_files_12is_directory:
     .zero 4
@@ -962,7 +941,6 @@ lb_files_12is_directory:
     .bss
     .globl lb_files_20read_only_filesystem
     .type lb_files_20read_only_filesystem, @object
-    .weak lb_files_20read_only_filesystem
     .p2align 2
 lb_files_20read_only_filesystem:
     .zero 4
@@ -970,7 +948,6 @@ lb_files_20read_only_filesystem:
     .bss
     .globl lb_files_9not_empty
     .type lb_files_9not_empty, @object
-    .weak lb_files_9not_empty
     .p2align 2
 lb_files_9not_empty:
     .zero 4
@@ -978,7 +955,6 @@ lb_files_9not_empty:
     .bss
     .globl lb_files_12cross_device
     .type lb_files_12cross_device, @object
-    .weak lb_files_12cross_device
     .p2align 2
 lb_files_12cross_device:
     .zero 4
@@ -986,7 +962,6 @@ lb_files_12cross_device:
     .bss
     .globl lb_files_12symlink_loop
     .type lb_files_12symlink_loop, @object
-    .weak lb_files_12symlink_loop
     .p2align 2
 lb_files_12symlink_loop:
     .zero 4
@@ -994,7 +969,6 @@ lb_files_12symlink_loop:
     .bss
     .globl lb_files_13name_too_long
     .type lb_files_13name_too_long, @object
-    .weak lb_files_13name_too_long
     .p2align 2
 lb_files_13name_too_long:
     .zero 4
@@ -1002,7 +976,6 @@ lb_files_13name_too_long:
     .bss
     .globl lb_files_failed
     .type lb_files_failed, @object
-    .weak lb_files_failed
     .p2align 2
 lb_files_failed:
     .zero 4

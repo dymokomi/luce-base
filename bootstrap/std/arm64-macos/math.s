@@ -2738,58 +2738,26 @@ l_text_63:
 
     .section __DATA,__const
     .p2align 3
-    .section __DATA,__data
-    .p2align 3
     .globl _lb_math_pi
-    .weak_definition _lb_math_pi
     .no_dead_strip _lb_math_pi
-_lb_math_pi:
-    .zero 8
-    .section __DATA,__data
-    .p2align 3
+    .zerofill __DATA,__bss,_lb_math_pi,8,3
     .globl _lb_math_tau
-    .weak_definition _lb_math_tau
     .no_dead_strip _lb_math_tau
-_lb_math_tau:
-    .zero 8
-    .section __DATA,__data
-    .p2align 3
+    .zerofill __DATA,__bss,_lb_math_tau,8,3
     .globl _lb_math_e
-    .weak_definition _lb_math_e
     .no_dead_strip _lb_math_e
-_lb_math_e:
-    .zero 8
-    .section __DATA,__data
-    .p2align 3
+    .zerofill __DATA,__bss,_lb_math_e,8,3
     .globl _lb_math_infinity
-    .weak_definition _lb_math_infinity
     .no_dead_strip _lb_math_infinity
-_lb_math_infinity:
-    .zero 8
-    .section __DATA,__data
-    .p2align 3
+    .zerofill __DATA,__bss,_lb_math_infinity,8,3
     .globl _lb_math_nan
-    .weak_definition _lb_math_nan
     .no_dead_strip _lb_math_nan
-_lb_math_nan:
-    .zero 8
-    .section __DATA,__data
-    .p2align 3
+    .zerofill __DATA,__bss,_lb_math_nan,8,3
     .globl _lb_math_9sign_mask
-    .weak_definition _lb_math_9sign_mask
-_lb_math_9sign_mask:
-    .zero 8
-    .section __DATA,__data
-    .p2align 3
+    .zerofill __DATA,__bss,_lb_math_9sign_mask,8,3
     .globl _lb_math_14magnitude_mask
-    .weak_definition _lb_math_14magnitude_mask
-_lb_math_14magnitude_mask:
-    .zero 8
-    .section __DATA,__data
-    .p2align 3
+    .zerofill __DATA,__bss,_lb_math_14magnitude_mask,8,3
     .globl _lb_math_13exponent_mask
-    .weak_definition _lb_math_13exponent_mask
-_lb_math_13exponent_mask:
-    .zero 8
+    .zerofill __DATA,__bss,_lb_math_13exponent_mask,8,3
 
 .subsections_via_symbols

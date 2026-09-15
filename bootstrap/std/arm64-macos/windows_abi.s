@@ -30,26 +30,14 @@ _lb_11windows_abi_0init:
 
     .section __DATA,__const
     .p2align 3
-    .section __DATA,__data
-    .p2align 2
     .globl _lb_11windows_abi_9utf8_page
-    .weak_definition _lb_11windows_abi_9utf8_page
     .no_dead_strip _lb_11windows_abi_9utf8_page
-_lb_11windows_abi_9utf8_page:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_11windows_abi_9utf8_page,4,2
     .globl _lb_11windows_abi_19reject_invalid_utf8
-    .weak_definition _lb_11windows_abi_19reject_invalid_utf8
     .no_dead_strip _lb_11windows_abi_19reject_invalid_utf8
-_lb_11windows_abi_19reject_invalid_utf8:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_11windows_abi_19reject_invalid_utf8,4,2
     .globl _lb_11windows_abi_20reject_invalid_utf16
-    .weak_definition _lb_11windows_abi_20reject_invalid_utf16
     .no_dead_strip _lb_11windows_abi_20reject_invalid_utf16
-_lb_11windows_abi_20reject_invalid_utf16:
-    .zero 4
+    .zerofill __DATA,__bss,_lb_11windows_abi_20reject_invalid_utf16,4,2
 
 .subsections_via_symbols

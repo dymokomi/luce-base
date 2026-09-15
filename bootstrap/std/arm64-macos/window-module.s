@@ -1714,47 +1714,23 @@ l_text_16:
 
     .section __DATA,__const
     .p2align 3
-    .section __DATA,__data
-    .p2align 2
     .globl _lb_window_unsupported
-    .weak_definition _lb_window_unsupported
     .no_dead_strip _lb_window_unsupported
-_lb_window_unsupported:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_window_unsupported,4,2
     .globl _lb_window_12wrong_thread
-    .weak_definition _lb_window_12wrong_thread
     .no_dead_strip _lb_window_12wrong_thread
-_lb_window_12wrong_thread:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_window_12wrong_thread,4,2
     .globl _lb_window_15invalid_options
-    .weak_definition _lb_window_15invalid_options
     .no_dead_strip _lb_window_15invalid_options
-_lb_window_15invalid_options:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_window_15invalid_options,4,2
     .globl _lb_window_failed
-    .weak_definition _lb_window_failed
     .no_dead_strip _lb_window_failed
-_lb_window_failed:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_window_failed,4,2
     .globl _lb_window_closed
-    .weak_definition _lb_window_closed
     .no_dead_strip _lb_window_closed
-_lb_window_closed:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_window_closed,4,2
     .globl _lb_window_19presentation_in_use
-    .weak_definition _lb_window_19presentation_in_use
     .no_dead_strip _lb_window_19presentation_in_use
-_lb_window_19presentation_in_use:
-    .zero 4
+    .zerofill __DATA,__bss,_lb_window_19presentation_in_use,4,2
 
 .subsections_via_symbols

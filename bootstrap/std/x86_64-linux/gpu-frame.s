@@ -6930,7 +6930,6 @@ lb_interop_13dispose_owner_0g1_gpu_FrameState:
     .bss
     .globl lb_gpu_16frame_state_type
     .type lb_gpu_16frame_state_type, @object
-    .weak lb_gpu_16frame_state_type
     .p2align 3
 lb_gpu_16frame_state_type:
     .zero 40
@@ -6938,7 +6937,6 @@ lb_gpu_16frame_state_type:
     .bss
     .globl lb_gpu_10frame_type
     .type lb_gpu_10frame_type, @object
-    .weak lb_gpu_10frame_type
     .p2align 3
 lb_gpu_10frame_type:
     .zero 40
@@ -6946,7 +6944,6 @@ lb_gpu_10frame_type:
     .bss
     .globl lb_gpu_18render_target_type
     .type lb_gpu_18render_target_type, @object
-    .weak lb_gpu_18render_target_type
     .p2align 3
 lb_gpu_18render_target_type:
     .zero 24

@@ -177,12 +177,8 @@ l_text_7:
 
     .section __DATA,__const
     .p2align 3
-    .section __DATA,__data
-    .p2align 2
     .globl _lb_c_interrupted
-    .weak_definition _lb_c_interrupted
     .no_dead_strip _lb_c_interrupted
-_lb_c_interrupted:
-    .zero 4
+    .zerofill __DATA,__bss,_lb_c_interrupted,4,2
 
 .subsections_via_symbols

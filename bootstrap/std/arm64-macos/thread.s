@@ -1531,24 +1531,12 @@ l_text_39:
 
     .section __DATA,__const
     .p2align 3
-    .section __DATA,__data
-    .p2align 2
     .globl _lb_thread_failed
-    .weak_definition _lb_thread_failed
     .no_dead_strip _lb_thread_failed
-_lb_thread_failed:
-    .zero 4
-    .section __DATA,__data
-    .p2align 3
+    .zerofill __DATA,__bss,_lb_thread_failed,4,2
     .globl _lb_thread_11least_stack
-    .weak_definition _lb_thread_11least_stack
-_lb_thread_11least_stack:
-    .zero 8
-    .section __DATA,__data
-    .p2align 3
+    .zerofill __DATA,__bss,_lb_thread_11least_stack,8,3
     .globl _lb_thread_9name_room
-    .weak_definition _lb_thread_9name_room
-_lb_thread_9name_room:
-    .zero 8
+    .zerofill __DATA,__bss,_lb_thread_9name_room,8,3
 
 .subsections_via_symbols

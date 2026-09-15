@@ -84,7 +84,6 @@ lb_gpu_13vulkan_device_0init:
     .bss
     .globl lb_gpu_22vulkan_api_version_1_0
     .type lb_gpu_22vulkan_api_version_1_0, @object
-    .weak lb_gpu_22vulkan_api_version_1_0
     .p2align 2
 lb_gpu_22vulkan_api_version_1_0:
     .zero 4

@@ -400,13 +400,9 @@ l_text_7:
 
     .section __DATA,__const
     .p2align 3
-    .section __DATA,__data
-    .p2align 2
     .globl _lb_interop_8no_error
-    .weak_definition _lb_interop_8no_error
     .no_dead_strip _lb_interop_8no_error
-_lb_interop_8no_error:
-    .zero 4
+    .zerofill __DATA,__bss,_lb_interop_8no_error,4,2
     .globl _lb_interop_9text_info
     .zerofill __DATA,__bss,_lb_interop_9text_info,56,3
 

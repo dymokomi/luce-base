@@ -66,7 +66,6 @@ lb_gpu_27vulkan_presentation_windows_0init:
     .bss
     .globl lb_gpu_25vulkan_windows_extensions
     .type lb_gpu_25vulkan_windows_extensions, @object
-    .weak lb_gpu_25vulkan_windows_extensions
     .p2align 3
 lb_gpu_25vulkan_windows_extensions:
     .zero 16

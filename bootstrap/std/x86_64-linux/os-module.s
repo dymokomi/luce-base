@@ -2075,7 +2075,6 @@ lb_os_exit:
     .bss
     .globl lb_os_failed
     .type lb_os_failed, @object
-    .weak lb_os_failed
     .p2align 2
 lb_os_failed:
     .zero 4
@@ -2083,7 +2082,6 @@ lb_os_failed:
     .bss
     .globl lb_os_arm64
     .type lb_os_arm64, @object
-    .weak lb_os_arm64
     .p2align 0
 lb_os_arm64:
     .zero 1
@@ -2091,7 +2089,6 @@ lb_os_arm64:
     .bss
     .globl lb_os_6x86_64
     .type lb_os_6x86_64, @object
-    .weak lb_os_6x86_64
     .p2align 0
 lb_os_6x86_64:
     .zero 1
@@ -2099,7 +2096,6 @@ lb_os_6x86_64:
     .bss
     .globl lb_os_macos
     .type lb_os_macos, @object
-    .weak lb_os_macos
     .p2align 0
 lb_os_macos:
     .zero 1
@@ -2107,7 +2103,6 @@ lb_os_macos:
     .bss
     .globl lb_os_linux
     .type lb_os_linux, @object
-    .weak lb_os_linux
     .p2align 0
 lb_os_linux:
     .zero 1
@@ -2115,7 +2110,6 @@ lb_os_linux:
     .bss
     .globl lb_os_windows
     .type lb_os_windows, @object
-    .weak lb_os_windows
     .p2align 0
 lb_os_windows:
     .zero 1
@@ -2123,7 +2117,6 @@ lb_os_windows:
     .bss
     .globl lb_os_posix
     .type lb_os_posix, @object
-    .weak lb_os_posix
     .p2align 0
 lb_os_posix:
     .zero 1
@@ -2131,7 +2124,6 @@ lb_os_posix:
     .bss
     .globl lb_os_12pointer_bits
     .type lb_os_12pointer_bits, @object
-    .weak lb_os_12pointer_bits
     .p2align 2
 lb_os_12pointer_bits:
     .zero 4
@@ -2139,7 +2131,6 @@ lb_os_12pointer_bits:
     .bss
     .globl lb_os_name
     .type lb_os_name, @object
-    .weak lb_os_name
     .p2align 3
 lb_os_name:
     .zero 16
@@ -2147,7 +2138,6 @@ lb_os_name:
     .bss
     .globl lb_os_9cpu_level
     .type lb_os_9cpu_level, @object
-    .weak lb_os_9cpu_level
     .p2align 2
 lb_os_9cpu_level:
     .zero 4
@@ -2155,7 +2145,6 @@ lb_os_9cpu_level:
     .bss
     .globl lb_os_17processors_online
     .type lb_os_17processors_online, @object
-    .weak lb_os_17processors_online
     .p2align 2
 lb_os_17processors_online:
     .zero 4

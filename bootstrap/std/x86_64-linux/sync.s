@@ -666,7 +666,6 @@ lb_sync_Semaphore_release:
     .bss
     .globl lb_sync_16compare_and_wait
     .type lb_sync_16compare_and_wait, @object
-    .weak lb_sync_16compare_and_wait
     .p2align 2
 lb_sync_16compare_and_wait:
     .zero 4
@@ -674,7 +673,6 @@ lb_sync_16compare_and_wait:
     .bss
     .globl lb_sync_8wake_all
     .type lb_sync_8wake_all, @object
-    .weak lb_sync_8wake_all
     .p2align 2
 lb_sync_8wake_all:
     .zero 4
@@ -682,7 +680,6 @@ lb_sync_8wake_all:
     .bss
     .globl lb_sync_12futex_number
     .type lb_sync_12futex_number, @object
-    .weak lb_sync_12futex_number
     .p2align 3
 lb_sync_12futex_number:
     .zero 8
@@ -690,7 +687,6 @@ lb_sync_12futex_number:
     .bss
     .globl lb_sync_18futex_wait_private
     .type lb_sync_18futex_wait_private, @object
-    .weak lb_sync_18futex_wait_private
     .p2align 2
 lb_sync_18futex_wait_private:
     .zero 4
@@ -698,7 +694,6 @@ lb_sync_18futex_wait_private:
     .bss
     .globl lb_sync_18futex_wake_private
     .type lb_sync_18futex_wake_private, @object
-    .weak lb_sync_18futex_wake_private
     .p2align 2
 lb_sync_18futex_wake_private:
     .zero 4

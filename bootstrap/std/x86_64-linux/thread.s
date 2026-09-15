@@ -1860,7 +1860,6 @@ lb_memory_copy_0g1_u8:
     .bss
     .globl lb_thread_failed
     .type lb_thread_failed, @object
-    .weak lb_thread_failed
     .p2align 2
 lb_thread_failed:
     .zero 4
@@ -1868,7 +1867,6 @@ lb_thread_failed:
     .bss
     .globl lb_thread_11least_stack
     .type lb_thread_11least_stack, @object
-    .weak lb_thread_11least_stack
     .p2align 3
 lb_thread_11least_stack:
     .zero 8
@@ -1876,7 +1874,6 @@ lb_thread_11least_stack:
     .bss
     .globl lb_thread_9name_room
     .type lb_thread_9name_room, @object
-    .weak lb_thread_9name_room
     .p2align 3
 lb_thread_9name_room:
     .zero 8

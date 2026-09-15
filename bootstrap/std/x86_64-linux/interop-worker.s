@@ -39,7 +39,6 @@ lb_interop_worker_0init:
     .bss
     .globl lb_interop_13worker_closed
     .type lb_interop_13worker_closed, @object
-    .weak lb_interop_13worker_closed
     .p2align 2
 lb_interop_13worker_closed:
     .zero 4
@@ -47,7 +46,6 @@ lb_interop_13worker_closed:
     .bss
     .globl lb_interop_11worker_busy
     .type lb_interop_11worker_busy, @object
-    .weak lb_interop_11worker_busy
     .p2align 2
 lb_interop_11worker_busy:
     .zero 4

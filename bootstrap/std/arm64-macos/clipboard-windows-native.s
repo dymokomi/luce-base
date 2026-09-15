@@ -161,11 +161,7 @@ l_text_25:
 
     .section __DATA,__const
     .p2align 3
-    .section __DATA,__data
-    .p2align 2
     .globl _lb_clipboard_12unicode_text
-    .weak_definition _lb_clipboard_12unicode_text
-_lb_clipboard_12unicode_text:
-    .zero 4
+    .zerofill __DATA,__bss,_lb_clipboard_12unicode_text,4,2
 
 .subsections_via_symbols

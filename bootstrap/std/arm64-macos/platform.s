@@ -65,68 +65,32 @@ l_text_0:
 
     .section __DATA,__const
     .p2align 3
-    .section __DATA,__data
-    .p2align 3
     .globl _lb_platform_name
-    .weak_definition _lb_platform_name
     .no_dead_strip _lb_platform_name
-_lb_platform_name:
-    .zero 16
-    .section __DATA,__data
-    .p2align 0
+    .zerofill __DATA,__bss,_lb_platform_name,16,3
     .globl _lb_platform_macos
-    .weak_definition _lb_platform_macos
     .no_dead_strip _lb_platform_macos
-_lb_platform_macos:
-    .zero 1
-    .section __DATA,__data
-    .p2align 0
+    .zerofill __DATA,__bss,_lb_platform_macos,1,0
     .globl _lb_platform_linux
-    .weak_definition _lb_platform_linux
     .no_dead_strip _lb_platform_linux
-_lb_platform_linux:
-    .zero 1
-    .section __DATA,__data
-    .p2align 0
+    .zerofill __DATA,__bss,_lb_platform_linux,1,0
     .globl _lb_platform_windows
-    .weak_definition _lb_platform_windows
     .no_dead_strip _lb_platform_windows
-_lb_platform_windows:
-    .zero 1
-    .section __DATA,__data
-    .p2align 0
+    .zerofill __DATA,__bss,_lb_platform_windows,1,0
     .globl _lb_platform_posix
-    .weak_definition _lb_platform_posix
     .no_dead_strip _lb_platform_posix
-_lb_platform_posix:
-    .zero 1
-    .section __DATA,__data
-    .p2align 0
+    .zerofill __DATA,__bss,_lb_platform_posix,1,0
     .globl _lb_platform_arm64
-    .weak_definition _lb_platform_arm64
     .no_dead_strip _lb_platform_arm64
-_lb_platform_arm64:
-    .zero 1
-    .section __DATA,__data
-    .p2align 0
+    .zerofill __DATA,__bss,_lb_platform_arm64,1,0
     .globl _lb_platform_6x86_64
-    .weak_definition _lb_platform_6x86_64
     .no_dead_strip _lb_platform_6x86_64
-_lb_platform_6x86_64:
-    .zero 1
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_platform_6x86_64,1,0
     .globl _lb_platform_12pointer_bits
-    .weak_definition _lb_platform_12pointer_bits
     .no_dead_strip _lb_platform_12pointer_bits
-_lb_platform_12pointer_bits:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_platform_12pointer_bits,4,2
     .globl _lb_platform_9cpu_level
-    .weak_definition _lb_platform_9cpu_level
     .no_dead_strip _lb_platform_9cpu_level
-_lb_platform_9cpu_level:
-    .zero 4
+    .zerofill __DATA,__bss,_lb_platform_9cpu_level,4,2
 
 .subsections_via_symbols

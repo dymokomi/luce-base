@@ -4690,74 +4690,38 @@ _lb_vt_io_File_Writer:
     .weak_definition _lb_vt_io_StandardInput_Reader
 _lb_vt_io_StandardInput_Reader:
     .quad _lb_io_StandardInput_read
-    .section __DATA,__data
-    .p2align 2
     .globl _lb_io_14unexpected_eof
-    .weak_definition _lb_io_14unexpected_eof
     .no_dead_strip _lb_io_14unexpected_eof
-_lb_io_14unexpected_eof:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_io_14unexpected_eof,4,2
     .globl _lb_io_11no_progress
-    .weak_definition _lb_io_11no_progress
     .no_dead_strip _lb_io_11no_progress
-_lb_io_11no_progress:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_io_11no_progress,4,2
     .globl _lb_io_13invalid_count
-    .weak_definition _lb_io_13invalid_count
     .no_dead_strip _lb_io_13invalid_count
-_lb_io_13invalid_count:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_io_13invalid_count,4,2
     .globl _lb_io_14invalid_buffer
-    .weak_definition _lb_io_14invalid_buffer
     .no_dead_strip _lb_io_14invalid_buffer
-_lb_io_14invalid_buffer:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_io_14invalid_buffer,4,2
     .globl _lb_io_closed
-    .weak_definition _lb_io_closed
     .no_dead_strip _lb_io_closed
-_lb_io_closed:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_io_closed,4,2
     .globl _lb_io_failed
-    .weak_definition _lb_io_failed
     .no_dead_strip _lb_io_failed
-_lb_io_failed:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_io_failed,4,2
     .globl _lb_io_11would_block
-    .weak_definition _lb_io_11would_block
     .no_dead_strip _lb_io_11would_block
-_lb_io_11would_block:
-    .zero 4
+    .zerofill __DATA,__bss,_lb_io_11would_block,4,2
     .globl _lb_io_8out_file
     .zerofill __DATA,__bss,_lb_io_8out_file,4,2
     .globl _lb_io_8err_file
     .zerofill __DATA,__bss,_lb_io_8err_file,4,2
     .globl _lb_io_7in_file
     .zerofill __DATA,__bss,_lb_io_7in_file,4,2
-    .section __DATA,__data
-    .p2align 2
     .globl _lb_io_full
-    .weak_definition _lb_io_full
     .no_dead_strip _lb_io_full
-_lb_io_full:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_io_full,4,2
     .globl _lb_io_14io_path_failed
-    .weak_definition _lb_io_14io_path_failed
     .no_dead_strip _lb_io_14io_path_failed
-_lb_io_14io_path_failed:
-    .zero 4
+    .zerofill __DATA,__bss,_lb_io_14io_path_failed,4,2
 
 .subsections_via_symbols

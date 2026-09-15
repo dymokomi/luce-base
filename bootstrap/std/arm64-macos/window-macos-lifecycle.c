@@ -2005,9 +2005,9 @@ typedef struct lb_interop_Owner_0g1_gpu_FrameState {
     bool disposed;
     size_t active;
 } lb_interop_Owner_0g1_gpu_FrameState;
-extern void lb_x_c_9mac_errno(void) LB_SYMBOL("__error");
-extern void lb_x_c_11linux_errno(void) LB_SYMBOL("__errno_location");
-extern void lb_x_c_13windows_errno(void) LB_SYMBOL("_errno");
+extern char lb_x_c_9mac_errno LB_SYMBOL("__error");
+extern char lb_x_c_11linux_errno LB_SYMBOL("__errno_location");
+extern char lb_x_c_13windows_errno LB_SYMBOL("_errno");
 extern int32_t lb_x_11windows_abi_MultiByteToWideChar(uint32_t, uint32_t, char*, int32_t, uint16_t*, int32_t) LB_SYMBOL("MultiByteToWideChar");
 extern int32_t lb_x_11windows_abi_WideCharToMultiByte(uint32_t, uint32_t, const uint16_t*, int32_t, uint8_t*, int32_t, void*, void*) LB_SYMBOL("WideCharToMultiByte");
 extern uint32_t lb_x_11windows_abi_GetLastError(void) LB_SYMBOL("GetLastError");
@@ -2024,11 +2024,11 @@ extern uint32_t lb_x_11windows_abi_GetEnvironmentVariableW(uint16_t*, uint16_t*,
 extern int32_t lb_x_11windows_abi_SetEnvironmentVariableW(uint16_t*, uint16_t*) LB_SYMBOL("SetEnvironmentVariableW");
 extern uint32_t lb_x_11windows_abi_GetCurrentDirectoryW(uint32_t, uint16_t*) LB_SYMBOL("GetCurrentDirectoryW");
 extern int32_t lb_x_11windows_abi_SetCurrentDirectoryW(uint16_t*) LB_SYMBOL("SetCurrentDirectoryW");
-extern void lb_x_core_15set_binary_mode(void) LB_SYMBOL("_setmode");
+extern char lb_x_core_15set_binary_mode LB_SYMBOL("_setmode");
 extern uint32_t lb_x_core_GetCurrentThreadId(void) LB_SYMBOL("GetCurrentThreadId");
-extern void lb_x_core_11posix_write(void) LB_SYMBOL("write");
-extern void lb_x_core_13windows_write(void) LB_SYMBOL("_write");
-extern void lb_x_core_6c_exit(void) LB_SYMBOL("exit");
+extern char lb_x_core_11posix_write LB_SYMBOL("write");
+extern char lb_x_core_13windows_write LB_SYMBOL("_write");
+extern char lb_x_core_6c_exit LB_SYMBOL("exit");
 extern void* lb_x_core_malloc(size_t) LB_SYMBOL("malloc");
 extern void* lb_x_core_memcpy(void*, const void*, size_t) LB_SYMBOL("memcpy");
 extern int32_t lb_x_core_memcmp(const void*, const void*, size_t) LB_SYMBOL("memcmp");
@@ -2037,13 +2037,13 @@ extern int32_t lb_x_core_snprintf(void*, size_t, char*, ...) LB_SYMBOL("snprintf
 extern uint16_t* lb_x_core_GetCommandLineW(void) LB_SYMBOL("GetCommandLineW");
 extern uint16_t** lb_x_core_CommandLineToArgvW(uint16_t*, int32_t*) LB_SYMBOL("CommandLineToArgvW");
 extern void* lb_x_core_LocalFree(void*) LB_SYMBOL("LocalFree");
-extern void lb_x_core_22release_argument_block(void) LB_SYMBOL("free");
+extern char lb_x_core_22release_argument_block LB_SYMBOL("free");
 extern int32_t lb_x_core_atexit(lb_fn_0F0_unit) LB_SYMBOL("atexit");
 extern void* lb_x_memory_malloc(size_t) LB_SYMBOL("malloc");
-extern void lb_x_memory_6c_free(void) LB_SYMBOL("free");
+extern char lb_x_memory_6c_free LB_SYMBOL("free");
 extern int32_t lb_x_memory_14posix_memalign(void**, size_t, size_t) LB_SYMBOL("posix_memalign");
-extern void lb_x_memory_14aligned_malloc(void) LB_SYMBOL("_aligned_malloc");
-extern void lb_x_memory_12aligned_free(void) LB_SYMBOL("_aligned_free");
+extern char lb_x_memory_14aligned_malloc LB_SYMBOL("_aligned_malloc");
+extern char lb_x_memory_12aligned_free LB_SYMBOL("_aligned_free");
 extern void* lb_x_memory_memcpy(void*, const void*, size_t) LB_SYMBOL("memcpy");
 extern void* lb_x_memory_memmove(void*, const void*, size_t) LB_SYMBOL("memmove");
 extern void* lb_x_memory_memset(void*, int32_t, size_t) LB_SYMBOL("memset");
@@ -2060,18 +2060,18 @@ extern int32_t lb_x_memory_munmap(void*, size_t) LB_SYMBOL("munmap");
 extern int32_t lb_x_memory_getpagesize(void) LB_SYMBOL("getpagesize");
 extern void* lb_x_memory_VirtualAlloc(void*, size_t, uint32_t, uint32_t) LB_SYMBOL("VirtualAlloc");
 extern int32_t lb_x_memory_VirtualFree(void*, size_t, uint32_t) LB_SYMBOL("VirtualFree");
-extern void lb_x_memory_11write_bytes(void) LB_SYMBOL("write");
+extern char lb_x_memory_11write_bytes LB_SYMBOL("write");
 extern char* lb_x_os_getenv(char*) LB_SYMBOL("getenv");
 extern int32_t lb_x_os_setenv(char*, char*, int32_t) LB_SYMBOL("setenv");
 extern int32_t lb_x_os_unsetenv(char*) LB_SYMBOL("unsetenv");
 extern char* lb_x_os_getcwd(uint8_t*, size_t) LB_SYMBOL("getcwd");
 extern intptr_t lb_x_os_readlink(char*, void*, size_t) LB_SYMBOL("readlink");
-extern void lb_x_os_19mac_executable_path(void) LB_SYMBOL("_NSGetExecutablePath");
+extern char lb_x_os_19mac_executable_path LB_SYMBOL("_NSGetExecutablePath");
 extern int32_t lb_x_os_chdir(char*) LB_SYMBOL("chdir");
 extern int32_t lb_x_os_getpid(void) LB_SYMBOL("getpid");
 extern int32_t lb_x_os_getppid(void) LB_SYMBOL("getppid");
 extern int32_t lb_x_os_gethostname(uint8_t*, size_t) LB_SYMBOL("gethostname");
-extern void lb_x_os_6c_exit(void) LB_SYMBOL("exit");
+extern char lb_x_os_6c_exit LB_SYMBOL("exit");
 extern int64_t lb_x_os_sysconf(int32_t) LB_SYMBOL("sysconf");
 extern int32_t lb_x_os_getpagesize(void) LB_SYMBOL("getpagesize");
 extern int32_t lb_x_os_getentropy(void*, size_t) LB_SYMBOL("getentropy");
@@ -2086,10 +2086,10 @@ extern size_t lb_x_io_fwrite(const void*, size_t, size_t, void*) LB_SYMBOL("fwri
 extern int32_t lb_x_io_fflush(void*) LB_SYMBOL("fflush");
 extern void lb_x_io_flockfile(void*) LB_SYMBOL("flockfile");
 extern void lb_x_io_funlockfile(void*) LB_SYMBOL("funlockfile");
-extern void lb_x_io_13win_lock_file(void) LB_SYMBOL("_lock_file");
-extern void lb_x_io_15win_unlock_file(void) LB_SYMBOL("_unlock_file");
-extern void lb_x_io_10posix_read(void) LB_SYMBOL("read");
-extern void lb_x_io_12windows_read(void) LB_SYMBOL("_read");
+extern char lb_x_io_13win_lock_file LB_SYMBOL("_lock_file");
+extern char lb_x_io_15win_unlock_file LB_SYMBOL("_unlock_file");
+extern char lb_x_io_10posix_read LB_SYMBOL("read");
+extern char lb_x_io_12windows_read LB_SYMBOL("_read");
 typedef struct lb_vt_Reader {
     lb_r_usize (*read)(void* self, lb_span);
 } lb_vt_Reader;
@@ -2109,7 +2109,7 @@ typedef struct lb_vt_Display {
     lb_r_unit (*display)(void* self, lb_iface);
 } lb_vt_Display;
 extern int32_t lb_x_time_13clock_gettime(int32_t, struct Stamp*) LB_SYMBOL("clock_gettime");
-extern void lb_x_time_6c_time(void) LB_SYMBOL("time");
+extern char lb_x_time_6c_time LB_SYMBOL("time");
 extern int32_t lb_x_thread_14pthread_create(void**, void*, lb_fn_0F1_void_0p_void_0p_0o, void*) LB_SYMBOL("pthread_create");
 extern int32_t lb_x_thread_12pthread_join(void*, void**) LB_SYMBOL("pthread_join");
 extern int32_t lb_x_thread_14pthread_detach(void*) LB_SYMBOL("pthread_detach");
@@ -2120,8 +2120,8 @@ extern int32_t lb_x_thread_gettid(void) LB_SYMBOL("gettid");
 extern int32_t lb_x_thread_17pthread_attr_init(void*) LB_SYMBOL("pthread_attr_init");
 extern int32_t lb_x_thread_25pthread_attr_setstacksize(void*, size_t) LB_SYMBOL("pthread_attr_setstacksize");
 extern int32_t lb_x_thread_20pthread_attr_destroy(void*) LB_SYMBOL("pthread_attr_destroy");
-extern void lb_x_thread_11mac_setname(void) LB_SYMBOL("pthread_setname_np");
-extern void lb_x_thread_13linux_setname(void) LB_SYMBOL("pthread_setname_np");
+extern char lb_x_thread_11mac_setname LB_SYMBOL("pthread_setname_np");
+extern char lb_x_thread_13linux_setname LB_SYMBOL("pthread_setname_np");
 extern int32_t lb_x_thread_11sched_yield(void) LB_SYMBOL("sched_yield");
 extern int32_t lb_x_thread_nanosleep(const struct Duration*, struct Duration*) LB_SYMBOL("nanosleep");
 extern int32_t lb_x_thread_getpagesize(void) LB_SYMBOL("getpagesize");
@@ -2131,83 +2131,83 @@ extern int64_t lb_x_sync_syscall(int64_t, ...) LB_SYMBOL("syscall");
 extern int32_t lb_x_sync_WaitOnAddress(void*, uint32_t*, size_t, uint32_t) LB_SYMBOL("WaitOnAddress");
 extern void lb_x_sync_WakeByAddressSingle(void*) LB_SYMBOL("WakeByAddressSingle");
 extern void lb_x_sync_WakeByAddressAll(void*) LB_SYMBOL("WakeByAddressAll");
-extern void lb_x_strings_18new_numeric_locale(void) LB_SYMBOL("newlocale");
-extern void lb_x_strings_17free_locale_macos(void) LB_SYMBOL("freelocale");
-extern void lb_x_strings_17free_locale_linux(void) LB_SYMBOL("freelocale");
-extern void lb_x_strings_10use_locale(void) LB_SYMBOL("uselocale");
-extern void lb_x_strings_11convert_f64(void) LB_SYMBOL("strtod_l");
-extern void lb_x_strings_11convert_f32(void) LB_SYMBOL("strtof_l");
-extern void lb_x_strings_17print_float_macos(void) LB_SYMBOL("snprintf_l");
-extern void lb_x_strings_17print_float_linux(void) LB_SYMBOL("snprintf");
-extern void lb_x_strings_21create_locale_windows(void) LB_SYMBOL("_create_locale");
-extern void lb_x_strings_19free_locale_windows(void) LB_SYMBOL("_free_locale");
-extern void lb_x_strings_19convert_f64_windows(void) LB_SYMBOL("_strtod_l");
-extern void lb_x_strings_19convert_f32_windows(void) LB_SYMBOL("_strtof_l");
-extern void lb_x_strings_19print_float_windows(void) LB_SYMBOL("__stdio_common_vsprintf");
-extern void lb_x_math_7c_floor(void) LB_SYMBOL("floor");
-extern void lb_x_math_6c_ceil(void) LB_SYMBOL("ceil");
-extern void lb_x_math_7c_round(void) LB_SYMBOL("round");
-extern void lb_x_math_7c_trunc(void) LB_SYMBOL("trunc");
-extern void lb_x_math_6c_sqrt(void) LB_SYMBOL("sqrt");
-extern void lb_x_math_6c_cbrt(void) LB_SYMBOL("cbrt");
-extern void lb_x_math_7c_hypot(void) LB_SYMBOL("hypot");
-extern void lb_x_math_6c_fmod(void) LB_SYMBOL("fmod");
-extern void lb_x_math_5c_pow(void) LB_SYMBOL("pow");
-extern void lb_x_math_5c_exp(void) LB_SYMBOL("exp");
-extern void lb_x_math_6c_exp2(void) LB_SYMBOL("exp2");
-extern void lb_x_math_5c_log(void) LB_SYMBOL("log");
-extern void lb_x_math_6c_log2(void) LB_SYMBOL("log2");
-extern void lb_x_math_7c_log10(void) LB_SYMBOL("log10");
-extern void lb_x_math_5c_sin(void) LB_SYMBOL("sin");
-extern void lb_x_math_5c_cos(void) LB_SYMBOL("cos");
-extern void lb_x_math_5c_tan(void) LB_SYMBOL("tan");
-extern void lb_x_math_6c_asin(void) LB_SYMBOL("asin");
-extern void lb_x_math_6c_acos(void) LB_SYMBOL("acos");
-extern void lb_x_math_6c_atan(void) LB_SYMBOL("atan");
-extern void lb_x_math_7c_atan2(void) LB_SYMBOL("atan2");
-extern void lb_x_math_6c_sinh(void) LB_SYMBOL("sinh");
-extern void lb_x_math_6c_cosh(void) LB_SYMBOL("cosh");
-extern void lb_x_math_6c_tanh(void) LB_SYMBOL("tanh");
-extern void lb_x_math_7c_log1p(void) LB_SYMBOL("log1p");
-extern void lb_x_math_7c_expm1(void) LB_SYMBOL("expm1");
-extern void lb_x_math_5c_fma(void) LB_SYMBOL("fma");
-extern void lb_x_math_11c_nextafter(void) LB_SYMBOL("nextafter");
-extern void lb_x_math_7c_frexp(void) LB_SYMBOL("frexp");
-extern void lb_x_math_8c_scalbn(void) LB_SYMBOL("scalbn");
-extern void lb_x_math_6c_modf(void) LB_SYMBOL("modf");
-extern void lb_x_math_11c_remainder(void) LB_SYMBOL("remainder");
-extern void lb_x_math32_7c_floor(void) LB_SYMBOL("floorf");
-extern void lb_x_math32_6c_ceil(void) LB_SYMBOL("ceilf");
-extern void lb_x_math32_7c_round(void) LB_SYMBOL("roundf");
-extern void lb_x_math32_7c_trunc(void) LB_SYMBOL("truncf");
-extern void lb_x_math32_6c_sqrt(void) LB_SYMBOL("sqrtf");
-extern void lb_x_math32_6c_cbrt(void) LB_SYMBOL("cbrtf");
-extern void lb_x_math32_7c_hypot(void) LB_SYMBOL("hypotf");
-extern void lb_x_math32_6c_fmod(void) LB_SYMBOL("fmodf");
-extern void lb_x_math32_5c_pow(void) LB_SYMBOL("powf");
-extern void lb_x_math32_5c_exp(void) LB_SYMBOL("expf");
-extern void lb_x_math32_6c_exp2(void) LB_SYMBOL("exp2f");
-extern void lb_x_math32_5c_log(void) LB_SYMBOL("logf");
-extern void lb_x_math32_6c_log2(void) LB_SYMBOL("log2f");
-extern void lb_x_math32_7c_log10(void) LB_SYMBOL("log10f");
-extern void lb_x_math32_5c_sin(void) LB_SYMBOL("sinf");
-extern void lb_x_math32_5c_cos(void) LB_SYMBOL("cosf");
-extern void lb_x_math32_5c_tan(void) LB_SYMBOL("tanf");
-extern void lb_x_math32_6c_asin(void) LB_SYMBOL("asinf");
-extern void lb_x_math32_6c_acos(void) LB_SYMBOL("acosf");
-extern void lb_x_math32_6c_atan(void) LB_SYMBOL("atanf");
-extern void lb_x_math32_7c_atan2(void) LB_SYMBOL("atan2f");
-extern void lb_x_math32_6c_sinh(void) LB_SYMBOL("sinhf");
-extern void lb_x_math32_6c_cosh(void) LB_SYMBOL("coshf");
-extern void lb_x_math32_6c_tanh(void) LB_SYMBOL("tanhf");
-extern void lb_x_math32_7c_log1p(void) LB_SYMBOL("log1pf");
-extern void lb_x_math32_7c_expm1(void) LB_SYMBOL("expm1f");
-extern void lb_x_math32_5c_fma(void) LB_SYMBOL("fmaf");
-extern void lb_x_math32_11c_nextafter(void) LB_SYMBOL("nextafterf");
-extern void lb_x_math32_7c_frexp(void) LB_SYMBOL("frexpf");
-extern void lb_x_math32_8c_scalbn(void) LB_SYMBOL("scalbnf");
-extern void lb_x_math32_6c_modf(void) LB_SYMBOL("modff");
-extern void lb_x_math32_11c_remainder(void) LB_SYMBOL("remainderf");
+extern char lb_x_strings_18new_numeric_locale LB_SYMBOL("newlocale");
+extern char lb_x_strings_17free_locale_macos LB_SYMBOL("freelocale");
+extern char lb_x_strings_17free_locale_linux LB_SYMBOL("freelocale");
+extern char lb_x_strings_10use_locale LB_SYMBOL("uselocale");
+extern char lb_x_strings_11convert_f64 LB_SYMBOL("strtod_l");
+extern char lb_x_strings_11convert_f32 LB_SYMBOL("strtof_l");
+extern char lb_x_strings_17print_float_macos LB_SYMBOL("snprintf_l");
+extern char lb_x_strings_17print_float_linux LB_SYMBOL("snprintf");
+extern char lb_x_strings_21create_locale_windows LB_SYMBOL("_create_locale");
+extern char lb_x_strings_19free_locale_windows LB_SYMBOL("_free_locale");
+extern char lb_x_strings_19convert_f64_windows LB_SYMBOL("_strtod_l");
+extern char lb_x_strings_19convert_f32_windows LB_SYMBOL("_strtof_l");
+extern char lb_x_strings_19print_float_windows LB_SYMBOL("__stdio_common_vsprintf");
+extern char lb_x_math_7c_floor LB_SYMBOL("floor");
+extern char lb_x_math_6c_ceil LB_SYMBOL("ceil");
+extern char lb_x_math_7c_round LB_SYMBOL("round");
+extern char lb_x_math_7c_trunc LB_SYMBOL("trunc");
+extern char lb_x_math_6c_sqrt LB_SYMBOL("sqrt");
+extern char lb_x_math_6c_cbrt LB_SYMBOL("cbrt");
+extern char lb_x_math_7c_hypot LB_SYMBOL("hypot");
+extern char lb_x_math_6c_fmod LB_SYMBOL("fmod");
+extern char lb_x_math_5c_pow LB_SYMBOL("pow");
+extern char lb_x_math_5c_exp LB_SYMBOL("exp");
+extern char lb_x_math_6c_exp2 LB_SYMBOL("exp2");
+extern char lb_x_math_5c_log LB_SYMBOL("log");
+extern char lb_x_math_6c_log2 LB_SYMBOL("log2");
+extern char lb_x_math_7c_log10 LB_SYMBOL("log10");
+extern char lb_x_math_5c_sin LB_SYMBOL("sin");
+extern char lb_x_math_5c_cos LB_SYMBOL("cos");
+extern char lb_x_math_5c_tan LB_SYMBOL("tan");
+extern char lb_x_math_6c_asin LB_SYMBOL("asin");
+extern char lb_x_math_6c_acos LB_SYMBOL("acos");
+extern char lb_x_math_6c_atan LB_SYMBOL("atan");
+extern char lb_x_math_7c_atan2 LB_SYMBOL("atan2");
+extern char lb_x_math_6c_sinh LB_SYMBOL("sinh");
+extern char lb_x_math_6c_cosh LB_SYMBOL("cosh");
+extern char lb_x_math_6c_tanh LB_SYMBOL("tanh");
+extern char lb_x_math_7c_log1p LB_SYMBOL("log1p");
+extern char lb_x_math_7c_expm1 LB_SYMBOL("expm1");
+extern char lb_x_math_5c_fma LB_SYMBOL("fma");
+extern char lb_x_math_11c_nextafter LB_SYMBOL("nextafter");
+extern char lb_x_math_7c_frexp LB_SYMBOL("frexp");
+extern char lb_x_math_8c_scalbn LB_SYMBOL("scalbn");
+extern char lb_x_math_6c_modf LB_SYMBOL("modf");
+extern char lb_x_math_11c_remainder LB_SYMBOL("remainder");
+extern char lb_x_math32_7c_floor LB_SYMBOL("floorf");
+extern char lb_x_math32_6c_ceil LB_SYMBOL("ceilf");
+extern char lb_x_math32_7c_round LB_SYMBOL("roundf");
+extern char lb_x_math32_7c_trunc LB_SYMBOL("truncf");
+extern char lb_x_math32_6c_sqrt LB_SYMBOL("sqrtf");
+extern char lb_x_math32_6c_cbrt LB_SYMBOL("cbrtf");
+extern char lb_x_math32_7c_hypot LB_SYMBOL("hypotf");
+extern char lb_x_math32_6c_fmod LB_SYMBOL("fmodf");
+extern char lb_x_math32_5c_pow LB_SYMBOL("powf");
+extern char lb_x_math32_5c_exp LB_SYMBOL("expf");
+extern char lb_x_math32_6c_exp2 LB_SYMBOL("exp2f");
+extern char lb_x_math32_5c_log LB_SYMBOL("logf");
+extern char lb_x_math32_6c_log2 LB_SYMBOL("log2f");
+extern char lb_x_math32_7c_log10 LB_SYMBOL("log10f");
+extern char lb_x_math32_5c_sin LB_SYMBOL("sinf");
+extern char lb_x_math32_5c_cos LB_SYMBOL("cosf");
+extern char lb_x_math32_5c_tan LB_SYMBOL("tanf");
+extern char lb_x_math32_6c_asin LB_SYMBOL("asinf");
+extern char lb_x_math32_6c_acos LB_SYMBOL("acosf");
+extern char lb_x_math32_6c_atan LB_SYMBOL("atanf");
+extern char lb_x_math32_7c_atan2 LB_SYMBOL("atan2f");
+extern char lb_x_math32_6c_sinh LB_SYMBOL("sinhf");
+extern char lb_x_math32_6c_cosh LB_SYMBOL("coshf");
+extern char lb_x_math32_6c_tanh LB_SYMBOL("tanhf");
+extern char lb_x_math32_7c_log1p LB_SYMBOL("log1pf");
+extern char lb_x_math32_7c_expm1 LB_SYMBOL("expm1f");
+extern char lb_x_math32_5c_fma LB_SYMBOL("fmaf");
+extern char lb_x_math32_11c_nextafter LB_SYMBOL("nextafterf");
+extern char lb_x_math32_7c_frexp LB_SYMBOL("frexpf");
+extern char lb_x_math32_8c_scalbn LB_SYMBOL("scalbnf");
+extern char lb_x_math32_6c_modf LB_SYMBOL("modff");
+extern char lb_x_math32_11c_remainder LB_SYMBOL("remainderf");
 extern int32_t lb_x_net_socket(int32_t, int32_t, int32_t) LB_SYMBOL("socket");
 extern int32_t lb_x_net_bind(int32_t, const void*, uint32_t) LB_SYMBOL("bind");
 extern int32_t lb_x_net_listen(int32_t, int32_t) LB_SYMBOL("listen");
@@ -2215,12 +2215,12 @@ extern int32_t lb_x_net_accept(int32_t, void*, uint32_t*) LB_SYMBOL("accept");
 extern int32_t lb_x_net_accept4(int32_t, void*, uint32_t*, int32_t) LB_SYMBOL("accept4");
 extern int32_t lb_x_net_fcntl(int32_t, int32_t, ...) LB_SYMBOL("fcntl");
 extern int32_t lb_x_net_connect(int32_t, const void*, uint32_t) LB_SYMBOL("connect");
-extern void lb_x_net_10posix_send(void) LB_SYMBOL("send");
-extern void lb_x_net_10posix_recv(void) LB_SYMBOL("recv");
-extern void lb_x_net_12posix_sendto(void) LB_SYMBOL("sendto");
-extern void lb_x_net_21receive_message_macos(void) LB_SYMBOL("recvmsg");
-extern void lb_x_net_21receive_message_linux(void) LB_SYMBOL("recvmsg");
-extern void lb_x_net_11posix_close(void) LB_SYMBOL("close");
+extern char lb_x_net_10posix_send LB_SYMBOL("send");
+extern char lb_x_net_10posix_recv LB_SYMBOL("recv");
+extern char lb_x_net_12posix_sendto LB_SYMBOL("sendto");
+extern char lb_x_net_21receive_message_macos LB_SYMBOL("recvmsg");
+extern char lb_x_net_21receive_message_linux LB_SYMBOL("recvmsg");
+extern char lb_x_net_11posix_close LB_SYMBOL("close");
 extern int32_t lb_x_net_getsockopt(int32_t, int32_t, int32_t, void*, uint32_t*) LB_SYMBOL("getsockopt");
 extern int32_t lb_x_net_setsockopt(int32_t, int32_t, int32_t, const void*, uint32_t) LB_SYMBOL("setsockopt");
 extern int32_t lb_x_net_getsockname(int32_t, void*, uint32_t*) LB_SYMBOL("getsockname");
@@ -2228,9 +2228,9 @@ extern int32_t lb_x_net_getpeername(int32_t, void*, uint32_t*) LB_SYMBOL("getpee
 extern int32_t lb_x_net_shutdown(int32_t, int32_t) LB_SYMBOL("shutdown");
 extern int32_t lb_x_net_getaddrinfo(char*, char*, const struct AddressInfo*, struct AddressInfo**) LB_SYMBOL("getaddrinfo");
 extern void lb_x_net_freeaddrinfo(struct AddressInfo*) LB_SYMBOL("freeaddrinfo");
-extern void lb_x_net_10poll_macos(void) LB_SYMBOL("poll");
-extern void lb_x_net_10poll_linux(void) LB_SYMBOL("poll");
-extern void lb_x_net_14read_monotonic(void) LB_SYMBOL("clock_gettime");
+extern char lb_x_net_10poll_macos LB_SYMBOL("poll");
+extern char lb_x_net_10poll_linux LB_SYMBOL("poll");
+extern char lb_x_net_14read_monotonic LB_SYMBOL("clock_gettime");
 extern int32_t lb_x_net_WSAStartup(uint16_t, void*) LB_SYMBOL("WSAStartup");
 extern int32_t lb_x_net_WSACleanup(void) LB_SYMBOL("WSACleanup");
 extern int32_t lb_x_net_WSAGetLastError(void) LB_SYMBOL("WSAGetLastError");
@@ -2238,57 +2238,57 @@ extern int32_t lb_x_net_WSASocketW(int32_t, int32_t, int32_t, void*, uint32_t, u
 extern int32_t lb_x_net_closesocket(int32_t) LB_SYMBOL("closesocket");
 extern int32_t lb_x_net_ioctlsocket(int32_t, int32_t, uint32_t*) LB_SYMBOL("ioctlsocket");
 extern int32_t lb_x_net_SetHandleInformation(void*, uint32_t, uint32_t) LB_SYMBOL("SetHandleInformation");
-extern void lb_x_net_12windows_send(void) LB_SYMBOL("send");
-extern void lb_x_net_12windows_recv(void) LB_SYMBOL("recv");
-extern void lb_x_net_14windows_sendto(void) LB_SYMBOL("sendto");
-extern void lb_x_net_16windows_recvfrom(void) LB_SYMBOL("recvfrom");
+extern char lb_x_net_12windows_send LB_SYMBOL("send");
+extern char lb_x_net_12windows_recv LB_SYMBOL("recv");
+extern char lb_x_net_14windows_sendto LB_SYMBOL("sendto");
+extern char lb_x_net_16windows_recvfrom LB_SYMBOL("recvfrom");
 extern int32_t lb_x_net_WSAPoll(struct NativePoll*, uint32_t, int32_t) LB_SYMBOL("WSAPoll");
 extern void lb_x_net_Sleep(uint32_t) LB_SYMBOL("Sleep");
 extern int32_t lb_x_net_atexit(lb_fn_0F0_unit) LB_SYMBOL("atexit");
 extern int32_t lb_x_files_open(char*, int32_t, ...) LB_SYMBOL("open");
 extern int32_t lb_x_files_openat(int32_t, char*, int32_t, ...) LB_SYMBOL("openat");
 extern int32_t lb_x_files_close(int32_t) LB_SYMBOL("close");
-extern void lb_x_files_10posix_read(void) LB_SYMBOL("read");
-extern void lb_x_files_11posix_write(void) LB_SYMBOL("write");
-extern void lb_x_files_8win_read(void) LB_SYMBOL("_read");
-extern void lb_x_files_9win_write(void) LB_SYMBOL("_write");
-extern void lb_x_files_11posix_lseek(void) LB_SYMBOL("lseek");
-extern void lb_x_files_13windows_lseek(void) LB_SYMBOL("_lseeki64");
-extern void lb_x_files_11posix_fsync(void) LB_SYMBOL("fsync");
-extern void lb_x_files_13windows_fsync(void) LB_SYMBOL("_commit");
-extern void lb_x_files_15posix_ftruncate(void) LB_SYMBOL("ftruncate");
-extern void lb_x_files_17windows_ftruncate(void) LB_SYMBOL("_chsize_s");
-extern void lb_x_files_12fchmod_macos(void) LB_SYMBOL("fchmod");
-extern void lb_x_files_12fchmod_linux(void) LB_SYMBOL("fchmod");
+extern char lb_x_files_10posix_read LB_SYMBOL("read");
+extern char lb_x_files_11posix_write LB_SYMBOL("write");
+extern char lb_x_files_8win_read LB_SYMBOL("_read");
+extern char lb_x_files_9win_write LB_SYMBOL("_write");
+extern char lb_x_files_11posix_lseek LB_SYMBOL("lseek");
+extern char lb_x_files_13windows_lseek LB_SYMBOL("_lseeki64");
+extern char lb_x_files_11posix_fsync LB_SYMBOL("fsync");
+extern char lb_x_files_13windows_fsync LB_SYMBOL("_commit");
+extern char lb_x_files_15posix_ftruncate LB_SYMBOL("ftruncate");
+extern char lb_x_files_17windows_ftruncate LB_SYMBOL("_chsize_s");
+extern char lb_x_files_12fchmod_macos LB_SYMBOL("fchmod");
+extern char lb_x_files_12fchmod_linux LB_SYMBOL("fchmod");
 extern void* lb_x_files_fdopendir(int32_t) LB_SYMBOL("fdopendir");
 extern int32_t lb_x_files_dirfd(void*) LB_SYMBOL("dirfd");
-extern void lb_x_files_13readdir_macos(void) LB_SYMBOL("readdir");
-extern void lb_x_files_13readdir_linux(void) LB_SYMBOL("readdir");
+extern char lb_x_files_13readdir_macos LB_SYMBOL("readdir");
+extern char lb_x_files_13readdir_linux LB_SYMBOL("readdir");
 extern int32_t lb_x_files_closedir(void*) LB_SYMBOL("closedir");
 extern int32_t lb_x_files_access(char*, int32_t) LB_SYMBOL("access");
-extern void lb_x_files_11mkdir_macos(void) LB_SYMBOL("mkdir");
-extern void lb_x_files_11mkdir_linux(void) LB_SYMBOL("mkdir");
+extern char lb_x_files_11mkdir_macos LB_SYMBOL("mkdir");
+extern char lb_x_files_11mkdir_linux LB_SYMBOL("mkdir");
 extern int32_t lb_x_files_rmdir(char*) LB_SYMBOL("rmdir");
 extern int32_t lb_x_files_unlink(char*) LB_SYMBOL("unlink");
-extern void lb_x_files_8c_rename(void) LB_SYMBOL("rename");
-extern void lb_x_files_22rename_exclusive_macos(void) LB_SYMBOL("renamex_np");
-extern void lb_x_files_22rename_exclusive_linux(void) LB_SYMBOL("renameat2");
+extern char lb_x_files_8c_rename LB_SYMBOL("rename");
+extern char lb_x_files_22rename_exclusive_macos LB_SYMBOL("renamex_np");
+extern char lb_x_files_22rename_exclusive_linux LB_SYMBOL("renameat2");
 extern int32_t lb_x_files_symlink(char*, char*) LB_SYMBOL("symlink");
 extern int32_t lb_x_files_linkat(int32_t, char*, int32_t, char*, int32_t) LB_SYMBOL("linkat");
 extern intptr_t lb_x_files_readlink(char*, void*, size_t) LB_SYMBOL("readlink");
 extern int32_t lb_x_files_getentropy(void*, size_t) LB_SYMBOL("getentropy");
-extern void lb_x_files_16stat_linux_arm64(void) LB_SYMBOL("stat");
-extern void lb_x_files_17lstat_linux_arm64(void) LB_SYMBOL("lstat");
-extern void lb_x_files_17fstat_linux_arm64(void) LB_SYMBOL("fstat");
-extern void lb_x_files_19fstatat_linux_arm64(void) LB_SYMBOL("fstatat");
-extern void lb_x_files_10stat_macos(void) LB_SYMBOL("stat");
-extern void lb_x_files_10stat_linux(void) LB_SYMBOL("stat");
-extern void lb_x_files_11lstat_macos(void) LB_SYMBOL("lstat");
-extern void lb_x_files_11lstat_linux(void) LB_SYMBOL("lstat");
-extern void lb_x_files_11fstat_macos(void) LB_SYMBOL("fstat");
-extern void lb_x_files_11fstat_linux(void) LB_SYMBOL("fstat");
-extern void lb_x_files_13fstatat_macos(void) LB_SYMBOL("fstatat");
-extern void lb_x_files_13fstatat_linux(void) LB_SYMBOL("fstatat");
+extern char lb_x_files_16stat_linux_arm64 LB_SYMBOL("stat");
+extern char lb_x_files_17lstat_linux_arm64 LB_SYMBOL("lstat");
+extern char lb_x_files_17fstat_linux_arm64 LB_SYMBOL("fstat");
+extern char lb_x_files_19fstatat_linux_arm64 LB_SYMBOL("fstatat");
+extern char lb_x_files_10stat_macos LB_SYMBOL("stat");
+extern char lb_x_files_10stat_linux LB_SYMBOL("stat");
+extern char lb_x_files_11lstat_macos LB_SYMBOL("lstat");
+extern char lb_x_files_11lstat_linux LB_SYMBOL("lstat");
+extern char lb_x_files_11fstat_macos LB_SYMBOL("fstat");
+extern char lb_x_files_11fstat_linux LB_SYMBOL("fstat");
+extern char lb_x_files_13fstatat_macos LB_SYMBOL("fstatat");
+extern char lb_x_files_13fstatat_linux LB_SYMBOL("fstatat");
 extern int32_t lb_x_files_futimens(int32_t, const struct NativeFileTime*) LB_SYMBOL("futimens");
 typedef struct lb_vt_WalkVisitor {
     lb_r_bool (*visit)(void* self, lb_str, lb_files_Metadata, size_t);
@@ -2301,20 +2301,20 @@ extern void* lb_x_files_FindFirstFileW(uint16_t*, struct WinFind*) LB_SYMBOL("Fi
 extern int32_t lb_x_files_FindNextFileW(void*, struct WinFind*) LB_SYMBOL("FindNextFileW");
 extern int32_t lb_x_files_FindClose(void*) LB_SYMBOL("FindClose");
 extern int32_t lb_x_files_MoveFileExW(uint16_t*, uint16_t*, uint32_t) LB_SYMBOL("MoveFileExW");
-extern void lb_x_files_8win_open(void) LB_SYMBOL("_wopen");
-extern void lb_x_files_10win_access(void) LB_SYMBOL("_waccess");
-extern void lb_x_files_9win_mkdir(void) LB_SYMBOL("_wmkdir");
-extern void lb_x_files_9win_rmdir(void) LB_SYMBOL("_wrmdir");
-extern void lb_x_files_10win_unlink(void) LB_SYMBOL("_wunlink");
-extern void lb_x_files_10win_handle(void) LB_SYMBOL("_get_osfhandle");
-extern void lb_x_files_14win_descriptor(void) LB_SYMBOL("_open_osfhandle");
+extern char lb_x_files_8win_open LB_SYMBOL("_wopen");
+extern char lb_x_files_10win_access LB_SYMBOL("_waccess");
+extern char lb_x_files_9win_mkdir LB_SYMBOL("_wmkdir");
+extern char lb_x_files_9win_rmdir LB_SYMBOL("_wrmdir");
+extern char lb_x_files_10win_unlink LB_SYMBOL("_wunlink");
+extern char lb_x_files_10win_handle LB_SYMBOL("_get_osfhandle");
+extern char lb_x_files_14win_descriptor LB_SYMBOL("_open_osfhandle");
 extern int32_t lb_x_files_SetFileInformationByHandle(void*, int32_t, void*, uint32_t) LB_SYMBOL("SetFileInformationByHandle");
 extern int32_t lb_x_files_SetFileTime(void*, const uint64_t*, const uint64_t*, const uint64_t*) LB_SYMBOL("SetFileTime");
 extern int32_t lb_x_files_CreateHardLinkW(uint16_t*, uint16_t*, void*) LB_SYMBOL("CreateHardLinkW");
 extern uint8_t lb_x_files_CreateSymbolicLinkW(uint16_t*, uint16_t*, uint32_t) LB_SYMBOL("CreateSymbolicLinkW");
 extern int32_t lb_x_files_DeviceIoControl(void*, uint32_t, void*, uint32_t, void*, uint32_t, uint32_t*, void*) LB_SYMBOL("DeviceIoControl");
 extern uint8_t* lb_x_files_realpath(char*, uint8_t*) LB_SYMBOL("realpath");
-extern void lb_x_files_16release_realpath(void) LB_SYMBOL("free");
+extern char lb_x_files_16release_realpath LB_SYMBOL("free");
 extern int32_t lb_x_process_pipe(int32_t*) LB_SYMBOL("pipe");
 extern int32_t lb_x_process_fork(void) LB_SYMBOL("fork");
 extern int32_t lb_x_process_dup2(int32_t, int32_t) LB_SYMBOL("dup2");
@@ -2323,7 +2323,7 @@ extern int32_t lb_x_process_execvp(char*, void**) LB_SYMBOL("execvp");
 extern void lb_x_process_5_exit(int32_t) LB_SYMBOL("_exit");
 extern int32_t lb_x_process_waitpid(int32_t, int32_t*, int32_t) LB_SYMBOL("waitpid");
 extern int32_t lb_x_process_kill(int32_t, int32_t) LB_SYMBOL("kill");
-extern void lb_x_process_6c_read(void) LB_SYMBOL("read");
+extern char lb_x_process_6c_read LB_SYMBOL("read");
 extern int32_t lb_x_process_poll(struct Poll*, uint32_t, int32_t) LB_SYMBOL("poll");
 extern int32_t lb_x_process_fcntl(int32_t, int32_t, ...) LB_SYMBOL("fcntl");
 extern int32_t lb_x_process_CreateProcessW(void*, uint16_t*, void*, void*, int32_t, uint32_t, void*, void*, struct WinStartup*, struct WinProcess*) LB_SYMBOL("CreateProcessW");
@@ -2331,17 +2331,17 @@ extern int32_t lb_x_process_DuplicateHandle(void*, void*, void*, void**, uint32_
 extern uint32_t lb_x_process_WaitForSingleObject(void*, uint32_t) LB_SYMBOL("WaitForSingleObject");
 extern int32_t lb_x_process_GetExitCodeProcess(void*, uint32_t*) LB_SYMBOL("GetExitCodeProcess");
 extern int32_t lb_x_process_TerminateProcess(void*, uint32_t) LB_SYMBOL("TerminateProcess");
-extern void lb_x_process_15win_open_handle(void) LB_SYMBOL("_open_osfhandle");
-extern void lb_x_process_10win_fdopen(void) LB_SYMBOL("_fdopen");
-extern void lb_x_process_9win_close(void) LB_SYMBOL("_close");
+extern char lb_x_process_15win_open_handle LB_SYMBOL("_open_osfhandle");
+extern char lb_x_process_10win_fdopen LB_SYMBOL("_fdopen");
+extern char lb_x_process_9win_close LB_SYMBOL("_close");
 extern void* lb_x_process_fopen(char*, char*) LB_SYMBOL("fopen");
 extern int32_t lb_x_process_fclose(void*) LB_SYMBOL("fclose");
-extern void lb_x_process_10win_fileno(void) LB_SYMBOL("_fileno");
-extern void lb_x_process_13win_os_handle(void) LB_SYMBOL("_get_osfhandle");
-extern void lb_x_process_8win_seek(void) LB_SYMBOL("_fseeki64");
-extern void lb_x_process_8win_tell(void) LB_SYMBOL("_ftelli64");
+extern char lb_x_process_10win_fileno LB_SYMBOL("_fileno");
+extern char lb_x_process_13win_os_handle LB_SYMBOL("_get_osfhandle");
+extern char lb_x_process_8win_seek LB_SYMBOL("_fseeki64");
+extern char lb_x_process_8win_tell LB_SYMBOL("_ftelli64");
 extern size_t lb_x_process_fread(void*, size_t, size_t, void*) LB_SYMBOL("fread");
-extern void lb_x_process_18termination_signal(void) LB_SYMBOL("signal");
+extern char lb_x_process_18termination_signal LB_SYMBOL("signal");
 extern int32_t lb_x_process_SetConsoleCtrlHandler(lb_fn_0F1_u32_i32, int32_t) LB_SYMBOL("SetConsoleCtrlHandler");
 extern uint64_t lb_x_process_GetTickCount64(void) LB_SYMBOL("GetTickCount64");
 extern void lb_x_process_Sleep(uint32_t) LB_SYMBOL("Sleep");
@@ -2376,31 +2376,31 @@ extern void* lb_x_window_24objc_autoreleasePoolPush(void) LB_SYMBOL("objc_autore
 extern void lb_x_window_23objc_autoreleasePoolPop(void*) LB_SYMBOL("objc_autoreleasePoolPop");
 extern void* NSDefaultRunLoopMode;
 extern void* NSApplicationDidFinishLaunchingNotification;
-extern void lb_x_window_7msg_ptr(void) LB_SYMBOL("objc_msgSend");
-extern void lb_x_window_8msg_void(void) LB_SYMBOL("objc_msgSend");
-extern void lb_x_window_10msg_object(void) LB_SYMBOL("objc_msgSend");
-extern void lb_x_window_12msg_bool_arg(void) LB_SYMBOL("objc_msgSend");
-extern void lb_x_window_15msg_bool_object(void) LB_SYMBOL("objc_msgSend");
-extern void lb_x_window_8msg_bool(void) LB_SYMBOL("objc_msgSend");
-extern void lb_x_window_8msg_uint(void) LB_SYMBOL("objc_msgSend");
-extern void lb_x_window_7msg_key(void) LB_SYMBOL("objc_msgSend");
-extern void lb_x_window_13msg_character(void) LB_SYMBOL("objc_msgSend");
-extern void lb_x_window_14msg_one_object(void) LB_SYMBOL("objc_msgSend");
-extern void lb_x_window_10msg_double(void) LB_SYMBOL("objc_msgSend");
-extern void lb_x_window_10msg_policy(void) LB_SYMBOL("objc_msgSend");
-extern void lb_x_window_8msg_rect(void) LB_SYMBOL("objc_msgSend");
-extern void lb_x_window_11msg_backing(void) LB_SYMBOL("objc_msgSend");
-extern void lb_x_window_9msg_point(void) LB_SYMBOL("objc_msgSend");
-extern void lb_x_window_11msg_convert(void) LB_SYMBOL("objc_msgSend");
-extern void lb_x_window_10msg_extent(void) LB_SYMBOL("objc_msgSend");
-extern void lb_x_window_15msg_init_window(void) LB_SYMBOL("objc_msgSend");
-extern void lb_x_window_13msg_init_view(void) LB_SYMBOL("objc_msgSend");
-extern void lb_x_window_17msg_init_tracking(void) LB_SYMBOL("objc_msgSend");
-extern void lb_x_window_13msg_init_text(void) LB_SYMBOL("objc_msgSend");
-extern void lb_x_window_8msg_next(void) LB_SYMBOL("objc_msgSend");
-extern void lb_x_window_11msg_observe(void) LB_SYMBOL("objc_msgSend");
-extern void lb_x_window_8msg_post(void) LB_SYMBOL("objc_msgSend");
-extern void lb_x_window_10msg_wakeup(void) LB_SYMBOL("objc_msgSend");
+extern char lb_x_window_7msg_ptr LB_SYMBOL("objc_msgSend");
+extern char lb_x_window_8msg_void LB_SYMBOL("objc_msgSend");
+extern char lb_x_window_10msg_object LB_SYMBOL("objc_msgSend");
+extern char lb_x_window_12msg_bool_arg LB_SYMBOL("objc_msgSend");
+extern char lb_x_window_15msg_bool_object LB_SYMBOL("objc_msgSend");
+extern char lb_x_window_8msg_bool LB_SYMBOL("objc_msgSend");
+extern char lb_x_window_8msg_uint LB_SYMBOL("objc_msgSend");
+extern char lb_x_window_7msg_key LB_SYMBOL("objc_msgSend");
+extern char lb_x_window_13msg_character LB_SYMBOL("objc_msgSend");
+extern char lb_x_window_14msg_one_object LB_SYMBOL("objc_msgSend");
+extern char lb_x_window_10msg_double LB_SYMBOL("objc_msgSend");
+extern char lb_x_window_10msg_policy LB_SYMBOL("objc_msgSend");
+extern char lb_x_window_8msg_rect LB_SYMBOL("objc_msgSend");
+extern char lb_x_window_11msg_backing LB_SYMBOL("objc_msgSend");
+extern char lb_x_window_9msg_point LB_SYMBOL("objc_msgSend");
+extern char lb_x_window_11msg_convert LB_SYMBOL("objc_msgSend");
+extern char lb_x_window_10msg_extent LB_SYMBOL("objc_msgSend");
+extern char lb_x_window_15msg_init_window LB_SYMBOL("objc_msgSend");
+extern char lb_x_window_13msg_init_view LB_SYMBOL("objc_msgSend");
+extern char lb_x_window_17msg_init_tracking LB_SYMBOL("objc_msgSend");
+extern char lb_x_window_13msg_init_text LB_SYMBOL("objc_msgSend");
+extern char lb_x_window_8msg_next LB_SYMBOL("objc_msgSend");
+extern char lb_x_window_11msg_observe LB_SYMBOL("objc_msgSend");
+extern char lb_x_window_8msg_post LB_SYMBOL("objc_msgSend");
+extern char lb_x_window_10msg_wakeup LB_SYMBOL("objc_msgSend");
 extern uint16_t lb_x_window_RegisterClassExW(struct WinClass*) LB_SYMBOL("RegisterClassExW");
 extern void* lb_x_window_LoadCursorW(void*, uint16_t*) LB_SYMBOL("LoadCursorW");
 extern void* lb_x_window_CreateWindowExW(uint32_t, uint16_t*, uint16_t*, uint32_t, int32_t, int32_t, int32_t, int32_t, void*, void*, void*, void*) LB_SYMBOL("CreateWindowExW");
@@ -2433,13 +2433,13 @@ extern void* lb_x_clipboard_13objc_getClass(char*) LB_SYMBOL("objc_getClass");
 extern void* lb_x_clipboard_16sel_registerName(char*) LB_SYMBOL("sel_registerName");
 extern void* lb_x_clipboard_24objc_autoreleasePoolPush(void) LB_SYMBOL("objc_autoreleasePoolPush");
 extern void lb_x_clipboard_23objc_autoreleasePoolPop(void*) LB_SYMBOL("objc_autoreleasePoolPop");
-extern void lb_x_clipboard_10msg_object(void) LB_SYMBOL("objc_msgSend");
-extern void lb_x_clipboard_9msg_typed(void) LB_SYMBOL("objc_msgSend");
-extern void lb_x_clipboard_9msg_count(void) LB_SYMBOL("objc_msgSend");
-extern void lb_x_clipboard_8msg_size(void) LB_SYMBOL("objc_msgSend");
-extern void lb_x_clipboard_8msg_init(void) LB_SYMBOL("objc_msgSend");
-extern void lb_x_clipboard_9msg_write(void) LB_SYMBOL("objc_msgSend");
-extern void lb_x_clipboard_11msg_release(void) LB_SYMBOL("objc_msgSend");
+extern char lb_x_clipboard_10msg_object LB_SYMBOL("objc_msgSend");
+extern char lb_x_clipboard_9msg_typed LB_SYMBOL("objc_msgSend");
+extern char lb_x_clipboard_9msg_count LB_SYMBOL("objc_msgSend");
+extern char lb_x_clipboard_8msg_size LB_SYMBOL("objc_msgSend");
+extern char lb_x_clipboard_8msg_init LB_SYMBOL("objc_msgSend");
+extern char lb_x_clipboard_9msg_write LB_SYMBOL("objc_msgSend");
+extern char lb_x_clipboard_11msg_release LB_SYMBOL("objc_msgSend");
 extern void* lb_x_clipboard_GetActiveWindow(void) LB_SYMBOL("GetActiveWindow");
 extern int32_t lb_x_clipboard_OpenClipboard(void*) LB_SYMBOL("OpenClipboard");
 extern int32_t lb_x_clipboard_CloseClipboard(void) LB_SYMBOL("CloseClipboard");
@@ -2502,14 +2502,14 @@ extern void lb_x_fonts_26cairo_font_options_destroy(void*) LB_SYMBOL("cairo_font
 extern void lb_x_fonts_32cairo_font_options_set_antialias(void*, int32_t) LB_SYMBOL("cairo_font_options_set_antialias");
 extern void lb_x_fonts_35cairo_font_options_set_hint_metrics(void*, int32_t) LB_SYMBOL("cairo_font_options_set_hint_metrics");
 extern void lb_x_fonts_22cairo_set_font_options(void*, void*) LB_SYMBOL("cairo_set_font_options");
-extern void lb_x_gpu_14metal_viewport(void) LB_SYMBOL("objc_msgSend");
-extern void lb_x_gpu_12metal_string(void) LB_SYMBOL("objc_msgSend");
-extern void lb_x_gpu_13metal_library(void) LB_SYMBOL("objc_msgSend");
-extern void lb_x_gpu_14metal_pipeline(void) LB_SYMBOL("objc_msgSend");
-extern void lb_x_gpu_12metal_buffer(void) LB_SYMBOL("objc_msgSend");
-extern void lb_x_gpu_17metal_bind_buffer(void) LB_SYMBOL("objc_msgSend");
-extern void lb_x_gpu_13metal_scissor(void) LB_SYMBOL("objc_msgSend");
-extern void lb_x_gpu_10metal_draw(void) LB_SYMBOL("objc_msgSend");
+extern char lb_x_gpu_14metal_viewport LB_SYMBOL("objc_msgSend");
+extern char lb_x_gpu_12metal_string LB_SYMBOL("objc_msgSend");
+extern char lb_x_gpu_13metal_library LB_SYMBOL("objc_msgSend");
+extern char lb_x_gpu_14metal_pipeline LB_SYMBOL("objc_msgSend");
+extern char lb_x_gpu_12metal_buffer LB_SYMBOL("objc_msgSend");
+extern char lb_x_gpu_17metal_bind_buffer LB_SYMBOL("objc_msgSend");
+extern char lb_x_gpu_13metal_scissor LB_SYMBOL("objc_msgSend");
+extern char lb_x_gpu_10metal_draw LB_SYMBOL("objc_msgSend");
 extern int32_t lb_x_gpu_15pthread_main_np(void) LB_SYMBOL("pthread_main_np");
 extern void* lb_x_gpu_MTLCreateSystemDefaultDevice(void) LB_SYMBOL("MTLCreateSystemDefaultDevice");
 extern void* lb_x_gpu_13objc_getClass(char*) LB_SYMBOL("objc_getClass");
@@ -2518,18 +2518,18 @@ extern void* lb_x_gpu_24objc_autoreleasePoolPush(void) LB_SYMBOL("objc_autorelea
 extern void lb_x_gpu_23objc_autoreleasePoolPop(void*) LB_SYMBOL("objc_autoreleasePoolPop");
 extern void* lb_x_gpu_CGColorSpaceCreateWithName(void*) LB_SYMBOL("CGColorSpaceCreateWithName");
 extern void lb_x_gpu_CGColorSpaceRelease(void*) LB_SYMBOL("CGColorSpaceRelease");
-extern void lb_x_gpu_9metal_ptr(void) LB_SYMBOL("objc_msgSend");
-extern void lb_x_gpu_10metal_void(void) LB_SYMBOL("objc_msgSend");
-extern void lb_x_gpu_12metal_object(void) LB_SYMBOL("objc_msgSend");
-extern void lb_x_gpu_14metal_bool_arg(void) LB_SYMBOL("objc_msgSend");
-extern void lb_x_gpu_14metal_uint_arg(void) LB_SYMBOL("objc_msgSend");
-extern void lb_x_gpu_16metal_double_arg(void) LB_SYMBOL("objc_msgSend");
-extern void lb_x_gpu_14metal_size_arg(void) LB_SYMBOL("objc_msgSend");
-extern void lb_x_gpu_15metal_color_arg(void) LB_SYMBOL("objc_msgSend");
-extern void lb_x_gpu_10metal_uint(void) LB_SYMBOL("objc_msgSend");
-extern void lb_x_gpu_11metal_index(void) LB_SYMBOL("objc_msgSend");
-extern void lb_x_gpu_17metal_with_object(void) LB_SYMBOL("objc_msgSend");
-extern void lb_x_gpu_18metal_inline_bytes(void) LB_SYMBOL("objc_msgSend");
+extern char lb_x_gpu_9metal_ptr LB_SYMBOL("objc_msgSend");
+extern char lb_x_gpu_10metal_void LB_SYMBOL("objc_msgSend");
+extern char lb_x_gpu_12metal_object LB_SYMBOL("objc_msgSend");
+extern char lb_x_gpu_14metal_bool_arg LB_SYMBOL("objc_msgSend");
+extern char lb_x_gpu_14metal_uint_arg LB_SYMBOL("objc_msgSend");
+extern char lb_x_gpu_16metal_double_arg LB_SYMBOL("objc_msgSend");
+extern char lb_x_gpu_14metal_size_arg LB_SYMBOL("objc_msgSend");
+extern char lb_x_gpu_15metal_color_arg LB_SYMBOL("objc_msgSend");
+extern char lb_x_gpu_10metal_uint LB_SYMBOL("objc_msgSend");
+extern char lb_x_gpu_11metal_index LB_SYMBOL("objc_msgSend");
+extern char lb_x_gpu_17metal_with_object LB_SYMBOL("objc_msgSend");
+extern char lb_x_gpu_18metal_inline_bytes LB_SYMBOL("objc_msgSend");
 extern int32_t lb_x_gpu_vkCreateInstance(struct VkInstanceCreateInfo*, void*, uint64_t*) LB_SYMBOL("vkCreateInstance");
 extern void lb_x_gpu_vkDestroyInstance(uint64_t, void*) LB_SYMBOL("vkDestroyInstance");
 extern int32_t lb_x_gpu_vkEnumeratePhysicalDevices(uint64_t, uint32_t*, uint64_t*) LB_SYMBOL("vkEnumeratePhysicalDevices");
@@ -2605,8 +2605,8 @@ extern void lb_x_gpu_vkUpdateDescriptorSets(uint64_t, uint32_t, struct VkWriteDe
 extern void lb_x_gpu_vkCmdBindDescriptorSets(uint64_t, uint32_t, uint64_t, uint32_t, uint32_t, uint64_t*, uint32_t, uint32_t*) LB_SYMBOL("vkCmdBindDescriptorSets");
 extern void lb_x_gpu_vkCmdPushConstants(uint64_t, uint64_t, uint32_t, uint32_t, uint32_t, void*) LB_SYMBOL("vkCmdPushConstants");
 extern char* lb_x_debug_getenv(char*) LB_SYMBOL("getenv");
-extern void lb_x_debug_6c_read(void) LB_SYMBOL("read");
-extern void lb_x_debug_6c_exit(void) LB_SYMBOL("exit");
+extern char lb_x_debug_6c_read LB_SYMBOL("read");
+extern char lb_x_debug_6c_exit LB_SYMBOL("exit");
 __attribute__((weak)) lb_interop_Transfer_0g1_str lb_interop_Transfer_0g1_str_plain(void);
 __attribute__((weak)) lb_r_interop_Packet_0g1_str lb_interop_Transfer_0g1_str_10copy_plain(lb_str lb_value);
 __attribute__((weak)) lb_interop_Transfer_0g1_u8_0c lb_interop_Transfer_0g1_u8_0c_plain(void);
@@ -3089,7 +3089,7 @@ lb_r_window_State_0p lb_window_8mac_open(lb_window_Options lb_options) {
         void* lb_app __attribute__((unused)) = ({ void* _lb_o8 = ({ void* _lb_sq9 __attribute__((unused)) = (({ lb_r_void_0p _lb_r10 = lb_window_12native_class("NSApplication"); if (_lb_r10.failed) {
             (void)(lb_x_window_23objc_autoreleasePoolPop(lb_pool));
             return ((lb_r_window_State_0p){ .error = _lb_r10.error, .failed = true });
-        } _lb_r10.value; })); void* _lb_sq11 __attribute__((unused)) = lb_window_sel("sharedApplication"); ((void* (*)(void*, void*))lb_x_window_7msg_ptr)(_lb_sq9, _lb_sq11); }); if (_lb_o8 == ((void*)0)) {
+        } _lb_r10.value; })); void* _lb_sq11 __attribute__((unused)) = lb_window_sel("sharedApplication"); ((void* (*)(void*, void*))(void*)&lb_x_window_7msg_ptr)(_lb_sq9, _lb_sq11); }); if (_lb_o8 == ((void*)0)) {
             lb_r_window_State_0p _lb_err12 = ((lb_r_window_State_0p){ .error = { .code = (int32_t)(lb_window_failed), .message = ((lb_str){"AppKit could not initialize an application", 42}) }, .failed = true });
             (void)(lb_x_window_23objc_autoreleasePoolPop(lb_pool));
             return _lb_err12;
@@ -3100,7 +3100,7 @@ lb_r_window_State_0p lb_window_8mac_open(lb_window_Options lb_options) {
             return ((lb_r_window_State_0p){ .error = _lb_r13.error, .failed = true });
         } (void)0; })));
         lb_pos = "src/std/window/macos/lifecycle.lucb:51:9";
-        if (!!((!({ void* _lb_sq14 __attribute__((unused)) = lb_app; void* _lb_sq15 __attribute__((unused)) = lb_window_sel("setActivationPolicy:"); int64_t _lb_sq16 __attribute__((unused)) = 0LL; ((bool (*)(void*, void*, int64_t))lb_x_window_10msg_policy)(_lb_sq14, _lb_sq15, _lb_sq16); })))) 
+        if (!!((!({ void* _lb_sq14 __attribute__((unused)) = lb_app; void* _lb_sq15 __attribute__((unused)) = lb_window_sel("setActivationPolicy:"); int64_t _lb_sq16 __attribute__((unused)) = 0LL; ((bool (*)(void*, void*, int64_t))(void*)&lb_x_window_10msg_policy)(_lb_sq14, _lb_sq15, _lb_sq16); })))) 
         {
             lb_pos = "src/std/window/macos/lifecycle.lucb:52:13";
             lb_r_window_State_0p _lb_err17 = ((lb_r_window_State_0p){ .error = { .code = (int32_t)(lb_window_failed), .message = ((lb_str){"AppKit refused the application's window activation policy", 57}) }, .failed = true });
@@ -3129,14 +3129,14 @@ lb_r_window_State_0p lb_window_8mac_open(lb_window_Options lb_options) {
         (void)(lb_window_11mac_destroy(lb_state));
         (void)(lb_x_window_23objc_autoreleasePoolPop(lb_pool));
         return ((lb_r_window_State_0p){ .error = _lb_r24.error, .failed = true });
-    } _lb_r24.value; })); void* _lb_sq25 __attribute__((unused)) = lb_window_sel("alloc"); ((void* (*)(void*, void*))lb_x_window_7msg_ptr)(_lb_sq23, _lb_sq25); }); if (_lb_o22 == ((void*)0)) {
+    } _lb_r24.value; })); void* _lb_sq25 __attribute__((unused)) = lb_window_sel("alloc"); ((void* (*)(void*, void*))(void*)&lb_x_window_7msg_ptr)(_lb_sq23, _lb_sq25); }); if (_lb_o22 == ((void*)0)) {
         lb_r_window_State_0p _lb_err26 = ((lb_r_window_State_0p){ .error = { .code = (int32_t)(lb_window_failed), .message = ((lb_str){"could not allocate a native window", 34}) }, .failed = true });
         (void)(lb_window_11mac_destroy(lb_state));
         (void)(lb_x_window_23objc_autoreleasePoolPop(lb_pool));
         return _lb_err26;
     } _lb_o22; });
     lb_pos = "src/std/window/macos/lifecycle.lucb:60:5";
-    void* lb_native __attribute__((unused)) = ({ void* _lb_o27 = ({ void* _lb_sq28 __attribute__((unused)) = lb_allocated; void* _lb_sq29 __attribute__((unused)) = lb_window_sel("initWithContentRect:styleMask:backing:defer:"); LuceWindowMacRect _lb_sq30 __attribute__((unused)) = lb_rect; uint64_t _lb_sq31 __attribute__((unused)) = (lb_options.resizable ? 15ULL : 7ULL); uint64_t _lb_sq32 __attribute__((unused)) = 2ULL; bool _lb_sq33 __attribute__((unused)) = false; ((void* (*)(void*, void*, LuceWindowMacRect, uint64_t, uint64_t, bool))lb_x_window_15msg_init_window)(_lb_sq28, _lb_sq29, _lb_sq30, _lb_sq31, _lb_sq32, _lb_sq33); }); if (_lb_o27 == ((void*)0)) {
+    void* lb_native __attribute__((unused)) = ({ void* _lb_o27 = ({ void* _lb_sq28 __attribute__((unused)) = lb_allocated; void* _lb_sq29 __attribute__((unused)) = lb_window_sel("initWithContentRect:styleMask:backing:defer:"); LuceWindowMacRect _lb_sq30 __attribute__((unused)) = lb_rect; uint64_t _lb_sq31 __attribute__((unused)) = (lb_options.resizable ? 15ULL : 7ULL); uint64_t _lb_sq32 __attribute__((unused)) = 2ULL; bool _lb_sq33 __attribute__((unused)) = false; ((void* (*)(void*, void*, LuceWindowMacRect, uint64_t, uint64_t, bool))(void*)&lb_x_window_15msg_init_window)(_lb_sq28, _lb_sq29, _lb_sq30, _lb_sq31, _lb_sq32, _lb_sq33); }); if (_lb_o27 == ((void*)0)) {
         lb_r_window_State_0p _lb_err34 = ((lb_r_window_State_0p){ .error = { .code = (int32_t)(lb_window_failed), .message = ((lb_str){"could not initialize a native window", 36}) }, .failed = true });
         (void)(lb_window_11mac_destroy(lb_state));
         (void)(lb_x_window_23objc_autoreleasePoolPop(lb_pool));
@@ -3145,16 +3145,16 @@ lb_r_window_State_0p lb_window_8mac_open(lb_window_Options lb_options) {
     lb_pos = "src/std/window/macos/lifecycle.lucb:61:5";
     (lb_state)->native = lb_native;
     lb_pos = "src/std/window/macos/lifecycle.lucb:62:5";
-    (void)(({ void* _lb_sq35 __attribute__((unused)) = lb_native; void* _lb_sq36 __attribute__((unused)) = lb_window_sel("setReleasedWhenClosed:"); bool _lb_sq37 __attribute__((unused)) = false; ((void (*)(void*, void*, bool))lb_x_window_12msg_bool_arg)(_lb_sq35, _lb_sq36, _lb_sq37); }));
+    (void)(({ void* _lb_sq35 __attribute__((unused)) = lb_native; void* _lb_sq36 __attribute__((unused)) = lb_window_sel("setReleasedWhenClosed:"); bool _lb_sq37 __attribute__((unused)) = false; ((void (*)(void*, void*, bool))(void*)&lb_x_window_12msg_bool_arg)(_lb_sq35, _lb_sq36, _lb_sq37); }));
     lb_pos = "src/std/window/macos/lifecycle.lucb:63:5";
-    void* lb_view_allocated __attribute__((unused)) = ({ void* _lb_o38 = ({ void* _lb_sq39 __attribute__((unused)) = lb_window_required(lb_window_10view_class); void* _lb_sq40 __attribute__((unused)) = lb_window_sel("alloc"); ((void* (*)(void*, void*))lb_x_window_7msg_ptr)(_lb_sq39, _lb_sq40); }); if (_lb_o38 == ((void*)0)) {
+    void* lb_view_allocated __attribute__((unused)) = ({ void* _lb_o38 = ({ void* _lb_sq39 __attribute__((unused)) = lb_window_required(lb_window_10view_class); void* _lb_sq40 __attribute__((unused)) = lb_window_sel("alloc"); ((void* (*)(void*, void*))(void*)&lb_x_window_7msg_ptr)(_lb_sq39, _lb_sq40); }); if (_lb_o38 == ((void*)0)) {
         lb_r_window_State_0p _lb_err41 = ((lb_r_window_State_0p){ .error = { .code = (int32_t)(lb_window_failed), .message = ((lb_str){"could not allocate a native view", 32}) }, .failed = true });
         (void)(lb_window_11mac_destroy(lb_state));
         (void)(lb_x_window_23objc_autoreleasePoolPop(lb_pool));
         return _lb_err41;
     } _lb_o38; });
     lb_pos = "src/std/window/macos/lifecycle.lucb:64:5";
-    void* lb_view __attribute__((unused)) = ({ void* _lb_o42 = ({ void* _lb_sq43 __attribute__((unused)) = lb_view_allocated; void* _lb_sq44 __attribute__((unused)) = lb_window_sel("initWithFrame:"); LuceWindowMacRect _lb_sq45 __attribute__((unused)) = lb_rect; ((void* (*)(void*, void*, LuceWindowMacRect))lb_x_window_13msg_init_view)(_lb_sq43, _lb_sq44, _lb_sq45); }); if (_lb_o42 == ((void*)0)) {
+    void* lb_view __attribute__((unused)) = ({ void* _lb_o42 = ({ void* _lb_sq43 __attribute__((unused)) = lb_view_allocated; void* _lb_sq44 __attribute__((unused)) = lb_window_sel("initWithFrame:"); LuceWindowMacRect _lb_sq45 __attribute__((unused)) = lb_rect; ((void* (*)(void*, void*, LuceWindowMacRect))(void*)&lb_x_window_13msg_init_view)(_lb_sq43, _lb_sq44, _lb_sq45); }); if (_lb_o42 == ((void*)0)) {
         lb_r_window_State_0p _lb_err46 = ((lb_r_window_State_0p){ .error = { .code = (int32_t)(lb_window_failed), .message = ((lb_str){"could not initialize a native view", 34}) }, .failed = true });
         (void)(lb_window_11mac_destroy(lb_state));
         (void)(lb_x_window_23objc_autoreleasePoolPop(lb_pool));
@@ -3165,31 +3165,31 @@ lb_r_window_State_0p lb_window_8mac_open(lb_window_Options lb_options) {
     lb_pos = "src/std/window/macos/lifecycle.lucb:66:5";
     (void)(lb_window_9set_state(lb_view, lb_state));
     lb_pos = "src/std/window/macos/lifecycle.lucb:67:5";
-    (void)(({ void* _lb_sq47 __attribute__((unused)) = lb_native; void* _lb_sq48 __attribute__((unused)) = lb_window_sel("setContentView:"); void* _lb_sq49 __attribute__((unused)) = lb_view; ((void (*)(void*, void*, void*))lb_x_window_10msg_object)(_lb_sq47, _lb_sq48, _lb_sq49); }));
+    (void)(({ void* _lb_sq47 __attribute__((unused)) = lb_native; void* _lb_sq48 __attribute__((unused)) = lb_window_sel("setContentView:"); void* _lb_sq49 __attribute__((unused)) = lb_view; ((void (*)(void*, void*, void*))(void*)&lb_x_window_10msg_object)(_lb_sq47, _lb_sq48, _lb_sq49); }));
     lb_pos = "src/std/window/macos/lifecycle.lucb:70:5";
     void* lb_tracking_allocated __attribute__((unused)) = ({ void* _lb_o50 = ({ void* _lb_sq51 __attribute__((unused)) = (({ lb_r_void_0p _lb_r52 = lb_window_12native_class("NSTrackingArea"); if (_lb_r52.failed) {
         (void)(lb_window_11mac_destroy(lb_state));
         (void)(lb_x_window_23objc_autoreleasePoolPop(lb_pool));
         return ((lb_r_window_State_0p){ .error = _lb_r52.error, .failed = true });
-    } _lb_r52.value; })); void* _lb_sq53 __attribute__((unused)) = lb_window_sel("alloc"); ((void* (*)(void*, void*))lb_x_window_7msg_ptr)(_lb_sq51, _lb_sq53); }); if (_lb_o50 == ((void*)0)) {
+    } _lb_r52.value; })); void* _lb_sq53 __attribute__((unused)) = lb_window_sel("alloc"); ((void* (*)(void*, void*))(void*)&lb_x_window_7msg_ptr)(_lb_sq51, _lb_sq53); }); if (_lb_o50 == ((void*)0)) {
         lb_r_window_State_0p _lb_err54 = ((lb_r_window_State_0p){ .error = { .code = (int32_t)(lb_window_failed), .message = ((lb_str){"could not allocate pointer tracking", 35}) }, .failed = true });
         (void)(lb_window_11mac_destroy(lb_state));
         (void)(lb_x_window_23objc_autoreleasePoolPop(lb_pool));
         return _lb_err54;
     } _lb_o50; });
     lb_pos = "src/std/window/macos/lifecycle.lucb:71:5";
-    void* lb_tracking __attribute__((unused)) = ({ void* _lb_o55 = ({ void* _lb_sq56 __attribute__((unused)) = lb_tracking_allocated; void* _lb_sq57 __attribute__((unused)) = lb_window_sel("initWithRect:options:owner:userInfo:"); LuceWindowMacRect _lb_sq58 __attribute__((unused)) = lb_rect; uint64_t _lb_sq59 __attribute__((unused)) = ((uint64_t)(((uint64_t)(((uint64_t)(((uint64_t)(1ULL | 4ULL)) | 32ULL)) | 512ULL)) | 1024ULL)); void* _lb_sq60 __attribute__((unused)) = lb_view; void* _lb_sq61 __attribute__((unused)) = ((void*)0); ((void* (*)(void*, void*, LuceWindowMacRect, uint64_t, void*, void*))lb_x_window_17msg_init_tracking)(_lb_sq56, _lb_sq57, _lb_sq58, _lb_sq59, _lb_sq60, _lb_sq61); }); if (_lb_o55 == ((void*)0)) {
+    void* lb_tracking __attribute__((unused)) = ({ void* _lb_o55 = ({ void* _lb_sq56 __attribute__((unused)) = lb_tracking_allocated; void* _lb_sq57 __attribute__((unused)) = lb_window_sel("initWithRect:options:owner:userInfo:"); LuceWindowMacRect _lb_sq58 __attribute__((unused)) = lb_rect; uint64_t _lb_sq59 __attribute__((unused)) = ((uint64_t)(((uint64_t)(((uint64_t)(((uint64_t)(1ULL | 4ULL)) | 32ULL)) | 512ULL)) | 1024ULL)); void* _lb_sq60 __attribute__((unused)) = lb_view; void* _lb_sq61 __attribute__((unused)) = ((void*)0); ((void* (*)(void*, void*, LuceWindowMacRect, uint64_t, void*, void*))(void*)&lb_x_window_17msg_init_tracking)(_lb_sq56, _lb_sq57, _lb_sq58, _lb_sq59, _lb_sq60, _lb_sq61); }); if (_lb_o55 == ((void*)0)) {
         lb_r_window_State_0p _lb_err62 = ((lb_r_window_State_0p){ .error = { .code = (int32_t)(lb_window_failed), .message = ((lb_str){"could not initialize pointer tracking", 37}) }, .failed = true });
         (void)(lb_window_11mac_destroy(lb_state));
         (void)(lb_x_window_23objc_autoreleasePoolPop(lb_pool));
         return _lb_err62;
     } _lb_o55; });
     lb_pos = "src/std/window/macos/lifecycle.lucb:72:5";
-    (void)(({ void* _lb_sq63 __attribute__((unused)) = lb_view; void* _lb_sq64 __attribute__((unused)) = lb_window_sel("addTrackingArea:"); void* _lb_sq65 __attribute__((unused)) = lb_tracking; ((void (*)(void*, void*, void*))lb_x_window_10msg_object)(_lb_sq63, _lb_sq64, _lb_sq65); }));
+    (void)(({ void* _lb_sq63 __attribute__((unused)) = lb_view; void* _lb_sq64 __attribute__((unused)) = lb_window_sel("addTrackingArea:"); void* _lb_sq65 __attribute__((unused)) = lb_tracking; ((void (*)(void*, void*, void*))(void*)&lb_x_window_10msg_object)(_lb_sq63, _lb_sq64, _lb_sq65); }));
     lb_pos = "src/std/window/macos/lifecycle.lucb:73:5";
-    (void)(({ void* _lb_sq66 __attribute__((unused)) = lb_tracking; void* _lb_sq67 __attribute__((unused)) = lb_window_sel("release"); ((void (*)(void*, void*))lb_x_window_8msg_void)(_lb_sq66, _lb_sq67); }));
+    (void)(({ void* _lb_sq66 __attribute__((unused)) = lb_tracking; void* _lb_sq67 __attribute__((unused)) = lb_window_sel("release"); ((void (*)(void*, void*))(void*)&lb_x_window_8msg_void)(_lb_sq66, _lb_sq67); }));
     lb_pos = "src/std/window/macos/lifecycle.lucb:74:5";
-    void* lb_delegate __attribute__((unused)) = ({ void* _lb_o68 = ({ void* _lb_sq69 __attribute__((unused)) = lb_window_required(lb_window_14delegate_class); void* _lb_sq70 __attribute__((unused)) = lb_window_sel("new"); ((void* (*)(void*, void*))lb_x_window_7msg_ptr)(_lb_sq69, _lb_sq70); }); if (_lb_o68 == ((void*)0)) {
+    void* lb_delegate __attribute__((unused)) = ({ void* _lb_o68 = ({ void* _lb_sq69 __attribute__((unused)) = lb_window_required(lb_window_14delegate_class); void* _lb_sq70 __attribute__((unused)) = lb_window_sel("new"); ((void* (*)(void*, void*))(void*)&lb_x_window_7msg_ptr)(_lb_sq69, _lb_sq70); }); if (_lb_o68 == ((void*)0)) {
         lb_r_window_State_0p _lb_err71 = ((lb_r_window_State_0p){ .error = { .code = (int32_t)(lb_window_failed), .message = ((lb_str){"could not allocate a window delegate", 36}) }, .failed = true });
         (void)(lb_window_11mac_destroy(lb_state));
         (void)(lb_x_window_23objc_autoreleasePoolPop(lb_pool));
@@ -3200,24 +3200,24 @@ lb_r_window_State_0p lb_window_8mac_open(lb_window_Options lb_options) {
     lb_pos = "src/std/window/macos/lifecycle.lucb:76:5";
     (void)(lb_window_9set_state(lb_delegate, lb_state));
     lb_pos = "src/std/window/macos/lifecycle.lucb:77:5";
-    (void)(({ void* _lb_sq72 __attribute__((unused)) = lb_native; void* _lb_sq73 __attribute__((unused)) = lb_window_sel("setDelegate:"); void* _lb_sq74 __attribute__((unused)) = lb_delegate; ((void (*)(void*, void*, void*))lb_x_window_10msg_object)(_lb_sq72, _lb_sq73, _lb_sq74); }));
+    (void)(({ void* _lb_sq72 __attribute__((unused)) = lb_native; void* _lb_sq73 __attribute__((unused)) = lb_window_sel("setDelegate:"); void* _lb_sq74 __attribute__((unused)) = lb_delegate; ((void (*)(void*, void*, void*))(void*)&lb_x_window_10msg_object)(_lb_sq72, _lb_sq73, _lb_sq74); }));
     lb_pos = "src/std/window/macos/lifecycle.lucb:78:5";
-    (void)(({ void* _lb_sq75 __attribute__((unused)) = lb_native; void* _lb_sq76 __attribute__((unused)) = lb_window_sel("setAcceptsMouseMovedEvents:"); bool _lb_sq77 __attribute__((unused)) = true; ((void (*)(void*, void*, bool))lb_x_window_12msg_bool_arg)(_lb_sq75, _lb_sq76, _lb_sq77); }));
+    (void)(({ void* _lb_sq75 __attribute__((unused)) = lb_native; void* _lb_sq76 __attribute__((unused)) = lb_window_sel("setAcceptsMouseMovedEvents:"); bool _lb_sq77 __attribute__((unused)) = true; ((void (*)(void*, void*, bool))(void*)&lb_x_window_12msg_bool_arg)(_lb_sq75, _lb_sq76, _lb_sq77); }));
     lb_pos = "src/std/window/macos/lifecycle.lucb:79:5";
-    (void)(((void)(({ void* _lb_sq78 __attribute__((unused)) = lb_native; void* _lb_sq79 __attribute__((unused)) = lb_window_sel("makeFirstResponder:"); void* _lb_sq80 __attribute__((unused)) = lb_view; ((bool (*)(void*, void*, void*))lb_x_window_15msg_bool_object)(_lb_sq78, _lb_sq79, _lb_sq80); }))));
+    (void)(((void)(({ void* _lb_sq78 __attribute__((unused)) = lb_native; void* _lb_sq79 __attribute__((unused)) = lb_window_sel("makeFirstResponder:"); void* _lb_sq80 __attribute__((unused)) = lb_view; ((bool (*)(void*, void*, void*))(void*)&lb_x_window_15msg_bool_object)(_lb_sq78, _lb_sq79, _lb_sq80); }))));
     lb_pos = "src/std/window/macos/lifecycle.lucb:80:5";
     void* lb_text_allocated __attribute__((unused)) = ({ void* _lb_o81 = ({ void* _lb_sq82 __attribute__((unused)) = (({ lb_r_void_0p _lb_r83 = lb_window_12native_class("NSString"); if (_lb_r83.failed) {
         (void)(lb_window_11mac_destroy(lb_state));
         (void)(lb_x_window_23objc_autoreleasePoolPop(lb_pool));
         return ((lb_r_window_State_0p){ .error = _lb_r83.error, .failed = true });
-    } _lb_r83.value; })); void* _lb_sq84 __attribute__((unused)) = lb_window_sel("alloc"); ((void* (*)(void*, void*))lb_x_window_7msg_ptr)(_lb_sq82, _lb_sq84); }); if (_lb_o81 == ((void*)0)) {
+    } _lb_r83.value; })); void* _lb_sq84 __attribute__((unused)) = lb_window_sel("alloc"); ((void* (*)(void*, void*))(void*)&lb_x_window_7msg_ptr)(_lb_sq82, _lb_sq84); }); if (_lb_o81 == ((void*)0)) {
         lb_r_window_State_0p _lb_err85 = ((lb_r_window_State_0p){ .error = { .code = (int32_t)(lb_window_failed), .message = ((lb_str){"could not allocate a title", 26}) }, .failed = true });
         (void)(lb_window_11mac_destroy(lb_state));
         (void)(lb_x_window_23objc_autoreleasePoolPop(lb_pool));
         return _lb_err85;
     } _lb_o81; });
     lb_pos = "src/std/window/macos/lifecycle.lucb:81:5";
-    void* lb_title __attribute__((unused)) = ({ void* _lb_o86 = ({ void* _lb_sq87 __attribute__((unused)) = lb_text_allocated; void* _lb_sq88 __attribute__((unused)) = lb_window_sel("initWithBytes:length:encoding:"); const uint8_t* _lb_sq89 __attribute__((unused)) = ((const uint8_t*)(((lb_cspan){(void*)(lb_options.title.data), lb_options.title.length}).data)); size_t _lb_sq90 __attribute__((unused)) = (lb_options.title.length); uint64_t _lb_sq91 __attribute__((unused)) = 4ULL; ((void* (*)(void*, void*, const uint8_t*, size_t, uint64_t))lb_x_window_13msg_init_text)(_lb_sq87, _lb_sq88, _lb_sq89, _lb_sq90, _lb_sq91); }); if (_lb_o86 == ((void*)0)) {
+    void* lb_title __attribute__((unused)) = ({ void* _lb_o86 = ({ void* _lb_sq87 __attribute__((unused)) = lb_text_allocated; void* _lb_sq88 __attribute__((unused)) = lb_window_sel("initWithBytes:length:encoding:"); const uint8_t* _lb_sq89 __attribute__((unused)) = ((const uint8_t*)(((lb_cspan){(void*)(lb_options.title.data), lb_options.title.length}).data)); size_t _lb_sq90 __attribute__((unused)) = (lb_options.title.length); uint64_t _lb_sq91 __attribute__((unused)) = 4ULL; ((void* (*)(void*, void*, const uint8_t*, size_t, uint64_t))(void*)&lb_x_window_13msg_init_text)(_lb_sq87, _lb_sq88, _lb_sq89, _lb_sq90, _lb_sq91); }); if (_lb_o86 == ((void*)0)) {
         lb_r_window_State_0p _lb_err92 = ((lb_r_window_State_0p){ .error = { .code = (int32_t)(lb_window_failed), .message = ((lb_str){"could not initialize the title", 30}) }, .failed = true });
         (void)(lb_window_11mac_destroy(lb_state));
         (void)(lb_x_window_23objc_autoreleasePoolPop(lb_pool));
@@ -3225,15 +3225,15 @@ lb_r_window_State_0p lb_window_8mac_open(lb_window_Options lb_options) {
     } _lb_o86; });
     lb_pos = "src/std/window/macos/lifecycle.lucb:82:5";
     lb_pos = "src/std/window/macos/lifecycle.lucb:83:5";
-    (void)(({ void* _lb_sq93 __attribute__((unused)) = lb_native; void* _lb_sq94 __attribute__((unused)) = lb_window_sel("setTitle:"); void* _lb_sq95 __attribute__((unused)) = lb_title; ((void (*)(void*, void*, void*))lb_x_window_10msg_object)(_lb_sq93, _lb_sq94, _lb_sq95); }));
+    (void)(({ void* _lb_sq93 __attribute__((unused)) = lb_native; void* _lb_sq94 __attribute__((unused)) = lb_window_sel("setTitle:"); void* _lb_sq95 __attribute__((unused)) = lb_title; ((void (*)(void*, void*, void*))(void*)&lb_x_window_10msg_object)(_lb_sq93, _lb_sq94, _lb_sq95); }));
     lb_pos = "src/std/window/macos/lifecycle.lucb:84:5";
-    (void)(({ void* _lb_sq96 __attribute__((unused)) = lb_native; void* _lb_sq97 __attribute__((unused)) = lb_window_sel("center"); ((void (*)(void*, void*))lb_x_window_8msg_void)(_lb_sq96, _lb_sq97); }));
+    (void)(({ void* _lb_sq96 __attribute__((unused)) = lb_native; void* _lb_sq97 __attribute__((unused)) = lb_window_sel("center"); ((void (*)(void*, void*))(void*)&lb_x_window_8msg_void)(_lb_sq96, _lb_sq97); }));
     lb_pos = "src/std/window/macos/lifecycle.lucb:85:5";
     struct lb_window_State* _lb_ret98 = lb_state;
-    (void)(({ void* _lb_sq99 __attribute__((unused)) = lb_title; void* _lb_sq100 __attribute__((unused)) = lb_window_sel("release"); ((void (*)(void*, void*))lb_x_window_8msg_void)(_lb_sq99, _lb_sq100); }));
+    (void)(({ void* _lb_sq99 __attribute__((unused)) = lb_title; void* _lb_sq100 __attribute__((unused)) = lb_window_sel("release"); ((void (*)(void*, void*))(void*)&lb_x_window_8msg_void)(_lb_sq99, _lb_sq100); }));
     (void)(lb_x_window_23objc_autoreleasePoolPop(lb_pool));
     return ((lb_r_window_State_0p){ .value = _lb_ret98, .failed = false });
-    (void)(({ void* _lb_sq101 __attribute__((unused)) = lb_title; void* _lb_sq102 __attribute__((unused)) = lb_window_sel("release"); ((void (*)(void*, void*))lb_x_window_8msg_void)(_lb_sq101, _lb_sq102); }));
+    (void)(({ void* _lb_sq101 __attribute__((unused)) = lb_title; void* _lb_sq102 __attribute__((unused)) = lb_window_sel("release"); ((void (*)(void*, void*))(void*)&lb_x_window_8msg_void)(_lb_sq101, _lb_sq102); }));
     (void)(lb_x_window_23objc_autoreleasePoolPop(lb_pool));
     lb_trap("unreachable");
 }
@@ -3243,9 +3243,9 @@ void lb_window_8mac_show(struct lb_window_State* lb_state) {
     void* lb_pool __attribute__((unused)) = ({ void* _lb_fr = lb_x_window_24objc_autoreleasePoolPush(); if (!_lb_fr) lb_trap("null_foreign"); _lb_fr; });
     lb_pos = "src/std/window/macos/lifecycle.lucb:113:5";
     lb_pos = "src/std/window/macos/lifecycle.lucb:114:5";
-    (void)(({ void* _lb_sq103 __attribute__((unused)) = lb_window_required(lb_window_application); void* _lb_sq104 __attribute__((unused)) = lb_window_sel("activateIgnoringOtherApps:"); bool _lb_sq105 __attribute__((unused)) = true; ((void (*)(void*, void*, bool))lb_x_window_12msg_bool_arg)(_lb_sq103, _lb_sq104, _lb_sq105); }));
+    (void)(({ void* _lb_sq103 __attribute__((unused)) = lb_window_required(lb_window_application); void* _lb_sq104 __attribute__((unused)) = lb_window_sel("activateIgnoringOtherApps:"); bool _lb_sq105 __attribute__((unused)) = true; ((void (*)(void*, void*, bool))(void*)&lb_x_window_12msg_bool_arg)(_lb_sq103, _lb_sq104, _lb_sq105); }));
     lb_pos = "src/std/window/macos/lifecycle.lucb:115:5";
-    (void)(({ void* _lb_sq106 __attribute__((unused)) = lb_window_required((lb_state)->native); void* _lb_sq107 __attribute__((unused)) = lb_window_sel("makeKeyAndOrderFront:"); void* _lb_sq108 __attribute__((unused)) = ((void*)0); ((void (*)(void*, void*, void*))lb_x_window_10msg_object)(_lb_sq106, _lb_sq107, _lb_sq108); }));
+    (void)(({ void* _lb_sq106 __attribute__((unused)) = lb_window_required((lb_state)->native); void* _lb_sq107 __attribute__((unused)) = lb_window_sel("makeKeyAndOrderFront:"); void* _lb_sq108 __attribute__((unused)) = ((void*)0); ((void (*)(void*, void*, void*))(void*)&lb_x_window_10msg_object)(_lb_sq106, _lb_sq107, _lb_sq108); }));
     (void)(lb_x_window_23objc_autoreleasePoolPop(lb_pool));
 }
 lb_window_Size lb_window_8mac_size(struct lb_window_State* lb_state) {
@@ -3256,11 +3256,11 @@ lb_window_Size lb_window_8mac_size(struct lb_window_State* lb_state) {
     lb_pos = "src/std/window/macos/lifecycle.lucb:120:5";
     void* lb_view __attribute__((unused)) = lb_window_required((lb_state)->view);
     lb_pos = "src/std/window/macos/lifecycle.lucb:121:5";
-    LuceWindowMacRect lb_bounds __attribute__((unused)) = ({ void* _lb_sq109 __attribute__((unused)) = lb_view; void* _lb_sq110 __attribute__((unused)) = lb_window_sel("bounds"); ((LuceWindowMacRect (*)(void*, void*))lb_x_window_8msg_rect)(_lb_sq109, _lb_sq110); });
+    LuceWindowMacRect lb_bounds __attribute__((unused)) = ({ void* _lb_sq109 __attribute__((unused)) = lb_view; void* _lb_sq110 __attribute__((unused)) = lb_window_sel("bounds"); ((LuceWindowMacRect (*)(void*, void*))(void*)&lb_x_window_8msg_rect)(_lb_sq109, _lb_sq110); });
     lb_pos = "src/std/window/macos/lifecycle.lucb:122:5";
-    LuceWindowMacRect lb_backing __attribute__((unused)) = ({ void* _lb_sq111 __attribute__((unused)) = lb_view; void* _lb_sq112 __attribute__((unused)) = lb_window_sel("convertRectToBacking:"); LuceWindowMacRect _lb_sq113 __attribute__((unused)) = lb_bounds; ((LuceWindowMacRect (*)(void*, void*, LuceWindowMacRect))lb_x_window_11msg_backing)(_lb_sq111, _lb_sq112, _lb_sq113); });
+    LuceWindowMacRect lb_backing __attribute__((unused)) = ({ void* _lb_sq111 __attribute__((unused)) = lb_view; void* _lb_sq112 __attribute__((unused)) = lb_window_sel("convertRectToBacking:"); LuceWindowMacRect _lb_sq113 __attribute__((unused)) = lb_bounds; ((LuceWindowMacRect (*)(void*, void*, LuceWindowMacRect))(void*)&lb_x_window_11msg_backing)(_lb_sq111, _lb_sq112, _lb_sq113); });
     lb_pos = "src/std/window/macos/lifecycle.lucb:123:5";
-    lb_window_Size _lb_ret114 = ({ double _lb_sq115 __attribute__((unused)) = lb_bounds.size.width; double _lb_sq116 __attribute__((unused)) = lb_bounds.size.height; double _lb_sq117 __attribute__((unused)) = lb_backing.size.width; double _lb_sq118 __attribute__((unused)) = lb_backing.size.height; double _lb_sq119 __attribute__((unused)) = ({ void* _lb_sq120 __attribute__((unused)) = lb_window_required((lb_state)->native); void* _lb_sq121 __attribute__((unused)) = lb_window_sel("backingScaleFactor"); ((double (*)(void*, void*))lb_x_window_10msg_double)(_lb_sq120, _lb_sq121); }); ((lb_window_Size){.width = _lb_sq115, .height = _lb_sq116, .pixel_width = _lb_sq117, .pixel_height = _lb_sq118, .scale = _lb_sq119}); });
+    lb_window_Size _lb_ret114 = ({ double _lb_sq115 __attribute__((unused)) = lb_bounds.size.width; double _lb_sq116 __attribute__((unused)) = lb_bounds.size.height; double _lb_sq117 __attribute__((unused)) = lb_backing.size.width; double _lb_sq118 __attribute__((unused)) = lb_backing.size.height; double _lb_sq119 __attribute__((unused)) = ({ void* _lb_sq120 __attribute__((unused)) = lb_window_required((lb_state)->native); void* _lb_sq121 __attribute__((unused)) = lb_window_sel("backingScaleFactor"); ((double (*)(void*, void*))(void*)&lb_x_window_10msg_double)(_lb_sq120, _lb_sq121); }); ((lb_window_Size){.width = _lb_sq115, .height = _lb_sq116, .pixel_width = _lb_sq117, .pixel_height = _lb_sq118, .scale = _lb_sq119}); });
     (void)(lb_x_window_23objc_autoreleasePoolPop(lb_pool));
     return _lb_ret114;
     (void)(lb_x_window_23objc_autoreleasePoolPop(lb_pool));
@@ -3272,7 +3272,7 @@ void lb_window_10mac_resize(struct lb_window_State* lb_state, uint32_t lb_width,
     void* lb_pool __attribute__((unused)) = ({ void* _lb_fr = lb_x_window_24objc_autoreleasePoolPush(); if (!_lb_fr) lb_trap("null_foreign"); _lb_fr; });
     lb_pos = "src/std/window/macos/lifecycle.lucb:127:5";
     lb_pos = "src/std/window/macos/lifecycle.lucb:128:5";
-    (void)(({ void* _lb_sq122 __attribute__((unused)) = lb_window_required((lb_state)->native); void* _lb_sq123 __attribute__((unused)) = lb_window_sel("setContentSize:"); LuceWindowMacExtent _lb_sq124 __attribute__((unused)) = ((LuceWindowMacExtent){.width = lb_to_f((uint64_t)(lb_width), 0), .height = lb_to_f((uint64_t)(lb_height), 0)}); ((void (*)(void*, void*, LuceWindowMacExtent))lb_x_window_10msg_extent)(_lb_sq122, _lb_sq123, _lb_sq124); }));
+    (void)(({ void* _lb_sq122 __attribute__((unused)) = lb_window_required((lb_state)->native); void* _lb_sq123 __attribute__((unused)) = lb_window_sel("setContentSize:"); LuceWindowMacExtent _lb_sq124 __attribute__((unused)) = ((LuceWindowMacExtent){.width = lb_to_f((uint64_t)(lb_width), 0), .height = lb_to_f((uint64_t)(lb_height), 0)}); ((void (*)(void*, void*, LuceWindowMacExtent))(void*)&lb_x_window_10msg_extent)(_lb_sq122, _lb_sq123, _lb_sq124); }));
     (void)(lb_x_window_23objc_autoreleasePoolPop(lb_pool));
 }
 void lb_window_8mac_pump(struct lb_window_State* lb_waiting) {
@@ -3289,7 +3289,7 @@ void lb_window_8mac_pump(struct lb_window_State* lb_waiting) {
         (void)(lb_trap_text(((lb_str){"AppKit has no NSDate class", 26})));
     } _lb_o126; });
     lb_pos = "src/std/window/macos/lifecycle.lucb:135:5";
-    void* lb_past __attribute__((unused)) = lb_window_required(({ void* _lb_sq127 __attribute__((unused)) = lb_date_class; void* _lb_sq128 __attribute__((unused)) = lb_window_sel("distantPast"); ((void* (*)(void*, void*))lb_x_window_7msg_ptr)(_lb_sq127, _lb_sq128); }));
+    void* lb_past __attribute__((unused)) = lb_window_required(({ void* _lb_sq127 __attribute__((unused)) = lb_date_class; void* _lb_sq128 __attribute__((unused)) = lb_window_sel("distantPast"); ((void* (*)(void*, void*))(void*)&lb_x_window_7msg_ptr)(_lb_sq127, _lb_sq128); }));
     lb_pos = "src/std/window/macos/lifecycle.lucb:136:5";
     size_t lb_count __attribute__((unused)) = 0ULL;
     lb_pos = "src/std/window/macos/lifecycle.lucb:137:5";
@@ -3298,11 +3298,11 @@ void lb_window_8mac_pump(struct lb_window_State* lb_waiting) {
         if (!((((size_t)(lb_count)) < ((size_t)(256ULL))))) break;
         {
             lb_pos = "src/std/window/macos/lifecycle.lucb:138:9";
-            void* lb_event __attribute__((unused)) = ({ void* _lb_o129 = ({ void* _lb_sq130 __attribute__((unused)) = lb_app; void* _lb_sq131 __attribute__((unused)) = lb_window_sel("nextEventMatchingMask:untilDate:inMode:dequeue:"); uint64_t _lb_sq132 __attribute__((unused)) = ((uint64_t)lb_not_u((uint64_t)(((uint64_t)lb_conv_s((int64_t)(0LL), 64, 1, 64, 0, 1))), 64)); void* _lb_sq133 __attribute__((unused)) = lb_past; void* _lb_sq134 __attribute__((unused)) = NSDefaultRunLoopMode; bool _lb_sq135 __attribute__((unused)) = true; ((void* (*)(void*, void*, uint64_t, void*, void*, bool))lb_x_window_8msg_next)(_lb_sq130, _lb_sq131, _lb_sq132, _lb_sq133, _lb_sq134, _lb_sq135); }); if (_lb_o129 == ((void*)0)) {
+            void* lb_event __attribute__((unused)) = ({ void* _lb_o129 = ({ void* _lb_sq130 __attribute__((unused)) = lb_app; void* _lb_sq131 __attribute__((unused)) = lb_window_sel("nextEventMatchingMask:untilDate:inMode:dequeue:"); uint64_t _lb_sq132 __attribute__((unused)) = ((uint64_t)lb_not_u((uint64_t)(((uint64_t)lb_conv_s((int64_t)(0LL), 64, 1, 64, 0, 1))), 64)); void* _lb_sq133 __attribute__((unused)) = lb_past; void* _lb_sq134 __attribute__((unused)) = NSDefaultRunLoopMode; bool _lb_sq135 __attribute__((unused)) = true; ((void* (*)(void*, void*, uint64_t, void*, void*, bool))(void*)&lb_x_window_8msg_next)(_lb_sq130, _lb_sq131, _lb_sq132, _lb_sq133, _lb_sq134, _lb_sq135); }); if (_lb_o129 == ((void*)0)) {
                 break;
             } _lb_o129; });
             lb_pos = "src/std/window/macos/lifecycle.lucb:139:9";
-            (void)(({ void* _lb_sq136 __attribute__((unused)) = lb_app; void* _lb_sq137 __attribute__((unused)) = lb_window_sel("sendEvent:"); void* _lb_sq138 __attribute__((unused)) = lb_event; ((void (*)(void*, void*, void*))lb_x_window_10msg_object)(_lb_sq136, _lb_sq137, _lb_sq138); }));
+            (void)(({ void* _lb_sq136 __attribute__((unused)) = lb_app; void* _lb_sq137 __attribute__((unused)) = lb_window_sel("sendEvent:"); void* _lb_sq138 __attribute__((unused)) = lb_event; ((void (*)(void*, void*, void*))(void*)&lb_x_window_10msg_object)(_lb_sq136, _lb_sq137, _lb_sq138); }));
             lb_pos = "src/std/window/macos/lifecycle.lucb:140:9";
             { size_t* lb__cell139 = &(lb_count);
             (*(lb__cell139)) = (size_t)(lb_add_u((uint64_t)((*(lb__cell139))), (uint64_t)(1ULL), 64)); }
@@ -3315,7 +3315,7 @@ void lb_window_8mac_pump(struct lb_window_State* lb_waiting) {
         }
     }
     lb_pos = "src/std/window/macos/lifecycle.lucb:144:5";
-    (void)(({ void* _lb_sq140 __attribute__((unused)) = lb_app; void* _lb_sq141 __attribute__((unused)) = lb_window_sel("updateWindows"); ((void (*)(void*, void*))lb_x_window_8msg_void)(_lb_sq140, _lb_sq141); }));
+    (void)(({ void* _lb_sq140 __attribute__((unused)) = lb_app; void* _lb_sq141 __attribute__((unused)) = lb_window_sel("updateWindows"); ((void (*)(void*, void*))(void*)&lb_x_window_8msg_void)(_lb_sq140, _lb_sq141); }));
     (void)(lb_x_window_23objc_autoreleasePoolPop(lb_pool));
 }
 void lb_window_11mac_destroy(struct lb_window_State* lb_state) {
@@ -3351,11 +3351,11 @@ void lb_window_11mac_destroy(struct lb_window_State* lb_state) {
         void* lb_native __attribute__((unused)) = _lb_o144;
         {
             lb_pos = "src/std/window/macos/lifecycle.lucb:156:9";
-            (void)(({ void* _lb_sq145 __attribute__((unused)) = lb_native; void* _lb_sq146 __attribute__((unused)) = lb_window_sel("setDelegate:"); void* _lb_sq147 __attribute__((unused)) = ((void*)0); ((void (*)(void*, void*, void*))lb_x_window_10msg_object)(_lb_sq145, _lb_sq146, _lb_sq147); }));
+            (void)(({ void* _lb_sq145 __attribute__((unused)) = lb_native; void* _lb_sq146 __attribute__((unused)) = lb_window_sel("setDelegate:"); void* _lb_sq147 __attribute__((unused)) = ((void*)0); ((void (*)(void*, void*, void*))(void*)&lb_x_window_10msg_object)(_lb_sq145, _lb_sq146, _lb_sq147); }));
             lb_pos = "src/std/window/macos/lifecycle.lucb:157:9";
-            (void)(({ void* _lb_sq148 __attribute__((unused)) = lb_native; void* _lb_sq149 __attribute__((unused)) = lb_window_sel("orderOut:"); void* _lb_sq150 __attribute__((unused)) = ((void*)0); ((void (*)(void*, void*, void*))lb_x_window_10msg_object)(_lb_sq148, _lb_sq149, _lb_sq150); }));
+            (void)(({ void* _lb_sq148 __attribute__((unused)) = lb_native; void* _lb_sq149 __attribute__((unused)) = lb_window_sel("orderOut:"); void* _lb_sq150 __attribute__((unused)) = ((void*)0); ((void (*)(void*, void*, void*))(void*)&lb_x_window_10msg_object)(_lb_sq148, _lb_sq149, _lb_sq150); }));
             lb_pos = "src/std/window/macos/lifecycle.lucb:158:9";
-            (void)(({ void* _lb_sq151 __attribute__((unused)) = lb_native; void* _lb_sq152 __attribute__((unused)) = lb_window_sel("close"); ((void (*)(void*, void*))lb_x_window_8msg_void)(_lb_sq151, _lb_sq152); }));
+            (void)(({ void* _lb_sq151 __attribute__((unused)) = lb_native; void* _lb_sq152 __attribute__((unused)) = lb_window_sel("close"); ((void (*)(void*, void*))(void*)&lb_x_window_8msg_void)(_lb_sq151, _lb_sq152); }));
         }
     }
     lb_pos = "src/std/window/macos/lifecycle.lucb:161:5";
@@ -3377,7 +3377,7 @@ void lb_window_8mac_free(struct lb_window_State* lb_state) {
         void* lb_native __attribute__((unused)) = _lb_o153;
         {
             lb_pos = "src/std/window/macos/lifecycle.lucb:168:9";
-            (void)(({ void* _lb_sq154 __attribute__((unused)) = lb_native; void* _lb_sq155 __attribute__((unused)) = lb_window_sel("release"); ((void (*)(void*, void*))lb_x_window_8msg_void)(_lb_sq154, _lb_sq155); }));
+            (void)(({ void* _lb_sq154 __attribute__((unused)) = lb_native; void* _lb_sq155 __attribute__((unused)) = lb_window_sel("release"); ((void (*)(void*, void*))(void*)&lb_x_window_8msg_void)(_lb_sq154, _lb_sq155); }));
         }
     }
     lb_pos = "src/std/window/macos/lifecycle.lucb:169:5";
@@ -3386,7 +3386,7 @@ void lb_window_8mac_free(struct lb_window_State* lb_state) {
         void* lb_view __attribute__((unused)) = _lb_o156;
         {
             lb_pos = "src/std/window/macos/lifecycle.lucb:170:9";
-            (void)(({ void* _lb_sq157 __attribute__((unused)) = lb_view; void* _lb_sq158 __attribute__((unused)) = lb_window_sel("release"); ((void (*)(void*, void*))lb_x_window_8msg_void)(_lb_sq157, _lb_sq158); }));
+            (void)(({ void* _lb_sq157 __attribute__((unused)) = lb_view; void* _lb_sq158 __attribute__((unused)) = lb_window_sel("release"); ((void (*)(void*, void*))(void*)&lb_x_window_8msg_void)(_lb_sq157, _lb_sq158); }));
         }
     }
     lb_pos = "src/std/window/macos/lifecycle.lucb:171:5";
@@ -3395,7 +3395,7 @@ void lb_window_8mac_free(struct lb_window_State* lb_state) {
         void* lb_delegate __attribute__((unused)) = _lb_o159;
         {
             lb_pos = "src/std/window/macos/lifecycle.lucb:172:9";
-            (void)(({ void* _lb_sq160 __attribute__((unused)) = lb_delegate; void* _lb_sq161 __attribute__((unused)) = lb_window_sel("release"); ((void (*)(void*, void*))lb_x_window_8msg_void)(_lb_sq160, _lb_sq161); }));
+            (void)(({ void* _lb_sq160 __attribute__((unused)) = lb_delegate; void* _lb_sq161 __attribute__((unused)) = lb_window_sel("release"); ((void (*)(void*, void*))(void*)&lb_x_window_8msg_void)(_lb_sq160, _lb_sq161); }));
         }
     }
     lb_pos = "src/std/window/macos/lifecycle.lucb:173:5";
@@ -3561,31 +3561,31 @@ lb_r_unit lb_window_13finish_launch(void* lb_app) {
     lb_pos = "src/std/window/macos/lifecycle.lucb:92:5";
     void* lb_running __attribute__((unused)) = lb_window_required(({ void* _lb_sq182 __attribute__((unused)) = (({ lb_r_void_0p _lb_r183 = lb_window_12native_class("NSRunningApplication"); if (_lb_r183.failed) {
         return ((lb_r_unit){ .error = _lb_r183.error, .failed = true });
-    } _lb_r183.value; })); void* _lb_sq184 __attribute__((unused)) = lb_window_sel("currentApplication"); ((void* (*)(void*, void*))lb_x_window_7msg_ptr)(_lb_sq182, _lb_sq184); }));
+    } _lb_r183.value; })); void* _lb_sq184 __attribute__((unused)) = lb_window_sel("currentApplication"); ((void* (*)(void*, void*))(void*)&lb_x_window_7msg_ptr)(_lb_sq182, _lb_sq184); }));
     lb_pos = "src/std/window/macos/lifecycle.lucb:93:5";
-    if (!!(({ void* _lb_sq185 __attribute__((unused)) = lb_running; void* _lb_sq186 __attribute__((unused)) = lb_window_sel("isFinishedLaunching"); ((bool (*)(void*, void*))lb_x_window_8msg_bool)(_lb_sq185, _lb_sq186); }))) 
+    if (!!(({ void* _lb_sq185 __attribute__((unused)) = lb_running; void* _lb_sq186 __attribute__((unused)) = lb_window_sel("isFinishedLaunching"); ((bool (*)(void*, void*))(void*)&lb_x_window_8msg_bool)(_lb_sq185, _lb_sq186); }))) 
     {
         lb_pos = "src/std/window/macos/lifecycle.lucb:94:9";
         return ((lb_r_unit){ .failed = false });
     }
     lb_pos = "src/std/window/macos/lifecycle.lucb:95:5";
-    void* lb_observer __attribute__((unused)) = ({ void* _lb_o187 = ({ void* _lb_sq188 __attribute__((unused)) = lb_window_required(lb_window_14delegate_class); void* _lb_sq189 __attribute__((unused)) = lb_window_sel("new"); ((void* (*)(void*, void*))lb_x_window_7msg_ptr)(_lb_sq188, _lb_sq189); }); if (_lb_o187 == ((void*)0)) {
+    void* lb_observer __attribute__((unused)) = ({ void* _lb_o187 = ({ void* _lb_sq188 __attribute__((unused)) = lb_window_required(lb_window_14delegate_class); void* _lb_sq189 __attribute__((unused)) = lb_window_sel("new"); ((void* (*)(void*, void*))(void*)&lb_x_window_7msg_ptr)(_lb_sq188, _lb_sq189); }); if (_lb_o187 == ((void*)0)) {
         lb_r_unit _lb_err190 = ((lb_r_unit){ .error = { .code = (int32_t)(lb_window_failed), .message = ((lb_str){"could not allocate a launch observer", 36}) }, .failed = true });
         return _lb_err190;
     } _lb_o187; });
     lb_pos = "src/std/window/macos/lifecycle.lucb:96:5";
     lb_pos = "src/std/window/macos/lifecycle.lucb:97:5";
     void* lb_center __attribute__((unused)) = lb_window_required(({ void* _lb_sq191 __attribute__((unused)) = (({ lb_r_void_0p _lb_r192 = lb_window_12native_class("NSNotificationCenter"); if (_lb_r192.failed) {
-        (void)(({ void* _lb_sq193 __attribute__((unused)) = lb_observer; void* _lb_sq194 __attribute__((unused)) = lb_window_sel("release"); ((void (*)(void*, void*))lb_x_window_8msg_void)(_lb_sq193, _lb_sq194); }));
+        (void)(({ void* _lb_sq193 __attribute__((unused)) = lb_observer; void* _lb_sq194 __attribute__((unused)) = lb_window_sel("release"); ((void (*)(void*, void*))(void*)&lb_x_window_8msg_void)(_lb_sq193, _lb_sq194); }));
         return ((lb_r_unit){ .error = _lb_r192.error, .failed = true });
-    } _lb_r192.value; })); void* _lb_sq195 __attribute__((unused)) = lb_window_sel("defaultCenter"); ((void* (*)(void*, void*))lb_x_window_7msg_ptr)(_lb_sq191, _lb_sq195); }));
+    } _lb_r192.value; })); void* _lb_sq195 __attribute__((unused)) = lb_window_sel("defaultCenter"); ((void* (*)(void*, void*))(void*)&lb_x_window_7msg_ptr)(_lb_sq191, _lb_sq195); }));
     lb_pos = "src/std/window/macos/lifecycle.lucb:98:5";
-    (void)(({ void* _lb_sq196 __attribute__((unused)) = lb_center; void* _lb_sq197 __attribute__((unused)) = lb_window_sel("addObserver:selector:name:object:"); void* _lb_sq198 __attribute__((unused)) = lb_observer; void* _lb_sq199 __attribute__((unused)) = lb_window_sel("luceDidFinishLaunching:"); void* _lb_sq200 __attribute__((unused)) = NSApplicationDidFinishLaunchingNotification; void* _lb_sq201 __attribute__((unused)) = lb_app; ((void (*)(void*, void*, void*, void*, void*, void*))lb_x_window_11msg_observe)(_lb_sq196, _lb_sq197, _lb_sq198, _lb_sq199, _lb_sq200, _lb_sq201); }));
+    (void)(({ void* _lb_sq196 __attribute__((unused)) = lb_center; void* _lb_sq197 __attribute__((unused)) = lb_window_sel("addObserver:selector:name:object:"); void* _lb_sq198 __attribute__((unused)) = lb_observer; void* _lb_sq199 __attribute__((unused)) = lb_window_sel("luceDidFinishLaunching:"); void* _lb_sq200 __attribute__((unused)) = NSApplicationDidFinishLaunchingNotification; void* _lb_sq201 __attribute__((unused)) = lb_app; ((void (*)(void*, void*, void*, void*, void*, void*))(void*)&lb_x_window_11msg_observe)(_lb_sq196, _lb_sq197, _lb_sq198, _lb_sq199, _lb_sq200, _lb_sq201); }));
     lb_pos = "src/std/window/macos/lifecycle.lucb:99:5";
     lb_pos = "src/std/window/macos/lifecycle.lucb:100:5";
-    (void)(({ void* _lb_sq202 __attribute__((unused)) = lb_app; void* _lb_sq203 __attribute__((unused)) = lb_window_sel("run"); ((void (*)(void*, void*))lb_x_window_8msg_void)(_lb_sq202, _lb_sq203); }));
-    (void)(({ void* _lb_sq204 __attribute__((unused)) = lb_center; void* _lb_sq205 __attribute__((unused)) = lb_window_sel("removeObserver:"); void* _lb_sq206 __attribute__((unused)) = lb_observer; ((void (*)(void*, void*, void*))lb_x_window_10msg_object)(_lb_sq204, _lb_sq205, _lb_sq206); }));
-    (void)(({ void* _lb_sq207 __attribute__((unused)) = lb_observer; void* _lb_sq208 __attribute__((unused)) = lb_window_sel("release"); ((void (*)(void*, void*))lb_x_window_8msg_void)(_lb_sq207, _lb_sq208); }));
+    (void)(({ void* _lb_sq202 __attribute__((unused)) = lb_app; void* _lb_sq203 __attribute__((unused)) = lb_window_sel("run"); ((void (*)(void*, void*))(void*)&lb_x_window_8msg_void)(_lb_sq202, _lb_sq203); }));
+    (void)(({ void* _lb_sq204 __attribute__((unused)) = lb_center; void* _lb_sq205 __attribute__((unused)) = lb_window_sel("removeObserver:"); void* _lb_sq206 __attribute__((unused)) = lb_observer; ((void (*)(void*, void*, void*))(void*)&lb_x_window_10msg_object)(_lb_sq204, _lb_sq205, _lb_sq206); }));
+    (void)(({ void* _lb_sq207 __attribute__((unused)) = lb_observer; void* _lb_sq208 __attribute__((unused)) = lb_window_sel("release"); ((void (*)(void*, void*))(void*)&lb_x_window_8msg_void)(_lb_sq207, _lb_sq208); }));
     return ((lb_r_unit){ .failed = false });
 }
 lb_r_void_0p lb_window_10make_class(char* lb_parent, char* lb_name) {
@@ -3618,15 +3618,15 @@ void lb_window_15launch_callback(void* lb_object, void* lb_selector, void* lb_no
     lb_pos = "src/std/window/macos/lifecycle.lucb:104:5";
     (void)(((void)(lb_selector)));
     lb_pos = "src/std/window/macos/lifecycle.lucb:105:5";
-    void* lb_app __attribute__((unused)) = lb_window_required(({ void* _lb_sq217 __attribute__((unused)) = lb_notification; void* _lb_sq218 __attribute__((unused)) = lb_window_sel("object"); ((void* (*)(void*, void*))lb_x_window_7msg_ptr)(_lb_sq217, _lb_sq218); }));
+    void* lb_app __attribute__((unused)) = lb_window_required(({ void* _lb_sq217 __attribute__((unused)) = lb_notification; void* _lb_sq218 __attribute__((unused)) = lb_window_sel("object"); ((void* (*)(void*, void*))(void*)&lb_x_window_7msg_ptr)(_lb_sq217, _lb_sq218); }));
     lb_pos = "src/std/window/macos/lifecycle.lucb:106:5";
     void* lb_event_class __attribute__((unused)) = ({ void* _lb_o219 = lb_x_window_13objc_getClass("NSEvent"); if (_lb_o219 == ((void*)0)) {
         (void)(lb_trap_text(((lb_str){"AppKit has no NSEvent class", 27})));
     } _lb_o219; });
     lb_pos = "src/std/window/macos/lifecycle.lucb:107:5";
-    void* lb_event __attribute__((unused)) = lb_window_required(({ void* _lb_sq220 __attribute__((unused)) = lb_event_class; void* _lb_sq221 __attribute__((unused)) = lb_window_sel("otherEventWithType:location:modifierFlags:timestamp:windowNumber:context:subtype:data1:data2:"); uint64_t _lb_sq222 __attribute__((unused)) = 15ULL; LuceWindowMacPoint _lb_sq223 __attribute__((unused)) = ((LuceWindowMacPoint){}); uint64_t _lb_sq224 __attribute__((unused)) = 0ULL; double _lb_sq225 __attribute__((unused)) = 0x0p+0; int64_t _lb_sq226 __attribute__((unused)) = 0LL; void* _lb_sq227 __attribute__((unused)) = ((void*)0); int16_t _lb_sq228 __attribute__((unused)) = 0LL; int64_t _lb_sq229 __attribute__((unused)) = 0LL; int64_t _lb_sq230 __attribute__((unused)) = 0LL; ((void* (*)(void*, void*, uint64_t, LuceWindowMacPoint, uint64_t, double, int64_t, void*, int16_t, int64_t, int64_t))lb_x_window_10msg_wakeup)(_lb_sq220, _lb_sq221, _lb_sq222, _lb_sq223, _lb_sq224, _lb_sq225, _lb_sq226, _lb_sq227, _lb_sq228, _lb_sq229, _lb_sq230); }));
+    void* lb_event __attribute__((unused)) = lb_window_required(({ void* _lb_sq220 __attribute__((unused)) = lb_event_class; void* _lb_sq221 __attribute__((unused)) = lb_window_sel("otherEventWithType:location:modifierFlags:timestamp:windowNumber:context:subtype:data1:data2:"); uint64_t _lb_sq222 __attribute__((unused)) = 15ULL; LuceWindowMacPoint _lb_sq223 __attribute__((unused)) = ((LuceWindowMacPoint){}); uint64_t _lb_sq224 __attribute__((unused)) = 0ULL; double _lb_sq225 __attribute__((unused)) = 0x0p+0; int64_t _lb_sq226 __attribute__((unused)) = 0LL; void* _lb_sq227 __attribute__((unused)) = ((void*)0); int16_t _lb_sq228 __attribute__((unused)) = 0LL; int64_t _lb_sq229 __attribute__((unused)) = 0LL; int64_t _lb_sq230 __attribute__((unused)) = 0LL; ((void* (*)(void*, void*, uint64_t, LuceWindowMacPoint, uint64_t, double, int64_t, void*, int16_t, int64_t, int64_t))(void*)&lb_x_window_10msg_wakeup)(_lb_sq220, _lb_sq221, _lb_sq222, _lb_sq223, _lb_sq224, _lb_sq225, _lb_sq226, _lb_sq227, _lb_sq228, _lb_sq229, _lb_sq230); }));
     lb_pos = "src/std/window/macos/lifecycle.lucb:108:5";
-    (void)(({ void* _lb_sq231 __attribute__((unused)) = lb_app; void* _lb_sq232 __attribute__((unused)) = lb_window_sel("postEvent:atStart:"); void* _lb_sq233 __attribute__((unused)) = lb_event; bool _lb_sq234 __attribute__((unused)) = true; ((void (*)(void*, void*, void*, bool))lb_x_window_8msg_post)(_lb_sq231, _lb_sq232, _lb_sq233, _lb_sq234); }));
+    (void)(({ void* _lb_sq231 __attribute__((unused)) = lb_app; void* _lb_sq232 __attribute__((unused)) = lb_window_sel("postEvent:atStart:"); void* _lb_sq233 __attribute__((unused)) = lb_event; bool _lb_sq234 __attribute__((unused)) = true; ((void (*)(void*, void*, void*, bool))(void*)&lb_x_window_8msg_post)(_lb_sq231, _lb_sq232, _lb_sq233, _lb_sq234); }));
     lb_pos = "src/std/window/macos/lifecycle.lucb:109:5";
-    (void)(({ void* _lb_sq235 __attribute__((unused)) = lb_app; void* _lb_sq236 __attribute__((unused)) = lb_window_sel("stop:"); void* _lb_sq237 __attribute__((unused)) = ((void*)0); ((void (*)(void*, void*, void*))lb_x_window_10msg_object)(_lb_sq235, _lb_sq236, _lb_sq237); }));
+    (void)(({ void* _lb_sq235 __attribute__((unused)) = lb_app; void* _lb_sq236 __attribute__((unused)) = lb_window_sel("stop:"); void* _lb_sq237 __attribute__((unused)) = ((void*)0); ((void (*)(void*, void*, void*))(void*)&lb_x_window_10msg_object)(_lb_sq235, _lb_sq236, _lb_sq237); }));
 }

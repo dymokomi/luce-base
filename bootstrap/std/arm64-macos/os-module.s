@@ -1622,81 +1622,37 @@ l_text_45:
 
     .section __DATA,__const
     .p2align 3
-    .section __DATA,__data
-    .p2align 2
     .globl _lb_os_failed
-    .weak_definition _lb_os_failed
     .no_dead_strip _lb_os_failed
-_lb_os_failed:
-    .zero 4
-    .section __DATA,__data
-    .p2align 0
+    .zerofill __DATA,__bss,_lb_os_failed,4,2
     .globl _lb_os_arm64
-    .weak_definition _lb_os_arm64
     .no_dead_strip _lb_os_arm64
-_lb_os_arm64:
-    .zero 1
-    .section __DATA,__data
-    .p2align 0
+    .zerofill __DATA,__bss,_lb_os_arm64,1,0
     .globl _lb_os_6x86_64
-    .weak_definition _lb_os_6x86_64
     .no_dead_strip _lb_os_6x86_64
-_lb_os_6x86_64:
-    .zero 1
-    .section __DATA,__data
-    .p2align 0
+    .zerofill __DATA,__bss,_lb_os_6x86_64,1,0
     .globl _lb_os_macos
-    .weak_definition _lb_os_macos
     .no_dead_strip _lb_os_macos
-_lb_os_macos:
-    .zero 1
-    .section __DATA,__data
-    .p2align 0
+    .zerofill __DATA,__bss,_lb_os_macos,1,0
     .globl _lb_os_linux
-    .weak_definition _lb_os_linux
     .no_dead_strip _lb_os_linux
-_lb_os_linux:
-    .zero 1
-    .section __DATA,__data
-    .p2align 0
+    .zerofill __DATA,__bss,_lb_os_linux,1,0
     .globl _lb_os_windows
-    .weak_definition _lb_os_windows
     .no_dead_strip _lb_os_windows
-_lb_os_windows:
-    .zero 1
-    .section __DATA,__data
-    .p2align 0
+    .zerofill __DATA,__bss,_lb_os_windows,1,0
     .globl _lb_os_posix
-    .weak_definition _lb_os_posix
     .no_dead_strip _lb_os_posix
-_lb_os_posix:
-    .zero 1
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_os_posix,1,0
     .globl _lb_os_12pointer_bits
-    .weak_definition _lb_os_12pointer_bits
     .no_dead_strip _lb_os_12pointer_bits
-_lb_os_12pointer_bits:
-    .zero 4
-    .section __DATA,__data
-    .p2align 3
+    .zerofill __DATA,__bss,_lb_os_12pointer_bits,4,2
     .globl _lb_os_name
-    .weak_definition _lb_os_name
     .no_dead_strip _lb_os_name
-_lb_os_name:
-    .zero 16
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_os_name,16,3
     .globl _lb_os_9cpu_level
-    .weak_definition _lb_os_9cpu_level
     .no_dead_strip _lb_os_9cpu_level
-_lb_os_9cpu_level:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_os_9cpu_level,4,2
     .globl _lb_os_17processors_online
-    .weak_definition _lb_os_17processors_online
-_lb_os_17processors_online:
-    .zero 4
+    .zerofill __DATA,__bss,_lb_os_17processors_online,4,2
 
 .subsections_via_symbols

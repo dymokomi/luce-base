@@ -194,7 +194,6 @@ lb_time_since:
     .bss
     .globl lb_time_monotonic
     .type lb_time_monotonic, @object
-    .weak lb_time_monotonic
     .p2align 2
 lb_time_monotonic:
     .zero 4
@@ -202,7 +201,6 @@ lb_time_monotonic:
     .bss
     .globl lb_time_realtime
     .type lb_time_realtime, @object
-    .weak lb_time_realtime
     .p2align 2
 lb_time_realtime:
     .zero 4

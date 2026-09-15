@@ -2210,7 +2210,6 @@ lb_ownership_collect:
     .bss
     .globl lb_ownership_15candidate_limit
     .type lb_ownership_15candidate_limit, @object
-    .weak lb_ownership_15candidate_limit
     .p2align 3
 lb_ownership_15candidate_limit:
     .zero 8

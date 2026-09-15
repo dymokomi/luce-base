@@ -293,17 +293,9 @@ l_text_3:
     .zerofill __DATA,__bss,_lb_process_18previous_interrupt,8,3
     .globl _lb_process_18previous_terminate
     .zerofill __DATA,__bss,_lb_process_18previous_terminate,8,3
-    .section __DATA,__data
-    .p2align 2
     .globl _lb_process_16interrupt_signal
-    .weak_definition _lb_process_16interrupt_signal
-_lb_process_16interrupt_signal:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_process_16interrupt_signal,4,2
     .globl _lb_process_16terminate_signal
-    .weak_definition _lb_process_16terminate_signal
-_lb_process_16terminate_signal:
-    .zero 4
+    .zerofill __DATA,__bss,_lb_process_16terminate_signal,4,2
 
 .subsections_via_symbols

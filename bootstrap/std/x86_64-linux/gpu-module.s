@@ -538,7 +538,6 @@ lb_gpu_11check_color:
     .bss
     .globl lb_gpu_unsupported
     .type lb_gpu_unsupported, @object
-    .weak lb_gpu_unsupported
     .p2align 2
 lb_gpu_unsupported:
     .zero 4
@@ -546,7 +545,6 @@ lb_gpu_unsupported:
     .bss
     .globl lb_gpu_unavailable
     .type lb_gpu_unavailable, @object
-    .weak lb_gpu_unavailable
     .p2align 2
 lb_gpu_unavailable:
     .zero 4
@@ -554,7 +552,6 @@ lb_gpu_unavailable:
     .bss
     .globl lb_gpu_12wrong_thread
     .type lb_gpu_12wrong_thread, @object
-    .weak lb_gpu_12wrong_thread
     .p2align 2
 lb_gpu_12wrong_thread:
     .zero 4
@@ -562,7 +559,6 @@ lb_gpu_12wrong_thread:
     .bss
     .globl lb_gpu_closed
     .type lb_gpu_closed, @object
-    .weak lb_gpu_closed
     .p2align 2
 lb_gpu_closed:
     .zero 4
@@ -570,7 +566,6 @@ lb_gpu_closed:
     .bss
     .globl lb_gpu_13invalid_color
     .type lb_gpu_13invalid_color, @object
-    .weak lb_gpu_13invalid_color
     .p2align 2
 lb_gpu_13invalid_color:
     .zero 4
@@ -578,7 +573,6 @@ lb_gpu_13invalid_color:
     .bss
     .globl lb_gpu_failed
     .type lb_gpu_failed, @object
-    .weak lb_gpu_failed
     .p2align 2
 lb_gpu_failed:
     .zero 4
@@ -586,7 +580,6 @@ lb_gpu_failed:
     .bss
     .globl lb_gpu_16execution_failed
     .type lb_gpu_16execution_failed, @object
-    .weak lb_gpu_16execution_failed
     .p2align 2
 lb_gpu_16execution_failed:
     .zero 4
@@ -594,7 +587,6 @@ lb_gpu_16execution_failed:
     .bss
     .globl lb_gpu_17surface_too_large
     .type lb_gpu_17surface_too_large, @object
-    .weak lb_gpu_17surface_too_large
     .p2align 2
 lb_gpu_17surface_too_large:
     .zero 4
@@ -602,7 +594,6 @@ lb_gpu_17surface_too_large:
     .bss
     .globl lb_gpu_16invalid_geometry
     .type lb_gpu_16invalid_geometry, @object
-    .weak lb_gpu_16invalid_geometry
     .p2align 2
 lb_gpu_16invalid_geometry:
     .zero 4
@@ -610,7 +601,6 @@ lb_gpu_16invalid_geometry:
     .bss
     .globl lb_gpu_13command_limit
     .type lb_gpu_13command_limit, @object
-    .weak lb_gpu_13command_limit
     .p2align 2
 lb_gpu_13command_limit:
     .zero 4
@@ -618,7 +608,6 @@ lb_gpu_13command_limit:
     .bss
     .globl lb_gpu_14frame_finished
     .type lb_gpu_14frame_finished, @object
-    .weak lb_gpu_14frame_finished
     .p2align 2
 lb_gpu_14frame_finished:
     .zero 4
@@ -626,7 +615,6 @@ lb_gpu_14frame_finished:
     .bss
     .globl lb_gpu_12frame_in_use
     .type lb_gpu_12frame_in_use, @object
-    .weak lb_gpu_12frame_in_use
     .p2align 2
 lb_gpu_12frame_in_use:
     .zero 4
@@ -634,7 +622,6 @@ lb_gpu_12frame_in_use:
     .bss
     .globl lb_gpu_13frame_resized
     .type lb_gpu_13frame_resized, @object
-    .weak lb_gpu_13frame_resized
     .p2align 2
 lb_gpu_13frame_resized:
     .zero 4

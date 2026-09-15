@@ -500,7 +500,6 @@ lb_memory_copy_0g1_u8:
     .bss
     .globl lb_interop_8no_error
     .type lb_interop_8no_error, @object
-    .weak lb_interop_8no_error
     .p2align 2
 lb_interop_8no_error:
     .zero 4

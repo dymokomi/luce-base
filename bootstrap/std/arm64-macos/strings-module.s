@@ -48,47 +48,23 @@ _lb_strings_module_0init:
 
     .section __DATA,__const
     .p2align 3
-    .section __DATA,__data
-    .p2align 2
     .globl _lb_strings_17invalid_separator
-    .weak_definition _lb_strings_17invalid_separator
     .no_dead_strip _lb_strings_17invalid_separator
-_lb_strings_17invalid_separator:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_strings_17invalid_separator,4,2
     .globl _lb_strings_16output_too_large
-    .weak_definition _lb_strings_16output_too_large
     .no_dead_strip _lb_strings_16output_too_large
-_lb_strings_16output_too_large:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_strings_16output_too_large,4,2
     .globl _lb_strings_13invalid_radix
-    .weak_definition _lb_strings_13invalid_radix
     .no_dead_strip _lb_strings_13invalid_radix
-_lb_strings_13invalid_radix:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_strings_13invalid_radix,4,2
     .globl _lb_strings_14invalid_number
-    .weak_definition _lb_strings_14invalid_number
     .no_dead_strip _lb_strings_14invalid_number
-_lb_strings_14invalid_number:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_strings_14invalid_number,4,2
     .globl _lb_strings_19number_out_of_range
-    .weak_definition _lb_strings_19number_out_of_range
     .no_dead_strip _lb_strings_19number_out_of_range
-_lb_strings_19number_out_of_range:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_strings_19number_out_of_range,4,2
     .globl _lb_strings_17conversion_failed
-    .weak_definition _lb_strings_17conversion_failed
     .no_dead_strip _lb_strings_17conversion_failed
-_lb_strings_17conversion_failed:
-    .zero 4
+    .zerofill __DATA,__bss,_lb_strings_17conversion_failed,4,2
 
 .subsections_via_symbols

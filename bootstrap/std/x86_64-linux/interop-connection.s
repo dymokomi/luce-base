@@ -335,7 +335,6 @@ lb_interop_Connection_trace:
     .bss
     .globl lb_interop_15connection_type
     .type lb_interop_15connection_type, @object
-    .weak lb_interop_15connection_type
     .p2align 3
 lb_interop_15connection_type:
     .zero 40

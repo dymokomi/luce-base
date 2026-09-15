@@ -191,7 +191,6 @@ lb_memory_copy_0g1_u8:
     .bss
     .globl lb_clipboard_12unicode_text
     .type lb_clipboard_12unicode_text, @object
-    .weak lb_clipboard_12unicode_text
     .p2align 2
 lb_clipboard_12unicode_text:
     .zero 4

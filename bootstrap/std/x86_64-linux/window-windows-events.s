@@ -460,7 +460,6 @@ lb_window_14windows_events_0init:
     .bss
     .globl lb_window_13win_scan_keys
     .type lb_window_13win_scan_keys, @object
-    .weak lb_window_13win_scan_keys
     .p2align 1
 lb_window_13win_scan_keys:
     .zero 128

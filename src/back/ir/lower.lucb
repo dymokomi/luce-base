@@ -4656,11 +4656,12 @@ pub struct Lowerer:
     mutating func declare_global(d: ast.Node*) -> !:
         let name = try self.global_name(d)
         let used = ast.has_attribute(d, "used") or (self.only_module.length > 0 and declarations.is_root(self.roots.span(), d))
-        # a standard constant's storage is in its library member and in every program that
-        # reads it through the interface, so each copy is weak and the linker keeps one
+        # a standard constant's storage is in its library member and, read through the
+        # interface, in every program: the program's copy is a private symbol, since not
+        # every linker coalesces weak data
         let standard = check.is_standard_module(names.module_of(d))
-        let weak = ast.has_attribute(d, "weak") or (standard and d.kind == ast.Kind.constant)
-        try self.program_unit.globals.push(ir.Global(name = name, standard = standard, size = self.size(d.type_id), align = self.align(d.type_id), is_thread_local = d.has(ast.flag_thread_local), exported = false, weak = weak, used = used, section = section_of(d), external = ast.is_linked(d) or not self.owns(d)))
+        let private = standard and d.kind == ast.Kind.constant and self.only_module.length == 0
+        try self.program_unit.globals.push(ir.Global(name = name, standard = standard, size = self.size(d.type_id), align = self.align(d.type_id), is_thread_local = d.has(ast.flag_thread_local), exported = false, weak = ast.has_attribute(d, "weak"), used = used, section = section_of(d), external = ast.is_linked(d) or not self.owns(d), private = private))
 
     ## Whether this unit defines the declaration: a whole program defines everything that is
     ## not `linked`; a library member only its own module's.

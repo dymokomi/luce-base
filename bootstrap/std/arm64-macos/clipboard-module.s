@@ -494,19 +494,11 @@ l_text_5:
 
     .section __DATA,__const
     .p2align 3
-    .section __DATA,__data
-    .p2align 2
     .globl _lb_clipboard_failed
-    .weak_definition _lb_clipboard_failed
     .no_dead_strip _lb_clipboard_failed
-_lb_clipboard_failed:
-    .zero 4
-    .section __DATA,__data
-    .p2align 3
+    .zerofill __DATA,__bss,_lb_clipboard_failed,4,2
     .globl _lb_clipboard_10text_limit
-    .weak_definition _lb_clipboard_10text_limit
     .no_dead_strip _lb_clipboard_10text_limit
-_lb_clipboard_10text_limit:
-    .zero 8
+    .zerofill __DATA,__bss,_lb_clipboard_10text_limit,8,3
 
 .subsections_via_symbols

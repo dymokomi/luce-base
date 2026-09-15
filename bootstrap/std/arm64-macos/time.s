@@ -176,17 +176,9 @@ l_text_4:
 
     .section __DATA,__const
     .p2align 3
-    .section __DATA,__data
-    .p2align 2
     .globl _lb_time_monotonic
-    .weak_definition _lb_time_monotonic
-_lb_time_monotonic:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_time_monotonic,4,2
     .globl _lb_time_realtime
-    .weak_definition _lb_time_realtime
-_lb_time_realtime:
-    .zero 4
+    .zerofill __DATA,__bss,_lb_time_realtime,4,2
 
 .subsections_via_symbols

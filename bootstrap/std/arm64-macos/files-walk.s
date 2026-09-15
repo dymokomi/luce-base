@@ -2900,19 +2900,11 @@ l_text_35:
 
     .section __DATA,__const
     .p2align 3
-    .section __DATA,__data
-    .p2align 2
     .globl _lb_files_15directory_cycle
-    .weak_definition _lb_files_15directory_cycle
     .no_dead_strip _lb_files_15directory_cycle
-_lb_files_15directory_cycle:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_files_15directory_cycle,4,2
     .globl _lb_files_11depth_limit
-    .weak_definition _lb_files_11depth_limit
     .no_dead_strip _lb_files_11depth_limit
-_lb_files_11depth_limit:
-    .zero 4
+    .zerofill __DATA,__bss,_lb_files_11depth_limit,4,2
 
 .subsections_via_symbols

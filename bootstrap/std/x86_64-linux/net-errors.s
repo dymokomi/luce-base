@@ -1295,7 +1295,6 @@ lb_net_14resolver_error:
     .bss
     .globl lb_net_failed
     .type lb_net_failed, @object
-    .weak lb_net_failed
     .p2align 2
 lb_net_failed:
     .zero 4
@@ -1303,7 +1302,6 @@ lb_net_failed:
     .bss
     .globl lb_net_closed
     .type lb_net_closed, @object
-    .weak lb_net_closed
     .p2align 2
 lb_net_closed:
     .zero 4
@@ -1311,7 +1309,6 @@ lb_net_closed:
     .bss
     .globl lb_net_12unknown_host
     .type lb_net_12unknown_host, @object
-    .weak lb_net_12unknown_host
     .p2align 2
 lb_net_12unknown_host:
     .zero 4
@@ -1319,7 +1316,6 @@ lb_net_12unknown_host:
     .bss
     .globl lb_net_15invalid_options
     .type lb_net_15invalid_options, @object
-    .weak lb_net_15invalid_options
     .p2align 2
 lb_net_15invalid_options:
     .zero 4
@@ -1327,7 +1323,6 @@ lb_net_15invalid_options:
     .bss
     .globl lb_net_17message_too_large
     .type lb_net_17message_too_large, @object
-    .weak lb_net_17message_too_large
     .p2align 2
 lb_net_17message_too_large:
     .zero 4
@@ -1335,7 +1330,6 @@ lb_net_17message_too_large:
     .bss
     .globl lb_net_cancelled
     .type lb_net_cancelled, @object
-    .weak lb_net_cancelled
     .p2align 2
 lb_net_cancelled:
     .zero 4
@@ -1343,7 +1337,6 @@ lb_net_cancelled:
     .bss
     .globl lb_net_9timed_out
     .type lb_net_9timed_out, @object
-    .weak lb_net_9timed_out
     .p2align 2
 lb_net_9timed_out:
     .zero 4
@@ -1351,7 +1344,6 @@ lb_net_9timed_out:
     .bss
     .globl lb_net_18connection_refused
     .type lb_net_18connection_refused, @object
-    .weak lb_net_18connection_refused
     .p2align 2
 lb_net_18connection_refused:
     .zero 4
@@ -1359,7 +1351,6 @@ lb_net_18connection_refused:
     .bss
     .globl lb_net_19network_unreachable
     .type lb_net_19network_unreachable, @object
-    .weak lb_net_19network_unreachable
     .p2align 2
 lb_net_19network_unreachable:
     .zero 4
@@ -1367,7 +1358,6 @@ lb_net_19network_unreachable:
     .bss
     .globl lb_net_14address_in_use
     .type lb_net_14address_in_use, @object
-    .weak lb_net_14address_in_use
     .p2align 2
 lb_net_14address_in_use:
     .zero 4
@@ -1375,7 +1365,6 @@ lb_net_14address_in_use:
     .bss
     .globl lb_net_19address_unavailable
     .type lb_net_19address_unavailable, @object
-    .weak lb_net_19address_unavailable
     .p2align 2
 lb_net_19address_unavailable:
     .zero 4
@@ -1383,7 +1372,6 @@ lb_net_19address_unavailable:
     .bss
     .globl lb_net_17permission_denied
     .type lb_net_17permission_denied, @object
-    .weak lb_net_17permission_denied
     .p2align 2
 lb_net_17permission_denied:
     .zero 4
@@ -1391,7 +1379,6 @@ lb_net_17permission_denied:
     .bss
     .globl lb_net_18resource_exhausted
     .type lb_net_18resource_exhausted, @object
-    .weak lb_net_18resource_exhausted
     .p2align 2
 lb_net_18resource_exhausted:
     .zero 4
@@ -1399,7 +1386,6 @@ lb_net_18resource_exhausted:
     .bss
     .globl lb_net_18connection_aborted
     .type lb_net_18connection_aborted, @object
-    .weak lb_net_18connection_aborted
     .p2align 2
 lb_net_18connection_aborted:
     .zero 4
@@ -1407,7 +1393,6 @@ lb_net_18connection_aborted:
     .bss
     .globl lb_net_unsupported
     .type lb_net_unsupported, @object
-    .weak lb_net_unsupported
     .p2align 2
 lb_net_unsupported:
     .zero 4
@@ -1415,7 +1400,6 @@ lb_net_unsupported:
     .bss
     .globl lb_net_20resolution_temporary
     .type lb_net_20resolution_temporary, @object
-    .weak lb_net_20resolution_temporary
     .p2align 2
 lb_net_20resolution_temporary:
     .zero 4

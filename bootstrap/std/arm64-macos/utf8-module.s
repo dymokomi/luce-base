@@ -28,19 +28,11 @@ _lb_utf8_module_0init:
 
     .section __DATA,__const
     .p2align 3
-    .section __DATA,__data
-    .p2align 2
     .globl _lb_utf8_16invalid_sequence
-    .weak_definition _lb_utf8_16invalid_sequence
     .no_dead_strip _lb_utf8_16invalid_sequence
-_lb_utf8_16invalid_sequence:
-    .zero 4
-    .section __DATA,__data
-    .p2align 2
+    .zerofill __DATA,__bss,_lb_utf8_16invalid_sequence,4,2
     .globl _lb_utf8_19incomplete_sequence
-    .weak_definition _lb_utf8_19incomplete_sequence
     .no_dead_strip _lb_utf8_19incomplete_sequence
-_lb_utf8_19incomplete_sequence:
-    .zero 4
+    .zerofill __DATA,__bss,_lb_utf8_19incomplete_sequence,4,2
 
 .subsections_via_symbols

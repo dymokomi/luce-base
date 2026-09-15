@@ -2804,11 +2804,7 @@ l_text_66:
 
     .section __DATA,__const
     .p2align 3
-    .section __DATA,__data
-    .p2align 3
     .globl _lb_gpu_19metal_surface_limit
-    .weak_definition _lb_gpu_19metal_surface_limit
-_lb_gpu_19metal_surface_limit:
-    .zero 8
+    .zerofill __DATA,__bss,_lb_gpu_19metal_surface_limit,8,3
 
 .subsections_via_symbols

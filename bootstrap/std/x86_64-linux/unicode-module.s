@@ -151,7 +151,6 @@ lb_unicode_15combining_class:
     .bss
     .globl lb_unicode_version
     .type lb_unicode_version, @object
-    .weak lb_unicode_version
     .p2align 3
 lb_unicode_version:
     .zero 16
