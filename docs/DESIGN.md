@@ -459,7 +459,7 @@ through the other arm. Positions are doubled, an instruction's reads at `2i`
 and its write at `2i + 1`, so a result may take the register of an operand
 that dies there, which is what computing in place wants. A target offers two
 pools per class: the callee-saved registers, which a call preserves, and the
-caller-saved ones (arm64: x14, x15, d24–d31, the last as q registers for
+caller-saved ones (arm64: x12–x15, d24–d31, the last as q registers for
 vectors; x86-64: xmm12–xmm15), which a call, an asm block, or a block copy
 handed to `memcpy` may clobber; a temporary that crosses none of those takes
 a caller-saved register first and leaves the callee-saved ones, which cost a

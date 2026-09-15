@@ -15,13 +15,17 @@ that work. Native compilation remains the primary execution and hardening target
 
 ### Compiler backlog
 
-1. **Splitting a life at a call.** The allocator gives each temporary
-   one place for its whole life; a value live across a call takes a
-   callee-saved register or the frame, where a split would let its two halves
-   take different registers, and the generators' fixed scratch registers
-   (x9–x13, r10, r11, xmm8–xmm11) are not in any pool. Gate: the
-   `tests/optimization` limits lowered again, the native fixpoint kept, the
-   compiler's own build time recorded in `docs/STATUS.md`.
+1. **The generators' scratch registers.** The allocator gives each temporary one
+   place for its whole life, and the generators keep fixed scratch registers for their
+   operands (x9–x11, x16, x17; r10, r11, xmm8–xmm11; on x86-64 no caller-saved integer
+   register is in any pool, since the rest carry arguments). Splitting a life at a call,
+   a copy out before and a copy back after, was measured on the compiler itself and
+   rejected: the generators already reload a frame temporary at each use, so a split
+   adds a store per crossing and gained nothing. What would pay is a generator that
+   chooses its scratch around the operands' registers, so x9–x11 and r10, r11 could join
+   the pools, and a parallel move for call arguments, so the argument registers could.
+   Gate: the `tests/optimization` limits lowered again, the native fixpoint kept, the
+   compiler's own build time in `docs/STATUS.md` lowered again.
 2. **Optimized debugging.** Development DWARF and packaged artifacts are implemented
    (`docs/DEBUGGING.md`). What remains is location tracking for optimized user code and
    higher-level presentation of payload enums and Luce ARC values. Gate: correct variable

@@ -63,7 +63,7 @@ pub struct Generator:
 
     pub static func create(program_unit: ir.Unit*, os: build_target.Os = build_target.Os.macos, symbol_prefix: str = "_") -> Generator!:
         return Generator(symbol_prefix = symbol_prefix, object_format = object.Format(os, symbol_prefix), fp16 = os == build_target.Os.macos, out = try buffer.Buffer.create(262144), program_unit = program_unit, f = program_unit.functions.span().data, index = 0,
-                         fr = try frame.Frame.create(frame.Registers(ints = 10, floats = 8, keep_ints = 4, keep_floats = 4, scratch_ints = 2, scratch_floats = 8)), text_count = 0, descriptors = try buffer.Buffer.create(4096))
+                         fr = try frame.Frame.create(frame.Registers(ints = 10, floats = 8, keep_ints = 4, keep_floats = 4, scratch_ints = 4, scratch_floats = 8)), text_count = 0, descriptors = try buffer.Buffer.create(4096))
 
     # -- output ---------------------------------------------------------------------------
 
@@ -376,18 +376,18 @@ pub struct Generator:
 
     # mark: Functions ==========================================================================
 
-    ## Copy `size` bytes from [x10] to [x11] with plain loads and stores: 16 at a time, then
-    ## 8, 4, 2, 1. The addresses are records in frames or fields, so unaligned access is fine
+    ## Copy `size` bytes from [x10] to [x11] with plain loads and stores through x16 and x17:
+    ## 16 at a time, then 8, 4, 2, 1. The addresses are records in frames or fields, so unaligned access is fine
     ## on arm64; a copy of up to 128 bytes is cheaper inline than as a call.
     mutating func inline_copy(size: u64) -> !:
         var done: u64 = 0
         while size - done >= 16:
-            try self.pair_move("ldp x12, x13, [x10, #", done)
-            try self.pair_move("stp x12, x13, [x11, #", done)
+            try self.pair_move("ldp x16, x17, [x10, #", done)
+            try self.pair_move("stp x16, x17, [x11, #", done)
             done += 16
         let widths: u64[4] = [8, 4, 2, 1]
-        let loads: str[4] = ["ldr x12", "ldr w12", "ldrh w12", "ldrb w12"]
-        let stores: str[4] = ["str x12", "str w12", "strh w12", "strb w12"]
+        let loads: str[4] = ["ldr x16", "ldr w16", "ldrh w16", "ldrb w16"]
+        let stores: str[4] = ["str x16", "str w16", "strh w16", "strb w16"]
         var k: usize = 0
         while k < 4:
             if size - done >= widths[k]:
@@ -1377,7 +1377,7 @@ pub struct Generator:
         let cls = ir.Class.w if n.extra <= 4 else ir.Class.l
         let value = self.reg(cls, 1)
         try self.operand(value, cls, n.a)
-        try self.address_operand("x12", n.b)
+        try self.address_operand("x17", n.b)
         let acquire = n.extra2 == 2 or n.extra2 == 4 or n.extra2 == 5
         let release = n.extra2 >= 3
         try self.put("\n1:")
@@ -1385,7 +1385,7 @@ pub struct Generator:
         try self.put(width_suffix(n.extra))
         try self.put(" ")
         try self.put(self.reg(cls, 0))
-        try self.put(", [x12]")
+        try self.put(", [x17]")
         let old = self.reg(cls, 0)
         let fresh = self.reg(cls, 2)
         match n.op:
@@ -1436,10 +1436,10 @@ pub struct Generator:
             try self.put(value)
         try self.line("stlxr" if release else "stxr")
         try self.put(width_suffix(n.extra))
-        try self.put(" w13, ")
+        try self.put(" w16, ")
         try self.put(fresh)
-        try self.put(", [x12]")
-        try self.line("cbnz w13, 1b")
+        try self.put(", [x17]")
+        try self.line("cbnz w16, 1b")
         try self.store_temp(old, n.dst)
 
     mutating func compare_and_swap(n: ir.Instr) -> !:
@@ -1448,13 +1448,13 @@ pub struct Generator:
         let desired = self.f.args.get((usize)n.b.value + 1)
         try self.operand(self.reg(cls, 1), cls, expected.value)
         try self.operand(self.reg(cls, 2), cls, desired.value)
-        try self.address_operand("x12", n.a)
+        try self.address_operand("x17", n.a)
         try self.put("\n1:")
         try self.line("ldaxr")
         try self.put(width_suffix(n.extra))
         try self.put(" ")
         try self.put(self.reg(cls, 0))
-        try self.put(", [x12]")
+        try self.put(", [x17]")
         try self.line("cmp ")
         try self.put(self.reg(cls, 0))
         try self.put(", ")
@@ -1462,10 +1462,10 @@ pub struct Generator:
         try self.line("b.ne 2f")
         try self.line("stlxr")
         try self.put(width_suffix(n.extra))
-        try self.put(" w13, ")
+        try self.put(" w16, ")
         try self.put(self.reg(cls, 2))
-        try self.put(", [x12]")
-        try self.line("cbnz w13, 1b")
+        try self.put(", [x17]")
+        try self.line("cbnz w16, 1b")
         try self.put("\n2:")
         try self.line("clrex")
         try self.store_temp(self.reg(cls, 0), n.dst)
@@ -1911,14 +1911,14 @@ pub struct Generator:
 
 ## The callee-saved registers the allocator hands out: codes 1..10 are x19..x28, codes
 ## 11..18 are d8..d15, viewed as w/s where a narrower access asks for it.
-## Register codes: 1–10 the callee-saved x19–x28, 11–18 the callee-saved d8–d15, 19–20 the
-## caller-saved x14 and x15, which nothing else here touches, 21–28 the caller-saved
-## d24–d31, which a vector temporary sees as q24–q31.
-let x_names: str[29] = ["", "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28", "d8", "d9", "d10", "d11", "d12", "d13", "d14", "d15", "x14", "x15", "d24", "d25", "d26", "d27", "d28", "d29", "d30", "d31"]
-let w_names: str[29] = ["", "w19", "w20", "w21", "w22", "w23", "w24", "w25", "w26", "w27", "w28", "s8", "s9", "s10", "s11", "s12", "s13", "s14", "s15", "w14", "w15", "s24", "s25", "s26", "s27", "s28", "s29", "s30", "s31"]
-let h_names: str[29] = ["", "w19", "w20", "w21", "w22", "w23", "w24", "w25", "w26", "w27", "w28", "h8", "h9", "h10", "h11", "h12", "h13", "h14", "h15", "w14", "w15", "h24", "h25", "h26", "h27", "h28", "h29", "h30", "h31"]
-let q_names: str[29] = ["", "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15", "x14", "x15", "q24", "q25", "q26", "q27", "q28", "q29", "q30", "q31"]
-let v_names: str[29] = ["", "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "x14", "x15", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31"]
+## Register codes: 1–10 the callee-saved x19–x28, 11–18 the callee-saved d8–d15, 19–22 the
+## caller-saved x14, x15, x12 and x13, which nothing else here touches, 23–30 the
+## caller-saved d24–d31, which a vector temporary sees as q24–q31.
+let x_names: str[31] = ["", "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28", "d8", "d9", "d10", "d11", "d12", "d13", "d14", "d15", "x14", "x15", "x12", "x13", "d24", "d25", "d26", "d27", "d28", "d29", "d30", "d31"]
+let w_names: str[31] = ["", "w19", "w20", "w21", "w22", "w23", "w24", "w25", "w26", "w27", "w28", "s8", "s9", "s10", "s11", "s12", "s13", "s14", "s15", "w14", "w15", "w12", "w13", "s24", "s25", "s26", "s27", "s28", "s29", "s30", "s31"]
+let h_names: str[31] = ["", "w19", "w20", "w21", "w22", "w23", "w24", "w25", "w26", "w27", "w28", "h8", "h9", "h10", "h11", "h12", "h13", "h14", "h15", "w14", "w15", "w12", "w13", "h24", "h25", "h26", "h27", "h28", "h29", "h30", "h31"]
+let q_names: str[31] = ["", "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15", "x14", "x15", "x12", "x13", "q24", "q25", "q26", "q27", "q28", "q29", "q30", "q31"]
+let v_names: str[31] = ["", "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "x14", "x15", "x12", "x13", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31"]
 
 ## The 8-byte name used to spill and reload a register on entry and exit.
 func save_name(code: usize) -> str:
