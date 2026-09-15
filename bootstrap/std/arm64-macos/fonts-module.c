@@ -2609,7 +2609,6 @@ lb_r_unit lb_fonts_Face_init(lb_fonts_Face* self, double lb_size, lb_str lb_fami
 lb_r_f64 lb_fonts_Face_measure(const lb_fonts_Face* self, lb_str lb_text);
 lb_r_fonts_Bitmap lb_fonts_Face_rasterize(const lb_fonts_Face* self, lb_str lb_text, double lb_scale);
 void lb_fonts_Face_close(lb_fonts_Face* self);
-lb_r_u8_0s lb_fonts_12family_bytes(lb_str lb_text);
 lb_r_fonts_NativeFace lb_fonts_8mac_face(double lb_size, lb_str lb_family);
 lb_r_unit lb_fonts_10mac_raster(lb_fonts_Face lb_face, lb_str lb_text, double lb_scale, struct lb_fonts_Bitmap* lb_bitmap);
 __attribute__((weak)) void lb_interop_Packet_0g1_str_init(lb_interop_Packet_0g1_str* self, lb_str lb_value, void* lb_storage, lb_fn_0F1_void_0p_unit lb_dispose);
@@ -2621,7 +2620,6 @@ bool lb_utf8_valid(lb_cspan lb_data);
 lb_r_fonts_NativeFace lb_fonts_9load_face(double lb_size, lb_str lb_family);
 lb_r_usize lb_fonts_12scalar_count(lb_str lb_text);
 double lb_math_ceil(double lb_x);
-__attribute__((weak)) void lb_memory_copy_0g1_u8(lb_span lb_target, lb_cspan lb_source, size_t lb_count);
 bool lb_thread_7is_main(void);
 lb_o_utf8_Decoded lb_utf8_decode(lb_cspan lb_data, size_t lb_offset);
 
@@ -3171,21 +3169,6 @@ void lb_fonts_Face_close(lb_fonts_Face* self) {
         }
     }
 }
-lb_r_u8_0s lb_fonts_12family_bytes(lb_str lb_text) {
-    const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/fonts/module.lucb:131:5";
-    lb_span lb_bytes __attribute__((unused)) = (({ lb_r_u8_0s _lb_r32 = ({ lb_iface _lb_a33 = lb_memory_allocator; size_t _lb_n33 = (size_t)((size_t)(lb_add_u((uint64_t)((lb_text.length)), (uint64_t)(1ULL), 64))); lb_r_u8_0s _lb_r33; if (_lb_n33 > UINT64_C(4611686018427387904)) { _lb_r33 = ((lb_r_u8_0s){ .error = { .code = 208273409, .message = (lb_str){"memory.exhausted", 16} }, .failed = true }); } else { size_t _lb_bytes33 = sizeof(uint8_t) * _lb_n33; lb_o_u8_0s _lb_ao33 = lb_alloc_call(_lb_a33, _lb_bytes33, _Alignof(uint8_t)); if (_lb_bytes33 != 0 && !_lb_ao33.present) { _lb_r33 = ((lb_r_u8_0s){ .error = { .code = 208273409, .message = (lb_str){"memory.exhausted", 16} }, .failed = true }); } else { _lb_r33.value.data = _lb_ao33.value.data; _lb_r33.value.length = _lb_n33; _lb_r33.failed = false; } } _lb_r33; }); if (_lb_r32.failed) {
-        return ((lb_r_u8_0s){ .error = _lb_r32.error, .failed = true });
-    } _lb_r32.value; }));
-    lb_pos = "src/std/fonts/module.lucb:132:5";
-    (void)(lb_memory_copy_0g1_u8(lb_bytes, ((lb_cspan){(void*)(lb_text.data), lb_text.length}), (lb_text.length)));
-    lb_pos = "src/std/fonts/module.lucb:133:5";
-    (*({ lb_span _lb_ix34 = lb_bytes; &((uint8_t*)_lb_ix34.data)[lb_at((uint64_t)((lb_text.length)), _lb_ix34.length)]; })) = 0ULL;
-    lb_pos = "src/std/fonts/module.lucb:134:5";
-    lb_span _lb_ret35 = lb_bytes;
-    return ((lb_r_u8_0s){ .value = _lb_ret35, .failed = false });
-    lb_trap("unreachable");
-}
 __attribute__((weak)) void lb_interop_Packet_0g1_str_init(lb_interop_Packet_0g1_str* self, lb_str lb_value, void* lb_storage, lb_fn_0F1_void_0p_unit lb_dispose) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
     lb_pos = "src/std/fonts/linux/native.lucb:455:1";
@@ -3198,14 +3181,14 @@ __attribute__((weak)) void lb_interop_Packet_0g1_str_init(lb_interop_Packet_0g1_
 __attribute__((weak)) void lb_interop_Packet_0g1_str_release(const lb_interop_Packet_0g1_str* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
     lb_pos = "src/std/fonts/linux/native.lucb:460:1";
-    void* _lb_o36 = self->storage;
-    if (_lb_o36 != ((void*)0)) {
-        void* lb_storage __attribute__((unused)) = _lb_o36;
+    void* _lb_o32 = self->storage;
+    if (_lb_o32 != ((void*)0)) {
+        void* lb_storage __attribute__((unused)) = _lb_o32;
         {
             lb_pos = "src/std/fonts/linux/native.lucb:461:1";
-            (void)(((({ lb_fn_0F1_void_0p_unit _lb_o37 = self->dispose; if (_lb_o37 == ((void*)0)) {
+            (void)(((({ lb_fn_0F1_void_0p_unit _lb_o33 = self->dispose; if (_lb_o33 == ((void*)0)) {
                 (void)(lb_trap_text(((lb_str){"a packet has storage without a disposer", 39})));
-            } _lb_o37; })))(lb_storage));
+            } _lb_o33; })))(lb_storage));
         }
     }
 }
@@ -3221,14 +3204,14 @@ __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_init(lb_interop_Packet_0g
 __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_release(const lb_interop_Packet_0g1_u8_0c* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
     lb_pos = "src/std/fonts/linux/native.lucb:460:1";
-    void* _lb_o38 = self->storage;
-    if (_lb_o38 != ((void*)0)) {
-        void* lb_storage __attribute__((unused)) = _lb_o38;
+    void* _lb_o34 = self->storage;
+    if (_lb_o34 != ((void*)0)) {
+        void* lb_storage __attribute__((unused)) = _lb_o34;
         {
             lb_pos = "src/std/fonts/linux/native.lucb:461:1";
-            (void)(((({ lb_fn_0F1_void_0p_unit _lb_o39 = self->dispose; if (_lb_o39 == ((void*)0)) {
+            (void)(((({ lb_fn_0F1_void_0p_unit _lb_o35 = self->dispose; if (_lb_o35 == ((void*)0)) {
                 (void)(lb_trap_text(((lb_str){"a packet has storage without a disposer", 39})));
-            } _lb_o39; })))(lb_storage));
+            } _lb_o35; })))(lb_storage));
         }
     }
 }
@@ -3238,8 +3221,8 @@ lb_r_unit lb_fonts_12check_thread(void) {
     if (!!((!lb_thread_7is_main()))) 
     {
         lb_pos = "src/std/fonts/module.lucb:97:9";
-        lb_r_unit _lb_err40 = ((lb_r_unit){ .error = { .code = (int32_t)(lb_interop_12wrong_thread), .message = ((lb_str){"font operations require the UI thread", 37}) }, .failed = true });
-        return _lb_err40;
+        lb_r_unit _lb_err36 = ((lb_r_unit){ .error = { .code = (int32_t)(lb_interop_12wrong_thread), .message = ((lb_str){"font operations require the UI thread", 37}) }, .failed = true });
+        return _lb_err36;
     }
     return ((lb_r_unit){ .failed = false });
 }
@@ -3247,10 +3230,10 @@ lb_r_fonts_NativeFace lb_fonts_9load_face(double lb_size, lb_str lb_family) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
     {
         lb_pos = "src/std/fonts/module.lucb:123:9";
-        lb_fonts_NativeFace _lb_ret41 = (({ lb_r_fonts_NativeFace _lb_r42 = lb_fonts_8mac_face(lb_size, lb_family); if (_lb_r42.failed) {
-            return ((lb_r_fonts_NativeFace){ .error = _lb_r42.error, .failed = true });
-        } _lb_r42.value; }));
-        return ((lb_r_fonts_NativeFace){ .value = _lb_ret41, .failed = false });
+        lb_fonts_NativeFace _lb_ret37 = (({ lb_r_fonts_NativeFace _lb_r38 = lb_fonts_8mac_face(lb_size, lb_family); if (_lb_r38.failed) {
+            return ((lb_r_fonts_NativeFace){ .error = _lb_r38.error, .failed = true });
+        } _lb_r38.value; }));
+        return ((lb_r_fonts_NativeFace){ .value = _lb_ret37, .failed = false });
     }
     lb_trap("unreachable");
 }
@@ -3260,8 +3243,8 @@ lb_r_usize lb_fonts_12scalar_count(lb_str lb_text) {
     if (!!((((size_t)((lb_text.length))) > ((size_t)(4096ULL))))) 
     {
         lb_pos = "src/std/fonts/module.lucb:101:9";
-        lb_r_usize _lb_err43 = ((lb_r_usize){ .error = { .code = (int32_t)(lb_fonts_failed), .message = ((lb_str){"a text run supports at most 4096 UTF-8 bytes", 44}) }, .failed = true });
-        return _lb_err43;
+        lb_r_usize _lb_err39 = ((lb_r_usize){ .error = { .code = (int32_t)(lb_fonts_failed), .message = ((lb_str){"a text run supports at most 4096 UTF-8 bytes", 44}) }, .failed = true });
+        return _lb_err39;
     }
     lb_pos = "src/std/fonts/module.lucb:102:5";
     size_t lb_offset __attribute__((unused)) = 0ULL;
@@ -3273,49 +3256,34 @@ lb_r_usize lb_fonts_12scalar_count(lb_str lb_text) {
         if (!((((size_t)(lb_offset)) < ((size_t)((lb_text.length)))))) break;
         {
             lb_pos = "src/std/fonts/module.lucb:105:9";
-            lb_utf8_Decoded lb_decoded __attribute__((unused)) = ({ lb_o_utf8_Decoded _lb_o44 = lb_utf8_decode(((lb_cspan){(void*)(lb_text.data), lb_text.length}), lb_offset); if (!_lb_o44.present) {
-                lb_r_usize _lb_err45 = ((lb_r_usize){ .error = { .code = (int32_t)(lb_fonts_failed), .message = ((lb_str){"text must be valid UTF-8", 24}) }, .failed = true });
-                return _lb_err45;
-            } _lb_o44.value; });
+            lb_utf8_Decoded lb_decoded __attribute__((unused)) = ({ lb_o_utf8_Decoded _lb_o40 = lb_utf8_decode(((lb_cspan){(void*)(lb_text.data), lb_text.length}), lb_offset); if (!_lb_o40.present) {
+                lb_r_usize _lb_err41 = ((lb_r_usize){ .error = { .code = (int32_t)(lb_fonts_failed), .message = ((lb_str){"text must be valid UTF-8", 24}) }, .failed = true });
+                return _lb_err41;
+            } _lb_o40.value; });
             lb_pos = "src/std/fonts/module.lucb:106:9";
             if (!!(((((((uint32_t)lb_conv_u((uint64_t)(lb_decoded.scalar), 32, 0, 32, 0, 1)) == 0ULL) || (((uint32_t)lb_conv_u((uint64_t)(lb_decoded.scalar), 32, 0, 32, 0, 1)) == 10ULL)) || (((uint32_t)lb_conv_u((uint64_t)(lb_decoded.scalar), 32, 0, 32, 0, 1)) == 13ULL)) || (((uint32_t)lb_conv_u((uint64_t)(lb_decoded.scalar), 32, 0, 32, 0, 1)) == 9ULL)))) 
             {
                 lb_pos = "src/std/fonts/module.lucb:107:13";
-                lb_r_usize _lb_err46 = ((lb_r_usize){ .error = { .code = (int32_t)(lb_fonts_failed), .message = ((lb_str){"text runs cannot contain NUL, tabs or line breaks", 49}) }, .failed = true });
-                return _lb_err46;
+                lb_r_usize _lb_err42 = ((lb_r_usize){ .error = { .code = (int32_t)(lb_fonts_failed), .message = ((lb_str){"text runs cannot contain NUL, tabs or line breaks", 49}) }, .failed = true });
+                return _lb_err42;
             }
             lb_pos = "src/std/fonts/module.lucb:108:9";
-            { size_t* lb__cell47 = &(lb_offset);
-            (*(lb__cell47)) = (size_t)(lb_add_u((uint64_t)((*(lb__cell47))), (uint64_t)(lb_decoded.width), 64)); }
+            { size_t* lb__cell43 = &(lb_offset);
+            (*(lb__cell43)) = (size_t)(lb_add_u((uint64_t)((*(lb__cell43))), (uint64_t)(lb_decoded.width), 64)); }
             lb_pos = "src/std/fonts/module.lucb:109:9";
-            { size_t* lb__cell48 = &(lb_count);
-            (*(lb__cell48)) = (size_t)(lb_add_u((uint64_t)((*(lb__cell48))), (uint64_t)(1ULL), 64)); }
+            { size_t* lb__cell44 = &(lb_count);
+            (*(lb__cell44)) = (size_t)(lb_add_u((uint64_t)((*(lb__cell44))), (uint64_t)(1ULL), 64)); }
         }
     }
     lb_pos = "src/std/fonts/module.lucb:110:5";
     if (!!((((size_t)(lb_count)) > ((size_t)(1024ULL))))) 
     {
         lb_pos = "src/std/fonts/module.lucb:111:9";
-        lb_r_usize _lb_err49 = ((lb_r_usize){ .error = { .code = (int32_t)(lb_fonts_failed), .message = ((lb_str){"a text run supports at most 1024 scalars", 40}) }, .failed = true });
-        return _lb_err49;
+        lb_r_usize _lb_err45 = ((lb_r_usize){ .error = { .code = (int32_t)(lb_fonts_failed), .message = ((lb_str){"a text run supports at most 1024 scalars", 40}) }, .failed = true });
+        return _lb_err45;
     }
     lb_pos = "src/std/fonts/module.lucb:112:5";
-    size_t _lb_ret50 = lb_count;
-    return ((lb_r_usize){ .value = _lb_ret50, .failed = false });
+    size_t _lb_ret46 = lb_count;
+    return ((lb_r_usize){ .value = _lb_ret46, .failed = false });
     lb_trap("unreachable");
-}
-__attribute__((weak)) void lb_memory_copy_0g1_u8(lb_span lb_target, lb_cspan lb_source, size_t lb_count) {
-    const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/memory.lucb:325:5";
-    if (!!(((((size_t)(lb_count)) > ((size_t)((lb_target.length)))) || (((size_t)(lb_count)) > ((size_t)((lb_source.length))))))) 
-    {
-        lb_pos = "src/std/memory.lucb:326:9";
-        (void)(lb_trap_text(((lb_str){"index out of bounds", 19})));
-    }
-    lb_pos = "src/std/memory.lucb:327:5";
-    if (!!((((size_t)(lb_count)) > ((size_t)(0ULL))))) 
-    {
-        lb_pos = "src/std/memory.lucb:328:9";
-        (void)(((void)(({ void* _lb_sq51 __attribute__((unused)) = ((uint8_t*)(lb_target.data)); const void* _lb_sq52 __attribute__((unused)) = ((const uint8_t*)(lb_source.data)); size_t _lb_sq53 __attribute__((unused)) = ({ size_t _lb_sq54 __attribute__((unused)) = lb_count; size_t _lb_sq55 __attribute__((unused)) = ((size_t)sizeof(uint8_t)); (size_t)(lb_mul_u((uint64_t)(_lb_sq54), (uint64_t)(_lb_sq55), 64)); }); ({ void* _lb_fr = lb_x_memory_memcpy(_lb_sq51, _lb_sq52, _lb_sq53); if (!_lb_fr) lb_trap("null_foreign"); _lb_fr; }); }))));
-    }
 }

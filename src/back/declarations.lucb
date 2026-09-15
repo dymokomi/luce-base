@@ -144,49 +144,79 @@ struct Cutter:
         try self.blank_after(end)
 
 ## The declarations a library member must define because something outside it names them:
-## the module's public functions and globals; every private one a generic or `inline`
-## body reaches, since such a body is compiled in the program that uses it (§9.8); and,
-## when the module is fragments (§16.1), every private one another fragment's code names,
-## since that fragment is a member of its own. The rest a member keeps only while its own
-## code reaches it, so a branch the target folds away takes its helpers, and their
-## foreign calls, with it.
+## the module's public functions and globals; every private one a generic or `inline` body
+## reaches, since such a body is compiled in the program that uses it (§9.8); and, when
+## the module is fragments (§16.1), every private one another fragment's code names, since
+## that fragment is a member of its own. Only code reached from those roots counts, over
+## the tree the checker has already folded for the target, so a POSIX helper named only by
+## a branch the target dropped is not a root on Windows, nor is anything it alone reaches.
+## The rest a member keeps only while its own code reaches it.
 pub func member_roots(tree: ast.Node*, src: source.Source*) -> list.List[ast.Node*]!:
     var roots = try list.List[ast.Node*].create(256)
+    var owners = try list.List[Owned].create(256)
+    var work = try list.List[ast.Node*].create(256)
+    var seen = try list.List[ast.Node*].create(256)
     var cursor = tree.body
     while let d = cursor:
-        try note_root(&roots, d, none, src)
+        try seed(&roots, &work, &seen, &owners, d, none)
         if d.kind == ast.Kind.struct_ or d.kind == ast.Kind.enum_ or d.kind == ast.Kind.union_:
             var member = d.body
             while let m = member:
                 if m.kind == ast.Kind.func_:
-                    try note_root(&roots, m, d, src)
+                    try seed(&roots, &work, &seen, &owners, m, d)
                 member = m.next
         cursor = d.next
+    var next: usize = 0
+    while next < work.count:
+        let f = work.get(next)
+        next += 1
+        let everywhere = f.kind == ast.Kind.func_ and compiled_where_used(f, owner_of(owners.span(), f))
+        let home = "" if everywhere or src.segment_count == 0 else fragment_at(src, f.start)
+        try reached(&roots, &work, &seen, f.body, home, everywhere, src)
+        try reached(&roots, &work, &seen, f.left, home, everywhere, src)
     return roots
 
-func note_root(roots: list.List[ast.Node*]*, d: ast.Node*, owner: ast.Node*?, src: source.Source*) -> !:
-    let named = d.kind == ast.Kind.func_ or d.kind == ast.Kind.global or d.kind == ast.Kind.constant
-    if named and d.has(ast.flag_pub) and not is_root(roots.span(), d):
-        try roots.push(d)
-    if d.kind == ast.Kind.func_ and compiled_where_used(d, owner):
-        try reached(roots, d.body, "", src)
-    elif src.segment_count > 0 and (d.kind == ast.Kind.func_ or d.kind == ast.Kind.global or d.kind == ast.Kind.constant):
-        let home = fragment_at(src, d.start)
-        try reached(roots, d.body, home, src)
-        try reached(roots, d.left, home, src)
+## A function or method with the record it belongs to, for `compiled_where_used`.
+struct Owned:
+    var node: ast.Node*
+    var owner: ast.Node*?
 
-## Every declaration the expressions under `n` resolve to, siblings included; only those
-## outside `home` when it names a fragment.
-func reached(roots: list.List[ast.Node*]*, n: ast.Node*?, home: str, src: source.Source*) -> !:
+func owner_of(owners: Owned[], f: ast.Node*) -> ast.Node*?:
+    for o in owners:
+        if o.node == f:
+            return o.owner
+    return none
+
+## A declaration as the closure starts: public ones are roots, and every function is
+## reached whose body is compiled elsewhere.
+func seed(roots: list.List[ast.Node*]*, work: list.List[ast.Node*]*, seen: list.List[ast.Node*]*, owners: list.List[Owned]*, d: ast.Node*, owner: ast.Node*?) -> !:
+    let named = d.kind == ast.Kind.func_ or d.kind == ast.Kind.global or d.kind == ast.Kind.constant
+    if not named:
+        return
+    if d.kind == ast.Kind.func_:
+        try owners.push(Owned(node = d, owner = owner))
+    let public = d.has(ast.flag_pub) or (d.kind == ast.Kind.func_ and compiled_where_used(d, owner))
+    if public and not is_root(seen.span(), d):
+        try seen.push(d)
+        try work.push(d)
+    if d.has(ast.flag_pub) and not is_root(roots.span(), d):
+        try roots.push(d)
+
+## Every declaration the expressions under `n` resolve to, siblings included, joins the
+## closure; one outside `home`, or reached from a body compiled elsewhere, is a root.
+func reached(roots: list.List[ast.Node*]*, work: list.List[ast.Node*]*, seen: list.List[ast.Node*]*, n: ast.Node*?, home: str, everywhere: bool, src: source.Source*) -> !:
     var cursor = n
     while let e = cursor:
         if let r = e.resolved:
-            if (r.kind == ast.Kind.func_ or r.kind == ast.Kind.global or r.kind == ast.Kind.constant) and not is_root(roots.span(), r):
-                if home.length == 0 or fragment_at(src, r.start) != home:
+            if r.kind == ast.Kind.func_ or r.kind == ast.Kind.global or r.kind == ast.Kind.constant:
+                if not is_root(seen.span(), r):
+                    try seen.push(r)
+                    try work.push(r)
+                if (everywhere or (home.length > 0 and fragment_at(src, r.start) != home)) and not is_root(roots.span(), r):
                     try roots.push(r)
-        try reached(roots, e.left, home, src)
-        try reached(roots, e.right, home, src)
-        try reached(roots, e.body, home, src)
+        try reached(roots, work, seen, e.left, home, everywhere, src)
+        try reached(roots, work, seen, e.right, home, everywhere, src)
+        try reached(roots, work, seen, e.body, home, everywhere, src)
         cursor = e.next
 
 ## The fragment file the byte at `offset` came from.

@@ -2955,7 +2955,7 @@ extern uint32_t lb_files_13name_too_long;
 extern uint32_t lb_files_failed;
 extern uint32_t lb_files_15directory_cycle;
 extern uint32_t lb_files_11depth_limit;
-__attribute__((weak)) lb_interop_Type_0g1_files_Entries lb_files_12entries_type = ((lb_interop_Type_0g1_files_Entries){.name = ((lb_str){"Directory entries", 17}), .dispose = lb_files_Entries_close, .trace = ((void*)0), .closeable = true, .main_thread = false});
+__attribute__((weak)) lb_interop_Type_0g1_files_Entries lb_files_12entries_type = {.name = {"Directory entries", 17}, .dispose = lb_files_Entries_close, .trace = ((void*)0), .closeable = true, .main_thread = false};
 extern int16_t lb_process_7poll_in;
 extern int16_t lb_process_12poll_hang_up;
 extern int16_t lb_process_10poll_error;

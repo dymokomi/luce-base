@@ -2004,7 +2004,6 @@ typedef void* (*lb_fn_0F1_void_0p_void_0p_0o)(void*);
 LB_RES(bool, lb_r_bool);
 typedef int32_t (*lb_fn_0F1_u32_i32)(uint32_t);
 LB_RES(lb_span, lb_r_5c_str_0o_0s);
-LB_RES(lb_span, lb_r_u16_0s);
 LB_RES(int32_t, lb_r_i32);
 typedef struct lb_interop_Owner_0g1_gpu_FrameState {
     lb_ownership_Object header;
@@ -2633,9 +2632,7 @@ void lb_process_Termination_close(lb_process_Termination* self);
 lb_r_unit lb_process_25termination_posix_install(void);
 void lb_process_25termination_posix_restore(void);
 char*** lb_process_19environment_address(void);
-lb_r_str lb_process_16environment_name(char* lb_entry);
 lb_r_5c_str_0o_0s lb_process_17environment_posix(lb_cspan lb_overrides, char** lb_inherited);
-lb_r_u16_0s lb_process_19environment_windows(lb_cspan lb_overrides);
 lb_r_unit lb_process_Command_init(lb_process_Command* self, lb_str lb_program, lb_cspan lb_arguments, lb_str lb_directory, size_t lb_output_limit, lb_o_str_0c lb_environment);
 bool lb_process_Command_11is_finished(const lb_process_Command* self);
 int64_t lb_process_Command_revision(const lb_process_Command* self);
@@ -2644,9 +2641,7 @@ lb_r_interop_Owned_0g1_str lb_process_Command_output(const lb_process_Command* s
 lb_r_interop_Owned_0g1_str lb_process_Command_13error_message(const lb_process_Command* self);
 void lb_process_Command_cancel(const lb_process_Command* self);
 lb_r_unit lb_process_14command_append(struct lb_process_CommandState* lb_state, lb_cspan lb_bytes);
-size_t lb_process_13math_min_size(size_t lb_a, size_t lb_b);
 lb_r_i32 lb_process_15capture_command(int32_t lb_pid, struct lb_process_Capture* lb_out_, struct lb_process_Capture* lb_err, struct lb_process_CommandState* lb_state);
-lb_r_unit lb_process_15monitor_windows(void* lb_process, void* lb_child_thread, void* lb_out_, void* lb_err, struct lb_process_CommandState* lb_state);
 __attribute__((weak)) void lb_interop_Packet_0g1_str_init(lb_interop_Packet_0g1_str* self, lb_str lb_value, void* lb_storage, lb_fn_0F1_void_0p_unit lb_dispose);
 __attribute__((weak)) void lb_interop_Packet_0g1_str_release(const lb_interop_Packet_0g1_str* self);
 __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_init(lb_interop_Packet_0g1_u8_0c* self, lb_cspan lb_value, void* lb_storage, lb_fn_0F1_void_0p_unit lb_dispose);
@@ -2669,6 +2664,7 @@ __attribute__((weak)) void lb_interop_Owned_0g1_str_release(const lb_interop_Own
 __attribute__((weak)) void lb_interop_Owned_0g1_str_trace(const lb_interop_Owned_0g1_str* self, lb_fn_0F2_ownership_Object_0p_void_0p_unit lb_visit, void* lb_context);
 lb_r_interop_Owned_0g1_str lb_interop_9copy_text(lb_str lb_value);
 lb_str lb_strings_Builder_view(lb_strings_Builder* self);
+size_t lb_process_13math_min_size(size_t lb_a, size_t lb_b);
 size_t lb_process_13math_max_size(size_t lb_a, size_t lb_b);
 lb_r_u8_0s lb_memory_grow(lb_span lb_block, size_t lb_size);
 __attribute__((weak)) void lb_memory_copy_0g1_u8(lb_span lb_target, lb_cspan lb_source, size_t lb_count);
@@ -2913,7 +2909,7 @@ extern uint32_t lb_process_13console_close;
 extern uint32_t lb_process_14console_logoff;
 extern uint32_t lb_process_16console_shutdown;
 extern uint64_t lb_process_26console_acknowledgement_ms;
-__attribute__((weak)) lb_interop_Type_0g1_process_Command lb_process_12command_type = ((lb_interop_Type_0g1_process_Command){.name = ((lb_str){"Command", 7}), .dispose = lb_process_Command_close, .trace = ((void*)0), .closeable = true, .main_thread = false});
+__attribute__((weak)) lb_interop_Type_0g1_process_Command lb_process_12command_type = {.name = {"Command", 7}, .dispose = lb_process_Command_close, .trace = ((void*)0), .closeable = true, .main_thread = false};
 extern uint32_t lb_json_invalid;
 extern uint32_t lb_json_14limit_exceeded;
 extern lb_interop_Type_0g1_json_Value lb_json_10value_type;
@@ -3384,13 +3380,6 @@ lb_r_unit lb_process_14command_append(struct lb_process_CommandState* lb_state, 
     (void)(lb_sync_Mutex_unlock(&((lb_state)->lock)));
     return ((lb_r_unit){ .failed = false });
 }
-size_t lb_process_13math_min_size(size_t lb_a, size_t lb_b) {
-    const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/process/command/module.lucb:167:5";
-    size_t _lb_ret66 = ((((size_t)(lb_a)) < ((size_t)(lb_b))) ? lb_a : lb_b);
-    return _lb_ret66;
-    lb_trap("unreachable");
-}
 __attribute__((weak)) void lb_interop_Packet_0g1_str_init(lb_interop_Packet_0g1_str* self, lb_str lb_value, void* lb_storage, lb_fn_0F1_void_0p_unit lb_dispose) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
     lb_pos = "src/std/process/command/module.lucb:129:9";
@@ -3403,14 +3392,14 @@ __attribute__((weak)) void lb_interop_Packet_0g1_str_init(lb_interop_Packet_0g1_
 __attribute__((weak)) void lb_interop_Packet_0g1_str_release(const lb_interop_Packet_0g1_str* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
     lb_pos = "src/std/process/command/module.lucb:134:13";
-    void* _lb_o67 = self->storage;
-    if (_lb_o67 != ((void*)0)) {
-        void* lb_storage __attribute__((unused)) = _lb_o67;
+    void* _lb_o66 = self->storage;
+    if (_lb_o66 != ((void*)0)) {
+        void* lb_storage __attribute__((unused)) = _lb_o66;
         {
             lb_pos = "src/std/process/command/module.lucb:135:9";
-            (void)(((({ lb_fn_0F1_void_0p_unit _lb_o68 = self->dispose; if (_lb_o68 == ((void*)0)) {
+            (void)(((({ lb_fn_0F1_void_0p_unit _lb_o67 = self->dispose; if (_lb_o67 == ((void*)0)) {
                 (void)(lb_trap_text(((lb_str){"a packet has storage without a disposer", 39})));
-            } _lb_o68; })))(lb_storage));
+            } _lb_o67; })))(lb_storage));
         }
     }
 }
@@ -3426,14 +3415,14 @@ __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_init(lb_interop_Packet_0g
 __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_release(const lb_interop_Packet_0g1_u8_0c* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
     lb_pos = "src/std/process/command/module.lucb:134:13";
-    void* _lb_o69 = self->storage;
-    if (_lb_o69 != ((void*)0)) {
-        void* lb_storage __attribute__((unused)) = _lb_o69;
+    void* _lb_o68 = self->storage;
+    if (_lb_o68 != ((void*)0)) {
+        void* lb_storage __attribute__((unused)) = _lb_o68;
         {
             lb_pos = "src/std/process/command/module.lucb:135:9";
-            (void)(((({ lb_fn_0F1_void_0p_unit _lb_o70 = self->dispose; if (_lb_o70 == ((void*)0)) {
+            (void)(((({ lb_fn_0F1_void_0p_unit _lb_o69 = self->dispose; if (_lb_o69 == ((void*)0)) {
                 (void)(lb_trap_text(((lb_str){"a packet has storage without a disposer", 39})));
-            } _lb_o70; })))(lb_storage));
+            } _lb_o69; })))(lb_storage));
         }
     }
 }
@@ -3441,7 +3430,7 @@ void lb_process_15command_dispose(struct lb_process_CommandState* lb_state) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
     lb_pos = "src/std/process/command/module.lucb:119:5";
     {
-        lb_iface _lb_as71 = lb_memory_allocator;
+        lb_iface _lb_as70 = lb_memory_allocator;
         lb_memory_allocator = lb_memory_heap;
         {
             lb_pos = "src/std/process/command/module.lucb:120:9";
@@ -3457,40 +3446,40 @@ void lb_process_15command_dispose(struct lb_process_CommandState* lb_state) {
                 (void)(lb_strings_release((lb_state)->directory));
             }
             lb_pos = "src/std/process/command/module.lucb:125:9";
-            lb_span _lb_seq72 = ({ lb_span _lb_sv73 = (lb_state)->arguments; size_t _lb_sn73 = _lb_sv73.length; char** _lb_sd73 = (char**)_lb_sv73.data; size_t _lb_ss73 = 0; size_t _lb_se73 = (size_t)((lb_state)->argument_count); lb_check_index(_lb_ss73, _lb_sn73 + 1); lb_check_index(_lb_se73, _lb_sn73 + 1); if (_lb_ss73 > _lb_se73) lb_trap("index out of bounds"); (lb_span){ (void*)(_lb_sd73 + _lb_ss73), _lb_se73 - _lb_ss73 }; });
-            for (size_t _lb_i72 = 0; _lb_i72 < _lb_seq72.length; _lb_i72++) {
-                char* lb_argument __attribute__((unused)) = ((char**)_lb_seq72.data)[_lb_i72];
+            lb_span _lb_seq71 = ({ lb_span _lb_sv72 = (lb_state)->arguments; size_t _lb_sn72 = _lb_sv72.length; char** _lb_sd72 = (char**)_lb_sv72.data; size_t _lb_ss72 = 0; size_t _lb_se72 = (size_t)((lb_state)->argument_count); lb_check_index(_lb_ss72, _lb_sn72 + 1); lb_check_index(_lb_se72, _lb_sn72 + 1); if (_lb_ss72 > _lb_se72) lb_trap("index out of bounds"); (lb_span){ (void*)(_lb_sd72 + _lb_ss72), _lb_se72 - _lb_ss72 }; });
+            for (size_t _lb_i71 = 0; _lb_i71 < _lb_seq71.length; _lb_i71++) {
+                char* lb_argument __attribute__((unused)) = ((char**)_lb_seq71.data)[_lb_i71];
                 {
                     lb_pos = "src/std/process/command/module.lucb:126:13";
-                    (void)(lb_strings_release(({ const char* _lb_sb74 = lb_argument; size_t _lb_sl74 = _lb_sb74 == NULL ? 0 : strlen(_lb_sb74); (lb_str){ _lb_sb74, _lb_sl74 }; })));
+                    (void)(lb_strings_release(({ const char* _lb_sb73 = lb_argument; size_t _lb_sl73 = _lb_sb73 == NULL ? 0 : strlen(_lb_sb73); (lb_str){ _lb_sb73, _lb_sl73 }; })));
                 }
             }
             lb_pos = "src/std/process/command/module.lucb:127:9";
             if (!!((!(((size_t)(((char**)((lb_state)->arguments.data)))) == 0ULL)))) 
             {
                 lb_pos = "src/std/process/command/module.lucb:128:13";
-                { lb_span _lb_s75 = (lb_state)->arguments; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s75.data), lb_mul_u(_lb_s75.length, sizeof(char*), 64) }); }
+                { lb_span _lb_s74 = (lb_state)->arguments; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s74.data), lb_mul_u(_lb_s74.length, sizeof(char*), 64) }); }
             }
             lb_pos = "src/std/process/command/module.lucb:129:9";
-            lb_span _lb_seq76 = ({ lb_span _lb_sv77 = (lb_state)->environment; size_t _lb_sn77 = _lb_sv77.length; char** _lb_sd77 = (char**)_lb_sv77.data; size_t _lb_ss77 = 0; size_t _lb_se77 = (size_t)((lb_state)->environment_count); lb_check_index(_lb_ss77, _lb_sn77 + 1); lb_check_index(_lb_se77, _lb_sn77 + 1); if (_lb_ss77 > _lb_se77) lb_trap("index out of bounds"); (lb_span){ (void*)(_lb_sd77 + _lb_ss77), _lb_se77 - _lb_ss77 }; });
-            for (size_t _lb_i76 = 0; _lb_i76 < _lb_seq76.length; _lb_i76++) {
-                char* lb_override __attribute__((unused)) = ((char**)_lb_seq76.data)[_lb_i76];
+            lb_span _lb_seq75 = ({ lb_span _lb_sv76 = (lb_state)->environment; size_t _lb_sn76 = _lb_sv76.length; char** _lb_sd76 = (char**)_lb_sv76.data; size_t _lb_ss76 = 0; size_t _lb_se76 = (size_t)((lb_state)->environment_count); lb_check_index(_lb_ss76, _lb_sn76 + 1); lb_check_index(_lb_se76, _lb_sn76 + 1); if (_lb_ss76 > _lb_se76) lb_trap("index out of bounds"); (lb_span){ (void*)(_lb_sd76 + _lb_ss76), _lb_se76 - _lb_ss76 }; });
+            for (size_t _lb_i75 = 0; _lb_i75 < _lb_seq75.length; _lb_i75++) {
+                char* lb_override __attribute__((unused)) = ((char**)_lb_seq75.data)[_lb_i75];
                 {
                     lb_pos = "src/std/process/command/module.lucb:130:13";
-                    (void)(lb_strings_release(({ const char* _lb_sb78 = lb_override; size_t _lb_sl78 = _lb_sb78 == NULL ? 0 : strlen(_lb_sb78); (lb_str){ _lb_sb78, _lb_sl78 }; })));
+                    (void)(lb_strings_release(({ const char* _lb_sb77 = lb_override; size_t _lb_sl77 = _lb_sb77 == NULL ? 0 : strlen(_lb_sb77); (lb_str){ _lb_sb77, _lb_sl77 }; })));
                 }
             }
             lb_pos = "src/std/process/command/module.lucb:131:9";
             if (!!((!(((size_t)(((char**)((lb_state)->environment.data)))) == 0ULL)))) 
             {
                 lb_pos = "src/std/process/command/module.lucb:132:13";
-                { lb_span _lb_s79 = (lb_state)->environment; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s79.data), lb_mul_u(_lb_s79.length, sizeof(char*), 64) }); }
+                { lb_span _lb_s78 = (lb_state)->environment; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s78.data), lb_mul_u(_lb_s78.length, sizeof(char*), 64) }); }
             }
             lb_pos = "src/std/process/command/module.lucb:133:9";
             if (!!((((size_t)(((lb_state)->output.length))) > ((size_t)(0ULL))))) 
             {
                 lb_pos = "src/std/process/command/module.lucb:134:13";
-                { lb_span _lb_s80 = (lb_state)->output; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s80.data), lb_mul_u(_lb_s80.length, sizeof(uint8_t), 64) }); }
+                { lb_span _lb_s79 = (lb_state)->output; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s79.data), lb_mul_u(_lb_s79.length, sizeof(uint8_t), 64) }); }
             }
             lb_pos = "src/std/process/command/module.lucb:135:9";
             if (!!((((size_t)(((lb_state)->failure.length))) > ((size_t)(0ULL))))) 
@@ -3501,7 +3490,7 @@ void lb_process_15command_dispose(struct lb_process_CommandState* lb_state) {
             lb_pos = "src/std/process/command/module.lucb:137:9";
             lb_release_call(lb_memory_allocator, (lb_span){ (void*)(lb_state), sizeof(lb_process_CommandState) });
         }
-        lb_memory_allocator = _lb_as71;
+        lb_memory_allocator = _lb_as70;
     }
 }
 lb_r_str lb_process_12command_text(lb_str lb_text) {
@@ -3510,71 +3499,71 @@ lb_r_str lb_process_12command_text(lb_str lb_text) {
     if (!!((!lb_utf8_valid(((lb_cspan){(void*)(lb_text.data), lb_text.length}))))) 
     {
         lb_pos = "src/std/process/command/module.lucb:27:9";
-        lb_r_str _lb_err81 = ((lb_r_str){ .error = { .code = (int32_t)(lb_process_failed), .message = ((lb_str){"a command argument must be UTF-8", 32}) }, .failed = true });
-        return _lb_err81;
+        lb_r_str _lb_err80 = ((lb_r_str){ .error = { .code = (int32_t)(lb_process_failed), .message = ((lb_str){"a command argument must be UTF-8", 32}) }, .failed = true });
+        return _lb_err80;
     }
     lb_pos = "src/std/process/command/module.lucb:28:5";
-    lb_cspan _lb_seq82 = ((lb_cspan){(void*)(lb_text.data), lb_text.length});
-    for (size_t _lb_i82 = 0; _lb_i82 < _lb_seq82.length; _lb_i82++) {
-        uint8_t lb_byte __attribute__((unused)) = ((const uint8_t*)_lb_seq82.data)[_lb_i82];
+    lb_cspan _lb_seq81 = ((lb_cspan){(void*)(lb_text.data), lb_text.length});
+    for (size_t _lb_i81 = 0; _lb_i81 < _lb_seq81.length; _lb_i81++) {
+        uint8_t lb_byte __attribute__((unused)) = ((const uint8_t*)_lb_seq81.data)[_lb_i81];
         {
             lb_pos = "src/std/process/command/module.lucb:29:9";
             if (!!((lb_byte == 0ULL))) 
             {
                 lb_pos = "src/std/process/command/module.lucb:30:13";
-                lb_r_str _lb_err83 = ((lb_r_str){ .error = { .code = (int32_t)(lb_process_failed), .message = ((lb_str){"a command argument cannot contain NUL", 37}) }, .failed = true });
-                return _lb_err83;
+                lb_r_str _lb_err82 = ((lb_r_str){ .error = { .code = (int32_t)(lb_process_failed), .message = ((lb_str){"a command argument cannot contain NUL", 37}) }, .failed = true });
+                return _lb_err82;
             }
         }
     }
     lb_pos = "src/std/process/command/module.lucb:31:5";
     {
-        lb_iface _lb_as84 = lb_memory_allocator;
+        lb_iface _lb_as83 = lb_memory_allocator;
         lb_memory_allocator = lb_memory_heap;
         {
             lb_pos = "src/std/process/command/module.lucb:32:9";
-            lb_str _lb_ret85 = (({ lb_r_str _lb_r86 = lb_strings_copy(lb_text); if (_lb_r86.failed) {
-                lb_memory_allocator = _lb_as84;
-                return ((lb_r_str){ .error = _lb_r86.error, .failed = true });
-            } _lb_r86.value; }));
-            lb_memory_allocator = _lb_as84;
-            return ((lb_r_str){ .value = _lb_ret85, .failed = false });
+            lb_str _lb_ret84 = (({ lb_r_str _lb_r85 = lb_strings_copy(lb_text); if (_lb_r85.failed) {
+                lb_memory_allocator = _lb_as83;
+                return ((lb_r_str){ .error = _lb_r85.error, .failed = true });
+            } _lb_r85.value; }));
+            lb_memory_allocator = _lb_as83;
+            return ((lb_r_str){ .value = _lb_ret84, .failed = false });
         }
-        lb_memory_allocator = _lb_as84;
+        lb_memory_allocator = _lb_as83;
     }
     lb_trap("unreachable");
 }
 void lb_process_13command_entry(void* lb_raw) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
     lb_pos = "src/std/process/command/module.lucb:140:5";
-    struct lb_process_CommandState* lb_state __attribute__((unused)) = ((struct lb_process_CommandState*)((({ void* _lb_o87 = lb_raw; if (_lb_o87 == ((void*)0)) {
+    struct lb_process_CommandState* lb_state __attribute__((unused)) = ((struct lb_process_CommandState*)((({ void* _lb_o86 = lb_raw; if (_lb_o86 == ((void*)0)) {
         return;
-    } _lb_o87; }))));
+    } _lb_o86; }))));
     lb_pos = "src/std/process/command/module.lucb:141:5";
-    lb_t_0T3_i32_str_str lb_outcome __attribute__((unused)) = ({ lb_error _lb_fe88 __attribute__((unused)); lb_t_0T3_i32_str_str _lb_v88 __attribute__((unused)) = {}; _lb_v88 = ({ lb_r_0T3_i32_str_str _lb_r89 = lb_process_14run_controlled(lb_cstr_of((lb_state)->program), (lb_state)->arguments, lb_cstr_of((lb_state)->directory), ((((size_t)((lb_state)->environment_count)) > ((size_t)(0ULL))) ? ((lb_o_5c_str_0c){ .value = (lb_state)->environment, .present = true }) : ((lb_o_5c_str_0c){ .present = false })), lb_state); if (_lb_r89.failed) {
-        _lb_fe88 = _lb_r89.error;
-        goto _lb_fh88;
-    } _lb_r89.value; }); goto _lb_cd88; _lb_fh88: { 
-        lb_error lb_failure __attribute__((unused)) = _lb_fe88;
+    lb_t_0T3_i32_str_str lb_outcome __attribute__((unused)) = ({ lb_error _lb_fe87 __attribute__((unused)); lb_t_0T3_i32_str_str _lb_v87 __attribute__((unused)) = {}; _lb_v87 = ({ lb_r_0T3_i32_str_str _lb_r88 = lb_process_14run_controlled(lb_cstr_of((lb_state)->program), (lb_state)->arguments, lb_cstr_of((lb_state)->directory), ((((size_t)((lb_state)->environment_count)) > ((size_t)(0ULL))) ? ((lb_o_5c_str_0c){ .value = (lb_state)->environment, .present = true }) : ((lb_o_5c_str_0c){ .present = false })), lb_state); if (_lb_r88.failed) {
+        _lb_fe87 = _lb_r88.error;
+        goto _lb_fh87;
+    } _lb_r88.value; }); goto _lb_cd87; _lb_fh87: { 
+        lb_error lb_failure __attribute__((unused)) = _lb_fe87;
         {
             lb_pos = "src/std/process/command/module.lucb:142:9";
-            (lb_state)->failure = ({ lb_error _lb_fe90 __attribute__((unused)); lb_str _lb_v90 __attribute__((unused)) = {}; _lb_v90 = ({ lb_r_str _lb_r91 = lb_strings_copy((lb_failure.message)); if (_lb_r91.failed) {
-                _lb_fe90 = _lb_r91.error;
-                goto _lb_fh90;
-            } _lb_r91.value; }); goto _lb_cd90; _lb_fh90: { 
-                lb_error lb_ignored __attribute__((unused)) = _lb_fe90;
+            (lb_state)->failure = ({ lb_error _lb_fe89 __attribute__((unused)); lb_str _lb_v89 __attribute__((unused)) = {}; _lb_v89 = ({ lb_r_str _lb_r90 = lb_strings_copy((lb_failure.message)); if (_lb_r90.failed) {
+                _lb_fe89 = _lb_r90.error;
+                goto _lb_fh89;
+            } _lb_r90.value; }); goto _lb_cd89; _lb_fh89: { 
+                lb_error lb_ignored __attribute__((unused)) = _lb_fe89;
                 {
                     lb_pos = "src/std/process/command/module.lucb:142:9";
-                    _lb_v90 = ((lb_str){"", 0});
-                    goto _lb_cd90;
+                    _lb_v89 = ((lb_str){"", 0});
+                    goto _lb_cd89;
                 }
-            } _lb_cd90: __attribute__((unused)); _lb_v90; });
+            } _lb_cd89: __attribute__((unused)); _lb_v89; });
             lb_pos = "src/std/process/command/module.lucb:143:9";
             (void)((atomic_store_explicit(&((lb_state)->done), (bool)(true), memory_order_release), (void)0));
             lb_pos = "src/std/process/command/module.lucb:144:9";
             return;
         }
-    } _lb_cd88: __attribute__((unused)); _lb_v88; });
+    } _lb_cd87: __attribute__((unused)); _lb_v87; });
     lb_pos = "src/std/process/command/module.lucb:145:5";
     (lb_state)->code = ((int64_t)lb_conv_s((int64_t)((lb_outcome.a0)), 32, 1, 64, 1, 1));
     lb_pos = "src/std/process/command/module.lucb:146:5";
@@ -3587,34 +3576,34 @@ void lb_process_13command_entry(void* lb_raw) {
 struct lb_process_CommandState* lb_process_Command_state(const lb_process_Command* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
     lb_pos = "src/std/process/command/module.lucb:62:9";
-    struct lb_process_CommandState* _lb_ret94 = ({ struct lb_process_CommandState* _lb_o95 = self->storage; if (_lb_o95 == ((void*)0)) {
+    struct lb_process_CommandState* _lb_ret93 = ({ struct lb_process_CommandState* _lb_o94 = self->storage; if (_lb_o94 == ((void*)0)) {
         (void)(lb_trap_text(((lb_str){"the command is closed", 21})));
-    } _lb_o95; });
-    return _lb_ret94;
+    } _lb_o94; });
+    return _lb_ret93;
     lb_trap("unreachable");
 }
 __attribute__((weak)) lb_interop_Owned_0g1_str lb_interop_Owned_0g1_str_clone(const lb_interop_Owned_0g1_str* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
     lb_pos = "src/std/process/termination/module.lucb:29:9";
-    struct lb_ownership_Object* _lb_o96 = self->owner;
-    if (_lb_o96 != ((void*)0)) {
-        struct lb_ownership_Object* lb_owner __attribute__((unused)) = _lb_o96;
+    struct lb_ownership_Object* _lb_o95 = self->owner;
+    if (_lb_o95 != ((void*)0)) {
+        struct lb_ownership_Object* lb_owner __attribute__((unused)) = _lb_o95;
         {
             lb_pos = "src/std/process/termination/module.lucb:30:13";
             (void)(((void)(lb_ownership_retain(lb_owner))));
         }
     }
     lb_pos = "src/std/process/termination/module.lucb:31:9";
-    lb_interop_Owned_0g1_str _lb_ret97 = (*self);
-    return _lb_ret97;
+    lb_interop_Owned_0g1_str _lb_ret96 = (*self);
+    return _lb_ret96;
     lb_trap("unreachable");
 }
 __attribute__((weak)) void lb_interop_Owned_0g1_str_release(const lb_interop_Owned_0g1_str* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
     lb_pos = "src/std/process/termination/module.lucb:34:9";
-    struct lb_ownership_Object* _lb_o98 = self->owner;
-    if (_lb_o98 != ((void*)0)) {
-        struct lb_ownership_Object* lb_owner __attribute__((unused)) = _lb_o98;
+    struct lb_ownership_Object* _lb_o97 = self->owner;
+    if (_lb_o97 != ((void*)0)) {
+        struct lb_ownership_Object* lb_owner __attribute__((unused)) = _lb_o97;
         {
             lb_pos = "src/std/process/termination/module.lucb:35:13";
             (void)(lb_ownership_release(lb_owner));
@@ -3624,9 +3613,9 @@ __attribute__((weak)) void lb_interop_Owned_0g1_str_release(const lb_interop_Own
 __attribute__((weak)) void lb_interop_Owned_0g1_str_trace(const lb_interop_Owned_0g1_str* self, lb_fn_0F2_ownership_Object_0p_void_0p_unit lb_visit, void* lb_context) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
     lb_pos = "src/std/process/termination/module.lucb:38:9";
-    struct lb_ownership_Object* _lb_o99 = self->owner;
-    if (_lb_o99 != ((void*)0)) {
-        struct lb_ownership_Object* lb_owner __attribute__((unused)) = _lb_o99;
+    struct lb_ownership_Object* _lb_o98 = self->owner;
+    if (_lb_o98 != ((void*)0)) {
+        struct lb_ownership_Object* lb_owner __attribute__((unused)) = _lb_o98;
         {
             lb_pos = "src/std/process/termination/module.lucb:39:1";
             (void)(lb_ownership_12check_thread(lb_owner));
@@ -3634,6 +3623,13 @@ __attribute__((weak)) void lb_interop_Owned_0g1_str_trace(const lb_interop_Owned
             (void)((lb_visit)(lb_owner, lb_context));
         }
     }
+}
+size_t lb_process_13math_min_size(size_t lb_a, size_t lb_b) {
+    const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
+    lb_pos = "src/std/process/command/module.lucb:167:5";
+    size_t _lb_ret99 = ((((size_t)(lb_a)) < ((size_t)(lb_b))) ? lb_a : lb_b);
+    return _lb_ret99;
+    lb_trap("unreachable");
 }
 size_t lb_process_13math_max_size(size_t lb_a, size_t lb_b) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;

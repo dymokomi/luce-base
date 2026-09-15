@@ -2722,7 +2722,7 @@ extern uint32_t lb_strings_13invalid_radix;
 extern uint32_t lb_strings_14invalid_number;
 extern uint32_t lb_strings_19number_out_of_range;
 extern uint32_t lb_strings_17conversion_failed;
-__attribute__((weak)) lb_str lb_unicode_version = ((lb_str){"17.0.0", 6});
+__attribute__((weak)) lb_str lb_unicode_version = {"17.0.0", 6};
 extern lb_str lb_unicode_18canonical_mappings;
 extern lb_str lb_unicode_22compatibility_mappings;
 extern lb_str lb_unicode_14upper_mappings;

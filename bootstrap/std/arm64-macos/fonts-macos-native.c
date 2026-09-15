@@ -1991,7 +1991,6 @@ LB_RES(bool, lb_r_bool);
 typedef int32_t (*lb_fn_0F1_u32_i32)(uint32_t);
 LB_RES(double, lb_r_f64);
 LB_RES(lb_fonts_Bitmap, lb_r_fonts_Bitmap);
-LB_RES(lb_span, lb_r_u8_0s);
 typedef struct lb_interop_Owner_0g1_gpu_FrameState {
     lb_ownership_Object header;
     lb_ownership_Info information;
@@ -2611,7 +2610,6 @@ lb_r_unit lb_fonts_Face_init(lb_fonts_Face* self, double lb_size, lb_str lb_fami
 lb_r_f64 lb_fonts_Face_measure(const lb_fonts_Face* self, lb_str lb_text);
 lb_r_fonts_Bitmap lb_fonts_Face_rasterize(const lb_fonts_Face* self, lb_str lb_text, double lb_scale);
 void lb_fonts_Face_close(lb_fonts_Face* self);
-lb_r_u8_0s lb_fonts_12family_bytes(lb_str lb_text);
 lb_r_fonts_NativeFace lb_fonts_8mac_face(double lb_size, lb_str lb_family);
 lb_r_unit lb_fonts_10mac_raster(lb_fonts_Face lb_face, lb_str lb_text, double lb_scale, struct lb_fonts_Bitmap* lb_bitmap);
 __attribute__((weak)) void lb_interop_Packet_0g1_str_init(lb_interop_Packet_0g1_str* self, lb_str lb_value, void* lb_storage, lb_fn_0F1_void_0p_unit lb_dispose);

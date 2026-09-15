@@ -891,141 +891,6 @@ lb_process_14run_controlled:
     .seh_endproc
 
     .p2align 4
-    .globl lb_process_terminate
-lb_process_terminate:
-    .seh_proc lb_process_terminate
-    pushq %rbp
-    .seh_pushreg %rbp
-    subq $240, %rsp
-    .seh_stackalloc 240
-    movq %rsp, %rbp
-    .seh_setframe %rbp, 0
-    movq %rdi, 232(%rbp)
-    .seh_savereg %rdi, 232
-    movq %rsi, 224(%rbp)
-    .seh_savereg %rsi, 224
-    movdqu %xmm6, 208(%rbp)
-    .seh_savexmm %xmm6, 208
-    movdqu %xmm7, 192(%rbp)
-    .seh_savexmm %xmm7, 192
-    movdqu %xmm8, 176(%rbp)
-    .seh_savexmm %xmm8, 176
-    movdqu %xmm9, 160(%rbp)
-    .seh_savexmm %xmm9, 160
-    movdqu %xmm10, 144(%rbp)
-    .seh_savexmm %xmm10, 144
-    movdqu %xmm11, 128(%rbp)
-    .seh_savexmm %xmm11, 128
-    movdqu %xmm12, 112(%rbp)
-    .seh_savexmm %xmm12, 112
-    movdqu %xmm13, 96(%rbp)
-    .seh_savexmm %xmm13, 96
-    movdqu %xmm14, 80(%rbp)
-    .seh_savexmm %xmm14, 80
-    movdqu %xmm15, 64(%rbp)
-    .seh_savexmm %xmm15, 64
-    movq %rbx, 56(%rbp)
-    .seh_savereg %rbx, 56
-    movq %r12, 48(%rbp)
-    .seh_savereg %r12, 48
-    movq %r13, 40(%rbp)
-    .seh_savereg %r13, 40
-    movq %r14, 32(%rbp)
-    .seh_savereg %r14, 32
-    movq %r15, 24(%rbp)
-    .seh_savereg %r15, 24
-    .seh_endprologue
-    movq %rcx, 256(%rbp)
-    movq %rdx, 264(%rbp)
-    movq %r8, 272(%rbp)
-    movq %r9, 280(%rbp)
-    movq 256(%rbp), %rax
-    movl %eax, 8(%rbp)
-    leaq 8(%rbp), %rbx
-    movq %rbx, %r10
-    movslq (%r10), %rbx
-    subq $32, %rsp
-    movl %ebx, %eax
-    movq %rax, 0(%rsp)
-    movl $9, %eax
-    movq %rax, 8(%rsp)
-    movq 0(%rsp), %rcx
-    movq 8(%rsp), %rdx
-    call kill
-    addq $32, %rsp
-    movl %eax, %r12d
-    leaq 4(%rbp), %r12
-    movl $0, %eax
-    movq %r12, %r10
-    movl %eax, (%r10)
-    leaq lb_c_interrupted(%rip), %r13
-.L3_1:
-    subq $32, %rsp
-    movl %ebx, %eax
-    movq %rax, 0(%rsp)
-    movq %r12, %rax
-    movq %rax, 8(%rsp)
-    movl $0, %eax
-    movq %rax, 16(%rsp)
-    movq 0(%rsp), %rcx
-    movq 8(%rsp), %rdx
-    movq 16(%rsp), %r8
-    call waitpid
-    addq $32, %rsp
-    movl %eax, %r14d
-    movl $0, %ecx
-    cmpl %ecx, %r14d
-    setl %al
-    movzbl %al, %r14d
-    testl %r14d, %r14d
-    jne .L3_4
-    jmp .L3_7
-.L3_7:
-    movl %r14d, %r15d
-    jmp .L3_5
-.L3_4:
-    subq $32, %rsp
-    call lb_c_errno
-    addq $32, %rsp
-    movl %eax, %r14d
-    movq %r13, %r10
-    movslq (%r10), %r15
-    cmpl %r15d, %r14d
-    sete %al
-    movzbl %al, %r15d
-.L3_5:
-    movzbl %r15b, %r14d
-    testl %r14d, %r14d
-    jne .L3_2
-    jmp .L3_3
-.L3_2:
-    jmp .L3_1
-.L3_6:
-    jmp .L3_1
-.L3_3:
-    movq 232(%rbp), %rdi
-    movq 224(%rbp), %rsi
-    movdqu 208(%rbp), %xmm6
-    movdqu 192(%rbp), %xmm7
-    movdqu 176(%rbp), %xmm8
-    movdqu 160(%rbp), %xmm9
-    movdqu 144(%rbp), %xmm10
-    movdqu 128(%rbp), %xmm11
-    movdqu 112(%rbp), %xmm12
-    movdqu 96(%rbp), %xmm13
-    movdqu 80(%rbp), %xmm14
-    movdqu 64(%rbp), %xmm15
-    movq 56(%rbp), %rbx
-    movq 48(%rbp), %r12
-    movq 40(%rbp), %r13
-    movq 32(%rbp), %r14
-    movq 24(%rbp), %r15
-    leaq 240(%rbp), %rsp
-    popq %rbp
-    ret
-    .seh_endproc
-
-    .p2align 4
     .globl lb_process_release
 lb_process_release:
     .seh_proc lb_process_release
@@ -1086,8 +951,8 @@ lb_process_release:
     movq (%r10), %r12
     movq $0, %rcx
     cmpq %rcx, %r12
-    jbe .L4_2
-.L4_1:
+    jbe .L3_2
+.L3_1:
     movq %rbx, %r10
     movq (%r10), %r13
     leaq 24(%rbp), %r14
@@ -1117,9 +982,9 @@ lb_process_release:
     movq %r14, %r10
     movq (%r10), %r14
     testq %r14, %r14
-    jne .L4_5
-    jmp .L4_4
-.L4_5:
+    jne .L3_5
+    jmp .L3_4
+.L3_5:
     movq $16, %rcx
     movq %r14, %rbx
     addq %rcx, %rbx
@@ -1139,10 +1004,10 @@ lb_process_release:
     movq %rbx, %r11
     call *%r11
     addq $48, %rsp
-.L4_4:
-    jmp .L4_3
-.L4_2:
-.L4_3:
+.L3_4:
+    jmp .L3_3
+.L3_2:
+.L3_3:
     movq 264(%rbp), %rdi
     movq 256(%rbp), %rsi
     movdqu 240(%rbp), %xmm6
@@ -1306,12 +1171,12 @@ lb_memory_copy_0g1_u8:
     seta %al
     movzbl %al, %r13d
     testl %r13d, %r13d
-    jne .L6_11
-    jmp .L6_4
-.L6_11:
+    jne .L5_11
+    jmp .L5_4
+.L5_11:
     movl %r13d, %r14d
-    jmp .L6_5
-.L6_4:
+    jmp .L5_5
+.L5_4:
     leaq 32(%rbp), %r13
     movq $8, %rcx
     addq %rcx, %r13
@@ -1320,12 +1185,12 @@ lb_memory_copy_0g1_u8:
     cmpq %r13, %rbx
     seta %al
     movzbl %al, %r14d
-.L6_5:
+.L5_5:
     movzbl %r14b, %r13d
     testl %r13d, %r13d
-    jne .L6_1
-    jmp .L6_2
-.L6_1:
+    jne .L5_1
+    jmp .L5_2
+.L5_1:
     leaq .Ltext_7(%rip), %r13
     leaq 0(%rbp), %r14
     movq %r14, %r10
@@ -1350,13 +1215,13 @@ lb_memory_copy_0g1_u8:
     movq 8(%rsp), %rdx
     call lb_core_12trap_text_at
     addq $48, %rsp
-    jmp .L6_3
-.L6_2:
-.L6_3:
+    jmp .L5_3
+.L5_2:
+.L5_3:
     movq $0, %rcx
     cmpq %rcx, %rbx
-    jbe .L6_7
-.L6_6:
+    jbe .L5_7
+.L5_6:
     movq %r12, %r10
     movq (%r10), %r13
     leaq 32(%rbp), %r14
@@ -1376,9 +1241,9 @@ lb_memory_copy_0g1_u8:
     addq $32, %rsp
     movq %rax, %r13
     testq %r13, %r13
-    jne .L6_9
-    jmp .L6_10
-.L6_10:
+    jne .L5_9
+    jmp .L5_10
+.L5_10:
     leaq .Ltext_26(%rip), %rdi
     leaq .Ltext_27(%rip), %rsi
     movq %rdx, %r8
@@ -1387,10 +1252,10 @@ lb_memory_copy_0g1_u8:
     subq $32, %rsp
     call lb_core_7trap_at
     addq $32, %rsp
-.L6_9:
-    jmp .L6_8
-.L6_7:
-.L6_8:
+.L5_9:
+    jmp .L5_8
+.L5_7:
+.L5_8:
     movq 264(%rbp), %rdi
     movq 256(%rbp), %rsi
     movdqu 240(%rbp), %xmm6

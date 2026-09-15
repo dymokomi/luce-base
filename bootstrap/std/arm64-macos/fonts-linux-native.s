@@ -13,7 +13,6 @@ _lb_fonts_12linux_native_0init:
     .p2align 2
     .globl _lb_memory_copy_0g1_u8
     .weak_definition _lb_memory_copy_0g1_u8
-    .no_dead_strip _lb_memory_copy_0g1_u8
 _lb_memory_copy_0g1_u8:
     stp x29, x30, [sp, #-16]!
     mov x29, sp

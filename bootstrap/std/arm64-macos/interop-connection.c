@@ -2812,7 +2812,7 @@ extern uint32_t lb_interop_expired;
 extern lb_ownership_Info lb_interop_10lease_info;
 extern uint32_t lb_interop_8no_error;
 extern lb_ownership_Info lb_interop_9text_info;
-__attribute__((weak)) lb_interop_Type_0g1_interop_Connection lb_interop_15connection_type = ((lb_interop_Type_0g1_interop_Connection){.name = ((lb_str){"Connection", 10}), .dispose = lb_interop_Connection_destroy, .trace = lb_interop_Connection_trace, .closeable = false, .main_thread = false});
+__attribute__((weak)) lb_interop_Type_0g1_interop_Connection lb_interop_15connection_type = {.name = {"Connection", 10}, .dispose = lb_interop_Connection_destroy, .trace = lb_interop_Connection_trace, .closeable = false, .main_thread = false};
 extern lb_interop_Transfer_0g1_str lb_interop_13text_transfer;
 extern lb_interop_Transfer_0g1_u8_0c lb_interop_14bytes_transfer;
 extern _Thread_local struct lb_net_Cancellation* lb_interop_26active_worker_cancellation;

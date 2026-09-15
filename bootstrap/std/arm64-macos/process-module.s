@@ -3018,7 +3018,6 @@ L9_8:
     .p2align 2
     .globl _lb_process_15release_storage_0g1_5c_str_0o
     .weak_definition _lb_process_15release_storage_0g1_5c_str_0o
-    .no_dead_strip _lb_process_15release_storage_0g1_5c_str_0o
 _lb_process_15release_storage_0g1_5c_str_0o:
     stp x29, x30, [sp, #-16]!
     mov x29, sp

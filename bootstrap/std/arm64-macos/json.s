@@ -5859,6 +5859,7 @@ L34_7:
     .p2align 2
     .globl _lb_interop_13dispose_owner_0g1_json_Value
     .weak_definition _lb_interop_13dispose_owner_0g1_json_Value
+    .no_dead_strip _lb_interop_13dispose_owner_0g1_json_Value
 _lb_interop_13dispose_owner_0g1_json_Value:
     stp x29, x30, [sp, #-16]!
     mov x29, sp

@@ -1982,7 +1982,6 @@ typedef struct lb_interop_ViewType_0g1_gpu_RenderTarget {
 typedef struct lb_a_u32_0a271 { uint32_t d[271]; } lb_a_u32_0a271;
 typedef struct lb_a_u32_0a1021 { uint32_t d[1021]; } lb_a_u32_0a1021;
 typedef struct lb_a_5c_str_0a2 { char* d[2]; } lb_a_5c_str_0a2;
-LB_RES(void*, lb_r_void_0p);
 typedef void (*lb_fn_0F0_unit)(void);
 typedef void* (*lb_fn_0F1_void_0p_void_0p_0o)(void*);
 LB_RES(bool, lb_r_bool);
@@ -2001,7 +2000,7 @@ typedef struct lb_interop_View_0g1_gpu_RenderTarget {
     struct lb_interop_ViewOwner_0g1_gpu_RenderTarget* owner;
 } lb_interop_View_0g1_gpu_RenderTarget;
 LB_RES(lb_interop_View_0g1_gpu_RenderTarget, lb_r_interop_View_0g1_gpu_RenderTarget);
-LB_RES(struct lb_gpu_MetalDrawing*, lb_r_gpu_MetalDrawing_0p);
+LB_RES(void*, lb_r_void_0p);
 LB_RES(lb_cspan, lb_r_5c_str_0c);
 LB_RES(uint64_t, lb_r_u64);
 LB_RES(struct lb_gpu_VulkanDevice*, lb_r_gpu_VulkanDevice_0p);
@@ -2680,13 +2679,6 @@ lb_r_gpu_PresentResult lb_gpu_21backend_clear_present(struct lb_gpu_DeviceState*
 lb_r_unit lb_gpu_20backend_surface_wait(struct lb_gpu_DeviceState* lb_device, void* lb_native);
 lb_r_gpu_PresentResult lb_gpu_14backend_render(struct lb_gpu_DeviceState* lb_device, lb_window_Presentation lb_host, void* lb_native, lb_gpu_Canvas lb_canvas, lb_gpu_Color lb_color);
 void lb_gpu_23backend_surface_destroy(struct lb_gpu_DeviceState* lb_device, lb_window_Presentation lb_host, void* lb_native);
-void* lb_gpu_9metal_sel(char* lb_name);
-lb_r_void_0p lb_gpu_11metal_class(char* lb_name);
-void* lb_gpu_14metal_required(void* lb_object);
-lb_r_gpu_MetalDrawing_0p lb_gpu_18metal_drawing_open(struct lb_gpu_MetalDevice* lb_device);
-lb_r_void_0p lb_gpu_11metal_depth(struct lb_gpu_MetalDevice* lb_device, struct lb_gpu_MetalDrawing* lb_state, uint64_t lb_width, uint64_t lb_height);
-void lb_gpu_21metal_drawing_destroy(struct lb_gpu_MetalDrawing* lb_state);
-void lb_gpu_12metal_encode(void* lb_encoder, struct lb_gpu_MetalDrawing* lb_drawing, void* lb_buffer, void* lb_masks, lb_gpu_Canvas lb_canvas, uint64_t lb_width, uint64_t lb_height);
 lb_r_5c_str_0c lb_gpu_30vulkan_presentation_extensions(void);
 bool lb_gpu_27vulkan_presentation_support(uint64_t lb_physical, uint32_t lb_family);
 lb_r_u64 lb_gpu_27vulkan_presentation_surface(uint64_t lb_instance, lb_window_Presentation lb_host);
@@ -3108,32 +3100,6 @@ __attribute__((weak)) lb_r_interop_Packet_0g1_u8_0c lb_interop_Transfer_0g1_u8_0
     return ((lb_r_interop_Packet_0g1_u8_0c){ .value = _lb_ret5, .failed = false });
     lb_trap("unreachable");
 }
-void* lb_gpu_9metal_sel(char* lb_name) {
-    const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/gpu/metal/objc.lucb:60:5";
-    void* _lb_ret7 = ({ void* _lb_fr = lb_x_gpu_16sel_registerName(lb_name); if (!_lb_fr) lb_trap("null_foreign"); _lb_fr; });
-    return _lb_ret7;
-    lb_trap("unreachable");
-}
-lb_r_void_0p lb_gpu_11metal_class(char* lb_name) {
-    const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/gpu/metal/objc.lucb:63:5";
-    void* _lb_ret8 = ({ void* _lb_o9 = lb_x_gpu_13objc_getClass(lb_name); if (_lb_o9 == ((void*)0)) {
-        lb_r_void_0p _lb_err10 = ((lb_r_void_0p){ .error = { .code = (int32_t)(lb_gpu_failed), .message = ((lb_str){"a required Metal class is unavailable; check framework linkage", 62}) }, .failed = true });
-        return _lb_err10;
-    } _lb_o9; });
-    return ((lb_r_void_0p){ .value = _lb_ret8, .failed = false });
-    lb_trap("unreachable");
-}
-void* lb_gpu_14metal_required(void* lb_object) {
-    const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/gpu/metal/objc.lucb:66:5";
-    void* _lb_ret11 = ({ void* _lb_o12 = lb_object; if (_lb_o12 == ((void*)0)) {
-        (void)(lb_trap_text(((lb_str){"the Metal backend lost an owned object", 38})));
-    } _lb_o12; });
-    return _lb_ret11;
-    lb_trap("unreachable");
-}
 __attribute__((weak)) void lb_interop_Packet_0g1_str_init(lb_interop_Packet_0g1_str* self, lb_str lb_value, void* lb_storage, lb_fn_0F1_void_0p_unit lb_dispose) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
     lb_pos = "src/std/gpu/metal/drawing.lucb:46:5";
@@ -3146,14 +3112,14 @@ __attribute__((weak)) void lb_interop_Packet_0g1_str_init(lb_interop_Packet_0g1_
 __attribute__((weak)) void lb_interop_Packet_0g1_str_release(const lb_interop_Packet_0g1_str* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
     lb_pos = "src/std/gpu/metal/drawing.lucb:51:1";
-    void* _lb_o13 = self->storage;
-    if (_lb_o13 != ((void*)0)) {
-        void* lb_storage __attribute__((unused)) = _lb_o13;
+    void* _lb_o7 = self->storage;
+    if (_lb_o7 != ((void*)0)) {
+        void* lb_storage __attribute__((unused)) = _lb_o7;
         {
             lb_pos = "src/std/gpu/metal/drawing.lucb:52:1";
-            (void)(((({ lb_fn_0F1_void_0p_unit _lb_o14 = self->dispose; if (_lb_o14 == ((void*)0)) {
+            (void)(((({ lb_fn_0F1_void_0p_unit _lb_o8 = self->dispose; if (_lb_o8 == ((void*)0)) {
                 (void)(lb_trap_text(((lb_str){"a packet has storage without a disposer", 39})));
-            } _lb_o14; })))(lb_storage));
+            } _lb_o8; })))(lb_storage));
         }
     }
 }
@@ -3169,14 +3135,14 @@ __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_init(lb_interop_Packet_0g
 __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_release(const lb_interop_Packet_0g1_u8_0c* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
     lb_pos = "src/std/gpu/metal/drawing.lucb:51:1";
-    void* _lb_o15 = self->storage;
-    if (_lb_o15 != ((void*)0)) {
-        void* lb_storage __attribute__((unused)) = _lb_o15;
+    void* _lb_o9 = self->storage;
+    if (_lb_o9 != ((void*)0)) {
+        void* lb_storage __attribute__((unused)) = _lb_o9;
         {
             lb_pos = "src/std/gpu/metal/drawing.lucb:52:1";
-            (void)(((({ lb_fn_0F1_void_0p_unit _lb_o16 = self->dispose; if (_lb_o16 == ((void*)0)) {
+            (void)(((({ lb_fn_0F1_void_0p_unit _lb_o10 = self->dispose; if (_lb_o10 == ((void*)0)) {
                 (void)(lb_trap_text(((lb_str){"a packet has storage without a disposer", 39})));
-            } _lb_o16; })))(lb_storage));
+            } _lb_o10; })))(lb_storage));
         }
     }
 }

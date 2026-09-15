@@ -2630,22 +2630,7 @@ lb_r_bool lb_window_Presentation_visible(const lb_window_Presentation* self);
 lb_r_void_0p lb_window_Presentation_10macos_view(const lb_window_Presentation* self);
 lb_r_void_0p lb_window_Presentation_14windows_handle(const lb_window_Presentation* self);
 void lb_window_Presentation_destroy(lb_window_Presentation* self);
-void* lb_window_sel(char* lb_name);
-lb_r_void_0p lb_window_12native_class(char* lb_name);
 void* lb_window_required(void* lb_object);
-struct lb_window_State* lb_window_9get_state(void* lb_object);
-void lb_window_9set_state(void* lb_object, struct lb_window_State* lb_state);
-lb_r_unit lb_window_10add_method(void* lb_native_type, char* lb_name, void* lb_implementation, char* lb_encoding);
-bool lb_window_14close_callback(void* lb_object, void* lb_selector, void* lb_sender);
-void lb_window_15resize_callback(void* lb_object, void* lb_selector, void* lb_notification);
-void lb_window_14focus_callback(void* lb_object, void* lb_selector, void* lb_notification);
-bool lb_window_12view_accepts(void* lb_object, void* lb_selector);
-void lb_window_12key_callback(void* lb_object, void* lb_selector, void* lb_native);
-void lb_window_16pointer_callback(void* lb_object, void* lb_selector, void* lb_native);
-lb_r_void_0p lb_window_10mac_cursor(uint8_t lb_cursor);
-void lb_window_15cursor_callback(void* lb_object, void* lb_selector, void* lb_event);
-lb_r_unit lb_window_23mac_register_text_input(void* lb_native_type);
-void lb_window_16mac_clear_marked(struct lb_window_State* lb_state);
 lb_r_window_State_0p lb_window_8win_open(lb_window_Options lb_options);
 lb_window_Size lb_window_8win_size(struct lb_window_State* lb_state);
 lb_r_unit lb_window_10win_resize(struct lb_window_State* lb_state, uint32_t lb_width, uint32_t lb_height);
@@ -2659,18 +2644,6 @@ __attribute__((weak)) void lb_interop_Packet_0g1_str_init(lb_interop_Packet_0g1_
 __attribute__((weak)) void lb_interop_Packet_0g1_str_release(const lb_interop_Packet_0g1_str* self);
 __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_init(lb_interop_Packet_0g1_u8_0c* self, lb_cspan lb_value, void* lb_storage, lb_fn_0F1_void_0p_unit lb_dispose);
 __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_release(const lb_interop_Packet_0g1_u8_0c* self);
-void lb_window_15mac_insert_text(void* lb_object, void* lb_selector, void* lb_value, LuceWindowMacRange lb_replacement);
-void lb_window_14mac_set_marked(void* lb_object, void* lb_selector, void* lb_value, LuceWindowMacRange lb_selection, LuceWindowMacRange lb_replacement);
-void lb_window_10mac_unmark(void* lb_object, void* lb_selector);
-bool lb_window_14mac_has_marked(void* lb_object, void* lb_selector);
-LuceWindowMacRange lb_window_16mac_marked_range(void* lb_object, void* lb_selector);
-LuceWindowMacRange lb_window_18mac_selected_range(void* lb_object, void* lb_selector);
-void* lb_window_21mac_marked_attributes(void* lb_object, void* lb_selector);
-void* lb_window_18mac_text_substring(void* lb_object, void* lb_selector, LuceWindowMacRange lb_range, struct LuceWindowMacRange* lb_actual);
-size_t lb_window_14mac_text_index(void* lb_object, void* lb_selector, LuceWindowMacPoint lb_point);
-LuceWindowMacRect lb_window_13mac_text_rect(void* lb_object, void* lb_selector, LuceWindowMacRange lb_range, struct LuceWindowMacRange* lb_actual);
-void lb_window_16mac_text_command(void* lb_object, void* lb_selector, void* lb_command);
-void* lb_window_14mac_plain_text(void* lb_value);
 
 extern lb_str lb_platform_name;
 extern bool lb_platform_macos;
@@ -3074,84 +3047,6 @@ __attribute__((weak)) lb_r_interop_Packet_0g1_u8_0c lb_interop_Transfer_0g1_u8_0
     return ((lb_r_interop_Packet_0g1_u8_0c){ .value = _lb_ret5, .failed = false });
     lb_trap("unreachable");
 }
-lb_r_unit lb_window_23mac_register_text_input(void* lb_native_type) {
-    const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/window/macos/text.lucb:6:5";
-    void* lb_protocol __attribute__((unused)) = ({ void* _lb_o7 = lb_x_window_16objc_getProtocol("NSTextInputClient"); if (_lb_o7 == ((void*)0)) {
-        lb_r_unit _lb_err8 = ((lb_r_unit){ .error = { .code = (int32_t)(lb_window_failed), .message = ((lb_str){"AppKit text input is unavailable", 32}) }, .failed = true });
-        return _lb_err8;
-    } _lb_o7; });
-    lb_pos = "src/std/window/macos/text.lucb:7:5";
-    if (!!((!lb_x_window_17class_addProtocol(lb_native_type, lb_protocol)))) 
-    {
-        lb_pos = "src/std/window/macos/text.lucb:8:9";
-        lb_r_unit _lb_err9 = ((lb_r_unit){ .error = { .code = (int32_t)(lb_window_failed), .message = ((lb_str){"could not register the native text input client", 47}) }, .failed = true });
-        return _lb_err9;
-    }
-    lb_pos = "src/std/window/macos/text.lucb:9:5";
-    (void)((({ lb_r_unit _lb_r10 = lb_window_10add_method(lb_native_type, "insertText:replacementRange:", ((void*)(lb_window_15mac_insert_text)), "v@:@{_NSRange=QQ}"); if (_lb_r10.failed) {
-        return ((lb_r_unit){ .error = _lb_r10.error, .failed = true });
-    } (void)0; })));
-    lb_pos = "src/std/window/macos/text.lucb:10:5";
-    (void)((({ lb_r_unit _lb_r11 = lb_window_10add_method(lb_native_type, "setMarkedText:selectedRange:replacementRange:", ((void*)(lb_window_14mac_set_marked)), "v@:@{_NSRange=QQ}{_NSRange=QQ}"); if (_lb_r11.failed) {
-        return ((lb_r_unit){ .error = _lb_r11.error, .failed = true });
-    } (void)0; })));
-    lb_pos = "src/std/window/macos/text.lucb:11:5";
-    (void)((({ lb_r_unit _lb_r12 = lb_window_10add_method(lb_native_type, "unmarkText", ((void*)(lb_window_10mac_unmark)), "v@:"); if (_lb_r12.failed) {
-        return ((lb_r_unit){ .error = _lb_r12.error, .failed = true });
-    } (void)0; })));
-    lb_pos = "src/std/window/macos/text.lucb:12:5";
-    (void)((({ lb_r_unit _lb_r13 = lb_window_10add_method(lb_native_type, "hasMarkedText", ((void*)(lb_window_14mac_has_marked)), "B@:"); if (_lb_r13.failed) {
-        return ((lb_r_unit){ .error = _lb_r13.error, .failed = true });
-    } (void)0; })));
-    lb_pos = "src/std/window/macos/text.lucb:13:5";
-    (void)((({ lb_r_unit _lb_r14 = lb_window_10add_method(lb_native_type, "markedRange", ((void*)(lb_window_16mac_marked_range)), "{_NSRange=QQ}@:"); if (_lb_r14.failed) {
-        return ((lb_r_unit){ .error = _lb_r14.error, .failed = true });
-    } (void)0; })));
-    lb_pos = "src/std/window/macos/text.lucb:14:5";
-    (void)((({ lb_r_unit _lb_r15 = lb_window_10add_method(lb_native_type, "selectedRange", ((void*)(lb_window_18mac_selected_range)), "{_NSRange=QQ}@:"); if (_lb_r15.failed) {
-        return ((lb_r_unit){ .error = _lb_r15.error, .failed = true });
-    } (void)0; })));
-    lb_pos = "src/std/window/macos/text.lucb:15:5";
-    (void)((({ lb_r_unit _lb_r16 = lb_window_10add_method(lb_native_type, "validAttributesForMarkedText", ((void*)(lb_window_21mac_marked_attributes)), "@@:"); if (_lb_r16.failed) {
-        return ((lb_r_unit){ .error = _lb_r16.error, .failed = true });
-    } (void)0; })));
-    lb_pos = "src/std/window/macos/text.lucb:16:5";
-    (void)((({ lb_r_unit _lb_r17 = lb_window_10add_method(lb_native_type, "attributedSubstringForProposedRange:actualRange:", ((void*)(lb_window_18mac_text_substring)), "@@:{_NSRange=QQ}^{_NSRange=QQ}"); if (_lb_r17.failed) {
-        return ((lb_r_unit){ .error = _lb_r17.error, .failed = true });
-    } (void)0; })));
-    lb_pos = "src/std/window/macos/text.lucb:17:5";
-    (void)((({ lb_r_unit _lb_r18 = lb_window_10add_method(lb_native_type, "characterIndexForPoint:", ((void*)(lb_window_14mac_text_index)), "Q@:{CGPoint=dd}"); if (_lb_r18.failed) {
-        return ((lb_r_unit){ .error = _lb_r18.error, .failed = true });
-    } (void)0; })));
-    lb_pos = "src/std/window/macos/text.lucb:18:5";
-    (void)((({ lb_r_unit _lb_r19 = lb_window_10add_method(lb_native_type, "firstRectForCharacterRange:actualRange:", ((void*)(lb_window_13mac_text_rect)), "{CGRect={CGPoint=dd}{CGSize=dd}}@:{_NSRange=QQ}^{_NSRange=QQ}"); if (_lb_r19.failed) {
-        return ((lb_r_unit){ .error = _lb_r19.error, .failed = true });
-    } (void)0; })));
-    lb_pos = "src/std/window/macos/text.lucb:19:5";
-    (void)((({ lb_r_unit _lb_r20 = lb_window_10add_method(lb_native_type, "doCommandBySelector:", ((void*)(lb_window_16mac_text_command)), "v@::"); if (_lb_r20.failed) {
-        return ((lb_r_unit){ .error = _lb_r20.error, .failed = true });
-    } (void)0; })));
-    return ((lb_r_unit){ .failed = false });
-}
-void lb_window_16mac_clear_marked(struct lb_window_State* lb_state) {
-    const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/window/macos/text.lucb:28:5";
-    void* _lb_o21 = (lb_state)->marked_text;
-    if (_lb_o21 != ((void*)0)) {
-        void* lb_text __attribute__((unused)) = _lb_o21;
-        {
-            lb_pos = "src/std/window/macos/text.lucb:29:9";
-            (void)(({ void* _lb_sq22 __attribute__((unused)) = lb_text; void* _lb_sq23 __attribute__((unused)) = lb_window_sel("release"); ((void (*)(void*, void*))lb_x_window_8msg_void)(_lb_sq22, _lb_sq23); }));
-        }
-    }
-    lb_pos = "src/std/window/macos/text.lucb:30:5";
-    (lb_state)->marked_text = ((void*)0);
-    lb_pos = "src/std/window/macos/text.lucb:31:5";
-    (lb_state)->marked_selection = 0ULL;
-    lb_pos = "src/std/window/macos/text.lucb:32:5";
-    (lb_state)->marked_length = 0ULL;
-}
 __attribute__((weak)) void lb_interop_Packet_0g1_str_init(lb_interop_Packet_0g1_str* self, lb_str lb_value, void* lb_storage, lb_fn_0F1_void_0p_unit lb_dispose) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
     lb_pos = "src/std/window/windows/native.lucb:7:5";
@@ -3164,14 +3059,14 @@ __attribute__((weak)) void lb_interop_Packet_0g1_str_init(lb_interop_Packet_0g1_
 __attribute__((weak)) void lb_interop_Packet_0g1_str_release(const lb_interop_Packet_0g1_str* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
     lb_pos = "src/std/window/windows/native.lucb:12:5";
-    void* _lb_o24 = self->storage;
-    if (_lb_o24 != ((void*)0)) {
-        void* lb_storage __attribute__((unused)) = _lb_o24;
+    void* _lb_o7 = self->storage;
+    if (_lb_o7 != ((void*)0)) {
+        void* lb_storage __attribute__((unused)) = _lb_o7;
         {
             lb_pos = "src/std/window/windows/native.lucb:13:5";
-            (void)(((({ lb_fn_0F1_void_0p_unit _lb_o25 = self->dispose; if (_lb_o25 == ((void*)0)) {
+            (void)(((({ lb_fn_0F1_void_0p_unit _lb_o8 = self->dispose; if (_lb_o8 == ((void*)0)) {
                 (void)(lb_trap_text(((lb_str){"a packet has storage without a disposer", 39})));
-            } _lb_o25; })))(lb_storage));
+            } _lb_o8; })))(lb_storage));
         }
     }
 }
@@ -3187,225 +3082,14 @@ __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_init(lb_interop_Packet_0g
 __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_release(const lb_interop_Packet_0g1_u8_0c* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
     lb_pos = "src/std/window/windows/native.lucb:12:5";
-    void* _lb_o26 = self->storage;
-    if (_lb_o26 != ((void*)0)) {
-        void* lb_storage __attribute__((unused)) = _lb_o26;
+    void* _lb_o9 = self->storage;
+    if (_lb_o9 != ((void*)0)) {
+        void* lb_storage __attribute__((unused)) = _lb_o9;
         {
             lb_pos = "src/std/window/windows/native.lucb:13:5";
-            (void)(((({ lb_fn_0F1_void_0p_unit _lb_o27 = self->dispose; if (_lb_o27 == ((void*)0)) {
+            (void)(((({ lb_fn_0F1_void_0p_unit _lb_o10 = self->dispose; if (_lb_o10 == ((void*)0)) {
                 (void)(lb_trap_text(((lb_str){"a packet has storage without a disposer", 39})));
-            } _lb_o27; })))(lb_storage));
+            } _lb_o10; })))(lb_storage));
         }
     }
-}
-void lb_window_15mac_insert_text(void* lb_object, void* lb_selector, void* lb_value, LuceWindowMacRange lb_replacement) {
-    const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/window/macos/text.lucb:35:5";
-    struct lb_window_State* lb_state __attribute__((unused)) = ({ struct lb_window_State* _lb_o28 = lb_window_9get_state(lb_object); if (_lb_o28 == ((void*)0)) {
-        return;
-    } _lb_o28; });
-    lb_pos = "src/std/window/macos/text.lucb:36:5";
-    (void)(lb_window_16mac_clear_marked(lb_state));
-    lb_pos = "src/std/window/macos/text.lucb:37:5";
-    if (!!((!(lb_state)->text_input))) 
-    {
-        lb_pos = "src/std/window/macos/text.lucb:38:9";
-        return;
-    }
-    lb_pos = "src/std/window/macos/text.lucb:39:5";
-    void* lb_text __attribute__((unused)) = ({ void* _lb_o29 = lb_window_14mac_plain_text(lb_value); if (_lb_o29 == ((void*)0)) {
-        return;
-    } _lb_o29; });
-    lb_pos = "src/std/window/macos/text.lucb:40:5";
-    size_t lb_count __attribute__((unused)) = ((size_t)lb_conv_u((uint64_t)(({ void* _lb_sq30 __attribute__((unused)) = lb_text; void* _lb_sq31 __attribute__((unused)) = lb_window_sel("length"); ((uint64_t (*)(void*, void*))lb_x_window_8msg_uint)(_lb_sq30, _lb_sq31); })), 64, 0, 64, 0, 1));
-    lb_pos = "src/std/window/macos/text.lucb:42:5";
-    if (!!((((size_t)(lb_count)) > ((size_t)((size_t)(lb_sub_u((uint64_t)(256ULL), (uint64_t)((lb_state)->count), 64))))))) 
-    {
-        lb_pos = "src/std/window/macos/text.lucb:43:9";
-        (lb_state)->overflowed = true;
-        lb_pos = "src/std/window/macos/text.lucb:44:9";
-        return;
-    }
-    lb_pos = "src/std/window/macos/text.lucb:45:5";
-    for (size_t lb_index __attribute__((unused)) = (size_t)(0ULL); lb_index < (size_t)(lb_count); lb_index++) {
-        {
-            lb_pos = "src/std/window/macos/text.lucb:46:9";
-            (void)(({ struct lb_window_State* _lb_sq33 __attribute__((unused)) = lb_state; uint16_t _lb_sq34 __attribute__((unused)) = ({ void* _lb_sq35 __attribute__((unused)) = lb_text; void* _lb_sq36 __attribute__((unused)) = lb_window_sel("characterAtIndex:"); size_t _lb_sq37 __attribute__((unused)) = lb_index; ((uint16_t (*)(void*, void*, size_t))lb_x_window_13msg_character)(_lb_sq35, _lb_sq36, _lb_sq37); }); lb_window_10push_utf16(_lb_sq33, _lb_sq34); }));
-        }
-    }
-    lb_pos = "src/std/window/macos/text.lucb:47:5";
-    if (!!((!((lb_state)->pending_surrogate == 0ULL)))) 
-    {
-        lb_pos = "src/std/window/macos/text.lucb:48:9";
-        (lb_state)->pending_surrogate = 0ULL;
-        lb_pos = "src/std/window/macos/text.lucb:49:9";
-        (void)(lb_window_11push_scalar(lb_state, 65533ULL));
-    }
-}
-void lb_window_14mac_set_marked(void* lb_object, void* lb_selector, void* lb_value, LuceWindowMacRange lb_selection, LuceWindowMacRange lb_replacement) {
-    const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/window/macos/text.lucb:52:5";
-    struct lb_window_State* lb_state __attribute__((unused)) = ({ struct lb_window_State* _lb_o38 = lb_window_9get_state(lb_object); if (_lb_o38 == ((void*)0)) {
-        return;
-    } _lb_o38; });
-    lb_pos = "src/std/window/macos/text.lucb:53:5";
-    (void)(lb_window_16mac_clear_marked(lb_state));
-    lb_pos = "src/std/window/macos/text.lucb:54:5";
-    if (!!((!(lb_state)->text_input))) 
-    {
-        lb_pos = "src/std/window/macos/text.lucb:55:9";
-        return;
-    }
-    lb_pos = "src/std/window/macos/text.lucb:56:5";
-    void* lb_text __attribute__((unused)) = ({ void* _lb_o39 = lb_window_14mac_plain_text(lb_value); if (_lb_o39 == ((void*)0)) {
-        return;
-    } _lb_o39; });
-    lb_pos = "src/std/window/macos/text.lucb:57:5";
-    if (!!(({ uint64_t _lb_sq40 __attribute__((unused)) = ({ void* _lb_sq41 __attribute__((unused)) = lb_text; void* _lb_sq42 __attribute__((unused)) = lb_window_sel("length"); ((uint64_t (*)(void*, void*))lb_x_window_8msg_uint)(_lb_sq41, _lb_sq42); }); uint64_t _lb_sq43 __attribute__((unused)) = 0ULL; (((uint64_t)(_lb_sq40)) > ((uint64_t)(_lb_sq43))); }))) 
-    {
-        lb_pos = "src/std/window/macos/text.lucb:58:9";
-        (lb_state)->marked_text = ({ void* _lb_sq44 __attribute__((unused)) = lb_text; void* _lb_sq45 __attribute__((unused)) = lb_window_sel("copy"); ((void* (*)(void*, void*))lb_x_window_7msg_ptr)(_lb_sq44, _lb_sq45); });
-        lb_pos = "src/std/window/macos/text.lucb:59:9";
-        (lb_state)->marked_selection = lb_selection.location;
-        lb_pos = "src/std/window/macos/text.lucb:60:9";
-        (lb_state)->marked_length = lb_selection.length;
-    }
-}
-void lb_window_10mac_unmark(void* lb_object, void* lb_selector) {
-    const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/window/macos/text.lucb:63:5";
-    struct lb_window_State* _lb_o46 = lb_window_9get_state(lb_object);
-    if (_lb_o46 != ((void*)0)) {
-        struct lb_window_State* lb_state __attribute__((unused)) = _lb_o46;
-        {
-            lb_pos = "src/std/window/macos/text.lucb:64:9";
-            (void)(lb_window_16mac_clear_marked(lb_state));
-        }
-    }
-}
-bool lb_window_14mac_has_marked(void* lb_object, void* lb_selector) {
-    const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/window/macos/text.lucb:67:5";
-    struct lb_window_State* lb_state __attribute__((unused)) = ({ struct lb_window_State* _lb_o47 = lb_window_9get_state(lb_object); if (_lb_o47 == ((void*)0)) {
-        bool _lb_ret48 = false;
-        return _lb_ret48;
-    } _lb_o47; });
-    lb_pos = "src/std/window/macos/text.lucb:68:5";
-    bool _lb_ret49 = (!((lb_state)->marked_text == ((void*)0)));
-    return _lb_ret49;
-    lb_trap("unreachable");
-}
-LuceWindowMacRange lb_window_16mac_marked_range(void* lb_object, void* lb_selector) {
-    const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/window/macos/text.lucb:71:5";
-    struct lb_window_State* lb_state __attribute__((unused)) = ({ struct lb_window_State* _lb_o50 = lb_window_9get_state(lb_object); if (_lb_o50 == ((void*)0)) {
-        LuceWindowMacRange _lb_ret51 = ((LuceWindowMacRange){.location = lb_window_13mac_not_found, .length = 0ULL});
-        return _lb_ret51;
-    } _lb_o50; });
-    lb_pos = "src/std/window/macos/text.lucb:72:5";
-    void* lb_text __attribute__((unused)) = ({ void* _lb_o52 = (lb_state)->marked_text; if (_lb_o52 == ((void*)0)) {
-        LuceWindowMacRange _lb_ret53 = ((LuceWindowMacRange){.location = lb_window_13mac_not_found, .length = 0ULL});
-        return _lb_ret53;
-    } _lb_o52; });
-    lb_pos = "src/std/window/macos/text.lucb:73:5";
-    LuceWindowMacRange _lb_ret54 = ({ size_t _lb_sq55 __attribute__((unused)) = 0ULL; size_t _lb_sq56 __attribute__((unused)) = ((size_t)lb_conv_u((uint64_t)(({ void* _lb_sq57 __attribute__((unused)) = lb_text; void* _lb_sq58 __attribute__((unused)) = lb_window_sel("length"); ((uint64_t (*)(void*, void*))lb_x_window_8msg_uint)(_lb_sq57, _lb_sq58); })), 64, 0, 64, 0, 1)); ((LuceWindowMacRange){.location = _lb_sq55, .length = _lb_sq56}); });
-    return _lb_ret54;
-    lb_trap("unreachable");
-}
-LuceWindowMacRange lb_window_18mac_selected_range(void* lb_object, void* lb_selector) {
-    const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/window/macos/text.lucb:76:5";
-    struct lb_window_State* lb_state __attribute__((unused)) = ({ struct lb_window_State* _lb_o59 = lb_window_9get_state(lb_object); if (_lb_o59 == ((void*)0)) {
-        LuceWindowMacRange _lb_ret60 = ((LuceWindowMacRange){.location = 0ULL, .length = 0ULL});
-        return _lb_ret60;
-    } _lb_o59; });
-    lb_pos = "src/std/window/macos/text.lucb:77:5";
-    LuceWindowMacRange _lb_ret61 = ((LuceWindowMacRange){.location = (lb_state)->marked_selection, .length = (lb_state)->marked_length});
-    return _lb_ret61;
-    lb_trap("unreachable");
-}
-void* lb_window_21mac_marked_attributes(void* lb_object, void* lb_selector) {
-    const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/window/macos/text.lucb:80:5";
-    void* lb_array_type __attribute__((unused)) = ({ void* _lb_o62 = lb_x_window_13objc_getClass("NSArray"); if (_lb_o62 == ((void*)0)) {
-        void* _lb_ret63 = ((void*)0);
-        return _lb_ret63;
-    } _lb_o62; });
-    lb_pos = "src/std/window/macos/text.lucb:81:5";
-    void* _lb_ret64 = ({ void* _lb_sq65 __attribute__((unused)) = lb_array_type; void* _lb_sq66 __attribute__((unused)) = lb_window_sel("array"); ((void* (*)(void*, void*))lb_x_window_7msg_ptr)(_lb_sq65, _lb_sq66); });
-    return _lb_ret64;
-    lb_trap("unreachable");
-}
-void* lb_window_18mac_text_substring(void* lb_object, void* lb_selector, LuceWindowMacRange lb_range, struct LuceWindowMacRange* lb_actual) {
-    const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/window/macos/text.lucb:84:5";
-    struct LuceWindowMacRange* _lb_o67 = lb_actual;
-    if (_lb_o67 != ((void*)0)) {
-        struct LuceWindowMacRange* lb_destination __attribute__((unused)) = _lb_o67;
-        {
-            lb_pos = "src/std/window/macos/text.lucb:85:9";
-            (*(lb_destination)) = ((LuceWindowMacRange){.location = lb_window_13mac_not_found, .length = 0ULL});
-        }
-    }
-    lb_pos = "src/std/window/macos/text.lucb:86:5";
-    void* _lb_ret68 = ((void*)0);
-    return _lb_ret68;
-    lb_trap("unreachable");
-}
-size_t lb_window_14mac_text_index(void* lb_object, void* lb_selector, LuceWindowMacPoint lb_point) {
-    const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/window/macos/text.lucb:89:5";
-    size_t _lb_ret69 = lb_window_13mac_not_found;
-    return _lb_ret69;
-    lb_trap("unreachable");
-}
-LuceWindowMacRect lb_window_13mac_text_rect(void* lb_object, void* lb_selector, LuceWindowMacRange lb_range, struct LuceWindowMacRange* lb_actual) {
-    const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/window/macos/text.lucb:92:5";
-    struct LuceWindowMacRange* _lb_o70 = lb_actual;
-    if (_lb_o70 != ((void*)0)) {
-        struct LuceWindowMacRange* lb_destination __attribute__((unused)) = _lb_o70;
-        {
-            lb_pos = "src/std/window/macos/text.lucb:93:9";
-            (*(lb_destination)) = lb_range;
-        }
-    }
-    lb_pos = "src/std/window/macos/text.lucb:94:5";
-    struct lb_window_State* lb_state __attribute__((unused)) = ({ struct lb_window_State* _lb_o71 = lb_window_9get_state(lb_object); if (_lb_o71 == ((void*)0)) {
-        LuceWindowMacRect _lb_ret72 = ((LuceWindowMacRect){});
-        return _lb_ret72;
-    } _lb_o71; });
-    lb_pos = "src/std/window/macos/text.lucb:95:5";
-    void* lb_native __attribute__((unused)) = ({ void* _lb_o73 = (lb_state)->native; if (_lb_o73 == ((void*)0)) {
-        LuceWindowMacRect _lb_ret74 = ((LuceWindowMacRect){});
-        return _lb_ret74;
-    } _lb_o73; });
-    lb_pos = "src/std/window/macos/text.lucb:96:5";
-    LuceWindowMacRect _lb_ret75 = ({ void* _lb_sq76 __attribute__((unused)) = lb_native; void* _lb_sq77 __attribute__((unused)) = lb_window_sel("convertRectToScreen:"); LuceWindowMacRect _lb_sq78 __attribute__((unused)) = ({ LuceWindowMacExtent _lb_sq79 __attribute__((unused)) = ((LuceWindowMacExtent){.width = 0x1.0000000000000p+0, .height = 0x1.2000000000000p+4}); ((LuceWindowMacRect){.size = _lb_sq79}); }); ((LuceWindowMacRect (*)(void*, void*, LuceWindowMacRect))lb_x_window_11msg_backing)(_lb_sq76, _lb_sq77, _lb_sq78); });
-    return _lb_ret75;
-    lb_trap("unreachable");
-}
-void lb_window_16mac_text_command(void* lb_object, void* lb_selector, void* lb_command) {
-    const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/window/macos/text.lucb:100:5";
-    (void)(((void)(lb_command)));
-}
-void* lb_window_14mac_plain_text(void* lb_value) {
-    const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/window/macos/text.lucb:22:5";
-    void* lb_string_type __attribute__((unused)) = ({ void* _lb_o80 = lb_x_window_13objc_getClass("NSString"); if (_lb_o80 == ((void*)0)) {
-        void* _lb_ret81 = ((void*)0);
-        return _lb_ret81;
-    } _lb_o80; });
-    lb_pos = "src/std/window/macos/text.lucb:23:5";
-    if (!!(({ void* _lb_sq82 __attribute__((unused)) = lb_value; void* _lb_sq83 __attribute__((unused)) = lb_window_sel("isKindOfClass:"); void* _lb_sq84 __attribute__((unused)) = lb_string_type; ((bool (*)(void*, void*, void*))lb_x_window_15msg_bool_object)(_lb_sq82, _lb_sq83, _lb_sq84); }))) 
-    {
-        lb_pos = "src/std/window/macos/text.lucb:24:9";
-        void* _lb_ret85 = lb_value;
-        return _lb_ret85;
-    }
-    lb_pos = "src/std/window/macos/text.lucb:25:5";
-    void* _lb_ret86 = ({ void* _lb_sq87 __attribute__((unused)) = lb_value; void* _lb_sq88 __attribute__((unused)) = lb_window_sel("string"); ((void* (*)(void*, void*))lb_x_window_7msg_ptr)(_lb_sq87, _lb_sq88); });
-    return _lb_ret86;
-    lb_trap("unreachable");
 }

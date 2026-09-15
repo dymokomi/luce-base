@@ -1994,7 +1994,6 @@ typedef void (*lb_fn_0F0_unit)(void);
 typedef void* (*lb_fn_0F1_void_0p_void_0p_0o)(void*);
 LB_RES(bool, lb_r_bool);
 typedef int32_t (*lb_fn_0F1_u32_i32)(uint32_t);
-LB_RES(lb_span, lb_r_u16_0s);
 LB_OPT(lb_cspan, lb_o_str_0c);
 LB_OPT(int64_t, lb_o_i64);
 typedef struct lb_interop_Owned_0g1_str {
@@ -2628,9 +2627,7 @@ void lb_process_Termination_close(lb_process_Termination* self);
 lb_r_unit lb_process_25termination_posix_install(void);
 void lb_process_25termination_posix_restore(void);
 char*** lb_process_19environment_address(void);
-lb_r_str lb_process_16environment_name(char* lb_entry);
 lb_r_5c_str_0o_0s lb_process_17environment_posix(lb_cspan lb_overrides, char** lb_inherited);
-lb_r_u16_0s lb_process_19environment_windows(lb_cspan lb_overrides);
 lb_r_unit lb_process_Command_init(lb_process_Command* self, lb_str lb_program, lb_cspan lb_arguments, lb_str lb_directory, size_t lb_output_limit, lb_o_str_0c lb_environment);
 bool lb_process_Command_11is_finished(const lb_process_Command* self);
 int64_t lb_process_Command_revision(const lb_process_Command* self);
@@ -2640,9 +2637,7 @@ lb_r_interop_Owned_0g1_str lb_process_Command_13error_message(const lb_process_C
 void lb_process_Command_cancel(const lb_process_Command* self);
 void lb_process_Command_close(lb_process_Command* self);
 lb_r_unit lb_process_14command_append(struct lb_process_CommandState* lb_state, lb_cspan lb_bytes);
-size_t lb_process_13math_min_size(size_t lb_a, size_t lb_b);
 lb_r_i32 lb_process_15capture_command(int32_t lb_pid, struct lb_process_Capture* lb_out_, struct lb_process_Capture* lb_err, struct lb_process_CommandState* lb_state);
-lb_r_unit lb_process_15monitor_windows(void* lb_process, void* lb_child_thread, void* lb_out_, void* lb_err, struct lb_process_CommandState* lb_state);
 __attribute__((weak)) void lb_interop_Packet_0g1_str_init(lb_interop_Packet_0g1_str* self, lb_str lb_value, void* lb_storage, lb_fn_0F1_void_0p_unit lb_dispose);
 __attribute__((weak)) void lb_interop_Packet_0g1_str_release(const lb_interop_Packet_0g1_str* self);
 __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_init(lb_interop_Packet_0g1_u8_0c* self, lb_cspan lb_value, void* lb_storage, lb_fn_0F1_void_0p_unit lb_dispose);

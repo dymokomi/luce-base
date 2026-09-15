@@ -2813,7 +2813,7 @@ extern lb_str lb_net_14websocket_guid;
 extern uint32_t lb_interop_invalid;
 extern uint32_t lb_interop_12wrong_thread;
 extern uint32_t lb_interop_expired;
-lb_ownership_Info lb_interop_10lease_info = ((lb_ownership_Info){.name = ((lb_str){"native lease", 12}), .size = ((size_t)sizeof(lb_interop_LeaseState)), .finish = ((void*)0), .drop = lb_interop_10drop_lease, .trace = lb_interop_11trace_lease, .identity = ((void*)0)});
+lb_ownership_Info lb_interop_10lease_info = {.name = {"native lease", 12}, .size = ((size_t)sizeof(lb_interop_LeaseState)), .finish = ((void*)0), .drop = lb_interop_10drop_lease, .trace = lb_interop_11trace_lease, .identity = ((void*)0)};
 extern uint32_t lb_interop_8no_error;
 extern lb_ownership_Info lb_interop_9text_info;
 extern lb_interop_Type_0g1_interop_Connection lb_interop_15connection_type;

@@ -42,7 +42,6 @@ L1_3:
 
     .p2align 2
     .globl _lb_process_16environment_name
-    .no_dead_strip _lb_process_16environment_name
 _lb_process_16environment_name:
     stp x29, x30, [sp, #-16]!
     mov x29, sp

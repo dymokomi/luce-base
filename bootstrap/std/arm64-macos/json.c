@@ -2937,7 +2937,7 @@ extern uint64_t lb_process_26console_acknowledgement_ms;
 extern lb_interop_Type_0g1_process_Command lb_process_12command_type;
 __attribute__((weak)) uint32_t lb_json_invalid = ((uint32_t)(208273518ULL));
 __attribute__((weak)) uint32_t lb_json_14limit_exceeded = ((uint32_t)(208273519ULL));
-__attribute__((weak)) lb_interop_Type_0g1_json_Value lb_json_10value_type = ((lb_interop_Type_0g1_json_Value){.name = ((lb_str){"JSON value", 10}), .dispose = lb_json_Value_close, .trace = ((void*)0), .closeable = true, .main_thread = false});
+__attribute__((weak)) lb_interop_Type_0g1_json_Value lb_json_10value_type = {.name = {"JSON value", 10}, .dispose = lb_json_Value_close, .trace = ((void*)0), .closeable = true, .main_thread = false};
 extern uint32_t lb_window_unsupported;
 extern uint32_t lb_window_12wrong_thread;
 extern uint32_t lb_window_15invalid_options;

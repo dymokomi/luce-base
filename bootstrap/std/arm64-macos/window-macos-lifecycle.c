@@ -2658,8 +2658,6 @@ void lb_window_10mac_resize(struct lb_window_State* lb_state, uint32_t lb_width,
 void lb_window_8mac_pump(struct lb_window_State* lb_waiting);
 void lb_window_11mac_destroy(struct lb_window_State* lb_state);
 void lb_window_8mac_free(struct lb_window_State* lb_state);
-intptr_t lb_window_12win_callback(void* lb_native, uint32_t lb_message, size_t lb_word, intptr_t lb_value);
-lb_r_void_0p lb_window_10win_cursor(uint8_t lb_cursor);
 __attribute__((weak)) void lb_interop_Packet_0g1_str_init(lb_interop_Packet_0g1_str* self, lb_str lb_value, void* lb_storage, lb_fn_0F1_void_0p_unit lb_dispose);
 __attribute__((weak)) void lb_interop_Packet_0g1_str_release(const lb_interop_Packet_0g1_str* self);
 __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_init(lb_interop_Packet_0g1_u8_0c* self, lb_cspan lb_value, void* lb_storage, lb_fn_0F1_void_0p_unit lb_dispose);

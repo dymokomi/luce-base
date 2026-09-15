@@ -1981,9 +1981,6 @@ typedef struct lb_interop_ViewType_0g1_gpu_RenderTarget {
 typedef struct lb_a_u32_0a271 { uint32_t d[271]; } lb_a_u32_0a271;
 typedef struct lb_a_u32_0a1021 { uint32_t d[1021]; } lb_a_u32_0a1021;
 typedef struct lb_a_5c_str_0a2 { char* d[2]; } lb_a_5c_str_0a2;
-LB_RES(void*, lb_r_void_0p);
-typedef struct lb_a_u16_0a32768 { uint16_t d[32768]; } lb_a_u16_0a32768;
-typedef struct lb_a_u8_0a4096 { uint8_t d[4096]; } lb_a_u8_0a4096;
 typedef void (*lb_fn_0F0_unit)(void);
 typedef void* (*lb_fn_0F1_void_0p_void_0p_0o)(void*);
 LB_RES(bool, lb_r_bool);
@@ -1991,9 +1988,7 @@ typedef int32_t (*lb_fn_0F1_u32_i32)(uint32_t);
 typedef struct lb_t_0T3_i32_str_str { int32_t a0; lb_str a1; lb_str a2; } lb_t_0T3_i32_str_str;
 LB_RES(lb_t_0T3_i32_str_str, lb_r_0T3_i32_str_str);
 LB_OPT(lb_cspan, lb_o_5c_str_0c);
-LB_RES(lb_str, lb_r_str);
 LB_RES(lb_span, lb_r_5c_str_0o_0s);
-LB_RES(lb_span, lb_r_u16_0s);
 LB_OPT(lb_cspan, lb_o_str_0c);
 LB_OPT(int64_t, lb_o_i64);
 typedef struct lb_interop_Owned_0g1_str {
@@ -2628,9 +2623,7 @@ void lb_process_Termination_close(lb_process_Termination* self);
 lb_r_unit lb_process_25termination_posix_install(void);
 void lb_process_25termination_posix_restore(void);
 char*** lb_process_19environment_address(void);
-lb_r_str lb_process_16environment_name(char* lb_entry);
 lb_r_5c_str_0o_0s lb_process_17environment_posix(lb_cspan lb_overrides, char** lb_inherited);
-lb_r_u16_0s lb_process_19environment_windows(lb_cspan lb_overrides);
 lb_r_unit lb_process_Command_init(lb_process_Command* self, lb_str lb_program, lb_cspan lb_arguments, lb_str lb_directory, size_t lb_output_limit, lb_o_str_0c lb_environment);
 bool lb_process_Command_11is_finished(const lb_process_Command* self);
 int64_t lb_process_Command_revision(const lb_process_Command* self);
@@ -2640,15 +2633,11 @@ lb_r_interop_Owned_0g1_str lb_process_Command_13error_message(const lb_process_C
 void lb_process_Command_cancel(const lb_process_Command* self);
 void lb_process_Command_close(lb_process_Command* self);
 lb_r_unit lb_process_14command_append(struct lb_process_CommandState* lb_state, lb_cspan lb_bytes);
-size_t lb_process_13math_min_size(size_t lb_a, size_t lb_b);
 lb_r_i32 lb_process_15capture_command(int32_t lb_pid, struct lb_process_Capture* lb_out_, struct lb_process_Capture* lb_err, struct lb_process_CommandState* lb_state);
-lb_r_unit lb_process_15monitor_windows(void* lb_process, void* lb_child_thread, void* lb_out_, void* lb_err, struct lb_process_CommandState* lb_state);
 __attribute__((weak)) void lb_interop_Packet_0g1_str_init(lb_interop_Packet_0g1_str* self, lb_str lb_value, void* lb_storage, lb_fn_0F1_void_0p_unit lb_dispose);
 __attribute__((weak)) void lb_interop_Packet_0g1_str_release(const lb_interop_Packet_0g1_str* self);
 __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_init(lb_interop_Packet_0g1_u8_0c* self, lb_cspan lb_value, void* lb_storage, lb_fn_0F1_void_0p_unit lb_dispose);
 __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_release(const lb_interop_Packet_0g1_u8_0c* self);
-lb_r_void_0p lb_process_14command_reader(void* lb_stream);
-lb_r_unit lb_process_12pull_windows(void* lb_file, int64_t* lb_offset, struct lb_process_CommandState* lb_state);
 
 extern lb_str lb_platform_name;
 extern bool lb_platform_macos;
@@ -3052,115 +3041,6 @@ __attribute__((weak)) lb_r_interop_Packet_0g1_u8_0c lb_interop_Transfer_0g1_u8_0
     return ((lb_r_interop_Packet_0g1_u8_0c){ .value = _lb_ret5, .failed = false });
     lb_trap("unreachable");
 }
-lb_r_unit lb_process_15monitor_windows(void* lb_process, void* lb_child_thread, void* lb_out_, void* lb_err, struct lb_process_CommandState* lb_state) {
-    const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/process/command/windows.lucb:13:5";
-    lb_pos = "src/std/process/command/windows.lucb:14:5";
-    void* lb_job __attribute__((unused)) = ({ void* _lb_o7 = lb_x_process_CreateJobObjectW(((void*)0), ((void*)0)); if (_lb_o7 == ((void*)0)) {
-        lb_r_unit _lb_err8 = ((lb_r_unit){ .error = { .code = (int32_t)(lb_process_failed), .message = ((lb_str){"a command job could not be created", 34}) }, .failed = true });
-        (void)(((void)(lb_x_process_TerminateProcess(lb_process, 1ULL))));
-        return _lb_err8;
-    } _lb_o7; });
-    lb_pos = "src/std/process/command/windows.lucb:15:5";
-    lb_pos = "src/std/process/command/windows.lucb:16:5";
-    lb_pos = "src/std/process/command/windows.lucb:17:5";
-    if (!!((({ int32_t _lb_sq9 __attribute__((unused)) = lb_x_process_AssignProcessToJobObject(lb_job, lb_process); int32_t _lb_sq10 __attribute__((unused)) = 0LL; (_lb_sq9 == _lb_sq10); }) || ({ uint32_t _lb_sq11 __attribute__((unused)) = lb_x_process_ResumeThread(lb_child_thread); uint32_t _lb_sq12 __attribute__((unused)) = 4294967295ULL; (_lb_sq11 == _lb_sq12); })))) 
-    {
-        lb_pos = "src/std/process/command/windows.lucb:18:9";
-        lb_r_unit _lb_err13 = ((lb_r_unit){ .error = { .code = (int32_t)(lb_process_failed), .message = ((lb_str){"the command could not enter its process job", 43}) }, .failed = true });
-        (void)(((void)(lb_x_process_TerminateJobObject(lb_job, 1ULL))));
-        (void)(((void)(lb_x_11windows_abi_CloseHandle(lb_job))));
-        (void)(((void)(lb_x_process_TerminateProcess(lb_process, 1ULL))));
-        return _lb_err13;
-    }
-    lb_pos = "src/std/process/command/windows.lucb:19:5";
-    void* lb_out_reader __attribute__((unused)) = (({ lb_r_void_0p _lb_r14 = lb_process_14command_reader(lb_out_); if (_lb_r14.failed) {
-        (void)(((void)(lb_x_process_TerminateJobObject(lb_job, 1ULL))));
-        (void)(((void)(lb_x_11windows_abi_CloseHandle(lb_job))));
-        (void)(((void)(lb_x_process_TerminateProcess(lb_process, 1ULL))));
-        return ((lb_r_unit){ .error = _lb_r14.error, .failed = true });
-    } _lb_r14.value; }));
-    lb_pos = "src/std/process/command/windows.lucb:20:5";
-    lb_pos = "src/std/process/command/windows.lucb:21:5";
-    void* lb_err_reader __attribute__((unused)) = (({ lb_r_void_0p _lb_r15 = lb_process_14command_reader(lb_err); if (_lb_r15.failed) {
-        (void)(((void)(lb_x_11windows_abi_CloseHandle(lb_out_reader))));
-        (void)(((void)(lb_x_process_TerminateJobObject(lb_job, 1ULL))));
-        (void)(((void)(lb_x_11windows_abi_CloseHandle(lb_job))));
-        (void)(((void)(lb_x_process_TerminateProcess(lb_process, 1ULL))));
-        return ((lb_r_unit){ .error = _lb_r15.error, .failed = true });
-    } _lb_r15.value; }));
-    lb_pos = "src/std/process/command/windows.lucb:22:5";
-    lb_pos = "src/std/process/command/windows.lucb:23:5";
-    int64_t lb_out_offset __attribute__((unused)) = 0LL;
-    lb_pos = "src/std/process/command/windows.lucb:24:5";
-    int64_t lb_err_offset __attribute__((unused)) = 0LL;
-    lb_pos = "src/std/process/command/windows.lucb:25:5";
-    for (;;) {
-        lb_pos = "src/std/process/command/windows.lucb:25:5";
-        if (!(true)) break;
-        {
-            lb_pos = "src/std/process/command/windows.lucb:26:9";
-            if (!!(((bool)atomic_load_explicit(&((lb_state)->cancelled), memory_order_acquire)))) 
-            {
-                lb_pos = "src/std/process/command/windows.lucb:27:13";
-                lb_r_unit _lb_err17 = ((lb_r_unit){ .error = { .code = (int32_t)(lb_process_failed), .message = ((lb_str){"command cancelled", 17}) }, .failed = true });
-                (void)(((void)(lb_x_11windows_abi_CloseHandle(lb_err_reader))));
-                (void)(((void)(lb_x_11windows_abi_CloseHandle(lb_out_reader))));
-                (void)(((void)(lb_x_process_TerminateJobObject(lb_job, 1ULL))));
-                (void)(((void)(lb_x_11windows_abi_CloseHandle(lb_job))));
-                (void)(((void)(lb_x_process_TerminateProcess(lb_process, 1ULL))));
-                return _lb_err17;
-            }
-            lb_pos = "src/std/process/command/windows.lucb:28:9";
-            uint32_t lb_waited __attribute__((unused)) = lb_x_process_WaitForSingleObject(lb_process, 20ULL);
-            lb_pos = "src/std/process/command/windows.lucb:29:9";
-            if (!!(((!(lb_waited == 0ULL)) && (!(lb_waited == 258ULL))))) 
-            {
-                lb_pos = "src/std/process/command/windows.lucb:30:13";
-                lb_r_unit _lb_err18 = ((lb_r_unit){ .error = { .code = (int32_t)(lb_process_failed), .message = ((lb_str){"waiting for the command failed", 30}) }, .failed = true });
-                (void)(((void)(lb_x_11windows_abi_CloseHandle(lb_err_reader))));
-                (void)(((void)(lb_x_11windows_abi_CloseHandle(lb_out_reader))));
-                (void)(((void)(lb_x_process_TerminateJobObject(lb_job, 1ULL))));
-                (void)(((void)(lb_x_11windows_abi_CloseHandle(lb_job))));
-                (void)(((void)(lb_x_process_TerminateProcess(lb_process, 1ULL))));
-                return _lb_err18;
-            }
-            lb_pos = "src/std/process/command/windows.lucb:31:9";
-            (void)((({ lb_r_unit _lb_r19 = lb_process_12pull_windows(lb_out_reader, &(lb_out_offset), lb_state); if (_lb_r19.failed) {
-                (void)(((void)(lb_x_11windows_abi_CloseHandle(lb_err_reader))));
-                (void)(((void)(lb_x_11windows_abi_CloseHandle(lb_out_reader))));
-                (void)(((void)(lb_x_process_TerminateJobObject(lb_job, 1ULL))));
-                (void)(((void)(lb_x_11windows_abi_CloseHandle(lb_job))));
-                (void)(((void)(lb_x_process_TerminateProcess(lb_process, 1ULL))));
-                return ((lb_r_unit){ .error = _lb_r19.error, .failed = true });
-            } (void)0; })));
-            lb_pos = "src/std/process/command/windows.lucb:32:9";
-            (void)((({ lb_r_unit _lb_r20 = lb_process_12pull_windows(lb_err_reader, &(lb_err_offset), lb_state); if (_lb_r20.failed) {
-                (void)(((void)(lb_x_11windows_abi_CloseHandle(lb_err_reader))));
-                (void)(((void)(lb_x_11windows_abi_CloseHandle(lb_out_reader))));
-                (void)(((void)(lb_x_process_TerminateJobObject(lb_job, 1ULL))));
-                (void)(((void)(lb_x_11windows_abi_CloseHandle(lb_job))));
-                (void)(((void)(lb_x_process_TerminateProcess(lb_process, 1ULL))));
-                return ((lb_r_unit){ .error = _lb_r20.error, .failed = true });
-            } (void)0; })));
-            lb_pos = "src/std/process/command/windows.lucb:33:9";
-            if (!!((lb_waited == 0ULL))) 
-            {
-                lb_pos = "src/std/process/command/windows.lucb:34:13";
-                (void)(((void)(lb_x_11windows_abi_CloseHandle(lb_err_reader))));
-                (void)(((void)(lb_x_11windows_abi_CloseHandle(lb_out_reader))));
-                (void)(((void)(lb_x_process_TerminateJobObject(lb_job, 1ULL))));
-                (void)(((void)(lb_x_11windows_abi_CloseHandle(lb_job))));
-                return ((lb_r_unit){ .failed = false });
-            }
-        }
-    }
-    (void)(((void)(lb_x_11windows_abi_CloseHandle(lb_err_reader))));
-    (void)(((void)(lb_x_11windows_abi_CloseHandle(lb_out_reader))));
-    (void)(((void)(lb_x_process_TerminateJobObject(lb_job, 1ULL))));
-    (void)(((void)(lb_x_11windows_abi_CloseHandle(lb_job))));
-    return ((lb_r_unit){ .failed = false });
-}
 __attribute__((weak)) void lb_interop_Packet_0g1_str_init(lb_interop_Packet_0g1_str* self, lb_str lb_value, void* lb_storage, lb_fn_0F1_void_0p_unit lb_dispose) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
     lb_pos = "src/std/process/command/module.lucb:129:9";
@@ -3173,14 +3053,14 @@ __attribute__((weak)) void lb_interop_Packet_0g1_str_init(lb_interop_Packet_0g1_
 __attribute__((weak)) void lb_interop_Packet_0g1_str_release(const lb_interop_Packet_0g1_str* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
     lb_pos = "src/std/process/command/module.lucb:134:13";
-    void* _lb_o21 = self->storage;
-    if (_lb_o21 != ((void*)0)) {
-        void* lb_storage __attribute__((unused)) = _lb_o21;
+    void* _lb_o7 = self->storage;
+    if (_lb_o7 != ((void*)0)) {
+        void* lb_storage __attribute__((unused)) = _lb_o7;
         {
             lb_pos = "src/std/process/command/module.lucb:135:9";
-            (void)(((({ lb_fn_0F1_void_0p_unit _lb_o22 = self->dispose; if (_lb_o22 == ((void*)0)) {
+            (void)(((({ lb_fn_0F1_void_0p_unit _lb_o8 = self->dispose; if (_lb_o8 == ((void*)0)) {
                 (void)(lb_trap_text(((lb_str){"a packet has storage without a disposer", 39})));
-            } _lb_o22; })))(lb_storage));
+            } _lb_o8; })))(lb_storage));
         }
     }
 }
@@ -3196,104 +3076,14 @@ __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_init(lb_interop_Packet_0g
 __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_release(const lb_interop_Packet_0g1_u8_0c* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
     lb_pos = "src/std/process/command/module.lucb:134:13";
-    void* _lb_o23 = self->storage;
-    if (_lb_o23 != ((void*)0)) {
-        void* lb_storage __attribute__((unused)) = _lb_o23;
+    void* _lb_o9 = self->storage;
+    if (_lb_o9 != ((void*)0)) {
+        void* lb_storage __attribute__((unused)) = _lb_o9;
         {
             lb_pos = "src/std/process/command/module.lucb:135:9";
-            (void)(((({ lb_fn_0F1_void_0p_unit _lb_o24 = self->dispose; if (_lb_o24 == ((void*)0)) {
+            (void)(((({ lb_fn_0F1_void_0p_unit _lb_o10 = self->dispose; if (_lb_o10 == ((void*)0)) {
                 (void)(lb_trap_text(((lb_str){"a packet has storage without a disposer", 39})));
-            } _lb_o24; })))(lb_storage));
+            } _lb_o10; })))(lb_storage));
         }
     }
-}
-lb_r_void_0p lb_process_14command_reader(void* lb_stream) {
-    const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/process/command/windows.lucb:60:5";
-    lb_a_u16_0a32768 lb_path __attribute__((unused)) = {};
-    lb_pos = "src/std/process/command/windows.lucb:61:5";
-    void* lb_file __attribute__((unused)) = ((void*)(((intptr_t (*)(int32_t))lb_x_process_13win_os_handle)(((int32_t (*)(void*))lb_x_process_10win_fileno)(lb_stream))));
-    lb_pos = "src/std/process/command/windows.lucb:62:5";
-    uint32_t lb_size __attribute__((unused)) = lb_x_process_GetFinalPathNameByHandleW(lb_file, &(((lb_path).d[0])), ((uint32_t)lb_conv_u((uint64_t)(32768ULL), 64, 0, 32, 0, 1)), 0ULL);
-    lb_pos = "src/std/process/command/windows.lucb:63:5";
-    if (!!(((lb_size == 0ULL) || (((uint32_t)(lb_size)) >= ((uint32_t)((uint32_t)(32768ULL))))))) 
-    {
-        lb_pos = "src/std/process/command/windows.lucb:64:9";
-        lb_r_void_0p _lb_err25 = ((lb_r_void_0p){ .error = { .code = (int32_t)(lb_process_failed), .message = ((lb_str){"the command capture path is unavailable", 39}) }, .failed = true });
-        return _lb_err25;
-    }
-    lb_pos = "src/std/process/command/windows.lucb:65:5";
-    void* lb_reader __attribute__((unused)) = ({ void* _lb_fr = lb_x_11windows_abi_CreateFileW(&(((lb_path).d[0])), 2147483648ULL, 7ULL, ((void*)0), 3ULL, 128ULL, ((void*)0)); if (!_lb_fr) lb_trap("null_foreign"); _lb_fr; });
-    lb_pos = "src/std/process/command/windows.lucb:66:5";
-    if (!!((((intptr_t)(lb_reader)) == ((intptr_t)(-1LL))))) 
-    {
-        lb_pos = "src/std/process/command/windows.lucb:67:9";
-        lb_r_void_0p _lb_err26 = ((lb_r_void_0p){ .error = { .code = (int32_t)(lb_process_failed), .message = ((lb_str){"the command capture reader could not be opened", 46}) }, .failed = true });
-        return _lb_err26;
-    }
-    lb_pos = "src/std/process/command/windows.lucb:68:5";
-    void* _lb_ret27 = lb_reader;
-    return ((lb_r_void_0p){ .value = _lb_ret27, .failed = false });
-    lb_trap("unreachable");
-}
-lb_r_unit lb_process_12pull_windows(void* lb_file, int64_t* lb_offset, struct lb_process_CommandState* lb_state) {
-    const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/process/command/windows.lucb:37:5";
-    int64_t lb_size __attribute__((unused)) = 0LL;
-    lb_pos = "src/std/process/command/windows.lucb:38:5";
-    if (!!((({ int32_t _lb_sq28 __attribute__((unused)) = lb_x_process_GetFileSizeEx(lb_file, &(lb_size)); int32_t _lb_sq29 __attribute__((unused)) = 0LL; (_lb_sq28 == _lb_sq29); }) || (((int64_t)(lb_size)) < ((int64_t)((*(lb_offset)))))))) 
-    {
-        lb_pos = "src/std/process/command/windows.lucb:39:9";
-        lb_r_unit _lb_err30 = ((lb_r_unit){ .error = { .code = (int32_t)(lb_process_failed), .message = ((lb_str){"the command output cannot be measured", 37}) }, .failed = true });
-        return _lb_err30;
-    }
-    lb_pos = "src/std/process/command/windows.lucb:40:5";
-    if (!!((((uint64_t)(((uint64_t)lb_conv_s((int64_t)(((int64_t)(lb_sub_s((int64_t)(lb_size), (int64_t)((*(lb_offset))), 64)))), 64, 1, 64, 0, 1)))) > ((uint64_t)(((uint64_t)lb_conv_u((uint64_t)((lb_state)->limit), 64, 0, 64, 0, 1))))))) 
-    {
-        lb_pos = "src/std/process/command/windows.lucb:41:9";
-        lb_r_unit _lb_err31 = ((lb_r_unit){ .error = { .code = (int32_t)(lb_process_failed), .message = ((lb_str){"the command exceeded its output limit", 37}) }, .failed = true });
-        return _lb_err31;
-    }
-    lb_pos = "src/std/process/command/windows.lucb:42:5";
-    lb_a_u8_0a4096 lb_bytes __attribute__((unused)) = {};
-    lb_pos = "src/std/process/command/windows.lucb:43:5";
-    for (;;) {
-        lb_pos = "src/std/process/command/windows.lucb:43:5";
-        if (!((((int64_t)((*(lb_offset)))) < ((int64_t)(lb_size))))) break;
-        {
-            lb_pos = "src/std/process/command/windows.lucb:44:9";
-            if (!!(((bool)atomic_load_explicit(&((lb_state)->cancelled), memory_order_acquire)))) 
-            {
-                lb_pos = "src/std/process/command/windows.lucb:45:13";
-                lb_r_unit _lb_err33 = ((lb_r_unit){ .error = { .code = (int32_t)(lb_process_failed), .message = ((lb_str){"command cancelled", 17}) }, .failed = true });
-                return _lb_err33;
-            }
-            lb_pos = "src/std/process/command/windows.lucb:46:9";
-            if (!!(({ int32_t _lb_sq34 __attribute__((unused)) = lb_x_process_SetFilePointerEx(lb_file, (*(lb_offset)), ((void*)0), 0ULL); int32_t _lb_sq35 __attribute__((unused)) = 0LL; (_lb_sq34 == _lb_sq35); }))) 
-            {
-                lb_pos = "src/std/process/command/windows.lucb:47:13";
-                lb_r_unit _lb_err36 = ((lb_r_unit){ .error = { .code = (int32_t)(lb_process_failed), .message = ((lb_str){"the command output cannot be positioned", 39}) }, .failed = true });
-                return _lb_err36;
-            }
-            lb_pos = "src/std/process/command/windows.lucb:48:9";
-            uint32_t lb_count __attribute__((unused)) = 0ULL;
-            lb_pos = "src/std/process/command/windows.lucb:49:9";
-            size_t lb_wanted __attribute__((unused)) = lb_process_13math_min_size(4096ULL, ((size_t)lb_conv_s((int64_t)(((int64_t)(lb_sub_s((int64_t)(lb_size), (int64_t)((*(lb_offset))), 64)))), 64, 1, 64, 0, 1)));
-            lb_pos = "src/std/process/command/windows.lucb:50:9";
-            if (!!((({ int32_t _lb_sq37 __attribute__((unused)) = lb_x_process_ReadFile(lb_file, &(((lb_bytes).d[0])), ((uint32_t)lb_conv_u((uint64_t)(lb_wanted), 64, 0, 32, 0, 1)), &(lb_count), ((void*)0)); int32_t _lb_sq38 __attribute__((unused)) = 0LL; (_lb_sq37 == _lb_sq38); }) || (lb_count == 0ULL)))) 
-            {
-                lb_pos = "src/std/process/command/windows.lucb:51:13";
-                lb_r_unit _lb_err39 = ((lb_r_unit){ .error = { .code = (int32_t)(lb_process_failed), .message = ((lb_str){"the command output cannot be read", 33}) }, .failed = true });
-                return _lb_err39;
-            }
-            lb_pos = "src/std/process/command/windows.lucb:52:9";
-            (void)((({ lb_r_unit _lb_r40 = lb_process_14command_append(lb_state, ({ const lb_a_u8_0a4096* _lb_sp41 = &(lb_bytes); size_t _lb_sn41 = 4096ULL; uint8_t* _lb_sd41 = (uint8_t*)(_lb_sp41->d); size_t _lb_ss41 = 0; size_t _lb_se41 = (size_t)(((size_t)lb_conv_u((uint64_t)(lb_count), 32, 0, 64, 0, 1))); lb_check_index(_lb_ss41, _lb_sn41 + 1); lb_check_index(_lb_se41, _lb_sn41 + 1); if (_lb_ss41 > _lb_se41) lb_trap("index out of bounds"); (lb_span){ (void*)(_lb_sd41 + _lb_ss41), _lb_se41 - _lb_ss41 }; })); if (_lb_r40.failed) {
-                return ((lb_r_unit){ .error = _lb_r40.error, .failed = true });
-            } (void)0; })));
-            lb_pos = "src/std/process/command/windows.lucb:53:9";
-            { int64_t* lb__cell42 = &((*(lb_offset)));
-            (*(lb__cell42)) = (int64_t)(lb_add_s((int64_t)((*(lb__cell42))), (int64_t)(((int64_t)lb_conv_u((uint64_t)(lb_count), 32, 0, 64, 1, 1))), 64)); }
-        }
-    }
-    return ((lb_r_unit){ .failed = false });
 }

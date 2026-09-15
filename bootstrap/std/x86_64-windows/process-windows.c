@@ -2618,7 +2618,6 @@ __attribute__((weak)) lb_interop_Transfer_0g1_u8_0c lb_interop_Transfer_0g1_u8_0
 __attribute__((weak)) lb_r_interop_Packet_0g1_u8_0c lb_interop_Transfer_0g1_u8_0c_10copy_plain(lb_cspan lb_value);
 lb_r_0T3_i32_str_str lb_process_run(char* lb_program, lb_cspan lb_arguments, char* lb_directory, lb_o_5c_str_0c lb_environment);
 lb_r_0T3_i32_str_str lb_process_14run_controlled(char* lb_program, lb_cspan lb_arguments, char* lb_directory, lb_o_5c_str_0c lb_environment, struct lb_process_CommandState* lb_control);
-void lb_process_terminate(int32_t lb_pid);
 void lb_process_release(lb_str lb_text);
 void lb_process_exit(int32_t lb_code);
 lb_r_0T3_i32_str_str lb_process_11run_windows(char* lb_program, lb_cspan lb_arguments, char* lb_directory, lb_o_5c_str_0c lb_environment, struct lb_process_CommandState* lb_control);

@@ -13,7 +13,6 @@ _lb_process_windows_0init:
     .p2align 2
     .globl _lb_process_15release_storage_0g1_u16
     .weak_definition _lb_process_15release_storage_0g1_u16
-    .no_dead_strip _lb_process_15release_storage_0g1_u16
 _lb_process_15release_storage_0g1_u16:
     stp x29, x30, [sp, #-16]!
     mov x29, sp

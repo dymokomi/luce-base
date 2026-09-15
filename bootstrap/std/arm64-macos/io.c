@@ -2699,9 +2699,9 @@ __attribute__((weak)) uint32_t lb_io_14invalid_buffer = ((uint32_t)(208273425ULL
 __attribute__((weak)) uint32_t lb_io_closed = ((uint32_t)(208273411ULL));
 __attribute__((weak)) uint32_t lb_io_failed = ((uint32_t)(208273432ULL));
 __attribute__((weak)) uint32_t lb_io_11would_block = ((uint32_t)(208273436ULL));
-lb_io_File lb_io_8out_file = ((lb_io_File){.descriptor = 1LL});
-lb_io_File lb_io_8err_file = ((lb_io_File){.descriptor = 2LL});
-lb_io_StandardInput lb_io_7in_file = ((lb_io_StandardInput){.descriptor = 0LL});
+lb_io_File lb_io_8out_file = {.descriptor = 1LL};
+lb_io_File lb_io_8err_file = {.descriptor = 2LL};
+lb_io_StandardInput lb_io_7in_file = {.descriptor = 0LL};
 __attribute__((weak)) uint32_t lb_io_full = ((uint32_t)(208273412ULL));
 __attribute__((weak)) uint32_t lb_io_14io_path_failed = ((uint32_t)(208273421ULL));
 extern lb_str lb_luce_file;

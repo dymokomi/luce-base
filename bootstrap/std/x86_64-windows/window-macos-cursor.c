@@ -1982,7 +1982,6 @@ typedef struct lb_interop_ViewType_0g1_gpu_RenderTarget {
 typedef struct lb_a_u32_0a271 { uint32_t d[271]; } lb_a_u32_0a271;
 typedef struct lb_a_u32_0a1021 { uint32_t d[1021]; } lb_a_u32_0a1021;
 typedef struct lb_a_5c_str_0a2 { char* d[2]; } lb_a_5c_str_0a2;
-LB_RES(void*, lb_r_void_0p);
 typedef void (*lb_fn_0F0_unit)(void);
 typedef void* (*lb_fn_0F1_void_0p_void_0p_0o)(void*);
 LB_RES(bool, lb_r_bool);
@@ -1993,6 +1992,7 @@ LB_RES(uint8_t, lb_r_input_Cursor);
 LB_RES(lb_window_Presentation, lb_r_window_Presentation);
 LB_OPT(lb_input_Event, lb_o_input_Event);
 LB_RES(lb_o_input_Event, lb_r_input_Event_0o);
+LB_RES(void*, lb_r_void_0p);
 LB_RES(struct lb_window_State*, lb_r_window_State_0p);
 typedef struct lb_interop_Owner_0g1_gpu_FrameState {
     lb_ownership_Object header;
@@ -2630,22 +2630,7 @@ lb_r_bool lb_window_Presentation_visible(const lb_window_Presentation* self);
 lb_r_void_0p lb_window_Presentation_10macos_view(const lb_window_Presentation* self);
 lb_r_void_0p lb_window_Presentation_14windows_handle(const lb_window_Presentation* self);
 void lb_window_Presentation_destroy(lb_window_Presentation* self);
-void* lb_window_sel(char* lb_name);
-lb_r_void_0p lb_window_12native_class(char* lb_name);
 void* lb_window_required(void* lb_object);
-struct lb_window_State* lb_window_9get_state(void* lb_object);
-void lb_window_9set_state(void* lb_object, struct lb_window_State* lb_state);
-lb_r_unit lb_window_10add_method(void* lb_native_type, char* lb_name, void* lb_implementation, char* lb_encoding);
-bool lb_window_14close_callback(void* lb_object, void* lb_selector, void* lb_sender);
-void lb_window_15resize_callback(void* lb_object, void* lb_selector, void* lb_notification);
-void lb_window_14focus_callback(void* lb_object, void* lb_selector, void* lb_notification);
-bool lb_window_12view_accepts(void* lb_object, void* lb_selector);
-void lb_window_12key_callback(void* lb_object, void* lb_selector, void* lb_native);
-void lb_window_16pointer_callback(void* lb_object, void* lb_selector, void* lb_native);
-lb_r_void_0p lb_window_10mac_cursor(uint8_t lb_cursor);
-void lb_window_15cursor_callback(void* lb_object, void* lb_selector, void* lb_event);
-lb_r_unit lb_window_23mac_register_text_input(void* lb_native_type);
-void lb_window_16mac_clear_marked(struct lb_window_State* lb_state);
 lb_r_window_State_0p lb_window_8win_open(lb_window_Options lb_options);
 lb_window_Size lb_window_8win_size(struct lb_window_State* lb_state);
 lb_r_unit lb_window_10win_resize(struct lb_window_State* lb_state, uint32_t lb_width, uint32_t lb_height);
@@ -3062,101 +3047,6 @@ __attribute__((weak)) lb_r_interop_Packet_0g1_u8_0c lb_interop_Transfer_0g1_u8_0
     return ((lb_r_interop_Packet_0g1_u8_0c){ .value = _lb_ret5, .failed = false });
     lb_trap("unreachable");
 }
-lb_r_void_0p lb_window_10mac_cursor(uint8_t lb_cursor) {
-    const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/window/macos/cursor.lucb:4:5";
-    char* lb_name __attribute__((unused)) = "arrowCursor";
-    lb_pos = "src/std/window/macos/cursor.lucb:5:5";
-    uint8_t _lb_m7 __attribute__((unused)) = lb_cursor;
-    switch ((int64_t)(_lb_m7)) {
-        case 1LL:
-        {
-            {
-                lb_pos = "src/std/window/macos/cursor.lucb:6:9";
-                lb_name = "IBeamCursor";
-            }
-            break;
-        }
-        case 2LL:
-        {
-            {
-                lb_pos = "src/std/window/macos/cursor.lucb:7:9";
-                lb_name = "pointingHandCursor";
-            }
-            break;
-        }
-        case 3LL:
-        {
-            {
-                lb_pos = "src/std/window/macos/cursor.lucb:8:9";
-                lb_name = "resizeLeftRightCursor";
-            }
-            break;
-        }
-        case 4LL:
-        {
-            {
-                lb_pos = "src/std/window/macos/cursor.lucb:9:9";
-                lb_name = "resizeUpDownCursor";
-            }
-            break;
-        }
-        case 5LL:
-        {
-            {
-                lb_pos = "src/std/window/macos/cursor.lucb:10:9";
-                lb_name = "openHandCursor";
-            }
-            break;
-        }
-        case 6LL:
-        {
-            {
-                lb_pos = "src/std/window/macos/cursor.lucb:11:9";
-                lb_name = "closedHandCursor";
-            }
-            break;
-        }
-        case 7LL:
-        {
-            {
-                lb_pos = "src/std/window/macos/cursor.lucb:12:9";
-                lb_name = "operationNotAllowedCursor";
-            }
-            break;
-        }
-        default:
-        {
-            {
-                lb_pos = "src/std/window/macos/cursor.lucb:13:9";
-                (void)(((void)(((lb_unit){}))));
-            }
-            break;
-        }
-    }
-    lb_pos = "src/std/window/macos/cursor.lucb:14:5";
-    void* _lb_ret8 = ({ void* _lb_o9 = ({ void* _lb_sq10 __attribute__((unused)) = (({ lb_r_void_0p _lb_r11 = lb_window_12native_class("NSCursor"); if (_lb_r11.failed) {
-        return ((lb_r_void_0p){ .error = _lb_r11.error, .failed = true });
-    } _lb_r11.value; })); void* _lb_sq12 __attribute__((unused)) = lb_window_sel(lb_name); ((void* (*)(void*, void*))lb_x_window_7msg_ptr)(_lb_sq10, _lb_sq12); }); if (_lb_o9 == ((void*)0)) {
-        lb_r_void_0p _lb_err13 = ((lb_r_void_0p){ .error = { .code = (int32_t)(lb_window_failed), .message = ((lb_str){"AppKit could not load a system cursor", 37}) }, .failed = true });
-        return _lb_err13;
-    } _lb_o9; });
-    return ((lb_r_void_0p){ .value = _lb_ret8, .failed = false });
-    lb_trap("unreachable");
-}
-void lb_window_15cursor_callback(void* lb_object, void* lb_selector, void* lb_event) {
-    const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/window/macos/cursor.lucb:27:5";
-    struct lb_window_State* lb_state __attribute__((unused)) = ({ struct lb_window_State* _lb_o14 = lb_window_9get_state(lb_object); if (_lb_o14 == ((void*)0)) {
-        return;
-    } _lb_o14; });
-    lb_pos = "src/std/window/macos/cursor.lucb:28:5";
-    void* lb_cursor __attribute__((unused)) = ({ void* _lb_o15 = (lb_state)->native_cursor; if (_lb_o15 == ((void*)0)) {
-        return;
-    } _lb_o15; });
-    lb_pos = "src/std/window/macos/cursor.lucb:29:5";
-    (void)(({ void* _lb_sq16 __attribute__((unused)) = lb_cursor; void* _lb_sq17 __attribute__((unused)) = lb_window_sel("set"); ((void (*)(void*, void*))lb_x_window_8msg_void)(_lb_sq16, _lb_sq17); }));
-}
 __attribute__((weak)) void lb_interop_Packet_0g1_str_init(lb_interop_Packet_0g1_str* self, lb_str lb_value, void* lb_storage, lb_fn_0F1_void_0p_unit lb_dispose) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
     lb_pos = "src/std/window/windows/native.lucb:7:5";
@@ -3169,14 +3059,14 @@ __attribute__((weak)) void lb_interop_Packet_0g1_str_init(lb_interop_Packet_0g1_
 __attribute__((weak)) void lb_interop_Packet_0g1_str_release(const lb_interop_Packet_0g1_str* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
     lb_pos = "src/std/window/windows/native.lucb:12:5";
-    void* _lb_o18 = self->storage;
-    if (_lb_o18 != ((void*)0)) {
-        void* lb_storage __attribute__((unused)) = _lb_o18;
+    void* _lb_o7 = self->storage;
+    if (_lb_o7 != ((void*)0)) {
+        void* lb_storage __attribute__((unused)) = _lb_o7;
         {
             lb_pos = "src/std/window/windows/native.lucb:13:5";
-            (void)(((({ lb_fn_0F1_void_0p_unit _lb_o19 = self->dispose; if (_lb_o19 == ((void*)0)) {
+            (void)(((({ lb_fn_0F1_void_0p_unit _lb_o8 = self->dispose; if (_lb_o8 == ((void*)0)) {
                 (void)(lb_trap_text(((lb_str){"a packet has storage without a disposer", 39})));
-            } _lb_o19; })))(lb_storage));
+            } _lb_o8; })))(lb_storage));
         }
     }
 }
@@ -3192,14 +3082,14 @@ __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_init(lb_interop_Packet_0g
 __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_release(const lb_interop_Packet_0g1_u8_0c* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
     lb_pos = "src/std/window/windows/native.lucb:12:5";
-    void* _lb_o20 = self->storage;
-    if (_lb_o20 != ((void*)0)) {
-        void* lb_storage __attribute__((unused)) = _lb_o20;
+    void* _lb_o9 = self->storage;
+    if (_lb_o9 != ((void*)0)) {
+        void* lb_storage __attribute__((unused)) = _lb_o9;
         {
             lb_pos = "src/std/window/windows/native.lucb:13:5";
-            (void)(((({ lb_fn_0F1_void_0p_unit _lb_o21 = self->dispose; if (_lb_o21 == ((void*)0)) {
+            (void)(((({ lb_fn_0F1_void_0p_unit _lb_o10 = self->dispose; if (_lb_o10 == ((void*)0)) {
                 (void)(lb_trap_text(((lb_str){"a packet has storage without a disposer", 39})));
-            } _lb_o21; })))(lb_storage));
+            } _lb_o10; })))(lb_storage));
         }
     }
 }

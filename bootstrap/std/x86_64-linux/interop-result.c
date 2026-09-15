@@ -2818,7 +2818,7 @@ extern uint32_t lb_interop_12wrong_thread;
 extern uint32_t lb_interop_expired;
 extern lb_ownership_Info lb_interop_10lease_info;
 __attribute__((weak)) uint32_t lb_interop_8no_error = ((uint32_t)(208273408ULL));
-lb_ownership_Info lb_interop_9text_info = ((lb_ownership_Info){.name = ((lb_str){"native owned text", 17}), .size = 0ULL, .finish = ((void*)0), .drop = lb_interop_9drop_text, .trace = lb_interop_10trace_text, .identity = ((void*)0)});
+lb_ownership_Info lb_interop_9text_info = {.name = {"native owned text", 17}, .size = 0ULL, .finish = ((void*)0), .drop = lb_interop_9drop_text, .trace = lb_interop_10trace_text, .identity = ((void*)0)};
 extern lb_interop_Type_0g1_interop_Connection lb_interop_15connection_type;
 extern lb_interop_Transfer_0g1_str lb_interop_13text_transfer;
 extern lb_interop_Transfer_0g1_u8_0c lb_interop_14bytes_transfer;

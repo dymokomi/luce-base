@@ -4275,10 +4275,8 @@ _lb_gpu_14vulkan_shaders_0init:
     .section __DATA,__const
     .p2align 3
     .globl _lb_gpu_17vulkan_vert_words
-    .no_dead_strip _lb_gpu_17vulkan_vert_words
     .zerofill __DATA,__bss,_lb_gpu_17vulkan_vert_words,1084,2
     .globl _lb_gpu_17vulkan_frag_words
-    .no_dead_strip _lb_gpu_17vulkan_frag_words
     .zerofill __DATA,__bss,_lb_gpu_17vulkan_frag_words,4084,2
 
 .subsections_via_symbols

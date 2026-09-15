@@ -2604,7 +2604,7 @@ __attribute__((weak)) void lb_interop_Packet_0g1_str_release(const lb_interop_Pa
 __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_init(lb_interop_Packet_0g1_u8_0c* self, lb_cspan lb_value, void* lb_storage, lb_fn_0F1_void_0p_unit lb_dispose);
 __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_release(const lb_interop_Packet_0g1_u8_0c* self);
 
-__attribute__((weak)) lb_str lb_platform_name = ((lb_str){"arm64-macos", 11});
+__attribute__((weak)) lb_str lb_platform_name = {"arm64-macos", 11};
 __attribute__((weak)) bool lb_platform_macos = true;
 __attribute__((weak)) bool lb_platform_linux = false;
 __attribute__((weak)) bool lb_platform_windows = false;

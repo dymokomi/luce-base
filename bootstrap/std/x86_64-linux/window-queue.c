@@ -2619,33 +2619,12 @@ lb_r_unit lb_window_Window_13request_close(const lb_window_Window* self);
 lb_r_input_Event_0o lb_window_Window_poll(const lb_window_Window* self);
 void lb_window_Window_destroy(lb_window_Window* self);
 lb_r_unit lb_window_12check_thread(void);
-void lb_window_11push_scalar(struct lb_window_State* lb_state, uint32_t lb_scalar);
-void lb_window_10push_utf16(struct lb_window_State* lb_state, uint16_t lb_code);
-void lb_window_10push_event(struct lb_window_State* lb_state, lb_input_Event lb_event);
 lb_o_input_Event lb_window_9pop_event(struct lb_window_State* lb_state);
 lb_r_window_Size lb_window_Presentation_size(const lb_window_Presentation* self);
 lb_r_bool lb_window_Presentation_visible(const lb_window_Presentation* self);
 lb_r_void_0p lb_window_Presentation_10macos_view(const lb_window_Presentation* self);
 lb_r_void_0p lb_window_Presentation_14windows_handle(const lb_window_Presentation* self);
 void lb_window_Presentation_destroy(lb_window_Presentation* self);
-void* lb_window_sel(char* lb_name);
-lb_r_void_0p lb_window_12native_class(char* lb_name);
-void* lb_window_required(void* lb_object);
-struct lb_window_State* lb_window_9get_state(void* lb_object);
-void lb_window_9set_state(void* lb_object, struct lb_window_State* lb_state);
-lb_r_unit lb_window_10add_method(void* lb_native_type, char* lb_name, void* lb_implementation, char* lb_encoding);
-bool lb_window_14close_callback(void* lb_object, void* lb_selector, void* lb_sender);
-void lb_window_15resize_callback(void* lb_object, void* lb_selector, void* lb_notification);
-void lb_window_14focus_callback(void* lb_object, void* lb_selector, void* lb_notification);
-bool lb_window_12view_accepts(void* lb_object, void* lb_selector);
-void lb_window_12key_callback(void* lb_object, void* lb_selector, void* lb_native);
-void lb_window_16pointer_callback(void* lb_object, void* lb_selector, void* lb_native);
-lb_r_void_0p lb_window_10mac_cursor(uint8_t lb_cursor);
-void lb_window_15cursor_callback(void* lb_object, void* lb_selector, void* lb_event);
-lb_r_unit lb_window_23mac_register_text_input(void* lb_native_type);
-void lb_window_16mac_clear_marked(struct lb_window_State* lb_state);
-intptr_t lb_window_12win_callback(void* lb_native, uint32_t lb_message, size_t lb_word, intptr_t lb_value);
-lb_r_void_0p lb_window_10win_cursor(uint8_t lb_cursor);
 __attribute__((weak)) void lb_interop_Packet_0g1_str_init(lb_interop_Packet_0g1_str* self, lb_str lb_value, void* lb_storage, lb_fn_0F1_void_0p_unit lb_dispose);
 __attribute__((weak)) void lb_interop_Packet_0g1_str_release(const lb_interop_Packet_0g1_str* self);
 __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_init(lb_interop_Packet_0g1_u8_0c* self, lb_cspan lb_value, void* lb_storage, lb_fn_0F1_void_0p_unit lb_dispose);
@@ -3053,72 +3032,6 @@ __attribute__((weak)) lb_r_interop_Packet_0g1_u8_0c lb_interop_Transfer_0g1_u8_0
     return ((lb_r_interop_Packet_0g1_u8_0c){ .value = _lb_ret5, .failed = false });
     lb_trap("unreachable");
 }
-void lb_window_11push_scalar(struct lb_window_State* lb_state, uint32_t lb_scalar) {
-    const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/window/queue.lucb:29:5";
-    if (!!(((((((uint32_t)(lb_scalar)) >= ((uint32_t)(32ULL))) && (!(lb_scalar == 127ULL))) && (((uint32_t)(lb_scalar)) <= ((uint32_t)(1114111ULL)))) && (!(((((uint32_t)(lb_scalar)) >= ((uint32_t)(55296ULL))) && (((uint32_t)(lb_scalar)) <= ((uint32_t)(57343ULL))))))))) 
-    {
-        lb_pos = "src/std/window/queue.lucb:30:9";
-        (void)(({ struct lb_window_State* _lb_sq7 __attribute__((unused)) = lb_state; lb_input_Event _lb_sq8 __attribute__((unused)) = ((lb_input_Event){.kind = ((uint8_t)13u), .codepoint = lb_scalar}); lb_window_10push_event(_lb_sq7, _lb_sq8); }));
-    }
-}
-void lb_window_10push_utf16(struct lb_window_State* lb_state, uint16_t lb_code) {
-    const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/window/queue.lucb:33:5";
-    if (!!(((((uint16_t)(lb_code)) >= ((uint16_t)(55296ULL))) && (((uint16_t)(lb_code)) <= ((uint16_t)(56319ULL)))))) 
-    {
-        lb_pos = "src/std/window/queue.lucb:34:9";
-        if (!!((!((lb_state)->pending_surrogate == 0ULL)))) 
-        {
-            lb_pos = "src/std/window/queue.lucb:35:13";
-            (void)(lb_window_11push_scalar(lb_state, 65533ULL));
-        }
-        lb_pos = "src/std/window/queue.lucb:36:9";
-        (lb_state)->pending_surrogate = lb_code;
-        lb_pos = "src/std/window/queue.lucb:37:9";
-        return;
-    }
-    lb_pos = "src/std/window/queue.lucb:38:5";
-    if (!!(((((uint16_t)(lb_code)) >= ((uint16_t)(56320ULL))) && (((uint16_t)(lb_code)) <= ((uint16_t)(57343ULL)))))) 
-    {
-        lb_pos = "src/std/window/queue.lucb:39:9";
-        uint16_t lb_high __attribute__((unused)) = (lb_state)->pending_surrogate;
-        lb_pos = "src/std/window/queue.lucb:40:9";
-        (lb_state)->pending_surrogate = 0ULL;
-        lb_pos = "src/std/window/queue.lucb:41:9";
-        (void)(lb_window_11push_scalar(lb_state, ((!(lb_high == 0ULL)) ? (uint32_t)(lb_sub_u((uint64_t)((uint32_t)(lb_add_u((uint64_t)((uint32_t)(lb_add_u((uint64_t)(65536ULL), (uint64_t)((uint32_t)(lb_mul_u((uint64_t)(((uint32_t)(lb_sub_u((uint64_t)(((uint32_t)lb_conv_u((uint64_t)(lb_high), 16, 0, 32, 0, 1))), (uint64_t)(55296ULL), 32)))), (uint64_t)(1024ULL), 32))), 32))), (uint64_t)(((uint32_t)lb_conv_u((uint64_t)(lb_code), 16, 0, 32, 0, 1))), 32))), (uint64_t)(56320ULL), 32)) : 65533ULL)));
-        lb_pos = "src/std/window/queue.lucb:42:9";
-        return;
-    }
-    lb_pos = "src/std/window/queue.lucb:43:5";
-    if (!!((!((lb_state)->pending_surrogate == 0ULL)))) 
-    {
-        lb_pos = "src/std/window/queue.lucb:44:9";
-        (lb_state)->pending_surrogate = 0ULL;
-        lb_pos = "src/std/window/queue.lucb:45:9";
-        (void)(lb_window_11push_scalar(lb_state, 65533ULL));
-    }
-    lb_pos = "src/std/window/queue.lucb:46:5";
-    (void)(lb_window_11push_scalar(lb_state, ((uint32_t)lb_conv_u((uint64_t)(lb_code), 16, 0, 32, 0, 1))));
-}
-void lb_window_10push_event(struct lb_window_State* lb_state, lb_input_Event lb_event) {
-    const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/window/queue.lucb:49:5";
-    if (!!(((lb_state)->count == 256ULL))) 
-    {
-        lb_pos = "src/std/window/queue.lucb:50:9";
-        (lb_state)->head = 0ULL;
-        lb_pos = "src/std/window/queue.lucb:51:9";
-        (lb_state)->count = 0ULL;
-        lb_pos = "src/std/window/queue.lucb:52:9";
-        (lb_state)->overflowed = true;
-    }
-    lb_pos = "src/std/window/queue.lucb:53:5";
-    (((lb_state)->events).d[lb_at((uint64_t)((size_t)(lb_mod_u((uint64_t)(((size_t)(lb_add_u((uint64_t)((lb_state)->head), (uint64_t)((lb_state)->count), 64)))), (uint64_t)(256ULL), 64))), 256ULL)]) = lb_event;
-    lb_pos = "src/std/window/queue.lucb:54:5";
-    { size_t* lb__cell9 = &((lb_state)->count);
-    (*(lb__cell9)) = (size_t)(lb_add_u((uint64_t)((*(lb__cell9))), (uint64_t)(1ULL), 64)); }
-}
 lb_o_input_Event lb_window_9pop_event(struct lb_window_State* lb_state) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
     lb_pos = "src/std/window/queue.lucb:57:5";
@@ -3127,8 +3040,8 @@ lb_o_input_Event lb_window_9pop_event(struct lb_window_State* lb_state) {
         lb_pos = "src/std/window/queue.lucb:58:9";
         (lb_state)->close_requested = false;
         lb_pos = "src/std/window/queue.lucb:59:9";
-        lb_o_input_Event _lb_ret10 = ((lb_o_input_Event){ .value = ((lb_input_Event){.kind = ((uint8_t)1u)}), .present = true });
-        return _lb_ret10;
+        lb_o_input_Event _lb_ret7 = ((lb_o_input_Event){ .value = ((lb_input_Event){.kind = ((uint8_t)1u)}), .present = true });
+        return _lb_ret7;
     }
     lb_pos = "src/std/window/queue.lucb:60:5";
     if (!!((lb_state)->overflowed)) 
@@ -3136,26 +3049,26 @@ lb_o_input_Event lb_window_9pop_event(struct lb_window_State* lb_state) {
         lb_pos = "src/std/window/queue.lucb:61:9";
         (lb_state)->overflowed = false;
         lb_pos = "src/std/window/queue.lucb:62:9";
-        lb_o_input_Event _lb_ret11 = ((lb_o_input_Event){ .value = ((lb_input_Event){.kind = ((uint8_t)12u)}), .present = true });
-        return _lb_ret11;
+        lb_o_input_Event _lb_ret8 = ((lb_o_input_Event){ .value = ((lb_input_Event){.kind = ((uint8_t)12u)}), .present = true });
+        return _lb_ret8;
     }
     lb_pos = "src/std/window/queue.lucb:63:5";
     if (!!(((lb_state)->count == 0ULL))) 
     {
         lb_pos = "src/std/window/queue.lucb:64:9";
-        lb_o_input_Event _lb_ret12 = ((lb_o_input_Event){ .present = false });
-        return _lb_ret12;
+        lb_o_input_Event _lb_ret9 = ((lb_o_input_Event){ .present = false });
+        return _lb_ret9;
     }
     lb_pos = "src/std/window/queue.lucb:65:5";
     lb_input_Event lb_event __attribute__((unused)) = (((lb_state)->events).d[lb_at((uint64_t)((lb_state)->head), 256ULL)]);
     lb_pos = "src/std/window/queue.lucb:66:5";
     (lb_state)->head = (size_t)(lb_mod_u((uint64_t)(((size_t)(lb_add_u((uint64_t)((lb_state)->head), (uint64_t)(1ULL), 64)))), (uint64_t)(256ULL), 64));
     lb_pos = "src/std/window/queue.lucb:67:5";
-    { size_t* lb__cell13 = &((lb_state)->count);
-    (*(lb__cell13)) = (size_t)(lb_sub_u((uint64_t)((*(lb__cell13))), (uint64_t)(1ULL), 64)); }
+    { size_t* lb__cell10 = &((lb_state)->count);
+    (*(lb__cell10)) = (size_t)(lb_sub_u((uint64_t)((*(lb__cell10))), (uint64_t)(1ULL), 64)); }
     lb_pos = "src/std/window/queue.lucb:68:5";
-    lb_o_input_Event _lb_ret14 = ((lb_o_input_Event){ .value = lb_event, .present = true });
-    return _lb_ret14;
+    lb_o_input_Event _lb_ret11 = ((lb_o_input_Event){ .value = lb_event, .present = true });
+    return _lb_ret11;
     lb_trap("unreachable");
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_str_init(lb_interop_Packet_0g1_str* self, lb_str lb_value, void* lb_storage, lb_fn_0F1_void_0p_unit lb_dispose) {
@@ -3170,14 +3083,14 @@ __attribute__((weak)) void lb_interop_Packet_0g1_str_init(lb_interop_Packet_0g1_
 __attribute__((weak)) void lb_interop_Packet_0g1_str_release(const lb_interop_Packet_0g1_str* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
     lb_pos = "src/std/window/windows/native.lucb:12:5";
-    void* _lb_o15 = self->storage;
-    if (_lb_o15 != ((void*)0)) {
-        void* lb_storage __attribute__((unused)) = _lb_o15;
+    void* _lb_o12 = self->storage;
+    if (_lb_o12 != ((void*)0)) {
+        void* lb_storage __attribute__((unused)) = _lb_o12;
         {
             lb_pos = "src/std/window/windows/native.lucb:13:5";
-            (void)(((({ lb_fn_0F1_void_0p_unit _lb_o16 = self->dispose; if (_lb_o16 == ((void*)0)) {
+            (void)(((({ lb_fn_0F1_void_0p_unit _lb_o13 = self->dispose; if (_lb_o13 == ((void*)0)) {
                 (void)(lb_trap_text(((lb_str){"a packet has storage without a disposer", 39})));
-            } _lb_o16; })))(lb_storage));
+            } _lb_o13; })))(lb_storage));
         }
     }
 }
@@ -3193,14 +3106,14 @@ __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_init(lb_interop_Packet_0g
 __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_release(const lb_interop_Packet_0g1_u8_0c* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
     lb_pos = "src/std/window/windows/native.lucb:12:5";
-    void* _lb_o17 = self->storage;
-    if (_lb_o17 != ((void*)0)) {
-        void* lb_storage __attribute__((unused)) = _lb_o17;
+    void* _lb_o14 = self->storage;
+    if (_lb_o14 != ((void*)0)) {
+        void* lb_storage __attribute__((unused)) = _lb_o14;
         {
             lb_pos = "src/std/window/windows/native.lucb:13:5";
-            (void)(((({ lb_fn_0F1_void_0p_unit _lb_o18 = self->dispose; if (_lb_o18 == ((void*)0)) {
+            (void)(((({ lb_fn_0F1_void_0p_unit _lb_o15 = self->dispose; if (_lb_o15 == ((void*)0)) {
                 (void)(lb_trap_text(((lb_str){"a packet has storage without a disposer", 39})));
-            } _lb_o18; })))(lb_storage));
+            } _lb_o15; })))(lb_storage));
         }
     }
 }

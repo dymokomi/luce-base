@@ -379,13 +379,11 @@ l_text_5:
     .globl _lb_process_16termination_lock
     .zerofill __DATA,__bss,_lb_process_16termination_lock,4,2
     .globl _lb_process_18termination_owners
-    .no_dead_strip _lb_process_18termination_owners
     .zerofill __DATA,__bss,_lb_process_18termination_owners,8,3
     .globl _lb_process_22termination_generation
     .no_dead_strip _lb_process_22termination_generation
     .zerofill __DATA,__bss,_lb_process_22termination_generation,8,3
     .globl _lb_process_19termination_closing
-    .no_dead_strip _lb_process_19termination_closing
     .zerofill __DATA,__bss,_lb_process_19termination_closing,1,0
 
 .subsections_via_symbols

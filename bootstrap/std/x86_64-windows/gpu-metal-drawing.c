@@ -1982,8 +1982,6 @@ typedef struct lb_interop_ViewType_0g1_gpu_RenderTarget {
 typedef struct lb_a_u32_0a271 { uint32_t d[271]; } lb_a_u32_0a271;
 typedef struct lb_a_u32_0a1021 { uint32_t d[1021]; } lb_a_u32_0a1021;
 typedef struct lb_a_5c_str_0a2 { char* d[2]; } lb_a_5c_str_0a2;
-LB_RES(struct lb_gpu_MetalDrawing*, lb_r_gpu_MetalDrawing_0p);
-LB_RES(void*, lb_r_void_0p);
 typedef void (*lb_fn_0F0_unit)(void);
 typedef void* (*lb_fn_0F1_void_0p_void_0p_0o)(void*);
 LB_RES(bool, lb_r_bool);
@@ -2002,6 +2000,7 @@ typedef struct lb_interop_View_0g1_gpu_RenderTarget {
     struct lb_interop_ViewOwner_0g1_gpu_RenderTarget* owner;
 } lb_interop_View_0g1_gpu_RenderTarget;
 LB_RES(lb_interop_View_0g1_gpu_RenderTarget, lb_r_interop_View_0g1_gpu_RenderTarget);
+LB_RES(void*, lb_r_void_0p);
 LB_RES(lb_cspan, lb_r_5c_str_0c);
 LB_RES(uint64_t, lb_r_u64);
 LB_RES(struct lb_gpu_VulkanDevice*, lb_r_gpu_VulkanDevice_0p);
@@ -2680,13 +2679,6 @@ lb_r_gpu_PresentResult lb_gpu_21backend_clear_present(struct lb_gpu_DeviceState*
 lb_r_unit lb_gpu_20backend_surface_wait(struct lb_gpu_DeviceState* lb_device, void* lb_native);
 lb_r_gpu_PresentResult lb_gpu_14backend_render(struct lb_gpu_DeviceState* lb_device, lb_window_Presentation lb_host, void* lb_native, lb_gpu_Canvas lb_canvas, lb_gpu_Color lb_color);
 void lb_gpu_23backend_surface_destroy(struct lb_gpu_DeviceState* lb_device, lb_window_Presentation lb_host, void* lb_native);
-void* lb_gpu_9metal_sel(char* lb_name);
-lb_r_void_0p lb_gpu_11metal_class(char* lb_name);
-void* lb_gpu_14metal_required(void* lb_object);
-lb_r_gpu_MetalDrawing_0p lb_gpu_18metal_drawing_open(struct lb_gpu_MetalDevice* lb_device);
-lb_r_void_0p lb_gpu_11metal_depth(struct lb_gpu_MetalDevice* lb_device, struct lb_gpu_MetalDrawing* lb_state, uint64_t lb_width, uint64_t lb_height);
-void lb_gpu_21metal_drawing_destroy(struct lb_gpu_MetalDrawing* lb_state);
-void lb_gpu_12metal_encode(void* lb_encoder, struct lb_gpu_MetalDrawing* lb_drawing, void* lb_buffer, void* lb_masks, lb_gpu_Canvas lb_canvas, uint64_t lb_width, uint64_t lb_height);
 lb_r_5c_str_0c lb_gpu_30vulkan_presentation_extensions(void);
 bool lb_gpu_27vulkan_presentation_support(uint64_t lb_physical, uint32_t lb_family);
 lb_r_u64 lb_gpu_27vulkan_presentation_surface(uint64_t lb_instance, lb_window_Presentation lb_host);
@@ -2705,8 +2697,6 @@ __attribute__((weak)) void lb_interop_Packet_0g1_str_init(lb_interop_Packet_0g1_
 __attribute__((weak)) void lb_interop_Packet_0g1_str_release(const lb_interop_Packet_0g1_str* self);
 __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_init(lb_interop_Packet_0g1_u8_0c* self, lb_cspan lb_value, void* lb_storage, lb_fn_0F1_void_0p_unit lb_dispose);
 __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_release(const lb_interop_Packet_0g1_u8_0c* self);
-lb_r_void_0p lb_gpu_10metal_text(char* lb_value);
-uint64_t lb_gpu_9metal_min(uint64_t lb_a, uint64_t lb_b);
 
 extern lb_str lb_platform_name;
 extern bool lb_platform_macos;
@@ -3110,308 +3100,6 @@ __attribute__((weak)) lb_r_interop_Packet_0g1_u8_0c lb_interop_Transfer_0g1_u8_0
     return ((lb_r_interop_Packet_0g1_u8_0c){ .value = _lb_ret5, .failed = false });
     lb_trap("unreachable");
 }
-lb_r_gpu_MetalDrawing_0p lb_gpu_18metal_drawing_open(struct lb_gpu_MetalDevice* lb_device) {
-    const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/gpu/metal/drawing.lucb:16:5";
-    struct lb_gpu_MetalDrawing* lb_state __attribute__((unused)) = (({ lb_r_gpu_MetalDrawing_0p _lb_r7 = ({ lb_iface _lb_a8 = lb_memory_heap; lb_o_u8_0s _lb_ao8 = lb_alloc_call(_lb_a8, sizeof(lb_gpu_MetalDrawing), _Alignof(lb_gpu_MetalDrawing)); lb_r_gpu_MetalDrawing_0p _lb_r8; if (!_lb_ao8.present) { _lb_r8 = ((lb_r_gpu_MetalDrawing_0p){ .error = { .code = 208273409, .message = (lb_str){"memory.exhausted", 16} }, .failed = true }); } else { lb_gpu_MetalDrawing* _lb_p8 = (lb_gpu_MetalDrawing*)_lb_ao8.value.data; *_lb_p8 = ((lb_gpu_MetalDrawing){}); _lb_r8.value = _lb_p8; _lb_r8.failed = false; } _lb_r8; }); if (_lb_r7.failed) {
-        return ((lb_r_gpu_MetalDrawing_0p){ .error = _lb_r7.error, .failed = true });
-    } _lb_r7.value; }));
-    lb_pos = "src/std/gpu/metal/drawing.lucb:17:5";
-    lb_pos = "src/std/gpu/metal/drawing.lucb:18:5";
-    void* lb_source __attribute__((unused)) = (({ lb_r_void_0p _lb_r9 = lb_gpu_10metal_text("#include <metal_stdlib>\nusing namespace metal;\nstruct V { float4 position [[position]]; float4 color; };\nstruct Mask { float x,y,width,height; uint columns,rows,offset,reserved; };\nvertex V luce_vertex(const device float* data [[buffer(0)]], uint id [[vertex_id]]) {\n uint i=id*8; V v; v.position=float4(data[i],data[i+1],data[i+2],data[i+3]); v.color=float4(data[i+4],data[i+5],data[i+6],data[i+7]); return v;\n}\nfloat coverage(const device uint* data, constant Mask& m, int2 p) {\n p=clamp(p,int2(0),int2(m.columns-1,m.rows-1)); uint i=m.offset+uint(p.y)*m.columns+uint(p.x);\n return float((data[i/4] >> ((i%4)*8)) & 255u)/255.0;\n}\nfragment float4 luce_fragment(V v [[stage_in]], const device uint* data [[buffer(0)]], constant Mask& m [[buffer(1)]]) {\n if(m.columns==0) return v.color;\n float2 p=(v.position.xy-float2(m.x,m.y))/float2(m.width,m.height)*float2(m.columns,m.rows)-0.5;\n int2 q=int2(floor(p)); float2 f=fract(p);\n float a=mix(mix(coverage(data,m,q),coverage(data,m,q+int2(1,0)),f.x),mix(coverage(data,m,q+int2(0,1)),coverage(data,m,q+int2(1,1)),f.x),f.y);\n return float4(v.color.rgb,v.color.a*a);\n}"); if (_lb_r9.failed) {
-        (void)(lb_gpu_21metal_drawing_destroy(lb_state));
-        return ((lb_r_gpu_MetalDrawing_0p){ .error = _lb_r9.error, .failed = true });
-    } _lb_r9.value; }));
-    lb_pos = "src/std/gpu/metal/drawing.lucb:19:5";
-    void* lb_failure __attribute__((unused)) = ((void*)0);
-    lb_pos = "src/std/gpu/metal/drawing.lucb:20:5";
-    void* lb_native __attribute__((unused)) = lb_gpu_14metal_required((lb_device)->device);
-    lb_pos = "src/std/gpu/metal/drawing.lucb:21:5";
-    void* lb_library __attribute__((unused)) = ({ void* _lb_o10 = ({ void* _lb_sq11 __attribute__((unused)) = lb_native; void* _lb_sq12 __attribute__((unused)) = lb_gpu_9metal_sel("newLibraryWithSource:options:error:"); void* _lb_sq13 __attribute__((unused)) = lb_source; void* _lb_sq14 __attribute__((unused)) = ((void*)0); void** _lb_sq15 __attribute__((unused)) = &(lb_failure); ((void* (*)(void*, void*, void*, void*, void**))lb_x_gpu_13metal_library)(_lb_sq11, _lb_sq12, _lb_sq13, _lb_sq14, _lb_sq15); }); if (_lb_o10 == ((void*)0)) {
-        lb_r_gpu_MetalDrawing_0p _lb_err16 = ((lb_r_gpu_MetalDrawing_0p){ .error = { .code = (int32_t)(lb_gpu_failed), .message = ((lb_str){"could not compile the portable triangle pipeline", 48}) }, .failed = true });
-        (void)(lb_gpu_21metal_drawing_destroy(lb_state));
-        return _lb_err16;
-    } _lb_o10; });
-    lb_pos = "src/std/gpu/metal/drawing.lucb:22:5";
-    lb_pos = "src/std/gpu/metal/drawing.lucb:23:5";
-    void* lb_vertex __attribute__((unused)) = ({ void* _lb_o17 = ({ void* _lb_sq18 __attribute__((unused)) = lb_library; void* _lb_sq19 __attribute__((unused)) = lb_gpu_9metal_sel("newFunctionWithName:"); void* _lb_sq20 __attribute__((unused)) = (({ lb_r_void_0p _lb_r21 = lb_gpu_10metal_text("luce_vertex"); if (_lb_r21.failed) {
-        (void)(({ void* _lb_sq22 __attribute__((unused)) = lb_library; void* _lb_sq23 __attribute__((unused)) = lb_gpu_9metal_sel("release"); ((void (*)(void*, void*))lb_x_gpu_10metal_void)(_lb_sq22, _lb_sq23); }));
-        (void)(lb_gpu_21metal_drawing_destroy(lb_state));
-        return ((lb_r_gpu_MetalDrawing_0p){ .error = _lb_r21.error, .failed = true });
-    } _lb_r21.value; })); ((void* (*)(void*, void*, void*))lb_x_gpu_17metal_with_object)(_lb_sq18, _lb_sq19, _lb_sq20); }); if (_lb_o17 == ((void*)0)) {
-        lb_r_gpu_MetalDrawing_0p _lb_err24 = ((lb_r_gpu_MetalDrawing_0p){ .error = { .code = (int32_t)(lb_gpu_failed), .message = ((lb_str){"the GPU vertex entry is missing", 31}) }, .failed = true });
-        (void)(({ void* _lb_sq25 __attribute__((unused)) = lb_library; void* _lb_sq26 __attribute__((unused)) = lb_gpu_9metal_sel("release"); ((void (*)(void*, void*))lb_x_gpu_10metal_void)(_lb_sq25, _lb_sq26); }));
-        (void)(lb_gpu_21metal_drawing_destroy(lb_state));
-        return _lb_err24;
-    } _lb_o17; });
-    lb_pos = "src/std/gpu/metal/drawing.lucb:24:5";
-    lb_pos = "src/std/gpu/metal/drawing.lucb:25:5";
-    void* lb_fragment __attribute__((unused)) = ({ void* _lb_o27 = ({ void* _lb_sq28 __attribute__((unused)) = lb_library; void* _lb_sq29 __attribute__((unused)) = lb_gpu_9metal_sel("newFunctionWithName:"); void* _lb_sq30 __attribute__((unused)) = (({ lb_r_void_0p _lb_r31 = lb_gpu_10metal_text("luce_fragment"); if (_lb_r31.failed) {
-        (void)(({ void* _lb_sq32 __attribute__((unused)) = lb_vertex; void* _lb_sq33 __attribute__((unused)) = lb_gpu_9metal_sel("release"); ((void (*)(void*, void*))lb_x_gpu_10metal_void)(_lb_sq32, _lb_sq33); }));
-        (void)(({ void* _lb_sq34 __attribute__((unused)) = lb_library; void* _lb_sq35 __attribute__((unused)) = lb_gpu_9metal_sel("release"); ((void (*)(void*, void*))lb_x_gpu_10metal_void)(_lb_sq34, _lb_sq35); }));
-        (void)(lb_gpu_21metal_drawing_destroy(lb_state));
-        return ((lb_r_gpu_MetalDrawing_0p){ .error = _lb_r31.error, .failed = true });
-    } _lb_r31.value; })); ((void* (*)(void*, void*, void*))lb_x_gpu_17metal_with_object)(_lb_sq28, _lb_sq29, _lb_sq30); }); if (_lb_o27 == ((void*)0)) {
-        lb_r_gpu_MetalDrawing_0p _lb_err36 = ((lb_r_gpu_MetalDrawing_0p){ .error = { .code = (int32_t)(lb_gpu_failed), .message = ((lb_str){"the GPU fragment entry is missing", 33}) }, .failed = true });
-        (void)(({ void* _lb_sq37 __attribute__((unused)) = lb_vertex; void* _lb_sq38 __attribute__((unused)) = lb_gpu_9metal_sel("release"); ((void (*)(void*, void*))lb_x_gpu_10metal_void)(_lb_sq37, _lb_sq38); }));
-        (void)(({ void* _lb_sq39 __attribute__((unused)) = lb_library; void* _lb_sq40 __attribute__((unused)) = lb_gpu_9metal_sel("release"); ((void (*)(void*, void*))lb_x_gpu_10metal_void)(_lb_sq39, _lb_sq40); }));
-        (void)(lb_gpu_21metal_drawing_destroy(lb_state));
-        return _lb_err36;
-    } _lb_o27; });
-    lb_pos = "src/std/gpu/metal/drawing.lucb:26:5";
-    lb_pos = "src/std/gpu/metal/drawing.lucb:27:5";
-    void* lb_descriptor __attribute__((unused)) = ({ void* _lb_o41 = ({ void* _lb_sq42 __attribute__((unused)) = (({ lb_r_void_0p _lb_r43 = lb_gpu_11metal_class("MTLRenderPipelineDescriptor"); if (_lb_r43.failed) {
-        (void)(({ void* _lb_sq44 __attribute__((unused)) = lb_fragment; void* _lb_sq45 __attribute__((unused)) = lb_gpu_9metal_sel("release"); ((void (*)(void*, void*))lb_x_gpu_10metal_void)(_lb_sq44, _lb_sq45); }));
-        (void)(({ void* _lb_sq46 __attribute__((unused)) = lb_vertex; void* _lb_sq47 __attribute__((unused)) = lb_gpu_9metal_sel("release"); ((void (*)(void*, void*))lb_x_gpu_10metal_void)(_lb_sq46, _lb_sq47); }));
-        (void)(({ void* _lb_sq48 __attribute__((unused)) = lb_library; void* _lb_sq49 __attribute__((unused)) = lb_gpu_9metal_sel("release"); ((void (*)(void*, void*))lb_x_gpu_10metal_void)(_lb_sq48, _lb_sq49); }));
-        (void)(lb_gpu_21metal_drawing_destroy(lb_state));
-        return ((lb_r_gpu_MetalDrawing_0p){ .error = _lb_r43.error, .failed = true });
-    } _lb_r43.value; })); void* _lb_sq50 __attribute__((unused)) = lb_gpu_9metal_sel("new"); ((void* (*)(void*, void*))lb_x_gpu_9metal_ptr)(_lb_sq42, _lb_sq50); }); if (_lb_o41 == ((void*)0)) {
-        lb_r_gpu_MetalDrawing_0p _lb_err51 = ((lb_r_gpu_MetalDrawing_0p){ .error = { .code = (int32_t)(lb_gpu_failed), .message = ((lb_str){"could not create a GPU pipeline descriptor", 42}) }, .failed = true });
-        (void)(({ void* _lb_sq52 __attribute__((unused)) = lb_fragment; void* _lb_sq53 __attribute__((unused)) = lb_gpu_9metal_sel("release"); ((void (*)(void*, void*))lb_x_gpu_10metal_void)(_lb_sq52, _lb_sq53); }));
-        (void)(({ void* _lb_sq54 __attribute__((unused)) = lb_vertex; void* _lb_sq55 __attribute__((unused)) = lb_gpu_9metal_sel("release"); ((void (*)(void*, void*))lb_x_gpu_10metal_void)(_lb_sq54, _lb_sq55); }));
-        (void)(({ void* _lb_sq56 __attribute__((unused)) = lb_library; void* _lb_sq57 __attribute__((unused)) = lb_gpu_9metal_sel("release"); ((void (*)(void*, void*))lb_x_gpu_10metal_void)(_lb_sq56, _lb_sq57); }));
-        (void)(lb_gpu_21metal_drawing_destroy(lb_state));
-        return _lb_err51;
-    } _lb_o41; });
-    lb_pos = "src/std/gpu/metal/drawing.lucb:28:5";
-    lb_pos = "src/std/gpu/metal/drawing.lucb:29:5";
-    (void)(({ void* _lb_sq58 __attribute__((unused)) = lb_descriptor; void* _lb_sq59 __attribute__((unused)) = lb_gpu_9metal_sel("setVertexFunction:"); void* _lb_sq60 __attribute__((unused)) = lb_vertex; ((void (*)(void*, void*, void*))lb_x_gpu_12metal_object)(_lb_sq58, _lb_sq59, _lb_sq60); }));
-    lb_pos = "src/std/gpu/metal/drawing.lucb:30:5";
-    (void)(({ void* _lb_sq61 __attribute__((unused)) = lb_descriptor; void* _lb_sq62 __attribute__((unused)) = lb_gpu_9metal_sel("setFragmentFunction:"); void* _lb_sq63 __attribute__((unused)) = lb_fragment; ((void (*)(void*, void*, void*))lb_x_gpu_12metal_object)(_lb_sq61, _lb_sq62, _lb_sq63); }));
-    lb_pos = "src/std/gpu/metal/drawing.lucb:31:5";
-    (void)(({ void* _lb_sq64 __attribute__((unused)) = lb_descriptor; void* _lb_sq65 __attribute__((unused)) = lb_gpu_9metal_sel("setDepthAttachmentPixelFormat:"); uint64_t _lb_sq66 __attribute__((unused)) = 252ULL; ((void (*)(void*, void*, uint64_t))lb_x_gpu_14metal_uint_arg)(_lb_sq64, _lb_sq65, _lb_sq66); }));
-    lb_pos = "src/std/gpu/metal/drawing.lucb:32:5";
-    void* lb_attachments __attribute__((unused)) = lb_gpu_14metal_required(({ void* _lb_sq67 __attribute__((unused)) = lb_descriptor; void* _lb_sq68 __attribute__((unused)) = lb_gpu_9metal_sel("colorAttachments"); ((void* (*)(void*, void*))lb_x_gpu_9metal_ptr)(_lb_sq67, _lb_sq68); }));
-    lb_pos = "src/std/gpu/metal/drawing.lucb:33:5";
-    void* lb_color __attribute__((unused)) = lb_gpu_14metal_required(({ void* _lb_sq69 __attribute__((unused)) = lb_attachments; void* _lb_sq70 __attribute__((unused)) = lb_gpu_9metal_sel("objectAtIndexedSubscript:"); uint64_t _lb_sq71 __attribute__((unused)) = 0ULL; ((void* (*)(void*, void*, uint64_t))lb_x_gpu_11metal_index)(_lb_sq69, _lb_sq70, _lb_sq71); }));
-    lb_pos = "src/std/gpu/metal/drawing.lucb:34:5";
-    (void)(({ void* _lb_sq72 __attribute__((unused)) = lb_color; void* _lb_sq73 __attribute__((unused)) = lb_gpu_9metal_sel("setPixelFormat:"); uint64_t _lb_sq74 __attribute__((unused)) = 81ULL; ((void (*)(void*, void*, uint64_t))lb_x_gpu_14metal_uint_arg)(_lb_sq72, _lb_sq73, _lb_sq74); }));
-    lb_pos = "src/std/gpu/metal/drawing.lucb:35:5";
-    (void)(({ void* _lb_sq75 __attribute__((unused)) = lb_color; void* _lb_sq76 __attribute__((unused)) = lb_gpu_9metal_sel("setBlendingEnabled:"); bool _lb_sq77 __attribute__((unused)) = true; ((void (*)(void*, void*, bool))lb_x_gpu_14metal_bool_arg)(_lb_sq75, _lb_sq76, _lb_sq77); }));
-    lb_pos = "src/std/gpu/metal/drawing.lucb:36:5";
-    (void)(({ void* _lb_sq78 __attribute__((unused)) = lb_color; void* _lb_sq79 __attribute__((unused)) = lb_gpu_9metal_sel("setSourceRGBBlendFactor:"); uint64_t _lb_sq80 __attribute__((unused)) = 4ULL; ((void (*)(void*, void*, uint64_t))lb_x_gpu_14metal_uint_arg)(_lb_sq78, _lb_sq79, _lb_sq80); }));
-    lb_pos = "src/std/gpu/metal/drawing.lucb:37:5";
-    (void)(({ void* _lb_sq81 __attribute__((unused)) = lb_color; void* _lb_sq82 __attribute__((unused)) = lb_gpu_9metal_sel("setDestinationRGBBlendFactor:"); uint64_t _lb_sq83 __attribute__((unused)) = 5ULL; ((void (*)(void*, void*, uint64_t))lb_x_gpu_14metal_uint_arg)(_lb_sq81, _lb_sq82, _lb_sq83); }));
-    lb_pos = "src/std/gpu/metal/drawing.lucb:39:5";
-    (void)(({ void* _lb_sq84 __attribute__((unused)) = lb_color; void* _lb_sq85 __attribute__((unused)) = lb_gpu_9metal_sel("setSourceAlphaBlendFactor:"); uint64_t _lb_sq86 __attribute__((unused)) = 1ULL; ((void (*)(void*, void*, uint64_t))lb_x_gpu_14metal_uint_arg)(_lb_sq84, _lb_sq85, _lb_sq86); }));
-    lb_pos = "src/std/gpu/metal/drawing.lucb:40:5";
-    (void)(({ void* _lb_sq87 __attribute__((unused)) = lb_color; void* _lb_sq88 __attribute__((unused)) = lb_gpu_9metal_sel("setDestinationAlphaBlendFactor:"); uint64_t _lb_sq89 __attribute__((unused)) = 5ULL; ((void (*)(void*, void*, uint64_t))lb_x_gpu_14metal_uint_arg)(_lb_sq87, _lb_sq88, _lb_sq89); }));
-    lb_pos = "src/std/gpu/metal/drawing.lucb:41:5";
-    (lb_state)->pipeline = ({ void* _lb_o90 = ({ void* _lb_sq91 __attribute__((unused)) = lb_native; void* _lb_sq92 __attribute__((unused)) = lb_gpu_9metal_sel("newRenderPipelineStateWithDescriptor:error:"); void* _lb_sq93 __attribute__((unused)) = lb_descriptor; void** _lb_sq94 __attribute__((unused)) = &(lb_failure); ((void* (*)(void*, void*, void*, void**))lb_x_gpu_14metal_pipeline)(_lb_sq91, _lb_sq92, _lb_sq93, _lb_sq94); }); if (_lb_o90 == ((void*)0)) {
-        lb_r_gpu_MetalDrawing_0p _lb_err95 = ((lb_r_gpu_MetalDrawing_0p){ .error = { .code = (int32_t)(lb_gpu_failed), .message = ((lb_str){"could not create the portable triangle pipeline", 47}) }, .failed = true });
-        (void)(({ void* _lb_sq96 __attribute__((unused)) = lb_descriptor; void* _lb_sq97 __attribute__((unused)) = lb_gpu_9metal_sel("release"); ((void (*)(void*, void*))lb_x_gpu_10metal_void)(_lb_sq96, _lb_sq97); }));
-        (void)(({ void* _lb_sq98 __attribute__((unused)) = lb_fragment; void* _lb_sq99 __attribute__((unused)) = lb_gpu_9metal_sel("release"); ((void (*)(void*, void*))lb_x_gpu_10metal_void)(_lb_sq98, _lb_sq99); }));
-        (void)(({ void* _lb_sq100 __attribute__((unused)) = lb_vertex; void* _lb_sq101 __attribute__((unused)) = lb_gpu_9metal_sel("release"); ((void (*)(void*, void*))lb_x_gpu_10metal_void)(_lb_sq100, _lb_sq101); }));
-        (void)(({ void* _lb_sq102 __attribute__((unused)) = lb_library; void* _lb_sq103 __attribute__((unused)) = lb_gpu_9metal_sel("release"); ((void (*)(void*, void*))lb_x_gpu_10metal_void)(_lb_sq102, _lb_sq103); }));
-        (void)(lb_gpu_21metal_drawing_destroy(lb_state));
-        return _lb_err95;
-    } _lb_o90; });
-    lb_pos = "src/std/gpu/metal/drawing.lucb:42:5";
-    void* lb_depth __attribute__((unused)) = ({ void* _lb_o104 = ({ void* _lb_sq105 __attribute__((unused)) = (({ lb_r_void_0p _lb_r106 = lb_gpu_11metal_class("MTLDepthStencilDescriptor"); if (_lb_r106.failed) {
-        (void)(({ void* _lb_sq107 __attribute__((unused)) = lb_descriptor; void* _lb_sq108 __attribute__((unused)) = lb_gpu_9metal_sel("release"); ((void (*)(void*, void*))lb_x_gpu_10metal_void)(_lb_sq107, _lb_sq108); }));
-        (void)(({ void* _lb_sq109 __attribute__((unused)) = lb_fragment; void* _lb_sq110 __attribute__((unused)) = lb_gpu_9metal_sel("release"); ((void (*)(void*, void*))lb_x_gpu_10metal_void)(_lb_sq109, _lb_sq110); }));
-        (void)(({ void* _lb_sq111 __attribute__((unused)) = lb_vertex; void* _lb_sq112 __attribute__((unused)) = lb_gpu_9metal_sel("release"); ((void (*)(void*, void*))lb_x_gpu_10metal_void)(_lb_sq111, _lb_sq112); }));
-        (void)(({ void* _lb_sq113 __attribute__((unused)) = lb_library; void* _lb_sq114 __attribute__((unused)) = lb_gpu_9metal_sel("release"); ((void (*)(void*, void*))lb_x_gpu_10metal_void)(_lb_sq113, _lb_sq114); }));
-        (void)(lb_gpu_21metal_drawing_destroy(lb_state));
-        return ((lb_r_gpu_MetalDrawing_0p){ .error = _lb_r106.error, .failed = true });
-    } _lb_r106.value; })); void* _lb_sq115 __attribute__((unused)) = lb_gpu_9metal_sel("new"); ((void* (*)(void*, void*))lb_x_gpu_9metal_ptr)(_lb_sq105, _lb_sq115); }); if (_lb_o104 == ((void*)0)) {
-        lb_r_gpu_MetalDrawing_0p _lb_err116 = ((lb_r_gpu_MetalDrawing_0p){ .error = { .code = (int32_t)(lb_gpu_failed), .message = ((lb_str){"could not create a GPU depth descriptor", 39}) }, .failed = true });
-        (void)(({ void* _lb_sq117 __attribute__((unused)) = lb_descriptor; void* _lb_sq118 __attribute__((unused)) = lb_gpu_9metal_sel("release"); ((void (*)(void*, void*))lb_x_gpu_10metal_void)(_lb_sq117, _lb_sq118); }));
-        (void)(({ void* _lb_sq119 __attribute__((unused)) = lb_fragment; void* _lb_sq120 __attribute__((unused)) = lb_gpu_9metal_sel("release"); ((void (*)(void*, void*))lb_x_gpu_10metal_void)(_lb_sq119, _lb_sq120); }));
-        (void)(({ void* _lb_sq121 __attribute__((unused)) = lb_vertex; void* _lb_sq122 __attribute__((unused)) = lb_gpu_9metal_sel("release"); ((void (*)(void*, void*))lb_x_gpu_10metal_void)(_lb_sq121, _lb_sq122); }));
-        (void)(({ void* _lb_sq123 __attribute__((unused)) = lb_library; void* _lb_sq124 __attribute__((unused)) = lb_gpu_9metal_sel("release"); ((void (*)(void*, void*))lb_x_gpu_10metal_void)(_lb_sq123, _lb_sq124); }));
-        (void)(lb_gpu_21metal_drawing_destroy(lb_state));
-        return _lb_err116;
-    } _lb_o104; });
-    lb_pos = "src/std/gpu/metal/drawing.lucb:43:5";
-    lb_pos = "src/std/gpu/metal/drawing.lucb:44:5";
-    (void)(({ void* _lb_sq125 __attribute__((unused)) = lb_depth; void* _lb_sq126 __attribute__((unused)) = lb_gpu_9metal_sel("setDepthCompareFunction:"); uint64_t _lb_sq127 __attribute__((unused)) = 1ULL; ((void (*)(void*, void*, uint64_t))lb_x_gpu_14metal_uint_arg)(_lb_sq125, _lb_sq126, _lb_sq127); }));
-    lb_pos = "src/std/gpu/metal/drawing.lucb:45:5";
-    (void)(({ void* _lb_sq128 __attribute__((unused)) = lb_depth; void* _lb_sq129 __attribute__((unused)) = lb_gpu_9metal_sel("setDepthWriteEnabled:"); bool _lb_sq130 __attribute__((unused)) = true; ((void (*)(void*, void*, bool))lb_x_gpu_14metal_bool_arg)(_lb_sq128, _lb_sq129, _lb_sq130); }));
-    lb_pos = "src/std/gpu/metal/drawing.lucb:46:5";
-    (lb_state)->depth_on = ({ void* _lb_o131 = ({ void* _lb_sq132 __attribute__((unused)) = lb_native; void* _lb_sq133 __attribute__((unused)) = lb_gpu_9metal_sel("newDepthStencilStateWithDescriptor:"); void* _lb_sq134 __attribute__((unused)) = lb_depth; ((void* (*)(void*, void*, void*))lb_x_gpu_17metal_with_object)(_lb_sq132, _lb_sq133, _lb_sq134); }); if (_lb_o131 == ((void*)0)) {
-        lb_r_gpu_MetalDrawing_0p _lb_err135 = ((lb_r_gpu_MetalDrawing_0p){ .error = { .code = (int32_t)(lb_gpu_failed), .message = ((lb_str){"could not create GPU depth testing", 34}) }, .failed = true });
-        (void)(({ void* _lb_sq136 __attribute__((unused)) = lb_depth; void* _lb_sq137 __attribute__((unused)) = lb_gpu_9metal_sel("release"); ((void (*)(void*, void*))lb_x_gpu_10metal_void)(_lb_sq136, _lb_sq137); }));
-        (void)(({ void* _lb_sq138 __attribute__((unused)) = lb_descriptor; void* _lb_sq139 __attribute__((unused)) = lb_gpu_9metal_sel("release"); ((void (*)(void*, void*))lb_x_gpu_10metal_void)(_lb_sq138, _lb_sq139); }));
-        (void)(({ void* _lb_sq140 __attribute__((unused)) = lb_fragment; void* _lb_sq141 __attribute__((unused)) = lb_gpu_9metal_sel("release"); ((void (*)(void*, void*))lb_x_gpu_10metal_void)(_lb_sq140, _lb_sq141); }));
-        (void)(({ void* _lb_sq142 __attribute__((unused)) = lb_vertex; void* _lb_sq143 __attribute__((unused)) = lb_gpu_9metal_sel("release"); ((void (*)(void*, void*))lb_x_gpu_10metal_void)(_lb_sq142, _lb_sq143); }));
-        (void)(({ void* _lb_sq144 __attribute__((unused)) = lb_library; void* _lb_sq145 __attribute__((unused)) = lb_gpu_9metal_sel("release"); ((void (*)(void*, void*))lb_x_gpu_10metal_void)(_lb_sq144, _lb_sq145); }));
-        (void)(lb_gpu_21metal_drawing_destroy(lb_state));
-        return _lb_err135;
-    } _lb_o131; });
-    lb_pos = "src/std/gpu/metal/drawing.lucb:47:5";
-    (void)(({ void* _lb_sq146 __attribute__((unused)) = lb_depth; void* _lb_sq147 __attribute__((unused)) = lb_gpu_9metal_sel("setDepthCompareFunction:"); uint64_t _lb_sq148 __attribute__((unused)) = 7ULL; ((void (*)(void*, void*, uint64_t))lb_x_gpu_14metal_uint_arg)(_lb_sq146, _lb_sq147, _lb_sq148); }));
-    lb_pos = "src/std/gpu/metal/drawing.lucb:48:5";
-    (void)(({ void* _lb_sq149 __attribute__((unused)) = lb_depth; void* _lb_sq150 __attribute__((unused)) = lb_gpu_9metal_sel("setDepthWriteEnabled:"); bool _lb_sq151 __attribute__((unused)) = false; ((void (*)(void*, void*, bool))lb_x_gpu_14metal_bool_arg)(_lb_sq149, _lb_sq150, _lb_sq151); }));
-    lb_pos = "src/std/gpu/metal/drawing.lucb:49:5";
-    (lb_state)->depth_off = ({ void* _lb_o152 = ({ void* _lb_sq153 __attribute__((unused)) = lb_native; void* _lb_sq154 __attribute__((unused)) = lb_gpu_9metal_sel("newDepthStencilStateWithDescriptor:"); void* _lb_sq155 __attribute__((unused)) = lb_depth; ((void* (*)(void*, void*, void*))lb_x_gpu_17metal_with_object)(_lb_sq153, _lb_sq154, _lb_sq155); }); if (_lb_o152 == ((void*)0)) {
-        lb_r_gpu_MetalDrawing_0p _lb_err156 = ((lb_r_gpu_MetalDrawing_0p){ .error = { .code = (int32_t)(lb_gpu_failed), .message = ((lb_str){"could not create GPU overlay state", 34}) }, .failed = true });
-        (void)(({ void* _lb_sq157 __attribute__((unused)) = lb_depth; void* _lb_sq158 __attribute__((unused)) = lb_gpu_9metal_sel("release"); ((void (*)(void*, void*))lb_x_gpu_10metal_void)(_lb_sq157, _lb_sq158); }));
-        (void)(({ void* _lb_sq159 __attribute__((unused)) = lb_descriptor; void* _lb_sq160 __attribute__((unused)) = lb_gpu_9metal_sel("release"); ((void (*)(void*, void*))lb_x_gpu_10metal_void)(_lb_sq159, _lb_sq160); }));
-        (void)(({ void* _lb_sq161 __attribute__((unused)) = lb_fragment; void* _lb_sq162 __attribute__((unused)) = lb_gpu_9metal_sel("release"); ((void (*)(void*, void*))lb_x_gpu_10metal_void)(_lb_sq161, _lb_sq162); }));
-        (void)(({ void* _lb_sq163 __attribute__((unused)) = lb_vertex; void* _lb_sq164 __attribute__((unused)) = lb_gpu_9metal_sel("release"); ((void (*)(void*, void*))lb_x_gpu_10metal_void)(_lb_sq163, _lb_sq164); }));
-        (void)(({ void* _lb_sq165 __attribute__((unused)) = lb_library; void* _lb_sq166 __attribute__((unused)) = lb_gpu_9metal_sel("release"); ((void (*)(void*, void*))lb_x_gpu_10metal_void)(_lb_sq165, _lb_sq166); }));
-        (void)(lb_gpu_21metal_drawing_destroy(lb_state));
-        return _lb_err156;
-    } _lb_o152; });
-    lb_pos = "src/std/gpu/metal/drawing.lucb:50:5";
-    struct lb_gpu_MetalDrawing* _lb_ret167 = lb_state;
-    (void)(({ void* _lb_sq168 __attribute__((unused)) = lb_depth; void* _lb_sq169 __attribute__((unused)) = lb_gpu_9metal_sel("release"); ((void (*)(void*, void*))lb_x_gpu_10metal_void)(_lb_sq168, _lb_sq169); }));
-    (void)(({ void* _lb_sq170 __attribute__((unused)) = lb_descriptor; void* _lb_sq171 __attribute__((unused)) = lb_gpu_9metal_sel("release"); ((void (*)(void*, void*))lb_x_gpu_10metal_void)(_lb_sq170, _lb_sq171); }));
-    (void)(({ void* _lb_sq172 __attribute__((unused)) = lb_fragment; void* _lb_sq173 __attribute__((unused)) = lb_gpu_9metal_sel("release"); ((void (*)(void*, void*))lb_x_gpu_10metal_void)(_lb_sq172, _lb_sq173); }));
-    (void)(({ void* _lb_sq174 __attribute__((unused)) = lb_vertex; void* _lb_sq175 __attribute__((unused)) = lb_gpu_9metal_sel("release"); ((void (*)(void*, void*))lb_x_gpu_10metal_void)(_lb_sq174, _lb_sq175); }));
-    (void)(({ void* _lb_sq176 __attribute__((unused)) = lb_library; void* _lb_sq177 __attribute__((unused)) = lb_gpu_9metal_sel("release"); ((void (*)(void*, void*))lb_x_gpu_10metal_void)(_lb_sq176, _lb_sq177); }));
-    return ((lb_r_gpu_MetalDrawing_0p){ .value = _lb_ret167, .failed = false });
-    (void)(({ void* _lb_sq178 __attribute__((unused)) = lb_depth; void* _lb_sq179 __attribute__((unused)) = lb_gpu_9metal_sel("release"); ((void (*)(void*, void*))lb_x_gpu_10metal_void)(_lb_sq178, _lb_sq179); }));
-    (void)(({ void* _lb_sq180 __attribute__((unused)) = lb_descriptor; void* _lb_sq181 __attribute__((unused)) = lb_gpu_9metal_sel("release"); ((void (*)(void*, void*))lb_x_gpu_10metal_void)(_lb_sq180, _lb_sq181); }));
-    (void)(({ void* _lb_sq182 __attribute__((unused)) = lb_fragment; void* _lb_sq183 __attribute__((unused)) = lb_gpu_9metal_sel("release"); ((void (*)(void*, void*))lb_x_gpu_10metal_void)(_lb_sq182, _lb_sq183); }));
-    (void)(({ void* _lb_sq184 __attribute__((unused)) = lb_vertex; void* _lb_sq185 __attribute__((unused)) = lb_gpu_9metal_sel("release"); ((void (*)(void*, void*))lb_x_gpu_10metal_void)(_lb_sq184, _lb_sq185); }));
-    (void)(({ void* _lb_sq186 __attribute__((unused)) = lb_library; void* _lb_sq187 __attribute__((unused)) = lb_gpu_9metal_sel("release"); ((void (*)(void*, void*))lb_x_gpu_10metal_void)(_lb_sq186, _lb_sq187); }));
-    lb_trap("unreachable");
-}
-lb_r_void_0p lb_gpu_11metal_depth(struct lb_gpu_MetalDevice* lb_device, struct lb_gpu_MetalDrawing* lb_state, uint64_t lb_width, uint64_t lb_height) {
-    const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/gpu/metal/drawing.lucb:53:5";
-    if (!!((((lb_state)->width == lb_width) && ((lb_state)->height == lb_height)))) 
-    {
-        lb_pos = "src/std/gpu/metal/drawing.lucb:54:9";
-        void* _lb_ret188 = lb_gpu_14metal_required((lb_state)->depth_texture);
-        return ((lb_r_void_0p){ .value = _lb_ret188, .failed = false });
-    }
-    lb_pos = "src/std/gpu/metal/drawing.lucb:55:5";
-    void* lb_descriptor __attribute__((unused)) = ({ void* _lb_o189 = ({ void* _lb_sq190 __attribute__((unused)) = (({ lb_r_void_0p _lb_r191 = lb_gpu_11metal_class("MTLTextureDescriptor"); if (_lb_r191.failed) {
-        return ((lb_r_void_0p){ .error = _lb_r191.error, .failed = true });
-    } _lb_r191.value; })); void* _lb_sq192 __attribute__((unused)) = lb_gpu_9metal_sel("new"); ((void* (*)(void*, void*))lb_x_gpu_9metal_ptr)(_lb_sq190, _lb_sq192); }); if (_lb_o189 == ((void*)0)) {
-        lb_r_void_0p _lb_err193 = ((lb_r_void_0p){ .error = { .code = (int32_t)(lb_gpu_failed), .message = ((lb_str){"could not create a GPU depth texture descriptor", 47}) }, .failed = true });
-        return _lb_err193;
-    } _lb_o189; });
-    lb_pos = "src/std/gpu/metal/drawing.lucb:56:5";
-    lb_pos = "src/std/gpu/metal/drawing.lucb:57:5";
-    (void)(({ void* _lb_sq194 __attribute__((unused)) = lb_descriptor; void* _lb_sq195 __attribute__((unused)) = lb_gpu_9metal_sel("setTextureType:"); uint64_t _lb_sq196 __attribute__((unused)) = 2ULL; ((void (*)(void*, void*, uint64_t))lb_x_gpu_14metal_uint_arg)(_lb_sq194, _lb_sq195, _lb_sq196); }));
-    lb_pos = "src/std/gpu/metal/drawing.lucb:58:5";
-    (void)(({ void* _lb_sq197 __attribute__((unused)) = lb_descriptor; void* _lb_sq198 __attribute__((unused)) = lb_gpu_9metal_sel("setPixelFormat:"); uint64_t _lb_sq199 __attribute__((unused)) = 252ULL; ((void (*)(void*, void*, uint64_t))lb_x_gpu_14metal_uint_arg)(_lb_sq197, _lb_sq198, _lb_sq199); }));
-    lb_pos = "src/std/gpu/metal/drawing.lucb:59:5";
-    (void)(({ void* _lb_sq200 __attribute__((unused)) = lb_descriptor; void* _lb_sq201 __attribute__((unused)) = lb_gpu_9metal_sel("setWidth:"); uint64_t _lb_sq202 __attribute__((unused)) = lb_width; ((void (*)(void*, void*, uint64_t))lb_x_gpu_14metal_uint_arg)(_lb_sq200, _lb_sq201, _lb_sq202); }));
-    lb_pos = "src/std/gpu/metal/drawing.lucb:60:5";
-    (void)(({ void* _lb_sq203 __attribute__((unused)) = lb_descriptor; void* _lb_sq204 __attribute__((unused)) = lb_gpu_9metal_sel("setHeight:"); uint64_t _lb_sq205 __attribute__((unused)) = lb_height; ((void (*)(void*, void*, uint64_t))lb_x_gpu_14metal_uint_arg)(_lb_sq203, _lb_sq204, _lb_sq205); }));
-    lb_pos = "src/std/gpu/metal/drawing.lucb:61:5";
-    (void)(({ void* _lb_sq206 __attribute__((unused)) = lb_descriptor; void* _lb_sq207 __attribute__((unused)) = lb_gpu_9metal_sel("setStorageMode:"); uint64_t _lb_sq208 __attribute__((unused)) = 2ULL; ((void (*)(void*, void*, uint64_t))lb_x_gpu_14metal_uint_arg)(_lb_sq206, _lb_sq207, _lb_sq208); }));
-    lb_pos = "src/std/gpu/metal/drawing.lucb:62:5";
-    (void)(({ void* _lb_sq209 __attribute__((unused)) = lb_descriptor; void* _lb_sq210 __attribute__((unused)) = lb_gpu_9metal_sel("setUsage:"); uint64_t _lb_sq211 __attribute__((unused)) = 4ULL; ((void (*)(void*, void*, uint64_t))lb_x_gpu_14metal_uint_arg)(_lb_sq209, _lb_sq210, _lb_sq211); }));
-    lb_pos = "src/std/gpu/metal/drawing.lucb:63:5";
-    void* lb_texture __attribute__((unused)) = ({ void* _lb_o212 = ({ void* _lb_sq213 __attribute__((unused)) = lb_gpu_14metal_required((lb_device)->device); void* _lb_sq214 __attribute__((unused)) = lb_gpu_9metal_sel("newTextureWithDescriptor:"); void* _lb_sq215 __attribute__((unused)) = lb_descriptor; ((void* (*)(void*, void*, void*))lb_x_gpu_17metal_with_object)(_lb_sq213, _lb_sq214, _lb_sq215); }); if (_lb_o212 == ((void*)0)) {
-        lb_r_void_0p _lb_err216 = ((lb_r_void_0p){ .error = { .code = (int32_t)(lb_gpu_failed), .message = ((lb_str){"could not allocate GPU depth storage", 36}) }, .failed = true });
-        (void)(({ void* _lb_sq217 __attribute__((unused)) = lb_descriptor; void* _lb_sq218 __attribute__((unused)) = lb_gpu_9metal_sel("release"); ((void (*)(void*, void*))lb_x_gpu_10metal_void)(_lb_sq217, _lb_sq218); }));
-        return _lb_err216;
-    } _lb_o212; });
-    lb_pos = "src/std/gpu/metal/drawing.lucb:64:5";
-    void* _lb_o219 = (lb_state)->depth_texture;
-    if (_lb_o219 != ((void*)0)) {
-        void* lb_previous __attribute__((unused)) = _lb_o219;
-        {
-            lb_pos = "src/std/gpu/metal/drawing.lucb:65:9";
-            (void)(({ void* _lb_sq220 __attribute__((unused)) = lb_previous; void* _lb_sq221 __attribute__((unused)) = lb_gpu_9metal_sel("release"); ((void (*)(void*, void*))lb_x_gpu_10metal_void)(_lb_sq220, _lb_sq221); }));
-        }
-    }
-    lb_pos = "src/std/gpu/metal/drawing.lucb:66:5";
-    (lb_state)->depth_texture = lb_texture;
-    lb_pos = "src/std/gpu/metal/drawing.lucb:67:5";
-    (lb_state)->width = lb_width;
-    lb_pos = "src/std/gpu/metal/drawing.lucb:68:5";
-    (lb_state)->height = lb_height;
-    lb_pos = "src/std/gpu/metal/drawing.lucb:69:5";
-    void* _lb_ret222 = lb_texture;
-    (void)(({ void* _lb_sq223 __attribute__((unused)) = lb_descriptor; void* _lb_sq224 __attribute__((unused)) = lb_gpu_9metal_sel("release"); ((void (*)(void*, void*))lb_x_gpu_10metal_void)(_lb_sq223, _lb_sq224); }));
-    return ((lb_r_void_0p){ .value = _lb_ret222, .failed = false });
-    (void)(({ void* _lb_sq225 __attribute__((unused)) = lb_descriptor; void* _lb_sq226 __attribute__((unused)) = lb_gpu_9metal_sel("release"); ((void (*)(void*, void*))lb_x_gpu_10metal_void)(_lb_sq225, _lb_sq226); }));
-    lb_trap("unreachable");
-}
-void lb_gpu_21metal_drawing_destroy(struct lb_gpu_MetalDrawing* lb_state) {
-    const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/gpu/metal/drawing.lucb:72:5";
-    void* _lb_o227 = (lb_state)->depth_texture;
-    if (_lb_o227 != ((void*)0)) {
-        void* lb_texture __attribute__((unused)) = _lb_o227;
-        {
-            lb_pos = "src/std/gpu/metal/drawing.lucb:73:9";
-            (void)(({ void* _lb_sq228 __attribute__((unused)) = lb_texture; void* _lb_sq229 __attribute__((unused)) = lb_gpu_9metal_sel("release"); ((void (*)(void*, void*))lb_x_gpu_10metal_void)(_lb_sq228, _lb_sq229); }));
-        }
-    }
-    lb_pos = "src/std/gpu/metal/drawing.lucb:74:5";
-    void* _lb_o230 = (lb_state)->pipeline;
-    if (_lb_o230 != ((void*)0)) {
-        void* lb_pipeline __attribute__((unused)) = _lb_o230;
-        {
-            lb_pos = "src/std/gpu/metal/drawing.lucb:75:9";
-            (void)(({ void* _lb_sq231 __attribute__((unused)) = lb_pipeline; void* _lb_sq232 __attribute__((unused)) = lb_gpu_9metal_sel("release"); ((void (*)(void*, void*))lb_x_gpu_10metal_void)(_lb_sq231, _lb_sq232); }));
-        }
-    }
-    lb_pos = "src/std/gpu/metal/drawing.lucb:76:5";
-    void* _lb_o233 = (lb_state)->depth_on;
-    if (_lb_o233 != ((void*)0)) {
-        void* lb_depth __attribute__((unused)) = _lb_o233;
-        {
-            lb_pos = "src/std/gpu/metal/drawing.lucb:77:9";
-            (void)(({ void* _lb_sq234 __attribute__((unused)) = lb_depth; void* _lb_sq235 __attribute__((unused)) = lb_gpu_9metal_sel("release"); ((void (*)(void*, void*))lb_x_gpu_10metal_void)(_lb_sq234, _lb_sq235); }));
-        }
-    }
-    lb_pos = "src/std/gpu/metal/drawing.lucb:78:5";
-    void* _lb_o236 = (lb_state)->depth_off;
-    if (_lb_o236 != ((void*)0)) {
-        void* lb_depth __attribute__((unused)) = _lb_o236;
-        {
-            lb_pos = "src/std/gpu/metal/drawing.lucb:79:9";
-            (void)(({ void* _lb_sq237 __attribute__((unused)) = lb_depth; void* _lb_sq238 __attribute__((unused)) = lb_gpu_9metal_sel("release"); ((void (*)(void*, void*))lb_x_gpu_10metal_void)(_lb_sq237, _lb_sq238); }));
-        }
-    }
-    lb_pos = "src/std/gpu/metal/drawing.lucb:80:5";
-    lb_release_call(lb_memory_heap, (lb_span){ (void*)(lb_state), sizeof(lb_gpu_MetalDrawing) });
-}
-void lb_gpu_12metal_encode(void* lb_encoder, struct lb_gpu_MetalDrawing* lb_drawing, void* lb_buffer, void* lb_masks, lb_gpu_Canvas lb_canvas, uint64_t lb_width, uint64_t lb_height) {
-    const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/gpu/metal/drawing.lucb:83:5";
-    (void)(({ void* _lb_sq239 __attribute__((unused)) = lb_encoder; void* _lb_sq240 __attribute__((unused)) = lb_gpu_9metal_sel("setRenderPipelineState:"); void* _lb_sq241 __attribute__((unused)) = (lb_drawing)->pipeline; ((void (*)(void*, void*, void*))lb_x_gpu_12metal_object)(_lb_sq239, _lb_sq240, _lb_sq241); }));
-    lb_pos = "src/std/gpu/metal/drawing.lucb:84:5";
-    (void)(({ void* _lb_sq242 __attribute__((unused)) = lb_encoder; void* _lb_sq243 __attribute__((unused)) = lb_gpu_9metal_sel("setVertexBuffer:offset:atIndex:"); void* _lb_sq244 __attribute__((unused)) = lb_buffer; uint64_t _lb_sq245 __attribute__((unused)) = 0ULL; uint64_t _lb_sq246 __attribute__((unused)) = 0ULL; ((void (*)(void*, void*, void*, uint64_t, uint64_t))lb_x_gpu_17metal_bind_buffer)(_lb_sq242, _lb_sq243, _lb_sq244, _lb_sq245, _lb_sq246); }));
-    lb_pos = "src/std/gpu/metal/drawing.lucb:85:5";
-    (void)(({ void* _lb_sq247 __attribute__((unused)) = lb_encoder; void* _lb_sq248 __attribute__((unused)) = lb_gpu_9metal_sel("setFragmentBuffer:offset:atIndex:"); void* _lb_sq249 __attribute__((unused)) = lb_masks; uint64_t _lb_sq250 __attribute__((unused)) = 0ULL; uint64_t _lb_sq251 __attribute__((unused)) = 0ULL; ((void (*)(void*, void*, void*, uint64_t, uint64_t))lb_x_gpu_17metal_bind_buffer)(_lb_sq247, _lb_sq248, _lb_sq249, _lb_sq250, _lb_sq251); }));
-    lb_pos = "src/std/gpu/metal/drawing.lucb:86:5";
-    lb_span _lb_seq252 = ({ lb_span _lb_sv253 = lb_canvas.draws; size_t _lb_sn253 = _lb_sv253.length; lb_gpu_Draw* _lb_sd253 = (lb_gpu_Draw*)_lb_sv253.data; size_t _lb_ss253 = 0; size_t _lb_se253 = (size_t)(lb_canvas.draw_count); lb_check_index(_lb_ss253, _lb_sn253 + 1); lb_check_index(_lb_se253, _lb_sn253 + 1); if (_lb_ss253 > _lb_se253) lb_trap("index out of bounds"); (lb_span){ (void*)(_lb_sd253 + _lb_ss253), _lb_se253 - _lb_ss253 }; });
-    for (size_t _lb_i252 = 0; _lb_i252 < _lb_seq252.length; _lb_i252++) {
-        lb_gpu_Draw lb_draw __attribute__((unused)) = ((lb_gpu_Draw*)_lb_seq252.data)[_lb_i252];
-        {
-            lb_pos = "src/std/gpu/metal/drawing.lucb:87:9";
-            uint64_t lb_x __attribute__((unused)) = lb_gpu_9metal_min(((uint64_t)lb_conv_u((uint64_t)(lb_draw.clip.x), 32, 0, 64, 0, 1)), lb_width);
-            lb_pos = "src/std/gpu/metal/drawing.lucb:88:9";
-            uint64_t lb_y __attribute__((unused)) = lb_gpu_9metal_min(((uint64_t)lb_conv_u((uint64_t)(lb_draw.clip.y), 32, 0, 64, 0, 1)), lb_height);
-            lb_pos = "src/std/gpu/metal/drawing.lucb:89:9";
-            uint64_t lb_w __attribute__((unused)) = lb_gpu_9metal_min(((uint64_t)lb_conv_u((uint64_t)(lb_draw.clip.width), 32, 0, 64, 0, 1)), (uint64_t)(lb_sub_u((uint64_t)(lb_width), (uint64_t)(lb_x), 64)));
-            lb_pos = "src/std/gpu/metal/drawing.lucb:90:9";
-            uint64_t lb_h __attribute__((unused)) = lb_gpu_9metal_min(((uint64_t)lb_conv_u((uint64_t)(lb_draw.clip.height), 32, 0, 64, 0, 1)), (uint64_t)(lb_sub_u((uint64_t)(lb_height), (uint64_t)(lb_y), 64)));
-            lb_pos = "src/std/gpu/metal/drawing.lucb:91:9";
-            if (!!(((lb_w == 0ULL) || (lb_h == 0ULL)))) 
-            {
-                lb_pos = "src/std/gpu/metal/drawing.lucb:92:13";
-                continue;
-            }
-            lb_pos = "src/std/gpu/metal/drawing.lucb:93:9";
-            lb_gpu_Viewport lb_region __attribute__((unused)) = ({ lb_o_gpu_Viewport _lb_o254 = lb_draw.viewport; if (!_lb_o254.present) { _lb_o254.value = ((lb_gpu_Viewport){.width = lb_to_f((uint64_t)(lb_width), 0), .height = lb_to_f((uint64_t)(lb_height), 0)}); } _lb_o254.value; });
-            lb_pos = "src/std/gpu/metal/drawing.lucb:94:9";
-            (void)(({ void* _lb_sq255 __attribute__((unused)) = lb_encoder; void* _lb_sq256 __attribute__((unused)) = lb_gpu_9metal_sel("setViewport:"); LuceGpuMetalViewport _lb_sq257 __attribute__((unused)) = ((LuceGpuMetalViewport){.x = lb_region.x, .y = lb_region.y, .width = lb_region.width, .height = lb_region.height, .near = 0x0p+0, .far = 0x1.0000000000000p+0}); ((void (*)(void*, void*, LuceGpuMetalViewport))lb_x_gpu_14metal_viewport)(_lb_sq255, _lb_sq256, _lb_sq257); }));
-            lb_pos = "src/std/gpu/metal/drawing.lucb:95:9";
-            (void)(({ void* _lb_sq258 __attribute__((unused)) = lb_encoder; void* _lb_sq259 __attribute__((unused)) = lb_gpu_9metal_sel("setScissorRect:"); LuceGpuMetalScissor _lb_sq260 __attribute__((unused)) = ((LuceGpuMetalScissor){.x = lb_x, .y = lb_y, .width = lb_w, .height = lb_h}); ((void (*)(void*, void*, LuceGpuMetalScissor))lb_x_gpu_13metal_scissor)(_lb_sq258, _lb_sq259, _lb_sq260); }));
-            lb_pos = "src/std/gpu/metal/drawing.lucb:96:9";
-            (void)(({ void* _lb_sq261 __attribute__((unused)) = lb_encoder; void* _lb_sq262 __attribute__((unused)) = lb_gpu_9metal_sel("setDepthStencilState:"); void* _lb_sq263 __attribute__((unused)) = (lb_draw.depth ? (lb_drawing)->depth_on : (lb_drawing)->depth_off); ((void (*)(void*, void*, void*))lb_x_gpu_12metal_object)(_lb_sq261, _lb_sq262, _lb_sq263); }));
-            lb_pos = "src/std/gpu/metal/drawing.lucb:97:9";
-            MaskRegion lb_mask __attribute__((unused)) = lb_draw.mask;
-            lb_pos = "src/std/gpu/metal/drawing.lucb:98:9";
-            (void)(({ void* _lb_sq264 __attribute__((unused)) = lb_encoder; void* _lb_sq265 __attribute__((unused)) = lb_gpu_9metal_sel("setFragmentBytes:length:atIndex:"); const void* _lb_sq266 __attribute__((unused)) = &(lb_mask); uint64_t _lb_sq267 __attribute__((unused)) = 32ULL; uint64_t _lb_sq268 __attribute__((unused)) = 1ULL; ((void (*)(void*, void*, const void*, uint64_t, uint64_t))lb_x_gpu_18metal_inline_bytes)(_lb_sq264, _lb_sq265, _lb_sq266, _lb_sq267, _lb_sq268); }));
-            lb_pos = "src/std/gpu/metal/drawing.lucb:99:9";
-            (void)(({ void* _lb_sq269 __attribute__((unused)) = lb_encoder; void* _lb_sq270 __attribute__((unused)) = lb_gpu_9metal_sel("drawPrimitives:vertexStart:vertexCount:"); uint64_t _lb_sq271 __attribute__((unused)) = 3ULL; uint64_t _lb_sq272 __attribute__((unused)) = ((uint64_t)lb_conv_u((uint64_t)(lb_draw.first), 64, 0, 64, 0, 1)); uint64_t _lb_sq273 __attribute__((unused)) = ((uint64_t)lb_conv_u((uint64_t)(lb_draw.count), 64, 0, 64, 0, 1)); ((void (*)(void*, void*, uint64_t, uint64_t, uint64_t))lb_x_gpu_10metal_draw)(_lb_sq269, _lb_sq270, _lb_sq271, _lb_sq272, _lb_sq273); }));
-        }
-    }
-}
 __attribute__((weak)) void lb_interop_Packet_0g1_str_init(lb_interop_Packet_0g1_str* self, lb_str lb_value, void* lb_storage, lb_fn_0F1_void_0p_unit lb_dispose) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
     lb_pos = "src/std/gpu/metal/drawing.lucb:46:5";
@@ -3424,14 +3112,14 @@ __attribute__((weak)) void lb_interop_Packet_0g1_str_init(lb_interop_Packet_0g1_
 __attribute__((weak)) void lb_interop_Packet_0g1_str_release(const lb_interop_Packet_0g1_str* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
     lb_pos = "src/std/gpu/metal/drawing.lucb:51:1";
-    void* _lb_o274 = self->storage;
-    if (_lb_o274 != ((void*)0)) {
-        void* lb_storage __attribute__((unused)) = _lb_o274;
+    void* _lb_o7 = self->storage;
+    if (_lb_o7 != ((void*)0)) {
+        void* lb_storage __attribute__((unused)) = _lb_o7;
         {
             lb_pos = "src/std/gpu/metal/drawing.lucb:52:1";
-            (void)(((({ lb_fn_0F1_void_0p_unit _lb_o275 = self->dispose; if (_lb_o275 == ((void*)0)) {
+            (void)(((({ lb_fn_0F1_void_0p_unit _lb_o8 = self->dispose; if (_lb_o8 == ((void*)0)) {
                 (void)(lb_trap_text(((lb_str){"a packet has storage without a disposer", 39})));
-            } _lb_o275; })))(lb_storage));
+            } _lb_o8; })))(lb_storage));
         }
     }
 }
@@ -3447,33 +3135,14 @@ __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_init(lb_interop_Packet_0g
 __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_release(const lb_interop_Packet_0g1_u8_0c* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
     lb_pos = "src/std/gpu/metal/drawing.lucb:51:1";
-    void* _lb_o276 = self->storage;
-    if (_lb_o276 != ((void*)0)) {
-        void* lb_storage __attribute__((unused)) = _lb_o276;
+    void* _lb_o9 = self->storage;
+    if (_lb_o9 != ((void*)0)) {
+        void* lb_storage __attribute__((unused)) = _lb_o9;
         {
             lb_pos = "src/std/gpu/metal/drawing.lucb:52:1";
-            (void)(((({ lb_fn_0F1_void_0p_unit _lb_o277 = self->dispose; if (_lb_o277 == ((void*)0)) {
+            (void)(((({ lb_fn_0F1_void_0p_unit _lb_o10 = self->dispose; if (_lb_o10 == ((void*)0)) {
                 (void)(lb_trap_text(((lb_str){"a packet has storage without a disposer", 39})));
-            } _lb_o277; })))(lb_storage));
+            } _lb_o10; })))(lb_storage));
         }
     }
-}
-lb_r_void_0p lb_gpu_10metal_text(char* lb_value) {
-    const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/gpu/metal/drawing.lucb:13:5";
-    void* _lb_ret278 = ({ void* _lb_o279 = ({ void* _lb_sq280 __attribute__((unused)) = (({ lb_r_void_0p _lb_r281 = lb_gpu_11metal_class("NSString"); if (_lb_r281.failed) {
-        return ((lb_r_void_0p){ .error = _lb_r281.error, .failed = true });
-    } _lb_r281.value; })); void* _lb_sq282 __attribute__((unused)) = lb_gpu_9metal_sel("stringWithUTF8String:"); char* _lb_sq283 __attribute__((unused)) = lb_value; ((void* (*)(void*, void*, char*))lb_x_gpu_12metal_string)(_lb_sq280, _lb_sq282, _lb_sq283); }); if (_lb_o279 == ((void*)0)) {
-        lb_r_void_0p _lb_err284 = ((lb_r_void_0p){ .error = { .code = (int32_t)(lb_gpu_failed), .message = ((lb_str){"could not create Metal shader text", 34}) }, .failed = true });
-        return _lb_err284;
-    } _lb_o279; });
-    return ((lb_r_void_0p){ .value = _lb_ret278, .failed = false });
-    lb_trap("unreachable");
-}
-uint64_t lb_gpu_9metal_min(uint64_t lb_a, uint64_t lb_b) {
-    const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/gpu/metal/drawing.lucb:102:5";
-    uint64_t _lb_ret285 = ((((uint64_t)(lb_a)) < ((uint64_t)(lb_b))) ? lb_a : lb_b);
-    return _lb_ret285;
-    lb_trap("unreachable");
 }

@@ -2622,7 +2622,6 @@ __attribute__((weak)) lb_r_interop_Packet_0g1_u8_0c lb_interop_Transfer_0g1_u8_0
 void lb_process_Command_close(lb_process_Command* self);
 lb_r_0T3_i32_str_str lb_process_run(char* lb_program, lb_cspan lb_arguments, char* lb_directory, lb_o_5c_str_0c lb_environment);
 lb_r_0T3_i32_str_str lb_process_14run_controlled(char* lb_program, lb_cspan lb_arguments, char* lb_directory, lb_o_5c_str_0c lb_environment, struct lb_process_CommandState* lb_control);
-void lb_process_terminate(int32_t lb_pid);
 void lb_process_release(lb_str lb_text);
 void lb_process_exit(int32_t lb_code);
 lb_r_0T3_i32_str_str lb_process_11run_windows(char* lb_program, lb_cspan lb_arguments, char* lb_directory, lb_o_5c_str_0c lb_environment, struct lb_process_CommandState* lb_control);
@@ -2910,7 +2909,7 @@ extern uint32_t lb_process_13console_close;
 extern uint32_t lb_process_14console_logoff;
 extern uint32_t lb_process_16console_shutdown;
 extern uint64_t lb_process_26console_acknowledgement_ms;
-__attribute__((weak)) lb_interop_Type_0g1_process_Command lb_process_12command_type = ((lb_interop_Type_0g1_process_Command){.name = ((lb_str){"Command", 7}), .dispose = lb_process_Command_close, .trace = ((void*)0), .closeable = true, .main_thread = false});
+__attribute__((weak)) lb_interop_Type_0g1_process_Command lb_process_12command_type = {.name = {"Command", 7}, .dispose = lb_process_Command_close, .trace = ((void*)0), .closeable = true, .main_thread = false};
 extern uint32_t lb_json_invalid;
 extern uint32_t lb_json_14limit_exceeded;
 extern lb_interop_Type_0g1_json_Value lb_json_10value_type;

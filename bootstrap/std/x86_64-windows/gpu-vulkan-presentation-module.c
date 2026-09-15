@@ -2003,7 +2003,6 @@ typedef struct lb_interop_View_0g1_gpu_RenderTarget {
 } lb_interop_View_0g1_gpu_RenderTarget;
 LB_RES(lb_interop_View_0g1_gpu_RenderTarget, lb_r_interop_View_0g1_gpu_RenderTarget);
 LB_RES(void*, lb_r_void_0p);
-LB_RES(struct lb_gpu_MetalDrawing*, lb_r_gpu_MetalDrawing_0p);
 LB_RES(struct lb_gpu_VulkanDevice*, lb_r_gpu_VulkanDevice_0p);
 LB_RES(struct lb_gpu_VulkanSurface*, lb_r_gpu_VulkanSurface_0p);
 typedef struct lb_interop_Owner_0g1_gpu_FrameState {
@@ -2680,13 +2679,6 @@ lb_r_gpu_PresentResult lb_gpu_21backend_clear_present(struct lb_gpu_DeviceState*
 lb_r_unit lb_gpu_20backend_surface_wait(struct lb_gpu_DeviceState* lb_device, void* lb_native);
 lb_r_gpu_PresentResult lb_gpu_14backend_render(struct lb_gpu_DeviceState* lb_device, lb_window_Presentation lb_host, void* lb_native, lb_gpu_Canvas lb_canvas, lb_gpu_Color lb_color);
 void lb_gpu_23backend_surface_destroy(struct lb_gpu_DeviceState* lb_device, lb_window_Presentation lb_host, void* lb_native);
-void* lb_gpu_9metal_sel(char* lb_name);
-lb_r_void_0p lb_gpu_11metal_class(char* lb_name);
-void* lb_gpu_14metal_required(void* lb_object);
-lb_r_gpu_MetalDrawing_0p lb_gpu_18metal_drawing_open(struct lb_gpu_MetalDevice* lb_device);
-lb_r_void_0p lb_gpu_11metal_depth(struct lb_gpu_MetalDevice* lb_device, struct lb_gpu_MetalDrawing* lb_state, uint64_t lb_width, uint64_t lb_height);
-void lb_gpu_21metal_drawing_destroy(struct lb_gpu_MetalDrawing* lb_state);
-void lb_gpu_12metal_encode(void* lb_encoder, struct lb_gpu_MetalDrawing* lb_drawing, void* lb_buffer, void* lb_masks, lb_gpu_Canvas lb_canvas, uint64_t lb_width, uint64_t lb_height);
 lb_r_5c_str_0c lb_gpu_30vulkan_presentation_extensions(void);
 bool lb_gpu_27vulkan_presentation_support(uint64_t lb_physical, uint32_t lb_family);
 lb_r_u64 lb_gpu_27vulkan_presentation_surface(uint64_t lb_instance, lb_window_Presentation lb_host);

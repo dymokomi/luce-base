@@ -1981,11 +1981,6 @@ typedef struct lb_interop_ViewType_0g1_gpu_RenderTarget {
 typedef struct lb_a_u32_0a271 { uint32_t d[271]; } lb_a_u32_0a271;
 typedef struct lb_a_u32_0a1021 { uint32_t d[1021]; } lb_a_u32_0a1021;
 typedef struct lb_a_5c_str_0a2 { char* d[2]; } lb_a_5c_str_0a2;
-LB_RES(lb_span, lb_r_gpu_VkSurfaceFormatKHR_0s);
-LB_RES(lb_span, lb_r_u64_0s);
-LB_RES(lb_span, lb_r_gpu_VulkanImage_0s);
-LB_RES(uint64_t, lb_r_u64);
-typedef struct lb_a_u64_0a2 { uint64_t d[2]; } lb_a_u64_0a2;
 typedef void (*lb_fn_0F0_unit)(void);
 typedef void* (*lb_fn_0F1_void_0p_void_0p_0o)(void*);
 LB_RES(bool, lb_r_bool);
@@ -2005,8 +2000,6 @@ typedef struct lb_interop_View_0g1_gpu_RenderTarget {
 } lb_interop_View_0g1_gpu_RenderTarget;
 LB_RES(lb_interop_View_0g1_gpu_RenderTarget, lb_r_interop_View_0g1_gpu_RenderTarget);
 LB_RES(void*, lb_r_void_0p);
-LB_RES(struct lb_gpu_MetalDrawing*, lb_r_gpu_MetalDrawing_0p);
-LB_RES(lb_cspan, lb_r_5c_str_0c);
 typedef struct lb_interop_Owner_0g1_gpu_FrameState {
     lb_ownership_Object header;
     lb_ownership_Info information;
@@ -2681,27 +2674,10 @@ lb_r_gpu_PresentResult lb_gpu_21backend_clear_present(struct lb_gpu_DeviceState*
 lb_r_unit lb_gpu_20backend_surface_wait(struct lb_gpu_DeviceState* lb_device, void* lb_native);
 lb_r_gpu_PresentResult lb_gpu_14backend_render(struct lb_gpu_DeviceState* lb_device, lb_window_Presentation lb_host, void* lb_native, lb_gpu_Canvas lb_canvas, lb_gpu_Color lb_color);
 void lb_gpu_23backend_surface_destroy(struct lb_gpu_DeviceState* lb_device, lb_window_Presentation lb_host, void* lb_native);
-void* lb_gpu_9metal_sel(char* lb_name);
-lb_r_void_0p lb_gpu_11metal_class(char* lb_name);
-void* lb_gpu_14metal_required(void* lb_object);
-lb_r_gpu_MetalDrawing_0p lb_gpu_18metal_drawing_open(struct lb_gpu_MetalDevice* lb_device);
-lb_r_void_0p lb_gpu_11metal_depth(struct lb_gpu_MetalDevice* lb_device, struct lb_gpu_MetalDrawing* lb_state, uint64_t lb_width, uint64_t lb_height);
-void lb_gpu_21metal_drawing_destroy(struct lb_gpu_MetalDrawing* lb_state);
-void lb_gpu_12metal_encode(void* lb_encoder, struct lb_gpu_MetalDrawing* lb_drawing, void* lb_buffer, void* lb_masks, lb_gpu_Canvas lb_canvas, uint64_t lb_width, uint64_t lb_height);
-lb_r_5c_str_0c lb_gpu_30vulkan_presentation_extensions(void);
-bool lb_gpu_27vulkan_presentation_support(uint64_t lb_physical, uint32_t lb_family);
-lb_r_u64 lb_gpu_27vulkan_presentation_surface(uint64_t lb_instance, lb_window_Presentation lb_host);
-lb_r_unit lb_gpu_12vulkan_check(int32_t lb_result, lb_str lb_message);
-lb_r_u64 lb_gpu_13vulkan_memory(struct lb_gpu_VulkanDevice* lb_device, VkMemoryRequirements lb_requirements, uint32_t lb_flags);
-lb_r_unit lb_gpu_16vulkan_swapchain(struct lb_gpu_VulkanDevice* lb_device, struct lb_gpu_VulkanSurface* lb_state, uint32_t lb_width, uint32_t lb_height);
-lb_r_unit lb_gpu_15vulkan_pipeline(struct lb_gpu_VulkanDevice* lb_device, struct lb_gpu_VulkanSurface* lb_state);
 __attribute__((weak)) void lb_interop_Packet_0g1_str_init(lb_interop_Packet_0g1_str* self, lb_str lb_value, void* lb_storage, lb_fn_0F1_void_0p_unit lb_dispose);
 __attribute__((weak)) void lb_interop_Packet_0g1_str_release(const lb_interop_Packet_0g1_str* self);
 __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_init(lb_interop_Packet_0g1_u8_0c* self, lb_cspan lb_value, void* lb_storage, lb_fn_0F1_void_0p_unit lb_dispose);
 __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_release(const lb_interop_Packet_0g1_u8_0c* self);
-void lb_gpu_24vulkan_swapchain_destroy(struct lb_gpu_VulkanDevice* lb_device, struct lb_gpu_VulkanSurface* lb_state);
-lb_r_unit lb_gpu_12vulkan_depth(struct lb_gpu_VulkanDevice* lb_device, struct lb_gpu_VulkanSurface* lb_state);
-lb_r_u64 lb_gpu_17vulkan_image_view(struct lb_gpu_VulkanDevice* lb_device, uint64_t lb_image, uint32_t lb_format, uint32_t lb_aspect);
 
 extern lb_str lb_platform_name;
 extern bool lb_platform_macos;
@@ -3105,210 +3081,6 @@ __attribute__((weak)) lb_r_interop_Packet_0g1_u8_0c lb_interop_Transfer_0g1_u8_0
     return ((lb_r_interop_Packet_0g1_u8_0c){ .value = _lb_ret5, .failed = false });
     lb_trap("unreachable");
 }
-lb_r_unit lb_gpu_16vulkan_swapchain(struct lb_gpu_VulkanDevice* lb_device, struct lb_gpu_VulkanSurface* lb_state, uint32_t lb_width, uint32_t lb_height) {
-    const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/gpu/vulkan/surface.lucb:52:5";
-    (void)((({ lb_r_unit _lb_r7 = ({ int32_t _lb_sq8 __attribute__((unused)) = lb_x_gpu_vkDeviceWaitIdle((lb_device)->device); lb_str _lb_sq9 __attribute__((unused)) = ((lb_str){"Vulkan could not finish before resizing", 39}); lb_gpu_12vulkan_check(_lb_sq8, _lb_sq9); }); if (_lb_r7.failed) {
-        return ((lb_r_unit){ .error = _lb_r7.error, .failed = true });
-    } (void)0; })));
-    lb_pos = "src/std/gpu/vulkan/surface.lucb:53:5";
-    (void)(lb_gpu_24vulkan_swapchain_destroy(lb_device, lb_state));
-    lb_pos = "src/std/gpu/vulkan/surface.lucb:54:5";
-    lb_pos = "src/std/gpu/vulkan/surface.lucb:55:5";
-    VkSurfaceCapabilitiesKHR lb_capabilities __attribute__((unused)) = {};
-    lb_pos = "src/std/gpu/vulkan/surface.lucb:56:5";
-    (void)((({ lb_r_unit _lb_r10 = ({ int32_t _lb_sq11 __attribute__((unused)) = lb_x_gpu_vkGetPhysicalDeviceSurfaceCapabilitiesKHR((lb_device)->physical, (lb_state)->surface, &(lb_capabilities)); lb_str _lb_sq12 __attribute__((unused)) = ((lb_str){"Vulkan surface capabilities are unavailable", 43}); lb_gpu_12vulkan_check(_lb_sq11, _lb_sq12); }); if (_lb_r10.failed) {
-        (void)(lb_gpu_24vulkan_swapchain_destroy(lb_device, lb_state));
-        return ((lb_r_unit){ .error = _lb_r10.error, .failed = true });
-    } (void)0; })));
-    lb_pos = "src/std/gpu/vulkan/surface.lucb:57:5";
-    VkExtent2D lb_extent __attribute__((unused)) = lb_capabilities.currentExtent;
-    lb_pos = "src/std/gpu/vulkan/surface.lucb:58:5";
-    if (!!((lb_extent.width == 4294967295ULL))) 
-    {
-        lb_pos = "src/std/gpu/vulkan/surface.lucb:59:9";
-        lb_extent.width = ((uint32_t)lb_conv_u((uint64_t)(({ size_t _lb_sq13 __attribute__((unused)) = ((size_t)lb_conv_u((uint64_t)(lb_capabilities.minImageExtent.width), 32, 0, 64, 0, 1)); size_t _lb_sq14 __attribute__((unused)) = lb_gpu_10canvas_min(((size_t)lb_conv_u((uint64_t)(lb_width), 32, 0, 64, 0, 1)), ((size_t)lb_conv_u((uint64_t)(lb_capabilities.maxImageExtent.width), 32, 0, 64, 0, 1))); lb_gpu_10canvas_max(_lb_sq13, _lb_sq14); })), 64, 0, 32, 0, 1));
-        lb_pos = "src/std/gpu/vulkan/surface.lucb:60:9";
-        lb_extent.height = ((uint32_t)lb_conv_u((uint64_t)(({ size_t _lb_sq15 __attribute__((unused)) = ((size_t)lb_conv_u((uint64_t)(lb_capabilities.minImageExtent.height), 32, 0, 64, 0, 1)); size_t _lb_sq16 __attribute__((unused)) = lb_gpu_10canvas_min(((size_t)lb_conv_u((uint64_t)(lb_height), 32, 0, 64, 0, 1)), ((size_t)lb_conv_u((uint64_t)(lb_capabilities.maxImageExtent.height), 32, 0, 64, 0, 1))); lb_gpu_10canvas_max(_lb_sq15, _lb_sq16); })), 64, 0, 32, 0, 1));
-    }
-    lb_pos = "src/std/gpu/vulkan/surface.lucb:61:5";
-    if (!!(((lb_extent.width == 0ULL) || (lb_extent.height == 0ULL)))) 
-    {
-        lb_pos = "src/std/gpu/vulkan/surface.lucb:62:9";
-        return ((lb_r_unit){ .failed = false });
-    }
-    lb_pos = "src/std/gpu/vulkan/surface.lucb:63:5";
-    if (!!(((((uint32_t)(lb_extent.width)) > ((uint32_t)(16384ULL))) || (((uint32_t)(lb_extent.height)) > ((uint32_t)(16384ULL)))))) 
-    {
-        lb_pos = "src/std/gpu/vulkan/surface.lucb:64:9";
-        lb_r_unit _lb_err17 = ((lb_r_unit){ .error = { .code = (int32_t)(lb_gpu_17surface_too_large), .message = ((lb_str){"Vulkan presentation supports at most 16384 pixels per dimension", 63}) }, .failed = true });
-        (void)(lb_gpu_24vulkan_swapchain_destroy(lb_device, lb_state));
-        return _lb_err17;
-    }
-    lb_pos = "src/std/gpu/vulkan/surface.lucb:65:5";
-    if (!!((((((uint32_t)(lb_capabilities.supportedUsageFlags & lb_gpu_35VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT))) == 0ULL) || ((((uint32_t)(lb_capabilities.supportedCompositeAlpha & lb_gpu_33VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR))) == 0ULL)))) 
-    {
-        lb_pos = "src/std/gpu/vulkan/surface.lucb:66:9";
-        lb_r_unit _lb_err18 = ((lb_r_unit){ .error = { .code = (int32_t)(lb_gpu_unavailable), .message = ((lb_str){"the Vulkan surface cannot provide opaque color attachments", 58}) }, .failed = true });
-        (void)(lb_gpu_24vulkan_swapchain_destroy(lb_device, lb_state));
-        return _lb_err18;
-    }
-    lb_pos = "src/std/gpu/vulkan/surface.lucb:67:5";
-    uint32_t lb_count __attribute__((unused)) = 0ULL;
-    lb_pos = "src/std/gpu/vulkan/surface.lucb:68:5";
-    (void)((({ lb_r_unit _lb_r19 = ({ int32_t _lb_sq20 __attribute__((unused)) = lb_x_gpu_vkGetPhysicalDeviceSurfaceFormatsKHR((lb_device)->physical, (lb_state)->surface, &(lb_count), ((void*)0)); lb_str _lb_sq21 __attribute__((unused)) = ((lb_str){"Vulkan surface formats are unavailable", 38}); lb_gpu_12vulkan_check(_lb_sq20, _lb_sq21); }); if (_lb_r19.failed) {
-        (void)(lb_gpu_24vulkan_swapchain_destroy(lb_device, lb_state));
-        return ((lb_r_unit){ .error = _lb_r19.error, .failed = true });
-    } (void)0; })));
-    lb_pos = "src/std/gpu/vulkan/surface.lucb:69:5";
-    lb_span lb_formats __attribute__((unused)) = (({ lb_r_gpu_VkSurfaceFormatKHR_0s _lb_r22 = ({ lb_iface _lb_a23 = lb_memory_allocator; size_t _lb_n23 = (size_t)(((size_t)lb_conv_u((uint64_t)(lb_count), 32, 0, 64, 0, 1))); lb_r_gpu_VkSurfaceFormatKHR_0s _lb_r23; if (_lb_n23 > UINT64_C(576460752303423488)) { _lb_r23 = ((lb_r_gpu_VkSurfaceFormatKHR_0s){ .error = { .code = 208273409, .message = (lb_str){"memory.exhausted", 16} }, .failed = true }); } else { size_t _lb_bytes23 = sizeof(VkSurfaceFormatKHR) * _lb_n23; lb_o_u8_0s _lb_ao23 = lb_alloc_call(_lb_a23, _lb_bytes23, _Alignof(VkSurfaceFormatKHR)); if (_lb_bytes23 != 0 && !_lb_ao23.present) { _lb_r23 = ((lb_r_gpu_VkSurfaceFormatKHR_0s){ .error = { .code = 208273409, .message = (lb_str){"memory.exhausted", 16} }, .failed = true }); } else { _lb_r23.value.data = _lb_ao23.value.data; _lb_r23.value.length = _lb_n23; _lb_r23.failed = false; } } _lb_r23; }); if (_lb_r22.failed) {
-        (void)(lb_gpu_24vulkan_swapchain_destroy(lb_device, lb_state));
-        return ((lb_r_unit){ .error = _lb_r22.error, .failed = true });
-    } _lb_r22.value; }));
-    lb_pos = "src/std/gpu/vulkan/surface.lucb:70:5";
-    lb_pos = "src/std/gpu/vulkan/surface.lucb:71:5";
-    (void)((({ lb_r_unit _lb_r24 = ({ int32_t _lb_sq25 __attribute__((unused)) = lb_x_gpu_vkGetPhysicalDeviceSurfaceFormatsKHR((lb_device)->physical, (lb_state)->surface, &(lb_count), ((struct VkSurfaceFormatKHR*)(lb_formats.data))); lb_str _lb_sq26 __attribute__((unused)) = ((lb_str){"Vulkan surface formats changed", 30}); lb_gpu_12vulkan_check(_lb_sq25, _lb_sq26); }); if (_lb_r24.failed) {
-        { lb_span _lb_s27 = lb_formats; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s27.data), lb_mul_u(_lb_s27.length, sizeof(VkSurfaceFormatKHR), 64) }); }
-        (void)(lb_gpu_24vulkan_swapchain_destroy(lb_device, lb_state));
-        return ((lb_r_unit){ .error = _lb_r24.error, .failed = true });
-    } (void)0; })));
-    lb_pos = "src/std/gpu/vulkan/surface.lucb:72:5";
-    uint32_t lb_format __attribute__((unused)) = 0ULL;
-    lb_pos = "src/std/gpu/vulkan/surface.lucb:73:5";
-    for (size_t lb_index __attribute__((unused)) = (size_t)(0ULL); lb_index < (size_t)(((size_t)lb_conv_u((uint64_t)(lb_count), 32, 0, 64, 0, 1))); lb_index++) {
-        {
-            lb_pos = "src/std/gpu/vulkan/surface.lucb:74:9";
-            if (!!(((*({ lb_span _lb_ix29 = lb_formats; &((VkSurfaceFormatKHR*)_lb_ix29.data)[lb_at((uint64_t)(lb_index), _lb_ix29.length)]; })).colorSpace == lb_gpu_33VK_COLOR_SPACE_SRGB_NONLINEAR_KHR))) 
-            {
-                lb_pos = "src/std/gpu/vulkan/surface.lucb:75:13";
-                if (!!((((*({ lb_span _lb_ix30 = lb_formats; &((VkSurfaceFormatKHR*)_lb_ix30.data)[lb_at((uint64_t)(lb_index), _lb_ix30.length)]; })).format == lb_gpu_23VK_FORMAT_B8G8R8A8_SRGB) || ((*({ lb_span _lb_ix31 = lb_formats; &((VkSurfaceFormatKHR*)_lb_ix31.data)[lb_at((uint64_t)(lb_index), _lb_ix31.length)]; })).format == lb_gpu_23VK_FORMAT_R8G8B8A8_SRGB)))) 
-                {
-                    lb_pos = "src/std/gpu/vulkan/surface.lucb:76:17";
-                    lb_format = (*({ lb_span _lb_ix32 = lb_formats; &((VkSurfaceFormatKHR*)_lb_ix32.data)[lb_at((uint64_t)(lb_index), _lb_ix32.length)]; })).format;
-                    lb_pos = "src/std/gpu/vulkan/surface.lucb:77:17";
-                    break;
-                }
-                lb_pos = "src/std/gpu/vulkan/surface.lucb:78:13";
-                if (!!(((*({ lb_span _lb_ix33 = lb_formats; &((VkSurfaceFormatKHR*)_lb_ix33.data)[lb_at((uint64_t)(lb_index), _lb_ix33.length)]; })).format == lb_gpu_19VK_FORMAT_UNDEFINED))) 
-                {
-                    lb_pos = "src/std/gpu/vulkan/surface.lucb:79:17";
-                    lb_format = lb_gpu_23VK_FORMAT_B8G8R8A8_SRGB;
-                }
-            }
-        }
-    }
-    lb_pos = "src/std/gpu/vulkan/surface.lucb:80:5";
-    if (!!((lb_format == 0ULL))) 
-    {
-        lb_pos = "src/std/gpu/vulkan/surface.lucb:81:9";
-        lb_r_unit _lb_err34 = ((lb_r_unit){ .error = { .code = (int32_t)(lb_gpu_unavailable), .message = ((lb_str){"the Vulkan surface has no sRGB render target", 44}) }, .failed = true });
-        { lb_span _lb_s35 = lb_formats; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s35.data), lb_mul_u(_lb_s35.length, sizeof(VkSurfaceFormatKHR), 64) }); }
-        (void)(lb_gpu_24vulkan_swapchain_destroy(lb_device, lb_state));
-        return _lb_err34;
-    }
-    lb_pos = "src/std/gpu/vulkan/surface.lucb:82:5";
-    uint32_t lb_desired __attribute__((unused)) = (uint32_t)(lb_add_u((uint64_t)(lb_capabilities.minImageCount), (uint64_t)(1ULL), 32));
-    lb_pos = "src/std/gpu/vulkan/surface.lucb:83:5";
-    if (!!(((((uint32_t)(lb_capabilities.maxImageCount)) > ((uint32_t)(0ULL))) && (((uint32_t)(lb_desired)) > ((uint32_t)(lb_capabilities.maxImageCount)))))) 
-    {
-        lb_pos = "src/std/gpu/vulkan/surface.lucb:84:9";
-        lb_desired = lb_capabilities.maxImageCount;
-    }
-    lb_pos = "src/std/gpu/vulkan/surface.lucb:85:5";
-    VkSwapchainCreateInfoKHR lb_info __attribute__((unused)) = ((VkSwapchainCreateInfoKHR){.sType = lb_gpu_43VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR, .surface = (lb_state)->surface, .minImageCount = lb_desired, .imageFormat = lb_format, .imageColorSpace = lb_gpu_33VK_COLOR_SPACE_SRGB_NONLINEAR_KHR, .imageExtent = lb_extent, .imageArrayLayers = 1ULL, .imageUsage = lb_gpu_35VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, .preTransform = lb_capabilities.currentTransform, .compositeAlpha = lb_gpu_33VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR, .presentMode = lb_gpu_24VK_PRESENT_MODE_FIFO_KHR, .clipped = lb_gpu_7VK_TRUE});
-    lb_pos = "src/std/gpu/vulkan/surface.lucb:89:5";
-    (void)((({ lb_r_unit _lb_r36 = ({ int32_t _lb_sq37 __attribute__((unused)) = lb_x_gpu_vkCreateSwapchainKHR((lb_device)->device, &(lb_info), ((void*)0), &((lb_state)->swapchain)); lb_str _lb_sq38 __attribute__((unused)) = ((lb_str){"the Vulkan swapchain could not be created", 41}); lb_gpu_12vulkan_check(_lb_sq37, _lb_sq38); }); if (_lb_r36.failed) {
-        { lb_span _lb_s39 = lb_formats; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s39.data), lb_mul_u(_lb_s39.length, sizeof(VkSurfaceFormatKHR), 64) }); }
-        (void)(lb_gpu_24vulkan_swapchain_destroy(lb_device, lb_state));
-        return ((lb_r_unit){ .error = _lb_r36.error, .failed = true });
-    } (void)0; })));
-    lb_pos = "src/std/gpu/vulkan/surface.lucb:90:5";
-    (lb_state)->width = lb_extent.width;
-    lb_pos = "src/std/gpu/vulkan/surface.lucb:91:5";
-    (lb_state)->height = lb_extent.height;
-    lb_pos = "src/std/gpu/vulkan/surface.lucb:92:5";
-    (lb_state)->format = lb_format;
-    lb_pos = "src/std/gpu/vulkan/surface.lucb:93:5";
-    (void)((({ lb_r_unit _lb_r40 = lb_gpu_12vulkan_depth(lb_device, lb_state); if (_lb_r40.failed) {
-        { lb_span _lb_s41 = lb_formats; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s41.data), lb_mul_u(_lb_s41.length, sizeof(VkSurfaceFormatKHR), 64) }); }
-        (void)(lb_gpu_24vulkan_swapchain_destroy(lb_device, lb_state));
-        return ((lb_r_unit){ .error = _lb_r40.error, .failed = true });
-    } (void)0; })));
-    lb_pos = "src/std/gpu/vulkan/surface.lucb:94:5";
-    (void)((({ lb_r_unit _lb_r42 = lb_gpu_15vulkan_pipeline(lb_device, lb_state); if (_lb_r42.failed) {
-        { lb_span _lb_s43 = lb_formats; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s43.data), lb_mul_u(_lb_s43.length, sizeof(VkSurfaceFormatKHR), 64) }); }
-        (void)(lb_gpu_24vulkan_swapchain_destroy(lb_device, lb_state));
-        return ((lb_r_unit){ .error = _lb_r42.error, .failed = true });
-    } (void)0; })));
-    lb_pos = "src/std/gpu/vulkan/surface.lucb:95:5";
-    lb_count = 0ULL;
-    lb_pos = "src/std/gpu/vulkan/surface.lucb:96:5";
-    (void)((({ lb_r_unit _lb_r44 = ({ int32_t _lb_sq45 __attribute__((unused)) = lb_x_gpu_vkGetSwapchainImagesKHR((lb_device)->device, (lb_state)->swapchain, &(lb_count), ((void*)0)); lb_str _lb_sq46 __attribute__((unused)) = ((lb_str){"Vulkan swapchain images are unavailable", 39}); lb_gpu_12vulkan_check(_lb_sq45, _lb_sq46); }); if (_lb_r44.failed) {
-        { lb_span _lb_s47 = lb_formats; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s47.data), lb_mul_u(_lb_s47.length, sizeof(VkSurfaceFormatKHR), 64) }); }
-        (void)(lb_gpu_24vulkan_swapchain_destroy(lb_device, lb_state));
-        return ((lb_r_unit){ .error = _lb_r44.error, .failed = true });
-    } (void)0; })));
-    lb_pos = "src/std/gpu/vulkan/surface.lucb:97:5";
-    lb_span lb_images __attribute__((unused)) = (({ lb_r_u64_0s _lb_r48 = ({ lb_iface _lb_a49 = lb_memory_allocator; size_t _lb_n49 = (size_t)(((size_t)lb_conv_u((uint64_t)(lb_count), 32, 0, 64, 0, 1))); lb_r_u64_0s _lb_r49; if (_lb_n49 > UINT64_C(576460752303423488)) { _lb_r49 = ((lb_r_u64_0s){ .error = { .code = 208273409, .message = (lb_str){"memory.exhausted", 16} }, .failed = true }); } else { size_t _lb_bytes49 = sizeof(uint64_t) * _lb_n49; lb_o_u8_0s _lb_ao49 = lb_alloc_call(_lb_a49, _lb_bytes49, _Alignof(uint64_t)); if (_lb_bytes49 != 0 && !_lb_ao49.present) { _lb_r49 = ((lb_r_u64_0s){ .error = { .code = 208273409, .message = (lb_str){"memory.exhausted", 16} }, .failed = true }); } else { _lb_r49.value.data = _lb_ao49.value.data; _lb_r49.value.length = _lb_n49; _lb_r49.failed = false; } } _lb_r49; }); if (_lb_r48.failed) {
-        { lb_span _lb_s50 = lb_formats; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s50.data), lb_mul_u(_lb_s50.length, sizeof(VkSurfaceFormatKHR), 64) }); }
-        (void)(lb_gpu_24vulkan_swapchain_destroy(lb_device, lb_state));
-        return ((lb_r_unit){ .error = _lb_r48.error, .failed = true });
-    } _lb_r48.value; }));
-    lb_pos = "src/std/gpu/vulkan/surface.lucb:98:5";
-    lb_pos = "src/std/gpu/vulkan/surface.lucb:99:5";
-    (void)((({ lb_r_unit _lb_r51 = ({ int32_t _lb_sq52 __attribute__((unused)) = lb_x_gpu_vkGetSwapchainImagesKHR((lb_device)->device, (lb_state)->swapchain, &(lb_count), ((uint64_t*)(lb_images.data))); lb_str _lb_sq53 __attribute__((unused)) = ((lb_str){"Vulkan swapchain images changed", 31}); lb_gpu_12vulkan_check(_lb_sq52, _lb_sq53); }); if (_lb_r51.failed) {
-        { lb_span _lb_s54 = lb_images; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s54.data), lb_mul_u(_lb_s54.length, sizeof(uint64_t), 64) }); }
-        { lb_span _lb_s55 = lb_formats; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s55.data), lb_mul_u(_lb_s55.length, sizeof(VkSurfaceFormatKHR), 64) }); }
-        (void)(lb_gpu_24vulkan_swapchain_destroy(lb_device, lb_state));
-        return ((lb_r_unit){ .error = _lb_r51.error, .failed = true });
-    } (void)0; })));
-    lb_pos = "src/std/gpu/vulkan/surface.lucb:100:5";
-    (lb_state)->images = (({ lb_r_gpu_VulkanImage_0s _lb_r56 = ({ lb_iface _lb_a57 = lb_memory_heap; size_t _lb_n57 = (size_t)(((size_t)lb_conv_u((uint64_t)(lb_count), 32, 0, 64, 0, 1))); lb_r_gpu_VulkanImage_0s _lb_r57; if (_lb_n57 > UINT64_C(144115188075855872)) { _lb_r57 = ((lb_r_gpu_VulkanImage_0s){ .error = { .code = 208273409, .message = (lb_str){"memory.exhausted", 16} }, .failed = true }); } else { size_t _lb_bytes57 = sizeof(lb_gpu_VulkanImage) * _lb_n57; lb_o_u8_0s _lb_ao57 = lb_alloc_call(_lb_a57, _lb_bytes57, _Alignof(lb_gpu_VulkanImage)); if (_lb_bytes57 != 0 && !_lb_ao57.present) { _lb_r57 = ((lb_r_gpu_VulkanImage_0s){ .error = { .code = 208273409, .message = (lb_str){"memory.exhausted", 16} }, .failed = true }); } else { _lb_r57.value.data = _lb_ao57.value.data; _lb_r57.value.length = _lb_n57; _lb_r57.failed = false; } } _lb_r57; }); if (_lb_r56.failed) {
-        { lb_span _lb_s58 = lb_images; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s58.data), lb_mul_u(_lb_s58.length, sizeof(uint64_t), 64) }); }
-        { lb_span _lb_s59 = lb_formats; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s59.data), lb_mul_u(_lb_s59.length, sizeof(VkSurfaceFormatKHR), 64) }); }
-        (void)(lb_gpu_24vulkan_swapchain_destroy(lb_device, lb_state));
-        return ((lb_r_unit){ .error = _lb_r56.error, .failed = true });
-    } _lb_r56.value; }));
-    lb_pos = "src/std/gpu/vulkan/surface.lucb:101:5";
-    for (size_t lb_index __attribute__((unused)) = (size_t)(0ULL); lb_index < (size_t)(((size_t)lb_conv_u((uint64_t)(lb_count), 32, 0, 64, 0, 1))); lb_index++) {
-        {
-            lb_pos = "src/std/gpu/vulkan/surface.lucb:102:9";
-            (*({ lb_span _lb_ix61 = (lb_state)->images; &((lb_gpu_VulkanImage*)_lb_ix61.data)[lb_at((uint64_t)(lb_index), _lb_ix61.length)]; })).image = (*({ lb_span _lb_ix62 = lb_images; &((uint64_t*)_lb_ix62.data)[lb_at((uint64_t)(lb_index), _lb_ix62.length)]; }));
-            lb_pos = "src/std/gpu/vulkan/surface.lucb:103:9";
-            (*({ lb_span _lb_ix63 = (lb_state)->images; &((lb_gpu_VulkanImage*)_lb_ix63.data)[lb_at((uint64_t)(lb_index), _lb_ix63.length)]; })).view = (({ lb_r_u64 _lb_r64 = lb_gpu_17vulkan_image_view(lb_device, (*({ lb_span _lb_ix65 = lb_images; &((uint64_t*)_lb_ix65.data)[lb_at((uint64_t)(lb_index), _lb_ix65.length)]; })), lb_format, lb_gpu_25VK_IMAGE_ASPECT_COLOR_BIT); if (_lb_r64.failed) {
-                { lb_span _lb_s66 = lb_images; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s66.data), lb_mul_u(_lb_s66.length, sizeof(uint64_t), 64) }); }
-                { lb_span _lb_s67 = lb_formats; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s67.data), lb_mul_u(_lb_s67.length, sizeof(VkSurfaceFormatKHR), 64) }); }
-                (void)(lb_gpu_24vulkan_swapchain_destroy(lb_device, lb_state));
-                return ((lb_r_unit){ .error = _lb_r64.error, .failed = true });
-            } _lb_r64.value; }));
-            lb_pos = "src/std/gpu/vulkan/surface.lucb:104:9";
-            lb_a_u64_0a2 lb_attachments __attribute__((unused)) = ((lb_a_u64_0a2){{(*({ lb_span _lb_ix68 = (lb_state)->images; &((lb_gpu_VulkanImage*)_lb_ix68.data)[lb_at((uint64_t)(lb_index), _lb_ix68.length)]; })).view, (lb_state)->depth_view}});
-            lb_pos = "src/std/gpu/vulkan/surface.lucb:105:9";
-            VkFramebufferCreateInfo lb_framebuffer_info __attribute__((unused)) = ((VkFramebufferCreateInfo){.sType = lb_gpu_41VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO, .renderPass = (lb_state)->render_pass, .attachmentCount = 2ULL, .pAttachments = &(((lb_attachments).d[0])), .width = lb_extent.width, .height = lb_extent.height, .layers = 1ULL});
-            lb_pos = "src/std/gpu/vulkan/surface.lucb:107:9";
-            (void)((({ lb_r_unit _lb_r69 = ({ int32_t _lb_sq70 __attribute__((unused)) = lb_x_gpu_vkCreateFramebuffer((lb_device)->device, &(lb_framebuffer_info), ((void*)0), &((*({ lb_span _lb_ix71 = (lb_state)->images; &((lb_gpu_VulkanImage*)_lb_ix71.data)[lb_at((uint64_t)(lb_index), _lb_ix71.length)]; })).framebuffer)); lb_str _lb_sq72 __attribute__((unused)) = ((lb_str){"a Vulkan framebuffer could not be created", 41}); lb_gpu_12vulkan_check(_lb_sq70, _lb_sq72); }); if (_lb_r69.failed) {
-                { lb_span _lb_s73 = lb_images; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s73.data), lb_mul_u(_lb_s73.length, sizeof(uint64_t), 64) }); }
-                { lb_span _lb_s74 = lb_formats; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s74.data), lb_mul_u(_lb_s74.length, sizeof(VkSurfaceFormatKHR), 64) }); }
-                (void)(lb_gpu_24vulkan_swapchain_destroy(lb_device, lb_state));
-                return ((lb_r_unit){ .error = _lb_r69.error, .failed = true });
-            } (void)0; })));
-            lb_pos = "src/std/gpu/vulkan/surface.lucb:108:9";
-            VkSemaphoreCreateInfo lb_semaphore_info __attribute__((unused)) = ((VkSemaphoreCreateInfo){.sType = lb_gpu_39VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO});
-            lb_pos = "src/std/gpu/vulkan/surface.lucb:109:9";
-            (void)((({ lb_r_unit _lb_r75 = ({ int32_t _lb_sq76 __attribute__((unused)) = lb_x_gpu_vkCreateSemaphore((lb_device)->device, &(lb_semaphore_info), ((void*)0), &((*({ lb_span _lb_ix77 = (lb_state)->images; &((lb_gpu_VulkanImage*)_lb_ix77.data)[lb_at((uint64_t)(lb_index), _lb_ix77.length)]; })).presented)); lb_str _lb_sq78 __attribute__((unused)) = ((lb_str){"a Vulkan presentation semaphore could not be created", 52}); lb_gpu_12vulkan_check(_lb_sq76, _lb_sq78); }); if (_lb_r75.failed) {
-                { lb_span _lb_s79 = lb_images; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s79.data), lb_mul_u(_lb_s79.length, sizeof(uint64_t), 64) }); }
-                { lb_span _lb_s80 = lb_formats; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s80.data), lb_mul_u(_lb_s80.length, sizeof(VkSurfaceFormatKHR), 64) }); }
-                (void)(lb_gpu_24vulkan_swapchain_destroy(lb_device, lb_state));
-                return ((lb_r_unit){ .error = _lb_r75.error, .failed = true });
-            } (void)0; })));
-        }
-    }
-    lb_pos = "src/std/gpu/vulkan/surface.lucb:110:5";
-    (lb_state)->dirty = false;
-    { lb_span _lb_s81 = lb_images; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s81.data), lb_mul_u(_lb_s81.length, sizeof(uint64_t), 64) }); }
-    { lb_span _lb_s82 = lb_formats; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s82.data), lb_mul_u(_lb_s82.length, sizeof(VkSurfaceFormatKHR), 64) }); }
-    return ((lb_r_unit){ .failed = false });
-}
 __attribute__((weak)) void lb_interop_Packet_0g1_str_init(lb_interop_Packet_0g1_str* self, lb_str lb_value, void* lb_storage, lb_fn_0F1_void_0p_unit lb_dispose) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
     lb_pos = "src/std/gpu/metal/drawing.lucb:46:5";
@@ -3321,14 +3093,14 @@ __attribute__((weak)) void lb_interop_Packet_0g1_str_init(lb_interop_Packet_0g1_
 __attribute__((weak)) void lb_interop_Packet_0g1_str_release(const lb_interop_Packet_0g1_str* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
     lb_pos = "src/std/gpu/metal/drawing.lucb:51:1";
-    void* _lb_o83 = self->storage;
-    if (_lb_o83 != ((void*)0)) {
-        void* lb_storage __attribute__((unused)) = _lb_o83;
+    void* _lb_o7 = self->storage;
+    if (_lb_o7 != ((void*)0)) {
+        void* lb_storage __attribute__((unused)) = _lb_o7;
         {
             lb_pos = "src/std/gpu/metal/drawing.lucb:52:1";
-            (void)(((({ lb_fn_0F1_void_0p_unit _lb_o84 = self->dispose; if (_lb_o84 == ((void*)0)) {
+            (void)(((({ lb_fn_0F1_void_0p_unit _lb_o8 = self->dispose; if (_lb_o8 == ((void*)0)) {
                 (void)(lb_trap_text(((lb_str){"a packet has storage without a disposer", 39})));
-            } _lb_o84; })))(lb_storage));
+            } _lb_o8; })))(lb_storage));
         }
     }
 }
@@ -3344,182 +3116,14 @@ __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_init(lb_interop_Packet_0g
 __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_release(const lb_interop_Packet_0g1_u8_0c* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
     lb_pos = "src/std/gpu/metal/drawing.lucb:51:1";
-    void* _lb_o85 = self->storage;
-    if (_lb_o85 != ((void*)0)) {
-        void* lb_storage __attribute__((unused)) = _lb_o85;
+    void* _lb_o9 = self->storage;
+    if (_lb_o9 != ((void*)0)) {
+        void* lb_storage __attribute__((unused)) = _lb_o9;
         {
             lb_pos = "src/std/gpu/metal/drawing.lucb:52:1";
-            (void)(((({ lb_fn_0F1_void_0p_unit _lb_o86 = self->dispose; if (_lb_o86 == ((void*)0)) {
+            (void)(((({ lb_fn_0F1_void_0p_unit _lb_o10 = self->dispose; if (_lb_o10 == ((void*)0)) {
                 (void)(lb_trap_text(((lb_str){"a packet has storage without a disposer", 39})));
-            } _lb_o86; })))(lb_storage));
+            } _lb_o10; })))(lb_storage));
         }
     }
-}
-void lb_gpu_24vulkan_swapchain_destroy(struct lb_gpu_VulkanDevice* lb_device, struct lb_gpu_VulkanSurface* lb_state) {
-    const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/gpu/vulkan/surface.lucb:127:5";
-    lb_span _lb_seq87 = (lb_state)->images;
-    for (size_t _lb_i87 = 0; _lb_i87 < _lb_seq87.length; _lb_i87++) {
-        lb_gpu_VulkanImage lb_image __attribute__((unused)) = ((lb_gpu_VulkanImage*)_lb_seq87.data)[_lb_i87];
-        {
-            lb_pos = "src/std/gpu/vulkan/surface.lucb:128:9";
-            if (!!((!(lb_image.framebuffer == 0ULL)))) 
-            {
-                lb_pos = "src/std/gpu/vulkan/surface.lucb:128:9";
-                (void)(lb_x_gpu_vkDestroyFramebuffer((lb_device)->device, lb_image.framebuffer, ((void*)0)));
-            }
-            lb_pos = "src/std/gpu/vulkan/surface.lucb:129:9";
-            if (!!((!(lb_image.view == 0ULL)))) 
-            {
-                lb_pos = "src/std/gpu/vulkan/surface.lucb:129:9";
-                (void)(lb_x_gpu_vkDestroyImageView((lb_device)->device, lb_image.view, ((void*)0)));
-            }
-            lb_pos = "src/std/gpu/vulkan/surface.lucb:130:9";
-            if (!!((!(lb_image.presented == 0ULL)))) 
-            {
-                lb_pos = "src/std/gpu/vulkan/surface.lucb:130:9";
-                (void)(lb_x_gpu_vkDestroySemaphore((lb_device)->device, lb_image.presented, ((void*)0)));
-            }
-        }
-    }
-    lb_pos = "src/std/gpu/vulkan/surface.lucb:131:5";
-    if (!!((((size_t)(((lb_state)->images.length))) > ((size_t)(0ULL))))) 
-    {
-        lb_pos = "src/std/gpu/vulkan/surface.lucb:132:9";
-        { lb_span _lb_s88 = (lb_state)->images; lb_release_call(lb_memory_heap, (lb_span){ (void*)(_lb_s88.data), lb_mul_u(_lb_s88.length, sizeof(lb_gpu_VulkanImage), 64) }); }
-    }
-    lb_pos = "src/std/gpu/vulkan/surface.lucb:133:5";
-    lb_span lb_empty __attribute__((unused)) = {};
-    lb_pos = "src/std/gpu/vulkan/surface.lucb:134:5";
-    (lb_state)->images = lb_empty;
-    lb_pos = "src/std/gpu/vulkan/surface.lucb:135:5";
-    if (!!((!((lb_state)->overlay == 0ULL)))) 
-    {
-        lb_pos = "src/std/gpu/vulkan/surface.lucb:135:5";
-        (void)(lb_x_gpu_vkDestroyPipeline((lb_device)->device, (lb_state)->overlay, ((void*)0)));
-    }
-    lb_pos = "src/std/gpu/vulkan/surface.lucb:136:5";
-    if (!!((!((lb_state)->depth_test == 0ULL)))) 
-    {
-        lb_pos = "src/std/gpu/vulkan/surface.lucb:136:5";
-        (void)(lb_x_gpu_vkDestroyPipeline((lb_device)->device, (lb_state)->depth_test, ((void*)0)));
-    }
-    lb_pos = "src/std/gpu/vulkan/surface.lucb:137:5";
-    if (!!((!((lb_state)->descriptor_layout == 0ULL)))) 
-    {
-        lb_pos = "src/std/gpu/vulkan/surface.lucb:137:5";
-        (void)(lb_x_gpu_vkDestroyDescriptorSetLayout((lb_device)->device, (lb_state)->descriptor_layout, ((void*)0)));
-    }
-    lb_pos = "src/std/gpu/vulkan/surface.lucb:138:5";
-    (lb_state)->descriptor_layout = 0ULL;
-    lb_pos = "src/std/gpu/vulkan/surface.lucb:139:5";
-    if (!!((!((lb_state)->layout == 0ULL)))) 
-    {
-        lb_pos = "src/std/gpu/vulkan/surface.lucb:139:5";
-        (void)(lb_x_gpu_vkDestroyPipelineLayout((lb_device)->device, (lb_state)->layout, ((void*)0)));
-    }
-    lb_pos = "src/std/gpu/vulkan/surface.lucb:140:5";
-    if (!!((!((lb_state)->render_pass == 0ULL)))) 
-    {
-        lb_pos = "src/std/gpu/vulkan/surface.lucb:140:5";
-        (void)(lb_x_gpu_vkDestroyRenderPass((lb_device)->device, (lb_state)->render_pass, ((void*)0)));
-    }
-    lb_pos = "src/std/gpu/vulkan/surface.lucb:141:5";
-    if (!!((!((lb_state)->depth_view == 0ULL)))) 
-    {
-        lb_pos = "src/std/gpu/vulkan/surface.lucb:141:5";
-        (void)(lb_x_gpu_vkDestroyImageView((lb_device)->device, (lb_state)->depth_view, ((void*)0)));
-    }
-    lb_pos = "src/std/gpu/vulkan/surface.lucb:142:5";
-    if (!!((!((lb_state)->depth_image == 0ULL)))) 
-    {
-        lb_pos = "src/std/gpu/vulkan/surface.lucb:142:5";
-        (void)(lb_x_gpu_vkDestroyImage((lb_device)->device, (lb_state)->depth_image, ((void*)0)));
-    }
-    lb_pos = "src/std/gpu/vulkan/surface.lucb:143:5";
-    if (!!((!((lb_state)->depth_memory == 0ULL)))) 
-    {
-        lb_pos = "src/std/gpu/vulkan/surface.lucb:143:5";
-        (void)(lb_x_gpu_vkFreeMemory((lb_device)->device, (lb_state)->depth_memory, ((void*)0)));
-    }
-    lb_pos = "src/std/gpu/vulkan/surface.lucb:144:5";
-    if (!!((!((lb_state)->swapchain == 0ULL)))) 
-    {
-        lb_pos = "src/std/gpu/vulkan/surface.lucb:144:5";
-        (void)(lb_x_gpu_vkDestroySwapchainKHR((lb_device)->device, (lb_state)->swapchain, ((void*)0)));
-    }
-    lb_pos = "src/std/gpu/vulkan/surface.lucb:145:5";
-    (lb_state)->overlay = 0ULL;
-    lb_pos = "src/std/gpu/vulkan/surface.lucb:146:5";
-    (lb_state)->depth_test = 0ULL;
-    lb_pos = "src/std/gpu/vulkan/surface.lucb:147:5";
-    (lb_state)->layout = 0ULL;
-    lb_pos = "src/std/gpu/vulkan/surface.lucb:148:5";
-    (lb_state)->render_pass = 0ULL;
-    lb_pos = "src/std/gpu/vulkan/surface.lucb:149:5";
-    (lb_state)->depth_view = 0ULL;
-    lb_pos = "src/std/gpu/vulkan/surface.lucb:150:5";
-    (lb_state)->depth_image = 0ULL;
-    lb_pos = "src/std/gpu/vulkan/surface.lucb:151:5";
-    (lb_state)->depth_memory = 0ULL;
-    lb_pos = "src/std/gpu/vulkan/surface.lucb:152:5";
-    (lb_state)->swapchain = 0ULL;
-    lb_pos = "src/std/gpu/vulkan/surface.lucb:153:5";
-    (lb_state)->width = 0ULL;
-    lb_pos = "src/std/gpu/vulkan/surface.lucb:154:5";
-    (lb_state)->height = 0ULL;
-    lb_pos = "src/std/gpu/vulkan/surface.lucb:155:5";
-    (lb_state)->dirty = true;
-}
-lb_r_unit lb_gpu_12vulkan_depth(struct lb_gpu_VulkanDevice* lb_device, struct lb_gpu_VulkanSurface* lb_state) {
-    const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/gpu/vulkan/surface.lucb:113:5";
-    VkFormatProperties lb_properties __attribute__((unused)) = {};
-    lb_pos = "src/std/gpu/vulkan/surface.lucb:114:5";
-    (void)(lb_x_gpu_vkGetPhysicalDeviceFormatProperties((lb_device)->physical, lb_gpu_20VK_FORMAT_D32_SFLOAT, &(lb_properties)));
-    lb_pos = "src/std/gpu/vulkan/surface.lucb:115:5";
-    if (!!(((((uint32_t)(lb_properties.optimalTilingFeatures & lb_gpu_46VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT))) == 0ULL))) 
-    {
-        lb_pos = "src/std/gpu/vulkan/surface.lucb:116:9";
-        lb_r_unit _lb_err89 = ((lb_r_unit){ .error = { .code = (int32_t)(lb_gpu_unavailable), .message = ((lb_str){"the Vulkan device has no 32-bit depth attachment support", 56}) }, .failed = true });
-        return _lb_err89;
-    }
-    lb_pos = "src/std/gpu/vulkan/surface.lucb:117:5";
-    VkImageCreateInfo lb_info __attribute__((unused)) = ({ uint32_t _lb_sq90 __attribute__((unused)) = lb_gpu_35VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO; uint32_t _lb_sq91 __attribute__((unused)) = lb_gpu_16VK_IMAGE_TYPE_2D; uint32_t _lb_sq92 __attribute__((unused)) = lb_gpu_20VK_FORMAT_D32_SFLOAT; VkExtent3D _lb_sq93 __attribute__((unused)) = ((VkExtent3D){.width = (lb_state)->width, .height = (lb_state)->height, .depth = 1ULL}); uint32_t _lb_sq94 __attribute__((unused)) = 1ULL; uint32_t _lb_sq95 __attribute__((unused)) = 1ULL; uint32_t _lb_sq96 __attribute__((unused)) = lb_gpu_21VK_SAMPLE_COUNT_1_BIT; uint32_t _lb_sq97 __attribute__((unused)) = lb_gpu_43VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT; ((VkImageCreateInfo){.sType = _lb_sq90, .imageType = _lb_sq91, .format = _lb_sq92, .extent = _lb_sq93, .mipLevels = _lb_sq94, .arrayLayers = _lb_sq95, .samples = _lb_sq96, .usage = _lb_sq97}); });
-    lb_pos = "src/std/gpu/vulkan/surface.lucb:119:5";
-    (void)((({ lb_r_unit _lb_r98 = ({ int32_t _lb_sq99 __attribute__((unused)) = lb_x_gpu_vkCreateImage((lb_device)->device, &(lb_info), ((void*)0), &((lb_state)->depth_image)); lb_str _lb_sq100 __attribute__((unused)) = ((lb_str){"the Vulkan depth image could not be created", 43}); lb_gpu_12vulkan_check(_lb_sq99, _lb_sq100); }); if (_lb_r98.failed) {
-        return ((lb_r_unit){ .error = _lb_r98.error, .failed = true });
-    } (void)0; })));
-    lb_pos = "src/std/gpu/vulkan/surface.lucb:120:5";
-    VkMemoryRequirements lb_requirements __attribute__((unused)) = {};
-    lb_pos = "src/std/gpu/vulkan/surface.lucb:121:5";
-    (void)(lb_x_gpu_vkGetImageMemoryRequirements((lb_device)->device, (lb_state)->depth_image, &(lb_requirements)));
-    lb_pos = "src/std/gpu/vulkan/surface.lucb:122:5";
-    (lb_state)->depth_memory = (({ lb_r_u64 _lb_r101 = lb_gpu_13vulkan_memory(lb_device, lb_requirements, lb_gpu_35VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT); if (_lb_r101.failed) {
-        return ((lb_r_unit){ .error = _lb_r101.error, .failed = true });
-    } _lb_r101.value; }));
-    lb_pos = "src/std/gpu/vulkan/surface.lucb:123:5";
-    (void)((({ lb_r_unit _lb_r102 = ({ int32_t _lb_sq103 __attribute__((unused)) = lb_x_gpu_vkBindImageMemory((lb_device)->device, (lb_state)->depth_image, (lb_state)->depth_memory, 0ULL); lb_str _lb_sq104 __attribute__((unused)) = ((lb_str){"Vulkan depth memory could not be bound", 38}); lb_gpu_12vulkan_check(_lb_sq103, _lb_sq104); }); if (_lb_r102.failed) {
-        return ((lb_r_unit){ .error = _lb_r102.error, .failed = true });
-    } (void)0; })));
-    lb_pos = "src/std/gpu/vulkan/surface.lucb:124:5";
-    (lb_state)->depth_view = (({ lb_r_u64 _lb_r105 = lb_gpu_17vulkan_image_view(lb_device, (lb_state)->depth_image, lb_gpu_20VK_FORMAT_D32_SFLOAT, lb_gpu_25VK_IMAGE_ASPECT_DEPTH_BIT); if (_lb_r105.failed) {
-        return ((lb_r_unit){ .error = _lb_r105.error, .failed = true });
-    } _lb_r105.value; }));
-    return ((lb_r_unit){ .failed = false });
-}
-lb_r_u64 lb_gpu_17vulkan_image_view(struct lb_gpu_VulkanDevice* lb_device, uint64_t lb_image, uint32_t lb_format, uint32_t lb_aspect) {
-    const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/gpu/vulkan/surface.lucb:45:5";
-    VkImageViewCreateInfo lb_info __attribute__((unused)) = ({ uint32_t _lb_sq106 __attribute__((unused)) = lb_gpu_40VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO; uint64_t _lb_sq107 __attribute__((unused)) = lb_image; uint32_t _lb_sq108 __attribute__((unused)) = lb_gpu_21VK_IMAGE_VIEW_TYPE_2D; uint32_t _lb_sq109 __attribute__((unused)) = lb_format; VkImageSubresourceRange _lb_sq110 __attribute__((unused)) = ((VkImageSubresourceRange){.aspectMask = lb_aspect, .levelCount = 1ULL, .layerCount = 1ULL}); ((VkImageViewCreateInfo){.sType = _lb_sq106, .image = _lb_sq107, .viewType = _lb_sq108, .format = _lb_sq109, .subresourceRange = _lb_sq110}); });
-    lb_pos = "src/std/gpu/vulkan/surface.lucb:47:5";
-    uint64_t lb_view __attribute__((unused)) = 0ULL;
-    lb_pos = "src/std/gpu/vulkan/surface.lucb:48:5";
-    (void)((({ lb_r_unit _lb_r111 = ({ int32_t _lb_sq112 __attribute__((unused)) = lb_x_gpu_vkCreateImageView((lb_device)->device, &(lb_info), ((void*)0), &(lb_view)); lb_str _lb_sq113 __attribute__((unused)) = ((lb_str){"a Vulkan image view could not be created", 40}); lb_gpu_12vulkan_check(_lb_sq112, _lb_sq113); }); if (_lb_r111.failed) {
-        return ((lb_r_u64){ .error = _lb_r111.error, .failed = true });
-    } (void)0; })));
-    lb_pos = "src/std/gpu/vulkan/surface.lucb:49:5";
-    uint64_t _lb_ret114 = lb_view;
-    return ((lb_r_u64){ .value = _lb_ret114, .failed = false });
-    lb_trap("unreachable");
 }

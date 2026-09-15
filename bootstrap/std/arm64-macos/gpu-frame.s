@@ -4566,6 +4566,7 @@ _lb_interop_Reference_0g1_gpu_FrameState_trace:
     .p2align 2
     .globl _lb_interop_Reservation_0g1_gpu_FrameState_init
     .weak_definition _lb_interop_Reservation_0g1_gpu_FrameState_init
+    .no_dead_strip _lb_interop_Reservation_0g1_gpu_FrameState_init
 _lb_interop_Reservation_0g1_gpu_FrameState_init:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -4775,6 +4776,7 @@ L25_7:
     .p2align 2
     .globl _lb_interop_Reservation_0g1_gpu_FrameState_publish
     .weak_definition _lb_interop_Reservation_0g1_gpu_FrameState_publish
+    .no_dead_strip _lb_interop_Reservation_0g1_gpu_FrameState_publish
 _lb_interop_Reservation_0g1_gpu_FrameState_publish:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -4998,6 +5000,7 @@ L27_8:
     .p2align 2
     .globl _lb_interop_Owner_0g1_gpu_FrameState_7is_open
     .weak_definition _lb_interop_Owner_0g1_gpu_FrameState_7is_open
+    .no_dead_strip _lb_interop_Owner_0g1_gpu_FrameState_7is_open
 _lb_interop_Owner_0g1_gpu_FrameState_7is_open:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -5031,6 +5034,7 @@ L28_1:
     .p2align 2
     .globl _lb_interop_Owner_0g1_gpu_FrameState_enter
     .weak_definition _lb_interop_Owner_0g1_gpu_FrameState_enter
+    .no_dead_strip _lb_interop_Owner_0g1_gpu_FrameState_enter
 _lb_interop_Owner_0g1_gpu_FrameState_enter:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -5065,6 +5069,7 @@ _lb_interop_Owner_0g1_gpu_FrameState_enter:
     .p2align 2
     .globl _lb_interop_Owner_0g1_gpu_FrameState_leave
     .weak_definition _lb_interop_Owner_0g1_gpu_FrameState_leave
+    .no_dead_strip _lb_interop_Owner_0g1_gpu_FrameState_leave
 _lb_interop_Owner_0g1_gpu_FrameState_leave:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -5220,6 +5225,7 @@ _lb_interop_View_0g1_gpu_RenderTarget_init:
     .p2align 2
     .globl _lb_interop_11close_owner_0g1_gpu_FrameState
     .weak_definition _lb_interop_11close_owner_0g1_gpu_FrameState
+    .no_dead_strip _lb_interop_11close_owner_0g1_gpu_FrameState
 _lb_interop_11close_owner_0g1_gpu_FrameState:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -5265,6 +5271,7 @@ L34_7:
     .p2align 2
     .globl _lb_interop_Owner_0g1_gpu_FrameState_12finish_owner
     .weak_definition _lb_interop_Owner_0g1_gpu_FrameState_12finish_owner
+    .no_dead_strip _lb_interop_Owner_0g1_gpu_FrameState_12finish_owner
 _lb_interop_Owner_0g1_gpu_FrameState_12finish_owner:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -5282,6 +5289,7 @@ _lb_interop_Owner_0g1_gpu_FrameState_12finish_owner:
     .p2align 2
     .globl _lb_interop_Owner_0g1_gpu_FrameState_10drop_owner
     .weak_definition _lb_interop_Owner_0g1_gpu_FrameState_10drop_owner
+    .no_dead_strip _lb_interop_Owner_0g1_gpu_FrameState_10drop_owner
 _lb_interop_Owner_0g1_gpu_FrameState_10drop_owner:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -5376,6 +5384,7 @@ L36_3:
     .p2align 2
     .globl _lb_interop_Owner_0g1_gpu_FrameState_11trace_owner
     .weak_definition _lb_interop_Owner_0g1_gpu_FrameState_11trace_owner
+    .no_dead_strip _lb_interop_Owner_0g1_gpu_FrameState_11trace_owner
 _lb_interop_Owner_0g1_gpu_FrameState_11trace_owner:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -5443,6 +5452,7 @@ L37_7:
     .p2align 2
     .globl _lb_interop_Reference_0g1_gpu_FrameState_init
     .weak_definition _lb_interop_Reference_0g1_gpu_FrameState_init
+    .no_dead_strip _lb_interop_Reference_0g1_gpu_FrameState_init
 _lb_interop_Reference_0g1_gpu_FrameState_init:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -5469,6 +5479,7 @@ _lb_interop_Reference_0g1_gpu_FrameState_init:
     .p2align 2
     .globl _lb_interop_13dispose_owner_0g1_gpu_FrameState
     .weak_definition _lb_interop_13dispose_owner_0g1_gpu_FrameState
+    .no_dead_strip _lb_interop_13dispose_owner_0g1_gpu_FrameState
 _lb_interop_13dispose_owner_0g1_gpu_FrameState:
     stp x29, x30, [sp, #-16]!
     mov x29, sp

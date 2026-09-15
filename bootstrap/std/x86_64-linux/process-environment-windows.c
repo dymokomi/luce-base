@@ -1981,10 +1981,6 @@ typedef struct lb_interop_ViewType_0g1_gpu_RenderTarget {
 typedef struct lb_a_u32_0a271 { uint32_t d[271]; } lb_a_u32_0a271;
 typedef struct lb_a_u32_0a1021 { uint32_t d[1021]; } lb_a_u32_0a1021;
 typedef struct lb_a_5c_str_0a2 { char* d[2]; } lb_a_5c_str_0a2;
-LB_RES(lb_span, lb_r_u16_0s);
-LB_RES(lb_span, lb_r_u16_0s_0s);
-LB_RES(lb_str, lb_r_str);
-LB_OPT(size_t, lb_o_usize);
 typedef void (*lb_fn_0F0_unit)(void);
 typedef void* (*lb_fn_0F1_void_0p_void_0p_0o)(void*);
 LB_RES(bool, lb_r_bool);
@@ -2627,9 +2623,7 @@ void lb_process_Termination_close(lb_process_Termination* self);
 lb_r_unit lb_process_25termination_posix_install(void);
 void lb_process_25termination_posix_restore(void);
 char*** lb_process_19environment_address(void);
-lb_r_str lb_process_16environment_name(char* lb_entry);
 lb_r_5c_str_0o_0s lb_process_17environment_posix(lb_cspan lb_overrides, char** lb_inherited);
-lb_r_u16_0s lb_process_19environment_windows(lb_cspan lb_overrides);
 lb_r_unit lb_process_Command_init(lb_process_Command* self, lb_str lb_program, lb_cspan lb_arguments, lb_str lb_directory, size_t lb_output_limit, lb_o_str_0c lb_environment);
 bool lb_process_Command_11is_finished(const lb_process_Command* self);
 int64_t lb_process_Command_revision(const lb_process_Command* self);
@@ -2639,17 +2633,11 @@ lb_r_interop_Owned_0g1_str lb_process_Command_13error_message(const lb_process_C
 void lb_process_Command_cancel(const lb_process_Command* self);
 void lb_process_Command_close(lb_process_Command* self);
 lb_r_unit lb_process_14command_append(struct lb_process_CommandState* lb_state, lb_cspan lb_bytes);
-size_t lb_process_13math_min_size(size_t lb_a, size_t lb_b);
 lb_r_i32 lb_process_15capture_command(int32_t lb_pid, struct lb_process_Capture* lb_out_, struct lb_process_Capture* lb_err, struct lb_process_CommandState* lb_state);
-lb_r_unit lb_process_15monitor_windows(void* lb_process, void* lb_child_thread, void* lb_out_, void* lb_err, struct lb_process_CommandState* lb_state);
 __attribute__((weak)) void lb_interop_Packet_0g1_str_init(lb_interop_Packet_0g1_str* self, lb_str lb_value, void* lb_storage, lb_fn_0F1_void_0p_unit lb_dispose);
 __attribute__((weak)) void lb_interop_Packet_0g1_str_release(const lb_interop_Packet_0g1_str* self);
 __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_init(lb_interop_Packet_0g1_u8_0c* self, lb_cspan lb_value, void* lb_storage, lb_fn_0F1_void_0p_unit lb_dispose);
 __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_release(const lb_interop_Packet_0g1_u8_0c* self);
-void lb_process_27environment_windows_release(lb_span lb_entries, size_t lb_count);
-lb_r_u16_0s lb_12windows_text_wide(char* lb_text, uint32_t lb_invalid);
-int32_t lb_process_27environment_windows_compare(lb_cspan lb_left, lb_cspan lb_right);
-lb_cspan lb_process_23environment_windows_key(lb_cspan lb_entry);
 
 extern lb_str lb_platform_name;
 extern bool lb_platform_macos;
@@ -3053,246 +3041,6 @@ __attribute__((weak)) lb_r_interop_Packet_0g1_u8_0c lb_interop_Transfer_0g1_u8_0
     return ((lb_r_interop_Packet_0g1_u8_0c){ .value = _lb_ret5, .failed = false });
     lb_trap("unreachable");
 }
-lb_r_u16_0s lb_process_19environment_windows(lb_cspan lb_overrides) {
-    const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/process/environment/windows.lucb:20:5";
-    uint16_t* lb_inherited __attribute__((unused)) = ({ uint16_t* _lb_o7 = lb_x_process_GetEnvironmentStringsW(); if (_lb_o7 == ((void*)0)) {
-        lb_r_u16_0s _lb_err8 = ((lb_r_u16_0s){ .error = { .code = (int32_t)(lb_process_failed), .message = ((lb_str){"the inherited environment is unavailable", 40}) }, .failed = true });
-        return _lb_err8;
-    } _lb_o7; });
-    lb_pos = "src/std/process/environment/windows.lucb:21:5";
-    lb_pos = "src/std/process/environment/windows.lucb:22:5";
-    size_t lb_count __attribute__((unused)) = 0ULL;
-    lb_pos = "src/std/process/environment/windows.lucb:23:5";
-    size_t lb_cursor __attribute__((unused)) = 0ULL;
-    lb_pos = "src/std/process/environment/windows.lucb:24:5";
-    for (;;) {
-        lb_pos = "src/std/process/environment/windows.lucb:24:5";
-        if (!((!(((lb_inherited)[lb_cursor]) == 0ULL)))) break;
-        {
-            lb_pos = "src/std/process/environment/windows.lucb:25:9";
-            { size_t* lb__cell9 = &(lb_count);
-            (*(lb__cell9)) = (size_t)(lb_add_u((uint64_t)((*(lb__cell9))), (uint64_t)(1ULL), 64)); }
-            lb_pos = "src/std/process/environment/windows.lucb:26:9";
-            for (;;) {
-                lb_pos = "src/std/process/environment/windows.lucb:26:9";
-                if (!((!(((lb_inherited)[lb_cursor]) == 0ULL)))) break;
-                {
-                    lb_pos = "src/std/process/environment/windows.lucb:27:13";
-                    { size_t* lb__cell10 = &(lb_cursor);
-                    (*(lb__cell10)) = (size_t)(lb_add_u((uint64_t)((*(lb__cell10))), (uint64_t)(1ULL), 64)); }
-                }
-            }
-            lb_pos = "src/std/process/environment/windows.lucb:28:9";
-            { size_t* lb__cell11 = &(lb_cursor);
-            (*(lb__cell11)) = (size_t)(lb_add_u((uint64_t)((*(lb__cell11))), (uint64_t)(1ULL), 64)); }
-        }
-    }
-    lb_pos = "src/std/process/environment/windows.lucb:29:5";
-    lb_span lb_owned __attribute__((unused)) = (({ lb_r_u16_0s_0s _lb_r12 = ({ lb_iface _lb_a13 = lb_memory_allocator; size_t _lb_n13 = (size_t)((lb_overrides.length)); lb_r_u16_0s_0s _lb_r13; if (_lb_n13 > UINT64_C(288230376151711744)) { _lb_r13 = ((lb_r_u16_0s_0s){ .error = { .code = 208273409, .message = (lb_str){"memory.exhausted", 16} }, .failed = true }); } else { size_t _lb_bytes13 = sizeof(lb_span) * _lb_n13; lb_o_u8_0s _lb_ao13 = lb_alloc_call(_lb_a13, _lb_bytes13, _Alignof(lb_span)); if (_lb_bytes13 != 0 && !_lb_ao13.present) { _lb_r13 = ((lb_r_u16_0s_0s){ .error = { .code = 208273409, .message = (lb_str){"memory.exhausted", 16} }, .failed = true }); } else { _lb_r13.value.data = _lb_ao13.value.data; _lb_r13.value.length = _lb_n13; _lb_r13.failed = false; } } _lb_r13; }); if (_lb_r12.failed) {
-        (void)(((void)(lb_x_process_FreeEnvironmentStringsW(lb_inherited))));
-        return ((lb_r_u16_0s){ .error = _lb_r12.error, .failed = true });
-    } _lb_r12.value; }));
-    lb_pos = "src/std/process/environment/windows.lucb:30:5";
-    lb_pos = "src/std/process/environment/windows.lucb:31:5";
-    size_t lb_converted __attribute__((unused)) = 0ULL;
-    lb_pos = "src/std/process/environment/windows.lucb:32:5";
-    lb_pos = "src/std/process/environment/windows.lucb:33:5";
-    for (size_t lb_index __attribute__((unused)) = (size_t)(0ULL); lb_index < (size_t)((lb_overrides.length)); lb_index++) {
-        {
-            lb_pos = "src/std/process/environment/windows.lucb:34:9";
-            (void)(((void)((({ lb_r_str _lb_r15 = lb_process_16environment_name((*({ lb_cspan _lb_ix16 = lb_overrides; &((char**)_lb_ix16.data)[lb_at((uint64_t)(lb_index), _lb_ix16.length)]; }))); if (_lb_r15.failed) {
-                (void)(lb_process_27environment_windows_release(lb_owned, lb_converted));
-                { lb_span _lb_s17 = lb_owned; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s17.data), lb_mul_u(_lb_s17.length, sizeof(lb_span), 64) }); }
-                (void)(((void)(lb_x_process_FreeEnvironmentStringsW(lb_inherited))));
-                return ((lb_r_u16_0s){ .error = _lb_r15.error, .failed = true });
-            } _lb_r15.value; })))));
-            lb_pos = "src/std/process/environment/windows.lucb:35:9";
-            (*({ lb_span _lb_ix18 = lb_owned; &((lb_span*)_lb_ix18.data)[lb_at((uint64_t)(lb_index), _lb_ix18.length)]; })) = (({ lb_r_u16_0s _lb_r19 = lb_12windows_text_wide((*({ lb_cspan _lb_ix20 = lb_overrides; &((char**)_lb_ix20.data)[lb_at((uint64_t)(lb_index), _lb_ix20.length)]; })), lb_process_failed); if (_lb_r19.failed) {
-                (void)(lb_process_27environment_windows_release(lb_owned, lb_converted));
-                { lb_span _lb_s21 = lb_owned; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s21.data), lb_mul_u(_lb_s21.length, sizeof(lb_span), 64) }); }
-                (void)(((void)(lb_x_process_FreeEnvironmentStringsW(lb_inherited))));
-                return ((lb_r_u16_0s){ .error = _lb_r19.error, .failed = true });
-            } _lb_r19.value; }));
-            lb_pos = "src/std/process/environment/windows.lucb:36:9";
-            { size_t* lb__cell22 = &(lb_converted);
-            (*(lb__cell22)) = (size_t)(lb_add_u((uint64_t)((*(lb__cell22))), (uint64_t)(1ULL), 64)); }
-            lb_pos = "src/std/process/environment/windows.lucb:37:9";
-            for (size_t lb_prior __attribute__((unused)) = (size_t)(0ULL); lb_prior < (size_t)(lb_index); lb_prior++) {
-                {
-                    lb_pos = "src/std/process/environment/windows.lucb:38:13";
-                    if (!!(({ int32_t _lb_sq24 __attribute__((unused)) = lb_process_27environment_windows_compare((*({ lb_span _lb_ix25 = lb_owned; &((lb_span*)_lb_ix25.data)[lb_at((uint64_t)(lb_index), _lb_ix25.length)]; })), (*({ lb_span _lb_ix26 = lb_owned; &((lb_span*)_lb_ix26.data)[lb_at((uint64_t)(lb_prior), _lb_ix26.length)]; }))); int32_t _lb_sq27 __attribute__((unused)) = 0LL; (_lb_sq24 == _lb_sq27); }))) 
-                    {
-                        lb_pos = "src/std/process/environment/windows.lucb:39:17";
-                        lb_r_u16_0s _lb_err28 = ((lb_r_u16_0s){ .error = { .code = (int32_t)(lb_process_failed), .message = ((lb_str){"an environment override repeats a name", 38}) }, .failed = true });
-                        (void)(lb_process_27environment_windows_release(lb_owned, lb_converted));
-                        { lb_span _lb_s29 = lb_owned; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s29.data), lb_mul_u(_lb_s29.length, sizeof(lb_span), 64) }); }
-                        (void)(((void)(lb_x_process_FreeEnvironmentStringsW(lb_inherited))));
-                        return _lb_err28;
-                    }
-                }
-            }
-        }
-    }
-    lb_pos = "src/std/process/environment/windows.lucb:40:5";
-    size_t lb_capacity __attribute__((unused)) = ({ lb_o_usize _lb_o30 = ({ uint64_t _lb_qo31; lb_o_usize _lb_qr31; _lb_qr31.present = lb_qadd_u((uint64_t)(lb_count), (uint64_t)((lb_overrides.length)), 64, &_lb_qo31); _lb_qr31.value = (size_t)(_lb_qo31); _lb_qr31; }); if (!_lb_o30.present) {
-        lb_r_u16_0s _lb_err32 = ((lb_r_u16_0s){ .error = { .code = (int32_t)(lb_process_failed), .message = ((lb_str){"the environment is too large", 28}) }, .failed = true });
-        (void)(lb_process_27environment_windows_release(lb_owned, lb_converted));
-        { lb_span _lb_s33 = lb_owned; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s33.data), lb_mul_u(_lb_s33.length, sizeof(lb_span), 64) }); }
-        (void)(((void)(lb_x_process_FreeEnvironmentStringsW(lb_inherited))));
-        return _lb_err32;
-    } _lb_o30.value; });
-    lb_pos = "src/std/process/environment/windows.lucb:41:5";
-    lb_span lb_entries __attribute__((unused)) = (({ lb_r_u16_0s_0s _lb_r34 = ({ lb_iface _lb_a35 = lb_memory_allocator; size_t _lb_n35 = (size_t)(lb_capacity); lb_r_u16_0s_0s _lb_r35; if (_lb_n35 > UINT64_C(288230376151711744)) { _lb_r35 = ((lb_r_u16_0s_0s){ .error = { .code = 208273409, .message = (lb_str){"memory.exhausted", 16} }, .failed = true }); } else { size_t _lb_bytes35 = sizeof(lb_span) * _lb_n35; lb_o_u8_0s _lb_ao35 = lb_alloc_call(_lb_a35, _lb_bytes35, _Alignof(lb_span)); if (_lb_bytes35 != 0 && !_lb_ao35.present) { _lb_r35 = ((lb_r_u16_0s_0s){ .error = { .code = 208273409, .message = (lb_str){"memory.exhausted", 16} }, .failed = true }); } else { _lb_r35.value.data = _lb_ao35.value.data; _lb_r35.value.length = _lb_n35; _lb_r35.failed = false; } } _lb_r35; }); if (_lb_r34.failed) {
-        (void)(lb_process_27environment_windows_release(lb_owned, lb_converted));
-        { lb_span _lb_s36 = lb_owned; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s36.data), lb_mul_u(_lb_s36.length, sizeof(lb_span), 64) }); }
-        (void)(((void)(lb_x_process_FreeEnvironmentStringsW(lb_inherited))));
-        return ((lb_r_u16_0s){ .error = _lb_r34.error, .failed = true });
-    } _lb_r34.value; }));
-    lb_pos = "src/std/process/environment/windows.lucb:42:5";
-    lb_pos = "src/std/process/environment/windows.lucb:43:5";
-    size_t lb_used __attribute__((unused)) = 0ULL;
-    lb_pos = "src/std/process/environment/windows.lucb:44:5";
-    lb_cursor = 0ULL;
-    lb_pos = "src/std/process/environment/windows.lucb:45:5";
-    for (;;) {
-        lb_pos = "src/std/process/environment/windows.lucb:45:5";
-        if (!((!(((lb_inherited)[lb_cursor]) == 0ULL)))) break;
-        {
-            lb_pos = "src/std/process/environment/windows.lucb:46:9";
-            size_t lb_start __attribute__((unused)) = lb_cursor;
-            lb_pos = "src/std/process/environment/windows.lucb:47:9";
-            for (;;) {
-                lb_pos = "src/std/process/environment/windows.lucb:47:9";
-                if (!((!(((lb_inherited)[lb_cursor]) == 0ULL)))) break;
-                {
-                    lb_pos = "src/std/process/environment/windows.lucb:48:13";
-                    { size_t* lb__cell37 = &(lb_cursor);
-                    (*(lb__cell37)) = (size_t)(lb_add_u((uint64_t)((*(lb__cell37))), (uint64_t)(1ULL), 64)); }
-                }
-            }
-            lb_pos = "src/std/process/environment/windows.lucb:49:9";
-            { size_t* lb__cell38 = &(lb_cursor);
-            (*(lb__cell38)) = (size_t)(lb_add_u((uint64_t)((*(lb__cell38))), (uint64_t)(1ULL), 64)); }
-            lb_pos = "src/std/process/environment/windows.lucb:50:9";
-            lb_span lb_entry __attribute__((unused)) = ((lb_span){(void*)(&(((lb_inherited)[lb_start]))), (size_t)((size_t)(lb_sub_u((uint64_t)(lb_cursor), (uint64_t)(lb_start), 64)))});
-            lb_pos = "src/std/process/environment/windows.lucb:51:9";
-            bool lb_replaced __attribute__((unused)) = false;
-            lb_pos = "src/std/process/environment/windows.lucb:52:9";
-            for (size_t lb_index __attribute__((unused)) = (size_t)(0ULL); lb_index < (size_t)(lb_converted); lb_index++) {
-                {
-                    lb_pos = "src/std/process/environment/windows.lucb:53:13";
-                    if (!!(({ int32_t _lb_sq40 __attribute__((unused)) = lb_process_27environment_windows_compare(lb_entry, (*({ lb_span _lb_ix41 = lb_owned; &((lb_span*)_lb_ix41.data)[lb_at((uint64_t)(lb_index), _lb_ix41.length)]; }))); int32_t _lb_sq42 __attribute__((unused)) = 0LL; (_lb_sq40 == _lb_sq42); }))) 
-                    {
-                        lb_pos = "src/std/process/environment/windows.lucb:54:17";
-                        lb_replaced = true;
-                        lb_pos = "src/std/process/environment/windows.lucb:55:17";
-                        break;
-                    }
-                }
-            }
-            lb_pos = "src/std/process/environment/windows.lucb:56:9";
-            if (!!((!lb_replaced))) 
-            {
-                lb_pos = "src/std/process/environment/windows.lucb:57:13";
-                (*({ lb_span _lb_ix43 = lb_entries; &((lb_span*)_lb_ix43.data)[lb_at((uint64_t)(lb_used), _lb_ix43.length)]; })) = lb_entry;
-                lb_pos = "src/std/process/environment/windows.lucb:58:13";
-                { size_t* lb__cell44 = &(lb_used);
-                (*(lb__cell44)) = (size_t)(lb_add_u((uint64_t)((*(lb__cell44))), (uint64_t)(1ULL), 64)); }
-            }
-        }
-    }
-    lb_pos = "src/std/process/environment/windows.lucb:59:5";
-    for (size_t lb_index __attribute__((unused)) = (size_t)(0ULL); lb_index < (size_t)(lb_converted); lb_index++) {
-        {
-            lb_pos = "src/std/process/environment/windows.lucb:60:9";
-            (*({ lb_span _lb_ix46 = lb_entries; &((lb_span*)_lb_ix46.data)[lb_at((uint64_t)(lb_used), _lb_ix46.length)]; })) = (*({ lb_span _lb_ix47 = lb_owned; &((lb_span*)_lb_ix47.data)[lb_at((uint64_t)(lb_index), _lb_ix47.length)]; }));
-            lb_pos = "src/std/process/environment/windows.lucb:61:9";
-            { size_t* lb__cell48 = &(lb_used);
-            (*(lb__cell48)) = (size_t)(lb_add_u((uint64_t)((*(lb__cell48))), (uint64_t)(1ULL), 64)); }
-        }
-    }
-    lb_pos = "src/std/process/environment/windows.lucb:62:5";
-    for (size_t lb_index __attribute__((unused)) = (size_t)(1ULL); lb_index < (size_t)(lb_used); lb_index++) {
-        {
-            lb_pos = "src/std/process/environment/windows.lucb:63:9";
-            lb_span lb_entry __attribute__((unused)) = (*({ lb_span _lb_ix50 = lb_entries; &((lb_span*)_lb_ix50.data)[lb_at((uint64_t)(lb_index), _lb_ix50.length)]; }));
-            lb_pos = "src/std/process/environment/windows.lucb:64:9";
-            size_t lb_position __attribute__((unused)) = lb_index;
-            lb_pos = "src/std/process/environment/windows.lucb:65:9";
-            for (;;) {
-                lb_pos = "src/std/process/environment/windows.lucb:65:9";
-                if (!(((((size_t)(lb_position)) > ((size_t)(0ULL))) && ({ int32_t _lb_sq51 __attribute__((unused)) = lb_process_27environment_windows_compare(lb_entry, (*({ lb_span _lb_ix52 = lb_entries; &((lb_span*)_lb_ix52.data)[lb_at((uint64_t)((size_t)(lb_sub_u((uint64_t)(lb_position), (uint64_t)(1ULL), 64))), _lb_ix52.length)]; }))); int32_t _lb_sq53 __attribute__((unused)) = 0LL; (((int32_t)(_lb_sq51)) < ((int32_t)(_lb_sq53))); })))) break;
-                {
-                    lb_pos = "src/std/process/environment/windows.lucb:66:13";
-                    (*({ lb_span _lb_ix54 = lb_entries; &((lb_span*)_lb_ix54.data)[lb_at((uint64_t)(lb_position), _lb_ix54.length)]; })) = (*({ lb_span _lb_ix55 = lb_entries; &((lb_span*)_lb_ix55.data)[lb_at((uint64_t)((size_t)(lb_sub_u((uint64_t)(lb_position), (uint64_t)(1ULL), 64))), _lb_ix55.length)]; }));
-                    lb_pos = "src/std/process/environment/windows.lucb:67:13";
-                    { size_t* lb__cell56 = &(lb_position);
-                    (*(lb__cell56)) = (size_t)(lb_sub_u((uint64_t)((*(lb__cell56))), (uint64_t)(1ULL), 64)); }
-                }
-            }
-            lb_pos = "src/std/process/environment/windows.lucb:68:9";
-            (*({ lb_span _lb_ix57 = lb_entries; &((lb_span*)_lb_ix57.data)[lb_at((uint64_t)(lb_position), _lb_ix57.length)]; })) = lb_entry;
-        }
-    }
-    lb_pos = "src/std/process/environment/windows.lucb:69:5";
-    size_t lb_size __attribute__((unused)) = 1ULL;
-    lb_pos = "src/std/process/environment/windows.lucb:70:5";
-    for (size_t lb_index __attribute__((unused)) = (size_t)(0ULL); lb_index < (size_t)(lb_used); lb_index++) {
-        {
-            lb_pos = "src/std/process/environment/windows.lucb:71:9";
-            lb_size = ({ lb_o_usize _lb_o59 = ({ uint64_t _lb_qo60; lb_o_usize _lb_qr60; _lb_qr60.present = lb_qadd_u((uint64_t)(lb_size), (uint64_t)(((*({ lb_span _lb_ix61 = lb_entries; &((lb_span*)_lb_ix61.data)[lb_at((uint64_t)(lb_index), _lb_ix61.length)]; })).length)), 64, &_lb_qo60); _lb_qr60.value = (size_t)(_lb_qo60); _lb_qr60; }); if (!_lb_o59.present) {
-                lb_r_u16_0s _lb_err62 = ((lb_r_u16_0s){ .error = { .code = (int32_t)(lb_process_failed), .message = ((lb_str){"the environment is too large", 28}) }, .failed = true });
-                { lb_span _lb_s63 = lb_entries; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s63.data), lb_mul_u(_lb_s63.length, sizeof(lb_span), 64) }); }
-                (void)(lb_process_27environment_windows_release(lb_owned, lb_converted));
-                { lb_span _lb_s64 = lb_owned; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s64.data), lb_mul_u(_lb_s64.length, sizeof(lb_span), 64) }); }
-                (void)(((void)(lb_x_process_FreeEnvironmentStringsW(lb_inherited))));
-                return _lb_err62;
-            } _lb_o59.value; });
-        }
-    }
-    lb_pos = "src/std/process/environment/windows.lucb:72:5";
-    lb_span lb_result __attribute__((unused)) = (({ lb_r_u16_0s _lb_r65 = ({ lb_iface _lb_a66 = lb_memory_allocator; size_t _lb_n66 = (size_t)(((((size_t)(lb_used)) > ((size_t)(0ULL))) ? lb_size : 2ULL)); lb_r_u16_0s _lb_r66; if (_lb_n66 > UINT64_C(2305843009213693952)) { _lb_r66 = ((lb_r_u16_0s){ .error = { .code = 208273409, .message = (lb_str){"memory.exhausted", 16} }, .failed = true }); } else { size_t _lb_bytes66 = sizeof(uint16_t) * _lb_n66; lb_o_u8_0s _lb_ao66 = lb_alloc_call(_lb_a66, _lb_bytes66, _Alignof(uint16_t)); if (_lb_bytes66 != 0 && !_lb_ao66.present) { _lb_r66 = ((lb_r_u16_0s){ .error = { .code = 208273409, .message = (lb_str){"memory.exhausted", 16} }, .failed = true }); } else { _lb_r66.value.data = _lb_ao66.value.data; _lb_r66.value.length = _lb_n66; _lb_r66.failed = false; } } _lb_r66; }); if (_lb_r65.failed) {
-        { lb_span _lb_s67 = lb_entries; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s67.data), lb_mul_u(_lb_s67.length, sizeof(lb_span), 64) }); }
-        (void)(lb_process_27environment_windows_release(lb_owned, lb_converted));
-        { lb_span _lb_s68 = lb_owned; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s68.data), lb_mul_u(_lb_s68.length, sizeof(lb_span), 64) }); }
-        (void)(((void)(lb_x_process_FreeEnvironmentStringsW(lb_inherited))));
-        return ((lb_r_u16_0s){ .error = _lb_r65.error, .failed = true });
-    } _lb_r65.value; }));
-    lb_pos = "src/std/process/environment/windows.lucb:73:5";
-    size_t lb_output __attribute__((unused)) = 0ULL;
-    lb_pos = "src/std/process/environment/windows.lucb:74:5";
-    for (size_t lb_index __attribute__((unused)) = (size_t)(0ULL); lb_index < (size_t)(lb_used); lb_index++) {
-        {
-            lb_pos = "src/std/process/environment/windows.lucb:75:9";
-            lb_span _lb_seq70 = (*({ lb_span _lb_ix71 = lb_entries; &((lb_span*)_lb_ix71.data)[lb_at((uint64_t)(lb_index), _lb_ix71.length)]; }));
-            for (size_t _lb_i70 = 0; _lb_i70 < _lb_seq70.length; _lb_i70++) {
-                uint16_t lb_word __attribute__((unused)) = ((uint16_t*)_lb_seq70.data)[_lb_i70];
-                {
-                    lb_pos = "src/std/process/environment/windows.lucb:76:13";
-                    (*({ lb_span _lb_ix72 = lb_result; &((uint16_t*)_lb_ix72.data)[lb_at((uint64_t)(lb_output), _lb_ix72.length)]; })) = lb_word;
-                    lb_pos = "src/std/process/environment/windows.lucb:77:13";
-                    { size_t* lb__cell73 = &(lb_output);
-                    (*(lb__cell73)) = (size_t)(lb_add_u((uint64_t)((*(lb__cell73))), (uint64_t)(1ULL), 64)); }
-                }
-            }
-        }
-    }
-    lb_pos = "src/std/process/environment/windows.lucb:78:5";
-    (*({ lb_span _lb_ix74 = lb_result; &((uint16_t*)_lb_ix74.data)[lb_at((uint64_t)(lb_output), _lb_ix74.length)]; })) = 0ULL;
-    lb_pos = "src/std/process/environment/windows.lucb:79:5";
-    lb_span _lb_ret75 = lb_result;
-    { lb_span _lb_s76 = lb_entries; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s76.data), lb_mul_u(_lb_s76.length, sizeof(lb_span), 64) }); }
-    (void)(lb_process_27environment_windows_release(lb_owned, lb_converted));
-    { lb_span _lb_s77 = lb_owned; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s77.data), lb_mul_u(_lb_s77.length, sizeof(lb_span), 64) }); }
-    (void)(((void)(lb_x_process_FreeEnvironmentStringsW(lb_inherited))));
-    return ((lb_r_u16_0s){ .value = _lb_ret75, .failed = false });
-    { lb_span _lb_s78 = lb_entries; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s78.data), lb_mul_u(_lb_s78.length, sizeof(lb_span), 64) }); }
-    (void)(lb_process_27environment_windows_release(lb_owned, lb_converted));
-    { lb_span _lb_s79 = lb_owned; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s79.data), lb_mul_u(_lb_s79.length, sizeof(lb_span), 64) }); }
-    (void)(((void)(lb_x_process_FreeEnvironmentStringsW(lb_inherited))));
-    lb_trap("unreachable");
-}
 __attribute__((weak)) void lb_interop_Packet_0g1_str_init(lb_interop_Packet_0g1_str* self, lb_str lb_value, void* lb_storage, lb_fn_0F1_void_0p_unit lb_dispose) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
     lb_pos = "src/std/process/command/module.lucb:129:9";
@@ -3305,14 +3053,14 @@ __attribute__((weak)) void lb_interop_Packet_0g1_str_init(lb_interop_Packet_0g1_
 __attribute__((weak)) void lb_interop_Packet_0g1_str_release(const lb_interop_Packet_0g1_str* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
     lb_pos = "src/std/process/command/module.lucb:134:13";
-    void* _lb_o80 = self->storage;
-    if (_lb_o80 != ((void*)0)) {
-        void* lb_storage __attribute__((unused)) = _lb_o80;
+    void* _lb_o7 = self->storage;
+    if (_lb_o7 != ((void*)0)) {
+        void* lb_storage __attribute__((unused)) = _lb_o7;
         {
             lb_pos = "src/std/process/command/module.lucb:135:9";
-            (void)(((({ lb_fn_0F1_void_0p_unit _lb_o81 = self->dispose; if (_lb_o81 == ((void*)0)) {
+            (void)(((({ lb_fn_0F1_void_0p_unit _lb_o8 = self->dispose; if (_lb_o8 == ((void*)0)) {
                 (void)(lb_trap_text(((lb_str){"a packet has storage without a disposer", 39})));
-            } _lb_o81; })))(lb_storage));
+            } _lb_o8; })))(lb_storage));
         }
     }
 }
@@ -3328,54 +3076,14 @@ __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_init(lb_interop_Packet_0g
 __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_release(const lb_interop_Packet_0g1_u8_0c* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
     lb_pos = "src/std/process/command/module.lucb:134:13";
-    void* _lb_o82 = self->storage;
-    if (_lb_o82 != ((void*)0)) {
-        void* lb_storage __attribute__((unused)) = _lb_o82;
+    void* _lb_o9 = self->storage;
+    if (_lb_o9 != ((void*)0)) {
+        void* lb_storage __attribute__((unused)) = _lb_o9;
         {
             lb_pos = "src/std/process/command/module.lucb:135:9";
-            (void)(((({ lb_fn_0F1_void_0p_unit _lb_o83 = self->dispose; if (_lb_o83 == ((void*)0)) {
+            (void)(((({ lb_fn_0F1_void_0p_unit _lb_o10 = self->dispose; if (_lb_o10 == ((void*)0)) {
                 (void)(lb_trap_text(((lb_str){"a packet has storage without a disposer", 39})));
-            } _lb_o83; })))(lb_storage));
+            } _lb_o10; })))(lb_storage));
         }
     }
-}
-void lb_process_27environment_windows_release(lb_span lb_entries, size_t lb_count) {
-    const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/process/environment/windows.lucb:82:5";
-    for (size_t lb_index __attribute__((unused)) = (size_t)(0ULL); lb_index < (size_t)(lb_count); lb_index++) {
-        {
-            lb_pos = "src/std/process/environment/windows.lucb:83:9";
-            { lb_span _lb_s85 = (*({ lb_span _lb_ix86 = lb_entries; &((lb_span*)_lb_ix86.data)[lb_at((uint64_t)(lb_index), _lb_ix86.length)]; })); lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s85.data), lb_mul_u(_lb_s85.length, sizeof(uint16_t), 64) }); }
-        }
-    }
-}
-int32_t lb_process_27environment_windows_compare(lb_cspan lb_left, lb_cspan lb_right) {
-    const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/process/environment/windows.lucb:15:5";
-    lb_cspan lb_a __attribute__((unused)) = lb_process_23environment_windows_key(lb_left);
-    lb_pos = "src/std/process/environment/windows.lucb:16:5";
-    lb_cspan lb_b __attribute__((unused)) = lb_process_23environment_windows_key(lb_right);
-    lb_pos = "src/std/process/environment/windows.lucb:17:5";
-    int32_t _lb_ret87 = ({ int32_t _lb_sq88 __attribute__((unused)) = lb_x_process_CompareStringOrdinal(((const uint16_t*)(lb_a.data)), ((int32_t)lb_conv_u((uint64_t)((lb_a.length)), 64, 0, 32, 1, 1)), ((const uint16_t*)(lb_b.data)), ((int32_t)lb_conv_u((uint64_t)((lb_b.length)), 64, 0, 32, 1, 1)), 1LL); int32_t _lb_sq89 __attribute__((unused)) = 2LL; (int32_t)(lb_sub_s((int64_t)(_lb_sq88), (int64_t)(_lb_sq89), 32)); });
-    return _lb_ret87;
-    lb_trap("unreachable");
-}
-lb_cspan lb_process_23environment_windows_key(lb_cspan lb_entry) {
-    const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/process/environment/windows.lucb:9:5";
-    size_t lb_index __attribute__((unused)) = 1ULL;
-    lb_pos = "src/std/process/environment/windows.lucb:10:5";
-    for (;;) {
-        lb_pos = "src/std/process/environment/windows.lucb:10:5";
-        if (!(((((size_t)(lb_index)) < ((size_t)((lb_entry.length)))) && (!((*({ lb_cspan _lb_ix90 = lb_entry; &((uint16_t*)_lb_ix90.data)[lb_at((uint64_t)(lb_index), _lb_ix90.length)]; })) == 61ULL))))) break;
-        {
-            lb_pos = "src/std/process/environment/windows.lucb:11:9";
-            { size_t* lb__cell91 = &(lb_index);
-            (*(lb__cell91)) = (size_t)(lb_add_u((uint64_t)((*(lb__cell91))), (uint64_t)(1ULL), 64)); }
-        }
-    }
-    lb_pos = "src/std/process/environment/windows.lucb:12:5";
-    lb_cspan _lb_ret92 = ({ lb_span _lb_sv93 = lb_entry; size_t _lb_sn93 = _lb_sv93.length; uint16_t* _lb_sd93 = (uint16_t*)_lb_sv93.data; size_t _lb_ss93 = 0; size_t _lb_se93 = (size_t)(lb_index); lb_check_index(_lb_ss93, _lb_sn93 + 1); lb_check_index(_lb_se93, _lb_sn93 + 1); if (_lb_ss93 > _lb_se93) lb_trap("index out of bounds"); (lb_cspan){ (void*)(_lb_sd93 + _lb_ss93), _lb_se93 - _lb_ss93 }; });
-    return _lb_ret92;
-    lb_trap("unreachable");
 }

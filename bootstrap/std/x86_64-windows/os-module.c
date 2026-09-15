@@ -2671,7 +2671,7 @@ __attribute__((weak)) bool lb_os_linux = false;
 __attribute__((weak)) bool lb_os_windows = true;
 __attribute__((weak)) bool lb_os_posix = false;
 __attribute__((weak)) uint32_t lb_os_12pointer_bits = ((uint32_t)64ULL);
-__attribute__((weak)) lb_str lb_os_name = ((lb_str){"x86_64-windows", 14});
+__attribute__((weak)) lb_str lb_os_name = {"x86_64-windows", 14};
 __attribute__((weak)) uint32_t lb_os_9cpu_level = ((uint32_t)1ULL);
 __attribute__((weak)) int32_t lb_os_17processors_online = ((int32_t)84ULL);
 extern uint32_t lb_io_14unexpected_eof;

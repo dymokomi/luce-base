@@ -1981,7 +1981,6 @@ typedef struct lb_interop_ViewType_0g1_gpu_RenderTarget {
 typedef struct lb_a_u32_0a271 { uint32_t d[271]; } lb_a_u32_0a271;
 typedef struct lb_a_u32_0a1021 { uint32_t d[1021]; } lb_a_u32_0a1021;
 typedef struct lb_a_5c_str_0a2 { char* d[2]; } lb_a_5c_str_0a2;
-LB_RES(uint64_t, lb_r_u64);
 typedef void (*lb_fn_0F0_unit)(void);
 typedef void* (*lb_fn_0F1_void_0p_void_0p_0o)(void*);
 LB_RES(bool, lb_r_bool);
@@ -2001,8 +2000,6 @@ typedef struct lb_interop_View_0g1_gpu_RenderTarget {
 } lb_interop_View_0g1_gpu_RenderTarget;
 LB_RES(lb_interop_View_0g1_gpu_RenderTarget, lb_r_interop_View_0g1_gpu_RenderTarget);
 LB_RES(void*, lb_r_void_0p);
-LB_RES(struct lb_gpu_MetalDrawing*, lb_r_gpu_MetalDrawing_0p);
-LB_RES(lb_cspan, lb_r_5c_str_0c);
 typedef struct lb_interop_Owner_0g1_gpu_FrameState {
     lb_ownership_Object header;
     lb_ownership_Info information;
@@ -2677,20 +2674,6 @@ lb_r_gpu_PresentResult lb_gpu_21backend_clear_present(struct lb_gpu_DeviceState*
 lb_r_unit lb_gpu_20backend_surface_wait(struct lb_gpu_DeviceState* lb_device, void* lb_native);
 lb_r_gpu_PresentResult lb_gpu_14backend_render(struct lb_gpu_DeviceState* lb_device, lb_window_Presentation lb_host, void* lb_native, lb_gpu_Canvas lb_canvas, lb_gpu_Color lb_color);
 void lb_gpu_23backend_surface_destroy(struct lb_gpu_DeviceState* lb_device, lb_window_Presentation lb_host, void* lb_native);
-void* lb_gpu_9metal_sel(char* lb_name);
-lb_r_void_0p lb_gpu_11metal_class(char* lb_name);
-void* lb_gpu_14metal_required(void* lb_object);
-lb_r_gpu_MetalDrawing_0p lb_gpu_18metal_drawing_open(struct lb_gpu_MetalDevice* lb_device);
-lb_r_void_0p lb_gpu_11metal_depth(struct lb_gpu_MetalDevice* lb_device, struct lb_gpu_MetalDrawing* lb_state, uint64_t lb_width, uint64_t lb_height);
-void lb_gpu_21metal_drawing_destroy(struct lb_gpu_MetalDrawing* lb_state);
-void lb_gpu_12metal_encode(void* lb_encoder, struct lb_gpu_MetalDrawing* lb_drawing, void* lb_buffer, void* lb_masks, lb_gpu_Canvas lb_canvas, uint64_t lb_width, uint64_t lb_height);
-lb_r_5c_str_0c lb_gpu_30vulkan_presentation_extensions(void);
-bool lb_gpu_27vulkan_presentation_support(uint64_t lb_physical, uint32_t lb_family);
-lb_r_u64 lb_gpu_27vulkan_presentation_surface(uint64_t lb_instance, lb_window_Presentation lb_host);
-lb_r_unit lb_gpu_12vulkan_check(int32_t lb_result, lb_str lb_message);
-lb_r_u64 lb_gpu_13vulkan_memory(struct lb_gpu_VulkanDevice* lb_device, VkMemoryRequirements lb_requirements, uint32_t lb_flags);
-lb_r_unit lb_gpu_16vulkan_swapchain(struct lb_gpu_VulkanDevice* lb_device, struct lb_gpu_VulkanSurface* lb_state, uint32_t lb_width, uint32_t lb_height);
-lb_r_unit lb_gpu_15vulkan_pipeline(struct lb_gpu_VulkanDevice* lb_device, struct lb_gpu_VulkanSurface* lb_state);
 __attribute__((weak)) void lb_interop_Packet_0g1_str_init(lb_interop_Packet_0g1_str* self, lb_str lb_value, void* lb_storage, lb_fn_0F1_void_0p_unit lb_dispose);
 __attribute__((weak)) void lb_interop_Packet_0g1_str_release(const lb_interop_Packet_0g1_str* self);
 __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_init(lb_interop_Packet_0g1_u8_0c* self, lb_cspan lb_value, void* lb_storage, lb_fn_0F1_void_0p_unit lb_dispose);
@@ -3098,44 +3081,6 @@ __attribute__((weak)) lb_r_interop_Packet_0g1_u8_0c lb_interop_Transfer_0g1_u8_0
     return ((lb_r_interop_Packet_0g1_u8_0c){ .value = _lb_ret5, .failed = false });
     lb_trap("unreachable");
 }
-lb_r_unit lb_gpu_12vulkan_check(int32_t lb_result, lb_str lb_message) {
-    const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/gpu/vulkan/device.lucb:13:5";
-    if (!!((!(lb_result == lb_gpu_10VK_SUCCESS)))) 
-    {
-        lb_pos = "src/std/gpu/vulkan/device.lucb:14:9";
-        lb_r_unit _lb_err7 = ((lb_r_unit){ .error = { .code = (int32_t)(lb_gpu_failed), .message = lb_message }, .failed = true });
-        return _lb_err7;
-    }
-    return ((lb_r_unit){ .failed = false });
-}
-lb_r_u64 lb_gpu_13vulkan_memory(struct lb_gpu_VulkanDevice* lb_device, VkMemoryRequirements lb_requirements, uint32_t lb_flags) {
-    const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/gpu/vulkan/device.lucb:68:5";
-    for (size_t lb_index __attribute__((unused)) = (size_t)(0ULL); lb_index < (size_t)(((size_t)lb_conv_u((uint64_t)((lb_device)->memory.memoryTypeCount), 32, 0, 64, 0, 1))); lb_index++) {
-        {
-            lb_pos = "src/std/gpu/vulkan/device.lucb:69:9";
-            if (!!(((!((((uint32_t)(lb_requirements.memoryTypeBits & ((uint32_t)(lb_shl_u((uint64_t)(1ULL), (uint64_t)(((uint32_t)lb_conv_u((uint64_t)(lb_index), 64, 0, 32, 0, 1))), 32)))))) == 0ULL)) && ((((uint32_t)((((lb_device)->memory.memoryTypes).d[lb_at((uint64_t)(lb_index), 32ULL)]).propertyFlags & lb_flags))) == lb_flags)))) 
-            {
-                lb_pos = "src/std/gpu/vulkan/device.lucb:70:13";
-                VkMemoryAllocateInfo lb_info __attribute__((unused)) = ((VkMemoryAllocateInfo){.sType = lb_gpu_38VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO, .allocationSize = lb_requirements.size, .memoryTypeIndex = ((uint32_t)lb_conv_u((uint64_t)(lb_index), 64, 0, 32, 0, 1))});
-                lb_pos = "src/std/gpu/vulkan/device.lucb:72:13";
-                uint64_t lb_block __attribute__((unused)) = 0ULL;
-                lb_pos = "src/std/gpu/vulkan/device.lucb:73:13";
-                (void)((({ lb_r_unit _lb_r9 = ({ int32_t _lb_sq10 __attribute__((unused)) = lb_x_gpu_vkAllocateMemory((lb_device)->device, &(lb_info), ((void*)0), &(lb_block)); lb_str _lb_sq11 __attribute__((unused)) = ((lb_str){"Vulkan device memory allocation failed", 38}); lb_gpu_12vulkan_check(_lb_sq10, _lb_sq11); }); if (_lb_r9.failed) {
-                    return ((lb_r_u64){ .error = _lb_r9.error, .failed = true });
-                } (void)0; })));
-                lb_pos = "src/std/gpu/vulkan/device.lucb:74:13";
-                uint64_t _lb_ret12 = lb_block;
-                return ((lb_r_u64){ .value = _lb_ret12, .failed = false });
-            }
-        }
-    }
-    lb_pos = "src/std/gpu/vulkan/device.lucb:75:5";
-    lb_r_u64 _lb_err13 = ((lb_r_u64){ .error = { .code = (int32_t)(lb_gpu_unavailable), .message = ((lb_str){"no compatible Vulkan memory type is available", 45}) }, .failed = true });
-    return _lb_err13;
-    lb_trap("unreachable");
-}
 __attribute__((weak)) void lb_interop_Packet_0g1_str_init(lb_interop_Packet_0g1_str* self, lb_str lb_value, void* lb_storage, lb_fn_0F1_void_0p_unit lb_dispose) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
     lb_pos = "src/std/gpu/metal/drawing.lucb:46:5";
@@ -3148,14 +3093,14 @@ __attribute__((weak)) void lb_interop_Packet_0g1_str_init(lb_interop_Packet_0g1_
 __attribute__((weak)) void lb_interop_Packet_0g1_str_release(const lb_interop_Packet_0g1_str* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
     lb_pos = "src/std/gpu/metal/drawing.lucb:51:1";
-    void* _lb_o14 = self->storage;
-    if (_lb_o14 != ((void*)0)) {
-        void* lb_storage __attribute__((unused)) = _lb_o14;
+    void* _lb_o7 = self->storage;
+    if (_lb_o7 != ((void*)0)) {
+        void* lb_storage __attribute__((unused)) = _lb_o7;
         {
             lb_pos = "src/std/gpu/metal/drawing.lucb:52:1";
-            (void)(((({ lb_fn_0F1_void_0p_unit _lb_o15 = self->dispose; if (_lb_o15 == ((void*)0)) {
+            (void)(((({ lb_fn_0F1_void_0p_unit _lb_o8 = self->dispose; if (_lb_o8 == ((void*)0)) {
                 (void)(lb_trap_text(((lb_str){"a packet has storage without a disposer", 39})));
-            } _lb_o15; })))(lb_storage));
+            } _lb_o8; })))(lb_storage));
         }
     }
 }
@@ -3171,14 +3116,14 @@ __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_init(lb_interop_Packet_0g
 __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_release(const lb_interop_Packet_0g1_u8_0c* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
     lb_pos = "src/std/gpu/metal/drawing.lucb:51:1";
-    void* _lb_o16 = self->storage;
-    if (_lb_o16 != ((void*)0)) {
-        void* lb_storage __attribute__((unused)) = _lb_o16;
+    void* _lb_o9 = self->storage;
+    if (_lb_o9 != ((void*)0)) {
+        void* lb_storage __attribute__((unused)) = _lb_o9;
         {
             lb_pos = "src/std/gpu/metal/drawing.lucb:52:1";
-            (void)(((({ lb_fn_0F1_void_0p_unit _lb_o17 = self->dispose; if (_lb_o17 == ((void*)0)) {
+            (void)(((({ lb_fn_0F1_void_0p_unit _lb_o10 = self->dispose; if (_lb_o10 == ((void*)0)) {
                 (void)(lb_trap_text(((lb_str){"a packet has storage without a disposer", 39})));
-            } _lb_o17; })))(lb_storage));
+            } _lb_o10; })))(lb_storage));
         }
     }
 }

@@ -1981,10 +1981,6 @@ typedef struct lb_interop_ViewType_0g1_gpu_RenderTarget {
 typedef struct lb_a_u32_0a271 { uint32_t d[271]; } lb_a_u32_0a271;
 typedef struct lb_a_u32_0a1021 { uint32_t d[1021]; } lb_a_u32_0a1021;
 typedef struct lb_a_5c_str_0a2 { char* d[2]; } lb_a_5c_str_0a2;
-typedef struct lb_a_gpu_VkAttachmentDescription_0a2 { VkAttachmentDescription d[2]; } lb_a_gpu_VkAttachmentDescription_0a2;
-LB_RES(uint64_t, lb_r_u64);
-typedef struct lb_a_gpu_VkPipelineShaderStageCreateInfo_0a2 { VkPipelineShaderStageCreateInfo d[2]; } lb_a_gpu_VkPipelineShaderStageCreateInfo_0a2;
-typedef struct lb_a_gpu_VkVertexInputAttributeDescription_0a2 { VkVertexInputAttributeDescription d[2]; } lb_a_gpu_VkVertexInputAttributeDescription_0a2;
 typedef void (*lb_fn_0F0_unit)(void);
 typedef void* (*lb_fn_0F1_void_0p_void_0p_0o)(void*);
 LB_RES(bool, lb_r_bool);
@@ -2007,7 +2003,6 @@ LB_RES(void*, lb_r_void_0p);
 LB_RES(struct lb_gpu_MetalDevice*, lb_r_gpu_MetalDevice_0p);
 LB_RES(struct lb_gpu_MetalDrawing*, lb_r_gpu_MetalDrawing_0p);
 LB_RES(struct lb_gpu_MetalSurface*, lb_r_gpu_MetalSurface_0p);
-LB_RES(lb_cspan, lb_r_5c_str_0c);
 typedef struct lb_interop_Owner_0g1_gpu_FrameState {
     lb_ownership_Object header;
     lb_ownership_Info information;
@@ -2696,18 +2691,10 @@ lb_r_unit lb_gpu_18metal_surface_wait(struct lb_gpu_MetalSurface* lb_state);
 lb_r_gpu_PresentResult lb_gpu_19metal_clear_present(struct lb_gpu_MetalDevice* lb_device, lb_window_Presentation lb_host, struct lb_gpu_MetalSurface* lb_state, lb_gpu_Color lb_color);
 lb_r_gpu_PresentResult lb_gpu_12metal_render(struct lb_gpu_MetalDevice* lb_device, lb_window_Presentation lb_host, struct lb_gpu_MetalSurface* lb_state, lb_gpu_Canvas lb_canvas, lb_gpu_Color lb_color);
 void lb_gpu_21metal_surface_destroy(struct lb_gpu_MetalSurface* lb_state, lb_window_Presentation lb_host);
-lb_r_5c_str_0c lb_gpu_30vulkan_presentation_extensions(void);
-bool lb_gpu_27vulkan_presentation_support(uint64_t lb_physical, uint32_t lb_family);
-lb_r_u64 lb_gpu_27vulkan_presentation_surface(uint64_t lb_instance, lb_window_Presentation lb_host);
-lb_r_unit lb_gpu_12vulkan_check(int32_t lb_result, lb_str lb_message);
-lb_r_u64 lb_gpu_13vulkan_memory(struct lb_gpu_VulkanDevice* lb_device, VkMemoryRequirements lb_requirements, uint32_t lb_flags);
-lb_r_unit lb_gpu_16vulkan_swapchain(struct lb_gpu_VulkanDevice* lb_device, struct lb_gpu_VulkanSurface* lb_state, uint32_t lb_width, uint32_t lb_height);
-lb_r_unit lb_gpu_15vulkan_pipeline(struct lb_gpu_VulkanDevice* lb_device, struct lb_gpu_VulkanSurface* lb_state);
 __attribute__((weak)) void lb_interop_Packet_0g1_str_init(lb_interop_Packet_0g1_str* self, lb_str lb_value, void* lb_storage, lb_fn_0F1_void_0p_unit lb_dispose);
 __attribute__((weak)) void lb_interop_Packet_0g1_str_release(const lb_interop_Packet_0g1_str* self);
 __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_init(lb_interop_Packet_0g1_u8_0c* self, lb_cspan lb_value, void* lb_storage, lb_fn_0F1_void_0p_unit lb_dispose);
 __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_release(const lb_interop_Packet_0g1_u8_0c* self);
-lb_r_u64 lb_gpu_13vulkan_shader(struct lb_gpu_VulkanDevice* lb_device, lb_span lb_words);
 
 extern lb_str lb_platform_name;
 extern bool lb_platform_macos;
@@ -3111,99 +3098,6 @@ __attribute__((weak)) lb_r_interop_Packet_0g1_u8_0c lb_interop_Transfer_0g1_u8_0
     return ((lb_r_interop_Packet_0g1_u8_0c){ .value = _lb_ret5, .failed = false });
     lb_trap("unreachable");
 }
-lb_r_unit lb_gpu_15vulkan_pipeline(struct lb_gpu_VulkanDevice* lb_device, struct lb_gpu_VulkanSurface* lb_state) {
-    const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/gpu/vulkan/pipeline.lucb:8:5";
-    lb_a_gpu_VkAttachmentDescription_0a2 lb_attachments __attribute__((unused)) = ((lb_a_gpu_VkAttachmentDescription_0a2){{((VkAttachmentDescription){.format = (lb_state)->format, .samples = lb_gpu_21VK_SAMPLE_COUNT_1_BIT, .loadOp = lb_gpu_27VK_ATTACHMENT_LOAD_OP_CLEAR, .storeOp = lb_gpu_28VK_ATTACHMENT_STORE_OP_STORE, .stencilLoadOp = lb_gpu_31VK_ATTACHMENT_LOAD_OP_DONT_CARE, .stencilStoreOp = lb_gpu_32VK_ATTACHMENT_STORE_OP_DONT_CARE, .finalLayout = lb_gpu_31VK_IMAGE_LAYOUT_PRESENT_SRC_KHR}), ((VkAttachmentDescription){.format = lb_gpu_20VK_FORMAT_D32_SFLOAT, .samples = lb_gpu_21VK_SAMPLE_COUNT_1_BIT, .loadOp = lb_gpu_27VK_ATTACHMENT_LOAD_OP_CLEAR, .storeOp = lb_gpu_32VK_ATTACHMENT_STORE_OP_DONT_CARE, .stencilLoadOp = lb_gpu_31VK_ATTACHMENT_LOAD_OP_DONT_CARE, .stencilStoreOp = lb_gpu_32VK_ATTACHMENT_STORE_OP_DONT_CARE, .finalLayout = lb_gpu_48VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL})}});
-    lb_pos = "src/std/gpu/vulkan/pipeline.lucb:13:5";
-    VkAttachmentReference lb_color_attachment __attribute__((unused)) = ((VkAttachmentReference){.attachment = 0ULL, .layout = lb_gpu_40VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL});
-    lb_pos = "src/std/gpu/vulkan/pipeline.lucb:14:5";
-    VkAttachmentReference lb_depth_attachment __attribute__((unused)) = ((VkAttachmentReference){.attachment = 1ULL, .layout = lb_gpu_48VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL});
-    lb_pos = "src/std/gpu/vulkan/pipeline.lucb:15:5";
-    VkSubpassDescription lb_subpass __attribute__((unused)) = ((VkSubpassDescription){.colorAttachmentCount = 1ULL, .pColorAttachments = &(lb_color_attachment), .pDepthStencilAttachment = &(lb_depth_attachment)});
-    lb_pos = "src/std/gpu/vulkan/pipeline.lucb:16:5";
-    VkSubpassDependency lb_dependency __attribute__((unused)) = ((VkSubpassDependency){.srcSubpass = lb_gpu_19VK_SUBPASS_EXTERNAL, .dstSubpass = 0ULL, .srcStageMask = ((uint32_t)(lb_gpu_45VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | lb_gpu_42VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT)), .dstStageMask = ((uint32_t)(lb_gpu_45VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | lb_gpu_42VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT)), .dstAccessMask = ((uint32_t)(lb_gpu_36VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | lb_gpu_44VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT))});
-    lb_pos = "src/std/gpu/vulkan/pipeline.lucb:18:5";
-    VkRenderPassCreateInfo lb_render_info __attribute__((unused)) = ((VkRenderPassCreateInfo){.sType = lb_gpu_41VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO, .attachmentCount = 2ULL, .pAttachments = &(((lb_attachments).d[0])), .subpassCount = 1ULL, .pSubpasses = &(lb_subpass), .dependencyCount = 1ULL, .pDependencies = &(lb_dependency)});
-    lb_pos = "src/std/gpu/vulkan/pipeline.lucb:21:5";
-    (void)((({ lb_r_unit _lb_r7 = ({ int32_t _lb_sq8 __attribute__((unused)) = lb_x_gpu_vkCreateRenderPass((lb_device)->device, &(lb_render_info), ((void*)0), &((lb_state)->render_pass)); lb_str _lb_sq9 __attribute__((unused)) = ((lb_str){"the Vulkan render pass could not be created", 43}); lb_gpu_12vulkan_check(_lb_sq8, _lb_sq9); }); if (_lb_r7.failed) {
-        return ((lb_r_unit){ .error = _lb_r7.error, .failed = true });
-    } (void)0; })));
-    lb_pos = "src/std/gpu/vulkan/pipeline.lucb:22:5";
-    VkDescriptorSetLayoutBinding lb_binding_info __attribute__((unused)) = ((VkDescriptorSetLayoutBinding){.binding = 0ULL, .descriptorType = lb_gpu_33VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, .descriptorCount = 1ULL, .stageFlags = lb_gpu_28VK_SHADER_STAGE_FRAGMENT_BIT});
-    lb_pos = "src/std/gpu/vulkan/pipeline.lucb:23:5";
-    VkDescriptorSetLayoutCreateInfo lb_descriptor_info __attribute__((unused)) = ((VkDescriptorSetLayoutCreateInfo){.sType = lb_gpu_51VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO, .bindingCount = 1ULL, .pBindings = &(lb_binding_info)});
-    lb_pos = "src/std/gpu/vulkan/pipeline.lucb:24:5";
-    (void)((({ lb_r_unit _lb_r10 = ({ int32_t _lb_sq11 __attribute__((unused)) = lb_x_gpu_vkCreateDescriptorSetLayout((lb_device)->device, &(lb_descriptor_info), ((void*)0), &((lb_state)->descriptor_layout)); lb_str _lb_sq12 __attribute__((unused)) = ((lb_str){"Vulkan coverage layout could not be created", 43}); lb_gpu_12vulkan_check(_lb_sq11, _lb_sq12); }); if (_lb_r10.failed) {
-        return ((lb_r_unit){ .error = _lb_r10.error, .failed = true });
-    } (void)0; })));
-    lb_pos = "src/std/gpu/vulkan/pipeline.lucb:25:5";
-    VkPushConstantRange lb_push __attribute__((unused)) = ((VkPushConstantRange){.stageFlags = lb_gpu_28VK_SHADER_STAGE_FRAGMENT_BIT, .size = 32ULL});
-    lb_pos = "src/std/gpu/vulkan/pipeline.lucb:26:5";
-    VkPipelineLayoutCreateInfo lb_layout_info __attribute__((unused)) = ((VkPipelineLayoutCreateInfo){.sType = lb_gpu_45VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO, .setLayoutCount = 1ULL, .pSetLayouts = &((lb_state)->descriptor_layout), .pushConstantRangeCount = 1ULL, .pPushConstantRanges = &(lb_push)});
-    lb_pos = "src/std/gpu/vulkan/pipeline.lucb:28:5";
-    (void)((({ lb_r_unit _lb_r13 = ({ int32_t _lb_sq14 __attribute__((unused)) = lb_x_gpu_vkCreatePipelineLayout((lb_device)->device, &(lb_layout_info), ((void*)0), &((lb_state)->layout)); lb_str _lb_sq15 __attribute__((unused)) = ((lb_str){"the Vulkan pipeline layout could not be created", 47}); lb_gpu_12vulkan_check(_lb_sq14, _lb_sq15); }); if (_lb_r13.failed) {
-        return ((lb_r_unit){ .error = _lb_r13.error, .failed = true });
-    } (void)0; })));
-    lb_pos = "src/std/gpu/vulkan/pipeline.lucb:29:5";
-    uint64_t lb_vertex_shader __attribute__((unused)) = (({ lb_r_u64 _lb_r16 = lb_gpu_13vulkan_shader(lb_device, ((lb_span){(void*)(lb_gpu_17vulkan_vert_words.d), 271ULL})); if (_lb_r16.failed) {
-        return ((lb_r_unit){ .error = _lb_r16.error, .failed = true });
-    } _lb_r16.value; }));
-    lb_pos = "src/std/gpu/vulkan/pipeline.lucb:30:5";
-    lb_pos = "src/std/gpu/vulkan/pipeline.lucb:31:5";
-    uint64_t lb_fragment_shader __attribute__((unused)) = (({ lb_r_u64 _lb_r17 = lb_gpu_13vulkan_shader(lb_device, ((lb_span){(void*)(lb_gpu_17vulkan_frag_words.d), 1021ULL})); if (_lb_r17.failed) {
-        (void)(lb_x_gpu_vkDestroyShaderModule((lb_device)->device, lb_vertex_shader, ((void*)0)));
-        return ((lb_r_unit){ .error = _lb_r17.error, .failed = true });
-    } _lb_r17.value; }));
-    lb_pos = "src/std/gpu/vulkan/pipeline.lucb:32:5";
-    lb_pos = "src/std/gpu/vulkan/pipeline.lucb:33:5";
-    lb_a_gpu_VkPipelineShaderStageCreateInfo_0a2 lb_stages __attribute__((unused)) = ((lb_a_gpu_VkPipelineShaderStageCreateInfo_0a2){{((VkPipelineShaderStageCreateInfo){.sType = lb_gpu_51VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, .stage = lb_gpu_26VK_SHADER_STAGE_VERTEX_BIT, .module = lb_vertex_shader, .pName = "main"}), ((VkPipelineShaderStageCreateInfo){.sType = lb_gpu_51VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, .stage = lb_gpu_28VK_SHADER_STAGE_FRAGMENT_BIT, .module = lb_fragment_shader, .pName = "main"})}});
-    lb_pos = "src/std/gpu/vulkan/pipeline.lucb:36:5";
-    VkVertexInputBindingDescription lb_binding __attribute__((unused)) = ((VkVertexInputBindingDescription){.stride = 32ULL});
-    lb_pos = "src/std/gpu/vulkan/pipeline.lucb:37:5";
-    lb_a_gpu_VkVertexInputAttributeDescription_0a2 lb_attributes __attribute__((unused)) = ((lb_a_gpu_VkVertexInputAttributeDescription_0a2){{((VkVertexInputAttributeDescription){.location = 0ULL, .format = lb_gpu_29VK_FORMAT_R32G32B32A32_SFLOAT, .offset = 0ULL}), ((VkVertexInputAttributeDescription){.location = 1ULL, .format = lb_gpu_29VK_FORMAT_R32G32B32A32_SFLOAT, .offset = 16ULL})}});
-    lb_pos = "src/std/gpu/vulkan/pipeline.lucb:40:5";
-    VkPipelineVertexInputStateCreateInfo lb_vertex_info __attribute__((unused)) = ((VkPipelineVertexInputStateCreateInfo){.sType = lb_gpu_57VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO, .vertexBindingDescriptionCount = 1ULL, .pVertexBindingDescriptions = &(lb_binding), .vertexAttributeDescriptionCount = 2ULL, .pVertexAttributeDescriptions = &(((lb_attributes).d[0]))});
-    lb_pos = "src/std/gpu/vulkan/pipeline.lucb:43:5";
-    VkPipelineInputAssemblyStateCreateInfo lb_assembly __attribute__((unused)) = ((VkPipelineInputAssemblyStateCreateInfo){.sType = lb_gpu_59VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO, .topology = lb_gpu_35VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST});
-    lb_pos = "src/std/gpu/vulkan/pipeline.lucb:44:5";
-    VkPipelineViewportStateCreateInfo lb_viewport_info __attribute__((unused)) = ((VkPipelineViewportStateCreateInfo){.sType = lb_gpu_53VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO, .viewportCount = 1ULL, .scissorCount = 1ULL});
-    lb_pos = "src/std/gpu/vulkan/pipeline.lucb:45:5";
-    VkPipelineRasterizationStateCreateInfo lb_raster __attribute__((unused)) = ((VkPipelineRasterizationStateCreateInfo){.sType = lb_gpu_58VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO, .lineWidth = 0x1.000000p+0f});
-    lb_pos = "src/std/gpu/vulkan/pipeline.lucb:46:5";
-    VkPipelineMultisampleStateCreateInfo lb_multisample __attribute__((unused)) = ((VkPipelineMultisampleStateCreateInfo){.sType = lb_gpu_56VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO, .rasterizationSamples = lb_gpu_21VK_SAMPLE_COUNT_1_BIT});
-    lb_pos = "src/std/gpu/vulkan/pipeline.lucb:47:5";
-    VkPipelineDepthStencilStateCreateInfo lb_depth_info __attribute__((unused)) = ((VkPipelineDepthStencilStateCreateInfo){.sType = lb_gpu_58VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO, .depthCompareOp = lb_gpu_18VK_COMPARE_OP_LESS});
-    lb_pos = "src/std/gpu/vulkan/pipeline.lucb:48:5";
-    VkPipelineColorBlendAttachmentState lb_blend __attribute__((unused)) = ((VkPipelineColorBlendAttachmentState){.blendEnable = lb_gpu_7VK_TRUE, .srcColorBlendFactor = lb_gpu_25VK_BLEND_FACTOR_SRC_ALPHA, .dstColorBlendFactor = lb_gpu_35VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA, .srcAlphaBlendFactor = lb_gpu_19VK_BLEND_FACTOR_ONE, .dstAlphaBlendFactor = lb_gpu_35VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA, .colorWriteMask = ((uint32_t)(((uint32_t)(((uint32_t)(lb_gpu_24VK_COLOR_COMPONENT_R_BIT | lb_gpu_24VK_COLOR_COMPONENT_G_BIT)) | lb_gpu_24VK_COLOR_COMPONENT_B_BIT)) | lb_gpu_24VK_COLOR_COMPONENT_A_BIT))});
-    lb_pos = "src/std/gpu/vulkan/pipeline.lucb:50:5";
-    VkPipelineColorBlendStateCreateInfo lb_blend_info __attribute__((unused)) = ((VkPipelineColorBlendStateCreateInfo){.sType = lb_gpu_56VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO, .attachmentCount = 1ULL, .pAttachments = &(lb_blend)});
-    lb_pos = "src/std/gpu/vulkan/pipeline.lucb:51:5";
-    lb_a_u32_0a2 lb_dynamic_states __attribute__((unused)) = ((lb_a_u32_0a2){{lb_gpu_25VK_DYNAMIC_STATE_VIEWPORT, lb_gpu_24VK_DYNAMIC_STATE_SCISSOR}});
-    lb_pos = "src/std/gpu/vulkan/pipeline.lucb:52:5";
-    VkPipelineDynamicStateCreateInfo lb_dynamic_info __attribute__((unused)) = ((VkPipelineDynamicStateCreateInfo){.sType = lb_gpu_52VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO, .dynamicStateCount = 2ULL, .pDynamicStates = &(((lb_dynamic_states).d[0]))});
-    lb_pos = "src/std/gpu/vulkan/pipeline.lucb:53:5";
-    VkGraphicsPipelineCreateInfo lb_pipeline_info __attribute__((unused)) = ((VkGraphicsPipelineCreateInfo){.sType = lb_gpu_47VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO, .stageCount = 2ULL, .pStages = &(((lb_stages).d[0])), .pVertexInputState = &(lb_vertex_info), .pInputAssemblyState = &(lb_assembly), .pViewportState = &(lb_viewport_info), .pRasterizationState = &(lb_raster), .pMultisampleState = &(lb_multisample), .pDepthStencilState = &(lb_depth_info), .pColorBlendState = &(lb_blend_info), .pDynamicState = &(lb_dynamic_info), .layout = (lb_state)->layout, .renderPass = (lb_state)->render_pass, .basePipelineIndex = ((int32_t)(-1LL))});
-    lb_pos = "src/std/gpu/vulkan/pipeline.lucb:58:5";
-    (void)((({ lb_r_unit _lb_r18 = ({ int32_t _lb_sq19 __attribute__((unused)) = lb_x_gpu_vkCreateGraphicsPipelines((lb_device)->device, 0ULL, 1ULL, &(lb_pipeline_info), ((void*)0), &((lb_state)->overlay)); lb_str _lb_sq20 __attribute__((unused)) = ((lb_str){"the Vulkan overlay pipeline could not be created", 48}); lb_gpu_12vulkan_check(_lb_sq19, _lb_sq20); }); if (_lb_r18.failed) {
-        (void)(lb_x_gpu_vkDestroyShaderModule((lb_device)->device, lb_fragment_shader, ((void*)0)));
-        (void)(lb_x_gpu_vkDestroyShaderModule((lb_device)->device, lb_vertex_shader, ((void*)0)));
-        return ((lb_r_unit){ .error = _lb_r18.error, .failed = true });
-    } (void)0; })));
-    lb_pos = "src/std/gpu/vulkan/pipeline.lucb:59:5";
-    lb_depth_info.depthTestEnable = lb_gpu_7VK_TRUE;
-    lb_pos = "src/std/gpu/vulkan/pipeline.lucb:60:5";
-    lb_depth_info.depthWriteEnable = lb_gpu_7VK_TRUE;
-    lb_pos = "src/std/gpu/vulkan/pipeline.lucb:61:5";
-    (void)((({ lb_r_unit _lb_r21 = ({ int32_t _lb_sq22 __attribute__((unused)) = lb_x_gpu_vkCreateGraphicsPipelines((lb_device)->device, 0ULL, 1ULL, &(lb_pipeline_info), ((void*)0), &((lb_state)->depth_test)); lb_str _lb_sq23 __attribute__((unused)) = ((lb_str){"the Vulkan depth pipeline could not be created", 46}); lb_gpu_12vulkan_check(_lb_sq22, _lb_sq23); }); if (_lb_r21.failed) {
-        (void)(lb_x_gpu_vkDestroyShaderModule((lb_device)->device, lb_fragment_shader, ((void*)0)));
-        (void)(lb_x_gpu_vkDestroyShaderModule((lb_device)->device, lb_vertex_shader, ((void*)0)));
-        return ((lb_r_unit){ .error = _lb_r21.error, .failed = true });
-    } (void)0; })));
-    (void)(lb_x_gpu_vkDestroyShaderModule((lb_device)->device, lb_fragment_shader, ((void*)0)));
-    (void)(lb_x_gpu_vkDestroyShaderModule((lb_device)->device, lb_vertex_shader, ((void*)0)));
-    return ((lb_r_unit){ .failed = false });
-}
 __attribute__((weak)) void lb_interop_Packet_0g1_str_init(lb_interop_Packet_0g1_str* self, lb_str lb_value, void* lb_storage, lb_fn_0F1_void_0p_unit lb_dispose) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
     lb_pos = "src/std/gpu/metal/drawing.lucb:46:5";
@@ -3216,14 +3110,14 @@ __attribute__((weak)) void lb_interop_Packet_0g1_str_init(lb_interop_Packet_0g1_
 __attribute__((weak)) void lb_interop_Packet_0g1_str_release(const lb_interop_Packet_0g1_str* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
     lb_pos = "src/std/gpu/metal/drawing.lucb:51:1";
-    void* _lb_o24 = self->storage;
-    if (_lb_o24 != ((void*)0)) {
-        void* lb_storage __attribute__((unused)) = _lb_o24;
+    void* _lb_o7 = self->storage;
+    if (_lb_o7 != ((void*)0)) {
+        void* lb_storage __attribute__((unused)) = _lb_o7;
         {
             lb_pos = "src/std/gpu/metal/drawing.lucb:52:1";
-            (void)(((({ lb_fn_0F1_void_0p_unit _lb_o25 = self->dispose; if (_lb_o25 == ((void*)0)) {
+            (void)(((({ lb_fn_0F1_void_0p_unit _lb_o8 = self->dispose; if (_lb_o8 == ((void*)0)) {
                 (void)(lb_trap_text(((lb_str){"a packet has storage without a disposer", 39})));
-            } _lb_o25; })))(lb_storage));
+            } _lb_o8; })))(lb_storage));
         }
     }
 }
@@ -3239,29 +3133,14 @@ __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_init(lb_interop_Packet_0g
 __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_release(const lb_interop_Packet_0g1_u8_0c* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
     lb_pos = "src/std/gpu/metal/drawing.lucb:51:1";
-    void* _lb_o26 = self->storage;
-    if (_lb_o26 != ((void*)0)) {
-        void* lb_storage __attribute__((unused)) = _lb_o26;
+    void* _lb_o9 = self->storage;
+    if (_lb_o9 != ((void*)0)) {
+        void* lb_storage __attribute__((unused)) = _lb_o9;
         {
             lb_pos = "src/std/gpu/metal/drawing.lucb:52:1";
-            (void)(((({ lb_fn_0F1_void_0p_unit _lb_o27 = self->dispose; if (_lb_o27 == ((void*)0)) {
+            (void)(((({ lb_fn_0F1_void_0p_unit _lb_o10 = self->dispose; if (_lb_o10 == ((void*)0)) {
                 (void)(lb_trap_text(((lb_str){"a packet has storage without a disposer", 39})));
-            } _lb_o27; })))(lb_storage));
+            } _lb_o10; })))(lb_storage));
         }
     }
-}
-lb_r_u64 lb_gpu_13vulkan_shader(struct lb_gpu_VulkanDevice* lb_device, lb_span lb_words) {
-    const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/gpu/vulkan/pipeline.lucb:2:5";
-    VkShaderModuleCreateInfo lb_info __attribute__((unused)) = ((VkShaderModuleCreateInfo){.sType = lb_gpu_43VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO, .codeSize = (size_t)(lb_mul_u((uint64_t)((lb_words.length)), (uint64_t)(4ULL), 64)), .pCode = ((uint32_t*)(lb_words.data))});
-    lb_pos = "src/std/gpu/vulkan/pipeline.lucb:3:5";
-    uint64_t lb_shader __attribute__((unused)) = 0ULL;
-    lb_pos = "src/std/gpu/vulkan/pipeline.lucb:4:5";
-    (void)((({ lb_r_unit _lb_r28 = ({ int32_t _lb_sq29 __attribute__((unused)) = lb_x_gpu_vkCreateShaderModule((lb_device)->device, &(lb_info), ((void*)0), &(lb_shader)); lb_str _lb_sq30 __attribute__((unused)) = ((lb_str){"a Vulkan shader could not be created", 36}); lb_gpu_12vulkan_check(_lb_sq29, _lb_sq30); }); if (_lb_r28.failed) {
-        return ((lb_r_u64){ .error = _lb_r28.error, .failed = true });
-    } (void)0; })));
-    lb_pos = "src/std/gpu/vulkan/pipeline.lucb:5:5";
-    uint64_t _lb_ret31 = lb_shader;
-    return ((lb_r_u64){ .value = _lb_ret31, .failed = false });
-    lb_trap("unreachable");
 }
