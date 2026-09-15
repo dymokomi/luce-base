@@ -1,0 +1,6 @@
+luce-base: tests/programs/several_errors/case/main.lucb:6:12: expected `i64`, got `str`
+luce-base: tests/programs/several_errors/case/main.lucb:9:5: this name is already in scope
+luce-base:   note: tests/programs/several_errors/case/main.lucb:8:13: the earlier binding
+luce-base: tests/programs/several_errors/case/main.lucb:12:12: this name is already in scope
+luce-base:   note: tests/programs/several_errors/case/main.lucb:3:1: the earlier binding
+luce-base: tests/programs/several_errors/case/main.lucb:16:12: unknown name

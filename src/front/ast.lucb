@@ -340,7 +340,8 @@ pub func is_place_expression(e: Node*) -> bool:
             if let d = e.resolved:
                 if d.kind == Kind.enum_case:
                     return false
+            # a member of a place is a place; a member of a call's result or of a type is not
             let owner = e.left else return false
-            return is_place_expression(owner) or not owner.has(flag_type_ref)
+            return is_place_expression(owner)
         _:
             return false

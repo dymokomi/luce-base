@@ -20,6 +20,15 @@ struct Cursor:
     mutating func reset():
         self = Cursor.origin("reset")
 
+struct Pair:
+    var first: Cursor
+    var second: Cursor
+
+    static func make() -> Pair:
+        var p = Pair(first = Cursor.origin("p1"), second = Cursor.origin("p2"))
+        p.second.advance(4)
+        return p
+
 pub func main(arguments: str[]) -> i32:
     var c = Cursor.origin("first")
     c.advance(3)
@@ -30,7 +39,9 @@ pub func main(arguments: str[]) -> i32:
     let view: Cursor[] = many
     view[0].advance(1)
     let on_temporary = Cursor.origin("tmp").where()
+    # a method on a field of a call's result: the value is held, never addressed in place
+    let on_field = Pair.make().second.where()
     let by_name = c.label()
     c.reset()
-    print(f"{c.where()} {p.where()} {many[0].where()} {many[1].where()} {on_temporary} {by_name} {c.label()} {arguments.length >= 1}")
+    print(f"{c.where()} {p.where()} {many[0].where()} {many[1].where()} {on_temporary} {on_field} {by_name} {c.label()} {arguments.length >= 1}")
     return 0
