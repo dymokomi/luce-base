@@ -936,7 +936,7 @@ pub struct Emitter:
                     try self.line("")
                     try self.put_type(try self.map(m.type_id))
                     try self.put(" ")
-                    try self.put(m.text)
+                    try self.put(try self.field(m.text))
                     if let al = m.right:
                         if al.kind == ast.Kind.literal:
                             try self.put(" __attribute__((aligned(")
@@ -963,7 +963,7 @@ pub struct Emitter:
                     try self.line("")
                     try self.put_type(try self.map(m.type_id))
                     try self.put(" ")
-                    try self.put(m.text)
+                    try self.put(try self.field(m.text))
                     try self.put(";")
                 member = m.next
             if not any:
@@ -997,12 +997,12 @@ pub struct Emitter:
                             try self.line("")
                             try self.put_type(try self.map(q.type_id))
                             try self.put(" ")
-                            try self.put(q.text)
+                            try self.put(try self.field(q.text))
                             try self.put(";")
                             p = q.next
                         self.indent -= 1
                         try self.line("} ")
-                        try self.put(m.text)
+                        try self.put(try self.field(m.text))
                         try self.put(";")
                     member = m.next
                 self.indent -= 1
@@ -2778,7 +2778,7 @@ pub struct Emitter:
         try self.put_u64((u64)case_tag(d, resolved))
         if e.body != none and resolved.body != none:
             try self.put(", .u.")
-            try self.put(resolved.text)
+            try self.put(try self.field(resolved.text))
             try self.put(" = {")
             var param = resolved.body
             var arg = e.body
@@ -2790,7 +2790,7 @@ pub struct Emitter:
                     try self.put(", ")
                 first = false
                 try self.put(".")
-                try self.put(p.text)
+                try self.put(try self.field(p.text))
                 try self.put(" = ")
                 try self.value(v, try self.map(p.type_id))
                 param = p.next
@@ -3746,29 +3746,29 @@ pub struct Emitter:
             try self.put("(")
             try self.expr(owner)
             try self.put("->" if through_ptr else ".")
-            try self.put(e.text)
+            try self.put(try self.field(e.text))
             try self.put(")")
             return
         if self.is_tuple(raw):
             try self.put("(")
             try self.expr(owner)
             try self.put("->a" if through_ptr else ".a")
-            try self.put(e.text)
+            try self.put(try self.field(e.text))
             try self.put(")")
             return
         if owner.kind == ast.Kind.self_:
             try self.put("self->")
-            try self.put(e.text)
+            try self.put(try self.field(e.text))
             return
         if through_ptr:
             try self.put("(")
             try self.expr(owner)
             try self.put(")->")
-            try self.put(e.text)
+            try self.put(try self.field(e.text))
             return
         try self.expr(owner)
         try self.put(".")
-        try self.put(e.text)
+        try self.put(try self.field(e.text))
 
     ## `luce.file`, `luce.line`, `luce.function`, `luce.location`, and a module's constants.
     mutating func module_member(e: ast.Node*, module_type: u32) -> !:
@@ -4243,9 +4243,9 @@ pub struct Emitter:
                                     try self.put(" __attribute__((unused)) = ")
                                     try self.put_tmp("m", n)
                                     try self.put(".u.")
-                                    try self.put(resolved.text)
+                                    try self.put(try self.field(resolved.text))
                                     try self.put(".")
-                                    try self.put(q.text)
+                                    try self.put(try self.field(q.text))
                                     try self.put(";")
                                 name = nm.next
                                 param = q.next
@@ -4391,9 +4391,9 @@ pub struct Emitter:
                 try self.put(" __attribute__((unused)) = ")
                 try self.put_tmp("m", n)
                 try self.put(".u.")
-                try self.put(resolved.text)
+                try self.put(try self.field(resolved.text))
                 try self.put(".")
-                try self.put(q.text)
+                try self.put(try self.field(q.text))
                 try self.put(";")
             name = nm.next
             param = q.next
@@ -5261,7 +5261,7 @@ pub struct Emitter:
                     try self.put(", ")
                 first = false
                 try self.put(".")
-                try self.put(f.text)
+                try self.put(try self.field(f.text))
                 try self.put(" = ")
                 try self.argument_value(v, try self.map(want))
             elif let default = f.left:
@@ -5269,7 +5269,7 @@ pub struct Emitter:
                     try self.put(", ")
                 first = false
                 try self.put(".")
-                try self.put(f.text)
+                try self.put(try self.field(f.text))
                 try self.put(" = ")
                 try self.argument_value(default, try self.map(want))
             position += 1
@@ -5434,7 +5434,7 @@ pub struct Emitter:
             try self.put("((size_t)offsetof(")
             try self.put_type(try self.map(tv.type_id))
             try self.put(", ")
-            try self.put(fv.text)
+            try self.put(try self.field(fv.text))
             try self.put("))")
             return
         try self.put("0")
@@ -6123,7 +6123,7 @@ pub struct Emitter:
                     var ft = m.type_id
                     if record.args.length > 0:
                         ft = try self.c.substitute(ft, d, record.args)
-                    let member = try self.path(".", m.text)
+                    let member = try self.path(".", try self.field(m.text))
                     try self.same_value(ft, try self.path(a, member), try self.path(b, member))
                 cursor = m.next
             if not any:
@@ -6163,8 +6163,10 @@ pub struct Emitter:
                         var pt = p.type_id
                         if record.args.length > 0:
                             pt = try self.c.substitute(pt, d, record.args)
-                        var member_bytes = try alloc u8[case_decl.text.length + p.text.length + 4]
-                        let member = try format(member_bytes, f".u.{case_decl.text}.{p.text}")
+                        let case_name = try self.field(case_decl.text)
+                        let payload_name = try self.field(p.text)
+                        var member_bytes = try alloc u8[case_name.length + payload_name.length + 4]
+                        let member = try format(member_bytes, f".u.{case_name}.{payload_name}")
                         try self.same_value(pt, try self.path(a, member), try self.path(b, member))
                         param = p.next
                     try self.put("); break; ")
@@ -6180,6 +6182,14 @@ pub struct Emitter:
         try self.put(")")
 
     ## `a` followed by `suffix`, as one C expression text.
+    ## A field or a payload name as C spells it: the name, unless C reserves it, when an
+    ## underscore follows; Base names are free to be `unsigned` or `int`.
+    func field(name: str) -> str!:
+        if not is_c_keyword(name):
+            return name
+        let room = try alloc u8[name.length + 1]
+        return try format(room, f"{name}_")
+
     func path(a: str, suffix: str) -> str!:
         var bytes = try alloc u8[a.length + suffix.length + 1]
         return try format(bytes, f"{a}{suffix}")
@@ -6423,7 +6433,7 @@ pub struct Emitter:
                         var ft = m.type_id
                         if record.args.length > 0:
                             ft = try self.c.substitute(ft, d, record.args)
-                        try self.hash_member(ft, try self.path(a, try self.path(".", m.text)), h)
+                        try self.hash_member(ft, try self.path(a, try self.path(".", try self.field(m.text))), h)
                     cursor = m.next
         else:
             # a payload enum: the tag, then the payload of the case it carries
@@ -6443,8 +6453,10 @@ pub struct Emitter:
                             var pt = p.type_id
                             if record.args.length > 0:
                                 pt = try self.c.substitute(pt, d, record.args)
-                            var member_bytes = try alloc u8[case_decl.text.length + p.text.length + 4]
-                            try self.hash_member(pt, try self.path(a, try format(member_bytes, f".u.{case_decl.text}.{p.text}")), h)
+                            let case_name = try self.field(case_decl.text)
+                            let payload_name = try self.field(p.text)
+                            var member_bytes = try alloc u8[case_name.length + payload_name.length + 4]
+                            try self.hash_member(pt, try self.path(a, try format(member_bytes, f".u.{case_name}.{payload_name}")), h)
                             param = p.next
                         try self.put("break; ")
                     cursor = case_decl.next
@@ -7249,3 +7261,15 @@ func asm_block_reads(s: ast.Node*, place: str) -> bool:
 ## Whether an extern is bound to a C symbol under another name (`as "sym"`).
 func renamed(d: ast.Node*) -> bool:
     return names.c_symbol(d) != d.text
+
+## C's keywords and the names its headers reserve, which a Base field may carry.
+func is_c_keyword(name: str) -> bool:
+    let words: str[44] = ["auto", "break", "case", "char", "const", "continue", "default", "do", "double", "else",
+                          "enum", "extern", "float", "for", "goto", "if", "inline", "int", "long", "register",
+                          "restrict", "return", "short", "signed", "sizeof", "static", "struct", "switch", "typedef",
+                          "union", "unsigned", "void", "volatile", "while", "bool", "true", "false", "errno", "stdin",
+                          "stdout", "stderr", "NULL", "alignof", "offsetof"]
+    for w in words:
+        if w == name:
+            return true
+    return false
