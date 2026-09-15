@@ -45,4 +45,4 @@ func f(a: i64,b: i64) -> i64!:
     if a<0: error(bad,"negative")
     return a+b
 test "adds":
-    assert(try add(1, 2) == 3)
+    assert(try add(1, 2) == 5)
