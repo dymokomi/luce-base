@@ -44,9 +44,10 @@ The fuzzer (`tools/fuzz.py`) mutates the corpus and generates programs that must
 across the four executions; the gate runs its short deterministic pass, and `--minutes M`
 runs it for longer. Every finding becomes a test.
 
-5. **Fuzzing campaigns before a release.** The generator has run for an hour at a time
-   on one host. Gate: a run of several hours on each host recorded in `docs/STATUS.md`
-   with the release it precedes, and no finding open.
+5. **Fuzzing campaigns before a release.** An hour on arm64-macos precedes 0.15.0
+   (`docs/STATUS.md`). Gate: a run of several hours on each host recorded there with the
+   release it precedes, and no finding open. A campaign runs in a tree whose `build/`
+   nothing else rebuilds; a gate in the same tree makes false findings.
 6. **The shape of the compiler, from the audit of 2026-09-14.** The remaining work
     of `~/dev/luce-base-audit-2026-09-14.md`, in order: unit tests for the rest of the
     standard library under `tests/std` (`net`, `process`, `json`, `unicode`, `os`, the
