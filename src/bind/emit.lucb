@@ -21,6 +21,7 @@
 import bind.cparse
 import bind.pre
 import bind.table
+import c
 import files
 import front.token
 import paths
@@ -29,6 +30,8 @@ import support.buffer
 import support.list
 
 pub let failed: ErrorCode = ErrorCode.package(121)
+
+extern func snprintf(buffer: c.char*, size: usize, layout: c.str, ...) -> i32
 
 ## What the header does not say, from the recipe file: `nonnull NAME.PARAM`, `nonnull
 ## NAME.return`, `nonnull TYPE.FIELD`, `skip NAME`, and `macro PROTOTYPE;`, a C prototype
@@ -46,7 +49,7 @@ pub struct Recipe:
     ## The recipe text read; a line the recipe grammar does not have fails.
     pub mutating func read(text: str) -> !:
         var number: u32 = 0
-        for raw in try strings.split(text, '\n'):
+        for raw in try pre.lines(text):
             number += 1
             let line = strings.trim(raw)
             if line.length == 0 or line.bytes[0] == '#':
@@ -480,7 +483,7 @@ pub struct Emitter:
         if let name = self.record_names.get(id):
             return name
         var base = key
-        if let pair = strings.split_once(key, "."):
+        if let pair = pre.split_at(key, '.'):
             let (left, right) = pair
             base = try strings.copy(try format(scratch[0..], f"{left}_{right}")) if right.length > 0 else left
         if base.length == 0:
@@ -643,8 +646,10 @@ pub struct Emitter:
         if v.text.length > 0:
             return try strings.copy(try format(scratch[0..], f"c.str = {try c_string(v.text)}"))
         if v.is_float:
+            # C's own shortest exact spelling, seventeen significant digits
             var room: u8[64]
-            var digits = try strings.format_f64(v.real, room[0..])
+            let n = snprintf((c.char*)room[0..].data, room.length, "%.17g", v.real)
+            var digits: str = (str)room[..<(usize)n] if n > 0 and (usize)n < room.length else "0.0"
             if strings.find(digits, ".") == none and strings.find(digits, "e") == none and strings.find(digits, "n") == none:
                 digits = try strings.copy(try format(scratch[0..], f"{digits}.0"))
             let ty = "f32" if v.type_name == "float" else "f64"

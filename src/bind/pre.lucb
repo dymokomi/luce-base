@@ -150,7 +150,7 @@ pub struct Preprocessor:
         if status != 0:
             error(failed, "the C compiler does not report its include directories")
         var inside = false
-        for line in try strings.split(err, '\n'):
+        for line in try lines(err):
             let t = strings.trim(line)
             if t == "#include <...> search starts here:":
                 inside = true
@@ -190,7 +190,7 @@ pub struct Preprocessor:
     pub mutating func define(text: str) -> !:
         var line = try buffer.Buffer.create(text.length + 16)
         try line.put("#define ")
-        if let pair = strings.split_once(text, "="):
+        if let pair = split_at(text, '='):
             let (name, value) = pair
             try line.put(name)
             try line.put(" ")
@@ -306,7 +306,7 @@ pub struct Preprocessor:
             let candidate = try paths.join(self.dirs.items[i], name)
             if try exists(candidate):
                 return Found(path = candidate, dir = i)
-        if let pair = strings.split_once(name, "/"):
+        if let pair = split_at(name, '/'):
             let (framework, rest) = pair
             for dir in self.frameworks.span():
                 let root = try paths.join(dir, framework)
@@ -1012,6 +1012,31 @@ pub func character_value(text: str) -> i64:
             i += 1
         return v
     return (i64)e
+
+# mark: Text ===================================================================================
+
+## The lines of a text, without their newlines; a last line without one counts.
+pub func lines(text: str) -> str[]!:
+    var out = try list.List[str].create(64)
+    var start: usize = 0
+    var i: usize = 0
+    while i < text.length:
+        if text.bytes[i] == '\n':
+            try out.push((str)text.bytes[start..<i])
+            start = i + 1
+        i += 1
+    if start < text.length:
+        try out.push((str)text.bytes[start..])
+    return out.span()
+
+## The text before and after the first `separator`, or none when there is none.
+pub func split_at(text: str, separator: u8) -> (str, str)?:
+    var i: usize = 0
+    while i < text.length:
+        if text.bytes[i] == separator:
+            return ((str)text.bytes[..<i], (str)text.bytes[i + 1..])
+        i += 1
+    return none
 
 # mark: Token lists ============================================================================
 

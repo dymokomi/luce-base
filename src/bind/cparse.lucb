@@ -20,6 +20,7 @@
 
 import bind.pre
 import bind.table
+import c
 import memory
 import strings
 from support.arena import Arena
@@ -27,6 +28,8 @@ import support.buffer
 import support.list
 
 pub let failed: ErrorCode = ErrorCode.package(120)
+
+extern func strtod(text: c.str, end: c.char*?*) -> f64
 
 pub enum Kind:
     void_
@@ -687,8 +690,8 @@ pub struct Parser:
             while self.tok.kind == pre.Kind.ident and (is_qualifier(self.tok.text) or self.tok.text == "const" or self.tok.text == "static"):
                 self.advance()
             if not self.at_punct("]"):
-                let c = try self.constant_expression()
-                count = c.value
+                let evaluated = try self.constant_expression()
+                count = evaluated.value
             try self.expect("]")
             let (element, l) = try self.suffixes(ty)
             discard(l)
@@ -866,8 +869,8 @@ pub struct Parser:
                 d = try self.declarator(specs.ty)
             var bits: i64 = -1
             if self.eat_punct(":"):
-                let c = try self.constant_expression()
-                bits = c.value
+                let evaluated = try self.constant_expression()
+                bits = evaluated.value
                 r.has_bits = true
             if d.ty.kind == Kind.array and d.ty.count < 0:
                 r.has_flexible = true
@@ -920,8 +923,8 @@ pub struct Parser:
                 self.advance()
                 discard(try self.attribute())
             if self.eat_punct("="):
-                let c = try self.constant_expression()
-                next = c.value
+                let evaluated = try self.constant_expression()
+                next = evaluated.value
             try e.items.push(EnumItem(name = name, value = next, line = item_line))
             try self.constants.put(name, next)
             next +%= 1
@@ -1240,9 +1243,13 @@ pub struct Parser:
             single = true
         elif strings.ends_with(text, "l") or strings.ends_with(text, "L"):
             spelled = (str)text.bytes[..<text.length - 1]
-        let parsed = strings.parse_f64(spelled) catch failure:
-            discard(failure)
-            error(failed, try self.place(try format(scratch[0..], f"{text} is not a number the binder reads")))
+        # the C library reads the literal, as the C compiler would
+        let terminated = try strings.copy(spelled)
+        var end: c.char*? = none
+        let parsed = strtod((c.str)terminated, &end)
+        if let stop = end:
+            if (usize)stop != (usize)terminated.bytes.data + terminated.length:
+                error(failed, try self.place(try format(scratch[0..], f"{text} is not a number the binder reads")))
         var v = real(parsed)
         v.type_name = "float" if single else "double"
         return v
