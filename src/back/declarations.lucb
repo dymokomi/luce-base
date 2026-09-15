@@ -20,7 +20,7 @@ import support.buffer
 ## Write the interface of `module` to `out`.
 pub func write(out: buffer.Buffer*, module: check.Module) -> !:
     let text = module.src.bytes
-    var w = Writer(out = out, text = text)
+    var w = Cutter(out = out, text = text)
     var first: usize = text.length
     if let d = module.tree.body:
         first = block_start(text, d)
@@ -35,7 +35,7 @@ pub func write(out: buffer.Buffer*, module: check.Module) -> !:
         try w.declaration(d, start, end)
         cursor = d.next
 
-struct Writer:
+struct Cutter:
     var out: buffer.Buffer*
     var text: const u8[]
 
