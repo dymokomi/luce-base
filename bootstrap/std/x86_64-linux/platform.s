@@ -48,6 +48,10 @@ lb_platform_0init:
     movl $1, %eax
     movq %rbx, %r10
     movb %al, (%r10)
+    leaq lb_platform_wasm32(%rip), %rbx
+    movl $0, %eax
+    movq %rbx, %r10
+    movb %al, (%r10)
     leaq lb_platform_12pointer_bits(%rip), %rbx
     movl $64, %eax
     movq %rbx, %r10
@@ -126,6 +130,13 @@ lb_platform_arm64:
     .type lb_platform_6x86_64, @object
     .p2align 0
 lb_platform_6x86_64:
+    .zero 1
+
+    .bss
+    .globl lb_platform_wasm32
+    .type lb_platform_wasm32, @object
+    .p2align 0
+lb_platform_wasm32:
     .zero 1
 
     .bss

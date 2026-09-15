@@ -1,6 +1,8 @@
 ## NSTextInputClient owns only the input method's marked string. Committed text
 ## crosses into the portable queue as scalars; document storage belongs to the UI.
-let mac_not_found: usize = 0x7FFFFFFFFFFFFFFF
+## `NSNotFound`, the largest signed pointer-sized integer.
+func mac_not_found() -> usize:
+    return ~(usize)0 >> 1
 
 func mac_register_text_input(native_type: void*) -> !:
     let protocol = objc_getProtocol("NSTextInputClient") else error(failed, "AppKit text input is unavailable")
@@ -68,8 +70,8 @@ func mac_has_marked(object: void*, selector: void*) -> bool:
     return state.marked_text != none
 
 func mac_marked_range(object: void*, selector: void*) -> LuceWindowMacRange:
-    let state = get_state(object) else return LuceWindowMacRange(mac_not_found, 0)
-    let text = state.marked_text else return LuceWindowMacRange(mac_not_found, 0)
+    let state = get_state(object) else return LuceWindowMacRange(mac_not_found(), 0)
+    let text = state.marked_text else return LuceWindowMacRange(mac_not_found(), 0)
     return LuceWindowMacRange(0, (usize)msg_uint(text, sel("length")))
 
 func mac_selected_range(object: void*, selector: void*) -> LuceWindowMacRange:
@@ -82,11 +84,11 @@ func mac_marked_attributes(object: void*, selector: void*) -> void*?:
 
 func mac_text_substring(object: void*, selector: void*, range: LuceWindowMacRange, actual: LuceWindowMacRange*?) -> void*?:
     if let destination = actual:
-        *destination = LuceWindowMacRange(mac_not_found, 0)
+        *destination = LuceWindowMacRange(mac_not_found(), 0)
     return none
 
 func mac_text_index(object: void*, selector: void*, point: LuceWindowMacPoint) -> usize:
-    return mac_not_found
+    return mac_not_found()
 
 func mac_text_rect(object: void*, selector: void*, range: LuceWindowMacRange, actual: LuceWindowMacRange*?) -> LuceWindowMacRect:
     if let destination = actual:

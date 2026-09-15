@@ -123,7 +123,7 @@ lb_files_File_open:
     movq %rax, 32(%r11)
     jmp .L1_21
 .L1_20:
-    leaq .Ltext_23(%rip), %rdi
+    leaq .Ltext_24(%rip), %rdi
     leaq .Ltext_1(%rip), %rsi
     call lb_core_7trap_at@PLT
 .L1_21:
@@ -237,7 +237,7 @@ lb_files_File_open:
     movq %rax, 32(%r11)
     jmp .L1_23
 .L1_22:
-    leaq .Ltext_23(%rip), %rdi
+    leaq .Ltext_24(%rip), %rdi
     leaq .Ltext_1(%rip), %rsi
     call lb_core_7trap_at@PLT
 .L1_23:
@@ -2824,22 +2824,23 @@ lb_files_14classify_error:
 lb_files_15file_open_flags:
     pushq %rbp
     movq %rsp, %rbp
-    subq $144, %rsp
+    subq $160, %rsp
     movq %rdi, -8(%rbp)
     movq %rbx, -16(%rbp)
     movq %r12, -24(%rbp)
     movq %r13, -32(%rbp)
     movq %r14, -40(%rbp)
-    movl %esi, -96(%rbp)
-    movl %edx, -112(%rbp)
-    leaq -112(%rbp), %rbx
+    movq %r15, -48(%rbp)
+    movl %esi, -104(%rbp)
+    movl %edx, -120(%rbp)
+    leaq -120(%rbp), %rbx
     movq %rbx, %r10
     movl (%r10), %ebx
     movl $4095, %ecx
     cmpl %ecx, %ebx
     jbe .L14_2
 .L14_1:
-    leaq -80(%rbp), %rbx
+    leaq -88(%rbp), %rbx
     movq $8, %rcx
     movq %rbx, %r12
     addq %rcx, %r12
@@ -2849,7 +2850,7 @@ lb_files_15file_open_flags:
     movq %r12, %r10
     movl %r13d, (%r10)
     leaq .Ltext_8(%rip), %r13
-    leaq -128(%rbp), %r14
+    leaq -136(%rbp), %r14
     movq %r14, %r10
     movq %r13, (%r10)
     movq $8, %rcx
@@ -2879,6 +2880,7 @@ lb_files_15file_open_flags:
     movq -24(%rbp), %r12
     movq -32(%rbp), %r13
     movq -40(%rbp), %r14
+    movq -48(%rbp), %r15
     movq %rbp, %rsp
     popq %rbp
     ret
@@ -2889,22 +2891,41 @@ lb_files_15file_open_flags:
     leaq lb_files_13close_on_exec(%rip), %rbx
     movq %rbx, %r10
     movslq (%r10), %rbx
-    leaq -96(%rbp), %r12
+    leaq -104(%rbp), %r12
     movq %r12, %r10
     movzbl (%r10), %r12d
-    movl $1, %ecx
+    movl $0, %ecx
     cmpl %ecx, %r12d
-    jne .L14_6
+    sete %al
+    movzbl %al, %r13d
+    testl %r13d, %r13d
+    jne .L14_5
+    jmp .L14_6
 .L14_5:
-    movl $2, %ecx
+    leaq lb_files_14read_only_flag(%rip), %r12
+    movq %r12, %r10
+    movslq (%r10), %r12
+    movl %r12d, %ecx
     movl %ebx, %r12d
     orl %ecx, %r12d
     jmp .L14_7
 .L14_6:
-    movl $2, %ecx
+    movl $1, %ecx
     cmpl %ecx, %r12d
     jne .L14_9
 .L14_8:
+    leaq lb_files_15read_write_flag(%rip), %r12
+    movq %r12, %r10
+    movslq (%r10), %r12
+    movl %r12d, %ecx
+    movl %ebx, %r12d
+    orl %ecx, %r12d
+    jmp .L14_10
+.L14_9:
+    movl $2, %ecx
+    cmpl %ecx, %r12d
+    jne .L14_12
+.L14_11:
     leaq lb_files_10write_only(%rip), %r12
     movq %r12, %r10
     movslq (%r10), %r12
@@ -2919,29 +2940,29 @@ lb_files_15file_open_flags:
     movl %r12d, %ecx
     movl %ebx, %r12d
     orl %ecx, %r12d
-    jmp .L14_10
-.L14_9:
+    jmp .L14_13
+.L14_12:
     movl $3, %ecx
     cmpl %ecx, %r12d
     sete %al
-    movzbl %al, %r13d
-    testl %r13d, %r13d
-    jne .L14_27
-    jmp .L14_14
-.L14_27:
-    movl %r13d, %r14d
-    jmp .L14_15
-.L14_14:
+    movzbl %al, %r14d
+    testl %r14d, %r14d
+    jne .L14_30
+    jmp .L14_17
+.L14_30:
+    movl %r14d, %r15d
+    jmp .L14_18
+.L14_17:
     movl $5, %ecx
     cmpl %ecx, %r12d
     sete %al
-    movzbl %al, %r14d
-.L14_15:
-    movzbl %r14b, %r13d
-    testl %r13d, %r13d
-    jne .L14_11
-    jmp .L14_12
-.L14_11:
+    movzbl %al, %r15d
+.L14_18:
+    movzbl %r15b, %r14d
+    testl %r14d, %r14d
+    jne .L14_14
+    jmp .L14_15
+.L14_14:
     leaq lb_files_create(%rip), %r13
     movq %r13, %r10
     movslq (%r10), %r13
@@ -2953,27 +2974,28 @@ lb_files_15file_open_flags:
     orl %ecx, %r14d
     movl $5, %ecx
     cmpl %ecx, %r12d
-    jne .L14_17
-.L14_16:
-    movl $2, %eax
-    movl %eax, %r12d
-    jmp .L14_18
-.L14_17:
+    jne .L14_20
+.L14_19:
+    leaq lb_files_15read_write_flag(%rip), %r12
+    movq %r12, %r10
+    movslq (%r10), %r12
+    jmp .L14_21
+.L14_20:
     leaq lb_files_10write_only(%rip), %r12
     movq %r12, %r10
     movslq (%r10), %r12
-.L14_18:
+.L14_21:
     movl %r14d, %r13d
     orl %r12d, %r13d
     movl %r13d, %ecx
     movl %ebx, %r13d
     orl %ecx, %r13d
-    jmp .L14_13
-.L14_12:
+    jmp .L14_16
+.L14_15:
     movl $4, %ecx
     cmpl %ecx, %r12d
-    jne .L14_20
-.L14_19:
+    jne .L14_23
+.L14_22:
     leaq lb_files_10write_only(%rip), %r12
     movq %r12, %r10
     movslq (%r10), %r12
@@ -2988,17 +3010,13 @@ lb_files_15file_open_flags:
     movl %r12d, %ecx
     movl %ebx, %r12d
     orl %ecx, %r12d
-    jmp .L14_21
-.L14_20:
-    movl $0, %ecx
-    cmpl %ecx, %r12d
-    sete %al
-    movzbl %al, %r13d
+    jmp .L14_24
+.L14_23:
     movl $0, %ecx
     cmpl %ecx, %r13d
-    jne .L14_23
-.L14_22:
-    leaq -80(%rbp), %rbx
+    jne .L14_26
+.L14_25:
+    leaq -88(%rbp), %rbx
     movq $8, %rcx
     movq %rbx, %r12
     addq %rcx, %r12
@@ -3007,8 +3025,8 @@ lb_files_15file_open_flags:
     movl (%r10), %r13d
     movq %r12, %r10
     movl %r13d, (%r10)
-    leaq .Ltext_24(%rip), %r13
-    leaq -144(%rbp), %r14
+    leaq .Ltext_25(%rip), %r13
+    leaq -152(%rbp), %r14
     movq %r14, %r10
     movq %r13, (%r10)
     movq $8, %rcx
@@ -3038,21 +3056,23 @@ lb_files_15file_open_flags:
     movq -24(%rbp), %r12
     movq -32(%rbp), %r13
     movq -40(%rbp), %r14
+    movq -48(%rbp), %r15
     movq %rbp, %rsp
     popq %rbp
     ret
-.L14_25:
-    jmp .L14_24
-.L14_23:
-.L14_24:
+.L14_28:
+    jmp .L14_27
+.L14_26:
+.L14_27:
     movl %ebx, %r12d
-.L14_21:
+.L14_24:
     movl %r12d, %r13d
-.L14_13:
+.L14_16:
     movl %r13d, %r12d
+.L14_13:
 .L14_10:
 .L14_7:
-    leaq -80(%rbp), %rbx
+    leaq -88(%rbp), %rbx
     movq %rbx, %r10
     movl %r12d, (%r10)
     movq $32, %rcx
@@ -3070,11 +3090,12 @@ lb_files_15file_open_flags:
     movq -24(%rbp), %r12
     movq -32(%rbp), %r13
     movq -40(%rbp), %r14
+    movq -48(%rbp), %r15
     movq %rbp, %rsp
     popq %rbp
     ret
-.L14_26:
-    leaq .Ltext_25(%rip), %rdi
+.L14_29:
+    leaq .Ltext_26(%rip), %rdi
     leaq .Ltext_1(%rip), %rsi
     call lb_core_7trap_at@PLT
 
@@ -3134,13 +3155,15 @@ lb_files_15file_open_flags:
 .Ltext_21:
     .asciz "the file could not be closed"
 .Ltext_22:
-    .asciz "src/std/files/handles.lucb:183:5"
+    .asciz "src/std/files/handles.lucb:185:5"
 .Ltext_23:
-    .asciz "src/std/files/handles.lucb:189:5"
+    .asciz "src/std/files/handles.lucb:213:5"
 .Ltext_24:
-    .asciz "unknown file opening mode"
+    .asciz "src/std/files/handles.lucb:219:5"
 .Ltext_25:
-    .asciz "src/std/files/handles.lucb:207:5"
+    .asciz "unknown file opening mode"
+.Ltext_26:
+    .asciz "src/std/files/handles.lucb:239:5"
 
     .section .data.rel.ro,"aw"
     .p2align 3

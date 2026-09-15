@@ -7,7 +7,7 @@
 ## Concurrent source writes can change the bytes observed; this is not a snapshot.
 ## Return bytes copied. Permissions, synchronize, parent-path stability and
 ## published have the same contracts as write_atomic; metadata is not copied.
-pub func copy_file(source_path: c.str, destination: c.str, limit: usize = 18446744073709551615, replace: bool = false, permissions: u32 = 420, synchronize: bool = false, published: bool*? = none) -> usize!:
+pub func copy_file(source_path: c.str, destination: c.str, limit: usize = ~(usize)0, replace: bool = false, permissions: u32 = 420, synchronize: bool = false, published: bool*? = none) -> usize!:
     if let flag = published:
         *flag = false
     var source = try File.open(source_path)

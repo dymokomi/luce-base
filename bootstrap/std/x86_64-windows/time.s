@@ -89,47 +89,47 @@ lb_time_now:
     .seh_proc lb_time_now
     pushq %rbp
     .seh_pushreg %rbp
-    subq $240, %rsp
-    .seh_stackalloc 240
+    subq $272, %rsp
+    .seh_stackalloc 272
     movq %rsp, %rbp
     .seh_setframe %rbp, 0
-    movq %rdi, 232(%rbp)
-    .seh_savereg %rdi, 232
-    movq %rsi, 224(%rbp)
-    .seh_savereg %rsi, 224
-    movdqu %xmm6, 208(%rbp)
-    .seh_savexmm %xmm6, 208
-    movdqu %xmm7, 192(%rbp)
-    .seh_savexmm %xmm7, 192
-    movdqu %xmm8, 176(%rbp)
-    .seh_savexmm %xmm8, 176
-    movdqu %xmm9, 160(%rbp)
-    .seh_savexmm %xmm9, 160
-    movdqu %xmm10, 144(%rbp)
-    .seh_savexmm %xmm10, 144
-    movdqu %xmm11, 128(%rbp)
-    .seh_savexmm %xmm11, 128
-    movdqu %xmm12, 112(%rbp)
-    .seh_savexmm %xmm12, 112
-    movdqu %xmm13, 96(%rbp)
-    .seh_savexmm %xmm13, 96
-    movdqu %xmm14, 80(%rbp)
-    .seh_savexmm %xmm14, 80
-    movdqu %xmm15, 64(%rbp)
-    .seh_savexmm %xmm15, 64
-    movq %rbx, 56(%rbp)
-    .seh_savereg %rbx, 56
-    movq %r12, 48(%rbp)
-    .seh_savereg %r12, 48
-    movq %r13, 40(%rbp)
-    .seh_savereg %r13, 40
+    movq %rdi, 264(%rbp)
+    .seh_savereg %rdi, 264
+    movq %rsi, 256(%rbp)
+    .seh_savereg %rsi, 256
+    movdqu %xmm6, 240(%rbp)
+    .seh_savexmm %xmm6, 240
+    movdqu %xmm7, 224(%rbp)
+    .seh_savexmm %xmm7, 224
+    movdqu %xmm8, 208(%rbp)
+    .seh_savexmm %xmm8, 208
+    movdqu %xmm9, 192(%rbp)
+    .seh_savexmm %xmm9, 192
+    movdqu %xmm10, 176(%rbp)
+    .seh_savexmm %xmm10, 176
+    movdqu %xmm11, 160(%rbp)
+    .seh_savexmm %xmm11, 160
+    movdqu %xmm12, 144(%rbp)
+    .seh_savexmm %xmm12, 144
+    movdqu %xmm13, 128(%rbp)
+    .seh_savexmm %xmm13, 128
+    movdqu %xmm14, 112(%rbp)
+    .seh_savexmm %xmm14, 112
+    movdqu %xmm15, 96(%rbp)
+    .seh_savexmm %xmm15, 96
+    movq %rbx, 88(%rbp)
+    .seh_savereg %rbx, 88
+    movq %r12, 80(%rbp)
+    .seh_savereg %r12, 80
+    movq %r13, 72(%rbp)
+    .seh_savereg %r13, 72
     .seh_endprologue
-    movq %rcx, 256(%rbp)
-    movq %rdx, 264(%rbp)
-    movq %r8, 272(%rbp)
-    movq %r9, 280(%rbp)
-    leaq 24(%rbp), %rbx
-    leaq 8(%rbp), %r12
+    movq %rcx, 288(%rbp)
+    movq %rdx, 296(%rbp)
+    movq %r8, 304(%rbp)
+    movq %r9, 312(%rbp)
+    leaq 56(%rbp), %rbx
+    leaq 40(%rbp), %r12
     movq %r12, %r11
     pxor %xmm8, %xmm8
     movups %xmm8, 0(%r11)
@@ -146,9 +146,27 @@ lb_time_now:
     movq %rbx, %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
+    movl $1, %eax
+    leaq 24(%rbp), %r10
+    movl %eax, (%r10)
+    leaq 8(%rbp), %r10
+    movq %rbx, (%r10)
+    leaq 24(%rbp), %r12
+    movq %r12, %r10
+    movzbl (%r10), %r12d
+    testl %r12d, %r12d
+    jne .L1_2
+    jmp .L1_3
+.L1_2:
     leaq lb_time_monotonic(%rip), %r12
     movq %r12, %r10
     movslq (%r10), %r12
+    jmp .L1_4
+.L1_3:
+    leaq lb_time_realtime(%rip), %r12
+    movq %r12, %r10
+    movslq (%r10), %r12
+.L1_4:
     subq $32, %rsp
     movl %r12d, %eax
     movq %rax, 0(%rsp)
@@ -158,15 +176,28 @@ lb_time_now:
     movq 8(%rsp), %rdx
     call clock_gettime
     addq $32, %rsp
-    movl %eax, %r12d
+    movl %eax, %r13d
+    leaq 0(%rbp), %r10
+    movl %r13d, (%r10)
+    jmp .L1_6
+.L1_5:
+    leaq .Ltext_1(%rip), %rdi
+    leaq .Ltext_0(%rip), %rsi
+    movq %rdx, %r8
+    movq %rsi, %rdx
+    movq %rdi, %rcx
+    subq $32, %rsp
+    call lb_core_7trap_at
+    addq $32, %rsp
+.L1_6:
     movq %rbx, %r10
     movq (%r10), %r12
     movq %r12, %rax
     movq $1000000000, %rcx
     mulq %rcx
     jnc 1f
-    leaq .Ltext_0(%rip), %rdi
-    leaq .Ltext_4(%rip), %rsi
+    leaq .Ltext_2(%rip), %rdi
+    leaq .Ltext_5(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
     movq %rdi, %rcx
@@ -176,16 +207,17 @@ lb_time_now:
 1:
     movq %rax, %r12
     movq $8, %rcx
-    addq %rcx, %rbx
-    movq %rbx, %r10
-    movslq (%r10), %rbx
-    movslq %ebx, %rbx
+    movq %rbx, %r13
+    addq %rcx, %r13
+    movq %r13, %r10
+    movslq (%r10), %r13
+    movslq %r13d, %r13
     movq %r12, %rax
-    movq %rbx, %rcx
+    movq %r13, %rcx
     addq %rcx, %rax
     jnc 1f
-    leaq .Ltext_0(%rip), %rdi
-    leaq .Ltext_4(%rip), %rsi
+    leaq .Ltext_2(%rip), %rdi
+    leaq .Ltext_5(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
     movq %rdi, %rcx
@@ -193,29 +225,29 @@ lb_time_now:
     call lb_core_7trap_at
     addq $32, %rsp
 1:
-    movq %rax, %rbx
-    movq %rbx, %rax
-    movq 232(%rbp), %rdi
-    movq 224(%rbp), %rsi
-    movdqu 208(%rbp), %xmm6
-    movdqu 192(%rbp), %xmm7
-    movdqu 176(%rbp), %xmm8
-    movdqu 160(%rbp), %xmm9
-    movdqu 144(%rbp), %xmm10
-    movdqu 128(%rbp), %xmm11
-    movdqu 112(%rbp), %xmm12
-    movdqu 96(%rbp), %xmm13
-    movdqu 80(%rbp), %xmm14
-    movdqu 64(%rbp), %xmm15
-    movq 56(%rbp), %rbx
-    movq 48(%rbp), %r12
-    movq 40(%rbp), %r13
-    leaq 240(%rbp), %rsp
+    movq %rax, %r12
+    movq %r12, %rax
+    movq 264(%rbp), %rdi
+    movq 256(%rbp), %rsi
+    movdqu 240(%rbp), %xmm6
+    movdqu 224(%rbp), %xmm7
+    movdqu 208(%rbp), %xmm8
+    movdqu 192(%rbp), %xmm9
+    movdqu 176(%rbp), %xmm10
+    movdqu 160(%rbp), %xmm11
+    movdqu 144(%rbp), %xmm12
+    movdqu 128(%rbp), %xmm13
+    movdqu 112(%rbp), %xmm14
+    movdqu 96(%rbp), %xmm15
+    movq 88(%rbp), %rbx
+    movq 80(%rbp), %r12
+    movq 72(%rbp), %r13
+    leaq 272(%rbp), %rsp
     popq %rbp
     ret
 .L1_1:
-    leaq .Ltext_0(%rip), %rdi
-    leaq .Ltext_1(%rip), %rsi
+    leaq .Ltext_2(%rip), %rdi
+    leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
     movq %rdi, %rcx
@@ -290,8 +322,8 @@ lb_time_unix:
     popq %rbp
     ret
 .L2_1:
-    leaq .Ltext_2(%rip), %rdi
-    leaq .Ltext_1(%rip), %rsi
+    leaq .Ltext_3(%rip), %rdi
+    leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
     movq %rdi, %rcx
@@ -384,8 +416,8 @@ lb_time_since:
     popq %rbp
     ret
 .L3_4:
-    leaq .Ltext_3(%rip), %rdi
-    leaq .Ltext_1(%rip), %rsi
+    leaq .Ltext_4(%rip), %rdi
+    leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
     movq %rdi, %rcx
@@ -406,14 +438,16 @@ lb_time_since:
 .Lvsign64:
     .quad -9223372036854775808, -9223372036854775808
 .Ltext_0:
-    .asciz "src/std/time.lucb:19:5"
-.Ltext_1:
     .asciz "unreachable"
+.Ltext_1:
+    .asciz "src/std/time.lucb:24:5"
 .Ltext_2:
-    .asciz "src/std/time.lucb:23:5"
+    .asciz "src/std/time.lucb:30:5"
 .Ltext_3:
-    .asciz "src/std/time.lucb:28:5"
+    .asciz "src/std/time.lucb:34:5"
 .Ltext_4:
+    .asciz "src/std/time.lucb:39:5"
+.Ltext_5:
     .asciz "integer overflow"
 
     .section .rdata,"dr"

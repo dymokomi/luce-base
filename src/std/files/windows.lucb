@@ -169,7 +169,7 @@ func windows_open(path: c.str, flags: i32, permissions: u32, follow: bool = true
     let disposition: u32 = (1 if (flags & exclusive_flag) != 0 else 4) if (flags & create) != 0 else 3
     let attributes: u32 = (1 if (permissions & 146) == 0 else 128) | (0 if follow else 2097152)
     let handle = CreateFileW(text.data, desired_access, 7, none, disposition, attributes, none)
-    if (usize)handle == 0xFFFFFFFFFFFFFFFF:
+    if (usize)handle == ~(usize)0:
         error(windows_error(GetLastError()), "the file could not be opened")
     if nonblocking and GetFileType(handle) != 1:
         discard(CloseHandle(handle))
@@ -198,7 +198,7 @@ func windows_path_handle(path: c.str, follow: bool, directory: bool = false) -> 
     let text = try wide_path(path)
     defer free(text)
     let handle = CreateFileW(text.data, 0, 7, none, 3, 33554432 | (0 if follow else 2097152), none)
-    if (usize)handle == 0xFFFFFFFFFFFFFFFF:
+    if (usize)handle == ~(usize)0:
         error(windows_error(GetLastError()), "the file path could not be opened")
     if directory:
         var info: WinInformation
@@ -273,7 +273,7 @@ func windows_next(state: WinDirectory*) -> str?!:
         let pattern = try wide_path((c.str)joined)
         defer free(pattern)
         let search = FindFirstFileW(pattern.data, &state.data)
-        if (usize)search == 0xFFFFFFFFFFFFFFFF:
+        if (usize)search == ~(usize)0:
             if GetLastError() == 2:
                 state.ended = true
                 return none

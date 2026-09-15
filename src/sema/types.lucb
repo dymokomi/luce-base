@@ -182,14 +182,18 @@ pub struct Table:
             i += 1
         return t
 
-    ## C uses LLP64 on Windows: long is 32 bits and wchar_t is unsigned 16 bits.
-    ## Configure before interning any target-dependent compound types.
-    pub mutating func configure_c(windows: bool):
+    ## C uses LLP64 on Windows: long is 32 bits and wchar_t is unsigned 16 bits; long is 32
+    ## bits on wasm32 as well; and `char` is unsigned on AArch64 Linux (§5.2). Configure
+    ## before interning any target-dependent compound types.
+    pub mutating func configure_c(windows: bool, long32: bool, unsigned_char: bool):
+        var plain_char = self.types.get((usize)c_char_id)
+        plain_char.kind = Kind.u8_ if unsigned_char else Kind.i8_
+        self.types.set((usize)c_char_id, plain_char)
         var signed_long = self.types.get((usize)c_long_id)
-        signed_long.kind = Kind.i32_ if windows else Kind.i64_
+        signed_long.kind = Kind.i32_ if long32 else Kind.i64_
         self.types.set((usize)c_long_id, signed_long)
         var unsigned_long = self.types.get((usize)c_ulong_id)
-        unsigned_long.kind = Kind.u32_ if windows else Kind.u64_
+        unsigned_long.kind = Kind.u32_ if long32 else Kind.u64_
         self.types.set((usize)c_ulong_id, unsigned_long)
         var wide = self.types.get((usize)c_wchar_id)
         wide.kind = Kind.u16_ if windows else Kind.i32_

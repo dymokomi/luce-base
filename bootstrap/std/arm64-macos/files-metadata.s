@@ -502,8 +502,8 @@ L3_11:
     bl _lb_files_14classify_error
     mov w14, w0
     str w14, [x20]
-    adrp x14, l_text_6@PAGE
-    add x14, x14, l_text_6@PAGEOFF
+    adrp x14, l_text_7@PAGE
+    add x14, x14, l_text_7@PAGEOFF
     sub x15, x29, #544
     str x14, [x15]
     add x14, x15, #8
@@ -628,8 +628,8 @@ L4_8:
     bl _lb_files_14classify_error
     mov w14, w0
     str w14, [x20]
-    adrp x14, l_text_8@PAGE
-    add x14, x14, l_text_8@PAGEOFF
+    adrp x14, l_text_9@PAGE
+    add x14, x14, l_text_9@PAGEOFF
     sub x15, x29, #512
     str x14, [x15]
     add x14, x15, #8
@@ -777,8 +777,8 @@ L5_11:
     bl _lb_files_14classify_error
     mov w14, w0
     str w14, [x20]
-    adrp x14, l_text_10@PAGE
-    add x14, x14, l_text_10@PAGEOFF
+    adrp x14, l_text_11@PAGE
+    add x14, x14, l_text_11@PAGEOFF
     sub x15, x29, #560
     str x14, [x15]
     add x14, x15, #8
@@ -819,27 +819,29 @@ L5_13:
 l_text_0:
     .asciz "unreachable"
 l_text_1:
-    .asciz "src/std/files/metadata.lucb:133:5"
+    .asciz "src/std/files/metadata.lucb:156:5"
 l_text_2:
-    .asciz "src/std/files/metadata.lucb:136:5"
+    .asciz "src/std/files/metadata.lucb:159:5"
 l_text_3:
-    .asciz "src/std/files/metadata.lucb:139:5"
+    .asciz "src/std/files/metadata.lucb:162:5"
 l_text_4:
-    .asciz "src/std/files/metadata.lucb:147:5"
+    .asciz "src/std/files/metadata.lucb:170:5"
 l_text_5:
-    .asciz "src/std/files/metadata.lucb:154:5"
+    .asciz "src/std/files/metadata.lucb:177:5"
 l_text_6:
-    .asciz "file metadata could not be read"
+    .asciz "src/std/files/metadata.lucb:184:5"
 l_text_7:
-    .asciz "src/std/files/metadata.lucb:175:17"
+    .asciz "file metadata could not be read"
 l_text_8:
-    .asciz "open-file metadata could not be read"
+    .asciz "src/std/files/metadata.lucb:205:17"
 l_text_9:
-    .asciz "src/std/files/metadata.lucb:202:17"
+    .asciz "open-file metadata could not be read"
 l_text_10:
-    .asciz "directory-entry metadata could not be read"
+    .asciz "src/std/files/metadata.lucb:240:17"
 l_text_11:
-    .asciz "src/std/files/metadata.lucb:230:17"
+    .asciz "directory-entry metadata could not be read"
+l_text_12:
+    .asciz "src/std/files/metadata.lucb:275:17"
 
     .section __DATA,__const
     .p2align 3

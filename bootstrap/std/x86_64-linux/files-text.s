@@ -4129,7 +4129,6 @@ lb_files_11delete_path:
 
     .section .data.rel.ro,"aw"
     .p2align 3
-    .globl lb_vt_files_TemporaryFile_Writer
     .weak lb_vt_files_TemporaryFile_Writer
 lb_vt_files_TemporaryFile_Writer:
     .quad lb_files_TemporaryFile_write

@@ -155,6 +155,8 @@ pub struct File: io.Reader, io.Writer:
             discard(failure)
 
 func classify_error(number: i32) -> ErrorCode:
+    if platform.wasm32:
+        return classify_wasi_error(number)
     if number == 2:
         return missing
     if number == 1 or number == 13:
@@ -182,6 +184,34 @@ func classify_error(number: i32) -> ErrorCode:
         return would_block
     return failed
 
+## WASI numbers its errors alphabetically (§19.5).
+func classify_wasi_error(number: i32) -> ErrorCode:
+    if number == 44:
+        return missing
+    if number == 2 or number == 63 or number == 76:
+        return permission_denied
+    if number == 20:
+        return already_exists
+    if number == 51:
+        return no_space
+    if number == 54:
+        return not_directory
+    if number == 31:
+        return is_directory
+    if number == 69:
+        return read_only_filesystem
+    if number == 55:
+        return not_empty
+    if number == 75:
+        return cross_device
+    if number == 32:
+        return symlink_loop
+    if number == 37:
+        return name_too_long
+    if number == would_block_errno:
+        return would_block
+    return failed
+
 ## Shared mode validation for path-based and directory-relative file opening.
 func open_descriptor(path: c.str, flags: i32, permissions: u32) -> i32!:
     if platform.windows:
@@ -194,12 +224,14 @@ func file_open_flags(mode: OpenMode, permissions: u32) -> i32!:
     var flags = close_on_exec
     if platform.windows:
         flags |= 32768
-    if mode == OpenMode.read_write:
-        flags |= 2
+    if mode == OpenMode.read:
+        flags |= read_only_flag
+    elif mode == OpenMode.read_write:
+        flags |= read_write_flag
     elif mode == OpenMode.replace:
         flags |= write_only | create | truncate
     elif mode == OpenMode.create_new or mode == OpenMode.create_new_read_write:
-        flags |= create | exclusive_flag | (2 if mode == OpenMode.create_new_read_write else write_only)
+        flags |= create | exclusive_flag | (read_write_flag if mode == OpenMode.create_new_read_write else write_only)
     elif mode == OpenMode.append:
         flags |= write_only | create | append_flag
     elif mode != OpenMode.read:

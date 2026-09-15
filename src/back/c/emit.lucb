@@ -6767,9 +6767,11 @@ pub struct Emitter:
     ## declaration per symbol and calls the others through it, so for clang the symbol is
     ## declared `void NAME(void)` and every call casts it to the function's own type, as
     ## the Objective-C runtime's own header has it. `lb_c_NAME` is the callee either way.
+    ## WebAssembly checks every call's signature, so a call through a cast would trap: on
+    ## wasm32 clang gets the typed declarations too.
     mutating func extern_prototype(d: ast.Node*) -> !:
         if renamed(d):
-            try self.line("#if defined(__clang__)")
+            try self.line("#if defined(__clang__) && !defined(__wasm__)")
             try self.line("extern void ")
             try self.put_extern_name(d)
             try self.put("(void) LB_SYMBOL(")

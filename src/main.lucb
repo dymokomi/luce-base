@@ -57,6 +57,8 @@ struct Options:
     var emit_c: bool
     var run_tests: bool
     var native: bool
+    ## Whether `--native` or `--backend=c` was written, rather than the default taken.
+    var backend_chosen: bool
     var debug: bool
     var cpu: str
     ## `--lib`: a library and its header rather than a program (§17.6).
@@ -149,7 +151,8 @@ func pkg_config_flags(arguments: Arguments*, name: c.str, what: c.str, for_linke
 func link_flags(arguments: Arguments*, with_frameworks: bool) -> !:
     for directory in link_directories:
         try arguments.flag("-L", (str)directory)
-        try arguments.flag("-Wl,-rpath,", (str)directory)
+        if not is_wasm32():
+            try arguments.flag("-Wl,-rpath,", (str)directory)
     for library in link_libraries:
         try arguments.flag("-l", (str)library)
     if with_frameworks:
@@ -415,6 +418,63 @@ func host_c_compiler() -> c.str:
         return (c.str)selected
     return "gcc" if platform.windows else "cc"
 
+## The C toolchain a build uses: the host's own for a host target; for wasm32, which no
+## machine is a host of, a WASI toolchain, `$WASI_SDK` (a wasi-sdk) or Homebrew's llvm,
+## lld, wasi-libc and wasi-runtimes (§19.5).
+struct Tools:
+    var cc: c.str
+    var ar: c.str
+    var nm: c.str
+    ## The target and sysroot flags every C compile and link takes.
+    var flags: c.str[]
+
+func tools_for(t: targets.Target) -> Tools!:
+    if t.arch != targets.Arch.wasm32:
+        return Tools(cc = host_c_compiler(), ar = "ar", nm = "nm", flags = try alloc c.str[0])
+    if let sdk = os.env("WASI_SDK"):
+        var flags = try alloc c.str[1]
+        flags[0] = "--target=wasm32-wasip1"
+        return Tools(cc = try tool_path(sdk, "/bin/clang"), ar = try tool_path(sdk, "/bin/llvm-ar"), nm = try tool_path(sdk, "/bin/llvm-nm"), flags = flags)
+    var prefix = "/opt/homebrew"
+    if let chosen = os.env("HOMEBREW_PREFIX"):
+        prefix = chosen
+    elif not files.exists((c.str)try tool_path(prefix, "/opt/llvm/bin/clang")):
+        prefix = "/usr/local"
+    let clang = try prefixed(prefix, "/opt/llvm/bin/clang")
+    let linker = try prefixed(prefix, "/opt/lld/bin/wasm-ld")
+    let sysroot = try prefixed(prefix, "/opt/wasi-libc/share/wasi-sysroot")
+    let resources = try prefixed(prefix, "/opt/wasi-runtimes/share/wasi-runtimes")
+    if not (files.exists((c.str)clang) and files.exists((c.str)linker) and files.exists((c.str)sysroot) and files.exists((c.str)resources)):
+        error(build_failed, "a build for wasm32 needs a WASI toolchain: set WASI_SDK to a wasi-sdk, or install llvm, lld, wasi-libc and wasi-runtimes with Homebrew")
+    var flags = try alloc c.str[5]
+    flags[0] = "--target=wasm32-wasip1"
+    flags[1] = (c.str)try prefixed("--sysroot=", sysroot)
+    flags[2] = (c.str)try prefixed("-resource-dir=", resources)
+    flags[3] = (c.str)try prefixed("--ld-path=", linker)
+    # the linker's path is a link flag, which a compile alone would count unused
+    flags[4] = "-Wno-unused-command-line-argument"
+    return Tools(cc = (c.str)clang, ar = try tool_path(prefix, "/opt/llvm/bin/llvm-ar"), nm = try tool_path(prefix, "/opt/llvm/bin/llvm-nm"), flags = flags)
+
+func tool_path(root: str, rest: str) -> c.str!:
+    return (c.str)try prefixed(root, rest)
+
+func prefixed(left: str, right: str) -> str!:
+    let room = try alloc u8[left.length + right.length + 1]
+    return try format(room, f"{left}{right}")
+
+## The C compiler on `arguments`, with the target's flags first.
+func run_cc(arguments: c.str[], directory: str) -> (i32, str, str)!:
+    let tools = try tools_for(build_target())
+    let all = try alloc c.str[tools.flags.length + arguments.length]
+    for i in 0..<tools.flags.length:
+        all[i] = tools.flags[i]
+    for i in 0..<arguments.length:
+        all[tools.flags.length + i] = arguments[i]
+    return try host_tools.run_compiler(tools.cc, all, directory)
+
+func is_wasm32() -> bool:
+    return build_target().arch == targets.Arch.wasm32
+
 func compile(text: str, requested_exe: str, release: bool, with_start: bool) -> !:
     let output_buffer = try alloc u8[requested_exe.length + 5]
     defer free(output_buffer)
@@ -458,7 +518,8 @@ func compile(text: str, requested_exe: str, release: bool, with_start: bool) -> 
     let archive = try std_archive()
     try cc_args.add((c.str)archive)
     try cc_args.add("-lm")
-    try cc_args.add("-pthread")
+    if not is_wasm32():
+        try cc_args.add("-pthread")
     if platform.windows:
         try cc_args.add("-lsynchronization")
     try cc_args.add("-o")
@@ -478,7 +539,7 @@ func compile(text: str, requested_exe: str, release: bool, with_start: bool) -> 
         try pkg_config_flags(&cc_args, name, "--cflags", false)
         try pkg_config_flags(&cc_args, name, "--libs", false)
     try link_flags(&cc_args, platform.macos)
-    let result = try host_tools.run_compiler(host_c_compiler(), cc_args.span(), dir)
+    let result = try run_cc(cc_args.span(), dir)
     let (cc_status, cc_out, cc_err) = result
     discard(cc_out.length)
     if cc_status != 0:
@@ -505,6 +566,7 @@ func c_arguments(release: bool) -> Arguments!:
     return arguments
 
 func automatic_links(arguments: Arguments*, object: c.str, archive: c.str, directory: str) -> !:
+    native_links.nm_program = (try tools_for(build_target())).nm
     let required = try native_links.collect(object, archive, build_target(), directory)
     for library in required.libraries:
         if platform.windows and (str)library == "vulkan-1":
@@ -658,7 +720,13 @@ func build_file(path: c.str, options: Options) -> !:
         if options.target.length > 0:
             let chosen = targets.Target.named(options.target) else return try unknown_target()
             build_target_name = chosen.name
-            if not chosen.is_host() and not options.emit_c:
+            if chosen.arch == targets.Arch.wasm32:
+                # no machine is a wasm32 host: its programs are the C backend's, compiled
+                # and linked by a WASI toolchain on any host (§19.5)
+                if options.native and not options.emit_c and options.backend_chosen:
+                    error(build_failed, "wasm32 has no native generator; its programs are built through the C backend")
+                native_backend = false
+            elif not chosen.is_host() and not options.emit_c:
                 error(build_failed, "a program for another target is written as C with --emit=c and compiled there")
         if options.cpu.length > 0 and build_target().level_named(options.cpu) == none:
             return try unknown_level(build_target())
@@ -810,7 +878,10 @@ func bundle_std(dir: str, ar_args: Arguments*) -> !:
 
 ## Run a build tool; its standard error is shown when it fails.
 func run_tool(program: c.str, arguments: c.str[], what: str, directory: str = "") -> !:
-    let ran = try host_tools.run_compiler(host_c_compiler(), arguments, directory) if (str)program == "cc" else try host_tools.run(program, arguments, directory)
+    var chosen = program
+    if (str)program == "ar":
+        chosen = (try tools_for(build_target())).ar
+    let ran = try run_cc(arguments, directory) if (str)program == "cc" else try host_tools.run(chosen, arguments, directory)
     let (status, out, err) = ran
     discard(out.length)
     if status != 0:
@@ -907,6 +978,8 @@ func std_build(source_dir: str, out_dir: str) -> !:
     with arena:
         var checker = try check.Checker.create(scratch_of())
         checker.build_target = build_target()
+        if is_wasm32():
+            native_backend = false
         try checker.add_prelude_from(source_dir)
         try checker.check_program()
         try ensure_path(out_dir)
@@ -1349,6 +1422,7 @@ pub func main(arguments: c.str[]) -> i32!:
         options.emit_c = false
         options.run_tests = false
         options.native = true
+        options.backend_chosen = false
         options.debug = false
         options.library = false
         options.freestanding = false
@@ -1394,8 +1468,10 @@ pub func main(arguments: c.str[]) -> i32!:
                 i += 1
             elif a == "--native":
                 options.native = true
+                options.backend_chosen = true
             elif a == "--backend=c":
                 options.native = false
+                options.backend_chosen = true
             elif a == "--lib":
                 options.library = true
             elif a == "--freestanding":

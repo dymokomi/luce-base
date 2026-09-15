@@ -16,7 +16,7 @@ git -C ../luce-seed checkout --detach FETCH_HEAD
 test "$(git -C ../luce-seed rev-parse HEAD)" = "$seed_revision"
 (cd ../luce-seed && ./build.sh)
 if [ "$(uname -s)" = Darwin ]; then
-    brew install sdl3 pkg-config
+    brew install sdl3 pkg-config llvm lld wasi-libc wasi-runtimes wasmtime
 else
     sudo apt-get update
     sudo apt-get install -y clang cmake ninja-build pkg-config curl gdb binutils llvm libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxi-dev libxfixes-dev libxss-dev
@@ -25,4 +25,13 @@ else
     cmake --build ../sdl3/build --parallel 4
     sudo cmake --install ../sdl3/build
     sudo ldconfig
+    # a WASI toolchain for the wasm32 target (§19.5), and wasmtime to run its programs
+    case "$(uname -m)" in aarch64|arm64) wasi_arch=arm64;; *) wasi_arch=x86_64;; esac
+    curl -fsSL "https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-25/wasi-sdk-25.0-$wasi_arch-linux.tar.gz" | tar -xz -C ..
+    mv "../wasi-sdk-25.0-$wasi_arch-linux" ../wasi-sdk
+    curl -fsSL https://wasmtime.dev/install.sh | bash
+    if [ -n "${GITHUB_ENV:-}" ]; then
+        echo "WASI_SDK=$(cd ../wasi-sdk && pwd)" >> "$GITHUB_ENV"
+        echo "$HOME/.wasmtime/bin" >> "$GITHUB_PATH"
+    fi
 fi

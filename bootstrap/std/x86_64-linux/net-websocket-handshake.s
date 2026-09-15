@@ -6160,9 +6160,8 @@ lb_net_19websocket_protocols:
     ret
 
     .p2align 4
-    .globl lb_memory_copy_0g1_u8
-    .type lb_memory_copy_0g1_u8, @function
     .weak lb_memory_copy_0g1_u8
+    .type lb_memory_copy_0g1_u8, @function
 lb_memory_copy_0g1_u8:
     pushq %rbp
     movq %rsp, %rbp

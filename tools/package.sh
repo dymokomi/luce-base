@@ -33,6 +33,11 @@ mkdir -p "$work/$tree/bin" "$work/$tree/lib/luce-base/$host" "$work/$tree/share/
 cp "$exe" "$work/$tree/bin/$name"
 chmod 755 "$work/$tree/bin/$name"
 cp "$library/libstd.a" "$library/libstd-c.a" "$work/$tree/lib/luce-base/$host/"
+# the wasm32 library, when a WASI toolchain built it here: its objects run anywhere
+if [ -f build/lib/luce-base/wasm32/libstd-c.a ]; then
+    mkdir -p "$work/$tree/lib/luce-base/wasm32"
+    cp build/lib/luce-base/wasm32/libstd-c.a build/lib/luce-base/wasm32/lucb_rt.h "$work/$tree/lib/luce-base/wasm32/"
+fi
 cp LICENSE LICENSE-MIT LICENSE-APACHE VERSION "$work/$tree/share/luce-base/"
 cp docs/language/base.md "$work/$tree/share/luce-base/docs/language/"
 cp docs/LIBRARY.md docs/STATUS.md "$work/$tree/share/luce-base/docs/"

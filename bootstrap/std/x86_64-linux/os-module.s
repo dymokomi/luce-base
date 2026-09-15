@@ -26,6 +26,12 @@ lb_os_module_0init:
     leaq lb_os_6x86_64(%rip), %r12
     movq %r12, %r10
     movb %bl, (%r10)
+    leaq lb_platform_wasm32(%rip), %rbx
+    movq %rbx, %r10
+    movzbl (%r10), %ebx
+    leaq lb_os_wasm32(%rip), %r12
+    movq %r12, %r10
+    movb %bl, (%r10)
     leaq lb_platform_macos(%rip), %rbx
     movq %rbx, %r10
     movzbl (%r10), %r12d
@@ -1975,7 +1981,7 @@ lb_os_exit:
 .Ltext_4:
     .asciz "unreachable"
 .Ltext_5:
-    .asciz "src/std/os/module.lucb:61:9"
+    .asciz "src/std/os/module.lucb:62:9"
 .Ltext_6:
     .asciz "eax"
 .Ltext_7:
@@ -1991,27 +1997,27 @@ lb_os_exit:
 .Ltext_12:
     .asciz "shift count out of range"
 .Ltext_13:
-    .asciz "src/std/os/module.lucb:72:5"
-.Ltext_14:
     .asciz "src/std/os/module.lucb:73:5"
-.Ltext_15:
+.Ltext_14:
     .asciz "src/std/os/module.lucb:74:5"
+.Ltext_15:
+    .asciz "src/std/os/module.lucb:75:5"
 .Ltext_16:
-    .asciz "src/std/os/module.lucb:76:5"
-.Ltext_17:
     .asciz "src/std/os/module.lucb:77:5"
-.Ltext_18:
+.Ltext_17:
     .asciz "src/std/os/module.lucb:78:5"
-.Ltext_19:
+.Ltext_18:
     .asciz "src/std/os/module.lucb:79:5"
+.Ltext_19:
+    .asciz "src/std/os/module.lucb:80:5"
 .Ltext_20:
-    .asciz "src/std/os/module.lucb:84:5"
+    .asciz "src/std/os/module.lucb:85:5"
 .Ltext_21:
-    .asciz "src/std/os/module.lucb:95:5"
+    .asciz "src/std/os/module.lucb:96:5"
 .Ltext_22:
-    .asciz "src/std/os/module.lucb:102:5"
+    .asciz "src/std/os/module.lucb:103:5"
 .Ltext_23:
-    .asciz "src/std/os/module.lucb:110:5"
+    .asciz "src/std/os/module.lucb:111:5"
 .Ltext_24:
     .asciz "the environment variable cannot be set"
 .Ltext_25:
@@ -2021,51 +2027,51 @@ lb_os_exit:
 .Ltext_27:
     .asciz "memory.unset"
 .Ltext_28:
-    .asciz "src/std/os/module.lucb:139:5"
+    .asciz "src/std/os/module.lucb:140:5"
 .Ltext_29:
     .asciz "memory.exhausted"
 .Ltext_30:
-    .asciz "src/std/os/module.lucb:142:9"
+    .asciz "src/std/os/module.lucb:143:9"
 .Ltext_31:
     .asciz "the working directory cannot be read"
 .Ltext_32:
-    .asciz "src/std/os/module.lucb:144:5"
-.Ltext_33:
     .asciz "src/std/os/module.lucb:145:5"
+.Ltext_33:
+    .asciz "src/std/os/module.lucb:146:5"
 .Ltext_34:
-    .asciz "src/std/os/module.lucb:152:5"
+    .asciz "src/std/os/module.lucb:153:5"
 .Ltext_35:
     .asciz "/proc/self/exe"
 .Ltext_36:
-    .asciz "src/std/os/module.lucb:162:9"
+    .asciz "src/std/os/module.lucb:163:9"
 .Ltext_37:
-    .asciz "src/std/os/module.lucb:164:13"
+    .asciz "src/std/os/module.lucb:165:13"
 .Ltext_38:
     .asciz "the executable path cannot be read"
 .Ltext_39:
-    .asciz "src/std/os/module.lucb:167:5"
-.Ltext_40:
     .asciz "src/std/os/module.lucb:168:5"
+.Ltext_40:
+    .asciz "src/std/os/module.lucb:169:5"
 .Ltext_41:
     .asciz "index out of bounds"
 .Ltext_42:
     .asciz "the directory cannot be entered"
 .Ltext_43:
-    .asciz "src/std/os/module.lucb:183:5"
+    .asciz "src/std/os/module.lucb:184:5"
 .Ltext_44:
-    .asciz "src/std/os/module.lucb:188:5"
+    .asciz "src/std/os/module.lucb:189:5"
 .Ltext_45:
-    .asciz "src/std/os/module.lucb:198:5"
+    .asciz "src/std/os/module.lucb:199:5"
 .Ltext_46:
-    .asciz "src/std/os/module.lucb:200:9"
+    .asciz "src/std/os/module.lucb:201:9"
 .Ltext_47:
     .asciz "the host name cannot be read"
 .Ltext_48:
-    .asciz "src/std/os/module.lucb:203:5"
+    .asciz "src/std/os/module.lucb:204:5"
 .Ltext_49:
-    .asciz "src/std/os/module.lucb:204:9"
+    .asciz "src/std/os/module.lucb:205:9"
 .Ltext_50:
-    .asciz "src/std/os/module.lucb:205:5"
+    .asciz "src/std/os/module.lucb:206:5"
 .Ltext_51:
     .asciz "integer overflow"
 
@@ -2091,6 +2097,13 @@ lb_os_arm64:
     .type lb_os_6x86_64, @object
     .p2align 0
 lb_os_6x86_64:
+    .zero 1
+
+    .bss
+    .globl lb_os_wasm32
+    .type lb_os_wasm32, @object
+    .p2align 0
+lb_os_wasm32:
     .zero 1
 
     .bss

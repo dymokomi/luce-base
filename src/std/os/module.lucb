@@ -43,6 +43,7 @@ pub let failed: ErrorCode = ErrorCode.package(12)
 ## rules out is pruned (§19.6).
 pub let arm64: bool = platform.arm64
 pub let x86_64: bool = platform.x86_64
+pub let wasm32: bool = platform.wasm32
 pub let macos: bool = platform.macos
 pub let linux: bool = platform.linux
 pub let windows: bool = platform.windows

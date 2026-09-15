@@ -16,6 +16,19 @@ pub struct Format:
         try out.put(self.symbol_prefix)
         try out.put(name)
 
+    ## `.globl` and the linkage words: on ELF a weak symbol is `.weak` alone, since
+    ## `.globl` before it would only be changed back.
+    pub func global_symbol(out: buffer.Buffer*, name: str, weak: bool, used: bool) -> !:
+        if weak and self.os == build_target.Os.linux:
+            try out.put("    .weak ")
+            try self.symbol(out, name)
+            try out.put("\n")
+            return
+        try out.put("    .globl ")
+        try self.symbol(out, name)
+        try out.put("\n")
+        try self.linkage(out, name, weak, used)
+
     pub func linkage(out: buffer.Buffer*, name: str, weak: bool, used: bool) -> !:
         if weak and self.os != build_target.Os.windows:
             try out.put("    .weak ")
@@ -46,14 +59,11 @@ pub struct Format:
             try out.put(build_target.section_name(function.section, true, self.os))
             try out.put(",\"xr\"" if self.os == build_target.Os.windows else ",\"ax\",@progbits")
         try out.put("\n    .p2align 4\n")
-        try out.put("    .globl ")
-        try self.symbol(out, function.name)
+        try self.global_symbol(out, function.name, function.weak, function.used)
         if self.os != build_target.Os.windows:
-            try out.put("\n    .type ")
+            try out.put("    .type ")
             try self.symbol(out, function.name)
-            try out.put(", @function")
-        try out.put("\n")
-        try self.linkage(out, function.name, function.weak, function.used)
+            try out.put(", @function\n")
         try self.symbol(out, function.name)
         try out.put(":")
 
@@ -107,14 +117,11 @@ pub struct Format:
             else:
                 try out.put("\n    .bss\n")
             if not g.private:
-                try out.put("    .globl ")
-                try self.symbol(out, g.name)
-                try out.put("\n")
+                try self.global_symbol(out, g.name, g.weak, g.used)
             if self.os != build_target.Os.windows:
                 try out.put("    .type ")
                 try self.symbol(out, g.name)
                 try out.put(", @object\n")
-            try self.linkage(out, g.name, g.weak, g.used)
             try out.put("    .p2align ")
             try out.put_u64(align)
             try out.put("\n")

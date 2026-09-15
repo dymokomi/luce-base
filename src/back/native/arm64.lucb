@@ -17,6 +17,7 @@
 #
 #==============================================================================================
 
+import back.native.arm64.object
 import back.native.dwarf
 import back.native.frame
 import back.native.selection
@@ -39,6 +40,12 @@ pub struct Generator:
     var out: buffer.Buffer
     ## What precedes a C symbol in this target's assembler: `_` on macOS (§19.5).
     pub var symbol_prefix: str
+    ## Mach-O or ELF: what differs between arm64-macos and arm64-linux.
+    var object_format: object.Format
+    ## Whether the target promises FEAT_FP16, half-precision arithmetic in registers:
+    ## Apple's arm64 does; ARMv8.0-A, arm64-linux's baseline, has the conversions only, so
+    ## halves compute through single precision, which rounds the same (§19.5).
+    pub var fp16: bool
     var program_unit: ir.Unit*
     var f: ir.Function*
     var index: usize
@@ -54,8 +61,8 @@ pub struct Generator:
     ## operands relative to sp add it back.
     var sp_shift: u64
 
-    pub static func create(program_unit: ir.Unit*) -> Generator!:
-        return Generator(symbol_prefix = "_", out = try buffer.Buffer.create(262144), program_unit = program_unit, f = program_unit.functions.span().data, index = 0,
+    pub static func create(program_unit: ir.Unit*, os: build_target.Os = build_target.Os.macos, symbol_prefix: str = "_") -> Generator!:
+        return Generator(symbol_prefix = symbol_prefix, object_format = object.Format(os, symbol_prefix), fp16 = os == build_target.Os.macos, out = try buffer.Buffer.create(262144), program_unit = program_unit, f = program_unit.functions.span().data, index = 0,
                          fr = try frame.Frame.create(frame.Registers(ints = 10, floats = 8, keep_ints = 4, keep_floats = 4, scratch_ints = 2, scratch_floats = 8)), text_count = 0, descriptors = try buffer.Buffer.create(4096))
 
     # -- output ---------------------------------------------------------------------------
@@ -79,14 +86,19 @@ pub struct Generator:
         try self.out.put(name)
 
     mutating func label_name(n: u32) -> !:
-        try self.out.put("L")
+        try self.out.put(self.object_format.local_label)
         try self.out.put_u64((u64)self.index)
         try self.out.put("_")
         try self.out.put_u64((u64)n)
 
     mutating func text_label(n: u32) -> !:
-        try self.out.put("l_text_")
+        try self.out.put(self.object_format.text_label)
         try self.out.put_u64((u64)n)
+
+    ## The text literal's label as text, for an address the format spells.
+    func text_label_name(n: u32) -> str!:
+        let room = try alloc u8[self.object_format.text_label.length + 24]
+        return try format(room, f"{self.object_format.text_label}{n}")
 
     pub func text() -> str:
         return self.out.view()
@@ -260,6 +272,30 @@ pub struct Generator:
             return
         try self.frame_store(reg, self.temp_home(t))
 
+    ## A half register as this target moves it: itself with FEAT_FP16, else its
+    ## single-precision view, whose low sixteen bits are the half.
+    func hv(reg: str) -> str!:
+        if self.fp16 or reg.length == 0 or reg.bytes[0] != 'h':
+            return reg
+        let room = try alloc u8[reg.length]
+        memory.copy(room, reg.bytes, reg.length)
+        room[0] = 's'
+        return (str)room
+
+    ## The register letter of a float class as this target moves it.
+    func half_letter(cls: ir.Class) -> str:
+        if cls == ir.Class.h and not self.fp16:
+            return "s"
+        return float_letter(cls)
+
+    ## `fmov to, from` between float registers, halves through their single views where
+    ## the target has no half moves.
+    mutating func fmove(target_reg: str, from_reg: str) -> !:
+        try self.line("fmov ")
+        try self.put(try self.hv(target_reg))
+        try self.put(", ")
+        try self.put(try self.hv(from_reg))
+
     ## `to = from` between registers: `mov` for integers, `fmov` for floats, and the whole
     ## vector for a `q` view.
     mutating func register_move(target_reg: str, from_reg: str, code: u8) -> !:
@@ -270,7 +306,10 @@ pub struct Generator:
             try self.put(vector_view(from_reg))
             try self.put(".16b")
             return
-        try self.line("fmov " if self.fr.float_code(code) else "mov ")
+        if self.fr.float_code(code):
+            try self.fmove(target_reg, from_reg)
+            return
+        try self.line("mov ")
         try self.put(target_reg)
         try self.put(", ")
         try self.put(from_reg)
@@ -288,10 +327,7 @@ pub struct Generator:
         if r.kind == ir.RefKind.constant:
             if ir.is_float_class(cls):
                 try self.load_immediate("x16", r.value)
-                try self.line("fmov ")
-                try self.put(reg)
-                try self.put(", ")
-                try self.put("x16" if cls == ir.Class.d else "w16")
+                try self.fmove(reg, "x16" if cls == ir.Class.d else "w16")
                 return
             try self.load_immediate(self.as_x(reg), r.value)
             return
@@ -322,46 +358,13 @@ pub struct Generator:
         if r.kind == ir.RefKind.slot:
             try self.frame_address(reg, self.slot_home(r.index))
         elif r.kind == ir.RefKind.global and r.value == 0:
-            try self.line("adrp ")
-            try self.put(reg)
-            try self.put(", ")
-            try self.symbol(r.name)
-            try self.put("@PAGE")
-            try self.line("add ")
-            try self.put(reg)
-            try self.put(", ")
-            try self.put(reg)
-            try self.put(", ")
-            try self.symbol(r.name)
-            try self.put("@PAGEOFF")
+            try self.object_format.page_address(&self.out, reg, r.name, true)
         elif r.kind == ir.RefKind.global or r.kind == ir.RefKind.function:
             # a function's address, or another image's data (`import_ref`), goes through the
-            # GOT, so a symbol defined in a linked dylib resolves
-            try self.line("adrp ")
-            try self.put(reg)
-            try self.put(", ")
-            try self.symbol(r.name)
-            try self.put("@GOTPAGE")
-            try self.line("ldr ")
-            try self.put(reg)
-            try self.put(", [")
-            try self.put(reg)
-            try self.put(", ")
-            try self.symbol(r.name)
-            try self.put("@GOTPAGEOFF]")
+            # GOT, so a symbol defined in a linked shared library resolves
+            try self.object_format.got_address(&self.out, reg, r.name)
         elif r.kind == ir.RefKind.text:
-            try self.line("adrp ")
-            try self.put(reg)
-            try self.put(", ")
-            try self.text_label(r.index)
-            try self.put("@PAGE")
-            try self.line("add ")
-            try self.put(reg)
-            try self.put(", ")
-            try self.put(reg)
-            try self.put(", ")
-            try self.text_label(r.index)
-            try self.put("@PAGEOFF")
+            try self.object_format.page_address(&self.out, reg, try self.text_label_name(r.index), false)
         elif r.kind == ir.RefKind.temp:
             try self.load_temp(reg, ir.Class.l, r.index)
         elif r.kind == ir.RefKind.constant:
@@ -431,7 +434,7 @@ pub struct Generator:
         match op:
             .loadhf:
                 if d != h_names[code]:
-                    try self.line4("fmov ", d, ", ", h_names[code])
+                    try self.fmove(d, h_names[code])
             .loadl:
                 if d != xs:
                     try self.line4("mov ", d, ", ", xs)
@@ -462,7 +465,7 @@ pub struct Generator:
                     try self.line4("fmov ", w_names[code], ", ", v)
             .storehf:
                 if v != h_names[code]:
-                    try self.line4("fmov ", h_names[code], ", ", v)
+                    try self.fmove(h_names[code], v)
             .stored:
                 if v != x_names[code]:
                     try self.line4("fmov ", x_names[code], ", ", v)
@@ -494,19 +497,11 @@ pub struct Generator:
 
     ## `.weak_definition` and `.no_dead_strip` for a symbol with those attributes (§9.8).
     mutating func linkage_directives(name: str, weak: bool, used: bool) -> !:
-        if weak:
-            try self.put("    .weak_definition ")
-            try self.symbol(name)
-            try self.put("\n")
-        if used:
-            try self.put("    .no_dead_strip ")
-            try self.symbol(name)
-            try self.put("\n")
+        try self.object_format.linkage(&self.out, name, weak, used)
 
     ## Back to the text section after a function placed in a named one.
     mutating func leave_section() -> !:
-        if self.f.section.length > 0:
-            try self.put("\n    .section __TEXT,__text,regular,pure_instructions\n")
+        try self.object_format.leave_section(&self.out, self.f)
 
     mutating func function(index: usize) -> !:
         self.index = index
@@ -515,22 +510,14 @@ pub struct Generator:
         self.f = &self.program_unit.functions.items[index]
         try self.fr.plan(self.f)
         try self.fr.layout(self.f, 16, self.f.has_result and self.f.result_size > 16 and self.hfa(self.f.result_shape) == 0)
-        if self.f.section.length > 0:
-            try self.put("\n    .section ")
-            try self.put(build_target.section_name(self.f.section, true, build_target.Os.macos))
-        try self.put("\n    .p2align 2\n")
-        try self.put("    .globl ")
-        try self.symbol(self.f.name)
-        try self.put("\n")
-        try self.linkage_directives(self.f.name, self.f.weak, self.f.used)
-        try self.symbol(self.f.name)
-        try self.put(":")
+        try self.object_format.function_start(&self.out, self.f)
         if self.f.naked:
             # the body is asm blocks only (§9.8): no frame, no prologue, nothing after
             var k: usize = 0
             while k < self.f.instrs.count:
                 try self.instruction(self.f.instrs.get(k))
                 k += 1
+            try self.object_format.function_end(&self.out, self.f)
             try self.leave_section()
             return
         if self.dw != none:
@@ -580,6 +567,7 @@ pub struct Generator:
             try self.line(".cfi_endproc")
             try dw.function(self.f, &self.fr, index)
         try self.put("\n")
+        try self.object_format.function_end(&self.out, self.f)
         if self.f.debug:
             try self.describe_frame()
         try self.leave_section()
@@ -588,9 +576,13 @@ pub struct Generator:
     ## spelling, distance below the frame pointer, and size; every text is a `str`.
     mutating func describe_frame() -> !:
         var d = &self.descriptors
-        try d.put("    .globl _lbd_")
+        try d.put("    .globl ")
+        try d.put(self.symbol_prefix)
+        try d.put("lbd_")
         try d.put(self.f.name)
-        try d.put("\n_lbd_")
+        try d.put("\n")
+        try d.put(self.symbol_prefix)
+        try d.put("lbd_")
         try d.put(self.f.name)
         try d.put(":\n")
         try self.describe_text(self.f.name)
@@ -635,19 +627,21 @@ pub struct Generator:
                     if next_float < 8:
                         if code != 0:
                             try self.line("fmov ")
-                            try self.put(class_name((u8)code, p.cls))
+                            try self.put(try self.hv(class_name((u8)code, p.cls)))
                             try self.put(", ")
+                            try self.put(self.half_letter(p.cls))
                         else:
                             try self.frame_address("x16", home)
                             try self.line("str ")
-                        try self.put(float_letter(p.cls))
+                            try self.put(float_letter(p.cls))
                         try self.put_u64((u64)next_float)
                         if code == 0:
                             try self.put(", [x16]")
                         next_float += 1
                     else:
                         let width = scalar_stack_width(p.cls, p.scalar_width)
-                        stack_offset = arm_round_up(stack_offset, (u64)width)
+                        let slot = self.stack_slot(width)
+                        stack_offset = arm_round_up(stack_offset, (u64)slot)
                         try self.line(scalar_stack_load(width, false))
                         try self.put(" [x29, #")
                         try self.put_u64(stack_offset)
@@ -657,7 +651,7 @@ pub struct Generator:
                         else:
                             try self.frame_address("x16", home)
                             try self.line("str x9, [x16]")
-                        stack_offset += (u64)width
+                        stack_offset += (u64)slot
                 elif next_int < 8:
                     if code != 0:
                         try self.line("mov ")
@@ -806,20 +800,26 @@ pub struct Generator:
                 let v = try self.source(n.a, n.cls, self.reg(n.cls, 0))
                 let d = self.target(n.dst, n.cls, self.reg(n.cls, 0))
                 if v != d:
-                    try self.line("fmov " if ir.is_float_class(n.cls) else "mov ")
-                    try self.put(d)
-                    try self.put(", ")
-                    try self.put(v)
+                    if ir.is_float_class(n.cls):
+                        try self.fmove(d, v)
+                    else:
+                        try self.line3("mov ", d, ", ")
+                        try self.put(v)
                 try self.finish(n.dst, n.cls, d)
             .add, .sub, .mul, .sdiv, .udiv, .srem, .urem, .and_, .or_, .xor, .shl, .lshr, .ashr:
                 try self.arithmetic(n)
             .neg:
                 let v = try self.source(n.a, n.cls, self.reg(n.cls, 0))
                 let d = self.target(n.dst, n.cls, self.reg(n.cls, 0))
-                try self.line("fneg " if ir.is_float_class(n.cls) else "neg ")
-                try self.put(d)
-                try self.put(", ")
-                try self.put(v)
+                if n.cls == ir.Class.h and not self.fp16:
+                    try self.line3("fcvt s16, ", v, "")
+                    try self.line("fneg s16, s16")
+                    try self.line3("fcvt ", d, ", s16")
+                else:
+                    try self.line("fneg " if ir.is_float_class(n.cls) else "neg ")
+                    try self.put(d)
+                    try self.put(", ")
+                    try self.put(v)
                 try self.finish(n.dst, n.cls, d)
             .ceq, .cne, .cslt, .csle, .csgt, .csge, .cult, .cule, .cugt, .cuge:
                 try self.comparison(n)
@@ -881,16 +881,26 @@ pub struct Generator:
                 let src_cls = ir.Class.w if n.op == ir.Op.swtof or n.op == ir.Op.uwtof else ir.Class.l
                 let v = try self.source(n.a, src_cls, self.reg(src_cls, 0))
                 let d = self.target(n.dst, n.cls, self.reg(n.cls, 0))
-                try self.line3("scvtf " if n.op == ir.Op.swtof or n.op == ir.Op.sltof else "ucvtf ", d, ", ")
-                try self.put(v)
+                let convert = "scvtf " if n.op == ir.Op.swtof or n.op == ir.Op.sltof else "ucvtf "
+                if n.cls == ir.Class.h and not self.fp16:
+                    # exact in single precision for every integer a half can hold
+                    try self.line3(convert, "s16, ", v)
+                    try self.line3("fcvt ", d, ", s16")
+                else:
+                    try self.line3(convert, d, ", ")
+                    try self.put(v)
                 try self.finish(n.dst, n.cls, d)
             .cast:
-                # bits move between an integer and a float of the same width
+                # bits move between an integer and a float of the same width; a half's
+                # sixteen bits travel through its single view where there is no half move
                 let other = cast_partner(n.cls)
                 let v = try self.source(n.a, other, self.reg(other, 0))
                 let d = self.target(n.dst, n.cls, self.reg(n.cls, 0))
-                try self.line3("fmov ", d, ", ")
-                try self.put(v)
+                try self.fmove(d, v)
+                if other == ir.Class.h and not self.fp16:
+                    try self.line3("and ", d, ", ")
+                    try self.put(d)
+                    try self.put(", #0xffff")
                 try self.finish(n.dst, n.cls, d)
             .addr:
                 if self.fr.promoted_slot(n.dst) == 0:
@@ -898,14 +908,7 @@ pub struct Generator:
                     try self.address_operand(d, n.a)
                     try self.finish(n.dst, ir.Class.l, d)
             .addr_tls:
-                try self.line("adrp x0, ")
-                try self.symbol(n.a.name)
-                try self.put("@TLVPPAGE")
-                try self.line("ldr x0, [x0, ")
-                try self.symbol(n.a.name)
-                try self.put("@TLVPPAGEOFF]")
-                try self.line("ldr x16, [x0]")
-                try self.line("blr x16")
+                try self.object_format.thread_address(&self.out, n.a.name)
                 try self.store_temp("x0", n.dst)
             .blit:
                 if n.extra <= 128:
@@ -1027,6 +1030,21 @@ pub struct Generator:
         let b = try self.source(n.b, n.cls, self.reg(n.cls, 1))
         let d = self.target(n.dst, n.cls, self.reg(n.cls, 0))
         let is_float = ir.is_float_class(n.cls)
+        if n.cls == ir.Class.h and not self.fp16:
+            # single precision holds every half exactly and its result rounds to the
+            # half a half operation would give (§5.1): one rounding, not two
+            var half_op = "fadd"
+            match n.op:
+                .sub: half_op = "fsub"
+                .mul: half_op = "fmul"
+                .sdiv: half_op = "fdiv"
+                _: half_op = "fadd"
+            try self.line3("fcvt s16, ", a, "")
+            try self.line3("fcvt s17, ", b, "")
+            try self.line3(half_op, " s16, s16, s17", "")
+            try self.line3("fcvt ", d, ", s16")
+            try self.finish(n.dst, n.cls, d)
+            return
         var mnemonic = "add"
         match n.op:
             .add: mnemonic = "fadd" if is_float else "add"
@@ -1071,10 +1089,15 @@ pub struct Generator:
         let a = try self.source(n.a, n.cls, self.reg(n.cls, 0))
         let b = try self.source(n.b, n.cls, self.reg(n.cls, 1))
         let is_float = ir.is_float_class(n.cls)
-        try self.line("fcmp " if is_float else "cmp ")
-        try self.put(a)
-        try self.put(", ")
-        try self.put(b)
+        if n.cls == ir.Class.h and not self.fp16:
+            try self.line3("fcvt s16, ", a, "")
+            try self.line3("fcvt s17, ", b, "")
+            try self.line("fcmp s16, s17")
+        else:
+            try self.line("fcmp " if is_float else "cmp ")
+            try self.put(a)
+            try self.put(", ")
+            try self.put(b)
         var cond = "eq"
         match n.op:
             .ceq: cond = "eq"
@@ -1450,6 +1473,11 @@ pub struct Generator:
     # mark: Calls ==============================================================================
 
     ## Classify one argument under the Apple convention, advancing the counters.
+    ## The stack a scalar argument takes: its own width on Apple's convention, which packs
+    ## stack arguments, eight bytes under AAPCS64.
+    func stack_slot(width: u32) -> u32:
+        return width if self.object_format.apple else 8
+
     func place(a: ir.Arg, next_int: u32*, next_float: u32*, stack: u32*) -> ArgPlacement:
         if a.size == 0:
             if ir.is_float_class(a.cls):
@@ -1457,19 +1485,19 @@ pub struct Generator:
                     let p = ArgPlacement(where = 1, first = *next_float, count = 1, stack_offset = 0)
                     *next_float += 1
                     return p
-                let width = scalar_stack_width(a.cls, a.scalar_width)
-                *stack = (u32)arm_round_up((u64)*stack, (u64)width)
+                let slot = self.stack_slot(scalar_stack_width(a.cls, a.scalar_width))
+                *stack = (u32)arm_round_up((u64)*stack, (u64)slot)
                 let p = ArgPlacement(where = 2, first = 0, count = 1, stack_offset = *stack)
-                *stack += width
+                *stack += slot
                 return p
             if *next_int < 8:
                 let p = ArgPlacement(where = 0, first = *next_int, count = 1, stack_offset = 0)
                 *next_int += 1
                 return p
-            let width = scalar_stack_width(a.cls, a.scalar_width)
-            *stack = (u32)arm_round_up((u64)*stack, (u64)width)
+            let slot = self.stack_slot(scalar_stack_width(a.cls, a.scalar_width))
+            *stack = (u32)arm_round_up((u64)*stack, (u64)slot)
             let p = ArgPlacement(where = 2, first = 0, count = 1, stack_offset = *stack)
-            *stack += width
+            *stack += slot
             return p
         let floats = self.hfa(a.shape)
         if floats > 0 and *next_float + floats <= 8:
@@ -1515,8 +1543,9 @@ pub struct Generator:
         var i: u32 = 0
         while i < info.args_count:
             let a = self.f.args.get((usize)(info.args_start + i))
-            if info.variadic and i >= info.fixed_count:
-                # Apple passes every variadic argument on the stack, eight bytes each
+            if info.variadic and i >= info.fixed_count and self.object_format.apple:
+                # Apple passes every variadic argument on the stack, eight bytes each;
+                # AAPCS64 places them like any other
                 stack = (u32)arm_round_up((u64)stack, 8)
                 placements[i] = ArgPlacement(where = 2, first = 0, count = 1, stack_offset = stack)
                 stack += 8
@@ -1547,7 +1576,7 @@ pub struct Generator:
                 if a.size == 0:
                     try self.operand(self.reg(a.cls, 0), a.cls, a.value)
                     let width = scalar_stack_width(a.cls, a.scalar_width)
-                    if info.variadic and i >= info.fixed_count:
+                    if info.variadic and i >= info.fixed_count and self.object_format.apple:
                         try self.line("str ")
                         try self.put(self.wide(a.cls, 0))
                     elif ir.is_float_class(a.cls):
@@ -1597,10 +1626,10 @@ pub struct Generator:
                 if a.size == 0:
                     try self.operand(self.reg(a.cls, 0), a.cls, a.value)
                     try self.line("fmov ")
-                    try self.put(float_letter(a.cls))
+                    try self.put(self.half_letter(a.cls))
                     try self.put_u64((u64)p.first)
                     try self.put(", ")
-                    try self.put(self.reg(a.cls, 0))
+                    try self.put(try self.hv(self.reg(a.cls, 0)))
                 else:
                     try self.address_operand("x9", a.value)
                     let each = (u64)a.size // (u64)self.hfa(a.shape)
@@ -1738,7 +1767,7 @@ pub struct Generator:
                     try self.line("fmov s0, s16")
                 elif self.f.result_cls == ir.Class.h:
                     try self.operand("h16", ir.Class.h, n.a)
-                    try self.line("fmov h0, h16")
+                    try self.fmove("h0", "h16")
                 elif self.f.result_cls == ir.Class.d:
                     try self.operand("d16", ir.Class.d, n.a)
                     try self.line("fmov d0, d16")
@@ -1809,7 +1838,7 @@ pub struct Generator:
     pub mutating func generate() -> !:
         if let dw = self.dw:
             try dw.begin(&self.out)
-        try self.put("    .section __TEXT,__text,regular,pure_instructions\n")
+        try self.object_format.text_section(&self.out)
         var i: usize = 0
         while i < self.program_unit.functions.count:
             try self.function(i)
@@ -1820,14 +1849,9 @@ pub struct Generator:
             try self.put("\n")
             try self.put(self.program_unit.module_asm.get(i).bytes)
             i += 1
-        # the loader runs the unit's initialiser: Mach-O's `__mod_init_func` (§17.6)
-        if self.program_unit.init_function.length > 0:
-            try self.put("\n    .section __DATA,__mod_init_func,mod_init_funcs\n    .p2align 3\n    .quad ")
-            try self.symbol(self.program_unit.init_function)
-            try self.put("\n")
-        # text literals: `__const`, not `__cstring`, because the linker merges C string
-        # literals by their content up to a NUL, and a Base text may hold one (§4.4)
-        try self.put("\n    .section __TEXT,__const\n")
+        try self.object_format.initializer(&self.out, self.program_unit.init_function)
+        # text literals
+        try self.object_format.read_only(&self.out)
         i = 0
         while i < self.program_unit.texts.count:
             try self.text_label(u32(i))
@@ -1836,15 +1860,12 @@ pub struct Generator:
             try self.put("\n")
             i += 1
         # witness tables
-        try self.put("\n    .section __DATA,__const\n    .p2align 3\n")
+        try self.object_format.relocated_read_only(&self.out)
         i = 0
         while i < self.program_unit.tables.count:
             let t = self.program_unit.tables.get(i)
-            try self.put("    .globl ")
-            try self.symbol(t.name)
-            try self.put("\n")
             # every unit that views the record has the same table; the linker keeps one
-            try self.linkage_directives(t.name, true, false)
+            try self.object_format.global_symbol(&self.out, t.name, true, false)
             try self.symbol(t.name)
             try self.put(":\n")
             var k: usize = 0
@@ -1861,79 +1882,11 @@ pub struct Generator:
         # frame descriptors, when `--debug` asked for them
         if self.descriptors.used > 0:
             try self.put(self.descriptors.view())
-        # globals
-        i = 0
-        while i < self.program_unit.globals.count:
-            let g = self.program_unit.globals.get(i)
-            if g.external:
-                i += 1
-                continue
-            if g.is_thread_local:
-                try self.put("\n    .section __DATA,__thread_bss,thread_local_zerofill\n    .p2align 4\n")
-                try self.symbol(g.name)
-                try self.put("$tlv$init:\n    .space ")
-                try self.put_u64((u64)g.size if g.size > 0 else 1)
-                try self.put("\n    .section __DATA,__thread_vars,thread_local_variables\n    .globl ")
-                try self.symbol(g.name)
-                try self.put("\n")
-                try self.symbol(g.name)
-                try self.put(":\n    .quad __tlv_bootstrap\n    .quad 0\n    .quad ")
-                try self.symbol(g.name)
-                try self.put("$tlv$init\n")
-            elif g.section.length > 0:
-                # a named section: laid out as zeroed space where the program asked
-                try self.put("\n    .section ")
-                try self.put(build_target.section_name(g.section, false, build_target.Os.macos))
-                try self.put("\n    .p2align ")
-                try self.put_u64(log2((u64)g.align if g.align > 0 else 1))
-                try self.put("\n    .globl ")
-                try self.symbol(g.name)
-                try self.put("\n")
-                try self.linkage_directives(g.name, g.weak, g.used)
-                try self.symbol(g.name)
-                try self.put(":\n    .space ")
-                try self.put_u64((u64)g.size if g.size > 0 else 1)
-                try self.put("\n")
-            elif g.private:
-                # a symbol of this unit alone
-                try self.put("    .zerofill __DATA,__bss,")
-                try self.symbol(g.name)
-                try self.put(",")
-                try self.put_u64((u64)g.size if g.size > 0 else 1)
-                try self.put(",")
-                try self.put_u64(log2((u64)g.align if g.align > 0 else 1))
-                try self.put("\n")
-            elif g.weak:
-                # the linker coalesces weak storage only when it is data, not zero-fill
-                try self.put("    .section __DATA,__data\n    .p2align ")
-                try self.put_u64(log2((u64)g.align if g.align > 0 else 1))
-                try self.put("\n    .globl ")
-                try self.symbol(g.name)
-                try self.put("\n")
-                try self.linkage_directives(g.name, true, g.used)
-                try self.symbol(g.name)
-                try self.put(":\n    .zero ")
-                try self.put_u64((u64)g.size if g.size > 0 else 1)
-                try self.put("\n")
-            else:
-                try self.put("    .globl ")
-                try self.symbol(g.name)
-                try self.put("\n")
-                try self.linkage_directives(g.name, g.weak, g.used)
-                try self.put("    .zerofill __DATA,__bss,")
-                try self.symbol(g.name)
-                try self.put(",")
-                try self.put_u64((u64)g.size if g.size > 0 else 1)
-                try self.put(",")
-                try self.put_u64(log2((u64)g.align if g.align > 0 else 1))
-                try self.put("\n")
-            i += 1
+        try self.object_format.globals(&self.out, self.program_unit)
         try self.put("\n")
         if let dw = self.dw:
             try dw.finish(&self.out)
-        # every symbol is an atom of its own: what the linker needs to coalesce the weak
-        # definitions of instances and witness tables across units, and to drop dead ones
-        try self.put(".subsections_via_symbols\n")
+        try self.object_format.finish(&self.out)
 
     mutating func c_string(text: str) -> !:
         try self.put("\"")

@@ -3085,9 +3085,8 @@ lb_net_swap32:
     ret
 
     .p2align 4
-    .globl lb_memory_move_0g1_u8
-    .type lb_memory_move_0g1_u8, @function
     .weak lb_memory_move_0g1_u8
+    .type lb_memory_move_0g1_u8, @function
 lb_memory_move_0g1_u8:
     pushq %rbp
     movq %rsp, %rbp
@@ -3189,9 +3188,8 @@ lb_memory_move_0g1_u8:
     ret
 
     .p2align 4
-    .globl lb_memory_read_0g1_u16
-    .type lb_memory_read_0g1_u16, @function
     .weak lb_memory_read_0g1_u16
+    .type lb_memory_read_0g1_u16, @function
 lb_memory_read_0g1_u16:
     pushq %rbp
     movq %rsp, %rbp
@@ -3231,9 +3229,8 @@ lb_memory_read_0g1_u16:
     call lb_core_7trap_at@PLT
 
     .p2align 4
-    .globl lb_memory_read_0g1_net_NativeIpv4Address
-    .type lb_memory_read_0g1_net_NativeIpv4Address, @function
     .weak lb_memory_read_0g1_net_NativeIpv4Address
+    .type lb_memory_read_0g1_net_NativeIpv4Address, @function
 lb_memory_read_0g1_net_NativeIpv4Address:
     pushq %rbp
     movq %rsp, %rbp
@@ -3277,9 +3274,8 @@ lb_memory_read_0g1_net_NativeIpv4Address:
     call lb_core_7trap_at@PLT
 
     .p2align 4
-    .globl lb_memory_read_0g1_net_NativeIpv6Address
-    .type lb_memory_read_0g1_net_NativeIpv6Address, @function
     .weak lb_memory_read_0g1_net_NativeIpv6Address
+    .type lb_memory_read_0g1_net_NativeIpv6Address, @function
 lb_memory_read_0g1_net_NativeIpv6Address:
     pushq %rbp
     movq %rsp, %rbp

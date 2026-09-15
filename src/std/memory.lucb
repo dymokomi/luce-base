@@ -192,7 +192,7 @@ pub struct PageAllocator: Allocator:
         let padded = size +? (page - 1) else return none
         let rounded = padded // page * page
         let mapped = map_pages(rounded) else return none
-        if (usize)mapped == 18446744073709551615:
+        if (usize)mapped == ~(usize)0:
             note_refusal("page allocator", size, alignment, 0)
             return none
         return u8[]((u8*)mapped, rounded)

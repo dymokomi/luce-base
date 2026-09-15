@@ -74,7 +74,7 @@ func windows_executable() -> str!:
 
 func windows_parent_pid() -> i32:
     let snapshot = CreateToolhelp32Snapshot(2, 0)
-    if (usize)snapshot == 0xFFFFFFFFFFFFFFFF:
+    if (usize)snapshot == ~(usize)0:
         return 0
     defer discard(CloseHandle(snapshot))
     var entry: WinProcessEntry

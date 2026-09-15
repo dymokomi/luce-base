@@ -11,9 +11,8 @@ lb_process_windows_0init:
     ret
 
     .p2align 4
-    .globl lb_process_15release_storage_0g1_u16
-    .type lb_process_15release_storage_0g1_u16, @function
     .weak lb_process_15release_storage_0g1_u16
+    .type lb_process_15release_storage_0g1_u16, @function
 lb_process_15release_storage_0g1_u16:
     pushq %rbp
     movq %rsp, %rbp

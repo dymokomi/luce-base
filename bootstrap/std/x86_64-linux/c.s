@@ -8,11 +8,26 @@ lb_c_0init:
     movq %rsp, %rbp
     subq $16, %rsp
     movq %rbx, -8(%rbp)
-    leaq lb_c_interrupted(%rip), %rbx
-    movl $4, %eax
+    movq %r12, -16(%rbp)
+    leaq lb_platform_wasm32(%rip), %rbx
     movq %rbx, %r10
-    movl %eax, (%r10)
+    movzbl (%r10), %ebx
+    testl %ebx, %ebx
+    jne .L0_1
+    jmp .L0_2
+.L0_1:
+    movl $27, %eax
+    movl %eax, %ebx
+    jmp .L0_3
+.L0_2:
+    movl $4, %eax
+    movl %eax, %ebx
+.L0_3:
+    leaq lb_c_interrupted(%rip), %r12
+    movq %r12, %r10
+    movl %ebx, (%r10)
     movq -8(%rbp), %rbx
+    movq -16(%rbp), %r12
     movq %rbp, %rsp
     popq %rbp
     ret
@@ -189,11 +204,11 @@ lb_c_stderr:
 .Ltext_4:
     .asciz "supplied by the backend"
 .Ltext_5:
-    .asciz "src/std/c.lucb:33:5"
+    .asciz "src/std/c.lucb:34:5"
 .Ltext_6:
-    .asciz "src/std/c.lucb:36:5"
+    .asciz "src/std/c.lucb:37:5"
 .Ltext_7:
-    .asciz "src/std/c.lucb:39:5"
+    .asciz "src/std/c.lucb:40:5"
 
     .section .data.rel.ro,"aw"
     .p2align 3

@@ -6,13 +6,6 @@
 lb_window_10macos_text_0init:
     pushq %rbp
     movq %rsp, %rbp
-    subq $16, %rsp
-    movq %rbx, -8(%rbp)
-    leaq lb_window_13mac_not_found(%rip), %rbx
-    movabsq $9223372036854775807, %rax
-    movq %rbx, %r10
-    movq %rax, (%r10)
-    movq -8(%rbp), %rbx
     movq %rbp, %rsp
     popq %rbp
     ret
@@ -29,106 +22,103 @@ lb_window_10macos_text_0init:
 .Lvsign64:
     .quad -9223372036854775808, -9223372036854775808
 .Ltext_0:
-    .asciz "NSTextInputClient"
+    .asciz "shift count out of range"
 .Ltext_1:
-    .asciz "AppKit text input is unavailable"
+    .asciz "src/std/window/macos/text.lucb:5:5"
 .Ltext_2:
-    .asciz "could not register the native text input client"
-.Ltext_3:
-    .asciz "insertText:replacementRange:"
-.Ltext_4:
-    .asciz "v@:@{_NSRange=QQ}"
-.Ltext_5:
-    .asciz "setMarkedText:selectedRange:replacementRange:"
-.Ltext_6:
-    .asciz "v@:@{_NSRange=QQ}{_NSRange=QQ}"
-.Ltext_7:
-    .asciz "unmarkText"
-.Ltext_8:
-    .asciz "v@:"
-.Ltext_9:
-    .asciz "hasMarkedText"
-.Ltext_10:
-    .asciz "B@:"
-.Ltext_11:
-    .asciz "markedRange"
-.Ltext_12:
-    .asciz "{_NSRange=QQ}@:"
-.Ltext_13:
-    .asciz "selectedRange"
-.Ltext_14:
-    .asciz "validAttributesForMarkedText"
-.Ltext_15:
-    .asciz "@@:"
-.Ltext_16:
-    .asciz "attributedSubstringForProposedRange:actualRange:"
-.Ltext_17:
-    .asciz "@@:{_NSRange=QQ}^{_NSRange=QQ}"
-.Ltext_18:
-    .asciz "characterIndexForPoint:"
-.Ltext_19:
-    .asciz "Q@:{CGPoint=dd}"
-.Ltext_20:
-    .asciz "firstRectForCharacterRange:actualRange:"
-.Ltext_21:
-    .asciz "{CGRect={CGPoint=dd}{CGSize=dd}}@:{_NSRange=QQ}^{_NSRange=QQ}"
-.Ltext_22:
-    .asciz "doCommandBySelector:"
-.Ltext_23:
-    .asciz "v@::"
-.Ltext_24:
-    .asciz "NSString"
-.Ltext_25:
-    .asciz "isKindOfClass:"
-.Ltext_26:
-    .asciz "string"
-.Ltext_27:
     .asciz "unreachable"
+.Ltext_3:
+    .asciz "NSTextInputClient"
+.Ltext_4:
+    .asciz "AppKit text input is unavailable"
+.Ltext_5:
+    .asciz "could not register the native text input client"
+.Ltext_6:
+    .asciz "insertText:replacementRange:"
+.Ltext_7:
+    .asciz "v@:@{_NSRange=QQ}"
+.Ltext_8:
+    .asciz "setMarkedText:selectedRange:replacementRange:"
+.Ltext_9:
+    .asciz "v@:@{_NSRange=QQ}{_NSRange=QQ}"
+.Ltext_10:
+    .asciz "unmarkText"
+.Ltext_11:
+    .asciz "v@:"
+.Ltext_12:
+    .asciz "hasMarkedText"
+.Ltext_13:
+    .asciz "B@:"
+.Ltext_14:
+    .asciz "markedRange"
+.Ltext_15:
+    .asciz "{_NSRange=QQ}@:"
+.Ltext_16:
+    .asciz "selectedRange"
+.Ltext_17:
+    .asciz "validAttributesForMarkedText"
+.Ltext_18:
+    .asciz "@@:"
+.Ltext_19:
+    .asciz "attributedSubstringForProposedRange:actualRange:"
+.Ltext_20:
+    .asciz "@@:{_NSRange=QQ}^{_NSRange=QQ}"
+.Ltext_21:
+    .asciz "characterIndexForPoint:"
+.Ltext_22:
+    .asciz "Q@:{CGPoint=dd}"
+.Ltext_23:
+    .asciz "firstRectForCharacterRange:actualRange:"
+.Ltext_24:
+    .asciz "{CGRect={CGPoint=dd}{CGSize=dd}}@:{_NSRange=QQ}^{_NSRange=QQ}"
+.Ltext_25:
+    .asciz "doCommandBySelector:"
+.Ltext_26:
+    .asciz "v@::"
+.Ltext_27:
+    .asciz "NSString"
 .Ltext_28:
-    .asciz "src/std/window/macos/text.lucb:25:5"
+    .asciz "isKindOfClass:"
 .Ltext_29:
-    .asciz "release"
+    .asciz "string"
 .Ltext_30:
-    .asciz "length"
+    .asciz "src/std/window/macos/text.lucb:27:5"
 .Ltext_31:
-    .asciz "src/std/window/macos/text.lucb:42:5"
+    .asciz "release"
 .Ltext_32:
-    .asciz "characterAtIndex:"
+    .asciz "length"
 .Ltext_33:
-    .asciz "copy"
+    .asciz "src/std/window/macos/text.lucb:44:5"
 .Ltext_34:
-    .asciz "src/std/window/macos/text.lucb:68:5"
+    .asciz "characterAtIndex:"
 .Ltext_35:
-    .asciz "src/std/window/macos/text.lucb:73:5"
+    .asciz "copy"
 .Ltext_36:
-    .asciz "src/std/window/macos/text.lucb:77:5"
+    .asciz "src/std/window/macos/text.lucb:70:5"
 .Ltext_37:
-    .asciz "NSArray"
+    .asciz "src/std/window/macos/text.lucb:75:5"
 .Ltext_38:
-    .asciz "array"
+    .asciz "src/std/window/macos/text.lucb:79:5"
 .Ltext_39:
-    .asciz "src/std/window/macos/text.lucb:81:5"
+    .asciz "NSArray"
 .Ltext_40:
-    .asciz "src/std/window/macos/text.lucb:86:5"
+    .asciz "array"
 .Ltext_41:
-    .asciz "src/std/window/macos/text.lucb:89:5"
+    .asciz "src/std/window/macos/text.lucb:83:5"
 .Ltext_42:
-    .asciz "convertRectToScreen:"
+    .asciz "src/std/window/macos/text.lucb:88:5"
 .Ltext_43:
-    .asciz "src/std/window/macos/text.lucb:96:5"
+    .asciz "src/std/window/macos/text.lucb:91:5"
 .Ltext_44:
-    .asciz "inputContext"
+    .asciz "convertRectToScreen:"
 .Ltext_45:
+    .asciz "src/std/window/macos/text.lucb:98:5"
+.Ltext_46:
+    .asciz "inputContext"
+.Ltext_47:
     .asciz "discardMarkedText"
 
     .section .data.rel.ro,"aw"
     .p2align 3
-
-    .bss
-    .globl lb_window_13mac_not_found
-    .type lb_window_13mac_not_found, @object
-    .p2align 3
-lb_window_13mac_not_found:
-    .zero 8
 
     .section .note.GNU-stack,"",@progbits

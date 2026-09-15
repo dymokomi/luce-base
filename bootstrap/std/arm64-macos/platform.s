@@ -43,6 +43,10 @@ _lb_platform_0init:
     add x14, x14, _lb_platform_6x86_64@PAGEOFF
     mov x9, #0
     strb w9, [x14]
+    adrp x14, _lb_platform_wasm32@PAGE
+    add x14, x14, _lb_platform_wasm32@PAGEOFF
+    mov x9, #0
+    strb w9, [x14]
     adrp x14, _lb_platform_12pointer_bits@PAGE
     add x14, x14, _lb_platform_12pointer_bits@PAGEOFF
     movz x9, #64
@@ -86,6 +90,9 @@ l_text_0:
     .globl _lb_platform_6x86_64
     .no_dead_strip _lb_platform_6x86_64
     .zerofill __DATA,__bss,_lb_platform_6x86_64,1,0
+    .globl _lb_platform_wasm32
+    .no_dead_strip _lb_platform_wasm32
+    .zerofill __DATA,__bss,_lb_platform_wasm32,1,0
     .globl _lb_platform_12pointer_bits
     .no_dead_strip _lb_platform_12pointer_bits
     .zerofill __DATA,__bss,_lb_platform_12pointer_bits,4,2

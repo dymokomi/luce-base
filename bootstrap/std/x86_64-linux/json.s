@@ -5678,9 +5678,8 @@ lb_json_Value_close:
     ret
 
     .p2align 4
-    .globl lb_memory_copy_0g1_u8
-    .type lb_memory_copy_0g1_u8, @function
     .weak lb_memory_copy_0g1_u8
+    .type lb_memory_copy_0g1_u8, @function
 lb_memory_copy_0g1_u8:
     pushq %rbp
     movq %rsp, %rbp
@@ -5782,9 +5781,8 @@ lb_memory_copy_0g1_u8:
     ret
 
     .p2align 4
-    .globl lb_interop_Reference_0g1_json_Value_adopt
-    .type lb_interop_Reference_0g1_json_Value_adopt, @function
     .weak lb_interop_Reference_0g1_json_Value_adopt
+    .type lb_interop_Reference_0g1_json_Value_adopt, @function
 lb_interop_Reference_0g1_json_Value_adopt:
     pushq %rbp
     movq %rsp, %rbp
@@ -6034,9 +6032,8 @@ lb_interop_Reference_0g1_json_Value_adopt:
     call lb_core_7trap_at@PLT
 
     .p2align 4
-    .globl lb_interop_Reference_0g1_json_Value_get
-    .type lb_interop_Reference_0g1_json_Value_get, @function
     .weak lb_interop_Reference_0g1_json_Value_get
+    .type lb_interop_Reference_0g1_json_Value_get, @function
 lb_interop_Reference_0g1_json_Value_get:
     pushq %rbp
     movq %rsp, %rbp
@@ -6169,9 +6166,8 @@ lb_interop_Reference_0g1_json_Value_get:
     call lb_core_7trap_at@PLT
 
     .p2align 4
-    .globl lb_interop_Reference_0g1_json_Value_release
-    .type lb_interop_Reference_0g1_json_Value_release, @function
     .weak lb_interop_Reference_0g1_json_Value_release
+    .type lb_interop_Reference_0g1_json_Value_release, @function
 lb_interop_Reference_0g1_json_Value_release:
     pushq %rbp
     movq %rsp, %rbp
@@ -6190,9 +6186,8 @@ lb_interop_Reference_0g1_json_Value_release:
     ret
 
     .p2align 4
-    .globl lb_interop_Reservation_0g1_json_Value_init
-    .type lb_interop_Reservation_0g1_json_Value_init, @function
     .weak lb_interop_Reservation_0g1_json_Value_init
+    .type lb_interop_Reservation_0g1_json_Value_init, @function
 lb_interop_Reservation_0g1_json_Value_init:
     pushq %rbp
     movq %rsp, %rbp
@@ -6447,9 +6442,8 @@ lb_interop_Reservation_0g1_json_Value_init:
     ret
 
     .p2align 4
-    .globl lb_interop_Reservation_0g1_json_Value_publish
-    .type lb_interop_Reservation_0g1_json_Value_publish, @function
     .weak lb_interop_Reservation_0g1_json_Value_publish
+    .type lb_interop_Reservation_0g1_json_Value_publish, @function
 lb_interop_Reservation_0g1_json_Value_publish:
     pushq %rbp
     movq %rsp, %rbp
@@ -6567,9 +6561,8 @@ lb_interop_Reservation_0g1_json_Value_publish:
     call lb_core_7trap_at@PLT
 
     .p2align 4
-    .globl lb_interop_Owner_0g1_json_Value_12finish_owner
-    .type lb_interop_Owner_0g1_json_Value_12finish_owner, @function
     .weak lb_interop_Owner_0g1_json_Value_12finish_owner
+    .type lb_interop_Owner_0g1_json_Value_12finish_owner, @function
 lb_interop_Owner_0g1_json_Value_12finish_owner:
     pushq %rbp
     movq %rsp, %rbp
@@ -6587,9 +6580,8 @@ lb_interop_Owner_0g1_json_Value_12finish_owner:
     ret
 
     .p2align 4
-    .globl lb_interop_Owner_0g1_json_Value_10drop_owner
-    .type lb_interop_Owner_0g1_json_Value_10drop_owner, @function
     .weak lb_interop_Owner_0g1_json_Value_10drop_owner
+    .type lb_interop_Owner_0g1_json_Value_10drop_owner, @function
 lb_interop_Owner_0g1_json_Value_10drop_owner:
     pushq %rbp
     movq %rsp, %rbp
@@ -6705,9 +6697,8 @@ lb_interop_Owner_0g1_json_Value_10drop_owner:
     ret
 
     .p2align 4
-    .globl lb_interop_Owner_0g1_json_Value_11trace_owner
-    .type lb_interop_Owner_0g1_json_Value_11trace_owner, @function
     .weak lb_interop_Owner_0g1_json_Value_11trace_owner
+    .type lb_interop_Owner_0g1_json_Value_11trace_owner, @function
 lb_interop_Owner_0g1_json_Value_11trace_owner:
     pushq %rbp
     movq %rsp, %rbp
@@ -6790,9 +6781,8 @@ lb_interop_Owner_0g1_json_Value_11trace_owner:
     ret
 
     .p2align 4
-    .globl lb_interop_Reference_0g1_json_Value_init
-    .type lb_interop_Reference_0g1_json_Value_init, @function
     .weak lb_interop_Reference_0g1_json_Value_init
+    .type lb_interop_Reference_0g1_json_Value_init, @function
 lb_interop_Reference_0g1_json_Value_init:
     pushq %rbp
     movq %rsp, %rbp
@@ -6817,9 +6807,8 @@ lb_interop_Reference_0g1_json_Value_init:
     ret
 
     .p2align 4
-    .globl lb_interop_11close_owner_0g1_json_Value
-    .type lb_interop_11close_owner_0g1_json_Value, @function
     .weak lb_interop_11close_owner_0g1_json_Value
+    .type lb_interop_11close_owner_0g1_json_Value, @function
 lb_interop_11close_owner_0g1_json_Value:
     pushq %rbp
     movq %rsp, %rbp
@@ -6877,9 +6866,8 @@ lb_interop_11close_owner_0g1_json_Value:
     ret
 
     .p2align 4
-    .globl lb_interop_13dispose_owner_0g1_json_Value
-    .type lb_interop_13dispose_owner_0g1_json_Value, @function
     .weak lb_interop_13dispose_owner_0g1_json_Value
+    .type lb_interop_13dispose_owner_0g1_json_Value, @function
 lb_interop_13dispose_owner_0g1_json_Value:
     pushq %rbp
     movq %rsp, %rbp

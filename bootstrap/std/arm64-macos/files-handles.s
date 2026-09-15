@@ -117,8 +117,8 @@ L1_1:
     str x12, [x11, #32]
     b L1_21
 L1_20:
-    adrp x0, l_text_23@PAGE
-    add x0, x0, l_text_23@PAGEOFF
+    adrp x0, l_text_24@PAGE
+    add x0, x0, l_text_24@PAGEOFF
     adrp x1, l_text_1@PAGE
     add x1, x1, l_text_1@PAGEOFF
     bl _lb_core_7trap_at
@@ -217,8 +217,8 @@ L1_8:
     str x12, [x11, #32]
     b L1_23
 L1_22:
-    adrp x0, l_text_23@PAGE
-    add x0, x0, l_text_23@PAGEOFF
+    adrp x0, l_text_24@PAGE
+    add x0, x0, l_text_24@PAGEOFF
     adrp x1, l_text_1@PAGE
     add x1, x1, l_text_1@PAGEOFF
     bl _lb_core_7trap_at
@@ -2471,22 +2471,23 @@ L13_68:
 _lb_files_15file_open_flags:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #144
+    sub sp, sp, #160
     sub x16, x29, #24
     str x8, [x16]
-    str x19, [sp, #112]
-    str x20, [sp, #104]
-    sub x16, x29, #96
+    str x19, [sp, #128]
+    str x20, [sp, #120]
+    str x21, [sp, #112]
+    sub x16, x29, #104
     str w0, [x16]
-    sub x16, x29, #112
+    sub x16, x29, #120
     str w1, [x16]
-    sub x14, x29, #112
+    sub x14, x29, #120
     ldr w14, [x14]
     movz x10, #4095
     cmp w14, w10
     b.ls L14_2
 L14_1:
-    sub x19, x29, #80
+    sub x19, x29, #88
     add x14, x19, #8
     adrp x15, _lb_files_15invalid_options@PAGE
     add x15, x15, _lb_files_15invalid_options@PAGEOFF
@@ -2494,7 +2495,7 @@ L14_1:
     str w15, [x14]
     adrp x15, l_text_8@PAGE
     add x15, x15, l_text_8@PAGEOFF
-    sub x20, x29, #128
+    sub x20, x29, #136
     str x15, [x20]
     add x15, x20, #8
     movz x9, #44
@@ -2514,8 +2515,9 @@ L14_1:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #112]
-    ldr x20, [sp, #104]
+    ldr x19, [sp, #128]
+    ldr x20, [sp, #120]
+    ldr x21, [sp, #112]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -2526,20 +2528,34 @@ L14_3:
     adrp x14, _lb_files_13close_on_exec@PAGE
     add x14, x14, _lb_files_13close_on_exec@PAGEOFF
     ldrsw x14, [x14]
-    sub x15, x29, #96
+    sub x15, x29, #104
     ldrb w15, [x15]
-    movz x10, #1
+    mov x10, #0
     cmp w15, w10
-    b.ne L14_6
+    cset w19, eq
+    cbnz w19, L14_5
+    b L14_6
 L14_5:
-    movz x10, #2
-    orr w15, w14, w10
+    adrp x15, _lb_files_14read_only_flag@PAGE
+    add x15, x15, _lb_files_14read_only_flag@PAGEOFF
+    ldrsw x15, [x15]
+    orr w15, w14, w15
     b L14_7
 L14_6:
-    movz x10, #2
+    movz x10, #1
     cmp w15, w10
     b.ne L14_9
 L14_8:
+    adrp x15, _lb_files_15read_write_flag@PAGE
+    add x15, x15, _lb_files_15read_write_flag@PAGEOFF
+    ldrsw x15, [x15]
+    orr w15, w14, w15
+    b L14_10
+L14_9:
+    movz x10, #2
+    cmp w15, w10
+    b.ne L14_12
+L14_11:
     adrp x15, _lb_files_10write_only@PAGE
     add x15, x15, _lb_files_10write_only@PAGEOFF
     ldrsw x15, [x15]
@@ -2552,25 +2568,25 @@ L14_8:
     ldrsw x19, [x19]
     orr w15, w15, w19
     orr w15, w14, w15
-    b L14_10
-L14_9:
+    b L14_13
+L14_12:
     movz x10, #3
     cmp w15, w10
-    cset w19, eq
-    cbnz w19, L14_27
-    b L14_14
-L14_27:
-    mov w20, w19
-    b L14_15
-L14_14:
+    cset w20, eq
+    cbnz w20, L14_30
+    b L14_17
+L14_30:
+    mov w21, w20
+    b L14_18
+L14_17:
     movz x10, #5
     cmp w15, w10
-    cset w20, eq
-L14_15:
-    and w19, w20, #255
-    cbnz w19, L14_11
-    b L14_12
-L14_11:
+    cset w21, eq
+L14_18:
+    and w20, w21, #255
+    cbnz w20, L14_14
+    b L14_15
+L14_14:
     adrp x19, _lb_files_create@PAGE
     add x19, x19, _lb_files_create@PAGEOFF
     ldrsw x19, [x19]
@@ -2580,24 +2596,25 @@ L14_11:
     orr w20, w19, w20
     movz x10, #5
     cmp w15, w10
-    b.ne L14_17
-L14_16:
-    movz x9, #2
-    mov w15, w9
-    b L14_18
-L14_17:
+    b.ne L14_20
+L14_19:
+    adrp x15, _lb_files_15read_write_flag@PAGE
+    add x15, x15, _lb_files_15read_write_flag@PAGEOFF
+    ldrsw x15, [x15]
+    b L14_21
+L14_20:
     adrp x15, _lb_files_10write_only@PAGE
     add x15, x15, _lb_files_10write_only@PAGEOFF
     ldrsw x15, [x15]
-L14_18:
+L14_21:
     orr w19, w20, w15
     orr w19, w14, w19
-    b L14_13
-L14_12:
+    b L14_16
+L14_15:
     movz x10, #4
     cmp w15, w10
-    b.ne L14_20
-L14_19:
+    b.ne L14_23
+L14_22:
     adrp x15, _lb_files_10write_only@PAGE
     add x15, x15, _lb_files_10write_only@PAGEOFF
     ldrsw x15, [x15]
@@ -2610,24 +2627,21 @@ L14_19:
     ldrsw x19, [x19]
     orr w15, w15, w19
     orr w15, w14, w15
-    b L14_21
-L14_20:
-    mov x10, #0
-    cmp w15, w10
-    cset w19, eq
+    b L14_24
+L14_23:
     mov x10, #0
     cmp w19, w10
-    b.ne L14_23
-L14_22:
-    sub x19, x29, #80
+    b.ne L14_26
+L14_25:
+    sub x19, x29, #88
     add x14, x19, #8
     adrp x15, _lb_files_15invalid_options@PAGE
     add x15, x15, _lb_files_15invalid_options@PAGEOFF
     ldr w15, [x15]
     str w15, [x14]
-    adrp x15, l_text_24@PAGE
-    add x15, x15, l_text_24@PAGEOFF
-    sub x20, x29, #144
+    adrp x15, l_text_25@PAGE
+    add x15, x15, l_text_25@PAGEOFF
+    sub x20, x29, #152
     str x15, [x20]
     add x15, x20, #8
     movz x9, #25
@@ -2647,23 +2661,25 @@ L14_22:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #112]
-    ldr x20, [sp, #104]
+    ldr x19, [sp, #128]
+    ldr x20, [sp, #120]
+    ldr x21, [sp, #112]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
-L14_25:
-    b L14_24
-L14_23:
-L14_24:
+L14_28:
+    b L14_27
+L14_26:
+L14_27:
     mov w15, w14
-L14_21:
+L14_24:
     mov w19, w15
-L14_13:
+L14_16:
     mov w15, w19
+L14_13:
 L14_10:
 L14_7:
-    sub x14, x29, #80
+    sub x14, x29, #88
     str w15, [x14]
     add x19, x14, #32
     mov x9, #0
@@ -2675,14 +2691,15 @@ L14_7:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #112]
-    ldr x20, [sp, #104]
+    ldr x19, [sp, #128]
+    ldr x20, [sp, #120]
+    ldr x21, [sp, #112]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
-L14_26:
-    adrp x0, l_text_25@PAGE
-    add x0, x0, l_text_25@PAGEOFF
+L14_29:
+    adrp x0, l_text_26@PAGE
+    add x0, x0, l_text_26@PAGEOFF
     adrp x1, l_text_1@PAGE
     add x1, x1, l_text_1@PAGEOFF
     bl _lb_core_7trap_at
@@ -2737,13 +2754,15 @@ l_text_20:
 l_text_21:
     .asciz "the file could not be closed"
 l_text_22:
-    .asciz "src/std/files/handles.lucb:183:5"
+    .asciz "src/std/files/handles.lucb:185:5"
 l_text_23:
-    .asciz "src/std/files/handles.lucb:189:5"
+    .asciz "src/std/files/handles.lucb:213:5"
 l_text_24:
-    .asciz "unknown file opening mode"
+    .asciz "src/std/files/handles.lucb:219:5"
 l_text_25:
-    .asciz "src/std/files/handles.lucb:207:5"
+    .asciz "unknown file opening mode"
+l_text_26:
+    .asciz "src/std/files/handles.lucb:239:5"
 
     .section __DATA,__const
     .p2align 3

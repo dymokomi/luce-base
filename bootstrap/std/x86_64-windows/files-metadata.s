@@ -344,7 +344,7 @@ lb_files_metadata:
     call CloseHandle
     addq $32, %rsp
     movl %eax, %ebx
-    leaq .Ltext_6(%rip), %rdi
+    leaq .Ltext_7(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -541,7 +541,7 @@ lb_files_19metadata_descriptor:
     popq %rbp
     ret
 .L2_4:
-    leaq .Ltext_7(%rip), %rdi
+    leaq .Ltext_8(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -856,7 +856,7 @@ lb_files_11metadata_at:
     movq 0(%rsp), %rcx
     call lb_strings_release
     addq $48, %rsp
-    leaq .Ltext_8(%rip), %rdi
+    leaq .Ltext_9(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -880,21 +880,23 @@ lb_files_11metadata_at:
 .Ltext_0:
     .asciz "unreachable"
 .Ltext_1:
-    .asciz "src/std/files/metadata.lucb:133:5"
+    .asciz "src/std/files/metadata.lucb:156:5"
 .Ltext_2:
-    .asciz "src/std/files/metadata.lucb:136:5"
+    .asciz "src/std/files/metadata.lucb:159:5"
 .Ltext_3:
-    .asciz "src/std/files/metadata.lucb:139:5"
+    .asciz "src/std/files/metadata.lucb:162:5"
 .Ltext_4:
-    .asciz "src/std/files/metadata.lucb:147:5"
+    .asciz "src/std/files/metadata.lucb:170:5"
 .Ltext_5:
-    .asciz "src/std/files/metadata.lucb:154:5"
+    .asciz "src/std/files/metadata.lucb:177:5"
 .Ltext_6:
-    .asciz "src/std/files/metadata.lucb:167:9"
+    .asciz "src/std/files/metadata.lucb:184:5"
 .Ltext_7:
-    .asciz "src/std/files/metadata.lucb:195:9"
+    .asciz "src/std/files/metadata.lucb:197:9"
 .Ltext_8:
-    .asciz "src/std/files/metadata.lucb:222:9"
+    .asciz "src/std/files/metadata.lucb:233:9"
+.Ltext_9:
+    .asciz "src/std/files/metadata.lucb:267:9"
 
     .section .rdata,"dr"
     .p2align 3

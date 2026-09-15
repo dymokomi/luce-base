@@ -12,7 +12,7 @@ func termination_received(number: i32):
 
 func termination_refused(handler: TerminationHandler?) -> bool:
     if let function = handler:
-        return (usize)(void*)function == 18446744073709551615
+        return (usize)(void*)function == ~(usize)0
     return false
 
 func termination_posix_install() -> !:

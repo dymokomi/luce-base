@@ -4851,9 +4851,8 @@ lb_io_path_config:
     call lb_core_7trap_at@PLT
 
     .p2align 4
-    .globl lb_memory_move_0g1_u8
-    .type lb_memory_move_0g1_u8, @function
     .weak lb_memory_move_0g1_u8
+    .type lb_memory_move_0g1_u8, @function
 lb_memory_move_0g1_u8:
     pushq %rbp
     movq %rsp, %rbp
@@ -4955,9 +4954,8 @@ lb_memory_move_0g1_u8:
     ret
 
     .p2align 4
-    .globl lb_memory_copy_0g1_u8
-    .type lb_memory_copy_0g1_u8, @function
     .weak lb_memory_copy_0g1_u8
+    .type lb_memory_copy_0g1_u8, @function
 lb_memory_copy_0g1_u8:
     pushq %rbp
     movq %rsp, %rbp
@@ -5238,11 +5236,9 @@ lb_memory_copy_0g1_u8:
 
     .section .data.rel.ro,"aw"
     .p2align 3
-    .globl lb_vt_io_File_Writer
     .weak lb_vt_io_File_Writer
 lb_vt_io_File_Writer:
     .quad lb_io_File_write
-    .globl lb_vt_io_StandardInput_Reader
     .weak lb_vt_io_StandardInput_Reader
 lb_vt_io_StandardInput_Reader:
     .quad lb_io_StandardInput_read

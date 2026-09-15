@@ -25,8 +25,9 @@ pub func set_errno(value: i32):
     else:
         *linux_errno() = value
 
-## `EINTR`: a call a signal interrupted, to be made again. The same number on both hosts.
-pub let interrupted: i32 = 4
+## `EINTR`: a call a signal interrupted, to be made again. The same number on every host;
+## WASI numbers its errors its own way.
+pub let interrupted: i32 = 27 if platform.wasm32 else 4
 
 ## The C standard streams; the backend supplies them.
 pub func stdin() -> void*:

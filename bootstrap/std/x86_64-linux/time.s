@@ -42,7 +42,7 @@ lb_time_0init:
 lb_time_now:
     pushq %rbp
     movq %rsp, %rbp
-    subq $64, %rsp
+    subq $96, %rsp
     movq %rbx, -8(%rbp)
     movq %r12, -16(%rbp)
     movq %r13, -24(%rbp)
@@ -64,38 +64,65 @@ lb_time_now:
     movq %rbx, %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
+    movl $1, %eax
+    leaq -72(%rbp), %r10
+    movl %eax, (%r10)
+    leaq -88(%rbp), %r10
+    movq %rbx, (%r10)
+    leaq -72(%rbp), %r12
+    movq %r12, %r10
+    movzbl (%r10), %r12d
+    testl %r12d, %r12d
+    jne .L1_2
+    jmp .L1_3
+.L1_2:
     leaq lb_time_monotonic(%rip), %r12
     movq %r12, %r10
     movslq (%r10), %r12
+    jmp .L1_4
+.L1_3:
+    leaq lb_time_realtime(%rip), %r12
+    movq %r12, %r10
+    movslq (%r10), %r12
+.L1_4:
     movl %r12d, %edi
     movq %rbx, %rsi
     call clock_gettime@PLT
-    movl %eax, %r12d
+    movl %eax, %r13d
+    leaq -96(%rbp), %r10
+    movl %r13d, (%r10)
+    jmp .L1_6
+.L1_5:
+    leaq .Ltext_1(%rip), %rdi
+    leaq .Ltext_0(%rip), %rsi
+    call lb_core_7trap_at@PLT
+.L1_6:
     movq %rbx, %r10
     movq (%r10), %r12
     movq %r12, %rax
     movq $1000000000, %rcx
     mulq %rcx
     jnc 1f
-    leaq .Ltext_0(%rip), %rdi
-    leaq .Ltext_4(%rip), %rsi
+    leaq .Ltext_2(%rip), %rdi
+    leaq .Ltext_5(%rip), %rsi
     call lb_core_7trap_at@PLT
 1:
     movq %rax, %r12
     movq $8, %rcx
-    addq %rcx, %rbx
-    movq %rbx, %r10
-    movq (%r10), %rbx
+    movq %rbx, %r13
+    addq %rcx, %r13
+    movq %r13, %r10
+    movq (%r10), %r13
     movq %r12, %rax
-    movq %rbx, %rcx
+    movq %r13, %rcx
     addq %rcx, %rax
     jnc 1f
-    leaq .Ltext_0(%rip), %rdi
-    leaq .Ltext_4(%rip), %rsi
+    leaq .Ltext_2(%rip), %rdi
+    leaq .Ltext_5(%rip), %rsi
     call lb_core_7trap_at@PLT
 1:
-    movq %rax, %rbx
-    movq %rbx, %rax
+    movq %rax, %r12
+    movq %r12, %rax
     movq -8(%rbp), %rbx
     movq -16(%rbp), %r12
     movq -24(%rbp), %r13
@@ -103,8 +130,8 @@ lb_time_now:
     popq %rbp
     ret
 .L1_1:
-    leaq .Ltext_0(%rip), %rdi
-    leaq .Ltext_1(%rip), %rsi
+    leaq .Ltext_2(%rip), %rdi
+    leaq .Ltext_0(%rip), %rsi
     call lb_core_7trap_at@PLT
 
     .p2align 4
@@ -124,8 +151,8 @@ lb_time_unix:
     popq %rbp
     ret
 .L2_1:
-    leaq .Ltext_2(%rip), %rdi
-    leaq .Ltext_1(%rip), %rsi
+    leaq .Ltext_3(%rip), %rdi
+    leaq .Ltext_0(%rip), %rsi
     call lb_core_7trap_at@PLT
 
     .p2align 4
@@ -162,8 +189,8 @@ lb_time_since:
     popq %rbp
     ret
 .L3_4:
-    leaq .Ltext_3(%rip), %rdi
-    leaq .Ltext_1(%rip), %rsi
+    leaq .Ltext_4(%rip), %rdi
+    leaq .Ltext_0(%rip), %rsi
     call lb_core_7trap_at@PLT
 
     .section .init_array,"aw"
@@ -178,14 +205,16 @@ lb_time_since:
 .Lvsign64:
     .quad -9223372036854775808, -9223372036854775808
 .Ltext_0:
-    .asciz "src/std/time.lucb:19:5"
-.Ltext_1:
     .asciz "unreachable"
+.Ltext_1:
+    .asciz "src/std/time.lucb:24:5"
 .Ltext_2:
-    .asciz "src/std/time.lucb:23:5"
+    .asciz "src/std/time.lucb:30:5"
 .Ltext_3:
-    .asciz "src/std/time.lucb:28:5"
+    .asciz "src/std/time.lucb:34:5"
 .Ltext_4:
+    .asciz "src/std/time.lucb:39:5"
+.Ltext_5:
     .asciz "integer overflow"
 
     .section .data.rel.ro,"aw"

@@ -4062,7 +4062,6 @@ lb_memory_grow:
 
     .section .data.rel.ro,"aw"
     .p2align 3
-    .globl lb_vt_memory_CAllocator_Allocator
     .weak lb_vt_memory_CAllocator_Allocator
 lb_vt_memory_CAllocator_Allocator:
     .quad lb_memory_CAllocator_allocate

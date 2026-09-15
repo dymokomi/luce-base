@@ -60,3 +60,11 @@ done
 rm -rf build/std-stage2
 ./build/luce-base std-build src/std "$lib" --backend=c
 echo "built build/luce-base (native) and $lib"
+# the standard library for wasm32, which no machine is a host of, where a WASI toolchain
+# is installed (§19.5): WASI_SDK, or Homebrew's llvm, lld, wasi-libc and wasi-runtimes
+if ./build/luce-base std-build src/std build/lib/luce-base/wasm32 --target wasm32 2> build/wasm32.err; then
+    echo "built build/lib/luce-base/wasm32"
+else
+    echo "build.sh: no wasm32 library: $(cat build/wasm32.err)"
+fi
+rm -f build/wasm32.err

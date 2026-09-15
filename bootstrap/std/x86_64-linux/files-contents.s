@@ -1380,9 +1380,8 @@ lb_files_14release_buffer:
     ret
 
     .p2align 4
-    .globl lb_memory_copy_0g1_u8
-    .type lb_memory_copy_0g1_u8, @function
     .weak lb_memory_copy_0g1_u8
+    .type lb_memory_copy_0g1_u8, @function
 lb_memory_copy_0g1_u8:
     pushq %rbp
     movq %rsp, %rbp
@@ -1537,7 +1536,6 @@ lb_memory_copy_0g1_u8:
 
     .section .data.rel.ro,"aw"
     .p2align 3
-    .globl lb_vt_files_File_Writer
     .weak lb_vt_files_File_Writer
 lb_vt_files_File_Writer:
     .quad lb_files_File_write

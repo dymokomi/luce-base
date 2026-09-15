@@ -94,9 +94,9 @@ pub struct NativeBackend: Backend:
 
     pub mutating func compile(mode: u32) -> str!:
         let t = self.target
-        let has_generator = (t.arch == targets.Arch.arm64 and t.os == targets.Os.macos) or (t.arch == targets.Arch.x86_64 and (t.os == targets.Os.linux or t.os == targets.Os.windows))
+        let has_generator = (t.arch == targets.Arch.arm64 and (t.os == targets.Os.macos or t.os == targets.Os.linux)) or (t.arch == targets.Arch.x86_64 and (t.os == targets.Os.linux or t.os == targets.Os.windows))
         if not has_generator:
-            error(unsupported_target, "the native backend emits arm64-macos and x86_64-linux; write the C for another target with --emit=c")
+            error(unsupported_target, "the native backend emits arm64-macos, arm64-linux, x86_64-linux and x86_64-windows; write the C for another target with --emit=c")
         self.lowerer.debug = self.debug
         self.lowerer.target = t
         self.lowerer.only_module = self.only_module
@@ -126,10 +126,12 @@ pub struct NativeBackend: Backend:
             try generator.generate()
             text = generator.text()
         else:
-            var generator = try arm64.Generator.create(&self.lowerer.program_unit)
+            var generator = try arm64.Generator.create(&self.lowerer.program_unit, t.os, t.symbol_prefix)
+            # Apple's arm64 has half-precision arithmetic; ARMv8.0-A does not, and SVE
+            # (level 2) implies ARMv8.2-A, which does
+            generator.fp16 = t.os == targets.Os.macos or t.level >= 2
             if self.debug:
                 generator.dw = &dw
-            generator.symbol_prefix = t.symbol_prefix
             try generator.generate()
             text = generator.text()
         try note(&at, 8)

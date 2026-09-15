@@ -51,17 +51,29 @@ for f in tests/platform/"$os"/*.lucb; do
 done
 # every target, from this host
 targets=0
-for target in x86_64-linux x86_64-macos x86_64-windows arm64-linux arm64-macos; do
+for target in x86_64-linux x86_64-macos x86_64-windows arm64-linux arm64-macos wasm32; do
     target_os=$(echo "$target" | sed 's/.*-//')
     for f in tests/platform/common/*.lucb; do
         ./build/luce-base build "$f" --target "$target" --emit=c -o build/platform.c
         if [ "$target_os" = "$os" ]; then
             cc -std=gnu11 -Wall -Werror -Wno-format -fsyntax-only -I runtime build/platform.c
         fi
+        # the native backend writes the assembly for every target it has a generator for,
+        # and clang's integrated assembler, which knows every target, assembles it: the
+        # syntax and the relocations of each object format are checked on every host
         case "$target" in
-            arm64-macos|x86_64-linux)
-                ./build/luce-base build "$f" --target "$target" --native --emit=asm -o build/platform.s;;
+            arm64-macos) triple=arm64-apple-macos;;
+            arm64-linux) triple=aarch64-unknown-linux-gnu;;
+            x86_64-linux) triple=x86_64-unknown-linux-gnu;;
+            x86_64-windows) triple=x86_64-w64-windows-gnu;;
+            *) triple="";;
         esac
+        if [ -n "$triple" ]; then
+            ./build/luce-base build "$f" --target "$target" --native --emit=asm -o build/platform.s
+            if command -v clang > /dev/null 2>&1; then
+                clang --target="$triple" -c build/platform.s -o build/platform.o
+            fi
+        fi
     done
     targets=$((targets + 1))
 done
@@ -69,7 +81,8 @@ done
 ./build/luce-base build tests/platform/common/identity.lucb --emit=c -o build/platform-host.c
 cmp build/platform.c build/platform-host.c
 # a program for another target is written as C or assembly here and built there: a native
-# build for it is refused, and says so
+# build for it is refused, and says so (wasm32, which no machine is a host of, is built
+# here through the C backend and a WASI toolchain: `tests/programs/wasm`)
 for target in x86_64-linux x86_64-macos x86_64-windows arm64-linux arm64-macos; do
     [ "$target" = "$host" ] && continue
     if ./build/luce-base build tests/platform/common/identity.lucb --target "$target" -o build/platform 2> build/platform.err; then
@@ -77,5 +90,5 @@ for target in x86_64-linux x86_64-macos x86_64-windows arm64-linux arm64-macos; 
     fi
     grep -q "written as C with --emit=c" build/platform.err || { echo "FAIL: the refusal for $target says [$(cat build/platform.err)]"; exit 1; }
 done
-rm -f build/platform build/platform.out build/platform.c build/platform-host.c build/platform.s
+rm -f build/platform build/platform.out build/platform.c build/platform-host.c build/platform.s build/platform.o
 echo "ok platform: $programs programs on $host, $targets targets emitted"

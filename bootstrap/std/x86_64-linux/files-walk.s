@@ -3037,9 +3037,8 @@ lb_files_WalkState_destroy:
     ret
 
     .p2align 4
-    .globl lb_memory_copy_0g1_files_WalkFrame
-    .type lb_memory_copy_0g1_files_WalkFrame, @function
     .weak lb_memory_copy_0g1_files_WalkFrame
+    .type lb_memory_copy_0g1_files_WalkFrame, @function
 lb_memory_copy_0g1_files_WalkFrame:
     pushq %rbp
     movq %rsp, %rbp

@@ -49,7 +49,7 @@ pub struct Directory:
         if not follow_symlinks:
             flags |= no_follow_flag
         if nonblocking:
-            flags |= 4 if platform.macos else 2048
+            flags |= nonblocking_open_flag
         var descriptor = openat(parent, path, flags, permissions)
         while descriptor < 0 and c.errno() == c.interrupted:
             descriptor = openat(parent, path, flags, permissions)

@@ -1,0 +1,64 @@
+## The wasm32 proving program: the C backend's output for wasm32, compiled and linked by
+## a WASI toolchain and run under a WebAssembly runtime. Values, memory, text, files,
+## failure and the target's own facts, printed for the gate to compare.
+##
+## Build: luce-base build tests/programs/wasm/main.lucb --target wasm32 -o proof.wasm
+## Run: wasmtime --dir . proof.wasm
+
+import c
+import files
+import math
+import memory
+import os
+import strings
+
+pub let failed: ErrorCode = ErrorCode.package(1)
+
+struct Point:
+    var x: i32
+    var y: i32
+
+enum Shape:
+    circle(radius: f64)
+    square(side: f64)
+
+func area(s: Shape) -> f64:
+    match s:
+        .circle(radius):
+            return math.pi * radius * radius
+        .square(side):
+            return side * side
+
+func divide(a: i64, b: i64) -> i64!:
+    if b == 0:
+        error(failed, "division by zero")
+    return a // b
+
+pub func main(arguments: str[]) -> i32!:
+    discard(arguments)
+    print(f"target {os.name} pointer bits {os.pointer_bits} wasm32 {os.wasm32} posix {os.posix}")
+    print(f"sizes usize {sizeof(usize)} pointer {sizeof(void*)} long {sizeof(c.long)} str {sizeof(str)}")
+    let p = Point(x = 3, y = 4)
+    print(f"point {p.x} {p.y} sum {p.x + p.y}")
+    print(f"areas {area(Shape.circle(radius = 1.0))} {area(Shape.square(side = 2.5))}")
+    let block = try alloc u8[1024]
+    defer free(block)
+    memory.set(block, 7)
+    var total: u64 = 0
+    for b in block:
+        total += (u64)b
+    print(f"filled {total}")
+    let pieces: str[3] = ["wasm", "runs", "base"]
+    let text = try strings.join(pieces, " ")
+    print(f"joined {text} upper {try strings.to_upper(text)}")
+    try files.write("wasm-check.txt", "written from wasm\n".bytes)
+    let back = try files.read("wasm-check.txt")
+    print(f"file {(str)back[..<back.length - 1]}")
+    try files.remove_file("wasm-check.txt")
+    let big: i64 = 1 << 40
+    print(f"wide {big * 3} {(u64)big >> 3} {(usize)(big >> 20)}")
+    let refused = divide(7, 0) catch failure:
+        print(f"caught {failure.message}")
+        recover -1
+    print(f"division {try divide(7, 2)} {refused}")
+    return 0

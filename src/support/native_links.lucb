@@ -60,12 +60,15 @@ func contains(names: const str[], name: str) -> bool:
             return true
     return false
 
+## The `nm` that reads the target's objects: the host's, or a WASI toolchain's `llvm-nm`.
+pub var nm_program: c.str = "nm"
+
 ## `nm` over the arguments, one entry per line: `[archive:member:][address] KIND name`,
 ## Mach-O's `nm` with a space after the member's colon and GNU's without; a lowercase kind
 ## is local to its object and left out, `U` is undefined. Under `-u`, Mach-O's `nm` prints
 ## the bare name of each undefined symbol.
 func symbols(arguments: const c.str[], platform: target.Target, directory: str) -> list.List[Entry]!:
-    let (status, output, errors) = try host_tools.run("nm", arguments, directory)
+    let (status, output, errors) = try host_tools.run(nm_program, arguments, directory)
     if status != 0:
         error(failed, "could not inspect native object link requirements")
     discard(errors)

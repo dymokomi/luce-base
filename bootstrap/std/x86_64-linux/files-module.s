@@ -10,37 +10,38 @@ lb_files_module_0init:
     movq %rbx, -8(%rbp)
     movq %r12, -16(%rbp)
     movq %r13, -24(%rbp)
-    leaq lb_files_10write_only(%rip), %rbx
-    movl $1, %eax
-    movq %rbx, %r10
-    movl %eax, (%r10)
-    leaq lb_platform_windows(%rip), %rbx
+    movq %r14, -32(%rbp)
+    leaq lb_platform_wasm32(%rip), %rbx
     movq %rbx, %r10
     movzbl (%r10), %r12d
     testl %r12d, %r12d
     jne .L0_1
     jmp .L0_2
 .L0_1:
-    movl $256, %eax
+    movl $67108864, %eax
     movl %eax, %r12d
     jmp .L0_3
 .L0_2:
-    leaq lb_platform_macos(%rip), %r12
-    movq %r12, %r10
-    movzbl (%r10), %r12d
-    testl %r12d, %r12d
+    movl $0, %eax
+    movl %eax, %r12d
+.L0_3:
+    leaq lb_files_14read_only_flag(%rip), %r13
+    movq %r13, %r10
+    movl %r12d, (%r10)
+    movq %rbx, %r10
+    movzbl (%r10), %r13d
+    testl %r13d, %r13d
     jne .L0_4
     jmp .L0_5
 .L0_4:
-    movl $512, %eax
+    movl $268435456, %eax
     movl %eax, %r12d
     jmp .L0_6
 .L0_5:
-    movl $64, %eax
+    movl $1, %eax
     movl %eax, %r12d
 .L0_6:
-.L0_3:
-    leaq lb_files_create(%rip), %r13
+    leaq lb_files_10write_only(%rip), %r13
     movq %r13, %r10
     movl %r12d, (%r10)
     movq %rbx, %r10
@@ -49,35 +50,34 @@ lb_files_module_0init:
     jne .L0_7
     jmp .L0_8
 .L0_7:
-    movl $512, %eax
+    movl $335544320, %eax
     movl %eax, %r12d
     jmp .L0_9
 .L0_8:
-    leaq lb_platform_macos(%rip), %r12
-    movq %r12, %r10
-    movzbl (%r10), %r12d
-    testl %r12d, %r12d
-    jne .L0_10
-    jmp .L0_11
-.L0_10:
-    movl $1024, %eax
+    movl $2, %eax
     movl %eax, %r12d
-    jmp .L0_12
-.L0_11:
-    movl $512, %eax
-    movl %eax, %r12d
-.L0_12:
 .L0_9:
-    leaq lb_files_truncate(%rip), %r13
+    leaq lb_files_15read_write_flag(%rip), %r13
     movq %r13, %r10
     movl %r12d, (%r10)
     movq %rbx, %r10
     movzbl (%r10), %r13d
     testl %r13d, %r13d
+    jne .L0_10
+    jmp .L0_11
+.L0_10:
+    movl $4096, %eax
+    movl %eax, %r12d
+    jmp .L0_12
+.L0_11:
+    leaq lb_platform_windows(%rip), %r12
+    movq %r12, %r10
+    movzbl (%r10), %r12d
+    testl %r12d, %r12d
     jne .L0_13
     jmp .L0_14
 .L0_13:
-    movl $128, %eax
+    movl $256, %eax
     movl %eax, %r12d
     jmp .L0_15
 .L0_14:
@@ -88,179 +88,366 @@ lb_files_module_0init:
     jne .L0_16
     jmp .L0_17
 .L0_16:
-    movl $16777216, %eax
+    movl $512, %eax
     movl %eax, %r12d
     jmp .L0_18
 .L0_17:
-    movl $524288, %eax
+    movl $64, %eax
     movl %eax, %r12d
 .L0_18:
 .L0_15:
+.L0_12:
+    leaq lb_files_create(%rip), %r13
+    movq %r13, %r10
+    movl %r12d, (%r10)
+    movq %rbx, %r10
+    movzbl (%r10), %r13d
+    testl %r13d, %r13d
+    jne .L0_19
+    jmp .L0_20
+.L0_19:
+    movl $32768, %eax
+    movl %eax, %r12d
+    jmp .L0_21
+.L0_20:
+    leaq lb_platform_windows(%rip), %r12
+    movq %r12, %r10
+    movzbl (%r10), %r12d
+    testl %r12d, %r12d
+    jne .L0_22
+    jmp .L0_23
+.L0_22:
+    movl $512, %eax
+    movl %eax, %r12d
+    jmp .L0_24
+.L0_23:
+    leaq lb_platform_macos(%rip), %r12
+    movq %r12, %r10
+    movzbl (%r10), %r12d
+    testl %r12d, %r12d
+    jne .L0_25
+    jmp .L0_26
+.L0_25:
+    movl $1024, %eax
+    movl %eax, %r12d
+    jmp .L0_27
+.L0_26:
+    movl $512, %eax
+    movl %eax, %r12d
+.L0_27:
+.L0_24:
+.L0_21:
+    leaq lb_files_truncate(%rip), %r13
+    movq %r13, %r10
+    movl %r12d, (%r10)
+    movq %rbx, %r10
+    movzbl (%r10), %r13d
+    testl %r13d, %r13d
+    jne .L0_28
+    jmp .L0_29
+.L0_28:
+    movl $0, %eax
+    movl %eax, %r12d
+    jmp .L0_30
+.L0_29:
+    leaq lb_platform_windows(%rip), %r12
+    movq %r12, %r10
+    movzbl (%r10), %r12d
+    testl %r12d, %r12d
+    jne .L0_31
+    jmp .L0_32
+.L0_31:
+    movl $128, %eax
+    movl %eax, %r12d
+    jmp .L0_33
+.L0_32:
+    leaq lb_platform_macos(%rip), %r12
+    movq %r12, %r10
+    movzbl (%r10), %r12d
+    testl %r12d, %r12d
+    jne .L0_34
+    jmp .L0_35
+.L0_34:
+    movl $16777216, %eax
+    movl %eax, %r12d
+    jmp .L0_36
+.L0_35:
+    movl $524288, %eax
+    movl %eax, %r12d
+.L0_36:
+.L0_33:
+.L0_30:
     leaq lb_files_13close_on_exec(%rip), %r13
     movq %r13, %r10
     movl %r12d, (%r10)
     movq %rbx, %r10
     movzbl (%r10), %r13d
     testl %r13d, %r13d
-    jne .L0_51
-    jmp .L0_22
-.L0_51:
-    movl %r13d, %r12d
-    jmp .L0_23
-.L0_22:
-    leaq lb_platform_macos(%rip), %r12
+    jne .L0_37
+    jmp .L0_38
+.L0_37:
+    movl $1, %eax
+    movl %eax, %r12d
+    jmp .L0_39
+.L0_38:
+    leaq lb_platform_windows(%rip), %r12
     movq %r12, %r10
     movzbl (%r10), %r12d
-.L0_23:
-    movzbl %r12b, %r13d
-    testl %r13d, %r13d
-    jne .L0_19
-    jmp .L0_20
-.L0_19:
+    testl %r12d, %r12d
+    jne .L0_94
+    jmp .L0_43
+.L0_94:
+    movl %r12d, %r13d
+    jmp .L0_44
+.L0_43:
+    leaq lb_platform_macos(%rip), %r12
+    movq %r12, %r10
+    movzbl (%r10), %r13d
+.L0_44:
+    movzbl %r13b, %r12d
+    testl %r12d, %r12d
+    jne .L0_40
+    jmp .L0_41
+.L0_40:
     movl $8, %eax
     movl %eax, %r12d
-    jmp .L0_21
-.L0_20:
+    jmp .L0_42
+.L0_41:
     movl $1024, %eax
     movl %eax, %r12d
-.L0_21:
+.L0_42:
+.L0_39:
     leaq lb_files_11append_flag(%rip), %r13
     movq %r13, %r10
     movl %r12d, (%r10)
     movq %rbx, %r10
     movzbl (%r10), %r13d
     testl %r13d, %r13d
-    jne .L0_24
-    jmp .L0_25
-.L0_24:
-    movl $1024, %eax
-    movl %eax, %ebx
-    jmp .L0_26
-.L0_25:
-    leaq lb_platform_macos(%rip), %rbx
-    movq %rbx, %r10
-    movzbl (%r10), %ebx
-    testl %ebx, %ebx
-    jne .L0_27
-    jmp .L0_28
-.L0_27:
-    movl $2048, %eax
-    movl %eax, %ebx
-    jmp .L0_29
-.L0_28:
-    movl $128, %eax
-    movl %eax, %ebx
-.L0_29:
-.L0_26:
-    leaq lb_files_14exclusive_flag(%rip), %r12
-    movq %r12, %r10
-    movl %ebx, (%r10)
-    leaq lb_platform_macos(%rip), %r12
-    movq %r12, %r10
-    movzbl (%r10), %r13d
-    testl %r13d, %r13d
-    jne .L0_30
-    jmp .L0_31
-.L0_30:
-    movl $35, %eax
-    movl %eax, %ebx
-    jmp .L0_32
-.L0_31:
-    movl $11, %eax
-    movl %eax, %ebx
-.L0_32:
-    leaq lb_files_17would_block_errno(%rip), %r13
-    movq %r13, %r10
-    movl %ebx, (%r10)
-    leaq lb_files_14transfer_limit(%rip), %r13
-    movq $1073741824, %rax
-    movq %r13, %r10
-    movq %rax, (%r10)
-    movq %r12, %r10
-    movzbl (%r10), %r13d
-    testl %r13d, %r13d
-    jne .L0_33
-    jmp .L0_34
-.L0_33:
-    movl $4294967294, %eax
-    movl %eax, %ebx
-    jmp .L0_35
-.L0_34:
-    movl $4294967196, %eax
-    movl %eax, %ebx
-.L0_35:
-    leaq lb_files_20current_directory_fd(%rip), %r13
-    movq %r13, %r10
-    movl %ebx, (%r10)
-    movq %r12, %r10
-    movzbl (%r10), %r13d
-    testl %r13d, %r13d
-    jne .L0_36
-    jmp .L0_37
-.L0_36:
-    movl $1048576, %eax
-    movl %eax, %ebx
-    jmp .L0_38
-.L0_37:
-    leaq lb_platform_arm64(%rip), %rbx
-    movq %rbx, %r10
-    movzbl (%r10), %ebx
-    testl %ebx, %ebx
-    jne .L0_39
-    jmp .L0_40
-.L0_39:
-    movl $16384, %eax
-    movl %eax, %ebx
-    jmp .L0_41
-.L0_40:
-    movl $65536, %eax
-    movl %eax, %ebx
-.L0_41:
-.L0_38:
-    leaq lb_files_14directory_flag(%rip), %r13
-    movq %r13, %r10
-    movl %ebx, (%r10)
-    movq %r12, %r10
-    movzbl (%r10), %r13d
-    testl %r13d, %r13d
-    jne .L0_42
-    jmp .L0_43
-.L0_42:
-    movl $256, %eax
-    movl %eax, %ebx
-    jmp .L0_44
-.L0_43:
-    leaq lb_platform_arm64(%rip), %rbx
-    movq %rbx, %r10
-    movzbl (%r10), %ebx
-    testl %ebx, %ebx
     jne .L0_45
     jmp .L0_46
 .L0_45:
-    movl $32768, %eax
-    movl %eax, %ebx
+    movl $16384, %eax
+    movl %eax, %r12d
     jmp .L0_47
 .L0_46:
-    movl $131072, %eax
-    movl %eax, %ebx
-.L0_47:
-.L0_44:
-    leaq lb_files_14no_follow_flag(%rip), %r13
-    movq %r13, %r10
-    movl %ebx, (%r10)
+    leaq lb_platform_windows(%rip), %r12
     movq %r12, %r10
-    movzbl (%r10), %r13d
-    testl %r13d, %r13d
+    movzbl (%r10), %r12d
+    testl %r12d, %r12d
     jne .L0_48
     jmp .L0_49
 .L0_48:
-    movl $32, %eax
-    movl %eax, %ebx
+    movl $1024, %eax
+    movl %eax, %r12d
     jmp .L0_50
 .L0_49:
+    leaq lb_platform_macos(%rip), %r12
+    movq %r12, %r10
+    movzbl (%r10), %r12d
+    testl %r12d, %r12d
+    jne .L0_51
+    jmp .L0_52
+.L0_51:
+    movl $2048, %eax
+    movl %eax, %r12d
+    jmp .L0_53
+.L0_52:
+    movl $128, %eax
+    movl %eax, %r12d
+.L0_53:
+.L0_50:
+.L0_47:
+    leaq lb_files_14exclusive_flag(%rip), %r13
+    movq %r13, %r10
+    movl %r12d, (%r10)
+    leaq lb_platform_macos(%rip), %r13
+    movq %r13, %r10
+    movzbl (%r10), %r14d
+    testl %r14d, %r14d
+    jne .L0_95
+    jmp .L0_57
+.L0_95:
+    movl %r14d, %r12d
+    jmp .L0_58
+.L0_57:
+    movq %rbx, %r10
+    movzbl (%r10), %r12d
+.L0_58:
+    movzbl %r12b, %r14d
+    testl %r14d, %r14d
+    jne .L0_54
+    jmp .L0_55
+.L0_54:
+    movl $4, %eax
+    movl %eax, %r12d
+    jmp .L0_56
+.L0_55:
+    movl $2048, %eax
+    movl %eax, %r12d
+.L0_56:
+    leaq lb_files_21nonblocking_open_flag(%rip), %r14
+    movq %r14, %r10
+    movl %r12d, (%r10)
+    movq %rbx, %r10
+    movzbl (%r10), %r14d
+    testl %r14d, %r14d
+    jne .L0_59
+    jmp .L0_60
+.L0_59:
+    movl $6, %eax
+    movl %eax, %r12d
+    jmp .L0_61
+.L0_60:
+    movq %r13, %r10
+    movzbl (%r10), %r12d
+    testl %r12d, %r12d
+    jne .L0_62
+    jmp .L0_63
+.L0_62:
+    movl $35, %eax
+    movl %eax, %r12d
+    jmp .L0_64
+.L0_63:
+    movl $11, %eax
+    movl %eax, %r12d
+.L0_64:
+.L0_61:
+    leaq lb_files_17would_block_errno(%rip), %r14
+    movq %r14, %r10
+    movl %r12d, (%r10)
+    leaq lb_files_14transfer_limit(%rip), %r14
+    movq $1073741824, %rax
+    movq %r14, %r10
+    movq %rax, (%r10)
+    movq %r13, %r10
+    movzbl (%r10), %r14d
+    testl %r14d, %r14d
+    jne .L0_96
+    jmp .L0_68
+.L0_96:
+    movl %r14d, %r12d
+    jmp .L0_69
+.L0_68:
+    movq %rbx, %r10
+    movzbl (%r10), %r12d
+.L0_69:
+    movzbl %r12b, %r14d
+    testl %r14d, %r14d
+    jne .L0_65
+    jmp .L0_66
+.L0_65:
+    movl $4294967294, %eax
+    movl %eax, %r12d
+    jmp .L0_67
+.L0_66:
+    movl $4294967196, %eax
+    movl %eax, %r12d
+.L0_67:
+    leaq lb_files_20current_directory_fd(%rip), %r14
+    movq %r14, %r10
+    movl %r12d, (%r10)
+    movq %rbx, %r10
+    movzbl (%r10), %r14d
+    testl %r14d, %r14d
+    jne .L0_70
+    jmp .L0_71
+.L0_70:
+    movl $8192, %eax
+    movl %eax, %r12d
+    jmp .L0_72
+.L0_71:
+    movq %r13, %r10
+    movzbl (%r10), %r12d
+    testl %r12d, %r12d
+    jne .L0_73
+    jmp .L0_74
+.L0_73:
+    movl $1048576, %eax
+    movl %eax, %r12d
+    jmp .L0_75
+.L0_74:
+    leaq lb_platform_arm64(%rip), %r12
+    movq %r12, %r10
+    movzbl (%r10), %r12d
+    testl %r12d, %r12d
+    jne .L0_76
+    jmp .L0_77
+.L0_76:
+    movl $16384, %eax
+    movl %eax, %r12d
+    jmp .L0_78
+.L0_77:
+    movl $65536, %eax
+    movl %eax, %r12d
+.L0_78:
+.L0_75:
+.L0_72:
+    leaq lb_files_14directory_flag(%rip), %r14
+    movq %r14, %r10
+    movl %r12d, (%r10)
+    movq %rbx, %r10
+    movzbl (%r10), %r14d
+    testl %r14d, %r14d
+    jne .L0_79
+    jmp .L0_80
+.L0_79:
+    movl $16777216, %eax
+    movl %eax, %r12d
+    jmp .L0_81
+.L0_80:
+    movq %r13, %r10
+    movzbl (%r10), %r12d
+    testl %r12d, %r12d
+    jne .L0_82
+    jmp .L0_83
+.L0_82:
+    movl $256, %eax
+    movl %eax, %r12d
+    jmp .L0_84
+.L0_83:
+    leaq lb_platform_arm64(%rip), %r12
+    movq %r12, %r10
+    movzbl (%r10), %r12d
+    testl %r12d, %r12d
+    jne .L0_85
+    jmp .L0_86
+.L0_85:
+    movl $32768, %eax
+    movl %eax, %r12d
+    jmp .L0_87
+.L0_86:
+    movl $131072, %eax
+    movl %eax, %r12d
+.L0_87:
+.L0_84:
+.L0_81:
+    leaq lb_files_14no_follow_flag(%rip), %r14
+    movq %r14, %r10
+    movl %r12d, (%r10)
+    movq %rbx, %r10
+    movzbl (%r10), %r14d
+    testl %r14d, %r14d
+    jne .L0_88
+    jmp .L0_89
+.L0_88:
+    movl $1, %eax
+    movl %eax, %ebx
+    jmp .L0_90
+.L0_89:
+    movq %r13, %r10
+    movzbl (%r10), %ebx
+    testl %ebx, %ebx
+    jne .L0_91
+    jmp .L0_92
+.L0_91:
+    movl $32, %eax
+    movl %eax, %ebx
+    jmp .L0_93
+.L0_92:
     movl $256, %eax
     movl %eax, %ebx
-.L0_50:
+.L0_93:
+.L0_90:
     leaq lb_files_17at_no_follow_flag(%rip), %r12
     movq %r12, %r10
     movl %ebx, (%r10)
@@ -327,6 +514,7 @@ lb_files_module_0init:
     movq -8(%rbp), %rbx
     movq -16(%rbp), %r12
     movq -24(%rbp), %r13
+    movq -32(%rbp), %r14
     movq %rbp, %rsp
     popq %rbp
     ret
@@ -774,17 +962,17 @@ lb_files_10next_entry:
 .Ltext_5:
     .asciz "src/std/files/module.lucb:49:5"
 .Ltext_6:
-    .asciz "src/std/files/module.lucb:100:17"
+    .asciz "src/std/files/module.lucb:113:17"
 .Ltext_7:
-    .asciz "src/std/files/module.lucb:101:21"
+    .asciz "src/std/files/module.lucb:114:21"
 .Ltext_8:
-    .asciz "src/std/files/module.lucb:102:17"
+    .asciz "src/std/files/module.lucb:115:17"
 .Ltext_9:
     .asciz "index out of bounds"
 .Ltext_10:
     .asciz "the directory could not be read"
 .Ltext_11:
-    .asciz "src/std/files/module.lucb:108:9"
+    .asciz "src/std/files/module.lucb:121:9"
 .Ltext_12:
     .asciz "integer overflow"
 
@@ -792,10 +980,24 @@ lb_files_10next_entry:
     .p2align 3
 
     .bss
+    .globl lb_files_14read_only_flag
+    .type lb_files_14read_only_flag, @object
+    .p2align 2
+lb_files_14read_only_flag:
+    .zero 4
+
+    .bss
     .globl lb_files_10write_only
     .type lb_files_10write_only, @object
     .p2align 2
 lb_files_10write_only:
+    .zero 4
+
+    .bss
+    .globl lb_files_15read_write_flag
+    .type lb_files_15read_write_flag, @object
+    .p2align 2
+lb_files_15read_write_flag:
     .zero 4
 
     .bss
@@ -831,6 +1033,13 @@ lb_files_11append_flag:
     .type lb_files_14exclusive_flag, @object
     .p2align 2
 lb_files_14exclusive_flag:
+    .zero 4
+
+    .bss
+    .globl lb_files_21nonblocking_open_flag
+    .type lb_files_21nonblocking_open_flag, @object
+    .p2align 2
+lb_files_21nonblocking_open_flag:
     .zero 4
 
     .bss

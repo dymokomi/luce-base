@@ -2763,9 +2763,8 @@ lb_gpu_21release_surface_frame:
     ret
 
     .p2align 4
-    .globl lb_interop_Reference_0g1_gpu_Frame_adopt
-    .type lb_interop_Reference_0g1_gpu_Frame_adopt, @function
     .weak lb_interop_Reference_0g1_gpu_Frame_adopt
+    .type lb_interop_Reference_0g1_gpu_Frame_adopt, @function
 lb_interop_Reference_0g1_gpu_Frame_adopt:
     pushq %rbp
     movq %rsp, %rbp
@@ -3015,9 +3014,8 @@ lb_interop_Reference_0g1_gpu_Frame_adopt:
     call lb_core_7trap_at@PLT
 
     .p2align 4
-    .globl lb_interop_Reference_0g1_gpu_FrameState_value
-    .type lb_interop_Reference_0g1_gpu_FrameState_value, @function
     .weak lb_interop_Reference_0g1_gpu_FrameState_value
+    .type lb_interop_Reference_0g1_gpu_FrameState_value, @function
 lb_interop_Reference_0g1_gpu_FrameState_value:
     pushq %rbp
     movq %rsp, %rbp
@@ -3082,9 +3080,8 @@ lb_interop_Reference_0g1_gpu_FrameState_value:
     call lb_core_7trap_at@PLT
 
     .p2align 4
-    .globl lb_interop_Reference_0g1_gpu_Frame_release
-    .type lb_interop_Reference_0g1_gpu_Frame_release, @function
     .weak lb_interop_Reference_0g1_gpu_Frame_release
+    .type lb_interop_Reference_0g1_gpu_Frame_release, @function
 lb_interop_Reference_0g1_gpu_Frame_release:
     pushq %rbp
     movq %rsp, %rbp
@@ -3103,9 +3100,8 @@ lb_interop_Reference_0g1_gpu_Frame_release:
     ret
 
     .p2align 4
-    .globl lb_interop_Reservation_0g1_gpu_Frame_init
-    .type lb_interop_Reservation_0g1_gpu_Frame_init, @function
     .weak lb_interop_Reservation_0g1_gpu_Frame_init
+    .type lb_interop_Reservation_0g1_gpu_Frame_init, @function
 lb_interop_Reservation_0g1_gpu_Frame_init:
     pushq %rbp
     movq %rsp, %rbp
@@ -3360,9 +3356,8 @@ lb_interop_Reservation_0g1_gpu_Frame_init:
     ret
 
     .p2align 4
-    .globl lb_interop_Reservation_0g1_gpu_Frame_publish
-    .type lb_interop_Reservation_0g1_gpu_Frame_publish, @function
     .weak lb_interop_Reservation_0g1_gpu_Frame_publish
+    .type lb_interop_Reservation_0g1_gpu_Frame_publish, @function
 lb_interop_Reservation_0g1_gpu_Frame_publish:
     pushq %rbp
     movq %rsp, %rbp
@@ -3480,9 +3475,8 @@ lb_interop_Reservation_0g1_gpu_Frame_publish:
     call lb_core_7trap_at@PLT
 
     .p2align 4
-    .globl lb_interop_Reference_0g1_gpu_FrameState_get
-    .type lb_interop_Reference_0g1_gpu_FrameState_get, @function
     .weak lb_interop_Reference_0g1_gpu_FrameState_get
+    .type lb_interop_Reference_0g1_gpu_FrameState_get, @function
 lb_interop_Reference_0g1_gpu_FrameState_get:
     pushq %rbp
     movq %rsp, %rbp
@@ -3615,9 +3609,8 @@ lb_interop_Reference_0g1_gpu_FrameState_get:
     call lb_core_7trap_at@PLT
 
     .p2align 4
-    .globl lb_interop_Owner_0g1_gpu_Frame_12finish_owner
-    .type lb_interop_Owner_0g1_gpu_Frame_12finish_owner, @function
     .weak lb_interop_Owner_0g1_gpu_Frame_12finish_owner
+    .type lb_interop_Owner_0g1_gpu_Frame_12finish_owner, @function
 lb_interop_Owner_0g1_gpu_Frame_12finish_owner:
     pushq %rbp
     movq %rsp, %rbp
@@ -3635,9 +3628,8 @@ lb_interop_Owner_0g1_gpu_Frame_12finish_owner:
     ret
 
     .p2align 4
-    .globl lb_interop_Owner_0g1_gpu_Frame_10drop_owner
-    .type lb_interop_Owner_0g1_gpu_Frame_10drop_owner, @function
     .weak lb_interop_Owner_0g1_gpu_Frame_10drop_owner
+    .type lb_interop_Owner_0g1_gpu_Frame_10drop_owner, @function
 lb_interop_Owner_0g1_gpu_Frame_10drop_owner:
     pushq %rbp
     movq %rsp, %rbp
@@ -3753,9 +3745,8 @@ lb_interop_Owner_0g1_gpu_Frame_10drop_owner:
     ret
 
     .p2align 4
-    .globl lb_interop_Owner_0g1_gpu_Frame_11trace_owner
-    .type lb_interop_Owner_0g1_gpu_Frame_11trace_owner, @function
     .weak lb_interop_Owner_0g1_gpu_Frame_11trace_owner
+    .type lb_interop_Owner_0g1_gpu_Frame_11trace_owner, @function
 lb_interop_Owner_0g1_gpu_Frame_11trace_owner:
     pushq %rbp
     movq %rsp, %rbp
@@ -3838,9 +3829,8 @@ lb_interop_Owner_0g1_gpu_Frame_11trace_owner:
     ret
 
     .p2align 4
-    .globl lb_interop_Reference_0g1_gpu_Frame_init
-    .type lb_interop_Reference_0g1_gpu_Frame_init, @function
     .weak lb_interop_Reference_0g1_gpu_Frame_init
+    .type lb_interop_Reference_0g1_gpu_Frame_init, @function
 lb_interop_Reference_0g1_gpu_Frame_init:
     pushq %rbp
     movq %rsp, %rbp
@@ -3865,9 +3855,8 @@ lb_interop_Reference_0g1_gpu_Frame_init:
     ret
 
     .p2align 4
-    .globl lb_interop_11close_owner_0g1_gpu_Frame
-    .type lb_interop_11close_owner_0g1_gpu_Frame, @function
     .weak lb_interop_11close_owner_0g1_gpu_Frame
+    .type lb_interop_11close_owner_0g1_gpu_Frame, @function
 lb_interop_11close_owner_0g1_gpu_Frame:
     pushq %rbp
     movq %rsp, %rbp
@@ -3925,9 +3914,8 @@ lb_interop_11close_owner_0g1_gpu_Frame:
     ret
 
     .p2align 4
-    .globl lb_interop_13dispose_owner_0g1_gpu_Frame
-    .type lb_interop_13dispose_owner_0g1_gpu_Frame, @function
     .weak lb_interop_13dispose_owner_0g1_gpu_Frame
+    .type lb_interop_13dispose_owner_0g1_gpu_Frame, @function
 lb_interop_13dispose_owner_0g1_gpu_Frame:
     pushq %rbp
     movq %rsp, %rbp

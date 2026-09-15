@@ -566,7 +566,6 @@ lb_testing_11expect_text:
 
     .section .data.rel.ro,"aw"
     .p2align 3
-    .globl lb_vt_memory_FixedBuffer_Allocator
     .weak lb_vt_memory_FixedBuffer_Allocator
 lb_vt_memory_FixedBuffer_Allocator:
     .quad lb_memory_FixedBuffer_allocate

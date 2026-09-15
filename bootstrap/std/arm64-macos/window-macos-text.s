@@ -6,13 +6,6 @@ _lb_window_10macos_text_0init:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
     sub sp, sp, #16
-    adrp x14, _lb_window_13mac_not_found@PAGE
-    add x14, x14, _lb_window_13mac_not_found@PAGEOFF
-    movz x9, #65535
-    movk x9, #65535, lsl #16
-    movk x9, #65535, lsl #32
-    movk x9, #32767, lsl #48
-    str x9, [x14]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -30,8 +23,8 @@ _lb_window_23mac_register_text_input:
     str x20, [sp, #440]
     sub x16, x29, #88
     str x0, [x16]
-    adrp x14, l_text_0@PAGE
-    add x14, x14, l_text_0@PAGEOFF
+    adrp x14, l_text_3@PAGE
+    add x14, x14, l_text_3@PAGEOFF
     mov x0, x14
     bl _objc_getProtocol
     mov x14, x0
@@ -45,8 +38,8 @@ L1_2:
     add x14, x14, _lb_window_failed@PAGEOFF
     ldr w14, [x14]
     str w14, [x19]
-    adrp x14, l_text_1@PAGE
-    add x14, x14, l_text_1@PAGEOFF
+    adrp x14, l_text_4@PAGE
+    add x14, x14, l_text_4@PAGEOFF
     sub x15, x29, #104
     str x14, [x15]
     add x14, x15, #8
@@ -89,8 +82,8 @@ L1_5:
     add x14, x14, _lb_window_failed@PAGEOFF
     ldr w14, [x14]
     str w14, [x19]
-    adrp x14, l_text_2@PAGE
-    add x14, x14, l_text_2@PAGEOFF
+    adrp x14, l_text_5@PAGE
+    add x14, x14, l_text_5@PAGEOFF
     sub x15, x29, #120
     str x14, [x15]
     add x14, x15, #8
@@ -120,12 +113,12 @@ L1_8:
     b L1_7
 L1_6:
 L1_7:
-    adrp x14, l_text_3@PAGE
-    add x14, x14, l_text_3@PAGEOFF
+    adrp x14, l_text_6@PAGE
+    add x14, x14, l_text_6@PAGEOFF
     adrp x15, _lb_window_15mac_insert_text@GOTPAGE
     ldr x15, [x15, _lb_window_15mac_insert_text@GOTPAGEOFF]
-    adrp x20, l_text_4@PAGE
-    add x20, x20, l_text_4@PAGEOFF
+    adrp x20, l_text_7@PAGE
+    add x20, x20, l_text_7@PAGEOFF
     mov x0, x19
     mov x1, x14
     mov x2, x15
@@ -162,12 +155,12 @@ L1_10:
     ret
 L1_11:
 L1_9:
-    adrp x14, l_text_5@PAGE
-    add x14, x14, l_text_5@PAGEOFF
+    adrp x14, l_text_8@PAGE
+    add x14, x14, l_text_8@PAGEOFF
     adrp x15, _lb_window_14mac_set_marked@GOTPAGE
     ldr x15, [x15, _lb_window_14mac_set_marked@GOTPAGEOFF]
-    adrp x20, l_text_6@PAGE
-    add x20, x20, l_text_6@PAGEOFF
+    adrp x20, l_text_9@PAGE
+    add x20, x20, l_text_9@PAGEOFF
     mov x0, x19
     mov x1, x14
     mov x2, x15
@@ -204,12 +197,12 @@ L1_13:
     ret
 L1_14:
 L1_12:
-    adrp x14, l_text_7@PAGE
-    add x14, x14, l_text_7@PAGEOFF
+    adrp x14, l_text_10@PAGE
+    add x14, x14, l_text_10@PAGEOFF
     adrp x15, _lb_window_10mac_unmark@GOTPAGE
     ldr x15, [x15, _lb_window_10mac_unmark@GOTPAGEOFF]
-    adrp x20, l_text_8@PAGE
-    add x20, x20, l_text_8@PAGEOFF
+    adrp x20, l_text_11@PAGE
+    add x20, x20, l_text_11@PAGEOFF
     mov x0, x19
     mov x1, x14
     mov x2, x15
@@ -246,12 +239,12 @@ L1_16:
     ret
 L1_17:
 L1_15:
-    adrp x14, l_text_9@PAGE
-    add x14, x14, l_text_9@PAGEOFF
+    adrp x14, l_text_12@PAGE
+    add x14, x14, l_text_12@PAGEOFF
     adrp x15, _lb_window_14mac_has_marked@GOTPAGE
     ldr x15, [x15, _lb_window_14mac_has_marked@GOTPAGEOFF]
-    adrp x20, l_text_10@PAGE
-    add x20, x20, l_text_10@PAGEOFF
+    adrp x20, l_text_13@PAGE
+    add x20, x20, l_text_13@PAGEOFF
     mov x0, x19
     mov x1, x14
     mov x2, x15
@@ -288,12 +281,12 @@ L1_19:
     ret
 L1_20:
 L1_18:
-    adrp x14, l_text_11@PAGE
-    add x14, x14, l_text_11@PAGEOFF
+    adrp x14, l_text_14@PAGE
+    add x14, x14, l_text_14@PAGEOFF
     adrp x15, _lb_window_16mac_marked_range@GOTPAGE
     ldr x15, [x15, _lb_window_16mac_marked_range@GOTPAGEOFF]
-    adrp x20, l_text_12@PAGE
-    add x20, x20, l_text_12@PAGEOFF
+    adrp x20, l_text_15@PAGE
+    add x20, x20, l_text_15@PAGEOFF
     mov x0, x19
     mov x1, x14
     mov x2, x15
@@ -330,8 +323,8 @@ L1_22:
     ret
 L1_23:
 L1_21:
-    adrp x14, l_text_13@PAGE
-    add x14, x14, l_text_13@PAGEOFF
+    adrp x14, l_text_16@PAGE
+    add x14, x14, l_text_16@PAGEOFF
     adrp x15, _lb_window_18mac_selected_range@GOTPAGE
     ldr x15, [x15, _lb_window_18mac_selected_range@GOTPAGEOFF]
     mov x0, x19
@@ -370,12 +363,12 @@ L1_25:
     ret
 L1_26:
 L1_24:
-    adrp x14, l_text_14@PAGE
-    add x14, x14, l_text_14@PAGEOFF
+    adrp x14, l_text_17@PAGE
+    add x14, x14, l_text_17@PAGEOFF
     adrp x15, _lb_window_21mac_marked_attributes@GOTPAGE
     ldr x15, [x15, _lb_window_21mac_marked_attributes@GOTPAGEOFF]
-    adrp x20, l_text_15@PAGE
-    add x20, x20, l_text_15@PAGEOFF
+    adrp x20, l_text_18@PAGE
+    add x20, x20, l_text_18@PAGEOFF
     mov x0, x19
     mov x1, x14
     mov x2, x15
@@ -412,12 +405,12 @@ L1_28:
     ret
 L1_29:
 L1_27:
-    adrp x14, l_text_16@PAGE
-    add x14, x14, l_text_16@PAGEOFF
+    adrp x14, l_text_19@PAGE
+    add x14, x14, l_text_19@PAGEOFF
     adrp x15, _lb_window_18mac_text_substring@GOTPAGE
     ldr x15, [x15, _lb_window_18mac_text_substring@GOTPAGEOFF]
-    adrp x20, l_text_17@PAGE
-    add x20, x20, l_text_17@PAGEOFF
+    adrp x20, l_text_20@PAGE
+    add x20, x20, l_text_20@PAGEOFF
     mov x0, x19
     mov x1, x14
     mov x2, x15
@@ -454,12 +447,12 @@ L1_31:
     ret
 L1_32:
 L1_30:
-    adrp x14, l_text_18@PAGE
-    add x14, x14, l_text_18@PAGEOFF
+    adrp x14, l_text_21@PAGE
+    add x14, x14, l_text_21@PAGEOFF
     adrp x15, _lb_window_14mac_text_index@GOTPAGE
     ldr x15, [x15, _lb_window_14mac_text_index@GOTPAGEOFF]
-    adrp x20, l_text_19@PAGE
-    add x20, x20, l_text_19@PAGEOFF
+    adrp x20, l_text_22@PAGE
+    add x20, x20, l_text_22@PAGEOFF
     mov x0, x19
     mov x1, x14
     mov x2, x15
@@ -496,12 +489,12 @@ L1_34:
     ret
 L1_35:
 L1_33:
-    adrp x14, l_text_20@PAGE
-    add x14, x14, l_text_20@PAGEOFF
+    adrp x14, l_text_23@PAGE
+    add x14, x14, l_text_23@PAGEOFF
     adrp x15, _lb_window_13mac_text_rect@GOTPAGE
     ldr x15, [x15, _lb_window_13mac_text_rect@GOTPAGEOFF]
-    adrp x20, l_text_21@PAGE
-    add x20, x20, l_text_21@PAGEOFF
+    adrp x20, l_text_24@PAGE
+    add x20, x20, l_text_24@PAGEOFF
     mov x0, x19
     mov x1, x14
     mov x2, x15
@@ -538,12 +531,12 @@ L1_37:
     ret
 L1_38:
 L1_36:
-    adrp x14, l_text_22@PAGE
-    add x14, x14, l_text_22@PAGEOFF
+    adrp x14, l_text_25@PAGE
+    add x14, x14, l_text_25@PAGEOFF
     adrp x15, _lb_window_16mac_text_command@GOTPAGE
     ldr x15, [x15, _lb_window_16mac_text_command@GOTPAGEOFF]
-    adrp x20, l_text_23@PAGE
-    add x20, x20, l_text_23@PAGEOFF
+    adrp x20, l_text_26@PAGE
+    add x20, x20, l_text_26@PAGEOFF
     mov x0, x19
     mov x1, x14
     mov x2, x15
@@ -607,8 +600,8 @@ _lb_window_14mac_plain_text:
     str x20, [sp, #16]
     sub x16, x29, #48
     str x0, [x16]
-    adrp x14, l_text_24@PAGE
-    add x14, x14, l_text_24@PAGEOFF
+    adrp x14, l_text_27@PAGE
+    add x14, x14, l_text_27@PAGEOFF
     mov x0, x14
     bl _objc_getClass
     mov x19, x0
@@ -628,8 +621,8 @@ L2_4:
 L2_3:
     sub x14, x29, #48
     ldr x20, [x14]
-    adrp x14, l_text_25@PAGE
-    add x14, x14, l_text_25@PAGEOFF
+    adrp x14, l_text_28@PAGE
+    add x14, x14, l_text_28@PAGEOFF
     mov x0, x14
     bl _lb_window_sel
     mov x14, x0
@@ -652,8 +645,8 @@ L2_8:
     b L2_7
 L2_6:
 L2_7:
-    adrp x14, l_text_26@PAGE
-    add x14, x14, l_text_26@PAGEOFF
+    adrp x14, l_text_29@PAGE
+    add x14, x14, l_text_29@PAGEOFF
     mov x0, x14
     bl _lb_window_sel
     mov x14, x0
@@ -669,10 +662,10 @@ L2_7:
     ldp x29, x30, [sp], #16
     ret
 L2_9:
-    adrp x0, l_text_28@PAGE
-    add x0, x0, l_text_28@PAGEOFF
-    adrp x1, l_text_27@PAGE
-    add x1, x1, l_text_27@PAGEOFF
+    adrp x0, l_text_30@PAGE
+    add x0, x0, l_text_30@PAGEOFF
+    adrp x1, l_text_2@PAGE
+    add x1, x1, l_text_2@PAGEOFF
     bl _lb_core_7trap_at
 
     .p2align 2
@@ -696,8 +689,8 @@ _lb_window_16mac_clear_marked:
     b L3_2
 L3_4:
 L3_1:
-    adrp x14, l_text_29@PAGE
-    add x14, x14, l_text_29@PAGEOFF
+    adrp x14, l_text_31@PAGE
+    add x14, x14, l_text_31@PAGEOFF
     mov x0, x14
     bl _lb_window_sel
     mov x14, x0
@@ -805,8 +798,8 @@ L4_10:
     ret
 L4_12:
 L4_11:
-    adrp x14, l_text_30@PAGE
-    add x14, x14, l_text_30@PAGEOFF
+    adrp x14, l_text_32@PAGE
+    add x14, x14, l_text_32@PAGEOFF
     mov x0, x14
     bl _lb_window_sel
     mov x14, x0
@@ -821,10 +814,10 @@ L4_11:
     mov x10, x14
     subs x9, x9, x10
     b.cs 1f
-    adrp x0, l_text_31@PAGE
-    add x0, x0, l_text_31@PAGEOFF
-    adrp x1, l_text_46@PAGE
-    add x1, x1, l_text_46@PAGEOFF
+    adrp x0, l_text_33@PAGE
+    add x0, x0, l_text_33@PAGEOFF
+    adrp x1, l_text_48@PAGE
+    add x1, x1, l_text_48@PAGEOFF
     bl _lb_core_7trap_at
 1:
     mov x14, x9
@@ -847,8 +840,8 @@ L4_16:
     b L4_15
 L4_14:
 L4_15:
-    adrp x22, l_text_32@PAGE
-    add x22, x22, l_text_32@PAGEOFF
+    adrp x22, l_text_34@PAGE
+    add x22, x22, l_text_34@PAGEOFF
     mov x9, #0
     mov x23, x9
 L4_17:
@@ -974,8 +967,8 @@ L5_10:
     ret
 L5_12:
 L5_11:
-    adrp x14, l_text_30@PAGE
-    add x14, x14, l_text_30@PAGEOFF
+    adrp x14, l_text_32@PAGE
+    add x14, x14, l_text_32@PAGEOFF
     mov x0, x14
     bl _lb_window_sel
     mov x14, x0
@@ -989,8 +982,8 @@ L5_11:
 L5_13:
     movz x10, #14408
     add x21, x19, x10
-    adrp x14, l_text_33@PAGE
-    add x14, x14, l_text_33@PAGEOFF
+    adrp x14, l_text_35@PAGE
+    add x14, x14, l_text_35@PAGEOFF
     mov x0, x14
     bl _lb_window_sel
     mov x14, x0
@@ -1090,10 +1083,10 @@ L7_3:
     ldp x29, x30, [sp], #16
     ret
 L7_5:
-    adrp x0, l_text_34@PAGE
-    add x0, x0, l_text_34@PAGEOFF
-    adrp x1, l_text_27@PAGE
-    add x1, x1, l_text_27@PAGEOFF
+    adrp x0, l_text_36@PAGE
+    add x0, x0, l_text_36@PAGEOFF
+    adrp x1, l_text_2@PAGE
+    add x1, x1, l_text_2@PAGEOFF
     bl _lb_core_7trap_at
 
     .p2align 2
@@ -1122,10 +1115,13 @@ L8_2:
     sub x19, x29, #104
     mov x11, x19
     stp xzr, xzr, [x11, #0]
-    adrp x14, _lb_window_13mac_not_found@PAGE
-    add x14, x14, _lb_window_13mac_not_found@PAGEOFF
-    ldr x14, [x14]
-    str x14, [x19]
+L8_11:
+L8_13:
+    movz x9, #65535
+    movk x9, #65535, lsl #16
+    movk x9, #65535, lsl #32
+    movk x9, #32767, lsl #48
+    str x9, [x19]
     add x14, x19, #8
     mov x9, #0
     str x9, [x14]
@@ -1143,7 +1139,6 @@ L8_2:
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
-L8_4:
 L8_3:
     movz x10, #14408
     add x15, x14, x10
@@ -1156,10 +1151,13 @@ L8_6:
     sub x19, x29, #120
     mov x11, x19
     stp xzr, xzr, [x11, #0]
-    adrp x14, _lb_window_13mac_not_found@PAGE
-    add x14, x14, _lb_window_13mac_not_found@PAGEOFF
-    ldr x14, [x14]
-    str x14, [x19]
+L8_15:
+L8_17:
+    movz x9, #65535
+    movk x9, #65535, lsl #16
+    movk x9, #65535, lsl #32
+    movk x9, #32767, lsl #48
+    str x9, [x19]
     add x14, x19, #8
     mov x9, #0
     str x9, [x14]
@@ -1177,15 +1175,14 @@ L8_6:
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
-L8_8:
 L8_7:
     sub x20, x29, #136
     mov x11, x20
     stp xzr, xzr, [x11, #0]
     mov x9, #0
     str x9, [x20]
-    adrp x14, l_text_30@PAGE
-    add x14, x14, l_text_30@PAGEOFF
+    adrp x14, l_text_32@PAGE
+    add x14, x14, l_text_32@PAGEOFF
     mov x0, x14
     bl _lb_window_sel
     mov x14, x0
@@ -1209,12 +1206,6 @@ L8_7:
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
-L8_9:
-    adrp x0, l_text_35@PAGE
-    add x0, x0, l_text_35@PAGEOFF
-    adrp x1, l_text_27@PAGE
-    add x1, x1, l_text_27@PAGEOFF
-    bl _lb_core_7trap_at
 
     .p2align 2
     .globl _lb_window_18mac_selected_range
@@ -1290,10 +1281,10 @@ L9_3:
     ldp x29, x30, [sp], #16
     ret
 L9_5:
-    adrp x0, l_text_36@PAGE
-    add x0, x0, l_text_36@PAGEOFF
-    adrp x1, l_text_27@PAGE
-    add x1, x1, l_text_27@PAGEOFF
+    adrp x0, l_text_38@PAGE
+    add x0, x0, l_text_38@PAGEOFF
+    adrp x1, l_text_2@PAGE
+    add x1, x1, l_text_2@PAGEOFF
     bl _lb_core_7trap_at
 
     .p2align 2
@@ -1307,8 +1298,8 @@ _lb_window_21mac_marked_attributes:
     str x0, [x16]
     sub x16, x29, #56
     str x1, [x16]
-    adrp x14, l_text_37@PAGE
-    add x14, x14, l_text_37@PAGEOFF
+    adrp x14, l_text_39@PAGE
+    add x14, x14, l_text_39@PAGEOFF
     mov x0, x14
     bl _objc_getClass
     mov x19, x0
@@ -1325,8 +1316,8 @@ L10_2:
     ret
 L10_4:
 L10_3:
-    adrp x14, l_text_38@PAGE
-    add x14, x14, l_text_38@PAGEOFF
+    adrp x14, l_text_40@PAGE
+    add x14, x14, l_text_40@PAGEOFF
     mov x0, x14
     bl _lb_window_sel
     mov x14, x0
@@ -1341,10 +1332,10 @@ L10_3:
     ldp x29, x30, [sp], #16
     ret
 L10_5:
-    adrp x0, l_text_39@PAGE
-    add x0, x0, l_text_39@PAGEOFF
-    adrp x1, l_text_27@PAGE
-    add x1, x1, l_text_27@PAGEOFF
+    adrp x0, l_text_41@PAGE
+    add x0, x0, l_text_41@PAGEOFF
+    adrp x1, l_text_2@PAGE
+    add x1, x1, l_text_2@PAGEOFF
     bl _lb_core_7trap_at
 
     .p2align 2
@@ -1373,10 +1364,13 @@ L11_1:
     sub x20, x29, #112
     mov x11, x20
     stp xzr, xzr, [x11, #0]
-    adrp x14, _lb_window_13mac_not_found@PAGE
-    add x14, x14, _lb_window_13mac_not_found@PAGEOFF
-    ldr x14, [x14]
-    str x14, [x20]
+L11_7:
+L11_9:
+    movz x9, #65535
+    movk x9, #65535, lsl #16
+    movk x9, #65535, lsl #32
+    movk x9, #32767, lsl #48
+    str x9, [x20]
     add x14, x20, #8
     mov x9, #0
     str x9, [x14]
@@ -1394,12 +1388,6 @@ L11_3:
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
-L11_5:
-    adrp x0, l_text_40@PAGE
-    add x0, x0, l_text_40@PAGEOFF
-    adrp x1, l_text_27@PAGE
-    add x1, x1, l_text_27@PAGEOFF
-    bl _lb_core_7trap_at
 
     .p2align 2
     .globl _lb_window_14mac_text_index
@@ -1415,20 +1403,16 @@ _lb_window_14mac_text_index:
     str d0, [x16, #0]
     sub x16, x29, #64
     str d1, [x16, #8]
-    adrp x14, _lb_window_13mac_not_found@PAGE
-    add x14, x14, _lb_window_13mac_not_found@PAGEOFF
-    ldr x14, [x14]
-    mov x9, x14
+L12_3:
+L12_5:
+    movz x9, #65535
+    movk x9, #65535, lsl #16
+    movk x9, #65535, lsl #32
+    movk x9, #32767, lsl #48
     mov x0, x9
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
-L12_1:
-    adrp x0, l_text_41@PAGE
-    add x0, x0, l_text_41@PAGEOFF
-    adrp x1, l_text_27@PAGE
-    add x1, x1, l_text_27@PAGEOFF
-    bl _lb_core_7trap_at
 
     .p2align 2
     .globl _lb_window_13mac_text_rect
@@ -1529,8 +1513,8 @@ L13_10:
     ret
 L13_12:
 L13_11:
-    adrp x14, l_text_42@PAGE
-    add x14, x14, l_text_42@PAGEOFF
+    adrp x14, l_text_44@PAGE
+    add x14, x14, l_text_44@PAGEOFF
     mov x0, x14
     bl _lb_window_sel
     mov x20, x0
@@ -1590,10 +1574,10 @@ L13_11:
     ldp x29, x30, [sp], #16
     ret
 L13_13:
-    adrp x0, l_text_43@PAGE
-    add x0, x0, l_text_43@PAGEOFF
-    adrp x1, l_text_27@PAGE
-    add x1, x1, l_text_27@PAGEOFF
+    adrp x0, l_text_45@PAGE
+    add x0, x0, l_text_45@PAGEOFF
+    adrp x1, l_text_2@PAGE
+    add x1, x1, l_text_2@PAGEOFF
     bl _lb_core_7trap_at
 
     .p2align 2
@@ -1634,8 +1618,8 @@ _lb_window_21mac_cancel_text_input:
     b L15_2
 L15_4:
 L15_1:
-    adrp x14, l_text_44@PAGE
-    add x14, x14, l_text_44@PAGEOFF
+    adrp x14, l_text_46@PAGE
+    add x14, x14, l_text_46@PAGEOFF
     mov x0, x14
     bl _lb_window_sel
     mov x14, x0
@@ -1647,8 +1631,8 @@ L15_1:
     b L15_6
 L15_8:
 L15_5:
-    adrp x14, l_text_45@PAGE
-    add x14, x14, l_text_45@PAGEOFF
+    adrp x14, l_text_47@PAGE
+    add x14, x14, l_text_47@PAGEOFF
     mov x0, x14
     bl _lb_window_sel
     mov x14, x0
@@ -1673,103 +1657,105 @@ L15_3:
 
     .section __TEXT,__const
 l_text_0:
-    .asciz "NSTextInputClient"
+    .asciz "shift count out of range"
 l_text_1:
-    .asciz "AppKit text input is unavailable"
+    .asciz "src/std/window/macos/text.lucb:5:5"
 l_text_2:
-    .asciz "could not register the native text input client"
-l_text_3:
-    .asciz "insertText:replacementRange:"
-l_text_4:
-    .asciz "v@:@{_NSRange=QQ}"
-l_text_5:
-    .asciz "setMarkedText:selectedRange:replacementRange:"
-l_text_6:
-    .asciz "v@:@{_NSRange=QQ}{_NSRange=QQ}"
-l_text_7:
-    .asciz "unmarkText"
-l_text_8:
-    .asciz "v@:"
-l_text_9:
-    .asciz "hasMarkedText"
-l_text_10:
-    .asciz "B@:"
-l_text_11:
-    .asciz "markedRange"
-l_text_12:
-    .asciz "{_NSRange=QQ}@:"
-l_text_13:
-    .asciz "selectedRange"
-l_text_14:
-    .asciz "validAttributesForMarkedText"
-l_text_15:
-    .asciz "@@:"
-l_text_16:
-    .asciz "attributedSubstringForProposedRange:actualRange:"
-l_text_17:
-    .asciz "@@:{_NSRange=QQ}^{_NSRange=QQ}"
-l_text_18:
-    .asciz "characterIndexForPoint:"
-l_text_19:
-    .asciz "Q@:{CGPoint=dd}"
-l_text_20:
-    .asciz "firstRectForCharacterRange:actualRange:"
-l_text_21:
-    .asciz "{CGRect={CGPoint=dd}{CGSize=dd}}@:{_NSRange=QQ}^{_NSRange=QQ}"
-l_text_22:
-    .asciz "doCommandBySelector:"
-l_text_23:
-    .asciz "v@::"
-l_text_24:
-    .asciz "NSString"
-l_text_25:
-    .asciz "isKindOfClass:"
-l_text_26:
-    .asciz "string"
-l_text_27:
     .asciz "unreachable"
+l_text_3:
+    .asciz "NSTextInputClient"
+l_text_4:
+    .asciz "AppKit text input is unavailable"
+l_text_5:
+    .asciz "could not register the native text input client"
+l_text_6:
+    .asciz "insertText:replacementRange:"
+l_text_7:
+    .asciz "v@:@{_NSRange=QQ}"
+l_text_8:
+    .asciz "setMarkedText:selectedRange:replacementRange:"
+l_text_9:
+    .asciz "v@:@{_NSRange=QQ}{_NSRange=QQ}"
+l_text_10:
+    .asciz "unmarkText"
+l_text_11:
+    .asciz "v@:"
+l_text_12:
+    .asciz "hasMarkedText"
+l_text_13:
+    .asciz "B@:"
+l_text_14:
+    .asciz "markedRange"
+l_text_15:
+    .asciz "{_NSRange=QQ}@:"
+l_text_16:
+    .asciz "selectedRange"
+l_text_17:
+    .asciz "validAttributesForMarkedText"
+l_text_18:
+    .asciz "@@:"
+l_text_19:
+    .asciz "attributedSubstringForProposedRange:actualRange:"
+l_text_20:
+    .asciz "@@:{_NSRange=QQ}^{_NSRange=QQ}"
+l_text_21:
+    .asciz "characterIndexForPoint:"
+l_text_22:
+    .asciz "Q@:{CGPoint=dd}"
+l_text_23:
+    .asciz "firstRectForCharacterRange:actualRange:"
+l_text_24:
+    .asciz "{CGRect={CGPoint=dd}{CGSize=dd}}@:{_NSRange=QQ}^{_NSRange=QQ}"
+l_text_25:
+    .asciz "doCommandBySelector:"
+l_text_26:
+    .asciz "v@::"
+l_text_27:
+    .asciz "NSString"
 l_text_28:
-    .asciz "src/std/window/macos/text.lucb:25:5"
+    .asciz "isKindOfClass:"
 l_text_29:
-    .asciz "release"
+    .asciz "string"
 l_text_30:
-    .asciz "length"
+    .asciz "src/std/window/macos/text.lucb:27:5"
 l_text_31:
-    .asciz "src/std/window/macos/text.lucb:42:5"
+    .asciz "release"
 l_text_32:
-    .asciz "characterAtIndex:"
+    .asciz "length"
 l_text_33:
-    .asciz "copy"
+    .asciz "src/std/window/macos/text.lucb:44:5"
 l_text_34:
-    .asciz "src/std/window/macos/text.lucb:68:5"
+    .asciz "characterAtIndex:"
 l_text_35:
-    .asciz "src/std/window/macos/text.lucb:73:5"
+    .asciz "copy"
 l_text_36:
-    .asciz "src/std/window/macos/text.lucb:77:5"
+    .asciz "src/std/window/macos/text.lucb:70:5"
 l_text_37:
-    .asciz "NSArray"
+    .asciz "src/std/window/macos/text.lucb:75:5"
 l_text_38:
-    .asciz "array"
+    .asciz "src/std/window/macos/text.lucb:79:5"
 l_text_39:
-    .asciz "src/std/window/macos/text.lucb:81:5"
+    .asciz "NSArray"
 l_text_40:
-    .asciz "src/std/window/macos/text.lucb:86:5"
+    .asciz "array"
 l_text_41:
-    .asciz "src/std/window/macos/text.lucb:89:5"
+    .asciz "src/std/window/macos/text.lucb:83:5"
 l_text_42:
-    .asciz "convertRectToScreen:"
+    .asciz "src/std/window/macos/text.lucb:88:5"
 l_text_43:
-    .asciz "src/std/window/macos/text.lucb:96:5"
+    .asciz "src/std/window/macos/text.lucb:91:5"
 l_text_44:
-    .asciz "inputContext"
+    .asciz "convertRectToScreen:"
 l_text_45:
-    .asciz "discardMarkedText"
+    .asciz "src/std/window/macos/text.lucb:98:5"
 l_text_46:
+    .asciz "inputContext"
+l_text_47:
+    .asciz "discardMarkedText"
+l_text_48:
     .asciz "integer overflow"
 
     .section __DATA,__const
     .p2align 3
-    .globl _lb_window_13mac_not_found
-    .zerofill __DATA,__bss,_lb_window_13mac_not_found,8,3
 
 .subsections_via_symbols

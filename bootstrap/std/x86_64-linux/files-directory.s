@@ -870,25 +870,13 @@ lb_files_Directory_9open_file:
     jne .L6_10
     jmp .L6_11
 .L6_10:
-    leaq lb_platform_macos(%rip), %r12
+    leaq lb_files_21nonblocking_open_flag(%rip), %r12
     movq %r12, %r10
-    movzbl (%r10), %r12d
-    testl %r12d, %r12d
-    jne .L6_13
-    jmp .L6_14
-.L6_13:
-    movl $4, %eax
-    movl %eax, %r12d
-    jmp .L6_15
-.L6_14:
-    movl $2048, %eax
-    movl %eax, %r12d
-.L6_15:
-    movl %r13d, %r15d
-    orl %r12d, %r15d
+    movslq (%r10), %r12
+    orl %r13d, %r12d
     jmp .L6_12
 .L6_11:
-    movl %r13d, %r15d
+    movl %r13d, %r12d
 .L6_12:
     leaq -112(%rbp), %rax
     movq %rax, -304(%rbp)
@@ -897,15 +885,15 @@ lb_files_Directory_9open_file:
     movq %rax, -312(%rbp)
     movl -296(%rbp), %edi
     movq -312(%rbp), %rsi
-    movl %r15d, %edx
+    movl %r12d, %edx
     movl %r14d, %ecx
     movl $0, %eax
     call openat@PLT
-    movl %eax, %r13d
-    leaq lb_c_interrupted(%rip), %r12
-    movl %r13d, %eax
+    movl %eax, %r15d
+    leaq lb_c_interrupted(%rip), %r13
+    movl %r15d, %eax
     movl %eax, -328(%rbp)
-.L6_16:
+.L6_13:
     movl -328(%rbp), %eax
     movl $0, %ecx
     cmpl %ecx, %eax
@@ -914,42 +902,42 @@ lb_files_Directory_9open_file:
     movl %eax, -320(%rbp)
     movl -320(%rbp), %eax
     testl %eax, %eax
-    jne .L6_19
-    jmp .L6_26
-.L6_26:
+    jne .L6_16
+    jmp .L6_23
+.L6_23:
     movl -320(%rbp), %eax
-    movl %eax, %r13d
-    jmp .L6_20
-.L6_19:
+    movl %eax, %r15d
+    jmp .L6_17
+.L6_16:
     call lb_c_errno@PLT
-    movl %eax, %r13d
-    movq %r12, %r10
+    movl %eax, %r15d
+    movq %r13, %r10
     movslq (%r10), %rbx
-    cmpl %ebx, %r13d
+    cmpl %ebx, %r15d
     sete %al
-    movzbl %al, %r13d
-.L6_20:
-    movzbl %r13b, %ebx
-    testl %ebx, %ebx
-    jne .L6_17
-    jmp .L6_18
+    movzbl %al, %r15d
 .L6_17:
+    movzbl %r15b, %ebx
+    testl %ebx, %ebx
+    jne .L6_14
+    jmp .L6_15
+.L6_14:
     movl -296(%rbp), %edi
     movq -312(%rbp), %rsi
-    movl %r15d, %edx
+    movl %r12d, %edx
     movl %r14d, %ecx
     movl $0, %eax
     call openat@PLT
     movl %eax, %ebx
     movl %ebx, %eax
     movl %eax, -328(%rbp)
-    jmp .L6_16
-.L6_18:
+    jmp .L6_13
+.L6_15:
     movl -320(%rbp), %eax
     testl %eax, %eax
-    jne .L6_21
-    jmp .L6_22
-.L6_21:
+    jne .L6_18
+    jmp .L6_19
+.L6_18:
     leaq -88(%rbp), %rbx
     movq $8, %rcx
     movq %rbx, %r12
@@ -996,10 +984,10 @@ lb_files_Directory_9open_file:
     movq %rbp, %rsp
     popq %rbp
     ret
-.L6_24:
-    jmp .L6_23
-.L6_22:
-.L6_23:
+.L6_21:
+    jmp .L6_20
+.L6_19:
+.L6_20:
     leaq -280(%rbp), %rbx
     movq %rbx, %r11
     movq $0, 0(%r11)
@@ -1041,7 +1029,7 @@ lb_files_Directory_9open_file:
     movq %rbp, %rsp
     popq %rbp
     ret
-.L6_25:
+.L6_22:
     leaq .Ltext_9(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     call lb_core_7trap_at@PLT
@@ -3940,9 +3928,8 @@ lb_files_15release_entries:
     ret
 
     .p2align 4
-    .globl lb_memory_copy_0g1_str
-    .type lb_memory_copy_0g1_str, @function
     .weak lb_memory_copy_0g1_str
+    .type lb_memory_copy_0g1_str, @function
 lb_memory_copy_0g1_str:
     pushq %rbp
     movq %rsp, %rbp
@@ -4055,9 +4042,8 @@ lb_memory_copy_0g1_str:
     ret
 
     .p2align 4
-    .globl lb_memory_copy_0g1_u8
-    .type lb_memory_copy_0g1_u8, @function
     .weak lb_memory_copy_0g1_u8
+    .type lb_memory_copy_0g1_u8, @function
 lb_memory_copy_0g1_u8:
     pushq %rbp
     movq %rsp, %rbp

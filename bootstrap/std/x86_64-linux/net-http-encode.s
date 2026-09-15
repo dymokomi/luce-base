@@ -4393,7 +4393,6 @@ lb_net_HttpBodyWriter_check:
 
     .section .data.rel.ro,"aw"
     .p2align 3
-    .globl lb_vt_io_SliceWriter_Writer
     .weak lb_vt_io_SliceWriter_Writer
 lb_vt_io_SliceWriter_Writer:
     .quad lb_io_SliceWriter_write

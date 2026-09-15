@@ -745,20 +745,11 @@ L6_9:
     cbnz w14, L6_10
     b L6_11
 L6_10:
-    adrp x14, _lb_platform_macos@PAGE
-    add x14, x14, _lb_platform_macos@PAGEOFF
-    ldrb w14, [x14]
-    cbnz w14, L6_13
-    b L6_14
-L6_13:
-    movz x9, #4
-    mov w14, w9
-    b L6_15
-L6_14:
-    movz x9, #2048
-    mov w14, w9
-L6_15:
-    orr w21, w15, w14
+    adrp x14, _lb_files_21nonblocking_open_flag@PAGE
+    add x14, x14, _lb_files_21nonblocking_open_flag@PAGEOFF
+    ldrsw x14, [x14]
+    orr w14, w14, w15
+    mov w21, w14
     b L6_12
 L6_11:
     mov w21, w15
@@ -779,26 +770,26 @@ L6_12:
     adrp x23, _lb_c_interrupted@PAGE
     add x23, x23, _lb_c_interrupted@PAGEOFF
     mov w24, w14
-L6_16:
+L6_13:
     mov x10, #0
     cmp w24, w10
     cset w25, lt
-    cbnz w25, L6_19
-    b L6_26
-L6_26:
+    cbnz w25, L6_16
+    b L6_23
+L6_23:
     mov w14, w25
-    b L6_20
-L6_19:
+    b L6_17
+L6_16:
     bl _lb_c_errno
     mov w14, w0
     ldrsw x15, [x23]
     cmp w14, w15
     cset w14, eq
-L6_20:
-    and w15, w14, #255
-    cbnz w15, L6_17
-    b L6_18
 L6_17:
+    and w15, w14, #255
+    cbnz w15, L6_14
+    b L6_15
+L6_14:
     movz x16, #16
     sub sp, sp, x16
     mov w9, w20
@@ -810,11 +801,11 @@ L6_17:
     movz x16, #16
     add sp, sp, x16
     mov w24, w0
-    b L6_16
+    b L6_13
+L6_15:
+    cbnz w25, L6_18
+    b L6_19
 L6_18:
-    cbnz w25, L6_21
-    b L6_22
-L6_21:
     sub x19, x29, #120
     add x20, x19, #8
     bl _lb_c_errno
@@ -855,10 +846,10 @@ L6_21:
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
-L6_24:
-    b L6_23
-L6_22:
-L6_23:
+L6_21:
+    b L6_20
+L6_19:
+L6_20:
     sub x19, x29, #312
     mov x11, x19
     str xzr, [x11, #0]
@@ -896,7 +887,7 @@ L6_23:
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
-L6_25:
+L6_22:
     adrp x0, l_text_9@PAGE
     add x0, x0, l_text_9@PAGEOFF
     adrp x1, l_text_0@PAGE

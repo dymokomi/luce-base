@@ -1297,9 +1297,8 @@ lb_gpu_11canvas_mask:
     ret
 
     .p2align 4
-    .globl lb_memory_copy_0g1_u32
-    .type lb_memory_copy_0g1_u32, @function
     .weak lb_memory_copy_0g1_u32
+    .type lb_memory_copy_0g1_u32, @function
 lb_memory_copy_0g1_u32:
     pushq %rbp
     movq %rsp, %rbp

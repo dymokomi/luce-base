@@ -57,7 +57,8 @@ subdirectory keeps a generated module of its own beside it.
 | `back.ir.ir` | the intermediate form: functions of blocks of typed instructions |
 | `back.ir.lower` | the checked tree to IR: the same instantiation and conversion decisions as `emit` |
 | `back.native.regalloc` | registers for the temporaries: exact lives by dataflow, linear scan with holes, two pools per class, copy hints |
-| `back.native.arm64` | IR to arm64-macos assembly: frames, the calling convention, atomics |
+| `back.native.arm64` | IR to arm64 assembly: frames, the calling convention, atomics; arm64-macos and arm64-linux |
+| `back.native.arm64.object` | Mach-O and ELF for arm64: sections, symbols, relocations, thread-locals, and where Apple's convention differs from AAPCS64 (variadic and stack arguments) |
 | `back.native.x86_64` | IR to x86_64-linux assembly: the System V convention, eightbyte classification with the MEMORY class for packed records, halves through F16C or software by level |
 | `back.target` | the targets of §19.5: symbols, streams, libraries, the `platform` module, section names |
 | `support.list` | a growable array over the current allocator |
@@ -158,6 +159,15 @@ the check, because a compiler that is also a bootstrap step needs to be right
 before it needs to be thorough.
 
 ## The C backend
+
+wasm32 is the C backend's target alone: no machine is a host of it, so `main` picks the C
+toolchain by target (`tools_for`), a wasi-sdk named by `WASI_SDK` or Homebrew's llvm,
+lld, wasi-libc and wasi-runtimes, and gives every compile and link its `--target` and
+sysroot flags; `ar` and `nm` are that toolchain's `llvm-ar` and `llvm-nm`. The type
+table takes the target's word (four bytes) and C's `long` width from the target, the
+renamed externs get typed declarations, since WebAssembly checks every call's signature,
+and the standard library carries WASI's own numbers for open flags, errors, `stat`,
+directory entries and clocks the way it carries Windows'.
 
 Base evaluates left to right, always (§7.1); C promises no order for a call's
 arguments, and GCC takes them right to left where clang takes them left to

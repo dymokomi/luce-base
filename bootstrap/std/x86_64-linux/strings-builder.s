@@ -1785,9 +1785,8 @@ lb_strings_Builder_destroy:
     ret
 
     .p2align 4
-    .globl lb_memory_move_0g1_u8
-    .type lb_memory_move_0g1_u8, @function
     .weak lb_memory_move_0g1_u8
+    .type lb_memory_move_0g1_u8, @function
 lb_memory_move_0g1_u8:
     pushq %rbp
     movq %rsp, %rbp

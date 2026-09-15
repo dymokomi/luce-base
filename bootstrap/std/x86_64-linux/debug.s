@@ -5645,9 +5645,8 @@ lb_debug_show:
     ret
 
     .p2align 4
-    .globl lb_memory_copy_0g1_u8
-    .type lb_memory_copy_0g1_u8, @function
     .weak lb_memory_copy_0g1_u8
+    .type lb_memory_copy_0g1_u8, @function
 lb_memory_copy_0g1_u8:
     pushq %rbp
     movq %rsp, %rbp
@@ -5749,9 +5748,8 @@ lb_memory_copy_0g1_u8:
     ret
 
     .p2align 4
-    .globl lb_memory_read_0g1_i64
-    .type lb_memory_read_0g1_i64, @function
     .weak lb_memory_read_0g1_i64
+    .type lb_memory_read_0g1_i64, @function
 lb_memory_read_0g1_i64:
     pushq %rbp
     movq %rsp, %rbp
@@ -5790,9 +5788,8 @@ lb_memory_read_0g1_i64:
     call lb_core_7trap_at@PLT
 
     .p2align 4
-    .globl lb_memory_read_0g1_i32
-    .type lb_memory_read_0g1_i32, @function
     .weak lb_memory_read_0g1_i32
+    .type lb_memory_read_0g1_i32, @function
 lb_memory_read_0g1_i32:
     pushq %rbp
     movq %rsp, %rbp
@@ -5831,9 +5828,8 @@ lb_memory_read_0g1_i32:
     call lb_core_7trap_at@PLT
 
     .p2align 4
-    .globl lb_memory_read_0g1_i16
-    .type lb_memory_read_0g1_i16, @function
     .weak lb_memory_read_0g1_i16
+    .type lb_memory_read_0g1_i16, @function
 lb_memory_read_0g1_i16:
     pushq %rbp
     movq %rsp, %rbp
@@ -5873,9 +5869,8 @@ lb_memory_read_0g1_i16:
     call lb_core_7trap_at@PLT
 
     .p2align 4
-    .globl lb_memory_read_0g1_i8
-    .type lb_memory_read_0g1_i8, @function
     .weak lb_memory_read_0g1_i8
+    .type lb_memory_read_0g1_i8, @function
 lb_memory_read_0g1_i8:
     pushq %rbp
     movq %rsp, %rbp
@@ -5915,9 +5910,8 @@ lb_memory_read_0g1_i8:
     call lb_core_7trap_at@PLT
 
     .p2align 4
-    .globl lb_memory_read_0g1_u64
-    .type lb_memory_read_0g1_u64, @function
     .weak lb_memory_read_0g1_u64
+    .type lb_memory_read_0g1_u64, @function
 lb_memory_read_0g1_u64:
     pushq %rbp
     movq %rsp, %rbp
@@ -5956,9 +5950,8 @@ lb_memory_read_0g1_u64:
     call lb_core_7trap_at@PLT
 
     .p2align 4
-    .globl lb_memory_read_0g1_u32
-    .type lb_memory_read_0g1_u32, @function
     .weak lb_memory_read_0g1_u32
+    .type lb_memory_read_0g1_u32, @function
 lb_memory_read_0g1_u32:
     pushq %rbp
     movq %rsp, %rbp
@@ -5997,9 +5990,8 @@ lb_memory_read_0g1_u32:
     call lb_core_7trap_at@PLT
 
     .p2align 4
-    .globl lb_memory_read_0g1_u16
-    .type lb_memory_read_0g1_u16, @function
     .weak lb_memory_read_0g1_u16
+    .type lb_memory_read_0g1_u16, @function
 lb_memory_read_0g1_u16:
     pushq %rbp
     movq %rsp, %rbp
@@ -6039,9 +6031,8 @@ lb_memory_read_0g1_u16:
     call lb_core_7trap_at@PLT
 
     .p2align 4
-    .globl lb_memory_read_0g1_u8
-    .type lb_memory_read_0g1_u8, @function
     .weak lb_memory_read_0g1_u8
+    .type lb_memory_read_0g1_u8, @function
 lb_memory_read_0g1_u8:
     pushq %rbp
     movq %rsp, %rbp
@@ -6081,9 +6072,8 @@ lb_memory_read_0g1_u8:
     call lb_core_7trap_at@PLT
 
     .p2align 4
-    .globl lb_memory_read_0g1_bool
-    .type lb_memory_read_0g1_bool, @function
     .weak lb_memory_read_0g1_bool
+    .type lb_memory_read_0g1_bool, @function
 lb_memory_read_0g1_bool:
     pushq %rbp
     movq %rsp, %rbp
@@ -6123,9 +6113,8 @@ lb_memory_read_0g1_bool:
     call lb_core_7trap_at@PLT
 
     .p2align 4
-    .globl lb_memory_read_0g1_f64
-    .type lb_memory_read_0g1_f64, @function
     .weak lb_memory_read_0g1_f64
+    .type lb_memory_read_0g1_f64, @function
 lb_memory_read_0g1_f64:
     pushq %rbp
     movq %rsp, %rbp
@@ -6164,9 +6153,8 @@ lb_memory_read_0g1_f64:
     call lb_core_7trap_at@PLT
 
     .p2align 4
-    .globl lb_memory_read_0g1_f32
-    .type lb_memory_read_0g1_f32, @function
     .weak lb_memory_read_0g1_f32
+    .type lb_memory_read_0g1_f32, @function
 lb_memory_read_0g1_f32:
     pushq %rbp
     movq %rsp, %rbp
@@ -6205,9 +6193,8 @@ lb_memory_read_0g1_f32:
     call lb_core_7trap_at@PLT
 
     .p2align 4
-    .globl lb_memory_read_0g1_str
-    .type lb_memory_read_0g1_str, @function
     .weak lb_memory_read_0g1_str
+    .type lb_memory_read_0g1_str, @function
 lb_memory_read_0g1_str:
     pushq %rbp
     movq %rsp, %rbp
@@ -6251,9 +6238,8 @@ lb_memory_read_0g1_str:
     call lb_core_7trap_at@PLT
 
     .p2align 4
-    .globl lb_memory_read_0g1_5c_str
-    .type lb_memory_read_0g1_5c_str, @function
     .weak lb_memory_read_0g1_5c_str
+    .type lb_memory_read_0g1_5c_str, @function
 lb_memory_read_0g1_5c_str:
     pushq %rbp
     movq %rsp, %rbp
@@ -6292,9 +6278,8 @@ lb_memory_read_0g1_5c_str:
     call lb_core_7trap_at@PLT
 
     .p2align 4
-    .globl lb_memory_read_0g1_usize
-    .type lb_memory_read_0g1_usize, @function
     .weak lb_memory_read_0g1_usize
+    .type lb_memory_read_0g1_usize, @function
 lb_memory_read_0g1_usize:
     pushq %rbp
     movq %rsp, %rbp

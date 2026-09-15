@@ -15,7 +15,7 @@
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
-#else
+#elif !defined(__wasi__)
 #include <execinfo.h>
 #endif
 #include <inttypes.h>
@@ -188,6 +188,9 @@ static LB_NORETURN void finish_trap(void) {
 #ifdef _WIN32
         USHORT depth = CaptureStackBackTrace(0, 32, frames, NULL);
         for (USHORT i = 0; i < depth; ++i) fprintf(stderr, "%p\n", frames[i]);
+#elif defined(__wasi__)
+        // WASI has no backtrace; the runtime's own trace is what there is
+        (void)frames;
 #else
         int depth = backtrace(frames, 32);
         backtrace_symbols_fd(frames, depth, 2);

@@ -1977,9 +1977,8 @@ lb_gpu_10canvas_max:
     call lb_core_7trap_at@PLT
 
     .p2align 4
-    .globl lb_memory_copy_0g1_gpu_Vertex
-    .type lb_memory_copy_0g1_gpu_Vertex, @function
     .weak lb_memory_copy_0g1_gpu_Vertex
+    .type lb_memory_copy_0g1_gpu_Vertex, @function
 lb_memory_copy_0g1_gpu_Vertex:
     pushq %rbp
     movq %rsp, %rbp
@@ -2092,9 +2091,8 @@ lb_memory_copy_0g1_gpu_Vertex:
     ret
 
     .p2align 4
-    .globl lb_memory_copy_0g1_gpu_Draw
-    .type lb_memory_copy_0g1_gpu_Draw, @function
     .weak lb_memory_copy_0g1_gpu_Draw
+    .type lb_memory_copy_0g1_gpu_Draw, @function
 lb_memory_copy_0g1_gpu_Draw:
     pushq %rbp
     movq %rsp, %rbp

@@ -1,0 +1,298 @@
+## Mach-O and ELF for arm64: sections, symbols, relocations, thread-locals, and the
+## calling-convention choices that differ between Apple's arm64 and AAPCS64. The
+## generator asks for storage and addresses without spelling object-format rules, so
+## arm64-macos and arm64-linux share every instruction it emits.
+import back.ir.ir
+import back.target as build_target
+import support.buffer
+
+pub struct Format:
+    pub let os: build_target.Os
+    let symbol_prefix: str
+    ## Apple passes variadic arguments on the stack and packs stack arguments by their
+    ## size; AAPCS64 passes them like any other and gives each stack argument eight bytes.
+    pub let apple: bool
+    ## What begins a label the assembler keeps to itself: `L` on Mach-O, `.L` on ELF.
+    pub let local_label: str
+    ## What begins a text literal's label.
+    pub let text_label: str
+
+    pub func init(os: build_target.Os, symbol_prefix: str):
+        self.os = os
+        self.symbol_prefix = symbol_prefix
+        self.apple = os == build_target.Os.macos
+        self.local_label = "L" if os == build_target.Os.macos else ".L"
+        self.text_label = "l_text_" if os == build_target.Os.macos else ".Ltext_"
+
+    func symbol(out: buffer.Buffer*, name: str) -> !:
+        try out.put(self.symbol_prefix)
+        try out.put(name)
+
+    ## `adrp` and `add` to the address of a symbol or a local label in `reg`.
+    pub func page_address(out: buffer.Buffer*, reg: str, name: str, is_symbol: bool) -> !:
+        try line(out, "adrp ")
+        try out.put(reg)
+        try out.put(", ")
+        try self.name(out, name, is_symbol)
+        if self.apple:
+            try out.put("@PAGE")
+        try line(out, "add ")
+        try out.put(reg)
+        try out.put(", ")
+        try out.put(reg)
+        try out.put(", ")
+        if self.apple:
+            try self.name(out, name, is_symbol)
+            try out.put("@PAGEOFF")
+        else:
+            try out.put(":lo12:")
+            try self.name(out, name, is_symbol)
+
+    func name(out: buffer.Buffer*, name: str, is_symbol: bool) -> !:
+        if is_symbol:
+            try self.symbol(out, name)
+        else:
+            try out.put(name)
+
+    ## The address of a function or another image's data through the GOT, so a symbol
+    ## defined in a linked shared library resolves.
+    pub func got_address(out: buffer.Buffer*, reg: str, name: str) -> !:
+        try line(out, "adrp ")
+        try out.put(reg)
+        try out.put(", ")
+        if self.apple:
+            try self.symbol(out, name)
+            try out.put("@GOTPAGE")
+        else:
+            try out.put(":got:")
+            try self.symbol(out, name)
+        try line(out, "ldr ")
+        try out.put(reg)
+        try out.put(", [")
+        try out.put(reg)
+        try out.put(", ")
+        if self.apple:
+            try self.symbol(out, name)
+            try out.put("@GOTPAGEOFF]")
+        else:
+            try out.put(":got_lo12:")
+            try self.symbol(out, name)
+            try out.put("]")
+
+    ## The address of a thread-local into x0, x16 clobbered: Mach-O's descriptor and its
+    ## accessor, or ELF's initial-exec model, the thread pointer plus the offset the
+    ## linker writes into the GOT.
+    pub func thread_address(out: buffer.Buffer*, name: str) -> !:
+        if self.apple:
+            try line(out, "adrp x0, ")
+            try self.symbol(out, name)
+            try out.put("@TLVPPAGE")
+            try line(out, "ldr x0, [x0, ")
+            try self.symbol(out, name)
+            try out.put("@TLVPPAGEOFF]")
+            try line(out, "ldr x16, [x0]")
+            try line(out, "blr x16")
+            return
+        try line(out, "adrp x0, :gottprel:")
+        try self.symbol(out, name)
+        try line(out, "ldr x0, [x0, :gottprel_lo12:")
+        try self.symbol(out, name)
+        try out.put("]")
+        try line(out, "mrs x16, tpidr_el0")
+        try line(out, "add x0, x16, x0")
+
+    ## `.weak_definition` and `.no_dead_strip` for a symbol with those attributes (§9.8);
+    ## ELF has `.weak` and keeps every symbol.
+    pub func linkage(out: buffer.Buffer*, name: str, weak: bool, used: bool) -> !:
+        if weak:
+            try out.put("    .weak_definition " if self.apple else "    .weak ")
+            try self.symbol(out, name)
+            try out.put("\n")
+        if used and self.apple:
+            try out.put("    .no_dead_strip ")
+            try self.symbol(out, name)
+            try out.put("\n")
+
+    pub func text_section(out: buffer.Buffer*) -> !:
+        try out.put("    .section __TEXT,__text,regular,pure_instructions\n" if self.apple else "    .text\n")
+
+    ## Back to the text section after a function placed in a named one.
+    pub func leave_section(out: buffer.Buffer*, function: ir.Function*) -> !:
+        if function.section.length > 0:
+            try out.put("\n")
+            try self.text_section(out)
+
+    pub func function_start(out: buffer.Buffer*, function: ir.Function*) -> !:
+        if function.section.length > 0:
+            try out.put("\n    .section ")
+            try out.put(build_target.section_name(function.section, true, self.os))
+            if not self.apple:
+                try out.put(",\"ax\",%progbits")
+        try out.put("\n    .p2align 2\n")
+        try self.global_symbol(out, function.name, function.weak, function.used)
+        if not self.apple:
+            try out.put("    .type ")
+            try self.symbol(out, function.name)
+            try out.put(", %function\n")
+        try self.symbol(out, function.name)
+        try out.put(":")
+
+    ## `.globl` and the linkage words: on ELF a weak symbol is `.weak` alone, since
+    ## `.globl` before it would only be changed back.
+    pub func global_symbol(out: buffer.Buffer*, name: str, weak: bool, used: bool) -> !:
+        if weak and not self.apple:
+            try out.put("    .weak ")
+            try self.symbol(out, name)
+            try out.put("\n")
+            return
+        try out.put("    .globl ")
+        try self.symbol(out, name)
+        try out.put("\n")
+        try self.linkage(out, name, weak, used)
+
+    ## After a function's last instruction: its size, which ELF tools want.
+    pub func function_end(out: buffer.Buffer*, function: ir.Function*) -> !:
+        if not self.apple:
+            try out.put("\n    .size ")
+            try self.symbol(out, function.name)
+            try out.put(", .-")
+            try self.symbol(out, function.name)
+            try out.put("\n")
+
+    ## The loader runs the unit's initialiser: Mach-O's `__mod_init_func`, ELF's
+    ## `.init_array` (§17.6).
+    pub func initializer(out: buffer.Buffer*, name: str) -> !:
+        if name.length > 0:
+            if self.apple:
+                try out.put("\n    .section __DATA,__mod_init_func,mod_init_funcs\n    .p2align 3\n    .quad ")
+            else:
+                try out.put("\n    .section .init_array,\"aw\"\n    .p2align 3\n    .quad ")
+            try self.symbol(out, name)
+            try out.put("\n")
+
+    ## Where text literals go: `__const`, not `__cstring`, because the linker merges C
+    ## string literals by their content up to a NUL, and a Base text may hold one (§4.4).
+    pub func read_only(out: buffer.Buffer*) -> !:
+        try out.put("\n    .section __TEXT,__const\n" if self.apple else "\n    .section .rodata\n")
+
+    ## Where witness tables go: read-only data with relocations.
+    pub func relocated_read_only(out: buffer.Buffer*) -> !:
+        try out.put("\n    .section __DATA,__const\n    .p2align 3\n" if self.apple else "\n    .section .data.rel.ro,\"aw\"\n    .p2align 3\n")
+
+    ## Every global of the unit that the unit defines: thread-locals, named sections,
+    ## private, weak, and ordinary zero-filled storage.
+    pub func globals(out: buffer.Buffer*, program_unit: ir.Unit*) -> !:
+        var i: usize = 0
+        while i < program_unit.globals.count:
+            let g = program_unit.globals.get(i)
+            if g.external:
+                i += 1
+                continue
+            let size = (u64)g.size if g.size > 0 else 1
+            let align = log2((u64)g.align if g.align > 0 else 1)
+            if self.apple:
+                try self.macho_global(out, g, size, align)
+            else:
+                try self.elf_global(out, g, size, align)
+            i += 1
+
+    func macho_global(out: buffer.Buffer*, g: ir.Global, size: u64, align: u64) -> !:
+        if g.is_thread_local:
+            try out.put("\n    .section __DATA,__thread_bss,thread_local_zerofill\n    .p2align 4\n")
+            try self.symbol(out, g.name)
+            try out.put("$tlv$init:\n    .space ")
+            try out.put_u64(size)
+            try out.put("\n    .section __DATA,__thread_vars,thread_local_variables\n    .globl ")
+            try self.symbol(out, g.name)
+            try out.put("\n")
+            try self.symbol(out, g.name)
+            try out.put(":\n    .quad __tlv_bootstrap\n    .quad 0\n    .quad ")
+            try self.symbol(out, g.name)
+            try out.put("$tlv$init\n")
+        elif g.section.length > 0:
+            # a named section: laid out as zeroed space where the program asked
+            try out.put("\n    .section ")
+            try out.put(build_target.section_name(g.section, false, self.os))
+            try out.put("\n    .p2align ")
+            try out.put_u64(align)
+            try out.put("\n    .globl ")
+            try self.symbol(out, g.name)
+            try out.put("\n")
+            try self.linkage(out, g.name, g.weak, g.used)
+            try self.symbol(out, g.name)
+            try out.put(":\n    .space ")
+            try out.put_u64(size)
+            try out.put("\n")
+        elif g.private:
+            # a symbol of this unit alone
+            try out.put("    .zerofill __DATA,__bss,")
+            try self.symbol(out, g.name)
+            try out.put(",")
+            try out.put_u64(size)
+            try out.put(",")
+            try out.put_u64(align)
+            try out.put("\n")
+        elif g.weak:
+            # the linker coalesces weak storage only when it is data, not zero-fill
+            try out.put("    .section __DATA,__data\n    .p2align ")
+            try out.put_u64(align)
+            try out.put("\n    .globl ")
+            try self.symbol(out, g.name)
+            try out.put("\n")
+            try self.linkage(out, g.name, true, g.used)
+            try self.symbol(out, g.name)
+            try out.put(":\n    .zero ")
+            try out.put_u64(size)
+            try out.put("\n")
+        else:
+            try out.put("    .globl ")
+            try self.symbol(out, g.name)
+            try out.put("\n")
+            try self.linkage(out, g.name, g.weak, g.used)
+            try out.put("    .zerofill __DATA,__bss,")
+            try self.symbol(out, g.name)
+            try out.put(",")
+            try out.put_u64(size)
+            try out.put(",")
+            try out.put_u64(align)
+            try out.put("\n")
+
+    func elf_global(out: buffer.Buffer*, g: ir.Global, size: u64, align: u64) -> !:
+        if g.is_thread_local:
+            try out.put("\n    .section .tbss,\"awT\",%nobits\n")
+        elif g.section.length > 0:
+            try out.put("\n    .section ")
+            try out.put(build_target.section_name(g.section, false, self.os))
+            try out.put(",\"aw\"\n")
+        else:
+            try out.put("\n    .bss\n")
+        if not g.private:
+            try self.global_symbol(out, g.name, g.weak, g.used)
+        try out.put("    .type ")
+        try self.symbol(out, g.name)
+        try out.put(", %object\n")
+        try out.put("    .p2align ")
+        try out.put_u64(align)
+        try out.put("\n")
+        try self.symbol(out, g.name)
+        try out.put(":\n    .zero ")
+        try out.put_u64(size)
+        try out.put("\n")
+
+    ## The unit's last line: every symbol an atom of its own on Mach-O, what the linker
+    ## needs to coalesce weak definitions across units and drop dead ones; a
+    ## non-executable stack note on ELF.
+    pub func finish(out: buffer.Buffer*) -> !:
+        try out.put(".subsections_via_symbols\n" if self.apple else "\n    .section .note.GNU-stack,\"\",%progbits\n")
+
+func line(out: buffer.Buffer*, text: str) -> !:
+    try out.put("\n    ")
+    try out.put(text)
+
+func log2(value: u64) -> u64:
+    var result: u64 = 0
+    var remaining = value
+    while remaining > 1:
+        remaining = remaining // 2
+        result += 1
+    return result
