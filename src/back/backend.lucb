@@ -44,19 +44,23 @@ pub let unsupported_target: ErrorCode = ErrorCode.package(20)
 pub interface Backend:
     ## `mode` is 0 for a `main` program, 1 for the test runner, 2 for an `answer()` program,
     ## 3 for a library, which has no entry and initialises itself when loaded (§17.6), 4 for
-    ## a freestanding program, whose own `_start` is the entry (§19.4).
+    ## a freestanding program, whose own `_start` is the entry (§19.4), 5 for one member of
+    ## the standard library's archive: its own module's bodies and `lb_<module>_0init`.
     mutating func compile(mode: u32) -> str!
 
 ## C for the host C compiler.
 pub struct CBackend: Backend:
     var emitter: emit.Emitter
+    ## `std-build`: the one module this unit defines; empty for a whole program.
+    pub var only_module: str
 
     pub static func over(checker: check.Checker*, entry: ast.Node*, diagnostic: bool) -> CBackend!:
         var emitter = try emit.Emitter.create(checker, entry)
         emitter.diagnostic = diagnostic
-        return CBackend(emitter = emitter)
+        return CBackend(emitter = emitter, only_module = "")
 
     pub mutating func compile(mode: u32) -> str!:
+        self.emitter.only_module = self.only_module
         try self.emitter.program(mode)
         return self.emitter.text()
 
@@ -74,11 +78,13 @@ pub struct NativeBackend: Backend:
     pub var report: bool
     ## The target of the build (§19.5): arm64-macos and x86_64-linux have generators.
     var target: targets.Target
+    ## `std-build`: the one module this unit defines; empty for a whole program.
+    pub var only_module: str
 
     pub static func over(checker: check.Checker*, entry: ast.Node*, debug: bool, diagnostic: bool) -> NativeBackend!:
         var lowerer = try lower.Lowerer.create(checker, entry)
         lowerer.diagnostic = diagnostic
-        return NativeBackend(checker = checker, lowerer = lowerer, debug = debug, dump_ir = false, opt_level = 3, opt_count = 0xFFFFFFFF, report = false, target = checker.build_target)
+        return NativeBackend(checker = checker, lowerer = lowerer, debug = debug, dump_ir = false, opt_level = 3, opt_count = 0xFFFFFFFF, report = false, target = checker.build_target, only_module = "")
 
     pub mutating func compile(mode: u32) -> str!:
         let t = self.target
@@ -87,6 +93,7 @@ pub struct NativeBackend: Backend:
             error(unsupported_target, "the native backend emits arm64-macos and x86_64-linux; write the C for another target with --emit=c")
         self.lowerer.debug = self.debug
         self.lowerer.target = t
+        self.lowerer.only_module = self.only_module
         var at = ticks()
         try self.lowerer.program(mode)
         try note(&at, 0)

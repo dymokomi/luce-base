@@ -16,7 +16,7 @@ pub struct Format:
         try out.put(self.symbol_prefix)
         try out.put(name)
 
-    func linkage(out: buffer.Buffer*, name: str, weak: bool, used: bool) -> !:
+    pub func linkage(out: buffer.Buffer*, name: str, weak: bool, used: bool) -> !:
         if weak and self.os != build_target.Os.windows:
             try out.put("    .weak ")
             try self.symbol(out, name)

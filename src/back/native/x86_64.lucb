@@ -1970,6 +1970,8 @@ pub struct Generator:
             try self.put("    .globl ")
             try self.symbol(t.name)
             try self.put("\n")
+            # every unit that views the record has the same table; the linker keeps one
+            try self.object_format.linkage(&self.out, t.name, true, false)
             try self.symbol(t.name)
             try self.put(":\n")
             var k: usize = 0

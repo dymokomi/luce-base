@@ -43,7 +43,7 @@ import support.version
 import support.host_tools
 
 func usage(out: io.Writer) -> !:
-    try out.write("usage: luce-base lex FILE\n       luce-base parse FILE\n       luce-base check FILE\n       luce-base describe FILE\n       luce-base describe --standard MODULE\n       luce-base interface FILE [-o OUT]\n       luce-base interface --standard MODULE\n       luce-base dependencies FILE\n       luce-base native-inputs FILE\n       luce-base resolve FILE SOURCE_ROOT MODULE [--base]\n       luce-base build FILE [-o OUT] [--release] [--emit=c] [--backend=c] [--native] [--debug] [--emit=asm] [--emit=ir] [--lib] [--freestanding] [--target] [--profile diagnostic] [-W] [-lNAME] [-LDIR] [-framework NAME]\n       luce-base test FILE [--backend=c] [--native]\n       luce-base --version\n")
+    try out.write("usage: luce-base lex FILE\n       luce-base parse FILE\n       luce-base check FILE\n       luce-base describe FILE\n       luce-base describe --standard MODULE\n       luce-base interface FILE [-o OUT]\n       luce-base std-build SRC_DIR OUT_DIR [--target NAME] [--cpu LEVEL] [--backend=c]\n       luce-base interface --standard MODULE\n       luce-base dependencies FILE\n       luce-base native-inputs FILE\n       luce-base resolve FILE SOURCE_ROOT MODULE [--base]\n       luce-base build FILE [-o OUT] [--release] [--emit=c] [--backend=c] [--native] [--debug] [--emit=asm] [--emit=ir] [--lib] [--freestanding] [--target] [--profile diagnostic] [-W] [-lNAME] [-LDIR] [-framework NAME]\n       luce-base test FILE [--backend=c] [--native]\n       luce-base --version\n")
 
 # mark: Building ===============================================================================
 
@@ -808,6 +808,103 @@ func describe_file(path: c.str, out: io.Writer) -> !:
         let entry = checker.modules.get(checker.modules.count - 1)
         try describe.write(out, &checker, entry.tree, entry.name)
 
+## `--emit=asm` or `--emit=c` for `std-build`: the text for the target, assembled nowhere.
+var std_emit_only: bool = false
+
+## `std-build SRC OUT`: the standard library under `SRC`, one object per module and an
+## archive of them under `OUT`, for the target: `libstd.a` from the native backend, or
+## `libstd-c.a` through the host C compiler with `--backend=c`. Each object defines its
+## module's functions, globals, and `lb_<module>_0init`; every generic instance is weak, so
+## the linker keeps one of the copies the members share. With `--emit=asm` the members'
+## assembly is written for any target and nothing is assembled; with `--emit=c` the whole
+## library is one C file, `std.c`, which stage 0 and a program written as C compile.
+func std_build(source_dir: str, out_dir: str) -> !:
+    var arena = Arena(memory.heap)
+    defer arena.destroy()
+    with arena:
+        var checker = try check.Checker.create(scratch_of())
+        checker.build_target = build_target()
+        try checker.add_prelude_from(source_dir)
+        try checker.check_program()
+        try ensure_path(out_dir)
+        if std_emit_only and not native_backend:
+            var c_bytes: u8[600]
+            let whole = try translate_member(&checker, checker.modules.get(0).tree, "")
+            try files.write((c.str)try format(c_bytes, f"{out_dir}/std.c"), whole.bytes)
+            return
+        var objects = try Arguments.create()
+        try objects.add("rcs")
+        var archive_bytes: u8[600]
+        let archive = try format(archive_bytes, f"{out_dir}/libstd.a" if native_backend else f"{out_dir}/libstd-c.a")
+        try objects.add((c.str)archive)
+        if not native_backend:
+            var header_bytes: u8[600]
+            try files.write((c.str)try format(header_bytes, f"{out_dir}/lucb_rt.h"), runtime.header.bytes)
+        var i: usize = 0
+        while i < checker.modules.count:
+            let m = checker.modules.get(i)
+            let text = try translate_member(&checker, m.tree, m.name)
+            try objects.add((c.str)try build_member(out_dir, m.name, text))
+            i += 1
+        if not std_emit_only:
+            try run_tool("ar", objects.span(), "the archiver failed", out_dir)
+
+## Every directory of `path`, created in turn where it is missing.
+func ensure_path(path: str) -> !:
+    var i: usize = 1
+    while i <= path.length:
+        if i == path.length or path.bytes[i] == '/':
+            let prefix = (str)path.bytes[..<i]
+            let native = (c.str)try strings.copy(prefix)
+            if prefix.length > 0 and not files.exists(native):
+                try files.create_directory(native, 493)
+        i += 1
+
+## The text of one library member: the backend over the checked standard library with
+## `only_module` set, in mode 5.
+func translate_member(checker: check.Checker*, tree: ast.Node*, module: str) -> str!:
+    if native_backend:
+        var native = try backend.NativeBackend.over(checker, tree, false, false)
+        native.only_module = module
+        native.opt_level = opt_level
+        let target: backend.Backend = &native
+        return try target.compile(5)
+    var host_c = try backend.CBackend.over(checker, tree, false)
+    host_c.only_module = module
+    let target: backend.Backend = &host_c
+    return try target.compile(5)
+
+## One member of the archive, assembled or compiled to `OUT/<module>.o`, whose path is
+## answered in the current allocator.
+func build_member(out_dir: str, module: str, text: str) -> str!:
+    let object = try alloc u8[out_dir.length + module.length + 8]
+    let object_path = try format(object, f"{out_dir}/{module}.o" if native_backend else f"{out_dir}/{module}-c.o")
+    var source_bytes = try alloc u8[out_dir.length + module.length + 8]
+    if native_backend:
+        let asm_path = try format(source_bytes, f"{out_dir}/{module}.s")
+        try files.write((c.str)asm_path, text.bytes)
+        if std_emit_only:
+            return object_path
+        var as_args: c.str[3] = ["-o", (c.str)object_path, (c.str)asm_path]
+        try run_tool("as", as_args, "the assembler rejected a standard module", out_dir)
+        return object_path
+    let c_path = try format(source_bytes, f"{out_dir}/{module}.c")
+    try files.write((c.str)c_path, text.bytes)
+    var include_bytes: u8[600]
+    let include = try format(include_bytes, f"-I{out_dir}")
+    var cc_args = try Arguments.create()
+    for flag in library_c_flags:
+        try cc_args.add(flag)
+    for flag in generated_c_silences:
+        try cc_args.add(flag)
+    try cc_args.add((c.str)include)
+    try cc_args.add("-c")
+    try cc_args.add((c.str)c_path)
+    try cc_args.add("-o")
+    try cc_args.add((c.str)object_path)
+    try run_tool("cc", cc_args.span(), "the C compiler rejected a standard module", out_dir)
+    return object_path
+
 ## The interface of the module at `path` (§9.8): its declarations with `linked` for what
 ## a library built from it defines, written to `output`, or to `out` when there is none.
 func interface_file(path: c.str, output: str, out: io.Writer) -> !:
@@ -1098,6 +1195,36 @@ pub func main(arguments: c.str[]) -> i32!:
         return 0
     if command == "describe" and positional == 3:
         describe_file(arguments[2], out) catch failure:
+            try io.stderr().write(f"luce-base: {failure.message}\n")
+            return 1
+        return 0
+    if command == "std-build" and positional >= 4:
+        native_backend = true
+        var i: usize = 4
+        while i < arguments.length:
+            let a = (str)arguments[i]
+            if a == "--target" and i + 1 < arguments.length:
+                if let chosen = targets.Target.named((str)arguments[i + 1]):
+                    build_target_name = chosen.name
+                else:
+                    try io.stderr().write("luce-base: unknown target; `--target` with no name lists them\n")
+                    return 2
+                i += 1
+            elif a == "--cpu" and i + 1 < arguments.length:
+                cpu_level_name = (str)arguments[i + 1]
+                i += 1
+            elif a == "--backend=c":
+                native_backend = false
+            elif a == "--emit=asm":
+                std_emit_only = true
+            elif a == "--emit=c":
+                std_emit_only = true
+                native_backend = false
+            else:
+                try io.stderr().write(f"luce-base: unexpected argument `{a}`\n")
+                return 2
+            i += 1
+        std_build((str)arguments[2], (str)arguments[3]) catch failure:
             try io.stderr().write(f"luce-base: {failure.message}\n")
             return 1
         return 0

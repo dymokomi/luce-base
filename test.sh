@@ -105,6 +105,19 @@ for snapshot in bootstrap/luce-base-*.c; do
         echo "FAIL $snapshot differs from the current compiler's C for $target; run tools/snapshot.sh"; exit 1
     fi
 done
+# the standard library's text for every target is what this compiler emits for it
+for snapshot in bootstrap/luce-base-*.c; do
+    target=$(basename "$snapshot" .c | sed 's/^luce-base-//')
+    case "$target" in x86_64-*) level=v1;; *) level=neon;; esac
+    rm -rf "build/std-snapshot/$target"
+    ./build/luce-base std-build src/std "build/std-snapshot/$target" --target "$target" --cpu "$level" --emit=asm
+    ./build/luce-base std-build src/std "build/std-snapshot/$target" --target "$target" --cpu "$level" --emit=c
+    for f in "build/std-snapshot/$target"/*; do
+        if ! cmp -s "$f" "bootstrap/std/$target/$(basename "$f")"; then
+            echo "FAIL bootstrap/std/$target/$(basename "$f") differs from the current compiler's text; run tools/snapshot.sh"; exit 1
+        fi
+    done
+done
 rm -f build/stage1.c build/stage2.c build/stage2 build/snapshot.c
 # the seed named in bootstrap/SEED builds this compiler from source, and the compiler it
 # builds emits the same C for itself as the snapshot-built one: the seed stays a real start.

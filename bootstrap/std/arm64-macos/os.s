@@ -1,0 +1,2313 @@
+    .section __TEXT,__text,regular,pure_instructions
+
+    .p2align 2
+    .globl _lb_os_0init
+_lb_os_0init:
+    stp x29, x30, [sp, #-16]!
+    mov x29, sp
+    sub sp, sp, #32
+    str x19, [sp, #8]
+    adrp x14, _lb_os_failed@PAGE
+    add x14, x14, _lb_os_failed@PAGEOFF
+    movz x9, #12
+    movk x9, #3178, lsl #16
+    str w9, [x14]
+    adrp x14, _lb_platform_arm64@PAGE
+    add x14, x14, _lb_platform_arm64@PAGEOFF
+    ldrb w14, [x14]
+    adrp x15, _lb_os_arm64@PAGE
+    add x15, x15, _lb_os_arm64@PAGEOFF
+    strb w14, [x15]
+    adrp x14, _lb_platform_6x86_64@PAGE
+    add x14, x14, _lb_platform_6x86_64@PAGEOFF
+    ldrb w14, [x14]
+    adrp x15, _lb_os_6x86_64@PAGE
+    add x15, x15, _lb_os_6x86_64@PAGEOFF
+    strb w14, [x15]
+    adrp x19, _lb_platform_macos@PAGE
+    add x19, x19, _lb_platform_macos@PAGEOFF
+    ldrb w14, [x19]
+    adrp x15, _lb_os_macos@PAGE
+    add x15, x15, _lb_os_macos@PAGEOFF
+    strb w14, [x15]
+    adrp x14, _lb_platform_linux@PAGE
+    add x14, x14, _lb_platform_linux@PAGEOFF
+    ldrb w14, [x14]
+    adrp x15, _lb_os_linux@PAGE
+    add x15, x15, _lb_os_linux@PAGEOFF
+    strb w14, [x15]
+    adrp x14, _lb_platform_windows@PAGE
+    add x14, x14, _lb_platform_windows@PAGEOFF
+    ldrb w14, [x14]
+    adrp x15, _lb_os_windows@PAGE
+    add x15, x15, _lb_os_windows@PAGEOFF
+    strb w14, [x15]
+    adrp x14, _lb_platform_posix@PAGE
+    add x14, x14, _lb_platform_posix@PAGEOFF
+    ldrb w14, [x14]
+    adrp x15, _lb_os_posix@PAGE
+    add x15, x15, _lb_os_posix@PAGEOFF
+    strb w14, [x15]
+    adrp x14, _lb_platform_12pointer_bits@PAGE
+    add x14, x14, _lb_platform_12pointer_bits@PAGEOFF
+    ldr w14, [x14]
+    adrp x15, _lb_os_12pointer_bits@PAGE
+    add x15, x15, _lb_os_12pointer_bits@PAGEOFF
+    str w14, [x15]
+    adrp x14, _lb_platform_name@PAGE
+    add x14, x14, _lb_platform_name@PAGEOFF
+    adrp x15, _lb_os_name@PAGE
+    add x15, x15, _lb_os_name@PAGEOFF
+    mov x10, x14
+    mov x11, x15
+    ldp x12, x13, [x10, #0]
+    stp x12, x13, [x11, #0]
+    adrp x14, _lb_platform_9cpu_level@PAGE
+    add x14, x14, _lb_platform_9cpu_level@PAGEOFF
+    ldr w14, [x14]
+    adrp x15, _lb_os_9cpu_level@PAGE
+    add x15, x15, _lb_os_9cpu_level@PAGEOFF
+    str w14, [x15]
+    ldrb w14, [x19]
+    cbnz w14, L0_1
+    b L0_2
+L0_1:
+    movz x9, #58
+    mov w14, w9
+    b L0_3
+L0_2:
+    movz x9, #84
+    mov w14, w9
+L0_3:
+    adrp x15, _lb_os_17processors_online@PAGE
+    add x15, x15, _lb_os_17processors_online@PAGEOFF
+    str w14, [x15]
+    ldr x19, [sp, #8]
+    mov sp, x29
+    ldp x29, x30, [sp], #16
+    ret
+
+    .p2align 2
+    .globl _lb_os_12random_bytes
+_lb_os_12random_bytes:
+    stp x29, x30, [sp, #-16]!
+    mov x29, sp
+    sub sp, sp, #128
+    sub x16, x29, #24
+    str x8, [x16]
+    str x19, [sp, #96]
+    str x20, [sp, #88]
+    str x21, [sp, #80]
+    str x22, [sp, #72]
+    str x23, [sp, #64]
+    sub x16, x29, #112
+    str x0, [x16]
+    str x1, [x16, #8]
+    sub x19, x29, #112
+    add x20, x19, #8
+    mov x9, #0
+    mov x21, x9
+L1_1:
+    ldr x14, [x20]
+    cmp x21, x14
+    b.hs L1_3
+L1_2:
+    sub x15, x14, x21
+    movz x10, #256
+    cmp x15, x10
+    b.hs L1_5
+L1_4:
+    mov x22, x15
+    b L1_6
+L1_5:
+    movz x9, #256
+    mov x22, x9
+L1_6:
+    ldr x15, [x19]
+    add x23, x14, #1
+    cmp x21, x23
+    b.lo 1f
+    adrp x0, l_text_1@PAGE
+    add x0, x0, l_text_1@PAGEOFF
+    adrp x1, l_text_37@PAGE
+    add x1, x1, l_text_37@PAGEOFF
+    bl _lb_core_7trap_at
+1:
+    add x15, x15, x21
+    mov x0, x15
+    mov x1, x22
+    bl _getentropy
+    mov w15, w0
+    mov x10, #0
+    cmp w15, w10
+    cset w15, eq
+    mov x10, #0
+    cmp w15, w10
+    b.ne L1_8
+L1_7:
+    sub x19, x29, #96
+    adrp x14, _lb_os_failed@PAGE
+    add x14, x14, _lb_os_failed@PAGEOFF
+    ldr w14, [x14]
+    str w14, [x19]
+    adrp x14, l_text_2@PAGE
+    add x14, x14, l_text_2@PAGEOFF
+    sub x15, x29, #128
+    str x14, [x15]
+    add x14, x15, #8
+    movz x9, #42
+    str x9, [x14]
+    add x14, x19, #8
+    mov x10, x15
+    mov x11, x14
+    ldp x12, x13, [x10, #0]
+    stp x12, x13, [x11, #0]
+    add x14, x19, #24
+    movz x9, #1
+    strb w9, [x14]
+    mov x1, x19
+    sub x16, x29, #24
+    ldr x0, [x16]
+    movz x2, #32
+    bl _memcpy
+    sub x16, x29, #24
+    ldr x0, [x16]
+    ldr x19, [sp, #96]
+    ldr x20, [sp, #88]
+    ldr x21, [sp, #80]
+    ldr x22, [sp, #72]
+    ldr x23, [sp, #64]
+    mov sp, x29
+    ldp x29, x30, [sp], #16
+    ret
+L1_10:
+    b L1_9
+L1_8:
+L1_9:
+    mov x9, x21
+    mov x10, x22
+    adds x9, x9, x10
+    b.cc 1f
+    adrp x0, l_text_3@PAGE
+    add x0, x0, l_text_3@PAGEOFF
+    adrp x1, l_text_51@PAGE
+    add x1, x1, l_text_51@PAGEOFF
+    bl _lb_core_7trap_at
+1:
+    mov x14, x9
+    mov x21, x14
+    b L1_1
+L1_3:
+    sub x14, x29, #96
+    add x15, x14, #24
+    mov x9, #0
+    strb w9, [x15]
+    mov x1, x14
+    sub x16, x29, #24
+    ldr x0, [x16]
+    movz x2, #32
+    bl _memcpy
+    sub x16, x29, #24
+    ldr x0, [x16]
+    ldr x19, [sp, #96]
+    ldr x20, [sp, #88]
+    ldr x21, [sp, #80]
+    ldr x22, [sp, #72]
+    ldr x23, [sp, #64]
+    mov sp, x29
+    ldp x29, x30, [sp], #16
+    ret
+
+    .p2align 2
+    .globl _lb_os_17cpu_level_running
+_lb_os_17cpu_level_running:
+    stp x29, x30, [sp, #-16]!
+    mov x29, sp
+    sub sp, sp, #16
+    movz x9, #1
+    mov x0, x9
+    mov sp, x29
+    ldp x29, x30, [sp], #16
+    ret
+L2_1:
+    adrp x0, l_text_5@PAGE
+    add x0, x0, l_text_5@PAGEOFF
+    adrp x1, l_text_4@PAGE
+    add x1, x1, l_text_4@PAGEOFF
+    bl _lb_core_7trap_at
+
+    .p2align 2
+    .globl _lb_os_9x86_level
+_lb_os_9x86_level:
+    stp x29, x30, [sp, #-16]!
+    mov x29, sp
+    sub sp, sp, #16
+L3_2:
+L3_4:
+L3_6:
+L3_8:
+L3_10:
+L3_12:
+L3_14:
+L3_19:
+L3_15:
+    movz x9, #1
+    mov x0, x9
+    mov sp, x29
+    ldp x29, x30, [sp], #16
+    ret
+
+    .p2align 2
+    .globl _lb_os_cpus
+_lb_os_cpus:
+    stp x29, x30, [sp, #-16]!
+    mov x29, sp
+    sub sp, sp, #16
+    adrp x14, _lb_os_17processors_online@PAGE
+    add x14, x14, _lb_os_17processors_online@PAGEOFF
+    ldrsw x14, [x14]
+    mov x0, x14
+    bl _sysconf
+    mov x14, x0
+    mov x10, #0
+    cmp x14, x10
+    b.le L4_2
+L4_1:
+    mov w15, w14
+    b L4_3
+L4_2:
+    movz x9, #1
+    mov w15, w9
+L4_3:
+    mov x9, x15
+    mov x0, x9
+    mov sp, x29
+    ldp x29, x30, [sp], #16
+    ret
+L4_4:
+    adrp x0, l_text_15@PAGE
+    add x0, x0, l_text_15@PAGEOFF
+    adrp x1, l_text_4@PAGE
+    add x1, x1, l_text_4@PAGEOFF
+    bl _lb_core_7trap_at
+
+    .p2align 2
+    .globl _lb_os_9page_size
+_lb_os_9page_size:
+    stp x29, x30, [sp, #-16]!
+    mov x29, sp
+    sub sp, sp, #16
+    bl _getpagesize
+    mov w14, w0
+    sxtw x14, w14
+    mov x9, x14
+    mov x0, x9
+    mov sp, x29
+    ldp x29, x30, [sp], #16
+    ret
+L5_1:
+    adrp x0, l_text_16@PAGE
+    add x0, x0, l_text_16@PAGEOFF
+    adrp x1, l_text_4@PAGE
+    add x1, x1, l_text_4@PAGEOFF
+    bl _lb_core_7trap_at
+
+    .p2align 2
+    .globl _lb_os_env
+_lb_os_env:
+    stp x29, x30, [sp, #-16]!
+    mov x29, sp
+    sub sp, sp, #160
+    sub x16, x29, #24
+    str x8, [x16]
+    str x19, [sp, #128]
+    str x20, [sp, #120]
+    str x21, [sp, #112]
+    sub x16, x29, #88
+    str x0, [x16]
+    sub x14, x29, #88
+    ldr x14, [x14]
+    mov x0, x14
+    bl _getenv
+    mov x19, x0
+    cbnz x19, L6_1
+    b L6_2
+L6_1:
+    b L6_3
+L6_2:
+    sub x19, x29, #112
+    mov x11, x19
+    stp xzr, xzr, [x11, #0]
+    str xzr, [x11, #16]
+    sub x20, x29, #72
+    mov x10, x19
+    mov x11, x20
+    ldp x12, x13, [x10, #0]
+    stp x12, x13, [x11, #0]
+    ldr x12, [x10, #16]
+    str x12, [x11, #16]
+    mov x1, x20
+    sub x16, x29, #24
+    ldr x0, [x16]
+    movz x2, #24
+    bl _memcpy
+    sub x16, x29, #24
+    ldr x0, [x16]
+    ldr x19, [sp, #128]
+    ldr x20, [sp, #120]
+    ldr x21, [sp, #112]
+    mov sp, x29
+    ldp x29, x30, [sp], #16
+    ret
+L6_4:
+L6_3:
+    mov x0, x19
+    bl _strlen
+    mov x14, x0
+    sub x15, x29, #128
+    str x19, [x15]
+    add x20, x15, #8
+    str x14, [x20]
+    sub x20, x29, #152
+    mov x10, x15
+    mov x11, x20
+    ldp x12, x13, [x10, #0]
+    stp x12, x13, [x11, #0]
+    add x14, x20, #16
+    movz x9, #1
+    strb w9, [x14]
+    sub x21, x29, #72
+    mov x10, x20
+    mov x11, x21
+    ldp x12, x13, [x10, #0]
+    stp x12, x13, [x11, #0]
+    ldr x12, [x10, #16]
+    str x12, [x11, #16]
+    mov x1, x21
+    sub x16, x29, #24
+    ldr x0, [x16]
+    movz x2, #24
+    bl _memcpy
+    sub x16, x29, #24
+    ldr x0, [x16]
+    ldr x19, [sp, #128]
+    ldr x20, [sp, #120]
+    ldr x21, [sp, #112]
+    mov sp, x29
+    ldp x29, x30, [sp], #16
+    ret
+L6_5:
+    adrp x0, l_text_17@PAGE
+    add x0, x0, l_text_17@PAGEOFF
+    adrp x1, l_text_4@PAGE
+    add x1, x1, l_text_4@PAGEOFF
+    bl _lb_core_7trap_at
+
+    .p2align 2
+    .globl _lb_os_7set_env
+_lb_os_7set_env:
+    stp x29, x30, [sp, #-16]!
+    mov x29, sp
+    sub sp, sp, #112
+    sub x16, x29, #24
+    str x8, [x16]
+    str x19, [sp, #80]
+    sub x16, x29, #80
+    str x0, [x16]
+    sub x16, x29, #96
+    str x1, [x16]
+    sub x14, x29, #80
+    ldr x14, [x14]
+    sub x15, x29, #96
+    ldr x15, [x15]
+    mov x0, x14
+    mov x1, x15
+    movz x2, #1
+    bl _setenv
+    mov w14, w0
+    mov x10, #0
+    cmp w14, w10
+    cset w14, eq
+    mov x10, #0
+    cmp w14, w10
+    b.ne L7_2
+L7_1:
+    sub x19, x29, #64
+    adrp x14, _lb_os_failed@PAGE
+    add x14, x14, _lb_os_failed@PAGEOFF
+    ldr w14, [x14]
+    str w14, [x19]
+    adrp x14, l_text_18@PAGE
+    add x14, x14, l_text_18@PAGEOFF
+    sub x15, x29, #112
+    str x14, [x15]
+    add x14, x15, #8
+    movz x9, #38
+    str x9, [x14]
+    add x14, x19, #8
+    mov x10, x15
+    mov x11, x14
+    ldp x12, x13, [x10, #0]
+    stp x12, x13, [x11, #0]
+    add x14, x19, #24
+    movz x9, #1
+    strb w9, [x14]
+    mov x1, x19
+    sub x16, x29, #24
+    ldr x0, [x16]
+    movz x2, #32
+    bl _memcpy
+    sub x16, x29, #24
+    ldr x0, [x16]
+    ldr x19, [sp, #80]
+    mov sp, x29
+    ldp x29, x30, [sp], #16
+    ret
+L7_4:
+    b L7_3
+L7_2:
+L7_3:
+    sub x14, x29, #64
+    add x15, x14, #24
+    mov x9, #0
+    strb w9, [x15]
+    mov x1, x14
+    sub x16, x29, #24
+    ldr x0, [x16]
+    movz x2, #32
+    bl _memcpy
+    sub x16, x29, #24
+    ldr x0, [x16]
+    ldr x19, [sp, #80]
+    mov sp, x29
+    ldp x29, x30, [sp], #16
+    ret
+
+    .p2align 2
+    .globl _lb_os_9unset_env
+_lb_os_9unset_env:
+    stp x29, x30, [sp, #-16]!
+    mov x29, sp
+    sub sp, sp, #96
+    sub x16, x29, #24
+    str x8, [x16]
+    str x19, [sp, #64]
+    sub x16, x29, #80
+    str x0, [x16]
+    sub x14, x29, #80
+    ldr x14, [x14]
+    mov x0, x14
+    bl _unsetenv
+    mov w14, w0
+    mov x10, #0
+    cmp w14, w10
+    cset w14, eq
+    mov x10, #0
+    cmp w14, w10
+    b.ne L8_2
+L8_1:
+    sub x19, x29, #64
+    adrp x14, _lb_os_failed@PAGE
+    add x14, x14, _lb_os_failed@PAGEOFF
+    ldr w14, [x14]
+    str w14, [x19]
+    adrp x14, l_text_19@PAGE
+    add x14, x14, l_text_19@PAGEOFF
+    sub x15, x29, #96
+    str x14, [x15]
+    add x14, x15, #8
+    movz x9, #40
+    str x9, [x14]
+    add x14, x19, #8
+    mov x10, x15
+    mov x11, x14
+    ldp x12, x13, [x10, #0]
+    stp x12, x13, [x11, #0]
+    add x14, x19, #24
+    movz x9, #1
+    strb w9, [x14]
+    mov x1, x19
+    sub x16, x29, #24
+    ldr x0, [x16]
+    movz x2, #32
+    bl _memcpy
+    sub x16, x29, #24
+    ldr x0, [x16]
+    ldr x19, [sp, #64]
+    mov sp, x29
+    ldp x29, x30, [sp], #16
+    ret
+L8_4:
+    b L8_3
+L8_2:
+L8_3:
+    sub x14, x29, #64
+    add x15, x14, #24
+    mov x9, #0
+    strb w9, [x15]
+    mov x1, x14
+    sub x16, x29, #24
+    ldr x0, [x16]
+    movz x2, #32
+    bl _memcpy
+    sub x16, x29, #24
+    ldr x0, [x16]
+    ldr x19, [sp, #64]
+    mov sp, x29
+    ldp x29, x30, [sp], #16
+    ret
+
+    .p2align 2
+    .globl _lb_os_cwd
+_lb_os_cwd:
+    stp x29, x30, [sp, #-16]!
+    mov x29, sp
+    sub sp, sp, #288
+    sub x16, x29, #24
+    str x8, [x16]
+    str x19, [sp, #256]
+    str x20, [sp, #248]
+    str x21, [sp, #240]
+    str x22, [sp, #232]
+    str x23, [sp, #224]
+    str x24, [sp, #216]
+    str x25, [sp, #208]
+    sub x19, x29, #144
+    adrp x0, _lb_memory_allocator@TLVPPAGE
+    ldr x0, [x0, _lb_memory_allocator@TLVPPAGEOFF]
+    ldr x16, [x0]
+    blr x16
+    mov x20, x0
+    sub x21, x29, #192
+L9_2:
+    ldr x14, [x20]
+    add x22, x20, #8
+    ldr x15, [x22]
+    cbnz x15, L9_4
+    b L9_5
+L9_5:
+    adrp x0, l_text_22@PAGE
+    add x0, x0, l_text_22@PAGEOFF
+    adrp x1, l_text_21@PAGE
+    add x1, x1, l_text_21@PAGEOFF
+    bl _lb_core_7trap_at
+L9_4:
+    ldr x23, [x15]
+    mov x17, x23
+    str x17, [sp, #-16]!
+    mov x0, x14
+    movz x1, #4096
+    movz x2, #1
+    sub x8, x29, #216
+    ldr x17, [sp], #16
+    blr x17
+    sub x24, x29, #216
+    add x23, x24, #16
+    ldrb w23, [x23]
+    mov x10, #0
+    cmp w23, w10
+    cset w23, eq
+    movz x10, #1
+    and w23, w23, w10
+    cbnz w23, L9_6
+    b L9_7
+L9_6:
+    add x14, x21, #16
+    movz x9, #1
+    movk x9, #3178, lsl #16
+    str w9, [x14]
+    adrp x15, l_text_23@PAGE
+    add x15, x15, l_text_23@PAGEOFF
+    add x23, x14, #8
+    str x15, [x23]
+    add x14, x14, #16
+    movz x9, #16
+    str x9, [x14]
+    add x14, x21, #40
+    movz x9, #1
+    strb w9, [x14]
+    b L9_3
+L9_7:
+    ldr x14, [x24]
+    str x14, [x21]
+    add x14, x21, #8
+    movz x9, #4096
+    str x9, [x14]
+    add x14, x21, #40
+    mov x9, #0
+    strb w9, [x14]
+L9_3:
+    add x14, x21, #40
+    ldrb w14, [x14]
+    cbnz w14, L9_9
+    b L9_8
+L9_9:
+    add x14, x21, #16
+    sub x19, x29, #128
+    add x15, x19, #16
+    mov x10, x14
+    mov x11, x15
+    ldp x12, x13, [x10, #0]
+    stp x12, x13, [x11, #0]
+    ldr x12, [x10, #16]
+    str x12, [x11, #16]
+    add x14, x19, #40
+    movz x9, #1
+    strb w9, [x14]
+    mov x1, x19
+    sub x16, x29, #24
+    ldr x0, [x16]
+    movz x2, #48
+    bl _memcpy
+    sub x16, x29, #24
+    ldr x0, [x16]
+    ldr x19, [sp, #256]
+    ldr x20, [sp, #248]
+    ldr x21, [sp, #240]
+    ldr x22, [sp, #232]
+    ldr x23, [sp, #224]
+    ldr x24, [sp, #216]
+    ldr x25, [sp, #208]
+    mov sp, x29
+    ldp x29, x30, [sp], #16
+    ret
+L9_8:
+    mov x10, x21
+    mov x11, x19
+    ldp x12, x13, [x10, #0]
+    stp x12, x13, [x11, #0]
+    ldr x23, [x19]
+    add x14, x19, #8
+    ldr x24, [x14]
+    mov x0, x23
+    mov x1, x24
+    bl _getcwd
+    mov x25, x0
+    mov x10, #0
+    cmp x25, x10
+    b.ne L9_12
+L9_11:
+    sub x14, x29, #232
+    str x23, [x14]
+    add x15, x14, #8
+    str x24, [x15]
+    ldr x15, [x20]
+    ldr x19, [x22]
+    cbnz x19, L9_15
+    b L9_14
+L9_15:
+    add x20, x19, #16
+    ldr x20, [x20]
+    mov x17, x20
+    str x17, [sp, #-16]!
+    mov x0, x15
+    mov x9, x14
+    ldr x1, [x9]
+    ldr x2, [x9, #8]
+    ldr x17, [sp], #16
+    blr x17
+L9_14:
+    sub x19, x29, #128
+    add x14, x19, #16
+    adrp x15, _lb_os_failed@PAGE
+    add x15, x15, _lb_os_failed@PAGEOFF
+    ldr w15, [x15]
+    str w15, [x14]
+    adrp x15, l_text_25@PAGE
+    add x15, x15, l_text_25@PAGEOFF
+    sub x20, x29, #248
+    str x15, [x20]
+    add x15, x20, #8
+    movz x9, #36
+    str x9, [x15]
+    add x14, x14, #8
+    mov x10, x20
+    mov x11, x14
+    ldp x12, x13, [x10, #0]
+    stp x12, x13, [x11, #0]
+    add x14, x19, #40
+    movz x9, #1
+    strb w9, [x14]
+    mov x1, x19
+    sub x16, x29, #24
+    ldr x0, [x16]
+    movz x2, #48
+    bl _memcpy
+    sub x16, x29, #24
+    ldr x0, [x16]
+    ldr x19, [sp, #256]
+    ldr x20, [sp, #248]
+    ldr x21, [sp, #240]
+    ldr x22, [sp, #232]
+    ldr x23, [sp, #224]
+    ldr x24, [sp, #216]
+    ldr x25, [sp, #208]
+    mov sp, x29
+    ldp x29, x30, [sp], #16
+    ret
+L9_12:
+L9_13:
+    cbnz x25, L9_17
+    b L9_18
+L9_17:
+    b L9_19
+L9_18:
+    adrp x14, l_text_4@PAGE
+    add x14, x14, l_text_4@PAGEOFF
+    sub x15, x29, #264
+    str x14, [x15]
+    add x14, x15, #8
+    movz x9, #11
+    str x9, [x14]
+    adrp x14, l_text_26@PAGE
+    add x14, x14, l_text_26@PAGEOFF
+    mov x0, x14
+    mov x9, x15
+    ldr x1, [x9]
+    ldr x2, [x9, #8]
+    bl _lb_core_12trap_text_at
+    adrp x0, l_text_26@PAGE
+    add x0, x0, l_text_26@PAGEOFF
+    adrp x1, l_text_4@PAGE
+    add x1, x1, l_text_4@PAGEOFF
+    bl _lb_core_7trap_at
+L9_19:
+    mov x0, x25
+    bl _strlen
+    mov x14, x0
+    sub x15, x29, #280
+    str x25, [x15]
+    add x19, x15, #8
+    str x14, [x19]
+    sub x19, x29, #128
+    mov x10, x15
+    mov x11, x19
+    ldp x12, x13, [x10, #0]
+    stp x12, x13, [x11, #0]
+    add x14, x19, #40
+    mov x9, #0
+    strb w9, [x14]
+    mov x1, x19
+    sub x16, x29, #24
+    ldr x0, [x16]
+    movz x2, #48
+    bl _memcpy
+    sub x16, x29, #24
+    ldr x0, [x16]
+    ldr x19, [sp, #256]
+    ldr x20, [sp, #248]
+    ldr x21, [sp, #240]
+    ldr x22, [sp, #232]
+    ldr x23, [sp, #224]
+    ldr x24, [sp, #216]
+    ldr x25, [sp, #208]
+    mov sp, x29
+    ldp x29, x30, [sp], #16
+    ret
+
+    .p2align 2
+    .globl _lb_os_10change_dir
+_lb_os_10change_dir:
+    stp x29, x30, [sp, #-16]!
+    mov x29, sp
+    sub sp, sp, #96
+    sub x16, x29, #24
+    str x8, [x16]
+    str x19, [sp, #64]
+    sub x16, x29, #80
+    str x0, [x16]
+    sub x14, x29, #80
+    ldr x14, [x14]
+    mov x0, x14
+    bl _chdir
+    mov w14, w0
+    mov x10, #0
+    cmp w14, w10
+    cset w14, eq
+    mov x10, #0
+    cmp w14, w10
+    b.ne L10_2
+L10_1:
+    sub x19, x29, #64
+    adrp x14, _lb_os_failed@PAGE
+    add x14, x14, _lb_os_failed@PAGEOFF
+    ldr w14, [x14]
+    str w14, [x19]
+    adrp x14, l_text_28@PAGE
+    add x14, x14, l_text_28@PAGEOFF
+    sub x15, x29, #96
+    str x14, [x15]
+    add x14, x15, #8
+    movz x9, #31
+    str x9, [x14]
+    add x14, x19, #8
+    mov x10, x15
+    mov x11, x14
+    ldp x12, x13, [x10, #0]
+    stp x12, x13, [x11, #0]
+    add x14, x19, #24
+    movz x9, #1
+    strb w9, [x14]
+    mov x1, x19
+    sub x16, x29, #24
+    ldr x0, [x16]
+    movz x2, #32
+    bl _memcpy
+    sub x16, x29, #24
+    ldr x0, [x16]
+    ldr x19, [sp, #64]
+    mov sp, x29
+    ldp x29, x30, [sp], #16
+    ret
+L10_4:
+    b L10_3
+L10_2:
+L10_3:
+    sub x14, x29, #64
+    add x15, x14, #24
+    mov x9, #0
+    strb w9, [x15]
+    mov x1, x14
+    sub x16, x29, #24
+    ldr x0, [x16]
+    movz x2, #32
+    bl _memcpy
+    sub x16, x29, #24
+    ldr x0, [x16]
+    ldr x19, [sp, #64]
+    mov sp, x29
+    ldp x29, x30, [sp], #16
+    ret
+
+    .p2align 2
+    .globl _lb_os_pid
+_lb_os_pid:
+    stp x29, x30, [sp, #-16]!
+    mov x29, sp
+    sub sp, sp, #16
+    bl _getpid
+    mov w14, w0
+    mov x9, x14
+    mov x0, x9
+    mov sp, x29
+    ldp x29, x30, [sp], #16
+    ret
+L11_1:
+    adrp x0, l_text_29@PAGE
+    add x0, x0, l_text_29@PAGEOFF
+    adrp x1, l_text_4@PAGE
+    add x1, x1, l_text_4@PAGEOFF
+    bl _lb_core_7trap_at
+
+    .p2align 2
+    .globl _lb_os_10parent_pid
+_lb_os_10parent_pid:
+    stp x29, x30, [sp, #-16]!
+    mov x29, sp
+    sub sp, sp, #16
+    bl _getppid
+    mov w14, w0
+    mov x9, x14
+    mov x0, x9
+    mov sp, x29
+    ldp x29, x30, [sp], #16
+    ret
+L12_1:
+    adrp x0, l_text_30@PAGE
+    add x0, x0, l_text_30@PAGEOFF
+    adrp x1, l_text_4@PAGE
+    add x1, x1, l_text_4@PAGEOFF
+    bl _lb_core_7trap_at
+
+    .p2align 2
+    .globl _lb_os_hostname
+_lb_os_hostname:
+    stp x29, x30, [sp, #-16]!
+    mov x29, sp
+    sub sp, sp, #272
+    sub x16, x29, #24
+    str x8, [x16]
+    str x19, [sp, #240]
+    str x20, [sp, #232]
+    str x21, [sp, #224]
+    str x22, [sp, #216]
+    str x23, [sp, #208]
+    str x24, [sp, #200]
+    sub x19, x29, #136
+    adrp x0, _lb_memory_allocator@TLVPPAGE
+    ldr x0, [x0, _lb_memory_allocator@TLVPPAGEOFF]
+    ldr x16, [x0]
+    blr x16
+    mov x20, x0
+    sub x21, x29, #184
+L13_2:
+    ldr x14, [x20]
+    add x22, x20, #8
+    ldr x15, [x22]
+    cbnz x15, L13_4
+    b L13_5
+L13_5:
+    adrp x0, l_text_31@PAGE
+    add x0, x0, l_text_31@PAGEOFF
+    adrp x1, l_text_21@PAGE
+    add x1, x1, l_text_21@PAGEOFF
+    bl _lb_core_7trap_at
+L13_4:
+    ldr x23, [x15]
+    mov x17, x23
+    str x17, [sp, #-16]!
+    mov x0, x14
+    movz x1, #256
+    movz x2, #1
+    sub x8, x29, #208
+    ldr x17, [sp], #16
+    blr x17
+    sub x24, x29, #208
+    add x23, x24, #16
+    ldrb w23, [x23]
+    mov x10, #0
+    cmp w23, w10
+    cset w23, eq
+    movz x10, #1
+    and w23, w23, w10
+    cbnz w23, L13_6
+    b L13_7
+L13_6:
+    add x14, x21, #16
+    movz x9, #1
+    movk x9, #3178, lsl #16
+    str w9, [x14]
+    adrp x15, l_text_23@PAGE
+    add x15, x15, l_text_23@PAGEOFF
+    add x23, x14, #8
+    str x15, [x23]
+    add x14, x14, #16
+    movz x9, #16
+    str x9, [x14]
+    add x14, x21, #40
+    movz x9, #1
+    strb w9, [x14]
+    b L13_3
+L13_7:
+    ldr x14, [x24]
+    str x14, [x21]
+    add x14, x21, #8
+    movz x9, #256
+    str x9, [x14]
+    add x14, x21, #40
+    mov x9, #0
+    strb w9, [x14]
+L13_3:
+    add x14, x21, #40
+    ldrb w14, [x14]
+    cbnz w14, L13_9
+    b L13_8
+L13_9:
+    add x14, x21, #16
+    sub x19, x29, #120
+    add x15, x19, #16
+    mov x10, x14
+    mov x11, x15
+    ldp x12, x13, [x10, #0]
+    stp x12, x13, [x11, #0]
+    ldr x12, [x10, #16]
+    str x12, [x11, #16]
+    add x14, x19, #40
+    movz x9, #1
+    strb w9, [x14]
+    mov x1, x19
+    sub x16, x29, #24
+    ldr x0, [x16]
+    movz x2, #48
+    bl _memcpy
+    sub x16, x29, #24
+    ldr x0, [x16]
+    ldr x19, [sp, #240]
+    ldr x20, [sp, #232]
+    ldr x21, [sp, #224]
+    ldr x22, [sp, #216]
+    ldr x23, [sp, #208]
+    ldr x24, [sp, #200]
+    mov sp, x29
+    ldp x29, x30, [sp], #16
+    ret
+L13_8:
+    mov x10, x21
+    mov x11, x19
+    ldp x12, x13, [x10, #0]
+    stp x12, x13, [x11, #0]
+    ldr x23, [x19]
+    add x14, x19, #8
+    ldr x24, [x14]
+    mov x0, x23
+    mov x1, x24
+    bl _gethostname
+    mov w14, w0
+    mov x10, #0
+    cmp w14, w10
+    cset w14, eq
+    mov x10, #0
+    cmp w14, w10
+    b.ne L13_12
+L13_11:
+    sub x14, x29, #224
+    str x23, [x14]
+    add x15, x14, #8
+    str x24, [x15]
+    ldr x15, [x20]
+    ldr x19, [x22]
+    cbnz x19, L13_15
+    b L13_14
+L13_15:
+    add x20, x19, #16
+    ldr x20, [x20]
+    mov x17, x20
+    str x17, [sp, #-16]!
+    mov x0, x15
+    mov x9, x14
+    ldr x1, [x9]
+    ldr x2, [x9, #8]
+    ldr x17, [sp], #16
+    blr x17
+L13_14:
+    sub x19, x29, #120
+    add x14, x19, #16
+    adrp x15, _lb_os_failed@PAGE
+    add x15, x15, _lb_os_failed@PAGEOFF
+    ldr w15, [x15]
+    str w15, [x14]
+    adrp x15, l_text_33@PAGE
+    add x15, x15, l_text_33@PAGEOFF
+    sub x20, x29, #240
+    str x15, [x20]
+    add x15, x20, #8
+    movz x9, #28
+    str x9, [x15]
+    add x14, x14, #8
+    mov x10, x20
+    mov x11, x14
+    ldp x12, x13, [x10, #0]
+    stp x12, x13, [x11, #0]
+    add x14, x19, #40
+    movz x9, #1
+    strb w9, [x14]
+    mov x1, x19
+    sub x16, x29, #24
+    ldr x0, [x16]
+    movz x2, #48
+    bl _memcpy
+    sub x16, x29, #24
+    ldr x0, [x16]
+    ldr x19, [sp, #240]
+    ldr x20, [sp, #232]
+    ldr x21, [sp, #224]
+    ldr x22, [sp, #216]
+    ldr x23, [sp, #208]
+    ldr x24, [sp, #200]
+    mov sp, x29
+    ldp x29, x30, [sp], #16
+    ret
+L13_12:
+L13_13:
+    mov x9, #0
+    mov x14, x9
+L13_17:
+    cmp x14, x24
+    cset w15, lo
+    cbnz w15, L13_20
+    b L13_25
+L13_25:
+    mov w19, w15
+    b L13_21
+L13_20:
+    add x15, x23, x14
+    ldrb w15, [x15]
+    mov x10, #0
+    cmp w15, w10
+    cset w15, eq
+    mov x10, #0
+    cmp w15, w10
+    cset w19, eq
+L13_21:
+    and w15, w19, #255
+    cbnz w15, L13_18
+    b L13_19
+L13_18:
+    mov x9, x14
+    movz x10, #1
+    adds x9, x9, x10
+    b.cc 1f
+    adrp x0, l_text_35@PAGE
+    add x0, x0, l_text_35@PAGEOFF
+    adrp x1, l_text_51@PAGE
+    add x1, x1, l_text_51@PAGEOFF
+    bl _lb_core_7trap_at
+1:
+    mov x15, x9
+    mov x14, x15
+    b L13_17
+L13_19:
+    add x15, x24, #1
+    mov x9, #0
+    cmp x9, x15
+    b.lo 1f
+    adrp x0, l_text_36@PAGE
+    add x0, x0, l_text_36@PAGEOFF
+    adrp x1, l_text_37@PAGE
+    add x1, x1, l_text_37@PAGEOFF
+    bl _lb_core_7trap_at
+1:
+    cmp x14, x15
+    b.lo 1f
+    adrp x0, l_text_36@PAGE
+    add x0, x0, l_text_36@PAGEOFF
+    adrp x1, l_text_37@PAGE
+    add x1, x1, l_text_37@PAGEOFF
+    bl _lb_core_7trap_at
+1:
+    mov x9, #0
+    cmp x9, x14
+    b.ls L13_22
+L13_23:
+    adrp x0, l_text_36@PAGE
+    add x0, x0, l_text_36@PAGEOFF
+    adrp x1, l_text_37@PAGE
+    add x1, x1, l_text_37@PAGEOFF
+    bl _lb_core_7trap_at
+L13_22:
+    sub x15, x29, #256
+    str x23, [x15]
+    add x15, x15, #8
+    str x14, [x15]
+    sub x15, x29, #272
+    str x23, [x15]
+    add x19, x15, #8
+    str x14, [x19]
+    sub x19, x29, #120
+    mov x10, x15
+    mov x11, x19
+    ldp x12, x13, [x10, #0]
+    stp x12, x13, [x11, #0]
+    add x15, x19, #40
+    mov x9, #0
+    strb w9, [x15]
+    mov x1, x19
+    sub x16, x29, #24
+    ldr x0, [x16]
+    movz x2, #48
+    bl _memcpy
+    sub x16, x29, #24
+    ldr x0, [x16]
+    ldr x19, [sp, #240]
+    ldr x20, [sp, #232]
+    ldr x21, [sp, #224]
+    ldr x22, [sp, #216]
+    ldr x23, [sp, #208]
+    ldr x24, [sp, #200]
+    mov sp, x29
+    ldp x29, x30, [sp], #16
+    ret
+
+    .p2align 2
+    .globl _lb_os_exit
+_lb_os_exit:
+    stp x29, x30, [sp, #-16]!
+    mov x29, sp
+    sub sp, sp, #32
+    sub x16, x29, #32
+    str w0, [x16]
+    sub x14, x29, #32
+    ldrsw x14, [x14]
+    mov x0, x14
+    bl _exit
+    mov sp, x29
+    ldp x29, x30, [sp], #16
+    ret
+
+    .p2align 2
+    .globl _lb_os_11windows_env
+_lb_os_11windows_env:
+    stp x29, x30, [sp, #-16]!
+    mov x29, sp
+    sub sp, sp, #224
+    sub x16, x29, #24
+    str x8, [x16]
+    str x19, [sp, #192]
+    str x20, [sp, #184]
+    str x21, [sp, #176]
+    sub x16, x29, #88
+    str x0, [x16]
+    sub x14, x29, #88
+    ldr x14, [x14]
+    adrp x0, _lb_os_15environment_key@TLVPPAGE
+    ldr x0, [x0, _lb_os_15environment_key@TLVPPAGEOFF]
+    ldr x16, [x0]
+    blr x16
+    mov x19, x0
+    movz x0, #65001
+    movz x1, #8
+    mov x2, x14
+    movn x3, #0
+    mov x4, x19
+    movz x5, #32768
+    bl _MultiByteToWideChar
+    mov w14, w0
+    mov x10, #0
+    cmp w14, w10
+    b.ne L15_2
+L15_1:
+    sub x19, x29, #112
+    mov x11, x19
+    stp xzr, xzr, [x11, #0]
+    str xzr, [x11, #16]
+    sub x20, x29, #72
+    mov x10, x19
+    mov x11, x20
+    ldp x12, x13, [x10, #0]
+    stp x12, x13, [x11, #0]
+    ldr x12, [x10, #16]
+    str x12, [x11, #16]
+    mov x1, x20
+    sub x16, x29, #24
+    ldr x0, [x16]
+    movz x2, #24
+    bl _memcpy
+    sub x16, x29, #24
+    ldr x0, [x16]
+    ldr x19, [sp, #192]
+    ldr x20, [sp, #184]
+    ldr x21, [sp, #176]
+    mov sp, x29
+    ldp x29, x30, [sp], #16
+    ret
+L15_4:
+    b L15_3
+L15_2:
+L15_3:
+    mov x0, #0
+    bl _SetLastError
+    adrp x0, _lb_os_16environment_wide@TLVPPAGE
+    ldr x0, [x0, _lb_os_16environment_wide@TLVPPAGEOFF]
+    ldr x16, [x0]
+    blr x16
+    mov x20, x0
+    mov x0, x19
+    mov x1, x20
+    movz x2, #32768
+    bl _GetEnvironmentVariableW
+    mov w21, w0
+    movz x10, #32768
+    cmp w21, w10
+    cset w14, hs
+    cbnz w14, L15_23
+    b L15_8
+L15_23:
+    mov w15, w14
+    b L15_9
+L15_8:
+    mov x10, #0
+    cmp w21, w10
+    cset w14, eq
+    cbnz w14, L15_10
+    b L15_24
+L15_24:
+    mov w15, w14
+    b L15_11
+L15_10:
+    bl _GetLastError
+    mov w14, w0
+    mov x10, #0
+    cmp w14, w10
+    cset w14, eq
+    mov x10, #0
+    cmp w14, w10
+    cset w15, eq
+L15_11:
+    and w14, w15, #255
+    mov w15, w14
+L15_9:
+    and w14, w15, #255
+    cbnz w14, L15_5
+    b L15_6
+L15_5:
+    sub x19, x29, #136
+    mov x11, x19
+    stp xzr, xzr, [x11, #0]
+    str xzr, [x11, #16]
+    sub x20, x29, #72
+    mov x10, x19
+    mov x11, x20
+    ldp x12, x13, [x10, #0]
+    stp x12, x13, [x11, #0]
+    ldr x12, [x10, #16]
+    str x12, [x11, #16]
+    mov x1, x20
+    sub x16, x29, #24
+    ldr x0, [x16]
+    movz x2, #24
+    bl _memcpy
+    sub x16, x29, #24
+    ldr x0, [x16]
+    ldr x19, [sp, #192]
+    ldr x20, [sp, #184]
+    ldr x21, [sp, #176]
+    mov sp, x29
+    ldp x29, x30, [sp], #16
+    ret
+L15_12:
+    b L15_7
+L15_6:
+L15_7:
+    mov x10, #0
+    cmp w21, w10
+    b.ls L15_14
+L15_13:
+    mov w14, w21
+    adrp x0, _lb_os_16environment_utf8@TLVPPAGE
+    ldr x0, [x0, _lb_os_16environment_utf8@TLVPPAGEOFF]
+    ldr x16, [x0]
+    blr x16
+    mov x15, x0
+    movz x0, #65001
+    movz x1, #128
+    mov x2, x20
+    mov x3, x14
+    mov x4, x15
+    movz x5, #2, lsl #16
+    mov x6, #0
+    mov x7, #0
+    bl _WideCharToMultiByte
+    mov w14, w0
+    mov x10, #0
+    cmp w14, w10
+    b.ne L15_17
+L15_16:
+    sub x19, x29, #160
+    mov x11, x19
+    stp xzr, xzr, [x11, #0]
+    str xzr, [x11, #16]
+    sub x20, x29, #72
+    mov x10, x19
+    mov x11, x20
+    ldp x12, x13, [x10, #0]
+    stp x12, x13, [x11, #0]
+    ldr x12, [x10, #16]
+    str x12, [x11, #16]
+    mov x1, x20
+    sub x16, x29, #24
+    ldr x0, [x16]
+    movz x2, #24
+    bl _memcpy
+    sub x16, x29, #24
+    ldr x0, [x16]
+    ldr x19, [sp, #192]
+    ldr x20, [sp, #184]
+    ldr x21, [sp, #176]
+    mov sp, x29
+    ldp x29, x30, [sp], #16
+    ret
+L15_19:
+    b L15_18
+L15_17:
+L15_18:
+    mov w15, w14
+    b L15_15
+L15_14:
+    mov x9, #0
+    mov w15, w9
+L15_15:
+    sxtw x14, w15
+    adrp x0, _lb_os_16environment_utf8@TLVPPAGE
+    ldr x0, [x0, _lb_os_16environment_utf8@TLVPPAGEOFF]
+    ldr x16, [x0]
+    blr x16
+    mov x19, x0
+    movz x10, #1
+    movk x10, #2, lsl #16
+    cmp x14, x10
+    b.lo 1f
+    adrp x0, l_text_41@PAGE
+    add x0, x0, l_text_41@PAGEOFF
+    adrp x1, l_text_37@PAGE
+    add x1, x1, l_text_37@PAGEOFF
+    bl _lb_core_7trap_at
+1:
+    add x20, x14, x19
+    mov x9, #0
+    strb w9, [x20]
+    mov x9, #0
+    cmp x9, x14
+    b.ls L15_20
+L15_21:
+    adrp x0, l_text_42@PAGE
+    add x0, x0, l_text_42@PAGEOFF
+    adrp x1, l_text_37@PAGE
+    add x1, x1, l_text_37@PAGEOFF
+    bl _lb_core_7trap_at
+L15_20:
+    sub x15, x29, #176
+    str x19, [x15]
+    add x15, x15, #8
+    str x14, [x15]
+    sub x15, x29, #192
+    str x19, [x15]
+    add x20, x15, #8
+    str x14, [x20]
+    sub x20, x29, #216
+    mov x10, x15
+    mov x11, x20
+    ldp x12, x13, [x10, #0]
+    stp x12, x13, [x11, #0]
+    add x15, x20, #16
+    movz x9, #1
+    strb w9, [x15]
+    sub x21, x29, #72
+    mov x10, x20
+    mov x11, x21
+    ldp x12, x13, [x10, #0]
+    stp x12, x13, [x11, #0]
+    ldr x12, [x10, #16]
+    str x12, [x11, #16]
+    mov x1, x21
+    sub x16, x29, #24
+    ldr x0, [x16]
+    movz x2, #24
+    bl _memcpy
+    sub x16, x29, #24
+    ldr x0, [x16]
+    ldr x19, [sp, #192]
+    ldr x20, [sp, #184]
+    ldr x21, [sp, #176]
+    mov sp, x29
+    ldp x29, x30, [sp], #16
+    ret
+L15_22:
+    adrp x0, l_text_42@PAGE
+    add x0, x0, l_text_42@PAGEOFF
+    adrp x1, l_text_4@PAGE
+    add x1, x1, l_text_4@PAGEOFF
+    bl _lb_core_7trap_at
+
+    .p2align 2
+    .globl _lb_os_11windows_cwd
+_lb_os_11windows_cwd:
+    stp x29, x30, [sp, #-16]!
+    mov x29, sp
+    sub sp, sp, #528
+    sub x16, x29, #24
+    str x8, [x16]
+    str x19, [sp, #496]
+    str x20, [sp, #488]
+    str x21, [sp, #480]
+    str x22, [sp, #472]
+    str x23, [sp, #464]
+    str x24, [sp, #456]
+    str x25, [sp, #448]
+    str x26, [sp, #440]
+    str x27, [sp, #432]
+    str x28, [sp, #424]
+    sub x9, x29, #168
+    str x9, [sp, #16]
+    sub x9, x29, #216
+    str x9, [sp, #8]
+    sub x24, x29, #240
+    add x9, x24, #16
+    str x9, [sp, #112]
+    ldr x9, [sp, #8]
+    add x9, x9, #8
+    str x9, [sp, #72]
+    ldr x9, [sp, #8]
+    add x9, x9, #40
+    str x9, [sp, #64]
+    ldr x9, [sp, #8]
+    add x25, x9, #16
+    adrp x9, l_text_23@PAGE
+    add x9, x9, l_text_23@PAGEOFF
+    str x9, [sp, #104]
+    add x9, x25, #8
+    str x9, [sp, #96]
+    add x9, x25, #16
+    str x9, [sp, #88]
+    ldr x9, [sp, #8]
+    add x9, x9, #40
+    str x9, [sp, #80]
+    ldr x9, [sp, #8]
+    add x9, x9, #16
+    str x9, [sp, #136]
+    adrp x9, l_text_20@PAGE
+    add x9, x9, l_text_20@PAGEOFF
+    str x9, [sp, #128]
+    ldr x9, [sp, #136]
+    add x9, x9, #8
+    str x9, [sp, #120]
+    ldr x9, [sp, #136]
+    add x22, x9, #16
+    ldr x9, [sp, #8]
+    add x23, x9, #40
+    ldr x9, [sp, #8]
+    add x9, x9, #40
+    str x9, [sp, #56]
+    sub x9, x29, #368
+    str x9, [sp, #48]
+    ldr x9, [sp, #16]
+    add x9, x9, #8
+    str x9, [sp, #40]
+    ldr x9, [sp, #48]
+    add x9, x9, #8
+    str x9, [sp, #32]
+    mov x9, #0
+    str x9, [sp, #24]
+L16_1:
+    ldr x9, [sp, #24]
+    movz x10, #8
+    cmp x9, x10
+    b.hs L16_3
+L16_2:
+    mov x0, #0
+    mov x1, #0
+    bl _GetCurrentDirectoryW
+    mov w28, w0
+    mov x10, #0
+    cmp w28, w10
+    b.ne L16_5
+L16_4:
+    b L16_3
+L16_7:
+    b L16_6
+L16_5:
+L16_6:
+    adrp x0, _lb_memory_allocator@TLVPPAGE
+    ldr x0, [x0, _lb_memory_allocator@TLVPPAGEOFF]
+    ldr x16, [x0]
+    blr x16
+    mov x26, x0
+    mov w27, w28
+    movz x10, #8192, lsl #48
+    cmp x27, x10
+    b.ls L16_9
+L16_8:
+    movz x9, #1
+    movk x9, #3178, lsl #16
+    ldr x10, [sp, #136]
+    str w9, [x10]
+    ldr x9, [sp, #128]
+    ldr x10, [sp, #120]
+    str x9, [x10]
+    movz x9, #47
+    str x9, [x22]
+    movz x9, #1
+    strb w9, [x23]
+    b L16_10
+L16_9:
+    lsl x19, x27, #1
+    ldr x14, [x26]
+    add x15, x26, #8
+    ldr x15, [x15]
+    cbnz x15, L16_11
+    b L16_12
+L16_12:
+    adrp x0, l_text_43@PAGE
+    add x0, x0, l_text_43@PAGEOFF
+    adrp x1, l_text_21@PAGE
+    add x1, x1, l_text_21@PAGEOFF
+    bl _lb_core_7trap_at
+L16_11:
+    ldr x20, [x15]
+    mov x17, x20
+    str x17, [sp, #-16]!
+    mov x0, x14
+    mov x1, x19
+    movz x2, #2
+    sub x8, x29, #240
+    ldr x17, [sp], #16
+    blr x17
+    ldr x9, [sp, #112]
+    ldrb w20, [x9]
+    mov x10, #0
+    cmp x19, x10
+    cset w21, ne
+    mov x10, #0
+    cmp w20, w10
+    cset w20, eq
+    and w20, w21, w20
+    cbnz w20, L16_13
+    b L16_14
+L16_13:
+    movz x9, #1
+    movk x9, #3178, lsl #16
+    str w9, [x25]
+    ldr x9, [sp, #104]
+    ldr x10, [sp, #96]
+    str x9, [x10]
+    movz x9, #16
+    ldr x10, [sp, #88]
+    str x9, [x10]
+    movz x9, #1
+    ldr x10, [sp, #80]
+    strb w9, [x10]
+    b L16_10
+L16_14:
+    ldr x14, [x24]
+    ldr x10, [sp, #8]
+    str x14, [x10]
+    ldr x10, [sp, #72]
+    str x27, [x10]
+    mov x9, #0
+    ldr x10, [sp, #64]
+    strb w9, [x10]
+L16_10:
+    ldr x9, [sp, #56]
+    ldrb w14, [x9]
+    cbnz w14, L16_16
+    b L16_15
+L16_16:
+    ldr x9, [sp, #8]
+    add x14, x9, #16
+    sub x19, x29, #152
+    add x15, x19, #16
+    mov x10, x14
+    mov x11, x15
+    ldp x12, x13, [x10, #0]
+    stp x12, x13, [x11, #0]
+    ldr x12, [x10, #16]
+    str x12, [x11, #16]
+    add x14, x19, #40
+    movz x9, #1
+    strb w9, [x14]
+    mov x1, x19
+    sub x16, x29, #24
+    ldr x0, [x16]
+    movz x2, #48
+    bl _memcpy
+    sub x16, x29, #24
+    ldr x0, [x16]
+    ldr x19, [sp, #496]
+    ldr x20, [sp, #488]
+    ldr x21, [sp, #480]
+    ldr x22, [sp, #472]
+    ldr x23, [sp, #464]
+    ldr x24, [sp, #456]
+    ldr x25, [sp, #448]
+    ldr x26, [sp, #440]
+    ldr x27, [sp, #432]
+    ldr x28, [sp, #424]
+    mov sp, x29
+    ldp x29, x30, [sp], #16
+    ret
+L16_17:
+L16_15:
+    ldr x10, [sp, #8]
+    ldr x11, [sp, #16]
+    ldp x12, x13, [x10, #0]
+    stp x12, x13, [x11, #0]
+    ldr x9, [sp, #16]
+    ldr x19, [x9]
+    mov x0, x28
+    mov x1, x19
+    bl _GetCurrentDirectoryW
+    mov w14, w0
+    mov x10, #0
+    cmp w14, w10
+    b.ne L16_19
+L16_18:
+    sub x14, x29, #256
+    ldr x9, [sp, #16]
+    add x15, x9, #8
+    ldr x15, [x15]
+    mov x9, x15
+    movz x10, #2
+    umulh x11, x9, x10
+    mul x9, x9, x10
+    cbz x11, 1f
+    adrp x0, l_text_44@PAGE
+    add x0, x0, l_text_44@PAGEOFF
+    adrp x1, l_text_51@PAGE
+    add x1, x1, l_text_51@PAGEOFF
+    bl _lb_core_7trap_at
+1:
+    mov x15, x9
+    str x19, [x14]
+    add x20, x14, #8
+    str x15, [x20]
+    ldr x15, [x26]
+    add x20, x26, #8
+    ldr x20, [x20]
+    cbnz x20, L16_22
+    b L16_21
+L16_22:
+    add x19, x20, #16
+    ldr x19, [x19]
+    mov x17, x19
+    str x17, [sp, #-16]!
+    mov x0, x15
+    mov x9, x14
+    ldr x1, [x9]
+    ldr x2, [x9, #8]
+    ldr x17, [sp], #16
+    blr x17
+L16_21:
+    b L16_3
+L16_23:
+    b L16_20
+L16_19:
+L16_20:
+    cmp w14, w28
+    b.hs L16_25
+L16_24:
+    ldr x9, [sp, #16]
+    add x15, x9, #8
+    ldr x20, [x15]
+    mov w21, w14
+    add x15, x20, #1
+    mov x9, #0
+    cmp x9, x15
+    b.lo 1f
+    adrp x0, l_text_45@PAGE
+    add x0, x0, l_text_45@PAGEOFF
+    adrp x1, l_text_37@PAGE
+    add x1, x1, l_text_37@PAGEOFF
+    bl _lb_core_7trap_at
+1:
+    cmp x21, x15
+    b.lo 1f
+    adrp x0, l_text_45@PAGE
+    add x0, x0, l_text_45@PAGEOFF
+    adrp x1, l_text_37@PAGE
+    add x1, x1, l_text_37@PAGEOFF
+    bl _lb_core_7trap_at
+1:
+    mov x9, #0
+    cmp x9, x21
+    b.ls L16_27
+L16_28:
+    adrp x0, l_text_45@PAGE
+    add x0, x0, l_text_45@PAGEOFF
+    adrp x1, l_text_37@PAGE
+    add x1, x1, l_text_37@PAGEOFF
+    bl _lb_core_7trap_at
+L16_27:
+    sub x14, x29, #272
+    str x19, [x14]
+    add x15, x14, #8
+    str x21, [x15]
+    adrp x15, _lb_os_failed@PAGE
+    add x15, x15, _lb_os_failed@PAGEOFF
+    ldr w15, [x15]
+    mov x9, x14
+    ldr x0, [x9]
+    ldr x1, [x9, #8]
+    mov x2, x15
+    sub x8, x29, #320
+    bl _lb_12windows_text_narrow
+    sub x15, x29, #320
+    add x14, x15, #40
+    ldrb w14, [x14]
+    cbnz w14, L16_30
+    b L16_29
+L16_30:
+    add x14, x15, #16
+    sub x21, x29, #152
+    add x22, x21, #16
+    mov x10, x14
+    mov x11, x22
+    ldp x12, x13, [x10, #0]
+    stp x12, x13, [x11, #0]
+    ldr x12, [x10, #16]
+    str x12, [x11, #16]
+    add x14, x21, #40
+    movz x9, #1
+    strb w9, [x14]
+    sub x14, x29, #336
+    mov x9, x20
+    movz x10, #2
+    umulh x11, x9, x10
+    mul x9, x9, x10
+    cbz x11, 1f
+    adrp x0, l_text_45@PAGE
+    add x0, x0, l_text_45@PAGEOFF
+    adrp x1, l_text_51@PAGE
+    add x1, x1, l_text_51@PAGEOFF
+    bl _lb_core_7trap_at
+1:
+    mov x22, x9
+    str x19, [x14]
+    add x23, x14, #8
+    str x22, [x23]
+    ldr x22, [x26]
+    add x23, x26, #8
+    ldr x23, [x23]
+    cbnz x23, L16_32
+    b L16_31
+L16_32:
+    add x15, x23, #16
+    ldr x15, [x15]
+    mov x17, x15
+    str x17, [sp, #-16]!
+    mov x0, x22
+    mov x9, x14
+    ldr x1, [x9]
+    ldr x2, [x9, #8]
+    ldr x17, [sp], #16
+    blr x17
+L16_31:
+    mov x1, x21
+    sub x16, x29, #24
+    ldr x0, [x16]
+    movz x2, #48
+    bl _memcpy
+    sub x16, x29, #24
+    ldr x0, [x16]
+    ldr x19, [sp, #496]
+    ldr x20, [sp, #488]
+    ldr x21, [sp, #480]
+    ldr x22, [sp, #472]
+    ldr x23, [sp, #464]
+    ldr x24, [sp, #456]
+    ldr x25, [sp, #448]
+    ldr x26, [sp, #440]
+    ldr x27, [sp, #432]
+    ldr x28, [sp, #424]
+    mov sp, x29
+    ldp x29, x30, [sp], #16
+    ret
+L16_33:
+L16_29:
+    sub x21, x29, #152
+    mov x10, x15
+    mov x11, x21
+    ldp x12, x13, [x10, #0]
+    stp x12, x13, [x11, #0]
+    add x14, x21, #40
+    mov x9, #0
+    strb w9, [x14]
+    sub x14, x29, #352
+    mov x9, x20
+    movz x10, #2
+    umulh x11, x9, x10
+    mul x9, x9, x10
+    cbz x11, 1f
+    adrp x0, l_text_45@PAGE
+    add x0, x0, l_text_45@PAGEOFF
+    adrp x1, l_text_51@PAGE
+    add x1, x1, l_text_51@PAGEOFF
+    bl _lb_core_7trap_at
+1:
+    mov x22, x9
+    str x19, [x14]
+    add x23, x14, #8
+    str x22, [x23]
+    ldr x22, [x26]
+    add x23, x26, #8
+    ldr x23, [x23]
+    cbnz x23, L16_35
+    b L16_34
+L16_35:
+    add x15, x23, #16
+    ldr x15, [x15]
+    mov x17, x15
+    str x17, [sp, #-16]!
+    mov x0, x22
+    mov x9, x14
+    ldr x1, [x9]
+    ldr x2, [x9, #8]
+    ldr x17, [sp], #16
+    blr x17
+L16_34:
+    mov x1, x21
+    sub x16, x29, #24
+    ldr x0, [x16]
+    movz x2, #48
+    bl _memcpy
+    sub x16, x29, #24
+    ldr x0, [x16]
+    ldr x19, [sp, #496]
+    ldr x20, [sp, #488]
+    ldr x21, [sp, #480]
+    ldr x22, [sp, #472]
+    ldr x23, [sp, #464]
+    ldr x24, [sp, #456]
+    ldr x25, [sp, #448]
+    ldr x26, [sp, #440]
+    ldr x27, [sp, #432]
+    ldr x28, [sp, #424]
+    mov sp, x29
+    ldp x29, x30, [sp], #16
+    ret
+L16_36:
+    b L16_26
+L16_25:
+L16_26:
+    ldr x9, [sp, #24]
+    add x20, x9, #1
+    ldr x9, [sp, #40]
+    ldr x14, [x9]
+    mov x9, x14
+    movz x10, #2
+    umulh x11, x9, x10
+    mul x9, x9, x10
+    cbz x11, 1f
+    adrp x0, l_text_46@PAGE
+    add x0, x0, l_text_46@PAGEOFF
+    adrp x1, l_text_51@PAGE
+    add x1, x1, l_text_51@PAGEOFF
+    bl _lb_core_7trap_at
+1:
+    mov x14, x9
+    ldr x10, [sp, #48]
+    str x19, [x10]
+    ldr x10, [sp, #32]
+    str x14, [x10]
+    ldr x14, [x26]
+    add x15, x26, #8
+    ldr x15, [x15]
+    cbnz x15, L16_38
+    b L16_37
+L16_38:
+    add x19, x15, #16
+    ldr x19, [x19]
+    mov x17, x19
+    str x17, [sp, #-16]!
+    mov x0, x14
+    ldr x9, [sp, #64]
+    ldr x1, [x9]
+    ldr x2, [x9, #8]
+    ldr x17, [sp], #16
+    blr x17
+L16_37:
+    mov x9, x20
+    str x9, [sp, #24]
+    b L16_1
+L16_3:
+    sub x19, x29, #152
+    add x14, x19, #16
+    adrp x15, _lb_os_failed@PAGE
+    add x15, x15, _lb_os_failed@PAGEOFF
+    ldr w15, [x15]
+    str w15, [x14]
+    adrp x15, l_text_25@PAGE
+    add x15, x15, l_text_25@PAGEOFF
+    sub x20, x29, #384
+    str x15, [x20]
+    add x15, x20, #8
+    movz x9, #36
+    str x9, [x15]
+    add x14, x14, #8
+    mov x10, x20
+    mov x11, x14
+    ldp x12, x13, [x10, #0]
+    stp x12, x13, [x11, #0]
+    add x14, x19, #40
+    movz x9, #1
+    strb w9, [x14]
+    mov x1, x19
+    sub x16, x29, #24
+    ldr x0, [x16]
+    movz x2, #48
+    bl _memcpy
+    sub x16, x29, #24
+    ldr x0, [x16]
+    ldr x19, [sp, #496]
+    ldr x20, [sp, #488]
+    ldr x21, [sp, #480]
+    ldr x22, [sp, #472]
+    ldr x23, [sp, #464]
+    ldr x24, [sp, #456]
+    ldr x25, [sp, #448]
+    ldr x26, [sp, #440]
+    ldr x27, [sp, #432]
+    ldr x28, [sp, #424]
+    mov sp, x29
+    ldp x29, x30, [sp], #16
+    ret
+L16_39:
+    adrp x0, l_text_47@PAGE
+    add x0, x0, l_text_47@PAGEOFF
+    adrp x1, l_text_4@PAGE
+    add x1, x1, l_text_4@PAGEOFF
+    bl _lb_core_7trap_at
+
+    .p2align 2
+    .globl _lb_os_18windows_parent_pid
+_lb_os_18windows_parent_pid:
+    stp x29, x30, [sp, #-16]!
+    mov x29, sp
+    sub sp, sp, #624
+    str x19, [sp, #600]
+    str x20, [sp, #592]
+    str x21, [sp, #584]
+    str x22, [sp, #576]
+    str x23, [sp, #568]
+    movz x0, #2
+    mov x1, #0
+    bl _CreateToolhelp32Snapshot
+    mov x19, x0
+    cbnz x19, L17_1
+    b L17_2
+L17_2:
+    adrp x0, l_text_49@PAGE
+    add x0, x0, l_text_49@PAGEOFF
+    adrp x1, l_text_48@PAGE
+    add x1, x1, l_text_48@PAGEOFF
+    bl _lb_core_7trap_at
+L17_1:
+    movn x10, #0
+    cmp x19, x10
+    b.ne L17_4
+L17_3:
+    mov x9, #0
+    mov x0, x9
+    ldr x19, [sp, #600]
+    ldr x20, [sp, #592]
+    ldr x21, [sp, #584]
+    ldr x22, [sp, #576]
+    ldr x23, [sp, #568]
+    mov sp, x29
+    ldp x29, x30, [sp], #16
+    ret
+L17_6:
+    b L17_5
+L17_4:
+L17_5:
+    sub x20, x29, #624
+    mov x0, x20
+    mov x1, #0
+    movz x2, #568
+    bl _memset
+    movz x9, #568
+    str w9, [x20]
+    mov x0, x19
+    mov x1, x20
+    bl _Process32FirstW
+    mov w21, w0
+    bl _GetCurrentProcessId
+    mov w22, w0
+    add x23, x20, #8
+L17_7:
+    mov x10, #0
+    cmp w21, w10
+    cset w14, eq
+    mov x10, #0
+    cmp w14, w10
+    b.ne L17_9
+L17_8:
+    ldr w14, [x23]
+    cmp w22, w14
+    b.ne L17_11
+L17_10:
+    add x14, x20, #32
+    ldr w14, [x14]
+    mov w21, w14
+    mov x0, x19
+    bl _CloseHandle
+    mov w14, w0
+    mov x9, x21
+    mov x0, x9
+    ldr x19, [sp, #600]
+    ldr x20, [sp, #592]
+    ldr x21, [sp, #584]
+    ldr x22, [sp, #576]
+    ldr x23, [sp, #568]
+    mov sp, x29
+    ldp x29, x30, [sp], #16
+    ret
+L17_13:
+    b L17_12
+L17_11:
+L17_12:
+    mov x0, x19
+    mov x1, x20
+    bl _Process32NextW
+    mov w21, w0
+    b L17_7
+L17_9:
+    mov x0, x19
+    bl _CloseHandle
+    mov w14, w0
+    mov x9, #0
+    mov x0, x9
+    ldr x19, [sp, #600]
+    ldr x20, [sp, #592]
+    ldr x21, [sp, #584]
+    ldr x22, [sp, #576]
+    ldr x23, [sp, #568]
+    mov sp, x29
+    ldp x29, x30, [sp], #16
+    ret
+L17_14:
+    mov x0, x14
+    bl _CloseHandle
+    mov w14, w0
+    adrp x0, l_text_50@PAGE
+    add x0, x0, l_text_50@PAGEOFF
+    adrp x1, l_text_4@PAGE
+    add x1, x1, l_text_4@PAGEOFF
+    bl _lb_core_7trap_at
+
+    .section __DATA,__mod_init_func,mod_init_funcs
+    .p2align 3
+    .quad _lb_os_0init
+
+    .section __TEXT,__const
+l_text_0:
+    .asciz "src/std/os/module.lucb:28:9"
+l_text_1:
+    .asciz "src/std/os/module.lucb:33:13"
+l_text_2:
+    .asciz "operating system randomness is unavailable"
+l_text_3:
+    .asciz "src/std/os/module.lucb:36:9"
+l_text_4:
+    .asciz "unreachable"
+l_text_5:
+    .asciz "src/std/os/module.lucb:61:5"
+l_text_6:
+    .asciz "shift count out of range"
+l_text_7:
+    .asciz "src/std/os/module.lucb:71:5"
+l_text_8:
+    .asciz "src/std/os/module.lucb:72:5"
+l_text_9:
+    .asciz "src/std/os/module.lucb:73:5"
+l_text_10:
+    .asciz "src/std/os/module.lucb:75:5"
+l_text_11:
+    .asciz "src/std/os/module.lucb:76:5"
+l_text_12:
+    .asciz "src/std/os/module.lucb:77:5"
+l_text_13:
+    .asciz "src/std/os/module.lucb:78:5"
+l_text_14:
+    .asciz "src/std/os/module.lucb:83:5"
+l_text_15:
+    .asciz "src/std/os/module.lucb:94:5"
+l_text_16:
+    .asciz "src/std/os/module.lucb:101:5"
+l_text_17:
+    .asciz "src/std/os/module.lucb:109:5"
+l_text_18:
+    .asciz "the environment variable cannot be set"
+l_text_19:
+    .asciz "the environment variable cannot be unset"
+l_text_20:
+    .asciz "memory.exhausted: the allocation size overflows"
+l_text_21:
+    .asciz "memory.unset"
+l_text_22:
+    .asciz "src/std/os/module.lucb:138:5"
+l_text_23:
+    .asciz "memory.exhausted"
+l_text_24:
+    .asciz "src/std/os/module.lucb:141:9"
+l_text_25:
+    .asciz "the working directory cannot be read"
+l_text_26:
+    .asciz "src/std/os/module.lucb:143:5"
+l_text_27:
+    .asciz "src/std/os/module.lucb:144:5"
+l_text_28:
+    .asciz "the directory cannot be entered"
+l_text_29:
+    .asciz "src/std/os/module.lucb:159:5"
+l_text_30:
+    .asciz "src/std/os/module.lucb:164:5"
+l_text_31:
+    .asciz "src/std/os/module.lucb:174:5"
+l_text_32:
+    .asciz "src/std/os/module.lucb:176:9"
+l_text_33:
+    .asciz "the host name cannot be read"
+l_text_34:
+    .asciz "src/std/os/module.lucb:179:5"
+l_text_35:
+    .asciz "src/std/os/module.lucb:180:9"
+l_text_36:
+    .asciz "src/std/os/module.lucb:181:5"
+l_text_37:
+    .asciz "index out of bounds"
+l_text_38:
+    .asciz "src/std/os/windows.lucb:29:5"
+l_text_39:
+    .asciz "src/std/os/windows.lucb:32:5"
+l_text_40:
+    .asciz "src/std/os/windows.lucb:37:9"
+l_text_41:
+    .asciz "src/std/os/windows.lucb:40:5"
+l_text_42:
+    .asciz "src/std/os/windows.lucb:41:5"
+l_text_43:
+    .asciz "src/std/os/windows.lucb:49:9"
+l_text_44:
+    .asciz "src/std/os/windows.lucb:53:13"
+l_text_45:
+    .asciz "src/std/os/windows.lucb:55:13"
+l_text_46:
+    .asciz "src/std/os/windows.lucb:56:9"
+l_text_47:
+    .asciz "src/std/os/windows.lucb:57:5"
+l_text_48:
+    .asciz "null_foreign"
+l_text_49:
+    .asciz "src/std/os/windows.lucb:60:5"
+l_text_50:
+    .asciz "src/std/os/windows.lucb:72:5"
+l_text_51:
+    .asciz "integer overflow"
+
+    .section __DATA,__const
+    .p2align 3
+    .globl _lb_os_failed
+    .zerofill __DATA,__bss,_lb_os_failed,4,2
+    .globl _lb_os_arm64
+    .zerofill __DATA,__bss,_lb_os_arm64,1,0
+    .globl _lb_os_6x86_64
+    .zerofill __DATA,__bss,_lb_os_6x86_64,1,0
+    .globl _lb_os_macos
+    .zerofill __DATA,__bss,_lb_os_macos,1,0
+    .globl _lb_os_linux
+    .zerofill __DATA,__bss,_lb_os_linux,1,0
+    .globl _lb_os_windows
+    .zerofill __DATA,__bss,_lb_os_windows,1,0
+    .globl _lb_os_posix
+    .zerofill __DATA,__bss,_lb_os_posix,1,0
+    .globl _lb_os_12pointer_bits
+    .zerofill __DATA,__bss,_lb_os_12pointer_bits,4,2
+    .globl _lb_os_name
+    .zerofill __DATA,__bss,_lb_os_name,16,3
+    .globl _lb_os_9cpu_level
+    .zerofill __DATA,__bss,_lb_os_9cpu_level,4,2
+    .globl _lb_os_17processors_online
+    .zerofill __DATA,__bss,_lb_os_17processors_online,4,2
+
+    .section __DATA,__thread_bss,thread_local_zerofill
+    .p2align 4
+_lb_os_16environment_wide$tlv$init:
+    .space 65536
+    .section __DATA,__thread_vars,thread_local_variables
+    .globl _lb_os_16environment_wide
+_lb_os_16environment_wide:
+    .quad __tlv_bootstrap
+    .quad 0
+    .quad _lb_os_16environment_wide$tlv$init
+
+    .section __DATA,__thread_bss,thread_local_zerofill
+    .p2align 4
+_lb_os_16environment_utf8$tlv$init:
+    .space 131073
+    .section __DATA,__thread_vars,thread_local_variables
+    .globl _lb_os_16environment_utf8
+_lb_os_16environment_utf8:
+    .quad __tlv_bootstrap
+    .quad 0
+    .quad _lb_os_16environment_utf8$tlv$init
+
+    .section __DATA,__thread_bss,thread_local_zerofill
+    .p2align 4
+_lb_os_15environment_key$tlv$init:
+    .space 65536
+    .section __DATA,__thread_vars,thread_local_variables
+    .globl _lb_os_15environment_key
+_lb_os_15environment_key:
+    .quad __tlv_bootstrap
+    .quad 0
+    .quad _lb_os_15environment_key$tlv$init
+

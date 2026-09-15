@@ -559,6 +559,33 @@ pub struct Checker:
             let src = try source.Source.over(p.name, text.bytes)
             try self.add_module(p.name, src, true)
 
+    ## Parse and add every standard module from its source under `directory`, in the order
+    ## `directory/ORDER` lists, a module being `name.lucb` or the fragments of `name/`.
+    pub mutating func add_prelude_from(directory: str) -> !:
+        self.table.word = (u64)self.build_target.pointer_bits // 8
+        self.table.configure_c(self.build_target.os == targets.Os.windows)
+        var order_bytes = try alloc u8[directory.length + 8]
+        let order = try files.read((c.str)try format(order_bytes, f"{directory}/ORDER"))
+        var start: usize = 0
+        var i: usize = 0
+        while i <= order.length:
+            let blank = i == order.length or order[i] == '\n' or order[i] == ' ' or order[i] == '\r' or order[i] == '\t'
+            if blank and i > start:
+                let name = (str)order[start..<i]
+                if name == "platform":
+                    let buffer = try alloc u8[1024]
+                    let text = try self.build_target.module_text(buffer)
+                    try self.add_module(name, try source.Source.over(name, text.bytes), true)
+                else:
+                    var path_bytes = try alloc u8[directory.length + name.length + 8]
+                    var path = try format(path_bytes, f"{directory}/{name}.lucb")
+                    if not file_exists((c.str)path):
+                        path = try format(path_bytes, f"{directory}/{name}")
+                    try self.add_module(name, try self.load_source((c.str)path), true)
+            if blank:
+                start = i + 1
+            i += 1
+
     ## Load `path` and, first, every module it imports from the same directory.
     pub mutating func load(path: c.str) -> !:
         self.root = manifest.directory_of((str)path)

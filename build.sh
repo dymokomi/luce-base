@@ -34,4 +34,8 @@ if ! cmp -s build/stage1.s build/stage2.s; then
     exit 1
 fi
 rm -f build/stage1.s build/stage2.s
-echo "built build/luce-base (native)"
+# the standard library as archives beside the compiler: one object per module, from the
+# native backend and, where the host has a C compiler, through it
+./build/luce-base std-build src/std "build/lib/luce-base/$host"
+./build/luce-base std-build src/std "build/lib/luce-base/$host" --backend=c
+echo "built build/luce-base (native) and build/lib/luce-base/$host"
