@@ -948,11 +948,11 @@ lb_files_11metadata_at:
 .Ltext_8:
     .asciz "open-file metadata could not be read"
 .Ltext_9:
-    .asciz "src/std/files/metadata.lucb:217:17"
+    .asciz "src/std/files/metadata.lucb:216:17"
 .Ltext_10:
     .asciz "directory-entry metadata could not be read"
 .Ltext_11:
-    .asciz "src/std/files/metadata.lucb:245:17"
+    .asciz "src/std/files/metadata.lucb:244:17"
 
     .section .data.rel.ro,"aw"
     .p2align 3

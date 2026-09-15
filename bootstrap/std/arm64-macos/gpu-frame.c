@@ -4433,28 +4433,28 @@ extern uint32_t lb_gpu_22vulkan_api_version_1_0;
 
 __attribute__((weak)) lb_interop_Transfer_0g1_str lb_interop_Transfer_0g1_str_plain(void) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/gpu/metal/drawing.lucb:62:5";
+    lb_pos = "src/std/gpu/metal/drawing.lucb:63:5";
     lb_interop_Transfer_0g1_str _lb_ret1 = ((lb_interop_Transfer_0g1_str){.copy = lb_interop_Transfer_0g1_str_10copy_plain});
     return _lb_ret1;
     lb_trap("unreachable");
 }
 __attribute__((weak)) lb_r_interop_Packet_0g1_str lb_interop_Transfer_0g1_str_10copy_plain(lb_str lb_value) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/gpu/metal/drawing.lucb:65:9";
+    lb_pos = "src/std/gpu/metal/drawing.lucb:66:5";
     lb_interop_Packet_0g1_str _lb_ret2 = ({ lb_interop_Packet_0g1_str _lb_iv3 = {}; lb_interop_Packet_0g1_str_init(&_lb_iv3, lb_value, ((void*)0), ((void*)0)); _lb_iv3; });
     return ((lb_r_interop_Packet_0g1_str){ .value = _lb_ret2, .failed = false });
     lb_trap("unreachable");
 }
 __attribute__((weak)) lb_interop_Transfer_0g1_u8_0c lb_interop_Transfer_0g1_u8_0c_plain(void) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/gpu/metal/drawing.lucb:62:5";
+    lb_pos = "src/std/gpu/metal/drawing.lucb:63:5";
     lb_interop_Transfer_0g1_u8_0c _lb_ret4 = ((lb_interop_Transfer_0g1_u8_0c){.copy = lb_interop_Transfer_0g1_u8_0c_10copy_plain});
     return _lb_ret4;
     lb_trap("unreachable");
 }
 __attribute__((weak)) lb_r_interop_Packet_0g1_u8_0c lb_interop_Transfer_0g1_u8_0c_10copy_plain(lb_cspan lb_value) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/gpu/metal/drawing.lucb:65:9";
+    lb_pos = "src/std/gpu/metal/drawing.lucb:66:5";
     lb_interop_Packet_0g1_u8_0c _lb_ret5 = ({ lb_interop_Packet_0g1_u8_0c _lb_iv6 = {}; lb_interop_Packet_0g1_u8_0c_init(&_lb_iv6, lb_value, ((void*)0), ((void*)0)); _lb_iv6; });
     return ((lb_r_interop_Packet_0g1_u8_0c){ .value = _lb_ret5, .failed = false });
     lb_trap("unreachable");
@@ -4756,7 +4756,7 @@ lb_r_unit lb_gpu_RenderTarget_mask(const lb_gpu_RenderTarget* self, lb_cspan lb_
     double lb_scale_y __attribute__((unused)) = lb_gpu_11frame_scale((self->frame)->size.pixel_height, (self->frame)->size.height);
     lb_pos = "src/std/gpu/frame.lucb:151:9";
     lb_gpu_Rect lb_destination __attribute__((unused)) = ((lb_gpu_Rect){.x = (((self->rectangle.x + lb_rectangle.x)) * lb_scale_x), .y = (((self->rectangle.y + lb_rectangle.y)) * lb_scale_y), .width = (lb_rectangle.width * lb_scale_x), .height = (lb_rectangle.height * lb_scale_y)});
-    lb_pos = "src/std/gpu/frame.lucb:154:13";
+    lb_pos = "src/std/gpu/frame.lucb:154:25";
     (void)((({ lb_r_unit _lb_r66 = lb_gpu_11canvas_mask(&((self->frame)->canvas), lb_pixels, lb_width, lb_height, lb_destination, lb_color, self->clipping, (self->frame)->size.pixel_width, (self->frame)->size.pixel_height); if (_lb_r66.failed) {
         return ((lb_r_unit){ .error = _lb_r66.error, .failed = true });
     } (void)0; })));
@@ -4764,21 +4764,21 @@ lb_r_unit lb_gpu_RenderTarget_mask(const lb_gpu_RenderTarget* self, lb_cspan lb_
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_str_init(lb_interop_Packet_0g1_str* self, lb_str lb_value, void* lb_storage, lb_fn_0F1_void_0p_unit lb_dispose) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/gpu/metal/drawing.lucb:46:5";
-    self->value = lb_value;
     lb_pos = "src/std/gpu/metal/drawing.lucb:47:5";
-    self->storage = lb_storage;
+    self->value = lb_value;
     lb_pos = "src/std/gpu/metal/drawing.lucb:48:5";
+    self->storage = lb_storage;
+    lb_pos = "src/std/gpu/metal/drawing.lucb:49:5";
     self->dispose = lb_dispose;
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_str_release(const lb_interop_Packet_0g1_str* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/gpu/metal/drawing.lucb:51:1";
+    lb_pos = "src/std/gpu/metal/drawing.lucb:52:1";
     void* _lb_o67 = self->storage;
     if (_lb_o67 != ((void*)0)) {
         void* lb_storage __attribute__((unused)) = _lb_o67;
         {
-            lb_pos = "src/std/gpu/metal/drawing.lucb:52:1";
+            lb_pos = "src/std/gpu/metal/drawing.lucb:53:5";
             (void)(((({ lb_fn_0F1_void_0p_unit _lb_o68 = self->dispose; if (_lb_o68 == ((void*)0)) {
                 (void)(lb_trap_text(((lb_str){"a packet has storage without a disposer", 39})));
             } _lb_o68; })))(lb_storage));
@@ -4787,21 +4787,21 @@ __attribute__((weak)) void lb_interop_Packet_0g1_str_release(const lb_interop_Pa
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_init(lb_interop_Packet_0g1_u8_0c* self, lb_cspan lb_value, void* lb_storage, lb_fn_0F1_void_0p_unit lb_dispose) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/gpu/metal/drawing.lucb:46:5";
-    self->value = lb_value;
     lb_pos = "src/std/gpu/metal/drawing.lucb:47:5";
-    self->storage = lb_storage;
+    self->value = lb_value;
     lb_pos = "src/std/gpu/metal/drawing.lucb:48:5";
+    self->storage = lb_storage;
+    lb_pos = "src/std/gpu/metal/drawing.lucb:49:5";
     self->dispose = lb_dispose;
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_release(const lb_interop_Packet_0g1_u8_0c* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/gpu/metal/drawing.lucb:51:1";
+    lb_pos = "src/std/gpu/metal/drawing.lucb:52:1";
     void* _lb_o69 = self->storage;
     if (_lb_o69 != ((void*)0)) {
         void* lb_storage __attribute__((unused)) = _lb_o69;
         {
-            lb_pos = "src/std/gpu/metal/drawing.lucb:52:1";
+            lb_pos = "src/std/gpu/metal/drawing.lucb:53:5";
             (void)(((({ lb_fn_0F1_void_0p_unit _lb_o70 = self->dispose; if (_lb_o70 == ((void*)0)) {
                 (void)(lb_trap_text(((lb_str){"a packet has storage without a disposer", 39})));
             } _lb_o70; })))(lb_storage));
@@ -4810,62 +4810,62 @@ __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_release(const lb_interop_
 }
 __attribute__((weak)) void lb_interop_Reference_0g1_gpu_FrameState_init(lb_interop_Reference_0g1_gpu_FrameState* self, struct lb_interop_Owner_0g1_gpu_FrameState* lb_owner) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/gpu/canvas.lucb:13:1";
+    lb_pos = "src/std/gpu/canvas.lucb:11:5";
     (void)(lb_ownership_11check_alive(&((lb_owner)->header)));
-    lb_pos = "src/std/gpu/canvas.lucb:14:1";
+    lb_pos = "src/std/gpu/canvas.lucb:12:5";
     self->owner = lb_owner;
 }
 __attribute__((weak)) lb_r_interop_Reference_0g1_gpu_FrameState lb_interop_Reference_0g1_gpu_FrameState_adopt(struct lb_gpu_FrameState* lb_native, lb_interop_Type_0g1_gpu_FrameState lb_declaration, lb_iface lb_allocator) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/gpu/canvas.lucb:17:5";
+    lb_pos = "src/std/gpu/canvas.lucb:15:1";
     lb_iface lb_selected __attribute__((unused)) = ({ lb_iface _lb_o71 = lb_allocator; if (_lb_o71.data == ((void*)0)) { _lb_o71 = lb_memory_allocator; } _lb_o71; });
-    lb_pos = "src/std/gpu/canvas.lucb:18:5";
+    lb_pos = "src/std/gpu/canvas.lucb:16:1";
     lb_interop_Reservation_0g1_gpu_FrameState lb_reservation __attribute__((unused)) = ({ lb_error _lb_fe72 __attribute__((unused)); lb_interop_Reservation_0g1_gpu_FrameState _lb_v72 __attribute__((unused)) = {}; _lb_v72 = ({ lb_r_interop_Reservation_0g1_gpu_FrameState _lb_r73 = ({ lb_interop_Reservation_0g1_gpu_FrameState _lb_iv74 = {}; lb_r_unit _lb_ir74 = lb_interop_Reservation_0g1_gpu_FrameState_init(&_lb_iv74, lb_declaration); lb_r_interop_Reservation_0g1_gpu_FrameState _lb_io74; if (_lb_ir74.failed) { _lb_io74.failed = true; _lb_io74.error = _lb_ir74.error; } else { _lb_io74.failed = false; _lb_io74.value = _lb_iv74; } _lb_io74; }); if (_lb_r73.failed) {
         _lb_fe72 = _lb_r73.error;
         goto _lb_fh72;
     } _lb_r73.value; }); goto _lb_cd72; _lb_fh72: { 
         lb_error lb_failure __attribute__((unused)) = _lb_fe72;
         {
-            lb_pos = "src/std/gpu/canvas.lucb:19:5";
+            lb_pos = "src/std/gpu/canvas.lucb:17:5";
             (void)((lb_declaration.dispose)(lb_native));
-            lb_pos = "src/std/gpu/canvas.lucb:20:5";
+            lb_pos = "src/std/gpu/canvas.lucb:18:5";
             lb_release_call(lb_selected, (lb_span){ (void*)(lb_native), sizeof(lb_gpu_FrameState) });
-            lb_pos = "src/std/gpu/canvas.lucb:21:1";
+            lb_pos = "src/std/gpu/canvas.lucb:19:5";
             lb_r_interop_Reference_0g1_gpu_FrameState _lb_err75 = ((lb_r_interop_Reference_0g1_gpu_FrameState){ .error = { .code = (int32_t)((lb_failure.code)), .message = (lb_failure.message) }, .failed = true });
             return _lb_err75;
         }
     } _lb_cd72: __attribute__((unused)); _lb_v72; });
-    lb_pos = "src/std/gpu/canvas.lucb:22:1";
+    lb_pos = "src/std/gpu/canvas.lucb:20:5";
     lb_interop_Reference_0g1_gpu_FrameState _lb_ret76 = lb_interop_Reservation_0g1_gpu_FrameState_publish(&(lb_reservation), lb_native, lb_selected);
     return ((lb_r_interop_Reference_0g1_gpu_FrameState){ .value = _lb_ret76, .failed = false });
     lb_trap("unreachable");
 }
 __attribute__((weak)) lb_interop_Reference_0g1_gpu_FrameState lb_interop_Reference_0g1_gpu_FrameState_clone(const lb_interop_Reference_0g1_gpu_FrameState* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/gpu/canvas.lucb:25:5";
+    lb_pos = "src/std/gpu/canvas.lucb:23:1";
     (void)(((void)(lb_ownership_retain(&((self->owner)->header)))));
-    lb_pos = "src/std/gpu/canvas.lucb:26:5";
+    lb_pos = "src/std/gpu/canvas.lucb:24:5";
     lb_interop_Reference_0g1_gpu_FrameState _lb_ret77 = ({ lb_interop_Reference_0g1_gpu_FrameState _lb_iv78 = {}; lb_interop_Reference_0g1_gpu_FrameState_init(&_lb_iv78, self->owner); _lb_iv78; });
     return _lb_ret77;
     lb_trap("unreachable");
 }
 __attribute__((weak)) void lb_interop_Reference_0g1_gpu_FrameState_release(const lb_interop_Reference_0g1_gpu_FrameState* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/gpu/canvas.lucb:29:1";
+    lb_pos = "src/std/gpu/canvas.lucb:27:5";
     (void)(lb_ownership_release(&((self->owner)->header)));
 }
 __attribute__((weak)) lb_r_gpu_FrameState_0p lb_interop_Reference_0g1_gpu_FrameState_get(const lb_interop_Reference_0g1_gpu_FrameState* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/gpu/canvas.lucb:32:5";
+    lb_pos = "src/std/gpu/canvas.lucb:30:5";
     (void)(lb_ownership_11check_alive(&((self->owner)->header)));
-    lb_pos = "src/std/gpu/canvas.lucb:33:5";
+    lb_pos = "src/std/gpu/canvas.lucb:31:5";
     if (!!((self->owner)->closed)) 
     {
-        lb_pos = "src/std/gpu/canvas.lucb:34:5";
+        lb_pos = "src/std/gpu/canvas.lucb:32:5";
         lb_r_gpu_FrameState_0p _lb_err79 = ((lb_r_gpu_FrameState_0p){ .error = { .code = (int32_t)(lb_interop_invalid), .message = ((lb_str){"a native object is closed", 25}) }, .failed = true });
         return _lb_err79;
     }
-    lb_pos = "src/std/gpu/canvas.lucb:35:5";
+    lb_pos = "src/std/gpu/canvas.lucb:33:5";
     struct lb_gpu_FrameState* _lb_ret80 = ({ struct lb_gpu_FrameState* _lb_o81 = (self->owner)->native; if (_lb_o81 == ((void*)0)) {
         (void)(lb_trap_text(((lb_str){"a native object has not been initialized", 40})));
     } _lb_o81; });
@@ -4874,14 +4874,14 @@ __attribute__((weak)) lb_r_gpu_FrameState_0p lb_interop_Reference_0g1_gpu_FrameS
 }
 __attribute__((weak)) struct lb_gpu_FrameState* lb_interop_Reference_0g1_gpu_FrameState_value(const lb_interop_Reference_0g1_gpu_FrameState* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/gpu/canvas.lucb:39:1";
+    lb_pos = "src/std/gpu/canvas.lucb:37:1";
     struct lb_gpu_FrameState* _lb_ret82 = ({ lb_error _lb_fe83 __attribute__((unused)); struct lb_gpu_FrameState* _lb_v83 __attribute__((unused)) = ((void*)0); _lb_v83 = ({ lb_r_gpu_FrameState_0p _lb_r84 = lb_interop_Reference_0g1_gpu_FrameState_get(self); if (_lb_r84.failed) {
         _lb_fe83 = _lb_r84.error;
         goto _lb_fh83;
     } _lb_r84.value; }); goto _lb_cd83; _lb_fh83: { 
         lb_error lb_failure __attribute__((unused)) = _lb_fe83;
         {
-            lb_pos = "src/std/gpu/canvas.lucb:39:1";
+            lb_pos = "src/std/gpu/canvas.lucb:37:1";
             (void)(lb_trap_text((lb_failure.message)));
         }
     } _lb_cd83: __attribute__((unused)); _lb_v83; });
@@ -4890,42 +4890,42 @@ __attribute__((weak)) struct lb_gpu_FrameState* lb_interop_Reference_0g1_gpu_Fra
 }
 __attribute__((weak)) uint64_t lb_interop_Reference_0g1_gpu_FrameState_identity(const lb_interop_Reference_0g1_gpu_FrameState* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/gpu/canvas.lucb:42:5";
+    lb_pos = "src/std/gpu/canvas.lucb:40:1";
     (void)(lb_ownership_11check_alive(&((self->owner)->header)));
-    lb_pos = "src/std/gpu/canvas.lucb:43:5";
+    lb_pos = "src/std/gpu/canvas.lucb:41:1";
     uint64_t _lb_ret85 = (self->owner)->header.generation;
     return _lb_ret85;
     lb_trap("unreachable");
 }
 __attribute__((weak)) bool lb_interop_Reference_0g1_gpu_FrameState_9is_closed(const lb_interop_Reference_0g1_gpu_FrameState* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/gpu/canvas.lucb:46:5";
+    lb_pos = "src/std/gpu/canvas.lucb:44:5";
     (void)(lb_ownership_11check_alive(&((self->owner)->header)));
-    lb_pos = "src/std/gpu/canvas.lucb:47:5";
+    lb_pos = "src/std/gpu/canvas.lucb:45:5";
     bool _lb_ret86 = (self->owner)->closed;
     return _lb_ret86;
     lb_trap("unreachable");
 }
 __attribute__((weak)) void lb_interop_Reference_0g1_gpu_FrameState_close(const lb_interop_Reference_0g1_gpu_FrameState* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/gpu/canvas.lucb:50:9";
+    lb_pos = "src/std/gpu/canvas.lucb:48:1";
     (void)(lb_ownership_11check_alive(&((self->owner)->header)));
-    lb_pos = "src/std/gpu/canvas.lucb:51:1";
+    lb_pos = "src/std/gpu/canvas.lucb:49:5";
     if (!!((!(self->owner)->declaration.closeable))) 
     {
-        lb_pos = "src/std/gpu/canvas.lucb:52:5";
+        lb_pos = "src/std/gpu/canvas.lucb:50:9";
         (void)(lb_trap_text(((lb_str){"this native type does not support explicit close", 48})));
     }
-    lb_pos = "src/std/gpu/canvas.lucb:53:9";
+    lb_pos = "src/std/gpu/canvas.lucb:51:1";
     (void)(lb_interop_11close_owner_0g1_gpu_FrameState(self->owner));
 }
 __attribute__((weak)) lb_r_interop_Lease lb_interop_Reference_0g1_gpu_FrameState_lease(const lb_interop_Reference_0g1_gpu_FrameState* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/gpu/canvas.lucb:56:1";
+    lb_pos = "src/std/gpu/canvas.lucb:54:9";
     (void)(((void)((({ lb_r_gpu_FrameState_0p _lb_r87 = lb_interop_Reference_0g1_gpu_FrameState_get(self); if (_lb_r87.failed) {
         return ((lb_r_interop_Lease){ .error = _lb_r87.error, .failed = true });
     } _lb_r87.value; })))));
-    lb_pos = "src/std/gpu/canvas.lucb:57:5";
+    lb_pos = "src/std/gpu/canvas.lucb:55:9";
     lb_interop_Lease _lb_ret88 = (({ lb_r_interop_Lease _lb_r89 = ({ lb_interop_Lease _lb_iv90 = {}; lb_r_unit _lb_ir90 = lb_interop_Lease_init(&_lb_iv90, &((self->owner)->header), lb_interop_Owner_0g1_gpu_FrameState_7is_open, lb_interop_Owner_0g1_gpu_FrameState_enter, lb_interop_Owner_0g1_gpu_FrameState_leave); lb_r_interop_Lease _lb_io90; if (_lb_ir90.failed) { _lb_io90.failed = true; _lb_io90.error = _lb_ir90.error; } else { _lb_io90.failed = false; _lb_io90.value = _lb_iv90; } _lb_io90; }); if (_lb_r89.failed) {
         return ((lb_r_interop_Lease){ .error = _lb_r89.error, .failed = true });
     } _lb_r89.value; }));
@@ -4934,7 +4934,7 @@ __attribute__((weak)) lb_r_interop_Lease lb_interop_Reference_0g1_gpu_FrameState
 }
 __attribute__((weak)) lb_r_unit lb_interop_Reference_0g1_gpu_FrameState_18validate_interface(struct lb_ownership_Object* lb_object) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/gpu/canvas.lucb:60:5";
+    lb_pos = "src/std/gpu/canvas.lucb:58:5";
     (void)(((void)((({ lb_r_gpu_FrameState_0p _lb_r91 = ({ lb_interop_Reference_0g1_gpu_FrameState _lb_rc = ({ lb_interop_Reference_0g1_gpu_FrameState _lb_iv92 = {}; lb_interop_Reference_0g1_gpu_FrameState_init(&_lb_iv92, ((struct lb_interop_Owner_0g1_gpu_FrameState*)(lb_object))); _lb_iv92; }); lb_interop_Reference_0g1_gpu_FrameState_get(&_lb_rc); }); if (_lb_r91.failed) {
         return ((lb_r_unit){ .error = _lb_r91.error, .failed = true });
     } _lb_r91.value; })))));
@@ -4942,19 +4942,19 @@ __attribute__((weak)) lb_r_unit lb_interop_Reference_0g1_gpu_FrameState_18valida
 }
 __attribute__((weak)) void lb_interop_Reference_0g1_gpu_FrameState_enter(const lb_interop_Reference_0g1_gpu_FrameState* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/gpu/canvas.lucb:69:13";
+    lb_pos = "src/std/gpu/canvas.lucb:67:13";
     (void)(lb_interop_Owner_0g1_gpu_FrameState_enter(&((self->owner)->header)));
 }
 __attribute__((weak)) void lb_interop_Reference_0g1_gpu_FrameState_leave(const lb_interop_Reference_0g1_gpu_FrameState* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/gpu/canvas.lucb:72:13";
+    lb_pos = "src/std/gpu/canvas.lucb:70:17";
     (void)(lb_interop_Owner_0g1_gpu_FrameState_leave(&((self->owner)->header)));
 }
 __attribute__((weak)) void lb_interop_Reference_0g1_gpu_FrameState_trace(const lb_interop_Reference_0g1_gpu_FrameState* self, lb_fn_0F2_ownership_Object_0p_void_0p_unit lb_visit, void* lb_context) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/gpu/canvas.lucb:77:13";
+    lb_pos = "src/std/gpu/canvas.lucb:75:9";
     (void)(lb_ownership_12check_thread(&((self->owner)->header)));
-    lb_pos = "src/std/gpu/canvas.lucb:78:13";
+    lb_pos = "src/std/gpu/canvas.lucb:76:9";
     (void)((lb_visit)(&((self->owner)->header), lb_context));
 }
 lb_r_unit lb_gpu_16check_frame_size(lb_window_Size lb_size) {
@@ -5008,93 +5008,93 @@ lb_r_unit lb_gpu_FrameState_check(const lb_gpu_FrameState* self) {
 }
 __attribute__((weak)) void lb_interop_View_0g1_gpu_RenderTarget_init(lb_interop_View_0g1_gpu_RenderTarget* self, struct lb_interop_ViewOwner_0g1_gpu_RenderTarget* lb_owner) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/gpu/surface.lucb:30:9";
+    lb_pos = "src/std/gpu/surface.lucb:28:5";
     (void)(lb_ownership_11check_alive(&((lb_owner)->header)));
-    lb_pos = "src/std/gpu/surface.lucb:31:9";
+    lb_pos = "src/std/gpu/surface.lucb:29:5";
     self->owner = lb_owner;
 }
 __attribute__((weak)) lb_r_interop_View_0g1_gpu_RenderTarget lb_interop_View_0g1_gpu_RenderTarget_make(lb_gpu_RenderTarget lb_native, lb_interop_ViewType_0g1_gpu_RenderTarget lb_declaration, lb_interop_Lease lb_lease) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/gpu/surface.lucb:34:9";
+    lb_pos = "src/std/gpu/surface.lucb:32:9";
     (void)((({ lb_r_unit _lb_r104 = lb_interop_Lease_check(&(lb_lease)); if (_lb_r104.failed) {
         return ((lb_r_interop_View_0g1_gpu_RenderTarget){ .error = _lb_r104.error, .failed = true });
     } (void)0; })));
-    lb_pos = "src/std/gpu/surface.lucb:35:13";
+    lb_pos = "src/std/gpu/surface.lucb:33:9";
     lb_ownership_Info lb_information __attribute__((unused)) = ({ lb_str _lb_sq105 __attribute__((unused)) = lb_declaration.name; size_t _lb_sq106 __attribute__((unused)) = ((size_t)sizeof(lb_interop_ViewOwner_0g1_gpu_RenderTarget)); lb_fn_0F1_ownership_Object_0p_unit _lb_sq107 __attribute__((unused)) = ((void*)0); lb_fn_0F1_ownership_Object_0p_unit _lb_sq108 __attribute__((unused)) = lb_interop_ViewOwner_0g1_gpu_RenderTarget_9drop_view; lb_fn_0F3_ownership_Object_0p_0F2_ownership_Object_0p_void_0p_unit_void_0p_unit _lb_sq109 __attribute__((unused)) = lb_interop_ViewOwner_0g1_gpu_RenderTarget_10trace_view; lb_fn_0F1_ownership_Object_0p_u64 _lb_sq110 __attribute__((unused)) = ((void*)0); ((lb_ownership_Info){.name = _lb_sq105, .size = _lb_sq106, .finish = _lb_sq107, .drop = _lb_sq108, .trace = _lb_sq109, .identity = _lb_sq110}); });
-    lb_pos = "src/std/gpu/surface.lucb:37:1";
+    lb_pos = "src/std/gpu/surface.lucb:35:13";
     struct lb_interop_ViewOwner_0g1_gpu_RenderTarget* lb_owner __attribute__((unused)) = ((struct lb_interop_ViewOwner_0g1_gpu_RenderTarget*)((({ lb_r_ownership_Object_0p _lb_r111 = ({ struct lb_ownership_Info* _lb_sq112 __attribute__((unused)) = &(lb_information); size_t _lb_sq113 __attribute__((unused)) = ((size_t)sizeof(lb_interop_ViewOwner_0g1_gpu_RenderTarget)); lb_ownership_reserve(_lb_sq112, _lb_sq113, ((lb_iface){ ((void*)0), ((void*)0) })); }); if (_lb_r111.failed) {
         return ((lb_r_interop_View_0g1_gpu_RenderTarget){ .error = _lb_r111.error, .failed = true });
     } _lb_r111.value; }))));
-    lb_pos = "src/std/gpu/surface.lucb:38:5";
+    lb_pos = "src/std/gpu/surface.lucb:36:9";
     (lb_owner)->information = lb_information;
-    lb_pos = "src/std/gpu/surface.lucb:39:5";
+    lb_pos = "src/std/gpu/surface.lucb:37:1";
     (lb_owner)->header.info = &((lb_owner)->information);
-    lb_pos = "src/std/gpu/surface.lucb:40:5";
+    lb_pos = "src/std/gpu/surface.lucb:38:5";
     (lb_owner)->native = lb_native;
-    lb_pos = "src/std/gpu/surface.lucb:41:5";
+    lb_pos = "src/std/gpu/surface.lucb:39:5";
     (lb_owner)->declaration = lb_declaration;
-    lb_pos = "src/std/gpu/surface.lucb:42:9";
+    lb_pos = "src/std/gpu/surface.lucb:40:5";
     (lb_owner)->lease = lb_interop_Lease_clone(&(lb_lease));
-    lb_pos = "src/std/gpu/surface.lucb:43:9";
+    lb_pos = "src/std/gpu/surface.lucb:41:5";
     lb_interop_View_0g1_gpu_RenderTarget _lb_ret114 = ({ lb_interop_View_0g1_gpu_RenderTarget _lb_iv115 = {}; lb_interop_View_0g1_gpu_RenderTarget_init(&_lb_iv115, lb_owner); _lb_iv115; });
     return ((lb_r_interop_View_0g1_gpu_RenderTarget){ .value = _lb_ret114, .failed = false });
     lb_trap("unreachable");
 }
 __attribute__((weak)) lb_interop_View_0g1_gpu_RenderTarget lb_interop_View_0g1_gpu_RenderTarget_clone(const lb_interop_View_0g1_gpu_RenderTarget* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/gpu/surface.lucb:46:13";
+    lb_pos = "src/std/gpu/surface.lucb:44:9";
     (void)(((void)(lb_ownership_retain(&((self->owner)->header)))));
-    lb_pos = "src/std/gpu/surface.lucb:47:9";
+    lb_pos = "src/std/gpu/surface.lucb:45:9";
     lb_interop_View_0g1_gpu_RenderTarget _lb_ret116 = (*self);
     return _lb_ret116;
     lb_trap("unreachable");
 }
 __attribute__((weak)) void lb_interop_View_0g1_gpu_RenderTarget_release(const lb_interop_View_0g1_gpu_RenderTarget* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/gpu/surface.lucb:50:5";
+    lb_pos = "src/std/gpu/surface.lucb:48:1";
     (void)(lb_ownership_release(&((self->owner)->header)));
 }
 __attribute__((weak)) lb_r_gpu_RenderTarget_0q lb_interop_View_0g1_gpu_RenderTarget_get(const lb_interop_View_0g1_gpu_RenderTarget* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/gpu/surface.lucb:53:9";
+    lb_pos = "src/std/gpu/surface.lucb:51:5";
     (void)(lb_ownership_11check_alive(&((self->owner)->header)));
-    lb_pos = "src/std/gpu/surface.lucb:54:13";
+    lb_pos = "src/std/gpu/surface.lucb:52:9";
     (void)((({ lb_r_unit _lb_r117 = lb_interop_Lease_check(&((self->owner)->lease)); if (_lb_r117.failed) {
         return ((lb_r_gpu_RenderTarget_0q){ .error = _lb_r117.error, .failed = true });
     } (void)0; })));
-    lb_pos = "src/std/gpu/surface.lucb:55:9";
+    lb_pos = "src/std/gpu/surface.lucb:53:9";
     const struct lb_gpu_RenderTarget* _lb_ret118 = &((self->owner)->native);
     return ((lb_r_gpu_RenderTarget_0q){ .value = _lb_ret118, .failed = false });
     lb_trap("unreachable");
 }
 __attribute__((weak)) lb_r_gpu_RenderTarget_0p lb_interop_View_0g1_gpu_RenderTarget_7get_mut(const lb_interop_View_0g1_gpu_RenderTarget* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/gpu/surface.lucb:58:9";
+    lb_pos = "src/std/gpu/surface.lucb:56:9";
     (void)(((void)((({ lb_r_gpu_RenderTarget_0q _lb_r119 = lb_interop_View_0g1_gpu_RenderTarget_get(self); if (_lb_r119.failed) {
         return ((lb_r_gpu_RenderTarget_0p){ .error = _lb_r119.error, .failed = true });
     } _lb_r119.value; })))));
-    lb_pos = "src/std/gpu/surface.lucb:59:9";
+    lb_pos = "src/std/gpu/surface.lucb:57:9";
     if (!!((!(self->owner)->declaration.mutable))) 
     {
-        lb_pos = "src/std/gpu/surface.lucb:60:9";
+        lb_pos = "src/std/gpu/surface.lucb:58:9";
         lb_r_gpu_RenderTarget_0p _lb_err120 = ((lb_r_gpu_RenderTarget_0p){ .error = { .code = (int32_t)(lb_interop_invalid), .message = ((lb_str){"a native view is read-only", 26}) }, .failed = true });
         return _lb_err120;
     }
-    lb_pos = "src/std/gpu/surface.lucb:61:9";
+    lb_pos = "src/std/gpu/surface.lucb:59:9";
     struct lb_gpu_RenderTarget* _lb_ret121 = &((self->owner)->native);
     return ((lb_r_gpu_RenderTarget_0p){ .value = _lb_ret121, .failed = false });
     lb_trap("unreachable");
 }
 __attribute__((weak)) const struct lb_gpu_RenderTarget* lb_interop_View_0g1_gpu_RenderTarget_value(const lb_interop_View_0g1_gpu_RenderTarget* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/gpu/surface.lucb:64:9";
+    lb_pos = "src/std/gpu/surface.lucb:62:9";
     const struct lb_gpu_RenderTarget* _lb_ret122 = ({ lb_error _lb_fe123 __attribute__((unused)); const struct lb_gpu_RenderTarget* _lb_v123 __attribute__((unused)) = ((void*)0); _lb_v123 = ({ lb_r_gpu_RenderTarget_0q _lb_r124 = lb_interop_View_0g1_gpu_RenderTarget_get(self); if (_lb_r124.failed) {
         _lb_fe123 = _lb_r124.error;
         goto _lb_fh123;
     } _lb_r124.value; }); goto _lb_cd123; _lb_fh123: { 
         lb_error lb_failure __attribute__((unused)) = _lb_fe123;
         {
-            lb_pos = "src/std/gpu/surface.lucb:64:9";
+            lb_pos = "src/std/gpu/surface.lucb:62:9";
             (void)(lb_trap_text((lb_failure.message)));
         }
     } _lb_cd123: __attribute__((unused)); _lb_v123; });
@@ -5103,14 +5103,14 @@ __attribute__((weak)) const struct lb_gpu_RenderTarget* lb_interop_View_0g1_gpu_
 }
 __attribute__((weak)) struct lb_gpu_RenderTarget* lb_interop_View_0g1_gpu_RenderTarget_9value_mut(const lb_interop_View_0g1_gpu_RenderTarget* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/gpu/surface.lucb:67:1";
+    lb_pos = "src/std/gpu/surface.lucb:65:9";
     struct lb_gpu_RenderTarget* _lb_ret125 = ({ lb_error _lb_fe126 __attribute__((unused)); struct lb_gpu_RenderTarget* _lb_v126 __attribute__((unused)) = ((void*)0); _lb_v126 = ({ lb_r_gpu_RenderTarget_0p _lb_r127 = lb_interop_View_0g1_gpu_RenderTarget_7get_mut(self); if (_lb_r127.failed) {
         _lb_fe126 = _lb_r127.error;
         goto _lb_fh126;
     } _lb_r127.value; }); goto _lb_cd126; _lb_fh126: { 
         lb_error lb_failure __attribute__((unused)) = _lb_fe126;
         {
-            lb_pos = "src/std/gpu/surface.lucb:67:1";
+            lb_pos = "src/std/gpu/surface.lucb:65:9";
             (void)(lb_trap_text((lb_failure.message)));
         }
     } _lb_cd126: __attribute__((unused)); _lb_v126; });
@@ -5119,37 +5119,37 @@ __attribute__((weak)) struct lb_gpu_RenderTarget* lb_interop_View_0g1_gpu_Render
 }
 __attribute__((weak)) bool lb_interop_View_0g1_gpu_RenderTarget_8is_valid(const lb_interop_View_0g1_gpu_RenderTarget* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/gpu/surface.lucb:70:5";
+    lb_pos = "src/std/gpu/surface.lucb:68:5";
     (void)(lb_ownership_11check_alive(&((self->owner)->header)));
-    lb_pos = "src/std/gpu/surface.lucb:71:5";
+    lb_pos = "src/std/gpu/surface.lucb:69:5";
     bool _lb_ret128 = lb_interop_Lease_8is_valid(&((self->owner)->lease));
     return _lb_ret128;
     lb_trap("unreachable");
 }
 __attribute__((weak)) lb_r_unit lb_interop_View_0g1_gpu_RenderTarget_enter(const lb_interop_View_0g1_gpu_RenderTarget* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/gpu/surface.lucb:74:1";
+    lb_pos = "src/std/gpu/surface.lucb:72:9";
     (void)(lb_ownership_11check_alive(&((self->owner)->header)));
-    lb_pos = "src/std/gpu/surface.lucb:75:5";
+    lb_pos = "src/std/gpu/surface.lucb:73:9";
     (void)((({ lb_r_unit _lb_r129 = lb_interop_Lease_enter(&((self->owner)->lease)); if (_lb_r129.failed) {
         return ((lb_r_unit){ .error = _lb_r129.error, .failed = true });
     } (void)0; })));
-    lb_pos = "src/std/gpu/surface.lucb:76:5";
+    lb_pos = "src/std/gpu/surface.lucb:74:1";
     (void)(((void)(lb_ownership_retain(&((self->owner)->header)))));
     return ((lb_r_unit){ .failed = false });
 }
 __attribute__((weak)) void lb_interop_View_0g1_gpu_RenderTarget_leave(const lb_interop_View_0g1_gpu_RenderTarget* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/gpu/surface.lucb:79:9";
+    lb_pos = "src/std/gpu/surface.lucb:77:5";
     (void)(lb_ownership_11check_alive(&((self->owner)->header)));
-    lb_pos = "src/std/gpu/surface.lucb:80:9";
+    lb_pos = "src/std/gpu/surface.lucb:78:9";
     (void)(lb_interop_Lease_leave(&((self->owner)->lease)));
-    lb_pos = "src/std/gpu/surface.lucb:81:9";
+    lb_pos = "src/std/gpu/surface.lucb:79:9";
     (void)(lb_ownership_release(&((self->owner)->header)));
 }
 __attribute__((weak)) lb_r_unit lb_interop_View_0g1_gpu_RenderTarget_18validate_interface(struct lb_ownership_Object* lb_object) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/gpu/surface.lucb:84:5";
+    lb_pos = "src/std/gpu/surface.lucb:82:9";
     (void)(((void)((({ lb_r_gpu_RenderTarget_0q _lb_r130 = ({ lb_interop_View_0g1_gpu_RenderTarget _lb_rc = ({ lb_interop_View_0g1_gpu_RenderTarget _lb_iv131 = {}; lb_interop_View_0g1_gpu_RenderTarget_init(&_lb_iv131, ((struct lb_interop_ViewOwner_0g1_gpu_RenderTarget*)(lb_object))); _lb_iv131; }); lb_interop_View_0g1_gpu_RenderTarget_get(&_lb_rc); }); if (_lb_r130.failed) {
         return ((lb_r_unit){ .error = _lb_r130.error, .failed = true });
     } _lb_r130.value; })))));
@@ -5157,28 +5157,28 @@ __attribute__((weak)) lb_r_unit lb_interop_View_0g1_gpu_RenderTarget_18validate_
 }
 __attribute__((weak)) void lb_interop_View_0g1_gpu_RenderTarget_15begin_interface(struct lb_ownership_Object* lb_object) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/gpu/surface.lucb:89:9";
+    lb_pos = "src/std/gpu/surface.lucb:87:9";
     (void)(({ lb_error _lb_fe132 __attribute__((unused)); int32_t _lb_v132 __attribute__((unused)) = 0; (void)(({ lb_r_unit _lb_r133 = ({ lb_interop_View_0g1_gpu_RenderTarget _lb_rc = ({ lb_interop_View_0g1_gpu_RenderTarget _lb_iv134 = {}; lb_interop_View_0g1_gpu_RenderTarget_init(&_lb_iv134, ((struct lb_interop_ViewOwner_0g1_gpu_RenderTarget*)(lb_object))); _lb_iv134; }); lb_interop_View_0g1_gpu_RenderTarget_enter(&_lb_rc); }); if (_lb_r133.failed) {
         _lb_fe132 = _lb_r133.error;
         goto _lb_fh132;
     } (void)0; })); goto _lb_cd132; _lb_fh132: { 
         lb_error lb_failure __attribute__((unused)) = _lb_fe132;
         {
-            lb_pos = "src/std/gpu/surface.lucb:87:9";
+            lb_pos = "src/std/gpu/surface.lucb:85:9";
             (void)(lb_trap_text((lb_failure.message)));
         }
     } _lb_cd132: __attribute__((unused)); (void)0; }));
 }
 __attribute__((weak)) void lb_interop_View_0g1_gpu_RenderTarget_13end_interface(struct lb_ownership_Object* lb_object) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/gpu/surface.lucb:90:1";
+    lb_pos = "src/std/gpu/surface.lucb:88:13";
     (void)(({ lb_interop_View_0g1_gpu_RenderTarget _lb_rc = ({ lb_interop_View_0g1_gpu_RenderTarget _lb_iv135 = {}; lb_interop_View_0g1_gpu_RenderTarget_init(&_lb_iv135, ((struct lb_interop_ViewOwner_0g1_gpu_RenderTarget*)(lb_object))); _lb_iv135; }); lb_interop_View_0g1_gpu_RenderTarget_leave(&_lb_rc); }));
 }
 __attribute__((weak)) void lb_interop_View_0g1_gpu_RenderTarget_trace(const lb_interop_View_0g1_gpu_RenderTarget* self, lb_fn_0F2_ownership_Object_0p_void_0p_unit lb_visit, void* lb_context) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/gpu/surface.lucb:98:1";
+    lb_pos = "src/std/gpu/surface.lucb:96:5";
     (void)(lb_ownership_12check_thread(&((self->owner)->header)));
-    lb_pos = "src/std/gpu/surface.lucb:99:1";
+    lb_pos = "src/std/gpu/surface.lucb:97:5";
     (void)((lb_visit)(&((self->owner)->header), lb_context));
 }
 double lb_gpu_11frame_scale(double lb_pixels, double lb_points) {
@@ -5223,91 +5223,91 @@ lb_gpu_Clip lb_gpu_14intersect_clip(lb_gpu_Clip lb_parent, lb_gpu_Rect lb_region
 }
 __attribute__((weak)) bool lb_interop_Owner_0g1_gpu_FrameState_7is_open(struct lb_ownership_Object* lb_object) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/gpu/module.lucb:36:5";
+    lb_pos = "src/std/gpu/module.lucb:35:5";
     (void)(lb_ownership_11check_alive(lb_object));
-    lb_pos = "src/std/gpu/module.lucb:37:9";
+    lb_pos = "src/std/gpu/module.lucb:36:9";
     bool _lb_ret140 = (!((((struct lb_interop_Owner_0g1_gpu_FrameState*)(lb_object))))->closed);
     return _lb_ret140;
     lb_trap("unreachable");
 }
 __attribute__((weak)) void lb_interop_Owner_0g1_gpu_FrameState_enter(struct lb_ownership_Object* lb_object) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/gpu/module.lucb:40:1";
+    lb_pos = "src/std/gpu/module.lucb:39:1";
     (void)(((void)(lb_ownership_retain(lb_object))));
-    lb_pos = "src/std/gpu/module.lucb:41:1";
+    lb_pos = "src/std/gpu/module.lucb:40:1";
     { size_t* lb__cell141 = &(((((struct lb_interop_Owner_0g1_gpu_FrameState*)(lb_object))))->active);
     (*(lb__cell141)) = (size_t)(lb_add_u((uint64_t)((*(lb__cell141))), (uint64_t)(1ULL), 64)); }
 }
 __attribute__((weak)) void lb_interop_Owner_0g1_gpu_FrameState_leave(struct lb_ownership_Object* lb_object) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/gpu/module.lucb:44:5";
+    lb_pos = "src/std/gpu/module.lucb:43:5";
     (void)(lb_ownership_11check_alive(lb_object));
-    lb_pos = "src/std/gpu/module.lucb:45:5";
+    lb_pos = "src/std/gpu/module.lucb:44:5";
     struct lb_interop_Owner_0g1_gpu_FrameState* lb_owner __attribute__((unused)) = ((struct lb_interop_Owner_0g1_gpu_FrameState*)(lb_object));
-    lb_pos = "src/std/gpu/module.lucb:46:5";
+    lb_pos = "src/std/gpu/module.lucb:45:5";
     if (!!(((lb_owner)->active == 0ULL))) 
     {
-        lb_pos = "src/std/gpu/module.lucb:47:1";
+        lb_pos = "src/std/gpu/module.lucb:46:1";
         (void)(lb_trap_text(((lb_str){"a native call guard was left twice", 34})));
     }
-    lb_pos = "src/std/gpu/module.lucb:48:1";
+    lb_pos = "src/std/gpu/module.lucb:47:1";
     { size_t* lb__cell142 = &((lb_owner)->active);
     (*(lb__cell142)) = (size_t)(lb_sub_u((uint64_t)((*(lb__cell142))), (uint64_t)(1ULL), 64)); }
-    lb_pos = "src/std/gpu/module.lucb:49:1";
+    lb_pos = "src/std/gpu/module.lucb:48:1";
     if (!!(((lb_owner)->closed && ((lb_owner)->active == 0ULL)))) 
     {
-        lb_pos = "src/std/gpu/module.lucb:50:1";
+        lb_pos = "src/std/gpu/module.lucb:49:1";
         (void)(lb_interop_13dispose_owner_0g1_gpu_FrameState(lb_owner));
     }
-    lb_pos = "src/std/gpu/module.lucb:51:1";
+    lb_pos = "src/std/gpu/module.lucb:50:1";
     (void)(lb_ownership_release(lb_object));
 }
 __attribute__((weak)) void lb_interop_Owner_0g1_gpu_FrameState_12finish_owner(struct lb_ownership_Object* lb_object) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/gpu/module.lucb:54:1";
+    lb_pos = "src/std/gpu/module.lucb:53:1";
     (void)(lb_interop_11close_owner_0g1_gpu_FrameState(((struct lb_interop_Owner_0g1_gpu_FrameState*)(lb_object))));
 }
 __attribute__((weak)) void lb_interop_Owner_0g1_gpu_FrameState_10drop_owner(struct lb_ownership_Object* lb_object) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/gpu/module.lucb:57:9";
+    lb_pos = "src/std/gpu/module.lucb:56:9";
     struct lb_interop_Owner_0g1_gpu_FrameState* lb_owner __attribute__((unused)) = ((struct lb_interop_Owner_0g1_gpu_FrameState*)(lb_object));
-    lb_pos = "src/std/gpu/module.lucb:58:5";
+    lb_pos = "src/std/gpu/module.lucb:57:5";
     struct lb_gpu_FrameState* _lb_o143 = (lb_owner)->native;
     if (_lb_o143 != ((void*)0)) {
         struct lb_gpu_FrameState* lb_native __attribute__((unused)) = _lb_o143;
         {
-            lb_pos = "src/std/gpu/module.lucb:59:9";
+            lb_pos = "src/std/gpu/module.lucb:58:9";
             lb_iface lb_allocator __attribute__((unused)) = ({ lb_iface _lb_o144 = (lb_owner)->native_allocator; if (_lb_o144.data == ((void*)0)) {
                 (void)(lb_trap_text(((lb_str){"native storage has no allocator", 31})));
             } _lb_o144; });
-            lb_pos = "src/std/gpu/module.lucb:60:13";
+            lb_pos = "src/std/gpu/module.lucb:59:13";
             (lb_owner)->native = ((void*)0);
-            lb_pos = "src/std/gpu/module.lucb:61:5";
+            lb_pos = "src/std/gpu/module.lucb:60:5";
             lb_release_call(lb_allocator, (lb_span){ (void*)(lb_native), sizeof(lb_gpu_FrameState) });
         }
     }
 }
 __attribute__((weak)) void lb_interop_Owner_0g1_gpu_FrameState_11trace_owner(struct lb_ownership_Object* lb_object, lb_fn_0F2_ownership_Object_0p_void_0p_unit lb_visit, void* lb_context) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/gpu/module.lucb:64:1";
+    lb_pos = "src/std/gpu/module.lucb:63:1";
     struct lb_interop_Owner_0g1_gpu_FrameState* lb_owner __attribute__((unused)) = ((struct lb_interop_Owner_0g1_gpu_FrameState*)(lb_object));
-    lb_pos = "src/std/gpu/module.lucb:65:5";
+    lb_pos = "src/std/gpu/module.lucb:64:5";
     if (!!((lb_owner)->disposed)) 
     {
-        lb_pos = "src/std/gpu/module.lucb:66:9";
+        lb_pos = "src/std/gpu/module.lucb:65:9";
         return;
     }
-    lb_pos = "src/std/gpu/module.lucb:67:9";
+    lb_pos = "src/std/gpu/module.lucb:66:9";
     struct lb_gpu_FrameState* _lb_o145 = (lb_owner)->native;
     if (_lb_o145 != ((void*)0)) {
         struct lb_gpu_FrameState* lb_native __attribute__((unused)) = _lb_o145;
         {
-            lb_pos = "src/std/gpu/module.lucb:68:1";
+            lb_pos = "src/std/gpu/module.lucb:67:1";
             lb_fn_0F3_gpu_FrameState_0q_0F2_ownership_Object_0p_void_0p_unit_void_0p_unit _lb_o146 = (lb_owner)->declaration.trace;
             if (_lb_o146 != ((void*)0)) {
                 lb_fn_0F3_gpu_FrameState_0q_0F2_ownership_Object_0p_void_0p_unit_void_0p_unit lb_trace __attribute__((unused)) = _lb_o146;
                 {
-                    lb_pos = "src/std/gpu/module.lucb:69:1";
+                    lb_pos = "src/std/gpu/module.lucb:68:1";
                     (void)((lb_trace)(lb_native, lb_visit, lb_context));
                 }
             }
@@ -5316,105 +5316,105 @@ __attribute__((weak)) void lb_interop_Owner_0g1_gpu_FrameState_11trace_owner(str
 }
 __attribute__((weak)) lb_r_unit lb_interop_Reservation_0g1_gpu_FrameState_init(lb_interop_Reservation_0g1_gpu_FrameState* self, lb_interop_Type_0g1_gpu_FrameState lb_declaration) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/gpu/device.lucb:22:9";
+    lb_pos = "src/std/gpu/device.lucb:21:9";
     if (!!((lb_declaration.main_thread && (!lb_thread_7is_main())))) 
     {
-        lb_pos = "src/std/gpu/device.lucb:23:9";
+        lb_pos = "src/std/gpu/device.lucb:22:9";
         lb_r_unit _lb_err147 = ((lb_r_unit){ .error = { .code = (int32_t)(lb_interop_12wrong_thread), .message = ((lb_str){"this native type requires the process main thread", 49}) }, .failed = true });
         return _lb_err147;
     }
-    lb_pos = "src/std/gpu/device.lucb:24:1";
+    lb_pos = "src/std/gpu/device.lucb:23:9";
     lb_ownership_Info lb_information __attribute__((unused)) = ({ lb_str _lb_sq148 __attribute__((unused)) = lb_declaration.name; size_t _lb_sq149 __attribute__((unused)) = ((size_t)sizeof(lb_interop_Owner_0g1_gpu_FrameState)); lb_fn_0F1_ownership_Object_0p_unit _lb_sq150 __attribute__((unused)) = lb_interop_Owner_0g1_gpu_FrameState_12finish_owner; lb_fn_0F1_ownership_Object_0p_unit _lb_sq151 __attribute__((unused)) = lb_interop_Owner_0g1_gpu_FrameState_10drop_owner; lb_fn_0F3_ownership_Object_0p_0F2_ownership_Object_0p_void_0p_unit_void_0p_unit _lb_sq152 __attribute__((unused)) = lb_interop_Owner_0g1_gpu_FrameState_11trace_owner; lb_fn_0F1_ownership_Object_0p_u64 _lb_sq153 __attribute__((unused)) = ((void*)0); ((lb_ownership_Info){.name = _lb_sq148, .size = _lb_sq149, .finish = _lb_sq150, .drop = _lb_sq151, .trace = _lb_sq152, .identity = _lb_sq153}); });
-    lb_pos = "src/std/gpu/device.lucb:26:9";
+    lb_pos = "src/std/gpu/device.lucb:25:5";
     struct lb_interop_Owner_0g1_gpu_FrameState* lb_owner __attribute__((unused)) = ((struct lb_interop_Owner_0g1_gpu_FrameState*)((({ lb_r_ownership_Object_0p _lb_r154 = ({ struct lb_ownership_Info* _lb_sq155 __attribute__((unused)) = &(lb_information); size_t _lb_sq156 __attribute__((unused)) = ((size_t)sizeof(lb_interop_Owner_0g1_gpu_FrameState)); lb_ownership_reserve(_lb_sq155, _lb_sq156, ((lb_iface){ ((void*)0), ((void*)0) })); }); if (_lb_r154.failed) {
         return ((lb_r_unit){ .error = _lb_r154.error, .failed = true });
     } _lb_r154.value; }))));
-    lb_pos = "src/std/gpu/device.lucb:27:9";
+    lb_pos = "src/std/gpu/device.lucb:26:9";
     (lb_owner)->information = lb_information;
-    lb_pos = "src/std/gpu/device.lucb:28:1";
+    lb_pos = "src/std/gpu/device.lucb:27:9";
     (lb_owner)->header.info = &((lb_owner)->information);
-    lb_pos = "src/std/gpu/device.lucb:29:1";
+    lb_pos = "src/std/gpu/device.lucb:28:1";
     (lb_owner)->declaration = lb_declaration;
-    lb_pos = "src/std/gpu/device.lucb:30:5";
+    lb_pos = "src/std/gpu/device.lucb:29:1";
     self->owner = lb_owner;
     return ((lb_r_unit){ .failed = false });
 }
 __attribute__((weak)) lb_interop_Reference_0g1_gpu_FrameState lb_interop_Reservation_0g1_gpu_FrameState_publish(lb_interop_Reservation_0g1_gpu_FrameState* self, struct lb_gpu_FrameState* lb_native, lb_iface lb_allocator) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/gpu/device.lucb:33:1";
+    lb_pos = "src/std/gpu/device.lucb:32:5";
     struct lb_interop_Owner_0g1_gpu_FrameState* lb_owner __attribute__((unused)) = ({ struct lb_interop_Owner_0g1_gpu_FrameState* _lb_o157 = self->owner; if (_lb_o157 == ((void*)0)) {
         (void)(lb_trap_text(((lb_str){"native ownership has already been published or cancelled", 56})));
     } _lb_o157; });
-    lb_pos = "src/std/gpu/device.lucb:34:1";
+    lb_pos = "src/std/gpu/device.lucb:33:1";
     (lb_owner)->native = lb_native;
-    lb_pos = "src/std/gpu/device.lucb:35:5";
+    lb_pos = "src/std/gpu/device.lucb:34:1";
     (lb_owner)->native_allocator = ({ lb_iface _lb_o158 = lb_allocator; if (_lb_o158.data == ((void*)0)) { _lb_o158 = lb_memory_allocator; } _lb_o158; });
-    lb_pos = "src/std/gpu/device.lucb:36:5";
+    lb_pos = "src/std/gpu/device.lucb:35:5";
     self->owner = ((void*)0);
-    lb_pos = "src/std/gpu/device.lucb:37:9";
+    lb_pos = "src/std/gpu/device.lucb:36:5";
     lb_interop_Reference_0g1_gpu_FrameState _lb_ret159 = ({ lb_interop_Reference_0g1_gpu_FrameState _lb_iv160 = {}; lb_interop_Reference_0g1_gpu_FrameState_init(&_lb_iv160, lb_owner); _lb_iv160; });
     return _lb_ret159;
     lb_trap("unreachable");
 }
 __attribute__((weak)) void lb_interop_Reservation_0g1_gpu_FrameState_cancel(lb_interop_Reservation_0g1_gpu_FrameState* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/gpu/canvas.lucb:2:1";
+    lb_pos = "src/std/gpu/canvas.lucb:1:1";
     struct lb_interop_Owner_0g1_gpu_FrameState* _lb_o161 = self->owner;
     if (_lb_o161 != ((void*)0)) {
         struct lb_interop_Owner_0g1_gpu_FrameState* lb_owner __attribute__((unused)) = _lb_o161;
         {
-            lb_pos = "src/std/gpu/canvas.lucb:3:1";
+            lb_pos = "src/std/gpu/canvas.lucb:2:1";
             self->owner = ((void*)0);
-            lb_pos = "src/std/gpu/canvas.lucb:4:1";
+            lb_pos = "src/std/gpu/canvas.lucb:3:1";
             (void)(lb_ownership_19discard_unpublished(&((lb_owner)->header)));
         }
     }
 }
 __attribute__((weak)) void lb_interop_11close_owner_0g1_gpu_FrameState(struct lb_interop_Owner_0g1_gpu_FrameState* lb_owner) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/interop/object.lucb:51:5";
+    lb_pos = "src/std/interop/object.lucb:50:5";
     (void)(lb_ownership_11check_alive(&((lb_owner)->header)));
-    lb_pos = "src/std/interop/object.lucb:52:5";
+    lb_pos = "src/std/interop/object.lucb:51:5";
     if (!!((lb_owner)->closed)) 
     {
-        lb_pos = "src/std/interop/object.lucb:53:9";
+        lb_pos = "src/std/interop/object.lucb:52:9";
         return;
     }
-    lb_pos = "src/std/interop/object.lucb:55:5";
+    lb_pos = "src/std/interop/object.lucb:54:5";
     (lb_owner)->closed = true;
-    lb_pos = "src/std/interop/object.lucb:56:5";
+    lb_pos = "src/std/interop/object.lucb:55:5";
     if (!!(((lb_owner)->active == 0ULL))) 
     {
-        lb_pos = "src/std/interop/object.lucb:57:9";
+        lb_pos = "src/std/interop/object.lucb:56:9";
         (void)(lb_interop_13dispose_owner_0g1_gpu_FrameState(lb_owner));
     }
 }
 __attribute__((weak)) void lb_interop_ViewOwner_0g1_gpu_RenderTarget_9drop_view(struct lb_ownership_Object* lb_object) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/gpu/surface.lucb:19:5";
+    lb_pos = "src/std/gpu/surface.lucb:17:1";
     (void)(lb_interop_Lease_release(&(((((struct lb_interop_ViewOwner_0g1_gpu_RenderTarget*)(lb_object))))->lease)));
 }
 __attribute__((weak)) void lb_interop_ViewOwner_0g1_gpu_RenderTarget_10trace_view(struct lb_ownership_Object* lb_object, lb_fn_0F2_ownership_Object_0p_void_0p_unit lb_visit, void* lb_context) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/gpu/surface.lucb:22:5";
+    lb_pos = "src/std/gpu/surface.lucb:20:9";
     (void)(lb_interop_Lease_trace(&(((((struct lb_interop_ViewOwner_0g1_gpu_RenderTarget*)(lb_object))))->lease), lb_visit, lb_context));
 }
 __attribute__((weak)) void lb_interop_13dispose_owner_0g1_gpu_FrameState(struct lb_interop_Owner_0g1_gpu_FrameState* lb_owner) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/interop/object.lucb:60:5";
+    lb_pos = "src/std/interop/object.lucb:59:5";
     if (!!((lb_owner)->disposed)) 
     {
-        lb_pos = "src/std/interop/object.lucb:61:9";
+        lb_pos = "src/std/interop/object.lucb:60:9";
         return;
     }
-    lb_pos = "src/std/interop/object.lucb:62:5";
+    lb_pos = "src/std/interop/object.lucb:61:5";
     (lb_owner)->disposed = true;
-    lb_pos = "src/std/interop/object.lucb:63:5";
+    lb_pos = "src/std/interop/object.lucb:62:5";
     struct lb_gpu_FrameState* _lb_o162 = (lb_owner)->native;
     if (_lb_o162 != ((void*)0)) {
         struct lb_gpu_FrameState* lb_native __attribute__((unused)) = _lb_o162;
         {
-            lb_pos = "src/std/interop/object.lucb:64:9";
+            lb_pos = "src/std/interop/object.lucb:63:9";
             (void)(((lb_owner)->declaration.dispose)(lb_native));
         }
     }

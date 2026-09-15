@@ -4388,16 +4388,16 @@ __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_release(const lb_interop_
 }
 __attribute__((weak)) void lb_memory_copy_0g1_u8(lb_span lb_target, lb_cspan lb_source, size_t lb_count) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/memory.lucb:325:5";
+    lb_pos = "src/std/memory.lucb:327:5";
     if (!!(((((size_t)(lb_count)) > ((size_t)((lb_target.length)))) || (((size_t)(lb_count)) > ((size_t)((lb_source.length))))))) 
     {
-        lb_pos = "src/std/memory.lucb:326:9";
+        lb_pos = "src/std/memory.lucb:328:9";
         (void)(lb_trap_text(((lb_str){"index out of bounds", 19})));
     }
-    lb_pos = "src/std/memory.lucb:327:5";
+    lb_pos = "src/std/memory.lucb:329:5";
     if (!!((((size_t)(lb_count)) > ((size_t)(0ULL))))) 
     {
-        lb_pos = "src/std/memory.lucb:328:9";
+        lb_pos = "src/std/memory.lucb:330:9";
         (void)(((void)(({ void* _lb_sq22 __attribute__((unused)) = ((uint8_t*)(lb_target.data)); const void* _lb_sq23 __attribute__((unused)) = ((const uint8_t*)(lb_source.data)); size_t _lb_sq24 __attribute__((unused)) = ({ size_t _lb_sq25 __attribute__((unused)) = lb_count; size_t _lb_sq26 __attribute__((unused)) = ((size_t)sizeof(uint8_t)); (size_t)(lb_mul_u((uint64_t)(_lb_sq25), (uint64_t)(_lb_sq26), 64)); }); ({ void* _lb_fr = lb_x_memory_memcpy(_lb_sq22, _lb_sq23, _lb_sq24); if (!_lb_fr) lb_trap("null_foreign"); _lb_fr; }); }))));
     }
 }

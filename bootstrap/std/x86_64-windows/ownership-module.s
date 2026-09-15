@@ -3852,7 +3852,7 @@ lb_ownership_identity:
 .Ltext_35:
     .asciz "src/std/ownership/module.lucb:208:5"
 .Ltext_36:
-    .asciz "src/std/ownership/module.lucb:220:5"
+    .asciz "src/std/ownership/module.lucb:219:5"
 .Ltext_37:
     .asciz "integer overflow"
 

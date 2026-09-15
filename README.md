@@ -48,6 +48,10 @@ The archives come from the `Release` workflow, one per host, each proved by
 `tools/install_smoke.sh` before it is published; `tools/package.sh` writes the
 same archive from a local build.
 
+`luce-base fmt FILE` prints a module in the canonical layout (`--write` puts it back,
+`--check` reports drift); every source under `src/` is a fixpoint of it, and the gate
+keeps it so.
+
 ## Build and test
 
 Build scripts require Python 3.9 or newer. Generated sources are written as UTF-8

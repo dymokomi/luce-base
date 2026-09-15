@@ -3733,17 +3733,17 @@ lb_os_exit:
 .Lvsign64:
     .quad -9223372036854775808, -9223372036854775808
 .Ltext_0:
-    .asciz "src/std/os/module.lucb:30:9"
+    .asciz "src/std/os/module.lucb:29:9"
 .Ltext_1:
-    .asciz "src/std/os/module.lucb:33:13"
+    .asciz "src/std/os/module.lucb:32:13"
 .Ltext_2:
     .asciz "operating system randomness is unavailable"
 .Ltext_3:
-    .asciz "src/std/os/module.lucb:38:9"
+    .asciz "src/std/os/module.lucb:37:9"
 .Ltext_4:
     .asciz "unreachable"
 .Ltext_5:
-    .asciz "src/std/os/module.lucb:62:9"
+    .asciz "src/std/os/module.lucb:61:9"
 .Ltext_6:
     .asciz "eax"
 .Ltext_7:
@@ -3759,61 +3759,61 @@ lb_os_exit:
 .Ltext_12:
     .asciz "shift count out of range"
 .Ltext_13:
-    .asciz "src/std/os/module.lucb:73:5"
+    .asciz "src/std/os/module.lucb:72:5"
 .Ltext_14:
-    .asciz "src/std/os/module.lucb:74:5"
+    .asciz "src/std/os/module.lucb:73:5"
 .Ltext_15:
-    .asciz "src/std/os/module.lucb:75:5"
+    .asciz "src/std/os/module.lucb:74:5"
 .Ltext_16:
-    .asciz "src/std/os/module.lucb:77:5"
+    .asciz "src/std/os/module.lucb:76:5"
 .Ltext_17:
-    .asciz "src/std/os/module.lucb:78:5"
+    .asciz "src/std/os/module.lucb:77:5"
 .Ltext_18:
-    .asciz "src/std/os/module.lucb:79:5"
+    .asciz "src/std/os/module.lucb:78:5"
 .Ltext_19:
-    .asciz "src/std/os/module.lucb:80:5"
+    .asciz "src/std/os/module.lucb:79:5"
 .Ltext_20:
-    .asciz "src/std/os/module.lucb:85:5"
+    .asciz "src/std/os/module.lucb:84:5"
 .Ltext_21:
-    .asciz "src/std/os/module.lucb:94:9"
+    .asciz "src/std/os/module.lucb:93:9"
 .Ltext_22:
-    .asciz "src/std/os/module.lucb:102:9"
+    .asciz "src/std/os/module.lucb:101:9"
 .Ltext_23:
-    .asciz "src/std/os/module.lucb:109:9"
+    .asciz "src/std/os/module.lucb:108:9"
 .Ltext_24:
-    .asciz "src/std/os/module.lucb:118:9"
+    .asciz "src/std/os/module.lucb:117:9"
 .Ltext_25:
     .asciz "the environment variable cannot be set"
 .Ltext_26:
-    .asciz "src/std/os/module.lucb:121:13"
+    .asciz "src/std/os/module.lucb:120:13"
 .Ltext_27:
-    .asciz "src/std/os/module.lucb:122:9"
+    .asciz "src/std/os/module.lucb:121:9"
 .Ltext_28:
     .asciz "the environment variable cannot be unset"
 .Ltext_29:
-    .asciz "src/std/os/module.lucb:131:13"
+    .asciz "src/std/os/module.lucb:130:13"
 .Ltext_30:
-    .asciz "src/std/os/module.lucb:132:9"
+    .asciz "src/std/os/module.lucb:131:9"
 .Ltext_31:
-    .asciz "src/std/os/module.lucb:139:9"
+    .asciz "src/std/os/module.lucb:138:9"
 .Ltext_32:
-    .asciz "src/std/os/module.lucb:152:9"
+    .asciz "src/std/os/module.lucb:151:9"
 .Ltext_33:
     .asciz "the directory cannot be entered"
 .Ltext_34:
-    .asciz "src/std/os/module.lucb:176:13"
+    .asciz "src/std/os/module.lucb:175:13"
 .Ltext_35:
-    .asciz "src/std/os/module.lucb:177:9"
+    .asciz "src/std/os/module.lucb:176:9"
 .Ltext_36:
-    .asciz "src/std/os/module.lucb:183:9"
+    .asciz "src/std/os/module.lucb:182:9"
 .Ltext_37:
-    .asciz "src/std/os/module.lucb:188:9"
+    .asciz "src/std/os/module.lucb:187:9"
 .Ltext_38:
-    .asciz "src/std/os/module.lucb:196:9"
+    .asciz "src/std/os/module.lucb:195:9"
 .Ltext_39:
     .asciz "the host name cannot be read"
 .Ltext_40:
-    .asciz "src/std/os/module.lucb:198:9"
+    .asciz "src/std/os/module.lucb:197:9"
 .Ltext_41:
     .asciz "index out of bounds"
 .Ltext_42:

@@ -1968,9 +1968,9 @@ l_text_27:
 l_text_28:
     .asciz "src/std/gpu/canvas.lucb:113:5"
 l_text_29:
-    .asciz "src/std/memory.lucb:326:9"
-l_text_30:
     .asciz "src/std/memory.lucb:328:9"
+l_text_30:
+    .asciz "src/std/memory.lucb:330:9"
 l_text_31:
     .asciz "null_foreign"
 l_text_32:

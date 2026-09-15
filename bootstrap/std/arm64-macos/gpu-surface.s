@@ -3277,9 +3277,9 @@ l_text_22:
 l_text_23:
     .asciz "native ownership has already been published or cancelled"
 l_text_24:
-    .asciz "src/std/interop/object.lucb:83:9"
+    .asciz "src/std/interop/object.lucb:82:9"
 l_text_25:
-    .asciz "src/std/interop/object.lucb:87:9"
+    .asciz "src/std/interop/object.lucb:86:9"
 l_text_26:
     .asciz "a native object is closed"
 l_text_27:

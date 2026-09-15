@@ -1193,33 +1193,33 @@ l_text_0:
 l_text_1:
     .asciz "unreachable"
 l_text_2:
-    .asciz "src/std/unicode/graphemes.lucb:14:9"
+    .asciz "src/std/unicode/graphemes.lucb:13:9"
 l_text_3:
     .asciz "the grapheme iterator's input changed"
 l_text_4:
-    .asciz "src/std/unicode/graphemes.lucb:21:9"
+    .asciz "src/std/unicode/graphemes.lucb:20:9"
 l_text_5:
-    .asciz "src/std/unicode/graphemes.lucb:24:9"
+    .asciz "src/std/unicode/graphemes.lucb:23:9"
 l_text_6:
-    .asciz "src/std/unicode/graphemes.lucb:26:13"
+    .asciz "src/std/unicode/graphemes.lucb:25:13"
 l_text_7:
-    .asciz "src/std/unicode/graphemes.lucb:32:13"
+    .asciz "src/std/unicode/graphemes.lucb:31:13"
 l_text_8:
-    .asciz "src/std/unicode/graphemes.lucb:33:9"
+    .asciz "src/std/unicode/graphemes.lucb:32:9"
 l_text_9:
     .asciz "index out of bounds"
 l_text_10:
-    .asciz "src/std/unicode/graphemes.lucb:37:9"
+    .asciz "src/std/unicode/graphemes.lucb:36:9"
 l_text_11:
-    .asciz "src/std/unicode/graphemes.lucb:96:9"
+    .asciz "src/std/unicode/graphemes.lucb:95:9"
 l_text_12:
-    .asciz "src/std/unicode/graphemes.lucb:116:5"
+    .asciz "src/std/unicode/graphemes.lucb:115:5"
 l_text_13:
-    .asciz "src/std/unicode/graphemes.lucb:119:5"
+    .asciz "src/std/unicode/graphemes.lucb:118:5"
 l_text_14:
-    .asciz "src/std/unicode/graphemes.lucb:122:5"
+    .asciz "src/std/unicode/graphemes.lucb:121:5"
 l_text_15:
-    .asciz "src/std/unicode/graphemes.lucb:134:13"
+    .asciz "src/std/unicode/graphemes.lucb:133:13"
 l_text_16:
     .asciz "integer overflow"
 

@@ -4279,43 +4279,43 @@ extern uint32_t lb_gpu_22vulkan_api_version_1_0;
 
 __attribute__((weak)) lb_interop_Transfer_0g1_str lb_interop_Transfer_0g1_str_plain(void) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/thread.lucb:815:1";
+    lb_pos = "src/std/thread.lucb:812:1";
     lb_interop_Transfer_0g1_str _lb_ret1 = ((lb_interop_Transfer_0g1_str){.copy = lb_interop_Transfer_0g1_str_10copy_plain});
     return _lb_ret1;
     lb_trap("unreachable");
 }
 __attribute__((weak)) lb_r_interop_Packet_0g1_str lb_interop_Transfer_0g1_str_10copy_plain(lb_str lb_value) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/thread.lucb:818:1";
+    lb_pos = "src/std/thread.lucb:815:1";
     lb_interop_Packet_0g1_str _lb_ret2 = ({ lb_interop_Packet_0g1_str _lb_iv3 = {}; lb_interop_Packet_0g1_str_init(&_lb_iv3, lb_value, ((void*)0), ((void*)0)); _lb_iv3; });
     return ((lb_r_interop_Packet_0g1_str){ .value = _lb_ret2, .failed = false });
     lb_trap("unreachable");
 }
 __attribute__((weak)) lb_interop_Transfer_0g1_u8_0c lb_interop_Transfer_0g1_u8_0c_plain(void) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/thread.lucb:815:1";
+    lb_pos = "src/std/thread.lucb:812:1";
     lb_interop_Transfer_0g1_u8_0c _lb_ret4 = ((lb_interop_Transfer_0g1_u8_0c){.copy = lb_interop_Transfer_0g1_u8_0c_10copy_plain});
     return _lb_ret4;
     lb_trap("unreachable");
 }
 __attribute__((weak)) lb_r_interop_Packet_0g1_u8_0c lb_interop_Transfer_0g1_u8_0c_10copy_plain(lb_cspan lb_value) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/thread.lucb:818:1";
+    lb_pos = "src/std/thread.lucb:815:1";
     lb_interop_Packet_0g1_u8_0c _lb_ret5 = ({ lb_interop_Packet_0g1_u8_0c _lb_iv6 = {}; lb_interop_Packet_0g1_u8_0c_init(&_lb_iv6, lb_value, ((void*)0), ((void*)0)); _lb_iv6; });
     return ((lb_r_interop_Packet_0g1_u8_0c){ .value = _lb_ret5, .failed = false });
     lb_trap("unreachable");
 }
 lb_r_unit lb_thread_Handle_join(const lb_thread_Handle* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/thread.lucb:51:9";
+    lb_pos = "src/std/thread.lucb:50:9";
     void* lb_id __attribute__((unused)) = ({ void* _lb_o7 = self->id; if (_lb_o7 == ((void*)0)) {
         lb_r_unit _lb_err8 = ((lb_r_unit){ .error = { .code = (int32_t)(lb_thread_failed), .message = ((lb_str){"no thread to join", 17}) }, .failed = true });
         return _lb_err8;
     } _lb_o7; });
-    lb_pos = "src/std/thread.lucb:52:9";
+    lb_pos = "src/std/thread.lucb:51:9";
     if (!!(({ int32_t _lb_sq9 __attribute__((unused)) = lb_x_thread_12pthread_join(lb_id, ((void*)0)); int32_t _lb_sq10 __attribute__((unused)) = 0LL; (!(_lb_sq9 == _lb_sq10)); }))) 
     {
-        lb_pos = "src/std/thread.lucb:53:13";
+        lb_pos = "src/std/thread.lucb:52:13";
         lb_r_unit _lb_err11 = ((lb_r_unit){ .error = { .code = (int32_t)(lb_thread_failed), .message = ((lb_str){"join", 4}) }, .failed = true });
         return _lb_err11;
     }
@@ -4323,105 +4323,105 @@ lb_r_unit lb_thread_Handle_join(const lb_thread_Handle* self) {
 }
 void lb_thread_Handle_detach(const lb_thread_Handle* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/thread.lucb:56:9";
+    lb_pos = "src/std/thread.lucb:55:9";
     void* lb_id __attribute__((unused)) = ({ void* _lb_o12 = self->id; if (_lb_o12 == ((void*)0)) {
         return;
     } _lb_o12; });
-    lb_pos = "src/std/thread.lucb:57:9";
+    lb_pos = "src/std/thread.lucb:56:9";
     (void)(((void)(lb_x_thread_14pthread_detach(lb_id))));
 }
 lb_r_thread_Handle lb_thread_spawn(lb_fn_0F1_void_0p_0o_unit lb_entry, void* lb_context, size_t lb_stack, lb_str lb_name) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/thread.lucb:87:5";
+    lb_pos = "src/std/thread.lucb:86:5";
     lb_span lb_copy __attribute__((unused)) = (({ lb_r_u8_0s _lb_r13 = ({ lb_iface _lb_a14 = lb_memory_heap; size_t _lb_n14 = (size_t)(lb_thread_9name_room); lb_r_u8_0s _lb_r14; if (_lb_n14 > UINT64_C(4611686018427387904)) { _lb_r14 = ((lb_r_u8_0s){ .error = { .code = 208273409, .message = (lb_str){"memory.exhausted", 16} }, .failed = true }); } else { size_t _lb_bytes14 = sizeof(uint8_t) * _lb_n14; lb_o_u8_0s _lb_ao14 = lb_alloc_call(_lb_a14, _lb_bytes14, _Alignof(uint8_t)); if (_lb_bytes14 != 0 && !_lb_ao14.present) { _lb_r14 = ((lb_r_u8_0s){ .error = { .code = 208273409, .message = (lb_str){"memory.exhausted", 16} }, .failed = true }); } else { _lb_r14.value.data = _lb_ao14.value.data; _lb_r14.value.length = _lb_n14; _lb_r14.failed = false; } } _lb_r14; }); if (_lb_r13.failed) {
         return ((lb_r_thread_Handle){ .error = _lb_r13.error, .failed = true });
     } _lb_r13.value; }));
-    lb_pos = "src/std/thread.lucb:88:5";
+    lb_pos = "src/std/thread.lucb:87:5";
     size_t lb_kept __attribute__((unused)) = ((((size_t)((lb_name.length))) < ((size_t)((size_t)(lb_sub_u((uint64_t)(lb_thread_9name_room), (uint64_t)(1ULL), 64))))) ? (lb_name.length) : (size_t)(lb_sub_u((uint64_t)(lb_thread_9name_room), (uint64_t)(1ULL), 64)));
-    lb_pos = "src/std/thread.lucb:89:5";
+    lb_pos = "src/std/thread.lucb:88:5";
     (void)(lb_memory_copy_0g1_u8(lb_copy, ((lb_cspan){(void*)(lb_name.data), lb_name.length}), lb_kept));
-    lb_pos = "src/std/thread.lucb:90:5";
+    lb_pos = "src/std/thread.lucb:89:5";
     (*({ lb_span _lb_ix15 = lb_copy; &((uint8_t*)_lb_ix15.data)[lb_at((uint64_t)(lb_kept), _lb_ix15.length)]; })) = 0ULL;
-    lb_pos = "src/std/thread.lucb:91:5";
+    lb_pos = "src/std/thread.lucb:90:5";
     struct lb_thread_Start* lb_start __attribute__((unused)) = ({ lb_error _lb_fe16 __attribute__((unused)); struct lb_thread_Start* _lb_v16 __attribute__((unused)) = ((void*)0); _lb_v16 = ({ lb_r_thread_Start_0p _lb_r17 = ({ lb_iface _lb_a18 = lb_memory_heap; lb_o_u8_0s _lb_ao18 = lb_alloc_call(_lb_a18, sizeof(lb_thread_Start), _Alignof(lb_thread_Start)); lb_r_thread_Start_0p _lb_r18; if (!_lb_ao18.present) { _lb_r18 = ((lb_r_thread_Start_0p){ .error = { .code = 208273409, .message = (lb_str){"memory.exhausted", 16} }, .failed = true }); } else { lb_thread_Start* _lb_p18 = (lb_thread_Start*)_lb_ao18.value.data; *_lb_p18 = ((lb_thread_Start){.entry = lb_entry, .context = lb_context, .name = lb_copy, .name_length = lb_kept}); _lb_r18.value = _lb_p18; _lb_r18.failed = false; } _lb_r18; }); if (_lb_r17.failed) {
         _lb_fe16 = _lb_r17.error;
         goto _lb_fh16;
     } _lb_r17.value; }); goto _lb_cd16; _lb_fh16: { 
         lb_error lb_failure __attribute__((unused)) = _lb_fe16;
         {
-            lb_pos = "src/std/thread.lucb:92:9";
+            lb_pos = "src/std/thread.lucb:91:9";
             { lb_span _lb_s19 = lb_copy; lb_release_call(lb_memory_heap, (lb_span){ (void*)(_lb_s19.data), lb_mul_u(_lb_s19.length, sizeof(uint8_t), 64) }); }
-            lb_pos = "src/std/thread.lucb:93:9";
+            lb_pos = "src/std/thread.lucb:92:9";
             lb_r_thread_Handle _lb_err20 = ((lb_r_thread_Handle){ .error = { .code = (int32_t)(lb_memory_exhausted), .message = ((lb_str){"memory.exhausted", 16}) }, .failed = true });
             return _lb_err20;
         }
     } _lb_cd16: __attribute__((unused)); _lb_v16; });
-    lb_pos = "src/std/thread.lucb:94:5";
+    lb_pos = "src/std/thread.lucb:93:5";
     lb_a_u64_0a16 lb_attributes __attribute__((unused)) = {};
-    lb_pos = "src/std/thread.lucb:95:5";
+    lb_pos = "src/std/thread.lucb:94:5";
     if (!!(({ int32_t _lb_sq21 __attribute__((unused)) = lb_x_thread_17pthread_attr_init(((void*)(&(((lb_attributes).d[0]))))); int32_t _lb_sq22 __attribute__((unused)) = 0LL; (!(_lb_sq21 == _lb_sq22)); }))) 
     {
-        lb_pos = "src/std/thread.lucb:96:9";
+        lb_pos = "src/std/thread.lucb:95:9";
         { lb_span _lb_s23 = lb_copy; lb_release_call(lb_memory_heap, (lb_span){ (void*)(_lb_s23.data), lb_mul_u(_lb_s23.length, sizeof(uint8_t), 64) }); }
-        lb_pos = "src/std/thread.lucb:97:9";
+        lb_pos = "src/std/thread.lucb:96:9";
         lb_release_call(lb_memory_heap, (lb_span){ (void*)(lb_start), sizeof(lb_thread_Start) });
-        lb_pos = "src/std/thread.lucb:98:9";
+        lb_pos = "src/std/thread.lucb:97:9";
         lb_r_thread_Handle _lb_err24 = ((lb_r_thread_Handle){ .error = { .code = (int32_t)(lb_thread_failed), .message = ((lb_str){"spawn", 5}) }, .failed = true });
         return _lb_err24;
     }
-    lb_pos = "src/std/thread.lucb:99:5";
+    lb_pos = "src/std/thread.lucb:98:5";
     if (!!((((size_t)(lb_stack)) > ((size_t)(0ULL))))) 
     {
-        lb_pos = "src/std/thread.lucb:100:9";
+        lb_pos = "src/std/thread.lucb:99:9";
         size_t lb_page __attribute__((unused)) = lb_thread_9page_size();
-        lb_pos = "src/std/thread.lucb:101:9";
+        lb_pos = "src/std/thread.lucb:100:9";
         size_t lb_size __attribute__((unused)) = ((((size_t)(lb_stack)) > ((size_t)(lb_thread_11least_stack))) ? lb_stack : lb_thread_11least_stack);
-        lb_pos = "src/std/thread.lucb:102:9";
+        lb_pos = "src/std/thread.lucb:101:9";
         lb_size = (size_t)(lb_mul_u((uint64_t)((size_t)(lb_div_u((uint64_t)(((size_t)(lb_sub_u((uint64_t)((size_t)(lb_add_u((uint64_t)(lb_size), (uint64_t)(lb_page), 64))), (uint64_t)(1ULL), 64)))), (uint64_t)(lb_page), 64))), (uint64_t)(lb_page), 64));
-        lb_pos = "src/std/thread.lucb:103:9";
+        lb_pos = "src/std/thread.lucb:102:9";
         if (!!(({ int32_t _lb_sq25 __attribute__((unused)) = lb_x_thread_25pthread_attr_setstacksize(((void*)(&(((lb_attributes).d[0])))), lb_size); int32_t _lb_sq26 __attribute__((unused)) = 0LL; (!(_lb_sq25 == _lb_sq26)); }))) 
         {
-            lb_pos = "src/std/thread.lucb:104:13";
+            lb_pos = "src/std/thread.lucb:103:13";
             (void)(((void)(lb_x_thread_20pthread_attr_destroy(((void*)(&(((lb_attributes).d[0]))))))));
-            lb_pos = "src/std/thread.lucb:105:13";
+            lb_pos = "src/std/thread.lucb:104:13";
             { lb_span _lb_s27 = lb_copy; lb_release_call(lb_memory_heap, (lb_span){ (void*)(_lb_s27.data), lb_mul_u(_lb_s27.length, sizeof(uint8_t), 64) }); }
-            lb_pos = "src/std/thread.lucb:106:13";
+            lb_pos = "src/std/thread.lucb:105:13";
             lb_release_call(lb_memory_heap, (lb_span){ (void*)(lb_start), sizeof(lb_thread_Start) });
-            lb_pos = "src/std/thread.lucb:107:13";
+            lb_pos = "src/std/thread.lucb:106:13";
             lb_r_thread_Handle _lb_err28 = ((lb_r_thread_Handle){ .error = { .code = (int32_t)(lb_thread_failed), .message = ((lb_str){"the stack size is refused", 25}) }, .failed = true });
             return _lb_err28;
         }
     }
-    lb_pos = "src/std/thread.lucb:108:5";
+    lb_pos = "src/std/thread.lucb:107:5";
     void* lb_id __attribute__((unused)) = ((void*)0);
-    lb_pos = "src/std/thread.lucb:109:5";
+    lb_pos = "src/std/thread.lucb:108:5";
     int32_t lb_created __attribute__((unused)) = lb_x_thread_14pthread_create(&(lb_id), ((void*)(&(((lb_attributes).d[0])))), lb_thread_trampoline, ((void*)(lb_start)));
-    lb_pos = "src/std/thread.lucb:110:5";
+    lb_pos = "src/std/thread.lucb:109:5";
     (void)(((void)(lb_x_thread_20pthread_attr_destroy(((void*)(&(((lb_attributes).d[0]))))))));
-    lb_pos = "src/std/thread.lucb:111:5";
+    lb_pos = "src/std/thread.lucb:110:5";
     if (!!((!(lb_created == 0LL)))) 
     {
-        lb_pos = "src/std/thread.lucb:112:9";
+        lb_pos = "src/std/thread.lucb:111:9";
         { lb_span _lb_s29 = lb_copy; lb_release_call(lb_memory_heap, (lb_span){ (void*)(_lb_s29.data), lb_mul_u(_lb_s29.length, sizeof(uint8_t), 64) }); }
-        lb_pos = "src/std/thread.lucb:113:9";
+        lb_pos = "src/std/thread.lucb:112:9";
         lb_release_call(lb_memory_heap, (lb_span){ (void*)(lb_start), sizeof(lb_thread_Start) });
-        lb_pos = "src/std/thread.lucb:114:9";
+        lb_pos = "src/std/thread.lucb:113:9";
         lb_r_thread_Handle _lb_err30 = ((lb_r_thread_Handle){ .error = { .code = (int32_t)(lb_thread_failed), .message = ((lb_str){"spawn", 5}) }, .failed = true });
         return _lb_err30;
     }
-    lb_pos = "src/std/thread.lucb:115:5";
+    lb_pos = "src/std/thread.lucb:114:5";
     void* lb_thread __attribute__((unused)) = ({ void* _lb_o31 = lb_id; if (_lb_o31 == ((void*)0)) {
         lb_r_thread_Handle _lb_err32 = ((lb_r_thread_Handle){ .error = { .code = (int32_t)(lb_thread_failed), .message = ((lb_str){"spawn", 5}) }, .failed = true });
         return _lb_err32;
     } _lb_o31; });
-    lb_pos = "src/std/thread.lucb:116:5";
+    lb_pos = "src/std/thread.lucb:115:5";
     lb_thread_Handle _lb_ret33 = ((lb_thread_Handle){.id = lb_thread});
     return ((lb_r_thread_Handle){ .value = _lb_ret33, .failed = false });
     lb_trap("unreachable");
 }
 lb_thread_Handle lb_thread_current(void) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/thread.lucb:119:5";
+    lb_pos = "src/std/thread.lucb:118:5";
     lb_thread_Handle _lb_ret34 = ({ void* _lb_sq35 __attribute__((unused)) = ({ void* _lb_fr = lb_x_thread_12pthread_self(); if (!_lb_fr) lb_trap("null_foreign"); _lb_fr; }); ((lb_thread_Handle){.id = _lb_sq35}); });
     return _lb_ret34;
     lb_trap("unreachable");
@@ -4429,7 +4429,7 @@ lb_thread_Handle lb_thread_current(void) {
 bool lb_thread_7is_main(void) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
     {
-        lb_pos = "src/std/thread.lucb:124:9";
+        lb_pos = "src/std/thread.lucb:123:9";
         bool _lb_ret36 = lb_core_17on_initial_thread();
         return _lb_ret36;
     }
@@ -4437,13 +4437,13 @@ bool lb_thread_7is_main(void) {
 }
 void lb_thread_pause(void) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/thread.lucb:133:5";
+    lb_pos = "src/std/thread.lucb:132:5";
     #if defined(__aarch64__)
     {
         asm volatile("yield\n" :  :  : "memory");
     }
     #endif
-    lb_pos = "src/std/thread.lucb:135:5";
+    lb_pos = "src/std/thread.lucb:134:5";
     #if defined(__x86_64__)
     {
         asm volatile("pause\n" :  :  : "memory");
@@ -4452,35 +4452,35 @@ void lb_thread_pause(void) {
 }
 void lb_thread_yield(void) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/thread.lucb:139:5";
+    lb_pos = "src/std/thread.lucb:138:5";
     (void)(((void)(lb_x_thread_11sched_yield())));
 }
 void lb_thread_sleep(uint64_t lb_milliseconds) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
     {
-        lb_pos = "src/std/thread.lucb:145:9";
+        lb_pos = "src/std/thread.lucb:144:9";
         (void)(lb_thread_13sleep_windows(lb_milliseconds));
-        lb_pos = "src/std/thread.lucb:146:9";
+        lb_pos = "src/std/thread.lucb:145:9";
         return;
     }
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_str_init(lb_interop_Packet_0g1_str* self, lb_str lb_value, void* lb_storage, lb_fn_0F1_void_0p_unit lb_dispose) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/thread.lucb:799:1";
+    lb_pos = "src/std/thread.lucb:796:1";
     self->value = lb_value;
-    lb_pos = "src/std/thread.lucb:800:1";
+    lb_pos = "src/std/thread.lucb:797:1";
     self->storage = lb_storage;
-    lb_pos = "src/std/thread.lucb:801:1";
+    lb_pos = "src/std/thread.lucb:798:1";
     self->dispose = lb_dispose;
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_str_release(const lb_interop_Packet_0g1_str* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/thread.lucb:804:1";
+    lb_pos = "src/std/thread.lucb:801:1";
     void* _lb_o37 = self->storage;
     if (_lb_o37 != ((void*)0)) {
         void* lb_storage __attribute__((unused)) = _lb_o37;
         {
-            lb_pos = "src/std/thread.lucb:805:1";
+            lb_pos = "src/std/thread.lucb:802:1";
             (void)(((({ lb_fn_0F1_void_0p_unit _lb_o38 = self->dispose; if (_lb_o38 == ((void*)0)) {
                 (void)(lb_trap_text(((lb_str){"a packet has storage without a disposer", 39})));
             } _lb_o38; })))(lb_storage));
@@ -4489,21 +4489,21 @@ __attribute__((weak)) void lb_interop_Packet_0g1_str_release(const lb_interop_Pa
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_init(lb_interop_Packet_0g1_u8_0c* self, lb_cspan lb_value, void* lb_storage, lb_fn_0F1_void_0p_unit lb_dispose) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/thread.lucb:799:1";
+    lb_pos = "src/std/thread.lucb:796:1";
     self->value = lb_value;
-    lb_pos = "src/std/thread.lucb:800:1";
+    lb_pos = "src/std/thread.lucb:797:1";
     self->storage = lb_storage;
-    lb_pos = "src/std/thread.lucb:801:1";
+    lb_pos = "src/std/thread.lucb:798:1";
     self->dispose = lb_dispose;
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_release(const lb_interop_Packet_0g1_u8_0c* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/thread.lucb:804:1";
+    lb_pos = "src/std/thread.lucb:801:1";
     void* _lb_o39 = self->storage;
     if (_lb_o39 != ((void*)0)) {
         void* lb_storage __attribute__((unused)) = _lb_o39;
         {
-            lb_pos = "src/std/thread.lucb:805:1";
+            lb_pos = "src/std/thread.lucb:802:1";
             (void)(((({ lb_fn_0F1_void_0p_unit _lb_o40 = self->dispose; if (_lb_o40 == ((void*)0)) {
                 (void)(lb_trap_text(((lb_str){"a packet has storage without a disposer", 39})));
             } _lb_o40; })))(lb_storage));
@@ -4512,27 +4512,27 @@ __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_release(const lb_interop_
 }
 __attribute__((weak)) void lb_memory_copy_0g1_u8(lb_span lb_target, lb_cspan lb_source, size_t lb_count) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/memory.lucb:325:5";
+    lb_pos = "src/std/memory.lucb:327:5";
     if (!!(((((size_t)(lb_count)) > ((size_t)((lb_target.length)))) || (((size_t)(lb_count)) > ((size_t)((lb_source.length))))))) 
     {
-        lb_pos = "src/std/memory.lucb:326:9";
+        lb_pos = "src/std/memory.lucb:328:9";
         (void)(lb_trap_text(((lb_str){"index out of bounds", 19})));
     }
-    lb_pos = "src/std/memory.lucb:327:5";
+    lb_pos = "src/std/memory.lucb:329:5";
     if (!!((((size_t)(lb_count)) > ((size_t)(0ULL))))) 
     {
-        lb_pos = "src/std/memory.lucb:328:9";
+        lb_pos = "src/std/memory.lucb:330:9";
         (void)(((void)(({ void* _lb_sq41 __attribute__((unused)) = ((uint8_t*)(lb_target.data)); const void* _lb_sq42 __attribute__((unused)) = ((const uint8_t*)(lb_source.data)); size_t _lb_sq43 __attribute__((unused)) = ({ size_t _lb_sq44 __attribute__((unused)) = lb_count; size_t _lb_sq45 __attribute__((unused)) = ((size_t)sizeof(uint8_t)); (size_t)(lb_mul_u((uint64_t)(_lb_sq44), (uint64_t)(_lb_sq45), 64)); }); ({ void* _lb_fr = lb_x_memory_memcpy(_lb_sq41, _lb_sq42, _lb_sq43); if (!_lb_fr) lb_trap("null_foreign"); _lb_fr; }); }))));
     }
 }
 size_t lb_thread_9page_size(void) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
     {
-        lb_pos = "src/std/thread.lucb:29:9";
+        lb_pos = "src/std/thread.lucb:28:9";
         SystemInfo lb_info __attribute__((unused));
-        lb_pos = "src/std/thread.lucb:30:9";
+        lb_pos = "src/std/thread.lucb:29:9";
         (void)(lb_x_11windows_abi_GetSystemInfo(&(lb_info)));
-        lb_pos = "src/std/thread.lucb:31:9";
+        lb_pos = "src/std/thread.lucb:30:9";
         size_t _lb_ret46 = ((size_t)lb_conv_u((uint64_t)(lb_info.page_size), 32, 0, 64, 0, 1));
         return _lb_ret46;
     }
@@ -4540,61 +4540,61 @@ size_t lb_thread_9page_size(void) {
 }
 void* lb_thread_trampoline(void* lb_raw) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/thread.lucb:68:5";
+    lb_pos = "src/std/thread.lucb:67:5";
     struct lb_thread_Start* lb_start __attribute__((unused)) = ((struct lb_thread_Start*)(lb_raw));
-    lb_pos = "src/std/thread.lucb:69:5";
+    lb_pos = "src/std/thread.lucb:68:5";
     lb_memory_allocator = lb_memory_heap;
-    lb_pos = "src/std/thread.lucb:70:5";
+    lb_pos = "src/std/thread.lucb:69:5";
     lb_fn_0F1_void_0p_0o_unit lb_entry __attribute__((unused)) = (lb_start)->entry;
-    lb_pos = "src/std/thread.lucb:71:5";
+    lb_pos = "src/std/thread.lucb:70:5";
     void* lb_context __attribute__((unused)) = (lb_start)->context;
-    lb_pos = "src/std/thread.lucb:72:5";
+    lb_pos = "src/std/thread.lucb:71:5";
     if (!!((((size_t)((lb_start)->name_length)) > ((size_t)(0ULL))))) 
     {
-        lb_pos = "src/std/thread.lucb:73:9";
+        lb_pos = "src/std/thread.lucb:72:9";
         char* lb_text __attribute__((unused)) = lb_cstr_of(({ lb_span _lb_sc47 = ({ lb_span _lb_sv48 = (lb_start)->name; size_t _lb_sn48 = _lb_sv48.length; uint8_t* _lb_sd48 = (uint8_t*)_lb_sv48.data; size_t _lb_ss48 = 0; size_t _lb_se48 = (size_t)((lb_start)->name_length); lb_check_index(_lb_ss48, _lb_sn48 + 1); lb_check_index(_lb_se48, _lb_sn48 + 1); if (_lb_ss48 > _lb_se48) lb_trap("index out of bounds"); (lb_span){ (void*)(_lb_sd48 + _lb_ss48), _lb_se48 - _lb_ss48 }; }); const char* _lb_sb47 = (const char*)_lb_sc47.data; size_t _lb_sl47 = _lb_sc47.length; (lb_str){ _lb_sb47, _lb_sl47 }; }));
         {
-            lb_pos = "src/std/thread.lucb:77:13";
+            lb_pos = "src/std/thread.lucb:76:13";
             (void)(((void)(({ void* _lb_sq49 __attribute__((unused)) = ({ void* _lb_fr = lb_x_thread_12pthread_self(); if (!_lb_fr) lb_trap("null_foreign"); _lb_fr; }); char* _lb_sq50 __attribute__((unused)) = lb_text; lb_c_thread_13linux_setname(_lb_sq49, _lb_sq50); }))));
         }
     }
-    lb_pos = "src/std/thread.lucb:78:5";
+    lb_pos = "src/std/thread.lucb:77:5";
     { lb_span _lb_s51 = (lb_start)->name; lb_release_call(lb_memory_heap, (lb_span){ (void*)(_lb_s51.data), lb_mul_u(_lb_s51.length, sizeof(uint8_t), 64) }); }
-    lb_pos = "src/std/thread.lucb:79:5";
+    lb_pos = "src/std/thread.lucb:78:5";
     lb_release_call(lb_memory_heap, (lb_span){ (void*)(lb_start), sizeof(lb_thread_Start) });
-    lb_pos = "src/std/thread.lucb:80:5";
+    lb_pos = "src/std/thread.lucb:79:5";
     (void)((lb_entry)(lb_context));
-    lb_pos = "src/std/thread.lucb:81:5";
+    lb_pos = "src/std/thread.lucb:80:5";
     void* _lb_ret52 = ((void*)0);
     return _lb_ret52;
     lb_trap("unreachable");
 }
 void lb_thread_13sleep_windows(uint64_t lb_milliseconds) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/thread.lucb:156:5";
+    lb_pos = "src/std/thread.lucb:155:5";
     if (!!((lb_milliseconds == 0ULL))) 
     {
-        lb_pos = "src/std/thread.lucb:157:9";
+        lb_pos = "src/std/thread.lucb:156:9";
         (void)(lb_x_11windows_abi_Sleep(0ULL));
-        lb_pos = "src/std/thread.lucb:158:9";
+        lb_pos = "src/std/thread.lucb:157:9";
         return;
     }
-    lb_pos = "src/std/thread.lucb:159:5";
+    lb_pos = "src/std/thread.lucb:158:5";
     uint64_t lb_longest_finite_wait __attribute__((unused)) = 4294967294ULL;
-    lb_pos = "src/std/thread.lucb:160:5";
+    lb_pos = "src/std/thread.lucb:159:5";
     uint64_t lb_start __attribute__((unused)) = lb_time_now();
-    lb_pos = "src/std/thread.lucb:161:5";
+    lb_pos = "src/std/thread.lucb:160:5";
     uint64_t lb_elapsed __attribute__((unused)) = 0ULL;
-    lb_pos = "src/std/thread.lucb:162:5";
+    lb_pos = "src/std/thread.lucb:161:5";
     for (;;) {
-        lb_pos = "src/std/thread.lucb:162:5";
+        lb_pos = "src/std/thread.lucb:161:5";
         if (!((((uint64_t)(lb_elapsed)) < ((uint64_t)(lb_milliseconds))))) break;
         {
-            lb_pos = "src/std/thread.lucb:163:9";
+            lb_pos = "src/std/thread.lucb:162:9";
             uint64_t lb_remaining __attribute__((unused)) = (uint64_t)(lb_sub_u((uint64_t)(lb_milliseconds), (uint64_t)(lb_elapsed), 64));
-            lb_pos = "src/std/thread.lucb:164:9";
+            lb_pos = "src/std/thread.lucb:163:9";
             (void)(lb_x_11windows_abi_Sleep(((uint32_t)lb_conv_u((uint64_t)((((((uint64_t)(lb_remaining)) < ((uint64_t)(lb_longest_finite_wait))) ? lb_remaining : lb_longest_finite_wait))), 64, 0, 32, 0, 1))));
-            lb_pos = "src/std/thread.lucb:165:9";
+            lb_pos = "src/std/thread.lucb:164:9";
             lb_elapsed = ({ uint64_t _lb_sq53 __attribute__((unused)) = lb_time_since(lb_start); uint64_t _lb_sq54 __attribute__((unused)) = 1000000ULL; (uint64_t)(lb_div_u((uint64_t)(_lb_sq53), (uint64_t)(_lb_sq54), 64)); });
         }
     }

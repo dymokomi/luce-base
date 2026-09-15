@@ -61,57 +61,57 @@ _lb_window_14windows_native_0init:
 l_text_0:
     .asciz "null_foreign"
 l_text_1:
-    .asciz "src/std/window/windows/native.lucb:63:5"
+    .asciz "src/std/window/windows/native.lucb:64:5"
 l_text_2:
     .asciz "the native window class could not be registered"
 l_text_3:
     .asciz "memory.unset"
 l_text_4:
-    .asciz "src/std/window/windows/native.lucb:72:5"
+    .asciz "src/std/window/windows/native.lucb:73:5"
 l_text_5:
     .asciz "memory.exhausted"
 l_text_6:
-    .asciz "src/std/window/windows/native.lucb:75:5"
+    .asciz "src/std/window/windows/native.lucb:76:5"
 l_text_7:
     .asciz "memory.exhausted: the allocation size overflows"
 l_text_8:
-    .asciz "src/std/window/windows/native.lucb:79:9"
+    .asciz "src/std/window/windows/native.lucb:80:9"
 l_text_9:
     .asciz "the window title could not be converted to UTF-16"
 l_text_10:
-    .asciz "src/std/window/windows/native.lucb:81:13"
+    .asciz "src/std/window/windows/native.lucb:82:13"
 l_text_11:
-    .asciz "src/std/window/windows/native.lucb:82:5"
+    .asciz "src/std/window/windows/native.lucb:83:5"
 l_text_12:
-    .asciz "src/std/window/windows/native.lucb:85:5"
+    .asciz "src/std/window/windows/native.lucb:86:5"
 l_text_13:
     .asciz "division by zero"
 l_text_14:
     .asciz "the native window dimensions could not be calculated"
 l_text_15:
-    .asciz "src/std/window/windows/native.lucb:87:9"
+    .asciz "src/std/window/windows/native.lucb:88:9"
 l_text_16:
-    .asciz "src/std/window/windows/native.lucb:88:5"
+    .asciz "src/std/window/windows/native.lucb:89:5"
 l_text_17:
     .asciz "the native window could not be created"
 l_text_18:
-    .asciz "src/std/window/windows/native.lucb:91:5"
+    .asciz "src/std/window/windows/native.lucb:92:5"
 l_text_19:
     .asciz "unreachable"
 l_text_20:
-    .asciz "src/std/window/windows/native.lucb:99:5"
-l_text_21:
     .asciz "src/std/window/windows/native.lucb:100:5"
-l_text_22:
+l_text_21:
     .asciz "src/std/window/windows/native.lucb:101:5"
+l_text_22:
+    .asciz "src/std/window/windows/native.lucb:102:5"
 l_text_23:
-    .asciz "src/std/window/windows/native.lucb:107:5"
-l_text_24:
     .asciz "src/std/window/windows/native.lucb:108:5"
+l_text_24:
+    .asciz "src/std/window/windows/native.lucb:109:5"
 l_text_25:
     .asciz "the native window could not be resized"
 l_text_26:
-    .asciz "src/std/window/windows/native.lucb:117:9"
+    .asciz "src/std/window/windows/native.lucb:118:9"
 
     .section __DATA,__const
     .p2align 3

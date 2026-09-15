@@ -3,7 +3,6 @@
 ## `c.long`, `c.ulong`, and `c.wchar` are distinct, `c.va_list` is opaque, `c.str` is C text.
 
 import platform
-
 extern func mac_errno as "__error"() -> i32*
 extern func linux_errno as "__errno_location"() -> i32*
 extern func windows_errno as "_errno"() -> i32*
@@ -32,7 +31,9 @@ pub let interrupted: i32 = 4
 ## The C standard streams; the backend supplies them.
 pub func stdin() -> void*:
     trap("supplied by the backend")
+
 pub func stdout() -> void*:
     trap("supplied by the backend")
+
 pub func stderr() -> void*:
     trap("supplied by the backend")

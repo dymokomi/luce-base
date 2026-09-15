@@ -3918,115 +3918,115 @@ lb_memory_grow:
 .Ltext_0:
     .asciz "unreachable"
 .Ltext_1:
-    .asciz "src/std/memory.lucb:30:9"
+    .asciz "src/std/memory.lucb:31:9"
 .Ltext_2:
-    .asciz "src/std/memory.lucb:34:13"
+    .asciz "src/std/memory.lucb:35:13"
 .Ltext_3:
     .asciz "index out of bounds"
 .Ltext_4:
-    .asciz "src/std/memory.lucb:37:9"
+    .asciz "src/std/memory.lucb:38:9"
 .Ltext_5:
     .asciz "fixed buffer"
 .Ltext_6:
-    .asciz "src/std/memory.lucb:40:9"
-.Ltext_7:
     .asciz "src/std/memory.lucb:41:9"
+.Ltext_7:
+    .asciz "src/std/memory.lucb:42:9"
 .Ltext_8:
-    .asciz "src/std/memory.lucb:49:9"
+    .asciz "src/std/memory.lucb:50:9"
 .Ltext_9:
-    .asciz "src/std/memory.lucb:51:9"
+    .asciz "src/std/memory.lucb:52:9"
 .Ltext_10:
-    .asciz "src/std/memory.lucb:53:9"
-.Ltext_11:
     .asciz "src/std/memory.lucb:54:9"
+.Ltext_11:
+    .asciz "src/std/memory.lucb:55:9"
 .Ltext_12:
     .asciz "null_foreign"
 .Ltext_13:
-    .asciz "src/std/memory.lucb:60:13"
+    .asciz "src/std/memory.lucb:61:13"
 .Ltext_14:
-    .asciz "src/std/memory.lucb:61:9"
-.Ltext_15:
     .asciz "src/std/memory.lucb:62:9"
+.Ltext_15:
+    .asciz "src/std/memory.lucb:63:9"
 .Ltext_16:
     .asciz "division by zero"
 .Ltext_17:
-    .asciz "src/std/memory.lucb:71:5"
-.Ltext_18:
     .asciz "src/std/memory.lucb:72:5"
-.Ltext_19:
+.Ltext_18:
     .asciz "src/std/memory.lucb:73:5"
+.Ltext_19:
+    .asciz "src/std/memory.lucb:74:5"
 .Ltext_20:
-    .asciz "src/std/memory.lucb:75:5"
+    .asciz "src/std/memory.lucb:76:5"
 .Ltext_21:
-    .asciz "src/std/memory.lucb:84:9"
+    .asciz "src/std/memory.lucb:85:9"
 .Ltext_22:
     .asciz "heap"
 .Ltext_23:
-    .asciz "src/std/memory.lucb:94:9"
+    .asciz "src/std/memory.lucb:95:9"
 .Ltext_24:
-    .asciz "src/std/memory.lucb:97:9"
+    .asciz "src/std/memory.lucb:98:9"
 .Ltext_25:
-    .asciz "src/std/memory.lucb:107:9"
+    .asciz "src/std/memory.lucb:108:9"
 .Ltext_26:
-    .asciz "src/std/memory.lucb:109:9"
-.Ltext_27:
     .asciz "src/std/memory.lucb:110:9"
+.Ltext_27:
+    .asciz "src/std/memory.lucb:111:9"
 .Ltext_28:
-    .asciz "src/std/memory.lucb:112:9"
-.Ltext_29:
     .asciz "src/std/memory.lucb:113:9"
+.Ltext_29:
+    .asciz "src/std/memory.lucb:114:9"
 .Ltext_30:
     .asciz "memory.exhausted"
 .Ltext_31:
-    .asciz "src/std/memory.lucb:131:9"
+    .asciz "src/std/memory.lucb:132:9"
 .Ltext_32:
-    .asciz "src/std/memory.lucb:135:13"
+    .asciz "src/std/memory.lucb:136:13"
 .Ltext_33:
     .asciz "arena"
 .Ltext_34:
-    .asciz "src/std/memory.lucb:143:9"
+    .asciz "src/std/memory.lucb:144:9"
 .Ltext_35:
-    .asciz "src/std/memory.lucb:152:9"
+    .asciz "src/std/memory.lucb:153:9"
 .Ltext_36:
-    .asciz "src/std/memory.lucb:154:9"
+    .asciz "src/std/memory.lucb:155:9"
 .Ltext_37:
-    .asciz "src/std/memory.lucb:156:9"
-.Ltext_38:
     .asciz "src/std/memory.lucb:157:9"
+.Ltext_38:
+    .asciz "src/std/memory.lucb:158:9"
 .Ltext_39:
-    .asciz "src/std/memory.lucb:161:13"
+    .asciz "src/std/memory.lucb:162:13"
 .Ltext_40:
-    .asciz "src/std/memory.lucb:165:9"
+    .asciz "src/std/memory.lucb:166:9"
 .Ltext_41:
-    .asciz "src/std/memory.lucb:167:9"
+    .asciz "src/std/memory.lucb:169:9"
 .Ltext_42:
-    .asciz "src/std/memory.lucb:176:9"
+    .asciz "src/std/memory.lucb:178:9"
 .Ltext_43:
-    .asciz "src/std/memory.lucb:187:9"
+    .asciz "src/std/memory.lucb:189:9"
 .Ltext_44:
     .asciz "page allocator"
 .Ltext_45:
-    .asciz "src/std/memory.lucb:190:9"
+    .asciz "src/std/memory.lucb:192:9"
 .Ltext_46:
-    .asciz "src/std/memory.lucb:191:9"
+    .asciz "src/std/memory.lucb:193:9"
 .Ltext_47:
-    .asciz "src/std/memory.lucb:196:9"
+    .asciz "src/std/memory.lucb:198:9"
 .Ltext_48:
-    .asciz "src/std/memory.lucb:199:9"
+    .asciz "src/std/memory.lucb:201:9"
 .Ltext_49:
-    .asciz "src/std/memory.lucb:209:9"
-.Ltext_50:
     .asciz "src/std/memory.lucb:211:9"
+.Ltext_50:
+    .asciz "src/std/memory.lucb:213:9"
 .Ltext_51:
-    .asciz "src/std/memory.lucb:212:9"
-.Ltext_52:
     .asciz "src/std/memory.lucb:214:9"
+.Ltext_52:
+    .asciz "src/std/memory.lucb:216:9"
 .Ltext_53:
-    .asciz "src/std/memory.lucb:215:9"
+    .asciz "src/std/memory.lucb:217:9"
 .Ltext_54:
-    .asciz "src/std/memory.lucb:232:5"
+    .asciz "src/std/memory.lucb:234:5"
 .Ltext_55:
-    .asciz "src/std/memory.lucb:237:5"
+    .asciz "src/std/memory.lucb:239:5"
 .Ltext_56:
     .asciz "memory: the "
 .Ltext_57:
@@ -4040,23 +4040,23 @@ lb_memory_grow:
 .Ltext_61:
     .asciz "memory.exhausted: the formatted text does not fit its buffer"
 .Ltext_62:
-    .asciz "src/std/memory.lucb:289:9"
+    .asciz "src/std/memory.lucb:291:9"
 .Ltext_63:
-    .asciz "src/std/memory.lucb:293:13"
+    .asciz "src/std/memory.lucb:295:13"
 .Ltext_64:
-    .asciz "src/std/memory.lucb:294:13"
+    .asciz "src/std/memory.lucb:296:13"
 .Ltext_65:
-    .asciz "src/std/memory.lucb:295:9"
+    .asciz "src/std/memory.lucb:297:9"
 .Ltext_66:
-    .asciz "src/std/memory.lucb:296:5"
+    .asciz "src/std/memory.lucb:298:5"
 .Ltext_67:
-    .asciz "src/std/memory.lucb:303:5"
+    .asciz "src/std/memory.lucb:305:5"
 .Ltext_68:
-    .asciz "src/std/memory.lucb:338:9"
+    .asciz "src/std/memory.lucb:340:9"
 .Ltext_69:
-    .asciz "src/std/memory.lucb:357:9"
+    .asciz "src/std/memory.lucb:359:9"
 .Ltext_70:
-    .asciz "src/std/memory.lucb:359:5"
+    .asciz "src/std/memory.lucb:361:5"
 .Ltext_71:
     .asciz "integer overflow"
 

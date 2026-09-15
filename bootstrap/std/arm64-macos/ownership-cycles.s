@@ -1767,7 +1767,7 @@ L10_45:
 
     .section __TEXT,__const
 l_text_0:
-    .asciz "src/std/ownership/cycles.lucb:13:9"
+    .asciz "src/std/ownership/cycles.lucb:11:9"
 l_text_1:
     .asciz "memory.exhausted: the allocation size overflows"
 l_text_2:
@@ -1777,89 +1777,89 @@ l_text_3:
 l_text_4:
     .asciz "out of memory"
 l_text_5:
-    .asciz "src/std/ownership/cycles.lucb:14:13"
+    .asciz "src/std/ownership/cycles.lucb:12:13"
 l_text_6:
-    .asciz "src/std/ownership/cycles.lucb:17:13"
+    .asciz "src/std/ownership/cycles.lucb:15:13"
 l_text_7:
-    .asciz "src/std/ownership/cycles.lucb:18:13"
+    .asciz "src/std/ownership/cycles.lucb:16:13"
 l_text_8:
-    .asciz "src/std/ownership/cycles.lucb:20:13"
+    .asciz "src/std/ownership/cycles.lucb:18:13"
 l_text_9:
-    .asciz "src/std/ownership/cycles.lucb:22:5"
+    .asciz "src/std/ownership/cycles.lucb:20:5"
 l_text_10:
-    .asciz "src/std/ownership/cycles.lucb:23:5"
+    .asciz "src/std/ownership/cycles.lucb:21:5"
 l_text_11:
-    .asciz "src/std/ownership/cycles.lucb:27:9"
+    .asciz "src/std/ownership/cycles.lucb:25:9"
 l_text_12:
-    .asciz "src/std/ownership/cycles.lucb:28:13"
+    .asciz "src/std/ownership/cycles.lucb:26:13"
 l_text_13:
-    .asciz "src/std/ownership/cycles.lucb:31:13"
+    .asciz "src/std/ownership/cycles.lucb:29:13"
 l_text_14:
-    .asciz "src/std/ownership/cycles.lucb:32:13"
+    .asciz "src/std/ownership/cycles.lucb:30:13"
 l_text_15:
-    .asciz "src/std/ownership/cycles.lucb:34:13"
+    .asciz "src/std/ownership/cycles.lucb:32:13"
 l_text_16:
-    .asciz "src/std/ownership/cycles.lucb:36:5"
+    .asciz "src/std/ownership/cycles.lucb:34:5"
 l_text_17:
-    .asciz "src/std/ownership/cycles.lucb:37:5"
+    .asciz "src/std/ownership/cycles.lucb:35:5"
 l_text_18:
-    .asciz "src/std/ownership/cycles.lucb:52:5"
+    .asciz "src/std/ownership/cycles.lucb:50:5"
 l_text_19:
-    .asciz "src/std/ownership/cycles.lucb:70:5"
+    .asciz "src/std/ownership/cycles.lucb:68:5"
 l_text_20:
-    .asciz "src/std/ownership/cycles.lucb:104:9"
+    .asciz "src/std/ownership/cycles.lucb:102:9"
 l_text_21:
-    .asciz "src/std/ownership/cycles.lucb:115:9"
+    .asciz "src/std/ownership/cycles.lucb:113:9"
 l_text_22:
-    .asciz "src/std/ownership/cycles.lucb:117:13"
+    .asciz "src/std/ownership/cycles.lucb:115:13"
 l_text_23:
-    .asciz "src/std/ownership/cycles.lucb:118:13"
+    .asciz "src/std/ownership/cycles.lucb:116:13"
 l_text_24:
-    .asciz "src/std/ownership/cycles.lucb:122:9"
+    .asciz "src/std/ownership/cycles.lucb:120:9"
 l_text_25:
-    .asciz "src/std/ownership/cycles.lucb:126:9"
+    .asciz "src/std/ownership/cycles.lucb:124:9"
 l_text_26:
-    .asciz "src/std/ownership/cycles.lucb:127:9"
+    .asciz "src/std/ownership/cycles.lucb:125:9"
 l_text_27:
-    .asciz "src/std/ownership/cycles.lucb:130:9"
+    .asciz "src/std/ownership/cycles.lucb:128:9"
 l_text_28:
-    .asciz "src/std/ownership/cycles.lucb:131:9"
+    .asciz "src/std/ownership/cycles.lucb:129:9"
 l_text_29:
-    .asciz "src/std/ownership/cycles.lucb:135:9"
+    .asciz "src/std/ownership/cycles.lucb:133:9"
 l_text_30:
-    .asciz "src/std/ownership/cycles.lucb:136:9"
+    .asciz "src/std/ownership/cycles.lucb:134:9"
 l_text_31:
-    .asciz "src/std/ownership/cycles.lucb:139:9"
+    .asciz "src/std/ownership/cycles.lucb:137:9"
 l_text_32:
-    .asciz "src/std/ownership/cycles.lucb:140:9"
+    .asciz "src/std/ownership/cycles.lucb:138:9"
 l_text_33:
-    .asciz "src/std/ownership/cycles.lucb:146:9"
+    .asciz "src/std/ownership/cycles.lucb:144:9"
 l_text_34:
-    .asciz "src/std/ownership/cycles.lucb:147:9"
+    .asciz "src/std/ownership/cycles.lucb:145:9"
 l_text_35:
-    .asciz "src/std/ownership/cycles.lucb:150:9"
+    .asciz "src/std/ownership/cycles.lucb:148:9"
 l_text_36:
-    .asciz "src/std/ownership/cycles.lucb:153:13"
+    .asciz "src/std/ownership/cycles.lucb:151:13"
 l_text_37:
-    .asciz "src/std/ownership/cycles.lucb:155:13"
+    .asciz "src/std/ownership/cycles.lucb:153:13"
 l_text_38:
     .asciz "`deinit` published `self`"
 l_text_39:
-    .asciz "src/std/ownership/cycles.lucb:156:17"
+    .asciz "src/std/ownership/cycles.lucb:154:17"
 l_text_40:
-    .asciz "src/std/ownership/cycles.lucb:159:13"
+    .asciz "src/std/ownership/cycles.lucb:157:13"
 l_text_41:
-    .asciz "src/std/ownership/cycles.lucb:160:9"
+    .asciz "src/std/ownership/cycles.lucb:158:9"
 l_text_42:
-    .asciz "src/std/ownership/cycles.lucb:163:9"
+    .asciz "src/std/ownership/cycles.lucb:161:9"
 l_text_43:
-    .asciz "src/std/ownership/cycles.lucb:164:9"
+    .asciz "src/std/ownership/cycles.lucb:162:9"
 l_text_44:
-    .asciz "src/std/ownership/cycles.lucb:167:9"
+    .asciz "src/std/ownership/cycles.lucb:165:9"
 l_text_45:
-    .asciz "src/std/ownership/cycles.lucb:168:9"
+    .asciz "src/std/ownership/cycles.lucb:166:9"
 l_text_46:
-    .asciz "src/std/ownership/cycles.lucb:172:9"
+    .asciz "src/std/ownership/cycles.lucb:170:9"
 l_text_47:
     .asciz "integer overflow"
 l_text_48:

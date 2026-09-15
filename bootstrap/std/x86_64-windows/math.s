@@ -6293,131 +6293,131 @@ lb_math_iclamp:
 .Ltext_0:
     .asciz "unreachable"
 .Ltext_1:
-    .asciz "src/std/math.lucb:51:5"
+    .asciz "src/std/math.lucb:50:5"
 .Ltext_2:
     .asciz "src/std/math.lucb:53:5"
 .Ltext_3:
-    .asciz "src/std/math.lucb:55:5"
+    .asciz "src/std/math.lucb:56:5"
 .Ltext_4:
-    .asciz "src/std/math.lucb:57:5"
+    .asciz "src/std/math.lucb:59:5"
 .Ltext_5:
-    .asciz "src/std/math.lucb:60:5"
-.Ltext_6:
     .asciz "src/std/math.lucb:62:5"
-.Ltext_7:
+.Ltext_6:
     .asciz "src/std/math.lucb:65:5"
+.Ltext_7:
+    .asciz "src/std/math.lucb:69:5"
 .Ltext_8:
-    .asciz "src/std/math.lucb:68:5"
+    .asciz "src/std/math.lucb:73:5"
 .Ltext_9:
-    .asciz "src/std/math.lucb:70:5"
-.Ltext_10:
-    .asciz "src/std/math.lucb:72:5"
-.Ltext_11:
-    .asciz "src/std/math.lucb:74:5"
-.Ltext_12:
     .asciz "src/std/math.lucb:76:5"
-.Ltext_13:
-    .asciz "src/std/math.lucb:78:5"
-.Ltext_14:
-    .asciz "src/std/math.lucb:80:5"
-.Ltext_15:
+.Ltext_10:
+    .asciz "src/std/math.lucb:79:5"
+.Ltext_11:
+    .asciz "src/std/math.lucb:82:5"
+.Ltext_12:
     .asciz "src/std/math.lucb:85:5"
+.Ltext_13:
+    .asciz "src/std/math.lucb:88:5"
+.Ltext_14:
+    .asciz "src/std/math.lucb:91:5"
+.Ltext_15:
+    .asciz "src/std/math.lucb:96:5"
 .Ltext_16:
-    .asciz "src/std/math.lucb:93:5"
+    .asciz "src/std/math.lucb:104:5"
 .Ltext_17:
-    .asciz "src/std/math.lucb:98:5"
+    .asciz "src/std/math.lucb:109:5"
 .Ltext_18:
-    .asciz "src/std/math.lucb:103:5"
+    .asciz "src/std/math.lucb:114:5"
 .Ltext_19:
-    .asciz "src/std/math.lucb:108:5"
+    .asciz "src/std/math.lucb:119:5"
 .Ltext_20:
-    .asciz "src/std/math.lucb:113:5"
+    .asciz "src/std/math.lucb:124:5"
 .Ltext_21:
-    .asciz "src/std/math.lucb:121:5"
+    .asciz "src/std/math.lucb:132:5"
 .Ltext_22:
-    .asciz "src/std/math.lucb:126:5"
+    .asciz "src/std/math.lucb:137:5"
 .Ltext_23:
-    .asciz "src/std/math.lucb:131:5"
+    .asciz "src/std/math.lucb:142:5"
 .Ltext_24:
-    .asciz "src/std/math.lucb:140:5"
-.Ltext_25:
-    .asciz "src/std/math.lucb:143:5"
-.Ltext_26:
-    .asciz "src/std/math.lucb:145:5"
-.Ltext_27:
-    .asciz "src/std/math.lucb:147:5"
-.Ltext_28:
-    .asciz "src/std/math.lucb:149:5"
-.Ltext_29:
     .asciz "src/std/math.lucb:151:5"
-.Ltext_30:
-    .asciz "src/std/math.lucb:153:5"
-.Ltext_31:
-    .asciz "src/std/math.lucb:156:5"
-.Ltext_32:
-    .asciz "src/std/math.lucb:158:5"
-.Ltext_33:
+.Ltext_25:
+    .asciz "src/std/math.lucb:154:5"
+.Ltext_26:
+    .asciz "src/std/math.lucb:157:5"
+.Ltext_27:
     .asciz "src/std/math.lucb:160:5"
-.Ltext_34:
-    .asciz "src/std/math.lucb:162:5"
-.Ltext_35:
+.Ltext_28:
+    .asciz "src/std/math.lucb:163:5"
+.Ltext_29:
     .asciz "src/std/math.lucb:166:5"
-.Ltext_36:
-    .asciz "src/std/math.lucb:170:5"
-.Ltext_37:
+.Ltext_30:
+    .asciz "src/std/math.lucb:169:5"
+.Ltext_31:
     .asciz "src/std/math.lucb:173:5"
-.Ltext_38:
+.Ltext_32:
     .asciz "src/std/math.lucb:176:5"
-.Ltext_39:
+.Ltext_33:
     .asciz "src/std/math.lucb:179:5"
-.Ltext_40:
+.Ltext_34:
     .asciz "src/std/math.lucb:182:5"
-.Ltext_41:
+.Ltext_35:
+    .asciz "src/std/math.lucb:186:5"
+.Ltext_36:
     .asciz "src/std/math.lucb:191:5"
+.Ltext_37:
+    .asciz "src/std/math.lucb:195:5"
+.Ltext_38:
+    .asciz "src/std/math.lucb:199:5"
+.Ltext_39:
+    .asciz "src/std/math.lucb:203:5"
+.Ltext_40:
+    .asciz "src/std/math.lucb:207:5"
+.Ltext_41:
+    .asciz "src/std/math.lucb:217:5"
 .Ltext_42:
-    .asciz "src/std/math.lucb:201:5"
+    .asciz "src/std/math.lucb:228:5"
 .Ltext_43:
-    .asciz "src/std/math.lucb:211:5"
+    .asciz "src/std/math.lucb:239:5"
 .Ltext_44:
     .asciz "assert failed: low <= high"
 .Ltext_45:
-    .asciz "src/std/math.lucb:215:5"
+    .asciz "src/std/math.lucb:244:5"
 .Ltext_46:
-    .asciz "src/std/math.lucb:218:5"
+    .asciz "src/std/math.lucb:247:5"
 .Ltext_47:
     .asciz "division by zero"
 .Ltext_48:
-    .asciz "src/std/math.lucb:223:5"
+    .asciz "src/std/math.lucb:252:5"
 .Ltext_49:
     .asciz "integer overflow"
 .Ltext_50:
-    .asciz "src/std/math.lucb:224:5"
-.Ltext_51:
-    .asciz "src/std/math.lucb:225:9"
-.Ltext_52:
-    .asciz "src/std/math.lucb:226:5"
-.Ltext_53:
-    .asciz "src/std/math.lucb:230:5"
-.Ltext_54:
-    .asciz "src/std/math.lucb:232:9"
-.Ltext_55:
-    .asciz "src/std/math.lucb:233:5"
-.Ltext_56:
-    .asciz "src/std/math.lucb:235:5"
-.Ltext_57:
-    .asciz "src/std/math.lucb:240:5"
-.Ltext_58:
-    .asciz "src/std/math.lucb:245:5"
-.Ltext_59:
     .asciz "src/std/math.lucb:253:5"
-.Ltext_60:
+.Ltext_51:
+    .asciz "src/std/math.lucb:254:9"
+.Ltext_52:
     .asciz "src/std/math.lucb:255:5"
-.Ltext_61:
-    .asciz "src/std/math.lucb:257:5"
-.Ltext_62:
+.Ltext_53:
     .asciz "src/std/math.lucb:260:5"
+.Ltext_54:
+    .asciz "src/std/math.lucb:262:9"
+.Ltext_55:
+    .asciz "src/std/math.lucb:263:5"
+.Ltext_56:
+    .asciz "src/std/math.lucb:266:5"
+.Ltext_57:
+    .asciz "src/std/math.lucb:272:5"
+.Ltext_58:
+    .asciz "src/std/math.lucb:278:5"
+.Ltext_59:
+    .asciz "src/std/math.lucb:287:5"
+.Ltext_60:
+    .asciz "src/std/math.lucb:290:5"
+.Ltext_61:
+    .asciz "src/std/math.lucb:293:5"
+.Ltext_62:
+    .asciz "src/std/math.lucb:297:5"
 .Ltext_63:
-    .asciz "src/std/math.lucb:261:5"
+    .asciz "src/std/math.lucb:298:5"
 
     .section .rdata,"dr"
     .p2align 3

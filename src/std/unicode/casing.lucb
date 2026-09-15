@@ -1,4 +1,3 @@
-
 ## Full default uppercase mapping, including multi-scalar expansions. This is
 ## locale-independent Unicode casing, without normalization or language tailoring.
 pub func to_upper(text: str, max_bytes: usize? = none) -> str!:

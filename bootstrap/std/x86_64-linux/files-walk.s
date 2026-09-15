@@ -3227,9 +3227,9 @@ lb_memory_copy_0g1_files_WalkFrame:
 .Ltext_31:
     .asciz "src/std/files/walk.lucb:122:13"
 .Ltext_32:
-    .asciz "src/std/memory.lucb:326:9"
-.Ltext_33:
     .asciz "src/std/memory.lucb:328:9"
+.Ltext_33:
+    .asciz "src/std/memory.lucb:330:9"
 .Ltext_34:
     .asciz "null_foreign"
 .Ltext_35:

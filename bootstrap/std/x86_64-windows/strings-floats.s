@@ -5937,13 +5937,13 @@ lb_memory_copy_0g1_u8:
 .Ltext_61:
     .asciz "null_foreign"
 .Ltext_62:
-    .asciz "src/std/memory.lucb:342:5"
+    .asciz "src/std/memory.lucb:344:5"
 .Ltext_63:
-    .asciz "src/std/memory.lucb:343:5"
+    .asciz "src/std/memory.lucb:345:5"
 .Ltext_64:
-    .asciz "src/std/memory.lucb:326:9"
-.Ltext_65:
     .asciz "src/std/memory.lucb:328:9"
+.Ltext_65:
+    .asciz "src/std/memory.lucb:330:9"
 
     .section .rdata,"dr"
     .p2align 3

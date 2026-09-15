@@ -1506,9 +1506,9 @@ lb_interop_Packet_0g1_str_init:
 .Ltext_9:
     .asciz "index out of bounds"
 .Ltext_10:
-    .asciz "src/std/memory.lucb:326:9"
-.Ltext_11:
     .asciz "src/std/memory.lucb:328:9"
+.Ltext_11:
+    .asciz "src/std/memory.lucb:330:9"
 .Ltext_12:
     .asciz "null_foreign"
 

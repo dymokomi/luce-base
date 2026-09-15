@@ -4455,28 +4455,28 @@ static const lb_vt_Writer lb_vt_net_HttpBodyWriter_Writer __attribute__((unused)
 
 __attribute__((weak)) lb_interop_Transfer_0g1_str lb_interop_Transfer_0g1_str_plain(void) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/net/listener.lucb:54:1";
+    lb_pos = "src/std/net/listener.lucb:52:5";
     lb_interop_Transfer_0g1_str _lb_ret1 = ((lb_interop_Transfer_0g1_str){.copy = lb_interop_Transfer_0g1_str_10copy_plain});
     return _lb_ret1;
     lb_trap("unreachable");
 }
 __attribute__((weak)) lb_r_interop_Packet_0g1_str lb_interop_Transfer_0g1_str_10copy_plain(lb_str lb_value) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/net/listener.lucb:57:5";
+    lb_pos = "src/std/net/listener.lucb:55:5";
     lb_interop_Packet_0g1_str _lb_ret2 = ({ lb_interop_Packet_0g1_str _lb_iv3 = {}; lb_interop_Packet_0g1_str_init(&_lb_iv3, lb_value, ((void*)0), ((void*)0)); _lb_iv3; });
     return ((lb_r_interop_Packet_0g1_str){ .value = _lb_ret2, .failed = false });
     lb_trap("unreachable");
 }
 __attribute__((weak)) lb_interop_Transfer_0g1_u8_0c lb_interop_Transfer_0g1_u8_0c_plain(void) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/net/listener.lucb:54:1";
+    lb_pos = "src/std/net/listener.lucb:52:5";
     lb_interop_Transfer_0g1_u8_0c _lb_ret4 = ((lb_interop_Transfer_0g1_u8_0c){.copy = lb_interop_Transfer_0g1_u8_0c_10copy_plain});
     return _lb_ret4;
     lb_trap("unreachable");
 }
 __attribute__((weak)) lb_r_interop_Packet_0g1_u8_0c lb_interop_Transfer_0g1_u8_0c_10copy_plain(lb_cspan lb_value) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/net/listener.lucb:57:5";
+    lb_pos = "src/std/net/listener.lucb:55:5";
     lb_interop_Packet_0g1_u8_0c _lb_ret5 = ({ lb_interop_Packet_0g1_u8_0c _lb_iv6 = {}; lb_interop_Packet_0g1_u8_0c_init(&_lb_iv6, lb_value, ((void*)0), ((void*)0)); _lb_iv6; });
     return ((lb_r_interop_Packet_0g1_u8_0c){ .value = _lb_ret5, .failed = false });
     lb_trap("unreachable");
@@ -4485,14 +4485,14 @@ uint16_t lb_net_11family_word(int32_t lb_family, uint8_t lb_length) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
     {
     }
-    lb_pos = "src/std/net/module.lucb:89:5";
+    lb_pos = "src/std/net/module.lucb:88:5";
     uint16_t _lb_ret7 = ((uint16_t)lb_conv_s((int64_t)(lb_family), 32, 1, 16, 0, 1));
     return _lb_ret7;
     lb_trap("unreachable");
 }
 void* lb_net_12info_address(const struct AddressInfo* lb_info) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/net/module.lucb:103:5";
+    lb_pos = "src/std/net/module.lucb:102:5";
     void* _lb_ret8 = ((lb_platform_macos || lb_platform_windows) ? (lb_info)->sixth : (lb_info)->fifth);
     return _lb_ret8;
     lb_trap("unreachable");
@@ -4500,7 +4500,7 @@ void* lb_net_12info_address(const struct AddressInfo* lb_info) {
 int32_t lb_net_12socket_errno(void) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
     {
-        lb_pos = "src/std/net/module.lucb:128:9";
+        lb_pos = "src/std/net/module.lucb:127:9";
         int32_t _lb_ret9 = lb_x_net_WSAGetLastError();
         return _lb_ret9;
     }
@@ -4509,7 +4509,7 @@ int32_t lb_net_12socket_errno(void) {
 int32_t lb_net_close(intptr_t lb_descriptor) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
     {
-        lb_pos = "src/std/net/module.lucb:133:9";
+        lb_pos = "src/std/net/module.lucb:132:9";
         int32_t _lb_ret10 = lb_x_net_closesocket(lb_descriptor);
         return _lb_ret10;
     }
@@ -4518,7 +4518,7 @@ int32_t lb_net_close(intptr_t lb_descriptor) {
 intptr_t lb_net_send(intptr_t lb_descriptor, const void* lb_data, size_t lb_length, int32_t lb_flags) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
     {
-        lb_pos = "src/std/net/module.lucb:138:9";
+        lb_pos = "src/std/net/module.lucb:137:9";
         intptr_t _lb_ret11 = ((intptr_t)lb_conv_s((int64_t)(lb_c_net_12windows_send(lb_descriptor, lb_data, ((int32_t)lb_conv_u((uint64_t)(lb_length), 64, 0, 32, 1, 1)), lb_flags)), 32, 1, 64, 1, 1));
         return _lb_ret11;
     }
@@ -4527,7 +4527,7 @@ intptr_t lb_net_send(intptr_t lb_descriptor, const void* lb_data, size_t lb_leng
 intptr_t lb_net_recv(intptr_t lb_descriptor, void* lb_data, size_t lb_length, int32_t lb_flags) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
     {
-        lb_pos = "src/std/net/module.lucb:143:9";
+        lb_pos = "src/std/net/module.lucb:142:9";
         intptr_t _lb_ret12 = ((intptr_t)lb_conv_s((int64_t)(lb_c_net_12windows_recv(lb_descriptor, lb_data, ((int32_t)lb_conv_u((uint64_t)(lb_length), 64, 0, 32, 1, 1)), lb_flags)), 32, 1, 64, 1, 1));
         return _lb_ret12;
     }
@@ -4536,7 +4536,7 @@ intptr_t lb_net_recv(intptr_t lb_descriptor, void* lb_data, size_t lb_length, in
 intptr_t lb_net_sendto(intptr_t lb_descriptor, const void* lb_data, size_t lb_length, int32_t lb_flags, const void* lb_address, uint32_t lb_address_length) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
     {
-        lb_pos = "src/std/net/module.lucb:148:9";
+        lb_pos = "src/std/net/module.lucb:147:9";
         intptr_t _lb_ret13 = ((intptr_t)lb_conv_s((int64_t)(lb_c_net_14windows_sendto(lb_descriptor, lb_data, ((int32_t)lb_conv_u((uint64_t)(lb_length), 64, 0, 32, 1, 1)), lb_flags, lb_address, lb_address_length)), 32, 1, 64, 1, 1));
         return _lb_ret13;
     }
@@ -4544,21 +4544,21 @@ intptr_t lb_net_sendto(intptr_t lb_descriptor, const void* lb_data, size_t lb_le
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_str_init(lb_interop_Packet_0g1_str* self, lb_str lb_value, void* lb_storage, lb_fn_0F1_void_0p_unit lb_dispose) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/net/listener.lucb:38:9";
+    lb_pos = "src/std/net/listener.lucb:36:5";
     self->value = lb_value;
-    lb_pos = "src/std/net/listener.lucb:39:9";
+    lb_pos = "src/std/net/listener.lucb:37:5";
     self->storage = lb_storage;
-    lb_pos = "src/std/net/listener.lucb:40:9";
+    lb_pos = "src/std/net/listener.lucb:38:9";
     self->dispose = lb_dispose;
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_str_release(const lb_interop_Packet_0g1_str* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/net/listener.lucb:43:13";
+    lb_pos = "src/std/net/listener.lucb:41:13";
     void* _lb_o14 = self->storage;
     if (_lb_o14 != ((void*)0)) {
         void* lb_storage __attribute__((unused)) = _lb_o14;
         {
-            lb_pos = "src/std/net/listener.lucb:44:9";
+            lb_pos = "src/std/net/listener.lucb:42:9";
             (void)(((({ lb_fn_0F1_void_0p_unit _lb_o15 = self->dispose; if (_lb_o15 == ((void*)0)) {
                 (void)(lb_trap_text(((lb_str){"a packet has storage without a disposer", 39})));
             } _lb_o15; })))(lb_storage));
@@ -4567,21 +4567,21 @@ __attribute__((weak)) void lb_interop_Packet_0g1_str_release(const lb_interop_Pa
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_init(lb_interop_Packet_0g1_u8_0c* self, lb_cspan lb_value, void* lb_storage, lb_fn_0F1_void_0p_unit lb_dispose) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/net/listener.lucb:38:9";
+    lb_pos = "src/std/net/listener.lucb:36:5";
     self->value = lb_value;
-    lb_pos = "src/std/net/listener.lucb:39:9";
+    lb_pos = "src/std/net/listener.lucb:37:5";
     self->storage = lb_storage;
-    lb_pos = "src/std/net/listener.lucb:40:9";
+    lb_pos = "src/std/net/listener.lucb:38:9";
     self->dispose = lb_dispose;
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_release(const lb_interop_Packet_0g1_u8_0c* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/net/listener.lucb:43:13";
+    lb_pos = "src/std/net/listener.lucb:41:13";
     void* _lb_o16 = self->storage;
     if (_lb_o16 != ((void*)0)) {
         void* lb_storage __attribute__((unused)) = _lb_o16;
         {
-            lb_pos = "src/std/net/listener.lucb:44:9";
+            lb_pos = "src/std/net/listener.lucb:42:9";
             (void)(((({ lb_fn_0F1_void_0p_unit _lb_o17 = self->dispose; if (_lb_o17 == ((void*)0)) {
                 (void)(lb_trap_text(((lb_str){"a packet has storage without a disposer", 39})));
             } _lb_o17; })))(lb_storage));

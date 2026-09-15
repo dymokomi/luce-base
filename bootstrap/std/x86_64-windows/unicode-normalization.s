@@ -5489,19 +5489,19 @@ lb_unicode_17encode_normalized:
 .Ltext_3:
     .asciz "memory.unset"
 .Ltext_4:
-    .asciz "src/std/unicode/normalization.lucb:23:5"
+    .asciz "src/std/unicode/normalization.lucb:22:5"
 .Ltext_5:
     .asciz "memory.exhausted"
 .Ltext_6:
-    .asciz "src/std/unicode/normalization.lucb:25:5"
+    .asciz "src/std/unicode/normalization.lucb:24:5"
 .Ltext_7:
     .asciz "the text changed during normalization"
 .Ltext_8:
-    .asciz "src/std/unicode/normalization.lucb:27:9"
+    .asciz "src/std/unicode/normalization.lucb:26:9"
 .Ltext_9:
-    .asciz "src/std/unicode/normalization.lucb:28:5"
+    .asciz "src/std/unicode/normalization.lucb:27:5"
 .Ltext_10:
-    .asciz "src/std/unicode/normalization.lucb:30:5"
+    .asciz "src/std/unicode/normalization.lucb:29:5"
 .Ltext_11:
     .asciz "index out of bounds"
 .Ltext_12:
@@ -5509,129 +5509,129 @@ lb_unicode_17encode_normalized:
 .Ltext_13:
     .asciz "invalid UTF-8 text"
 .Ltext_14:
-    .asciz "src/std/unicode/normalization.lucb:38:9"
+    .asciz "src/std/unicode/normalization.lucb:37:9"
 .Ltext_15:
-    .asciz "src/std/unicode/normalization.lucb:42:9"
+    .asciz "src/std/unicode/normalization.lucb:41:9"
 .Ltext_16:
     .asciz "division by zero"
 .Ltext_17:
     .asciz "the decomposed text size overflowed"
 .Ltext_18:
-    .asciz "src/std/unicode/normalization.lucb:48:17"
+    .asciz "src/std/unicode/normalization.lucb:47:17"
 .Ltext_19:
-    .asciz "src/std/unicode/normalization.lucb:49:17"
+    .asciz "src/std/unicode/normalization.lucb:48:17"
 .Ltext_20:
-    .asciz "src/std/unicode/normalization.lucb:50:17"
+    .asciz "src/std/unicode/normalization.lucb:49:17"
 .Ltext_21:
-    .asciz "src/std/unicode/normalization.lucb:52:21"
+    .asciz "src/std/unicode/normalization.lucb:51:21"
 .Ltext_22:
-    .asciz "src/std/unicode/normalization.lucb:55:21"
+    .asciz "src/std/unicode/normalization.lucb:54:21"
 .Ltext_23:
-    .asciz "src/std/unicode/normalization.lucb:57:5"
+    .asciz "src/std/unicode/normalization.lucb:56:5"
 .Ltext_24:
-    .asciz "src/std/unicode/normalization.lucb:66:9"
+    .asciz "src/std/unicode/normalization.lucb:65:9"
 .Ltext_25:
-    .asciz "src/std/unicode/normalization.lucb:67:13"
+    .asciz "src/std/unicode/normalization.lucb:66:13"
 .Ltext_26:
-    .asciz "src/std/unicode/normalization.lucb:73:13"
+    .asciz "src/std/unicode/normalization.lucb:72:13"
 .Ltext_27:
-    .asciz "src/std/unicode/normalization.lucb:79:13"
+    .asciz "src/std/unicode/normalization.lucb:78:13"
 .Ltext_28:
-    .asciz "src/std/unicode/normalization.lucb:80:9"
+    .asciz "src/std/unicode/normalization.lucb:79:9"
 .Ltext_29:
-    .asciz "src/std/unicode/normalization.lucb:85:5"
+    .asciz "src/std/unicode/normalization.lucb:84:5"
 .Ltext_30:
-    .asciz "src/std/unicode/normalization.lucb:89:9"
+    .asciz "src/std/unicode/normalization.lucb:88:9"
 .Ltext_31:
-    .asciz "src/std/unicode/normalization.lucb:90:13"
+    .asciz "src/std/unicode/normalization.lucb:89:13"
 .Ltext_32:
-    .asciz "src/std/unicode/normalization.lucb:96:13"
+    .asciz "src/std/unicode/normalization.lucb:95:13"
 .Ltext_33:
-    .asciz "src/std/unicode/normalization.lucb:102:13"
+    .asciz "src/std/unicode/normalization.lucb:101:13"
 .Ltext_34:
-    .asciz "src/std/unicode/normalization.lucb:104:13"
+    .asciz "src/std/unicode/normalization.lucb:103:13"
 .Ltext_35:
-    .asciz "src/std/unicode/normalization.lucb:111:9"
+    .asciz "src/std/unicode/normalization.lucb:110:9"
 .Ltext_36:
     .asciz "shift count out of range"
 .Ltext_37:
-    .asciz "src/std/unicode/normalization.lucb:116:13"
+    .asciz "src/std/unicode/normalization.lucb:115:13"
 .Ltext_38:
-    .asciz "src/std/unicode/normalization.lucb:117:13"
+    .asciz "src/std/unicode/normalization.lucb:116:13"
 .Ltext_39:
-    .asciz "src/std/unicode/normalization.lucb:122:17"
+    .asciz "src/std/unicode/normalization.lucb:121:17"
 .Ltext_40:
-    .asciz "src/std/unicode/normalization.lucb:123:21"
+    .asciz "src/std/unicode/normalization.lucb:122:21"
 .Ltext_41:
-    .asciz "src/std/unicode/normalization.lucb:124:21"
+    .asciz "src/std/unicode/normalization.lucb:123:21"
 .Ltext_42:
-    .asciz "src/std/unicode/normalization.lucb:126:21"
+    .asciz "src/std/unicode/normalization.lucb:125:21"
 .Ltext_43:
-    .asciz "src/std/unicode/normalization.lucb:127:21"
+    .asciz "src/std/unicode/normalization.lucb:126:21"
 .Ltext_44:
-    .asciz "src/std/unicode/normalization.lucb:128:17"
+    .asciz "src/std/unicode/normalization.lucb:127:17"
 .Ltext_45:
-    .asciz "src/std/unicode/normalization.lucb:131:13"
+    .asciz "src/std/unicode/normalization.lucb:130:13"
 .Ltext_46:
-    .asciz "src/std/unicode/normalization.lucb:132:9"
+    .asciz "src/std/unicode/normalization.lucb:131:9"
 .Ltext_47:
-    .asciz "src/std/unicode/normalization.lucb:134:9"
+    .asciz "src/std/unicode/normalization.lucb:133:9"
 .Ltext_48:
-    .asciz "src/std/unicode/normalization.lucb:136:9"
+    .asciz "src/std/unicode/normalization.lucb:135:9"
 .Ltext_49:
-    .asciz "src/std/unicode/normalization.lucb:142:5"
+    .asciz "src/std/unicode/normalization.lucb:141:5"
 .Ltext_50:
-    .asciz "src/std/unicode/normalization.lucb:146:9"
+    .asciz "src/std/unicode/normalization.lucb:145:9"
 .Ltext_51:
-    .asciz "src/std/unicode/normalization.lucb:151:17"
+    .asciz "src/std/unicode/normalization.lucb:150:17"
 .Ltext_52:
-    .asciz "src/std/unicode/normalization.lucb:157:9"
+    .asciz "src/std/unicode/normalization.lucb:156:9"
 .Ltext_53:
-    .asciz "src/std/unicode/normalization.lucb:158:9"
+    .asciz "src/std/unicode/normalization.lucb:157:9"
 .Ltext_54:
-    .asciz "src/std/unicode/normalization.lucb:160:5"
+    .asciz "src/std/unicode/normalization.lucb:159:5"
 .Ltext_55:
-    .asciz "src/std/unicode/normalization.lucb:165:9"
+    .asciz "src/std/unicode/normalization.lucb:164:9"
 .Ltext_56:
-    .asciz "src/std/unicode/normalization.lucb:166:5"
+    .asciz "src/std/unicode/normalization.lucb:165:5"
 .Ltext_57:
-    .asciz "src/std/unicode/normalization.lucb:167:9"
+    .asciz "src/std/unicode/normalization.lucb:166:9"
 .Ltext_58:
-    .asciz "src/std/unicode/normalization.lucb:168:5"
+    .asciz "src/std/unicode/normalization.lucb:167:5"
 .Ltext_59:
-    .asciz "src/std/unicode/normalization.lucb:170:5"
+    .asciz "src/std/unicode/normalization.lucb:169:5"
 .Ltext_60:
-    .asciz "src/std/unicode/normalization.lucb:172:9"
+    .asciz "src/std/unicode/normalization.lucb:171:9"
 .Ltext_61:
-    .asciz "src/std/unicode/normalization.lucb:173:9"
+    .asciz "src/std/unicode/normalization.lucb:172:9"
 .Ltext_62:
-    .asciz "src/std/unicode/normalization.lucb:174:9"
+    .asciz "src/std/unicode/normalization.lucb:173:9"
 .Ltext_63:
-    .asciz "src/std/unicode/normalization.lucb:176:13"
+    .asciz "src/std/unicode/normalization.lucb:175:13"
 .Ltext_64:
-    .asciz "src/std/unicode/normalization.lucb:180:13"
+    .asciz "src/std/unicode/normalization.lucb:179:13"
 .Ltext_65:
-    .asciz "src/std/unicode/normalization.lucb:181:5"
+    .asciz "src/std/unicode/normalization.lucb:180:5"
 .Ltext_66:
     .asciz "invalid generated Unicode scalar"
 .Ltext_67:
-    .asciz "src/std/unicode/normalization.lucb:186:9"
+    .asciz "src/std/unicode/normalization.lucb:185:9"
 .Ltext_68:
     .asciz "the normalized text size overflowed"
 .Ltext_69:
     .asciz "the normalized text exceeds its byte limit"
 .Ltext_70:
-    .asciz "src/std/unicode/normalization.lucb:192:5"
+    .asciz "src/std/unicode/normalization.lucb:191:5"
 .Ltext_71:
-    .asciz "src/std/unicode/normalization.lucb:195:9"
+    .asciz "src/std/unicode/normalization.lucb:194:9"
 .Ltext_72:
     .asciz "a normalized scalar did not fit its encoded length"
 .Ltext_73:
-    .asciz "src/std/unicode/normalization.lucb:196:9"
+    .asciz "src/std/unicode/normalization.lucb:195:9"
 .Ltext_74:
-    .asciz "src/std/unicode/normalization.lucb:197:5"
+    .asciz "src/std/unicode/normalization.lucb:196:5"
 .Ltext_75:
-    .asciz "src/std/unicode/normalization.lucb:198:5"
+    .asciz "src/std/unicode/normalization.lucb:197:5"
 .Ltext_76:
     .asciz "integer overflow"
 

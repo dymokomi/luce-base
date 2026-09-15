@@ -26,4 +26,3 @@ pub func narrow(text: const u16[], invalid: ErrorCode) -> str!:
         error(invalid, "OS text could not be converted to UTF-8")
     result[(usize)count] = 0
     return (str)result[..<(usize)count]
-

@@ -2,7 +2,6 @@
 ## their filesystem, process, input or graphics adapter. Public standard APIs
 ## never expose these declarations. This module cannot depend on allocation.
 import c
-
 pub let utf8_page: u32 = 65001
 pub let reject_invalid_utf8: u32 = 8
 pub let reject_invalid_utf16: u32 = 128

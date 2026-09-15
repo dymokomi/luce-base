@@ -7610,9 +7610,9 @@ lb_memory_copy_0g1_u8:
 .Ltext_73:
     .asciz "src/std/net/websocket/frame.lucb:278:13"
 .Ltext_74:
-    .asciz "src/std/memory.lucb:326:9"
-.Ltext_75:
     .asciz "src/std/memory.lucb:328:9"
+.Ltext_75:
+    .asciz "src/std/memory.lucb:330:9"
 .Ltext_76:
     .asciz "null_foreign"
 .Ltext_77:

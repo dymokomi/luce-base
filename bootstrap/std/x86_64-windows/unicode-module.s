@@ -363,9 +363,9 @@ lb_unicode_15combining_class:
 .Ltext_1:
     .asciz "unreachable"
 .Ltext_2:
-    .asciz "src/std/unicode/module.lucb:20:5"
+    .asciz "src/std/unicode/module.lucb:19:5"
 .Ltext_3:
-    .asciz "src/std/unicode/module.lucb:24:5"
+    .asciz "src/std/unicode/module.lucb:23:5"
 
     .section .rdata,"dr"
     .p2align 3

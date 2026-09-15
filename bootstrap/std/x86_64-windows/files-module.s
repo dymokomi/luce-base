@@ -1114,9 +1114,9 @@ lb_files_10next_entry:
 .Ltext_0:
     .asciz "unreachable"
 .Ltext_1:
-    .asciz "src/std/files/module.lucb:20:9"
+    .asciz "src/std/files/module.lucb:19:9"
 .Ltext_2:
-    .asciz "src/std/files/module.lucb:25:9"
+    .asciz "src/std/files/module.lucb:24:9"
 .Ltext_3:
     .asciz "src/std/files/module.lucb:35:5"
 .Ltext_4:
@@ -1124,7 +1124,7 @@ lb_files_10next_entry:
 .Ltext_5:
     .asciz "src/std/files/module.lucb:48:9"
 .Ltext_6:
-    .asciz "src/std/files/module.lucb:90:9"
+    .asciz "src/std/files/module.lucb:91:9"
 
     .section .rdata,"dr"
     .p2align 3

@@ -5361,9 +5361,9 @@ lb_memory_copy_0g1_u8:
 .Ltext_33:
     .asciz "src/std/gpu/vulkan/render.lucb:135:5"
 .Ltext_34:
-    .asciz "src/std/memory.lucb:326:9"
-.Ltext_35:
     .asciz "src/std/memory.lucb:328:9"
+.Ltext_35:
+    .asciz "src/std/memory.lucb:330:9"
 .Ltext_36:
     .asciz "null_foreign"
 .Ltext_37:

@@ -471,21 +471,21 @@ L7_1:
 l_text_0:
     .asciz "shift count out of range"
 l_text_1:
-    .asciz "src/std/net/module.lucb:88:9"
+    .asciz "src/std/net/module.lucb:87:9"
 l_text_2:
     .asciz "unreachable"
 l_text_3:
-    .asciz "src/std/net/module.lucb:103:5"
+    .asciz "src/std/net/module.lucb:102:5"
 l_text_4:
-    .asciz "src/std/net/module.lucb:129:5"
+    .asciz "src/std/net/module.lucb:128:5"
 l_text_5:
-    .asciz "src/std/net/module.lucb:134:5"
+    .asciz "src/std/net/module.lucb:133:5"
 l_text_6:
-    .asciz "src/std/net/module.lucb:139:5"
+    .asciz "src/std/net/module.lucb:138:5"
 l_text_7:
-    .asciz "src/std/net/module.lucb:144:5"
+    .asciz "src/std/net/module.lucb:143:5"
 l_text_8:
-    .asciz "src/std/net/module.lucb:149:5"
+    .asciz "src/std/net/module.lucb:148:5"
 
     .section __DATA,__const
     .p2align 3

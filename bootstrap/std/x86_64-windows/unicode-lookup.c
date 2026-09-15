@@ -4281,139 +4281,139 @@ extern uint32_t lb_gpu_22vulkan_api_version_1_0;
 
 __attribute__((weak)) lb_interop_Transfer_0g1_str lb_interop_Transfer_0g1_str_plain(void) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/unicode/graphemes.lucb:410:1";
+    lb_pos = "src/std/unicode/graphemes.lucb:411:1";
     lb_interop_Transfer_0g1_str _lb_ret1 = ((lb_interop_Transfer_0g1_str){.copy = lb_interop_Transfer_0g1_str_10copy_plain});
     return _lb_ret1;
     lb_trap("unreachable");
 }
 __attribute__((weak)) lb_r_interop_Packet_0g1_str lb_interop_Transfer_0g1_str_10copy_plain(lb_str lb_value) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/unicode/graphemes.lucb:413:1";
+    lb_pos = "src/std/unicode/graphemes.lucb:414:1";
     lb_interop_Packet_0g1_str _lb_ret2 = ({ lb_interop_Packet_0g1_str _lb_iv3 = {}; lb_interop_Packet_0g1_str_init(&_lb_iv3, lb_value, ((void*)0), ((void*)0)); _lb_iv3; });
     return ((lb_r_interop_Packet_0g1_str){ .value = _lb_ret2, .failed = false });
     lb_trap("unreachable");
 }
 __attribute__((weak)) lb_interop_Transfer_0g1_u8_0c lb_interop_Transfer_0g1_u8_0c_plain(void) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/unicode/graphemes.lucb:410:1";
+    lb_pos = "src/std/unicode/graphemes.lucb:411:1";
     lb_interop_Transfer_0g1_u8_0c _lb_ret4 = ((lb_interop_Transfer_0g1_u8_0c){.copy = lb_interop_Transfer_0g1_u8_0c_10copy_plain});
     return _lb_ret4;
     lb_trap("unreachable");
 }
 __attribute__((weak)) lb_r_interop_Packet_0g1_u8_0c lb_interop_Transfer_0g1_u8_0c_10copy_plain(lb_cspan lb_value) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/unicode/graphemes.lucb:413:1";
+    lb_pos = "src/std/unicode/graphemes.lucb:414:1";
     lb_interop_Packet_0g1_u8_0c _lb_ret5 = ({ lb_interop_Packet_0g1_u8_0c _lb_iv6 = {}; lb_interop_Packet_0g1_u8_0c_init(&_lb_iv6, lb_value, ((void*)0), ((void*)0)); _lb_iv6; });
     return ((lb_r_interop_Packet_0g1_u8_0c){ .value = _lb_ret5, .failed = false });
     lb_trap("unreachable");
 }
 uint32_t lb_unicode_10table_word(lb_str lb_table, size_t lb_offset) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/unicode/lookup.lucb:5:5";
+    lb_pos = "src/std/unicode/lookup.lucb:4:5";
     uint32_t lb_value __attribute__((unused)) = 0ULL;
-    lb_pos = "src/std/unicode/lookup.lucb:6:5";
+    lb_pos = "src/std/unicode/lookup.lucb:5:5";
     for (size_t lb_index __attribute__((unused)) = (size_t)(0ULL); lb_index < (size_t)(((size_t)lb_conv_s((int64_t)(8LL), 64, 1, 64, 0, 1))); lb_index++) {
         {
-            lb_pos = "src/std/unicode/lookup.lucb:7:9";
+            lb_pos = "src/std/unicode/lookup.lucb:6:9";
             uint8_t lb_byte __attribute__((unused)) = (*({ lb_cspan _lb_ix8 = ((lb_cspan){(void*)(lb_table.data), lb_table.length}); &((uint8_t*)_lb_ix8.data)[lb_at((uint64_t)((size_t)(lb_add_u((uint64_t)(lb_offset), (uint64_t)(lb_index), 64))), _lb_ix8.length)]; }));
-            lb_pos = "src/std/unicode/lookup.lucb:8:9";
+            lb_pos = "src/std/unicode/lookup.lucb:7:9";
             uint8_t lb_digit __attribute__((unused)) = ((((uint8_t)(lb_byte)) <= ((uint8_t)(57u))) ? (uint8_t)(lb_sub_u((uint64_t)(lb_byte), (uint64_t)(48u), 8)) : (uint8_t)(lb_add_u((uint64_t)((uint8_t)(lb_sub_u((uint64_t)(lb_byte), (uint64_t)(97u), 8))), (uint64_t)(10ULL), 8)));
-            lb_pos = "src/std/unicode/lookup.lucb:9:9";
+            lb_pos = "src/std/unicode/lookup.lucb:8:9";
             lb_value = ((uint32_t)(((uint32_t)(lb_shl_u((uint64_t)(lb_value), (uint64_t)((uint32_t)(4LL)), 32))) | ((uint32_t)lb_conv_u((uint64_t)(lb_digit), 8, 0, 32, 0, 1))));
         }
     }
-    lb_pos = "src/std/unicode/lookup.lucb:10:5";
+    lb_pos = "src/std/unicode/lookup.lucb:9:5";
     uint32_t _lb_ret9 = lb_value;
     return _lb_ret9;
     lb_trap("unreachable");
 }
 uint32_t lb_unicode_11range_value(lb_str lb_table, uint32_t lb_scalar) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/unicode/lookup.lucb:27:5";
+    lb_pos = "src/std/unicode/lookup.lucb:26:5";
     size_t lb_low __attribute__((unused)) = 0ULL;
-    lb_pos = "src/std/unicode/lookup.lucb:28:5";
+    lb_pos = "src/std/unicode/lookup.lucb:27:5";
     size_t lb_high __attribute__((unused)) = (size_t)(lb_div_u((uint64_t)((lb_table.length)), (uint64_t)(24ULL), 64));
-    lb_pos = "src/std/unicode/lookup.lucb:29:5";
+    lb_pos = "src/std/unicode/lookup.lucb:28:5";
     for (;;) {
-        lb_pos = "src/std/unicode/lookup.lucb:29:5";
+        lb_pos = "src/std/unicode/lookup.lucb:28:5";
         if (!((((size_t)(lb_low)) < ((size_t)(lb_high))))) break;
         {
-            lb_pos = "src/std/unicode/lookup.lucb:30:9";
+            lb_pos = "src/std/unicode/lookup.lucb:29:9";
             size_t lb_middle __attribute__((unused)) = (size_t)(lb_add_u((uint64_t)(lb_low), (uint64_t)((size_t)(lb_div_u((uint64_t)(((size_t)(lb_sub_u((uint64_t)(lb_high), (uint64_t)(lb_low), 64)))), (uint64_t)(2ULL), 64))), 64));
-            lb_pos = "src/std/unicode/lookup.lucb:31:9";
+            lb_pos = "src/std/unicode/lookup.lucb:30:9";
             size_t lb_offset __attribute__((unused)) = (size_t)(lb_mul_u((uint64_t)(lb_middle), (uint64_t)(24ULL), 64));
-            lb_pos = "src/std/unicode/lookup.lucb:32:9";
+            lb_pos = "src/std/unicode/lookup.lucb:31:9";
             if (!!(({ uint32_t _lb_sq10 __attribute__((unused)) = lb_scalar; uint32_t _lb_sq11 __attribute__((unused)) = lb_unicode_10table_word(lb_table, lb_offset); (((uint32_t)(_lb_sq10)) < ((uint32_t)(_lb_sq11))); }))) 
             {
-                lb_pos = "src/std/unicode/lookup.lucb:33:13";
+                lb_pos = "src/std/unicode/lookup.lucb:32:13";
                 lb_high = lb_middle;
             }
             else {
-                lb_pos = "src/std/unicode/lookup.lucb:34:9";
+                lb_pos = "src/std/unicode/lookup.lucb:33:9";
                 if (!!(({ uint32_t _lb_sq12 __attribute__((unused)) = lb_scalar; uint32_t _lb_sq13 __attribute__((unused)) = lb_unicode_10table_word(lb_table, (size_t)(lb_add_u((uint64_t)(lb_offset), (uint64_t)(8ULL), 64))); (((uint32_t)(_lb_sq12)) > ((uint32_t)(_lb_sq13))); }))) 
                 {
-                    lb_pos = "src/std/unicode/lookup.lucb:35:13";
+                    lb_pos = "src/std/unicode/lookup.lucb:34:13";
                     lb_low = (size_t)(lb_add_u((uint64_t)(lb_middle), (uint64_t)(1ULL), 64));
                 }
                 else 
                 {
-                    lb_pos = "src/std/unicode/lookup.lucb:37:13";
+                    lb_pos = "src/std/unicode/lookup.lucb:36:13";
                     uint32_t _lb_ret14 = lb_unicode_10table_word(lb_table, (size_t)(lb_add_u((uint64_t)(lb_offset), (uint64_t)(16ULL), 64)));
                     return _lb_ret14;
                 }
             }
         }
     }
-    lb_pos = "src/std/unicode/lookup.lucb:38:5";
+    lb_pos = "src/std/unicode/lookup.lucb:37:5";
     uint32_t _lb_ret15 = 0ULL;
     return _lb_ret15;
     lb_trap("unreachable");
 }
 uint32_t lb_unicode_Mapping_at(const lb_unicode_Mapping* self, size_t lb_index) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/unicode/lookup.lucb:47:9";
+    lb_pos = "src/std/unicode/lookup.lucb:46:9";
     (void)(((void)(((((size_t)(lb_index)) < ((size_t)(self->length)))) ? 0 : (lb_trap("assert failed: " "index < self.length"), 0))));
-    lb_pos = "src/std/unicode/lookup.lucb:48:9";
+    lb_pos = "src/std/unicode/lookup.lucb:47:9";
     uint32_t _lb_ret16 = (self->is_single ? self->scalar : lb_unicode_10table_word(lb_unicode_15mapping_scalars, (size_t)(lb_mul_u((uint64_t)(((size_t)(lb_add_u((uint64_t)(self->offset), (uint64_t)(lb_index), 64)))), (uint64_t)(8ULL), 64))));
     return _lb_ret16;
     lb_trap("unreachable");
 }
 lb_o_unicode_Mapping lb_unicode_mapped(lb_str lb_table, uint32_t lb_scalar) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/unicode/lookup.lucb:51:5";
+    lb_pos = "src/std/unicode/lookup.lucb:50:5";
     size_t lb_offset __attribute__((unused)) = ({ lb_o_usize _lb_o17 = lb_unicode_11find_record(lb_table, lb_scalar); if (!_lb_o17.present) {
         lb_o_unicode_Mapping _lb_ret18 = ((lb_o_unicode_Mapping){ .present = false });
         return _lb_ret18;
     } _lb_o17.value; });
-    lb_pos = "src/std/unicode/lookup.lucb:52:5";
+    lb_pos = "src/std/unicode/lookup.lucb:51:5";
     lb_o_unicode_Mapping _lb_ret19 = ((lb_o_unicode_Mapping){ .value = ({ size_t _lb_sq20 __attribute__((unused)) = ((size_t)lb_conv_u((uint64_t)(lb_unicode_10table_word(lb_table, (size_t)(lb_add_u((uint64_t)(lb_offset), (uint64_t)(8ULL), 64)))), 32, 0, 64, 0, 1)); size_t _lb_sq21 __attribute__((unused)) = ((size_t)lb_conv_u((uint64_t)(lb_unicode_10table_word(lb_table, (size_t)(lb_add_u((uint64_t)(lb_offset), (uint64_t)(16ULL), 64)))), 32, 0, 64, 0, 1)); ((lb_unicode_Mapping){.offset = _lb_sq20, .length = _lb_sq21}); }), .present = true });
     return _lb_ret19;
     lb_trap("unreachable");
 }
 lb_unicode_Mapping lb_unicode_16identity_mapping(uint32_t lb_scalar) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/unicode/lookup.lucb:55:5";
+    lb_pos = "src/std/unicode/lookup.lucb:54:5";
     lb_unicode_Mapping _lb_ret22 = ((lb_unicode_Mapping){.length = 1ULL, .scalar = lb_scalar, .is_single = true});
     return _lb_ret22;
     lb_trap("unreachable");
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_str_init(lb_interop_Packet_0g1_str* self, lb_str lb_value, void* lb_storage, lb_fn_0F1_void_0p_unit lb_dispose) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/unicode/graphemes.lucb:394:1";
-    self->value = lb_value;
     lb_pos = "src/std/unicode/graphemes.lucb:395:1";
-    self->storage = lb_storage;
+    self->value = lb_value;
     lb_pos = "src/std/unicode/graphemes.lucb:396:1";
+    self->storage = lb_storage;
+    lb_pos = "src/std/unicode/graphemes.lucb:397:1";
     self->dispose = lb_dispose;
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_str_release(const lb_interop_Packet_0g1_str* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/unicode/graphemes.lucb:399:1";
+    lb_pos = "src/std/unicode/graphemes.lucb:400:1";
     void* _lb_o23 = self->storage;
     if (_lb_o23 != ((void*)0)) {
         void* lb_storage __attribute__((unused)) = _lb_o23;
         {
-            lb_pos = "src/std/unicode/graphemes.lucb:400:1";
+            lb_pos = "src/std/unicode/graphemes.lucb:401:1";
             (void)(((({ lb_fn_0F1_void_0p_unit _lb_o24 = self->dispose; if (_lb_o24 == ((void*)0)) {
                 (void)(lb_trap_text(((lb_str){"a packet has storage without a disposer", 39})));
             } _lb_o24; })))(lb_storage));
@@ -4422,21 +4422,21 @@ __attribute__((weak)) void lb_interop_Packet_0g1_str_release(const lb_interop_Pa
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_init(lb_interop_Packet_0g1_u8_0c* self, lb_cspan lb_value, void* lb_storage, lb_fn_0F1_void_0p_unit lb_dispose) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/unicode/graphemes.lucb:394:1";
-    self->value = lb_value;
     lb_pos = "src/std/unicode/graphemes.lucb:395:1";
-    self->storage = lb_storage;
+    self->value = lb_value;
     lb_pos = "src/std/unicode/graphemes.lucb:396:1";
+    self->storage = lb_storage;
+    lb_pos = "src/std/unicode/graphemes.lucb:397:1";
     self->dispose = lb_dispose;
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_release(const lb_interop_Packet_0g1_u8_0c* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/unicode/graphemes.lucb:399:1";
+    lb_pos = "src/std/unicode/graphemes.lucb:400:1";
     void* _lb_o25 = self->storage;
     if (_lb_o25 != ((void*)0)) {
         void* lb_storage __attribute__((unused)) = _lb_o25;
         {
-            lb_pos = "src/std/unicode/graphemes.lucb:400:1";
+            lb_pos = "src/std/unicode/graphemes.lucb:401:1";
             (void)(((({ lb_fn_0F1_void_0p_unit _lb_o26 = self->dispose; if (_lb_o26 == ((void*)0)) {
                 (void)(lb_trap_text(((lb_str){"a packet has storage without a disposer", 39})));
             } _lb_o26; })))(lb_storage));
@@ -4445,42 +4445,42 @@ __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_release(const lb_interop_
 }
 lb_o_usize lb_unicode_11find_record(lb_str lb_table, uint32_t lb_scalar) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/unicode/lookup.lucb:13:5";
+    lb_pos = "src/std/unicode/lookup.lucb:12:5";
     size_t lb_low __attribute__((unused)) = 0ULL;
-    lb_pos = "src/std/unicode/lookup.lucb:14:5";
+    lb_pos = "src/std/unicode/lookup.lucb:13:5";
     size_t lb_high __attribute__((unused)) = (size_t)(lb_div_u((uint64_t)((lb_table.length)), (uint64_t)(24ULL), 64));
-    lb_pos = "src/std/unicode/lookup.lucb:15:5";
+    lb_pos = "src/std/unicode/lookup.lucb:14:5";
     for (;;) {
-        lb_pos = "src/std/unicode/lookup.lucb:15:5";
+        lb_pos = "src/std/unicode/lookup.lucb:14:5";
         if (!((((size_t)(lb_low)) < ((size_t)(lb_high))))) break;
         {
-            lb_pos = "src/std/unicode/lookup.lucb:16:9";
+            lb_pos = "src/std/unicode/lookup.lucb:15:9";
             size_t lb_middle __attribute__((unused)) = (size_t)(lb_add_u((uint64_t)(lb_low), (uint64_t)((size_t)(lb_div_u((uint64_t)(((size_t)(lb_sub_u((uint64_t)(lb_high), (uint64_t)(lb_low), 64)))), (uint64_t)(2ULL), 64))), 64));
-            lb_pos = "src/std/unicode/lookup.lucb:17:9";
+            lb_pos = "src/std/unicode/lookup.lucb:16:9";
             uint32_t lb_key __attribute__((unused)) = lb_unicode_10table_word(lb_table, (size_t)(lb_mul_u((uint64_t)(lb_middle), (uint64_t)(24ULL), 64)));
-            lb_pos = "src/std/unicode/lookup.lucb:18:9";
+            lb_pos = "src/std/unicode/lookup.lucb:17:9";
             if (!!((((uint32_t)(lb_key)) < ((uint32_t)(lb_scalar))))) 
             {
-                lb_pos = "src/std/unicode/lookup.lucb:19:13";
+                lb_pos = "src/std/unicode/lookup.lucb:18:13";
                 lb_low = (size_t)(lb_add_u((uint64_t)(lb_middle), (uint64_t)(1ULL), 64));
             }
             else {
-                lb_pos = "src/std/unicode/lookup.lucb:20:9";
+                lb_pos = "src/std/unicode/lookup.lucb:19:9";
                 if (!!((((uint32_t)(lb_key)) > ((uint32_t)(lb_scalar))))) 
                 {
-                    lb_pos = "src/std/unicode/lookup.lucb:21:13";
+                    lb_pos = "src/std/unicode/lookup.lucb:20:13";
                     lb_high = lb_middle;
                 }
                 else 
                 {
-                    lb_pos = "src/std/unicode/lookup.lucb:23:13";
+                    lb_pos = "src/std/unicode/lookup.lucb:22:13";
                     lb_o_usize _lb_ret27 = ((lb_o_usize){ .value = (size_t)(lb_mul_u((uint64_t)(lb_middle), (uint64_t)(24ULL), 64)), .present = true });
                     return _lb_ret27;
                 }
             }
         }
     }
-    lb_pos = "src/std/unicode/lookup.lucb:24:5";
+    lb_pos = "src/std/unicode/lookup.lucb:23:5";
     lb_o_usize _lb_ret28 = ((lb_o_usize){ .present = false });
     return _lb_ret28;
     lb_trap("unreachable");

@@ -4673,9 +4673,9 @@ l_text_72:
 l_text_73:
     .asciz "src/std/net/websocket/frame.lucb:278:13"
 l_text_74:
-    .asciz "src/std/memory.lucb:326:9"
-l_text_75:
     .asciz "src/std/memory.lucb:328:9"
+l_text_75:
+    .asciz "src/std/memory.lucb:330:9"
 l_text_76:
     .asciz "null_foreign"
 l_text_77:

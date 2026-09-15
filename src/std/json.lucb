@@ -6,7 +6,6 @@ import interop
 import strings
 import utf8
 import math
-
 pub let invalid: ErrorCode = ErrorCode.package(110)
 pub let limit_exceeded: ErrorCode = ErrorCode.package(111)
 

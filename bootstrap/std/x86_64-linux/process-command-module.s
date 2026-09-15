@@ -4149,9 +4149,9 @@ lb_memory_copy_0g1_u8:
 .Ltext_45:
     .asciz "src/std/process/command/module.lucb:170:5"
 .Ltext_46:
-    .asciz "src/std/memory.lucb:326:9"
-.Ltext_47:
     .asciz "src/std/memory.lucb:328:9"
+.Ltext_47:
+    .asciz "src/std/memory.lucb:330:9"
 .Ltext_48:
     .asciz "null_foreign"
 .Ltext_49:

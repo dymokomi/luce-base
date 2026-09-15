@@ -3977,13 +3977,13 @@ lb_memory_copy_0g1_u8:
 .Ltext_62:
     .asciz "null_foreign"
 .Ltext_63:
-    .asciz "src/std/memory.lucb:342:5"
+    .asciz "src/std/memory.lucb:344:5"
 .Ltext_64:
-    .asciz "src/std/memory.lucb:343:5"
+    .asciz "src/std/memory.lucb:345:5"
 .Ltext_65:
-    .asciz "src/std/memory.lucb:326:9"
-.Ltext_66:
     .asciz "src/std/memory.lucb:328:9"
+.Ltext_66:
+    .asciz "src/std/memory.lucb:330:9"
 
     .section .data.rel.ro,"aw"
     .p2align 3

@@ -3685,129 +3685,129 @@ lb_process_15release_storage_0g1_5c_str_0o:
 .Lvsign64:
     .quad -9223372036854775808, -9223372036854775808
 .Ltext_0:
-    .asciz "src/std/process/module.lucb:43:9"
+    .asciz "src/std/process/module.lucb:41:9"
 .Ltext_1:
     .asciz "memory.exhausted: the allocation size overflows"
 .Ltext_2:
     .asciz "memory.unset"
 .Ltext_3:
-    .asciz "src/std/process/module.lucb:45:17"
+    .asciz "src/std/process/module.lucb:43:17"
 .Ltext_4:
     .asciz "memory.exhausted"
 .Ltext_5:
-    .asciz "src/std/process/module.lucb:47:17"
+    .asciz "src/std/process/module.lucb:45:17"
 .Ltext_6:
-    .asciz "src/std/process/module.lucb:48:9"
+    .asciz "src/std/process/module.lucb:46:9"
 .Ltext_7:
     .asciz "index out of bounds"
 .Ltext_8:
-    .asciz "src/std/process/module.lucb:52:13"
+    .asciz "src/std/process/module.lucb:50:13"
 .Ltext_9:
     .asciz "the program's output cannot be read"
 .Ltext_10:
-    .asciz "src/std/process/module.lucb:62:17"
+    .asciz "src/std/process/module.lucb:60:17"
 .Ltext_11:
-    .asciz "src/std/process/module.lucb:65:9"
+    .asciz "src/std/process/module.lucb:63:9"
 .Ltext_12:
-    .asciz "src/std/process/module.lucb:67:9"
+    .asciz "src/std/process/module.lucb:65:9"
 .Ltext_13:
     .asciz "unreachable"
 .Ltext_14:
-    .asciz "src/std/process/module.lucb:69:9"
+    .asciz "src/std/process/module.lucb:67:9"
 .Ltext_15:
-    .asciz "src/std/process/module.lucb:73:13"
+    .asciz "src/std/process/module.lucb:71:13"
 .Ltext_16:
-    .asciz "src/std/process/module.lucb:89:5"
+    .asciz "src/std/process/module.lucb:87:5"
 .Ltext_17:
-    .asciz "src/std/process/module.lucb:99:5"
+    .asciz "src/std/process/module.lucb:97:5"
 .Ltext_18:
-    .asciz "src/std/process/module.lucb:100:5"
+    .asciz "src/std/process/module.lucb:98:5"
 .Ltext_19:
-    .asciz "src/std/process/module.lucb:103:9"
+    .asciz "src/std/process/module.lucb:101:9"
 .Ltext_20:
-    .asciz "src/std/process/module.lucb:104:9"
+    .asciz "src/std/process/module.lucb:102:9"
 .Ltext_21:
-    .asciz "src/std/process/module.lucb:105:5"
+    .asciz "src/std/process/module.lucb:103:5"
 .Ltext_22:
-    .asciz "src/std/process/module.lucb:109:9"
+    .asciz "src/std/process/module.lucb:107:9"
 .Ltext_23:
     .asciz "run"
 .Ltext_24:
-    .asciz "src/std/process/module.lucb:112:9"
+    .asciz "src/std/process/module.lucb:110:9"
 .Ltext_25:
-    .asciz "src/std/process/module.lucb:113:9"
+    .asciz "src/std/process/module.lucb:111:9"
 .Ltext_26:
-    .asciz "src/std/process/module.lucb:114:9"
+    .asciz "src/std/process/module.lucb:112:9"
 .Ltext_27:
-    .asciz "src/std/process/module.lucb:118:9"
+    .asciz "src/std/process/module.lucb:116:9"
 .Ltext_28:
-    .asciz "src/std/process/module.lucb:119:9"
+    .asciz "src/std/process/module.lucb:117:9"
 .Ltext_29:
-    .asciz "src/std/process/module.lucb:120:9"
+    .asciz "src/std/process/module.lucb:118:9"
 .Ltext_30:
-    .asciz "src/std/process/module.lucb:121:9"
+    .asciz "src/std/process/module.lucb:119:9"
 .Ltext_31:
-    .asciz "src/std/process/module.lucb:122:9"
+    .asciz "src/std/process/module.lucb:120:9"
 .Ltext_32:
     .asciz "/dev/null"
 .Ltext_33:
-    .asciz "src/std/process/module.lucb:133:9"
+    .asciz "src/std/process/module.lucb:131:9"
 .Ltext_34:
-    .asciz "src/std/process/module.lucb:134:9"
+    .asciz "src/std/process/module.lucb:132:9"
 .Ltext_35:
-    .asciz "src/std/process/module.lucb:135:9"
+    .asciz "src/std/process/module.lucb:133:9"
 .Ltext_36:
-    .asciz "src/std/process/module.lucb:137:9"
+    .asciz "src/std/process/module.lucb:135:9"
 .Ltext_37:
-    .asciz "src/std/process/module.lucb:138:9"
+    .asciz "src/std/process/module.lucb:136:9"
 .Ltext_38:
-    .asciz "src/std/process/module.lucb:147:5"
+    .asciz "src/std/process/module.lucb:145:5"
 .Ltext_39:
-    .asciz "src/std/process/module.lucb:148:5"
+    .asciz "src/std/process/module.lucb:146:5"
 .Ltext_40:
-    .asciz "src/std/process/module.lucb:149:5"
+    .asciz "src/std/process/module.lucb:147:5"
 .Ltext_41:
-    .asciz "src/std/process/module.lucb:151:5"
+    .asciz "src/std/process/module.lucb:149:5"
 .Ltext_42:
-    .asciz "src/std/process/module.lucb:152:5"
+    .asciz "src/std/process/module.lucb:150:5"
 .Ltext_43:
-    .asciz "src/std/process/module.lucb:159:9"
+    .asciz "src/std/process/module.lucb:157:9"
 .Ltext_44:
-    .asciz "src/std/process/module.lucb:161:9"
+    .asciz "src/std/process/module.lucb:159:9"
 .Ltext_45:
-    .asciz "src/std/process/module.lucb:162:9"
+    .asciz "src/std/process/module.lucb:160:9"
 .Ltext_46:
     .asciz "the program was stopped by a signal"
 .Ltext_47:
-    .asciz "src/std/process/module.lucb:164:9"
+    .asciz "src/std/process/module.lucb:162:9"
 .Ltext_48:
-    .asciz "src/std/process/module.lucb:165:5"
+    .asciz "src/std/process/module.lucb:163:5"
 .Ltext_49:
-    .asciz "src/std/process/module.lucb:168:9"
+    .asciz "src/std/process/module.lucb:166:9"
 .Ltext_50:
     .asciz "shift count out of range"
 .Ltext_51:
-    .asciz "src/std/process/module.lucb:169:5"
+    .asciz "src/std/process/module.lucb:167:5"
 .Ltext_52:
-    .asciz "src/std/process/module.lucb:184:9"
+    .asciz "src/std/process/module.lucb:182:9"
 .Ltext_53:
-    .asciz "src/std/process/module.lucb:185:9"
+    .asciz "src/std/process/module.lucb:183:9"
 .Ltext_54:
-    .asciz "src/std/process/module.lucb:190:9"
+    .asciz "src/std/process/module.lucb:188:9"
 .Ltext_55:
-    .asciz "src/std/process/module.lucb:192:9"
+    .asciz "src/std/process/module.lucb:190:9"
 .Ltext_56:
-    .asciz "src/std/process/module.lucb:201:5"
+    .asciz "src/std/process/module.lucb:199:5"
 .Ltext_57:
-    .asciz "src/std/process/module.lucb:213:9"
+    .asciz "src/std/process/module.lucb:211:9"
 .Ltext_58:
-    .asciz "src/std/memory.lucb:326:9"
-.Ltext_59:
     .asciz "src/std/memory.lucb:328:9"
+.Ltext_59:
+    .asciz "src/std/memory.lucb:330:9"
 .Ltext_60:
     .asciz "null_foreign"
 .Ltext_61:
-    .asciz "src/std/process/module.lucb:174:9"
+    .asciz "src/std/process/module.lucb:172:9"
 .Ltext_62:
     .asciz "integer overflow"
 

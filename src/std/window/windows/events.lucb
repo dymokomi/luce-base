@@ -14,8 +14,8 @@ extern func TrackMouseEvent(tracking: WinMouseTracking*) -> i32
 
 func win_modifiers() -> input.Modifiers:
     return input.Modifiers(shift = GetKeyState(16) < 0, control = GetKeyState(17) < 0,
-        alt = GetKeyState(18) < 0, super = GetKeyState(91) < 0 or GetKeyState(92) < 0,
-        caps_lock = (GetKeyState(20) & 1) != 0)
+                           alt = GetKeyState(18) < 0, super = GetKeyState(91) < 0 or GetKeyState(92) < 0,
+                           caps_lock = (GetKeyState(20) & 1) != 0)
 
 func signed_half(value: isize) -> i32:
     let half = (i32)(value & 65535)
@@ -23,9 +23,9 @@ func signed_half(value: isize) -> i32:
 
 # Hardware scan positions, independent of the active keyboard layout.
 let win_scan_keys: u16[64] = [0, 41, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 45, 46, 42, 43,
-    20, 26, 8, 21, 23, 28, 24, 12, 18, 19, 47, 48, 40, 224, 4, 22,
-    7, 9, 10, 11, 13, 14, 15, 51, 52, 53, 225, 49, 29, 27, 6, 25,
-    5, 17, 16, 54, 55, 56, 229, 0, 226, 44, 57, 58, 59, 60, 61, 62]
+                              20, 26, 8, 21, 23, 28, 24, 12, 18, 19, 47, 48, 40, 224, 4, 22,
+                              7, 9, 10, 11, 13, 14, 15, 51, 52, 53, 225, 49, 29, 27, 6, 25,
+                              5, 17, 16, 54, 55, 56, 229, 0, 226, 44, 57, 58, 59, 60, 61, 62]
 
 func win_key(value: isize) -> input.Key:
     let scan = (usize)((value >> 16) & 255)
@@ -100,10 +100,10 @@ func win_callback(native: void*, message: u32, word: usize, value: isize) -> isi
         let key = win_key(value)
         let down = message == 256 or message == 260
         push_event(state, input.Event(kind = input.EventKind.key_down if down else input.EventKind.key_up,
-            key = key, modifiers = key_modifiers, repeated = down and (value & 1073741824) != 0))
+                                      key = key, modifiers = key_modifiers, repeated = down and (value & 1073741824) != 0))
         if (u16)key >= 224 or key == input.Key.caps_lock:
             push_event(state, input.Event(kind = input.EventKind.modifiers_changed, modifiers = key_modifiers))
-        # Let DefWindowProc retain system shortcuts such as Alt+F4.
+    # Let DefWindowProc retain system shortcuts such as Alt+F4.
     elif message == 675:
         # WM_MOUSELEAVE disarms tracking; the next move starts a new interval.
         state.pointer_tracking = false

@@ -24,6 +24,7 @@ import support.modules as module_paths
 import files
 import front.ast
 import front.lexer
+import front.layout
 import front.parser
 import front.source
 import front.token
@@ -44,7 +45,7 @@ import support.version
 import support.host_tools
 
 func usage(out: io.Writer) -> !:
-    try out.write("usage: luce-base lex FILE\n       luce-base parse FILE\n       luce-base check FILE\n       luce-base describe FILE\n       luce-base describe --standard MODULE\n       luce-base interface FILE [-o OUT]\n       luce-base std-build SRC_DIR OUT_DIR [--target NAME] [--cpu LEVEL] [--backend=c]\n       luce-base std-interface SRC_DIR OUT\n       luce-base interface --standard MODULE\n       luce-base dependencies FILE\n       luce-base native-inputs FILE\n       luce-base resolve FILE SOURCE_ROOT MODULE [--base]\n       luce-base build FILE [-o OUT] [--release] [--emit=c] [--backend=c] [--native] [--debug] [--emit=asm] [--emit=ir] [--lib] [--freestanding] [--target] [--profile diagnostic] [-W] [-lNAME] [-LDIR] [-framework NAME]\n       luce-base test FILE [--backend=c] [--native]\n       luce-base --version\n")
+    try out.write("usage: luce-base lex FILE\n       luce-base parse FILE\n       luce-base fmt FILE [--write | --check]\n       luce-base check FILE\n       luce-base describe FILE\n       luce-base describe --standard MODULE\n       luce-base interface FILE [-o OUT]\n       luce-base std-build SRC_DIR OUT_DIR [--target NAME] [--cpu LEVEL] [--backend=c]\n       luce-base std-interface SRC_DIR OUT\n       luce-base interface --standard MODULE\n       luce-base dependencies FILE\n       luce-base native-inputs FILE\n       luce-base resolve FILE SOURCE_ROOT MODULE [--base]\n       luce-base build FILE [-o OUT] [--release] [--emit=c] [--backend=c] [--native] [--debug] [--emit=asm] [--emit=ir] [--lib] [--freestanding] [--target] [--profile diagnostic] [-W] [-lNAME] [-LDIR] [-framework NAME]\n       luce-base test FILE [--backend=c] [--native]\n       luce-base --version\n")
 
 # mark: Building ===============================================================================
 
@@ -328,6 +329,7 @@ func unknown_level(t: targets.Target) -> !:
 
 func unknown_target() -> !:
     error(build_failed, "unknown target; `--target` with no name lists them")
+
 ## `--emit=ir`: the native pipeline stops after its passes and writes the IR as text.
 var dump_ir: bool
 ## `--opt N`: how far the IR optimiser goes (0 none, 1 single-assignment form, 2 value
@@ -1229,6 +1231,48 @@ func parse_file(path: c.str, out: io.Writer) -> !:
         let module = try p.parse_module()
         try ast.dump(out, module, 0)
 
+## `fmt FILE`: the module in the canonical layout (§19.6), printed; `--write` puts it back
+## in the file, `--check` prints nothing and answers 1 when the file is not in that layout.
+## The layout is proved before it is shown: the parser reads it back into the same tree.
+func fmt_file(path: c.str, mode: str, out: io.Writer) -> i32!:
+    var arena = Arena(memory.heap)
+    defer arena.destroy()
+    var scratch: u8[4096]
+    with arena:
+        let src = try source.Source.load(path)
+        var p = try parser.Parser.over(src, scratch)
+        p.allow_core_names = true  # a standard module formats like any other
+        let module = try p.parse_module()
+        var f = try layout.Formatter.over(src, p.token_span())
+        try f.module(module)
+        let text = f.text()
+        let again = try source.Source.over((str)path, text.bytes)
+        var p2 = try parser.Parser.over(again, scratch)
+        p2.allow_core_names = true
+        let reread = p2.parse_module() catch failure:
+            error(failure.code, try format(scratch_bytes[..<2048], f"the layout does not parse: {failure.message}"))
+        if not try same_tree(module, reread):
+            error(build_failed, "the layout reads back as a different tree; the formatter is wrong for this file")
+        if mode == "--check":
+            return 0 if text == (str)src.bytes else 1
+        if mode == "--write":
+            if text != (str)src.bytes:
+                try files.write(path, text.bytes)
+            return 0
+        try out.write(text)
+        return 0
+
+## Whether two trees dump the same, the dump naming every kind, text and child.
+func same_tree(a: ast.Node*, b: ast.Node*) -> bool!:
+    let room = try alloc u8[16777216]
+    var first = io.SliceWriter.over(room[..<8388608])
+    var second = io.SliceWriter.over(room[8388608..])
+    let first_writer: io.Writer = &first
+    let second_writer: io.Writer = &second
+    try ast.dump(first_writer, a, 0)
+    try ast.dump(second_writer, b, 0)
+    return (str)first.written() == (str)second.written()
+
 func lex_file(path: c.str, out: io.Writer) -> !:
     var arena = Arena(memory.heap)
     defer arena.destroy()
@@ -1259,6 +1303,12 @@ pub func main(arguments: c.str[]) -> i32!:
     if command == "--version":
         try out.write(f"luce-base {version.text}\n")
         return 0
+    if command == "fmt" and (positional == 3 or (positional == 4 and ((str)arguments[3] == "--write" or (str)arguments[3] == "--check"))):
+        let mode = (str)arguments[3] if positional == 4 else ""
+        let code = fmt_file(arguments[2], mode, out) catch failure:
+            try io.stderr().write(f"luce-base: {failure.message}\n")
+            recover 1
+        return code
     if command == "parse" and positional == 3:
         parse_file(arguments[2], out) catch failure:
             try io.stderr().write(f"luce-base: {failure.message}\n")

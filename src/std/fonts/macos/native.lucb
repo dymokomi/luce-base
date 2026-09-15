@@ -3,9 +3,11 @@
 extern struct FontPoint:
     x: f64
     y: f64
+
 extern struct FontSize:
     width: f64
     height: f64
+
 extern func CFStringCreateWithBytes(allocator: void*?, bytes: const u8*, length: i64, encoding: u32, external: bool) -> void*?
 extern func CFRelease(object: void*)
 extern func CTFontCreateWithName(name: void*, size: f64, matrix: void*?) -> void*?
@@ -15,9 +17,11 @@ extern func CTFontGetDescent(font: void*) -> f64
 extern func CTFontGetSymbolicTraits(font: void*) -> u32
 extern func CTFontGetGlyphsForCharacters(font: void*, characters: const u16*, glyphs: u16*, count: i64) -> bool
 extern func CTFontGetAdvancesForGlyphs(font: void*, orientation: u32, glyphs: const u16*, advances: FontSize*?, count: i64) -> f64
+
 extern struct FontRange:
     location: i64
     length: i64
+
 extern func CTFontCreateForString(font: void*, text: void*, range: FontRange) -> void*?
 extern func CTFontDrawGlyphs(font: void*, glyphs: const u16*, positions: const FontPoint*, count: i64, context: void*)
 extern func CGBitmapContextCreate(data: void*, width: usize, height: usize, bits: usize, stride: usize, color_space: void*?, info: u32) -> void*?
@@ -77,7 +81,7 @@ func mac_raster(face: Face, text: str, scale: f64, bitmap: Bitmap*) -> !:
                 chosen = replacement
                 discard(CTFontGetGlyphsForCharacters(chosen, &characters[0], &glyphs[0], count))
         var position = FontPoint(2.0 + (f64)index * face.advance * scale,
-            (f64)bitmap.height - 2.0 - face.ascent * scale)
+                                 (f64)bitmap.height - 2.0 - face.ascent * scale)
         CTFontDrawGlyphs(chosen, &glyphs[0], &position, 1, context)
         if let replacement = fallback:
             CFRelease(replacement)

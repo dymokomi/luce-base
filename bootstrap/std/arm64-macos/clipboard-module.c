@@ -4279,40 +4279,40 @@ extern uint32_t lb_gpu_22vulkan_api_version_1_0;
 
 __attribute__((weak)) lb_interop_Transfer_0g1_str lb_interop_Transfer_0g1_str_plain(void) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/clipboard/windows/native.lucb:731:1";
+    lb_pos = "src/std/clipboard/windows/native.lucb:729:1";
     lb_interop_Transfer_0g1_str _lb_ret1 = ((lb_interop_Transfer_0g1_str){.copy = lb_interop_Transfer_0g1_str_10copy_plain});
     return _lb_ret1;
     lb_trap("unreachable");
 }
 __attribute__((weak)) lb_r_interop_Packet_0g1_str lb_interop_Transfer_0g1_str_10copy_plain(lb_str lb_value) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/clipboard/windows/native.lucb:734:1";
+    lb_pos = "src/std/clipboard/windows/native.lucb:732:1";
     lb_interop_Packet_0g1_str _lb_ret2 = ({ lb_interop_Packet_0g1_str _lb_iv3 = {}; lb_interop_Packet_0g1_str_init(&_lb_iv3, lb_value, ((void*)0), ((void*)0)); _lb_iv3; });
     return ((lb_r_interop_Packet_0g1_str){ .value = _lb_ret2, .failed = false });
     lb_trap("unreachable");
 }
 __attribute__((weak)) lb_interop_Transfer_0g1_u8_0c lb_interop_Transfer_0g1_u8_0c_plain(void) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/clipboard/windows/native.lucb:731:1";
+    lb_pos = "src/std/clipboard/windows/native.lucb:729:1";
     lb_interop_Transfer_0g1_u8_0c _lb_ret4 = ((lb_interop_Transfer_0g1_u8_0c){.copy = lb_interop_Transfer_0g1_u8_0c_10copy_plain});
     return _lb_ret4;
     lb_trap("unreachable");
 }
 __attribute__((weak)) lb_r_interop_Packet_0g1_u8_0c lb_interop_Transfer_0g1_u8_0c_10copy_plain(lb_cspan lb_value) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/clipboard/windows/native.lucb:734:1";
+    lb_pos = "src/std/clipboard/windows/native.lucb:732:1";
     lb_interop_Packet_0g1_u8_0c _lb_ret5 = ({ lb_interop_Packet_0g1_u8_0c _lb_iv6 = {}; lb_interop_Packet_0g1_u8_0c_init(&_lb_iv6, lb_value, ((void*)0), ((void*)0)); _lb_iv6; });
     return ((lb_r_interop_Packet_0g1_u8_0c){ .value = _lb_ret5, .failed = false });
     lb_trap("unreachable");
 }
 lb_r_interop_Owned_0g1_str lb_clipboard_9read_text(void) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/clipboard/module.lucb:17:5";
+    lb_pos = "src/std/clipboard/module.lucb:16:5";
     (void)((({ lb_r_unit _lb_r7 = lb_clipboard_12check_access(); if (_lb_r7.failed) {
         return ((lb_r_interop_Owned_0g1_str){ .error = _lb_r7.error, .failed = true });
     } (void)0; })));
     {
-        lb_pos = "src/std/clipboard/module.lucb:19:9";
+        lb_pos = "src/std/clipboard/module.lucb:18:9";
         lb_interop_Owned_0g1_str _lb_ret8 = (({ lb_r_interop_Owned_0g1_str _lb_r9 = lb_clipboard_8mac_read(); if (_lb_r9.failed) {
             return ((lb_r_interop_Owned_0g1_str){ .error = _lb_r9.error, .failed = true });
         } _lb_r9.value; }));
@@ -4322,58 +4322,58 @@ lb_r_interop_Owned_0g1_str lb_clipboard_9read_text(void) {
 }
 lb_r_unit lb_clipboard_10write_text(lb_str lb_text) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/clipboard/module.lucb:25:5";
+    lb_pos = "src/std/clipboard/module.lucb:24:5";
     (void)((({ lb_r_unit _lb_r10 = lb_clipboard_12check_access(); if (_lb_r10.failed) {
         return ((lb_r_unit){ .error = _lb_r10.error, .failed = true });
     } (void)0; })));
-    lb_pos = "src/std/clipboard/module.lucb:26:5";
+    lb_pos = "src/std/clipboard/module.lucb:25:5";
     if (!!(((((size_t)((lb_text.length))) > ((size_t)(lb_clipboard_10text_limit))) || (!lb_utf8_valid(((lb_cspan){(void*)(lb_text.data), lb_text.length})))))) 
     {
-        lb_pos = "src/std/clipboard/module.lucb:27:9";
+        lb_pos = "src/std/clipboard/module.lucb:26:9";
         lb_r_unit _lb_err11 = ((lb_r_unit){ .error = { .code = (int32_t)(lb_clipboard_failed), .message = ((lb_str){"clipboard text must be valid UTF-8 within 1 MiB", 47}) }, .failed = true });
         return _lb_err11;
     }
-    lb_pos = "src/std/clipboard/module.lucb:28:5";
+    lb_pos = "src/std/clipboard/module.lucb:27:5";
     lb_cspan _lb_seq12 = ((lb_cspan){(void*)(lb_text.data), lb_text.length});
     for (size_t _lb_i12 = 0; _lb_i12 < _lb_seq12.length; _lb_i12++) {
         uint8_t lb_byte __attribute__((unused)) = ((const uint8_t*)_lb_seq12.data)[_lb_i12];
         {
-            lb_pos = "src/std/clipboard/module.lucb:29:9";
+            lb_pos = "src/std/clipboard/module.lucb:28:9";
             if (!!((lb_byte == 0ULL))) 
             {
-                lb_pos = "src/std/clipboard/module.lucb:30:13";
+                lb_pos = "src/std/clipboard/module.lucb:29:13";
                 lb_r_unit _lb_err13 = ((lb_r_unit){ .error = { .code = (int32_t)(lb_clipboard_failed), .message = ((lb_str){"clipboard text cannot contain NUL", 33}) }, .failed = true });
                 return _lb_err13;
             }
         }
     }
     {
-        lb_pos = "src/std/clipboard/module.lucb:32:9";
+        lb_pos = "src/std/clipboard/module.lucb:31:9";
         (void)((({ lb_r_unit _lb_r14 = lb_clipboard_9mac_write(lb_text); if (_lb_r14.failed) {
             return ((lb_r_unit){ .error = _lb_r14.error, .failed = true });
         } (void)0; })));
-        lb_pos = "src/std/clipboard/module.lucb:33:9";
+        lb_pos = "src/std/clipboard/module.lucb:32:9";
         return ((lb_r_unit){ .failed = false });
     }
     return ((lb_r_unit){ .failed = false });
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_str_init(lb_interop_Packet_0g1_str* self, lb_str lb_value, void* lb_storage, lb_fn_0F1_void_0p_unit lb_dispose) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/clipboard/windows/native.lucb:715:1";
+    lb_pos = "src/std/clipboard/windows/native.lucb:713:1";
     self->value = lb_value;
-    lb_pos = "src/std/clipboard/windows/native.lucb:716:1";
+    lb_pos = "src/std/clipboard/windows/native.lucb:714:1";
     self->storage = lb_storage;
-    lb_pos = "src/std/clipboard/windows/native.lucb:717:1";
+    lb_pos = "src/std/clipboard/windows/native.lucb:715:1";
     self->dispose = lb_dispose;
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_str_release(const lb_interop_Packet_0g1_str* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/clipboard/windows/native.lucb:720:1";
+    lb_pos = "src/std/clipboard/windows/native.lucb:718:1";
     void* _lb_o15 = self->storage;
     if (_lb_o15 != ((void*)0)) {
         void* lb_storage __attribute__((unused)) = _lb_o15;
         {
-            lb_pos = "src/std/clipboard/windows/native.lucb:721:1";
+            lb_pos = "src/std/clipboard/windows/native.lucb:719:1";
             (void)(((({ lb_fn_0F1_void_0p_unit _lb_o16 = self->dispose; if (_lb_o16 == ((void*)0)) {
                 (void)(lb_trap_text(((lb_str){"a packet has storage without a disposer", 39})));
             } _lb_o16; })))(lb_storage));
@@ -4382,21 +4382,21 @@ __attribute__((weak)) void lb_interop_Packet_0g1_str_release(const lb_interop_Pa
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_init(lb_interop_Packet_0g1_u8_0c* self, lb_cspan lb_value, void* lb_storage, lb_fn_0F1_void_0p_unit lb_dispose) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/clipboard/windows/native.lucb:715:1";
+    lb_pos = "src/std/clipboard/windows/native.lucb:713:1";
     self->value = lb_value;
-    lb_pos = "src/std/clipboard/windows/native.lucb:716:1";
+    lb_pos = "src/std/clipboard/windows/native.lucb:714:1";
     self->storage = lb_storage;
-    lb_pos = "src/std/clipboard/windows/native.lucb:717:1";
+    lb_pos = "src/std/clipboard/windows/native.lucb:715:1";
     self->dispose = lb_dispose;
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_release(const lb_interop_Packet_0g1_u8_0c* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/clipboard/windows/native.lucb:720:1";
+    lb_pos = "src/std/clipboard/windows/native.lucb:718:1";
     void* _lb_o17 = self->storage;
     if (_lb_o17 != ((void*)0)) {
         void* lb_storage __attribute__((unused)) = _lb_o17;
         {
-            lb_pos = "src/std/clipboard/windows/native.lucb:721:1";
+            lb_pos = "src/std/clipboard/windows/native.lucb:719:1";
             (void)(((({ lb_fn_0F1_void_0p_unit _lb_o18 = self->dispose; if (_lb_o18 == ((void*)0)) {
                 (void)(lb_trap_text(((lb_str){"a packet has storage without a disposer", 39})));
             } _lb_o18; })))(lb_storage));
@@ -4405,17 +4405,17 @@ __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_release(const lb_interop_
 }
 lb_r_unit lb_clipboard_12check_access(void) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/clipboard/module.lucb:40:5";
+    lb_pos = "src/std/clipboard/module.lucb:39:5";
     if (!!((!lb_window_supported()))) 
     {
-        lb_pos = "src/std/clipboard/module.lucb:41:9";
+        lb_pos = "src/std/clipboard/module.lucb:40:9";
         lb_r_unit _lb_err19 = ((lb_r_unit){ .error = { .code = (int32_t)(lb_window_unsupported), .message = ((lb_str){"the desktop clipboard is unavailable on this target", 51}) }, .failed = true });
         return _lb_err19;
     }
-    lb_pos = "src/std/clipboard/module.lucb:42:5";
+    lb_pos = "src/std/clipboard/module.lucb:41:5";
     if (!!((!lb_thread_7is_main()))) 
     {
-        lb_pos = "src/std/clipboard/module.lucb:43:9";
+        lb_pos = "src/std/clipboard/module.lucb:42:9";
         lb_r_unit _lb_err20 = ((lb_r_unit){ .error = { .code = (int32_t)(lb_interop_12wrong_thread), .message = ((lb_str){"clipboard access requires the UI thread", 39}) }, .failed = true });
         return _lb_err20;
     }
@@ -4423,42 +4423,42 @@ lb_r_unit lb_clipboard_12check_access(void) {
 }
 __attribute__((weak)) lb_interop_Owned_0g1_str lb_interop_Owned_0g1_str_clone(const lb_interop_Owned_0g1_str* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/clipboard/windows/native.lucb:358:1";
+    lb_pos = "src/std/clipboard/windows/native.lucb:356:1";
     struct lb_ownership_Object* _lb_o21 = self->owner;
     if (_lb_o21 != ((void*)0)) {
         struct lb_ownership_Object* lb_owner __attribute__((unused)) = _lb_o21;
         {
-            lb_pos = "src/std/clipboard/windows/native.lucb:359:1";
+            lb_pos = "src/std/clipboard/windows/native.lucb:357:1";
             (void)(((void)(lb_ownership_retain(lb_owner))));
         }
     }
-    lb_pos = "src/std/clipboard/windows/native.lucb:360:1";
+    lb_pos = "src/std/clipboard/windows/native.lucb:358:1";
     lb_interop_Owned_0g1_str _lb_ret22 = (*self);
     return _lb_ret22;
     lb_trap("unreachable");
 }
 __attribute__((weak)) void lb_interop_Owned_0g1_str_release(const lb_interop_Owned_0g1_str* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/clipboard/windows/native.lucb:363:1";
+    lb_pos = "src/std/clipboard/windows/native.lucb:361:1";
     struct lb_ownership_Object* _lb_o23 = self->owner;
     if (_lb_o23 != ((void*)0)) {
         struct lb_ownership_Object* lb_owner __attribute__((unused)) = _lb_o23;
         {
-            lb_pos = "src/std/clipboard/windows/native.lucb:364:1";
+            lb_pos = "src/std/clipboard/windows/native.lucb:362:1";
             (void)(lb_ownership_release(lb_owner));
         }
     }
 }
 __attribute__((weak)) void lb_interop_Owned_0g1_str_trace(const lb_interop_Owned_0g1_str* self, lb_fn_0F2_ownership_Object_0p_void_0p_unit lb_visit, void* lb_context) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/clipboard/windows/native.lucb:367:1";
+    lb_pos = "src/std/clipboard/windows/native.lucb:365:1";
     struct lb_ownership_Object* _lb_o24 = self->owner;
     if (_lb_o24 != ((void*)0)) {
         struct lb_ownership_Object* lb_owner __attribute__((unused)) = _lb_o24;
         {
-            lb_pos = "src/std/clipboard/windows/native.lucb:368:1";
+            lb_pos = "src/std/clipboard/windows/native.lucb:366:1";
             (void)(lb_ownership_12check_thread(lb_owner));
-            lb_pos = "src/std/clipboard/windows/native.lucb:369:1";
+            lb_pos = "src/std/clipboard/windows/native.lucb:367:1";
             (void)((lb_visit)(lb_owner, lb_context));
         }
     }

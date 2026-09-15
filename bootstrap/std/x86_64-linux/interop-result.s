@@ -488,9 +488,9 @@ lb_memory_copy_0g1_u8:
 .Ltext_4:
     .asciz "index out of bounds"
 .Ltext_5:
-    .asciz "src/std/memory.lucb:326:9"
-.Ltext_6:
     .asciz "src/std/memory.lucb:328:9"
+.Ltext_6:
+    .asciz "src/std/memory.lucb:330:9"
 .Ltext_7:
     .asciz "null_foreign"
 

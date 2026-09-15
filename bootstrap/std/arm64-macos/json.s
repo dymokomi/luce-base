@@ -5918,29 +5918,29 @@ l_text_1:
 l_text_2:
     .asciz "division by zero"
 l_text_3:
-    .asciz "src/std/json.lucb:24:13"
+    .asciz "src/std/json.lucb:23:13"
 l_text_4:
     .asciz "memory.exhausted: the allocation size overflows"
 l_text_5:
     .asciz "memory.unset"
 l_text_6:
-    .asciz "src/std/json.lucb:27:9"
+    .asciz "src/std/json.lucb:26:9"
 l_text_7:
     .asciz "memory.exhausted"
 l_text_8:
-    .asciz "src/std/json.lucb:30:13"
+    .asciz "src/std/json.lucb:29:13"
 l_text_9:
     .asciz "JSON size overflow"
 l_text_10:
-    .asciz "src/std/json.lucb:36:9"
+    .asciz "src/std/json.lucb:35:9"
 l_text_11:
     .asciz "index out of bounds"
 l_text_12:
-    .asciz "src/std/json.lucb:40:9"
+    .asciz "src/std/json.lucb:39:9"
 l_text_13:
     .asciz "unreachable"
 l_text_14:
-    .asciz "src/std/json.lucb:44:13"
+    .asciz "src/std/json.lucb:43:13"
 l_text_15:
     .asciz "\""
 l_text_16:
@@ -5948,57 +5948,57 @@ l_text_16:
 l_text_17:
     .asciz "shift count out of range"
 l_text_18:
-    .asciz "src/std/json.lucb:61:13"
+    .asciz "src/std/json.lucb:60:13"
 l_text_19:
     .asciz "JSON byte limit must be between 2 and 64 MiB"
 l_text_20:
     .asciz "{}"
 l_text_21:
-    .asciz "src/std/json.lucb:88:9"
+    .asciz "src/std/json.lucb:87:9"
 l_text_22:
-    .asciz "src/std/json.lucb:91:9"
+    .asciz "src/std/json.lucb:90:9"
 l_text_23:
-    .asciz "src/std/json.lucb:93:9"
+    .asciz "src/std/json.lucb:92:9"
 l_text_24:
-    .asciz "src/std/json.lucb:94:9"
+    .asciz "src/std/json.lucb:93:9"
 l_text_25:
-    .asciz "src/std/json.lucb:95:9"
+    .asciz "src/std/json.lucb:94:9"
 l_text_26:
-    .asciz "src/std/json.lucb:98:9"
+    .asciz "src/std/json.lucb:97:9"
 l_text_27:
-    .asciz "src/std/json.lucb:105:9"
+    .asciz "src/std/json.lucb:104:9"
 l_text_28:
-    .asciz "src/std/json.lucb:111:9"
+    .asciz "src/std/json.lucb:110:9"
 l_text_29:
     .asciz "memory.exhausted: the formatted text does not fit its buffer"
 l_text_30:
-    .asciz "src/std/json.lucb:115:9"
+    .asciz "src/std/json.lucb:114:9"
 l_text_31:
     .asciz "JSON numbers must be finite"
 l_text_32:
-    .asciz "src/std/json.lucb:121:9"
+    .asciz "src/std/json.lucb:120:9"
 l_text_33:
     .asciz "true"
 l_text_34:
     .asciz "false"
 l_text_35:
-    .asciz "src/std/json.lucb:124:9"
+    .asciz "src/std/json.lucb:123:9"
 l_text_36:
     .asciz "null"
 l_text_37:
-    .asciz "src/std/json.lucb:127:9"
+    .asciz "src/std/json.lucb:126:9"
 l_text_38:
-    .asciz "src/std/json.lucb:131:9"
+    .asciz "src/std/json.lucb:130:9"
 l_text_39:
     .asciz "JSON operation does not match the container type"
 l_text_40:
-    .asciz "src/std/json.lucb:142:17"
+    .asciz "src/std/json.lucb:141:17"
 l_text_41:
-    .asciz "src/std/json.lucb:143:21"
+    .asciz "src/std/json.lucb:142:21"
 l_text_42:
     .asciz "JSON object already contains this key"
 l_text_43:
-    .asciz "src/std/json.lucb:145:21"
+    .asciz "src/std/json.lucb:144:21"
 l_text_44:
     .asciz ","
 l_text_45:
@@ -6006,25 +6006,25 @@ l_text_45:
 l_text_46:
     .asciz "JSON key size overflow"
 l_text_47:
-    .asciz "src/std/json.lucb:162:9"
+    .asciz "src/std/json.lucb:161:9"
 l_text_48:
-    .asciz "src/std/json.lucb:163:9"
+    .asciz "src/std/json.lucb:162:9"
 l_text_49:
-    .asciz "src/std/json.lucb:165:9"
+    .asciz "src/std/json.lucb:164:9"
 l_text_50:
-    .asciz "src/std/json.lucb:167:13"
+    .asciz "src/std/json.lucb:166:13"
 l_text_51:
-    .asciz "src/std/json.lucb:168:13"
+    .asciz "src/std/json.lucb:167:13"
 l_text_52:
-    .asciz "src/std/json.lucb:169:13"
+    .asciz "src/std/json.lucb:168:13"
 l_text_53:
-    .asciz "src/std/json.lucb:170:13"
+    .asciz "src/std/json.lucb:169:13"
 l_text_54:
-    .asciz "src/std/json.lucb:171:9"
+    .asciz "src/std/json.lucb:170:9"
 l_text_55:
-    .asciz "src/std/memory.lucb:326:9"
-l_text_56:
     .asciz "src/std/memory.lucb:328:9"
+l_text_56:
+    .asciz "src/std/memory.lucb:330:9"
 l_text_57:
     .asciz "null_foreign"
 l_text_58:
@@ -6040,9 +6040,9 @@ l_text_62:
 l_text_63:
     .asciz "native ownership has already been published or cancelled"
 l_text_64:
-    .asciz "src/std/interop/object.lucb:83:9"
+    .asciz "src/std/interop/object.lucb:82:9"
 l_text_65:
-    .asciz "src/std/interop/object.lucb:87:9"
+    .asciz "src/std/interop/object.lucb:86:9"
 l_text_66:
     .asciz "native storage has no allocator"
 l_text_67:

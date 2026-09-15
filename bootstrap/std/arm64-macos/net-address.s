@@ -3018,15 +3018,15 @@ l_text_56:
 l_text_57:
     .asciz "src/std/net/address.lucb:155:5"
 l_text_58:
-    .asciz "src/std/memory.lucb:332:9"
-l_text_59:
     .asciz "src/std/memory.lucb:334:9"
+l_text_59:
+    .asciz "src/std/memory.lucb:336:9"
 l_text_60:
     .asciz "null_foreign"
 l_text_61:
-    .asciz "src/std/memory.lucb:342:5"
+    .asciz "src/std/memory.lucb:344:5"
 l_text_62:
-    .asciz "src/std/memory.lucb:343:5"
+    .asciz "src/std/memory.lucb:345:5"
 
     .section __DATA,__const
     .p2align 3

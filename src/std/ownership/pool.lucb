@@ -56,4 +56,3 @@ pub func drain(since: usize):
         i += 1
     # a release pools nothing of its own, so nothing was added above `count`
     pending_count = since
-

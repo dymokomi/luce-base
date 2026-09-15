@@ -40,6 +40,11 @@ for f in tests/samples/*.lucb $compiler_sources tests/programs/*/*.lucb; do
     ./build/luce-base parse "$f" > /dev/null
     ./build/luce-base check "$f"
 done
+# every source of the compiler and the standard library is in the canonical layout (§19.6):
+# the formatter changes nothing, and reads its own output back into the same tree
+for f in $compiler_sources $(find src/std -type f -name '*.lucb' | LC_ALL=C sort); do
+    ./build/luce-base fmt "$f" --check || { echo "FAIL $f is not in the canonical layout; run ./build/luce-base fmt $f --write"; exit 1; }
+done
 # programs with `main` build and print what their `.expect` files say
 for f in tests/samples/*.expect; do
     src="${f%.expect}.lucb"

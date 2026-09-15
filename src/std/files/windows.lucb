@@ -222,9 +222,9 @@ func windows_metadata(handle: void*, follow: bool) -> Metadata!:
         kind = FileKind.symlink
     let size = (i64)(((u64)info.size_high << 32) | (u64)info.size_low)
     return Metadata(kind = kind, permissions = (292 if (info.attributes & 1) != 0 else 438) | (73 if kind == FileKind.directory else 0),
-        size = size, device = (u64)info.volume, inode = ((u64)info.index_high << 32) | (u64)info.index_low,
-        links = (u64)info.links, user = 0, group = 0, blocks_512 = standard.allocation // 512,
-        accessed = windows_time(basic.accessed), modified = windows_time(basic.written), changed = windows_time(basic.changed), created = windows_time(basic.created))
+                    size = size, device = (u64)info.volume, inode = ((u64)info.index_high << 32) | (u64)info.index_low,
+                    links = (u64)info.links, user = 0, group = 0, blocks_512 = standard.allocation // 512,
+                    accessed = windows_time(basic.accessed), modified = windows_time(basic.written), changed = windows_time(basic.changed), created = windows_time(basic.created))
 
 func windows_relative(parent: i32, path: c.str) -> str!:
     if parent == current_directory_fd or paths.is_absolute((str)path):

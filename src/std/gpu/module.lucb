@@ -7,7 +7,6 @@ import interop
 import ownership
 import math
 import thread
-
 pub let unsupported: ErrorCode = ErrorCode.package(91)
 pub let unavailable: ErrorCode = ErrorCode.package(92)
 pub let wrong_thread: ErrorCode = ErrorCode.package(93)

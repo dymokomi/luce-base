@@ -894,7 +894,7 @@ lb_files_11metadata_at:
 .Ltext_7:
     .asciz "src/std/files/metadata.lucb:195:9"
 .Ltext_8:
-    .asciz "src/std/files/metadata.lucb:223:9"
+    .asciz "src/std/files/metadata.lucb:222:9"
 
     .section .rdata,"dr"
     .p2align 3

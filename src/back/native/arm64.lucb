@@ -24,9 +24,7 @@ import back.ir.ir
 import back.target as build_target
 import memory
 import support.buffer
-
 pub let failed: ErrorCode = ErrorCode.package(15)
-
 
 ## One argument's placement for a call.
 struct ArgPlacement:
@@ -1808,7 +1806,6 @@ pub struct Generator:
             c += 1
 
     # mark: The unit ===========================================================================
-
     pub mutating func generate() -> !:
         if let dw = self.dw:
             try dw.begin(&self.out)
@@ -1958,7 +1955,6 @@ pub struct Generator:
         try self.put("\"")
 
 # mark: Helpers ================================================================================
-
 
 ## The callee-saved registers the allocator hands out: codes 1..10 are x19..x28, codes
 ## 11..18 are d8..d15, viewed as w/s where a narrower access asks for it.

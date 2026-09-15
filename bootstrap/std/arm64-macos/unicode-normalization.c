@@ -4293,84 +4293,84 @@ extern uint32_t lb_gpu_22vulkan_api_version_1_0;
 
 __attribute__((weak)) lb_interop_Transfer_0g1_str lb_interop_Transfer_0g1_str_plain(void) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/unicode/graphemes.lucb:410:1";
+    lb_pos = "src/std/unicode/graphemes.lucb:411:1";
     lb_interop_Transfer_0g1_str _lb_ret1 = ((lb_interop_Transfer_0g1_str){.copy = lb_interop_Transfer_0g1_str_10copy_plain});
     return _lb_ret1;
     lb_trap("unreachable");
 }
 __attribute__((weak)) lb_r_interop_Packet_0g1_str lb_interop_Transfer_0g1_str_10copy_plain(lb_str lb_value) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/unicode/graphemes.lucb:413:1";
+    lb_pos = "src/std/unicode/graphemes.lucb:414:1";
     lb_interop_Packet_0g1_str _lb_ret2 = ({ lb_interop_Packet_0g1_str _lb_iv3 = {}; lb_interop_Packet_0g1_str_init(&_lb_iv3, lb_value, ((void*)0), ((void*)0)); _lb_iv3; });
     return ((lb_r_interop_Packet_0g1_str){ .value = _lb_ret2, .failed = false });
     lb_trap("unreachable");
 }
 __attribute__((weak)) lb_interop_Transfer_0g1_u8_0c lb_interop_Transfer_0g1_u8_0c_plain(void) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/unicode/graphemes.lucb:410:1";
+    lb_pos = "src/std/unicode/graphemes.lucb:411:1";
     lb_interop_Transfer_0g1_u8_0c _lb_ret4 = ((lb_interop_Transfer_0g1_u8_0c){.copy = lb_interop_Transfer_0g1_u8_0c_10copy_plain});
     return _lb_ret4;
     lb_trap("unreachable");
 }
 __attribute__((weak)) lb_r_interop_Packet_0g1_u8_0c lb_interop_Transfer_0g1_u8_0c_10copy_plain(lb_cspan lb_value) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/unicode/graphemes.lucb:413:1";
+    lb_pos = "src/std/unicode/graphemes.lucb:414:1";
     lb_interop_Packet_0g1_u8_0c _lb_ret5 = ({ lb_interop_Packet_0g1_u8_0c _lb_iv6 = {}; lb_interop_Packet_0g1_u8_0c_init(&_lb_iv6, lb_value, ((void*)0), ((void*)0)); _lb_iv6; });
     return ((lb_r_interop_Packet_0g1_u8_0c){ .value = _lb_ret5, .failed = false });
     lb_trap("unreachable");
 }
 lb_r_str lb_unicode_normalize(lb_str lb_text, uint8_t lb_form, lb_o_usize lb_max_bytes) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/unicode/normalization.lucb:16:5";
+    lb_pos = "src/std/unicode/normalization.lucb:15:5";
     bool lb_compatibility __attribute__((unused)) = ((lb_form == ((uint8_t)2u)) || (lb_form == ((uint8_t)3u)));
-    lb_pos = "src/std/unicode/normalization.lucb:17:5";
+    lb_pos = "src/std/unicode/normalization.lucb:16:5";
     lb_span lb_empty __attribute__((unused)) = {};
-    lb_pos = "src/std/unicode/normalization.lucb:18:5";
+    lb_pos = "src/std/unicode/normalization.lucb:17:5";
     size_t lb_count __attribute__((unused)) = (({ lb_r_usize _lb_r7 = lb_unicode_14decompose_pass(lb_text, lb_compatibility, lb_empty, false); if (_lb_r7.failed) {
         return ((lb_r_str){ .error = _lb_r7.error, .failed = true });
     } _lb_r7.value; }));
-    lb_pos = "src/std/unicode/normalization.lucb:19:5";
+    lb_pos = "src/std/unicode/normalization.lucb:18:5";
     if (!!((lb_count == 0ULL))) 
     {
-        lb_pos = "src/std/unicode/normalization.lucb:20:9";
+        lb_pos = "src/std/unicode/normalization.lucb:19:9";
         lb_str _lb_ret8 = (({ lb_r_str _lb_r9 = lb_strings_copy(((lb_str){"", 0})); if (_lb_r9.failed) {
             return ((lb_r_str){ .error = _lb_r9.error, .failed = true });
         } _lb_r9.value; }));
         return ((lb_r_str){ .value = _lb_ret8, .failed = false });
     }
-    lb_pos = "src/std/unicode/normalization.lucb:21:5";
+    lb_pos = "src/std/unicode/normalization.lucb:20:5";
     size_t lb_storage_bytes __attribute__((unused)) = ({ lb_o_usize _lb_o10 = ({ uint64_t _lb_qo11; lb_o_usize _lb_qr11; _lb_qr11.present = lb_qmul_u((uint64_t)(lb_count), (uint64_t)(4ULL), 64, &_lb_qo11); _lb_qr11.value = (size_t)(_lb_qo11); _lb_qr11; }); if (!_lb_o10.present) {
         lb_r_str _lb_err12 = ((lb_r_str){ .error = { .code = (int32_t)(lb_memory_exhausted), .message = ((lb_str){"the normalization storage size overflowed", 41}) }, .failed = true });
         return _lb_err12;
     } _lb_o10.value; });
-    lb_pos = "src/std/unicode/normalization.lucb:22:5";
+    lb_pos = "src/std/unicode/normalization.lucb:21:5";
     (void)(((void)(lb_storage_bytes)));
-    lb_pos = "src/std/unicode/normalization.lucb:23:5";
+    lb_pos = "src/std/unicode/normalization.lucb:22:5";
     lb_span lb_scalars __attribute__((unused)) = (({ lb_r_u32_0s _lb_r13 = ({ lb_iface _lb_a14 = lb_memory_allocator; size_t _lb_n14 = (size_t)(lb_count); lb_r_u32_0s _lb_r14; if (_lb_n14 > UINT64_C(1152921504606846976)) { _lb_r14 = ((lb_r_u32_0s){ .error = { .code = 208273409, .message = (lb_str){"memory.exhausted", 16} }, .failed = true }); } else { size_t _lb_bytes14 = sizeof(uint32_t) * _lb_n14; lb_o_u8_0s _lb_ao14 = lb_alloc_call(_lb_a14, _lb_bytes14, _Alignof(uint32_t)); if (_lb_bytes14 != 0 && !_lb_ao14.present) { _lb_r14 = ((lb_r_u32_0s){ .error = { .code = 208273409, .message = (lb_str){"memory.exhausted", 16} }, .failed = true }); } else { _lb_r14.value.data = _lb_ao14.value.data; _lb_r14.value.length = _lb_n14; _lb_r14.failed = false; } } _lb_r14; }); if (_lb_r13.failed) {
         return ((lb_r_str){ .error = _lb_r13.error, .failed = true });
     } _lb_r13.value; }));
+    lb_pos = "src/std/unicode/normalization.lucb:23:5";
     lb_pos = "src/std/unicode/normalization.lucb:24:5";
-    lb_pos = "src/std/unicode/normalization.lucb:25:5";
     size_t lb_written __attribute__((unused)) = (({ lb_r_usize _lb_r15 = lb_unicode_14decompose_pass(lb_text, lb_compatibility, lb_scalars, true); if (_lb_r15.failed) {
         { lb_span _lb_s16 = lb_scalars; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s16.data), lb_mul_u(_lb_s16.length, sizeof(uint32_t), 64) }); }
         return ((lb_r_str){ .error = _lb_r15.error, .failed = true });
     } _lb_r15.value; }));
-    lb_pos = "src/std/unicode/normalization.lucb:26:5";
+    lb_pos = "src/std/unicode/normalization.lucb:25:5";
     if (!!((!(lb_written == lb_count)))) 
     {
-        lb_pos = "src/std/unicode/normalization.lucb:27:9";
+        lb_pos = "src/std/unicode/normalization.lucb:26:9";
         lb_r_str _lb_err17 = ((lb_r_str){ .error = { .code = (int32_t)(lb_utf8_16invalid_sequence), .message = ((lb_str){"the text changed during normalization", 37}) }, .failed = true });
         { lb_span _lb_s18 = lb_scalars; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s18.data), lb_mul_u(_lb_s18.length, sizeof(uint32_t), 64) }); }
         return _lb_err17;
     }
-    lb_pos = "src/std/unicode/normalization.lucb:28:5";
+    lb_pos = "src/std/unicode/normalization.lucb:27:5";
     (void)((({ lb_r_unit _lb_r19 = lb_unicode_15canonical_order(lb_scalars); if (_lb_r19.failed) {
         { lb_span _lb_s20 = lb_scalars; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s20.data), lb_mul_u(_lb_s20.length, sizeof(uint32_t), 64) }); }
         return ((lb_r_str){ .error = _lb_r19.error, .failed = true });
     } (void)0; })));
-    lb_pos = "src/std/unicode/normalization.lucb:29:5";
+    lb_pos = "src/std/unicode/normalization.lucb:28:5";
     size_t lb_length __attribute__((unused)) = (((lb_form == ((uint8_t)0u)) || (lb_form == ((uint8_t)2u))) ? lb_unicode_17compose_canonical(lb_scalars) : lb_count);
-    lb_pos = "src/std/unicode/normalization.lucb:30:5";
+    lb_pos = "src/std/unicode/normalization.lucb:29:5";
     lb_str _lb_ret21 = (({ lb_r_str _lb_r22 = lb_unicode_17encode_normalized(({ lb_span _lb_sv23 = lb_scalars; size_t _lb_sn23 = _lb_sv23.length; uint32_t* _lb_sd23 = (uint32_t*)_lb_sv23.data; size_t _lb_ss23 = 0; size_t _lb_se23 = (size_t)(lb_length); lb_check_index(_lb_ss23, _lb_sn23 + 1); lb_check_index(_lb_se23, _lb_sn23 + 1); if (_lb_ss23 > _lb_se23) lb_trap("index out of bounds"); (lb_span){ (void*)(_lb_sd23 + _lb_ss23), _lb_se23 - _lb_ss23 }; }), lb_max_bytes); if (_lb_r22.failed) {
         { lb_span _lb_s24 = lb_scalars; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s24.data), lb_mul_u(_lb_s24.length, sizeof(uint32_t), 64) }); }
         return ((lb_r_str){ .error = _lb_r22.error, .failed = true });
@@ -4382,21 +4382,21 @@ lb_r_str lb_unicode_normalize(lb_str lb_text, uint8_t lb_form, lb_o_usize lb_max
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_str_init(lb_interop_Packet_0g1_str* self, lb_str lb_value, void* lb_storage, lb_fn_0F1_void_0p_unit lb_dispose) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/unicode/graphemes.lucb:394:1";
-    self->value = lb_value;
     lb_pos = "src/std/unicode/graphemes.lucb:395:1";
-    self->storage = lb_storage;
+    self->value = lb_value;
     lb_pos = "src/std/unicode/graphemes.lucb:396:1";
+    self->storage = lb_storage;
+    lb_pos = "src/std/unicode/graphemes.lucb:397:1";
     self->dispose = lb_dispose;
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_str_release(const lb_interop_Packet_0g1_str* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/unicode/graphemes.lucb:399:1";
+    lb_pos = "src/std/unicode/graphemes.lucb:400:1";
     void* _lb_o27 = self->storage;
     if (_lb_o27 != ((void*)0)) {
         void* lb_storage __attribute__((unused)) = _lb_o27;
         {
-            lb_pos = "src/std/unicode/graphemes.lucb:400:1";
+            lb_pos = "src/std/unicode/graphemes.lucb:401:1";
             (void)(((({ lb_fn_0F1_void_0p_unit _lb_o28 = self->dispose; if (_lb_o28 == ((void*)0)) {
                 (void)(lb_trap_text(((lb_str){"a packet has storage without a disposer", 39})));
             } _lb_o28; })))(lb_storage));
@@ -4405,21 +4405,21 @@ __attribute__((weak)) void lb_interop_Packet_0g1_str_release(const lb_interop_Pa
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_init(lb_interop_Packet_0g1_u8_0c* self, lb_cspan lb_value, void* lb_storage, lb_fn_0F1_void_0p_unit lb_dispose) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/unicode/graphemes.lucb:394:1";
-    self->value = lb_value;
     lb_pos = "src/std/unicode/graphemes.lucb:395:1";
-    self->storage = lb_storage;
+    self->value = lb_value;
     lb_pos = "src/std/unicode/graphemes.lucb:396:1";
+    self->storage = lb_storage;
+    lb_pos = "src/std/unicode/graphemes.lucb:397:1";
     self->dispose = lb_dispose;
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_release(const lb_interop_Packet_0g1_u8_0c* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/unicode/graphemes.lucb:399:1";
+    lb_pos = "src/std/unicode/graphemes.lucb:400:1";
     void* _lb_o29 = self->storage;
     if (_lb_o29 != ((void*)0)) {
         void* lb_storage __attribute__((unused)) = _lb_o29;
         {
-            lb_pos = "src/std/unicode/graphemes.lucb:400:1";
+            lb_pos = "src/std/unicode/graphemes.lucb:401:1";
             (void)(((({ lb_fn_0F1_void_0p_unit _lb_o30 = self->dispose; if (_lb_o30 == ((void*)0)) {
                 (void)(lb_trap_text(((lb_str){"a packet has storage without a disposer", 39})));
             } _lb_o30; })))(lb_storage));
@@ -4428,209 +4428,209 @@ __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_release(const lb_interop_
 }
 lb_r_usize lb_unicode_14decompose_pass(lb_str lb_text, bool lb_compatibility, lb_span lb_output, bool lb_writing) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/unicode/normalization.lucb:33:5";
+    lb_pos = "src/std/unicode/normalization.lucb:32:5";
     lb_str lb_table __attribute__((unused)) = (lb_compatibility ? lb_unicode_22compatibility_mappings : lb_unicode_18canonical_mappings);
-    lb_pos = "src/std/unicode/normalization.lucb:34:5";
+    lb_pos = "src/std/unicode/normalization.lucb:33:5";
     size_t lb_offset __attribute__((unused)) = 0ULL;
-    lb_pos = "src/std/unicode/normalization.lucb:35:5";
+    lb_pos = "src/std/unicode/normalization.lucb:34:5";
     size_t lb_position __attribute__((unused)) = 0ULL;
-    lb_pos = "src/std/unicode/normalization.lucb:36:5";
+    lb_pos = "src/std/unicode/normalization.lucb:35:5";
     for (;;) {
-        lb_pos = "src/std/unicode/normalization.lucb:36:5";
+        lb_pos = "src/std/unicode/normalization.lucb:35:5";
         if (!((((size_t)(lb_offset)) < ((size_t)((lb_text.length)))))) break;
         {
-            lb_pos = "src/std/unicode/normalization.lucb:37:9";
+            lb_pos = "src/std/unicode/normalization.lucb:36:9";
             lb_utf8_Decoded lb_decoded __attribute__((unused)) = ({ lb_o_utf8_Decoded _lb_o31 = lb_utf8_decode(((lb_cspan){(void*)(lb_text.data), lb_text.length}), lb_offset); if (!_lb_o31.present) {
                 lb_r_usize _lb_err32 = ((lb_r_usize){ .error = { .code = (int32_t)(lb_utf8_16invalid_sequence), .message = ((lb_str){"invalid UTF-8 text", 18}) }, .failed = true });
                 return _lb_err32;
             } _lb_o31.value; });
-            lb_pos = "src/std/unicode/normalization.lucb:38:9";
+            lb_pos = "src/std/unicode/normalization.lucb:37:9";
             { size_t* lb__cell33 = &(lb_offset);
             (*(lb__cell33)) = (size_t)(lb_add_u((uint64_t)((*(lb__cell33))), (uint64_t)(lb_decoded.width), 64)); }
-            lb_pos = "src/std/unicode/normalization.lucb:39:9";
+            lb_pos = "src/std/unicode/normalization.lucb:38:9";
             uint32_t lb_scalar __attribute__((unused)) = ((uint32_t)lb_conv_u((uint64_t)(lb_decoded.scalar), 32, 0, 32, 0, 1));
-            lb_pos = "src/std/unicode/normalization.lucb:40:9";
+            lb_pos = "src/std/unicode/normalization.lucb:39:9";
             bool lb_hangul __attribute__((unused)) = ((((uint32_t)(lb_scalar)) >= ((uint32_t)(44032ULL))) && (((uint32_t)(lb_scalar)) <= ((uint32_t)(55203ULL))));
-            lb_pos = "src/std/unicode/normalization.lucb:41:9";
+            lb_pos = "src/std/unicode/normalization.lucb:40:9";
             lb_unicode_Mapping lb_mapping __attribute__((unused)) = ({ lb_o_unicode_Mapping _lb_o34 = lb_unicode_mapped(lb_table, lb_scalar); if (!_lb_o34.present) { _lb_o34.value = lb_unicode_16identity_mapping(lb_scalar); } _lb_o34.value; });
-            lb_pos = "src/std/unicode/normalization.lucb:42:9";
+            lb_pos = "src/std/unicode/normalization.lucb:41:9";
             size_t lb_length __attribute__((unused)) = (lb_hangul ? ((((uint32_t)(lb_mod_u((uint64_t)(((uint32_t)(lb_sub_u((uint64_t)(lb_scalar), (uint64_t)(44032ULL), 32)))), (uint64_t)(28ULL), 32)) == 0ULL) ? 2ULL : 3ULL)) : lb_mapping.length);
-            lb_pos = "src/std/unicode/normalization.lucb:43:9";
+            lb_pos = "src/std/unicode/normalization.lucb:42:9";
             size_t lb_next __attribute__((unused)) = ({ lb_o_usize _lb_o35 = ({ uint64_t _lb_qo36; lb_o_usize _lb_qr36; _lb_qr36.present = lb_qadd_u((uint64_t)(lb_position), (uint64_t)(lb_length), 64, &_lb_qo36); _lb_qr36.value = (size_t)(_lb_qo36); _lb_qr36; }); if (!_lb_o35.present) {
                 lb_r_usize _lb_err37 = ((lb_r_usize){ .error = { .code = (int32_t)(lb_memory_exhausted), .message = ((lb_str){"the decomposed text size overflowed", 35}) }, .failed = true });
                 return _lb_err37;
             } _lb_o35.value; });
-            lb_pos = "src/std/unicode/normalization.lucb:44:9";
+            lb_pos = "src/std/unicode/normalization.lucb:43:9";
             if (!!(lb_writing)) 
             {
-                lb_pos = "src/std/unicode/normalization.lucb:45:13";
+                lb_pos = "src/std/unicode/normalization.lucb:44:13";
                 if (!!((((size_t)(lb_next)) > ((size_t)((lb_output.length)))))) 
                 {
-                    lb_pos = "src/std/unicode/normalization.lucb:46:17";
+                    lb_pos = "src/std/unicode/normalization.lucb:45:17";
                     lb_r_usize _lb_err38 = ((lb_r_usize){ .error = { .code = (int32_t)(lb_utf8_16invalid_sequence), .message = ((lb_str){"the text changed during normalization", 37}) }, .failed = true });
                     return _lb_err38;
                 }
-                lb_pos = "src/std/unicode/normalization.lucb:47:13";
+                lb_pos = "src/std/unicode/normalization.lucb:46:13";
                 if (!!(lb_hangul)) 
                 {
-                    lb_pos = "src/std/unicode/normalization.lucb:48:17";
+                    lb_pos = "src/std/unicode/normalization.lucb:47:17";
                     uint32_t lb_index __attribute__((unused)) = (uint32_t)(lb_sub_u((uint64_t)(lb_scalar), (uint64_t)(44032ULL), 32));
-                    lb_pos = "src/std/unicode/normalization.lucb:49:17";
+                    lb_pos = "src/std/unicode/normalization.lucb:48:17";
                     (*({ lb_span _lb_ix39 = lb_output; &((uint32_t*)_lb_ix39.data)[lb_at((uint64_t)(lb_position), _lb_ix39.length)]; })) = (uint32_t)(lb_add_u((uint64_t)(4352ULL), (uint64_t)((uint32_t)(lb_div_u((uint64_t)(lb_index), (uint64_t)(588ULL), 32))), 32));
-                    lb_pos = "src/std/unicode/normalization.lucb:50:17";
+                    lb_pos = "src/std/unicode/normalization.lucb:49:17";
                     (*({ lb_span _lb_ix40 = lb_output; &((uint32_t*)_lb_ix40.data)[lb_at((uint64_t)((size_t)(lb_add_u((uint64_t)(lb_position), (uint64_t)(1ULL), 64))), _lb_ix40.length)]; })) = (uint32_t)(lb_add_u((uint64_t)(4449ULL), (uint64_t)((uint32_t)(lb_div_u((uint64_t)(((uint32_t)(lb_mod_u((uint64_t)(lb_index), (uint64_t)(588ULL), 32)))), (uint64_t)(28ULL), 32))), 32));
-                    lb_pos = "src/std/unicode/normalization.lucb:51:17";
+                    lb_pos = "src/std/unicode/normalization.lucb:50:17";
                     if (!!((lb_length == 3ULL))) 
                     {
-                        lb_pos = "src/std/unicode/normalization.lucb:52:21";
+                        lb_pos = "src/std/unicode/normalization.lucb:51:21";
                         (*({ lb_span _lb_ix41 = lb_output; &((uint32_t*)_lb_ix41.data)[lb_at((uint64_t)((size_t)(lb_add_u((uint64_t)(lb_position), (uint64_t)(2ULL), 64))), _lb_ix41.length)]; })) = (uint32_t)(lb_add_u((uint64_t)(4519ULL), (uint64_t)((uint32_t)(lb_mod_u((uint64_t)(lb_index), (uint64_t)(28ULL), 32))), 32));
                     }
                 }
                 else 
                 {
-                    lb_pos = "src/std/unicode/normalization.lucb:54:17";
+                    lb_pos = "src/std/unicode/normalization.lucb:53:17";
                     for (size_t lb_index __attribute__((unused)) = (size_t)(0ULL); lb_index < (size_t)(lb_length); lb_index++) {
                         {
-                            lb_pos = "src/std/unicode/normalization.lucb:55:21";
+                            lb_pos = "src/std/unicode/normalization.lucb:54:21";
                             (*({ lb_span _lb_ix43 = lb_output; &((uint32_t*)_lb_ix43.data)[lb_at((uint64_t)((size_t)(lb_add_u((uint64_t)(lb_position), (uint64_t)(lb_index), 64))), _lb_ix43.length)]; })) = lb_unicode_Mapping_at(&(lb_mapping), lb_index);
                         }
                     }
                 }
             }
-            lb_pos = "src/std/unicode/normalization.lucb:56:9";
+            lb_pos = "src/std/unicode/normalization.lucb:55:9";
             lb_position = lb_next;
         }
     }
-    lb_pos = "src/std/unicode/normalization.lucb:57:5";
+    lb_pos = "src/std/unicode/normalization.lucb:56:5";
     size_t _lb_ret44 = lb_position;
     return ((lb_r_usize){ .value = _lb_ret44, .failed = false });
     lb_trap("unreachable");
 }
 lb_r_unit lb_unicode_15canonical_order(lb_span lb_scalars) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/unicode/normalization.lucb:63:5";
+    lb_pos = "src/std/unicode/normalization.lucb:62:5";
     size_t lb_position __attribute__((unused)) = 0ULL;
-    lb_pos = "src/std/unicode/normalization.lucb:64:5";
+    lb_pos = "src/std/unicode/normalization.lucb:63:5";
     size_t lb_needed __attribute__((unused)) = 0ULL;
-    lb_pos = "src/std/unicode/normalization.lucb:65:5";
+    lb_pos = "src/std/unicode/normalization.lucb:64:5";
     for (;;) {
-        lb_pos = "src/std/unicode/normalization.lucb:65:5";
+        lb_pos = "src/std/unicode/normalization.lucb:64:5";
         if (!((((size_t)(lb_position)) < ((size_t)((lb_scalars.length)))))) break;
         {
-            lb_pos = "src/std/unicode/normalization.lucb:66:9";
+            lb_pos = "src/std/unicode/normalization.lucb:65:9";
             if (!!(({ uint8_t _lb_sq45 __attribute__((unused)) = lb_unicode_15combining_class((*({ lb_span _lb_ix46 = lb_scalars; &((uint32_t*)_lb_ix46.data)[lb_at((uint64_t)(lb_position), _lb_ix46.length)]; }))); uint8_t _lb_sq47 __attribute__((unused)) = 0ULL; (_lb_sq45 == _lb_sq47); }))) 
             {
-                lb_pos = "src/std/unicode/normalization.lucb:67:13";
+                lb_pos = "src/std/unicode/normalization.lucb:66:13";
                 { size_t* lb__cell48 = &(lb_position);
                 (*(lb__cell48)) = (size_t)(lb_add_u((uint64_t)((*(lb__cell48))), (uint64_t)(1ULL), 64)); }
-                lb_pos = "src/std/unicode/normalization.lucb:68:13";
+                lb_pos = "src/std/unicode/normalization.lucb:67:13";
                 continue;
             }
-            lb_pos = "src/std/unicode/normalization.lucb:69:9";
+            lb_pos = "src/std/unicode/normalization.lucb:68:9";
             size_t lb_start __attribute__((unused)) = lb_position;
-            lb_pos = "src/std/unicode/normalization.lucb:70:9";
+            lb_pos = "src/std/unicode/normalization.lucb:69:9";
             uint8_t lb_previous __attribute__((unused)) = 0ULL;
-            lb_pos = "src/std/unicode/normalization.lucb:71:9";
+            lb_pos = "src/std/unicode/normalization.lucb:70:9";
             bool lb_unordered __attribute__((unused)) = false;
-            lb_pos = "src/std/unicode/normalization.lucb:72:9";
+            lb_pos = "src/std/unicode/normalization.lucb:71:9";
             for (;;) {
-                lb_pos = "src/std/unicode/normalization.lucb:72:9";
+                lb_pos = "src/std/unicode/normalization.lucb:71:9";
                 if (!((((size_t)(lb_position)) < ((size_t)((lb_scalars.length)))))) break;
                 {
-                    lb_pos = "src/std/unicode/normalization.lucb:73:13";
+                    lb_pos = "src/std/unicode/normalization.lucb:72:13";
                     uint8_t lb_current __attribute__((unused)) = lb_unicode_15combining_class((*({ lb_span _lb_ix49 = lb_scalars; &((uint32_t*)_lb_ix49.data)[lb_at((uint64_t)(lb_position), _lb_ix49.length)]; })));
-                    lb_pos = "src/std/unicode/normalization.lucb:74:13";
+                    lb_pos = "src/std/unicode/normalization.lucb:73:13";
                     if (!!((lb_current == 0ULL))) 
                     {
-                        lb_pos = "src/std/unicode/normalization.lucb:75:17";
+                        lb_pos = "src/std/unicode/normalization.lucb:74:17";
                         break;
                     }
-                    lb_pos = "src/std/unicode/normalization.lucb:76:13";
+                    lb_pos = "src/std/unicode/normalization.lucb:75:13";
                     if (!!((((uint8_t)(lb_current)) < ((uint8_t)(lb_previous))))) 
                     {
-                        lb_pos = "src/std/unicode/normalization.lucb:77:17";
+                        lb_pos = "src/std/unicode/normalization.lucb:76:17";
                         lb_unordered = true;
                     }
-                    lb_pos = "src/std/unicode/normalization.lucb:78:13";
+                    lb_pos = "src/std/unicode/normalization.lucb:77:13";
                     lb_previous = lb_current;
-                    lb_pos = "src/std/unicode/normalization.lucb:79:13";
+                    lb_pos = "src/std/unicode/normalization.lucb:78:13";
                     { size_t* lb__cell50 = &(lb_position);
                     (*(lb__cell50)) = (size_t)(lb_add_u((uint64_t)((*(lb__cell50))), (uint64_t)(1ULL), 64)); }
                 }
             }
-            lb_pos = "src/std/unicode/normalization.lucb:80:9";
+            lb_pos = "src/std/unicode/normalization.lucb:79:9";
             size_t lb_length __attribute__((unused)) = (size_t)(lb_sub_u((uint64_t)(lb_position), (uint64_t)(lb_start), 64));
-            lb_pos = "src/std/unicode/normalization.lucb:81:9";
+            lb_pos = "src/std/unicode/normalization.lucb:80:9";
             if (!!((lb_unordered && (((size_t)(lb_length)) > ((size_t)(lb_needed)))))) 
             {
-                lb_pos = "src/std/unicode/normalization.lucb:82:13";
+                lb_pos = "src/std/unicode/normalization.lucb:81:13";
                 lb_needed = lb_length;
             }
         }
     }
-    lb_pos = "src/std/unicode/normalization.lucb:83:5";
+    lb_pos = "src/std/unicode/normalization.lucb:82:5";
     if (!!((lb_needed == 0ULL))) 
     {
-        lb_pos = "src/std/unicode/normalization.lucb:84:9";
+        lb_pos = "src/std/unicode/normalization.lucb:83:9";
         return ((lb_r_unit){ .failed = false });
     }
-    lb_pos = "src/std/unicode/normalization.lucb:85:5";
+    lb_pos = "src/std/unicode/normalization.lucb:84:5";
     lb_span lb_scratch __attribute__((unused)) = (({ lb_r_u32_0s _lb_r51 = ({ lb_iface _lb_a52 = lb_memory_allocator; size_t _lb_n52 = (size_t)(lb_needed); lb_r_u32_0s _lb_r52; if (_lb_n52 > UINT64_C(1152921504606846976)) { _lb_r52 = ((lb_r_u32_0s){ .error = { .code = 208273409, .message = (lb_str){"memory.exhausted", 16} }, .failed = true }); } else { size_t _lb_bytes52 = sizeof(uint32_t) * _lb_n52; lb_o_u8_0s _lb_ao52 = lb_alloc_call(_lb_a52, _lb_bytes52, _Alignof(uint32_t)); if (_lb_bytes52 != 0 && !_lb_ao52.present) { _lb_r52 = ((lb_r_u32_0s){ .error = { .code = 208273409, .message = (lb_str){"memory.exhausted", 16} }, .failed = true }); } else { _lb_r52.value.data = _lb_ao52.value.data; _lb_r52.value.length = _lb_n52; _lb_r52.failed = false; } } _lb_r52; }); if (_lb_r51.failed) {
         return ((lb_r_unit){ .error = _lb_r51.error, .failed = true });
     } _lb_r51.value; }));
+    lb_pos = "src/std/unicode/normalization.lucb:85:5";
     lb_pos = "src/std/unicode/normalization.lucb:86:5";
-    lb_pos = "src/std/unicode/normalization.lucb:87:5";
     lb_position = 0ULL;
-    lb_pos = "src/std/unicode/normalization.lucb:88:5";
+    lb_pos = "src/std/unicode/normalization.lucb:87:5";
     for (;;) {
-        lb_pos = "src/std/unicode/normalization.lucb:88:5";
+        lb_pos = "src/std/unicode/normalization.lucb:87:5";
         if (!((((size_t)(lb_position)) < ((size_t)((lb_scalars.length)))))) break;
         {
-            lb_pos = "src/std/unicode/normalization.lucb:89:9";
+            lb_pos = "src/std/unicode/normalization.lucb:88:9";
             if (!!(({ uint8_t _lb_sq53 __attribute__((unused)) = lb_unicode_15combining_class((*({ lb_span _lb_ix54 = lb_scalars; &((uint32_t*)_lb_ix54.data)[lb_at((uint64_t)(lb_position), _lb_ix54.length)]; }))); uint8_t _lb_sq55 __attribute__((unused)) = 0ULL; (_lb_sq53 == _lb_sq55); }))) 
             {
-                lb_pos = "src/std/unicode/normalization.lucb:90:13";
+                lb_pos = "src/std/unicode/normalization.lucb:89:13";
                 { size_t* lb__cell56 = &(lb_position);
                 (*(lb__cell56)) = (size_t)(lb_add_u((uint64_t)((*(lb__cell56))), (uint64_t)(1ULL), 64)); }
-                lb_pos = "src/std/unicode/normalization.lucb:91:13";
+                lb_pos = "src/std/unicode/normalization.lucb:90:13";
                 continue;
             }
-            lb_pos = "src/std/unicode/normalization.lucb:92:9";
+            lb_pos = "src/std/unicode/normalization.lucb:91:9";
             size_t lb_start __attribute__((unused)) = lb_position;
-            lb_pos = "src/std/unicode/normalization.lucb:93:9";
+            lb_pos = "src/std/unicode/normalization.lucb:92:9";
             uint8_t lb_previous __attribute__((unused)) = 0ULL;
-            lb_pos = "src/std/unicode/normalization.lucb:94:9";
+            lb_pos = "src/std/unicode/normalization.lucb:93:9";
             bool lb_unordered __attribute__((unused)) = false;
-            lb_pos = "src/std/unicode/normalization.lucb:95:9";
+            lb_pos = "src/std/unicode/normalization.lucb:94:9";
             for (;;) {
-                lb_pos = "src/std/unicode/normalization.lucb:95:9";
+                lb_pos = "src/std/unicode/normalization.lucb:94:9";
                 if (!((((size_t)(lb_position)) < ((size_t)((lb_scalars.length)))))) break;
                 {
-                    lb_pos = "src/std/unicode/normalization.lucb:96:13";
+                    lb_pos = "src/std/unicode/normalization.lucb:95:13";
                     uint8_t lb_current __attribute__((unused)) = lb_unicode_15combining_class((*({ lb_span _lb_ix57 = lb_scalars; &((uint32_t*)_lb_ix57.data)[lb_at((uint64_t)(lb_position), _lb_ix57.length)]; })));
-                    lb_pos = "src/std/unicode/normalization.lucb:97:13";
+                    lb_pos = "src/std/unicode/normalization.lucb:96:13";
                     if (!!((lb_current == 0ULL))) 
                     {
-                        lb_pos = "src/std/unicode/normalization.lucb:98:17";
+                        lb_pos = "src/std/unicode/normalization.lucb:97:17";
                         break;
                     }
-                    lb_pos = "src/std/unicode/normalization.lucb:99:13";
+                    lb_pos = "src/std/unicode/normalization.lucb:98:13";
                     if (!!((((uint8_t)(lb_current)) < ((uint8_t)(lb_previous))))) 
                     {
-                        lb_pos = "src/std/unicode/normalization.lucb:100:17";
+                        lb_pos = "src/std/unicode/normalization.lucb:99:17";
                         lb_unordered = true;
                     }
-                    lb_pos = "src/std/unicode/normalization.lucb:101:13";
+                    lb_pos = "src/std/unicode/normalization.lucb:100:13";
                     lb_previous = lb_current;
-                    lb_pos = "src/std/unicode/normalization.lucb:102:13";
+                    lb_pos = "src/std/unicode/normalization.lucb:101:13";
                     { size_t* lb__cell58 = &(lb_position);
                     (*(lb__cell58)) = (size_t)(lb_add_u((uint64_t)((*(lb__cell58))), (uint64_t)(1ULL), 64)); }
                 }
             }
-            lb_pos = "src/std/unicode/normalization.lucb:103:9";
+            lb_pos = "src/std/unicode/normalization.lucb:102:9";
             if (!!(lb_unordered)) 
             {
-                lb_pos = "src/std/unicode/normalization.lucb:104:13";
+                lb_pos = "src/std/unicode/normalization.lucb:103:13";
                 (void)(lb_unicode_9order_run(({ lb_span _lb_sv59 = lb_scalars; size_t _lb_sn59 = _lb_sv59.length; uint32_t* _lb_sd59 = (uint32_t*)_lb_sv59.data; size_t _lb_ss59 = (size_t)(lb_start); size_t _lb_se59 = (size_t)(lb_position); lb_check_index(_lb_ss59, _lb_sn59 + 1); lb_check_index(_lb_se59, _lb_sn59 + 1); if (_lb_ss59 > _lb_se59) lb_trap("index out of bounds"); (lb_span){ (void*)(_lb_sd59 + _lb_ss59), _lb_se59 - _lb_ss59 }; }), lb_scratch));
             }
         }
@@ -4640,96 +4640,96 @@ lb_r_unit lb_unicode_15canonical_order(lb_span lb_scalars) {
 }
 size_t lb_unicode_17compose_canonical(lb_span lb_scalars) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/unicode/normalization.lucb:139:5";
+    lb_pos = "src/std/unicode/normalization.lucb:138:5";
     if (!!(((lb_scalars.length) == 0ULL))) 
     {
-        lb_pos = "src/std/unicode/normalization.lucb:140:9";
+        lb_pos = "src/std/unicode/normalization.lucb:139:9";
         size_t _lb_ret61 = 0ULL;
         return _lb_ret61;
     }
-    lb_pos = "src/std/unicode/normalization.lucb:141:5";
+    lb_pos = "src/std/unicode/normalization.lucb:140:5";
     size_t lb_starter_position __attribute__((unused)) = 0ULL;
-    lb_pos = "src/std/unicode/normalization.lucb:142:5";
+    lb_pos = "src/std/unicode/normalization.lucb:141:5";
     uint32_t lb_starter __attribute__((unused)) = (*({ lb_span _lb_ix62 = lb_scalars; &((uint32_t*)_lb_ix62.data)[lb_at((uint64_t)(0ULL), _lb_ix62.length)]; }));
-    lb_pos = "src/std/unicode/normalization.lucb:143:5";
+    lb_pos = "src/std/unicode/normalization.lucb:142:5";
     uint8_t lb_previous_class __attribute__((unused)) = lb_unicode_15combining_class(lb_starter);
-    lb_pos = "src/std/unicode/normalization.lucb:144:5";
+    lb_pos = "src/std/unicode/normalization.lucb:143:5";
     size_t lb_output __attribute__((unused)) = 1ULL;
-    lb_pos = "src/std/unicode/normalization.lucb:145:5";
+    lb_pos = "src/std/unicode/normalization.lucb:144:5";
     for (size_t lb_index __attribute__((unused)) = (size_t)(1ULL); lb_index < (size_t)((lb_scalars.length)); lb_index++) {
         {
-            lb_pos = "src/std/unicode/normalization.lucb:146:9";
+            lb_pos = "src/std/unicode/normalization.lucb:145:9";
             uint32_t lb_scalar __attribute__((unused)) = (*({ lb_span _lb_ix64 = lb_scalars; &((uint32_t*)_lb_ix64.data)[lb_at((uint64_t)(lb_index), _lb_ix64.length)]; }));
-            lb_pos = "src/std/unicode/normalization.lucb:147:9";
+            lb_pos = "src/std/unicode/normalization.lucb:146:9";
             uint8_t lb_current_class __attribute__((unused)) = lb_unicode_15combining_class(lb_scalar);
-            lb_pos = "src/std/unicode/normalization.lucb:148:9";
+            lb_pos = "src/std/unicode/normalization.lucb:147:9";
             lb_o_u32 lb_combined __attribute__((unused)) = lb_unicode_composition(lb_starter, lb_scalar);
-            lb_pos = "src/std/unicode/normalization.lucb:149:9";
+            lb_pos = "src/std/unicode/normalization.lucb:148:9";
             lb_o_u32 _lb_o65 = lb_combined;
             if (_lb_o65.present) {
                 uint32_t lb_value __attribute__((unused)) = _lb_o65.value;
                 {
-                    lb_pos = "src/std/unicode/normalization.lucb:150:13";
+                    lb_pos = "src/std/unicode/normalization.lucb:149:13";
                     if (!!(((((uint8_t)(lb_previous_class)) < ((uint8_t)(lb_current_class))) || (lb_previous_class == 0ULL)))) 
                     {
-                        lb_pos = "src/std/unicode/normalization.lucb:151:17";
+                        lb_pos = "src/std/unicode/normalization.lucb:150:17";
                         (*({ lb_span _lb_ix66 = lb_scalars; &((uint32_t*)_lb_ix66.data)[lb_at((uint64_t)(lb_starter_position), _lb_ix66.length)]; })) = lb_value;
-                        lb_pos = "src/std/unicode/normalization.lucb:152:17";
+                        lb_pos = "src/std/unicode/normalization.lucb:151:17";
                         lb_starter = lb_value;
-                        lb_pos = "src/std/unicode/normalization.lucb:153:17";
+                        lb_pos = "src/std/unicode/normalization.lucb:152:17";
                         continue;
                     }
                 }
             }
-            lb_pos = "src/std/unicode/normalization.lucb:154:9";
+            lb_pos = "src/std/unicode/normalization.lucb:153:9";
             if (!!((lb_current_class == 0ULL))) 
             {
-                lb_pos = "src/std/unicode/normalization.lucb:155:13";
+                lb_pos = "src/std/unicode/normalization.lucb:154:13";
                 lb_starter_position = lb_output;
-                lb_pos = "src/std/unicode/normalization.lucb:156:13";
+                lb_pos = "src/std/unicode/normalization.lucb:155:13";
                 lb_starter = lb_scalar;
             }
-            lb_pos = "src/std/unicode/normalization.lucb:157:9";
+            lb_pos = "src/std/unicode/normalization.lucb:156:9";
             (*({ lb_span _lb_ix67 = lb_scalars; &((uint32_t*)_lb_ix67.data)[lb_at((uint64_t)(lb_output), _lb_ix67.length)]; })) = lb_scalar;
-            lb_pos = "src/std/unicode/normalization.lucb:158:9";
+            lb_pos = "src/std/unicode/normalization.lucb:157:9";
             { size_t* lb__cell68 = &(lb_output);
             (*(lb__cell68)) = (size_t)(lb_add_u((uint64_t)((*(lb__cell68))), (uint64_t)(1ULL), 64)); }
-            lb_pos = "src/std/unicode/normalization.lucb:159:9";
+            lb_pos = "src/std/unicode/normalization.lucb:158:9";
             lb_previous_class = lb_current_class;
         }
     }
-    lb_pos = "src/std/unicode/normalization.lucb:160:5";
+    lb_pos = "src/std/unicode/normalization.lucb:159:5";
     size_t _lb_ret69 = lb_output;
     return _lb_ret69;
     lb_trap("unreachable");
 }
 lb_r_str lb_unicode_17encode_normalized(lb_cspan lb_scalars, lb_o_usize lb_max_bytes) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/unicode/normalization.lucb:184:5";
+    lb_pos = "src/std/unicode/normalization.lucb:183:5";
     size_t lb_length __attribute__((unused)) = 0ULL;
-    lb_pos = "src/std/unicode/normalization.lucb:185:5";
+    lb_pos = "src/std/unicode/normalization.lucb:184:5";
     lb_cspan _lb_seq70 = lb_scalars;
     for (size_t _lb_i70 = 0; _lb_i70 < _lb_seq70.length; _lb_i70++) {
         uint32_t lb_scalar __attribute__((unused)) = ((const uint32_t*)_lb_seq70.data)[_lb_i70];
         {
-            lb_pos = "src/std/unicode/normalization.lucb:186:9";
+            lb_pos = "src/std/unicode/normalization.lucb:185:9";
             size_t lb_width __attribute__((unused)) = ({ lb_o_usize _lb_o71 = lb_utf8_14encoded_length(lb_scalar); if (!_lb_o71.present) {
                 (void)(lb_trap_text(((lb_str){"invalid generated Unicode scalar", 32})));
             } _lb_o71.value; });
-            lb_pos = "src/std/unicode/normalization.lucb:187:9";
+            lb_pos = "src/std/unicode/normalization.lucb:186:9";
             lb_length = ({ lb_o_usize _lb_o72 = ({ uint64_t _lb_qo73; lb_o_usize _lb_qr73; _lb_qr73.present = lb_qadd_u((uint64_t)(lb_length), (uint64_t)(lb_width), 64, &_lb_qo73); _lb_qr73.value = (size_t)(_lb_qo73); _lb_qr73; }); if (!_lb_o72.present) {
                 lb_r_str _lb_err74 = ((lb_r_str){ .error = { .code = (int32_t)(lb_memory_exhausted), .message = ((lb_str){"the normalized text size overflowed", 35}) }, .failed = true });
                 return _lb_err74;
             } _lb_o72.value; });
-            lb_pos = "src/std/unicode/normalization.lucb:188:9";
+            lb_pos = "src/std/unicode/normalization.lucb:187:9";
             lb_o_usize _lb_o75 = lb_max_bytes;
             if (_lb_o75.present) {
                 size_t lb_limit __attribute__((unused)) = _lb_o75.value;
                 {
-                    lb_pos = "src/std/unicode/normalization.lucb:189:13";
+                    lb_pos = "src/std/unicode/normalization.lucb:188:13";
                     if (!!((((size_t)(lb_length)) > ((size_t)(lb_limit))))) 
                     {
-                        lb_pos = "src/std/unicode/normalization.lucb:190:17";
+                        lb_pos = "src/std/unicode/normalization.lucb:189:17";
                         lb_r_str _lb_err76 = ((lb_r_str){ .error = { .code = (int32_t)(lb_strings_16output_too_large), .message = ((lb_str){"the normalized text exceeds its byte limit", 42}) }, .failed = true });
                         return _lb_err76;
                     }
@@ -4737,127 +4737,127 @@ lb_r_str lb_unicode_17encode_normalized(lb_cspan lb_scalars, lb_o_usize lb_max_b
             }
         }
     }
-    lb_pos = "src/std/unicode/normalization.lucb:191:5";
+    lb_pos = "src/std/unicode/normalization.lucb:190:5";
     size_t lb_capacity __attribute__((unused)) = ({ lb_o_usize _lb_o77 = ({ uint64_t _lb_qo78; lb_o_usize _lb_qr78; _lb_qr78.present = lb_qadd_u((uint64_t)(lb_length), (uint64_t)(1ULL), 64, &_lb_qo78); _lb_qr78.value = (size_t)(_lb_qo78); _lb_qr78; }); if (!_lb_o77.present) {
         lb_r_str _lb_err79 = ((lb_r_str){ .error = { .code = (int32_t)(lb_memory_exhausted), .message = ((lb_str){"the normalized text size overflowed", 35}) }, .failed = true });
         return _lb_err79;
     } _lb_o77.value; });
-    lb_pos = "src/std/unicode/normalization.lucb:192:5";
+    lb_pos = "src/std/unicode/normalization.lucb:191:5";
     lb_span lb_output __attribute__((unused)) = (({ lb_r_u8_0s _lb_r80 = ({ lb_iface _lb_a81 = lb_memory_allocator; size_t _lb_n81 = (size_t)(lb_capacity); lb_r_u8_0s _lb_r81; if (_lb_n81 > UINT64_C(4611686018427387904)) { _lb_r81 = ((lb_r_u8_0s){ .error = { .code = 208273409, .message = (lb_str){"memory.exhausted", 16} }, .failed = true }); } else { size_t _lb_bytes81 = sizeof(uint8_t) * _lb_n81; lb_o_u8_0s _lb_ao81 = lb_alloc_call(_lb_a81, _lb_bytes81, _Alignof(uint8_t)); if (_lb_bytes81 != 0 && !_lb_ao81.present) { _lb_r81 = ((lb_r_u8_0s){ .error = { .code = 208273409, .message = (lb_str){"memory.exhausted", 16} }, .failed = true }); } else { _lb_r81.value.data = _lb_ao81.value.data; _lb_r81.value.length = _lb_n81; _lb_r81.failed = false; } } _lb_r81; }); if (_lb_r80.failed) {
         return ((lb_r_str){ .error = _lb_r80.error, .failed = true });
     } _lb_r80.value; }));
-    lb_pos = "src/std/unicode/normalization.lucb:193:5";
+    lb_pos = "src/std/unicode/normalization.lucb:192:5";
     size_t lb_position __attribute__((unused)) = 0ULL;
-    lb_pos = "src/std/unicode/normalization.lucb:194:5";
+    lb_pos = "src/std/unicode/normalization.lucb:193:5";
     lb_cspan _lb_seq82 = lb_scalars;
     for (size_t _lb_i82 = 0; _lb_i82 < _lb_seq82.length; _lb_i82++) {
         uint32_t lb_scalar __attribute__((unused)) = ((const uint32_t*)_lb_seq82.data)[_lb_i82];
         {
-            lb_pos = "src/std/unicode/normalization.lucb:195:9";
+            lb_pos = "src/std/unicode/normalization.lucb:194:9";
             size_t lb_width __attribute__((unused)) = ({ lb_o_usize _lb_o83 = lb_utf8_encode(lb_scalar, ({ lb_span _lb_sv84 = lb_output; size_t _lb_sn84 = _lb_sv84.length; uint8_t* _lb_sd84 = (uint8_t*)_lb_sv84.data; size_t _lb_ss84 = (size_t)(lb_position); size_t _lb_se84 = (size_t)(lb_length); lb_check_index(_lb_ss84, _lb_sn84 + 1); lb_check_index(_lb_se84, _lb_sn84 + 1); if (_lb_ss84 > _lb_se84) lb_trap("index out of bounds"); (lb_span){ (void*)(_lb_sd84 + _lb_ss84), _lb_se84 - _lb_ss84 }; })); if (!_lb_o83.present) {
                 (void)(lb_trap_text(((lb_str){"a normalized scalar did not fit its encoded length", 50})));
             } _lb_o83.value; });
-            lb_pos = "src/std/unicode/normalization.lucb:196:9";
+            lb_pos = "src/std/unicode/normalization.lucb:195:9";
             { size_t* lb__cell85 = &(lb_position);
             (*(lb__cell85)) = (size_t)(lb_add_u((uint64_t)((*(lb__cell85))), (uint64_t)(lb_width), 64)); }
         }
     }
-    lb_pos = "src/std/unicode/normalization.lucb:197:5";
+    lb_pos = "src/std/unicode/normalization.lucb:196:5";
     (*({ lb_span _lb_ix86 = lb_output; &((uint8_t*)_lb_ix86.data)[lb_at((uint64_t)(lb_length), _lb_ix86.length)]; })) = 0ULL;
-    lb_pos = "src/std/unicode/normalization.lucb:198:5";
+    lb_pos = "src/std/unicode/normalization.lucb:197:5";
     lb_str _lb_ret87 = ({ lb_span _lb_sc88 = ({ lb_span _lb_sv89 = lb_output; size_t _lb_sn89 = _lb_sv89.length; uint8_t* _lb_sd89 = (uint8_t*)_lb_sv89.data; size_t _lb_ss89 = 0; size_t _lb_se89 = (size_t)(lb_length); lb_check_index(_lb_ss89, _lb_sn89 + 1); lb_check_index(_lb_se89, _lb_sn89 + 1); if (_lb_ss89 > _lb_se89) lb_trap("index out of bounds"); (lb_span){ (void*)(_lb_sd89 + _lb_ss89), _lb_se89 - _lb_ss89 }; }); const char* _lb_sb88 = (const char*)_lb_sc88.data; size_t _lb_sl88 = _lb_sc88.length; (lb_str){ _lb_sb88, _lb_sl88 }; });
     return ((lb_r_str){ .value = _lb_ret87, .failed = false });
     lb_trap("unreachable");
 }
 void lb_unicode_9order_run(lb_span lb_scalars, lb_span lb_scratch) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/unicode/normalization.lucb:107:5";
+    lb_pos = "src/std/unicode/normalization.lucb:106:5";
     size_t lb_length __attribute__((unused)) = (lb_scalars.length);
-    lb_pos = "src/std/unicode/normalization.lucb:110:5";
+    lb_pos = "src/std/unicode/normalization.lucb:109:5";
     for (size_t lb_index __attribute__((unused)) = (size_t)(0ULL); lb_index < (size_t)(lb_length); lb_index++) {
         {
-            lb_pos = "src/std/unicode/normalization.lucb:111:9";
+            lb_pos = "src/std/unicode/normalization.lucb:110:9";
             { uint32_t* lb__cell91 = &((*({ lb_span _lb_ix92 = lb_scalars; &((uint32_t*)_lb_ix92.data)[lb_at((uint64_t)(lb_index), _lb_ix92.length)]; })));
             (*(lb__cell91)) = (*(lb__cell91)) | (({ uint32_t _lb_sq93 __attribute__((unused)) = ((uint32_t)lb_conv_u((uint64_t)(lb_unicode_15combining_class((*({ lb_span _lb_ix94 = lb_scalars; &((uint32_t*)_lb_ix94.data)[lb_at((uint64_t)(lb_index), _lb_ix94.length)]; })))), 8, 0, 32, 0, 1)); int64_t _lb_sq95 __attribute__((unused)) = (int64_t)(21LL); (uint32_t)(lb_shl_u((uint64_t)(_lb_sq93), (uint64_t)((uint32_t)(_lb_sq95)), 32)); })); }
         }
     }
-    lb_pos = "src/std/unicode/normalization.lucb:112:5";
+    lb_pos = "src/std/unicode/normalization.lucb:111:5";
     size_t lb_width __attribute__((unused)) = 1ULL;
-    lb_pos = "src/std/unicode/normalization.lucb:113:5";
+    lb_pos = "src/std/unicode/normalization.lucb:112:5";
     for (;;) {
-        lb_pos = "src/std/unicode/normalization.lucb:113:5";
+        lb_pos = "src/std/unicode/normalization.lucb:112:5";
         if (!((((size_t)(lb_width)) < ((size_t)(lb_length))))) break;
         {
-            lb_pos = "src/std/unicode/normalization.lucb:114:9";
+            lb_pos = "src/std/unicode/normalization.lucb:113:9";
             size_t lb_start __attribute__((unused)) = 0ULL;
-            lb_pos = "src/std/unicode/normalization.lucb:115:9";
+            lb_pos = "src/std/unicode/normalization.lucb:114:9";
             for (;;) {
-                lb_pos = "src/std/unicode/normalization.lucb:115:9";
+                lb_pos = "src/std/unicode/normalization.lucb:114:9";
                 if (!((((size_t)(lb_start)) < ((size_t)(lb_length))))) break;
                 {
-                    lb_pos = "src/std/unicode/normalization.lucb:116:13";
+                    lb_pos = "src/std/unicode/normalization.lucb:115:13";
                     size_t lb_middle __attribute__((unused)) = ((((size_t)(lb_width)) < ((size_t)((size_t)(lb_sub_u((uint64_t)(lb_length), (uint64_t)(lb_start), 64))))) ? (size_t)(lb_add_u((uint64_t)(lb_start), (uint64_t)(lb_width), 64)) : lb_length);
-                    lb_pos = "src/std/unicode/normalization.lucb:117:13";
+                    lb_pos = "src/std/unicode/normalization.lucb:116:13";
                     size_t lb_end __attribute__((unused)) = ((((size_t)(lb_width)) < ((size_t)((size_t)(lb_sub_u((uint64_t)(lb_length), (uint64_t)(lb_middle), 64))))) ? (size_t)(lb_add_u((uint64_t)(lb_middle), (uint64_t)(lb_width), 64)) : lb_length);
-                    lb_pos = "src/std/unicode/normalization.lucb:118:13";
+                    lb_pos = "src/std/unicode/normalization.lucb:117:13";
                     size_t lb_left __attribute__((unused)) = lb_start;
-                    lb_pos = "src/std/unicode/normalization.lucb:119:13";
+                    lb_pos = "src/std/unicode/normalization.lucb:118:13";
                     size_t lb_right __attribute__((unused)) = lb_middle;
-                    lb_pos = "src/std/unicode/normalization.lucb:120:13";
+                    lb_pos = "src/std/unicode/normalization.lucb:119:13";
                     size_t lb_output __attribute__((unused)) = lb_start;
-                    lb_pos = "src/std/unicode/normalization.lucb:121:13";
+                    lb_pos = "src/std/unicode/normalization.lucb:120:13";
                     for (;;) {
-                        lb_pos = "src/std/unicode/normalization.lucb:121:13";
+                        lb_pos = "src/std/unicode/normalization.lucb:120:13";
                         if (!((((size_t)(lb_output)) < ((size_t)(lb_end))))) break;
                         {
-                            lb_pos = "src/std/unicode/normalization.lucb:122:17";
+                            lb_pos = "src/std/unicode/normalization.lucb:121:17";
                             if (!!(((((size_t)(lb_left)) < ((size_t)(lb_middle))) && (((lb_right == lb_end) || (((uint32_t)(((uint32_t)(lb_shr_u((uint64_t)((*({ lb_span _lb_ix96 = lb_scalars; &((uint32_t*)_lb_ix96.data)[lb_at((uint64_t)(lb_left), _lb_ix96.length)]; }))), (uint64_t)((uint32_t)(21LL)), 32))))) <= ((uint32_t)(((uint32_t)(lb_shr_u((uint64_t)((*({ lb_span _lb_ix97 = lb_scalars; &((uint32_t*)_lb_ix97.data)[lb_at((uint64_t)(lb_right), _lb_ix97.length)]; }))), (uint64_t)((uint32_t)(21LL)), 32))))))))))) 
                             {
-                                lb_pos = "src/std/unicode/normalization.lucb:123:21";
+                                lb_pos = "src/std/unicode/normalization.lucb:122:21";
                                 (*({ lb_span _lb_ix98 = lb_scratch; &((uint32_t*)_lb_ix98.data)[lb_at((uint64_t)(lb_output), _lb_ix98.length)]; })) = (*({ lb_span _lb_ix99 = lb_scalars; &((uint32_t*)_lb_ix99.data)[lb_at((uint64_t)(lb_left), _lb_ix99.length)]; }));
-                                lb_pos = "src/std/unicode/normalization.lucb:124:21";
+                                lb_pos = "src/std/unicode/normalization.lucb:123:21";
                                 { size_t* lb__cell100 = &(lb_left);
                                 (*(lb__cell100)) = (size_t)(lb_add_u((uint64_t)((*(lb__cell100))), (uint64_t)(1ULL), 64)); }
                             }
                             else 
                             {
-                                lb_pos = "src/std/unicode/normalization.lucb:126:21";
+                                lb_pos = "src/std/unicode/normalization.lucb:125:21";
                                 (*({ lb_span _lb_ix101 = lb_scratch; &((uint32_t*)_lb_ix101.data)[lb_at((uint64_t)(lb_output), _lb_ix101.length)]; })) = (*({ lb_span _lb_ix102 = lb_scalars; &((uint32_t*)_lb_ix102.data)[lb_at((uint64_t)(lb_right), _lb_ix102.length)]; }));
-                                lb_pos = "src/std/unicode/normalization.lucb:127:21";
+                                lb_pos = "src/std/unicode/normalization.lucb:126:21";
                                 { size_t* lb__cell103 = &(lb_right);
                                 (*(lb__cell103)) = (size_t)(lb_add_u((uint64_t)((*(lb__cell103))), (uint64_t)(1ULL), 64)); }
                             }
-                            lb_pos = "src/std/unicode/normalization.lucb:128:17";
+                            lb_pos = "src/std/unicode/normalization.lucb:127:17";
                             { size_t* lb__cell104 = &(lb_output);
                             (*(lb__cell104)) = (size_t)(lb_add_u((uint64_t)((*(lb__cell104))), (uint64_t)(1ULL), 64)); }
                         }
                     }
-                    lb_pos = "src/std/unicode/normalization.lucb:129:13";
+                    lb_pos = "src/std/unicode/normalization.lucb:128:13";
                     lb_start = lb_end;
                 }
             }
-            lb_pos = "src/std/unicode/normalization.lucb:130:9";
+            lb_pos = "src/std/unicode/normalization.lucb:129:9";
             for (size_t lb_index __attribute__((unused)) = (size_t)(0ULL); lb_index < (size_t)(lb_length); lb_index++) {
                 {
-                    lb_pos = "src/std/unicode/normalization.lucb:131:13";
+                    lb_pos = "src/std/unicode/normalization.lucb:130:13";
                     (*({ lb_span _lb_ix106 = lb_scalars; &((uint32_t*)_lb_ix106.data)[lb_at((uint64_t)(lb_index), _lb_ix106.length)]; })) = (*({ lb_span _lb_ix107 = lb_scratch; &((uint32_t*)_lb_ix107.data)[lb_at((uint64_t)(lb_index), _lb_ix107.length)]; }));
                 }
             }
-            lb_pos = "src/std/unicode/normalization.lucb:132:9";
+            lb_pos = "src/std/unicode/normalization.lucb:131:9";
             if (!!((((size_t)(lb_width)) > ((size_t)((size_t)(lb_div_u((uint64_t)(lb_length), (uint64_t)(2ULL), 64))))))) 
             {
-                lb_pos = "src/std/unicode/normalization.lucb:133:13";
+                lb_pos = "src/std/unicode/normalization.lucb:132:13";
                 break;
             }
-            lb_pos = "src/std/unicode/normalization.lucb:134:9";
+            lb_pos = "src/std/unicode/normalization.lucb:133:9";
             { size_t* lb__cell108 = &(lb_width);
             (*(lb__cell108)) = (size_t)(lb_mul_u((uint64_t)((*(lb__cell108))), (uint64_t)(2ULL), 64)); }
         }
     }
-    lb_pos = "src/std/unicode/normalization.lucb:135:5";
+    lb_pos = "src/std/unicode/normalization.lucb:134:5";
     for (size_t lb_index __attribute__((unused)) = (size_t)(0ULL); lb_index < (size_t)(lb_length); lb_index++) {
         {
-            lb_pos = "src/std/unicode/normalization.lucb:136:9";
+            lb_pos = "src/std/unicode/normalization.lucb:135:9";
             { uint32_t* lb__cell110 = &((*({ lb_span _lb_ix111 = lb_scalars; &((uint32_t*)_lb_ix111.data)[lb_at((uint64_t)(lb_index), _lb_ix111.length)]; })));
             (*(lb__cell110)) = (*(lb__cell110)) & (2097151ULL); }
         }
@@ -4865,60 +4865,60 @@ void lb_unicode_9order_run(lb_span lb_scalars, lb_span lb_scratch) {
 }
 lb_o_u32 lb_unicode_composition(uint32_t lb_left, uint32_t lb_right) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/unicode/normalization.lucb:164:5";
+    lb_pos = "src/std/unicode/normalization.lucb:163:5";
     if (!!(((((((uint32_t)(lb_left)) >= ((uint32_t)(4352ULL))) && (((uint32_t)(lb_left)) < ((uint32_t)(4371ULL)))) && (((uint32_t)(lb_right)) >= ((uint32_t)(4449ULL)))) && (((uint32_t)(lb_right)) < ((uint32_t)(4470ULL)))))) 
     {
-        lb_pos = "src/std/unicode/normalization.lucb:165:9";
+        lb_pos = "src/std/unicode/normalization.lucb:164:9";
         lb_o_u32 _lb_ret112 = ((lb_o_u32){ .value = (uint32_t)(lb_add_u((uint64_t)((uint32_t)(lb_add_u((uint64_t)(44032ULL), (uint64_t)((uint32_t)(lb_mul_u((uint64_t)(((uint32_t)(lb_sub_u((uint64_t)(lb_left), (uint64_t)(4352ULL), 32)))), (uint64_t)(588ULL), 32))), 32))), (uint64_t)((uint32_t)(lb_mul_u((uint64_t)(((uint32_t)(lb_sub_u((uint64_t)(lb_right), (uint64_t)(4449ULL), 32)))), (uint64_t)(28ULL), 32))), 32)), .present = true });
         return _lb_ret112;
     }
-    lb_pos = "src/std/unicode/normalization.lucb:166:5";
+    lb_pos = "src/std/unicode/normalization.lucb:165:5";
     if (!!((((((((uint32_t)(lb_left)) >= ((uint32_t)(44032ULL))) && (((uint32_t)(lb_left)) <= ((uint32_t)(55203ULL)))) && ((uint32_t)(lb_mod_u((uint64_t)(((uint32_t)(lb_sub_u((uint64_t)(lb_left), (uint64_t)(44032ULL), 32)))), (uint64_t)(28ULL), 32)) == 0ULL)) && (((uint32_t)(lb_right)) > ((uint32_t)(4519ULL)))) && (((uint32_t)(lb_right)) < ((uint32_t)(4547ULL)))))) 
     {
-        lb_pos = "src/std/unicode/normalization.lucb:167:9";
+        lb_pos = "src/std/unicode/normalization.lucb:166:9";
         lb_o_u32 _lb_ret113 = ((lb_o_u32){ .value = (uint32_t)(lb_sub_u((uint64_t)((uint32_t)(lb_add_u((uint64_t)(lb_left), (uint64_t)(lb_right), 32))), (uint64_t)(4519ULL), 32)), .present = true });
         return _lb_ret113;
     }
-    lb_pos = "src/std/unicode/normalization.lucb:168:5";
+    lb_pos = "src/std/unicode/normalization.lucb:167:5";
     uint64_t lb_key __attribute__((unused)) = ((uint64_t)(((uint64_t)(lb_shl_u((uint64_t)(((uint64_t)lb_conv_u((uint64_t)(lb_left), 32, 0, 64, 0, 1))), (uint64_t)((uint64_t)(21LL)), 64))) | ((uint64_t)lb_conv_u((uint64_t)(lb_right), 32, 0, 64, 0, 1))));
-    lb_pos = "src/std/unicode/normalization.lucb:169:5";
+    lb_pos = "src/std/unicode/normalization.lucb:168:5";
     size_t lb_low __attribute__((unused)) = 0ULL;
-    lb_pos = "src/std/unicode/normalization.lucb:170:5";
+    lb_pos = "src/std/unicode/normalization.lucb:169:5";
     size_t lb_high __attribute__((unused)) = (size_t)(lb_div_u((uint64_t)((lb_unicode_20composition_mappings.length)), (uint64_t)(24ULL), 64));
-    lb_pos = "src/std/unicode/normalization.lucb:171:5";
+    lb_pos = "src/std/unicode/normalization.lucb:170:5";
     for (;;) {
-        lb_pos = "src/std/unicode/normalization.lucb:171:5";
+        lb_pos = "src/std/unicode/normalization.lucb:170:5";
         if (!((((size_t)(lb_low)) < ((size_t)(lb_high))))) break;
         {
-            lb_pos = "src/std/unicode/normalization.lucb:172:9";
+            lb_pos = "src/std/unicode/normalization.lucb:171:9";
             size_t lb_middle __attribute__((unused)) = (size_t)(lb_add_u((uint64_t)(lb_low), (uint64_t)((size_t)(lb_div_u((uint64_t)(((size_t)(lb_sub_u((uint64_t)(lb_high), (uint64_t)(lb_low), 64)))), (uint64_t)(2ULL), 64))), 64));
-            lb_pos = "src/std/unicode/normalization.lucb:173:9";
+            lb_pos = "src/std/unicode/normalization.lucb:172:9";
             size_t lb_offset __attribute__((unused)) = (size_t)(lb_mul_u((uint64_t)(lb_middle), (uint64_t)(24ULL), 64));
-            lb_pos = "src/std/unicode/normalization.lucb:174:9";
+            lb_pos = "src/std/unicode/normalization.lucb:173:9";
             uint64_t lb_candidate __attribute__((unused)) = ({ uint64_t _lb_sq114 __attribute__((unused)) = (({ uint64_t _lb_sq115 __attribute__((unused)) = ((uint64_t)lb_conv_u((uint64_t)(lb_unicode_10table_word(lb_unicode_20composition_mappings, lb_offset)), 32, 0, 64, 0, 1)); int64_t _lb_sq116 __attribute__((unused)) = (int64_t)(21LL); (uint64_t)(lb_shl_u((uint64_t)(_lb_sq115), (uint64_t)((uint64_t)(_lb_sq116)), 64)); })); uint64_t _lb_sq117 __attribute__((unused)) = ((uint64_t)lb_conv_u((uint64_t)(lb_unicode_10table_word(lb_unicode_20composition_mappings, (size_t)(lb_add_u((uint64_t)(lb_offset), (uint64_t)(8ULL), 64)))), 32, 0, 64, 0, 1)); ((uint64_t)(_lb_sq114 | _lb_sq117)); });
-            lb_pos = "src/std/unicode/normalization.lucb:175:9";
+            lb_pos = "src/std/unicode/normalization.lucb:174:9";
             if (!!((((uint64_t)(lb_candidate)) < ((uint64_t)(lb_key))))) 
             {
-                lb_pos = "src/std/unicode/normalization.lucb:176:13";
+                lb_pos = "src/std/unicode/normalization.lucb:175:13";
                 lb_low = (size_t)(lb_add_u((uint64_t)(lb_middle), (uint64_t)(1ULL), 64));
             }
             else {
-                lb_pos = "src/std/unicode/normalization.lucb:177:9";
+                lb_pos = "src/std/unicode/normalization.lucb:176:9";
                 if (!!((((uint64_t)(lb_candidate)) > ((uint64_t)(lb_key))))) 
                 {
-                    lb_pos = "src/std/unicode/normalization.lucb:178:13";
+                    lb_pos = "src/std/unicode/normalization.lucb:177:13";
                     lb_high = lb_middle;
                 }
                 else 
                 {
-                    lb_pos = "src/std/unicode/normalization.lucb:180:13";
+                    lb_pos = "src/std/unicode/normalization.lucb:179:13";
                     lb_o_u32 _lb_ret118 = ((lb_o_u32){ .value = lb_unicode_10table_word(lb_unicode_20composition_mappings, (size_t)(lb_add_u((uint64_t)(lb_offset), (uint64_t)(16ULL), 64))), .present = true });
                     return _lb_ret118;
                 }
             }
         }
     }
-    lb_pos = "src/std/unicode/normalization.lucb:181:5";
+    lb_pos = "src/std/unicode/normalization.lucb:180:5";
     lb_o_u32 _lb_ret119 = ((lb_o_u32){ .present = false });
     return _lb_ret119;
     lb_trap("unreachable");

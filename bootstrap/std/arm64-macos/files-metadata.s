@@ -839,7 +839,7 @@ l_text_9:
 l_text_10:
     .asciz "directory-entry metadata could not be read"
 l_text_11:
-    .asciz "src/std/files/metadata.lucb:231:17"
+    .asciz "src/std/files/metadata.lucb:230:17"
 
     .section __DATA,__const
     .p2align 3

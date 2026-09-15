@@ -9839,17 +9839,17 @@ lb_memory_read_0g1_usize:
 .Lvsign64:
     .quad -9223372036854775808, -9223372036854775808
 .Ltext_0:
-    .asciz "src/std/debug.lucb:46:9"
+    .asciz "src/std/debug.lucb:45:9"
 .Ltext_1:
-    .asciz "src/std/debug.lucb:47:5"
+    .asciz "src/std/debug.lucb:46:5"
 .Ltext_2:
-    .asciz "src/std/debug.lucb:51:9"
+    .asciz "src/std/debug.lucb:50:9"
 .Ltext_3:
     .asciz "LUCE_DEBUG"
 .Ltext_4:
-    .asciz "src/std/debug.lucb:60:5"
+    .asciz "src/std/debug.lucb:59:5"
 .Ltext_5:
-    .asciz "src/std/debug.lucb:62:5"
+    .asciz "src/std/debug.lucb:61:5"
 .Ltext_6:
     .asciz "stopped at "
 .Ltext_7:
@@ -9857,19 +9857,19 @@ lb_memory_read_0g1_usize:
 .Ltext_8:
     .asciz " in "
 .Ltext_9:
-    .asciz "src/std/debug.lucb:83:9"
+    .asciz "src/std/debug.lucb:82:9"
 .Ltext_10:
-    .asciz "src/std/debug.lucb:86:9"
+    .asciz "src/std/debug.lucb:85:9"
 .Ltext_11:
     .asciz "unreachable"
 .Ltext_12:
-    .asciz "src/std/debug.lucb:87:5"
+    .asciz "src/std/debug.lucb:86:5"
 .Ltext_13:
-    .asciz "src/std/debug.lucb:92:5"
+    .asciz "src/std/debug.lucb:91:5"
 .Ltext_14:
     .asciz "index out of bounds"
 .Ltext_15:
-    .asciz "src/std/debug.lucb:99:9"
+    .asciz "src/std/debug.lucb:98:9"
 .Ltext_16:
     .asciz "r"
 .Ltext_17:
@@ -9909,67 +9909,67 @@ lb_memory_read_0g1_usize:
 .Ltext_34:
     .asciz "`; commands: break FILE:LINE, run, step, next, print NAME, locals, backtrace, quit"
 .Ltext_35:
-    .asciz "src/std/debug.lucb:128:9"
+    .asciz "src/std/debug.lucb:127:9"
 .Ltext_36:
-    .asciz "src/std/debug.lucb:129:9"
+    .asciz "src/std/debug.lucb:128:9"
 .Ltext_37:
     .asciz "break needs FILE:LINE"
 .Ltext_38:
-    .asciz "src/std/debug.lucb:135:5"
+    .asciz "src/std/debug.lucb:134:5"
 .Ltext_39:
-    .asciz "src/std/debug.lucb:136:5"
+    .asciz "src/std/debug.lucb:135:5"
 .Ltext_40:
-    .asciz "src/std/debug.lucb:137:5"
+    .asciz "src/std/debug.lucb:136:5"
 .Ltext_41:
     .asciz "cannot set that breakpoint"
 .Ltext_42:
-    .asciz "src/std/debug.lucb:140:5"
+    .asciz "src/std/debug.lucb:139:5"
 .Ltext_43:
-    .asciz "src/std/debug.lucb:141:5"
+    .asciz "src/std/debug.lucb:140:5"
 .Ltext_44:
-    .asciz "src/std/debug.lucb:142:5"
+    .asciz "src/std/debug.lucb:141:5"
 .Ltext_45:
-    .asciz "src/std/debug.lucb:143:5"
+    .asciz "src/std/debug.lucb:142:5"
 .Ltext_46:
-    .asciz "src/std/debug.lucb:144:5"
+    .asciz "src/std/debug.lucb:143:5"
 .Ltext_47:
     .asciz "breakpoint "
 .Ltext_48:
     .asciz " at "
 .Ltext_49:
-    .asciz "src/std/debug.lucb:152:9"
+    .asciz "src/std/debug.lucb:151:9"
 .Ltext_50:
     .asciz "integer overflow"
 .Ltext_51:
-    .asciz "src/std/debug.lucb:153:5"
+    .asciz "src/std/debug.lucb:152:5"
 .Ltext_52:
-    .asciz "src/std/debug.lucb:159:9"
+    .asciz "src/std/debug.lucb:158:9"
 .Ltext_53:
-    .asciz "src/std/debug.lucb:160:9"
+    .asciz "src/std/debug.lucb:159:9"
 .Ltext_54:
     .asciz "#"
 .Ltext_55:
     .asciz " "
 .Ltext_56:
-    .asciz "src/std/debug.lucb:163:9"
+    .asciz "src/std/debug.lucb:162:9"
 .Ltext_57:
-    .asciz "src/std/debug.lucb:166:5"
+    .asciz "src/std/debug.lucb:165:5"
 .Ltext_58:
-    .asciz "src/std/debug.lucb:171:9"
+    .asciz "src/std/debug.lucb:170:9"
 .Ltext_59:
-    .asciz "src/std/debug.lucb:174:5"
+    .asciz "src/std/debug.lucb:173:5"
 .Ltext_60:
-    .asciz "src/std/debug.lucb:182:9"
+    .asciz "src/std/debug.lucb:181:9"
 .Ltext_61:
     .asciz "no local named `"
 .Ltext_62:
     .asciz "`"
 .Ltext_63:
-    .asciz "src/std/debug.lucb:187:5"
+    .asciz "src/std/debug.lucb:186:5"
 .Ltext_64:
-    .asciz "src/std/debug.lucb:188:5"
+    .asciz "src/std/debug.lucb:187:5"
 .Ltext_65:
-    .asciz "src/std/debug.lucb:193:5"
+    .asciz "src/std/debug.lucb:192:5"
 .Ltext_66:
     .asciz "i64"
 .Ltext_67:
@@ -10017,61 +10017,61 @@ lb_memory_read_0g1_usize:
 .Ltext_88:
     .asciz " = 0x"
 .Ltext_89:
-    .asciz "src/std/debug.lucb:233:13"
+    .asciz "src/std/debug.lucb:232:13"
 .Ltext_90:
     .asciz "0123456789abcdef"
 .Ltext_91:
-    .asciz "src/std/debug.lucb:235:13"
+    .asciz "src/std/debug.lucb:234:13"
 .Ltext_92:
     .asciz "shift count out of range"
 .Ltext_93:
-    .asciz "src/std/debug.lucb:236:13"
+    .asciz "src/std/debug.lucb:235:13"
 .Ltext_94:
-    .asciz "src/std/debug.lucb:237:13"
+    .asciz "src/std/debug.lucb:236:13"
 .Ltext_95:
-    .asciz "src/std/debug.lucb:238:13"
+    .asciz "src/std/debug.lucb:237:13"
 .Ltext_96:
-    .asciz "src/std/debug.lucb:239:13"
+    .asciz "src/std/debug.lucb:238:13"
 .Ltext_97:
     .asciz " bytes "
 .Ltext_98:
-    .asciz "src/std/debug.lucb:240:9"
+    .asciz "src/std/debug.lucb:239:9"
 .Ltext_99:
-    .asciz "src/std/debug.lucb:244:5"
+    .asciz "src/std/debug.lucb:243:5"
 .Ltext_100:
-    .asciz "src/std/debug.lucb:245:9"
+    .asciz "src/std/debug.lucb:244:9"
 .Ltext_101:
-    .asciz "src/std/debug.lucb:246:5"
+    .asciz "src/std/debug.lucb:245:5"
 .Ltext_102:
-    .asciz "src/std/debug.lucb:251:5"
+    .asciz "src/std/debug.lucb:250:5"
 .Ltext_103:
-    .asciz "src/std/debug.lucb:252:9"
+    .asciz "src/std/debug.lucb:251:9"
 .Ltext_104:
-    .asciz "src/std/debug.lucb:253:5"
+    .asciz "src/std/debug.lucb:252:5"
 .Ltext_105:
-    .asciz "src/std/debug.lucb:254:9"
+    .asciz "src/std/debug.lucb:253:9"
 .Ltext_106:
-    .asciz "src/std/debug.lucb:255:5"
+    .asciz "src/std/debug.lucb:254:5"
 .Ltext_107:
-    .asciz "src/std/debug.lucb:262:9"
+    .asciz "src/std/debug.lucb:261:9"
 .Ltext_108:
-    .asciz "src/std/debug.lucb:267:9"
+    .asciz "src/std/debug.lucb:266:9"
 .Ltext_109:
-    .asciz "src/std/debug.lucb:269:9"
+    .asciz "src/std/debug.lucb:268:9"
 .Ltext_110:
-    .asciz "src/std/debug.lucb:270:9"
+    .asciz "src/std/debug.lucb:269:9"
 .Ltext_111:
-    .asciz "src/std/debug.lucb:271:5"
+    .asciz "src/std/debug.lucb:270:5"
 .Ltext_112:
-    .asciz "src/std/memory.lucb:326:9"
-.Ltext_113:
     .asciz "src/std/memory.lucb:328:9"
+.Ltext_113:
+    .asciz "src/std/memory.lucb:330:9"
 .Ltext_114:
     .asciz "null_foreign"
 .Ltext_115:
-    .asciz "src/std/memory.lucb:342:5"
+    .asciz "src/std/memory.lucb:344:5"
 .Ltext_116:
-    .asciz "src/std/memory.lucb:343:5"
+    .asciz "src/std/memory.lucb:345:5"
 
     .section .rdata,"dr"
     .p2align 3

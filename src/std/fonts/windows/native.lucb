@@ -15,6 +15,7 @@ extern struct FontLog:
     quality: u8
     pitch: u8
     family: u16[32]
+
 extern struct FontMetrics:
     height: i32
     ascent: i32
@@ -36,6 +37,7 @@ extern struct FontMetrics:
     struck: u8
     pitch: u8
     charset: u8
+
 extern struct GlyphMetrics:
     width: u32
     height: u32
@@ -43,11 +45,13 @@ extern struct GlyphMetrics:
     y: i32
     advance_x: i16
     advance_y: i16
+
 extern struct FontMatrix:
     xx: u32 = 65536
     xy: u32
     yx: u32
     yy: u32 = 65536
+
 extern func CreateCompatibleDC(dc: void*?) -> void*?
 extern func DeleteDC(dc: void*) -> i32
 extern func CreateFontIndirectW(font: const FontLog*) -> void*?

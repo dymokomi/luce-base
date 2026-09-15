@@ -58,4 +58,3 @@ pub func write(path: c.str, data: const u8[]) -> !:
 func release_buffer(bytes: u8[]):
     if bytes.length > 0:
         free(bytes)
-

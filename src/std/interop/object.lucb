@@ -46,7 +46,6 @@ pub struct Owner[T]:
             if let trace = owner.declaration.trace:
                 trace(native, visit, context)
 
-
 func close_owner[T](owner: Owner[T]*):
     ownership.check_alive(&owner.header)
     if owner.closed:
@@ -72,7 +71,7 @@ pub struct Reservation[T]:
         if declaration.main_thread and not thread.is_main():
             error(wrong_thread, "this native type requires the process main thread")
         var information = ownership.Info(name = declaration.name, size = sizeof(Owner[T]),
-            finish = Owner[T].finish_owner, drop = Owner[T].drop_owner, trace = Owner[T].trace_owner)
+                                         finish = Owner[T].finish_owner, drop = Owner[T].drop_owner, trace = Owner[T].trace_owner)
         let owner = (Owner[T]*)try ownership.reserve(&information, sizeof(Owner[T]))
         owner.information = information
         owner.header.info = &owner.information
@@ -90,4 +89,3 @@ pub struct Reservation[T]:
         if let owner = self.owner:
             self.owner = none
             ownership.discard_unpublished(&owner.header)
-

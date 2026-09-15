@@ -105,13 +105,13 @@ L1_8:
 l_text_0:
     .asciz "null_foreign"
 l_text_1:
-    .asciz "src/std/fonts/linux/native.lucb:44:5"
+    .asciz "src/std/fonts/linux/native.lucb:46:5"
 l_text_2:
     .asciz "monospace"
 l_text_3:
-    .asciz "src/std/fonts/linux/native.lucb:53:5"
-l_text_4:
     .asciz "src/std/fonts/linux/native.lucb:55:5"
+l_text_4:
+    .asciz "src/std/fonts/linux/native.lucb:57:5"
 l_text_5:
     .asciz "i"
 l_text_6:
@@ -119,49 +119,49 @@ l_text_6:
 l_text_7:
     .asciz "the requested font must be an available monospace face"
 l_text_8:
-    .asciz "src/std/fonts/linux/native.lucb:67:9"
+    .asciz "src/std/fonts/linux/native.lucb:69:9"
 l_text_9:
-    .asciz "src/std/fonts/linux/native.lucb:68:5"
+    .asciz "src/std/fonts/linux/native.lucb:70:5"
 l_text_10:
-    .asciz "src/std/fonts/linux/native.lucb:69:5"
+    .asciz "src/std/fonts/linux/native.lucb:71:5"
 l_text_11:
     .asciz "unreachable"
 l_text_12:
     .asciz "the font is closed"
 l_text_13:
-    .asciz "src/std/fonts/linux/native.lucb:73:5"
+    .asciz "src/std/fonts/linux/native.lucb:75:5"
 l_text_14:
     .asciz "could not allocate font raster storage"
 l_text_15:
-    .asciz "src/std/fonts/linux/native.lucb:77:5"
+    .asciz "src/std/fonts/linux/native.lucb:79:5"
 l_text_16:
-    .asciz "src/std/fonts/linux/native.lucb:80:5"
+    .asciz "src/std/fonts/linux/native.lucb:82:5"
 l_text_17:
     .asciz "validated text changed"
 l_text_18:
-    .asciz "src/std/fonts/linux/native.lucb:86:9"
+    .asciz "src/std/fonts/linux/native.lucb:88:9"
 l_text_19:
-    .asciz "src/std/fonts/linux/native.lucb:89:13"
+    .asciz "src/std/fonts/linux/native.lucb:91:13"
 l_text_20:
-    .asciz "src/std/fonts/linux/native.lucb:90:9"
-l_text_21:
     .asciz "src/std/fonts/linux/native.lucb:92:9"
-l_text_22:
-    .asciz "src/std/fonts/linux/native.lucb:93:9"
-l_text_23:
+l_text_21:
     .asciz "src/std/fonts/linux/native.lucb:94:9"
+l_text_22:
+    .asciz "src/std/fonts/linux/native.lucb:95:9"
+l_text_23:
+    .asciz "src/std/fonts/linux/native.lucb:96:9"
 l_text_24:
     .asciz "could not rasterize the font text"
 l_text_25:
-    .asciz "src/std/fonts/linux/native.lucb:98:5"
+    .asciz "src/std/fonts/linux/native.lucb:100:5"
 l_text_26:
-    .asciz "src/std/fonts/linux/native.lucb:101:9"
+    .asciz "src/std/fonts/linux/native.lucb:103:9"
 l_text_27:
     .asciz "index out of bounds"
 l_text_28:
-    .asciz "src/std/memory.lucb:326:9"
-l_text_29:
     .asciz "src/std/memory.lucb:328:9"
+l_text_29:
+    .asciz "src/std/memory.lucb:330:9"
 
     .section __DATA,__const
     .p2align 3

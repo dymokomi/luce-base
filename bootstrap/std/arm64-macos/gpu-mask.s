@@ -1237,9 +1237,9 @@ l_text_17:
 l_text_18:
     .asciz "index out of bounds"
 l_text_19:
-    .asciz "src/std/memory.lucb:326:9"
-l_text_20:
     .asciz "src/std/memory.lucb:328:9"
+l_text_20:
+    .asciz "src/std/memory.lucb:330:9"
 l_text_21:
     .asciz "null_foreign"
 l_text_22:

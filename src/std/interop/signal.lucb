@@ -73,7 +73,7 @@ pub struct Signal[A]:
     pub func init(allocator: memory.Allocator? = none) -> !:
         let selected = allocator else memory.heap
         var information = ownership.Info(name = "signal", size = sizeof(SignalState[A]),
-            finish = none, drop = SignalState[A].close, trace = SignalState[A].trace)
+                                         finish = none, drop = SignalState[A].close, trace = SignalState[A].trace)
         let state = (SignalState[A]*)try ownership.reserve(&information, sizeof(SignalState[A]), selected)
         state.information = information
         state.header.info = &state.information
@@ -108,7 +108,7 @@ pub struct Signal[A]:
         var reservation = try Reservation[Connection](connection_type)
         errdefer reservation.cancel()
         let token = reservation.publish(try new Connection(&self.state.header, identifier,
-            SignalState[A].remove, SignalState[A].contains) in self.state.allocator, self.state.allocator)
+                                                           SignalState[A].remove, SignalState[A].contains) in self.state.allocator, self.state.allocator)
         errdefer token.release()
         let allocation = try alloc(sizeof(Subscription[A]), alignof(Subscription[A])) in self.state.allocator
         let entry = (Subscription[A]*)allocation.data

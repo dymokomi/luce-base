@@ -813,7 +813,7 @@ L6_7:
 
     .section __TEXT,__const
 l_text_0:
-    .asciz "src/std/utf8/decoder.lucb:23:17"
+    .asciz "src/std/utf8/decoder.lucb:22:17"
 l_text_1:
     .asciz "invalid UTF-8 leading byte"
 l_text_2:
@@ -821,23 +821,23 @@ l_text_2:
 l_text_3:
     .asciz "shift count out of range"
 l_text_4:
-    .asciz "src/std/utf8/decoder.lucb:50:9"
+    .asciz "src/std/utf8/decoder.lucb:49:9"
 l_text_5:
     .asciz "integer overflow"
 l_text_6:
-    .asciz "src/std/utf8/decoder.lucb:51:9"
+    .asciz "src/std/utf8/decoder.lucb:50:9"
 l_text_7:
-    .asciz "src/std/utf8/decoder.lucb:55:13"
+    .asciz "src/std/utf8/decoder.lucb:54:13"
 l_text_8:
     .asciz "unreachable"
 l_text_9:
-    .asciz "src/std/utf8/decoder.lucb:56:9"
+    .asciz "src/std/utf8/decoder.lucb:55:9"
 l_text_10:
     .asciz "the UTF-8 stream ends within a scalar"
 l_text_11:
-    .asciz "src/std/utf8/decoder.lucb:70:9"
+    .asciz "src/std/utf8/decoder.lucb:69:9"
 l_text_12:
-    .asciz "src/std/utf8/decoder.lucb:74:9"
+    .asciz "src/std/utf8/decoder.lucb:73:9"
 l_text_13:
     .asciz "the UTF-8 decoder has rejected malformed input"
 l_text_14:

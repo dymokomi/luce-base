@@ -25,6 +25,7 @@ func write(descriptor: i32, buffer: const void*, count: usize) -> isize:
     if platform.windows:
         return (isize)windows_write(descriptor, buffer, (u32)(count if count < 2147483647 else 2147483647))
     return posix_write(descriptor, buffer, count)
+
 extern func c_exit as "exit"(code: i32) -> never
 extern func malloc(size: usize) -> void*?
 extern func memcpy(target: void*, source: const void*, count: usize) -> void*

@@ -5522,9 +5522,9 @@ l_text_94:
 l_text_95:
     .asciz "src/std/net/websocket/handshake.lucb:218:13"
 l_text_96:
-    .asciz "src/std/memory.lucb:326:9"
-l_text_97:
     .asciz "src/std/memory.lucb:328:9"
+l_text_97:
+    .asciz "src/std/memory.lucb:330:9"
 l_text_98:
     .asciz "null_foreign"
 l_text_99:

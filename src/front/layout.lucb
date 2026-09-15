@@ -1,0 +1,1217 @@
+#==============================================================================================
+#
+#   layout - A module written back in the canonical layout
+#
+#   DESCRIPTION:
+#       `luce-base fmt` (§19.6): the tree of a module printed the one way. Four spaces per
+#       block, one statement per line, one space around a binary operator and after a
+#       comma, none inside brackets, one blank line between declarations, at most one
+#       between statements where the source had one, and comments kept: a comment on a
+#       line of its own stays before what follows it, one after code stays after that
+#       line. A list that the source broke across lines stays broken at the same items,
+#       each continuation aligned under the first. The parser reads the result into the
+#       same tree, and formatting it again changes nothing.
+#
+#       Comments are not in the tree: the lexer drops `#` comments and the parser skips
+#       `##` ones. The formatter finds every comment in the source once, in order, and
+#       writes each as the printing passes its position.
+#
+#==============================================================================================
+
+import front.ast
+import front.source
+import front.token
+import support.buffer
+
+pub struct Formatter:
+    var src: source.Source
+    var tokens: const token.Token[]
+    var out: buffer.Buffer
+    var indent: u32
+    ## Comments as `[start, end)` pairs of source offsets, in order, and how many were written.
+    var comments: usize[]
+    var comment_count: usize
+    var written: usize
+    var at_line_start: bool
+    ## Characters on the current output line, for continuation lines aligned under a bracket.
+    var column: usize
+
+    pub static func over(src: source.Source, tokens: const token.Token[]) -> Formatter!:
+        var f = Formatter(src = src, tokens = tokens, out = try buffer.Buffer.create(4096), indent = 0,
+                          comments = try alloc usize[2], comment_count = 0, written = 0, at_line_start = true, column = 0)
+        try f.find_comments()
+        return f
+
+    pub func text() -> str:
+        return self.out.view()
+
+    # mark: Comments ===========================================================================
+
+    ## Every comment of the source: a `##` line, which the lexer made a token, or a `#` outside
+    ## every other token, to the end of its line.
+    mutating func find_comments() -> !:
+        var count: usize = 0
+        var room = try alloc usize[64]
+        var i: usize = 0
+        var t: usize = 0
+        let bytes = self.src.bytes
+        while i < bytes.length:
+            while t < self.tokens.length and self.tokens[t].end <= i:
+                t += 1
+            if t < self.tokens.length and self.tokens[t].start <= i and i < self.tokens[t].end and self.tokens[t].end > self.tokens[t].start:
+                if self.tokens[t].kind != token.Kind.doc_comment:
+                    i = self.tokens[t].end
+                    continue
+            if bytes[i] == '#':
+                let start = i
+                while i < bytes.length and bytes[i] != '\n':
+                    i += 1
+                var end = i
+                if end > start and bytes[end - 1] == '\r':
+                    end -= 1
+                if count + 2 > room.length:
+                    let grown = try alloc usize[room.length * 2]
+                    var k: usize = 0
+                    while k < count:
+                        grown[k] = room[k]
+                        k += 1
+                    room = grown
+                room[count] = start
+                room[count + 1] = end
+                count += 2
+                continue
+            i += 1
+        self.comments = room
+        self.comment_count = count // 2
+
+    ## Comments before `offset` on lines of their own, each on its own line; a blank line the
+    ## source had before one is kept, as one.
+    mutating func comments_before(offset: usize) -> bool!:
+        var wrote = false
+        while self.written < self.comment_count:
+            let start = self.comments[self.written * 2]
+            let end = self.comments[self.written * 2 + 1]
+            if start >= offset:
+                return wrote
+            self.written += 1
+            wrote = true
+            if not self.at_line_start:
+                try self.newline()
+            elif self.out.used > 0 and self.blank_before(start) and not self.ends_blank():
+                try self.blank()
+            try self.put(self.src.text(start, end))
+            try self.newline()
+        return wrote
+
+    ## Where the next thing after the previous item begins: its comment, or the item.
+    func next_break(item_start: usize) -> usize:
+        if self.written < self.comment_count and self.comments[self.written * 2] < item_start:
+            return self.comments[self.written * 2]
+        return item_start
+
+    ## Between two items: a blank line the source had, kept as one, or a forced one, before
+    ## the comments standing before the item; then those comments; then a blank line the
+    ## source kept between the last of them and the item.
+    mutating func separate(previous: ast.Node*?, item: ast.Node*, forced: bool) -> !:
+        let at = statement_start(item)
+        if previous != none and (forced or self.blank_before(self.next_break(at))):
+            try self.blank()
+        let wrote = try self.comments_before(at)
+        if wrote and self.blank_before(at):
+            try self.blank()
+
+    ## A comment on the same line after code: written after the line, two spaces before.
+    mutating func trailing_comment(line: u32) -> !:
+        if self.written < self.comment_count:
+            let start = self.comments[self.written * 2]
+            let end = self.comments[self.written * 2 + 1]
+            let (l, c) = self.src.position(start)
+            discard(c)
+            if l == line and not self.first_on_line(start):
+                self.written += 1
+                try self.out.put("  ")
+                try self.out.put(self.src.text(start, end))
+
+    func first_on_line(offset: usize) -> bool:
+        var i = offset
+        while i > 0:
+            i -= 1
+            let b = self.src.bytes[i]
+            if b == '\n':
+                return true
+            if b != ' ':
+                return false
+        return true
+
+    ## Whether an empty line lies between the previous line of code or comment and `offset`.
+    func blank_before(offset: usize) -> bool:
+        var i = offset
+        var newlines: u32 = 0
+        while i > 0:
+            i -= 1
+            let b = self.src.bytes[i]
+            if b == '\n':
+                newlines += 1
+                if newlines >= 2:
+                    return true
+            elif b != ' ' and b != '\r':
+                return false
+        return false
+
+    ## Whether the source breaks the line between the bracket opening a list and its first
+    ## item at `offset`: the list is laid out in block form, one level in.
+    func open_break(offset: usize) -> bool:
+        var i = offset
+        var broke = false
+        while i > 0:
+            i -= 1
+            let b = self.src.bytes[i]
+            if b == '\n':
+                broke = true
+            elif b == ' ' or b == '\r':
+                continue
+            else:
+                return broke and (b == '[' or b == '(')
+        return false
+
+    ## The offset of the bracket closing the list whose last item begins at `after`: the
+    ## first closing bracket at depth zero, literals and comments skipped.
+    func closing_after(after: usize) -> usize:
+        let bytes = self.src.bytes
+        var i = after
+        var depth: u32 = 0
+        while i < bytes.length:
+            let b = bytes[i]
+            if b == '"' or b == '\'':
+                i = self.past_literal(i)
+                continue
+            if b == '#':
+                while i < bytes.length and bytes[i] != '\n':
+                    i += 1
+                continue
+            if b == '(' or b == '[' or b == '{':
+                depth += 1
+            elif b == ')' or b == ']' or b == '}':
+                if depth == 0:
+                    return i
+                depth -= 1
+            i += 1
+        return bytes.length
+
+    ## The offset just past the quoted literal opening at `i`: `"..."`, `'...'`, or `"""..."""`,
+    ## with `\` escapes, none in a raw one (`r"..."`).
+    func past_literal(i: usize) -> usize:
+        let bytes = self.src.bytes
+        let quote = bytes[i]
+        let raw = i > 0 and bytes[i - 1] == 'r'
+        let triple = quote == '"' and i + 2 < bytes.length and bytes[i + 1] == '"' and bytes[i + 2] == '"'
+        var k = i + (3 if triple else 1)
+        while k < bytes.length:
+            let b = bytes[k]
+            if b == '\\' and not raw:
+                k += 2
+                continue
+            if triple:
+                if b == '"' and k + 2 < bytes.length and bytes[k + 1] == '"' and bytes[k + 2] == '"':
+                    return k + 3
+            elif b == quote:
+                return k + 1
+            elif b == '\n':
+                return k
+            k += 1
+        return bytes.length
+
+    ## Whether a line break lies between the last item and the bracket at `offset`.
+    func newline_before(offset: usize) -> bool:
+        var i = offset
+        while i > 0:
+            i -= 1
+            let b = self.src.bytes[i]
+            if b == '\n':
+                return true
+            if b != ' ' and b != '\r':
+                return false
+        return false
+
+    ## Whether the source breaks the line between the comma before `offset` and it.
+    func break_before(offset: usize) -> bool:
+        var i = offset
+        var broke = false
+        while i > 0:
+            i -= 1
+            let b = self.src.bytes[i]
+            if b == '\n':
+                broke = true
+            elif b == ' ' or b == '\r':
+                continue
+            else:
+                return broke and b == ','
+        return false
+
+    # mark: Output =============================================================================
+
+    mutating func put(text: str) -> !:
+        if self.at_line_start:
+            var i: u32 = 0
+            while i < self.indent:
+                try self.out.put("    ")
+                i += 1
+            self.column = (usize)self.indent * 4
+            self.at_line_start = false
+        try self.out.put(text)
+        self.column += text.length
+
+    mutating func newline() -> !:
+        try self.out.put("\n")
+        self.at_line_start = true
+        self.column = 0
+
+    mutating func blank() -> !:
+        if not self.at_line_start:
+            try self.newline()
+        if not self.ends_blank():
+            try self.out.put("\n")
+
+    ## Whether the output already ends with an empty line.
+    func ends_blank() -> bool:
+        let text = self.out.view()
+        return text.length >= 2 and text.bytes[text.length - 1] == '\n' and text.bytes[text.length - 2] == '\n'
+
+    ## A continuation line of a list broken by the source: under the list's first item.
+    mutating func continue_at(column: usize) -> !:
+        try self.out.put("\n")
+        var i: usize = 0
+        while i < column:
+            try self.out.put(" ")
+            i += 1
+        self.column = column
+
+    ## The line a node begins on.
+    func line_of(n: ast.Node*) -> u32:
+        return self.line_at(n.start)
+
+    func line_at(offset: usize) -> u32:
+        let (l, c) = self.src.position(offset)
+        discard(c)
+        return l
+
+    mutating func end_line(n: ast.Node*) -> !:
+        try self.trailing_comment(self.line_of(n))
+        try self.newline()
+
+    ## `:` closing a header, the header's trailing comment, and the line's end.
+    mutating func open_suite(n: ast.Node*) -> !:
+        try self.put(":")
+        try self.trailing_comment(self.line_of(n))
+        try self.newline()
+
+    ## `:` and the suite: on the header's line when the source wrote its one simple statement
+    ## there (§3.2), else the block beneath.
+    mutating func suite(header: ast.Node*, b: ast.Node*) -> !:
+        if let only = b.body:
+            if only.next == none and self.line_at(statement_start(only)) == self.line_of(header) and not compound(only):
+                try self.put(": ")
+                try self.statement(only)
+                return
+        try self.open_suite(header)
+        try self.block(b)
+
+    # mark: Module =============================================================================
+    pub mutating func module(m: ast.Node*) -> !:
+        var cursor = m.body
+        var previous: ast.Node*? = none
+        while let d = cursor:
+            var forced = false
+            if let p = previous:
+                forced = self.spaced(p, d)
+            try self.separate(previous, d, forced)
+            previous = d
+            try self.declaration(d)
+            cursor = d.next
+        if self.written < self.comment_count and self.blank_before(self.comments[self.written * 2]):
+            try self.blank()
+        discard(try self.comments_before(self.src.bytes.length + 1))
+
+    ## Whether a blank line always separates two declarations: when either is one with a
+    ## body. Imports, constants, globals, aliases, and foreign declarations sit together.
+    func spaced(a: ast.Node*, b: ast.Node*) -> bool:
+        return has_body(a) or has_body(b)
+
+    mutating func declaration(d: ast.Node*) -> !:
+        match d.kind:
+            .import_:
+                try self.put("import ")
+                try self.put(d.text)
+                if let alias = d.left:
+                    try self.put(" as ")
+                    try self.put(alias.text)
+                try self.end_line(d)
+            .from_import:
+                try self.put("from ")
+                try self.put(d.text)
+                try self.put(" import ")
+                try self.names(d.body)
+                try self.end_line(d)
+            .func_: try self.function(d)
+            .struct_, .extern_struct:
+                try self.visibility(d)
+                if d.kind == ast.Kind.extern_struct:
+                    try self.put("extern ")
+                try self.layout_words(d)
+                try self.put("struct ")
+                try self.put(d.text)
+                try self.generics(d.left)
+                try self.conformances(d.ty)
+                try self.open_suite(d)
+                try self.members(d.body, d.kind == ast.Kind.struct_)
+            .enum_:
+                try self.visibility(d)
+                try self.put("enum ")
+                try self.put(d.text)
+                try self.generics(d.left)
+                if let backing = d.ty:
+                    try self.put(" as ")
+                    try self.type_node(backing)
+                try self.conformances(d.right)
+                try self.open_suite(d)
+                try self.members(d.body, true)
+            .union_, .extern_union:
+                try self.visibility(d)
+                if d.kind == ast.Kind.extern_union:
+                    try self.put("extern ")
+                try self.put("union ")
+                try self.put(d.text)
+                try self.open_suite(d)
+                try self.members(d.body, false)
+            .interface_:
+                try self.visibility(d)
+                try self.put("interface ")
+                try self.put(d.text)
+                try self.generics(d.left)
+                try self.open_suite(d)
+                try self.members(d.body, true)
+            .type_alias:
+                try self.visibility(d)
+                try self.put("type ")
+                try self.put(d.text)
+                try self.put(" = ")
+                try self.type_node(d.ty else return)
+                try self.end_line(d)
+            .constant:
+                try self.visibility(d)
+                try self.attributes(d)
+                try self.put("let ")
+                try self.put(d.text)
+                if let t = d.ty:
+                    try self.put(": ")
+                    try self.type_node(t)
+                if let v = d.left:
+                    try self.put(" = ")
+                    try self.expr(v)
+                try self.end_line(d)
+            .global:
+                try self.visibility(d)
+                if d.has(ast.flag_thread_local):
+                    try self.put("local ")
+                try self.attributes(d)
+                try self.put("var ")
+                try self.put(d.text)
+                try self.put(": ")
+                try self.type_node(d.ty else return)
+                if d.has(ast.flag_uninit):
+                    try self.put(" = ---")
+                elif let v = d.left:
+                    try self.put(" = ")
+                    try self.expr(v)
+                try self.end_line(d)
+            .test_:
+                try self.put("test ")
+                try self.put(d.text)
+                try self.suite(d, d.body else return)
+            .assert_:
+                try self.put("assert(")
+                try self.arguments(d.body)
+                try self.put(")")
+                try self.end_line(d)
+            .asm_: try self.asm_block(d)
+            .extern_type:
+                try self.visibility(d)
+                if let destroy = d.right:
+                    try self.put("handle ")
+                    try self.put(d.text)
+                    try self.open_suite(d)
+                    self.indent += 1
+                    try self.put("destroy ")
+                    try self.put(destroy.text)
+                    try self.newline()
+                    self.indent -= 1
+                else:
+                    try self.put("extern type ")
+                    try self.put(d.text)
+                    if let t = d.ty:
+                        try self.put(" = ")
+                        try self.type_node(t)
+                    try self.end_line(d)
+            .extern_var:
+                try self.visibility(d)
+                try self.put("extern var ")
+                try self.put(d.text)
+                try self.put(": ")
+                try self.type_node(d.ty else return)
+                try self.end_line(d)
+            .extern_func:
+                try self.visibility(d)
+                try self.put("extern ")
+                if d.has(ast.flag_blocking):
+                    try self.put("blocking ")
+                try self.put("func ")
+                try self.put(d.text)
+                if let symbol = d.left:
+                    try self.put(" as ")
+                    try self.put(symbol.text)
+                try self.put("(")
+                try self.params(d.right, d.has(ast.flag_variadic))
+                try self.put(")")
+                try self.result(d)
+                try self.end_line(d)
+            _: discard(0)
+
+    mutating func visibility(d: ast.Node*) -> !:
+        if d.has(ast.flag_pub):
+            try self.put("pub ")
+        if d.has(ast.flag_export):
+            try self.put("export ")
+
+    ## `packed ` or `align(N) ` before `struct`.
+    mutating func layout_words(d: ast.Node*) -> !:
+        if d.has(ast.flag_packed):
+            try self.put("packed ")
+        elif let alignment = d.right:
+            try self.put("align(")
+            try self.expr(alignment)
+            try self.put(") ")
+
+    ## The attribute words of §9.8 before a function or a global, `section` with its name.
+    mutating func attributes(d: ast.Node*) -> !:
+        var cursor = d.attrs
+        while let a = cursor:
+            try self.put(a.text)
+            if let name = a.left:
+                try self.put("(")
+                try self.expr(name)
+                try self.put(")")
+            try self.put(" ")
+            cursor = a.next
+
+    ## `[T, U: A & B]`
+    mutating func generics(g: ast.Node*?) -> !:
+        let list = g else return
+        try self.put("[")
+        var cursor = list.body
+        var first = true
+        while let p = cursor:
+            if not first:
+                try self.put(", ")
+            first = false
+            try self.put(p.text)
+            var b = p.body
+            var first_bound = true
+            while let bound = b:
+                try self.put(": " if first_bound else " & ")
+                first_bound = false
+                try self.type_node(bound)
+                b = bound.next
+            cursor = p.next
+        try self.put("]")
+
+    mutating func conformances(c: ast.Node*?) -> !:
+        var cursor = c
+        var first = true
+        while let t = cursor:
+            try self.put(": " if first else ", ")
+            first = false
+            try self.type_node(t)
+            cursor = t.next
+
+    mutating func names(n: ast.Node*?) -> !:
+        var cursor = n
+        var first = true
+        while let name = cursor:
+            if not first:
+                try self.put(", ")
+            first = false
+            try self.put(name.text)
+            cursor = name.next
+
+    ## A type's members: a blank line before and after a method, and where the source had
+    ## one. A struct's or enum's field is `var` or `let`; a union's or foreign struct's has
+    ## no keyword.
+    mutating func members(m: ast.Node*?, keyworded: bool) -> !:
+        self.indent += 1
+        var cursor = m
+        var previous: ast.Node*? = none
+        while let member = cursor:
+            var forced = false
+            if let p = previous:
+                forced = member.kind == ast.Kind.func_ or p.kind == ast.Kind.func_
+            try self.separate(previous, member, forced)
+            previous = member
+            match member.kind:
+                .field:
+                    try self.visibility(member)
+                    if let alignment = member.right:
+                        try self.put("align(")
+                        try self.expr(alignment)
+                        try self.put(") ")
+                    if member.has(ast.flag_const):
+                        try self.put("let ")
+                    elif keyworded:
+                        try self.put("var ")
+                    try self.put(member.text)
+                    try self.put(": ")
+                    try self.type_node(member.ty else return)
+                    if let default = member.left:
+                        try self.put(" = ")
+                        try self.expr(default)
+                    try self.end_line(member)
+                .enum_case:
+                    try self.put(member.text)
+                    if member.body != none:
+                        try self.put("(")
+                        try self.params(member.body, false)
+                        try self.put(")")
+                    elif let value = member.left:
+                        try self.put(" = ")
+                        try self.expr(value)
+                    try self.end_line(member)
+                .func_: try self.function(member)
+                _: discard(0)
+            cursor = member.next
+        self.indent -= 1
+
+    mutating func function(f: ast.Node*) -> !:
+        try self.visibility(f)
+        try self.attributes(f)
+        if f.has(ast.flag_static):
+            try self.put("static ")
+        if f.has(ast.flag_mutating):
+            try self.put("mutating ")
+        try self.put("func ")
+        try self.put(f.text)
+        try self.generics(f.left)
+        try self.put("(")
+        try self.params(f.right, false)
+        try self.put(")")
+        try self.result(f)
+        if let body = f.body:
+            try self.suite(f, body)
+        else:
+            try self.end_line(f)
+
+    ## ` -> T` or ` -> !`.
+    mutating func result(f: ast.Node*) -> !:
+        if f.has(ast.flag_fallible):
+            try self.put(" -> !")
+        elif let r = f.ty:
+            try self.put(" -> ")
+            try self.type_node(r)
+
+    mutating func params(p: ast.Node*?, variadic: bool) -> !:
+        let column = self.column
+        var cursor = p
+        var first = true
+        while let param = cursor:
+            if not first:
+                try self.put(",")
+                if self.break_before(param.start):
+                    try self.continue_at(column)
+                else:
+                    try self.put(" ")
+            first = false
+            if param.has(ast.flag_out):
+                try self.put("out ")
+            try self.put(param.text)
+            if let t = param.ty:
+                try self.put(": ")
+                if param.has(ast.flag_noalias):
+                    try self.put("noalias ")
+                try self.type_node(t)
+            if let default = param.left:
+                try self.put(" = ")
+                try self.expr(default)
+            cursor = param.next
+        if variadic:
+            if not first:
+                try self.put(", ")
+            try self.put("...")
+
+    ## `asm ARCH(operands):` and its raw lines, indented one level, as written.
+    mutating func asm_block(a: ast.Node*) -> !:
+        try self.put("asm ")
+        try self.put(a.text)
+        if a.right != none:
+            try self.put(" (")
+            var cursor = a.right
+            var first = true
+            while let operand = cursor:
+                if not first:
+                    try self.put(", ")
+                first = false
+                try self.put(operand.text)
+                try self.put("(")
+                var place = operand.body
+                var first_place = true
+                while let p = place:
+                    if not first_place:
+                        try self.put(", ")
+                    first_place = false
+                    try self.put(p.text)
+                    place = p.next
+                try self.put(")")
+                if let value = operand.left:
+                    try self.put(" ")
+                    try self.expr(value)
+                cursor = operand.next
+            try self.put(")")
+        try self.open_suite(a)
+        self.indent += 1
+        var line = a.body
+        while let l = line:
+            try self.put(l.text)
+            try self.newline()
+            line = l.next
+        self.indent -= 1
+
+    # mark: Statements =========================================================================
+
+    mutating func block(b: ast.Node*) -> !:
+        self.indent += 1
+        var cursor = b.body
+        var previous: ast.Node*? = none
+        while let s = cursor:
+            try self.separate(previous, s, false)
+            previous = s
+            try self.statement(s)
+            cursor = s.next
+        self.indent -= 1
+
+    mutating func statement(s: ast.Node*) -> !:
+        match s.kind:
+            .let_, .var_:
+                try self.put("let " if s.kind == ast.Kind.let_ else "var ")
+                try self.binding_target(s)
+                if let t = s.ty:
+                    try self.put(": ")
+                    try self.type_node(t)
+                if s.has(ast.flag_uninit):
+                    try self.put(" = ---")
+                    try self.end_line(s)
+                elif let value = s.left:
+                    try self.put(" = ")
+                    try self.expr_or_catch(value, s)
+                else:
+                    try self.end_line(s)
+            .assign:
+                try self.expr(s.left else return)
+                try self.put(" ")
+                try self.put(s.text)
+                try self.put(" ")
+                let value = s.right else return
+                try self.expr_or_catch(value, s)
+            .expr_stmt:
+                let inner = s.left else return
+                try self.expr_or_catch(inner, s)
+            .return_:
+                try self.put("return")
+                if let v = s.left:
+                    try self.put(" ")
+                    try self.expr_or_catch(v, s)
+                else:
+                    try self.end_line(s)
+            .break_, .continue_:
+                try self.put("break" if s.kind == ast.Kind.break_ else "continue")
+                if s.text.length > 0:
+                    try self.put(" ")
+                    try self.put(s.text)
+                try self.end_line(s)
+            .recover_:
+                try self.put("recover ")
+                let recovered = s.left else return
+                try self.expr_or_catch(recovered, s)
+            .defer_, .errdefer_:
+                try self.put("defer " if s.kind == ast.Kind.defer_ else "errdefer ")
+                let inner = s.left else return
+                if inner.kind == ast.Kind.free_:
+                    try self.free_statement(inner, s)
+                else:
+                    try self.expr_or_catch(inner, s)
+            .free_: try self.free_statement(s, s)
+            .if_: try self.if_statement(s, "if ")
+            .while_:
+                if s.text.length > 0:
+                    try self.put(s.text)
+                    try self.put(": ")
+                try self.put("while ")
+                try self.condition(s)
+                try self.suite(s, s.body else return)
+            .for_:
+                if s.text.length > 0:
+                    try self.put(s.text)
+                    try self.put(": ")
+                try self.put("for ")
+                let binding = s.left else return
+                try self.binding_target(binding)
+                if let t = binding.ty:
+                    try self.put(": ")
+                    try self.type_node(t)
+                try self.put(" in ")
+                if s.has(ast.flag_by_pointer):
+                    try self.put("&")
+                try self.expr(s.right else return)
+                try self.suite(s, s.body else return)
+            .match_:
+                try self.put("match ")
+                try self.expr(s.left else return)
+                try self.open_suite(s)
+                try self.arms(s.body, false)
+            .with_:
+                try self.put("with ")
+                try self.expr(s.left else return)
+                try self.suite(s, s.body else return)
+            .asm_: try self.asm_block(s)
+            _:
+                try self.expr(s)
+                try self.end_line(s)
+
+    ## `free(x)` or `free(x) in allocator`, ending the line.
+    mutating func free_statement(f: ast.Node*, s: ast.Node*) -> !:
+        try self.put("free(")
+        try self.expr(f.left else return)
+        try self.put(")")
+        if let allocator = f.right:
+            try self.put(" in ")
+            try self.expr_or_catch(allocator, s)
+        else:
+            try self.end_line(s)
+
+    ## `x` or `(a, b)` of a binding or a `for`.
+    mutating func binding_target(b: ast.Node*) -> !:
+        if b.body != none:
+            try self.put("(")
+            try self.names(b.body)
+            try self.put(")")
+        else:
+            try self.put(b.text)
+
+    ## A statement's expression, which may end in a `catch` suite, then the line's end. The
+    ## trailing comment is looked for on the expression's line: an expression statement's
+    ## own node comes after its expression, at the line's end.
+    mutating func expr_or_catch(e: ast.Node*, s: ast.Node*) -> !:
+        if e.kind == ast.Kind.catch_:
+            try self.expr(e.left else return)
+            try self.put(" catch")
+            if e.text.length > 0:
+                try self.put(" ")
+                try self.put(e.text)
+            try self.suite(e, e.body else return)
+            return
+        try self.expr(e)
+        try self.end_line(e if s.kind == ast.Kind.expr_stmt else s)
+
+    mutating func condition(s: ast.Node*) -> !:
+        let c = s.left else return
+        if s.has(ast.flag_if_let):
+            try self.put("let ")
+            try self.put(c.text)
+            try self.put(" = ")
+            try self.expr(c.left else return)
+        else:
+            try self.expr(c)
+
+    mutating func if_statement(s: ast.Node*, word: str) -> !:
+        try self.put(word)
+        try self.condition(s)
+        try self.suite(s, s.body else return)
+        if let rest = s.right:
+            discard(try self.comments_before(rest.start))
+            if rest.kind == ast.Kind.if_:
+                try self.if_statement(rest, "elif ")
+            else:
+                try self.put("else")
+                try self.suite(rest, rest)
+
+    mutating func arms(a: ast.Node*?, expression: bool) -> !:
+        self.indent += 1
+        var cursor = a
+        var previous: ast.Node*? = none
+        while let arm = cursor:
+            try self.separate(previous, arm, false)
+            previous = arm
+            var p = arm.left
+            var first = true
+            while let pattern = p:
+                if not first:
+                    try self.put(", ")
+                first = false
+                try self.pattern(pattern)
+                p = pattern.next
+            if let guard = arm.right:
+                try self.put(" if ")
+                try self.expr(guard)
+            if expression:
+                try self.put(" => ")
+                try self.expr(arm.body else return)
+                try self.end_line(arm)
+            else:
+                try self.suite(arm, arm.body else return)
+            cursor = arm.next
+        self.indent -= 1
+
+    mutating func pattern(p: ast.Node*) -> !:
+        if p.has(ast.flag_wildcard):
+            try self.put("_")
+            return
+        let v = p.left else return
+        if v.kind == ast.Kind.case_value:
+            try self.put(".")
+            try self.put(v.text)
+            if v.body != none:
+                try self.put("(")
+                try self.names(v.body)
+                try self.put(")")
+            return
+        try self.expr(v)
+        if let high = p.right:
+            try self.put(p.text)
+            try self.expr(high)
+
+    # mark: Expressions ========================================================================
+
+    mutating func expr(e: ast.Node*) -> !:
+        match e.kind:
+            .literal: try self.put(e.text)
+            .name:
+                try self.put(e.text)
+                if let args = e.ty:
+                    try self.type_args(args)
+            .self_: try self.put("self")
+            .unit_: try self.put("()")
+            .unary:
+                try self.put(e.text)
+                if e.text == "not" or e.text == "try":
+                    try self.put(" ")
+                try self.expr(e.left else return)
+            .binary:
+                try self.expr(e.left else return)
+                if e.text == "..<" or e.text == "..=":
+                    try self.put(e.text)
+                else:
+                    try self.put(" ")
+                    try self.put(e.text)
+                    try self.put(" ")
+                try self.expr(e.right else return)
+            .cast:
+                try self.put("(")
+                try self.type_node(e.ty else return)
+                try self.put(")")
+                try self.expr(e.left else return)
+            .group:
+                try self.put("(")
+                try self.expr(e.left else return)
+                try self.put(")")
+            .member:
+                try self.expr(e.left else return)
+                try self.put(".")
+                try self.put(e.text)
+                if let args = e.ty:
+                    try self.type_args(args)
+            .call:
+                try self.expr(e.left else return)
+                if let args = e.ty:
+                    try self.type_args(args)
+                try self.put("(")
+                try self.arguments(e.body)
+                try self.put(")")
+            .case_value:
+                try self.put(".")
+                try self.put(e.text)
+                if e.body != none:
+                    try self.put("(")
+                    try self.arguments(e.body)
+                    try self.put(")")
+            .index:
+                try self.expr(e.left else return)
+                try self.put("[")
+                try self.expr(e.body else return)
+                try self.put("]")
+            .slice:
+                try self.expr(e.left else return)
+                try self.put("[")
+                if let low = e.body:
+                    try self.expr(low)
+                if let high = e.right:
+                    try self.put("..<")
+                    try self.expr(high)
+                else:
+                    try self.put("..")
+                try self.put("]")
+            .tuple:
+                try self.put("(")
+                try self.list(e.body)
+                try self.put(")")
+            .array_lit:
+                try self.put("[")
+                try self.list(e.body)
+                try self.put("]")
+            .lambda:
+                try self.put("(")
+                try self.params(e.right, false)
+                try self.put(") => ")
+                try self.expr(e.body else return)
+            .conditional:
+                try self.expr(e.left else return)
+                try self.put(" if ")
+                try self.expr(e.ty else return)
+                try self.put(" else ")
+                try self.expr(e.right else return)
+            .else_:
+                try self.expr(e.left else return)
+                try self.put(" else ")
+                let fallback = e.right else return
+                match fallback.kind:
+                    .return_:
+                        try self.put("return")
+                        if let v = fallback.left:
+                            try self.put(" ")
+                            try self.expr(v)
+                    .break_, .continue_:
+                        try self.put("break" if fallback.kind == ast.Kind.break_ else "continue")
+                        if fallback.text.length > 0:
+                            try self.put(" ")
+                            try self.put(fallback.text)
+                    _: try self.expr(fallback)
+            .catch_:
+                # a `catch` inside an expression: its suite in place, the line continuing after
+                try self.expr(e.left else return)
+                try self.put(" catch")
+                if e.text.length > 0:
+                    try self.put(" ")
+                    try self.put(e.text)
+                try self.suite(e, e.body else return)
+                self.at_line_start = false
+                self.out.used -= 1
+            .formatted:
+                try self.put("f\"")
+                var cursor = e.body
+                while let part = cursor:
+                    if part.kind == ast.Kind.format_text:
+                        try self.put(part.text)
+                    else:
+                        try self.put("{")
+                        try self.expr(part.left else return)
+                        try self.put("}")
+                    cursor = part.next
+                try self.put("\"")
+            .match_expr:
+                try self.put("match ")
+                try self.expr(e.left else return)
+                try self.put(":")
+                try self.newline()
+                try self.arms(e.body, true)
+                self.at_line_start = false
+                self.out.used -= 1
+            .new_:
+                try self.put("new ")
+                try self.type_node(e.ty else return)
+                if e.text == "()":
+                    try self.put("(")
+                    try self.arguments(e.body)
+                    try self.put(")")
+                elif let value = e.body:
+                    try self.expr(value)
+                if let allocator = e.right:
+                    try self.put(" in ")
+                    try self.expr(allocator)
+            .alloc_:
+                try self.put("alloc")
+                if let t = e.ty:
+                    try self.put(" ")
+                    try self.type_node(t)
+                else:
+                    try self.put("(")
+                    try self.arguments(e.body)
+                    try self.put(")")
+                if let allocator = e.right:
+                    try self.put(" in ")
+                    try self.expr(allocator)
+            .span_make:
+                try self.type_node(e.ty else return)
+                try self.put("(")
+                try self.arguments(e.body)
+                try self.put(")")
+            .type_: try self.type_node(e)
+            _: try self.put(e.text)
+
+    ## Items separated by commas, each on the source's line: a break the source made before
+    ## an item stays, the item aligned under the first. A list the source opened with a line
+    ## break is in block form: its items one level in, and when the source closed it on a
+    ## line of its own, a comma after the last item and the bracket on its own line.
+    mutating func list(items: ast.Node*?) -> !:
+        try self.items(items, false)
+
+    ## Arguments: `name = value` or the value.
+    mutating func arguments(a: ast.Node*?) -> !:
+        try self.items(a, true)
+
+    mutating func items(list: ast.Node*?, named: bool) -> !:
+        let first = list else return
+        let block_form = self.open_break(self.item_start(first, named))
+        if block_form:
+            self.indent += 1
+            try self.newline()
+        let column = self.column if not block_form else 0
+        var cursor = list
+        var last = first
+        var leading = true
+        while let item = cursor:
+            let at = self.item_start(item, named)
+            if not leading:
+                try self.put(",")
+                if not self.break_before(at):
+                    try self.put(" ")
+                elif block_form:
+                    try self.newline()
+                else:
+                    try self.continue_at(column)
+            leading = false
+            if named and item.text.length > 0:
+                try self.put(item.text)
+                try self.put(" = ")
+            try self.expr((item.left else return) if named else item)
+            last = item
+            cursor = item.next
+        if block_form:
+            self.indent -= 1
+            if self.newline_before(self.closing_after(self.item_start(last, named))):
+                try self.put(",")
+                try self.newline()
+
+    ## Where an item's text begins: the argument's name when it has one, else the first
+    ## byte of its value.
+    func item_start(item: ast.Node*, named: bool) -> usize:
+        if named:
+            if item.text.length > 0:
+                return item.start
+            if let value = item.left:
+                return first_offset(value)
+            return item.start
+        return first_offset(item)
+
+    mutating func type_args(args: ast.Node*) -> !:
+        try self.put("[")
+        var cursor = args.body
+        var first = true
+        while let t = cursor:
+            if not first:
+                try self.put(", ")
+            first = false
+            try self.type_node(t)
+            cursor = t.next
+        try self.put("]")
+
+    # mark: Types ==============================================================================
+
+    mutating func type_node(t: ast.Node*) -> !:
+        if t.has(ast.flag_atomic):
+            try self.put("@")
+        if t.has(ast.flag_fallible) and t.text == "!":
+            try self.type_inner(t.left else return)
+            try self.put("!")
+            return
+        try self.type_inner(t)
+
+    ## A type without its `@`: the suffix chain, then the core with its qualifiers.
+    mutating func type_inner(t: ast.Node*) -> !:
+        if t.has(ast.flag_optional) and t.text == "?":
+            try self.type_inner(t.left else return)
+            try self.put("?")
+            return
+        if t.has(ast.flag_star):
+            try self.type_inner(t.left else return)
+            try self.put("*")
+            return
+        if t.text == "[" and (t.has(ast.flag_span) or t.has(ast.flag_array)):
+            try self.type_inner(t.left else return)
+            try self.put("[")
+            if let length = t.right:
+                try self.expr(length)
+            try self.put("]")
+            return
+        if t.has(ast.flag_const):
+            try self.put("const ")
+        if t.has(ast.flag_volatile):
+            try self.put("volatile ")
+        if t.has(ast.flag_func_type):
+            try self.put("func(")
+            var cursor = t.body
+            var first = true
+            while let m = cursor:
+                if not first:
+                    try self.put(", ")
+                first = false
+                try self.type_node(m)
+                cursor = m.next
+            try self.put(") -> ")
+            try self.type_node(t.left else return)
+            return
+        if t.has(ast.flag_tuple_type):
+            try self.put("(")
+            var cursor = t.body
+            var first = true
+            while let m = cursor:
+                if not first:
+                    try self.put(", ")
+                first = false
+                try self.type_node(m)
+                cursor = m.next
+            try self.put(")")
+            return
+        if t.text == "(":
+            try self.put("(")
+            try self.type_node(t.left else return)
+            try self.put(")")
+            return
+        try self.put(t.text)
+        if t.body != none:
+            try self.type_args(t)
+
+## The first byte of an expression: an operator's node begins at the operator, a call's at
+## its bracket, a member's at its name, so the leftmost operand is followed down.
+func first_offset(e: ast.Node*) -> usize:
+    var n = e
+    while true:
+        match n.kind:
+            .binary, .member, .call, .index, .slice, .conditional, .else_, .catch_:
+                n = n.left else return n.start
+            _: return n.start
+
+## Where a statement's text begins: an expression statement's node comes after its
+## expression, an assignment's at its operator.
+func statement_start(s: ast.Node*) -> usize:
+    if s.kind == ast.Kind.expr_stmt or s.kind == ast.Kind.assign:
+        if let inner = s.left:
+            return first_offset(inner)
+    return s.start
+
+## `if`, `while`, `for`, `match`, `with`, `asm`: what a same-line suite may not hold.
+func compound(s: ast.Node*) -> bool:
+    return s.kind == ast.Kind.if_ or s.kind == ast.Kind.while_ or s.kind == ast.Kind.for_ or s.kind == ast.Kind.match_ or s.kind == ast.Kind.with_ or s.kind == ast.Kind.asm_
+
+## Whether a declaration has a suite: what a blank line sets apart at module level.
+func has_body(d: ast.Node*) -> bool:
+    match d.kind:
+        .func_: return d.body != none
+        .struct_, .enum_, .union_, .interface_, .test_, .asm_, .extern_struct, .extern_union:
+            return true
+        .extern_type: return d.right != none
+        _: return false

@@ -2005,33 +2005,33 @@ lb_window_12check_extent:
 .Ltext_0:
     .asciz "unreachable"
 .Ltext_1:
-    .asciz "src/std/window/module.lucb:19:5"
+    .asciz "src/std/window/module.lucb:18:5"
 .Ltext_2:
     .asciz "the window title is not valid UTF-8"
 .Ltext_3:
     .asciz "native windows are not implemented for this target"
 .Ltext_4:
-    .asciz "src/std/window/module.lucb:55:9"
+    .asciz "src/std/window/module.lucb:54:9"
 .Ltext_5:
-    .asciz "src/std/window/module.lucb:70:9"
+    .asciz "src/std/window/module.lucb:69:9"
 .Ltext_6:
     .asciz "unknown system cursor"
 .Ltext_7:
-    .asciz "src/std/window/module.lucb:104:9"
+    .asciz "src/std/window/module.lucb:103:9"
 .Ltext_8:
     .asciz "the window already has a presentation surface"
 .Ltext_9:
-    .asciz "src/std/window/module.lucb:113:9"
+    .asciz "src/std/window/module.lucb:112:9"
 .Ltext_10:
-    .asciz "src/std/window/module.lucb:133:9"
+    .asciz "src/std/window/module.lucb:132:9"
 .Ltext_11:
     .asciz "window destruction requires the main thread"
 .Ltext_12:
-    .asciz "src/std/window/module.lucb:141:13"
+    .asciz "src/std/window/module.lucb:140:13"
 .Ltext_13:
     .asciz "the window is closed"
 .Ltext_14:
-    .asciz "src/std/window/module.lucb:150:9"
+    .asciz "src/std/window/module.lucb:149:9"
 .Ltext_15:
     .asciz "window dimensions must be between 1 and 10000 points"
 

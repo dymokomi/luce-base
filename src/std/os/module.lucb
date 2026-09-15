@@ -5,7 +5,6 @@ import c
 import memory
 import windows_text
 import platform
-
 extern func getenv(variable: c.str) -> c.str?
 extern func setenv(variable: c.str, value: c.str, overwrite: i32) -> i32
 extern func unsetenv(variable: c.str) -> i32

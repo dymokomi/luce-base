@@ -4351,42 +4351,42 @@ extern uint32_t lb_gpu_22vulkan_api_version_1_0;
 
 __attribute__((weak)) lb_interop_Transfer_0g1_str lb_interop_Transfer_0g1_str_plain(void) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/gpu/metal/drawing.lucb:62:5";
+    lb_pos = "src/std/gpu/metal/drawing.lucb:63:5";
     lb_interop_Transfer_0g1_str _lb_ret1 = ((lb_interop_Transfer_0g1_str){.copy = lb_interop_Transfer_0g1_str_10copy_plain});
     return _lb_ret1;
     lb_trap("unreachable");
 }
 __attribute__((weak)) lb_r_interop_Packet_0g1_str lb_interop_Transfer_0g1_str_10copy_plain(lb_str lb_value) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/gpu/metal/drawing.lucb:65:9";
+    lb_pos = "src/std/gpu/metal/drawing.lucb:66:5";
     lb_interop_Packet_0g1_str _lb_ret2 = ({ lb_interop_Packet_0g1_str _lb_iv3 = {}; lb_interop_Packet_0g1_str_init(&_lb_iv3, lb_value, ((void*)0), ((void*)0)); _lb_iv3; });
     return ((lb_r_interop_Packet_0g1_str){ .value = _lb_ret2, .failed = false });
     lb_trap("unreachable");
 }
 __attribute__((weak)) lb_interop_Transfer_0g1_u8_0c lb_interop_Transfer_0g1_u8_0c_plain(void) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/gpu/metal/drawing.lucb:62:5";
+    lb_pos = "src/std/gpu/metal/drawing.lucb:63:5";
     lb_interop_Transfer_0g1_u8_0c _lb_ret4 = ((lb_interop_Transfer_0g1_u8_0c){.copy = lb_interop_Transfer_0g1_u8_0c_10copy_plain});
     return _lb_ret4;
     lb_trap("unreachable");
 }
 __attribute__((weak)) lb_r_interop_Packet_0g1_u8_0c lb_interop_Transfer_0g1_u8_0c_10copy_plain(lb_cspan lb_value) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/gpu/metal/drawing.lucb:65:9";
+    lb_pos = "src/std/gpu/metal/drawing.lucb:66:5";
     lb_interop_Packet_0g1_u8_0c _lb_ret5 = ({ lb_interop_Packet_0g1_u8_0c _lb_iv6 = {}; lb_interop_Packet_0g1_u8_0c_init(&_lb_iv6, lb_value, ((void*)0), ((void*)0)); _lb_iv6; });
     return ((lb_r_interop_Packet_0g1_u8_0c){ .value = _lb_ret5, .failed = false });
     lb_trap("unreachable");
 }
 void* lb_gpu_9metal_sel(char* lb_name) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/gpu/metal/objc.lucb:60:5";
+    lb_pos = "src/std/gpu/metal/objc.lucb:57:5";
     void* _lb_ret7 = ({ void* _lb_fr = lb_x_gpu_16sel_registerName(lb_name); if (!_lb_fr) lb_trap("null_foreign"); _lb_fr; });
     return _lb_ret7;
     lb_trap("unreachable");
 }
 lb_r_void_0p lb_gpu_11metal_class(char* lb_name) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/gpu/metal/objc.lucb:63:5";
+    lb_pos = "src/std/gpu/metal/objc.lucb:60:5";
     void* _lb_ret8 = ({ void* _lb_o9 = lb_x_gpu_13objc_getClass(lb_name); if (_lb_o9 == ((void*)0)) {
         lb_r_void_0p _lb_err10 = ((lb_r_void_0p){ .error = { .code = (int32_t)(lb_gpu_failed), .message = ((lb_str){"a required Metal class is unavailable; check framework linkage", 62}) }, .failed = true });
         return _lb_err10;
@@ -4396,7 +4396,7 @@ lb_r_void_0p lb_gpu_11metal_class(char* lb_name) {
 }
 void* lb_gpu_14metal_required(void* lb_object) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/gpu/metal/objc.lucb:66:5";
+    lb_pos = "src/std/gpu/metal/objc.lucb:63:5";
     void* _lb_ret11 = ({ void* _lb_o12 = lb_object; if (_lb_o12 == ((void*)0)) {
         (void)(lb_trap_text(((lb_str){"the Metal backend lost an owned object", 38})));
     } _lb_o12; });
@@ -4405,21 +4405,21 @@ void* lb_gpu_14metal_required(void* lb_object) {
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_str_init(lb_interop_Packet_0g1_str* self, lb_str lb_value, void* lb_storage, lb_fn_0F1_void_0p_unit lb_dispose) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/gpu/metal/drawing.lucb:46:5";
-    self->value = lb_value;
     lb_pos = "src/std/gpu/metal/drawing.lucb:47:5";
-    self->storage = lb_storage;
+    self->value = lb_value;
     lb_pos = "src/std/gpu/metal/drawing.lucb:48:5";
+    self->storage = lb_storage;
+    lb_pos = "src/std/gpu/metal/drawing.lucb:49:5";
     self->dispose = lb_dispose;
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_str_release(const lb_interop_Packet_0g1_str* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/gpu/metal/drawing.lucb:51:1";
+    lb_pos = "src/std/gpu/metal/drawing.lucb:52:1";
     void* _lb_o13 = self->storage;
     if (_lb_o13 != ((void*)0)) {
         void* lb_storage __attribute__((unused)) = _lb_o13;
         {
-            lb_pos = "src/std/gpu/metal/drawing.lucb:52:1";
+            lb_pos = "src/std/gpu/metal/drawing.lucb:53:5";
             (void)(((({ lb_fn_0F1_void_0p_unit _lb_o14 = self->dispose; if (_lb_o14 == ((void*)0)) {
                 (void)(lb_trap_text(((lb_str){"a packet has storage without a disposer", 39})));
             } _lb_o14; })))(lb_storage));
@@ -4428,21 +4428,21 @@ __attribute__((weak)) void lb_interop_Packet_0g1_str_release(const lb_interop_Pa
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_init(lb_interop_Packet_0g1_u8_0c* self, lb_cspan lb_value, void* lb_storage, lb_fn_0F1_void_0p_unit lb_dispose) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/gpu/metal/drawing.lucb:46:5";
-    self->value = lb_value;
     lb_pos = "src/std/gpu/metal/drawing.lucb:47:5";
-    self->storage = lb_storage;
+    self->value = lb_value;
     lb_pos = "src/std/gpu/metal/drawing.lucb:48:5";
+    self->storage = lb_storage;
+    lb_pos = "src/std/gpu/metal/drawing.lucb:49:5";
     self->dispose = lb_dispose;
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_release(const lb_interop_Packet_0g1_u8_0c* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/gpu/metal/drawing.lucb:51:1";
+    lb_pos = "src/std/gpu/metal/drawing.lucb:52:1";
     void* _lb_o15 = self->storage;
     if (_lb_o15 != ((void*)0)) {
         void* lb_storage __attribute__((unused)) = _lb_o15;
         {
-            lb_pos = "src/std/gpu/metal/drawing.lucb:52:1";
+            lb_pos = "src/std/gpu/metal/drawing.lucb:53:5";
             (void)(((({ lb_fn_0F1_void_0p_unit _lb_o16 = self->dispose; if (_lb_o16 == ((void*)0)) {
                 (void)(lb_trap_text(((lb_str){"a packet has storage without a disposer", 39})));
             } _lb_o16; })))(lb_storage));

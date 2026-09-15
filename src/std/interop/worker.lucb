@@ -35,8 +35,8 @@ struct WorkerState[C, M, R]:
         var cancellation: net.Cancellation
         var worker_thread: thread.Handle
         *state = WorkerState[C, M, R](mutex, changed, cancellation, false, false, none,
-            WorkerQueue[Packet[M]](input), WorkerQueue[Reply[R]](output), config,
-            entry, message_transfer, result_transfer, worker_thread)
+                                      WorkerQueue[Packet[M]](input), WorkerQueue[Reply[R]](output), config,
+                                      entry, message_transfer, result_transfer, worker_thread)
         state.thread = try thread.spawn(WorkerState[C, M, R].run, (void*)state, stack)
         return state
 
@@ -118,7 +118,7 @@ pub struct Worker[C, M, R]:
                   config_transfer: Transfer[C], message_transfer: Transfer[M], result_transfer: Transfer[R],
                   capacity: usize = 16, stack: usize = 0) -> !:
         let state = try WorkerState[C, M, R].start(entry, configuration, config_transfer,
-            message_transfer, result_transfer, capacity, stack)
+                                                   message_transfer, result_transfer, capacity, stack)
         self.state = state
         state.mutex.lock()
         while not state.ready:

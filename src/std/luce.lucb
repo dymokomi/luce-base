@@ -5,8 +5,10 @@ import io
 
 pub interface Equatable:
     func equals(other: void*) -> bool
+
 pub interface Hashable:
     func hashed() -> u64
+
 pub interface Comparable:
     func compare(other: void*) -> i64
 
@@ -14,6 +16,7 @@ pub interface Comparable:
 ## until `none`; an iterable answers a fresh iterator of its own concrete type.
 pub interface Iterator[T]:
     mutating func next() -> T?
+
 pub interface Iterable[T, I: Iterator[T]]:
     func iterator() -> I
 

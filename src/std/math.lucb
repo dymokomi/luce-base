@@ -33,7 +33,6 @@ extern func c_frexp as "frexp"(x: f64, out exponent: i32) -> f64
 extern func c_scalbn as "scalbn"(x: f64, exponent: i32) -> f64
 extern func c_modf as "modf"(x: f64, out integral: f64) -> f64
 extern func c_remainder as "remainder"(x: f64, y: f64) -> f64
-
 pub let pi: f64 = 3.141592653589793
 pub let tau: f64 = 6.283185307179586
 pub let e: f64 = 2.718281828459045
@@ -49,33 +48,45 @@ let exponent_mask: u64 = 0x7ff0000000000000
 ## nearest with halves away from zero, `trunc` toward zero.
 pub func floor(x: f64) -> f64:
     return c_floor(x)
+
 pub func ceil(x: f64) -> f64:
     return c_ceil(x)
+
 pub func round(x: f64) -> f64:
     return c_round(x)
+
 pub func trunc(x: f64) -> f64:
     return c_trunc(x)
 
 pub func sqrt(x: f64) -> f64:
     return c_sqrt(x)
+
 pub func cbrt(x: f64) -> f64:
     return c_cbrt(x)
+
 ## `sqrt(x * x + y * y)` without overflow in the squares.
 pub func hypot(x: f64, y: f64) -> f64:
     return c_hypot(x, y)
+
 ## The remainder of `x / y` with the sign of `x`, as C's `fmod`.
 pub func mod(x: f64, y: f64) -> f64:
     return c_fmod(x, y)
+
 pub func pow(x: f64, y: f64) -> f64:
     return c_pow(x, y)
+
 pub func exp(x: f64) -> f64:
     return c_exp(x)
+
 pub func exp2(x: f64) -> f64:
     return c_exp2(x)
+
 pub func log(x: f64) -> f64:
     return c_log(x)
+
 pub func log2(x: f64) -> f64:
     return c_log2(x)
+
 pub func log10(x: f64) -> f64:
     return c_log10(x)
 
@@ -141,45 +152,60 @@ pub func remainder(x: f64, y: f64) -> f64:
 
 pub func sin(x: f64) -> f64:
     return c_sin(x)
+
 pub func cos(x: f64) -> f64:
     return c_cos(x)
+
 pub func tan(x: f64) -> f64:
     return c_tan(x)
+
 pub func asin(x: f64) -> f64:
     return c_asin(x)
+
 pub func acos(x: f64) -> f64:
     return c_acos(x)
+
 pub func atan(x: f64) -> f64:
     return c_atan(x)
+
 ## The angle of the point `(x, y)`, in all four quadrants.
 pub func atan2(y: f64, x: f64) -> f64:
     return c_atan2(y, x)
+
 pub func sinh(x: f64) -> f64:
     return c_sinh(x)
+
 pub func cosh(x: f64) -> f64:
     return c_cosh(x)
+
 pub func tanh(x: f64) -> f64:
     return c_tanh(x)
 
 ## True for quiet and signaling NaNs, independent of sign and payload.
 pub func is_nan(x: f64) -> bool:
     return (x.bits() & magnitude_mask) > exponent_mask
+
 ## True for zeros, subnormals and normal finite values. Classification inspects the
 ## representation and performs no floating-point arithmetic on a signaling NaN.
 pub func is_finite(x: f64) -> bool:
     return (x.bits() & exponent_mask) != exponent_mask
+
 ## True only for positive or negative infinity.
 pub func is_infinite(x: f64) -> bool:
     return (x.bits() & magnitude_mask) == exponent_mask
+
 ## Whether the sign bit is set, including negative zero and signed NaNs.
 pub func signbit(x: f64) -> bool:
     return (x.bits() & sign_mask) != 0
+
 ## Clear the sign bit: negative zero becomes positive zero. NaN payload bits survive.
 pub func abs(x: f64) -> f64:
     return f64.bits(x.bits() & magnitude_mask)
+
 ## The magnitude and payload of `magnitude` with the sign bit of `sign_source`.
 pub func copysign(magnitude: f64, sign_source: f64) -> f64:
     return f64.bits((magnitude.bits() & magnitude_mask) | (sign_source.bits() & sign_mask))
+
 ## `-1.0` or `1.0` for nonzero numbers; zero and NaN are returned unchanged.
 pub func sign(x: f64) -> f64:
     if is_nan(x):
@@ -189,6 +215,7 @@ pub func sign(x: f64) -> f64:
     if x > 0.0:
         return 1.0
     return x
+
 ## Minimum with NaN propagation (left NaN wins if both are NaNs). Negative zero
 ## wins over positive zero; a selected NaN retains its original bits.
 pub func min(a: f64, b: f64) -> f64:
@@ -199,6 +226,7 @@ pub func min(a: f64, b: f64) -> f64:
     if a == 0.0 and b == 0.0:
         return f64.bits(a.bits() | b.bits())
     return a if a < b else b
+
 ## Maximum with NaN propagation (left NaN wins if both are NaNs). Positive zero
 ## wins over negative zero; a selected NaN retains its original bits.
 pub func max(a: f64, b: f64) -> f64:
@@ -209,6 +237,7 @@ pub func max(a: f64, b: f64) -> f64:
     if a == 0.0 and b == 0.0:
         return f64.bits(a.bits() & b.bits())
     return a if a > b else b
+
 ## Restrict `x` to inclusive ordered bounds. Reversed or NaN bounds trap. An input
 ## NaN or an input equal to a bound is returned unchanged, including its zero sign.
 pub func clamp(x: f64, low: f64, high: f64) -> f64:
@@ -224,6 +253,7 @@ pub func div_floor(a: i64, b: i64) -> i64:
     if (a % b != 0) and ((a < 0) != (b < 0)):
         return q - 1
     return q
+
 pub func mod_floor(a: i64, b: i64) -> i64:
     if b == -1:
         return 0
@@ -231,18 +261,22 @@ pub func mod_floor(a: i64, b: i64) -> i64:
     if r != 0 and ((r < 0) != (b < 0)):
         return r + b
     return r
+
 pub func iabs(a: i64) -> i64:
     return 0 - a if a < 0 else a
+
 ## Absolute value, or none for the minimum i64 whose positive magnitude cannot fit.
 pub func checked_iabs(a: i64) -> i64?:
     if a < 0:
         return 0 -? a
     return a
+
 ## Floor division, or none for a zero divisor or a quotient outside i64.
 pub func checked_div_floor(a: i64, b: i64) -> i64?:
     if b == 0 or (a == -9223372036854775808 and b == -1):
         return none
     return div_floor(a, b)
+
 ## Remainder with the divisor's sign, or none for a zero divisor. The minimum i64
 ## modulo -1 is zero even though its quotient cannot be represented.
 pub func checked_mod_floor(a: i64, b: i64) -> i64?:
@@ -251,10 +285,13 @@ pub func checked_mod_floor(a: i64, b: i64) -> i64?:
     if b == -1:
         return 0
     return mod_floor(a, b)
+
 pub func imin(a: i64, b: i64) -> i64:
     return a if a < b else b
+
 pub func imax(a: i64, b: i64) -> i64:
     return a if a > b else b
+
 ## Restrict `x` to inclusive ordered bounds. Reversed bounds trap.
 pub func iclamp(x: i64, low: i64, high: i64) -> i64:
     assert(low <= high)

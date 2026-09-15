@@ -10813,9 +10813,9 @@ lb_interop_13dispose_owner_0g1_gpu_FrameState:
 .Ltext_38:
     .asciz "native ownership has already been published or cancelled"
 .Ltext_39:
-    .asciz "src/std/interop/object.lucb:83:9"
+    .asciz "src/std/interop/object.lucb:82:9"
 .Ltext_40:
-    .asciz "src/std/interop/object.lucb:87:9"
+    .asciz "src/std/interop/object.lucb:86:9"
 .Ltext_41:
     .asciz "a native object is closed"
 .Ltext_42:

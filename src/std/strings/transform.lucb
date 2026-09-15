@@ -75,4 +75,3 @@ pub func release(text: str):
 func terminated_buffer(length: usize) -> u8[]!:
     let size = length +? 1 else error(memory.exhausted, "the text is too large")
     return try alloc u8[size]
-

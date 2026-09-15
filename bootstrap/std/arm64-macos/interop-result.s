@@ -392,9 +392,9 @@ l_text_3:
 l_text_4:
     .asciz "index out of bounds"
 l_text_5:
-    .asciz "src/std/memory.lucb:326:9"
-l_text_6:
     .asciz "src/std/memory.lucb:328:9"
+l_text_6:
+    .asciz "src/std/memory.lucb:330:9"
 l_text_7:
     .asciz "null_foreign"
 

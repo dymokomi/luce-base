@@ -69,7 +69,6 @@ pub enum Kind as u8:
 ## How many type parameters a declaration may have: the checker refuses more, so the
 ## fixed rooms an instance's arguments are resolved into are never short.
 pub let max_type_arguments: usize = 16
-
 pub let none_id: u32 = 0
 pub let error_id: u32 = 1
 pub let never_id: u32 = 2
@@ -138,7 +137,6 @@ func mix(h: u64, x: u64) -> u64:
     return r ^ (r >> 29)
 
 # mark: The type record ========================================================================
-
 pub struct Type:
     pub var kind: Kind
     ## The pointee, element, payload, or result, by id; `none_id` when absent.
@@ -157,7 +155,6 @@ pub struct Type:
     pub var name: str
 
 # mark: The table ==============================================================================
-
 pub struct Table:
     var types: list.List[Type]
     ## The target's word: the size and alignment of a pointer, and so of `usize`, `isize`,
@@ -270,7 +267,6 @@ pub struct Table:
         return Type(kind = kind, elem = elem, args = try no_args(), length = 0, is_const = false, is_volatile = false, variadic = false, decl = none, name = name)
 
     # -- constructors ---------------------------------------------------------------------
-
     pub mutating func pointer(elem: u32, is_const: bool, is_volatile: bool) -> u32!:
         var t = try self.plain(Kind.pointer, elem, "")
         t.is_const = is_const
@@ -325,7 +321,6 @@ pub struct Table:
         return try self.intern(t)
 
     # -- predicates -----------------------------------------------------------------------
-
     pub func is_integer(id: u32) -> bool:
         let k = (u8)self.kind(id)
         return (k >= (u8)Kind.i8_ and k <= (u8)Kind.usize_) or k == (u8)Kind.untyped_int
@@ -420,7 +415,7 @@ pub struct Table:
     ## `Pair[i64]` is zeroable because `i64` is, whatever `T` alone would say.
     func zeroable_in(id: u32, env_decl: ast.Node*?, env_args: u32[]) -> bool:
         if self.is_opaque_handle(id):
-            return false    # never null bare (§17.1)
+            return false  # never null bare (§17.1)
         let t = self.get(id)
         match t.kind:
             .pointer, .cstr_, .func_, .never_, .error_, .fmt_, .void_: return false
@@ -513,7 +508,7 @@ pub struct Table:
 
     func sized(id: u32, env_decl: ast.Node*?, env_args: u32[]) -> u64:
         if self.is_opaque_handle(id):
-            return self.word    # a pointer-shaped handle (§17.1)
+            return self.word  # a pointer-shaped handle (§17.1)
         let t = self.get(id)
         match t.kind:
             .i8_, .u8_, .bool_: return 1
@@ -530,7 +525,7 @@ pub struct Table:
             .atomic: return self.sized(t.elem, env_decl, env_args)
             .optional:
                 if self.has_null_niche(t.elem):
-                    return self.sized(t.elem, env_decl, env_args)    # the payload itself
+                    return self.sized(t.elem, env_decl, env_args)  # the payload itself
                 let inner = self.sized(t.elem, env_decl, env_args)
                 let a = self.aligned(t.elem, env_decl, env_args)
                 return round_up(inner, a) + a if a > 0 else inner + 1

@@ -267,19 +267,19 @@ L4_9:
 
     .section __TEXT,__const
 l_text_0:
-    .asciz "src/std/ownership/weak.lucb:9:9"
+    .asciz "src/std/ownership/weak.lucb:8:9"
 l_text_1:
     .asciz "unreachable"
 l_text_2:
-    .asciz "src/std/ownership/weak.lucb:10:5"
+    .asciz "src/std/ownership/weak.lucb:9:5"
 l_text_3:
-    .asciz "src/std/ownership/weak.lucb:16:13"
+    .asciz "src/std/ownership/weak.lucb:15:13"
 l_text_4:
-    .asciz "src/std/ownership/weak.lucb:17:5"
+    .asciz "src/std/ownership/weak.lucb:16:5"
 l_text_5:
-    .asciz "src/std/ownership/weak.lucb:23:13"
+    .asciz "src/std/ownership/weak.lucb:22:13"
 l_text_6:
-    .asciz "src/std/ownership/weak.lucb:32:5"
+    .asciz "src/std/ownership/weak.lucb:31:5"
 l_text_7:
     .asciz "integer overflow"
 

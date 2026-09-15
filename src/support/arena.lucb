@@ -108,7 +108,6 @@ func aligned_offset(storage: u8[], used: usize, alignment: usize) -> usize?:
         return none
     return used + padding
 
-
 struct Budget: memory.Allocator:
     var remaining: usize = 2
     var outstanding: usize
@@ -154,4 +153,3 @@ test "arena growth preserves addresses, handles refusal and reuses released stor
     allocator.destroy()
     allocator.destroy()
     assert(owner.outstanding == 0)
-

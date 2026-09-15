@@ -66,7 +66,7 @@ func trace_text(object: ownership.Object*, visit: func(ownership.Object*, void*)
     discard(object)
 
 var text_info: ownership.Info = ownership.Info(name = "native owned text", size = 0,
-    finish = none, drop = drop_text, trace = trace_text)
+                                               finish = none, drop = drop_text, trace = trace_text)
 
 ## Own a copy of text from a temporary buffer or a native error before it expires.
 pub func copy_text(value: str) -> Owned[str]!:

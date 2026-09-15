@@ -504,19 +504,19 @@ lb_net_sendto:
 .Ltext_0:
     .asciz "unreachable"
 .Ltext_1:
-    .asciz "src/std/net/module.lucb:89:5"
+    .asciz "src/std/net/module.lucb:88:5"
 .Ltext_2:
-    .asciz "src/std/net/module.lucb:103:5"
+    .asciz "src/std/net/module.lucb:102:5"
 .Ltext_3:
-    .asciz "src/std/net/module.lucb:129:5"
+    .asciz "src/std/net/module.lucb:128:5"
 .Ltext_4:
-    .asciz "src/std/net/module.lucb:134:5"
+    .asciz "src/std/net/module.lucb:133:5"
 .Ltext_5:
-    .asciz "src/std/net/module.lucb:139:5"
+    .asciz "src/std/net/module.lucb:138:5"
 .Ltext_6:
-    .asciz "src/std/net/module.lucb:144:5"
+    .asciz "src/std/net/module.lucb:143:5"
 .Ltext_7:
-    .asciz "src/std/net/module.lucb:149:5"
+    .asciz "src/std/net/module.lucb:148:5"
 
     .section .data.rel.ro,"aw"
     .p2align 3

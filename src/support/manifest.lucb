@@ -20,7 +20,6 @@ import c
 import platform
 import files
 import memory
-
 pub let malformed: ErrorCode = ErrorCode.package(17)
 
 ## One `key = value` line of a manifest, under its section, the value unquoted.

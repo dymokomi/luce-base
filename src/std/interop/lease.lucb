@@ -16,7 +16,7 @@ func trace_lease(object: ownership.Object*, visit: func(ownership.Object*, void*
     visit(((LeaseState*)object).owner, context)
 
 var lease_info: ownership.Info = ownership.Info(name = "native lease", size = sizeof(LeaseState),
-    finish = none, drop = drop_lease, trace = trace_lease)
+                                                finish = none, drop = drop_lease, trace = trace_lease)
 
 pub struct Lease:
     var state: LeaseState*

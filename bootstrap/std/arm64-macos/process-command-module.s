@@ -3521,9 +3521,9 @@ l_text_44:
 l_text_45:
     .asciz "src/std/process/command/module.lucb:170:5"
 l_text_46:
-    .asciz "src/std/memory.lucb:326:9"
-l_text_47:
     .asciz "src/std/memory.lucb:328:9"
+l_text_47:
+    .asciz "src/std/memory.lucb:330:9"
 l_text_48:
     .asciz "null_foreign"
 l_text_49:

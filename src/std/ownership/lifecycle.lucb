@@ -48,4 +48,3 @@ func release_buffers():
     pending = empty_pending
     roots = empty_objects
     whites = empty_objects
-

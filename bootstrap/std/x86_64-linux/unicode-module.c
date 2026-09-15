@@ -4280,68 +4280,68 @@ extern uint32_t lb_gpu_22vulkan_api_version_1_0;
 
 __attribute__((weak)) lb_interop_Transfer_0g1_str lb_interop_Transfer_0g1_str_plain(void) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/unicode/graphemes.lucb:410:1";
+    lb_pos = "src/std/unicode/graphemes.lucb:411:1";
     lb_interop_Transfer_0g1_str _lb_ret1 = ((lb_interop_Transfer_0g1_str){.copy = lb_interop_Transfer_0g1_str_10copy_plain});
     return _lb_ret1;
     lb_trap("unreachable");
 }
 __attribute__((weak)) lb_r_interop_Packet_0g1_str lb_interop_Transfer_0g1_str_10copy_plain(lb_str lb_value) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/unicode/graphemes.lucb:413:1";
+    lb_pos = "src/std/unicode/graphemes.lucb:414:1";
     lb_interop_Packet_0g1_str _lb_ret2 = ({ lb_interop_Packet_0g1_str _lb_iv3 = {}; lb_interop_Packet_0g1_str_init(&_lb_iv3, lb_value, ((void*)0), ((void*)0)); _lb_iv3; });
     return ((lb_r_interop_Packet_0g1_str){ .value = _lb_ret2, .failed = false });
     lb_trap("unreachable");
 }
 __attribute__((weak)) lb_interop_Transfer_0g1_u8_0c lb_interop_Transfer_0g1_u8_0c_plain(void) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/unicode/graphemes.lucb:410:1";
+    lb_pos = "src/std/unicode/graphemes.lucb:411:1";
     lb_interop_Transfer_0g1_u8_0c _lb_ret4 = ((lb_interop_Transfer_0g1_u8_0c){.copy = lb_interop_Transfer_0g1_u8_0c_10copy_plain});
     return _lb_ret4;
     lb_trap("unreachable");
 }
 __attribute__((weak)) lb_r_interop_Packet_0g1_u8_0c lb_interop_Transfer_0g1_u8_0c_10copy_plain(lb_cspan lb_value) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/unicode/graphemes.lucb:413:1";
+    lb_pos = "src/std/unicode/graphemes.lucb:414:1";
     lb_interop_Packet_0g1_u8_0c _lb_ret5 = ({ lb_interop_Packet_0g1_u8_0c _lb_iv6 = {}; lb_interop_Packet_0g1_u8_0c_init(&_lb_iv6, lb_value, ((void*)0), ((void*)0)); _lb_iv6; });
     return ((lb_r_interop_Packet_0g1_u8_0c){ .value = _lb_ret5, .failed = false });
     lb_trap("unreachable");
 }
 void lb_unicode_release(lb_str lb_text) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/unicode/module.lucb:16:5";
+    lb_pos = "src/std/unicode/module.lucb:15:5";
     (void)(lb_strings_release(lb_text));
 }
 bool lb_unicode_13is_whitespace(uint32_t lb_scalar) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/unicode/module.lucb:20:5";
+    lb_pos = "src/std/unicode/module.lucb:19:5";
     bool _lb_ret7 = ({ uint32_t _lb_sq8 __attribute__((unused)) = lb_unicode_11range_value(lb_unicode_17whitespace_ranges, lb_scalar); uint32_t _lb_sq9 __attribute__((unused)) = 0ULL; (!(_lb_sq8 == _lb_sq9)); });
     return _lb_ret7;
     lb_trap("unreachable");
 }
 uint8_t lb_unicode_15combining_class(uint32_t lb_scalar) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/unicode/module.lucb:24:5";
+    lb_pos = "src/std/unicode/module.lucb:23:5";
     uint8_t _lb_ret10 = ((uint8_t)lb_conv_u((uint64_t)(lb_unicode_11range_value(lb_unicode_16combining_ranges, lb_scalar)), 32, 0, 8, 0, 1));
     return _lb_ret10;
     lb_trap("unreachable");
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_str_init(lb_interop_Packet_0g1_str* self, lb_str lb_value, void* lb_storage, lb_fn_0F1_void_0p_unit lb_dispose) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/unicode/graphemes.lucb:394:1";
-    self->value = lb_value;
     lb_pos = "src/std/unicode/graphemes.lucb:395:1";
-    self->storage = lb_storage;
+    self->value = lb_value;
     lb_pos = "src/std/unicode/graphemes.lucb:396:1";
+    self->storage = lb_storage;
+    lb_pos = "src/std/unicode/graphemes.lucb:397:1";
     self->dispose = lb_dispose;
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_str_release(const lb_interop_Packet_0g1_str* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/unicode/graphemes.lucb:399:1";
+    lb_pos = "src/std/unicode/graphemes.lucb:400:1";
     void* _lb_o11 = self->storage;
     if (_lb_o11 != ((void*)0)) {
         void* lb_storage __attribute__((unused)) = _lb_o11;
         {
-            lb_pos = "src/std/unicode/graphemes.lucb:400:1";
+            lb_pos = "src/std/unicode/graphemes.lucb:401:1";
             (void)(((({ lb_fn_0F1_void_0p_unit _lb_o12 = self->dispose; if (_lb_o12 == ((void*)0)) {
                 (void)(lb_trap_text(((lb_str){"a packet has storage without a disposer", 39})));
             } _lb_o12; })))(lb_storage));
@@ -4350,21 +4350,21 @@ __attribute__((weak)) void lb_interop_Packet_0g1_str_release(const lb_interop_Pa
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_init(lb_interop_Packet_0g1_u8_0c* self, lb_cspan lb_value, void* lb_storage, lb_fn_0F1_void_0p_unit lb_dispose) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/unicode/graphemes.lucb:394:1";
-    self->value = lb_value;
     lb_pos = "src/std/unicode/graphemes.lucb:395:1";
-    self->storage = lb_storage;
+    self->value = lb_value;
     lb_pos = "src/std/unicode/graphemes.lucb:396:1";
+    self->storage = lb_storage;
+    lb_pos = "src/std/unicode/graphemes.lucb:397:1";
     self->dispose = lb_dispose;
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_release(const lb_interop_Packet_0g1_u8_0c* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/unicode/graphemes.lucb:399:1";
+    lb_pos = "src/std/unicode/graphemes.lucb:400:1";
     void* _lb_o13 = self->storage;
     if (_lb_o13 != ((void*)0)) {
         void* lb_storage __attribute__((unused)) = _lb_o13;
         {
-            lb_pos = "src/std/unicode/graphemes.lucb:400:1";
+            lb_pos = "src/std/unicode/graphemes.lucb:401:1";
             (void)(((({ lb_fn_0F1_void_0p_unit _lb_o14 = self->dispose; if (_lb_o14 == ((void*)0)) {
                 (void)(lb_trap_text(((lb_str){"a packet has storage without a disposer", 39})));
             } _lb_o14; })))(lb_storage));

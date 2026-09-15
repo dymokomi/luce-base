@@ -178,13 +178,13 @@ lb_time_since:
 .Lvsign64:
     .quad -9223372036854775808, -9223372036854775808
 .Ltext_0:
-    .asciz "src/std/time.lucb:20:5"
+    .asciz "src/std/time.lucb:19:5"
 .Ltext_1:
     .asciz "unreachable"
 .Ltext_2:
-    .asciz "src/std/time.lucb:24:5"
+    .asciz "src/std/time.lucb:23:5"
 .Ltext_3:
-    .asciz "src/std/time.lucb:29:5"
+    .asciz "src/std/time.lucb:28:5"
 .Ltext_4:
     .asciz "integer overflow"
 

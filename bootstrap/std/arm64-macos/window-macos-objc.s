@@ -388,21 +388,21 @@ L6_3:
 l_text_0:
     .asciz "null_foreign"
 l_text_1:
-    .asciz "src/std/window/macos/objc.lucb:65:5"
+    .asciz "src/std/window/macos/objc.lucb:64:5"
 l_text_2:
     .asciz "unreachable"
 l_text_3:
     .asciz "a required AppKit class is unavailable; link AppKit and Foundation"
 l_text_4:
-    .asciz "src/std/window/macos/objc.lucb:68:5"
+    .asciz "src/std/window/macos/objc.lucb:67:5"
 l_text_5:
     .asciz "the native window lost an owned object"
 l_text_6:
-    .asciz "src/std/window/macos/objc.lucb:71:5"
+    .asciz "src/std/window/macos/objc.lucb:70:5"
 l_text_7:
     .asciz "luceState"
 l_text_8:
-    .asciz "src/std/window/macos/objc.lucb:77:5"
+    .asciz "src/std/window/macos/objc.lucb:76:5"
 l_text_9:
     .asciz "could not register a native window callback"
 

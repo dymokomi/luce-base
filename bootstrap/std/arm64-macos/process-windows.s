@@ -87,39 +87,39 @@ L1_3:
 
     .section __TEXT,__const
 l_text_0:
-    .asciz "src/std/process/windows.lucb:53:13"
-l_text_1:
     .asciz "src/std/process/windows.lucb:54:13"
+l_text_1:
+    .asciz "src/std/process/windows.lucb:55:13"
 l_text_2:
-    .asciz "src/std/process/windows.lucb:56:5"
-l_text_3:
     .asciz "src/std/process/windows.lucb:57:5"
+l_text_3:
+    .asciz "src/std/process/windows.lucb:58:5"
 l_text_4:
-    .asciz "src/std/process/windows.lucb:61:13"
+    .asciz "src/std/process/windows.lucb:62:13"
 l_text_5:
-    .asciz "src/std/process/windows.lucb:63:9"
+    .asciz "src/std/process/windows.lucb:64:9"
 l_text_6:
-    .asciz "src/std/process/windows.lucb:66:13"
-l_text_7:
     .asciz "src/std/process/windows.lucb:67:13"
+l_text_7:
+    .asciz "src/std/process/windows.lucb:68:13"
 l_text_8:
-    .asciz "src/std/process/windows.lucb:68:9"
-l_text_9:
     .asciz "src/std/process/windows.lucb:69:9"
+l_text_9:
+    .asciz "src/std/process/windows.lucb:70:9"
 l_text_10:
-    .asciz "src/std/process/windows.lucb:71:5"
+    .asciz "src/std/process/windows.lucb:72:5"
 l_text_11:
-    .asciz "src/std/process/windows.lucb:73:9"
-l_text_12:
     .asciz "src/std/process/windows.lucb:74:9"
+l_text_12:
+    .asciz "src/std/process/windows.lucb:75:9"
 l_text_13:
-    .asciz "src/std/process/windows.lucb:75:5"
-l_text_14:
     .asciz "src/std/process/windows.lucb:76:5"
+l_text_14:
+    .asciz "src/std/process/windows.lucb:77:5"
 l_text_15:
     .asciz "null_foreign"
 l_text_16:
-    .asciz "src/std/process/windows.lucb:80:5"
+    .asciz "src/std/process/windows.lucb:81:5"
 l_text_17:
     .asciz "a child stream could not be inherited"
 l_text_18:
@@ -127,7 +127,7 @@ l_text_18:
 l_text_19:
     .asciz "unreachable"
 l_text_20:
-    .asciz "src/std/process/windows.lucb:83:5"
+    .asciz "src/std/process/windows.lucb:84:5"
 l_text_21:
     .asciz "a child stream could not be measured"
 l_text_22:
@@ -137,31 +137,31 @@ l_text_23:
 l_text_24:
     .asciz "memory.unset"
 l_text_25:
-    .asciz "src/std/process/windows.lucb:91:5"
+    .asciz "src/std/process/windows.lucb:92:5"
 l_text_26:
     .asciz "memory.exhausted"
 l_text_27:
-    .asciz "src/std/process/windows.lucb:93:9"
+    .asciz "src/std/process/windows.lucb:94:9"
 l_text_28:
-    .asciz "src/std/process/windows.lucb:95:5"
+    .asciz "src/std/process/windows.lucb:96:5"
 l_text_29:
-    .asciz "src/std/process/windows.lucb:100:5"
-l_text_30:
     .asciz "src/std/process/windows.lucb:101:5"
+l_text_30:
+    .asciz "src/std/process/windows.lucb:102:5"
 l_text_31:
     .asciz "the child temporary directory is unavailable"
 l_text_32:
     .asciz "0123456789abcdef"
 l_text_33:
-    .asciz "src/std/process/windows.lucb:109:13"
+    .asciz "src/std/process/windows.lucb:110:13"
 l_text_34:
     .asciz "shift count out of range"
 l_text_35:
-    .asciz "src/std/process/windows.lucb:110:13"
+    .asciz "src/std/process/windows.lucb:111:13"
 l_text_36:
-    .asciz "src/std/process/windows.lucb:111:9"
-l_text_37:
     .asciz "src/std/process/windows.lucb:112:9"
+l_text_37:
+    .asciz "src/std/process/windows.lucb:113:9"
 l_text_38:
     .asciz "a child capture file could not be created"
 l_text_39:
@@ -173,31 +173,31 @@ l_text_41:
 l_text_42:
     .asciz "no unused child capture name was found"
 l_text_43:
-    .asciz "src/std/process/windows.lucb:124:5"
+    .asciz "src/std/process/windows.lucb:125:5"
 l_text_44:
     .asciz "the process command is too long"
 l_text_45:
-    .asciz "src/std/process/windows.lucb:134:5"
+    .asciz "src/std/process/windows.lucb:135:5"
 l_text_46:
-    .asciz "src/std/process/windows.lucb:139:9"
-l_text_47:
     .asciz "src/std/process/windows.lucb:140:9"
+l_text_47:
+    .asciz "src/std/process/windows.lucb:141:9"
 l_text_48:
-    .asciz "src/std/process/windows.lucb:142:5"
-l_text_49:
     .asciz "src/std/process/windows.lucb:143:5"
+l_text_49:
+    .asciz "src/std/process/windows.lucb:144:5"
 l_text_50:
     .asciz "index out of bounds"
 l_text_51:
-    .asciz "src/std/process/windows.lucb:146:9"
+    .asciz "src/std/process/windows.lucb:147:9"
 l_text_52:
-    .asciz "src/std/process/windows.lucb:149:9"
+    .asciz "src/std/process/windows.lucb:150:9"
 l_text_53:
-    .asciz "src/std/process/windows.lucb:153:9"
+    .asciz "src/std/process/windows.lucb:154:9"
 l_text_54:
-    .asciz "src/std/process/windows.lucb:155:5"
+    .asciz "src/std/process/windows.lucb:156:5"
 l_text_55:
-    .asciz "src/std/process/windows.lucb:157:5"
+    .asciz "src/std/process/windows.lucb:158:5"
 l_text_56:
     .asciz "NUL"
 l_text_57:
@@ -205,47 +205,47 @@ l_text_57:
 l_text_58:
     .asciz "the child input could not be opened"
 l_text_59:
-    .asciz "src/std/process/windows.lucb:159:5"
+    .asciz "src/std/process/windows.lucb:160:5"
 l_text_60:
-    .asciz "src/std/process/windows.lucb:161:5"
+    .asciz "src/std/process/windows.lucb:162:5"
 l_text_61:
-    .asciz "src/std/process/windows.lucb:163:5"
+    .asciz "src/std/process/windows.lucb:164:5"
 l_text_62:
-    .asciz "src/std/process/windows.lucb:165:5"
+    .asciz "src/std/process/windows.lucb:166:5"
 l_text_63:
     .asciz "the process could not be started"
 l_text_64:
-    .asciz "src/std/process/windows.lucb:177:9"
+    .asciz "src/std/process/windows.lucb:178:9"
 l_text_65:
     .asciz "CreateProcess returned no process"
 l_text_66:
-    .asciz "src/std/process/windows.lucb:178:5"
+    .asciz "src/std/process/windows.lucb:179:5"
 l_text_67:
     .asciz "CreateProcess returned no thread"
 l_text_68:
-    .asciz "src/std/process/windows.lucb:179:5"
+    .asciz "src/std/process/windows.lucb:180:5"
 l_text_69:
-    .asciz "src/std/process/windows.lucb:183:9"
+    .asciz "src/std/process/windows.lucb:184:9"
 l_text_70:
     .asciz "waiting for the process failed"
 l_text_71:
-    .asciz "src/std/process/windows.lucb:187:9"
+    .asciz "src/std/process/windows.lucb:188:9"
 l_text_72:
     .asciz "the process exit status is unavailable"
 l_text_73:
-    .asciz "src/std/process/windows.lucb:190:9"
+    .asciz "src/std/process/windows.lucb:191:9"
 l_text_74:
     .asciz ""
 l_text_75:
-    .asciz "src/std/process/windows.lucb:192:9"
+    .asciz "src/std/process/windows.lucb:193:9"
 l_text_76:
-    .asciz "src/std/process/windows.lucb:193:5"
+    .asciz "src/std/process/windows.lucb:194:5"
 l_text_77:
-    .asciz "src/std/process/windows.lucb:196:9"
+    .asciz "src/std/process/windows.lucb:197:9"
 l_text_78:
-    .asciz "src/std/process/windows.lucb:197:5"
+    .asciz "src/std/process/windows.lucb:198:5"
 l_text_79:
-    .asciz "src/std/process/module.lucb:174:9"
+    .asciz "src/std/process/module.lucb:172:9"
 l_text_80:
     .asciz "integer overflow"
 

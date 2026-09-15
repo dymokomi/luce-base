@@ -35,4 +35,4 @@ pub struct Connection:
             visit(state, context)
 
 pub let connection_type: Type[Connection] = Type[Connection](name = "Connection",
-    dispose = Connection.destroy, trace = Connection.trace)
+                                                             dispose = Connection.destroy, trace = Connection.trace)

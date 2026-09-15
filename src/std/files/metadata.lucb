@@ -200,7 +200,6 @@ func metadata_descriptor(descriptor: i32) -> Metadata!:
                 return mac_metadata(raw)
             if c.errno() != c.interrupted:
                 error(classify_error(c.errno()), "open-file metadata could not be read")
-
     elif platform.arm64:
         var raw64: LinuxArm64Metadata
         while true:

@@ -54,7 +54,7 @@ struct BoundCallback[T, A, R]:
                      read: (func(const T*, A) -> Outcome[R])?) -> Callback[A, R]!:
         discard(try source.get())
         var information = ownership.Info(name = "bound native callback", size = sizeof(BoundCallback[T, A, R]),
-            finish = none, drop = BoundCallback[T, A, R].drop, trace = BoundCallback[T, A, R].trace)
+                                         finish = none, drop = BoundCallback[T, A, R].drop, trace = BoundCallback[T, A, R].trace)
         let bound = (BoundCallback[T, A, R]*)try ownership.reserve(&information, sizeof(BoundCallback[T, A, R]))
         bound.information = information
         bound.header.info = &bound.information

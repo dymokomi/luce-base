@@ -4388,28 +4388,28 @@ static const lb_vt_Writer lb_vt_files_TemporaryFile_Writer __attribute__((unused
 
 __attribute__((weak)) lb_interop_Transfer_0g1_str lb_interop_Transfer_0g1_str_plain(void) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/files/temporary.lucb:76:13";
+    lb_pos = "src/std/files/temporary.lucb:74:13";
     lb_interop_Transfer_0g1_str _lb_ret1 = ((lb_interop_Transfer_0g1_str){.copy = lb_interop_Transfer_0g1_str_10copy_plain});
     return _lb_ret1;
     lb_trap("unreachable");
 }
 __attribute__((weak)) lb_r_interop_Packet_0g1_str lb_interop_Transfer_0g1_str_10copy_plain(lb_str lb_value) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/files/temporary.lucb:79:1";
+    lb_pos = "src/std/files/temporary.lucb:77:17";
     lb_interop_Packet_0g1_str _lb_ret2 = ({ lb_interop_Packet_0g1_str _lb_iv3 = {}; lb_interop_Packet_0g1_str_init(&_lb_iv3, lb_value, ((void*)0), ((void*)0)); _lb_iv3; });
     return ((lb_r_interop_Packet_0g1_str){ .value = _lb_ret2, .failed = false });
     lb_trap("unreachable");
 }
 __attribute__((weak)) lb_interop_Transfer_0g1_u8_0c lb_interop_Transfer_0g1_u8_0c_plain(void) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/files/temporary.lucb:76:13";
+    lb_pos = "src/std/files/temporary.lucb:74:13";
     lb_interop_Transfer_0g1_u8_0c _lb_ret4 = ((lb_interop_Transfer_0g1_u8_0c){.copy = lb_interop_Transfer_0g1_u8_0c_10copy_plain});
     return _lb_ret4;
     lb_trap("unreachable");
 }
 __attribute__((weak)) lb_r_interop_Packet_0g1_u8_0c lb_interop_Transfer_0g1_u8_0c_10copy_plain(lb_cspan lb_value) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/files/temporary.lucb:79:1";
+    lb_pos = "src/std/files/temporary.lucb:77:17";
     lb_interop_Packet_0g1_u8_0c _lb_ret5 = ({ lb_interop_Packet_0g1_u8_0c _lb_iv6 = {}; lb_interop_Packet_0g1_u8_0c_init(&_lb_iv6, lb_value, ((void*)0), ((void*)0)); _lb_iv6; });
     return ((lb_r_interop_Packet_0g1_u8_0c){ .value = _lb_ret5, .failed = false });
     lb_trap("unreachable");
@@ -4832,21 +4832,21 @@ lb_r_unit lb_files_11delete_path(lb_str lb_path, bool lb_recursive) {
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_str_init(lb_interop_Packet_0g1_str* self, lb_str lb_value, void* lb_storage, lb_fn_0F1_void_0p_unit lb_dispose) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/files/temporary.lucb:60:9";
+    lb_pos = "src/std/files/temporary.lucb:58:9";
     self->value = lb_value;
-    lb_pos = "src/std/files/temporary.lucb:61:9";
+    lb_pos = "src/std/files/temporary.lucb:59:13";
     self->storage = lb_storage;
-    lb_pos = "src/std/files/temporary.lucb:62:9";
+    lb_pos = "src/std/files/temporary.lucb:60:9";
     self->dispose = lb_dispose;
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_str_release(const lb_interop_Packet_0g1_str* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/files/temporary.lucb:65:9";
+    lb_pos = "src/std/files/temporary.lucb:63:1";
     void* _lb_o76 = self->storage;
     if (_lb_o76 != ((void*)0)) {
         void* lb_storage __attribute__((unused)) = _lb_o76;
         {
-            lb_pos = "src/std/files/temporary.lucb:66:13";
+            lb_pos = "src/std/files/temporary.lucb:64:5";
             (void)(((({ lb_fn_0F1_void_0p_unit _lb_o77 = self->dispose; if (_lb_o77 == ((void*)0)) {
                 (void)(lb_trap_text(((lb_str){"a packet has storage without a disposer", 39})));
             } _lb_o77; })))(lb_storage));
@@ -4855,21 +4855,21 @@ __attribute__((weak)) void lb_interop_Packet_0g1_str_release(const lb_interop_Pa
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_init(lb_interop_Packet_0g1_u8_0c* self, lb_cspan lb_value, void* lb_storage, lb_fn_0F1_void_0p_unit lb_dispose) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/files/temporary.lucb:60:9";
+    lb_pos = "src/std/files/temporary.lucb:58:9";
     self->value = lb_value;
-    lb_pos = "src/std/files/temporary.lucb:61:9";
+    lb_pos = "src/std/files/temporary.lucb:59:13";
     self->storage = lb_storage;
-    lb_pos = "src/std/files/temporary.lucb:62:9";
+    lb_pos = "src/std/files/temporary.lucb:60:9";
     self->dispose = lb_dispose;
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_release(const lb_interop_Packet_0g1_u8_0c* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/files/temporary.lucb:65:9";
+    lb_pos = "src/std/files/temporary.lucb:63:1";
     void* _lb_o78 = self->storage;
     if (_lb_o78 != ((void*)0)) {
         void* lb_storage __attribute__((unused)) = _lb_o78;
         {
-            lb_pos = "src/std/files/temporary.lucb:66:13";
+            lb_pos = "src/std/files/temporary.lucb:64:5";
             (void)(((({ lb_fn_0F1_void_0p_unit _lb_o79 = self->dispose; if (_lb_o79 == ((void*)0)) {
                 (void)(lb_trap_text(((lb_str){"a packet has storage without a disposer", 39})));
             } _lb_o79; })))(lb_storage));
@@ -4908,42 +4908,42 @@ lb_r_str lb_files_9text_path(lb_str lb_path) {
 }
 __attribute__((weak)) lb_interop_Owned_0g1_str lb_interop_Owned_0g1_str_clone(const lb_interop_Owned_0g1_str* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/files/handles.lucb:59:5";
+    lb_pos = "src/std/files/handles.lucb:57:1";
     struct lb_ownership_Object* _lb_o85 = self->owner;
     if (_lb_o85 != ((void*)0)) {
         struct lb_ownership_Object* lb_owner __attribute__((unused)) = _lb_o85;
         {
-            lb_pos = "src/std/files/handles.lucb:60:5";
+            lb_pos = "src/std/files/handles.lucb:58:5";
             (void)(((void)(lb_ownership_retain(lb_owner))));
         }
     }
-    lb_pos = "src/std/files/handles.lucb:61:5";
+    lb_pos = "src/std/files/handles.lucb:59:5";
     lb_interop_Owned_0g1_str _lb_ret86 = (*self);
     return _lb_ret86;
     lb_trap("unreachable");
 }
 __attribute__((weak)) void lb_interop_Owned_0g1_str_release(const lb_interop_Owned_0g1_str* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/files/handles.lucb:64:13";
+    lb_pos = "src/std/files/handles.lucb:62:9";
     struct lb_ownership_Object* _lb_o87 = self->owner;
     if (_lb_o87 != ((void*)0)) {
         struct lb_ownership_Object* lb_owner __attribute__((unused)) = _lb_o87;
         {
-            lb_pos = "src/std/files/handles.lucb:65:9";
+            lb_pos = "src/std/files/handles.lucb:63:9";
             (void)(lb_ownership_release(lb_owner));
         }
     }
 }
 __attribute__((weak)) void lb_interop_Owned_0g1_str_trace(const lb_interop_Owned_0g1_str* self, lb_fn_0F2_ownership_Object_0p_void_0p_unit lb_visit, void* lb_context) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/files/handles.lucb:68:9";
+    lb_pos = "src/std/files/handles.lucb:66:13";
     struct lb_ownership_Object* _lb_o88 = self->owner;
     if (_lb_o88 != ((void*)0)) {
         struct lb_ownership_Object* lb_owner __attribute__((unused)) = _lb_o88;
         {
-            lb_pos = "src/std/files/handles.lucb:69:13";
+            lb_pos = "src/std/files/handles.lucb:67:13";
             (void)(lb_ownership_12check_thread(lb_owner));
-            lb_pos = "src/std/files/handles.lucb:70:13";
+            lb_pos = "src/std/files/handles.lucb:68:9";
             (void)((lb_visit)(lb_owner, lb_context));
         }
     }

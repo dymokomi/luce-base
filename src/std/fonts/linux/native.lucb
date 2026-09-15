@@ -6,6 +6,7 @@ extern struct CairoFontMetrics:
     height: f64
     advance_x: f64
     advance_y: f64
+
 extern struct CairoTextMetrics:
     x: f64
     y: f64
@@ -13,6 +14,7 @@ extern struct CairoTextMetrics:
     height: f64
     advance_x: f64
     advance_y: f64
+
 extern func cairo_image_surface_create(format: i32, width: i32, height: i32) -> void*
 extern func cairo_surface_status(surface: void*) -> i32
 extern func cairo_surface_destroy(surface: void*)

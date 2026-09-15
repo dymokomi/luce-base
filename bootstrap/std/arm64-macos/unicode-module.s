@@ -124,9 +124,9 @@ l_text_0:
 l_text_1:
     .asciz "unreachable"
 l_text_2:
-    .asciz "src/std/unicode/module.lucb:20:5"
+    .asciz "src/std/unicode/module.lucb:19:5"
 l_text_3:
-    .asciz "src/std/unicode/module.lucb:24:5"
+    .asciz "src/std/unicode/module.lucb:23:5"
 
     .section __DATA,__const
     .p2align 3

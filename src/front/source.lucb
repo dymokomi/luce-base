@@ -12,7 +12,6 @@
 import c
 import files
 import memory
-
 pub let bad_encoding: ErrorCode = ErrorCode.package(1)
 pub let unreadable: ErrorCode = ErrorCode.package(2)
 
@@ -389,4 +388,3 @@ test "position directives map the lines after them":
     assert(src.statement_column(3) == 5)
     assert(src.statement_column(8) == 5)
     assert(src.statement_column(9) == 1)
-

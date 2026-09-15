@@ -119,7 +119,6 @@ pub func text_ref(index: u32) -> Ref:
     return Ref(kind = RefKind.text, index = index, value = 0, name = "")
 
 # mark: Instructions ===========================================================================
-
 pub enum Op as u8:
     ## `dst = a`
     copy = 1

@@ -9,7 +9,6 @@ import strings
 import thread
 import utf8
 import windows_text
-
 pub let failed: ErrorCode = ErrorCode.package(118)
 
 ## A top-down tightly packed coverage image. Copies borrow; close one owner.

@@ -39,4 +39,3 @@ func metadata_if_present(path: c.str) -> Metadata?!:
             return none
         error(failure.code, failure.message)
     return value
-

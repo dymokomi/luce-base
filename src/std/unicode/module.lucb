@@ -8,7 +8,6 @@
 import memory
 import strings
 import utf8
-
 pub let version: str = "17.0.0"
 
 ## Release text returned by this module, using its original current allocator.

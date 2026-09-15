@@ -4490,210 +4490,210 @@ __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_release(const lb_interop_
 }
 lb_o_usize lb_strings_12search_bytes(lb_cspan lb_text, lb_cspan lb_needle, bool lb_reversed) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/strings/search.lucb:48:5";
+    lb_pos = "src/std/strings/search.lucb:47:5";
     if (!!(((lb_needle.length) == 0ULL))) 
     {
-        lb_pos = "src/std/strings/search.lucb:49:9";
+        lb_pos = "src/std/strings/search.lucb:48:9";
         lb_o_usize _lb_ret38 = ((lb_o_usize){ .value = 0ULL, .present = true });
         return _lb_ret38;
     }
-    lb_pos = "src/std/strings/search.lucb:50:5";
+    lb_pos = "src/std/strings/search.lucb:49:5";
     if (!!((((size_t)((lb_needle.length))) > ((size_t)((lb_text.length)))))) 
     {
-        lb_pos = "src/std/strings/search.lucb:51:9";
+        lb_pos = "src/std/strings/search.lucb:50:9";
         lb_o_usize _lb_ret39 = ((lb_o_usize){ .present = false });
         return _lb_ret39;
     }
-    lb_pos = "src/std/strings/search.lucb:52:5";
+    lb_pos = "src/std/strings/search.lucb:51:5";
     lb_t_0T2_usize_usize _lb_tu40 __attribute__((unused)) = lb_strings_14maximal_suffix(lb_needle, lb_reversed, false);
     size_t lb_forward_split __attribute__((unused)) = _lb_tu40.a0;
     size_t lb_forward_period __attribute__((unused)) = _lb_tu40.a1;
-    lb_pos = "src/std/strings/search.lucb:53:5";
+    lb_pos = "src/std/strings/search.lucb:52:5";
     lb_t_0T2_usize_usize _lb_tu41 __attribute__((unused)) = lb_strings_14maximal_suffix(lb_needle, lb_reversed, true);
     size_t lb_backward_split __attribute__((unused)) = _lb_tu41.a0;
     size_t lb_backward_period __attribute__((unused)) = _lb_tu41.a1;
-    lb_pos = "src/std/strings/search.lucb:54:5";
+    lb_pos = "src/std/strings/search.lucb:53:5";
     size_t lb_critical __attribute__((unused)) = lb_forward_split;
-    lb_pos = "src/std/strings/search.lucb:55:5";
+    lb_pos = "src/std/strings/search.lucb:54:5";
     size_t lb_period __attribute__((unused)) = lb_forward_period;
-    lb_pos = "src/std/strings/search.lucb:56:5";
+    lb_pos = "src/std/strings/search.lucb:55:5";
     if (!!((((size_t)(lb_backward_split)) > ((size_t)(lb_critical))))) 
     {
-        lb_pos = "src/std/strings/search.lucb:57:9";
+        lb_pos = "src/std/strings/search.lucb:56:9";
         lb_critical = lb_backward_split;
-        lb_pos = "src/std/strings/search.lucb:58:9";
+        lb_pos = "src/std/strings/search.lucb:57:9";
         lb_period = lb_backward_period;
     }
-    lb_pos = "src/std/strings/search.lucb:59:5";
+    lb_pos = "src/std/strings/search.lucb:58:5";
     bool lb_periodic __attribute__((unused)) = (((size_t)(lb_critical)) <= ((size_t)((size_t)(lb_sub_u((uint64_t)((lb_needle.length)), (uint64_t)(lb_period), 64)))));
-    lb_pos = "src/std/strings/search.lucb:60:5";
+    lb_pos = "src/std/strings/search.lucb:59:5";
     size_t lb_index __attribute__((unused)) = 0ULL;
-    lb_pos = "src/std/strings/search.lucb:61:5";
+    lb_pos = "src/std/strings/search.lucb:60:5";
     for (;;) {
-        lb_pos = "src/std/strings/search.lucb:61:5";
+        lb_pos = "src/std/strings/search.lucb:60:5";
         if (!((lb_periodic && (((size_t)(lb_index)) < ((size_t)(lb_critical)))))) break;
         {
-            lb_pos = "src/std/strings/search.lucb:62:9";
+            lb_pos = "src/std/strings/search.lucb:61:9";
             if (!!(({ uint8_t _lb_sq42 __attribute__((unused)) = lb_strings_11search_byte(lb_needle, lb_index, lb_reversed); uint8_t _lb_sq43 __attribute__((unused)) = lb_strings_11search_byte(lb_needle, (size_t)(lb_add_u((uint64_t)(lb_period), (uint64_t)(lb_index), 64)), lb_reversed); (!(_lb_sq42 == _lb_sq43)); }))) 
             {
-                lb_pos = "src/std/strings/search.lucb:63:13";
+                lb_pos = "src/std/strings/search.lucb:62:13";
                 lb_periodic = false;
             }
-            lb_pos = "src/std/strings/search.lucb:64:9";
+            lb_pos = "src/std/strings/search.lucb:63:9";
             { size_t* lb__cell44 = &(lb_index);
             (*(lb__cell44)) = (size_t)(lb_add_u((uint64_t)((*(lb__cell44))), (uint64_t)(1ULL), 64)); }
         }
     }
-    lb_pos = "src/std/strings/search.lucb:65:5";
+    lb_pos = "src/std/strings/search.lucb:64:5";
     size_t lb_remembered __attribute__((unused)) = 0ULL;
-    lb_pos = "src/std/strings/search.lucb:66:5";
+    lb_pos = "src/std/strings/search.lucb:65:5";
     if (!!(lb_periodic)) 
     {
-        lb_pos = "src/std/strings/search.lucb:67:9";
+        lb_pos = "src/std/strings/search.lucb:66:9";
         lb_remembered = (size_t)(lb_sub_u((uint64_t)((lb_needle.length)), (uint64_t)(lb_period), 64));
     }
     else 
     {
-        lb_pos = "src/std/strings/search.lucb:69:9";
+        lb_pos = "src/std/strings/search.lucb:68:9";
         size_t lb_right __attribute__((unused)) = (size_t)(lb_add_u((uint64_t)((size_t)(lb_sub_u((uint64_t)((lb_needle.length)), (uint64_t)(lb_critical), 64))), (uint64_t)(1ULL), 64));
-        lb_pos = "src/std/strings/search.lucb:70:9";
+        lb_pos = "src/std/strings/search.lucb:69:9";
         lb_period = ((((size_t)(lb_critical)) > ((size_t)(lb_right))) ? lb_critical : lb_right);
     }
-    lb_pos = "src/std/strings/search.lucb:71:5";
+    lb_pos = "src/std/strings/search.lucb:70:5";
     size_t lb_position __attribute__((unused)) = 0ULL;
-    lb_pos = "src/std/strings/search.lucb:72:5";
+    lb_pos = "src/std/strings/search.lucb:71:5";
     size_t lb_matched_prefix __attribute__((unused)) = 0ULL;
-    lb_pos = "src/std/strings/search.lucb:73:5";
+    lb_pos = "src/std/strings/search.lucb:72:5";
     for (;;) {
-        lb_pos = "src/std/strings/search.lucb:73:5";
+        lb_pos = "src/std/strings/search.lucb:72:5";
         if (!((((size_t)((lb_needle.length))) <= ((size_t)((size_t)(lb_sub_u((uint64_t)((lb_text.length)), (uint64_t)(lb_position), 64))))))) break;
         {
-            lb_pos = "src/std/strings/search.lucb:74:9";
+            lb_pos = "src/std/strings/search.lucb:73:9";
             size_t lb_right __attribute__((unused)) = ((((size_t)(lb_critical)) > ((size_t)(lb_matched_prefix))) ? lb_critical : lb_matched_prefix);
-            lb_pos = "src/std/strings/search.lucb:75:9";
+            lb_pos = "src/std/strings/search.lucb:74:9";
             for (;;) {
-                lb_pos = "src/std/strings/search.lucb:75:9";
+                lb_pos = "src/std/strings/search.lucb:74:9";
                 if (!(((((size_t)(lb_right)) < ((size_t)((lb_needle.length)))) && ({ uint8_t _lb_sq45 __attribute__((unused)) = lb_strings_11search_byte(lb_needle, lb_right, lb_reversed); uint8_t _lb_sq46 __attribute__((unused)) = lb_strings_11search_byte(lb_text, (size_t)(lb_add_u((uint64_t)(lb_position), (uint64_t)(lb_right), 64)), lb_reversed); (_lb_sq45 == _lb_sq46); })))) break;
                 {
-                    lb_pos = "src/std/strings/search.lucb:76:13";
+                    lb_pos = "src/std/strings/search.lucb:75:13";
                     { size_t* lb__cell47 = &(lb_right);
                     (*(lb__cell47)) = (size_t)(lb_add_u((uint64_t)((*(lb__cell47))), (uint64_t)(1ULL), 64)); }
                 }
             }
-            lb_pos = "src/std/strings/search.lucb:77:9";
+            lb_pos = "src/std/strings/search.lucb:76:9";
             if (!!((((size_t)(lb_right)) < ((size_t)((lb_needle.length)))))) 
             {
-                lb_pos = "src/std/strings/search.lucb:78:13";
+                lb_pos = "src/std/strings/search.lucb:77:13";
                 { size_t* lb__cell48 = &(lb_position);
                 (*(lb__cell48)) = (size_t)(lb_add_u((uint64_t)((*(lb__cell48))), (uint64_t)((size_t)(lb_add_u((uint64_t)((size_t)(lb_sub_u((uint64_t)(lb_right), (uint64_t)(lb_critical), 64))), (uint64_t)(1ULL), 64))), 64)); }
-                lb_pos = "src/std/strings/search.lucb:79:13";
+                lb_pos = "src/std/strings/search.lucb:78:13";
                 lb_matched_prefix = 0ULL;
-                lb_pos = "src/std/strings/search.lucb:80:13";
+                lb_pos = "src/std/strings/search.lucb:79:13";
                 continue;
             }
-            lb_pos = "src/std/strings/search.lucb:81:9";
+            lb_pos = "src/std/strings/search.lucb:80:9";
             size_t lb_left __attribute__((unused)) = lb_critical;
-            lb_pos = "src/std/strings/search.lucb:82:9";
+            lb_pos = "src/std/strings/search.lucb:81:9";
             for (;;) {
-                lb_pos = "src/std/strings/search.lucb:82:9";
+                lb_pos = "src/std/strings/search.lucb:81:9";
                 if (!(((((size_t)(lb_left)) > ((size_t)(lb_matched_prefix))) && ({ uint8_t _lb_sq49 __attribute__((unused)) = lb_strings_11search_byte(lb_needle, (size_t)(lb_sub_u((uint64_t)(lb_left), (uint64_t)(1ULL), 64)), lb_reversed); uint8_t _lb_sq50 __attribute__((unused)) = lb_strings_11search_byte(lb_text, (size_t)(lb_sub_u((uint64_t)((size_t)(lb_add_u((uint64_t)(lb_position), (uint64_t)(lb_left), 64))), (uint64_t)(1ULL), 64)), lb_reversed); (_lb_sq49 == _lb_sq50); })))) break;
                 {
-                    lb_pos = "src/std/strings/search.lucb:83:13";
+                    lb_pos = "src/std/strings/search.lucb:82:13";
                     { size_t* lb__cell51 = &(lb_left);
                     (*(lb__cell51)) = (size_t)(lb_sub_u((uint64_t)((*(lb__cell51))), (uint64_t)(1ULL), 64)); }
                 }
             }
-            lb_pos = "src/std/strings/search.lucb:84:9";
+            lb_pos = "src/std/strings/search.lucb:83:9";
             if (!!((((size_t)(lb_left)) <= ((size_t)(lb_matched_prefix))))) 
             {
-                lb_pos = "src/std/strings/search.lucb:85:13";
+                lb_pos = "src/std/strings/search.lucb:84:13";
                 lb_o_usize _lb_ret52 = ((lb_o_usize){ .value = lb_position, .present = true });
                 return _lb_ret52;
             }
-            lb_pos = "src/std/strings/search.lucb:86:9";
+            lb_pos = "src/std/strings/search.lucb:85:9";
             { size_t* lb__cell53 = &(lb_position);
             (*(lb__cell53)) = (size_t)(lb_add_u((uint64_t)((*(lb__cell53))), (uint64_t)(lb_period), 64)); }
-            lb_pos = "src/std/strings/search.lucb:87:9";
+            lb_pos = "src/std/strings/search.lucb:86:9";
             lb_matched_prefix = lb_remembered;
         }
     }
-    lb_pos = "src/std/strings/search.lucb:88:5";
+    lb_pos = "src/std/strings/search.lucb:87:5";
     lb_o_usize _lb_ret54 = ((lb_o_usize){ .present = false });
     return _lb_ret54;
     lb_trap("unreachable");
 }
 lb_t_0T2_usize_usize lb_strings_14maximal_suffix(lb_cspan lb_needle, bool lb_reversed, bool lb_opposite_order) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/strings/search.lucb:93:5";
+    lb_pos = "src/std/strings/search.lucb:92:5";
     size_t lb_left __attribute__((unused)) = 0ULL;
-    lb_pos = "src/std/strings/search.lucb:94:5";
+    lb_pos = "src/std/strings/search.lucb:93:5";
     size_t lb_right __attribute__((unused)) = 1ULL;
-    lb_pos = "src/std/strings/search.lucb:95:5";
+    lb_pos = "src/std/strings/search.lucb:94:5";
     size_t lb_offset __attribute__((unused)) = 0ULL;
-    lb_pos = "src/std/strings/search.lucb:96:5";
+    lb_pos = "src/std/strings/search.lucb:95:5";
     size_t lb_period __attribute__((unused)) = 1ULL;
-    lb_pos = "src/std/strings/search.lucb:97:5";
+    lb_pos = "src/std/strings/search.lucb:96:5";
     for (;;) {
-        lb_pos = "src/std/strings/search.lucb:97:5";
+        lb_pos = "src/std/strings/search.lucb:96:5";
         if (!(((((size_t)(lb_right)) < ((size_t)((lb_needle.length)))) && (((size_t)(lb_offset)) < ((size_t)((size_t)(lb_sub_u((uint64_t)((lb_needle.length)), (uint64_t)(lb_right), 64)))))))) break;
         {
-            lb_pos = "src/std/strings/search.lucb:98:9";
+            lb_pos = "src/std/strings/search.lucb:97:9";
             uint8_t lb_a __attribute__((unused)) = lb_strings_11search_byte(lb_needle, (size_t)(lb_add_u((uint64_t)(lb_right), (uint64_t)(lb_offset), 64)), lb_reversed);
-            lb_pos = "src/std/strings/search.lucb:99:9";
+            lb_pos = "src/std/strings/search.lucb:98:9";
             uint8_t lb_b __attribute__((unused)) = lb_strings_11search_byte(lb_needle, (size_t)(lb_add_u((uint64_t)(lb_left), (uint64_t)(lb_offset), 64)), lb_reversed);
-            lb_pos = "src/std/strings/search.lucb:100:9";
+            lb_pos = "src/std/strings/search.lucb:99:9";
             if (!!((lb_a == lb_b))) 
             {
-                lb_pos = "src/std/strings/search.lucb:101:13";
+                lb_pos = "src/std/strings/search.lucb:100:13";
                 if (!!(((size_t)(lb_add_u((uint64_t)(lb_offset), (uint64_t)(1ULL), 64)) == lb_period))) 
                 {
-                    lb_pos = "src/std/strings/search.lucb:102:17";
+                    lb_pos = "src/std/strings/search.lucb:101:17";
                     { size_t* lb__cell55 = &(lb_right);
                     (*(lb__cell55)) = (size_t)(lb_add_u((uint64_t)((*(lb__cell55))), (uint64_t)(lb_period), 64)); }
-                    lb_pos = "src/std/strings/search.lucb:103:17";
+                    lb_pos = "src/std/strings/search.lucb:102:17";
                     lb_offset = 0ULL;
                 }
                 else 
                 {
-                    lb_pos = "src/std/strings/search.lucb:105:17";
+                    lb_pos = "src/std/strings/search.lucb:104:17";
                     { size_t* lb__cell56 = &(lb_offset);
                     (*(lb__cell56)) = (size_t)(lb_add_u((uint64_t)((*(lb__cell56))), (uint64_t)(1ULL), 64)); }
                 }
             }
             else {
-                lb_pos = "src/std/strings/search.lucb:106:9";
+                lb_pos = "src/std/strings/search.lucb:105:9";
                 if (!!((!(((((uint8_t)(lb_a)) < ((uint8_t)(lb_b)))) == lb_opposite_order)))) 
                 {
-                    lb_pos = "src/std/strings/search.lucb:107:13";
+                    lb_pos = "src/std/strings/search.lucb:106:13";
                     { size_t* lb__cell57 = &(lb_right);
                     (*(lb__cell57)) = (size_t)(lb_add_u((uint64_t)((*(lb__cell57))), (uint64_t)((size_t)(lb_add_u((uint64_t)(lb_offset), (uint64_t)(1ULL), 64))), 64)); }
-                    lb_pos = "src/std/strings/search.lucb:108:13";
+                    lb_pos = "src/std/strings/search.lucb:107:13";
                     lb_offset = 0ULL;
-                    lb_pos = "src/std/strings/search.lucb:109:13";
+                    lb_pos = "src/std/strings/search.lucb:108:13";
                     lb_period = (size_t)(lb_sub_u((uint64_t)(lb_right), (uint64_t)(lb_left), 64));
                 }
                 else 
                 {
-                    lb_pos = "src/std/strings/search.lucb:111:13";
+                    lb_pos = "src/std/strings/search.lucb:110:13";
                     lb_left = lb_right;
-                    lb_pos = "src/std/strings/search.lucb:112:13";
+                    lb_pos = "src/std/strings/search.lucb:111:13";
                     lb_right = (size_t)(lb_add_u((uint64_t)(lb_left), (uint64_t)(1ULL), 64));
-                    lb_pos = "src/std/strings/search.lucb:113:13";
+                    lb_pos = "src/std/strings/search.lucb:112:13";
                     lb_offset = 0ULL;
-                    lb_pos = "src/std/strings/search.lucb:114:13";
+                    lb_pos = "src/std/strings/search.lucb:113:13";
                     lb_period = 1ULL;
                 }
             }
         }
     }
-    lb_pos = "src/std/strings/search.lucb:115:5";
+    lb_pos = "src/std/strings/search.lucb:114:5";
     lb_t_0T2_usize_usize _lb_ret58 = ((lb_t_0T2_usize_usize){lb_left, lb_period});
     return _lb_ret58;
     lb_trap("unreachable");
 }
 uint8_t lb_strings_11search_byte(lb_cspan lb_bytes, size_t lb_index, bool lb_reversed) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/strings/search.lucb:118:5";
+    lb_pos = "src/std/strings/search.lucb:117:5";
     uint8_t _lb_ret59 = (lb_reversed ? (*({ lb_cspan _lb_ix60 = lb_bytes; &((uint8_t*)_lb_ix60.data)[lb_at((uint64_t)((size_t)(lb_sub_u((uint64_t)((size_t)(lb_sub_u((uint64_t)((lb_bytes.length)), (uint64_t)(lb_index), 64))), (uint64_t)(1ULL), 64))), _lb_ix60.length)]; })) : (*({ lb_cspan _lb_ix61 = lb_bytes; &((uint8_t*)_lb_ix61.data)[lb_at((uint64_t)(lb_index), _lb_ix61.length)]; })));
     return _lb_ret59;
     lb_trap("unreachable");

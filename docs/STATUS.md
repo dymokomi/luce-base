@@ -54,7 +54,8 @@ seed named in `bootstrap/SEED` builds it to the same C.
 | 19.5 | targets | limited | arm64-macos and x86_64-linux: native, gate green on each host. x86_64-windows: native Win64/COFF, self-hosting and Windows execution tests; see the Windows validation record. arm64-linux, x86_64-macos: the target model and C emission exist (`tests/platform` emits and syntax-checks them); no native generator, no gate on such a host. wasm32: named by the specification, not modelled by this compiler |
 | 19.5 | instruction-set levels: `--cpu`, the running level, snapshots at the baseline | verified | `tests/platform/common/level.lucb`, `halves.lucb` |
 | 19.6 | warnings and pruning | limited | unused locals, imports, private functions, unreachable code, and literal branches are pruned and reported with `-W`; the specification's allocation-leak and unjoined-thread lints do not exist in this compiler |
-| 19.6 | `luce fmt`, `--costs` | planned | |
+| 19.6 | `luce fmt` | verified | `tests/programs/fmt`; the compiler's and the standard library's sources are fixpoints of it, which the gate checks |
+| 19.6 | `--costs` | planned | |
 | 16.6 | TLS for `net`, a `graphics` module | planned | the SDL3 and Metal proving programs reach their libraries through `extern` alone |
 | — | the optimiser: inlining, single-assignment form, value numbering, load elimination, a register allocator over the exact lives | verified | `tests/optimization`, the native fixpoint; splitting a life at a call is the next step (`docs/PLAN.md`) |
 | — | debugging: native DWARF and `luce-base-d` | limited | `tests/programs/debugger`, `tests/programs/dwarf`: source breakpoints, mixed C/Base stacks, typed locals, scopes, moved artifacts and static-library consumers; optimized user-variable locations and payload-enum presentation remain future work |

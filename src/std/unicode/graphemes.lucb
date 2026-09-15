@@ -1,4 +1,3 @@
-
 ## Borrowed iterator over default extended grapheme clusters from Unicode 17
 ## UAX #29. Clusters are logical text boundaries, not display-column widths.
 ## Construction validates the complete UTF-8 input without allocation. Keep its

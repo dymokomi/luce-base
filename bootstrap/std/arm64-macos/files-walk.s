@@ -2890,9 +2890,9 @@ l_text_30:
 l_text_31:
     .asciz "src/std/files/walk.lucb:122:13"
 l_text_32:
-    .asciz "src/std/memory.lucb:326:9"
-l_text_33:
     .asciz "src/std/memory.lucb:328:9"
+l_text_33:
+    .asciz "src/std/memory.lucb:330:9"
 l_text_34:
     .asciz "null_foreign"
 l_text_35:

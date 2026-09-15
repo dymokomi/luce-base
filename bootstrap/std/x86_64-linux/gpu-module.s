@@ -522,13 +522,13 @@ lb_gpu_11check_color:
 .Ltext_0:
     .asciz "unreachable"
 .Ltext_1:
-    .asciz "src/std/gpu/module.lucb:38:5"
+    .asciz "src/std/gpu/module.lucb:37:5"
 .Ltext_2:
     .asciz "no GPU backend is implemented for this target"
 .Ltext_3:
     .asciz "GPU destruction requires the main thread"
 .Ltext_4:
-    .asciz "src/std/gpu/module.lucb:67:9"
+    .asciz "src/std/gpu/module.lucb:66:9"
 .Ltext_5:
     .asciz "GPU clear colors must be finite linear sRGB values in 0..1"
 

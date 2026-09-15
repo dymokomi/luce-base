@@ -6154,9 +6154,9 @@ lb_memory_copy_0g1_u8:
 .Ltext_46:
     .asciz "src/std/files/directory.lucb:177:9"
 .Ltext_47:
-    .asciz "src/std/memory.lucb:326:9"
-.Ltext_48:
     .asciz "src/std/memory.lucb:328:9"
+.Ltext_48:
+    .asciz "src/std/memory.lucb:330:9"
 .Ltext_49:
     .asciz "null_foreign"
 .Ltext_50:

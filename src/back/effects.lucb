@@ -41,4 +41,3 @@ pub func arguments_have_effect(args: ast.Node*?) -> bool:
                 return true
         cursor = a.next
     return false
-

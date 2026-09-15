@@ -9,7 +9,6 @@ import thread
 import utf8
 import window
 import windows_text
-
 pub let failed: ErrorCode = ErrorCode.package(117)
 let text_limit: usize = 1048576
 

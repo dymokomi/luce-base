@@ -83,7 +83,7 @@ pub struct File: io.Reader, io.Writer:
             try windows_set_times(descriptor, accessed, modified)
             return
         let times: NativeFileTime[2] = [NativeFileTime(seconds = accessed.seconds, nanoseconds = (i64)accessed.nanoseconds),
-                                         NativeFileTime(seconds = modified.seconds, nanoseconds = (i64)modified.nanoseconds)]
+                                        NativeFileTime(seconds = modified.seconds, nanoseconds = (i64)modified.nanoseconds)]
         var result = futimens(descriptor, &times[0])
         while result != 0 and c.errno() == c.interrupted:
             result = futimens(descriptor, &times[0])

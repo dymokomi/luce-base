@@ -1889,9 +1889,9 @@ lb_memory_copy_0g1_u32:
 .Ltext_18:
     .asciz "index out of bounds"
 .Ltext_19:
-    .asciz "src/std/memory.lucb:326:9"
-.Ltext_20:
     .asciz "src/std/memory.lucb:328:9"
+.Ltext_20:
+    .asciz "src/std/memory.lucb:330:9"
 .Ltext_21:
     .asciz "null_foreign"
 .Ltext_22:

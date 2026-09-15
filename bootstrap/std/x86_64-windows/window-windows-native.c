@@ -4303,98 +4303,98 @@ extern uint32_t lb_gpu_22vulkan_api_version_1_0;
 
 __attribute__((weak)) lb_interop_Transfer_0g1_str lb_interop_Transfer_0g1_str_plain(void) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/window/windows/native.lucb:23:1";
+    lb_pos = "src/std/window/windows/native.lucb:22:5";
     lb_interop_Transfer_0g1_str _lb_ret1 = ((lb_interop_Transfer_0g1_str){.copy = lb_interop_Transfer_0g1_str_10copy_plain});
     return _lb_ret1;
     lb_trap("unreachable");
 }
 __attribute__((weak)) lb_r_interop_Packet_0g1_str lb_interop_Transfer_0g1_str_10copy_plain(lb_str lb_value) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/window/windows/native.lucb:26:1";
+    lb_pos = "src/std/window/windows/native.lucb:25:5";
     lb_interop_Packet_0g1_str _lb_ret2 = ({ lb_interop_Packet_0g1_str _lb_iv3 = {}; lb_interop_Packet_0g1_str_init(&_lb_iv3, lb_value, ((void*)0), ((void*)0)); _lb_iv3; });
     return ((lb_r_interop_Packet_0g1_str){ .value = _lb_ret2, .failed = false });
     lb_trap("unreachable");
 }
 __attribute__((weak)) lb_interop_Transfer_0g1_u8_0c lb_interop_Transfer_0g1_u8_0c_plain(void) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/window/windows/native.lucb:23:1";
+    lb_pos = "src/std/window/windows/native.lucb:22:5";
     lb_interop_Transfer_0g1_u8_0c _lb_ret4 = ((lb_interop_Transfer_0g1_u8_0c){.copy = lb_interop_Transfer_0g1_u8_0c_10copy_plain});
     return _lb_ret4;
     lb_trap("unreachable");
 }
 __attribute__((weak)) lb_r_interop_Packet_0g1_u8_0c lb_interop_Transfer_0g1_u8_0c_10copy_plain(lb_cspan lb_value) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/window/windows/native.lucb:26:1";
+    lb_pos = "src/std/window/windows/native.lucb:25:5";
     lb_interop_Packet_0g1_u8_0c _lb_ret5 = ({ lb_interop_Packet_0g1_u8_0c _lb_iv6 = {}; lb_interop_Packet_0g1_u8_0c_init(&_lb_iv6, lb_value, ((void*)0), ((void*)0)); _lb_iv6; });
     return ((lb_r_interop_Packet_0g1_u8_0c){ .value = _lb_ret5, .failed = false });
     lb_trap("unreachable");
 }
 lb_r_window_State_0p lb_window_8win_open(lb_window_Options lb_options) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/window/windows/native.lucb:71:5";
+    lb_pos = "src/std/window/windows/native.lucb:72:5";
     (void)((({ lb_r_unit _lb_r7 = lb_window_9win_setup(); if (_lb_r7.failed) {
         return ((lb_r_window_State_0p){ .error = _lb_r7.error, .failed = true });
     } (void)0; })));
-    lb_pos = "src/std/window/windows/native.lucb:72:5";
+    lb_pos = "src/std/window/windows/native.lucb:73:5";
     struct lb_window_State* lb_state __attribute__((unused)) = (({ lb_r_window_State_0p _lb_r8 = ({ lb_iface _lb_a9 = lb_memory_heap; lb_o_u8_0s _lb_ao9 = lb_alloc_call(_lb_a9, sizeof(lb_window_State), _Alignof(lb_window_State)); lb_r_window_State_0p _lb_r9; if (!_lb_ao9.present) { _lb_r9 = ((lb_r_window_State_0p){ .error = { .code = 208273409, .message = (lb_str){"memory.exhausted", 16} }, .failed = true }); } else { lb_window_State* _lb_p9 = (lb_window_State*)_lb_ao9.value.data; *_lb_p9 = ((lb_window_State){}); _lb_r9.value = _lb_p9; _lb_r9.failed = false; } _lb_r9; }); if (_lb_r8.failed) {
         return ((lb_r_window_State_0p){ .error = _lb_r8.error, .failed = true });
     } _lb_r8.value; }));
-    lb_pos = "src/std/window/windows/native.lucb:73:5";
     lb_pos = "src/std/window/windows/native.lucb:74:5";
+    lb_pos = "src/std/window/windows/native.lucb:75:5";
     (lb_state)->native_cursor = (({ lb_r_void_0p _lb_r10 = lb_window_10win_cursor(((uint8_t)0u)); if (_lb_r10.failed) {
         (void)(lb_window_11win_destroy(lb_state));
         return ((lb_r_window_State_0p){ .error = _lb_r10.error, .failed = true });
     } _lb_r10.value; }));
-    lb_pos = "src/std/window/windows/native.lucb:75:5";
+    lb_pos = "src/std/window/windows/native.lucb:76:5";
     lb_span lb_title __attribute__((unused)) = (({ lb_r_u16_0s _lb_r11 = ({ lb_iface _lb_a12 = lb_memory_allocator; size_t _lb_n12 = (size_t)((size_t)(lb_add_u((uint64_t)((lb_options.title.length)), (uint64_t)(1ULL), 64))); lb_r_u16_0s _lb_r12; if (_lb_n12 > UINT64_C(2305843009213693952)) { _lb_r12 = ((lb_r_u16_0s){ .error = { .code = 208273409, .message = (lb_str){"memory.exhausted", 16} }, .failed = true }); } else { size_t _lb_bytes12 = sizeof(uint16_t) * _lb_n12; lb_o_u8_0s _lb_ao12 = lb_alloc_call(_lb_a12, _lb_bytes12, _Alignof(uint16_t)); if (_lb_bytes12 != 0 && !_lb_ao12.present) { _lb_r12 = ((lb_r_u16_0s){ .error = { .code = 208273409, .message = (lb_str){"memory.exhausted", 16} }, .failed = true }); } else { _lb_r12.value.data = _lb_ao12.value.data; _lb_r12.value.length = _lb_n12; _lb_r12.failed = false; } } _lb_r12; }); if (_lb_r11.failed) {
         (void)(lb_window_11win_destroy(lb_state));
         return ((lb_r_window_State_0p){ .error = _lb_r11.error, .failed = true });
     } _lb_r11.value; }));
-    lb_pos = "src/std/window/windows/native.lucb:76:5";
     lb_pos = "src/std/window/windows/native.lucb:77:5";
-    int32_t lb_count __attribute__((unused)) = 0LL;
     lb_pos = "src/std/window/windows/native.lucb:78:5";
+    int32_t lb_count __attribute__((unused)) = 0LL;
+    lb_pos = "src/std/window/windows/native.lucb:79:5";
     if (!!((((size_t)((lb_options.title.length))) > ((size_t)(0ULL))))) 
     {
-        lb_pos = "src/std/window/windows/native.lucb:79:9";
-        lb_count = lb_x_11windows_abi_MultiByteToWideChar(65001ULL, 8ULL, lb_cstr_of(lb_options.title), ((int32_t)lb_conv_u((uint64_t)((lb_options.title.length)), 64, 0, 32, 1, 1)), ((uint16_t*)(lb_title.data)), (int32_t)(lb_sub_s((int64_t)(((int32_t)lb_conv_u((uint64_t)((lb_title.length)), 64, 0, 32, 1, 1))), (int64_t)(1LL), 32)));
         lb_pos = "src/std/window/windows/native.lucb:80:9";
+        lb_count = lb_x_11windows_abi_MultiByteToWideChar(65001ULL, 8ULL, lb_cstr_of(lb_options.title), ((int32_t)lb_conv_u((uint64_t)((lb_options.title.length)), 64, 0, 32, 1, 1)), ((uint16_t*)(lb_title.data)), (int32_t)(lb_sub_s((int64_t)(((int32_t)lb_conv_u((uint64_t)((lb_title.length)), 64, 0, 32, 1, 1))), (int64_t)(1LL), 32)));
+        lb_pos = "src/std/window/windows/native.lucb:81:9";
         if (!!((lb_count == 0LL))) 
         {
-            lb_pos = "src/std/window/windows/native.lucb:81:13";
+            lb_pos = "src/std/window/windows/native.lucb:82:13";
             lb_r_window_State_0p _lb_err13 = ((lb_r_window_State_0p){ .error = { .code = (int32_t)(lb_window_15invalid_options), .message = ((lb_str){"the window title could not be converted to UTF-16", 49}) }, .failed = true });
             { lb_span _lb_s14 = lb_title; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s14.data), lb_mul_u(_lb_s14.length, sizeof(uint16_t), 64) }); }
             (void)(lb_window_11win_destroy(lb_state));
             return _lb_err13;
         }
     }
-    lb_pos = "src/std/window/windows/native.lucb:82:5";
-    (*({ lb_span _lb_ix15 = lb_title; &((uint16_t*)_lb_ix15.data)[lb_at((uint64_t)(((size_t)lb_conv_s((int64_t)(lb_count), 32, 1, 64, 0, 1))), _lb_ix15.length)]; })) = 0ULL;
     lb_pos = "src/std/window/windows/native.lucb:83:5";
-    uint32_t lb_style __attribute__((unused)) = (lb_options.resizable ? 13565952ULL : 13238272ULL);
+    (*({ lb_span _lb_ix15 = lb_title; &((uint16_t*)_lb_ix15.data)[lb_at((uint64_t)(((size_t)lb_conv_s((int64_t)(lb_count), 32, 1, 64, 0, 1))), _lb_ix15.length)]; })) = 0ULL;
     lb_pos = "src/std/window/windows/native.lucb:84:5";
-    uint32_t lb_dpi __attribute__((unused)) = lb_x_window_GetDpiForSystem();
+    uint32_t lb_style __attribute__((unused)) = (lb_options.resizable ? 13565952ULL : 13238272ULL);
     lb_pos = "src/std/window/windows/native.lucb:85:5";
-    WinRect lb_rect __attribute__((unused)) = ((WinRect){.right = ((int32_t)lb_conv_u((uint64_t)(((uint64_t)(lb_div_u((uint64_t)((uint64_t)(lb_mul_u((uint64_t)(((uint64_t)lb_conv_u((uint64_t)(lb_options.width), 32, 0, 64, 0, 1))), (uint64_t)(((uint64_t)lb_conv_u((uint64_t)(lb_dpi), 32, 0, 64, 0, 1))), 64))), (uint64_t)(96ULL), 64)))), 64, 0, 32, 1, 1)), .bottom = ((int32_t)lb_conv_u((uint64_t)(((uint64_t)(lb_div_u((uint64_t)((uint64_t)(lb_mul_u((uint64_t)(((uint64_t)lb_conv_u((uint64_t)(lb_options.height), 32, 0, 64, 0, 1))), (uint64_t)(((uint64_t)lb_conv_u((uint64_t)(lb_dpi), 32, 0, 64, 0, 1))), 64))), (uint64_t)(96ULL), 64)))), 64, 0, 32, 1, 1))});
+    uint32_t lb_dpi __attribute__((unused)) = lb_x_window_GetDpiForSystem();
     lb_pos = "src/std/window/windows/native.lucb:86:5";
+    WinRect lb_rect __attribute__((unused)) = ((WinRect){.right = ((int32_t)lb_conv_u((uint64_t)(((uint64_t)(lb_div_u((uint64_t)((uint64_t)(lb_mul_u((uint64_t)(((uint64_t)lb_conv_u((uint64_t)(lb_options.width), 32, 0, 64, 0, 1))), (uint64_t)(((uint64_t)lb_conv_u((uint64_t)(lb_dpi), 32, 0, 64, 0, 1))), 64))), (uint64_t)(96ULL), 64)))), 64, 0, 32, 1, 1)), .bottom = ((int32_t)lb_conv_u((uint64_t)(((uint64_t)(lb_div_u((uint64_t)((uint64_t)(lb_mul_u((uint64_t)(((uint64_t)lb_conv_u((uint64_t)(lb_options.height), 32, 0, 64, 0, 1))), (uint64_t)(((uint64_t)lb_conv_u((uint64_t)(lb_dpi), 32, 0, 64, 0, 1))), 64))), (uint64_t)(96ULL), 64)))), 64, 0, 32, 1, 1))});
+    lb_pos = "src/std/window/windows/native.lucb:87:5";
     if (!!(({ int32_t _lb_sq16 __attribute__((unused)) = lb_x_window_AdjustWindowRectExForDpi(&(lb_rect), lb_style, 0LL, 0ULL, lb_dpi); int32_t _lb_sq17 __attribute__((unused)) = 0LL; (_lb_sq16 == _lb_sq17); }))) 
     {
-        lb_pos = "src/std/window/windows/native.lucb:87:9";
+        lb_pos = "src/std/window/windows/native.lucb:88:9";
         lb_r_window_State_0p _lb_err18 = ((lb_r_window_State_0p){ .error = { .code = (int32_t)(lb_window_failed), .message = ((lb_str){"the native window dimensions could not be calculated", 52}) }, .failed = true });
         { lb_span _lb_s19 = lb_title; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s19.data), lb_mul_u(_lb_s19.length, sizeof(uint16_t), 64) }); }
         (void)(lb_window_11win_destroy(lb_state));
         return _lb_err18;
     }
-    lb_pos = "src/std/window/windows/native.lucb:88:5";
+    lb_pos = "src/std/window/windows/native.lucb:89:5";
     void* lb_native __attribute__((unused)) = ({ void* _lb_o20 = ({ uint32_t _lb_sq21 __attribute__((unused)) = 0ULL; uint16_t* _lb_sq22 __attribute__((unused)) = &(((lb_window_14win_class_name).d[0])); uint16_t* _lb_sq23 __attribute__((unused)) = ((uint16_t*)(lb_title.data)); uint32_t _lb_sq24 __attribute__((unused)) = lb_style; int32_t _lb_sq25 __attribute__((unused)) = ((int32_t)(-2147483648LL)); int32_t _lb_sq26 __attribute__((unused)) = ((int32_t)(-2147483648LL)); int32_t _lb_sq27 __attribute__((unused)) = (int32_t)(lb_sub_s((int64_t)(lb_rect.right), (int64_t)(lb_rect.left), 32)); int32_t _lb_sq28 __attribute__((unused)) = (int32_t)(lb_sub_s((int64_t)(lb_rect.bottom), (int64_t)(lb_rect.top), 32)); void* _lb_sq29 __attribute__((unused)) = ((void*)0); void* _lb_sq30 __attribute__((unused)) = ((void*)0); void* _lb_sq31 __attribute__((unused)) = ({ void* _lb_fr = lb_x_11windows_abi_GetModuleHandleW(((void*)0)); if (!_lb_fr) lb_trap("null_foreign"); _lb_fr; }); void* _lb_sq32 __attribute__((unused)) = ((void*)(lb_state)); lb_x_window_CreateWindowExW(_lb_sq21, _lb_sq22, _lb_sq23, _lb_sq24, _lb_sq25, _lb_sq26, _lb_sq27, _lb_sq28, _lb_sq29, _lb_sq30, _lb_sq31, _lb_sq32); }); if (_lb_o20 == ((void*)0)) {
         lb_r_window_State_0p _lb_err33 = ((lb_r_window_State_0p){ .error = { .code = (int32_t)(lb_window_failed), .message = ((lb_str){"the native window could not be created", 38}) }, .failed = true });
         { lb_span _lb_s34 = lb_title; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s34.data), lb_mul_u(_lb_s34.length, sizeof(uint16_t), 64) }); }
         (void)(lb_window_11win_destroy(lb_state));
         return _lb_err33;
     } _lb_o20; });
-    lb_pos = "src/std/window/windows/native.lucb:90:5";
-    (lb_state)->native = lb_native;
     lb_pos = "src/std/window/windows/native.lucb:91:5";
+    (lb_state)->native = lb_native;
+    lb_pos = "src/std/window/windows/native.lucb:92:5";
     struct lb_window_State* _lb_ret35 = lb_state;
     { lb_span _lb_s36 = lb_title; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s36.data), lb_mul_u(_lb_s36.length, sizeof(uint16_t), 64) }); }
     return ((lb_r_window_State_0p){ .value = _lb_ret35, .failed = false });
@@ -4403,39 +4403,39 @@ lb_r_window_State_0p lb_window_8win_open(lb_window_Options lb_options) {
 }
 lb_window_Size lb_window_8win_size(struct lb_window_State* lb_state) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/window/windows/native.lucb:94:5";
-    void* lb_native __attribute__((unused)) = lb_window_required((lb_state)->native);
     lb_pos = "src/std/window/windows/native.lucb:95:5";
-    WinRect lb_rect __attribute__((unused)) = {};
+    void* lb_native __attribute__((unused)) = lb_window_required((lb_state)->native);
     lb_pos = "src/std/window/windows/native.lucb:96:5";
-    (void)(((void)(lb_x_window_GetClientRect(lb_native, &(lb_rect)))));
+    WinRect lb_rect __attribute__((unused)) = {};
     lb_pos = "src/std/window/windows/native.lucb:97:5";
-    uint32_t lb_dpi __attribute__((unused)) = lb_x_window_GetDpiForWindow(lb_native);
+    (void)(((void)(lb_x_window_GetClientRect(lb_native, &(lb_rect)))));
     lb_pos = "src/std/window/windows/native.lucb:98:5";
-    double lb_scale __attribute__((unused)) = ((((uint32_t)(lb_dpi)) > ((uint32_t)(0ULL))) ? (lb_to_f((uint64_t)(lb_dpi), 0) / 0x1.8000000000000p+6) : 0x1.0000000000000p+0);
+    uint32_t lb_dpi __attribute__((unused)) = lb_x_window_GetDpiForWindow(lb_native);
     lb_pos = "src/std/window/windows/native.lucb:99:5";
-    double lb_width __attribute__((unused)) = lb_to_f((int64_t)(((int32_t)(lb_sub_s((int64_t)(lb_rect.right), (int64_t)(lb_rect.left), 32)))), 1);
+    double lb_scale __attribute__((unused)) = ((((uint32_t)(lb_dpi)) > ((uint32_t)(0ULL))) ? (lb_to_f((uint64_t)(lb_dpi), 0) / 0x1.8000000000000p+6) : 0x1.0000000000000p+0);
     lb_pos = "src/std/window/windows/native.lucb:100:5";
-    double lb_height __attribute__((unused)) = lb_to_f((int64_t)(((int32_t)(lb_sub_s((int64_t)(lb_rect.bottom), (int64_t)(lb_rect.top), 32)))), 1);
+    double lb_width __attribute__((unused)) = lb_to_f((int64_t)(((int32_t)(lb_sub_s((int64_t)(lb_rect.right), (int64_t)(lb_rect.left), 32)))), 1);
     lb_pos = "src/std/window/windows/native.lucb:101:5";
+    double lb_height __attribute__((unused)) = lb_to_f((int64_t)(((int32_t)(lb_sub_s((int64_t)(lb_rect.bottom), (int64_t)(lb_rect.top), 32)))), 1);
+    lb_pos = "src/std/window/windows/native.lucb:102:5";
     lb_window_Size _lb_ret38 = ((lb_window_Size){.width = (lb_width / lb_scale), .height = (lb_height / lb_scale), .pixel_width = lb_width, .pixel_height = lb_height, .scale = lb_scale});
     return _lb_ret38;
     lb_trap("unreachable");
 }
 lb_r_unit lb_window_10win_resize(struct lb_window_State* lb_state, uint32_t lb_width, uint32_t lb_height) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/window/windows/native.lucb:104:5";
-    void* lb_native __attribute__((unused)) = lb_window_required((lb_state)->native);
     lb_pos = "src/std/window/windows/native.lucb:105:5";
-    uint32_t lb_dpi __attribute__((unused)) = lb_x_window_GetDpiForWindow(lb_native);
+    void* lb_native __attribute__((unused)) = lb_window_required((lb_state)->native);
     lb_pos = "src/std/window/windows/native.lucb:106:5";
-    uint32_t lb_style __attribute__((unused)) = ((uint32_t)lb_conv_s((int64_t)(lb_x_window_GetWindowLongPtrW(lb_native, ((int32_t)(-16LL)))), 64, 1, 32, 0, 1));
+    uint32_t lb_dpi __attribute__((unused)) = lb_x_window_GetDpiForWindow(lb_native);
     lb_pos = "src/std/window/windows/native.lucb:107:5";
-    WinRect lb_rect __attribute__((unused)) = ((WinRect){.right = ((int32_t)lb_conv_u((uint64_t)(((uint64_t)(lb_div_u((uint64_t)((uint64_t)(lb_mul_u((uint64_t)(((uint64_t)lb_conv_u((uint64_t)(lb_width), 32, 0, 64, 0, 1))), (uint64_t)(((uint64_t)lb_conv_u((uint64_t)(lb_dpi), 32, 0, 64, 0, 1))), 64))), (uint64_t)(96ULL), 64)))), 64, 0, 32, 1, 1)), .bottom = ((int32_t)lb_conv_u((uint64_t)(((uint64_t)(lb_div_u((uint64_t)((uint64_t)(lb_mul_u((uint64_t)(((uint64_t)lb_conv_u((uint64_t)(lb_height), 32, 0, 64, 0, 1))), (uint64_t)(((uint64_t)lb_conv_u((uint64_t)(lb_dpi), 32, 0, 64, 0, 1))), 64))), (uint64_t)(96ULL), 64)))), 64, 0, 32, 1, 1))});
+    uint32_t lb_style __attribute__((unused)) = ((uint32_t)lb_conv_s((int64_t)(lb_x_window_GetWindowLongPtrW(lb_native, ((int32_t)(-16LL)))), 64, 1, 32, 0, 1));
     lb_pos = "src/std/window/windows/native.lucb:108:5";
+    WinRect lb_rect __attribute__((unused)) = ((WinRect){.right = ((int32_t)lb_conv_u((uint64_t)(((uint64_t)(lb_div_u((uint64_t)((uint64_t)(lb_mul_u((uint64_t)(((uint64_t)lb_conv_u((uint64_t)(lb_width), 32, 0, 64, 0, 1))), (uint64_t)(((uint64_t)lb_conv_u((uint64_t)(lb_dpi), 32, 0, 64, 0, 1))), 64))), (uint64_t)(96ULL), 64)))), 64, 0, 32, 1, 1)), .bottom = ((int32_t)lb_conv_u((uint64_t)(((uint64_t)(lb_div_u((uint64_t)((uint64_t)(lb_mul_u((uint64_t)(((uint64_t)lb_conv_u((uint64_t)(lb_height), 32, 0, 64, 0, 1))), (uint64_t)(((uint64_t)lb_conv_u((uint64_t)(lb_dpi), 32, 0, 64, 0, 1))), 64))), (uint64_t)(96ULL), 64)))), 64, 0, 32, 1, 1))});
+    lb_pos = "src/std/window/windows/native.lucb:109:5";
     if (!!((({ int32_t _lb_sq39 __attribute__((unused)) = lb_x_window_AdjustWindowRectExForDpi(&(lb_rect), lb_style, 0LL, 0ULL, lb_dpi); int32_t _lb_sq40 __attribute__((unused)) = 0LL; (_lb_sq39 == _lb_sq40); }) || ({ int32_t _lb_sq41 __attribute__((unused)) = lb_x_window_SetWindowPos(lb_native, ((void*)0), 0LL, 0LL, (int32_t)(lb_sub_s((int64_t)(lb_rect.right), (int64_t)(lb_rect.left), 32)), (int32_t)(lb_sub_s((int64_t)(lb_rect.bottom), (int64_t)(lb_rect.top), 32)), 22ULL); int32_t _lb_sq42 __attribute__((unused)) = 0LL; (_lb_sq41 == _lb_sq42); })))) 
     {
-        lb_pos = "src/std/window/windows/native.lucb:109:9";
+        lb_pos = "src/std/window/windows/native.lucb:110:9";
         lb_r_unit _lb_err43 = ((lb_r_unit){ .error = { .code = (int32_t)(lb_window_failed), .message = ((lb_str){"the native window could not be resized", 38}) }, .failed = true });
         return _lb_err43;
     }
@@ -4443,26 +4443,26 @@ lb_r_unit lb_window_10win_resize(struct lb_window_State* lb_state, uint32_t lb_w
 }
 void lb_window_8win_pump(struct lb_window_State* lb_waiting) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/window/windows/native.lucb:112:5";
-    WinMessage lb_message __attribute__((unused)) = {};
     lb_pos = "src/std/window/windows/native.lucb:113:5";
-    size_t lb_count __attribute__((unused)) = 0ULL;
+    WinMessage lb_message __attribute__((unused)) = {};
     lb_pos = "src/std/window/windows/native.lucb:114:5";
+    size_t lb_count __attribute__((unused)) = 0ULL;
+    lb_pos = "src/std/window/windows/native.lucb:115:5";
     for (;;) {
-        lb_pos = "src/std/window/windows/native.lucb:114:5";
+        lb_pos = "src/std/window/windows/native.lucb:115:5";
         if (!(((((size_t)(lb_count)) < ((size_t)(256ULL))) && ({ int32_t _lb_sq44 __attribute__((unused)) = lb_x_window_PeekMessageW(&(lb_message), ((void*)0), 0ULL, 0ULL, 1ULL); int32_t _lb_sq45 __attribute__((unused)) = 0LL; (!(_lb_sq44 == _lb_sq45)); })))) break;
         {
-            lb_pos = "src/std/window/windows/native.lucb:115:9";
-            (void)(((void)(lb_x_window_TranslateMessage(&(lb_message)))));
             lb_pos = "src/std/window/windows/native.lucb:116:9";
-            (void)(((void)(lb_x_window_DispatchMessageW(&(lb_message)))));
+            (void)(((void)(lb_x_window_TranslateMessage(&(lb_message)))));
             lb_pos = "src/std/window/windows/native.lucb:117:9";
+            (void)(((void)(lb_x_window_DispatchMessageW(&(lb_message)))));
+            lb_pos = "src/std/window/windows/native.lucb:118:9";
             { size_t* lb__cell46 = &(lb_count);
             (*(lb__cell46)) = (size_t)(lb_add_u((uint64_t)((*(lb__cell46))), (uint64_t)(1ULL), 64)); }
-            lb_pos = "src/std/window/windows/native.lucb:118:9";
+            lb_pos = "src/std/window/windows/native.lucb:119:9";
             if (!!((((((size_t)((lb_waiting)->count)) > ((size_t)(0ULL))) || (lb_waiting)->close_requested) || (lb_waiting)->overflowed))) 
             {
-                lb_pos = "src/std/window/windows/native.lucb:119:13";
+                lb_pos = "src/std/window/windows/native.lucb:120:13";
                 break;
             }
         }
@@ -4470,57 +4470,57 @@ void lb_window_8win_pump(struct lb_window_State* lb_waiting) {
 }
 void lb_window_11win_destroy(struct lb_window_State* lb_state) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/window/windows/native.lucb:122:5";
-    (lb_state)->destroyed = true;
     lb_pos = "src/std/window/windows/native.lucb:123:5";
+    (lb_state)->destroyed = true;
+    lb_pos = "src/std/window/windows/native.lucb:124:5";
     void* _lb_o47 = (lb_state)->native;
     if (_lb_o47 != ((void*)0)) {
         void* lb_native __attribute__((unused)) = _lb_o47;
         {
-            lb_pos = "src/std/window/windows/native.lucb:124:9";
+            lb_pos = "src/std/window/windows/native.lucb:125:9";
             (void)(((void)(lb_x_window_ShowWindow(lb_native, 0LL))));
         }
     }
-    lb_pos = "src/std/window/windows/native.lucb:125:5";
+    lb_pos = "src/std/window/windows/native.lucb:126:5";
     if (!!((!(lb_state)->presentation_held))) 
     {
-        lb_pos = "src/std/window/windows/native.lucb:126:9";
+        lb_pos = "src/std/window/windows/native.lucb:127:9";
         (void)(lb_window_8win_free(lb_state));
     }
 }
 void lb_window_8win_free(struct lb_window_State* lb_state) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/window/windows/native.lucb:129:5";
+    lb_pos = "src/std/window/windows/native.lucb:130:5";
     void* _lb_o48 = (lb_state)->native;
     if (_lb_o48 != ((void*)0)) {
         void* lb_native __attribute__((unused)) = _lb_o48;
         {
-            lb_pos = "src/std/window/windows/native.lucb:130:9";
-            (void)(((void)(lb_x_window_SetWindowLongPtrW(lb_native, ((int32_t)(-21LL)), 0LL))));
             lb_pos = "src/std/window/windows/native.lucb:131:9";
+            (void)(((void)(lb_x_window_SetWindowLongPtrW(lb_native, ((int32_t)(-21LL)), 0LL))));
+            lb_pos = "src/std/window/windows/native.lucb:132:9";
             (void)(((void)(lb_x_window_DestroyWindow(lb_native))));
         }
     }
-    lb_pos = "src/std/window/windows/native.lucb:132:5";
+    lb_pos = "src/std/window/windows/native.lucb:133:5";
     lb_release_call(lb_memory_heap, (lb_span){ (void*)(lb_state), sizeof(lb_window_State) });
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_str_init(lb_interop_Packet_0g1_str* self, lb_str lb_value, void* lb_storage, lb_fn_0F1_void_0p_unit lb_dispose) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/window/windows/native.lucb:7:5";
+    lb_pos = "src/std/window/windows/native.lucb:6:5";
     self->value = lb_value;
-    lb_pos = "src/std/window/windows/native.lucb:8:5";
+    lb_pos = "src/std/window/windows/native.lucb:7:5";
     self->storage = lb_storage;
-    lb_pos = "src/std/window/windows/native.lucb:9:5";
+    lb_pos = "src/std/window/windows/native.lucb:8:5";
     self->dispose = lb_dispose;
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_str_release(const lb_interop_Packet_0g1_str* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/window/windows/native.lucb:12:5";
+    lb_pos = "src/std/window/windows/native.lucb:11:5";
     void* _lb_o49 = self->storage;
     if (_lb_o49 != ((void*)0)) {
         void* lb_storage __attribute__((unused)) = _lb_o49;
         {
-            lb_pos = "src/std/window/windows/native.lucb:13:5";
+            lb_pos = "src/std/window/windows/native.lucb:12:5";
             (void)(((({ lb_fn_0F1_void_0p_unit _lb_o50 = self->dispose; if (_lb_o50 == ((void*)0)) {
                 (void)(lb_trap_text(((lb_str){"a packet has storage without a disposer", 39})));
             } _lb_o50; })))(lb_storage));
@@ -4529,21 +4529,21 @@ __attribute__((weak)) void lb_interop_Packet_0g1_str_release(const lb_interop_Pa
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_init(lb_interop_Packet_0g1_u8_0c* self, lb_cspan lb_value, void* lb_storage, lb_fn_0F1_void_0p_unit lb_dispose) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/window/windows/native.lucb:7:5";
+    lb_pos = "src/std/window/windows/native.lucb:6:5";
     self->value = lb_value;
-    lb_pos = "src/std/window/windows/native.lucb:8:5";
+    lb_pos = "src/std/window/windows/native.lucb:7:5";
     self->storage = lb_storage;
-    lb_pos = "src/std/window/windows/native.lucb:9:5";
+    lb_pos = "src/std/window/windows/native.lucb:8:5";
     self->dispose = lb_dispose;
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_release(const lb_interop_Packet_0g1_u8_0c* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/window/windows/native.lucb:12:5";
+    lb_pos = "src/std/window/windows/native.lucb:11:5";
     void* _lb_o51 = self->storage;
     if (_lb_o51 != ((void*)0)) {
         void* lb_storage __attribute__((unused)) = _lb_o51;
         {
-            lb_pos = "src/std/window/windows/native.lucb:13:5";
+            lb_pos = "src/std/window/windows/native.lucb:12:5";
             (void)(((({ lb_fn_0F1_void_0p_unit _lb_o52 = self->dispose; if (_lb_o52 == ((void*)0)) {
                 (void)(lb_trap_text(((lb_str){"a packet has storage without a disposer", 39})));
             } _lb_o52; })))(lb_storage));
@@ -4552,22 +4552,22 @@ __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_release(const lb_interop_
 }
 lb_r_unit lb_window_9win_setup(void) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/window/windows/native.lucb:60:5";
+    lb_pos = "src/std/window/windows/native.lucb:61:5";
     if (!!((!(lb_window_14win_class_atom == 0ULL)))) 
     {
-        lb_pos = "src/std/window/windows/native.lucb:61:9";
+        lb_pos = "src/std/window/windows/native.lucb:62:9";
         return ((lb_r_unit){ .failed = false });
     }
-    lb_pos = "src/std/window/windows/native.lucb:62:5";
-    (void)(((void)(lb_x_window_SetProcessDpiAwarenessContext(((void*)(((intptr_t)lb_conv_s((int64_t)(((int64_t)(-4LL))), 64, 1, 64, 1, 1))))))));
     lb_pos = "src/std/window/windows/native.lucb:63:5";
+    (void)(((void)(lb_x_window_SetProcessDpiAwarenessContext(((void*)(((intptr_t)lb_conv_s((int64_t)(((int64_t)(-4LL))), 64, 1, 64, 1, 1))))))));
+    lb_pos = "src/std/window/windows/native.lucb:64:5";
     WinClass lb_info __attribute__((unused)) = ({ uint32_t _lb_sq53 __attribute__((unused)) = ((uint32_t)lb_conv_u((uint64_t)(((size_t)sizeof(WinClass))), 64, 0, 32, 0, 1)); lb_fn_0F4_void_0p_u32_usize_isize_isize _lb_sq54 __attribute__((unused)) = lb_window_12win_callback; void* _lb_sq55 __attribute__((unused)) = ({ void* _lb_fr = lb_x_11windows_abi_GetModuleHandleW(((void*)0)); if (!_lb_fr) lb_trap("null_foreign"); _lb_fr; }); void* _lb_sq56 __attribute__((unused)) = lb_x_window_LoadCursorW(((void*)0), ((uint16_t*)(32512LL))); void* _lb_sq57 __attribute__((unused)) = ((void*)(6LL)); uint16_t* _lb_sq58 __attribute__((unused)) = &(((lb_window_14win_class_name).d[0])); ((WinClass){.size = _lb_sq53, .procedure = _lb_sq54, .instance = _lb_sq55, .cursor = _lb_sq56, .brush = _lb_sq57, .name = _lb_sq58}); });
-    lb_pos = "src/std/window/windows/native.lucb:66:5";
-    lb_window_14win_class_atom = lb_x_window_RegisterClassExW(&(lb_info));
     lb_pos = "src/std/window/windows/native.lucb:67:5";
+    lb_window_14win_class_atom = lb_x_window_RegisterClassExW(&(lb_info));
+    lb_pos = "src/std/window/windows/native.lucb:68:5";
     if (!!((lb_window_14win_class_atom == 0ULL))) 
     {
-        lb_pos = "src/std/window/windows/native.lucb:68:9";
+        lb_pos = "src/std/window/windows/native.lucb:69:9";
         lb_r_unit _lb_err59 = ((lb_r_unit){ .error = { .code = (int32_t)(lb_window_failed), .message = ((lb_str){"the native window class could not be registered", 47}) }, .failed = true });
         return _lb_err59;
     }

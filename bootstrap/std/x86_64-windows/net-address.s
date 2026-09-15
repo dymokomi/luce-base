@@ -5171,15 +5171,15 @@ lb_memory_read_0g1_net_NativeIpv6Address:
 .Ltext_57:
     .asciz "src/std/net/address.lucb:155:5"
 .Ltext_58:
-    .asciz "src/std/memory.lucb:332:9"
-.Ltext_59:
     .asciz "src/std/memory.lucb:334:9"
+.Ltext_59:
+    .asciz "src/std/memory.lucb:336:9"
 .Ltext_60:
     .asciz "null_foreign"
 .Ltext_61:
-    .asciz "src/std/memory.lucb:342:5"
+    .asciz "src/std/memory.lucb:344:5"
 .Ltext_62:
-    .asciz "src/std/memory.lucb:343:5"
+    .asciz "src/std/memory.lucb:345:5"
 
     .section .rdata,"dr"
     .p2align 3

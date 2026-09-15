@@ -87,8 +87,8 @@ func vulkan_render(device: VulkanDevice*, host: window.Presentation, state: Vulk
     clears[0].color = [(f32)color.red, (f32)color.green, (f32)color.blue, 1.0f32]
     clears[1].color[0] = 1.0
     var pass = VkRenderPassBeginInfo(sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO, renderPass = state.render_pass,
-        framebuffer = state.images[(usize)index].framebuffer, renderArea = VkRect2D(extent = VkExtent2D(width = state.width, height = state.height)),
-        clearValueCount = 2, pClearValues = &clears[0])
+                                     framebuffer = state.images[(usize)index].framebuffer, renderArea = VkRect2D(extent = VkExtent2D(width = state.width, height = state.height)),
+                                     clearValueCount = 2, pClearValues = &clears[0])
     vkCmdBeginRenderPass(state.command, &pass, VK_SUBPASS_CONTENTS_INLINE)
     if canvas.vertex_count > 0:
         var buffer = upload.buffer
@@ -100,8 +100,8 @@ func vulkan_render(device: VulkanDevice*, host: window.Presentation, state: Vulk
             if draw.clip.x >= state.width or draw.clip.y >= state.height:
                 continue
             var scissor = VkRect2D(offset = VkOffset2D(x = (i32)draw.clip.x, y = (i32)draw.clip.y),
-                extent = VkExtent2D(width = (u32)canvas_min((usize)draw.clip.width, (usize)(state.width - draw.clip.x)),
-                    height = (u32)canvas_min((usize)draw.clip.height, (usize)(state.height - draw.clip.y))))
+                                   extent = VkExtent2D(width = (u32)canvas_min((usize)draw.clip.width, (usize)(state.width - draw.clip.x)),
+                                                       height = (u32)canvas_min((usize)draw.clip.height, (usize)(state.height - draw.clip.y))))
             if scissor.extent.width == 0 or scissor.extent.height == 0:
                 continue
             var viewport = VkViewport(width = (f32)state.width, height = (f32)state.height, maxDepth = 1.0)
@@ -121,11 +121,11 @@ func vulkan_render(device: VulkanDevice*, host: window.Presentation, state: Vulk
     var wait_stage: u32 = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
     var signal = state.images[(usize)index].presented
     var submit = VkSubmitInfo(sType = VK_STRUCTURE_TYPE_SUBMIT_INFO, waitSemaphoreCount = 1, pWaitSemaphores = &state.acquired,
-        pWaitDstStageMask = &wait_stage, commandBufferCount = 1, pCommandBuffers = &state.command,
-        signalSemaphoreCount = 1, pSignalSemaphores = &signal)
+                              pWaitDstStageMask = &wait_stage, commandBufferCount = 1, pCommandBuffers = &state.command,
+                              signalSemaphoreCount = 1, pSignalSemaphores = &signal)
     try vulkan_check(vkQueueSubmit(device.queue, 1, &submit, 0), "Vulkan command submission failed")
     var present = VkPresentInfoKHR(sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR, waitSemaphoreCount = 1, pWaitSemaphores = &signal,
-        swapchainCount = 1, pSwapchains = &state.swapchain, pImageIndices = &index)
+                                   swapchainCount = 1, pSwapchains = &state.swapchain, pImageIndices = &index)
     let result = vkQueuePresentKHR(device.queue, &present)
     try vulkan_check(vkQueueWaitIdle(device.queue), "Vulkan execution failed")
     if result == VK_ERROR_OUT_OF_DATE_KHR or result == VK_SUBOPTIMAL_KHR or acquired == VK_SUBOPTIMAL_KHR:

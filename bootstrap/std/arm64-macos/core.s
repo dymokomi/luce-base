@@ -7161,141 +7161,141 @@ l_text_4:
 l_text_5:
     .asciz ": "
 l_text_6:
-    .asciz "src/std/core.lucb:112:9"
+    .asciz "src/std/core.lucb:113:9"
 l_text_7:
-    .asciz "src/std/core.lucb:114:9"
+    .asciz "src/std/core.lucb:115:9"
 l_text_8:
     .asciz "index out of bounds"
 l_text_9:
-    .asciz "src/std/core.lucb:119:9"
+    .asciz "src/std/core.lucb:120:9"
 l_text_10:
-    .asciz "src/std/core.lucb:129:5"
+    .asciz "src/std/core.lucb:130:5"
 l_text_11:
     .asciz "null_foreign"
 l_text_12:
-    .asciz "src/std/core.lucb:134:13"
+    .asciz "src/std/core.lucb:135:13"
 l_text_13:
-    .asciz "src/std/core.lucb:135:5"
-l_text_14:
     .asciz "src/std/core.lucb:136:5"
+l_text_14:
+    .asciz "src/std/core.lucb:137:5"
 l_text_15:
-    .asciz "src/std/core.lucb:143:9"
+    .asciz "src/std/core.lucb:144:9"
 l_text_16:
-    .asciz "src/std/core.lucb:146:9"
-l_text_17:
     .asciz "src/std/core.lucb:147:9"
+l_text_17:
+    .asciz "src/std/core.lucb:148:9"
 l_text_18:
     .asciz "division by zero"
 l_text_19:
-    .asciz "src/std/core.lucb:148:9"
+    .asciz "src/std/core.lucb:149:9"
 l_text_20:
-    .asciz "src/std/core.lucb:149:5"
+    .asciz "src/std/core.lucb:150:5"
 l_text_21:
     .asciz "-"
 l_text_22:
-    .asciz "src/std/core.lucb:157:5"
+    .asciz "src/std/core.lucb:158:5"
 l_text_23:
-    .asciz "src/std/core.lucb:162:5"
+    .asciz "src/std/core.lucb:163:5"
 l_text_24:
     .asciz "%g"
 l_text_25:
-    .asciz "src/std/core.lucb:165:5"
+    .asciz "src/std/core.lucb:166:5"
 l_text_26:
     .asciz "true"
 l_text_27:
     .asciz "false"
 l_text_28:
-    .asciz "src/std/core.lucb:169:5"
+    .asciz "src/std/core.lucb:170:5"
 l_text_29:
-    .asciz "src/std/core.lucb:177:9"
+    .asciz "src/std/core.lucb:178:9"
 l_text_30:
-    .asciz "src/std/core.lucb:180:9"
+    .asciz "src/std/core.lucb:181:9"
 l_text_31:
     .asciz "shift count out of range"
 l_text_32:
-    .asciz "src/std/core.lucb:181:9"
+    .asciz "src/std/core.lucb:182:9"
 l_text_33:
-    .asciz "src/std/core.lucb:184:9"
-l_text_34:
     .asciz "src/std/core.lucb:185:9"
-l_text_35:
+l_text_34:
     .asciz "src/std/core.lucb:186:9"
+l_text_35:
+    .asciz "src/std/core.lucb:187:9"
 l_text_36:
-    .asciz "src/std/core.lucb:189:9"
-l_text_37:
     .asciz "src/std/core.lucb:190:9"
-l_text_38:
+l_text_37:
     .asciz "src/std/core.lucb:191:9"
-l_text_39:
+l_text_38:
     .asciz "src/std/core.lucb:192:9"
+l_text_39:
+    .asciz "src/std/core.lucb:193:9"
 l_text_40:
-    .asciz "src/std/core.lucb:194:5"
+    .asciz "src/std/core.lucb:195:5"
 l_text_41:
     .asciz ""
 l_text_42:
-    .asciz "src/std/core.lucb:202:5"
+    .asciz "src/std/core.lucb:203:5"
 l_text_43:
-    .asciz "src/std/core.lucb:210:5"
+    .asciz "src/std/core.lucb:211:5"
 l_text_44:
-    .asciz "src/std/core.lucb:216:9"
+    .asciz "src/std/core.lucb:217:9"
 l_text_45:
-    .asciz "src/std/core.lucb:217:5"
-l_text_46:
     .asciz "src/std/core.lucb:218:5"
+l_text_46:
+    .asciz "src/std/core.lucb:219:5"
 l_text_47:
-    .asciz "src/std/core.lucb:225:9"
+    .asciz "src/std/core.lucb:226:9"
 l_text_48:
-    .asciz "src/std/core.lucb:228:9"
+    .asciz "src/std/core.lucb:229:9"
 l_text_49:
-    .asciz "src/std/core.lucb:230:9"
+    .asciz "src/std/core.lucb:231:9"
 l_text_50:
     .asciz "integer overflow"
 l_text_51:
-    .asciz "src/std/core.lucb:231:9"
+    .asciz "src/std/core.lucb:232:9"
 l_text_52:
-    .asciz "src/std/core.lucb:232:5"
+    .asciz "src/std/core.lucb:233:5"
 l_text_53:
-    .asciz "src/std/core.lucb:239:9"
+    .asciz "src/std/core.lucb:240:9"
 l_text_54:
-    .asciz "src/std/core.lucb:242:9"
-l_text_55:
     .asciz "src/std/core.lucb:243:9"
-l_text_56:
+l_text_55:
     .asciz "src/std/core.lucb:244:9"
+l_text_56:
+    .asciz "src/std/core.lucb:245:9"
 l_text_57:
-    .asciz "src/std/core.lucb:245:5"
+    .asciz "src/std/core.lucb:246:5"
 l_text_58:
-    .asciz "src/std/core.lucb:252:5"
+    .asciz "src/std/core.lucb:253:5"
 l_text_59:
-    .asciz "src/std/core.lucb:256:9"
+    .asciz "src/std/core.lucb:257:9"
 l_text_60:
-    .asciz "src/std/core.lucb:258:9"
+    .asciz "src/std/core.lucb:259:9"
 l_text_61:
-    .asciz "src/std/core.lucb:260:9"
+    .asciz "src/std/core.lucb:261:9"
 l_text_62:
-    .asciz "src/std/core.lucb:261:5"
+    .asciz "src/std/core.lucb:262:5"
 l_text_63:
-    .asciz "src/std/core.lucb:267:5"
+    .asciz "src/std/core.lucb:268:5"
 l_text_64:
     .asciz "memory.exhausted"
 l_text_65:
-    .asciz "src/std/core.lucb:271:9"
+    .asciz "src/std/core.lucb:272:9"
 l_text_66:
     .asciz "invalid_utf8"
 l_text_67:
-    .asciz "src/std/core.lucb:275:9"
+    .asciz "src/std/core.lucb:276:9"
 l_text_68:
-    .asciz "src/std/core.lucb:276:5"
+    .asciz "src/std/core.lucb:277:5"
 l_text_69:
-    .asciz "src/std/core.lucb:281:5"
+    .asciz "src/std/core.lucb:282:5"
 l_text_70:
-    .asciz "src/std/core.lucb:316:5"
+    .asciz "src/std/core.lucb:317:5"
 l_text_71:
     .asciz "error "
 l_text_72:
     .asciz "memory.exhausted: the formatted text does not fit its buffer"
 l_text_73:
-    .asciz "src/std/core.lucb:324:5"
+    .asciz "src/std/core.lucb:325:5"
 l_text_74:
     .asciz "FAIL  "
 l_text_75:
@@ -7303,121 +7303,121 @@ l_text_75:
 l_text_76:
     .asciz "ok    "
 l_text_77:
-    .asciz "src/std/core.lucb:335:5"
+    .asciz "src/std/core.lucb:336:5"
 l_text_78:
     .asciz " passed\n"
 l_text_79:
-    .asciz "src/std/core.lucb:338:5"
+    .asciz "src/std/core.lucb:339:5"
 l_text_80:
-    .asciz "src/std/core.lucb:365:5"
+    .asciz "src/std/core.lucb:366:5"
 l_text_81:
-    .asciz "src/std/core.lucb:382:5"
+    .asciz "src/std/core.lucb:383:5"
 l_text_82:
-    .asciz "src/std/core.lucb:383:9"
+    .asciz "src/std/core.lucb:384:9"
 l_text_83:
-    .asciz "src/std/core.lucb:386:9"
-l_text_84:
     .asciz "src/std/core.lucb:387:9"
+l_text_84:
+    .asciz "src/std/core.lucb:388:9"
 l_text_85:
-    .asciz "src/std/core.lucb:389:5"
+    .asciz "src/std/core.lucb:390:5"
 l_text_86:
-    .asciz "src/std/core.lucb:412:9"
+    .asciz "src/std/core.lucb:413:9"
 l_text_87:
-    .asciz "src/std/core.lucb:416:13"
+    .asciz "src/std/core.lucb:417:13"
 l_text_88:
-    .asciz "src/std/core.lucb:419:13"
-l_text_89:
     .asciz "src/std/core.lucb:420:13"
+l_text_89:
+    .asciz "src/std/core.lucb:421:13"
 l_text_90:
-    .asciz "src/std/core.lucb:431:9"
+    .asciz "src/std/core.lucb:432:9"
 l_text_91:
-    .asciz "src/std/core.lucb:432:5"
+    .asciz "src/std/core.lucb:433:5"
 l_text_92:
-    .asciz "src/std/core.lucb:442:5"
+    .asciz "src/std/core.lucb:443:5"
 l_text_93:
-    .asciz "src/std/core.lucb:447:5"
-l_text_94:
     .asciz "src/std/core.lucb:448:5"
+l_text_94:
+    .asciz "src/std/core.lucb:449:5"
 l_text_95:
-    .asciz "src/std/core.lucb:457:13"
+    .asciz "src/std/core.lucb:458:13"
 l_text_96:
-    .asciz "src/std/core.lucb:458:5"
+    .asciz "src/std/core.lucb:459:5"
 l_text_97:
-    .asciz "src/std/core.lucb:464:5"
+    .asciz "src/std/core.lucb:465:5"
 l_text_98:
-    .asciz "src/std/core.lucb:471:5"
+    .asciz "src/std/core.lucb:472:5"
 l_text_99:
-    .asciz "src/std/core.lucb:473:5"
+    .asciz "src/std/core.lucb:474:5"
 l_text_100:
-    .asciz "src/std/core.lucb:476:5"
+    .asciz "src/std/core.lucb:477:5"
 l_text_101:
-    .asciz "src/std/core.lucb:480:9"
+    .asciz "src/std/core.lucb:481:9"
 l_text_102:
-    .asciz "src/std/core.lucb:481:5"
+    .asciz "src/std/core.lucb:482:5"
 l_text_103:
-    .asciz "src/std/core.lucb:486:5"
+    .asciz "src/std/core.lucb:487:5"
 l_text_104:
-    .asciz "src/std/core.lucb:489:5"
+    .asciz "src/std/core.lucb:490:5"
 l_text_105:
-    .asciz "src/std/core.lucb:492:5"
+    .asciz "src/std/core.lucb:493:5"
 l_text_106:
-    .asciz "src/std/core.lucb:504:5"
+    .asciz "src/std/core.lucb:505:5"
 l_text_107:
     .asciz "integer conversion out of range"
 l_text_108:
-    .asciz "src/std/core.lucb:516:5"
+    .asciz "src/std/core.lucb:517:5"
 l_text_109:
-    .asciz "src/std/core.lucb:526:5"
+    .asciz "src/std/core.lucb:527:5"
 l_text_110:
-    .asciz "src/std/core.lucb:532:5"
+    .asciz "src/std/core.lucb:533:5"
 l_text_111:
-    .asciz "src/std/core.lucb:539:5"
+    .asciz "src/std/core.lucb:540:5"
 l_text_112:
-    .asciz "src/std/core.lucb:542:5"
+    .asciz "src/std/core.lucb:543:5"
 l_text_113:
-    .asciz "src/std/core.lucb:546:5"
+    .asciz "src/std/core.lucb:547:5"
 l_text_114:
-    .asciz "src/std/core.lucb:549:5"
+    .asciz "src/std/core.lucb:550:5"
 l_text_115:
-    .asciz "src/std/core.lucb:565:5"
+    .asciz "src/std/core.lucb:566:5"
 l_text_116:
-    .asciz "src/std/core.lucb:577:5"
+    .asciz "src/std/core.lucb:578:5"
 l_text_117:
-    .asciz "src/std/core.lucb:581:5"
+    .asciz "src/std/core.lucb:582:5"
 l_text_118:
-    .asciz "src/std/core.lucb:584:5"
+    .asciz "src/std/core.lucb:585:5"
 l_text_119:
-    .asciz "src/std/core.lucb:593:5"
+    .asciz "src/std/core.lucb:594:5"
 l_text_120:
-    .asciz "src/std/core.lucb:601:5"
+    .asciz "src/std/core.lucb:602:5"
 l_text_121:
-    .asciz "src/std/core.lucb:609:5"
+    .asciz "src/std/core.lucb:610:5"
 l_text_122:
-    .asciz "src/std/core.lucb:617:5"
+    .asciz "src/std/core.lucb:618:5"
 l_text_123:
-    .asciz "src/std/core.lucb:624:5"
+    .asciz "src/std/core.lucb:625:5"
 l_text_124:
-    .asciz "src/std/core.lucb:631:5"
+    .asciz "src/std/core.lucb:632:5"
 l_text_125:
-    .asciz "src/std/core.lucb:636:5"
+    .asciz "src/std/core.lucb:637:5"
 l_text_126:
-    .asciz "src/std/core.lucb:638:5"
+    .asciz "src/std/core.lucb:639:5"
 l_text_127:
-    .asciz "src/std/core.lucb:648:5"
+    .asciz "src/std/core.lucb:649:5"
 l_text_128:
-    .asciz "src/std/core.lucb:657:5"
+    .asciz "src/std/core.lucb:658:5"
 l_text_129:
-    .asciz "src/std/core.lucb:666:5"
+    .asciz "src/std/core.lucb:667:5"
 l_text_130:
-    .asciz "src/std/core.lucb:673:5"
-l_text_131:
     .asciz "src/std/core.lucb:674:5"
+l_text_131:
+    .asciz "src/std/core.lucb:675:5"
 l_text_132:
-    .asciz "src/std/core.lucb:682:5"
+    .asciz "src/std/core.lucb:683:5"
 l_text_133:
-    .asciz "src/std/core.lucb:687:5"
+    .asciz "src/std/core.lucb:688:5"
 l_text_134:
-    .asciz "src/std/core.lucb:690:5"
+    .asciz "src/std/core.lucb:691:5"
 
     .section __DATA,__const
     .p2align 3

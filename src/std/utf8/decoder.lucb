@@ -1,4 +1,3 @@
-
 ## Incremental strict UTF-8 decoder with inline state and no allocation. A zero
 ## value is ready for input. Keep one decoder per stream; calls require exclusive
 ## access. Chunk boundaries have no meaning: push every byte in order, then call

@@ -17,10 +17,10 @@ func vulkan_device_open() -> VulkanDevice*!:
     let state = try new VulkanDevice() in memory.heap
     errdefer vulkan_device_destroy(state)
     var application = VkApplicationInfo(sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
-        pApplicationName = "Luce", pEngineName = "Luce", apiVersion = vulkan_api_version_1_0)
+                                        pApplicationName = "Luce", pEngineName = "Luce", apiVersion = vulkan_api_version_1_0)
     let extensions = try vulkan_presentation_extensions()
     var instance_info = VkInstanceCreateInfo(sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
-        pApplicationInfo = &application, enabledExtensionCount = (u32)extensions.length, ppEnabledExtensionNames = (c.str*)extensions.data)
+                                             pApplicationInfo = &application, enabledExtensionCount = (u32)extensions.length, ppEnabledExtensionNames = (c.str*)extensions.data)
     if vkCreateInstance(&instance_info, none, &state.instance) != 0:
         error(unavailable, "a Vulkan instance with native presentation is unavailable")
     var count: u32 = 0
@@ -42,11 +42,11 @@ func vulkan_device_open() -> VulkanDevice*!:
                 continue
             var priority: f32 = 1.0
             var queue_info = VkDeviceQueueCreateInfo(sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
-                queueFamilyIndex = (u32)family, queueCount = 1, pQueuePriorities = &priority)
+                                                     queueFamilyIndex = (u32)family, queueCount = 1, pQueuePriorities = &priority)
             var device_extension: c.str = VK_KHR_SWAPCHAIN_EXTENSION_NAME
             var device_info = VkDeviceCreateInfo(sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
-                queueCreateInfoCount = 1, pQueueCreateInfos = &queue_info,
-                enabledExtensionCount = 1, ppEnabledExtensionNames = &device_extension)
+                                                 queueCreateInfoCount = 1, pQueueCreateInfos = &queue_info,
+                                                 enabledExtensionCount = 1, ppEnabledExtensionNames = &device_extension)
             if vkCreateDevice(physical, &device_info, none, &state.device) != 0:
                 continue
             state.physical = physical
@@ -68,7 +68,7 @@ func vulkan_memory(device: VulkanDevice*, requirements: VkMemoryRequirements, fl
     for index in 0..<(usize)device.memory.memoryTypeCount:
         if (requirements.memoryTypeBits & (1u32 << (u32)index)) != 0 and (device.memory.memoryTypes[index].propertyFlags & flags) == flags:
             var info = VkMemoryAllocateInfo(sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-                allocationSize = requirements.size, memoryTypeIndex = (u32)index)
+                                            allocationSize = requirements.size, memoryTypeIndex = (u32)index)
             var block: u64 = 0
             try vulkan_check(vkAllocateMemory(device.device, &info, none, &block), "Vulkan device memory allocation failed")
             return block

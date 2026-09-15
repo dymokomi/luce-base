@@ -1014,7 +1014,7 @@ l_text_0:
 l_text_1:
     .asciz "unreachable"
 l_text_2:
-    .asciz "src/std/fonts/macos/native.lucb:30:5"
+    .asciz "src/std/fonts/macos/native.lucb:34:5"
 l_text_3:
     .asciz "Menlo"
 l_text_4:
@@ -1022,7 +1022,7 @@ l_text_4:
 l_text_5:
     .asciz "the requested font must be monospace"
 l_text_6:
-    .asciz "src/std/fonts/macos/native.lucb:43:5"
+    .asciz "src/std/fonts/macos/native.lucb:47:5"
 l_text_7:
     .asciz "the font is closed"
 l_text_8:
@@ -1032,29 +1032,29 @@ l_text_9:
 l_text_10:
     .asciz "validated text changed"
 l_text_11:
-    .asciz "src/std/fonts/macos/native.lucb:58:9"
+    .asciz "src/std/fonts/macos/native.lucb:62:9"
 l_text_12:
-    .asciz "src/std/fonts/macos/native.lucb:59:9"
+    .asciz "src/std/fonts/macos/native.lucb:63:9"
 l_text_13:
-    .asciz "src/std/fonts/macos/native.lucb:64:13"
+    .asciz "src/std/fonts/macos/native.lucb:68:13"
 l_text_14:
     .asciz "shift count out of range"
 l_text_15:
-    .asciz "src/std/fonts/macos/native.lucb:65:13"
+    .asciz "src/std/fonts/macos/native.lucb:69:13"
 l_text_16:
-    .asciz "src/std/fonts/macos/native.lucb:68:13"
+    .asciz "src/std/fonts/macos/native.lucb:72:13"
 l_text_17:
-    .asciz "src/std/fonts/macos/native.lucb:72:9"
+    .asciz "src/std/fonts/macos/native.lucb:76:9"
 l_text_18:
-    .asciz "src/std/fonts/macos/native.lucb:73:13"
+    .asciz "src/std/fonts/macos/native.lucb:77:13"
 l_text_19:
     .asciz "index out of bounds"
 l_text_20:
-    .asciz "src/std/fonts/macos/native.lucb:78:17"
+    .asciz "src/std/fonts/macos/native.lucb:82:17"
 l_text_21:
-    .asciz "src/std/fonts/macos/native.lucb:81:9"
+    .asciz "src/std/fonts/macos/native.lucb:85:9"
 l_text_22:
-    .asciz "src/std/fonts/macos/native.lucb:84:9"
+    .asciz "src/std/fonts/macos/native.lucb:88:9"
 l_text_23:
     .asciz "integer overflow"
 

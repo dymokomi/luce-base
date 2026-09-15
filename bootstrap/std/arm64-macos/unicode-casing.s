@@ -1864,11 +1864,11 @@ L5_42:
 l_text_0:
     .asciz "unreachable"
 l_text_1:
-    .asciz "src/std/unicode/casing.lucb:5:5"
+    .asciz "src/std/unicode/casing.lucb:4:5"
 l_text_2:
-    .asciz "src/std/unicode/casing.lucb:10:5"
+    .asciz "src/std/unicode/casing.lucb:9:5"
 l_text_3:
-    .asciz "src/std/unicode/casing.lucb:16:5"
+    .asciz "src/std/unicode/casing.lucb:15:5"
 l_text_4:
     .asciz "the cased text size overflowed"
 l_text_5:
@@ -1876,43 +1876,43 @@ l_text_5:
 l_text_6:
     .asciz "memory.unset"
 l_text_7:
-    .asciz "src/std/unicode/casing.lucb:22:5"
+    .asciz "src/std/unicode/casing.lucb:21:5"
 l_text_8:
     .asciz "memory.exhausted"
 l_text_9:
-    .asciz "src/std/unicode/casing.lucb:24:5"
+    .asciz "src/std/unicode/casing.lucb:23:5"
 l_text_10:
     .asciz "index out of bounds"
 l_text_11:
     .asciz "the text changed during Unicode casing"
 l_text_12:
-    .asciz "src/std/unicode/casing.lucb:26:9"
+    .asciz "src/std/unicode/casing.lucb:25:9"
 l_text_13:
-    .asciz "src/std/unicode/casing.lucb:27:5"
+    .asciz "src/std/unicode/casing.lucb:26:5"
 l_text_14:
-    .asciz "src/std/unicode/casing.lucb:28:5"
+    .asciz "src/std/unicode/casing.lucb:27:5"
 l_text_15:
     .asciz "invalid UTF-8 text"
 l_text_16:
-    .asciz "src/std/unicode/casing.lucb:36:9"
+    .asciz "src/std/unicode/casing.lucb:35:9"
 l_text_17:
     .asciz "invalid generated Unicode scalar"
 l_text_18:
-    .asciz "src/std/unicode/casing.lucb:41:13"
+    .asciz "src/std/unicode/casing.lucb:40:13"
 l_text_19:
     .asciz "the cased text exceeds its byte limit"
 l_text_20:
-    .asciz "src/std/unicode/casing.lucb:49:17"
+    .asciz "src/std/unicode/casing.lucb:48:17"
 l_text_21:
     .asciz "a Unicode scalar did not fit its encoded length"
 l_text_22:
-    .asciz "src/std/unicode/casing.lucb:56:5"
+    .asciz "src/std/unicode/casing.lucb:55:5"
 l_text_23:
-    .asciz "src/std/unicode/casing.lucb:68:5"
+    .asciz "src/std/unicode/casing.lucb:67:5"
 l_text_24:
-    .asciz "src/std/unicode/casing.lucb:76:9"
+    .asciz "src/std/unicode/casing.lucb:75:9"
 l_text_25:
-    .asciz "src/std/unicode/casing.lucb:80:5"
+    .asciz "src/std/unicode/casing.lucb:79:5"
 l_text_26:
     .asciz "integer overflow"
 

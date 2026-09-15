@@ -6020,15 +6020,15 @@ lb_memory_move_0g1_u8:
 .Ltext_97:
     .asciz "src/std/net/ip_address.lucb:261:5"
 .Ltext_98:
-    .asciz "src/std/memory.lucb:326:9"
-.Ltext_99:
     .asciz "src/std/memory.lucb:328:9"
+.Ltext_99:
+    .asciz "src/std/memory.lucb:330:9"
 .Ltext_100:
     .asciz "null_foreign"
 .Ltext_101:
-    .asciz "src/std/memory.lucb:332:9"
-.Ltext_102:
     .asciz "src/std/memory.lucb:334:9"
+.Ltext_102:
+    .asciz "src/std/memory.lucb:336:9"
 
     .section .rdata,"dr"
     .p2align 3

@@ -1,0 +1,44 @@
+#====
+#   messy - Every layout rule exercised, written the wrong way
+#====
+import c
+import   memory
+
+## A documented constant.
+pub let limit :i64=3
+let names : c.str[2] = [ "a" ,"b" ]
+var table: u8[4] = [
+    1, 2,
+    3, 4,
+]
+struct Point:
+    var x :f64
+    var y: f64
+    func length( self_scale : f64=1.0 ) -> f64 :
+        return (self.x*self.x+self.y*self.y)*self_scale
+    static func origin()->Point: return Point(x=0.0,y=0.0)
+enum Kind as u8:
+    plain=1
+    boxed(n :i64)
+## Adds, with a comment after code.
+func add(a: i64,b: i64) -> i64!:
+    # a comment on its own line
+    let sum=a+b   # trailing
+    if sum>10 : return sum
+    elif sum < 0:
+        error(c.errno_code, "negative")
+    else :
+        discard( sum )
+
+
+    for i in 0..<3:
+        continue
+    let picked = match sum:
+        0 => 1
+        _ => 2
+    var s: u8[] = table[1..<3]
+    let r = f(a,
+        b) catch failure: recover 0
+    return picked + r
+test "adds":
+    assert(try add(1, 2) == 3)

@@ -231,7 +231,6 @@ pub struct Location:
     pub var function: str
 
 pub let closed: ErrorCode = ErrorCode.package(3)
-
 pub let failed: ErrorCode = ErrorCode.package(24)
 pub let would_block: ErrorCode = ErrorCode.package(28)
 

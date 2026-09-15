@@ -3750,9 +3750,9 @@ l_text_50:
 l_text_51:
     .asciz "src/std/files/directory.lucb:177:9"
 l_text_52:
-    .asciz "src/std/memory.lucb:326:9"
-l_text_53:
     .asciz "src/std/memory.lucb:328:9"
+l_text_53:
+    .asciz "src/std/memory.lucb:330:9"
 l_text_54:
     .asciz "null_foreign"
 l_text_55:

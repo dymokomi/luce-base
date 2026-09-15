@@ -37,7 +37,6 @@ import back.ir.lower
 import back.opt.opt
 import front.ast
 import sema.check
-
 pub let unsupported_target: ErrorCode = ErrorCode.package(20)
 
 ## The last stage of the pipeline: the checked program as the target's text.
@@ -142,7 +141,6 @@ pub struct NativeBackend: Backend:
 ## lower, inline, promote, ssa, gvn, load, dessa, the sweep, generate.
 var stage_ticks: u64[9] = [0, 0, 0, 0, 0, 0, 0, 0, 0]
 let stage_names: str[9] = ["lower", "inline", "promote", "ssa", "gvn", "load", "dessa", "opt", "generate"]
-
 extern func c_clock as "clock"() -> c.long
 
 func ticks() -> u64:

@@ -8,8 +8,6 @@
 #       Tokens are spans into the source; nothing here decodes a literal.
 #
 #==============================================================================================
-
-
 pub enum Kind as u8:
     name = 1
     keyword = 2
@@ -59,7 +57,6 @@ pub struct Token:
             _: return "eof"
 
 # mark: Reserved words ========================================================================
-
 pub let keywords: str[48] = [
     "alloc", "and", "as", "asm", "break", "catch", "const", "continue", "defer",
     "elif", "else", "enum", "errdefer", "export", "extern", "false", "for", "free",

@@ -4362,28 +4362,28 @@ extern uint32_t lb_gpu_22vulkan_api_version_1_0;
 
 __attribute__((weak)) lb_interop_Transfer_0g1_str lb_interop_Transfer_0g1_str_plain(void) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/gpu/metal/drawing.lucb:62:5";
+    lb_pos = "src/std/gpu/metal/drawing.lucb:63:5";
     lb_interop_Transfer_0g1_str _lb_ret1 = ((lb_interop_Transfer_0g1_str){.copy = lb_interop_Transfer_0g1_str_10copy_plain});
     return _lb_ret1;
     lb_trap("unreachable");
 }
 __attribute__((weak)) lb_r_interop_Packet_0g1_str lb_interop_Transfer_0g1_str_10copy_plain(lb_str lb_value) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/gpu/metal/drawing.lucb:65:9";
+    lb_pos = "src/std/gpu/metal/drawing.lucb:66:5";
     lb_interop_Packet_0g1_str _lb_ret2 = ({ lb_interop_Packet_0g1_str _lb_iv3 = {}; lb_interop_Packet_0g1_str_init(&_lb_iv3, lb_value, ((void*)0), ((void*)0)); _lb_iv3; });
     return ((lb_r_interop_Packet_0g1_str){ .value = _lb_ret2, .failed = false });
     lb_trap("unreachable");
 }
 __attribute__((weak)) lb_interop_Transfer_0g1_u8_0c lb_interop_Transfer_0g1_u8_0c_plain(void) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/gpu/metal/drawing.lucb:62:5";
+    lb_pos = "src/std/gpu/metal/drawing.lucb:63:5";
     lb_interop_Transfer_0g1_u8_0c _lb_ret4 = ((lb_interop_Transfer_0g1_u8_0c){.copy = lb_interop_Transfer_0g1_u8_0c_10copy_plain});
     return _lb_ret4;
     lb_trap("unreachable");
 }
 __attribute__((weak)) lb_r_interop_Packet_0g1_u8_0c lb_interop_Transfer_0g1_u8_0c_10copy_plain(lb_cspan lb_value) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/gpu/metal/drawing.lucb:65:9";
+    lb_pos = "src/std/gpu/metal/drawing.lucb:66:5";
     lb_interop_Packet_0g1_u8_0c _lb_ret5 = ({ lb_interop_Packet_0g1_u8_0c _lb_iv6 = {}; lb_interop_Packet_0g1_u8_0c_init(&_lb_iv6, lb_value, ((void*)0), ((void*)0)); _lb_iv6; });
     return ((lb_r_interop_Packet_0g1_u8_0c){ .value = _lb_ret5, .failed = false });
     lb_trap("unreachable");
@@ -4626,21 +4626,21 @@ lb_r_gpu_PresentResult lb_gpu_13vulkan_render(struct lb_gpu_VulkanDevice* lb_dev
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_str_init(lb_interop_Packet_0g1_str* self, lb_str lb_value, void* lb_storage, lb_fn_0F1_void_0p_unit lb_dispose) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/gpu/metal/drawing.lucb:46:5";
-    self->value = lb_value;
     lb_pos = "src/std/gpu/metal/drawing.lucb:47:5";
-    self->storage = lb_storage;
+    self->value = lb_value;
     lb_pos = "src/std/gpu/metal/drawing.lucb:48:5";
+    self->storage = lb_storage;
+    lb_pos = "src/std/gpu/metal/drawing.lucb:49:5";
     self->dispose = lb_dispose;
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_str_release(const lb_interop_Packet_0g1_str* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/gpu/metal/drawing.lucb:51:1";
+    lb_pos = "src/std/gpu/metal/drawing.lucb:52:1";
     void* _lb_o60 = self->storage;
     if (_lb_o60 != ((void*)0)) {
         void* lb_storage __attribute__((unused)) = _lb_o60;
         {
-            lb_pos = "src/std/gpu/metal/drawing.lucb:52:1";
+            lb_pos = "src/std/gpu/metal/drawing.lucb:53:5";
             (void)(((({ lb_fn_0F1_void_0p_unit _lb_o61 = self->dispose; if (_lb_o61 == ((void*)0)) {
                 (void)(lb_trap_text(((lb_str){"a packet has storage without a disposer", 39})));
             } _lb_o61; })))(lb_storage));
@@ -4649,21 +4649,21 @@ __attribute__((weak)) void lb_interop_Packet_0g1_str_release(const lb_interop_Pa
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_init(lb_interop_Packet_0g1_u8_0c* self, lb_cspan lb_value, void* lb_storage, lb_fn_0F1_void_0p_unit lb_dispose) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/gpu/metal/drawing.lucb:46:5";
-    self->value = lb_value;
     lb_pos = "src/std/gpu/metal/drawing.lucb:47:5";
-    self->storage = lb_storage;
+    self->value = lb_value;
     lb_pos = "src/std/gpu/metal/drawing.lucb:48:5";
+    self->storage = lb_storage;
+    lb_pos = "src/std/gpu/metal/drawing.lucb:49:5";
     self->dispose = lb_dispose;
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_release(const lb_interop_Packet_0g1_u8_0c* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/gpu/metal/drawing.lucb:51:1";
+    lb_pos = "src/std/gpu/metal/drawing.lucb:52:1";
     void* _lb_o62 = self->storage;
     if (_lb_o62 != ((void*)0)) {
         void* lb_storage __attribute__((unused)) = _lb_o62;
         {
-            lb_pos = "src/std/gpu/metal/drawing.lucb:52:1";
+            lb_pos = "src/std/gpu/metal/drawing.lucb:53:5";
             (void)(((({ lb_fn_0F1_void_0p_unit _lb_o63 = self->dispose; if (_lb_o63 == ((void*)0)) {
                 (void)(lb_trap_text(((lb_str){"a packet has storage without a disposer", 39})));
             } _lb_o63; })))(lb_storage));
@@ -4795,31 +4795,31 @@ void lb_gpu_13vulkan_poison(struct lb_gpu_VulkanSurface* lb_state) {
 }
 __attribute__((weak)) void lb_memory_copy_0g1_u32(lb_span lb_target, lb_cspan lb_source, size_t lb_count) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/memory.lucb:325:5";
+    lb_pos = "src/std/memory.lucb:327:5";
     if (!!(((((size_t)(lb_count)) > ((size_t)((lb_target.length)))) || (((size_t)(lb_count)) > ((size_t)((lb_source.length))))))) 
     {
-        lb_pos = "src/std/memory.lucb:326:9";
+        lb_pos = "src/std/memory.lucb:328:9";
         (void)(lb_trap_text(((lb_str){"index out of bounds", 19})));
     }
-    lb_pos = "src/std/memory.lucb:327:5";
+    lb_pos = "src/std/memory.lucb:329:5";
     if (!!((((size_t)(lb_count)) > ((size_t)(0ULL))))) 
     {
-        lb_pos = "src/std/memory.lucb:328:9";
+        lb_pos = "src/std/memory.lucb:330:9";
         (void)(((void)(({ void* _lb_sq89 __attribute__((unused)) = ((uint32_t*)(lb_target.data)); const void* _lb_sq90 __attribute__((unused)) = ((const uint32_t*)(lb_source.data)); size_t _lb_sq91 __attribute__((unused)) = ({ size_t _lb_sq92 __attribute__((unused)) = lb_count; size_t _lb_sq93 __attribute__((unused)) = ((size_t)sizeof(uint32_t)); (size_t)(lb_mul_u((uint64_t)(_lb_sq92), (uint64_t)(_lb_sq93), 64)); }); ({ void* _lb_fr = lb_x_memory_memcpy(_lb_sq89, _lb_sq90, _lb_sq91); if (!_lb_fr) lb_trap("null_foreign"); _lb_fr; }); }))));
     }
 }
 __attribute__((weak)) void lb_memory_copy_0g1_u8(lb_span lb_target, lb_cspan lb_source, size_t lb_count) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/memory.lucb:325:5";
+    lb_pos = "src/std/memory.lucb:327:5";
     if (!!(((((size_t)(lb_count)) > ((size_t)((lb_target.length)))) || (((size_t)(lb_count)) > ((size_t)((lb_source.length))))))) 
     {
-        lb_pos = "src/std/memory.lucb:326:9";
+        lb_pos = "src/std/memory.lucb:328:9";
         (void)(lb_trap_text(((lb_str){"index out of bounds", 19})));
     }
-    lb_pos = "src/std/memory.lucb:327:5";
+    lb_pos = "src/std/memory.lucb:329:5";
     if (!!((((size_t)(lb_count)) > ((size_t)(0ULL))))) 
     {
-        lb_pos = "src/std/memory.lucb:328:9";
+        lb_pos = "src/std/memory.lucb:330:9";
         (void)(((void)(({ void* _lb_sq94 __attribute__((unused)) = ((uint8_t*)(lb_target.data)); const void* _lb_sq95 __attribute__((unused)) = ((const uint8_t*)(lb_source.data)); size_t _lb_sq96 __attribute__((unused)) = ({ size_t _lb_sq97 __attribute__((unused)) = lb_count; size_t _lb_sq98 __attribute__((unused)) = ((size_t)sizeof(uint8_t)); (size_t)(lb_mul_u((uint64_t)(_lb_sq97), (uint64_t)(_lb_sq98), 64)); }); ({ void* _lb_fr = lb_x_memory_memcpy(_lb_sq94, _lb_sq95, _lb_sq96); if (!_lb_fr) lb_trap("null_foreign"); _lb_fr; }); }))));
     }
 }

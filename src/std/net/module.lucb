@@ -13,7 +13,6 @@ import utf8
 import sync
 import os
 from io import Reader, Writer
-
 extern func socket(domain: i32, kind: i32, protocol: i32) -> platform.SocketDescriptor
 extern func bind(descriptor: platform.SocketDescriptor, address: const void*, length: u32) -> i32
 extern func listen(descriptor: platform.SocketDescriptor, backlog: i32) -> i32

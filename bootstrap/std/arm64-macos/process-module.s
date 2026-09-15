@@ -3092,129 +3092,129 @@ L10_3:
 
     .section __TEXT,__const
 l_text_0:
-    .asciz "src/std/process/module.lucb:43:9"
+    .asciz "src/std/process/module.lucb:41:9"
 l_text_1:
     .asciz "memory.exhausted: the allocation size overflows"
 l_text_2:
     .asciz "memory.unset"
 l_text_3:
-    .asciz "src/std/process/module.lucb:45:17"
+    .asciz "src/std/process/module.lucb:43:17"
 l_text_4:
     .asciz "memory.exhausted"
 l_text_5:
-    .asciz "src/std/process/module.lucb:47:17"
+    .asciz "src/std/process/module.lucb:45:17"
 l_text_6:
-    .asciz "src/std/process/module.lucb:48:9"
+    .asciz "src/std/process/module.lucb:46:9"
 l_text_7:
     .asciz "index out of bounds"
 l_text_8:
-    .asciz "src/std/process/module.lucb:52:13"
+    .asciz "src/std/process/module.lucb:50:13"
 l_text_9:
     .asciz "the program's output cannot be read"
 l_text_10:
-    .asciz "src/std/process/module.lucb:62:17"
+    .asciz "src/std/process/module.lucb:60:17"
 l_text_11:
-    .asciz "src/std/process/module.lucb:65:9"
+    .asciz "src/std/process/module.lucb:63:9"
 l_text_12:
-    .asciz "src/std/process/module.lucb:67:9"
+    .asciz "src/std/process/module.lucb:65:9"
 l_text_13:
     .asciz "unreachable"
 l_text_14:
-    .asciz "src/std/process/module.lucb:69:9"
+    .asciz "src/std/process/module.lucb:67:9"
 l_text_15:
-    .asciz "src/std/process/module.lucb:73:13"
+    .asciz "src/std/process/module.lucb:71:13"
 l_text_16:
-    .asciz "src/std/process/module.lucb:89:5"
+    .asciz "src/std/process/module.lucb:87:5"
 l_text_17:
-    .asciz "src/std/process/module.lucb:99:5"
+    .asciz "src/std/process/module.lucb:97:5"
 l_text_18:
-    .asciz "src/std/process/module.lucb:100:5"
+    .asciz "src/std/process/module.lucb:98:5"
 l_text_19:
-    .asciz "src/std/process/module.lucb:103:9"
+    .asciz "src/std/process/module.lucb:101:9"
 l_text_20:
-    .asciz "src/std/process/module.lucb:104:9"
+    .asciz "src/std/process/module.lucb:102:9"
 l_text_21:
-    .asciz "src/std/process/module.lucb:105:5"
+    .asciz "src/std/process/module.lucb:103:5"
 l_text_22:
-    .asciz "src/std/process/module.lucb:109:9"
+    .asciz "src/std/process/module.lucb:107:9"
 l_text_23:
     .asciz "run"
 l_text_24:
-    .asciz "src/std/process/module.lucb:112:9"
+    .asciz "src/std/process/module.lucb:110:9"
 l_text_25:
-    .asciz "src/std/process/module.lucb:113:9"
+    .asciz "src/std/process/module.lucb:111:9"
 l_text_26:
-    .asciz "src/std/process/module.lucb:114:9"
+    .asciz "src/std/process/module.lucb:112:9"
 l_text_27:
-    .asciz "src/std/process/module.lucb:118:9"
+    .asciz "src/std/process/module.lucb:116:9"
 l_text_28:
-    .asciz "src/std/process/module.lucb:119:9"
+    .asciz "src/std/process/module.lucb:117:9"
 l_text_29:
-    .asciz "src/std/process/module.lucb:120:9"
+    .asciz "src/std/process/module.lucb:118:9"
 l_text_30:
-    .asciz "src/std/process/module.lucb:121:9"
+    .asciz "src/std/process/module.lucb:119:9"
 l_text_31:
-    .asciz "src/std/process/module.lucb:122:9"
+    .asciz "src/std/process/module.lucb:120:9"
 l_text_32:
     .asciz "/dev/null"
 l_text_33:
-    .asciz "src/std/process/module.lucb:133:9"
+    .asciz "src/std/process/module.lucb:131:9"
 l_text_34:
-    .asciz "src/std/process/module.lucb:134:9"
+    .asciz "src/std/process/module.lucb:132:9"
 l_text_35:
-    .asciz "src/std/process/module.lucb:135:9"
+    .asciz "src/std/process/module.lucb:133:9"
 l_text_36:
-    .asciz "src/std/process/module.lucb:137:9"
+    .asciz "src/std/process/module.lucb:135:9"
 l_text_37:
-    .asciz "src/std/process/module.lucb:138:9"
+    .asciz "src/std/process/module.lucb:136:9"
 l_text_38:
-    .asciz "src/std/process/module.lucb:147:5"
+    .asciz "src/std/process/module.lucb:145:5"
 l_text_39:
-    .asciz "src/std/process/module.lucb:148:5"
+    .asciz "src/std/process/module.lucb:146:5"
 l_text_40:
-    .asciz "src/std/process/module.lucb:149:5"
+    .asciz "src/std/process/module.lucb:147:5"
 l_text_41:
-    .asciz "src/std/process/module.lucb:151:5"
+    .asciz "src/std/process/module.lucb:149:5"
 l_text_42:
-    .asciz "src/std/process/module.lucb:152:5"
+    .asciz "src/std/process/module.lucb:150:5"
 l_text_43:
-    .asciz "src/std/process/module.lucb:159:9"
+    .asciz "src/std/process/module.lucb:157:9"
 l_text_44:
-    .asciz "src/std/process/module.lucb:161:9"
+    .asciz "src/std/process/module.lucb:159:9"
 l_text_45:
-    .asciz "src/std/process/module.lucb:162:9"
+    .asciz "src/std/process/module.lucb:160:9"
 l_text_46:
     .asciz "the program was stopped by a signal"
 l_text_47:
-    .asciz "src/std/process/module.lucb:164:9"
+    .asciz "src/std/process/module.lucb:162:9"
 l_text_48:
-    .asciz "src/std/process/module.lucb:165:5"
+    .asciz "src/std/process/module.lucb:163:5"
 l_text_49:
-    .asciz "src/std/process/module.lucb:168:9"
+    .asciz "src/std/process/module.lucb:166:9"
 l_text_50:
     .asciz "shift count out of range"
 l_text_51:
-    .asciz "src/std/process/module.lucb:169:5"
+    .asciz "src/std/process/module.lucb:167:5"
 l_text_52:
-    .asciz "src/std/process/module.lucb:184:9"
+    .asciz "src/std/process/module.lucb:182:9"
 l_text_53:
-    .asciz "src/std/process/module.lucb:185:9"
+    .asciz "src/std/process/module.lucb:183:9"
 l_text_54:
-    .asciz "src/std/process/module.lucb:190:9"
+    .asciz "src/std/process/module.lucb:188:9"
 l_text_55:
-    .asciz "src/std/process/module.lucb:192:9"
+    .asciz "src/std/process/module.lucb:190:9"
 l_text_56:
-    .asciz "src/std/process/module.lucb:201:5"
+    .asciz "src/std/process/module.lucb:199:5"
 l_text_57:
-    .asciz "src/std/process/module.lucb:213:9"
+    .asciz "src/std/process/module.lucb:211:9"
 l_text_58:
-    .asciz "src/std/memory.lucb:326:9"
-l_text_59:
     .asciz "src/std/memory.lucb:328:9"
+l_text_59:
+    .asciz "src/std/memory.lucb:330:9"
 l_text_60:
     .asciz "null_foreign"
 l_text_61:
-    .asciz "src/std/process/module.lucb:174:9"
+    .asciz "src/std/process/module.lucb:172:9"
 l_text_62:
     .asciz "integer overflow"
 

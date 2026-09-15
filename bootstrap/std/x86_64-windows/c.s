@@ -485,19 +485,19 @@ lb_c_stderr:
 .Ltext_0:
     .asciz "null_foreign"
 .Ltext_1:
-    .asciz "src/std/c.lucb:14:9"
+    .asciz "src/std/c.lucb:13:9"
 .Ltext_2:
     .asciz "unreachable"
 .Ltext_3:
-    .asciz "src/std/c.lucb:23:9"
+    .asciz "src/std/c.lucb:22:9"
 .Ltext_4:
     .asciz "supplied by the backend"
 .Ltext_5:
-    .asciz "src/std/c.lucb:34:5"
+    .asciz "src/std/c.lucb:33:5"
 .Ltext_6:
     .asciz "src/std/c.lucb:36:5"
 .Ltext_7:
-    .asciz "src/std/c.lucb:38:5"
+    .asciz "src/std/c.lucb:39:5"
 
     .section .rdata,"dr"
     .p2align 3

@@ -482,7 +482,7 @@ L3_7:
 l_text_0:
     .asciz "unreachable"
 l_text_1:
-    .asciz "src/std/clipboard/module.lucb:19:9"
+    .asciz "src/std/clipboard/module.lucb:18:9"
 l_text_2:
     .asciz "clipboard text must be valid UTF-8 within 1 MiB"
 l_text_3:

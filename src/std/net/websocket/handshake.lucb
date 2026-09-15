@@ -206,7 +206,7 @@ func websocket_protocols(fields: const HttpField[]) -> !:
         var at: usize = 0
         while let candidate = http_list_next(field.value, &at):
             if candidate.length == 0:
-                continue    # an empty list element is ignored (RFC 9110 §5.6.1.2)
+                continue  # an empty list element is ignored (RFC 9110 §5.6.1.2)
             if not http_token(candidate):
                 error(websocket_invalid, "invalid offered WebSocket subprotocol")
             for previous in seen[..<count]:

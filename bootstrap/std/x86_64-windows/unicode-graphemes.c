@@ -4289,123 +4289,123 @@ extern uint32_t lb_gpu_22vulkan_api_version_1_0;
 
 __attribute__((weak)) lb_interop_Transfer_0g1_str lb_interop_Transfer_0g1_str_plain(void) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/unicode/graphemes.lucb:410:1";
+    lb_pos = "src/std/unicode/graphemes.lucb:411:1";
     lb_interop_Transfer_0g1_str _lb_ret1 = ((lb_interop_Transfer_0g1_str){.copy = lb_interop_Transfer_0g1_str_10copy_plain});
     return _lb_ret1;
     lb_trap("unreachable");
 }
 __attribute__((weak)) lb_r_interop_Packet_0g1_str lb_interop_Transfer_0g1_str_10copy_plain(lb_str lb_value) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/unicode/graphemes.lucb:413:1";
+    lb_pos = "src/std/unicode/graphemes.lucb:414:1";
     lb_interop_Packet_0g1_str _lb_ret2 = ({ lb_interop_Packet_0g1_str _lb_iv3 = {}; lb_interop_Packet_0g1_str_init(&_lb_iv3, lb_value, ((void*)0), ((void*)0)); _lb_iv3; });
     return ((lb_r_interop_Packet_0g1_str){ .value = _lb_ret2, .failed = false });
     lb_trap("unreachable");
 }
 __attribute__((weak)) lb_interop_Transfer_0g1_u8_0c lb_interop_Transfer_0g1_u8_0c_plain(void) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/unicode/graphemes.lucb:410:1";
+    lb_pos = "src/std/unicode/graphemes.lucb:411:1";
     lb_interop_Transfer_0g1_u8_0c _lb_ret4 = ((lb_interop_Transfer_0g1_u8_0c){.copy = lb_interop_Transfer_0g1_u8_0c_10copy_plain});
     return _lb_ret4;
     lb_trap("unreachable");
 }
 __attribute__((weak)) lb_r_interop_Packet_0g1_u8_0c lb_interop_Transfer_0g1_u8_0c_10copy_plain(lb_cspan lb_value) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/unicode/graphemes.lucb:413:1";
+    lb_pos = "src/std/unicode/graphemes.lucb:414:1";
     lb_interop_Packet_0g1_u8_0c _lb_ret5 = ({ lb_interop_Packet_0g1_u8_0c _lb_iv6 = {}; lb_interop_Packet_0g1_u8_0c_init(&_lb_iv6, lb_value, ((void*)0), ((void*)0)); _lb_iv6; });
     return ((lb_r_interop_Packet_0g1_u8_0c){ .value = _lb_ret5, .failed = false });
     lb_trap("unreachable");
 }
 lb_r_unicode_GraphemeIterator lb_unicode_GraphemeIterator_over(lb_str lb_text) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/unicode/graphemes.lucb:12:9";
+    lb_pos = "src/std/unicode/graphemes.lucb:11:9";
     if (!!((!lb_utf8_valid(((lb_cspan){(void*)(lb_text.data), lb_text.length}))))) 
     {
-        lb_pos = "src/std/unicode/graphemes.lucb:13:13";
+        lb_pos = "src/std/unicode/graphemes.lucb:12:13";
         lb_r_unicode_GraphemeIterator _lb_err7 = ((lb_r_unicode_GraphemeIterator){ .error = { .code = (int32_t)(lb_utf8_16invalid_sequence), .message = ((lb_str){"invalid UTF-8 text", 18}) }, .failed = true });
         return _lb_err7;
     }
-    lb_pos = "src/std/unicode/graphemes.lucb:14:9";
+    lb_pos = "src/std/unicode/graphemes.lucb:13:9";
     lb_unicode_GraphemeIterator _lb_ret8 = ((lb_unicode_GraphemeIterator){.text = lb_text});
     return ((lb_r_unicode_GraphemeIterator){ .value = _lb_ret8, .failed = false });
     lb_trap("unreachable");
 }
 lb_o_str lb_unicode_GraphemeIterator_next(lb_unicode_GraphemeIterator* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/unicode/graphemes.lucb:18:9";
+    lb_pos = "src/std/unicode/graphemes.lucb:17:9";
     if (!!((self->offset == (self->text.length)))) 
     {
-        lb_pos = "src/std/unicode/graphemes.lucb:19:13";
+        lb_pos = "src/std/unicode/graphemes.lucb:18:13";
         lb_o_str _lb_ret9 = ((lb_o_str){ .present = false });
         return _lb_ret9;
     }
-    lb_pos = "src/std/unicode/graphemes.lucb:20:9";
+    lb_pos = "src/std/unicode/graphemes.lucb:19:9";
     size_t lb_start __attribute__((unused)) = self->offset;
-    lb_pos = "src/std/unicode/graphemes.lucb:21:9";
+    lb_pos = "src/std/unicode/graphemes.lucb:20:9";
     lb_utf8_Decoded lb_first __attribute__((unused)) = ({ lb_o_utf8_Decoded _lb_o10 = lb_utf8_decode(((lb_cspan){(void*)(self->text.data), self->text.length}), self->offset); if (!_lb_o10.present) {
         (void)(lb_trap_text(((lb_str){"the grapheme iterator's input changed", 37})));
     } _lb_o10.value; });
-    lb_pos = "src/std/unicode/graphemes.lucb:22:9";
+    lb_pos = "src/std/unicode/graphemes.lucb:21:9";
     lb_unicode_GraphemeState lb_state __attribute__((unused)) = {};
-    lb_pos = "src/std/unicode/graphemes.lucb:23:9";
+    lb_pos = "src/std/unicode/graphemes.lucb:22:9";
     (void)(({ uint32_t _lb_sq11 __attribute__((unused)) = ((uint32_t)lb_conv_u((uint64_t)(lb_first.scalar), 32, 0, 32, 0, 1)); uint8_t _lb_sq12 __attribute__((unused)) = lb_unicode_14grapheme_class(((uint32_t)lb_conv_u((uint64_t)(lb_first.scalar), 32, 0, 32, 0, 1))); lb_unicode_GraphemeState_accept(&(lb_state), _lb_sq11, _lb_sq12); }));
-    lb_pos = "src/std/unicode/graphemes.lucb:24:9";
+    lb_pos = "src/std/unicode/graphemes.lucb:23:9";
     { size_t* lb__cell13 = &(self->offset);
     (*(lb__cell13)) = (size_t)(lb_add_u((uint64_t)((*(lb__cell13))), (uint64_t)(lb_first.width), 64)); }
-    lb_pos = "src/std/unicode/graphemes.lucb:25:9";
+    lb_pos = "src/std/unicode/graphemes.lucb:24:9";
     for (;;) {
-        lb_pos = "src/std/unicode/graphemes.lucb:25:9";
+        lb_pos = "src/std/unicode/graphemes.lucb:24:9";
         if (!((((size_t)(self->offset)) < ((size_t)((self->text.length)))))) break;
         {
-            lb_pos = "src/std/unicode/graphemes.lucb:26:13";
+            lb_pos = "src/std/unicode/graphemes.lucb:25:13";
             lb_utf8_Decoded lb_decoded __attribute__((unused)) = ({ lb_o_utf8_Decoded _lb_o14 = lb_utf8_decode(((lb_cspan){(void*)(self->text.data), self->text.length}), self->offset); if (!_lb_o14.present) {
                 (void)(lb_trap_text(((lb_str){"the grapheme iterator's input changed", 37})));
             } _lb_o14.value; });
-            lb_pos = "src/std/unicode/graphemes.lucb:27:13";
+            lb_pos = "src/std/unicode/graphemes.lucb:26:13";
             uint32_t lb_scalar __attribute__((unused)) = ((uint32_t)lb_conv_u((uint64_t)(lb_decoded.scalar), 32, 0, 32, 0, 1));
-            lb_pos = "src/std/unicode/graphemes.lucb:28:13";
+            lb_pos = "src/std/unicode/graphemes.lucb:27:13";
             uint8_t lb_current __attribute__((unused)) = lb_unicode_14grapheme_class(lb_scalar);
-            lb_pos = "src/std/unicode/graphemes.lucb:29:13";
+            lb_pos = "src/std/unicode/graphemes.lucb:28:13";
             if (!!(lb_unicode_GraphemeState_12break_before(&(lb_state), lb_scalar, lb_current))) 
             {
-                lb_pos = "src/std/unicode/graphemes.lucb:30:17";
+                lb_pos = "src/std/unicode/graphemes.lucb:29:17";
                 break;
             }
-            lb_pos = "src/std/unicode/graphemes.lucb:31:13";
+            lb_pos = "src/std/unicode/graphemes.lucb:30:13";
             (void)(lb_unicode_GraphemeState_accept(&(lb_state), lb_scalar, lb_current));
-            lb_pos = "src/std/unicode/graphemes.lucb:32:13";
+            lb_pos = "src/std/unicode/graphemes.lucb:31:13";
             { size_t* lb__cell15 = &(self->offset);
             (*(lb__cell15)) = (size_t)(lb_add_u((uint64_t)((*(lb__cell15))), (uint64_t)(lb_decoded.width), 64)); }
         }
     }
-    lb_pos = "src/std/unicode/graphemes.lucb:33:9";
+    lb_pos = "src/std/unicode/graphemes.lucb:32:9";
     lb_o_str _lb_ret16 = ((lb_o_str){ .value = ({ lb_span _lb_sc17 = ({ lb_span _lb_sv18 = ((lb_cspan){(void*)(self->text.data), self->text.length}); size_t _lb_sn18 = _lb_sv18.length; uint8_t* _lb_sd18 = (uint8_t*)_lb_sv18.data; size_t _lb_ss18 = (size_t)(lb_start); size_t _lb_se18 = (size_t)(self->offset); lb_check_index(_lb_ss18, _lb_sn18 + 1); lb_check_index(_lb_se18, _lb_sn18 + 1); if (_lb_ss18 > _lb_se18) lb_trap("index out of bounds"); (lb_cspan){ (void*)(_lb_sd18 + _lb_ss18), _lb_se18 - _lb_ss18 }; }); const char* _lb_sb17 = (const char*)_lb_sc17.data; size_t _lb_sl17 = _lb_sc17.length; (lb_str){ _lb_sb17, _lb_sl17 }; }), .present = true });
     return _lb_ret16;
     lb_trap("unreachable");
 }
 size_t lb_unicode_GraphemeIterator_11byte_offset(const lb_unicode_GraphemeIterator* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/unicode/graphemes.lucb:37:9";
+    lb_pos = "src/std/unicode/graphemes.lucb:36:9";
     size_t _lb_ret19 = self->offset;
     return _lb_ret19;
     lb_trap("unreachable");
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_str_init(lb_interop_Packet_0g1_str* self, lb_str lb_value, void* lb_storage, lb_fn_0F1_void_0p_unit lb_dispose) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/unicode/graphemes.lucb:394:1";
-    self->value = lb_value;
     lb_pos = "src/std/unicode/graphemes.lucb:395:1";
-    self->storage = lb_storage;
+    self->value = lb_value;
     lb_pos = "src/std/unicode/graphemes.lucb:396:1";
+    self->storage = lb_storage;
+    lb_pos = "src/std/unicode/graphemes.lucb:397:1";
     self->dispose = lb_dispose;
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_str_release(const lb_interop_Packet_0g1_str* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/unicode/graphemes.lucb:399:1";
+    lb_pos = "src/std/unicode/graphemes.lucb:400:1";
     void* _lb_o20 = self->storage;
     if (_lb_o20 != ((void*)0)) {
         void* lb_storage __attribute__((unused)) = _lb_o20;
         {
-            lb_pos = "src/std/unicode/graphemes.lucb:400:1";
+            lb_pos = "src/std/unicode/graphemes.lucb:401:1";
             (void)(((({ lb_fn_0F1_void_0p_unit _lb_o21 = self->dispose; if (_lb_o21 == ((void*)0)) {
                 (void)(lb_trap_text(((lb_str){"a packet has storage without a disposer", 39})));
             } _lb_o21; })))(lb_storage));
@@ -4414,21 +4414,21 @@ __attribute__((weak)) void lb_interop_Packet_0g1_str_release(const lb_interop_Pa
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_init(lb_interop_Packet_0g1_u8_0c* self, lb_cspan lb_value, void* lb_storage, lb_fn_0F1_void_0p_unit lb_dispose) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/unicode/graphemes.lucb:394:1";
-    self->value = lb_value;
     lb_pos = "src/std/unicode/graphemes.lucb:395:1";
-    self->storage = lb_storage;
+    self->value = lb_value;
     lb_pos = "src/std/unicode/graphemes.lucb:396:1";
+    self->storage = lb_storage;
+    lb_pos = "src/std/unicode/graphemes.lucb:397:1";
     self->dispose = lb_dispose;
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_release(const lb_interop_Packet_0g1_u8_0c* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/unicode/graphemes.lucb:399:1";
+    lb_pos = "src/std/unicode/graphemes.lucb:400:1";
     void* _lb_o22 = self->storage;
     if (_lb_o22 != ((void*)0)) {
         void* lb_storage __attribute__((unused)) = _lb_o22;
         {
-            lb_pos = "src/std/unicode/graphemes.lucb:400:1";
+            lb_pos = "src/std/unicode/graphemes.lucb:401:1";
             (void)(((({ lb_fn_0F1_void_0p_unit _lb_o23 = self->dispose; if (_lb_o23 == ((void*)0)) {
                 (void)(lb_trap_text(((lb_str){"a packet has storage without a disposer", 39})));
             } _lb_o23; })))(lb_storage));
@@ -4437,148 +4437,148 @@ __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_release(const lb_interop_
 }
 void lb_unicode_GraphemeState_accept(lb_unicode_GraphemeState* self, uint32_t lb_scalar, uint8_t lb_current) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/unicode/graphemes.lucb:99:9";
+    lb_pos = "src/std/unicode/graphemes.lucb:98:9";
     self->zwj_after_pictographic = ((lb_current == ((uint8_t)5u)) && self->pictographic_prefix);
-    lb_pos = "src/std/unicode/graphemes.lucb:100:9";
+    lb_pos = "src/std/unicode/graphemes.lucb:99:9";
     if (!!(({ uint32_t _lb_sq24 __attribute__((unused)) = lb_unicode_11range_value(lb_unicode_19pictographic_ranges, lb_scalar); uint32_t _lb_sq25 __attribute__((unused)) = 0ULL; (!(_lb_sq24 == _lb_sq25)); }))) 
     {
-        lb_pos = "src/std/unicode/graphemes.lucb:101:13";
+        lb_pos = "src/std/unicode/graphemes.lucb:100:13";
         self->pictographic_prefix = true;
     }
     else {
-        lb_pos = "src/std/unicode/graphemes.lucb:102:9";
+        lb_pos = "src/std/unicode/graphemes.lucb:101:9";
         if (!!((!(lb_current == ((uint8_t)4u))))) 
         {
-            lb_pos = "src/std/unicode/graphemes.lucb:103:13";
+            lb_pos = "src/std/unicode/graphemes.lucb:102:13";
             self->pictographic_prefix = false;
         }
     }
-    lb_pos = "src/std/unicode/graphemes.lucb:104:9";
+    lb_pos = "src/std/unicode/graphemes.lucb:103:9";
     self->regional_odd = ((lb_current == ((uint8_t)6u)) ? (!self->regional_odd) : false);
-    lb_pos = "src/std/unicode/graphemes.lucb:105:9";
+    lb_pos = "src/std/unicode/graphemes.lucb:104:9";
     uint8_t lb_indic __attribute__((unused)) = lb_unicode_11indic_class(lb_scalar);
-    lb_pos = "src/std/unicode/graphemes.lucb:106:9";
+    lb_pos = "src/std/unicode/graphemes.lucb:105:9";
     if (!!((lb_indic == ((uint8_t)1u)))) 
     {
-        lb_pos = "src/std/unicode/graphemes.lucb:107:13";
+        lb_pos = "src/std/unicode/graphemes.lucb:106:13";
         self->indic = ((uint8_t)1u);
     }
     else {
-        lb_pos = "src/std/unicode/graphemes.lucb:108:9";
+        lb_pos = "src/std/unicode/graphemes.lucb:107:9";
         if (!!((lb_indic == ((uint8_t)2u)))) 
         {
-            lb_pos = "src/std/unicode/graphemes.lucb:109:13";
+            lb_pos = "src/std/unicode/graphemes.lucb:108:13";
             if (!!((!(self->indic == ((uint8_t)0u))))) 
             {
-                lb_pos = "src/std/unicode/graphemes.lucb:110:17";
+                lb_pos = "src/std/unicode/graphemes.lucb:109:17";
                 self->indic = ((uint8_t)2u);
             }
         }
         else {
-            lb_pos = "src/std/unicode/graphemes.lucb:111:9";
+            lb_pos = "src/std/unicode/graphemes.lucb:110:9";
             if (!!((!(lb_indic == ((uint8_t)3u))))) 
             {
-                lb_pos = "src/std/unicode/graphemes.lucb:112:13";
+                lb_pos = "src/std/unicode/graphemes.lucb:111:13";
                 self->indic = ((uint8_t)0u);
             }
         }
     }
-    lb_pos = "src/std/unicode/graphemes.lucb:113:9";
+    lb_pos = "src/std/unicode/graphemes.lucb:112:9";
     self->previous = lb_current;
 }
 uint8_t lb_unicode_14grapheme_class(uint32_t lb_scalar) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/unicode/graphemes.lucb:116:5";
+    lb_pos = "src/std/unicode/graphemes.lucb:115:5";
     uint8_t _lb_ret26 = ((uint8_t)(((uint8_t)lb_conv_u((uint64_t)(lb_unicode_11range_value(lb_unicode_15grapheme_ranges, lb_scalar)), 32, 0, 8, 0, 1))));
     return _lb_ret26;
     lb_trap("unreachable");
 }
 bool lb_unicode_GraphemeState_12break_before(const lb_unicode_GraphemeState* self, uint32_t lb_scalar, uint8_t lb_current) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/unicode/graphemes.lucb:76:9";
+    lb_pos = "src/std/unicode/graphemes.lucb:75:9";
     if (!!(((self->previous == ((uint8_t)1u)) && (lb_current == ((uint8_t)2u))))) 
     {
-        lb_pos = "src/std/unicode/graphemes.lucb:77:13";
+        lb_pos = "src/std/unicode/graphemes.lucb:76:13";
         bool _lb_ret27 = false;
         return _lb_ret27;
     }
-    lb_pos = "src/std/unicode/graphemes.lucb:78:9";
+    lb_pos = "src/std/unicode/graphemes.lucb:77:9";
     if (!!((lb_unicode_16grapheme_control(self->previous) || lb_unicode_16grapheme_control(lb_current)))) 
     {
-        lb_pos = "src/std/unicode/graphemes.lucb:79:13";
+        lb_pos = "src/std/unicode/graphemes.lucb:78:13";
         bool _lb_ret28 = true;
         return _lb_ret28;
     }
-    lb_pos = "src/std/unicode/graphemes.lucb:80:9";
+    lb_pos = "src/std/unicode/graphemes.lucb:79:9";
     if (!!(lb_unicode_19hangul_continuation(self->previous, lb_current))) 
     {
-        lb_pos = "src/std/unicode/graphemes.lucb:81:13";
+        lb_pos = "src/std/unicode/graphemes.lucb:80:13";
         bool _lb_ret29 = false;
         return _lb_ret29;
     }
-    lb_pos = "src/std/unicode/graphemes.lucb:83:9";
+    lb_pos = "src/std/unicode/graphemes.lucb:82:9";
     if (!!((((lb_current == ((uint8_t)4u)) || (lb_current == ((uint8_t)5u))) || (lb_current == ((uint8_t)8u))))) 
     {
-        lb_pos = "src/std/unicode/graphemes.lucb:84:13";
+        lb_pos = "src/std/unicode/graphemes.lucb:83:13";
         bool _lb_ret30 = false;
         return _lb_ret30;
     }
-    lb_pos = "src/std/unicode/graphemes.lucb:85:9";
+    lb_pos = "src/std/unicode/graphemes.lucb:84:9";
     if (!!((self->previous == ((uint8_t)7u)))) 
     {
-        lb_pos = "src/std/unicode/graphemes.lucb:86:13";
+        lb_pos = "src/std/unicode/graphemes.lucb:85:13";
         bool _lb_ret31 = false;
         return _lb_ret31;
     }
-    lb_pos = "src/std/unicode/graphemes.lucb:89:9";
+    lb_pos = "src/std/unicode/graphemes.lucb:88:9";
     if (!!(((self->indic == ((uint8_t)2u)) && ({ uint8_t _lb_sq32 __attribute__((unused)) = lb_unicode_11indic_class(lb_scalar); uint8_t _lb_sq33 __attribute__((unused)) = ((uint8_t)1u); (_lb_sq32 == _lb_sq33); })))) 
     {
-        lb_pos = "src/std/unicode/graphemes.lucb:90:13";
+        lb_pos = "src/std/unicode/graphemes.lucb:89:13";
         bool _lb_ret34 = false;
         return _lb_ret34;
     }
-    lb_pos = "src/std/unicode/graphemes.lucb:91:9";
+    lb_pos = "src/std/unicode/graphemes.lucb:90:9";
     if (!!((((self->previous == ((uint8_t)5u)) && self->zwj_after_pictographic) && ({ uint32_t _lb_sq35 __attribute__((unused)) = lb_unicode_11range_value(lb_unicode_19pictographic_ranges, lb_scalar); uint32_t _lb_sq36 __attribute__((unused)) = 0ULL; (!(_lb_sq35 == _lb_sq36)); })))) 
     {
-        lb_pos = "src/std/unicode/graphemes.lucb:92:13";
+        lb_pos = "src/std/unicode/graphemes.lucb:91:13";
         bool _lb_ret37 = false;
         return _lb_ret37;
     }
-    lb_pos = "src/std/unicode/graphemes.lucb:94:9";
+    lb_pos = "src/std/unicode/graphemes.lucb:93:9";
     if (!!((((self->previous == ((uint8_t)6u)) && (lb_current == ((uint8_t)6u))) && self->regional_odd))) 
     {
-        lb_pos = "src/std/unicode/graphemes.lucb:95:13";
+        lb_pos = "src/std/unicode/graphemes.lucb:94:13";
         bool _lb_ret38 = false;
         return _lb_ret38;
     }
-    lb_pos = "src/std/unicode/graphemes.lucb:96:9";
+    lb_pos = "src/std/unicode/graphemes.lucb:95:9";
     bool _lb_ret39 = true;
     return _lb_ret39;
     lb_trap("unreachable");
 }
 uint8_t lb_unicode_11indic_class(uint32_t lb_scalar) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/unicode/graphemes.lucb:119:5";
+    lb_pos = "src/std/unicode/graphemes.lucb:118:5";
     uint8_t _lb_ret40 = ((uint8_t)(((uint8_t)lb_conv_u((uint64_t)(lb_unicode_11range_value(lb_unicode_12indic_ranges, lb_scalar)), 32, 0, 8, 0, 1))));
     return _lb_ret40;
     lb_trap("unreachable");
 }
 bool lb_unicode_16grapheme_control(uint8_t lb_value) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/unicode/graphemes.lucb:122:5";
+    lb_pos = "src/std/unicode/graphemes.lucb:121:5";
     bool _lb_ret41 = (((lb_value == ((uint8_t)3u)) || (lb_value == ((uint8_t)1u))) || (lb_value == ((uint8_t)2u)));
     return _lb_ret41;
     lb_trap("unreachable");
 }
 bool lb_unicode_19hangul_continuation(uint8_t lb_previous, uint8_t lb_current) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/unicode/graphemes.lucb:126:5";
+    lb_pos = "src/std/unicode/graphemes.lucb:125:5";
     uint8_t _lb_m42 __attribute__((unused)) = lb_previous;
     switch ((int64_t)(_lb_m42)) {
         case 9LL:
         {
             {
-                lb_pos = "src/std/unicode/graphemes.lucb:128:13";
+                lb_pos = "src/std/unicode/graphemes.lucb:127:13";
                 bool _lb_ret43 = ((((lb_current == ((uint8_t)9u)) || (lb_current == ((uint8_t)10u))) || (lb_current == ((uint8_t)12u))) || (lb_current == ((uint8_t)13u)));
                 return _lb_ret43;
             }
@@ -4588,7 +4588,7 @@ bool lb_unicode_19hangul_continuation(uint8_t lb_previous, uint8_t lb_current) {
         case 10LL:
         {
             {
-                lb_pos = "src/std/unicode/graphemes.lucb:130:13";
+                lb_pos = "src/std/unicode/graphemes.lucb:129:13";
                 bool _lb_ret44 = ((lb_current == ((uint8_t)10u)) || (lb_current == ((uint8_t)11u)));
                 return _lb_ret44;
             }
@@ -4598,7 +4598,7 @@ bool lb_unicode_19hangul_continuation(uint8_t lb_previous, uint8_t lb_current) {
         case 11LL:
         {
             {
-                lb_pos = "src/std/unicode/graphemes.lucb:132:13";
+                lb_pos = "src/std/unicode/graphemes.lucb:131:13";
                 bool _lb_ret45 = (lb_current == ((uint8_t)11u));
                 return _lb_ret45;
             }
@@ -4607,7 +4607,7 @@ bool lb_unicode_19hangul_continuation(uint8_t lb_previous, uint8_t lb_current) {
         default:
         {
             {
-                lb_pos = "src/std/unicode/graphemes.lucb:134:13";
+                lb_pos = "src/std/unicode/graphemes.lucb:133:13";
                 bool _lb_ret46 = false;
                 return _lb_ret46;
             }

@@ -1,5 +1,4 @@
 # mark: Weak references ========================================================================
-
 pub struct Weak:
     pub var target: Object*?
 
@@ -30,4 +29,3 @@ pub func weak_get(w: Weak) -> Object*?:
         if not has(o, dead):
             return retain(o)
     return none
-

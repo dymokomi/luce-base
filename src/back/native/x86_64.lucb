@@ -14,7 +14,6 @@
 #       Half operations use F16C at v3, and conversion routines at lower CPU levels.
 #
 #==============================================================================================
-
 from back.native.x86_64.abi import Convention
 from back.native.x86_64.abi import Placement
 from back.native.x86_64.object import Format
@@ -26,9 +25,7 @@ import back.ir.ir
 import back.target as build_target
 import memory
 import support.buffer
-
 pub let failed: ErrorCode = ErrorCode.package(21)
-
 
 pub struct Generator:
     pub var dw: dwarf.Emitter*?
@@ -57,9 +54,9 @@ pub struct Generator:
     var fr: frame.Frame
     ## `--debug`: the frame descriptors, gathered while each function's frame is known.
     var descriptors: buffer.Buffer
+
     ## Register allocation: for each temporary, the callee-saved register it lives in
     ## The callee-saved register code a promoted frame slot lives in, 0 when it stays in the
-
     pub static func create(program_unit: ir.Unit*, os: build_target.Os = build_target.Os.linux, symbol_prefix: str = "") -> Generator!:
         return Generator(symbol_prefix = symbol_prefix, object_format = Format(os, symbol_prefix), convention = Convention(program_unit, os), unwinding = FrameUnwind(os == build_target.Os.windows, false), level = 1, out = try buffer.Buffer.create(262144), program_unit = program_unit, f = program_unit.functions.span().data, index = 0,
                          at = 0, saved = ["", "", "", "", "", "", "", ""], pending = 0, half_routines = false,
@@ -1933,7 +1930,6 @@ pub struct Generator:
             c += 1
 
     # mark: The unit ===========================================================================
-
     pub mutating func generate() -> !:
         self.unwinding = FrameUnwind(self.convention.windows, self.dw != none)
         try self.object_format.begin(&self.out, self.program_unit)

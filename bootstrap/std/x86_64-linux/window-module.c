@@ -4289,53 +4289,53 @@ extern uint32_t lb_gpu_22vulkan_api_version_1_0;
 
 __attribute__((weak)) lb_interop_Transfer_0g1_str lb_interop_Transfer_0g1_str_plain(void) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/window/windows/native.lucb:23:1";
+    lb_pos = "src/std/window/windows/native.lucb:22:5";
     lb_interop_Transfer_0g1_str _lb_ret1 = ((lb_interop_Transfer_0g1_str){.copy = lb_interop_Transfer_0g1_str_10copy_plain});
     return _lb_ret1;
     lb_trap("unreachable");
 }
 __attribute__((weak)) lb_r_interop_Packet_0g1_str lb_interop_Transfer_0g1_str_10copy_plain(lb_str lb_value) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/window/windows/native.lucb:26:1";
+    lb_pos = "src/std/window/windows/native.lucb:25:5";
     lb_interop_Packet_0g1_str _lb_ret2 = ({ lb_interop_Packet_0g1_str _lb_iv3 = {}; lb_interop_Packet_0g1_str_init(&_lb_iv3, lb_value, ((void*)0), ((void*)0)); _lb_iv3; });
     return ((lb_r_interop_Packet_0g1_str){ .value = _lb_ret2, .failed = false });
     lb_trap("unreachable");
 }
 __attribute__((weak)) lb_interop_Transfer_0g1_u8_0c lb_interop_Transfer_0g1_u8_0c_plain(void) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/window/windows/native.lucb:23:1";
+    lb_pos = "src/std/window/windows/native.lucb:22:5";
     lb_interop_Transfer_0g1_u8_0c _lb_ret4 = ((lb_interop_Transfer_0g1_u8_0c){.copy = lb_interop_Transfer_0g1_u8_0c_10copy_plain});
     return _lb_ret4;
     lb_trap("unreachable");
 }
 __attribute__((weak)) lb_r_interop_Packet_0g1_u8_0c lb_interop_Transfer_0g1_u8_0c_10copy_plain(lb_cspan lb_value) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/window/windows/native.lucb:26:1";
+    lb_pos = "src/std/window/windows/native.lucb:25:5";
     lb_interop_Packet_0g1_u8_0c _lb_ret5 = ({ lb_interop_Packet_0g1_u8_0c _lb_iv6 = {}; lb_interop_Packet_0g1_u8_0c_init(&_lb_iv6, lb_value, ((void*)0), ((void*)0)); _lb_iv6; });
     return ((lb_r_interop_Packet_0g1_u8_0c){ .value = _lb_ret5, .failed = false });
     lb_trap("unreachable");
 }
 bool lb_window_supported(void) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/window/module.lucb:19:5";
+    lb_pos = "src/std/window/module.lucb:18:5";
     bool _lb_ret7 = (((lb_platform_macos && lb_platform_arm64)) || ((lb_platform_windows && lb_platform_6x86_64)));
     return _lb_ret7;
     lb_trap("unreachable");
 }
 lb_r_window_Window lb_window_Window_open(lb_window_Options lb_options) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/window/module.lucb:47:9";
+    lb_pos = "src/std/window/module.lucb:46:9";
     (void)((({ lb_r_unit _lb_r8 = lb_window_12check_thread(); if (_lb_r8.failed) {
         return ((lb_r_window_Window){ .error = _lb_r8.error, .failed = true });
     } (void)0; })));
-    lb_pos = "src/std/window/module.lucb:48:9";
+    lb_pos = "src/std/window/module.lucb:47:9";
     (void)((({ lb_r_unit _lb_r9 = lb_window_12check_extent(lb_options.width, lb_options.height); if (_lb_r9.failed) {
         return ((lb_r_window_Window){ .error = _lb_r9.error, .failed = true });
     } (void)0; })));
-    lb_pos = "src/std/window/module.lucb:49:9";
+    lb_pos = "src/std/window/module.lucb:48:9";
     if (!!((!lb_utf8_valid(((lb_cspan){(void*)(lb_options.title.data), lb_options.title.length}))))) 
     {
-        lb_pos = "src/std/window/module.lucb:50:13";
+        lb_pos = "src/std/window/module.lucb:49:13";
         lb_r_window_Window _lb_err10 = ((lb_r_window_Window){ .error = { .code = (int32_t)(lb_window_15invalid_options), .message = ((lb_str){"the window title is not valid UTF-8", 35}) }, .failed = true });
         return _lb_err10;
     }
@@ -4343,14 +4343,14 @@ lb_r_window_Window lb_window_Window_open(lb_window_Options lb_options) {
     }
     {
     }
-    lb_pos = "src/std/window/module.lucb:55:9";
+    lb_pos = "src/std/window/module.lucb:54:9";
     lb_r_window_Window _lb_err11 = ((lb_r_window_Window){ .error = { .code = (int32_t)(lb_window_unsupported), .message = ((lb_str){"native windows are not implemented for this target", 50}) }, .failed = true });
     return _lb_err11;
     lb_trap("unreachable");
 }
 lb_r_unit lb_window_Window_show(const lb_window_Window* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/window/module.lucb:58:9";
+    lb_pos = "src/std/window/module.lucb:57:9";
     struct lb_window_State* lb_state __attribute__((unused)) = (({ lb_r_window_State_0p _lb_r12 = lb_window_Window_checked(self); if (_lb_r12.failed) {
         return ((lb_r_unit){ .error = _lb_r12.error, .failed = true });
     } _lb_r12.value; }));
@@ -4362,7 +4362,7 @@ lb_r_unit lb_window_Window_show(const lb_window_Window* self) {
 }
 lb_r_window_Size lb_window_Window_size(const lb_window_Window* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/window/module.lucb:65:9";
+    lb_pos = "src/std/window/module.lucb:64:9";
     struct lb_window_State* lb_state __attribute__((unused)) = (({ lb_r_window_State_0p _lb_r13 = lb_window_Window_checked(self); if (_lb_r13.failed) {
         return ((lb_r_window_Size){ .error = _lb_r13.error, .failed = true });
     } _lb_r13.value; }));
@@ -4370,18 +4370,18 @@ lb_r_window_Size lb_window_Window_size(const lb_window_Window* self) {
     }
     {
     }
-    lb_pos = "src/std/window/module.lucb:70:9";
+    lb_pos = "src/std/window/module.lucb:69:9";
     lb_r_window_Size _lb_err14 = ((lb_r_window_Size){ .error = { .code = (int32_t)(lb_window_unsupported), .message = ((lb_str){"native windows are not implemented for this target", 50}) }, .failed = true });
     return _lb_err14;
     lb_trap("unreachable");
 }
 lb_r_unit lb_window_Window_resize(const lb_window_Window* self, uint32_t lb_width, uint32_t lb_height) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/window/module.lucb:73:9";
+    lb_pos = "src/std/window/module.lucb:72:9";
     struct lb_window_State* lb_state __attribute__((unused)) = (({ lb_r_window_State_0p _lb_r15 = lb_window_Window_checked(self); if (_lb_r15.failed) {
         return ((lb_r_unit){ .error = _lb_r15.error, .failed = true });
     } _lb_r15.value; }));
-    lb_pos = "src/std/window/module.lucb:74:9";
+    lb_pos = "src/std/window/module.lucb:73:9";
     (void)((({ lb_r_unit _lb_r16 = lb_window_12check_extent(lb_width, lb_height); if (_lb_r16.failed) {
         return ((lb_r_unit){ .error = _lb_r16.error, .failed = true });
     } (void)0; })));
@@ -4393,19 +4393,19 @@ lb_r_unit lb_window_Window_resize(const lb_window_Window* self, uint32_t lb_widt
 }
 lb_r_unit lb_window_Window_14set_text_input(const lb_window_Window* self, bool lb_enabled) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/window/module.lucb:83:9";
+    lb_pos = "src/std/window/module.lucb:82:9";
     struct lb_window_State* lb_state __attribute__((unused)) = (({ lb_r_window_State_0p _lb_r17 = lb_window_Window_checked(self); if (_lb_r17.failed) {
         return ((lb_r_unit){ .error = _lb_r17.error, .failed = true });
     } _lb_r17.value; }));
-    lb_pos = "src/std/window/module.lucb:84:9";
+    lb_pos = "src/std/window/module.lucb:83:9";
     if (!!(((lb_state)->text_input == lb_enabled))) 
     {
-        lb_pos = "src/std/window/module.lucb:85:13";
+        lb_pos = "src/std/window/module.lucb:84:13";
         return ((lb_r_unit){ .failed = false });
     }
-    lb_pos = "src/std/window/module.lucb:86:9";
+    lb_pos = "src/std/window/module.lucb:85:9";
     (lb_state)->text_input = lb_enabled;
-    lb_pos = "src/std/window/module.lucb:87:9";
+    lb_pos = "src/std/window/module.lucb:86:9";
     (lb_state)->pending_surrogate = 0ULL;
     {
     }
@@ -4413,14 +4413,14 @@ lb_r_unit lb_window_Window_14set_text_input(const lb_window_Window* self, bool l
 }
 lb_r_unit lb_window_Window_10set_cursor(const lb_window_Window* self, uint8_t lb_cursor) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/window/module.lucb:95:9";
+    lb_pos = "src/std/window/module.lucb:94:9";
     struct lb_window_State* lb_state __attribute__((unused)) = (({ lb_r_window_State_0p _lb_r18 = lb_window_Window_checked(self); if (_lb_r18.failed) {
         return ((lb_r_unit){ .error = _lb_r18.error, .failed = true });
     } _lb_r18.value; }));
-    lb_pos = "src/std/window/module.lucb:96:9";
+    lb_pos = "src/std/window/module.lucb:95:9";
     if (!!((((uint8_t)(((uint8_t)(lb_cursor)))) > ((uint8_t)(((uint8_t)(((uint8_t)7u)))))))) 
     {
-        lb_pos = "src/std/window/module.lucb:97:13";
+        lb_pos = "src/std/window/module.lucb:96:13";
         lb_r_unit _lb_err19 = ((lb_r_unit){ .error = { .code = (int32_t)(lb_window_15invalid_options), .message = ((lb_str){"unknown system cursor", 21}) }, .failed = true });
         return _lb_err19;
     }
@@ -4432,7 +4432,7 @@ lb_r_unit lb_window_Window_10set_cursor(const lb_window_Window* self, uint8_t lb
 }
 lb_r_input_Cursor lb_window_Window_cursor(const lb_window_Window* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/window/module.lucb:104:9";
+    lb_pos = "src/std/window/module.lucb:103:9";
     uint8_t _lb_ret20 = (((({ lb_r_window_State_0p _lb_r21 = lb_window_Window_checked(self); if (_lb_r21.failed) {
         return ((lb_r_input_Cursor){ .error = _lb_r21.error, .failed = true });
     } _lb_r21.value; }))))->cursor;
@@ -4441,46 +4441,46 @@ lb_r_input_Cursor lb_window_Window_cursor(const lb_window_Window* self) {
 }
 lb_r_window_Presentation lb_window_Window_20acquire_presentation(const lb_window_Window* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/window/module.lucb:109:9";
+    lb_pos = "src/std/window/module.lucb:108:9";
     struct lb_window_State* lb_state __attribute__((unused)) = (({ lb_r_window_State_0p _lb_r22 = lb_window_Window_checked(self); if (_lb_r22.failed) {
         return ((lb_r_window_Presentation){ .error = _lb_r22.error, .failed = true });
     } _lb_r22.value; }));
-    lb_pos = "src/std/window/module.lucb:110:9";
+    lb_pos = "src/std/window/module.lucb:109:9";
     if (!!((lb_state)->presentation_held)) 
     {
-        lb_pos = "src/std/window/module.lucb:111:13";
+        lb_pos = "src/std/window/module.lucb:110:13";
         lb_r_window_Presentation _lb_err23 = ((lb_r_window_Presentation){ .error = { .code = (int32_t)(lb_window_19presentation_in_use), .message = ((lb_str){"the window already has a presentation surface", 45}) }, .failed = true });
         return _lb_err23;
     }
-    lb_pos = "src/std/window/module.lucb:112:9";
+    lb_pos = "src/std/window/module.lucb:111:9";
     (lb_state)->presentation_held = true;
-    lb_pos = "src/std/window/module.lucb:113:9";
+    lb_pos = "src/std/window/module.lucb:112:9";
     lb_window_Presentation _lb_ret24 = ((lb_window_Presentation){.state = lb_state});
     return ((lb_r_window_Presentation){ .value = _lb_ret24, .failed = false });
     lb_trap("unreachable");
 }
 lb_r_unit lb_window_Window_13request_close(const lb_window_Window* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/window/module.lucb:118:9";
+    lb_pos = "src/std/window/module.lucb:117:9";
     struct lb_window_State* lb_state __attribute__((unused)) = (({ lb_r_window_State_0p _lb_r25 = lb_window_Window_checked(self); if (_lb_r25.failed) {
         return ((lb_r_unit){ .error = _lb_r25.error, .failed = true });
     } _lb_r25.value; }));
-    lb_pos = "src/std/window/module.lucb:119:9";
+    lb_pos = "src/std/window/module.lucb:118:9";
     (lb_state)->close_requested = true;
     return ((lb_r_unit){ .failed = false });
 }
 lb_r_input_Event_0o lb_window_Window_poll(const lb_window_Window* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/window/module.lucb:126:9";
+    lb_pos = "src/std/window/module.lucb:125:9";
     struct lb_window_State* lb_state __attribute__((unused)) = (({ lb_r_window_State_0p _lb_r26 = lb_window_Window_checked(self); if (_lb_r26.failed) {
         return ((lb_r_input_Event_0o){ .error = _lb_r26.error, .failed = true });
     } _lb_r26.value; }));
-    lb_pos = "src/std/window/module.lucb:127:9";
+    lb_pos = "src/std/window/module.lucb:126:9";
     lb_o_input_Event _lb_o27 = lb_window_9pop_event(lb_state);
     if (_lb_o27.present) {
         lb_input_Event lb_event __attribute__((unused)) = _lb_o27.value;
         {
-            lb_pos = "src/std/window/module.lucb:128:13";
+            lb_pos = "src/std/window/module.lucb:127:13";
             lb_o_input_Event _lb_ret28 = ((lb_o_input_Event){ .value = lb_event, .present = true });
             return ((lb_r_input_Event_0o){ .value = _lb_ret28, .failed = false });
         }
@@ -4489,31 +4489,31 @@ lb_r_input_Event_0o lb_window_Window_poll(const lb_window_Window* self) {
     }
     {
     }
-    lb_pos = "src/std/window/module.lucb:133:9";
+    lb_pos = "src/std/window/module.lucb:132:9";
     lb_o_input_Event _lb_ret29 = lb_window_9pop_event(lb_state);
     return ((lb_r_input_Event_0o){ .value = _lb_ret29, .failed = false });
     lb_trap("unreachable");
 }
 void lb_window_Window_destroy(lb_window_Window* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/window/module.lucb:138:9";
+    lb_pos = "src/std/window/module.lucb:137:9";
     struct lb_window_State* lb_state __attribute__((unused)) = ({ struct lb_window_State* _lb_o30 = self->state; if (_lb_o30 == ((void*)0)) {
         return;
     } _lb_o30; });
-    lb_pos = "src/std/window/module.lucb:142:9";
+    lb_pos = "src/std/window/module.lucb:141:9";
     (void)(({ lb_error _lb_fe31 __attribute__((unused)); int32_t _lb_v31 __attribute__((unused)) = 0; (void)(({ lb_r_unit _lb_r32 = lb_window_12check_thread(); if (_lb_r32.failed) {
         _lb_fe31 = _lb_r32.error;
         goto _lb_fh31;
     } (void)0; })); goto _lb_cd31; _lb_fh31: { 
         lb_error lb_failure __attribute__((unused)) = _lb_fe31;
         {
-            lb_pos = "src/std/window/module.lucb:140:13";
+            lb_pos = "src/std/window/module.lucb:139:13";
             (void)(((void)(lb_failure)));
-            lb_pos = "src/std/window/module.lucb:141:13";
+            lb_pos = "src/std/window/module.lucb:140:13";
             (void)(lb_trap_text(((lb_str){"window destruction requires the main thread", 43})));
         }
     } _lb_cd31: __attribute__((unused)); (void)0; }));
-    lb_pos = "src/std/window/module.lucb:142:9";
+    lb_pos = "src/std/window/module.lucb:141:9";
     self->state = ((void*)0);
     {
     }
@@ -4522,10 +4522,10 @@ void lb_window_Window_destroy(lb_window_Window* self) {
 }
 lb_r_unit lb_window_12check_thread(void) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/window/module.lucb:153:5";
+    lb_pos = "src/std/window/module.lucb:152:5";
     if (!!((!lb_window_supported()))) 
     {
-        lb_pos = "src/std/window/module.lucb:154:9";
+        lb_pos = "src/std/window/module.lucb:153:9";
         lb_r_unit _lb_err33 = ((lb_r_unit){ .error = { .code = (int32_t)(lb_window_unsupported), .message = ((lb_str){"native windows are not implemented for this target", 50}) }, .failed = true });
         return _lb_err33;
     }
@@ -4537,21 +4537,21 @@ lb_r_unit lb_window_12check_thread(void) {
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_str_init(lb_interop_Packet_0g1_str* self, lb_str lb_value, void* lb_storage, lb_fn_0F1_void_0p_unit lb_dispose) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/window/windows/native.lucb:7:5";
+    lb_pos = "src/std/window/windows/native.lucb:6:5";
     self->value = lb_value;
-    lb_pos = "src/std/window/windows/native.lucb:8:5";
+    lb_pos = "src/std/window/windows/native.lucb:7:5";
     self->storage = lb_storage;
-    lb_pos = "src/std/window/windows/native.lucb:9:5";
+    lb_pos = "src/std/window/windows/native.lucb:8:5";
     self->dispose = lb_dispose;
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_str_release(const lb_interop_Packet_0g1_str* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/window/windows/native.lucb:12:5";
+    lb_pos = "src/std/window/windows/native.lucb:11:5";
     void* _lb_o34 = self->storage;
     if (_lb_o34 != ((void*)0)) {
         void* lb_storage __attribute__((unused)) = _lb_o34;
         {
-            lb_pos = "src/std/window/windows/native.lucb:13:5";
+            lb_pos = "src/std/window/windows/native.lucb:12:5";
             (void)(((({ lb_fn_0F1_void_0p_unit _lb_o35 = self->dispose; if (_lb_o35 == ((void*)0)) {
                 (void)(lb_trap_text(((lb_str){"a packet has storage without a disposer", 39})));
             } _lb_o35; })))(lb_storage));
@@ -4560,21 +4560,21 @@ __attribute__((weak)) void lb_interop_Packet_0g1_str_release(const lb_interop_Pa
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_init(lb_interop_Packet_0g1_u8_0c* self, lb_cspan lb_value, void* lb_storage, lb_fn_0F1_void_0p_unit lb_dispose) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/window/windows/native.lucb:7:5";
+    lb_pos = "src/std/window/windows/native.lucb:6:5";
     self->value = lb_value;
-    lb_pos = "src/std/window/windows/native.lucb:8:5";
+    lb_pos = "src/std/window/windows/native.lucb:7:5";
     self->storage = lb_storage;
-    lb_pos = "src/std/window/windows/native.lucb:9:5";
+    lb_pos = "src/std/window/windows/native.lucb:8:5";
     self->dispose = lb_dispose;
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_release(const lb_interop_Packet_0g1_u8_0c* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/window/windows/native.lucb:12:5";
+    lb_pos = "src/std/window/windows/native.lucb:11:5";
     void* _lb_o36 = self->storage;
     if (_lb_o36 != ((void*)0)) {
         void* lb_storage __attribute__((unused)) = _lb_o36;
         {
-            lb_pos = "src/std/window/windows/native.lucb:13:5";
+            lb_pos = "src/std/window/windows/native.lucb:12:5";
             (void)(((({ lb_fn_0F1_void_0p_unit _lb_o37 = self->dispose; if (_lb_o37 == ((void*)0)) {
                 (void)(lb_trap_text(((lb_str){"a packet has storage without a disposer", 39})));
             } _lb_o37; })))(lb_storage));
@@ -4583,10 +4583,10 @@ __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_release(const lb_interop_
 }
 lb_r_unit lb_window_12check_extent(uint32_t lb_width, uint32_t lb_height) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/window/module.lucb:162:5";
+    lb_pos = "src/std/window/module.lucb:161:5";
     if (!!(((((lb_width == 0ULL) || (lb_height == 0ULL)) || (((uint32_t)(lb_width)) > ((uint32_t)(10000ULL)))) || (((uint32_t)(lb_height)) > ((uint32_t)(10000ULL)))))) 
     {
-        lb_pos = "src/std/window/module.lucb:163:9";
+        lb_pos = "src/std/window/module.lucb:162:9";
         lb_r_unit _lb_err38 = ((lb_r_unit){ .error = { .code = (int32_t)(lb_window_15invalid_options), .message = ((lb_str){"window dimensions must be between 1 and 10000 points", 52}) }, .failed = true });
         return _lb_err38;
     }
@@ -4594,11 +4594,11 @@ lb_r_unit lb_window_12check_extent(uint32_t lb_width, uint32_t lb_height) {
 }
 lb_r_window_State_0p lb_window_Window_checked(const lb_window_Window* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/window/module.lucb:149:9";
+    lb_pos = "src/std/window/module.lucb:148:9";
     (void)((({ lb_r_unit _lb_r39 = lb_window_12check_thread(); if (_lb_r39.failed) {
         return ((lb_r_window_State_0p){ .error = _lb_r39.error, .failed = true });
     } (void)0; })));
-    lb_pos = "src/std/window/module.lucb:150:9";
+    lb_pos = "src/std/window/module.lucb:149:9";
     struct lb_window_State* _lb_ret40 = ({ struct lb_window_State* _lb_o41 = self->state; if (_lb_o41 == ((void*)0)) {
         lb_r_window_State_0p _lb_err42 = ((lb_r_window_State_0p){ .error = { .code = (int32_t)(lb_window_closed), .message = ((lb_str){"the window is closed", 20}) }, .failed = true });
         return _lb_err42;

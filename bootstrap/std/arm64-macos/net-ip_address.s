@@ -3785,15 +3785,15 @@ l_text_96:
 l_text_97:
     .asciz "src/std/net/ip_address.lucb:261:5"
 l_text_98:
-    .asciz "src/std/memory.lucb:326:9"
-l_text_99:
     .asciz "src/std/memory.lucb:328:9"
+l_text_99:
+    .asciz "src/std/memory.lucb:330:9"
 l_text_100:
     .asciz "null_foreign"
 l_text_101:
-    .asciz "src/std/memory.lucb:332:9"
-l_text_102:
     .asciz "src/std/memory.lucb:334:9"
+l_text_102:
+    .asciz "src/std/memory.lucb:336:9"
 
     .section __DATA,__const
     .p2align 3

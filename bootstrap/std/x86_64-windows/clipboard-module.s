@@ -984,7 +984,7 @@ lb_clipboard_12check_access:
 .Ltext_0:
     .asciz "unreachable"
 .Ltext_1:
-    .asciz "src/std/clipboard/module.lucb:21:9"
+    .asciz "src/std/clipboard/module.lucb:20:9"
 .Ltext_2:
     .asciz "clipboard text must be valid UTF-8 within 1 MiB"
 .Ltext_3:

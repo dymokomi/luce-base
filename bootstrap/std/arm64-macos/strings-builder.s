@@ -1633,9 +1633,9 @@ l_text_22:
 l_text_23:
     .asciz "src/std/strings/builder.lucb:92:13"
 l_text_24:
-    .asciz "src/std/memory.lucb:332:9"
-l_text_25:
     .asciz "src/std/memory.lucb:334:9"
+l_text_25:
+    .asciz "src/std/memory.lucb:336:9"
 l_text_26:
     .asciz "null_foreign"
 l_text_27:

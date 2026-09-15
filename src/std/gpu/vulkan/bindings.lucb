@@ -770,7 +770,6 @@ extern struct VkWriteDescriptorSet:
     pTexelBufferView: u64*?
 
 let VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET: u32 = 35
-
 extern func vkCreateInstance(pCreateInfo: VkInstanceCreateInfo*?, pAllocator: void*?, pInstance: u64*?) -> i32
 extern func vkDestroyInstance(instance: u64, pAllocator: void*?)
 extern func vkEnumeratePhysicalDevices(instance: u64, pPhysicalDeviceCount: u32*?, pPhysicalDevices: u64*?) -> i32

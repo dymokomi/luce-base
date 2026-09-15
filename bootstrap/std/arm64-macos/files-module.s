@@ -672,9 +672,9 @@ L6_17:
 l_text_0:
     .asciz "unreachable"
 l_text_1:
-    .asciz "src/std/files/module.lucb:21:5"
+    .asciz "src/std/files/module.lucb:20:5"
 l_text_2:
-    .asciz "src/std/files/module.lucb:26:5"
+    .asciz "src/std/files/module.lucb:25:5"
 l_text_3:
     .asciz "src/std/files/module.lucb:36:5"
 l_text_4:
@@ -682,13 +682,13 @@ l_text_4:
 l_text_5:
     .asciz "src/std/files/module.lucb:49:5"
 l_text_6:
-    .asciz "src/std/files/module.lucb:95:17"
+    .asciz "src/std/files/module.lucb:96:17"
 l_text_7:
     .asciz "index out of bounds"
 l_text_8:
     .asciz "the directory could not be read"
 l_text_9:
-    .asciz "src/std/files/module.lucb:107:9"
+    .asciz "src/std/files/module.lucb:108:9"
 
     .section __DATA,__const
     .p2align 3

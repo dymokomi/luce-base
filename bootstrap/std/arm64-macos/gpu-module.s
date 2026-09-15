@@ -440,7 +440,7 @@ L4_3:
 l_text_0:
     .asciz "unreachable"
 l_text_1:
-    .asciz "src/std/gpu/module.lucb:38:5"
+    .asciz "src/std/gpu/module.lucb:37:5"
 l_text_2:
     .asciz "no GPU backend is implemented for this target"
 l_text_3:
@@ -448,7 +448,7 @@ l_text_3:
 l_text_4:
     .asciz "GPU destruction requires the main thread"
 l_text_5:
-    .asciz "src/std/gpu/module.lucb:67:9"
+    .asciz "src/std/gpu/module.lucb:66:9"
 l_text_6:
     .asciz "GPU clear colors must be finite linear sRGB values in 0..1"
 

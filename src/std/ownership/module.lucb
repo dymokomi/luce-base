@@ -211,7 +211,6 @@ pub func abandon(o: Object*):
     if not has(o, buffered):
         release_shell(o)
 
-
 ## The allocation identity, or the concrete owner's identity through an adapter.
 pub func identity(object: Object*) -> u64:
     check_alive(object)

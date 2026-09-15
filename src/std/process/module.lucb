@@ -4,7 +4,6 @@ import memory
 import windows_text
 import platform
 import os
-
 extern func pipe(descriptors: i32*) -> i32
 extern func fork() -> i32
 extern func dup2(from_fd: i32, to_fd: i32) -> i32
@@ -29,7 +28,6 @@ let set_flags: i32 = 4
 ## `O_NONBLOCK`: 4 on macOS, 2048 on Linux.
 let non_blocking: i32 = 4 if platform.macos else 2048
 let would_block: i32 = 35 if platform.macos else 11
-
 pub let failed: ErrorCode = ErrorCode.package(8)
 
 ## A captured stream: bytes in the current allocator, grown as the program writes.

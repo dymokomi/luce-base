@@ -24,7 +24,6 @@ import back.ir.ir
 import back.opt.ssa
 import memory
 import support.list
-
 pub let no_position: u32 = 0xFFFFFFFF
 
 ## What a target offers the temporaries, as runs of register codes: the callee-saved

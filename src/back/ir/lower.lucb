@@ -16,7 +16,6 @@
 #       check is `bounds`, a switch is a chain of compares.
 #
 #==============================================================================================
-
 from back.effects import arguments_have_effect
 import back.declarations as declarations
 import back.ir.ir
@@ -31,7 +30,6 @@ import support.buffer
 import support.decimal
 import support.list
 import support.literals
-
 pub let native_unsupported: ErrorCode = ErrorCode.package(14)
 
 type NodeRef = ast.Node*
@@ -676,7 +674,7 @@ pub struct Lowerer:
     mutating func function(inst: LowerInstance) -> !:
         let d = inst.decl
         if ast.is_linked(d) or not self.defines(inst):
-            return    # the library defines it; calls name the symbol
+            return  # the library defines it; calls name the symbol
         let name = try self.function_name(d, inst.args, inst.owner, inst.owner_args)
         try self.begin_function(name, d, inst)
         self.f.standard = check.is_standard_module(names.module_of(inst.owner else d))

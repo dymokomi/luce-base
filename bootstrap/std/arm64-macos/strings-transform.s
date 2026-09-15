@@ -1761,9 +1761,9 @@ l_text_35:
 l_text_36:
     .asciz "memory.exhausted"
 l_text_37:
-    .asciz "src/std/memory.lucb:326:9"
-l_text_38:
     .asciz "src/std/memory.lucb:328:9"
+l_text_38:
+    .asciz "src/std/memory.lucb:330:9"
 l_text_39:
     .asciz "null_foreign"
 

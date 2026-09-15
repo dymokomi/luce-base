@@ -3094,9 +3094,9 @@ lb_memory_copy_0g1_u8:
 .Ltext_36:
     .asciz "memory.exhausted"
 .Ltext_37:
-    .asciz "src/std/memory.lucb:326:9"
-.Ltext_38:
     .asciz "src/std/memory.lucb:328:9"
+.Ltext_38:
+    .asciz "src/std/memory.lucb:330:9"
 .Ltext_39:
     .asciz "null_foreign"
 

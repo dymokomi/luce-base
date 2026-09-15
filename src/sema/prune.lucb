@@ -119,7 +119,6 @@ pub func contains_break(node: ast.Node*?) -> bool:
         cursor = n.next
     return false
 
-
 ## Whether control certainly never continues past statement `s`: the rule that cuts what
 ## follows. Unlike `statement_leaves`, which the function-end check uses, this one admits no
 ## doubt: a `catch` completes when its expression succeeds, and a `match` leaves only when

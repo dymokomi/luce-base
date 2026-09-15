@@ -11,8 +11,8 @@ import support.list
 
 pub func write(out: io.Writer, checker: check.Checker*, tree: ast.Node*, name: str) -> !:
     var writer = DescriptionWriter(out = out, checker = checker, tree = tree,
-                        used = try alloc bool[checker.modules.count],
-                        foreign_types = try list.List[u32].create(8))
+                                   used = try alloc bool[checker.modules.count],
+                                   foreign_types = try list.List[u32].create(8))
     var i: usize = 0
     while i < writer.used.length:
         writer.used[i] = false

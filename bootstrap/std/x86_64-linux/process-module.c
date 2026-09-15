@@ -4308,35 +4308,35 @@ extern uint32_t lb_gpu_22vulkan_api_version_1_0;
 
 __attribute__((weak)) lb_interop_Transfer_0g1_str lb_interop_Transfer_0g1_str_plain(void) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/process/command/module.lucb:145:5";
+    lb_pos = "src/std/process/command/module.lucb:143:9";
     lb_interop_Transfer_0g1_str _lb_ret1 = ((lb_interop_Transfer_0g1_str){.copy = lb_interop_Transfer_0g1_str_10copy_plain});
     return _lb_ret1;
     lb_trap("unreachable");
 }
 __attribute__((weak)) lb_r_interop_Packet_0g1_str lb_interop_Transfer_0g1_str_10copy_plain(lb_str lb_value) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/process/command/module.lucb:148:5";
+    lb_pos = "src/std/process/command/module.lucb:146:5";
     lb_interop_Packet_0g1_str _lb_ret2 = ({ lb_interop_Packet_0g1_str _lb_iv3 = {}; lb_interop_Packet_0g1_str_init(&_lb_iv3, lb_value, ((void*)0), ((void*)0)); _lb_iv3; });
     return ((lb_r_interop_Packet_0g1_str){ .value = _lb_ret2, .failed = false });
     lb_trap("unreachable");
 }
 __attribute__((weak)) lb_interop_Transfer_0g1_u8_0c lb_interop_Transfer_0g1_u8_0c_plain(void) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/process/command/module.lucb:145:5";
+    lb_pos = "src/std/process/command/module.lucb:143:9";
     lb_interop_Transfer_0g1_u8_0c _lb_ret4 = ((lb_interop_Transfer_0g1_u8_0c){.copy = lb_interop_Transfer_0g1_u8_0c_10copy_plain});
     return _lb_ret4;
     lb_trap("unreachable");
 }
 __attribute__((weak)) lb_r_interop_Packet_0g1_u8_0c lb_interop_Transfer_0g1_u8_0c_10copy_plain(lb_cspan lb_value) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/process/command/module.lucb:148:5";
+    lb_pos = "src/std/process/command/module.lucb:146:5";
     lb_interop_Packet_0g1_u8_0c _lb_ret5 = ({ lb_interop_Packet_0g1_u8_0c _lb_iv6 = {}; lb_interop_Packet_0g1_u8_0c_init(&_lb_iv6, lb_value, ((void*)0), ((void*)0)); _lb_iv6; });
     return ((lb_r_interop_Packet_0g1_u8_0c){ .value = _lb_ret5, .failed = false });
     lb_trap("unreachable");
 }
 lb_r_0T3_i32_str_str lb_process_run(char* lb_program, lb_cspan lb_arguments, char* lb_directory, lb_o_5c_str_0c lb_environment) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/process/module.lucb:89:5";
+    lb_pos = "src/std/process/module.lucb:87:5";
     lb_t_0T3_i32_str_str _lb_ret7 = (({ lb_r_0T3_i32_str_str _lb_r8 = lb_process_14run_controlled(lb_program, lb_arguments, lb_directory, lb_environment, ((void*)0)); if (_lb_r8.failed) {
         return ((lb_r_0T3_i32_str_str){ .error = _lb_r8.error, .failed = true });
     } _lb_r8.value; }));
@@ -4347,181 +4347,181 @@ lb_r_0T3_i32_str_str lb_process_14run_controlled(char* lb_program, lb_cspan lb_a
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
     {
     }
-    lb_pos = "src/std/process/module.lucb:94:5";
+    lb_pos = "src/std/process/module.lucb:92:5";
     char*** lb_slot __attribute__((unused)) = lb_process_19environment_address();
-    lb_pos = "src/std/process/module.lucb:95:5";
+    lb_pos = "src/std/process/module.lucb:93:5";
     lb_span lb_selected __attribute__((unused)) = {};
-    lb_pos = "src/std/process/module.lucb:96:5";
+    lb_pos = "src/std/process/module.lucb:94:5";
     lb_o_5c_str_0c _lb_o9 = lb_environment;
     if (_lb_o9.present) {
         lb_cspan lb_overrides __attribute__((unused)) = _lb_o9.value;
         {
-            lb_pos = "src/std/process/module.lucb:97:9";
+            lb_pos = "src/std/process/module.lucb:95:9";
             lb_selected = (({ lb_r_5c_str_0o_0s _lb_r10 = lb_process_17environment_posix(lb_overrides, (*(lb_slot))); if (_lb_r10.failed) {
                 return ((lb_r_0T3_i32_str_str){ .error = _lb_r10.error, .failed = true });
             } _lb_r10.value; }));
         }
     }
-    lb_pos = "src/std/process/module.lucb:98:5";
-    lb_pos = "src/std/process/module.lucb:99:5";
+    lb_pos = "src/std/process/module.lucb:96:5";
+    lb_pos = "src/std/process/module.lucb:97:5";
     lb_span lb_argv __attribute__((unused)) = (({ lb_r_void_0p_0o_0s _lb_r11 = ({ lb_iface _lb_a12 = lb_memory_allocator; size_t _lb_n12 = (size_t)((size_t)(lb_add_u((uint64_t)((lb_arguments.length)), (uint64_t)(2ULL), 64))); lb_r_void_0p_0o_0s _lb_r12; if (_lb_n12 > UINT64_C(576460752303423488)) { _lb_r12 = ((lb_r_void_0p_0o_0s){ .error = { .code = 208273409, .message = (lb_str){"memory.exhausted", 16} }, .failed = true }); } else { size_t _lb_bytes12 = sizeof(void*) * _lb_n12; lb_o_u8_0s _lb_ao12 = lb_alloc_call(_lb_a12, _lb_bytes12, _Alignof(void*)); if (_lb_bytes12 != 0 && !_lb_ao12.present) { _lb_r12 = ((lb_r_void_0p_0o_0s){ .error = { .code = 208273409, .message = (lb_str){"memory.exhausted", 16} }, .failed = true }); } else { _lb_r12.value.data = _lb_ao12.value.data; _lb_r12.value.length = _lb_n12; _lb_r12.failed = false; } } _lb_r12; }); if (_lb_r11.failed) {
         (void)(lb_process_15release_storage_0g1_5c_str_0o(lb_selected));
         return ((lb_r_0T3_i32_str_str){ .error = _lb_r11.error, .failed = true });
     } _lb_r11.value; }));
-    lb_pos = "src/std/process/module.lucb:100:5";
+    lb_pos = "src/std/process/module.lucb:98:5";
     (*({ lb_span _lb_ix13 = lb_argv; &((void**)_lb_ix13.data)[lb_at((uint64_t)(0ULL), _lb_ix13.length)]; })) = ((void*)(lb_program));
-    lb_pos = "src/std/process/module.lucb:101:5";
+    lb_pos = "src/std/process/module.lucb:99:5";
     size_t lb_i __attribute__((unused)) = 0ULL;
-    lb_pos = "src/std/process/module.lucb:102:5";
+    lb_pos = "src/std/process/module.lucb:100:5";
     for (;;) {
-        lb_pos = "src/std/process/module.lucb:102:5";
+        lb_pos = "src/std/process/module.lucb:100:5";
         if (!((((size_t)(lb_i)) < ((size_t)((lb_arguments.length)))))) break;
         {
-            lb_pos = "src/std/process/module.lucb:103:9";
+            lb_pos = "src/std/process/module.lucb:101:9";
             (*({ lb_span _lb_ix14 = lb_argv; &((void**)_lb_ix14.data)[lb_at((uint64_t)((size_t)(lb_add_u((uint64_t)(lb_i), (uint64_t)(1ULL), 64))), _lb_ix14.length)]; })) = ((void*)((*({ lb_cspan _lb_ix15 = lb_arguments; &((char**)_lb_ix15.data)[lb_at((uint64_t)(lb_i), _lb_ix15.length)]; }))));
-            lb_pos = "src/std/process/module.lucb:104:9";
+            lb_pos = "src/std/process/module.lucb:102:9";
             { size_t* lb__cell16 = &(lb_i);
             (*(lb__cell16)) = (size_t)(lb_add_u((uint64_t)((*(lb__cell16))), (uint64_t)(1ULL), 64)); }
         }
     }
-    lb_pos = "src/std/process/module.lucb:105:5";
+    lb_pos = "src/std/process/module.lucb:103:5";
     (*({ lb_span _lb_ix17 = lb_argv; &((void**)_lb_ix17.data)[lb_at((uint64_t)((size_t)(lb_add_u((uint64_t)((lb_arguments.length)), (uint64_t)(1ULL), 64))), _lb_ix17.length)]; })) = ((void*)0);
-    lb_pos = "src/std/process/module.lucb:106:5";
+    lb_pos = "src/std/process/module.lucb:104:5";
     lb_a_i32_0a2 lb_out_pipe __attribute__((unused)) = {};
-    lb_pos = "src/std/process/module.lucb:107:5";
+    lb_pos = "src/std/process/module.lucb:105:5";
     lb_a_i32_0a2 lb_err_pipe __attribute__((unused)) = {};
-    lb_pos = "src/std/process/module.lucb:108:5";
+    lb_pos = "src/std/process/module.lucb:106:5";
     if (!!(({ int32_t _lb_sq18 __attribute__((unused)) = lb_x_process_pipe(((int32_t*)(lb_out_pipe.d))); int32_t _lb_sq19 __attribute__((unused)) = 0LL; (!(_lb_sq18 == _lb_sq19)); }))) 
     {
-        lb_pos = "src/std/process/module.lucb:109:9";
+        lb_pos = "src/std/process/module.lucb:107:9";
         { lb_span _lb_s20 = lb_argv; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s20.data), lb_mul_u(_lb_s20.length, sizeof(void*), 64) }); }
-        lb_pos = "src/std/process/module.lucb:110:9";
+        lb_pos = "src/std/process/module.lucb:108:9";
         lb_r_0T3_i32_str_str _lb_err21 = ((lb_r_0T3_i32_str_str){ .error = { .code = (int32_t)(lb_process_failed), .message = ((lb_str){"run", 3}) }, .failed = true });
         (void)(lb_process_15release_storage_0g1_5c_str_0o(lb_selected));
         return _lb_err21;
     }
-    lb_pos = "src/std/process/module.lucb:111:5";
+    lb_pos = "src/std/process/module.lucb:109:5";
     if (!!(({ int32_t _lb_sq22 __attribute__((unused)) = lb_x_process_pipe(((int32_t*)(lb_err_pipe.d))); int32_t _lb_sq23 __attribute__((unused)) = 0LL; (!(_lb_sq22 == _lb_sq23)); }))) 
     {
-        lb_pos = "src/std/process/module.lucb:112:9";
+        lb_pos = "src/std/process/module.lucb:110:9";
         (void)(((void)(lb_x_process_close(((lb_out_pipe).d[0])))));
-        lb_pos = "src/std/process/module.lucb:113:9";
+        lb_pos = "src/std/process/module.lucb:111:9";
         (void)(((void)(lb_x_process_close(((lb_out_pipe).d[1])))));
-        lb_pos = "src/std/process/module.lucb:114:9";
+        lb_pos = "src/std/process/module.lucb:112:9";
         { lb_span _lb_s24 = lb_argv; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s24.data), lb_mul_u(_lb_s24.length, sizeof(void*), 64) }); }
-        lb_pos = "src/std/process/module.lucb:115:9";
+        lb_pos = "src/std/process/module.lucb:113:9";
         lb_r_0T3_i32_str_str _lb_err25 = ((lb_r_0T3_i32_str_str){ .error = { .code = (int32_t)(lb_process_failed), .message = ((lb_str){"run", 3}) }, .failed = true });
         (void)(lb_process_15release_storage_0g1_5c_str_0o(lb_selected));
         return _lb_err25;
     }
-    lb_pos = "src/std/process/module.lucb:116:5";
+    lb_pos = "src/std/process/module.lucb:114:5";
     int32_t lb_pid __attribute__((unused)) = lb_x_process_fork();
-    lb_pos = "src/std/process/module.lucb:117:5";
+    lb_pos = "src/std/process/module.lucb:115:5";
     if (!!((((int32_t)(lb_pid)) < ((int32_t)(0LL))))) 
     {
-        lb_pos = "src/std/process/module.lucb:118:9";
+        lb_pos = "src/std/process/module.lucb:116:9";
         (void)(((void)(lb_x_process_close(((lb_out_pipe).d[0])))));
-        lb_pos = "src/std/process/module.lucb:119:9";
+        lb_pos = "src/std/process/module.lucb:117:9";
         (void)(((void)(lb_x_process_close(((lb_out_pipe).d[1])))));
-        lb_pos = "src/std/process/module.lucb:120:9";
+        lb_pos = "src/std/process/module.lucb:118:9";
         (void)(((void)(lb_x_process_close(((lb_err_pipe).d[0])))));
-        lb_pos = "src/std/process/module.lucb:121:9";
+        lb_pos = "src/std/process/module.lucb:119:9";
         (void)(((void)(lb_x_process_close(((lb_err_pipe).d[1])))));
-        lb_pos = "src/std/process/module.lucb:122:9";
+        lb_pos = "src/std/process/module.lucb:120:9";
         { lb_span _lb_s26 = lb_argv; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s26.data), lb_mul_u(_lb_s26.length, sizeof(void*), 64) }); }
-        lb_pos = "src/std/process/module.lucb:123:9";
+        lb_pos = "src/std/process/module.lucb:121:9";
         lb_r_0T3_i32_str_str _lb_err27 = ((lb_r_0T3_i32_str_str){ .error = { .code = (int32_t)(lb_process_failed), .message = ((lb_str){"run", 3}) }, .failed = true });
         (void)(lb_process_15release_storage_0g1_5c_str_0o(lb_selected));
         return _lb_err27;
     }
-    lb_pos = "src/std/process/module.lucb:124:5";
+    lb_pos = "src/std/process/module.lucb:122:5";
     if (!!((lb_pid == 0LL))) 
     {
-        lb_pos = "src/std/process/module.lucb:125:9";
+        lb_pos = "src/std/process/module.lucb:123:9";
         if (!!((!(lb_control == ((void*)0))))) 
         {
-            lb_pos = "src/std/process/module.lucb:126:13";
+            lb_pos = "src/std/process/module.lucb:124:13";
             if (!!(({ int32_t _lb_sq28 __attribute__((unused)) = lb_x_process_setpgid(0LL, 0LL); int32_t _lb_sq29 __attribute__((unused)) = 0LL; (!(_lb_sq28 == _lb_sq29)); }))) 
             {
-                lb_pos = "src/std/process/module.lucb:127:17";
+                lb_pos = "src/std/process/module.lucb:125:17";
                 (void)(lb_x_process_5_exit(127LL));
             }
-            lb_pos = "src/std/process/module.lucb:128:13";
+            lb_pos = "src/std/process/module.lucb:126:13";
             int32_t lb_input __attribute__((unused)) = lb_x_process_open("/dev/null", 0LL);
-            lb_pos = "src/std/process/module.lucb:129:13";
+            lb_pos = "src/std/process/module.lucb:127:13";
             if (!!(((((int32_t)(lb_input)) < ((int32_t)(0LL))) || ({ int32_t _lb_sq30 __attribute__((unused)) = lb_x_process_dup2(lb_input, 0LL); int32_t _lb_sq31 __attribute__((unused)) = 0LL; (((int32_t)(_lb_sq30)) < ((int32_t)(_lb_sq31))); })))) 
             {
-                lb_pos = "src/std/process/module.lucb:130:17";
+                lb_pos = "src/std/process/module.lucb:128:17";
                 (void)(lb_x_process_5_exit(127LL));
             }
-            lb_pos = "src/std/process/module.lucb:131:13";
+            lb_pos = "src/std/process/module.lucb:129:13";
             if (!!((((int32_t)(lb_input)) > ((int32_t)(2LL))))) 
             {
-                lb_pos = "src/std/process/module.lucb:132:17";
+                lb_pos = "src/std/process/module.lucb:130:17";
                 (void)(((void)(lb_x_process_close(lb_input))));
             }
         }
-        lb_pos = "src/std/process/module.lucb:133:9";
+        lb_pos = "src/std/process/module.lucb:131:9";
         (void)(((void)(lb_x_process_close(((lb_out_pipe).d[0])))));
-        lb_pos = "src/std/process/module.lucb:134:9";
+        lb_pos = "src/std/process/module.lucb:132:9";
         (void)(((void)(lb_x_process_close(((lb_err_pipe).d[0])))));
-        lb_pos = "src/std/process/module.lucb:135:9";
+        lb_pos = "src/std/process/module.lucb:133:9";
         if (!!((({ int32_t _lb_sq32 __attribute__((unused)) = lb_x_process_dup2(((lb_out_pipe).d[1]), 1LL); int32_t _lb_sq33 __attribute__((unused)) = 0LL; (((int32_t)(_lb_sq32)) < ((int32_t)(_lb_sq33))); }) || ({ int32_t _lb_sq34 __attribute__((unused)) = lb_x_process_dup2(((lb_err_pipe).d[1]), 2LL); int32_t _lb_sq35 __attribute__((unused)) = 0LL; (((int32_t)(_lb_sq34)) < ((int32_t)(_lb_sq35))); })))) 
         {
-            lb_pos = "src/std/process/module.lucb:136:13";
+            lb_pos = "src/std/process/module.lucb:134:13";
             (void)(lb_x_process_5_exit(127LL));
         }
-        lb_pos = "src/std/process/module.lucb:137:9";
+        lb_pos = "src/std/process/module.lucb:135:9";
         (void)(((void)(lb_x_process_close(((lb_out_pipe).d[1])))));
-        lb_pos = "src/std/process/module.lucb:138:9";
+        lb_pos = "src/std/process/module.lucb:136:9";
         (void)(((void)(lb_x_process_close(((lb_err_pipe).d[1])))));
-        lb_pos = "src/std/process/module.lucb:139:9";
+        lb_pos = "src/std/process/module.lucb:137:9";
         if (!!(((((size_t)(((({ const char* _lb_sb36 = lb_directory; size_t _lb_sl36 = _lb_sb36 == NULL ? 0 : strlen(_lb_sb36); (lb_str){ _lb_sb36, _lb_sl36 }; })).length))) > ((size_t)(0ULL))) && ({ int32_t _lb_sq37 __attribute__((unused)) = lb_x_process_chdir(lb_directory); int32_t _lb_sq38 __attribute__((unused)) = 0LL; (!(_lb_sq37 == _lb_sq38)); })))) 
         {
-            lb_pos = "src/std/process/module.lucb:140:13";
+            lb_pos = "src/std/process/module.lucb:138:13";
             (void)(lb_x_process_5_exit(127LL));
         }
-        lb_pos = "src/std/process/module.lucb:141:9";
+        lb_pos = "src/std/process/module.lucb:139:9";
         if (!!((((size_t)((lb_selected.length))) > ((size_t)(0ULL))))) 
         {
-            lb_pos = "src/std/process/module.lucb:142:13";
+            lb_pos = "src/std/process/module.lucb:140:13";
             (*(lb_slot)) = ((char**)(lb_selected.data));
         }
-        lb_pos = "src/std/process/module.lucb:143:9";
+        lb_pos = "src/std/process/module.lucb:141:9";
         (void)(((void)(lb_x_process_execvp(lb_program, ((void**)(lb_argv.data))))));
-        lb_pos = "src/std/process/module.lucb:144:9";
+        lb_pos = "src/std/process/module.lucb:142:9";
         (void)(lb_x_process_5_exit(127LL));
     }
-    lb_pos = "src/std/process/module.lucb:145:5";
+    lb_pos = "src/std/process/module.lucb:143:5";
     if (!!((!(lb_control == ((void*)0))))) 
     {
-        lb_pos = "src/std/process/module.lucb:146:9";
+        lb_pos = "src/std/process/module.lucb:144:9";
         (void)(((void)(lb_x_process_setpgid(lb_pid, lb_pid))));
     }
-    lb_pos = "src/std/process/module.lucb:147:5";
+    lb_pos = "src/std/process/module.lucb:145:5";
     { lb_span _lb_s39 = lb_argv; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s39.data), lb_mul_u(_lb_s39.length, sizeof(void*), 64) }); }
-    lb_pos = "src/std/process/module.lucb:148:5";
+    lb_pos = "src/std/process/module.lucb:146:5";
     (void)(((void)(lb_x_process_close(((lb_out_pipe).d[1])))));
-    lb_pos = "src/std/process/module.lucb:149:5";
+    lb_pos = "src/std/process/module.lucb:147:5";
     (void)(((void)(lb_x_process_close(((lb_err_pipe).d[1])))));
-    lb_pos = "src/std/process/module.lucb:150:5";
+    lb_pos = "src/std/process/module.lucb:148:5";
     lb_span lb_empty __attribute__((unused)) = {};
-    lb_pos = "src/std/process/module.lucb:151:5";
+    lb_pos = "src/std/process/module.lucb:149:5";
     lb_process_Capture lb_out_ __attribute__((unused)) = ((lb_process_Capture){.descriptor = ((lb_out_pipe).d[0]), .data = lb_empty, .used = 0ULL, .open = true});
-    lb_pos = "src/std/process/module.lucb:152:5";
+    lb_pos = "src/std/process/module.lucb:150:5";
     lb_process_Capture lb_err __attribute__((unused)) = ((lb_process_Capture){.descriptor = ((lb_err_pipe).d[0]), .data = lb_empty, .used = 0ULL, .open = true});
+    lb_pos = "src/std/process/module.lucb:151:5";
+    lb_pos = "src/std/process/module.lucb:152:5";
     lb_pos = "src/std/process/module.lucb:153:5";
     lb_pos = "src/std/process/module.lucb:154:5";
     lb_pos = "src/std/process/module.lucb:155:5";
-    lb_pos = "src/std/process/module.lucb:156:5";
-    lb_pos = "src/std/process/module.lucb:157:5";
     int32_t lb_status __attribute__((unused)) = 0LL;
-    lb_pos = "src/std/process/module.lucb:158:5";
+    lb_pos = "src/std/process/module.lucb:156:5";
     struct lb_process_CommandState* _lb_o40 = lb_control;
     if (_lb_o40 != ((void*)0)) {
         struct lb_process_CommandState* lb_observer __attribute__((unused)) = _lb_o40;
         {
-            lb_pos = "src/std/process/module.lucb:159:9";
+            lb_pos = "src/std/process/module.lucb:157:9";
             lb_status = (({ lb_r_i32 _lb_r41 = lb_process_15capture_command(lb_pid, &(lb_out_), &(lb_err), lb_observer); if (_lb_r41.failed) {
                 (void)(lb_process_Capture_drop(&(lb_err)));
                 (void)(lb_process_Capture_drop(&(lb_out_)));
@@ -4534,7 +4534,7 @@ lb_r_0T3_i32_str_str lb_process_14run_controlled(char* lb_program, lb_cspan lb_a
     }
     else 
     {
-        lb_pos = "src/std/process/module.lucb:161:9";
+        lb_pos = "src/std/process/module.lucb:159:9";
         (void)((({ lb_r_unit _lb_r42 = lb_process_capture(lb_pid, &(lb_out_), &(lb_err)); if (_lb_r42.failed) {
             (void)(lb_process_Capture_drop(&(lb_err)));
             (void)(lb_process_Capture_drop(&(lb_out_)));
@@ -4543,7 +4543,7 @@ lb_r_0T3_i32_str_str lb_process_14run_controlled(char* lb_program, lb_cspan lb_a
             (void)(lb_process_15release_storage_0g1_5c_str_0o(lb_selected));
             return ((lb_r_0T3_i32_str_str){ .error = _lb_r42.error, .failed = true });
         } (void)0; })));
-        lb_pos = "src/std/process/module.lucb:162:9";
+        lb_pos = "src/std/process/module.lucb:160:9";
         lb_status = (({ lb_r_i32 _lb_r43 = lb_process_8wait_for(lb_pid); if (_lb_r43.failed) {
             (void)(lb_process_Capture_drop(&(lb_err)));
             (void)(lb_process_Capture_drop(&(lb_out_)));
@@ -4553,10 +4553,10 @@ lb_r_0T3_i32_str_str lb_process_14run_controlled(char* lb_program, lb_cspan lb_a
             return ((lb_r_0T3_i32_str_str){ .error = _lb_r43.error, .failed = true });
         } _lb_r43.value; }));
     }
-    lb_pos = "src/std/process/module.lucb:163:5";
+    lb_pos = "src/std/process/module.lucb:161:5";
     if (!!((!((((int32_t)(lb_status & 127LL))) == 0LL)))) 
     {
-        lb_pos = "src/std/process/module.lucb:164:9";
+        lb_pos = "src/std/process/module.lucb:162:9";
         lb_r_0T3_i32_str_str _lb_err44 = ((lb_r_0T3_i32_str_str){ .error = { .code = (int32_t)(lb_process_failed), .message = ((lb_str){"the program was stopped by a signal", 35}) }, .failed = true });
         (void)(lb_process_Capture_drop(&(lb_err)));
         (void)(lb_process_Capture_drop(&(lb_out_)));
@@ -4565,7 +4565,7 @@ lb_r_0T3_i32_str_str lb_process_14run_controlled(char* lb_program, lb_cspan lb_a
         (void)(lb_process_15release_storage_0g1_5c_str_0o(lb_selected));
         return _lb_err44;
     }
-    lb_pos = "src/std/process/module.lucb:165:5";
+    lb_pos = "src/std/process/module.lucb:163:5";
     lb_str lb_out_text __attribute__((unused)) = (({ lb_r_str _lb_r45 = lb_process_Capture_take(&(lb_out_)); if (_lb_r45.failed) {
         (void)(lb_process_Capture_drop(&(lb_err)));
         (void)(lb_process_Capture_drop(&(lb_out_)));
@@ -4574,16 +4574,16 @@ lb_r_0T3_i32_str_str lb_process_14run_controlled(char* lb_program, lb_cspan lb_a
         (void)(lb_process_15release_storage_0g1_5c_str_0o(lb_selected));
         return ((lb_r_0T3_i32_str_str){ .error = _lb_r45.error, .failed = true });
     } _lb_r45.value; }));
-    lb_pos = "src/std/process/module.lucb:166:5";
+    lb_pos = "src/std/process/module.lucb:164:5";
     lb_str lb_err_text __attribute__((unused)) = ({ lb_error _lb_fe46 __attribute__((unused)); lb_str _lb_v46 __attribute__((unused)) = {}; _lb_v46 = ({ lb_r_str _lb_r47 = lb_process_Capture_take(&(lb_err)); if (_lb_r47.failed) {
         _lb_fe46 = _lb_r47.error;
         goto _lb_fh46;
     } _lb_r47.value; }); goto _lb_cd46; _lb_fh46: { 
         lb_error lb_failure __attribute__((unused)) = _lb_fe46;
         {
-            lb_pos = "src/std/process/module.lucb:167:9";
+            lb_pos = "src/std/process/module.lucb:165:9";
             (void)(lb_process_release(lb_out_text));
-            lb_pos = "src/std/process/module.lucb:168:9";
+            lb_pos = "src/std/process/module.lucb:166:9";
             lb_r_0T3_i32_str_str _lb_err48 = ((lb_r_0T3_i32_str_str){ .error = { .code = (int32_t)((lb_failure.code)), .message = (lb_failure.message) }, .failed = true });
             (void)(lb_process_Capture_drop(&(lb_err)));
             (void)(lb_process_Capture_drop(&(lb_out_)));
@@ -4593,7 +4593,7 @@ lb_r_0T3_i32_str_str lb_process_14run_controlled(char* lb_program, lb_cspan lb_a
             return _lb_err48;
         }
     } _lb_cd46: __attribute__((unused)); _lb_v46; });
-    lb_pos = "src/std/process/module.lucb:169:5";
+    lb_pos = "src/std/process/module.lucb:167:5";
     lb_t_0T3_i32_str_str _lb_ret49 = ((lb_t_0T3_i32_str_str){((int32_t)(((int32_t)(lb_shr_s((int64_t)(lb_status), (int64_t)((int32_t)(8LL)), 32))) & 255LL)), lb_out_text, lb_err_text});
     (void)(lb_process_Capture_drop(&(lb_err)));
     (void)(lb_process_Capture_drop(&(lb_out_)));
@@ -4610,52 +4610,52 @@ lb_r_0T3_i32_str_str lb_process_14run_controlled(char* lb_program, lb_cspan lb_a
 }
 void lb_process_terminate(int32_t lb_pid) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/process/module.lucb:205:5";
+    lb_pos = "src/std/process/module.lucb:203:5";
     (void)(((void)(lb_x_process_kill(lb_pid, 9LL))));
-    lb_pos = "src/std/process/module.lucb:206:5";
+    lb_pos = "src/std/process/module.lucb:204:5";
     int32_t lb_status __attribute__((unused)) = 0LL;
-    lb_pos = "src/std/process/module.lucb:207:5";
+    lb_pos = "src/std/process/module.lucb:205:5";
     for (;;) {
-        lb_pos = "src/std/process/module.lucb:207:5";
+        lb_pos = "src/std/process/module.lucb:205:5";
         if (!((({ int32_t _lb_sq50 __attribute__((unused)) = lb_x_process_waitpid(lb_pid, &(lb_status), 0LL); int32_t _lb_sq51 __attribute__((unused)) = 0LL; (((int32_t)(_lb_sq50)) < ((int32_t)(_lb_sq51))); }) && ({ int32_t _lb_sq52 __attribute__((unused)) = lb_c_errno(); int32_t _lb_sq53 __attribute__((unused)) = lb_c_interrupted; (_lb_sq52 == _lb_sq53); })))) break;
         {
-            lb_pos = "src/std/process/module.lucb:208:9";
+            lb_pos = "src/std/process/module.lucb:206:9";
             continue;
         }
     }
 }
 void lb_process_release(lb_str lb_text) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/process/module.lucb:212:5";
+    lb_pos = "src/std/process/module.lucb:210:5";
     if (!!((((size_t)((lb_text.length))) > ((size_t)(0ULL))))) 
     {
-        lb_pos = "src/std/process/module.lucb:213:9";
+        lb_pos = "src/std/process/module.lucb:211:9";
         { lb_span _lb_s54 = ((lb_span){(void*)(((uint8_t*)(((const uint8_t*)(((lb_cspan){(void*)(lb_text.data), lb_text.length}).data))))), (size_t)((lb_text.length))}); lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s54.data), lb_mul_u(_lb_s54.length, sizeof(uint8_t), 64) }); }
     }
 }
 void lb_process_exit(int32_t lb_code) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/process/module.lucb:216:5";
+    lb_pos = "src/std/process/module.lucb:214:5";
     (void)(lb_core_exit(lb_code));
     lb_trap("unreachable");
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_str_init(lb_interop_Packet_0g1_str* self, lb_str lb_value, void* lb_storage, lb_fn_0F1_void_0p_unit lb_dispose) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/process/command/module.lucb:129:9";
+    lb_pos = "src/std/process/command/module.lucb:127:9";
     self->value = lb_value;
-    lb_pos = "src/std/process/command/module.lucb:130:13";
+    lb_pos = "src/std/process/command/module.lucb:128:13";
     self->storage = lb_storage;
-    lb_pos = "src/std/process/command/module.lucb:131:9";
+    lb_pos = "src/std/process/command/module.lucb:129:9";
     self->dispose = lb_dispose;
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_str_release(const lb_interop_Packet_0g1_str* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/process/command/module.lucb:134:13";
+    lb_pos = "src/std/process/command/module.lucb:132:13";
     void* _lb_o55 = self->storage;
     if (_lb_o55 != ((void*)0)) {
         void* lb_storage __attribute__((unused)) = _lb_o55;
         {
-            lb_pos = "src/std/process/command/module.lucb:135:9";
+            lb_pos = "src/std/process/command/module.lucb:133:9";
             (void)(((({ lb_fn_0F1_void_0p_unit _lb_o56 = self->dispose; if (_lb_o56 == ((void*)0)) {
                 (void)(lb_trap_text(((lb_str){"a packet has storage without a disposer", 39})));
             } _lb_o56; })))(lb_storage));
@@ -4664,21 +4664,21 @@ __attribute__((weak)) void lb_interop_Packet_0g1_str_release(const lb_interop_Pa
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_init(lb_interop_Packet_0g1_u8_0c* self, lb_cspan lb_value, void* lb_storage, lb_fn_0F1_void_0p_unit lb_dispose) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/process/command/module.lucb:129:9";
+    lb_pos = "src/std/process/command/module.lucb:127:9";
     self->value = lb_value;
-    lb_pos = "src/std/process/command/module.lucb:130:13";
+    lb_pos = "src/std/process/command/module.lucb:128:13";
     self->storage = lb_storage;
-    lb_pos = "src/std/process/command/module.lucb:131:9";
+    lb_pos = "src/std/process/command/module.lucb:129:9";
     self->dispose = lb_dispose;
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_release(const lb_interop_Packet_0g1_u8_0c* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/process/command/module.lucb:134:13";
+    lb_pos = "src/std/process/command/module.lucb:132:13";
     void* _lb_o57 = self->storage;
     if (_lb_o57 != ((void*)0)) {
         void* lb_storage __attribute__((unused)) = _lb_o57;
         {
-            lb_pos = "src/std/process/command/module.lucb:135:9";
+            lb_pos = "src/std/process/command/module.lucb:133:9";
             (void)(((({ lb_fn_0F1_void_0p_unit _lb_o58 = self->dispose; if (_lb_o58 == ((void*)0)) {
                 (void)(lb_trap_text(((lb_str){"a packet has storage without a disposer", 39})));
             } _lb_o58; })))(lb_storage));
@@ -4687,75 +4687,75 @@ __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_release(const lb_interop_
 }
 __attribute__((weak)) void lb_process_15release_storage_0g1_5c_str_0o(lb_span lb_storage) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/process/module.lucb:173:5";
+    lb_pos = "src/std/process/module.lucb:171:5";
     if (!!((((size_t)((lb_storage.length))) > ((size_t)(0ULL))))) 
     {
-        lb_pos = "src/std/process/module.lucb:174:9";
+        lb_pos = "src/std/process/module.lucb:172:9";
         { lb_span _lb_s59 = lb_storage; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s59.data), lb_mul_u(_lb_s59.length, sizeof(char*), 64) }); }
     }
 }
 void lb_process_Capture_drop(lb_process_Capture* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/process/module.lucb:72:9";
+    lb_pos = "src/std/process/module.lucb:70:9";
     if (!!((((size_t)((self->data.length))) > ((size_t)(0ULL))))) 
     {
-        lb_pos = "src/std/process/module.lucb:73:13";
+        lb_pos = "src/std/process/module.lucb:71:13";
         { lb_span _lb_s60 = self->data; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s60.data), lb_mul_u(_lb_s60.length, sizeof(uint8_t), 64) }); }
-        lb_pos = "src/std/process/module.lucb:74:13";
+        lb_pos = "src/std/process/module.lucb:72:13";
         lb_span lb_empty __attribute__((unused)) = {};
-        lb_pos = "src/std/process/module.lucb:75:13";
+        lb_pos = "src/std/process/module.lucb:73:13";
         self->data = lb_empty;
     }
 }
 lb_r_unit lb_process_capture(int32_t lb_pid, struct lb_process_Capture* lb_out_, struct lb_process_Capture* lb_err) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/process/module.lucb:179:5";
-    lb_pos = "src/std/process/module.lucb:180:5";
+    lb_pos = "src/std/process/module.lucb:177:5";
+    lb_pos = "src/std/process/module.lucb:178:5";
     if (!!((({ int32_t _lb_sq61 __attribute__((unused)) = lb_x_process_fcntl((lb_out_)->descriptor, lb_process_9set_flags, lb_process_12non_blocking); int32_t _lb_sq62 __attribute__((unused)) = 0LL; (((int32_t)(_lb_sq61)) < ((int32_t)(_lb_sq62))); }) || ({ int32_t _lb_sq63 __attribute__((unused)) = lb_x_process_fcntl((lb_err)->descriptor, lb_process_9set_flags, lb_process_12non_blocking); int32_t _lb_sq64 __attribute__((unused)) = 0LL; (((int32_t)(_lb_sq63)) < ((int32_t)(_lb_sq64))); })))) 
     {
-        lb_pos = "src/std/process/module.lucb:181:9";
+        lb_pos = "src/std/process/module.lucb:179:9";
         lb_r_unit _lb_err65 = ((lb_r_unit){ .error = { .code = (int32_t)(lb_process_failed), .message = ((lb_str){"the program's output cannot be read", 35}) }, .failed = true });
         (void)(lb_process_terminate(lb_pid));
         return _lb_err65;
     }
-    lb_pos = "src/std/process/module.lucb:182:5";
+    lb_pos = "src/std/process/module.lucb:180:5";
     for (;;) {
-        lb_pos = "src/std/process/module.lucb:182:5";
+        lb_pos = "src/std/process/module.lucb:180:5";
         if (!(((lb_out_)->open || (lb_err)->open))) break;
         {
-            lb_pos = "src/std/process/module.lucb:183:9";
+            lb_pos = "src/std/process/module.lucb:181:9";
             lb_a_process_Poll_0a2 lb_watched __attribute__((unused));
-            lb_pos = "src/std/process/module.lucb:184:9";
+            lb_pos = "src/std/process/module.lucb:182:9";
             ((lb_watched).d[0]) = ((Poll){.descriptor = ((lb_out_)->open ? (lb_out_)->descriptor : ((int32_t)(-1LL))), .events = lb_process_7poll_in, .returned = 0LL});
-            lb_pos = "src/std/process/module.lucb:185:9";
+            lb_pos = "src/std/process/module.lucb:183:9";
             ((lb_watched).d[1]) = ((Poll){.descriptor = ((lb_err)->open ? (lb_err)->descriptor : ((int32_t)(-1LL))), .events = lb_process_7poll_in, .returned = 0LL});
-            lb_pos = "src/std/process/module.lucb:186:9";
+            lb_pos = "src/std/process/module.lucb:184:9";
             if (!!(({ int32_t _lb_sq66 __attribute__((unused)) = lb_x_process_poll(((struct Poll*)(lb_watched.d)), 2ULL, ((int32_t)(-1LL))); int32_t _lb_sq67 __attribute__((unused)) = 0LL; (((int32_t)(_lb_sq66)) < ((int32_t)(_lb_sq67))); }))) 
             {
-                lb_pos = "src/std/process/module.lucb:187:13";
+                lb_pos = "src/std/process/module.lucb:185:13";
                 if (!!(({ int32_t _lb_sq68 __attribute__((unused)) = lb_c_errno(); int32_t _lb_sq69 __attribute__((unused)) = lb_c_interrupted; (_lb_sq68 == _lb_sq69); }))) 
                 {
-                    lb_pos = "src/std/process/module.lucb:188:17";
+                    lb_pos = "src/std/process/module.lucb:186:17";
                     continue;
                 }
-                lb_pos = "src/std/process/module.lucb:189:13";
+                lb_pos = "src/std/process/module.lucb:187:13";
                 lb_r_unit _lb_err70 = ((lb_r_unit){ .error = { .code = (int32_t)(lb_process_failed), .message = ((lb_str){"the program's output cannot be read", 35}) }, .failed = true });
                 (void)(lb_process_terminate(lb_pid));
                 return _lb_err70;
             }
-            lb_pos = "src/std/process/module.lucb:190:9";
+            lb_pos = "src/std/process/module.lucb:188:9";
             if (!!(((lb_out_)->open && (!((((int16_t)(((lb_watched).d[0]).returned & (((int16_t)(((int16_t)(lb_process_7poll_in | lb_process_12poll_hang_up)) | lb_process_10poll_error)))))) == 0LL))))) 
             {
-                lb_pos = "src/std/process/module.lucb:191:13";
+                lb_pos = "src/std/process/module.lucb:189:13";
                 (void)((({ lb_r_unit _lb_r71 = lb_process_Capture_pull(lb_out_); if (_lb_r71.failed) {
                     (void)(lb_process_terminate(lb_pid));
                     return ((lb_r_unit){ .error = _lb_r71.error, .failed = true });
                 } (void)0; })));
             }
-            lb_pos = "src/std/process/module.lucb:192:9";
+            lb_pos = "src/std/process/module.lucb:190:9";
             if (!!(((lb_err)->open && (!((((int16_t)(((lb_watched).d[1]).returned & (((int16_t)(((int16_t)(lb_process_7poll_in | lb_process_12poll_hang_up)) | lb_process_10poll_error)))))) == 0LL))))) 
             {
-                lb_pos = "src/std/process/module.lucb:193:13";
+                lb_pos = "src/std/process/module.lucb:191:13";
                 (void)((({ lb_r_unit _lb_r72 = lb_process_Capture_pull(lb_err); if (_lb_r72.failed) {
                     (void)(lb_process_terminate(lb_pid));
                     return ((lb_r_unit){ .error = _lb_r72.error, .failed = true });
@@ -4767,103 +4767,103 @@ lb_r_unit lb_process_capture(int32_t lb_pid, struct lb_process_Capture* lb_out_,
 }
 lb_r_i32 lb_process_8wait_for(int32_t lb_pid) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/process/module.lucb:197:5";
+    lb_pos = "src/std/process/module.lucb:195:5";
     int32_t lb_status __attribute__((unused)) = 0LL;
-    lb_pos = "src/std/process/module.lucb:198:5";
+    lb_pos = "src/std/process/module.lucb:196:5";
     for (;;) {
-        lb_pos = "src/std/process/module.lucb:198:5";
+        lb_pos = "src/std/process/module.lucb:196:5";
         if (!(({ int32_t _lb_sq73 __attribute__((unused)) = lb_x_process_waitpid(lb_pid, &(lb_status), 0LL); int32_t _lb_sq74 __attribute__((unused)) = 0LL; (((int32_t)(_lb_sq73)) < ((int32_t)(_lb_sq74))); }))) break;
         {
-            lb_pos = "src/std/process/module.lucb:199:9";
+            lb_pos = "src/std/process/module.lucb:197:9";
             if (!!(({ int32_t _lb_sq75 __attribute__((unused)) = lb_c_errno(); int32_t _lb_sq76 __attribute__((unused)) = lb_c_interrupted; (!(_lb_sq75 == _lb_sq76)); }))) 
             {
-                lb_pos = "src/std/process/module.lucb:200:13";
+                lb_pos = "src/std/process/module.lucb:198:13";
                 lb_r_i32 _lb_err77 = ((lb_r_i32){ .error = { .code = (int32_t)(lb_process_failed), .message = ((lb_str){"run", 3}) }, .failed = true });
                 return _lb_err77;
             }
         }
     }
-    lb_pos = "src/std/process/module.lucb:201:5";
+    lb_pos = "src/std/process/module.lucb:199:5";
     int32_t _lb_ret78 = lb_status;
     return ((lb_r_i32){ .value = _lb_ret78, .failed = false });
     lb_trap("unreachable");
 }
 lb_r_str lb_process_Capture_take(lb_process_Capture* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/process/module.lucb:59:9";
+    lb_pos = "src/std/process/module.lucb:57:9";
     lb_span lb_empty __attribute__((unused)) = {};
-    lb_pos = "src/std/process/module.lucb:60:9";
+    lb_pos = "src/std/process/module.lucb:58:9";
     if (!!((self->used == 0ULL))) 
     {
-        lb_pos = "src/std/process/module.lucb:61:13";
+        lb_pos = "src/std/process/module.lucb:59:13";
         if (!!((((size_t)((self->data.length))) > ((size_t)(0ULL))))) 
         {
-            lb_pos = "src/std/process/module.lucb:62:17";
+            lb_pos = "src/std/process/module.lucb:60:17";
             { lb_span _lb_s79 = self->data; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s79.data), lb_mul_u(_lb_s79.length, sizeof(uint8_t), 64) }); }
-            lb_pos = "src/std/process/module.lucb:63:17";
+            lb_pos = "src/std/process/module.lucb:61:17";
             self->data = lb_empty;
         }
-        lb_pos = "src/std/process/module.lucb:64:13";
+        lb_pos = "src/std/process/module.lucb:62:13";
         lb_str _lb_ret80 = ({ lb_span _lb_sc81 = lb_empty; const char* _lb_sb81 = (const char*)_lb_sc81.data; size_t _lb_sl81 = _lb_sc81.length; (lb_str){ _lb_sb81, _lb_sl81 }; });
         return ((lb_r_str){ .value = _lb_ret80, .failed = false });
     }
-    lb_pos = "src/std/process/module.lucb:65:9";
+    lb_pos = "src/std/process/module.lucb:63:9";
     lb_span lb_exact __attribute__((unused)) = (({ lb_r_u8_0s _lb_r82 = ({ lb_iface _lb_a83 = lb_memory_allocator; size_t _lb_n83 = (size_t)(self->used); lb_r_u8_0s _lb_r83; if (_lb_n83 > UINT64_C(4611686018427387904)) { _lb_r83 = ((lb_r_u8_0s){ .error = { .code = 208273409, .message = (lb_str){"memory.exhausted", 16} }, .failed = true }); } else { size_t _lb_bytes83 = sizeof(uint8_t) * _lb_n83; lb_o_u8_0s _lb_ao83 = lb_alloc_call(_lb_a83, _lb_bytes83, _Alignof(uint8_t)); if (_lb_bytes83 != 0 && !_lb_ao83.present) { _lb_r83 = ((lb_r_u8_0s){ .error = { .code = 208273409, .message = (lb_str){"memory.exhausted", 16} }, .failed = true }); } else { _lb_r83.value.data = _lb_ao83.value.data; _lb_r83.value.length = _lb_n83; _lb_r83.failed = false; } } _lb_r83; }); if (_lb_r82.failed) {
         return ((lb_r_str){ .error = _lb_r82.error, .failed = true });
     } _lb_r82.value; }));
-    lb_pos = "src/std/process/module.lucb:66:9";
+    lb_pos = "src/std/process/module.lucb:64:9";
     (void)(lb_memory_copy_0g1_u8(lb_exact, self->data, self->used));
-    lb_pos = "src/std/process/module.lucb:67:9";
+    lb_pos = "src/std/process/module.lucb:65:9";
     { lb_span _lb_s84 = self->data; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s84.data), lb_mul_u(_lb_s84.length, sizeof(uint8_t), 64) }); }
-    lb_pos = "src/std/process/module.lucb:68:9";
+    lb_pos = "src/std/process/module.lucb:66:9";
     self->data = lb_empty;
-    lb_pos = "src/std/process/module.lucb:69:9";
+    lb_pos = "src/std/process/module.lucb:67:9";
     lb_str _lb_ret85 = ({ lb_span _lb_sc86 = lb_exact; const char* _lb_sb86 = (const char*)_lb_sc86.data; size_t _lb_sl86 = _lb_sc86.length; (lb_str){ _lb_sb86, _lb_sl86 }; });
     return ((lb_r_str){ .value = _lb_ret85, .failed = false });
     lb_trap("unreachable");
 }
 lb_r_unit lb_process_Capture_pull(lb_process_Capture* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/process/module.lucb:43:9";
+    lb_pos = "src/std/process/module.lucb:41:9";
     if (!!((((size_t)((size_t)(lb_sub_u((uint64_t)((self->data.length)), (uint64_t)(self->used), 64)))) < ((size_t)(256ULL))))) 
     {
-        lb_pos = "src/std/process/module.lucb:44:13";
+        lb_pos = "src/std/process/module.lucb:42:13";
         if (!!(((self->data.length) == 0ULL))) 
         {
-            lb_pos = "src/std/process/module.lucb:45:17";
+            lb_pos = "src/std/process/module.lucb:43:17";
             self->data = (({ lb_r_u8_0s _lb_r87 = ({ lb_iface _lb_a88 = lb_memory_allocator; size_t _lb_n88 = (size_t)(1024ULL); lb_r_u8_0s _lb_r88; if (_lb_n88 > UINT64_C(4611686018427387904)) { _lb_r88 = ((lb_r_u8_0s){ .error = { .code = 208273409, .message = (lb_str){"memory.exhausted", 16} }, .failed = true }); } else { size_t _lb_bytes88 = sizeof(uint8_t) * _lb_n88; lb_o_u8_0s _lb_ao88 = lb_alloc_call(_lb_a88, _lb_bytes88, _Alignof(uint8_t)); if (_lb_bytes88 != 0 && !_lb_ao88.present) { _lb_r88 = ((lb_r_u8_0s){ .error = { .code = 208273409, .message = (lb_str){"memory.exhausted", 16} }, .failed = true }); } else { _lb_r88.value.data = _lb_ao88.value.data; _lb_r88.value.length = _lb_n88; _lb_r88.failed = false; } } _lb_r88; }); if (_lb_r87.failed) {
                 return ((lb_r_unit){ .error = _lb_r87.error, .failed = true });
             } _lb_r87.value; }));
         }
         else 
         {
-            lb_pos = "src/std/process/module.lucb:47:17";
+            lb_pos = "src/std/process/module.lucb:45:17";
             self->data = (({ lb_r_u8_0s _lb_r89 = lb_memory_grow(self->data, (size_t)(lb_mul_u((uint64_t)((self->data.length)), (uint64_t)(2ULL), 64))); if (_lb_r89.failed) {
                 return ((lb_r_unit){ .error = _lb_r89.error, .failed = true });
             } _lb_r89.value; }));
         }
     }
-    lb_pos = "src/std/process/module.lucb:48:9";
+    lb_pos = "src/std/process/module.lucb:46:9";
     intptr_t lb_n __attribute__((unused)) = lb_c_process_6c_read(self->descriptor, ((uint8_t*)(({ lb_span _lb_sv90 = self->data; size_t _lb_sn90 = _lb_sv90.length; uint8_t* _lb_sd90 = (uint8_t*)_lb_sv90.data; size_t _lb_ss90 = (size_t)(self->used); size_t _lb_se90 = _lb_sn90; lb_check_index(_lb_ss90, _lb_sn90 + 1); lb_check_index(_lb_se90, _lb_sn90 + 1); if (_lb_ss90 > _lb_se90) lb_trap("index out of bounds"); (lb_span){ (void*)(_lb_sd90 + _lb_ss90), _lb_se90 - _lb_ss90 }; }).data)), (size_t)(lb_sub_u((uint64_t)((self->data.length)), (uint64_t)(self->used), 64)));
-    lb_pos = "src/std/process/module.lucb:49:9";
+    lb_pos = "src/std/process/module.lucb:47:9";
     if (!!((lb_n == 0LL))) 
     {
-        lb_pos = "src/std/process/module.lucb:50:13";
+        lb_pos = "src/std/process/module.lucb:48:13";
         self->open = false;
     }
     else {
-        lb_pos = "src/std/process/module.lucb:51:9";
+        lb_pos = "src/std/process/module.lucb:49:9";
         if (!!((((intptr_t)(lb_n)) > ((intptr_t)(0LL))))) 
         {
-            lb_pos = "src/std/process/module.lucb:52:13";
+            lb_pos = "src/std/process/module.lucb:50:13";
             { size_t* lb__cell91 = &(self->used);
             (*(lb__cell91)) = (size_t)(lb_add_u((uint64_t)((*(lb__cell91))), (uint64_t)(((size_t)lb_conv_s((int64_t)(lb_n), 64, 1, 64, 0, 1))), 64)); }
         }
         else {
-            lb_pos = "src/std/process/module.lucb:53:9";
+            lb_pos = "src/std/process/module.lucb:51:9";
             if (!!((({ int32_t _lb_sq92 __attribute__((unused)) = lb_c_errno(); int32_t _lb_sq93 __attribute__((unused)) = lb_c_interrupted; (!(_lb_sq92 == _lb_sq93)); }) && ({ int32_t _lb_sq94 __attribute__((unused)) = lb_c_errno(); int32_t _lb_sq95 __attribute__((unused)) = lb_process_11would_block; (!(_lb_sq94 == _lb_sq95)); })))) 
             {
-                lb_pos = "src/std/process/module.lucb:54:13";
+                lb_pos = "src/std/process/module.lucb:52:13";
                 lb_r_unit _lb_err96 = ((lb_r_unit){ .error = { .code = (int32_t)(lb_process_failed), .message = ((lb_str){"the program's output cannot be read", 35}) }, .failed = true });
                 return _lb_err96;
             }
@@ -4873,16 +4873,16 @@ lb_r_unit lb_process_Capture_pull(lb_process_Capture* self) {
 }
 __attribute__((weak)) void lb_memory_copy_0g1_u8(lb_span lb_target, lb_cspan lb_source, size_t lb_count) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/memory.lucb:325:5";
+    lb_pos = "src/std/memory.lucb:327:5";
     if (!!(((((size_t)(lb_count)) > ((size_t)((lb_target.length)))) || (((size_t)(lb_count)) > ((size_t)((lb_source.length))))))) 
     {
-        lb_pos = "src/std/memory.lucb:326:9";
+        lb_pos = "src/std/memory.lucb:328:9";
         (void)(lb_trap_text(((lb_str){"index out of bounds", 19})));
     }
-    lb_pos = "src/std/memory.lucb:327:5";
+    lb_pos = "src/std/memory.lucb:329:5";
     if (!!((((size_t)(lb_count)) > ((size_t)(0ULL))))) 
     {
-        lb_pos = "src/std/memory.lucb:328:9";
+        lb_pos = "src/std/memory.lucb:330:9";
         (void)(((void)(({ void* _lb_sq97 __attribute__((unused)) = ((uint8_t*)(lb_target.data)); const void* _lb_sq98 __attribute__((unused)) = ((const uint8_t*)(lb_source.data)); size_t _lb_sq99 __attribute__((unused)) = ({ size_t _lb_sq100 __attribute__((unused)) = lb_count; size_t _lb_sq101 __attribute__((unused)) = ((size_t)sizeof(uint8_t)); (size_t)(lb_mul_u((uint64_t)(_lb_sq100), (uint64_t)(_lb_sq101), 64)); }); ({ void* _lb_fr = lb_x_memory_memcpy(_lb_sq97, _lb_sq98, _lb_sq99); if (!_lb_fr) lb_trap("null_foreign"); _lb_fr; }); }))));
     }
 }

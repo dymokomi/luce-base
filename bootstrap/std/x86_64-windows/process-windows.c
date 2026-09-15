@@ -4307,129 +4307,129 @@ extern uint32_t lb_gpu_22vulkan_api_version_1_0;
 
 __attribute__((weak)) lb_interop_Transfer_0g1_str lb_interop_Transfer_0g1_str_plain(void) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/process/command/module.lucb:145:5";
+    lb_pos = "src/std/process/command/module.lucb:143:9";
     lb_interop_Transfer_0g1_str _lb_ret1 = ((lb_interop_Transfer_0g1_str){.copy = lb_interop_Transfer_0g1_str_10copy_plain});
     return _lb_ret1;
     lb_trap("unreachable");
 }
 __attribute__((weak)) lb_r_interop_Packet_0g1_str lb_interop_Transfer_0g1_str_10copy_plain(lb_str lb_value) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/process/command/module.lucb:148:5";
+    lb_pos = "src/std/process/command/module.lucb:146:5";
     lb_interop_Packet_0g1_str _lb_ret2 = ({ lb_interop_Packet_0g1_str _lb_iv3 = {}; lb_interop_Packet_0g1_str_init(&_lb_iv3, lb_value, ((void*)0), ((void*)0)); _lb_iv3; });
     return ((lb_r_interop_Packet_0g1_str){ .value = _lb_ret2, .failed = false });
     lb_trap("unreachable");
 }
 __attribute__((weak)) lb_interop_Transfer_0g1_u8_0c lb_interop_Transfer_0g1_u8_0c_plain(void) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/process/command/module.lucb:145:5";
+    lb_pos = "src/std/process/command/module.lucb:143:9";
     lb_interop_Transfer_0g1_u8_0c _lb_ret4 = ((lb_interop_Transfer_0g1_u8_0c){.copy = lb_interop_Transfer_0g1_u8_0c_10copy_plain});
     return _lb_ret4;
     lb_trap("unreachable");
 }
 __attribute__((weak)) lb_r_interop_Packet_0g1_u8_0c lb_interop_Transfer_0g1_u8_0c_10copy_plain(lb_cspan lb_value) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/process/command/module.lucb:148:5";
+    lb_pos = "src/std/process/command/module.lucb:146:5";
     lb_interop_Packet_0g1_u8_0c _lb_ret5 = ({ lb_interop_Packet_0g1_u8_0c _lb_iv6 = {}; lb_interop_Packet_0g1_u8_0c_init(&_lb_iv6, lb_value, ((void*)0), ((void*)0)); _lb_iv6; });
     return ((lb_r_interop_Packet_0g1_u8_0c){ .value = _lb_ret5, .failed = false });
     lb_trap("unreachable");
 }
 lb_r_0T3_i32_str_str lb_process_11run_windows(char* lb_program, lb_cspan lb_arguments, char* lb_directory, lb_o_5c_str_0c lb_environment, struct lb_process_CommandState* lb_control) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/process/windows.lucb:127:5";
-    lb_str lb_name __attribute__((unused)) = ({ const char* _lb_sb7 = lb_program; size_t _lb_sl7 = _lb_sb7 == NULL ? 0 : strlen(_lb_sb7); (lb_str){ _lb_sb7, _lb_sl7 }; });
     lb_pos = "src/std/process/windows.lucb:128:5";
+    lb_str lb_name __attribute__((unused)) = ({ const char* _lb_sb7 = lb_program; size_t _lb_sl7 = _lb_sb7 == NULL ? 0 : strlen(_lb_sb7); (lb_str){ _lb_sb7, _lb_sl7 }; });
+    lb_pos = "src/std/process/windows.lucb:129:5";
     size_t lb_room __attribute__((unused)) = ({ lb_o_usize _lb_o8 = ({ uint64_t _lb_qo9; lb_o_usize _lb_qr9; _lb_qr9.present = lb_qmul_u((uint64_t)((lb_name.length)), (uint64_t)(2ULL), 64, &_lb_qo9); _lb_qr9.value = (size_t)(_lb_qo9); _lb_qr9; }); if (!_lb_o8.present) {
         lb_r_0T3_i32_str_str _lb_err10 = ((lb_r_0T3_i32_str_str){ .error = { .code = (int32_t)(lb_process_failed), .message = ((lb_str){"the process command is too long", 31}) }, .failed = true });
         return _lb_err10;
     } _lb_o8.value; });
-    lb_pos = "src/std/process/windows.lucb:129:5";
+    lb_pos = "src/std/process/windows.lucb:130:5";
     lb_room = ({ lb_o_usize _lb_o11 = ({ uint64_t _lb_qo12; lb_o_usize _lb_qr12; _lb_qr12.present = lb_qadd_u((uint64_t)(lb_room), (uint64_t)(4ULL), 64, &_lb_qo12); _lb_qr12.value = (size_t)(_lb_qo12); _lb_qr12; }); if (!_lb_o11.present) {
         lb_r_0T3_i32_str_str _lb_err13 = ((lb_r_0T3_i32_str_str){ .error = { .code = (int32_t)(lb_process_failed), .message = ((lb_str){"the process command is too long", 31}) }, .failed = true });
         return _lb_err13;
     } _lb_o11.value; });
-    lb_pos = "src/std/process/windows.lucb:130:5";
+    lb_pos = "src/std/process/windows.lucb:131:5";
     lb_cspan _lb_seq14 = lb_arguments;
     for (size_t _lb_i14 = 0; _lb_i14 < _lb_seq14.length; _lb_i14++) {
         char* lb_argument __attribute__((unused)) = ((char* const*)_lb_seq14.data)[_lb_i14];
         {
-            lb_pos = "src/std/process/windows.lucb:131:9";
+            lb_pos = "src/std/process/windows.lucb:132:9";
             size_t lb_width __attribute__((unused)) = ({ lb_o_usize _lb_o15 = ({ uint64_t _lb_qo16; lb_o_usize _lb_qr16; _lb_qr16.present = lb_qmul_u((uint64_t)(((({ const char* _lb_sb17 = lb_argument; size_t _lb_sl17 = _lb_sb17 == NULL ? 0 : strlen(_lb_sb17); (lb_str){ _lb_sb17, _lb_sl17 }; })).length)), (uint64_t)(2ULL), 64, &_lb_qo16); _lb_qr16.value = (size_t)(_lb_qo16); _lb_qr16; }); if (!_lb_o15.present) {
                 lb_r_0T3_i32_str_str _lb_err18 = ((lb_r_0T3_i32_str_str){ .error = { .code = (int32_t)(lb_process_failed), .message = ((lb_str){"the process command is too long", 31}) }, .failed = true });
                 return _lb_err18;
             } _lb_o15.value; });
-            lb_pos = "src/std/process/windows.lucb:132:9";
+            lb_pos = "src/std/process/windows.lucb:133:9";
             lb_room = ({ lb_o_usize _lb_o19 = ({ uint64_t _lb_qo20; lb_o_usize _lb_qr20; _lb_qr20.present = lb_qadd_u((uint64_t)(lb_room), (uint64_t)(lb_width), 64, &_lb_qo20); _lb_qr20.value = (size_t)(_lb_qo20); _lb_qr20; }); if (!_lb_o19.present) {
                 lb_r_0T3_i32_str_str _lb_err21 = ((lb_r_0T3_i32_str_str){ .error = { .code = (int32_t)(lb_process_failed), .message = ((lb_str){"the process command is too long", 31}) }, .failed = true });
                 return _lb_err21;
             } _lb_o19.value; });
-            lb_pos = "src/std/process/windows.lucb:133:9";
+            lb_pos = "src/std/process/windows.lucb:134:9";
             lb_room = ({ lb_o_usize _lb_o22 = ({ uint64_t _lb_qo23; lb_o_usize _lb_qr23; _lb_qr23.present = lb_qadd_u((uint64_t)(lb_room), (uint64_t)(3ULL), 64, &_lb_qo23); _lb_qr23.value = (size_t)(_lb_qo23); _lb_qr23; }); if (!_lb_o22.present) {
                 lb_r_0T3_i32_str_str _lb_err24 = ((lb_r_0T3_i32_str_str){ .error = { .code = (int32_t)(lb_process_failed), .message = ((lb_str){"the process command is too long", 31}) }, .failed = true });
                 return _lb_err24;
             } _lb_o22.value; });
         }
     }
-    lb_pos = "src/std/process/windows.lucb:134:5";
+    lb_pos = "src/std/process/windows.lucb:135:5";
     lb_span lb_command __attribute__((unused)) = (({ lb_r_u8_0s _lb_r25 = ({ lb_iface _lb_a26 = lb_memory_allocator; size_t _lb_n26 = (size_t)(lb_room); lb_r_u8_0s _lb_r26; if (_lb_n26 > UINT64_C(4611686018427387904)) { _lb_r26 = ((lb_r_u8_0s){ .error = { .code = 208273409, .message = (lb_str){"memory.exhausted", 16} }, .failed = true }); } else { size_t _lb_bytes26 = sizeof(uint8_t) * _lb_n26; lb_o_u8_0s _lb_ao26 = lb_alloc_call(_lb_a26, _lb_bytes26, _Alignof(uint8_t)); if (_lb_bytes26 != 0 && !_lb_ao26.present) { _lb_r26 = ((lb_r_u8_0s){ .error = { .code = 208273409, .message = (lb_str){"memory.exhausted", 16} }, .failed = true }); } else { _lb_r26.value.data = _lb_ao26.value.data; _lb_r26.value.length = _lb_n26; _lb_r26.failed = false; } } _lb_r26; }); if (_lb_r25.failed) {
         return ((lb_r_0T3_i32_str_str){ .error = _lb_r25.error, .failed = true });
     } _lb_r25.value; }));
-    lb_pos = "src/std/process/windows.lucb:135:5";
     lb_pos = "src/std/process/windows.lucb:136:5";
-    size_t lb_used __attribute__((unused)) = 0ULL;
     lb_pos = "src/std/process/windows.lucb:137:5";
-    (void)(lb_process_13quote_windows(lb_command, &(lb_used), lb_name));
+    size_t lb_used __attribute__((unused)) = 0ULL;
     lb_pos = "src/std/process/windows.lucb:138:5";
+    (void)(lb_process_13quote_windows(lb_command, &(lb_used), lb_name));
+    lb_pos = "src/std/process/windows.lucb:139:5";
     lb_cspan _lb_seq27 = lb_arguments;
     for (size_t _lb_i27 = 0; _lb_i27 < _lb_seq27.length; _lb_i27++) {
         char* lb_argument __attribute__((unused)) = ((char* const*)_lb_seq27.data)[_lb_i27];
         {
-            lb_pos = "src/std/process/windows.lucb:139:9";
-            (*({ lb_span _lb_ix28 = lb_command; &((uint8_t*)_lb_ix28.data)[lb_at((uint64_t)(lb_used), _lb_ix28.length)]; })) = 32u;
             lb_pos = "src/std/process/windows.lucb:140:9";
+            (*({ lb_span _lb_ix28 = lb_command; &((uint8_t*)_lb_ix28.data)[lb_at((uint64_t)(lb_used), _lb_ix28.length)]; })) = 32u;
+            lb_pos = "src/std/process/windows.lucb:141:9";
             { size_t* lb__cell29 = &(lb_used);
             (*(lb__cell29)) = (size_t)(lb_add_u((uint64_t)((*(lb__cell29))), (uint64_t)(1ULL), 64)); }
-            lb_pos = "src/std/process/windows.lucb:141:9";
+            lb_pos = "src/std/process/windows.lucb:142:9";
             (void)(lb_process_13quote_windows(lb_command, &(lb_used), ({ const char* _lb_sb30 = lb_argument; size_t _lb_sl30 = _lb_sb30 == NULL ? 0 : strlen(_lb_sb30); (lb_str){ _lb_sb30, _lb_sl30 }; })));
         }
     }
-    lb_pos = "src/std/process/windows.lucb:142:5";
-    (*({ lb_span _lb_ix31 = lb_command; &((uint8_t*)_lb_ix31.data)[lb_at((uint64_t)(lb_used), _lb_ix31.length)]; })) = 0ULL;
     lb_pos = "src/std/process/windows.lucb:143:5";
+    (*({ lb_span _lb_ix31 = lb_command; &((uint8_t*)_lb_ix31.data)[lb_at((uint64_t)(lb_used), _lb_ix31.length)]; })) = 0ULL;
+    lb_pos = "src/std/process/windows.lucb:144:5";
     lb_span lb_wide __attribute__((unused)) = (({ lb_r_u16_0s _lb_r32 = lb_12windows_text_wide(lb_cstr_of(({ lb_span _lb_sc33 = ({ lb_span _lb_sv34 = lb_command; size_t _lb_sn34 = _lb_sv34.length; uint8_t* _lb_sd34 = (uint8_t*)_lb_sv34.data; size_t _lb_ss34 = 0; size_t _lb_se34 = (size_t)(lb_used); lb_check_index(_lb_ss34, _lb_sn34 + 1); lb_check_index(_lb_se34, _lb_sn34 + 1); if (_lb_ss34 > _lb_se34) lb_trap("index out of bounds"); (lb_span){ (void*)(_lb_sd34 + _lb_ss34), _lb_se34 - _lb_ss34 }; }); const char* _lb_sb33 = (const char*)_lb_sc33.data; size_t _lb_sl33 = _lb_sc33.length; (lb_str){ _lb_sb33, _lb_sl33 }; })), lb_process_failed); if (_lb_r32.failed) {
         { lb_span _lb_s35 = lb_command; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s35.data), lb_mul_u(_lb_s35.length, sizeof(uint8_t), 64) }); }
         return ((lb_r_0T3_i32_str_str){ .error = _lb_r32.error, .failed = true });
     } _lb_r32.value; }));
-    lb_pos = "src/std/process/windows.lucb:144:5";
     lb_pos = "src/std/process/windows.lucb:145:5";
+    lb_pos = "src/std/process/windows.lucb:146:5";
     if (!!((((size_t)((lb_wide.length))) > ((size_t)(32768ULL))))) 
     {
-        lb_pos = "src/std/process/windows.lucb:146:9";
+        lb_pos = "src/std/process/windows.lucb:147:9";
         lb_r_0T3_i32_str_str _lb_err36 = ((lb_r_0T3_i32_str_str){ .error = { .code = (int32_t)(lb_process_failed), .message = ((lb_str){"the process command is too long", 31}) }, .failed = true });
         { lb_span _lb_s37 = lb_wide; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s37.data), lb_mul_u(_lb_s37.length, sizeof(uint16_t), 64) }); }
         { lb_span _lb_s38 = lb_command; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s38.data), lb_mul_u(_lb_s38.length, sizeof(uint8_t), 64) }); }
         return _lb_err36;
     }
-    lb_pos = "src/std/process/windows.lucb:147:5";
-    lb_span lb_selected_directory __attribute__((unused)) = {};
     lb_pos = "src/std/process/windows.lucb:148:5";
+    lb_span lb_selected_directory __attribute__((unused)) = {};
+    lb_pos = "src/std/process/windows.lucb:149:5";
     if (!!((((size_t)(((({ const char* _lb_sb39 = lb_directory; size_t _lb_sl39 = _lb_sb39 == NULL ? 0 : strlen(_lb_sb39); (lb_str){ _lb_sb39, _lb_sl39 }; })).length))) > ((size_t)(0ULL))))) 
     {
-        lb_pos = "src/std/process/windows.lucb:149:9";
+        lb_pos = "src/std/process/windows.lucb:150:9";
         lb_selected_directory = (({ lb_r_u16_0s _lb_r40 = lb_12windows_text_wide(lb_directory, lb_process_failed); if (_lb_r40.failed) {
             { lb_span _lb_s41 = lb_wide; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s41.data), lb_mul_u(_lb_s41.length, sizeof(uint16_t), 64) }); }
             { lb_span _lb_s42 = lb_command; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s42.data), lb_mul_u(_lb_s42.length, sizeof(uint8_t), 64) }); }
             return ((lb_r_0T3_i32_str_str){ .error = _lb_r40.error, .failed = true });
         } _lb_r40.value; }));
     }
-    lb_pos = "src/std/process/windows.lucb:150:5";
     lb_pos = "src/std/process/windows.lucb:151:5";
-    lb_span lb_selected_environment __attribute__((unused)) = {};
     lb_pos = "src/std/process/windows.lucb:152:5";
+    lb_span lb_selected_environment __attribute__((unused)) = {};
+    lb_pos = "src/std/process/windows.lucb:153:5";
     lb_o_5c_str_0c _lb_o43 = lb_environment;
     if (_lb_o43.present) {
         lb_cspan lb_overrides __attribute__((unused)) = _lb_o43.value;
         {
-            lb_pos = "src/std/process/windows.lucb:153:9";
+            lb_pos = "src/std/process/windows.lucb:154:9";
             lb_selected_environment = (({ lb_r_u16_0s _lb_r44 = lb_process_19environment_windows(lb_overrides); if (_lb_r44.failed) {
                 (void)(lb_process_15release_storage_0g1_u16(lb_selected_directory));
                 { lb_span _lb_s45 = lb_wide; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s45.data), lb_mul_u(_lb_s45.length, sizeof(uint16_t), 64) }); }
@@ -4438,8 +4438,8 @@ lb_r_0T3_i32_str_str lb_process_11run_windows(char* lb_program, lb_cspan lb_argu
             } _lb_r44.value; }));
         }
     }
-    lb_pos = "src/std/process/windows.lucb:154:5";
     lb_pos = "src/std/process/windows.lucb:155:5";
+    lb_pos = "src/std/process/windows.lucb:156:5";
     void* lb_output __attribute__((unused)) = (({ lb_r_void_0p _lb_r47 = lb_process_17temporary_windows(); if (_lb_r47.failed) {
         (void)(lb_process_15release_storage_0g1_u16(lb_selected_environment));
         (void)(lb_process_15release_storage_0g1_u16(lb_selected_directory));
@@ -4447,8 +4447,8 @@ lb_r_0T3_i32_str_str lb_process_11run_windows(char* lb_program, lb_cspan lb_argu
         { lb_span _lb_s49 = lb_command; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s49.data), lb_mul_u(_lb_s49.length, sizeof(uint8_t), 64) }); }
         return ((lb_r_0T3_i32_str_str){ .error = _lb_r47.error, .failed = true });
     } _lb_r47.value; }));
-    lb_pos = "src/std/process/windows.lucb:156:5";
     lb_pos = "src/std/process/windows.lucb:157:5";
+    lb_pos = "src/std/process/windows.lucb:158:5";
     void* lb_errors __attribute__((unused)) = (({ lb_r_void_0p _lb_r50 = lb_process_17temporary_windows(); if (_lb_r50.failed) {
         (void)(((void)(lb_x_process_fclose(lb_output))));
         (void)(lb_process_15release_storage_0g1_u16(lb_selected_environment));
@@ -4457,8 +4457,8 @@ lb_r_0T3_i32_str_str lb_process_11run_windows(char* lb_program, lb_cspan lb_argu
         { lb_span _lb_s52 = lb_command; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s52.data), lb_mul_u(_lb_s52.length, sizeof(uint8_t), 64) }); }
         return ((lb_r_0T3_i32_str_str){ .error = _lb_r50.error, .failed = true });
     } _lb_r50.value; }));
-    lb_pos = "src/std/process/windows.lucb:158:5";
     lb_pos = "src/std/process/windows.lucb:159:5";
+    lb_pos = "src/std/process/windows.lucb:160:5";
     void* lb_input __attribute__((unused)) = ({ void* _lb_o53 = lb_x_process_fopen("NUL", "rb"); if (_lb_o53 == ((void*)0)) {
         lb_r_0T3_i32_str_str _lb_err54 = ((lb_r_0T3_i32_str_str){ .error = { .code = (int32_t)(lb_process_failed), .message = ((lb_str){"the child input could not be opened", 35}) }, .failed = true });
         (void)(((void)(lb_x_process_fclose(lb_errors))));
@@ -4469,8 +4469,8 @@ lb_r_0T3_i32_str_str lb_process_11run_windows(char* lb_program, lb_cspan lb_argu
         { lb_span _lb_s56 = lb_command; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s56.data), lb_mul_u(_lb_s56.length, sizeof(uint8_t), 64) }); }
         return _lb_err54;
     } _lb_o53; });
-    lb_pos = "src/std/process/windows.lucb:160:5";
     lb_pos = "src/std/process/windows.lucb:161:5";
+    lb_pos = "src/std/process/windows.lucb:162:5";
     void* lb_out_handle __attribute__((unused)) = (({ lb_r_void_0p _lb_r57 = lb_process_12inherit_file(lb_output); if (_lb_r57.failed) {
         (void)(((void)(lb_x_process_fclose(lb_input))));
         (void)(((void)(lb_x_process_fclose(lb_errors))));
@@ -4481,8 +4481,8 @@ lb_r_0T3_i32_str_str lb_process_11run_windows(char* lb_program, lb_cspan lb_argu
         { lb_span _lb_s59 = lb_command; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s59.data), lb_mul_u(_lb_s59.length, sizeof(uint8_t), 64) }); }
         return ((lb_r_0T3_i32_str_str){ .error = _lb_r57.error, .failed = true });
     } _lb_r57.value; }));
-    lb_pos = "src/std/process/windows.lucb:162:5";
     lb_pos = "src/std/process/windows.lucb:163:5";
+    lb_pos = "src/std/process/windows.lucb:164:5";
     void* lb_err_handle __attribute__((unused)) = (({ lb_r_void_0p _lb_r60 = lb_process_12inherit_file(lb_errors); if (_lb_r60.failed) {
         (void)(((void)(lb_x_11windows_abi_CloseHandle(lb_out_handle))));
         (void)(((void)(lb_x_process_fclose(lb_input))));
@@ -4494,8 +4494,8 @@ lb_r_0T3_i32_str_str lb_process_11run_windows(char* lb_program, lb_cspan lb_argu
         { lb_span _lb_s62 = lb_command; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s62.data), lb_mul_u(_lb_s62.length, sizeof(uint8_t), 64) }); }
         return ((lb_r_0T3_i32_str_str){ .error = _lb_r60.error, .failed = true });
     } _lb_r60.value; }));
-    lb_pos = "src/std/process/windows.lucb:164:5";
     lb_pos = "src/std/process/windows.lucb:165:5";
+    lb_pos = "src/std/process/windows.lucb:166:5";
     void* lb_in_handle __attribute__((unused)) = (({ lb_r_void_0p _lb_r63 = lb_process_12inherit_file(lb_input); if (_lb_r63.failed) {
         (void)(((void)(lb_x_11windows_abi_CloseHandle(lb_err_handle))));
         (void)(((void)(lb_x_11windows_abi_CloseHandle(lb_out_handle))));
@@ -4508,25 +4508,25 @@ lb_r_0T3_i32_str_str lb_process_11run_windows(char* lb_program, lb_cspan lb_argu
         { lb_span _lb_s65 = lb_command; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s65.data), lb_mul_u(_lb_s65.length, sizeof(uint8_t), 64) }); }
         return ((lb_r_0T3_i32_str_str){ .error = _lb_r63.error, .failed = true });
     } _lb_r63.value; }));
-    lb_pos = "src/std/process/windows.lucb:166:5";
     lb_pos = "src/std/process/windows.lucb:167:5";
-    WinStartup lb_startup __attribute__((unused)) = {};
     lb_pos = "src/std/process/windows.lucb:168:5";
-    lb_startup.size = ((uint32_t)lb_conv_u((uint64_t)(((size_t)sizeof(WinStartup))), 64, 0, 32, 0, 1));
+    WinStartup lb_startup __attribute__((unused)) = {};
     lb_pos = "src/std/process/windows.lucb:169:5";
-    lb_startup.flags = 256ULL;
+    lb_startup.size = ((uint32_t)lb_conv_u((uint64_t)(((size_t)sizeof(WinStartup))), 64, 0, 32, 0, 1));
     lb_pos = "src/std/process/windows.lucb:170:5";
-    lb_startup.input = lb_in_handle;
+    lb_startup.flags = 256ULL;
     lb_pos = "src/std/process/windows.lucb:171:5";
-    lb_startup.output = lb_out_handle;
+    lb_startup.input = lb_in_handle;
     lb_pos = "src/std/process/windows.lucb:172:5";
-    lb_startup.errors = lb_err_handle;
+    lb_startup.output = lb_out_handle;
     lb_pos = "src/std/process/windows.lucb:173:5";
-    WinProcess lb_child __attribute__((unused)) = {};
+    lb_startup.errors = lb_err_handle;
     lb_pos = "src/std/process/windows.lucb:174:5";
+    WinProcess lb_child __attribute__((unused)) = {};
+    lb_pos = "src/std/process/windows.lucb:175:5";
     if (!!(({ int32_t _lb_sq66 __attribute__((unused)) = lb_x_process_CreateProcessW(((void*)0), ((uint16_t*)(lb_wide.data)), ((void*)0), ((void*)0), 1LL, ((uint32_t)(((uint32_t)(134217728ULL | 1024ULL)) | (((!(lb_control == ((void*)0))) ? 4ULL : 0ULL)))), ((((size_t)((lb_selected_environment.length))) > ((size_t)(0ULL))) ? ((uint16_t*)(lb_selected_environment.data)) : ((void*)0)), ((((size_t)((lb_selected_directory.length))) > ((size_t)(0ULL))) ? ((uint16_t*)(lb_selected_directory.data)) : ((void*)0)), &(lb_startup), &(lb_child)); int32_t _lb_sq67 __attribute__((unused)) = 0LL; (_lb_sq66 == _lb_sq67); }))) 
     {
-        lb_pos = "src/std/process/windows.lucb:177:9";
+        lb_pos = "src/std/process/windows.lucb:178:9";
         lb_r_0T3_i32_str_str _lb_err68 = ((lb_r_0T3_i32_str_str){ .error = { .code = (int32_t)(lb_process_failed), .message = ((lb_str){"the process could not be started", 32}) }, .failed = true });
         (void)(((void)(lb_x_11windows_abi_CloseHandle(lb_in_handle))));
         (void)(((void)(lb_x_11windows_abi_CloseHandle(lb_err_handle))));
@@ -4540,22 +4540,22 @@ lb_r_0T3_i32_str_str lb_process_11run_windows(char* lb_program, lb_cspan lb_argu
         { lb_span _lb_s70 = lb_command; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s70.data), lb_mul_u(_lb_s70.length, sizeof(uint8_t), 64) }); }
         return _lb_err68;
     }
-    lb_pos = "src/std/process/windows.lucb:178:5";
+    lb_pos = "src/std/process/windows.lucb:179:5";
     void* lb_process __attribute__((unused)) = ({ void* _lb_o71 = lb_child.process; if (_lb_o71 == ((void*)0)) {
         (void)(lb_trap_text(((lb_str){"CreateProcess returned no process", 33})));
     } _lb_o71; });
-    lb_pos = "src/std/process/windows.lucb:179:5";
+    lb_pos = "src/std/process/windows.lucb:180:5";
     void* lb_child_thread __attribute__((unused)) = ({ void* _lb_o72 = lb_child.thread; if (_lb_o72 == ((void*)0)) {
         (void)(lb_trap_text(((lb_str){"CreateProcess returned no thread", 32})));
     } _lb_o72; });
-    lb_pos = "src/std/process/windows.lucb:180:5";
     lb_pos = "src/std/process/windows.lucb:181:5";
     lb_pos = "src/std/process/windows.lucb:182:5";
+    lb_pos = "src/std/process/windows.lucb:183:5";
     struct lb_process_CommandState* _lb_o73 = lb_control;
     if (_lb_o73 != ((void*)0)) {
         struct lb_process_CommandState* lb_observer __attribute__((unused)) = _lb_o73;
         {
-            lb_pos = "src/std/process/windows.lucb:183:9";
+            lb_pos = "src/std/process/windows.lucb:184:9";
             (void)((({ lb_r_unit _lb_r74 = lb_process_15monitor_windows(lb_process, lb_child_thread, lb_output, lb_errors, lb_observer); if (_lb_r74.failed) {
                 (void)(((void)(lb_x_11windows_abi_CloseHandle(lb_child_thread))));
                 (void)(((void)(lb_x_11windows_abi_CloseHandle(lb_process))));
@@ -4574,14 +4574,14 @@ lb_r_0T3_i32_str_str lb_process_11run_windows(char* lb_program, lb_cspan lb_argu
         }
     }
     else {
-        lb_pos = "src/std/process/windows.lucb:184:5";
+        lb_pos = "src/std/process/windows.lucb:185:5";
         if (!!(({ uint32_t _lb_sq77 __attribute__((unused)) = lb_x_process_WaitForSingleObject(lb_process, 4294967295ULL); uint32_t _lb_sq78 __attribute__((unused)) = 0ULL; (!(_lb_sq77 == _lb_sq78)); }))) 
         {
-            lb_pos = "src/std/process/windows.lucb:185:9";
-            (void)(((void)(lb_x_process_TerminateProcess(lb_process, 1ULL))));
             lb_pos = "src/std/process/windows.lucb:186:9";
-            (void)(((void)(lb_x_process_WaitForSingleObject(lb_process, 4294967295ULL))));
+            (void)(((void)(lb_x_process_TerminateProcess(lb_process, 1ULL))));
             lb_pos = "src/std/process/windows.lucb:187:9";
+            (void)(((void)(lb_x_process_WaitForSingleObject(lb_process, 4294967295ULL))));
+            lb_pos = "src/std/process/windows.lucb:188:9";
             lb_r_0T3_i32_str_str _lb_err79 = ((lb_r_0T3_i32_str_str){ .error = { .code = (int32_t)(lb_process_failed), .message = ((lb_str){"waiting for the process failed", 30}) }, .failed = true });
             (void)(((void)(lb_x_11windows_abi_CloseHandle(lb_child_thread))));
             (void)(((void)(lb_x_11windows_abi_CloseHandle(lb_process))));
@@ -4598,12 +4598,12 @@ lb_r_0T3_i32_str_str lb_process_11run_windows(char* lb_program, lb_cspan lb_argu
             return _lb_err79;
         }
     }
-    lb_pos = "src/std/process/windows.lucb:188:5";
-    uint32_t lb_code __attribute__((unused)) = 0ULL;
     lb_pos = "src/std/process/windows.lucb:189:5";
+    uint32_t lb_code __attribute__((unused)) = 0ULL;
+    lb_pos = "src/std/process/windows.lucb:190:5";
     if (!!(({ int32_t _lb_sq82 __attribute__((unused)) = lb_x_process_GetExitCodeProcess(lb_process, &(lb_code)); int32_t _lb_sq83 __attribute__((unused)) = 0LL; (_lb_sq82 == _lb_sq83); }))) 
     {
-        lb_pos = "src/std/process/windows.lucb:190:9";
+        lb_pos = "src/std/process/windows.lucb:191:9";
         lb_r_0T3_i32_str_str _lb_err84 = ((lb_r_0T3_i32_str_str){ .error = { .code = (int32_t)(lb_process_failed), .message = ((lb_str){"the process exit status is unavailable", 38}) }, .failed = true });
         (void)(((void)(lb_x_11windows_abi_CloseHandle(lb_child_thread))));
         (void)(((void)(lb_x_11windows_abi_CloseHandle(lb_process))));
@@ -4619,10 +4619,10 @@ lb_r_0T3_i32_str_str lb_process_11run_windows(char* lb_program, lb_cspan lb_argu
         { lb_span _lb_s86 = lb_command; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s86.data), lb_mul_u(_lb_s86.length, sizeof(uint8_t), 64) }); }
         return _lb_err84;
     }
-    lb_pos = "src/std/process/windows.lucb:191:5";
+    lb_pos = "src/std/process/windows.lucb:192:5";
     if (!!((!(lb_control == ((void*)0))))) 
     {
-        lb_pos = "src/std/process/windows.lucb:192:9";
+        lb_pos = "src/std/process/windows.lucb:193:9";
         lb_t_0T3_i32_str_str _lb_ret87 = ((lb_t_0T3_i32_str_str){((int32_t)lb_conv_u((uint64_t)(lb_code), 32, 0, 32, 1, 1)), ((lb_str){"", 0}), ((lb_str){"", 0})});
         (void)(((void)(lb_x_11windows_abi_CloseHandle(lb_child_thread))));
         (void)(((void)(lb_x_11windows_abi_CloseHandle(lb_process))));
@@ -4638,7 +4638,7 @@ lb_r_0T3_i32_str_str lb_process_11run_windows(char* lb_program, lb_cspan lb_argu
         { lb_span _lb_s89 = lb_command; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s89.data), lb_mul_u(_lb_s89.length, sizeof(uint8_t), 64) }); }
         return ((lb_r_0T3_i32_str_str){ .value = _lb_ret87, .failed = false });
     }
-    lb_pos = "src/std/process/windows.lucb:193:5";
+    lb_pos = "src/std/process/windows.lucb:194:5";
     lb_str lb_out_ __attribute__((unused)) = (({ lb_r_str _lb_r90 = lb_process_15capture_windows(lb_output); if (_lb_r90.failed) {
         (void)(((void)(lb_x_11windows_abi_CloseHandle(lb_child_thread))));
         (void)(((void)(lb_x_11windows_abi_CloseHandle(lb_process))));
@@ -4654,16 +4654,16 @@ lb_r_0T3_i32_str_str lb_process_11run_windows(char* lb_program, lb_cspan lb_argu
         { lb_span _lb_s92 = lb_command; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s92.data), lb_mul_u(_lb_s92.length, sizeof(uint8_t), 64) }); }
         return ((lb_r_0T3_i32_str_str){ .error = _lb_r90.error, .failed = true });
     } _lb_r90.value; }));
-    lb_pos = "src/std/process/windows.lucb:194:5";
+    lb_pos = "src/std/process/windows.lucb:195:5";
     lb_str lb_err __attribute__((unused)) = ({ lb_error _lb_fe93 __attribute__((unused)); lb_str _lb_v93 __attribute__((unused)) = {}; _lb_v93 = ({ lb_r_str _lb_r94 = lb_process_15capture_windows(lb_errors); if (_lb_r94.failed) {
         _lb_fe93 = _lb_r94.error;
         goto _lb_fh93;
     } _lb_r94.value; }); goto _lb_cd93; _lb_fh93: { 
         lb_error lb_failure __attribute__((unused)) = _lb_fe93;
         {
-            lb_pos = "src/std/process/windows.lucb:195:9";
-            (void)(lb_process_release(lb_out_));
             lb_pos = "src/std/process/windows.lucb:196:9";
+            (void)(lb_process_release(lb_out_));
+            lb_pos = "src/std/process/windows.lucb:197:9";
             lb_r_0T3_i32_str_str _lb_err95 = ((lb_r_0T3_i32_str_str){ .error = { .code = (int32_t)((lb_failure.code)), .message = (lb_failure.message) }, .failed = true });
             (void)(((void)(lb_x_11windows_abi_CloseHandle(lb_child_thread))));
             (void)(((void)(lb_x_11windows_abi_CloseHandle(lb_process))));
@@ -4680,7 +4680,7 @@ lb_r_0T3_i32_str_str lb_process_11run_windows(char* lb_program, lb_cspan lb_argu
             return _lb_err95;
         }
     } _lb_cd93: __attribute__((unused)); _lb_v93; });
-    lb_pos = "src/std/process/windows.lucb:197:5";
+    lb_pos = "src/std/process/windows.lucb:198:5";
     lb_t_0T3_i32_str_str _lb_ret98 = ((lb_t_0T3_i32_str_str){((int32_t)lb_conv_u((uint64_t)(lb_code), 32, 0, 32, 1, 1)), lb_out_, lb_err});
     (void)(((void)(lb_x_11windows_abi_CloseHandle(lb_child_thread))));
     (void)(((void)(lb_x_11windows_abi_CloseHandle(lb_process))));
@@ -4711,21 +4711,21 @@ lb_r_0T3_i32_str_str lb_process_11run_windows(char* lb_program, lb_cspan lb_argu
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_str_init(lb_interop_Packet_0g1_str* self, lb_str lb_value, void* lb_storage, lb_fn_0F1_void_0p_unit lb_dispose) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/process/command/module.lucb:129:9";
+    lb_pos = "src/std/process/command/module.lucb:127:9";
     self->value = lb_value;
-    lb_pos = "src/std/process/command/module.lucb:130:13";
+    lb_pos = "src/std/process/command/module.lucb:128:13";
     self->storage = lb_storage;
-    lb_pos = "src/std/process/command/module.lucb:131:9";
+    lb_pos = "src/std/process/command/module.lucb:129:9";
     self->dispose = lb_dispose;
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_str_release(const lb_interop_Packet_0g1_str* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/process/command/module.lucb:134:13";
+    lb_pos = "src/std/process/command/module.lucb:132:13";
     void* _lb_o103 = self->storage;
     if (_lb_o103 != ((void*)0)) {
         void* lb_storage __attribute__((unused)) = _lb_o103;
         {
-            lb_pos = "src/std/process/command/module.lucb:135:9";
+            lb_pos = "src/std/process/command/module.lucb:133:9";
             (void)(((({ lb_fn_0F1_void_0p_unit _lb_o104 = self->dispose; if (_lb_o104 == ((void*)0)) {
                 (void)(lb_trap_text(((lb_str){"a packet has storage without a disposer", 39})));
             } _lb_o104; })))(lb_storage));
@@ -4734,21 +4734,21 @@ __attribute__((weak)) void lb_interop_Packet_0g1_str_release(const lb_interop_Pa
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_init(lb_interop_Packet_0g1_u8_0c* self, lb_cspan lb_value, void* lb_storage, lb_fn_0F1_void_0p_unit lb_dispose) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/process/command/module.lucb:129:9";
+    lb_pos = "src/std/process/command/module.lucb:127:9";
     self->value = lb_value;
-    lb_pos = "src/std/process/command/module.lucb:130:13";
+    lb_pos = "src/std/process/command/module.lucb:128:13";
     self->storage = lb_storage;
-    lb_pos = "src/std/process/command/module.lucb:131:9";
+    lb_pos = "src/std/process/command/module.lucb:129:9";
     self->dispose = lb_dispose;
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_release(const lb_interop_Packet_0g1_u8_0c* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/process/command/module.lucb:134:13";
+    lb_pos = "src/std/process/command/module.lucb:132:13";
     void* _lb_o105 = self->storage;
     if (_lb_o105 != ((void*)0)) {
         void* lb_storage __attribute__((unused)) = _lb_o105;
         {
-            lb_pos = "src/std/process/command/module.lucb:135:9";
+            lb_pos = "src/std/process/command/module.lucb:133:9";
             (void)(((({ lb_fn_0F1_void_0p_unit _lb_o106 = self->dispose; if (_lb_o106 == ((void*)0)) {
                 (void)(lb_trap_text(((lb_str){"a packet has storage without a disposer", 39})));
             } _lb_o106; })))(lb_storage));
@@ -4757,209 +4757,209 @@ __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_release(const lb_interop_
 }
 void lb_process_13quote_windows(lb_span lb_command, size_t* lb_used, lb_str lb_argument) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/process/windows.lucb:47:5";
-    bool lb_needs_quotes __attribute__((unused)) = ((lb_argument.length) == 0ULL);
     lb_pos = "src/std/process/windows.lucb:48:5";
+    bool lb_needs_quotes __attribute__((unused)) = ((lb_argument.length) == 0ULL);
+    lb_pos = "src/std/process/windows.lucb:49:5";
     lb_cspan _lb_seq107 = ((lb_cspan){(void*)(lb_argument.data), lb_argument.length});
     for (size_t _lb_i107 = 0; _lb_i107 < _lb_seq107.length; _lb_i107++) {
         uint8_t lb_byte __attribute__((unused)) = ((const uint8_t*)_lb_seq107.data)[_lb_i107];
         {
-            lb_pos = "src/std/process/windows.lucb:49:9";
+            lb_pos = "src/std/process/windows.lucb:50:9";
             if (!!((((((lb_byte == 32ULL) || (lb_byte == 9ULL)) || (lb_byte == 10ULL)) || (lb_byte == 13ULL)) || (lb_byte == 34ULL)))) 
             {
-                lb_pos = "src/std/process/windows.lucb:50:13";
+                lb_pos = "src/std/process/windows.lucb:51:13";
                 lb_needs_quotes = true;
             }
         }
     }
-    lb_pos = "src/std/process/windows.lucb:51:5";
+    lb_pos = "src/std/process/windows.lucb:52:5";
     if (!!((!lb_needs_quotes))) 
     {
-        lb_pos = "src/std/process/windows.lucb:52:9";
+        lb_pos = "src/std/process/windows.lucb:53:9";
         lb_cspan _lb_seq108 = ((lb_cspan){(void*)(lb_argument.data), lb_argument.length});
         for (size_t _lb_i108 = 0; _lb_i108 < _lb_seq108.length; _lb_i108++) {
             uint8_t lb_byte __attribute__((unused)) = ((const uint8_t*)_lb_seq108.data)[_lb_i108];
             {
-                lb_pos = "src/std/process/windows.lucb:53:13";
-                (*({ lb_span _lb_ix109 = lb_command; &((uint8_t*)_lb_ix109.data)[lb_at((uint64_t)((*(lb_used))), _lb_ix109.length)]; })) = lb_byte;
                 lb_pos = "src/std/process/windows.lucb:54:13";
+                (*({ lb_span _lb_ix109 = lb_command; &((uint8_t*)_lb_ix109.data)[lb_at((uint64_t)((*(lb_used))), _lb_ix109.length)]; })) = lb_byte;
+                lb_pos = "src/std/process/windows.lucb:55:13";
                 { size_t* lb__cell110 = &((*(lb_used)));
                 (*(lb__cell110)) = (size_t)(lb_add_u((uint64_t)((*(lb__cell110))), (uint64_t)(1ULL), 64)); }
             }
         }
-        lb_pos = "src/std/process/windows.lucb:55:9";
+        lb_pos = "src/std/process/windows.lucb:56:9";
         return;
     }
-    lb_pos = "src/std/process/windows.lucb:56:5";
-    (*({ lb_span _lb_ix111 = lb_command; &((uint8_t*)_lb_ix111.data)[lb_at((uint64_t)((*(lb_used))), _lb_ix111.length)]; })) = 34u;
     lb_pos = "src/std/process/windows.lucb:57:5";
+    (*({ lb_span _lb_ix111 = lb_command; &((uint8_t*)_lb_ix111.data)[lb_at((uint64_t)((*(lb_used))), _lb_ix111.length)]; })) = 34u;
+    lb_pos = "src/std/process/windows.lucb:58:5";
     { size_t* lb__cell112 = &((*(lb_used)));
     (*(lb__cell112)) = (size_t)(lb_add_u((uint64_t)((*(lb__cell112))), (uint64_t)(1ULL), 64)); }
-    lb_pos = "src/std/process/windows.lucb:58:5";
-    size_t lb_slashes __attribute__((unused)) = 0ULL;
     lb_pos = "src/std/process/windows.lucb:59:5";
+    size_t lb_slashes __attribute__((unused)) = 0ULL;
+    lb_pos = "src/std/process/windows.lucb:60:5";
     lb_cspan _lb_seq113 = ((lb_cspan){(void*)(lb_argument.data), lb_argument.length});
     for (size_t _lb_i113 = 0; _lb_i113 < _lb_seq113.length; _lb_i113++) {
         uint8_t lb_byte __attribute__((unused)) = ((const uint8_t*)_lb_seq113.data)[_lb_i113];
         {
-            lb_pos = "src/std/process/windows.lucb:60:9";
+            lb_pos = "src/std/process/windows.lucb:61:9";
             if (!!((lb_byte == 92ULL))) 
             {
-                lb_pos = "src/std/process/windows.lucb:61:13";
+                lb_pos = "src/std/process/windows.lucb:62:13";
                 { size_t* lb__cell114 = &(lb_slashes);
                 (*(lb__cell114)) = (size_t)(lb_add_u((uint64_t)((*(lb__cell114))), (uint64_t)(1ULL), 64)); }
-                lb_pos = "src/std/process/windows.lucb:62:13";
+                lb_pos = "src/std/process/windows.lucb:63:13";
                 continue;
             }
-            lb_pos = "src/std/process/windows.lucb:63:9";
-            size_t lb_count __attribute__((unused)) = ((lb_byte == 34u) ? (size_t)(lb_add_u((uint64_t)((size_t)(lb_mul_u((uint64_t)(lb_slashes), (uint64_t)(2ULL), 64))), (uint64_t)(1ULL), 64)) : lb_slashes);
             lb_pos = "src/std/process/windows.lucb:64:9";
+            size_t lb_count __attribute__((unused)) = ((lb_byte == 34u) ? (size_t)(lb_add_u((uint64_t)((size_t)(lb_mul_u((uint64_t)(lb_slashes), (uint64_t)(2ULL), 64))), (uint64_t)(1ULL), 64)) : lb_slashes);
+            lb_pos = "src/std/process/windows.lucb:65:9";
             for (size_t lb_index __attribute__((unused)) = (size_t)(0ULL); lb_index < (size_t)(lb_count); lb_index++) {
                 {
-                    lb_pos = "src/std/process/windows.lucb:65:13";
-                    (void)(((void)(lb_index)));
                     lb_pos = "src/std/process/windows.lucb:66:13";
-                    (*({ lb_span _lb_ix116 = lb_command; &((uint8_t*)_lb_ix116.data)[lb_at((uint64_t)((*(lb_used))), _lb_ix116.length)]; })) = 92ULL;
+                    (void)(((void)(lb_index)));
                     lb_pos = "src/std/process/windows.lucb:67:13";
+                    (*({ lb_span _lb_ix116 = lb_command; &((uint8_t*)_lb_ix116.data)[lb_at((uint64_t)((*(lb_used))), _lb_ix116.length)]; })) = 92ULL;
+                    lb_pos = "src/std/process/windows.lucb:68:13";
                     { size_t* lb__cell117 = &((*(lb_used)));
                     (*(lb__cell117)) = (size_t)(lb_add_u((uint64_t)((*(lb__cell117))), (uint64_t)(1ULL), 64)); }
                 }
             }
-            lb_pos = "src/std/process/windows.lucb:68:9";
-            (*({ lb_span _lb_ix118 = lb_command; &((uint8_t*)_lb_ix118.data)[lb_at((uint64_t)((*(lb_used))), _lb_ix118.length)]; })) = lb_byte;
             lb_pos = "src/std/process/windows.lucb:69:9";
+            (*({ lb_span _lb_ix118 = lb_command; &((uint8_t*)_lb_ix118.data)[lb_at((uint64_t)((*(lb_used))), _lb_ix118.length)]; })) = lb_byte;
+            lb_pos = "src/std/process/windows.lucb:70:9";
             { size_t* lb__cell119 = &((*(lb_used)));
             (*(lb__cell119)) = (size_t)(lb_add_u((uint64_t)((*(lb__cell119))), (uint64_t)(1ULL), 64)); }
-            lb_pos = "src/std/process/windows.lucb:70:9";
+            lb_pos = "src/std/process/windows.lucb:71:9";
             lb_slashes = 0ULL;
         }
     }
-    lb_pos = "src/std/process/windows.lucb:71:5";
+    lb_pos = "src/std/process/windows.lucb:72:5";
     for (size_t lb_index __attribute__((unused)) = (size_t)(0ULL); lb_index < (size_t)((size_t)(lb_mul_u((uint64_t)(lb_slashes), (uint64_t)(2ULL), 64))); lb_index++) {
         {
-            lb_pos = "src/std/process/windows.lucb:72:9";
-            (void)(((void)(lb_index)));
             lb_pos = "src/std/process/windows.lucb:73:9";
-            (*({ lb_span _lb_ix121 = lb_command; &((uint8_t*)_lb_ix121.data)[lb_at((uint64_t)((*(lb_used))), _lb_ix121.length)]; })) = 92ULL;
+            (void)(((void)(lb_index)));
             lb_pos = "src/std/process/windows.lucb:74:9";
+            (*({ lb_span _lb_ix121 = lb_command; &((uint8_t*)_lb_ix121.data)[lb_at((uint64_t)((*(lb_used))), _lb_ix121.length)]; })) = 92ULL;
+            lb_pos = "src/std/process/windows.lucb:75:9";
             { size_t* lb__cell122 = &((*(lb_used)));
             (*(lb__cell122)) = (size_t)(lb_add_u((uint64_t)((*(lb__cell122))), (uint64_t)(1ULL), 64)); }
         }
     }
-    lb_pos = "src/std/process/windows.lucb:75:5";
-    (*({ lb_span _lb_ix123 = lb_command; &((uint8_t*)_lb_ix123.data)[lb_at((uint64_t)((*(lb_used))), _lb_ix123.length)]; })) = 34u;
     lb_pos = "src/std/process/windows.lucb:76:5";
+    (*({ lb_span _lb_ix123 = lb_command; &((uint8_t*)_lb_ix123.data)[lb_at((uint64_t)((*(lb_used))), _lb_ix123.length)]; })) = 34u;
+    lb_pos = "src/std/process/windows.lucb:77:5";
     { size_t* lb__cell124 = &((*(lb_used)));
     (*(lb__cell124)) = (size_t)(lb_add_u((uint64_t)((*(lb__cell124))), (uint64_t)(1ULL), 64)); }
 }
 __attribute__((weak)) void lb_process_15release_storage_0g1_u16(lb_span lb_storage) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/process/module.lucb:173:5";
+    lb_pos = "src/std/process/module.lucb:171:5";
     if (!!((((size_t)((lb_storage.length))) > ((size_t)(0ULL))))) 
     {
-        lb_pos = "src/std/process/module.lucb:174:9";
+        lb_pos = "src/std/process/module.lucb:172:9";
         { lb_span _lb_s125 = lb_storage; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s125.data), lb_mul_u(_lb_s125.length, sizeof(uint16_t), 64) }); }
     }
 }
 lb_r_void_0p lb_process_17temporary_windows(void) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/process/windows.lucb:99:5";
-    lb_a_u16_0a32768 lb_path __attribute__((unused)) = {};
     lb_pos = "src/std/process/windows.lucb:100:5";
-    uint32_t lb_count __attribute__((unused)) = lb_x_11windows_abi_GetTempPathW(((uint32_t)lb_conv_u((uint64_t)(32768ULL), 64, 0, 32, 0, 1)), &(((lb_path).d[0])));
+    lb_a_u16_0a32768 lb_path __attribute__((unused)) = {};
     lb_pos = "src/std/process/windows.lucb:101:5";
+    uint32_t lb_count __attribute__((unused)) = lb_x_11windows_abi_GetTempPathW(((uint32_t)lb_conv_u((uint64_t)(32768ULL), 64, 0, 32, 0, 1)), &(((lb_path).d[0])));
+    lb_pos = "src/std/process/windows.lucb:102:5";
     if (!!(((lb_count == 0ULL) || (((size_t)((size_t)(lb_add_u((uint64_t)(((size_t)lb_conv_u((uint64_t)(lb_count), 32, 0, 64, 0, 1))), (uint64_t)(33ULL), 64)))) >= ((size_t)(32768ULL)))))) 
     {
-        lb_pos = "src/std/process/windows.lucb:102:9";
+        lb_pos = "src/std/process/windows.lucb:103:9";
         lb_r_void_0p _lb_err126 = ((lb_r_void_0p){ .error = { .code = (int32_t)(lb_process_failed), .message = ((lb_str){"the child temporary directory is unavailable", 44}) }, .failed = true });
         return _lb_err126;
     }
-    lb_pos = "src/std/process/windows.lucb:103:5";
+    lb_pos = "src/std/process/windows.lucb:104:5";
     for (int64_t lb_attempt __attribute__((unused)) = (int64_t)(0LL); lb_attempt < (int64_t)(128LL); lb_attempt++) {
         {
-            lb_pos = "src/std/process/windows.lucb:104:9";
-            (void)(((void)(lb_attempt)));
             lb_pos = "src/std/process/windows.lucb:105:9";
-            lb_a_u8_0a16 lb_random __attribute__((unused)) = {};
+            (void)(((void)(lb_attempt)));
             lb_pos = "src/std/process/windows.lucb:106:9";
+            lb_a_u8_0a16 lb_random __attribute__((unused)) = {};
+            lb_pos = "src/std/process/windows.lucb:107:9";
             (void)((({ lb_r_unit _lb_r128 = lb_os_12random_bytes(((lb_span){(void*)(lb_random.d), 16ULL})); if (_lb_r128.failed) {
                 return ((lb_r_void_0p){ .error = _lb_r128.error, .failed = true });
             } (void)0; })));
-            lb_pos = "src/std/process/windows.lucb:107:9";
-            lb_cspan lb_digits __attribute__((unused)) = ((lb_cspan){(void*)(((lb_str){"0123456789abcdef", 16}).data), ((lb_str){"0123456789abcdef", 16}).length});
             lb_pos = "src/std/process/windows.lucb:108:9";
+            lb_cspan lb_digits __attribute__((unused)) = ((lb_cspan){(void*)(((lb_str){"0123456789abcdef", 16}).data), ((lb_str){"0123456789abcdef", 16}).length});
+            lb_pos = "src/std/process/windows.lucb:109:9";
             for (size_t lb_index __attribute__((unused)) = (size_t)(0ULL); lb_index < (size_t)(16ULL); lb_index++) {
                 {
-                    lb_pos = "src/std/process/windows.lucb:109:13";
-                    ((lb_path).d[lb_at((uint64_t)((size_t)(lb_add_u((uint64_t)(((size_t)lb_conv_u((uint64_t)(lb_count), 32, 0, 64, 0, 1))), (uint64_t)((size_t)(lb_mul_u((uint64_t)(lb_index), (uint64_t)(2ULL), 64))), 64))), 32768ULL)]) = ((uint16_t)lb_conv_u((uint64_t)((*({ lb_cspan _lb_ix130 = lb_digits; &((uint8_t*)_lb_ix130.data)[lb_at((uint64_t)(((size_t)lb_conv_u((uint64_t)(((uint8_t)(lb_shr_u((uint64_t)(((lb_random).d[lb_at((uint64_t)(lb_index), 16ULL)])), (uint64_t)((uint8_t)(4LL)), 8)))), 8, 0, 64, 0, 1))), _lb_ix130.length)]; }))), 8, 0, 16, 0, 1));
                     lb_pos = "src/std/process/windows.lucb:110:13";
+                    ((lb_path).d[lb_at((uint64_t)((size_t)(lb_add_u((uint64_t)(((size_t)lb_conv_u((uint64_t)(lb_count), 32, 0, 64, 0, 1))), (uint64_t)((size_t)(lb_mul_u((uint64_t)(lb_index), (uint64_t)(2ULL), 64))), 64))), 32768ULL)]) = ((uint16_t)lb_conv_u((uint64_t)((*({ lb_cspan _lb_ix130 = lb_digits; &((uint8_t*)_lb_ix130.data)[lb_at((uint64_t)(((size_t)lb_conv_u((uint64_t)(((uint8_t)(lb_shr_u((uint64_t)(((lb_random).d[lb_at((uint64_t)(lb_index), 16ULL)])), (uint64_t)((uint8_t)(4LL)), 8)))), 8, 0, 64, 0, 1))), _lb_ix130.length)]; }))), 8, 0, 16, 0, 1));
+                    lb_pos = "src/std/process/windows.lucb:111:13";
                     ((lb_path).d[lb_at((uint64_t)((size_t)(lb_add_u((uint64_t)((size_t)(lb_add_u((uint64_t)(((size_t)lb_conv_u((uint64_t)(lb_count), 32, 0, 64, 0, 1))), (uint64_t)((size_t)(lb_mul_u((uint64_t)(lb_index), (uint64_t)(2ULL), 64))), 64))), (uint64_t)(1ULL), 64))), 32768ULL)]) = ((uint16_t)lb_conv_u((uint64_t)((*({ lb_cspan _lb_ix131 = lb_digits; &((uint8_t*)_lb_ix131.data)[lb_at((uint64_t)(((size_t)lb_conv_u((uint64_t)((((uint8_t)(((lb_random).d[lb_at((uint64_t)(lb_index), 16ULL)]) & 15ULL)))), 8, 0, 64, 0, 1))), _lb_ix131.length)]; }))), 8, 0, 16, 0, 1));
                 }
             }
-            lb_pos = "src/std/process/windows.lucb:111:9";
-            ((lb_path).d[lb_at((uint64_t)((size_t)(lb_add_u((uint64_t)(((size_t)lb_conv_u((uint64_t)(lb_count), 32, 0, 64, 0, 1))), (uint64_t)(32ULL), 64))), 32768ULL)]) = 0ULL;
             lb_pos = "src/std/process/windows.lucb:112:9";
-            void* lb_handle __attribute__((unused)) = ({ void* _lb_fr = lb_x_11windows_abi_CreateFileW(&(((lb_path).d[0])), 3221225472ULL, 7ULL, ((void*)0), 1ULL, 67109120ULL, ((void*)0)); if (!_lb_fr) lb_trap("null_foreign"); _lb_fr; });
+            ((lb_path).d[lb_at((uint64_t)((size_t)(lb_add_u((uint64_t)(((size_t)lb_conv_u((uint64_t)(lb_count), 32, 0, 64, 0, 1))), (uint64_t)(32ULL), 64))), 32768ULL)]) = 0ULL;
             lb_pos = "src/std/process/windows.lucb:113:9";
+            void* lb_handle __attribute__((unused)) = ({ void* _lb_fr = lb_x_11windows_abi_CreateFileW(&(((lb_path).d[0])), 3221225472ULL, 7ULL, ((void*)0), 1ULL, 67109120ULL, ((void*)0)); if (!_lb_fr) lb_trap("null_foreign"); _lb_fr; });
+            lb_pos = "src/std/process/windows.lucb:114:9";
             if (!!((((intptr_t)(lb_handle)) == ((intptr_t)(-1LL))))) 
             {
-                lb_pos = "src/std/process/windows.lucb:114:13";
+                lb_pos = "src/std/process/windows.lucb:115:13";
                 if (!!((({ uint32_t _lb_sq132 __attribute__((unused)) = lb_x_11windows_abi_GetLastError(); uint32_t _lb_sq133 __attribute__((unused)) = 80ULL; (_lb_sq132 == _lb_sq133); }) || ({ uint32_t _lb_sq134 __attribute__((unused)) = lb_x_11windows_abi_GetLastError(); uint32_t _lb_sq135 __attribute__((unused)) = 183ULL; (_lb_sq134 == _lb_sq135); })))) 
                 {
-                    lb_pos = "src/std/process/windows.lucb:114:13";
+                    lb_pos = "src/std/process/windows.lucb:115:13";
                     continue;
                 }
-                lb_pos = "src/std/process/windows.lucb:115:13";
+                lb_pos = "src/std/process/windows.lucb:116:13";
                 lb_r_void_0p _lb_err136 = ((lb_r_void_0p){ .error = { .code = (int32_t)(lb_process_failed), .message = ((lb_str){"a child capture file could not be created", 41}) }, .failed = true });
                 return _lb_err136;
             }
-            lb_pos = "src/std/process/windows.lucb:116:9";
-            int32_t lb_descriptor __attribute__((unused)) = lb_c_process_15win_open_handle(((intptr_t)(lb_handle)), 32898LL);
             lb_pos = "src/std/process/windows.lucb:117:9";
+            int32_t lb_descriptor __attribute__((unused)) = lb_c_process_15win_open_handle(((intptr_t)(lb_handle)), 32898LL);
+            lb_pos = "src/std/process/windows.lucb:118:9";
             if (!!((((int32_t)(lb_descriptor)) < ((int32_t)(0LL))))) 
             {
-                lb_pos = "src/std/process/windows.lucb:118:13";
-                (void)(((void)(lb_x_11windows_abi_CloseHandle(lb_handle))));
                 lb_pos = "src/std/process/windows.lucb:119:13";
+                (void)(((void)(lb_x_11windows_abi_CloseHandle(lb_handle))));
+                lb_pos = "src/std/process/windows.lucb:120:13";
                 lb_r_void_0p _lb_err137 = ((lb_r_void_0p){ .error = { .code = (int32_t)(lb_process_failed), .message = ((lb_str){"a child capture descriptor could not be created", 47}) }, .failed = true });
                 return _lb_err137;
             }
-            lb_pos = "src/std/process/windows.lucb:120:9";
+            lb_pos = "src/std/process/windows.lucb:121:9";
             void* _lb_o138 = lb_c_process_10win_fdopen(lb_descriptor, "w+b");
             if (_lb_o138 != ((void*)0)) {
                 void* lb_stream __attribute__((unused)) = _lb_o138;
                 {
-                    lb_pos = "src/std/process/windows.lucb:121:13";
+                    lb_pos = "src/std/process/windows.lucb:122:13";
                     void* _lb_ret139 = lb_stream;
                     return ((lb_r_void_0p){ .value = _lb_ret139, .failed = false });
                 }
             }
-            lb_pos = "src/std/process/windows.lucb:122:9";
-            (void)(((void)(lb_c_process_9win_close(lb_descriptor))));
             lb_pos = "src/std/process/windows.lucb:123:9";
+            (void)(((void)(lb_c_process_9win_close(lb_descriptor))));
+            lb_pos = "src/std/process/windows.lucb:124:9";
             lb_r_void_0p _lb_err140 = ((lb_r_void_0p){ .error = { .code = (int32_t)(lb_process_failed), .message = ((lb_str){"a child capture stream could not be created", 43}) }, .failed = true });
             return _lb_err140;
         }
     }
-    lb_pos = "src/std/process/windows.lucb:124:5";
+    lb_pos = "src/std/process/windows.lucb:125:5";
     lb_r_void_0p _lb_err141 = ((lb_r_void_0p){ .error = { .code = (int32_t)(lb_process_failed), .message = ((lb_str){"no unused child capture name was found", 38}) }, .failed = true });
     return _lb_err141;
     lb_trap("unreachable");
 }
 lb_r_void_0p lb_process_12inherit_file(void* lb_file) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/process/windows.lucb:79:5";
-    void* lb_handle __attribute__((unused)) = ((void*)0);
     lb_pos = "src/std/process/windows.lucb:80:5";
-    void* lb_current __attribute__((unused)) = ({ void* _lb_fr = lb_x_11windows_abi_GetCurrentProcess(); if (!_lb_fr) lb_trap("null_foreign"); _lb_fr; });
+    void* lb_handle __attribute__((unused)) = ((void*)0);
     lb_pos = "src/std/process/windows.lucb:81:5";
+    void* lb_current __attribute__((unused)) = ({ void* _lb_fr = lb_x_11windows_abi_GetCurrentProcess(); if (!_lb_fr) lb_trap("null_foreign"); _lb_fr; });
+    lb_pos = "src/std/process/windows.lucb:82:5";
     if (!!(({ int32_t _lb_sq142 __attribute__((unused)) = ({ void* _lb_sq143 __attribute__((unused)) = lb_current; void* _lb_sq144 __attribute__((unused)) = ((void*)(lb_c_process_13win_os_handle(lb_c_process_10win_fileno(lb_file)))); void* _lb_sq145 __attribute__((unused)) = lb_current; void** _lb_sq146 __attribute__((unused)) = &(lb_handle); uint32_t _lb_sq147 __attribute__((unused)) = 0ULL; int32_t _lb_sq148 __attribute__((unused)) = 1LL; uint32_t _lb_sq149 __attribute__((unused)) = 2ULL; lb_x_process_DuplicateHandle(_lb_sq143, _lb_sq144, _lb_sq145, _lb_sq146, _lb_sq147, _lb_sq148, _lb_sq149); }); int32_t _lb_sq150 __attribute__((unused)) = 0LL; (_lb_sq142 == _lb_sq150); }))) 
     {
-        lb_pos = "src/std/process/windows.lucb:82:9";
+        lb_pos = "src/std/process/windows.lucb:83:9";
         lb_r_void_0p _lb_err151 = ((lb_r_void_0p){ .error = { .code = (int32_t)(lb_process_failed), .message = ((lb_str){"a child stream could not be inherited", 37}) }, .failed = true });
         return _lb_err151;
     }
-    lb_pos = "src/std/process/windows.lucb:83:5";
+    lb_pos = "src/std/process/windows.lucb:84:5";
     void* _lb_ret152 = ({ void* _lb_o153 = lb_handle; if (_lb_o153 == ((void*)0)) {
         lb_r_void_0p _lb_err154 = ((lb_r_void_0p){ .error = { .code = (int32_t)(lb_process_failed), .message = ((lb_str){"a child stream has no handle", 28}) }, .failed = true });
         return _lb_err154;
@@ -4969,36 +4969,36 @@ lb_r_void_0p lb_process_12inherit_file(void* lb_file) {
 }
 lb_r_str lb_process_15capture_windows(void* lb_file) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/process/windows.lucb:86:5";
+    lb_pos = "src/std/process/windows.lucb:87:5";
     if (!!(({ int32_t _lb_sq155 __attribute__((unused)) = lb_c_process_8win_seek(lb_file, 0LL, 2LL); int32_t _lb_sq156 __attribute__((unused)) = 0LL; (!(_lb_sq155 == _lb_sq156)); }))) 
     {
-        lb_pos = "src/std/process/windows.lucb:87:9";
+        lb_pos = "src/std/process/windows.lucb:88:9";
         lb_r_str _lb_err157 = ((lb_r_str){ .error = { .code = (int32_t)(lb_process_failed), .message = ((lb_str){"a child stream could not be measured", 36}) }, .failed = true });
         return _lb_err157;
     }
-    lb_pos = "src/std/process/windows.lucb:88:5";
-    int64_t lb_length __attribute__((unused)) = lb_c_process_8win_tell(lb_file);
     lb_pos = "src/std/process/windows.lucb:89:5";
+    int64_t lb_length __attribute__((unused)) = lb_c_process_8win_tell(lb_file);
+    lb_pos = "src/std/process/windows.lucb:90:5";
     if (!!(((((int64_t)(lb_length)) < ((int64_t)(0LL))) || ({ int32_t _lb_sq158 __attribute__((unused)) = lb_c_process_8win_seek(lb_file, 0LL, 0LL); int32_t _lb_sq159 __attribute__((unused)) = 0LL; (!(_lb_sq158 == _lb_sq159)); })))) 
     {
-        lb_pos = "src/std/process/windows.lucb:90:9";
+        lb_pos = "src/std/process/windows.lucb:91:9";
         lb_r_str _lb_err160 = ((lb_r_str){ .error = { .code = (int32_t)(lb_process_failed), .message = ((lb_str){"a child stream could not be read", 32}) }, .failed = true });
         return _lb_err160;
     }
-    lb_pos = "src/std/process/windows.lucb:91:5";
+    lb_pos = "src/std/process/windows.lucb:92:5";
     lb_span lb_bytes __attribute__((unused)) = (({ lb_r_u8_0s _lb_r161 = ({ lb_iface _lb_a162 = lb_memory_allocator; size_t _lb_n162 = (size_t)(((size_t)lb_conv_s((int64_t)(lb_length), 64, 1, 64, 0, 1))); lb_r_u8_0s _lb_r162; if (_lb_n162 > UINT64_C(4611686018427387904)) { _lb_r162 = ((lb_r_u8_0s){ .error = { .code = 208273409, .message = (lb_str){"memory.exhausted", 16} }, .failed = true }); } else { size_t _lb_bytes162 = sizeof(uint8_t) * _lb_n162; lb_o_u8_0s _lb_ao162 = lb_alloc_call(_lb_a162, _lb_bytes162, _Alignof(uint8_t)); if (_lb_bytes162 != 0 && !_lb_ao162.present) { _lb_r162 = ((lb_r_u8_0s){ .error = { .code = 208273409, .message = (lb_str){"memory.exhausted", 16} }, .failed = true }); } else { _lb_r162.value.data = _lb_ao162.value.data; _lb_r162.value.length = _lb_n162; _lb_r162.failed = false; } } _lb_r162; }); if (_lb_r161.failed) {
         return ((lb_r_str){ .error = _lb_r161.error, .failed = true });
     } _lb_r161.value; }));
-    lb_pos = "src/std/process/windows.lucb:92:5";
+    lb_pos = "src/std/process/windows.lucb:93:5";
     if (!!(((((int64_t)(lb_length)) > ((int64_t)(0LL))) && ({ size_t _lb_sq163 __attribute__((unused)) = lb_x_process_fread(((uint8_t*)(lb_bytes.data)), 1ULL, (lb_bytes.length), lb_file); size_t _lb_sq164 __attribute__((unused)) = (lb_bytes.length); (!(_lb_sq163 == _lb_sq164)); })))) 
     {
-        lb_pos = "src/std/process/windows.lucb:93:9";
-        { lb_span _lb_s165 = lb_bytes; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s165.data), lb_mul_u(_lb_s165.length, sizeof(uint8_t), 64) }); }
         lb_pos = "src/std/process/windows.lucb:94:9";
+        { lb_span _lb_s165 = lb_bytes; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s165.data), lb_mul_u(_lb_s165.length, sizeof(uint8_t), 64) }); }
+        lb_pos = "src/std/process/windows.lucb:95:9";
         lb_r_str _lb_err166 = ((lb_r_str){ .error = { .code = (int32_t)(lb_process_failed), .message = ((lb_str){"a child stream could not be read", 32}) }, .failed = true });
         return _lb_err166;
     }
-    lb_pos = "src/std/process/windows.lucb:95:5";
+    lb_pos = "src/std/process/windows.lucb:96:5";
     lb_str _lb_ret167 = ({ lb_span _lb_sc168 = lb_bytes; const char* _lb_sb168 = (const char*)_lb_sc168.data; size_t _lb_sl168 = _lb_sc168.length; (lb_str){ _lb_sb168, _lb_sl168 }; });
     return ((lb_r_str){ .value = _lb_ret167, .failed = false });
     lb_trap("unreachable");

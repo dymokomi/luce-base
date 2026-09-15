@@ -5904,17 +5904,17 @@ L22_3:
 
     .section __TEXT,__const
 l_text_0:
-    .asciz "src/std/debug.lucb:46:9"
+    .asciz "src/std/debug.lucb:45:9"
 l_text_1:
-    .asciz "src/std/debug.lucb:47:5"
+    .asciz "src/std/debug.lucb:46:5"
 l_text_2:
-    .asciz "src/std/debug.lucb:51:9"
+    .asciz "src/std/debug.lucb:50:9"
 l_text_3:
     .asciz "LUCE_DEBUG"
 l_text_4:
-    .asciz "src/std/debug.lucb:60:5"
+    .asciz "src/std/debug.lucb:59:5"
 l_text_5:
-    .asciz "src/std/debug.lucb:62:5"
+    .asciz "src/std/debug.lucb:61:5"
 l_text_6:
     .asciz "stopped at "
 l_text_7:
@@ -5922,19 +5922,19 @@ l_text_7:
 l_text_8:
     .asciz " in "
 l_text_9:
-    .asciz "src/std/debug.lucb:83:9"
+    .asciz "src/std/debug.lucb:82:9"
 l_text_10:
-    .asciz "src/std/debug.lucb:86:9"
+    .asciz "src/std/debug.lucb:85:9"
 l_text_11:
     .asciz "unreachable"
 l_text_12:
-    .asciz "src/std/debug.lucb:87:5"
+    .asciz "src/std/debug.lucb:86:5"
 l_text_13:
-    .asciz "src/std/debug.lucb:92:5"
+    .asciz "src/std/debug.lucb:91:5"
 l_text_14:
     .asciz "index out of bounds"
 l_text_15:
-    .asciz "src/std/debug.lucb:99:9"
+    .asciz "src/std/debug.lucb:98:9"
 l_text_16:
     .asciz "r"
 l_text_17:
@@ -5974,67 +5974,67 @@ l_text_33:
 l_text_34:
     .asciz "`; commands: break FILE:LINE, run, step, next, print NAME, locals, backtrace, quit"
 l_text_35:
-    .asciz "src/std/debug.lucb:128:9"
+    .asciz "src/std/debug.lucb:127:9"
 l_text_36:
-    .asciz "src/std/debug.lucb:129:9"
+    .asciz "src/std/debug.lucb:128:9"
 l_text_37:
     .asciz "break needs FILE:LINE"
 l_text_38:
-    .asciz "src/std/debug.lucb:135:5"
+    .asciz "src/std/debug.lucb:134:5"
 l_text_39:
-    .asciz "src/std/debug.lucb:136:5"
+    .asciz "src/std/debug.lucb:135:5"
 l_text_40:
-    .asciz "src/std/debug.lucb:137:5"
+    .asciz "src/std/debug.lucb:136:5"
 l_text_41:
     .asciz "cannot set that breakpoint"
 l_text_42:
-    .asciz "src/std/debug.lucb:140:5"
+    .asciz "src/std/debug.lucb:139:5"
 l_text_43:
-    .asciz "src/std/debug.lucb:141:5"
+    .asciz "src/std/debug.lucb:140:5"
 l_text_44:
-    .asciz "src/std/debug.lucb:142:5"
+    .asciz "src/std/debug.lucb:141:5"
 l_text_45:
-    .asciz "src/std/debug.lucb:143:5"
+    .asciz "src/std/debug.lucb:142:5"
 l_text_46:
-    .asciz "src/std/debug.lucb:144:5"
+    .asciz "src/std/debug.lucb:143:5"
 l_text_47:
     .asciz "breakpoint "
 l_text_48:
     .asciz " at "
 l_text_49:
-    .asciz "src/std/debug.lucb:152:9"
+    .asciz "src/std/debug.lucb:151:9"
 l_text_50:
     .asciz "integer overflow"
 l_text_51:
-    .asciz "src/std/debug.lucb:153:5"
+    .asciz "src/std/debug.lucb:152:5"
 l_text_52:
-    .asciz "src/std/debug.lucb:159:9"
+    .asciz "src/std/debug.lucb:158:9"
 l_text_53:
-    .asciz "src/std/debug.lucb:160:9"
+    .asciz "src/std/debug.lucb:159:9"
 l_text_54:
     .asciz "#"
 l_text_55:
     .asciz " "
 l_text_56:
-    .asciz "src/std/debug.lucb:163:9"
+    .asciz "src/std/debug.lucb:162:9"
 l_text_57:
-    .asciz "src/std/debug.lucb:166:5"
+    .asciz "src/std/debug.lucb:165:5"
 l_text_58:
-    .asciz "src/std/debug.lucb:171:9"
+    .asciz "src/std/debug.lucb:170:9"
 l_text_59:
-    .asciz "src/std/debug.lucb:174:5"
+    .asciz "src/std/debug.lucb:173:5"
 l_text_60:
-    .asciz "src/std/debug.lucb:182:9"
+    .asciz "src/std/debug.lucb:181:9"
 l_text_61:
     .asciz "no local named `"
 l_text_62:
     .asciz "`"
 l_text_63:
-    .asciz "src/std/debug.lucb:187:5"
+    .asciz "src/std/debug.lucb:186:5"
 l_text_64:
-    .asciz "src/std/debug.lucb:188:5"
+    .asciz "src/std/debug.lucb:187:5"
 l_text_65:
-    .asciz "src/std/debug.lucb:193:5"
+    .asciz "src/std/debug.lucb:192:5"
 l_text_66:
     .asciz "i64"
 l_text_67:
@@ -6082,61 +6082,61 @@ l_text_87:
 l_text_88:
     .asciz " = 0x"
 l_text_89:
-    .asciz "src/std/debug.lucb:233:13"
+    .asciz "src/std/debug.lucb:232:13"
 l_text_90:
     .asciz "0123456789abcdef"
 l_text_91:
-    .asciz "src/std/debug.lucb:235:13"
+    .asciz "src/std/debug.lucb:234:13"
 l_text_92:
     .asciz "shift count out of range"
 l_text_93:
-    .asciz "src/std/debug.lucb:236:13"
+    .asciz "src/std/debug.lucb:235:13"
 l_text_94:
-    .asciz "src/std/debug.lucb:237:13"
+    .asciz "src/std/debug.lucb:236:13"
 l_text_95:
-    .asciz "src/std/debug.lucb:238:13"
+    .asciz "src/std/debug.lucb:237:13"
 l_text_96:
-    .asciz "src/std/debug.lucb:239:13"
+    .asciz "src/std/debug.lucb:238:13"
 l_text_97:
     .asciz " bytes "
 l_text_98:
-    .asciz "src/std/debug.lucb:240:9"
+    .asciz "src/std/debug.lucb:239:9"
 l_text_99:
-    .asciz "src/std/debug.lucb:244:5"
+    .asciz "src/std/debug.lucb:243:5"
 l_text_100:
-    .asciz "src/std/debug.lucb:245:9"
+    .asciz "src/std/debug.lucb:244:9"
 l_text_101:
-    .asciz "src/std/debug.lucb:246:5"
+    .asciz "src/std/debug.lucb:245:5"
 l_text_102:
-    .asciz "src/std/debug.lucb:251:5"
+    .asciz "src/std/debug.lucb:250:5"
 l_text_103:
-    .asciz "src/std/debug.lucb:252:9"
+    .asciz "src/std/debug.lucb:251:9"
 l_text_104:
-    .asciz "src/std/debug.lucb:253:5"
+    .asciz "src/std/debug.lucb:252:5"
 l_text_105:
-    .asciz "src/std/debug.lucb:254:9"
+    .asciz "src/std/debug.lucb:253:9"
 l_text_106:
-    .asciz "src/std/debug.lucb:255:5"
+    .asciz "src/std/debug.lucb:254:5"
 l_text_107:
-    .asciz "src/std/debug.lucb:262:9"
+    .asciz "src/std/debug.lucb:261:9"
 l_text_108:
-    .asciz "src/std/debug.lucb:267:9"
+    .asciz "src/std/debug.lucb:266:9"
 l_text_109:
-    .asciz "src/std/debug.lucb:269:9"
+    .asciz "src/std/debug.lucb:268:9"
 l_text_110:
-    .asciz "src/std/debug.lucb:270:9"
+    .asciz "src/std/debug.lucb:269:9"
 l_text_111:
-    .asciz "src/std/debug.lucb:271:5"
+    .asciz "src/std/debug.lucb:270:5"
 l_text_112:
-    .asciz "src/std/memory.lucb:326:9"
-l_text_113:
     .asciz "src/std/memory.lucb:328:9"
+l_text_113:
+    .asciz "src/std/memory.lucb:330:9"
 l_text_114:
     .asciz "null_foreign"
 l_text_115:
-    .asciz "src/std/memory.lucb:342:5"
+    .asciz "src/std/memory.lucb:344:5"
 l_text_116:
-    .asciz "src/std/memory.lucb:343:5"
+    .asciz "src/std/memory.lucb:345:5"
 
     .section __DATA,__const
     .p2align 3

@@ -1755,53 +1755,53 @@ lb_strings_11search_byte:
 .Ltext_11:
     .asciz "src/std/strings/search.lucb:41:5"
 .Ltext_12:
-    .asciz "src/std/strings/search.lucb:59:5"
+    .asciz "src/std/strings/search.lucb:58:5"
 .Ltext_13:
-    .asciz "src/std/strings/search.lucb:62:9"
+    .asciz "src/std/strings/search.lucb:61:9"
 .Ltext_14:
-    .asciz "src/std/strings/search.lucb:64:9"
+    .asciz "src/std/strings/search.lucb:63:9"
 .Ltext_15:
-    .asciz "src/std/strings/search.lucb:67:9"
+    .asciz "src/std/strings/search.lucb:66:9"
 .Ltext_16:
-    .asciz "src/std/strings/search.lucb:69:9"
+    .asciz "src/std/strings/search.lucb:68:9"
 .Ltext_17:
-    .asciz "src/std/strings/search.lucb:73:5"
+    .asciz "src/std/strings/search.lucb:72:5"
 .Ltext_18:
-    .asciz "src/std/strings/search.lucb:75:9"
+    .asciz "src/std/strings/search.lucb:74:9"
 .Ltext_19:
-    .asciz "src/std/strings/search.lucb:76:13"
+    .asciz "src/std/strings/search.lucb:75:13"
 .Ltext_20:
-    .asciz "src/std/strings/search.lucb:78:13"
+    .asciz "src/std/strings/search.lucb:77:13"
 .Ltext_21:
-    .asciz "src/std/strings/search.lucb:82:9"
+    .asciz "src/std/strings/search.lucb:81:9"
 .Ltext_22:
-    .asciz "src/std/strings/search.lucb:83:13"
+    .asciz "src/std/strings/search.lucb:82:13"
 .Ltext_23:
-    .asciz "src/std/strings/search.lucb:86:9"
+    .asciz "src/std/strings/search.lucb:85:9"
 .Ltext_24:
-    .asciz "src/std/strings/search.lucb:88:5"
+    .asciz "src/std/strings/search.lucb:87:5"
 .Ltext_25:
-    .asciz "src/std/strings/search.lucb:97:5"
+    .asciz "src/std/strings/search.lucb:96:5"
 .Ltext_26:
-    .asciz "src/std/strings/search.lucb:98:9"
+    .asciz "src/std/strings/search.lucb:97:9"
 .Ltext_27:
-    .asciz "src/std/strings/search.lucb:99:9"
+    .asciz "src/std/strings/search.lucb:98:9"
 .Ltext_28:
-    .asciz "src/std/strings/search.lucb:101:13"
+    .asciz "src/std/strings/search.lucb:100:13"
 .Ltext_29:
-    .asciz "src/std/strings/search.lucb:102:17"
+    .asciz "src/std/strings/search.lucb:101:17"
 .Ltext_30:
-    .asciz "src/std/strings/search.lucb:105:17"
+    .asciz "src/std/strings/search.lucb:104:17"
 .Ltext_31:
-    .asciz "src/std/strings/search.lucb:107:13"
+    .asciz "src/std/strings/search.lucb:106:13"
 .Ltext_32:
-    .asciz "src/std/strings/search.lucb:109:13"
+    .asciz "src/std/strings/search.lucb:108:13"
 .Ltext_33:
-    .asciz "src/std/strings/search.lucb:112:13"
+    .asciz "src/std/strings/search.lucb:111:13"
 .Ltext_34:
-    .asciz "src/std/strings/search.lucb:115:5"
+    .asciz "src/std/strings/search.lucb:114:5"
 .Ltext_35:
-    .asciz "src/std/strings/search.lucb:118:5"
+    .asciz "src/std/strings/search.lucb:117:5"
 .Ltext_36:
     .asciz "integer overflow"
 

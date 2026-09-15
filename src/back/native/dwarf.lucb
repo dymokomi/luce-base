@@ -22,8 +22,8 @@ pub struct Emitter:
 
     pub static func over(checker: check.Checker*, program: ir.Unit*, os: targets.Os) -> Emitter!:
         return Emitter(checker = checker, program = program, os = os,
-            files = try list.List[str].create(0), needed = try list.List[u32].create(0),
-            info = try buffer.Buffer.create(0), cwd = "", serial = 0)
+                       files = try list.List[str].create(0), needed = try list.List[u32].create(0),
+                       info = try buffer.Buffer.create(0), cwd = "", serial = 0)
 
     mutating func file(path: str) -> usize!:
         var i: usize = 0
@@ -90,7 +90,7 @@ pub struct Emitter:
             try o.put(try format(format_room, f"    .uleb128 Ldw_base_end_{index}-Ldw_base_{index}\nLdw_base_{index}:\n    .byte 118\n    .sleb128 {fr.size}\nLdw_base_end_{index}:\n"))
         else:
             try o.put("    .uleb128 1\n    .byte ")
-            try o.put("109\n" if self.os == targets.Os.macos else "86\n") # DW_OP_reg29 / DW_OP_reg6
+            try o.put("109\n" if self.os == targets.Os.macos else "86\n")  # DW_OP_reg29 / DW_OP_reg6
         try self.reference(f.result_type)
         try self.scope(f, fr, index, 0)
         try o.put("    .byte 0\n")
@@ -265,12 +265,12 @@ pub struct Emitter:
         try section_offset(out, "Ldw_abbrev", self.os)
         try out.put("    .byte 8\n    .uleb128 1\n")
         try text(out, "luce-base native DWARF 4")
-        try out.put("    .short 12\n") # C99 representation understood by both debuggers
+        try out.put("    .short 12\n")  # C99 representation understood by both debuggers
         try text(out, self.files.get(0))
         try text(out, self.cwd)
         try section_offset(out, "Ldw_line", self.os)
         try section_offset(out, "Ldw_ranges", self.os)
-        try out.put("    .quad 0\n") # statement list and ranges, section offsets
+        try out.put("    .quad 0\n")  # statement list and ranges, section offsets
         try out.put(self.info.view())
         try out.put("    .byte 0\nLdw_info_end:\n")
         try section(out, "ranges", self.os)

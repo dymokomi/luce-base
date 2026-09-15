@@ -40,7 +40,6 @@ import sema.types
 import support.list
 import support.manifest
 import support.modules as module_paths
-
 pub let unknown_name: ErrorCode = ErrorCode.package(9)
 pub let type_error: ErrorCode = ErrorCode.package(10)
 pub let unsupported: ErrorCode = ErrorCode.package(11)
@@ -91,7 +90,6 @@ struct SpanWriter: io.Writer:
         return i
 
 # mark: The checker ============================================================================
-
 pub struct Checker:
     ## Development debugging retains named locals after reporting unused bindings.
     pub var debug_locals: bool
@@ -381,7 +379,7 @@ pub struct Checker:
                 let owner = e.left else return false
                 let d = e.resolved else return false
                 if d.kind == ast.Kind.global or d.kind == ast.Kind.extern_var or d.kind == ast.Kind.constant:
-                    return true    # `module.global`
+                    return true  # `module.global`
                 return d.kind == ast.Kind.field and self.global_place(owner)
             _:
                 return false
@@ -429,9 +427,9 @@ pub struct Checker:
                 let owner = e.left else return false
                 let ok = self.table.kind(owner.type_id)
                 if ok == types.Kind.module:
-                    return false    # `module.global`
+                    return false  # `module.global`
                 if ok == types.Kind.pointer or ok == types.Kind.span or owner.type_id == types.str_id:
-                    return self.is_local_value(owner)    # wherever the pointer or view points
+                    return self.is_local_value(owner)  # wherever the pointer or view points
                 return self.place_is_local(owner)
             .index:
                 let owner = e.left else return false
@@ -1239,7 +1237,7 @@ pub struct Checker:
         var result = types.unit_id
         if let r = f.ty:
             result = try self.resolve_type(r)
-            r.type_id = result # the declared result, which the backends need beside `out` values
+            r.type_id = result  # the declared result, which the backends need beside `out` values
             # `-> T!` spells the failure on the type; `-> !` on the flag. One flag serves both.
             if self.table.kind(result) == types.Kind.fallible:
                 f.flags |= ast.flag_fallible
@@ -1344,7 +1342,7 @@ pub struct Checker:
         if self.table.is_integer(id) or id == types.bool_id or k == types.Kind.pointer:
             return self.table.size_of(id) <= 8
         if k == types.Kind.optional:
-            return self.table.is_nullable_pointer(id)    # one word; a view's optional is two
+            return self.table.is_nullable_pointer(id)  # one word; a view's optional is two
         if k == types.Kind.struct_:
             return self.table.size_of(id) == 16 and self.table.align_of(id) == 8
         return false
@@ -2570,7 +2568,7 @@ pub struct Checker:
             if self.effect_count == before:
                 return try self.fail(e, "`try` needs a fallible expression")
             if self.is_local_value(inner):
-                self.mark_local(e)    # the value still views the local it came from (§6.6)
+                self.mark_local(e)  # the value still views the local it came from (§6.6)
             e.kind = ast.Kind.group
             e.text = ""
             return it
@@ -2714,7 +2712,7 @@ pub struct Checker:
             return types.bool_id
         if op == "<" or op == "<=" or op == ">" or op == ">=":
             if self.table.kind(t) == types.Kind.pointer:
-                return types.bool_id    # the total order of addresses (§5.3)
+                return types.bool_id  # the total order of addresses (§5.3)
             if not (t == types.untyped_int_id or t == types.untyped_float_id or self.table.is_numeric(t) or t == types.char_id or t == types.str_id or self.table.kind(t) == types.Kind.param):
                 return try self.fail(e, "ordering needs numbers or text")
             return types.bool_id
@@ -2870,7 +2868,7 @@ pub struct Checker:
                 return try self.fail(e, "indexing needs a span, an array, or a pointer")
         var it = try self.check_expr(index, types.usize_id)
         if it == types.char_id and index.kind == ast.Kind.literal and index.text.bytes[0] == '\'' and check_decode_char(index.text) < 128:
-            index.type_id = types.usize_id    # `table['P']`: an ASCII literal in an integer context (§4.4)
+            index.type_id = types.usize_id  # `table['P']`: an ASCII literal in an integer context (§4.4)
             it = types.usize_id
         if not (it == types.untyped_int_id or self.table.is_integer(it)):
             return try self.fail(index, "an index is an integer")
@@ -3143,7 +3141,7 @@ pub struct Checker:
         if self.effect_count == before:
             return try self.fail(l, "`catch` needs a fallible value")
         if self.is_local_value(l):
-            self.mark_local(e)    # the handled value still views what it viewed (§6.6)
+            self.mark_local(e)  # the handled value still views what it viewed (§6.6)
         var result = lt
         if hint != types.none_id and self.table.kind(hint) == types.Kind.optional and self.table.get(hint).elem == lt:
             result = hint
@@ -3473,7 +3471,7 @@ pub struct Checker:
                 if not f.has(ast.flag_pub) and not self.same_module(d) and not self.inside(d):
                     return try self.fail(e, "that field is not public")
                 if self.is_local_value(owner) and self.table.kind(owner.type_id) != types.Kind.pointer:
-                    self.mark_local(e)    # a field read through a pointer is not the pointer (§6.6)
+                    self.mark_local(e)  # a field read through a pointer is not the pointer (§6.6)
                 return try self.substitute(f.type_id, d, t.args)
             if let m = find_member(d, name, ast.Kind.func_):
                 if m.has(ast.flag_static):
@@ -5890,7 +5888,6 @@ func is_float_literal(text: str) -> bool:
         if byte == '.' or byte == 'e' or byte == 'E':
             return true
     return false
-
 
 ## The first `b` in `s`, or `s.length`.
 func check_decode_char(text: str) -> u32:

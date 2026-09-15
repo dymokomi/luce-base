@@ -1,7 +1,6 @@
 from windows_abi import SystemInfo
 from windows_abi import GetSystemInfo
 import platform
-
 extern func malloc(size: usize) -> void*?
 extern func c_free as "free"(block: void*)
 extern func posix_memalign(memptr: void*?*, alignment: usize, size: usize) -> i32
@@ -17,7 +16,9 @@ extern func memset(target: void*, value: i32, count: usize) -> void*
 ## alignment. Bump allocators support every positive alignment, not only powers of two.
 pub interface Allocator:
     mutating func allocate(size: usize, alignment: usize) -> u8[]?
+
     mutating func resize(block: u8[], size: usize) -> bool
+
     mutating func release(block: u8[])
 
 ## A bump allocator over a caller's bytes. Only the last block can be resized or
@@ -57,7 +58,7 @@ pub struct FixedBuffer: Allocator:
         if block.length == 0:
             return
         if diagnostic:
-            discard(memset(block.data, 221, block.length))    # a fixed buffer releases all at once
+            discard(memset(block.data, 221, block.length))  # a fixed buffer releases all at once
         let start = (usize)block.data - (usize)self.data.data
         if start + block.length == self.used:
             self.used = start
@@ -158,11 +159,12 @@ pub struct Arena: Allocator:
 
     pub mutating func release(block: u8[]):
         if diagnostic and block.length > 0:
-            discard(memset(block.data, 221, block.length))    # an arena releases all at once
+            discard(memset(block.data, 221, block.length))  # an arena releases all at once
 
     ## What has been handed out since the last reset, and what the arena holds in all.
     pub func in_use() -> usize:
         return self.used
+
     pub func capacity() -> usize:
         return self.block.length
 
@@ -301,13 +303,13 @@ pub func note_site(address: void*?, size: usize, function: str, line: u32):
 pub func allocation_sites() -> const Site[]:
     let held = site_next if site_next < sites.length else sites.length
     return sites[..<held]
+
 ## The released blocks the diagnostic profile still holds, oldest freed first.
 var quarantine: (u8[]?)[64]
 var quarantine_next: usize
 ## The released mappings the diagnostic profile still holds, oldest first.
 var held_pages: (u8[]?)[8]
 var held_next: usize
-
 pub let exhausted: ErrorCode = ErrorCode.package(1)
 pub let unset: ErrorCode = ErrorCode.package(2)
 

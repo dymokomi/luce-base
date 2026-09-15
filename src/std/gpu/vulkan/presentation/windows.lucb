@@ -9,7 +9,7 @@ func vulkan_windows_support(physical: u64, family: u32) -> bool:
 
 func vulkan_windows_surface(instance: u64, host: window.Presentation) -> u64!:
     var info = VkWin32SurfaceCreateInfoKHR(sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR,
-        hinstance = GetModuleHandleW(none), hwnd = try host.windows_handle())
+                                           hinstance = GetModuleHandleW(none), hwnd = try host.windows_handle())
     var surface: u64 = 0
     try vulkan_check(vkCreateWin32SurfaceKHR(instance, &info, none, &surface), "the Vulkan Windows surface could not be created")
     return surface

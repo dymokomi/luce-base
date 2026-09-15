@@ -16,7 +16,6 @@ import front.lexer
 import front.source
 import front.token
 import memory
-
 pub let syntax: ErrorCode = ErrorCode.package(7)
 pub let too_deep: ErrorCode = ErrorCode.package(8)
 
@@ -68,6 +67,10 @@ pub struct Parser:
         if i >= self.count:
             return self.tokens[self.count - 1]
         return self.tokens[i]
+
+    ## Every token of the source, for the formatter's comment search.
+    pub func token_span() -> const token.Token[]:
+        return self.tokens[..<self.count]
 
     pub func scratch_length() -> usize:
         return self.scratch.length
@@ -197,7 +200,6 @@ pub struct Parser:
         self.nest -= 1
 
     # -- module and declarations ----------------------------------------------------------
-
     pub mutating func parse_module() -> ast.Node*!:
         let module = try self.node(ast.Kind.module, self.src.path)
         var tail: ast.Node*? = none
@@ -418,7 +420,7 @@ pub struct Parser:
             n.flags |= ast.flag_mutating
         try self.expect_kw("func")
         n.text = try self.expect_name()
-        if self.at_op("[") :
+        if self.at_op("["):
             n.left = try self.parse_generic_params()
         # params live in `right`; the suite in `body`
         n.right = try self.parse_params()
@@ -744,7 +746,7 @@ pub struct Parser:
             var tail: ast.Node*? = none
             while not self.at_op(")"):
                 let operand = try self.node(ast.Kind.argument, "")
-                operand.text = self.text_of(self.take())     # in / out / inout / options
+                operand.text = self.text_of(self.take())  # in / out / inout / options
                 try self.expect_op("(")
                 var ptail: ast.Node*? = none
                 while not self.at_op(")"):
@@ -903,7 +905,7 @@ pub struct Parser:
         n.left = try self.parse_expression()
         try self.expect_op(")")
         if self.eat_kw("in"):
-            n.right = try self.parse_else()    # a `catch` after the allocator handles the allocation
+            n.right = try self.parse_else()  # a `catch` after the allocator handles the allocation
         try self.expect_newline()
         return n
 
@@ -954,7 +956,7 @@ pub struct Parser:
         try self.expect_op(":")
         n.body = try self.parse_suite()
         if self.at_kw("elif"):
-            let rest = try self.parse_if()       # `elif` reads as a nested if
+            let rest = try self.parse_if()  # `elif` reads as a nested if
             n.right = rest
         elif self.eat_kw("else"):
             try self.expect_op(":")
@@ -1061,7 +1063,6 @@ pub struct Parser:
         return try self.parse_primary()
 
     # -- expressions ----------------------------------------------------------------------
-
     pub mutating func parse_expression() -> ast.Node*!:
         try self.enter()
         var e = try self.parse_else()
@@ -1235,7 +1236,7 @@ pub struct Parser:
             return false
         let head = self.text_of(t)
         var typed = self.is_type_word(head)
-        var bare = not typed    # a lowercase name: an alias, if anything
+        var bare = not typed  # a lowercase name: an alias, if anything
         i += 1
         t = self.peek(i)
         while t.kind == token.Kind.operator:
@@ -1333,7 +1334,7 @@ pub struct Parser:
                     call.body = try self.parse_arguments()
                     e = call
                 else:
-                    e.ty = args                  # `Map[str, u32].create(...)`
+                    e.ty = args  # `Map[str, u32].create(...)`
             elif self.at_op("["):
                 discard(self.take())
                 if self.eat_op("..<"):
@@ -1505,7 +1506,7 @@ pub struct Parser:
         var tail: ast.Node*? = none
         while not self.at_op(")"):
             let a = try self.node(ast.Kind.argument, "")
-            if self.at(token.Kind.name) and self.peek_op(1, "=") :
+            if self.at(token.Kind.name) and self.peek_op(1, "="):
                 a.text = self.text_of(self.take())
                 discard(self.take())
             a.left = try self.parse_expression()
@@ -1526,8 +1527,9 @@ pub struct Parser:
             if w == "true" or w == "false" or w == "none":
                 return try self.taken(ast.Kind.literal)
             if w == "self":
+                let n = try self.node(ast.Kind.self_, "self")
                 discard(self.take())
-                return try self.node(ast.Kind.self_, "self")
+                return n
             if w == "match":
                 return try self.parse_match(true)
             if w == "new":
@@ -1545,8 +1547,8 @@ pub struct Parser:
         if t.kind == token.Kind.operator:
             let s = self.text_of(t)
             if s == ".":
-                discard(self.take())
                 let value = try self.node(ast.Kind.case_value, "")
+                discard(self.take())
                 value.text = try self.expect_member_name()
                 if self.at_op("("):
                     value.body = try self.parse_arguments()
@@ -1565,12 +1567,18 @@ pub struct Parser:
             if s == "(":
                 if self.looks_like_lambda():
                     return try self.parse_lambda()
-                discard(self.take())
+                # the group, tuple, or unit begins at its bracket
+                let open = self.take()
                 if self.eat_op(")"):
-                    return try self.node(ast.Kind.unit_, "")
+                    let u = try self.node(ast.Kind.unit_, "")
+                    u.start = open.start
+                    u.line = open.line
+                    return u
                 let first = try self.parse_expression()
                 if self.at_op(","):
                     let tuple = try self.node(ast.Kind.tuple, "")
+                    tuple.start = open.start
+                    tuple.line = open.line
                     var tail: ast.Node*? = none
                     ast.append(&tuple.body, &tail, first)
                     while self.eat_op(","):
@@ -1582,6 +1590,8 @@ pub struct Parser:
                     return tuple
                 try self.expect_op(")")
                 let g = try self.node(ast.Kind.group, "")
+                g.start = open.start
+                g.line = open.line
                 g.left = first
                 return g
         return try self.fail("expected an expression")
@@ -1673,7 +1683,7 @@ pub struct Parser:
                 value.body = try self.parse_arguments()
             n.body = value
         if self.eat_kw("in"):
-            n.right = try self.parse_else()    # a `catch` after the allocator handles the allocation
+            n.right = try self.parse_else()  # a `catch` after the allocator handles the allocation
         return n
 
     mutating func parse_alloc() -> ast.Node*!:
@@ -1685,11 +1695,10 @@ pub struct Parser:
         else:
             n.ty = try self.parse_type()
         if self.eat_kw("in"):
-            n.right = try self.parse_else()    # a `catch` after the allocator handles the allocation
+            n.right = try self.parse_else()  # a `catch` after the allocator handles the allocation
         return n
 
     # -- types ----------------------------------------------------------------------------
-
     pub mutating func parse_type() -> ast.Node*!:
         var flags: u32 = 0
         # `@` marks the whole type, suffixes included: `@Node*?` is an atomic nullable pointer
@@ -1703,7 +1712,7 @@ pub struct Parser:
         var t = try self.parse_type_core()
         t.flags |= flags
         var pointee = false
-        var suffixed = false    # after a suffix, a bracket can only be another suffix
+        var suffixed = false  # after a suffix, a bracket can only be another suffix
         while true:
             suffixed = true
             if self.at_op("*") or self.at_op("*?"):
@@ -1784,14 +1793,14 @@ pub struct Parser:
                 if s == "+" or s == "-" or s == "/" or s == "//" or s == "%" or s == "<" or s == ">" or s == "<=" or s == ">=" or s == "==" or s == "!=" or s == "|" or s == "^" or s == ".." or s == "..<" or s == "<<" or s == ">>":
                     return true
                 if s == "*" and (after.kind == token.Kind.name or after.kind == token.Kind.integer or (after.kind == token.Kind.operator and self.text_of(after) == "(")):
-                    return true    # `a * b`, not `T*`
+                    return true  # `a * b`, not `T*`
                 if s == "." and after.kind == token.Kind.name and i > 1:
                     let ab = self.text_of(after).bytes
                     if ab.length > 0 and ab[0] >= 'a' and ab[0] <= 'z' and self.text_of(self.peek(i - 1)) != "c":
-                        return true    # `s.count`: a field, not `module.Type`
+                        return true  # `s.count`: a field, not `module.Type`
             elif t.kind == token.Kind.integer:
                 if i > 1:
-                    return true    # `T[3]` is an array type; `n - 3` is not
+                    return true  # `T[3]` is an array type; `n - 3` is not
             elif t.kind == token.Kind.float or t.kind == token.Kind.character or t.kind == token.Kind.text:
                 return true
             elif t.kind == token.Kind.keyword and (s == "and" or s == "or" or s == "not"):
@@ -1804,7 +1813,7 @@ pub struct Parser:
         if t.kind == token.Kind.operator and self.text_of(t) == "]":
             return true
         if t.kind == token.Kind.operator and self.text_of(t) == "(" and self.tuple_type_at(2):
-            return false    # `Box[(i64, str)]`: a tuple type argument, not `T[(n)]`
+            return false  # `Box[(i64, str)]`: a tuple type argument, not `T[(n)]`
         if self.bracket_holds_expression():
             return true
         if t.kind == token.Kind.keyword:

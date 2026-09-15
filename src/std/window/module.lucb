@@ -4,7 +4,6 @@ import memory
 import platform
 import utf8
 import thread
-
 pub let unsupported: ErrorCode = ErrorCode.package(85)
 pub let wrong_thread: ErrorCode = ErrorCode.package(86)
 pub let invalid_options: ErrorCode = ErrorCode.package(87)

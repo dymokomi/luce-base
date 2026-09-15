@@ -101,7 +101,7 @@ struct WalkState:
                 free(self.frames)
                 self.frames = grown
         self.frames[self.count] = WalkFrame(directory = child, device = info.device, inode = info.inode,
-                                           path_length = self.path.view().length)
+                                            path_length = self.path.view().length)
         self.count += 1
 
     mutating func pop() -> !:

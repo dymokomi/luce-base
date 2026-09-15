@@ -4277,76 +4277,76 @@ extern uint32_t lb_gpu_22vulkan_api_version_1_0;
 
 __attribute__((weak)) lb_interop_Transfer_0g1_str lb_interop_Transfer_0g1_str_plain(void) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/fonts/linux/native.lucb:471:1";
+    lb_pos = "src/std/fonts/linux/native.lucb:461:1";
     lb_interop_Transfer_0g1_str _lb_ret1 = ((lb_interop_Transfer_0g1_str){.copy = lb_interop_Transfer_0g1_str_10copy_plain});
     return _lb_ret1;
     lb_trap("unreachable");
 }
 __attribute__((weak)) lb_r_interop_Packet_0g1_str lb_interop_Transfer_0g1_str_10copy_plain(lb_str lb_value) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/fonts/linux/native.lucb:474:1";
+    lb_pos = "src/std/fonts/linux/native.lucb:464:1";
     lb_interop_Packet_0g1_str _lb_ret2 = ({ lb_interop_Packet_0g1_str _lb_iv3 = {}; lb_interop_Packet_0g1_str_init(&_lb_iv3, lb_value, ((void*)0), ((void*)0)); _lb_iv3; });
     return ((lb_r_interop_Packet_0g1_str){ .value = _lb_ret2, .failed = false });
     lb_trap("unreachable");
 }
 __attribute__((weak)) lb_interop_Transfer_0g1_u8_0c lb_interop_Transfer_0g1_u8_0c_plain(void) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/fonts/linux/native.lucb:471:1";
+    lb_pos = "src/std/fonts/linux/native.lucb:461:1";
     lb_interop_Transfer_0g1_u8_0c _lb_ret4 = ((lb_interop_Transfer_0g1_u8_0c){.copy = lb_interop_Transfer_0g1_u8_0c_10copy_plain});
     return _lb_ret4;
     lb_trap("unreachable");
 }
 __attribute__((weak)) lb_r_interop_Packet_0g1_u8_0c lb_interop_Transfer_0g1_u8_0c_10copy_plain(lb_cspan lb_value) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/fonts/linux/native.lucb:474:1";
+    lb_pos = "src/std/fonts/linux/native.lucb:464:1";
     lb_interop_Packet_0g1_u8_0c _lb_ret5 = ({ lb_interop_Packet_0g1_u8_0c _lb_iv6 = {}; lb_interop_Packet_0g1_u8_0c_init(&_lb_iv6, lb_value, ((void*)0), ((void*)0)); _lb_iv6; });
     return ((lb_r_interop_Packet_0g1_u8_0c){ .value = _lb_ret5, .failed = false });
     lb_trap("unreachable");
 }
 lb_r_fonts_NativeFace lb_fonts_10linux_face(double lb_size, lb_str lb_family) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/fonts/linux/native.lucb:51:5";
+    lb_pos = "src/std/fonts/linux/native.lucb:53:5";
     lb_span lb_name __attribute__((unused)) = (({ lb_r_u8_0s _lb_r7 = lb_fonts_12family_bytes((((lb_family.length) == 0ULL) ? ((lb_str){"monospace", 9}) : lb_family)); if (_lb_r7.failed) {
         return ((lb_r_fonts_NativeFace){ .error = _lb_r7.error, .failed = true });
     } _lb_r7.value; }));
-    lb_pos = "src/std/fonts/linux/native.lucb:52:5";
-    lb_pos = "src/std/fonts/linux/native.lucb:53:5";
-    void* lb_surface __attribute__((unused)) = ({ void* _lb_fr = lb_x_fonts_26cairo_image_surface_create(2LL, 1LL, 1LL); if (!_lb_fr) lb_trap("null_foreign"); _lb_fr; });
     lb_pos = "src/std/fonts/linux/native.lucb:54:5";
     lb_pos = "src/std/fonts/linux/native.lucb:55:5";
-    void* lb_context __attribute__((unused)) = ({ void* _lb_fr = lb_x_fonts_12cairo_create(lb_surface); if (!_lb_fr) lb_trap("null_foreign"); _lb_fr; });
+    void* lb_surface __attribute__((unused)) = ({ void* _lb_fr = lb_x_fonts_26cairo_image_surface_create(2LL, 1LL, 1LL); if (!_lb_fr) lb_trap("null_foreign"); _lb_fr; });
     lb_pos = "src/std/fonts/linux/native.lucb:56:5";
     lb_pos = "src/std/fonts/linux/native.lucb:57:5";
-    (void)(lb_fonts_13linux_options(lb_context));
+    void* lb_context __attribute__((unused)) = ({ void* _lb_fr = lb_x_fonts_12cairo_create(lb_surface); if (!_lb_fr) lb_trap("null_foreign"); _lb_fr; });
     lb_pos = "src/std/fonts/linux/native.lucb:58:5";
-    (void)(lb_x_fonts_22cairo_select_font_face(lb_context, ((char*)(((uint8_t*)(lb_name.data)))), 0LL, 0LL));
     lb_pos = "src/std/fonts/linux/native.lucb:59:5";
-    (void)(lb_x_fonts_19cairo_set_font_size(lb_context, lb_size));
+    (void)(lb_fonts_13linux_options(lb_context));
     lb_pos = "src/std/fonts/linux/native.lucb:60:5";
-    CairoFontMetrics lb_metrics __attribute__((unused)) = {};
+    (void)(lb_x_fonts_22cairo_select_font_face(lb_context, ((char*)(((uint8_t*)(lb_name.data)))), 0LL, 0LL));
     lb_pos = "src/std/fonts/linux/native.lucb:61:5";
-    (void)(lb_x_fonts_18cairo_font_extents(lb_context, &(lb_metrics)));
+    (void)(lb_x_fonts_19cairo_set_font_size(lb_context, lb_size));
     lb_pos = "src/std/fonts/linux/native.lucb:62:5";
-    CairoTextMetrics lb_narrow __attribute__((unused)) = {};
+    CairoFontMetrics lb_metrics __attribute__((unused)) = {};
     lb_pos = "src/std/fonts/linux/native.lucb:63:5";
-    CairoTextMetrics lb_wide __attribute__((unused)) = {};
+    (void)(lb_x_fonts_18cairo_font_extents(lb_context, &(lb_metrics)));
     lb_pos = "src/std/fonts/linux/native.lucb:64:5";
-    (void)(lb_x_fonts_18cairo_text_extents(lb_context, "i", &(lb_narrow)));
+    CairoTextMetrics lb_narrow __attribute__((unused)) = {};
     lb_pos = "src/std/fonts/linux/native.lucb:65:5";
-    (void)(lb_x_fonts_18cairo_text_extents(lb_context, "W", &(lb_wide)));
+    CairoTextMetrics lb_wide __attribute__((unused)) = {};
     lb_pos = "src/std/fonts/linux/native.lucb:66:5";
+    (void)(lb_x_fonts_18cairo_text_extents(lb_context, "i", &(lb_narrow)));
+    lb_pos = "src/std/fonts/linux/native.lucb:67:5";
+    (void)(lb_x_fonts_18cairo_text_extents(lb_context, "W", &(lb_wide)));
+    lb_pos = "src/std/fonts/linux/native.lucb:68:5";
     if (!!(((({ int32_t _lb_sq8 __attribute__((unused)) = lb_x_fonts_12cairo_status(lb_context); int32_t _lb_sq9 __attribute__((unused)) = 0LL; (!(_lb_sq8 == _lb_sq9)); }) || (((double)(lb_wide.advance_x)) <= ((double)(0x0p+0)))) || ({ double _lb_sq10 __attribute__((unused)) = lb_math_abs((lb_narrow.advance_x - lb_wide.advance_x)); double _lb_sq11 __attribute__((unused)) = 0x1.47ae147ae147bp-7; (((double)(_lb_sq10)) > ((double)(_lb_sq11))); })))) 
     {
-        lb_pos = "src/std/fonts/linux/native.lucb:67:9";
+        lb_pos = "src/std/fonts/linux/native.lucb:69:9";
         lb_r_fonts_NativeFace _lb_err12 = ((lb_r_fonts_NativeFace){ .error = { .code = (int32_t)(lb_fonts_failed), .message = ((lb_str){"the requested font must be an available monospace face", 54}) }, .failed = true });
         (void)(lb_x_fonts_13cairo_destroy(lb_context));
         (void)(lb_x_fonts_21cairo_surface_destroy(lb_surface));
         { lb_span _lb_s13 = lb_name; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s13.data), lb_mul_u(_lb_s13.length, sizeof(uint8_t), 64) }); }
         return _lb_err12;
     }
-    lb_pos = "src/std/fonts/linux/native.lucb:68:5";
+    lb_pos = "src/std/fonts/linux/native.lucb:70:5";
     void* lb_font __attribute__((unused)) = ({ void* _lb_fr = lb_x_fonts_27cairo_scaled_font_reference(({ void* _lb_fr = lb_x_fonts_21cairo_get_scaled_font(lb_context); if (!_lb_fr) lb_trap("null_foreign"); _lb_fr; })); if (!_lb_fr) lb_trap("null_foreign"); _lb_fr; });
-    lb_pos = "src/std/fonts/linux/native.lucb:69:5";
+    lb_pos = "src/std/fonts/linux/native.lucb:71:5";
     lb_fonts_NativeFace _lb_ret14 = ((lb_fonts_NativeFace){.native = lb_font, .auxiliary = ((void*)0), .advance = lb_wide.advance_x, .ascent = lb_metrics.ascent, .descent = lb_metrics.descent});
     (void)(lb_x_fonts_13cairo_destroy(lb_context));
     (void)(lb_x_fonts_21cairo_surface_destroy(lb_surface));
@@ -4359,88 +4359,88 @@ lb_r_fonts_NativeFace lb_fonts_10linux_face(double lb_size, lb_str lb_family) {
 }
 lb_r_unit lb_fonts_12linux_raster(lb_fonts_Face lb_face, lb_str lb_text, double lb_scale, struct lb_fonts_Bitmap* lb_bitmap) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/fonts/linux/native.lucb:72:5";
+    lb_pos = "src/std/fonts/linux/native.lucb:74:5";
     void* lb_font __attribute__((unused)) = ({ void* _lb_o17 = lb_face.native; if (_lb_o17 == ((void*)0)) {
         lb_r_unit _lb_err18 = ((lb_r_unit){ .error = { .code = (int32_t)(lb_fonts_failed), .message = ((lb_str){"the font is closed", 18}) }, .failed = true });
         return _lb_err18;
     } _lb_o17; });
-    lb_pos = "src/std/fonts/linux/native.lucb:73:5";
-    void* lb_surface __attribute__((unused)) = ({ void* _lb_fr = lb_x_fonts_26cairo_image_surface_create(2LL, ((int32_t)lb_conv_u((uint64_t)((lb_bitmap)->width), 32, 0, 32, 1, 1)), ((int32_t)lb_conv_u((uint64_t)((lb_bitmap)->height), 32, 0, 32, 1, 1))); if (!_lb_fr) lb_trap("null_foreign"); _lb_fr; });
-    lb_pos = "src/std/fonts/linux/native.lucb:74:5";
     lb_pos = "src/std/fonts/linux/native.lucb:75:5";
+    void* lb_surface __attribute__((unused)) = ({ void* _lb_fr = lb_x_fonts_26cairo_image_surface_create(2LL, ((int32_t)lb_conv_u((uint64_t)((lb_bitmap)->width), 32, 0, 32, 1, 1)), ((int32_t)lb_conv_u((uint64_t)((lb_bitmap)->height), 32, 0, 32, 1, 1))); if (!_lb_fr) lb_trap("null_foreign"); _lb_fr; });
+    lb_pos = "src/std/fonts/linux/native.lucb:76:5";
+    lb_pos = "src/std/fonts/linux/native.lucb:77:5";
     if (!!(({ int32_t _lb_sq19 __attribute__((unused)) = lb_x_fonts_20cairo_surface_status(lb_surface); int32_t _lb_sq20 __attribute__((unused)) = 0LL; (!(_lb_sq19 == _lb_sq20)); }))) 
     {
-        lb_pos = "src/std/fonts/linux/native.lucb:76:9";
+        lb_pos = "src/std/fonts/linux/native.lucb:78:9";
         lb_r_unit _lb_err21 = ((lb_r_unit){ .error = { .code = (int32_t)(lb_fonts_failed), .message = ((lb_str){"could not allocate font raster storage", 38}) }, .failed = true });
         (void)(lb_x_fonts_21cairo_surface_destroy(lb_surface));
         return _lb_err21;
     }
-    lb_pos = "src/std/fonts/linux/native.lucb:77:5";
-    void* lb_context __attribute__((unused)) = ({ void* _lb_fr = lb_x_fonts_12cairo_create(lb_surface); if (!_lb_fr) lb_trap("null_foreign"); _lb_fr; });
-    lb_pos = "src/std/fonts/linux/native.lucb:78:5";
     lb_pos = "src/std/fonts/linux/native.lucb:79:5";
-    (void)(lb_fonts_13linux_options(lb_context));
+    void* lb_context __attribute__((unused)) = ({ void* _lb_fr = lb_x_fonts_12cairo_create(lb_surface); if (!_lb_fr) lb_trap("null_foreign"); _lb_fr; });
     lb_pos = "src/std/fonts/linux/native.lucb:80:5";
-    (void)(({ void* _lb_sq22 __attribute__((unused)) = lb_context; void* _lb_sq23 __attribute__((unused)) = ({ void* _lb_fr = lb_x_fonts_31cairo_scaled_font_get_font_face(lb_font); if (!_lb_fr) lb_trap("null_foreign"); _lb_fr; }); lb_x_fonts_19cairo_set_font_face(_lb_sq22, _lb_sq23); }));
     lb_pos = "src/std/fonts/linux/native.lucb:81:5";
-    (void)(lb_x_fonts_19cairo_set_font_size(lb_context, (lb_face.size * lb_scale)));
+    (void)(lb_fonts_13linux_options(lb_context));
     lb_pos = "src/std/fonts/linux/native.lucb:82:5";
-    (void)(lb_x_fonts_21cairo_set_source_rgba(lb_context, 0x1.0000000000000p+0, 0x1.0000000000000p+0, 0x1.0000000000000p+0, 0x1.0000000000000p+0));
+    (void)(({ void* _lb_sq22 __attribute__((unused)) = lb_context; void* _lb_sq23 __attribute__((unused)) = ({ void* _lb_fr = lb_x_fonts_31cairo_scaled_font_get_font_face(lb_font); if (!_lb_fr) lb_trap("null_foreign"); _lb_fr; }); lb_x_fonts_19cairo_set_font_face(_lb_sq22, _lb_sq23); }));
     lb_pos = "src/std/fonts/linux/native.lucb:83:5";
-    size_t lb_offset __attribute__((unused)) = 0ULL;
+    (void)(lb_x_fonts_19cairo_set_font_size(lb_context, (lb_face.size * lb_scale)));
     lb_pos = "src/std/fonts/linux/native.lucb:84:5";
-    size_t lb_index __attribute__((unused)) = 0ULL;
+    (void)(lb_x_fonts_21cairo_set_source_rgba(lb_context, 0x1.0000000000000p+0, 0x1.0000000000000p+0, 0x1.0000000000000p+0, 0x1.0000000000000p+0));
     lb_pos = "src/std/fonts/linux/native.lucb:85:5";
+    size_t lb_offset __attribute__((unused)) = 0ULL;
+    lb_pos = "src/std/fonts/linux/native.lucb:86:5";
+    size_t lb_index __attribute__((unused)) = 0ULL;
+    lb_pos = "src/std/fonts/linux/native.lucb:87:5";
     for (;;) {
-        lb_pos = "src/std/fonts/linux/native.lucb:85:5";
+        lb_pos = "src/std/fonts/linux/native.lucb:87:5";
         if (!((((size_t)(lb_offset)) < ((size_t)((lb_text.length)))))) break;
         {
-            lb_pos = "src/std/fonts/linux/native.lucb:86:9";
+            lb_pos = "src/std/fonts/linux/native.lucb:88:9";
             lb_utf8_Decoded lb_decoded __attribute__((unused)) = ({ lb_o_utf8_Decoded _lb_o24 = lb_utf8_decode(((lb_cspan){(void*)(lb_text.data), lb_text.length}), lb_offset); if (!_lb_o24.present) {
                 (void)(lb_trap_text(((lb_str){"validated text changed", 22})));
             } _lb_o24.value; });
-            lb_pos = "src/std/fonts/linux/native.lucb:87:9";
+            lb_pos = "src/std/fonts/linux/native.lucb:89:9";
             lb_a_u8_0a5 lb_scalar __attribute__((unused)) = {};
-            lb_pos = "src/std/fonts/linux/native.lucb:88:9";
+            lb_pos = "src/std/fonts/linux/native.lucb:90:9";
             for (size_t lb_byte __attribute__((unused)) = (size_t)(0ULL); lb_byte < (size_t)(lb_decoded.width); lb_byte++) {
                 {
-                    lb_pos = "src/std/fonts/linux/native.lucb:89:13";
+                    lb_pos = "src/std/fonts/linux/native.lucb:91:13";
                     ((lb_scalar).d[lb_at((uint64_t)(lb_byte), 5ULL)]) = (*({ lb_cspan _lb_ix26 = ((lb_cspan){(void*)(lb_text.data), lb_text.length}); &((uint8_t*)_lb_ix26.data)[lb_at((uint64_t)((size_t)(lb_add_u((uint64_t)(lb_offset), (uint64_t)(lb_byte), 64))), _lb_ix26.length)]; }));
                 }
             }
-            lb_pos = "src/std/fonts/linux/native.lucb:90:9";
-            ((lb_scalar).d[lb_at((uint64_t)(lb_decoded.width), 5ULL)]) = 0ULL;
-            lb_pos = "src/std/fonts/linux/native.lucb:91:9";
-            (void)(lb_x_fonts_13cairo_move_to(lb_context, (0x1.0000000000000p+1 + ((lb_to_f((uint64_t)(lb_index), 0) * lb_face.advance) * lb_scale)), (0x1.0000000000000p+1 + (lb_face.ascent * lb_scale))));
             lb_pos = "src/std/fonts/linux/native.lucb:92:9";
-            (void)(lb_x_fonts_15cairo_show_text(lb_context, ((char*)(&(((lb_scalar).d[0]))))));
+            ((lb_scalar).d[lb_at((uint64_t)(lb_decoded.width), 5ULL)]) = 0ULL;
             lb_pos = "src/std/fonts/linux/native.lucb:93:9";
+            (void)(lb_x_fonts_13cairo_move_to(lb_context, (0x1.0000000000000p+1 + ((lb_to_f((uint64_t)(lb_index), 0) * lb_face.advance) * lb_scale)), (0x1.0000000000000p+1 + (lb_face.ascent * lb_scale))));
+            lb_pos = "src/std/fonts/linux/native.lucb:94:9";
+            (void)(lb_x_fonts_15cairo_show_text(lb_context, ((char*)(&(((lb_scalar).d[0]))))));
+            lb_pos = "src/std/fonts/linux/native.lucb:95:9";
             { size_t* lb__cell27 = &(lb_offset);
             (*(lb__cell27)) = (size_t)(lb_add_u((uint64_t)((*(lb__cell27))), (uint64_t)(lb_decoded.width), 64)); }
-            lb_pos = "src/std/fonts/linux/native.lucb:94:9";
+            lb_pos = "src/std/fonts/linux/native.lucb:96:9";
             { size_t* lb__cell28 = &(lb_index);
             (*(lb__cell28)) = (size_t)(lb_add_u((uint64_t)((*(lb__cell28))), (uint64_t)(1ULL), 64)); }
         }
     }
-    lb_pos = "src/std/fonts/linux/native.lucb:95:5";
+    lb_pos = "src/std/fonts/linux/native.lucb:97:5";
     if (!!(({ int32_t _lb_sq29 __attribute__((unused)) = lb_x_fonts_12cairo_status(lb_context); int32_t _lb_sq30 __attribute__((unused)) = 0LL; (!(_lb_sq29 == _lb_sq30)); }))) 
     {
-        lb_pos = "src/std/fonts/linux/native.lucb:96:9";
+        lb_pos = "src/std/fonts/linux/native.lucb:98:9";
         lb_r_unit _lb_err31 = ((lb_r_unit){ .error = { .code = (int32_t)(lb_fonts_failed), .message = ((lb_str){"could not rasterize the font text", 33}) }, .failed = true });
         (void)(lb_x_fonts_13cairo_destroy(lb_context));
         (void)(lb_x_fonts_21cairo_surface_destroy(lb_surface));
         return _lb_err31;
     }
-    lb_pos = "src/std/fonts/linux/native.lucb:97:5";
-    (void)(lb_x_fonts_19cairo_surface_flush(lb_surface));
-    lb_pos = "src/std/fonts/linux/native.lucb:98:5";
-    uint8_t* lb_source __attribute__((unused)) = ({ uint8_t* _lb_fr = lb_x_fonts_28cairo_image_surface_get_data(lb_surface); if (!_lb_fr) lb_trap("null_foreign"); _lb_fr; });
     lb_pos = "src/std/fonts/linux/native.lucb:99:5";
-    size_t lb_stride __attribute__((unused)) = ((size_t)lb_conv_s((int64_t)(lb_x_fonts_30cairo_image_surface_get_stride(lb_surface)), 32, 1, 64, 0, 1));
+    (void)(lb_x_fonts_19cairo_surface_flush(lb_surface));
     lb_pos = "src/std/fonts/linux/native.lucb:100:5";
+    uint8_t* lb_source __attribute__((unused)) = ({ uint8_t* _lb_fr = lb_x_fonts_28cairo_image_surface_get_data(lb_surface); if (!_lb_fr) lb_trap("null_foreign"); _lb_fr; });
+    lb_pos = "src/std/fonts/linux/native.lucb:101:5";
+    size_t lb_stride __attribute__((unused)) = ((size_t)lb_conv_s((int64_t)(lb_x_fonts_30cairo_image_surface_get_stride(lb_surface)), 32, 1, 64, 0, 1));
+    lb_pos = "src/std/fonts/linux/native.lucb:102:5";
     for (size_t lb_row __attribute__((unused)) = (size_t)(0ULL); lb_row < (size_t)(((size_t)lb_conv_u((uint64_t)((lb_bitmap)->height), 32, 0, 64, 0, 1))); lb_row++) {
         {
-            lb_pos = "src/std/fonts/linux/native.lucb:101:9";
+            lb_pos = "src/std/fonts/linux/native.lucb:103:9";
             (void)(lb_memory_copy_0g1_u8(({ lb_span _lb_sv33 = (lb_bitmap)->pixels; size_t _lb_sn33 = _lb_sv33.length; uint8_t* _lb_sd33 = (uint8_t*)_lb_sv33.data; size_t _lb_ss33 = (size_t)((size_t)(lb_mul_u((uint64_t)(lb_row), (uint64_t)(((size_t)lb_conv_u((uint64_t)((lb_bitmap)->width), 32, 0, 64, 0, 1))), 64))); size_t _lb_se33 = _lb_sn33; lb_check_index(_lb_ss33, _lb_sn33 + 1); lb_check_index(_lb_se33, _lb_sn33 + 1); if (_lb_ss33 > _lb_se33) lb_trap("index out of bounds"); (lb_span){ (void*)(_lb_sd33 + _lb_ss33), _lb_se33 - _lb_ss33 }; }), ((lb_span){(void*)((lb_source + (ptrdiff_t)((size_t)(lb_mul_u((uint64_t)(lb_row), (uint64_t)(lb_stride), 64))))), (size_t)(((size_t)lb_conv_u((uint64_t)((lb_bitmap)->width), 32, 0, 64, 0, 1)))}), ((size_t)lb_conv_u((uint64_t)((lb_bitmap)->width), 32, 0, 64, 0, 1))));
         }
     }
@@ -4450,21 +4450,21 @@ lb_r_unit lb_fonts_12linux_raster(lb_fonts_Face lb_face, lb_str lb_text, double 
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_str_init(lb_interop_Packet_0g1_str* self, lb_str lb_value, void* lb_storage, lb_fn_0F1_void_0p_unit lb_dispose) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/fonts/linux/native.lucb:455:1";
+    lb_pos = "src/std/fonts/linux/native.lucb:445:1";
     self->value = lb_value;
-    lb_pos = "src/std/fonts/linux/native.lucb:456:1";
+    lb_pos = "src/std/fonts/linux/native.lucb:446:1";
     self->storage = lb_storage;
-    lb_pos = "src/std/fonts/linux/native.lucb:457:1";
+    lb_pos = "src/std/fonts/linux/native.lucb:447:1";
     self->dispose = lb_dispose;
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_str_release(const lb_interop_Packet_0g1_str* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/fonts/linux/native.lucb:460:1";
+    lb_pos = "src/std/fonts/linux/native.lucb:450:1";
     void* _lb_o34 = self->storage;
     if (_lb_o34 != ((void*)0)) {
         void* lb_storage __attribute__((unused)) = _lb_o34;
         {
-            lb_pos = "src/std/fonts/linux/native.lucb:461:1";
+            lb_pos = "src/std/fonts/linux/native.lucb:451:1";
             (void)(((({ lb_fn_0F1_void_0p_unit _lb_o35 = self->dispose; if (_lb_o35 == ((void*)0)) {
                 (void)(lb_trap_text(((lb_str){"a packet has storage without a disposer", 39})));
             } _lb_o35; })))(lb_storage));
@@ -4473,21 +4473,21 @@ __attribute__((weak)) void lb_interop_Packet_0g1_str_release(const lb_interop_Pa
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_init(lb_interop_Packet_0g1_u8_0c* self, lb_cspan lb_value, void* lb_storage, lb_fn_0F1_void_0p_unit lb_dispose) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/fonts/linux/native.lucb:455:1";
+    lb_pos = "src/std/fonts/linux/native.lucb:445:1";
     self->value = lb_value;
-    lb_pos = "src/std/fonts/linux/native.lucb:456:1";
+    lb_pos = "src/std/fonts/linux/native.lucb:446:1";
     self->storage = lb_storage;
-    lb_pos = "src/std/fonts/linux/native.lucb:457:1";
+    lb_pos = "src/std/fonts/linux/native.lucb:447:1";
     self->dispose = lb_dispose;
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_release(const lb_interop_Packet_0g1_u8_0c* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/fonts/linux/native.lucb:460:1";
+    lb_pos = "src/std/fonts/linux/native.lucb:450:1";
     void* _lb_o36 = self->storage;
     if (_lb_o36 != ((void*)0)) {
         void* lb_storage __attribute__((unused)) = _lb_o36;
         {
-            lb_pos = "src/std/fonts/linux/native.lucb:461:1";
+            lb_pos = "src/std/fonts/linux/native.lucb:451:1";
             (void)(((({ lb_fn_0F1_void_0p_unit _lb_o37 = self->dispose; if (_lb_o37 == ((void*)0)) {
                 (void)(lb_trap_text(((lb_str){"a packet has storage without a disposer", 39})));
             } _lb_o37; })))(lb_storage));
@@ -4496,29 +4496,29 @@ __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_release(const lb_interop_
 }
 void lb_fonts_13linux_options(void* lb_context) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/fonts/linux/native.lucb:44:5";
-    void* lb_options __attribute__((unused)) = ({ void* _lb_fr = lb_x_fonts_25cairo_font_options_create(); if (!_lb_fr) lb_trap("null_foreign"); _lb_fr; });
-    lb_pos = "src/std/fonts/linux/native.lucb:45:5";
     lb_pos = "src/std/fonts/linux/native.lucb:46:5";
-    (void)(lb_x_fonts_32cairo_font_options_set_antialias(lb_options, 2LL));
+    void* lb_options __attribute__((unused)) = ({ void* _lb_fr = lb_x_fonts_25cairo_font_options_create(); if (!_lb_fr) lb_trap("null_foreign"); _lb_fr; });
     lb_pos = "src/std/fonts/linux/native.lucb:47:5";
-    (void)(lb_x_fonts_35cairo_font_options_set_hint_metrics(lb_options, 1LL));
     lb_pos = "src/std/fonts/linux/native.lucb:48:5";
+    (void)(lb_x_fonts_32cairo_font_options_set_antialias(lb_options, 2LL));
+    lb_pos = "src/std/fonts/linux/native.lucb:49:5";
+    (void)(lb_x_fonts_35cairo_font_options_set_hint_metrics(lb_options, 1LL));
+    lb_pos = "src/std/fonts/linux/native.lucb:50:5";
     (void)(lb_x_fonts_22cairo_set_font_options(lb_context, lb_options));
     (void)(lb_x_fonts_26cairo_font_options_destroy(lb_options));
 }
 __attribute__((weak)) void lb_memory_copy_0g1_u8(lb_span lb_target, lb_cspan lb_source, size_t lb_count) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/memory.lucb:325:5";
+    lb_pos = "src/std/memory.lucb:327:5";
     if (!!(((((size_t)(lb_count)) > ((size_t)((lb_target.length)))) || (((size_t)(lb_count)) > ((size_t)((lb_source.length))))))) 
     {
-        lb_pos = "src/std/memory.lucb:326:9";
+        lb_pos = "src/std/memory.lucb:328:9";
         (void)(lb_trap_text(((lb_str){"index out of bounds", 19})));
     }
-    lb_pos = "src/std/memory.lucb:327:5";
+    lb_pos = "src/std/memory.lucb:329:5";
     if (!!((((size_t)(lb_count)) > ((size_t)(0ULL))))) 
     {
-        lb_pos = "src/std/memory.lucb:328:9";
+        lb_pos = "src/std/memory.lucb:330:9";
         (void)(((void)(({ void* _lb_sq38 __attribute__((unused)) = ((uint8_t*)(lb_target.data)); const void* _lb_sq39 __attribute__((unused)) = ((const uint8_t*)(lb_source.data)); size_t _lb_sq40 __attribute__((unused)) = ({ size_t _lb_sq41 __attribute__((unused)) = lb_count; size_t _lb_sq42 __attribute__((unused)) = ((size_t)sizeof(uint8_t)); (size_t)(lb_mul_u((uint64_t)(_lb_sq41), (uint64_t)(_lb_sq42), 64)); }); ({ void* _lb_fr = lb_x_memory_memcpy(_lb_sq38, _lb_sq39, _lb_sq40); if (!_lb_fr) lb_trap("null_foreign"); _lb_fr; }); }))));
     }
 }

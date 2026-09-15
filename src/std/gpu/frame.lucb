@@ -107,8 +107,8 @@ pub struct RenderTarget:
         let scale_x = frame_scale(self.frame.size.pixel_width, self.frame.size.width)
         let scale_y = frame_scale(self.frame.size.pixel_height, self.frame.size.height)
         return window.Size(width = self.rectangle.width, height = self.rectangle.height,
-            pixel_width = self.rectangle.width * scale_x, pixel_height = self.rectangle.height * scale_y,
-            scale = self.frame.size.scale)
+                           pixel_width = self.rectangle.width * scale_x, pixel_height = self.rectangle.height * scale_y,
+                           scale = self.frame.size.scale)
 
     pub func region(rectangle: Rect) -> interop.View[RenderTarget]!:
         try self.frame.check()
@@ -137,7 +137,7 @@ pub struct RenderTarget:
         let scale_x = frame_scale(self.frame.size.pixel_width, self.frame.size.width)
         let scale_y = frame_scale(self.frame.size.pixel_height, self.frame.size.height)
         let viewport = Viewport(self.rectangle.x * scale_x, self.rectangle.y * scale_y,
-            self.rectangle.width * scale_x, self.rectangle.height * scale_y)
+                                self.rectangle.width * scale_x, self.rectangle.height * scale_y)
         try self.frame.canvas.triangles(vertices, self.clipping, depth, viewport)
 
     ## Draw a top-down, tightly packed 8-bit coverage image tinted with a linear
@@ -149,9 +149,9 @@ pub struct RenderTarget:
         let scale_x = frame_scale(self.frame.size.pixel_width, self.frame.size.width)
         let scale_y = frame_scale(self.frame.size.pixel_height, self.frame.size.height)
         let destination = Rect((self.rectangle.x + rectangle.x) * scale_x,
-            (self.rectangle.y + rectangle.y) * scale_y, rectangle.width * scale_x, rectangle.height * scale_y)
+                               (self.rectangle.y + rectangle.y) * scale_y, rectangle.width * scale_x, rectangle.height * scale_y)
         try canvas_mask(&self.frame.canvas, pixels, width, height, destination, color,
-            self.clipping, self.frame.size.pixel_width, self.frame.size.pixel_height)
+                        self.clipping, self.frame.size.pixel_width, self.frame.size.pixel_height)
 
 pub let render_target_type: interop.ViewType[RenderTarget] = interop.ViewType[RenderTarget]("GPU render target")
 

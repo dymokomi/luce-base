@@ -764,9 +764,9 @@ lb_files_10next_entry:
 .Ltext_0:
     .asciz "unreachable"
 .Ltext_1:
-    .asciz "src/std/files/module.lucb:21:5"
+    .asciz "src/std/files/module.lucb:20:5"
 .Ltext_2:
-    .asciz "src/std/files/module.lucb:26:5"
+    .asciz "src/std/files/module.lucb:25:5"
 .Ltext_3:
     .asciz "src/std/files/module.lucb:36:5"
 .Ltext_4:
@@ -774,17 +774,17 @@ lb_files_10next_entry:
 .Ltext_5:
     .asciz "src/std/files/module.lucb:49:5"
 .Ltext_6:
-    .asciz "src/std/files/module.lucb:99:17"
+    .asciz "src/std/files/module.lucb:100:17"
 .Ltext_7:
-    .asciz "src/std/files/module.lucb:100:21"
+    .asciz "src/std/files/module.lucb:101:21"
 .Ltext_8:
-    .asciz "src/std/files/module.lucb:101:17"
+    .asciz "src/std/files/module.lucb:102:17"
 .Ltext_9:
     .asciz "index out of bounds"
 .Ltext_10:
     .asciz "the directory could not be read"
 .Ltext_11:
-    .asciz "src/std/files/module.lucb:107:9"
+    .asciz "src/std/files/module.lucb:108:9"
 .Ltext_12:
     .asciz "integer overflow"
 

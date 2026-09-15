@@ -5166,13 +5166,13 @@ lb_memory_copy_0g1_u8:
 .Ltext_47:
     .asciz "the standard output stream is unavailable"
 .Ltext_48:
-    .asciz "src/std/io.lucb:251:9"
+    .asciz "src/std/io.lucb:250:9"
 .Ltext_49:
     .asciz "the stream could not be flushed"
 .Ltext_50:
     .asciz "the stream refused the bytes"
 .Ltext_51:
-    .asciz "src/std/io.lucb:269:9"
+    .asciz "src/std/io.lucb:268:9"
 .Ltext_52:
     .asciz "standard input would block"
 .Ltext_53:
@@ -5180,17 +5180,17 @@ lb_memory_copy_0g1_u8:
 .Ltext_54:
     .asciz "standard input could not be read"
 .Ltext_55:
-    .asciz "src/std/io.lucb:306:13"
+    .asciz "src/std/io.lucb:305:13"
 .Ltext_56:
-    .asciz "src/std/io.lucb:313:5"
+    .asciz "src/std/io.lucb:312:5"
 .Ltext_57:
-    .asciz "src/std/io.lucb:316:5"
+    .asciz "src/std/io.lucb:315:5"
 .Ltext_58:
-    .asciz "src/std/io.lucb:319:5"
+    .asciz "src/std/io.lucb:318:5"
 .Ltext_59:
     .asciz "the buffer is full"
 .Ltext_60:
-    .asciz "src/std/io.lucb:339:9"
+    .asciz "src/std/io.lucb:338:9"
 .Ltext_61:
     .asciz "USERPROFILE"
 .Ltext_62:
@@ -5198,19 +5198,19 @@ lb_memory_copy_0g1_u8:
 .Ltext_63:
     .asciz "no home directory"
 .Ltext_64:
-    .asciz "src/std/io.lucb:350:9"
+    .asciz "src/std/io.lucb:349:9"
 .Ltext_65:
-    .asciz "src/std/io.lucb:353:9"
+    .asciz "src/std/io.lucb:352:9"
 .Ltext_66:
     .asciz "TMPDIR"
 .Ltext_67:
     .asciz "/tmp"
 .Ltext_68:
-    .asciz "src/std/io.lucb:364:9"
+    .asciz "src/std/io.lucb:363:9"
 .Ltext_69:
     .asciz "XDG_CONFIG_HOME"
 .Ltext_70:
-    .asciz "src/std/io.lucb:377:9"
+    .asciz "src/std/io.lucb:376:9"
 .Ltext_71:
     .asciz "memory.exhausted: the allocation size overflows"
 .Ltext_72:
@@ -5222,17 +5222,17 @@ lb_memory_copy_0g1_u8:
 .Ltext_75:
     .asciz "memory.exhausted: the formatted text does not fit its buffer"
 .Ltext_76:
-    .asciz "src/std/io.lucb:378:9"
+    .asciz "src/std/io.lucb:377:9"
 .Ltext_77:
-    .asciz "src/std/memory.lucb:332:9"
-.Ltext_78:
     .asciz "src/std/memory.lucb:334:9"
+.Ltext_78:
+    .asciz "src/std/memory.lucb:336:9"
 .Ltext_79:
     .asciz "null_foreign"
 .Ltext_80:
-    .asciz "src/std/memory.lucb:326:9"
-.Ltext_81:
     .asciz "src/std/memory.lucb:328:9"
+.Ltext_81:
+    .asciz "src/std/memory.lucb:330:9"
 .Ltext_82:
     .asciz "integer overflow"
 

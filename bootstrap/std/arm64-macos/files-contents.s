@@ -1377,9 +1377,9 @@ l_text_14:
 l_text_15:
     .asciz "src/std/files/contents.lucb:60:9"
 l_text_16:
-    .asciz "src/std/memory.lucb:326:9"
-l_text_17:
     .asciz "src/std/memory.lucb:328:9"
+l_text_17:
+    .asciz "src/std/memory.lucb:330:9"
 l_text_18:
     .asciz "null_foreign"
 l_text_19:

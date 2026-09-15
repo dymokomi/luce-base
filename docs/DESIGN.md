@@ -42,6 +42,7 @@ from wherever it sits.
 | `front.lexer` | bytes to tokens, then the layout pass to `newline`/`indent`/`dedent` |
 | `front.ast` | the syntax tree: one `Node` shape, kinds, flags, sibling lists |
 | `front.parser` | tokens to the tree, the whole grammar of §21 |
+| `front.layout` | the tree back to text in the canonical layout, comments kept: `luce-base fmt` |
 | `sema.types` | the type table: interned ids for every type, layout, spelling |
 | `sema.prelude` | the interfaces (§9.8) of the standard modules of §16.6, `core` among them, as Base text |
 | `sema.check` | names, types, and effects; writes `type_id` and `resolved` onto the tree |

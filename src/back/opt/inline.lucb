@@ -166,7 +166,7 @@ test "standard storage follows retained code without changing user linkage":
         let names: str[8] = ["unused", "read", "initialized", "assembly", "used", "weak", "section", "user"]
         for i in 0..<names.length:
             try program.globals.push(ir.Global(name = names[i], standard = i != 7, size = 8, align = 8, external = false, private = false,
-                is_thread_local = true, used = i == 4, weak = i == 5, section = "custom" if i == 6 else ""))
+                                               is_thread_local = true, used = i == 4, weak = i == 5, section = "custom" if i == 6 else ""))
         var entry = try ir.Function.create("entry")
         discard(try entry.load(ir.Op.loadl, ir.Class.l, ir.global_ref("read")))
         try entry.store(ir.Op.storel, ir.const_ref(42), ir.global_ref("initialized"))

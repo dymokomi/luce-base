@@ -1908,97 +1908,97 @@ L44_13:
 l_text_0:
     .asciz "unreachable"
 l_text_1:
-    .asciz "src/std/math32.lucb:52:5"
+    .asciz "src/std/math32.lucb:51:5"
 l_text_2:
     .asciz "src/std/math32.lucb:54:5"
 l_text_3:
-    .asciz "src/std/math32.lucb:56:5"
+    .asciz "src/std/math32.lucb:57:5"
 l_text_4:
-    .asciz "src/std/math32.lucb:58:5"
+    .asciz "src/std/math32.lucb:60:5"
 l_text_5:
-    .asciz "src/std/math32.lucb:61:5"
-l_text_6:
     .asciz "src/std/math32.lucb:63:5"
-l_text_7:
+l_text_6:
     .asciz "src/std/math32.lucb:66:5"
+l_text_7:
+    .asciz "src/std/math32.lucb:70:5"
 l_text_8:
-    .asciz "src/std/math32.lucb:69:5"
+    .asciz "src/std/math32.lucb:74:5"
 l_text_9:
-    .asciz "src/std/math32.lucb:71:5"
-l_text_10:
-    .asciz "src/std/math32.lucb:73:5"
-l_text_11:
-    .asciz "src/std/math32.lucb:75:5"
-l_text_12:
     .asciz "src/std/math32.lucb:77:5"
-l_text_13:
-    .asciz "src/std/math32.lucb:79:5"
-l_text_14:
-    .asciz "src/std/math32.lucb:81:5"
-l_text_15:
+l_text_10:
+    .asciz "src/std/math32.lucb:80:5"
+l_text_11:
+    .asciz "src/std/math32.lucb:83:5"
+l_text_12:
     .asciz "src/std/math32.lucb:86:5"
+l_text_13:
+    .asciz "src/std/math32.lucb:89:5"
+l_text_14:
+    .asciz "src/std/math32.lucb:92:5"
+l_text_15:
+    .asciz "src/std/math32.lucb:97:5"
 l_text_16:
-    .asciz "src/std/math32.lucb:93:5"
+    .asciz "src/std/math32.lucb:104:5"
 l_text_17:
-    .asciz "src/std/math32.lucb:98:5"
+    .asciz "src/std/math32.lucb:109:5"
 l_text_18:
-    .asciz "src/std/math32.lucb:103:5"
+    .asciz "src/std/math32.lucb:114:5"
 l_text_19:
-    .asciz "src/std/math32.lucb:108:5"
+    .asciz "src/std/math32.lucb:119:5"
 l_text_20:
-    .asciz "src/std/math32.lucb:113:5"
+    .asciz "src/std/math32.lucb:124:5"
 l_text_21:
-    .asciz "src/std/math32.lucb:121:5"
+    .asciz "src/std/math32.lucb:132:5"
 l_text_22:
-    .asciz "src/std/math32.lucb:126:5"
+    .asciz "src/std/math32.lucb:137:5"
 l_text_23:
-    .asciz "src/std/math32.lucb:131:5"
-l_text_24:
-    .asciz "src/std/math32.lucb:139:5"
-l_text_25:
     .asciz "src/std/math32.lucb:142:5"
-l_text_26:
-    .asciz "src/std/math32.lucb:144:5"
-l_text_27:
-    .asciz "src/std/math32.lucb:146:5"
-l_text_28:
-    .asciz "src/std/math32.lucb:148:5"
-l_text_29:
+l_text_24:
     .asciz "src/std/math32.lucb:150:5"
-l_text_30:
-    .asciz "src/std/math32.lucb:152:5"
-l_text_31:
-    .asciz "src/std/math32.lucb:155:5"
-l_text_32:
-    .asciz "src/std/math32.lucb:157:5"
-l_text_33:
+l_text_25:
+    .asciz "src/std/math32.lucb:153:5"
+l_text_26:
+    .asciz "src/std/math32.lucb:156:5"
+l_text_27:
     .asciz "src/std/math32.lucb:159:5"
-l_text_34:
-    .asciz "src/std/math32.lucb:161:5"
-l_text_35:
+l_text_28:
+    .asciz "src/std/math32.lucb:162:5"
+l_text_29:
     .asciz "src/std/math32.lucb:165:5"
-l_text_36:
-    .asciz "src/std/math32.lucb:169:5"
-l_text_37:
+l_text_30:
+    .asciz "src/std/math32.lucb:168:5"
+l_text_31:
     .asciz "src/std/math32.lucb:172:5"
-l_text_38:
+l_text_32:
     .asciz "src/std/math32.lucb:175:5"
-l_text_39:
+l_text_33:
     .asciz "src/std/math32.lucb:178:5"
-l_text_40:
+l_text_34:
     .asciz "src/std/math32.lucb:181:5"
-l_text_41:
+l_text_35:
+    .asciz "src/std/math32.lucb:185:5"
+l_text_36:
     .asciz "src/std/math32.lucb:190:5"
+l_text_37:
+    .asciz "src/std/math32.lucb:194:5"
+l_text_38:
+    .asciz "src/std/math32.lucb:198:5"
+l_text_39:
+    .asciz "src/std/math32.lucb:202:5"
+l_text_40:
+    .asciz "src/std/math32.lucb:206:5"
+l_text_41:
+    .asciz "src/std/math32.lucb:216:5"
 l_text_42:
-    .asciz "src/std/math32.lucb:200:5"
+    .asciz "src/std/math32.lucb:227:5"
 l_text_43:
-    .asciz "src/std/math32.lucb:210:5"
+    .asciz "src/std/math32.lucb:238:5"
 l_text_44:
     .asciz "assert failed: low <= high"
 l_text_45:
-    .asciz "src/std/math32.lucb:214:5"
+    .asciz "src/std/math32.lucb:243:5"
 l_text_46:
-    .asciz "src/std/math32.lucb:217:5"
+    .asciz "src/std/math32.lucb:246:5"
 
     .section __DATA,__const
     .p2align 3

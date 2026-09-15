@@ -53,5 +53,5 @@ func canvas_mask(canvas: Canvas*, pixels: const u8[], width: u32, height: u32,
                 packed |= (u32)pixels[index] << (u32)(byte * 8)
         canvas.coverage[canvas.coverage_count + word] = packed
     canvas.draws[canvas.draw_count - 1].mask = MaskRegion((f32)rectangle.x, (f32)rectangle.y,
-        (f32)rectangle.width, (f32)rectangle.height, width, height, (u32)(canvas.coverage_count * 4), 0)
+                                                          (f32)rectangle.width, (f32)rectangle.height, width, height, (u32)(canvas.coverage_count * 4), 0)
     canvas.coverage_count = needed

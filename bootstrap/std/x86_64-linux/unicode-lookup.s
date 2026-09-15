@@ -728,57 +728,57 @@ lb_unicode_16identity_mapping:
 .Lvsign64:
     .quad -9223372036854775808, -9223372036854775808
 .Ltext_0:
-    .asciz "src/std/unicode/lookup.lucb:7:9"
+    .asciz "src/std/unicode/lookup.lucb:6:9"
 .Ltext_1:
     .asciz "integer overflow"
 .Ltext_2:
-    .asciz "src/std/unicode/lookup.lucb:8:9"
+    .asciz "src/std/unicode/lookup.lucb:7:9"
 .Ltext_3:
     .asciz "shift count out of range"
 .Ltext_4:
-    .asciz "src/std/unicode/lookup.lucb:9:9"
+    .asciz "src/std/unicode/lookup.lucb:8:9"
 .Ltext_5:
     .asciz "unreachable"
 .Ltext_6:
-    .asciz "src/std/unicode/lookup.lucb:10:5"
+    .asciz "src/std/unicode/lookup.lucb:9:5"
 .Ltext_7:
     .asciz "division by zero"
 .Ltext_8:
-    .asciz "src/std/unicode/lookup.lucb:14:5"
+    .asciz "src/std/unicode/lookup.lucb:13:5"
 .Ltext_9:
-    .asciz "src/std/unicode/lookup.lucb:16:9"
+    .asciz "src/std/unicode/lookup.lucb:15:9"
 .Ltext_10:
-    .asciz "src/std/unicode/lookup.lucb:17:9"
+    .asciz "src/std/unicode/lookup.lucb:16:9"
 .Ltext_11:
-    .asciz "src/std/unicode/lookup.lucb:19:13"
+    .asciz "src/std/unicode/lookup.lucb:18:13"
 .Ltext_12:
-    .asciz "src/std/unicode/lookup.lucb:23:13"
+    .asciz "src/std/unicode/lookup.lucb:22:13"
 .Ltext_13:
-    .asciz "src/std/unicode/lookup.lucb:24:5"
+    .asciz "src/std/unicode/lookup.lucb:23:5"
 .Ltext_14:
-    .asciz "src/std/unicode/lookup.lucb:28:5"
+    .asciz "src/std/unicode/lookup.lucb:27:5"
 .Ltext_15:
-    .asciz "src/std/unicode/lookup.lucb:30:9"
+    .asciz "src/std/unicode/lookup.lucb:29:9"
 .Ltext_16:
-    .asciz "src/std/unicode/lookup.lucb:31:9"
+    .asciz "src/std/unicode/lookup.lucb:30:9"
 .Ltext_17:
-    .asciz "src/std/unicode/lookup.lucb:34:9"
+    .asciz "src/std/unicode/lookup.lucb:33:9"
 .Ltext_18:
-    .asciz "src/std/unicode/lookup.lucb:35:13"
+    .asciz "src/std/unicode/lookup.lucb:34:13"
 .Ltext_19:
-    .asciz "src/std/unicode/lookup.lucb:37:13"
+    .asciz "src/std/unicode/lookup.lucb:36:13"
 .Ltext_20:
-    .asciz "src/std/unicode/lookup.lucb:38:5"
+    .asciz "src/std/unicode/lookup.lucb:37:5"
 .Ltext_21:
     .asciz "assert failed: index < self.length"
 .Ltext_22:
-    .asciz "src/std/unicode/lookup.lucb:47:9"
+    .asciz "src/std/unicode/lookup.lucb:46:9"
 .Ltext_23:
-    .asciz "src/std/unicode/lookup.lucb:48:9"
+    .asciz "src/std/unicode/lookup.lucb:47:9"
 .Ltext_24:
-    .asciz "src/std/unicode/lookup.lucb:52:5"
+    .asciz "src/std/unicode/lookup.lucb:51:5"
 .Ltext_25:
-    .asciz "src/std/unicode/lookup.lucb:55:5"
+    .asciz "src/std/unicode/lookup.lucb:54:5"
 .Ltext_26:
     .asciz "index out of bounds"
 

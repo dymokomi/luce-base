@@ -1,4 +1,3 @@
-
 ## Standard canonical and compatibility normalization forms from UAX #15.
 pub enum NormalizationForm as u8:
     nfc = 0

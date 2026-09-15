@@ -4279,72 +4279,72 @@ extern uint32_t lb_gpu_22vulkan_api_version_1_0;
 
 __attribute__((weak)) lb_interop_Transfer_0g1_str lb_interop_Transfer_0g1_str_plain(void) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/fonts/linux/native.lucb:471:1";
+    lb_pos = "src/std/fonts/linux/native.lucb:461:1";
     lb_interop_Transfer_0g1_str _lb_ret1 = ((lb_interop_Transfer_0g1_str){.copy = lb_interop_Transfer_0g1_str_10copy_plain});
     return _lb_ret1;
     lb_trap("unreachable");
 }
 __attribute__((weak)) lb_r_interop_Packet_0g1_str lb_interop_Transfer_0g1_str_10copy_plain(lb_str lb_value) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/fonts/linux/native.lucb:474:1";
+    lb_pos = "src/std/fonts/linux/native.lucb:464:1";
     lb_interop_Packet_0g1_str _lb_ret2 = ({ lb_interop_Packet_0g1_str _lb_iv3 = {}; lb_interop_Packet_0g1_str_init(&_lb_iv3, lb_value, ((void*)0), ((void*)0)); _lb_iv3; });
     return ((lb_r_interop_Packet_0g1_str){ .value = _lb_ret2, .failed = false });
     lb_trap("unreachable");
 }
 __attribute__((weak)) lb_interop_Transfer_0g1_u8_0c lb_interop_Transfer_0g1_u8_0c_plain(void) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/fonts/linux/native.lucb:471:1";
+    lb_pos = "src/std/fonts/linux/native.lucb:461:1";
     lb_interop_Transfer_0g1_u8_0c _lb_ret4 = ((lb_interop_Transfer_0g1_u8_0c){.copy = lb_interop_Transfer_0g1_u8_0c_10copy_plain});
     return _lb_ret4;
     lb_trap("unreachable");
 }
 __attribute__((weak)) lb_r_interop_Packet_0g1_u8_0c lb_interop_Transfer_0g1_u8_0c_10copy_plain(lb_cspan lb_value) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/fonts/linux/native.lucb:474:1";
+    lb_pos = "src/std/fonts/linux/native.lucb:464:1";
     lb_interop_Packet_0g1_u8_0c _lb_ret5 = ({ lb_interop_Packet_0g1_u8_0c _lb_iv6 = {}; lb_interop_Packet_0g1_u8_0c_init(&_lb_iv6, lb_value, ((void*)0), ((void*)0)); _lb_iv6; });
     return ((lb_r_interop_Packet_0g1_u8_0c){ .value = _lb_ret5, .failed = false });
     lb_trap("unreachable");
 }
 lb_r_fonts_NativeFace lb_fonts_8win_face(double lb_size, lb_str lb_family) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/fonts/windows/native.lucb:61:5";
+    lb_pos = "src/std/fonts/windows/native.lucb:65:5";
     lb_span lb_text __attribute__((unused)) = (({ lb_r_u8_0s _lb_r7 = lb_fonts_12family_bytes((((lb_family.length) == 0ULL) ? ((lb_str){"Consolas", 8}) : lb_family)); if (_lb_r7.failed) {
         return ((lb_r_fonts_NativeFace){ .error = _lb_r7.error, .failed = true });
     } _lb_r7.value; }));
-    lb_pos = "src/std/fonts/windows/native.lucb:62:5";
-    lb_pos = "src/std/fonts/windows/native.lucb:63:5";
+    lb_pos = "src/std/fonts/windows/native.lucb:66:5";
+    lb_pos = "src/std/fonts/windows/native.lucb:67:5";
     lb_span lb_wide __attribute__((unused)) = (({ lb_r_u16_0s _lb_r8 = lb_12windows_text_wide(((char*)(((uint8_t*)(lb_text.data)))), lb_fonts_failed); if (_lb_r8.failed) {
         { lb_span _lb_s9 = lb_text; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s9.data), lb_mul_u(_lb_s9.length, sizeof(uint8_t), 64) }); }
         return ((lb_r_fonts_NativeFace){ .error = _lb_r8.error, .failed = true });
     } _lb_r8.value; }));
-    lb_pos = "src/std/fonts/windows/native.lucb:64:5";
-    lb_pos = "src/std/fonts/windows/native.lucb:65:5";
+    lb_pos = "src/std/fonts/windows/native.lucb:68:5";
+    lb_pos = "src/std/fonts/windows/native.lucb:69:5";
     if (!!((((size_t)((lb_wide.length))) > ((size_t)(32ULL))))) 
     {
-        lb_pos = "src/std/fonts/windows/native.lucb:66:9";
+        lb_pos = "src/std/fonts/windows/native.lucb:70:9";
         lb_r_fonts_NativeFace _lb_err10 = ((lb_r_fonts_NativeFace){ .error = { .code = (int32_t)(lb_fonts_failed), .message = ((lb_str){"Windows font families support at most 31 UTF-16 units", 53}) }, .failed = true });
         { lb_span _lb_s11 = lb_wide; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s11.data), lb_mul_u(_lb_s11.length, sizeof(uint16_t), 64) }); }
         { lb_span _lb_s12 = lb_text; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s12.data), lb_mul_u(_lb_s12.length, sizeof(uint8_t), 64) }); }
         return _lb_err10;
     }
-    lb_pos = "src/std/fonts/windows/native.lucb:67:5";
+    lb_pos = "src/std/fonts/windows/native.lucb:71:5";
     FontLog lb_description __attribute__((unused)) = ({ int32_t _lb_sq13 __attribute__((unused)) = ((int32_t)lb_neg_s((int64_t)(((int32_t)lb_f_to_s((double)(lb_math_round((lb_size * 0x1.0000000000000p+6))), 32, 1))), 32)); int32_t _lb_sq14 __attribute__((unused)) = 400LL; uint8_t _lb_sq15 __attribute__((unused)) = 1ULL; uint8_t _lb_sq16 __attribute__((unused)) = 4ULL; uint8_t _lb_sq17 __attribute__((unused)) = 4ULL; uint8_t _lb_sq18 __attribute__((unused)) = 49ULL; ((FontLog){.height = _lb_sq13, .weight = _lb_sq14, .charset = _lb_sq15, .precision = _lb_sq16, .quality = _lb_sq17, .pitch = _lb_sq18}); });
-    lb_pos = "src/std/fonts/windows/native.lucb:68:5";
+    lb_pos = "src/std/fonts/windows/native.lucb:72:5";
     for (size_t lb_index __attribute__((unused)) = (size_t)(0ULL); lb_index < (size_t)((lb_wide.length)); lb_index++) {
         {
-            lb_pos = "src/std/fonts/windows/native.lucb:69:9";
+            lb_pos = "src/std/fonts/windows/native.lucb:73:9";
             ((lb_description.family).d[lb_at((uint64_t)(lb_index), 32ULL)]) = (*({ lb_span _lb_ix20 = lb_wide; &((uint16_t*)_lb_ix20.data)[lb_at((uint64_t)(lb_index), _lb_ix20.length)]; }));
         }
     }
-    lb_pos = "src/std/fonts/windows/native.lucb:70:5";
+    lb_pos = "src/std/fonts/windows/native.lucb:74:5";
     void* lb_font __attribute__((unused)) = ({ void* _lb_o21 = lb_x_fonts_CreateFontIndirectW(&(lb_description)); if (_lb_o21 == ((void*)0)) {
         lb_r_fonts_NativeFace _lb_err22 = ((lb_r_fonts_NativeFace){ .error = { .code = (int32_t)(lb_fonts_failed), .message = ((lb_str){"could not load the font family", 30}) }, .failed = true });
         { lb_span _lb_s23 = lb_wide; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s23.data), lb_mul_u(_lb_s23.length, sizeof(uint16_t), 64) }); }
         { lb_span _lb_s24 = lb_text; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s24.data), lb_mul_u(_lb_s24.length, sizeof(uint8_t), 64) }); }
         return _lb_err22;
     } _lb_o21; });
-    lb_pos = "src/std/fonts/windows/native.lucb:71:5";
-    lb_pos = "src/std/fonts/windows/native.lucb:72:5";
+    lb_pos = "src/std/fonts/windows/native.lucb:75:5";
+    lb_pos = "src/std/fonts/windows/native.lucb:76:5";
     void* lb_dc __attribute__((unused)) = ({ void* _lb_o25 = lb_x_fonts_CreateCompatibleDC(((void*)0)); if (_lb_o25 == ((void*)0)) {
         lb_r_fonts_NativeFace _lb_err26 = ((lb_r_fonts_NativeFace){ .error = { .code = (int32_t)(lb_fonts_failed), .message = ((lb_str){"could not create a font context", 31}) }, .failed = true });
         (void)(((void)(lb_x_fonts_DeleteObject(lb_font))));
@@ -4352,8 +4352,8 @@ lb_r_fonts_NativeFace lb_fonts_8win_face(double lb_size, lb_str lb_family) {
         { lb_span _lb_s28 = lb_text; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s28.data), lb_mul_u(_lb_s28.length, sizeof(uint8_t), 64) }); }
         return _lb_err26;
     } _lb_o25; });
-    lb_pos = "src/std/fonts/windows/native.lucb:73:5";
-    lb_pos = "src/std/fonts/windows/native.lucb:74:5";
+    lb_pos = "src/std/fonts/windows/native.lucb:77:5";
+    lb_pos = "src/std/fonts/windows/native.lucb:78:5";
     (void)(((void)(({ void* _lb_o29 = lb_x_fonts_SelectObject(lb_dc, lb_font); if (_lb_o29 == ((void*)0)) {
         lb_r_fonts_NativeFace _lb_err30 = ((lb_r_fonts_NativeFace){ .error = { .code = (int32_t)(lb_fonts_failed), .message = ((lb_str){"could not select the font", 25}) }, .failed = true });
         (void)(((void)(lb_x_fonts_DeleteDC(lb_dc))));
@@ -4362,12 +4362,12 @@ lb_r_fonts_NativeFace lb_fonts_8win_face(double lb_size, lb_str lb_family) {
         { lb_span _lb_s32 = lb_text; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s32.data), lb_mul_u(_lb_s32.length, sizeof(uint8_t), 64) }); }
         return _lb_err30;
     } _lb_o29; }))));
-    lb_pos = "src/std/fonts/windows/native.lucb:75:5";
+    lb_pos = "src/std/fonts/windows/native.lucb:79:5";
     FontMetrics lb_metrics __attribute__((unused)) = {};
-    lb_pos = "src/std/fonts/windows/native.lucb:76:5";
+    lb_pos = "src/std/fonts/windows/native.lucb:80:5";
     if (!!((({ int32_t _lb_sq33 __attribute__((unused)) = lb_x_fonts_GetTextMetricsW(lb_dc, &(lb_metrics)); int32_t _lb_sq34 __attribute__((unused)) = 0LL; (_lb_sq33 == _lb_sq34); }) || (!((((uint8_t)(lb_metrics.pitch & 1ULL))) == 0ULL))))) 
     {
-        lb_pos = "src/std/fonts/windows/native.lucb:77:9";
+        lb_pos = "src/std/fonts/windows/native.lucb:81:9";
         lb_r_fonts_NativeFace _lb_err35 = ((lb_r_fonts_NativeFace){ .error = { .code = (int32_t)(lb_fonts_failed), .message = ((lb_str){"the requested font must be monospace", 36}) }, .failed = true });
         (void)(((void)(lb_x_fonts_DeleteDC(lb_dc))));
         (void)(((void)(lb_x_fonts_DeleteObject(lb_font))));
@@ -4375,7 +4375,7 @@ lb_r_fonts_NativeFace lb_fonts_8win_face(double lb_size, lb_str lb_family) {
         { lb_span _lb_s37 = lb_text; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s37.data), lb_mul_u(_lb_s37.length, sizeof(uint8_t), 64) }); }
         return _lb_err35;
     }
-    lb_pos = "src/std/fonts/windows/native.lucb:78:5";
+    lb_pos = "src/std/fonts/windows/native.lucb:82:5";
     lb_fonts_NativeFace _lb_ret38 = ((lb_fonts_NativeFace){.native = lb_dc, .auxiliary = lb_font, .advance = (lb_to_f((int64_t)(lb_metrics.average), 1) / 0x1.0000000000000p+6), .ascent = (lb_to_f((int64_t)(lb_metrics.ascent), 1) / 0x1.0000000000000p+6), .descent = (lb_to_f((int64_t)(lb_metrics.descent), 1) / 0x1.0000000000000p+6)});
     { lb_span _lb_s39 = lb_wide; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s39.data), lb_mul_u(_lb_s39.length, sizeof(uint16_t), 64) }); }
     { lb_span _lb_s40 = lb_text; lb_release_call(lb_memory_allocator, (lb_span){ (void*)(_lb_s40.data), lb_mul_u(_lb_s40.length, sizeof(uint8_t), 64) }); }
@@ -4386,144 +4386,144 @@ lb_r_fonts_NativeFace lb_fonts_8win_face(double lb_size, lb_str lb_family) {
 }
 void lb_fonts_9win_close(void* lb_dc, void* lb_font) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/fonts/windows/native.lucb:81:5";
+    lb_pos = "src/std/fonts/windows/native.lucb:85:5";
     (void)(((void)(lb_x_fonts_DeleteDC(lb_dc))));
-    lb_pos = "src/std/fonts/windows/native.lucb:82:5";
+    lb_pos = "src/std/fonts/windows/native.lucb:86:5";
     void* _lb_o43 = lb_font;
     if (_lb_o43 != ((void*)0)) {
         void* lb_object __attribute__((unused)) = _lb_o43;
         {
-            lb_pos = "src/std/fonts/windows/native.lucb:83:9";
+            lb_pos = "src/std/fonts/windows/native.lucb:87:9";
             (void)(((void)(lb_x_fonts_DeleteObject(lb_object))));
         }
     }
 }
 lb_r_unit lb_fonts_10win_raster(lb_fonts_Face lb_face, lb_str lb_text, double lb_scale, struct lb_fonts_Bitmap* lb_bitmap) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/fonts/windows/native.lucb:86:5";
+    lb_pos = "src/std/fonts/windows/native.lucb:90:5";
     void* lb_dc __attribute__((unused)) = ({ void* _lb_o44 = lb_face.native; if (_lb_o44 == ((void*)0)) {
         lb_r_unit _lb_err45 = ((lb_r_unit){ .error = { .code = (int32_t)(lb_fonts_failed), .message = ((lb_str){"the font is closed", 18}) }, .failed = true });
         return _lb_err45;
     } _lb_o44; });
-    lb_pos = "src/std/fonts/windows/native.lucb:87:5";
+    lb_pos = "src/std/fonts/windows/native.lucb:91:5";
     void* lb_original __attribute__((unused)) = ({ void* _lb_o46 = lb_face.auxiliary; if (_lb_o46 == ((void*)0)) {
         lb_r_unit _lb_err47 = ((lb_r_unit){ .error = { .code = (int32_t)(lb_fonts_failed), .message = ((lb_str){"the font is closed", 18}) }, .failed = true });
         return _lb_err47;
     } _lb_o46; });
-    lb_pos = "src/std/fonts/windows/native.lucb:88:5";
+    lb_pos = "src/std/fonts/windows/native.lucb:92:5";
     FontLog lb_description __attribute__((unused)) = {};
-    lb_pos = "src/std/fonts/windows/native.lucb:89:5";
+    lb_pos = "src/std/fonts/windows/native.lucb:93:5";
     if (!!(({ int32_t _lb_sq48 __attribute__((unused)) = ({ void* _lb_sq49 __attribute__((unused)) = lb_original; int32_t _lb_sq50 __attribute__((unused)) = ((int32_t)lb_conv_u((uint64_t)(((size_t)sizeof(FontLog))), 64, 0, 32, 1, 1)); void* _lb_sq51 __attribute__((unused)) = &(lb_description); lb_x_fonts_GetObjectW(_lb_sq49, _lb_sq50, _lb_sq51); }); int32_t _lb_sq52 __attribute__((unused)) = ((int32_t)lb_conv_u((uint64_t)(((size_t)sizeof(FontLog))), 64, 0, 32, 1, 1)); (!(_lb_sq48 == _lb_sq52)); }))) 
     {
-        lb_pos = "src/std/fonts/windows/native.lucb:90:9";
+        lb_pos = "src/std/fonts/windows/native.lucb:94:9";
         lb_r_unit _lb_err53 = ((lb_r_unit){ .error = { .code = (int32_t)(lb_fonts_failed), .message = ((lb_str){"could not read font attributes", 30}) }, .failed = true });
         return _lb_err53;
     }
-    lb_pos = "src/std/fonts/windows/native.lucb:91:5";
+    lb_pos = "src/std/fonts/windows/native.lucb:95:5";
     lb_description.height = ((int32_t)lb_neg_s((int64_t)(((int32_t)lb_f_to_s((double)(lb_math_round((lb_face.size * lb_scale))), 32, 1))), 32));
-    lb_pos = "src/std/fonts/windows/native.lucb:92:5";
+    lb_pos = "src/std/fonts/windows/native.lucb:96:5";
     void* lb_font __attribute__((unused)) = ({ void* _lb_o54 = lb_x_fonts_CreateFontIndirectW(&(lb_description)); if (_lb_o54 == ((void*)0)) {
         lb_r_unit _lb_err55 = ((lb_r_unit){ .error = { .code = (int32_t)(lb_fonts_failed), .message = ((lb_str){"could not scale the font", 24}) }, .failed = true });
         return _lb_err55;
     } _lb_o54; });
-    lb_pos = "src/std/fonts/windows/native.lucb:93:5";
-    lb_pos = "src/std/fonts/windows/native.lucb:94:5";
+    lb_pos = "src/std/fonts/windows/native.lucb:97:5";
+    lb_pos = "src/std/fonts/windows/native.lucb:98:5";
     (void)(((void)(({ void* _lb_o56 = lb_x_fonts_SelectObject(lb_dc, lb_font); if (_lb_o56 == ((void*)0)) {
         lb_r_unit _lb_err57 = ((lb_r_unit){ .error = { .code = (int32_t)(lb_fonts_failed), .message = ((lb_str){"could not select the scaled font", 32}) }, .failed = true });
         (void)(((void)(lb_x_fonts_DeleteObject(lb_font))));
         return _lb_err57;
     } _lb_o56; }))));
-    lb_pos = "src/std/fonts/windows/native.lucb:95:5";
-    lb_pos = "src/std/fonts/windows/native.lucb:96:5";
-    FontMatrix lb_matrix __attribute__((unused)) = ((FontMatrix){.xx = 65536LL, .yy = 65536LL});
-    lb_pos = "src/std/fonts/windows/native.lucb:97:5";
-    size_t lb_offset __attribute__((unused)) = 0ULL;
-    lb_pos = "src/std/fonts/windows/native.lucb:98:5";
-    size_t lb_index __attribute__((unused)) = 0ULL;
     lb_pos = "src/std/fonts/windows/native.lucb:99:5";
+    lb_pos = "src/std/fonts/windows/native.lucb:100:5";
+    FontMatrix lb_matrix __attribute__((unused)) = ((FontMatrix){.xx = 65536LL, .yy = 65536LL});
+    lb_pos = "src/std/fonts/windows/native.lucb:101:5";
+    size_t lb_offset __attribute__((unused)) = 0ULL;
+    lb_pos = "src/std/fonts/windows/native.lucb:102:5";
+    size_t lb_index __attribute__((unused)) = 0ULL;
+    lb_pos = "src/std/fonts/windows/native.lucb:103:5";
     for (;;) {
-        lb_pos = "src/std/fonts/windows/native.lucb:99:5";
+        lb_pos = "src/std/fonts/windows/native.lucb:103:5";
         if (!((((size_t)(lb_offset)) < ((size_t)((lb_text.length)))))) break;
         {
-            lb_pos = "src/std/fonts/windows/native.lucb:100:9";
+            lb_pos = "src/std/fonts/windows/native.lucb:104:9";
             lb_utf8_Decoded lb_decoded __attribute__((unused)) = ({ lb_o_utf8_Decoded _lb_o58 = lb_utf8_decode(((lb_cspan){(void*)(lb_text.data), lb_text.length}), lb_offset); if (!_lb_o58.present) {
                 (void)(lb_trap_text(((lb_str){"validated text changed", 22})));
             } _lb_o58.value; });
-            lb_pos = "src/std/fonts/windows/native.lucb:101:9";
+            lb_pos = "src/std/fonts/windows/native.lucb:105:9";
             { size_t* lb__cell59 = &(lb_offset);
             (*(lb__cell59)) = (size_t)(lb_add_u((uint64_t)((*(lb__cell59))), (uint64_t)(lb_decoded.width), 64)); }
-            lb_pos = "src/std/fonts/windows/native.lucb:102:9";
+            lb_pos = "src/std/fonts/windows/native.lucb:106:9";
             GlyphMetrics lb_metrics __attribute__((unused)) = {};
-            lb_pos = "src/std/fonts/windows/native.lucb:103:9";
+            lb_pos = "src/std/fonts/windows/native.lucb:107:9";
             uint32_t lb_character __attribute__((unused)) = ((((uint32_t)(((uint32_t)lb_conv_u((uint64_t)(lb_decoded.scalar), 32, 0, 32, 0, 1)))) <= ((uint32_t)(65535ULL))) ? ((uint32_t)lb_conv_u((uint64_t)(lb_decoded.scalar), 32, 0, 32, 0, 1)) : ((uint32_t)lb_conv_s((int64_t)(65533LL), 64, 1, 32, 0, 1)));
-            lb_pos = "src/std/fonts/windows/native.lucb:104:9";
+            lb_pos = "src/std/fonts/windows/native.lucb:108:9";
             uint32_t lb_length __attribute__((unused)) = lb_x_fonts_GetGlyphOutlineW(lb_dc, lb_character, 6ULL, &(lb_metrics), 0ULL, ((void*)0), &(lb_matrix));
-            lb_pos = "src/std/fonts/windows/native.lucb:105:9";
+            lb_pos = "src/std/fonts/windows/native.lucb:109:9";
             if (!!(((lb_length == 4294967295ULL) || (((uint32_t)(lb_length)) > ((uint32_t)(1048576ULL)))))) 
             {
-                lb_pos = "src/std/fonts/windows/native.lucb:106:13";
+                lb_pos = "src/std/fonts/windows/native.lucb:110:13";
                 lb_r_unit _lb_err60 = ((lb_r_unit){ .error = { .code = (int32_t)(lb_fonts_failed), .message = ((lb_str){"could not rasterize the font glyph", 34}) }, .failed = true });
                 (void)(((void)(lb_x_fonts_SelectObject(lb_dc, lb_original))));
                 (void)(((void)(lb_x_fonts_DeleteObject(lb_font))));
                 return _lb_err60;
             }
-            lb_pos = "src/std/fonts/windows/native.lucb:107:9";
+            lb_pos = "src/std/fonts/windows/native.lucb:111:9";
             if (!!((((uint32_t)(lb_length)) > ((uint32_t)(0ULL))))) 
             {
-                lb_pos = "src/std/fonts/windows/native.lucb:108:13";
+                lb_pos = "src/std/fonts/windows/native.lucb:112:13";
                 lb_span lb_native __attribute__((unused)) = (({ lb_r_u8_0s _lb_r61 = ({ lb_iface _lb_a62 = lb_memory_heap; size_t _lb_n62 = (size_t)(((size_t)lb_conv_u((uint64_t)(lb_length), 32, 0, 64, 0, 1))); lb_r_u8_0s _lb_r62; if (_lb_n62 > UINT64_C(4611686018427387904)) { _lb_r62 = ((lb_r_u8_0s){ .error = { .code = 208273409, .message = (lb_str){"memory.exhausted", 16} }, .failed = true }); } else { size_t _lb_bytes62 = sizeof(uint8_t) * _lb_n62; lb_o_u8_0s _lb_ao62 = lb_alloc_call(_lb_a62, _lb_bytes62, _Alignof(uint8_t)); if (_lb_bytes62 != 0 && !_lb_ao62.present) { _lb_r62 = ((lb_r_u8_0s){ .error = { .code = 208273409, .message = (lb_str){"memory.exhausted", 16} }, .failed = true }); } else { _lb_r62.value.data = _lb_ao62.value.data; _lb_r62.value.length = _lb_n62; _lb_r62.failed = false; } } _lb_r62; }); if (_lb_r61.failed) {
                     (void)(((void)(lb_x_fonts_SelectObject(lb_dc, lb_original))));
                     (void)(((void)(lb_x_fonts_DeleteObject(lb_font))));
                     return ((lb_r_unit){ .error = _lb_r61.error, .failed = true });
                 } _lb_r61.value; }));
-                lb_pos = "src/std/fonts/windows/native.lucb:109:13";
-                lb_pos = "src/std/fonts/windows/native.lucb:110:13";
+                lb_pos = "src/std/fonts/windows/native.lucb:113:13";
+                lb_pos = "src/std/fonts/windows/native.lucb:114:13";
                 if (!!(({ uint32_t _lb_sq63 __attribute__((unused)) = lb_x_fonts_GetGlyphOutlineW(lb_dc, lb_character, 6ULL, &(lb_metrics), lb_length, ((uint8_t*)(lb_native.data)), &(lb_matrix)); uint32_t _lb_sq64 __attribute__((unused)) = 4294967295ULL; (_lb_sq63 == _lb_sq64); }))) 
                 {
-                    lb_pos = "src/std/fonts/windows/native.lucb:111:17";
+                    lb_pos = "src/std/fonts/windows/native.lucb:115:17";
                     lb_r_unit _lb_err65 = ((lb_r_unit){ .error = { .code = (int32_t)(lb_fonts_failed), .message = ((lb_str){"could not read font coverage", 28}) }, .failed = true });
                     { lb_span _lb_s66 = lb_native; lb_release_call(lb_memory_heap, (lb_span){ (void*)(_lb_s66.data), lb_mul_u(_lb_s66.length, sizeof(uint8_t), 64) }); }
                     (void)(((void)(lb_x_fonts_SelectObject(lb_dc, lb_original))));
                     (void)(((void)(lb_x_fonts_DeleteObject(lb_font))));
                     return _lb_err65;
                 }
-                lb_pos = "src/std/fonts/windows/native.lucb:112:13";
+                lb_pos = "src/std/fonts/windows/native.lucb:116:13";
                 size_t lb_stride __attribute__((unused)) = (size_t)(lb_mul_u((uint64_t)((size_t)(lb_div_u((uint64_t)(((size_t)(lb_add_u((uint64_t)(((size_t)lb_conv_u((uint64_t)(lb_metrics.width), 32, 0, 64, 0, 1))), (uint64_t)(3ULL), 64)))), (uint64_t)(4ULL), 64))), (uint64_t)(4ULL), 64));
-                lb_pos = "src/std/fonts/windows/native.lucb:113:13";
+                lb_pos = "src/std/fonts/windows/native.lucb:117:13";
                 if (!!((((size_t)((size_t)(lb_mul_u((uint64_t)(lb_stride), (uint64_t)(((size_t)lb_conv_u((uint64_t)(lb_metrics.height), 32, 0, 64, 0, 1))), 64)))) > ((size_t)((lb_native.length)))))) 
                 {
-                    lb_pos = "src/std/fonts/windows/native.lucb:114:17";
+                    lb_pos = "src/std/fonts/windows/native.lucb:118:17";
                     lb_r_unit _lb_err67 = ((lb_r_unit){ .error = { .code = (int32_t)(lb_fonts_failed), .message = ((lb_str){"native glyph dimensions exceed its buffer", 41}) }, .failed = true });
                     { lb_span _lb_s68 = lb_native; lb_release_call(lb_memory_heap, (lb_span){ (void*)(_lb_s68.data), lb_mul_u(_lb_s68.length, sizeof(uint8_t), 64) }); }
                     (void)(((void)(lb_x_fonts_SelectObject(lb_dc, lb_original))));
                     (void)(((void)(lb_x_fonts_DeleteObject(lb_font))));
                     return _lb_err67;
                 }
-                lb_pos = "src/std/fonts/windows/native.lucb:115:13";
+                lb_pos = "src/std/fonts/windows/native.lucb:119:13";
                 int64_t lb_left __attribute__((unused)) = ({ int64_t _lb_sq69 __attribute__((unused)) = ({ int64_t _lb_sq70 __attribute__((unused)) = 2LL; int64_t _lb_sq71 __attribute__((unused)) = ((int64_t)lb_f_to_s((double)(lb_math_round(((lb_to_f((uint64_t)(lb_index), 0) * lb_face.advance) * lb_scale))), 64, 1)); (int64_t)(lb_add_s((int64_t)(_lb_sq70), (int64_t)(_lb_sq71), 64)); }); int64_t _lb_sq72 __attribute__((unused)) = ((int64_t)lb_conv_s((int64_t)(lb_metrics.x), 32, 1, 64, 1, 1)); (int64_t)(lb_add_s((int64_t)(_lb_sq69), (int64_t)(_lb_sq72), 64)); });
-                lb_pos = "src/std/fonts/windows/native.lucb:116:13";
+                lb_pos = "src/std/fonts/windows/native.lucb:120:13";
                 int64_t lb_top __attribute__((unused)) = ({ int64_t _lb_sq73 __attribute__((unused)) = ({ int64_t _lb_sq74 __attribute__((unused)) = 2LL; int64_t _lb_sq75 __attribute__((unused)) = ((int64_t)lb_f_to_s((double)(lb_math_ceil((lb_face.ascent * lb_scale))), 64, 1)); (int64_t)(lb_add_s((int64_t)(_lb_sq74), (int64_t)(_lb_sq75), 64)); }); int64_t _lb_sq76 __attribute__((unused)) = ((int64_t)lb_conv_s((int64_t)(lb_metrics.y), 32, 1, 64, 1, 1)); (int64_t)(lb_sub_s((int64_t)(_lb_sq73), (int64_t)(_lb_sq76), 64)); });
-                lb_pos = "src/std/fonts/windows/native.lucb:117:13";
+                lb_pos = "src/std/fonts/windows/native.lucb:121:13";
                 for (size_t lb_row __attribute__((unused)) = (size_t)(0ULL); lb_row < (size_t)(((size_t)lb_conv_u((uint64_t)(lb_metrics.height), 32, 0, 64, 0, 1))); lb_row++) {
                     {
-                        lb_pos = "src/std/fonts/windows/native.lucb:118:17";
+                        lb_pos = "src/std/fonts/windows/native.lucb:122:17";
                         for (size_t lb_column __attribute__((unused)) = (size_t)(0ULL); lb_column < (size_t)(((size_t)lb_conv_u((uint64_t)(lb_metrics.width), 32, 0, 64, 0, 1))); lb_column++) {
                             {
-                                lb_pos = "src/std/fonts/windows/native.lucb:119:21";
+                                lb_pos = "src/std/fonts/windows/native.lucb:123:21";
                                 int64_t lb_x __attribute__((unused)) = (int64_t)(lb_add_s((int64_t)(lb_left), (int64_t)(((int64_t)lb_conv_u((uint64_t)(lb_column), 64, 0, 64, 1, 1))), 64));
-                                lb_pos = "src/std/fonts/windows/native.lucb:120:21";
+                                lb_pos = "src/std/fonts/windows/native.lucb:124:21";
                                 int64_t lb_y __attribute__((unused)) = (int64_t)(lb_add_s((int64_t)(lb_top), (int64_t)(((int64_t)lb_conv_u((uint64_t)(lb_row), 64, 0, 64, 1, 1))), 64));
-                                lb_pos = "src/std/fonts/windows/native.lucb:121:21";
+                                lb_pos = "src/std/fonts/windows/native.lucb:125:21";
                                 if (!!(((((((int64_t)(lb_x)) >= ((int64_t)(0LL))) && (((int64_t)(lb_y)) >= ((int64_t)(0LL)))) && (((int64_t)(lb_x)) < ((int64_t)(((int64_t)lb_conv_u((uint64_t)((lb_bitmap)->width), 32, 0, 64, 1, 1)))))) && (((int64_t)(lb_y)) < ((int64_t)(((int64_t)lb_conv_u((uint64_t)((lb_bitmap)->height), 32, 0, 64, 1, 1)))))))) 
                                 {
-                                    lb_pos = "src/std/fonts/windows/native.lucb:122:25";
+                                    lb_pos = "src/std/fonts/windows/native.lucb:126:25";
                                     uint8_t lb_coverage __attribute__((unused)) = ((uint8_t)lb_conv_u((uint64_t)(((uint32_t)(lb_div_u((uint64_t)(((uint32_t)(lb_add_u((uint64_t)((uint32_t)(lb_mul_u((uint64_t)(((uint32_t)lb_conv_u((uint64_t)((*({ lb_span _lb_ix79 = lb_native; &((uint8_t*)_lb_ix79.data)[lb_at((uint64_t)((size_t)(lb_add_u((uint64_t)((size_t)(lb_mul_u((uint64_t)(lb_row), (uint64_t)(lb_stride), 64))), (uint64_t)(lb_column), 64))), _lb_ix79.length)]; }))), 8, 0, 32, 0, 1))), (uint64_t)(255ULL), 32))), (uint64_t)(32ULL), 32)))), (uint64_t)(64ULL), 32)))), 32, 0, 8, 0, 1));
-                                    lb_pos = "src/std/fonts/windows/native.lucb:123:25";
+                                    lb_pos = "src/std/fonts/windows/native.lucb:127:25";
                                     size_t lb_at_ __attribute__((unused)) = (size_t)(lb_add_u((uint64_t)((size_t)(lb_mul_u((uint64_t)(((size_t)lb_conv_s((int64_t)(lb_y), 64, 1, 64, 0, 1))), (uint64_t)(((size_t)lb_conv_u((uint64_t)((lb_bitmap)->width), 32, 0, 64, 0, 1))), 64))), (uint64_t)(((size_t)lb_conv_s((int64_t)(lb_x), 64, 1, 64, 0, 1))), 64));
-                                    lb_pos = "src/std/fonts/windows/native.lucb:124:25";
+                                    lb_pos = "src/std/fonts/windows/native.lucb:128:25";
                                     if (!!((((uint8_t)(lb_coverage)) > ((uint8_t)((*({ lb_span _lb_ix80 = (lb_bitmap)->pixels; &((uint8_t*)_lb_ix80.data)[lb_at((uint64_t)(lb_at_), _lb_ix80.length)]; }))))))) 
                                     {
-                                        lb_pos = "src/std/fonts/windows/native.lucb:125:29";
+                                        lb_pos = "src/std/fonts/windows/native.lucb:129:29";
                                         (*({ lb_span _lb_ix81 = (lb_bitmap)->pixels; &((uint8_t*)_lb_ix81.data)[lb_at((uint64_t)(lb_at_), _lb_ix81.length)]; })) = lb_coverage;
                                     }
                                 }
@@ -4533,7 +4533,7 @@ lb_r_unit lb_fonts_10win_raster(lb_fonts_Face lb_face, lb_str lb_text, double lb
                 }
                 { lb_span _lb_s82 = lb_native; lb_release_call(lb_memory_heap, (lb_span){ (void*)(_lb_s82.data), lb_mul_u(_lb_s82.length, sizeof(uint8_t), 64) }); }
             }
-            lb_pos = "src/std/fonts/windows/native.lucb:126:9";
+            lb_pos = "src/std/fonts/windows/native.lucb:130:9";
             { size_t* lb__cell83 = &(lb_index);
             (*(lb__cell83)) = (size_t)(lb_add_u((uint64_t)((*(lb__cell83))), (uint64_t)(1ULL), 64)); }
         }
@@ -4544,21 +4544,21 @@ lb_r_unit lb_fonts_10win_raster(lb_fonts_Face lb_face, lb_str lb_text, double lb
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_str_init(lb_interop_Packet_0g1_str* self, lb_str lb_value, void* lb_storage, lb_fn_0F1_void_0p_unit lb_dispose) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/fonts/linux/native.lucb:455:1";
+    lb_pos = "src/std/fonts/linux/native.lucb:445:1";
     self->value = lb_value;
-    lb_pos = "src/std/fonts/linux/native.lucb:456:1";
+    lb_pos = "src/std/fonts/linux/native.lucb:446:1";
     self->storage = lb_storage;
-    lb_pos = "src/std/fonts/linux/native.lucb:457:1";
+    lb_pos = "src/std/fonts/linux/native.lucb:447:1";
     self->dispose = lb_dispose;
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_str_release(const lb_interop_Packet_0g1_str* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/fonts/linux/native.lucb:460:1";
+    lb_pos = "src/std/fonts/linux/native.lucb:450:1";
     void* _lb_o84 = self->storage;
     if (_lb_o84 != ((void*)0)) {
         void* lb_storage __attribute__((unused)) = _lb_o84;
         {
-            lb_pos = "src/std/fonts/linux/native.lucb:461:1";
+            lb_pos = "src/std/fonts/linux/native.lucb:451:1";
             (void)(((({ lb_fn_0F1_void_0p_unit _lb_o85 = self->dispose; if (_lb_o85 == ((void*)0)) {
                 (void)(lb_trap_text(((lb_str){"a packet has storage without a disposer", 39})));
             } _lb_o85; })))(lb_storage));
@@ -4567,21 +4567,21 @@ __attribute__((weak)) void lb_interop_Packet_0g1_str_release(const lb_interop_Pa
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_init(lb_interop_Packet_0g1_u8_0c* self, lb_cspan lb_value, void* lb_storage, lb_fn_0F1_void_0p_unit lb_dispose) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/fonts/linux/native.lucb:455:1";
+    lb_pos = "src/std/fonts/linux/native.lucb:445:1";
     self->value = lb_value;
-    lb_pos = "src/std/fonts/linux/native.lucb:456:1";
+    lb_pos = "src/std/fonts/linux/native.lucb:446:1";
     self->storage = lb_storage;
-    lb_pos = "src/std/fonts/linux/native.lucb:457:1";
+    lb_pos = "src/std/fonts/linux/native.lucb:447:1";
     self->dispose = lb_dispose;
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_release(const lb_interop_Packet_0g1_u8_0c* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/fonts/linux/native.lucb:460:1";
+    lb_pos = "src/std/fonts/linux/native.lucb:450:1";
     void* _lb_o86 = self->storage;
     if (_lb_o86 != ((void*)0)) {
         void* lb_storage __attribute__((unused)) = _lb_o86;
         {
-            lb_pos = "src/std/fonts/linux/native.lucb:461:1";
+            lb_pos = "src/std/fonts/linux/native.lucb:451:1";
             (void)(((({ lb_fn_0F1_void_0p_unit _lb_o87 = self->dispose; if (_lb_o87 == ((void*)0)) {
                 (void)(lb_trap_text(((lb_str){"a packet has storage without a disposer", 39})));
             } _lb_o87; })))(lb_storage));

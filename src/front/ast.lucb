@@ -134,7 +134,6 @@ pub let flag_unused: u32 = 1073741824
 pub let flag_format_sink: u32 = 2147483648
 
 # mark: Nodes and lists =======================================================================
-
 pub struct Node:
     pub var kind: Kind
     ## The spelling that matters: a name, a literal, an operator, a label.

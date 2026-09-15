@@ -4316,35 +4316,35 @@ extern uint32_t lb_gpu_22vulkan_api_version_1_0;
 
 __attribute__((weak)) lb_interop_Transfer_0g1_str lb_interop_Transfer_0g1_str_plain(void) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/math.lucb:815:1";
+    lb_pos = "src/std/math.lucb:812:1";
     lb_interop_Transfer_0g1_str _lb_ret1 = ((lb_interop_Transfer_0g1_str){.copy = lb_interop_Transfer_0g1_str_10copy_plain});
     return _lb_ret1;
     lb_trap("unreachable");
 }
 __attribute__((weak)) lb_r_interop_Packet_0g1_str lb_interop_Transfer_0g1_str_10copy_plain(lb_str lb_value) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/math.lucb:818:1";
+    lb_pos = "src/std/math.lucb:815:1";
     lb_interop_Packet_0g1_str _lb_ret2 = ({ lb_interop_Packet_0g1_str _lb_iv3 = {}; lb_interop_Packet_0g1_str_init(&_lb_iv3, lb_value, ((void*)0), ((void*)0)); _lb_iv3; });
     return ((lb_r_interop_Packet_0g1_str){ .value = _lb_ret2, .failed = false });
     lb_trap("unreachable");
 }
 __attribute__((weak)) lb_interop_Transfer_0g1_u8_0c lb_interop_Transfer_0g1_u8_0c_plain(void) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/math.lucb:815:1";
+    lb_pos = "src/std/math.lucb:812:1";
     lb_interop_Transfer_0g1_u8_0c _lb_ret4 = ((lb_interop_Transfer_0g1_u8_0c){.copy = lb_interop_Transfer_0g1_u8_0c_10copy_plain});
     return _lb_ret4;
     lb_trap("unreachable");
 }
 __attribute__((weak)) lb_r_interop_Packet_0g1_u8_0c lb_interop_Transfer_0g1_u8_0c_10copy_plain(lb_cspan lb_value) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/math.lucb:818:1";
+    lb_pos = "src/std/math.lucb:815:1";
     lb_interop_Packet_0g1_u8_0c _lb_ret5 = ({ lb_interop_Packet_0g1_u8_0c _lb_iv6 = {}; lb_interop_Packet_0g1_u8_0c_init(&_lb_iv6, lb_value, ((void*)0), ((void*)0)); _lb_iv6; });
     return ((lb_r_interop_Packet_0g1_u8_0c){ .value = _lb_ret5, .failed = false });
     lb_trap("unreachable");
 }
 double lb_math_floor(double lb_x) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/math.lucb:51:5";
+    lb_pos = "src/std/math.lucb:50:5";
     double _lb_ret7 = lb_c_math_7c_floor(lb_x);
     return _lb_ret7;
     lb_trap("unreachable");
@@ -4358,521 +4358,521 @@ double lb_math_ceil(double lb_x) {
 }
 double lb_math_round(double lb_x) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/math.lucb:55:5";
+    lb_pos = "src/std/math.lucb:56:5";
     double _lb_ret9 = lb_c_math_7c_round(lb_x);
     return _lb_ret9;
     lb_trap("unreachable");
 }
 double lb_math_trunc(double lb_x) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/math.lucb:57:5";
+    lb_pos = "src/std/math.lucb:59:5";
     double _lb_ret10 = lb_c_math_7c_trunc(lb_x);
     return _lb_ret10;
     lb_trap("unreachable");
 }
 double lb_math_sqrt(double lb_x) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/math.lucb:60:5";
+    lb_pos = "src/std/math.lucb:62:5";
     double _lb_ret11 = lb_c_math_6c_sqrt(lb_x);
     return _lb_ret11;
     lb_trap("unreachable");
 }
 double lb_math_cbrt(double lb_x) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/math.lucb:62:5";
+    lb_pos = "src/std/math.lucb:65:5";
     double _lb_ret12 = lb_c_math_6c_cbrt(lb_x);
     return _lb_ret12;
     lb_trap("unreachable");
 }
 double lb_math_hypot(double lb_x, double lb_y) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/math.lucb:65:5";
+    lb_pos = "src/std/math.lucb:69:5";
     double _lb_ret13 = lb_c_math_7c_hypot(lb_x, lb_y);
     return _lb_ret13;
     lb_trap("unreachable");
 }
 double lb_math_mod(double lb_x, double lb_y) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/math.lucb:68:5";
+    lb_pos = "src/std/math.lucb:73:5";
     double _lb_ret14 = lb_c_math_6c_fmod(lb_x, lb_y);
     return _lb_ret14;
     lb_trap("unreachable");
 }
 double lb_math_pow(double lb_x, double lb_y) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/math.lucb:70:5";
+    lb_pos = "src/std/math.lucb:76:5";
     double _lb_ret15 = lb_c_math_5c_pow(lb_x, lb_y);
     return _lb_ret15;
     lb_trap("unreachable");
 }
 double lb_math_exp(double lb_x) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/math.lucb:72:5";
+    lb_pos = "src/std/math.lucb:79:5";
     double _lb_ret16 = lb_c_math_5c_exp(lb_x);
     return _lb_ret16;
     lb_trap("unreachable");
 }
 double lb_math_exp2(double lb_x) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/math.lucb:74:5";
+    lb_pos = "src/std/math.lucb:82:5";
     double _lb_ret17 = lb_c_math_6c_exp2(lb_x);
     return _lb_ret17;
     lb_trap("unreachable");
 }
 double lb_math_log(double lb_x) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/math.lucb:76:5";
+    lb_pos = "src/std/math.lucb:85:5";
     double _lb_ret18 = lb_c_math_5c_log(lb_x);
     return _lb_ret18;
     lb_trap("unreachable");
 }
 double lb_math_log2(double lb_x) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/math.lucb:78:5";
+    lb_pos = "src/std/math.lucb:88:5";
     double _lb_ret19 = lb_c_math_6c_log2(lb_x);
     return _lb_ret19;
     lb_trap("unreachable");
 }
 double lb_math_log10(double lb_x) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/math.lucb:80:5";
+    lb_pos = "src/std/math.lucb:91:5";
     double _lb_ret20 = lb_c_math_7c_log10(lb_x);
     return _lb_ret20;
     lb_trap("unreachable");
 }
 double lb_math_log1p(double lb_x) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/math.lucb:85:5";
+    lb_pos = "src/std/math.lucb:96:5";
     double _lb_ret21 = lb_c_math_7c_log1p(lb_x);
     return _lb_ret21;
     lb_trap("unreachable");
 }
 double lb_math_expm1(double lb_x) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/math.lucb:91:5";
+    lb_pos = "src/std/math.lucb:102:5";
     if (!!(({ uint64_t _lb_sq22 __attribute__((unused)) = ({ double _lb_fv23 = lb_x; uint64_t _lb_fb23; memcpy(&_lb_fb23, &_lb_fv23, sizeof(_lb_fb23)); _lb_fb23; }); uint64_t _lb_sq24 __attribute__((unused)) = (((uint64_t)(lb_math_9sign_mask | lb_math_13exponent_mask))); (_lb_sq22 == _lb_sq24); }))) 
     {
-        lb_pos = "src/std/math.lucb:92:9";
+        lb_pos = "src/std/math.lucb:103:9";
         double _lb_ret25 = (-(0x1.0000000000000p+0));
         return _lb_ret25;
     }
-    lb_pos = "src/std/math.lucb:93:5";
+    lb_pos = "src/std/math.lucb:104:5";
     double _lb_ret26 = lb_c_math_7c_expm1(lb_x);
     return _lb_ret26;
     lb_trap("unreachable");
 }
 double lb_math_fma(double lb_x, double lb_y, double lb_z) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/math.lucb:98:5";
+    lb_pos = "src/std/math.lucb:109:5";
     double _lb_ret27 = lb_c_math_5c_fma(lb_x, lb_y, lb_z);
     return _lb_ret27;
     lb_trap("unreachable");
 }
 double lb_math_nextafter(double lb_x, double lb_toward) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/math.lucb:103:5";
+    lb_pos = "src/std/math.lucb:114:5";
     double _lb_ret28 = lb_c_math_11c_nextafter(lb_x, lb_toward);
     return _lb_ret28;
     lb_trap("unreachable");
 }
 double lb_math_7next_up(double lb_x) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/math.lucb:108:5";
+    lb_pos = "src/std/math.lucb:119:5";
     double _lb_ret29 = lb_c_math_11c_nextafter(lb_x, lb_math_infinity);
     return _lb_ret29;
     lb_trap("unreachable");
 }
 double lb_math_9next_down(double lb_x) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/math.lucb:113:5";
+    lb_pos = "src/std/math.lucb:124:5";
     double _lb_ret30 = ({ double _lb_sq31 __attribute__((unused)) = lb_x; double _lb_sq32 __attribute__((unused)) = lb_math_copysign(lb_math_infinity, (-(0x1.0000000000000p+0))); lb_c_math_11c_nextafter(_lb_sq31, _lb_sq32); });
     return _lb_ret30;
     lb_trap("unreachable");
 }
 lb_t_0T2_f64_i32 lb_math_frexp(double lb_x) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/math.lucb:119:5";
+    lb_pos = "src/std/math.lucb:130:5";
     if (!!(((lb_x == 0x0p+0) || (!lb_math_9is_finite(lb_x))))) 
     {
-        lb_pos = "src/std/math.lucb:120:9";
+        lb_pos = "src/std/math.lucb:131:9";
         lb_t_0T2_f64_i32 _lb_ret33 = ((lb_t_0T2_f64_i32){lb_x, 0LL});
         return _lb_ret33;
     }
-    lb_pos = "src/std/math.lucb:121:5";
+    lb_pos = "src/std/math.lucb:132:5";
     lb_t_0T2_f64_i32 _lb_ret34 = ({ int32_t _lb_o35_0; double _lb_or35 = lb_c_math_7c_frexp(lb_x, &_lb_o35_0); ((lb_t_0T2_f64_i32){ _lb_or35, _lb_o35_0 }); });
     return _lb_ret34;
     lb_trap("unreachable");
 }
 double lb_math_scalbn(double lb_x, int32_t lb_exponent) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/math.lucb:126:5";
+    lb_pos = "src/std/math.lucb:137:5";
     double _lb_ret36 = lb_c_math_8c_scalbn(lb_x, lb_exponent);
     return _lb_ret36;
     lb_trap("unreachable");
 }
 lb_t_0T2_f64_f64 lb_math_modf(double lb_x) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/math.lucb:131:5";
+    lb_pos = "src/std/math.lucb:142:5";
     lb_t_0T2_f64_f64 _lb_ret37 = ({ double _lb_o38_0; double _lb_or38 = lb_c_math_6c_modf(lb_x, &_lb_o38_0); ((lb_t_0T2_f64_f64){ _lb_or38, _lb_o38_0 }); });
     return _lb_ret37;
     lb_trap("unreachable");
 }
 double lb_math_remainder(double lb_x, double lb_y) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/math.lucb:137:5";
+    lb_pos = "src/std/math.lucb:148:5";
     double lb_result __attribute__((unused)) = lb_c_math_11c_remainder(lb_x, lb_y);
-    lb_pos = "src/std/math.lucb:140:5";
+    lb_pos = "src/std/math.lucb:151:5";
     double _lb_ret39 = (({ uint64_t _lb_sq40 __attribute__((unused)) = (({ uint64_t _lb_sq41 __attribute__((unused)) = ({ double _lb_fv42 = lb_result; uint64_t _lb_fb42; memcpy(&_lb_fb42, &_lb_fv42, sizeof(_lb_fb42)); _lb_fb42; }); uint64_t _lb_sq43 __attribute__((unused)) = lb_math_14magnitude_mask; ((uint64_t)(_lb_sq41 & _lb_sq43)); })); uint64_t _lb_sq44 __attribute__((unused)) = 0ULL; (_lb_sq40 == _lb_sq44); }) ? lb_math_copysign(lb_result, lb_x) : lb_result);
     return _lb_ret39;
     lb_trap("unreachable");
 }
 double lb_math_sin(double lb_x) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/math.lucb:143:5";
+    lb_pos = "src/std/math.lucb:154:5";
     double _lb_ret45 = lb_c_math_5c_sin(lb_x);
     return _lb_ret45;
     lb_trap("unreachable");
 }
 double lb_math_cos(double lb_x) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/math.lucb:145:5";
+    lb_pos = "src/std/math.lucb:157:5";
     double _lb_ret46 = lb_c_math_5c_cos(lb_x);
     return _lb_ret46;
     lb_trap("unreachable");
 }
 double lb_math_tan(double lb_x) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/math.lucb:147:5";
+    lb_pos = "src/std/math.lucb:160:5";
     double _lb_ret47 = lb_c_math_5c_tan(lb_x);
     return _lb_ret47;
     lb_trap("unreachable");
 }
 double lb_math_asin(double lb_x) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/math.lucb:149:5";
+    lb_pos = "src/std/math.lucb:163:5";
     double _lb_ret48 = lb_c_math_6c_asin(lb_x);
     return _lb_ret48;
     lb_trap("unreachable");
 }
 double lb_math_acos(double lb_x) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/math.lucb:151:5";
+    lb_pos = "src/std/math.lucb:166:5";
     double _lb_ret49 = lb_c_math_6c_acos(lb_x);
     return _lb_ret49;
     lb_trap("unreachable");
 }
 double lb_math_atan(double lb_x) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/math.lucb:153:5";
+    lb_pos = "src/std/math.lucb:169:5";
     double _lb_ret50 = lb_c_math_6c_atan(lb_x);
     return _lb_ret50;
     lb_trap("unreachable");
 }
 double lb_math_atan2(double lb_y, double lb_x) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/math.lucb:156:5";
+    lb_pos = "src/std/math.lucb:173:5";
     double _lb_ret51 = lb_c_math_7c_atan2(lb_y, lb_x);
     return _lb_ret51;
     lb_trap("unreachable");
 }
 double lb_math_sinh(double lb_x) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/math.lucb:158:5";
+    lb_pos = "src/std/math.lucb:176:5";
     double _lb_ret52 = lb_c_math_6c_sinh(lb_x);
     return _lb_ret52;
     lb_trap("unreachable");
 }
 double lb_math_cosh(double lb_x) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/math.lucb:160:5";
+    lb_pos = "src/std/math.lucb:179:5";
     double _lb_ret53 = lb_c_math_6c_cosh(lb_x);
     return _lb_ret53;
     lb_trap("unreachable");
 }
 double lb_math_tanh(double lb_x) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/math.lucb:162:5";
+    lb_pos = "src/std/math.lucb:182:5";
     double _lb_ret54 = lb_c_math_6c_tanh(lb_x);
     return _lb_ret54;
     lb_trap("unreachable");
 }
 bool lb_math_6is_nan(double lb_x) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/math.lucb:166:5";
+    lb_pos = "src/std/math.lucb:186:5";
     bool _lb_ret55 = ({ uint64_t _lb_sq56 __attribute__((unused)) = (({ uint64_t _lb_sq57 __attribute__((unused)) = ({ double _lb_fv58 = lb_x; uint64_t _lb_fb58; memcpy(&_lb_fb58, &_lb_fv58, sizeof(_lb_fb58)); _lb_fb58; }); uint64_t _lb_sq59 __attribute__((unused)) = lb_math_14magnitude_mask; ((uint64_t)(_lb_sq57 & _lb_sq59)); })); uint64_t _lb_sq60 __attribute__((unused)) = lb_math_13exponent_mask; (((uint64_t)(_lb_sq56)) > ((uint64_t)(_lb_sq60))); });
     return _lb_ret55;
     lb_trap("unreachable");
 }
 bool lb_math_9is_finite(double lb_x) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/math.lucb:170:5";
+    lb_pos = "src/std/math.lucb:191:5";
     bool _lb_ret61 = ({ uint64_t _lb_sq62 __attribute__((unused)) = (({ uint64_t _lb_sq63 __attribute__((unused)) = ({ double _lb_fv64 = lb_x; uint64_t _lb_fb64; memcpy(&_lb_fb64, &_lb_fv64, sizeof(_lb_fb64)); _lb_fb64; }); uint64_t _lb_sq65 __attribute__((unused)) = lb_math_13exponent_mask; ((uint64_t)(_lb_sq63 & _lb_sq65)); })); uint64_t _lb_sq66 __attribute__((unused)) = lb_math_13exponent_mask; (!(_lb_sq62 == _lb_sq66)); });
     return _lb_ret61;
     lb_trap("unreachable");
 }
 bool lb_math_11is_infinite(double lb_x) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/math.lucb:173:5";
+    lb_pos = "src/std/math.lucb:195:5";
     bool _lb_ret67 = ({ uint64_t _lb_sq68 __attribute__((unused)) = (({ uint64_t _lb_sq69 __attribute__((unused)) = ({ double _lb_fv70 = lb_x; uint64_t _lb_fb70; memcpy(&_lb_fb70, &_lb_fv70, sizeof(_lb_fb70)); _lb_fb70; }); uint64_t _lb_sq71 __attribute__((unused)) = lb_math_14magnitude_mask; ((uint64_t)(_lb_sq69 & _lb_sq71)); })); uint64_t _lb_sq72 __attribute__((unused)) = lb_math_13exponent_mask; (_lb_sq68 == _lb_sq72); });
     return _lb_ret67;
     lb_trap("unreachable");
 }
 bool lb_math_signbit(double lb_x) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/math.lucb:176:5";
+    lb_pos = "src/std/math.lucb:199:5";
     bool _lb_ret73 = ({ uint64_t _lb_sq74 __attribute__((unused)) = (({ uint64_t _lb_sq75 __attribute__((unused)) = ({ double _lb_fv76 = lb_x; uint64_t _lb_fb76; memcpy(&_lb_fb76, &_lb_fv76, sizeof(_lb_fb76)); _lb_fb76; }); uint64_t _lb_sq77 __attribute__((unused)) = lb_math_9sign_mask; ((uint64_t)(_lb_sq75 & _lb_sq77)); })); uint64_t _lb_sq78 __attribute__((unused)) = 0ULL; (!(_lb_sq74 == _lb_sq78)); });
     return _lb_ret73;
     lb_trap("unreachable");
 }
 double lb_math_abs(double lb_x) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/math.lucb:179:5";
+    lb_pos = "src/std/math.lucb:203:5";
     double _lb_ret79 = ({ uint64_t _lb_b = (uint64_t)(({ uint64_t _lb_sq80 __attribute__((unused)) = ({ double _lb_fv81 = lb_x; uint64_t _lb_fb81; memcpy(&_lb_fb81, &_lb_fv81, sizeof(_lb_fb81)); _lb_fb81; }); uint64_t _lb_sq82 __attribute__((unused)) = lb_math_14magnitude_mask; ((uint64_t)(_lb_sq80 & _lb_sq82)); })); double _lb_f; __builtin_memcpy(&_lb_f, &_lb_b, sizeof _lb_f); _lb_f; });
     return _lb_ret79;
     lb_trap("unreachable");
 }
 double lb_math_copysign(double lb_magnitude, double lb_sign_source) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/math.lucb:182:5";
+    lb_pos = "src/std/math.lucb:207:5";
     double _lb_ret83 = ({ uint64_t _lb_b = (uint64_t)(({ uint64_t _lb_sq84 __attribute__((unused)) = (({ uint64_t _lb_sq85 __attribute__((unused)) = ({ double _lb_fv86 = lb_magnitude; uint64_t _lb_fb86; memcpy(&_lb_fb86, &_lb_fv86, sizeof(_lb_fb86)); _lb_fb86; }); uint64_t _lb_sq87 __attribute__((unused)) = lb_math_14magnitude_mask; ((uint64_t)(_lb_sq85 & _lb_sq87)); })); uint64_t _lb_sq88 __attribute__((unused)) = (({ uint64_t _lb_sq89 __attribute__((unused)) = ({ double _lb_fv90 = lb_sign_source; uint64_t _lb_fb90; memcpy(&_lb_fb90, &_lb_fv90, sizeof(_lb_fb90)); _lb_fb90; }); uint64_t _lb_sq91 __attribute__((unused)) = lb_math_9sign_mask; ((uint64_t)(_lb_sq89 & _lb_sq91)); })); ((uint64_t)(_lb_sq84 | _lb_sq88)); })); double _lb_f; __builtin_memcpy(&_lb_f, &_lb_b, sizeof _lb_f); _lb_f; });
     return _lb_ret83;
     lb_trap("unreachable");
 }
 double lb_math_sign(double lb_x) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/math.lucb:185:5";
+    lb_pos = "src/std/math.lucb:211:5";
     if (!!(lb_math_6is_nan(lb_x))) 
     {
-        lb_pos = "src/std/math.lucb:186:9";
+        lb_pos = "src/std/math.lucb:212:9";
         double _lb_ret92 = lb_x;
         return _lb_ret92;
     }
-    lb_pos = "src/std/math.lucb:187:5";
+    lb_pos = "src/std/math.lucb:213:5";
     if (!!((((double)(lb_x)) < ((double)(0x0p+0))))) 
     {
-        lb_pos = "src/std/math.lucb:188:9";
+        lb_pos = "src/std/math.lucb:214:9";
         double _lb_ret93 = (-(0x1.0000000000000p+0));
         return _lb_ret93;
     }
-    lb_pos = "src/std/math.lucb:189:5";
+    lb_pos = "src/std/math.lucb:215:5";
     if (!!((((double)(lb_x)) > ((double)(0x0p+0))))) 
     {
-        lb_pos = "src/std/math.lucb:190:9";
+        lb_pos = "src/std/math.lucb:216:9";
         double _lb_ret94 = 0x1.0000000000000p+0;
         return _lb_ret94;
     }
-    lb_pos = "src/std/math.lucb:191:5";
+    lb_pos = "src/std/math.lucb:217:5";
     double _lb_ret95 = lb_x;
     return _lb_ret95;
     lb_trap("unreachable");
 }
 double lb_math_min(double lb_a, double lb_b) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/math.lucb:195:5";
+    lb_pos = "src/std/math.lucb:222:5";
     if (!!(lb_math_6is_nan(lb_a))) 
     {
-        lb_pos = "src/std/math.lucb:196:9";
+        lb_pos = "src/std/math.lucb:223:9";
         double _lb_ret96 = lb_a;
         return _lb_ret96;
     }
-    lb_pos = "src/std/math.lucb:197:5";
+    lb_pos = "src/std/math.lucb:224:5";
     if (!!(lb_math_6is_nan(lb_b))) 
     {
-        lb_pos = "src/std/math.lucb:198:9";
+        lb_pos = "src/std/math.lucb:225:9";
         double _lb_ret97 = lb_b;
         return _lb_ret97;
     }
-    lb_pos = "src/std/math.lucb:199:5";
+    lb_pos = "src/std/math.lucb:226:5";
     if (!!(((lb_a == 0x0p+0) && (lb_b == 0x0p+0)))) 
     {
-        lb_pos = "src/std/math.lucb:200:9";
+        lb_pos = "src/std/math.lucb:227:9";
         double _lb_ret98 = ({ uint64_t _lb_b = (uint64_t)(({ uint64_t _lb_sq99 __attribute__((unused)) = ({ double _lb_fv100 = lb_a; uint64_t _lb_fb100; memcpy(&_lb_fb100, &_lb_fv100, sizeof(_lb_fb100)); _lb_fb100; }); uint64_t _lb_sq101 __attribute__((unused)) = ({ double _lb_fv102 = lb_b; uint64_t _lb_fb102; memcpy(&_lb_fb102, &_lb_fv102, sizeof(_lb_fb102)); _lb_fb102; }); ((uint64_t)(_lb_sq99 | _lb_sq101)); })); double _lb_f; __builtin_memcpy(&_lb_f, &_lb_b, sizeof _lb_f); _lb_f; });
         return _lb_ret98;
     }
-    lb_pos = "src/std/math.lucb:201:5";
+    lb_pos = "src/std/math.lucb:228:5";
     double _lb_ret103 = ((((double)(lb_a)) < ((double)(lb_b))) ? lb_a : lb_b);
     return _lb_ret103;
     lb_trap("unreachable");
 }
 double lb_math_max(double lb_a, double lb_b) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/math.lucb:205:5";
+    lb_pos = "src/std/math.lucb:233:5";
     if (!!(lb_math_6is_nan(lb_a))) 
     {
-        lb_pos = "src/std/math.lucb:206:9";
+        lb_pos = "src/std/math.lucb:234:9";
         double _lb_ret104 = lb_a;
         return _lb_ret104;
     }
-    lb_pos = "src/std/math.lucb:207:5";
+    lb_pos = "src/std/math.lucb:235:5";
     if (!!(lb_math_6is_nan(lb_b))) 
     {
-        lb_pos = "src/std/math.lucb:208:9";
+        lb_pos = "src/std/math.lucb:236:9";
         double _lb_ret105 = lb_b;
         return _lb_ret105;
     }
-    lb_pos = "src/std/math.lucb:209:5";
+    lb_pos = "src/std/math.lucb:237:5";
     if (!!(((lb_a == 0x0p+0) && (lb_b == 0x0p+0)))) 
     {
-        lb_pos = "src/std/math.lucb:210:9";
+        lb_pos = "src/std/math.lucb:238:9";
         double _lb_ret106 = ({ uint64_t _lb_b = (uint64_t)(({ uint64_t _lb_sq107 __attribute__((unused)) = ({ double _lb_fv108 = lb_a; uint64_t _lb_fb108; memcpy(&_lb_fb108, &_lb_fv108, sizeof(_lb_fb108)); _lb_fb108; }); uint64_t _lb_sq109 __attribute__((unused)) = ({ double _lb_fv110 = lb_b; uint64_t _lb_fb110; memcpy(&_lb_fb110, &_lb_fv110, sizeof(_lb_fb110)); _lb_fb110; }); ((uint64_t)(_lb_sq107 & _lb_sq109)); })); double _lb_f; __builtin_memcpy(&_lb_f, &_lb_b, sizeof _lb_f); _lb_f; });
         return _lb_ret106;
     }
-    lb_pos = "src/std/math.lucb:211:5";
+    lb_pos = "src/std/math.lucb:239:5";
     double _lb_ret111 = ((((double)(lb_a)) > ((double)(lb_b))) ? lb_a : lb_b);
     return _lb_ret111;
     lb_trap("unreachable");
 }
 double lb_math_clamp(double lb_x, double lb_low, double lb_high) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/math.lucb:215:5";
+    lb_pos = "src/std/math.lucb:244:5";
     (void)(((void)(((((double)(lb_low)) <= ((double)(lb_high)))) ? 0 : (lb_trap("assert failed: " "low <= high"), 0))));
-    lb_pos = "src/std/math.lucb:216:5";
+    lb_pos = "src/std/math.lucb:245:5";
     if (!!(lb_math_6is_nan(lb_x))) 
     {
-        lb_pos = "src/std/math.lucb:217:9";
+        lb_pos = "src/std/math.lucb:246:9";
         double _lb_ret112 = lb_x;
         return _lb_ret112;
     }
-    lb_pos = "src/std/math.lucb:218:5";
+    lb_pos = "src/std/math.lucb:247:5";
     double _lb_ret113 = ((((double)(lb_x)) < ((double)(lb_low))) ? lb_low : (((((double)(lb_x)) > ((double)(lb_high))) ? lb_high : lb_x)));
     return _lb_ret113;
     lb_trap("unreachable");
 }
 int64_t lb_math_9div_floor(int64_t lb_a, int64_t lb_b) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/math.lucb:223:5";
+    lb_pos = "src/std/math.lucb:252:5";
     int64_t lb_q __attribute__((unused)) = (int64_t)(lb_div_s((int64_t)(lb_a), (int64_t)(lb_b), 64));
-    lb_pos = "src/std/math.lucb:224:5";
+    lb_pos = "src/std/math.lucb:253:5";
     if (!!((((!((int64_t)(lb_mod_s((int64_t)(lb_a), (int64_t)(lb_b), 64)) == 0LL))) && ((!(((((int64_t)(lb_a)) < ((int64_t)(0LL)))) == ((((int64_t)(lb_b)) < ((int64_t)(0LL)))))))))) 
     {
-        lb_pos = "src/std/math.lucb:225:9";
+        lb_pos = "src/std/math.lucb:254:9";
         int64_t _lb_ret114 = (int64_t)(lb_sub_s((int64_t)(lb_q), (int64_t)(1LL), 64));
         return _lb_ret114;
     }
-    lb_pos = "src/std/math.lucb:226:5";
+    lb_pos = "src/std/math.lucb:255:5";
     int64_t _lb_ret115 = lb_q;
     return _lb_ret115;
     lb_trap("unreachable");
 }
 int64_t lb_math_9mod_floor(int64_t lb_a, int64_t lb_b) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/math.lucb:228:5";
+    lb_pos = "src/std/math.lucb:258:5";
     if (!!((lb_b == ((int64_t)(-1LL))))) 
     {
-        lb_pos = "src/std/math.lucb:229:9";
+        lb_pos = "src/std/math.lucb:259:9";
         int64_t _lb_ret116 = 0LL;
         return _lb_ret116;
     }
-    lb_pos = "src/std/math.lucb:230:5";
+    lb_pos = "src/std/math.lucb:260:5";
     int64_t lb_r __attribute__((unused)) = (int64_t)(lb_mod_s((int64_t)(lb_a), (int64_t)(lb_b), 64));
-    lb_pos = "src/std/math.lucb:231:5";
+    lb_pos = "src/std/math.lucb:261:5";
     if (!!(((!(lb_r == 0LL)) && ((!(((((int64_t)(lb_r)) < ((int64_t)(0LL)))) == ((((int64_t)(lb_b)) < ((int64_t)(0LL)))))))))) 
     {
-        lb_pos = "src/std/math.lucb:232:9";
+        lb_pos = "src/std/math.lucb:262:9";
         int64_t _lb_ret117 = (int64_t)(lb_add_s((int64_t)(lb_r), (int64_t)(lb_b), 64));
         return _lb_ret117;
     }
-    lb_pos = "src/std/math.lucb:233:5";
+    lb_pos = "src/std/math.lucb:263:5";
     int64_t _lb_ret118 = lb_r;
     return _lb_ret118;
     lb_trap("unreachable");
 }
 int64_t lb_math_iabs(int64_t lb_a) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/math.lucb:235:5";
+    lb_pos = "src/std/math.lucb:266:5";
     int64_t _lb_ret119 = ((((int64_t)(lb_a)) < ((int64_t)(0LL))) ? (int64_t)(lb_sub_s((int64_t)(0LL), (int64_t)(lb_a), 64)) : lb_a);
     return _lb_ret119;
     lb_trap("unreachable");
 }
 lb_o_i64 lb_math_12checked_iabs(int64_t lb_a) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/math.lucb:238:5";
+    lb_pos = "src/std/math.lucb:270:5";
     if (!!((((int64_t)(lb_a)) < ((int64_t)(0LL))))) 
     {
-        lb_pos = "src/std/math.lucb:239:9";
+        lb_pos = "src/std/math.lucb:271:9";
         lb_o_i64 _lb_ret120 = ({ int64_t _lb_qo121; lb_o_i64 _lb_qr121; _lb_qr121.present = lb_qsub_s((int64_t)(0LL), (int64_t)(lb_a), 64, &_lb_qo121); _lb_qr121.value = (int64_t)(_lb_qo121); _lb_qr121; });
         return _lb_ret120;
     }
-    lb_pos = "src/std/math.lucb:240:5";
+    lb_pos = "src/std/math.lucb:272:5";
     lb_o_i64 _lb_ret122 = ((lb_o_i64){ .value = lb_a, .present = true });
     return _lb_ret122;
     lb_trap("unreachable");
 }
 lb_o_i64 lb_math_17checked_div_floor(int64_t lb_a, int64_t lb_b) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/math.lucb:243:5";
+    lb_pos = "src/std/math.lucb:276:5";
     if (!!(((lb_b == 0LL) || (((lb_a == ((int64_t)(1ULL << 63))) && (lb_b == ((int64_t)(-1LL)))))))) 
     {
-        lb_pos = "src/std/math.lucb:244:9";
+        lb_pos = "src/std/math.lucb:277:9";
         lb_o_i64 _lb_ret123 = ((lb_o_i64){ .present = false });
         return _lb_ret123;
     }
-    lb_pos = "src/std/math.lucb:245:5";
+    lb_pos = "src/std/math.lucb:278:5";
     lb_o_i64 _lb_ret124 = ((lb_o_i64){ .value = lb_math_9div_floor(lb_a, lb_b), .present = true });
     return _lb_ret124;
     lb_trap("unreachable");
 }
 lb_o_i64 lb_math_17checked_mod_floor(int64_t lb_a, int64_t lb_b) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/math.lucb:249:5";
+    lb_pos = "src/std/math.lucb:283:5";
     if (!!((lb_b == 0LL))) 
     {
-        lb_pos = "src/std/math.lucb:250:9";
+        lb_pos = "src/std/math.lucb:284:9";
         lb_o_i64 _lb_ret125 = ((lb_o_i64){ .present = false });
         return _lb_ret125;
     }
-    lb_pos = "src/std/math.lucb:251:5";
+    lb_pos = "src/std/math.lucb:285:5";
     if (!!((lb_b == ((int64_t)(-1LL))))) 
     {
-        lb_pos = "src/std/math.lucb:252:9";
+        lb_pos = "src/std/math.lucb:286:9";
         lb_o_i64 _lb_ret126 = ((lb_o_i64){ .value = 0LL, .present = true });
         return _lb_ret126;
     }
-    lb_pos = "src/std/math.lucb:253:5";
+    lb_pos = "src/std/math.lucb:287:5";
     lb_o_i64 _lb_ret127 = ((lb_o_i64){ .value = lb_math_9mod_floor(lb_a, lb_b), .present = true });
     return _lb_ret127;
     lb_trap("unreachable");
 }
 int64_t lb_math_imin(int64_t lb_a, int64_t lb_b) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/math.lucb:255:5";
+    lb_pos = "src/std/math.lucb:290:5";
     int64_t _lb_ret128 = ((((int64_t)(lb_a)) < ((int64_t)(lb_b))) ? lb_a : lb_b);
     return _lb_ret128;
     lb_trap("unreachable");
 }
 int64_t lb_math_imax(int64_t lb_a, int64_t lb_b) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/math.lucb:257:5";
+    lb_pos = "src/std/math.lucb:293:5";
     int64_t _lb_ret129 = ((((int64_t)(lb_a)) > ((int64_t)(lb_b))) ? lb_a : lb_b);
     return _lb_ret129;
     lb_trap("unreachable");
 }
 int64_t lb_math_iclamp(int64_t lb_x, int64_t lb_low, int64_t lb_high) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/math.lucb:260:5";
+    lb_pos = "src/std/math.lucb:297:5";
     (void)(((void)(((((int64_t)(lb_low)) <= ((int64_t)(lb_high)))) ? 0 : (lb_trap("assert failed: " "low <= high"), 0))));
-    lb_pos = "src/std/math.lucb:261:5";
+    lb_pos = "src/std/math.lucb:298:5";
     int64_t _lb_ret130 = ((((int64_t)(lb_x)) < ((int64_t)(lb_low))) ? lb_low : (((((int64_t)(lb_x)) > ((int64_t)(lb_high))) ? lb_high : lb_x)));
     return _lb_ret130;
     lb_trap("unreachable");
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_str_init(lb_interop_Packet_0g1_str* self, lb_str lb_value, void* lb_storage, lb_fn_0F1_void_0p_unit lb_dispose) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/math.lucb:799:1";
+    lb_pos = "src/std/math.lucb:796:1";
     self->value = lb_value;
-    lb_pos = "src/std/math.lucb:800:1";
+    lb_pos = "src/std/math.lucb:797:1";
     self->storage = lb_storage;
-    lb_pos = "src/std/math.lucb:801:1";
+    lb_pos = "src/std/math.lucb:798:1";
     self->dispose = lb_dispose;
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_str_release(const lb_interop_Packet_0g1_str* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/math.lucb:804:1";
+    lb_pos = "src/std/math.lucb:801:1";
     void* _lb_o131 = self->storage;
     if (_lb_o131 != ((void*)0)) {
         void* lb_storage __attribute__((unused)) = _lb_o131;
         {
-            lb_pos = "src/std/math.lucb:805:1";
+            lb_pos = "src/std/math.lucb:802:1";
             (void)(((({ lb_fn_0F1_void_0p_unit _lb_o132 = self->dispose; if (_lb_o132 == ((void*)0)) {
                 (void)(lb_trap_text(((lb_str){"a packet has storage without a disposer", 39})));
             } _lb_o132; })))(lb_storage));
@@ -4881,21 +4881,21 @@ __attribute__((weak)) void lb_interop_Packet_0g1_str_release(const lb_interop_Pa
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_init(lb_interop_Packet_0g1_u8_0c* self, lb_cspan lb_value, void* lb_storage, lb_fn_0F1_void_0p_unit lb_dispose) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/math.lucb:799:1";
+    lb_pos = "src/std/math.lucb:796:1";
     self->value = lb_value;
-    lb_pos = "src/std/math.lucb:800:1";
+    lb_pos = "src/std/math.lucb:797:1";
     self->storage = lb_storage;
-    lb_pos = "src/std/math.lucb:801:1";
+    lb_pos = "src/std/math.lucb:798:1";
     self->dispose = lb_dispose;
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_release(const lb_interop_Packet_0g1_u8_0c* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/math.lucb:804:1";
+    lb_pos = "src/std/math.lucb:801:1";
     void* _lb_o133 = self->storage;
     if (_lb_o133 != ((void*)0)) {
         void* lb_storage __attribute__((unused)) = _lb_o133;
         {
-            lb_pos = "src/std/math.lucb:805:1";
+            lb_pos = "src/std/math.lucb:802:1";
             (void)(((({ lb_fn_0F1_void_0p_unit _lb_o134 = self->dispose; if (_lb_o134 == ((void*)0)) {
                 (void)(lb_trap_text(((lb_str){"a packet has storage without a disposer", 39})));
             } _lb_o134; })))(lb_storage));

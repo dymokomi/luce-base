@@ -3445,13 +3445,13 @@ l_text_60:
 l_text_61:
     .asciz "null_foreign"
 l_text_62:
-    .asciz "src/std/memory.lucb:342:5"
+    .asciz "src/std/memory.lucb:344:5"
 l_text_63:
-    .asciz "src/std/memory.lucb:343:5"
+    .asciz "src/std/memory.lucb:345:5"
 l_text_64:
-    .asciz "src/std/memory.lucb:326:9"
-l_text_65:
     .asciz "src/std/memory.lucb:328:9"
+l_text_65:
+    .asciz "src/std/memory.lucb:330:9"
 
     .section __DATA,__const
     .p2align 3

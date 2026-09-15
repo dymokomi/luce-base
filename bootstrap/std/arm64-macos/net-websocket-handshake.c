@@ -4466,28 +4466,28 @@ static const lb_vt_Writer lb_vt_net_HttpBodyWriter_Writer __attribute__((unused)
 
 __attribute__((weak)) lb_interop_Transfer_0g1_str lb_interop_Transfer_0g1_str_plain(void) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/net/listener.lucb:54:1";
+    lb_pos = "src/std/net/listener.lucb:52:5";
     lb_interop_Transfer_0g1_str _lb_ret1 = ((lb_interop_Transfer_0g1_str){.copy = lb_interop_Transfer_0g1_str_10copy_plain});
     return _lb_ret1;
     lb_trap("unreachable");
 }
 __attribute__((weak)) lb_r_interop_Packet_0g1_str lb_interop_Transfer_0g1_str_10copy_plain(lb_str lb_value) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/net/listener.lucb:57:5";
+    lb_pos = "src/std/net/listener.lucb:55:5";
     lb_interop_Packet_0g1_str _lb_ret2 = ({ lb_interop_Packet_0g1_str _lb_iv3 = {}; lb_interop_Packet_0g1_str_init(&_lb_iv3, lb_value, ((void*)0), ((void*)0)); _lb_iv3; });
     return ((lb_r_interop_Packet_0g1_str){ .value = _lb_ret2, .failed = false });
     lb_trap("unreachable");
 }
 __attribute__((weak)) lb_interop_Transfer_0g1_u8_0c lb_interop_Transfer_0g1_u8_0c_plain(void) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/net/listener.lucb:54:1";
+    lb_pos = "src/std/net/listener.lucb:52:5";
     lb_interop_Transfer_0g1_u8_0c _lb_ret4 = ((lb_interop_Transfer_0g1_u8_0c){.copy = lb_interop_Transfer_0g1_u8_0c_10copy_plain});
     return _lb_ret4;
     lb_trap("unreachable");
 }
 __attribute__((weak)) lb_r_interop_Packet_0g1_u8_0c lb_interop_Transfer_0g1_u8_0c_10copy_plain(lb_cspan lb_value) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/net/listener.lucb:57:5";
+    lb_pos = "src/std/net/listener.lucb:55:5";
     lb_interop_Packet_0g1_u8_0c _lb_ret5 = ({ lb_interop_Packet_0g1_u8_0c _lb_iv6 = {}; lb_interop_Packet_0g1_u8_0c_init(&_lb_iv6, lb_value, ((void*)0), ((void*)0)); _lb_iv6; });
     return ((lb_r_interop_Packet_0g1_u8_0c){ .value = _lb_ret5, .failed = false });
     lb_trap("unreachable");
@@ -4936,21 +4936,21 @@ lb_r_u8_0c lb_net_25websocket_encode_response(lb_span lb_output, lb_net_HttpHead
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_str_init(lb_interop_Packet_0g1_str* self, lb_str lb_value, void* lb_storage, lb_fn_0F1_void_0p_unit lb_dispose) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/net/listener.lucb:38:9";
+    lb_pos = "src/std/net/listener.lucb:36:5";
     self->value = lb_value;
-    lb_pos = "src/std/net/listener.lucb:39:9";
+    lb_pos = "src/std/net/listener.lucb:37:5";
     self->storage = lb_storage;
-    lb_pos = "src/std/net/listener.lucb:40:9";
+    lb_pos = "src/std/net/listener.lucb:38:9";
     self->dispose = lb_dispose;
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_str_release(const lb_interop_Packet_0g1_str* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/net/listener.lucb:43:13";
+    lb_pos = "src/std/net/listener.lucb:41:13";
     void* _lb_o104 = self->storage;
     if (_lb_o104 != ((void*)0)) {
         void* lb_storage __attribute__((unused)) = _lb_o104;
         {
-            lb_pos = "src/std/net/listener.lucb:44:9";
+            lb_pos = "src/std/net/listener.lucb:42:9";
             (void)(((({ lb_fn_0F1_void_0p_unit _lb_o105 = self->dispose; if (_lb_o105 == ((void*)0)) {
                 (void)(lb_trap_text(((lb_str){"a packet has storage without a disposer", 39})));
             } _lb_o105; })))(lb_storage));
@@ -4959,21 +4959,21 @@ __attribute__((weak)) void lb_interop_Packet_0g1_str_release(const lb_interop_Pa
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_init(lb_interop_Packet_0g1_u8_0c* self, lb_cspan lb_value, void* lb_storage, lb_fn_0F1_void_0p_unit lb_dispose) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/net/listener.lucb:38:9";
+    lb_pos = "src/std/net/listener.lucb:36:5";
     self->value = lb_value;
-    lb_pos = "src/std/net/listener.lucb:39:9";
+    lb_pos = "src/std/net/listener.lucb:37:5";
     self->storage = lb_storage;
-    lb_pos = "src/std/net/listener.lucb:40:9";
+    lb_pos = "src/std/net/listener.lucb:38:9";
     self->dispose = lb_dispose;
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_release(const lb_interop_Packet_0g1_u8_0c* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/net/listener.lucb:43:13";
+    lb_pos = "src/std/net/listener.lucb:41:13";
     void* _lb_o106 = self->storage;
     if (_lb_o106 != ((void*)0)) {
         void* lb_storage __attribute__((unused)) = _lb_o106;
         {
-            lb_pos = "src/std/net/listener.lucb:44:9";
+            lb_pos = "src/std/net/listener.lucb:42:9";
             (void)(((({ lb_fn_0F1_void_0p_unit _lb_o107 = self->dispose; if (_lb_o107 == ((void*)0)) {
                 (void)(lb_trap_text(((lb_str){"a packet has storage without a disposer", 39})));
             } _lb_o107; })))(lb_storage));
@@ -5064,16 +5064,16 @@ bool lb_net_19websocket_key_valid(lb_str lb_key) {
 }
 __attribute__((weak)) void lb_memory_copy_0g1_u8(lb_span lb_target, lb_cspan lb_source, size_t lb_count) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/memory.lucb:325:5";
+    lb_pos = "src/std/memory.lucb:327:5";
     if (!!(((((size_t)(lb_count)) > ((size_t)((lb_target.length)))) || (((size_t)(lb_count)) > ((size_t)((lb_source.length))))))) 
     {
-        lb_pos = "src/std/memory.lucb:326:9";
+        lb_pos = "src/std/memory.lucb:328:9";
         (void)(lb_trap_text(((lb_str){"index out of bounds", 19})));
     }
-    lb_pos = "src/std/memory.lucb:327:5";
+    lb_pos = "src/std/memory.lucb:329:5";
     if (!!((((size_t)(lb_count)) > ((size_t)(0ULL))))) 
     {
-        lb_pos = "src/std/memory.lucb:328:9";
+        lb_pos = "src/std/memory.lucb:330:9";
         (void)(((void)(({ void* _lb_sq138 __attribute__((unused)) = ((uint8_t*)(lb_target.data)); const void* _lb_sq139 __attribute__((unused)) = ((const uint8_t*)(lb_source.data)); size_t _lb_sq140 __attribute__((unused)) = ({ size_t _lb_sq141 __attribute__((unused)) = lb_count; size_t _lb_sq142 __attribute__((unused)) = ((size_t)sizeof(uint8_t)); (size_t)(lb_mul_u((uint64_t)(_lb_sq141), (uint64_t)(_lb_sq142), 64)); }); ({ void* _lb_fr = lb_x_memory_memcpy(_lb_sq138, _lb_sq139, _lb_sq140); if (!_lb_fr) lb_trap("null_foreign"); _lb_fr; }); }))));
     }
 }

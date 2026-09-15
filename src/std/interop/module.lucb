@@ -6,7 +6,6 @@ import ownership
 import thread
 import sync
 import net
-
 pub let invalid: ErrorCode = ErrorCode.package(101)
 pub let wrong_thread: ErrorCode = ErrorCode.package(102)
 pub let expired: ErrorCode = ErrorCode.package(103)

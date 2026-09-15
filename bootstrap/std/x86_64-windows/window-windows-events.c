@@ -4303,28 +4303,28 @@ extern uint32_t lb_gpu_22vulkan_api_version_1_0;
 
 __attribute__((weak)) lb_interop_Transfer_0g1_str lb_interop_Transfer_0g1_str_plain(void) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/window/windows/native.lucb:23:1";
+    lb_pos = "src/std/window/windows/native.lucb:22:5";
     lb_interop_Transfer_0g1_str _lb_ret1 = ((lb_interop_Transfer_0g1_str){.copy = lb_interop_Transfer_0g1_str_10copy_plain});
     return _lb_ret1;
     lb_trap("unreachable");
 }
 __attribute__((weak)) lb_r_interop_Packet_0g1_str lb_interop_Transfer_0g1_str_10copy_plain(lb_str lb_value) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/window/windows/native.lucb:26:1";
+    lb_pos = "src/std/window/windows/native.lucb:25:5";
     lb_interop_Packet_0g1_str _lb_ret2 = ({ lb_interop_Packet_0g1_str _lb_iv3 = {}; lb_interop_Packet_0g1_str_init(&_lb_iv3, lb_value, ((void*)0), ((void*)0)); _lb_iv3; });
     return ((lb_r_interop_Packet_0g1_str){ .value = _lb_ret2, .failed = false });
     lb_trap("unreachable");
 }
 __attribute__((weak)) lb_interop_Transfer_0g1_u8_0c lb_interop_Transfer_0g1_u8_0c_plain(void) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/window/windows/native.lucb:23:1";
+    lb_pos = "src/std/window/windows/native.lucb:22:5";
     lb_interop_Transfer_0g1_u8_0c _lb_ret4 = ((lb_interop_Transfer_0g1_u8_0c){.copy = lb_interop_Transfer_0g1_u8_0c_10copy_plain});
     return _lb_ret4;
     lb_trap("unreachable");
 }
 __attribute__((weak)) lb_r_interop_Packet_0g1_u8_0c lb_interop_Transfer_0g1_u8_0c_10copy_plain(lb_cspan lb_value) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/window/windows/native.lucb:26:1";
+    lb_pos = "src/std/window/windows/native.lucb:25:5";
     lb_interop_Packet_0g1_u8_0c _lb_ret5 = ({ lb_interop_Packet_0g1_u8_0c _lb_iv6 = {}; lb_interop_Packet_0g1_u8_0c_init(&_lb_iv6, lb_value, ((void*)0), ((void*)0)); _lb_iv6; });
     return ((lb_r_interop_Packet_0g1_u8_0c){ .value = _lb_ret5, .failed = false });
     lb_trap("unreachable");
@@ -4454,7 +4454,7 @@ intptr_t lb_window_12win_callback(void* lb_native, uint32_t lb_message, size_t l
                             uint16_t lb_key __attribute__((unused)) = lb_window_7win_key(lb_value);
                             lb_pos = "src/std/window/windows/events.lucb:101:9";
                             bool lb_down __attribute__((unused)) = ((lb_message == 256ULL) || (lb_message == 260ULL));
-                            lb_pos = "src/std/window/windows/events.lucb:103:13";
+                            lb_pos = "src/std/window/windows/events.lucb:103:39";
                             (void)(({ struct lb_window_State* _lb_sq22 __attribute__((unused)) = lb_state; lb_input_Event _lb_sq23 __attribute__((unused)) = ((lb_input_Event){.kind = (lb_down ? ((uint8_t)5u) : ((uint8_t)6u)), .key = lb_key, .modifiers = lb_key_modifiers, .repeated = (lb_down && (!((((intptr_t)(lb_value & 1073741824LL))) == 0LL)))}); lb_window_10push_event(_lb_sq22, _lb_sq23); }));
                             lb_pos = "src/std/window/windows/events.lucb:104:9";
                             if (!!(((((uint16_t)(((uint16_t)(lb_key)))) >= ((uint16_t)(224ULL))) || (lb_key == ((uint16_t)57u))))) 
@@ -4578,21 +4578,21 @@ intptr_t lb_window_12win_callback(void* lb_native, uint32_t lb_message, size_t l
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_str_init(lb_interop_Packet_0g1_str* self, lb_str lb_value, void* lb_storage, lb_fn_0F1_void_0p_unit lb_dispose) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/window/windows/native.lucb:7:5";
+    lb_pos = "src/std/window/windows/native.lucb:6:5";
     self->value = lb_value;
-    lb_pos = "src/std/window/windows/native.lucb:8:5";
+    lb_pos = "src/std/window/windows/native.lucb:7:5";
     self->storage = lb_storage;
-    lb_pos = "src/std/window/windows/native.lucb:9:5";
+    lb_pos = "src/std/window/windows/native.lucb:8:5";
     self->dispose = lb_dispose;
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_str_release(const lb_interop_Packet_0g1_str* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/window/windows/native.lucb:12:5";
+    lb_pos = "src/std/window/windows/native.lucb:11:5";
     void* _lb_o45 = self->storage;
     if (_lb_o45 != ((void*)0)) {
         void* lb_storage __attribute__((unused)) = _lb_o45;
         {
-            lb_pos = "src/std/window/windows/native.lucb:13:5";
+            lb_pos = "src/std/window/windows/native.lucb:12:5";
             (void)(((({ lb_fn_0F1_void_0p_unit _lb_o46 = self->dispose; if (_lb_o46 == ((void*)0)) {
                 (void)(lb_trap_text(((lb_str){"a packet has storage without a disposer", 39})));
             } _lb_o46; })))(lb_storage));
@@ -4601,21 +4601,21 @@ __attribute__((weak)) void lb_interop_Packet_0g1_str_release(const lb_interop_Pa
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_init(lb_interop_Packet_0g1_u8_0c* self, lb_cspan lb_value, void* lb_storage, lb_fn_0F1_void_0p_unit lb_dispose) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/window/windows/native.lucb:7:5";
+    lb_pos = "src/std/window/windows/native.lucb:6:5";
     self->value = lb_value;
-    lb_pos = "src/std/window/windows/native.lucb:8:5";
+    lb_pos = "src/std/window/windows/native.lucb:7:5";
     self->storage = lb_storage;
-    lb_pos = "src/std/window/windows/native.lucb:9:5";
+    lb_pos = "src/std/window/windows/native.lucb:8:5";
     self->dispose = lb_dispose;
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_release(const lb_interop_Packet_0g1_u8_0c* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/window/windows/native.lucb:12:5";
+    lb_pos = "src/std/window/windows/native.lucb:11:5";
     void* _lb_o47 = self->storage;
     if (_lb_o47 != ((void*)0)) {
         void* lb_storage __attribute__((unused)) = _lb_o47;
         {
-            lb_pos = "src/std/window/windows/native.lucb:13:5";
+            lb_pos = "src/std/window/windows/native.lucb:12:5";
             (void)(((({ lb_fn_0F1_void_0p_unit _lb_o48 = self->dispose; if (_lb_o48 == ((void*)0)) {
                 (void)(lb_trap_text(((lb_str){"a packet has storage without a disposer", 39})));
             } _lb_o48; })))(lb_storage));

@@ -4356,59 +4356,59 @@ extern uint32_t lb_gpu_22vulkan_api_version_1_0;
 
 __attribute__((weak)) lb_interop_Transfer_0g1_str lb_interop_Transfer_0g1_str_plain(void) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/json.lucb:815:1";
+    lb_pos = "src/std/json.lucb:812:1";
     lb_interop_Transfer_0g1_str _lb_ret1 = ((lb_interop_Transfer_0g1_str){.copy = lb_interop_Transfer_0g1_str_10copy_plain});
     return _lb_ret1;
     lb_trap("unreachable");
 }
 __attribute__((weak)) lb_r_interop_Packet_0g1_str lb_interop_Transfer_0g1_str_10copy_plain(lb_str lb_value) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/json.lucb:818:1";
+    lb_pos = "src/std/json.lucb:815:1";
     lb_interop_Packet_0g1_str _lb_ret2 = ({ lb_interop_Packet_0g1_str _lb_iv3 = {}; lb_interop_Packet_0g1_str_init(&_lb_iv3, lb_value, ((void*)0), ((void*)0)); _lb_iv3; });
     return ((lb_r_interop_Packet_0g1_str){ .value = _lb_ret2, .failed = false });
     lb_trap("unreachable");
 }
 __attribute__((weak)) lb_interop_Transfer_0g1_u8_0c lb_interop_Transfer_0g1_u8_0c_plain(void) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/json.lucb:815:1";
+    lb_pos = "src/std/json.lucb:812:1";
     lb_interop_Transfer_0g1_u8_0c _lb_ret4 = ((lb_interop_Transfer_0g1_u8_0c){.copy = lb_interop_Transfer_0g1_u8_0c_10copy_plain});
     return _lb_ret4;
     lb_trap("unreachable");
 }
 __attribute__((weak)) lb_r_interop_Packet_0g1_u8_0c lb_interop_Transfer_0g1_u8_0c_10copy_plain(lb_cspan lb_value) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/json.lucb:818:1";
+    lb_pos = "src/std/json.lucb:815:1";
     lb_interop_Packet_0g1_u8_0c _lb_ret5 = ({ lb_interop_Packet_0g1_u8_0c _lb_iv6 = {}; lb_interop_Packet_0g1_u8_0c_init(&_lb_iv6, lb_value, ((void*)0), ((void*)0)); _lb_iv6; });
     return ((lb_r_interop_Packet_0g1_u8_0c){ .value = _lb_ret5, .failed = false });
     lb_trap("unreachable");
 }
 void lb_json_Value_close(lb_json_Value* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/json.lucb:200:9";
+    lb_pos = "src/std/json.lucb:199:9";
     (void)(lb_json_Bytes_close(&(self->encoded)));
-    lb_pos = "src/std/json.lucb:201:9";
+    lb_pos = "src/std/json.lucb:200:9";
     (void)(lb_json_Bytes_close(&(self->keys)));
 }
 lb_r_unit lb_json_Value_init(lb_json_Value* self, size_t lb_maximum_bytes) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/json.lucb:78:9";
+    lb_pos = "src/std/json.lucb:77:9";
     if (!!(((((size_t)(lb_maximum_bytes)) < ((size_t)(2ULL))) || (((size_t)(lb_maximum_bytes)) > ((size_t)(67108864ULL)))))) 
     {
-        lb_pos = "src/std/json.lucb:79:13";
+        lb_pos = "src/std/json.lucb:78:13";
         lb_r_unit _lb_err7 = ((lb_r_unit){ .error = { .code = (int32_t)(lb_json_invalid), .message = ((lb_str){"JSON byte limit must be between 2 and 64 MiB", 44}) }, .failed = true });
         return _lb_err7;
     }
-    lb_pos = "src/std/json.lucb:80:9";
+    lb_pos = "src/std/json.lucb:79:9";
     self->encoded = ((lb_json_Bytes){});
-    lb_pos = "src/std/json.lucb:81:9";
+    lb_pos = "src/std/json.lucb:80:9";
     self->keys = ((lb_json_Bytes){});
-    lb_pos = "src/std/json.lucb:82:9";
+    lb_pos = "src/std/json.lucb:81:9";
     self->container = 123u;
-    lb_pos = "src/std/json.lucb:83:9";
+    lb_pos = "src/std/json.lucb:82:9";
     self->count = 0ULL;
-    lb_pos = "src/std/json.lucb:84:9";
+    lb_pos = "src/std/json.lucb:83:9";
     self->maximum = lb_maximum_bytes;
-    lb_pos = "src/std/json.lucb:85:9";
+    lb_pos = "src/std/json.lucb:84:9";
     (void)((({ lb_r_unit _lb_r8 = lb_json_Bytes_append(&(self->encoded), ((lb_cspan){(void*)"{}", 2}), self->maximum); if (_lb_r8.failed) {
         return ((lb_r_unit){ .error = _lb_r8.error, .failed = true });
     } (void)0; })));
@@ -4416,17 +4416,17 @@ lb_r_unit lb_json_Value_init(lb_json_Value* self, size_t lb_maximum_bytes) {
 }
 lb_r_interop_Reference_0g1_json_Value lb_json_Value_array(size_t lb_maximum_bytes) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/json.lucb:91:9";
+    lb_pos = "src/std/json.lucb:90:9";
     struct lb_json_Value* lb_native __attribute__((unused)) = (({ lb_r_json_Value_0p _lb_r9 = ({ lb_iface _lb_a10 = lb_memory_allocator; lb_o_u8_0s _lb_ao10 = lb_alloc_call(_lb_a10, sizeof(lb_json_Value), _Alignof(lb_json_Value)); lb_r_json_Value_0p _lb_r10; if (!_lb_ao10.present) { _lb_r10 = ((lb_r_json_Value_0p){ .error = { .code = 208273409, .message = (lb_str){"memory.exhausted", 16} }, .failed = true }); } else { lb_json_Value* _lb_p10 = (lb_json_Value*)_lb_ao10.value.data; memset(_lb_p10, 0, sizeof(lb_json_Value)); lb_r_unit _lb_init10 = lb_json_Value_init(_lb_p10, lb_maximum_bytes); if (_lb_init10.failed) { _lb_r10.failed = true; _lb_r10.error = _lb_init10.error; lb_release_call(_lb_a10, _lb_ao10.value); } else { _lb_r10.value = _lb_p10; _lb_r10.failed = false; } } _lb_r10; }); if (_lb_r9.failed) {
         return ((lb_r_interop_Reference_0g1_json_Value){ .error = _lb_r9.error, .failed = true });
     } _lb_r9.value; }));
-    lb_pos = "src/std/json.lucb:92:9";
+    lb_pos = "src/std/json.lucb:91:9";
     (lb_native)->container = 91u;
-    lb_pos = "src/std/json.lucb:93:9";
+    lb_pos = "src/std/json.lucb:92:9";
     (*({ lb_span _lb_ix11 = (lb_native)->encoded.storage; &((uint8_t*)_lb_ix11.data)[lb_at((uint64_t)(0ULL), _lb_ix11.length)]; })) = 91u;
-    lb_pos = "src/std/json.lucb:94:9";
+    lb_pos = "src/std/json.lucb:93:9";
     (*({ lb_span _lb_ix12 = (lb_native)->encoded.storage; &((uint8_t*)_lb_ix12.data)[lb_at((uint64_t)(1ULL), _lb_ix12.length)]; })) = 93u;
-    lb_pos = "src/std/json.lucb:95:9";
+    lb_pos = "src/std/json.lucb:94:9";
     lb_interop_Reference_0g1_json_Value _lb_ret13 = (({ lb_r_interop_Reference_0g1_json_Value _lb_r14 = lb_json_Value_own(lb_native); if (_lb_r14.failed) {
         return ((lb_r_interop_Reference_0g1_json_Value){ .error = _lb_r14.error, .failed = true });
     } _lb_r14.value; }));
@@ -4435,15 +4435,15 @@ lb_r_interop_Reference_0g1_json_Value lb_json_Value_array(size_t lb_maximum_byte
 }
 lb_r_interop_Reference_0g1_json_Value lb_json_Value_text(lb_str lb_value) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/json.lucb:108:9";
+    lb_pos = "src/std/json.lucb:107:9";
     lb_json_Bytes lb_bytes __attribute__((unused)) = {};
+    lb_pos = "src/std/json.lucb:108:9";
     lb_pos = "src/std/json.lucb:109:9";
-    lb_pos = "src/std/json.lucb:110:9";
     (void)((({ lb_r_unit _lb_r15 = lb_json_quoted(lb_value, &(lb_bytes), 1048576ULL); if (_lb_r15.failed) {
         (void)(lb_json_Bytes_close(&(lb_bytes)));
         return ((lb_r_interop_Reference_0g1_json_Value){ .error = _lb_r15.error, .failed = true });
     } (void)0; })));
-    lb_pos = "src/std/json.lucb:111:9";
+    lb_pos = "src/std/json.lucb:110:9";
     lb_interop_Reference_0g1_json_Value _lb_ret16 = (({ lb_r_interop_Reference_0g1_json_Value _lb_r17 = lb_json_Value_scalar(({ lb_span _lb_sc18 = lb_json_Bytes_view(&(lb_bytes)); const char* _lb_sb18 = (const char*)_lb_sc18.data; size_t _lb_sl18 = _lb_sc18.length; (lb_str){ _lb_sb18, _lb_sl18 }; })); if (_lb_r17.failed) {
         (void)(lb_json_Bytes_close(&(lb_bytes)));
         return ((lb_r_interop_Reference_0g1_json_Value){ .error = _lb_r17.error, .failed = true });
@@ -4455,9 +4455,9 @@ lb_r_interop_Reference_0g1_json_Value lb_json_Value_text(lb_str lb_value) {
 }
 lb_r_interop_Reference_0g1_json_Value lb_json_Value_integer(int64_t lb_value) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/json.lucb:114:9";
+    lb_pos = "src/std/json.lucb:113:9";
     lb_a_u8_0a32 lb_buffer __attribute__((unused)) = {};
-    lb_pos = "src/std/json.lucb:115:9";
+    lb_pos = "src/std/json.lucb:114:9";
     lb_interop_Reference_0g1_json_Value _lb_ret19 = (({ lb_r_interop_Reference_0g1_json_Value _lb_r20 = lb_json_Value_scalar((({ lb_r_str _lb_r21 = ({ lb_span _lb_ds22 = ((lb_span){(void*)(lb_buffer.d), 32ULL}); lb_fmtbuf _lb_fb22 = { (char*)_lb_ds22.data, _lb_ds22.length, 0 }; (void)lb_fmtbuf_i64(&_lb_fb22, (int64_t)(lb_value)); lb_r_str _lb_out22; if (_lb_fb22.used > _lb_fb22.cap) { _lb_out22 = ((lb_r_str){ .error = { .code = 208273409, .message = (lb_str){"memory.exhausted: the formatted text does not fit its buffer", 60} }, .failed = true }); } else { _lb_out22 = ((lb_r_str){ .value = lb_fmtbuf_finish(&_lb_fb22), .failed = false }); } _lb_out22; }); if (_lb_r21.failed) {
         return ((lb_r_interop_Reference_0g1_json_Value){ .error = _lb_r21.error, .failed = true });
     } _lb_r21.value; }))); if (_lb_r20.failed) {
@@ -4468,16 +4468,16 @@ lb_r_interop_Reference_0g1_json_Value lb_json_Value_integer(int64_t lb_value) {
 }
 lb_r_interop_Reference_0g1_json_Value lb_json_Value_number(double lb_value) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/json.lucb:118:9";
+    lb_pos = "src/std/json.lucb:117:9";
     if (!!((!lb_math_9is_finite(lb_value)))) 
     {
-        lb_pos = "src/std/json.lucb:119:13";
+        lb_pos = "src/std/json.lucb:118:13";
         lb_r_interop_Reference_0g1_json_Value _lb_err23 = ((lb_r_interop_Reference_0g1_json_Value){ .error = { .code = (int32_t)(lb_json_invalid), .message = ((lb_str){"JSON numbers must be finite", 27}) }, .failed = true });
         return _lb_err23;
     }
-    lb_pos = "src/std/json.lucb:120:9";
+    lb_pos = "src/std/json.lucb:119:9";
     lb_a_u8_0a64 lb_buffer __attribute__((unused)) = {};
-    lb_pos = "src/std/json.lucb:121:9";
+    lb_pos = "src/std/json.lucb:120:9";
     lb_interop_Reference_0g1_json_Value _lb_ret24 = (({ lb_r_interop_Reference_0g1_json_Value _lb_r25 = lb_json_Value_scalar((({ lb_r_str _lb_r26 = lb_strings_10format_f64(lb_value, ((lb_span){(void*)(lb_buffer.d), 64ULL})); if (_lb_r26.failed) {
         return ((lb_r_interop_Reference_0g1_json_Value){ .error = _lb_r26.error, .failed = true });
     } _lb_r26.value; }))); if (_lb_r25.failed) {
@@ -4488,7 +4488,7 @@ lb_r_interop_Reference_0g1_json_Value lb_json_Value_number(double lb_value) {
 }
 lb_r_interop_Reference_0g1_json_Value lb_json_Value_boolean(bool lb_value) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/json.lucb:124:9";
+    lb_pos = "src/std/json.lucb:123:9";
     lb_interop_Reference_0g1_json_Value _lb_ret27 = (({ lb_r_interop_Reference_0g1_json_Value _lb_r28 = lb_json_Value_scalar((lb_value ? ((lb_str){"true", 4}) : ((lb_str){"false", 5}))); if (_lb_r28.failed) {
         return ((lb_r_interop_Reference_0g1_json_Value){ .error = _lb_r28.error, .failed = true });
     } _lb_r28.value; }));
@@ -4497,7 +4497,7 @@ lb_r_interop_Reference_0g1_json_Value lb_json_Value_boolean(bool lb_value) {
 }
 lb_r_interop_Reference_0g1_json_Value lb_json_Value_null(void) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/json.lucb:127:9";
+    lb_pos = "src/std/json.lucb:126:9";
     lb_interop_Reference_0g1_json_Value _lb_ret29 = (({ lb_r_interop_Reference_0g1_json_Value _lb_r30 = lb_json_Value_scalar(((lb_str){"null", 4})); if (_lb_r30.failed) {
         return ((lb_r_interop_Reference_0g1_json_Value){ .error = _lb_r30.error, .failed = true });
     } _lb_r30.value; }));
@@ -4506,14 +4506,14 @@ lb_r_interop_Reference_0g1_json_Value lb_json_Value_null(void) {
 }
 lb_str lb_json_Value_encode(const lb_json_Value* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/json.lucb:131:9";
+    lb_pos = "src/std/json.lucb:130:9";
     lb_str _lb_ret31 = ({ lb_span _lb_sc32 = lb_json_Bytes_view(&(self->encoded)); const char* _lb_sb32 = (const char*)_lb_sc32.data; size_t _lb_sl32 = _lb_sc32.length; (lb_str){ _lb_sb32, _lb_sl32 }; });
     return _lb_ret31;
     lb_trap("unreachable");
 }
 lb_r_unit lb_json_Value_set(lb_json_Value* self, lb_str lb_name, lb_interop_Reference_0g1_json_Value lb_value) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/json.lucb:174:9";
+    lb_pos = "src/std/json.lucb:173:9";
     (void)((({ lb_r_unit _lb_r33 = ({ lb_o_str _lb_sq34 __attribute__((unused)) = ((lb_o_str){ .value = lb_name, .present = true }); const struct lb_json_Value* _lb_sq35 __attribute__((unused)) = (({ lb_r_json_Value_0p _lb_r36 = lb_interop_Reference_0g1_json_Value_get(&(lb_value)); if (_lb_r36.failed) {
         return ((lb_r_unit){ .error = _lb_r36.error, .failed = true });
     } _lb_r36.value; })); lb_json_Value_insert(self, _lb_sq34, _lb_sq35); }); if (_lb_r33.failed) {
@@ -4523,7 +4523,7 @@ lb_r_unit lb_json_Value_set(lb_json_Value* self, lb_str lb_name, lb_interop_Refe
 }
 lb_r_unit lb_json_Value_append(lb_json_Value* self, lb_interop_Reference_0g1_json_Value lb_value) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/json.lucb:177:9";
+    lb_pos = "src/std/json.lucb:176:9";
     (void)((({ lb_r_unit _lb_r37 = ({ lb_o_str _lb_sq38 __attribute__((unused)) = ((lb_o_str){ .present = false }); const struct lb_json_Value* _lb_sq39 __attribute__((unused)) = (({ lb_r_json_Value_0p _lb_r40 = lb_interop_Reference_0g1_json_Value_get(&(lb_value)); if (_lb_r40.failed) {
         return ((lb_r_unit){ .error = _lb_r40.error, .failed = true });
     } _lb_r40.value; })); lb_json_Value_insert(self, _lb_sq38, _lb_sq39); }); if (_lb_r37.failed) {
@@ -4533,12 +4533,12 @@ lb_r_unit lb_json_Value_append(lb_json_Value* self, lb_interop_Reference_0g1_jso
 }
 lb_r_unit lb_json_Value_8set_text(lb_json_Value* self, lb_str lb_name, lb_str lb_value) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/json.lucb:180:9";
+    lb_pos = "src/std/json.lucb:179:9";
     lb_interop_Reference_0g1_json_Value lb_child __attribute__((unused)) = (({ lb_r_interop_Reference_0g1_json_Value _lb_r41 = lb_json_Value_text(lb_value); if (_lb_r41.failed) {
         return ((lb_r_unit){ .error = _lb_r41.error, .failed = true });
     } _lb_r41.value; }));
+    lb_pos = "src/std/json.lucb:180:9";
     lb_pos = "src/std/json.lucb:181:9";
-    lb_pos = "src/std/json.lucb:182:9";
     (void)((({ lb_r_unit _lb_r42 = lb_json_Value_set(self, lb_name, lb_child); if (_lb_r42.failed) {
         (void)(lb_interop_Reference_0g1_json_Value_release(&(lb_child)));
         return ((lb_r_unit){ .error = _lb_r42.error, .failed = true });
@@ -4548,12 +4548,12 @@ lb_r_unit lb_json_Value_8set_text(lb_json_Value* self, lb_str lb_name, lb_str lb
 }
 lb_r_unit lb_json_Value_11set_integer(lb_json_Value* self, lb_str lb_name, int64_t lb_value) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/json.lucb:185:9";
+    lb_pos = "src/std/json.lucb:184:9";
     lb_interop_Reference_0g1_json_Value lb_child __attribute__((unused)) = (({ lb_r_interop_Reference_0g1_json_Value _lb_r43 = lb_json_Value_integer(lb_value); if (_lb_r43.failed) {
         return ((lb_r_unit){ .error = _lb_r43.error, .failed = true });
     } _lb_r43.value; }));
+    lb_pos = "src/std/json.lucb:185:9";
     lb_pos = "src/std/json.lucb:186:9";
-    lb_pos = "src/std/json.lucb:187:9";
     (void)((({ lb_r_unit _lb_r44 = lb_json_Value_set(self, lb_name, lb_child); if (_lb_r44.failed) {
         (void)(lb_interop_Reference_0g1_json_Value_release(&(lb_child)));
         return ((lb_r_unit){ .error = _lb_r44.error, .failed = true });
@@ -4563,12 +4563,12 @@ lb_r_unit lb_json_Value_11set_integer(lb_json_Value* self, lb_str lb_name, int64
 }
 lb_r_unit lb_json_Value_10set_number(lb_json_Value* self, lb_str lb_name, double lb_value) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/json.lucb:190:9";
+    lb_pos = "src/std/json.lucb:189:9";
     lb_interop_Reference_0g1_json_Value lb_child __attribute__((unused)) = (({ lb_r_interop_Reference_0g1_json_Value _lb_r45 = lb_json_Value_number(lb_value); if (_lb_r45.failed) {
         return ((lb_r_unit){ .error = _lb_r45.error, .failed = true });
     } _lb_r45.value; }));
+    lb_pos = "src/std/json.lucb:190:9";
     lb_pos = "src/std/json.lucb:191:9";
-    lb_pos = "src/std/json.lucb:192:9";
     (void)((({ lb_r_unit _lb_r46 = lb_json_Value_set(self, lb_name, lb_child); if (_lb_r46.failed) {
         (void)(lb_interop_Reference_0g1_json_Value_release(&(lb_child)));
         return ((lb_r_unit){ .error = _lb_r46.error, .failed = true });
@@ -4578,12 +4578,12 @@ lb_r_unit lb_json_Value_10set_number(lb_json_Value* self, lb_str lb_name, double
 }
 lb_r_unit lb_json_Value_11set_boolean(lb_json_Value* self, lb_str lb_name, bool lb_value) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/json.lucb:195:9";
+    lb_pos = "src/std/json.lucb:194:9";
     lb_interop_Reference_0g1_json_Value lb_child __attribute__((unused)) = (({ lb_r_interop_Reference_0g1_json_Value _lb_r47 = lb_json_Value_boolean(lb_value); if (_lb_r47.failed) {
         return ((lb_r_unit){ .error = _lb_r47.error, .failed = true });
     } _lb_r47.value; }));
+    lb_pos = "src/std/json.lucb:195:9";
     lb_pos = "src/std/json.lucb:196:9";
-    lb_pos = "src/std/json.lucb:197:9";
     (void)((({ lb_r_unit _lb_r48 = lb_json_Value_set(self, lb_name, lb_child); if (_lb_r48.failed) {
         (void)(lb_interop_Reference_0g1_json_Value_release(&(lb_child)));
         return ((lb_r_unit){ .error = _lb_r48.error, .failed = true });
@@ -4593,21 +4593,21 @@ lb_r_unit lb_json_Value_11set_boolean(lb_json_Value* self, lb_str lb_name, bool 
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_str_init(lb_interop_Packet_0g1_str* self, lb_str lb_value, void* lb_storage, lb_fn_0F1_void_0p_unit lb_dispose) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/json.lucb:799:1";
+    lb_pos = "src/std/json.lucb:796:1";
     self->value = lb_value;
-    lb_pos = "src/std/json.lucb:800:1";
+    lb_pos = "src/std/json.lucb:797:1";
     self->storage = lb_storage;
-    lb_pos = "src/std/json.lucb:801:1";
+    lb_pos = "src/std/json.lucb:798:1";
     self->dispose = lb_dispose;
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_str_release(const lb_interop_Packet_0g1_str* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/json.lucb:804:1";
+    lb_pos = "src/std/json.lucb:801:1";
     void* _lb_o49 = self->storage;
     if (_lb_o49 != ((void*)0)) {
         void* lb_storage __attribute__((unused)) = _lb_o49;
         {
-            lb_pos = "src/std/json.lucb:805:1";
+            lb_pos = "src/std/json.lucb:802:1";
             (void)(((({ lb_fn_0F1_void_0p_unit _lb_o50 = self->dispose; if (_lb_o50 == ((void*)0)) {
                 (void)(lb_trap_text(((lb_str){"a packet has storage without a disposer", 39})));
             } _lb_o50; })))(lb_storage));
@@ -4616,21 +4616,21 @@ __attribute__((weak)) void lb_interop_Packet_0g1_str_release(const lb_interop_Pa
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_init(lb_interop_Packet_0g1_u8_0c* self, lb_cspan lb_value, void* lb_storage, lb_fn_0F1_void_0p_unit lb_dispose) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/json.lucb:799:1";
+    lb_pos = "src/std/json.lucb:796:1";
     self->value = lb_value;
-    lb_pos = "src/std/json.lucb:800:1";
+    lb_pos = "src/std/json.lucb:797:1";
     self->storage = lb_storage;
-    lb_pos = "src/std/json.lucb:801:1";
+    lb_pos = "src/std/json.lucb:798:1";
     self->dispose = lb_dispose;
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_release(const lb_interop_Packet_0g1_u8_0c* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/json.lucb:804:1";
+    lb_pos = "src/std/json.lucb:801:1";
     void* _lb_o51 = self->storage;
     if (_lb_o51 != ((void*)0)) {
         void* lb_storage __attribute__((unused)) = _lb_o51;
         {
-            lb_pos = "src/std/json.lucb:805:1";
+            lb_pos = "src/std/json.lucb:802:1";
             (void)(((({ lb_fn_0F1_void_0p_unit _lb_o52 = self->dispose; if (_lb_o52 == ((void*)0)) {
                 (void)(lb_trap_text(((lb_str){"a packet has storage without a disposer", 39})));
             } _lb_o52; })))(lb_storage));
@@ -4639,94 +4639,94 @@ __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_release(const lb_interop_
 }
 void lb_json_Bytes_close(lb_json_Bytes* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/json.lucb:43:9";
+    lb_pos = "src/std/json.lucb:42:9";
     if (!!((((size_t)((self->storage.length))) > ((size_t)(0ULL))))) 
     {
-        lb_pos = "src/std/json.lucb:44:13";
+        lb_pos = "src/std/json.lucb:43:13";
         { lb_span _lb_s53 = self->storage; lb_release_call(lb_memory_heap, (lb_span){ (void*)(_lb_s53.data), lb_mul_u(_lb_s53.length, sizeof(uint8_t), 64) }); }
     }
-    lb_pos = "src/std/json.lucb:45:9";
+    lb_pos = "src/std/json.lucb:44:9";
     lb_span lb_empty __attribute__((unused)) = {};
-    lb_pos = "src/std/json.lucb:46:9";
+    lb_pos = "src/std/json.lucb:45:9";
     self->storage = lb_empty;
-    lb_pos = "src/std/json.lucb:47:9";
+    lb_pos = "src/std/json.lucb:46:9";
     self->used = 0ULL;
 }
 lb_r_unit lb_json_Bytes_append(lb_json_Bytes* self, lb_cspan lb_data, size_t lb_maximum) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/json.lucb:34:9";
+    lb_pos = "src/std/json.lucb:33:9";
     size_t lb_needed __attribute__((unused)) = ({ lb_o_usize _lb_o54 = ({ uint64_t _lb_qo55; lb_o_usize _lb_qr55; _lb_qr55.present = lb_qadd_u((uint64_t)(self->used), (uint64_t)((lb_data.length)), 64, &_lb_qo55); _lb_qr55.value = (size_t)(_lb_qo55); _lb_qr55; }); if (!_lb_o54.present) {
         lb_r_unit _lb_err56 = ((lb_r_unit){ .error = { .code = (int32_t)(lb_json_14limit_exceeded), .message = ((lb_str){"JSON size overflow", 18}) }, .failed = true });
         return _lb_err56;
     } _lb_o54.value; });
-    lb_pos = "src/std/json.lucb:35:9";
+    lb_pos = "src/std/json.lucb:34:9";
     (void)((({ lb_r_unit _lb_r57 = lb_json_Bytes_reserve(self, lb_needed, lb_maximum); if (_lb_r57.failed) {
         return ((lb_r_unit){ .error = _lb_r57.error, .failed = true });
     } (void)0; })));
-    lb_pos = "src/std/json.lucb:36:9";
+    lb_pos = "src/std/json.lucb:35:9";
     (void)(lb_memory_copy_0g1_u8(({ lb_span _lb_sv58 = self->storage; size_t _lb_sn58 = _lb_sv58.length; uint8_t* _lb_sd58 = (uint8_t*)_lb_sv58.data; size_t _lb_ss58 = (size_t)(self->used); size_t _lb_se58 = _lb_sn58; lb_check_index(_lb_ss58, _lb_sn58 + 1); lb_check_index(_lb_se58, _lb_sn58 + 1); if (_lb_ss58 > _lb_se58) lb_trap("index out of bounds"); (lb_span){ (void*)(_lb_sd58 + _lb_ss58), _lb_se58 - _lb_ss58 }; }), lb_data, (lb_data.length)));
-    lb_pos = "src/std/json.lucb:37:9";
+    lb_pos = "src/std/json.lucb:36:9";
     self->used = lb_needed;
     return ((lb_r_unit){ .failed = false });
 }
 __attribute__((weak)) void lb_interop_Reference_0g1_json_Value_init(lb_interop_Reference_0g1_json_Value* self, struct lb_interop_Owner_0g1_json_Value* lb_owner) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/json.lucb:123:5";
+    lb_pos = "src/std/json.lucb:120:9";
     (void)(lb_ownership_11check_alive(&((lb_owner)->header)));
-    lb_pos = "src/std/json.lucb:124:9";
+    lb_pos = "src/std/json.lucb:121:1";
     self->owner = lb_owner;
 }
 __attribute__((weak)) lb_r_interop_Reference_0g1_json_Value lb_interop_Reference_0g1_json_Value_adopt(struct lb_json_Value* lb_native, lb_interop_Type_0g1_json_Value lb_declaration, lb_iface lb_allocator) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/json.lucb:127:9";
+    lb_pos = "src/std/json.lucb:124:1";
     lb_iface lb_selected __attribute__((unused)) = ({ lb_iface _lb_o59 = lb_allocator; if (_lb_o59.data == ((void*)0)) { _lb_o59 = lb_memory_allocator; } _lb_o59; });
-    lb_pos = "src/std/json.lucb:128:1";
+    lb_pos = "src/std/json.lucb:125:5";
     lb_interop_Reservation_0g1_json_Value lb_reservation __attribute__((unused)) = ({ lb_error _lb_fe60 __attribute__((unused)); lb_interop_Reservation_0g1_json_Value _lb_v60 __attribute__((unused)) = {}; _lb_v60 = ({ lb_r_interop_Reservation_0g1_json_Value _lb_r61 = ({ lb_interop_Reservation_0g1_json_Value _lb_iv62 = {}; lb_r_unit _lb_ir62 = lb_interop_Reservation_0g1_json_Value_init(&_lb_iv62, lb_declaration); lb_r_interop_Reservation_0g1_json_Value _lb_io62; if (_lb_ir62.failed) { _lb_io62.failed = true; _lb_io62.error = _lb_ir62.error; } else { _lb_io62.failed = false; _lb_io62.value = _lb_iv62; } _lb_io62; }); if (_lb_r61.failed) {
         _lb_fe60 = _lb_r61.error;
         goto _lb_fh60;
     } _lb_r61.value; }); goto _lb_cd60; _lb_fh60: { 
         lb_error lb_failure __attribute__((unused)) = _lb_fe60;
         {
-            lb_pos = "src/std/json.lucb:129:5";
+            lb_pos = "src/std/json.lucb:126:9";
             (void)((lb_declaration.dispose)(lb_native));
-            lb_pos = "src/std/json.lucb:130:5";
+            lb_pos = "src/std/json.lucb:127:1";
             lb_release_call(lb_selected, (lb_span){ (void*)(lb_native), sizeof(lb_json_Value) });
-            lb_pos = "src/std/json.lucb:131:9";
+            lb_pos = "src/std/json.lucb:128:5";
             lb_r_interop_Reference_0g1_json_Value _lb_err63 = ((lb_r_interop_Reference_0g1_json_Value){ .error = { .code = (int32_t)((lb_failure.code)), .message = (lb_failure.message) }, .failed = true });
             return _lb_err63;
         }
     } _lb_cd60: __attribute__((unused)); _lb_v60; });
-    lb_pos = "src/std/json.lucb:132:1";
+    lb_pos = "src/std/json.lucb:129:5";
     lb_interop_Reference_0g1_json_Value _lb_ret64 = lb_interop_Reservation_0g1_json_Value_publish(&(lb_reservation), lb_native, lb_selected);
     return ((lb_r_interop_Reference_0g1_json_Value){ .value = _lb_ret64, .failed = false });
     lb_trap("unreachable");
 }
 __attribute__((weak)) lb_interop_Reference_0g1_json_Value lb_interop_Reference_0g1_json_Value_clone(const lb_interop_Reference_0g1_json_Value* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/json.lucb:135:13";
+    lb_pos = "src/std/json.lucb:132:5";
     (void)(((void)(lb_ownership_retain(&((self->owner)->header)))));
-    lb_pos = "src/std/json.lucb:136:9";
+    lb_pos = "src/std/json.lucb:133:9";
     lb_interop_Reference_0g1_json_Value _lb_ret65 = ({ lb_interop_Reference_0g1_json_Value _lb_iv66 = {}; lb_interop_Reference_0g1_json_Value_init(&_lb_iv66, self->owner); _lb_iv66; });
     return _lb_ret65;
     lb_trap("unreachable");
 }
 __attribute__((weak)) void lb_interop_Reference_0g1_json_Value_release(const lb_interop_Reference_0g1_json_Value* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/json.lucb:139:13";
+    lb_pos = "src/std/json.lucb:136:9";
     (void)(lb_ownership_release(&((self->owner)->header)));
 }
 __attribute__((weak)) lb_r_json_Value_0p lb_interop_Reference_0g1_json_Value_get(const lb_interop_Reference_0g1_json_Value* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/json.lucb:142:17";
+    lb_pos = "src/std/json.lucb:139:13";
     (void)(lb_ownership_11check_alive(&((self->owner)->header)));
-    lb_pos = "src/std/json.lucb:143:21";
+    lb_pos = "src/std/json.lucb:140:13";
     if (!!((self->owner)->closed)) 
     {
-        lb_pos = "src/std/json.lucb:144:25";
+        lb_pos = "src/std/json.lucb:141:17";
         lb_r_json_Value_0p _lb_err67 = ((lb_r_json_Value_0p){ .error = { .code = (int32_t)(lb_interop_invalid), .message = ((lb_str){"a native object is closed", 25}) }, .failed = true });
         return _lb_err67;
     }
-    lb_pos = "src/std/json.lucb:145:21";
+    lb_pos = "src/std/json.lucb:142:21";
     struct lb_json_Value* _lb_ret68 = ({ struct lb_json_Value* _lb_o69 = (self->owner)->native; if (_lb_o69 == ((void*)0)) {
         (void)(lb_trap_text(((lb_str){"a native object has not been initialized", 40})));
     } _lb_o69; });
@@ -4735,14 +4735,14 @@ __attribute__((weak)) lb_r_json_Value_0p lb_interop_Reference_0g1_json_Value_get
 }
 __attribute__((weak)) struct lb_json_Value* lb_interop_Reference_0g1_json_Value_value(const lb_interop_Reference_0g1_json_Value* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/json.lucb:149:13";
+    lb_pos = "src/std/json.lucb:146:9";
     struct lb_json_Value* _lb_ret70 = ({ lb_error _lb_fe71 __attribute__((unused)); struct lb_json_Value* _lb_v71 __attribute__((unused)) = ((void*)0); _lb_v71 = ({ lb_r_json_Value_0p _lb_r72 = lb_interop_Reference_0g1_json_Value_get(self); if (_lb_r72.failed) {
         _lb_fe71 = _lb_r72.error;
         goto _lb_fh71;
     } _lb_r72.value; }); goto _lb_cd71; _lb_fh71: { 
         lb_error lb_failure __attribute__((unused)) = _lb_fe71;
         {
-            lb_pos = "src/std/json.lucb:149:13";
+            lb_pos = "src/std/json.lucb:146:9";
             (void)(lb_trap_text((lb_failure.message)));
         }
     } _lb_cd71: __attribute__((unused)); _lb_v71; });
@@ -4751,42 +4751,42 @@ __attribute__((weak)) struct lb_json_Value* lb_interop_Reference_0g1_json_Value_
 }
 __attribute__((weak)) uint64_t lb_interop_Reference_0g1_json_Value_identity(const lb_interop_Reference_0g1_json_Value* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/json.lucb:152:13";
+    lb_pos = "src/std/json.lucb:149:9";
     (void)(lb_ownership_11check_alive(&((self->owner)->header)));
-    lb_pos = "src/std/json.lucb:153:9";
+    lb_pos = "src/std/json.lucb:150:13";
     uint64_t _lb_ret73 = (self->owner)->header.generation;
     return _lb_ret73;
     lb_trap("unreachable");
 }
 __attribute__((weak)) bool lb_interop_Reference_0g1_json_Value_9is_closed(const lb_interop_Reference_0g1_json_Value* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/json.lucb:156:9";
+    lb_pos = "src/std/json.lucb:153:9";
     (void)(lb_ownership_11check_alive(&((self->owner)->header)));
-    lb_pos = "src/std/json.lucb:157:9";
+    lb_pos = "src/std/json.lucb:154:9";
     bool _lb_ret74 = (self->owner)->closed;
     return _lb_ret74;
     lb_trap("unreachable");
 }
 __attribute__((weak)) void lb_interop_Reference_0g1_json_Value_close(const lb_interop_Reference_0g1_json_Value* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/json.lucb:160:9";
+    lb_pos = "src/std/json.lucb:157:9";
     (void)(lb_ownership_11check_alive(&((self->owner)->header)));
-    lb_pos = "src/std/json.lucb:161:13";
+    lb_pos = "src/std/json.lucb:158:9";
     if (!!((!(self->owner)->declaration.closeable))) 
     {
-        lb_pos = "src/std/json.lucb:162:9";
+        lb_pos = "src/std/json.lucb:159:9";
         (void)(lb_trap_text(((lb_str){"this native type does not support explicit close", 48})));
     }
-    lb_pos = "src/std/json.lucb:163:9";
+    lb_pos = "src/std/json.lucb:160:13";
     (void)(lb_interop_11close_owner_0g1_json_Value(self->owner));
 }
 __attribute__((weak)) lb_r_interop_Lease lb_interop_Reference_0g1_json_Value_lease(const lb_interop_Reference_0g1_json_Value* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/json.lucb:166:9";
+    lb_pos = "src/std/json.lucb:163:9";
     (void)(((void)((({ lb_r_json_Value_0p _lb_r75 = lb_interop_Reference_0g1_json_Value_get(self); if (_lb_r75.failed) {
         return ((lb_r_interop_Lease){ .error = _lb_r75.error, .failed = true });
     } _lb_r75.value; })))));
-    lb_pos = "src/std/json.lucb:167:13";
+    lb_pos = "src/std/json.lucb:164:9";
     lb_interop_Lease _lb_ret76 = (({ lb_r_interop_Lease _lb_r77 = ({ lb_interop_Lease _lb_iv78 = {}; lb_r_unit _lb_ir78 = lb_interop_Lease_init(&_lb_iv78, &((self->owner)->header), lb_interop_Owner_0g1_json_Value_7is_open, lb_interop_Owner_0g1_json_Value_enter, lb_interop_Owner_0g1_json_Value_leave); lb_r_interop_Lease _lb_io78; if (_lb_ir78.failed) { _lb_io78.failed = true; _lb_io78.error = _lb_ir78.error; } else { _lb_io78.failed = false; _lb_io78.value = _lb_iv78; } _lb_io78; }); if (_lb_r77.failed) {
         return ((lb_r_interop_Lease){ .error = _lb_r77.error, .failed = true });
     } _lb_r77.value; }));
@@ -4795,7 +4795,7 @@ __attribute__((weak)) lb_r_interop_Lease lb_interop_Reference_0g1_json_Value_lea
 }
 __attribute__((weak)) lb_r_unit lb_interop_Reference_0g1_json_Value_18validate_interface(struct lb_ownership_Object* lb_object) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/json.lucb:170:13";
+    lb_pos = "src/std/json.lucb:167:13";
     (void)(((void)((({ lb_r_json_Value_0p _lb_r79 = ({ lb_interop_Reference_0g1_json_Value _lb_rc = ({ lb_interop_Reference_0g1_json_Value _lb_iv80 = {}; lb_interop_Reference_0g1_json_Value_init(&_lb_iv80, ((struct lb_interop_Owner_0g1_json_Value*)(lb_object))); _lb_iv80; }); lb_interop_Reference_0g1_json_Value_get(&_lb_rc); }); if (_lb_r79.failed) {
         return ((lb_r_unit){ .error = _lb_r79.error, .failed = true });
     } _lb_r79.value; })))));
@@ -4803,24 +4803,24 @@ __attribute__((weak)) lb_r_unit lb_interop_Reference_0g1_json_Value_18validate_i
 }
 __attribute__((weak)) void lb_interop_Reference_0g1_json_Value_enter(const lb_interop_Reference_0g1_json_Value* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/json.lucb:179:5";
+    lb_pos = "src/std/json.lucb:176:9";
     (void)(lb_interop_Owner_0g1_json_Value_enter(&((self->owner)->header)));
 }
 __attribute__((weak)) void lb_interop_Reference_0g1_json_Value_leave(const lb_interop_Reference_0g1_json_Value* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/json.lucb:182:9";
+    lb_pos = "src/std/json.lucb:179:9";
     (void)(lb_interop_Owner_0g1_json_Value_leave(&((self->owner)->header)));
 }
 __attribute__((weak)) void lb_interop_Reference_0g1_json_Value_trace(const lb_interop_Reference_0g1_json_Value* self, lb_fn_0F2_ownership_Object_0p_void_0p_unit lb_visit, void* lb_context) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/json.lucb:187:9";
+    lb_pos = "src/std/json.lucb:184:9";
     (void)(lb_ownership_12check_thread(&((self->owner)->header)));
-    lb_pos = "src/std/json.lucb:188:1";
+    lb_pos = "src/std/json.lucb:185:9";
     (void)((lb_visit)(&((self->owner)->header), lb_context));
 }
 lb_r_interop_Reference_0g1_json_Value lb_json_Value_own(struct lb_json_Value* lb_native) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/json.lucb:88:9";
+    lb_pos = "src/std/json.lucb:87:9";
     lb_interop_Reference_0g1_json_Value _lb_ret81 = (({ lb_r_interop_Reference_0g1_json_Value _lb_r82 = lb_interop_Reference_0g1_json_Value_adopt(lb_native, lb_json_10value_type, ((lb_iface){ ((void*)0), ((void*)0) })); if (_lb_r82.failed) {
         return ((lb_r_interop_Reference_0g1_json_Value){ .error = _lb_r82.error, .failed = true });
     } _lb_r82.value; }));
@@ -4829,60 +4829,60 @@ lb_r_interop_Reference_0g1_json_Value lb_json_Value_own(struct lb_json_Value* lb
 }
 lb_r_unit lb_json_quoted(lb_str lb_value, struct lb_json_Bytes* lb_output, size_t lb_maximum) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/json.lucb:50:5";
+    lb_pos = "src/std/json.lucb:49:5";
     lb_utf8_Decoder lb_decoder __attribute__((unused)) = {};
-    lb_pos = "src/std/json.lucb:51:5";
+    lb_pos = "src/std/json.lucb:50:5";
     lb_cspan _lb_seq83 = ((lb_cspan){(void*)(lb_value.data), lb_value.length});
     for (size_t _lb_i83 = 0; _lb_i83 < _lb_seq83.length; _lb_i83++) {
         uint8_t lb_byte __attribute__((unused)) = ((const uint8_t*)_lb_seq83.data)[_lb_i83];
         {
-            lb_pos = "src/std/json.lucb:52:9";
+            lb_pos = "src/std/json.lucb:51:9";
             (void)(((void)((({ lb_r_char_0o _lb_r84 = lb_utf8_Decoder_push(&(lb_decoder), lb_byte); if (_lb_r84.failed) {
                 return ((lb_r_unit){ .error = _lb_r84.error, .failed = true });
             } _lb_r84.value; })))));
         }
     }
-    lb_pos = "src/std/json.lucb:53:5";
+    lb_pos = "src/std/json.lucb:52:5";
     (void)((({ lb_r_unit _lb_r85 = lb_utf8_Decoder_finish(&(lb_decoder)); if (_lb_r85.failed) {
         return ((lb_r_unit){ .error = _lb_r85.error, .failed = true });
     } (void)0; })));
-    lb_pos = "src/std/json.lucb:54:5";
+    lb_pos = "src/std/json.lucb:53:5";
     (void)((({ lb_r_unit _lb_r86 = lb_json_Bytes_append(lb_output, ((lb_cspan){(void*)"\"", 1}), lb_maximum); if (_lb_r86.failed) {
         return ((lb_r_unit){ .error = _lb_r86.error, .failed = true });
     } (void)0; })));
-    lb_pos = "src/std/json.lucb:55:5";
+    lb_pos = "src/std/json.lucb:54:5";
     lb_cspan _lb_seq87 = ((lb_cspan){(void*)(lb_value.data), lb_value.length});
     for (size_t _lb_i87 = 0; _lb_i87 < _lb_seq87.length; _lb_i87++) {
         uint8_t lb_byte __attribute__((unused)) = ((const uint8_t*)_lb_seq87.data)[_lb_i87];
         {
-            lb_pos = "src/std/json.lucb:56:9";
+            lb_pos = "src/std/json.lucb:55:9";
             if (!!(((lb_byte == 34u) || (lb_byte == 92u)))) 
             {
-                lb_pos = "src/std/json.lucb:57:13";
+                lb_pos = "src/std/json.lucb:56:13";
                 lb_a_u8_0a2 lb_pair __attribute__((unused)) = ((lb_a_u8_0a2){{92u, lb_byte}});
-                lb_pos = "src/std/json.lucb:58:13";
+                lb_pos = "src/std/json.lucb:57:13";
                 (void)((({ lb_r_unit _lb_r88 = lb_json_Bytes_append(lb_output, ((lb_cspan){(void*)(lb_pair.d), 2ULL}), lb_maximum); if (_lb_r88.failed) {
                     return ((lb_r_unit){ .error = _lb_r88.error, .failed = true });
                 } (void)0; })));
             }
             else {
-                lb_pos = "src/std/json.lucb:59:9";
+                lb_pos = "src/std/json.lucb:58:9";
                 if (!!((((uint8_t)(lb_byte)) < ((uint8_t)(32ULL))))) 
                 {
-                    lb_pos = "src/std/json.lucb:60:13";
+                    lb_pos = "src/std/json.lucb:59:13";
                     lb_cspan lb_digits __attribute__((unused)) = ((lb_cspan){(void*)(((lb_str){"0123456789abcdef", 16}).data), ((lb_str){"0123456789abcdef", 16}).length});
-                    lb_pos = "src/std/json.lucb:61:13";
+                    lb_pos = "src/std/json.lucb:60:13";
                     lb_a_u8_0a6 lb_escaped __attribute__((unused)) = ((lb_a_u8_0a6){{92u, 117u, 48u, 48u, (*({ lb_cspan _lb_ix89 = lb_digits; &((uint8_t*)_lb_ix89.data)[lb_at((uint64_t)(((size_t)lb_conv_u((uint64_t)(((uint8_t)(lb_shr_u((uint64_t)(lb_byte), (uint64_t)((uint8_t)(4LL)), 8)))), 8, 0, 64, 0, 1))), _lb_ix89.length)]; })), (*({ lb_cspan _lb_ix90 = lb_digits; &((uint8_t*)_lb_ix90.data)[lb_at((uint64_t)(((size_t)lb_conv_u((uint64_t)((((uint8_t)(lb_byte & 15ULL)))), 8, 0, 64, 0, 1))), _lb_ix90.length)]; }))}});
-                    lb_pos = "src/std/json.lucb:62:13";
+                    lb_pos = "src/std/json.lucb:61:13";
                     (void)((({ lb_r_unit _lb_r91 = lb_json_Bytes_append(lb_output, ((lb_cspan){(void*)(lb_escaped.d), 6ULL}), lb_maximum); if (_lb_r91.failed) {
                         return ((lb_r_unit){ .error = _lb_r91.error, .failed = true });
                     } (void)0; })));
                 }
                 else 
                 {
-                    lb_pos = "src/std/json.lucb:64:13";
+                    lb_pos = "src/std/json.lucb:63:13";
                     lb_a_u8_0a1 lb_single __attribute__((unused)) = ((lb_a_u8_0a1){{lb_byte}});
-                    lb_pos = "src/std/json.lucb:65:13";
+                    lb_pos = "src/std/json.lucb:64:13";
                     (void)((({ lb_r_unit _lb_r92 = lb_json_Bytes_append(lb_output, ((lb_cspan){(void*)(lb_single.d), 1ULL}), lb_maximum); if (_lb_r92.failed) {
                         return ((lb_r_unit){ .error = _lb_r92.error, .failed = true });
                     } (void)0; })));
@@ -4890,7 +4890,7 @@ lb_r_unit lb_json_quoted(lb_str lb_value, struct lb_json_Bytes* lb_output, size_
             }
         }
     }
-    lb_pos = "src/std/json.lucb:66:5";
+    lb_pos = "src/std/json.lucb:65:5";
     (void)((({ lb_r_unit _lb_r93 = lb_json_Bytes_append(lb_output, ((lb_cspan){(void*)"\"", 1}), lb_maximum); if (_lb_r93.failed) {
         return ((lb_r_unit){ .error = _lb_r93.error, .failed = true });
     } (void)0; })));
@@ -4898,31 +4898,31 @@ lb_r_unit lb_json_quoted(lb_str lb_value, struct lb_json_Bytes* lb_output, size_
 }
 lb_r_interop_Reference_0g1_json_Value lb_json_Value_scalar(lb_str lb_data) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/json.lucb:98:9";
+    lb_pos = "src/std/json.lucb:97:9";
     struct lb_json_Value* lb_native __attribute__((unused)) = (({ lb_r_json_Value_0p _lb_r94 = ({ lb_iface _lb_a95 = lb_memory_allocator; lb_o_u8_0s _lb_ao95 = lb_alloc_call(_lb_a95, sizeof(lb_json_Value), _Alignof(lb_json_Value)); lb_r_json_Value_0p _lb_r95; if (!_lb_ao95.present) { _lb_r95 = ((lb_r_json_Value_0p){ .error = { .code = 208273409, .message = (lb_str){"memory.exhausted", 16} }, .failed = true }); } else { lb_json_Value* _lb_p95 = (lb_json_Value*)_lb_ao95.value.data; memset(_lb_p95, 0, sizeof(lb_json_Value)); lb_r_unit _lb_init95 = lb_json_Value_init(_lb_p95, 1048576ULL); if (_lb_init95.failed) { _lb_r95.failed = true; _lb_r95.error = _lb_init95.error; lb_release_call(_lb_a95, _lb_ao95.value); } else { _lb_r95.value = _lb_p95; _lb_r95.failed = false; } } _lb_r95; }); if (_lb_r94.failed) {
         return ((lb_r_interop_Reference_0g1_json_Value){ .error = _lb_r94.error, .failed = true });
     } _lb_r94.value; }));
-    lb_pos = "src/std/json.lucb:99:9";
+    lb_pos = "src/std/json.lucb:98:9";
     (lb_native)->encoded.used = 0ULL;
-    lb_pos = "src/std/json.lucb:100:9";
+    lb_pos = "src/std/json.lucb:99:9";
     (lb_native)->container = 0ULL;
-    lb_pos = "src/std/json.lucb:105:9";
+    lb_pos = "src/std/json.lucb:104:9";
     (void)(({ lb_error _lb_fe96 __attribute__((unused)); int32_t _lb_v96 __attribute__((unused)) = 0; (void)(({ lb_r_unit _lb_r97 = lb_json_Bytes_append(&((lb_native)->encoded), ((lb_cspan){(void*)(lb_data.data), lb_data.length}), (lb_native)->maximum); if (_lb_r97.failed) {
         _lb_fe96 = _lb_r97.error;
         goto _lb_fh96;
     } (void)0; })); goto _lb_cd96; _lb_fh96: { 
         lb_error lb_failure __attribute__((unused)) = _lb_fe96;
         {
-            lb_pos = "src/std/json.lucb:102:13";
+            lb_pos = "src/std/json.lucb:101:13";
             (void)(lb_json_Value_close(lb_native));
-            lb_pos = "src/std/json.lucb:103:13";
+            lb_pos = "src/std/json.lucb:102:13";
             lb_release_call(lb_memory_allocator, (lb_span){ (void*)(lb_native), sizeof(lb_json_Value) });
-            lb_pos = "src/std/json.lucb:104:13";
+            lb_pos = "src/std/json.lucb:103:13";
             lb_r_interop_Reference_0g1_json_Value _lb_err98 = ((lb_r_interop_Reference_0g1_json_Value){ .error = { .code = (int32_t)((lb_failure.code)), .message = (lb_failure.message) }, .failed = true });
             return _lb_err98;
         }
     } _lb_cd96: __attribute__((unused)); (void)0; }));
-    lb_pos = "src/std/json.lucb:105:9";
+    lb_pos = "src/std/json.lucb:104:9";
     lb_interop_Reference_0g1_json_Value _lb_ret99 = (({ lb_r_interop_Reference_0g1_json_Value _lb_r100 = lb_json_Value_own(lb_native); if (_lb_r100.failed) {
         return ((lb_r_interop_Reference_0g1_json_Value){ .error = _lb_r100.error, .failed = true });
     } _lb_r100.value; }));
@@ -4931,151 +4931,151 @@ lb_r_interop_Reference_0g1_json_Value lb_json_Value_scalar(lb_str lb_data) {
 }
 lb_cspan lb_json_Bytes_view(const lb_json_Bytes* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/json.lucb:40:9";
+    lb_pos = "src/std/json.lucb:39:9";
     lb_cspan _lb_ret101 = ({ lb_span _lb_sv102 = self->storage; size_t _lb_sn102 = _lb_sv102.length; uint8_t* _lb_sd102 = (uint8_t*)_lb_sv102.data; size_t _lb_ss102 = 0; size_t _lb_se102 = (size_t)(self->used); lb_check_index(_lb_ss102, _lb_sn102 + 1); lb_check_index(_lb_se102, _lb_sn102 + 1); if (_lb_ss102 > _lb_se102) lb_trap("index out of bounds"); (lb_span){ (void*)(_lb_sd102 + _lb_ss102), _lb_se102 - _lb_ss102 }; });
     return _lb_ret101;
     lb_trap("unreachable");
 }
 lb_r_unit lb_json_Value_insert(lb_json_Value* self, lb_o_str lb_name, const struct lb_json_Value* lb_value) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/json.lucb:134:9";
+    lb_pos = "src/std/json.lucb:133:9";
     if (!!(((self->container == 0ULL) || ((!(((self->container == 123u)) == ((!({ lb_o_str _lb_on103 = lb_name; !_lb_on103.present; }))))))))) 
     {
-        lb_pos = "src/std/json.lucb:135:13";
+        lb_pos = "src/std/json.lucb:134:13";
         lb_r_unit _lb_err104 = ((lb_r_unit){ .error = { .code = (int32_t)(lb_json_invalid), .message = ((lb_str){"JSON operation does not match the container type", 48}) }, .failed = true });
         return _lb_err104;
     }
-    lb_pos = "src/std/json.lucb:136:9";
+    lb_pos = "src/std/json.lucb:135:9";
     lb_json_Bytes lb_key __attribute__((unused)) = {};
+    lb_pos = "src/std/json.lucb:136:9";
     lb_pos = "src/std/json.lucb:137:9";
-    lb_pos = "src/std/json.lucb:138:9";
     lb_o_str _lb_o105 = lb_name;
     if (_lb_o105.present) {
         lb_str lb_key_name __attribute__((unused)) = _lb_o105.value;
         {
-            lb_pos = "src/std/json.lucb:139:13";
+            lb_pos = "src/std/json.lucb:138:13";
             (void)((({ lb_r_unit _lb_r106 = lb_json_quoted(lb_key_name, &(lb_key), self->maximum); if (_lb_r106.failed) {
                 (void)(lb_json_Bytes_close(&(lb_key)));
                 return ((lb_r_unit){ .error = _lb_r106.error, .failed = true });
             } (void)0; })));
-            lb_pos = "src/std/json.lucb:140:13";
+            lb_pos = "src/std/json.lucb:139:13";
             size_t lb_start __attribute__((unused)) = 0ULL;
-            lb_pos = "src/std/json.lucb:141:13";
+            lb_pos = "src/std/json.lucb:140:13";
             for (size_t lb_index __attribute__((unused)) = (size_t)(0ULL); lb_index < (size_t)(self->keys.used); lb_index++) {
                 {
-                    lb_pos = "src/std/json.lucb:142:17";
+                    lb_pos = "src/std/json.lucb:141:17";
                     if (!!(((*({ lb_span _lb_ix108 = self->keys.storage; &((uint8_t*)_lb_ix108.data)[lb_at((uint64_t)(lb_index), _lb_ix108.length)]; })) == 10u))) 
                     {
-                        lb_pos = "src/std/json.lucb:143:21";
+                        lb_pos = "src/std/json.lucb:142:21";
                         if (!!(({ lb_str _lb_sq109 __attribute__((unused)) = ({ lb_span _lb_sc110 = ({ lb_span _lb_sv111 = self->keys.storage; size_t _lb_sn111 = _lb_sv111.length; uint8_t* _lb_sd111 = (uint8_t*)_lb_sv111.data; size_t _lb_ss111 = (size_t)(lb_start); size_t _lb_se111 = (size_t)(lb_index); lb_check_index(_lb_ss111, _lb_sn111 + 1); lb_check_index(_lb_se111, _lb_sn111 + 1); if (_lb_ss111 > _lb_se111) lb_trap("index out of bounds"); (lb_span){ (void*)(_lb_sd111 + _lb_ss111), _lb_se111 - _lb_ss111 }; }); const char* _lb_sb110 = (const char*)_lb_sc110.data; size_t _lb_sl110 = _lb_sc110.length; (lb_str){ _lb_sb110, _lb_sl110 }; }); lb_str _lb_sq112 __attribute__((unused)) = ({ lb_span _lb_sc113 = lb_json_Bytes_view(&(lb_key)); const char* _lb_sb113 = (const char*)_lb_sc113.data; size_t _lb_sl113 = _lb_sc113.length; (lb_str){ _lb_sb113, _lb_sl113 }; }); ({ lb_str _lb_sa114 = _lb_sq109; lb_str _lb_sb114 = _lb_sq112; (_lb_sa114.length == _lb_sb114.length && (_lb_sa114.length == 0 || memcmp(_lb_sa114.data, _lb_sb114.data, _lb_sa114.length) == 0)); }); }))) 
                         {
-                            lb_pos = "src/std/json.lucb:144:25";
+                            lb_pos = "src/std/json.lucb:143:25";
                             lb_r_unit _lb_err115 = ((lb_r_unit){ .error = { .code = (int32_t)(lb_json_invalid), .message = ((lb_str){"JSON object already contains this key", 37}) }, .failed = true });
                             (void)(lb_json_Bytes_close(&(lb_key)));
                             return _lb_err115;
                         }
-                        lb_pos = "src/std/json.lucb:145:21";
+                        lb_pos = "src/std/json.lucb:144:21";
                         lb_start = (size_t)(lb_add_u((uint64_t)(lb_index), (uint64_t)(1ULL), 64));
                     }
                 }
             }
         }
     }
-    lb_pos = "src/std/json.lucb:146:9";
+    lb_pos = "src/std/json.lucb:145:9";
     lb_json_Bytes lb_fragment __attribute__((unused)) = {};
+    lb_pos = "src/std/json.lucb:146:9";
     lb_pos = "src/std/json.lucb:147:9";
-    lb_pos = "src/std/json.lucb:148:9";
     if (!!((((size_t)(self->count)) > ((size_t)(0ULL))))) 
     {
-        lb_pos = "src/std/json.lucb:149:13";
+        lb_pos = "src/std/json.lucb:148:13";
         (void)((({ lb_r_unit _lb_r116 = lb_json_Bytes_append(&(lb_fragment), ((lb_cspan){(void*)",", 1}), self->maximum); if (_lb_r116.failed) {
             (void)(lb_json_Bytes_close(&(lb_fragment)));
             (void)(lb_json_Bytes_close(&(lb_key)));
             return ((lb_r_unit){ .error = _lb_r116.error, .failed = true });
         } (void)0; })));
     }
-    lb_pos = "src/std/json.lucb:150:9";
+    lb_pos = "src/std/json.lucb:149:9";
     if (!!((!({ lb_o_str _lb_on117 = lb_name; !_lb_on117.present; })))) 
     {
-        lb_pos = "src/std/json.lucb:151:13";
+        lb_pos = "src/std/json.lucb:150:13";
         (void)((({ lb_r_unit _lb_r118 = ({ lb_cspan _lb_sq119 __attribute__((unused)) = lb_json_Bytes_view(&(lb_key)); size_t _lb_sq120 __attribute__((unused)) = self->maximum; lb_json_Bytes_append(&(lb_fragment), _lb_sq119, _lb_sq120); }); if (_lb_r118.failed) {
             (void)(lb_json_Bytes_close(&(lb_fragment)));
             (void)(lb_json_Bytes_close(&(lb_key)));
             return ((lb_r_unit){ .error = _lb_r118.error, .failed = true });
         } (void)0; })));
-        lb_pos = "src/std/json.lucb:152:13";
+        lb_pos = "src/std/json.lucb:151:13";
         (void)((({ lb_r_unit _lb_r121 = lb_json_Bytes_append(&(lb_fragment), ((lb_cspan){(void*)":", 1}), self->maximum); if (_lb_r121.failed) {
             (void)(lb_json_Bytes_close(&(lb_fragment)));
             (void)(lb_json_Bytes_close(&(lb_key)));
             return ((lb_r_unit){ .error = _lb_r121.error, .failed = true });
         } (void)0; })));
     }
-    lb_pos = "src/std/json.lucb:153:9";
+    lb_pos = "src/std/json.lucb:152:9";
     (void)((({ lb_r_unit _lb_r122 = ({ lb_cspan _lb_sq123 __attribute__((unused)) = lb_json_Bytes_view(&((lb_value)->encoded)); size_t _lb_sq124 __attribute__((unused)) = self->maximum; lb_json_Bytes_append(&(lb_fragment), _lb_sq123, _lb_sq124); }); if (_lb_r122.failed) {
         (void)(lb_json_Bytes_close(&(lb_fragment)));
         (void)(lb_json_Bytes_close(&(lb_key)));
         return ((lb_r_unit){ .error = _lb_r122.error, .failed = true });
     } (void)0; })));
-    lb_pos = "src/std/json.lucb:154:9";
+    lb_pos = "src/std/json.lucb:153:9";
     size_t lb_size __attribute__((unused)) = ({ lb_o_usize _lb_o125 = ({ uint64_t _lb_qo126; lb_o_usize _lb_qr126; _lb_qr126.present = lb_qadd_u((uint64_t)(self->encoded.used), (uint64_t)(lb_fragment.used), 64, &_lb_qo126); _lb_qr126.value = (size_t)(_lb_qo126); _lb_qr126; }); if (!_lb_o125.present) {
         lb_r_unit _lb_err127 = ((lb_r_unit){ .error = { .code = (int32_t)(lb_json_14limit_exceeded), .message = ((lb_str){"JSON size overflow", 18}) }, .failed = true });
         (void)(lb_json_Bytes_close(&(lb_fragment)));
         (void)(lb_json_Bytes_close(&(lb_key)));
         return _lb_err127;
     } _lb_o125.value; });
-    lb_pos = "src/std/json.lucb:155:9";
+    lb_pos = "src/std/json.lucb:154:9";
     size_t lb_key_end __attribute__((unused)) = ({ lb_o_usize _lb_o128 = ({ uint64_t _lb_qo129; lb_o_usize _lb_qr129; _lb_qr129.present = lb_qadd_u((uint64_t)(self->keys.used), (uint64_t)(lb_key.used), 64, &_lb_qo129); _lb_qr129.value = (size_t)(_lb_qo129); _lb_qr129; }); if (!_lb_o128.present) {
         lb_r_unit _lb_err130 = ((lb_r_unit){ .error = { .code = (int32_t)(lb_json_14limit_exceeded), .message = ((lb_str){"JSON key size overflow", 22}) }, .failed = true });
         (void)(lb_json_Bytes_close(&(lb_fragment)));
         (void)(lb_json_Bytes_close(&(lb_key)));
         return _lb_err130;
     } _lb_o128.value; });
-    lb_pos = "src/std/json.lucb:156:9";
+    lb_pos = "src/std/json.lucb:155:9";
     size_t lb_key_size __attribute__((unused)) = ({ lb_o_usize _lb_o131 = ({ uint64_t _lb_qo132; lb_o_usize _lb_qr132; _lb_qr132.present = lb_qadd_u((uint64_t)(lb_key_end), (uint64_t)(1ULL), 64, &_lb_qo132); _lb_qr132.value = (size_t)(_lb_qo132); _lb_qr132; }); if (!_lb_o131.present) {
         lb_r_unit _lb_err133 = ((lb_r_unit){ .error = { .code = (int32_t)(lb_json_14limit_exceeded), .message = ((lb_str){"JSON key size overflow", 22}) }, .failed = true });
         (void)(lb_json_Bytes_close(&(lb_fragment)));
         (void)(lb_json_Bytes_close(&(lb_key)));
         return _lb_err133;
     } _lb_o131.value; });
-    lb_pos = "src/std/json.lucb:159:9";
+    lb_pos = "src/std/json.lucb:158:9";
     (void)((({ lb_r_unit _lb_r134 = lb_json_Bytes_reserve(&(self->encoded), lb_size, self->maximum); if (_lb_r134.failed) {
         (void)(lb_json_Bytes_close(&(lb_fragment)));
         (void)(lb_json_Bytes_close(&(lb_key)));
         return ((lb_r_unit){ .error = _lb_r134.error, .failed = true });
     } (void)0; })));
-    lb_pos = "src/std/json.lucb:160:9";
+    lb_pos = "src/std/json.lucb:159:9";
     if (!!((!({ lb_o_str _lb_on135 = lb_name; !_lb_on135.present; })))) 
     {
-        lb_pos = "src/std/json.lucb:161:13";
+        lb_pos = "src/std/json.lucb:160:13";
         (void)((({ lb_r_unit _lb_r136 = lb_json_Bytes_reserve(&(self->keys), lb_key_size, self->maximum); if (_lb_r136.failed) {
             (void)(lb_json_Bytes_close(&(lb_fragment)));
             (void)(lb_json_Bytes_close(&(lb_key)));
             return ((lb_r_unit){ .error = _lb_r136.error, .failed = true });
         } (void)0; })));
     }
-    lb_pos = "src/std/json.lucb:162:9";
+    lb_pos = "src/std/json.lucb:161:9";
     size_t lb_end __attribute__((unused)) = (size_t)(lb_sub_u((uint64_t)(self->encoded.used), (uint64_t)(1ULL), 64));
-    lb_pos = "src/std/json.lucb:163:9";
+    lb_pos = "src/std/json.lucb:162:9";
     (void)(({ lb_span _lb_sq137 __attribute__((unused)) = ({ lb_span _lb_sv138 = self->encoded.storage; size_t _lb_sn138 = _lb_sv138.length; uint8_t* _lb_sd138 = (uint8_t*)_lb_sv138.data; size_t _lb_ss138 = (size_t)(lb_end); size_t _lb_se138 = _lb_sn138; lb_check_index(_lb_ss138, _lb_sn138 + 1); lb_check_index(_lb_se138, _lb_sn138 + 1); if (_lb_ss138 > _lb_se138) lb_trap("index out of bounds"); (lb_span){ (void*)(_lb_sd138 + _lb_ss138), _lb_se138 - _lb_ss138 }; }); lb_cspan _lb_sq139 __attribute__((unused)) = lb_json_Bytes_view(&(lb_fragment)); size_t _lb_sq140 __attribute__((unused)) = lb_fragment.used; lb_memory_copy_0g1_u8(_lb_sq137, _lb_sq139, _lb_sq140); }));
-    lb_pos = "src/std/json.lucb:164:9";
+    lb_pos = "src/std/json.lucb:163:9";
     self->encoded.used = lb_size;
-    lb_pos = "src/std/json.lucb:165:9";
+    lb_pos = "src/std/json.lucb:164:9";
     (*({ lb_span _lb_ix141 = self->encoded.storage; &((uint8_t*)_lb_ix141.data)[lb_at((uint64_t)((size_t)(lb_sub_u((uint64_t)(lb_size), (uint64_t)(1ULL), 64))), _lb_ix141.length)]; })) = ((self->container == 123u) ? 125u : 93u);
-    lb_pos = "src/std/json.lucb:166:9";
+    lb_pos = "src/std/json.lucb:165:9";
     if (!!((!({ lb_o_str _lb_on142 = lb_name; !_lb_on142.present; })))) 
     {
-        lb_pos = "src/std/json.lucb:167:13";
+        lb_pos = "src/std/json.lucb:166:13";
         (void)(({ lb_span _lb_sq143 __attribute__((unused)) = ({ lb_span _lb_sv144 = self->keys.storage; size_t _lb_sn144 = _lb_sv144.length; uint8_t* _lb_sd144 = (uint8_t*)_lb_sv144.data; size_t _lb_ss144 = (size_t)(self->keys.used); size_t _lb_se144 = _lb_sn144; lb_check_index(_lb_ss144, _lb_sn144 + 1); lb_check_index(_lb_se144, _lb_sn144 + 1); if (_lb_ss144 > _lb_se144) lb_trap("index out of bounds"); (lb_span){ (void*)(_lb_sd144 + _lb_ss144), _lb_se144 - _lb_ss144 }; }); lb_cspan _lb_sq145 __attribute__((unused)) = lb_json_Bytes_view(&(lb_key)); size_t _lb_sq146 __attribute__((unused)) = lb_key.used; lb_memory_copy_0g1_u8(_lb_sq143, _lb_sq145, _lb_sq146); }));
-        lb_pos = "src/std/json.lucb:168:13";
+        lb_pos = "src/std/json.lucb:167:13";
         { size_t* lb__cell147 = &(self->keys.used);
         (*(lb__cell147)) = (size_t)(lb_add_u((uint64_t)((*(lb__cell147))), (uint64_t)(lb_key.used), 64)); }
-        lb_pos = "src/std/json.lucb:169:13";
+        lb_pos = "src/std/json.lucb:168:13";
         (*({ lb_span _lb_ix148 = self->keys.storage; &((uint8_t*)_lb_ix148.data)[lb_at((uint64_t)(self->keys.used), _lb_ix148.length)]; })) = 10u;
-        lb_pos = "src/std/json.lucb:170:13";
+        lb_pos = "src/std/json.lucb:169:13";
         { size_t* lb__cell149 = &(self->keys.used);
         (*(lb__cell149)) = (size_t)(lb_add_u((uint64_t)((*(lb__cell149))), (uint64_t)(1ULL), 64)); }
     }
-    lb_pos = "src/std/json.lucb:171:9";
+    lb_pos = "src/std/json.lucb:170:9";
     { size_t* lb__cell150 = &(self->count);
     (*(lb__cell150)) = (size_t)(lb_add_u((uint64_t)((*(lb__cell150))), (uint64_t)(1ULL), 64)); }
     (void)(lb_json_Bytes_close(&(lb_fragment)));
@@ -5084,154 +5084,154 @@ lb_r_unit lb_json_Value_insert(lb_json_Value* self, lb_o_str lb_name, const stru
 }
 lb_r_unit lb_json_Bytes_reserve(lb_json_Bytes* self, size_t lb_count, size_t lb_maximum) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/json.lucb:18:9";
+    lb_pos = "src/std/json.lucb:17:9";
     if (!!((((size_t)(lb_count)) > ((size_t)(lb_maximum))))) 
     {
-        lb_pos = "src/std/json.lucb:19:13";
+        lb_pos = "src/std/json.lucb:18:13";
         lb_r_unit _lb_err151 = ((lb_r_unit){ .error = { .code = (int32_t)(lb_json_14limit_exceeded), .message = ((lb_str){"JSON exceeds its configured byte limit", 38}) }, .failed = true });
         return _lb_err151;
     }
-    lb_pos = "src/std/json.lucb:20:9";
+    lb_pos = "src/std/json.lucb:19:9";
     if (!!((((size_t)(lb_count)) <= ((size_t)((self->storage.length)))))) 
     {
-        lb_pos = "src/std/json.lucb:21:13";
+        lb_pos = "src/std/json.lucb:20:13";
         return ((lb_r_unit){ .failed = false });
     }
-    lb_pos = "src/std/json.lucb:22:9";
+    lb_pos = "src/std/json.lucb:21:9";
     size_t lb_capacity __attribute__((unused)) = (((self->storage.length) == 0ULL) ? 64ULL : (self->storage.length));
-    lb_pos = "src/std/json.lucb:23:9";
+    lb_pos = "src/std/json.lucb:22:9";
     for (;;) {
-        lb_pos = "src/std/json.lucb:23:9";
+        lb_pos = "src/std/json.lucb:22:9";
         if (!((((size_t)(lb_capacity)) < ((size_t)(lb_count))))) break;
         {
-            lb_pos = "src/std/json.lucb:24:13";
+            lb_pos = "src/std/json.lucb:23:13";
             lb_capacity = ((((size_t)(lb_capacity)) > ((size_t)((size_t)(lb_div_u((uint64_t)(lb_maximum), (uint64_t)(2ULL), 64))))) ? lb_maximum : (size_t)(lb_mul_u((uint64_t)(lb_capacity), (uint64_t)(2ULL), 64)));
         }
     }
-    lb_pos = "src/std/json.lucb:25:9";
+    lb_pos = "src/std/json.lucb:24:9";
     if (!!((((size_t)(lb_capacity)) > ((size_t)(lb_maximum))))) 
     {
-        lb_pos = "src/std/json.lucb:26:13";
+        lb_pos = "src/std/json.lucb:25:13";
         lb_capacity = lb_maximum;
     }
-    lb_pos = "src/std/json.lucb:27:9";
+    lb_pos = "src/std/json.lucb:26:9";
     lb_span lb_data __attribute__((unused)) = (({ lb_r_u8_0s _lb_r152 = ({ lb_iface _lb_a153 = lb_memory_heap; size_t _lb_n153 = (size_t)(lb_capacity); lb_r_u8_0s _lb_r153; if (_lb_n153 > UINT64_C(4611686018427387904)) { _lb_r153 = ((lb_r_u8_0s){ .error = { .code = 208273409, .message = (lb_str){"memory.exhausted", 16} }, .failed = true }); } else { size_t _lb_bytes153 = sizeof(uint8_t) * _lb_n153; lb_o_u8_0s _lb_ao153 = lb_alloc_call(_lb_a153, _lb_bytes153, _Alignof(uint8_t)); if (_lb_bytes153 != 0 && !_lb_ao153.present) { _lb_r153 = ((lb_r_u8_0s){ .error = { .code = 208273409, .message = (lb_str){"memory.exhausted", 16} }, .failed = true }); } else { _lb_r153.value.data = _lb_ao153.value.data; _lb_r153.value.length = _lb_n153; _lb_r153.failed = false; } } _lb_r153; }); if (_lb_r152.failed) {
         return ((lb_r_unit){ .error = _lb_r152.error, .failed = true });
     } _lb_r152.value; }));
-    lb_pos = "src/std/json.lucb:28:9";
+    lb_pos = "src/std/json.lucb:27:9";
     (void)(lb_memory_copy_0g1_u8(lb_data, self->storage, self->used));
-    lb_pos = "src/std/json.lucb:29:9";
+    lb_pos = "src/std/json.lucb:28:9";
     if (!!((((size_t)((self->storage.length))) > ((size_t)(0ULL))))) 
     {
-        lb_pos = "src/std/json.lucb:30:13";
+        lb_pos = "src/std/json.lucb:29:13";
         { lb_span _lb_s154 = self->storage; lb_release_call(lb_memory_heap, (lb_span){ (void*)(_lb_s154.data), lb_mul_u(_lb_s154.length, sizeof(uint8_t), 64) }); }
     }
-    lb_pos = "src/std/json.lucb:31:9";
+    lb_pos = "src/std/json.lucb:30:9";
     self->storage = lb_data;
     return ((lb_r_unit){ .failed = false });
 }
 __attribute__((weak)) void lb_memory_copy_0g1_u8(lb_span lb_target, lb_cspan lb_source, size_t lb_count) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/memory.lucb:325:5";
+    lb_pos = "src/std/memory.lucb:327:5";
     if (!!(((((size_t)(lb_count)) > ((size_t)((lb_target.length)))) || (((size_t)(lb_count)) > ((size_t)((lb_source.length))))))) 
     {
-        lb_pos = "src/std/memory.lucb:326:9";
+        lb_pos = "src/std/memory.lucb:328:9";
         (void)(lb_trap_text(((lb_str){"index out of bounds", 19})));
     }
-    lb_pos = "src/std/memory.lucb:327:5";
+    lb_pos = "src/std/memory.lucb:329:5";
     if (!!((((size_t)(lb_count)) > ((size_t)(0ULL))))) 
     {
-        lb_pos = "src/std/memory.lucb:328:9";
+        lb_pos = "src/std/memory.lucb:330:9";
         (void)(((void)(({ void* _lb_sq155 __attribute__((unused)) = ((uint8_t*)(lb_target.data)); const void* _lb_sq156 __attribute__((unused)) = ((const uint8_t*)(lb_source.data)); size_t _lb_sq157 __attribute__((unused)) = ({ size_t _lb_sq158 __attribute__((unused)) = lb_count; size_t _lb_sq159 __attribute__((unused)) = ((size_t)sizeof(uint8_t)); (size_t)(lb_mul_u((uint64_t)(_lb_sq158), (uint64_t)(_lb_sq159), 64)); }); ({ void* _lb_fr = lb_x_memory_memcpy(_lb_sq155, _lb_sq156, _lb_sq157); if (!_lb_fr) lb_trap("null_foreign"); _lb_fr; }); }))));
     }
 }
 __attribute__((weak)) bool lb_interop_Owner_0g1_json_Value_7is_open(struct lb_ownership_Object* lb_object) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/json.lucb:36:9";
+    lb_pos = "src/std/json.lucb:35:9";
     (void)(lb_ownership_11check_alive(lb_object));
-    lb_pos = "src/std/json.lucb:37:9";
+    lb_pos = "src/std/json.lucb:36:9";
     bool _lb_ret160 = (!((((struct lb_interop_Owner_0g1_json_Value*)(lb_object))))->closed);
     return _lb_ret160;
     lb_trap("unreachable");
 }
 __attribute__((weak)) void lb_interop_Owner_0g1_json_Value_enter(struct lb_ownership_Object* lb_object) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/json.lucb:40:9";
+    lb_pos = "src/std/json.lucb:39:9";
     (void)(((void)(lb_ownership_retain(lb_object))));
-    lb_pos = "src/std/json.lucb:41:1";
+    lb_pos = "src/std/json.lucb:40:1";
     { size_t* lb__cell161 = &(((((struct lb_interop_Owner_0g1_json_Value*)(lb_object))))->active);
     (*(lb__cell161)) = (size_t)(lb_add_u((uint64_t)((*(lb__cell161))), (uint64_t)(1ULL), 64)); }
 }
 __attribute__((weak)) void lb_interop_Owner_0g1_json_Value_leave(struct lb_ownership_Object* lb_object) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/json.lucb:44:13";
+    lb_pos = "src/std/json.lucb:43:13";
     (void)(lb_ownership_11check_alive(lb_object));
-    lb_pos = "src/std/json.lucb:45:9";
+    lb_pos = "src/std/json.lucb:44:9";
     struct lb_interop_Owner_0g1_json_Value* lb_owner __attribute__((unused)) = ((struct lb_interop_Owner_0g1_json_Value*)(lb_object));
-    lb_pos = "src/std/json.lucb:46:9";
+    lb_pos = "src/std/json.lucb:45:9";
     if (!!(((lb_owner)->active == 0ULL))) 
     {
-        lb_pos = "src/std/json.lucb:47:9";
+        lb_pos = "src/std/json.lucb:46:9";
         (void)(lb_trap_text(((lb_str){"a native call guard was left twice", 34})));
     }
-    lb_pos = "src/std/json.lucb:48:1";
+    lb_pos = "src/std/json.lucb:47:1";
     { size_t* lb__cell162 = &((lb_owner)->active);
     (*(lb__cell162)) = (size_t)(lb_sub_u((uint64_t)((*(lb__cell162))), (uint64_t)(1ULL), 64)); }
-    lb_pos = "src/std/json.lucb:49:1";
+    lb_pos = "src/std/json.lucb:48:1";
     if (!!(((lb_owner)->closed && ((lb_owner)->active == 0ULL)))) 
     {
-        lb_pos = "src/std/json.lucb:50:5";
+        lb_pos = "src/std/json.lucb:49:5";
         (void)(lb_interop_13dispose_owner_0g1_json_Value(lb_owner));
     }
-    lb_pos = "src/std/json.lucb:51:5";
+    lb_pos = "src/std/json.lucb:50:5";
     (void)(lb_ownership_release(lb_object));
 }
 __attribute__((weak)) void lb_interop_Owner_0g1_json_Value_12finish_owner(struct lb_ownership_Object* lb_object) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/json.lucb:54:5";
+    lb_pos = "src/std/json.lucb:53:5";
     (void)(lb_interop_11close_owner_0g1_json_Value(((struct lb_interop_Owner_0g1_json_Value*)(lb_object))));
 }
 __attribute__((weak)) void lb_interop_Owner_0g1_json_Value_10drop_owner(struct lb_ownership_Object* lb_object) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/json.lucb:57:13";
+    lb_pos = "src/std/json.lucb:56:13";
     struct lb_interop_Owner_0g1_json_Value* lb_owner __attribute__((unused)) = ((struct lb_interop_Owner_0g1_json_Value*)(lb_object));
-    lb_pos = "src/std/json.lucb:58:13";
+    lb_pos = "src/std/json.lucb:57:13";
     struct lb_json_Value* _lb_o163 = (lb_owner)->native;
     if (_lb_o163 != ((void*)0)) {
         struct lb_json_Value* lb_native __attribute__((unused)) = _lb_o163;
         {
-            lb_pos = "src/std/json.lucb:59:9";
+            lb_pos = "src/std/json.lucb:58:9";
             lb_iface lb_allocator __attribute__((unused)) = ({ lb_iface _lb_o164 = (lb_owner)->native_allocator; if (_lb_o164.data == ((void*)0)) {
                 (void)(lb_trap_text(((lb_str){"native storage has no allocator", 31})));
             } _lb_o164; });
-            lb_pos = "src/std/json.lucb:60:13";
+            lb_pos = "src/std/json.lucb:59:13";
             (lb_owner)->native = ((void*)0);
-            lb_pos = "src/std/json.lucb:61:13";
+            lb_pos = "src/std/json.lucb:60:13";
             lb_release_call(lb_allocator, (lb_span){ (void*)(lb_native), sizeof(lb_json_Value) });
         }
     }
 }
 __attribute__((weak)) void lb_interop_Owner_0g1_json_Value_11trace_owner(struct lb_ownership_Object* lb_object, lb_fn_0F2_ownership_Object_0p_void_0p_unit lb_visit, void* lb_context) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/json.lucb:64:13";
+    lb_pos = "src/std/json.lucb:63:13";
     struct lb_interop_Owner_0g1_json_Value* lb_owner __attribute__((unused)) = ((struct lb_interop_Owner_0g1_json_Value*)(lb_object));
-    lb_pos = "src/std/json.lucb:65:13";
+    lb_pos = "src/std/json.lucb:64:13";
     if (!!((lb_owner)->disposed)) 
     {
-        lb_pos = "src/std/json.lucb:66:5";
+        lb_pos = "src/std/json.lucb:65:5";
         return;
     }
-    lb_pos = "src/std/json.lucb:67:1";
+    lb_pos = "src/std/json.lucb:66:1";
     struct lb_json_Value* _lb_o165 = (lb_owner)->native;
     if (_lb_o165 != ((void*)0)) {
         struct lb_json_Value* lb_native __attribute__((unused)) = _lb_o165;
         {
-            lb_pos = "src/std/json.lucb:68:1";
+            lb_pos = "src/std/json.lucb:67:1";
             lb_fn_0F3_json_Value_0q_0F2_ownership_Object_0p_void_0p_unit_void_0p_unit _lb_o166 = (lb_owner)->declaration.trace;
             if (_lb_o166 != ((void*)0)) {
                 lb_fn_0F3_json_Value_0q_0F2_ownership_Object_0p_void_0p_unit_void_0p_unit lb_trace __attribute__((unused)) = _lb_o166;
                 {
-                    lb_pos = "src/std/json.lucb:69:1";
+                    lb_pos = "src/std/json.lucb:68:1";
                     (void)((lb_trace)(lb_native, lb_visit, lb_context));
                 }
             }
@@ -5240,95 +5240,95 @@ __attribute__((weak)) void lb_interop_Owner_0g1_json_Value_11trace_owner(struct 
 }
 __attribute__((weak)) lb_r_unit lb_interop_Reservation_0g1_json_Value_init(lb_interop_Reservation_0g1_json_Value* self, lb_interop_Type_0g1_json_Value lb_declaration) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/json.lucb:94:9";
+    lb_pos = "src/std/json.lucb:92:9";
     if (!!((lb_declaration.main_thread && (!lb_thread_7is_main())))) 
     {
-        lb_pos = "src/std/json.lucb:95:9";
+        lb_pos = "src/std/json.lucb:93:9";
         lb_r_unit _lb_err167 = ((lb_r_unit){ .error = { .code = (int32_t)(lb_interop_12wrong_thread), .message = ((lb_str){"this native type requires the process main thread", 49}) }, .failed = true });
         return _lb_err167;
     }
-    lb_pos = "src/std/json.lucb:96:1";
+    lb_pos = "src/std/json.lucb:94:9";
     lb_ownership_Info lb_information __attribute__((unused)) = ({ lb_str _lb_sq168 __attribute__((unused)) = lb_declaration.name; size_t _lb_sq169 __attribute__((unused)) = ((size_t)sizeof(lb_interop_Owner_0g1_json_Value)); lb_fn_0F1_ownership_Object_0p_unit _lb_sq170 __attribute__((unused)) = lb_interop_Owner_0g1_json_Value_12finish_owner; lb_fn_0F1_ownership_Object_0p_unit _lb_sq171 __attribute__((unused)) = lb_interop_Owner_0g1_json_Value_10drop_owner; lb_fn_0F3_ownership_Object_0p_0F2_ownership_Object_0p_void_0p_unit_void_0p_unit _lb_sq172 __attribute__((unused)) = lb_interop_Owner_0g1_json_Value_11trace_owner; lb_fn_0F1_ownership_Object_0p_u64 _lb_sq173 __attribute__((unused)) = ((void*)0); ((lb_ownership_Info){.name = _lb_sq168, .size = _lb_sq169, .finish = _lb_sq170, .drop = _lb_sq171, .trace = _lb_sq172, .identity = _lb_sq173}); });
-    lb_pos = "src/std/json.lucb:98:9";
+    lb_pos = "src/std/json.lucb:96:5";
     struct lb_interop_Owner_0g1_json_Value* lb_owner __attribute__((unused)) = ((struct lb_interop_Owner_0g1_json_Value*)((({ lb_r_ownership_Object_0p _lb_r174 = ({ struct lb_ownership_Info* _lb_sq175 __attribute__((unused)) = &(lb_information); size_t _lb_sq176 __attribute__((unused)) = ((size_t)sizeof(lb_interop_Owner_0g1_json_Value)); lb_ownership_reserve(_lb_sq175, _lb_sq176, ((lb_iface){ ((void*)0), ((void*)0) })); }); if (_lb_r174.failed) {
         return ((lb_r_unit){ .error = _lb_r174.error, .failed = true });
     } _lb_r174.value; }))));
-    lb_pos = "src/std/json.lucb:99:9";
+    lb_pos = "src/std/json.lucb:97:9";
     (lb_owner)->information = lb_information;
-    lb_pos = "src/std/json.lucb:100:9";
+    lb_pos = "src/std/json.lucb:98:9";
     (lb_owner)->header.info = &((lb_owner)->information);
-    lb_pos = "src/std/json.lucb:101:9";
+    lb_pos = "src/std/json.lucb:99:9";
     (lb_owner)->declaration = lb_declaration;
-    lb_pos = "src/std/json.lucb:102:13";
+    lb_pos = "src/std/json.lucb:100:9";
     self->owner = lb_owner;
     return ((lb_r_unit){ .failed = false });
 }
 __attribute__((weak)) lb_interop_Reference_0g1_json_Value lb_interop_Reservation_0g1_json_Value_publish(lb_interop_Reservation_0g1_json_Value* self, struct lb_json_Value* lb_native, lb_iface lb_allocator) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/json.lucb:105:9";
+    lb_pos = "src/std/json.lucb:103:13";
     struct lb_interop_Owner_0g1_json_Value* lb_owner __attribute__((unused)) = ({ struct lb_interop_Owner_0g1_json_Value* _lb_o177 = self->owner; if (_lb_o177 == ((void*)0)) {
         (void)(lb_trap_text(((lb_str){"native ownership has already been published or cancelled", 56})));
     } _lb_o177; });
-    lb_pos = "src/std/json.lucb:106:1";
+    lb_pos = "src/std/json.lucb:104:9";
     (lb_owner)->native = lb_native;
-    lb_pos = "src/std/json.lucb:107:5";
+    lb_pos = "src/std/json.lucb:105:1";
     (lb_owner)->native_allocator = ({ lb_iface _lb_o178 = lb_allocator; if (_lb_o178.data == ((void*)0)) { _lb_o178 = lb_memory_allocator; } _lb_o178; });
-    lb_pos = "src/std/json.lucb:108:9";
+    lb_pos = "src/std/json.lucb:106:5";
     self->owner = ((void*)0);
-    lb_pos = "src/std/json.lucb:109:9";
+    lb_pos = "src/std/json.lucb:107:9";
     lb_interop_Reference_0g1_json_Value _lb_ret179 = ({ lb_interop_Reference_0g1_json_Value _lb_iv180 = {}; lb_interop_Reference_0g1_json_Value_init(&_lb_iv180, lb_owner); _lb_iv180; });
     return _lb_ret179;
     lb_trap("unreachable");
 }
 __attribute__((weak)) void lb_interop_Reservation_0g1_json_Value_cancel(lb_interop_Reservation_0g1_json_Value* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/json.lucb:112:1";
+    lb_pos = "src/std/json.lucb:110:9";
     struct lb_interop_Owner_0g1_json_Value* _lb_o181 = self->owner;
     if (_lb_o181 != ((void*)0)) {
         struct lb_interop_Owner_0g1_json_Value* lb_owner __attribute__((unused)) = _lb_o181;
         {
-            lb_pos = "src/std/json.lucb:113:5";
+            lb_pos = "src/std/json.lucb:111:1";
             self->owner = ((void*)0);
-            lb_pos = "src/std/json.lucb:114:9";
+            lb_pos = "src/std/json.lucb:112:5";
             (void)(lb_ownership_19discard_unpublished(&((lb_owner)->header)));
         }
     }
 }
 __attribute__((weak)) void lb_interop_11close_owner_0g1_json_Value(struct lb_interop_Owner_0g1_json_Value* lb_owner) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/interop/object.lucb:51:5";
+    lb_pos = "src/std/interop/object.lucb:50:5";
     (void)(lb_ownership_11check_alive(&((lb_owner)->header)));
-    lb_pos = "src/std/interop/object.lucb:52:5";
+    lb_pos = "src/std/interop/object.lucb:51:5";
     if (!!((lb_owner)->closed)) 
     {
-        lb_pos = "src/std/interop/object.lucb:53:9";
+        lb_pos = "src/std/interop/object.lucb:52:9";
         return;
     }
-    lb_pos = "src/std/interop/object.lucb:55:5";
+    lb_pos = "src/std/interop/object.lucb:54:5";
     (lb_owner)->closed = true;
-    lb_pos = "src/std/interop/object.lucb:56:5";
+    lb_pos = "src/std/interop/object.lucb:55:5";
     if (!!(((lb_owner)->active == 0ULL))) 
     {
-        lb_pos = "src/std/interop/object.lucb:57:9";
+        lb_pos = "src/std/interop/object.lucb:56:9";
         (void)(lb_interop_13dispose_owner_0g1_json_Value(lb_owner));
     }
 }
 __attribute__((weak)) void lb_interop_13dispose_owner_0g1_json_Value(struct lb_interop_Owner_0g1_json_Value* lb_owner) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/interop/object.lucb:60:5";
+    lb_pos = "src/std/interop/object.lucb:59:5";
     if (!!((lb_owner)->disposed)) 
     {
-        lb_pos = "src/std/interop/object.lucb:61:9";
+        lb_pos = "src/std/interop/object.lucb:60:9";
         return;
     }
-    lb_pos = "src/std/interop/object.lucb:62:5";
+    lb_pos = "src/std/interop/object.lucb:61:5";
     (lb_owner)->disposed = true;
-    lb_pos = "src/std/interop/object.lucb:63:5";
+    lb_pos = "src/std/interop/object.lucb:62:5";
     struct lb_json_Value* _lb_o182 = (lb_owner)->native;
     if (_lb_o182 != ((void*)0)) {
         struct lb_json_Value* lb_native __attribute__((unused)) = _lb_o182;
         {
-            lb_pos = "src/std/interop/object.lucb:64:9";
+            lb_pos = "src/std/interop/object.lucb:63:9";
             (void)(((lb_owner)->declaration.dispose)(lb_native));
         }
     }

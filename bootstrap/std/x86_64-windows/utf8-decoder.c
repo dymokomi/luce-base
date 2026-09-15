@@ -4275,162 +4275,162 @@ extern uint32_t lb_gpu_22vulkan_api_version_1_0;
 
 __attribute__((weak)) lb_interop_Transfer_0g1_str lb_interop_Transfer_0g1_str_plain(void) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/utf8/decoder.lucb:723:1";
+    lb_pos = "src/std/utf8/decoder.lucb:722:1";
     lb_interop_Transfer_0g1_str _lb_ret1 = ((lb_interop_Transfer_0g1_str){.copy = lb_interop_Transfer_0g1_str_10copy_plain});
     return _lb_ret1;
     lb_trap("unreachable");
 }
 __attribute__((weak)) lb_r_interop_Packet_0g1_str lb_interop_Transfer_0g1_str_10copy_plain(lb_str lb_value) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/utf8/decoder.lucb:726:1";
+    lb_pos = "src/std/utf8/decoder.lucb:725:1";
     lb_interop_Packet_0g1_str _lb_ret2 = ({ lb_interop_Packet_0g1_str _lb_iv3 = {}; lb_interop_Packet_0g1_str_init(&_lb_iv3, lb_value, ((void*)0), ((void*)0)); _lb_iv3; });
     return ((lb_r_interop_Packet_0g1_str){ .value = _lb_ret2, .failed = false });
     lb_trap("unreachable");
 }
 __attribute__((weak)) lb_interop_Transfer_0g1_u8_0c lb_interop_Transfer_0g1_u8_0c_plain(void) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/utf8/decoder.lucb:723:1";
+    lb_pos = "src/std/utf8/decoder.lucb:722:1";
     lb_interop_Transfer_0g1_u8_0c _lb_ret4 = ((lb_interop_Transfer_0g1_u8_0c){.copy = lb_interop_Transfer_0g1_u8_0c_10copy_plain});
     return _lb_ret4;
     lb_trap("unreachable");
 }
 __attribute__((weak)) lb_r_interop_Packet_0g1_u8_0c lb_interop_Transfer_0g1_u8_0c_10copy_plain(lb_cspan lb_value) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/utf8/decoder.lucb:726:1";
+    lb_pos = "src/std/utf8/decoder.lucb:725:1";
     lb_interop_Packet_0g1_u8_0c _lb_ret5 = ({ lb_interop_Packet_0g1_u8_0c _lb_iv6 = {}; lb_interop_Packet_0g1_u8_0c_init(&_lb_iv6, lb_value, ((void*)0), ((void*)0)); _lb_iv6; });
     return ((lb_r_interop_Packet_0g1_u8_0c){ .value = _lb_ret5, .failed = false });
     lb_trap("unreachable");
 }
 lb_r_char_0o lb_utf8_Decoder_push(lb_utf8_Decoder* self, uint8_t lb_byte) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/utf8/decoder.lucb:20:9";
+    lb_pos = "src/std/utf8/decoder.lucb:19:9";
     (void)((({ lb_r_unit _lb_r7 = lb_utf8_Decoder_13check_failure(self); if (_lb_r7.failed) {
         return ((lb_r_char_0o){ .error = _lb_r7.error, .failed = true });
     } (void)0; })));
-    lb_pos = "src/std/utf8/decoder.lucb:21:9";
+    lb_pos = "src/std/utf8/decoder.lucb:20:9";
     if (!!((self->remaining == 0ULL))) 
     {
-        lb_pos = "src/std/utf8/decoder.lucb:22:13";
+        lb_pos = "src/std/utf8/decoder.lucb:21:13";
         if (!!((((uint8_t)(lb_byte)) < ((uint8_t)(128ULL))))) 
         {
-            lb_pos = "src/std/utf8/decoder.lucb:23:17";
+            lb_pos = "src/std/utf8/decoder.lucb:22:17";
             lb_o_char _lb_ret8 = ((lb_o_char){ .value = ((uint32_t)lb_to_char(lb_conv_u((uint64_t)(lb_byte), 8, 0, 32, 0, 0), 0)), .present = true });
             return ((lb_r_char_0o){ .value = _lb_ret8, .failed = false });
         }
-        lb_pos = "src/std/utf8/decoder.lucb:24:13";
+        lb_pos = "src/std/utf8/decoder.lucb:23:13";
         self->minimum = 128ULL;
-        lb_pos = "src/std/utf8/decoder.lucb:25:13";
+        lb_pos = "src/std/utf8/decoder.lucb:24:13";
         self->maximum = 191ULL;
-        lb_pos = "src/std/utf8/decoder.lucb:26:13";
+        lb_pos = "src/std/utf8/decoder.lucb:25:13";
         if (!!(((((uint8_t)(lb_byte)) >= ((uint8_t)(194ULL))) && (((uint8_t)(lb_byte)) <= ((uint8_t)(223ULL)))))) 
         {
-            lb_pos = "src/std/utf8/decoder.lucb:27:17";
+            lb_pos = "src/std/utf8/decoder.lucb:26:17";
             self->scalar = ((uint32_t)lb_conv_u((uint64_t)((((uint8_t)(lb_byte & 31ULL)))), 8, 0, 32, 0, 1));
-            lb_pos = "src/std/utf8/decoder.lucb:28:17";
+            lb_pos = "src/std/utf8/decoder.lucb:27:17";
             self->remaining = 1ULL;
         }
         else {
-            lb_pos = "src/std/utf8/decoder.lucb:29:13";
+            lb_pos = "src/std/utf8/decoder.lucb:28:13";
             if (!!(((((uint8_t)(lb_byte)) >= ((uint8_t)(224ULL))) && (((uint8_t)(lb_byte)) <= ((uint8_t)(239ULL)))))) 
             {
-                lb_pos = "src/std/utf8/decoder.lucb:30:17";
+                lb_pos = "src/std/utf8/decoder.lucb:29:17";
                 self->scalar = ((uint32_t)lb_conv_u((uint64_t)((((uint8_t)(lb_byte & 15ULL)))), 8, 0, 32, 0, 1));
-                lb_pos = "src/std/utf8/decoder.lucb:31:17";
+                lb_pos = "src/std/utf8/decoder.lucb:30:17";
                 self->remaining = 2ULL;
-                lb_pos = "src/std/utf8/decoder.lucb:32:17";
+                lb_pos = "src/std/utf8/decoder.lucb:31:17";
                 if (!!((lb_byte == 224ULL))) 
                 {
-                    lb_pos = "src/std/utf8/decoder.lucb:33:21";
+                    lb_pos = "src/std/utf8/decoder.lucb:32:21";
                     self->minimum = 160ULL;
                 }
                 else {
-                    lb_pos = "src/std/utf8/decoder.lucb:34:17";
+                    lb_pos = "src/std/utf8/decoder.lucb:33:17";
                     if (!!((lb_byte == 237ULL))) 
                     {
-                        lb_pos = "src/std/utf8/decoder.lucb:35:21";
+                        lb_pos = "src/std/utf8/decoder.lucb:34:21";
                         self->maximum = 159ULL;
                     }
                 }
             }
             else {
-                lb_pos = "src/std/utf8/decoder.lucb:36:13";
+                lb_pos = "src/std/utf8/decoder.lucb:35:13";
                 if (!!(((((uint8_t)(lb_byte)) >= ((uint8_t)(240ULL))) && (((uint8_t)(lb_byte)) <= ((uint8_t)(244ULL)))))) 
                 {
-                    lb_pos = "src/std/utf8/decoder.lucb:37:17";
+                    lb_pos = "src/std/utf8/decoder.lucb:36:17";
                     self->scalar = ((uint32_t)lb_conv_u((uint64_t)((((uint8_t)(lb_byte & 7ULL)))), 8, 0, 32, 0, 1));
-                    lb_pos = "src/std/utf8/decoder.lucb:38:17";
+                    lb_pos = "src/std/utf8/decoder.lucb:37:17";
                     self->remaining = 3ULL;
-                    lb_pos = "src/std/utf8/decoder.lucb:39:17";
+                    lb_pos = "src/std/utf8/decoder.lucb:38:17";
                     if (!!((lb_byte == 240ULL))) 
                     {
-                        lb_pos = "src/std/utf8/decoder.lucb:40:21";
+                        lb_pos = "src/std/utf8/decoder.lucb:39:21";
                         self->minimum = 144ULL;
                     }
                     else {
-                        lb_pos = "src/std/utf8/decoder.lucb:41:17";
+                        lb_pos = "src/std/utf8/decoder.lucb:40:17";
                         if (!!((lb_byte == 244ULL))) 
                         {
-                            lb_pos = "src/std/utf8/decoder.lucb:42:21";
+                            lb_pos = "src/std/utf8/decoder.lucb:41:21";
                             self->maximum = 143ULL;
                         }
                     }
                 }
                 else 
                 {
-                    lb_pos = "src/std/utf8/decoder.lucb:44:17";
+                    lb_pos = "src/std/utf8/decoder.lucb:43:17";
                     self->failure = 1ULL;
-                    lb_pos = "src/std/utf8/decoder.lucb:45:17";
+                    lb_pos = "src/std/utf8/decoder.lucb:44:17";
                     lb_r_char_0o _lb_err9 = ((lb_r_char_0o){ .error = { .code = (int32_t)(lb_utf8_16invalid_sequence), .message = ((lb_str){"invalid UTF-8 leading byte", 26}) }, .failed = true });
                     return _lb_err9;
                 }
             }
         }
-        lb_pos = "src/std/utf8/decoder.lucb:46:13";
+        lb_pos = "src/std/utf8/decoder.lucb:45:13";
         lb_o_char _lb_ret10 = ((lb_o_char){ .present = false });
         return ((lb_r_char_0o){ .value = _lb_ret10, .failed = false });
     }
-    lb_pos = "src/std/utf8/decoder.lucb:47:9";
+    lb_pos = "src/std/utf8/decoder.lucb:46:9";
     if (!!(((((uint8_t)(lb_byte)) < ((uint8_t)(self->minimum))) || (((uint8_t)(lb_byte)) > ((uint8_t)(self->maximum)))))) 
     {
-        lb_pos = "src/std/utf8/decoder.lucb:48:13";
+        lb_pos = "src/std/utf8/decoder.lucb:47:13";
         self->failure = 1ULL;
-        lb_pos = "src/std/utf8/decoder.lucb:49:13";
+        lb_pos = "src/std/utf8/decoder.lucb:48:13";
         lb_r_char_0o _lb_err11 = ((lb_r_char_0o){ .error = { .code = (int32_t)(lb_utf8_16invalid_sequence), .message = ((lb_str){"invalid UTF-8 continuation byte", 31}) }, .failed = true });
         return _lb_err11;
     }
-    lb_pos = "src/std/utf8/decoder.lucb:50:9";
+    lb_pos = "src/std/utf8/decoder.lucb:49:9";
     self->scalar = ((uint32_t)(((uint32_t)(lb_shl_u((uint64_t)(self->scalar), (uint64_t)((uint32_t)(6LL)), 32))) | ((uint32_t)lb_conv_u((uint64_t)((((uint8_t)(lb_byte & 63ULL)))), 8, 0, 32, 0, 1))));
-    lb_pos = "src/std/utf8/decoder.lucb:51:9";
+    lb_pos = "src/std/utf8/decoder.lucb:50:9";
     { uint8_t* lb__cell12 = &(self->remaining);
     (*(lb__cell12)) = (uint8_t)(lb_sub_u((uint64_t)((*(lb__cell12))), (uint64_t)(1ULL), 8)); }
-    lb_pos = "src/std/utf8/decoder.lucb:52:9";
+    lb_pos = "src/std/utf8/decoder.lucb:51:9";
     self->minimum = 128ULL;
-    lb_pos = "src/std/utf8/decoder.lucb:53:9";
+    lb_pos = "src/std/utf8/decoder.lucb:52:9";
     self->maximum = 191ULL;
-    lb_pos = "src/std/utf8/decoder.lucb:54:9";
+    lb_pos = "src/std/utf8/decoder.lucb:53:9";
     if (!!((self->remaining == 0ULL))) 
     {
-        lb_pos = "src/std/utf8/decoder.lucb:55:13";
+        lb_pos = "src/std/utf8/decoder.lucb:54:13";
         lb_o_char _lb_ret13 = ((lb_o_char){ .value = ((uint32_t)lb_to_char(lb_conv_u((uint64_t)(self->scalar), 32, 0, 32, 0, 0), 0)), .present = true });
         return ((lb_r_char_0o){ .value = _lb_ret13, .failed = false });
     }
-    lb_pos = "src/std/utf8/decoder.lucb:56:9";
+    lb_pos = "src/std/utf8/decoder.lucb:55:9";
     lb_o_char _lb_ret14 = ((lb_o_char){ .present = false });
     return ((lb_r_char_0o){ .value = _lb_ret14, .failed = false });
     lb_trap("unreachable");
 }
 lb_r_unit lb_utf8_Decoder_finish(lb_utf8_Decoder* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/utf8/decoder.lucb:62:9";
+    lb_pos = "src/std/utf8/decoder.lucb:61:9";
     (void)((({ lb_r_unit _lb_r15 = lb_utf8_Decoder_13check_failure(self); if (_lb_r15.failed) {
         return ((lb_r_unit){ .error = _lb_r15.error, .failed = true });
     } (void)0; })));
-    lb_pos = "src/std/utf8/decoder.lucb:63:9";
+    lb_pos = "src/std/utf8/decoder.lucb:62:9";
     if (!!((!(self->remaining == 0ULL)))) 
     {
-        lb_pos = "src/std/utf8/decoder.lucb:64:13";
+        lb_pos = "src/std/utf8/decoder.lucb:63:13";
         self->failure = 2ULL;
-        lb_pos = "src/std/utf8/decoder.lucb:65:13";
+        lb_pos = "src/std/utf8/decoder.lucb:64:13";
         lb_r_unit _lb_err16 = ((lb_r_unit){ .error = { .code = (int32_t)(lb_utf8_19incomplete_sequence), .message = ((lb_str){"the UTF-8 stream ends within a scalar", 37}) }, .failed = true });
         return _lb_err16;
     }
@@ -4438,48 +4438,48 @@ lb_r_unit lb_utf8_Decoder_finish(lb_utf8_Decoder* self) {
 }
 bool lb_utf8_Decoder_10is_pending(const lb_utf8_Decoder* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/utf8/decoder.lucb:70:9";
+    lb_pos = "src/std/utf8/decoder.lucb:69:9";
     bool _lb_ret17 = ((self->failure == 0ULL) && (!(self->remaining == 0ULL)));
     return _lb_ret17;
     lb_trap("unreachable");
 }
 bool lb_utf8_Decoder_9is_failed(const lb_utf8_Decoder* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/utf8/decoder.lucb:74:9";
+    lb_pos = "src/std/utf8/decoder.lucb:73:9";
     bool _lb_ret18 = (!(self->failure == 0ULL));
     return _lb_ret18;
     lb_trap("unreachable");
 }
 void lb_utf8_Decoder_reset(lb_utf8_Decoder* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/utf8/decoder.lucb:78:9";
+    lb_pos = "src/std/utf8/decoder.lucb:77:9";
     self->scalar = 0ULL;
-    lb_pos = "src/std/utf8/decoder.lucb:79:9";
+    lb_pos = "src/std/utf8/decoder.lucb:78:9";
     self->remaining = 0ULL;
-    lb_pos = "src/std/utf8/decoder.lucb:80:9";
+    lb_pos = "src/std/utf8/decoder.lucb:79:9";
     self->minimum = 0ULL;
-    lb_pos = "src/std/utf8/decoder.lucb:81:9";
+    lb_pos = "src/std/utf8/decoder.lucb:80:9";
     self->maximum = 0ULL;
-    lb_pos = "src/std/utf8/decoder.lucb:82:9";
+    lb_pos = "src/std/utf8/decoder.lucb:81:9";
     self->failure = 0ULL;
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_str_init(lb_interop_Packet_0g1_str* self, lb_str lb_value, void* lb_storage, lb_fn_0F1_void_0p_unit lb_dispose) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/utf8/decoder.lucb:707:1";
+    lb_pos = "src/std/utf8/decoder.lucb:706:1";
     self->value = lb_value;
-    lb_pos = "src/std/utf8/decoder.lucb:708:1";
+    lb_pos = "src/std/utf8/decoder.lucb:707:1";
     self->storage = lb_storage;
-    lb_pos = "src/std/utf8/decoder.lucb:709:1";
+    lb_pos = "src/std/utf8/decoder.lucb:708:1";
     self->dispose = lb_dispose;
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_str_release(const lb_interop_Packet_0g1_str* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/utf8/decoder.lucb:712:1";
+    lb_pos = "src/std/utf8/decoder.lucb:711:1";
     void* _lb_o19 = self->storage;
     if (_lb_o19 != ((void*)0)) {
         void* lb_storage __attribute__((unused)) = _lb_o19;
         {
-            lb_pos = "src/std/utf8/decoder.lucb:713:1";
+            lb_pos = "src/std/utf8/decoder.lucb:712:1";
             (void)(((({ lb_fn_0F1_void_0p_unit _lb_o20 = self->dispose; if (_lb_o20 == ((void*)0)) {
                 (void)(lb_trap_text(((lb_str){"a packet has storage without a disposer", 39})));
             } _lb_o20; })))(lb_storage));
@@ -4488,21 +4488,21 @@ __attribute__((weak)) void lb_interop_Packet_0g1_str_release(const lb_interop_Pa
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_init(lb_interop_Packet_0g1_u8_0c* self, lb_cspan lb_value, void* lb_storage, lb_fn_0F1_void_0p_unit lb_dispose) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/utf8/decoder.lucb:707:1";
+    lb_pos = "src/std/utf8/decoder.lucb:706:1";
     self->value = lb_value;
-    lb_pos = "src/std/utf8/decoder.lucb:708:1";
+    lb_pos = "src/std/utf8/decoder.lucb:707:1";
     self->storage = lb_storage;
-    lb_pos = "src/std/utf8/decoder.lucb:709:1";
+    lb_pos = "src/std/utf8/decoder.lucb:708:1";
     self->dispose = lb_dispose;
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_release(const lb_interop_Packet_0g1_u8_0c* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/utf8/decoder.lucb:712:1";
+    lb_pos = "src/std/utf8/decoder.lucb:711:1";
     void* _lb_o21 = self->storage;
     if (_lb_o21 != ((void*)0)) {
         void* lb_storage __attribute__((unused)) = _lb_o21;
         {
-            lb_pos = "src/std/utf8/decoder.lucb:713:1";
+            lb_pos = "src/std/utf8/decoder.lucb:712:1";
             (void)(((({ lb_fn_0F1_void_0p_unit _lb_o22 = self->dispose; if (_lb_o22 == ((void*)0)) {
                 (void)(lb_trap_text(((lb_str){"a packet has storage without a disposer", 39})));
             } _lb_o22; })))(lb_storage));
@@ -4511,17 +4511,17 @@ __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_release(const lb_interop_
 }
 lb_r_unit lb_utf8_Decoder_13check_failure(const lb_utf8_Decoder* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/utf8/decoder.lucb:85:9";
+    lb_pos = "src/std/utf8/decoder.lucb:84:9";
     if (!!((self->failure == 1ULL))) 
     {
-        lb_pos = "src/std/utf8/decoder.lucb:86:13";
+        lb_pos = "src/std/utf8/decoder.lucb:85:13";
         lb_r_unit _lb_err23 = ((lb_r_unit){ .error = { .code = (int32_t)(lb_utf8_16invalid_sequence), .message = ((lb_str){"the UTF-8 decoder has rejected malformed input", 46}) }, .failed = true });
         return _lb_err23;
     }
-    lb_pos = "src/std/utf8/decoder.lucb:87:9";
+    lb_pos = "src/std/utf8/decoder.lucb:86:9";
     if (!!((self->failure == 2ULL))) 
     {
-        lb_pos = "src/std/utf8/decoder.lucb:88:13";
+        lb_pos = "src/std/utf8/decoder.lucb:87:13";
         lb_r_unit _lb_err24 = ((lb_r_unit){ .error = { .code = (int32_t)(lb_utf8_19incomplete_sequence), .message = ((lb_str){"the UTF-8 decoder has rejected incomplete input", 47}) }, .failed = true });
         return _lb_err24;
     }

@@ -4314,42 +4314,42 @@ extern uint32_t lb_gpu_22vulkan_api_version_1_0;
 
 __attribute__((weak)) lb_interop_Transfer_0g1_str lb_interop_Transfer_0g1_str_plain(void) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/window/windows/native.lucb:23:1";
+    lb_pos = "src/std/window/windows/native.lucb:22:5";
     lb_interop_Transfer_0g1_str _lb_ret1 = ((lb_interop_Transfer_0g1_str){.copy = lb_interop_Transfer_0g1_str_10copy_plain});
     return _lb_ret1;
     lb_trap("unreachable");
 }
 __attribute__((weak)) lb_r_interop_Packet_0g1_str lb_interop_Transfer_0g1_str_10copy_plain(lb_str lb_value) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/window/windows/native.lucb:26:1";
+    lb_pos = "src/std/window/windows/native.lucb:25:5";
     lb_interop_Packet_0g1_str _lb_ret2 = ({ lb_interop_Packet_0g1_str _lb_iv3 = {}; lb_interop_Packet_0g1_str_init(&_lb_iv3, lb_value, ((void*)0), ((void*)0)); _lb_iv3; });
     return ((lb_r_interop_Packet_0g1_str){ .value = _lb_ret2, .failed = false });
     lb_trap("unreachable");
 }
 __attribute__((weak)) lb_interop_Transfer_0g1_u8_0c lb_interop_Transfer_0g1_u8_0c_plain(void) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/window/windows/native.lucb:23:1";
+    lb_pos = "src/std/window/windows/native.lucb:22:5";
     lb_interop_Transfer_0g1_u8_0c _lb_ret4 = ((lb_interop_Transfer_0g1_u8_0c){.copy = lb_interop_Transfer_0g1_u8_0c_10copy_plain});
     return _lb_ret4;
     lb_trap("unreachable");
 }
 __attribute__((weak)) lb_r_interop_Packet_0g1_u8_0c lb_interop_Transfer_0g1_u8_0c_10copy_plain(lb_cspan lb_value) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/window/windows/native.lucb:26:1";
+    lb_pos = "src/std/window/windows/native.lucb:25:5";
     lb_interop_Packet_0g1_u8_0c _lb_ret5 = ({ lb_interop_Packet_0g1_u8_0c _lb_iv6 = {}; lb_interop_Packet_0g1_u8_0c_init(&_lb_iv6, lb_value, ((void*)0), ((void*)0)); _lb_iv6; });
     return ((lb_r_interop_Packet_0g1_u8_0c){ .value = _lb_ret5, .failed = false });
     lb_trap("unreachable");
 }
 void* lb_window_sel(char* lb_name) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/window/macos/objc.lucb:65:5";
+    lb_pos = "src/std/window/macos/objc.lucb:64:5";
     void* _lb_ret7 = ({ void* _lb_fr = lb_x_window_16sel_registerName(lb_name); if (!_lb_fr) lb_trap("null_foreign"); _lb_fr; });
     return _lb_ret7;
     lb_trap("unreachable");
 }
 lb_r_void_0p lb_window_12native_class(char* lb_name) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/window/macos/objc.lucb:68:5";
+    lb_pos = "src/std/window/macos/objc.lucb:67:5";
     void* _lb_ret8 = ({ void* _lb_o9 = lb_x_window_13objc_getClass(lb_name); if (_lb_o9 == ((void*)0)) {
         lb_r_void_0p _lb_err10 = ((lb_r_void_0p){ .error = { .code = (int32_t)(lb_window_failed), .message = ((lb_str){"a required AppKit class is unavailable; link AppKit and Foundation", 66}) }, .failed = true });
         return _lb_err10;
@@ -4359,7 +4359,7 @@ lb_r_void_0p lb_window_12native_class(char* lb_name) {
 }
 void* lb_window_required(void* lb_object) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/window/macos/objc.lucb:71:5";
+    lb_pos = "src/std/window/macos/objc.lucb:70:5";
     void* _lb_ret11 = ({ void* _lb_o12 = lb_object; if (_lb_o12 == ((void*)0)) {
         (void)(lb_trap_text(((lb_str){"the native window lost an owned object", 38})));
     } _lb_o12; });
@@ -4368,43 +4368,43 @@ void* lb_window_required(void* lb_object) {
 }
 struct lb_window_State* lb_window_9get_state(void* lb_object) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/window/macos/objc.lucb:74:5";
+    lb_pos = "src/std/window/macos/objc.lucb:73:5";
     void* lb_pointer __attribute__((unused)) = ((void*)0);
-    lb_pos = "src/std/window/macos/objc.lucb:75:5";
+    lb_pos = "src/std/window/macos/objc.lucb:74:5";
     (void)(((void)(lb_x_window_26object_getInstanceVariable(lb_object, "luceState", &(lb_pointer)))));
-    lb_pos = "src/std/window/macos/objc.lucb:76:5";
+    lb_pos = "src/std/window/macos/objc.lucb:75:5";
     void* lb_value __attribute__((unused)) = ({ void* _lb_o13 = lb_pointer; if (_lb_o13 == ((void*)0)) {
         struct lb_window_State* _lb_ret14 = ((void*)0);
         return _lb_ret14;
     } _lb_o13; });
-    lb_pos = "src/std/window/macos/objc.lucb:77:5";
+    lb_pos = "src/std/window/macos/objc.lucb:76:5";
     struct lb_window_State* _lb_ret15 = ((struct lb_window_State*)(lb_value));
     return _lb_ret15;
     lb_trap("unreachable");
 }
 void lb_window_9set_state(void* lb_object, struct lb_window_State* lb_state) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/window/macos/objc.lucb:80:5";
+    lb_pos = "src/std/window/macos/objc.lucb:79:5";
     struct lb_window_State* _lb_o16 = lb_state;
     if (_lb_o16 != ((void*)0)) {
         struct lb_window_State* lb_pointer __attribute__((unused)) = _lb_o16;
         {
-            lb_pos = "src/std/window/macos/objc.lucb:81:9";
+            lb_pos = "src/std/window/macos/objc.lucb:80:9";
             (void)(((void)(lb_x_window_26object_setInstanceVariable(lb_object, "luceState", ((void*)(lb_pointer))))));
         }
     }
     else 
     {
-        lb_pos = "src/std/window/macos/objc.lucb:83:9";
+        lb_pos = "src/std/window/macos/objc.lucb:82:9";
         (void)(((void)(lb_x_window_26object_setInstanceVariable(lb_object, "luceState", ((void*)0)))));
     }
 }
 lb_r_unit lb_window_10add_method(void* lb_native_type, char* lb_name, void* lb_implementation, char* lb_encoding) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/window/macos/objc.lucb:86:5";
+    lb_pos = "src/std/window/macos/objc.lucb:85:5";
     if (!!((!({ void* _lb_sq17 __attribute__((unused)) = lb_native_type; void* _lb_sq18 __attribute__((unused)) = lb_window_sel(lb_name); void* _lb_sq19 __attribute__((unused)) = lb_implementation; char* _lb_sq20 __attribute__((unused)) = lb_encoding; lb_x_window_15class_addMethod(_lb_sq17, _lb_sq18, _lb_sq19, _lb_sq20); })))) 
     {
-        lb_pos = "src/std/window/macos/objc.lucb:87:9";
+        lb_pos = "src/std/window/macos/objc.lucb:86:9";
         lb_r_unit _lb_err21 = ((lb_r_unit){ .error = { .code = (int32_t)(lb_window_failed), .message = ((lb_str){"could not register a native window callback", 43}) }, .failed = true });
         return _lb_err21;
     }
@@ -4412,21 +4412,21 @@ lb_r_unit lb_window_10add_method(void* lb_native_type, char* lb_name, void* lb_i
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_str_init(lb_interop_Packet_0g1_str* self, lb_str lb_value, void* lb_storage, lb_fn_0F1_void_0p_unit lb_dispose) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/window/windows/native.lucb:7:5";
+    lb_pos = "src/std/window/windows/native.lucb:6:5";
     self->value = lb_value;
-    lb_pos = "src/std/window/windows/native.lucb:8:5";
+    lb_pos = "src/std/window/windows/native.lucb:7:5";
     self->storage = lb_storage;
-    lb_pos = "src/std/window/windows/native.lucb:9:5";
+    lb_pos = "src/std/window/windows/native.lucb:8:5";
     self->dispose = lb_dispose;
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_str_release(const lb_interop_Packet_0g1_str* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/window/windows/native.lucb:12:5";
+    lb_pos = "src/std/window/windows/native.lucb:11:5";
     void* _lb_o22 = self->storage;
     if (_lb_o22 != ((void*)0)) {
         void* lb_storage __attribute__((unused)) = _lb_o22;
         {
-            lb_pos = "src/std/window/windows/native.lucb:13:5";
+            lb_pos = "src/std/window/windows/native.lucb:12:5";
             (void)(((({ lb_fn_0F1_void_0p_unit _lb_o23 = self->dispose; if (_lb_o23 == ((void*)0)) {
                 (void)(lb_trap_text(((lb_str){"a packet has storage without a disposer", 39})));
             } _lb_o23; })))(lb_storage));
@@ -4435,21 +4435,21 @@ __attribute__((weak)) void lb_interop_Packet_0g1_str_release(const lb_interop_Pa
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_init(lb_interop_Packet_0g1_u8_0c* self, lb_cspan lb_value, void* lb_storage, lb_fn_0F1_void_0p_unit lb_dispose) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/window/windows/native.lucb:7:5";
+    lb_pos = "src/std/window/windows/native.lucb:6:5";
     self->value = lb_value;
-    lb_pos = "src/std/window/windows/native.lucb:8:5";
+    lb_pos = "src/std/window/windows/native.lucb:7:5";
     self->storage = lb_storage;
-    lb_pos = "src/std/window/windows/native.lucb:9:5";
+    lb_pos = "src/std/window/windows/native.lucb:8:5";
     self->dispose = lb_dispose;
 }
 __attribute__((weak)) void lb_interop_Packet_0g1_u8_0c_release(const lb_interop_Packet_0g1_u8_0c* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
-    lb_pos = "src/std/window/windows/native.lucb:12:5";
+    lb_pos = "src/std/window/windows/native.lucb:11:5";
     void* _lb_o24 = self->storage;
     if (_lb_o24 != ((void*)0)) {
         void* lb_storage __attribute__((unused)) = _lb_o24;
         {
-            lb_pos = "src/std/window/windows/native.lucb:13:5";
+            lb_pos = "src/std/window/windows/native.lucb:12:5";
             (void)(((({ lb_fn_0F1_void_0p_unit _lb_o25 = self->dispose; if (_lb_o25 == ((void*)0)) {
                 (void)(lb_trap_text(((lb_str){"a packet has storage without a disposer", 39})));
             } _lb_o25; })))(lb_storage));

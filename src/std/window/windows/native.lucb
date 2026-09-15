@@ -1,4 +1,5 @@
 from windows_abi import MultiByteToWideChar, GetModuleHandleW
+
 ## Win32 types use fixed widths: LONG remains i32 on 64-bit Windows.
 extern struct WinClass:
     size: u32
@@ -61,8 +62,8 @@ func win_setup() -> !:
         return
     discard(SetProcessDpiAwarenessContext((void*)(isize)-4))
     var info = WinClass(size = (u32)sizeof(WinClass), procedure = win_callback,
-        instance = GetModuleHandleW(none), cursor = LoadCursorW(none, (u16*)32512),
-        brush = (void*)6, name = &win_class_name[0])
+                        instance = GetModuleHandleW(none), cursor = LoadCursorW(none, (u16*)32512),
+                        brush = (void*)6, name = &win_class_name[0])
     win_class_atom = RegisterClassExW(&info)
     if win_class_atom == 0:
         error(failed, "the native window class could not be registered")
@@ -86,7 +87,7 @@ func win_open(options: Options) -> State*!:
     if AdjustWindowRectExForDpi(&rect, style, 0, 0, dpi) == 0:
         error(failed, "the native window dimensions could not be calculated")
     let native = CreateWindowExW(0, &win_class_name[0], title.data, style, -2147483648, -2147483648,
-        rect.right - rect.left, rect.bottom - rect.top, none, none, GetModuleHandleW(none), (void*)state) else error(failed, "the native window could not be created")
+                                 rect.right - rect.left, rect.bottom - rect.top, none, none, GetModuleHandleW(none), (void*)state) else error(failed, "the native window could not be created")
     state.native = native
     return state
 

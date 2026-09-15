@@ -1720,7 +1720,7 @@ L6_8:
 
     .section __TEXT,__const
 l_text_0:
-    .asciz "src/std/fonts/module.lucb:24:13"
+    .asciz "src/std/fonts/module.lucb:23:13"
 l_text_1:
     .asciz "font size must be finite and in 8..64 points"
 l_text_2:
@@ -1732,19 +1732,19 @@ l_text_4:
 l_text_5:
     .asciz "unreachable"
 l_text_6:
-    .asciz "src/std/fonts/module.lucb:58:9"
+    .asciz "src/std/fonts/module.lucb:57:9"
 l_text_7:
     .asciz "font raster scale must be finite and in 0.5..4"
 l_text_8:
-    .asciz "src/std/fonts/module.lucb:67:9"
+    .asciz "src/std/fonts/module.lucb:66:9"
 l_text_9:
-    .asciz "src/std/fonts/module.lucb:68:9"
+    .asciz "src/std/fonts/module.lucb:67:9"
 l_text_10:
-    .asciz "src/std/fonts/module.lucb:69:9"
+    .asciz "src/std/fonts/module.lucb:68:9"
 l_text_11:
     .asciz "rasterized text exceeds the 4 MiB image limit"
 l_text_12:
-    .asciz "src/std/fonts/module.lucb:71:9"
+    .asciz "src/std/fonts/module.lucb:70:9"
 l_text_13:
     .asciz "memory.exhausted: the allocation size overflows"
 l_text_14:
@@ -1752,7 +1752,7 @@ l_text_14:
 l_text_15:
     .asciz "memory.exhausted"
 l_text_16:
-    .asciz "src/std/fonts/module.lucb:82:9"
+    .asciz "src/std/fonts/module.lucb:81:9"
 l_text_17:
     .asciz "font operations require the UI thread"
 l_text_18:
@@ -1762,27 +1762,27 @@ l_text_19:
 l_text_20:
     .asciz "text runs cannot contain NUL, tabs or line breaks"
 l_text_21:
-    .asciz "src/std/fonts/module.lucb:108:9"
+    .asciz "src/std/fonts/module.lucb:107:9"
 l_text_22:
-    .asciz "src/std/fonts/module.lucb:109:9"
+    .asciz "src/std/fonts/module.lucb:108:9"
 l_text_23:
     .asciz "a text run supports at most 1024 scalars"
 l_text_24:
-    .asciz "src/std/fonts/module.lucb:112:5"
+    .asciz "src/std/fonts/module.lucb:111:5"
 l_text_25:
-    .asciz "src/std/fonts/module.lucb:123:9"
+    .asciz "src/std/fonts/module.lucb:122:9"
 l_text_26:
-    .asciz "src/std/fonts/module.lucb:131:5"
+    .asciz "src/std/fonts/module.lucb:130:5"
 l_text_27:
-    .asciz "src/std/fonts/module.lucb:133:5"
+    .asciz "src/std/fonts/module.lucb:132:5"
 l_text_28:
-    .asciz "src/std/fonts/module.lucb:134:5"
+    .asciz "src/std/fonts/module.lucb:133:5"
 l_text_29:
     .asciz "index out of bounds"
 l_text_30:
-    .asciz "src/std/memory.lucb:326:9"
-l_text_31:
     .asciz "src/std/memory.lucb:328:9"
+l_text_31:
+    .asciz "src/std/memory.lucb:330:9"
 l_text_32:
     .asciz "null_foreign"
 l_text_33:

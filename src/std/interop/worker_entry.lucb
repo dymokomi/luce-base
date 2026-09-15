@@ -9,7 +9,7 @@ pub struct WorkerEntry[C, M, R]:
 
     pub static func native(factory: func(C) -> Outcome[Callback[M, R]]) -> WorkerEntry[C, M, R]:
         return WorkerEntry[C, M, R]((void*)factory, WorkerEntry[C, M, R].open_native,
-            ownership.enter, ownership.finish_task)
+                                    ownership.enter, ownership.finish_task)
 
     static func open_native(context: void*?, configuration: C) -> Outcome[Callback[M, R]]:
         let factory = (func(C) -> Outcome[Callback[M, R]])(context else trap("a worker has no factory"))

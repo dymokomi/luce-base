@@ -957,59 +957,59 @@ lb_memory_copy_0g1_u8:
 .Lvsign64:
     .quad -9223372036854775808, -9223372036854775808
 .Ltext_0:
-    .asciz "src/std/process/module.lucb:43:9"
+    .asciz "src/std/process/module.lucb:41:9"
 .Ltext_1:
     .asciz "memory.exhausted: the allocation size overflows"
 .Ltext_2:
     .asciz "memory.unset"
 .Ltext_3:
-    .asciz "src/std/process/module.lucb:45:17"
+    .asciz "src/std/process/module.lucb:43:17"
 .Ltext_4:
     .asciz "memory.exhausted"
 .Ltext_5:
-    .asciz "src/std/process/module.lucb:47:17"
+    .asciz "src/std/process/module.lucb:45:17"
 .Ltext_6:
-    .asciz "src/std/process/module.lucb:48:9"
+    .asciz "src/std/process/module.lucb:46:9"
 .Ltext_7:
     .asciz "index out of bounds"
 .Ltext_8:
-    .asciz "src/std/process/module.lucb:52:13"
+    .asciz "src/std/process/module.lucb:50:13"
 .Ltext_9:
     .asciz "the program's output cannot be read"
 .Ltext_10:
-    .asciz "src/std/process/module.lucb:62:17"
+    .asciz "src/std/process/module.lucb:60:17"
 .Ltext_11:
-    .asciz "src/std/process/module.lucb:65:9"
+    .asciz "src/std/process/module.lucb:63:9"
 .Ltext_12:
-    .asciz "src/std/process/module.lucb:67:9"
+    .asciz "src/std/process/module.lucb:65:9"
 .Ltext_13:
     .asciz "unreachable"
 .Ltext_14:
-    .asciz "src/std/process/module.lucb:69:9"
+    .asciz "src/std/process/module.lucb:67:9"
 .Ltext_15:
-    .asciz "src/std/process/module.lucb:73:13"
+    .asciz "src/std/process/module.lucb:71:13"
 .Ltext_16:
-    .asciz "src/std/process/module.lucb:89:5"
+    .asciz "src/std/process/module.lucb:87:5"
 .Ltext_17:
-    .asciz "src/std/process/module.lucb:93:9"
+    .asciz "src/std/process/module.lucb:91:9"
 .Ltext_18:
-    .asciz "src/std/process/module.lucb:184:9"
+    .asciz "src/std/process/module.lucb:182:9"
 .Ltext_19:
-    .asciz "src/std/process/module.lucb:185:9"
+    .asciz "src/std/process/module.lucb:183:9"
 .Ltext_20:
-    .asciz "src/std/process/module.lucb:190:9"
+    .asciz "src/std/process/module.lucb:188:9"
 .Ltext_21:
-    .asciz "src/std/process/module.lucb:192:9"
+    .asciz "src/std/process/module.lucb:190:9"
 .Ltext_22:
     .asciz "run"
 .Ltext_23:
-    .asciz "src/std/process/module.lucb:201:5"
+    .asciz "src/std/process/module.lucb:199:5"
 .Ltext_24:
-    .asciz "src/std/process/module.lucb:213:9"
+    .asciz "src/std/process/module.lucb:211:9"
 .Ltext_25:
-    .asciz "src/std/memory.lucb:326:9"
-.Ltext_26:
     .asciz "src/std/memory.lucb:328:9"
+.Ltext_26:
+    .asciz "src/std/memory.lucb:330:9"
 .Ltext_27:
     .asciz "null_foreign"
 

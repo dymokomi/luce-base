@@ -1,7 +1,5 @@
 # mark: The cycle collector ====================================================================
-
 pub let candidate_limit: usize = 1024
-
 local var roots: Object*[]
 local var root_count: usize = 0
 local var whites: Object*[]
@@ -172,4 +170,3 @@ pub func collect():
         i += 1
     white_count = 0
     collector_running = false
-

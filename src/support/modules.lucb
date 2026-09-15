@@ -8,7 +8,6 @@ import paths
 import strings
 import support.list
 import support.manifest
-
 pub let invalid: ErrorCode = ErrorCode.package(28)
 
 pub struct Resolution:
@@ -74,7 +73,7 @@ func read_package(path: str) -> Package!:
     let root = try canonical(paths.directory(path))
     let contents = (str)try files.read((c.str)try strings.copy(path))
     var package = Package(name = "", root = root, source = "src",
-        dependencies = try list.List[Mapping].create(4), exports = try list.List[Mapping].create(4), module_packages = try list.List[Mapping].create(4))
+                          dependencies = try list.List[Mapping].create(4), exports = try list.List[Mapping].create(4), module_packages = try list.List[Mapping].create(4))
     var named = false
     var sourced = false
     for setting in try manifest.settings(contents):

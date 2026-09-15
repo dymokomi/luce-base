@@ -9,7 +9,6 @@
 #       the same thing everywhere.
 #
 #==============================================================================================
-
 pub let bad_literal: ErrorCode = ErrorCode.package(18)
 
 ## The type suffix of a number literal, `u8` in `255u8` or `f32` in `0.5f32`, or empty

@@ -70,17 +70,17 @@ lb_gpu_10metal_objc_0init:
 .Ltext_0:
     .asciz "null_foreign"
 .Ltext_1:
-    .asciz "src/std/gpu/metal/objc.lucb:60:5"
+    .asciz "src/std/gpu/metal/objc.lucb:57:5"
 .Ltext_2:
     .asciz "unreachable"
 .Ltext_3:
     .asciz "a required Metal class is unavailable; check framework linkage"
 .Ltext_4:
-    .asciz "src/std/gpu/metal/objc.lucb:63:5"
+    .asciz "src/std/gpu/metal/objc.lucb:60:5"
 .Ltext_5:
     .asciz "the Metal backend lost an owned object"
 .Ltext_6:
-    .asciz "src/std/gpu/metal/objc.lucb:66:5"
+    .asciz "src/std/gpu/metal/objc.lucb:63:5"
 
     .section .rdata,"dr"
     .p2align 3

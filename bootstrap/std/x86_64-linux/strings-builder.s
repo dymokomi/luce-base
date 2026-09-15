@@ -1948,9 +1948,9 @@ lb_memory_move_0g1_u8:
 .Ltext_23:
     .asciz "src/std/strings/builder.lucb:92:13"
 .Ltext_24:
-    .asciz "src/std/memory.lucb:332:9"
-.Ltext_25:
     .asciz "src/std/memory.lucb:334:9"
+.Ltext_25:
+    .asciz "src/std/memory.lucb:336:9"
 .Ltext_26:
     .asciz "null_foreign"
 .Ltext_27:

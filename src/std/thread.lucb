@@ -6,7 +6,6 @@ import core
 import memory
 import platform
 import time
-
 extern func pthread_create(thread: void*?*, attributes: void*?, start: func(void*) -> void*?, argument: void*) -> i32
 extern func pthread_join(thread: void*, result: void*?*?) -> i32
 extern func pthread_detach(thread: void*) -> i32

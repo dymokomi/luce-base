@@ -1,6 +1,5 @@
 import c
 import memory
-
 extern func getenv(name: c.str) -> c.str?
 extern func c_read as "read"(descriptor: i32, buffer: void*, count: usize) -> isize
 extern func c_exit as "exit"(code: i32) -> never

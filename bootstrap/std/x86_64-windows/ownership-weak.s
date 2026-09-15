@@ -621,19 +621,19 @@ lb_ownership_8weak_get:
 .Lvsign64:
     .quad -9223372036854775808, -9223372036854775808
 .Ltext_0:
-    .asciz "src/std/ownership/weak.lucb:9:9"
+    .asciz "src/std/ownership/weak.lucb:8:9"
 .Ltext_1:
     .asciz "unreachable"
 .Ltext_2:
-    .asciz "src/std/ownership/weak.lucb:10:5"
+    .asciz "src/std/ownership/weak.lucb:9:5"
 .Ltext_3:
-    .asciz "src/std/ownership/weak.lucb:16:13"
+    .asciz "src/std/ownership/weak.lucb:15:13"
 .Ltext_4:
-    .asciz "src/std/ownership/weak.lucb:17:5"
+    .asciz "src/std/ownership/weak.lucb:16:5"
 .Ltext_5:
-    .asciz "src/std/ownership/weak.lucb:23:13"
+    .asciz "src/std/ownership/weak.lucb:22:13"
 .Ltext_6:
-    .asciz "src/std/ownership/weak.lucb:32:5"
+    .asciz "src/std/ownership/weak.lucb:31:5"
 .Ltext_7:
     .asciz "integer overflow"
 
