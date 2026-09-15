@@ -667,7 +667,8 @@ pub struct Generator:
                     next_int += 1
                 else:
                     let width = scalar_stack_width(p.cls, p.scalar_width)
-                    stack_offset = arm_round_up(stack_offset, (u64)width)
+                    let slot = self.stack_slot(width)
+                    stack_offset = arm_round_up(stack_offset, (u64)slot)
                     try self.line(scalar_stack_load(width, p.scalar_signed))
                     try self.put(" [x29, #")
                     try self.put_u64(stack_offset)
@@ -677,7 +678,7 @@ pub struct Generator:
                     else:
                         try self.frame_address("x16", home)
                         try self.line("str w9, [x16]" if p.cls == ir.Class.w else "str x9, [x16]")
-                    stack_offset += (u64)width
+                    stack_offset += (u64)slot
             elif self.hfa(p.shape) > 0 and next_float + self.hfa(p.shape) <= 8:
                 # a homogeneous float aggregate in d or s registers
                 let each = (u64)p.size // (u64)self.hfa(p.shape)
@@ -697,7 +698,7 @@ pub struct Generator:
                 # never falls back to integer registers or an indirect pointer,
                 # and later floating arguments must spill as well (AAPCS64 C.3).
                 next_float = 8
-                stack_offset = arm_round_up(stack_offset, (u64)p.align)
+                stack_offset = arm_round_up(stack_offset, self.stack_boundary((u64)p.align))
                 let each = (u64)self.program_unit.leaves_of(p.shape)[0].size
                 var k: u32 = 0
                 while k < self.hfa(p.shape):
@@ -1482,6 +1483,13 @@ pub struct Generator:
     func stack_slot(width: u32) -> u32:
         return width if self.object_format.apple else 8
 
+    ## Where an aggregate begins on the stack: its own alignment under Apple's convention,
+    ## eight bytes at least under AAPCS64.
+    func stack_boundary(align: u64) -> u64:
+        if self.object_format.apple or align >= 8:
+            return align
+        return 8
+
     func place(a: ir.Arg, next_int: u32*, next_float: u32*, stack: u32*) -> ArgPlacement:
         if a.size == 0:
             if ir.is_float_class(a.cls):
@@ -1510,7 +1518,7 @@ pub struct Generator:
             return p
         if floats > 0:
             *next_float = 8
-            *stack = (u32)arm_round_up((u64)*stack, (u64)a.align)
+            *stack = (u32)arm_round_up((u64)*stack, self.stack_boundary((u64)a.align))
             let p = ArgPlacement(where = 2, first = 0, count = floats, stack_offset = *stack)
             *stack += a.size
             return p
