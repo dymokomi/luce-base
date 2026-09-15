@@ -101,7 +101,7 @@ lb_net_SocketHandle_create:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #144]
@@ -141,7 +141,7 @@ lb_net_SocketHandle_create:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #144]
@@ -207,7 +207,7 @@ lb_net_SocketHandle_adopt:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #176]
@@ -293,7 +293,7 @@ lb_net_SocketHandle_adopt:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #176]
@@ -391,7 +391,7 @@ lb_net_SocketHandle_adopt:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #176]
@@ -437,7 +437,7 @@ lb_net_SocketHandle_adopt:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #176]
@@ -505,7 +505,7 @@ lb_net_SocketHandle_require:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #64]
@@ -523,7 +523,7 @@ lb_net_SocketHandle_require:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #64]
@@ -571,7 +571,7 @@ lb_net_SocketHandle_close:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #80]
@@ -625,7 +625,7 @@ lb_net_SocketHandle_close:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #80]
@@ -646,7 +646,7 @@ lb_net_SocketHandle_close:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #80]
@@ -800,7 +800,7 @@ lb_net_14socket_address:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #56
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #256]
@@ -846,7 +846,7 @@ lb_net_14socket_address:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #56
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #256]
@@ -888,7 +888,7 @@ lb_net_14socket_address:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #56
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #256]
@@ -916,7 +916,7 @@ lb_net_14socket_address:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #56
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #256]
@@ -1104,7 +1104,7 @@ lb_net_18set_socket_integer:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #160]
@@ -1128,7 +1128,7 @@ lb_net_18set_socket_integer:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #160]

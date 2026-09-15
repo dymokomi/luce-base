@@ -63,7 +63,7 @@ lb_unicode_GraphemeIterator_over:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #56
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #128]
@@ -98,7 +98,7 @@ lb_unicode_GraphemeIterator_over:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #56
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #128]
@@ -163,7 +163,7 @@ lb_unicode_GraphemeIterator_next:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #24
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #400]
@@ -451,7 +451,7 @@ lb_unicode_GraphemeIterator_next:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #24
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #400]

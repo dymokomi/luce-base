@@ -343,7 +343,7 @@ lb_strings_join:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #432]
@@ -409,7 +409,7 @@ lb_strings_join:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #432]
@@ -462,7 +462,7 @@ lb_strings_join:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #432]
@@ -690,7 +690,7 @@ lb_strings_join:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #432]
@@ -760,7 +760,7 @@ lb_strings_copy:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #192]
@@ -851,7 +851,7 @@ lb_strings_copy:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #192]
@@ -918,7 +918,7 @@ lb_strings_8to_upper:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #208]
@@ -1064,7 +1064,7 @@ lb_strings_8to_upper:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #208]
@@ -1134,7 +1134,7 @@ lb_strings_8to_lower:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #208]
@@ -1280,7 +1280,7 @@ lb_strings_8to_lower:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #208]
@@ -1422,7 +1422,7 @@ lb_strings_17terminated_buffer:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #192]
@@ -1538,7 +1538,7 @@ lb_strings_17terminated_buffer:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #192]
@@ -1561,7 +1561,7 @@ lb_strings_17terminated_buffer:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #192]

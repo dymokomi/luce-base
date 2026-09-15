@@ -85,7 +85,7 @@ lb_strings_replace:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #656]
@@ -218,7 +218,7 @@ lb_strings_replace:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #656]
@@ -319,7 +319,7 @@ lb_strings_replace:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #656]
@@ -368,7 +368,7 @@ lb_strings_replace:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #656]
@@ -791,7 +791,7 @@ lb_strings_replace:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #656]

@@ -53,7 +53,7 @@ lb_files_read:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #112]
@@ -74,7 +74,7 @@ lb_files_read:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #112]
@@ -144,7 +144,7 @@ lb_files_10read_limit:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #4912]
@@ -174,7 +174,7 @@ lb_files_10read_limit:
     mov x0, x21
     mov x1, #0
     movz x2, #4096
-    bl _memset
+    bl memset
     sub x9, x29, #184
     str x9, [sp, #216]
     movz x16, #4360
@@ -357,7 +357,7 @@ lb_files_10read_limit:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #4912]
@@ -418,7 +418,7 @@ lb_files_10read_limit:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #4912]
@@ -614,7 +614,7 @@ lb_files_10read_limit:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #4912]
@@ -672,7 +672,7 @@ lb_files_10read_limit:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #4912]
@@ -781,7 +781,7 @@ lb_files_10read_limit:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #4912]
@@ -831,7 +831,7 @@ lb_files_10read_limit:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #4912]
@@ -965,7 +965,7 @@ lb_files_10read_limit:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #4912]
@@ -1012,7 +1012,7 @@ lb_files_10read_limit:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #4912]
@@ -1076,7 +1076,7 @@ lb_files_write:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #208]
@@ -1128,7 +1128,7 @@ lb_files_write:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #208]
@@ -1163,7 +1163,7 @@ lb_files_write:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #208]
@@ -1183,7 +1183,7 @@ lb_files_write:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #208]

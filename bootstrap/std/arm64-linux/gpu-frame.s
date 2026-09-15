@@ -164,7 +164,7 @@ lb_gpu_FrameState_check:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #112]
@@ -238,7 +238,7 @@ lb_gpu_FrameState_check:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #112]
@@ -259,7 +259,7 @@ lb_gpu_FrameState_check:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #112]
@@ -363,7 +363,7 @@ lb_gpu_Frame_init:
     sub x0, x29, #184
     ldr x1, [x0]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x9, x29, #144
     ldr x21, [x9]
     sub x19, x29, #184
@@ -691,7 +691,7 @@ lb_gpu_Frame_init:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #784]
@@ -768,7 +768,7 @@ lb_gpu_Frame_init:
     mov x0, x23
     mov x1, #0
     movz x2, #152
-    bl _memset
+    bl memset
     sub x24, x29, #520
     mov x11, x24
     stp xzr, xzr, [x11, #0]
@@ -800,7 +800,7 @@ lb_gpu_Frame_init:
     mov x0, x20
     mov x1, x23
     movz x2, #152
-    bl _memcpy
+    bl memcpy
     str x20, [x22]
     add x14, x22, #32
     mov x9, #0
@@ -826,7 +826,7 @@ lb_gpu_Frame_init:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #784]
@@ -880,7 +880,7 @@ lb_gpu_Frame_init:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #784]
@@ -931,7 +931,7 @@ lb_gpu_Frame_init:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #784]
@@ -988,7 +988,7 @@ lb_gpu_Frame_init:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #784]
@@ -1059,7 +1059,7 @@ lb_gpu_Frame_11state_value:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #80]
@@ -1081,7 +1081,7 @@ lb_gpu_Frame_11state_value:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #80]
@@ -1139,7 +1139,7 @@ lb_gpu_Frame_size:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #72
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #176]
@@ -1180,7 +1180,7 @@ lb_gpu_Frame_size:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #72
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #176]
@@ -1210,7 +1210,7 @@ lb_gpu_Frame_size:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #72
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #176]
@@ -1273,7 +1273,7 @@ lb_gpu_Frame_target:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #432]
@@ -1316,7 +1316,7 @@ lb_gpu_Frame_target:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #432]
@@ -1371,7 +1371,7 @@ lb_gpu_Frame_target:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #432]
@@ -1500,7 +1500,7 @@ lb_gpu_Frame_target:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #432]
@@ -1528,7 +1528,7 @@ lb_gpu_Frame_target:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #432]
@@ -1601,7 +1601,7 @@ lb_gpu_Frame_present:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #320]
@@ -1644,7 +1644,7 @@ lb_gpu_Frame_present:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #320]
@@ -1688,7 +1688,7 @@ lb_gpu_Frame_present:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #320]
@@ -1736,7 +1736,7 @@ lb_gpu_Frame_present:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #320]
@@ -1851,7 +1851,7 @@ lb_gpu_Frame_present:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #320]
@@ -1877,7 +1877,7 @@ lb_gpu_Frame_present:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #320]
@@ -2109,7 +2109,7 @@ lb_gpu_RenderTarget_size:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #72
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #192]
@@ -2186,7 +2186,7 @@ lb_gpu_RenderTarget_size:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #72
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #192]
@@ -2258,7 +2258,7 @@ lb_gpu_RenderTarget_region:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #432]
@@ -2301,7 +2301,7 @@ lb_gpu_RenderTarget_region:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #432]
@@ -2374,7 +2374,7 @@ lb_gpu_RenderTarget_region:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #432]
@@ -2494,7 +2494,7 @@ lb_gpu_RenderTarget_region:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #432]
@@ -2520,7 +2520,7 @@ lb_gpu_RenderTarget_region:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #432]
@@ -2594,7 +2594,7 @@ lb_gpu_RenderTarget_clipped:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #432]
@@ -2638,7 +2638,7 @@ lb_gpu_RenderTarget_clipped:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #432]
@@ -2712,7 +2712,7 @@ lb_gpu_RenderTarget_clipped:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #432]
@@ -2833,7 +2833,7 @@ lb_gpu_RenderTarget_clipped:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #432]
@@ -2860,7 +2860,7 @@ lb_gpu_RenderTarget_clipped:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #432]
@@ -2933,7 +2933,7 @@ lb_gpu_RenderTarget_triangles:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #304]
@@ -3050,7 +3050,7 @@ lb_gpu_RenderTarget_triangles:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #304]
@@ -3075,7 +3075,7 @@ lb_gpu_RenderTarget_triangles:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #304]
@@ -3160,7 +3160,7 @@ lb_gpu_RenderTarget_mask:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #368]
@@ -3205,7 +3205,7 @@ lb_gpu_RenderTarget_mask:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #368]
@@ -3341,7 +3341,7 @@ lb_gpu_RenderTarget_mask:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #368]
@@ -3366,7 +3366,7 @@ lb_gpu_RenderTarget_mask:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #368]
@@ -3564,7 +3564,7 @@ lb_gpu_12check_region:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #80]
@@ -3583,7 +3583,7 @@ lb_gpu_12check_region:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #80]
@@ -3842,7 +3842,7 @@ lb_interop_Reference_0g1_gpu_FrameState_adopt:
     sub x0, x29, #176
     ldr x1, [x0]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x19, x29, #208
     sub x15, x29, #192
     ldr x14, [x15]
@@ -3967,7 +3967,7 @@ lb_interop_Reference_0g1_gpu_FrameState_adopt:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #336]
@@ -4009,7 +4009,7 @@ lb_interop_Reference_0g1_gpu_FrameState_adopt:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #336]
@@ -4074,7 +4074,7 @@ lb_interop_Reference_0g1_gpu_FrameState_lease:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #224]
@@ -4140,7 +4140,7 @@ lb_interop_Reference_0g1_gpu_FrameState_lease:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #224]
@@ -4165,7 +4165,7 @@ lb_interop_Reference_0g1_gpu_FrameState_lease:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #224]
@@ -4289,11 +4289,11 @@ lb_interop_View_0g1_gpu_RenderTarget_make:
     sub x0, x29, #176
     ldr x1, [x0]
     movz x2, #72
-    bl _memcpy
+    bl memcpy
     sub x0, x29, #200
     ldr x1, [x0]
     movz x2, #24
-    bl _memcpy
+    bl memcpy
     sub x19, x29, #216
     mov x0, x19
     sub x8, x29, #248
@@ -4319,7 +4319,7 @@ lb_interop_View_0g1_gpu_RenderTarget_make:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #432]
@@ -4403,7 +4403,7 @@ lb_interop_View_0g1_gpu_RenderTarget_make:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #432]
@@ -4483,7 +4483,7 @@ lb_interop_View_0g1_gpu_RenderTarget_make:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #432]
@@ -4611,7 +4611,7 @@ lb_interop_Reservation_0g1_gpu_FrameState_init:
     sub x0, x29, #144
     ldr x1, [x0]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x9, x29, #104
     ldr x20, [x9]
     sub x19, x29, #144
@@ -4657,7 +4657,7 @@ lb_interop_Reservation_0g1_gpu_FrameState_init:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #304]
@@ -4742,7 +4742,7 @@ lb_interop_Reservation_0g1_gpu_FrameState_init:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #304]
@@ -4787,7 +4787,7 @@ lb_interop_Reservation_0g1_gpu_FrameState_init:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #304]
@@ -4962,7 +4962,7 @@ lb_interop_Reference_0g1_gpu_FrameState_get:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #80]
@@ -5009,7 +5009,7 @@ lb_interop_Reference_0g1_gpu_FrameState_get:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #80]

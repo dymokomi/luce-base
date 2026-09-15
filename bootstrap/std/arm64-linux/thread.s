@@ -70,7 +70,7 @@ lb_thread_Handle_join:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #80]
@@ -114,7 +114,7 @@ lb_thread_Handle_join:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #80]
@@ -133,7 +133,7 @@ lb_thread_Handle_join:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #80]
@@ -469,7 +469,7 @@ lb_thread_spawn:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #720]
@@ -681,7 +681,7 @@ lb_thread_spawn:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #720]
@@ -785,7 +785,7 @@ lb_thread_spawn:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #720]
@@ -957,7 +957,7 @@ lb_thread_spawn:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #720]
@@ -1067,7 +1067,7 @@ lb_thread_spawn:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #720]
@@ -1115,7 +1115,7 @@ lb_thread_spawn:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #720]
@@ -1146,7 +1146,7 @@ lb_thread_spawn:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #720]

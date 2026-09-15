@@ -41,7 +41,7 @@ lb_net_Connection_connect:
     sub x0, x29, #152
     ldr x1, [x0]
     movz x2, #24
-    bl _memcpy
+    bl memcpy
     sub x19, x29, #168
     sub x14, x29, #184
     ldr x20, [x14]
@@ -72,7 +72,7 @@ lb_net_Connection_connect:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #736]
@@ -119,7 +119,7 @@ lb_net_Connection_connect:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #736]
@@ -166,7 +166,7 @@ lb_net_Connection_connect:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #736]
@@ -214,7 +214,7 @@ lb_net_Connection_connect:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #736]
@@ -270,7 +270,7 @@ lb_net_Connection_connect:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #736]
@@ -315,7 +315,7 @@ lb_net_Connection_connect:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #736]
@@ -454,7 +454,7 @@ lb_net_Connection_connect:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #736]
@@ -503,7 +503,7 @@ lb_net_Connection_connect:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #736]
@@ -547,7 +547,7 @@ lb_net_Connection_connect:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #736]
@@ -616,7 +616,7 @@ lb_net_Connection_connect:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #736]
@@ -666,7 +666,7 @@ lb_net_Connection_connect:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #736]
@@ -715,7 +715,7 @@ lb_net_Connection_connect:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #736]
@@ -759,7 +759,7 @@ lb_net_Connection_connect:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #736]
@@ -833,7 +833,7 @@ lb_net_Connection_connect:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #736]
@@ -895,7 +895,7 @@ lb_net_Connection_over:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #208]
@@ -962,7 +962,7 @@ lb_net_Connection_over:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #208]
@@ -1018,7 +1018,7 @@ lb_net_Connection_13local_address:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #56
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #160]
@@ -1054,7 +1054,7 @@ lb_net_Connection_13local_address:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #56
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #160]
@@ -1077,7 +1077,7 @@ lb_net_Connection_13local_address:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #56
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #160]
@@ -1132,7 +1132,7 @@ lb_net_Connection_12peer_address:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #56
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #160]
@@ -1168,7 +1168,7 @@ lb_net_Connection_12peer_address:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #56
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #160]
@@ -1191,7 +1191,7 @@ lb_net_Connection_12peer_address:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #56
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #160]
@@ -1250,7 +1250,7 @@ lb_net_Connection_shutdown:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #160]
@@ -1326,7 +1326,7 @@ lb_net_Connection_shutdown:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #160]
@@ -1407,7 +1407,7 @@ lb_net_Connection_shutdown:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #160]
@@ -1429,7 +1429,7 @@ lb_net_Connection_shutdown:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #160]
@@ -1545,7 +1545,7 @@ lb_net_Connection_write:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #208]
@@ -1578,7 +1578,7 @@ lb_net_Connection_write:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #208]
@@ -1627,7 +1627,7 @@ lb_net_Connection_write:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #208]
@@ -1727,7 +1727,7 @@ lb_net_Connection_write:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #208]
@@ -1773,7 +1773,7 @@ lb_net_Connection_write:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #208]
@@ -1799,7 +1799,7 @@ lb_net_Connection_write:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #208]
@@ -1868,7 +1868,7 @@ lb_net_Connection_read:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #160]
@@ -1900,7 +1900,7 @@ lb_net_Connection_read:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #160]
@@ -1995,7 +1995,7 @@ lb_net_Connection_read:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #160]
@@ -2020,7 +2020,7 @@ lb_net_Connection_read:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #160]
@@ -2081,7 +2081,7 @@ lb_net_Connection_12set_no_delay:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #128]
@@ -2129,7 +2129,7 @@ lb_net_Connection_12set_no_delay:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #128]
@@ -2146,7 +2146,7 @@ lb_net_Connection_12set_no_delay:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #128]
@@ -2195,7 +2195,7 @@ lb_net_Connection_8no_delay:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #128]
@@ -2232,7 +2232,7 @@ lb_net_Connection_8no_delay:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #128]
@@ -2257,7 +2257,7 @@ lb_net_Connection_8no_delay:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #128]
@@ -2314,7 +2314,7 @@ lb_net_Connection_13set_keepalive:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #144]
@@ -2369,7 +2369,7 @@ lb_net_Connection_13set_keepalive:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #144]
@@ -2387,7 +2387,7 @@ lb_net_Connection_13set_keepalive:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #144]
@@ -2437,7 +2437,7 @@ lb_net_Connection_keepalive:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #128]
@@ -2480,7 +2480,7 @@ lb_net_Connection_keepalive:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #128]
@@ -2505,7 +2505,7 @@ lb_net_Connection_keepalive:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #128]
@@ -2567,7 +2567,7 @@ lb_net_Connection_wait:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #176]
@@ -2612,7 +2612,7 @@ lb_net_Connection_wait:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #176]
@@ -2635,7 +2635,7 @@ lb_net_Connection_wait:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #176]
@@ -2692,7 +2692,7 @@ lb_net_Connection_15set_nonblocking:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #144]
@@ -2729,7 +2729,7 @@ lb_net_Connection_15set_nonblocking:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #144]
@@ -2749,7 +2749,7 @@ lb_net_Connection_15set_nonblocking:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #144]
@@ -2799,7 +2799,7 @@ lb_net_Connection_14is_nonblocking:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #128]
@@ -2834,7 +2834,7 @@ lb_net_Connection_14is_nonblocking:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #128]
@@ -2863,7 +2863,7 @@ lb_net_Connection_14is_nonblocking:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #128]
@@ -2919,7 +2919,7 @@ lb_net_Connection_18set_receive_buffer:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #128]
@@ -2959,7 +2959,7 @@ lb_net_Connection_18set_receive_buffer:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #128]
@@ -2976,7 +2976,7 @@ lb_net_Connection_18set_receive_buffer:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #128]
@@ -3025,7 +3025,7 @@ lb_net_Connection_14receive_buffer:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #128]
@@ -3068,7 +3068,7 @@ lb_net_Connection_14receive_buffer:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #128]
@@ -3087,7 +3087,7 @@ lb_net_Connection_14receive_buffer:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #128]
@@ -3143,7 +3143,7 @@ lb_net_Connection_15set_send_buffer:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #128]
@@ -3183,7 +3183,7 @@ lb_net_Connection_15set_send_buffer:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #128]
@@ -3200,7 +3200,7 @@ lb_net_Connection_15set_send_buffer:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #128]
@@ -3249,7 +3249,7 @@ lb_net_Connection_11send_buffer:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #128]
@@ -3292,7 +3292,7 @@ lb_net_Connection_11send_buffer:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #128]
@@ -3311,7 +3311,7 @@ lb_net_Connection_11send_buffer:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #128]
@@ -3396,7 +3396,7 @@ lb_net_Connection_close:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #80]
@@ -3413,7 +3413,7 @@ lb_net_Connection_close:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #80]

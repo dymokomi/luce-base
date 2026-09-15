@@ -1,5 +1,7 @@
     .weak lb_memory_move_0g1_u8
     .weak lb_memory_copy_0g1_u8
+    .weak lb_vt_io_File_Writer
+    .weak lb_vt_io_StandardInput_Reader
     .text
 
     .p2align 4

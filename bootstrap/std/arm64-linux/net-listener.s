@@ -37,7 +37,7 @@ lb_net_Listener_bind:
     sub x0, x29, #144
     ldr x1, [x0]
     movz x2, #24
-    bl _memcpy
+    bl memcpy
     sub x14, x29, #160
     ldrsw x19, [x14]
     mov x10, #0
@@ -69,7 +69,7 @@ lb_net_Listener_bind:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #448]
@@ -117,7 +117,7 @@ lb_net_Listener_bind:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #448]
@@ -163,7 +163,7 @@ lb_net_Listener_bind:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #448]
@@ -210,7 +210,7 @@ lb_net_Listener_bind:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #448]
@@ -260,7 +260,7 @@ lb_net_Listener_bind:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #448]
@@ -326,7 +326,7 @@ lb_net_Listener_bind:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #448]
@@ -384,7 +384,7 @@ lb_net_Listener_bind:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #448]
@@ -469,7 +469,7 @@ lb_net_Listener_bind:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #448]
@@ -509,7 +509,7 @@ lb_net_Listener_bind:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #448]
@@ -569,7 +569,7 @@ lb_net_Listener_address:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #56
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #160]
@@ -605,7 +605,7 @@ lb_net_Listener_address:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #56
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #160]
@@ -628,7 +628,7 @@ lb_net_Listener_address:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #56
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #160]
@@ -689,7 +689,7 @@ lb_net_Listener_accept:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #288]
@@ -798,7 +798,7 @@ lb_net_Listener_accept:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #288]
@@ -839,7 +839,7 @@ lb_net_Listener_accept:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #288]
@@ -885,7 +885,7 @@ lb_net_Listener_accept:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #288]
@@ -910,7 +910,7 @@ lb_net_Listener_accept:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #288]
@@ -976,7 +976,7 @@ lb_net_Listener_wait:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #176]
@@ -1021,7 +1021,7 @@ lb_net_Listener_wait:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #176]
@@ -1044,7 +1044,7 @@ lb_net_Listener_wait:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #176]
@@ -1101,7 +1101,7 @@ lb_net_Listener_15set_nonblocking:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #144]
@@ -1138,7 +1138,7 @@ lb_net_Listener_15set_nonblocking:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #144]
@@ -1158,7 +1158,7 @@ lb_net_Listener_15set_nonblocking:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #144]
@@ -1208,7 +1208,7 @@ lb_net_Listener_14is_nonblocking:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #128]
@@ -1243,7 +1243,7 @@ lb_net_Listener_14is_nonblocking:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #128]
@@ -1272,7 +1272,7 @@ lb_net_Listener_14is_nonblocking:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #128]
@@ -1328,7 +1328,7 @@ lb_net_Listener_18set_receive_buffer:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #128]
@@ -1368,7 +1368,7 @@ lb_net_Listener_18set_receive_buffer:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #128]
@@ -1385,7 +1385,7 @@ lb_net_Listener_18set_receive_buffer:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #128]
@@ -1434,7 +1434,7 @@ lb_net_Listener_14receive_buffer:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #128]
@@ -1477,7 +1477,7 @@ lb_net_Listener_14receive_buffer:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #128]
@@ -1496,7 +1496,7 @@ lb_net_Listener_14receive_buffer:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #128]
@@ -1552,7 +1552,7 @@ lb_net_Listener_15set_send_buffer:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #128]
@@ -1592,7 +1592,7 @@ lb_net_Listener_15set_send_buffer:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #128]
@@ -1609,7 +1609,7 @@ lb_net_Listener_15set_send_buffer:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #128]
@@ -1658,7 +1658,7 @@ lb_net_Listener_11send_buffer:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #128]
@@ -1701,7 +1701,7 @@ lb_net_Listener_11send_buffer:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #128]
@@ -1720,7 +1720,7 @@ lb_net_Listener_11send_buffer:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #128]
@@ -1805,7 +1805,7 @@ lb_net_Listener_close:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #80]
@@ -1822,7 +1822,7 @@ lb_net_Listener_close:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #80]

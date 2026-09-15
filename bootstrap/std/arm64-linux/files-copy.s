@@ -86,7 +86,7 @@ lb_files_9copy_file:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #6272]
@@ -133,7 +133,7 @@ lb_files_9copy_file:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #6272]
@@ -198,7 +198,7 @@ lb_files_9copy_file:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #6272]
@@ -278,20 +278,20 @@ lb_files_9copy_file:
     mov x0, x23
     mov x1, #0
     movz x2, #136
-    bl _memset
+    bl memset
     movz x16, #5568
     sub x24, x29, x16
     mov x0, x24
     mov x1, x23
     movz x2, #136
-    bl _memcpy
+    bl memcpy
     add x14, x24, #160
     mov x9, #0
     strb w9, [x14]
     sub x0, x29, #760
     mov x1, x24
     movz x2, #168
-    bl _memcpy
+    bl memcpy
     b .L1_71
 .L1_66:
 .L1_67:
@@ -311,7 +311,7 @@ lb_files_9copy_file:
     sub x0, x29, #760
     mov x1, x24
     movz x2, #168
-    bl _memcpy
+    bl memcpy
     b .L1_71
 .L1_62:
     mov x10, x24
@@ -360,14 +360,14 @@ lb_files_9copy_file:
     mov x0, x26
     mov x1, x25
     movz x2, #136
-    bl _memcpy
+    bl memcpy
     add x14, x26, #160
     mov x9, #0
     strb w9, [x14]
     sub x0, x29, #760
     mov x1, x26
     movz x2, #168
-    bl _memcpy
+    bl memcpy
 .L1_71:
     sub x15, x29, #760
     add x14, x15, #160
@@ -393,7 +393,7 @@ lb_files_9copy_file:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #6272]
@@ -466,7 +466,7 @@ lb_files_9copy_file:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #6272]
@@ -532,7 +532,7 @@ lb_files_9copy_file:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #6272]
@@ -580,7 +580,7 @@ lb_files_9copy_file:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #6272]
@@ -633,7 +633,7 @@ lb_files_9copy_file:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #6272]
@@ -663,7 +663,7 @@ lb_files_9copy_file:
     mov x0, x23
     mov x1, #0
     movz x2, #4096
-    bl _memset
+    bl memset
     movz x16, #5192
     sub x14, x29, x16
     str x20, [x14]
@@ -728,7 +728,7 @@ lb_files_9copy_file:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #6272]
@@ -788,7 +788,7 @@ lb_files_9copy_file:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #6272]
@@ -841,7 +841,7 @@ lb_files_9copy_file:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #6272]
@@ -890,7 +890,7 @@ lb_files_9copy_file:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #6272]
@@ -940,7 +940,7 @@ lb_files_9copy_file:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #6272]
@@ -968,7 +968,7 @@ lb_files_9copy_file:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #6272]

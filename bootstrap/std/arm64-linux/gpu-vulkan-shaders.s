@@ -918,7 +918,7 @@ lb_gpu_14vulkan_shaders_0init:
     mov x0, x15
     mov x1, x14
     movz x2, #1084
-    bl _memcpy
+    bl memcpy
     movz x16, #5184
     sub x14, x29, x16
     movz x9, #515
@@ -4262,7 +4262,7 @@ lb_gpu_14vulkan_shaders_0init:
     mov x0, x15
     mov x1, x14
     movz x2, #4084
-    bl _memcpy
+    bl memcpy
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret

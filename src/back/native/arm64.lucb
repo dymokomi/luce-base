@@ -762,7 +762,8 @@ pub struct Generator:
                 try self.frame_address("x0", home)
                 try self.line("ldr x1, [x0]")
                 try self.load_immediate("x2", (i64)p.size)
-                try self.line("bl _memcpy")
+                try self.line("bl ")
+                try self.symbol("memcpy")
             i += 1
 
     # mark: Instructions =======================================================================
@@ -920,7 +921,8 @@ pub struct Generator:
                     try self.address_operand("x0", n.a)
                     try self.address_operand("x1", n.b)
                     try self.load_immediate("x2", (i64)n.extra)
-                    try self.line("bl _memcpy")
+                    try self.line("bl ")
+                    try self.symbol("memcpy")
             .zero:
                 if n.extra <= 128:
                     try self.address_operand("x11", n.a)
@@ -929,12 +931,14 @@ pub struct Generator:
                     try self.address_operand("x0", n.a)
                     try self.line("mov x1, #0")
                     try self.load_immediate("x2", (i64)n.extra)
-                    try self.line("bl _memset")
+                    try self.line("bl ")
+                    try self.symbol("memset")
             .fill:
                 try self.address_operand("x0", n.a)
                 try self.load_immediate("x1", n.b.value)
                 try self.load_immediate("x2", (i64)n.extra)
-                try self.line("bl _memset")
+                try self.line("bl ")
+                try self.symbol("memset")
             .call:
                 try self.call(n)
             .trap_:
@@ -1797,7 +1801,8 @@ pub struct Generator:
                 try self.frame_address("x16", self.fr.indirect_home)
                 try self.line("ldr x0, [x16]")
                 try self.load_immediate("x2", (i64)self.f.result_size)
-                try self.line("bl _memcpy")
+                try self.line("bl ")
+                try self.symbol("memcpy")
                 try self.frame_address("x16", self.fr.indirect_home)
                 try self.line("ldr x0, [x16]")
         try self.restore_callee_saved()

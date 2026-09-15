@@ -43,7 +43,7 @@ lb_net_18http_parse_request:
     sub x0, x29, #296
     ldr x1, [x0]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x9, x29, #304
     str x9, [sp, #8]
     mov x9, #0
@@ -79,7 +79,7 @@ lb_net_18http_parse_request:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #128
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #1232]
@@ -126,7 +126,7 @@ lb_net_18http_parse_request:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #128
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #1232]
@@ -180,7 +180,7 @@ lb_net_18http_parse_request:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #128
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #1232]
@@ -251,7 +251,7 @@ lb_net_18http_parse_request:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #128
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #1232]
@@ -402,7 +402,7 @@ lb_net_18http_parse_request:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #128
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #1232]
@@ -560,7 +560,7 @@ lb_net_18http_parse_request:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #128
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #1232]
@@ -651,7 +651,7 @@ lb_net_18http_parse_request:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #128
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #1232]
@@ -750,7 +750,7 @@ lb_net_18http_parse_request:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #128
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #1232]
@@ -812,7 +812,7 @@ lb_net_18http_parse_request:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #128
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #1232]
@@ -889,7 +889,7 @@ lb_net_18http_parse_request:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #128
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #1232]
@@ -1070,7 +1070,7 @@ lb_net_18http_parse_request:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #128
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #1232]
@@ -1118,7 +1118,7 @@ lb_net_18http_parse_request:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #128
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #1232]
@@ -1175,7 +1175,7 @@ lb_net_19http_parse_response:
     sub x0, x29, #304
     ldr x1, [x0]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x19, x29, #312
     mov x9, #0
     str x9, [x19]
@@ -1209,7 +1209,7 @@ lb_net_19http_parse_response:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #128
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #848]
@@ -1254,7 +1254,7 @@ lb_net_19http_parse_response:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #128
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #848]
@@ -1306,7 +1306,7 @@ lb_net_19http_parse_response:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #128
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #848]
@@ -1406,7 +1406,7 @@ lb_net_19http_parse_response:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #128
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #848]
@@ -1482,7 +1482,7 @@ lb_net_19http_parse_response:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #128
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #848]
@@ -1613,7 +1613,7 @@ lb_net_19http_parse_response:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #128
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #848]
@@ -1665,7 +1665,7 @@ lb_net_19http_parse_response:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #128
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #848]
@@ -1780,7 +1780,7 @@ lb_net_19http_parse_response:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #128
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #848]
@@ -1818,7 +1818,7 @@ lb_net_19http_parse_response:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #128
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #848]
@@ -1854,7 +1854,7 @@ lb_net_15http_check_head:
     sub x0, x29, #112
     ldr x1, [x0]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x14, x29, #80
     add x19, x14, #8
     ldr x15, [x19]
@@ -1887,7 +1887,7 @@ lb_net_15http_check_head:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #144]
@@ -1939,7 +1939,7 @@ lb_net_15http_check_head:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #144]
@@ -1979,7 +1979,7 @@ lb_net_15http_check_head:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #144]
@@ -1998,7 +1998,7 @@ lb_net_15http_check_head:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #144]
@@ -2042,7 +2042,7 @@ lb_net_16http_finish_head:
     sub x0, x29, #232
     ldr x1, [x0]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x14, x29, #152
     ldr x9, [x14]
     str x9, [sp, #416]
@@ -2156,7 +2156,7 @@ lb_net_16http_finish_head:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #1616]
@@ -2277,7 +2277,7 @@ lb_net_16http_finish_head:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #1616]
@@ -2364,7 +2364,7 @@ lb_net_16http_finish_head:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #1616]
@@ -2433,7 +2433,7 @@ lb_net_16http_finish_head:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #1616]
@@ -2581,7 +2581,7 @@ lb_net_16http_finish_head:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #1616]
@@ -2720,7 +2720,7 @@ lb_net_16http_finish_head:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #1616]
@@ -2782,7 +2782,7 @@ lb_net_16http_finish_head:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #1616]
@@ -2893,7 +2893,7 @@ lb_net_16http_finish_head:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #1616]
@@ -2995,7 +2995,7 @@ lb_net_16http_finish_head:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #1616]
@@ -3163,7 +3163,7 @@ lb_net_16http_finish_head:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #1616]
@@ -3219,7 +3219,7 @@ lb_net_16http_finish_head:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #1616]
@@ -3350,7 +3350,7 @@ lb_net_16http_finish_head:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #1616]
@@ -3507,7 +3507,7 @@ lb_net_16http_finish_head:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #1616]
@@ -3615,7 +3615,7 @@ lb_net_16http_finish_head:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #1616]
@@ -3732,7 +3732,7 @@ lb_net_16http_finish_head:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #1616]
@@ -3803,7 +3803,7 @@ lb_net_16http_finish_head:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #1616]
@@ -3861,7 +3861,7 @@ lb_net_16http_finish_head:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #1616]

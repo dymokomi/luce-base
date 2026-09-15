@@ -68,7 +68,7 @@ lb_ownership_12push_pending:
     sub x0, x29, #120
     ldr x1, [x0]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     adrp x0, :gottprel:lb_ownership_13pending_count
     ldr x0, [x0, :gottprel_lo12:lb_ownership_13pending_count]
     mrs x16, tpidr_el0

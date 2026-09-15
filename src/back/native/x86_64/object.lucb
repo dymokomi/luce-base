@@ -81,6 +81,12 @@ pub struct Format:
                     try out.put("    .weak ")
                     try self.symbol(out, function.name)
                     try out.put("\n")
+            # every unit that views a record defines its witness table: weak, so the
+            # linker keeps one
+            for table in program_unit.tables.span():
+                try out.put("    .weak ")
+                try self.symbol(out, table.name)
+                try out.put("\n")
 
     pub func initializer(out: buffer.Buffer*, name: str) -> !:
         # the loader runs the unit's initialiser: ELF's `.init_array`, Mach-O's

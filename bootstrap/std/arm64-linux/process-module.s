@@ -190,7 +190,7 @@ lb_process_Capture_pull:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #224]
@@ -247,7 +247,7 @@ lb_process_Capture_pull:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #224]
@@ -391,7 +391,7 @@ lb_process_Capture_pull:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #224]
@@ -414,7 +414,7 @@ lb_process_Capture_pull:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #224]
@@ -517,7 +517,7 @@ lb_process_Capture_take:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #288]
@@ -641,7 +641,7 @@ lb_process_Capture_take:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #288]
@@ -718,7 +718,7 @@ lb_process_Capture_take:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #288]
@@ -828,7 +828,7 @@ lb_process_run:
     sub x0, x29, #176
     ldr x1, [x0]
     movz x2, #24
-    bl _memcpy
+    bl memcpy
     sub x14, x29, #120
     ldr x14, [x14]
     sub x15, x29, #136
@@ -867,7 +867,7 @@ lb_process_run:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #72
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #224]
@@ -892,7 +892,7 @@ lb_process_run:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #72
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #224]
@@ -941,7 +941,7 @@ lb_process_14run_controlled:
     sub x0, x29, #248
     ldr x1, [x0]
     movz x2, #24
-    bl _memcpy
+    bl memcpy
     bl lb_process_19environment_address
     mov x19, x0
     sub x9, x29, #280
@@ -989,7 +989,7 @@ lb_process_14run_controlled:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #72
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #1504]
@@ -1138,7 +1138,7 @@ lb_process_14run_controlled:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #72
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #1504]
@@ -1302,7 +1302,7 @@ lb_process_14run_controlled:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #72
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #1504]
@@ -1403,7 +1403,7 @@ lb_process_14run_controlled:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #72
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #1504]
@@ -1512,7 +1512,7 @@ lb_process_14run_controlled:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #72
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #1504]
@@ -1890,7 +1890,7 @@ lb_process_14run_controlled:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #72
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #1504]
@@ -2316,7 +2316,7 @@ lb_process_14run_controlled:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #72
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #1504]
@@ -2449,7 +2449,7 @@ lb_process_14run_controlled:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #72
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #1504]
@@ -2520,7 +2520,7 @@ lb_process_14run_controlled:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #72
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #1504]
@@ -2582,7 +2582,7 @@ lb_process_14run_controlled:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #72
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #1504]
@@ -2669,7 +2669,7 @@ lb_process_14run_controlled:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #72
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #1504]
@@ -2740,7 +2740,7 @@ lb_process_14run_controlled:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #72
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #1504]

@@ -164,7 +164,7 @@ lb_interop_9copy_text:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #56
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #272]
@@ -211,7 +211,7 @@ lb_interop_9copy_text:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #56
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #272]
@@ -275,7 +275,7 @@ lb_interop_9copy_text:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #56
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #272]

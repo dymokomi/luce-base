@@ -100,7 +100,7 @@ lb_strings_split:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #400]
@@ -236,7 +236,7 @@ lb_strings_split:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #400]
@@ -421,7 +421,7 @@ lb_strings_split:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #400]
@@ -498,7 +498,7 @@ lb_strings_SplitIterator_over:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #88
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #224]
@@ -552,7 +552,7 @@ lb_strings_SplitIterator_over:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #88
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #224]
@@ -610,7 +610,7 @@ lb_strings_SplitIterator_next:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #24
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #304]
@@ -694,7 +694,7 @@ lb_strings_SplitIterator_next:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #24
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #304]
@@ -820,7 +820,7 @@ lb_strings_SplitIterator_next:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #24
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #304]
@@ -897,7 +897,7 @@ lb_strings_SplitIterator_next:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #24
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #304]
@@ -980,7 +980,7 @@ lb_strings_8split_by:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #608]
@@ -1077,7 +1077,7 @@ lb_strings_8split_by:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #608]
@@ -1204,7 +1204,7 @@ lb_strings_8split_by:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #608]
@@ -1287,7 +1287,7 @@ lb_strings_8split_by:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #608]
@@ -1372,7 +1372,7 @@ lb_strings_10split_once:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #320]
@@ -1507,7 +1507,7 @@ lb_strings_10split_once:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #320]
@@ -1590,7 +1590,7 @@ lb_strings_10split_last:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #320]
@@ -1725,7 +1725,7 @@ lb_strings_10split_last:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #320]

@@ -83,7 +83,7 @@ lb_files_TemporaryFile_create:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #72
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #624]
@@ -217,7 +217,7 @@ lb_files_TemporaryFile_create:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #72
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #624]
@@ -360,7 +360,7 @@ lb_files_TemporaryFile_create:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #72
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #624]
@@ -421,7 +421,7 @@ lb_files_TemporaryFile_create:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #72
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #624]
@@ -467,7 +467,7 @@ lb_files_TemporaryFile_create:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #72
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #624]
@@ -566,7 +566,7 @@ lb_files_TemporaryFile_read:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #112]
@@ -585,7 +585,7 @@ lb_files_TemporaryFile_read:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #112]
@@ -647,7 +647,7 @@ lb_files_TemporaryFile_write:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #112]
@@ -666,7 +666,7 @@ lb_files_TemporaryFile_write:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #112]
@@ -731,7 +731,7 @@ lb_files_TemporaryFile_seek:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #128]
@@ -750,7 +750,7 @@ lb_files_TemporaryFile_seek:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #128]
@@ -803,7 +803,7 @@ lb_files_TemporaryFile_sync:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #80]
@@ -820,7 +820,7 @@ lb_files_TemporaryFile_sync:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #80]
@@ -880,7 +880,7 @@ lb_files_TemporaryFile_publish:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #160]
@@ -915,7 +915,7 @@ lb_files_TemporaryFile_publish:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #160]
@@ -955,7 +955,7 @@ lb_files_TemporaryFile_publish:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #160]
@@ -975,7 +975,7 @@ lb_files_TemporaryFile_publish:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #160]
@@ -1132,7 +1132,7 @@ lb_files_TemporaryFile_11remove_name:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #112]
@@ -1190,7 +1190,7 @@ lb_files_TemporaryFile_11remove_name:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #112]
@@ -1213,7 +1213,7 @@ lb_files_TemporaryFile_11remove_name:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #112]
@@ -1296,7 +1296,7 @@ lb_files_TemporaryFile_discard:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #192]
@@ -1329,7 +1329,7 @@ lb_files_TemporaryFile_discard:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #192]
@@ -1347,7 +1347,7 @@ lb_files_TemporaryFile_discard:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #192]
@@ -1467,7 +1467,7 @@ lb_files_12write_atomic:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #352]
@@ -1527,7 +1527,7 @@ lb_files_12write_atomic:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #352]
@@ -1566,7 +1566,7 @@ lb_files_12write_atomic:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #352]
@@ -1587,7 +1587,7 @@ lb_files_12write_atomic:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #352]
@@ -1665,7 +1665,7 @@ lb_files_Replacement_prepare:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #88
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #496]
@@ -1725,7 +1725,7 @@ lb_files_Replacement_prepare:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #88
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #496]
@@ -1782,7 +1782,7 @@ lb_files_Replacement_prepare:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #88
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #496]
@@ -1847,7 +1847,7 @@ lb_files_Replacement_prepare:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #88
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #496]
@@ -1960,7 +1960,7 @@ lb_files_Replacement_finish:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #304]
@@ -2004,7 +2004,7 @@ lb_files_Replacement_finish:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #304]
@@ -2053,7 +2053,7 @@ lb_files_Replacement_finish:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #304]
@@ -2087,7 +2087,7 @@ lb_files_Replacement_finish:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #304]
@@ -2109,7 +2109,7 @@ lb_files_Replacement_finish:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #304]

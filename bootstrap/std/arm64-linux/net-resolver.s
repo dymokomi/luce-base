@@ -219,7 +219,7 @@ lb_net_resolve:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #56
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #288]
@@ -294,7 +294,7 @@ lb_net_resolve:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #56
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #288]
@@ -353,7 +353,7 @@ lb_net_resolve:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #56
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #288]
@@ -447,7 +447,7 @@ lb_net_11resolve_all:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #64
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #544]
@@ -553,7 +553,7 @@ lb_net_11resolve_all:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #64
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #544]
@@ -624,7 +624,7 @@ lb_net_11resolve_all:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #64
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #544]
@@ -774,7 +774,7 @@ lb_net_11resolve_all:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #64
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #544]
@@ -904,7 +904,7 @@ lb_net_11resolve_all:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #64
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #544]
@@ -1020,7 +1020,7 @@ lb_net_ResolverQuery_open:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #272]
@@ -1116,7 +1116,7 @@ lb_net_ResolverQuery_open:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #272]
@@ -1161,7 +1161,7 @@ lb_net_ResolverQuery_open:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #272]
@@ -1191,7 +1191,7 @@ lb_net_ResolverQuery_open:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #272]
@@ -1326,7 +1326,7 @@ lb_net_17resolved_endpoint:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #28
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #384]
@@ -1366,7 +1366,7 @@ lb_net_17resolved_endpoint:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #28
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #384]
@@ -1428,7 +1428,7 @@ lb_net_17resolved_endpoint:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #28
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #384]
@@ -1512,7 +1512,7 @@ lb_net_17resolved_endpoint:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #28
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #384]
@@ -1553,7 +1553,7 @@ lb_net_17resolved_endpoint:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #28
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #384]

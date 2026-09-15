@@ -73,7 +73,7 @@ lb_net_HttpBodyDecoder_create:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #8312
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #24992]
@@ -139,7 +139,7 @@ lb_net_HttpBodyDecoder_create:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #8312
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #24992]
@@ -161,7 +161,7 @@ lb_net_HttpBodyDecoder_create:
     mov x0, x22
     mov x1, #0
     movz x2, #8280
-    bl _memset
+    bl memset
     strb w19, [x22]
     movz x16, #8408
     sub x14, x29, x16
@@ -179,7 +179,7 @@ lb_net_HttpBodyDecoder_create:
     mov x0, x21
     mov x1, x22
     movz x2, #8280
-    bl _memcpy
+    bl memcpy
     movz x10, #2
     cmp w19, w10
     b.ne .L1_12
@@ -226,7 +226,7 @@ lb_net_HttpBodyDecoder_create:
     mov x0, x19
     mov x1, x21
     movz x2, #8280
-    bl _memcpy
+    bl memcpy
     movz x10, #8304
     add x14, x19, x10
     mov x9, #0
@@ -235,7 +235,7 @@ lb_net_HttpBodyDecoder_create:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #8312
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #24992]
@@ -352,7 +352,7 @@ lb_net_HttpBodyDecoder_consume:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #104
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #368]
@@ -426,7 +426,7 @@ lb_net_HttpBodyDecoder_consume:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #104
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #368]
@@ -458,7 +458,7 @@ lb_net_HttpBodyDecoder_consume:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #104
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #368]
@@ -521,7 +521,7 @@ lb_net_HttpBodyDecoder_finish:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #80]
@@ -582,7 +582,7 @@ lb_net_HttpBodyDecoder_finish:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #80]
@@ -601,7 +601,7 @@ lb_net_HttpBodyDecoder_finish:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #80]
@@ -881,7 +881,7 @@ lb_net_HttpBodyDecoder_advance:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #104
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #1952]
@@ -1035,7 +1035,7 @@ lb_net_HttpBodyDecoder_advance:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #104
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #1952]
@@ -1127,7 +1127,7 @@ lb_net_HttpBodyDecoder_advance:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #104
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #1952]
@@ -1209,7 +1209,7 @@ lb_net_HttpBodyDecoder_advance:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #104
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #1952]
@@ -1268,7 +1268,7 @@ lb_net_HttpBodyDecoder_advance:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #104
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #1952]
@@ -1555,7 +1555,7 @@ lb_net_HttpBodyDecoder_advance:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #104
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #1952]
@@ -1648,7 +1648,7 @@ lb_net_HttpBodyDecoder_advance:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #104
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #1952]
@@ -1735,7 +1735,7 @@ lb_net_HttpBodyDecoder_advance:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #104
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #1952]
@@ -1804,7 +1804,7 @@ lb_net_HttpBodyDecoder_advance:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #104
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #1952]
@@ -2078,7 +2078,7 @@ lb_net_HttpBodyDecoder_advance:
     mov x0, x19
     mov x1, x21
     movz x2, #176
-    bl _memcpy
+    bl memcpy
     sub x21, x29, #1624
     sub x22, x29, #1080
     mov x9, #0
@@ -2154,7 +2154,7 @@ lb_net_HttpBodyDecoder_advance:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #104
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #1952]
@@ -2219,7 +2219,7 @@ lb_net_HttpBodyDecoder_advance:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #104
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #1952]
@@ -2278,7 +2278,7 @@ lb_net_HttpBodyDecoder_advance:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #104
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #1952]
@@ -2327,7 +2327,7 @@ lb_net_HttpBodyDecoder_advance:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #104
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #1952]
@@ -2412,7 +2412,7 @@ lb_net_HttpBodyDecoder_advance:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #104
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #1952]
@@ -2820,7 +2820,7 @@ lb_net_20http_chunk_extension:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #336]
@@ -2972,7 +2972,7 @@ lb_net_20http_chunk_extension:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #336]
@@ -3033,7 +3033,7 @@ lb_net_20http_chunk_extension:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #336]
@@ -3060,7 +3060,7 @@ lb_net_20http_chunk_extension:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #336]
@@ -3103,7 +3103,7 @@ lb_net_20http_chunk_extension:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #336]
@@ -3164,7 +3164,7 @@ lb_net_20http_chunk_extension:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #336]
@@ -3230,7 +3230,7 @@ lb_net_20http_chunk_extension:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #336]
@@ -3383,7 +3383,7 @@ lb_net_20http_chunk_extension:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #336]
@@ -3410,7 +3410,7 @@ lb_net_20http_chunk_extension:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #336]
@@ -3486,7 +3486,7 @@ lb_net_20http_chunk_extension:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #336]
@@ -3538,7 +3538,7 @@ lb_net_20http_chunk_extension:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #336]
@@ -3641,7 +3641,7 @@ lb_net_20http_chunk_extension:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #336]
@@ -3686,7 +3686,7 @@ lb_net_20http_chunk_extension:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #336]
@@ -3710,7 +3710,7 @@ lb_net_20http_chunk_extension:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #336]

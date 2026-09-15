@@ -1,3 +1,4 @@
+    .weak lb_vt_files_TemporaryFile_Writer
     .text
 
     .p2align 4

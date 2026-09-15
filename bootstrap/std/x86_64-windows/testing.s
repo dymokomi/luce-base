@@ -1,3 +1,4 @@
+    .weak lb_vt_memory_FixedBuffer_Allocator
     .text
 
     .p2align 4

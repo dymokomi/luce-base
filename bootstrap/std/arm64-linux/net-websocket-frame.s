@@ -66,7 +66,7 @@ lb_net_21websocket_parse_frame:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #72
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #608]
@@ -128,7 +128,7 @@ lb_net_21websocket_parse_frame:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #72
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #608]
@@ -173,7 +173,7 @@ lb_net_21websocket_parse_frame:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #72
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #608]
@@ -252,7 +252,7 @@ lb_net_21websocket_parse_frame:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #72
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #608]
@@ -303,7 +303,7 @@ lb_net_21websocket_parse_frame:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #72
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #608]
@@ -376,7 +376,7 @@ lb_net_21websocket_parse_frame:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #72
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #608]
@@ -427,7 +427,7 @@ lb_net_21websocket_parse_frame:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #72
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #608]
@@ -489,7 +489,7 @@ lb_net_21websocket_parse_frame:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #72
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #608]
@@ -564,7 +564,7 @@ lb_net_21websocket_parse_frame:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #72
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #608]
@@ -622,7 +622,7 @@ lb_net_21websocket_parse_frame:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #72
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #608]
@@ -696,7 +696,7 @@ lb_net_21websocket_parse_frame:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #72
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #608]
@@ -755,7 +755,7 @@ lb_net_21websocket_parse_frame:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #72
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #608]
@@ -878,7 +878,7 @@ lb_net_21websocket_parse_frame:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #72
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #608]
@@ -934,7 +934,7 @@ lb_net_16websocket_opcode:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #80]
@@ -960,7 +960,7 @@ lb_net_16websocket_opcode:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #80]
@@ -986,7 +986,7 @@ lb_net_16websocket_opcode:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #80]
@@ -1012,7 +1012,7 @@ lb_net_16websocket_opcode:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #80]
@@ -1038,7 +1038,7 @@ lb_net_16websocket_opcode:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #80]
@@ -1064,7 +1064,7 @@ lb_net_16websocket_opcode:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #80]
@@ -1103,7 +1103,7 @@ lb_net_16websocket_opcode:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #80]
@@ -1157,7 +1157,7 @@ lb_net_21websocket_check_close:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #240]
@@ -1214,7 +1214,7 @@ lb_net_21websocket_check_close:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #240]
@@ -1369,7 +1369,7 @@ lb_net_21websocket_check_close:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #240]
@@ -1456,7 +1456,7 @@ lb_net_21websocket_check_close:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #240]
@@ -1499,7 +1499,7 @@ lb_net_21websocket_check_close:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #240]
@@ -1522,7 +1522,7 @@ lb_net_21websocket_check_close:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #240]
@@ -1558,7 +1558,7 @@ lb_net_WebSocketSequence_begin:
     sub x0, x29, #120
     ldr x1, [x0]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x9, x29, #88
     ldr x19, [x9]
     add x14, x19, #168
@@ -1605,7 +1605,7 @@ lb_net_WebSocketSequence_begin:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #160]
@@ -1637,7 +1637,7 @@ lb_net_WebSocketSequence_begin:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #160]
@@ -1683,7 +1683,7 @@ lb_net_WebSocketSequence_begin:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #160]
@@ -1726,7 +1726,7 @@ lb_net_WebSocketSequence_begin:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #160]
@@ -1795,7 +1795,7 @@ lb_net_WebSocketSequence_begin:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #160]
@@ -1834,7 +1834,7 @@ lb_net_WebSocketSequence_begin:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #160]
@@ -1875,7 +1875,7 @@ lb_net_WebSocketSequence_payload:
     sub x0, x29, #160
     ldr x1, [x0]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x9, x29, #128
     ldr x20, [x9]
     sub x19, x29, #160
@@ -1997,7 +1997,7 @@ lb_net_WebSocketSequence_payload:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #304]
@@ -2030,7 +2030,7 @@ lb_net_WebSocketSequence_payload:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #304]
@@ -2092,7 +2092,7 @@ lb_net_WebSocketSequence_payload:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #304]
@@ -2152,7 +2152,7 @@ lb_net_WebSocketSequence_payload:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #304]
@@ -2182,7 +2182,7 @@ lb_net_WebSocketSequence_payload:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #304]
@@ -2220,7 +2220,7 @@ lb_net_WebSocketDecoder_create:
     mov x0, x19
     mov x1, #0
     movz x2, #272
-    bl _memset
+    bl memset
     sub x14, x29, #328
     ldrb w14, [x14]
     strb w14, [x19]
@@ -2232,7 +2232,7 @@ lb_net_WebSocketDecoder_create:
     mov x0, x20
     mov x1, #0
     movz x2, #176
-    bl _memset
+    bl memset
     sub x14, x29, #360
     ldr x14, [x14]
     add x15, x20, #16
@@ -2241,17 +2241,17 @@ lb_net_WebSocketDecoder_create:
     mov x0, x14
     mov x1, x20
     movz x2, #176
-    bl _memcpy
+    bl memcpy
     sub x20, x29, #312
     mov x0, x20
     mov x1, x19
     movz x2, #272
-    bl _memcpy
+    bl memcpy
     mov x1, x20
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #272
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #784]
@@ -2320,7 +2320,7 @@ lb_net_WebSocketDecoder_consume:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #56
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #256]
@@ -2366,7 +2366,7 @@ lb_net_WebSocketDecoder_consume:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #56
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #256]
@@ -2436,7 +2436,7 @@ lb_net_WebSocketDecoder_consume:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #56
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #256]
@@ -2462,7 +2462,7 @@ lb_net_WebSocketDecoder_consume:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #56
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #256]
@@ -2523,7 +2523,7 @@ lb_net_WebSocketDecoder_finish:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #80]
@@ -2598,7 +2598,7 @@ lb_net_WebSocketDecoder_finish:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #80]
@@ -2617,7 +2617,7 @@ lb_net_WebSocketDecoder_finish:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #80]
@@ -2815,7 +2815,7 @@ lb_net_WebSocketDecoder_advance:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #56
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #560]
@@ -2869,7 +2869,7 @@ lb_net_WebSocketDecoder_advance:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #56
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #560]
@@ -2934,7 +2934,7 @@ lb_net_WebSocketDecoder_advance:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #56
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #560]
@@ -3179,7 +3179,7 @@ lb_net_WebSocketDecoder_advance:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #56
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #560]
@@ -3274,7 +3274,7 @@ lb_net_WebSocketDecoder_advance:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #56
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #560]
@@ -3314,7 +3314,7 @@ lb_net_WebSocketEncoder_create:
     mov x0, x19
     mov x1, #0
     movz x2, #200
-    bl _memset
+    bl memset
     sub x14, x29, #256
     ldrb w14, [x14]
     strb w14, [x19]
@@ -3326,7 +3326,7 @@ lb_net_WebSocketEncoder_create:
     mov x0, x20
     mov x1, #0
     movz x2, #176
-    bl _memset
+    bl memset
     sub x14, x29, #288
     ldr x14, [x14]
     add x15, x20, #16
@@ -3335,17 +3335,17 @@ lb_net_WebSocketEncoder_create:
     mov x0, x14
     mov x1, x20
     movz x2, #176
-    bl _memcpy
+    bl memcpy
     sub x20, x29, #240
     mov x0, x20
     mov x1, x19
     movz x2, #200
-    bl _memcpy
+    bl memcpy
     mov x1, x20
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #200
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #640]
@@ -3417,7 +3417,7 @@ lb_net_WebSocketEncoder_write:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #208]
@@ -3485,7 +3485,7 @@ lb_net_WebSocketEncoder_write:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #208]
@@ -3505,7 +3505,7 @@ lb_net_WebSocketEncoder_write:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #208]
@@ -3580,7 +3580,7 @@ lb_net_WebSocketEncoder_emit:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #4688]
@@ -3629,7 +3629,7 @@ lb_net_WebSocketEncoder_emit:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #4688]
@@ -3702,7 +3702,7 @@ lb_net_WebSocketEncoder_emit:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #4688]
@@ -3764,7 +3764,7 @@ lb_net_WebSocketEncoder_emit:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #4688]
@@ -3810,7 +3810,7 @@ lb_net_WebSocketEncoder_emit:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #4688]
@@ -3996,7 +3996,7 @@ lb_net_WebSocketEncoder_emit:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #4688]
@@ -4116,7 +4116,7 @@ lb_net_WebSocketEncoder_emit:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #4688]
@@ -4167,7 +4167,7 @@ lb_net_WebSocketEncoder_emit:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #4688]
@@ -4192,7 +4192,7 @@ lb_net_WebSocketEncoder_emit:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #4688]
@@ -4215,7 +4215,7 @@ lb_net_WebSocketEncoder_emit:
     mov x0, x19
     mov x1, #0
     movz x2, #4096
-    bl _memset
+    bl memset
     movz x16, #4672
     sub x21, x29, x16
     add x25, x21, #8
@@ -4354,7 +4354,7 @@ lb_net_WebSocketEncoder_emit:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #4688]
@@ -4393,7 +4393,7 @@ lb_net_WebSocketEncoder_emit:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #4688]

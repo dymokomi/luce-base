@@ -1,4 +1,5 @@
     .weak lb_memory_copy_0g1_u8
+    .weak lb_vt_files_File_Writer
     .text
 
     .p2align 4

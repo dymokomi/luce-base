@@ -52,7 +52,7 @@ lb_gpu_20backend_surface_open:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #96]
@@ -115,7 +115,7 @@ lb_gpu_21backend_clear_present:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #128]
@@ -169,7 +169,7 @@ lb_gpu_20backend_surface_wait:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #80]
@@ -185,7 +185,7 @@ lb_gpu_20backend_surface_wait:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #80]
@@ -222,7 +222,7 @@ lb_gpu_14backend_render:
     sub x0, x29, #192
     ldr x1, [x0]
     movz x2, #72
-    bl _memcpy
+    bl memcpy
     sub x19, x29, #72
     add x14, x19, #8
     adrp x15, lb_gpu_unsupported
@@ -248,7 +248,7 @@ lb_gpu_14backend_render:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #208]

@@ -58,7 +58,7 @@ lb_gpu_Surface_open:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #368]
@@ -100,7 +100,7 @@ lb_gpu_Surface_open:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #368]
@@ -147,7 +147,7 @@ lb_gpu_Surface_open:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #368]
@@ -271,7 +271,7 @@ lb_gpu_Surface_open:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #368]
@@ -316,7 +316,7 @@ lb_gpu_Surface_open:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #368]
@@ -376,7 +376,7 @@ lb_gpu_Surface_size:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #72
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #192]
@@ -412,7 +412,7 @@ lb_gpu_Surface_size:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #72
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #192]
@@ -437,7 +437,7 @@ lb_gpu_Surface_size:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #72
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #192]
@@ -500,7 +500,7 @@ lb_gpu_Surface_13clear_present:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #288]
@@ -540,7 +540,7 @@ lb_gpu_Surface_13clear_present:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #288]
@@ -577,7 +577,7 @@ lb_gpu_Surface_13clear_present:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #288]
@@ -618,7 +618,7 @@ lb_gpu_Surface_13clear_present:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #288]
@@ -666,7 +666,7 @@ lb_gpu_Surface_13clear_present:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #288]
@@ -687,7 +687,7 @@ lb_gpu_Surface_13clear_present:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #288]
@@ -730,7 +730,7 @@ lb_gpu_Surface_render:
     sub x0, x29, #168
     ldr x1, [x0]
     movz x2, #72
-    bl _memcpy
+    bl memcpy
     sub x9, x29, #96
     ldr x14, [x9]
     mov x0, x14
@@ -758,7 +758,7 @@ lb_gpu_Surface_render:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #368]
@@ -798,7 +798,7 @@ lb_gpu_Surface_render:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #368]
@@ -835,7 +835,7 @@ lb_gpu_Surface_render:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #368]
@@ -876,7 +876,7 @@ lb_gpu_Surface_render:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #368]
@@ -927,7 +927,7 @@ lb_gpu_Surface_render:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #368]
@@ -948,7 +948,7 @@ lb_gpu_Surface_render:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #368]
@@ -1012,7 +1012,7 @@ lb_gpu_Surface_frame:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #496]
@@ -1059,7 +1059,7 @@ lb_gpu_Surface_frame:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #496]
@@ -1104,7 +1104,7 @@ lb_gpu_Surface_frame:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #496]
@@ -1250,7 +1250,7 @@ lb_gpu_Surface_frame:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #496]
@@ -1303,7 +1303,7 @@ lb_gpu_Surface_frame:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #496]
@@ -1352,7 +1352,7 @@ lb_gpu_Surface_frame:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #496]
@@ -1413,7 +1413,7 @@ lb_gpu_Surface_frame:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #496]
@@ -1474,7 +1474,7 @@ lb_gpu_Surface_9wait_idle:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #112]
@@ -1511,7 +1511,7 @@ lb_gpu_Surface_9wait_idle:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #112]
@@ -1528,7 +1528,7 @@ lb_gpu_Surface_9wait_idle:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #112]
@@ -1617,7 +1617,7 @@ lb_gpu_Surface_checked:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #112]
@@ -1657,7 +1657,7 @@ lb_gpu_Surface_checked:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #112]
@@ -1696,7 +1696,7 @@ lb_gpu_Surface_checked:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #112]
@@ -1716,7 +1716,7 @@ lb_gpu_Surface_checked:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #112]
@@ -1831,7 +1831,7 @@ lb_gpu_19check_surface_frame:
     sub x0, x29, #128
     ldr x1, [x0]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x14, x29, #88
     ldr x19, [x14]
     sub x8, x29, #160
@@ -1856,7 +1856,7 @@ lb_gpu_19check_surface_frame:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #272]
@@ -1895,7 +1895,7 @@ lb_gpu_19check_surface_frame:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #272]
@@ -1933,7 +1933,7 @@ lb_gpu_19check_surface_frame:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #272]
@@ -2038,7 +2038,7 @@ lb_gpu_19check_surface_frame:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #272]
@@ -2058,7 +2058,7 @@ lb_gpu_19check_surface_frame:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #272]
@@ -2092,7 +2092,7 @@ lb_gpu_20submit_surface_frame:
     sub x0, x29, #160
     ldr x1, [x0]
     movz x2, #72
-    bl _memcpy
+    bl memcpy
     sub x14, x29, #88
     ldr x14, [x14]
     ldr x15, [x14]
@@ -2135,7 +2135,7 @@ lb_gpu_20submit_surface_frame:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #192]
@@ -2154,7 +2154,7 @@ lb_gpu_20submit_surface_frame:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #192]
@@ -2219,7 +2219,7 @@ lb_interop_Reference_0g1_gpu_Frame_adopt:
     sub x0, x29, #176
     ldr x1, [x0]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x19, x29, #208
     sub x15, x29, #192
     ldr x14, [x15]
@@ -2344,7 +2344,7 @@ lb_interop_Reference_0g1_gpu_Frame_adopt:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #336]
@@ -2386,7 +2386,7 @@ lb_interop_Reference_0g1_gpu_Frame_adopt:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #336]
@@ -2509,7 +2509,7 @@ lb_interop_Reservation_0g1_gpu_Frame_init:
     sub x0, x29, #144
     ldr x1, [x0]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x9, x29, #104
     ldr x20, [x9]
     sub x19, x29, #144
@@ -2555,7 +2555,7 @@ lb_interop_Reservation_0g1_gpu_Frame_init:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #304]
@@ -2640,7 +2640,7 @@ lb_interop_Reservation_0g1_gpu_Frame_init:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #304]
@@ -2685,7 +2685,7 @@ lb_interop_Reservation_0g1_gpu_Frame_init:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #304]
@@ -2860,7 +2860,7 @@ lb_interop_Reference_0g1_gpu_FrameState_get:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #80]
@@ -2907,7 +2907,7 @@ lb_interop_Reference_0g1_gpu_FrameState_get:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #80]

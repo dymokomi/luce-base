@@ -108,7 +108,7 @@ lb_gpu_Canvas_triangles:
     sub x0, x29, #296
     ldr x1, [x0]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x9, x29, #208
     ldr x9, [x9]
     str x9, [sp, #16]
@@ -154,7 +154,7 @@ lb_gpu_Canvas_triangles:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #880]
@@ -409,7 +409,7 @@ lb_gpu_Canvas_triangles:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #880]
@@ -576,7 +576,7 @@ lb_gpu_Canvas_triangles:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #880]
@@ -631,7 +631,7 @@ lb_gpu_Canvas_triangles:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #880]
@@ -704,7 +704,7 @@ lb_gpu_Canvas_triangles:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #880]
@@ -789,7 +789,7 @@ lb_gpu_Canvas_triangles:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #880]
@@ -960,7 +960,7 @@ lb_gpu_Canvas_triangles:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #880]
@@ -1189,7 +1189,7 @@ lb_gpu_Canvas_triangles:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #880]
@@ -1420,7 +1420,7 @@ lb_gpu_Canvas_triangles:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #880]

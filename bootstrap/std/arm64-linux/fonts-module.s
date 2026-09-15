@@ -172,7 +172,7 @@ lb_fonts_Face_init:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #512]
@@ -230,7 +230,7 @@ lb_fonts_Face_init:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #512]
@@ -293,7 +293,7 @@ lb_fonts_Face_init:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #512]
@@ -346,7 +346,7 @@ lb_fonts_Face_init:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #512]
@@ -466,7 +466,7 @@ lb_fonts_Face_init:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #512]
@@ -514,7 +514,7 @@ lb_fonts_Face_init:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #512]
@@ -583,7 +583,7 @@ lb_fonts_Face_measure:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #368]
@@ -899,7 +899,7 @@ lb_fonts_Face_measure:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #368]
@@ -931,7 +931,7 @@ lb_fonts_Face_measure:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #368]
@@ -1053,7 +1053,7 @@ lb_fonts_Face_rasterize:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #64
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #528]
@@ -1100,7 +1100,7 @@ lb_fonts_Face_rasterize:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #64
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #528]
@@ -1166,7 +1166,7 @@ lb_fonts_Face_rasterize:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #64
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #528]
@@ -1306,7 +1306,7 @@ lb_fonts_Face_rasterize:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #64
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #528]
@@ -1451,7 +1451,7 @@ lb_fonts_Face_rasterize:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #64
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #528]
@@ -1530,7 +1530,7 @@ lb_fonts_Face_rasterize:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #64
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #528]
@@ -1562,7 +1562,7 @@ lb_fonts_Face_rasterize:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #64
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #528]
@@ -1759,7 +1759,7 @@ lb_fonts_12family_bytes:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #192]
@@ -1813,7 +1813,7 @@ lb_fonts_12family_bytes:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #192]

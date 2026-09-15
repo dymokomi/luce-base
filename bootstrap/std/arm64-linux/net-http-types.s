@@ -100,7 +100,7 @@ lb_net_HttpHead_field:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #24
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #160]
@@ -135,7 +135,7 @@ lb_net_HttpHead_field:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #24
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #160]
@@ -388,7 +388,7 @@ lb_net_HttpHead_9has_token:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #288]
@@ -447,7 +447,7 @@ lb_net_HttpHead_9has_token:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #288]

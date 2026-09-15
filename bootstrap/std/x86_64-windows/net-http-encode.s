@@ -1,3 +1,4 @@
+    .weak lb_vt_io_SliceWriter_Writer
     .text
 
     .p2align 4

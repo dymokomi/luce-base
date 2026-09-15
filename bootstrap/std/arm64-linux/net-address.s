@@ -65,7 +65,7 @@ lb_net_SocketAddress_loopback:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #24
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #176]
@@ -119,7 +119,7 @@ lb_net_SocketAddress_loopback:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #24
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #176]
@@ -184,7 +184,7 @@ lb_net_SocketAddress_any:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #24
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #112]
@@ -259,7 +259,7 @@ lb_net_SocketAddress_parse:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #28
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #528]
@@ -384,7 +384,7 @@ lb_net_SocketAddress_parse:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #28
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #528]
@@ -511,7 +511,7 @@ lb_net_SocketAddress_parse:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #28
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #528]
@@ -603,7 +603,7 @@ lb_net_SocketAddress_parse:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #28
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #528]
@@ -713,7 +713,7 @@ lb_net_SocketAddress_parse:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #28
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #528]
@@ -763,7 +763,7 @@ lb_net_SocketAddress_parse:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #28
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #528]
@@ -851,7 +851,7 @@ lb_net_SocketAddress_parse:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #28
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #528]
@@ -906,7 +906,7 @@ lb_net_SocketAddress_parse:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #28
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #528]
@@ -945,7 +945,7 @@ lb_net_SocketAddress_equals:
     sub x0, x29, #64
     ldr x1, [x0]
     movz x2, #24
-    bl _memcpy
+    bl memcpy
     sub x9, x29, #40
     ldr x20, [x9]
     sub x19, x29, #64
@@ -1044,7 +1044,7 @@ lb_net_SocketAddress_format:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #464]
@@ -1106,7 +1106,7 @@ lb_net_SocketAddress_format:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #464]
@@ -1224,7 +1224,7 @@ lb_net_SocketAddress_format:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #464]
@@ -1302,7 +1302,7 @@ lb_net_SocketAddress_format:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #464]
@@ -1378,7 +1378,7 @@ lb_net_SocketAddress_format:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #464]
@@ -1455,7 +1455,7 @@ lb_net_SocketAddress_validate:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #80]
@@ -1509,7 +1509,7 @@ lb_net_SocketAddress_validate:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #80]
@@ -1528,7 +1528,7 @@ lb_net_SocketAddress_validate:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #80]
@@ -1581,7 +1581,7 @@ lb_net_SocketAddress_12write_native:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #224]
@@ -1635,7 +1635,7 @@ lb_net_SocketAddress_12write_native:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #224]
@@ -1697,7 +1697,7 @@ lb_net_SocketAddress_12write_native:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #224]
@@ -1771,7 +1771,7 @@ lb_net_SocketAddress_12write_native:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #224]
@@ -1831,7 +1831,7 @@ lb_net_14decode_address:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #56
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #544]
@@ -1938,7 +1938,7 @@ lb_net_14decode_address:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #56
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #544]
@@ -2034,7 +2034,7 @@ lb_net_14decode_address:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #56
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #544]
@@ -2101,7 +2101,7 @@ lb_net_14decode_address:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #56
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #544]
@@ -2216,7 +2216,7 @@ lb_net_14decode_address:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #56
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #544]
@@ -2252,7 +2252,7 @@ lb_net_14decode_address:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #56
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #544]
@@ -2866,7 +2866,7 @@ lb_memory_read_0g1_net_NativeIpv6Address:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #28
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #96]

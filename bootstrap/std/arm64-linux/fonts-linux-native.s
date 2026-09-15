@@ -92,7 +92,7 @@ lb_fonts_10linux_face:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #72
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #528]
@@ -313,7 +313,7 @@ lb_fonts_10linux_face:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #72
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #528]
@@ -424,7 +424,7 @@ lb_fonts_10linux_face:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #72
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #528]
@@ -528,7 +528,7 @@ lb_fonts_12linux_raster:
     sub x0, x29, #200
     ldr x1, [x0]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x19, x29, #200
     ldr x20, [x19]
     cbnz x20, .L2_1
@@ -560,7 +560,7 @@ lb_fonts_12linux_raster:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #480]
@@ -646,7 +646,7 @@ lb_fonts_12linux_raster:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #480]
@@ -954,7 +954,7 @@ lb_fonts_12linux_raster:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #480]
@@ -1094,7 +1094,7 @@ lb_fonts_12linux_raster:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #480]

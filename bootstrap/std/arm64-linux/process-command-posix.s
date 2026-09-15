@@ -130,7 +130,7 @@ lb_process_15capture_command:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #496]
@@ -245,7 +245,7 @@ lb_process_15capture_command:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #496]
@@ -383,7 +383,7 @@ lb_process_15capture_command:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #496]
@@ -470,7 +470,7 @@ lb_process_15capture_command:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #496]
@@ -558,7 +558,7 @@ lb_process_15capture_command:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #496]
@@ -622,7 +622,7 @@ lb_process_15capture_command:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #496]
@@ -708,7 +708,7 @@ lb_process_15capture_command:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #496]
@@ -754,7 +754,7 @@ lb_process_12pull_command:
     mov x0, x19
     mov x1, #0
     movz x2, #4096
-    bl _memset
+    bl memset
     sub x14, x29, #88
     ldr x20, [x14]
     ldrsw x14, [x20]
@@ -830,7 +830,7 @@ lb_process_12pull_command:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #4240]
@@ -898,7 +898,7 @@ lb_process_12pull_command:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #4240]
@@ -920,7 +920,7 @@ lb_process_12pull_command:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #4240]

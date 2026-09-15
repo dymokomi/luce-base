@@ -152,7 +152,7 @@ lb_files_20linux_arm64_metadata:
     sub x0, x29, #336
     ldr x1, [x0]
     movz x2, #128
-    bl _memcpy
+    bl memcpy
     sub x25, x29, #464
     mov x11, x25
     stp xzr, xzr, [x11, #0]
@@ -341,7 +341,7 @@ lb_files_20linux_arm64_metadata:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #128
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #560]
@@ -450,7 +450,7 @@ lb_files_metadata:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #160
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #496]
@@ -499,7 +499,7 @@ lb_files_metadata:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #160
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #496]
@@ -585,7 +585,7 @@ lb_files_19metadata_descriptor:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #160
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #464]
@@ -632,7 +632,7 @@ lb_files_19metadata_descriptor:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #160
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #464]
@@ -739,7 +739,7 @@ lb_files_11metadata_at:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #160
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #512]
@@ -788,7 +788,7 @@ lb_files_11metadata_at:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #160
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #512]

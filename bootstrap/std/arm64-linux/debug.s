@@ -4974,7 +4974,7 @@ lb_debug_show:
     mov x0, x25
     mov x1, #0
     movz x2, #160
-    bl _memset
+    bl memset
     movz x16, #16905
     sub x22, x29, x16
     movz x16, #15568

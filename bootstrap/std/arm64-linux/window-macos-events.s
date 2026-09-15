@@ -396,7 +396,7 @@ lb_window_12macos_events_0init:
     mov x0, x15
     mov x1, x14
     movz x2, #256
-    bl _memcpy
+    bl memcpy
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret

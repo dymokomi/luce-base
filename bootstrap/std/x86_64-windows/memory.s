@@ -1,3 +1,4 @@
+    .weak lb_vt_memory_CAllocator_Allocator
     .text
 
     .p2align 4

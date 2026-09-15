@@ -76,7 +76,7 @@ lb_window_9pop_event:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #64
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #544]
@@ -134,7 +134,7 @@ lb_window_9pop_event:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #64
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #544]
@@ -175,7 +175,7 @@ lb_window_9pop_event:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #64
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #544]
@@ -274,7 +274,7 @@ lb_window_9pop_event:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #64
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #544]

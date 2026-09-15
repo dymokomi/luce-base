@@ -88,7 +88,7 @@ lb_net_IpAddress_9from_ipv4:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #17
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #80]
@@ -174,7 +174,7 @@ lb_net_IpAddress_10from_bytes:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #56
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #176]
@@ -240,7 +240,7 @@ lb_net_IpAddress_10from_bytes:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #56
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #176]
@@ -312,7 +312,7 @@ lb_net_IpAddress_parse:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #18
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #192]
@@ -451,7 +451,7 @@ lb_net_IpAddress_parse:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #18
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #192]
@@ -514,7 +514,7 @@ lb_net_IpAddress_parse:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #18
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #192]
@@ -552,7 +552,7 @@ lb_net_IpAddress_parse:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #18
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #192]
@@ -584,7 +584,7 @@ lb_net_IpAddress_parse:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #18
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #192]
@@ -818,7 +818,7 @@ lb_net_IpAddress_equals:
     sub x0, x29, #56
     ldr x1, [x0]
     movz x2, #17
-    bl _memcpy
+    bl memcpy
     sub x9, x29, #32
     ldr x13, [x9]
     ldrb w14, [x13]
@@ -948,7 +948,7 @@ lb_net_IpAddress_12write_octets:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #96]
@@ -1000,7 +1000,7 @@ lb_net_IpAddress_12write_octets:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #40
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #96]
@@ -1511,7 +1511,7 @@ lb_net_IpAddress_format:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #496]
@@ -1596,7 +1596,7 @@ lb_net_IpAddress_format:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #48
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #496]
@@ -2429,7 +2429,7 @@ lb_net_10parse_ipv6:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #18
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #480]
@@ -2500,7 +2500,7 @@ lb_net_10parse_ipv6:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #18
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #480]
@@ -2597,7 +2597,7 @@ lb_net_10parse_ipv6:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #18
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #480]
@@ -2749,7 +2749,7 @@ lb_net_10parse_ipv6:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #18
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #480]
@@ -2833,7 +2833,7 @@ lb_net_10parse_ipv6:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #18
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #480]
@@ -2937,7 +2937,7 @@ lb_net_10parse_ipv6:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #18
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #480]
@@ -3026,7 +3026,7 @@ lb_net_10parse_ipv6:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #18
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #480]
@@ -3081,7 +3081,7 @@ lb_net_10parse_ipv6:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #18
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #480]
@@ -3146,7 +3146,7 @@ lb_net_10parse_ipv6:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #18
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #480]
@@ -3300,7 +3300,7 @@ lb_net_10parse_ipv6:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #18
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #480]
@@ -3340,7 +3340,7 @@ lb_net_10parse_ipv6:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #18
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #480]

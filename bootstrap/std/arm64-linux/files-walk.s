@@ -87,7 +87,7 @@ lb_files_walk:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #3216]
@@ -171,7 +171,7 @@ lb_files_walk:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #3216]
@@ -221,7 +221,7 @@ lb_files_walk:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #3216]
@@ -271,7 +271,7 @@ lb_files_walk:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #3216]
@@ -628,7 +628,7 @@ lb_files_walk:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #3216]
@@ -836,7 +836,7 @@ lb_files_walk:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #3216]
@@ -907,7 +907,7 @@ lb_files_walk:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #3216]
@@ -969,7 +969,7 @@ lb_files_walk:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #3216]
@@ -1095,7 +1095,7 @@ lb_files_walk:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #3216]
@@ -1143,7 +1143,7 @@ lb_files_walk:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #3216]
@@ -1203,7 +1203,7 @@ lb_files_walk:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #3216]
@@ -1272,7 +1272,7 @@ lb_files_walk:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #3216]
@@ -1428,7 +1428,7 @@ lb_files_walk:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #3216]
@@ -1488,7 +1488,7 @@ lb_files_walk:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #3216]
@@ -1538,7 +1538,7 @@ lb_files_walk:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #3216]
@@ -1631,7 +1631,7 @@ lb_files_walk:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #3216]
@@ -1984,7 +1984,7 @@ lb_files_walk:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #3216]
@@ -2014,7 +2014,7 @@ lb_files_walk:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #3216]
@@ -2062,7 +2062,7 @@ lb_files_WalkState_start:
     sub x0, x29, #360
     ldr x1, [x0]
     movz x2, #128
-    bl _memcpy
+    bl memcpy
     sub x20, x29, #384
     sub x14, x29, #232
     ldr x19, [x14]
@@ -2092,7 +2092,7 @@ lb_files_WalkState_start:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #112
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #1104]
@@ -2141,7 +2141,7 @@ lb_files_WalkState_start:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #112
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #1104]
@@ -2234,7 +2234,7 @@ lb_files_WalkState_start:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #112
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #1104]
@@ -2300,7 +2300,7 @@ lb_files_WalkState_start:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #112
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #1104]
@@ -2367,7 +2367,7 @@ lb_files_WalkState_start:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #112
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #1104]
@@ -2473,7 +2473,7 @@ lb_files_WalkState_start:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #112
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #1104]
@@ -2588,7 +2588,7 @@ lb_files_WalkState_start:
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #112
-    bl _memcpy
+    bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
     ldr x19, [sp, #1104]
