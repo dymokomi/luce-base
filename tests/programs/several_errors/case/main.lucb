@@ -1,0 +1,19 @@
+## §19.6: a declaration that does not check is reported and the next is checked, so one
+## run names every failing declaration; a note names the other site where there is one.
+let limit: i64 = 3
+
+func first() -> i64:
+    return "text"
+
+func second(n: i64) -> i64:
+    let n = 2
+    return n
+
+func third(limit: i64) -> i64:
+    return limit
+
+func fourth() -> i64:
+    return missing + 1
+
+pub func main(arguments: str[]) -> i32:
+    return 0

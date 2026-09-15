@@ -4497,9 +4497,9 @@ lb_r_gpu_Surface lb_gpu_Surface_open(lb_gpu_Device lb_device, lb_window_Window l
 lb_r_window_Size lb_gpu_Surface_size(const lb_gpu_Surface* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
     lb_pos = "src/std/gpu/surface.lucb:20:9";
-    lb_window_Size _lb_ret14 = (({ lb_r_window_Size _lb_r15 = lb_window_Presentation_size(&((((({ lb_r_gpu_SurfaceState_0p _lb_r16 = lb_gpu_Surface_checked(self); if (_lb_r16.failed) {
+    lb_window_Size _lb_ret14 = (({ lb_r_window_Size _lb_r15 = ({ lb_window_Presentation _lb_rc = (((({ lb_r_gpu_SurfaceState_0p _lb_r16 = lb_gpu_Surface_checked(self); if (_lb_r16.failed) {
         return ((lb_r_window_Size){ .error = _lb_r16.error, .failed = true });
-    } _lb_r16.value; }))))->host)); if (_lb_r15.failed) {
+    } _lb_r16.value; }))))->host; lb_window_Presentation_size(&_lb_rc); }); if (_lb_r15.failed) {
         return ((lb_r_window_Size){ .error = _lb_r15.error, .failed = true });
     } _lb_r15.value; }));
     return ((lb_r_window_Size){ .value = _lb_ret14, .failed = false });

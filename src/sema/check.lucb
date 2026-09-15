@@ -16,7 +16,8 @@
 #       parsed and bound before the program's own modules, so `io.stdout()` and
 #       `Writer` resolve like any other declaration.
 #
-#       The first error stops the check and names its position.
+#       A failing declaration is reported and the next is checked; the module's failures
+#       are one error, a line each, with a `note:` line where a second site is named.
 #
 #==============================================================================================
 
@@ -100,6 +101,9 @@ pub struct Checker:
     ## Diagnostics are formatted into the first half; type spellings into the second.
     ## The buffer outlives the arena, so the backends format their own reports here too.
     pub var scratch: u8[]
+    ## The failures of the module being checked, one declaration's each, kept until the
+    ## module's end reports them all (§19.6).
+    pub var errors: list.List[str]
     ## The target of the build (§19.5): what the `target` module says and what the backends
     ## emit for.
     pub var build_target: targets.Target
@@ -153,7 +157,7 @@ pub struct Checker:
 
     pub static func create(scratch: u8[]) -> Checker!:
         return Checker(table = try types.Table.create(), modules = try list.List[Module].create(16),
-                       scope = try list.List[Binding].create(512), warnings = try list.List[str].create(16), depth = 0, scratch = scratch,
+                       scope = try list.List[Binding].create(512), warnings = try list.List[str].create(16), errors = try list.List[str].create(16), depth = 0, scratch = scratch,
                        current = 0, current_func = none, result_type = types.unit_id, fallible = false,
                        self_type = types.none_id, self_mutable = false, in_init = false, loop_depth = 0, in_catch = false,
                        catch_result = types.none_id, checking_template = false, at_top_level = false, root = "", loading = try list.List[str].create(16), module_aliases = try list.List[ModuleAlias].create(8), package_name = "app",
@@ -165,17 +169,44 @@ pub struct Checker:
     ## Report `what` at `node` and stop; the message lives in the first half of `scratch`.
     func fail(node: ast.Node*, what: str) -> never!:
         let half = self.scratch.length // 2
-        var name: str = "?"
-        var line: u32 = node.line
-        var column: u32 = 0
-        if self.current < self.modules.count:
-            let m = self.modules.get(self.current)
-            let (file, l, col) = m.src.located(node.start)
-            name = file
-            line = l
-            column = col
+        let (name, line, column) = self.located(node)
         let message = try format(self.scratch[..<half], f"{name}:{line}:{column}: {what}")
         error(type_error, message)
+
+    ## A failure with a second site: `note:` names it on a line of its own (§19.6).
+    func fail_at(node: ast.Node*, what: str, other: ast.Node*, note: str) -> never!:
+        let half = self.scratch.length // 2
+        let (name, line, column) = self.located(node)
+        let (other_name, other_line, other_column) = self.located(other)
+        let message = try format(self.scratch[..<half], f"{name}:{line}:{column}: {what}\n  note: {other_name}:{other_line}:{other_column}: {note}")
+        error(type_error, message)
+
+    ## The file, line, and column a node came from, in the module being checked.
+    func located(node: ast.Node*) -> (str, u32, u32):
+        if self.current < self.modules.count:
+            return self.modules.get(self.current).src.located(node.start)
+        return ("?", node.line, 0)
+
+    ## A declaration's failure, copied out of the scratch buffer, for the module's report.
+    mutating func keep_error(message: str) -> !:
+        var kept = try alloc u8[message.length if message.length > 0 else 1]
+        memory.copy(kept, message.bytes, message.length)
+        try self.errors.push((str)kept[..<message.length])
+
+    ## Every kept failure, one per line, as the error the check answers with.
+    func all_errors() -> str!:
+        var total: usize = 0
+        for e in self.errors.span():
+            total += e.length + 1
+        var joined = try alloc u8[total]
+        var at: usize = 0
+        for e in self.errors.span():
+            if at > 0:
+                joined[at] = '\n'
+                at += 1
+            memory.copy(joined[at..], e.bytes, e.length)
+            at += e.length
+        return (str)joined[..<at]
 
     ## The spelling of a type, kept in the current allocator.
     pub func spell(id: u32) -> str!:
@@ -237,6 +268,8 @@ pub struct Checker:
         if let existing = self.lookup(name):
             if existing.origin != none and existing.depth < 2 and self.depth >= 2:
                 discard(try self.fail(at, "this name is an import; a local may not shadow it"))
+            elif let earlier = existing.decl:
+                discard(try self.fail_at(at, "this name is already in scope", earlier, "the earlier binding"))
             else:
                 discard(try self.fail(at, "this name is already in scope"))
         try self.scope.push(Binding(name = name, type_id = type_id, decl = decl, mutable = mutable, depth = self.depth, from_local = false, origin = none, used = false))
@@ -772,10 +805,28 @@ pub struct Checker:
             decl = d.next
         if index + 1 == self.modules.count:
             try self.check_entry(tree)
+        # a declaration that fails is reported and the next is checked (§19.6): the scopes it
+        # opened close and the function state resets first; the module's failures are one error
+        let depth = self.depth
+        let bindings = self.scope.count
         var cursor = tree.body
         while let d = cursor:
-            try self.check_declaration(d)
+            self.check_declaration(d) catch failure:
+                try self.keep_error(failure.message)
+                while self.depth > depth:
+                    self.pop_scope()
+                self.scope.count = bindings
+                self.current_func = none
+                self.fallible = false
+                self.in_init = false
+                self.in_catch = false
+                self.loop_depth = 0
+                self.label_count = 0
+                self.checking_template = false
+                self.at_top_level = false
             cursor = d.next
+        if self.errors.count > 0:
+            error(type_error, try self.all_errors())
         var r = self.reporter()
         try prune.prune_unused_functions(tree, &r, m.is_prelude)
         try prune.prune_unused_imports(tree, &r)
@@ -837,9 +888,9 @@ pub struct Checker:
                         break
                     if e.kind == d.kind and e.text == d.text:
                         if d.kind == ast.Kind.import_:
-                            return try self.fail(d, "this module is already imported (§16.3)")
+                            return try self.fail_at(d, "this module is already imported (§16.3)", e, "the earlier import")
                         if let again = repeated_name(e.body, d.body):
-                            return try self.fail(again, "this name is already imported (§16.3)")
+                            return try self.fail_at(again, "this name is already imported (§16.3)", e, "the earlier import")
                     earlier = e.next
             if d.kind == ast.Kind.import_:
                 let index = self.find_module(d.text) else return try self.fail(d, "cannot find that module")

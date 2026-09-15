@@ -210,7 +210,17 @@ pub struct Parser:
             self.skip_newlines()
         return module
 
+    ## A declaration begins at its first word, `pub` or an attribute included, so a blank
+    ## line or a comment before it is found from there.
     mutating func parse_top_decl() -> ast.Node*!:
+        let first = self.cur()
+        let d = try self.parse_top_decl_words()
+        if d.start > first.start:
+            d.start = first.start
+            d.line = first.line
+        return d
+
+    mutating func parse_top_decl_words() -> ast.Node*!:
         if self.at_kw("import") or self.at_kw("from"):
             return try self.parse_import()
         if self.at_kw("test"):
@@ -540,8 +550,16 @@ pub struct Parser:
             discard(try self.fail("expected an indented block"))
         discard(self.take())
 
-    ## A field or a method inside a struct, enum, or union.
+    ## A field or a method inside a struct, enum, or union, beginning at its first word.
     mutating func parse_member(fields_only: bool) -> ast.Node*!:
+        let first = self.cur()
+        let m = try self.parse_member_words(fields_only)
+        if m.start > first.start:
+            m.start = first.start
+            m.line = first.line
+        return m
+
+    mutating func parse_member_words(fields_only: bool) -> ast.Node*!:
         var flags: u32 = 0
         if self.eat_kw("pub"):
             flags |= ast.flag_pub

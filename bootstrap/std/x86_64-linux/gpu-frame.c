@@ -5375,12 +5375,12 @@ __attribute__((weak)) void lb_interop_11close_owner_0g1_gpu_FrameState(struct lb
 __attribute__((weak)) void lb_interop_ViewOwner_0g1_gpu_RenderTarget_9drop_view(struct lb_ownership_Object* lb_object) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
     lb_pos = "src/std/gpu/surface.lucb:17:1";
-    (void)(lb_interop_Lease_release(&(((((struct lb_interop_ViewOwner_0g1_gpu_RenderTarget*)(lb_object))))->lease)));
+    (void)(({ lb_interop_Lease _lb_rc = ((((struct lb_interop_ViewOwner_0g1_gpu_RenderTarget*)(lb_object))))->lease; lb_interop_Lease_release(&_lb_rc); }));
 }
 __attribute__((weak)) void lb_interop_ViewOwner_0g1_gpu_RenderTarget_10trace_view(struct lb_ownership_Object* lb_object, lb_fn_0F2_ownership_Object_0p_void_0p_unit lb_visit, void* lb_context) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
     lb_pos = "src/std/gpu/surface.lucb:20:9";
-    (void)(lb_interop_Lease_trace(&(((((struct lb_interop_ViewOwner_0g1_gpu_RenderTarget*)(lb_object))))->lease), lb_visit, lb_context));
+    (void)(({ lb_interop_Lease _lb_rc = ((((struct lb_interop_ViewOwner_0g1_gpu_RenderTarget*)(lb_object))))->lease; lb_interop_Lease_trace(&_lb_rc, lb_visit, lb_context); }));
 }
 __attribute__((weak)) void lb_interop_13dispose_owner_0g1_gpu_FrameState(struct lb_interop_Owner_0g1_gpu_FrameState* lb_owner) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
