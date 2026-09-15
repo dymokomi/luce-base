@@ -23,3 +23,9 @@ Metal device on macOS. Release evidence must include both hosted jobs and the fu
 hardware gate on a capable Mac; a hosted green check alone does not establish GPU support.
 
 Runner labels follow [GitHub's runner documentation](https://docs.github.com/en/actions/reference/runners/github-hosted-runners).
+
+The `Release` workflow runs on a tag `luce-base-VERSION` (the tag must name `VERSION`):
+macOS ARM64, Linux x86-64 on the oldest supported runner so the compiler runs on that
+glibc and newer, and Windows x64 under MSYS2 each build from the bootstrap snapshot,
+package with `tools/package.sh`, prove the archive with `tools/install_smoke.sh`, and the
+three archives become the GitHub release the installers at luce-base.luciaos.com download.

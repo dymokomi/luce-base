@@ -1,0 +1,92 @@
+name: Release
+# A tag `luce-base-VERSION` on a green main becomes a GitHub release with one archive per
+# host, each built from the tree's own bootstrap and proved by tools/install_smoke.sh
+# before it is published: what the installers at luce-base.luciaos.com download.
+on:
+  push:
+    tags: ['luce-base-*']
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  unix:
+    name: Package (${{ matrix.host }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            host: arm64-macos
+          # the oldest supported runner, so the compiler runs on that glibc and newer
+          - runner: ubuntu-22.04
+            host: x86_64-linux
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+      - name: Check the tag names this version
+        if: github.ref_type == 'tag'
+        run: |
+          [ "${GITHUB_REF_NAME#luce-base-}" = "$(tr -d '[:space:]' < VERSION)" ] || { echo "the tag does not name VERSION"; exit 1; }
+      - name: Build from the bootstrap snapshot
+        run: ./build.sh
+      - name: Package
+        run: tools/package.sh build/release
+      - name: Prove the archive
+        run: tools/install_smoke.sh build/release/luce-base-*-${{ matrix.host }}.tar.gz build/smoke
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.host }}
+          path: build/release/luce-base-*
+  windows:
+    name: Package (x86_64-windows)
+    runs-on: windows-2025
+    timeout-minutes: 90
+    defaults:
+      run:
+        shell: msys2 {0}
+    env:
+      CC: gcc
+    steps:
+      - uses: actions/checkout@v7
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: >-
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-python
+      - name: Check the tag names this version
+        if: github.ref_type == 'tag'
+        run: |
+          [ "${GITHUB_REF_NAME#luce-base-}" = "$(tr -d '[:space:]' < VERSION)" ] || { echo "the tag does not name VERSION"; exit 1; }
+      - name: Build from the bootstrap snapshot
+        run: python tools/build_windows.py
+      - name: Package
+        run: sh tools/package.sh build/release
+      - name: Prove the archive
+        run: sh tools/install_smoke.sh build/release/luce-base-*-x86_64-windows.tar.gz build/smoke
+      - uses: actions/upload-artifact@v4
+        with:
+          name: x86_64-windows
+          path: build/release/luce-base-*
+  publish:
+    name: Publish the release
+    needs: [unix, windows]
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: release
+          merge-multiple: true
+      - name: Create or update the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1 || \
+            gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --title "$GITHUB_REF_NAME" --notes "luce-base ${GITHUB_REF_NAME#luce-base-}: one archive per host, installed by https://luce-base.luciaos.com."
+          gh release upload "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --clobber release/luce-base-*

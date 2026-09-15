@@ -34,6 +34,20 @@ also works through the native backend and does not require generated C.
 After the initial C snapshot or seed-built compiler, both self-hosting stages use
 the native backend. Native code generation is the primary hardening target.
 
+## Installing
+
+A released compiler, with the standard library beside it, installs in one line
+from [luce-base.luciaos.com](https://luce-base.luciaos.com): `curl -fsSL
+https://luce-base.luciaos.com/install.sh | sh` on macOS and Linux, `irm
+https://luce-base.luciaos.com/install.ps1 | iex` in PowerShell on Windows. It
+needs the host's C toolchain (`cc`, `as`, `ar`, `nm`: the Xcode command line
+tools, a Linux `gcc`/`clang` package, or MSYS2's UCRT64 GCC), which the
+compiler drives for assembling and linking. A program it builds links the
+standard library statically and needs nothing from the installation to run.
+The archives come from the `Release` workflow, one per host, each proved by
+`tools/install_smoke.sh` before it is published; `tools/package.sh` writes the
+same archive from a local build.
+
 ## Build and test
 
 Build scripts require Python 3.9 or newer. Generated sources are written as UTF-8
