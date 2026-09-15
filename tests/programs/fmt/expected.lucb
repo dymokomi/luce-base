@@ -6,6 +6,7 @@ import memory
 
 ## A documented constant.
 pub let limit: i64 = 3
+let bad: ErrorCode = ErrorCode.package(3)
 let names: c.str[2] = ["a", "b"]
 var table: u8[4] = [
     1, 2,
@@ -21,8 +22,8 @@ struct Point:
 
     static func origin() -> Point: return Point(x = 0.0, y = 0.0)
 
-enum Kind as u8:
-    plain = 1
+enum Kind:
+    plain
     boxed(n: i64)
 
 ## Adds, with a comment after code.
@@ -31,7 +32,7 @@ func add(a: i64, b: i64) -> i64!:
     let sum = a + b  # trailing
     if sum > 10: return sum
     elif sum < 0:
-        error(c.errno_code, "negative")
+        error(bad, "negative")
     else:
         discard(sum)
 
@@ -44,6 +45,10 @@ func add(a: i64, b: i64) -> i64!:
     let r = f(a,
               b) catch failure: recover 0
     return picked + r
+
+func f(a: i64, b: i64) -> i64!:
+    if a < 0: error(bad, "negative")
+    return a + b
 
 test "adds":
     assert(try add(1, 2) == 3)
