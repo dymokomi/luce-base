@@ -22,7 +22,8 @@ evidence. All other failures remain failures. The default local gate still requi
 Metal device on macOS. Release evidence must include both hosted jobs and the full
 hardware gate on a capable Mac; a hosted green check alone does not establish GPU support.
 
-The gate on both hosts also needs a WASI toolchain and wasmtime for the wasm32 target
+The gate on both hosts also needs GNU GCC and MinGW-w64 GCC (`tools/cross_c.sh` compiles
+the emitted C with the compilers a release meets) and a WASI toolchain and wasmtime for the wasm32 target
 (§19.5): `tools/ci_dependencies.sh` installs Homebrew's llvm, lld, wasi-libc, wasi-runtimes
 and wasmtime on macOS, and wasi-sdk with wasmtime on Linux, naming the SDK in `WASI_SDK`.
 

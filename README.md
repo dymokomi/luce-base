@@ -52,6 +52,10 @@ same archive from a local build.
 `--check` reports drift); every source under `src/` is a fixpoint of it, and the gate
 keeps it so.
 
+`LUCE_CFLAGS` adds flags to every C compile and link of a program built through the C
+backend; the gate's sanitizer suite (`tests/sanitize/run.sh`) builds the conformance and
+robustness programs that way under the address and undefined-behaviour sanitizers.
+
 `luce-base bind HEADER -o module.lucb` writes a Base module from a C header, read the
 way the host C compiler reads it, with a recipe for what the header does not say and a
 `shims.c` for `static inline` functions and macros (base.md §17.5). The SDL editor under

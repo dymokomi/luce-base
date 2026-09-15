@@ -1,0 +1,2 @@
+message passing: 0 stale reads in 20000 rounds
+store buffering: 0 rounds read both old values in 20000

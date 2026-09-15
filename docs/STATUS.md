@@ -43,7 +43,7 @@ seed named in `bootstrap/SEED` builds it to the same C.
 | 12 | allocators, `with`, `new … in`, `Arena`, `PageAllocator`, `FixedBuffer`, `CAllocator` | verified | chapter 12, the robustness suite; `FixedBuffer` aligns addresses, not offsets |
 | 13 | generics: functions, records, interfaces, constraints | verified | chapter 13 |
 | 14 | interfaces, views, `Display`, `Iterator`, `Iterable`, `Writer?` in the null niche | verified | chapter 14 |
-| 15 | atomics with orderings, `volatile`, threads, `sync` | verified | chapter 15, `tests/programs/http`; `thread.spawn` honours `stack` and `name` (`tests/platform/common/thread_options.lucb`) |
+| 15 | atomics with orderings, `volatile`, threads, `sync` | verified | chapter 15, `tests/programs/http`; `thread.spawn` honours `stack` and `name` (`tests/platform/common/thread_options.lucb`); `tests/platform/common/litmus.lucb` is the litmus suite of §15.1, message passing under release and acquire and store buffering under sequential consistency, twenty thousand rounds each through both backends |
 | 16 | modules, packages, the manifest, tests, the standard library | verified | chapter 16, `tests/programs/manifest`, `tests/programs/pkgconfig` |
 | 16.6 | standard `net` HTTP/1.1 and WebSocket primitives | verified | `tests/programs/net_protocols`: framing, fragmented input, limits, short writes, independent handshake/frame vectors and malformed input; [contracts and validation](NET_PROTOCOLS.md) |
 | 17.1–17.4 | `extern` functions, records, variadics, `out` parameters, C sources and libraries | verified | chapter 17, `tests/programs/abi`: records of every ABI class by value both ways, packed records in memory on x86-64 as System V asks |
@@ -78,6 +78,18 @@ heap trees under `errdefer`) and requires the C, C `-O2`, native, and seed execu
 agree. The gate runs a short
 deterministic pass; `tools/fuzz.py --minutes M` runs longer, and findings land under
 `build/fuzz/`.
+
+## Sanitizers and the other C compilers
+
+`tests/sanitize/run.sh`, a gate step, builds every positive program of the conformance
+and robustness suites through the C backend at -O0 and -O2 under the address and
+undefined-behaviour sanitizers (`LUCE_CFLAGS`, which adds flags to every C compile and
+link of a program) and runs it against its expectation; the two programs that misuse
+memory on purpose say `# sanitize: skip`, and alignment is not checked because a packed
+record reads unaligned by design. `tools/cross_c.sh`, another gate step, compiles the
+compiler's own C and its standard library's with GNU GCC (the host's snapshot, where the
+host's `cc` is clang) and with MinGW-w64 GCC (the x86_64-windows snapshot, from any host),
+so the C compilers a release meets have compiled the emitted C before the release runs.
 
 ## Known and accepted
 

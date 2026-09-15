@@ -565,6 +565,10 @@ func c_arguments(release: bool) -> Arguments!:
         try arguments.add("-Wl,--gc-sections")
     for flag in generated_c_silences:
         try arguments.add(flag)
+    # `LUCE_CFLAGS`: flags for every C compile and link of the program, `-fsanitize=address`
+    # say; the standard library's archive is built as it was
+    if let extra = os.env("LUCE_CFLAGS"):
+        try arguments.words(extra, false)
     return arguments
 
 func automatic_links(arguments: Arguments*, object: c.str, archive: c.str, directory: str) -> !:

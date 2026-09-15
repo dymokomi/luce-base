@@ -1,3 +1,4 @@
+# sanitize: skip
 ## Under `--profile diagnostic` the mistakes a program cannot be stopped from making become
 ## visible: a read after `free` sees the 0xDD fill instead of the next allocation, an
 ## uninitialised `---` local reads as 0xAA, and every allocation left a site behind.

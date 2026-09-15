@@ -1,0 +1,90 @@
+## §15.1, as litmus tests: two threads, an outcome the orderings forbid, and rounds in
+## which it must never appear. Message passing: a payload written before a release
+## store of a flag is seen whole by an acquire load of the flag. Store buffering: two
+## sequentially consistent stores, each followed by a load of the other's location,
+## cannot both read the old value.
+import thread
+
+let rounds: u32 = 20000
+
+struct Cell:
+    var payload: u64
+    var flag: @u32
+    var ack: @u32
+    var x: @u32
+    var y: @u32
+    var arrive: @u32
+    var first: u32[20000]
+    var second: u32[20000]
+    var seen_stale: u32
+
+func mp_reader(context: void*?):
+    let raw = context else trap("no cell")
+    let c = (Cell*)raw
+    var i: u32 = 0
+    while i < rounds:
+        while c.flag.load(.acquire) != i + 1:
+            thread.pause()
+        if c.payload != (u64)i * 3:
+            c.seen_stale += 1
+        c.ack.store(i + 1, .release)
+        i += 1
+
+func mp_writer(context: void*?):
+    let raw = context else trap("no cell")
+    let c = (Cell*)raw
+    var i: u32 = 0
+    while i < rounds:
+        c.payload = (u64)i * 3
+        c.flag.store(i + 1, .release)
+        while c.ack.load(.acquire) != i + 1:
+            thread.pause()
+        i += 1
+
+## Both threads arrive at the round's line before either stores: a counter each adds
+## to, spun on until both have.
+func barrier(c: Cell*, round: u32):
+    c.arrive += 1
+    while c.arrive.load(.seq_cst) < 2 * (round + 1):
+        thread.pause()
+
+func sb_first(context: void*?):
+    let raw = context else trap("no cell")
+    let c = (Cell*)raw
+    var i: u32 = 0
+    while i < rounds:
+        barrier(c, i)
+        c.x.store(i + 1, .seq_cst)
+        c.first[i] = c.y.load(.seq_cst)
+        i += 1
+
+func sb_second(context: void*?):
+    let raw = context else trap("no cell")
+    let c = (Cell*)raw
+    var i: u32 = 0
+    while i < rounds:
+        barrier(c, i)
+        c.y.store(i + 1, .seq_cst)
+        c.second[i] = c.x.load(.seq_cst)
+        i += 1
+
+pub func main(arguments: str[]) -> i32!:
+    discard(arguments)
+    var cell: Cell
+    let writer = try thread.spawn(mp_writer, &cell)
+    let reader = try thread.spawn(mp_reader, &cell)
+    try writer.join()
+    try reader.join()
+    print(f"message passing: {cell.seen_stale} stale reads in {rounds} rounds")
+    let a = try thread.spawn(sb_first, &cell)
+    let b = try thread.spawn(sb_second, &cell)
+    try a.join()
+    try b.join()
+    var both_old: u32 = 0
+    var i: u32 = 0
+    while i < rounds:
+        if cell.first[i] < i + 1 and cell.second[i] < i + 1:
+            both_old += 1
+        i += 1
+    print(f"store buffering: {both_old} rounds read both old values in {rounds}")
+    return 0

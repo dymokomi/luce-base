@@ -1,3 +1,4 @@
+# sanitize: skip
 ## A deliberate leak is measurable: what the allocator still holds at the end is reported,
 ## by count and by bytes, so a leak never hides.
 import counting

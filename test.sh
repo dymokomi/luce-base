@@ -190,6 +190,12 @@ tests/optimization/run.sh
 tests/conformance/run.sh
 # the platform suite: what depends on the target, on this host, and every target emitted from it
 tests/platform/run.sh
+# the sanitizer suite: the positive programs through the C backend under the address and
+# undefined-behaviour sanitizers, at -O0 and -O2 (tests/sanitize/run.sh)
+tests/sanitize/run.sh
+# the other C compilers a release meets compile the emitted C here first: GNU GCC on the
+# host's snapshot, MinGW-w64 GCC on the Windows one (tools/cross_c.sh)
+tools/cross_c.sh
 # the seed's program corpus, built natively: every `# answer: N` program prints N
 tools/native_check.sh
 # the fuzzer's short run, the same on every host: mutated programs are accepted or
