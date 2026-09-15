@@ -1,0 +1,59 @@
+## The binder's proving program: `sample.lucb` is what `luce-base bind` wrote from
+## `sample.h` with `sample.recipe`, and this program uses every shape in it: a handle,
+## a struct by value, a flexible array, a callback, a packed struct, a union, a nested
+## anonymous member, an enum, constants of each kind, an `extern var`, a `static inline`
+## shim, a macro shim, `c.long`, and `never`.
+##
+## Build: luce-base build tests/programs/bind/main.lucb --native
+
+import c
+import memory
+import sample
+
+pub let failed: ErrorCode = ErrorCode.package(1)
+
+## The callback `sample_walk` calls: `user` counts the calls, and the point's x is the answer.
+func visit(user: void*?, point: const sample.sample_point*?) -> i32:
+    if let counter = user:
+        let n = (i32*)counter
+        *n += 1
+    let p = point else return 0
+    return p.x
+
+pub func main(arguments: str[]) -> i32!:
+    discard(arguments)
+    print(f"version {sample.SAMPLE_VERSION} name {(str)sample.SAMPLE_NAME} scale {sample.SAMPLE_SCALE} flags {sample.SAMPLE_FLAG_A | sample.SAMPLE_FLAG_B} limit {sample.SAMPLE_LIMIT} offset {(i64)sample.SAMPLE_OFFSET}")
+    print(f"shapes {(u32)sample.sample_shape.SAMPLE_CIRCLE} {(u32)sample.sample_shape.SAMPLE_SQUARE} {(u32)sample.SAMPLE_BOX} {(u32)sample.sample_shape.SAMPLE_LAST} anonymous {sample.SAMPLE_ANONYMOUS}")
+    let ctx = sample.sample_open("proof", sample.SAMPLE_FLAG_B) else error(failed, "sample_open refused")
+    defer sample.sample_close(ctx)
+    print(f"name {(str)sample.sample_name(ctx)} counter {sample.sample_counter}")
+    var calls: i32 = 0
+    let total = sample.sample_walk(ctx, visit, (void*)&calls)
+    print(f"walk {total} over {calls} points")
+    let sum = sample.sample_sum(sample.sample_point(x = 2, y = 3), sample.sample_point(x = 40, y = 50))
+    print(f"sum {sum.x},{sum.y}")
+    let room = try alloc u8[sizeof(sample.sample_buffer) + 16]
+    defer free(room)
+    let buffer = (sample.sample_buffer*)room.data
+    buffer.count = 16
+    let filled = sample.sample_fill(buffer, 5)
+    let bytes = sample.sample_buffer_bytes(buffer)
+    print(f"filled {filled}: {bytes[0]} {bytes[1]} {bytes[4]}")
+    print(f"long {(i64)sample.sample_long(c.long(7))} twice {sample.sample_twice(21)} square {sample.SAMPLE_SQUARE(9)}")
+    var nested: sample.sample_nested = ---
+    nested.pair = sample.sample_nested_pair_struct(a = 5, b = 6)
+    nested.member1.f = 2.5
+    nested.shape = sample.sample_shape.SAMPLE_SQUARE
+    nested.label = "nested"
+    nested.visit = visit
+    var described: u8[128]
+    sample.sample_describe(&nested, (c.char*)described[0..].data, described.length)
+    print(f"described {(str)(c.str)described[0..].data}")
+    var value: sample.sample_value = ---
+    value.real = 0.25
+    print(f"real {sample.sample_real(value)} packed {sizeof(sample.sample_packed)} bytes")
+    let packed = sample.sample_packed(tag = 1, value = 1000)
+    print(f"packed value {sample.sample_packed_value(&packed)}")
+    if arguments.length > 1:
+        sample.sample_abort("asked to")
+    return 0

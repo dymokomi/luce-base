@@ -1,0 +1,6 @@
+# What SDL's headers do not say. Everything else is nullable, as C leaves it.
+nonnull SDL_DestroyWindow.window
+nonnull SDL_DestroyRenderer.renderer
+nonnull SDL_RenderClear.renderer
+nonnull SDL_RenderPresent.renderer
+nonnull SDL_PollEvent.event

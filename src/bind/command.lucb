@@ -1,0 +1,212 @@
+#==============================================================================================
+#
+#   command - `luce-base bind`
+#
+#   DESCRIPTION:
+#       `bind HEADER [-I DIR] [-D NAME[=VALUE]] [-o OUT.lucb] [--shims OUT.c] [--recipe FILE]
+#       [--preprocess]`: the header preprocessed the way the host C compiler would, its
+#       declarations parsed, and a Base module written for the ones the header itself
+#       declares, with C shims for what needs them. `--preprocess` stops after the
+#       preprocessor and prints its tokens, for looking at what the parser is given.
+#
+#==============================================================================================
+
+import bind.cparse
+import bind.emit
+import bind.pre
+import c
+import files
+import io
+import memory
+import os
+import paths
+import platform
+import strings
+from support.arena import Arena
+
+pub let usage: str = "usage: luce-base bind HEADER [-I DIR] [-D NAME[=VALUE]] [-o OUT.lucb] [--shims OUT.c] [--recipe FILE] [--preprocess | --declarations]"
+
+var scratch: u8[4096]
+
+struct Request:
+    var header: str
+    var output: str
+    var shims: str
+    var recipe: str
+    var preprocess: bool
+    var declarations: bool
+
+func host_c_compiler() -> c.str:
+    if let selected = os.env("CC"):
+        return (c.str)selected
+    return "gcc" if platform.windows else "cc"
+
+## The command; its exit status.
+pub func run(arguments: c.str[], out: io.Writer) -> i32!:
+    var arena = Arena(memory.heap)
+    defer arena.destroy()
+    with arena:
+        var pp = try pre.Preprocessor.create(host_c_compiler())
+        var request = Request(header = "", output = "", shims = "", recipe = "", preprocess = false, declarations = false)
+        var i: usize = 2
+        while i < arguments.length:
+            let a = (str)arguments[i]
+            let value = (str)arguments[i + 1] if i + 1 < arguments.length else ""
+            if strings.starts_with(a, "-I") and a.length > 2:
+                try pp.add_include_dir((str)a.bytes[2..])
+            elif a == "-I" and value.length > 0:
+                try pp.add_include_dir(value)
+                i += 1
+            elif strings.starts_with(a, "-D") and a.length > 2:
+                try pp.define((str)a.bytes[2..])
+            elif a == "-D" and value.length > 0:
+                try pp.define(value)
+                i += 1
+            elif a == "-o" and value.length > 0:
+                request.output = value
+                i += 1
+            elif a == "--shims" and value.length > 0:
+                request.shims = value
+                i += 1
+            elif a == "--recipe" and value.length > 0:
+                request.recipe = value
+                i += 1
+            elif a == "--preprocess":
+                request.preprocess = true
+            elif a == "--declarations":
+                request.declarations = true
+            elif a.length > 0 and a.bytes[0] != '-' and request.header.length == 0:
+                request.header = a
+            else:
+                try io.stderr().write(f"luce-base: {usage}\n")
+                return 2
+            i += 1
+        if request.header.length == 0:
+            try io.stderr().write(f"luce-base: {usage}\n")
+            return 2
+        var header = request.header
+        var include_name = ""
+        if not files.exists((c.str)try strings.copy(header)):
+            let located = try pp.locate(header) else error(pre.failed, try strings.copy(try format(scratch[0..], f"{header} is neither a file nor in an include directory")))
+            include_name = header
+            header = located
+        let tokens = try pp.run(header)
+        if request.preprocess:
+            try print_tokens(tokens, &pp, out)
+            try io.stderr().write(pp.report.view())
+            return 0
+        var parser = try cparse.Parser.over(tokens, &pp)
+        try parser.parse()
+        if request.declarations:
+            try print_declarations(&parser, &pp, out)
+            try io.stderr().write(pp.report.view())
+            try io.stderr().write(parser.report.view())
+            return 0
+        var recipe = try emit.Recipe.create()
+        var recipe_file: u32 = 4294967295
+        if request.recipe.length > 0:
+            let text = try files.read((c.str)try strings.copy(request.recipe))
+            try recipe.read((str)text)
+            if recipe.prototypes.used > 0:
+                recipe_file = try pp.add_virtual_file(request.recipe)
+                # the prototypes name the macros: they are read as written, not expanded
+                try parser.continue_with(try pre.tokenize(recipe.prototypes.bytes(), recipe_file))
+        var module = paths.stem(request.output) if request.output.length > 0 else try strings.to_lower(paths.stem(header))
+        var shims = request.shims
+        if shims.length == 0 and request.output.length > 0:
+            shims = try paths.join(paths.directory(request.output), "shims.c")
+        # how the shims include the header: by its include name, by its base name when
+        # they sit beside it, else by its path
+        let canonical = pp.path_of(pp.main_file)
+        var include = try strings.copy(try format(scratch[0..], f"\"{canonical}\""))
+        if include_name.length > 0:
+            include = try strings.copy(try format(scratch[0..], f"<{include_name}>"))
+        elif shims.length > 0 and try same_directory(shims, canonical):
+            include = try strings.copy(try format(scratch[0..], f"\"{paths.base(canonical)}\""))
+        var e = try emit.Emitter.over(&parser, &pp, &recipe, canonical, include, module, recipe_file)
+        try e.write()
+        try io.stderr().write(pp.report.view())
+        try io.stderr().write(parser.report.view())
+        try io.stderr().write(e.report.view())
+        if request.output.length > 0:
+            try files.write((c.str)try strings.copy(request.output), e.text().bytes)
+        else:
+            try out.write(e.text())
+        if e.has_shims():
+            if shims.length == 0:
+                try io.stderr().write("luce-base: the module needs C shims; pass --shims FILE to write them\n")
+                return 1
+            try files.write((c.str)try strings.copy(shims), e.shim_text().bytes)
+        if e.unmapped_count() == 1:
+            try io.stderr().write("luce-base: one declaration was not mapped; see above\n")
+        elif e.unmapped_count() > 1:
+            try io.stderr().write(try format(scratch[0..], f"luce-base: {e.unmapped_count()} declarations were not mapped; see above\n"))
+        return 0
+
+## The tokens as text: each first-of-line token on a new line, spacing kept, with a
+## `# LINE "FILE"` marker where the file changes.
+func print_tokens(head: pre.Tok*, pp: pre.Preprocessor*, out: io.Writer) -> !:
+    var cursor: pre.Tok*? = head
+    var file: u32 = 4294967295
+    var first = true
+    while let t = cursor:
+        if t.kind == pre.Kind.eof:
+            break
+        if t.file != file:
+            file = t.file
+            if not first:
+                try out.write("\n")
+            try out.write(f"# {t.line} \"{pp.path_of(file)}\"\n")
+            first = true
+        if t.bol and not first:
+            try out.write("\n")
+        elif t.space and not first:
+            try out.write(" ")
+        try out.write(t.text)
+        first = false
+        cursor = t.next
+    try out.write("\n")
+
+## Every declaration, one per line, as C would spell it.
+func print_declarations(parser: cparse.Parser*, pp: pre.Preprocessor*, out: io.Writer) -> !:
+    for d in parser.decls.span():
+        let where = pp.path_of(d.file)
+        if d.kind == cparse.DeclKind.typedef_:
+            let target = d.ty.inner else trap("a typedef without a type")
+            try out.write(f"{where}:{d.line}: typedef {try cparse.spelling(target, d.name)}\n")
+        elif d.kind == cparse.DeclKind.tag:
+            try out.write(f"{where}:{d.line}: {try cparse.base_words(d.ty)}\n")
+        else:
+            let what = "static " if d.kind == cparse.DeclKind.inline_function else ("var " if d.kind == cparse.DeclKind.variable else "")
+            let label = try cparse.spelling(d.ty, d.name)
+            if d.symbol.length > 0:
+                try out.write(f"{where}:{d.line}: {what}{label} as {d.symbol}\n")
+            else:
+                try out.write(f"{where}:{d.line}: {what}{label}\n")
+    for r in parser.records.span():
+        if not r.complete:
+            continue
+        let name = r.tag if r.tag.length > 0 else r.typedef_name
+        try out.write(f"{"union" if r.is_union else "struct"} {name}:\n")
+        for f in r.fields.span():
+            if f.bits >= 0:
+                try out.write(f"    {try cparse.spelling(f.ty, f.name)} : {f.bits}\n")
+            else:
+                try out.write(f"    {try cparse.spelling(f.ty, f.name)}\n")
+    for e in parser.enums.span():
+        if not e.complete:
+            continue
+        let name = e.tag if e.tag.length > 0 else e.typedef_name
+        try out.write(f"enum {name}:\n")
+        for item in e.items.span():
+            try out.write(f"    {item.name} = {item.value}\n")
+
+## Whether a file to be written and an existing one are in the same directory.
+func same_directory(planned: str, existing: str) -> bool!:
+    var dir = paths.directory(planned)
+    if dir.length == 0:
+        dir = "."
+    let resolved = files.canonical((c.str)try strings.copy(dir)) catch failure:
+        discard(failure)
+        recover ""
+    return resolved.length > 0 and resolved == paths.directory(existing)

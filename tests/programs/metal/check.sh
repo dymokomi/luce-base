@@ -1,11 +1,15 @@
 #!/bin/sh
-# Prove the Metal example: build it natively against Metal and the Objective-C runtime,
-# run a GPU computation, and check the squares it reads back. Skips where there is no GPU.
+# Prove the Metal example and `luce-base bind` on the Objective-C runtime: bind the
+# runtime's headers, build the example natively against Metal on that binding, run a GPU
+# computation, and check the squares it reads back. Skips where there is no GPU.
 # Usage: tests/programs/metal/check.sh [luce-base binary]
 set -eu
 cd "$(dirname "$0")/../../.."
 LB=${1:-./build/luce-base}
 [ "$(uname -s)" = Darwin ] || { echo "skip tests/programs/metal: Metal is macOS only"; exit 0; }
+# objc_runtime.lucb is checked in as this Mac last wrote it; the gate writes it again from
+# the SDK's <objc/message.h>, so the example is built on what the tool says today
+"$LB" bind objc/message.h -o tests/programs/metal/objc_runtime.lucb 2> build/metal-bind.txt
 "$LB" build tests/programs/metal/main.lucb --native -lobjc -framework Foundation -framework Metal -o build/metal-check
 OUT=$(./build/metal-check 8)
 case "$OUT" in
@@ -19,5 +23,5 @@ case "$OUT" in
     "squared on the GPU: 1 4 9 16 25 36 49 64") ;;
     *) echo "FAIL tests/programs/metal: $OUT"; rm -f build/metal-check; exit 1;;
 esac
-rm -f build/metal-check
+rm -f build/metal-check build/metal-bind.txt
 echo "ok tests/programs/metal"

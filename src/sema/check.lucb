@@ -676,7 +676,7 @@ pub struct Checker:
                             let room = try alloc u8[self.root.length + 2]
                             self.root = try format(room, f"{self.root}/")
                     else:
-                        sibling = try self.resolve_import(d.text)
+                        sibling = try self.resolve_import(d.text, manifest.directory_of(text))
                     # a module that cannot be read is reported at the import that named it;
                     # a message that already names a place stands as it is
                     self.load_as((c.str)sibling, canonical_name) catch failure:
@@ -698,10 +698,19 @@ pub struct Checker:
     mutating func finish_load():
         self.loading.count -= 1
 
-    ## `import front.lexer` is `front/lexer.lucb` under the root. The root starts as the
-    ## entry file's directory; when a module under a subdirectory is the entry (its tests,
-    ## say), the first import that is missing there moves the root up until it resolves.
-    mutating func resolve_import(text: str) -> str!:
+    ## `import front.lexer` is `front/lexer.lucb` beside the importing file, else under the
+    ## root. The root starts as the entry file's directory; when a module under a
+    ## subdirectory is the entry (its tests, say), the first import that is missing there
+    ## moves the root up until it resolves.
+    mutating func resolve_import(text: str, here: str) -> str!:
+        if here != self.root:
+            var beside_buffer = try alloc u8[here.length + text.length + 6]
+            let beside = try format(beside_buffer, f"{here}{text}.lucb")
+            for i in here.length..<beside.length:
+                if beside.bytes[i] == '.' and i + 5 < beside.length:
+                    beside_buffer[i] = '/'
+            if file_exists((c.str)beside):
+                return beside
         var dir = self.root
         while true:
             var buffer = try alloc u8[dir.length + text.length + 6]

@@ -1,0 +1,9 @@
+# what sample.h does not say
+nonnull sample_close.ctx
+nonnull sample_name.ctx
+nonnull sample_name.return
+nonnull sample_sum.return
+nonnull sample_nested.visit
+skip sample_printf
+skip SAMPLE_ALIAS
+macro int SAMPLE_SQUARE(int x);

@@ -4,14 +4,15 @@
 ##
 ##     metal [N]
 ##
-## Build: luce-base build programs/metal/main.lucb --native -lobjc -framework Foundation -framework Metal
+## Build: luce-base build tests/programs/metal/main.lucb --native -lobjc -framework Foundation -framework Metal
 
 import c
 import objc
+import objc_runtime
 import strings
 
+## Metal's one C entry point; Metal's own headers are Objective-C and stay out of reach.
 extern func MTLCreateSystemDefaultDevice() -> void*?
-extern func objc_msgSend(receiver: void*, selector: void*) -> void*?
 
 ## MTLSize, three machine words, passed to a dispatch by value (§19.5).
 struct Size:
@@ -37,18 +38,18 @@ func square_on(device: void*) -> (void*, void*)!:
     let source = try nsstring(shader)
     # newLibraryWithSource:options:error: — options nil, error captured
     var compile_error: void*? = none
-    let f = (func(void*, void*, void*?, void*?, void*?) -> void*?)(void*)objc_msgSend
+    let f = (func(void*, void*, void*?, void*?, void*?) -> void*?)(void*)objc_runtime.objc_msgSend
     let library = f(device, objc.selector("newLibraryWithSource:options:error:"), source, none, (void*)&compile_error) else error(failed, "the shader did not compile")
     let name = try nsstring("square")
     let function = objc.send_p(library, "newFunctionWithName:", name) else error(failed, "no `square` in the library")
     var pipeline_error: void*? = none
-    let p = (func(void*, void*, void*?, void*?) -> void*?)(void*)objc_msgSend
+    let p = (func(void*, void*, void*?, void*?) -> void*?)(void*)objc_runtime.objc_msgSend
     let pipeline = p(device, objc.selector("newComputePipelineStateWithFunction:error:"), function, (void*)&pipeline_error) else error(failed, "no pipeline")
     return (pipeline, library)
 
 ## `[device newBufferWithBytes: p length: n options: shared]` and its `contents`.
 func buffer_with(device: void*, bytes: const void*, length: u64) -> void*!:
-    let f = (func(void*, void*, const void*, u64, u64) -> void*?)(void*)objc_msgSend
+    let f = (func(void*, void*, const void*, u64, u64) -> void*?)(void*)objc_runtime.objc_msgSend
     let b = f(device, objc.selector("newBufferWithBytes:length:options:"), bytes, length, storage_shared) else error(failed, "no input buffer")
     return b
 
@@ -106,7 +107,7 @@ pub func main(arguments: str[]) -> i32!:
 
 ## `[encoder setBuffer: b offset: 0 atIndex: i]`.
 func set_buffer(encoder: void*, buffer: void*, index: u64):
-    let f = (func(void*, void*, void*?, u64, u64) -> void*?)(void*)objc_msgSend
+    let f = (func(void*, void*, void*?, u64, u64) -> void*?)(void*)objc_runtime.objc_msgSend
     discard(f(encoder, objc.selector("setBuffer:offset:atIndex:"), buffer, 0, index))
 
 ## `[encoder dispatchThreadgroups: groups threadsPerThreadgroup: per]`, one thread per element.
@@ -115,5 +116,5 @@ func dispatch(encoder: void*, count: usize):
     let groups = (count + per - 1) // per
     var grid = Size(width = (u64)groups, height = 1, depth = 1)
     var block = Size(width = (u64)per, height = 1, depth = 1)
-    let f = (func(void*, void*, Size, Size) -> void*?)(void*)objc_msgSend
+    let f = (func(void*, void*, Size, Size) -> void*?)(void*)objc_runtime.objc_msgSend
     discard(f(encoder, objc.selector("dispatchThreadgroups:threadsPerThreadgroup:"), grid, block))

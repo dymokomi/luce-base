@@ -1,0 +1,6 @@
+[package]
+name = "gui"
+
+[native]
+sources = ["shims.c"]
+pkg_config = ["sdl3"]

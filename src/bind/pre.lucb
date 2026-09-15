@@ -1,0 +1,1382 @@
+#==============================================================================================
+#
+#   pre - A C preprocessor for `luce-base bind`
+#
+#   DESCRIPTION:
+#       The header a binding is generated from is read the way the host C compiler reads
+#       it: the same system include directories and the same predefined macros, both asked
+#       of `cc` once, then C's preprocessing done here. Tokens are a linked list; a macro
+#       expansion splices its result in front of what follows, with hide sets so that a
+#       macro never expands inside its own expansion. What comes out is one token list of
+#       the whole translation unit, each token knowing its file and line, for the
+#       declaration parser.
+#
+#       The directives: `#include` and `#include_next` through the directories, with
+#       `#pragma once`; `#define` of object-like and function-like macros with `#`, `##`,
+#       `__VA_ARGS__` and `__VA_OPT__`; `#undef`; the `#if` family over C's constant
+#       expressions with `defined`, `__has_include` and the `__has_*` queries; `#error`
+#       fails the run; the rest is ignored.
+#
+#==============================================================================================
+
+import c
+import files
+import memory
+import paths
+import platform
+import process
+import strings
+import support.buffer
+import support.list
+
+pub let failed: ErrorCode = ErrorCode.package(119)
+
+pub enum Kind:
+    ident
+    number
+    text
+    character
+    punct
+    other
+    eof
+
+## A preprocessing token: its spelling, where it came from, and the spacing around it.
+pub struct Tok:
+    pub var kind: Kind
+    pub var text: str
+    pub var file: u32
+    pub var line: u32
+    ## Whitespace before it, and whether it is the first token of its line.
+    pub var space: bool
+    pub var bol: bool
+    var hide: Hide*?
+    pub var next: Tok*?
+
+    pub func is(kind: Kind, text: str) -> bool:
+        return self.kind == kind and self.text == text
+
+    pub func is_punct(text: str) -> bool:
+        return self.kind == Kind.punct and self.text == text
+
+## The macros a token must not expand: those it came out of.
+struct Hide:
+    var name: str
+    var next: Hide*?
+
+## A macro. `body` is a token list ending in `eof`; a builtin computes its value.
+pub struct Macro:
+    pub var name: str
+    pub var function_like: bool
+    pub var params: str[]
+    pub var variadic: bool
+    pub var body: Tok*?
+    var builtin: u8
+    pub var file: u32
+    pub var line: u32
+    pub var deleted: bool
+
+## A file the preprocessor opened: its canonical path and which directory found it.
+pub struct FileEntry:
+    pub var path: str
+    var dir: usize
+
+struct Cond:
+    var included: bool
+    var in_else: bool
+    var line: u32
+    var file: u32
+
+struct Found:
+    var path: str
+    var dir: usize
+
+let no_dir: usize = 18446744073709551615
+let builtin_file: u8 = 1
+let builtin_line: u8 = 2
+let builtin_counter: u8 = 3
+
+var scratch: u8[4096]
+var place: u8[4096]
+
+pub struct Preprocessor:
+    ## Include directories: the `-I` ones first, then the compiler's system directories.
+    var dirs: list.List[str]
+    var user_dirs: usize
+    var frameworks: list.List[str]
+    pub var files: list.List[FileEntry]
+    var once: list.List[str]
+    var keys: str[]
+    var values: Macro*?[]
+    var count: usize
+    ## Every macro defined, in order, redefinitions and undefined ones included.
+    pub var defined: list.List[Macro*]
+    var conds: list.List[Cond]
+    var counter: u32
+    ## How many files were included; a header that includes itself without end is stopped.
+    var depth: u32
+    ## The file `run` was given.
+    pub var main_file: u32
+    ## What the run had to say: warnings, ignored pragmas, and the like.
+    pub var report: buffer.Buffer
+
+    # mark: Setup ==============================================================================
+
+    ## A preprocessor with `compiler`'s include directories and predefined macros.
+    pub static func create(compiler: c.str) -> Preprocessor!:
+        var p = Preprocessor(dirs = try list.List[str].create(16), user_dirs = 0,
+                             frameworks = try list.List[str].create(4),
+                             files = try list.List[FileEntry].create(64),
+                             once = try list.List[str].create(64), keys = try alloc str[1024],
+                             values = try alloc Macro*?[1024], count = 0,
+                             defined = try list.List[Macro*].create(1024),
+                             conds = try list.List[Cond].create(32), counter = 0, depth = 0, main_file = 0,
+                             report = try buffer.Buffer.create(1024))
+        for i in 0..<p.keys.length:
+            p.keys[i] = ""
+            p.values[i] = none
+        try p.ask_directories(compiler)
+        try p.ask_macros(compiler)
+        try p.add_builtin("__FILE__", builtin_file)
+        try p.add_builtin("__LINE__", builtin_line)
+        try p.add_builtin("__COUNTER__", builtin_counter)
+        return p
+
+    ## The system include directories, from `cc -E -Wp,-v` on an empty input.
+    mutating func ask_directories(compiler: c.str) -> !:
+        let empty: c.str = "nul" if platform.windows else "/dev/null"
+        let arguments: c.str[4] = ["-E", "-Wp,-v", "-xc", empty]
+        let (status, out, err) = try process.run(compiler, arguments)
+        discard(out)
+        if status != 0:
+            error(failed, "the C compiler does not report its include directories")
+        var inside = false
+        for line in try strings.split(err, '\n'):
+            let t = strings.trim(line)
+            if t == "#include <...> search starts here:":
+                inside = true
+                continue
+            if t == "End of search list.":
+                break
+            if not inside or t.length == 0 or t.bytes[0] == '#':
+                continue
+            if strings.ends_with(t, " (framework directory)"):
+                try self.frameworks.push(try strings.copy((str)t.bytes[..<t.length - 22]))
+            else:
+                try self.dirs.push(try strings.copy(t))
+
+    ## The predefined macros, from `cc -dM -E`, read as `#define` lines.
+    mutating func ask_macros(compiler: c.str) -> !:
+        let empty: c.str = "nul" if platform.windows else "/dev/null"
+        let arguments: c.str[4] = ["-dM", "-E", "-xc", empty]
+        let (status, out, err) = try process.run(compiler, arguments)
+        discard(err)
+        if status != 0:
+            error(failed, "the C compiler does not report its predefined macros")
+        try self.files.push(FileEntry(path = "<built-in>", dir = no_dir))
+        let head = try tokenize(out.bytes, u32(self.files.count - 1))
+        discard(try self.process(head))
+
+    ## A `-I` directory, searched before the system ones.
+    pub mutating func add_include_dir(dir: str) -> !:
+        try self.dirs.push("")
+        var i = self.dirs.count - 1
+        while i > self.user_dirs:
+            self.dirs.items[i] = self.dirs.items[i - 1]
+            i -= 1
+        self.dirs.items[self.user_dirs] = try strings.copy(dir)
+        self.user_dirs += 1
+
+    ## A `-D` definition: `NAME` or `NAME=VALUE`, as `#define` would.
+    pub mutating func define(text: str) -> !:
+        var line = try buffer.Buffer.create(text.length + 16)
+        try line.put("#define ")
+        if let pair = strings.split_once(text, "="):
+            let (name, value) = pair
+            try line.put(name)
+            try line.put(" ")
+            try line.put(value)
+        else:
+            try line.put(text)
+            try line.put(" 1")
+        try line.put("\n")
+        let head = try tokenize(line.bytes(), 0)
+        discard(try self.process(head))
+
+    ## Preprocess `path` and everything it includes: the token list of the whole unit.
+    pub mutating func run(path: str) -> Tok*!:
+        let file = try self.open(path, no_dir)
+        self.main_file = file
+        let bytes = try files.read((c.str)self.files.items[file].path)
+        let head = try tokenize(bytes, file)
+        let out = try self.process(head)
+        if self.conds.count > 0:
+            let top = self.conds.items[self.conds.count - 1]
+            error(failed, try at(self.path_of(top.file), top.line, "the conditional is not closed"))
+        return out
+
+    ## A file that is not on disk, a recipe's prototypes say: its index for tokens.
+    pub mutating func add_virtual_file(name: str) -> u32!:
+        try self.files.push(FileEntry(path = name, dir = no_dir))
+        return u32(self.files.count - 1)
+
+    ## Where `#include <name>` would find `name`, for a header given by its include name.
+    pub mutating func locate(name: str) -> str?!:
+        let found = try self.search(name, true, 0, false) else return none
+        return found.path
+
+    pub func path_of(file: u32) -> str:
+        return self.files.items[file].path
+
+    ## The macro `name` as it stands, when it is defined.
+    pub func lookup(name: str) -> Macro*?:
+        let mask = self.keys.length - 1
+        var i = (usize)fnv(name) & mask
+        while true:
+            let key = self.keys[i]
+            if key.length == 0 and self.values[i] == none:
+                return none
+            if key == name:
+                let m = self.values[i] else return none
+                return none if m.deleted else m
+            i = (i + 1) & mask
+
+    mutating func insert(m: Macro*) -> !:
+        if (self.count + 1) * 2 > self.keys.length:
+            try self.grow()
+        let mask = self.keys.length - 1
+        var i = (usize)fnv(m.name) & mask
+        while true:
+            if self.keys[i] == m.name:
+                self.values[i] = m
+                return
+            if self.keys[i].length == 0 and self.values[i] == none:
+                self.keys[i] = m.name
+                self.values[i] = m
+                self.count += 1
+                return
+            i = (i + 1) & mask
+
+    mutating func grow() -> !:
+        let old_keys = self.keys
+        let old_values = self.values
+        self.keys = try alloc str[old_keys.length * 2]
+        self.values = try alloc Macro*?[old_keys.length * 2]
+        for i in 0..<self.keys.length:
+            self.keys[i] = ""
+            self.values[i] = none
+        self.count = 0
+        for i in 0..<old_keys.length:
+            if let m = old_values[i]:
+                try self.insert(m)
+
+    mutating func add_builtin(name: str, which: u8) -> !:
+        let m = try new Macro(name = name, function_like = false, params = try alloc str[0], variadic = false,
+                              body = none, builtin = which, file = 0, line = 0, deleted = false)
+        try self.insert(m)
+
+    # mark: Files ==============================================================================
+
+    ## The index of `path` in the file table, canonical, opened once.
+    mutating func open(path: str, dir: usize) -> u32!:
+        let terminated = try strings.copy(path)
+        let canonical = files.canonical((c.str)terminated) catch failure:
+            discard(failure)
+            recover terminated
+        for i in 0..<self.files.count:
+            if self.files.items[i].path == canonical:
+                return u32(i)
+        try self.files.push(FileEntry(path = canonical, dir = dir))
+        return u32(self.files.count - 1)
+
+    ## Where `#include` finds `name`: beside the including file for a quoted name, then the
+    ## directories in order, from the one after the including file's for `#include_next`.
+    mutating func search(name: str, angled: bool, source: u32, next: bool) -> Found?!:
+        if paths.is_absolute(name):
+            if try exists(name):
+                return Found(path = name, dir = no_dir)
+            return none
+        if not angled and not next:
+            let beside = try paths.join(paths.directory(self.files.items[source].path), name)
+            if try exists(beside):
+                return Found(path = beside, dir = no_dir)
+        var start: usize = 0
+        if next and self.files.items[source].dir != no_dir:
+            start = self.files.items[source].dir + 1
+        for i in start..<self.dirs.count:
+            let candidate = try paths.join(self.dirs.items[i], name)
+            if try exists(candidate):
+                return Found(path = candidate, dir = i)
+        if let pair = strings.split_once(name, "/"):
+            let (framework, rest) = pair
+            for dir in self.frameworks.span():
+                let root = try paths.join(dir, framework)
+                let headers = try paths.join(root, ".framework/Headers")
+                let candidate = try paths.join(headers, rest)
+                if try exists(candidate):
+                    return Found(path = candidate, dir = no_dir)
+        return none
+
+    # mark: The loop ===========================================================================
+
+    ## The tokens of `start` with directives obeyed and macros expanded.
+    pub mutating func process(start: Tok*) -> Tok*!:
+        let head = try new Tok(kind = Kind.eof, text = "", file = 0, line = 0, space = false, bol = true, hide = none, next = none)
+        var cur = head
+        var tok = start
+        while tok.kind != Kind.eof:
+            if let expanded = try self.expand(tok):
+                tok = expanded
+                continue
+            if not (tok.bol and tok.is_punct("#")):
+                cur.next = tok
+                cur = tok
+                tok = tok.next else trap("a token list without its end")
+                continue
+            let sharp = tok
+            tok = tok.next else trap("a token list without its end")
+            if tok.bol:
+                continue
+            tok = try self.directive(sharp, tok)
+        cur.next = tok
+        return head.next else trap("unreachable")
+
+    ## One directive, `tok` its name; the token after its line, or after the group it skips.
+    mutating func directive(sharp: Tok*, tok: Tok*) -> Tok*!:
+        let name = tok.text
+        if name == "include" or name == "include_next" or name == "import":
+            return try self.include(sharp, tok)
+        if name == "define":
+            return try self.define_macro(tok.next else trap("unreachable"))
+        if name == "undef":
+            let target = tok.next else trap("unreachable")
+            if target.kind == Kind.ident:
+                if let m = self.lookup(target.text):
+                    m.deleted = true
+            return skip_line(target)
+        if name == "if":
+            let (value, rest) = try self.const_expr(tok.next else trap("unreachable"))
+            try self.push_cond(sharp, value != 0)
+            return rest if value != 0 else try self.skip_group(rest)
+        if name == "ifdef" or name == "ifndef":
+            let target = tok.next else trap("unreachable")
+            let present = target.kind == Kind.ident and self.lookup(target.text) != none
+            let included = present if name == "ifdef" else not present
+            try self.push_cond(sharp, included)
+            let rest = skip_line(target)
+            return rest if included else try self.skip_group(rest)
+        if name == "elif":
+            if self.conds.count == 0 or self.conds.items[self.conds.count - 1].in_else:
+                error(failed, try at(self.path_of(sharp.file), sharp.line, "a stray #elif"))
+            if self.conds.items[self.conds.count - 1].included:
+                return try self.skip_group(skip_line(tok))
+            let (value, rest) = try self.const_expr(tok.next else trap("unreachable"))
+            if value != 0:
+                self.conds.items[self.conds.count - 1].included = true
+                return rest
+            return try self.skip_group(rest)
+        if name == "else":
+            if self.conds.count == 0 or self.conds.items[self.conds.count - 1].in_else:
+                error(failed, try at(self.path_of(sharp.file), sharp.line, "a stray #else"))
+            self.conds.items[self.conds.count - 1].in_else = true
+            let rest = skip_line(tok)
+            if self.conds.items[self.conds.count - 1].included:
+                return try self.skip_group(rest)
+            return rest
+        if name == "endif":
+            if self.conds.count == 0:
+                error(failed, try at(self.path_of(sharp.file), sharp.line, "a stray #endif"))
+            self.conds.count -= 1
+            return skip_line(tok)
+        if name == "error":
+            let (line, rest) = try copy_line(tok.next else trap("unreachable"))
+            discard(rest)
+            error(failed, try at(self.path_of(sharp.file), sharp.line, try spelled(line)))
+        if name == "pragma":
+            let what = tok.next else trap("unreachable")
+            if what.is(Kind.ident, "once"):
+                try self.once.push(self.path_of(sharp.file))
+            return skip_line(what)
+        if name == "warning" or name == "line" or name == "ident" or name == "sccs" or name == "assert" or name == "unassert":
+            return skip_line(tok)
+        if tok.kind == Kind.number:
+            return skip_line(tok)
+        try self.report.put(try at(self.path_of(sharp.file), sharp.line, try format(scratch[0..], f"an unknown directive #{name} is ignored\n")))
+        return skip_line(tok)
+
+    mutating func push_cond(sharp: Tok*, included: bool) -> !:
+        try self.conds.push(Cond(included = included, in_else = false, line = sharp.line, file = sharp.file))
+
+    ## Past a group that is not taken: to its `#elif`, `#else`, or `#endif`, nested ones
+    ## skipped whole; the directive is left for the loop.
+    mutating func skip_group(start: Tok*) -> Tok*!:
+        var tok = start
+        var depth: u32 = 0
+        while tok.kind != Kind.eof:
+            if tok.bol and tok.is_punct("#"):
+                let name = tok.next else trap("unreachable")
+                if name.kind == Kind.ident:
+                    if name.text == "if" or name.text == "ifdef" or name.text == "ifndef":
+                        depth += 1
+                    elif name.text == "endif":
+                        if depth == 0:
+                            return tok
+                        depth -= 1
+                    elif (name.text == "elif" or name.text == "else") and depth == 0:
+                        return tok
+                tok = skip_line(name)
+                continue
+            tok = tok.next else trap("unreachable")
+        return tok
+
+    # mark: Including ==========================================================================
+
+    mutating func include(sharp: Tok*, tok: Tok*) -> Tok*!:
+        let next = tok.text == "include_next"
+        let once_only = tok.text == "import"
+        var first = tok.next else trap("unreachable")
+        var name = ""
+        var angled = false
+        var rest = first
+        if first.kind == Kind.text:
+            name = (str)first.text.bytes[1..<first.text.length - 1]
+            rest = skip_line(first)
+        elif first.is_punct("<"):
+            let (joined, after) = try angle_name(first)
+            name = joined
+            angled = true
+            rest = after
+        else:
+            let (line, after) = try copy_line(first)
+            let expanded = try self.process(line)
+            if expanded.kind == Kind.text:
+                name = (str)expanded.text.bytes[1..<expanded.text.length - 1]
+            elif expanded.is_punct("<"):
+                let (joined, tail) = try angle_name(expanded)
+                discard(tail)
+                name = joined
+                angled = true
+            else:
+                error(failed, try at(self.path_of(sharp.file), sharp.line, "#include expects a file name"))
+            rest = after
+        let found = try self.search(name, angled, sharp.file, next) else error(failed, try at(self.path_of(sharp.file), sharp.line, try format(scratch[0..], f"{name} is not in any include directory")))
+        let file = try self.open(found.path, found.dir)
+        let path = self.path_of(file)
+        for seen in self.once.span():
+            if seen == path:
+                return rest
+        if once_only:
+            try self.once.push(path)
+        self.depth += 1
+        if self.depth >= 100000:
+            error(failed, try at(self.path_of(sharp.file), sharp.line, "the header includes without end"))
+        let bytes = try files.read((c.str)path)
+        let head = try tokenize(bytes, file)
+        return append(head, rest)
+
+    # mark: Defining ===========================================================================
+
+    ## `#define NAME body` or `#define NAME(params) body`, the `(` touching the name.
+    mutating func define_macro(tok: Tok*) -> Tok*!:
+        if tok.kind != Kind.ident:
+            error(failed, try at(self.path_of(tok.file), tok.line, "#define expects a name"))
+        let name = tok.text
+        var cursor = tok.next else trap("unreachable")
+        var params = try list.List[str].create(8)
+        var variadic = false
+        var function_like = false
+        if cursor.is_punct("(") and not cursor.space and not cursor.bol:
+            function_like = true
+            cursor = cursor.next else trap("unreachable")
+            while not cursor.is_punct(")"):
+                if cursor.bol:
+                    error(failed, try at(self.path_of(tok.file), tok.line, "the parameter list is not closed"))
+                if cursor.is_punct("..."):
+                    variadic = true
+                    try params.push("__VA_ARGS__")
+                elif cursor.kind == Kind.ident:
+                    let after = cursor.next else trap("unreachable")
+                    if after.is_punct("..."):
+                        variadic = true
+                        try params.push(cursor.text)
+                        cursor = after
+                    else:
+                        try params.push(cursor.text)
+                elif not cursor.is_punct(","):
+                    error(failed, try at(self.path_of(tok.file), tok.line, "a macro parameter must be a name"))
+                cursor = cursor.next else trap("unreachable")
+            cursor = cursor.next else trap("unreachable")
+        let (body, rest) = try copy_line(cursor)
+        let m = try new Macro(name = name, function_like = function_like, params = params.span(),
+                              variadic = variadic, body = body, builtin = 0, file = tok.file,
+                              line = tok.line, deleted = false)
+        try self.insert(m)
+        try self.defined.push(m)
+        return rest
+
+    # mark: Expanding ==========================================================================
+
+    ## The expansion of a macro invocation at `tok`, spliced before what follows it; none
+    ## when `tok` is not one.
+    mutating func expand(tok: Tok*) -> Tok*?!:
+        if tok.kind != Kind.ident or hidden(tok.hide, tok.text):
+            return none
+        let m = self.lookup(tok.text) else return none
+        let rest = tok.next else trap("unreachable")
+        if m.builtin != 0:
+            return try self.expand_builtin(m, tok, rest)
+        if not m.function_like:
+            let body = m.body else trap("a macro without a body")
+            let out = try copy_with(body, add_hide(tok.hide, m.name), tok)
+            return append(out, rest)
+        if not rest.is_punct("("):
+            return none
+        let (arguments, close) = try self.read_arguments(rest, m, tok)
+        var out = try self.substitute(m, arguments, tok)
+        let hide = add_hide(intersect(tok.hide, close.hide), m.name)
+        var cursor: Tok*? = out
+        while let t = cursor:
+            if t.kind == Kind.eof:
+                break
+            t.hide = union_of(t.hide, hide)
+            cursor = t.next
+        if out.kind != Kind.eof:
+            out.bol = tok.bol
+            out.space = tok.space
+        return append(out, close.next else trap("unreachable"))
+
+    mutating func expand_builtin(m: Macro*, tok: Tok*, rest: Tok*) -> Tok*!:
+        var made: Tok* = tok
+        if m.builtin == builtin_file:
+            var quoted = try buffer.Buffer.create(64)
+            try quoted.put_byte('"')
+            try quoted.put(self.path_of(tok.file))
+            try quoted.put_byte('"')
+            made = try new Tok(kind = Kind.text, text = try strings.copy(quoted.view()), file = tok.file, line = tok.line,
+                               space = tok.space, bol = tok.bol, hide = none, next = rest)
+        elif m.builtin == builtin_line:
+            let number = try format(scratch[0..], f"{tok.line}")
+            made = try new Tok(kind = Kind.number, text = try strings.copy(number), file = tok.file, line = tok.line,
+                               space = tok.space, bol = tok.bol, hide = none, next = rest)
+        else:
+            let number = try format(scratch[0..], f"{self.counter}")
+            self.counter += 1
+            made = try new Tok(kind = Kind.number, text = try strings.copy(number), file = tok.file, line = tok.line,
+                               space = tok.space, bol = tok.bol, hide = none, next = rest)
+        return made
+
+    ## The arguments of a function-like invocation, `open` its `(`: one token list per
+    ## parameter, each ending in `eof`, and the closing `)`.
+    mutating func read_arguments(open: Tok*, m: Macro*, at_tok: Tok*) -> (Tok*[], Tok*)!:
+        var arguments = try list.List[Tok*].create(8)
+        var tok = open.next else trap("unreachable")
+        var index: usize = 0
+        while true:
+            let last = index + 1 >= m.params.length
+            let variadic_now = m.variadic and last
+            let head = try new Tok(kind = Kind.eof, text = "", file = tok.file, line = tok.line, space = false, bol = false, hide = none, next = none)
+            var cur = head
+            var level: u32 = 0
+            while true:
+                if tok.kind == Kind.eof:
+                    error(failed, try at(self.path_of(at_tok.file), at_tok.line, try format(scratch[0..], f"the arguments of {m.name} are not closed")))
+                if level == 0 and tok.is_punct(")"):
+                    break
+                if level == 0 and tok.is_punct(",") and not variadic_now:
+                    break
+                if tok.is_punct("(") or tok.is_punct("[") or tok.is_punct("{"):
+                    level += 1
+                elif tok.is_punct(")") or tok.is_punct("]") or tok.is_punct("}"):
+                    level -= 1
+                let copied = try copy(tok)
+                copied.bol = false
+                cur.next = copied
+                cur = copied
+                tok = tok.next else trap("unreachable")
+            cur.next = try new Tok(kind = Kind.eof, text = "", file = tok.file, line = tok.line, space = false, bol = false, hide = none, next = none)
+            let first = head.next else trap("unreachable")
+            first.space = false
+            try arguments.push(first)
+            index += 1
+            if tok.is_punct(")"):
+                break
+            tok = tok.next else trap("unreachable")
+        # `f()` with one parameter is one empty argument; with none it is no argument
+        if m.params.length == 0 and arguments.count == 1 and arguments.items[0].kind == Kind.eof:
+            arguments.count = 0
+        while m.variadic and arguments.count < m.params.length:
+            try arguments.push(try new Tok(kind = Kind.eof, text = "", file = tok.file, line = tok.line, space = false, bol = false, hide = none, next = none))
+        if arguments.count != m.params.length:
+            error(failed, try at(self.path_of(at_tok.file), at_tok.line, try format(scratch[0..], f"{m.name} takes {m.params.length} arguments, not {arguments.count}")))
+        return (arguments.span(), tok)
+
+    func param_index(m: Macro*, tok: Tok*) -> usize?:
+        if tok.kind != Kind.ident:
+            return none
+        for i in 0..<m.params.length:
+            if m.params[i] == tok.text:
+                return i
+        return none
+
+    ## The body with parameters replaced: `#` stringises, `##` pastes, a parameter beside
+    ## neither is its argument fully expanded, `__VA_OPT__(...)` only with variadic arguments.
+    mutating func substitute(m: Macro*, arguments: Tok*[], origin: Tok*) -> Tok*!:
+        let head = try new Tok(kind = Kind.eof, text = "", file = origin.file, line = origin.line, space = false, bol = false, hide = none, next = none)
+        var cur = head
+        var tok = m.body else trap("a macro without a body")
+        while tok.kind != Kind.eof:
+            let next = tok.next else trap("unreachable")
+            if tok.is_punct("#"):
+                if let p = self.param_index(m, next):
+                    let made = try stringize(arguments[p], tok)
+                    cur.next = made
+                    cur = made
+                    tok = next.next else trap("unreachable")
+                    continue
+            if tok.is(Kind.ident, "__VA_OPT__") and next.is_punct("("):
+                let (inner, after) = try group_after(next)
+                if m.variadic and arguments[m.params.length - 1].kind != Kind.eof:
+                    let sub = try self.substitute_tokens(m, arguments, inner, origin)
+                    cur = link(cur, sub)
+                tok = after
+                continue
+            if tok.is_punct("##"):
+                if cur == head:
+                    error(failed, try at(self.path_of(origin.file), origin.line, "## at the start of a macro body"))
+                if let p = self.param_index(m, next):
+                    let argument = arguments[p]
+                    if argument.kind != Kind.eof:
+                        let pasted = try self.paste(cur, argument)
+                        *cur = *pasted
+                        cur = link(cur, try copy_list(argument.next else trap("unreachable")))
+                    tok = next.next else trap("unreachable")
+                    continue
+                let pasted = try self.paste(cur, next)
+                *cur = *pasted
+                tok = next.next else trap("unreachable")
+                continue
+            if let p = self.param_index(m, tok):
+                let argument = arguments[p]
+                if next.is_punct("##"):
+                    let after = next.next else trap("unreachable")
+                    if argument.kind == Kind.eof:
+                        if let q = self.param_index(m, after):
+                            cur = link(cur, try copy_list(arguments[q]))
+                            tok = after.next else trap("unreachable")
+                        else:
+                            tok = after
+                        continue
+                    cur = link(cur, try copy_list(argument))
+                    tok = next
+                    continue
+                let expanded = try self.process(try copy_list(argument))
+                let first = expanded
+                if first.kind != Kind.eof:
+                    first.space = tok.space
+                cur = link(cur, expanded)
+                tok = next
+                continue
+            let copied = try copy(tok)
+            cur.next = copied
+            cur = copied
+            tok = next
+        cur.next = try new Tok(kind = Kind.eof, text = "", file = origin.file, line = origin.line, space = false, bol = false, hide = none, next = none)
+        return head.next else trap("unreachable")
+
+    ## `substitute` over a token list rather than the macro's own body.
+    mutating func substitute_tokens(m: Macro*, arguments: Tok*[], body: Tok*, origin: Tok*) -> Tok*!:
+        let saved = m.body
+        m.body = body
+        let out = try self.substitute(m, arguments, origin)
+        m.body = saved
+        return out
+
+    ## `left ## right`: their spellings joined and read as one token.
+    mutating func paste(left: Tok*, right: Tok*) -> Tok*!:
+        let joined = try format(scratch[0..], f"{left.text}{right.text}")
+        let head = try tokenize(try strings.copy(joined), left.file)
+        if head.kind == Kind.eof:
+            error(failed, try at(self.path_of(left.file), left.line, "pasting produces nothing"))
+        let after = head.next else trap("unreachable")
+        if after.kind != Kind.eof:
+            error(failed, try at(self.path_of(left.file), left.line, try format(scratch[0..], f"pasting \"{left.text}\" and \"{right.text}\" does not give one token")))
+        head.space = left.space
+        head.bol = left.bol
+        head.line = left.line
+        head.next = left.next
+        head.hide = none
+        return head
+
+    # mark: Conditions =========================================================================
+
+    ## The value of the `#if` expression at `tok`, and the token after its line.
+    mutating func const_expr(tok: Tok*) -> (i64, Tok*)!:
+        let (line, rest) = try copy_line(tok)
+        let prepared = try self.replace_queries(line)
+        let expanded = try self.process(prepared)
+        let again = try self.replace_queries(expanded)
+        var cursor: Tok*? = again
+        while let t = cursor:
+            if t.kind == Kind.ident:
+                t.kind = Kind.number
+                t.text = "0"
+            cursor = t.next
+        var e = Evaluator(tok = again, path = self.path_of(tok.file), line = tok.line)
+        let value = try e.conditional()
+        if e.tok.kind != Kind.eof:
+            error(failed, try at(self.path_of(tok.file), tok.line, try format(scratch[0..], f"the #if expression stops at {e.tok.text}")))
+        return (value.value, rest)
+
+    ## `defined X`, `defined(X)`, `__has_include(...)` and the other `__has_*` queries,
+    ## replaced by their numbers before the line is expanded.
+    mutating func replace_queries(head: Tok*) -> Tok*!:
+        let anchor = try new Tok(kind = Kind.eof, text = "", file = head.file, line = head.line, space = false, bol = false, hide = none, next = head)
+        var prev = anchor
+        var tok = head
+        while tok.kind != Kind.eof:
+            if tok.is(Kind.ident, "defined"):
+                var name = tok.next else trap("unreachable")
+                var after = name.next else trap("unreachable")
+                if name.is_punct("("):
+                    name = after
+                    after = name.next else trap("unreachable")
+                    if not after.is_punct(")"):
+                        error(failed, try at(self.path_of(tok.file), tok.line, "defined( expects a name and )"))
+                    after = after.next else trap("unreachable")
+                let known = name.kind == Kind.ident and (self.lookup(name.text) != none or is_query(name.text))
+                tok.kind = Kind.number
+                tok.text = "1" if known else "0"
+                tok.next = after
+                prev = tok
+                tok = after
+                continue
+            if tok.kind == Kind.ident and is_query(tok.text):
+                let open = tok.next else trap("unreachable")
+                if not open.is_punct("("):
+                    prev = tok
+                    tok = open
+                    continue
+                let (inner, after) = try group_after(open)
+                let value = try self.query(tok, inner)
+                tok.kind = Kind.number
+                tok.text = "1" if value else "0"
+                tok.next = after
+                prev = tok
+                tok = after
+                continue
+            prev = tok
+            tok = tok.next else trap("unreachable")
+        discard(prev)
+        return anchor.next else trap("unreachable")
+
+    ## `__has_include` looks; `__has_feature(nullability)` is yes, because the declaration
+    ## parser reads the annotations; every other query is no.
+    mutating func query(name: Tok*, inner: Tok*) -> bool!:
+        if name.text == "__has_include" or name.text == "__has_include_next":
+            var target = ""
+            var angled = false
+            if inner.kind == Kind.text:
+                target = (str)inner.text.bytes[1..<inner.text.length - 1]
+            elif inner.is_punct("<"):
+                let (joined, after) = try angle_name(inner)
+                discard(after)
+                target = joined
+                angled = true
+            else:
+                let expanded = try self.process(inner)
+                if expanded.kind == Kind.text:
+                    target = (str)expanded.text.bytes[1..<expanded.text.length - 1]
+                elif expanded.is_punct("<"):
+                    let (joined, after) = try angle_name(expanded)
+                    discard(after)
+                    target = joined
+                    angled = true
+                else:
+                    error(failed, try at(self.path_of(name.file), name.line, "__has_include expects a file name"))
+            let found = try self.search(target, angled, name.file, name.text == "__has_include_next")
+            return found != none
+        if name.text == "__has_feature" or name.text == "__has_extension":
+            return inner.is(Kind.ident, "nullability") or inner.is(Kind.ident, "assume_nonnull") or inner.is(Kind.ident, "nullability_on_arrays")
+        if name.text == "__is_identifier":
+            return true
+        return false
+
+## The queries clang answers as if they were macros.
+func is_query(name: str) -> bool:
+    return strings.starts_with(name, "__has_") or name == "__is_identifier" or name == "__building_module" or strings.starts_with(name, "__is_target_")
+
+# mark: Constant expressions ===================================================================
+
+## A C integer in a constant expression: 64 bits, unsigned when either operand is.
+pub struct Value:
+    pub var value: i64
+    pub var unsigned: bool
+
+## `#if`'s expression grammar over a token line, C's precedence, `?:` included.
+struct Evaluator:
+    var tok: Tok*
+    var path: str
+    var line: u32
+
+    mutating func advance():
+        self.tok = self.tok.next else trap("unreachable")
+
+    mutating func expect(text: str) -> !:
+        if not self.tok.is_punct(text):
+            error(failed, try at(self.path, self.line, try format(scratch[0..], f"the #if expression expects {text}")))
+        self.advance()
+
+    mutating func conditional() -> Value!:
+        let condition = try self.binary(0)
+        if not self.tok.is_punct("?"):
+            return condition
+        self.advance()
+        let yes = try self.conditional()
+        try self.expect(":")
+        let no = try self.conditional()
+        return yes if condition.value != 0 else no
+
+    func precedence(text: str) -> u32:
+        if text == "||": return 1
+        if text == "&&": return 2
+        if text == "|": return 3
+        if text == "^": return 4
+        if text == "&": return 5
+        if text == "==" or text == "!=": return 6
+        if text == "<" or text == "<=" or text == ">" or text == ">=": return 7
+        if text == "<<" or text == ">>": return 8
+        if text == "+" or text == "-": return 9
+        if text == "*" or text == "/" or text == "%": return 10
+        return 0
+
+    mutating func binary(minimum: u32) -> Value!:
+        var left = try self.unary()
+        while self.tok.kind == Kind.punct:
+            let p = self.precedence(self.tok.text)
+            if p == 0 or p <= minimum:
+                break
+            let op = self.tok.text
+            self.advance()
+            let right = try self.binary(p)
+            left = try self.apply(op, left, right)
+        return left
+
+    func apply(op: str, a: Value, b: Value) -> Value!:
+        let unsigned = a.unsigned or b.unsigned
+        let x = a.value
+        let y = b.value
+        if op == "||": return Value(value = 1 if x != 0 or y != 0 else 0, unsigned = false)
+        if op == "&&": return Value(value = 1 if x != 0 and y != 0 else 0, unsigned = false)
+        if op == "|": return Value(value = x | y, unsigned = unsigned)
+        if op == "^": return Value(value = x ^ y, unsigned = unsigned)
+        if op == "&": return Value(value = x & y, unsigned = unsigned)
+        if op == "==": return Value(value = 1 if x == y else 0, unsigned = false)
+        if op == "!=": return Value(value = 1 if x != y else 0, unsigned = false)
+        if op == "<": return Value(value = 1 if less(x, y, unsigned) else 0, unsigned = false)
+        if op == ">": return Value(value = 1 if less(y, x, unsigned) else 0, unsigned = false)
+        if op == "<=": return Value(value = 1 if not less(y, x, unsigned) else 0, unsigned = false)
+        if op == ">=": return Value(value = 1 if not less(x, y, unsigned) else 0, unsigned = false)
+        if op == "<<": return Value(value = (i64)((u64)x << (u64)(y & 63)), unsigned = unsigned)
+        if op == ">>":
+            if unsigned:
+                return Value(value = (i64)((u64)x >> (u64)(y & 63)), unsigned = true)
+            return Value(value = x >> (y & 63), unsigned = false)
+        if op == "+": return Value(value = x +% y, unsigned = unsigned)
+        if op == "-": return Value(value = x -% y, unsigned = unsigned)
+        if op == "*": return Value(value = x *% y, unsigned = unsigned)
+        if y == 0:
+            error(failed, try at(self.path, self.line, "the #if expression divides by zero"))
+        if op == "/":
+            if unsigned:
+                return Value(value = (i64)((u64)x // (u64)y), unsigned = true)
+            return Value(value = x // y, unsigned = false)
+        if unsigned:
+            return Value(value = (i64)((u64)x % (u64)y), unsigned = true)
+        return Value(value = x % y, unsigned = false)
+
+    mutating func unary() -> Value!:
+        if self.tok.is_punct("+"):
+            self.advance()
+            return try self.unary()
+        if self.tok.is_punct("-"):
+            self.advance()
+            let v = try self.unary()
+            return Value(value = 0 -% v.value, unsigned = v.unsigned)
+        if self.tok.is_punct("!"):
+            self.advance()
+            let v = try self.unary()
+            return Value(value = 1 if v.value == 0 else 0, unsigned = false)
+        if self.tok.is_punct("~"):
+            self.advance()
+            let v = try self.unary()
+            return Value(value = ~v.value, unsigned = v.unsigned)
+        return try self.primary()
+
+    mutating func primary() -> Value!:
+        if self.tok.is_punct("("):
+            self.advance()
+            let v = try self.conditional()
+            try self.expect(")")
+            return v
+        if self.tok.kind == Kind.number:
+            let v = try integer(self.tok.text) else error(failed, try at(self.path, self.line, try format(scratch[0..], f"{self.tok.text} is not an integer the #if expression can use")))
+            self.advance()
+            return v
+        if self.tok.kind == Kind.character:
+            let v = character_value(self.tok.text)
+            self.advance()
+            return Value(value = v, unsigned = false)
+        error(failed, try at(self.path, self.line, try format(scratch[0..], f"the #if expression does not understand {self.tok.text}")))
+
+func less(x: i64, y: i64, unsigned: bool) -> bool:
+    if unsigned:
+        return (u64)x < (u64)y
+    return x < y
+
+## A C integer literal: decimal, `0x`, `0b`, or octal, with `u` and `l` suffixes.
+pub func integer(text: str) -> Value?!:
+    var i: usize = 0
+    var radix: u64 = 10
+    let b = text.bytes
+    if b.length >= 2 and b[0] == '0' and (b[1] == 'x' or b[1] == 'X'):
+        radix = 16
+        i = 2
+    elif b.length >= 2 and b[0] == '0' and (b[1] == 'b' or b[1] == 'B'):
+        radix = 2
+        i = 2
+    elif b.length >= 2 and b[0] == '0':
+        radix = 8
+        i = 1
+    var value: u64 = 0
+    var digits: usize = 1 if radix == 8 else 0
+    while i < b.length:
+        let d = digit_value(b[i])
+        if d >= radix:
+            break
+        value = value *% radix +% d
+        digits += 1
+        i += 1
+    if digits == 0:
+        return none
+    var unsigned = false
+    while i < b.length:
+        let s = b[i]
+        if s == 'u' or s == 'U':
+            unsigned = true
+        elif s != 'l' and s != 'L':
+            return none
+        i += 1
+    if value > 9223372036854775807 and radix != 10:
+        unsigned = true
+    return Value(value = (i64)value, unsigned = unsigned)
+
+func digit_value(b: u8) -> u64:
+    if b >= '0' and b <= '9': return (u64)(b - '0')
+    if b >= 'a' and b <= 'z': return (u64)(b - 'a') + 10
+    if b >= 'A' and b <= 'Z': return (u64)(b - 'A') + 10
+    return 99
+
+## The value of a character constant's first character, escapes decoded.
+pub func character_value(text: str) -> i64:
+    var i: usize = 0
+    let b = text.bytes
+    while i < b.length and b[i] != '\'':
+        i += 1
+    i += 1
+    if i >= b.length:
+        return 0
+    if b[i] != '\\':
+        return (i64)b[i]
+    i += 1
+    if i >= b.length:
+        return 0
+    let e = b[i]
+    if e == 'n': return 10
+    if e == 't': return 9
+    if e == 'r': return 13
+    if e == 'a': return 7
+    if e == 'b': return 8
+    if e == 'f': return 12
+    if e == 'v': return 11
+    if e == 'e': return 27
+    if e == 'x':
+        var v: i64 = 0
+        i += 1
+        while i < b.length and digit_value(b[i]) < 16:
+            v = v * 16 + (i64)digit_value(b[i])
+            i += 1
+        return v
+    if e >= '0' and e <= '7':
+        var v: i64 = 0
+        while i < b.length and b[i] >= '0' and b[i] <= '7':
+            v = v * 8 + (i64)(b[i] - '0')
+            i += 1
+        return v
+    return (i64)e
+
+# mark: Token lists ============================================================================
+
+## A message placed at a file and line.
+pub func at(path: str, line: u32, what: str) -> str!:
+    let text = try format(place[0..], f"{path}:{line}: {what}")
+    return try strings.copy(text)
+
+func fnv(text: str) -> u64:
+    var h: u64 = 14695981039346656037
+    for b in text.bytes:
+        h = (h ^ (u64)b) *% 1099511628211
+    return h
+
+func exists(path: str) -> bool!:
+    let terminated = try strings.copy(path)
+    return files.exists((c.str)terminated)
+
+func hidden(hide: Hide*?, name: str) -> bool:
+    var cursor = hide
+    while let h = cursor:
+        if h.name == name:
+            return true
+        cursor = h.next
+    return false
+
+func add_hide(hide: Hide*?, name: str) -> Hide*?:
+    let h: Hide*? = new Hide(name = name, next = hide) catch failure:
+        discard(failure)
+        recover none
+    return h
+
+func union_of(a: Hide*?, b: Hide*?) -> Hide*?:
+    var out = a
+    var cursor = b
+    while let h = cursor:
+        if not hidden(out, h.name):
+            out = add_hide(out, h.name)
+        cursor = h.next
+    return out
+
+func intersect(a: Hide*?, b: Hide*?) -> Hide*?:
+    var out: Hide*? = none
+    var cursor = a
+    while let h = cursor:
+        if hidden(b, h.name):
+            out = add_hide(out, h.name)
+        cursor = h.next
+    return out
+
+pub func copy(t: Tok*) -> Tok*!:
+    return try new Tok(kind = t.kind, text = t.text, file = t.file, line = t.line, space = t.space,
+                       bol = t.bol, hide = t.hide, next = none)
+
+## A copy of the list up to and including its `eof`.
+pub func copy_list(head: Tok*) -> Tok*!:
+    let anchor = try new Tok(kind = Kind.eof, text = "", file = head.file, line = head.line, space = false, bol = false, hide = none, next = none)
+    var cur = anchor
+    var tok = head
+    while true:
+        let copied = try copy(tok)
+        cur.next = copied
+        cur = copied
+        if tok.kind == Kind.eof:
+            break
+        tok = tok.next else trap("unreachable")
+    return anchor.next else trap("unreachable")
+
+## A copy of a macro body with `hide` on every token and `origin`'s place on the first.
+func copy_with(body: Tok*, hide: Hide*?, origin: Tok*) -> Tok*!:
+    let out = try copy_list(body)
+    var cursor: Tok*? = out
+    while let t = cursor:
+        t.hide = union_of(t.hide, hide)
+        cursor = t.next
+    if out.kind != Kind.eof:
+        out.bol = origin.bol
+        out.space = origin.space
+    return out
+
+## `b` in place of `a`'s `eof`; `a` when it has tokens, else `b`.
+pub func append(a: Tok*, b: Tok*) -> Tok*:
+    if a.kind == Kind.eof:
+        return b
+    var cur = a
+    while let n = cur.next:
+        if n.kind == Kind.eof:
+            break
+        cur = n
+    cur.next = b
+    return a
+
+## `list`, without its `eof`, after `cur`; the new last token.
+func link(cur: Tok*, items: Tok*) -> Tok*:
+    if items.kind == Kind.eof:
+        return cur
+    cur.next = items
+    var last = items
+    while let n = last.next:
+        if n.kind == Kind.eof:
+            break
+        last = n
+    return last
+
+pub func skip_line(start: Tok*) -> Tok*:
+    var tok = start
+    while not tok.bol:
+        tok = tok.next else return tok
+    return tok
+
+## The rest of the line as a fresh list ending in `eof`, and the token after the line.
+pub func copy_line(start: Tok*) -> (Tok*, Tok*)!:
+    let anchor = try new Tok(kind = Kind.eof, text = "", file = start.file, line = start.line, space = false, bol = false, hide = none, next = none)
+    var cur = anchor
+    var tok = start
+    while not tok.bol:
+        let copied = try copy(tok)
+        cur.next = copied
+        cur = copied
+        tok = tok.next else break
+    cur.next = try new Tok(kind = Kind.eof, text = "", file = start.file, line = start.line, space = false, bol = false, hide = none, next = none)
+    return (anchor.next else trap("unreachable"), tok)
+
+## The tokens inside the parentheses opened at `open`, as a list ending in `eof`, and the
+## token after the closing one.
+pub func group_after(open: Tok*) -> (Tok*, Tok*)!:
+    let anchor = try new Tok(kind = Kind.eof, text = "", file = open.file, line = open.line, space = false, bol = false, hide = none, next = none)
+    var cur = anchor
+    var tok = open.next else trap("unreachable")
+    var level: u32 = 0
+    while tok.kind != Kind.eof:
+        if tok.is_punct(")") and level == 0:
+            break
+        if tok.is_punct("("):
+            level += 1
+        elif tok.is_punct(")"):
+            level -= 1
+        let copied = try copy(tok)
+        cur.next = copied
+        cur = copied
+        tok = tok.next else trap("unreachable")
+    if tok.kind == Kind.eof:
+        error(failed, try at("", open.line, "a parenthesis is not closed"))
+    cur.next = try new Tok(kind = Kind.eof, text = "", file = open.file, line = open.line, space = false, bol = false, hide = none, next = none)
+    return (anchor.next else trap("unreachable"), tok.next else trap("unreachable"))
+
+## `<a/b.h>` joined from its tokens, and the token after `>`.
+func angle_name(open: Tok*) -> (str, Tok*)!:
+    var out = try buffer.Buffer.create(64)
+    var tok = open.next else trap("unreachable")
+    while not tok.is_punct(">"):
+        if tok.bol or tok.kind == Kind.eof:
+            error(failed, "an #include name is not closed")
+        try out.put(tok.text)
+        tok = tok.next else trap("unreachable")
+    return (try strings.copy(out.view()), tok.next else trap("unreachable"))
+
+## The spelling of a token list, one space where the source had any.
+pub func spelled(head: Tok*) -> str!:
+    var out = try buffer.Buffer.create(64)
+    var cursor: Tok*? = head
+    var first = true
+    while let t = cursor:
+        if t.kind == Kind.eof:
+            break
+        if t.space and not first:
+            try out.put(" ")
+        try out.put(t.text)
+        first = false
+        cursor = t.next
+    return try strings.copy(out.view())
+
+## `#param`: the argument's spelling as a string literal.
+func stringize(argument: Tok*, origin: Tok*) -> Tok*!:
+    var out = try buffer.Buffer.create(64)
+    try out.put("\"")
+    var cursor: Tok*? = argument
+    var first = true
+    while let t = cursor:
+        if t.kind == Kind.eof:
+            break
+        if t.space and not first:
+            try out.put(" ")
+        if t.kind == Kind.text or t.kind == Kind.character:
+            for b in t.text.bytes:
+                if b == '"' or b == '\\':
+                    try out.put_byte('\\')
+                try out.put_byte(b)
+        else:
+            try out.put(t.text)
+        first = false
+        cursor = t.next
+    try out.put("\"")
+    return try new Tok(kind = Kind.text, text = try strings.copy(out.view()), file = origin.file, line = origin.line,
+                       space = origin.space, bol = false, hide = none, next = none)
+
+# mark: Tokens =================================================================================
+
+let three: str[3] = ["<<=", ">>=", "..."]
+let two: str[19] = ["->", "++", "--", "<<", ">>", "<=", ">=", "==", "!=", "&&", "||", "+=", "-=", "*=", "/=", "%=", "&=", "|=", "^="]
+
+func is_ident_start(b: u8) -> bool:
+    return (b >= 'a' and b <= 'z') or (b >= 'A' and b <= 'Z') or b == '_' or b == '$' or b >= 128
+
+func is_ident_char(b: u8) -> bool:
+    return is_ident_start(b) or (b >= '0' and b <= '9')
+
+func is_digit(b: u8) -> bool:
+    return b >= '0' and b <= '9'
+
+func is_punct_char(b: u8) -> bool:
+    let set = "[](){}.&*+-~!/%<>^|?:;=,#@"
+    for p in set.bytes:
+        if p == b:
+            return true
+    return false
+
+## The text with backslash-newlines removed, and where each was, for line numbers.
+func splice(bytes: const u8[]) -> (u8[], usize[])!:
+    let out = try alloc u8[bytes.length]
+    var splices = try list.List[usize].create(16)
+    var n: usize = 0
+    var i: usize = 0
+    while i < bytes.length:
+        if bytes[i] == '\\' and i + 1 < bytes.length and bytes[i + 1] == '\n':
+            try splices.push(n)
+            i += 2
+            continue
+        if bytes[i] == '\\' and i + 2 < bytes.length and bytes[i + 1] == '\r' and bytes[i + 2] == '\n':
+            try splices.push(n)
+            i += 3
+            continue
+        out[n] = bytes[i]
+        n += 1
+        i += 1
+    return (out[..<n], splices.span())
+
+## The preprocessing tokens of `bytes`, a list ending in `eof`. Comments are spacing.
+pub func tokenize(bytes: const u8[], file: u32) -> Tok*!:
+    let (text, splices) = try splice(bytes)
+    let anchor = try new Tok(kind = Kind.eof, text = "", file = file, line = 0, space = false, bol = true, hide = none, next = none)
+    var cur = anchor
+    var i: usize = 0
+    var line: u32 = 1
+    var bol = true
+    var space = false
+    var spliced: usize = 0
+    while i < text.length:
+        let b = text[i]
+        if b == '\n':
+            line += 1
+            bol = true
+            space = true
+            i += 1
+            continue
+        if b == ' ' or b == '\t' or b == '\r' or b == 12 or b == 11:
+            space = true
+            i += 1
+            continue
+        if b == '/' and i + 1 < text.length and text[i + 1] == '/':
+            while i < text.length and text[i] != '\n':
+                i += 1
+            space = true
+            continue
+        if b == '/' and i + 1 < text.length and text[i + 1] == '*':
+            i += 2
+            while i < text.length and not (text[i] == '*' and i + 1 < text.length and text[i + 1] == '/'):
+                if text[i] == '\n':
+                    line += 1
+                i += 1
+            i += 2
+            space = true
+            continue
+        while spliced < splices.length and splices[spliced] <= i:
+            line += 1
+            spliced += 1
+        let start = i
+        var kind = Kind.other
+        if is_ident_start(b):
+            while i < text.length and is_ident_char(text[i]):
+                i += 1
+            kind = Kind.ident
+            let word = (str)text[start..<i]
+            if i < text.length and (text[i] == '"' or text[i] == '\'') and (word == "L" or word == "u" or word == "U" or word == "u8"):
+                kind = Kind.text if text[i] == '"' else Kind.character
+                i = quoted_end(text, i)
+        elif is_digit(b) or (b == '.' and i + 1 < text.length and is_digit(text[i + 1])):
+            i += 1
+            while i < text.length:
+                let d = text[i]
+                if (d == '+' or d == '-') and (text[i - 1] == 'e' or text[i - 1] == 'E' or text[i - 1] == 'p' or text[i - 1] == 'P'):
+                    i += 1
+                elif is_ident_char(d) or d == '.':
+                    i += 1
+                else:
+                    break
+            kind = Kind.number
+        elif b == '"':
+            kind = Kind.text
+            i = quoted_end(text, i)
+        elif b == '\'':
+            kind = Kind.character
+            i = quoted_end(text, i)
+        elif is_punct_char(b):
+            kind = Kind.punct
+            i += 1
+            if start + 3 <= text.length:
+                for p in three:
+                    if (str)text[start..<start + 3] == p:
+                        i = start + 3
+            if i == start + 1 and start + 2 <= text.length:
+                for p in two:
+                    if (str)text[start..<start + 2] == p:
+                        i = start + 2
+            if i == start + 1 and b == '#' and start + 1 < text.length and text[start + 1] == '#':
+                i = start + 2
+        else:
+            i += 1
+        let made = try new Tok(kind = kind, text = (str)text[start..<i], file = file, line = line, space = space, bol = bol, hide = none, next = none)
+        cur.next = made
+        cur = made
+        bol = false
+        space = false
+    cur.next = try new Tok(kind = Kind.eof, text = "", file = file, line = line, space = true, bol = true, hide = none, next = none)
+    return anchor.next else trap("unreachable")
+
+## Past the closing quote of the literal opening at `open`, or the end of its line.
+func quoted_end(text: const u8[], open: usize) -> usize:
+    let quote = text[open]
+    var i = open + 1
+    while i < text.length and text[i] != quote and text[i] != '\n':
+        if text[i] == '\\' and i + 1 < text.length:
+            i += 1
+        i += 1
+    if i < text.length and text[i] == quote:
+        i += 1
+    return i
+
+test "tokens keep their spacing and line":
+    var backing: u8[65536]
+    var arena = memory.FixedBuffer.over(backing)
+    with arena:
+        let head = try tokenize("a  += 0x1fUL\n  \"s\\\"q\" 'c' ... <<= x##y\n".bytes, 0)
+        assert(head.is(Kind.ident, "a") and head.bol)
+        let plus = head.next else trap("")
+        assert(plus.is_punct("+=") and plus.space)
+        let number = plus.next else trap("")
+        assert(number.is(Kind.number, "0x1fUL"))
+        let s = number.next else trap("")
+        assert(s.kind == Kind.text and s.bol and s.line == 2)
+        let ch = s.next else trap("")
+        assert(ch.is(Kind.character, "'c'"))
+        let dots = ch.next else trap("")
+        assert(dots.is_punct("..."))
+        let shift = dots.next else trap("")
+        assert(shift.is_punct("<<="))
+        let x = shift.next else trap("")
+        let paste_op = x.next else trap("")
+        assert(paste_op.is_punct("##") and not paste_op.space)
+
+test "integers and characters evaluate":
+    let v = try integer("0x10u") else trap("")
+    assert(v.value == 16 and v.unsigned)
+    let o = try integer("017") else trap("")
+    assert(o.value == 15)
+    assert(try integer("1.5") == none)
+    assert(character_value("'\\n'") == 10)
+    assert(character_value("L'A'") == 65)

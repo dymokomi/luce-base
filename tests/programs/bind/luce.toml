@@ -1,0 +1,5 @@
+[package]
+name = "bind"
+
+[native]
+sources = ["sample.c", "shims.c"]

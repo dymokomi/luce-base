@@ -13,6 +13,7 @@ import paths
 import os
 import c
 import back.backend
+import bind.command as bind_command
 import back.target as targets
 import platform
 import back.c.header
@@ -45,7 +46,7 @@ import support.version
 import support.host_tools
 
 func usage(out: io.Writer) -> !:
-    try out.write("usage: luce-base lex FILE\n       luce-base parse FILE\n       luce-base fmt FILE [--write | --check]\n       luce-base check FILE\n       luce-base describe FILE\n       luce-base describe --standard MODULE\n       luce-base interface FILE [-o OUT]\n       luce-base std-build SRC_DIR OUT_DIR [--target NAME] [--cpu LEVEL] [--backend=c]\n       luce-base std-interface SRC_DIR OUT\n       luce-base interface --standard MODULE\n       luce-base dependencies FILE\n       luce-base native-inputs FILE\n       luce-base resolve FILE SOURCE_ROOT MODULE [--base]\n       luce-base build FILE [-o OUT] [--release] [--emit=c] [--backend=c] [--native] [--debug] [--emit=asm] [--emit=ir] [--lib] [--freestanding] [--target] [--profile diagnostic] [-W] [-lNAME] [-LDIR] [-framework NAME]\n       luce-base test FILE [--backend=c] [--native]\n       luce-base --version\n")
+    try out.write("usage: luce-base lex FILE\n       luce-base parse FILE\n       luce-base fmt FILE [--write | --check]\n       luce-base bind HEADER [-I DIR] [-D NAME[=VALUE]] [-o OUT.lucb] [--shims OUT.c] [--recipe FILE] [--preprocess]\n       luce-base check FILE\n       luce-base describe FILE\n       luce-base describe --standard MODULE\n       luce-base interface FILE [-o OUT]\n       luce-base std-build SRC_DIR OUT_DIR [--target NAME] [--cpu LEVEL] [--backend=c]\n       luce-base std-interface SRC_DIR OUT\n       luce-base interface --standard MODULE\n       luce-base dependencies FILE\n       luce-base native-inputs FILE\n       luce-base resolve FILE SOURCE_ROOT MODULE [--base]\n       luce-base build FILE [-o OUT] [--release] [--emit=c] [--backend=c] [--native] [--debug] [--emit=asm] [--emit=ir] [--lib] [--freestanding] [--target] [--profile diagnostic] [-W] [-lNAME] [-LDIR] [-framework NAME]\n       luce-base test FILE [--backend=c] [--native]\n       luce-base --version\n")
 
 # mark: Building ===============================================================================
 
@@ -1324,6 +1325,11 @@ pub func main(arguments: c.str[]) -> i32!:
     if command == "fmt" and (positional == 3 or (positional == 4 and ((str)arguments[3] == "--write" or (str)arguments[3] == "--check"))):
         let mode = (str)arguments[3] if positional == 4 else ""
         let code = fmt_file(arguments[2], mode, out) catch failure:
+            try io.stderr().write(f"luce-base: {failure.message}\n")
+            recover 1
+        return code
+    if command == "bind":
+        let code = bind_command.run(arguments, out) catch failure:
             try io.stderr().write(f"luce-base: {failure.message}\n")
             recover 1
         return code

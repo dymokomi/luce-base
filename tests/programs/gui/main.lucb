@@ -1,11 +1,12 @@
 ## The same editor with a window: SDL3 for the window, the renderer, and the
-## keyboard, reached through `extern` declarations and nothing else. The editing
-## session, the buffer, and the history are the terminal editor's modules.
+## keyboard, through `sdl3.lucb`, the module `luce-base bind` writes from SDL's own
+## headers, and nothing else. The editing session, the buffer, and the history are
+## the terminal editor's modules.
 ##
 ##     gui FILE                     edit FILE in a window
 ##     gui FILE --replay SCRIPT     apply the keys headlessly (the dummy video driver), save, print the frame
 ##
-## Build: luce-base build programs/gui/main.lucb --native -lSDL3 -L/opt/homebrew/lib
+## Build: luce-base build tests/programs/gui/main.lucb --native (the manifest names SDL3 through pkg-config)
 
 import c
 import editor.buffer
@@ -13,56 +14,8 @@ import editor.session
 import editor.terminal
 import files
 import memory
+import sdl3
 
-extern func SDL_SetHint(name: c.str, value: c.str) -> bool
-extern func SDL_Init(flags: u32) -> bool
-extern func SDL_Quit()
-extern func SDL_GetError() -> c.str
-extern func SDL_CreateWindow(title: c.str, width: i32, height: i32, flags: u64) -> void*?
-extern func SDL_DestroyWindow(window: void*)
-extern func SDL_CreateRenderer(window: void*, name: c.str?) -> void*?
-extern func SDL_DestroyRenderer(renderer: void*)
-extern func SDL_SetRenderScale(renderer: void*, x: f32, y: f32) -> bool
-extern func SDL_GetRenderOutputSize(renderer: void*, width: i32*, height: i32*) -> bool
-extern func SDL_SetRenderDrawColor(renderer: void*, r: u8, g: u8, b: u8, a: u8) -> bool
-extern func SDL_RenderClear(renderer: void*) -> bool
-extern func SDL_RenderFillRect(renderer: void*, rect: const Rect*) -> bool
-extern func SDL_RenderDebugText(renderer: void*, x: f32, y: f32, text: c.str) -> bool
-extern func SDL_RenderPresent(renderer: void*) -> bool
-extern func SDL_PollEvent(event: void*) -> bool
-extern func SDL_StartTextInput(window: void*) -> bool
-extern func SDL_Delay(milliseconds: u32)
-
-extern struct Rect:
-    x: f32
-    y: f32
-    w: f32
-    h: f32
-
-let init_video: u32 = 32
-let window_resizable: u64 = 32
-let window_high_density: u64 = 8192
-let event_quit: u32 = 256
-let event_window_resized: u32 = 518
-let event_key_down: u32 = 768
-let event_text_input: u32 = 771
-let event_mouse_wheel: u32 = 1027
-let key_return: u32 = 13
-let key_escape: u32 = 27
-let key_backspace: u32 = 8
-let key_tab: u32 = 9
-let key_delete: u32 = 127
-let key_home: u32 = 1073741898
-let key_page_up: u32 = 1073741899
-let key_end: u32 = 1073741901
-let key_page_down: u32 = 1073741902
-let key_right: u32 = 1073741903
-let key_left: u32 = 1073741904
-let key_down: u32 = 1073741905
-let key_up: u32 = 1073741906
-let mod_ctrl: u16 = 192
-let mod_alt: u16 = 768
-let mod_gui: u16 = 3072
 ## The debug font is 8 by 8; the renderer scales it up.
 let cell: f32 = 8.0
 let scale: f32 = 2.0
@@ -70,20 +23,20 @@ let scale: f32 = 2.0
 pub let failed: ErrorCode = ErrorCode.package(2)
 
 struct Window:
-    var window: void*
-    var renderer: void*
+    var window: sdl3.SDL_Window
+    var renderer: sdl3.SDL_Renderer
     var columns: usize
     var rows: usize
     var top: usize
 
     static func open(headless: bool) -> Window!:
         if headless:
-            discard(SDL_SetHint("SDL_VIDEO_DRIVER", "dummy"))
-        if not SDL_Init(init_video):
-            error(failed, (str)SDL_GetError())
-        let window = SDL_CreateWindow("luce editor", 960, 640, window_resizable | window_high_density) else error(failed, (str)SDL_GetError())
-        let renderer = SDL_CreateRenderer(window, none) else error(failed, (str)SDL_GetError())
-        discard(SDL_SetRenderScale(renderer, scale, scale))
+            discard(sdl3.SDL_SetHint("SDL_VIDEO_DRIVER", "dummy"))
+        if not sdl3.SDL_Init(sdl3.SDL_INIT_VIDEO):
+            error(failed, sdl_error())
+        let window = sdl3.SDL_CreateWindow("luce editor", 960, 640, sdl3.SDL_WINDOW_RESIZABLE | sdl3.SDL_WINDOW_HIGH_PIXEL_DENSITY) else error(failed, sdl_error())
+        let renderer = sdl3.SDL_CreateRenderer(window, none) else error(failed, sdl_error())
+        discard(sdl3.SDL_SetRenderScale(renderer, scale, scale))
         var w = Window(window = window, renderer = renderer, columns = 60, rows = 40, top = 0)
         w.measure()
         return w
@@ -91,7 +44,7 @@ struct Window:
     mutating func measure():
         var width: i32 = 960
         var height: i32 = 640
-        discard(SDL_GetRenderOutputSize(self.renderer, &width, &height))
+        discard(sdl3.SDL_GetRenderOutputSize(self.renderer, &width, &height))
         self.columns = (usize)((f32)width / scale / cell)
         self.rows = (usize)((f32)height / scale / cell)
         if self.rows < 3:
@@ -100,9 +53,9 @@ struct Window:
             self.columns = 8
 
     func close():
-        SDL_DestroyRenderer(self.renderer)
-        SDL_DestroyWindow(self.window)
-        SDL_Quit()
+        sdl3.SDL_DestroyRenderer(self.renderer)
+        sdl3.SDL_DestroyWindow(self.window)
+        sdl3.SDL_Quit()
 
     ## One frame: the text rows, the cursor as a block, a status line, the message.
     mutating func draw(text: buffer.Buffer*, name: str, message: str):
@@ -112,8 +65,8 @@ struct Window:
             self.top = line
         if line >= self.top + text_rows:
             self.top = line + 1 - text_rows
-        discard(SDL_SetRenderDrawColor(self.renderer, 24, 24, 30, 255))
-        discard(SDL_RenderClear(self.renderer))
+        discard(sdl3.SDL_SetRenderDrawColor(self.renderer, 24, 24, 30, 255))
+        discard(sdl3.SDL_RenderClear(self.renderer))
         var row_bytes: u8[1024]
         let total = text.count_lines()
         var row: usize = 0
@@ -127,20 +80,20 @@ struct Window:
             row += 1
         # the cursor
         let column = text.column_of(text.cursor)
-        let cursor = Rect(x = (f32)column * cell, y = (f32)(line - self.top) * cell, w = cell, h = cell)
-        discard(SDL_SetRenderDrawColor(self.renderer, 250, 200, 80, 160))
-        discard(SDL_RenderFillRect(self.renderer, &cursor))
+        let cursor = sdl3.SDL_FRect(x = (f32)column * cell, y = (f32)(line - self.top) * cell, w = cell, h = cell)
+        discard(sdl3.SDL_SetRenderDrawColor(self.renderer, 250, 200, 80, 160))
+        discard(sdl3.SDL_RenderFillRect(self.renderer, &cursor))
         # the status line and the message
-        let bar = Rect(x = 0.0, y = (f32)text_rows * cell, w = (f32)self.columns * cell, h = cell)
-        discard(SDL_SetRenderDrawColor(self.renderer, 70, 70, 90, 255))
-        discard(SDL_RenderFillRect(self.renderer, &bar))
+        let bar = sdl3.SDL_FRect(x = 0.0, y = (f32)text_rows * cell, w = (f32)self.columns * cell, h = cell)
+        discard(sdl3.SDL_SetRenderDrawColor(self.renderer, 70, 70, 90, 255))
+        discard(sdl3.SDL_RenderFillRect(self.renderer, &bar))
         var status: u8[256]
         let mark = " *" if text.dirty else ""
         let shown = format(status, f" {name}{mark}   {line + 1}:{column + 1}   {total} lines") catch:
             return
         self.text_at(0, text_rows, shown.bytes, 255, 255, 255)
         self.text_at(0, text_rows + 1, message.bytes, 180, 180, 200)
-        discard(SDL_RenderPresent(self.renderer))
+        discard(sdl3.SDL_RenderPresent(self.renderer))
 
     ## Text at a cell position, NUL-terminated for SDL, cut at the right edge.
     func text_at(column: usize, row: usize, raw: const u8[], r: u8, g: u8, b: u8):
@@ -150,18 +103,24 @@ struct Window:
             n = self.columns
         memory.copy(line, raw, n)
         line[n] = 0
-        discard(SDL_SetRenderDrawColor(self.renderer, r, g, b, 255))
-        discard(SDL_RenderDebugText(self.renderer, (f32)column * cell, (f32)row * cell, (c.str)(str)line[..<n]))
+        discard(sdl3.SDL_SetRenderDrawColor(self.renderer, r, g, b, 255))
+        discard(sdl3.SDL_RenderDebugText(self.renderer, (f32)column * cell, (f32)row * cell, (c.str)(str)line[..<n]))
+
+## SDL's last error as text; the binding says it may be null, so an empty text stands in.
+func sdl_error() -> str:
+    let text = sdl3.SDL_GetError() else return "SDL failed without a message"
+    return (str)text
 
 ## The next key from SDL's queue, none when the queue is empty; quit closes the session.
-func next_key(event_bytes: u8[], quit: bool*) -> terminal.Key?:
-    while SDL_PollEvent(event_bytes.data):
-        let kind = memory.read[u32](event_bytes.data)
-        if kind == event_quit:
+func next_key(quit: bool*) -> terminal.Key?:
+    var event: sdl3.SDL_Event = ---
+    while sdl3.SDL_PollEvent(&event):
+        let kind = event.type_
+        if kind == (u32)sdl3.SDL_EventType.SDL_EVENT_QUIT:
             *quit = true
             return none
-        if kind == event_text_input:
-            let text = memory.read[c.str]((void*)((usize)event_bytes.data + 24))
+        if kind == (u32)sdl3.SDL_EventType.SDL_EVENT_TEXT_INPUT:
+            let text = event.text.text else continue
             let bytes = (str)text
             if bytes.length > 0:
                 # the rest of a multi-byte character follows through the queue
@@ -169,10 +128,8 @@ func next_key(event_bytes: u8[], quit: bool*) -> terminal.Key?:
                 pending_at = 1
                 return terminal.Key.character(byte = bytes.bytes[0])
             continue
-        if kind == event_key_down:
-            let key = memory.read[u32]((void*)((usize)event_bytes.data + 28))
-            let mod = memory.read[u16]((void*)((usize)event_bytes.data + 32))
-            if let translated = translate(key, mod):
+        if kind == (u32)sdl3.SDL_EventType.SDL_EVENT_KEY_DOWN:
+            if let translated = translate(event.key.key, (u32)event.key.mod):
                 return translated
     return none
 
@@ -188,37 +145,37 @@ func pending_key() -> terminal.Key?:
     pending_at += 1
     return terminal.Key.character(byte = byte)
 
-func translate(key: u32, mod: u16) -> terminal.Key?:
-    if (mod & mod_ctrl) != 0 or (mod & mod_gui) != 0:
+func translate(key: u32, mod: u32) -> terminal.Key?:
+    if (mod & sdl3.SDL_KMOD_CTRL) != 0 or (mod & sdl3.SDL_KMOD_GUI) != 0:
         if key >= (u32)'a' and key <= (u32)'z':
             return terminal.Key.control(letter = (u8)key - 32)
         return none
-    let by_word = (mod & mod_alt) != 0
-    if key == key_return:
+    let by_word = (mod & sdl3.SDL_KMOD_ALT) != 0
+    if key == sdl3.SDLK_RETURN:
         return terminal.Key.enter
-    if key == key_backspace:
+    if key == sdl3.SDLK_BACKSPACE:
         return terminal.Key.backspace
-    if key == key_escape:
+    if key == sdl3.SDLK_ESCAPE:
         return terminal.Key.escape
-    if key == key_delete:
+    if key == sdl3.SDLK_DELETE:
         return terminal.Key.delete
-    if key == key_left:
+    if key == sdl3.SDLK_LEFT:
         return terminal.Key.word_left if by_word else terminal.Key.left
-    if key == key_right:
+    if key == sdl3.SDLK_RIGHT:
         return terminal.Key.word_right if by_word else terminal.Key.right
-    if key == key_up:
+    if key == sdl3.SDLK_UP:
         return terminal.Key.up
-    if key == key_down:
+    if key == sdl3.SDLK_DOWN:
         return terminal.Key.down
-    if key == key_home:
+    if key == sdl3.SDLK_HOME:
         return terminal.Key.home
-    if key == key_end:
+    if key == sdl3.SDLK_END:
         return terminal.Key.end_
-    if key == key_page_up:
+    if key == sdl3.SDLK_PAGEUP:
         return terminal.Key.page_up
-    if key == key_page_down:
+    if key == sdl3.SDLK_PAGEDOWN:
         return terminal.Key.page_down
-    if key == key_tab:
+    if key == sdl3.SDLK_TAB:
         return terminal.Key.character(byte = 9)
     return none
 
@@ -250,9 +207,8 @@ pub func main(arguments: str[]) -> i32!:
         print((str)copy)
         print(editor.message())
         return 0
-    discard(SDL_StartTextInput(window.window))
+    discard(sdl3.SDL_StartTextInput(window.window))
     editor.say("^S save  ^Q quit  ^F find  ^Z undo  ^Y redo  ^K delete line")
-    var event_bytes: u8[128]
     var quit = false
     while editor.running and not quit:
         window.measure()
@@ -260,10 +216,10 @@ pub func main(arguments: str[]) -> i32!:
         window.draw(&editor.text, editor.path, editor.message())
         var key = pending_key()
         if key == none:
-            key = next_key(event_bytes, &quit)
+            key = next_key(&quit)
         if let k = key:
             editor.handle(k) catch failure:
                 editor.say(failure.message)
         else:
-            SDL_Delay(16)
+            sdl3.SDL_Delay(16)
     return 0

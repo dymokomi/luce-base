@@ -1,0 +1,82 @@
+import memory
+
+## A table from names to values, for the binder's typedefs, tags and constants. Storage
+## comes from the allocator current at creation and is never given back: the binder runs
+## in one arena.
+
+pub struct Table[T]:
+    var keys: str[]
+    var values: T[]
+    var count: usize
+
+    pub static func create(capacity: usize) -> Table[T]!:
+        var room: usize = 16
+        while room < capacity * 2:
+            room *= 2
+        var t = Table[T](keys = try alloc str[room], values = try alloc T[room], count = 0)
+        for i in 0..<room:
+            t.keys[i] = ""
+        return t
+
+    pub func get(name: str) -> T?:
+        let mask = self.keys.length - 1
+        var i = (usize)fnv(name) & mask
+        while true:
+            if self.keys[i].length == 0:
+                return none
+            if self.keys[i] == name:
+                return self.values[i]
+            i = (i + 1) & mask
+
+    pub func has(name: str) -> bool:
+        return self.get(name) != none
+
+    pub mutating func put(name: str, value: T) -> !:
+        if (self.count + 1) * 2 > self.keys.length:
+            try self.grow()
+        let mask = self.keys.length - 1
+        var i = (usize)fnv(name) & mask
+        while true:
+            if self.keys[i] == name:
+                self.values[i] = value
+                return
+            if self.keys[i].length == 0:
+                self.keys[i] = name
+                self.values[i] = value
+                self.count += 1
+                return
+            i = (i + 1) & mask
+
+    mutating func grow() -> !:
+        let old_keys = self.keys
+        let old_values = self.values
+        self.keys = try alloc str[old_keys.length * 2]
+        self.values = try alloc T[old_keys.length * 2]
+        for i in 0..<self.keys.length:
+            self.keys[i] = ""
+        self.count = 0
+        for i in 0..<old_keys.length:
+            if old_keys[i].length > 0:
+                try self.put(old_keys[i], old_values[i])
+
+func fnv(text: str) -> u64:
+    var h: u64 = 14695981039346656037
+    for b in text.bytes:
+        h = (h ^ (u64)b) *% 1099511628211
+    return h
+
+test "a table keeps what it is given and grows":
+    var backing: u8[65536]
+    var arena = memory.FixedBuffer.over(backing)
+    with arena:
+        var t = try Table[i64].create(2)
+        var i: i64 = 0
+        let names: str[5] = ["a", "b", "c", "d", "e"]
+        for name in names:
+            try t.put(name, i)
+            i += 1
+        assert(t.get("c") == 2)
+        assert(t.get("z") == none)
+        try t.put("c", 30)
+        assert(t.get("c") == 30)
+        assert(t.count == 5)

@@ -1,0 +1,1463 @@
+#==============================================================================================
+#
+#   cparse - C declarations from preprocessed tokens
+#
+#   DESCRIPTION:
+#       The declaration parser of `luce-base bind`. It reads what a header declares and
+#       nothing more: typedefs, structs, unions, enums, function prototypes, variables, and
+#       the names of `static inline` functions, whose bodies are skipped. Attributes are
+#       read for `noreturn` and nullability and otherwise dropped; `__asm__` labels are
+#       kept as the symbol; anything else, Objective-C and `_Static_assert` among it, is
+#       skipped to the next declaration. A declaration the parser cannot read is reported
+#       with its place and skipped, so one odd line does not lose a header.
+#
+#       Types are trees of `CType` nodes; a typedef is a node that names another. Records
+#       and enums are shared by tag and completed when their body is seen. Constant
+#       expressions, for enum values, array counts and the binder's macro constants, are
+#       evaluated here with C's rules, casts and `sizeof` included.
+#
+#==============================================================================================
+
+import bind.pre
+import bind.table
+import memory
+import strings
+from support.arena import Arena
+import support.buffer
+import support.list
+
+pub let failed: ErrorCode = ErrorCode.package(120)
+
+pub enum Kind:
+    void_
+    bool_
+    ## `char` unqualified: distinct in Base, since its signedness is the target's.
+    char_
+    ## An integer of `width` 1 (short), 2 (int), 3 (long), 4 (long long), 5 (`__int128`).
+    int_
+    float_
+    double_
+    long_double
+    ## A typedef; `name` is its name and `inner` what it names.
+    named
+    record
+    enum_
+    pointer
+    array
+    function
+    unsupported
+
+## A C type. Nodes are shared and never changed after they are made; a qualifier makes
+## a copy.
+pub struct CType:
+    pub var kind: Kind
+    pub var name: str
+    pub var inner: CType*?
+    pub var unsigned: bool
+    pub var width: u8
+    pub var is_const: bool
+    ## For a pointer: 0 unspecified, 1 `_Nonnull`, 2 `_Nullable`.
+    pub var nullable: u8
+    ## For an array: the count, or -1 when none was written.
+    pub var count: i64
+    pub var params: Param[]
+    pub var variadic: bool
+    pub var record: Record*?
+    pub var enumeration: Enum*?
+    pub var reason: str
+
+    pub func is_void() -> bool:
+        return self.kind == Kind.void_
+
+## The type a typedef finally names, through every typedef.
+pub func resolved(t: CType*) -> CType*:
+    var cursor = t
+    while cursor.kind == Kind.named:
+        cursor = cursor.inner else return cursor
+    return cursor
+
+pub struct Param:
+    pub var name: str
+    pub var ty: CType*
+
+pub struct Field:
+    pub var name: str
+    pub var ty: CType*
+    ## The bit-field width, or -1.
+    pub var bits: i64
+    pub var line: u32
+
+## A struct or union, shared by tag; `complete` once its body has been read.
+pub struct Record:
+    pub var tag: str
+    pub var is_union: bool
+    pub var fields: list.List[Field]
+    pub var complete: bool
+    pub var file: u32
+    pub var line: u32
+    ## The typedef that names it, when one does; the binder's name for it.
+    pub var typedef_name: str
+    pub var packed: bool
+    pub var aligned: i64
+    pub var has_bits: bool
+    pub var has_flexible: bool
+
+pub struct EnumItem:
+    pub var name: str
+    pub var value: i64
+    pub var line: u32
+
+pub struct Enum:
+    pub var tag: str
+    pub var items: list.List[EnumItem]
+    pub var complete: bool
+    pub var file: u32
+    pub var line: u32
+    pub var typedef_name: str
+
+pub enum DeclKind:
+    typedef_
+    function
+    variable
+    ## A struct, union, or enum declared on its own.
+    tag
+    inline_function
+
+## One declared name.
+pub struct Decl:
+    pub var kind: DeclKind
+    pub var name: str
+    pub var ty: CType*
+    ## The linker symbol when `__asm__("...")` gave one.
+    pub var symbol: str
+    pub var noreturn: bool
+    pub var is_static: bool
+    pub var record: Record*?
+    pub var enumeration: Enum*?
+    pub var file: u32
+    pub var line: u32
+    ## For a `static const` variable with a constant initialiser: its value.
+    pub var constant: Const?
+
+## What a constant expression evaluates to.
+pub struct Const:
+    pub var value: i64
+    pub var unsigned: bool
+    pub var is_float: bool
+    pub var real: f64
+    ## A string literal's spelling, quotes included, when the constant is one.
+    pub var text: str
+    ## The integer type a cast or suffix gave it: "" for C's default.
+    pub var type_name: str
+
+## The specifiers before declarators: the base type and the storage words.
+struct Specs:
+    var ty: CType*
+    var is_typedef: bool
+    var is_static: bool
+    var is_extern: bool
+    var is_inline: bool
+    var noreturn: bool
+    var record: Record*?
+    var enumeration: Enum*?
+    ## Whether the specifiers declared a tag body on their own.
+    var declares: bool
+
+struct Declarator:
+    var name: str
+    var ty: CType*
+    var symbol: str
+    var noreturn: bool
+    var line: u32
+
+var scratch: u8[4096]
+
+pub struct Parser:
+    var tok: pre.Tok*
+    ## The preprocessor the tokens came from, for file names; none for tokens of a text.
+    var pp: pre.Preprocessor*?
+    pub var decls: list.List[Decl*]
+    pub var records: list.List[Record*]
+    pub var enums: list.List[Enum*]
+    var typedefs: table.Table[CType*]
+    var tags: table.Table[Record*]
+    var enum_tags: table.Table[Enum*]
+    pub var constants: table.Table[i64]
+    ## Declarations the parser could not read, one line each with their place.
+    pub var report: buffer.Buffer
+    ## `_Nonnull` or `_Nullable` written among the specifiers, for a typedef'd pointer:
+    ## 1 or 2, taken by the declarator that follows.
+    var base_nullable: u8
+
+    pub static func over(tokens: pre.Tok*, pp: pre.Preprocessor*?) -> Parser!:
+        var p = Parser(tok = tokens, pp = pp, decls = try list.List[Decl*].create(1024),
+                       records = try list.List[Record*].create(256), enums = try list.List[Enum*].create(64),
+                       typedefs = try table.Table[CType*].create(1024), tags = try table.Table[Record*].create(256),
+                       enum_tags = try table.Table[Enum*].create(64), constants = try table.Table[i64].create(1024),
+                       report = try buffer.Buffer.create(1024), base_nullable = 0)
+        # the compiler's own type, which every `va_list` typedef comes down to
+        let builtin = try p.make(Kind.named)
+        builtin.name = "__builtin_va_list"
+        try p.typedefs.put("__builtin_va_list", builtin)
+        return p
+
+    ## More tokens read with the same tables: a recipe's prototypes after the header.
+    pub mutating func continue_with(tokens: pre.Tok*) -> !:
+        self.tok = tokens
+        try self.parse()
+
+    ## The constant a token list is, when it is one whole constant expression.
+    pub mutating func evaluate(tokens: pre.Tok*) -> Const!:
+        self.tok = tokens
+        let value = try self.constant_expression()
+        if self.tok.kind != pre.Kind.eof:
+            error(failed, try self.place(try format(scratch[0..], f"the constant stops at {self.tok.text}")))
+        return value
+
+    ## The typedef `name`, when the unit declared one.
+    pub func typedef_named(name: str) -> CType*?:
+        return self.typedefs.get(name)
+
+    # mark: Tokens =============================================================================
+
+    func at_punct(text: str) -> bool:
+        return self.tok.is_punct(text)
+
+    func at_word(text: str) -> bool:
+        return self.tok.is(pre.Kind.ident, text)
+
+    mutating func advance():
+        self.tok = self.tok.next else trap("a token list without its end")
+
+    mutating func eat_punct(text: str) -> bool:
+        if self.at_punct(text):
+            self.advance()
+            return true
+        return false
+
+    mutating func eat_word(text: str) -> bool:
+        if self.at_word(text):
+            self.advance()
+            return true
+        return false
+
+    mutating func expect(text: str) -> !:
+        if not self.at_punct(text):
+            error(failed, try self.place(try format(scratch[0..], f"expected {text}, found {self.tok.text}")))
+        self.advance()
+
+    func place(what: str) -> str!:
+        var path = "<text>"
+        if let pp = self.pp:
+            path = pp.path_of(self.tok.file)
+        return try pre.at(path, self.tok.line, what)
+
+    ## Past the balanced group opened by the current token.
+    mutating func skip_group() -> !:
+        let open = self.tok.text
+        let close = ")" if open == "(" else ("]" if open == "[" else "}")
+        var level: u32 = 0
+        while self.tok.kind != pre.Kind.eof:
+            if self.at_punct(open):
+                level += 1
+            elif self.at_punct(close):
+                level -= 1
+                if level == 0:
+                    self.advance()
+                    return
+            self.advance()
+        error(failed, try self.place("a bracket is not closed"))
+
+    ## Past the next `;` at bracket depth zero, or past a `}` that ends a body.
+    mutating func skip_declaration():
+        var level: u32 = 0
+        while self.tok.kind != pre.Kind.eof:
+            if self.at_punct("(") or self.at_punct("[") or self.at_punct("{"):
+                level += 1
+            elif self.at_punct(")") or self.at_punct("]") or self.at_punct("}"):
+                if level > 0:
+                    level -= 1
+                if level == 0 and self.tok.text == "}":
+                    self.advance()
+                    if self.eat_punct(";"):
+                        return
+                    return
+            elif self.at_punct(";") and level == 0:
+                self.advance()
+                return
+            self.advance()
+
+    # mark: The unit ===========================================================================
+
+    ## Every declaration of the unit, in order, the unreadable ones reported.
+    pub mutating func parse() -> !:
+        while self.tok.kind != pre.Kind.eof:
+            let start = self.tok
+            self.declaration() catch failure:
+                try self.report.put(failure.message)
+                try self.report.put("\n")
+                if self.tok == start:
+                    self.advance()
+                self.skip_declaration()
+                continue
+
+    mutating func declaration() -> !:
+        if self.eat_punct(";"):
+            return
+        if self.at_punct("@"):
+            try self.skip_objc()
+            return
+        if self.at_word("_Static_assert") or self.at_word("static_assert"):
+            self.skip_declaration()
+            return
+        if self.at_word("__asm__") or self.at_word("__asm") or self.at_word("asm"):
+            self.skip_declaration()
+            return
+        if self.at_word("extern") and self.next_is_text():
+            # `extern "C" {` in a header read as C++: the braces are transparent
+            self.advance()
+            self.advance()
+            if self.eat_punct("{"):
+                return
+            self.skip_declaration()
+            return
+        if self.at_punct("}"):
+            self.advance()
+            return
+        let line = self.tok.line
+        let file = self.tok.file
+        var specs = try self.specifiers()
+        if self.eat_punct(";"):
+            if specs.declares:
+                try self.tag_declaration(specs, file, line)
+            return
+        while true:
+            let d = try self.declarator(specs.ty)
+            if self.at_punct("{"):
+                try self.skip_group()
+                try self.finish(specs, d, file, true)
+                return
+            var constant: Const? = none
+            if self.eat_punct("="):
+                constant = try self.initializer(d.ty)
+            try self.finish(specs, d, file, false)
+            discard(constant)
+            if let value = constant:
+                let made = self.decls.items[self.decls.count - 1]
+                made.constant = value
+            if self.eat_punct(","):
+                continue
+            try self.expect(";")
+            return
+
+    func next_is_text() -> bool:
+        let n = self.tok.next else return false
+        return n.kind == pre.Kind.text
+
+    ## `@interface ... @end`, `@class A, B;` and the other Objective-C forms: skipped.
+    mutating func skip_objc() -> !:
+        self.advance()
+        let word = self.tok.text
+        if word == "interface" or word == "protocol" or word == "implementation":
+            while self.tok.kind != pre.Kind.eof:
+                if self.at_punct("@"):
+                    let n = self.tok.next else break
+                    if n.is(pre.Kind.ident, "end"):
+                        self.advance()
+                        self.advance()
+                        return
+                self.advance()
+            return
+        self.skip_declaration()
+
+    mutating func tag_declaration(specs: Specs, file: u32, line: u32) -> !:
+        let d = try new Decl(kind = DeclKind.tag, name = specs.ty.name, ty = specs.ty, symbol = "", noreturn = false,
+                             is_static = false, record = specs.record, enumeration = specs.enumeration,
+                             file = file, line = line, constant = none)
+        try self.decls.push(d)
+
+    ## The declaration of one declarator recorded: a typedef, a function, or a variable.
+    mutating func finish(specs: Specs, d: Declarator, file: u32, has_body: bool) -> !:
+        if specs.is_typedef:
+            let named = try new CType(kind = Kind.named, name = d.name, inner = d.ty, unsigned = false, width = 0,
+                                      is_const = false, nullable = 0, count = -1, params = try alloc Param[0],
+                                      variadic = false, record = none, enumeration = none, reason = "")
+            try self.typedefs.put(d.name, named)
+            let under = resolved(d.ty)
+            # a typedef names a record or enum that has no tag, or repeats its tag; any
+            # other typedef is an alias of the tag's type
+            if under.kind == Kind.record:
+                let r = under.record else trap("a record type without its record")
+                if r.typedef_name.length == 0 and d.ty.kind == Kind.record and (r.tag.length == 0 or r.tag == d.name):
+                    r.typedef_name = d.name
+            elif under.kind == Kind.enum_:
+                let e = under.enumeration else trap("an enum type without its enum")
+                if e.typedef_name.length == 0 and d.ty.kind == Kind.enum_ and (e.tag.length == 0 or e.tag == d.name):
+                    e.typedef_name = d.name
+            let made = try new Decl(kind = DeclKind.typedef_, name = d.name, ty = named, symbol = "", noreturn = false,
+                                    is_static = false, record = specs.record, enumeration = specs.enumeration,
+                                    file = file, line = d.line, constant = none)
+            try self.decls.push(made)
+            return
+        if d.name.length == 0:
+            error(failed, try self.place("a declaration without a name"))
+        var kind = DeclKind.variable
+        if d.ty.kind == Kind.function:
+            kind = DeclKind.inline_function if (specs.is_static or specs.is_inline) and has_body else DeclKind.function
+            if specs.is_static and not has_body:
+                kind = DeclKind.inline_function
+        let made = try new Decl(kind = kind, name = d.name, ty = d.ty, symbol = d.symbol,
+                                noreturn = specs.noreturn or d.noreturn, is_static = specs.is_static,
+                                record = specs.record, enumeration = specs.enumeration, file = file, line = d.line,
+                                constant = none)
+        try self.decls.push(made)
+
+    # mark: Specifiers =========================================================================
+
+    func is_type_start() -> bool:
+        if self.tok.kind != pre.Kind.ident:
+            return false
+        let w = self.tok.text
+        if is_type_word(w) or is_qualifier(w) or w == "struct" or w == "union" or w == "enum":
+            return true
+        return self.typedefs.has(w)
+
+    ## The declaration specifiers: storage words, qualifiers, attributes, and one type.
+    mutating func specifiers() -> Specs!:
+        var s = Specs(ty = try self.make(Kind.int_), is_typedef = false, is_static = false, is_extern = false,
+                      is_inline = false, noreturn = false, record = none, enumeration = none, declares = false)
+        var base: u8 = 0  # 0 none, 1 void, 2 bool, 3 char, 4 int, 5 float, 6 double, 7 other
+        var longs: u8 = 0
+        var is_short = false
+        var is_unsigned = false
+        var is_signed = false
+        var is_const = false
+        var seen_type = false
+        var int128 = false
+        while self.tok.kind == pre.Kind.ident:
+            let w = self.tok.text
+            if w == "typedef":
+                s.is_typedef = true
+            elif w == "static":
+                s.is_static = true
+            elif w == "extern":
+                s.is_extern = true
+            elif w == "inline" or w == "__inline" or w == "__inline__" or w == "__forceinline":
+                s.is_inline = true
+            elif w == "_Noreturn":
+                s.noreturn = true
+            elif w == "const" or w == "__const" or w == "__const__":
+                is_const = true
+            elif w == "_Nonnull" or w == "__nonnull":
+                self.base_nullable = 1
+            elif w == "_Nullable" or w == "__nullable" or w == "_Nullable_result":
+                self.base_nullable = 2
+            elif is_qualifier(w) or w == "auto" or w == "register" or w == "_Thread_local" or w == "__thread" or w == "__extension__":
+                discard(w)
+            elif w == "__attribute__" or w == "__attribute" or w == "__declspec":
+                self.advance()
+                if try self.attribute():
+                    s.noreturn = true
+                continue
+            elif w == "_Alignas" or w == "__alignas":
+                self.advance()
+                try self.skip_group()
+                continue
+            elif w == "void":
+                base = 1
+            elif w == "_Bool" or w == "bool":
+                base = 2
+            elif w == "char":
+                base = 3
+            elif w == "int":
+                base = 4
+            elif w == "float":
+                base = 5
+            elif w == "double":
+                base = 6
+            elif w == "short":
+                is_short = true
+            elif w == "long":
+                longs += 1
+            elif w == "signed" or w == "__signed" or w == "__signed__":
+                is_signed = true
+            elif w == "unsigned":
+                is_unsigned = true
+            elif w == "__int128" or w == "__int128_t" or w == "__uint128_t":
+                int128 = true
+                if w == "__uint128_t":
+                    is_unsigned = true
+            elif w == "_Complex" or w == "__complex__" or w == "_Imaginary":
+                base = 7
+                s.ty = try self.unsupported("complex numbers have no Base type")
+            elif w == "__typeof__" or w == "typeof" or w == "__typeof" or w == "_BitInt" or w == "__auto_type":
+                base = 7
+                self.advance()
+                if self.at_punct("("):
+                    try self.skip_group()
+                s.ty = try self.unsupported(try format(scratch[0..], f"{w} has no Base spelling"))
+                continue
+            elif w == "struct" or w == "union":
+                base = 7
+                let (r, declares) = try self.record(w == "union")
+                s.record = r
+                s.declares = declares
+                s.ty = try self.make(Kind.record)
+                s.ty.record = r
+                s.ty.name = r.tag
+                continue
+            elif w == "enum":
+                base = 7
+                let (e, declares) = try self.enumeration()
+                s.enumeration = e
+                s.declares = declares
+                s.ty = try self.make(Kind.enum_)
+                s.ty.enumeration = e
+                s.ty.name = e.tag
+                continue
+            elif not seen_type and base == 0 and longs == 0 and not is_short and not is_signed and not is_unsigned:
+                let t = self.typedefs.get(w) else break
+                s.ty = t
+                base = 7
+                seen_type = true
+            else:
+                break
+            self.advance()
+        if base != 7:
+            s.ty = try self.scalar(base, longs, is_short, is_unsigned, is_signed, int128)
+        if is_const:
+            s.ty = try self.with_const(s.ty)
+        return s
+
+    ## The scalar the words name: `unsigned long`, `short`, `long double` and the rest.
+    mutating func scalar(base: u8, longs: u8, is_short: bool, is_unsigned: bool, is_signed: bool, int128: bool) -> CType*!:
+        if base == 1:
+            return try self.make(Kind.void_)
+        if base == 2:
+            return try self.make(Kind.bool_)
+        if base == 5:
+            return try self.make(Kind.float_)
+        if base == 6:
+            if longs > 0:
+                return try self.make(Kind.long_double)
+            return try self.make(Kind.double_)
+        if base == 3:
+            let t = try self.make(Kind.char_ if not (is_signed or is_unsigned) else Kind.int_)
+            t.width = 0
+            t.unsigned = is_unsigned
+            return t
+        let t = try self.make(Kind.int_)
+        t.unsigned = is_unsigned
+        if int128:
+            t.width = 5
+        elif is_short:
+            t.width = 1
+        elif longs >= 2:
+            t.width = 4
+        elif longs == 1:
+            t.width = 3
+        else:
+            t.width = 2
+        return t
+
+    ## `__attribute__((...))` after the word: read for `noreturn`, the rest dropped.
+    mutating func attribute() -> bool!:
+        if not self.at_punct("("):
+            return false
+        var noreturn = false
+        var level: u32 = 0
+        while self.tok.kind != pre.Kind.eof:
+            if self.at_punct("("):
+                level += 1
+            elif self.at_punct(")"):
+                level -= 1
+                if level == 0:
+                    self.advance()
+                    return noreturn
+            elif level == 2 and (self.at_word("noreturn") or self.at_word("__noreturn__")):
+                noreturn = true
+            self.advance()
+        return noreturn
+
+    ## Attributes, qualifiers, and nullability after a declarator or a pointer star; the
+    ## nullability seen, and whether `noreturn` was.
+    mutating func trailing() -> (u8, bool, bool)!:
+        var nullable: u8 = 0
+        var noreturn = false
+        var is_const = false
+        while self.tok.kind == pre.Kind.ident:
+            let w = self.tok.text
+            if w == "__attribute__" or w == "__attribute" or w == "__declspec":
+                self.advance()
+                if try self.attribute():
+                    noreturn = true
+            elif w == "_Nonnull" or w == "__nonnull":
+                nullable = 1
+                self.advance()
+            elif w == "_Nullable" or w == "__nullable" or w == "_Nullable_result":
+                nullable = 2
+                self.advance()
+            elif w == "_Null_unspecified" or w == "__null_unspecified":
+                self.advance()
+            elif w == "const" or w == "__const" or w == "__const__":
+                is_const = true
+                self.advance()
+            elif is_qualifier(w):
+                self.advance()
+            elif w == "_Alignas" or w == "__alignas":
+                self.advance()
+                try self.skip_group()
+            else:
+                break
+        return (nullable, noreturn, is_const)
+
+    # mark: Declarators ========================================================================
+
+    ## `* const * name[3](int)`, the abstract form without a name included.
+    mutating func declarator(base: CType*) -> Declarator!:
+        var ty = base
+        var noreturn = false
+        let base_nullable = self.base_nullable
+        self.base_nullable = 0
+        if base_nullable != 0 and not self.at_punct("*") and not self.at_punct("^") and not self.at_punct("("):
+            ty = try self.with_nullable(base, base_nullable)
+        while self.at_punct("*") or self.at_punct("^"):
+            self.advance()
+            let p = try self.make(Kind.pointer)
+            p.inner = ty
+            let (nullable, nr, is_const) = try self.trailing()
+            discard(is_const)
+            p.nullable = nullable
+            if nr:
+                noreturn = true
+            ty = p
+        if self.at_punct("(") and self.nested_declarator():
+            let start = self.tok
+            self.advance()
+            discard(try self.declarator(base))
+            try self.expect(")")
+            let (suffixed, line) = try self.suffixes(ty)
+            discard(line)
+            let after = self.tok
+            self.tok = start.next else trap("unreachable")
+            var inner = try self.declarator(suffixed)
+            self.tok = after
+            let (nullable, nr, is_const) = try self.trailing()
+            discard(nullable)
+            discard(is_const)
+            if nr or noreturn:
+                inner.noreturn = true
+            inner.symbol = try self.asm_label()
+            return inner
+        var name = ""
+        var line = self.tok.line
+        if self.tok.kind == pre.Kind.ident and not is_type_word(self.tok.text) and not is_qualifier(self.tok.text) and not is_attribute_word(self.tok.text):
+            name = self.tok.text
+            self.advance()
+        let (suffixed, suffix_line) = try self.suffixes(ty)
+        discard(suffix_line)
+        let (nullable, nr, is_const) = try self.trailing()
+        discard(nullable)
+        discard(is_const)
+        let symbol = try self.asm_label()
+        let (nullable2, nr2, is_const2) = try self.trailing()
+        discard(nullable2)
+        discard(is_const2)
+        return Declarator(name = name, ty = suffixed, symbol = symbol, noreturn = noreturn or nr or nr2, line = line)
+
+    ## Whether the `(` at the cursor opens a nested declarator rather than a parameter list.
+    func nested_declarator() -> bool:
+        let n = self.tok.next else return false
+        if n.is_punct("*") or n.is_punct("^") or n.is_punct("("):
+            return true
+        if n.kind != pre.Kind.ident:
+            return false
+        if is_attribute_word(n.text):
+            return true
+        if is_type_word(n.text) or is_qualifier(n.text) or n.text == "struct" or n.text == "union" or n.text == "enum":
+            return false
+        return not self.typedefs.has(n.text)
+
+    ## `[N]` and `(params)` after a declarator, inner suffixes applied first.
+    mutating func suffixes(ty: CType*) -> (CType*, u32)!:
+        let line = self.tok.line
+        if self.at_punct("["):
+            self.advance()
+            var count: i64 = -1
+            while self.tok.kind == pre.Kind.ident and (is_qualifier(self.tok.text) or self.tok.text == "const" or self.tok.text == "static"):
+                self.advance()
+            if not self.at_punct("]"):
+                let c = try self.constant_expression()
+                count = c.value
+            try self.expect("]")
+            let (element, l) = try self.suffixes(ty)
+            discard(l)
+            let a = try self.make(Kind.array)
+            a.inner = element
+            a.count = count
+            return (a, line)
+        if self.at_punct("("):
+            self.advance()
+            let f = try self.make(Kind.function)
+            let (params, variadic) = try self.parameters()
+            f.params = params
+            f.variadic = variadic
+            try self.expect(")")
+            let (result, l) = try self.suffixes(ty)
+            discard(l)
+            f.inner = result
+            return (f, line)
+        return (ty, line)
+
+    ## The parameters up to `)`: none for `(void)` and `()`, arrays and functions adjusted
+    ## to pointers as C does.
+    mutating func parameters() -> (Param[], bool)!:
+        var params = try list.List[Param].create(8)
+        var variadic = false
+        if self.at_punct(")"):
+            return (params.span(), false)
+        if self.at_word("void"):
+            let n = self.tok.next else trap("unreachable")
+            if n.is_punct(")"):
+                self.advance()
+                return (params.span(), false)
+        while true:
+            if self.eat_punct("..."):
+                variadic = true
+                break
+            let specs = try self.specifiers()
+            let d = try self.declarator(specs.ty)
+            var ty = d.ty
+            if ty.kind == Kind.array:
+                let p = try self.make(Kind.pointer)
+                p.inner = ty.inner
+                ty = p
+            elif ty.kind == Kind.function:
+                let p = try self.make(Kind.pointer)
+                p.inner = ty
+                ty = p
+            try params.push(Param(name = d.name, ty = ty))
+            if not self.eat_punct(","):
+                break
+        return (params.span(), variadic)
+
+    ## `__asm__("name")` after a declarator: the symbol, with Mach-O's underscore removed.
+    mutating func asm_label() -> str!:
+        if not (self.at_word("__asm__") or self.at_word("__asm") or self.at_word("asm")):
+            return ""
+        self.advance()
+        try self.expect("(")
+        var out = try buffer.Buffer.create(64)
+        while self.tok.kind == pre.Kind.text:
+            try out.put((str)self.tok.text.bytes[1..<self.tok.text.length - 1])
+            self.advance()
+        try self.expect(")")
+        var symbol = try strings.copy(out.view())
+        if symbol.length > 1 and symbol.bytes[0] == '_':
+            symbol = (str)symbol.bytes[1..]
+        return symbol
+
+    # mark: Records and enums ==================================================================
+
+    ## `struct Tag { ... }` in any of its forms; whether a body was read.
+    mutating func record(is_union: bool) -> (Record*, bool)!:
+        let file = self.tok.file
+        let line = self.tok.line
+        self.advance()
+        var packed = false
+        var aligned: i64 = 0
+        while self.at_word("__attribute__") or self.at_word("__attribute") or self.at_word("__declspec"):
+            self.advance()
+            let (p, a) = try self.record_attribute()
+            if p:
+                packed = true
+            if a > 0:
+                aligned = a
+        var tag = ""
+        if self.tok.kind == pre.Kind.ident:
+            tag = self.tok.text
+            self.advance()
+        let key = try strings.copy(try format(scratch[0..], f"{"union" if is_union else "struct"} {tag}"))
+        var r: Record* = ---
+        if tag.length > 0:
+            if let known = self.tags.get(key):
+                r = known
+            else:
+                r = try self.new_record(tag, is_union, file, line)
+                try self.tags.put(key, r)
+        else:
+            r = try self.new_record("", is_union, file, line)
+        if not self.at_punct("{"):
+            return (r, false)
+        self.advance()
+        if r.complete:
+            error(failed, try self.place(try format(scratch[0..], f"struct {tag} is defined twice")))
+        r.complete = true
+        r.packed = packed
+        r.aligned = aligned
+        while not self.at_punct("}"):
+            if self.tok.kind == pre.Kind.eof:
+                error(failed, try self.place("a struct body is not closed"))
+            if self.eat_punct(";"):
+                continue
+            if self.at_word("_Static_assert") or self.at_word("static_assert"):
+                self.skip_declaration()
+                continue
+            try self.member(r)
+        self.advance()
+        while self.at_word("__attribute__") or self.at_word("__attribute"):
+            self.advance()
+            let (p, a) = try self.record_attribute()
+            if p:
+                r.packed = true
+            if a > 0:
+                r.aligned = a
+        return (r, true)
+
+    mutating func new_record(tag: str, is_union: bool, file: u32, line: u32) -> Record*!:
+        let r = try new Record(tag = tag, is_union = is_union, fields = try list.List[Field].create(8), complete = false,
+                               file = file, line = line, typedef_name = "", packed = false, aligned = 0,
+                               has_bits = false, has_flexible = false)
+        try self.records.push(r)
+        return r
+
+    ## `__attribute__((packed, aligned(N)))` on a record: packed, and the alignment.
+    mutating func record_attribute() -> (bool, i64)!:
+        var packed = false
+        var aligned: i64 = 0
+        var level: u32 = 0
+        while self.tok.kind != pre.Kind.eof:
+            if self.at_punct("("):
+                level += 1
+            elif self.at_punct(")"):
+                level -= 1
+                if level == 0:
+                    self.advance()
+                    return (packed, aligned)
+            elif level == 2 and (self.at_word("packed") or self.at_word("__packed__")):
+                packed = true
+            elif level == 2 and (self.at_word("aligned") or self.at_word("__aligned__")):
+                let n = self.tok.next else trap("unreachable")
+                if n.is_punct("("):
+                    let v = n.next else trap("unreachable")
+                    if v.kind == pre.Kind.number:
+                        if let value = try pre.integer(v.text):
+                            aligned = value.value
+            self.advance()
+        return (packed, aligned)
+
+    ## One member line of a struct: fields with optional bit widths, or an anonymous
+    ## struct or union.
+    mutating func member(r: Record*) -> !:
+        let specs = try self.specifiers()
+        if self.eat_punct(";"):
+            if specs.ty.kind == Kind.record:
+                let inner = specs.record else trap("unreachable")
+                if inner.tag.length == 0:
+                    try r.fields.push(Field(name = "", ty = specs.ty, bits = -1, line = self.tok.line))
+            elif specs.ty.kind == Kind.enum_:
+                discard(specs)
+            else:
+                error(failed, try self.place("a member without a name"))
+            return
+        while true:
+            var d = Declarator(name = "", ty = specs.ty, symbol = "", noreturn = false, line = self.tok.line)
+            if not self.at_punct(":"):
+                d = try self.declarator(specs.ty)
+            var bits: i64 = -1
+            if self.eat_punct(":"):
+                let c = try self.constant_expression()
+                bits = c.value
+                r.has_bits = true
+            if d.ty.kind == Kind.array and d.ty.count < 0:
+                r.has_flexible = true
+            try r.fields.push(Field(name = d.name, ty = d.ty, bits = bits, line = d.line))
+            let (nullable, nr, is_const) = try self.trailing()
+            discard(nullable)
+            discard(nr)
+            discard(is_const)
+            if self.eat_punct(","):
+                continue
+            try self.expect(";")
+            return
+
+    ## `enum Tag : type { A, B = 2 }`; values follow C's rules and are remembered.
+    mutating func enumeration() -> (Enum*, bool)!:
+        let file = self.tok.file
+        let line = self.tok.line
+        self.advance()
+        while self.at_word("__attribute__") or self.at_word("__attribute"):
+            self.advance()
+            discard(try self.attribute())
+        var tag = ""
+        if self.tok.kind == pre.Kind.ident:
+            tag = self.tok.text
+            self.advance()
+        var e: Enum* = ---
+        if tag.length > 0:
+            if let known = self.enum_tags.get(tag):
+                e = known
+            else:
+                e = try self.new_enum(tag, file, line)
+                try self.enum_tags.put(tag, e)
+        else:
+            e = try self.new_enum("", file, line)
+        if self.eat_punct(":"):
+            let specs = try self.specifiers()
+            discard(specs)
+        if not self.at_punct("{"):
+            return (e, false)
+        self.advance()
+        e.complete = true
+        var next: i64 = 0
+        while not self.at_punct("}"):
+            if self.tok.kind != pre.Kind.ident:
+                error(failed, try self.place("an enum case must be a name"))
+            let name = self.tok.text
+            let item_line = self.tok.line
+            self.advance()
+            while self.at_word("__attribute__") or self.at_word("__attribute"):
+                self.advance()
+                discard(try self.attribute())
+            if self.eat_punct("="):
+                let c = try self.constant_expression()
+                next = c.value
+            try e.items.push(EnumItem(name = name, value = next, line = item_line))
+            try self.constants.put(name, next)
+            next +%= 1
+            if not self.eat_punct(","):
+                break
+        try self.expect("}")
+        while self.at_word("__attribute__") or self.at_word("__attribute"):
+            self.advance()
+            discard(try self.attribute())
+        return (e, true)
+
+    mutating func new_enum(tag: str, file: u32, line: u32) -> Enum*!:
+        let e = try new Enum(tag = tag, items = try list.List[EnumItem].create(16), complete = false, file = file,
+                             line = line, typedef_name = "")
+        try self.enums.push(e)
+        return e
+
+    # mark: Types ==============================================================================
+
+    mutating func make(kind: Kind) -> CType*!:
+        return try new CType(kind = kind, name = "", inner = none, unsigned = false, width = 2, is_const = false,
+                             nullable = 0, count = -1, params = try alloc Param[0], variadic = false, record = none,
+                             enumeration = none, reason = "")
+
+    mutating func unsupported(reason: str) -> CType*!:
+        let t = try self.make(Kind.unsupported)
+        t.reason = try strings.copy(reason)
+        return t
+
+    mutating func with_const(t: CType*) -> CType*!:
+        if t.is_const:
+            return t
+        let q = try new CType(kind = t.kind, name = t.name, inner = t.inner, unsigned = t.unsigned, width = t.width,
+                              is_const = true, nullable = t.nullable, count = t.count, params = t.params,
+                              variadic = t.variadic, record = t.record, enumeration = t.enumeration, reason = t.reason)
+        return q
+
+    ## The same type with its nullability written, for a typedef'd pointer.
+    pub mutating func with_nullable(t: CType*, nullable: u8) -> CType*!:
+        let q = try new CType(kind = t.kind, name = t.name, inner = t.inner, unsigned = t.unsigned, width = t.width,
+                              is_const = t.is_const, nullable = nullable, count = t.count, params = t.params,
+                              variadic = t.variadic, record = t.record, enumeration = t.enumeration, reason = t.reason)
+        return q
+
+    ## A type name as a cast or `sizeof` operand writes it: specifiers and an abstract
+    ## declarator.
+    mutating func type_name() -> CType*!:
+        let specs = try self.specifiers()
+        let d = try self.declarator(specs.ty)
+        return d.ty
+
+    ## The size and alignment of a type, by the target's C rules (LP64 here).
+    pub func layout(t: CType*) -> (i64, i64)!:
+        let r = resolved(t)
+        if r.kind == Kind.void_:
+            return (1, 1)
+        if r.kind == Kind.bool_:
+            return (1, 1)
+        if r.kind == Kind.char_:
+            return (1, 1)
+        if r.kind == Kind.int_:
+            if r.width == 0: return (1, 1)
+            if r.width == 1: return (2, 2)
+            if r.width == 2: return (4, 4)
+            if r.width == 5: return (16, 16)
+            return (8, 8)
+        if r.kind == Kind.float_:
+            return (4, 4)
+        if r.kind == Kind.double_:
+            return (8, 8)
+        if r.kind == Kind.long_double:
+            return (16, 16)
+        if r.kind == Kind.pointer or r.kind == Kind.function or r.kind == Kind.named:
+            return (8, 8)
+        if r.kind == Kind.enum_:
+            return (4, 4)
+        if r.kind == Kind.array:
+            let element = r.inner else trap("an array without an element type")
+            let (size, align) = try self.layout(element)
+            let count = r.count if r.count > 0 else 0
+            return (size * count, align)
+        if r.kind == Kind.record:
+            let record = r.record else trap("a record type without its record")
+            return try self.record_layout(record)
+        error(failed, "the type has no size")
+
+    func record_layout(record: Record*) -> (i64, i64)!:
+        var size: i64 = 0
+        var align: i64 = 1
+        for f in record.fields.span():
+            let (s, a0) = try self.layout(f.ty)
+            let a = 1 if record.packed else a0
+            if f.bits >= 0:
+                error(failed, "the size of a struct with bit-fields is not computed")
+            if a > align:
+                align = a
+            if record.is_union:
+                if s > size:
+                    size = s
+            else:
+                size = (size + a - 1) // a * a + s
+        if record.aligned > align:
+            align = record.aligned
+        size = (size + align - 1) // align * align
+        return (size, align)
+
+    # mark: Constant expressions ===============================================================
+
+    ## The initialiser of a variable: its constant when it is one scalar, else skipped.
+    mutating func initializer(ty: CType*) -> Const?!:
+        discard(ty)
+        if self.at_punct("{"):
+            try self.skip_group()
+            return none
+        let start = self.tok
+        let value: Const? = self.constant_expression() catch failure:
+            discard(failure)
+            self.tok = start
+            var level: u32 = 0
+            while self.tok.kind != pre.Kind.eof:
+                if self.at_punct("(") or self.at_punct("[") or self.at_punct("{"):
+                    level += 1
+                elif self.at_punct(")") or self.at_punct("]") or self.at_punct("}"):
+                    level -= 1
+                elif level == 0 and (self.at_punct(",") or self.at_punct(";")):
+                    break
+                self.advance()
+            recover none
+        return value
+
+    ## A C constant expression at the cursor, C's precedence and conversions.
+    pub mutating func constant_expression() -> Const!:
+        return try self.conditional()
+
+    mutating func conditional() -> Const!:
+        let condition = try self.binary(0)
+        if not self.at_punct("?"):
+            return condition
+        self.advance()
+        let yes = try self.conditional()
+        try self.expect(":")
+        let no = try self.conditional()
+        return yes if truth(condition) else no
+
+    mutating func binary(minimum: u32) -> Const!:
+        var left = try self.unary()
+        while self.tok.kind == pre.Kind.punct:
+            let p = precedence(self.tok.text)
+            if p == 0 or p <= minimum:
+                break
+            let op = self.tok.text
+            self.advance()
+            let right = try self.binary(p)
+            left = try self.apply(op, left, right)
+        return left
+
+    func apply(op: str, a: Const, b: Const) -> Const!:
+        if a.is_float or b.is_float:
+            let x = real_of(a)
+            let y = real_of(b)
+            # C's usual conversions: float with an integer stays float; a double wins
+            let single = (not a.is_float or a.type_name == "float") and (not b.is_float or b.type_name == "float")
+            if op == "+" or op == "-" or op == "*" or op == "/":
+                var v = real(x + y if op == "+" else (x - y if op == "-" else (x * y if op == "*" else x / y)))
+                v.type_name = "float" if single else "double"
+                return v
+            if op == "<": return integer(1 if x < y else 0)
+            if op == ">": return integer(1 if x > y else 0)
+            if op == "<=": return integer(1 if x <= y else 0)
+            if op == ">=": return integer(1 if x >= y else 0)
+            if op == "==": return integer(1 if x == y else 0)
+            if op == "!=": return integer(1 if x != y else 0)
+            error(failed, try self.place(try format(scratch[0..], f"{op} is not defined on floating constants")))
+        let unsigned = a.unsigned or b.unsigned
+        let x = a.value
+        let y = b.value
+        var v = integer(0)
+        if op == "||": return integer(1 if x != 0 or y != 0 else 0)
+        if op == "&&": return integer(1 if x != 0 and y != 0 else 0)
+        if op == "==": return integer(1 if x == y else 0)
+        if op == "!=": return integer(1 if x != y else 0)
+        if op == "<": return integer(1 if less(x, y, unsigned) else 0)
+        if op == ">": return integer(1 if less(y, x, unsigned) else 0)
+        if op == "<=": return integer(1 if not less(y, x, unsigned) else 0)
+        if op == ">=": return integer(1 if not less(x, y, unsigned) else 0)
+        if op == "|": v = integer(x | y)
+        elif op == "^": v = integer(x ^ y)
+        elif op == "&": v = integer(x & y)
+        elif op == "<<": v = integer((i64)((u64)x << (u64)(y & 63)))
+        elif op == ">>": v = integer((i64)((u64)x >> (u64)(y & 63)) if unsigned else x >> (y & 63))
+        elif op == "+": v = integer(x +% y)
+        elif op == "-": v = integer(x -% y)
+        elif op == "*": v = integer(x *% y)
+        elif op == "/" or op == "%":
+            if y == 0:
+                error(failed, try self.place("a constant expression divides by zero"))
+            if op == "/":
+                v = integer((i64)((u64)x // (u64)y) if unsigned else x // y)
+            else:
+                v = integer((i64)((u64)x % (u64)y) if unsigned else x % y)
+        else:
+            error(failed, try self.place(try format(scratch[0..], f"{op} is not a constant operator")))
+        v.unsigned = unsigned
+        v.type_name = a.type_name if a.type_name.length > 0 else b.type_name
+        return v
+
+    mutating func unary() -> Const!:
+        if self.at_punct("+"):
+            self.advance()
+            return try self.unary()
+        if self.at_punct("-"):
+            self.advance()
+            var v = try self.unary()
+            if v.is_float:
+                v.real = 0.0 - v.real
+            else:
+                v.value = 0 -% v.value
+            return v
+        if self.at_punct("!"):
+            self.advance()
+            let v = try self.unary()
+            return integer(0 if truth(v) else 1)
+        if self.at_punct("~"):
+            self.advance()
+            var v = try self.unary()
+            v.value = ~v.value
+            return v
+        if self.at_word("sizeof") or self.at_word("_Alignof") or self.at_word("__alignof__") or self.at_word("__alignof"):
+            let want_align = not self.at_word("sizeof")
+            self.advance()
+            var ty: CType*? = none
+            if self.at_punct("("):
+                let n = self.tok.next else trap("unreachable")
+                self.advance()
+                if n.kind == pre.Kind.ident and (is_type_word(n.text) or is_qualifier(n.text) or n.text == "struct" or n.text == "union" or n.text == "enum" or self.typedefs.has(n.text)):
+                    ty = try self.type_name()
+                    try self.expect(")")
+                else:
+                    error(failed, try self.place("sizeof of an expression is not evaluated"))
+            else:
+                error(failed, try self.place("sizeof of an expression is not evaluated"))
+            let t = ty else trap("unreachable")
+            let (size, align) = try self.layout(t)
+            var v = integer(align if want_align else size)
+            v.unsigned = true
+            v.type_name = "size_t"
+            return v
+        if self.at_punct("("):
+            let n = self.tok.next else trap("unreachable")
+            if n.kind == pre.Kind.ident and (is_type_word(n.text) or is_qualifier(n.text) or n.text == "struct" or n.text == "union" or n.text == "enum" or self.typedefs.has(n.text)):
+                self.advance()
+                let ty = try self.type_name()
+                try self.expect(")")
+                let v = try self.unary()
+                return try self.cast(v, ty)
+            self.advance()
+            let v = try self.conditional()
+            try self.expect(")")
+            return v
+        return try self.primary()
+
+    mutating func primary() -> Const!:
+        let t = self.tok
+        if t.kind == pre.Kind.number:
+            self.advance()
+            return try self.number(t.text)
+        if t.kind == pre.Kind.character:
+            self.advance()
+            var v = integer(pre.character_value(t.text))
+            v.type_name = "int"
+            return v
+        if t.kind == pre.Kind.text:
+            var out = try buffer.Buffer.create(t.text.length + 16)
+            var cursor = t
+            while cursor.kind == pre.Kind.text:
+                try out.put(cursor.text)
+                self.advance()
+                cursor = self.tok
+            var v = integer(0)
+            v.text = try strings.copy(out.view())
+            return v
+        if t.kind == pre.Kind.ident:
+            if let value = self.constants.get(t.text):
+                self.advance()
+                var v = integer(value)
+                v.type_name = "int"
+                return v
+            error(failed, try self.place(try format(scratch[0..], f"{t.text} is not a constant")))
+        error(failed, try self.place(try format(scratch[0..], f"{t.text} is not a constant expression")))
+
+    ## An integer or floating literal, C's type from its suffix.
+    mutating func number(text: str) -> Const!:
+        if let v = try pre.integer(text):
+            var out = integer(v.value)
+            out.unsigned = v.unsigned
+            let lower = try strings.to_lower(text)
+            let is_hex = strings.starts_with(lower, "0x")
+            if strings.ends_with(lower, "ll") or strings.ends_with(lower, "llu") or strings.ends_with(lower, "ull"):
+                out.type_name = "unsigned long long" if v.unsigned else "long long"
+            elif strings.ends_with(lower, "l") or strings.ends_with(lower, "lu") or strings.ends_with(lower, "ul"):
+                out.type_name = "unsigned long" if v.unsigned else "long"
+            elif v.unsigned:
+                out.type_name = "unsigned int" if v.value >= 0 and v.value <= 4294967295 else "unsigned long long"
+            elif v.value >= -2147483648 and v.value <= 2147483647:
+                out.type_name = "int"
+            elif is_hex and v.value >= 0 and v.value <= 4294967295:
+                out.type_name = "unsigned int"
+                out.unsigned = true
+            else:
+                out.type_name = "long long"
+            return out
+        var spelled = text
+        var single = false
+        if strings.ends_with(text, "f") or strings.ends_with(text, "F"):
+            spelled = (str)text.bytes[..<text.length - 1]
+            single = true
+        elif strings.ends_with(text, "l") or strings.ends_with(text, "L"):
+            spelled = (str)text.bytes[..<text.length - 1]
+        let parsed = strings.parse_f64(spelled) catch failure:
+            discard(failure)
+            error(failed, try self.place(try format(scratch[0..], f"{text} is not a number the binder reads")))
+        var v = real(parsed)
+        v.type_name = "float" if single else "double"
+        return v
+
+    ## `(type)value`: the value converted, integer widths applied.
+    func cast(v: Const, ty: CType*) -> Const!:
+        let r = resolved(ty)
+        if r.kind == Kind.pointer:
+            error(failed, try self.place("a pointer cast is not a constant the binder writes"))
+        if r.kind == Kind.float_ or r.kind == Kind.double_:
+            var out = real(real_of(v))
+            out.type_name = "float" if r.kind == Kind.float_ else "double"
+            return out
+        var out = integer((i64)v.real if v.is_float else v.value)
+        out.unsigned = r.unsigned
+        if r.kind == Kind.bool_:
+            out.value = 1 if out.value != 0 else 0
+            out.type_name = "_Bool"
+            return out
+        if r.kind == Kind.enum_:
+            out.type_name = "int"
+            return out
+        if r.kind == Kind.char_:
+            out.value = (i64)(i8)out.value
+            out.type_name = "char"
+            return out
+        if r.kind != Kind.int_:
+            error(failed, try self.place("the cast is not to an integer type"))
+        if r.width == 0:
+            out.value = (i64)(u8)out.value if r.unsigned else (i64)(i8)out.value
+            out.type_name = "unsigned char" if r.unsigned else "signed char"
+        elif r.width == 1:
+            out.value = (i64)(u16)out.value if r.unsigned else (i64)(i16)out.value
+            out.type_name = "unsigned short" if r.unsigned else "short"
+        elif r.width == 2:
+            out.value = (i64)(u32)out.value if r.unsigned else (i64)(i32)out.value
+            out.type_name = "unsigned int" if r.unsigned else "int"
+        elif r.width == 3:
+            out.type_name = "unsigned long" if r.unsigned else "long"
+        else:
+            out.type_name = "unsigned long long" if r.unsigned else "long long"
+        if ty.kind == Kind.named:
+            out.type_name = ty.name
+        return out
+
+func integer(value: i64) -> Const:
+    return Const(value = value, unsigned = false, is_float = false, real = 0.0, text = "", type_name = "")
+
+func real(value: f64) -> Const:
+    return Const(value = 0, unsigned = false, is_float = true, real = value, text = "", type_name = "double")
+
+func real_of(v: Const) -> f64:
+    if v.is_float:
+        return v.real
+    if v.unsigned:
+        return (f64)(u64)v.value
+    return (f64)v.value
+
+func truth(v: Const) -> bool:
+    return v.real != 0.0 if v.is_float else v.value != 0
+
+func less(x: i64, y: i64, unsigned: bool) -> bool:
+    if unsigned:
+        return (u64)x < (u64)y
+    return x < y
+
+func precedence(text: str) -> u32:
+    if text == "||": return 1
+    if text == "&&": return 2
+    if text == "|": return 3
+    if text == "^": return 4
+    if text == "&": return 5
+    if text == "==" or text == "!=": return 6
+    if text == "<" or text == "<=" or text == ">" or text == ">=": return 7
+    if text == "<<" or text == ">>": return 8
+    if text == "+" or text == "-": return 9
+    if text == "*" or text == "/" or text == "%": return 10
+    return 0
+
+## The words that begin a type.
+pub func is_type_word(w: str) -> bool:
+    let words: str[24] = ["void", "char", "short", "int", "long", "float", "double", "signed", "unsigned", "_Bool",
+                          "bool", "__signed", "__signed__", "__int128", "__int128_t", "__uint128_t", "_Complex",
+                          "__complex__", "__typeof__", "typeof", "__typeof", "_BitInt", "_Imaginary", "__auto_type"]
+    for x in words:
+        if x == w:
+            return true
+    return false
+
+## The words that qualify without changing the type the binder sees.
+pub func is_qualifier(w: str) -> bool:
+    let words: str[13] = ["volatile", "__volatile", "__volatile__", "restrict", "__restrict", "__restrict__", "_Atomic",
+                          "_Nonnull", "_Nullable", "_Null_unspecified", "__nonnull", "__nullable", "__null_unspecified"]
+    for x in words:
+        if x == w:
+            return true
+    return false
+
+func is_attribute_word(w: str) -> bool:
+    return w == "__attribute__" or w == "__attribute" or w == "__declspec" or w == "_Alignas" or w == "__alignas"
+
+# mark: C spelling =============================================================================
+
+## The type as C writes it around `inner`, a name or nothing: `int (*inner)[3]`.
+pub func spelling(t: CType*, inner: str) -> str!:
+    var out = try buffer.Buffer.create(64)
+    try spell_into(&out, t, inner)
+    return try strings.copy(out.view())
+
+func spell_into(out: buffer.Buffer*, t: CType*, inner: str) -> !:
+    if t.kind == Kind.pointer:
+        let pointee = t.inner else trap("a pointer without a pointee")
+        var wrapped = try buffer.Buffer.create(64)
+        let nested = pointee.kind == Kind.array or pointee.kind == Kind.function
+        if nested:
+            try wrapped.put("(")
+        try wrapped.put("*")
+        if t.is_const:
+            try wrapped.put("const ")
+        try wrapped.put(inner)
+        if nested:
+            try wrapped.put(")")
+        try spell_into(out, pointee, wrapped.view())
+        return
+    if t.kind == Kind.array:
+        let element = t.inner else trap("an array without an element")
+        var wrapped = try buffer.Buffer.create(64)
+        try wrapped.put(inner)
+        try wrapped.put("[")
+        if t.count >= 0:
+            try wrapped.put_i64(t.count)
+        try wrapped.put("]")
+        try spell_into(out, element, wrapped.view())
+        return
+    if t.kind == Kind.function:
+        let result = t.inner else trap("a function without a result")
+        var wrapped = try buffer.Buffer.create(64)
+        try wrapped.put(inner)
+        try wrapped.put("(")
+        if t.params.length == 0 and not t.variadic:
+            try wrapped.put("void")
+        for i in 0..<t.params.length:
+            if i > 0:
+                try wrapped.put(", ")
+            try wrapped.put(try spelling(t.params[i].ty, t.params[i].name))
+        if t.variadic:
+            try wrapped.put(", ...")
+        try wrapped.put(")")
+        try spell_into(out, result, wrapped.view())
+        return
+    if t.is_const:
+        try out.put("const ")
+    try out.put(try base_words(t))
+    if inner.length > 0:
+        try out.put(" ")
+        try out.put(inner)
+
+## The words of a type that is not a declarator: `unsigned long`, `struct Tag`, a typedef.
+pub func base_words(t: CType*) -> str!:
+    if t.kind == Kind.void_: return "void"
+    if t.kind == Kind.bool_: return "_Bool"
+    if t.kind == Kind.char_: return "char"
+    if t.kind == Kind.float_: return "float"
+    if t.kind == Kind.double_: return "double"
+    if t.kind == Kind.long_double: return "long double"
+    if t.kind == Kind.named: return t.name
+    if t.kind == Kind.unsupported: return t.reason
+    if t.kind == Kind.record:
+        let r = t.record else trap("a record type without its record")
+        if r.tag.length == 0:
+            return r.typedef_name
+        return try strings.copy(try format(scratch[0..], f"{"union" if r.is_union else "struct"} {r.tag}"))
+    if t.kind == Kind.enum_:
+        let e = t.enumeration else trap("an enum type without its enum")
+        if e.tag.length == 0:
+            return e.typedef_name
+        return try strings.copy(try format(scratch[0..], f"enum {e.tag}"))
+    if t.kind == Kind.int_:
+        if t.width == 0: return "unsigned char" if t.unsigned else "signed char"
+        if t.width == 1: return "unsigned short" if t.unsigned else "short"
+        if t.width == 2: return "unsigned int" if t.unsigned else "int"
+        if t.width == 3: return "unsigned long" if t.unsigned else "long"
+        if t.width == 5: return "unsigned __int128" if t.unsigned else "__int128"
+        return "unsigned long long" if t.unsigned else "long long"
+    trap("a type without words")
+
+test "declarations of every shape are read and spelled back":
+    var arena = Arena(memory.heap)
+    defer arena.destroy()
+    with arena:
+        let text = "typedef struct P { int x; unsigned y : 3; } P;\ntypedef void (*cb)(P *, const char *);\nenum E { A = 1 << 2, B };\nint f(int a[4], cb c, ...);\nstatic inline long g(long v) { return v; }\nint (*tbl[2])(void);\n"
+        let tokens = try pre.tokenize(text.bytes, 0)
+        var p = try Parser.over(tokens, none)
+        try p.parse()
+        assert(p.report.used == 0)
+        assert(p.decls.count == 6)
+        let callback = p.decls.items[1].ty.inner else trap("a typedef without a type")
+        assert(try spelling(callback, "cb") == "void (*cb)(P *, const char *)")
+        assert(p.constants.get("A") == 4 and p.constants.get("B") == 5)
+        assert(p.decls.items[3].ty.variadic)
+        assert(try spelling(p.decls.items[3].ty, "f") == "int f(int *a, cb c, ...)")
+        assert(p.decls.items[4].kind == DeclKind.inline_function)
+        assert(try spelling(p.decls.items[5].ty, "tbl") == "int (*tbl[2])(void)")
+        let r = p.records.items[0]
+        assert(r.has_bits and r.fields.count == 2 and r.typedef_name == "P")
+
+test "constant expressions follow C's rules":
+    var arena = Arena(memory.heap)
+    defer arena.destroy()
+    with arena:
+        let tokens = try pre.tokenize("(unsigned char)300 + sizeof(int) * 2 - (3 > 2 ? 1 : 0)".bytes, 0)
+        var p = try Parser.over(tokens, none)
+        let v = try p.evaluate(tokens)
+        assert(v.value == 51 and not v.is_float)
+        let floating = try p.evaluate(try pre.tokenize("1.5f * 2".bytes, 0))
+        assert(floating.is_float and floating.real == 3.0 and floating.type_name == "float")
+        let text = try p.evaluate(try pre.tokenize("\"a\" \"b\"".bytes, 0))
+        assert(text.text == "\"a\"\"b\"")

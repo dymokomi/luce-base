@@ -52,6 +52,11 @@ same archive from a local build.
 `--check` reports drift); every source under `src/` is a fixpoint of it, and the gate
 keeps it so.
 
+`luce-base bind HEADER -o module.lucb` writes a Base module from a C header, read the
+way the host C compiler reads it, with a recipe for what the header does not say and a
+`shims.c` for `static inline` functions and macros (base.md §17.5). The SDL editor under
+`tests/programs/gui` is built on the module the tool writes from SDL3's own headers.
+
 ## Build and test
 
 Build scripts require Python 3.9 or newer. Generated sources are written as UTF-8

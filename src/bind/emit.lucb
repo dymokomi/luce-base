@@ -1,0 +1,722 @@
+#==============================================================================================
+#
+#   emit - A Base module from C declarations
+#
+#   DESCRIPTION:
+#       What `luce-base bind` writes (base.md §17.5): the declarations a header makes,
+#       those of its own directory, as one Base module. Types map to the `c` module's
+#       and Base's own: `int` is `i32`, `long` is `c.long`, `size_t` is `usize`, a
+#       `char*` is `c.char*?` and a `const char*` is `c.str?`. A pointer is nullable
+#       unless the header says `_Nonnull` or the recipe says `nonnull`. A struct the
+#       header completes is an `extern struct`; one it only names is an `extern type`,
+#       a handle. An enum is an integer-backed enum. A `static inline` function, and a
+#       function-like macro the recipe gives a prototype, get a C shim that calls them.
+#       An object-like macro that is a constant becomes a `pub let`.
+#
+#       Every declaration that cannot be mapped is reported with its place and the
+#       reason, and the rest of the module is still written.
+#
+#==============================================================================================
+
+import bind.cparse
+import bind.pre
+import bind.table
+import files
+import front.token
+import paths
+import strings
+import support.buffer
+import support.list
+
+pub let failed: ErrorCode = ErrorCode.package(121)
+
+## What the header does not say, from the recipe file: `nonnull NAME.PARAM`, `nonnull
+## NAME.return`, `nonnull TYPE.FIELD`, `skip NAME`, and `macro PROTOTYPE;`, a C prototype
+## for a function-like macro, which is read by the declaration parser.
+pub struct Recipe:
+    pub var nonnull: table.Table[bool]
+    pub var skipped: table.Table[bool]
+    ## The `macro` prototypes, as C text for the parser.
+    pub var prototypes: buffer.Buffer
+
+    pub static func create() -> Recipe!:
+        return Recipe(nonnull = try table.Table[bool].create(64), skipped = try table.Table[bool].create(64),
+                      prototypes = try buffer.Buffer.create(256))
+
+    ## The recipe text read; a line the recipe grammar does not have fails.
+    pub mutating func read(text: str) -> !:
+        var number: u32 = 0
+        for raw in try strings.split(text, '\n'):
+            number += 1
+            let line = strings.trim(raw)
+            if line.length == 0 or line.bytes[0] == '#':
+                continue
+            if strings.starts_with(line, "nonnull "):
+                try self.nonnull.put(strings.trim((str)line.bytes[8..]), true)
+            elif strings.starts_with(line, "skip "):
+                try self.skipped.put(strings.trim((str)line.bytes[5..]), true)
+            elif strings.starts_with(line, "macro "):
+                try self.prototypes.put((str)line.bytes[6..])
+                try self.prototypes.put("\n")
+            else:
+                error(failed, try strings.copy(try format(scratch[0..], f"recipe line {number}: expected nonnull, skip, or macro")))
+
+var scratch: u8[4096]
+
+## The Base-level name a C declaration gets, and what kind of thing it is.
+struct Named:
+    var name: str
+    var kind: u8
+
+let kind_type: u8 = 1
+let kind_value: u8 = 2
+
+pub struct Emitter:
+    var parser: cparse.Parser*
+    var pp: pre.Preprocessor*
+    var recipe: Recipe*
+    ## The directory whose headers are bound: the main header's.
+    var target: str
+    ## The file the recipe's prototypes were read under, or none.
+    var recipe_file: u32
+    var header: str
+    var include: str
+    var module: str
+    var out: buffer.Buffer
+    var shims: buffer.Buffer
+    pub var report: buffer.Buffer
+    ## Base names in the module, by C name: types and values in one namespace.
+    var names: table.Table[str]
+    var taken: table.Table[u8]
+    ## The records and enums with a Base name, by their address.
+    var record_names: table.Table[str]
+    var enum_names: table.Table[str]
+    var typedef_names: table.Table[str]
+    ## Records refused as `extern struct`, held as handles instead.
+    var refused: table.Table[bool]
+    var anonymous: u32
+    var shim_count: u32
+    var unmapped: u32
+
+    ## `header` is the main header's canonical path and `include` how the shims include
+    ## it, `<name>` or `"path"`.
+    pub static func over(parser: cparse.Parser*, pp: pre.Preprocessor*, recipe: Recipe*, header: str, include: str, module: str, recipe_file: u32) -> Emitter!:
+        return Emitter(parser = parser, pp = pp, recipe = recipe, target = paths.directory(header), recipe_file = recipe_file,
+                       header = header, include = include, module = module, out = try buffer.Buffer.create(65536),
+                       shims = try buffer.Buffer.create(4096), report = try buffer.Buffer.create(1024),
+                       names = try table.Table[str].create(1024), taken = try table.Table[u8].create(1024),
+                       record_names = try table.Table[str].create(256), enum_names = try table.Table[str].create(64),
+                       typedef_names = try table.Table[str].create(256), refused = try table.Table[bool].create(16), anonymous = 0, shim_count = 0, unmapped = 0)
+
+    pub func text() -> str:
+        return self.out.view()
+
+    pub func shim_text() -> str:
+        return self.shims.view()
+
+    pub func has_shims() -> bool:
+        return self.shim_count > 0
+
+    pub func unmapped_count() -> u32:
+        return self.unmapped
+
+    # mark: The module =========================================================================
+
+    ## The whole module: names first, so that every reference agrees, then each kind.
+    pub mutating func write() -> !:
+        try self.out.put(try format(scratch[0..], f"## {self.module}: generated by `luce-base bind` from {paths.base(self.header)}.\n"))
+        try self.out.put("## Edit the recipe and generate again rather than this file.\n\nimport c\n")
+        try self.shims.put(try format(scratch[0..], f"/* generated by `luce-base bind` from {paths.base(self.header)}; do not edit */\n"))
+        try self.shims.put(try format(scratch[0..], f"#include {self.include}\n"))
+        try self.name_everything()
+        try self.types()
+        try self.functions()
+        try self.variables()
+        try self.constants()
+
+    func in_target(file: u32) -> bool:
+        if file == self.recipe_file:
+            return false
+        let path = self.pp.path_of(file)
+        return strings.starts_with(path, self.target) and path.length > self.target.length and path.bytes[self.target.length] == '/'
+
+    mutating func note(file: u32, line: u32, what: str) -> !:
+        self.unmapped += 1
+        try self.report.put(try pre.at(self.pp.path_of(file), line, what))
+        try self.report.put("\n")
+
+    ## A Base identifier for a C name: the name itself unless Base owns it or the module
+    ## already has it, then with an underscore after.
+    mutating func base_name(c_name: str, kind: u8) -> str!:
+        var candidate = c_name
+        while token.is_keyword(candidate) or token.is_core_name(candidate) or candidate == "none" or self.taken.has(candidate):
+            candidate = try strings.copy(try format(scratch[0..], f"{candidate}_"))
+        try self.taken.put(candidate, kind)
+        try self.names.put(c_name, candidate)
+        return candidate
+
+    ## Every record, enum, typedef, function, variable and constant of the target given
+    ## its Base name before anything is written.
+    mutating func name_everything() -> !:
+        for r in self.parser.records.span():
+            if not self.in_target(r.file):
+                continue
+            var c_name = r.typedef_name if r.typedef_name.length > 0 else r.tag
+            if c_name.length == 0:
+                continue
+            if self.recipe.skipped.has(c_name):
+                continue
+            try self.record_names.put(try address(r), try self.base_name(c_name, kind_type))
+        for e in self.parser.enums.span():
+            if not self.in_target(e.file) or not e.complete:
+                continue
+            let c_name = e.typedef_name if e.typedef_name.length > 0 else e.tag
+            if c_name.length == 0 or self.recipe.skipped.has(c_name):
+                continue
+            try self.enum_names.put(try address_enum(e), try self.base_name(c_name, kind_type))
+        for d in self.parser.decls.span():
+            if not self.in_target(d.file) or self.recipe.skipped.has(d.name):
+                continue
+            if d.kind == cparse.DeclKind.typedef_:
+                if self.names.has(d.name):
+                    continue
+                if try self.is_named_by_typedef(d):
+                    continue
+                if self.well_known(d.name).length > 0:
+                    continue
+                try self.typedef_names.put(d.name, try self.base_name(d.name, kind_type))
+            elif d.kind != cparse.DeclKind.tag:
+                if not self.names.has(d.name):
+                    discard(try self.base_name(d.name, kind_value))
+        for d in self.parser.decls.span():
+            if d.file == self.recipe_file and d.kind == cparse.DeclKind.function and not self.names.has(d.name):
+                discard(try self.base_name(d.name, kind_value))
+
+    ## Whether the typedef names the record or enum that carries its name.
+    func is_named_by_typedef(d: cparse.Decl*) -> bool!:
+        let target = d.ty.inner else return false
+        if target.kind == cparse.Kind.record:
+            let r = target.record else return false
+            return r.typedef_name == d.name
+        if target.kind == cparse.Kind.enum_:
+            let e = target.enumeration else return false
+            return e.typedef_name == d.name
+        return false
+
+    # mark: Types ==============================================================================
+
+    mutating func types() -> !:
+        for r in self.parser.records.span():
+            if r.tag.length == 0 and r.typedef_name.length == 0:
+                continue
+            if let name = self.record_names.get(try address(r)):
+                if r.complete:
+                    self.record(r, name) catch failure:
+                        try self.note(r.file, r.line, try strings.copy(try format(scratch[0..], f"{name}: {failure.message}")))
+                        try self.refused.put(try address(r), true)
+                        try self.out.put(try format(scratch[0..], f"\n## `{name}` is opaque here: {failure.message}\npub extern type {name}\n"))
+                else:
+                    try self.out.put(try format(scratch[0..], f"\npub extern type {name}\n"))
+        for e in self.parser.enums.span():
+            if let name = self.enum_names.get(try address_enum(e)):
+                try self.enumeration(e, name)
+        for d in self.parser.decls.span():
+            if d.kind != cparse.DeclKind.typedef_:
+                continue
+            let name = self.typedef_names.get(d.name) else continue
+            let target = d.ty.inner else continue
+            let spelled = self.type_spelling(target, "", "", true) catch failure:
+                try self.note(d.file, d.line, try strings.copy(try format(scratch[0..], f"typedef {d.name}: {failure.message}")))
+                continue
+            try self.out.put(try format(scratch[0..], f"\npub type {name} = {spelled}\n"))
+        for e in self.parser.enums.span():
+            if not self.in_target(e.file) or not e.complete or self.enum_names.has(try address_enum(e)):
+                continue
+            # an enum without a name: its cases are constants
+            try self.out.put("\n")
+            for item in e.items.span():
+                let name = try self.base_name(item.name, kind_value)
+                try self.out.put(try format(scratch[0..], f"pub let {name}: i32 = {item.value}\n"))
+
+    ## `pub extern struct Name:` with every field; a bit-field or a flexible member is
+    ## refused or omitted as §17.5 says.
+    mutating func record(r: cparse.Record*, name: str) -> !:
+        if r.has_bits:
+            error(failed, "it has bit-fields; the recipe would name accessor shims for them")
+        var body = try buffer.Buffer.create(1024)
+        var flexible: cparse.Field? = none
+        var index: u32 = 0
+        for f in r.fields.span():
+            if f.ty.kind == cparse.Kind.array and f.ty.count < 0:
+                flexible = f
+                continue
+            var field_name = f.name
+            if field_name.length == 0:
+                field_name = try strings.copy(try format(scratch[0..], f"member{index}"))
+            if token.is_keyword(field_name) or token.is_core_name(field_name) or field_name == "none":
+                field_name = try strings.copy(try format(scratch[0..], f"{field_name}_"))
+            let key = try strings.copy(try format(scratch[0..], f"{name}.{f.name}"))
+            let spelled = try self.type_spelling(f.ty, key, name, false)
+            try body.put(try format(scratch[0..], f"    pub {field_name}: {spelled}\n"))
+            index += 1
+        if r.fields.count == 0:
+            error(failed, "it has no fields")
+        try self.out.put("\n")
+        var head = "extern struct"
+        if r.is_union:
+            head = "extern union"
+        elif r.packed:
+            head = "extern packed struct"
+        if r.aligned > 0 and not r.is_union:
+            try self.out.put(try format(scratch[0..], f"pub extern align({r.aligned}) struct {name}:\n"))
+        else:
+            try self.out.put(try format(scratch[0..], f"pub {head} {name}:\n"))
+        try self.out.put(body.view())
+        if let f = flexible:
+            let element = f.ty.inner else trap("an array without an element")
+            let key = try strings.copy(try format(scratch[0..], f"{name}.{f.name}"))
+            let spelled = try self.type_spelling(element, key, name, false)
+            try self.out.put(try format(scratch[0..], f"\n## The `{f.name}` that follows a `{name}` in memory: C's flexible array member.\npub func {name}_{f.name}(record: {name}*) -> {spelled}*:\n    return ({spelled}*)((usize)record + sizeof({name}))\n"))
+
+    ## `pub enum Name as u32:` with the cases; a repeated value becomes a constant.
+    mutating func enumeration(e: cparse.Enum*, name: str) -> !:
+        var lowest: i64 = 0
+        var highest: i64 = 0
+        for item in e.items.span():
+            if item.value < lowest:
+                lowest = item.value
+            if item.value > highest:
+                highest = item.value
+        var representation = "i32"
+        if lowest >= 0 and highest <= 4294967295:
+            representation = "u32"
+        elif lowest >= -2147483648 and highest <= 2147483647:
+            representation = "i32"
+        elif lowest >= 0:
+            representation = "u64"
+        else:
+            representation = "i64"
+        try self.out.put(try format(scratch[0..], f"\npub enum {name} as {representation}:\n"))
+        var seen = try table.Table[str].create(64)
+        var aliases = try buffer.Buffer.create(256)
+        var count: u32 = 0
+        for item in e.items.span():
+            let value_key = try strings.copy(try format(scratch[0..], f"{item.value}"))
+            var case_name = item.name
+            if token.is_keyword(case_name) or token.is_core_name(case_name) or case_name == "none":
+                case_name = try strings.copy(try format(scratch[0..], f"{case_name}_"))
+            if let first = seen.get(value_key):
+                let alias = try self.base_name(item.name, kind_value)
+                try aliases.put(try format(scratch[0..], f"pub let {alias}: {name} = {name}.{first}\n"))
+                continue
+            try seen.put(value_key, case_name)
+            try self.out.put(try format(scratch[0..], f"    {case_name} = {item.value}\n"))
+            count += 1
+        if count == 0:
+            try self.out.put("    empty = 0\n")
+        if aliases.used > 0:
+            try self.out.put("\n")
+            try self.out.put(aliases.view())
+
+    # mark: Spelling types =====================================================================
+
+    ## The Base spelling of a C type at `key` (`function.param`, `Type.field`, or
+    ## `function.return`), for the recipe's `nonnull`; `owner` is the type or function it
+    ## is inside, for anonymous members.
+    mutating func type_spelling(t: cparse.CType*, key: str, owner: str, as_alias: bool) -> str!:
+        let k = t.kind
+        if k == cparse.Kind.void_:
+            error(failed, "void is not a value")
+        if k == cparse.Kind.bool_:
+            return "bool"
+        if k == cparse.Kind.char_:
+            return "c.char"
+        if k == cparse.Kind.int_:
+            return try integer_spelling(t)
+        if k == cparse.Kind.float_:
+            return "f32"
+        if k == cparse.Kind.double_:
+            return "f64"
+        if k == cparse.Kind.long_double:
+            error(failed, "long double has no Base type; a shim in the recipe would take a double")
+        if k == cparse.Kind.unsupported:
+            error(failed, t.reason)
+        if k == cparse.Kind.named:
+            return try self.named_spelling(t, key, owner, as_alias)
+        if k == cparse.Kind.record:
+            let r = t.record else trap("a record type without its record")
+            if let name = self.record_names.get(try address(r)):
+                if r.complete:
+                    return name
+                error(failed, try strings.copy(try format(scratch[0..], f"{name} is opaque and cannot be held by value")))
+            if r.tag.length == 0:
+                return try self.anonymous_record(r, key, owner)
+            error(failed, try strings.copy(try format(scratch[0..], f"{try cparse.base_words(t)} is not declared by these headers")))
+        if k == cparse.Kind.enum_:
+            let e = t.enumeration else trap("an enum type without its enum")
+            if let name = self.enum_names.get(try address_enum(e)):
+                return name
+            return "i32"
+        if k == cparse.Kind.array:
+            let element = t.inner else trap("an array without an element")
+            if t.count < 0:
+                error(failed, "an array without a count has no Base type")
+            let spelled = try self.type_spelling(element, key, owner, false)
+            return try strings.copy(try format(scratch[0..], f"{spelled}[{t.count}]"))
+        if k == cparse.Kind.function:
+            return try self.function_spelling(t, key)
+        if k == cparse.Kind.pointer:
+            if as_alias:
+                let pointee = t.inner else trap("a pointer without a pointee")
+                let under = cparse.resolved(pointee)
+                if under.kind == cparse.Kind.function:
+                    return try self.function_spelling(under, key)
+            return try self.pointer_spelling(t, key, owner)
+        error(failed, "a type the binder does not know")
+
+    ## A pointer: `T*?` unless the header or the recipe says it is never null; `c.str?`
+    ## for `const char*`; a handle for an opaque record; a function type for a function.
+    mutating func pointer_spelling(t: cparse.CType*, key: str, owner: str) -> str!:
+        let pointee = t.inner else trap("a pointer without a pointee")
+        let nonnull = t.nullable == 1 or self.recipe.nonnull.has(key)
+        let suffix = "" if nonnull else "?"
+        let under = cparse.resolved(pointee)
+        if under.kind == cparse.Kind.void_:
+            return try strings.copy(try format(scratch[0..], f"{"const " if pointee.is_const else ""}void*{suffix}"))
+        if under.kind == cparse.Kind.char_ and pointee.kind == cparse.Kind.char_:
+            if pointee.is_const:
+                return try strings.copy(try format(scratch[0..], f"c.str{suffix}"))
+            return try strings.copy(try format(scratch[0..], f"c.char*{suffix}"))
+        if under.kind == cparse.Kind.function:
+            if pointee.kind == cparse.Kind.named:
+                if let alias = self.typedef_names.get(pointee.name):
+                    return try strings.copy(try format(scratch[0..], f"{alias}{suffix}"))
+            let spelled = try self.function_spelling(under, key)
+            if nonnull:
+                return spelled
+            return try strings.copy(try format(scratch[0..], f"({spelled})?"))
+        if under.kind == cparse.Kind.record:
+            let r = under.record else trap("a record type without its record")
+            if let name = self.record_names.get(try address(r)):
+                if r.complete and not self.refused.has(try address(r)):
+                    return try strings.copy(try format(scratch[0..], f"{"const " if pointee.is_const else ""}{name}*{suffix}"))
+                return try strings.copy(try format(scratch[0..], f"{name}{suffix}"))
+            if r.tag.length == 0 and pointee.kind == cparse.Kind.record:
+                let name = try self.anonymous_record(r, key, owner)
+                return try strings.copy(try format(scratch[0..], f"{name}*{suffix}"))
+            # a struct of another library, or one never completed: an address and no more
+            return try strings.copy(try format(scratch[0..], f"{"const " if pointee.is_const else ""}void*{suffix}"))
+        var spelled = try self.type_spelling(pointee, key, owner, false)
+        # a pointee's own nullability has no spelling: `c.str*?`, never `c.str?*?`
+        if strings.ends_with(spelled, "?"):
+            spelled = (str)spelled.bytes[..<spelled.length - 1]
+        if strings.starts_with(spelled, "func("):
+            spelled = try strings.copy(try format(scratch[0..], f"({spelled})"))
+        return try strings.copy(try format(scratch[0..], f"{"const " if pointee.is_const else ""}{spelled}*{suffix}"))
+
+    ## `func(A, B) -> R`, `-> unit` for void.
+    mutating func function_spelling(t: cparse.CType*, key: str) -> str!:
+        var out = try buffer.Buffer.create(128)
+        try out.put("func(")
+        for i in 0..<t.params.length:
+            if i > 0:
+                try out.put(", ")
+            try out.put(try self.type_spelling(t.params[i].ty, key, "", false))
+        if t.variadic:
+            error(failed, "a variadic function pointer has no Base type")
+        try out.put(")")
+        let result = t.inner else trap("a function without a result")
+        if result.kind == cparse.Kind.void_:
+            try out.put(" -> unit")
+        else:
+            try out.put(" -> ")
+            try out.put(try self.type_spelling(result, key, "", false))
+        return try strings.copy(out.view())
+
+    ## A typedef: the well-known C names map to Base's; one of the header's own is its
+    ## alias; any other is what it names, spelled through.
+    mutating func named_spelling(t: cparse.CType*, key: str, owner: str, as_alias: bool) -> str!:
+        let known = self.well_known(t.name)
+        if known.length > 0:
+            return known
+        if not as_alias:
+            let under = cparse.resolved(t)
+            let nonnull = t.nullable == 1 or self.recipe.nonnull.has(key)
+            if under.kind == cparse.Kind.pointer and nonnull:
+                # a typedef'd pointer that is never null here: the pointer itself, bare
+                let bare = try self.parser.with_nullable(under, 1)
+                return try self.pointer_spelling(bare, key, owner)
+            if let alias = self.typedef_names.get(t.name):
+                if under.kind == cparse.Kind.pointer:
+                    let pointee = under.inner else trap("a pointer without a pointee")
+                    if cparse.resolved(pointee).kind == cparse.Kind.function:
+                        return try strings.copy(try format(scratch[0..], f"{alias}?"))
+                return alias
+        let inner = t.inner else error(failed, try strings.copy(try format(scratch[0..], f"{t.name} is the compiler's own type")))
+        if inner.kind == cparse.Kind.named:
+            return try self.named_spelling(inner, key, owner, false)
+        return try self.type_spelling(inner, key, owner, false)
+
+    ## The C names Base has its own words for.
+    func well_known(name: str) -> str:
+        if name == "size_t" or name == "uintptr_t" or name == "__darwin_size_t" or name == "rsize_t": return "usize"
+        if name == "ssize_t" or name == "intptr_t" or name == "ptrdiff_t" or name == "__darwin_ssize_t" or name == "__darwin_intptr_t" or name == "__darwin_ptrdiff_t": return "isize"
+        if name == "int8_t": return "i8"
+        if name == "uint8_t": return "u8"
+        if name == "int16_t": return "i16"
+        if name == "uint16_t": return "u16"
+        if name == "int32_t": return "i32"
+        if name == "uint32_t": return "u32"
+        if name == "int64_t" or name == "intmax_t": return "i64"
+        if name == "uint64_t" or name == "uintmax_t": return "u64"
+        if name == "wchar_t" or name == "__darwin_wchar_t": return "c.wchar"
+        if name == "va_list" or name == "__builtin_va_list" or name == "__darwin_va_list" or name == "__gnuc_va_list": return "c.va_list"
+        return ""
+
+    ## A struct or union without a tag used as a member: declared as its own type, named
+    ## after where it sits.
+    mutating func anonymous_record(r: cparse.Record*, key: str, owner: str) -> str!:
+        let id = try address(r)
+        if let name = self.record_names.get(id):
+            return name
+        var base = key
+        if let pair = strings.split_once(key, "."):
+            let (left, right) = pair
+            base = try strings.copy(try format(scratch[0..], f"{left}_{right}")) if right.length > 0 else left
+        if base.length == 0:
+            base = owner if owner.length > 0 else "anonymous"
+        if strings.ends_with(base, "."):
+            base = (str)base.bytes[..<base.length - 1]
+        let name = try self.base_name(try strings.copy(try format(scratch[0..], f"{base}_{"union" if r.is_union else "struct"}")), kind_type)
+        try self.record_names.put(id, name)
+        self.record(r, name) catch failure:
+            try self.refused.put(id, true)
+            try self.out.put(try format(scratch[0..], f"\n## `{name}` is opaque here: {failure.message}\npub extern type {name}\n"))
+        return name
+
+    # mark: Functions ==========================================================================
+
+    mutating func functions() -> !:
+        for d in self.parser.decls.span():
+            let from_recipe = d.file == self.recipe_file
+            if not (self.in_target(d.file) or from_recipe):
+                continue
+            if d.kind != cparse.DeclKind.function and d.kind != cparse.DeclKind.inline_function:
+                continue
+            if self.recipe.skipped.has(d.name):
+                continue
+            let shim = d.kind == cparse.DeclKind.inline_function or from_recipe
+            self.function(d, shim) catch failure:
+                try self.note(d.file, d.line, try strings.copy(try format(scratch[0..], f"{d.name}: {failure.message}")))
+
+    ## `pub extern func name(params) -> result`, through a shim when the function is not
+    ## a symbol: a `static inline` function or a macro with a recipe prototype.
+    mutating func function(d: cparse.Decl*, shim: bool) -> !:
+        let name = self.names.get(d.name) else trap("a function without its name")
+        let t = d.ty
+        var line = try buffer.Buffer.create(256)
+        try line.put("\npub extern func ")
+        try line.put(name)
+        var symbol = d.symbol
+        if shim:
+            if t.variadic:
+                error(failed, "a variadic function cannot be reached through a shim")
+            symbol = try strings.copy(try format(scratch[0..], f"luce_{d.name}"))
+        if symbol.length > 0 and symbol != name:
+            try line.put(try format(scratch[0..], f" as \"{symbol}\""))
+        elif name != d.name:
+            try line.put(try format(scratch[0..], f" as \"{d.name}\""))
+        try line.put("(")
+        var used = try table.Table[bool].create(16)
+        for i in 0..<t.params.length:
+            if i > 0:
+                try line.put(", ")
+            let p = t.params[i]
+            var param_name = p.name
+            if param_name.length == 0:
+                param_name = try strings.copy(try format(scratch[0..], f"p{i}"))
+            while token.is_keyword(param_name) or token.is_core_name(param_name) or param_name == "none" or param_name == "out" or self.taken.has(param_name) or used.has(param_name):
+                param_name = try strings.copy(try format(scratch[0..], f"{param_name}_"))
+            try used.put(param_name, true)
+            let key = try strings.copy(try format(scratch[0..], f"{d.name}.{p.name}"))
+            let spelled = try self.type_spelling(p.ty, key, "", false)
+            try line.put(try format(scratch[0..], f"{param_name}: {spelled}"))
+        if t.variadic:
+            try line.put(", ..." if t.params.length > 0 else "...")
+        try line.put(")")
+        let result = t.inner else trap("a function without a result")
+        if d.noreturn:
+            try line.put(" -> never")
+        elif result.kind != cparse.Kind.void_:
+            let key = try strings.copy(try format(scratch[0..], f"{d.name}.return"))
+            try line.put(" -> ")
+            try line.put(try self.type_spelling(result, key, "", false))
+        try line.put("\n")
+        if shim:
+            try self.shim(d)
+        try self.out.put(line.view())
+
+    ## The C function `luce_NAME` that calls `NAME`, for what has no symbol of its own.
+    mutating func shim(d: cparse.Decl*) -> !:
+        let t = d.ty
+        let result = t.inner else trap("a function without a result")
+        var call = try buffer.Buffer.create(256)
+        try call.put(try format(scratch[0..], f"luce_{d.name}("))
+        var args = try buffer.Buffer.create(128)
+        if t.params.length == 0:
+            try call.put("void")
+        for i in 0..<t.params.length:
+            if i > 0:
+                try call.put(", ")
+                try args.put(", ")
+            let param_name = try strings.copy(try format(scratch[0..], f"a{i}"))
+            try call.put(try cparse.spelling(t.params[i].ty, param_name))
+            try args.put(param_name)
+        try call.put(")")
+        let head = try cparse.spelling(result, call.view())
+        let returns = "" if result.kind == cparse.Kind.void_ else "return "
+        try self.shims.put(try format(scratch[0..], f"{head} {"{"} {returns}{d.name}({args.view()}); {"}"}\n"))
+        self.shim_count += 1
+
+    # mark: Variables and constants ============================================================
+
+    mutating func variables() -> !:
+        for d in self.parser.decls.span():
+            if not self.in_target(d.file) or d.kind != cparse.DeclKind.variable or self.recipe.skipped.has(d.name):
+                continue
+            let name = self.names.get(d.name) else continue
+            self.variable(d, name) catch failure:
+                try self.note(d.file, d.line, try strings.copy(try format(scratch[0..], f"{d.name}: {failure.message}")))
+
+    mutating func variable(d: cparse.Decl*, name: str) -> !:
+        if let value = d.constant:
+            if d.is_static or d.ty.is_const:
+                let spelled = try self.constant_spelling(value, d.ty)
+                try self.out.put(try format(scratch[0..], f"\npub let {name}: {spelled}\n"))
+                return
+        if d.is_static:
+            error(failed, "a static variable of the header is not a symbol")
+        let under = cparse.resolved(d.ty)
+        if under.kind == cparse.Kind.record or under.kind == cparse.Kind.array:
+            error(failed, "an extern var must be a scalar or a pointer")
+        let spelled = try self.type_spelling(d.ty, d.name, "", false)
+        if name != d.name:
+            error(failed, "its name is Base's; the recipe may skip it")
+        try self.out.put(try format(scratch[0..], f"\npub extern var {name}: {spelled}\n"))
+
+    ## Every object-like macro of the target that is a constant, as `pub let`, in the
+    ## order of definition; a redefined name is its last definition.
+    mutating func constants() -> !:
+        var last = try table.Table[usize].create(256)
+        for i in 0..<self.pp.defined.count:
+            let m = self.pp.defined.items[i]
+            if self.in_target(m.file):
+                try last.put(m.name, i)
+        for i in 0..<self.pp.defined.count:
+            let m = self.pp.defined.items[i]
+            if not self.in_target(m.file) or last.get(m.name) != i or m.deleted or self.recipe.skipped.has(m.name):
+                continue
+            if self.names.has(m.name):
+                continue
+            if m.function_like:
+                try self.note(m.file, m.line, try strings.copy(try format(scratch[0..], f"{m.name}: a function-like macro; give it a prototype in the recipe with `macro`")))
+                continue
+            let body = m.body else continue
+            if body.kind == pre.Kind.eof:
+                continue
+            self.constant(m, body) catch failure:
+                try self.note(m.file, m.line, try strings.copy(try format(scratch[0..], f"{m.name}: {failure.message}")))
+
+    mutating func constant(m: pre.Macro*, body: pre.Tok*) -> !:
+        let expanded = try self.pp.process(try pre.copy_list(body))
+        if expanded.kind == pre.Kind.ident:
+            let after = expanded.next else trap("unreachable")
+            if after.kind == pre.Kind.eof:
+                error(failed, try strings.copy(try format(scratch[0..], f"it stands for `{expanded.text}`, a name; bind that name or skip this one")))
+        let value = try self.parser.evaluate(expanded)
+        let name = try self.base_name(m.name, kind_value)
+        let spelled = try self.constant_spelling(value, none)
+        try self.out.put(try format(scratch[0..], f"\npub let {name}: {spelled}\n"))
+
+    ## `TYPE = value` for a constant: the type from its C type when it has one.
+    mutating func constant_spelling(v: cparse.Const, declared: cparse.CType*?) -> str!:
+        if v.text.length > 0:
+            return try strings.copy(try format(scratch[0..], f"c.str = {try c_string(v.text)}"))
+        if v.is_float:
+            var room: u8[64]
+            var digits = try strings.format_f64(v.real, room[0..])
+            if strings.find(digits, ".") == none and strings.find(digits, "e") == none and strings.find(digits, "n") == none:
+                digits = try strings.copy(try format(scratch[0..], f"{digits}.0"))
+            let ty = "f32" if v.type_name == "float" else "f64"
+            return try strings.copy(try format(scratch[0..], f"{ty} = {digits}"))
+        var ty = ""
+        if let t = declared:
+            ty = try self.type_spelling(t, "", "", false)
+        else:
+            ty = try self.constant_type(v)
+        if ty == "bool":
+            return "bool = true" if v.value != 0 else "bool = false"
+        if v.unsigned:
+            return try strings.copy(try format(scratch[0..], f"{ty} = {(u64)v.value}"))
+        return try strings.copy(try format(scratch[0..], f"{ty} = {v.value}"))
+
+    ## The Base type of an integer constant from the C type its spelling gave it.
+    mutating func constant_type(v: cparse.Const) -> str!:
+        let n = v.type_name
+        if n == "int" or n == "": return "i32" if v.value >= -2147483648 and v.value <= 2147483647 else "i64"
+        if n == "unsigned int": return "u32"
+        if n == "long": return "c.long"
+        if n == "unsigned long": return "c.ulong"
+        if n == "long long": return "i64"
+        if n == "unsigned long long": return "u64"
+        if n == "size_t": return "usize"
+        if n == "char": return "c.char"
+        if n == "signed char": return "i8"
+        if n == "unsigned char": return "u8"
+        if n == "short": return "i16"
+        if n == "unsigned short": return "u16"
+        if n == "_Bool": return "bool"
+        if let t = self.parser.typedef_named(n):
+            return try self.type_spelling(t, "", "", false)
+        return "i64"
+
+## `i8`, `u16`, `c.long`, and the rest from the width and signedness.
+func integer_spelling(t: cparse.CType*) -> str!:
+    if t.width == 0: return "u8" if t.unsigned else "i8"
+    if t.width == 1: return "u16" if t.unsigned else "i16"
+    if t.width == 2: return "u32" if t.unsigned else "i32"
+    if t.width == 3: return "c.ulong" if t.unsigned else "c.long"
+    if t.width == 4: return "u64" if t.unsigned else "i64"
+    error(failed, "__int128 has no Base type")
+
+## A C string literal's spelling as Base's: the same escapes, adjacent pieces joined.
+func c_string(text: str) -> str!:
+    var out = try buffer.Buffer.create(text.length + 2)
+    try out.put_byte('"')
+    var i: usize = 0
+    var inside = false
+    while i < text.length:
+        let b = text.bytes[i]
+        if b == '"':
+            inside = not inside
+            i += 1
+            continue
+        if not inside:
+            i += 1
+            continue
+        if b == '\\' and i + 1 < text.length:
+            try out.put_byte(b)
+            try out.put_byte(text.bytes[i + 1])
+            i += 2
+            continue
+        try out.put_byte(b)
+        i += 1
+    try out.put_byte('"')
+    return try strings.copy(out.view())
+
+## A record's identity as a table key: its address.
+func address(r: cparse.Record*) -> str!:
+    return try strings.copy(try format(scratch[0..], f"r{(usize)r}"))
+
+func address_enum(e: cparse.Enum*) -> str!:
+    return try strings.copy(try format(scratch[0..], f"e{(usize)e}"))
