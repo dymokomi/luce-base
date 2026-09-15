@@ -1657,80 +1657,6 @@ lb_thread_sleep:
     ret
 
     .p2align 4
-    .globl lb_thread_13sleep_windows
-    .type lb_thread_13sleep_windows, @function
-lb_thread_13sleep_windows:
-    pushq %rbp
-    movq %rsp, %rbp
-    subq $64, %rsp
-    movq %rbx, -8(%rbp)
-    movq %r12, -16(%rbp)
-    movq %r13, -24(%rbp)
-    movq %r14, -32(%rbp)
-    movq %r15, -40(%rbp)
-    movq %rdi, -56(%rbp)
-    leaq -56(%rbp), %rbx
-    movq %rbx, %r10
-    movq (%r10), %rbx
-    movq $0, %rcx
-    cmpq %rcx, %rbx
-    jne .L10_2
-.L10_1:
-    movl $0, %edi
-    call Sleep@PLT
-    movq -8(%rbp), %rbx
-    movq -16(%rbp), %r12
-    movq -24(%rbp), %r13
-    movq -32(%rbp), %r14
-    movq -40(%rbp), %r15
-    movq %rbp, %rsp
-    popq %rbp
-    ret
-.L10_2:
-.L10_3:
-    call lb_time_now@PLT
-    movq %rax, %r12
-    movq $0, %rax
-    movq %rax, %r13
-.L10_5:
-    cmpq %rbx, %r13
-    jae .L10_7
-.L10_6:
-    movq %rbx, %r14
-    subq %r13, %r14
-    movabsq $4294967294, %rcx
-    cmpq %rcx, %r14
-    jae .L10_9
-.L10_8:
-    movq %r14, %r13
-    jmp .L10_10
-.L10_9:
-    movabsq $4294967294, %rax
-    movq %rax, %r13
-.L10_10:
-    movl %r13d, %edi
-    call Sleep@PLT
-    movq %r12, %rdi
-    call lb_time_since@PLT
-    movq %rax, %r14
-.L10_12:
-    movq $1000000, %rcx
-    movq %r14, %rax
-    xorl %edx, %edx
-    divq %rcx
-    movq %rax, %r13
-    jmp .L10_5
-.L10_7:
-    movq -8(%rbp), %rbx
-    movq -16(%rbp), %r12
-    movq -24(%rbp), %r13
-    movq -32(%rbp), %r14
-    movq -40(%rbp), %r15
-    movq %rbp, %rsp
-    popq %rbp
-    ret
-
-    .p2align 4
     .globl lb_memory_copy_0g1_u8
     .type lb_memory_copy_0g1_u8, @function
     .weak lb_memory_copy_0g1_u8
@@ -1762,12 +1688,12 @@ lb_memory_copy_0g1_u8:
     seta %al
     movzbl %al, %r13d
     testl %r13d, %r13d
-    jne .L11_11
-    jmp .L11_4
-.L11_11:
+    jne .L10_11
+    jmp .L10_4
+.L10_11:
     movl %r13d, %r14d
-    jmp .L11_5
-.L11_4:
+    jmp .L10_5
+.L10_4:
     leaq -64(%rbp), %r13
     movq $8, %rcx
     addq %rcx, %r13
@@ -1776,12 +1702,12 @@ lb_memory_copy_0g1_u8:
     cmpq %r13, %rbx
     seta %al
     movzbl %al, %r14d
-.L11_5:
+.L10_5:
     movzbl %r14b, %r13d
     testl %r13d, %r13d
-    jne .L11_1
-    jmp .L11_2
-.L11_1:
+    jne .L10_1
+    jmp .L10_2
+.L10_1:
     leaq .Ltext_5(%rip), %r13
     leaq -96(%rbp), %r14
     movq %r14, %r10
@@ -1798,13 +1724,13 @@ lb_memory_copy_0g1_u8:
     movq 0(%r10), %rsi
     movq 8(%r10), %rdx
     call lb_core_12trap_text_at@PLT
-    jmp .L11_3
-.L11_2:
-.L11_3:
+    jmp .L10_3
+.L10_2:
+.L10_3:
     movq $0, %rcx
     cmpq %rcx, %rbx
-    jbe .L11_7
-.L11_6:
+    jbe .L10_7
+.L10_6:
     movq %r12, %r10
     movq (%r10), %r13
     leaq -64(%rbp), %r14
@@ -1816,16 +1742,16 @@ lb_memory_copy_0g1_u8:
     call memcpy@PLT
     movq %rax, %r13
     testq %r13, %r13
-    jne .L11_9
-    jmp .L11_10
-.L11_10:
+    jne .L10_9
+    jmp .L10_10
+.L10_10:
     leaq .Ltext_39(%rip), %rdi
     leaq .Ltext_6(%rip), %rsi
     call lb_core_7trap_at@PLT
-.L11_9:
-    jmp .L11_8
-.L11_7:
-.L11_8:
+.L10_9:
+    jmp .L10_8
+.L10_7:
+.L10_8:
     movq -8(%rbp), %rbx
     movq -16(%rbp), %r12
     movq -24(%rbp), %r13
@@ -1934,6 +1860,7 @@ lb_memory_copy_0g1_u8:
     .bss
     .globl lb_thread_failed
     .type lb_thread_failed, @object
+    .weak lb_thread_failed
     .p2align 2
 lb_thread_failed:
     .zero 4
@@ -1941,6 +1868,7 @@ lb_thread_failed:
     .bss
     .globl lb_thread_11least_stack
     .type lb_thread_11least_stack, @object
+    .weak lb_thread_11least_stack
     .p2align 3
 lb_thread_11least_stack:
     .zero 8
@@ -1948,6 +1876,7 @@ lb_thread_11least_stack:
     .bss
     .globl lb_thread_9name_room
     .type lb_thread_9name_room, @object
+    .weak lb_thread_9name_room
     .p2align 3
 lb_thread_9name_room:
     .zero 8

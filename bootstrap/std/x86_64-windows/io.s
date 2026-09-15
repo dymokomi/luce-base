@@ -1,3 +1,337 @@
+    .weak lb_platform_name
+    .weak lb_platform_macos
+    .weak lb_platform_linux
+    .weak lb_platform_windows
+    .weak lb_platform_posix
+    .weak lb_platform_arm64
+    .weak lb_platform_6x86_64
+    .weak lb_platform_12pointer_bits
+    .weak lb_platform_9cpu_level
+    .weak lb_c_interrupted
+    .weak lb_11windows_abi_9utf8_page
+    .weak lb_11windows_abi_19reject_invalid_utf8
+    .weak lb_11windows_abi_20reject_invalid_utf16
+    .weak lb_memory_17private_anonymous
+    .weak lb_memory_exhausted
+    .weak lb_memory_unset
+    .weak lb_os_failed
+    .weak lb_os_arm64
+    .weak lb_os_6x86_64
+    .weak lb_os_macos
+    .weak lb_os_linux
+    .weak lb_os_windows
+    .weak lb_os_posix
+    .weak lb_os_12pointer_bits
+    .weak lb_os_name
+    .weak lb_os_9cpu_level
+    .weak lb_os_17processors_online
+    .weak lb_io_14unexpected_eof
+    .weak lb_io_11no_progress
+    .weak lb_io_13invalid_count
+    .weak lb_io_14invalid_buffer
+    .weak lb_io_closed
+    .weak lb_io_failed
+    .weak lb_io_11would_block
+    .weak lb_io_full
+    .weak lb_io_14io_path_failed
+    .weak lb_luce_file
+    .weak lb_luce_line
+    .weak lb_luce_function
+    .weak lb_luce_location
+    .weak lb_time_monotonic
+    .weak lb_time_realtime
+    .weak lb_thread_failed
+    .weak lb_thread_11least_stack
+    .weak lb_thread_9name_room
+    .weak lb_sync_16compare_and_wait
+    .weak lb_sync_8wake_all
+    .weak lb_sync_12futex_number
+    .weak lb_sync_18futex_wait_private
+    .weak lb_sync_18futex_wake_private
+    .weak lb_ownership_black
+    .weak lb_ownership_gray
+    .weak lb_ownership_white
+    .weak lb_ownership_purple
+    .weak lb_ownership_10color_mask
+    .weak lb_ownership_buffered
+    .weak lb_ownership_dead
+    .weak lb_ownership_collecting
+    .weak lb_ownership_immortal
+    .weak lb_ownership_15candidate_limit
+    .weak lb_utf8_16invalid_sequence
+    .weak lb_utf8_19incomplete_sequence
+    .weak lb_strings_17invalid_separator
+    .weak lb_strings_16output_too_large
+    .weak lb_strings_13invalid_radix
+    .weak lb_strings_14invalid_number
+    .weak lb_strings_19number_out_of_range
+    .weak lb_strings_17conversion_failed
+    .weak lb_unicode_version
+    .weak lb_unicode_18canonical_mappings
+    .weak lb_unicode_22compatibility_mappings
+    .weak lb_unicode_14upper_mappings
+    .weak lb_unicode_14lower_mappings
+    .weak lb_unicode_13fold_mappings
+    .weak lb_unicode_15turkic_mappings
+    .weak lb_unicode_15mapping_scalars
+    .weak lb_unicode_20composition_mappings
+    .weak lb_unicode_16combining_ranges
+    .weak lb_unicode_12cased_ranges
+    .weak lb_unicode_21case_ignorable_ranges
+    .weak lb_unicode_17whitespace_ranges
+    .weak lb_unicode_15grapheme_ranges
+    .weak lb_unicode_19pictographic_ranges
+    .weak lb_unicode_12indic_ranges
+    .weak lb_math_pi
+    .weak lb_math_tau
+    .weak lb_math_e
+    .weak lb_math_infinity
+    .weak lb_math_nan
+    .weak lb_math_9sign_mask
+    .weak lb_math_14magnitude_mask
+    .weak lb_math_13exponent_mask
+    .weak lb_math32_pi
+    .weak lb_math32_tau
+    .weak lb_math32_e
+    .weak lb_math32_infinity
+    .weak lb_math32_nan
+    .weak lb_math32_9sign_mask
+    .weak lb_math32_14magnitude_mask
+    .weak lb_math32_13exponent_mask
+    .weak lb_net_inet
+    .weak lb_net_inet6
+    .weak lb_net_stream
+    .weak lb_net_datagram
+    .weak lb_net_20socket_close_on_exec
+    .weak lb_net_20get_descriptor_flags
+    .weak lb_net_20set_descriptor_flags
+    .weak lb_net_24descriptor_close_on_exec
+    .weak lb_net_12socket_level
+    .weak lb_net_20reuse_address_option
+    .weak lb_net_10ipv6_level
+    .weak lb_net_16ipv6_only_option
+    .weak lb_net_17no_sigpipe_option
+    .weak lb_net_10send_flags
+    .weak lb_net_18socket_interrupted
+    .weak lb_net_failed
+    .weak lb_net_closed
+    .weak lb_net_12unknown_host
+    .weak lb_net_15invalid_options
+    .weak lb_net_17message_too_large
+    .weak lb_net_cancelled
+    .weak lb_net_9timed_out
+    .weak lb_net_18connection_refused
+    .weak lb_net_19network_unreachable
+    .weak lb_net_14address_in_use
+    .weak lb_net_19address_unavailable
+    .weak lb_net_17permission_denied
+    .weak lb_net_18resource_exhausted
+    .weak lb_net_18connection_aborted
+    .weak lb_net_unsupported
+    .weak lb_net_20resolution_temporary
+    .weak lb_net_14transfer_limit
+    .weak lb_net_16nonblocking_flag
+    .weak lb_net_21receive_buffer_option
+    .weak lb_net_18send_buffer_option
+    .weak lb_net_16keepalive_option
+    .weak lb_net_14dont_wait_flag
+    .weak lb_net_12http_invalid
+    .weak lb_net_10http_limit
+    .weak lb_net_16http_unsupported
+    .weak lb_net_17websocket_invalid
+    .weak lb_net_15websocket_limit
+    .weak lb_net_18websocket_alphabet
+    .weak lb_net_14websocket_guid
+    .weak lb_interop_invalid
+    .weak lb_interop_12wrong_thread
+    .weak lb_interop_expired
+    .weak lb_interop_8no_error
+    .weak lb_interop_15connection_type
+    .weak lb_interop_13text_transfer
+    .weak lb_interop_14bytes_transfer
+    .weak lb_interop_13worker_closed
+    .weak lb_interop_11worker_busy
+    .weak lb_files_10write_only
+    .weak lb_files_create
+    .weak lb_files_truncate
+    .weak lb_files_13close_on_exec
+    .weak lb_files_11append_flag
+    .weak lb_files_14exclusive_flag
+    .weak lb_files_17would_block_errno
+    .weak lb_files_14transfer_limit
+    .weak lb_files_20current_directory_fd
+    .weak lb_files_14directory_flag
+    .weak lb_files_14no_follow_flag
+    .weak lb_files_17at_no_follow_flag
+    .weak lb_files_missing
+    .weak lb_files_17permission_denied
+    .weak lb_files_14already_exists
+    .weak lb_files_8no_space
+    .weak lb_files_11would_block
+    .weak lb_files_15invalid_options
+    .weak lb_files_9too_large
+    .weak lb_files_13not_directory
+    .weak lb_files_12is_directory
+    .weak lb_files_20read_only_filesystem
+    .weak lb_files_9not_empty
+    .weak lb_files_12cross_device
+    .weak lb_files_12symlink_loop
+    .weak lb_files_13name_too_long
+    .weak lb_files_failed
+    .weak lb_files_15directory_cycle
+    .weak lb_files_11depth_limit
+    .weak lb_files_12entries_type
+    .weak lb_process_7poll_in
+    .weak lb_process_12poll_hang_up
+    .weak lb_process_10poll_error
+    .weak lb_process_9set_flags
+    .weak lb_process_12non_blocking
+    .weak lb_process_11would_block
+    .weak lb_process_failed
+    .weak lb_process_16interrupt_signal
+    .weak lb_process_16terminate_signal
+    .weak lb_process_17console_interrupt
+    .weak lb_process_13console_break
+    .weak lb_process_13console_close
+    .weak lb_process_14console_logoff
+    .weak lb_process_16console_shutdown
+    .weak lb_process_26console_acknowledgement_ms
+    .weak lb_process_12command_type
+    .weak lb_json_invalid
+    .weak lb_json_14limit_exceeded
+    .weak lb_json_10value_type
+    .weak lb_window_unsupported
+    .weak lb_window_12wrong_thread
+    .weak lb_window_15invalid_options
+    .weak lb_window_failed
+    .weak lb_window_closed
+    .weak lb_window_19presentation_in_use
+    .weak lb_window_13key_positions
+    .weak lb_window_13mac_not_found
+    .weak lb_window_13win_scan_keys
+    .weak lb_clipboard_failed
+    .weak lb_clipboard_10text_limit
+    .weak lb_clipboard_12unicode_text
+    .weak lb_fonts_failed
+    .weak lb_gpu_unsupported
+    .weak lb_gpu_unavailable
+    .weak lb_gpu_12wrong_thread
+    .weak lb_gpu_closed
+    .weak lb_gpu_13invalid_color
+    .weak lb_gpu_failed
+    .weak lb_gpu_16execution_failed
+    .weak lb_gpu_17surface_too_large
+    .weak lb_gpu_16invalid_geometry
+    .weak lb_gpu_13command_limit
+    .weak lb_gpu_14frame_finished
+    .weak lb_gpu_12frame_in_use
+    .weak lb_gpu_13frame_resized
+    .weak lb_gpu_16frame_state_type
+    .weak lb_gpu_10frame_type
+    .weak lb_gpu_18render_target_type
+    .weak lb_gpu_19metal_surface_limit
+    .weak lb_gpu_36VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT
+    .weak lb_gpu_44VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT
+    .weak lb_gpu_27VK_ATTACHMENT_LOAD_OP_CLEAR
+    .weak lb_gpu_31VK_ATTACHMENT_LOAD_OP_DONT_CARE
+    .weak lb_gpu_32VK_ATTACHMENT_STORE_OP_DONT_CARE
+    .weak lb_gpu_28VK_ATTACHMENT_STORE_OP_STORE
+    .weak lb_gpu_19VK_BLEND_FACTOR_ONE
+    .weak lb_gpu_35VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA
+    .weak lb_gpu_25VK_BLEND_FACTOR_SRC_ALPHA
+    .weak lb_gpu_34VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
+    .weak lb_gpu_33VK_BUFFER_USAGE_VERTEX_BUFFER_BIT
+    .weak lb_gpu_24VK_COLOR_COMPONENT_A_BIT
+    .weak lb_gpu_24VK_COLOR_COMPONENT_B_BIT
+    .weak lb_gpu_24VK_COLOR_COMPONENT_G_BIT
+    .weak lb_gpu_24VK_COLOR_COMPONENT_R_BIT
+    .weak lb_gpu_33VK_COLOR_SPACE_SRGB_NONLINEAR_KHR
+    .weak lb_gpu_43VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT
+    .weak lb_gpu_18VK_COMPARE_OP_LESS
+    .weak lb_gpu_33VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR
+    .weak lb_gpu_33VK_DESCRIPTOR_TYPE_STORAGE_BUFFER
+    .weak lb_gpu_24VK_DYNAMIC_STATE_SCISSOR
+    .weak lb_gpu_25VK_DYNAMIC_STATE_VIEWPORT
+    .weak lb_gpu_24VK_ERROR_OUT_OF_DATE_KHR
+    .weak lb_gpu_8VK_FALSE
+    .weak lb_gpu_23VK_FORMAT_B8G8R8A8_SRGB
+    .weak lb_gpu_20VK_FORMAT_D32_SFLOAT
+    .weak lb_gpu_46VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT
+    .weak lb_gpu_29VK_FORMAT_R32G32B32A32_SFLOAT
+    .weak lb_gpu_23VK_FORMAT_R8G8B8A8_SRGB
+    .weak lb_gpu_19VK_FORMAT_UNDEFINED
+    .weak lb_gpu_25VK_IMAGE_ASPECT_COLOR_BIT
+    .weak lb_gpu_25VK_IMAGE_ASPECT_DEPTH_BIT
+    .weak lb_gpu_40VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+    .weak lb_gpu_48VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+    .weak lb_gpu_31VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
+    .weak lb_gpu_16VK_IMAGE_TYPE_2D
+    .weak lb_gpu_35VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT
+    .weak lb_gpu_43VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT
+    .weak lb_gpu_21VK_IMAGE_VIEW_TYPE_2D
+    .weak lb_gpu_29VK_KHR_SURFACE_EXTENSION_NAME
+    .weak lb_gpu_31VK_KHR_SWAPCHAIN_EXTENSION_NAME
+    .weak lb_gpu_35VK_KHR_WIN32_SURFACE_EXTENSION_NAME
+    .weak lb_gpu_35VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+    .weak lb_gpu_36VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+    .weak lb_gpu_35VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+    .weak lb_gpu_12VK_NOT_READY
+    .weak lb_gpu_31VK_PIPELINE_BIND_POINT_GRAPHICS
+    .weak lb_gpu_45VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
+    .weak lb_gpu_42VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT
+    .weak lb_gpu_24VK_PRESENT_MODE_FIFO_KHR
+    .weak lb_gpu_35VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST
+    .weak lb_gpu_21VK_QUEUE_GRAPHICS_BIT
+    .weak lb_gpu_21VK_SAMPLE_COUNT_1_BIT
+    .weak lb_gpu_28VK_SHADER_STAGE_FRAGMENT_BIT
+    .weak lb_gpu_26VK_SHADER_STAGE_VERTEX_BIT
+    .weak lb_gpu_17VK_SUBOPTIMAL_KHR
+    .weak lb_gpu_26VK_SUBPASS_CONTENTS_INLINE
+    .weak lb_gpu_19VK_SUBPASS_EXTERNAL
+    .weak lb_gpu_10VK_SUCCESS
+    .weak lb_gpu_10VK_TIMEOUT
+    .weak lb_gpu_7VK_TRUE
+    .weak lb_gpu_34VK_STRUCTURE_TYPE_APPLICATION_INFO
+    .weak lb_gpu_36VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO
+    .weak lb_gpu_46VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO
+    .weak lb_gpu_43VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO
+    .weak lb_gpu_49VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO
+    .weak lb_gpu_42VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO
+    .weak lb_gpu_37VK_STRUCTURE_TYPE_COPY_DESCRIPTOR_SET
+    .weak lb_gpu_45VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO
+    .weak lb_gpu_46VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO
+    .weak lb_gpu_51VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO
+    .weak lb_gpu_36VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO
+    .weak lb_gpu_42VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO
+    .weak lb_gpu_35VK_STRUCTURE_TYPE_FENCE_CREATE_INFO
+    .weak lb_gpu_41VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO
+    .weak lb_gpu_47VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO
+    .weak lb_gpu_35VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO
+    .weak lb_gpu_40VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO
+    .weak lb_gpu_38VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO
+    .weak lb_gpu_38VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO
+    .weak lb_gpu_56VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO
+    .weak lb_gpu_58VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO
+    .weak lb_gpu_52VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO
+    .weak lb_gpu_59VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO
+    .weak lb_gpu_45VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO
+    .weak lb_gpu_56VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO
+    .weak lb_gpu_58VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO
+    .weak lb_gpu_51VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO
+    .weak lb_gpu_57VK_STRUCTURE_TYPE_PIPELINE_TESSELLATION_STATE_CREATE_INFO
+    .weak lb_gpu_57VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO
+    .weak lb_gpu_53VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO
+    .weak lb_gpu_34VK_STRUCTURE_TYPE_PRESENT_INFO_KHR
+    .weak lb_gpu_40VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO
+    .weak lb_gpu_41VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO
+    .weak lb_gpu_39VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO
+    .weak lb_gpu_43VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO
+    .weak lb_gpu_29VK_STRUCTURE_TYPE_SUBMIT_INFO
+    .weak lb_gpu_43VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR
+    .weak lb_gpu_47VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR
+    .weak lb_gpu_38VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET
+    .weak lb_gpu_25vulkan_windows_extensions
+    .weak lb_gpu_22vulkan_api_version_1_0
     .weak lb_memory_move_0g1_u8
     .weak lb_memory_copy_0g1_u8
     .text
@@ -1830,6 +2164,105 @@ lb_io_SliceReader_over:
     .seh_endproc
 
     .p2align 4
+    .globl lb_io_SliceReader_remaining
+lb_io_SliceReader_remaining:
+    .seh_proc lb_io_SliceReader_remaining
+    pushq %rbp
+    .seh_pushreg %rbp
+    subq $208, %rsp
+    .seh_stackalloc 208
+    movq %rsp, %rbp
+    .seh_setframe %rbp, 0
+    movq %rdi, 200(%rbp)
+    .seh_savereg %rdi, 200
+    movq %rsi, 192(%rbp)
+    .seh_savereg %rsi, 192
+    movdqu %xmm6, 176(%rbp)
+    .seh_savexmm %xmm6, 176
+    movdqu %xmm7, 160(%rbp)
+    .seh_savexmm %xmm7, 160
+    movdqu %xmm8, 144(%rbp)
+    .seh_savexmm %xmm8, 144
+    movdqu %xmm9, 128(%rbp)
+    .seh_savexmm %xmm9, 128
+    movdqu %xmm10, 112(%rbp)
+    .seh_savexmm %xmm10, 112
+    movdqu %xmm11, 96(%rbp)
+    .seh_savexmm %xmm11, 96
+    movdqu %xmm12, 80(%rbp)
+    .seh_savexmm %xmm12, 80
+    movdqu %xmm13, 64(%rbp)
+    .seh_savexmm %xmm13, 64
+    movdqu %xmm14, 48(%rbp)
+    .seh_savexmm %xmm14, 48
+    movdqu %xmm15, 32(%rbp)
+    .seh_savexmm %xmm15, 32
+    movq %rbx, 24(%rbp)
+    .seh_savereg %rbx, 24
+    movq %r12, 16(%rbp)
+    .seh_savereg %r12, 16
+    .seh_endprologue
+    movq %rcx, 224(%rbp)
+    movq %rdx, 232(%rbp)
+    movq %r8, 240(%rbp)
+    movq %r9, 248(%rbp)
+    movq 224(%rbp), %rax
+    movq %rax, 8(%rbp)
+    leaq 8(%rbp), %r10
+    movq (%r10), %r12
+    movq $8, %rcx
+    movq %r12, %rbx
+    addq %rcx, %rbx
+    movq %rbx, %r10
+    movq (%r10), %rbx
+    movq $16, %rcx
+    addq %rcx, %r12
+    movq %r12, %r10
+    movq (%r10), %r12
+    movq %rbx, %rax
+    movq %r12, %rcx
+    subq %rcx, %rax
+    jnc 1f
+    leaq .Ltext_20(%rip), %rdi
+    leaq .Ltext_83(%rip), %rsi
+    movq %rdx, %r8
+    movq %rsi, %rdx
+    movq %rdi, %rcx
+    subq $32, %rsp
+    call lb_core_7trap_at
+    addq $32, %rsp
+1:
+    movq %rax, %rbx
+    movq %rbx, %rax
+    movq 200(%rbp), %rdi
+    movq 192(%rbp), %rsi
+    movdqu 176(%rbp), %xmm6
+    movdqu 160(%rbp), %xmm7
+    movdqu 144(%rbp), %xmm8
+    movdqu 128(%rbp), %xmm9
+    movdqu 112(%rbp), %xmm10
+    movdqu 96(%rbp), %xmm11
+    movdqu 80(%rbp), %xmm12
+    movdqu 64(%rbp), %xmm13
+    movdqu 48(%rbp), %xmm14
+    movdqu 32(%rbp), %xmm15
+    movq 24(%rbp), %rbx
+    movq 16(%rbp), %r12
+    leaq 208(%rbp), %rsp
+    popq %rbp
+    ret
+.L5_1:
+    leaq .Ltext_20(%rip), %rdi
+    leaq .Ltext_0(%rip), %rsi
+    movq %rdx, %r8
+    movq %rsi, %rdx
+    movq %rdi, %rcx
+    subq $32, %rsp
+    call lb_core_7trap_at
+    addq $32, %rsp
+    .seh_endproc
+
+    .p2align 4
     .globl lb_io_SliceReader_read
 lb_io_SliceReader_read:
     .seh_proc lb_io_SliceReader_read
@@ -1913,8 +2346,8 @@ lb_io_SliceReader_read:
     addq $32, %rsp
 1:
     movq %rax, %r14
-    jmp .L5_8
-.L5_7:
+    jmp .L6_8
+.L6_7:
     leaq .Ltext_20(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -1923,7 +2356,7 @@ lb_io_SliceReader_read:
     subq $32, %rsp
     call lb_core_7trap_at
     addq $32, %rsp
-.L5_8:
+.L6_8:
     leaq 48(%rbp), %rax
     movq %rax, 24(%rbp)
     movq 24(%rbp), %rax
@@ -1933,15 +2366,15 @@ lb_io_SliceReader_read:
     movq %r12, %r10
     movq (%r10), %r12
     cmpq %r14, %r12
-    jae .L5_2
-.L5_1:
+    jae .L6_2
+.L6_1:
     movq %r12, %rax
     movq %rax, 0(%rbp)
-    jmp .L5_3
-.L5_2:
+    jmp .L6_3
+.L6_2:
     movq %r14, %rax
     movq %rax, 0(%rbp)
-.L5_3:
+.L6_3:
     movq %r15, %r10
     movq (%r10), %r14
     movq $1, %rcx
@@ -1972,8 +2405,8 @@ lb_io_SliceReader_read:
 1:
     movq 8(%rbp), %rax
     cmpq %rbx, %rax
-    jbe .L5_4
-.L5_5:
+    jbe .L6_4
+.L6_5:
     leaq .Ltext_21(%rip), %rdi
     leaq .Ltext_3(%rip), %rsi
     movq %rdx, %r8
@@ -1982,7 +2415,7 @@ lb_io_SliceReader_read:
     subq $32, %rsp
     call lb_core_7trap_at
     addq $32, %rsp
-.L5_4:
+.L6_4:
     movq 8(%rbp), %rax
     movq %rax, %r12
     addq %r14, %r12
@@ -2075,7 +2508,7 @@ lb_io_SliceReader_read:
     leaq 336(%rbp), %rsp
     popq %rbp
     ret
-.L5_6:
+.L6_6:
     leaq .Ltext_23(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -2184,7 +2617,7 @@ lb_io_SliceWriter_over:
     leaq 272(%rbp), %rsp
     popq %rbp
     ret
-.L6_1:
+.L7_1:
     leaq .Ltext_24(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -2285,8 +2718,8 @@ lb_io_SliceWriter_written:
 1:
     movq $0, %rax
     cmpq %r12, %rax
-    jbe .L7_1
-.L7_2:
+    jbe .L8_1
+.L8_2:
     leaq .Ltext_25(%rip), %rdi
     leaq .Ltext_3(%rip), %rsi
     movq %rdx, %r8
@@ -2295,7 +2728,7 @@ lb_io_SliceWriter_written:
     subq $32, %rsp
     call lb_core_7trap_at
     addq $32, %rsp
-.L7_1:
+.L8_1:
     leaq 0(%rbp), %rbx
     movq %rbx, %r10
     movq %r13, (%r10)
@@ -2338,7 +2771,7 @@ lb_io_SliceWriter_written:
     leaq 256(%rbp), %rsp
     popq %rbp
     ret
-.L7_3:
+.L8_3:
     leaq .Ltext_25(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -2417,8 +2850,8 @@ lb_io_SliceWriter_write:
     movq (%r10), %r12
     movq $0, %rcx
     cmpq %rcx, %r12
-    jne .L8_2
-.L8_1:
+    jne .L9_2
+.L9_1:
     leaq 88(%rbp), %rbx
     movq $0, %rax
     movq %rbx, %r10
@@ -2459,10 +2892,10 @@ lb_io_SliceWriter_write:
     leaq 352(%rbp), %rsp
     popq %rbp
     ret
-.L8_4:
-    jmp .L8_3
-.L8_2:
-.L8_3:
+.L9_4:
+    jmp .L9_3
+.L9_2:
+.L9_3:
     movq $8, %rcx
     movq %r14, %r13
     addq %rcx, %r13
@@ -2491,8 +2924,8 @@ lb_io_SliceWriter_write:
     movq %rax, %rbx
     movq $0, %rcx
     cmpq %rcx, %rbx
-    jne .L8_6
-.L8_5:
+    jne .L9_6
+.L9_5:
     leaq 88(%rbp), %rbx
     movq $8, %rcx
     movq %rbx, %r12
@@ -2554,20 +2987,20 @@ lb_io_SliceWriter_write:
     leaq 352(%rbp), %rsp
     popq %rbp
     ret
-.L8_8:
-    jmp .L8_7
-.L8_6:
-.L8_7:
+.L9_8:
+    jmp .L9_7
+.L9_6:
+.L9_7:
     cmpq %rbx, %r12
-    jae .L8_10
-.L8_9:
+    jae .L9_10
+.L9_9:
     movq %r12, %rax
     movq %rax, 0(%rbp)
-    jmp .L8_11
-.L8_10:
+    jmp .L9_11
+.L9_10:
     movq %rbx, %rax
     movq %rax, 0(%rbp)
-.L8_11:
+.L9_11:
     movq %r14, %r10
     movq (%r10), %r15
     movq $1, %rcx
@@ -2598,8 +3031,8 @@ lb_io_SliceWriter_write:
 1:
     movq 8(%rbp), %rax
     cmpq %r13, %rax
-    jbe .L8_12
-.L8_13:
+    jbe .L9_12
+.L9_13:
     leaq .Ltext_28(%rip), %rdi
     leaq .Ltext_3(%rip), %rsi
     movq %rdx, %r8
@@ -2608,7 +3041,7 @@ lb_io_SliceWriter_write:
     subq $32, %rsp
     call lb_core_7trap_at
     addq $32, %rsp
-.L8_12:
+.L9_12:
     movq 8(%rbp), %rax
     movq %rax, %r12
     addq %r15, %r12
@@ -2701,7 +3134,7 @@ lb_io_SliceWriter_write:
     leaq 352(%rbp), %rsp
     popq %rbp
     ret
-.L8_14:
+.L9_14:
     leaq .Ltext_30(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -2776,8 +3209,8 @@ lb_io_BufferedReader_over:
     movq (%r10), %r12
     movq $0, %rcx
     cmpq %rcx, %r12
-    jne .L9_2
-.L9_1:
+    jne .L10_2
+.L10_1:
     leaq 104(%rbp), %rbx
     movq $48, %rcx
     movq %rbx, %r12
@@ -2838,10 +3271,10 @@ lb_io_BufferedReader_over:
     leaq 400(%rbp), %rsp
     popq %rbp
     ret
-.L9_4:
-    jmp .L9_3
-.L9_2:
-.L9_3:
+.L10_4:
+    jmp .L10_3
+.L10_2:
+.L10_3:
     leaq 8(%rbp), %r12
     movq %r12, %r11
     pxor %xmm8, %xmm8
@@ -2916,8 +3349,107 @@ lb_io_BufferedReader_over:
     leaq 400(%rbp), %rsp
     popq %rbp
     ret
-.L9_5:
+.L10_5:
     leaq .Ltext_32(%rip), %rdi
+    leaq .Ltext_0(%rip), %rsi
+    movq %rdx, %r8
+    movq %rsi, %rdx
+    movq %rdi, %rcx
+    subq $32, %rsp
+    call lb_core_7trap_at
+    addq $32, %rsp
+    .seh_endproc
+
+    .p2align 4
+    .globl lb_io_BufferedReader_buffered
+lb_io_BufferedReader_buffered:
+    .seh_proc lb_io_BufferedReader_buffered
+    pushq %rbp
+    .seh_pushreg %rbp
+    subq $208, %rsp
+    .seh_stackalloc 208
+    movq %rsp, %rbp
+    .seh_setframe %rbp, 0
+    movq %rdi, 200(%rbp)
+    .seh_savereg %rdi, 200
+    movq %rsi, 192(%rbp)
+    .seh_savereg %rsi, 192
+    movdqu %xmm6, 176(%rbp)
+    .seh_savexmm %xmm6, 176
+    movdqu %xmm7, 160(%rbp)
+    .seh_savexmm %xmm7, 160
+    movdqu %xmm8, 144(%rbp)
+    .seh_savexmm %xmm8, 144
+    movdqu %xmm9, 128(%rbp)
+    .seh_savexmm %xmm9, 128
+    movdqu %xmm10, 112(%rbp)
+    .seh_savexmm %xmm10, 112
+    movdqu %xmm11, 96(%rbp)
+    .seh_savexmm %xmm11, 96
+    movdqu %xmm12, 80(%rbp)
+    .seh_savexmm %xmm12, 80
+    movdqu %xmm13, 64(%rbp)
+    .seh_savexmm %xmm13, 64
+    movdqu %xmm14, 48(%rbp)
+    .seh_savexmm %xmm14, 48
+    movdqu %xmm15, 32(%rbp)
+    .seh_savexmm %xmm15, 32
+    movq %rbx, 24(%rbp)
+    .seh_savereg %rbx, 24
+    movq %r12, 16(%rbp)
+    .seh_savereg %r12, 16
+    .seh_endprologue
+    movq %rcx, 224(%rbp)
+    movq %rdx, 232(%rbp)
+    movq %r8, 240(%rbp)
+    movq %r9, 248(%rbp)
+    movq 224(%rbp), %rax
+    movq %rax, 8(%rbp)
+    leaq 8(%rbp), %r10
+    movq (%r10), %r12
+    movq $40, %rcx
+    movq %r12, %rbx
+    addq %rcx, %rbx
+    movq %rbx, %r10
+    movq (%r10), %rbx
+    movq $32, %rcx
+    addq %rcx, %r12
+    movq %r12, %r10
+    movq (%r10), %r12
+    movq %rbx, %rax
+    movq %r12, %rcx
+    subq %rcx, %rax
+    jnc 1f
+    leaq .Ltext_33(%rip), %rdi
+    leaq .Ltext_83(%rip), %rsi
+    movq %rdx, %r8
+    movq %rsi, %rdx
+    movq %rdi, %rcx
+    subq $32, %rsp
+    call lb_core_7trap_at
+    addq $32, %rsp
+1:
+    movq %rax, %rbx
+    movq %rbx, %rax
+    movq 200(%rbp), %rdi
+    movq 192(%rbp), %rsi
+    movdqu 176(%rbp), %xmm6
+    movdqu 160(%rbp), %xmm7
+    movdqu 144(%rbp), %xmm8
+    movdqu 128(%rbp), %xmm9
+    movdqu 112(%rbp), %xmm10
+    movdqu 96(%rbp), %xmm11
+    movdqu 80(%rbp), %xmm12
+    movdqu 64(%rbp), %xmm13
+    movdqu 48(%rbp), %xmm14
+    movdqu 32(%rbp), %xmm15
+    movq 24(%rbp), %rbx
+    movq 16(%rbp), %r12
+    leaq 208(%rbp), %rsp
+    popq %rbp
+    ret
+.L11_1:
+    leaq .Ltext_33(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -2996,8 +3528,8 @@ lb_io_BufferedReader_read:
     movq (%r10), %r13
     movq $0, %rcx
     cmpq %rcx, %r13
-    jne .L10_2
-.L10_1:
+    jne .L12_2
+.L12_1:
     leaq 168(%rbp), %rbx
     movq $0, %rax
     movq %rbx, %r10
@@ -3038,10 +3570,10 @@ lb_io_BufferedReader_read:
     leaq 432(%rbp), %rsp
     popq %rbp
     ret
-.L10_4:
-    jmp .L10_3
-.L10_2:
-.L10_3:
+.L12_4:
+    jmp .L12_3
+.L12_2:
+.L12_3:
     movq 16(%rbp), %rax
     movq $32, %rcx
     addq %rcx, %rax
@@ -3057,8 +3589,8 @@ lb_io_BufferedReader_read:
     movq (%r10), %r12
     movq 40(%rbp), %rax
     cmpq %r12, %rax
-    jne .L10_6
-.L10_5:
+    jne .L12_6
+.L12_5:
     movq 16(%rbp), %r10
     movq (%r10), %r12
     movq 16(%rbp), %rax
@@ -3097,9 +3629,9 @@ lb_io_BufferedReader_read:
     movq %r12, %r10
     movzbl (%r10), %r12d
     testl %r12d, %r12d
-    jne .L10_9
-    jmp .L10_8
-.L10_9:
+    jne .L12_9
+    jmp .L12_8
+.L12_9:
     movq $8, %rcx
     movq %r15, %rbx
     addq %rcx, %rbx
@@ -3149,8 +3681,8 @@ lb_io_BufferedReader_read:
     leaq 432(%rbp), %rsp
     popq %rbp
     ret
-.L10_10:
-.L10_8:
+.L12_10:
+.L12_8:
     movq %r15, %r10
     movq (%r10), %r12
     movq $8, %rcx
@@ -3159,8 +3691,8 @@ lb_io_BufferedReader_read:
     movq %r14, %r10
     movq (%r10), %r14
     cmpq %r14, %r12
-    jbe .L10_12
-.L10_11:
+    jbe .L12_12
+.L12_11:
     leaq 168(%rbp), %rbx
     movq $8, %rcx
     movq %rbx, %r12
@@ -3222,10 +3754,10 @@ lb_io_BufferedReader_read:
     leaq 432(%rbp), %rsp
     popq %rbp
     ret
-.L10_14:
-    jmp .L10_13
-.L10_12:
-.L10_13:
+.L12_14:
+    jmp .L12_13
+.L12_12:
+.L12_13:
     movq $0, %rax
     movq 48(%rbp), %r10
     movq %rax, (%r10)
@@ -3234,12 +3766,12 @@ lb_io_BufferedReader_read:
     movq %r12, %rbx
     movq $0, %rax
     movq %rax, %r14
-    jmp .L10_7
-.L10_6:
+    jmp .L12_7
+.L12_6:
     movq %r12, %rbx
     movq 40(%rbp), %rax
     movq %rax, %r14
-.L10_7:
+.L12_7:
     movq %rbx, %rax
     movq %r14, %rcx
     subq %rcx, %rax
@@ -3254,8 +3786,8 @@ lb_io_BufferedReader_read:
     addq $32, %rsp
 1:
     movq %rax, %r12
-    jmp .L10_22
-.L10_21:
+    jmp .L12_22
+.L12_21:
     leaq .Ltext_33(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -3264,19 +3796,19 @@ lb_io_BufferedReader_read:
     subq $32, %rsp
     call lb_core_7trap_at
     addq $32, %rsp
-.L10_22:
+.L12_22:
     movq 56(%rbp), %r10
     movq (%r10), %rbx
     cmpq %r12, %rbx
-    jae .L10_16
-.L10_15:
+    jae .L12_16
+.L12_15:
     movq %rbx, %rax
     movq %rax, 8(%rbp)
-    jmp .L10_17
-.L10_16:
+    jmp .L12_17
+.L12_16:
     movq %r12, %rax
     movq %rax, 8(%rbp)
-.L10_17:
+.L12_17:
     movq 16(%rbp), %rax
     movq $16, %rcx
     movq %rax, %rbx
@@ -3313,8 +3845,8 @@ lb_io_BufferedReader_read:
     addq $32, %rsp
 1:
     cmpq %r13, %r14
-    jbe .L10_18
-.L10_19:
+    jbe .L12_18
+.L12_19:
     leaq .Ltext_34(%rip), %rdi
     leaq .Ltext_3(%rip), %rsi
     movq %rdx, %r8
@@ -3323,7 +3855,7 @@ lb_io_BufferedReader_read:
     subq $32, %rsp
     call lb_core_7trap_at
     addq $32, %rsp
-.L10_18:
+.L12_18:
     movq %r15, %rbx
     addq %r14, %rbx
     movq %r13, %rax
@@ -3416,7 +3948,7 @@ lb_io_BufferedReader_read:
     leaq 432(%rbp), %rsp
     popq %rbp
     ret
-.L10_20:
+.L12_20:
     leaq .Ltext_36(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -3491,8 +4023,8 @@ lb_io_BufferedWriter_over:
     movq (%r10), %r12
     movq $0, %rcx
     cmpq %rcx, %r12
-    jne .L11_2
-.L11_1:
+    jne .L13_2
+.L13_1:
     leaq 96(%rbp), %rbx
     movq $40, %rcx
     movq %rbx, %r12
@@ -3553,10 +4085,10 @@ lb_io_BufferedWriter_over:
     leaq 384(%rbp), %rsp
     popq %rbp
     ret
-.L11_4:
-    jmp .L11_3
-.L11_2:
-.L11_3:
+.L13_4:
+    jmp .L13_3
+.L13_2:
+.L13_3:
     leaq 8(%rbp), %r12
     movq %r12, %r11
     pxor %xmm8, %xmm8
@@ -3625,7 +4157,7 @@ lb_io_BufferedWriter_over:
     leaq 384(%rbp), %rsp
     popq %rbp
     ret
-.L11_5:
+.L13_5:
     leaq .Ltext_38(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -3702,7 +4234,7 @@ lb_io_BufferedWriter_buffered:
     leaq 192(%rbp), %rsp
     popq %rbp
     ret
-.L12_1:
+.L14_1:
     leaq .Ltext_39(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -3714,212 +4246,149 @@ lb_io_BufferedWriter_buffered:
     .seh_endproc
 
     .p2align 4
-    .globl lb_io_BufferedWriter_write
-lb_io_BufferedWriter_write:
-    .seh_proc lb_io_BufferedWriter_write
+    .globl lb_io_BufferedWriter_flush
+lb_io_BufferedWriter_flush:
+    .seh_proc lb_io_BufferedWriter_flush
     pushq %rbp
     .seh_pushreg %rbp
-    subq $576, %rsp
-    .seh_stackalloc 576
+    subq $448, %rsp
+    .seh_stackalloc 448
     movq %rsp, %rbp
     .seh_setframe %rbp, 0
-    movq %rcx, 392(%rbp)
-    movq %rdi, 568(%rbp)
-    .seh_savereg %rdi, 568
-    movq %rsi, 560(%rbp)
-    .seh_savereg %rsi, 560
-    movdqu %xmm6, 544(%rbp)
-    .seh_savexmm %xmm6, 544
-    movdqu %xmm7, 528(%rbp)
-    .seh_savexmm %xmm7, 528
-    movdqu %xmm8, 512(%rbp)
-    .seh_savexmm %xmm8, 512
-    movdqu %xmm9, 496(%rbp)
-    .seh_savexmm %xmm9, 496
-    movdqu %xmm10, 480(%rbp)
-    .seh_savexmm %xmm10, 480
-    movdqu %xmm11, 464(%rbp)
-    .seh_savexmm %xmm11, 464
-    movdqu %xmm12, 448(%rbp)
-    .seh_savexmm %xmm12, 448
-    movdqu %xmm13, 432(%rbp)
-    .seh_savexmm %xmm13, 432
-    movdqu %xmm14, 416(%rbp)
-    .seh_savexmm %xmm14, 416
-    movdqu %xmm15, 400(%rbp)
-    .seh_savexmm %xmm15, 400
-    movq %rbx, 384(%rbp)
-    .seh_savereg %rbx, 384
-    movq %r12, 376(%rbp)
-    .seh_savereg %r12, 376
-    movq %r13, 368(%rbp)
-    .seh_savereg %r13, 368
-    movq %r14, 360(%rbp)
-    .seh_savereg %r14, 360
-    movq %r15, 352(%rbp)
-    .seh_savereg %r15, 352
+    movq %rcx, 264(%rbp)
+    movq %rdi, 440(%rbp)
+    .seh_savereg %rdi, 440
+    movq %rsi, 432(%rbp)
+    .seh_savereg %rsi, 432
+    movdqu %xmm6, 416(%rbp)
+    .seh_savexmm %xmm6, 416
+    movdqu %xmm7, 400(%rbp)
+    .seh_savexmm %xmm7, 400
+    movdqu %xmm8, 384(%rbp)
+    .seh_savexmm %xmm8, 384
+    movdqu %xmm9, 368(%rbp)
+    .seh_savexmm %xmm9, 368
+    movdqu %xmm10, 352(%rbp)
+    .seh_savexmm %xmm10, 352
+    movdqu %xmm11, 336(%rbp)
+    .seh_savexmm %xmm11, 336
+    movdqu %xmm12, 320(%rbp)
+    .seh_savexmm %xmm12, 320
+    movdqu %xmm13, 304(%rbp)
+    .seh_savexmm %xmm13, 304
+    movdqu %xmm14, 288(%rbp)
+    .seh_savexmm %xmm14, 288
+    movdqu %xmm15, 272(%rbp)
+    .seh_savexmm %xmm15, 272
+    movq %rbx, 256(%rbp)
+    .seh_savereg %rbx, 256
+    movq %r12, 248(%rbp)
+    .seh_savereg %r12, 248
+    movq %r13, 240(%rbp)
+    .seh_savereg %r13, 240
+    movq %r14, 232(%rbp)
+    .seh_savereg %r14, 232
+    movq %r15, 224(%rbp)
+    .seh_savereg %r15, 224
     .seh_endprologue
-    movq %rcx, 592(%rbp)
-    movq %rdx, 600(%rbp)
-    movq %r8, 608(%rbp)
-    movq %r9, 616(%rbp)
-    movq 600(%rbp), %rax
-    movq %rax, 304(%rbp)
-    movq 608(%rbp), %r10
-    leaq 288(%rbp), %r11
-    movups 0(%r10), %xmm8
-    movups %xmm8, 0(%r11)
-    leaq 304(%rbp), %r10
-    movq (%r10), %rax
-    movq %rax, 16(%rbp)
-    leaq 288(%rbp), %rax
-    movq %rax, 104(%rbp)
-    movq 104(%rbp), %rax
-    movq $8, %rcx
-    addq %rcx, %rax
-    movq %rax, 96(%rbp)
-    movq 96(%rbp), %r10
-    movq (%r10), %r13
-    movq $0, %rcx
-    cmpq %rcx, %r13
-    jne .L13_2
-.L13_1:
-    leaq 312(%rbp), %rbx
-    movq $0, %rax
-    movq %rbx, %r10
-    movq %rax, (%r10)
-    movq $32, %rcx
-    movq %rbx, %r12
-    addq %rcx, %r12
-    movl $0, %eax
-    movq %r12, %r10
-    movb %al, (%r10)
-    movq %rbx, %rsi
-    movq 392(%rbp), %rdi
-    movq $40, %rdx
-    movq %rdx, %r8
-    movq %rsi, %rdx
-    movq %rdi, %rcx
-    subq $32, %rsp
-    call memcpy
-    addq $32, %rsp
-    movq 392(%rbp), %rax
-    movq 568(%rbp), %rdi
-    movq 560(%rbp), %rsi
-    movdqu 544(%rbp), %xmm6
-    movdqu 528(%rbp), %xmm7
-    movdqu 512(%rbp), %xmm8
-    movdqu 496(%rbp), %xmm9
-    movdqu 480(%rbp), %xmm10
-    movdqu 464(%rbp), %xmm11
-    movdqu 448(%rbp), %xmm12
-    movdqu 432(%rbp), %xmm13
-    movdqu 416(%rbp), %xmm14
-    movdqu 400(%rbp), %xmm15
-    movq 384(%rbp), %rbx
-    movq 376(%rbp), %r12
-    movq 368(%rbp), %r13
-    movq 360(%rbp), %r14
-    movq 352(%rbp), %r15
-    leaq 576(%rbp), %rsp
-    popq %rbp
-    ret
-.L13_4:
-    jmp .L13_3
-.L13_2:
-.L13_3:
-    movq 16(%rbp), %rax
-    movq $32, %rcx
-    addq %rcx, %rax
-    movq %rax, 88(%rbp)
-    movq 88(%rbp), %r10
-    movq (%r10), %r15
-    movq 16(%rbp), %rax
-    movq $16, %rcx
-    addq %rcx, %rax
+    movq %rcx, 464(%rbp)
+    movq %rdx, 472(%rbp)
+    movq %r8, 480(%rbp)
+    movq %r9, 488(%rbp)
+    movq 472(%rbp), %rax
+    movq %rax, 184(%rbp)
+    leaq 184(%rbp), %r10
+    movq (%r10), %r14
+    leaq 176(%rbp), %rax
     movq %rax, 80(%rbp)
-    movq 80(%rbp), %rax
-    movq $8, %rcx
+    movq $0, %rax
+    movq 80(%rbp), %r10
+    movq %rax, (%r10)
+    movq $16, %rcx
+    movq %r14, %rax
     addq %rcx, %rax
     movq %rax, 72(%rbp)
     movq 72(%rbp), %r10
-    movq (%r10), %r13
-    cmpq %r13, %r15
-    jne .L13_6
-.L13_5:
-    leaq 200(%rbp), %rax
+    movq (%r10), %rbx
+    movq 72(%rbp), %rax
+    movq $8, %rcx
+    addq %rcx, %rax
+    movq %rax, 64(%rbp)
+    movq 64(%rbp), %r10
+    movq (%r10), %rax
     movq %rax, 56(%rbp)
-    movq $0, %rax
-    movq 56(%rbp), %r10
-    movq %rax, (%r10)
-    movq 80(%rbp), %r10
+    movq $32, %rcx
+    movq %r14, %rax
+    addq %rcx, %rax
+    movq %rax, 48(%rbp)
+    movq 48(%rbp), %r10
     movq (%r10), %r13
-    movq 72(%rbp), %r10
-    movq (%r10), %r15
-    movq 88(%rbp), %r10
-    movq (%r10), %r14
+    movq 56(%rbp), %rax
     movq $1, %rcx
+    addq %rcx, %rax
+    movq %rax, 40(%rbp)
+    movq $0, %rax
+    movq 40(%rbp), %rcx
+    cmpq %rcx, %rax
+    jb 1f
+    leaq .Ltext_40(%rip), %rdi
+    leaq .Ltext_3(%rip), %rsi
+    movq %rdx, %r8
+    movq %rsi, %rdx
+    movq %rdi, %rcx
+    subq $32, %rsp
+    call lb_core_7trap_at
+    addq $32, %rsp
+1:
+    movq 40(%rbp), %rcx
+    cmpq %rcx, %r13
+    jb 1f
+    leaq .Ltext_40(%rip), %rdi
+    leaq .Ltext_3(%rip), %rsi
+    movq %rdx, %r8
+    movq %rsi, %rdx
+    movq %rdi, %rcx
+    subq $32, %rsp
+    call lb_core_7trap_at
+    addq $32, %rsp
+1:
+    movq $0, %rax
+    cmpq %r13, %rax
+    jbe .L15_3
+.L15_4:
+    leaq .Ltext_40(%rip), %rdi
+    leaq .Ltext_3(%rip), %rsi
+    movq %rdx, %r8
+    movq %rsi, %rdx
+    movq %rdi, %rcx
+    subq $32, %rsp
+    call lb_core_7trap_at
+    addq $32, %rsp
+.L15_3:
+    leaq 136(%rbp), %r12
+    movq %r12, %r10
+    movq %rbx, (%r10)
+    movq $8, %rcx
+    movq %r12, %r15
     addq %rcx, %r15
-    movq $0, %rax
-    cmpq %r15, %rax
-    jb 1f
-    leaq .Ltext_40(%rip), %rdi
-    leaq .Ltext_3(%rip), %rsi
-    movq %rdx, %r8
-    movq %rsi, %rdx
-    movq %rdi, %rcx
-    subq $32, %rsp
-    call lb_core_7trap_at
-    addq $32, %rsp
-1:
-    cmpq %r15, %r14
-    jb 1f
-    leaq .Ltext_40(%rip), %rdi
-    leaq .Ltext_3(%rip), %rsi
-    movq %rdx, %r8
-    movq %rsi, %rdx
-    movq %rdi, %rcx
-    subq $32, %rsp
-    call lb_core_7trap_at
-    addq $32, %rsp
-1:
-    movq $0, %rax
-    cmpq %r14, %rax
-    jbe .L13_19
-.L13_20:
-    leaq .Ltext_40(%rip), %rdi
-    leaq .Ltext_3(%rip), %rsi
-    movq %rdx, %r8
-    movq %rsi, %rdx
-    movq %rdi, %rcx
-    subq $32, %rsp
-    call lb_core_7trap_at
-    addq $32, %rsp
-.L13_19:
-    leaq 160(%rbp), %r15
     movq %r15, %r10
     movq %r13, (%r10)
-    movq $8, %rcx
-    movq %r15, %r12
-    addq %rcx, %r12
-    movq %r12, %r10
-    movq %r14, (%r10)
     subq $64, %rsp
-    movq 16(%rbp), %r10
+    movq %r14, %r10
     leaq 32(%rsp), %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
     leaq 32(%rsp), %rax
     movq %rax, 8(%rsp)
-    movq %r15, %r10
+    movq %r12, %r10
     leaq 48(%rsp), %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
     leaq 48(%rsp), %rax
     movq %rax, 16(%rsp)
-    movq 56(%rbp), %rax
+    movq 80(%rbp), %rax
     movq %rax, 24(%rsp)
-    leaq 128(%rbp), %rax
+    leaq 104(%rbp), %rax
     movq %rax, (%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
@@ -3927,34 +4396,34 @@ lb_io_BufferedWriter_write:
     movq 24(%rsp), %r9
     call lb_io_9write_all
     addq $64, %rsp
-    leaq 128(%rbp), %r15
+    leaq 104(%rbp), %r15
     movq $24, %rcx
     movq %r15, %r12
     addq %rcx, %r12
     movq %r12, %r10
     movzbl (%r10), %r12d
     testl %r12d, %r12d
-    jne .L13_22
-    jmp .L13_21
-.L13_22:
-    leaq 176(%rbp), %rax
-    movq %rax, 48(%rbp)
+    jne .L15_6
+    jmp .L15_5
+.L15_6:
+    leaq 152(%rbp), %rax
+    movq %rax, 24(%rbp)
     movq %r15, %r10
-    movq 48(%rbp), %r11
+    movq 24(%rbp), %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
     movq 16(%r10), %rax
     movq %rax, 16(%r11)
-    jmp .L13_17
-.L13_21:
-    jmp .L13_18
-.L13_17:
-    movq 88(%rbp), %r10
+    jmp .L15_1
+.L15_5:
+    jmp .L15_2
+.L15_1:
+    movq 48(%rbp), %r10
+    movq (%r10), %r12
+    movq 80(%rbp), %r10
     movq (%r10), %r13
-    movq 56(%rbp), %r10
-    movq (%r10), %r14
-    movq %r13, %rax
-    movq %r14, %rcx
+    movq %r12, %rax
+    movq %r13, %rcx
     subq %rcx, %rax
     jnc 1f
     leaq .Ltext_41(%rip), %rdi
@@ -3966,169 +4435,271 @@ lb_io_BufferedWriter_write:
     call lb_core_7trap_at
     addq $32, %rsp
 1:
-    movq %rax, %r13
-    movq 88(%rbp), %r10
-    movq %r13, (%r10)
-    movq 80(%rbp), %r10
-    movq (%r10), %r14
+    movq %rax, %r12
+    movq 48(%rbp), %r10
+    movq %r12, (%r10)
     movq 72(%rbp), %r10
-    movq (%r10), %r15
-    movq 56(%rbp), %r10
-    movq (%r10), %r12
-    movq $1, %rcx
-    movq %r15, %r13
-    addq %rcx, %r13
-    cmpq %r13, %r12
-    jb 1f
-    leaq .Ltext_42(%rip), %rdi
-    leaq .Ltext_3(%rip), %rsi
-    movq %rdx, %r8
-    movq %rsi, %rdx
-    movq %rdi, %rcx
-    subq $32, %rsp
-    call lb_core_7trap_at
-    addq $32, %rsp
-1:
-    cmpq %r13, %r15
-    jb 1f
-    leaq .Ltext_42(%rip), %rdi
-    leaq .Ltext_3(%rip), %rsi
-    movq %rdx, %r8
-    movq %rsi, %rdx
-    movq %rdi, %rcx
-    subq $32, %rsp
-    call lb_core_7trap_at
-    addq $32, %rsp
-1:
-    cmpq %r15, %r12
-    jbe .L13_23
-.L13_24:
-    leaq .Ltext_42(%rip), %rdi
-    leaq .Ltext_3(%rip), %rsi
-    movq %rdx, %r8
-    movq %rsi, %rdx
-    movq %rdi, %rcx
-    subq $32, %rsp
-    call lb_core_7trap_at
-    addq $32, %rsp
-.L13_23:
-    movq %r14, %r13
-    addq %r12, %r13
-    movq %r15, %rax
-    subq %r12, %rax
-    movq %rax, 40(%rbp)
-    leaq 112(%rbp), %rax
-    movq %rax, 32(%rbp)
-    movq 32(%rbp), %r10
-    movq %r13, (%r10)
-    movq 32(%rbp), %rax
-    movq $8, %rcx
-    movq %rax, %r13
-    addq %rcx, %r13
-    movq 40(%rbp), %rax
-    movq %r13, %r10
-    movq %rax, (%r10)
-    movq 88(%rbp), %r10
     movq (%r10), %r13
-    subq $64, %rsp
+    movq 64(%rbp), %r10
+    movq (%r10), %r14
     movq 80(%rbp), %r10
+    movq (%r10), %r15
+    movq $1, %rcx
+    movq %r14, %r12
+    addq %rcx, %r12
+    cmpq %r12, %r15
+    jb 1f
+    leaq .Ltext_42(%rip), %rdi
+    leaq .Ltext_3(%rip), %rsi
+    movq %rdx, %r8
+    movq %rsi, %rdx
+    movq %rdi, %rcx
+    subq $32, %rsp
+    call lb_core_7trap_at
+    addq $32, %rsp
+1:
+    cmpq %r12, %r14
+    jb 1f
+    leaq .Ltext_42(%rip), %rdi
+    leaq .Ltext_3(%rip), %rsi
+    movq %rdx, %r8
+    movq %rsi, %rdx
+    movq %rdi, %rcx
+    subq $32, %rsp
+    call lb_core_7trap_at
+    addq $32, %rsp
+1:
+    cmpq %r14, %r15
+    jbe .L15_7
+.L15_8:
+    leaq .Ltext_42(%rip), %rdi
+    leaq .Ltext_3(%rip), %rsi
+    movq %rdx, %r8
+    movq %rsi, %rdx
+    movq %rdi, %rcx
+    subq $32, %rsp
+    call lb_core_7trap_at
+    addq $32, %rsp
+.L15_7:
+    movq %r13, %r12
+    addq %r15, %r12
+    movq %r14, %rax
+    subq %r15, %rax
+    movq %rax, 16(%rbp)
+    leaq 88(%rbp), %rax
+    movq %rax, 8(%rbp)
+    movq 8(%rbp), %r10
+    movq %r12, (%r10)
+    movq 8(%rbp), %rax
+    movq $8, %rcx
+    movq %rax, %r12
+    addq %rcx, %r12
+    movq 16(%rbp), %rax
+    movq %r12, %r10
+    movq %rax, (%r10)
+    movq 48(%rbp), %r10
+    movq (%r10), %r12
+    subq $64, %rsp
+    movq 72(%rbp), %r10
     leaq 32(%rsp), %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
     leaq 32(%rsp), %rax
     movq %rax, 0(%rsp)
-    movq 32(%rbp), %r10
+    movq 8(%rbp), %r10
     leaq 48(%rsp), %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
     leaq 48(%rsp), %rax
     movq %rax, 8(%rsp)
-    movq %r13, %rax
+    movq %r12, %rax
     movq %rax, 16(%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
     movq 16(%rsp), %r8
     call lb_memory_move_0g1_u8
     addq $64, %rsp
-    leaq 208(%rbp), %rax
-    movq %rax, 24(%rbp)
-    movq 48(%rbp), %r10
-    movl (%r10), %r13d
+    leaq 192(%rbp), %rax
+    movq %rax, 0(%rbp)
     movq 24(%rbp), %r10
-    movl %r13d, (%r10)
-    movq 48(%rbp), %rax
-    movq $8, %rcx
-    movq %rax, %r13
-    addq %rcx, %r13
+    movl (%r10), %r12d
+    movq 0(%rbp), %r10
+    movl %r12d, (%r10)
     movq 24(%rbp), %rax
+    movq $8, %rcx
+    movq %rax, %r12
+    addq %rcx, %r12
+    movq 0(%rbp), %rax
     movq $8, %rcx
     movq %rax, %rbx
     addq %rcx, %rbx
-    movq %r13, %r10
+    movq %r12, %r10
     movq %rbx, %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
-    movq 24(%rbp), %rax
+    movq 0(%rbp), %rax
     movq $24, %rcx
     movq %rax, %rbx
     addq %rcx, %rbx
     movl $1, %eax
     movq %rbx, %r10
     movb %al, (%r10)
-    movq 24(%rbp), %r10
-    leaq 256(%rbp), %r11
-    movups 0(%r10), %xmm8
-    movups %xmm8, 0(%r11)
-    movups 16(%r10), %xmm8
-    movups %xmm8, 16(%r11)
-    jmp .L13_26
-.L13_25:
-.L13_18:
+    movq 0(%rbp), %rsi
+    movq 264(%rbp), %rdi
+    movq $32, %rdx
+    movq %rdx, %r8
+    movq %rsi, %rdx
+    movq %rdi, %rcx
+    subq $32, %rsp
+    call memcpy
+    addq $32, %rsp
+    movq 264(%rbp), %rax
+    movq 440(%rbp), %rdi
+    movq 432(%rbp), %rsi
+    movdqu 416(%rbp), %xmm6
+    movdqu 400(%rbp), %xmm7
+    movdqu 384(%rbp), %xmm8
+    movdqu 368(%rbp), %xmm9
+    movdqu 352(%rbp), %xmm10
+    movdqu 336(%rbp), %xmm11
+    movdqu 320(%rbp), %xmm12
+    movdqu 304(%rbp), %xmm13
+    movdqu 288(%rbp), %xmm14
+    movdqu 272(%rbp), %xmm15
+    movq 256(%rbp), %rbx
+    movq 248(%rbp), %r12
+    movq 240(%rbp), %r13
+    movq 232(%rbp), %r14
+    movq 224(%rbp), %r15
+    leaq 448(%rbp), %rsp
+    popq %rbp
+    ret
+.L15_9:
+.L15_2:
     movq $0, %rax
-    movq 88(%rbp), %r10
+    movq 48(%rbp), %r10
     movq %rax, (%r10)
-    leaq 208(%rbp), %rbx
+    leaq 192(%rbp), %rbx
     movq $24, %rcx
     movq %rbx, %r12
     addq %rcx, %r12
     movl $0, %eax
     movq %r12, %r10
     movb %al, (%r10)
-    movq %rbx, %r10
-    leaq 256(%rbp), %r11
+    movq %rbx, %rsi
+    movq 264(%rbp), %rdi
+    movq $32, %rdx
+    movq %rdx, %r8
+    movq %rsi, %rdx
+    movq %rdi, %rcx
+    subq $32, %rsp
+    call memcpy
+    addq $32, %rsp
+    movq 264(%rbp), %rax
+    movq 440(%rbp), %rdi
+    movq 432(%rbp), %rsi
+    movdqu 416(%rbp), %xmm6
+    movdqu 400(%rbp), %xmm7
+    movdqu 384(%rbp), %xmm8
+    movdqu 368(%rbp), %xmm9
+    movdqu 352(%rbp), %xmm10
+    movdqu 336(%rbp), %xmm11
+    movdqu 320(%rbp), %xmm12
+    movdqu 304(%rbp), %xmm13
+    movdqu 288(%rbp), %xmm14
+    movdqu 272(%rbp), %xmm15
+    movq 256(%rbp), %rbx
+    movq 248(%rbp), %r12
+    movq 240(%rbp), %r13
+    movq 232(%rbp), %r14
+    movq 224(%rbp), %r15
+    leaq 448(%rbp), %rsp
+    popq %rbp
+    ret
+    .seh_endproc
+
+    .p2align 4
+    .globl lb_io_BufferedWriter_write
+lb_io_BufferedWriter_write:
+    .seh_proc lb_io_BufferedWriter_write
+    pushq %rbp
+    .seh_pushreg %rbp
+    subq $384, %rsp
+    .seh_stackalloc 384
+    movq %rsp, %rbp
+    .seh_setframe %rbp, 0
+    movq %rcx, 200(%rbp)
+    movq %rdi, 376(%rbp)
+    .seh_savereg %rdi, 376
+    movq %rsi, 368(%rbp)
+    .seh_savereg %rsi, 368
+    movdqu %xmm6, 352(%rbp)
+    .seh_savexmm %xmm6, 352
+    movdqu %xmm7, 336(%rbp)
+    .seh_savexmm %xmm7, 336
+    movdqu %xmm8, 320(%rbp)
+    .seh_savexmm %xmm8, 320
+    movdqu %xmm9, 304(%rbp)
+    .seh_savexmm %xmm9, 304
+    movdqu %xmm10, 288(%rbp)
+    .seh_savexmm %xmm10, 288
+    movdqu %xmm11, 272(%rbp)
+    .seh_savexmm %xmm11, 272
+    movdqu %xmm12, 256(%rbp)
+    .seh_savexmm %xmm12, 256
+    movdqu %xmm13, 240(%rbp)
+    .seh_savexmm %xmm13, 240
+    movdqu %xmm14, 224(%rbp)
+    .seh_savexmm %xmm14, 224
+    movdqu %xmm15, 208(%rbp)
+    .seh_savexmm %xmm15, 208
+    movq %rbx, 192(%rbp)
+    .seh_savereg %rbx, 192
+    movq %r12, 184(%rbp)
+    .seh_savereg %r12, 184
+    movq %r13, 176(%rbp)
+    .seh_savereg %r13, 176
+    movq %r14, 168(%rbp)
+    .seh_savereg %r14, 168
+    movq %r15, 160(%rbp)
+    .seh_savereg %r15, 160
+    .seh_endprologue
+    movq %rcx, 400(%rbp)
+    movq %rdx, 408(%rbp)
+    movq %r8, 416(%rbp)
+    movq %r9, 424(%rbp)
+    movq 408(%rbp), %rax
+    movq %rax, 112(%rbp)
+    movq 416(%rbp), %r10
+    leaq 96(%rbp), %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
-    movups 16(%r10), %xmm8
-    movups %xmm8, 16(%r11)
-.L13_26:
-    leaq 256(%rbp), %r12
-    movq $24, %rcx
-    movq %r12, %rbx
-    addq %rcx, %rbx
-    movq %rbx, %r10
-    movzbl (%r10), %ebx
-    testl %ebx, %ebx
-    jne .L13_9
-    jmp .L13_8
-.L13_9:
-    leaq 312(%rbp), %rbx
+    leaq 112(%rbp), %r10
+    movq (%r10), %r14
+    leaq 96(%rbp), %rax
+    movq %rax, 40(%rbp)
+    movq 40(%rbp), %rax
     movq $8, %rcx
-    movq %rbx, %r13
-    addq %rcx, %r13
-    movq %r12, %r10
-    movq %r13, %r11
-    movups 0(%r10), %xmm8
-    movups %xmm8, 0(%r11)
-    movq 16(%r10), %rax
-    movq %rax, 16(%r11)
+    addq %rcx, %rax
+    movq %rax, 32(%rbp)
+    movq 32(%rbp), %r10
+    movq (%r10), %r13
+    movq $0, %rcx
+    cmpq %rcx, %r13
+    jne .L16_2
+.L16_1:
+    leaq 120(%rbp), %rbx
+    movq $0, %rax
+    movq %rbx, %r10
+    movq %rax, (%r10)
     movq $32, %rcx
-    movq %rbx, %r13
-    addq %rcx, %r13
-    movl $1, %eax
-    movq %r13, %r10
+    movq %rbx, %r12
+    addq %rcx, %r12
+    movl $0, %eax
+    movq %r12, %r10
     movb %al, (%r10)
     movq %rbx, %rsi
-    movq 392(%rbp), %rdi
+    movq 200(%rbp), %rdi
     movq $40, %rdx
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -4136,38 +4707,128 @@ lb_io_BufferedWriter_write:
     subq $32, %rsp
     call memcpy
     addq $32, %rsp
-    movq 392(%rbp), %rax
-    movq 568(%rbp), %rdi
-    movq 560(%rbp), %rsi
-    movdqu 544(%rbp), %xmm6
-    movdqu 528(%rbp), %xmm7
-    movdqu 512(%rbp), %xmm8
-    movdqu 496(%rbp), %xmm9
-    movdqu 480(%rbp), %xmm10
-    movdqu 464(%rbp), %xmm11
-    movdqu 448(%rbp), %xmm12
-    movdqu 432(%rbp), %xmm13
-    movdqu 416(%rbp), %xmm14
-    movdqu 400(%rbp), %xmm15
-    movq 384(%rbp), %rbx
-    movq 376(%rbp), %r12
-    movq 368(%rbp), %r13
-    movq 360(%rbp), %r14
-    movq 352(%rbp), %r15
-    leaq 576(%rbp), %rsp
+    movq 200(%rbp), %rax
+    movq 376(%rbp), %rdi
+    movq 368(%rbp), %rsi
+    movdqu 352(%rbp), %xmm6
+    movdqu 336(%rbp), %xmm7
+    movdqu 320(%rbp), %xmm8
+    movdqu 304(%rbp), %xmm9
+    movdqu 288(%rbp), %xmm10
+    movdqu 272(%rbp), %xmm11
+    movdqu 256(%rbp), %xmm12
+    movdqu 240(%rbp), %xmm13
+    movdqu 224(%rbp), %xmm14
+    movdqu 208(%rbp), %xmm15
+    movq 192(%rbp), %rbx
+    movq 184(%rbp), %r12
+    movq 176(%rbp), %r13
+    movq 168(%rbp), %r14
+    movq 160(%rbp), %r15
+    leaq 384(%rbp), %rsp
     popq %rbp
     ret
-.L13_10:
-.L13_8:
-    jmp .L13_7
-.L13_6:
-.L13_7:
-    movq 72(%rbp), %r10
-    movq (%r10), %rbx
-    movq 88(%rbp), %r10
+.L16_4:
+    jmp .L16_3
+.L16_2:
+.L16_3:
+    movq $32, %rcx
+    movq %r14, %rax
+    addq %rcx, %rax
+    movq %rax, 24(%rbp)
+    movq 24(%rbp), %r10
+    movq (%r10), %r15
+    movq $16, %rcx
+    movq %r14, %rax
+    addq %rcx, %rax
+    movq %rax, 16(%rbp)
+    movq 16(%rbp), %rax
+    movq $8, %rcx
+    movq %rax, %rbx
+    addq %rcx, %rbx
+    movq %rbx, %r10
     movq (%r10), %r12
-    movq %rbx, %rax
-    movq %r12, %rcx
+    cmpq %r12, %r15
+    jne .L16_6
+.L16_5:
+    subq $32, %rsp
+    movq %r14, %rax
+    movq %rax, 8(%rsp)
+    leaq 64(%rbp), %rax
+    movq %rax, (%rsp)
+    movq 0(%rsp), %rcx
+    movq 8(%rsp), %rdx
+    call lb_io_BufferedWriter_flush
+    addq $32, %rsp
+    leaq 64(%rbp), %r15
+    movq $24, %rcx
+    movq %r15, %r12
+    addq %rcx, %r12
+    movq %r12, %r10
+    movzbl (%r10), %r12d
+    testl %r12d, %r12d
+    jne .L16_9
+    jmp .L16_8
+.L16_9:
+    leaq 120(%rbp), %rbx
+    movq $8, %rcx
+    movq %rbx, %r12
+    addq %rcx, %r12
+    movq %r15, %r10
+    movq %r12, %r11
+    movups 0(%r10), %xmm8
+    movups %xmm8, 0(%r11)
+    movq 16(%r10), %rax
+    movq %rax, 16(%r11)
+    movq $32, %rcx
+    movq %rbx, %r12
+    addq %rcx, %r12
+    movl $1, %eax
+    movq %r12, %r10
+    movb %al, (%r10)
+    movq %rbx, %rsi
+    movq 200(%rbp), %rdi
+    movq $40, %rdx
+    movq %rdx, %r8
+    movq %rsi, %rdx
+    movq %rdi, %rcx
+    subq $32, %rsp
+    call memcpy
+    addq $32, %rsp
+    movq 200(%rbp), %rax
+    movq 376(%rbp), %rdi
+    movq 368(%rbp), %rsi
+    movdqu 352(%rbp), %xmm6
+    movdqu 336(%rbp), %xmm7
+    movdqu 320(%rbp), %xmm8
+    movdqu 304(%rbp), %xmm9
+    movdqu 288(%rbp), %xmm10
+    movdqu 272(%rbp), %xmm11
+    movdqu 256(%rbp), %xmm12
+    movdqu 240(%rbp), %xmm13
+    movdqu 224(%rbp), %xmm14
+    movdqu 208(%rbp), %xmm15
+    movq 192(%rbp), %rbx
+    movq 184(%rbp), %r12
+    movq 176(%rbp), %r13
+    movq 168(%rbp), %r14
+    movq 160(%rbp), %r15
+    leaq 384(%rbp), %rsp
+    popq %rbp
+    ret
+.L16_10:
+.L16_8:
+    jmp .L16_7
+.L16_6:
+.L16_7:
+    movq %rbx, %r10
+    movq (%r10), %rax
+    movq %rax, 8(%rbp)
+    movq 24(%rbp), %r10
+    movq (%r10), %rax
+    movq %rax, 0(%rbp)
+    movq 8(%rbp), %rax
+    movq 0(%rbp), %rcx
     subq %rcx, %rax
     jnc 1f
     leaq .Ltext_43(%rip), %rdi
@@ -4179,25 +4840,25 @@ lb_io_BufferedWriter_write:
     call lb_core_7trap_at
     addq $32, %rsp
 1:
-    movq %rax, %r13
-    movq 96(%rbp), %r10
+    movq %rax, %r15
+    movq 32(%rbp), %r10
     movq (%r10), %r14
-    cmpq %r13, %r14
-    jae .L13_12
-.L13_11:
-    movq %r14, %rax
-    movq %rax, 8(%rbp)
-    jmp .L13_13
-.L13_12:
-    movq %r13, %rax
-    movq %rax, 8(%rbp)
-.L13_13:
-    movq 80(%rbp), %r10
-    movq (%r10), %r15
+    cmpq %r15, %r14
+    jae .L16_12
+.L16_11:
+    movq %r14, %rbx
+    jmp .L16_13
+.L16_12:
+    movq %r15, %rbx
+.L16_13:
+    movq 16(%rbp), %r10
+    movq (%r10), %r14
+    movq 8(%rbp), %rax
     movq $1, %rcx
-    movq %rbx, %r14
-    addq %rcx, %r14
-    cmpq %r14, %r12
+    movq %rax, %r12
+    addq %rcx, %r12
+    movq 0(%rbp), %rax
+    cmpq %r12, %rax
     jb 1f
     leaq .Ltext_44(%rip), %rdi
     leaq .Ltext_3(%rip), %rsi
@@ -4208,7 +4869,8 @@ lb_io_BufferedWriter_write:
     call lb_core_7trap_at
     addq $32, %rsp
 1:
-    cmpq %r14, %rbx
+    movq 8(%rbp), %rax
+    cmpq %r12, %rax
     jb 1f
     leaq .Ltext_44(%rip), %rdi
     leaq .Ltext_3(%rip), %rsi
@@ -4219,9 +4881,11 @@ lb_io_BufferedWriter_write:
     call lb_core_7trap_at
     addq $32, %rsp
 1:
-    cmpq %rbx, %r12
-    jbe .L13_14
-.L13_15:
+    movq 0(%rbp), %rax
+    movq 8(%rbp), %rcx
+    cmpq %rcx, %rax
+    jbe .L16_14
+.L16_15:
     leaq .Ltext_44(%rip), %rdi
     leaq .Ltext_3(%rip), %rsi
     movq %rdx, %r8
@@ -4230,21 +4894,22 @@ lb_io_BufferedWriter_write:
     subq $32, %rsp
     call lb_core_7trap_at
     addq $32, %rsp
-.L13_14:
-    movq %r12, %r14
-    addq %r15, %r14
-    movq %rbx, %rax
-    subq %r12, %rax
-    movq %rax, 64(%rbp)
-    leaq 240(%rbp), %r13
+.L16_14:
+    movq 0(%rbp), %rax
+    movq %rax, %r12
+    addq %r14, %r12
+    movq 8(%rbp), %rax
+    movq 0(%rbp), %rcx
+    movq %rax, %r15
+    subq %rcx, %r15
+    leaq 48(%rbp), %r13
     movq %r13, %r10
-    movq %r14, (%r10)
+    movq %r12, (%r10)
     movq $8, %rcx
-    movq %r13, %r14
-    addq %rcx, %r14
-    movq 64(%rbp), %rax
-    movq %r14, %r10
-    movq %rax, (%r10)
+    movq %r13, %r12
+    addq %rcx, %r12
+    movq %r12, %r10
+    movq %r15, (%r10)
     subq $64, %rsp
     movq %r13, %r10
     leaq 32(%rsp), %r11
@@ -4252,23 +4917,23 @@ lb_io_BufferedWriter_write:
     movups %xmm8, 0(%r11)
     leaq 32(%rsp), %rax
     movq %rax, 0(%rsp)
-    movq 104(%rbp), %r10
+    movq 40(%rbp), %r10
     leaq 48(%rsp), %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
     leaq 48(%rsp), %rax
     movq %rax, 8(%rsp)
-    movq 8(%rbp), %rax
+    movq %rbx, %rax
     movq %rax, 16(%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
     movq 16(%rsp), %r8
     call lb_memory_copy_0g1_u8
     addq $64, %rsp
-    movq 88(%rbp), %r10
-    movq (%r10), %r13
-    movq %r13, %rax
-    movq 8(%rbp), %rcx
+    movq 24(%rbp), %r10
+    movq (%r10), %r12
+    movq %r12, %rax
+    movq %rbx, %rcx
     addq %rcx, %rax
     jnc 1f
     leaq .Ltext_45(%rip), %rdi
@@ -4280,21 +4945,20 @@ lb_io_BufferedWriter_write:
     call lb_core_7trap_at
     addq $32, %rsp
 1:
-    movq %rax, %r13
-    movq 88(%rbp), %r10
-    movq %r13, (%r10)
-    leaq 312(%rbp), %r13
-    movq 8(%rbp), %rax
-    movq %r13, %r10
-    movq %rax, (%r10)
+    movq %rax, %r12
+    movq 24(%rbp), %r10
+    movq %r12, (%r10)
+    leaq 120(%rbp), %r12
+    movq %r12, %r10
+    movq %rbx, (%r10)
     movq $32, %rcx
-    movq %r13, %r14
-    addq %rcx, %r14
+    movq %r12, %r13
+    addq %rcx, %r13
     movl $0, %eax
-    movq %r14, %r10
+    movq %r13, %r10
     movb %al, (%r10)
-    movq %r13, %rsi
-    movq 392(%rbp), %rdi
+    movq %r12, %rsi
+    movq 200(%rbp), %rdi
     movq $40, %rdx
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -4302,28 +4966,28 @@ lb_io_BufferedWriter_write:
     subq $32, %rsp
     call memcpy
     addq $32, %rsp
-    movq 392(%rbp), %rax
-    movq 568(%rbp), %rdi
-    movq 560(%rbp), %rsi
-    movdqu 544(%rbp), %xmm6
-    movdqu 528(%rbp), %xmm7
-    movdqu 512(%rbp), %xmm8
-    movdqu 496(%rbp), %xmm9
-    movdqu 480(%rbp), %xmm10
-    movdqu 464(%rbp), %xmm11
-    movdqu 448(%rbp), %xmm12
-    movdqu 432(%rbp), %xmm13
-    movdqu 416(%rbp), %xmm14
-    movdqu 400(%rbp), %xmm15
-    movq 384(%rbp), %rbx
-    movq 376(%rbp), %r12
-    movq 368(%rbp), %r13
-    movq 360(%rbp), %r14
-    movq 352(%rbp), %r15
-    leaq 576(%rbp), %rsp
+    movq 200(%rbp), %rax
+    movq 376(%rbp), %rdi
+    movq 368(%rbp), %rsi
+    movdqu 352(%rbp), %xmm6
+    movdqu 336(%rbp), %xmm7
+    movdqu 320(%rbp), %xmm8
+    movdqu 304(%rbp), %xmm9
+    movdqu 288(%rbp), %xmm10
+    movdqu 272(%rbp), %xmm11
+    movdqu 256(%rbp), %xmm12
+    movdqu 240(%rbp), %xmm13
+    movdqu 224(%rbp), %xmm14
+    movdqu 208(%rbp), %xmm15
+    movq 192(%rbp), %rbx
+    movq 184(%rbp), %r12
+    movq 176(%rbp), %r13
+    movq 168(%rbp), %r14
+    movq 160(%rbp), %r15
+    leaq 384(%rbp), %rsp
     popq %rbp
     ret
-.L13_16:
+.L16_16:
     leaq .Ltext_46(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -4390,8 +5054,8 @@ lb_io_File_stream:
     movslq (%r10), %rbx
     movl $1, %ecx
     cmpl %ecx, %ebx
-    jne .L14_2
-.L14_1:
+    jne .L17_2
+.L17_1:
     subq $32, %rsp
     movl $1, %eax
     movq %rax, 0(%rsp)
@@ -4437,14 +5101,14 @@ lb_io_File_stream:
     leaq 288(%rbp), %rsp
     popq %rbp
     ret
-.L14_4:
-    jmp .L14_3
-.L14_2:
-.L14_3:
+.L17_4:
+    jmp .L17_3
+.L17_2:
+.L17_3:
     movl $2, %ecx
     cmpl %ecx, %ebx
-    jne .L14_6
-.L14_5:
+    jne .L17_6
+.L17_5:
     subq $32, %rsp
     movl $2, %eax
     movq %rax, 0(%rsp)
@@ -4490,10 +5154,10 @@ lb_io_File_stream:
     leaq 288(%rbp), %rsp
     popq %rbp
     ret
-.L14_8:
-    jmp .L14_7
-.L14_6:
-.L14_7:
+.L17_8:
+    jmp .L17_7
+.L17_6:
+.L17_7:
     leaq 32(%rbp), %rbx
     movq $8, %rcx
     movq %rbx, %r12
@@ -4554,7 +5218,7 @@ lb_io_File_stream:
     leaq 288(%rbp), %rsp
     popq %rbp
     ret
-.L14_9:
+.L17_9:
     leaq .Ltext_48(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -4631,9 +5295,9 @@ lb_io_File_flush:
     movq %rbx, %r10
     movzbl (%r10), %ebx
     testl %ebx, %ebx
-    jne .L15_2
-    jmp .L15_1
-.L15_2:
+    jne .L18_2
+    jmp .L18_1
+.L18_2:
     movq $8, %rcx
     movq %r12, %rbx
     addq %rcx, %rbx
@@ -4678,8 +5342,8 @@ lb_io_File_flush:
     leaq 304(%rbp), %rsp
     popq %rbp
     ret
-.L15_3:
-.L15_1:
+.L18_3:
+.L18_1:
     movq %r12, %r10
     movq (%r10), %rbx
     subq $32, %rsp
@@ -4695,8 +5359,8 @@ lb_io_File_flush:
     movzbl %al, %ebx
     movl $0, %ecx
     cmpl %ecx, %ebx
-    jne .L15_5
-.L15_4:
+    jne .L18_5
+.L18_4:
     leaq 64(%rbp), %rbx
     leaq lb_io_closed(%rip), %r12
     movq %r12, %r10
@@ -4754,10 +5418,10 @@ lb_io_File_flush:
     leaq 304(%rbp), %rsp
     popq %rbp
     ret
-.L15_7:
-    jmp .L15_6
-.L15_5:
-.L15_6:
+.L18_7:
+    jmp .L18_6
+.L18_5:
+.L18_6:
     leaq 64(%rbp), %rbx
     movq $24, %rcx
     movq %rbx, %r12
@@ -4861,8 +5525,8 @@ lb_io_File_write:
     movq (%r10), %r12
     movq $0, %rcx
     cmpq %rcx, %r12
-    jne .L16_2
-.L16_1:
+    jne .L19_2
+.L19_1:
     leaq 136(%rbp), %rbx
     movq $0, %rax
     movq %rbx, %r10
@@ -4903,10 +5567,10 @@ lb_io_File_write:
     leaq 400(%rbp), %rsp
     popq %rbp
     ret
-.L16_4:
-    jmp .L16_3
-.L16_2:
-.L16_3:
+.L19_4:
+    jmp .L19_3
+.L19_2:
+.L19_3:
     subq $32, %rsp
     movq %r14, %rax
     movq %rax, 8(%rsp)
@@ -4923,9 +5587,9 @@ lb_io_File_write:
     movq %r13, %r10
     movzbl (%r10), %r13d
     testl %r13d, %r13d
-    jne .L16_6
-    jmp .L16_5
-.L16_6:
+    jne .L19_6
+    jmp .L19_5
+.L19_6:
     movq $8, %rcx
     movq %r15, %rbx
     addq %rcx, %rbx
@@ -4975,8 +5639,8 @@ lb_io_File_write:
     leaq 400(%rbp), %rsp
     popq %rbp
     ret
-.L16_7:
-.L16_5:
+.L19_7:
+.L19_5:
     movq %r15, %r10
     movq (%r10), %r13
     leaq 40(%rbp), %r10
@@ -4987,7 +5651,7 @@ lb_io_File_write:
     movq 0(%rsp), %rcx
     call _lock_file
     addq $32, %rsp
-.L16_15:
+.L19_15:
     movq %rbx, %r10
     movq (%r10), %rax
     movq %rax, 16(%rbp)
@@ -5023,12 +5687,12 @@ lb_io_File_write:
     sete %al
     movzbl %al, %r14d
     testl %r14d, %r14d
-    jne .L16_19
-    jmp .L16_11
-.L16_19:
+    jne .L19_19
+    jmp .L19_11
+.L19_19:
     movl %r14d, %ebx
-    jmp .L16_12
-.L16_11:
+    jmp .L19_12
+.L19_11:
     movl $0, %ecx
     cmpl %ecx, %r15d
     sete %al
@@ -5037,12 +5701,12 @@ lb_io_File_write:
     cmpl %ecx, %ebx
     sete %al
     movzbl %al, %ebx
-.L16_12:
+.L19_12:
     movzbl %bl, %r12d
     testl %r12d, %r12d
-    jne .L16_8
-    jmp .L16_9
-.L16_8:
+    jne .L19_8
+    jmp .L19_9
+.L19_8:
     leaq 136(%rbp), %rbx
     movq $8, %rcx
     movq %rbx, %r12
@@ -5082,7 +5746,7 @@ lb_io_File_write:
     movq 0(%rsp), %rcx
     call _unlock_file
     addq $32, %rsp
-.L16_16:
+.L19_16:
     movq %rbx, %rsi
     movq 216(%rbp), %rdi
     movq $40, %rdx
@@ -5113,10 +5777,10 @@ lb_io_File_write:
     leaq 400(%rbp), %rsp
     popq %rbp
     ret
-.L16_13:
-    jmp .L16_10
-.L16_9:
-.L16_10:
+.L19_13:
+    jmp .L19_10
+.L19_9:
+.L19_10:
     leaq 136(%rbp), %rbx
     movq 8(%rbp), %rax
     movq %rbx, %r10
@@ -5135,7 +5799,7 @@ lb_io_File_write:
     movq 0(%rsp), %rcx
     call _unlock_file
     addq $32, %rsp
-.L16_17:
+.L19_17:
     movq %rbx, %rsi
     movq 216(%rbp), %rdi
     movq $40, %rdx
@@ -5166,7 +5830,7 @@ lb_io_File_write:
     leaq 400(%rbp), %rsp
     popq %rbp
     ret
-.L16_14:
+.L19_14:
     leaq 24(%rbp), %r10
     movq %rbx, (%r10)
     leaq 24(%rbp), %rbx
@@ -5178,7 +5842,7 @@ lb_io_File_write:
     movq 0(%rsp), %rcx
     call _unlock_file
     addq $32, %rsp
-.L16_18:
+.L19_18:
     leaq .Ltext_51(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -5257,8 +5921,8 @@ lb_io_StandardInput_read:
     movq (%r10), %r12
     movq $0, %rcx
     cmpq %rcx, %r12
-    jne .L17_2
-.L17_1:
+    jne .L20_2
+.L20_1:
     leaq 152(%rbp), %rbx
     movq $0, %rax
     movq %rbx, %r10
@@ -5299,19 +5963,19 @@ lb_io_StandardInput_read:
     leaq 416(%rbp), %rsp
     popq %rbp
     ret
-.L17_2:
-.L17_3:
+.L20_2:
+.L20_3:
     movq $1073741824, %rcx
     cmpq %rcx, %r12
-    jbe .L17_6
-.L17_5:
+    jbe .L20_6
+.L20_5:
     movq $1073741824, %rax
     movq %rax, 0(%rbp)
-    jmp .L17_7
-.L17_6:
+    jmp .L20_7
+.L20_6:
     movq %r12, %rax
     movq %rax, 0(%rbp)
-.L17_7:
+.L20_7:
     movq 0(%rbp), %rax
     movq $2147483647, %rcx
     cmpq %rcx, %rax
@@ -5320,8 +5984,8 @@ lb_io_StandardInput_read:
     movl %eax, 8(%rbp)
     leaq lb_c_interrupted(%rip), %rax
     movq %rax, 16(%rbp)
-.L17_8:
-.L17_9:
+.L20_8:
+.L20_9:
     movq %r14, %r10
     movslq (%r10), %r13
     movq 24(%rbp), %r10
@@ -5335,16 +5999,16 @@ lb_io_StandardInput_read:
     movq %rax, (%r10)
     movl 8(%rbp), %eax
     testl %eax, %eax
-    jne .L17_31
-    jmp .L17_32
-.L17_31:
+    jne .L20_31
+    jmp .L20_32
+.L20_31:
     movq 0(%rbp), %rax
     movq %rax, %rbx
-    jmp .L17_33
-.L17_32:
+    jmp .L20_33
+.L20_32:
     movq $2147483647, %rax
     movq %rax, %rbx
-.L17_33:
+.L20_33:
     subq $32, %rsp
     movl %r13d, %eax
     movq %rax, 0(%rsp)
@@ -5359,11 +6023,11 @@ lb_io_StandardInput_read:
     addq $32, %rsp
     movl %eax, %r12d
     movslq %r12d, %r12
-.L17_35:
+.L20_35:
     movq $0, %rcx
     cmpq %rcx, %r12
-    jl .L17_12
-.L17_11:
+    jl .L20_12
+.L20_11:
     leaq 152(%rbp), %rbx
     movq %rbx, %r10
     movq %r12, (%r10)
@@ -5403,8 +6067,8 @@ lb_io_StandardInput_read:
     leaq 416(%rbp), %rsp
     popq %rbp
     ret
-.L17_12:
-.L17_13:
+.L20_12:
+.L20_13:
     subq $32, %rsp
     call lb_c_errno
     addq $32, %rsp
@@ -5412,28 +6076,28 @@ lb_io_StandardInput_read:
     movq 16(%rbp), %r10
     movslq (%r10), %r12
     cmpl %r12d, %ebx
-    jne .L17_16
-.L17_15:
-    jmp .L17_8
-.L17_16:
-.L17_17:
+    jne .L20_16
+.L20_15:
+    jmp .L20_8
+.L20_16:
+.L20_17:
     leaq lb_platform_macos(%rip), %r12
     movq %r12, %r10
     movzbl (%r10), %r12d
     testl %r12d, %r12d
-    jne .L17_22
-    jmp .L17_23
-.L17_22:
+    jne .L20_22
+    jmp .L20_23
+.L20_22:
     movl $35, %eax
     movl %eax, %r12d
-    jmp .L17_24
-.L17_23:
+    jmp .L20_24
+.L20_23:
     movl $11, %eax
     movl %eax, %r12d
-.L17_24:
+.L20_24:
     cmpl %r12d, %ebx
-    jne .L17_20
-.L17_19:
+    jne .L20_20
+.L20_19:
     leaq 152(%rbp), %rbx
     movq $8, %rcx
     movq %rbx, %r12
@@ -5495,12 +6159,12 @@ lb_io_StandardInput_read:
     leaq 416(%rbp), %rsp
     popq %rbp
     ret
-.L17_20:
-.L17_21:
+.L20_20:
+.L20_21:
     movl $9, %ecx
     cmpl %ecx, %ebx
-    jne .L17_27
-.L17_26:
+    jne .L20_27
+.L20_26:
     leaq 152(%rbp), %rbx
     movq $8, %rcx
     movq %rbx, %r12
@@ -5562,8 +6226,8 @@ lb_io_StandardInput_read:
     leaq 416(%rbp), %rsp
     popq %rbp
     ret
-.L17_27:
-.L17_28:
+.L20_27:
+.L20_28:
     leaq 152(%rbp), %rbx
     movq $8, %rcx
     movq %rbx, %r12
@@ -5716,7 +6380,7 @@ lb_io_stdin:
     leaq 240(%rbp), %rsp
     popq %rbp
     ret
-.L18_1:
+.L21_1:
     leaq .Ltext_56(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -5816,7 +6480,7 @@ lb_io_stdout:
     leaq 240(%rbp), %rsp
     popq %rbp
     ret
-.L19_1:
+.L22_1:
     leaq .Ltext_57(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -5916,7 +6580,7 @@ lb_io_stderr:
     leaq 240(%rbp), %rsp
     popq %rbp
     ret
-.L20_1:
+.L23_1:
     leaq .Ltext_58(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -5990,9 +6654,9 @@ lb_io_12flush_stdout:
     movq %rbx, %r10
     movzbl (%r10), %ebx
     testl %ebx, %ebx
-    jne .L21_2
-    jmp .L21_1
-.L21_2:
+    jne .L24_2
+    jmp .L24_1
+.L24_2:
     leaq 32(%rbp), %rbx
     movq %r12, %r10
     movq %rbx, %r11
@@ -6034,8 +6698,8 @@ lb_io_12flush_stdout:
     leaq 272(%rbp), %rsp
     popq %rbp
     ret
-.L21_3:
-.L21_1:
+.L24_3:
+.L24_1:
     leaq 32(%rbp), %rbx
     movq $24, %rcx
     movq %rbx, %r12
@@ -6136,9 +6800,9 @@ lb_io_12flush_stderr:
     movq %rbx, %r10
     movzbl (%r10), %ebx
     testl %ebx, %ebx
-    jne .L22_2
-    jmp .L22_1
-.L22_2:
+    jne .L25_2
+    jmp .L25_1
+.L25_2:
     leaq 32(%rbp), %rbx
     movq %r12, %r10
     movq %rbx, %r11
@@ -6180,8 +6844,8 @@ lb_io_12flush_stderr:
     leaq 272(%rbp), %rsp
     popq %rbp
     ret
-.L22_3:
-.L22_1:
+.L25_3:
+.L25_1:
     leaq 32(%rbp), %rbx
     movq $24, %rcx
     movq %rbx, %r12
@@ -6303,8 +6967,8 @@ lb_io_FormatSink_write:
     movzbl %al, %ebx
     movl $0, %ecx
     cmpl %ecx, %ebx
-    jne .L23_2
-.L23_1:
+    jne .L26_2
+.L26_1:
     leaq 48(%rbp), %rbx
     movq $8, %rcx
     movq %rbx, %r12
@@ -6365,10 +7029,10 @@ lb_io_FormatSink_write:
     leaq 304(%rbp), %rsp
     popq %rbp
     ret
-.L23_4:
-    jmp .L23_3
-.L23_2:
-.L23_3:
+.L26_4:
+    jmp .L26_3
+.L26_2:
+.L26_3:
     leaq 48(%rbp), %rbx
     movq %rbx, %r10
     movq %r12, (%r10)
@@ -6407,7 +7071,7 @@ lb_io_FormatSink_write:
     leaq 304(%rbp), %rsp
     popq %rbp
     ret
-.L23_5:
+.L26_5:
     leaq .Ltext_60(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -6471,14 +7135,14 @@ lb_io_path_user:
     movq %rbx, %r10
     movzbl (%r10), %ebx
     testl %ebx, %ebx
-    jne .L24_1
-    jmp .L24_2
-.L24_1:
+    jne .L27_1
+    jmp .L27_2
+.L27_1:
     leaq .Ltext_61(%rip), %rbx
-    jmp .L24_3
-.L24_2:
+    jmp .L27_3
+.L27_2:
     leaq .Ltext_62(%rip), %rbx
-.L24_3:
+.L27_3:
     subq $32, %rsp
     movq %rbx, %rax
     movq %rax, 8(%rsp)
@@ -6495,16 +7159,16 @@ lb_io_path_user:
     movq %r13, %r10
     movzbl (%r10), %r13d
     testl %r13d, %r13d
-    jne .L24_4
-    jmp .L24_5
-.L24_4:
+    jne .L27_4
+    jmp .L27_5
+.L27_4:
     leaq 16(%rbp), %rbx
     movq %r14, %r10
     movq %rbx, %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
-    jmp .L24_6
-.L24_5:
+    jmp .L27_6
+.L27_5:
     leaq 72(%rbp), %rbx
     movq $16, %rcx
     movq %rbx, %r12
@@ -6565,8 +7229,8 @@ lb_io_path_user:
     leaq 336(%rbp), %rsp
     popq %rbp
     ret
-.L24_7:
-.L24_6:
+.L27_7:
+.L27_6:
     movq %rbx, %r10
     movq %r12, %r11
     movups 0(%r10), %xmm8
@@ -6611,7 +7275,7 @@ lb_io_path_user:
     leaq 336(%rbp), %rsp
     popq %rbp
     ret
-.L24_8:
+.L27_8:
     leaq .Ltext_64(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -6683,9 +7347,9 @@ lb_io_path_home:
     movq %rbx, %r10
     movzbl (%r10), %ebx
     testl %ebx, %ebx
-    jne .L25_2
-    jmp .L25_1
-.L25_2:
+    jne .L28_2
+    jmp .L28_1
+.L28_2:
     movq $16, %rcx
     movq %r12, %rbx
     addq %rcx, %rbx
@@ -6734,8 +7398,8 @@ lb_io_path_home:
     leaq 320(%rbp), %rsp
     popq %rbp
     ret
-.L25_3:
-.L25_1:
+.L28_3:
+.L28_1:
     leaq 56(%rbp), %rbx
     movq %r12, %r10
     movq %rbx, %r11
@@ -6776,7 +7440,7 @@ lb_io_path_home:
     leaq 320(%rbp), %rsp
     popq %rbp
     ret
-.L25_4:
+.L28_4:
     leaq .Ltext_65(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -6848,15 +7512,15 @@ lb_io_path_temp:
     movq %rbx, %r10
     movzbl (%r10), %ebx
     testl %ebx, %ebx
-    jne .L26_4
-    jmp .L26_2
-.L26_4:
+    jne .L29_4
+    jmp .L29_2
+.L29_4:
     leaq 64(%rbp), %rbx
     movq %r12, %r10
     movq %rbx, %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
-.L26_1:
+.L29_1:
     movq $8, %rcx
     movq %rbx, %r12
     addq %rcx, %r12
@@ -6864,8 +7528,8 @@ lb_io_path_temp:
     movq (%r10), %r12
     movq $0, %rcx
     cmpq %rcx, %r12
-    jbe .L26_6
-.L26_5:
+    jbe .L29_6
+.L29_5:
     leaq 104(%rbp), %r12
     movq %rbx, %r10
     movq %r12, %r11
@@ -6898,13 +7562,13 @@ lb_io_path_temp:
     leaq 320(%rbp), %rsp
     popq %rbp
     ret
-.L26_8:
-    jmp .L26_7
-.L26_6:
-.L26_7:
-    jmp .L26_3
-.L26_2:
-.L26_3:
+.L29_8:
+    jmp .L29_7
+.L29_6:
+.L29_7:
+    jmp .L29_3
+.L29_2:
+.L29_3:
     leaq .Ltext_67(%rip), %rbx
     subq $32, %rsp
     movq %rbx, %rax
@@ -6922,15 +7586,15 @@ lb_io_path_temp:
     movq %rbx, %r10
     movzbl (%r10), %ebx
     testl %ebx, %ebx
-    jne .L26_12
-    jmp .L26_10
-.L26_12:
+    jne .L29_12
+    jmp .L29_10
+.L29_12:
     leaq 24(%rbp), %rbx
     movq %r12, %r10
     movq %rbx, %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
-.L26_9:
+.L29_9:
     movq $8, %rcx
     movq %rbx, %r12
     addq %rcx, %r12
@@ -6938,8 +7602,8 @@ lb_io_path_temp:
     movq (%r10), %r12
     movq $0, %rcx
     cmpq %rcx, %r12
-    jbe .L26_14
-.L26_13:
+    jbe .L29_14
+.L29_13:
     leaq 104(%rbp), %r12
     movq %rbx, %r10
     movq %r12, %r11
@@ -6972,13 +7636,13 @@ lb_io_path_temp:
     leaq 320(%rbp), %rsp
     popq %rbp
     ret
-.L26_16:
-    jmp .L26_15
-.L26_14:
-.L26_15:
-    jmp .L26_11
-.L26_10:
-.L26_11:
+.L29_16:
+    jmp .L29_15
+.L29_14:
+.L29_15:
+    jmp .L29_11
+.L29_10:
+.L29_11:
     leaq .Ltext_68(%rip), %rbx
     leaq 8(%rbp), %r12
     movq %r12, %r10
@@ -7021,7 +7685,7 @@ lb_io_path_temp:
     leaq 320(%rbp), %rsp
     popq %rbp
     ret
-.L26_17:
+.L29_17:
     leaq .Ltext_69(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -7099,15 +7763,15 @@ lb_io_path_config:
     movq %rbx, %r10
     movzbl (%r10), %ebx
     testl %ebx, %ebx
-    jne .L27_4
-    jmp .L27_2
-.L27_4:
+    jne .L30_4
+    jmp .L30_2
+.L30_4:
     leaq 296(%rbp), %rbx
     movq %r12, %r10
     movq %rbx, %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
-.L27_1:
+.L30_1:
     movq $8, %rcx
     movq %rbx, %r12
     addq %rcx, %r12
@@ -7115,8 +7779,8 @@ lb_io_path_config:
     movq (%r10), %r12
     movq $0, %rcx
     cmpq %rcx, %r12
-    jbe .L27_6
-.L27_5:
+    jbe .L30_6
+.L30_5:
     leaq 336(%rbp), %r12
     movq %rbx, %r10
     movq %r12, %r11
@@ -7158,13 +7822,13 @@ lb_io_path_config:
     leaq 608(%rbp), %rsp
     popq %rbp
     ret
-.L27_8:
-    jmp .L27_7
-.L27_6:
-.L27_7:
-    jmp .L27_3
-.L27_2:
-.L27_3:
+.L30_8:
+    jmp .L30_7
+.L30_6:
+.L30_7:
+    jmp .L30_3
+.L30_2:
+.L30_3:
     leaq 280(%rbp), %rax
     movq %rax, 24(%rbp)
     subq $32, %rsp
@@ -7180,9 +7844,9 @@ lb_io_path_config:
     movq %rbx, %r10
     movzbl (%r10), %ebx
     testl %ebx, %ebx
-    jne .L27_10
-    jmp .L27_9
-.L27_10:
+    jne .L30_10
+    jmp .L30_9
+.L30_10:
     movq $16, %rcx
     movq %r13, %rbx
     addq %rcx, %rbx
@@ -7232,8 +7896,8 @@ lb_io_path_config:
     leaq 608(%rbp), %rsp
     popq %rbp
     ret
-.L27_11:
-.L27_9:
+.L30_11:
+.L30_9:
     movq %r13, %r10
     movq 24(%rbp), %r11
     movups 0(%r10), %xmm8
@@ -7270,8 +7934,8 @@ lb_io_path_config:
     movq %rax, 0(%rbp)
     movabsq $4611686018427387904, %rcx
     cmpq %rcx, %rbx
-    jbe .L27_13
-.L27_12:
+    jbe .L30_13
+.L30_12:
     movq 0(%rbp), %rax
     movq $16, %rcx
     movq %rax, %rbx
@@ -7297,8 +7961,8 @@ lb_io_path_config:
     movl $1, %eax
     movq %rbx, %r10
     movb %al, (%r10)
-    jmp .L27_14
-.L27_13:
+    jmp .L30_14
+.L30_13:
     movq 8(%rbp), %r10
     movq (%r10), %r13
     movq 8(%rbp), %rax
@@ -7308,9 +7972,9 @@ lb_io_path_config:
     movq %r14, %r10
     movq (%r10), %r14
     testq %r14, %r14
-    jne .L27_15
-    jmp .L27_16
-.L27_16:
+    jne .L30_15
+    jmp .L30_16
+.L30_16:
     leaq .Ltext_71(%rip), %rdi
     leaq .Ltext_73(%rip), %rsi
     movq %rdx, %r8
@@ -7319,7 +7983,7 @@ lb_io_path_config:
     subq $32, %rsp
     call lb_core_7trap_at
     addq $32, %rsp
-.L27_15:
+.L30_15:
     movq %r14, %r10
     movq (%r10), %r12
     subq $32, %rsp
@@ -7358,9 +8022,9 @@ lb_io_path_config:
     movl %eax, %r12d
     andl %ecx, %r12d
     testl %r12d, %r12d
-    jne .L27_17
-    jmp .L27_18
-.L27_17:
+    jne .L30_17
+    jmp .L30_18
+.L30_17:
     movq 0(%rbp), %rax
     movq $16, %rcx
     movq %rax, %rbx
@@ -7386,8 +8050,8 @@ lb_io_path_config:
     movl $1, %eax
     movq %rbx, %r10
     movb %al, (%r10)
-    jmp .L27_14
-.L27_18:
+    jmp .L30_14
+.L30_18:
     movq %r15, %r10
     movq (%r10), %r12
     movq 0(%rbp), %r10
@@ -7405,7 +8069,7 @@ lb_io_path_config:
     movl $0, %eax
     movq %r12, %r10
     movb %al, (%r10)
-.L27_14:
+.L30_14:
     movq 0(%rbp), %rax
     movq $40, %rcx
     movq %rax, %rbx
@@ -7413,9 +8077,9 @@ lb_io_path_config:
     movq %rbx, %r10
     movzbl (%r10), %ebx
     testl %ebx, %ebx
-    jne .L27_20
-    jmp .L27_19
-.L27_20:
+    jne .L30_20
+    jmp .L30_19
+.L30_20:
     movq 0(%rbp), %rax
     movq $16, %rcx
     movq %rax, %rbx
@@ -7466,8 +8130,8 @@ lb_io_path_config:
     leaq 608(%rbp), %rsp
     popq %rbp
     ret
-.L27_21:
-.L27_19:
+.L30_21:
+.L30_19:
     movq 0(%rbp), %r10
     movq 16(%rbp), %r11
     movups 0(%r10), %xmm8
@@ -7529,8 +8193,8 @@ lb_io_path_config:
     movq %r12, %r10
     movq (%r10), %r12
     cmpq %r12, %r13
-    jbe .L27_23
-.L27_22:
+    jbe .L30_23
+.L30_22:
     movq $16, %rcx
     movq %r14, %rbx
     addq %rcx, %rbx
@@ -7554,8 +8218,8 @@ lb_io_path_config:
     movl $1, %eax
     movq %rbx, %r10
     movb %al, (%r10)
-    jmp .L27_24
-.L27_23:
+    jmp .L30_24
+.L30_23:
     subq $32, %rsp
     movq %rbx, %rax
     movq %rax, 8(%rsp)
@@ -7576,16 +8240,16 @@ lb_io_path_config:
     movl $0, %eax
     movq %r12, %r10
     movb %al, (%r10)
-.L27_24:
+.L30_24:
     movq $40, %rcx
     movq %r14, %rbx
     addq %rcx, %rbx
     movq %rbx, %r10
     movzbl (%r10), %ebx
     testl %ebx, %ebx
-    jne .L27_26
-    jmp .L27_25
-.L27_26:
+    jne .L30_26
+    jmp .L30_25
+.L30_26:
     movq $16, %rcx
     movq %r14, %rbx
     addq %rcx, %rbx
@@ -7635,8 +8299,8 @@ lb_io_path_config:
     leaq 608(%rbp), %rsp
     popq %rbp
     ret
-.L27_27:
-.L27_25:
+.L30_27:
+.L30_25:
     leaq 336(%rbp), %rbx
     movq %r14, %r10
     movq %rbx, %r11
@@ -7678,7 +8342,7 @@ lb_io_path_config:
     leaq 608(%rbp), %rsp
     popq %rbp
     ret
-.L27_28:
+.L30_28:
     leaq .Ltext_77(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -7760,12 +8424,12 @@ lb_memory_move_0g1_u8:
     seta %al
     movzbl %al, %r13d
     testl %r13d, %r13d
-    jne .L28_11
-    jmp .L28_4
-.L28_11:
+    jne .L31_11
+    jmp .L31_4
+.L31_11:
     movl %r13d, %r14d
-    jmp .L28_5
-.L28_4:
+    jmp .L31_5
+.L31_4:
     leaq 32(%rbp), %r13
     movq $8, %rcx
     addq %rcx, %r13
@@ -7774,12 +8438,12 @@ lb_memory_move_0g1_u8:
     cmpq %r13, %rbx
     seta %al
     movzbl %al, %r14d
-.L28_5:
+.L31_5:
     movzbl %r14b, %r13d
     testl %r13d, %r13d
-    jne .L28_1
-    jmp .L28_2
-.L28_1:
+    jne .L31_1
+    jmp .L31_2
+.L31_1:
     leaq .Ltext_3(%rip), %r13
     leaq 0(%rbp), %r14
     movq %r14, %r10
@@ -7804,13 +8468,13 @@ lb_memory_move_0g1_u8:
     movq 8(%rsp), %rdx
     call lb_core_12trap_text_at
     addq $48, %rsp
-    jmp .L28_3
-.L28_2:
-.L28_3:
+    jmp .L31_3
+.L31_2:
+.L31_3:
     movq $0, %rcx
     cmpq %rcx, %rbx
-    jbe .L28_7
-.L28_6:
+    jbe .L31_7
+.L31_6:
     movq %r12, %r10
     movq (%r10), %r13
     leaq 32(%rbp), %r14
@@ -7830,9 +8494,9 @@ lb_memory_move_0g1_u8:
     addq $32, %rsp
     movq %rax, %r13
     testq %r13, %r13
-    jne .L28_9
-    jmp .L28_10
-.L28_10:
+    jne .L31_9
+    jmp .L31_10
+.L31_10:
     leaq .Ltext_79(%rip), %rdi
     leaq .Ltext_80(%rip), %rsi
     movq %rdx, %r8
@@ -7841,10 +8505,10 @@ lb_memory_move_0g1_u8:
     subq $32, %rsp
     call lb_core_7trap_at
     addq $32, %rsp
-.L28_9:
-    jmp .L28_8
-.L28_7:
-.L28_8:
+.L31_9:
+    jmp .L31_8
+.L31_7:
+.L31_8:
     movq 264(%rbp), %rdi
     movq 256(%rbp), %rsi
     movdqu 240(%rbp), %xmm6
@@ -7939,12 +8603,12 @@ lb_memory_copy_0g1_u8:
     seta %al
     movzbl %al, %r13d
     testl %r13d, %r13d
-    jne .L29_11
-    jmp .L29_4
-.L29_11:
+    jne .L32_11
+    jmp .L32_4
+.L32_11:
     movl %r13d, %r14d
-    jmp .L29_5
-.L29_4:
+    jmp .L32_5
+.L32_4:
     leaq 32(%rbp), %r13
     movq $8, %rcx
     addq %rcx, %r13
@@ -7953,12 +8617,12 @@ lb_memory_copy_0g1_u8:
     cmpq %r13, %rbx
     seta %al
     movzbl %al, %r14d
-.L29_5:
+.L32_5:
     movzbl %r14b, %r13d
     testl %r13d, %r13d
-    jne .L29_1
-    jmp .L29_2
-.L29_1:
+    jne .L32_1
+    jmp .L32_2
+.L32_1:
     leaq .Ltext_3(%rip), %r13
     leaq 0(%rbp), %r14
     movq %r14, %r10
@@ -7983,13 +8647,13 @@ lb_memory_copy_0g1_u8:
     movq 8(%rsp), %rdx
     call lb_core_12trap_text_at
     addq $48, %rsp
-    jmp .L29_3
-.L29_2:
-.L29_3:
+    jmp .L32_3
+.L32_2:
+.L32_3:
     movq $0, %rcx
     cmpq %rcx, %rbx
-    jbe .L29_7
-.L29_6:
+    jbe .L32_7
+.L32_6:
     movq %r12, %r10
     movq (%r10), %r13
     leaq 32(%rbp), %r14
@@ -8009,9 +8673,9 @@ lb_memory_copy_0g1_u8:
     addq $32, %rsp
     movq %rax, %r13
     testq %r13, %r13
-    jne .L29_9
-    jmp .L29_10
-.L29_10:
+    jne .L32_9
+    jmp .L32_10
+.L32_10:
     leaq .Ltext_82(%rip), %rdi
     leaq .Ltext_80(%rip), %rsi
     movq %rdx, %r8
@@ -8020,10 +8684,10 @@ lb_memory_copy_0g1_u8:
     subq $32, %rsp
     call lb_core_7trap_at
     addq $32, %rsp
-.L29_9:
-    jmp .L29_8
-.L29_7:
-.L29_8:
+.L32_9:
+    jmp .L32_8
+.L32_7:
+.L32_8:
     movq 264(%rbp), %rdi
     movq 256(%rbp), %rsi
     movdqu 240(%rbp), %xmm6
@@ -8229,50 +8893,56 @@ lb_memory_copy_0g1_u8:
 
     .section .rdata,"dr"
     .p2align 3
+
+    .section .rdata$lb_vt_io_File_Writer,"dr"
+    .p2align 3
     .globl lb_vt_io_File_Writer
 lb_vt_io_File_Writer:
     .quad lb_io_File_write
+
+    .section .rdata$lb_vt_io_StandardInput_Reader,"dr"
+    .p2align 3
     .globl lb_vt_io_StandardInput_Reader
 lb_vt_io_StandardInput_Reader:
     .quad lb_io_StandardInput_read
 
-    .bss
+    .section .data$lb_io_14unexpected_eof,"dw"
     .globl lb_io_14unexpected_eof
     .p2align 2
 lb_io_14unexpected_eof:
     .zero 4
 
-    .bss
+    .section .data$lb_io_11no_progress,"dw"
     .globl lb_io_11no_progress
     .p2align 2
 lb_io_11no_progress:
     .zero 4
 
-    .bss
+    .section .data$lb_io_13invalid_count,"dw"
     .globl lb_io_13invalid_count
     .p2align 2
 lb_io_13invalid_count:
     .zero 4
 
-    .bss
+    .section .data$lb_io_14invalid_buffer,"dw"
     .globl lb_io_14invalid_buffer
     .p2align 2
 lb_io_14invalid_buffer:
     .zero 4
 
-    .bss
+    .section .data$lb_io_closed,"dw"
     .globl lb_io_closed
     .p2align 2
 lb_io_closed:
     .zero 4
 
-    .bss
+    .section .data$lb_io_failed,"dw"
     .globl lb_io_failed
     .p2align 2
 lb_io_failed:
     .zero 4
 
-    .bss
+    .section .data$lb_io_11would_block,"dw"
     .globl lb_io_11would_block
     .p2align 2
 lb_io_11would_block:
@@ -8296,13 +8966,13 @@ lb_io_8err_file:
 lb_io_7in_file:
     .zero 4
 
-    .bss
+    .section .data$lb_io_full,"dw"
     .globl lb_io_full
     .p2align 2
 lb_io_full:
     .zero 4
 
-    .bss
+    .section .data$lb_io_14io_path_failed,"dw"
     .globl lb_io_14io_path_failed
     .p2align 2
 lb_io_14io_path_failed:

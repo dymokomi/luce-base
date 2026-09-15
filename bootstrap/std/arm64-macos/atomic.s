@@ -12,6 +12,7 @@ _lb_atomic_0init:
 
     .p2align 2
     .globl _lb_atomic_fence
+    .no_dead_strip _lb_atomic_fence
 _lb_atomic_fence:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -32,3 +33,4 @@ _lb_atomic_fence:
     .section __DATA,__const
     .p2align 3
 
+.subsections_via_symbols

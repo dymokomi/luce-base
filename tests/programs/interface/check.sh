@@ -14,6 +14,8 @@ cmp build/interface/source.txt build/interface/interface.txt
 grep -q '^pub linked func double(n: i64) -> i64$' build/interface/lib.lucb
 grep -q '^linked func helper(a: i64,$' build/interface/lib.lucb
 grep -q '^pub linked var opened: i64$' build/interface/lib.lucb
+grep -q '^pub let limit: i64 = 3$' build/interface/lib.lucb
+grep -q '^pub linked let names: c.str\[2\] = \["one", "two"\]$' build/interface/lib.lucb
 grep -q '^local linked var per_thread: u32$' build/interface/lib.lucb
 grep -q '^    pub linked mutating func bump(by: i64) -> i64$' build/interface/lib.lucb
 grep -q '^    linked static func zero() -> Counter$' build/interface/lib.lucb

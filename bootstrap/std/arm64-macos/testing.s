@@ -16,6 +16,7 @@ _lb_testing_0init:
 
     .p2align 2
     .globl _lb_testing_begin
+    .no_dead_strip _lb_testing_begin
 _lb_testing_begin:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -103,6 +104,7 @@ _lb_testing_begin:
 
     .p2align 2
     .globl _lb_testing_end
+    .no_dead_strip _lb_testing_end
 _lb_testing_end:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -124,6 +126,7 @@ _lb_testing_end:
 
     .p2align 2
     .globl _lb_testing_seed
+    .no_dead_strip _lb_testing_seed
 _lb_testing_seed:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -145,6 +148,7 @@ L3_1:
 
     .p2align 2
     .globl _lb_testing_random
+    .no_dead_strip _lb_testing_random
 _lb_testing_random:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -172,6 +176,7 @@ L4_6:
 
     .p2align 2
     .globl _lb_testing_expect
+    .no_dead_strip _lb_testing_expect
 _lb_testing_expect:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -204,6 +209,7 @@ L5_3:
 
     .p2align 2
     .globl _lb_testing_12expect_equal
+    .no_dead_strip _lb_testing_12expect_equal
 _lb_testing_12expect_equal:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -306,6 +312,7 @@ L6_3:
 
     .p2align 2
     .globl _lb_testing_11expect_text
+    .no_dead_strip _lb_testing_11expect_text
 _lb_testing_11expect_text:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -495,3 +502,4 @@ _lb_vt_memory_FixedBuffer_Allocator:
     .globl _lb_testing_12current_seed
     .zerofill __DATA,__bss,_lb_testing_12current_seed,8,3
 
+.subsections_via_symbols

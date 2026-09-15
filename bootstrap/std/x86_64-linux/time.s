@@ -37,39 +37,17 @@ lb_time_0init:
     ret
 
     .p2align 4
-    .globl lb_time_unix
-    .type lb_time_unix, @function
-lb_time_unix:
+    .globl lb_time_now
+    .type lb_time_now, @function
+lb_time_now:
     pushq %rbp
     movq %rsp, %rbp
-    subq $16, %rsp
-    movq %rbx, -8(%rbp)
-    movq $0, %rdi
-    call time@PLT
-    movq %rax, %rbx
-    movq %rbx, %rax
-    movq -8(%rbp), %rbx
-    movq %rbp, %rsp
-    popq %rbp
-    ret
-.L1_1:
-    leaq .Ltext_2(%rip), %rdi
-    leaq .Ltext_1(%rip), %rsi
-    call lb_core_7trap_at@PLT
-
-    .p2align 4
-    .globl lb_time_since
-    .type lb_time_since, @function
-lb_time_since:
-    pushq %rbp
-    movq %rsp, %rbp
-    subq $80, %rsp
+    subq $64, %rsp
     movq %rbx, -8(%rbp)
     movq %r12, -16(%rbp)
     movq %r13, -24(%rbp)
-    movq %rdi, -40(%rbp)
-    leaq -56(%rbp), %rbx
-    leaq -72(%rbp), %r12
+    leaq -40(%rbp), %rbx
+    leaq -56(%rbp), %r12
     movq %r12, %r11
     pxor %xmm8, %xmm8
     movups %xmm8, 0(%r11)
@@ -117,25 +95,65 @@ lb_time_since:
     call lb_core_7trap_at@PLT
 1:
     movq %rax, %rbx
-    jmp .L2_6
-.L2_5:
+    movq %rbx, %rax
+    movq -8(%rbp), %rbx
+    movq -16(%rbp), %r12
+    movq -24(%rbp), %r13
+    movq %rbp, %rsp
+    popq %rbp
+    ret
+.L1_1:
     leaq .Ltext_0(%rip), %rdi
     leaq .Ltext_1(%rip), %rsi
     call lb_core_7trap_at@PLT
-.L2_6:
+
+    .p2align 4
+    .globl lb_time_unix
+    .type lb_time_unix, @function
+lb_time_unix:
+    pushq %rbp
+    movq %rsp, %rbp
+    subq $16, %rsp
+    movq %rbx, -8(%rbp)
+    movq $0, %rdi
+    call time@PLT
+    movq %rax, %rbx
+    movq %rbx, %rax
+    movq -8(%rbp), %rbx
+    movq %rbp, %rsp
+    popq %rbp
+    ret
+.L2_1:
+    leaq .Ltext_2(%rip), %rdi
+    leaq .Ltext_1(%rip), %rsi
+    call lb_core_7trap_at@PLT
+
+    .p2align 4
+    .globl lb_time_since
+    .type lb_time_since, @function
+lb_time_since:
+    pushq %rbp
+    movq %rsp, %rbp
+    subq $48, %rsp
+    movq %rbx, -8(%rbp)
+    movq %r12, -16(%rbp)
+    movq %r13, -24(%rbp)
+    movq %rdi, -40(%rbp)
+    call lb_time_now@PLT
+    movq %rax, %rbx
     leaq -40(%rbp), %r12
     movq %r12, %r10
     movq (%r10), %r12
     cmpq %r12, %rbx
-    jbe .L2_2
-.L2_1:
+    jbe .L3_2
+.L3_1:
     movq %rbx, %r13
     subq %r12, %r13
-    jmp .L2_3
-.L2_2:
+    jmp .L3_3
+.L3_2:
     movq $0, %rax
     movq %rax, %r13
-.L2_3:
+.L3_3:
     movq %r13, %rax
     movq -8(%rbp), %rbx
     movq -16(%rbp), %r12
@@ -143,7 +161,7 @@ lb_time_since:
     movq %rbp, %rsp
     popq %rbp
     ret
-.L2_4:
+.L3_4:
     leaq .Ltext_3(%rip), %rdi
     leaq .Ltext_1(%rip), %rsi
     call lb_core_7trap_at@PLT
@@ -176,6 +194,7 @@ lb_time_since:
     .bss
     .globl lb_time_monotonic
     .type lb_time_monotonic, @object
+    .weak lb_time_monotonic
     .p2align 2
 lb_time_monotonic:
     .zero 4
@@ -183,6 +202,7 @@ lb_time_monotonic:
     .bss
     .globl lb_time_realtime
     .type lb_time_realtime, @object
+    .weak lb_time_realtime
     .p2align 2
 lb_time_realtime:
     .zero 4

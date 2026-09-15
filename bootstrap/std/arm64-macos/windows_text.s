@@ -12,6 +12,7 @@ _lb_12windows_text_0init:
 
     .p2align 2
     .globl _lb_12windows_text_wide
+    .no_dead_strip _lb_12windows_text_wide
 _lb_12windows_text_wide:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -364,6 +365,7 @@ L1_21:
 
     .p2align 2
     .globl _lb_12windows_text_narrow
+    .no_dead_strip _lb_12windows_text_narrow
 _lb_12windows_text_narrow:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -899,3 +901,4 @@ l_text_17:
     .section __DATA,__const
     .p2align 3
 
+.subsections_via_symbols

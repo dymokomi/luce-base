@@ -19,3 +19,4 @@ _lb_input_0init:
     .section __DATA,__const
     .p2align 3
 
+.subsections_via_symbols

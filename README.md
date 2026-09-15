@@ -87,10 +87,16 @@ The standard library (`memory`, `io`, `os`, `files`, `process`, `thread`,
 `sync`, `atomic`, `strings`, `paths`, `math`, `time`, `testing`, `net`, `c`) is
 Base source under `src/std/`, in individual files or ordered source fragments,
 with `extern` declarations for operating-system and C-library calls;
-`tools/embed_std.py` gathers them into `src/sema/prelude.lucb`,
-which the compiler binary carries, and `tools/library_reference.py` writes
-[`docs/LIBRARY.md`](docs/LIBRARY.md) from the same source. The gate fails when
-either has drifted. `net` also provides transport-independent
+It is compiled once, by `luce-base std-build`, into an archive of one object
+per source file under `build/lib/luce-base/<target>/` beside the compiler, and every
+program links it (§16.6); what a program is checked against is the library's
+interfaces (§9.8), which `luce-base std-interface` writes into
+`src/sema/prelude.lucb` for the compiler binary to carry, and
+`tools/library_reference.py` writes [`docs/LIBRARY.md`](docs/LIBRARY.md) from
+the same source. The gate fails when either has drifted. `bootstrap/std/<target>/`
+holds the library's text for every target, one assembly and one C file per
+module, so a host without a compiler builds its first one from
+`bootstrap/luce-base-<target>.c` and that C alone. `net` also provides transport-independent
 [HTTP/1.1 and WebSocket codecs](docs/NET_PROTOCOLS.md), using caller-owned storage
 and the standard Reader/Writer interfaces. Everything decided by target lives in
 `src/back/target.lucb` and in the `platform` module the compiler writes for each build (`--target

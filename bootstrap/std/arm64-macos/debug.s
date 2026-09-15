@@ -12,6 +12,7 @@ _lb_debug_0init:
 
     .p2align 2
     .globl _lb_debug_enter
+    .no_dead_strip _lb_debug_enter
 _lb_debug_enter:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -77,6 +78,7 @@ L1_3:
 
     .p2align 2
     .globl _lb_debug_leave
+    .no_dead_strip _lb_debug_leave
 _lb_debug_leave:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -111,6 +113,7 @@ L2_3:
 
     .p2align 2
     .globl _lb_debug_at
+    .no_dead_strip _lb_debug_at
 _lb_debug_at:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -6162,3 +6165,4 @@ l_text_116:
     .globl _lb_debug_10line_bytes
     .zerofill __DATA,__bss,_lb_debug_10line_bytes,512,0
 
+.subsections_via_symbols

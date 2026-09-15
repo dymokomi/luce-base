@@ -2,6 +2,7 @@ from windows_abi import SystemInfo
 from windows_abi import MultiByteToWideChar, WideCharToMultiByte, GetLastError, SetLastError, CloseHandle, GetCurrentProcessId, GetSystemInfo, GetEnvironmentVariableW, SetEnvironmentVariableW, GetCurrentDirectoryW, SetCurrentDirectoryW
 ## Native Windows calls stay behind the portable os interface. Public text is UTF-8.
 extern func GetComputerNameW(output: u16*, capacity: u32*) -> i32
+extern func GetModuleFileNameW(module: void*?, output: u16*, capacity: u32) -> u32
 extern func GetActiveProcessorCount(group: u16) -> u32
 extern func CreateToolhelp32Snapshot(flags: u32, process: u32) -> void*
 extern func Process32FirstW(snapshot: void*, entry: WinProcessEntry*) -> i32
@@ -55,6 +56,21 @@ func windows_cwd() -> str!:
             return try windows_text.narrow(text[..<(usize)count], failed)
         attempt += 1
     error(failed, "the working directory cannot be read")
+
+## The module path grows until the call answers a length below the capacity: a full
+## buffer is a truncated path.
+func windows_executable() -> str!:
+    var capacity: usize = 260
+    while capacity <= 32768:
+        let text = try alloc u16[capacity]
+        defer free(text)
+        let count = GetModuleFileNameW(none, text.data, (u32)capacity)
+        if count == 0:
+            break
+        if (usize)count < capacity:
+            return try windows_text.narrow(text[..<(usize)count], failed)
+        capacity *= 4
+    error(failed, "the executable path cannot be read")
 
 func windows_parent_pid() -> i32:
     let snapshot = CreateToolhelp32Snapshot(2, 0)

@@ -1897,6 +1897,18 @@ pub struct Generator:
                 try self.put(":\n    .space ")
                 try self.put_u64((u64)g.size if g.size > 0 else 1)
                 try self.put("\n")
+            elif g.weak:
+                # the linker coalesces weak storage only when it is data, not zero-fill
+                try self.put("    .section __DATA,__data\n    .p2align ")
+                try self.put_u64(log2((u64)g.align if g.align > 0 else 1))
+                try self.put("\n    .globl ")
+                try self.symbol(g.name)
+                try self.put("\n")
+                try self.linkage_directives(g.name, true, g.used)
+                try self.symbol(g.name)
+                try self.put(":\n    .zero ")
+                try self.put_u64((u64)g.size if g.size > 0 else 1)
+                try self.put("\n")
             else:
                 try self.put("    .globl ")
                 try self.symbol(g.name)
@@ -1913,6 +1925,9 @@ pub struct Generator:
         try self.put("\n")
         if let dw = self.dw:
             try dw.finish(&self.out)
+        # every symbol is an atom of its own: what the linker needs to coalesce the weak
+        # definitions of instances and witness tables across units, and to drop dead ones
+        try self.put(".subsections_via_symbols\n")
 
     mutating func c_string(text: str) -> !:
         try self.put("\"")

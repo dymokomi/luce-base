@@ -17,9 +17,13 @@ python3 tools/test_platform_boundaries.py
 python3 tools/unicode_tables.py --check
 # what the binary carries is what the sources say: the standard modules, the C runtime, the
 # version, and the library reference are generated, and drift is a failure, not a note
-python3 tools/embed_std.py --check
+# the prelude is the standard library's interfaces, as the compiler writes them from src/std
+./build/luce-base std-interface src/std build/prelude.lucb
+if ! cmp -s build/prelude.lucb src/sema/prelude.lucb; then
+    echo "FAIL src/sema/prelude.lucb is not what src/std says; run ./build/luce-base std-interface src/std src/sema/prelude.lucb"; exit 1
+fi
+rm -f build/prelude.lucb
 python3 tools/embed_native_links.py --check
-python3 tools/test_std_embedding.py ./build/luce-base
 python3 tools/test_desktop_services.py --compiler build/luce-base
 python3 tools/test_window_targets.py --compiler build/luce-base
 python3 tools/embed_runtime.py --check

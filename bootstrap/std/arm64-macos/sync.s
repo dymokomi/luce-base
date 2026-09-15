@@ -44,6 +44,7 @@ L0_3:
 
     .p2align 2
     .globl _lb_sync_Mutex_lock
+    .no_dead_strip _lb_sync_Mutex_lock
 _lb_sync_Mutex_lock:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -148,6 +149,7 @@ L1_10:
 
     .p2align 2
     .globl _lb_sync_Mutex_unlock
+    .no_dead_strip _lb_sync_Mutex_unlock
 _lb_sync_Mutex_unlock:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -188,6 +190,7 @@ L2_3:
 
     .p2align 2
     .globl _lb_sync_Mutex_8try_lock
+    .no_dead_strip _lb_sync_Mutex_8try_lock
 _lb_sync_Mutex_8try_lock:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -234,6 +237,7 @@ L3_1:
 
     .p2align 2
     .globl _lb_sync_Condition_wait
+    .no_dead_strip _lb_sync_Condition_wait
 _lb_sync_Condition_wait:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -280,6 +284,7 @@ L4_1:
 
     .p2align 2
     .globl _lb_sync_Condition_signal
+    .no_dead_strip _lb_sync_Condition_signal
 _lb_sync_Condition_signal:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -313,6 +318,7 @@ L5_1:
 
     .p2align 2
     .globl _lb_sync_Condition_broadcast
+    .no_dead_strip _lb_sync_Condition_broadcast
 _lb_sync_Condition_broadcast:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -352,6 +358,7 @@ L6_1:
 
     .p2align 2
     .globl _lb_sync_Once_run
+    .no_dead_strip _lb_sync_Once_run
 _lb_sync_Once_run:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -457,6 +464,7 @@ L7_7:
 
     .p2align 2
     .globl _lb_sync_Semaphore_acquire
+    .no_dead_strip _lb_sync_Semaphore_acquire
 _lb_sync_Semaphore_acquire:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -545,6 +553,7 @@ L8_6:
 
     .p2align 2
     .globl _lb_sync_Semaphore_release
+    .no_dead_strip _lb_sync_Semaphore_release
 _lb_sync_Semaphore_release:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -592,14 +601,35 @@ l_text_3:
 
     .section __DATA,__const
     .p2align 3
+    .section __DATA,__data
+    .p2align 2
     .globl _lb_sync_16compare_and_wait
-    .zerofill __DATA,__bss,_lb_sync_16compare_and_wait,4,2
+    .weak_definition _lb_sync_16compare_and_wait
+_lb_sync_16compare_and_wait:
+    .zero 4
+    .section __DATA,__data
+    .p2align 2
     .globl _lb_sync_8wake_all
-    .zerofill __DATA,__bss,_lb_sync_8wake_all,4,2
+    .weak_definition _lb_sync_8wake_all
+_lb_sync_8wake_all:
+    .zero 4
+    .section __DATA,__data
+    .p2align 3
     .globl _lb_sync_12futex_number
-    .zerofill __DATA,__bss,_lb_sync_12futex_number,8,3
+    .weak_definition _lb_sync_12futex_number
+_lb_sync_12futex_number:
+    .zero 8
+    .section __DATA,__data
+    .p2align 2
     .globl _lb_sync_18futex_wait_private
-    .zerofill __DATA,__bss,_lb_sync_18futex_wait_private,4,2
+    .weak_definition _lb_sync_18futex_wait_private
+_lb_sync_18futex_wait_private:
+    .zero 4
+    .section __DATA,__data
+    .p2align 2
     .globl _lb_sync_18futex_wake_private
-    .zerofill __DATA,__bss,_lb_sync_18futex_wake_private,4,2
+    .weak_definition _lb_sync_18futex_wake_private
+_lb_sync_18futex_wake_private:
+    .zero 4
 
+.subsections_via_symbols

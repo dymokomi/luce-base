@@ -917,7 +917,7 @@ A small closed set of words may precede a `func` or a top-level `var`, each one 
 | `weak func`, `weak var` | a weak symbol that another definition may override |
 | `used func`, `used var` | keep the symbol even if nothing references it |
 | `section("name") func`, `section("name") var` | place the symbol in the named linker section |
-| `linked func`, `linked var` | the definition is in a library the program links: the function has a signature and no body, the global no initialiser. An interface written by `luce-base interface` is made of these; a generic or `inline` function is compiled where it is used and cannot be `linked` |
+| `linked func`, `linked var`, `linked let` | the definition is in a library the program links: the function has a signature and no body, the global a type and no initialiser, the constant its type and, when the interface carries it, the value the library gives it, which the program neither stores nor folds; a `linked let` names storage, so it is not a constant expression (§6.4). An interface written by `luce-base interface` is made of these; a generic or `inline` function is compiled where it is used and cannot be `linked` |
 
 They combine, `used section(".isr_vector") var vectors: Handler[64] = ...`. There is no general attribute syntax; this set is the language. A section name is passed to the target as written; a Mach-O target, whose sections live in segments, places a name without a comma in `__DATA` (a variable) or `__TEXT` (a function) under that name with its leading dot dropped, so `.isr_vector` is one spelling for every target.
 
@@ -1375,13 +1375,23 @@ The language depends on these modules by name. Their full surfaces are in the li
 | `files` | `read(path: c.str) -> u8[]!` allocating from the current allocator, `write`, `list(path: c.str) -> str[]!`, `missing` (error code) |
 | `process` | `run(program: c.str, arguments: c.str[]) -> i32!` |
 | `math` | `pi`, `tau`, `e`, `infinity`, `nan`; `floor`, `ceil`, `round`, `trunc`, `sqrt`, `cbrt`, `hypot`, `mod`, `pow`, `exp`, `exp2`, `log`, `log2`, `log10`, `sin`, `cos`, `tan`, `asin`, `acos`, `atan`, `atan2`, `sinh`, `cosh`, `tanh`, `abs`, `sign`, `min`, `max`, `clamp`, `is_nan`, `is_finite`, `is_infinite` on `f64`; `div_floor`, `mod_floor`, `iabs`, `imin`, `imax`, `iclamp` on `i64`. `from math import sqrt` brings one in; `import math` keeps them qualified |
-| `os` | the target as constants: `arm64`, `x86_64`, `macos`, `linux`, `windows`, `posix`, `pointer_bits`, `name`; `cpus()`, `page_size()`, `env`, `set_env`, `unset_env`, `cwd`, `change_dir`, `pid`, `parent_pid`, `hostname`, `exit` |
+| `os` | the target as constants: `arm64`, `x86_64`, `macos`, `linux`, `windows`, `posix`, `pointer_bits`, `name`; `cpus()`, `page_size()`, `env`, `set_env`, `unset_env`, `cwd`, `change_dir`, `executable`, `pid`, `parent_pid`, `hostname`, `exit` |
 | `thread` | `spawn`, `Handle`, `current`, `pause`, `yield`, `sleep` |
 | `sync` | `Mutex`, `Condition`, `Once`, `Semaphore` |
 | `atomic` | `fence`, `Ordering` |
 | `c` | the C types of §5.2, `errno()`, `errno(value)`, `stdin()`, `stdout()`, `stderr()` |
 | `testing` | assertions, seeds, and the per-test allocator of §16.5 |
 | `runtime` | `heap()` inside a full Luce program (§18.9) |
+
+The standard modules are compiled once, not with each program: `luce-base std-build`
+turns their source into an archive of one object per source file (a module read from
+one file, or each fragment of §16.1), `libstd.a` from the native backend and
+`libstd-c.a` from the C backend, under `lib/luce-base/<target>/` beside the compiler (or beside its `bin` directory; `--std-dir DIR` and the `LUCE_STD` environment
+variable name another place). A program is checked against the modules' interfaces
+(§9.8), which the compiler carries, and linked with the archive; only the members it
+reaches are loaded, so a program that never names `window` links no window system, and
+only generic and `inline` bodies of the library are compiled with the program. A library
+built with `--lib` carries the archive's members, so its C user links it alone.
 
 `input` provides portable physical-key, pointer, modifier, and scrolling event
 values. `window` owns native windows and dispatches those events; its first

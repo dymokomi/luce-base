@@ -329,13 +329,13 @@ pub struct Checker:
                 return self.all_constant(e.body)
             .name:
                 let d = e.resolved else return false
-                return d.kind == ast.Kind.constant or d.kind == ast.Kind.func_ or d.kind == ast.Kind.enum_case
+                return (d.kind == ast.Kind.constant and not ast.is_linked(d)) or d.kind == ast.Kind.func_ or d.kind == ast.Kind.enum_case
             .member:
                 let owner = e.left else return false
                 if owner.kind == ast.Kind.name and owner.text == "luce":
                     return true
                 let d = e.resolved else return false
-                return d.kind == ast.Kind.constant or d.kind == ast.Kind.enum_case or d.kind == ast.Kind.func_
+                return (d.kind == ast.Kind.constant and not ast.is_linked(d)) or d.kind == ast.Kind.enum_case or d.kind == ast.Kind.func_
             .call:
                 let callee = e.left else return false
                 if callee.kind == ast.Kind.name and (callee.text == "sizeof" or callee.text == "alignof" or callee.text == "offsetof"):
@@ -2527,6 +2527,18 @@ pub struct Checker:
 
     ## A top-level constant typed on first use, so order does not matter.
     mutating func check_constant(d: ast.Node*) -> !:
+        if ast.is_linked(d):
+            # the library defines the value; its type is what the program knows, and the
+            # value, when the interface carries it, is checked but never stored (§9.8)
+            let t = d.ty else return try self.fail(d, "a `linked` constant names its type (§9.8)")
+            d.type_id = try self.resolve_type(t)
+            if let value = d.left:
+                let saved_top = self.at_top_level
+                self.at_top_level = true
+                discard(try self.expect(value, d.type_id))
+                self.at_top_level = saved_top
+            try self.rebind(d.text, d.type_id)
+            return
         let init = d.left else return try self.fail(d, "a constant needs a value")
         if d.type_id == types.error_id:
             discard(try self.fail(d, "this constant depends on itself"))

@@ -43,7 +43,7 @@ from wherever it sits.
 | `front.ast` | the syntax tree: one `Node` shape, kinds, flags, sibling lists |
 | `front.parser` | tokens to the tree, the whole grammar of §21 |
 | `sema.types` | the type table: interned ids for every type, layout, spelling |
-| `sema.prelude` | the standard modules of §16.6 as Base source text, and `core`, the runtime in Base |
+| `sema.prelude` | the interfaces (§9.8) of the standard modules of §16.6, `core` among them, as Base text |
 | `sema.check` | names, types, and effects; writes `type_id` and `resolved` onto the tree |
 | `back.names` | the symbol every declaration and instance gets, shared by both backends |
 | `back.c.emit` | the checked tree to C: monomorphisation, conversions, the runtime contract |
@@ -68,8 +68,9 @@ read `Node.type_id` and `Node.resolved` and never look a name up again.
 
 Types are interned in `types.Table`; two spellings of one type share an id,
 so equality is integer equality. The standard modules come from `prelude`:
-Base text parsed and checked before the program's own modules, which keeps
-`io.stdout()` and `Writer` ordinary declarations rather than special cases,
+their interfaces as Base text, parsed and checked before the program's own
+modules, which keeps `io.stdout()` and `Writer` ordinary declarations rather
+than special cases,
 and they are imported like any other module: nothing is in scope without
 `import io` or `from io import Writer` (§16.6).
 
@@ -174,8 +175,10 @@ interface view, an array a span, a value its tagged optional, text a byte
 span. Optionals of pointers are the pointer itself; other optionals and every
 fallible result are small structs the runtime header defines through macros.
 
-The standard modules are Base source in `prelude` and are emitted like any
-other module. Three things stay with the backend because no Base body can
+The standard modules are compiled once, into `lib/luce-base/<target>/libstd-c.a`,
+and a program declares what it reaches through the `linked` signatures of
+`prelude`; only generic instances are emitted with the program. Three things
+stay with the backend because no Base body can
 spell them: `atomic.fence`, the `luce` facts about the use site, and the C
 standard streams. Every C name is qualified by its module (`lb_files_read`,
 `lb_memory_allocator`, `lb_io_Location`), so two modules may declare the same
@@ -290,7 +293,8 @@ Both backends share `names`, so a function's symbol is the same in C and in
 assembly. The native path involves no C at all: what generated code needs by
 name, the trap reporter, text formatting, the conversion and saturation
 families, hashing, UTF-8 validation, and the startup shim's pieces, is the
-`core` module of the prelude, written in Base and compiled with the program;
+`core` module of the standard library, written in Base and linked from
+`libstd.a` like the rest of it (§16.6);
 `//`, `%`, and the shifts are checked inline in the IR. The driver assembles
 with `as` and links as the target's `Linker` says: `ld` against the system
 library on macOS, the C driver on Linux, where the start files and the

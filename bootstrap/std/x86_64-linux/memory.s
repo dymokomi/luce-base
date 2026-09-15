@@ -4072,6 +4072,7 @@ lb_vt_memory_CAllocator_Allocator:
     .bss
     .globl lb_memory_17private_anonymous
     .type lb_memory_17private_anonymous, @object
+    .weak lb_memory_17private_anonymous
     .p2align 2
 lb_memory_17private_anonymous:
     .zero 4
@@ -4135,6 +4136,7 @@ lb_memory_9held_next:
     .bss
     .globl lb_memory_exhausted
     .type lb_memory_exhausted, @object
+    .weak lb_memory_exhausted
     .p2align 2
 lb_memory_exhausted:
     .zero 4
@@ -4142,6 +4144,7 @@ lb_memory_exhausted:
     .bss
     .globl lb_memory_unset
     .type lb_memory_unset, @object
+    .weak lb_memory_unset
     .p2align 2
 lb_memory_unset:
     .zero 4

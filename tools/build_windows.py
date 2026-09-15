@@ -24,14 +24,22 @@ def main():
         parser.error('this entry point builds on Windows; use build.sh on Unix')
     build = ROOT / 'build'
     build.mkdir(exist_ok=True)
-    for script in ('embed_version.py', 'embed_runtime.py', 'embed_std.py', 'embed_native_links.py'):
+    for script in ('embed_version.py', 'embed_runtime.py', 'embed_native_links.py'):
         run(sys.executable, ROOT / 'tools' / script)
     zero, one, two = [build / f'windows-stage{i}.exe' for i in range(3)]
     if args.seed:
         run(args.seed.resolve(), 'build', 'src/main.lucb', '--release', '-o', zero)
     else:
+        # the standard library's C for the target, one member per module, as an archive
+        std_dir = build / 'stage0-std'
+        std_dir.mkdir(exist_ok=True)
+        objects = []
+        for source in sorted((ROOT / 'bootstrap/std/x86_64-windows').glob('*.c')):
+            objects.append(std_dir / (source.stem + '.o'))
+            run(args.cc, '-std=gnu11', '-O2', '-fno-strict-aliasing', '-I', ROOT / 'runtime', '-c', source, '-o', objects[-1])
+        run('ar', 'rcs', build / 'stage0-std.a', *objects)
         run(args.cc, '-std=gnu11', '-O2', '-fno-strict-aliasing', '-I', ROOT / 'runtime',
-            ROOT / 'bootstrap/luce-base-x86_64-windows.c', ROOT / 'runtime/lucb_rt.c',
+            ROOT / 'bootstrap/luce-base-x86_64-windows.c', ROOT / 'runtime/lucb_rt.c', build / 'stage0-std.a',
             '-pthread', '-lm', '-lsynchronization', '-lbcrypt', '-Wl,--stack,16777216', '-o', zero)
     run(zero, 'build', 'src/main.lucb', '--native', '--cpu', 'v1', '-o', one)
     run(one, 'build', 'src/main.lucb', '--native', '--cpu', 'v1', '-o', two)

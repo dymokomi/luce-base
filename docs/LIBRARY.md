@@ -145,6 +145,8 @@ The operating system's view of the process (§16.6): its environment, working di
 
 - `func cwd() -> str!` — The working directory, in storage from the current allocator.
 
+- `func executable() -> str!` — The path of this program's executable as the loader saw it, in an allocation of the current allocator, NUL-terminated for the C calls a path goes to.
+
 - `func change_dir(path: c.str) -> !`
 
 - `func pid() -> i32`

@@ -14,13 +14,16 @@
 #==============================================================================================
 
 import front.ast
+import front.source
 import sema.check
+import sema.types
 import support.buffer
+import support.list
 
-## Write the interface of `module` to `out`.
-pub func write(out: buffer.Buffer*, module: check.Module) -> !:
+## Write the interface of `module` to `out`; `table` tells which constants fold.
+pub func write(out: buffer.Buffer*, module: check.Module, table: types.Table*) -> !:
     let text = module.src.bytes
-    var w = Cutter(out = out, text = text)
+    var w = Cutter(out = out, text = text, table = table)
     var first: usize = text.length
     if let d = module.tree.body:
         first = block_start(text, d)
@@ -38,6 +41,7 @@ pub func write(out: buffer.Buffer*, module: check.Module) -> !:
 struct Cutter:
     var out: buffer.Buffer*
     var text: const u8[]
+    var table: types.Table*
 
     ## One top-level declaration, from its doc comment to the next declaration's.
     mutating func declaration(d: ast.Node*, start: usize, end: usize) -> !:
@@ -49,6 +53,13 @@ struct Cutter:
                     try self.verbatim(start, end)
                 else:
                     try self.linked_global(d, start, end)
+            .constant:
+                # a scalar constant folds wherever it is named; any other has storage,
+                # which the library owns, and its value stays for what reads it
+                if ast.is_linked(d) or self.folds(d.type_id):
+                    try self.verbatim(start, end)
+                else:
+                    try self.linked_constant(d, start, end)
             .func_:
                 if compiled_where_used(d, none) or ast.is_linked(d):
                     try self.verbatim(start, end)
@@ -61,6 +72,12 @@ struct Cutter:
                     try self.record(d, start, end)
             _:
                 try self.verbatim(start, end)
+
+    ## Whether a constant of this type is a value the checker and the backends fold.
+    func folds(id: u32) -> bool:
+        if id == types.bool_id or id == types.char_id or id == types.str_id or id == types.cstr_id or id == types.error_code_id:
+            return true
+        return self.table.is_integer(id) or self.table.is_float(id)
 
     func verbatim(start: usize, end: usize) -> !:
         try self.out.put((str)self.text[start..<end])
@@ -101,6 +118,16 @@ struct Cutter:
         if end >= 2 and self.text[end - 1] == '\n' and self.text[end - 2] == '\n':
             try self.out.put("\n")
 
+    ## A constant's declaration as written, `linked`: the value stays, the storage is the
+    ## library's.
+    mutating func linked_constant(d: ast.Node*, start: usize, end: usize) -> !:
+        let line = line_start(self.text, d.start)
+        try self.verbatim(start, line)
+        let at = word_start(self.text, line, header_end(self.text, line))
+        try self.verbatim(line, at)
+        try self.out.put("linked ")
+        try self.verbatim(at, end)
+
     ## A global's doc comment and its declaration, `linked`, without the initialiser.
     mutating func linked_global(d: ast.Node*, start: usize, end: usize) -> !:
         let line = line_start(self.text, d.start)
@@ -115,6 +142,64 @@ struct Cutter:
         try self.verbatim(at, last)
         try self.out.put("\n")
         try self.blank_after(end)
+
+## The declarations a library member must define because something outside it names them:
+## the module's public functions and globals; every private one a generic or `inline`
+## body reaches, since such a body is compiled in the program that uses it (§9.8); and,
+## when the module is fragments (§16.1), every private one another fragment's code names,
+## since that fragment is a member of its own. The rest a member keeps only while its own
+## code reaches it, so a branch the target folds away takes its helpers, and their
+## foreign calls, with it.
+pub func member_roots(tree: ast.Node*, src: source.Source*) -> list.List[ast.Node*]!:
+    var roots = try list.List[ast.Node*].create(256)
+    var cursor = tree.body
+    while let d = cursor:
+        try note_root(&roots, d, none, src)
+        if d.kind == ast.Kind.struct_ or d.kind == ast.Kind.enum_ or d.kind == ast.Kind.union_:
+            var member = d.body
+            while let m = member:
+                if m.kind == ast.Kind.func_:
+                    try note_root(&roots, m, d, src)
+                member = m.next
+        cursor = d.next
+    return roots
+
+func note_root(roots: list.List[ast.Node*]*, d: ast.Node*, owner: ast.Node*?, src: source.Source*) -> !:
+    let named = d.kind == ast.Kind.func_ or d.kind == ast.Kind.global or d.kind == ast.Kind.constant
+    if named and d.has(ast.flag_pub) and not is_root(roots.span(), d):
+        try roots.push(d)
+    if d.kind == ast.Kind.func_ and compiled_where_used(d, owner):
+        try reached(roots, d.body, "", src)
+    elif src.segment_count > 0 and (d.kind == ast.Kind.func_ or d.kind == ast.Kind.global or d.kind == ast.Kind.constant):
+        let home = fragment_at(src, d.start)
+        try reached(roots, d.body, home, src)
+        try reached(roots, d.left, home, src)
+
+## Every declaration the expressions under `n` resolve to, siblings included; only those
+## outside `home` when it names a fragment.
+func reached(roots: list.List[ast.Node*]*, n: ast.Node*?, home: str, src: source.Source*) -> !:
+    var cursor = n
+    while let e = cursor:
+        if let r = e.resolved:
+            if (r.kind == ast.Kind.func_ or r.kind == ast.Kind.global or r.kind == ast.Kind.constant) and not is_root(roots.span(), r):
+                if home.length == 0 or fragment_at(src, r.start) != home:
+                    try roots.push(r)
+        try reached(roots, e.left, home, src)
+        try reached(roots, e.right, home, src)
+        try reached(roots, e.body, home, src)
+        cursor = e.next
+
+## The fragment file the byte at `offset` came from.
+pub func fragment_at(src: source.Source*, offset: usize) -> str:
+    let (path, line, column) = src.located(offset)
+    discard(line + column)
+    return path
+
+pub func is_root(roots: ast.Node*[], d: ast.Node*) -> bool:
+    for r in roots:
+        if r == d:
+            return true
+    return false
 
 ## Whether a function is compiled in every program that uses it: generic, a generic
 ## record's method, or `inline`; such a body stays in the interface.

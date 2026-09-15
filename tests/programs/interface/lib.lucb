@@ -5,6 +5,7 @@ import c
 
 pub let limit: i64 = 3
 pub let failed: ErrorCode = ErrorCode.package(4)
+pub let names: c.str[2] = ["one", "two"]
 
 pub var opened: i64 = 0
 local var per_thread: u32 = 7

@@ -3,6 +3,8 @@
 ## program links; a program that never reaches one still builds in every execution.
 linked func elsewhere(n: i64) -> i64
 linked var shared: i64
+linked let table: u8[4]
+linked let pair: (i64, i64) = (1, 2)
 
 pub func main(arguments: str[]) -> i32:
     print("linked declarations check")

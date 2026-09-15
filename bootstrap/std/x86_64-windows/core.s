@@ -1,3 +1,337 @@
+    .weak lb_platform_name
+    .weak lb_platform_macos
+    .weak lb_platform_linux
+    .weak lb_platform_windows
+    .weak lb_platform_posix
+    .weak lb_platform_arm64
+    .weak lb_platform_6x86_64
+    .weak lb_platform_12pointer_bits
+    .weak lb_platform_9cpu_level
+    .weak lb_c_interrupted
+    .weak lb_11windows_abi_9utf8_page
+    .weak lb_11windows_abi_19reject_invalid_utf8
+    .weak lb_11windows_abi_20reject_invalid_utf16
+    .weak lb_memory_17private_anonymous
+    .weak lb_memory_exhausted
+    .weak lb_memory_unset
+    .weak lb_os_failed
+    .weak lb_os_arm64
+    .weak lb_os_6x86_64
+    .weak lb_os_macos
+    .weak lb_os_linux
+    .weak lb_os_windows
+    .weak lb_os_posix
+    .weak lb_os_12pointer_bits
+    .weak lb_os_name
+    .weak lb_os_9cpu_level
+    .weak lb_os_17processors_online
+    .weak lb_io_14unexpected_eof
+    .weak lb_io_11no_progress
+    .weak lb_io_13invalid_count
+    .weak lb_io_14invalid_buffer
+    .weak lb_io_closed
+    .weak lb_io_failed
+    .weak lb_io_11would_block
+    .weak lb_io_full
+    .weak lb_io_14io_path_failed
+    .weak lb_luce_file
+    .weak lb_luce_line
+    .weak lb_luce_function
+    .weak lb_luce_location
+    .weak lb_time_monotonic
+    .weak lb_time_realtime
+    .weak lb_thread_failed
+    .weak lb_thread_11least_stack
+    .weak lb_thread_9name_room
+    .weak lb_sync_16compare_and_wait
+    .weak lb_sync_8wake_all
+    .weak lb_sync_12futex_number
+    .weak lb_sync_18futex_wait_private
+    .weak lb_sync_18futex_wake_private
+    .weak lb_ownership_black
+    .weak lb_ownership_gray
+    .weak lb_ownership_white
+    .weak lb_ownership_purple
+    .weak lb_ownership_10color_mask
+    .weak lb_ownership_buffered
+    .weak lb_ownership_dead
+    .weak lb_ownership_collecting
+    .weak lb_ownership_immortal
+    .weak lb_ownership_15candidate_limit
+    .weak lb_utf8_16invalid_sequence
+    .weak lb_utf8_19incomplete_sequence
+    .weak lb_strings_17invalid_separator
+    .weak lb_strings_16output_too_large
+    .weak lb_strings_13invalid_radix
+    .weak lb_strings_14invalid_number
+    .weak lb_strings_19number_out_of_range
+    .weak lb_strings_17conversion_failed
+    .weak lb_unicode_version
+    .weak lb_unicode_18canonical_mappings
+    .weak lb_unicode_22compatibility_mappings
+    .weak lb_unicode_14upper_mappings
+    .weak lb_unicode_14lower_mappings
+    .weak lb_unicode_13fold_mappings
+    .weak lb_unicode_15turkic_mappings
+    .weak lb_unicode_15mapping_scalars
+    .weak lb_unicode_20composition_mappings
+    .weak lb_unicode_16combining_ranges
+    .weak lb_unicode_12cased_ranges
+    .weak lb_unicode_21case_ignorable_ranges
+    .weak lb_unicode_17whitespace_ranges
+    .weak lb_unicode_15grapheme_ranges
+    .weak lb_unicode_19pictographic_ranges
+    .weak lb_unicode_12indic_ranges
+    .weak lb_math_pi
+    .weak lb_math_tau
+    .weak lb_math_e
+    .weak lb_math_infinity
+    .weak lb_math_nan
+    .weak lb_math_9sign_mask
+    .weak lb_math_14magnitude_mask
+    .weak lb_math_13exponent_mask
+    .weak lb_math32_pi
+    .weak lb_math32_tau
+    .weak lb_math32_e
+    .weak lb_math32_infinity
+    .weak lb_math32_nan
+    .weak lb_math32_9sign_mask
+    .weak lb_math32_14magnitude_mask
+    .weak lb_math32_13exponent_mask
+    .weak lb_net_inet
+    .weak lb_net_inet6
+    .weak lb_net_stream
+    .weak lb_net_datagram
+    .weak lb_net_20socket_close_on_exec
+    .weak lb_net_20get_descriptor_flags
+    .weak lb_net_20set_descriptor_flags
+    .weak lb_net_24descriptor_close_on_exec
+    .weak lb_net_12socket_level
+    .weak lb_net_20reuse_address_option
+    .weak lb_net_10ipv6_level
+    .weak lb_net_16ipv6_only_option
+    .weak lb_net_17no_sigpipe_option
+    .weak lb_net_10send_flags
+    .weak lb_net_18socket_interrupted
+    .weak lb_net_failed
+    .weak lb_net_closed
+    .weak lb_net_12unknown_host
+    .weak lb_net_15invalid_options
+    .weak lb_net_17message_too_large
+    .weak lb_net_cancelled
+    .weak lb_net_9timed_out
+    .weak lb_net_18connection_refused
+    .weak lb_net_19network_unreachable
+    .weak lb_net_14address_in_use
+    .weak lb_net_19address_unavailable
+    .weak lb_net_17permission_denied
+    .weak lb_net_18resource_exhausted
+    .weak lb_net_18connection_aborted
+    .weak lb_net_unsupported
+    .weak lb_net_20resolution_temporary
+    .weak lb_net_14transfer_limit
+    .weak lb_net_16nonblocking_flag
+    .weak lb_net_21receive_buffer_option
+    .weak lb_net_18send_buffer_option
+    .weak lb_net_16keepalive_option
+    .weak lb_net_14dont_wait_flag
+    .weak lb_net_12http_invalid
+    .weak lb_net_10http_limit
+    .weak lb_net_16http_unsupported
+    .weak lb_net_17websocket_invalid
+    .weak lb_net_15websocket_limit
+    .weak lb_net_18websocket_alphabet
+    .weak lb_net_14websocket_guid
+    .weak lb_interop_invalid
+    .weak lb_interop_12wrong_thread
+    .weak lb_interop_expired
+    .weak lb_interop_8no_error
+    .weak lb_interop_15connection_type
+    .weak lb_interop_13text_transfer
+    .weak lb_interop_14bytes_transfer
+    .weak lb_interop_13worker_closed
+    .weak lb_interop_11worker_busy
+    .weak lb_files_10write_only
+    .weak lb_files_create
+    .weak lb_files_truncate
+    .weak lb_files_13close_on_exec
+    .weak lb_files_11append_flag
+    .weak lb_files_14exclusive_flag
+    .weak lb_files_17would_block_errno
+    .weak lb_files_14transfer_limit
+    .weak lb_files_20current_directory_fd
+    .weak lb_files_14directory_flag
+    .weak lb_files_14no_follow_flag
+    .weak lb_files_17at_no_follow_flag
+    .weak lb_files_missing
+    .weak lb_files_17permission_denied
+    .weak lb_files_14already_exists
+    .weak lb_files_8no_space
+    .weak lb_files_11would_block
+    .weak lb_files_15invalid_options
+    .weak lb_files_9too_large
+    .weak lb_files_13not_directory
+    .weak lb_files_12is_directory
+    .weak lb_files_20read_only_filesystem
+    .weak lb_files_9not_empty
+    .weak lb_files_12cross_device
+    .weak lb_files_12symlink_loop
+    .weak lb_files_13name_too_long
+    .weak lb_files_failed
+    .weak lb_files_15directory_cycle
+    .weak lb_files_11depth_limit
+    .weak lb_files_12entries_type
+    .weak lb_process_7poll_in
+    .weak lb_process_12poll_hang_up
+    .weak lb_process_10poll_error
+    .weak lb_process_9set_flags
+    .weak lb_process_12non_blocking
+    .weak lb_process_11would_block
+    .weak lb_process_failed
+    .weak lb_process_16interrupt_signal
+    .weak lb_process_16terminate_signal
+    .weak lb_process_17console_interrupt
+    .weak lb_process_13console_break
+    .weak lb_process_13console_close
+    .weak lb_process_14console_logoff
+    .weak lb_process_16console_shutdown
+    .weak lb_process_26console_acknowledgement_ms
+    .weak lb_process_12command_type
+    .weak lb_json_invalid
+    .weak lb_json_14limit_exceeded
+    .weak lb_json_10value_type
+    .weak lb_window_unsupported
+    .weak lb_window_12wrong_thread
+    .weak lb_window_15invalid_options
+    .weak lb_window_failed
+    .weak lb_window_closed
+    .weak lb_window_19presentation_in_use
+    .weak lb_window_13key_positions
+    .weak lb_window_13mac_not_found
+    .weak lb_window_13win_scan_keys
+    .weak lb_clipboard_failed
+    .weak lb_clipboard_10text_limit
+    .weak lb_clipboard_12unicode_text
+    .weak lb_fonts_failed
+    .weak lb_gpu_unsupported
+    .weak lb_gpu_unavailable
+    .weak lb_gpu_12wrong_thread
+    .weak lb_gpu_closed
+    .weak lb_gpu_13invalid_color
+    .weak lb_gpu_failed
+    .weak lb_gpu_16execution_failed
+    .weak lb_gpu_17surface_too_large
+    .weak lb_gpu_16invalid_geometry
+    .weak lb_gpu_13command_limit
+    .weak lb_gpu_14frame_finished
+    .weak lb_gpu_12frame_in_use
+    .weak lb_gpu_13frame_resized
+    .weak lb_gpu_16frame_state_type
+    .weak lb_gpu_10frame_type
+    .weak lb_gpu_18render_target_type
+    .weak lb_gpu_19metal_surface_limit
+    .weak lb_gpu_36VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT
+    .weak lb_gpu_44VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT
+    .weak lb_gpu_27VK_ATTACHMENT_LOAD_OP_CLEAR
+    .weak lb_gpu_31VK_ATTACHMENT_LOAD_OP_DONT_CARE
+    .weak lb_gpu_32VK_ATTACHMENT_STORE_OP_DONT_CARE
+    .weak lb_gpu_28VK_ATTACHMENT_STORE_OP_STORE
+    .weak lb_gpu_19VK_BLEND_FACTOR_ONE
+    .weak lb_gpu_35VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA
+    .weak lb_gpu_25VK_BLEND_FACTOR_SRC_ALPHA
+    .weak lb_gpu_34VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
+    .weak lb_gpu_33VK_BUFFER_USAGE_VERTEX_BUFFER_BIT
+    .weak lb_gpu_24VK_COLOR_COMPONENT_A_BIT
+    .weak lb_gpu_24VK_COLOR_COMPONENT_B_BIT
+    .weak lb_gpu_24VK_COLOR_COMPONENT_G_BIT
+    .weak lb_gpu_24VK_COLOR_COMPONENT_R_BIT
+    .weak lb_gpu_33VK_COLOR_SPACE_SRGB_NONLINEAR_KHR
+    .weak lb_gpu_43VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT
+    .weak lb_gpu_18VK_COMPARE_OP_LESS
+    .weak lb_gpu_33VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR
+    .weak lb_gpu_33VK_DESCRIPTOR_TYPE_STORAGE_BUFFER
+    .weak lb_gpu_24VK_DYNAMIC_STATE_SCISSOR
+    .weak lb_gpu_25VK_DYNAMIC_STATE_VIEWPORT
+    .weak lb_gpu_24VK_ERROR_OUT_OF_DATE_KHR
+    .weak lb_gpu_8VK_FALSE
+    .weak lb_gpu_23VK_FORMAT_B8G8R8A8_SRGB
+    .weak lb_gpu_20VK_FORMAT_D32_SFLOAT
+    .weak lb_gpu_46VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT
+    .weak lb_gpu_29VK_FORMAT_R32G32B32A32_SFLOAT
+    .weak lb_gpu_23VK_FORMAT_R8G8B8A8_SRGB
+    .weak lb_gpu_19VK_FORMAT_UNDEFINED
+    .weak lb_gpu_25VK_IMAGE_ASPECT_COLOR_BIT
+    .weak lb_gpu_25VK_IMAGE_ASPECT_DEPTH_BIT
+    .weak lb_gpu_40VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+    .weak lb_gpu_48VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+    .weak lb_gpu_31VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
+    .weak lb_gpu_16VK_IMAGE_TYPE_2D
+    .weak lb_gpu_35VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT
+    .weak lb_gpu_43VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT
+    .weak lb_gpu_21VK_IMAGE_VIEW_TYPE_2D
+    .weak lb_gpu_29VK_KHR_SURFACE_EXTENSION_NAME
+    .weak lb_gpu_31VK_KHR_SWAPCHAIN_EXTENSION_NAME
+    .weak lb_gpu_35VK_KHR_WIN32_SURFACE_EXTENSION_NAME
+    .weak lb_gpu_35VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+    .weak lb_gpu_36VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+    .weak lb_gpu_35VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+    .weak lb_gpu_12VK_NOT_READY
+    .weak lb_gpu_31VK_PIPELINE_BIND_POINT_GRAPHICS
+    .weak lb_gpu_45VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
+    .weak lb_gpu_42VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT
+    .weak lb_gpu_24VK_PRESENT_MODE_FIFO_KHR
+    .weak lb_gpu_35VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST
+    .weak lb_gpu_21VK_QUEUE_GRAPHICS_BIT
+    .weak lb_gpu_21VK_SAMPLE_COUNT_1_BIT
+    .weak lb_gpu_28VK_SHADER_STAGE_FRAGMENT_BIT
+    .weak lb_gpu_26VK_SHADER_STAGE_VERTEX_BIT
+    .weak lb_gpu_17VK_SUBOPTIMAL_KHR
+    .weak lb_gpu_26VK_SUBPASS_CONTENTS_INLINE
+    .weak lb_gpu_19VK_SUBPASS_EXTERNAL
+    .weak lb_gpu_10VK_SUCCESS
+    .weak lb_gpu_10VK_TIMEOUT
+    .weak lb_gpu_7VK_TRUE
+    .weak lb_gpu_34VK_STRUCTURE_TYPE_APPLICATION_INFO
+    .weak lb_gpu_36VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO
+    .weak lb_gpu_46VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO
+    .weak lb_gpu_43VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO
+    .weak lb_gpu_49VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO
+    .weak lb_gpu_42VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO
+    .weak lb_gpu_37VK_STRUCTURE_TYPE_COPY_DESCRIPTOR_SET
+    .weak lb_gpu_45VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO
+    .weak lb_gpu_46VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO
+    .weak lb_gpu_51VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO
+    .weak lb_gpu_36VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO
+    .weak lb_gpu_42VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO
+    .weak lb_gpu_35VK_STRUCTURE_TYPE_FENCE_CREATE_INFO
+    .weak lb_gpu_41VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO
+    .weak lb_gpu_47VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO
+    .weak lb_gpu_35VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO
+    .weak lb_gpu_40VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO
+    .weak lb_gpu_38VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO
+    .weak lb_gpu_38VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO
+    .weak lb_gpu_56VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO
+    .weak lb_gpu_58VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO
+    .weak lb_gpu_52VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO
+    .weak lb_gpu_59VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO
+    .weak lb_gpu_45VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO
+    .weak lb_gpu_56VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO
+    .weak lb_gpu_58VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO
+    .weak lb_gpu_51VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO
+    .weak lb_gpu_57VK_STRUCTURE_TYPE_PIPELINE_TESSELLATION_STATE_CREATE_INFO
+    .weak lb_gpu_57VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO
+    .weak lb_gpu_53VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO
+    .weak lb_gpu_34VK_STRUCTURE_TYPE_PRESENT_INFO_KHR
+    .weak lb_gpu_40VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO
+    .weak lb_gpu_41VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO
+    .weak lb_gpu_39VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO
+    .weak lb_gpu_43VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO
+    .weak lb_gpu_29VK_STRUCTURE_TYPE_SUBMIT_INFO
+    .weak lb_gpu_43VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR
+    .weak lb_gpu_47VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR
+    .weak lb_gpu_38VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET
+    .weak lb_gpu_25vulkan_windows_extensions
+    .weak lb_gpu_22vulkan_api_version_1_0
     .text
 
     .p2align 4
@@ -4633,154 +4967,101 @@ lb_core_arguments:
     .seh_proc lb_core_arguments
     pushq %rbp
     .seh_pushreg %rbp
-    subq $560, %rsp
-    .seh_stackalloc 560
+    subq $400, %rsp
+    .seh_stackalloc 400
     movq %rsp, %rbp
     .seh_setframe %rbp, 0
-    movq %rcx, 376(%rbp)
-    movq %rdi, 552(%rbp)
-    .seh_savereg %rdi, 552
-    movq %rsi, 544(%rbp)
-    .seh_savereg %rsi, 544
-    movdqu %xmm6, 528(%rbp)
-    .seh_savexmm %xmm6, 528
-    movdqu %xmm7, 512(%rbp)
-    .seh_savexmm %xmm7, 512
-    movdqu %xmm8, 496(%rbp)
-    .seh_savexmm %xmm8, 496
-    movdqu %xmm9, 480(%rbp)
-    .seh_savexmm %xmm9, 480
-    movdqu %xmm10, 464(%rbp)
-    .seh_savexmm %xmm10, 464
-    movdqu %xmm11, 448(%rbp)
-    .seh_savexmm %xmm11, 448
-    movdqu %xmm12, 432(%rbp)
-    .seh_savexmm %xmm12, 432
-    movdqu %xmm13, 416(%rbp)
-    .seh_savexmm %xmm13, 416
-    movdqu %xmm14, 400(%rbp)
-    .seh_savexmm %xmm14, 400
-    movdqu %xmm15, 384(%rbp)
-    .seh_savexmm %xmm15, 384
-    movq %rbx, 368(%rbp)
-    .seh_savereg %rbx, 368
-    movq %r12, 360(%rbp)
-    .seh_savereg %r12, 360
-    movq %r13, 352(%rbp)
-    .seh_savereg %r13, 352
-    movq %r14, 344(%rbp)
-    .seh_savereg %r14, 344
-    movq %r15, 336(%rbp)
-    .seh_savereg %r15, 336
+    movq %rcx, 216(%rbp)
+    movq %rdi, 392(%rbp)
+    .seh_savereg %rdi, 392
+    movq %rsi, 384(%rbp)
+    .seh_savereg %rsi, 384
+    movdqu %xmm6, 368(%rbp)
+    .seh_savexmm %xmm6, 368
+    movdqu %xmm7, 352(%rbp)
+    .seh_savexmm %xmm7, 352
+    movdqu %xmm8, 336(%rbp)
+    .seh_savexmm %xmm8, 336
+    movdqu %xmm9, 320(%rbp)
+    .seh_savexmm %xmm9, 320
+    movdqu %xmm10, 304(%rbp)
+    .seh_savexmm %xmm10, 304
+    movdqu %xmm11, 288(%rbp)
+    .seh_savexmm %xmm11, 288
+    movdqu %xmm12, 272(%rbp)
+    .seh_savexmm %xmm12, 272
+    movdqu %xmm13, 256(%rbp)
+    .seh_savexmm %xmm13, 256
+    movdqu %xmm14, 240(%rbp)
+    .seh_savexmm %xmm14, 240
+    movdqu %xmm15, 224(%rbp)
+    .seh_savexmm %xmm15, 224
+    movq %rbx, 208(%rbp)
+    .seh_savereg %rbx, 208
+    movq %r12, 200(%rbp)
+    .seh_savereg %r12, 200
+    movq %r13, 192(%rbp)
+    .seh_savereg %r13, 192
+    movq %r14, 184(%rbp)
+    .seh_savereg %r14, 184
+    movq %r15, 176(%rbp)
+    .seh_savereg %r15, 176
     .seh_endprologue
-    movq %rcx, 576(%rbp)
-    movq %rdx, 584(%rbp)
-    movq %r8, 592(%rbp)
-    movq %r9, 600(%rbp)
-    movq 584(%rbp), %rax
-    movl %eax, 304(%rbp)
-    movq 592(%rbp), %rax
-    movq %rax, 288(%rbp)
-    leaq 272(%rbp), %rax
-    movq %rax, 16(%rbp)
-    leaq 304(%rbp), %rbx
-    movq %rbx, %r10
-    movslq (%r10), %rbx
-    leaq 288(%rbp), %r12
+    movq %rcx, 416(%rbp)
+    movq %rdx, 424(%rbp)
+    movq %r8, 432(%rbp)
+    movq %r9, 440(%rbp)
+    movq 424(%rbp), %rax
+    movl %eax, 144(%rbp)
+    movq 432(%rbp), %rax
+    movq %rax, 128(%rbp)
+    leaq 112(%rbp), %rbx
+    leaq 144(%rbp), %r12
     movq %r12, %r10
-    movq (%r10), %r12
-    leaq 176(%rbp), %r10
-    movl %ebx, (%r10)
-    leaq 160(%rbp), %r10
-    movq %r12, (%r10)
-    leaq lb_core_23windows_argument_vector(%rip), %rax
-    movq %rax, 72(%rbp)
-    movq 72(%rbp), %rax
-    movq $8, %rcx
-    movq %rax, %r12
-    addq %rcx, %r12
-    movq %r12, %r10
-    movq (%r10), %r12
-    movq $0, %rcx
-    cmpq %rcx, %r12
-    jbe .L22_16
-.L22_15:
-    leaq 128(%rbp), %r12
-    movq 72(%rbp), %r10
-    movq %r12, %r11
-    movups 0(%r10), %xmm8
-    movups %xmm8, 0(%r11)
-    movq %r12, %r10
-    leaq 144(%rbp), %r11
-    movups 0(%r10), %xmm8
-    movups %xmm8, 0(%r11)
-    jmp .L22_44
-.L22_18:
-    jmp .L22_17
-.L22_16:
-.L22_17:
-    leaq 124(%rbp), %rax
-    movq %rax, 64(%rbp)
-    movl $0, %eax
-    movq 64(%rbp), %r10
-    movl %eax, (%r10)
+    movslq (%r10), %r12
+    leaq 128(%rbp), %r13
+    movq %r13, %r10
+    movq (%r10), %r13
     subq $32, %rsp
-    call GetCommandLineW
-    addq $32, %rsp
-    movq %rax, %r14
-    testq %r14, %r14
-    jne .L22_19
-    jmp .L22_20
-.L22_20:
-    leaq .Ltext_70(%rip), %rdi
-    leaq .Ltext_11(%rip), %rsi
-    movq %rdx, %r8
-    movq %rsi, %rdx
-    movq %rdi, %rcx
-    subq $32, %rsp
-    call lb_core_7trap_at
-    addq $32, %rsp
-.L22_19:
-    subq $32, %rsp
-    movq %r14, %rax
-    movq %rax, 0(%rsp)
-    movq 64(%rbp), %rax
+    movl %r12d, %eax
     movq %rax, 8(%rsp)
+    movq %r13, %rax
+    movq %rax, 16(%rsp)
+    leaq 96(%rbp), %rax
+    movq %rax, (%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
-    call CommandLineToArgvW
+    movq 16(%rsp), %r8
+    call lb_core_13raw_arguments
     addq $32, %rsp
-    movq %rax, %r15
-    testq %r15, %r15
-    jne .L22_21
-    jmp .L22_22
-.L22_21:
-    jmp .L22_23
-.L22_22:
-    leaq .Ltext_71(%rip), %rbx
-    subq $32, %rsp
-    movq %rbx, %rax
-    movq %rax, 0(%rsp)
-    movq 0(%rsp), %rcx
-    call lb_core_trap
-    addq $32, %rsp
-    leaq .Ltext_70(%rip), %rdi
-    leaq .Ltext_0(%rip), %rsi
-    movq %rdx, %r8
-    movq %rsi, %rdx
-    movq %rdi, %rcx
-    subq $32, %rsp
-    call lb_core_7trap_at
-    addq $32, %rsp
-.L22_23:
-    movq 64(%rbp), %r10
-    movslq (%r10), %r14
-    movslq %r14d, %r14
-    movq %r14, %rax
+    leaq 96(%rbp), %r12
+    movq %r12, %r10
+    movq %rbx, %r11
+    movups 0(%r10), %xmm8
+    movups %xmm8, 0(%r11)
     movq $8, %rcx
+    movq %rbx, %r12
+    addq %rcx, %r12
+    movq %r12, %r10
+    movq (%r10), %rax
+    movq %rax, 40(%rbp)
+    movq 40(%rbp), %rax
+    movq $0, %rcx
+    cmpq %rcx, %rax
+    jbe .L22_2
+.L22_1:
+    movq 40(%rbp), %rax
+    movq %rax, %r13
+    jmp .L22_3
+.L22_2:
+    movq $1, %rax
+    movq %rax, %r13
+.L22_3:
+    movq %r13, %rax
+    movq $16, %rcx
     mulq %rcx
     jnc 1f
-    leaq .Ltext_72(%rip), %rdi
+    leaq .Ltext_63(%rip), %rdi
     leaq .Ltext_50(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -4799,11 +5080,327 @@ lb_core_arguments:
     movq %rax, 8(%rbp)
     movq 8(%rbp), %rax
     testq %rax, %rax
-    jne .L22_24
-    jmp .L22_25
-.L22_24:
-    jmp .L22_26
-.L22_25:
+    jne .L22_4
+    jmp .L22_5
+.L22_4:
+    jmp .L22_6
+.L22_5:
+    leaq .Ltext_64(%rip), %rbx
+    subq $32, %rsp
+    movq %rbx, %rax
+    movq %rax, 0(%rsp)
+    movq 0(%rsp), %rcx
+    call lb_core_trap
+    addq $32, %rsp
+    leaq .Ltext_63(%rip), %rdi
+    leaq .Ltext_0(%rip), %rsi
+    movq %rdx, %r8
+    movq %rsi, %rdx
+    movq %rdi, %rcx
+    subq $32, %rsp
+    call lb_core_7trap_at
+    addq $32, %rsp
+.L22_6:
+    leaq 80(%rbp), %rax
+    movq %rax, 32(%rbp)
+    leaq 64(%rbp), %r15
+    movq $8, %rcx
+    movq %r15, %rax
+    addq %rcx, %rax
+    movq %rax, 24(%rbp)
+    leaq .Ltext_66(%rip), %rax
+    movq %rax, 16(%rbp)
+    movq $0, %rax
+    movq %rax, %r13
+.L22_7:
+    movq 40(%rbp), %rcx
+    cmpq %rcx, %r13
+    jae .L22_9
+.L22_8:
+    movq %rbx, %r10
+    movq (%r10), %r14
+    movq $8, %rcx
+    movq %r13, %r12
+    imulq %rcx, %r12
+    movq %r12, %rcx
+    movq %r14, %r12
+    addq %rcx, %r12
+    movq %r12, %r10
+    movq (%r10), %r12
+    subq $32, %rsp
+    movq %r12, %rax
+    movq %rax, 0(%rsp)
+    movq 0(%rsp), %rcx
+    call strlen
+    addq $32, %rsp
+    movq %rax, %r14
+    movq %r15, %r10
+    movq %r12, (%r10)
+    movq 24(%rbp), %r10
+    movq %r14, (%r10)
+    movq %r15, %r10
+    movq 32(%rbp), %r11
+    movups 0(%r10), %xmm8
+    movups %xmm8, 0(%r11)
+    subq $32, %rsp
+    movq %r12, %rax
+    movq %rax, 0(%rsp)
+    movq %r14, %rax
+    movq %rax, 8(%rsp)
+    movq 0(%rsp), %rcx
+    movq 8(%rsp), %rdx
+    call lb_core_7utf8_ok
+    addq $32, %rsp
+    movl %eax, %r12d
+    movl $0, %ecx
+    cmpl %ecx, %r12d
+    jne .L22_11
+.L22_10:
+    subq $32, %rsp
+    movq 16(%rbp), %rax
+    movq %rax, 0(%rsp)
+    movq 0(%rsp), %rcx
+    call lb_core_trap
+    addq $32, %rsp
+    jmp .L22_12
+.L22_11:
+.L22_12:
+    movq $16, %rcx
+    movq %r13, %r12
+    imulq %rcx, %r12
+    movq 8(%rbp), %rcx
+    addq %rcx, %r12
+    movq 32(%rbp), %r10
+    movq %r12, %r11
+    movups 0(%r10), %xmm8
+    movups %xmm8, 0(%r11)
+    movq $1, %rcx
+    movq %r13, %r12
+    addq %rcx, %r12
+    movq %r12, %r13
+    jmp .L22_7
+.L22_9:
+    leaq 48(%rbp), %rbx
+    movq 8(%rbp), %rax
+    movq %rbx, %r10
+    movq %rax, (%r10)
+    movq $8, %rcx
+    movq %rbx, %r12
+    addq %rcx, %r12
+    movq 40(%rbp), %rax
+    movq %r12, %r10
+    movq %rax, (%r10)
+    leaq 160(%rbp), %r12
+    movq %rbx, %r10
+    movq %r12, %r11
+    movups 0(%r10), %xmm8
+    movups %xmm8, 0(%r11)
+    movq %r12, %rsi
+    movq 216(%rbp), %rdi
+    movq $16, %rdx
+    movq %rdx, %r8
+    movq %rsi, %rdx
+    movq %rdi, %rcx
+    subq $32, %rsp
+    call memcpy
+    addq $32, %rsp
+    movq 216(%rbp), %rax
+    movq 392(%rbp), %rdi
+    movq 384(%rbp), %rsi
+    movdqu 368(%rbp), %xmm6
+    movdqu 352(%rbp), %xmm7
+    movdqu 336(%rbp), %xmm8
+    movdqu 320(%rbp), %xmm9
+    movdqu 304(%rbp), %xmm10
+    movdqu 288(%rbp), %xmm11
+    movdqu 272(%rbp), %xmm12
+    movdqu 256(%rbp), %xmm13
+    movdqu 240(%rbp), %xmm14
+    movdqu 224(%rbp), %xmm15
+    movq 208(%rbp), %rbx
+    movq 200(%rbp), %r12
+    movq 192(%rbp), %r13
+    movq 184(%rbp), %r14
+    movq 176(%rbp), %r15
+    leaq 400(%rbp), %rsp
+    popq %rbp
+    ret
+.L22_13:
+    leaq .Ltext_68(%rip), %rdi
+    leaq .Ltext_0(%rip), %rsi
+    movq %rdx, %r8
+    movq %rsi, %rdx
+    movq %rdi, %rcx
+    subq $32, %rsp
+    call lb_core_7trap_at
+    addq $32, %rsp
+    .seh_endproc
+
+    .p2align 4
+    .globl lb_core_13raw_arguments
+lb_core_13raw_arguments:
+    .seh_proc lb_core_13raw_arguments
+    pushq %rbp
+    .seh_pushreg %rbp
+    subq $400, %rsp
+    .seh_stackalloc 400
+    movq %rsp, %rbp
+    .seh_setframe %rbp, 0
+    movq %rcx, 216(%rbp)
+    movq %rdi, 392(%rbp)
+    .seh_savereg %rdi, 392
+    movq %rsi, 384(%rbp)
+    .seh_savereg %rsi, 384
+    movdqu %xmm6, 368(%rbp)
+    .seh_savexmm %xmm6, 368
+    movdqu %xmm7, 352(%rbp)
+    .seh_savexmm %xmm7, 352
+    movdqu %xmm8, 336(%rbp)
+    .seh_savexmm %xmm8, 336
+    movdqu %xmm9, 320(%rbp)
+    .seh_savexmm %xmm9, 320
+    movdqu %xmm10, 304(%rbp)
+    .seh_savexmm %xmm10, 304
+    movdqu %xmm11, 288(%rbp)
+    .seh_savexmm %xmm11, 288
+    movdqu %xmm12, 272(%rbp)
+    .seh_savexmm %xmm12, 272
+    movdqu %xmm13, 256(%rbp)
+    .seh_savexmm %xmm13, 256
+    movdqu %xmm14, 240(%rbp)
+    .seh_savexmm %xmm14, 240
+    movdqu %xmm15, 224(%rbp)
+    .seh_savexmm %xmm15, 224
+    movq %rbx, 208(%rbp)
+    .seh_savereg %rbx, 208
+    movq %r12, 200(%rbp)
+    .seh_savereg %r12, 200
+    movq %r13, 192(%rbp)
+    .seh_savereg %r13, 192
+    movq %r14, 184(%rbp)
+    .seh_savereg %r14, 184
+    movq %r15, 176(%rbp)
+    .seh_savereg %r15, 176
+    .seh_endprologue
+    movq %rcx, 416(%rbp)
+    movq %rdx, 424(%rbp)
+    movq %r8, 432(%rbp)
+    movq %r9, 440(%rbp)
+    movq 424(%rbp), %rax
+    movl %eax, 144(%rbp)
+    movq 432(%rbp), %rax
+    movq %rax, 128(%rbp)
+    leaq lb_core_23windows_argument_vector(%rip), %rax
+    movq %rax, 64(%rbp)
+    movq 64(%rbp), %rax
+    movq $8, %rcx
+    movq %rax, %r12
+    addq %rcx, %r12
+    movq %r12, %r10
+    movq (%r10), %r12
+    movq $0, %rcx
+    cmpq %rcx, %r12
+    jbe .L23_3
+.L23_2:
+    leaq 96(%rbp), %r12
+    movq 64(%rbp), %r10
+    movq %r12, %r11
+    movups 0(%r10), %xmm8
+    movups %xmm8, 0(%r11)
+    movq %r12, %r10
+    leaq 112(%rbp), %r11
+    movups 0(%r10), %xmm8
+    movups %xmm8, 0(%r11)
+    jmp .L23_31
+.L23_5:
+    jmp .L23_4
+.L23_3:
+.L23_4:
+    leaq 92(%rbp), %rax
+    movq %rax, 56(%rbp)
+    movl $0, %eax
+    movq 56(%rbp), %r10
+    movl %eax, (%r10)
+    subq $32, %rsp
+    call GetCommandLineW
+    addq $32, %rsp
+    movq %rax, %r13
+    testq %r13, %r13
+    jne .L23_6
+    jmp .L23_7
+.L23_7:
+    leaq .Ltext_70(%rip), %rdi
+    leaq .Ltext_11(%rip), %rsi
+    movq %rdx, %r8
+    movq %rsi, %rdx
+    movq %rdi, %rcx
+    subq $32, %rsp
+    call lb_core_7trap_at
+    addq $32, %rsp
+.L23_6:
+    subq $32, %rsp
+    movq %r13, %rax
+    movq %rax, 0(%rsp)
+    movq 56(%rbp), %rax
+    movq %rax, 8(%rsp)
+    movq 0(%rsp), %rcx
+    movq 8(%rsp), %rdx
+    call CommandLineToArgvW
+    addq $32, %rsp
+    movq %rax, %r14
+    testq %r14, %r14
+    jne .L23_8
+    jmp .L23_9
+.L23_8:
+    jmp .L23_10
+.L23_9:
+    leaq .Ltext_71(%rip), %rbx
+    subq $32, %rsp
+    movq %rbx, %rax
+    movq %rax, 0(%rsp)
+    movq 0(%rsp), %rcx
+    call lb_core_trap
+    addq $32, %rsp
+    leaq .Ltext_70(%rip), %rdi
+    leaq .Ltext_0(%rip), %rsi
+    movq %rdx, %r8
+    movq %rsi, %rdx
+    movq %rdi, %rcx
+    subq $32, %rsp
+    call lb_core_7trap_at
+    addq $32, %rsp
+.L23_10:
+    movq 56(%rbp), %r10
+    movslq (%r10), %r13
+    movslq %r13d, %r13
+    movq %r13, %rax
+    movq $8, %rcx
+    mulq %rcx
+    jnc 1f
+    leaq .Ltext_72(%rip), %rdi
+    leaq .Ltext_50(%rip), %rsi
+    movq %rdx, %r8
+    movq %rsi, %rdx
+    movq %rdi, %rcx
+    subq $32, %rsp
+    call lb_core_7trap_at
+    addq $32, %rsp
+1:
+    movq %rax, %r13
+    subq $32, %rsp
+    movq %r13, %rax
+    movq %rax, 0(%rsp)
+    movq 0(%rsp), %rcx
+    call malloc
+    addq $32, %rsp
+    movq %rax, 8(%rbp)
+    movq 8(%rbp), %rax
+    testq %rax, %rax
+    jne .L23_11
+    jmp .L23_12
+.L23_11:
+    jmp .L23_13
+.L23_12:
     leaq .Ltext_64(%rip), %rbx
     subq $32, %rsp
     movq %rbx, %rax
@@ -4819,30 +5416,30 @@ lb_core_arguments:
     subq $32, %rsp
     call lb_core_7trap_at
     addq $32, %rsp
-.L22_26:
-    movq 64(%rbp), %r10
-    movslq (%r10), %r13
-    movslq %r13d, %rax
-    movq %rax, 56(%rbp)
-    leaq .Ltext_73(%rip), %rax
-    movq %rax, 32(%rbp)
-    leaq .Ltext_75(%rip), %rax
-    movq %rax, 24(%rbp)
-    movq $0, %rax
-    movq %rax, %r14
-.L22_27:
-    movq 56(%rbp), %rcx
-    cmpq %rcx, %r14
-    jae .L22_30
-.L22_28:
-    movq $8, %rcx
-    movq %r14, %rax
-    imulq %rcx, %rax
+.L23_13:
+    movq 56(%rbp), %r10
+    movslq (%r10), %r15
+    movslq %r15d, %rax
     movq %rax, 48(%rbp)
-    movq 48(%rbp), %rax
-    addq %r15, %rax
+    leaq .Ltext_73(%rip), %rax
+    movq %rax, 24(%rbp)
+    leaq .Ltext_75(%rip), %rax
+    movq %rax, 16(%rbp)
+    movq $0, %rax
+    movq %rax, %r13
+.L23_14:
+    movq 48(%rbp), %rcx
+    cmpq %rcx, %r13
+    jae .L23_17
+.L23_15:
+    movq $8, %rcx
+    movq %r13, %rax
+    imulq %rcx, %rax
     movq %rax, 40(%rbp)
-    movq 40(%rbp), %r10
+    movq 40(%rbp), %rax
+    addq %r14, %rax
+    movq %rax, 32(%rbp)
+    movq 32(%rbp), %r10
     movq (%r10), %r12
     subq $64, %rsp
     movl $65001, %eax
@@ -4870,31 +5467,31 @@ lb_core_arguments:
     movl %eax, %r12d
     movl $0, %ecx
     cmpl %ecx, %r12d
-    jg .L22_32
-.L22_31:
+    jg .L23_19
+.L23_18:
     subq $32, %rsp
-    movq 32(%rbp), %rax
+    movq 24(%rbp), %rax
     movq %rax, 0(%rsp)
     movq 0(%rsp), %rcx
     call lb_core_trap
     addq $32, %rsp
-    jmp .L22_33
-.L22_32:
-.L22_33:
-    movslq %r12d, %r13
+    jmp .L23_20
+.L23_19:
+.L23_20:
+    movslq %r12d, %r15
     subq $32, %rsp
-    movq %r13, %rax
+    movq %r15, %rax
     movq %rax, 0(%rsp)
     movq 0(%rsp), %rcx
     call malloc
     addq $32, %rsp
-    movq %rax, %r13
-    testq %r13, %r13
-    jne .L22_34
-    jmp .L22_35
-.L22_34:
-    jmp .L22_36
-.L22_35:
+    movq %rax, %r15
+    testq %r15, %r15
+    jne .L23_21
+    jmp .L23_22
+.L23_21:
+    jmp .L23_23
+.L23_22:
     leaq .Ltext_64(%rip), %rbx
     subq $32, %rsp
     movq %rbx, %rax
@@ -4910,8 +5507,8 @@ lb_core_arguments:
     subq $32, %rsp
     call lb_core_7trap_at
     addq $32, %rsp
-.L22_36:
-    movq 40(%rbp), %r10
+.L23_23:
+    movq 32(%rbp), %r10
     movq (%r10), %rbx
     subq $64, %rsp
     movl $65001, %eax
@@ -4922,7 +5519,7 @@ lb_core_arguments:
     movq %rax, 16(%rsp)
     movl $4294967295, %eax
     movq %rax, 24(%rsp)
-    movq %r13, %rax
+    movq %r15, %rax
     movq %rax, 32(%rsp)
     movl %r12d, %eax
     movq %rax, 40(%rsp)
@@ -4942,34 +5539,34 @@ lb_core_arguments:
     movzbl %al, %ebx
     movl $0, %ecx
     cmpl %ecx, %ebx
-    jne .L22_38
-.L22_37:
+    jne .L23_25
+.L23_24:
     subq $32, %rsp
-    movq 24(%rbp), %rax
+    movq 16(%rbp), %rax
     movq %rax, 0(%rsp)
     movq 0(%rsp), %rcx
     call lb_core_trap
     addq $32, %rsp
-    jmp .L22_39
-.L22_38:
-.L22_39:
-    movq 48(%rbp), %rax
+    jmp .L23_26
+.L23_25:
+.L23_26:
+    movq 40(%rbp), %rax
     movq 8(%rbp), %rcx
     movq %rax, %rbx
     addq %rcx, %rbx
     movq %rbx, %r10
-    movq %r13, (%r10)
-.L22_29:
+    movq %r15, (%r10)
+.L23_16:
     movq $1, %rcx
-    movq %r14, %rbx
+    movq %r13, %rbx
     addq %rcx, %rbx
-    movq %rbx, %r14
-    jmp .L22_27
-.L22_30:
-    movq 64(%rbp), %r10
+    movq %rbx, %r13
+    jmp .L23_14
+.L23_17:
+    movq 56(%rbp), %r10
     movslq (%r10), %rbx
     movslq %ebx, %rbx
-    leaq 104(%rbp), %r12
+    leaq 72(%rbp), %r12
     movq 8(%rbp), %rax
     movq %r12, %r10
     movq %rax, (%r10)
@@ -4979,7 +5576,7 @@ lb_core_arguments:
     movq %r13, %r10
     movq %rbx, (%r10)
     movq %r12, %r10
-    movq 72(%rbp), %r11
+    movq 64(%rbp), %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
     leaq lb_core_22free_windows_arguments(%rip), %rbx
@@ -4996,8 +5593,8 @@ lb_core_arguments:
     movzbl %al, %ebx
     movl $0, %ecx
     cmpl %ecx, %ebx
-    jne .L22_41
-.L22_40:
+    jne .L23_28
+.L23_27:
     leaq .Ltext_76(%rip), %rbx
     subq $32, %rsp
     movq %rbx, %rax
@@ -5005,27 +5602,27 @@ lb_core_arguments:
     movq 0(%rsp), %rcx
     call lb_core_trap
     addq $32, %rsp
-    jmp .L22_42
-.L22_41:
-.L22_42:
-    leaq 128(%rbp), %rbx
-    movq 72(%rbp), %r10
+    jmp .L23_29
+.L23_28:
+.L23_29:
+    leaq 96(%rbp), %rbx
+    movq 64(%rbp), %r10
     movq %rbx, %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
     subq $32, %rsp
-    movq %r15, %rax
+    movq %r14, %rax
     movq %rax, 0(%rsp)
     movq 0(%rsp), %rcx
     call LocalFree
     addq $32, %rsp
     movq %rax, %r12
     movq %rbx, %r10
-    leaq 144(%rbp), %r11
+    leaq 112(%rbp), %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
-    jmp .L22_44
-.L22_43:
+    jmp .L23_31
+.L23_30:
     subq $32, %rsp
     movq %rbx, %rax
     movq %rax, 0(%rsp)
@@ -5041,191 +5638,15 @@ lb_core_arguments:
     subq $32, %rsp
     call lb_core_7trap_at
     addq $32, %rsp
-.L22_44:
-    leaq 144(%rbp), %rbx
-    leaq 192(%rbp), %r12
-    movq %rbx, %r10
-    movq %r12, %r11
-    movups 0(%r10), %xmm8
-    movups %xmm8, 0(%r11)
-    movq %r12, %r10
-    leaq 256(%rbp), %r11
-    movups 0(%r10), %xmm8
-    movups %xmm8, 0(%r11)
-    jmp .L22_45
-.L22_14:
-    leaq .Ltext_69(%rip), %rdi
-    leaq .Ltext_0(%rip), %rsi
-    movq %rdx, %r8
-    movq %rsi, %rdx
-    movq %rdi, %rcx
-    subq $32, %rsp
-    call lb_core_7trap_at
-    addq $32, %rsp
-.L22_45:
-    leaq 256(%rbp), %rbx
-    movq %rbx, %r10
-    movq 16(%rbp), %r11
-    movups 0(%r10), %xmm8
-    movups %xmm8, 0(%r11)
-    movq 16(%rbp), %rax
-    movq $8, %rcx
-    movq %rax, %rbx
-    addq %rcx, %rbx
-    movq %rbx, %r10
-    movq (%r10), %rax
-    movq %rax, 96(%rbp)
-    movq 96(%rbp), %rax
-    movq $0, %rcx
-    cmpq %rcx, %rax
-    jbe .L22_2
-.L22_1:
-    movq 96(%rbp), %rax
-    movq %rax, %r12
-    jmp .L22_3
-.L22_2:
-    movq $1, %rax
-    movq %rax, %r12
-.L22_3:
-    movq %r12, %rax
-    movq $16, %rcx
-    mulq %rcx
-    jnc 1f
-    leaq .Ltext_63(%rip), %rdi
-    leaq .Ltext_50(%rip), %rsi
-    movq %rdx, %r8
-    movq %rsi, %rdx
-    movq %rdi, %rcx
-    subq $32, %rsp
-    call lb_core_7trap_at
-    addq $32, %rsp
-1:
-    movq %rax, %r13
-    subq $32, %rsp
-    movq %r13, %rax
-    movq %rax, 0(%rsp)
-    movq 0(%rsp), %rcx
-    call malloc
-    addq $32, %rsp
-    movq %rax, 0(%rbp)
-    movq 0(%rbp), %rax
-    testq %rax, %rax
-    jne .L22_4
-    jmp .L22_5
-.L22_4:
-    jmp .L22_6
-.L22_5:
-    leaq .Ltext_64(%rip), %rbx
-    subq $32, %rsp
-    movq %rbx, %rax
-    movq %rax, 0(%rsp)
-    movq 0(%rsp), %rcx
-    call lb_core_trap
-    addq $32, %rsp
-    leaq .Ltext_63(%rip), %rdi
-    leaq .Ltext_0(%rip), %rsi
-    movq %rdx, %r8
-    movq %rsi, %rdx
-    movq %rdi, %rcx
-    subq $32, %rsp
-    call lb_core_7trap_at
-    addq $32, %rsp
-.L22_6:
-    leaq 240(%rbp), %rax
-    movq %rax, 88(%rbp)
-    leaq 224(%rbp), %r14
-    movq $8, %rcx
-    movq %r14, %r15
-    addq %rcx, %r15
-    leaq .Ltext_66(%rip), %rax
-    movq %rax, 80(%rbp)
-    movq $0, %rax
-    movq %rax, %r13
-.L22_7:
-    movq 96(%rbp), %rcx
-    cmpq %rcx, %r13
-    jae .L22_9
-.L22_8:
-    movq 16(%rbp), %r10
-    movq (%r10), %r12
-    movq $8, %rcx
-    movq %r13, %rbx
-    imulq %rcx, %rbx
-    movq %rbx, %rcx
-    movq %r12, %rbx
-    addq %rcx, %rbx
-    movq %rbx, %r10
-    movq (%r10), %rbx
-    subq $32, %rsp
-    movq %rbx, %rax
-    movq %rax, 0(%rsp)
-    movq 0(%rsp), %rcx
-    call strlen
-    addq $32, %rsp
-    movq %rax, %r12
-    movq %r14, %r10
-    movq %rbx, (%r10)
-    movq %r15, %r10
-    movq %r12, (%r10)
-    movq %r14, %r10
-    movq 88(%rbp), %r11
-    movups 0(%r10), %xmm8
-    movups %xmm8, 0(%r11)
-    subq $32, %rsp
-    movq %rbx, %rax
-    movq %rax, 0(%rsp)
-    movq %r12, %rax
-    movq %rax, 8(%rsp)
-    movq 0(%rsp), %rcx
-    movq 8(%rsp), %rdx
-    call lb_core_7utf8_ok
-    addq $32, %rsp
-    movl %eax, %ebx
-    movl $0, %ecx
-    cmpl %ecx, %ebx
-    jne .L22_11
-.L22_10:
-    subq $32, %rsp
-    movq 80(%rbp), %rax
-    movq %rax, 0(%rsp)
-    movq 0(%rsp), %rcx
-    call lb_core_trap
-    addq $32, %rsp
-    jmp .L22_12
-.L22_11:
-.L22_12:
-    movq $16, %rcx
-    movq %r13, %rbx
-    imulq %rcx, %rbx
-    movq 0(%rbp), %rcx
-    addq %rcx, %rbx
-    movq 88(%rbp), %r10
-    movq %rbx, %r11
-    movups 0(%r10), %xmm8
-    movups %xmm8, 0(%r11)
-    movq $1, %rcx
-    movq %r13, %rbx
-    addq %rcx, %rbx
-    movq %rbx, %r13
-    jmp .L22_7
-.L22_9:
-    leaq 208(%rbp), %rbx
-    movq 0(%rbp), %rax
-    movq %rbx, %r10
-    movq %rax, (%r10)
-    movq $8, %rcx
-    movq %rbx, %r12
-    addq %rcx, %r12
-    movq 96(%rbp), %rax
-    movq %r12, %r10
-    movq %rax, (%r10)
-    leaq 320(%rbp), %r12
+.L23_31:
+    leaq 112(%rbp), %rbx
+    leaq 160(%rbp), %r12
     movq %rbx, %r10
     movq %r12, %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
     movq %r12, %rsi
-    movq 376(%rbp), %rdi
+    movq 216(%rbp), %rdi
     movq $16, %rdx
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -5233,29 +5654,29 @@ lb_core_arguments:
     subq $32, %rsp
     call memcpy
     addq $32, %rsp
-    movq 376(%rbp), %rax
-    movq 552(%rbp), %rdi
-    movq 544(%rbp), %rsi
-    movdqu 528(%rbp), %xmm6
-    movdqu 512(%rbp), %xmm7
-    movdqu 496(%rbp), %xmm8
-    movdqu 480(%rbp), %xmm9
-    movdqu 464(%rbp), %xmm10
-    movdqu 448(%rbp), %xmm11
-    movdqu 432(%rbp), %xmm12
-    movdqu 416(%rbp), %xmm13
-    movdqu 400(%rbp), %xmm14
-    movdqu 384(%rbp), %xmm15
-    movq 368(%rbp), %rbx
-    movq 360(%rbp), %r12
-    movq 352(%rbp), %r13
-    movq 344(%rbp), %r14
-    movq 336(%rbp), %r15
-    leaq 560(%rbp), %rsp
+    movq 216(%rbp), %rax
+    movq 392(%rbp), %rdi
+    movq 384(%rbp), %rsi
+    movdqu 368(%rbp), %xmm6
+    movdqu 352(%rbp), %xmm7
+    movdqu 336(%rbp), %xmm8
+    movdqu 320(%rbp), %xmm9
+    movdqu 304(%rbp), %xmm10
+    movdqu 288(%rbp), %xmm11
+    movdqu 272(%rbp), %xmm12
+    movdqu 256(%rbp), %xmm13
+    movdqu 240(%rbp), %xmm14
+    movdqu 224(%rbp), %xmm15
+    movq 208(%rbp), %rbx
+    movq 200(%rbp), %r12
+    movq 192(%rbp), %r13
+    movq 184(%rbp), %r14
+    movq 176(%rbp), %r15
+    leaq 400(%rbp), %rsp
     popq %rbp
     ret
-.L22_13:
-    leaq .Ltext_68(%rip), %rdi
+.L23_1:
+    leaq .Ltext_69(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -5324,10 +5745,10 @@ lb_core_22free_windows_arguments:
     movq (%r10), %r13
     movq $0, %rax
     movq %rax, %r14
-.L23_1:
+.L24_1:
     cmpq %r13, %r14
-    jae .L23_4
-.L23_2:
+    jae .L24_4
+.L24_2:
     movq $8, %rcx
     movq %r14, %r15
     imulq %rcx, %r15
@@ -5342,13 +5763,13 @@ lb_core_22free_windows_arguments:
     movq 0(%rsp), %rcx
     call free
     addq $32, %rsp
-.L23_3:
+.L24_3:
     movq $1, %rcx
     movq %r14, %r15
     addq %rcx, %r15
     movq %r15, %r14
-    jmp .L23_1
-.L23_4:
+    jmp .L24_1
+.L24_4:
     movq %rbx, %r10
     movq (%r10), %r12
     subq $32, %rsp
@@ -5542,8 +5963,8 @@ lb_core_11main_failed:
     movq %rbx, %r10
     movq (%r10), %rbx
     cmpq %rbx, %r13
-    jbe .L24_4
-.L24_3:
+    jbe .L25_4
+.L25_3:
     movq $16, %rcx
     movq %r14, %rbx
     addq %rcx, %rbx
@@ -5567,8 +5988,8 @@ lb_core_11main_failed:
     movl $1, %eax
     movq %rbx, %r10
     movb %al, (%r10)
-    jmp .L24_5
-.L24_4:
+    jmp .L25_5
+.L25_4:
     subq $32, %rsp
     movq %r12, %rax
     movq %rax, 8(%rsp)
@@ -5589,16 +6010,16 @@ lb_core_11main_failed:
     movl $0, %eax
     movq %rbx, %r10
     movb %al, (%r10)
-.L24_5:
+.L25_5:
     movq $40, %rcx
     movq %r14, %rbx
     addq %rcx, %rbx
     movq %rbx, %r10
     movzbl (%r10), %ebx
     testl %ebx, %ebx
-    jne .L24_7
-    jmp .L24_6
-.L24_7:
+    jne .L25_7
+    jmp .L25_6
+.L25_7:
     movq $16, %rcx
     movq %r14, %rbx
     addq %rcx, %rbx
@@ -5609,15 +6030,15 @@ lb_core_11main_failed:
     movups %xmm8, 0(%r11)
     movq 16(%r10), %rax
     movq %rax, 16(%r11)
-    jmp .L24_1
-.L24_6:
+    jmp .L25_1
+.L25_6:
     leaq 136(%rbp), %rbx
     movq %r14, %r10
     movq %rbx, %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
-    jmp .L24_2
-.L24_1:
+    jmp .L25_2
+.L25_1:
     movl $1, %eax
     movq 1432(%rbp), %rdi
     movq 1424(%rbp), %rsi
@@ -5639,8 +6060,8 @@ lb_core_11main_failed:
     leaq 1440(%rbp), %rsp
     popq %rbp
     ret
-.L24_8:
-.L24_2:
+.L25_8:
+.L25_2:
     movq %rbx, %r10
     movq 0(%rbp), %r11
     movups 0(%r10), %xmm8
@@ -5687,7 +6108,7 @@ lb_core_11main_failed:
     leaq 1440(%rbp), %rsp
     popq %rbp
     ret
-.L24_9:
+.L25_9:
     leaq .Ltext_80(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -5788,9 +6209,9 @@ lb_core_11test_report:
     movq %r13, %r10
     movzbl (%r10), %r13d
     testl %r13d, %r13d
-    jne .L25_3
-    jmp .L25_4
-.L25_3:
+    jne .L26_3
+    jmp .L26_4
+.L26_3:
     leaq 1192(%rbp), %r13
     leaq 1168(%rbp), %r14
     movq %r14, %r10
@@ -5904,8 +6325,8 @@ lb_core_11test_report:
     movq %r13, %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
-    jmp .L25_5
-.L25_4:
+    jmp .L26_5
+.L26_4:
     leaq 128(%rbp), %rbx
     leaq 104(%rbp), %r13
     movq %r13, %r10
@@ -5985,7 +6406,7 @@ lb_core_11test_report:
     movq %r13, %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
-.L25_5:
+.L26_5:
     leaq 2216(%rbp), %rbx
     movq %rbx, %r10
     movq (%r10), %r13
@@ -6012,8 +6433,8 @@ lb_core_11test_report:
     movq 16(%rbp), %r10
     movq (%r10), %r13
     cmpq %r13, %rbx
-    jbe .L25_7
-.L25_6:
+    jbe .L26_7
+.L26_6:
     movq $16, %rcx
     movq %r14, %rbx
     addq %rcx, %rbx
@@ -6037,8 +6458,8 @@ lb_core_11test_report:
     movl $1, %eax
     movq %rbx, %r10
     movb %al, (%r10)
-    jmp .L25_8
-.L25_7:
+    jmp .L26_8
+.L26_7:
     subq $32, %rsp
     movq %r15, %rax
     movq %rax, 8(%rsp)
@@ -6059,16 +6480,16 @@ lb_core_11test_report:
     movl $0, %eax
     movq %rbx, %r10
     movb %al, (%r10)
-.L25_8:
+.L26_8:
     movq $40, %rcx
     movq %r14, %rbx
     addq %rcx, %rbx
     movq %rbx, %r10
     movzbl (%r10), %ebx
     testl %ebx, %ebx
-    jne .L25_10
-    jmp .L25_9
-.L25_10:
+    jne .L26_10
+    jmp .L26_9
+.L26_10:
     movq $16, %rcx
     movq %r14, %rbx
     addq %rcx, %rbx
@@ -6079,15 +6500,15 @@ lb_core_11test_report:
     movups %xmm8, 0(%r11)
     movq 16(%r10), %rax
     movq %rax, 16(%r11)
-    jmp .L25_1
-.L25_9:
+    jmp .L26_1
+.L26_9:
     leaq 2296(%rbp), %rbx
     movq %r14, %r10
     movq %rbx, %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
-    jmp .L25_2
-.L25_1:
+    jmp .L26_2
+.L26_1:
     movq 3608(%rbp), %rdi
     movq 3600(%rbp), %rsi
     movdqu 3584(%rbp), %xmm6
@@ -6108,8 +6529,8 @@ lb_core_11test_report:
     leaq 3616(%rbp), %rsp
     popq %rbp
     ret
-.L25_11:
-.L25_2:
+.L26_11:
+.L26_2:
     movq %rbx, %r10
     movq 8(%rbp), %r11
     movups 0(%r10), %xmm8
@@ -6287,8 +6708,8 @@ lb_core_12test_summary:
     movq %rbx, %r10
     movq (%r10), %rbx
     cmpq %rbx, %r13
-    jbe .L26_4
-.L26_3:
+    jbe .L27_4
+.L27_3:
     movq $16, %rcx
     movq %r14, %rbx
     addq %rcx, %rbx
@@ -6312,8 +6733,8 @@ lb_core_12test_summary:
     movl $1, %eax
     movq %rbx, %r10
     movb %al, (%r10)
-    jmp .L26_5
-.L26_4:
+    jmp .L27_5
+.L27_4:
     subq $32, %rsp
     movq %r12, %rax
     movq %rax, 8(%rsp)
@@ -6334,16 +6755,16 @@ lb_core_12test_summary:
     movl $0, %eax
     movq %rbx, %r10
     movb %al, (%r10)
-.L26_5:
+.L27_5:
     movq $40, %rcx
     movq %r14, %rbx
     addq %rcx, %rbx
     movq %rbx, %r10
     movzbl (%r10), %ebx
     testl %ebx, %ebx
-    jne .L26_7
-    jmp .L26_6
-.L26_7:
+    jne .L27_7
+    jmp .L27_6
+.L27_7:
     movq $16, %rcx
     movq %r14, %rbx
     addq %rcx, %rbx
@@ -6354,15 +6775,15 @@ lb_core_12test_summary:
     movups %xmm8, 0(%r11)
     movq 16(%r10), %rax
     movq %rax, 16(%r11)
-    jmp .L26_1
-.L26_6:
+    jmp .L27_1
+.L27_6:
     leaq 136(%rbp), %rbx
     movq %r14, %r10
     movq %rbx, %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
-    jmp .L26_2
-.L26_1:
+    jmp .L27_2
+.L27_1:
     movl $1, %eax
     movq 472(%rbp), %rdi
     movq 464(%rbp), %rsi
@@ -6384,8 +6805,8 @@ lb_core_12test_summary:
     leaq 480(%rbp), %rsp
     popq %rbp
     ret
-.L26_8:
-.L26_2:
+.L27_8:
+.L27_2:
     movq %rbx, %r10
     movq 0(%rbp), %r11
     movups 0(%r10), %xmm8
@@ -6413,15 +6834,15 @@ lb_core_12test_summary:
     movq %rax, %rbx
     movl $0, %ecx
     cmpl %ecx, %r15d
-    jne .L26_10
-.L26_9:
+    jne .L27_10
+.L27_9:
     movl $0, %eax
     movl %eax, %ebx
-    jmp .L26_11
-.L26_10:
+    jmp .L27_11
+.L27_10:
     movl $1, %eax
     movl %eax, %ebx
-.L26_11:
+.L27_11:
     movl %ebx, %eax
     movq 472(%rbp), %rdi
     movq 464(%rbp), %rsi
@@ -6443,7 +6864,7 @@ lb_core_12test_summary:
     leaq 480(%rbp), %rsp
     popq %rbp
     ret
-.L26_12:
+.L27_12:
     leaq .Ltext_86(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -6822,20 +7243,20 @@ lb_core_11str_compare:
     movl %eax, 0(%rbp)
     movl 0(%rbp), %eax
     testl %eax, %eax
-    jne .L29_1
-    jmp .L29_2
-.L29_1:
+    jne .L30_1
+    jmp .L30_2
+.L30_1:
     movq 16(%rbp), %rax
     movq %rax, %r15
-    jmp .L29_3
-.L29_2:
+    jmp .L30_3
+.L30_2:
     movq 8(%rbp), %rax
     movq %rax, %r15
-.L29_3:
+.L30_3:
     movq $0, %rcx
     cmpq %rcx, %r15
-    jbe .L29_5
-.L29_4:
+    jbe .L30_5
+.L30_4:
     movq %rbx, %r10
     movq (%r10), %r12
     movq %r13, %r10
@@ -6853,30 +7274,30 @@ lb_core_11str_compare:
     call memcmp
     addq $32, %rsp
     movl %eax, %r12d
-    jmp .L29_6
-.L29_5:
+    jmp .L30_6
+.L30_5:
     movl $0, %eax
     movl %eax, %r12d
-.L29_6:
+.L30_6:
     movl $0, %ecx
     cmpl %ecx, %r12d
     sete %al
     movzbl %al, %ebx
     movl $0, %ecx
     cmpl %ecx, %ebx
-    jne .L29_8
-.L29_7:
+    jne .L30_8
+.L30_7:
     movl $0, %ecx
     cmpl %ecx, %r12d
-    jge .L29_11
-.L29_10:
+    jge .L30_11
+.L30_10:
     movl $4294967295, %eax
     movl %eax, %ebx
-    jmp .L29_12
-.L29_11:
+    jmp .L30_12
+.L30_11:
     movl $1, %eax
     movl %eax, %ebx
-.L29_12:
+.L30_12:
     movl %ebx, %eax
     movq 264(%rbp), %rdi
     movq 256(%rbp), %rsi
@@ -6898,15 +7319,15 @@ lb_core_11str_compare:
     leaq 272(%rbp), %rsp
     popq %rbp
     ret
-.L29_13:
-    jmp .L29_9
-.L29_8:
-.L29_9:
+.L30_13:
+    jmp .L30_9
+.L30_8:
+.L30_9:
     movl 0(%rbp), %eax
     testl %eax, %eax
-    jne .L29_14
-    jmp .L29_15
-.L29_14:
+    jne .L30_14
+    jmp .L30_15
+.L30_14:
     movl $4294967295, %eax
     movq 264(%rbp), %rdi
     movq 256(%rbp), %rsi
@@ -6928,22 +7349,22 @@ lb_core_11str_compare:
     leaq 272(%rbp), %rsp
     popq %rbp
     ret
-.L29_17:
-    jmp .L29_16
-.L29_15:
-.L29_16:
+.L30_17:
+    jmp .L30_16
+.L30_15:
+.L30_16:
     movq 16(%rbp), %rax
     movq 8(%rbp), %rcx
     cmpq %rcx, %rax
-    jbe .L29_19
-.L29_18:
+    jbe .L30_19
+.L30_18:
     movl $1, %eax
     movl %eax, %ebx
-    jmp .L29_20
-.L29_19:
+    jmp .L30_20
+.L30_19:
     movl $0, %eax
     movl %eax, %ebx
-.L29_20:
+.L30_20:
     movl %ebx, %eax
     movq 264(%rbp), %rdi
     movq 256(%rbp), %rsi
@@ -6965,7 +7386,7 @@ lb_core_11str_compare:
     leaq 272(%rbp), %rsp
     popq %rbp
     ret
-.L29_21:
+.L30_21:
     leaq .Ltext_87(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -6982,61 +7403,61 @@ lb_core_11utf8_scalar:
     .seh_proc lb_core_11utf8_scalar
     pushq %rbp
     .seh_pushreg %rbp
-    subq $352, %rsp
-    .seh_stackalloc 352
+    subq $304, %rsp
+    .seh_stackalloc 304
     movq %rsp, %rbp
     .seh_setframe %rbp, 0
-    movq %rdi, 344(%rbp)
-    .seh_savereg %rdi, 344
-    movq %rsi, 336(%rbp)
-    .seh_savereg %rsi, 336
-    movdqu %xmm6, 320(%rbp)
-    .seh_savexmm %xmm6, 320
-    movdqu %xmm7, 304(%rbp)
-    .seh_savexmm %xmm7, 304
-    movdqu %xmm8, 288(%rbp)
-    .seh_savexmm %xmm8, 288
-    movdqu %xmm9, 272(%rbp)
-    .seh_savexmm %xmm9, 272
-    movdqu %xmm10, 256(%rbp)
-    .seh_savexmm %xmm10, 256
-    movdqu %xmm11, 240(%rbp)
-    .seh_savexmm %xmm11, 240
-    movdqu %xmm12, 224(%rbp)
-    .seh_savexmm %xmm12, 224
-    movdqu %xmm13, 208(%rbp)
-    .seh_savexmm %xmm13, 208
-    movdqu %xmm14, 192(%rbp)
-    .seh_savexmm %xmm14, 192
-    movdqu %xmm15, 176(%rbp)
-    .seh_savexmm %xmm15, 176
-    movq %rbx, 168(%rbp)
-    .seh_savereg %rbx, 168
-    movq %r12, 160(%rbp)
-    .seh_savereg %r12, 160
-    movq %r13, 152(%rbp)
-    .seh_savereg %r13, 152
-    movq %r14, 144(%rbp)
-    .seh_savereg %r14, 144
-    movq %r15, 136(%rbp)
-    .seh_savereg %r15, 136
+    movq %rdi, 296(%rbp)
+    .seh_savereg %rdi, 296
+    movq %rsi, 288(%rbp)
+    .seh_savereg %rsi, 288
+    movdqu %xmm6, 272(%rbp)
+    .seh_savexmm %xmm6, 272
+    movdqu %xmm7, 256(%rbp)
+    .seh_savexmm %xmm7, 256
+    movdqu %xmm8, 240(%rbp)
+    .seh_savexmm %xmm8, 240
+    movdqu %xmm9, 224(%rbp)
+    .seh_savexmm %xmm9, 224
+    movdqu %xmm10, 208(%rbp)
+    .seh_savexmm %xmm10, 208
+    movdqu %xmm11, 192(%rbp)
+    .seh_savexmm %xmm11, 192
+    movdqu %xmm12, 176(%rbp)
+    .seh_savexmm %xmm12, 176
+    movdqu %xmm13, 160(%rbp)
+    .seh_savexmm %xmm13, 160
+    movdqu %xmm14, 144(%rbp)
+    .seh_savexmm %xmm14, 144
+    movdqu %xmm15, 128(%rbp)
+    .seh_savexmm %xmm15, 128
+    movq %rbx, 120(%rbp)
+    .seh_savereg %rbx, 120
+    movq %r12, 112(%rbp)
+    .seh_savereg %r12, 112
+    movq %r13, 104(%rbp)
+    .seh_savereg %r13, 104
+    movq %r14, 96(%rbp)
+    .seh_savereg %r14, 96
+    movq %r15, 88(%rbp)
+    .seh_savereg %r15, 88
     .seh_endprologue
-    movq %rcx, 368(%rbp)
-    movq %rdx, 376(%rbp)
-    movq %r8, 384(%rbp)
-    movq %r9, 392(%rbp)
-    movq 368(%rbp), %rax
-    movq %rax, 120(%rbp)
-    movq 376(%rbp), %rax
-    movq %rax, 104(%rbp)
-    movq 384(%rbp), %rax
-    movq %rax, 88(%rbp)
-    movq 392(%rbp), %rax
+    movq %rcx, 320(%rbp)
+    movq %rdx, 328(%rbp)
+    movq %r8, 336(%rbp)
+    movq %r9, 344(%rbp)
+    movq 320(%rbp), %rax
     movq %rax, 72(%rbp)
-    leaq 88(%rbp), %rbx
+    movq 328(%rbp), %rax
+    movq %rax, 56(%rbp)
+    movq 336(%rbp), %rax
+    movq %rax, 40(%rbp)
+    movq 344(%rbp), %rax
+    movq %rax, 24(%rbp)
+    leaq 40(%rbp), %rbx
     movq %rbx, %r10
     movq (%r10), %rbx
-    leaq 120(%rbp), %r12
+    leaq 72(%rbp), %r12
     movq %r12, %r10
     movq (%r10), %rax
     movq %rax, 16(%rbp)
@@ -7049,45 +7470,45 @@ lb_core_11utf8_scalar:
     movl %r13d, %r14d
     movl $240, %ecx
     cmpl %ecx, %r13d
-    jb .L30_2
-.L30_1:
+    jb .L31_2
+.L31_1:
     movl $7, %ecx
     movl %r13d, %r14d
     andl %ecx, %r14d
     movl %r14d, %r14d
     movq $4, %rax
     movq %rax, %r15
-    jmp .L30_3
-.L30_2:
+    jmp .L31_3
+.L31_2:
     movl $224, %ecx
     cmpl %ecx, %r13d
-    jb .L30_5
-.L30_4:
+    jb .L31_5
+.L31_4:
     movl $15, %ecx
     movl %r13d, %r14d
     andl %ecx, %r14d
     movl %r14d, %r14d
     movq $3, %rax
     movq %rax, %r15
-    jmp .L30_6
-.L30_5:
+    jmp .L31_6
+.L31_5:
     movl $192, %ecx
     cmpl %ecx, %r13d
-    jb .L30_8
-.L30_7:
+    jb .L31_8
+.L31_7:
     movl $31, %ecx
     movl %r13d, %r14d
     andl %ecx, %r14d
     movl %r14d, %r14d
     movq $2, %rax
     movq %rax, %r15
-    jmp .L30_9
-.L30_8:
+    jmp .L31_9
+.L31_8:
     movq $1, %rax
     movq %rax, %r15
-.L30_9:
-.L30_6:
-.L30_3:
+.L31_9:
+.L31_6:
+.L31_3:
     movq %rbx, %rax
     movq %r15, %rcx
     addq %rcx, %rax
@@ -7102,12 +7523,12 @@ lb_core_11utf8_scalar:
     addq $32, %rsp
 1:
     movq %rax, %r13
-    leaq 104(%rbp), %r12
+    leaq 56(%rbp), %r12
     movq %r12, %r10
     movq (%r10), %r12
     cmpq %r12, %r13
-    jbe .L30_11
-.L30_10:
+    jbe .L31_11
+.L31_10:
     movq %r12, %rax
     movq %rbx, %rcx
     subq %rcx, %rax
@@ -7124,20 +7545,20 @@ lb_core_11utf8_scalar:
     movq %rax, %r13
     movq %r13, %rax
     movq %rax, 8(%rbp)
-    jmp .L30_12
-.L30_11:
+    jmp .L31_12
+.L31_11:
     movq %r15, %rax
     movq %rax, 8(%rbp)
-.L30_12:
+.L31_12:
     movl %r14d, %r12d
     movq $1, %rax
     movq %rax, %r15
-.L30_13:
+.L31_13:
     movq 8(%rbp), %rcx
     cmpq %rcx, %r15
-    jae .L30_15
-.L30_14:
-.L30_17:
+    jae .L31_15
+.L31_14:
+.L31_17:
     movl $6, %ecx
     movl %r12d, %r14d
     shll %cl, %r14d
@@ -7172,9 +7593,9 @@ lb_core_11utf8_scalar:
     addq %rcx, %r14
     movl %r13d, %r12d
     movq %r14, %r15
-    jmp .L30_13
-.L30_15:
-    leaq 72(%rbp), %rbx
+    jmp .L31_13
+.L31_15:
+    leaq 24(%rbp), %rbx
     movq %rbx, %r10
     movq (%r10), %rbx
     movq 8(%rbp), %rax
@@ -7183,95 +7604,38 @@ lb_core_11utf8_scalar:
     movl %r12d, %ebx
     movl %ebx, %ebx
     leaq .Ltext_92(%rip), %r13
-    leaq 56(%rbp), %r10
-    movq %rbx, (%r10)
-    movl $0, %eax
-    leaq 40(%rbp), %r10
-    movl %eax, (%r10)
-    leaq 24(%rbp), %r10
-    movq %r13, (%r10)
-    movq $1114111, %rcx
-    cmpq %rcx, %rbx
-    seta %al
-    movzbl %al, %r14d
-    testl %r14d, %r14d
-    jne .L30_30
-    jmp .L30_19
-.L30_30:
-    movl %r14d, %r12d
-    jmp .L30_20
-.L30_19:
-    movq $55296, %rcx
-    cmpq %rcx, %rbx
-    setae %al
-    movzbl %al, %r12d
-    testl %r12d, %r12d
-    jne .L30_21
-    jmp .L30_31
-.L30_31:
-    movl %r12d, %r14d
-    jmp .L30_22
-.L30_21:
-    movq $57343, %rcx
-    cmpq %rcx, %rbx
-    setbe %al
-    movzbl %al, %r14d
-.L30_22:
-    movzbl %r14b, %r12d
-.L30_20:
-    movzbl %r12b, %r14d
-    movzbl %r14b, %r14d
-    testl %r14d, %r14d
-    jne .L30_26
-    jmp .L30_32
-.L30_32:
-    movl %r14d, %r12d
-    jmp .L30_27
-.L30_26:
-    movl $1, %eax
-    movl %eax, %r12d
-.L30_27:
-    movzbl %r12b, %r14d
-    testl %r14d, %r14d
-    jne .L30_23
-    jmp .L30_24
-.L30_23:
-    leaq .Ltext_114(%rip), %r12
     subq $32, %rsp
-    movq %r13, %rax
+    movq %rbx, %rax
     movq %rax, 0(%rsp)
-    movq %r12, %rax
+    movl $0, %eax
     movq %rax, 8(%rsp)
+    movq %r13, %rax
+    movq %rax, 16(%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
-    call lb_core_7trap_at
+    movq 16(%rsp), %r8
+    call lb_core_7to_char
     addq $32, %rsp
-    jmp .L30_25
-.L30_24:
-.L30_25:
-    movabsq $4294967295, %rcx
-    movq %rbx, %r12
-    andq %rcx, %r12
-.L30_29:
-    movl %r12d, %eax
-    movq 344(%rbp), %rdi
-    movq 336(%rbp), %rsi
-    movdqu 320(%rbp), %xmm6
-    movdqu 304(%rbp), %xmm7
-    movdqu 288(%rbp), %xmm8
-    movdqu 272(%rbp), %xmm9
-    movdqu 256(%rbp), %xmm10
-    movdqu 240(%rbp), %xmm11
-    movdqu 224(%rbp), %xmm12
-    movdqu 208(%rbp), %xmm13
-    movdqu 192(%rbp), %xmm14
-    movdqu 176(%rbp), %xmm15
-    movq 168(%rbp), %rbx
-    movq 160(%rbp), %r12
-    movq 152(%rbp), %r13
-    movq 144(%rbp), %r14
-    movq 136(%rbp), %r15
-    leaq 352(%rbp), %rsp
+    movq %rax, %rbx
+    movl %ebx, %eax
+    movq 296(%rbp), %rdi
+    movq 288(%rbp), %rsi
+    movdqu 272(%rbp), %xmm6
+    movdqu 256(%rbp), %xmm7
+    movdqu 240(%rbp), %xmm8
+    movdqu 224(%rbp), %xmm9
+    movdqu 208(%rbp), %xmm10
+    movdqu 192(%rbp), %xmm11
+    movdqu 176(%rbp), %xmm12
+    movdqu 160(%rbp), %xmm13
+    movdqu 144(%rbp), %xmm14
+    movdqu 128(%rbp), %xmm15
+    movq 120(%rbp), %rbx
+    movq 112(%rbp), %r12
+    movq 104(%rbp), %r13
+    movq 96(%rbp), %r14
+    movq 88(%rbp), %r15
+    leaq 304(%rbp), %rsp
     popq %rbp
     ret
     .seh_endproc
@@ -7335,11 +7699,11 @@ lb_core_7utf8_ok:
     movq %rax, 16(%rbp)
     movq 16(%rbp), %rax
     testq %rax, %rax
-    jne .L31_1
-    jmp .L31_2
-.L31_1:
-    jmp .L31_3
-.L31_2:
+    jne .L32_1
+    jmp .L32_2
+.L32_1:
+    jmp .L32_3
+.L32_2:
     leaq 40(%rbp), %rbx
     movq %rbx, %r10
     movq (%r10), %rbx
@@ -7369,19 +7733,19 @@ lb_core_7utf8_ok:
     leaq 288(%rbp), %rsp
     popq %rbp
     ret
-.L31_3:
+.L32_3:
     leaq 40(%rbp), %r12
     movq %r12, %r10
     movq (%r10), %rax
     movq %rax, 32(%rbp)
     movq $0, %rax
     movq %rax, 8(%rbp)
-.L31_5:
+.L32_5:
     movq 8(%rbp), %rax
     movq 32(%rbp), %rcx
     cmpq %rcx, %rax
-    jae .L31_7
-.L31_6:
+    jae .L32_7
+.L32_6:
     movq 16(%rbp), %rax
     movq 8(%rbp), %rcx
     movq %rax, %r14
@@ -7391,20 +7755,20 @@ lb_core_7utf8_ok:
     movzbl %r14b, %r14d
     movl $128, %ecx
     cmpl %ecx, %r14d
-    jae .L31_9
-.L31_8:
+    jae .L32_9
+.L32_8:
     movl %r14d, %r15d
     movq $1, %rax
     movq %rax, 0(%rbp)
-    jmp .L31_10
-.L31_9:
+    jmp .L32_10
+.L32_9:
     movl $224, %ecx
     movl %r14d, %ebx
     andl %ecx, %ebx
     movl $192, %ecx
     cmpl %ecx, %ebx
-    jne .L31_12
-.L31_11:
+    jne .L32_12
+.L32_11:
     movl $31, %ecx
     movl %r14d, %ebx
     andl %ecx, %ebx
@@ -7412,36 +7776,36 @@ lb_core_7utf8_ok:
     movq $2, %rax
     movq %rax, %r15
     movl %ebx, %r12d
-    jmp .L31_13
-.L31_12:
+    jmp .L32_13
+.L32_12:
     movl $240, %ecx
     movl %r14d, %ebx
     andl %ecx, %ebx
     movl $224, %ecx
     cmpl %ecx, %ebx
-    jne .L31_15
-.L31_14:
+    jne .L32_15
+.L32_14:
     movl $15, %ecx
     movl %r14d, %ebx
     andl %ecx, %ebx
     movl %ebx, %ebx
     movq $3, %rax
     movq %rax, %r15
-    jmp .L31_16
-.L31_15:
+    jmp .L32_16
+.L32_15:
     movl $248, %ecx
     movl %r14d, %ebx
     andl %ecx, %ebx
     movl $240, %ecx
     cmpl %ecx, %ebx
-    jne .L31_18
-.L31_17:
+    jne .L32_18
+.L32_17:
     movl $7, %ecx
     movl %r14d, %ebx
     andl %ecx, %ebx
     movl %ebx, %ebx
-    jmp .L31_19
-.L31_18:
+    jmp .L32_19
+.L32_18:
     movl $0, %eax
     movq 280(%rbp), %rdi
     movq 272(%rbp), %rsi
@@ -7463,16 +7827,16 @@ lb_core_7utf8_ok:
     leaq 288(%rbp), %rsp
     popq %rbp
     ret
-.L31_19:
+.L32_19:
     movq $4, %rax
     movq %rax, %r15
-.L31_16:
+.L32_16:
     movl %ebx, %r12d
-.L31_13:
+.L32_13:
     movq %r15, %rax
     movq %rax, 0(%rbp)
     movl %r12d, %r15d
-.L31_10:
+.L32_10:
     movq 8(%rbp), %rax
     movq 0(%rbp), %rcx
     addq %rcx, %rax
@@ -7490,8 +7854,8 @@ lb_core_7utf8_ok:
     movq 24(%rbp), %rax
     movq 32(%rbp), %rcx
     cmpq %rcx, %rax
-    jbe .L31_22
-.L31_21:
+    jbe .L32_22
+.L32_21:
     movl $0, %eax
     movq 280(%rbp), %rdi
     movq 272(%rbp), %rsi
@@ -7513,16 +7877,16 @@ lb_core_7utf8_ok:
     leaq 288(%rbp), %rsp
     popq %rbp
     ret
-.L31_22:
-.L31_23:
+.L32_22:
+.L32_23:
     movl %r15d, %r14d
     movq $1, %rax
     movq %rax, %r12
-.L31_25:
+.L32_25:
     movq 0(%rbp), %rcx
     cmpq %rcx, %r12
-    jae .L31_27
-.L31_26:
+    jae .L32_27
+.L32_26:
     movq 8(%rbp), %rax
     movq %r12, %rcx
     addq %rcx, %rax
@@ -7551,8 +7915,8 @@ lb_core_7utf8_ok:
     movzbl %al, %ebx
     movl $0, %ecx
     cmpl %ecx, %ebx
-    jne .L31_29
-.L31_28:
+    jne .L32_29
+.L32_28:
     movl $0, %eax
     movq 280(%rbp), %rdi
     movq 272(%rbp), %rsi
@@ -7574,9 +7938,9 @@ lb_core_7utf8_ok:
     leaq 288(%rbp), %rsp
     popq %rbp
     ret
-.L31_29:
-.L31_30:
-.L31_33:
+.L32_29:
+.L32_30:
+.L32_33:
     movl $6, %ecx
     movl %r14d, %ebx
     shll %cl, %ebx
@@ -7590,30 +7954,30 @@ lb_core_7utf8_ok:
     addq %rcx, %r13
     movl %ebx, %r14d
     movq %r13, %r12
-    jmp .L31_25
-.L31_27:
+    jmp .L32_25
+.L32_27:
     movq 0(%rbp), %rax
     movq $2, %rcx
     cmpq %rcx, %rax
     sete %al
     movzbl %al, %ebx
     testl %ebx, %ebx
-    jne .L31_37
-    jmp .L31_63
-.L31_63:
+    jne .L32_37
+    jmp .L32_63
+.L32_63:
     movl %ebx, %r12d
-    jmp .L31_38
-.L31_37:
+    jmp .L32_38
+.L32_37:
     movl $128, %ecx
     cmpl %ecx, %r14d
     setb %al
     movzbl %al, %r12d
-.L31_38:
+.L32_38:
     movzbl %r12b, %ebx
     testl %ebx, %ebx
-    jne .L31_34
-    jmp .L31_35
-.L31_34:
+    jne .L32_34
+    jmp .L32_35
+.L32_34:
     movl $0, %eax
     movq 280(%rbp), %rdi
     movq 272(%rbp), %rsi
@@ -7635,30 +7999,30 @@ lb_core_7utf8_ok:
     leaq 288(%rbp), %rsp
     popq %rbp
     ret
-.L31_35:
-.L31_36:
+.L32_35:
+.L32_36:
     movq 0(%rbp), %rax
     movq $3, %rcx
     cmpq %rcx, %rax
     sete %al
     movzbl %al, %ebx
     testl %ebx, %ebx
-    jne .L31_43
-    jmp .L31_64
-.L31_64:
+    jne .L32_43
+    jmp .L32_64
+.L32_64:
     movl %ebx, %r12d
-    jmp .L31_44
-.L31_43:
+    jmp .L32_44
+.L32_43:
     movl $2048, %ecx
     cmpl %ecx, %r14d
     setb %al
     movzbl %al, %r12d
-.L31_44:
+.L32_44:
     movzbl %r12b, %ebx
     testl %ebx, %ebx
-    jne .L31_40
-    jmp .L31_41
-.L31_40:
+    jne .L32_40
+    jmp .L32_41
+.L32_40:
     movl $0, %eax
     movq 280(%rbp), %rdi
     movq 272(%rbp), %rsi
@@ -7680,30 +8044,30 @@ lb_core_7utf8_ok:
     leaq 288(%rbp), %rsp
     popq %rbp
     ret
-.L31_41:
-.L31_42:
+.L32_41:
+.L32_42:
     movq 0(%rbp), %rax
     movq $4, %rcx
     cmpq %rcx, %rax
     sete %al
     movzbl %al, %ebx
     testl %ebx, %ebx
-    jne .L31_49
-    jmp .L31_65
-.L31_65:
+    jne .L32_49
+    jmp .L32_65
+.L32_65:
     movl %ebx, %r12d
-    jmp .L31_50
-.L31_49:
+    jmp .L32_50
+.L32_49:
     movl $65536, %ecx
     cmpl %ecx, %r14d
     setb %al
     movzbl %al, %r12d
-.L31_50:
+.L32_50:
     movzbl %r12b, %ebx
     testl %ebx, %ebx
-    jne .L31_46
-    jmp .L31_47
-.L31_46:
+    jne .L32_46
+    jmp .L32_47
+.L32_46:
     movl $0, %eax
     movq 280(%rbp), %rdi
     movq 272(%rbp), %rsi
@@ -7725,29 +8089,29 @@ lb_core_7utf8_ok:
     leaq 288(%rbp), %rsp
     popq %rbp
     ret
-.L31_47:
-.L31_48:
+.L32_47:
+.L32_48:
     movl $55296, %ecx
     cmpl %ecx, %r14d
     setae %al
     movzbl %al, %ebx
     testl %ebx, %ebx
-    jne .L31_55
-    jmp .L31_66
-.L31_66:
+    jne .L32_55
+    jmp .L32_66
+.L32_66:
     movl %ebx, %r12d
-    jmp .L31_56
-.L31_55:
+    jmp .L32_56
+.L32_55:
     movl $57343, %ecx
     cmpl %ecx, %r14d
     setbe %al
     movzbl %al, %r12d
-.L31_56:
+.L32_56:
     movzbl %r12b, %ebx
     testl %ebx, %ebx
-    jne .L31_52
-    jmp .L31_53
-.L31_52:
+    jne .L32_52
+    jmp .L32_53
+.L32_52:
     movl $0, %eax
     movq 280(%rbp), %rdi
     movq 272(%rbp), %rsi
@@ -7769,12 +8133,12 @@ lb_core_7utf8_ok:
     leaq 288(%rbp), %rsp
     popq %rbp
     ret
-.L31_53:
-.L31_54:
+.L32_53:
+.L32_54:
     movl $1114111, %ecx
     cmpl %ecx, %r14d
-    jbe .L31_59
-.L31_58:
+    jbe .L32_59
+.L32_58:
     movl $0, %eax
     movq 280(%rbp), %rdi
     movq 272(%rbp), %rsi
@@ -7796,12 +8160,12 @@ lb_core_7utf8_ok:
     leaq 288(%rbp), %rsp
     popq %rbp
     ret
-.L31_59:
-.L31_60:
+.L32_59:
+.L32_60:
     movq 24(%rbp), %rax
     movq %rax, 8(%rbp)
-    jmp .L31_5
-.L31_7:
+    jmp .L32_5
+.L32_7:
     movl $1, %eax
     movq 280(%rbp), %rdi
     movq 272(%rbp), %rsi
@@ -7875,8 +8239,8 @@ lb_core_9hash_seed:
     movzbl (%r10), %r12d
     movl $0, %ecx
     cmpl %ecx, %r12d
-    jne .L32_2
-.L32_1:
+    jne .L33_2
+.L33_1:
     leaq lb_core_15hash_seed_value(%rip), %r12
     movabsq $-7046029254386353131, %rcx
     movq %r12, %r13
@@ -7886,9 +8250,9 @@ lb_core_9hash_seed:
     movl $1, %eax
     movq %rbx, %r10
     movb %al, (%r10)
-    jmp .L32_3
-.L32_2:
-.L32_3:
+    jmp .L33_3
+.L33_2:
+.L33_3:
     leaq lb_core_15hash_seed_value(%rip), %rbx
     movq %rbx, %r10
     movq (%r10), %rbx
@@ -7911,7 +8275,7 @@ lb_core_9hash_seed:
     leaq 208(%rbp), %rsp
     popq %rbp
     ret
-.L32_4:
+.L33_4:
     leaq .Ltext_99(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -7978,7 +8342,7 @@ lb_core_8hash_mix:
     xorq %r12, %rbx
     movabsq $-7046029254386353131, %rcx
     imulq %rcx, %rbx
-.L33_2:
+.L34_2:
     movq $32, %rcx
     movq %rbx, %r12
     shrq %cl, %r12
@@ -8067,21 +8431,21 @@ lb_core_10hash_bytes:
     movq %r12, %r10
     movq (%r10), %r12
     testq %r12, %r12
-    jne .L34_4
-    jmp .L34_2
-.L34_4:
-.L34_1:
+    jne .L35_4
+    jmp .L35_2
+.L35_4:
+.L35_1:
     leaq 8(%rbp), %rax
     movq %rax, 0(%rbp)
     movq %rbx, %r14
     movq $0, %rax
     movq %rax, %r15
-.L34_5:
+.L35_5:
     movq 0(%rbp), %r10
     movq (%r10), %rbx
     cmpq %rbx, %r15
-    jae .L34_7
-.L34_6:
+    jae .L35_7
+.L35_6:
     movq %r12, %rbx
     addq %r15, %rbx
     movq %rbx, %r10
@@ -8102,12 +8466,12 @@ lb_core_10hash_bytes:
     addq %rcx, %r13
     movq %rbx, %r14
     movq %r13, %r15
-    jmp .L34_5
-.L34_7:
+    jmp .L35_5
+.L35_7:
     movq %r14, %rbx
-    jmp .L34_3
-.L34_2:
-.L34_3:
+    jmp .L35_3
+.L35_2:
+.L35_3:
     leaq 8(%rbp), %r12
     movq %r12, %r10
     movq (%r10), %r12
@@ -8142,7 +8506,7 @@ lb_core_10hash_bytes:
     leaq 272(%rbp), %rsp
     popq %rbp
     ret
-.L34_8:
+.L35_8:
     leaq .Ltext_103(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -8205,8 +8569,8 @@ lb_core_7mask_of:
     movslq (%r10), %rbx
     movl $64, %ecx
     cmpl %ecx, %ebx
-    jl .L35_2
-.L35_1:
+    jl .L36_2
+.L36_1:
     movq $-1, %rax
     movq 216(%rbp), %rdi
     movq 208(%rbp), %rsi
@@ -8226,15 +8590,15 @@ lb_core_7mask_of:
     leaq 224(%rbp), %rsp
     popq %rbp
     ret
-.L35_4:
-    jmp .L35_3
-.L35_2:
-.L35_3:
+.L36_4:
+    jmp .L36_3
+.L36_2:
+.L36_3:
     movslq %ebx, %r13
     movq $64, %rcx
     cmpq %rcx, %r13
-    jb .L35_6
-.L35_5:
+    jb .L36_6
+.L36_5:
     leaq .Ltext_104(%rip), %rdi
     leaq .Ltext_31(%rip), %rsi
     movq %rdx, %r8
@@ -8243,7 +8607,7 @@ lb_core_7mask_of:
     subq $32, %rsp
     call lb_core_7trap_at
     addq $32, %rsp
-.L35_6:
+.L36_6:
     movq %r13, %rcx
     movq $1, %rax
     movq %rax, %rbx
@@ -8281,7 +8645,7 @@ lb_core_7mask_of:
     leaq 224(%rbp), %rsp
     popq %rbp
     ret
-.L35_7:
+.L36_7:
     leaq .Ltext_104(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -8350,8 +8714,8 @@ lb_core_11sign_extend:
     movslq (%r10), %rbx
     movl $64, %ecx
     cmpl %ecx, %ebx
-    jl .L36_2
-.L36_1:
+    jl .L37_2
+.L37_1:
     leaq 24(%rbp), %rbx
     movq %rbx, %r10
     movq (%r10), %rbx
@@ -8376,10 +8740,10 @@ lb_core_11sign_extend:
     leaq 256(%rbp), %rsp
     popq %rbp
     ret
-.L36_4:
-    jmp .L36_3
-.L36_2:
-.L36_3:
+.L37_4:
+    jmp .L37_3
+.L37_2:
+.L37_3:
     subq $32, %rsp
     movl %ebx, %eax
     movq %rax, 0(%rsp)
@@ -8410,8 +8774,8 @@ lb_core_11sign_extend:
     movslq %r14d, %r15
     movq $64, %rcx
     cmpq %rcx, %r15
-    jb .L36_9
-.L36_8:
+    jb .L37_9
+.L37_8:
     leaq .Ltext_105(%rip), %rdi
     leaq .Ltext_31(%rip), %rsi
     movq %rdx, %r8
@@ -8420,7 +8784,7 @@ lb_core_11sign_extend:
     subq $32, %rsp
     call lb_core_7trap_at
     addq $32, %rsp
-.L36_9:
+.L37_9:
     movq %r15, %rcx
     movq $1, %rax
     movq %rax, %rbx
@@ -8434,8 +8798,8 @@ lb_core_11sign_extend:
     movzbl %al, %ebx
     movl $0, %ecx
     cmpl %ecx, %ebx
-    jne .L36_6
-.L36_5:
+    jne .L37_6
+.L37_5:
     movq $-1, %rcx
     movq %r12, %rbx
     xorq %rcx, %rbx
@@ -8463,10 +8827,10 @@ lb_core_11sign_extend:
     leaq 256(%rbp), %rsp
     popq %rbp
     ret
-.L36_10:
-    jmp .L36_7
-.L36_6:
-.L36_7:
+.L37_10:
+    jmp .L37_7
+.L37_6:
+.L37_7:
     movq %r13, %rax
     movq 248(%rbp), %rdi
     movq 240(%rbp), %rsi
@@ -8488,7 +8852,7 @@ lb_core_11sign_extend:
     leaq 256(%rbp), %rsp
     popq %rbp
     ret
-.L36_11:
+.L37_11:
     leaq .Ltext_106(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -8551,8 +8915,8 @@ lb_core_10signed_min:
     movslq (%r10), %rbx
     movl $64, %ecx
     cmpl %ecx, %ebx
-    jl .L37_2
-.L37_1:
+    jl .L38_2
+.L38_1:
     movabsq $-9223372036854775808, %rax
     movq 216(%rbp), %rdi
     movq 208(%rbp), %rsi
@@ -8572,10 +8936,10 @@ lb_core_10signed_min:
     leaq 224(%rbp), %rsp
     popq %rbp
     ret
-.L37_4:
-    jmp .L37_3
-.L37_2:
-.L37_3:
+.L38_4:
+    jmp .L38_3
+.L38_2:
+.L38_3:
     movl %ebx, %eax
     movl $1, %ecx
     subl %ecx, %eax
@@ -8593,8 +8957,8 @@ lb_core_10signed_min:
     movslq %r12d, %r13
     movq $64, %rcx
     cmpq %rcx, %r13
-    jb .L37_6
-.L37_5:
+    jb .L38_6
+.L38_5:
     leaq .Ltext_109(%rip), %rdi
     leaq .Ltext_31(%rip), %rsi
     movq %rdx, %r8
@@ -8603,7 +8967,7 @@ lb_core_10signed_min:
     subq $32, %rsp
     call lb_core_7trap_at
     addq $32, %rsp
-.L37_6:
+.L38_6:
     movq %r13, %rcx
     movq $1, %rax
     movq %rax, %rbx
@@ -8631,7 +8995,7 @@ lb_core_10signed_min:
     leaq 224(%rbp), %rsp
     popq %rbp
     ret
-.L37_7:
+.L38_7:
     leaq .Ltext_109(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -8694,8 +9058,8 @@ lb_core_10signed_max:
     movslq (%r10), %rbx
     movl $64, %ecx
     cmpl %ecx, %ebx
-    jl .L38_2
-.L38_1:
+    jl .L39_2
+.L39_1:
     movabsq $9223372036854775807, %rax
     movq 216(%rbp), %rdi
     movq 208(%rbp), %rsi
@@ -8715,10 +9079,10 @@ lb_core_10signed_max:
     leaq 224(%rbp), %rsp
     popq %rbp
     ret
-.L38_4:
-    jmp .L38_3
-.L38_2:
-.L38_3:
+.L39_4:
+    jmp .L39_3
+.L39_2:
+.L39_3:
     movl %ebx, %eax
     movl $1, %ecx
     subl %ecx, %eax
@@ -8736,8 +9100,8 @@ lb_core_10signed_max:
     movslq %r12d, %r13
     movq $64, %rcx
     cmpq %rcx, %r13
-    jb .L38_6
-.L38_5:
+    jb .L39_6
+.L39_5:
     leaq .Ltext_110(%rip), %rdi
     leaq .Ltext_31(%rip), %rsi
     movq %rdx, %r8
@@ -8746,7 +9110,7 @@ lb_core_10signed_max:
     subq $32, %rsp
     call lb_core_7trap_at
     addq $32, %rsp
-.L38_6:
+.L39_6:
     movq %r13, %rcx
     movq $1, %rax
     movq %rax, %rbx
@@ -8784,7 +9148,7 @@ lb_core_10signed_max:
     leaq 224(%rbp), %rsp
     popq %rbp
     ret
-.L38_7:
+.L39_7:
     leaq .Ltext_110(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -8861,12 +9225,12 @@ lb_core_11fits_signed:
     setge %al
     movzbl %al, %r13d
     testl %r13d, %r13d
-    jne .L39_1
-    jmp .L39_4
-.L39_4:
+    jne .L40_1
+    jmp .L40_4
+.L40_4:
     movl %r13d, %ebx
-    jmp .L39_2
-.L39_1:
+    jmp .L40_2
+.L40_1:
     subq $32, %rsp
     movl %r12d, %eax
     movq %rax, 0(%rsp)
@@ -8878,7 +9242,7 @@ lb_core_11fits_signed:
     setle %al
     movzbl %al, %r13d
     movl %r13d, %ebx
-.L39_2:
+.L40_2:
     movzbl %bl, %r12d
     movzbl %r12b, %r12d
     movl %r12d, %eax
@@ -8900,7 +9264,7 @@ lb_core_11fits_signed:
     leaq 240(%rbp), %rsp
     popq %rbp
     ret
-.L39_3:
+.L40_3:
     leaq .Ltext_111(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -8972,8 +9336,8 @@ lb_core_magnitude:
     movzbl %al, %ebx
     movl $0, %ecx
     cmpl %ecx, %ebx
-    jne .L40_2
-.L40_1:
+    jne .L41_2
+.L41_1:
     leaq 96(%rbp), %rbx
     movq %rbx, %r10
     movq (%r10), %rbx
@@ -9038,10 +9402,10 @@ lb_core_magnitude:
     leaq 336(%rbp), %rsp
     popq %rbp
     ret
-.L40_4:
-    jmp .L40_3
-.L40_2:
-.L40_3:
+.L41_4:
+    jmp .L41_3
+.L41_2:
+.L41_3:
     leaq 32(%rbp), %r13
     movq %r13, %r11
     pxor %xmm8, %xmm8
@@ -9067,8 +9431,8 @@ lb_core_magnitude:
     addq $32, %rsp
     movq %rax, %r12
     andq %r12, %rbx
-    jmp .L40_7
-.L40_6:
+    jmp .L41_7
+.L41_6:
     leaq .Ltext_107(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -9077,7 +9441,7 @@ lb_core_magnitude:
     subq $32, %rsp
     call lb_core_7trap_at
     addq $32, %rsp
-.L40_7:
+.L41_7:
     movq $8, %rcx
     movq %r13, %r12
     addq %rcx, %r12
@@ -9116,7 +9480,7 @@ lb_core_magnitude:
     leaq 336(%rbp), %rsp
     popq %rbp
     ret
-.L40_5:
+.L41_5:
     leaq .Ltext_113(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -9191,15 +9555,15 @@ lb_core_12checked_bits:
     movzbl %al, %ebx
     movl $0, %ecx
     cmpl %ecx, %ebx
-    jne .L41_2
-.L41_1:
+    jne .L42_2
+.L42_1:
     leaq 88(%rbp), %rbx
     movq %rbx, %r10
     movzbl (%r10), %r12d
     testl %r12d, %r12d
-    jne .L41_4
-    jmp .L41_5
-.L41_4:
+    jne .L42_4
+    jmp .L42_5
+.L42_4:
     movq $8, %rcx
     movq %rbx, %r12
     addq %rcx, %r12
@@ -9218,8 +9582,8 @@ lb_core_12checked_bits:
     cmpq %r13, %r12
     setl %al
     movzbl %al, %r12d
-    jmp .L41_6
-.L41_5:
+    jmp .L42_6
+.L42_5:
     movq $8, %rcx
     movq %rbx, %r12
     addq %rcx, %r12
@@ -9238,20 +9602,20 @@ lb_core_12checked_bits:
     cmpq %r13, %r12
     seta %al
     movzbl %al, %r12d
-.L41_6:
+.L42_6:
     movzbl %r12b, %ebx
-    jmp .L41_3
-.L41_2:
+    jmp .L42_3
+.L42_2:
     leaq 88(%rbp), %rbx
     movq %rbx, %r10
     movzbl (%r10), %r12d
     testl %r12d, %r12d
-    jne .L41_15
-    jmp .L41_7
-.L41_15:
+    jne .L42_15
+    jmp .L42_7
+.L42_15:
     movl %r12d, %ebx
-    jmp .L41_8
-.L41_7:
+    jmp .L42_8
+.L42_7:
     movq $8, %rcx
     movq %rbx, %r12
     addq %rcx, %r12
@@ -9277,8 +9641,8 @@ lb_core_12checked_bits:
     movzbl %r12b, %r12d
     leaq 0(%rbp), %r10
     movl %r12d, (%r10)
-    jmp .L41_14
-.L41_13:
+    jmp .L42_14
+.L42_13:
     leaq .Ltext_112(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -9287,20 +9651,20 @@ lb_core_12checked_bits:
     subq $32, %rsp
     call lb_core_7trap_at
     addq $32, %rsp
-.L41_14:
+.L42_14:
     movl $0, %ecx
     cmpl %ecx, %r12d
     sete %al
     movzbl %al, %ebx
-.L41_8:
+.L42_8:
     movzbl %bl, %r12d
     movl %r12d, %ebx
-.L41_3:
+.L42_3:
     movzbl %bl, %r12d
     testl %r12d, %r12d
-    jne .L41_9
-    jmp .L41_10
-.L41_9:
+    jne .L42_9
+    jmp .L42_10
+.L42_9:
     leaq 40(%rbp), %rbx
     movq %rbx, %r10
     movq (%r10), %rbx
@@ -9314,9 +9678,9 @@ lb_core_12checked_bits:
     movq 8(%rsp), %rdx
     call lb_core_7trap_at
     addq $32, %rsp
-    jmp .L41_11
-.L41_10:
-.L41_11:
+    jmp .L42_11
+.L42_10:
+.L42_11:
     leaq 88(%rbp), %rbx
     movq $8, %rcx
     addq %rcx, %rbx
@@ -9341,7 +9705,7 @@ lb_core_12checked_bits:
     leaq 304(%rbp), %rsp
     popq %rbp
     ret
-.L41_12:
+.L42_12:
     leaq .Ltext_115(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -9448,8 +9812,8 @@ lb_core_6conv_s:
     movslq (%r10), %r12
     movl $0, %ecx
     cmpl %ecx, %r12d
-    jne .L42_2
-.L42_1:
+    jne .L43_2
+.L43_1:
     leaq 80(%rbp), %r12
     movq %r12, %r10
     movslq (%r10), %r12
@@ -9499,10 +9863,10 @@ lb_core_6conv_s:
     leaq 352(%rbp), %rsp
     popq %rbp
     ret
-.L42_4:
-    jmp .L42_3
-.L42_2:
-.L42_3:
+.L43_4:
+    jmp .L43_3
+.L43_2:
+.L43_3:
     movq $8, %rcx
     movq %rbx, %r12
     addq %rcx, %r12
@@ -9528,8 +9892,8 @@ lb_core_6conv_s:
     movzbl %al, %r14d
     movl $0, %ecx
     cmpl %ecx, %r14d
-    jne .L42_6
-.L42_5:
+    jne .L43_6
+.L43_5:
     subq $32, %rsp
     movq %r12, %rax
     movq %rax, 0(%rsp)
@@ -9560,10 +9924,10 @@ lb_core_6conv_s:
     leaq 352(%rbp), %rsp
     popq %rbp
     ret
-.L42_8:
-    jmp .L42_7
-.L42_6:
-.L42_7:
+.L43_8:
+    jmp .L43_7
+.L43_6:
+.L43_7:
     movq %r12, %rax
     movq 344(%rbp), %rdi
     movq 336(%rbp), %rsi
@@ -9584,7 +9948,7 @@ lb_core_6conv_s:
     leaq 352(%rbp), %rsp
     popq %rbp
     ret
-.L42_9:
+.L43_9:
     leaq .Ltext_116(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -9691,8 +10055,8 @@ lb_core_6conv_u:
     movslq (%r10), %r12
     movl $0, %ecx
     cmpl %ecx, %r12d
-    jne .L43_2
-.L43_1:
+    jne .L44_2
+.L44_1:
     leaq 112(%rbp), %r12
     movq %r12, %r10
     movslq (%r10), %r12
@@ -9742,10 +10106,10 @@ lb_core_6conv_u:
     leaq 384(%rbp), %rsp
     popq %rbp
     ret
-.L43_4:
-    jmp .L43_3
-.L43_2:
-.L43_3:
+.L44_4:
+    jmp .L44_3
+.L44_2:
+.L44_3:
     movq $8, %rcx
     movq %rbx, %r12
     addq %rcx, %r12
@@ -9766,8 +10130,8 @@ lb_core_6conv_u:
     addq $32, %rsp
     movq %rax, %r13
     andq %r13, %r12
-    jmp .L43_7
-.L43_6:
+    jmp .L44_7
+.L44_6:
     leaq .Ltext_107(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -9776,7 +10140,7 @@ lb_core_6conv_u:
     subq $32, %rsp
     call lb_core_7trap_at
     addq $32, %rsp
-.L43_7:
+.L44_7:
     movq %r12, %rax
     movq 376(%rbp), %rdi
     movq 368(%rbp), %rsi
@@ -9797,8 +10161,163 @@ lb_core_6conv_u:
     leaq 384(%rbp), %rsp
     popq %rbp
     ret
-.L43_5:
+.L44_5:
     leaq .Ltext_117(%rip), %rdi
+    leaq .Ltext_0(%rip), %rsi
+    movq %rdx, %r8
+    movq %rsi, %rdx
+    movq %rdi, %rcx
+    subq $32, %rsp
+    call lb_core_7trap_at
+    addq $32, %rsp
+    .seh_endproc
+
+    .p2align 4
+    .globl lb_core_7to_char
+lb_core_7to_char:
+    .seh_proc lb_core_7to_char
+    pushq %rbp
+    .seh_pushreg %rbp
+    subq $256, %rsp
+    .seh_stackalloc 256
+    movq %rsp, %rbp
+    .seh_setframe %rbp, 0
+    movq %rdi, 248(%rbp)
+    .seh_savereg %rdi, 248
+    movq %rsi, 240(%rbp)
+    .seh_savereg %rsi, 240
+    movdqu %xmm6, 224(%rbp)
+    .seh_savexmm %xmm6, 224
+    movdqu %xmm7, 208(%rbp)
+    .seh_savexmm %xmm7, 208
+    movdqu %xmm8, 192(%rbp)
+    .seh_savexmm %xmm8, 192
+    movdqu %xmm9, 176(%rbp)
+    .seh_savexmm %xmm9, 176
+    movdqu %xmm10, 160(%rbp)
+    .seh_savexmm %xmm10, 160
+    movdqu %xmm11, 144(%rbp)
+    .seh_savexmm %xmm11, 144
+    movdqu %xmm12, 128(%rbp)
+    .seh_savexmm %xmm12, 128
+    movdqu %xmm13, 112(%rbp)
+    .seh_savexmm %xmm13, 112
+    movdqu %xmm14, 96(%rbp)
+    .seh_savexmm %xmm14, 96
+    movdqu %xmm15, 80(%rbp)
+    .seh_savexmm %xmm15, 80
+    movq %rbx, 72(%rbp)
+    .seh_savereg %rbx, 72
+    movq %r12, 64(%rbp)
+    .seh_savereg %r12, 64
+    movq %r13, 56(%rbp)
+    .seh_savereg %r13, 56
+    .seh_endprologue
+    movq %rcx, 272(%rbp)
+    movq %rdx, 280(%rbp)
+    movq %r8, 288(%rbp)
+    movq %r9, 296(%rbp)
+    movq 272(%rbp), %rax
+    movq %rax, 40(%rbp)
+    movq 280(%rbp), %rax
+    movl %eax, 24(%rbp)
+    movq 288(%rbp), %rax
+    movq %rax, 8(%rbp)
+    leaq 40(%rbp), %rbx
+    movq %rbx, %r10
+    movq (%r10), %rbx
+    movq $1114111, %rcx
+    cmpq %rcx, %rbx
+    seta %al
+    movzbl %al, %r12d
+    testl %r12d, %r12d
+    jne .L45_11
+    jmp .L45_1
+.L45_11:
+    movl %r12d, %r13d
+    jmp .L45_2
+.L45_1:
+    movq $55296, %rcx
+    cmpq %rcx, %rbx
+    setae %al
+    movzbl %al, %r12d
+    testl %r12d, %r12d
+    jne .L45_3
+    jmp .L45_12
+.L45_12:
+    movl %r12d, %r13d
+    jmp .L45_4
+.L45_3:
+    movq $57343, %rcx
+    cmpq %rcx, %rbx
+    setbe %al
+    movzbl %al, %r13d
+.L45_4:
+    movzbl %r13b, %r12d
+    movl %r12d, %r13d
+.L45_2:
+    movzbl %r13b, %r12d
+    movzbl %r12b, %r12d
+    testl %r12d, %r12d
+    jne .L45_8
+    jmp .L45_13
+.L45_13:
+    movl %r12d, %r13d
+    jmp .L45_9
+.L45_8:
+    leaq 24(%rbp), %r12
+    movq %r12, %r10
+    movslq (%r10), %r12
+    movl $0, %ecx
+    cmpl %ecx, %r12d
+    sete %al
+    movzbl %al, %r13d
+.L45_9:
+    movzbl %r13b, %r12d
+    testl %r12d, %r12d
+    jne .L45_5
+    jmp .L45_6
+.L45_5:
+    leaq 8(%rbp), %r12
+    movq %r12, %r10
+    movq (%r10), %r12
+    leaq .Ltext_114(%rip), %r13
+    subq $32, %rsp
+    movq %r12, %rax
+    movq %rax, 0(%rsp)
+    movq %r13, %rax
+    movq %rax, 8(%rsp)
+    movq 0(%rsp), %rcx
+    movq 8(%rsp), %rdx
+    call lb_core_7trap_at
+    addq $32, %rsp
+    jmp .L45_7
+.L45_6:
+.L45_7:
+    movabsq $4294967295, %rcx
+    movq %rbx, %r12
+    andq %rcx, %r12
+    movq %r12, %rax
+    movq 248(%rbp), %rdi
+    movq 240(%rbp), %rsi
+    movdqu 224(%rbp), %xmm6
+    movdqu 208(%rbp), %xmm7
+    movdqu 192(%rbp), %xmm8
+    movdqu 176(%rbp), %xmm9
+    movdqu 160(%rbp), %xmm10
+    movdqu 144(%rbp), %xmm11
+    movdqu 128(%rbp), %xmm12
+    movdqu 112(%rbp), %xmm13
+    movdqu 96(%rbp), %xmm14
+    movdqu 80(%rbp), %xmm15
+    movq 72(%rbp), %rbx
+    movq 64(%rbp), %r12
+    movq 56(%rbp), %r13
+    leaq 256(%rbp), %rsp
+    popq %rbp
+    ret
+.L45_10:
+    leaq .Ltext_118(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -9884,8 +10403,8 @@ lb_core_6f_to_s:
     movslq %r12d, %r13
     movq $64, %rcx
     cmpq %rcx, %r13
-    jb .L44_26
-.L44_25:
+    jb .L46_26
+.L46_25:
     leaq .Ltext_120(%rip), %rdi
     leaq .Ltext_31(%rip), %rsi
     movq %rdx, %r8
@@ -9894,7 +10413,7 @@ lb_core_6f_to_s:
     subq $32, %rsp
     call lb_core_7trap_at
     addq $32, %rsp
-.L44_26:
+.L46_26:
     movq %r13, %rcx
     movq $1, %rax
     movq %rax, %r12
@@ -9913,8 +10432,8 @@ lb_core_6f_to_s:
     addsd %xmm8, %xmm8
 2:
     movapd %xmm8, %xmm12
-    jmp .L44_28
-.L44_27:
+    jmp .L46_28
+.L46_27:
     leaq .Ltext_120(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -9923,7 +10442,7 @@ lb_core_6f_to_s:
     subq $32, %rsp
     call lb_core_7trap_at
     addq $32, %rsp
-.L44_28:
+.L46_28:
     movq $0, %rax
     movq %rax, %xmm13
     movaps %xmm13, %xmm8
@@ -9934,8 +10453,8 @@ lb_core_6f_to_s:
     movslq (%r10), %r12
     movl $0, %ecx
     cmpl %ecx, %r12d
-    jne .L44_2
-.L44_1:
+    jne .L46_2
+.L46_1:
     leaq 104(%rbp), %rbx
     movq %rbx, %r10
     movsd (%r10), %xmm8
@@ -9955,8 +10474,8 @@ lb_core_6f_to_s:
     movzbl %bl, %ebx
     leaq 16(%rbp), %r10
     movl %ebx, (%r10)
-    jmp .L44_30
-.L44_29:
+    jmp .L46_30
+.L46_29:
     leaq .Ltext_119(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -9965,41 +10484,41 @@ lb_core_6f_to_s:
     subq $32, %rsp
     call lb_core_7trap_at
     addq $32, %rsp
-.L44_30:
+.L46_30:
     movl $0, %ecx
     cmpl %ecx, %ebx
     sete %al
     movzbl %al, %r12d
     testl %r12d, %r12d
-    jne .L44_31
-    jmp .L44_7
-.L44_31:
+    jne .L46_31
+    jmp .L46_7
+.L46_31:
     movl %r12d, %ebx
-    jmp .L44_8
-.L44_7:
+    jmp .L46_8
+.L46_7:
     movsd 8(%rbp), %xmm8
     ucomisd %xmm8, %xmm14
     seta %al
     movzbl %al, %ebx
-.L44_8:
+.L46_8:
     movzbl %bl, %r12d
     testl %r12d, %r12d
-    jne .L44_32
-    jmp .L44_9
-.L44_32:
+    jne .L46_32
+    jmp .L46_9
+.L46_32:
     movl %r12d, %ebx
-    jmp .L44_10
-.L44_9:
+    jmp .L46_10
+.L46_9:
     movsd 8(%rbp), %xmm8
     ucomisd %xmm12, %xmm8
     setae %al
     movzbl %al, %ebx
-.L44_10:
+.L46_10:
     movzbl %bl, %r12d
     testl %r12d, %r12d
-    jne .L44_4
-    jmp .L44_5
-.L44_4:
+    jne .L46_4
+    jmp .L46_5
+.L46_4:
     leaq 56(%rbp), %rbx
     movq %rbx, %r10
     movq (%r10), %rbx
@@ -10013,9 +10532,9 @@ lb_core_6f_to_s:
     movq 8(%rsp), %rdx
     call lb_core_7trap_at
     addq $32, %rsp
-    jmp .L44_6
-.L44_5:
-.L44_6:
+    jmp .L46_6
+.L46_5:
+.L46_6:
     movsd 8(%rbp), %xmm8
     cvttsd2si %xmm8, %rbx
     movq %rbx, %rax
@@ -10037,10 +10556,10 @@ lb_core_6f_to_s:
     leaq 320(%rbp), %rsp
     popq %rbp
     ret
-.L44_11:
-    jmp .L44_3
-.L44_2:
-.L44_3:
+.L46_11:
+    jmp .L46_3
+.L46_2:
+.L46_3:
     leaq 104(%rbp), %r12
     movq %r12, %r10
     movsd (%r10), %xmm13
@@ -10051,8 +10570,8 @@ lb_core_6f_to_s:
     movzbl %al, %r12d
     movl $0, %ecx
     cmpl %ecx, %r12d
-    jne .L44_13
-.L44_12:
+    jne .L46_13
+.L46_12:
     movq $0, %rax
     movq 312(%rbp), %rdi
     movq 304(%rbp), %rsi
@@ -10072,17 +10591,17 @@ lb_core_6f_to_s:
     leaq 320(%rbp), %rsp
     popq %rbp
     ret
-.L44_15:
-    jmp .L44_14
-.L44_13:
-.L44_14:
+.L46_15:
+    jmp .L46_14
+.L46_13:
+.L46_14:
     ucomisd %xmm13, %xmm14
     setae %al
     movzbl %al, %r12d
     testl %r12d, %r12d
-    jne .L44_16
-    jmp .L44_17
-.L44_16:
+    jne .L46_16
+    jmp .L46_17
+.L46_16:
     subq $32, %rsp
     movl %ebx, %eax
     movq %rax, 0(%rsp)
@@ -10109,17 +10628,17 @@ lb_core_6f_to_s:
     leaq 320(%rbp), %rsp
     popq %rbp
     ret
-.L44_19:
-    jmp .L44_18
-.L44_17:
-.L44_18:
+.L46_19:
+    jmp .L46_18
+.L46_17:
+.L46_18:
     ucomisd %xmm12, %xmm13
     setae %al
     movzbl %al, %r12d
     testl %r12d, %r12d
-    jne .L44_20
-    jmp .L44_21
-.L44_20:
+    jne .L46_20
+    jmp .L46_21
+.L46_20:
     subq $32, %rsp
     movl %ebx, %eax
     movq %rax, 0(%rsp)
@@ -10146,10 +10665,10 @@ lb_core_6f_to_s:
     leaq 320(%rbp), %rsp
     popq %rbp
     ret
-.L44_23:
-    jmp .L44_22
-.L44_21:
-.L44_22:
+.L46_23:
+    jmp .L46_22
+.L46_21:
+.L46_22:
     cvttsd2si %xmm13, %rbx
     movq %rbx, %rax
     movq 312(%rbp), %rdi
@@ -10170,7 +10689,7 @@ lb_core_6f_to_s:
     leaq 320(%rbp), %rsp
     popq %rbp
     ret
-.L44_24:
+.L46_24:
     leaq .Ltext_122(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -10259,8 +10778,8 @@ lb_core_6f_to_u:
     movslq %r12d, %r13
     movq $64, %rcx
     cmpq %rcx, %r13
-    jb .L45_25
-.L45_24:
+    jb .L47_25
+.L47_24:
     leaq .Ltext_120(%rip), %rdi
     leaq .Ltext_31(%rip), %rsi
     movq %rdx, %r8
@@ -10269,7 +10788,7 @@ lb_core_6f_to_u:
     subq $32, %rsp
     call lb_core_7trap_at
     addq $32, %rsp
-.L45_25:
+.L47_25:
     movq %r13, %rcx
     movq $1, %rax
     movq %rax, %r12
@@ -10288,8 +10807,8 @@ lb_core_6f_to_u:
     addsd %xmm8, %xmm8
 2:
     movapd %xmm8, %xmm12
-    jmp .L45_27
-.L45_26:
+    jmp .L47_27
+.L47_26:
     leaq .Ltext_120(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -10298,14 +10817,14 @@ lb_core_6f_to_u:
     subq $32, %rsp
     call lb_core_7trap_at
     addq $32, %rsp
-.L45_27:
+.L47_27:
     movabsq $4611686018427387904, %rax
     movq %rax, %xmm13
     movaps %xmm13, %xmm8
     mulsd %xmm12, %xmm8
     movapd %xmm8, %xmm13
-    jmp .L45_28
-.L45_23:
+    jmp .L47_28
+.L47_23:
     leaq .Ltext_121(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -10314,14 +10833,14 @@ lb_core_6f_to_u:
     subq $32, %rsp
     call lb_core_7trap_at
     addq $32, %rsp
-.L45_28:
+.L47_28:
     leaq 88(%rbp), %r12
     movq %r12, %r10
     movslq (%r10), %r12
     movl $0, %ecx
     cmpl %ecx, %r12d
-    jne .L45_2
-.L45_1:
+    jne .L47_2
+.L47_1:
     leaq 120(%rbp), %rbx
     movq %rbx, %r10
     movsd (%r10), %xmm8
@@ -10343,8 +10862,8 @@ lb_core_6f_to_u:
     movzbl %bl, %ebx
     leaq 16(%rbp), %r10
     movl %ebx, (%r10)
-    jmp .L45_30
-.L45_29:
+    jmp .L47_30
+.L47_29:
     leaq .Ltext_119(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -10353,41 +10872,41 @@ lb_core_6f_to_u:
     subq $32, %rsp
     call lb_core_7trap_at
     addq $32, %rsp
-.L45_30:
+.L47_30:
     movl $0, %ecx
     cmpl %ecx, %ebx
     sete %al
     movzbl %al, %r12d
     testl %r12d, %r12d
-    jne .L45_31
-    jmp .L45_7
-.L45_31:
+    jne .L47_31
+    jmp .L47_7
+.L47_31:
     movl %r12d, %ebx
-    jmp .L45_8
-.L45_7:
+    jmp .L47_8
+.L47_7:
     movsd 8(%rbp), %xmm8
     ucomisd %xmm8, %xmm14
     seta %al
     movzbl %al, %ebx
-.L45_8:
+.L47_8:
     movzbl %bl, %r12d
     testl %r12d, %r12d
-    jne .L45_32
-    jmp .L45_9
-.L45_32:
+    jne .L47_32
+    jmp .L47_9
+.L47_32:
     movl %r12d, %ebx
-    jmp .L45_10
-.L45_9:
+    jmp .L47_10
+.L47_9:
     movsd 8(%rbp), %xmm8
     ucomisd %xmm13, %xmm8
     setae %al
     movzbl %al, %ebx
-.L45_10:
+.L47_10:
     movzbl %bl, %r12d
     testl %r12d, %r12d
-    jne .L45_4
-    jmp .L45_5
-.L45_4:
+    jne .L47_4
+    jmp .L47_5
+.L47_4:
     leaq 72(%rbp), %rbx
     movq %rbx, %r10
     movq (%r10), %rbx
@@ -10401,9 +10920,9 @@ lb_core_6f_to_u:
     movq 8(%rsp), %rdx
     call lb_core_7trap_at
     addq $32, %rsp
-    jmp .L45_6
-.L45_5:
-.L45_6:
+    jmp .L47_6
+.L47_5:
+.L47_6:
     movsd 8(%rbp), %xmm8
     movaps %xmm8, %xmm10
     movabsq $4890909195324358656, %rax
@@ -10436,10 +10955,10 @@ lb_core_6f_to_u:
     leaq 336(%rbp), %rsp
     popq %rbp
     ret
-.L45_11:
-    jmp .L45_3
-.L45_2:
-.L45_3:
+.L47_11:
+    jmp .L47_3
+.L47_2:
+.L47_3:
     leaq 120(%rbp), %r12
     movq %r12, %r10
     movsd (%r10), %xmm12
@@ -10453,23 +10972,23 @@ lb_core_6f_to_u:
     sete %al
     movzbl %al, %r12d
     testl %r12d, %r12d
-    jne .L45_33
-    jmp .L45_15
-.L45_33:
+    jne .L47_33
+    jmp .L47_15
+.L47_33:
     movl %r12d, %r13d
-    jmp .L45_16
-.L45_15:
+    jmp .L47_16
+.L47_15:
     movq $0, %rax
     movq %rax, %xmm14
     ucomisd %xmm12, %xmm14
     seta %al
     movzbl %al, %r13d
-.L45_16:
+.L47_16:
     movzbl %r13b, %r12d
     testl %r12d, %r12d
-    jne .L45_12
-    jmp .L45_13
-.L45_12:
+    jne .L47_12
+    jmp .L47_13
+.L47_12:
     movq $0, %rax
     movq 328(%rbp), %rdi
     movq 320(%rbp), %rsi
@@ -10489,17 +11008,17 @@ lb_core_6f_to_u:
     leaq 336(%rbp), %rsp
     popq %rbp
     ret
-.L45_17:
-    jmp .L45_14
-.L45_13:
-.L45_14:
+.L47_17:
+    jmp .L47_14
+.L47_13:
+.L47_14:
     ucomisd %xmm13, %xmm12
     setae %al
     movzbl %al, %r12d
     testl %r12d, %r12d
-    jne .L45_18
-    jmp .L45_19
-.L45_18:
+    jne .L47_18
+    jmp .L47_19
+.L47_18:
     subq $32, %rsp
     movl %ebx, %eax
     movq %rax, 0(%rsp)
@@ -10526,10 +11045,10 @@ lb_core_6f_to_u:
     leaq 336(%rbp), %rsp
     popq %rbp
     ret
-.L45_21:
-    jmp .L45_20
-.L45_19:
-.L45_20:
+.L47_21:
+    jmp .L47_20
+.L47_19:
+.L47_20:
     movaps %xmm12, %xmm10
     movabsq $4890909195324358656, %rax
     movq %rax, %xmm9
@@ -10561,7 +11080,7 @@ lb_core_6f_to_u:
     leaq 336(%rbp), %rsp
     popq %rbp
     ret
-.L45_22:
+.L47_22:
     leaq .Ltext_123(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -10633,12 +11152,12 @@ lb_core_15mul_overflows_s:
     sete %al
     movzbl %al, %r12d
     testl %r12d, %r12d
-    jne .L46_20
-    jmp .L46_4
-.L46_20:
+    jne .L48_20
+    jmp .L48_4
+.L48_20:
     movl %r12d, %r13d
-    jmp .L46_5
-.L46_4:
+    jmp .L48_5
+.L48_4:
     leaq 8(%rbp), %r12
     movq %r12, %r10
     movq (%r10), %r12
@@ -10646,12 +11165,12 @@ lb_core_15mul_overflows_s:
     cmpq %rcx, %r12
     sete %al
     movzbl %al, %r13d
-.L46_5:
+.L48_5:
     movzbl %r13b, %r12d
     testl %r12d, %r12d
-    jne .L46_1
-    jmp .L46_2
-.L46_1:
+    jne .L48_1
+    jmp .L48_2
+.L48_1:
     movl $0, %eax
     movq 248(%rbp), %rdi
     movq 240(%rbp), %rsi
@@ -10673,14 +11192,14 @@ lb_core_15mul_overflows_s:
     leaq 256(%rbp), %rsp
     popq %rbp
     ret
-.L46_6:
-    jmp .L46_3
-.L46_2:
-.L46_3:
+.L48_6:
+    jmp .L48_3
+.L48_2:
+.L48_3:
     movq $-1, %rcx
     cmpq %rcx, %rbx
-    jne .L46_8
-.L46_7:
+    jne .L48_8
+.L48_7:
     leaq 8(%rbp), %rbx
     movq %rbx, %r10
     movq (%r10), %rbx
@@ -10716,10 +11235,10 @@ lb_core_15mul_overflows_s:
     leaq 256(%rbp), %rsp
     popq %rbp
     ret
-.L46_10:
-    jmp .L46_9
-.L46_8:
-.L46_9:
+.L48_10:
+    jmp .L48_9
+.L48_8:
+.L48_9:
     leaq 8(%rbp), %r12
     movq %r12, %r10
     movq (%r10), %r12
@@ -10728,9 +11247,9 @@ lb_core_15mul_overflows_s:
     sete %al
     movzbl %al, %r13d
     testl %r13d, %r13d
-    jne .L46_11
-    jmp .L46_12
-.L46_11:
+    jne .L48_11
+    jmp .L48_12
+.L48_11:
     subq $32, %rsp
     movl $64, %eax
     movq %rax, 0(%rsp)
@@ -10763,16 +11282,16 @@ lb_core_15mul_overflows_s:
     leaq 256(%rbp), %rsp
     popq %rbp
     ret
-.L46_14:
-    jmp .L46_13
-.L46_12:
-.L46_13:
+.L48_14:
+    jmp .L48_13
+.L48_12:
+.L48_13:
     movq %rbx, %r15
     imulq %r12, %r15
     movq $0, %rcx
     cmpq %rcx, %r12
-    jne .L46_16
-.L46_15:
+    jne .L48_16
+.L48_15:
     leaq .Ltext_126(%rip), %rdi
     leaq .Ltext_18(%rip), %rsi
     movq %rdx, %r8
@@ -10781,7 +11300,7 @@ lb_core_15mul_overflows_s:
     subq $32, %rsp
     call lb_core_7trap_at
     addq $32, %rsp
-.L46_16:
+.L48_16:
     movabsq $-9223372036854775808, %rcx
     cmpq %rcx, %r15
     sete %al
@@ -10790,9 +11309,9 @@ lb_core_15mul_overflows_s:
     movl %r13d, %r14d
     andl %ecx, %r14d
     testl %r14d, %r14d
-    jne .L46_17
-    jmp .L46_18
-.L46_17:
+    jne .L48_17
+    jmp .L48_18
+.L48_17:
     leaq .Ltext_126(%rip), %rdi
     leaq .Ltext_50(%rip), %rsi
     movq %rdx, %r8
@@ -10801,7 +11320,7 @@ lb_core_15mul_overflows_s:
     subq $32, %rsp
     call lb_core_7trap_at
     addq $32, %rsp
-.L46_18:
+.L48_18:
     movq %r15, %rax
     cqto
     idivq %r12
@@ -10835,7 +11354,7 @@ lb_core_15mul_overflows_s:
     leaq 256(%rbp), %rsp
     popq %rbp
     ret
-.L46_19:
+.L48_19:
     leaq .Ltext_126(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -10951,8 +11470,8 @@ lb_core_6adds_s:
     movzbl %r13b, %r13d
     leaq 0(%rbp), %r10
     movl %r13d, (%r10)
-    jmp .L47_12
-.L47_11:
+    jmp .L49_12
+.L49_11:
     leaq .Ltext_124(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -10961,14 +11480,14 @@ lb_core_6adds_s:
     subq $32, %rsp
     call lb_core_7trap_at
     addq $32, %rsp
-.L47_12:
+.L49_12:
     testl %r13d, %r13d
-    jne .L47_13
-    jmp .L47_4
-.L47_13:
+    jne .L49_13
+    jmp .L49_4
+.L49_13:
     movl %r13d, %r15d
-    jmp .L47_5
-.L47_4:
+    jmp .L49_5
+.L49_4:
     subq $32, %rsp
     movq %r14, %rax
     movq %rax, 0(%rsp)
@@ -10983,16 +11502,16 @@ lb_core_6adds_s:
     cmpl %ecx, %r13d
     sete %al
     movzbl %al, %r15d
-.L47_5:
+.L49_5:
     movzbl %r15b, %r13d
     testl %r13d, %r13d
-    jne .L47_1
-    jmp .L47_2
-.L47_1:
+    jne .L49_1
+    jmp .L49_2
+.L49_1:
     movq $0, %rcx
     cmpq %rcx, %rbx
-    jge .L47_7
-.L47_6:
+    jge .L49_7
+.L49_6:
     subq $32, %rsp
     movl %r12d, %eax
     movq %rax, 0(%rsp)
@@ -11000,8 +11519,8 @@ lb_core_6adds_s:
     call lb_core_10signed_min
     addq $32, %rsp
     movq %rax, %rbx
-    jmp .L47_8
-.L47_7:
+    jmp .L49_8
+.L49_7:
     subq $32, %rsp
     movl %r12d, %eax
     movq %rax, 0(%rsp)
@@ -11009,7 +11528,7 @@ lb_core_6adds_s:
     call lb_core_10signed_max
     addq $32, %rsp
     movq %rax, %rbx
-.L47_8:
+.L49_8:
     movq %rbx, %rax
     movq 312(%rbp), %rdi
     movq 304(%rbp), %rsi
@@ -11031,10 +11550,10 @@ lb_core_6adds_s:
     leaq 320(%rbp), %rsp
     popq %rbp
     ret
-.L47_9:
-    jmp .L47_3
-.L47_2:
-.L47_3:
+.L49_9:
+    jmp .L49_3
+.L49_2:
+.L49_3:
     movq %r14, %rax
     movq 312(%rbp), %rdi
     movq 304(%rbp), %rsi
@@ -11056,7 +11575,7 @@ lb_core_6adds_s:
     leaq 320(%rbp), %rsp
     popq %rbp
     ret
-.L47_10:
+.L49_10:
     leaq .Ltext_127(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -11140,8 +11659,8 @@ lb_core_6adds_u:
     addq $32, %rsp
     movq %rax, %r13
     andq %r13, %rbx
-    jmp .L48_9
-.L48_8:
+    jmp .L50_9
+.L50_8:
     leaq .Ltext_107(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -11150,7 +11669,7 @@ lb_core_6adds_u:
     subq $32, %rsp
     call lb_core_7trap_at
     addq $32, %rsp
-.L48_9:
+.L50_9:
     leaq 88(%rbp), %r13
     movq %r13, %r10
     movq (%r10), %r13
@@ -11166,8 +11685,8 @@ lb_core_6adds_u:
     addq $32, %rsp
     movq %rax, %r14
     andq %r14, %r13
-    jmp .L48_11
-.L48_10:
+    jmp .L50_11
+.L50_10:
     leaq .Ltext_107(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -11176,19 +11695,19 @@ lb_core_6adds_u:
     subq $32, %rsp
     call lb_core_7trap_at
     addq $32, %rsp
-.L48_11:
+.L50_11:
     movq %rbx, %r14
     addq %r13, %r14
     cmpq %rbx, %r14
     setb %al
     movzbl %al, %r15d
     testl %r15d, %r15d
-    jne .L48_14
-    jmp .L48_4
-.L48_14:
+    jne .L50_14
+    jmp .L50_4
+.L50_14:
     movl %r15d, %ebx
-    jmp .L48_5
-.L48_4:
+    jmp .L50_5
+.L50_4:
     leaq 24(%rbp), %r10
     movq %r14, (%r10)
     leaq 8(%rbp), %r10
@@ -11206,8 +11725,8 @@ lb_core_6adds_u:
     movzbl %bl, %ebx
     leaq 0(%rbp), %r10
     movl %ebx, (%r10)
-    jmp .L48_13
-.L48_12:
+    jmp .L50_13
+.L50_12:
     leaq .Ltext_112(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -11216,18 +11735,18 @@ lb_core_6adds_u:
     subq $32, %rsp
     call lb_core_7trap_at
     addq $32, %rsp
-.L48_13:
+.L50_13:
     movl $0, %ecx
     cmpl %ecx, %ebx
     sete %al
     movzbl %al, %r13d
     movl %r13d, %ebx
-.L48_5:
+.L50_5:
     movzbl %bl, %r13d
     testl %r13d, %r13d
-    jne .L48_1
-    jmp .L48_2
-.L48_1:
+    jne .L50_1
+    jmp .L50_2
+.L50_1:
     subq $32, %rsp
     movl %r12d, %eax
     movq %rax, 0(%rsp)
@@ -11256,10 +11775,10 @@ lb_core_6adds_u:
     leaq 336(%rbp), %rsp
     popq %rbp
     ret
-.L48_6:
-    jmp .L48_3
-.L48_2:
-.L48_3:
+.L50_6:
+    jmp .L50_3
+.L50_2:
+.L50_3:
     movq %r14, %rax
     movq 328(%rbp), %rdi
     movq 320(%rbp), %rsi
@@ -11281,7 +11800,7 @@ lb_core_6adds_u:
     leaq 336(%rbp), %rsp
     popq %rbp
     ret
-.L48_7:
+.L50_7:
     leaq .Ltext_128(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -11397,8 +11916,8 @@ lb_core_6subs_s:
     movzbl %r13b, %r13d
     leaq 0(%rbp), %r10
     movl %r13d, (%r10)
-    jmp .L49_12
-.L49_11:
+    jmp .L51_12
+.L51_11:
     leaq .Ltext_125(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -11407,14 +11926,14 @@ lb_core_6subs_s:
     subq $32, %rsp
     call lb_core_7trap_at
     addq $32, %rsp
-.L49_12:
+.L51_12:
     testl %r13d, %r13d
-    jne .L49_13
-    jmp .L49_4
-.L49_13:
+    jne .L51_13
+    jmp .L51_4
+.L51_13:
     movl %r13d, %r15d
-    jmp .L49_5
-.L49_4:
+    jmp .L51_5
+.L51_4:
     subq $32, %rsp
     movq %r14, %rax
     movq %rax, 0(%rsp)
@@ -11429,16 +11948,16 @@ lb_core_6subs_s:
     cmpl %ecx, %r13d
     sete %al
     movzbl %al, %r15d
-.L49_5:
+.L51_5:
     movzbl %r15b, %r13d
     testl %r13d, %r13d
-    jne .L49_1
-    jmp .L49_2
-.L49_1:
+    jne .L51_1
+    jmp .L51_2
+.L51_1:
     movq $0, %rcx
     cmpq %rcx, %rbx
-    jge .L49_7
-.L49_6:
+    jge .L51_7
+.L51_6:
     subq $32, %rsp
     movl %r12d, %eax
     movq %rax, 0(%rsp)
@@ -11446,8 +11965,8 @@ lb_core_6subs_s:
     call lb_core_10signed_min
     addq $32, %rsp
     movq %rax, %rbx
-    jmp .L49_8
-.L49_7:
+    jmp .L51_8
+.L51_7:
     subq $32, %rsp
     movl %r12d, %eax
     movq %rax, 0(%rsp)
@@ -11455,7 +11974,7 @@ lb_core_6subs_s:
     call lb_core_10signed_max
     addq $32, %rsp
     movq %rax, %rbx
-.L49_8:
+.L51_8:
     movq %rbx, %rax
     movq 312(%rbp), %rdi
     movq 304(%rbp), %rsi
@@ -11477,10 +11996,10 @@ lb_core_6subs_s:
     leaq 320(%rbp), %rsp
     popq %rbp
     ret
-.L49_9:
-    jmp .L49_3
-.L49_2:
-.L49_3:
+.L51_9:
+    jmp .L51_3
+.L51_2:
+.L51_3:
     movq %r14, %rax
     movq 312(%rbp), %rdi
     movq 304(%rbp), %rsi
@@ -11502,7 +12021,7 @@ lb_core_6subs_s:
     leaq 320(%rbp), %rsp
     popq %rbp
     ret
-.L49_10:
+.L51_10:
     leaq .Ltext_129(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -11584,8 +12103,8 @@ lb_core_6subs_u:
     addq $32, %rsp
     movq %rax, %r13
     andq %r13, %rbx
-    jmp .L50_7
-.L50_6:
+    jmp .L52_7
+.L52_6:
     leaq .Ltext_107(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -11594,7 +12113,7 @@ lb_core_6subs_u:
     subq $32, %rsp
     call lb_core_7trap_at
     addq $32, %rsp
-.L50_7:
+.L52_7:
     leaq 48(%rbp), %r13
     movq %r13, %r10
     movq (%r10), %r13
@@ -11610,8 +12129,8 @@ lb_core_6subs_u:
     addq $32, %rsp
     movq %rax, %r14
     andq %r14, %r13
-    jmp .L50_9
-.L50_8:
+    jmp .L52_9
+.L52_8:
     leaq .Ltext_107(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -11620,10 +12139,10 @@ lb_core_6subs_u:
     subq $32, %rsp
     call lb_core_7trap_at
     addq $32, %rsp
-.L50_9:
+.L52_9:
     cmpq %r13, %rbx
-    jae .L50_2
-.L50_1:
+    jae .L52_2
+.L52_1:
     movq $0, %rax
     movq 280(%rbp), %rdi
     movq 272(%rbp), %rsi
@@ -11644,10 +12163,10 @@ lb_core_6subs_u:
     leaq 288(%rbp), %rsp
     popq %rbp
     ret
-.L50_4:
-    jmp .L50_3
-.L50_2:
-.L50_3:
+.L52_4:
+    jmp .L52_3
+.L52_2:
+.L52_3:
     movq %rbx, %r12
     subq %r13, %r12
     movq %r12, %rax
@@ -11670,7 +12189,7 @@ lb_core_6subs_u:
     leaq 288(%rbp), %rsp
     popq %rbp
     ret
-.L50_5:
+.L52_5:
     leaq .Ltext_130(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -11776,12 +12295,12 @@ lb_core_6muls_s:
     addq $32, %rsp
     movl %eax, %r14d
     testl %r14d, %r14d
-    jne .L51_11
-    jmp .L51_4
-.L51_11:
+    jne .L53_11
+    jmp .L53_4
+.L53_11:
     movl %r14d, %r15d
-    jmp .L51_5
-.L51_4:
+    jmp .L53_5
+.L53_4:
     movq %rbx, %r14
     imulq %r13, %r14
     subq $32, %rsp
@@ -11798,12 +12317,12 @@ lb_core_6muls_s:
     cmpl %ecx, %r14d
     sete %al
     movzbl %al, %r15d
-.L51_5:
+.L53_5:
     movzbl %r15b, %r14d
     testl %r14d, %r14d
-    jne .L51_1
-    jmp .L51_2
-.L51_1:
+    jne .L53_1
+    jmp .L53_2
+.L53_1:
     movq $0, %rcx
     cmpq %rcx, %rbx
     setl %al
@@ -11817,8 +12336,8 @@ lb_core_6muls_s:
     movzbl %al, %r14d
     movl $0, %ecx
     cmpl %ecx, %r14d
-    jne .L51_7
-.L51_6:
+    jne .L53_7
+.L53_6:
     subq $32, %rsp
     movl %r12d, %eax
     movq %rax, 0(%rsp)
@@ -11826,8 +12345,8 @@ lb_core_6muls_s:
     call lb_core_10signed_min
     addq $32, %rsp
     movq %rax, %rbx
-    jmp .L51_8
-.L51_7:
+    jmp .L53_8
+.L53_7:
     subq $32, %rsp
     movl %r12d, %eax
     movq %rax, 0(%rsp)
@@ -11835,7 +12354,7 @@ lb_core_6muls_s:
     call lb_core_10signed_max
     addq $32, %rsp
     movq %rax, %rbx
-.L51_8:
+.L53_8:
     movq %rbx, %rax
     movq 264(%rbp), %rdi
     movq 256(%rbp), %rsi
@@ -11857,10 +12376,10 @@ lb_core_6muls_s:
     leaq 272(%rbp), %rsp
     popq %rbp
     ret
-.L51_9:
-    jmp .L51_3
-.L51_2:
-.L51_3:
+.L53_9:
+    jmp .L53_3
+.L53_2:
+.L53_3:
     movq %rbx, %r12
     imulq %r13, %r12
     movq %r12, %rax
@@ -11884,7 +12403,7 @@ lb_core_6muls_s:
     leaq 272(%rbp), %rsp
     popq %rbp
     ret
-.L51_10:
+.L53_10:
     leaq .Ltext_131(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -11968,8 +12487,8 @@ lb_core_6muls_u:
     addq $32, %rsp
     movq %rax, %r13
     andq %r13, %rbx
-    jmp .L52_11
-.L52_10:
+    jmp .L54_11
+.L54_10:
     leaq .Ltext_107(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -11978,7 +12497,7 @@ lb_core_6muls_u:
     subq $32, %rsp
     call lb_core_7trap_at
     addq $32, %rsp
-.L52_11:
+.L54_11:
     leaq 56(%rbp), %r13
     movq %r13, %r10
     movq (%r10), %r13
@@ -11994,8 +12513,8 @@ lb_core_6muls_u:
     addq $32, %rsp
     movq %rax, %r14
     andq %r14, %r13
-    jmp .L52_13
-.L52_12:
+    jmp .L54_13
+.L54_12:
     leaq .Ltext_107(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -12004,7 +12523,7 @@ lb_core_6muls_u:
     subq $32, %rsp
     call lb_core_7trap_at
     addq $32, %rsp
-.L52_13:
+.L54_13:
     movq $0, %rcx
     cmpq %rcx, %r13
     sete %al
@@ -12014,12 +12533,12 @@ lb_core_6muls_u:
     sete %al
     movzbl %al, %r15d
     testl %r15d, %r15d
-    jne .L52_4
-    jmp .L52_16
-.L52_16:
+    jne .L54_4
+    jmp .L54_16
+.L54_16:
     movl %r15d, %r14d
-    jmp .L52_5
-.L52_4:
+    jmp .L54_5
+.L54_4:
     subq $32, %rsp
     movl %r12d, %eax
     movq %rax, 0(%rsp)
@@ -12028,9 +12547,9 @@ lb_core_6muls_u:
     addq $32, %rsp
     movq %rax, %r15
     testl %r14d, %r14d
-    jne .L52_6
-    jmp .L52_7
-.L52_6:
+    jne .L54_6
+    jmp .L54_7
+.L54_6:
     leaq .Ltext_132(%rip), %rdi
     leaq .Ltext_18(%rip), %rsi
     movq %rdx, %r8
@@ -12039,7 +12558,7 @@ lb_core_6muls_u:
     subq $32, %rsp
     call lb_core_7trap_at
     addq $32, %rsp
-.L52_7:
+.L54_7:
     movq %r15, %rax
     xorl %edx, %edx
     divq %r13
@@ -12047,12 +12566,12 @@ lb_core_6muls_u:
     cmpq %r14, %rbx
     seta %al
     movzbl %al, %r14d
-.L52_5:
+.L54_5:
     movzbl %r14b, %r15d
     testl %r15d, %r15d
-    jne .L52_1
-    jmp .L52_2
-.L52_1:
+    jne .L54_1
+    jmp .L54_2
+.L54_1:
     subq $32, %rsp
     movl %r12d, %eax
     movq %rax, 0(%rsp)
@@ -12081,10 +12600,10 @@ lb_core_6muls_u:
     leaq 304(%rbp), %rsp
     popq %rbp
     ret
-.L52_8:
-    jmp .L52_3
-.L52_2:
-.L52_3:
+.L54_8:
+    jmp .L54_3
+.L54_2:
+.L54_3:
     movq %rbx, %r14
     imulq %r13, %r14
     leaq 24(%rbp), %r10
@@ -12099,8 +12618,8 @@ lb_core_6muls_u:
     addq $32, %rsp
     movq %rax, %r15
     andq %r15, %r14
-    jmp .L52_15
-.L52_14:
+    jmp .L54_15
+.L54_14:
     leaq .Ltext_107(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -12109,7 +12628,7 @@ lb_core_6muls_u:
     subq $32, %rsp
     call lb_core_7trap_at
     addq $32, %rsp
-.L52_15:
+.L54_15:
     movq %r14, %rax
     movq 296(%rbp), %rdi
     movq 288(%rbp), %rsi
@@ -12131,7 +12650,7 @@ lb_core_6muls_u:
     leaq 304(%rbp), %rsp
     popq %rbp
     ret
-.L52_9:
+.L54_9:
     leaq .Ltext_133(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -12244,8 +12763,8 @@ lb_core_6qadd_s:
     movzbl %bl, %ebx
     leaq 8(%rbp), %r10
     movl %ebx, (%r10)
-    jmp .L53_9
-.L53_8:
+    jmp .L55_9
+.L55_8:
     leaq .Ltext_124(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -12254,14 +12773,14 @@ lb_core_6qadd_s:
     subq $32, %rsp
     call lb_core_7trap_at
     addq $32, %rsp
-.L53_9:
+.L55_9:
     testl %ebx, %ebx
-    jne .L53_10
-    jmp .L53_4
-.L53_10:
+    jne .L55_10
+    jmp .L55_4
+.L55_10:
     movl %ebx, %r12d
-    jmp .L53_5
-.L53_4:
+    jmp .L55_5
+.L55_4:
     subq $32, %rsp
     movq %r14, %rax
     movq %rax, 0(%rsp)
@@ -12277,12 +12796,12 @@ lb_core_6qadd_s:
     sete %al
     movzbl %al, %ebx
     movl %ebx, %r12d
-.L53_5:
+.L55_5:
     movzbl %r12b, %ebx
     testl %ebx, %ebx
-    jne .L53_1
-    jmp .L53_2
-.L53_1:
+    jne .L55_1
+    jmp .L55_2
+.L55_1:
     movl $0, %eax
     movq 328(%rbp), %rdi
     movq 320(%rbp), %rsi
@@ -12303,10 +12822,10 @@ lb_core_6qadd_s:
     leaq 336(%rbp), %rsp
     popq %rbp
     ret
-.L53_6:
-    jmp .L53_3
-.L53_2:
-.L53_3:
+.L55_6:
+    jmp .L55_3
+.L55_2:
+.L55_3:
     leaq 64(%rbp), %rbx
     movq %rbx, %r10
     movq (%r10), %rbx
@@ -12332,7 +12851,7 @@ lb_core_6qadd_s:
     leaq 336(%rbp), %rsp
     popq %rbp
     ret
-.L53_7:
+.L55_7:
     leaq .Ltext_134(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -12418,8 +12937,8 @@ lb_core_6qadd_u:
     addq $32, %rsp
     movq %rax, %r13
     andq %r13, %rbx
-    jmp .L54_9
-.L54_8:
+    jmp .L56_9
+.L56_8:
     leaq .Ltext_107(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -12428,7 +12947,7 @@ lb_core_6qadd_u:
     subq $32, %rsp
     call lb_core_7trap_at
     addq $32, %rsp
-.L54_9:
+.L56_9:
     leaq 104(%rbp), %r13
     movq %r13, %r10
     movq (%r10), %r13
@@ -12444,8 +12963,8 @@ lb_core_6qadd_u:
     addq $32, %rsp
     movq %rax, %r14
     andq %r14, %r13
-    jmp .L54_11
-.L54_10:
+    jmp .L56_11
+.L56_10:
     leaq .Ltext_107(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -12454,19 +12973,19 @@ lb_core_6qadd_u:
     subq $32, %rsp
     call lb_core_7trap_at
     addq $32, %rsp
-.L54_11:
+.L56_11:
     movq %rbx, %r14
     addq %r13, %r14
     cmpq %rbx, %r14
     setb %al
     movzbl %al, %r15d
     testl %r15d, %r15d
-    jne .L54_14
-    jmp .L54_4
-.L54_14:
+    jne .L56_14
+    jmp .L56_4
+.L56_14:
     movl %r15d, %ebx
-    jmp .L54_5
-.L54_4:
+    jmp .L56_5
+.L56_4:
     leaq 24(%rbp), %r10
     movq %r14, (%r10)
     leaq 8(%rbp), %r10
@@ -12484,8 +13003,8 @@ lb_core_6qadd_u:
     movzbl %bl, %ebx
     leaq 0(%rbp), %r10
     movl %ebx, (%r10)
-    jmp .L54_13
-.L54_12:
+    jmp .L56_13
+.L56_12:
     leaq .Ltext_112(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -12494,18 +13013,18 @@ lb_core_6qadd_u:
     subq $32, %rsp
     call lb_core_7trap_at
     addq $32, %rsp
-.L54_13:
+.L56_13:
     movl $0, %ecx
     cmpl %ecx, %ebx
     sete %al
     movzbl %al, %r12d
     movl %r12d, %ebx
-.L54_5:
+.L56_5:
     movzbl %bl, %r12d
     testl %r12d, %r12d
-    jne .L54_1
-    jmp .L54_2
-.L54_1:
+    jne .L56_1
+    jmp .L56_2
+.L56_1:
     movl $0, %eax
     movq 344(%rbp), %rdi
     movq 336(%rbp), %rsi
@@ -12527,10 +13046,10 @@ lb_core_6qadd_u:
     leaq 352(%rbp), %rsp
     popq %rbp
     ret
-.L54_6:
-    jmp .L54_3
-.L54_2:
-.L54_3:
+.L56_6:
+    jmp .L56_3
+.L56_2:
+.L56_3:
     leaq 72(%rbp), %rbx
     movq %rbx, %r10
     movq (%r10), %rbx
@@ -12557,7 +13076,7 @@ lb_core_6qadd_u:
     leaq 352(%rbp), %rsp
     popq %rbp
     ret
-.L54_7:
+.L56_7:
     leaq .Ltext_135(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -12674,8 +13193,8 @@ lb_core_6qsub_s:
     movzbl %bl, %ebx
     leaq 8(%rbp), %r10
     movl %ebx, (%r10)
-    jmp .L55_9
-.L55_8:
+    jmp .L57_9
+.L57_8:
     leaq .Ltext_125(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -12684,14 +13203,14 @@ lb_core_6qsub_s:
     subq $32, %rsp
     call lb_core_7trap_at
     addq $32, %rsp
-.L55_9:
+.L57_9:
     testl %ebx, %ebx
-    jne .L55_10
-    jmp .L55_4
-.L55_10:
+    jne .L57_10
+    jmp .L57_4
+.L57_10:
     movl %ebx, %r12d
-    jmp .L55_5
-.L55_4:
+    jmp .L57_5
+.L57_4:
     subq $32, %rsp
     movq %r14, %rax
     movq %rax, 0(%rsp)
@@ -12707,12 +13226,12 @@ lb_core_6qsub_s:
     sete %al
     movzbl %al, %ebx
     movl %ebx, %r12d
-.L55_5:
+.L57_5:
     movzbl %r12b, %ebx
     testl %ebx, %ebx
-    jne .L55_1
-    jmp .L55_2
-.L55_1:
+    jne .L57_1
+    jmp .L57_2
+.L57_1:
     movl $0, %eax
     movq 328(%rbp), %rdi
     movq 320(%rbp), %rsi
@@ -12733,10 +13252,10 @@ lb_core_6qsub_s:
     leaq 336(%rbp), %rsp
     popq %rbp
     ret
-.L55_6:
-    jmp .L55_3
-.L55_2:
-.L55_3:
+.L57_6:
+    jmp .L57_3
+.L57_2:
+.L57_3:
     leaq 64(%rbp), %rbx
     movq %rbx, %r10
     movq (%r10), %rbx
@@ -12762,7 +13281,7 @@ lb_core_6qsub_s:
     leaq 336(%rbp), %rsp
     popq %rbp
     ret
-.L55_7:
+.L57_7:
     leaq .Ltext_136(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -12846,8 +13365,8 @@ lb_core_6qsub_u:
     addq $32, %rsp
     movq %rax, %r13
     andq %r13, %rbx
-    jmp .L56_7
-.L56_6:
+    jmp .L58_7
+.L58_6:
     leaq .Ltext_107(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -12856,7 +13375,7 @@ lb_core_6qsub_u:
     subq $32, %rsp
     call lb_core_7trap_at
     addq $32, %rsp
-.L56_7:
+.L58_7:
     leaq 64(%rbp), %r13
     movq %r13, %r10
     movq (%r10), %r13
@@ -12872,8 +13391,8 @@ lb_core_6qsub_u:
     addq $32, %rsp
     movq %rax, %r14
     andq %r14, %r13
-    jmp .L56_9
-.L56_8:
+    jmp .L58_9
+.L58_8:
     leaq .Ltext_107(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -12882,10 +13401,10 @@ lb_core_6qsub_u:
     subq $32, %rsp
     call lb_core_7trap_at
     addq $32, %rsp
-.L56_9:
+.L58_9:
     cmpq %r13, %rbx
-    jae .L56_2
-.L56_1:
+    jae .L58_2
+.L58_1:
     movl $0, %eax
     movq 296(%rbp), %rdi
     movq 288(%rbp), %rsi
@@ -12906,10 +13425,10 @@ lb_core_6qsub_u:
     leaq 304(%rbp), %rsp
     popq %rbp
     ret
-.L56_4:
-    jmp .L56_3
-.L56_2:
-.L56_3:
+.L58_4:
+    jmp .L58_3
+.L58_2:
+.L58_3:
     leaq 32(%rbp), %r12
     movq %r12, %r10
     movq (%r10), %r12
@@ -12937,7 +13456,7 @@ lb_core_6qsub_u:
     leaq 304(%rbp), %rsp
     popq %rbp
     ret
-.L56_5:
+.L58_5:
     leaq .Ltext_138(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -13043,12 +13562,12 @@ lb_core_6qmul_s:
     addq $32, %rsp
     movl %eax, %r14d
     testl %r14d, %r14d
-    jne .L57_8
-    jmp .L57_4
-.L57_8:
+    jne .L59_8
+    jmp .L59_4
+.L59_8:
     movl %r14d, %r12d
-    jmp .L57_5
-.L57_4:
+    jmp .L59_5
+.L59_4:
     movq %rbx, %r14
     imulq %r13, %r14
     subq $32, %rsp
@@ -13066,12 +13585,12 @@ lb_core_6qmul_s:
     sete %al
     movzbl %al, %r14d
     movl %r14d, %r12d
-.L57_5:
+.L59_5:
     movzbl %r12b, %r14d
     testl %r14d, %r14d
-    jne .L57_1
-    jmp .L57_2
-.L57_1:
+    jne .L59_1
+    jmp .L59_2
+.L59_1:
     movl $0, %eax
     movq 264(%rbp), %rdi
     movq 256(%rbp), %rsi
@@ -13092,10 +13611,10 @@ lb_core_6qmul_s:
     leaq 272(%rbp), %rsp
     popq %rbp
     ret
-.L57_6:
-    jmp .L57_3
-.L57_2:
-.L57_3:
+.L59_6:
+    jmp .L59_3
+.L59_2:
+.L59_3:
     leaq 0(%rbp), %r12
     movq %r12, %r10
     movq (%r10), %r12
@@ -13123,7 +13642,7 @@ lb_core_6qmul_s:
     leaq 272(%rbp), %rsp
     popq %rbp
     ret
-.L57_7:
+.L59_7:
     leaq .Ltext_139(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -13209,8 +13728,8 @@ lb_core_6qmul_u:
     addq $32, %rsp
     movq %rax, %r13
     andq %r13, %rbx
-    jmp .L58_11
-.L58_10:
+    jmp .L60_11
+.L60_10:
     leaq .Ltext_107(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -13219,7 +13738,7 @@ lb_core_6qmul_u:
     subq $32, %rsp
     call lb_core_7trap_at
     addq $32, %rsp
-.L58_11:
+.L60_11:
     leaq 72(%rbp), %r13
     movq %r13, %r10
     movq (%r10), %r13
@@ -13235,8 +13754,8 @@ lb_core_6qmul_u:
     addq $32, %rsp
     movq %rax, %r14
     andq %r14, %r13
-    jmp .L58_13
-.L58_12:
+    jmp .L60_13
+.L60_12:
     leaq .Ltext_107(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -13245,7 +13764,7 @@ lb_core_6qmul_u:
     subq $32, %rsp
     call lb_core_7trap_at
     addq $32, %rsp
-.L58_13:
+.L60_13:
     movq $0, %rcx
     cmpq %rcx, %r13
     sete %al
@@ -13255,12 +13774,12 @@ lb_core_6qmul_u:
     sete %al
     movzbl %al, %r15d
     testl %r15d, %r15d
-    jne .L58_4
-    jmp .L58_14
-.L58_14:
+    jne .L60_4
+    jmp .L60_14
+.L60_14:
     movl %r15d, %r12d
-    jmp .L58_5
-.L58_4:
+    jmp .L60_5
+.L60_4:
     subq $32, %rsp
     movl %r12d, %eax
     movq %rax, 0(%rsp)
@@ -13269,9 +13788,9 @@ lb_core_6qmul_u:
     addq $32, %rsp
     movq %rax, %r15
     testl %r14d, %r14d
-    jne .L58_6
-    jmp .L58_7
-.L58_6:
+    jne .L60_6
+    jmp .L60_7
+.L60_6:
     leaq .Ltext_140(%rip), %rdi
     leaq .Ltext_18(%rip), %rsi
     movq %rdx, %r8
@@ -13280,7 +13799,7 @@ lb_core_6qmul_u:
     subq $32, %rsp
     call lb_core_7trap_at
     addq $32, %rsp
-.L58_7:
+.L60_7:
     movq %r15, %rax
     xorl %edx, %edx
     divq %r13
@@ -13288,12 +13807,12 @@ lb_core_6qmul_u:
     cmpq %r12, %rbx
     seta %al
     movzbl %al, %r12d
-.L58_5:
+.L60_5:
     movzbl %r12b, %r14d
     testl %r14d, %r14d
-    jne .L58_1
-    jmp .L58_2
-.L58_1:
+    jne .L60_1
+    jmp .L60_2
+.L60_1:
     movl $0, %eax
     movq 312(%rbp), %rdi
     movq 304(%rbp), %rsi
@@ -13315,10 +13834,10 @@ lb_core_6qmul_u:
     leaq 320(%rbp), %rsp
     popq %rbp
     ret
-.L58_8:
-    jmp .L58_3
-.L58_2:
-.L58_3:
+.L60_8:
+    jmp .L60_3
+.L60_2:
+.L60_3:
     leaq 40(%rbp), %r12
     movq %r12, %r10
     movq (%r10), %r12
@@ -13347,7 +13866,7 @@ lb_core_6qmul_u:
     leaq 320(%rbp), %rsp
     popq %rbp
     ret
-.L58_9:
+.L60_9:
     leaq .Ltext_141(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8

@@ -10,6 +10,8 @@ extern func getenv(variable: c.str) -> c.str?
 extern func setenv(variable: c.str, value: c.str, overwrite: i32) -> i32
 extern func unsetenv(variable: c.str) -> i32
 extern func getcwd(buffer: u8*, size: usize) -> c.str?
+extern func readlink(path: c.str, buffer: void*, capacity: usize) -> isize
+extern func mac_executable_path as "_NSGetExecutablePath"(buffer: u8*, size: u32*) -> i32
 extern func chdir(path: c.str) -> i32
 extern func getpid() -> i32
 extern func getppid() -> i32
@@ -142,6 +144,29 @@ pub func cwd() -> str!:
         error(failed, "the working directory cannot be read")
     let path = found else trap("unreachable")
     return (str)path
+
+## The path of this program's executable as the loader saw it, in an allocation of the
+## current allocator, NUL-terminated for the C calls a path goes to.
+pub func executable() -> str!:
+    if platform.windows:
+        return try windows_executable()
+    let buffer = try alloc u8[4096]
+    var count: usize = 0
+    if platform.macos:
+        var size: u32 = 4096
+        if mac_executable_path(buffer.data, &size) != 0:
+            free(buffer)
+            error(failed, "the executable path cannot be read")
+        while count < buffer.length and buffer[count] != 0:
+            count += 1
+    else:
+        let read = readlink("/proc/self/exe", buffer.data, buffer.length - 1)
+        if read < 0:
+            free(buffer)
+            error(failed, "the executable path cannot be read")
+        count = (usize)read
+    buffer[count] = 0
+    return (str)buffer[..<count]
 
 pub func change_dir(path: c.str) -> !:
     if platform.windows:

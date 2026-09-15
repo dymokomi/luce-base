@@ -1967,6 +1967,7 @@ pub struct Generator:
         i = 0
         while i < self.program_unit.tables.count:
             let t = self.program_unit.tables.get(i)
+            try self.object_format.table_start(&self.out, t.name)
             try self.put("    .globl ")
             try self.symbol(t.name)
             try self.put("\n")

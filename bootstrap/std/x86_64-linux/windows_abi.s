@@ -43,6 +43,7 @@ lb_11windows_abi_0init:
     .bss
     .globl lb_11windows_abi_9utf8_page
     .type lb_11windows_abi_9utf8_page, @object
+    .weak lb_11windows_abi_9utf8_page
     .p2align 2
 lb_11windows_abi_9utf8_page:
     .zero 4
@@ -50,6 +51,7 @@ lb_11windows_abi_9utf8_page:
     .bss
     .globl lb_11windows_abi_19reject_invalid_utf8
     .type lb_11windows_abi_19reject_invalid_utf8, @object
+    .weak lb_11windows_abi_19reject_invalid_utf8
     .p2align 2
 lb_11windows_abi_19reject_invalid_utf8:
     .zero 4
@@ -57,6 +59,7 @@ lb_11windows_abi_19reject_invalid_utf8:
     .bss
     .globl lb_11windows_abi_20reject_invalid_utf16
     .type lb_11windows_abi_20reject_invalid_utf16, @object
+    .weak lb_11windows_abi_20reject_invalid_utf16
     .p2align 2
 lb_11windows_abi_20reject_invalid_utf16:
     .zero 4

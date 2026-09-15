@@ -1,3 +1,337 @@
+    .weak lb_platform_name
+    .weak lb_platform_macos
+    .weak lb_platform_linux
+    .weak lb_platform_windows
+    .weak lb_platform_posix
+    .weak lb_platform_arm64
+    .weak lb_platform_6x86_64
+    .weak lb_platform_12pointer_bits
+    .weak lb_platform_9cpu_level
+    .weak lb_c_interrupted
+    .weak lb_11windows_abi_9utf8_page
+    .weak lb_11windows_abi_19reject_invalid_utf8
+    .weak lb_11windows_abi_20reject_invalid_utf16
+    .weak lb_memory_17private_anonymous
+    .weak lb_memory_exhausted
+    .weak lb_memory_unset
+    .weak lb_os_failed
+    .weak lb_os_arm64
+    .weak lb_os_6x86_64
+    .weak lb_os_macos
+    .weak lb_os_linux
+    .weak lb_os_windows
+    .weak lb_os_posix
+    .weak lb_os_12pointer_bits
+    .weak lb_os_name
+    .weak lb_os_9cpu_level
+    .weak lb_os_17processors_online
+    .weak lb_io_14unexpected_eof
+    .weak lb_io_11no_progress
+    .weak lb_io_13invalid_count
+    .weak lb_io_14invalid_buffer
+    .weak lb_io_closed
+    .weak lb_io_failed
+    .weak lb_io_11would_block
+    .weak lb_io_full
+    .weak lb_io_14io_path_failed
+    .weak lb_luce_file
+    .weak lb_luce_line
+    .weak lb_luce_function
+    .weak lb_luce_location
+    .weak lb_time_monotonic
+    .weak lb_time_realtime
+    .weak lb_thread_failed
+    .weak lb_thread_11least_stack
+    .weak lb_thread_9name_room
+    .weak lb_sync_16compare_and_wait
+    .weak lb_sync_8wake_all
+    .weak lb_sync_12futex_number
+    .weak lb_sync_18futex_wait_private
+    .weak lb_sync_18futex_wake_private
+    .weak lb_ownership_black
+    .weak lb_ownership_gray
+    .weak lb_ownership_white
+    .weak lb_ownership_purple
+    .weak lb_ownership_10color_mask
+    .weak lb_ownership_buffered
+    .weak lb_ownership_dead
+    .weak lb_ownership_collecting
+    .weak lb_ownership_immortal
+    .weak lb_ownership_15candidate_limit
+    .weak lb_utf8_16invalid_sequence
+    .weak lb_utf8_19incomplete_sequence
+    .weak lb_strings_17invalid_separator
+    .weak lb_strings_16output_too_large
+    .weak lb_strings_13invalid_radix
+    .weak lb_strings_14invalid_number
+    .weak lb_strings_19number_out_of_range
+    .weak lb_strings_17conversion_failed
+    .weak lb_unicode_version
+    .weak lb_unicode_18canonical_mappings
+    .weak lb_unicode_22compatibility_mappings
+    .weak lb_unicode_14upper_mappings
+    .weak lb_unicode_14lower_mappings
+    .weak lb_unicode_13fold_mappings
+    .weak lb_unicode_15turkic_mappings
+    .weak lb_unicode_15mapping_scalars
+    .weak lb_unicode_20composition_mappings
+    .weak lb_unicode_16combining_ranges
+    .weak lb_unicode_12cased_ranges
+    .weak lb_unicode_21case_ignorable_ranges
+    .weak lb_unicode_17whitespace_ranges
+    .weak lb_unicode_15grapheme_ranges
+    .weak lb_unicode_19pictographic_ranges
+    .weak lb_unicode_12indic_ranges
+    .weak lb_math_pi
+    .weak lb_math_tau
+    .weak lb_math_e
+    .weak lb_math_infinity
+    .weak lb_math_nan
+    .weak lb_math_9sign_mask
+    .weak lb_math_14magnitude_mask
+    .weak lb_math_13exponent_mask
+    .weak lb_math32_pi
+    .weak lb_math32_tau
+    .weak lb_math32_e
+    .weak lb_math32_infinity
+    .weak lb_math32_nan
+    .weak lb_math32_9sign_mask
+    .weak lb_math32_14magnitude_mask
+    .weak lb_math32_13exponent_mask
+    .weak lb_net_inet
+    .weak lb_net_inet6
+    .weak lb_net_stream
+    .weak lb_net_datagram
+    .weak lb_net_20socket_close_on_exec
+    .weak lb_net_20get_descriptor_flags
+    .weak lb_net_20set_descriptor_flags
+    .weak lb_net_24descriptor_close_on_exec
+    .weak lb_net_12socket_level
+    .weak lb_net_20reuse_address_option
+    .weak lb_net_10ipv6_level
+    .weak lb_net_16ipv6_only_option
+    .weak lb_net_17no_sigpipe_option
+    .weak lb_net_10send_flags
+    .weak lb_net_18socket_interrupted
+    .weak lb_net_failed
+    .weak lb_net_closed
+    .weak lb_net_12unknown_host
+    .weak lb_net_15invalid_options
+    .weak lb_net_17message_too_large
+    .weak lb_net_cancelled
+    .weak lb_net_9timed_out
+    .weak lb_net_18connection_refused
+    .weak lb_net_19network_unreachable
+    .weak lb_net_14address_in_use
+    .weak lb_net_19address_unavailable
+    .weak lb_net_17permission_denied
+    .weak lb_net_18resource_exhausted
+    .weak lb_net_18connection_aborted
+    .weak lb_net_unsupported
+    .weak lb_net_20resolution_temporary
+    .weak lb_net_14transfer_limit
+    .weak lb_net_16nonblocking_flag
+    .weak lb_net_21receive_buffer_option
+    .weak lb_net_18send_buffer_option
+    .weak lb_net_16keepalive_option
+    .weak lb_net_14dont_wait_flag
+    .weak lb_net_12http_invalid
+    .weak lb_net_10http_limit
+    .weak lb_net_16http_unsupported
+    .weak lb_net_17websocket_invalid
+    .weak lb_net_15websocket_limit
+    .weak lb_net_18websocket_alphabet
+    .weak lb_net_14websocket_guid
+    .weak lb_interop_invalid
+    .weak lb_interop_12wrong_thread
+    .weak lb_interop_expired
+    .weak lb_interop_8no_error
+    .weak lb_interop_15connection_type
+    .weak lb_interop_13text_transfer
+    .weak lb_interop_14bytes_transfer
+    .weak lb_interop_13worker_closed
+    .weak lb_interop_11worker_busy
+    .weak lb_files_10write_only
+    .weak lb_files_create
+    .weak lb_files_truncate
+    .weak lb_files_13close_on_exec
+    .weak lb_files_11append_flag
+    .weak lb_files_14exclusive_flag
+    .weak lb_files_17would_block_errno
+    .weak lb_files_14transfer_limit
+    .weak lb_files_20current_directory_fd
+    .weak lb_files_14directory_flag
+    .weak lb_files_14no_follow_flag
+    .weak lb_files_17at_no_follow_flag
+    .weak lb_files_missing
+    .weak lb_files_17permission_denied
+    .weak lb_files_14already_exists
+    .weak lb_files_8no_space
+    .weak lb_files_11would_block
+    .weak lb_files_15invalid_options
+    .weak lb_files_9too_large
+    .weak lb_files_13not_directory
+    .weak lb_files_12is_directory
+    .weak lb_files_20read_only_filesystem
+    .weak lb_files_9not_empty
+    .weak lb_files_12cross_device
+    .weak lb_files_12symlink_loop
+    .weak lb_files_13name_too_long
+    .weak lb_files_failed
+    .weak lb_files_15directory_cycle
+    .weak lb_files_11depth_limit
+    .weak lb_files_12entries_type
+    .weak lb_process_7poll_in
+    .weak lb_process_12poll_hang_up
+    .weak lb_process_10poll_error
+    .weak lb_process_9set_flags
+    .weak lb_process_12non_blocking
+    .weak lb_process_11would_block
+    .weak lb_process_failed
+    .weak lb_process_16interrupt_signal
+    .weak lb_process_16terminate_signal
+    .weak lb_process_17console_interrupt
+    .weak lb_process_13console_break
+    .weak lb_process_13console_close
+    .weak lb_process_14console_logoff
+    .weak lb_process_16console_shutdown
+    .weak lb_process_26console_acknowledgement_ms
+    .weak lb_process_12command_type
+    .weak lb_json_invalid
+    .weak lb_json_14limit_exceeded
+    .weak lb_json_10value_type
+    .weak lb_window_unsupported
+    .weak lb_window_12wrong_thread
+    .weak lb_window_15invalid_options
+    .weak lb_window_failed
+    .weak lb_window_closed
+    .weak lb_window_19presentation_in_use
+    .weak lb_window_13key_positions
+    .weak lb_window_13mac_not_found
+    .weak lb_window_13win_scan_keys
+    .weak lb_clipboard_failed
+    .weak lb_clipboard_10text_limit
+    .weak lb_clipboard_12unicode_text
+    .weak lb_fonts_failed
+    .weak lb_gpu_unsupported
+    .weak lb_gpu_unavailable
+    .weak lb_gpu_12wrong_thread
+    .weak lb_gpu_closed
+    .weak lb_gpu_13invalid_color
+    .weak lb_gpu_failed
+    .weak lb_gpu_16execution_failed
+    .weak lb_gpu_17surface_too_large
+    .weak lb_gpu_16invalid_geometry
+    .weak lb_gpu_13command_limit
+    .weak lb_gpu_14frame_finished
+    .weak lb_gpu_12frame_in_use
+    .weak lb_gpu_13frame_resized
+    .weak lb_gpu_16frame_state_type
+    .weak lb_gpu_10frame_type
+    .weak lb_gpu_18render_target_type
+    .weak lb_gpu_19metal_surface_limit
+    .weak lb_gpu_36VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT
+    .weak lb_gpu_44VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT
+    .weak lb_gpu_27VK_ATTACHMENT_LOAD_OP_CLEAR
+    .weak lb_gpu_31VK_ATTACHMENT_LOAD_OP_DONT_CARE
+    .weak lb_gpu_32VK_ATTACHMENT_STORE_OP_DONT_CARE
+    .weak lb_gpu_28VK_ATTACHMENT_STORE_OP_STORE
+    .weak lb_gpu_19VK_BLEND_FACTOR_ONE
+    .weak lb_gpu_35VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA
+    .weak lb_gpu_25VK_BLEND_FACTOR_SRC_ALPHA
+    .weak lb_gpu_34VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
+    .weak lb_gpu_33VK_BUFFER_USAGE_VERTEX_BUFFER_BIT
+    .weak lb_gpu_24VK_COLOR_COMPONENT_A_BIT
+    .weak lb_gpu_24VK_COLOR_COMPONENT_B_BIT
+    .weak lb_gpu_24VK_COLOR_COMPONENT_G_BIT
+    .weak lb_gpu_24VK_COLOR_COMPONENT_R_BIT
+    .weak lb_gpu_33VK_COLOR_SPACE_SRGB_NONLINEAR_KHR
+    .weak lb_gpu_43VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT
+    .weak lb_gpu_18VK_COMPARE_OP_LESS
+    .weak lb_gpu_33VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR
+    .weak lb_gpu_33VK_DESCRIPTOR_TYPE_STORAGE_BUFFER
+    .weak lb_gpu_24VK_DYNAMIC_STATE_SCISSOR
+    .weak lb_gpu_25VK_DYNAMIC_STATE_VIEWPORT
+    .weak lb_gpu_24VK_ERROR_OUT_OF_DATE_KHR
+    .weak lb_gpu_8VK_FALSE
+    .weak lb_gpu_23VK_FORMAT_B8G8R8A8_SRGB
+    .weak lb_gpu_20VK_FORMAT_D32_SFLOAT
+    .weak lb_gpu_46VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT
+    .weak lb_gpu_29VK_FORMAT_R32G32B32A32_SFLOAT
+    .weak lb_gpu_23VK_FORMAT_R8G8B8A8_SRGB
+    .weak lb_gpu_19VK_FORMAT_UNDEFINED
+    .weak lb_gpu_25VK_IMAGE_ASPECT_COLOR_BIT
+    .weak lb_gpu_25VK_IMAGE_ASPECT_DEPTH_BIT
+    .weak lb_gpu_40VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+    .weak lb_gpu_48VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+    .weak lb_gpu_31VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
+    .weak lb_gpu_16VK_IMAGE_TYPE_2D
+    .weak lb_gpu_35VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT
+    .weak lb_gpu_43VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT
+    .weak lb_gpu_21VK_IMAGE_VIEW_TYPE_2D
+    .weak lb_gpu_29VK_KHR_SURFACE_EXTENSION_NAME
+    .weak lb_gpu_31VK_KHR_SWAPCHAIN_EXTENSION_NAME
+    .weak lb_gpu_35VK_KHR_WIN32_SURFACE_EXTENSION_NAME
+    .weak lb_gpu_35VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+    .weak lb_gpu_36VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+    .weak lb_gpu_35VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+    .weak lb_gpu_12VK_NOT_READY
+    .weak lb_gpu_31VK_PIPELINE_BIND_POINT_GRAPHICS
+    .weak lb_gpu_45VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
+    .weak lb_gpu_42VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT
+    .weak lb_gpu_24VK_PRESENT_MODE_FIFO_KHR
+    .weak lb_gpu_35VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST
+    .weak lb_gpu_21VK_QUEUE_GRAPHICS_BIT
+    .weak lb_gpu_21VK_SAMPLE_COUNT_1_BIT
+    .weak lb_gpu_28VK_SHADER_STAGE_FRAGMENT_BIT
+    .weak lb_gpu_26VK_SHADER_STAGE_VERTEX_BIT
+    .weak lb_gpu_17VK_SUBOPTIMAL_KHR
+    .weak lb_gpu_26VK_SUBPASS_CONTENTS_INLINE
+    .weak lb_gpu_19VK_SUBPASS_EXTERNAL
+    .weak lb_gpu_10VK_SUCCESS
+    .weak lb_gpu_10VK_TIMEOUT
+    .weak lb_gpu_7VK_TRUE
+    .weak lb_gpu_34VK_STRUCTURE_TYPE_APPLICATION_INFO
+    .weak lb_gpu_36VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO
+    .weak lb_gpu_46VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO
+    .weak lb_gpu_43VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO
+    .weak lb_gpu_49VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO
+    .weak lb_gpu_42VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO
+    .weak lb_gpu_37VK_STRUCTURE_TYPE_COPY_DESCRIPTOR_SET
+    .weak lb_gpu_45VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO
+    .weak lb_gpu_46VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO
+    .weak lb_gpu_51VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO
+    .weak lb_gpu_36VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO
+    .weak lb_gpu_42VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO
+    .weak lb_gpu_35VK_STRUCTURE_TYPE_FENCE_CREATE_INFO
+    .weak lb_gpu_41VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO
+    .weak lb_gpu_47VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO
+    .weak lb_gpu_35VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO
+    .weak lb_gpu_40VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO
+    .weak lb_gpu_38VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO
+    .weak lb_gpu_38VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO
+    .weak lb_gpu_56VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO
+    .weak lb_gpu_58VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO
+    .weak lb_gpu_52VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO
+    .weak lb_gpu_59VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO
+    .weak lb_gpu_45VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO
+    .weak lb_gpu_56VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO
+    .weak lb_gpu_58VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO
+    .weak lb_gpu_51VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO
+    .weak lb_gpu_57VK_STRUCTURE_TYPE_PIPELINE_TESSELLATION_STATE_CREATE_INFO
+    .weak lb_gpu_57VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO
+    .weak lb_gpu_53VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO
+    .weak lb_gpu_34VK_STRUCTURE_TYPE_PRESENT_INFO_KHR
+    .weak lb_gpu_40VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO
+    .weak lb_gpu_41VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO
+    .weak lb_gpu_39VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO
+    .weak lb_gpu_43VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO
+    .weak lb_gpu_29VK_STRUCTURE_TYPE_SUBMIT_INFO
+    .weak lb_gpu_43VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR
+    .weak lb_gpu_47VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR
+    .weak lb_gpu_38VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET
+    .weak lb_gpu_25vulkan_windows_extensions
+    .weak lb_gpu_22vulkan_api_version_1_0
     .text
 
     .p2align 4
@@ -3337,6 +3671,187 @@ lb_math32_tanh:
     .seh_endproc
 
     .p2align 4
+    .globl lb_math32_6is_nan
+lb_math32_6is_nan:
+    .seh_proc lb_math32_6is_nan
+    pushq %rbp
+    .seh_pushreg %rbp
+    subq $208, %rsp
+    .seh_stackalloc 208
+    movq %rsp, %rbp
+    .seh_setframe %rbp, 0
+    movq %rdi, 200(%rbp)
+    .seh_savereg %rdi, 200
+    movq %rsi, 192(%rbp)
+    .seh_savereg %rsi, 192
+    movdqu %xmm6, 176(%rbp)
+    .seh_savexmm %xmm6, 176
+    movdqu %xmm7, 160(%rbp)
+    .seh_savexmm %xmm7, 160
+    movdqu %xmm8, 144(%rbp)
+    .seh_savexmm %xmm8, 144
+    movdqu %xmm9, 128(%rbp)
+    .seh_savexmm %xmm9, 128
+    movdqu %xmm10, 112(%rbp)
+    .seh_savexmm %xmm10, 112
+    movdqu %xmm11, 96(%rbp)
+    .seh_savexmm %xmm11, 96
+    movdqu %xmm12, 80(%rbp)
+    .seh_savexmm %xmm12, 80
+    movdqu %xmm13, 64(%rbp)
+    .seh_savexmm %xmm13, 64
+    movdqu %xmm14, 48(%rbp)
+    .seh_savexmm %xmm14, 48
+    movdqu %xmm15, 32(%rbp)
+    .seh_savexmm %xmm15, 32
+    movq %rbx, 24(%rbp)
+    .seh_savereg %rbx, 24
+    movq %r12, 16(%rbp)
+    .seh_savereg %r12, 16
+    .seh_endprologue
+    movq %rcx, 224(%rbp)
+    movq %rdx, 232(%rbp)
+    movq %r8, 240(%rbp)
+    movq %r9, 248(%rbp)
+    movsd %xmm0, 224(%rbp)
+    movq 224(%rbp), %rax
+    movl %eax, 0(%rbp)
+    leaq 0(%rbp), %rbx
+    movq %rbx, %r10
+    movss (%r10), %xmm12
+    movd %xmm12, %ebx
+    leaq lb_math32_14magnitude_mask(%rip), %r12
+    movq %r12, %r10
+    movl (%r10), %r12d
+    andl %r12d, %ebx
+    leaq lb_math32_13exponent_mask(%rip), %r12
+    movq %r12, %r10
+    movl (%r10), %r12d
+    cmpl %r12d, %ebx
+    seta %al
+    movzbl %al, %ebx
+    movzbl %bl, %ebx
+    movl %ebx, %eax
+    movq 200(%rbp), %rdi
+    movq 192(%rbp), %rsi
+    movdqu 176(%rbp), %xmm6
+    movdqu 160(%rbp), %xmm7
+    movdqu 144(%rbp), %xmm8
+    movdqu 128(%rbp), %xmm9
+    movdqu 112(%rbp), %xmm10
+    movdqu 96(%rbp), %xmm11
+    movdqu 80(%rbp), %xmm12
+    movdqu 64(%rbp), %xmm13
+    movdqu 48(%rbp), %xmm14
+    movdqu 32(%rbp), %xmm15
+    movq 24(%rbp), %rbx
+    movq 16(%rbp), %r12
+    leaq 208(%rbp), %rsp
+    popq %rbp
+    ret
+.L35_1:
+    leaq .Ltext_35(%rip), %rdi
+    leaq .Ltext_0(%rip), %rsi
+    movq %rdx, %r8
+    movq %rsi, %rdx
+    movq %rdi, %rcx
+    subq $32, %rsp
+    call lb_core_7trap_at
+    addq $32, %rsp
+    .seh_endproc
+
+    .p2align 4
+    .globl lb_math32_9is_finite
+lb_math32_9is_finite:
+    .seh_proc lb_math32_9is_finite
+    pushq %rbp
+    .seh_pushreg %rbp
+    subq $208, %rsp
+    .seh_stackalloc 208
+    movq %rsp, %rbp
+    .seh_setframe %rbp, 0
+    movq %rdi, 200(%rbp)
+    .seh_savereg %rdi, 200
+    movq %rsi, 192(%rbp)
+    .seh_savereg %rsi, 192
+    movdqu %xmm6, 176(%rbp)
+    .seh_savexmm %xmm6, 176
+    movdqu %xmm7, 160(%rbp)
+    .seh_savexmm %xmm7, 160
+    movdqu %xmm8, 144(%rbp)
+    .seh_savexmm %xmm8, 144
+    movdqu %xmm9, 128(%rbp)
+    .seh_savexmm %xmm9, 128
+    movdqu %xmm10, 112(%rbp)
+    .seh_savexmm %xmm10, 112
+    movdqu %xmm11, 96(%rbp)
+    .seh_savexmm %xmm11, 96
+    movdqu %xmm12, 80(%rbp)
+    .seh_savexmm %xmm12, 80
+    movdqu %xmm13, 64(%rbp)
+    .seh_savexmm %xmm13, 64
+    movdqu %xmm14, 48(%rbp)
+    .seh_savexmm %xmm14, 48
+    movdqu %xmm15, 32(%rbp)
+    .seh_savexmm %xmm15, 32
+    movq %rbx, 24(%rbp)
+    .seh_savereg %rbx, 24
+    movq %r12, 16(%rbp)
+    .seh_savereg %r12, 16
+    .seh_endprologue
+    movq %rcx, 224(%rbp)
+    movq %rdx, 232(%rbp)
+    movq %r8, 240(%rbp)
+    movq %r9, 248(%rbp)
+    movsd %xmm0, 224(%rbp)
+    movq 224(%rbp), %rax
+    movl %eax, 0(%rbp)
+    leaq 0(%rbp), %rbx
+    movq %rbx, %r10
+    movss (%r10), %xmm12
+    movd %xmm12, %ebx
+    leaq lb_math32_13exponent_mask(%rip), %r12
+    movq %r12, %r10
+    movl (%r10), %r12d
+    andl %r12d, %ebx
+    cmpl %ebx, %r12d
+    sete %al
+    movzbl %al, %ebx
+    movl $0, %ecx
+    cmpl %ecx, %ebx
+    sete %al
+    movzbl %al, %ebx
+    movzbl %bl, %ebx
+    movl %ebx, %eax
+    movq 200(%rbp), %rdi
+    movq 192(%rbp), %rsi
+    movdqu 176(%rbp), %xmm6
+    movdqu 160(%rbp), %xmm7
+    movdqu 144(%rbp), %xmm8
+    movdqu 128(%rbp), %xmm9
+    movdqu 112(%rbp), %xmm10
+    movdqu 96(%rbp), %xmm11
+    movdqu 80(%rbp), %xmm12
+    movdqu 64(%rbp), %xmm13
+    movdqu 48(%rbp), %xmm14
+    movdqu 32(%rbp), %xmm15
+    movq 24(%rbp), %rbx
+    movq 16(%rbp), %r12
+    leaq 208(%rbp), %rsp
+    popq %rbp
+    ret
+.L36_1:
+    leaq .Ltext_36(%rip), %rdi
+    leaq .Ltext_0(%rip), %rsi
+    movq %rdx, %r8
+    movq %rsi, %rdx
+    movq %rdi, %rcx
+    subq $32, %rsp
+    call lb_core_7trap_at
+    addq $32, %rsp
+    .seh_endproc
+
+    .p2align 4
     .globl lb_math32_11is_infinite
 lb_math32_11is_infinite:
     .seh_proc lb_math32_11is_infinite
@@ -3415,7 +3930,7 @@ lb_math32_11is_infinite:
     leaq 208(%rbp), %rsp
     popq %rbp
     ret
-.L35_1:
+.L37_1:
     leaq .Ltext_37(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -3507,7 +4022,7 @@ lb_math32_signbit:
     leaq 208(%rbp), %rsp
     popq %rbp
     ret
-.L36_1:
+.L38_1:
     leaq .Ltext_38(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -3591,8 +4106,107 @@ lb_math32_abs:
     leaq 208(%rbp), %rsp
     popq %rbp
     ret
-.L37_1:
+.L39_1:
     leaq .Ltext_39(%rip), %rdi
+    leaq .Ltext_0(%rip), %rsi
+    movq %rdx, %r8
+    movq %rsi, %rdx
+    movq %rdi, %rcx
+    subq $32, %rsp
+    call lb_core_7trap_at
+    addq $32, %rsp
+    .seh_endproc
+
+    .p2align 4
+    .globl lb_math32_copysign
+lb_math32_copysign:
+    .seh_proc lb_math32_copysign
+    pushq %rbp
+    .seh_pushreg %rbp
+    subq $240, %rsp
+    .seh_stackalloc 240
+    movq %rsp, %rbp
+    .seh_setframe %rbp, 0
+    movq %rdi, 232(%rbp)
+    .seh_savereg %rdi, 232
+    movq %rsi, 224(%rbp)
+    .seh_savereg %rsi, 224
+    movdqu %xmm6, 208(%rbp)
+    .seh_savexmm %xmm6, 208
+    movdqu %xmm7, 192(%rbp)
+    .seh_savexmm %xmm7, 192
+    movdqu %xmm8, 176(%rbp)
+    .seh_savexmm %xmm8, 176
+    movdqu %xmm9, 160(%rbp)
+    .seh_savexmm %xmm9, 160
+    movdqu %xmm10, 144(%rbp)
+    .seh_savexmm %xmm10, 144
+    movdqu %xmm11, 128(%rbp)
+    .seh_savexmm %xmm11, 128
+    movdqu %xmm12, 112(%rbp)
+    .seh_savexmm %xmm12, 112
+    movdqu %xmm13, 96(%rbp)
+    .seh_savexmm %xmm13, 96
+    movdqu %xmm14, 80(%rbp)
+    .seh_savexmm %xmm14, 80
+    movdqu %xmm15, 64(%rbp)
+    .seh_savexmm %xmm15, 64
+    movq %rbx, 56(%rbp)
+    .seh_savereg %rbx, 56
+    movq %r12, 48(%rbp)
+    .seh_savereg %r12, 48
+    movq %r13, 40(%rbp)
+    .seh_savereg %r13, 40
+    .seh_endprologue
+    movq %rcx, 256(%rbp)
+    movq %rdx, 264(%rbp)
+    movq %r8, 272(%rbp)
+    movq %r9, 280(%rbp)
+    movsd %xmm0, 256(%rbp)
+    movsd %xmm1, 264(%rbp)
+    movq 256(%rbp), %rax
+    movl %eax, 24(%rbp)
+    movq 264(%rbp), %rax
+    movl %eax, 8(%rbp)
+    leaq 24(%rbp), %rbx
+    movq %rbx, %r10
+    movss (%r10), %xmm12
+    movd %xmm12, %ebx
+    leaq lb_math32_14magnitude_mask(%rip), %r12
+    movq %r12, %r10
+    movl (%r10), %r12d
+    andl %r12d, %ebx
+    leaq 8(%rbp), %r12
+    movq %r12, %r10
+    movss (%r10), %xmm12
+    movd %xmm12, %r12d
+    leaq lb_math32_9sign_mask(%rip), %r13
+    movq %r13, %r10
+    movl (%r10), %r13d
+    andl %r13d, %r12d
+    orl %r12d, %ebx
+    movd %ebx, %xmm12
+    movaps %xmm12, %xmm0
+    movq 232(%rbp), %rdi
+    movq 224(%rbp), %rsi
+    movdqu 208(%rbp), %xmm6
+    movdqu 192(%rbp), %xmm7
+    movdqu 176(%rbp), %xmm8
+    movdqu 160(%rbp), %xmm9
+    movdqu 144(%rbp), %xmm10
+    movdqu 128(%rbp), %xmm11
+    movdqu 112(%rbp), %xmm12
+    movdqu 96(%rbp), %xmm13
+    movdqu 80(%rbp), %xmm14
+    movdqu 64(%rbp), %xmm15
+    movq 56(%rbp), %rbx
+    movq 48(%rbp), %r12
+    movq 40(%rbp), %r13
+    leaq 240(%rbp), %rsp
+    popq %rbp
+    ret
+.L40_1:
+    leaq .Ltext_40(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -3667,8 +4281,8 @@ lb_math32_sign:
     movzbl %bl, %ebx
     leaq 8(%rbp), %r10
     movl %ebx, (%r10)
-    jmp .L38_15
-.L38_14:
+    jmp .L41_15
+.L41_14:
     leaq .Ltext_35(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -3677,11 +4291,11 @@ lb_math32_sign:
     subq $32, %rsp
     call lb_core_7trap_at
     addq $32, %rsp
-.L38_15:
+.L41_15:
     testl %ebx, %ebx
-    jne .L38_1
-    jmp .L38_2
-.L38_1:
+    jne .L41_1
+    jmp .L41_2
+.L41_1:
     movaps %xmm12, %xmm0
     movq 232(%rbp), %rdi
     movq 224(%rbp), %rsi
@@ -3700,19 +4314,19 @@ lb_math32_sign:
     leaq 240(%rbp), %rsp
     popq %rbp
     ret
-.L38_4:
-    jmp .L38_3
-.L38_2:
-.L38_3:
+.L41_4:
+    jmp .L41_3
+.L41_2:
+.L41_3:
     movl $0, %eax
     movd %eax, %xmm13
     ucomiss %xmm12, %xmm13
     seta %al
     movzbl %al, %ebx
     testl %ebx, %ebx
-    jne .L38_5
-    jmp .L38_6
-.L38_5:
+    jne .L41_5
+    jmp .L41_6
+.L41_5:
     movl $1065353216, %eax
     movd %eax, %xmm12
     movd %xmm12, %eax
@@ -3736,17 +4350,17 @@ lb_math32_sign:
     leaq 240(%rbp), %rsp
     popq %rbp
     ret
-.L38_8:
-    jmp .L38_7
-.L38_6:
-.L38_7:
+.L41_8:
+    jmp .L41_7
+.L41_6:
+.L41_7:
     ucomiss %xmm13, %xmm12
     seta %al
     movzbl %al, %ebx
     testl %ebx, %ebx
-    jne .L38_9
-    jmp .L38_10
-.L38_9:
+    jne .L41_9
+    jmp .L41_10
+.L41_9:
     movl $1065353216, %eax
     movd %eax, %xmm12
     movaps %xmm12, %xmm0
@@ -3767,10 +4381,10 @@ lb_math32_sign:
     leaq 240(%rbp), %rsp
     popq %rbp
     ret
-.L38_12:
-    jmp .L38_11
-.L38_10:
-.L38_11:
+.L41_12:
+    jmp .L41_11
+.L41_10:
+.L41_11:
     movaps %xmm12, %xmm0
     movq 232(%rbp), %rdi
     movq 224(%rbp), %rsi
@@ -3789,7 +4403,7 @@ lb_math32_sign:
     leaq 240(%rbp), %rsp
     popq %rbp
     ret
-.L38_13:
+.L41_13:
     leaq .Ltext_41(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -3875,8 +4489,8 @@ lb_math32_min:
     movzbl %r13b, %r13d
     leaq 16(%rbp), %r10
     movl %r13d, (%r10)
-    jmp .L39_20
-.L39_19:
+    jmp .L42_20
+.L42_19:
     leaq .Ltext_35(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -3885,11 +4499,11 @@ lb_math32_min:
     subq $32, %rsp
     call lb_core_7trap_at
     addq $32, %rsp
-.L39_20:
+.L42_20:
     testl %r13d, %r13d
-    jne .L39_1
-    jmp .L39_2
-.L39_1:
+    jne .L42_1
+    jmp .L42_2
+.L42_1:
     movaps %xmm12, %xmm0
     movq 280(%rbp), %rdi
     movq 272(%rbp), %rsi
@@ -3911,10 +4525,10 @@ lb_math32_min:
     leaq 288(%rbp), %rsp
     popq %rbp
     ret
-.L39_4:
-    jmp .L39_3
-.L39_2:
-.L39_3:
+.L42_4:
+    jmp .L42_3
+.L42_2:
+.L42_3:
     leaq 40(%rbp), %r13
     movq %r13, %r10
     movss (%r10), %xmm13
@@ -3929,8 +4543,8 @@ lb_math32_min:
     movzbl %r15b, %r15d
     leaq 8(%rbp), %r10
     movl %r15d, (%r10)
-    jmp .L39_22
-.L39_21:
+    jmp .L42_22
+.L42_21:
     leaq .Ltext_35(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -3939,11 +4553,11 @@ lb_math32_min:
     subq $32, %rsp
     call lb_core_7trap_at
     addq $32, %rsp
-.L39_22:
+.L42_22:
     testl %r15d, %r15d
-    jne .L39_5
-    jmp .L39_6
-.L39_5:
+    jne .L42_5
+    jmp .L42_6
+.L42_5:
     movaps %xmm13, %xmm0
     movq 280(%rbp), %rdi
     movq 272(%rbp), %rsi
@@ -3965,10 +4579,10 @@ lb_math32_min:
     leaq 288(%rbp), %rsp
     popq %rbp
     ret
-.L39_8:
-    jmp .L39_7
-.L39_6:
-.L39_7:
+.L42_8:
+    jmp .L42_7
+.L42_6:
+.L42_7:
     movl $0, %eax
     movd %eax, %xmm14
     ucomiss %xmm14, %xmm12
@@ -3977,23 +4591,23 @@ lb_math32_min:
     andb %cl, %al
     movzbl %al, %r12d
     testl %r12d, %r12d
-    jne .L39_12
-    jmp .L39_23
-.L39_23:
+    jne .L42_12
+    jmp .L42_23
+.L42_23:
     movl %r12d, %r14d
-    jmp .L39_13
-.L39_12:
+    jmp .L42_13
+.L42_12:
     ucomiss %xmm14, %xmm13
     sete %al
     setnp %cl
     andb %cl, %al
     movzbl %al, %r14d
-.L39_13:
+.L42_13:
     movzbl %r14b, %r12d
     testl %r12d, %r12d
-    jne .L39_9
-    jmp .L39_10
-.L39_9:
+    jne .L42_9
+    jmp .L42_10
+.L42_9:
     movl %ebx, %r12d
     orl %r13d, %r12d
     movd %r12d, %xmm12
@@ -4018,21 +4632,21 @@ lb_math32_min:
     leaq 288(%rbp), %rsp
     popq %rbp
     ret
-.L39_14:
-    jmp .L39_11
-.L39_10:
-.L39_11:
+.L42_14:
+    jmp .L42_11
+.L42_10:
+.L42_11:
     ucomiss %xmm12, %xmm13
     seta %al
     movzbl %al, %ebx
     testl %ebx, %ebx
-    jne .L39_15
-    jmp .L39_16
-.L39_15:
+    jne .L42_15
+    jmp .L42_16
+.L42_15:
     movaps %xmm12, %xmm13
-    jmp .L39_17
-.L39_16:
-.L39_17:
+    jmp .L42_17
+.L42_16:
+.L42_17:
     movaps %xmm13, %xmm0
     movq 280(%rbp), %rdi
     movq 272(%rbp), %rsi
@@ -4054,7 +4668,7 @@ lb_math32_min:
     leaq 288(%rbp), %rsp
     popq %rbp
     ret
-.L39_18:
+.L42_18:
     leaq .Ltext_42(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -4140,8 +4754,8 @@ lb_math32_max:
     movzbl %r13b, %r13d
     leaq 16(%rbp), %r10
     movl %r13d, (%r10)
-    jmp .L40_20
-.L40_19:
+    jmp .L43_20
+.L43_19:
     leaq .Ltext_35(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -4150,11 +4764,11 @@ lb_math32_max:
     subq $32, %rsp
     call lb_core_7trap_at
     addq $32, %rsp
-.L40_20:
+.L43_20:
     testl %r13d, %r13d
-    jne .L40_1
-    jmp .L40_2
-.L40_1:
+    jne .L43_1
+    jmp .L43_2
+.L43_1:
     movaps %xmm12, %xmm0
     movq 280(%rbp), %rdi
     movq 272(%rbp), %rsi
@@ -4176,10 +4790,10 @@ lb_math32_max:
     leaq 288(%rbp), %rsp
     popq %rbp
     ret
-.L40_4:
-    jmp .L40_3
-.L40_2:
-.L40_3:
+.L43_4:
+    jmp .L43_3
+.L43_2:
+.L43_3:
     leaq 40(%rbp), %r13
     movq %r13, %r10
     movss (%r10), %xmm13
@@ -4194,8 +4808,8 @@ lb_math32_max:
     movzbl %r15b, %r15d
     leaq 8(%rbp), %r10
     movl %r15d, (%r10)
-    jmp .L40_22
-.L40_21:
+    jmp .L43_22
+.L43_21:
     leaq .Ltext_35(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -4204,11 +4818,11 @@ lb_math32_max:
     subq $32, %rsp
     call lb_core_7trap_at
     addq $32, %rsp
-.L40_22:
+.L43_22:
     testl %r15d, %r15d
-    jne .L40_5
-    jmp .L40_6
-.L40_5:
+    jne .L43_5
+    jmp .L43_6
+.L43_5:
     movaps %xmm13, %xmm0
     movq 280(%rbp), %rdi
     movq 272(%rbp), %rsi
@@ -4230,10 +4844,10 @@ lb_math32_max:
     leaq 288(%rbp), %rsp
     popq %rbp
     ret
-.L40_8:
-    jmp .L40_7
-.L40_6:
-.L40_7:
+.L43_8:
+    jmp .L43_7
+.L43_6:
+.L43_7:
     movl $0, %eax
     movd %eax, %xmm14
     ucomiss %xmm14, %xmm12
@@ -4242,23 +4856,23 @@ lb_math32_max:
     andb %cl, %al
     movzbl %al, %r12d
     testl %r12d, %r12d
-    jne .L40_12
-    jmp .L40_23
-.L40_23:
+    jne .L43_12
+    jmp .L43_23
+.L43_23:
     movl %r12d, %r14d
-    jmp .L40_13
-.L40_12:
+    jmp .L43_13
+.L43_12:
     ucomiss %xmm14, %xmm13
     sete %al
     setnp %cl
     andb %cl, %al
     movzbl %al, %r14d
-.L40_13:
+.L43_13:
     movzbl %r14b, %r12d
     testl %r12d, %r12d
-    jne .L40_9
-    jmp .L40_10
-.L40_9:
+    jne .L43_9
+    jmp .L43_10
+.L43_9:
     movl %ebx, %r12d
     andl %r13d, %r12d
     movd %r12d, %xmm12
@@ -4283,21 +4897,21 @@ lb_math32_max:
     leaq 288(%rbp), %rsp
     popq %rbp
     ret
-.L40_14:
-    jmp .L40_11
-.L40_10:
-.L40_11:
+.L43_14:
+    jmp .L43_11
+.L43_10:
+.L43_11:
     ucomiss %xmm13, %xmm12
     seta %al
     movzbl %al, %ebx
     testl %ebx, %ebx
-    jne .L40_15
-    jmp .L40_16
-.L40_15:
+    jne .L43_15
+    jmp .L43_16
+.L43_15:
     movaps %xmm12, %xmm13
-    jmp .L40_17
-.L40_16:
-.L40_17:
+    jmp .L43_17
+.L43_16:
+.L43_17:
     movaps %xmm13, %xmm0
     movq 280(%rbp), %rdi
     movq 272(%rbp), %rsi
@@ -4319,7 +4933,7 @@ lb_math32_max:
     leaq 288(%rbp), %rsp
     popq %rbp
     ret
-.L40_18:
+.L43_18:
     leaq .Ltext_43(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -4392,9 +5006,9 @@ lb_math32_clamp:
     setae %al
     movzbl %al, %ebx
     testl %ebx, %ebx
-    jne .L41_1
-    jmp .L41_2
-.L41_2:
+    jne .L44_1
+    jmp .L44_2
+.L44_2:
     leaq .Ltext_45(%rip), %rdi
     leaq .Ltext_44(%rip), %rsi
     movq %rdx, %r8
@@ -4403,7 +5017,7 @@ lb_math32_clamp:
     subq $32, %rsp
     call lb_core_7trap_at
     addq $32, %rsp
-.L41_1:
+.L44_1:
     leaq 64(%rbp), %rbx
     movq %rbx, %r10
     movss (%r10), %xmm14
@@ -4423,8 +5037,8 @@ lb_math32_clamp:
     movzbl %bl, %ebx
     leaq 8(%rbp), %r10
     movl %ebx, (%r10)
-    jmp .L41_15
-.L41_14:
+    jmp .L44_15
+.L44_14:
     leaq .Ltext_35(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -4433,11 +5047,11 @@ lb_math32_clamp:
     subq $32, %rsp
     call lb_core_7trap_at
     addq $32, %rsp
-.L41_15:
+.L44_15:
     testl %ebx, %ebx
-    jne .L41_3
-    jmp .L41_4
-.L41_3:
+    jne .L44_3
+    jmp .L44_4
+.L44_3:
     movaps %xmm14, %xmm0
     movq 264(%rbp), %rdi
     movq 256(%rbp), %rsi
@@ -4456,34 +5070,34 @@ lb_math32_clamp:
     leaq 272(%rbp), %rsp
     popq %rbp
     ret
-.L41_6:
-    jmp .L41_5
-.L41_4:
-.L41_5:
+.L44_6:
+    jmp .L44_5
+.L44_4:
+.L44_5:
     ucomiss %xmm14, %xmm12
     seta %al
     movzbl %al, %ebx
     testl %ebx, %ebx
-    jne .L41_7
-    jmp .L41_8
-.L41_7:
+    jne .L44_7
+    jmp .L44_8
+.L44_7:
     movaps %xmm12, %xmm13
-    jmp .L41_9
-.L41_8:
+    jmp .L44_9
+.L44_8:
     ucomiss %xmm13, %xmm14
     seta %al
     movzbl %al, %ebx
     testl %ebx, %ebx
-    jne .L41_10
-    jmp .L41_11
-.L41_10:
+    jne .L44_10
+    jmp .L44_11
+.L44_10:
     movaps %xmm13, %xmm12
-    jmp .L41_12
-.L41_11:
+    jmp .L44_12
+.L44_11:
     movaps %xmm14, %xmm12
-.L41_12:
+.L44_12:
     movaps %xmm12, %xmm13
-.L41_9:
+.L44_9:
     movaps %xmm13, %xmm0
     movq 264(%rbp), %rdi
     movq 256(%rbp), %rsi
@@ -4502,7 +5116,7 @@ lb_math32_clamp:
     leaq 272(%rbp), %rsp
     popq %rbp
     ret
-.L41_13:
+.L44_13:
     leaq .Ltext_46(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -4622,49 +5236,49 @@ lb_math32_clamp:
     .section .rdata,"dr"
     .p2align 3
 
-    .bss
+    .section .data$lb_math32_pi,"dw"
     .globl lb_math32_pi
     .p2align 2
 lb_math32_pi:
     .zero 4
 
-    .bss
+    .section .data$lb_math32_tau,"dw"
     .globl lb_math32_tau
     .p2align 2
 lb_math32_tau:
     .zero 4
 
-    .bss
+    .section .data$lb_math32_e,"dw"
     .globl lb_math32_e
     .p2align 2
 lb_math32_e:
     .zero 4
 
-    .bss
+    .section .data$lb_math32_infinity,"dw"
     .globl lb_math32_infinity
     .p2align 2
 lb_math32_infinity:
     .zero 4
 
-    .bss
+    .section .data$lb_math32_nan,"dw"
     .globl lb_math32_nan
     .p2align 2
 lb_math32_nan:
     .zero 4
 
-    .bss
+    .section .data$lb_math32_9sign_mask,"dw"
     .globl lb_math32_9sign_mask
     .p2align 2
 lb_math32_9sign_mask:
     .zero 4
 
-    .bss
+    .section .data$lb_math32_14magnitude_mask,"dw"
     .globl lb_math32_14magnitude_mask
     .p2align 2
 lb_math32_14magnitude_mask:
     .zero 4
 
-    .bss
+    .section .data$lb_math32_13exponent_mask,"dw"
     .globl lb_math32_13exponent_mask
     .p2align 2
 lb_math32_13exponent_mask:

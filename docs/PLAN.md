@@ -64,8 +64,8 @@ runs it for longer. Every finding becomes a test.
 
 11. **The shape of the compiler, from the audit of 2026-09-14.** The remaining work
     of `~/dev/luce-base-audit-2026-09-14.md`, in order: unit tests for the standard
-    library, which first needs the backends to run prelude `test` blocks only for the
-    module under test and `library_reference.py` to read a header box; every runtime
+    library, each module's `test` blocks run against the archive, which first needs
+    `library_reference.py` to read a header box; every runtime
     layout and mode named once and shared by the C emitter and the lowerer (error
     layout, allocator vtable, `lb_fmtbuf`, memory orders, program modes) and the Win32,
     AppKit, Metal, and GDI numbers named in the adapters; `back/c/emit.lucb`,

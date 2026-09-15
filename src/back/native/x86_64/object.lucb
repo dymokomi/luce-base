@@ -5,7 +5,7 @@ import back.target as build_target
 import support.buffer
 
 pub struct Format:
-    let os: build_target.Os
+    pub let os: build_target.Os
     let symbol_prefix: str
 
     pub func init(os: build_target.Os, symbol_prefix: str):
@@ -22,6 +22,14 @@ pub struct Format:
             try self.symbol(out, name)
             try out.put("\n")
         discard(used)
+
+    ## Where a witness table goes: COFF coalesces weak definitions by section, so each
+    ## table has one named after it; ELF keeps the read-only relocated section.
+    pub func table_start(out: buffer.Buffer*, name: str) -> !:
+        if self.os == build_target.Os.windows:
+            try out.put("\n    .section .rdata$")
+            try self.symbol(out, name)
+            try out.put(",\"dr\"\n    .p2align 3\n")
 
     ## Back to the text section after a function placed in a named one.
     pub func leave_section(out: buffer.Buffer*, function: ir.Function*) -> !:

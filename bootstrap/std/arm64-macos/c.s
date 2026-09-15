@@ -16,6 +16,7 @@ _lb_c_0init:
 
     .p2align 2
     .globl _lb_c_errno
+    .no_dead_strip _lb_c_errno
 _lb_c_errno:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -46,6 +47,7 @@ L1_3:
 
     .p2align 2
     .globl _lb_c_9set_errno
+    .no_dead_strip _lb_c_9set_errno
 _lb_c_9set_errno:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -72,6 +74,7 @@ L2_1:
 
     .p2align 2
     .globl _lb_c_stdin
+    .no_dead_strip _lb_c_stdin
 _lb_c_stdin:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -98,6 +101,7 @@ _lb_c_stdin:
 
     .p2align 2
     .globl _lb_c_stdout
+    .no_dead_strip _lb_c_stdout
 _lb_c_stdout:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -124,6 +128,7 @@ _lb_c_stdout:
 
     .p2align 2
     .globl _lb_c_stderr
+    .no_dead_strip _lb_c_stderr
 _lb_c_stderr:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -172,6 +177,12 @@ l_text_7:
 
     .section __DATA,__const
     .p2align 3
+    .section __DATA,__data
+    .p2align 2
     .globl _lb_c_interrupted
-    .zerofill __DATA,__bss,_lb_c_interrupted,4,2
+    .weak_definition _lb_c_interrupted
+    .no_dead_strip _lb_c_interrupted
+_lb_c_interrupted:
+    .zero 4
 
+.subsections_via_symbols

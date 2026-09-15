@@ -1,5 +1,6 @@
-## Select backend-owned requirements from the actual object's unresolved symbols.
-## Dead standard code therefore adds no frameworks in native or C comparison builds.
+## Select backend-owned requirements from the actual object's unresolved symbols, and from
+## the standard library members those pull out of the archive: what the linker will load
+## is simulated first, so dead standard code adds no frameworks to any program.
 import c
 import support.host_tools
 import support.list
@@ -12,40 +13,130 @@ pub struct Requirements:
     pub let libraries: c.str[]
     pub let frameworks: c.str[]
 
-pub func collect(object: c.str, platform: target.Target, directory: str) -> Requirements!:
+## One line of `nm`: a symbol a member of the archive defines or needs.
+struct Entry:
+    var member: str
+    var symbol: str
+    var undefined: bool
+
+pub func collect(object: c.str, archive: c.str, platform: target.Target, directory: str) -> Requirements!:
     var libraries = try list.List[c.str].create(4)
     var frameworks = try list.List[c.str].create(4)
     if platform.os != target.Os.macos and platform.os != target.Os.windows and platform.os != target.Os.linux:
         return Requirements(libraries.span(), frameworks.span())
-    let arguments: c.str[2] = ["-u", object]
-    let (status, output, errors) = try host_tools.run("nm", arguments, directory)
-    if status != 0:
-        error(failed, "could not inspect native object link requirements")
-    discard(errors)
-    var at: usize = 0
-    while at < output.length:
-        var end = at
-        while end < output.length and output.bytes[end] != '\n':
-            end += 1
-        var start = at
-        for index in at..<end:
-            if output.bytes[index] == ' ' or output.bytes[index] == '\t':
-                start = index + 1
-        if platform.os == target.Os.macos and start < end and output.bytes[start] == '_':
-            start += 1
-        let symbol_end = end - 1 if end > start and output.bytes[end - 1] == '\r' else end
-        let symbol = (str)output.bytes[start..<symbol_end]
+    var needed = try list.List[str].create(256)
+    let program: c.str[2] = ["-u", object]
+    for entry in (try symbols(program, platform, directory)).span():
+        try needed.push(entry.symbol)
+    let members: c.str[2] = ["-A", archive]
+    try pull_members(&needed, (try symbols(members, platform, directory)).span())
+    for symbol in needed.span():
         for rule in native_link_table.rules:
             if rule.target == platform.name and rule.symbol == symbol:
                 if rule.framework:
                     try append_unique(&frameworks, rule.name)
                 else:
                     try append_unique(&libraries, rule.name)
-        at = end + 1
     return Requirements(libraries.span(), frameworks.span())
+
+## The members whose definitions the program needs, then the members those need, until
+## no new member is loaded: what each loaded member needs joins `needed`.
+func pull_members(needed: list.List[str]*, entries: const Entry[]) -> !:
+    var pulled = try list.List[str].create(32)
+    var progress = true
+    while progress:
+        progress = false
+        for entry in entries:
+            if entry.undefined or contains(pulled.span(), entry.member) or not contains(needed.span(), entry.symbol):
+                continue
+            try pulled.push(entry.member)
+            progress = true
+            for need in entries:
+                if need.undefined and need.member == entry.member and not contains(needed.span(), need.symbol):
+                    try needed.push(need.symbol)
+
+func contains(names: const str[], name: str) -> bool:
+    for existing in names:
+        if existing == name:
+            return true
+    return false
+
+## `nm` over the arguments, one entry per line: `[archive:member:] [address] KIND name`;
+## a lowercase kind is local to its object and left out, `U` is undefined. Under `-u`,
+## Mach-O's `nm` prints the bare name of each undefined symbol.
+func symbols(arguments: const c.str[], platform: target.Target, directory: str) -> list.List[Entry]!:
+    let (status, output, errors) = try host_tools.run("nm", arguments, directory)
+    if status != 0:
+        error(failed, "could not inspect native object link requirements")
+    discard(errors)
+    var entries = try list.List[Entry].create(1024)
+    var at: usize = 0
+    while at < output.length:
+        var end = at
+        while end < output.length and output.bytes[end] != '\n':
+            end += 1
+        let line = (str)output.bytes[at..<(end - 1 if end > at and output.bytes[end - 1] == '\r' else end)]
+        if let entry = parse_line(line, platform):
+            try entries.push(entry)
+        at = end + 1
+    return entries
+
+func parse_line(line: str, platform: target.Target) -> Entry?:
+    var start = line.length
+    while start > 0 and line.bytes[start - 1] != ' ' and line.bytes[start - 1] != '\t':
+        start -= 1
+    if start == 0 and line.length > 0:
+        let bare = 1 if platform.os == target.Os.macos and line.bytes[0] == '_' else 0
+        return Entry(member = "", symbol = (str)line.bytes[bare..], undefined = true)
+    if start < 2 or line.bytes[start - 1] != ' ':
+        return none
+    let kind = line.bytes[start - 2]
+    if kind >= 'a' and kind <= 'z':
+        return none
+    var symbol_start = start
+    if platform.os == target.Os.macos and symbol_start < line.length and line.bytes[symbol_start] == '_':
+        symbol_start += 1
+    var member_end: usize = 0
+    var i: usize = 0
+    while i < start - 2:
+        if line.bytes[i] == ':' and i + 1 < line.length and line.bytes[i + 1] == ' ':
+            member_end = i
+        i += 1
+    var member_start: usize = 0
+    if member_end > 0:
+        var k = member_end
+        while k > 0 and line.bytes[k - 1] != ':':
+            k -= 1
+        member_start = k
+    return Entry(member = (str)line.bytes[member_start..<member_end], symbol = (str)line.bytes[symbol_start..], undefined = kind == 'U')
 
 func append_unique(values: list.List[c.str]*, name: c.str) -> !:
     for existing in values.span():
         if (str)existing == (str)name:
             return
     try values.push(name)
+
+test "nm lines name the member, the kind and the symbol":
+    let host = target.Target.host()
+    let plain = parse_line("0000000000000010 T _lb_core_4main", host) else trap("no entry")
+    assert(plain.member.length == 0 and not plain.undefined)
+    assert(plain.symbol == "lb_core_4main" if host.os == target.Os.macos else plain.symbol == "_lb_core_4main")
+    let member = parse_line("build/lib/libstd.a:core.o:                  U _malloc", host) else trap("no entry")
+    assert(member.member == "core.o" and member.undefined)
+    assert(parse_line("build/lib/libstd.a:core.o: 0000000000000010 t _local", host) == none)
+    assert(parse_line("", host) == none)
+    let bare = parse_line("_objc_msgSend", host) else trap("no entry")
+    assert(bare.undefined and bare.symbol == ("objc_msgSend" if host.os == target.Os.macos else "_objc_msgSend"))
+
+test "members are pulled transitively":
+    var needed = try list.List[str].create(8)
+    try needed.push("lb_io_5write")
+    let entries: Entry[6] = [
+        Entry(member = "io.o", symbol = "lb_io_5write", undefined = false),
+        Entry(member = "io.o", symbol = "lb_memory_4heap", undefined = true),
+        Entry(member = "memory.o", symbol = "lb_memory_4heap", undefined = false),
+        Entry(member = "memory.o", symbol = "malloc", undefined = true),
+        Entry(member = "net.o", symbol = "lb_net_4open", undefined = false),
+        Entry(member = "net.o", symbol = "connect", undefined = true)]
+    try pull_members(&needed, entries)
+    assert(needed.count == 3 and contains(needed.span(), "malloc") and not contains(needed.span(), "connect"))

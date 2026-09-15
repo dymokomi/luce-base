@@ -122,6 +122,7 @@ lb_luce_0init:
     .bss
     .globl lb_luce_file
     .type lb_luce_file, @object
+    .weak lb_luce_file
     .p2align 3
 lb_luce_file:
     .zero 16
@@ -129,6 +130,7 @@ lb_luce_file:
     .bss
     .globl lb_luce_line
     .type lb_luce_line, @object
+    .weak lb_luce_line
     .p2align 2
 lb_luce_line:
     .zero 4
@@ -136,6 +138,7 @@ lb_luce_line:
     .bss
     .globl lb_luce_function
     .type lb_luce_function, @object
+    .weak lb_luce_function
     .p2align 3
 lb_luce_function:
     .zero 16
@@ -143,6 +146,7 @@ lb_luce_function:
     .bss
     .globl lb_luce_location
     .type lb_luce_location, @object
+    .weak lb_luce_location
     .p2align 3
 lb_luce_location:
     .zero 40

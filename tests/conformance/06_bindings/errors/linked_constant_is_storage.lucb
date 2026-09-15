@@ -1,0 +1,5 @@
+# error: needs a constant expression
+linked let table: u8[4]
+let copy: u8[4] = table
+pub func main(arguments: str[]) -> i32:
+    return 0

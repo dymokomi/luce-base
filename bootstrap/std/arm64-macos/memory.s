@@ -38,6 +38,7 @@ L0_3:
 
     .p2align 2
     .globl _lb_memory_FixedBuffer_over
+    .no_dead_strip _lb_memory_FixedBuffer_over
 _lb_memory_FixedBuffer_over:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -89,6 +90,7 @@ L1_1:
 
     .p2align 2
     .globl _lb_memory_FixedBuffer_allocate
+    .no_dead_strip _lb_memory_FixedBuffer_allocate
 _lb_memory_FixedBuffer_allocate:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -368,6 +370,7 @@ L2_20:
 
     .p2align 2
     .globl _lb_memory_FixedBuffer_resize
+    .no_dead_strip _lb_memory_FixedBuffer_resize
 _lb_memory_FixedBuffer_resize:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -565,6 +568,7 @@ L3_25:
 
     .p2align 2
     .globl _lb_memory_FixedBuffer_release
+    .no_dead_strip _lb_memory_FixedBuffer_release
 _lb_memory_FixedBuffer_release:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -853,6 +857,7 @@ L5_18:
 
     .p2align 2
     .globl _lb_memory_CAllocator_allocate
+    .no_dead_strip _lb_memory_CAllocator_allocate
 _lb_memory_CAllocator_allocate:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -1123,6 +1128,7 @@ L6_22:
 
     .p2align 2
     .globl _lb_memory_CAllocator_resize
+    .no_dead_strip _lb_memory_CAllocator_resize
 _lb_memory_CAllocator_resize:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -1156,6 +1162,7 @@ L7_1:
 
     .p2align 2
     .globl _lb_memory_CAllocator_release
+    .no_dead_strip _lb_memory_CAllocator_release
 _lb_memory_CAllocator_release:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -1310,6 +1317,7 @@ L8_15:
 
     .p2align 2
     .globl _lb_memory_Arena_over
+    .no_dead_strip _lb_memory_Arena_over
 _lb_memory_Arena_over:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -1450,6 +1458,7 @@ L9_5:
 
     .p2align 2
     .globl _lb_memory_Arena_allocate
+    .no_dead_strip _lb_memory_Arena_allocate
 _lb_memory_Arena_allocate:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -1759,6 +1768,7 @@ L10_22:
 
     .p2align 2
     .globl _lb_memory_Arena_resize
+    .no_dead_strip _lb_memory_Arena_resize
 _lb_memory_Arena_resize:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -1964,6 +1974,7 @@ L11_25:
 
     .p2align 2
     .globl _lb_memory_Arena_release
+    .no_dead_strip _lb_memory_Arena_release
 _lb_memory_Arena_release:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -2020,6 +2031,7 @@ L12_3:
 
     .p2align 2
     .globl _lb_memory_Arena_6in_use
+    .no_dead_strip _lb_memory_Arena_6in_use
 _lb_memory_Arena_6in_use:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -2044,6 +2056,7 @@ L13_1:
 
     .p2align 2
     .globl _lb_memory_Arena_capacity
+    .no_dead_strip _lb_memory_Arena_capacity
 _lb_memory_Arena_capacity:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -2069,6 +2082,7 @@ L14_1:
 
     .p2align 2
     .globl _lb_memory_Arena_reset
+    .no_dead_strip _lb_memory_Arena_reset
 _lb_memory_Arena_reset:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -2086,6 +2100,7 @@ _lb_memory_Arena_reset:
 
     .p2align 2
     .globl _lb_memory_Arena_destroy
+    .no_dead_strip _lb_memory_Arena_destroy
 _lb_memory_Arena_destroy:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -2146,6 +2161,7 @@ L16_1:
 
     .p2align 2
     .globl _lb_memory_PageAllocator_allocate
+    .no_dead_strip _lb_memory_PageAllocator_allocate
 _lb_memory_PageAllocator_allocate:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -2535,6 +2551,7 @@ L17_29:
 
     .p2align 2
     .globl _lb_memory_PageAllocator_resize
+    .no_dead_strip _lb_memory_PageAllocator_resize
 _lb_memory_PageAllocator_resize:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -2568,6 +2585,7 @@ L18_1:
 
     .p2align 2
     .globl _lb_memory_PageAllocator_release
+    .no_dead_strip _lb_memory_PageAllocator_release
 _lb_memory_PageAllocator_release:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -2991,6 +3009,7 @@ _lb_memory_unlock:
 
     .p2align 2
     .globl _lb_memory_9note_site
+    .no_dead_strip _lb_memory_9note_site
 _lb_memory_9note_site:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -3165,6 +3184,7 @@ L23_3:
 
     .p2align 2
     .globl _lb_memory_16allocation_sites
+    .no_dead_strip _lb_memory_16allocation_sites
 _lb_memory_16allocation_sites:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -3231,6 +3251,7 @@ L24_6:
 
     .p2align 2
     .globl _lb_memory_startup
+    .no_dead_strip _lb_memory_startup
 _lb_memory_startup:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -3268,6 +3289,7 @@ _lb_memory_startup:
 
     .p2align 2
     .globl _lb_memory_set
+    .no_dead_strip _lb_memory_set
 _lb_memory_set:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -3315,6 +3337,7 @@ L26_3:
 
     .p2align 2
     .globl _lb_memory_grow
+    .no_dead_strip _lb_memory_grow
 _lb_memory_grow:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -3693,9 +3716,14 @@ _lb_vt_memory_CAllocator_Allocator:
     .quad _lb_memory_CAllocator_allocate
     .quad _lb_memory_CAllocator_resize
     .quad _lb_memory_CAllocator_release
+    .section __DATA,__data
+    .p2align 2
     .globl _lb_memory_17private_anonymous
-    .zerofill __DATA,__bss,_lb_memory_17private_anonymous,4,2
+    .weak_definition _lb_memory_17private_anonymous
+_lb_memory_17private_anonymous:
+    .zero 4
     .globl _lb_memory_diagnostic
+    .no_dead_strip _lb_memory_diagnostic
     .zerofill __DATA,__bss,_lb_memory_diagnostic,1,0
     .globl _lb_memory_sites
     .zerofill __DATA,__bss,_lb_memory_sites,10240,3
@@ -3711,10 +3739,20 @@ _lb_vt_memory_CAllocator_Allocator:
     .zerofill __DATA,__bss,_lb_memory_10held_pages,192,3
     .globl _lb_memory_9held_next
     .zerofill __DATA,__bss,_lb_memory_9held_next,8,3
+    .section __DATA,__data
+    .p2align 2
     .globl _lb_memory_exhausted
-    .zerofill __DATA,__bss,_lb_memory_exhausted,4,2
+    .weak_definition _lb_memory_exhausted
+    .no_dead_strip _lb_memory_exhausted
+_lb_memory_exhausted:
+    .zero 4
+    .section __DATA,__data
+    .p2align 2
     .globl _lb_memory_unset
-    .zerofill __DATA,__bss,_lb_memory_unset,4,2
+    .weak_definition _lb_memory_unset
+    .no_dead_strip _lb_memory_unset
+_lb_memory_unset:
+    .zero 4
     .globl _lb_memory_11c_allocator
     .zerofill __DATA,__bss,_lb_memory_11c_allocator,1,0
 
@@ -3729,5 +3767,7 @@ _lb_memory_allocator:
     .quad 0
     .quad _lb_memory_allocator$tlv$init
     .globl _lb_memory_heap
+    .no_dead_strip _lb_memory_heap
     .zerofill __DATA,__bss,_lb_memory_heap,16,3
 
+.subsections_via_symbols

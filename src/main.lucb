@@ -33,6 +33,7 @@ from support.arena import Arena
 import process
 import strings
 import sema.check
+import sema.prelude
 import sema.describe
 import back.declarations
 import support.buffer
@@ -43,7 +44,7 @@ import support.version
 import support.host_tools
 
 func usage(out: io.Writer) -> !:
-    try out.write("usage: luce-base lex FILE\n       luce-base parse FILE\n       luce-base check FILE\n       luce-base describe FILE\n       luce-base describe --standard MODULE\n       luce-base interface FILE [-o OUT]\n       luce-base std-build SRC_DIR OUT_DIR [--target NAME] [--cpu LEVEL] [--backend=c]\n       luce-base interface --standard MODULE\n       luce-base dependencies FILE\n       luce-base native-inputs FILE\n       luce-base resolve FILE SOURCE_ROOT MODULE [--base]\n       luce-base build FILE [-o OUT] [--release] [--emit=c] [--backend=c] [--native] [--debug] [--emit=asm] [--emit=ir] [--lib] [--freestanding] [--target] [--profile diagnostic] [-W] [-lNAME] [-LDIR] [-framework NAME]\n       luce-base test FILE [--backend=c] [--native]\n       luce-base --version\n")
+    try out.write("usage: luce-base lex FILE\n       luce-base parse FILE\n       luce-base check FILE\n       luce-base describe FILE\n       luce-base describe --standard MODULE\n       luce-base interface FILE [-o OUT]\n       luce-base std-build SRC_DIR OUT_DIR [--target NAME] [--cpu LEVEL] [--backend=c]\n       luce-base std-interface SRC_DIR OUT\n       luce-base interface --standard MODULE\n       luce-base dependencies FILE\n       luce-base native-inputs FILE\n       luce-base resolve FILE SOURCE_ROOT MODULE [--base]\n       luce-base build FILE [-o OUT] [--release] [--emit=c] [--backend=c] [--native] [--debug] [--emit=asm] [--emit=ir] [--lib] [--freestanding] [--target] [--profile diagnostic] [-W] [-lNAME] [-LDIR] [-framework NAME]\n       luce-base test FILE [--backend=c] [--native]\n       luce-base --version\n")
 
 # mark: Building ===============================================================================
 
@@ -71,6 +72,8 @@ struct Options:
     var library_dirs: list.List[c.str]
     ## `-framework NAME`: an Apple framework to link.
     var frameworks: list.List[c.str]
+    ## `--std-dir DIR`: where the standard library's archives are (§16.6).
+    var std_dir: str
 
 ## Element `k` of a link-flag list; an empty slot reads as empty text. A `c.str` has no zero
 ## value (§6.1), so the lists hold `c.str?`.
@@ -346,6 +349,9 @@ var package: manifest.Manifest
 var link_libraries: c.str[]
 var link_directories: c.str[]
 var link_frameworks: c.str[]
+## `--std-dir`: where the standard library's archives are; empty for the search of
+## `std_directory`.
+var std_directory_name: str = ""
 
 var scratch_bytes: u8[4096]
 ## The mode the last `generate` settled on: 2 means an `answer()` program that links `start.c`.
@@ -358,6 +364,37 @@ func scratch_of() -> u8[]:
 ## host assembler and linker, C through the host C compiler.
 func scratch_directory() -> str!:
     return try files.create_temporary_directory(".", 448u32)
+
+## The directory of the standard library's archives (§16.6): `--std-dir`, else `LUCE_STD`,
+## else `lib/luce-base/<target>` beside the compiler's executable or beside its `bin`.
+func std_directory() -> str!:
+    if std_directory_name.length > 0:
+        return std_directory_name
+    if let chosen = os.env("LUCE_STD"):
+        return chosen
+    let exe = try files.canonical((c.str)try os.executable())
+    let home = paths.directory(exe)
+    let target = build_target().name
+    let beside = try alloc u8[home.length + target.length + 32]
+    let first = try format(beside, f"{home}/lib/luce-base/{target}")
+    if files.exists((c.str)first):
+        return first
+    let above = try alloc u8[home.length + target.length + 32]
+    let second = try format(above, f"{paths.directory(home)}/lib/luce-base/{target}")
+    if files.exists((c.str)second):
+        return second
+    try io.stderr().write(f"luce-base: no standard library at {first}; build it with `luce-base std-build`, or name its directory with --std-dir or LUCE_STD\n")
+    error(build_failed, "the standard library is not installed beside the compiler")
+
+## The archive every program links (§16.6): the native backend's, or the C backend's.
+func std_archive() -> str!:
+    let directory = try std_directory()
+    let room = try alloc u8[directory.length + 16]
+    let path = try format(room, f"{directory}/libstd.a" if native_backend else f"{directory}/libstd-c.a")
+    if not files.exists((c.str)path):
+        try io.stderr().write(f"luce-base: no standard library archive at {path}; build it with `luce-base std-build`\n")
+        error(build_failed, "the standard library archive is missing")
+    return path
 
 func host_c_compiler() -> c.str:
     if let selected = os.env("CC"):
@@ -404,13 +441,15 @@ func compile(text: str, requested_exe: str, release: bool, with_start: bool) -> 
     try cc_args.add((c.str)runtime_path)
     if with_start:
         try cc_args.add((c.str)start_path)
+    let archive = try std_archive()
+    try cc_args.add((c.str)archive)
     try cc_args.add("-lm")
     try cc_args.add("-pthread")
     if platform.windows:
         try cc_args.add("-lsynchronization")
     try cc_args.add("-o")
     try cc_args.add((c.str)linked_exe)
-    try automatic_links(&cc_args, (c.str)object_path, dir)
+    try automatic_links(&cc_args, (c.str)object_path, (c.str)archive, dir)
     # the manifest's C sources, under the package root (§17.4), and what it links
     for file in package.sources:
         try cc_args.add(file)
@@ -451,8 +490,8 @@ func c_arguments(release: bool) -> Arguments!:
         try arguments.add(flag)
     return arguments
 
-func automatic_links(arguments: Arguments*, object: c.str, directory: str) -> !:
-    let required = try native_links.collect(object, build_target(), directory)
+func automatic_links(arguments: Arguments*, object: c.str, archive: c.str, directory: str) -> !:
+    let required = try native_links.collect(object, archive, build_target(), directory)
     for library in required.libraries:
         if platform.windows and (str)library == "vulkan-1":
             if let sdk = os.env("VULKAN_SDK"):
@@ -519,7 +558,9 @@ func assemble_and_link(dir: str, name_bytes: u8[], text: str, exe: str) -> !:
     try ld_args.add("-o")
     try ld_args.add((c.str)exe)
     try ld_args.add((c.str)object_path)
-    try automatic_links(&ld_args, (c.str)object_path, dir)
+    let archive = try std_archive()
+    try ld_args.add((c.str)archive)
+    try automatic_links(&ld_args, (c.str)object_path, (c.str)archive, dir)
     for library in t.system_libraries:
         try ld_args.add((c.str)library)
     if freestanding:
@@ -575,7 +616,9 @@ func link_with_driver(dir: str, object_path: str, exe: str, t: targets.Target) -
     for name in package.pkg_config:
         try pkg_config_flags(&cc_args, name, "--libs", false)
     try link_flags(&cc_args, false)
-    try automatic_links(&cc_args, (c.str)object_path, dir)
+    let archive = try std_archive()
+    try cc_args.add((c.str)archive)
+    try automatic_links(&cc_args, (c.str)object_path, (c.str)archive, dir)
     for library in t.system_libraries:
         try cc_args.add((c.str)library)
     try run_tool("cc", cc_args.span(), "the linker rejected the generated code", dir)
@@ -592,6 +635,7 @@ func build_file(path: c.str, options: Options) -> !:
         link_libraries = options.libraries.span()
         link_directories = options.library_dirs.span()
         link_frameworks = options.frameworks.span()
+        std_directory_name = options.std_dir
         cpu_level_name = options.cpu
         if options.target.length > 0:
             let chosen = targets.Target.named(options.target) else return try unknown_target()
@@ -693,8 +737,12 @@ func build_library(code: str, header_text: str, name: str) -> !:
         try files.write((c.str)asm_path, code.bytes)
         var as_args: c.str[3] = ["-o", (c.str)object_path, (c.str)asm_path]
         try run_tool("as", as_args, "the assembler rejected the generated code", dir)
-        var ar_args: c.str[3] = ["rcs", (c.str)archive, (c.str)object_path]
-        try run_tool("ar", ar_args, "the archiver failed", dir)
+        var ar_args = try Arguments.create()
+        try ar_args.add("rcs")
+        try ar_args.add((c.str)archive)
+        try ar_args.add((c.str)object_path)
+        try bundle_std(dir, &ar_args)
+        try run_tool("ar", ar_args.span(), "the archiver failed", dir)
     else:
         let gen_path = try format(names_bytes[512..<1024], f"{dir}/gen.c")
         let rt_header = try format(names_bytes[1024..<1536], f"{dir}/lucb_rt.h")
@@ -719,11 +767,28 @@ func build_library(code: str, header_text: str, name: str) -> !:
         try run_tool("cc", gen_args.span(), "the C compiler rejected the generated code", dir)
         var rt_args: c.str[10] = ["-std=gnu11", "-Wall", "-Werror", "-fno-strict-aliasing", "-O2", (c.str)include, "-c", (c.str)rt_source, "-o", (c.str)rt_object]
         try run_tool("cc", rt_args, "the C compiler rejected the runtime", dir)
-        var ar_args: c.str[4] = ["rcs", (c.str)archive, (c.str)object_path, (c.str)rt_object]
-        try run_tool("ar", ar_args, "the archiver failed", dir)
+        var ar_args = try Arguments.create()
+        try ar_args.add("rcs")
+        try ar_args.add((c.str)archive)
+        try ar_args.add((c.str)object_path)
+        try ar_args.add((c.str)rt_object)
+        try bundle_std(dir, &ar_args)
+        try run_tool("ar", ar_args.span(), "the archiver failed", dir)
     try workspace.publish(archive, destination)
     try files.write((c.str)header_path, header_text.bytes)
     try workspace.close()
+
+## A library carries the standard library's members, so its C user links it alone: the
+## archive's objects, extracted into the workspace, join the library's own.
+func bundle_std(dir: str, ar_args: Arguments*) -> !:
+    let archive = try std_archive()
+    var extract: c.str[2] = ["x", (c.str)archive]
+    try run_tool("ar", extract, "the archiver could not extract the standard library", dir)
+    for entry in try files.list((c.str)try strings.copy(dir)):
+        let object = entry.length > 2 and (str)entry.bytes[entry.length - 2..] == ".o"
+        if object and entry != "gen.o" and entry != "rt.o":
+            let room = try alloc u8[dir.length + entry.length + 2]
+            try ar_args.add((c.str)try format(room, f"{dir}/{entry}"))
 
 ## Run a build tool; its standard error is shown when it fails.
 func run_tool(program: c.str, arguments: c.str[], what: str, directory: str = "") -> !:
@@ -827,11 +892,6 @@ func std_build(source_dir: str, out_dir: str) -> !:
         try checker.add_prelude_from(source_dir)
         try checker.check_program()
         try ensure_path(out_dir)
-        if std_emit_only and not native_backend:
-            var c_bytes: u8[600]
-            let whole = try translate_member(&checker, checker.modules.get(0).tree, "")
-            try files.write((c.str)try format(c_bytes, f"{out_dir}/std.c"), whole.bytes)
-            return
         var objects = try Arguments.create()
         try objects.add("rcs")
         var archive_bytes: u8[600]
@@ -843,11 +903,128 @@ func std_build(source_dir: str, out_dir: str) -> !:
         var i: usize = 0
         while i < checker.modules.count:
             let m = checker.modules.get(i)
-            let text = try translate_member(&checker, m.tree, m.name)
-            try objects.add((c.str)try build_member(out_dir, m.name, text))
+            if m.src.segment_count == 0:
+                let text = try translate_member(&checker, m.tree, m.name, "", "")
+                try objects.add((c.str)try build_member(out_dir, m.name, text))
+            else:
+                # a module of fragments is one member per fragment, so a program loads only
+                # the files it reaches: `gpu-metal-device` for `gpu/metal/device.lucb`
+                let fragments = m.src.segment_paths else error(build_failed, "an assembled module names its fragments")
+                var k: usize = 0
+                while k < m.src.segment_count:
+                    let piece = try member_piece(source_dir, m.name, fragments[k])
+                    let text = try translate_member(&checker, m.tree, m.name, fragments[k], piece)
+                    let member = try alloc u8[m.name.length + piece.length + 2]
+                    try objects.add((c.str)try build_member(out_dir, try format(member, f"{m.name}-{piece}"), text))
+                    k += 1
             i += 1
         if not std_emit_only:
             try run_tool("ar", objects.span(), "the archiver failed", out_dir)
+
+## A fragment's name within its module: `SRC/gpu/metal/device.lucb` is `metal-device`.
+func member_piece(source_dir: str, module: str, fragment: str) -> str!:
+    let prefix = source_dir.length + module.length + 2
+    var name = fragment
+    if fragment.length > prefix:
+        name = (str)fragment.bytes[prefix..]
+    if name.length > 5 and (str)name.bytes[name.length - 5..] == ".lucb":
+        name = (str)name.bytes[..<name.length - 5]
+    let copy = try alloc u8[name.length]
+    for k in 0..<name.length:
+        copy[k] = '-' if name.bytes[k] == '/' else name.bytes[k]
+    return (str)copy
+
+## `std-interface SRC OUT`: the standard library's interfaces (§9.8) as `sema.prelude`, the
+## module the compiler carries: each standard module's declarations with `linked` for what
+## the library's archive defines, so a program is checked against the library and linked
+## with it, never compiled with it. `platform` stays the placeholder the checker replaces.
+func std_interface(source_dir: str, out_path: str) -> !:
+    var arena = Arena(memory.heap)
+    defer arena.destroy()
+    with arena:
+        var checker = try check.Checker.create(scratch_of())
+        checker.build_target = build_target()
+        try checker.add_prelude_from(source_dir)
+        try checker.check_program()
+        var text = try buffer.Buffer.create(1048576)
+        try text.put(prelude_header)
+        var count_bytes: u8[64]
+        try text.put(try format(count_bytes, f"pub let modules: Prelude[{checker.modules.count}] = [\n"))
+        var i: usize = 0
+        while i < checker.modules.count:
+            let m = checker.modules.get(i)
+            try text.put("    Prelude(name = \"")
+            try text.put(m.name)
+            try text.put("\", text = ")
+            if m.name == "platform":
+                var path_bytes: u8[600]
+                let placeholder = try files.read((c.str)try format(path_bytes, f"{source_dir}/platform.lucb"))
+                try put_literal(&text, (str)placeholder)
+            else:
+                var member = try buffer.Buffer.create(65536)
+                try declarations.write(&member, m, &checker.table)
+                try put_literal(&text, member.view())
+            try text.put("),\n")
+            i += 1
+        try text.put("]\n")
+        try files.write((c.str)try strings.copy(out_path), text.bytes())
+
+## `text` as a Base string literal (§4.3): the escapes for the quote, the backslash, and
+## the control bytes; every other byte, UTF-8 included, as it is.
+func put_literal(out: buffer.Buffer*, text: str) -> !:
+    try out.put_byte('"')
+    for byte in text.bytes:
+        if byte == '\\':
+            try out.put("\\\\")
+        elif byte == '"':
+            try out.put("\\\"")
+        elif byte == '\n':
+            try out.put("\\n")
+        elif byte == '\r':
+            try out.put("\\r")
+        elif byte == '\t':
+            try out.put("\\t")
+        elif byte == 0:
+            try out.put("\\0")
+        elif byte < 32 or byte == 127:
+            let digits = "0123456789abcdef"
+            try out.put("\\u{")
+            if byte >= 16:
+                try out.put_byte(digits.bytes[(usize)(byte >> 4)])
+            try out.put_byte(digits.bytes[(usize)(byte & 15)])
+            try out.put("}")
+        else:
+            try out.put_byte(byte)
+    try out.put_byte('"')
+
+test "a Base literal escapes what the lexer would misread":
+    var out = try buffer.Buffer.create(64)
+    try put_literal(&out, "a\"b\\c\n\t\r\0\u{1}\u{7f}é")
+    assert(out.view() == "\"a\\\"b\\\\c\\n\\t\\r\\0\\u{1}\\u{7f}é\"")
+
+let prelude_header: str = """#==============================================================================================
+#
+#   prelude - The standard library's interfaces, as Base declarations
+#
+#   DESCRIPTION:
+#       Generated by `luce-base std-interface src/std src/sema/prelude.lucb`; edit the
+#       library under src/std/, not this file. Each module below is the interface (§9.8) of
+#       a standard module (§16.6): its types, constants, generic bodies, and `linked`
+#       signatures for the functions and globals the library's archive defines. The
+#       checker binds these before a program's own modules, so `memory`, `io`, `files`
+#       and the rest are ordinary modules whose code is compiled once, into
+#       lib/luce-base/<target>/libstd.a beside the compiler, and linked with every
+#       program. `platform` is the placeholder the checker replaces with the target's
+#       facts (§19.5).
+#
+#==============================================================================================
+
+pub struct Prelude:
+    pub var name: str
+    pub var text: str
+
+## The modules in binding order (src/std/ORDER).
+"""
 
 ## Every directory of `path`, created in turn where it is missing.
 func ensure_path(path: str) -> !:
@@ -861,18 +1038,30 @@ func ensure_path(path: str) -> !:
         i += 1
 
 ## The text of one library member: the backend over the checked standard library with
-## `only_module` set, in mode 5.
-func translate_member(checker: check.Checker*, tree: ast.Node*, module: str) -> str!:
+## `only_module` set, and `fragment` when the member is one file of it, in mode 5.
+func translate_member(checker: check.Checker*, tree: ast.Node*, module: str, fragment: str, piece: str) -> str!:
+    let member = try symbol_piece(piece)
     if native_backend:
         var native = try backend.NativeBackend.over(checker, tree, false, false)
         native.only_module = module
+        native.only_fragment = fragment
+        native.member_name = member
         native.opt_level = opt_level
         let target: backend.Backend = &native
         return try target.compile(5)
     var host_c = try backend.CBackend.over(checker, tree, false)
     host_c.only_module = module
+    host_c.only_fragment = fragment
+    host_c.member_name = member
     let target: backend.Backend = &host_c
     return try target.compile(5)
+
+## A member's name as a symbol piece: `metal-device` is `metal_device`.
+func symbol_piece(piece: str) -> str!:
+    let copy = try alloc u8[piece.length]
+    for k in 0..<piece.length:
+        copy[k] = '_' if piece.bytes[k] == '-' else piece.bytes[k]
+    return (str)copy
 
 ## One member of the archive, assembled or compiled to `OUT/<module>.o`, whose path is
 ## answered in the current allocator.
@@ -890,6 +1079,8 @@ func build_member(out_dir: str, module: str, text: str) -> str!:
         return object_path
     let c_path = try format(source_bytes, f"{out_dir}/{module}.c")
     try files.write((c.str)c_path, text.bytes)
+    if std_emit_only:
+        return object_path
     var include_bytes: u8[600]
     let include = try format(include_bytes, f"-I{out_dir}")
     var cc_args = try Arguments.create()
@@ -918,7 +1109,7 @@ func interface_file(path: c.str, output: str, out: io.Writer) -> !:
         try checker.load(path)
         try checker.check_program()
         var text = try buffer.Buffer.create(65536)
-        try declarations.write(&text, checker.modules.get(checker.modules.count - 1))
+        try declarations.write(&text, checker.modules.get(checker.modules.count - 1), &checker.table)
         if output.length > 0:
             try files.write((c.str)output, text.bytes())
         else:
@@ -936,7 +1127,7 @@ func interface_standard(name: str, out: io.Writer) -> !:
         let index = checker.find_module(name) else error(build_failed, "unknown standard module")
         try checker.check_program()
         var text = try buffer.Buffer.create(65536)
-        try declarations.write(&text, checker.modules.get(index))
+        try declarations.write(&text, checker.modules.get(index), &checker.table)
         try out.write(text.view())
 
 ## Describe the compiler's canonical embedded module, without copying it into a
@@ -1071,6 +1262,7 @@ pub func main(arguments: c.str[]) -> i32!:
         options.library_dirs = try list.List[c.str].create(4)
         options.frameworks = try list.List[c.str].create(4)
         options.output = ""
+        options.std_dir = ""
         options.release = false
         options.emit_c = false
         options.run_tests = false
@@ -1153,6 +1345,9 @@ pub func main(arguments: c.str[]) -> i32!:
             elif a == "-framework" and i + 1 < arguments.length:
                 try options.frameworks.push(arguments[i + 1])
                 i += 1
+            elif a == "--std-dir" and i + 1 < arguments.length:
+                options.std_dir = (str)arguments[i + 1]
+                i += 1
             else:
                 try io.stderr().write(f"luce-base: unexpected argument `{a}`\n")
                 return 2
@@ -1225,6 +1420,11 @@ pub func main(arguments: c.str[]) -> i32!:
                 return 2
             i += 1
         std_build((str)arguments[2], (str)arguments[3]) catch failure:
+            try io.stderr().write(f"luce-base: {failure.message}\n")
+            return 1
+        return 0
+    if command == "std-interface" and positional == 4:
+        std_interface((str)arguments[2], (str)arguments[3]) catch failure:
             try io.stderr().write(f"luce-base: {failure.message}\n")
             return 1
         return 0

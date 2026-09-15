@@ -206,9 +206,12 @@ pub func vtable_name(out: buffer.Buffer*, table: types.Table*, record: u32, ifac
 
 ## The symbol of a module's initialiser, `lb_<module>_0init`, which a library member
 ## defines for its globals and a program calls for each standard module it links.
-pub func init_name(out: buffer.Buffer*, module: str) -> !:
+pub func init_name(out: buffer.Buffer*, module: str, member: str) -> !:
     try out.put("lb_")
     try put_piece(out, symbol_part(module))
+    if member.length > 0:
+        try out.put("_")
+        try put_piece(out, member)
     try out.put("_0init")
 
 ## The symbol of the `index`th test.

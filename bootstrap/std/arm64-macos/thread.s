@@ -25,6 +25,7 @@ _lb_thread_0init:
 
     .p2align 2
     .globl _lb_thread_Handle_join
+    .no_dead_strip _lb_thread_Handle_join
 _lb_thread_Handle_join:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -139,6 +140,7 @@ L1_7:
 
     .p2align 2
     .globl _lb_thread_Handle_detach
+    .no_dead_strip _lb_thread_Handle_detach
 _lb_thread_Handle_detach:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -320,6 +322,7 @@ L3_10:
 
     .p2align 2
     .globl _lb_thread_spawn
+    .no_dead_strip _lb_thread_spawn
 _lb_thread_spawn:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -1155,6 +1158,7 @@ L4_62:
 
     .p2align 2
     .globl _lb_thread_current
+    .no_dead_strip _lb_thread_current
 _lb_thread_current:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -1197,6 +1201,7 @@ L5_3:
 
     .p2align 2
     .globl _lb_thread_7is_main
+    .no_dead_strip _lb_thread_7is_main
 _lb_thread_7is_main:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -1224,6 +1229,7 @@ L6_1:
 
     .p2align 2
     .globl _lb_thread_pause
+    .no_dead_strip _lb_thread_pause
 _lb_thread_pause:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -1236,6 +1242,7 @@ yield
 
     .p2align 2
     .globl _lb_thread_yield
+    .no_dead_strip _lb_thread_yield
 _lb_thread_yield:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -1248,6 +1255,7 @@ _lb_thread_yield:
 
     .p2align 2
     .globl _lb_thread_sleep
+    .no_dead_strip _lb_thread_sleep
 _lb_thread_sleep:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -1349,72 +1357,6 @@ L9_7:
     ret
 
     .p2align 2
-    .globl _lb_thread_13sleep_windows
-_lb_thread_13sleep_windows:
-    stp x29, x30, [sp, #-16]!
-    mov x29, sp
-    sub sp, sp, #64
-    str x19, [sp, #40]
-    str x20, [sp, #32]
-    str x21, [sp, #24]
-    sub x16, x29, #56
-    str x0, [x16]
-    sub x14, x29, #56
-    ldr x19, [x14]
-    mov x10, #0
-    cmp x19, x10
-    b.ne L10_2
-L10_1:
-    mov x0, #0
-    bl _Sleep
-    ldr x19, [sp, #40]
-    ldr x20, [sp, #32]
-    ldr x21, [sp, #24]
-    mov sp, x29
-    ldp x29, x30, [sp], #16
-    ret
-L10_2:
-L10_3:
-    bl _lb_time_now
-    mov x20, x0
-    mov x9, #0
-    mov x14, x9
-L10_5:
-    cmp x14, x19
-    b.hs L10_7
-L10_6:
-    sub x15, x19, x14
-    movz x10, #65534
-    movk x10, #65535, lsl #16
-    cmp x15, x10
-    b.hs L10_9
-L10_8:
-    mov x14, x15
-    b L10_10
-L10_9:
-    movz x9, #65534
-    movk x9, #65535, lsl #16
-    mov x14, x9
-L10_10:
-    mov x0, x14
-    bl _Sleep
-    mov x0, x20
-    bl _lb_time_since
-    mov x15, x0
-L10_12:
-    movz x10, #16960
-    movk x10, #15, lsl #16
-    udiv x14, x15, x10
-    b L10_5
-L10_7:
-    ldr x19, [sp, #40]
-    ldr x20, [sp, #32]
-    ldr x21, [sp, #24]
-    mov sp, x29
-    ldp x29, x30, [sp], #16
-    ret
-
-    .p2align 2
     .globl _lb_memory_copy_0g1_u8
     .weak_definition _lb_memory_copy_0g1_u8
 _lb_memory_copy_0g1_u8:
@@ -1438,22 +1380,22 @@ _lb_memory_copy_0g1_u8:
     ldr x14, [x14]
     cmp x19, x14
     cset w14, hi
-    cbnz w14, L11_11
-    b L11_4
-L11_11:
+    cbnz w14, L10_11
+    b L10_4
+L10_11:
     mov w15, w14
-    b L11_5
-L11_4:
+    b L10_5
+L10_4:
     sub x14, x29, #64
     add x14, x14, #8
     ldr x14, [x14]
     cmp x19, x14
     cset w15, hi
-L11_5:
+L10_5:
     and w14, w15, #255
-    cbnz w14, L11_1
-    b L11_2
-L11_1:
+    cbnz w14, L10_1
+    b L10_2
+L10_1:
     adrp x14, l_text_5@PAGE
     add x14, x14, l_text_5@PAGEOFF
     sub x15, x29, #96
@@ -1468,13 +1410,13 @@ L11_1:
     ldr x1, [x9]
     ldr x2, [x9, #8]
     bl _lb_core_12trap_text_at
-    b L11_3
-L11_2:
-L11_3:
+    b L10_3
+L10_2:
+L10_3:
     mov x10, #0
     cmp x19, x10
-    b.ls L11_7
-L11_6:
+    b.ls L10_7
+L10_6:
     ldr x14, [x20]
     sub x15, x29, #64
     ldr x15, [x15]
@@ -1483,18 +1425,18 @@ L11_6:
     mov x2, x19
     bl _memcpy
     mov x14, x0
-    cbnz x14, L11_9
-    b L11_10
-L11_10:
+    cbnz x14, L10_9
+    b L10_10
+L10_10:
     adrp x0, l_text_38@PAGE
     add x0, x0, l_text_38@PAGEOFF
     adrp x1, l_text_29@PAGE
     add x1, x1, l_text_29@PAGEOFF
     bl _lb_core_7trap_at
-L11_9:
-    b L11_8
-L11_7:
-L11_8:
+L10_9:
+    b L10_8
+L10_7:
+L10_8:
     ldr x19, [sp, #72]
     ldr x20, [sp, #64]
     mov sp, x29
@@ -1589,10 +1531,24 @@ l_text_39:
 
     .section __DATA,__const
     .p2align 3
+    .section __DATA,__data
+    .p2align 2
     .globl _lb_thread_failed
-    .zerofill __DATA,__bss,_lb_thread_failed,4,2
+    .weak_definition _lb_thread_failed
+    .no_dead_strip _lb_thread_failed
+_lb_thread_failed:
+    .zero 4
+    .section __DATA,__data
+    .p2align 3
     .globl _lb_thread_11least_stack
-    .zerofill __DATA,__bss,_lb_thread_11least_stack,8,3
+    .weak_definition _lb_thread_11least_stack
+_lb_thread_11least_stack:
+    .zero 8
+    .section __DATA,__data
+    .p2align 3
     .globl _lb_thread_9name_room
-    .zerofill __DATA,__bss,_lb_thread_9name_room,8,3
+    .weak_definition _lb_thread_9name_room
+_lb_thread_9name_room:
+    .zero 8
 
+.subsections_via_symbols

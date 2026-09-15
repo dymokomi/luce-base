@@ -1,3 +1,337 @@
+    .weak lb_platform_name
+    .weak lb_platform_macos
+    .weak lb_platform_linux
+    .weak lb_platform_windows
+    .weak lb_platform_posix
+    .weak lb_platform_arm64
+    .weak lb_platform_6x86_64
+    .weak lb_platform_12pointer_bits
+    .weak lb_platform_9cpu_level
+    .weak lb_c_interrupted
+    .weak lb_11windows_abi_9utf8_page
+    .weak lb_11windows_abi_19reject_invalid_utf8
+    .weak lb_11windows_abi_20reject_invalid_utf16
+    .weak lb_memory_17private_anonymous
+    .weak lb_memory_exhausted
+    .weak lb_memory_unset
+    .weak lb_os_failed
+    .weak lb_os_arm64
+    .weak lb_os_6x86_64
+    .weak lb_os_macos
+    .weak lb_os_linux
+    .weak lb_os_windows
+    .weak lb_os_posix
+    .weak lb_os_12pointer_bits
+    .weak lb_os_name
+    .weak lb_os_9cpu_level
+    .weak lb_os_17processors_online
+    .weak lb_io_14unexpected_eof
+    .weak lb_io_11no_progress
+    .weak lb_io_13invalid_count
+    .weak lb_io_14invalid_buffer
+    .weak lb_io_closed
+    .weak lb_io_failed
+    .weak lb_io_11would_block
+    .weak lb_io_full
+    .weak lb_io_14io_path_failed
+    .weak lb_luce_file
+    .weak lb_luce_line
+    .weak lb_luce_function
+    .weak lb_luce_location
+    .weak lb_time_monotonic
+    .weak lb_time_realtime
+    .weak lb_thread_failed
+    .weak lb_thread_11least_stack
+    .weak lb_thread_9name_room
+    .weak lb_sync_16compare_and_wait
+    .weak lb_sync_8wake_all
+    .weak lb_sync_12futex_number
+    .weak lb_sync_18futex_wait_private
+    .weak lb_sync_18futex_wake_private
+    .weak lb_ownership_black
+    .weak lb_ownership_gray
+    .weak lb_ownership_white
+    .weak lb_ownership_purple
+    .weak lb_ownership_10color_mask
+    .weak lb_ownership_buffered
+    .weak lb_ownership_dead
+    .weak lb_ownership_collecting
+    .weak lb_ownership_immortal
+    .weak lb_ownership_15candidate_limit
+    .weak lb_utf8_16invalid_sequence
+    .weak lb_utf8_19incomplete_sequence
+    .weak lb_strings_17invalid_separator
+    .weak lb_strings_16output_too_large
+    .weak lb_strings_13invalid_radix
+    .weak lb_strings_14invalid_number
+    .weak lb_strings_19number_out_of_range
+    .weak lb_strings_17conversion_failed
+    .weak lb_unicode_version
+    .weak lb_unicode_18canonical_mappings
+    .weak lb_unicode_22compatibility_mappings
+    .weak lb_unicode_14upper_mappings
+    .weak lb_unicode_14lower_mappings
+    .weak lb_unicode_13fold_mappings
+    .weak lb_unicode_15turkic_mappings
+    .weak lb_unicode_15mapping_scalars
+    .weak lb_unicode_20composition_mappings
+    .weak lb_unicode_16combining_ranges
+    .weak lb_unicode_12cased_ranges
+    .weak lb_unicode_21case_ignorable_ranges
+    .weak lb_unicode_17whitespace_ranges
+    .weak lb_unicode_15grapheme_ranges
+    .weak lb_unicode_19pictographic_ranges
+    .weak lb_unicode_12indic_ranges
+    .weak lb_math_pi
+    .weak lb_math_tau
+    .weak lb_math_e
+    .weak lb_math_infinity
+    .weak lb_math_nan
+    .weak lb_math_9sign_mask
+    .weak lb_math_14magnitude_mask
+    .weak lb_math_13exponent_mask
+    .weak lb_math32_pi
+    .weak lb_math32_tau
+    .weak lb_math32_e
+    .weak lb_math32_infinity
+    .weak lb_math32_nan
+    .weak lb_math32_9sign_mask
+    .weak lb_math32_14magnitude_mask
+    .weak lb_math32_13exponent_mask
+    .weak lb_net_inet
+    .weak lb_net_inet6
+    .weak lb_net_stream
+    .weak lb_net_datagram
+    .weak lb_net_20socket_close_on_exec
+    .weak lb_net_20get_descriptor_flags
+    .weak lb_net_20set_descriptor_flags
+    .weak lb_net_24descriptor_close_on_exec
+    .weak lb_net_12socket_level
+    .weak lb_net_20reuse_address_option
+    .weak lb_net_10ipv6_level
+    .weak lb_net_16ipv6_only_option
+    .weak lb_net_17no_sigpipe_option
+    .weak lb_net_10send_flags
+    .weak lb_net_18socket_interrupted
+    .weak lb_net_failed
+    .weak lb_net_closed
+    .weak lb_net_12unknown_host
+    .weak lb_net_15invalid_options
+    .weak lb_net_17message_too_large
+    .weak lb_net_cancelled
+    .weak lb_net_9timed_out
+    .weak lb_net_18connection_refused
+    .weak lb_net_19network_unreachable
+    .weak lb_net_14address_in_use
+    .weak lb_net_19address_unavailable
+    .weak lb_net_17permission_denied
+    .weak lb_net_18resource_exhausted
+    .weak lb_net_18connection_aborted
+    .weak lb_net_unsupported
+    .weak lb_net_20resolution_temporary
+    .weak lb_net_14transfer_limit
+    .weak lb_net_16nonblocking_flag
+    .weak lb_net_21receive_buffer_option
+    .weak lb_net_18send_buffer_option
+    .weak lb_net_16keepalive_option
+    .weak lb_net_14dont_wait_flag
+    .weak lb_net_12http_invalid
+    .weak lb_net_10http_limit
+    .weak lb_net_16http_unsupported
+    .weak lb_net_17websocket_invalid
+    .weak lb_net_15websocket_limit
+    .weak lb_net_18websocket_alphabet
+    .weak lb_net_14websocket_guid
+    .weak lb_interop_invalid
+    .weak lb_interop_12wrong_thread
+    .weak lb_interop_expired
+    .weak lb_interop_8no_error
+    .weak lb_interop_15connection_type
+    .weak lb_interop_13text_transfer
+    .weak lb_interop_14bytes_transfer
+    .weak lb_interop_13worker_closed
+    .weak lb_interop_11worker_busy
+    .weak lb_files_10write_only
+    .weak lb_files_create
+    .weak lb_files_truncate
+    .weak lb_files_13close_on_exec
+    .weak lb_files_11append_flag
+    .weak lb_files_14exclusive_flag
+    .weak lb_files_17would_block_errno
+    .weak lb_files_14transfer_limit
+    .weak lb_files_20current_directory_fd
+    .weak lb_files_14directory_flag
+    .weak lb_files_14no_follow_flag
+    .weak lb_files_17at_no_follow_flag
+    .weak lb_files_missing
+    .weak lb_files_17permission_denied
+    .weak lb_files_14already_exists
+    .weak lb_files_8no_space
+    .weak lb_files_11would_block
+    .weak lb_files_15invalid_options
+    .weak lb_files_9too_large
+    .weak lb_files_13not_directory
+    .weak lb_files_12is_directory
+    .weak lb_files_20read_only_filesystem
+    .weak lb_files_9not_empty
+    .weak lb_files_12cross_device
+    .weak lb_files_12symlink_loop
+    .weak lb_files_13name_too_long
+    .weak lb_files_failed
+    .weak lb_files_15directory_cycle
+    .weak lb_files_11depth_limit
+    .weak lb_files_12entries_type
+    .weak lb_process_7poll_in
+    .weak lb_process_12poll_hang_up
+    .weak lb_process_10poll_error
+    .weak lb_process_9set_flags
+    .weak lb_process_12non_blocking
+    .weak lb_process_11would_block
+    .weak lb_process_failed
+    .weak lb_process_16interrupt_signal
+    .weak lb_process_16terminate_signal
+    .weak lb_process_17console_interrupt
+    .weak lb_process_13console_break
+    .weak lb_process_13console_close
+    .weak lb_process_14console_logoff
+    .weak lb_process_16console_shutdown
+    .weak lb_process_26console_acknowledgement_ms
+    .weak lb_process_12command_type
+    .weak lb_json_invalid
+    .weak lb_json_14limit_exceeded
+    .weak lb_json_10value_type
+    .weak lb_window_unsupported
+    .weak lb_window_12wrong_thread
+    .weak lb_window_15invalid_options
+    .weak lb_window_failed
+    .weak lb_window_closed
+    .weak lb_window_19presentation_in_use
+    .weak lb_window_13key_positions
+    .weak lb_window_13mac_not_found
+    .weak lb_window_13win_scan_keys
+    .weak lb_clipboard_failed
+    .weak lb_clipboard_10text_limit
+    .weak lb_clipboard_12unicode_text
+    .weak lb_fonts_failed
+    .weak lb_gpu_unsupported
+    .weak lb_gpu_unavailable
+    .weak lb_gpu_12wrong_thread
+    .weak lb_gpu_closed
+    .weak lb_gpu_13invalid_color
+    .weak lb_gpu_failed
+    .weak lb_gpu_16execution_failed
+    .weak lb_gpu_17surface_too_large
+    .weak lb_gpu_16invalid_geometry
+    .weak lb_gpu_13command_limit
+    .weak lb_gpu_14frame_finished
+    .weak lb_gpu_12frame_in_use
+    .weak lb_gpu_13frame_resized
+    .weak lb_gpu_16frame_state_type
+    .weak lb_gpu_10frame_type
+    .weak lb_gpu_18render_target_type
+    .weak lb_gpu_19metal_surface_limit
+    .weak lb_gpu_36VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT
+    .weak lb_gpu_44VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT
+    .weak lb_gpu_27VK_ATTACHMENT_LOAD_OP_CLEAR
+    .weak lb_gpu_31VK_ATTACHMENT_LOAD_OP_DONT_CARE
+    .weak lb_gpu_32VK_ATTACHMENT_STORE_OP_DONT_CARE
+    .weak lb_gpu_28VK_ATTACHMENT_STORE_OP_STORE
+    .weak lb_gpu_19VK_BLEND_FACTOR_ONE
+    .weak lb_gpu_35VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA
+    .weak lb_gpu_25VK_BLEND_FACTOR_SRC_ALPHA
+    .weak lb_gpu_34VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
+    .weak lb_gpu_33VK_BUFFER_USAGE_VERTEX_BUFFER_BIT
+    .weak lb_gpu_24VK_COLOR_COMPONENT_A_BIT
+    .weak lb_gpu_24VK_COLOR_COMPONENT_B_BIT
+    .weak lb_gpu_24VK_COLOR_COMPONENT_G_BIT
+    .weak lb_gpu_24VK_COLOR_COMPONENT_R_BIT
+    .weak lb_gpu_33VK_COLOR_SPACE_SRGB_NONLINEAR_KHR
+    .weak lb_gpu_43VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT
+    .weak lb_gpu_18VK_COMPARE_OP_LESS
+    .weak lb_gpu_33VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR
+    .weak lb_gpu_33VK_DESCRIPTOR_TYPE_STORAGE_BUFFER
+    .weak lb_gpu_24VK_DYNAMIC_STATE_SCISSOR
+    .weak lb_gpu_25VK_DYNAMIC_STATE_VIEWPORT
+    .weak lb_gpu_24VK_ERROR_OUT_OF_DATE_KHR
+    .weak lb_gpu_8VK_FALSE
+    .weak lb_gpu_23VK_FORMAT_B8G8R8A8_SRGB
+    .weak lb_gpu_20VK_FORMAT_D32_SFLOAT
+    .weak lb_gpu_46VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT
+    .weak lb_gpu_29VK_FORMAT_R32G32B32A32_SFLOAT
+    .weak lb_gpu_23VK_FORMAT_R8G8B8A8_SRGB
+    .weak lb_gpu_19VK_FORMAT_UNDEFINED
+    .weak lb_gpu_25VK_IMAGE_ASPECT_COLOR_BIT
+    .weak lb_gpu_25VK_IMAGE_ASPECT_DEPTH_BIT
+    .weak lb_gpu_40VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+    .weak lb_gpu_48VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+    .weak lb_gpu_31VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
+    .weak lb_gpu_16VK_IMAGE_TYPE_2D
+    .weak lb_gpu_35VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT
+    .weak lb_gpu_43VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT
+    .weak lb_gpu_21VK_IMAGE_VIEW_TYPE_2D
+    .weak lb_gpu_29VK_KHR_SURFACE_EXTENSION_NAME
+    .weak lb_gpu_31VK_KHR_SWAPCHAIN_EXTENSION_NAME
+    .weak lb_gpu_35VK_KHR_WIN32_SURFACE_EXTENSION_NAME
+    .weak lb_gpu_35VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+    .weak lb_gpu_36VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+    .weak lb_gpu_35VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+    .weak lb_gpu_12VK_NOT_READY
+    .weak lb_gpu_31VK_PIPELINE_BIND_POINT_GRAPHICS
+    .weak lb_gpu_45VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
+    .weak lb_gpu_42VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT
+    .weak lb_gpu_24VK_PRESENT_MODE_FIFO_KHR
+    .weak lb_gpu_35VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST
+    .weak lb_gpu_21VK_QUEUE_GRAPHICS_BIT
+    .weak lb_gpu_21VK_SAMPLE_COUNT_1_BIT
+    .weak lb_gpu_28VK_SHADER_STAGE_FRAGMENT_BIT
+    .weak lb_gpu_26VK_SHADER_STAGE_VERTEX_BIT
+    .weak lb_gpu_17VK_SUBOPTIMAL_KHR
+    .weak lb_gpu_26VK_SUBPASS_CONTENTS_INLINE
+    .weak lb_gpu_19VK_SUBPASS_EXTERNAL
+    .weak lb_gpu_10VK_SUCCESS
+    .weak lb_gpu_10VK_TIMEOUT
+    .weak lb_gpu_7VK_TRUE
+    .weak lb_gpu_34VK_STRUCTURE_TYPE_APPLICATION_INFO
+    .weak lb_gpu_36VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO
+    .weak lb_gpu_46VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO
+    .weak lb_gpu_43VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO
+    .weak lb_gpu_49VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO
+    .weak lb_gpu_42VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO
+    .weak lb_gpu_37VK_STRUCTURE_TYPE_COPY_DESCRIPTOR_SET
+    .weak lb_gpu_45VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO
+    .weak lb_gpu_46VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO
+    .weak lb_gpu_51VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO
+    .weak lb_gpu_36VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO
+    .weak lb_gpu_42VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO
+    .weak lb_gpu_35VK_STRUCTURE_TYPE_FENCE_CREATE_INFO
+    .weak lb_gpu_41VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO
+    .weak lb_gpu_47VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO
+    .weak lb_gpu_35VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO
+    .weak lb_gpu_40VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO
+    .weak lb_gpu_38VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO
+    .weak lb_gpu_38VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO
+    .weak lb_gpu_56VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO
+    .weak lb_gpu_58VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO
+    .weak lb_gpu_52VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO
+    .weak lb_gpu_59VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO
+    .weak lb_gpu_45VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO
+    .weak lb_gpu_56VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO
+    .weak lb_gpu_58VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO
+    .weak lb_gpu_51VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO
+    .weak lb_gpu_57VK_STRUCTURE_TYPE_PIPELINE_TESSELLATION_STATE_CREATE_INFO
+    .weak lb_gpu_57VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO
+    .weak lb_gpu_53VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO
+    .weak lb_gpu_34VK_STRUCTURE_TYPE_PRESENT_INFO_KHR
+    .weak lb_gpu_40VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO
+    .weak lb_gpu_41VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO
+    .weak lb_gpu_39VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO
+    .weak lb_gpu_43VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO
+    .weak lb_gpu_29VK_STRUCTURE_TYPE_SUBMIT_INFO
+    .weak lb_gpu_43VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR
+    .weak lb_gpu_47VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR
+    .weak lb_gpu_38VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET
+    .weak lb_gpu_25vulkan_windows_extensions
+    .weak lb_gpu_22vulkan_api_version_1_0
     .text
 
     .p2align 4
@@ -1739,6 +2073,565 @@ lb_paths_root:
     .seh_endproc
 
     .p2align 4
+    .globl lb_paths_9is_rooted
+lb_paths_9is_rooted:
+    .seh_proc lb_paths_9is_rooted
+    pushq %rbp
+    .seh_pushreg %rbp
+    subq $224, %rsp
+    .seh_stackalloc 224
+    movq %rsp, %rbp
+    .seh_setframe %rbp, 0
+    movq %rdi, 216(%rbp)
+    .seh_savereg %rdi, 216
+    movq %rsi, 208(%rbp)
+    .seh_savereg %rsi, 208
+    movdqu %xmm6, 192(%rbp)
+    .seh_savexmm %xmm6, 192
+    movdqu %xmm7, 176(%rbp)
+    .seh_savexmm %xmm7, 176
+    movdqu %xmm8, 160(%rbp)
+    .seh_savexmm %xmm8, 160
+    movdqu %xmm9, 144(%rbp)
+    .seh_savexmm %xmm9, 144
+    movdqu %xmm10, 128(%rbp)
+    .seh_savexmm %xmm10, 128
+    movdqu %xmm11, 112(%rbp)
+    .seh_savexmm %xmm11, 112
+    movdqu %xmm12, 96(%rbp)
+    .seh_savexmm %xmm12, 96
+    movdqu %xmm13, 80(%rbp)
+    .seh_savexmm %xmm13, 80
+    movdqu %xmm14, 64(%rbp)
+    .seh_savexmm %xmm14, 64
+    movdqu %xmm15, 48(%rbp)
+    .seh_savexmm %xmm15, 48
+    movq %rbx, 40(%rbp)
+    .seh_savereg %rbx, 40
+    .seh_endprologue
+    movq %rcx, 240(%rbp)
+    movq %rdx, 248(%rbp)
+    movq %r8, 256(%rbp)
+    movq %r9, 264(%rbp)
+    movq 240(%rbp), %r10
+    leaq 24(%rbp), %r11
+    movups 0(%r10), %xmm8
+    movups %xmm8, 0(%r11)
+    leaq 24(%rbp), %rbx
+    subq $48, %rsp
+    movq %rbx, %r10
+    leaq 32(%rsp), %r11
+    movups 0(%r10), %xmm8
+    movups %xmm8, 0(%r11)
+    leaq 32(%rsp), %rax
+    movq %rax, 8(%rsp)
+    leaq 8(%rbp), %rax
+    movq %rax, (%rsp)
+    movq 0(%rsp), %rcx
+    movq 8(%rsp), %rdx
+    call lb_paths_root
+    addq $48, %rsp
+    leaq 8(%rbp), %rbx
+    movq $8, %rcx
+    addq %rcx, %rbx
+    movq %rbx, %r10
+    movq (%r10), %rbx
+    movq $0, %rcx
+    cmpq %rcx, %rbx
+    seta %al
+    movzbl %al, %ebx
+    movzbl %bl, %ebx
+    movl %ebx, %eax
+    movq 216(%rbp), %rdi
+    movq 208(%rbp), %rsi
+    movdqu 192(%rbp), %xmm6
+    movdqu 176(%rbp), %xmm7
+    movdqu 160(%rbp), %xmm8
+    movdqu 144(%rbp), %xmm9
+    movdqu 128(%rbp), %xmm10
+    movdqu 112(%rbp), %xmm11
+    movdqu 96(%rbp), %xmm12
+    movdqu 80(%rbp), %xmm13
+    movdqu 64(%rbp), %xmm14
+    movdqu 48(%rbp), %xmm15
+    movq 40(%rbp), %rbx
+    leaq 224(%rbp), %rsp
+    popq %rbp
+    ret
+.L5_1:
+    leaq .Ltext_27(%rip), %rdi
+    leaq .Ltext_0(%rip), %rsi
+    movq %rdx, %r8
+    movq %rsi, %rdx
+    movq %rdi, %rcx
+    subq $32, %rsp
+    call lb_core_7trap_at
+    addq $32, %rsp
+    .seh_endproc
+
+    .p2align 4
+    .globl lb_paths_11is_absolute
+lb_paths_11is_absolute:
+    .seh_proc lb_paths_11is_absolute
+    pushq %rbp
+    .seh_pushreg %rbp
+    subq $240, %rsp
+    .seh_stackalloc 240
+    movq %rsp, %rbp
+    .seh_setframe %rbp, 0
+    movq %rdi, 232(%rbp)
+    .seh_savereg %rdi, 232
+    movq %rsi, 224(%rbp)
+    .seh_savereg %rsi, 224
+    movdqu %xmm6, 208(%rbp)
+    .seh_savexmm %xmm6, 208
+    movdqu %xmm7, 192(%rbp)
+    .seh_savexmm %xmm7, 192
+    movdqu %xmm8, 176(%rbp)
+    .seh_savexmm %xmm8, 176
+    movdqu %xmm9, 160(%rbp)
+    .seh_savexmm %xmm9, 160
+    movdqu %xmm10, 144(%rbp)
+    .seh_savexmm %xmm10, 144
+    movdqu %xmm11, 128(%rbp)
+    .seh_savexmm %xmm11, 128
+    movdqu %xmm12, 112(%rbp)
+    .seh_savexmm %xmm12, 112
+    movdqu %xmm13, 96(%rbp)
+    .seh_savexmm %xmm13, 96
+    movdqu %xmm14, 80(%rbp)
+    .seh_savexmm %xmm14, 80
+    movdqu %xmm15, 64(%rbp)
+    .seh_savexmm %xmm15, 64
+    movq %rbx, 56(%rbp)
+    .seh_savereg %rbx, 56
+    movq %r12, 48(%rbp)
+    .seh_savereg %r12, 48
+    movq %r13, 40(%rbp)
+    .seh_savereg %r13, 40
+    movq %r14, 32(%rbp)
+    .seh_savereg %r14, 32
+    movq %r15, 24(%rbp)
+    .seh_savereg %r15, 24
+    .seh_endprologue
+    movq %rcx, 256(%rbp)
+    movq %rdx, 264(%rbp)
+    movq %r8, 272(%rbp)
+    movq %r9, 280(%rbp)
+    movq 256(%rbp), %r10
+    leaq 8(%rbp), %r11
+    movups 0(%r10), %xmm8
+    movups %xmm8, 0(%r11)
+    leaq 8(%rbp), %rbx
+    subq $48, %rsp
+    movq %rbx, %r10
+    leaq 32(%rsp), %r11
+    movups 0(%r10), %xmm8
+    movups %xmm8, 0(%r11)
+    leaq 32(%rsp), %rax
+    movq %rax, 0(%rsp)
+    movq 0(%rsp), %rcx
+    call lb_paths_12drive_prefix
+    addq $48, %rsp
+    movl %eax, %r12d
+    testl %r12d, %r12d
+    jne .L6_1
+    jmp .L6_2
+.L6_1:
+    movq $8, %rcx
+    movq %rbx, %r12
+    addq %rcx, %r12
+    movq %r12, %r10
+    movq (%r10), %r12
+    movq $3, %rcx
+    cmpq %rcx, %r12
+    setae %al
+    movzbl %al, %r13d
+    testl %r13d, %r13d
+    jne .L6_4
+    jmp .L6_29
+.L6_29:
+    movl %r13d, %ebx
+    jmp .L6_5
+.L6_4:
+    movq %rbx, %r10
+    movq (%r10), %r13
+    movq $2, %rax
+    cmpq %r12, %rax
+    jb 1f
+    leaq .Ltext_28(%rip), %rdi
+    leaq .Ltext_10(%rip), %rsi
+    movq %rdx, %r8
+    movq %rsi, %rdx
+    movq %rdi, %rcx
+    subq $32, %rsp
+    call lb_core_7trap_at
+    addq $32, %rsp
+1:
+    movq $2, %rcx
+    addq %rcx, %r13
+    movq %r13, %r10
+    movzbl (%r10), %r13d
+    subq $32, %rsp
+    movl %r13d, %eax
+    movq %rax, 0(%rsp)
+    movq 0(%rsp), %rcx
+    call lb_paths_separator
+    addq $32, %rsp
+    movl %eax, %r13d
+    movl %r13d, %ebx
+.L6_5:
+    movzbl %bl, %r12d
+    movzbl %r12b, %r12d
+    movl %r12d, %eax
+    movq 232(%rbp), %rdi
+    movq 224(%rbp), %rsi
+    movdqu 208(%rbp), %xmm6
+    movdqu 192(%rbp), %xmm7
+    movdqu 176(%rbp), %xmm8
+    movdqu 160(%rbp), %xmm9
+    movdqu 144(%rbp), %xmm10
+    movdqu 128(%rbp), %xmm11
+    movdqu 112(%rbp), %xmm12
+    movdqu 96(%rbp), %xmm13
+    movdqu 80(%rbp), %xmm14
+    movdqu 64(%rbp), %xmm15
+    movq 56(%rbp), %rbx
+    movq 48(%rbp), %r12
+    movq 40(%rbp), %r13
+    movq 32(%rbp), %r14
+    movq 24(%rbp), %r15
+    leaq 240(%rbp), %rsp
+    popq %rbp
+    ret
+.L6_6:
+    jmp .L6_3
+.L6_2:
+.L6_3:
+    movq $8, %rcx
+    movq %rbx, %r12
+    addq %rcx, %r12
+    movq %r12, %r10
+    movq (%r10), %r13
+    movq $0, %rcx
+    cmpq %rcx, %r13
+    sete %al
+    movzbl %al, %r14d
+    testl %r14d, %r14d
+    jne .L6_30
+    jmp .L6_10
+.L6_30:
+    movl %r14d, %r13d
+    jmp .L6_11
+.L6_10:
+    movq %rbx, %r10
+    movq (%r10), %r14
+    movq $0, %rax
+    cmpq %r13, %rax
+    jb 1f
+    leaq .Ltext_29(%rip), %rdi
+    leaq .Ltext_10(%rip), %rsi
+    movq %rdx, %r8
+    movq %rsi, %rdx
+    movq %rdi, %rcx
+    subq $32, %rsp
+    call lb_core_7trap_at
+    addq $32, %rsp
+1:
+    movq %r14, %r10
+    movzbl (%r10), %r14d
+    subq $32, %rsp
+    movl %r14d, %eax
+    movq %rax, 0(%rsp)
+    movq 0(%rsp), %rcx
+    call lb_paths_separator
+    addq $32, %rsp
+    movl %eax, %r14d
+    movl $0, %ecx
+    cmpl %ecx, %r14d
+    sete %al
+    movzbl %al, %r14d
+    movl %r14d, %r13d
+.L6_11:
+    movzbl %r13b, %r14d
+    testl %r14d, %r14d
+    jne .L6_7
+    jmp .L6_8
+.L6_7:
+    movl $0, %eax
+    movq 232(%rbp), %rdi
+    movq 224(%rbp), %rsi
+    movdqu 208(%rbp), %xmm6
+    movdqu 192(%rbp), %xmm7
+    movdqu 176(%rbp), %xmm8
+    movdqu 160(%rbp), %xmm9
+    movdqu 144(%rbp), %xmm10
+    movdqu 128(%rbp), %xmm11
+    movdqu 112(%rbp), %xmm12
+    movdqu 96(%rbp), %xmm13
+    movdqu 80(%rbp), %xmm14
+    movdqu 64(%rbp), %xmm15
+    movq 56(%rbp), %rbx
+    movq 48(%rbp), %r12
+    movq 40(%rbp), %r13
+    movq 32(%rbp), %r14
+    movq 24(%rbp), %r15
+    leaq 240(%rbp), %rsp
+    popq %rbp
+    ret
+.L6_12:
+    jmp .L6_9
+.L6_8:
+.L6_9:
+    movq %r12, %r10
+    movq (%r10), %r13
+    movq $2, %rcx
+    cmpq %rcx, %r13
+    setb %al
+    movzbl %al, %r14d
+    testl %r14d, %r14d
+    jne .L6_31
+    jmp .L6_16
+.L6_31:
+    movl %r14d, %r13d
+    jmp .L6_17
+.L6_16:
+    movq %rbx, %r10
+    movq (%r10), %r14
+    movq $1, %rax
+    cmpq %r13, %rax
+    jb 1f
+    leaq .Ltext_30(%rip), %rdi
+    leaq .Ltext_10(%rip), %rsi
+    movq %rdx, %r8
+    movq %rsi, %rdx
+    movq %rdi, %rcx
+    subq $32, %rsp
+    call lb_core_7trap_at
+    addq $32, %rsp
+1:
+    movq $1, %rcx
+    addq %rcx, %r14
+    movq %r14, %r10
+    movzbl (%r10), %r14d
+    subq $32, %rsp
+    movl %r14d, %eax
+    movq %rax, 0(%rsp)
+    movq 0(%rsp), %rcx
+    call lb_paths_separator
+    addq $32, %rsp
+    movl %eax, %r14d
+    movl $0, %ecx
+    cmpl %ecx, %r14d
+    sete %al
+    movzbl %al, %r14d
+    movl %r14d, %r13d
+.L6_17:
+    movzbl %r13b, %r14d
+    testl %r14d, %r14d
+    jne .L6_13
+    jmp .L6_14
+.L6_13:
+    movl $0, %eax
+    movq 232(%rbp), %rdi
+    movq 224(%rbp), %rsi
+    movdqu 208(%rbp), %xmm6
+    movdqu 192(%rbp), %xmm7
+    movdqu 176(%rbp), %xmm8
+    movdqu 160(%rbp), %xmm9
+    movdqu 144(%rbp), %xmm10
+    movdqu 128(%rbp), %xmm11
+    movdqu 112(%rbp), %xmm12
+    movdqu 96(%rbp), %xmm13
+    movdqu 80(%rbp), %xmm14
+    movdqu 64(%rbp), %xmm15
+    movq 56(%rbp), %rbx
+    movq 48(%rbp), %r12
+    movq 40(%rbp), %r13
+    movq 32(%rbp), %r14
+    movq 24(%rbp), %r15
+    leaq 240(%rbp), %rsp
+    popq %rbp
+    ret
+.L6_18:
+    jmp .L6_15
+.L6_14:
+.L6_15:
+    movq $2, %rax
+    movq %rax, %r13
+.L6_19:
+    movq %r12, %r10
+    movq (%r10), %r14
+    cmpq %r14, %r13
+    setb %al
+    movzbl %al, %r14d
+    testl %r14d, %r14d
+    jne .L6_22
+    jmp .L6_32
+.L6_32:
+    movl %r14d, %r15d
+    jmp .L6_23
+.L6_22:
+    movq %rbx, %r10
+    movq (%r10), %r14
+    addq %r13, %r14
+    movq %r14, %r10
+    movzbl (%r10), %r14d
+    subq $32, %rsp
+    movl %r14d, %eax
+    movq %rax, 0(%rsp)
+    movq 0(%rsp), %rcx
+    call lb_paths_separator
+    addq $32, %rsp
+    movl %eax, %r14d
+    movl $0, %ecx
+    cmpl %ecx, %r14d
+    sete %al
+    movzbl %al, %r15d
+.L6_23:
+    movzbl %r15b, %r14d
+    testl %r14d, %r14d
+    jne .L6_20
+    jmp .L6_21
+.L6_20:
+    movq %r13, %rax
+    movq $1, %rcx
+    addq %rcx, %rax
+    jnc 1f
+    leaq .Ltext_32(%rip), %rdi
+    leaq .Ltext_70(%rip), %rsi
+    movq %rdx, %r8
+    movq %rsi, %rdx
+    movq %rdi, %rcx
+    subq $32, %rsp
+    call lb_core_7trap_at
+    addq $32, %rsp
+1:
+    movq %rax, %r14
+    movq %r14, %r13
+    jmp .L6_19
+.L6_21:
+    movq $2, %rcx
+    cmpq %rcx, %r13
+    seta %al
+    movzbl %al, %r14d
+    testl %r14d, %r14d
+    jne .L6_24
+    jmp .L6_33
+.L6_33:
+    movl %r14d, %r15d
+    jmp .L6_25
+.L6_24:
+    movq %r13, %rax
+    movq $1, %rcx
+    addq %rcx, %rax
+    jnc 1f
+    leaq .Ltext_33(%rip), %rdi
+    leaq .Ltext_70(%rip), %rsi
+    movq %rdx, %r8
+    movq %rsi, %rdx
+    movq %rdi, %rcx
+    subq $32, %rsp
+    call lb_core_7trap_at
+    addq $32, %rsp
+1:
+    movq %rax, %r14
+    movq %r12, %r10
+    movq (%r10), %r15
+    cmpq %r15, %r14
+    setb %al
+    movzbl %al, %r15d
+.L6_25:
+    movzbl %r15b, %r14d
+    testl %r14d, %r14d
+    jne .L6_26
+    jmp .L6_34
+.L6_34:
+    movl %r14d, %ebx
+    jmp .L6_27
+.L6_26:
+    movq %r13, %rax
+    movq $1, %rcx
+    addq %rcx, %rax
+    jnc 1f
+    leaq .Ltext_33(%rip), %rdi
+    leaq .Ltext_70(%rip), %rsi
+    movq %rdx, %r8
+    movq %rsi, %rdx
+    movq %rdi, %rcx
+    subq $32, %rsp
+    call lb_core_7trap_at
+    addq $32, %rsp
+1:
+    movq %rax, %r14
+    movq %rbx, %r10
+    movq (%r10), %rax
+    movq %rax, 0(%rbp)
+    movq %r12, %r10
+    movq (%r10), %r15
+    cmpq %r15, %r14
+    jb 1f
+    leaq .Ltext_33(%rip), %rdi
+    leaq .Ltext_10(%rip), %rsi
+    movq %rdx, %r8
+    movq %rsi, %rdx
+    movq %rdi, %rcx
+    subq $32, %rsp
+    call lb_core_7trap_at
+    addq $32, %rsp
+1:
+    movq 0(%rbp), %rcx
+    addq %rcx, %r14
+    movq %r14, %r10
+    movzbl (%r10), %r14d
+    subq $32, %rsp
+    movl %r14d, %eax
+    movq %rax, 0(%rsp)
+    movq 0(%rsp), %rcx
+    call lb_paths_separator
+    addq $32, %rsp
+    movl %eax, %r14d
+    movl $0, %ecx
+    cmpl %ecx, %r14d
+    sete %al
+    movzbl %al, %r14d
+    movl %r14d, %ebx
+.L6_27:
+    movzbl %bl, %r12d
+    movzbl %r12b, %r12d
+    movl %r12d, %eax
+    movq 232(%rbp), %rdi
+    movq 224(%rbp), %rsi
+    movdqu 208(%rbp), %xmm6
+    movdqu 192(%rbp), %xmm7
+    movdqu 176(%rbp), %xmm8
+    movdqu 160(%rbp), %xmm9
+    movdqu 144(%rbp), %xmm10
+    movdqu 128(%rbp), %xmm11
+    movdqu 112(%rbp), %xmm12
+    movdqu 96(%rbp), %xmm13
+    movdqu 80(%rbp), %xmm14
+    movdqu 64(%rbp), %xmm15
+    movq 56(%rbp), %rbx
+    movq 48(%rbp), %r12
+    movq 40(%rbp), %r13
+    movq 32(%rbp), %r14
+    movq 24(%rbp), %r15
+    leaq 240(%rbp), %rsp
+    popq %rbp
+    ret
+.L6_28:
+    leaq .Ltext_33(%rip), %rdi
+    leaq .Ltext_0(%rip), %rsi
+    movq %rdx, %r8
+    movq %rsi, %rdx
+    movq %rdi, %rcx
+    subq $32, %rsp
+    call lb_core_7trap_at
+    addq $32, %rsp
+    .seh_endproc
+
+    .p2align 4
     .globl lb_paths_directory
 lb_paths_directory:
     .seh_proc lb_paths_directory
@@ -1830,13 +2723,13 @@ lb_paths_directory:
     movq %r13, %r10
     movzbl (%r10), %r13d
     testl %r13d, %r13d
-    jne .L5_1
-    jmp .L5_2
-.L5_1:
+    jne .L7_1
+    jmp .L7_2
+.L7_1:
     movq %r14, %r10
     movq (%r10), %r13
-    jmp .L5_3
-.L5_2:
+    jmp .L7_3
+.L7_2:
     movq $8, %rcx
     movq %rbx, %r12
     addq %rcx, %r12
@@ -1844,15 +2737,15 @@ lb_paths_directory:
     movq (%r10), %r12
     movq $0, %rcx
     cmpq %rcx, %r12
-    jbe .L5_5
-.L5_4:
+    jbe .L7_5
+.L7_4:
     leaq 56(%rbp), %r12
     movq %rbx, %r10
     movq %r12, %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
-    jmp .L5_6
-.L5_5:
+    jmp .L7_6
+.L7_5:
     leaq .Ltext_34(%rip), %rbx
     leaq 40(%rbp), %r12
     movq %r12, %r10
@@ -1868,7 +2761,7 @@ lb_paths_directory:
     movq %rbx, %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
-.L5_6:
+.L7_6:
     leaq 56(%rbp), %rbx
     leaq 136(%rbp), %r12
     movq %rbx, %r10
@@ -1904,16 +2797,16 @@ lb_paths_directory:
     leaq 368(%rbp), %rsp
     popq %rbp
     ret
-.L5_7:
-.L5_3:
+.L7_7:
+.L7_3:
     movq $8, %rcx
     movq %rbx, %r14
     addq %rcx, %r14
     movq %r14, %r10
     movq (%r10), %r14
     cmpq %r14, %r13
-    jae .L5_9
-.L5_8:
+    jae .L7_9
+.L7_8:
     leaq 136(%rbp), %r12
     movq %rbx, %r10
     movq %r12, %r11
@@ -1948,10 +2841,10 @@ lb_paths_directory:
     leaq 368(%rbp), %rsp
     popq %rbp
     ret
-.L5_11:
-    jmp .L5_10
-.L5_9:
-.L5_10:
+.L7_11:
+    jmp .L7_10
+.L7_9:
+.L7_10:
     movq %r12, %r10
     movq (%r10), %r14
     movq $8, %rcx
@@ -1986,8 +2879,8 @@ lb_paths_directory:
 1:
     movq $0, %rax
     cmpq %r13, %rax
-    jbe .L5_12
-.L5_13:
+    jbe .L7_12
+.L7_13:
     leaq .Ltext_35(%rip), %rdi
     leaq .Ltext_10(%rip), %rsi
     movq %rdx, %r8
@@ -1996,7 +2889,7 @@ lb_paths_directory:
     subq $32, %rsp
     call lb_core_7trap_at
     addq $32, %rsp
-.L5_12:
+.L7_12:
     leaq 24(%rbp), %rbx
     movq %rbx, %r10
     movq %r14, (%r10)
@@ -2046,7 +2939,7 @@ lb_paths_directory:
     leaq 368(%rbp), %rsp
     popq %rbp
     ret
-.L5_14:
+.L7_14:
     leaq .Ltext_35(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -2141,8 +3034,8 @@ lb_paths_base:
     movq %r13, %r10
     movq (%r10), %r14
     cmpq %r14, %rbx
-    jne .L6_2
-.L6_1:
+    jne .L8_2
+.L8_1:
     leaq .Ltext_12(%rip), %rbx
     leaq 112(%rbp), %r12
     movq %r12, %r10
@@ -2188,10 +3081,10 @@ lb_paths_base:
     leaq 416(%rbp), %rsp
     popq %rbp
     ret
-.L6_4:
-    jmp .L6_3
-.L6_2:
-.L6_3:
+.L8_4:
+    jmp .L8_3
+.L8_2:
+.L8_3:
     subq $48, %rsp
     movq %r12, %r10
     leaq 32(%rsp), %r11
@@ -2212,13 +3105,13 @@ lb_paths_base:
     movq %r14, %r10
     movzbl (%r10), %r14d
     testl %r14d, %r14d
-    jne .L6_5
-    jmp .L6_6
-.L6_5:
+    jne .L8_5
+    jmp .L8_6
+.L8_5:
     movq %r15, %r10
     movq (%r10), %rbx
-    jmp .L6_7
-.L6_6:
+    jmp .L8_7
+.L8_6:
     movq %r12, %r10
     movq (%r10), %rax
     movq %rax, 24(%rbp)
@@ -2250,8 +3143,8 @@ lb_paths_base:
     addq $32, %rsp
 1:
     cmpq %r15, %rbx
-    jbe .L6_8
-.L6_9:
+    jbe .L8_8
+.L8_9:
     leaq .Ltext_36(%rip), %rdi
     leaq .Ltext_10(%rip), %rsi
     movq %rdx, %r8
@@ -2260,7 +3153,7 @@ lb_paths_base:
     subq $32, %rsp
     call lb_core_7trap_at
     addq $32, %rsp
-.L6_8:
+.L8_8:
     movq 24(%rbp), %rcx
     movq %rbx, %r12
     addq %rcx, %r12
@@ -2316,8 +3209,8 @@ lb_paths_base:
     leaq 416(%rbp), %rsp
     popq %rbp
     ret
-.L6_10:
-.L6_7:
+.L8_10:
+.L8_7:
     movq %r12, %r10
     movq (%r10), %rax
     movq %rax, 16(%rbp)
@@ -2365,8 +3258,8 @@ lb_paths_base:
 1:
     movq 8(%rbp), %rax
     cmpq %r15, %rax
-    jbe .L6_11
-.L6_12:
+    jbe .L8_11
+.L8_12:
     leaq .Ltext_37(%rip), %rdi
     leaq .Ltext_10(%rip), %rsi
     movq %rdx, %r8
@@ -2375,7 +3268,7 @@ lb_paths_base:
     subq $32, %rsp
     call lb_core_7trap_at
     addq $32, %rsp
-.L6_11:
+.L8_11:
     movq 16(%rbp), %rax
     movq 8(%rbp), %rcx
     movq %rax, %rbx
@@ -2433,8 +3326,324 @@ lb_paths_base:
     leaq 416(%rbp), %rsp
     popq %rbp
     ret
-.L6_13:
+.L8_13:
     leaq .Ltext_37(%rip), %rdi
+    leaq .Ltext_0(%rip), %rsi
+    movq %rdx, %r8
+    movq %rsi, %rdx
+    movq %rdi, %rcx
+    subq $32, %rsp
+    call lb_core_7trap_at
+    addq $32, %rsp
+    .seh_endproc
+
+    .p2align 4
+    .globl lb_paths_extension
+lb_paths_extension:
+    .seh_proc lb_paths_extension
+    pushq %rbp
+    .seh_pushreg %rbp
+    subq $384, %rsp
+    .seh_stackalloc 384
+    movq %rsp, %rbp
+    .seh_setframe %rbp, 0
+    movq %rcx, 200(%rbp)
+    movq %rdi, 376(%rbp)
+    .seh_savereg %rdi, 376
+    movq %rsi, 368(%rbp)
+    .seh_savereg %rsi, 368
+    movdqu %xmm6, 352(%rbp)
+    .seh_savexmm %xmm6, 352
+    movdqu %xmm7, 336(%rbp)
+    .seh_savexmm %xmm7, 336
+    movdqu %xmm8, 320(%rbp)
+    .seh_savexmm %xmm8, 320
+    movdqu %xmm9, 304(%rbp)
+    .seh_savexmm %xmm9, 304
+    movdqu %xmm10, 288(%rbp)
+    .seh_savexmm %xmm10, 288
+    movdqu %xmm11, 272(%rbp)
+    .seh_savexmm %xmm11, 272
+    movdqu %xmm12, 256(%rbp)
+    .seh_savexmm %xmm12, 256
+    movdqu %xmm13, 240(%rbp)
+    .seh_savexmm %xmm13, 240
+    movdqu %xmm14, 224(%rbp)
+    .seh_savexmm %xmm14, 224
+    movdqu %xmm15, 208(%rbp)
+    .seh_savexmm %xmm15, 208
+    movq %rbx, 192(%rbp)
+    .seh_savereg %rbx, 192
+    movq %r12, 184(%rbp)
+    .seh_savereg %r12, 184
+    movq %r13, 176(%rbp)
+    .seh_savereg %r13, 176
+    movq %r14, 168(%rbp)
+    .seh_savereg %r14, 168
+    movq %r15, 160(%rbp)
+    .seh_savereg %r15, 160
+    .seh_endprologue
+    movq %rcx, 400(%rbp)
+    movq %rdx, 408(%rbp)
+    movq %r8, 416(%rbp)
+    movq %r9, 424(%rbp)
+    movq 408(%rbp), %r10
+    leaq 128(%rbp), %r11
+    movups 0(%r10), %xmm8
+    movups %xmm8, 0(%r11)
+    leaq 112(%rbp), %rbx
+    leaq 128(%rbp), %r12
+    subq $48, %rsp
+    movq %r12, %r10
+    leaq 32(%rsp), %r11
+    movups 0(%r10), %xmm8
+    movups %xmm8, 0(%r11)
+    leaq 32(%rsp), %rax
+    movq %rax, 8(%rsp)
+    leaq 96(%rbp), %rax
+    movq %rax, (%rsp)
+    movq 0(%rsp), %rcx
+    movq 8(%rsp), %rdx
+    call lb_paths_base
+    addq $48, %rsp
+    leaq 96(%rbp), %r12
+    movq %r12, %r10
+    movq %rbx, %r11
+    movups 0(%r10), %xmm8
+    movups %xmm8, 0(%r11)
+    subq $48, %rsp
+    movq %rbx, %r10
+    leaq 32(%rsp), %r11
+    movups 0(%r10), %xmm8
+    movups %xmm8, 0(%r11)
+    leaq 32(%rsp), %rax
+    movq %rax, 8(%rsp)
+    movl $46, %eax
+    movq %rax, 16(%rsp)
+    leaq 80(%rbp), %rax
+    movq %rax, (%rsp)
+    movq 0(%rsp), %rcx
+    movq 8(%rsp), %rdx
+    movq 16(%rsp), %r8
+    call lb_strings_last
+    addq $48, %rsp
+    leaq 80(%rbp), %r13
+    movq $8, %rcx
+    movq %r13, %r12
+    addq %rcx, %r12
+    movq %r12, %r10
+    movzbl (%r10), %r12d
+    testl %r12d, %r12d
+    jne .L9_1
+    jmp .L9_2
+.L9_1:
+    movq %r13, %r10
+    movq (%r10), %r12
+    jmp .L9_3
+.L9_2:
+    leaq .Ltext_12(%rip), %rbx
+    leaq 64(%rbp), %r12
+    movq %r12, %r10
+    movq %rbx, (%r10)
+    movq $8, %rcx
+    movq %r12, %rbx
+    addq %rcx, %rbx
+    movq $0, %rax
+    movq %rbx, %r10
+    movq %rax, (%r10)
+    leaq 144(%rbp), %rbx
+    movq %r12, %r10
+    movq %rbx, %r11
+    movups 0(%r10), %xmm8
+    movups %xmm8, 0(%r11)
+    movq %rbx, %rsi
+    movq 200(%rbp), %rdi
+    movq $16, %rdx
+    movq %rdx, %r8
+    movq %rsi, %rdx
+    movq %rdi, %rcx
+    subq $32, %rsp
+    call memcpy
+    addq $32, %rsp
+    movq 200(%rbp), %rax
+    movq 376(%rbp), %rdi
+    movq 368(%rbp), %rsi
+    movdqu 352(%rbp), %xmm6
+    movdqu 336(%rbp), %xmm7
+    movdqu 320(%rbp), %xmm8
+    movdqu 304(%rbp), %xmm9
+    movdqu 288(%rbp), %xmm10
+    movdqu 272(%rbp), %xmm11
+    movdqu 256(%rbp), %xmm12
+    movdqu 240(%rbp), %xmm13
+    movdqu 224(%rbp), %xmm14
+    movdqu 208(%rbp), %xmm15
+    movq 192(%rbp), %rbx
+    movq 184(%rbp), %r12
+    movq 176(%rbp), %r13
+    movq 168(%rbp), %r14
+    movq 160(%rbp), %r15
+    leaq 384(%rbp), %rsp
+    popq %rbp
+    ret
+.L9_4:
+.L9_3:
+    movq $0, %rcx
+    cmpq %rcx, %r12
+    jne .L9_6
+.L9_5:
+    leaq .Ltext_12(%rip), %rbx
+    leaq 48(%rbp), %r12
+    movq %r12, %r10
+    movq %rbx, (%r10)
+    movq $8, %rcx
+    movq %r12, %rbx
+    addq %rcx, %rbx
+    movq $0, %rax
+    movq %rbx, %r10
+    movq %rax, (%r10)
+    leaq 144(%rbp), %rbx
+    movq %r12, %r10
+    movq %rbx, %r11
+    movups 0(%r10), %xmm8
+    movups %xmm8, 0(%r11)
+    movq %rbx, %rsi
+    movq 200(%rbp), %rdi
+    movq $16, %rdx
+    movq %rdx, %r8
+    movq %rsi, %rdx
+    movq %rdi, %rcx
+    subq $32, %rsp
+    call memcpy
+    addq $32, %rsp
+    movq 200(%rbp), %rax
+    movq 376(%rbp), %rdi
+    movq 368(%rbp), %rsi
+    movdqu 352(%rbp), %xmm6
+    movdqu 336(%rbp), %xmm7
+    movdqu 320(%rbp), %xmm8
+    movdqu 304(%rbp), %xmm9
+    movdqu 288(%rbp), %xmm10
+    movdqu 272(%rbp), %xmm11
+    movdqu 256(%rbp), %xmm12
+    movdqu 240(%rbp), %xmm13
+    movdqu 224(%rbp), %xmm14
+    movdqu 208(%rbp), %xmm15
+    movq 192(%rbp), %rbx
+    movq 184(%rbp), %r12
+    movq 176(%rbp), %r13
+    movq 168(%rbp), %r14
+    movq 160(%rbp), %r15
+    leaq 384(%rbp), %rsp
+    popq %rbp
+    ret
+.L9_8:
+    jmp .L9_7
+.L9_6:
+.L9_7:
+    movq %rbx, %r10
+    movq (%r10), %r14
+    movq $8, %rcx
+    movq %rbx, %r13
+    addq %rcx, %r13
+    movq %r13, %r10
+    movq (%r10), %r15
+    movq $1, %rcx
+    movq %r15, %r13
+    addq %rcx, %r13
+    cmpq %r13, %r12
+    jb 1f
+    leaq .Ltext_38(%rip), %rdi
+    leaq .Ltext_10(%rip), %rsi
+    movq %rdx, %r8
+    movq %rsi, %rdx
+    movq %rdi, %rcx
+    subq $32, %rsp
+    call lb_core_7trap_at
+    addq $32, %rsp
+1:
+    cmpq %r13, %r15
+    jb 1f
+    leaq .Ltext_38(%rip), %rdi
+    leaq .Ltext_10(%rip), %rsi
+    movq %rdx, %r8
+    movq %rsi, %rdx
+    movq %rdi, %rcx
+    subq $32, %rsp
+    call lb_core_7trap_at
+    addq $32, %rsp
+1:
+    cmpq %r15, %r12
+    jbe .L9_9
+.L9_10:
+    leaq .Ltext_38(%rip), %rdi
+    leaq .Ltext_10(%rip), %rsi
+    movq %rdx, %r8
+    movq %rsi, %rdx
+    movq %rdi, %rcx
+    subq $32, %rsp
+    call lb_core_7trap_at
+    addq $32, %rsp
+.L9_9:
+    movq %r12, %rbx
+    addq %r14, %rbx
+    movq %r15, %rax
+    subq %r12, %rax
+    movq %rax, 8(%rbp)
+    leaq 32(%rbp), %r13
+    movq %r13, %r10
+    movq %rbx, (%r10)
+    movq $8, %rcx
+    addq %rcx, %r13
+    movq 8(%rbp), %rax
+    movq %r13, %r10
+    movq %rax, (%r10)
+    leaq 16(%rbp), %r13
+    movq %r13, %r10
+    movq %rbx, (%r10)
+    movq $8, %rcx
+    movq %r13, %rbx
+    addq %rcx, %rbx
+    movq 8(%rbp), %rax
+    movq %rbx, %r10
+    movq %rax, (%r10)
+    leaq 144(%rbp), %rbx
+    movq %r13, %r10
+    movq %rbx, %r11
+    movups 0(%r10), %xmm8
+    movups %xmm8, 0(%r11)
+    movq %rbx, %rsi
+    movq 200(%rbp), %rdi
+    movq $16, %rdx
+    movq %rdx, %r8
+    movq %rsi, %rdx
+    movq %rdi, %rcx
+    subq $32, %rsp
+    call memcpy
+    addq $32, %rsp
+    movq 200(%rbp), %rax
+    movq 376(%rbp), %rdi
+    movq 368(%rbp), %rsi
+    movdqu 352(%rbp), %xmm6
+    movdqu 336(%rbp), %xmm7
+    movdqu 320(%rbp), %xmm8
+    movdqu 304(%rbp), %xmm9
+    movdqu 288(%rbp), %xmm10
+    movdqu 272(%rbp), %xmm11
+    movdqu 256(%rbp), %xmm12
+    movdqu 240(%rbp), %xmm13
+    movdqu 224(%rbp), %xmm14
+    movdqu 208(%rbp), %xmm15
+    movq 192(%rbp), %rbx
+    movq 184(%rbp), %r12
+    movq 176(%rbp), %r13
+    movq 168(%rbp), %r14
+    movq 160(%rbp), %r15
+    leaq 384(%rbp), %rsp
+    popq %rbp
+    ret
+.L9_11:
+    leaq .Ltext_38(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -2450,57 +3659,54 @@ lb_paths_stem:
     .seh_proc lb_paths_stem
     pushq %rbp
     .seh_pushreg %rbp
-    subq $528, %rsp
-    .seh_stackalloc 528
+    subq $352, %rsp
+    .seh_stackalloc 352
     movq %rsp, %rbp
     .seh_setframe %rbp, 0
-    movq %rcx, 344(%rbp)
-    movq %rdi, 520(%rbp)
-    .seh_savereg %rdi, 520
-    movq %rsi, 512(%rbp)
-    .seh_savereg %rsi, 512
-    movdqu %xmm6, 496(%rbp)
-    .seh_savexmm %xmm6, 496
-    movdqu %xmm7, 480(%rbp)
-    .seh_savexmm %xmm7, 480
-    movdqu %xmm8, 464(%rbp)
-    .seh_savexmm %xmm8, 464
-    movdqu %xmm9, 448(%rbp)
-    .seh_savexmm %xmm9, 448
-    movdqu %xmm10, 432(%rbp)
-    .seh_savexmm %xmm10, 432
-    movdqu %xmm11, 416(%rbp)
-    .seh_savexmm %xmm11, 416
-    movdqu %xmm12, 400(%rbp)
-    .seh_savexmm %xmm12, 400
-    movdqu %xmm13, 384(%rbp)
-    .seh_savexmm %xmm13, 384
-    movdqu %xmm14, 368(%rbp)
-    .seh_savexmm %xmm14, 368
-    movdqu %xmm15, 352(%rbp)
-    .seh_savexmm %xmm15, 352
-    movq %rbx, 336(%rbp)
-    .seh_savereg %rbx, 336
-    movq %r12, 328(%rbp)
-    .seh_savereg %r12, 328
-    movq %r13, 320(%rbp)
-    .seh_savereg %r13, 320
-    movq %r14, 312(%rbp)
-    .seh_savereg %r14, 312
-    movq %r15, 304(%rbp)
-    .seh_savereg %r15, 304
+    movq %rcx, 168(%rbp)
+    movq %rdi, 344(%rbp)
+    .seh_savereg %rdi, 344
+    movq %rsi, 336(%rbp)
+    .seh_savereg %rsi, 336
+    movdqu %xmm6, 320(%rbp)
+    .seh_savexmm %xmm6, 320
+    movdqu %xmm7, 304(%rbp)
+    .seh_savexmm %xmm7, 304
+    movdqu %xmm8, 288(%rbp)
+    .seh_savexmm %xmm8, 288
+    movdqu %xmm9, 272(%rbp)
+    .seh_savexmm %xmm9, 272
+    movdqu %xmm10, 256(%rbp)
+    .seh_savexmm %xmm10, 256
+    movdqu %xmm11, 240(%rbp)
+    .seh_savexmm %xmm11, 240
+    movdqu %xmm12, 224(%rbp)
+    .seh_savexmm %xmm12, 224
+    movdqu %xmm13, 208(%rbp)
+    .seh_savexmm %xmm13, 208
+    movdqu %xmm14, 192(%rbp)
+    .seh_savexmm %xmm14, 192
+    movdqu %xmm15, 176(%rbp)
+    .seh_savexmm %xmm15, 176
+    movq %rbx, 160(%rbp)
+    .seh_savereg %rbx, 160
+    movq %r12, 152(%rbp)
+    .seh_savereg %r12, 152
+    movq %r13, 144(%rbp)
+    .seh_savereg %r13, 144
+    movq %r14, 136(%rbp)
+    .seh_savereg %r14, 136
     .seh_endprologue
-    movq %rcx, 544(%rbp)
-    movq %rdx, 552(%rbp)
-    movq %r8, 560(%rbp)
-    movq %r9, 568(%rbp)
-    movq 552(%rbp), %r10
-    leaq 272(%rbp), %r11
+    movq %rcx, 368(%rbp)
+    movq %rdx, 376(%rbp)
+    movq %r8, 384(%rbp)
+    movq %r9, 392(%rbp)
+    movq 376(%rbp), %r10
+    leaq 104(%rbp), %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
-    leaq 256(%rbp), %rax
-    movq %rax, 24(%rbp)
-    leaq 272(%rbp), %r12
+    leaq 88(%rbp), %rbx
+    leaq 104(%rbp), %r12
     subq $48, %rsp
     movq %r12, %r10
     leaq 32(%rsp), %r11
@@ -2508,228 +3714,46 @@ lb_paths_stem:
     movups %xmm8, 0(%r11)
     leaq 32(%rsp), %rax
     movq %rax, 8(%rsp)
-    leaq 240(%rbp), %rax
+    leaq 72(%rbp), %rax
     movq %rax, (%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
     call lb_paths_base
     addq $48, %rsp
-    leaq 240(%rbp), %r12
+    leaq 72(%rbp), %r12
     movq %r12, %r10
-    movq 24(%rbp), %r11
+    movq %rbx, %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
-    leaq 224(%rbp), %rax
-    movq %rax, 8(%rbp)
-    movq 24(%rbp), %r10
-    leaq 144(%rbp), %r11
-    movups 0(%r10), %xmm8
-    movups %xmm8, 0(%r11)
-    leaq 128(%rbp), %r12
-    leaq 144(%rbp), %r13
+    leaq 56(%rbp), %r12
     subq $48, %rsp
-    movq %r13, %r10
-    leaq 32(%rsp), %r11
-    movups 0(%r10), %xmm8
-    movups %xmm8, 0(%r11)
-    leaq 32(%rsp), %rax
-    movq %rax, 8(%rsp)
-    leaq 112(%rbp), %rax
-    movq %rax, (%rsp)
-    movq 0(%rsp), %rcx
-    movq 8(%rsp), %rdx
-    call lb_paths_base
-    addq $48, %rsp
-    leaq 112(%rbp), %r13
-    movq %r13, %r10
-    movq %r12, %r11
-    movups 0(%r10), %xmm8
-    movups %xmm8, 0(%r11)
-    subq $48, %rsp
-    movq %r12, %r10
-    leaq 32(%rsp), %r11
-    movups 0(%r10), %xmm8
-    movups %xmm8, 0(%r11)
-    leaq 32(%rsp), %rax
-    movq %rax, 8(%rsp)
-    movl $46, %eax
-    movq %rax, 16(%rsp)
-    leaq 96(%rbp), %rax
-    movq %rax, (%rsp)
-    movq 0(%rsp), %rcx
-    movq 8(%rsp), %rdx
-    movq 16(%rsp), %r8
-    call lb_strings_last
-    addq $48, %rsp
-    leaq 96(%rbp), %r15
-    movq $8, %rcx
-    movq %r15, %r13
-    addq %rcx, %r13
-    movq %r13, %r10
-    movzbl (%r10), %r13d
-    testl %r13d, %r13d
-    jne .L7_4
-    jmp .L7_5
-.L7_4:
-    movq %r15, %r10
-    movq (%r10), %r13
-    jmp .L7_6
-.L7_5:
-    leaq .Ltext_12(%rip), %r12
-    leaq 80(%rbp), %r13
-    movq %r13, %r10
-    movq %r12, (%r10)
-    movq $8, %rcx
-    movq %r13, %r12
-    addq %rcx, %r12
-    movq $0, %rax
-    movq %r12, %r10
-    movq %rax, (%r10)
-    leaq 160(%rbp), %r12
-    movq %r13, %r10
-    movq %r12, %r11
-    movups 0(%r10), %xmm8
-    movups %xmm8, 0(%r11)
-    movq %r12, %r10
-    leaq 208(%rbp), %r11
-    movups 0(%r10), %xmm8
-    movups %xmm8, 0(%r11)
-    movq $0, %rax
-    movq %rax, %r12
-    jmp .L7_15
-.L7_7:
-.L7_6:
-    movq $0, %rcx
-    cmpq %rcx, %r13
-    jne .L7_9
-.L7_8:
-    leaq .Ltext_12(%rip), %r12
-    leaq 64(%rbp), %r13
-    movq %r13, %r10
-    movq %r12, (%r10)
-    movq $8, %rcx
-    movq %r13, %r12
-    addq %rcx, %r12
-    movq $0, %rax
-    movq %r12, %r10
-    movq %rax, (%r10)
-    leaq 160(%rbp), %r12
-    movq %r13, %r10
-    movq %r12, %r11
-    movups 0(%r10), %xmm8
-    movups %xmm8, 0(%r11)
-    movq %r12, %r10
-    leaq 208(%rbp), %r11
-    movups 0(%r10), %xmm8
-    movups %xmm8, 0(%r11)
-    movq $0, %rax
-    movq %rax, %r12
-    jmp .L7_15
-.L7_11:
-    jmp .L7_10
-.L7_9:
-.L7_10:
-    movq %r12, %r10
-    movq (%r10), %rbx
-    movq $8, %rcx
-    movq %r12, %r15
-    addq %rcx, %r15
-    movq %r15, %r10
-    movq (%r10), %r14
-    movq $1, %rcx
-    movq %r14, %r15
-    addq %rcx, %r15
-    cmpq %r15, %r13
-    jb 1f
-    leaq .Ltext_38(%rip), %rdi
-    leaq .Ltext_10(%rip), %rsi
-    movq %rdx, %r8
-    movq %rsi, %rdx
-    movq %rdi, %rcx
-    subq $32, %rsp
-    call lb_core_7trap_at
-    addq $32, %rsp
-1:
-    cmpq %r15, %r14
-    jb 1f
-    leaq .Ltext_38(%rip), %rdi
-    leaq .Ltext_10(%rip), %rsi
-    movq %rdx, %r8
-    movq %rsi, %rdx
-    movq %rdi, %rcx
-    subq $32, %rsp
-    call lb_core_7trap_at
-    addq $32, %rsp
-1:
-    cmpq %r14, %r13
-    jbe .L7_12
-.L7_13:
-    leaq .Ltext_38(%rip), %rdi
-    leaq .Ltext_10(%rip), %rsi
-    movq %rdx, %r8
-    movq %rsi, %rdx
-    movq %rdi, %rcx
-    subq $32, %rsp
-    call lb_core_7trap_at
-    addq $32, %rsp
-.L7_12:
-    movq %r13, %r12
-    addq %rbx, %r12
-    movq %r14, %rax
-    subq %r13, %rax
-    movq %rax, 16(%rbp)
-    leaq 48(%rbp), %r15
-    movq %r15, %r10
-    movq %r12, (%r10)
-    movq $8, %rcx
-    addq %rcx, %r15
-    movq 16(%rbp), %rax
-    movq %r15, %r10
-    movq %rax, (%r10)
-    leaq 32(%rbp), %r15
-    movq %r15, %r10
-    movq %r12, (%r10)
-    movq $8, %rcx
-    movq %r15, %r12
-    addq %rcx, %r12
-    movq 16(%rbp), %rax
-    movq %r12, %r10
-    movq %rax, (%r10)
-    leaq 160(%rbp), %r12
-    movq %r15, %r10
-    movq %r12, %r11
-    movups 0(%r10), %xmm8
-    movups %xmm8, 0(%r11)
-    movq %r12, %r10
-    leaq 208(%rbp), %r11
-    movups 0(%r10), %xmm8
-    movups %xmm8, 0(%r11)
-    movq 16(%rbp), %rax
-    movq %rax, %r12
-    jmp .L7_15
-.L7_14:
-    leaq .Ltext_38(%rip), %rdi
-    leaq .Ltext_0(%rip), %rsi
-    movq %rdx, %r8
-    movq %rsi, %rdx
-    movq %rdi, %rcx
-    subq $32, %rsp
-    call lb_core_7trap_at
-    addq $32, %rsp
-.L7_15:
-    leaq 208(%rbp), %rbx
     movq %rbx, %r10
-    movq 8(%rbp), %r11
+    leaq 32(%rsp), %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
-    movq 24(%rbp), %r10
+    leaq 32(%rsp), %rax
+    movq %rax, 8(%rsp)
+    leaq 40(%rbp), %rax
+    movq %rax, (%rsp)
+    movq 0(%rsp), %rcx
+    movq 8(%rsp), %rdx
+    call lb_paths_extension
+    addq $48, %rsp
+    leaq 40(%rbp), %r13
+    movq %r13, %r10
+    movq %r12, %r11
+    movups 0(%r10), %xmm8
+    movups %xmm8, 0(%r11)
+    movq %rbx, %r10
     movq (%r10), %r13
-    movq 24(%rbp), %rax
     movq $8, %rcx
-    movq %rax, %rbx
     addq %rcx, %rbx
     movq %rbx, %r10
     movq (%r10), %rbx
+    movq $8, %rcx
+    addq %rcx, %r12
+    movq %r12, %r10
+    movq (%r10), %r12
     movq %rbx, %rax
     movq %r12, %rcx
     subq %rcx, %rax
@@ -2743,7 +3767,7 @@ lb_paths_stem:
     call lb_core_7trap_at
     addq $32, %rsp
 1:
-    movq %rax, %r14
+    movq %rax, %r12
     movq $1, %rcx
     addq %rcx, %rbx
     movq $0, %rax
@@ -2758,7 +3782,7 @@ lb_paths_stem:
     call lb_core_7trap_at
     addq $32, %rsp
 1:
-    cmpq %rbx, %r14
+    cmpq %rbx, %r12
     jb 1f
     leaq .Ltext_39(%rip), %rdi
     leaq .Ltext_10(%rip), %rsi
@@ -2770,9 +3794,9 @@ lb_paths_stem:
     addq $32, %rsp
 1:
     movq $0, %rax
-    cmpq %r14, %rax
-    jbe .L7_1
-.L7_2:
+    cmpq %r12, %rax
+    jbe .L10_1
+.L10_2:
     leaq .Ltext_39(%rip), %rdi
     leaq .Ltext_10(%rip), %rsi
     movq %rdx, %r8
@@ -2781,29 +3805,29 @@ lb_paths_stem:
     subq $32, %rsp
     call lb_core_7trap_at
     addq $32, %rsp
-.L7_1:
-    leaq 192(%rbp), %rbx
+.L10_1:
+    leaq 24(%rbp), %rbx
     movq %rbx, %r10
     movq %r13, (%r10)
     movq $8, %rcx
     addq %rcx, %rbx
     movq %rbx, %r10
-    movq %r14, (%r10)
-    leaq 176(%rbp), %rbx
+    movq %r12, (%r10)
+    leaq 8(%rbp), %rbx
     movq %rbx, %r10
     movq %r13, (%r10)
     movq $8, %rcx
-    movq %rbx, %r12
-    addq %rcx, %r12
-    movq %r12, %r10
-    movq %r14, (%r10)
-    leaq 288(%rbp), %r12
+    movq %rbx, %r14
+    addq %rcx, %r14
+    movq %r14, %r10
+    movq %r12, (%r10)
+    leaq 120(%rbp), %r14
     movq %rbx, %r10
-    movq %r12, %r11
+    movq %r14, %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
-    movq %r12, %rsi
-    movq 344(%rbp), %rdi
+    movq %r14, %rsi
+    movq 168(%rbp), %rdi
     movq $16, %rdx
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -2811,28 +3835,27 @@ lb_paths_stem:
     subq $32, %rsp
     call memcpy
     addq $32, %rsp
-    movq 344(%rbp), %rax
-    movq 520(%rbp), %rdi
-    movq 512(%rbp), %rsi
-    movdqu 496(%rbp), %xmm6
-    movdqu 480(%rbp), %xmm7
-    movdqu 464(%rbp), %xmm8
-    movdqu 448(%rbp), %xmm9
-    movdqu 432(%rbp), %xmm10
-    movdqu 416(%rbp), %xmm11
-    movdqu 400(%rbp), %xmm12
-    movdqu 384(%rbp), %xmm13
-    movdqu 368(%rbp), %xmm14
-    movdqu 352(%rbp), %xmm15
-    movq 336(%rbp), %rbx
-    movq 328(%rbp), %r12
-    movq 320(%rbp), %r13
-    movq 312(%rbp), %r14
-    movq 304(%rbp), %r15
-    leaq 528(%rbp), %rsp
+    movq 168(%rbp), %rax
+    movq 344(%rbp), %rdi
+    movq 336(%rbp), %rsi
+    movdqu 320(%rbp), %xmm6
+    movdqu 304(%rbp), %xmm7
+    movdqu 288(%rbp), %xmm8
+    movdqu 272(%rbp), %xmm9
+    movdqu 256(%rbp), %xmm10
+    movdqu 240(%rbp), %xmm11
+    movdqu 224(%rbp), %xmm12
+    movdqu 208(%rbp), %xmm13
+    movdqu 192(%rbp), %xmm14
+    movdqu 176(%rbp), %xmm15
+    movq 160(%rbp), %rbx
+    movq 152(%rbp), %r12
+    movq 144(%rbp), %r13
+    movq 136(%rbp), %r14
+    leaq 352(%rbp), %rsp
     popq %rbp
     ret
-.L7_3:
+.L10_3:
     leaq .Ltext_39(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -2849,67 +3872,80 @@ lb_paths_join:
     .seh_proc lb_paths_join
     pushq %rbp
     .seh_pushreg %rbp
-    subq $864, %rsp
-    .seh_stackalloc 864
+    subq $832, %rsp
+    .seh_stackalloc 832
     movq %rsp, %rbp
     .seh_setframe %rbp, 0
-    movq %rcx, 680(%rbp)
-    movq %rdi, 856(%rbp)
-    .seh_savereg %rdi, 856
-    movq %rsi, 848(%rbp)
-    .seh_savereg %rsi, 848
-    movdqu %xmm6, 832(%rbp)
-    .seh_savexmm %xmm6, 832
-    movdqu %xmm7, 816(%rbp)
-    .seh_savexmm %xmm7, 816
-    movdqu %xmm8, 800(%rbp)
-    .seh_savexmm %xmm8, 800
-    movdqu %xmm9, 784(%rbp)
-    .seh_savexmm %xmm9, 784
-    movdqu %xmm10, 768(%rbp)
-    .seh_savexmm %xmm10, 768
-    movdqu %xmm11, 752(%rbp)
-    .seh_savexmm %xmm11, 752
-    movdqu %xmm12, 736(%rbp)
-    .seh_savexmm %xmm12, 736
-    movdqu %xmm13, 720(%rbp)
-    .seh_savexmm %xmm13, 720
-    movdqu %xmm14, 704(%rbp)
-    .seh_savexmm %xmm14, 704
-    movdqu %xmm15, 688(%rbp)
-    .seh_savexmm %xmm15, 688
-    movq %rbx, 672(%rbp)
-    .seh_savereg %rbx, 672
-    movq %r12, 664(%rbp)
-    .seh_savereg %r12, 664
-    movq %r13, 656(%rbp)
-    .seh_savereg %r13, 656
-    movq %r14, 648(%rbp)
-    .seh_savereg %r14, 648
-    movq %r15, 640(%rbp)
-    .seh_savereg %r15, 640
+    movq %rcx, 648(%rbp)
+    movq %rdi, 824(%rbp)
+    .seh_savereg %rdi, 824
+    movq %rsi, 816(%rbp)
+    .seh_savereg %rsi, 816
+    movdqu %xmm6, 800(%rbp)
+    .seh_savexmm %xmm6, 800
+    movdqu %xmm7, 784(%rbp)
+    .seh_savexmm %xmm7, 784
+    movdqu %xmm8, 768(%rbp)
+    .seh_savexmm %xmm8, 768
+    movdqu %xmm9, 752(%rbp)
+    .seh_savexmm %xmm9, 752
+    movdqu %xmm10, 736(%rbp)
+    .seh_savexmm %xmm10, 736
+    movdqu %xmm11, 720(%rbp)
+    .seh_savexmm %xmm11, 720
+    movdqu %xmm12, 704(%rbp)
+    .seh_savexmm %xmm12, 704
+    movdqu %xmm13, 688(%rbp)
+    .seh_savexmm %xmm13, 688
+    movdqu %xmm14, 672(%rbp)
+    .seh_savexmm %xmm14, 672
+    movdqu %xmm15, 656(%rbp)
+    .seh_savexmm %xmm15, 656
+    movq %rbx, 640(%rbp)
+    .seh_savereg %rbx, 640
+    movq %r12, 632(%rbp)
+    .seh_savereg %r12, 632
+    movq %r13, 624(%rbp)
+    .seh_savereg %r13, 624
+    movq %r14, 616(%rbp)
+    .seh_savereg %r14, 616
+    movq %r15, 608(%rbp)
+    .seh_savereg %r15, 608
     .seh_endprologue
-    movq %rcx, 880(%rbp)
-    movq %rdx, 888(%rbp)
-    movq %r8, 896(%rbp)
-    movq %r9, 904(%rbp)
-    movq 888(%rbp), %r10
-    leaq 576(%rbp), %r11
+    movq %rcx, 848(%rbp)
+    movq %rdx, 856(%rbp)
+    movq %r8, 864(%rbp)
+    movq %r9, 872(%rbp)
+    movq 856(%rbp), %r10
+    leaq 544(%rbp), %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
-    movq 896(%rbp), %r10
-    leaq 560(%rbp), %r11
+    movq 864(%rbp), %r10
+    leaq 528(%rbp), %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
-    leaq 560(%rbp), %rax
-    movq %rax, 40(%rbp)
-    movq 40(%rbp), %r10
-    leaq 96(%rbp), %r11
-    movups 0(%r10), %xmm8
-    movups %xmm8, 0(%r11)
-    leaq 96(%rbp), %r12
+    leaq 528(%rbp), %rax
+    movq %rax, 32(%rbp)
     subq $48, %rsp
-    movq %r12, %r10
+    movq 32(%rbp), %r10
+    leaq 32(%rsp), %r11
+    movups 0(%r10), %xmm8
+    movups %xmm8, 0(%r11)
+    leaq 32(%rsp), %rax
+    movq %rax, 0(%rsp)
+    movq 0(%rsp), %rcx
+    call lb_paths_11is_absolute
+    addq $48, %rsp
+    movl %eax, %r12d
+    testl %r12d, %r12d
+    jne .L11_41
+    jmp .L11_4
+.L11_41:
+    movl %r12d, %r13d
+    jmp .L11_5
+.L11_4:
+    subq $48, %rsp
+    movq 32(%rbp), %r10
     leaq 32(%rsp), %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
@@ -2919,558 +3955,32 @@ lb_paths_join:
     call lb_paths_12drive_prefix
     addq $48, %rsp
     movl %eax, %r13d
-    testl %r13d, %r13d
-    jne .L8_39
-    jmp .L8_40
-.L8_39:
-    movq $8, %rcx
-    movq %r12, %r13
-    addq %rcx, %r13
-    movq %r13, %r10
-    movq (%r10), %r13
-    movq $3, %rcx
-    cmpq %rcx, %r13
-    setae %al
-    movzbl %al, %r14d
-    testl %r14d, %r14d
-    jne .L8_42
-    jmp .L8_70
-.L8_70:
-    movl %r14d, %r12d
-    jmp .L8_43
-.L8_42:
-    movq %r12, %r10
-    movq (%r10), %r14
-    movq $2, %rax
-    cmpq %r13, %rax
-    jb 1f
-    leaq .Ltext_28(%rip), %rdi
-    leaq .Ltext_10(%rip), %rsi
-    movq %rdx, %r8
-    movq %rsi, %rdx
-    movq %rdi, %rcx
-    subq $32, %rsp
-    call lb_core_7trap_at
-    addq $32, %rsp
-1:
-    movq $2, %rcx
-    addq %rcx, %r14
-    movq %r14, %r10
-    movzbl (%r10), %r14d
-    subq $32, %rsp
-    movl %r14d, %eax
-    movq %rax, 0(%rsp)
-    movq 0(%rsp), %rcx
-    call lb_paths_separator
-    addq $32, %rsp
-    movl %eax, %r14d
-    movl %r14d, %r12d
-.L8_43:
-    movzbl %r12b, %r13d
-    movzbl %r13b, %r13d
-    leaq 88(%rbp), %r10
-    movl %r13d, (%r10)
-    jmp .L8_67
-.L8_44:
-    jmp .L8_41
-.L8_40:
-.L8_41:
-    movq $8, %rcx
-    movq %r12, %r13
-    addq %rcx, %r13
-    movq %r13, %r10
-    movq (%r10), %r14
-    movq $0, %rcx
-    cmpq %rcx, %r14
-    sete %al
-    movzbl %al, %r15d
-    testl %r15d, %r15d
-    jne .L8_71
-    jmp .L8_48
-.L8_71:
-    movl %r15d, %r14d
-    jmp .L8_49
-.L8_48:
-    movq %r12, %r10
-    movq (%r10), %r15
-    movq $0, %rax
-    cmpq %r14, %rax
-    jb 1f
-    leaq .Ltext_29(%rip), %rdi
-    leaq .Ltext_10(%rip), %rsi
-    movq %rdx, %r8
-    movq %rsi, %rdx
-    movq %rdi, %rcx
-    subq $32, %rsp
-    call lb_core_7trap_at
-    addq $32, %rsp
-1:
-    movq %r15, %r10
-    movzbl (%r10), %r15d
-    subq $32, %rsp
-    movl %r15d, %eax
-    movq %rax, 0(%rsp)
-    movq 0(%rsp), %rcx
-    call lb_paths_separator
-    addq $32, %rsp
-    movl %eax, %r15d
-    movl $0, %ecx
-    cmpl %ecx, %r15d
-    sete %al
-    movzbl %al, %r15d
-    movl %r15d, %r14d
-.L8_49:
-    movzbl %r14b, %r15d
-    testl %r15d, %r15d
-    jne .L8_45
-    jmp .L8_46
-.L8_45:
-    movl $0, %eax
-    leaq 88(%rbp), %r10
-    movl %eax, (%r10)
-    movl $0, %eax
-    movl %eax, %r13d
-    jmp .L8_67
-.L8_50:
-    jmp .L8_47
-.L8_46:
-.L8_47:
-    movq %r13, %r10
-    movq (%r10), %r14
-    movq $2, %rcx
-    cmpq %rcx, %r14
-    setb %al
-    movzbl %al, %r15d
-    testl %r15d, %r15d
-    jne .L8_72
-    jmp .L8_54
-.L8_72:
-    movl %r15d, %r14d
-    jmp .L8_55
-.L8_54:
-    movq %r12, %r10
-    movq (%r10), %r15
-    movq $1, %rax
-    cmpq %r14, %rax
-    jb 1f
-    leaq .Ltext_30(%rip), %rdi
-    leaq .Ltext_10(%rip), %rsi
-    movq %rdx, %r8
-    movq %rsi, %rdx
-    movq %rdi, %rcx
-    subq $32, %rsp
-    call lb_core_7trap_at
-    addq $32, %rsp
-1:
-    movq $1, %rcx
-    addq %rcx, %r15
-    movq %r15, %r10
-    movzbl (%r10), %r15d
-    subq $32, %rsp
-    movl %r15d, %eax
-    movq %rax, 0(%rsp)
-    movq 0(%rsp), %rcx
-    call lb_paths_separator
-    addq $32, %rsp
-    movl %eax, %r15d
-    movl $0, %ecx
-    cmpl %ecx, %r15d
-    sete %al
-    movzbl %al, %r15d
-    movl %r15d, %r14d
-.L8_55:
-    movzbl %r14b, %r15d
-    testl %r15d, %r15d
-    jne .L8_51
-    jmp .L8_52
-.L8_51:
-    movl $0, %eax
-    leaq 88(%rbp), %r10
-    movl %eax, (%r10)
-    movl $0, %eax
-    movl %eax, %r13d
-    jmp .L8_67
-.L8_56:
-    jmp .L8_53
-.L8_52:
-.L8_53:
-    movq $2, %rax
-    movq %rax, %r14
-.L8_57:
-    movq %r13, %r10
-    movq (%r10), %r15
-    cmpq %r15, %r14
-    setb %al
-    movzbl %al, %r15d
-    testl %r15d, %r15d
-    jne .L8_60
-    jmp .L8_73
-.L8_73:
-    movl %r15d, %ebx
-    jmp .L8_61
-.L8_60:
-    movq %r12, %r10
-    movq (%r10), %rbx
-    addq %r14, %rbx
-    movq %rbx, %r10
-    movzbl (%r10), %ebx
-    subq $32, %rsp
-    movl %ebx, %eax
-    movq %rax, 0(%rsp)
-    movq 0(%rsp), %rcx
-    call lb_paths_separator
-    addq $32, %rsp
-    movl %eax, %ebx
-    movl $0, %ecx
-    cmpl %ecx, %ebx
-    sete %al
-    movzbl %al, %ebx
-.L8_61:
-    movzbl %bl, %r15d
-    testl %r15d, %r15d
-    jne .L8_58
-    jmp .L8_59
-.L8_58:
-    movq %r14, %rax
-    movq $1, %rcx
-    addq %rcx, %rax
-    jnc 1f
-    leaq .Ltext_32(%rip), %rdi
-    leaq .Ltext_70(%rip), %rsi
-    movq %rdx, %r8
-    movq %rsi, %rdx
-    movq %rdi, %rcx
-    subq $32, %rsp
-    call lb_core_7trap_at
-    addq $32, %rsp
-1:
-    movq %rax, %rbx
-    movq %rbx, %r14
-    jmp .L8_57
-.L8_59:
-    movq $2, %rcx
-    cmpq %rcx, %r14
-    seta %al
-    movzbl %al, %ebx
-    testl %ebx, %ebx
-    jne .L8_62
-    jmp .L8_74
-.L8_74:
-    movl %ebx, %r15d
-    jmp .L8_63
-.L8_62:
-    movq %r14, %rax
-    movq $1, %rcx
-    addq %rcx, %rax
-    jnc 1f
-    leaq .Ltext_33(%rip), %rdi
-    leaq .Ltext_70(%rip), %rsi
-    movq %rdx, %r8
-    movq %rsi, %rdx
-    movq %rdi, %rcx
-    subq $32, %rsp
-    call lb_core_7trap_at
-    addq $32, %rsp
-1:
-    movq %rax, %rbx
-    movq %r13, %r10
-    movq (%r10), %r15
-    cmpq %r15, %rbx
-    setb %al
-    movzbl %al, %r15d
-.L8_63:
-    movzbl %r15b, %ebx
-    testl %ebx, %ebx
-    jne .L8_64
-    jmp .L8_75
-.L8_75:
-    movl %ebx, %r12d
-    jmp .L8_65
-.L8_64:
-    movq %r14, %rax
-    movq $1, %rcx
-    addq %rcx, %rax
-    jnc 1f
-    leaq .Ltext_33(%rip), %rdi
-    leaq .Ltext_70(%rip), %rsi
-    movq %rdx, %r8
-    movq %rsi, %rdx
-    movq %rdi, %rcx
-    subq $32, %rsp
-    call lb_core_7trap_at
-    addq $32, %rsp
-1:
-    movq %rax, %rbx
-    movq %r12, %r10
-    movq (%r10), %rax
-    movq %rax, 24(%rbp)
-    movq %r13, %r10
-    movq (%r10), %r15
-    cmpq %r15, %rbx
-    jb 1f
-    leaq .Ltext_33(%rip), %rdi
-    leaq .Ltext_10(%rip), %rsi
-    movq %rdx, %r8
-    movq %rsi, %rdx
-    movq %rdi, %rcx
-    subq $32, %rsp
-    call lb_core_7trap_at
-    addq $32, %rsp
-1:
-    movq 24(%rbp), %rcx
-    addq %rcx, %rbx
-    movq %rbx, %r10
-    movzbl (%r10), %ebx
-    subq $32, %rsp
-    movl %ebx, %eax
-    movq %rax, 0(%rsp)
-    movq 0(%rsp), %rcx
-    call lb_paths_separator
-    addq $32, %rsp
-    movl %eax, %ebx
-    movl $0, %ecx
-    cmpl %ecx, %ebx
-    sete %al
-    movzbl %al, %ebx
-    movl %ebx, %r12d
-.L8_65:
-    movzbl %r12b, %ebx
-    movzbl %bl, %r13d
-    leaq 88(%rbp), %r10
-    movl %r13d, (%r10)
-    jmp .L8_67
-.L8_66:
-    leaq .Ltext_33(%rip), %rdi
-    leaq .Ltext_0(%rip), %rsi
-    movq %rdx, %r8
-    movq %rsi, %rdx
-    movq %rdi, %rcx
-    subq $32, %rsp
-    call lb_core_7trap_at
-    addq $32, %rsp
-.L8_67:
-    testl %r13d, %r13d
-    jne .L8_76
-    jmp .L8_4
-.L8_76:
-    movl %r13d, %ebx
-    jmp .L8_5
-.L8_4:
-    subq $48, %rsp
-    movq 40(%rbp), %r10
-    leaq 32(%rsp), %r11
-    movups 0(%r10), %xmm8
-    movups %xmm8, 0(%r11)
-    leaq 32(%rsp), %rax
-    movq %rax, 0(%rsp)
-    movq 0(%rsp), %rcx
-    call lb_paths_12drive_prefix
-    addq $48, %rsp
-    movl %eax, %ebx
-.L8_5:
-    movzbl %bl, %r12d
+.L11_5:
+    movzbl %r13b, %r12d
     testl %r12d, %r12d
-    jne .L8_77
-    jmp .L8_6
-.L8_77:
-    movl %r12d, %ebx
-    jmp .L8_7
-.L8_6:
-    leaq 576(%rbp), %rbx
+    jne .L11_42
+    jmp .L11_6
+.L11_42:
+    movl %r12d, %r13d
+    jmp .L11_7
+.L11_6:
+    leaq 544(%rbp), %r12
     movq $8, %rcx
-    addq %rcx, %rbx
-    movq %rbx, %r10
-    movq (%r10), %rbx
+    addq %rcx, %r12
+    movq %r12, %r10
+    movq (%r10), %r12
     movq $0, %rcx
-    cmpq %rcx, %rbx
+    cmpq %rcx, %r12
     sete %al
-    movzbl %al, %ebx
-.L8_7:
-    movzbl %bl, %r12d
+    movzbl %al, %r13d
+.L11_7:
+    movzbl %r13b, %r12d
     testl %r12d, %r12d
-    jne .L8_1
-    jmp .L8_2
-.L8_1:
+    jne .L11_1
+    jmp .L11_2
+.L11_1:
     subq $48, %rsp
-    movq 40(%rbp), %r10
-    leaq 32(%rsp), %r11
-    movups 0(%r10), %xmm8
-    movups %xmm8, 0(%r11)
-    leaq 32(%rsp), %rax
-    movq %rax, 8(%rsp)
-    leaq 512(%rbp), %rax
-    movq %rax, (%rsp)
-    movq 0(%rsp), %rcx
-    movq 8(%rsp), %rdx
-    call lb_strings_copy
-    addq $48, %rsp
-    leaq 512(%rbp), %r12
-    movq $40, %rcx
-    movq %r12, %rbx
-    addq %rcx, %rbx
-    movq %rbx, %r10
-    movzbl (%r10), %ebx
-    testl %ebx, %ebx
-    jne .L8_9
-    jmp .L8_8
-.L8_9:
-    movq $16, %rcx
-    movq %r12, %rbx
-    addq %rcx, %rbx
-    leaq 592(%rbp), %r13
-    movq $16, %rcx
-    movq %r13, %r14
-    addq %rcx, %r14
-    movq %rbx, %r10
-    movq %r14, %r11
-    movups 0(%r10), %xmm8
-    movups %xmm8, 0(%r11)
-    movq 16(%r10), %rax
-    movq %rax, 16(%r11)
-    movq $40, %rcx
-    movq %r13, %rbx
-    addq %rcx, %rbx
-    movl $1, %eax
-    movq %rbx, %r10
-    movb %al, (%r10)
-    movq %r13, %rsi
-    movq 680(%rbp), %rdi
-    movq $48, %rdx
-    movq %rdx, %r8
-    movq %rsi, %rdx
-    movq %rdi, %rcx
-    subq $32, %rsp
-    call memcpy
-    addq $32, %rsp
-    movq 680(%rbp), %rax
-    movq 856(%rbp), %rdi
-    movq 848(%rbp), %rsi
-    movdqu 832(%rbp), %xmm6
-    movdqu 816(%rbp), %xmm7
-    movdqu 800(%rbp), %xmm8
-    movdqu 784(%rbp), %xmm9
-    movdqu 768(%rbp), %xmm10
-    movdqu 752(%rbp), %xmm11
-    movdqu 736(%rbp), %xmm12
-    movdqu 720(%rbp), %xmm13
-    movdqu 704(%rbp), %xmm14
-    movdqu 688(%rbp), %xmm15
-    movq 672(%rbp), %rbx
-    movq 664(%rbp), %r12
-    movq 656(%rbp), %r13
-    movq 648(%rbp), %r14
-    movq 640(%rbp), %r15
-    leaq 864(%rbp), %rsp
-    popq %rbp
-    ret
-.L8_10:
-.L8_8:
-    leaq 592(%rbp), %rbx
-    movq %r12, %r10
-    movq %rbx, %r11
-    movups 0(%r10), %xmm8
-    movups %xmm8, 0(%r11)
-    movq $40, %rcx
-    movq %rbx, %r13
-    addq %rcx, %r13
-    movl $0, %eax
-    movq %r13, %r10
-    movb %al, (%r10)
-    movq %rbx, %rsi
-    movq 680(%rbp), %rdi
-    movq $48, %rdx
-    movq %rdx, %r8
-    movq %rsi, %rdx
-    movq %rdi, %rcx
-    subq $32, %rsp
-    call memcpy
-    addq $32, %rsp
-    movq 680(%rbp), %rax
-    movq 856(%rbp), %rdi
-    movq 848(%rbp), %rsi
-    movdqu 832(%rbp), %xmm6
-    movdqu 816(%rbp), %xmm7
-    movdqu 800(%rbp), %xmm8
-    movdqu 784(%rbp), %xmm9
-    movdqu 768(%rbp), %xmm10
-    movdqu 752(%rbp), %xmm11
-    movdqu 736(%rbp), %xmm12
-    movdqu 720(%rbp), %xmm13
-    movdqu 704(%rbp), %xmm14
-    movdqu 688(%rbp), %xmm15
-    movq 672(%rbp), %rbx
-    movq 664(%rbp), %r12
-    movq 656(%rbp), %r13
-    movq 648(%rbp), %r14
-    movq 640(%rbp), %r15
-    leaq 864(%rbp), %rsp
-    popq %rbp
-    ret
-.L8_11:
-    jmp .L8_3
-.L8_2:
-.L8_3:
-    leaq lb_platform_windows(%rip), %rbx
-    movq %rbx, %r10
-    movzbl (%r10), %ebx
-    testl %ebx, %ebx
-    jne .L8_15
-    jmp .L8_78
-.L8_78:
-    movl %ebx, %r12d
-    jmp .L8_16
-.L8_15:
-    movq 40(%rbp), %r10
-    leaq 72(%rbp), %r11
-    movups 0(%r10), %xmm8
-    movups %xmm8, 0(%r11)
-    leaq 72(%rbp), %rbx
-    subq $48, %rsp
-    movq %rbx, %r10
-    leaq 32(%rsp), %r11
-    movups 0(%r10), %xmm8
-    movups %xmm8, 0(%r11)
-    leaq 32(%rsp), %rax
-    movq %rax, 8(%rsp)
-    leaq 56(%rbp), %rax
-    movq %rax, (%rsp)
-    movq 0(%rsp), %rcx
-    movq 8(%rsp), %rdx
-    call lb_paths_root
-    addq $48, %rsp
-    leaq 56(%rbp), %rbx
-    movq $8, %rcx
-    addq %rcx, %rbx
-    movq %rbx, %r10
-    movq (%r10), %rbx
-    movq $0, %rcx
-    cmpq %rcx, %rbx
-    seta %al
-    movzbl %al, %ebx
-    movzbl %bl, %r12d
-    leaq 48(%rbp), %r10
-    movl %r12d, (%r10)
-    jmp .L8_69
-.L8_68:
-    leaq .Ltext_27(%rip), %rdi
-    leaq .Ltext_0(%rip), %rsi
-    movq %rdx, %r8
-    movq %rsi, %rdx
-    movq %rdi, %rcx
-    subq $32, %rsp
-    call lb_core_7trap_at
-    addq $32, %rsp
-.L8_69:
-.L8_16:
-    movzbl %r12b, %ebx
-    testl %ebx, %ebx
-    jne .L8_12
-    jmp .L8_13
-.L8_12:
-    leaq 496(%rbp), %rbx
-    leaq 576(%rbp), %r12
-    subq $48, %rsp
-    movq %r12, %r10
+    movq 32(%rbp), %r10
     leaq 32(%rsp), %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
@@ -3480,32 +3990,210 @@ lb_paths_join:
     movq %rax, (%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
-    call lb_paths_root
+    call lb_strings_copy
     addq $48, %rsp
-    leaq 480(%rbp), %r12
+    leaq 480(%rbp), %r13
+    movq $40, %rcx
+    movq %r13, %r12
+    addq %rcx, %r12
     movq %r12, %r10
+    movzbl (%r10), %r12d
+    testl %r12d, %r12d
+    jne .L11_9
+    jmp .L11_8
+.L11_9:
+    movq $16, %rcx
+    movq %r13, %rbx
+    addq %rcx, %rbx
+    leaq 560(%rbp), %r12
+    movq $16, %rcx
+    movq %r12, %r14
+    addq %rcx, %r14
+    movq %rbx, %r10
+    movq %r14, %r11
+    movups 0(%r10), %xmm8
+    movups %xmm8, 0(%r11)
+    movq 16(%r10), %rax
+    movq %rax, 16(%r11)
+    movq $40, %rcx
+    movq %r12, %rbx
+    addq %rcx, %rbx
+    movl $1, %eax
+    movq %rbx, %r10
+    movb %al, (%r10)
+    movq %r12, %rsi
+    movq 648(%rbp), %rdi
+    movq $48, %rdx
+    movq %rdx, %r8
+    movq %rsi, %rdx
+    movq %rdi, %rcx
+    subq $32, %rsp
+    call memcpy
+    addq $32, %rsp
+    movq 648(%rbp), %rax
+    movq 824(%rbp), %rdi
+    movq 816(%rbp), %rsi
+    movdqu 800(%rbp), %xmm6
+    movdqu 784(%rbp), %xmm7
+    movdqu 768(%rbp), %xmm8
+    movdqu 752(%rbp), %xmm9
+    movdqu 736(%rbp), %xmm10
+    movdqu 720(%rbp), %xmm11
+    movdqu 704(%rbp), %xmm12
+    movdqu 688(%rbp), %xmm13
+    movdqu 672(%rbp), %xmm14
+    movdqu 656(%rbp), %xmm15
+    movq 640(%rbp), %rbx
+    movq 632(%rbp), %r12
+    movq 624(%rbp), %r13
+    movq 616(%rbp), %r14
+    movq 608(%rbp), %r15
+    leaq 832(%rbp), %rsp
+    popq %rbp
+    ret
+.L11_10:
+.L11_8:
+    leaq 560(%rbp), %rbx
+    movq %r13, %r10
     movq %rbx, %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
-    movq $8, %rcx
+    movq $40, %rcx
     movq %rbx, %r12
+    addq %rcx, %r12
+    movl $0, %eax
+    movq %r12, %r10
+    movb %al, (%r10)
+    movq %rbx, %rsi
+    movq 648(%rbp), %rdi
+    movq $48, %rdx
+    movq %rdx, %r8
+    movq %rsi, %rdx
+    movq %rdi, %rcx
+    subq $32, %rsp
+    call memcpy
+    addq $32, %rsp
+    movq 648(%rbp), %rax
+    movq 824(%rbp), %rdi
+    movq 816(%rbp), %rsi
+    movdqu 800(%rbp), %xmm6
+    movdqu 784(%rbp), %xmm7
+    movdqu 768(%rbp), %xmm8
+    movdqu 752(%rbp), %xmm9
+    movdqu 736(%rbp), %xmm10
+    movdqu 720(%rbp), %xmm11
+    movdqu 704(%rbp), %xmm12
+    movdqu 688(%rbp), %xmm13
+    movdqu 672(%rbp), %xmm14
+    movdqu 656(%rbp), %xmm15
+    movq 640(%rbp), %rbx
+    movq 632(%rbp), %r12
+    movq 624(%rbp), %r13
+    movq 616(%rbp), %r14
+    movq 608(%rbp), %r15
+    leaq 832(%rbp), %rsp
+    popq %rbp
+    ret
+.L11_11:
+    jmp .L11_3
+.L11_2:
+.L11_3:
+    leaq lb_platform_windows(%rip), %r12
+    movq %r12, %r10
+    movzbl (%r10), %r12d
+    testl %r12d, %r12d
+    jne .L11_15
+    jmp .L11_43
+.L11_43:
+    movl %r12d, %r13d
+    jmp .L11_16
+.L11_15:
+    movq 32(%rbp), %r10
+    leaq 64(%rbp), %r11
+    movups 0(%r10), %xmm8
+    movups %xmm8, 0(%r11)
+    leaq 64(%rbp), %r12
+    subq $48, %rsp
+    movq %r12, %r10
+    leaq 32(%rsp), %r11
+    movups 0(%r10), %xmm8
+    movups %xmm8, 0(%r11)
+    leaq 32(%rsp), %rax
+    movq %rax, 8(%rsp)
+    leaq 48(%rbp), %rax
+    movq %rax, (%rsp)
+    movq 0(%rsp), %rcx
+    movq 8(%rsp), %rdx
+    call lb_paths_root
+    addq $48, %rsp
+    leaq 48(%rbp), %r12
+    movq $8, %rcx
     addq %rcx, %r12
     movq %r12, %r10
     movq (%r10), %r12
-    movq %r12, %r13
-.L8_17:
     movq $0, %rcx
-    cmpq %rcx, %r13
+    cmpq %rcx, %r12
     seta %al
-    movzbl %al, %r14d
-    testl %r14d, %r14d
-    jne .L8_20
-    jmp .L8_79
-.L8_79:
-    movl %r14d, %r15d
-    jmp .L8_21
-.L8_20:
-    movq %r13, %rax
+    movzbl %al, %r12d
+    movzbl %r12b, %r13d
+    leaq 40(%rbp), %r10
+    movl %r13d, (%r10)
+    jmp .L11_40
+.L11_39:
+    leaq .Ltext_27(%rip), %rdi
+    leaq .Ltext_0(%rip), %rsi
+    movq %rdx, %r8
+    movq %rsi, %rdx
+    movq %rdi, %rcx
+    subq $32, %rsp
+    call lb_core_7trap_at
+    addq $32, %rsp
+.L11_40:
+.L11_16:
+    movzbl %r13b, %r12d
+    testl %r12d, %r12d
+    jne .L11_12
+    jmp .L11_13
+.L11_12:
+    leaq 464(%rbp), %r12
+    leaq 544(%rbp), %r13
+    subq $48, %rsp
+    movq %r13, %r10
+    leaq 32(%rsp), %r11
+    movups 0(%r10), %xmm8
+    movups %xmm8, 0(%r11)
+    leaq 32(%rsp), %rax
+    movq %rax, 8(%rsp)
+    leaq 448(%rbp), %rax
+    movq %rax, (%rsp)
+    movq 0(%rsp), %rcx
+    movq 8(%rsp), %rdx
+    call lb_paths_root
+    addq $48, %rsp
+    leaq 448(%rbp), %r13
+    movq %r13, %r10
+    movq %r12, %r11
+    movups 0(%r10), %xmm8
+    movups %xmm8, 0(%r11)
+    movq $8, %rcx
+    movq %r12, %r13
+    addq %rcx, %r13
+    movq %r13, %r10
+    movq (%r10), %r13
+    movq %r13, %r14
+.L11_17:
+    movq $0, %rcx
+    cmpq %rcx, %r14
+    seta %al
+    movzbl %al, %r15d
+    testl %r15d, %r15d
+    jne .L11_20
+    jmp .L11_44
+.L11_44:
+    movl %r15d, %ebx
+    jmp .L11_21
+.L11_20:
+    movq %r14, %rax
     movq $1, %rcx
     subq %rcx, %rax
     jnc 1f
@@ -3518,10 +4206,10 @@ lb_paths_join:
     call lb_core_7trap_at
     addq $32, %rsp
 1:
-    movq %rax, %r14
-    movq %rbx, %r10
+    movq %rax, %rbx
+    movq %r12, %r10
     movq (%r10), %r15
-    cmpq %r12, %r14
+    cmpq %r13, %rbx
     jb 1f
     leaq .Ltext_40(%rip), %rdi
     leaq .Ltext_10(%rip), %rsi
@@ -3532,23 +4220,23 @@ lb_paths_join:
     call lb_core_7trap_at
     addq $32, %rsp
 1:
-    addq %r15, %r14
-    movq %r14, %r10
-    movzbl (%r10), %r14d
+    addq %r15, %rbx
+    movq %rbx, %r10
+    movzbl (%r10), %ebx
     subq $32, %rsp
-    movl %r14d, %eax
+    movl %ebx, %eax
     movq %rax, 0(%rsp)
     movq 0(%rsp), %rcx
     call lb_paths_separator
     addq $32, %rsp
-    movl %eax, %r15d
-.L8_21:
-    movzbl %r15b, %r14d
-    testl %r14d, %r14d
-    jne .L8_18
-    jmp .L8_19
-.L8_18:
-    movq %r13, %rax
+    movl %eax, %ebx
+.L11_21:
+    movzbl %bl, %r15d
+    testl %r15d, %r15d
+    jne .L11_18
+    jmp .L11_19
+.L11_18:
+    movq %r14, %rax
     movq $1, %rcx
     subq %rcx, %rax
     jnc 1f
@@ -3561,22 +4249,46 @@ lb_paths_join:
     call lb_core_7trap_at
     addq $32, %rsp
 1:
-    movq %rax, %r14
-    movq %r14, %r13
-    jmp .L8_17
-.L8_19:
-    leaq 448(%rbp), %rax
-    movq %rax, 8(%rbp)
+    movq %rax, %rbx
+    movq %rbx, %r14
+    jmp .L11_17
+.L11_19:
     leaq 416(%rbp), %rax
+    movq %rax, 8(%rbp)
+    leaq 384(%rbp), %rax
     movq %rax, 0(%rbp)
-    movq %rbx, %r10
+    movq %r12, %r10
     movq (%r10), %r15
     movq $1, %rcx
-    movq %r12, %r14
-    addq %rcx, %r14
+    movq %r13, %rbx
+    addq %rcx, %rbx
+    movq $0, %rax
+    cmpq %rbx, %rax
+    jb 1f
+    leaq .Ltext_42(%rip), %rdi
+    leaq .Ltext_10(%rip), %rsi
+    movq %rdx, %r8
+    movq %rsi, %rdx
+    movq %rdi, %rcx
+    subq $32, %rsp
+    call lb_core_7trap_at
+    addq $32, %rsp
+1:
+    cmpq %rbx, %r14
+    jb 1f
+    leaq .Ltext_42(%rip), %rdi
+    leaq .Ltext_10(%rip), %rsi
+    movq %rdx, %r8
+    movq %rsi, %rdx
+    movq %rdi, %rcx
+    subq $32, %rsp
+    call lb_core_7trap_at
+    addq $32, %rsp
+1:
     movq $0, %rax
     cmpq %r14, %rax
-    jb 1f
+    jbe .L11_22
+.L11_23:
     leaq .Ltext_42(%rip), %rdi
     leaq .Ltext_10(%rip), %rsi
     movq %rdx, %r8
@@ -3585,46 +4297,22 @@ lb_paths_join:
     subq $32, %rsp
     call lb_core_7trap_at
     addq $32, %rsp
-1:
-    cmpq %r14, %r13
-    jb 1f
-    leaq .Ltext_42(%rip), %rdi
-    leaq .Ltext_10(%rip), %rsi
-    movq %rdx, %r8
-    movq %rsi, %rdx
-    movq %rdi, %rcx
-    subq $32, %rsp
-    call lb_core_7trap_at
-    addq $32, %rsp
-1:
-    movq $0, %rax
-    cmpq %r13, %rax
-    jbe .L8_22
-.L8_23:
-    leaq .Ltext_42(%rip), %rdi
-    leaq .Ltext_10(%rip), %rsi
-    movq %rdx, %r8
-    movq %rsi, %rdx
-    movq %rdi, %rcx
-    subq $32, %rsp
-    call lb_core_7trap_at
-    addq $32, %rsp
-.L8_22:
-    leaq 400(%rbp), %rbx
+.L11_22:
+    leaq 368(%rbp), %rbx
     movq %rbx, %r10
     movq %r15, (%r10)
     movq $8, %rcx
     addq %rcx, %rbx
     movq %rbx, %r10
-    movq %r13, (%r10)
-    leaq 384(%rbp), %rbx
+    movq %r14, (%r10)
+    leaq 352(%rbp), %rbx
     movq %rbx, %r10
     movq %r15, (%r10)
     movq $8, %rcx
     movq %rbx, %r12
     addq %rcx, %r12
     movq %r12, %r10
-    movq %r13, (%r10)
+    movq %r14, (%r10)
     movq %rbx, %r10
     movq 0(%rbp), %r11
     movups 0(%r10), %xmm8
@@ -3633,7 +4321,7 @@ lb_paths_join:
     movq $16, %rcx
     movq %rax, %rbx
     addq %rcx, %rbx
-    movq 40(%rbp), %r10
+    movq 32(%rbp), %r10
     movq %rbx, %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
@@ -3643,7 +4331,7 @@ lb_paths_join:
     movups %xmm8, 0(%r11)
     movups 16(%r10), %xmm8
     movups %xmm8, 16(%r11)
-    leaq 368(%rbp), %rbx
+    leaq 336(%rbp), %rbx
     movq 8(%rbp), %rax
     movq %rbx, %r10
     movq %rax, (%r10)
@@ -3654,11 +4342,11 @@ lb_paths_join:
     movq %r12, %r10
     movq %rax, (%r10)
     leaq .Ltext_12(%rip), %r12
-    leaq 352(%rbp), %r14
-    movq %r14, %r10
+    leaq 320(%rbp), %r13
+    movq %r13, %r10
     movq %r12, (%r10)
     movq $8, %rcx
-    movq %r14, %r12
+    movq %r13, %r12
     addq %rcx, %r12
     movq $0, %rax
     movq %r12, %r10
@@ -3670,33 +4358,33 @@ lb_paths_join:
     movups %xmm8, 0(%r11)
     leaq 32(%rsp), %rax
     movq %rax, 8(%rsp)
-    movq %r14, %r10
+    movq %r13, %r10
     leaq 48(%rsp), %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
     leaq 48(%rsp), %rax
     movq %rax, 16(%rsp)
-    leaq 304(%rbp), %rax
+    leaq 272(%rbp), %rax
     movq %rax, (%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
     movq 16(%rsp), %r8
     call lb_strings_join
     addq $64, %rsp
-    leaq 304(%rbp), %r12
+    leaq 272(%rbp), %r12
     movq $40, %rcx
     movq %r12, %rbx
     addq %rcx, %rbx
     movq %rbx, %r10
     movzbl (%r10), %ebx
     testl %ebx, %ebx
-    jne .L8_25
-    jmp .L8_24
-.L8_25:
+    jne .L11_25
+    jmp .L11_24
+.L11_25:
     movq $16, %rcx
     movq %r12, %rbx
     addq %rcx, %rbx
-    leaq 592(%rbp), %r13
+    leaq 560(%rbp), %r13
     movq $16, %rcx
     movq %r13, %r14
     addq %rcx, %r14
@@ -3713,7 +4401,7 @@ lb_paths_join:
     movq %rbx, %r10
     movb %al, (%r10)
     movq %r13, %rsi
-    movq 680(%rbp), %rdi
+    movq 648(%rbp), %rdi
     movq $48, %rdx
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -3721,30 +4409,30 @@ lb_paths_join:
     subq $32, %rsp
     call memcpy
     addq $32, %rsp
-    movq 680(%rbp), %rax
-    movq 856(%rbp), %rdi
-    movq 848(%rbp), %rsi
-    movdqu 832(%rbp), %xmm6
-    movdqu 816(%rbp), %xmm7
-    movdqu 800(%rbp), %xmm8
-    movdqu 784(%rbp), %xmm9
-    movdqu 768(%rbp), %xmm10
-    movdqu 752(%rbp), %xmm11
-    movdqu 736(%rbp), %xmm12
-    movdqu 720(%rbp), %xmm13
-    movdqu 704(%rbp), %xmm14
-    movdqu 688(%rbp), %xmm15
-    movq 672(%rbp), %rbx
-    movq 664(%rbp), %r12
-    movq 656(%rbp), %r13
-    movq 648(%rbp), %r14
-    movq 640(%rbp), %r15
-    leaq 864(%rbp), %rsp
+    movq 648(%rbp), %rax
+    movq 824(%rbp), %rdi
+    movq 816(%rbp), %rsi
+    movdqu 800(%rbp), %xmm6
+    movdqu 784(%rbp), %xmm7
+    movdqu 768(%rbp), %xmm8
+    movdqu 752(%rbp), %xmm9
+    movdqu 736(%rbp), %xmm10
+    movdqu 720(%rbp), %xmm11
+    movdqu 704(%rbp), %xmm12
+    movdqu 688(%rbp), %xmm13
+    movdqu 672(%rbp), %xmm14
+    movdqu 656(%rbp), %xmm15
+    movq 640(%rbp), %rbx
+    movq 632(%rbp), %r12
+    movq 624(%rbp), %r13
+    movq 616(%rbp), %r14
+    movq 608(%rbp), %r15
+    leaq 832(%rbp), %rsp
     popq %rbp
     ret
-.L8_26:
-.L8_24:
-    leaq 592(%rbp), %rbx
+.L11_26:
+.L11_24:
+    leaq 560(%rbp), %rbx
     movq %r12, %r10
     movq %rbx, %r11
     movups 0(%r10), %xmm8
@@ -3756,7 +4444,7 @@ lb_paths_join:
     movq %r13, %r10
     movb %al, (%r10)
     movq %rbx, %rsi
-    movq 680(%rbp), %rdi
+    movq 648(%rbp), %rdi
     movq $48, %rdx
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -3764,32 +4452,32 @@ lb_paths_join:
     subq $32, %rsp
     call memcpy
     addq $32, %rsp
-    movq 680(%rbp), %rax
-    movq 856(%rbp), %rdi
-    movq 848(%rbp), %rsi
-    movdqu 832(%rbp), %xmm6
-    movdqu 816(%rbp), %xmm7
-    movdqu 800(%rbp), %xmm8
-    movdqu 784(%rbp), %xmm9
-    movdqu 768(%rbp), %xmm10
-    movdqu 752(%rbp), %xmm11
-    movdqu 736(%rbp), %xmm12
-    movdqu 720(%rbp), %xmm13
-    movdqu 704(%rbp), %xmm14
-    movdqu 688(%rbp), %xmm15
-    movq 672(%rbp), %rbx
-    movq 664(%rbp), %r12
-    movq 656(%rbp), %r13
-    movq 648(%rbp), %r14
-    movq 640(%rbp), %r15
-    leaq 864(%rbp), %rsp
+    movq 648(%rbp), %rax
+    movq 824(%rbp), %rdi
+    movq 816(%rbp), %rsi
+    movdqu 800(%rbp), %xmm6
+    movdqu 784(%rbp), %xmm7
+    movdqu 768(%rbp), %xmm8
+    movdqu 752(%rbp), %xmm9
+    movdqu 736(%rbp), %xmm10
+    movdqu 720(%rbp), %xmm11
+    movdqu 704(%rbp), %xmm12
+    movdqu 688(%rbp), %xmm13
+    movdqu 672(%rbp), %xmm14
+    movdqu 656(%rbp), %xmm15
+    movq 640(%rbp), %rbx
+    movq 632(%rbp), %r12
+    movq 624(%rbp), %r13
+    movq 616(%rbp), %r14
+    movq 608(%rbp), %r15
+    leaq 832(%rbp), %rsp
     popq %rbp
     ret
-.L8_27:
-    jmp .L8_14
-.L8_13:
-.L8_14:
-    leaq 576(%rbp), %rbx
+.L11_27:
+    jmp .L11_14
+.L11_13:
+.L11_14:
+    leaq 544(%rbp), %rbx
     subq $48, %rsp
     movq %rbx, %r10
     leaq 32(%rsp), %r11
@@ -3802,12 +4490,12 @@ lb_paths_join:
     addq $48, %rsp
     movl %eax, %r12d
     testl %r12d, %r12d
-    jne .L8_28
-    jmp .L8_80
-.L8_80:
+    jne .L11_28
+    jmp .L11_45
+.L11_45:
     movl %r12d, %r13d
-    jmp .L8_29
-.L8_28:
+    jmp .L11_29
+.L11_28:
     movq $8, %rcx
     movq %rbx, %r12
     addq %rcx, %r12
@@ -3817,10 +4505,10 @@ lb_paths_join:
     cmpq %rcx, %r12
     sete %al
     movzbl %al, %r13d
-.L8_29:
+.L11_29:
     movzbl %r13b, %eax
-    movl %eax, 32(%rbp)
-    leaq 288(%rbp), %rax
+    movl %eax, 24(%rbp)
+    leaq 256(%rbp), %rax
     movq %rax, 16(%rbp)
     movq $8, %rcx
     movq %rbx, %r14
@@ -3867,22 +4555,22 @@ lb_paths_join:
     addq $32, %rsp
     movl %eax, %r12d
     testl %r12d, %r12d
-    jne .L8_81
-    jmp .L8_33
-.L8_81:
+    jne .L11_46
+    jmp .L11_33
+.L11_46:
     movl %r12d, %r13d
-    jmp .L8_34
-.L8_33:
-    movl 32(%rbp), %eax
+    jmp .L11_34
+.L11_33:
+    movl 24(%rbp), %eax
     movzbl %al, %r13d
-.L8_34:
+.L11_34:
     movzbl %r13b, %r12d
     testl %r12d, %r12d
-    jne .L8_30
-    jmp .L8_31
-.L8_30:
+    jne .L11_30
+    jmp .L11_31
+.L11_30:
     leaq .Ltext_12(%rip), %r12
-    leaq 256(%rbp), %r13
+    leaq 224(%rbp), %r13
     movq %r13, %r10
     movq %r12, (%r10)
     movq $8, %rcx
@@ -3891,15 +4579,15 @@ lb_paths_join:
     movq $0, %rax
     movq %r12, %r10
     movq %rax, (%r10)
-    leaq 272(%rbp), %r12
+    leaq 240(%rbp), %r12
     movq %r13, %r10
     movq %r12, %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
-    jmp .L8_32
-.L8_31:
+    jmp .L11_32
+.L11_31:
     leaq .Ltext_44(%rip), %r12
-    leaq 240(%rbp), %r13
+    leaq 208(%rbp), %r13
     movq %r13, %r10
     movq %r12, (%r10)
     movq $8, %rcx
@@ -3908,19 +4596,19 @@ lb_paths_join:
     movq $1, %rax
     movq %r12, %r10
     movq %rax, (%r10)
-    leaq 272(%rbp), %r12
+    leaq 240(%rbp), %r12
     movq %r13, %r10
     movq %r12, %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
-.L8_32:
-    leaq 272(%rbp), %r12
+.L11_32:
+    leaq 240(%rbp), %r12
     movq %r12, %r10
     movq 16(%rbp), %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
-    leaq 208(%rbp), %r12
-    leaq 176(%rbp), %r13
+    leaq 176(%rbp), %r12
+    leaq 144(%rbp), %r13
     movq %rbx, %r10
     movq %r13, %r11
     movups 0(%r10), %xmm8
@@ -3928,7 +4616,7 @@ lb_paths_join:
     movq $16, %rcx
     movq %r13, %r14
     addq %rcx, %r14
-    movq 40(%rbp), %r10
+    movq 32(%rbp), %r10
     movq %r14, %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
@@ -3938,7 +4626,7 @@ lb_paths_join:
     movups %xmm8, 0(%r11)
     movups 16(%r10), %xmm8
     movups %xmm8, 16(%r11)
-    leaq 160(%rbp), %r13
+    leaq 128(%rbp), %r13
     movq %r13, %r10
     movq %r12, (%r10)
     movq $8, %rcx
@@ -3960,27 +4648,27 @@ lb_paths_join:
     movups %xmm8, 0(%r11)
     leaq 48(%rsp), %rax
     movq %rax, 16(%rsp)
-    leaq 112(%rbp), %rax
+    leaq 80(%rbp), %rax
     movq %rax, (%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
     movq 16(%rsp), %r8
     call lb_strings_join
     addq $64, %rsp
-    leaq 112(%rbp), %r13
+    leaq 80(%rbp), %r13
     movq $40, %rcx
     movq %r13, %r12
     addq %rcx, %r12
     movq %r12, %r10
     movzbl (%r10), %r12d
     testl %r12d, %r12d
-    jne .L8_36
-    jmp .L8_35
-.L8_36:
+    jne .L11_36
+    jmp .L11_35
+.L11_36:
     movq $16, %rcx
     movq %r13, %rbx
     addq %rcx, %rbx
-    leaq 592(%rbp), %r12
+    leaq 560(%rbp), %r12
     movq $16, %rcx
     movq %r12, %r14
     addq %rcx, %r14
@@ -3997,7 +4685,7 @@ lb_paths_join:
     movq %rbx, %r10
     movb %al, (%r10)
     movq %r12, %rsi
-    movq 680(%rbp), %rdi
+    movq 648(%rbp), %rdi
     movq $48, %rdx
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -4005,30 +4693,30 @@ lb_paths_join:
     subq $32, %rsp
     call memcpy
     addq $32, %rsp
-    movq 680(%rbp), %rax
-    movq 856(%rbp), %rdi
-    movq 848(%rbp), %rsi
-    movdqu 832(%rbp), %xmm6
-    movdqu 816(%rbp), %xmm7
-    movdqu 800(%rbp), %xmm8
-    movdqu 784(%rbp), %xmm9
-    movdqu 768(%rbp), %xmm10
-    movdqu 752(%rbp), %xmm11
-    movdqu 736(%rbp), %xmm12
-    movdqu 720(%rbp), %xmm13
-    movdqu 704(%rbp), %xmm14
-    movdqu 688(%rbp), %xmm15
-    movq 672(%rbp), %rbx
-    movq 664(%rbp), %r12
-    movq 656(%rbp), %r13
-    movq 648(%rbp), %r14
-    movq 640(%rbp), %r15
-    leaq 864(%rbp), %rsp
+    movq 648(%rbp), %rax
+    movq 824(%rbp), %rdi
+    movq 816(%rbp), %rsi
+    movdqu 800(%rbp), %xmm6
+    movdqu 784(%rbp), %xmm7
+    movdqu 768(%rbp), %xmm8
+    movdqu 752(%rbp), %xmm9
+    movdqu 736(%rbp), %xmm10
+    movdqu 720(%rbp), %xmm11
+    movdqu 704(%rbp), %xmm12
+    movdqu 688(%rbp), %xmm13
+    movdqu 672(%rbp), %xmm14
+    movdqu 656(%rbp), %xmm15
+    movq 640(%rbp), %rbx
+    movq 632(%rbp), %r12
+    movq 624(%rbp), %r13
+    movq 616(%rbp), %r14
+    movq 608(%rbp), %r15
+    leaq 832(%rbp), %rsp
     popq %rbp
     ret
-.L8_37:
-.L8_35:
-    leaq 592(%rbp), %rbx
+.L11_37:
+.L11_35:
+    leaq 560(%rbp), %rbx
     movq %r13, %r10
     movq %rbx, %r11
     movups 0(%r10), %xmm8
@@ -4040,7 +4728,7 @@ lb_paths_join:
     movq %r12, %r10
     movb %al, (%r10)
     movq %rbx, %rsi
-    movq 680(%rbp), %rdi
+    movq 648(%rbp), %rdi
     movq $48, %rdx
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -4048,28 +4736,28 @@ lb_paths_join:
     subq $32, %rsp
     call memcpy
     addq $32, %rsp
-    movq 680(%rbp), %rax
-    movq 856(%rbp), %rdi
-    movq 848(%rbp), %rsi
-    movdqu 832(%rbp), %xmm6
-    movdqu 816(%rbp), %xmm7
-    movdqu 800(%rbp), %xmm8
-    movdqu 784(%rbp), %xmm9
-    movdqu 768(%rbp), %xmm10
-    movdqu 752(%rbp), %xmm11
-    movdqu 736(%rbp), %xmm12
-    movdqu 720(%rbp), %xmm13
-    movdqu 704(%rbp), %xmm14
-    movdqu 688(%rbp), %xmm15
-    movq 672(%rbp), %rbx
-    movq 664(%rbp), %r12
-    movq 656(%rbp), %r13
-    movq 648(%rbp), %r14
-    movq 640(%rbp), %r15
-    leaq 864(%rbp), %rsp
+    movq 648(%rbp), %rax
+    movq 824(%rbp), %rdi
+    movq 816(%rbp), %rsi
+    movdqu 800(%rbp), %xmm6
+    movdqu 784(%rbp), %xmm7
+    movdqu 768(%rbp), %xmm8
+    movdqu 752(%rbp), %xmm9
+    movdqu 736(%rbp), %xmm10
+    movdqu 720(%rbp), %xmm11
+    movdqu 704(%rbp), %xmm12
+    movdqu 688(%rbp), %xmm13
+    movdqu 672(%rbp), %xmm14
+    movdqu 656(%rbp), %xmm15
+    movq 640(%rbp), %rbx
+    movq 632(%rbp), %r12
+    movq 624(%rbp), %r13
+    movq 616(%rbp), %r14
+    movq 608(%rbp), %r15
+    leaq 832(%rbp), %rsp
     popq %rbp
     ret
-.L8_38:
+.L11_38:
     leaq .Ltext_45(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
@@ -4188,8 +4876,8 @@ lb_paths_normalize:
     movq %rax, 104(%rbp)
     movabsq $4611686018427387904, %rcx
     cmpq %rcx, %r12
-    jbe .L9_2
-.L9_1:
+    jbe .L12_2
+.L12_1:
     movq 104(%rbp), %rax
     movq $16, %rcx
     movq %rax, %r12
@@ -4215,8 +4903,8 @@ lb_paths_normalize:
     movl $1, %eax
     movq %r12, %r10
     movb %al, (%r10)
-    jmp .L9_3
-.L9_2:
+    jmp .L12_3
+.L12_2:
     movq 112(%rbp), %r10
     movq (%r10), %r14
     movq 112(%rbp), %rax
@@ -4226,9 +4914,9 @@ lb_paths_normalize:
     movq %r15, %r10
     movq (%r10), %r15
     testq %r15, %r15
-    jne .L9_4
-    jmp .L9_5
-.L9_5:
+    jne .L12_4
+    jmp .L12_5
+.L12_5:
     leaq .Ltext_46(%rip), %rdi
     leaq .Ltext_48(%rip), %rsi
     movq %rdx, %r8
@@ -4237,7 +4925,7 @@ lb_paths_normalize:
     subq $32, %rsp
     call lb_core_7trap_at
     addq $32, %rsp
-.L9_4:
+.L12_4:
     movq %r15, %r10
     movq (%r10), %rbx
     subq $32, %rsp
@@ -4276,9 +4964,9 @@ lb_paths_normalize:
     movl %eax, %ebx
     andl %ecx, %ebx
     testl %ebx, %ebx
-    jne .L9_6
-    jmp .L9_7
-.L9_6:
+    jne .L12_6
+    jmp .L12_7
+.L12_6:
     movq 104(%rbp), %rax
     movq $16, %rcx
     movq %rax, %rbx
@@ -4304,8 +4992,8 @@ lb_paths_normalize:
     movl $1, %eax
     movq %rbx, %r10
     movb %al, (%r10)
-    jmp .L9_3
-.L9_7:
+    jmp .L12_3
+.L12_7:
     movq %r13, %r10
     movq (%r10), %rbx
     movq 104(%rbp), %r10
@@ -4323,7 +5011,7 @@ lb_paths_normalize:
     movl $0, %eax
     movq %rbx, %r10
     movb %al, (%r10)
-.L9_3:
+.L12_3:
     movq 104(%rbp), %rax
     movq $40, %rcx
     movq %rax, %rbx
@@ -4331,9 +5019,9 @@ lb_paths_normalize:
     movq %rbx, %r10
     movzbl (%r10), %ebx
     testl %ebx, %ebx
-    jne .L9_9
-    jmp .L9_8
-.L9_9:
+    jne .L12_9
+    jmp .L12_8
+.L12_9:
     movq 104(%rbp), %rax
     movq $16, %rcx
     movq %rax, %rbx
@@ -4384,8 +5072,8 @@ lb_paths_normalize:
     leaq 1456(%rbp), %rsp
     popq %rbp
     ret
-.L9_10:
-.L9_8:
+.L12_10:
+.L12_8:
     movq 104(%rbp), %r10
     movq 120(%rbp), %r11
     movups 0(%r10), %xmm8
@@ -4413,8 +5101,8 @@ lb_paths_normalize:
     movq 88(%rbp), %rax
     movabsq $576460752303423488, %rcx
     cmpq %rcx, %rax
-    jbe .L9_12
-.L9_11:
+    jbe .L12_12
+.L12_11:
     movq 80(%rbp), %rax
     movq $16, %rcx
     movq %rax, %rbx
@@ -4440,8 +5128,8 @@ lb_paths_normalize:
     movl $1, %eax
     movq %rbx, %r10
     movb %al, (%r10)
-    jmp .L9_13
-.L9_12:
+    jmp .L12_13
+.L12_12:
     movq 88(%rbp), %rax
     movq $8, %rcx
     movq %rax, %r12
@@ -4455,9 +5143,9 @@ lb_paths_normalize:
     movq %r15, %r10
     movq (%r10), %r15
     testq %r15, %r15
-    jne .L9_14
-    jmp .L9_15
-.L9_15:
+    jne .L12_14
+    jmp .L12_15
+.L12_15:
     leaq .Ltext_50(%rip), %rdi
     leaq .Ltext_48(%rip), %rsi
     movq %rdx, %r8
@@ -4466,7 +5154,7 @@ lb_paths_normalize:
     subq $32, %rsp
     call lb_core_7trap_at
     addq $32, %rsp
-.L9_14:
+.L12_14:
     movq %r15, %r10
     movq (%r10), %r13
     subq $32, %rsp
@@ -4505,9 +5193,9 @@ lb_paths_normalize:
     movl %eax, %r13d
     andl %ecx, %r13d
     testl %r13d, %r13d
-    jne .L9_16
-    jmp .L9_17
-.L9_16:
+    jne .L12_16
+    jmp .L12_17
+.L12_16:
     movq 80(%rbp), %rax
     movq $16, %rcx
     movq %rax, %rbx
@@ -4533,8 +5221,8 @@ lb_paths_normalize:
     movl $1, %eax
     movq %rbx, %r10
     movb %al, (%r10)
-    jmp .L9_13
-.L9_17:
+    jmp .L12_13
+.L12_17:
     movq %r14, %r10
     movq (%r10), %rbx
     movq 80(%rbp), %r10
@@ -4553,7 +5241,7 @@ lb_paths_normalize:
     movl $0, %eax
     movq %rbx, %r10
     movb %al, (%r10)
-.L9_13:
+.L12_13:
     movq 80(%rbp), %rax
     movq $40, %rcx
     movq %rax, %rbx
@@ -4561,9 +5249,9 @@ lb_paths_normalize:
     movq %rbx, %r10
     movzbl (%r10), %ebx
     testl %ebx, %ebx
-    jne .L9_19
-    jmp .L9_18
-.L9_19:
+    jne .L12_19
+    jmp .L12_18
+.L12_19:
     movq 80(%rbp), %rax
     movq $16, %rcx
     movq %rax, %rbx
@@ -4609,9 +5297,9 @@ lb_paths_normalize:
     movq %r14, %r10
     movq (%r10), %r14
     testq %r14, %r14
-    jne .L9_21
-    jmp .L9_20
-.L9_21:
+    jne .L12_21
+    jmp .L12_20
+.L12_21:
     movq $16, %rcx
     movq %r14, %r15
     addq %rcx, %r15
@@ -4631,7 +5319,7 @@ lb_paths_normalize:
     movq %r15, %r11
     call *%r11
     addq $48, %rsp
-.L9_20:
+.L12_20:
     movq %r12, %rsi
     movq 1272(%rbp), %rdi
     movq $48, %rdx
@@ -4662,8 +5350,8 @@ lb_paths_normalize:
     leaq 1456(%rbp), %rsp
     popq %rbp
     ret
-.L9_22:
-.L9_18:
+.L12_22:
+.L12_18:
     movq 80(%rbp), %r10
     movq 96(%rbp), %r11
     movups 0(%r10), %xmm8
@@ -4688,11 +5376,11 @@ lb_paths_normalize:
     movq %rax, 448(%rbp)
     movq $0, %rax
     movq %rax, %r15
-.L9_23:
+.L12_23:
     movq 456(%rbp), %rcx
     cmpq %rcx, %r15
-    jae .L9_26
-.L9_24:
+    jae .L12_26
+.L12_24:
     cmpq %r13, %r15
     jb 1f
     leaq .Ltext_51(%rip), %rdi
@@ -4713,25 +5401,25 @@ lb_paths_normalize:
     movzbl (%r10), %ebx
     movq %r14, %r10
     movb %bl, (%r10)
-.L9_25:
+.L12_25:
     movq $1, %rcx
     movq %r15, %rbx
     addq %rcx, %rbx
     movq %rbx, %r15
-    jmp .L9_23
-.L9_26:
+    jmp .L12_23
+.L12_26:
     movq 456(%rbp), %rax
     movq $0, %rcx
     cmpq %rcx, %rax
     seta %al
     movzbl %al, %ebx
     testl %ebx, %ebx
-    jne .L9_27
-    jmp .L9_125
-.L9_125:
+    jne .L12_27
+    jmp .L12_125
+.L12_125:
     movl %ebx, %r12d
-    jmp .L9_28
-.L9_27:
+    jmp .L12_28
+.L12_27:
     subq $48, %rsp
     movq 496(%rbp), %r10
     leaq 32(%rsp), %r11
@@ -4744,25 +5432,25 @@ lb_paths_normalize:
     addq $48, %rsp
     movl %eax, %ebx
     testl %ebx, %ebx
-    jne .L9_29
-    jmp .L9_126
-.L9_126:
+    jne .L12_29
+    jmp .L12_126
+.L12_126:
     movl %ebx, %r12d
-    jmp .L9_30
-.L9_29:
+    jmp .L12_30
+.L12_29:
     movq 456(%rbp), %rax
     movq $2, %rcx
     cmpq %rcx, %rax
     sete %al
     movzbl %al, %r12d
-.L9_30:
+.L12_30:
     movzbl %r12b, %ebx
     movl $0, %ecx
     cmpl %ecx, %ebx
     sete %al
     movzbl %al, %ebx
     movl %ebx, %r12d
-.L9_28:
+.L12_28:
     movzbl %r12b, %eax
     movl %eax, 440(%rbp)
     leaq 928(%rbp), %rax
@@ -4850,28 +5538,28 @@ lb_paths_normalize:
     movq %rax, 64(%rbp)
     movq 456(%rbp), %rax
     movq %rax, 56(%rbp)
-.L9_31:
+.L12_31:
     movq 480(%rbp), %r10
     movq (%r10), %r12
     movq 56(%rbp), %rax
     cmpq %r12, %rax
-    jae .L9_33
-.L9_32:
+    jae .L12_33
+.L12_32:
     movq 56(%rbp), %rax
     movq %rax, %r12
-.L9_34:
+.L12_34:
     movq 480(%rbp), %r10
     movq (%r10), %rbx
     cmpq %rbx, %r12
     setb %al
     movzbl %al, %ebx
     testl %ebx, %ebx
-    jne .L9_37
-    jmp .L9_127
-.L9_127:
+    jne .L12_37
+    jmp .L12_127
+.L12_127:
     movl %ebx, %r15d
-    jmp .L9_38
-.L9_37:
+    jmp .L12_38
+.L12_37:
     movq 496(%rbp), %r10
     movq (%r10), %rbx
     addq %r12, %rbx
@@ -4884,12 +5572,12 @@ lb_paths_normalize:
     call lb_paths_separator
     addq $32, %rsp
     movl %eax, %r15d
-.L9_38:
+.L12_38:
     movzbl %r15b, %ebx
     testl %ebx, %ebx
-    jne .L9_35
-    jmp .L9_36
-.L9_35:
+    jne .L12_35
+    jmp .L12_36
+.L12_35:
     movq %r12, %rax
     movq $1, %rcx
     addq %rcx, %rax
@@ -4905,11 +5593,11 @@ lb_paths_normalize:
 1:
     movq %rax, %rbx
     movq %rbx, %r12
-    jmp .L9_34
-.L9_36:
+    jmp .L12_34
+.L12_36:
     movq %r12, %rax
     movq %rax, 48(%rbp)
-.L9_39:
+.L12_39:
     movq 480(%rbp), %r10
     movq (%r10), %r15
     movq 48(%rbp), %rax
@@ -4917,12 +5605,12 @@ lb_paths_normalize:
     setb %al
     movzbl %al, %r15d
     testl %r15d, %r15d
-    jne .L9_42
-    jmp .L9_128
-.L9_128:
+    jne .L12_42
+    jmp .L12_128
+.L12_128:
     movl %r15d, %r14d
-    jmp .L9_43
-.L9_42:
+    jmp .L12_43
+.L12_42:
     movq 496(%rbp), %r10
     movq (%r10), %r14
     movq 48(%rbp), %rcx
@@ -4940,12 +5628,12 @@ lb_paths_normalize:
     cmpl %ecx, %r14d
     sete %al
     movzbl %al, %r14d
-.L9_43:
+.L12_43:
     movzbl %r14b, %r15d
     testl %r15d, %r15d
-    jne .L9_40
-    jmp .L9_41
-.L9_40:
+    jne .L12_40
+    jmp .L12_41
+.L12_40:
     movq 48(%rbp), %rax
     movq $1, %rcx
     addq %rcx, %rax
@@ -4962,8 +5650,8 @@ lb_paths_normalize:
     movq %rax, %r14
     movq %r14, %rax
     movq %rax, 48(%rbp)
-    jmp .L9_39
-.L9_41:
+    jmp .L12_39
+.L12_41:
     movq 496(%rbp), %r10
     movq (%r10), %r15
     movq 480(%rbp), %r10
@@ -4995,8 +5683,8 @@ lb_paths_normalize:
 1:
     movq 48(%rbp), %rcx
     cmpq %rcx, %r12
-    jbe .L9_44
-.L9_45:
+    jbe .L12_44
+.L12_45:
     leaq .Ltext_54(%rip), %rdi
     leaq .Ltext_10(%rip), %rsi
     movq %rdx, %r8
@@ -5005,7 +5693,7 @@ lb_paths_normalize:
     subq $32, %rsp
     call lb_core_7trap_at
     addq $32, %rsp
-.L9_44:
+.L12_44:
     movq %r12, %rax
     addq %r15, %rax
     movq %rax, 432(%rbp)
@@ -5034,12 +5722,12 @@ lb_paths_normalize:
     sete %al
     movzbl %al, %r14d
     testl %r14d, %r14d
-    jne .L9_129
-    jmp .L9_49
-.L9_129:
+    jne .L12_129
+    jmp .L12_49
+.L12_129:
     movl %r14d, %r12d
-    jmp .L9_50
-.L9_49:
+    jmp .L12_50
+.L12_49:
     movq 384(%rbp), %rax
     movq 32(%rbp), %r10
     movq %rax, (%r10)
@@ -5052,12 +5740,12 @@ lb_paths_normalize:
     sete %al
     movzbl %al, %r12d
     testl %r12d, %r12d
-    jne .L9_51
-    jmp .L9_130
-.L9_130:
+    jne .L12_51
+    jmp .L12_130
+.L12_130:
     movl %r12d, %r14d
-    jmp .L9_52
-.L9_51:
+    jmp .L12_52
+.L12_51:
     subq $32, %rsp
     movq 432(%rbp), %rax
     movq %rax, 0(%rsp)
@@ -5075,21 +5763,21 @@ lb_paths_normalize:
     cmpl %ecx, %r12d
     sete %al
     movzbl %al, %r14d
-.L9_52:
+.L12_52:
     movzbl %r14b, %r12d
-.L9_50:
+.L12_50:
     movzbl %r12b, %r14d
     testl %r14d, %r14d
-    jne .L9_46
-    jmp .L9_47
-.L9_46:
+    jne .L12_46
+    jmp .L12_47
+.L12_46:
     movq 48(%rbp), %rax
     movq %rax, 56(%rbp)
-    jmp .L9_31
-.L9_53:
-    jmp .L9_48
-.L9_47:
-.L9_48:
+    jmp .L12_31
+.L12_53:
+    jmp .L12_48
+.L12_47:
+.L12_48:
     movq 368(%rbp), %rax
     movq 24(%rbp), %r10
     movq %rax, (%r10)
@@ -5102,12 +5790,12 @@ lb_paths_normalize:
     sete %al
     movzbl %al, %r12d
     testl %r12d, %r12d
-    jne .L9_57
-    jmp .L9_131
-.L9_131:
+    jne .L12_57
+    jmp .L12_131
+.L12_131:
     movl %r12d, %r14d
-    jmp .L9_58
-.L9_57:
+    jmp .L12_58
+.L12_57:
     subq $32, %rsp
     movq 432(%rbp), %rax
     movq %rax, 0(%rsp)
@@ -5125,17 +5813,17 @@ lb_paths_normalize:
     cmpl %ecx, %r12d
     sete %al
     movzbl %al, %r14d
-.L9_58:
+.L12_58:
     movzbl %r14b, %r12d
     testl %r12d, %r12d
-    jne .L9_54
-    jmp .L9_55
-.L9_54:
+    jne .L12_54
+    jmp .L12_55
+.L12_54:
     movq 64(%rbp), %rax
     movq $0, %rcx
     cmpq %rcx, %rax
-    jbe .L9_60
-.L9_59:
+    jbe .L12_60
+.L12_59:
     movq 64(%rbp), %rax
     movq $1, %rcx
     subq %rcx, %rax
@@ -5180,12 +5868,12 @@ lb_paths_normalize:
     setb %al
     movzbl %al, %r13d
     testl %r13d, %r13d
-    jne .L9_65
-    jmp .L9_132
-.L9_132:
+    jne .L12_65
+    jmp .L12_132
+.L12_132:
     movl %r13d, %ebx
-    jmp .L9_66
-.L9_65:
+    jmp .L12_66
+.L12_65:
     movq 120(%rbp), %r10
     movq (%r10), %rbx
     movq 328(%rbp), %r10
@@ -5213,12 +5901,12 @@ lb_paths_normalize:
     call lb_paths_separator
     addq $32, %rsp
     movl %eax, %ebx
-.L9_66:
+.L12_66:
     movzbl %bl, %r13d
     testl %r13d, %r13d
-    jne .L9_62
-    jmp .L9_63
-.L9_62:
+    jne .L12_62
+    jmp .L12_63
+.L12_62:
     movq %r15, %rax
     movq $1, %rcx
     addq %rcx, %rax
@@ -5233,10 +5921,10 @@ lb_paths_normalize:
     addq $32, %rsp
 1:
     movq %rax, %rbx
-    jmp .L9_64
-.L9_63:
+    jmp .L12_64
+.L12_63:
     movq %r15, %rbx
-.L9_64:
+.L12_64:
     movq 120(%rbp), %r10
     movq (%r10), %r15
     movq 320(%rbp), %r10
@@ -5268,8 +5956,8 @@ lb_paths_normalize:
 1:
     movq 72(%rbp), %rcx
     cmpq %rcx, %rbx
-    jbe .L9_70
-.L9_71:
+    jbe .L12_70
+.L12_71:
     leaq .Ltext_58(%rip), %rdi
     leaq .Ltext_10(%rip), %rsi
     movq %rdx, %r8
@@ -5278,7 +5966,7 @@ lb_paths_normalize:
     subq $32, %rsp
     call lb_core_7trap_at
     addq $32, %rsp
-.L9_70:
+.L12_70:
     movq %rbx, %r13
     addq %r15, %r13
     movq 72(%rbp), %rax
@@ -5303,12 +5991,12 @@ lb_paths_normalize:
     sete %al
     movzbl %al, %r14d
     testl %r14d, %r14d
-    jne .L9_72
-    jmp .L9_133
-.L9_133:
+    jne .L12_72
+    jmp .L12_133
+.L12_133:
     movl %r14d, %ebx
-    jmp .L9_73
-.L9_72:
+    jmp .L12_73
+.L12_72:
     subq $32, %rsp
     movq %r13, %rax
     movq %rax, 0(%rsp)
@@ -5326,12 +6014,12 @@ lb_paths_normalize:
     cmpl %ecx, %ebx
     sete %al
     movzbl %al, %ebx
-.L9_73:
+.L12_73:
     movzbl %bl, %r12d
     movl $0, %ecx
     cmpl %ecx, %r12d
-    jne .L9_68
-.L9_67:
+    jne .L12_68
+.L12_67:
     movq 336(%rbp), %r10
     movq (%r10), %rbx
     movq %rbx, %rax
@@ -5340,29 +6028,29 @@ lb_paths_normalize:
     movq %rax, 64(%rbp)
     movq 48(%rbp), %rax
     movq %rax, 56(%rbp)
-    jmp .L9_31
-.L9_74:
-    jmp .L9_69
-.L9_68:
-.L9_69:
-    jmp .L9_61
-.L9_60:
+    jmp .L12_31
+.L12_74:
+    jmp .L12_69
+.L12_68:
+.L12_69:
+    jmp .L12_61
+.L12_60:
     movl 280(%rbp), %eax
     testl %eax, %eax
-    jne .L9_75
-    jmp .L9_76
-.L9_75:
+    jne .L12_75
+    jmp .L12_76
+.L12_75:
     movq 48(%rbp), %rax
     movq %rax, 56(%rbp)
-    jmp .L9_31
-.L9_78:
-    jmp .L9_77
-.L9_76:
-.L9_77:
-.L9_61:
-    jmp .L9_56
-.L9_55:
-.L9_56:
+    jmp .L12_31
+.L12_78:
+    jmp .L12_77
+.L12_76:
+.L12_77:
+.L12_61:
+    jmp .L12_56
+.L12_55:
+.L12_56:
     movq 96(%rbp), %r10
     movq (%r10), %rbx
     movq 272(%rbp), %r10
@@ -5397,12 +6085,12 @@ lb_paths_normalize:
     seta %al
     movzbl %al, %r12d
     testl %r12d, %r12d
-    jne .L9_82
-    jmp .L9_134
-.L9_134:
+    jne .L12_82
+    jmp .L12_134
+.L12_134:
     movl %r12d, %r13d
-    jmp .L9_83
-.L9_82:
+    jmp .L12_83
+.L12_82:
     movq 72(%rbp), %rax
     movq $1, %rcx
     subq %rcx, %rax
@@ -5446,27 +6134,27 @@ lb_paths_normalize:
     cmpl %ecx, %r12d
     sete %al
     movzbl %al, %r13d
-.L9_83:
+.L12_83:
     movzbl %r13b, %r12d
     testl %r12d, %r12d
-    jne .L9_84
-    jmp .L9_135
-.L9_135:
+    jne .L12_84
+    jmp .L12_135
+.L12_135:
     movl %r12d, %r13d
-    jmp .L9_85
-.L9_84:
+    jmp .L12_85
+.L12_84:
     movq 72(%rbp), %rax
     movq $2, %rcx
     cmpq %rcx, %rax
     sete %al
     movzbl %al, %r12d
     testl %r12d, %r12d
-    jne .L9_86
-    jmp .L9_136
-.L9_136:
+    jne .L12_86
+    jmp .L12_136
+.L12_136:
     movl %r12d, %r13d
-    jmp .L9_87
-.L9_86:
+    jmp .L12_87
+.L12_86:
     subq $48, %rsp
     movq 496(%rbp), %r10
     leaq 32(%rsp), %r11
@@ -5478,19 +6166,19 @@ lb_paths_normalize:
     call lb_paths_12drive_prefix
     addq $48, %rsp
     movl %eax, %r13d
-.L9_87:
+.L12_87:
     movzbl %r13b, %r12d
     movl $0, %ecx
     cmpl %ecx, %r12d
     sete %al
     movzbl %al, %r12d
     movl %r12d, %r13d
-.L9_85:
+.L12_85:
     movzbl %r13b, %r12d
     testl %r12d, %r12d
-    jne .L9_79
-    jmp .L9_80
-.L9_79:
+    jne .L12_79
+    jmp .L12_80
+.L12_79:
     movq 120(%rbp), %r10
     movq (%r10), %r12
     movq 248(%rbp), %r10
@@ -5516,11 +6204,11 @@ lb_paths_normalize:
     movq $1, %rcx
     movq %rax, %r12
     addq %rcx, %r12
-    jmp .L9_81
-.L9_80:
+    jmp .L12_81
+.L12_80:
     movq 72(%rbp), %rax
     movq %rax, %r12
-.L9_81:
+.L12_81:
     movq 120(%rbp), %r10
     movq (%r10), %rax
     movq %rax, 240(%rbp)
@@ -5529,11 +6217,11 @@ lb_paths_normalize:
     movq %r12, %r15
     movq $0, %rax
     movq %rax, %rbx
-.L9_88:
+.L12_88:
     movq 424(%rbp), %rcx
     cmpq %rcx, %rbx
-    jae .L9_91
-.L9_89:
+    jae .L12_91
+.L12_89:
     movq 432(%rbp), %rax
     movq %rax, %r12
     addq %rbx, %r12
@@ -5559,27 +6247,27 @@ lb_paths_normalize:
     movq $1, %rcx
     movq %r15, %r12
     addq %rcx, %r12
-.L9_90:
+.L12_90:
     movq $1, %rcx
     movq %rbx, %r13
     addq %rcx, %r13
     movq %r12, %r15
     movq %r13, %rbx
-    jmp .L9_88
-.L9_91:
+    jmp .L12_88
+.L12_91:
     movq %r15, %rax
     movq %rax, 72(%rbp)
     movq 264(%rbp), %rax
     movq %rax, 64(%rbp)
     movq 48(%rbp), %rax
     movq %rax, 56(%rbp)
-    jmp .L9_31
-.L9_33:
+    jmp .L12_31
+.L12_33:
     movq 72(%rbp), %rax
     movq $0, %rcx
     cmpq %rcx, %rax
-    jne .L9_93
-.L9_92:
+    jne .L12_93
+.L12_92:
     leaq .Ltext_34(%rip), %rbx
     leaq 800(%rbp), %r12
     movq %r12, %r10
@@ -5610,9 +6298,9 @@ lb_paths_normalize:
     movq %rbx, %r10
     movzbl (%r10), %ebx
     testl %ebx, %ebx
-    jne .L9_96
-    jmp .L9_95
-.L9_96:
+    jne .L12_96
+    jmp .L12_95
+.L12_96:
     movq $16, %rcx
     movq %r12, %rbx
     addq %rcx, %rbx
@@ -5674,9 +6362,9 @@ lb_paths_normalize:
     movq %r15, %r10
     movq (%r10), %r13
     testq %r13, %r13
-    jne .L9_98
-    jmp .L9_97
-.L9_98:
+    jne .L12_98
+    jmp .L12_97
+.L12_98:
     movq $16, %rcx
     movq %r13, %r12
     addq %rcx, %r12
@@ -5696,7 +6384,7 @@ lb_paths_normalize:
     movq %r12, %r11
     call *%r11
     addq $48, %rsp
-.L9_97:
+.L12_97:
     leaq 720(%rbp), %rbx
     movq 120(%rbp), %r10
     movq (%r10), %r12
@@ -5718,9 +6406,9 @@ lb_paths_normalize:
     movq %r15, %r10
     movq (%r10), %r13
     testq %r13, %r13
-    jne .L9_100
-    jmp .L9_99
-.L9_100:
+    jne .L12_100
+    jmp .L12_99
+.L12_100:
     movq $16, %rcx
     movq %r13, %r14
     addq %rcx, %r14
@@ -5740,7 +6428,7 @@ lb_paths_normalize:
     movq %r14, %r11
     call *%r11
     addq $48, %rsp
-.L9_99:
+.L12_99:
     movq 216(%rbp), %rsi
     movq 1272(%rbp), %rdi
     movq $48, %rdx
@@ -5771,8 +6459,8 @@ lb_paths_normalize:
     leaq 1456(%rbp), %rsp
     popq %rbp
     ret
-.L9_101:
-.L9_95:
+.L12_101:
+.L12_95:
     leaq 1184(%rbp), %rax
     movq %rax, 208(%rbp)
     movq %r12, %r10
@@ -5825,9 +6513,9 @@ lb_paths_normalize:
     movq %r15, %r10
     movq (%r10), %rbx
     testq %rbx, %rbx
-    jne .L9_103
-    jmp .L9_102
-.L9_103:
+    jne .L12_103
+    jmp .L12_102
+.L12_103:
     movq $16, %rcx
     movq %rbx, %r12
     addq %rcx, %r12
@@ -5847,7 +6535,7 @@ lb_paths_normalize:
     movq %r12, %r11
     call *%r11
     addq $48, %rsp
-.L9_102:
+.L12_102:
     leaq 688(%rbp), %rbx
     movq 120(%rbp), %r10
     movq (%r10), %r12
@@ -5869,9 +6557,9 @@ lb_paths_normalize:
     movq %r15, %r10
     movq (%r10), %r13
     testq %r13, %r13
-    jne .L9_105
-    jmp .L9_104
-.L9_105:
+    jne .L12_105
+    jmp .L12_104
+.L12_105:
     movq $16, %rcx
     movq %r13, %r14
     addq %rcx, %r14
@@ -5891,7 +6579,7 @@ lb_paths_normalize:
     movq %r14, %r11
     call *%r11
     addq $48, %rsp
-.L9_104:
+.L12_104:
     movq 208(%rbp), %rsi
     movq 1272(%rbp), %rdi
     movq $48, %rdx
@@ -5922,10 +6610,10 @@ lb_paths_normalize:
     leaq 1456(%rbp), %rsp
     popq %rbp
     ret
-.L9_106:
-    jmp .L9_94
-.L9_93:
-.L9_94:
+.L12_106:
+    jmp .L12_94
+.L12_93:
+.L12_94:
     movq 120(%rbp), %r10
     movq (%r10), %r13
     movq 120(%rbp), %rax
@@ -5966,8 +6654,8 @@ lb_paths_normalize:
     movq $0, %rax
     movq 72(%rbp), %rcx
     cmpq %rcx, %rax
-    jbe .L9_107
-.L9_108:
+    jbe .L12_107
+.L12_108:
     leaq .Ltext_69(%rip), %rdi
     leaq .Ltext_10(%rip), %rsi
     movq %rdx, %r8
@@ -5976,7 +6664,7 @@ lb_paths_normalize:
     subq $32, %rsp
     call lb_core_7trap_at
     addq $32, %rsp
-.L9_107:
+.L12_107:
     leaq 672(%rbp), %r12
     movq %r12, %r10
     movq %r13, (%r10)
@@ -6014,9 +6702,9 @@ lb_paths_normalize:
     movq %r12, %r10
     movzbl (%r10), %r12d
     testl %r12d, %r12d
-    jne .L9_110
-    jmp .L9_109
-.L9_110:
+    jne .L12_110
+    jmp .L12_109
+.L12_110:
     movq $16, %rcx
     movq %r14, %r12
     addq %rcx, %r12
@@ -6080,9 +6768,9 @@ lb_paths_normalize:
     movq 160(%rbp), %r10
     movq (%r10), %r15
     testq %r15, %r15
-    jne .L9_112
-    jmp .L9_111
-.L9_112:
+    jne .L12_112
+    jmp .L12_111
+.L12_112:
     movq $16, %rcx
     movq %r15, %r14
     addq %rcx, %r14
@@ -6102,7 +6790,7 @@ lb_paths_normalize:
     movq %r14, %r11
     call *%r11
     addq $48, %rsp
-.L9_111:
+.L12_111:
     leaq 576(%rbp), %rbx
     movq %rbx, %r10
     movq %r13, (%r10)
@@ -6117,9 +6805,9 @@ lb_paths_normalize:
     movq 160(%rbp), %r10
     movq (%r10), %r14
     testq %r14, %r14
-    jne .L9_114
-    jmp .L9_113
-.L9_114:
+    jne .L12_114
+    jmp .L12_113
+.L12_114:
     movq $16, %rcx
     movq %r14, %r13
     addq %rcx, %r13
@@ -6139,7 +6827,7 @@ lb_paths_normalize:
     movq %r13, %r11
     call *%r11
     addq $48, %rsp
-.L9_113:
+.L12_113:
     movq 192(%rbp), %rsi
     movq 1272(%rbp), %rdi
     movq $48, %rdx
@@ -6170,8 +6858,8 @@ lb_paths_normalize:
     leaq 1456(%rbp), %rsp
     popq %rbp
     ret
-.L9_115:
-.L9_109:
+.L12_115:
+.L12_109:
     leaq 1184(%rbp), %rax
     movq %rax, 152(%rbp)
     movq %r14, %r10
@@ -6227,9 +6915,9 @@ lb_paths_normalize:
     movq 128(%rbp), %r10
     movq (%r10), %r15
     testq %r15, %r15
-    jne .L9_117
-    jmp .L9_116
-.L9_117:
+    jne .L12_117
+    jmp .L12_116
+.L12_117:
     movq $16, %rcx
     movq %r15, %r14
     addq %rcx, %r14
@@ -6249,7 +6937,7 @@ lb_paths_normalize:
     movq %r14, %r11
     call *%r11
     addq $48, %rsp
-.L9_116:
+.L12_116:
     leaq 544(%rbp), %rbx
     movq %rbx, %r10
     movq %r13, (%r10)
@@ -6264,9 +6952,9 @@ lb_paths_normalize:
     movq 128(%rbp), %r10
     movq (%r10), %r14
     testq %r14, %r14
-    jne .L9_119
-    jmp .L9_118
-.L9_119:
+    jne .L12_119
+    jmp .L12_118
+.L12_119:
     movq $16, %rcx
     movq %r14, %r13
     addq %rcx, %r13
@@ -6286,7 +6974,7 @@ lb_paths_normalize:
     movq %r13, %r11
     call *%r11
     addq $48, %rsp
-.L9_118:
+.L12_118:
     movq 152(%rbp), %rsi
     movq 1272(%rbp), %rdi
     movq $48, %rdx
@@ -6317,7 +7005,7 @@ lb_paths_normalize:
     leaq 1456(%rbp), %rsp
     popq %rbp
     ret
-.L9_120:
+.L12_120:
     leaq 1032(%rbp), %rbx
     movl _tls_index(%rip), %eax
     movq %gs:88, %r11
@@ -6359,9 +7047,9 @@ lb_paths_normalize:
     movq %rbx, %r10
     movq (%r10), %rbx
     testq %rbx, %rbx
-    jne .L9_122
-    jmp .L9_121
-.L9_122:
+    jne .L12_122
+    jmp .L12_121
+.L12_122:
     movq $16, %rcx
     movq %rbx, %r12
     addq %rcx, %r12
@@ -6381,7 +7069,7 @@ lb_paths_normalize:
     movq %r12, %r11
     call *%r11
     addq $48, %rsp
-.L9_121:
+.L12_121:
     leaq 1120(%rbp), %rbx
     movl _tls_index(%rip), %eax
     movq %gs:88, %r11
@@ -6423,9 +7111,9 @@ lb_paths_normalize:
     movq %rbx, %r10
     movq (%r10), %rbx
     testq %rbx, %rbx
-    jne .L9_124
-    jmp .L9_123
-.L9_124:
+    jne .L12_124
+    jmp .L12_123
+.L12_124:
     movq $16, %rcx
     movq %rbx, %r12
     addq %rcx, %r12
@@ -6445,7 +7133,7 @@ lb_paths_normalize:
     movq %r12, %r11
     call *%r11
     addq $48, %rsp
-.L9_123:
+.L12_123:
     leaq .Ltext_69(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8

@@ -61,6 +61,7 @@ _lb_math_0init:
 
     .p2align 2
     .globl _lb_math_floor
+    .no_dead_strip _lb_math_floor
 _lb_math_floor:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -87,6 +88,7 @@ L1_1:
 
     .p2align 2
     .globl _lb_math_ceil
+    .no_dead_strip _lb_math_ceil
 _lb_math_ceil:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -113,6 +115,7 @@ L2_1:
 
     .p2align 2
     .globl _lb_math_round
+    .no_dead_strip _lb_math_round
 _lb_math_round:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -139,6 +142,7 @@ L3_1:
 
     .p2align 2
     .globl _lb_math_trunc
+    .no_dead_strip _lb_math_trunc
 _lb_math_trunc:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -165,6 +169,7 @@ L4_1:
 
     .p2align 2
     .globl _lb_math_sqrt
+    .no_dead_strip _lb_math_sqrt
 _lb_math_sqrt:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -191,6 +196,7 @@ L5_1:
 
     .p2align 2
     .globl _lb_math_cbrt
+    .no_dead_strip _lb_math_cbrt
 _lb_math_cbrt:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -217,6 +223,7 @@ L6_1:
 
     .p2align 2
     .globl _lb_math_hypot
+    .no_dead_strip _lb_math_hypot
 _lb_math_hypot:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -249,6 +256,7 @@ L7_1:
 
     .p2align 2
     .globl _lb_math_mod
+    .no_dead_strip _lb_math_mod
 _lb_math_mod:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -281,6 +289,7 @@ L8_1:
 
     .p2align 2
     .globl _lb_math_pow
+    .no_dead_strip _lb_math_pow
 _lb_math_pow:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -313,6 +322,7 @@ L9_1:
 
     .p2align 2
     .globl _lb_math_exp
+    .no_dead_strip _lb_math_exp
 _lb_math_exp:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -339,6 +349,7 @@ L10_1:
 
     .p2align 2
     .globl _lb_math_exp2
+    .no_dead_strip _lb_math_exp2
 _lb_math_exp2:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -365,6 +376,7 @@ L11_1:
 
     .p2align 2
     .globl _lb_math_log
+    .no_dead_strip _lb_math_log
 _lb_math_log:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -391,6 +403,7 @@ L12_1:
 
     .p2align 2
     .globl _lb_math_log2
+    .no_dead_strip _lb_math_log2
 _lb_math_log2:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -417,6 +430,7 @@ L13_1:
 
     .p2align 2
     .globl _lb_math_log10
+    .no_dead_strip _lb_math_log10
 _lb_math_log10:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -443,6 +457,7 @@ L14_1:
 
     .p2align 2
     .globl _lb_math_log1p
+    .no_dead_strip _lb_math_log1p
 _lb_math_log1p:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -469,6 +484,7 @@ L15_1:
 
     .p2align 2
     .globl _lb_math_expm1
+    .no_dead_strip _lb_math_expm1
 _lb_math_expm1:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -521,6 +537,7 @@ L16_5:
 
     .p2align 2
     .globl _lb_math_fma
+    .no_dead_strip _lb_math_fma
 _lb_math_fma:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -559,6 +576,7 @@ L17_1:
 
     .p2align 2
     .globl _lb_math_nextafter
+    .no_dead_strip _lb_math_nextafter
 _lb_math_nextafter:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -591,6 +609,7 @@ L18_1:
 
     .p2align 2
     .globl _lb_math_7next_up
+    .no_dead_strip _lb_math_7next_up
 _lb_math_7next_up:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -622,6 +641,7 @@ L19_1:
 
     .p2align 2
     .globl _lb_math_9next_down
+    .no_dead_strip _lb_math_9next_down
 _lb_math_9next_down:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -682,6 +702,7 @@ L20_1:
 
     .p2align 2
     .globl _lb_math_frexp
+    .no_dead_strip _lb_math_frexp
 _lb_math_frexp:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -785,6 +806,7 @@ L21_7:
 
     .p2align 2
     .globl _lb_math_scalbn
+    .no_dead_strip _lb_math_scalbn
 _lb_math_scalbn:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -816,6 +838,7 @@ L22_1:
 
     .p2align 2
     .globl _lb_math_modf
+    .no_dead_strip _lb_math_modf
 _lb_math_modf:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -857,6 +880,7 @@ L23_1:
 
     .p2align 2
     .globl _lb_math_remainder
+    .no_dead_strip _lb_math_remainder
 _lb_math_remainder:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -925,6 +949,7 @@ L24_4:
 
     .p2align 2
     .globl _lb_math_sin
+    .no_dead_strip _lb_math_sin
 _lb_math_sin:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -951,6 +976,7 @@ L25_1:
 
     .p2align 2
     .globl _lb_math_cos
+    .no_dead_strip _lb_math_cos
 _lb_math_cos:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -977,6 +1003,7 @@ L26_1:
 
     .p2align 2
     .globl _lb_math_tan
+    .no_dead_strip _lb_math_tan
 _lb_math_tan:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -1003,6 +1030,7 @@ L27_1:
 
     .p2align 2
     .globl _lb_math_asin
+    .no_dead_strip _lb_math_asin
 _lb_math_asin:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -1029,6 +1057,7 @@ L28_1:
 
     .p2align 2
     .globl _lb_math_acos
+    .no_dead_strip _lb_math_acos
 _lb_math_acos:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -1055,6 +1084,7 @@ L29_1:
 
     .p2align 2
     .globl _lb_math_atan
+    .no_dead_strip _lb_math_atan
 _lb_math_atan:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -1081,6 +1111,7 @@ L30_1:
 
     .p2align 2
     .globl _lb_math_atan2
+    .no_dead_strip _lb_math_atan2
 _lb_math_atan2:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -1113,6 +1144,7 @@ L31_1:
 
     .p2align 2
     .globl _lb_math_sinh
+    .no_dead_strip _lb_math_sinh
 _lb_math_sinh:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -1139,6 +1171,7 @@ L32_1:
 
     .p2align 2
     .globl _lb_math_cosh
+    .no_dead_strip _lb_math_cosh
 _lb_math_cosh:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -1165,6 +1198,7 @@ L33_1:
 
     .p2align 2
     .globl _lb_math_tanh
+    .no_dead_strip _lb_math_tanh
 _lb_math_tanh:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -1190,7 +1224,76 @@ L34_1:
     bl _lb_core_7trap_at
 
     .p2align 2
+    .globl _lb_math_6is_nan
+    .no_dead_strip _lb_math_6is_nan
+_lb_math_6is_nan:
+    stp x29, x30, [sp, #-16]!
+    mov x29, sp
+    sub sp, sp, #32
+    sub x16, x29, #32
+    str d0, [x16]
+    sub x14, x29, #32
+    ldr d24, [x14]
+    fmov x14, d24
+    adrp x15, _lb_math_14magnitude_mask@PAGE
+    add x15, x15, _lb_math_14magnitude_mask@PAGEOFF
+    ldr x15, [x15]
+    and x14, x14, x15
+    adrp x15, _lb_math_13exponent_mask@PAGE
+    add x15, x15, _lb_math_13exponent_mask@PAGEOFF
+    ldr x15, [x15]
+    cmp x14, x15
+    cset w14, hi
+    and w14, w14, #255
+    mov x9, x14
+    mov x0, x9
+    mov sp, x29
+    ldp x29, x30, [sp], #16
+    ret
+L35_1:
+    adrp x0, l_text_35@PAGE
+    add x0, x0, l_text_35@PAGEOFF
+    adrp x1, l_text_0@PAGE
+    add x1, x1, l_text_0@PAGEOFF
+    bl _lb_core_7trap_at
+
+    .p2align 2
+    .globl _lb_math_9is_finite
+    .no_dead_strip _lb_math_9is_finite
+_lb_math_9is_finite:
+    stp x29, x30, [sp, #-16]!
+    mov x29, sp
+    sub sp, sp, #32
+    sub x16, x29, #32
+    str d0, [x16]
+    sub x14, x29, #32
+    ldr d24, [x14]
+    fmov x14, d24
+    adrp x15, _lb_math_13exponent_mask@PAGE
+    add x15, x15, _lb_math_13exponent_mask@PAGEOFF
+    ldr x15, [x15]
+    and x14, x14, x15
+    cmp x15, x14
+    cset w14, eq
+    mov x10, #0
+    cmp w14, w10
+    cset w14, eq
+    and w14, w14, #255
+    mov x9, x14
+    mov x0, x9
+    mov sp, x29
+    ldp x29, x30, [sp], #16
+    ret
+L36_1:
+    adrp x0, l_text_36@PAGE
+    add x0, x0, l_text_36@PAGEOFF
+    adrp x1, l_text_0@PAGE
+    add x1, x1, l_text_0@PAGEOFF
+    bl _lb_core_7trap_at
+
+    .p2align 2
     .globl _lb_math_11is_infinite
+    .no_dead_strip _lb_math_11is_infinite
 _lb_math_11is_infinite:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -1215,7 +1318,7 @@ _lb_math_11is_infinite:
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
-L35_1:
+L37_1:
     adrp x0, l_text_37@PAGE
     add x0, x0, l_text_37@PAGEOFF
     adrp x1, l_text_0@PAGE
@@ -1224,6 +1327,7 @@ L35_1:
 
     .p2align 2
     .globl _lb_math_signbit
+    .no_dead_strip _lb_math_signbit
 _lb_math_signbit:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -1249,7 +1353,7 @@ _lb_math_signbit:
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
-L36_1:
+L38_1:
     adrp x0, l_text_38@PAGE
     add x0, x0, l_text_38@PAGEOFF
     adrp x1, l_text_0@PAGE
@@ -1258,6 +1362,7 @@ L36_1:
 
     .p2align 2
     .globl _lb_math_abs
+    .no_dead_strip _lb_math_abs
 _lb_math_abs:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -1277,7 +1382,7 @@ _lb_math_abs:
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
-L37_1:
+L39_1:
     adrp x0, l_text_39@PAGE
     add x0, x0, l_text_39@PAGEOFF
     adrp x1, l_text_0@PAGE
@@ -1285,7 +1390,49 @@ L37_1:
     bl _lb_core_7trap_at
 
     .p2align 2
+    .globl _lb_math_copysign
+    .no_dead_strip _lb_math_copysign
+_lb_math_copysign:
+    stp x29, x30, [sp, #-16]!
+    mov x29, sp
+    sub sp, sp, #64
+    str x19, [sp, #40]
+    sub x16, x29, #40
+    str d0, [x16]
+    sub x16, x29, #56
+    str d1, [x16]
+    sub x14, x29, #40
+    ldr d24, [x14]
+    fmov x14, d24
+    adrp x15, _lb_math_14magnitude_mask@PAGE
+    add x15, x15, _lb_math_14magnitude_mask@PAGEOFF
+    ldr x15, [x15]
+    and x14, x14, x15
+    sub x15, x29, #56
+    ldr d24, [x15]
+    fmov x15, d24
+    adrp x19, _lb_math_9sign_mask@PAGE
+    add x19, x19, _lb_math_9sign_mask@PAGEOFF
+    ldr x19, [x19]
+    and x15, x15, x19
+    orr x14, x14, x15
+    fmov d24, x14
+    fmov d16, d24
+    fmov d0, d16
+    ldr x19, [sp, #40]
+    mov sp, x29
+    ldp x29, x30, [sp], #16
+    ret
+L40_1:
+    adrp x0, l_text_40@PAGE
+    add x0, x0, l_text_40@PAGEOFF
+    adrp x1, l_text_0@PAGE
+    add x1, x1, l_text_0@PAGEOFF
+    bl _lb_core_7trap_at
+
+    .p2align 2
     .globl _lb_math_sign
+    .no_dead_strip _lb_math_sign
 _lb_math_sign:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -1309,33 +1456,33 @@ _lb_math_sign:
     and w14, w14, #255
     sub x10, x29, #56
     str w14, [x10]
-    b L38_15
-L38_14:
+    b L41_15
+L41_14:
     adrp x0, l_text_35@PAGE
     add x0, x0, l_text_35@PAGEOFF
     adrp x1, l_text_0@PAGE
     add x1, x1, l_text_0@PAGEOFF
     bl _lb_core_7trap_at
-L38_15:
-    cbnz w14, L38_1
-    b L38_2
-L38_1:
+L41_15:
+    cbnz w14, L41_1
+    b L41_2
+L41_1:
     fmov d16, d24
     fmov d0, d16
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
-L38_4:
-    b L38_3
-L38_2:
-L38_3:
+L41_4:
+    b L41_3
+L41_2:
+L41_3:
     mov x9, #0
     fmov d25, x9
     fcmp d24, d25
     cset w14, mi
-    cbnz w14, L38_5
-    b L38_6
-L38_5:
+    cbnz w14, L41_5
+    b L41_6
+L41_5:
     movz x9, #16368, lsl #48
     fmov d24, x9
     fneg d24, d24
@@ -1344,15 +1491,15 @@ L38_5:
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
-L38_8:
-    b L38_7
-L38_6:
-L38_7:
+L41_8:
+    b L41_7
+L41_6:
+L41_7:
     fcmp d24, d25
     cset w14, gt
-    cbnz w14, L38_9
-    b L38_10
-L38_9:
+    cbnz w14, L41_9
+    b L41_10
+L41_9:
     movz x9, #16368, lsl #48
     fmov d24, x9
     fmov d16, d24
@@ -1360,16 +1507,16 @@ L38_9:
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
-L38_12:
-    b L38_11
-L38_10:
-L38_11:
+L41_12:
+    b L41_11
+L41_10:
+L41_11:
     fmov d16, d24
     fmov d0, d16
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
-L38_13:
+L41_13:
     adrp x0, l_text_41@PAGE
     add x0, x0, l_text_41@PAGEOFF
     adrp x1, l_text_0@PAGE
@@ -1378,6 +1525,7 @@ L38_13:
 
     .p2align 2
     .globl _lb_math_min
+    .no_dead_strip _lb_math_min
 _lb_math_min:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -1406,17 +1554,17 @@ _lb_math_min:
     and w19, w19, #255
     sub x10, x29, #96
     str w19, [x10]
-    b L39_20
-L39_19:
+    b L42_20
+L42_19:
     adrp x0, l_text_35@PAGE
     add x0, x0, l_text_35@PAGEOFF
     adrp x1, l_text_0@PAGE
     add x1, x1, l_text_0@PAGEOFF
     bl _lb_core_7trap_at
-L39_20:
-    cbnz w19, L39_1
-    b L39_2
-L39_1:
+L42_20:
+    cbnz w19, L42_1
+    b L42_2
+L42_1:
     fmov d16, d24
     fmov d0, d16
     ldr x19, [sp, #88]
@@ -1425,10 +1573,10 @@ L39_1:
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
-L39_4:
-    b L39_3
-L39_2:
-L39_3:
+L42_4:
+    b L42_3
+L42_2:
+L42_3:
     sub x19, x29, #72
     ldr d25, [x19]
     sub x10, x29, #88
@@ -1440,17 +1588,17 @@ L39_3:
     and w21, w21, #255
     sub x10, x29, #104
     str w21, [x10]
-    b L39_22
-L39_21:
+    b L42_22
+L42_21:
     adrp x0, l_text_35@PAGE
     add x0, x0, l_text_35@PAGEOFF
     adrp x1, l_text_0@PAGE
     add x1, x1, l_text_0@PAGEOFF
     bl _lb_core_7trap_at
-L39_22:
-    cbnz w21, L39_5
-    b L39_6
-L39_5:
+L42_22:
+    cbnz w21, L42_5
+    b L42_6
+L42_5:
     fmov d16, d25
     fmov d0, d16
     ldr x19, [sp, #88]
@@ -1459,27 +1607,27 @@ L39_5:
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
-L39_8:
-    b L39_7
-L39_6:
-L39_7:
+L42_8:
+    b L42_7
+L42_6:
+L42_7:
     mov x9, #0
     fmov d26, x9
     fcmp d24, d26
     cset w15, eq
-    cbnz w15, L39_12
-    b L39_23
-L39_23:
+    cbnz w15, L42_12
+    b L42_23
+L42_23:
     mov w20, w15
-    b L39_13
-L39_12:
+    b L42_13
+L42_12:
     fcmp d25, d26
     cset w20, eq
-L39_13:
+L42_13:
     and w15, w20, #255
-    cbnz w15, L39_9
-    b L39_10
-L39_9:
+    cbnz w15, L42_9
+    b L42_10
+L42_9:
     orr x15, x14, x19
     fmov d24, x15
     fmov d16, d24
@@ -1490,19 +1638,19 @@ L39_9:
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
-L39_14:
-    b L39_11
-L39_10:
-L39_11:
+L42_14:
+    b L42_11
+L42_10:
+L42_11:
     fcmp d24, d25
     cset w14, mi
-    cbnz w14, L39_15
-    b L39_16
-L39_15:
+    cbnz w14, L42_15
+    b L42_16
+L42_15:
     fmov d25, d24
-    b L39_17
-L39_16:
-L39_17:
+    b L42_17
+L42_16:
+L42_17:
     fmov d16, d25
     fmov d0, d16
     ldr x19, [sp, #88]
@@ -1511,7 +1659,7 @@ L39_17:
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
-L39_18:
+L42_18:
     adrp x0, l_text_42@PAGE
     add x0, x0, l_text_42@PAGEOFF
     adrp x1, l_text_0@PAGE
@@ -1520,6 +1668,7 @@ L39_18:
 
     .p2align 2
     .globl _lb_math_max
+    .no_dead_strip _lb_math_max
 _lb_math_max:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -1548,17 +1697,17 @@ _lb_math_max:
     and w19, w19, #255
     sub x10, x29, #96
     str w19, [x10]
-    b L40_20
-L40_19:
+    b L43_20
+L43_19:
     adrp x0, l_text_35@PAGE
     add x0, x0, l_text_35@PAGEOFF
     adrp x1, l_text_0@PAGE
     add x1, x1, l_text_0@PAGEOFF
     bl _lb_core_7trap_at
-L40_20:
-    cbnz w19, L40_1
-    b L40_2
-L40_1:
+L43_20:
+    cbnz w19, L43_1
+    b L43_2
+L43_1:
     fmov d16, d24
     fmov d0, d16
     ldr x19, [sp, #88]
@@ -1567,10 +1716,10 @@ L40_1:
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
-L40_4:
-    b L40_3
-L40_2:
-L40_3:
+L43_4:
+    b L43_3
+L43_2:
+L43_3:
     sub x19, x29, #72
     ldr d25, [x19]
     sub x10, x29, #88
@@ -1582,17 +1731,17 @@ L40_3:
     and w21, w21, #255
     sub x10, x29, #104
     str w21, [x10]
-    b L40_22
-L40_21:
+    b L43_22
+L43_21:
     adrp x0, l_text_35@PAGE
     add x0, x0, l_text_35@PAGEOFF
     adrp x1, l_text_0@PAGE
     add x1, x1, l_text_0@PAGEOFF
     bl _lb_core_7trap_at
-L40_22:
-    cbnz w21, L40_5
-    b L40_6
-L40_5:
+L43_22:
+    cbnz w21, L43_5
+    b L43_6
+L43_5:
     fmov d16, d25
     fmov d0, d16
     ldr x19, [sp, #88]
@@ -1601,27 +1750,27 @@ L40_5:
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
-L40_8:
-    b L40_7
-L40_6:
-L40_7:
+L43_8:
+    b L43_7
+L43_6:
+L43_7:
     mov x9, #0
     fmov d26, x9
     fcmp d24, d26
     cset w15, eq
-    cbnz w15, L40_12
-    b L40_23
-L40_23:
+    cbnz w15, L43_12
+    b L43_23
+L43_23:
     mov w20, w15
-    b L40_13
-L40_12:
+    b L43_13
+L43_12:
     fcmp d25, d26
     cset w20, eq
-L40_13:
+L43_13:
     and w15, w20, #255
-    cbnz w15, L40_9
-    b L40_10
-L40_9:
+    cbnz w15, L43_9
+    b L43_10
+L43_9:
     and x15, x14, x19
     fmov d24, x15
     fmov d16, d24
@@ -1632,19 +1781,19 @@ L40_9:
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
-L40_14:
-    b L40_11
-L40_10:
-L40_11:
+L43_14:
+    b L43_11
+L43_10:
+L43_11:
     fcmp d24, d25
     cset w14, gt
-    cbnz w14, L40_15
-    b L40_16
-L40_15:
+    cbnz w14, L43_15
+    b L43_16
+L43_15:
     fmov d25, d24
-    b L40_17
-L40_16:
-L40_17:
+    b L43_17
+L43_16:
+L43_17:
     fmov d16, d25
     fmov d0, d16
     ldr x19, [sp, #88]
@@ -1653,7 +1802,7 @@ L40_17:
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
-L40_18:
+L43_18:
     adrp x0, l_text_43@PAGE
     add x0, x0, l_text_43@PAGEOFF
     adrp x1, l_text_0@PAGE
@@ -1662,6 +1811,7 @@ L40_18:
 
     .p2align 2
     .globl _lb_math_clamp
+    .no_dead_strip _lb_math_clamp
 _lb_math_clamp:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -1678,15 +1828,15 @@ _lb_math_clamp:
     ldr d25, [x14]
     fcmp d24, d25
     cset w14, ls
-    cbnz w14, L41_1
-    b L41_2
-L41_2:
+    cbnz w14, L44_1
+    b L44_2
+L44_2:
     adrp x0, l_text_45@PAGE
     add x0, x0, l_text_45@PAGEOFF
     adrp x1, l_text_44@PAGE
     add x1, x1, l_text_44@PAGEOFF
     bl _lb_core_7trap_at
-L41_1:
+L44_1:
     sub x14, x29, #32
     ldr d26, [x14]
     sub x10, x29, #80
@@ -1704,52 +1854,52 @@ L41_1:
     and w14, w14, #255
     sub x10, x29, #88
     str w14, [x10]
-    b L41_15
-L41_14:
+    b L44_15
+L44_14:
     adrp x0, l_text_35@PAGE
     add x0, x0, l_text_35@PAGEOFF
     adrp x1, l_text_0@PAGE
     add x1, x1, l_text_0@PAGEOFF
     bl _lb_core_7trap_at
-L41_15:
-    cbnz w14, L41_3
-    b L41_4
-L41_3:
+L44_15:
+    cbnz w14, L44_3
+    b L44_4
+L44_3:
     fmov d16, d26
     fmov d0, d16
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
-L41_6:
-    b L41_5
-L41_4:
-L41_5:
+L44_6:
+    b L44_5
+L44_4:
+L44_5:
     fcmp d26, d24
     cset w14, mi
-    cbnz w14, L41_7
-    b L41_8
-L41_7:
+    cbnz w14, L44_7
+    b L44_8
+L44_7:
     fmov d25, d24
-    b L41_9
-L41_8:
+    b L44_9
+L44_8:
     fcmp d26, d25
     cset w14, gt
-    cbnz w14, L41_10
-    b L41_11
-L41_10:
+    cbnz w14, L44_10
+    b L44_11
+L44_10:
     fmov d24, d25
-    b L41_12
-L41_11:
+    b L44_12
+L44_11:
     fmov d24, d26
-L41_12:
+L44_12:
     fmov d25, d24
-L41_9:
+L44_9:
     fmov d16, d25
     fmov d0, d16
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
-L41_13:
+L44_13:
     adrp x0, l_text_46@PAGE
     add x0, x0, l_text_46@PAGEOFF
     adrp x1, l_text_0@PAGE
@@ -1757,7 +1907,265 @@ L41_13:
     bl _lb_core_7trap_at
 
     .p2align 2
+    .globl _lb_math_9div_floor
+    .no_dead_strip _lb_math_9div_floor
+_lb_math_9div_floor:
+    stp x29, x30, [sp, #-16]!
+    mov x29, sp
+    sub sp, sp, #80
+    str x19, [sp, #56]
+    str x20, [sp, #48]
+    str x21, [sp, #40]
+    sub x16, x29, #56
+    str x0, [x16]
+    sub x16, x29, #72
+    str x1, [x16]
+    sub x14, x29, #56
+    ldr x15, [x14]
+    sub x14, x29, #72
+    ldr x19, [x14]
+    mov x10, #0
+    cmp x19, x10
+    cset w14, eq
+    cbnz w14, L45_1
+    b L45_2
+L45_1:
+    adrp x0, l_text_48@PAGE
+    add x0, x0, l_text_48@PAGEOFF
+    adrp x1, l_text_47@PAGE
+    add x1, x1, l_text_47@PAGEOFF
+    bl _lb_core_7trap_at
+L45_2:
+    movz x10, #32768, lsl #48
+    cmp x15, x10
+    cset w20, eq
+    movn x10, #0
+    cmp x19, x10
+    cset w21, eq
+    and w20, w20, w21
+    cbnz w20, L45_3
+    b L45_4
+L45_3:
+    adrp x0, l_text_48@PAGE
+    add x0, x0, l_text_48@PAGEOFF
+    adrp x1, l_text_49@PAGE
+    add x1, x1, l_text_49@PAGEOFF
+    bl _lb_core_7trap_at
+L45_4:
+    sdiv x21, x15, x19
+    cbnz w14, L45_8
+    b L45_9
+L45_8:
+    adrp x0, l_text_50@PAGE
+    add x0, x0, l_text_50@PAGEOFF
+    adrp x1, l_text_47@PAGE
+    add x1, x1, l_text_47@PAGEOFF
+    bl _lb_core_7trap_at
+L45_9:
+    cbnz w20, L45_10
+    b L45_11
+L45_10:
+    adrp x0, l_text_50@PAGE
+    add x0, x0, l_text_50@PAGEOFF
+    adrp x1, l_text_49@PAGE
+    add x1, x1, l_text_49@PAGEOFF
+    bl _lb_core_7trap_at
+L45_11:
+    sdiv x11, x15, x19
+    msub x14, x11, x19, x15
+    mov x10, #0
+    cmp x14, x10
+    cset w14, eq
+    mov x10, #0
+    cmp w14, w10
+    cset w14, eq
+    cbnz w14, L45_12
+    b L45_16
+L45_16:
+    mov w15, w14
+    b L45_13
+L45_12:
+    mov x10, #0
+    cmp x15, x10
+    cset w14, lt
+    mov x10, #0
+    cmp x19, x10
+    cset w20, lt
+    cmp w14, w20
+    cset w14, eq
+    mov x10, #0
+    cmp w14, w10
+    cset w14, eq
+    mov w15, w14
+L45_13:
+    and w14, w15, #255
+    cbnz w14, L45_5
+    b L45_6
+L45_5:
+    mov x9, x21
+    movz x10, #1
+    subs x9, x9, x10
+    b.vc 1f
+    adrp x0, l_text_51@PAGE
+    add x0, x0, l_text_51@PAGEOFF
+    adrp x1, l_text_49@PAGE
+    add x1, x1, l_text_49@PAGEOFF
+    bl _lb_core_7trap_at
+1:
+    mov x14, x9
+    mov x9, x14
+    mov x0, x9
+    ldr x19, [sp, #56]
+    ldr x20, [sp, #48]
+    ldr x21, [sp, #40]
+    mov sp, x29
+    ldp x29, x30, [sp], #16
+    ret
+L45_14:
+    b L45_7
+L45_6:
+L45_7:
+    mov x9, x21
+    mov x0, x9
+    ldr x19, [sp, #56]
+    ldr x20, [sp, #48]
+    ldr x21, [sp, #40]
+    mov sp, x29
+    ldp x29, x30, [sp], #16
+    ret
+L45_15:
+    adrp x0, l_text_52@PAGE
+    add x0, x0, l_text_52@PAGEOFF
+    adrp x1, l_text_0@PAGE
+    add x1, x1, l_text_0@PAGEOFF
+    bl _lb_core_7trap_at
+
+    .p2align 2
+    .globl _lb_math_9mod_floor
+    .no_dead_strip _lb_math_9mod_floor
+_lb_math_9mod_floor:
+    stp x29, x30, [sp, #-16]!
+    mov x29, sp
+    sub sp, sp, #64
+    str x19, [sp, #40]
+    str x20, [sp, #32]
+    sub x16, x29, #48
+    str x0, [x16]
+    sub x16, x29, #64
+    str x1, [x16]
+    sub x14, x29, #64
+    ldr x14, [x14]
+    movn x10, #0
+    cmp x14, x10
+    cset w15, eq
+    cbnz w15, L46_1
+    b L46_2
+L46_1:
+    mov x9, #0
+    mov x0, x9
+    ldr x19, [sp, #40]
+    ldr x20, [sp, #32]
+    mov sp, x29
+    ldp x29, x30, [sp], #16
+    ret
+L46_4:
+    b L46_3
+L46_2:
+L46_3:
+    sub x19, x29, #48
+    ldr x20, [x19]
+    mov x10, #0
+    cmp x14, x10
+    b.ne L46_6
+L46_5:
+    adrp x0, l_text_53@PAGE
+    add x0, x0, l_text_53@PAGEOFF
+    adrp x1, l_text_47@PAGE
+    add x1, x1, l_text_47@PAGEOFF
+    bl _lb_core_7trap_at
+L46_6:
+    movz x10, #32768, lsl #48
+    cmp x20, x10
+    cset w19, eq
+    and w19, w15, w19
+    cbnz w19, L46_7
+    b L46_8
+L46_7:
+    adrp x0, l_text_53@PAGE
+    add x0, x0, l_text_53@PAGEOFF
+    adrp x1, l_text_49@PAGE
+    add x1, x1, l_text_49@PAGEOFF
+    bl _lb_core_7trap_at
+L46_8:
+    sdiv x11, x20, x14
+    msub x15, x11, x14, x20
+    mov x10, #0
+    cmp x15, x10
+    cset w19, eq
+    mov x10, #0
+    cmp w19, w10
+    cset w19, eq
+    cbnz w19, L46_12
+    b L46_16
+L46_16:
+    mov w20, w19
+    b L46_13
+L46_12:
+    mov x10, #0
+    cmp x15, x10
+    cset w19, lt
+    mov x10, #0
+    cmp x14, x10
+    cset w20, lt
+    cmp w19, w20
+    cset w19, eq
+    mov x10, #0
+    cmp w19, w10
+    cset w20, eq
+L46_13:
+    and w19, w20, #255
+    cbnz w19, L46_9
+    b L46_10
+L46_9:
+    mov x9, x14
+    mov x10, x15
+    adds x9, x9, x10
+    b.vc 1f
+    adrp x0, l_text_54@PAGE
+    add x0, x0, l_text_54@PAGEOFF
+    adrp x1, l_text_49@PAGE
+    add x1, x1, l_text_49@PAGEOFF
+    bl _lb_core_7trap_at
+1:
+    mov x19, x9
+    mov x9, x19
+    mov x0, x9
+    ldr x19, [sp, #40]
+    ldr x20, [sp, #32]
+    mov sp, x29
+    ldp x29, x30, [sp], #16
+    ret
+L46_14:
+    b L46_11
+L46_10:
+L46_11:
+    mov x9, x15
+    mov x0, x9
+    ldr x19, [sp, #40]
+    ldr x20, [sp, #32]
+    mov sp, x29
+    ldp x29, x30, [sp], #16
+    ret
+L46_15:
+    adrp x0, l_text_55@PAGE
+    add x0, x0, l_text_55@PAGEOFF
+    adrp x1, l_text_0@PAGE
+    add x1, x1, l_text_0@PAGEOFF
+    bl _lb_core_7trap_at
+
+    .p2align 2
     .globl _lb_math_iabs
+    .no_dead_strip _lb_math_iabs
 _lb_math_iabs:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -1768,8 +2176,8 @@ _lb_math_iabs:
     ldr x14, [x14]
     mov x10, #0
     cmp x14, x10
-    b.ge L42_2
-L42_1:
+    b.ge L47_2
+L47_1:
     mov x9, #0
     mov x10, x14
     subs x9, x9, x10
@@ -1781,16 +2189,16 @@ L42_1:
     bl _lb_core_7trap_at
 1:
     mov x15, x9
-    b L42_3
-L42_2:
+    b L47_3
+L47_2:
     mov x15, x14
-L42_3:
+L47_3:
     mov x9, x15
     mov x0, x9
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
-L42_4:
+L47_4:
     adrp x0, l_text_56@PAGE
     add x0, x0, l_text_56@PAGEOFF
     adrp x1, l_text_0@PAGE
@@ -1799,6 +2207,7 @@ L42_4:
 
     .p2align 2
     .globl _lb_math_12checked_iabs
+    .no_dead_strip _lb_math_12checked_iabs
 _lb_math_12checked_iabs:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -1811,8 +2220,8 @@ _lb_math_12checked_iabs:
     ldr x14, [x14]
     mov x10, #0
     cmp x14, x10
-    b.ge L43_2
-L43_1:
+    b.ge L48_2
+L48_1:
     sub x19, x29, #72
     mov x0, #0
     mov x1, x14
@@ -1838,10 +2247,10 @@ L43_1:
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
-L43_4:
-    b L43_3
-L43_2:
-L43_3:
+L48_4:
+    b L48_3
+L48_2:
+L48_3:
     sub x15, x29, #104
     str x14, [x15]
     add x19, x15, #8
@@ -1860,7 +2269,7 @@ L43_3:
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
-L43_5:
+L48_5:
     adrp x0, l_text_57@PAGE
     add x0, x0, l_text_57@PAGEOFF
     adrp x1, l_text_0@PAGE
@@ -1869,210 +2278,13 @@ L43_5:
 
     .p2align 2
     .globl _lb_math_17checked_div_floor
+    .no_dead_strip _lb_math_17checked_div_floor
 _lb_math_17checked_div_floor:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #160
-    str x19, [sp, #136]
-    str x20, [sp, #128]
-    str x21, [sp, #120]
-    sub x16, x29, #72
-    str x0, [x16]
-    sub x16, x29, #88
-    str x1, [x16]
-    sub x14, x29, #88
-    ldr x14, [x14]
-    mov x10, #0
-    cmp x14, x10
-    cset w15, eq
-    cbnz w15, L44_26
-    b L44_4
-L44_26:
-    mov w19, w15
-    b L44_5
-L44_4:
-    sub x19, x29, #72
-    ldr x19, [x19]
-    movz x10, #32768, lsl #48
-    cmp x19, x10
-    cset w19, eq
-    cbnz w19, L44_6
-    b L44_27
-L44_27:
-    mov w20, w19
-    b L44_7
-L44_6:
-    movn x10, #0
-    cmp x14, x10
-    cset w20, eq
-L44_7:
-    and w19, w20, #255
-L44_5:
-    and w20, w19, #255
-    cbnz w20, L44_1
-    b L44_2
-L44_1:
-    sub x19, x29, #104
-    mov x11, x19
-    stp xzr, xzr, [x11, #0]
-    sub x20, x29, #56
-    mov x10, x19
-    mov x11, x20
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    mov x16, x20
-    ldr x0, [x16, #0]
-    ldr x1, [x16, #8]
-    ldr x19, [sp, #136]
-    ldr x20, [sp, #128]
-    ldr x21, [sp, #120]
-    mov sp, x29
-    ldp x29, x30, [sp], #16
-    ret
-L44_8:
-    b L44_3
-L44_2:
-L44_3:
-    sub x19, x29, #72
-    ldr x19, [x19]
-    sub x10, x29, #136
-    str x19, [x10]
-    sub x10, x29, #152
-    str x14, [x10]
-    cbnz w15, L44_10
-    b L44_11
-L44_10:
-    adrp x0, l_text_48@PAGE
-    add x0, x0, l_text_48@PAGEOFF
-    adrp x1, l_text_47@PAGE
-    add x1, x1, l_text_47@PAGEOFF
-    bl _lb_core_7trap_at
-L44_11:
-    movz x10, #32768, lsl #48
-    cmp x19, x10
-    cset w20, eq
-    movn x10, #0
-    cmp x14, x10
-    cset w21, eq
-    and w20, w20, w21
-    cbnz w20, L44_12
-    b L44_13
-L44_12:
-    adrp x0, l_text_48@PAGE
-    add x0, x0, l_text_48@PAGEOFF
-    adrp x1, l_text_49@PAGE
-    add x1, x1, l_text_49@PAGEOFF
-    bl _lb_core_7trap_at
-L44_13:
-    sdiv x21, x19, x14
-    cbnz w15, L44_17
-    b L44_18
-L44_17:
-    adrp x0, l_text_50@PAGE
-    add x0, x0, l_text_50@PAGEOFF
-    adrp x1, l_text_47@PAGE
-    add x1, x1, l_text_47@PAGEOFF
-    bl _lb_core_7trap_at
-L44_18:
-    cbnz w20, L44_19
-    b L44_20
-L44_19:
-    adrp x0, l_text_50@PAGE
-    add x0, x0, l_text_50@PAGEOFF
-    adrp x1, l_text_49@PAGE
-    add x1, x1, l_text_49@PAGEOFF
-    bl _lb_core_7trap_at
-L44_20:
-    sdiv x11, x19, x14
-    msub x15, x11, x14, x19
-    mov x10, #0
-    cmp x15, x10
-    cset w15, eq
-    mov x10, #0
-    cmp w15, w10
-    cset w15, eq
-    cbnz w15, L44_21
-    b L44_28
-L44_28:
-    mov w14, w15
-    b L44_22
-L44_21:
-    mov x10, #0
-    cmp x19, x10
-    cset w15, lt
-    mov x10, #0
-    cmp x14, x10
-    cset w20, lt
-    cmp w15, w20
-    cset w15, eq
-    mov x10, #0
-    cmp w15, w10
-    cset w15, eq
-    mov w14, w15
-L44_22:
-    and w15, w14, #255
-    cbnz w15, L44_14
-    b L44_15
-L44_14:
-    mov x9, x21
-    movz x10, #1
-    subs x9, x9, x10
-    b.vc 1f
-    adrp x0, l_text_51@PAGE
-    add x0, x0, l_text_51@PAGEOFF
-    adrp x1, l_text_49@PAGE
-    add x1, x1, l_text_49@PAGEOFF
-    bl _lb_core_7trap_at
-1:
-    mov x14, x9
-    b L44_25
-L44_23:
-    b L44_16
-L44_15:
-L44_16:
-    mov x14, x21
-    b L44_25
-L44_24:
-    adrp x0, l_text_52@PAGE
-    add x0, x0, l_text_52@PAGEOFF
-    adrp x1, l_text_0@PAGE
-    add x1, x1, l_text_0@PAGEOFF
-    bl _lb_core_7trap_at
-L44_25:
-    sub x15, x29, #120
-    str x14, [x15]
-    add x19, x15, #8
-    movz x9, #1
-    strb w9, [x19]
-    sub x19, x29, #56
-    mov x10, x15
-    mov x11, x19
-    ldp x12, x13, [x10, #0]
-    stp x12, x13, [x11, #0]
-    mov x16, x19
-    ldr x0, [x16, #0]
-    ldr x1, [x16, #8]
-    ldr x19, [sp, #136]
-    ldr x20, [sp, #128]
-    ldr x21, [sp, #120]
-    mov sp, x29
-    ldp x29, x30, [sp], #16
-    ret
-L44_9:
-    adrp x0, l_text_58@PAGE
-    add x0, x0, l_text_58@PAGEOFF
-    adrp x1, l_text_0@PAGE
-    add x1, x1, l_text_0@PAGEOFF
-    bl _lb_core_7trap_at
-
-    .p2align 2
-    .globl _lb_math_17checked_mod_floor
-_lb_math_17checked_mod_floor:
-    stp x29, x30, [sp, #-16]!
-    mov x29, sp
-    sub sp, sp, #160
-    str x19, [sp, #136]
-    str x20, [sp, #128]
+    sub sp, sp, #112
+    str x19, [sp, #88]
+    str x20, [sp, #80]
     sub x16, x29, #64
     str x0, [x16]
     sub x16, x29, #80
@@ -2082,9 +2294,34 @@ _lb_math_17checked_mod_floor:
     mov x10, #0
     cmp x14, x10
     cset w15, eq
-    cbnz w15, L45_1
-    b L45_2
-L45_1:
+    cbnz w15, L49_10
+    b L49_4
+L49_10:
+    mov w19, w15
+    b L49_5
+L49_4:
+    sub x15, x29, #64
+    ldr x15, [x15]
+    movz x10, #32768, lsl #48
+    cmp x15, x10
+    cset w15, eq
+    cbnz w15, L49_6
+    b L49_11
+L49_11:
+    mov w19, w15
+    b L49_7
+L49_6:
+    movn x10, #0
+    cmp x14, x10
+    cset w19, eq
+L49_7:
+    and w15, w19, #255
+    mov w19, w15
+L49_5:
+    and w15, w19, #255
+    cbnz w15, L49_1
+    b L49_2
+L49_1:
     sub x19, x29, #96
     mov x11, x19
     stp xzr, xzr, [x11, #0]
@@ -2096,21 +2333,89 @@ L45_1:
     mov x16, x20
     ldr x0, [x16, #0]
     ldr x1, [x16, #8]
-    ldr x19, [sp, #136]
-    ldr x20, [sp, #128]
+    ldr x19, [sp, #88]
+    ldr x20, [sp, #80]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
-L45_4:
-    b L45_3
-L45_2:
-L45_3:
+L49_8:
+    b L49_3
+L49_2:
+L49_3:
+    sub x15, x29, #64
+    ldr x15, [x15]
+    mov x0, x15
+    mov x1, x14
+    bl _lb_math_9div_floor
+    mov x15, x0
+    sub x19, x29, #112
+    str x15, [x19]
+    add x15, x19, #8
+    movz x9, #1
+    strb w9, [x15]
+    sub x20, x29, #48
+    mov x10, x19
+    mov x11, x20
+    ldp x12, x13, [x10, #0]
+    stp x12, x13, [x11, #0]
+    mov x16, x20
+    ldr x0, [x16, #0]
+    ldr x1, [x16, #8]
+    ldr x19, [sp, #88]
+    ldr x20, [sp, #80]
+    mov sp, x29
+    ldp x29, x30, [sp], #16
+    ret
+L49_9:
+    adrp x0, l_text_58@PAGE
+    add x0, x0, l_text_58@PAGEOFF
+    adrp x1, l_text_0@PAGE
+    add x1, x1, l_text_0@PAGEOFF
+    bl _lb_core_7trap_at
+
+    .p2align 2
+    .globl _lb_math_17checked_mod_floor
+    .no_dead_strip _lb_math_17checked_mod_floor
+_lb_math_17checked_mod_floor:
+    stp x29, x30, [sp, #-16]!
+    mov x29, sp
+    sub sp, sp, #128
+    str x19, [sp, #104]
+    str x20, [sp, #96]
+    sub x16, x29, #64
+    str x0, [x16]
+    sub x16, x29, #80
+    str x1, [x16]
+    sub x14, x29, #80
+    ldr x14, [x14]
+    mov x10, #0
+    cmp x14, x10
+    b.ne L50_2
+L50_1:
+    sub x19, x29, #96
+    mov x11, x19
+    stp xzr, xzr, [x11, #0]
+    sub x20, x29, #48
+    mov x10, x19
+    mov x11, x20
+    ldp x12, x13, [x10, #0]
+    stp x12, x13, [x11, #0]
+    mov x16, x20
+    ldr x0, [x16, #0]
+    ldr x1, [x16, #8]
+    ldr x19, [sp, #104]
+    ldr x20, [sp, #96]
+    mov sp, x29
+    ldp x29, x30, [sp], #16
+    ret
+L50_4:
+    b L50_3
+L50_2:
+L50_3:
     movn x10, #0
     cmp x14, x10
-    cset w19, eq
-    cbnz w19, L45_5
-    b L45_6
-L45_5:
+    b.ne L50_6
+L50_5:
     sub x14, x29, #112
     mov x9, #0
     str x9, [x14]
@@ -2125,128 +2430,40 @@ L45_5:
     mov x16, x19
     ldr x0, [x16, #0]
     ldr x1, [x16, #8]
-    ldr x19, [sp, #136]
-    ldr x20, [sp, #128]
+    ldr x19, [sp, #104]
+    ldr x20, [sp, #96]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
-L45_8:
-    b L45_7
-L45_6:
-L45_7:
-    sub x20, x29, #64
-    ldr x20, [x20]
-    sub x10, x29, #144
-    str x20, [x10]
-    sub x10, x29, #160
-    str x14, [x10]
-    cbnz w19, L45_10
-    b L45_11
-L45_10:
-    mov x9, #0
-    mov x14, x9
-    b L45_25
-L45_13:
-    b L45_12
-L45_11:
-L45_12:
-    cbnz w15, L45_14
-    b L45_15
-L45_14:
-    adrp x0, l_text_53@PAGE
-    add x0, x0, l_text_53@PAGEOFF
-    adrp x1, l_text_47@PAGE
-    add x1, x1, l_text_47@PAGEOFF
-    bl _lb_core_7trap_at
-L45_15:
-    movz x10, #32768, lsl #48
-    cmp x20, x10
-    cset w15, eq
-    and w15, w19, w15
-    cbnz w15, L45_16
-    b L45_17
-L45_16:
-    adrp x0, l_text_53@PAGE
-    add x0, x0, l_text_53@PAGEOFF
-    adrp x1, l_text_49@PAGE
-    add x1, x1, l_text_49@PAGEOFF
-    bl _lb_core_7trap_at
-L45_17:
-    sdiv x11, x20, x14
-    msub x15, x11, x14, x20
-    mov x10, #0
-    cmp x15, x10
-    cset w19, eq
-    mov x10, #0
-    cmp w19, w10
-    cset w19, eq
-    cbnz w19, L45_21
-    b L45_26
-L45_26:
-    mov w20, w19
-    b L45_22
-L45_21:
-    mov x10, #0
-    cmp x15, x10
-    cset w19, lt
-    mov x10, #0
-    cmp x14, x10
-    cset w20, lt
-    cmp w19, w20
-    cset w19, eq
-    mov x10, #0
-    cmp w19, w10
-    cset w20, eq
-L45_22:
-    and w19, w20, #255
-    cbnz w19, L45_18
-    b L45_19
-L45_18:
-    mov x9, x14
-    mov x10, x15
-    adds x9, x9, x10
-    b.vc 1f
-    adrp x0, l_text_54@PAGE
-    add x0, x0, l_text_54@PAGEOFF
-    adrp x1, l_text_49@PAGE
-    add x1, x1, l_text_49@PAGEOFF
-    bl _lb_core_7trap_at
-1:
-    mov x19, x9
-    mov x14, x19
-    b L45_25
-L45_23:
-    b L45_20
-L45_19:
-L45_20:
-    mov x14, x15
-    b L45_25
-L45_24:
-    adrp x0, l_text_55@PAGE
-    add x0, x0, l_text_55@PAGEOFF
-    adrp x1, l_text_0@PAGE
-    add x1, x1, l_text_0@PAGEOFF
-    bl _lb_core_7trap_at
-L45_25:
-    sub x15, x29, #128
-    str x14, [x15]
-    add x19, x15, #8
+L50_8:
+    b L50_7
+L50_6:
+L50_7:
+    sub x15, x29, #64
+    ldr x15, [x15]
+    mov x0, x15
+    mov x1, x14
+    bl _lb_math_9mod_floor
+    mov x15, x0
+    sub x19, x29, #128
+    str x15, [x19]
+    add x15, x19, #8
     movz x9, #1
-    strb w9, [x19]
-    sub x19, x29, #48
-    mov x10, x15
-    mov x11, x19
+    strb w9, [x15]
+    sub x20, x29, #48
+    mov x10, x19
+    mov x11, x20
     ldp x12, x13, [x10, #0]
     stp x12, x13, [x11, #0]
-    mov x16, x19
+    mov x16, x20
     ldr x0, [x16, #0]
     ldr x1, [x16, #8]
-    ldr x19, [sp, #136]
-    ldr x20, [sp, #128]
+    ldr x19, [sp, #104]
+    ldr x20, [sp, #96]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
-L45_9:
+L50_9:
     adrp x0, l_text_59@PAGE
     add x0, x0, l_text_59@PAGEOFF
     adrp x1, l_text_0@PAGE
@@ -2255,6 +2472,7 @@ L45_9:
 
     .p2align 2
     .globl _lb_math_imin
+    .no_dead_strip _lb_math_imin
 _lb_math_imin:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -2269,19 +2487,19 @@ _lb_math_imin:
     sub x15, x29, #56
     ldr x15, [x15]
     cmp x14, x15
-    b.ge L46_2
-L46_1:
+    b.ge L51_2
+L51_1:
     mov x15, x14
-    b L46_3
-L46_2:
-L46_3:
+    b L51_3
+L51_2:
+L51_3:
     mov x9, x15
     mov x0, x9
     ldr x19, [sp, #40]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
-L46_4:
+L51_4:
     adrp x0, l_text_60@PAGE
     add x0, x0, l_text_60@PAGEOFF
     adrp x1, l_text_0@PAGE
@@ -2290,6 +2508,7 @@ L46_4:
 
     .p2align 2
     .globl _lb_math_imax
+    .no_dead_strip _lb_math_imax
 _lb_math_imax:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -2304,19 +2523,19 @@ _lb_math_imax:
     sub x15, x29, #56
     ldr x15, [x15]
     cmp x14, x15
-    b.le L47_2
-L47_1:
+    b.le L52_2
+L52_1:
     mov x15, x14
-    b L47_3
-L47_2:
-L47_3:
+    b L52_3
+L52_2:
+L52_3:
     mov x9, x15
     mov x0, x9
     ldr x19, [sp, #40]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
-L47_4:
+L52_4:
     adrp x0, l_text_61@PAGE
     add x0, x0, l_text_61@PAGEOFF
     adrp x1, l_text_0@PAGE
@@ -2325,6 +2544,7 @@ L47_4:
 
     .p2align 2
     .globl _lb_math_iclamp
+    .no_dead_strip _lb_math_iclamp
 _lb_math_iclamp:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -2342,32 +2562,32 @@ _lb_math_iclamp:
     sub x15, x29, #80
     ldr x15, [x15]
     cmp x14, x15
-    b.le L48_1
-L48_2:
+    b.le L53_1
+L53_2:
     adrp x0, l_text_62@PAGE
     add x0, x0, l_text_62@PAGEOFF
     adrp x1, l_text_44@PAGE
     add x1, x1, l_text_44@PAGEOFF
     bl _lb_core_7trap_at
-L48_1:
+L53_1:
     sub x19, x29, #48
     ldr x19, [x19]
     cmp x19, x14
-    b.ge L48_4
-L48_3:
+    b.ge L53_4
+L53_3:
     mov x15, x14
-    b L48_5
-L48_4:
+    b L53_5
+L53_4:
     cmp x19, x15
-    b.le L48_7
-L48_6:
+    b.le L53_7
+L53_6:
     mov x14, x15
-    b L48_8
-L48_7:
+    b L53_8
+L53_7:
     mov x14, x19
-L48_8:
+L53_8:
     mov x15, x14
-L48_5:
+L53_5:
     mov x9, x15
     mov x0, x9
     ldr x19, [sp, #56]
@@ -2375,7 +2595,7 @@ L48_5:
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
-L48_9:
+L53_9:
     adrp x0, l_text_63@PAGE
     add x0, x0, l_text_63@PAGEOFF
     adrp x1, l_text_0@PAGE
@@ -2518,20 +2738,58 @@ l_text_63:
 
     .section __DATA,__const
     .p2align 3
+    .section __DATA,__data
+    .p2align 3
     .globl _lb_math_pi
-    .zerofill __DATA,__bss,_lb_math_pi,8,3
+    .weak_definition _lb_math_pi
+    .no_dead_strip _lb_math_pi
+_lb_math_pi:
+    .zero 8
+    .section __DATA,__data
+    .p2align 3
     .globl _lb_math_tau
-    .zerofill __DATA,__bss,_lb_math_tau,8,3
+    .weak_definition _lb_math_tau
+    .no_dead_strip _lb_math_tau
+_lb_math_tau:
+    .zero 8
+    .section __DATA,__data
+    .p2align 3
     .globl _lb_math_e
-    .zerofill __DATA,__bss,_lb_math_e,8,3
+    .weak_definition _lb_math_e
+    .no_dead_strip _lb_math_e
+_lb_math_e:
+    .zero 8
+    .section __DATA,__data
+    .p2align 3
     .globl _lb_math_infinity
-    .zerofill __DATA,__bss,_lb_math_infinity,8,3
+    .weak_definition _lb_math_infinity
+    .no_dead_strip _lb_math_infinity
+_lb_math_infinity:
+    .zero 8
+    .section __DATA,__data
+    .p2align 3
     .globl _lb_math_nan
-    .zerofill __DATA,__bss,_lb_math_nan,8,3
+    .weak_definition _lb_math_nan
+    .no_dead_strip _lb_math_nan
+_lb_math_nan:
+    .zero 8
+    .section __DATA,__data
+    .p2align 3
     .globl _lb_math_9sign_mask
-    .zerofill __DATA,__bss,_lb_math_9sign_mask,8,3
+    .weak_definition _lb_math_9sign_mask
+_lb_math_9sign_mask:
+    .zero 8
+    .section __DATA,__data
+    .p2align 3
     .globl _lb_math_14magnitude_mask
-    .zerofill __DATA,__bss,_lb_math_14magnitude_mask,8,3
+    .weak_definition _lb_math_14magnitude_mask
+_lb_math_14magnitude_mask:
+    .zero 8
+    .section __DATA,__data
+    .p2align 3
     .globl _lb_math_13exponent_mask
-    .zerofill __DATA,__bss,_lb_math_13exponent_mask,8,3
+    .weak_definition _lb_math_13exponent_mask
+_lb_math_13exponent_mask:
+    .zero 8
 
+.subsections_via_symbols

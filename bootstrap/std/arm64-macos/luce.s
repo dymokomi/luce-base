@@ -89,12 +89,33 @@ l_text_0:
 
     .section __DATA,__const
     .p2align 3
+    .section __DATA,__data
+    .p2align 3
     .globl _lb_luce_file
-    .zerofill __DATA,__bss,_lb_luce_file,16,3
+    .weak_definition _lb_luce_file
+    .no_dead_strip _lb_luce_file
+_lb_luce_file:
+    .zero 16
+    .section __DATA,__data
+    .p2align 2
     .globl _lb_luce_line
-    .zerofill __DATA,__bss,_lb_luce_line,4,2
+    .weak_definition _lb_luce_line
+    .no_dead_strip _lb_luce_line
+_lb_luce_line:
+    .zero 4
+    .section __DATA,__data
+    .p2align 3
     .globl _lb_luce_function
-    .zerofill __DATA,__bss,_lb_luce_function,16,3
+    .weak_definition _lb_luce_function
+    .no_dead_strip _lb_luce_function
+_lb_luce_function:
+    .zero 16
+    .section __DATA,__data
+    .p2align 3
     .globl _lb_luce_location
-    .zerofill __DATA,__bss,_lb_luce_location,40,3
+    .weak_definition _lb_luce_location
+    .no_dead_strip _lb_luce_location
+_lb_luce_location:
+    .zero 40
 
+.subsections_via_symbols

@@ -268,17 +268,26 @@ pub struct Parser:
         if (flags & ast.flag_thread_local) != 0 and not self.at_kw("var"):
             return try self.fail("`local` declares a `var` (§6.3)")
         if self.at_kw("let"):
-            if attributes != none or flags != visibility:
+            # `linked let NAME: T`: a constant whose storage a library defines (§9.8)
+            let linked = names_attribute(attributes, "linked")
+            if (attributes != none and not linked) or flags != visibility:
                 return try self.fail("an attribute goes before `func` or a top-level `var` (§9.8)")
             let n = try self.node(ast.Kind.constant, "")
             discard(self.take())
             n.text = try self.expect_name()
             if self.eat_op(":"):
                 n.ty = try self.parse_type()
-            try self.expect_op("=")
-            n.left = try self.parse_expression()
+            elif linked:
+                return try self.fail("a `linked` constant names its type; the library defines its value (§9.8)")
+            # a `linked` constant may carry the value the library gives it, for what reads
+            # a declaration's initialiser; the program neither stores nor folds it
+            if self.eat_op("="):
+                n.left = try self.parse_expression()
+            elif not linked:
+                return try self.fail("a constant needs a value")
             try self.expect_newline()
             n.flags |= flags
+            n.attrs = attributes
             return n
         if self.at_kw("var"):
             let n = try self.node(ast.Kind.global, "")

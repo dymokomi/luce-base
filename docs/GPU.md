@@ -149,7 +149,8 @@ The files under `src/std/gpu/` share one standard module scope:
 | --- | --- |
 | `module.lucb` | Portable values, errors, validation, and thread policy. |
 | `device.lucb`, `surface.lucb`, `frame.lucb` | Public ownership, device references, window leases, and API contracts. |
-| `backend.lucb` | Backend selection and dispatch using opaque device/surface payloads. |
+| `backend.lucb` | Backend selection and device dispatch using opaque device payloads. |
+| `presentation.lucb` | Surface dispatch using opaque surface payloads; a device alone never reaches it. |
 | `metal/objc.lucb` | Exact typed system ABI declarations, including native aggregates. |
 | `metal/device.lucb` | Metal device and queue creation and release. |
 | `metal/surface.lucb` | CAMetalLayer, sRGB color space, drawable sizing, render-pass encoding, completion, and teardown. |

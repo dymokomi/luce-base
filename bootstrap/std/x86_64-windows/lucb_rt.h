@@ -1,0 +1,308 @@
+//==============================================================================================
+//
+//   runtime/lucb_rt - Runtime interface for generated C
+//
+//   DESCRIPTION:
+//       The types generated code uses (`lb_str`, `lb_span`, `lb_iface`, optionals and results
+//       through `LB_OPT`/`LB_RES`), the inline checked arithmetic and bounds checks, and the
+//       prototypes of everything in lucb_rt.c. Allocation, files, processes, threads, and
+//       the sync primitives are Base source now (src/prelude.lucb); what remains here is
+//       what generated code cannot spell itself.
+//
+//==============================================================================================
+
+#pragma once
+
+#include <stdarg.h>
+#include <stdatomic.h>
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+
+#if defined(__GNUC__)
+#define LB_NORETURN __attribute__((noreturn))
+#else
+#define LB_NORETURN
+#endif
+
+/* A declaration bound to a symbol by name: `int f(void) LB_SYMBOL("f")` reaches C's `f`
+   whatever the declaration is called, so a binding never clashes with a system prototype. */
+#define LB_STR2(x) #x
+#define LB_STR(x) LB_STR2(x)
+#define LB_SYMBOL(name) __asm__(LB_STR(__USER_LABEL_PREFIX__) name)
+
+/* The statement the thread is running, `file:line:column`, set by the code before each
+   statement and restored when a function returns: what a trap names (§11.5). */
+extern _Thread_local const char* lb_pos;
+void lb_restore_pos(const char** saved);
+LB_NORETURN void lb_trap(const char* message);
+LB_NORETURN void lb_trap_two(const char* message, const char* detail);
+void lb_pause(void);
+
+/* Checked arithmetic is inline so that `a + b` costs one instruction and one
+   predicted branch after the host C compiler optimises (base.md §1, §7.2). */
+static inline uint64_t mask_bits(int bits) {
+    if (bits >= 64) {
+        return ~(uint64_t)0;
+    }
+    if (bits <= 0) {
+        return 0;
+    }
+    return ((uint64_t)1 << bits) - 1;
+}
+static inline int64_t smin(int bits) {
+    if (bits <= 0) {
+        return 0;
+    }
+    if (bits >= 64) {
+        return INT64_MIN;
+    }
+    return -((int64_t)1 << (bits - 1));
+}
+static inline int64_t smax(int bits) {
+    if (bits <= 0) {
+        return 0;
+    }
+    if (bits >= 64) {
+        return INT64_MAX;
+    }
+    return ((int64_t)1 << (bits - 1)) - 1;
+}
+static inline int64_t sext(int64_t a, int bits) {
+    if (bits <= 0) {
+        return 0;
+    }
+    if (bits >= 64) {
+        return a;
+    }
+    uint64_t u = (uint64_t)a & mask_bits(bits);
+    if (u & ((uint64_t)1 << (bits - 1))) {
+        return (int64_t)(u | ~mask_bits(bits));
+    }
+    return (int64_t)u;
+}
+static inline uint64_t zext(uint64_t a, int bits) {
+    return a & mask_bits(bits);
+}
+
+static inline int64_t lb_add_s(int64_t a, int64_t b, int bits) {
+    a = sext(a, bits);
+    b = sext(b, bits);
+    int64_t r;
+    if (__builtin_add_overflow(a, b, &r) || r < smin(bits) || r > smax(bits)) {
+        lb_trap("integer overflow");
+    }
+    return r;
+}
+
+static inline uint64_t lb_add_u(uint64_t a, uint64_t b, int bits) {
+    a = zext(a, bits);
+    b = zext(b, bits);
+    if (bits >= 64) {
+        if (a > UINT64_MAX - b) {
+            lb_trap("integer overflow");
+        }
+        return a + b;
+    }
+    uint64_t r = a + b;
+    if (r > mask_bits(bits)) {
+        lb_trap("integer overflow");
+    }
+    return r;
+}
+
+static inline int64_t lb_sub_s(int64_t a, int64_t b, int bits) {
+    a = sext(a, bits);
+    b = sext(b, bits);
+    int64_t r;
+    if (__builtin_sub_overflow(a, b, &r) || r < smin(bits) || r > smax(bits)) {
+        lb_trap("integer overflow");
+    }
+    return r;
+}
+
+static inline uint64_t lb_sub_u(uint64_t a, uint64_t b, int bits) {
+    a = zext(a, bits);
+    b = zext(b, bits);
+    if (a < b) {
+        lb_trap("integer overflow");
+    }
+    return a - b;
+}
+
+static inline int64_t lb_mul_s(int64_t a, int64_t b, int bits) {
+    a = sext(a, bits);
+    b = sext(b, bits);
+    int64_t r;
+    if (__builtin_mul_overflow(a, b, &r) || r < smin(bits) || r > smax(bits)) {
+        lb_trap("integer overflow");
+    }
+    return r;
+}
+
+static inline uint64_t lb_mul_u(uint64_t a, uint64_t b, int bits) {
+    a = zext(a, bits);
+    b = zext(b, bits);
+    if (b != 0 && a > mask_bits(bits) / b) {
+        lb_trap("integer overflow");
+    }
+    return zext(a * b, bits);
+}
+
+int64_t lb_div_s(int64_t a, int64_t b, int bits);
+uint64_t lb_div_u(uint64_t a, uint64_t b, int bits);
+int64_t lb_mod_s(int64_t a, int64_t b, int bits);
+uint64_t lb_mod_u(uint64_t a, uint64_t b, int bits);
+int64_t lb_neg_s(int64_t a, int bits);
+
+int64_t lb_addw_s(int64_t a, int64_t b, int bits);
+uint64_t lb_addw_u(uint64_t a, uint64_t b, int bits);
+int64_t lb_subw_s(int64_t a, int64_t b, int bits);
+uint64_t lb_subw_u(uint64_t a, uint64_t b, int bits);
+int64_t lb_mulw_s(int64_t a, int64_t b, int bits);
+uint64_t lb_mulw_u(uint64_t a, uint64_t b, int bits);
+int64_t lb_negw_s(int64_t a, int bits);
+uint64_t lb_negw_u(uint64_t a, int bits);
+
+int64_t lb_adds_s(int64_t a, int64_t b, int bits);
+uint64_t lb_adds_u(uint64_t a, uint64_t b, int bits);
+int64_t lb_subs_s(int64_t a, int64_t b, int bits);
+uint64_t lb_subs_u(uint64_t a, uint64_t b, int bits);
+int64_t lb_muls_s(int64_t a, int64_t b, int bits);
+uint64_t lb_muls_u(uint64_t a, uint64_t b, int bits);
+
+int64_t lb_shl_s(int64_t a, uint64_t n, int bits);
+uint64_t lb_shl_u(uint64_t a, uint64_t n, int bits);
+int64_t lb_shr_s(int64_t a, uint64_t n, int bits);
+uint64_t lb_shr_u(uint64_t a, uint64_t n, int bits);
+uint64_t lb_not_u(uint64_t a, int bits);
+
+/* mode 0 = checked T(x), mode 1 = C cast (truncate / bit-reinterpret). */
+int64_t lb_conv_s(int64_t a, int from_bits, int from_signed, int to_bits, int to_signed, int mode);
+uint64_t lb_conv_u(uint64_t a, int from_bits, int from_signed, int to_bits, int to_signed,
+                   int mode);
+
+int64_t lb_f_to_s(double a, int bits, int mode);
+// A `char` from an integer's bits: a scalar value or, when checked, a trap (§7.5).
+uint32_t lb_to_char(uint64_t a, int mode);
+uint64_t lb_f_to_u(double a, int bits, int mode);
+double lb_to_f(int64_t a, int from_signed);
+float lb_f64_to_f32(double a);
+
+typedef struct lb_str {
+    const char* data;
+    size_t length;
+} lb_str;
+
+/* Base diagnostic messages are byte spans, not NUL-terminated C strings. */
+LB_NORETURN void lb_trap_text(lb_str message);
+LB_NORETURN void lb_trap_detail(const char* prefix, lb_str detail);
+
+typedef struct lb_span {
+    void* data;
+    size_t length;
+} lb_span;
+
+/* A const span has the same representation as a span; constness is a Base
+   fact the checker enforced, so one C struct serves both and no adapter
+   is needed where a `T[]` meets a `const T[]`. */
+typedef lb_span lb_cspan;
+
+/* Ordering of text by bytes, then by length (base.md §5.5). */
+int lb_str_compare(lb_str a, lb_str b);
+void lb_print_i64(int64_t value);
+void lb_print_u64(uint64_t value);
+void lb_print_bool(bool value);
+void lb_print_str(lb_str value);
+void lb_print_f64(double value);
+static inline void lb_check_index(uint64_t i, uint64_t n) {
+    if (i >= n) {
+        lb_trap("index out of bounds");
+    }
+}
+// The index `i` once checked against `n`: an index expression is evaluated once (§6.5).
+/* A raw C cast borrows the address without reading past the byte view.
+   C string consumers require caller-provided termination and sufficient lifetime. */
+static inline char* lb_cstr_of(lb_str s) {
+    return (char*)s.data;
+}
+static inline uint64_t lb_at(uint64_t i, uint64_t n) {
+    lb_check_index(i, n);
+    return i;
+}
+void lb_check_utf8(const char* s, size_t n);
+
+typedef struct lb_iface {
+    void* data;
+    const void* vtable;
+} lb_iface;
+
+typedef struct lb_fmtbuf {
+    char* data;
+    size_t cap;
+    size_t used;
+} lb_fmtbuf;
+
+int lb_fmtbuf_put(lb_fmtbuf* b, const char* s, size_t n);
+int lb_fmtbuf_i64(lb_fmtbuf* b, int64_t v);
+int lb_fmtbuf_u64(lb_fmtbuf* b, uint64_t v);
+int lb_fmtbuf_f64(lb_fmtbuf* b, double v);
+int lb_fmtbuf_bool(lb_fmtbuf* b, bool v);
+// The UTF-8 bytes of one scalar, and their count: how a `char` displays (§14.4).
+size_t lucb_rt_utf8_encode(uint32_t cp, char out[4]);
+int lb_fmtbuf_char(lb_fmtbuf* b, uint32_t cp);
+lb_str lb_fmtbuf_finish(lb_fmtbuf* b);
+
+int lb_utf8_ok(const char* s, size_t n);
+// The scalar starting at byte `i` of the valid UTF-8 text `s`, and its width in `*width`.
+uint32_t lb_utf8_scalar(const char* s, size_t n, size_t i, size_t* width);
+
+uint64_t lb_hash_seed(void);
+uint64_t lb_hash_mix(uint64_t h, uint64_t x);
+uint64_t lb_hash_bytes(uint64_t h, const void* p, size_t n);
+lb_str lb_show_hex(uint64_t v);
+lb_str lb_show_bin(uint64_t v);
+lb_str lb_show_pad(lb_str inner, size_t width);
+int lb_fmtbuf_hex(lb_fmtbuf* b, uint64_t v);
+int lb_fmtbuf_bin(lb_fmtbuf* b, uint64_t v);
+
+#define LB_FILES_MISSING 2
+#define LB_INVALID_UTF8 3
+
+typedef struct lb_error {
+    int32_t code;
+    lb_str message;
+} lb_error;
+
+#define LB_OPT(T, name)                                                                            \
+    typedef struct name {                                                                          \
+        T value;                                                                                   \
+        bool present;                                                                              \
+    } name
+
+#define LB_RES(T, name)                                                                            \
+    typedef struct name {                                                                          \
+        T value;                                                                                   \
+        lb_error error;                                                                            \
+        bool failed;                                                                               \
+    } name
+
+typedef struct lb_r_unit {
+    lb_error error;
+    bool failed;
+} lb_r_unit;
+
+/* The startup shim's pieces, shared by the C and native backends: the argument
+   vector as `str[]` (checked) or `c.str[]`, a failed `main`, and the test runner's
+   report lines. */
+lb_span lb_arguments(int argc, char** argv, bool as_text);
+int lb_entry_failed(lb_error error);
+void lb_test_report(lb_str name, const lb_r_unit* result);
+int lb_test_summary(int32_t total, int32_t failed);
+
+int lb_qadd_s(int64_t a, int64_t b, int bits, int64_t* out);
+int lb_qadd_u(uint64_t a, uint64_t b, int bits, uint64_t* out);
+int lb_qsub_s(int64_t a, int64_t b, int bits, int64_t* out);
+int lb_qsub_u(uint64_t a, uint64_t b, int bits, uint64_t* out);
+int lb_qmul_s(int64_t a, int64_t b, int bits, int64_t* out);
+int lb_qmul_u(uint64_t a, uint64_t b, int bits, uint64_t* out);

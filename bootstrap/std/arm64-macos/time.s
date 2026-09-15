@@ -31,38 +31,16 @@ L0_3:
     ret
 
     .p2align 2
-    .globl _lb_time_unix
-_lb_time_unix:
+    .globl _lb_time_now
+    .no_dead_strip _lb_time_now
+_lb_time_now:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #16
-    mov x0, #0
-    bl _time
-    mov x14, x0
-    mov x9, x14
-    mov x0, x9
-    mov sp, x29
-    ldp x29, x30, [sp], #16
-    ret
-L1_1:
-    adrp x0, l_text_2@PAGE
-    add x0, x0, l_text_2@PAGEOFF
-    adrp x1, l_text_1@PAGE
-    add x1, x1, l_text_1@PAGEOFF
-    bl _lb_core_7trap_at
-
-    .p2align 2
-    .globl _lb_time_since
-_lb_time_since:
-    stp x29, x30, [sp, #-16]!
-    mov x29, sp
-    sub sp, sp, #80
-    str x19, [sp, #56]
-    str x20, [sp, #48]
-    sub x16, x29, #48
-    str x0, [x16]
-    sub x19, x29, #64
-    sub x20, x29, #80
+    sub sp, sp, #64
+    str x19, [sp, #40]
+    str x20, [sp, #32]
+    sub x19, x29, #48
+    sub x20, x29, #64
     mov x11, x20
     stp xzr, xzr, [x11, #0]
     mov x9, #0
@@ -108,33 +86,72 @@ _lb_time_since:
     bl _lb_core_7trap_at
 1:
     mov x14, x9
-    b L2_6
-L2_5:
+    mov x9, x14
+    mov x0, x9
+    ldr x19, [sp, #40]
+    ldr x20, [sp, #32]
+    mov sp, x29
+    ldp x29, x30, [sp], #16
+    ret
+L1_1:
     adrp x0, l_text_0@PAGE
     add x0, x0, l_text_0@PAGEOFF
     adrp x1, l_text_1@PAGE
     add x1, x1, l_text_1@PAGEOFF
     bl _lb_core_7trap_at
-L2_6:
-    sub x15, x29, #48
-    ldr x15, [x15]
-    cmp x14, x15
-    b.ls L2_2
-L2_1:
-    sub x19, x14, x15
-    b L2_3
-L2_2:
-    mov x9, #0
-    mov x19, x9
-L2_3:
-    mov x9, x19
+
+    .p2align 2
+    .globl _lb_time_unix
+    .no_dead_strip _lb_time_unix
+_lb_time_unix:
+    stp x29, x30, [sp, #-16]!
+    mov x29, sp
+    sub sp, sp, #16
+    mov x0, #0
+    bl _time
+    mov x14, x0
+    mov x9, x14
     mov x0, x9
-    ldr x19, [sp, #56]
-    ldr x20, [sp, #48]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
-L2_4:
+L2_1:
+    adrp x0, l_text_2@PAGE
+    add x0, x0, l_text_2@PAGEOFF
+    adrp x1, l_text_1@PAGE
+    add x1, x1, l_text_1@PAGEOFF
+    bl _lb_core_7trap_at
+
+    .p2align 2
+    .globl _lb_time_since
+    .no_dead_strip _lb_time_since
+_lb_time_since:
+    stp x29, x30, [sp, #-16]!
+    mov x29, sp
+    sub sp, sp, #48
+    str x19, [sp, #24]
+    sub x16, x29, #40
+    str x0, [x16]
+    bl _lb_time_now
+    mov x14, x0
+    sub x15, x29, #40
+    ldr x15, [x15]
+    cmp x14, x15
+    b.ls L3_2
+L3_1:
+    sub x19, x14, x15
+    b L3_3
+L3_2:
+    mov x9, #0
+    mov x19, x9
+L3_3:
+    mov x9, x19
+    mov x0, x9
+    ldr x19, [sp, #24]
+    mov sp, x29
+    ldp x29, x30, [sp], #16
+    ret
+L3_4:
     adrp x0, l_text_3@PAGE
     add x0, x0, l_text_3@PAGEOFF
     adrp x1, l_text_1@PAGE
@@ -159,8 +176,17 @@ l_text_4:
 
     .section __DATA,__const
     .p2align 3
+    .section __DATA,__data
+    .p2align 2
     .globl _lb_time_monotonic
-    .zerofill __DATA,__bss,_lb_time_monotonic,4,2
+    .weak_definition _lb_time_monotonic
+_lb_time_monotonic:
+    .zero 4
+    .section __DATA,__data
+    .p2align 2
     .globl _lb_time_realtime
-    .zerofill __DATA,__bss,_lb_time_realtime,4,2
+    .weak_definition _lb_time_realtime
+_lb_time_realtime:
+    .zero 4
 
+.subsections_via_symbols

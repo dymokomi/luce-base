@@ -22,6 +22,7 @@
 #==============================================================================================
 
 from back.effects import may_have_effect, arguments_have_effect
+import back.declarations as declarations
 import back.names
 import strings
 import back.target as targets
@@ -103,6 +104,10 @@ pub struct Emitter:
     ## `std-build`: the one module whose bodies this unit defines; every other module's
     ## functions and globals are the library's, as if `linked`. Empty for a whole program.
     pub var only_module: str
+    ## The fragment file of `only_module` this member is; empty for a whole module.
+    pub var only_fragment: str
+    ## What a library defines (§9.8): the roots of every module it carries, in mode 5.
+    var roots: list.List[ast.Node*]
     ## Mode 5: the unit is the library or one member of it, whose symbols are all global.
     var library: bool
     var funcs: list.List[Instance]
@@ -166,7 +171,7 @@ pub struct Emitter:
         return Emitter(c = checker, out = try buffer.Buffer.create(65536), body = try buffer.Buffer.create(262144), sequenced = try list.List[Sequenced].create(32), chain_left = none, chain_temp = 0,
                        scratch = try buffer.Buffer.create(65536), formats = try list.List[u32].create(16), arrays = try list.List[Hoisted].create(16),
                        globals = try buffer.Buffer.create(4096), protos = try buffer.Buffer.create(16384), target = to_body, indent = 0, counter = 0,
-                       modules = try list.List[NodeRef].create(16), referenced_storage = try list.List[NodeRef].create(8), entry = entry, only_module = "", library = false,
+                       modules = try list.List[NodeRef].create(16), referenced_storage = try list.List[NodeRef].create(8), entry = entry, only_module = "", only_fragment = "", library = false, roots = try list.List[ast.Node*].create(1),
                        funcs = try list.List[Instance].create(64), records = try list.List[Instance].create(64),
                        needed = try list.List[u32].create(256), defined = try list.List[u32].create(256),
                        decls_done = try list.List[NodeRef].create(64), tests = try list.List[NodeRef].create(32),
@@ -698,7 +703,15 @@ pub struct Emitter:
     ## Whether this unit defines the declaration: a whole program defines everything that is
     ## not `linked`; a library member only its own module's.
     func owns(d: ast.Node*) -> bool:
-        return self.only_module.length == 0 or names.module_of(d) == self.only_module
+        if self.only_module.length == 0:
+            return true
+        if names.module_of(d) != self.only_module:
+            return false
+        if self.only_fragment.length == 0:
+            return true
+        let index = self.c.find_module(self.only_module) else return false
+        var m = self.c.modules.get(index)
+        return declarations.fragment_at(&m.src, d.start) == self.only_fragment
 
     ## Whether this unit defines the instance: what it owns, and every instance or `inline`
     ## body, which is compiled where it is used.
@@ -708,7 +721,7 @@ pub struct Emitter:
     ## The C name of a function or method instance: an extern's binding, else what `names` says.
     mutating func put_func_name(f: ast.Node*, args: u32[], owner: ast.Node*?, owner_args: u32[]) -> !:
         if f.kind == ast.Kind.extern_func:
-            try self.put_extern_name(f)
+            try self.put_extern_callee(f)
             return
         try names.function_name(self.sink(), &self.c.table, f, args, owner, owner_args, self.entry)
 
@@ -1097,6 +1110,10 @@ pub struct Emitter:
             # omit unused platform code (for example AppKit in a console program).
             if not self.library and check.is_standard_module(names.module_of(self.owner_decl else f)) and not f.has(ast.flag_export) and f.attrs == none:
                 try self.put("static __attribute__((unused)) ")
+            elif self.library and (self.fn_args.length > 0 or self.owner_args.length > 0 or ast.has_attribute(f, "inline")):
+                # an instance or an `inline` body is compiled in every member that uses
+                # it, and in every program: weak, so the linker keeps one copy
+                try self.put("__attribute__((weak)) ")
             try self.attribute_prefix(f, true)
             try self.put_result_type(f)
             try self.put(" ")
@@ -2695,7 +2712,7 @@ pub struct Emitter:
             if d.kind == ast.Kind.func_ or d.kind == ast.Kind.extern_func:
                 try self.func_value(e, d)
                 return
-            if d.kind == ast.Kind.constant and self.folding:
+            if d.kind == ast.Kind.constant and self.folding and not ast.is_linked(d):
                 # C reads no global in an initialiser, so a constant's value stands in for its name
                 if let init = d.left:
                     try self.put("(")
@@ -2710,7 +2727,7 @@ pub struct Emitter:
     ## A function used as a value: its instance's C name.
     mutating func func_value(e: ast.Node*, d: ast.Node*) -> !:
         if d.kind == ast.Kind.extern_func:
-            try self.put_extern_name(d)
+            try self.put_extern_callee(d)
             return
         var args = try types.no_args()
         if let t = e.ty:
@@ -3680,7 +3697,7 @@ pub struct Emitter:
             if d.kind == ast.Kind.func_ or d.kind == ast.Kind.extern_func:
                 try self.method_value(e, owner, d)
                 return
-            if d.kind == ast.Kind.constant and self.folding:
+            if d.kind == ast.Kind.constant and self.folding and not ast.is_linked(d):
                 # `other.flag` in a file-scope initialiser: the constant's value stands in for
                 # its name, as it does unqualified (§6.4)
                 if let init = d.left:
@@ -4724,7 +4741,7 @@ pub struct Emitter:
             try self.put(" ")
             try self.put_tmp("or", n)
             try self.put(" = ")
-        try self.put_extern_name(d)
+        try self.put_extern_callee(d)
         try self.put("(")
         try self.arguments_with_outs(e.body, fn, d, n)
         try self.put("); ")
@@ -6571,22 +6588,31 @@ pub struct Emitter:
             let module_info = self.c.modules.get(i)
             let runtime_root = module_info.name == "core" or module_info.name == "memory" or module_info.name == "io" or module_info.name == "testing"
             var eager = not module_info.is_prelude or runtime_root
+            var rooted = false
             if mode == 5:
-                # a library member defines its own module; the whole library defines every module
-                eager = module_info.name == self.only_module if self.only_module.length > 0 else true
+                # a library member defines what its interface names (§9.8): the roots of its
+                # module; the rest of the module only as its own code reaches it
+                eager = false
+                rooted = module_info.name == self.only_module
+                if rooted:
+                    var m = self.c.modules.get(i)
+                    self.roots = try declarations.member_roots(m.tree, &m.src)
             var cursor = self.modules.get(i).body
             while let d = cursor:
-                if d.kind == ast.Kind.func_ and check.generic_params_of(d) == none and (eager or d.has(ast.flag_export) or d.attrs != none):
+                if d.kind == ast.Kind.func_ and check.generic_params_of(d) == none and (eager or d.has(ast.flag_export) or d.attrs != none or (rooted and declarations.is_root(self.roots.span(), d))):
                     discard(try self.add_func(d, try types.no_args(), none, try types.no_args()))
-                elif eager and (d.kind == ast.Kind.struct_ or d.kind == ast.Kind.enum_ or d.kind == ast.Kind.union_) and check.generic_params_of(d) == none:
+                elif (eager or rooted) and (d.kind == ast.Kind.struct_ or d.kind == ast.Kind.enum_ or d.kind == ast.Kind.union_) and check.generic_params_of(d) == none:
                     var member = d.body
                     while let m = member:
-                        if m.kind == ast.Kind.func_ and check.generic_params_of(m) == none:
+                        if m.kind == ast.Kind.func_ and check.generic_params_of(m) == none and (eager or declarations.is_root(self.roots.span(), m)):
                             discard(try self.add_func(m, try types.no_args(), d, try types.no_args()))
                         member = m.next
                     # every implemented interface needs its table, except a generic one,
-                    # `Iterator[T]`, which `for` consumes statically and nothing views
+                    # `Iterator[T]`, which `for` consumes statically and nothing views; a
+                    # library's private records get theirs where they are viewed
                     var listed = d.ty if d.kind != ast.Kind.enum_ else d.right
+                    if rooted and not d.has(ast.flag_pub):
+                        listed = none
                     while let l = listed:
                         if let iface = self.decl_of(l.type_id):
                             if check.generic_params_of(iface) == none:
@@ -6713,17 +6739,52 @@ pub struct Emitter:
 
     ## An `extern func` is declared under its own C name and bound to the symbol by an asm
     ## label, so a binding of `fputc` never clashes with the prototype `<stdio.h>` carries.
+    ## An `extern func` bound to a C symbol under another name (`as "sym"`, §17.1) is
+    ## declared `void NAME(void)` and called through a cast to its own type: one symbol may
+    ## be declared under several names with different types (`objc_msgSend`), and the C
+    ## compiler keeps one declaration per symbol, so a typed one could be the wrong one.
     mutating func extern_prototype(d: ast.Node*) -> !:
         try self.line("extern ")
+        if renamed(d):
+            try self.put("void ")
+            try self.put_extern_name(d)
+            try self.put("(void) LB_SYMBOL(")
+            try self.put_c_string(names.c_symbol(d))
+            try self.put(");")
+            return
+        try self.put_extern_result(d)
+        try self.put(" ")
+        try self.put_extern_name(d)
+        try self.put("(")
+        try self.put_extern_parameters(d)
+        try self.put(") LB_SYMBOL(")
+        try self.put_c_string(names.c_symbol(d))
+        try self.put(");")
+
+    ## The C name an extern is called or taken by: through a cast to its type when the
+    ## symbol is declared under another name.
+    mutating func put_extern_callee(d: ast.Node*) -> !:
+        if not renamed(d):
+            try self.put_extern_name(d)
+            return
+        try self.put("((")
+        try self.put_extern_result(d)
+        try self.put(" (*)(")
+        try self.put_extern_parameters(d)
+        try self.put("))")
+        try self.put_extern_name(d)
+        try self.put(")")
+
+    mutating func put_extern_result(d: ast.Node*) -> !:
         let ft = self.c.table.get(d.type_id)
         let result = declared_result(d) if has_out_params(d) else ft.elem
         if result == types.unit_id:
             try self.put("void")
         else:
             try self.put_type(result)
-        try self.put(" ")
-        try self.put_extern_name(d)
-        try self.put("(")
+
+    mutating func put_extern_parameters(d: ast.Node*) -> !:
+        let ft = self.c.table.get(d.type_id)
         var first = true
         if has_out_params(d):
             # the declared parameters in C's order, an `out` one as a pointer
@@ -6751,9 +6812,6 @@ pub struct Emitter:
             first = false
         if first:
             try self.put("void")
-        try self.put(") LB_SYMBOL(")
-        try self.put_c_string(names.c_symbol(d))
-        try self.put(");")
 
     ## `lb_x_module_symbol`: the C name an `extern func` is declared and called under. The
     ## module is part of it, since two modules may bind one symbol with different shapes.
@@ -6775,6 +6833,10 @@ pub struct Emitter:
         try self.line("")
         if ast.is_linked(d) or not self.owns(d):
             try self.put("extern ")
+        elif d.kind == ast.Kind.constant and check.is_standard_module(names.module_of(d)):
+            # a standard constant's storage is in its library member and in every program
+            # that reads it through the interface: weak, so the linker keeps one copy
+            try self.put("__attribute__((weak)) ")
         try self.attribute_prefix(d, false)
         if d.has(ast.flag_thread_local):
             try self.put("_Thread_local ")
@@ -7150,3 +7212,7 @@ func asm_block_reads(s: ast.Node*, place: str) -> bool:
                     return true
         operand = o.next
     return false
+
+## Whether an extern is bound to a C symbol under another name (`as "sym"`).
+func renamed(d: ast.Node*) -> bool:
+    return names.c_symbol(d) != d.text

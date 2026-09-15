@@ -53,14 +53,19 @@ pub struct CBackend: Backend:
     var emitter: emit.Emitter
     ## `std-build`: the one module this unit defines; empty for a whole program.
     pub var only_module: str
+    ## The fragment file of `only_module` this member is, and its name in symbols; empty
+    ## for a module read from one file.
+    pub var only_fragment: str
+    pub var member_name: str
 
     pub static func over(checker: check.Checker*, entry: ast.Node*, diagnostic: bool) -> CBackend!:
         var emitter = try emit.Emitter.create(checker, entry)
         emitter.diagnostic = diagnostic
-        return CBackend(emitter = emitter, only_module = "")
+        return CBackend(emitter = emitter, only_module = "", only_fragment = "", member_name = "")
 
     pub mutating func compile(mode: u32) -> str!:
         self.emitter.only_module = self.only_module
+        self.emitter.only_fragment = self.only_fragment
         try self.emitter.program(mode)
         return self.emitter.text()
 
@@ -80,11 +85,13 @@ pub struct NativeBackend: Backend:
     var target: targets.Target
     ## `std-build`: the one module this unit defines; empty for a whole program.
     pub var only_module: str
+    pub var only_fragment: str
+    pub var member_name: str
 
     pub static func over(checker: check.Checker*, entry: ast.Node*, debug: bool, diagnostic: bool) -> NativeBackend!:
         var lowerer = try lower.Lowerer.create(checker, entry)
         lowerer.diagnostic = diagnostic
-        return NativeBackend(checker = checker, lowerer = lowerer, debug = debug, dump_ir = false, opt_level = 3, opt_count = 0xFFFFFFFF, report = false, target = checker.build_target, only_module = "")
+        return NativeBackend(checker = checker, lowerer = lowerer, debug = debug, dump_ir = false, opt_level = 3, opt_count = 0xFFFFFFFF, report = false, target = checker.build_target, only_module = "", only_fragment = "", member_name = "")
 
     pub mutating func compile(mode: u32) -> str!:
         let t = self.target
@@ -94,6 +101,8 @@ pub struct NativeBackend: Backend:
         self.lowerer.debug = self.debug
         self.lowerer.target = t
         self.lowerer.only_module = self.only_module
+        self.lowerer.only_fragment = self.only_fragment
+        self.lowerer.member_name = self.member_name
         var at = ticks()
         try self.lowerer.program(mode)
         try note(&at, 0)

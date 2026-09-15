@@ -11,8 +11,8 @@ for target in arm64-macos x86_64-linux x86_64-windows; do
     case "$target" in x86_64-*) level=v1;; *) level=neon;; esac
     ./build/luce-base build src/main.lucb --target "$target" --cpu "$level" --emit=c -o "bootstrap/luce-base-$target.c"
     echo "wrote bootstrap/luce-base-$target.c"
-    # the standard library for the target: one assembly file per module, and the whole
-    # library as one C file, which a host turns into archives with its own tools
+    # the standard library for the target: one assembly file and one C file per module,
+    # which a host turns into archives with its own tools
     rm -rf "bootstrap/std/$target"
     ./build/luce-base std-build src/std "bootstrap/std/$target" --target "$target" --cpu "$level" --emit=asm
     ./build/luce-base std-build src/std "bootstrap/std/$target" --target "$target" --cpu "$level" --emit=c
