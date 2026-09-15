@@ -311,6 +311,11 @@ test "append keeps order and count":
         assert(b.next == none)
 
 ## Whether declaration `d` carries the attribute `word` of §9.8.
+## Whether a function or global is `linked` (§9.8): its definition is in a library the
+## program links, so the declaration carries no body and no initialiser.
+pub func is_linked(d: Node*) -> bool:
+    return has_attribute(d, "linked")
+
 pub func has_attribute(d: Node*, word: str) -> bool:
     var cursor = d.attrs
     while let a = cursor:

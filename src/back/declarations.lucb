@@ -1,0 +1,202 @@
+#==============================================================================================
+#
+#   declarations - The interface of a module, as Base declarations
+#
+#   DESCRIPTION:
+#       What a program that links a library built from a module needs to know about it,
+#       written as Base source the checker reads like any other: every declaration, in
+#       the module's own words and with its doc comments, where a function or global the
+#       library defines is `linked` and carries no body or initialiser (§9.8). Generic
+#       and `inline` functions keep their bodies, since they are compiled where they are
+#       used; tests and module-level `asm` belong to the library alone. The text is cut
+#       from the module's source rather than respelled, so nothing is lost in translation.
+#
+#==============================================================================================
+
+import front.ast
+import sema.check
+import support.buffer
+
+## Write the interface of `module` to `out`.
+pub func write(out: buffer.Buffer*, module: check.Module) -> !:
+    let text = module.src.bytes
+    var w = Writer(out = out, text = text)
+    var first: usize = text.length
+    if let d = module.tree.body:
+        first = block_start(text, d)
+    # the preamble: the module's comments before its first declaration
+    try out.put((str)text[..<first])
+    var cursor = module.tree.body
+    while let d = cursor:
+        let start = block_start(text, d)
+        var end = text.length
+        if let following = d.next:
+            end = block_start(text, following)
+        try w.declaration(d, start, end)
+        cursor = d.next
+
+struct Writer:
+    var out: buffer.Buffer*
+    var text: const u8[]
+
+    ## One top-level declaration, from its doc comment to the next declaration's.
+    mutating func declaration(d: ast.Node*, start: usize, end: usize) -> !:
+        match d.kind:
+            .test_, .asm_:
+                return
+            .global:
+                if ast.is_linked(d):
+                    try self.verbatim(start, end)
+                else:
+                    try self.linked_global(d, start, end)
+            .func_:
+                if compiled_where_used(d, none) or ast.is_linked(d):
+                    try self.verbatim(start, end)
+                else:
+                    try self.linked_function(d, start, end)
+            .struct_, .union_, .enum_:
+                if check.generic_params_of(d) != none:
+                    try self.verbatim(start, end)
+                else:
+                    try self.record(d, start, end)
+            _:
+                try self.verbatim(start, end)
+
+    func verbatim(start: usize, end: usize) -> !:
+        try self.out.put((str)self.text[start..<end])
+
+    ## A record: its header and fields as written, its methods as `linked` signatures.
+    mutating func record(d: ast.Node*, start: usize, end: usize) -> !:
+        var member = d.body
+        let first = member else return try self.verbatim(start, end)
+        try self.verbatim(start, block_start(self.text, first))
+        while let m = member:
+            let mstart = block_start(self.text, m)
+            var mend = end
+            if let following = m.next:
+                mend = block_start(self.text, following)
+            if m.kind == ast.Kind.func_ and not compiled_where_used(m, d) and not ast.is_linked(m):
+                try self.linked_function(m, mstart, mend)
+            else:
+                try self.verbatim(mstart, mend)
+            member = m.next
+
+    ## A function's doc comment and its signature line, `linked`, without the `:` and body.
+    mutating func linked_function(d: ast.Node*, start: usize, end: usize) -> !:
+        let line = line_start(self.text, d.start)
+        try self.verbatim(start, line)
+        let stop = header_end(self.text, line)
+        var last = stop
+        while last > line and (self.text[last - 1] == ' ' or self.text[last - 1] == ':'):
+            last -= 1
+        let at = word_start(self.text, line, last)
+        try self.verbatim(line, at)
+        try self.out.put("linked ")
+        try self.verbatim(at, last)
+        try self.out.put("\n")
+        try self.blank_after(end)
+
+    ## The blank line a block ended with, kept so the spacing stays the module's.
+    func blank_after(end: usize) -> !:
+        if end >= 2 and self.text[end - 1] == '\n' and self.text[end - 2] == '\n':
+            try self.out.put("\n")
+
+    ## A global's doc comment and its declaration, `linked`, without the initialiser.
+    mutating func linked_global(d: ast.Node*, start: usize, end: usize) -> !:
+        let line = line_start(self.text, d.start)
+        try self.verbatim(start, line)
+        let stop = header_end(self.text, line)
+        var last = initialiser_start(self.text, line, stop)
+        while last > line and self.text[last - 1] == ' ':
+            last -= 1
+        let at = word_start(self.text, line, last)
+        try self.verbatim(line, at)
+        try self.out.put("linked ")
+        try self.verbatim(at, last)
+        try self.out.put("\n")
+        try self.blank_after(end)
+
+## Whether a function is compiled in every program that uses it: generic, a generic
+## record's method, or `inline`; such a body stays in the interface.
+func compiled_where_used(f: ast.Node*, owner: ast.Node*?) -> bool:
+    if check.generic_params_of(f) != none or ast.has_attribute(f, "inline"):
+        return true
+    let o = owner else return false
+    return check.generic_params_of(o) != none
+
+## Where the block of `d` begins: the start of its line, moved back over the `##` lines
+## directly above it.
+func block_start(text: const u8[], d: ast.Node*) -> usize:
+    var at = line_start(text, d.start)
+    while at > 0:
+        let previous = line_start(text, at - 1)
+        var i = previous
+        while i < at and text[i] == ' ':
+            i += 1
+        if i + 1 < at and text[i] == '#' and text[i + 1] == '#':
+            at = previous
+        else:
+            break
+    return at
+
+## The offset of the first byte of the line holding `offset`.
+func line_start(text: const u8[], offset: usize) -> usize:
+    var at = offset
+    while at > 0 and text[at - 1] != '\n':
+        at -= 1
+    return at
+
+## The offset of the newline ending the header that begins at `line`: the first one at
+## bracket depth zero, so a parameter list may span lines.
+func header_end(text: const u8[], line: usize) -> usize:
+    var depth: i64 = 0
+    var i = line
+    while i < text.length:
+        let b = text[i]
+        if b == '(' or b == '[' or b == '{':
+            depth += 1
+        elif b == ')' or b == ']' or b == '}':
+            depth -= 1
+        elif b == '\n' and depth <= 0:
+            return i
+        i += 1
+    return text.length
+
+## Where the declaration's own words begin on its line: after the indentation and the
+## visibility words `pub`, `export`, and `local`, which precede an attribute (§9.8).
+func word_start(text: const u8[], line: usize, stop: usize) -> usize:
+    var at = line
+    while at < stop and text[at] == ' ':
+        at += 1
+    while true:
+        let rest = (str)text[at..<stop]
+        if starts_with(rest, "pub "):
+            at += 4
+        elif starts_with(rest, "export "):
+            at += 7
+        elif starts_with(rest, "local "):
+            at += 6
+        else:
+            return at
+        while at < stop and text[at] == ' ':
+            at += 1
+
+## Where a global's ` = initialiser` begins on its line, or the line's end without one.
+func initialiser_start(text: const u8[], line: usize, stop: usize) -> usize:
+    var depth: i64 = 0
+    var i = line
+    while i < stop:
+        let b = text[i]
+        if b == '(' or b == '[':
+            depth += 1
+        elif b == ')' or b == ']':
+            depth -= 1
+        elif b == '=' and depth == 0 and i > line and text[i - 1] == ' ':
+            return i
+        i += 1
+    return stop
+
+func starts_with(text: str, prefix: str) -> bool:
+    if text.length < prefix.length:
+        return false
+    return (str)text.bytes[..<prefix.length] == prefix

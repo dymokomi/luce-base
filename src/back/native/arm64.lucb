@@ -1866,6 +1866,9 @@ pub struct Generator:
         i = 0
         while i < self.program_unit.globals.count:
             let g = self.program_unit.globals.get(i)
+            if g.external:
+                i += 1
+                continue
             if g.is_thread_local:
                 try self.put("\n    .section __DATA,__thread_bss,thread_local_zerofill\n    .p2align 4\n")
                 try self.symbol(g.name)

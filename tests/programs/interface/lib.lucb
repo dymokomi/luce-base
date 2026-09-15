@@ -1,0 +1,64 @@
+## A library module with everything an interface must carry: constants, globals, plain and
+## generic functions, an `inline` one, records with methods, a generic record, an enum
+## with a method, an extern, and a test the interface leaves out.
+import c
+
+pub let limit: i64 = 3
+pub let failed: ErrorCode = ErrorCode.package(4)
+
+pub var opened: i64 = 0
+local var per_thread: u32 = 7
+
+extern func abs(n: c.int) -> c.int
+
+## Doubles its argument.
+pub func double(n: i64) -> i64:
+    return n * 2
+
+## Small enough to inline: stays in the interface with its body.
+inline func triple(n: i64) -> i64:
+    return n * 3
+
+pub func first[T](items: const T[]) -> T?:
+    if items.length == 0:
+        return none
+    return items[0]
+
+func helper(a: i64,
+            b: i64) -> i64:
+    return a + b
+
+pub struct Counter:
+    ## How many times `bump` ran.
+    pub var count: i64
+    var secret: u8
+
+    pub mutating func bump(by: i64) -> i64:
+        self.count += by
+        return self.count
+
+    static func zero() -> Counter:
+        return Counter(count = 0, secret = 0)
+
+    inline func peek() -> i64:
+        return self.count
+
+pub struct Box[T]:
+    pub var value: T
+
+    pub func get() -> T:
+        return self.value
+
+pub enum Mode as u32:
+    read = 0
+    write = 1
+
+    func name() -> str:
+        return "read" if self == Mode.read else "write"
+
+pub func use_all() -> i64:
+    var counter = Counter.zero()
+    return double(triple(counter.bump(1))) + helper(1, 2) + counter.peek() + (i64)abs(-1) + (i64)per_thread
+
+test "the helper adds":
+    assert(helper(1, 2) == 3)

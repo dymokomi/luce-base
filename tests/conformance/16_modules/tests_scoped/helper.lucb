@@ -1,0 +1,7 @@
+## An import's `test` blocks are the import's own: `luce-base test` on another file never
+## runs them, so this one, which fails, is never reached from `main`.
+pub func value() -> i64:
+    return 40
+
+test "the helper's own test, which fails":
+    assert(value() == 0)

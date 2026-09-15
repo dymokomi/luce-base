@@ -1,0 +1,9 @@
+# oracle: none -- `linked` names what a library defines; the seed builds whole programs
+## §9.8: a `linked` function or global is declared here and defined in a library the
+## program links; a program that never reaches one still builds in every execution.
+linked func elsewhere(n: i64) -> i64
+linked var shared: i64
+
+pub func main(arguments: str[]) -> i32:
+    print("linked declarations check")
+    return 0

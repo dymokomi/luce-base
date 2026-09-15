@@ -917,6 +917,7 @@ A small closed set of words may precede a `func` or a top-level `var`, each one 
 | `weak func`, `weak var` | a weak symbol that another definition may override |
 | `used func`, `used var` | keep the symbol even if nothing references it |
 | `section("name") func`, `section("name") var` | place the symbol in the named linker section |
+| `linked func`, `linked var` | the definition is in a library the program links: the function has a signature and no body, the global no initialiser. An interface written by `luce-base interface` is made of these; a generic or `inline` function is compiled where it is used and cannot be `linked` |
 
 They combine, `used section(".isr_vector") var vectors: Handler[64] = ...`. There is no general attribute syntax; this set is the language. A section name is passed to the target as written; a Mach-O target, whose sections live in segments, places a name without a comma in `__DATA` (a variable) or `__TEXT` (a function) under that name with its leading dot dropped, so `.isr_vector` is one spelling for every target.
 

@@ -81,6 +81,9 @@ pub struct Format:
         var i: usize = 0
         while i < program_unit.globals.count:
             let g = program_unit.globals.get(i)
+            if g.external:
+                i += 1
+                continue
             let size = (u64)g.size if g.size > 0 else 1
             let align = log2((u64)g.align if g.align > 0 else 1)
             if g.weak and self.os == build_target.Os.windows:

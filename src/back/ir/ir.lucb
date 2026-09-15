@@ -496,6 +496,8 @@ pub struct Global:
     pub var weak: bool
     pub var used: bool
     pub var section: str
+    ## `linked`: another object defines the storage; the program only refers to it.
+    pub var external: bool
 
 ## A witness table: the symbol and the functions it points at, in requirement order.
 pub struct WitnessTable:

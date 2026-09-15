@@ -1,0 +1,4 @@
+# error: cannot be `linked`
+linked func f[T](x: T) -> T
+pub func main(arguments: str[]) -> i32:
+    return 0

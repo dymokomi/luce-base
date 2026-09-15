@@ -1054,7 +1054,7 @@ pub struct Emitter:
         var cursor = d.attrs
         while let a = cursor:
             let word = a.text
-            let skip = word == "inline" or (not is_func and (word == "noinline" or word == "cold" or word == "naked"))
+            let skip = word == "inline" or word == "linked" or (not is_func and (word == "noinline" or word == "cold" or word == "naked"))
             if not skip:
                 try self.put("__attribute__((" if first else ", ")
                 first = false
@@ -6573,7 +6573,8 @@ pub struct Emitter:
                             if check.generic_params_of(iface) == none:
                                 try self.note_vtable(d.type_id, l.type_id)
                         listed = l.next
-                elif d.kind == ast.Kind.test_ and mode == 1:
+                elif d.kind == ast.Kind.test_ and mode == 1 and self.modules.get(i) == self.entry:
+                    # the tests of the file under test, never an import's (§16.5)
                     discard(try self.test_index(d))
                 cursor = d.next
             i += 1
@@ -6586,7 +6587,8 @@ pub struct Emitter:
                 if not inst.done:
                     inst.done = true
                     self.funcs.set(next, inst)
-                    try self.function(inst)
+                    if not ast.is_linked(inst.decl):
+                        try self.function(inst)
                 next += 1
             while tests_done < self.tests.count and next >= self.funcs.count:
                 try self.test_body(self.tests.get(tests_done))
@@ -6752,6 +6754,8 @@ pub struct Emitter:
     ## A top-level `let` or `var` as a C global.
     mutating func global(d: ast.Node*) -> !:
         try self.line("")
+        if ast.is_linked(d):
+            try self.put("extern ")
         try self.attribute_prefix(d, false)
         if d.has(ast.flag_thread_local):
             try self.put("_Thread_local ")
@@ -6759,7 +6763,7 @@ pub struct Emitter:
         try self.put_type(t)
         try self.put(" ")
         try self.put_global_name(d)
-        if d.has(ast.flag_uninit):
+        if d.has(ast.flag_uninit) or ast.is_linked(d):
             try self.put(";")
             return
         try self.put(" = ")

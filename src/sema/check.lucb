@@ -4857,7 +4857,10 @@ pub struct Checker:
                     d.type_id = types.none_id
                     try self.check_constant(d)
             .global:
-                if let init = d.left:
+                if ast.is_linked(d):
+                    if d.left != none or d.has(ast.flag_uninit):
+                        discard(try self.fail(d, "a `linked` global has no initialiser; the library defines it (§9.8)"))
+                elif let init = d.left:
                     let saved = self.at_top_level
                     self.at_top_level = true
                     discard(try self.expect(init, d.type_id))
@@ -4899,6 +4902,10 @@ pub struct Checker:
     mutating func check_function(f: ast.Node*, owner: ast.Node*?) -> !:
         if f.has(ast.flag_mutating) and f.has(ast.flag_static):
             discard(try self.fail(f, "a static method has no receiver to mutate"))
+        if ast.is_linked(f):
+            let owner_generic = generic_params_of(owner else f) != none
+            if generic_params_of(f) != none or owner_generic or ast.has_attribute(f, "inline"):
+                discard(try self.fail(f, "a generic or `inline` function is compiled where it is used; it cannot be `linked` (§9.8)"))
         if owner == none and (f.has(ast.flag_static) or f.has(ast.flag_mutating)):
             discard(try self.fail(f, "`static` and `mutating` mark methods; a top-level function has no owner (§9.5)"))
         self.push_scope()

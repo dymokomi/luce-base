@@ -264,9 +264,9 @@ pub struct Parser:
         # `local var`: one variable per thread (§6.3)
         if self.eat_kw("local"):
             flags |= ast.flag_thread_local
-            if not self.at_kw("var"):
-                return try self.fail("`local` declares a `var` (§6.3)")
         let attributes = try self.parse_attributes()
+        if (flags & ast.flag_thread_local) != 0 and not self.at_kw("var"):
+            return try self.fail("`local` declares a `var` (§6.3)")
         if self.at_kw("let"):
             if attributes != none or flags != visibility:
                 return try self.fail("an attribute goes before `func` or a top-level `var` (§9.8)")
@@ -333,7 +333,7 @@ pub struct Parser:
             n.flags |= flags
             return n
         if self.at_kw("static") or self.at_kw("mutating") or self.at_kw("func"):
-            let n = try self.parse_func()
+            let n = try self.parse_func(names_attribute(attributes, "linked"))
             n.flags |= flags
             n.attrs = attributes
             return n
@@ -341,12 +341,19 @@ pub struct Parser:
             return try self.fail("`class` belongs to full Luce; Base declares a `struct`")
         return try self.fail("expected a declaration")
 
+    ## Whether the next token is one of the attribute words of §9.8.
+    func at_attribute() -> bool:
+        if not self.at(token.Kind.name):
+            return false
+        let word = self.text_of(self.cur())
+        return word == "inline" or word == "noinline" or word == "cold" or word == "naked" or word == "weak" or word == "used" or word == "section" or word == "linked"
+
     mutating func parse_attributes() -> ast.Node*?!:
         var list: ast.Node*? = none
         var tail: ast.Node*? = none
-        while self.at(token.Kind.name):
+        while self.at_attribute():
             let word = self.text_of(self.cur())
-            if word == "inline" or word == "noinline" or word == "cold" or word == "naked" or word == "weak" or word == "used" or word == "section":
+            if true:
                 let a = try self.node(ast.Kind.attribute, word)
                 discard(self.take())
                 if word == "section":
@@ -392,7 +399,9 @@ pub struct Parser:
             last = self.take()
         return self.src.text(first.start, last.end)
 
-    mutating func parse_func() -> ast.Node*!:
+    ## A function: its signature and its suite, or the signature alone when it is `linked`
+    ## (§9.8), whose definition a library supplies.
+    mutating func parse_func(linked: bool) -> ast.Node*!:
         let n = try self.node(ast.Kind.func_, "")
         if self.eat_kw("static"):
             n.flags |= ast.flag_static
@@ -402,13 +411,16 @@ pub struct Parser:
         n.text = try self.expect_name()
         if self.at_op("[") :
             n.left = try self.parse_generic_params()
-        n.body = try self.parse_params()
-        try self.parse_result(n)
-        try self.expect_op(":")
-        let body = try self.parse_suite()
         # params live in `right`; the suite in `body`
-        n.right = n.body
-        n.body = body
+        n.right = try self.parse_params()
+        try self.parse_result(n)
+        if linked:
+            if self.at_op(":"):
+                return try self.fail("a `linked` function has no body; the library defines it (§9.8)")
+            try self.expect_newline()
+            return n
+        try self.expect_op(":")
+        n.body = try self.parse_suite()
         return n
 
     ## A function signature line inside an interface.
@@ -524,10 +536,17 @@ pub struct Parser:
             flags |= ast.flag_pub
         if self.eat_kw("export"):
             flags |= ast.flag_export
+        # a field may be named like an attribute word: `used: u32` is a field, `used func` an attribute
+        var attributes: ast.Node*? = none
+        if self.at_attribute() and not self.peek_op(1, ":") and not self.peek_op(1, "="):
+            attributes = try self.parse_attributes()
         if not fields_only and (self.at_kw("static") or self.at_kw("mutating") or self.at_kw("func")):
-            let f = try self.parse_func()
+            let f = try self.parse_func(names_attribute(attributes, "linked"))
             f.flags |= flags
+            f.attrs = attributes
             return f
+        if attributes != none:
+            return try self.fail("an attribute goes before a method (§9.8)")
         let field = try self.node(ast.Kind.field, "")
         if self.at_name("align") and self.peek_op(1, "("):
             discard(self.take())
@@ -567,7 +586,7 @@ pub struct Parser:
             if self.at(token.Kind.newline) or self.at(token.Kind.doc_comment):
                 discard(self.take())
                 continue
-            let method_ahead = self.at_kw("pub") or self.at_kw("static") or self.at_kw("mutating") or (self.at_kw("func") and self.peek(1).kind == token.Kind.name)
+            let method_ahead = self.at_kw("pub") or self.at_kw("static") or self.at_kw("mutating") or (self.at_attribute() and not self.peek_op(1, "=") and not self.peek_op(1, ":")) or (self.at_kw("func") and self.peek(1).kind == token.Kind.name)
             if method_ahead:
                 let m = try self.parse_member(false)
                 ast.append(&n.body, &tail, m)
@@ -1995,3 +2014,12 @@ test "dash operator token":
         assert(p.at_op("---"))
         assert(p.eat_op("---"))
         assert(p.at(token.Kind.eof))
+
+## Whether the attribute list names `word`.
+func names_attribute(attributes: ast.Node*?, word: str) -> bool:
+    var cursor = attributes
+    while let a = cursor:
+        if a.text == word:
+            return true
+        cursor = a.next
+    return false

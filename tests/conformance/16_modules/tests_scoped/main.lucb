@@ -1,0 +1,11 @@
+# tests: true
+## §16.5: `luce-base test FILE` runs the `test` blocks of FILE alone; the blocks of the
+## modules it imports belong to those modules' own runs.
+import helper
+
+pub func main(arguments: str[]) -> i32:
+    print(f"{helper.value()}")
+    return 0
+
+test "main's own test":
+    assert(helper.value() == 40)
