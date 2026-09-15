@@ -29,6 +29,9 @@ python3 tools/test_window_targets.py --compiler build/luce-base
 python3 tools/embed_runtime.py --check
 python3 tools/embed_version.py --check
 python3 tools/library_reference.py --check
+# the shape of the tree: header boxes, `# mark:` sections, function length and `##` docs
+# never regress (tools/shape.py --check, the ratchet in tools/shape.limits)
+python3 tools/shape.py --check
 # the standard library under src/std is checked as the prelude, not as modules of its own
 # Source paths in this repository contain no whitespace. Discover recursively so
 # reorganizing compiler modules cannot silently remove them from the gate.

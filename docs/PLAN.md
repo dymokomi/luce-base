@@ -60,9 +60,10 @@ runs it for longer. Every finding becomes a test.
     declaration; the 36 functions over 100 lines split at their named seams; fallback
     glyphs confined to their cell and an unknown font family refused by name; the
     window adapters deciding modifier, focus, and minimize events once. Gate: the
-    audit's metrics table reads header 55/55, marks in every file over 150 lines, no
-    function over 100 lines but the named dispatches, and `src/std` with `test` blocks
-    run by `test.sh`.
+    `tools/shape.py` reads no file without a header box, marks in every file over 150
+    lines, no function over 100 lines but the dispatches named in `tools/shape.dispatches`,
+    and no undocumented `pub` declaration; `tools/shape.limits` is the ratchet on the
+    way there.
 7. **Emit only required standard-library code.** Both backends currently emit every
     nongeneric standard function and global, including unused Unicode tables. A tiny
     native hello program at opt 0 and opt 3 occupies 991,024 bytes on ARM64 macOS with

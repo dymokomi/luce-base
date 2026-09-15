@@ -87,6 +87,15 @@ run against the archive through both backends by the gate (`luce-base test`): `s
 `sync` and `atomic`. A test lives beside the module's users rather than in the module,
 since a standard module's own file is the prelude and cannot be built as a program.
 
+## The shape of the tree
+
+`tools/shape.py` measures what the audit of 2026-09-14 asked for: a header box in every
+file, `# mark:` sections in every file over 150 lines, no function over 100 lines but
+the dispatches, and a `##` line on every `pub` declaration. Today: 161 of 201 files
+without a header box, 65 files over 150 lines without marks, 47 functions over 100
+lines, 1,325 undocumented public declarations. `tools/shape.limits` is the ratchet the
+gate holds: a count may fall, and its limit with it, never rise.
+
 ## Sanitizers and the other C compilers
 
 `tests/sanitize/run.sh`, a gate step, builds every positive program of the conformance
