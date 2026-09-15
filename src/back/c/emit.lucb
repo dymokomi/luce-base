@@ -6751,21 +6751,41 @@ pub struct Emitter:
 
     ## An `extern func` is declared under its own C name and bound to the symbol by an asm
     ## label, so a binding of `fputc` never clashes with the prototype `<stdio.h>` carries.
-    ## An `extern func` bound to a C symbol under another name (`as "sym"`, §17.1) is
-    ## declared as an object, `char NAME`, and called through its address cast to the
-    ## function's own type: one symbol may be declared under several names with different
-    ## types (`objc_msgSend`), and a C compiler keeps one declaration per symbol, so a typed
-    ## one could be the wrong one, while a call through a cast of a function it knows is
-    ## a diagnostic to another.
+    ## An `extern func` bound to a C symbol under another name (`as "sym"`, §17.1): one
+    ## symbol may be declared under several names with different types (`objc_msgSend`).
+    ## GCC keeps each typed declaration apart, so it gets them as written. Clang keeps one
+    ## declaration per symbol and calls the others through it, so for clang the symbol is
+    ## declared `void NAME(void)` and every call casts it to the function's own type, as
+    ## the Objective-C runtime's own header has it. `lb_c_NAME` is the callee either way.
     mutating func extern_prototype(d: ast.Node*) -> !:
-        try self.line("extern ")
         if renamed(d):
-            try self.put("char ")
+            try self.line("#if defined(__clang__)")
+            try self.line("extern void ")
             try self.put_extern_name(d)
-            try self.put(" LB_SYMBOL(")
+            try self.put("(void) LB_SYMBOL(")
             try self.put_c_string(names.c_symbol(d))
             try self.put(");")
+            try self.line("#define lb_c_")
+            try self.put_extern_piece(d)
+            try self.put(" ((")
+            try self.put_extern_result(d)
+            try self.put(" (*)(")
+            try self.put_extern_parameters(d)
+            try self.put("))")
+            try self.put_extern_name(d)
+            try self.put(")")
+            try self.line("#else")
+            try self.typed_extern_prototype(d)
+            try self.line("#define lb_c_")
+            try self.put_extern_piece(d)
+            try self.put(" ")
+            try self.put_extern_name(d)
+            try self.line("#endif")
             return
+        try self.typed_extern_prototype(d)
+
+    mutating func typed_extern_prototype(d: ast.Node*) -> !:
+        try self.line("extern ")
         try self.put_extern_result(d)
         try self.put(" ")
         try self.put_extern_name(d)
@@ -6775,19 +6795,19 @@ pub struct Emitter:
         try self.put_c_string(names.c_symbol(d))
         try self.put(");")
 
-    ## The C name an extern is called or taken by: through a cast to its type when the
-    ## symbol is declared under another name.
+    ## The C name an extern is called or taken by: the `lb_c_` macro when the symbol is
+    ## declared under another name.
     mutating func put_extern_callee(d: ast.Node*) -> !:
         if not renamed(d):
             try self.put_extern_name(d)
             return
-        try self.put("((")
-        try self.put_extern_result(d)
-        try self.put(" (*)(")
-        try self.put_extern_parameters(d)
-        try self.put("))(void*)&")
-        try self.put_extern_name(d)
-        try self.put(")")
+        try self.put("lb_c_")
+        try self.put_extern_piece(d)
+
+    mutating func put_extern_piece(d: ast.Node*) -> !:
+        try names.put_piece(self.sink(), names.module_of(d))
+        try self.put("_")
+        try names.put_piece(self.sink(), d.text)
 
     mutating func put_extern_result(d: ast.Node*) -> !:
         let ft = self.c.table.get(d.type_id)

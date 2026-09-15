@@ -1990,6 +1990,7 @@ LB_RES(lb_interop_Owned_0g1_str, lb_r_interop_Owned_0g1_str);
 typedef void (*lb_fn_0F0_unit)(void);
 typedef void* (*lb_fn_0F1_void_0p_void_0p_0o)(void*);
 LB_RES(bool, lb_r_bool);
+typedef void (*lb_fn_0F1_i32_unit)(int32_t);
 typedef int32_t (*lb_fn_0F1_u32_i32)(uint32_t);
 typedef struct lb_interop_Owner_0g1_gpu_FrameState {
     lb_ownership_Object header;
@@ -2001,9 +2002,27 @@ typedef struct lb_interop_Owner_0g1_gpu_FrameState {
     bool disposed;
     size_t active;
 } lb_interop_Owner_0g1_gpu_FrameState;
-extern char lb_x_c_9mac_errno LB_SYMBOL("__error");
-extern char lb_x_c_11linux_errno LB_SYMBOL("__errno_location");
-extern char lb_x_c_13windows_errno LB_SYMBOL("_errno");
+#if defined(__clang__)
+extern void lb_x_c_9mac_errno(void) LB_SYMBOL("__error");
+#define lb_c_c_9mac_errno ((int32_t* (*)(void))lb_x_c_9mac_errno)
+#else
+extern int32_t* lb_x_c_9mac_errno(void) LB_SYMBOL("__error");
+#define lb_c_c_9mac_errno lb_x_c_9mac_errno
+#endif
+#if defined(__clang__)
+extern void lb_x_c_11linux_errno(void) LB_SYMBOL("__errno_location");
+#define lb_c_c_11linux_errno ((int32_t* (*)(void))lb_x_c_11linux_errno)
+#else
+extern int32_t* lb_x_c_11linux_errno(void) LB_SYMBOL("__errno_location");
+#define lb_c_c_11linux_errno lb_x_c_11linux_errno
+#endif
+#if defined(__clang__)
+extern void lb_x_c_13windows_errno(void) LB_SYMBOL("_errno");
+#define lb_c_c_13windows_errno ((int32_t* (*)(void))lb_x_c_13windows_errno)
+#else
+extern int32_t* lb_x_c_13windows_errno(void) LB_SYMBOL("_errno");
+#define lb_c_c_13windows_errno lb_x_c_13windows_errno
+#endif
 extern int32_t lb_x_11windows_abi_MultiByteToWideChar(uint32_t, uint32_t, char*, int32_t, uint16_t*, int32_t) LB_SYMBOL("MultiByteToWideChar");
 extern int32_t lb_x_11windows_abi_WideCharToMultiByte(uint32_t, uint32_t, const uint16_t*, int32_t, uint8_t*, int32_t, void*, void*) LB_SYMBOL("WideCharToMultiByte");
 extern uint32_t lb_x_11windows_abi_GetLastError(void) LB_SYMBOL("GetLastError");
@@ -2020,11 +2039,35 @@ extern uint32_t lb_x_11windows_abi_GetEnvironmentVariableW(uint16_t*, uint16_t*,
 extern int32_t lb_x_11windows_abi_SetEnvironmentVariableW(uint16_t*, uint16_t*) LB_SYMBOL("SetEnvironmentVariableW");
 extern uint32_t lb_x_11windows_abi_GetCurrentDirectoryW(uint32_t, uint16_t*) LB_SYMBOL("GetCurrentDirectoryW");
 extern int32_t lb_x_11windows_abi_SetCurrentDirectoryW(uint16_t*) LB_SYMBOL("SetCurrentDirectoryW");
-extern char lb_x_core_15set_binary_mode LB_SYMBOL("_setmode");
+#if defined(__clang__)
+extern void lb_x_core_15set_binary_mode(void) LB_SYMBOL("_setmode");
+#define lb_c_core_15set_binary_mode ((int32_t (*)(int32_t, int32_t))lb_x_core_15set_binary_mode)
+#else
+extern int32_t lb_x_core_15set_binary_mode(int32_t, int32_t) LB_SYMBOL("_setmode");
+#define lb_c_core_15set_binary_mode lb_x_core_15set_binary_mode
+#endif
 extern uint32_t lb_x_core_GetCurrentThreadId(void) LB_SYMBOL("GetCurrentThreadId");
-extern char lb_x_core_11posix_write LB_SYMBOL("write");
-extern char lb_x_core_13windows_write LB_SYMBOL("_write");
-extern char lb_x_core_6c_exit LB_SYMBOL("exit");
+#if defined(__clang__)
+extern void lb_x_core_11posix_write(void) LB_SYMBOL("write");
+#define lb_c_core_11posix_write ((intptr_t (*)(int32_t, const void*, size_t))lb_x_core_11posix_write)
+#else
+extern intptr_t lb_x_core_11posix_write(int32_t, const void*, size_t) LB_SYMBOL("write");
+#define lb_c_core_11posix_write lb_x_core_11posix_write
+#endif
+#if defined(__clang__)
+extern void lb_x_core_13windows_write(void) LB_SYMBOL("_write");
+#define lb_c_core_13windows_write ((int32_t (*)(int32_t, const void*, uint32_t))lb_x_core_13windows_write)
+#else
+extern int32_t lb_x_core_13windows_write(int32_t, const void*, uint32_t) LB_SYMBOL("_write");
+#define lb_c_core_13windows_write lb_x_core_13windows_write
+#endif
+#if defined(__clang__)
+extern void lb_x_core_6c_exit(void) LB_SYMBOL("exit");
+#define lb_c_core_6c_exit ((void (*)(int32_t))lb_x_core_6c_exit)
+#else
+extern void lb_x_core_6c_exit(int32_t) LB_SYMBOL("exit");
+#define lb_c_core_6c_exit lb_x_core_6c_exit
+#endif
 extern void* lb_x_core_malloc(size_t) LB_SYMBOL("malloc");
 extern void* lb_x_core_memcpy(void*, const void*, size_t) LB_SYMBOL("memcpy");
 extern int32_t lb_x_core_memcmp(const void*, const void*, size_t) LB_SYMBOL("memcmp");
@@ -2033,13 +2076,37 @@ extern int32_t lb_x_core_snprintf(void*, size_t, char*, ...) LB_SYMBOL("snprintf
 extern uint16_t* lb_x_core_GetCommandLineW(void) LB_SYMBOL("GetCommandLineW");
 extern uint16_t** lb_x_core_CommandLineToArgvW(uint16_t*, int32_t*) LB_SYMBOL("CommandLineToArgvW");
 extern void* lb_x_core_LocalFree(void*) LB_SYMBOL("LocalFree");
-extern char lb_x_core_22release_argument_block LB_SYMBOL("free");
+#if defined(__clang__)
+extern void lb_x_core_22release_argument_block(void) LB_SYMBOL("free");
+#define lb_c_core_22release_argument_block ((void (*)(void*))lb_x_core_22release_argument_block)
+#else
+extern void lb_x_core_22release_argument_block(void*) LB_SYMBOL("free");
+#define lb_c_core_22release_argument_block lb_x_core_22release_argument_block
+#endif
 extern int32_t lb_x_core_atexit(lb_fn_0F0_unit) LB_SYMBOL("atexit");
 extern void* lb_x_memory_malloc(size_t) LB_SYMBOL("malloc");
-extern char lb_x_memory_6c_free LB_SYMBOL("free");
+#if defined(__clang__)
+extern void lb_x_memory_6c_free(void) LB_SYMBOL("free");
+#define lb_c_memory_6c_free ((void (*)(void*))lb_x_memory_6c_free)
+#else
+extern void lb_x_memory_6c_free(void*) LB_SYMBOL("free");
+#define lb_c_memory_6c_free lb_x_memory_6c_free
+#endif
 extern int32_t lb_x_memory_14posix_memalign(void**, size_t, size_t) LB_SYMBOL("posix_memalign");
-extern char lb_x_memory_14aligned_malloc LB_SYMBOL("_aligned_malloc");
-extern char lb_x_memory_12aligned_free LB_SYMBOL("_aligned_free");
+#if defined(__clang__)
+extern void lb_x_memory_14aligned_malloc(void) LB_SYMBOL("_aligned_malloc");
+#define lb_c_memory_14aligned_malloc ((void* (*)(size_t, size_t))lb_x_memory_14aligned_malloc)
+#else
+extern void* lb_x_memory_14aligned_malloc(size_t, size_t) LB_SYMBOL("_aligned_malloc");
+#define lb_c_memory_14aligned_malloc lb_x_memory_14aligned_malloc
+#endif
+#if defined(__clang__)
+extern void lb_x_memory_12aligned_free(void) LB_SYMBOL("_aligned_free");
+#define lb_c_memory_12aligned_free ((void (*)(void*))lb_x_memory_12aligned_free)
+#else
+extern void lb_x_memory_12aligned_free(void*) LB_SYMBOL("_aligned_free");
+#define lb_c_memory_12aligned_free lb_x_memory_12aligned_free
+#endif
 extern void* lb_x_memory_memcpy(void*, const void*, size_t) LB_SYMBOL("memcpy");
 extern void* lb_x_memory_memmove(void*, const void*, size_t) LB_SYMBOL("memmove");
 extern void* lb_x_memory_memset(void*, int32_t, size_t) LB_SYMBOL("memset");
@@ -2056,18 +2123,36 @@ extern int32_t lb_x_memory_munmap(void*, size_t) LB_SYMBOL("munmap");
 extern int32_t lb_x_memory_getpagesize(void) LB_SYMBOL("getpagesize");
 extern void* lb_x_memory_VirtualAlloc(void*, size_t, uint32_t, uint32_t) LB_SYMBOL("VirtualAlloc");
 extern int32_t lb_x_memory_VirtualFree(void*, size_t, uint32_t) LB_SYMBOL("VirtualFree");
-extern char lb_x_memory_11write_bytes LB_SYMBOL("write");
+#if defined(__clang__)
+extern void lb_x_memory_11write_bytes(void) LB_SYMBOL("write");
+#define lb_c_memory_11write_bytes ((intptr_t (*)(int32_t, const void*, size_t))lb_x_memory_11write_bytes)
+#else
+extern intptr_t lb_x_memory_11write_bytes(int32_t, const void*, size_t) LB_SYMBOL("write");
+#define lb_c_memory_11write_bytes lb_x_memory_11write_bytes
+#endif
 extern char* lb_x_os_getenv(char*) LB_SYMBOL("getenv");
 extern int32_t lb_x_os_setenv(char*, char*, int32_t) LB_SYMBOL("setenv");
 extern int32_t lb_x_os_unsetenv(char*) LB_SYMBOL("unsetenv");
 extern char* lb_x_os_getcwd(uint8_t*, size_t) LB_SYMBOL("getcwd");
 extern intptr_t lb_x_os_readlink(char*, void*, size_t) LB_SYMBOL("readlink");
-extern char lb_x_os_19mac_executable_path LB_SYMBOL("_NSGetExecutablePath");
+#if defined(__clang__)
+extern void lb_x_os_19mac_executable_path(void) LB_SYMBOL("_NSGetExecutablePath");
+#define lb_c_os_19mac_executable_path ((int32_t (*)(uint8_t*, uint32_t*))lb_x_os_19mac_executable_path)
+#else
+extern int32_t lb_x_os_19mac_executable_path(uint8_t*, uint32_t*) LB_SYMBOL("_NSGetExecutablePath");
+#define lb_c_os_19mac_executable_path lb_x_os_19mac_executable_path
+#endif
 extern int32_t lb_x_os_chdir(char*) LB_SYMBOL("chdir");
 extern int32_t lb_x_os_getpid(void) LB_SYMBOL("getpid");
 extern int32_t lb_x_os_getppid(void) LB_SYMBOL("getppid");
 extern int32_t lb_x_os_gethostname(uint8_t*, size_t) LB_SYMBOL("gethostname");
-extern char lb_x_os_6c_exit LB_SYMBOL("exit");
+#if defined(__clang__)
+extern void lb_x_os_6c_exit(void) LB_SYMBOL("exit");
+#define lb_c_os_6c_exit ((void (*)(int32_t))lb_x_os_6c_exit)
+#else
+extern void lb_x_os_6c_exit(int32_t) LB_SYMBOL("exit");
+#define lb_c_os_6c_exit lb_x_os_6c_exit
+#endif
 extern int64_t lb_x_os_sysconf(int32_t) LB_SYMBOL("sysconf");
 extern int32_t lb_x_os_getpagesize(void) LB_SYMBOL("getpagesize");
 extern int32_t lb_x_os_getentropy(void*, size_t) LB_SYMBOL("getentropy");
@@ -2082,10 +2167,34 @@ extern size_t lb_x_io_fwrite(const void*, size_t, size_t, void*) LB_SYMBOL("fwri
 extern int32_t lb_x_io_fflush(void*) LB_SYMBOL("fflush");
 extern void lb_x_io_flockfile(void*) LB_SYMBOL("flockfile");
 extern void lb_x_io_funlockfile(void*) LB_SYMBOL("funlockfile");
-extern char lb_x_io_13win_lock_file LB_SYMBOL("_lock_file");
-extern char lb_x_io_15win_unlock_file LB_SYMBOL("_unlock_file");
-extern char lb_x_io_10posix_read LB_SYMBOL("read");
-extern char lb_x_io_12windows_read LB_SYMBOL("_read");
+#if defined(__clang__)
+extern void lb_x_io_13win_lock_file(void) LB_SYMBOL("_lock_file");
+#define lb_c_io_13win_lock_file ((void (*)(void*))lb_x_io_13win_lock_file)
+#else
+extern void lb_x_io_13win_lock_file(void*) LB_SYMBOL("_lock_file");
+#define lb_c_io_13win_lock_file lb_x_io_13win_lock_file
+#endif
+#if defined(__clang__)
+extern void lb_x_io_15win_unlock_file(void) LB_SYMBOL("_unlock_file");
+#define lb_c_io_15win_unlock_file ((void (*)(void*))lb_x_io_15win_unlock_file)
+#else
+extern void lb_x_io_15win_unlock_file(void*) LB_SYMBOL("_unlock_file");
+#define lb_c_io_15win_unlock_file lb_x_io_15win_unlock_file
+#endif
+#if defined(__clang__)
+extern void lb_x_io_10posix_read(void) LB_SYMBOL("read");
+#define lb_c_io_10posix_read ((intptr_t (*)(int32_t, void*, size_t))lb_x_io_10posix_read)
+#else
+extern intptr_t lb_x_io_10posix_read(int32_t, void*, size_t) LB_SYMBOL("read");
+#define lb_c_io_10posix_read lb_x_io_10posix_read
+#endif
+#if defined(__clang__)
+extern void lb_x_io_12windows_read(void) LB_SYMBOL("_read");
+#define lb_c_io_12windows_read ((int32_t (*)(int32_t, void*, uint32_t))lb_x_io_12windows_read)
+#else
+extern int32_t lb_x_io_12windows_read(int32_t, void*, uint32_t) LB_SYMBOL("_read");
+#define lb_c_io_12windows_read lb_x_io_12windows_read
+#endif
 typedef struct lb_vt_Reader {
     lb_r_usize (*read)(void* self, lb_span);
 } lb_vt_Reader;
@@ -2105,7 +2214,13 @@ typedef struct lb_vt_Display {
     lb_r_unit (*display)(void* self, lb_iface);
 } lb_vt_Display;
 extern int32_t lb_x_time_13clock_gettime(int32_t, struct Stamp*) LB_SYMBOL("clock_gettime");
-extern char lb_x_time_6c_time LB_SYMBOL("time");
+#if defined(__clang__)
+extern void lb_x_time_6c_time(void) LB_SYMBOL("time");
+#define lb_c_time_6c_time ((int64_t (*)(void*))lb_x_time_6c_time)
+#else
+extern int64_t lb_x_time_6c_time(void*) LB_SYMBOL("time");
+#define lb_c_time_6c_time lb_x_time_6c_time
+#endif
 extern int32_t lb_x_thread_14pthread_create(void**, void*, lb_fn_0F1_void_0p_void_0p_0o, void*) LB_SYMBOL("pthread_create");
 extern int32_t lb_x_thread_12pthread_join(void*, void**) LB_SYMBOL("pthread_join");
 extern int32_t lb_x_thread_14pthread_detach(void*) LB_SYMBOL("pthread_detach");
@@ -2116,8 +2231,20 @@ extern int32_t lb_x_thread_gettid(void) LB_SYMBOL("gettid");
 extern int32_t lb_x_thread_17pthread_attr_init(void*) LB_SYMBOL("pthread_attr_init");
 extern int32_t lb_x_thread_25pthread_attr_setstacksize(void*, size_t) LB_SYMBOL("pthread_attr_setstacksize");
 extern int32_t lb_x_thread_20pthread_attr_destroy(void*) LB_SYMBOL("pthread_attr_destroy");
-extern char lb_x_thread_11mac_setname LB_SYMBOL("pthread_setname_np");
-extern char lb_x_thread_13linux_setname LB_SYMBOL("pthread_setname_np");
+#if defined(__clang__)
+extern void lb_x_thread_11mac_setname(void) LB_SYMBOL("pthread_setname_np");
+#define lb_c_thread_11mac_setname ((int32_t (*)(char*))lb_x_thread_11mac_setname)
+#else
+extern int32_t lb_x_thread_11mac_setname(char*) LB_SYMBOL("pthread_setname_np");
+#define lb_c_thread_11mac_setname lb_x_thread_11mac_setname
+#endif
+#if defined(__clang__)
+extern void lb_x_thread_13linux_setname(void) LB_SYMBOL("pthread_setname_np");
+#define lb_c_thread_13linux_setname ((int32_t (*)(void*, char*))lb_x_thread_13linux_setname)
+#else
+extern int32_t lb_x_thread_13linux_setname(void*, char*) LB_SYMBOL("pthread_setname_np");
+#define lb_c_thread_13linux_setname lb_x_thread_13linux_setname
+#endif
 extern int32_t lb_x_thread_11sched_yield(void) LB_SYMBOL("sched_yield");
 extern int32_t lb_x_thread_nanosleep(const struct Duration*, struct Duration*) LB_SYMBOL("nanosleep");
 extern int32_t lb_x_thread_getpagesize(void) LB_SYMBOL("getpagesize");
@@ -2127,83 +2254,545 @@ extern int64_t lb_x_sync_syscall(int64_t, ...) LB_SYMBOL("syscall");
 extern int32_t lb_x_sync_WaitOnAddress(void*, uint32_t*, size_t, uint32_t) LB_SYMBOL("WaitOnAddress");
 extern void lb_x_sync_WakeByAddressSingle(void*) LB_SYMBOL("WakeByAddressSingle");
 extern void lb_x_sync_WakeByAddressAll(void*) LB_SYMBOL("WakeByAddressAll");
-extern char lb_x_strings_18new_numeric_locale LB_SYMBOL("newlocale");
-extern char lb_x_strings_17free_locale_macos LB_SYMBOL("freelocale");
-extern char lb_x_strings_17free_locale_linux LB_SYMBOL("freelocale");
-extern char lb_x_strings_10use_locale LB_SYMBOL("uselocale");
-extern char lb_x_strings_11convert_f64 LB_SYMBOL("strtod_l");
-extern char lb_x_strings_11convert_f32 LB_SYMBOL("strtof_l");
-extern char lb_x_strings_17print_float_macos LB_SYMBOL("snprintf_l");
-extern char lb_x_strings_17print_float_linux LB_SYMBOL("snprintf");
-extern char lb_x_strings_21create_locale_windows LB_SYMBOL("_create_locale");
-extern char lb_x_strings_19free_locale_windows LB_SYMBOL("_free_locale");
-extern char lb_x_strings_19convert_f64_windows LB_SYMBOL("_strtod_l");
-extern char lb_x_strings_19convert_f32_windows LB_SYMBOL("_strtof_l");
-extern char lb_x_strings_19print_float_windows LB_SYMBOL("__stdio_common_vsprintf");
-extern char lb_x_math_7c_floor LB_SYMBOL("floor");
-extern char lb_x_math_6c_ceil LB_SYMBOL("ceil");
-extern char lb_x_math_7c_round LB_SYMBOL("round");
-extern char lb_x_math_7c_trunc LB_SYMBOL("trunc");
-extern char lb_x_math_6c_sqrt LB_SYMBOL("sqrt");
-extern char lb_x_math_6c_cbrt LB_SYMBOL("cbrt");
-extern char lb_x_math_7c_hypot LB_SYMBOL("hypot");
-extern char lb_x_math_6c_fmod LB_SYMBOL("fmod");
-extern char lb_x_math_5c_pow LB_SYMBOL("pow");
-extern char lb_x_math_5c_exp LB_SYMBOL("exp");
-extern char lb_x_math_6c_exp2 LB_SYMBOL("exp2");
-extern char lb_x_math_5c_log LB_SYMBOL("log");
-extern char lb_x_math_6c_log2 LB_SYMBOL("log2");
-extern char lb_x_math_7c_log10 LB_SYMBOL("log10");
-extern char lb_x_math_5c_sin LB_SYMBOL("sin");
-extern char lb_x_math_5c_cos LB_SYMBOL("cos");
-extern char lb_x_math_5c_tan LB_SYMBOL("tan");
-extern char lb_x_math_6c_asin LB_SYMBOL("asin");
-extern char lb_x_math_6c_acos LB_SYMBOL("acos");
-extern char lb_x_math_6c_atan LB_SYMBOL("atan");
-extern char lb_x_math_7c_atan2 LB_SYMBOL("atan2");
-extern char lb_x_math_6c_sinh LB_SYMBOL("sinh");
-extern char lb_x_math_6c_cosh LB_SYMBOL("cosh");
-extern char lb_x_math_6c_tanh LB_SYMBOL("tanh");
-extern char lb_x_math_7c_log1p LB_SYMBOL("log1p");
-extern char lb_x_math_7c_expm1 LB_SYMBOL("expm1");
-extern char lb_x_math_5c_fma LB_SYMBOL("fma");
-extern char lb_x_math_11c_nextafter LB_SYMBOL("nextafter");
-extern char lb_x_math_7c_frexp LB_SYMBOL("frexp");
-extern char lb_x_math_8c_scalbn LB_SYMBOL("scalbn");
-extern char lb_x_math_6c_modf LB_SYMBOL("modf");
-extern char lb_x_math_11c_remainder LB_SYMBOL("remainder");
-extern char lb_x_math32_7c_floor LB_SYMBOL("floorf");
-extern char lb_x_math32_6c_ceil LB_SYMBOL("ceilf");
-extern char lb_x_math32_7c_round LB_SYMBOL("roundf");
-extern char lb_x_math32_7c_trunc LB_SYMBOL("truncf");
-extern char lb_x_math32_6c_sqrt LB_SYMBOL("sqrtf");
-extern char lb_x_math32_6c_cbrt LB_SYMBOL("cbrtf");
-extern char lb_x_math32_7c_hypot LB_SYMBOL("hypotf");
-extern char lb_x_math32_6c_fmod LB_SYMBOL("fmodf");
-extern char lb_x_math32_5c_pow LB_SYMBOL("powf");
-extern char lb_x_math32_5c_exp LB_SYMBOL("expf");
-extern char lb_x_math32_6c_exp2 LB_SYMBOL("exp2f");
-extern char lb_x_math32_5c_log LB_SYMBOL("logf");
-extern char lb_x_math32_6c_log2 LB_SYMBOL("log2f");
-extern char lb_x_math32_7c_log10 LB_SYMBOL("log10f");
-extern char lb_x_math32_5c_sin LB_SYMBOL("sinf");
-extern char lb_x_math32_5c_cos LB_SYMBOL("cosf");
-extern char lb_x_math32_5c_tan LB_SYMBOL("tanf");
-extern char lb_x_math32_6c_asin LB_SYMBOL("asinf");
-extern char lb_x_math32_6c_acos LB_SYMBOL("acosf");
-extern char lb_x_math32_6c_atan LB_SYMBOL("atanf");
-extern char lb_x_math32_7c_atan2 LB_SYMBOL("atan2f");
-extern char lb_x_math32_6c_sinh LB_SYMBOL("sinhf");
-extern char lb_x_math32_6c_cosh LB_SYMBOL("coshf");
-extern char lb_x_math32_6c_tanh LB_SYMBOL("tanhf");
-extern char lb_x_math32_7c_log1p LB_SYMBOL("log1pf");
-extern char lb_x_math32_7c_expm1 LB_SYMBOL("expm1f");
-extern char lb_x_math32_5c_fma LB_SYMBOL("fmaf");
-extern char lb_x_math32_11c_nextafter LB_SYMBOL("nextafterf");
-extern char lb_x_math32_7c_frexp LB_SYMBOL("frexpf");
-extern char lb_x_math32_8c_scalbn LB_SYMBOL("scalbnf");
-extern char lb_x_math32_6c_modf LB_SYMBOL("modff");
-extern char lb_x_math32_11c_remainder LB_SYMBOL("remainderf");
+#if defined(__clang__)
+extern void lb_x_strings_18new_numeric_locale(void) LB_SYMBOL("newlocale");
+#define lb_c_strings_18new_numeric_locale ((void* (*)(int32_t, char*, void*))lb_x_strings_18new_numeric_locale)
+#else
+extern void* lb_x_strings_18new_numeric_locale(int32_t, char*, void*) LB_SYMBOL("newlocale");
+#define lb_c_strings_18new_numeric_locale lb_x_strings_18new_numeric_locale
+#endif
+#if defined(__clang__)
+extern void lb_x_strings_17free_locale_macos(void) LB_SYMBOL("freelocale");
+#define lb_c_strings_17free_locale_macos ((int32_t (*)(void*))lb_x_strings_17free_locale_macos)
+#else
+extern int32_t lb_x_strings_17free_locale_macos(void*) LB_SYMBOL("freelocale");
+#define lb_c_strings_17free_locale_macos lb_x_strings_17free_locale_macos
+#endif
+#if defined(__clang__)
+extern void lb_x_strings_17free_locale_linux(void) LB_SYMBOL("freelocale");
+#define lb_c_strings_17free_locale_linux ((void (*)(void*))lb_x_strings_17free_locale_linux)
+#else
+extern void lb_x_strings_17free_locale_linux(void*) LB_SYMBOL("freelocale");
+#define lb_c_strings_17free_locale_linux lb_x_strings_17free_locale_linux
+#endif
+#if defined(__clang__)
+extern void lb_x_strings_10use_locale(void) LB_SYMBOL("uselocale");
+#define lb_c_strings_10use_locale ((void* (*)(void*))lb_x_strings_10use_locale)
+#else
+extern void* lb_x_strings_10use_locale(void*) LB_SYMBOL("uselocale");
+#define lb_c_strings_10use_locale lb_x_strings_10use_locale
+#endif
+#if defined(__clang__)
+extern void lb_x_strings_11convert_f64(void) LB_SYMBOL("strtod_l");
+#define lb_c_strings_11convert_f64 ((double (*)(char*, uint8_t**, void*))lb_x_strings_11convert_f64)
+#else
+extern double lb_x_strings_11convert_f64(char*, uint8_t**, void*) LB_SYMBOL("strtod_l");
+#define lb_c_strings_11convert_f64 lb_x_strings_11convert_f64
+#endif
+#if defined(__clang__)
+extern void lb_x_strings_11convert_f32(void) LB_SYMBOL("strtof_l");
+#define lb_c_strings_11convert_f32 ((float (*)(char*, uint8_t**, void*))lb_x_strings_11convert_f32)
+#else
+extern float lb_x_strings_11convert_f32(char*, uint8_t**, void*) LB_SYMBOL("strtof_l");
+#define lb_c_strings_11convert_f32 lb_x_strings_11convert_f32
+#endif
+#if defined(__clang__)
+extern void lb_x_strings_17print_float_macos(void) LB_SYMBOL("snprintf_l");
+#define lb_c_strings_17print_float_macos ((int32_t (*)(uint8_t*, size_t, void*, char*, ...))lb_x_strings_17print_float_macos)
+#else
+extern int32_t lb_x_strings_17print_float_macos(uint8_t*, size_t, void*, char*, ...) LB_SYMBOL("snprintf_l");
+#define lb_c_strings_17print_float_macos lb_x_strings_17print_float_macos
+#endif
+#if defined(__clang__)
+extern void lb_x_strings_17print_float_linux(void) LB_SYMBOL("snprintf");
+#define lb_c_strings_17print_float_linux ((int32_t (*)(uint8_t*, size_t, char*, ...))lb_x_strings_17print_float_linux)
+#else
+extern int32_t lb_x_strings_17print_float_linux(uint8_t*, size_t, char*, ...) LB_SYMBOL("snprintf");
+#define lb_c_strings_17print_float_linux lb_x_strings_17print_float_linux
+#endif
+#if defined(__clang__)
+extern void lb_x_strings_21create_locale_windows(void) LB_SYMBOL("_create_locale");
+#define lb_c_strings_21create_locale_windows ((void* (*)(int32_t, char*))lb_x_strings_21create_locale_windows)
+#else
+extern void* lb_x_strings_21create_locale_windows(int32_t, char*) LB_SYMBOL("_create_locale");
+#define lb_c_strings_21create_locale_windows lb_x_strings_21create_locale_windows
+#endif
+#if defined(__clang__)
+extern void lb_x_strings_19free_locale_windows(void) LB_SYMBOL("_free_locale");
+#define lb_c_strings_19free_locale_windows ((void (*)(void*))lb_x_strings_19free_locale_windows)
+#else
+extern void lb_x_strings_19free_locale_windows(void*) LB_SYMBOL("_free_locale");
+#define lb_c_strings_19free_locale_windows lb_x_strings_19free_locale_windows
+#endif
+#if defined(__clang__)
+extern void lb_x_strings_19convert_f64_windows(void) LB_SYMBOL("_strtod_l");
+#define lb_c_strings_19convert_f64_windows ((double (*)(char*, uint8_t**, void*))lb_x_strings_19convert_f64_windows)
+#else
+extern double lb_x_strings_19convert_f64_windows(char*, uint8_t**, void*) LB_SYMBOL("_strtod_l");
+#define lb_c_strings_19convert_f64_windows lb_x_strings_19convert_f64_windows
+#endif
+#if defined(__clang__)
+extern void lb_x_strings_19convert_f32_windows(void) LB_SYMBOL("_strtof_l");
+#define lb_c_strings_19convert_f32_windows ((float (*)(char*, uint8_t**, void*))lb_x_strings_19convert_f32_windows)
+#else
+extern float lb_x_strings_19convert_f32_windows(char*, uint8_t**, void*) LB_SYMBOL("_strtof_l");
+#define lb_c_strings_19convert_f32_windows lb_x_strings_19convert_f32_windows
+#endif
+#if defined(__clang__)
+extern void lb_x_strings_19print_float_windows(void) LB_SYMBOL("__stdio_common_vsprintf");
+#define lb_c_strings_19print_float_windows ((int32_t (*)(uint64_t, uint8_t*, size_t, char*, void*, void*))lb_x_strings_19print_float_windows)
+#else
+extern int32_t lb_x_strings_19print_float_windows(uint64_t, uint8_t*, size_t, char*, void*, void*) LB_SYMBOL("__stdio_common_vsprintf");
+#define lb_c_strings_19print_float_windows lb_x_strings_19print_float_windows
+#endif
+#if defined(__clang__)
+extern void lb_x_math_7c_floor(void) LB_SYMBOL("floor");
+#define lb_c_math_7c_floor ((double (*)(double))lb_x_math_7c_floor)
+#else
+extern double lb_x_math_7c_floor(double) LB_SYMBOL("floor");
+#define lb_c_math_7c_floor lb_x_math_7c_floor
+#endif
+#if defined(__clang__)
+extern void lb_x_math_6c_ceil(void) LB_SYMBOL("ceil");
+#define lb_c_math_6c_ceil ((double (*)(double))lb_x_math_6c_ceil)
+#else
+extern double lb_x_math_6c_ceil(double) LB_SYMBOL("ceil");
+#define lb_c_math_6c_ceil lb_x_math_6c_ceil
+#endif
+#if defined(__clang__)
+extern void lb_x_math_7c_round(void) LB_SYMBOL("round");
+#define lb_c_math_7c_round ((double (*)(double))lb_x_math_7c_round)
+#else
+extern double lb_x_math_7c_round(double) LB_SYMBOL("round");
+#define lb_c_math_7c_round lb_x_math_7c_round
+#endif
+#if defined(__clang__)
+extern void lb_x_math_7c_trunc(void) LB_SYMBOL("trunc");
+#define lb_c_math_7c_trunc ((double (*)(double))lb_x_math_7c_trunc)
+#else
+extern double lb_x_math_7c_trunc(double) LB_SYMBOL("trunc");
+#define lb_c_math_7c_trunc lb_x_math_7c_trunc
+#endif
+#if defined(__clang__)
+extern void lb_x_math_6c_sqrt(void) LB_SYMBOL("sqrt");
+#define lb_c_math_6c_sqrt ((double (*)(double))lb_x_math_6c_sqrt)
+#else
+extern double lb_x_math_6c_sqrt(double) LB_SYMBOL("sqrt");
+#define lb_c_math_6c_sqrt lb_x_math_6c_sqrt
+#endif
+#if defined(__clang__)
+extern void lb_x_math_6c_cbrt(void) LB_SYMBOL("cbrt");
+#define lb_c_math_6c_cbrt ((double (*)(double))lb_x_math_6c_cbrt)
+#else
+extern double lb_x_math_6c_cbrt(double) LB_SYMBOL("cbrt");
+#define lb_c_math_6c_cbrt lb_x_math_6c_cbrt
+#endif
+#if defined(__clang__)
+extern void lb_x_math_7c_hypot(void) LB_SYMBOL("hypot");
+#define lb_c_math_7c_hypot ((double (*)(double, double))lb_x_math_7c_hypot)
+#else
+extern double lb_x_math_7c_hypot(double, double) LB_SYMBOL("hypot");
+#define lb_c_math_7c_hypot lb_x_math_7c_hypot
+#endif
+#if defined(__clang__)
+extern void lb_x_math_6c_fmod(void) LB_SYMBOL("fmod");
+#define lb_c_math_6c_fmod ((double (*)(double, double))lb_x_math_6c_fmod)
+#else
+extern double lb_x_math_6c_fmod(double, double) LB_SYMBOL("fmod");
+#define lb_c_math_6c_fmod lb_x_math_6c_fmod
+#endif
+#if defined(__clang__)
+extern void lb_x_math_5c_pow(void) LB_SYMBOL("pow");
+#define lb_c_math_5c_pow ((double (*)(double, double))lb_x_math_5c_pow)
+#else
+extern double lb_x_math_5c_pow(double, double) LB_SYMBOL("pow");
+#define lb_c_math_5c_pow lb_x_math_5c_pow
+#endif
+#if defined(__clang__)
+extern void lb_x_math_5c_exp(void) LB_SYMBOL("exp");
+#define lb_c_math_5c_exp ((double (*)(double))lb_x_math_5c_exp)
+#else
+extern double lb_x_math_5c_exp(double) LB_SYMBOL("exp");
+#define lb_c_math_5c_exp lb_x_math_5c_exp
+#endif
+#if defined(__clang__)
+extern void lb_x_math_6c_exp2(void) LB_SYMBOL("exp2");
+#define lb_c_math_6c_exp2 ((double (*)(double))lb_x_math_6c_exp2)
+#else
+extern double lb_x_math_6c_exp2(double) LB_SYMBOL("exp2");
+#define lb_c_math_6c_exp2 lb_x_math_6c_exp2
+#endif
+#if defined(__clang__)
+extern void lb_x_math_5c_log(void) LB_SYMBOL("log");
+#define lb_c_math_5c_log ((double (*)(double))lb_x_math_5c_log)
+#else
+extern double lb_x_math_5c_log(double) LB_SYMBOL("log");
+#define lb_c_math_5c_log lb_x_math_5c_log
+#endif
+#if defined(__clang__)
+extern void lb_x_math_6c_log2(void) LB_SYMBOL("log2");
+#define lb_c_math_6c_log2 ((double (*)(double))lb_x_math_6c_log2)
+#else
+extern double lb_x_math_6c_log2(double) LB_SYMBOL("log2");
+#define lb_c_math_6c_log2 lb_x_math_6c_log2
+#endif
+#if defined(__clang__)
+extern void lb_x_math_7c_log10(void) LB_SYMBOL("log10");
+#define lb_c_math_7c_log10 ((double (*)(double))lb_x_math_7c_log10)
+#else
+extern double lb_x_math_7c_log10(double) LB_SYMBOL("log10");
+#define lb_c_math_7c_log10 lb_x_math_7c_log10
+#endif
+#if defined(__clang__)
+extern void lb_x_math_5c_sin(void) LB_SYMBOL("sin");
+#define lb_c_math_5c_sin ((double (*)(double))lb_x_math_5c_sin)
+#else
+extern double lb_x_math_5c_sin(double) LB_SYMBOL("sin");
+#define lb_c_math_5c_sin lb_x_math_5c_sin
+#endif
+#if defined(__clang__)
+extern void lb_x_math_5c_cos(void) LB_SYMBOL("cos");
+#define lb_c_math_5c_cos ((double (*)(double))lb_x_math_5c_cos)
+#else
+extern double lb_x_math_5c_cos(double) LB_SYMBOL("cos");
+#define lb_c_math_5c_cos lb_x_math_5c_cos
+#endif
+#if defined(__clang__)
+extern void lb_x_math_5c_tan(void) LB_SYMBOL("tan");
+#define lb_c_math_5c_tan ((double (*)(double))lb_x_math_5c_tan)
+#else
+extern double lb_x_math_5c_tan(double) LB_SYMBOL("tan");
+#define lb_c_math_5c_tan lb_x_math_5c_tan
+#endif
+#if defined(__clang__)
+extern void lb_x_math_6c_asin(void) LB_SYMBOL("asin");
+#define lb_c_math_6c_asin ((double (*)(double))lb_x_math_6c_asin)
+#else
+extern double lb_x_math_6c_asin(double) LB_SYMBOL("asin");
+#define lb_c_math_6c_asin lb_x_math_6c_asin
+#endif
+#if defined(__clang__)
+extern void lb_x_math_6c_acos(void) LB_SYMBOL("acos");
+#define lb_c_math_6c_acos ((double (*)(double))lb_x_math_6c_acos)
+#else
+extern double lb_x_math_6c_acos(double) LB_SYMBOL("acos");
+#define lb_c_math_6c_acos lb_x_math_6c_acos
+#endif
+#if defined(__clang__)
+extern void lb_x_math_6c_atan(void) LB_SYMBOL("atan");
+#define lb_c_math_6c_atan ((double (*)(double))lb_x_math_6c_atan)
+#else
+extern double lb_x_math_6c_atan(double) LB_SYMBOL("atan");
+#define lb_c_math_6c_atan lb_x_math_6c_atan
+#endif
+#if defined(__clang__)
+extern void lb_x_math_7c_atan2(void) LB_SYMBOL("atan2");
+#define lb_c_math_7c_atan2 ((double (*)(double, double))lb_x_math_7c_atan2)
+#else
+extern double lb_x_math_7c_atan2(double, double) LB_SYMBOL("atan2");
+#define lb_c_math_7c_atan2 lb_x_math_7c_atan2
+#endif
+#if defined(__clang__)
+extern void lb_x_math_6c_sinh(void) LB_SYMBOL("sinh");
+#define lb_c_math_6c_sinh ((double (*)(double))lb_x_math_6c_sinh)
+#else
+extern double lb_x_math_6c_sinh(double) LB_SYMBOL("sinh");
+#define lb_c_math_6c_sinh lb_x_math_6c_sinh
+#endif
+#if defined(__clang__)
+extern void lb_x_math_6c_cosh(void) LB_SYMBOL("cosh");
+#define lb_c_math_6c_cosh ((double (*)(double))lb_x_math_6c_cosh)
+#else
+extern double lb_x_math_6c_cosh(double) LB_SYMBOL("cosh");
+#define lb_c_math_6c_cosh lb_x_math_6c_cosh
+#endif
+#if defined(__clang__)
+extern void lb_x_math_6c_tanh(void) LB_SYMBOL("tanh");
+#define lb_c_math_6c_tanh ((double (*)(double))lb_x_math_6c_tanh)
+#else
+extern double lb_x_math_6c_tanh(double) LB_SYMBOL("tanh");
+#define lb_c_math_6c_tanh lb_x_math_6c_tanh
+#endif
+#if defined(__clang__)
+extern void lb_x_math_7c_log1p(void) LB_SYMBOL("log1p");
+#define lb_c_math_7c_log1p ((double (*)(double))lb_x_math_7c_log1p)
+#else
+extern double lb_x_math_7c_log1p(double) LB_SYMBOL("log1p");
+#define lb_c_math_7c_log1p lb_x_math_7c_log1p
+#endif
+#if defined(__clang__)
+extern void lb_x_math_7c_expm1(void) LB_SYMBOL("expm1");
+#define lb_c_math_7c_expm1 ((double (*)(double))lb_x_math_7c_expm1)
+#else
+extern double lb_x_math_7c_expm1(double) LB_SYMBOL("expm1");
+#define lb_c_math_7c_expm1 lb_x_math_7c_expm1
+#endif
+#if defined(__clang__)
+extern void lb_x_math_5c_fma(void) LB_SYMBOL("fma");
+#define lb_c_math_5c_fma ((double (*)(double, double, double))lb_x_math_5c_fma)
+#else
+extern double lb_x_math_5c_fma(double, double, double) LB_SYMBOL("fma");
+#define lb_c_math_5c_fma lb_x_math_5c_fma
+#endif
+#if defined(__clang__)
+extern void lb_x_math_11c_nextafter(void) LB_SYMBOL("nextafter");
+#define lb_c_math_11c_nextafter ((double (*)(double, double))lb_x_math_11c_nextafter)
+#else
+extern double lb_x_math_11c_nextafter(double, double) LB_SYMBOL("nextafter");
+#define lb_c_math_11c_nextafter lb_x_math_11c_nextafter
+#endif
+#if defined(__clang__)
+extern void lb_x_math_7c_frexp(void) LB_SYMBOL("frexp");
+#define lb_c_math_7c_frexp ((double (*)(double, int32_t*))lb_x_math_7c_frexp)
+#else
+extern double lb_x_math_7c_frexp(double, int32_t*) LB_SYMBOL("frexp");
+#define lb_c_math_7c_frexp lb_x_math_7c_frexp
+#endif
+#if defined(__clang__)
+extern void lb_x_math_8c_scalbn(void) LB_SYMBOL("scalbn");
+#define lb_c_math_8c_scalbn ((double (*)(double, int32_t))lb_x_math_8c_scalbn)
+#else
+extern double lb_x_math_8c_scalbn(double, int32_t) LB_SYMBOL("scalbn");
+#define lb_c_math_8c_scalbn lb_x_math_8c_scalbn
+#endif
+#if defined(__clang__)
+extern void lb_x_math_6c_modf(void) LB_SYMBOL("modf");
+#define lb_c_math_6c_modf ((double (*)(double, double*))lb_x_math_6c_modf)
+#else
+extern double lb_x_math_6c_modf(double, double*) LB_SYMBOL("modf");
+#define lb_c_math_6c_modf lb_x_math_6c_modf
+#endif
+#if defined(__clang__)
+extern void lb_x_math_11c_remainder(void) LB_SYMBOL("remainder");
+#define lb_c_math_11c_remainder ((double (*)(double, double))lb_x_math_11c_remainder)
+#else
+extern double lb_x_math_11c_remainder(double, double) LB_SYMBOL("remainder");
+#define lb_c_math_11c_remainder lb_x_math_11c_remainder
+#endif
+#if defined(__clang__)
+extern void lb_x_math32_7c_floor(void) LB_SYMBOL("floorf");
+#define lb_c_math32_7c_floor ((float (*)(float))lb_x_math32_7c_floor)
+#else
+extern float lb_x_math32_7c_floor(float) LB_SYMBOL("floorf");
+#define lb_c_math32_7c_floor lb_x_math32_7c_floor
+#endif
+#if defined(__clang__)
+extern void lb_x_math32_6c_ceil(void) LB_SYMBOL("ceilf");
+#define lb_c_math32_6c_ceil ((float (*)(float))lb_x_math32_6c_ceil)
+#else
+extern float lb_x_math32_6c_ceil(float) LB_SYMBOL("ceilf");
+#define lb_c_math32_6c_ceil lb_x_math32_6c_ceil
+#endif
+#if defined(__clang__)
+extern void lb_x_math32_7c_round(void) LB_SYMBOL("roundf");
+#define lb_c_math32_7c_round ((float (*)(float))lb_x_math32_7c_round)
+#else
+extern float lb_x_math32_7c_round(float) LB_SYMBOL("roundf");
+#define lb_c_math32_7c_round lb_x_math32_7c_round
+#endif
+#if defined(__clang__)
+extern void lb_x_math32_7c_trunc(void) LB_SYMBOL("truncf");
+#define lb_c_math32_7c_trunc ((float (*)(float))lb_x_math32_7c_trunc)
+#else
+extern float lb_x_math32_7c_trunc(float) LB_SYMBOL("truncf");
+#define lb_c_math32_7c_trunc lb_x_math32_7c_trunc
+#endif
+#if defined(__clang__)
+extern void lb_x_math32_6c_sqrt(void) LB_SYMBOL("sqrtf");
+#define lb_c_math32_6c_sqrt ((float (*)(float))lb_x_math32_6c_sqrt)
+#else
+extern float lb_x_math32_6c_sqrt(float) LB_SYMBOL("sqrtf");
+#define lb_c_math32_6c_sqrt lb_x_math32_6c_sqrt
+#endif
+#if defined(__clang__)
+extern void lb_x_math32_6c_cbrt(void) LB_SYMBOL("cbrtf");
+#define lb_c_math32_6c_cbrt ((float (*)(float))lb_x_math32_6c_cbrt)
+#else
+extern float lb_x_math32_6c_cbrt(float) LB_SYMBOL("cbrtf");
+#define lb_c_math32_6c_cbrt lb_x_math32_6c_cbrt
+#endif
+#if defined(__clang__)
+extern void lb_x_math32_7c_hypot(void) LB_SYMBOL("hypotf");
+#define lb_c_math32_7c_hypot ((float (*)(float, float))lb_x_math32_7c_hypot)
+#else
+extern float lb_x_math32_7c_hypot(float, float) LB_SYMBOL("hypotf");
+#define lb_c_math32_7c_hypot lb_x_math32_7c_hypot
+#endif
+#if defined(__clang__)
+extern void lb_x_math32_6c_fmod(void) LB_SYMBOL("fmodf");
+#define lb_c_math32_6c_fmod ((float (*)(float, float))lb_x_math32_6c_fmod)
+#else
+extern float lb_x_math32_6c_fmod(float, float) LB_SYMBOL("fmodf");
+#define lb_c_math32_6c_fmod lb_x_math32_6c_fmod
+#endif
+#if defined(__clang__)
+extern void lb_x_math32_5c_pow(void) LB_SYMBOL("powf");
+#define lb_c_math32_5c_pow ((float (*)(float, float))lb_x_math32_5c_pow)
+#else
+extern float lb_x_math32_5c_pow(float, float) LB_SYMBOL("powf");
+#define lb_c_math32_5c_pow lb_x_math32_5c_pow
+#endif
+#if defined(__clang__)
+extern void lb_x_math32_5c_exp(void) LB_SYMBOL("expf");
+#define lb_c_math32_5c_exp ((float (*)(float))lb_x_math32_5c_exp)
+#else
+extern float lb_x_math32_5c_exp(float) LB_SYMBOL("expf");
+#define lb_c_math32_5c_exp lb_x_math32_5c_exp
+#endif
+#if defined(__clang__)
+extern void lb_x_math32_6c_exp2(void) LB_SYMBOL("exp2f");
+#define lb_c_math32_6c_exp2 ((float (*)(float))lb_x_math32_6c_exp2)
+#else
+extern float lb_x_math32_6c_exp2(float) LB_SYMBOL("exp2f");
+#define lb_c_math32_6c_exp2 lb_x_math32_6c_exp2
+#endif
+#if defined(__clang__)
+extern void lb_x_math32_5c_log(void) LB_SYMBOL("logf");
+#define lb_c_math32_5c_log ((float (*)(float))lb_x_math32_5c_log)
+#else
+extern float lb_x_math32_5c_log(float) LB_SYMBOL("logf");
+#define lb_c_math32_5c_log lb_x_math32_5c_log
+#endif
+#if defined(__clang__)
+extern void lb_x_math32_6c_log2(void) LB_SYMBOL("log2f");
+#define lb_c_math32_6c_log2 ((float (*)(float))lb_x_math32_6c_log2)
+#else
+extern float lb_x_math32_6c_log2(float) LB_SYMBOL("log2f");
+#define lb_c_math32_6c_log2 lb_x_math32_6c_log2
+#endif
+#if defined(__clang__)
+extern void lb_x_math32_7c_log10(void) LB_SYMBOL("log10f");
+#define lb_c_math32_7c_log10 ((float (*)(float))lb_x_math32_7c_log10)
+#else
+extern float lb_x_math32_7c_log10(float) LB_SYMBOL("log10f");
+#define lb_c_math32_7c_log10 lb_x_math32_7c_log10
+#endif
+#if defined(__clang__)
+extern void lb_x_math32_5c_sin(void) LB_SYMBOL("sinf");
+#define lb_c_math32_5c_sin ((float (*)(float))lb_x_math32_5c_sin)
+#else
+extern float lb_x_math32_5c_sin(float) LB_SYMBOL("sinf");
+#define lb_c_math32_5c_sin lb_x_math32_5c_sin
+#endif
+#if defined(__clang__)
+extern void lb_x_math32_5c_cos(void) LB_SYMBOL("cosf");
+#define lb_c_math32_5c_cos ((float (*)(float))lb_x_math32_5c_cos)
+#else
+extern float lb_x_math32_5c_cos(float) LB_SYMBOL("cosf");
+#define lb_c_math32_5c_cos lb_x_math32_5c_cos
+#endif
+#if defined(__clang__)
+extern void lb_x_math32_5c_tan(void) LB_SYMBOL("tanf");
+#define lb_c_math32_5c_tan ((float (*)(float))lb_x_math32_5c_tan)
+#else
+extern float lb_x_math32_5c_tan(float) LB_SYMBOL("tanf");
+#define lb_c_math32_5c_tan lb_x_math32_5c_tan
+#endif
+#if defined(__clang__)
+extern void lb_x_math32_6c_asin(void) LB_SYMBOL("asinf");
+#define lb_c_math32_6c_asin ((float (*)(float))lb_x_math32_6c_asin)
+#else
+extern float lb_x_math32_6c_asin(float) LB_SYMBOL("asinf");
+#define lb_c_math32_6c_asin lb_x_math32_6c_asin
+#endif
+#if defined(__clang__)
+extern void lb_x_math32_6c_acos(void) LB_SYMBOL("acosf");
+#define lb_c_math32_6c_acos ((float (*)(float))lb_x_math32_6c_acos)
+#else
+extern float lb_x_math32_6c_acos(float) LB_SYMBOL("acosf");
+#define lb_c_math32_6c_acos lb_x_math32_6c_acos
+#endif
+#if defined(__clang__)
+extern void lb_x_math32_6c_atan(void) LB_SYMBOL("atanf");
+#define lb_c_math32_6c_atan ((float (*)(float))lb_x_math32_6c_atan)
+#else
+extern float lb_x_math32_6c_atan(float) LB_SYMBOL("atanf");
+#define lb_c_math32_6c_atan lb_x_math32_6c_atan
+#endif
+#if defined(__clang__)
+extern void lb_x_math32_7c_atan2(void) LB_SYMBOL("atan2f");
+#define lb_c_math32_7c_atan2 ((float (*)(float, float))lb_x_math32_7c_atan2)
+#else
+extern float lb_x_math32_7c_atan2(float, float) LB_SYMBOL("atan2f");
+#define lb_c_math32_7c_atan2 lb_x_math32_7c_atan2
+#endif
+#if defined(__clang__)
+extern void lb_x_math32_6c_sinh(void) LB_SYMBOL("sinhf");
+#define lb_c_math32_6c_sinh ((float (*)(float))lb_x_math32_6c_sinh)
+#else
+extern float lb_x_math32_6c_sinh(float) LB_SYMBOL("sinhf");
+#define lb_c_math32_6c_sinh lb_x_math32_6c_sinh
+#endif
+#if defined(__clang__)
+extern void lb_x_math32_6c_cosh(void) LB_SYMBOL("coshf");
+#define lb_c_math32_6c_cosh ((float (*)(float))lb_x_math32_6c_cosh)
+#else
+extern float lb_x_math32_6c_cosh(float) LB_SYMBOL("coshf");
+#define lb_c_math32_6c_cosh lb_x_math32_6c_cosh
+#endif
+#if defined(__clang__)
+extern void lb_x_math32_6c_tanh(void) LB_SYMBOL("tanhf");
+#define lb_c_math32_6c_tanh ((float (*)(float))lb_x_math32_6c_tanh)
+#else
+extern float lb_x_math32_6c_tanh(float) LB_SYMBOL("tanhf");
+#define lb_c_math32_6c_tanh lb_x_math32_6c_tanh
+#endif
+#if defined(__clang__)
+extern void lb_x_math32_7c_log1p(void) LB_SYMBOL("log1pf");
+#define lb_c_math32_7c_log1p ((float (*)(float))lb_x_math32_7c_log1p)
+#else
+extern float lb_x_math32_7c_log1p(float) LB_SYMBOL("log1pf");
+#define lb_c_math32_7c_log1p lb_x_math32_7c_log1p
+#endif
+#if defined(__clang__)
+extern void lb_x_math32_7c_expm1(void) LB_SYMBOL("expm1f");
+#define lb_c_math32_7c_expm1 ((float (*)(float))lb_x_math32_7c_expm1)
+#else
+extern float lb_x_math32_7c_expm1(float) LB_SYMBOL("expm1f");
+#define lb_c_math32_7c_expm1 lb_x_math32_7c_expm1
+#endif
+#if defined(__clang__)
+extern void lb_x_math32_5c_fma(void) LB_SYMBOL("fmaf");
+#define lb_c_math32_5c_fma ((float (*)(float, float, float))lb_x_math32_5c_fma)
+#else
+extern float lb_x_math32_5c_fma(float, float, float) LB_SYMBOL("fmaf");
+#define lb_c_math32_5c_fma lb_x_math32_5c_fma
+#endif
+#if defined(__clang__)
+extern void lb_x_math32_11c_nextafter(void) LB_SYMBOL("nextafterf");
+#define lb_c_math32_11c_nextafter ((float (*)(float, float))lb_x_math32_11c_nextafter)
+#else
+extern float lb_x_math32_11c_nextafter(float, float) LB_SYMBOL("nextafterf");
+#define lb_c_math32_11c_nextafter lb_x_math32_11c_nextafter
+#endif
+#if defined(__clang__)
+extern void lb_x_math32_7c_frexp(void) LB_SYMBOL("frexpf");
+#define lb_c_math32_7c_frexp ((float (*)(float, int32_t*))lb_x_math32_7c_frexp)
+#else
+extern float lb_x_math32_7c_frexp(float, int32_t*) LB_SYMBOL("frexpf");
+#define lb_c_math32_7c_frexp lb_x_math32_7c_frexp
+#endif
+#if defined(__clang__)
+extern void lb_x_math32_8c_scalbn(void) LB_SYMBOL("scalbnf");
+#define lb_c_math32_8c_scalbn ((float (*)(float, int32_t))lb_x_math32_8c_scalbn)
+#else
+extern float lb_x_math32_8c_scalbn(float, int32_t) LB_SYMBOL("scalbnf");
+#define lb_c_math32_8c_scalbn lb_x_math32_8c_scalbn
+#endif
+#if defined(__clang__)
+extern void lb_x_math32_6c_modf(void) LB_SYMBOL("modff");
+#define lb_c_math32_6c_modf ((float (*)(float, float*))lb_x_math32_6c_modf)
+#else
+extern float lb_x_math32_6c_modf(float, float*) LB_SYMBOL("modff");
+#define lb_c_math32_6c_modf lb_x_math32_6c_modf
+#endif
+#if defined(__clang__)
+extern void lb_x_math32_11c_remainder(void) LB_SYMBOL("remainderf");
+#define lb_c_math32_11c_remainder ((float (*)(float, float))lb_x_math32_11c_remainder)
+#else
+extern float lb_x_math32_11c_remainder(float, float) LB_SYMBOL("remainderf");
+#define lb_c_math32_11c_remainder lb_x_math32_11c_remainder
+#endif
 extern int32_t lb_x_net_socket(int32_t, int32_t, int32_t) LB_SYMBOL("socket");
 extern int32_t lb_x_net_bind(int32_t, const void*, uint32_t) LB_SYMBOL("bind");
 extern int32_t lb_x_net_listen(int32_t, int32_t) LB_SYMBOL("listen");
@@ -2211,12 +2800,48 @@ extern int32_t lb_x_net_accept(int32_t, void*, uint32_t*) LB_SYMBOL("accept");
 extern int32_t lb_x_net_accept4(int32_t, void*, uint32_t*, int32_t) LB_SYMBOL("accept4");
 extern int32_t lb_x_net_fcntl(int32_t, int32_t, ...) LB_SYMBOL("fcntl");
 extern int32_t lb_x_net_connect(int32_t, const void*, uint32_t) LB_SYMBOL("connect");
-extern char lb_x_net_10posix_send LB_SYMBOL("send");
-extern char lb_x_net_10posix_recv LB_SYMBOL("recv");
-extern char lb_x_net_12posix_sendto LB_SYMBOL("sendto");
-extern char lb_x_net_21receive_message_macos LB_SYMBOL("recvmsg");
-extern char lb_x_net_21receive_message_linux LB_SYMBOL("recvmsg");
-extern char lb_x_net_11posix_close LB_SYMBOL("close");
+#if defined(__clang__)
+extern void lb_x_net_10posix_send(void) LB_SYMBOL("send");
+#define lb_c_net_10posix_send ((intptr_t (*)(int32_t, const void*, size_t, int32_t))lb_x_net_10posix_send)
+#else
+extern intptr_t lb_x_net_10posix_send(int32_t, const void*, size_t, int32_t) LB_SYMBOL("send");
+#define lb_c_net_10posix_send lb_x_net_10posix_send
+#endif
+#if defined(__clang__)
+extern void lb_x_net_10posix_recv(void) LB_SYMBOL("recv");
+#define lb_c_net_10posix_recv ((intptr_t (*)(int32_t, void*, size_t, int32_t))lb_x_net_10posix_recv)
+#else
+extern intptr_t lb_x_net_10posix_recv(int32_t, void*, size_t, int32_t) LB_SYMBOL("recv");
+#define lb_c_net_10posix_recv lb_x_net_10posix_recv
+#endif
+#if defined(__clang__)
+extern void lb_x_net_12posix_sendto(void) LB_SYMBOL("sendto");
+#define lb_c_net_12posix_sendto ((intptr_t (*)(int32_t, const void*, size_t, int32_t, const void*, uint32_t))lb_x_net_12posix_sendto)
+#else
+extern intptr_t lb_x_net_12posix_sendto(int32_t, const void*, size_t, int32_t, const void*, uint32_t) LB_SYMBOL("sendto");
+#define lb_c_net_12posix_sendto lb_x_net_12posix_sendto
+#endif
+#if defined(__clang__)
+extern void lb_x_net_21receive_message_macos(void) LB_SYMBOL("recvmsg");
+#define lb_c_net_21receive_message_macos ((intptr_t (*)(int32_t, struct MacMessage*, int32_t))lb_x_net_21receive_message_macos)
+#else
+extern intptr_t lb_x_net_21receive_message_macos(int32_t, struct MacMessage*, int32_t) LB_SYMBOL("recvmsg");
+#define lb_c_net_21receive_message_macos lb_x_net_21receive_message_macos
+#endif
+#if defined(__clang__)
+extern void lb_x_net_21receive_message_linux(void) LB_SYMBOL("recvmsg");
+#define lb_c_net_21receive_message_linux ((intptr_t (*)(int32_t, struct LinuxMessage*, int32_t))lb_x_net_21receive_message_linux)
+#else
+extern intptr_t lb_x_net_21receive_message_linux(int32_t, struct LinuxMessage*, int32_t) LB_SYMBOL("recvmsg");
+#define lb_c_net_21receive_message_linux lb_x_net_21receive_message_linux
+#endif
+#if defined(__clang__)
+extern void lb_x_net_11posix_close(void) LB_SYMBOL("close");
+#define lb_c_net_11posix_close ((int32_t (*)(int32_t))lb_x_net_11posix_close)
+#else
+extern int32_t lb_x_net_11posix_close(int32_t) LB_SYMBOL("close");
+#define lb_c_net_11posix_close lb_x_net_11posix_close
+#endif
 extern int32_t lb_x_net_getsockopt(int32_t, int32_t, int32_t, void*, uint32_t*) LB_SYMBOL("getsockopt");
 extern int32_t lb_x_net_setsockopt(int32_t, int32_t, int32_t, const void*, uint32_t) LB_SYMBOL("setsockopt");
 extern int32_t lb_x_net_getsockname(int32_t, void*, uint32_t*) LB_SYMBOL("getsockname");
@@ -2224,9 +2849,27 @@ extern int32_t lb_x_net_getpeername(int32_t, void*, uint32_t*) LB_SYMBOL("getpee
 extern int32_t lb_x_net_shutdown(int32_t, int32_t) LB_SYMBOL("shutdown");
 extern int32_t lb_x_net_getaddrinfo(char*, char*, const struct AddressInfo*, struct AddressInfo**) LB_SYMBOL("getaddrinfo");
 extern void lb_x_net_freeaddrinfo(struct AddressInfo*) LB_SYMBOL("freeaddrinfo");
-extern char lb_x_net_10poll_macos LB_SYMBOL("poll");
-extern char lb_x_net_10poll_linux LB_SYMBOL("poll");
-extern char lb_x_net_14read_monotonic LB_SYMBOL("clock_gettime");
+#if defined(__clang__)
+extern void lb_x_net_10poll_macos(void) LB_SYMBOL("poll");
+#define lb_c_net_10poll_macos ((int32_t (*)(struct NativePoll*, uint32_t, int32_t))lb_x_net_10poll_macos)
+#else
+extern int32_t lb_x_net_10poll_macos(struct NativePoll*, uint32_t, int32_t) LB_SYMBOL("poll");
+#define lb_c_net_10poll_macos lb_x_net_10poll_macos
+#endif
+#if defined(__clang__)
+extern void lb_x_net_10poll_linux(void) LB_SYMBOL("poll");
+#define lb_c_net_10poll_linux ((int32_t (*)(struct NativePoll*, size_t, int32_t))lb_x_net_10poll_linux)
+#else
+extern int32_t lb_x_net_10poll_linux(struct NativePoll*, size_t, int32_t) LB_SYMBOL("poll");
+#define lb_c_net_10poll_linux lb_x_net_10poll_linux
+#endif
+#if defined(__clang__)
+extern void lb_x_net_14read_monotonic(void) LB_SYMBOL("clock_gettime");
+#define lb_c_net_14read_monotonic ((int32_t (*)(int32_t, struct MonotonicStamp*))lb_x_net_14read_monotonic)
+#else
+extern int32_t lb_x_net_14read_monotonic(int32_t, struct MonotonicStamp*) LB_SYMBOL("clock_gettime");
+#define lb_c_net_14read_monotonic lb_x_net_14read_monotonic
+#endif
 extern int32_t lb_x_net_WSAStartup(uint16_t, void*) LB_SYMBOL("WSAStartup");
 extern int32_t lb_x_net_WSACleanup(void) LB_SYMBOL("WSACleanup");
 extern int32_t lb_x_net_WSAGetLastError(void) LB_SYMBOL("WSAGetLastError");
@@ -2234,57 +2877,267 @@ extern int32_t lb_x_net_WSASocketW(int32_t, int32_t, int32_t, void*, uint32_t, u
 extern int32_t lb_x_net_closesocket(int32_t) LB_SYMBOL("closesocket");
 extern int32_t lb_x_net_ioctlsocket(int32_t, int32_t, uint32_t*) LB_SYMBOL("ioctlsocket");
 extern int32_t lb_x_net_SetHandleInformation(void*, uint32_t, uint32_t) LB_SYMBOL("SetHandleInformation");
-extern char lb_x_net_12windows_send LB_SYMBOL("send");
-extern char lb_x_net_12windows_recv LB_SYMBOL("recv");
-extern char lb_x_net_14windows_sendto LB_SYMBOL("sendto");
-extern char lb_x_net_16windows_recvfrom LB_SYMBOL("recvfrom");
+#if defined(__clang__)
+extern void lb_x_net_12windows_send(void) LB_SYMBOL("send");
+#define lb_c_net_12windows_send ((int32_t (*)(int32_t, const void*, int32_t, int32_t))lb_x_net_12windows_send)
+#else
+extern int32_t lb_x_net_12windows_send(int32_t, const void*, int32_t, int32_t) LB_SYMBOL("send");
+#define lb_c_net_12windows_send lb_x_net_12windows_send
+#endif
+#if defined(__clang__)
+extern void lb_x_net_12windows_recv(void) LB_SYMBOL("recv");
+#define lb_c_net_12windows_recv ((int32_t (*)(int32_t, void*, int32_t, int32_t))lb_x_net_12windows_recv)
+#else
+extern int32_t lb_x_net_12windows_recv(int32_t, void*, int32_t, int32_t) LB_SYMBOL("recv");
+#define lb_c_net_12windows_recv lb_x_net_12windows_recv
+#endif
+#if defined(__clang__)
+extern void lb_x_net_14windows_sendto(void) LB_SYMBOL("sendto");
+#define lb_c_net_14windows_sendto ((int32_t (*)(int32_t, const void*, int32_t, int32_t, const void*, uint32_t))lb_x_net_14windows_sendto)
+#else
+extern int32_t lb_x_net_14windows_sendto(int32_t, const void*, int32_t, int32_t, const void*, uint32_t) LB_SYMBOL("sendto");
+#define lb_c_net_14windows_sendto lb_x_net_14windows_sendto
+#endif
+#if defined(__clang__)
+extern void lb_x_net_16windows_recvfrom(void) LB_SYMBOL("recvfrom");
+#define lb_c_net_16windows_recvfrom ((int32_t (*)(int32_t, void*, int32_t, int32_t, void*, uint32_t*))lb_x_net_16windows_recvfrom)
+#else
+extern int32_t lb_x_net_16windows_recvfrom(int32_t, void*, int32_t, int32_t, void*, uint32_t*) LB_SYMBOL("recvfrom");
+#define lb_c_net_16windows_recvfrom lb_x_net_16windows_recvfrom
+#endif
 extern int32_t lb_x_net_WSAPoll(struct NativePoll*, uint32_t, int32_t) LB_SYMBOL("WSAPoll");
 extern void lb_x_net_Sleep(uint32_t) LB_SYMBOL("Sleep");
 extern int32_t lb_x_net_atexit(lb_fn_0F0_unit) LB_SYMBOL("atexit");
 extern int32_t lb_x_files_open(char*, int32_t, ...) LB_SYMBOL("open");
 extern int32_t lb_x_files_openat(int32_t, char*, int32_t, ...) LB_SYMBOL("openat");
 extern int32_t lb_x_files_close(int32_t) LB_SYMBOL("close");
-extern char lb_x_files_10posix_read LB_SYMBOL("read");
-extern char lb_x_files_11posix_write LB_SYMBOL("write");
-extern char lb_x_files_8win_read LB_SYMBOL("_read");
-extern char lb_x_files_9win_write LB_SYMBOL("_write");
-extern char lb_x_files_11posix_lseek LB_SYMBOL("lseek");
-extern char lb_x_files_13windows_lseek LB_SYMBOL("_lseeki64");
-extern char lb_x_files_11posix_fsync LB_SYMBOL("fsync");
-extern char lb_x_files_13windows_fsync LB_SYMBOL("_commit");
-extern char lb_x_files_15posix_ftruncate LB_SYMBOL("ftruncate");
-extern char lb_x_files_17windows_ftruncate LB_SYMBOL("_chsize_s");
-extern char lb_x_files_12fchmod_macos LB_SYMBOL("fchmod");
-extern char lb_x_files_12fchmod_linux LB_SYMBOL("fchmod");
+#if defined(__clang__)
+extern void lb_x_files_10posix_read(void) LB_SYMBOL("read");
+#define lb_c_files_10posix_read ((intptr_t (*)(int32_t, void*, size_t))lb_x_files_10posix_read)
+#else
+extern intptr_t lb_x_files_10posix_read(int32_t, void*, size_t) LB_SYMBOL("read");
+#define lb_c_files_10posix_read lb_x_files_10posix_read
+#endif
+#if defined(__clang__)
+extern void lb_x_files_11posix_write(void) LB_SYMBOL("write");
+#define lb_c_files_11posix_write ((intptr_t (*)(int32_t, const void*, size_t))lb_x_files_11posix_write)
+#else
+extern intptr_t lb_x_files_11posix_write(int32_t, const void*, size_t) LB_SYMBOL("write");
+#define lb_c_files_11posix_write lb_x_files_11posix_write
+#endif
+#if defined(__clang__)
+extern void lb_x_files_8win_read(void) LB_SYMBOL("_read");
+#define lb_c_files_8win_read ((int32_t (*)(int32_t, void*, uint32_t))lb_x_files_8win_read)
+#else
+extern int32_t lb_x_files_8win_read(int32_t, void*, uint32_t) LB_SYMBOL("_read");
+#define lb_c_files_8win_read lb_x_files_8win_read
+#endif
+#if defined(__clang__)
+extern void lb_x_files_9win_write(void) LB_SYMBOL("_write");
+#define lb_c_files_9win_write ((int32_t (*)(int32_t, const void*, uint32_t))lb_x_files_9win_write)
+#else
+extern int32_t lb_x_files_9win_write(int32_t, const void*, uint32_t) LB_SYMBOL("_write");
+#define lb_c_files_9win_write lb_x_files_9win_write
+#endif
+#if defined(__clang__)
+extern void lb_x_files_11posix_lseek(void) LB_SYMBOL("lseek");
+#define lb_c_files_11posix_lseek ((int64_t (*)(int32_t, int64_t, int32_t))lb_x_files_11posix_lseek)
+#else
+extern int64_t lb_x_files_11posix_lseek(int32_t, int64_t, int32_t) LB_SYMBOL("lseek");
+#define lb_c_files_11posix_lseek lb_x_files_11posix_lseek
+#endif
+#if defined(__clang__)
+extern void lb_x_files_13windows_lseek(void) LB_SYMBOL("_lseeki64");
+#define lb_c_files_13windows_lseek ((int64_t (*)(int32_t, int64_t, int32_t))lb_x_files_13windows_lseek)
+#else
+extern int64_t lb_x_files_13windows_lseek(int32_t, int64_t, int32_t) LB_SYMBOL("_lseeki64");
+#define lb_c_files_13windows_lseek lb_x_files_13windows_lseek
+#endif
+#if defined(__clang__)
+extern void lb_x_files_11posix_fsync(void) LB_SYMBOL("fsync");
+#define lb_c_files_11posix_fsync ((int32_t (*)(int32_t))lb_x_files_11posix_fsync)
+#else
+extern int32_t lb_x_files_11posix_fsync(int32_t) LB_SYMBOL("fsync");
+#define lb_c_files_11posix_fsync lb_x_files_11posix_fsync
+#endif
+#if defined(__clang__)
+extern void lb_x_files_13windows_fsync(void) LB_SYMBOL("_commit");
+#define lb_c_files_13windows_fsync ((int32_t (*)(int32_t))lb_x_files_13windows_fsync)
+#else
+extern int32_t lb_x_files_13windows_fsync(int32_t) LB_SYMBOL("_commit");
+#define lb_c_files_13windows_fsync lb_x_files_13windows_fsync
+#endif
+#if defined(__clang__)
+extern void lb_x_files_15posix_ftruncate(void) LB_SYMBOL("ftruncate");
+#define lb_c_files_15posix_ftruncate ((int32_t (*)(int32_t, int64_t))lb_x_files_15posix_ftruncate)
+#else
+extern int32_t lb_x_files_15posix_ftruncate(int32_t, int64_t) LB_SYMBOL("ftruncate");
+#define lb_c_files_15posix_ftruncate lb_x_files_15posix_ftruncate
+#endif
+#if defined(__clang__)
+extern void lb_x_files_17windows_ftruncate(void) LB_SYMBOL("_chsize_s");
+#define lb_c_files_17windows_ftruncate ((int32_t (*)(int32_t, int64_t))lb_x_files_17windows_ftruncate)
+#else
+extern int32_t lb_x_files_17windows_ftruncate(int32_t, int64_t) LB_SYMBOL("_chsize_s");
+#define lb_c_files_17windows_ftruncate lb_x_files_17windows_ftruncate
+#endif
+#if defined(__clang__)
+extern void lb_x_files_12fchmod_macos(void) LB_SYMBOL("fchmod");
+#define lb_c_files_12fchmod_macos ((int32_t (*)(int32_t, uint16_t))lb_x_files_12fchmod_macos)
+#else
+extern int32_t lb_x_files_12fchmod_macos(int32_t, uint16_t) LB_SYMBOL("fchmod");
+#define lb_c_files_12fchmod_macos lb_x_files_12fchmod_macos
+#endif
+#if defined(__clang__)
+extern void lb_x_files_12fchmod_linux(void) LB_SYMBOL("fchmod");
+#define lb_c_files_12fchmod_linux ((int32_t (*)(int32_t, uint32_t))lb_x_files_12fchmod_linux)
+#else
+extern int32_t lb_x_files_12fchmod_linux(int32_t, uint32_t) LB_SYMBOL("fchmod");
+#define lb_c_files_12fchmod_linux lb_x_files_12fchmod_linux
+#endif
 extern void* lb_x_files_fdopendir(int32_t) LB_SYMBOL("fdopendir");
 extern int32_t lb_x_files_dirfd(void*) LB_SYMBOL("dirfd");
-extern char lb_x_files_13readdir_macos LB_SYMBOL("readdir");
-extern char lb_x_files_13readdir_linux LB_SYMBOL("readdir");
+#if defined(__clang__)
+extern void lb_x_files_13readdir_macos(void) LB_SYMBOL("readdir");
+#define lb_c_files_13readdir_macos ((struct MacEntry* (*)(void*))lb_x_files_13readdir_macos)
+#else
+extern struct MacEntry* lb_x_files_13readdir_macos(void*) LB_SYMBOL("readdir");
+#define lb_c_files_13readdir_macos lb_x_files_13readdir_macos
+#endif
+#if defined(__clang__)
+extern void lb_x_files_13readdir_linux(void) LB_SYMBOL("readdir");
+#define lb_c_files_13readdir_linux ((struct LinuxEntry* (*)(void*))lb_x_files_13readdir_linux)
+#else
+extern struct LinuxEntry* lb_x_files_13readdir_linux(void*) LB_SYMBOL("readdir");
+#define lb_c_files_13readdir_linux lb_x_files_13readdir_linux
+#endif
 extern int32_t lb_x_files_closedir(void*) LB_SYMBOL("closedir");
 extern int32_t lb_x_files_access(char*, int32_t) LB_SYMBOL("access");
-extern char lb_x_files_11mkdir_macos LB_SYMBOL("mkdir");
-extern char lb_x_files_11mkdir_linux LB_SYMBOL("mkdir");
+#if defined(__clang__)
+extern void lb_x_files_11mkdir_macos(void) LB_SYMBOL("mkdir");
+#define lb_c_files_11mkdir_macos ((int32_t (*)(char*, uint16_t))lb_x_files_11mkdir_macos)
+#else
+extern int32_t lb_x_files_11mkdir_macos(char*, uint16_t) LB_SYMBOL("mkdir");
+#define lb_c_files_11mkdir_macos lb_x_files_11mkdir_macos
+#endif
+#if defined(__clang__)
+extern void lb_x_files_11mkdir_linux(void) LB_SYMBOL("mkdir");
+#define lb_c_files_11mkdir_linux ((int32_t (*)(char*, uint32_t))lb_x_files_11mkdir_linux)
+#else
+extern int32_t lb_x_files_11mkdir_linux(char*, uint32_t) LB_SYMBOL("mkdir");
+#define lb_c_files_11mkdir_linux lb_x_files_11mkdir_linux
+#endif
 extern int32_t lb_x_files_rmdir(char*) LB_SYMBOL("rmdir");
 extern int32_t lb_x_files_unlink(char*) LB_SYMBOL("unlink");
-extern char lb_x_files_8c_rename LB_SYMBOL("rename");
-extern char lb_x_files_22rename_exclusive_macos LB_SYMBOL("renamex_np");
-extern char lb_x_files_22rename_exclusive_linux LB_SYMBOL("renameat2");
+#if defined(__clang__)
+extern void lb_x_files_8c_rename(void) LB_SYMBOL("rename");
+#define lb_c_files_8c_rename ((int32_t (*)(char*, char*))lb_x_files_8c_rename)
+#else
+extern int32_t lb_x_files_8c_rename(char*, char*) LB_SYMBOL("rename");
+#define lb_c_files_8c_rename lb_x_files_8c_rename
+#endif
+#if defined(__clang__)
+extern void lb_x_files_22rename_exclusive_macos(void) LB_SYMBOL("renamex_np");
+#define lb_c_files_22rename_exclusive_macos ((int32_t (*)(char*, char*, uint32_t))lb_x_files_22rename_exclusive_macos)
+#else
+extern int32_t lb_x_files_22rename_exclusive_macos(char*, char*, uint32_t) LB_SYMBOL("renamex_np");
+#define lb_c_files_22rename_exclusive_macos lb_x_files_22rename_exclusive_macos
+#endif
+#if defined(__clang__)
+extern void lb_x_files_22rename_exclusive_linux(void) LB_SYMBOL("renameat2");
+#define lb_c_files_22rename_exclusive_linux ((int32_t (*)(int32_t, char*, int32_t, char*, uint32_t))lb_x_files_22rename_exclusive_linux)
+#else
+extern int32_t lb_x_files_22rename_exclusive_linux(int32_t, char*, int32_t, char*, uint32_t) LB_SYMBOL("renameat2");
+#define lb_c_files_22rename_exclusive_linux lb_x_files_22rename_exclusive_linux
+#endif
 extern int32_t lb_x_files_symlink(char*, char*) LB_SYMBOL("symlink");
 extern int32_t lb_x_files_linkat(int32_t, char*, int32_t, char*, int32_t) LB_SYMBOL("linkat");
 extern intptr_t lb_x_files_readlink(char*, void*, size_t) LB_SYMBOL("readlink");
 extern int32_t lb_x_files_getentropy(void*, size_t) LB_SYMBOL("getentropy");
-extern char lb_x_files_16stat_linux_arm64 LB_SYMBOL("stat");
-extern char lb_x_files_17lstat_linux_arm64 LB_SYMBOL("lstat");
-extern char lb_x_files_17fstat_linux_arm64 LB_SYMBOL("fstat");
-extern char lb_x_files_19fstatat_linux_arm64 LB_SYMBOL("fstatat");
-extern char lb_x_files_10stat_macos LB_SYMBOL("stat");
-extern char lb_x_files_10stat_linux LB_SYMBOL("stat");
-extern char lb_x_files_11lstat_macos LB_SYMBOL("lstat");
-extern char lb_x_files_11lstat_linux LB_SYMBOL("lstat");
-extern char lb_x_files_11fstat_macos LB_SYMBOL("fstat");
-extern char lb_x_files_11fstat_linux LB_SYMBOL("fstat");
-extern char lb_x_files_13fstatat_macos LB_SYMBOL("fstatat");
-extern char lb_x_files_13fstatat_linux LB_SYMBOL("fstatat");
+#if defined(__clang__)
+extern void lb_x_files_16stat_linux_arm64(void) LB_SYMBOL("stat");
+#define lb_c_files_16stat_linux_arm64 ((int32_t (*)(char*, struct LinuxArm64Metadata*))lb_x_files_16stat_linux_arm64)
+#else
+extern int32_t lb_x_files_16stat_linux_arm64(char*, struct LinuxArm64Metadata*) LB_SYMBOL("stat");
+#define lb_c_files_16stat_linux_arm64 lb_x_files_16stat_linux_arm64
+#endif
+#if defined(__clang__)
+extern void lb_x_files_17lstat_linux_arm64(void) LB_SYMBOL("lstat");
+#define lb_c_files_17lstat_linux_arm64 ((int32_t (*)(char*, struct LinuxArm64Metadata*))lb_x_files_17lstat_linux_arm64)
+#else
+extern int32_t lb_x_files_17lstat_linux_arm64(char*, struct LinuxArm64Metadata*) LB_SYMBOL("lstat");
+#define lb_c_files_17lstat_linux_arm64 lb_x_files_17lstat_linux_arm64
+#endif
+#if defined(__clang__)
+extern void lb_x_files_17fstat_linux_arm64(void) LB_SYMBOL("fstat");
+#define lb_c_files_17fstat_linux_arm64 ((int32_t (*)(int32_t, struct LinuxArm64Metadata*))lb_x_files_17fstat_linux_arm64)
+#else
+extern int32_t lb_x_files_17fstat_linux_arm64(int32_t, struct LinuxArm64Metadata*) LB_SYMBOL("fstat");
+#define lb_c_files_17fstat_linux_arm64 lb_x_files_17fstat_linux_arm64
+#endif
+#if defined(__clang__)
+extern void lb_x_files_19fstatat_linux_arm64(void) LB_SYMBOL("fstatat");
+#define lb_c_files_19fstatat_linux_arm64 ((int32_t (*)(int32_t, char*, struct LinuxArm64Metadata*, int32_t))lb_x_files_19fstatat_linux_arm64)
+#else
+extern int32_t lb_x_files_19fstatat_linux_arm64(int32_t, char*, struct LinuxArm64Metadata*, int32_t) LB_SYMBOL("fstatat");
+#define lb_c_files_19fstatat_linux_arm64 lb_x_files_19fstatat_linux_arm64
+#endif
+#if defined(__clang__)
+extern void lb_x_files_10stat_macos(void) LB_SYMBOL("stat");
+#define lb_c_files_10stat_macos ((int32_t (*)(char*, struct MacMetadata*))lb_x_files_10stat_macos)
+#else
+extern int32_t lb_x_files_10stat_macos(char*, struct MacMetadata*) LB_SYMBOL("stat");
+#define lb_c_files_10stat_macos lb_x_files_10stat_macos
+#endif
+#if defined(__clang__)
+extern void lb_x_files_10stat_linux(void) LB_SYMBOL("stat");
+#define lb_c_files_10stat_linux ((int32_t (*)(char*, struct LinuxMetadata*))lb_x_files_10stat_linux)
+#else
+extern int32_t lb_x_files_10stat_linux(char*, struct LinuxMetadata*) LB_SYMBOL("stat");
+#define lb_c_files_10stat_linux lb_x_files_10stat_linux
+#endif
+#if defined(__clang__)
+extern void lb_x_files_11lstat_macos(void) LB_SYMBOL("lstat");
+#define lb_c_files_11lstat_macos ((int32_t (*)(char*, struct MacMetadata*))lb_x_files_11lstat_macos)
+#else
+extern int32_t lb_x_files_11lstat_macos(char*, struct MacMetadata*) LB_SYMBOL("lstat");
+#define lb_c_files_11lstat_macos lb_x_files_11lstat_macos
+#endif
+#if defined(__clang__)
+extern void lb_x_files_11lstat_linux(void) LB_SYMBOL("lstat");
+#define lb_c_files_11lstat_linux ((int32_t (*)(char*, struct LinuxMetadata*))lb_x_files_11lstat_linux)
+#else
+extern int32_t lb_x_files_11lstat_linux(char*, struct LinuxMetadata*) LB_SYMBOL("lstat");
+#define lb_c_files_11lstat_linux lb_x_files_11lstat_linux
+#endif
+#if defined(__clang__)
+extern void lb_x_files_11fstat_macos(void) LB_SYMBOL("fstat");
+#define lb_c_files_11fstat_macos ((int32_t (*)(int32_t, struct MacMetadata*))lb_x_files_11fstat_macos)
+#else
+extern int32_t lb_x_files_11fstat_macos(int32_t, struct MacMetadata*) LB_SYMBOL("fstat");
+#define lb_c_files_11fstat_macos lb_x_files_11fstat_macos
+#endif
+#if defined(__clang__)
+extern void lb_x_files_11fstat_linux(void) LB_SYMBOL("fstat");
+#define lb_c_files_11fstat_linux ((int32_t (*)(int32_t, struct LinuxMetadata*))lb_x_files_11fstat_linux)
+#else
+extern int32_t lb_x_files_11fstat_linux(int32_t, struct LinuxMetadata*) LB_SYMBOL("fstat");
+#define lb_c_files_11fstat_linux lb_x_files_11fstat_linux
+#endif
+#if defined(__clang__)
+extern void lb_x_files_13fstatat_macos(void) LB_SYMBOL("fstatat");
+#define lb_c_files_13fstatat_macos ((int32_t (*)(int32_t, char*, struct MacMetadata*, int32_t))lb_x_files_13fstatat_macos)
+#else
+extern int32_t lb_x_files_13fstatat_macos(int32_t, char*, struct MacMetadata*, int32_t) LB_SYMBOL("fstatat");
+#define lb_c_files_13fstatat_macos lb_x_files_13fstatat_macos
+#endif
+#if defined(__clang__)
+extern void lb_x_files_13fstatat_linux(void) LB_SYMBOL("fstatat");
+#define lb_c_files_13fstatat_linux ((int32_t (*)(int32_t, char*, struct LinuxMetadata*, int32_t))lb_x_files_13fstatat_linux)
+#else
+extern int32_t lb_x_files_13fstatat_linux(int32_t, char*, struct LinuxMetadata*, int32_t) LB_SYMBOL("fstatat");
+#define lb_c_files_13fstatat_linux lb_x_files_13fstatat_linux
+#endif
 extern int32_t lb_x_files_futimens(int32_t, const struct NativeFileTime*) LB_SYMBOL("futimens");
 typedef struct lb_vt_WalkVisitor {
     lb_r_bool (*visit)(void* self, lb_str, lb_files_Metadata, size_t);
@@ -2297,20 +3150,68 @@ extern void* lb_x_files_FindFirstFileW(uint16_t*, struct WinFind*) LB_SYMBOL("Fi
 extern int32_t lb_x_files_FindNextFileW(void*, struct WinFind*) LB_SYMBOL("FindNextFileW");
 extern int32_t lb_x_files_FindClose(void*) LB_SYMBOL("FindClose");
 extern int32_t lb_x_files_MoveFileExW(uint16_t*, uint16_t*, uint32_t) LB_SYMBOL("MoveFileExW");
-extern char lb_x_files_8win_open LB_SYMBOL("_wopen");
-extern char lb_x_files_10win_access LB_SYMBOL("_waccess");
-extern char lb_x_files_9win_mkdir LB_SYMBOL("_wmkdir");
-extern char lb_x_files_9win_rmdir LB_SYMBOL("_wrmdir");
-extern char lb_x_files_10win_unlink LB_SYMBOL("_wunlink");
-extern char lb_x_files_10win_handle LB_SYMBOL("_get_osfhandle");
-extern char lb_x_files_14win_descriptor LB_SYMBOL("_open_osfhandle");
+#if defined(__clang__)
+extern void lb_x_files_8win_open(void) LB_SYMBOL("_wopen");
+#define lb_c_files_8win_open ((int32_t (*)(uint16_t*, int32_t, ...))lb_x_files_8win_open)
+#else
+extern int32_t lb_x_files_8win_open(uint16_t*, int32_t, ...) LB_SYMBOL("_wopen");
+#define lb_c_files_8win_open lb_x_files_8win_open
+#endif
+#if defined(__clang__)
+extern void lb_x_files_10win_access(void) LB_SYMBOL("_waccess");
+#define lb_c_files_10win_access ((int32_t (*)(uint16_t*, int32_t))lb_x_files_10win_access)
+#else
+extern int32_t lb_x_files_10win_access(uint16_t*, int32_t) LB_SYMBOL("_waccess");
+#define lb_c_files_10win_access lb_x_files_10win_access
+#endif
+#if defined(__clang__)
+extern void lb_x_files_9win_mkdir(void) LB_SYMBOL("_wmkdir");
+#define lb_c_files_9win_mkdir ((int32_t (*)(uint16_t*))lb_x_files_9win_mkdir)
+#else
+extern int32_t lb_x_files_9win_mkdir(uint16_t*) LB_SYMBOL("_wmkdir");
+#define lb_c_files_9win_mkdir lb_x_files_9win_mkdir
+#endif
+#if defined(__clang__)
+extern void lb_x_files_9win_rmdir(void) LB_SYMBOL("_wrmdir");
+#define lb_c_files_9win_rmdir ((int32_t (*)(uint16_t*))lb_x_files_9win_rmdir)
+#else
+extern int32_t lb_x_files_9win_rmdir(uint16_t*) LB_SYMBOL("_wrmdir");
+#define lb_c_files_9win_rmdir lb_x_files_9win_rmdir
+#endif
+#if defined(__clang__)
+extern void lb_x_files_10win_unlink(void) LB_SYMBOL("_wunlink");
+#define lb_c_files_10win_unlink ((int32_t (*)(uint16_t*))lb_x_files_10win_unlink)
+#else
+extern int32_t lb_x_files_10win_unlink(uint16_t*) LB_SYMBOL("_wunlink");
+#define lb_c_files_10win_unlink lb_x_files_10win_unlink
+#endif
+#if defined(__clang__)
+extern void lb_x_files_10win_handle(void) LB_SYMBOL("_get_osfhandle");
+#define lb_c_files_10win_handle ((intptr_t (*)(int32_t))lb_x_files_10win_handle)
+#else
+extern intptr_t lb_x_files_10win_handle(int32_t) LB_SYMBOL("_get_osfhandle");
+#define lb_c_files_10win_handle lb_x_files_10win_handle
+#endif
+#if defined(__clang__)
+extern void lb_x_files_14win_descriptor(void) LB_SYMBOL("_open_osfhandle");
+#define lb_c_files_14win_descriptor ((int32_t (*)(intptr_t, int32_t))lb_x_files_14win_descriptor)
+#else
+extern int32_t lb_x_files_14win_descriptor(intptr_t, int32_t) LB_SYMBOL("_open_osfhandle");
+#define lb_c_files_14win_descriptor lb_x_files_14win_descriptor
+#endif
 extern int32_t lb_x_files_SetFileInformationByHandle(void*, int32_t, void*, uint32_t) LB_SYMBOL("SetFileInformationByHandle");
 extern int32_t lb_x_files_SetFileTime(void*, const uint64_t*, const uint64_t*, const uint64_t*) LB_SYMBOL("SetFileTime");
 extern int32_t lb_x_files_CreateHardLinkW(uint16_t*, uint16_t*, void*) LB_SYMBOL("CreateHardLinkW");
 extern uint8_t lb_x_files_CreateSymbolicLinkW(uint16_t*, uint16_t*, uint32_t) LB_SYMBOL("CreateSymbolicLinkW");
 extern int32_t lb_x_files_DeviceIoControl(void*, uint32_t, void*, uint32_t, void*, uint32_t, uint32_t*, void*) LB_SYMBOL("DeviceIoControl");
 extern uint8_t* lb_x_files_realpath(char*, uint8_t*) LB_SYMBOL("realpath");
-extern char lb_x_files_16release_realpath LB_SYMBOL("free");
+#if defined(__clang__)
+extern void lb_x_files_16release_realpath(void) LB_SYMBOL("free");
+#define lb_c_files_16release_realpath ((void (*)(void*))lb_x_files_16release_realpath)
+#else
+extern void lb_x_files_16release_realpath(void*) LB_SYMBOL("free");
+#define lb_c_files_16release_realpath lb_x_files_16release_realpath
+#endif
 extern int32_t lb_x_process_pipe(int32_t*) LB_SYMBOL("pipe");
 extern int32_t lb_x_process_fork(void) LB_SYMBOL("fork");
 extern int32_t lb_x_process_dup2(int32_t, int32_t) LB_SYMBOL("dup2");
@@ -2319,7 +3220,13 @@ extern int32_t lb_x_process_execvp(char*, void**) LB_SYMBOL("execvp");
 extern void lb_x_process_5_exit(int32_t) LB_SYMBOL("_exit");
 extern int32_t lb_x_process_waitpid(int32_t, int32_t*, int32_t) LB_SYMBOL("waitpid");
 extern int32_t lb_x_process_kill(int32_t, int32_t) LB_SYMBOL("kill");
-extern char lb_x_process_6c_read LB_SYMBOL("read");
+#if defined(__clang__)
+extern void lb_x_process_6c_read(void) LB_SYMBOL("read");
+#define lb_c_process_6c_read ((intptr_t (*)(int32_t, void*, size_t))lb_x_process_6c_read)
+#else
+extern intptr_t lb_x_process_6c_read(int32_t, void*, size_t) LB_SYMBOL("read");
+#define lb_c_process_6c_read lb_x_process_6c_read
+#endif
 extern int32_t lb_x_process_poll(struct Poll*, uint32_t, int32_t) LB_SYMBOL("poll");
 extern int32_t lb_x_process_fcntl(int32_t, int32_t, ...) LB_SYMBOL("fcntl");
 extern int32_t lb_x_process_CreateProcessW(void*, uint16_t*, void*, void*, int32_t, uint32_t, void*, void*, struct WinStartup*, struct WinProcess*) LB_SYMBOL("CreateProcessW");
@@ -2327,17 +3234,65 @@ extern int32_t lb_x_process_DuplicateHandle(void*, void*, void*, void**, uint32_
 extern uint32_t lb_x_process_WaitForSingleObject(void*, uint32_t) LB_SYMBOL("WaitForSingleObject");
 extern int32_t lb_x_process_GetExitCodeProcess(void*, uint32_t*) LB_SYMBOL("GetExitCodeProcess");
 extern int32_t lb_x_process_TerminateProcess(void*, uint32_t) LB_SYMBOL("TerminateProcess");
-extern char lb_x_process_15win_open_handle LB_SYMBOL("_open_osfhandle");
-extern char lb_x_process_10win_fdopen LB_SYMBOL("_fdopen");
-extern char lb_x_process_9win_close LB_SYMBOL("_close");
+#if defined(__clang__)
+extern void lb_x_process_15win_open_handle(void) LB_SYMBOL("_open_osfhandle");
+#define lb_c_process_15win_open_handle ((int32_t (*)(intptr_t, int32_t))lb_x_process_15win_open_handle)
+#else
+extern int32_t lb_x_process_15win_open_handle(intptr_t, int32_t) LB_SYMBOL("_open_osfhandle");
+#define lb_c_process_15win_open_handle lb_x_process_15win_open_handle
+#endif
+#if defined(__clang__)
+extern void lb_x_process_10win_fdopen(void) LB_SYMBOL("_fdopen");
+#define lb_c_process_10win_fdopen ((void* (*)(int32_t, char*))lb_x_process_10win_fdopen)
+#else
+extern void* lb_x_process_10win_fdopen(int32_t, char*) LB_SYMBOL("_fdopen");
+#define lb_c_process_10win_fdopen lb_x_process_10win_fdopen
+#endif
+#if defined(__clang__)
+extern void lb_x_process_9win_close(void) LB_SYMBOL("_close");
+#define lb_c_process_9win_close ((int32_t (*)(int32_t))lb_x_process_9win_close)
+#else
+extern int32_t lb_x_process_9win_close(int32_t) LB_SYMBOL("_close");
+#define lb_c_process_9win_close lb_x_process_9win_close
+#endif
 extern void* lb_x_process_fopen(char*, char*) LB_SYMBOL("fopen");
 extern int32_t lb_x_process_fclose(void*) LB_SYMBOL("fclose");
-extern char lb_x_process_10win_fileno LB_SYMBOL("_fileno");
-extern char lb_x_process_13win_os_handle LB_SYMBOL("_get_osfhandle");
-extern char lb_x_process_8win_seek LB_SYMBOL("_fseeki64");
-extern char lb_x_process_8win_tell LB_SYMBOL("_ftelli64");
+#if defined(__clang__)
+extern void lb_x_process_10win_fileno(void) LB_SYMBOL("_fileno");
+#define lb_c_process_10win_fileno ((int32_t (*)(void*))lb_x_process_10win_fileno)
+#else
+extern int32_t lb_x_process_10win_fileno(void*) LB_SYMBOL("_fileno");
+#define lb_c_process_10win_fileno lb_x_process_10win_fileno
+#endif
+#if defined(__clang__)
+extern void lb_x_process_13win_os_handle(void) LB_SYMBOL("_get_osfhandle");
+#define lb_c_process_13win_os_handle ((intptr_t (*)(int32_t))lb_x_process_13win_os_handle)
+#else
+extern intptr_t lb_x_process_13win_os_handle(int32_t) LB_SYMBOL("_get_osfhandle");
+#define lb_c_process_13win_os_handle lb_x_process_13win_os_handle
+#endif
+#if defined(__clang__)
+extern void lb_x_process_8win_seek(void) LB_SYMBOL("_fseeki64");
+#define lb_c_process_8win_seek ((int32_t (*)(void*, int64_t, int32_t))lb_x_process_8win_seek)
+#else
+extern int32_t lb_x_process_8win_seek(void*, int64_t, int32_t) LB_SYMBOL("_fseeki64");
+#define lb_c_process_8win_seek lb_x_process_8win_seek
+#endif
+#if defined(__clang__)
+extern void lb_x_process_8win_tell(void) LB_SYMBOL("_ftelli64");
+#define lb_c_process_8win_tell ((int64_t (*)(void*))lb_x_process_8win_tell)
+#else
+extern int64_t lb_x_process_8win_tell(void*) LB_SYMBOL("_ftelli64");
+#define lb_c_process_8win_tell lb_x_process_8win_tell
+#endif
 extern size_t lb_x_process_fread(void*, size_t, size_t, void*) LB_SYMBOL("fread");
-extern char lb_x_process_18termination_signal LB_SYMBOL("signal");
+#if defined(__clang__)
+extern void lb_x_process_18termination_signal(void) LB_SYMBOL("signal");
+#define lb_c_process_18termination_signal ((lb_fn_0F1_i32_unit (*)(int32_t, lb_fn_0F1_i32_unit))lb_x_process_18termination_signal)
+#else
+extern lb_fn_0F1_i32_unit lb_x_process_18termination_signal(int32_t, lb_fn_0F1_i32_unit) LB_SYMBOL("signal");
+#define lb_c_process_18termination_signal lb_x_process_18termination_signal
+#endif
 extern int32_t lb_x_process_SetConsoleCtrlHandler(lb_fn_0F1_u32_i32, int32_t) LB_SYMBOL("SetConsoleCtrlHandler");
 extern uint64_t lb_x_process_GetTickCount64(void) LB_SYMBOL("GetTickCount64");
 extern void lb_x_process_Sleep(uint32_t) LB_SYMBOL("Sleep");
@@ -2370,31 +3325,181 @@ extern void* lb_x_window_26object_setInstanceVariable(void*, char*, void*) LB_SY
 extern void* lb_x_window_26object_getInstanceVariable(void*, char*, void**) LB_SYMBOL("object_getInstanceVariable");
 extern void* lb_x_window_24objc_autoreleasePoolPush(void) LB_SYMBOL("objc_autoreleasePoolPush");
 extern void lb_x_window_23objc_autoreleasePoolPop(void*) LB_SYMBOL("objc_autoreleasePoolPop");
-extern char lb_x_window_7msg_ptr LB_SYMBOL("objc_msgSend");
-extern char lb_x_window_8msg_void LB_SYMBOL("objc_msgSend");
-extern char lb_x_window_10msg_object LB_SYMBOL("objc_msgSend");
-extern char lb_x_window_12msg_bool_arg LB_SYMBOL("objc_msgSend");
-extern char lb_x_window_15msg_bool_object LB_SYMBOL("objc_msgSend");
-extern char lb_x_window_8msg_bool LB_SYMBOL("objc_msgSend");
-extern char lb_x_window_8msg_uint LB_SYMBOL("objc_msgSend");
-extern char lb_x_window_7msg_key LB_SYMBOL("objc_msgSend");
-extern char lb_x_window_13msg_character LB_SYMBOL("objc_msgSend");
-extern char lb_x_window_14msg_one_object LB_SYMBOL("objc_msgSend");
-extern char lb_x_window_10msg_double LB_SYMBOL("objc_msgSend");
-extern char lb_x_window_10msg_policy LB_SYMBOL("objc_msgSend");
-extern char lb_x_window_8msg_rect LB_SYMBOL("objc_msgSend");
-extern char lb_x_window_11msg_backing LB_SYMBOL("objc_msgSend");
-extern char lb_x_window_9msg_point LB_SYMBOL("objc_msgSend");
-extern char lb_x_window_11msg_convert LB_SYMBOL("objc_msgSend");
-extern char lb_x_window_10msg_extent LB_SYMBOL("objc_msgSend");
-extern char lb_x_window_15msg_init_window LB_SYMBOL("objc_msgSend");
-extern char lb_x_window_13msg_init_view LB_SYMBOL("objc_msgSend");
-extern char lb_x_window_17msg_init_tracking LB_SYMBOL("objc_msgSend");
-extern char lb_x_window_13msg_init_text LB_SYMBOL("objc_msgSend");
-extern char lb_x_window_8msg_next LB_SYMBOL("objc_msgSend");
-extern char lb_x_window_11msg_observe LB_SYMBOL("objc_msgSend");
-extern char lb_x_window_8msg_post LB_SYMBOL("objc_msgSend");
-extern char lb_x_window_10msg_wakeup LB_SYMBOL("objc_msgSend");
+#if defined(__clang__)
+extern void lb_x_window_7msg_ptr(void) LB_SYMBOL("objc_msgSend");
+#define lb_c_window_7msg_ptr ((void* (*)(void*, void*))lb_x_window_7msg_ptr)
+#else
+extern void* lb_x_window_7msg_ptr(void*, void*) LB_SYMBOL("objc_msgSend");
+#define lb_c_window_7msg_ptr lb_x_window_7msg_ptr
+#endif
+#if defined(__clang__)
+extern void lb_x_window_8msg_void(void) LB_SYMBOL("objc_msgSend");
+#define lb_c_window_8msg_void ((void (*)(void*, void*))lb_x_window_8msg_void)
+#else
+extern void lb_x_window_8msg_void(void*, void*) LB_SYMBOL("objc_msgSend");
+#define lb_c_window_8msg_void lb_x_window_8msg_void
+#endif
+#if defined(__clang__)
+extern void lb_x_window_10msg_object(void) LB_SYMBOL("objc_msgSend");
+#define lb_c_window_10msg_object ((void (*)(void*, void*, void*))lb_x_window_10msg_object)
+#else
+extern void lb_x_window_10msg_object(void*, void*, void*) LB_SYMBOL("objc_msgSend");
+#define lb_c_window_10msg_object lb_x_window_10msg_object
+#endif
+#if defined(__clang__)
+extern void lb_x_window_12msg_bool_arg(void) LB_SYMBOL("objc_msgSend");
+#define lb_c_window_12msg_bool_arg ((void (*)(void*, void*, bool))lb_x_window_12msg_bool_arg)
+#else
+extern void lb_x_window_12msg_bool_arg(void*, void*, bool) LB_SYMBOL("objc_msgSend");
+#define lb_c_window_12msg_bool_arg lb_x_window_12msg_bool_arg
+#endif
+#if defined(__clang__)
+extern void lb_x_window_15msg_bool_object(void) LB_SYMBOL("objc_msgSend");
+#define lb_c_window_15msg_bool_object ((bool (*)(void*, void*, void*))lb_x_window_15msg_bool_object)
+#else
+extern bool lb_x_window_15msg_bool_object(void*, void*, void*) LB_SYMBOL("objc_msgSend");
+#define lb_c_window_15msg_bool_object lb_x_window_15msg_bool_object
+#endif
+#if defined(__clang__)
+extern void lb_x_window_8msg_bool(void) LB_SYMBOL("objc_msgSend");
+#define lb_c_window_8msg_bool ((bool (*)(void*, void*))lb_x_window_8msg_bool)
+#else
+extern bool lb_x_window_8msg_bool(void*, void*) LB_SYMBOL("objc_msgSend");
+#define lb_c_window_8msg_bool lb_x_window_8msg_bool
+#endif
+#if defined(__clang__)
+extern void lb_x_window_8msg_uint(void) LB_SYMBOL("objc_msgSend");
+#define lb_c_window_8msg_uint ((uint64_t (*)(void*, void*))lb_x_window_8msg_uint)
+#else
+extern uint64_t lb_x_window_8msg_uint(void*, void*) LB_SYMBOL("objc_msgSend");
+#define lb_c_window_8msg_uint lb_x_window_8msg_uint
+#endif
+#if defined(__clang__)
+extern void lb_x_window_7msg_key(void) LB_SYMBOL("objc_msgSend");
+#define lb_c_window_7msg_key ((uint16_t (*)(void*, void*))lb_x_window_7msg_key)
+#else
+extern uint16_t lb_x_window_7msg_key(void*, void*) LB_SYMBOL("objc_msgSend");
+#define lb_c_window_7msg_key lb_x_window_7msg_key
+#endif
+#if defined(__clang__)
+extern void lb_x_window_13msg_character(void) LB_SYMBOL("objc_msgSend");
+#define lb_c_window_13msg_character ((uint16_t (*)(void*, void*, size_t))lb_x_window_13msg_character)
+#else
+extern uint16_t lb_x_window_13msg_character(void*, void*, size_t) LB_SYMBOL("objc_msgSend");
+#define lb_c_window_13msg_character lb_x_window_13msg_character
+#endif
+#if defined(__clang__)
+extern void lb_x_window_14msg_one_object(void) LB_SYMBOL("objc_msgSend");
+#define lb_c_window_14msg_one_object ((void* (*)(void*, void*, void*))lb_x_window_14msg_one_object)
+#else
+extern void* lb_x_window_14msg_one_object(void*, void*, void*) LB_SYMBOL("objc_msgSend");
+#define lb_c_window_14msg_one_object lb_x_window_14msg_one_object
+#endif
+#if defined(__clang__)
+extern void lb_x_window_10msg_double(void) LB_SYMBOL("objc_msgSend");
+#define lb_c_window_10msg_double ((double (*)(void*, void*))lb_x_window_10msg_double)
+#else
+extern double lb_x_window_10msg_double(void*, void*) LB_SYMBOL("objc_msgSend");
+#define lb_c_window_10msg_double lb_x_window_10msg_double
+#endif
+#if defined(__clang__)
+extern void lb_x_window_10msg_policy(void) LB_SYMBOL("objc_msgSend");
+#define lb_c_window_10msg_policy ((bool (*)(void*, void*, int64_t))lb_x_window_10msg_policy)
+#else
+extern bool lb_x_window_10msg_policy(void*, void*, int64_t) LB_SYMBOL("objc_msgSend");
+#define lb_c_window_10msg_policy lb_x_window_10msg_policy
+#endif
+#if defined(__clang__)
+extern void lb_x_window_8msg_rect(void) LB_SYMBOL("objc_msgSend");
+#define lb_c_window_8msg_rect ((LuceWindowMacRect (*)(void*, void*))lb_x_window_8msg_rect)
+#else
+extern LuceWindowMacRect lb_x_window_8msg_rect(void*, void*) LB_SYMBOL("objc_msgSend");
+#define lb_c_window_8msg_rect lb_x_window_8msg_rect
+#endif
+#if defined(__clang__)
+extern void lb_x_window_11msg_backing(void) LB_SYMBOL("objc_msgSend");
+#define lb_c_window_11msg_backing ((LuceWindowMacRect (*)(void*, void*, LuceWindowMacRect))lb_x_window_11msg_backing)
+#else
+extern LuceWindowMacRect lb_x_window_11msg_backing(void*, void*, LuceWindowMacRect) LB_SYMBOL("objc_msgSend");
+#define lb_c_window_11msg_backing lb_x_window_11msg_backing
+#endif
+#if defined(__clang__)
+extern void lb_x_window_9msg_point(void) LB_SYMBOL("objc_msgSend");
+#define lb_c_window_9msg_point ((LuceWindowMacPoint (*)(void*, void*))lb_x_window_9msg_point)
+#else
+extern LuceWindowMacPoint lb_x_window_9msg_point(void*, void*) LB_SYMBOL("objc_msgSend");
+#define lb_c_window_9msg_point lb_x_window_9msg_point
+#endif
+#if defined(__clang__)
+extern void lb_x_window_11msg_convert(void) LB_SYMBOL("objc_msgSend");
+#define lb_c_window_11msg_convert ((LuceWindowMacPoint (*)(void*, void*, LuceWindowMacPoint, void*))lb_x_window_11msg_convert)
+#else
+extern LuceWindowMacPoint lb_x_window_11msg_convert(void*, void*, LuceWindowMacPoint, void*) LB_SYMBOL("objc_msgSend");
+#define lb_c_window_11msg_convert lb_x_window_11msg_convert
+#endif
+#if defined(__clang__)
+extern void lb_x_window_10msg_extent(void) LB_SYMBOL("objc_msgSend");
+#define lb_c_window_10msg_extent ((void (*)(void*, void*, LuceWindowMacExtent))lb_x_window_10msg_extent)
+#else
+extern void lb_x_window_10msg_extent(void*, void*, LuceWindowMacExtent) LB_SYMBOL("objc_msgSend");
+#define lb_c_window_10msg_extent lb_x_window_10msg_extent
+#endif
+#if defined(__clang__)
+extern void lb_x_window_15msg_init_window(void) LB_SYMBOL("objc_msgSend");
+#define lb_c_window_15msg_init_window ((void* (*)(void*, void*, LuceWindowMacRect, uint64_t, uint64_t, bool))lb_x_window_15msg_init_window)
+#else
+extern void* lb_x_window_15msg_init_window(void*, void*, LuceWindowMacRect, uint64_t, uint64_t, bool) LB_SYMBOL("objc_msgSend");
+#define lb_c_window_15msg_init_window lb_x_window_15msg_init_window
+#endif
+#if defined(__clang__)
+extern void lb_x_window_13msg_init_view(void) LB_SYMBOL("objc_msgSend");
+#define lb_c_window_13msg_init_view ((void* (*)(void*, void*, LuceWindowMacRect))lb_x_window_13msg_init_view)
+#else
+extern void* lb_x_window_13msg_init_view(void*, void*, LuceWindowMacRect) LB_SYMBOL("objc_msgSend");
+#define lb_c_window_13msg_init_view lb_x_window_13msg_init_view
+#endif
+#if defined(__clang__)
+extern void lb_x_window_17msg_init_tracking(void) LB_SYMBOL("objc_msgSend");
+#define lb_c_window_17msg_init_tracking ((void* (*)(void*, void*, LuceWindowMacRect, uint64_t, void*, void*))lb_x_window_17msg_init_tracking)
+#else
+extern void* lb_x_window_17msg_init_tracking(void*, void*, LuceWindowMacRect, uint64_t, void*, void*) LB_SYMBOL("objc_msgSend");
+#define lb_c_window_17msg_init_tracking lb_x_window_17msg_init_tracking
+#endif
+#if defined(__clang__)
+extern void lb_x_window_13msg_init_text(void) LB_SYMBOL("objc_msgSend");
+#define lb_c_window_13msg_init_text ((void* (*)(void*, void*, const uint8_t*, size_t, uint64_t))lb_x_window_13msg_init_text)
+#else
+extern void* lb_x_window_13msg_init_text(void*, void*, const uint8_t*, size_t, uint64_t) LB_SYMBOL("objc_msgSend");
+#define lb_c_window_13msg_init_text lb_x_window_13msg_init_text
+#endif
+#if defined(__clang__)
+extern void lb_x_window_8msg_next(void) LB_SYMBOL("objc_msgSend");
+#define lb_c_window_8msg_next ((void* (*)(void*, void*, uint64_t, void*, void*, bool))lb_x_window_8msg_next)
+#else
+extern void* lb_x_window_8msg_next(void*, void*, uint64_t, void*, void*, bool) LB_SYMBOL("objc_msgSend");
+#define lb_c_window_8msg_next lb_x_window_8msg_next
+#endif
+#if defined(__clang__)
+extern void lb_x_window_11msg_observe(void) LB_SYMBOL("objc_msgSend");
+#define lb_c_window_11msg_observe ((void (*)(void*, void*, void*, void*, void*, void*))lb_x_window_11msg_observe)
+#else
+extern void lb_x_window_11msg_observe(void*, void*, void*, void*, void*, void*) LB_SYMBOL("objc_msgSend");
+#define lb_c_window_11msg_observe lb_x_window_11msg_observe
+#endif
+#if defined(__clang__)
+extern void lb_x_window_8msg_post(void) LB_SYMBOL("objc_msgSend");
+#define lb_c_window_8msg_post ((void (*)(void*, void*, void*, bool))lb_x_window_8msg_post)
+#else
+extern void lb_x_window_8msg_post(void*, void*, void*, bool) LB_SYMBOL("objc_msgSend");
+#define lb_c_window_8msg_post lb_x_window_8msg_post
+#endif
+#if defined(__clang__)
+extern void lb_x_window_10msg_wakeup(void) LB_SYMBOL("objc_msgSend");
+#define lb_c_window_10msg_wakeup ((void* (*)(void*, void*, uint64_t, LuceWindowMacPoint, uint64_t, double, int64_t, void*, int16_t, int64_t, int64_t))lb_x_window_10msg_wakeup)
+#else
+extern void* lb_x_window_10msg_wakeup(void*, void*, uint64_t, LuceWindowMacPoint, uint64_t, double, int64_t, void*, int16_t, int64_t, int64_t) LB_SYMBOL("objc_msgSend");
+#define lb_c_window_10msg_wakeup lb_x_window_10msg_wakeup
+#endif
 extern uint16_t lb_x_window_RegisterClassExW(struct WinClass*) LB_SYMBOL("RegisterClassExW");
 extern void* lb_x_window_LoadCursorW(void*, uint16_t*) LB_SYMBOL("LoadCursorW");
 extern void* lb_x_window_CreateWindowExW(uint32_t, uint16_t*, uint16_t*, uint32_t, int32_t, int32_t, int32_t, int32_t, void*, void*, void*, void*) LB_SYMBOL("CreateWindowExW");
@@ -2427,13 +3532,55 @@ extern void* lb_x_clipboard_13objc_getClass(char*) LB_SYMBOL("objc_getClass");
 extern void* lb_x_clipboard_16sel_registerName(char*) LB_SYMBOL("sel_registerName");
 extern void* lb_x_clipboard_24objc_autoreleasePoolPush(void) LB_SYMBOL("objc_autoreleasePoolPush");
 extern void lb_x_clipboard_23objc_autoreleasePoolPop(void*) LB_SYMBOL("objc_autoreleasePoolPop");
-extern char lb_x_clipboard_10msg_object LB_SYMBOL("objc_msgSend");
-extern char lb_x_clipboard_9msg_typed LB_SYMBOL("objc_msgSend");
-extern char lb_x_clipboard_9msg_count LB_SYMBOL("objc_msgSend");
-extern char lb_x_clipboard_8msg_size LB_SYMBOL("objc_msgSend");
-extern char lb_x_clipboard_8msg_init LB_SYMBOL("objc_msgSend");
-extern char lb_x_clipboard_9msg_write LB_SYMBOL("objc_msgSend");
-extern char lb_x_clipboard_11msg_release LB_SYMBOL("objc_msgSend");
+#if defined(__clang__)
+extern void lb_x_clipboard_10msg_object(void) LB_SYMBOL("objc_msgSend");
+#define lb_c_clipboard_10msg_object ((void* (*)(void*, void*))lb_x_clipboard_10msg_object)
+#else
+extern void* lb_x_clipboard_10msg_object(void*, void*) LB_SYMBOL("objc_msgSend");
+#define lb_c_clipboard_10msg_object lb_x_clipboard_10msg_object
+#endif
+#if defined(__clang__)
+extern void lb_x_clipboard_9msg_typed(void) LB_SYMBOL("objc_msgSend");
+#define lb_c_clipboard_9msg_typed ((void* (*)(void*, void*, void*))lb_x_clipboard_9msg_typed)
+#else
+extern void* lb_x_clipboard_9msg_typed(void*, void*, void*) LB_SYMBOL("objc_msgSend");
+#define lb_c_clipboard_9msg_typed lb_x_clipboard_9msg_typed
+#endif
+#if defined(__clang__)
+extern void lb_x_clipboard_9msg_count(void) LB_SYMBOL("objc_msgSend");
+#define lb_c_clipboard_9msg_count ((int64_t (*)(void*, void*))lb_x_clipboard_9msg_count)
+#else
+extern int64_t lb_x_clipboard_9msg_count(void*, void*) LB_SYMBOL("objc_msgSend");
+#define lb_c_clipboard_9msg_count lb_x_clipboard_9msg_count
+#endif
+#if defined(__clang__)
+extern void lb_x_clipboard_8msg_size(void) LB_SYMBOL("objc_msgSend");
+#define lb_c_clipboard_8msg_size ((size_t (*)(void*, void*, uint64_t))lb_x_clipboard_8msg_size)
+#else
+extern size_t lb_x_clipboard_8msg_size(void*, void*, uint64_t) LB_SYMBOL("objc_msgSend");
+#define lb_c_clipboard_8msg_size lb_x_clipboard_8msg_size
+#endif
+#if defined(__clang__)
+extern void lb_x_clipboard_8msg_init(void) LB_SYMBOL("objc_msgSend");
+#define lb_c_clipboard_8msg_init ((void* (*)(void*, void*, const uint8_t*, size_t, uint64_t))lb_x_clipboard_8msg_init)
+#else
+extern void* lb_x_clipboard_8msg_init(void*, void*, const uint8_t*, size_t, uint64_t) LB_SYMBOL("objc_msgSend");
+#define lb_c_clipboard_8msg_init lb_x_clipboard_8msg_init
+#endif
+#if defined(__clang__)
+extern void lb_x_clipboard_9msg_write(void) LB_SYMBOL("objc_msgSend");
+#define lb_c_clipboard_9msg_write ((bool (*)(void*, void*, void*, void*))lb_x_clipboard_9msg_write)
+#else
+extern bool lb_x_clipboard_9msg_write(void*, void*, void*, void*) LB_SYMBOL("objc_msgSend");
+#define lb_c_clipboard_9msg_write lb_x_clipboard_9msg_write
+#endif
+#if defined(__clang__)
+extern void lb_x_clipboard_11msg_release(void) LB_SYMBOL("objc_msgSend");
+#define lb_c_clipboard_11msg_release ((void (*)(void*, void*))lb_x_clipboard_11msg_release)
+#else
+extern void lb_x_clipboard_11msg_release(void*, void*) LB_SYMBOL("objc_msgSend");
+#define lb_c_clipboard_11msg_release lb_x_clipboard_11msg_release
+#endif
 extern void* lb_x_clipboard_GetActiveWindow(void) LB_SYMBOL("GetActiveWindow");
 extern int32_t lb_x_clipboard_OpenClipboard(void*) LB_SYMBOL("OpenClipboard");
 extern int32_t lb_x_clipboard_CloseClipboard(void) LB_SYMBOL("CloseClipboard");
@@ -2496,14 +3643,62 @@ extern void lb_x_fonts_26cairo_font_options_destroy(void*) LB_SYMBOL("cairo_font
 extern void lb_x_fonts_32cairo_font_options_set_antialias(void*, int32_t) LB_SYMBOL("cairo_font_options_set_antialias");
 extern void lb_x_fonts_35cairo_font_options_set_hint_metrics(void*, int32_t) LB_SYMBOL("cairo_font_options_set_hint_metrics");
 extern void lb_x_fonts_22cairo_set_font_options(void*, void*) LB_SYMBOL("cairo_set_font_options");
-extern char lb_x_gpu_14metal_viewport LB_SYMBOL("objc_msgSend");
-extern char lb_x_gpu_12metal_string LB_SYMBOL("objc_msgSend");
-extern char lb_x_gpu_13metal_library LB_SYMBOL("objc_msgSend");
-extern char lb_x_gpu_14metal_pipeline LB_SYMBOL("objc_msgSend");
-extern char lb_x_gpu_12metal_buffer LB_SYMBOL("objc_msgSend");
-extern char lb_x_gpu_17metal_bind_buffer LB_SYMBOL("objc_msgSend");
-extern char lb_x_gpu_13metal_scissor LB_SYMBOL("objc_msgSend");
-extern char lb_x_gpu_10metal_draw LB_SYMBOL("objc_msgSend");
+#if defined(__clang__)
+extern void lb_x_gpu_14metal_viewport(void) LB_SYMBOL("objc_msgSend");
+#define lb_c_gpu_14metal_viewport ((void (*)(void*, void*, LuceGpuMetalViewport))lb_x_gpu_14metal_viewport)
+#else
+extern void lb_x_gpu_14metal_viewport(void*, void*, LuceGpuMetalViewport) LB_SYMBOL("objc_msgSend");
+#define lb_c_gpu_14metal_viewport lb_x_gpu_14metal_viewport
+#endif
+#if defined(__clang__)
+extern void lb_x_gpu_12metal_string(void) LB_SYMBOL("objc_msgSend");
+#define lb_c_gpu_12metal_string ((void* (*)(void*, void*, char*))lb_x_gpu_12metal_string)
+#else
+extern void* lb_x_gpu_12metal_string(void*, void*, char*) LB_SYMBOL("objc_msgSend");
+#define lb_c_gpu_12metal_string lb_x_gpu_12metal_string
+#endif
+#if defined(__clang__)
+extern void lb_x_gpu_13metal_library(void) LB_SYMBOL("objc_msgSend");
+#define lb_c_gpu_13metal_library ((void* (*)(void*, void*, void*, void*, void**))lb_x_gpu_13metal_library)
+#else
+extern void* lb_x_gpu_13metal_library(void*, void*, void*, void*, void**) LB_SYMBOL("objc_msgSend");
+#define lb_c_gpu_13metal_library lb_x_gpu_13metal_library
+#endif
+#if defined(__clang__)
+extern void lb_x_gpu_14metal_pipeline(void) LB_SYMBOL("objc_msgSend");
+#define lb_c_gpu_14metal_pipeline ((void* (*)(void*, void*, void*, void**))lb_x_gpu_14metal_pipeline)
+#else
+extern void* lb_x_gpu_14metal_pipeline(void*, void*, void*, void**) LB_SYMBOL("objc_msgSend");
+#define lb_c_gpu_14metal_pipeline lb_x_gpu_14metal_pipeline
+#endif
+#if defined(__clang__)
+extern void lb_x_gpu_12metal_buffer(void) LB_SYMBOL("objc_msgSend");
+#define lb_c_gpu_12metal_buffer ((void* (*)(void*, void*, const void*, uint64_t, uint64_t))lb_x_gpu_12metal_buffer)
+#else
+extern void* lb_x_gpu_12metal_buffer(void*, void*, const void*, uint64_t, uint64_t) LB_SYMBOL("objc_msgSend");
+#define lb_c_gpu_12metal_buffer lb_x_gpu_12metal_buffer
+#endif
+#if defined(__clang__)
+extern void lb_x_gpu_17metal_bind_buffer(void) LB_SYMBOL("objc_msgSend");
+#define lb_c_gpu_17metal_bind_buffer ((void (*)(void*, void*, void*, uint64_t, uint64_t))lb_x_gpu_17metal_bind_buffer)
+#else
+extern void lb_x_gpu_17metal_bind_buffer(void*, void*, void*, uint64_t, uint64_t) LB_SYMBOL("objc_msgSend");
+#define lb_c_gpu_17metal_bind_buffer lb_x_gpu_17metal_bind_buffer
+#endif
+#if defined(__clang__)
+extern void lb_x_gpu_13metal_scissor(void) LB_SYMBOL("objc_msgSend");
+#define lb_c_gpu_13metal_scissor ((void (*)(void*, void*, LuceGpuMetalScissor))lb_x_gpu_13metal_scissor)
+#else
+extern void lb_x_gpu_13metal_scissor(void*, void*, LuceGpuMetalScissor) LB_SYMBOL("objc_msgSend");
+#define lb_c_gpu_13metal_scissor lb_x_gpu_13metal_scissor
+#endif
+#if defined(__clang__)
+extern void lb_x_gpu_10metal_draw(void) LB_SYMBOL("objc_msgSend");
+#define lb_c_gpu_10metal_draw ((void (*)(void*, void*, uint64_t, uint64_t, uint64_t))lb_x_gpu_10metal_draw)
+#else
+extern void lb_x_gpu_10metal_draw(void*, void*, uint64_t, uint64_t, uint64_t) LB_SYMBOL("objc_msgSend");
+#define lb_c_gpu_10metal_draw lb_x_gpu_10metal_draw
+#endif
 extern int32_t lb_x_gpu_15pthread_main_np(void) LB_SYMBOL("pthread_main_np");
 extern void* lb_x_gpu_MTLCreateSystemDefaultDevice(void) LB_SYMBOL("MTLCreateSystemDefaultDevice");
 extern void* lb_x_gpu_13objc_getClass(char*) LB_SYMBOL("objc_getClass");
@@ -2512,18 +3707,90 @@ extern void* lb_x_gpu_24objc_autoreleasePoolPush(void) LB_SYMBOL("objc_autorelea
 extern void lb_x_gpu_23objc_autoreleasePoolPop(void*) LB_SYMBOL("objc_autoreleasePoolPop");
 extern void* lb_x_gpu_CGColorSpaceCreateWithName(void*) LB_SYMBOL("CGColorSpaceCreateWithName");
 extern void lb_x_gpu_CGColorSpaceRelease(void*) LB_SYMBOL("CGColorSpaceRelease");
-extern char lb_x_gpu_9metal_ptr LB_SYMBOL("objc_msgSend");
-extern char lb_x_gpu_10metal_void LB_SYMBOL("objc_msgSend");
-extern char lb_x_gpu_12metal_object LB_SYMBOL("objc_msgSend");
-extern char lb_x_gpu_14metal_bool_arg LB_SYMBOL("objc_msgSend");
-extern char lb_x_gpu_14metal_uint_arg LB_SYMBOL("objc_msgSend");
-extern char lb_x_gpu_16metal_double_arg LB_SYMBOL("objc_msgSend");
-extern char lb_x_gpu_14metal_size_arg LB_SYMBOL("objc_msgSend");
-extern char lb_x_gpu_15metal_color_arg LB_SYMBOL("objc_msgSend");
-extern char lb_x_gpu_10metal_uint LB_SYMBOL("objc_msgSend");
-extern char lb_x_gpu_11metal_index LB_SYMBOL("objc_msgSend");
-extern char lb_x_gpu_17metal_with_object LB_SYMBOL("objc_msgSend");
-extern char lb_x_gpu_18metal_inline_bytes LB_SYMBOL("objc_msgSend");
+#if defined(__clang__)
+extern void lb_x_gpu_9metal_ptr(void) LB_SYMBOL("objc_msgSend");
+#define lb_c_gpu_9metal_ptr ((void* (*)(void*, void*))lb_x_gpu_9metal_ptr)
+#else
+extern void* lb_x_gpu_9metal_ptr(void*, void*) LB_SYMBOL("objc_msgSend");
+#define lb_c_gpu_9metal_ptr lb_x_gpu_9metal_ptr
+#endif
+#if defined(__clang__)
+extern void lb_x_gpu_10metal_void(void) LB_SYMBOL("objc_msgSend");
+#define lb_c_gpu_10metal_void ((void (*)(void*, void*))lb_x_gpu_10metal_void)
+#else
+extern void lb_x_gpu_10metal_void(void*, void*) LB_SYMBOL("objc_msgSend");
+#define lb_c_gpu_10metal_void lb_x_gpu_10metal_void
+#endif
+#if defined(__clang__)
+extern void lb_x_gpu_12metal_object(void) LB_SYMBOL("objc_msgSend");
+#define lb_c_gpu_12metal_object ((void (*)(void*, void*, void*))lb_x_gpu_12metal_object)
+#else
+extern void lb_x_gpu_12metal_object(void*, void*, void*) LB_SYMBOL("objc_msgSend");
+#define lb_c_gpu_12metal_object lb_x_gpu_12metal_object
+#endif
+#if defined(__clang__)
+extern void lb_x_gpu_14metal_bool_arg(void) LB_SYMBOL("objc_msgSend");
+#define lb_c_gpu_14metal_bool_arg ((void (*)(void*, void*, bool))lb_x_gpu_14metal_bool_arg)
+#else
+extern void lb_x_gpu_14metal_bool_arg(void*, void*, bool) LB_SYMBOL("objc_msgSend");
+#define lb_c_gpu_14metal_bool_arg lb_x_gpu_14metal_bool_arg
+#endif
+#if defined(__clang__)
+extern void lb_x_gpu_14metal_uint_arg(void) LB_SYMBOL("objc_msgSend");
+#define lb_c_gpu_14metal_uint_arg ((void (*)(void*, void*, uint64_t))lb_x_gpu_14metal_uint_arg)
+#else
+extern void lb_x_gpu_14metal_uint_arg(void*, void*, uint64_t) LB_SYMBOL("objc_msgSend");
+#define lb_c_gpu_14metal_uint_arg lb_x_gpu_14metal_uint_arg
+#endif
+#if defined(__clang__)
+extern void lb_x_gpu_16metal_double_arg(void) LB_SYMBOL("objc_msgSend");
+#define lb_c_gpu_16metal_double_arg ((void (*)(void*, void*, double))lb_x_gpu_16metal_double_arg)
+#else
+extern void lb_x_gpu_16metal_double_arg(void*, void*, double) LB_SYMBOL("objc_msgSend");
+#define lb_c_gpu_16metal_double_arg lb_x_gpu_16metal_double_arg
+#endif
+#if defined(__clang__)
+extern void lb_x_gpu_14metal_size_arg(void) LB_SYMBOL("objc_msgSend");
+#define lb_c_gpu_14metal_size_arg ((void (*)(void*, void*, LuceGpuMetalSize))lb_x_gpu_14metal_size_arg)
+#else
+extern void lb_x_gpu_14metal_size_arg(void*, void*, LuceGpuMetalSize) LB_SYMBOL("objc_msgSend");
+#define lb_c_gpu_14metal_size_arg lb_x_gpu_14metal_size_arg
+#endif
+#if defined(__clang__)
+extern void lb_x_gpu_15metal_color_arg(void) LB_SYMBOL("objc_msgSend");
+#define lb_c_gpu_15metal_color_arg ((void (*)(void*, void*, LuceGpuMetalClearColor))lb_x_gpu_15metal_color_arg)
+#else
+extern void lb_x_gpu_15metal_color_arg(void*, void*, LuceGpuMetalClearColor) LB_SYMBOL("objc_msgSend");
+#define lb_c_gpu_15metal_color_arg lb_x_gpu_15metal_color_arg
+#endif
+#if defined(__clang__)
+extern void lb_x_gpu_10metal_uint(void) LB_SYMBOL("objc_msgSend");
+#define lb_c_gpu_10metal_uint ((uint64_t (*)(void*, void*))lb_x_gpu_10metal_uint)
+#else
+extern uint64_t lb_x_gpu_10metal_uint(void*, void*) LB_SYMBOL("objc_msgSend");
+#define lb_c_gpu_10metal_uint lb_x_gpu_10metal_uint
+#endif
+#if defined(__clang__)
+extern void lb_x_gpu_11metal_index(void) LB_SYMBOL("objc_msgSend");
+#define lb_c_gpu_11metal_index ((void* (*)(void*, void*, uint64_t))lb_x_gpu_11metal_index)
+#else
+extern void* lb_x_gpu_11metal_index(void*, void*, uint64_t) LB_SYMBOL("objc_msgSend");
+#define lb_c_gpu_11metal_index lb_x_gpu_11metal_index
+#endif
+#if defined(__clang__)
+extern void lb_x_gpu_17metal_with_object(void) LB_SYMBOL("objc_msgSend");
+#define lb_c_gpu_17metal_with_object ((void* (*)(void*, void*, void*))lb_x_gpu_17metal_with_object)
+#else
+extern void* lb_x_gpu_17metal_with_object(void*, void*, void*) LB_SYMBOL("objc_msgSend");
+#define lb_c_gpu_17metal_with_object lb_x_gpu_17metal_with_object
+#endif
+#if defined(__clang__)
+extern void lb_x_gpu_18metal_inline_bytes(void) LB_SYMBOL("objc_msgSend");
+#define lb_c_gpu_18metal_inline_bytes ((void (*)(void*, void*, const void*, uint64_t, uint64_t))lb_x_gpu_18metal_inline_bytes)
+#else
+extern void lb_x_gpu_18metal_inline_bytes(void*, void*, const void*, uint64_t, uint64_t) LB_SYMBOL("objc_msgSend");
+#define lb_c_gpu_18metal_inline_bytes lb_x_gpu_18metal_inline_bytes
+#endif
 extern int32_t lb_x_gpu_vkCreateInstance(struct VkInstanceCreateInfo*, void*, uint64_t*) LB_SYMBOL("vkCreateInstance");
 extern void lb_x_gpu_vkDestroyInstance(uint64_t, void*) LB_SYMBOL("vkDestroyInstance");
 extern int32_t lb_x_gpu_vkEnumeratePhysicalDevices(uint64_t, uint32_t*, uint64_t*) LB_SYMBOL("vkEnumeratePhysicalDevices");
@@ -2599,8 +3866,20 @@ extern void lb_x_gpu_vkUpdateDescriptorSets(uint64_t, uint32_t, struct VkWriteDe
 extern void lb_x_gpu_vkCmdBindDescriptorSets(uint64_t, uint32_t, uint64_t, uint32_t, uint32_t, uint64_t*, uint32_t, uint32_t*) LB_SYMBOL("vkCmdBindDescriptorSets");
 extern void lb_x_gpu_vkCmdPushConstants(uint64_t, uint64_t, uint32_t, uint32_t, uint32_t, void*) LB_SYMBOL("vkCmdPushConstants");
 extern char* lb_x_debug_getenv(char*) LB_SYMBOL("getenv");
-extern char lb_x_debug_6c_read LB_SYMBOL("read");
-extern char lb_x_debug_6c_exit LB_SYMBOL("exit");
+#if defined(__clang__)
+extern void lb_x_debug_6c_read(void) LB_SYMBOL("read");
+#define lb_c_debug_6c_read ((intptr_t (*)(int32_t, void*, size_t))lb_x_debug_6c_read)
+#else
+extern intptr_t lb_x_debug_6c_read(int32_t, void*, size_t) LB_SYMBOL("read");
+#define lb_c_debug_6c_read lb_x_debug_6c_read
+#endif
+#if defined(__clang__)
+extern void lb_x_debug_6c_exit(void) LB_SYMBOL("exit");
+#define lb_c_debug_6c_exit ((void (*)(int32_t))lb_x_debug_6c_exit)
+#else
+extern void lb_x_debug_6c_exit(int32_t) LB_SYMBOL("exit");
+#define lb_c_debug_6c_exit lb_x_debug_6c_exit
+#endif
 __attribute__((weak)) lb_interop_Transfer_0g1_str lb_interop_Transfer_0g1_str_plain(void);
 __attribute__((weak)) lb_r_interop_Packet_0g1_str lb_interop_Transfer_0g1_str_10copy_plain(lb_str lb_value);
 __attribute__((weak)) lb_interop_Transfer_0g1_u8_0c lb_interop_Transfer_0g1_u8_0c_plain(void);

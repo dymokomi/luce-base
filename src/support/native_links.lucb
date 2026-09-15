@@ -61,9 +61,10 @@ func contains(names: const str[], name: str) -> bool:
             return true
     return false
 
-## `nm` over the arguments, one entry per line: `[archive:member:] [address] KIND name`;
-## a lowercase kind is local to its object and left out, `U` is undefined. Under `-u`,
-## Mach-O's `nm` prints the bare name of each undefined symbol.
+## `nm` over the arguments, one entry per line: `[archive:member:][address] KIND name`,
+## Mach-O's `nm` with a space after the member's colon and GNU's without; a lowercase kind
+## is local to its object and left out, `U` is undefined. Under `-u`, Mach-O's `nm` prints
+## the bare name of each undefined symbol.
 func symbols(arguments: const c.str[], platform: target.Target, directory: str) -> list.List[Entry]!:
     let (status, output, errors) = try host_tools.run("nm", arguments, directory)
     if status != 0:
@@ -96,10 +97,11 @@ func parse_line(line: str, platform: target.Target) -> Entry?:
     var symbol_start = start
     if platform.os == target.Os.macos and symbol_start < line.length and line.bytes[symbol_start] == '_':
         symbol_start += 1
+    # the member ends at the last colon before the kind; a drive letter's is never last
     var member_end: usize = 0
     var i: usize = 0
     while i < start - 2:
-        if line.bytes[i] == ':' and i + 1 < line.length and line.bytes[i + 1] == ' ':
+        if line.bytes[i] == ':':
             member_end = i
         i += 1
     var member_start: usize = 0
@@ -123,6 +125,10 @@ test "nm lines name the member, the kind and the symbol":
     assert(plain.symbol == "lb_core_4main" if host.os == target.Os.macos else plain.symbol == "_lb_core_4main")
     let member = parse_line("build/lib/libstd.a:core.o:                  U _malloc", host) else trap("no entry")
     assert(member.member == "core.o" and member.undefined)
+    let gnu = parse_line("D:/a/build/libstd.a:os-module.o:0000000000000000 T lb_os_cwd", host) else trap("no entry")
+    assert(gnu.member == "os-module.o" and not gnu.undefined and gnu.symbol == "lb_os_cwd")
+    let gnu_undefined = parse_line("build/libstd.a:os-module.o:                 U getenv", host) else trap("no entry")
+    assert(gnu_undefined.member == "os-module.o" and gnu_undefined.undefined)
     assert(parse_line("build/lib/libstd.a:core.o: 0000000000000010 t _local", host) == none)
     assert(parse_line("", host) == none)
     let bare = parse_line("_objc_msgSend", host) else trap("no entry")

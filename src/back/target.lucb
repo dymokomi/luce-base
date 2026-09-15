@@ -39,7 +39,7 @@ pub func arch_name(arch: Arch) -> str:
 
 let macos_libraries: str[1] = ["-lSystem"]
 let linux_libraries: str[2] = ["-lm", "-lpthread"]
-let windows_libraries: str[3] = ["-lm", "-lsynchronization", "-Wl,--stack,16777216"]
+let windows_libraries: str[4] = ["-lm", "-lsynchronization", "-lbcrypt", "-Wl,--stack,16777216"]
 
 pub struct Target:
     pub var name: str
