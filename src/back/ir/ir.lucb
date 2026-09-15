@@ -620,7 +620,7 @@ pub func store_op(size: u64, is_float: bool) -> Op:
     return Op.storel
 
 test "a function collects temporaries, slots, and instructions":
-    var backing: u8[65536]
+    var backing: u8[262144]
     var arena = memory.FixedBuffer.over(backing)
     with arena:
         var f = try Function.create("f")
