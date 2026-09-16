@@ -4564,7 +4564,7 @@ lb_o_i64 lb_process_Command_9exit_code(const lb_process_Command* self) {
 lb_r_interop_Owned_0g1_str lb_process_Command_output(const lb_process_Command* self) {
     const char* lb_saved_pos __attribute__((cleanup(lb_restore_pos), unused)) = lb_pos;
     lb_pos = "src/std/process/command/module.lucb:78:9";
-    (void)(({ lb_sync_Mutex _lb_rc = (lb_process_Command_state(self))->lock; lb_sync_Mutex_lock(&_lb_rc); }));
+    (void)(lb_sync_Mutex_lock(&((lb_process_Command_state(self))->lock)));
     lb_pos = "src/std/process/command/module.lucb:79:9";
     lb_pos = "src/std/process/command/module.lucb:80:9";
     {
@@ -4574,7 +4574,7 @@ lb_r_interop_Owned_0g1_str lb_process_Command_output(const lb_process_Command* s
             lb_pos = "src/std/process/command/module.lucb:81:13";
             lb_strings_Builder lb_text __attribute__((unused)) = (({ lb_r_strings_Builder _lb_r39 = lb_strings_Builder_create((lb_process_Command_state(self))->used); if (_lb_r39.failed) {
                 lb_memory_allocator = _lb_as38;
-                (void)(({ lb_sync_Mutex _lb_rc = (lb_process_Command_state(self))->lock; lb_sync_Mutex_unlock(&_lb_rc); }));
+                (void)(lb_sync_Mutex_unlock(&((lb_process_Command_state(self))->lock)));
                 return ((lb_r_interop_Owned_0g1_str){ .error = _lb_r39.error, .failed = true });
             } _lb_r39.value; }));
             lb_pos = "src/std/process/command/module.lucb:82:13";
@@ -4599,7 +4599,7 @@ lb_r_interop_Owned_0g1_str lb_process_Command_output(const lb_process_Command* s
                                 (void)((({ lb_r_unit _lb_r42 = lb_strings_Builder_put(&(lb_text), ((lb_str){"\357\277\275", 3})); if (_lb_r42.failed) {
                                     (void)(lb_strings_Builder_destroy(&(lb_text)));
                                     lb_memory_allocator = _lb_as38;
-                                    (void)(({ lb_sync_Mutex _lb_rc = (lb_process_Command_state(self))->lock; lb_sync_Mutex_unlock(&_lb_rc); }));
+                                    (void)(lb_sync_Mutex_unlock(&((lb_process_Command_state(self))->lock)));
                                     return ((lb_r_interop_Owned_0g1_str){ .error = _lb_r42.error, .failed = true });
                                 } (void)0; })));
                             }
@@ -4609,7 +4609,7 @@ lb_r_interop_Owned_0g1_str lb_process_Command_output(const lb_process_Command* s
                                 (void)(((void)((({ lb_r_usize _lb_r43 = lb_strings_Builder_write(&(lb_text), ({ lb_span _lb_sv44 = lb_bytes; size_t _lb_sn44 = _lb_sv44.length; uint8_t* _lb_sd44 = (uint8_t*)_lb_sv44.data; size_t _lb_ss44 = (size_t)(lb_offset); size_t _lb_se44 = (size_t)((size_t)(lb_add_u((uint64_t)(lb_offset), (uint64_t)(lb_scalar.width), 64))); lb_check_index(_lb_ss44, _lb_sn44 + 1); lb_check_index(_lb_se44, _lb_sn44 + 1); if (_lb_ss44 > _lb_se44) lb_trap("index out of bounds"); (lb_span){ (void*)(_lb_sd44 + _lb_ss44), _lb_se44 - _lb_ss44 }; })); if (_lb_r43.failed) {
                                     (void)(lb_strings_Builder_destroy(&(lb_text)));
                                     lb_memory_allocator = _lb_as38;
-                                    (void)(({ lb_sync_Mutex _lb_rc = (lb_process_Command_state(self))->lock; lb_sync_Mutex_unlock(&_lb_rc); }));
+                                    (void)(lb_sync_Mutex_unlock(&((lb_process_Command_state(self))->lock)));
                                     return ((lb_r_interop_Owned_0g1_str){ .error = _lb_r43.error, .failed = true });
                                 } _lb_r43.value; })))));
                             }
@@ -4624,7 +4624,7 @@ lb_r_interop_Owned_0g1_str lb_process_Command_output(const lb_process_Command* s
                         (void)((({ lb_r_unit _lb_r46 = lb_strings_Builder_put(&(lb_text), ((lb_str){"\357\277\275", 3})); if (_lb_r46.failed) {
                             (void)(lb_strings_Builder_destroy(&(lb_text)));
                             lb_memory_allocator = _lb_as38;
-                            (void)(({ lb_sync_Mutex _lb_rc = (lb_process_Command_state(self))->lock; lb_sync_Mutex_unlock(&_lb_rc); }));
+                            (void)(lb_sync_Mutex_unlock(&((lb_process_Command_state(self))->lock)));
                             return ((lb_r_interop_Owned_0g1_str){ .error = _lb_r46.error, .failed = true });
                         } (void)0; })));
                         lb_pos = "src/std/process/command/module.lucb:94:21";
@@ -4637,18 +4637,18 @@ lb_r_interop_Owned_0g1_str lb_process_Command_output(const lb_process_Command* s
             lb_interop_Owned_0g1_str _lb_ret48 = (({ lb_r_interop_Owned_0g1_str _lb_r49 = lb_interop_9copy_text(lb_strings_Builder_view(&(lb_text))); if (_lb_r49.failed) {
                 (void)(lb_strings_Builder_destroy(&(lb_text)));
                 lb_memory_allocator = _lb_as38;
-                (void)(({ lb_sync_Mutex _lb_rc = (lb_process_Command_state(self))->lock; lb_sync_Mutex_unlock(&_lb_rc); }));
+                (void)(lb_sync_Mutex_unlock(&((lb_process_Command_state(self))->lock)));
                 return ((lb_r_interop_Owned_0g1_str){ .error = _lb_r49.error, .failed = true });
             } _lb_r49.value; }));
             (void)(lb_strings_Builder_destroy(&(lb_text)));
             lb_memory_allocator = _lb_as38;
-            (void)(({ lb_sync_Mutex _lb_rc = (lb_process_Command_state(self))->lock; lb_sync_Mutex_unlock(&_lb_rc); }));
+            (void)(lb_sync_Mutex_unlock(&((lb_process_Command_state(self))->lock)));
             return ((lb_r_interop_Owned_0g1_str){ .value = _lb_ret48, .failed = false });
             (void)(lb_strings_Builder_destroy(&(lb_text)));
         }
         lb_memory_allocator = _lb_as38;
     }
-    (void)(({ lb_sync_Mutex _lb_rc = (lb_process_Command_state(self))->lock; lb_sync_Mutex_unlock(&_lb_rc); }));
+    (void)(lb_sync_Mutex_unlock(&((lb_process_Command_state(self))->lock)));
     lb_trap("unreachable");
 }
 lb_r_interop_Owned_0g1_str lb_process_Command_13error_message(const lb_process_Command* self) {
