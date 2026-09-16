@@ -24,18 +24,15 @@ lb_files_Directory_open:
     movq %r14, -40(%rbp)
     movq %rsi, -96(%rbp)
     movl %edx, -112(%rbp)
-    leaq lb_files_20current_directory_fd(%rip), %rbx
+    leaq -96(%rbp), %rbx
     movq %rbx, %r10
-    movslq (%r10), %rbx
-    leaq -96(%rbp), %r12
+    movq (%r10), %rbx
+    leaq -112(%rbp), %r12
     movq %r12, %r10
-    movq (%r10), %r12
-    leaq -112(%rbp), %r13
-    movq %r13, %r10
-    movzbl (%r10), %r13d
-    movl %ebx, %esi
-    movq %r12, %rdx
-    movl %r13d, %ecx
+    movzbl (%r10), %r12d
+    movl $4294967196, %esi
+    movq %rbx, %rdx
+    movl %r12d, %ecx
     leaq -152(%rbp), %rdi
     call lb_files_17open_directory_at@PLT
     leaq -152(%rbp), %r12
@@ -724,7 +721,7 @@ lb_files_Directory_14open_directory:
 lb_files_Directory_9open_file:
     pushq %rbp
     movq %rsp, %rbp
-    subq $336, %rsp
+    subq $320, %rsp
     movq %rdi, -8(%rbp)
     movq %rbx, -16(%rbp)
     movq %r12, -24(%rbp)
@@ -853,10 +850,7 @@ lb_files_Directory_9open_file:
     cmpl %ecx, %r13d
     jne .L6_8
 .L6_7:
-    leaq lb_files_14no_follow_flag(%rip), %r13
-    movq %r13, %r10
-    movslq (%r10), %r13
-    movl %r13d, %ecx
+    movl $131072, %ecx
     movl %r12d, %r13d
     orl %ecx, %r13d
     jmp .L6_9
@@ -870,50 +864,45 @@ lb_files_Directory_9open_file:
     jne .L6_10
     jmp .L6_11
 .L6_10:
-    leaq lb_files_21nonblocking_open_flag(%rip), %r12
-    movq %r12, %r10
-    movslq (%r10), %r12
-    orl %r13d, %r12d
+    movl $2048, %ecx
+    movl %r13d, %r12d
+    orl %ecx, %r12d
     jmp .L6_12
 .L6_11:
     movl %r13d, %r12d
 .L6_12:
-    leaq -112(%rbp), %rax
-    movq %rax, -304(%rbp)
-    movq -304(%rbp), %r10
-    movq (%r10), %rax
-    movq %rax, -312(%rbp)
+    leaq -112(%rbp), %r13
+    movq %r13, %r10
+    movq (%r10), %r13
     movl -296(%rbp), %edi
-    movq -312(%rbp), %rsi
+    movq %r13, %rsi
     movl %r12d, %edx
     movl %r14d, %ecx
     movl $0, %eax
     call openat@PLT
     movl %eax, %r15d
-    leaq lb_c_interrupted(%rip), %r13
     movl %r15d, %eax
-    movl %eax, -328(%rbp)
+    movl %eax, -312(%rbp)
 .L6_13:
-    movl -328(%rbp), %eax
+    movl -312(%rbp), %eax
     movl $0, %ecx
     cmpl %ecx, %eax
     setl %al
     movzbl %al, %eax
-    movl %eax, -320(%rbp)
-    movl -320(%rbp), %eax
+    movl %eax, -304(%rbp)
+    movl -304(%rbp), %eax
     testl %eax, %eax
     jne .L6_16
     jmp .L6_23
 .L6_23:
-    movl -320(%rbp), %eax
+    movl -304(%rbp), %eax
     movl %eax, %r15d
     jmp .L6_17
 .L6_16:
     call lb_c_errno@PLT
     movl %eax, %r15d
-    movq %r13, %r10
-    movslq (%r10), %rbx
-    cmpl %ebx, %r15d
+    movl $4, %ecx
+    cmpl %ecx, %r15d
     sete %al
     movzbl %al, %r15d
 .L6_17:
@@ -923,17 +912,17 @@ lb_files_Directory_9open_file:
     jmp .L6_15
 .L6_14:
     movl -296(%rbp), %edi
-    movq -312(%rbp), %rsi
+    movq %r13, %rsi
     movl %r12d, %edx
     movl %r14d, %ecx
     movl $0, %eax
     call openat@PLT
     movl %eax, %ebx
     movl %ebx, %eax
-    movl %eax, -328(%rbp)
+    movl %eax, -312(%rbp)
     jmp .L6_13
 .L6_15:
-    movl -320(%rbp), %eax
+    movl -304(%rbp), %eax
     testl %eax, %eax
     jne .L6_18
     jmp .L6_19
@@ -992,7 +981,7 @@ lb_files_Directory_9open_file:
     movq %rbx, %r11
     movq $0, 0(%r11)
     leaq -288(%rbp), %r12
-    movl -328(%rbp), %eax
+    movl -312(%rbp), %eax
     movq %r12, %r10
     movl %eax, (%r10)
     movq $4, %rcx
@@ -1524,7 +1513,7 @@ lb_files_Directory_destroy:
 lb_files_17open_directory_at:
     pushq %rbp
     movq %rsp, %rbp
-    subq $208, %rsp
+    subq $192, %rsp
     movq %rdi, -8(%rbp)
     movq %rbx, -16(%rbp)
     movq %r12, -24(%rbp)
@@ -1534,86 +1523,73 @@ lb_files_17open_directory_at:
     movl %esi, -104(%rbp)
     movq %rdx, -120(%rbp)
     movl %ecx, -136(%rbp)
-    leaq lb_files_14directory_flag(%rip), %rbx
+    leaq -136(%rbp), %rbx
     movq %rbx, %r10
-    movslq (%r10), %rbx
-    leaq lb_files_13close_on_exec(%rip), %r12
-    movq %r12, %r10
-    movslq (%r10), %r12
-    orl %r12d, %ebx
-    leaq -136(%rbp), %r12
-    movq %r12, %r10
-    movzbl (%r10), %r12d
+    movzbl (%r10), %ebx
     movl $0, %ecx
-    cmpl %ecx, %r12d
+    cmpl %ecx, %ebx
     jne .L10_2
 .L10_1:
-    leaq lb_files_14no_follow_flag(%rip), %r12
-    movq %r12, %r10
-    movslq (%r10), %r12
-    movl %r12d, %ecx
-    movl %ebx, %r12d
-    orl %ecx, %r12d
+    movl $720896, %eax
+    movl %eax, %ebx
     jmp .L10_3
 .L10_2:
-    movl %ebx, %r12d
+    movl $589824, %eax
+    movl %eax, %ebx
 .L10_3:
-    leaq -104(%rbp), %rbx
-    movq %rbx, %r10
-    movslq (%r10), %rax
-    movq %rax, -184(%rbp)
+    leaq -104(%rbp), %r12
+    movq %r12, %r10
+    movslq (%r10), %r12
     leaq -120(%rbp), %r13
     movq %r13, %r10
     movq (%r10), %r13
-    movl -184(%rbp), %edi
+    movl %r12d, %edi
     movq %r13, %rsi
-    movl %r12d, %edx
+    movl %ebx, %edx
     movl $0, %eax
     call openat@PLT
     movl %eax, %r14d
-    leaq lb_c_interrupted(%rip), %r15
     movl %r14d, %eax
-    movl %eax, -200(%rbp)
+    movl %eax, -192(%rbp)
 .L10_4:
-    movl -200(%rbp), %eax
+    movl -192(%rbp), %eax
     movl $0, %ecx
     cmpl %ecx, %eax
     setl %al
     movzbl %al, %eax
-    movl %eax, -192(%rbp)
-    movl -192(%rbp), %eax
+    movl %eax, -184(%rbp)
+    movl -184(%rbp), %eax
     testl %eax, %eax
     jne .L10_7
     jmp .L10_19
 .L10_19:
-    movl -192(%rbp), %eax
+    movl -184(%rbp), %eax
     movl %eax, %r14d
     jmp .L10_8
 .L10_7:
     call lb_c_errno@PLT
     movl %eax, %r14d
-    movq %r15, %r10
-    movslq (%r10), %rbx
-    cmpl %ebx, %r14d
+    movl $4, %ecx
+    cmpl %ecx, %r14d
     sete %al
     movzbl %al, %r14d
 .L10_8:
-    movzbl %r14b, %ebx
-    testl %ebx, %ebx
+    movzbl %r14b, %r15d
+    testl %r15d, %r15d
     jne .L10_5
     jmp .L10_6
 .L10_5:
-    movl -184(%rbp), %edi
+    movl %r12d, %edi
     movq %r13, %rsi
-    movl %r12d, %edx
+    movl %ebx, %edx
     movl $0, %eax
     call openat@PLT
-    movl %eax, %ebx
-    movl %ebx, %eax
-    movl %eax, -200(%rbp)
+    movl %eax, %r14d
+    movl %r14d, %eax
+    movl %eax, -192(%rbp)
     jmp .L10_4
 .L10_6:
-    movl -192(%rbp), %eax
+    movl -184(%rbp), %eax
     testl %eax, %eax
     jne .L10_9
     jmp .L10_10
@@ -1668,7 +1644,7 @@ lb_files_17open_directory_at:
     jmp .L10_11
 .L10_10:
 .L10_11:
-    movl -200(%rbp), %edi
+    movl -192(%rbp), %edi
     call fdopendir@PLT
     movq %rax, %rbx
     testq %rbx, %rbx
@@ -1711,7 +1687,7 @@ lb_files_17open_directory_at:
 .L10_15:
     call lb_c_errno@PLT
     movl %eax, %ebx
-    movl -200(%rbp), %edi
+    movl -192(%rbp), %edi
     call close@PLT
     movl %eax, %r12d
     leaq -88(%rbp), %r12

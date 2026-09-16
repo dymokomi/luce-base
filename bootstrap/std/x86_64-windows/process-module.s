@@ -7,45 +7,41 @@ lb_process_module_0init:
     .seh_proc lb_process_module_0init
     pushq %rbp
     .seh_pushreg %rbp
-    subq $208, %rsp
-    .seh_stackalloc 208
+    subq $192, %rsp
+    .seh_stackalloc 192
     movq %rsp, %rbp
     .seh_setframe %rbp, 0
-    movq %rdi, 200(%rbp)
-    .seh_savereg %rdi, 200
-    movq %rsi, 192(%rbp)
-    .seh_savereg %rsi, 192
-    movdqu %xmm6, 176(%rbp)
-    .seh_savexmm %xmm6, 176
-    movdqu %xmm7, 160(%rbp)
-    .seh_savexmm %xmm7, 160
-    movdqu %xmm8, 144(%rbp)
-    .seh_savexmm %xmm8, 144
-    movdqu %xmm9, 128(%rbp)
-    .seh_savexmm %xmm9, 128
-    movdqu %xmm10, 112(%rbp)
-    .seh_savexmm %xmm10, 112
-    movdqu %xmm11, 96(%rbp)
-    .seh_savexmm %xmm11, 96
-    movdqu %xmm12, 80(%rbp)
-    .seh_savexmm %xmm12, 80
-    movdqu %xmm13, 64(%rbp)
-    .seh_savexmm %xmm13, 64
-    movdqu %xmm14, 48(%rbp)
-    .seh_savexmm %xmm14, 48
-    movdqu %xmm15, 32(%rbp)
-    .seh_savexmm %xmm15, 32
-    movq %rbx, 24(%rbp)
-    .seh_savereg %rbx, 24
-    movq %r12, 16(%rbp)
-    .seh_savereg %r12, 16
-    movq %r13, 8(%rbp)
-    .seh_savereg %r13, 8
+    movq %rdi, 184(%rbp)
+    .seh_savereg %rdi, 184
+    movq %rsi, 176(%rbp)
+    .seh_savereg %rsi, 176
+    movdqu %xmm6, 160(%rbp)
+    .seh_savexmm %xmm6, 160
+    movdqu %xmm7, 144(%rbp)
+    .seh_savexmm %xmm7, 144
+    movdqu %xmm8, 128(%rbp)
+    .seh_savexmm %xmm8, 128
+    movdqu %xmm9, 112(%rbp)
+    .seh_savexmm %xmm9, 112
+    movdqu %xmm10, 96(%rbp)
+    .seh_savexmm %xmm10, 96
+    movdqu %xmm11, 80(%rbp)
+    .seh_savexmm %xmm11, 80
+    movdqu %xmm12, 64(%rbp)
+    .seh_savexmm %xmm12, 64
+    movdqu %xmm13, 48(%rbp)
+    .seh_savexmm %xmm13, 48
+    movdqu %xmm14, 32(%rbp)
+    .seh_savexmm %xmm14, 32
+    movdqu %xmm15, 16(%rbp)
+    .seh_savexmm %xmm15, 16
+    movq %rbx, 8(%rbp)
+    .seh_savereg %rbx, 8
     .seh_endprologue
-    movq %rcx, 224(%rbp)
-    movq %rdx, 232(%rbp)
-    movq %r8, 240(%rbp)
-    movq %r9, 248(%rbp)
+    movq %rcx, 208(%rbp)
+    movq %rdx, 216(%rbp)
+    movq %r8, 224(%rbp)
+    movq %r9, 232(%rbp)
     leaq lb_process_7poll_in(%rip), %rbx
     movl $1, %eax
     movq %rbx, %r10
@@ -62,59 +58,32 @@ lb_process_module_0init:
     movl $4, %eax
     movq %rbx, %r10
     movl %eax, (%r10)
-    leaq lb_platform_macos(%rip), %rbx
-    movq %rbx, %r10
-    movzbl (%r10), %r12d
-    testl %r12d, %r12d
-    jne .L0_1
-    jmp .L0_2
-.L0_1:
-    movl $4, %eax
-    movl %eax, %r12d
-    jmp .L0_3
-.L0_2:
+    leaq lb_process_12non_blocking(%rip), %rbx
     movl $2048, %eax
-    movl %eax, %r12d
-.L0_3:
-    leaq lb_process_12non_blocking(%rip), %r13
-    movq %r13, %r10
-    movl %r12d, (%r10)
     movq %rbx, %r10
-    movzbl (%r10), %r13d
-    testl %r13d, %r13d
-    jne .L0_4
-    jmp .L0_5
-.L0_4:
-    movl $35, %eax
-    movl %eax, %ebx
-    jmp .L0_6
-.L0_5:
-    movl $11, %eax
-    movl %eax, %ebx
-.L0_6:
-    leaq lb_process_11would_block(%rip), %r12
-    movq %r12, %r10
-    movl %ebx, (%r10)
-    leaq lb_process_failed(%rip), %r12
-    movl $208273416, %eax
-    movq %r12, %r10
     movl %eax, (%r10)
-    movq 200(%rbp), %rdi
-    movq 192(%rbp), %rsi
-    movdqu 176(%rbp), %xmm6
-    movdqu 160(%rbp), %xmm7
-    movdqu 144(%rbp), %xmm8
-    movdqu 128(%rbp), %xmm9
-    movdqu 112(%rbp), %xmm10
-    movdqu 96(%rbp), %xmm11
-    movdqu 80(%rbp), %xmm12
-    movdqu 64(%rbp), %xmm13
-    movdqu 48(%rbp), %xmm14
-    movdqu 32(%rbp), %xmm15
-    movq 24(%rbp), %rbx
-    movq 16(%rbp), %r12
-    movq 8(%rbp), %r13
-    leaq 208(%rbp), %rsp
+    leaq lb_process_11would_block(%rip), %rbx
+    movl $11, %eax
+    movq %rbx, %r10
+    movl %eax, (%r10)
+    leaq lb_process_failed(%rip), %rbx
+    movl $208273416, %eax
+    movq %rbx, %r10
+    movl %eax, (%r10)
+    movq 184(%rbp), %rdi
+    movq 176(%rbp), %rsi
+    movdqu 160(%rbp), %xmm6
+    movdqu 144(%rbp), %xmm7
+    movdqu 128(%rbp), %xmm8
+    movdqu 112(%rbp), %xmm9
+    movdqu 96(%rbp), %xmm10
+    movdqu 80(%rbp), %xmm11
+    movdqu 64(%rbp), %xmm12
+    movdqu 48(%rbp), %xmm13
+    movdqu 32(%rbp), %xmm14
+    movdqu 16(%rbp), %xmm15
+    movq 8(%rbp), %rbx
+    leaq 192(%rbp), %rsp
     popq %rbp
     ret
     .seh_endproc

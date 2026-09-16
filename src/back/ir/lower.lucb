@@ -1786,11 +1786,31 @@ pub struct Lowerer:
                 return try self.enum_value(e)
             if d.kind == ast.Kind.func_ or d.kind == ast.Kind.extern_func:
                 return try self.func_value(e, d)
+            if d.kind == ast.Kind.constant:
+                if let v = try self.folded_constant(e, t):
+                    return v
             if d.kind == ast.Kind.global or d.kind == ast.Kind.constant or d.kind == ast.Kind.extern_var:
                 return try self.load_from(try self.global_address(d), t)
             if let slot = self.find_local(d):
                 return try self.load_from(try self.slot_address(slot), t)
         return try self.fail(e, "a name without a place")
+
+    ## A constant read as the value it denotes, `platform.windows` or `os.name`: a bool,
+    ## an integer or a text the checker can evaluate becomes a literal, so no initialiser
+    ## depends on another library member's having run first (§17.6); none for the rest.
+    mutating func folded_constant(e: ast.Node*, t: u32) -> LowerValue?!:
+        if t == types.bool_id:
+            let v = self.c.constant_bool(e) else return none
+            return LowerValue(ref = ir.const_ref(1 if v else 0), type_id = t, in_memory = false)
+        if self.is_int(t):
+            let v = self.c.constant_u64(e) else return none
+            return LowerValue(ref = ir.const_ref((i64)v), type_id = t, in_memory = false)
+        if t == types.str_id:
+            let text = self.c.constant_text(e) else return none
+            let index = try self.program_unit.text(text)
+            let data = try self.f.address_of(ir.text_ref(index))
+            return try self.span_of(data, ir.const_ref((i64)text.length), types.str_id)
+        return none
 
     mutating func global_address(d: ast.Node*) -> ir.Ref!:
         let name = try self.global_name(d)
@@ -2059,6 +2079,9 @@ pub struct Lowerer:
         let l = e.left else return try self.fail(e, "no value")
         let r = e.right else return try self.fail(e, "no alternative")
         let t = try self.ty(e)
+        # a constant condition, `6 if platform.macos else 1`, chooses at compile time
+        if let truth = self.c.constant_bool(cond):
+            return try self.value(l if truth else r, t)
         let slot = try self.new_slot(t)
         let then_label = self.f.label()
         let else_label = self.f.label()
@@ -2957,6 +2980,9 @@ pub struct Lowerer:
                 return try self.enum_value(e)
             if d.kind == ast.Kind.func_ or d.kind == ast.Kind.extern_func:
                 return try self.method_value(e, owner, d)
+            if d.kind == ast.Kind.constant:
+                if let v = try self.folded_constant(e, t):
+                    return v
             if d.kind == ast.Kind.global or d.kind == ast.Kind.constant or d.kind == ast.Kind.extern_var:
                 return try self.load_from(try self.global_address(d), t)
         let ot = try self.ty(owner)

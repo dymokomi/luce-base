@@ -133,12 +133,9 @@ L1_6:
 L1_4:
     ldr w23, [x15]
     sub x24, x29, #320
-    adrp x14, _lb_net_stream@PAGE
-    add x14, x14, _lb_net_stream@PAGEOFF
-    ldrsw x14, [x14]
-    ldrb w12, [x22]
-    mov x0, x14
-    mov x1, x12
+    ldrb w14, [x22]
+    movz x0, #1
+    mov x1, x14
     sub x8, x29, #368
     bl _lb_net_SocketHandle_create
     sub x12, x29, #368
@@ -232,15 +229,9 @@ L1_10:
     cmp w14, w10
     b.ne L1_14
 L1_13:
-    adrp x14, _lb_net_10ipv6_level@PAGE
-    add x14, x14, _lb_net_10ipv6_level@PAGEOFF
-    ldrsw x14, [x14]
-    adrp x15, _lb_net_16ipv6_only_option@PAGE
-    add x15, x15, _lb_net_16ipv6_only_option@PAGEOFF
-    ldrsw x15, [x15]
     mov x0, x25
-    mov x1, x14
-    mov x2, x15
+    movz x1, #41
+    movz x2, #27
     mov x3, #0
     sub x8, x29, #440
     bl _lb_net_18set_socket_integer
@@ -341,89 +332,43 @@ L1_19:
 L1_22:
     bl _lb_net_12socket_errno
     mov w14, w0
-    adrp x21, _lb_platform_windows@PAGE
-    add x21, x21, _lb_platform_windows@PAGEOFF
-    ldrb w15, [x21]
-    cbnz w15, L1_25
-    b L1_26
-L1_25:
-    movz x9, #10035
-    mov x12, x9
-    b L1_27
-L1_26:
-    adrp x12, _lb_platform_macos@PAGE
-    add x12, x12, _lb_platform_macos@PAGEOFF
-    ldrb w12, [x12]
-    cbnz w12, L1_28
-    b L1_29
-L1_28:
-    movz x9, #36
-    mov x12, x9
-    b L1_30
-L1_29:
-    movz x9, #115
-    mov x12, x9
-L1_30:
-L1_27:
-    cbnz w15, L1_31
-    b L1_32
-L1_31:
-    movz x9, #10037
-    mov x15, x9
-    b L1_33
-L1_32:
-    adrp x15, _lb_platform_macos@PAGE
-    add x15, x15, _lb_platform_macos@PAGEOFF
-    ldrb w15, [x15]
-    cbnz w15, L1_34
-    b L1_35
-L1_34:
-    movz x9, #37
-    mov x15, x9
-    b L1_36
-L1_35:
-    movz x9, #114
-    mov x15, x9
-L1_36:
-L1_33:
-    cmp w14, w12
-    cset w13, eq
-    mov x10, #0
-    cmp w13, w10
-    cset w13, eq
-    cbnz w13, L1_40
-    b L1_72
-L1_72:
-    mov w15, w13
-    b L1_41
-L1_40:
-    cmp w14, w15
-    cset w12, eq
-    mov x10, #0
-    cmp w12, w10
-    cset w12, eq
-    mov w15, w12
-L1_41:
-    and w12, w15, #255
-    cbnz w12, L1_42
-    b L1_73
-L1_73:
-    mov w15, w12
-    b L1_43
-L1_42:
-    adrp x15, _lb_net_18socket_interrupted@PAGE
-    add x15, x15, _lb_net_18socket_interrupted@PAGEOFF
-    ldrsw x15, [x15]
-    cmp w14, w15
+    movz x10, #36
+    cmp w14, w10
     cset w15, eq
     mov x10, #0
     cmp w15, w10
     cset w15, eq
-L1_43:
-    and w12, w15, #255
-    cbnz w12, L1_37
-    b L1_38
-L1_37:
+    cbnz w15, L1_28
+    b L1_55
+L1_55:
+    mov w12, w15
+    b L1_29
+L1_28:
+    movz x10, #37
+    cmp w14, w10
+    cset w15, eq
+    mov x10, #0
+    cmp w15, w10
+    cset w12, eq
+L1_29:
+    and w15, w12, #255
+    cbnz w15, L1_30
+    b L1_56
+L1_56:
+    mov w12, w15
+    b L1_31
+L1_30:
+    movz x10, #4
+    cmp w14, w10
+    cset w15, eq
+    mov x10, #0
+    cmp w15, w10
+    cset w12, eq
+L1_31:
+    and w15, w12, #255
+    cbnz w15, L1_25
+    b L1_26
+L1_25:
     sub x19, x29, #128
     add x20, x19, #16
     mov x0, x14
@@ -464,10 +409,10 @@ L1_37:
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
-L1_44:
-    b L1_39
-L1_38:
-L1_39:
+L1_32:
+    b L1_27
+L1_26:
+L1_27:
     mov x0, x25
     movz x1, #1
     mov x9, x19
@@ -479,9 +424,9 @@ L1_39:
     sub x15, x29, #528
     add x14, x15, #32
     ldrb w14, [x14]
-    cbnz w14, L1_46
-    b L1_45
-L1_46:
+    cbnz w14, L1_34
+    b L1_33
+L1_34:
     add x14, x15, #8
     sub x19, x29, #128
     add x12, x19, #16
@@ -513,8 +458,8 @@ L1_46:
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
-L1_47:
-L1_45:
+L1_35:
+L1_33:
     mov x9, x19
     ldr x0, [x9]
     ldr x1, [x9, #8]
@@ -524,9 +469,9 @@ L1_45:
     sub x15, x29, #560
     add x14, x15, #24
     ldrb w14, [x14]
-    cbnz w14, L1_49
-    b L1_48
-L1_49:
+    cbnz w14, L1_37
+    b L1_36
+L1_37:
     sub x19, x29, #128
     add x14, x19, #16
     mov x10, x15
@@ -557,49 +502,24 @@ L1_49:
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
-L1_50:
-L1_48:
-    adrp x14, _lb_net_12socket_level@PAGE
-    add x14, x14, _lb_net_12socket_level@PAGEOFF
-    ldrsw x14, [x14]
-    adrp x15, _lb_platform_macos@PAGE
-    add x15, x15, _lb_platform_macos@PAGEOFF
-    ldrb w15, [x15]
-    cbnz w15, L1_74
-    b L1_54
-L1_74:
-    mov w12, w15
-    b L1_55
-L1_54:
-    ldrb w12, [x21]
-L1_55:
-    and w15, w12, #255
-    cbnz w15, L1_51
-    b L1_52
-L1_51:
-    movz x9, #4103
-    mov w15, w9
-    b L1_53
-L1_52:
-    movz x9, #4
-    mov w15, w9
-L1_53:
+L1_38:
+L1_36:
     mov x0, x25
-    mov x1, x14
-    mov x2, x15
+    movz x1, #65535
+    movz x2, #4103
     sub x8, x29, #600
     bl _lb_net_18get_socket_integer
-    sub x13, x29, #600
-    add x12, x13, #32
-    ldrb w12, [x12]
-    cbnz w12, L1_57
-    b L1_56
-L1_57:
-    add x14, x13, #8
+    sub x15, x29, #600
+    add x14, x15, #32
+    ldrb w14, [x14]
+    cbnz w14, L1_40
+    b L1_39
+L1_40:
+    add x14, x15, #8
     sub x19, x29, #128
-    add x15, x19, #16
+    add x12, x19, #16
     mov x10, x14
-    mov x11, x15
+    mov x11, x12
     ldp x16, x17, [x10, #0]
     stp x16, x17, [x11, #0]
     ldr x16, [x10, #16]
@@ -626,16 +546,16 @@ L1_57:
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
-L1_58:
-L1_56:
-    ldrsw x14, [x13]
+L1_41:
+L1_39:
+    ldrsw x14, [x15]
     mov x10, #0
     cmp w14, w10
-    cset w15, eq
+    cset w12, eq
     mov x10, #0
-    cmp w15, w10
-    b.ne L1_60
-L1_59:
+    cmp w12, w10
+    b.ne L1_43
+L1_42:
     sub x19, x29, #128
     add x20, x19, #16
     mov x0, x14
@@ -676,10 +596,10 @@ L1_59:
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
-L1_62:
-    b L1_61
-L1_60:
-L1_61:
+L1_45:
+    b L1_44
+L1_43:
+L1_44:
     b L1_24
 L1_23:
 L1_24:
@@ -692,9 +612,9 @@ L1_24:
     sub x15, x29, #648
     add x14, x15, #24
     ldrb w14, [x14]
-    cbnz w14, L1_64
-    b L1_63
-L1_64:
+    cbnz w14, L1_47
+    b L1_46
+L1_47:
     sub x19, x29, #128
     add x14, x19, #16
     mov x10, x15
@@ -725,8 +645,8 @@ L1_64:
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
-L1_65:
-L1_63:
+L1_48:
+L1_46:
     sub x14, x29, #200
     ldrb w19, [x14]
     mov x0, x25
@@ -736,9 +656,9 @@ L1_63:
     sub x15, x29, #680
     add x14, x15, #24
     ldrb w14, [x14]
-    cbnz w14, L1_67
-    b L1_66
-L1_67:
+    cbnz w14, L1_50
+    b L1_49
+L1_50:
     sub x19, x29, #128
     add x14, x19, #16
     mov x10, x15
@@ -769,8 +689,8 @@ L1_67:
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
-L1_68:
-L1_66:
+L1_51:
+L1_49:
     add x14, x24, #8
     strb w19, [x14]
     mov x10, x24
@@ -809,14 +729,14 @@ L1_66:
     sub x11, x29, #696
     ldp x16, x17, [x10, #0]
     stp x16, x17, [x11, #0]
-    b L1_71
-L1_70:
+    b L1_54
+L1_53:
     adrp x0, l_text_5@PAGE
     add x0, x0, l_text_5@PAGEOFF
     adrp x1, l_text_2@PAGE
     add x1, x1, l_text_2@PAGEOFF
     bl _lb_core_7trap_at
-L1_71:
+L1_54:
     sub x14, x29, #696
     sub x19, x29, #128
     mov x10, x14
@@ -843,7 +763,7 @@ L1_71:
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
-L1_69:
+L1_52:
     adrp x0, l_text_3@PAGE
     add x0, x0, l_text_3@PAGEOFF
     adrp x1, l_text_2@PAGE
@@ -1202,30 +1122,29 @@ L4_7:
 _lb_net_Connection_shutdown:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #192
+    sub sp, sp, #176
     sub x16, x29, #24
     str x8, [x16]
-    str x19, [sp, #160]
-    str x20, [sp, #152]
-    str x21, [sp, #144]
-    str x22, [sp, #136]
-    sub x16, x29, #96
+    str x19, [sp, #144]
+    str x20, [sp, #136]
+    str x21, [sp, #128]
+    sub x16, x29, #88
     str x0, [x16]
-    sub x16, x29, #112
+    sub x16, x29, #104
     str w1, [x16]
-    sub x9, x29, #96
+    sub x9, x29, #88
     ldr x14, [x9]
     mov x0, x14
-    sub x8, x29, #152
+    sub x8, x29, #144
     bl _lb_net_SocketHandle_require
-    sub x15, x29, #152
+    sub x15, x29, #144
     add x14, x15, #32
     ldrb w14, [x14]
     cbnz w14, L5_2
     b L5_1
 L5_2:
     add x14, x15, #8
-    sub x19, x29, #88
+    sub x19, x29, #80
     mov x10, x14
     mov x11, x19
     ldp x16, x17, [x10, #0]
@@ -1242,17 +1161,16 @@ L5_2:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #160]
-    ldr x20, [sp, #152]
-    ldr x21, [sp, #144]
-    ldr x22, [sp, #136]
+    ldr x19, [sp, #144]
+    ldr x20, [sp, #136]
+    ldr x21, [sp, #128]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
 L5_3:
 L5_1:
     ldrsw x19, [x15]
-    sub x14, x29, #112
+    sub x14, x29, #104
     ldrb w14, [x14]
     mov x10, #0
     cmp w14, w10
@@ -1291,14 +1209,14 @@ L5_10:
     cbnz w12, L5_4
     b L5_5
 L5_4:
-    sub x19, x29, #88
+    sub x19, x29, #80
     adrp x14, _lb_net_15invalid_options@PAGE
     add x14, x14, _lb_net_15invalid_options@PAGEOFF
     ldr w14, [x14]
     str w14, [x19]
     adrp x14, l_text_8@PAGE
     add x14, x14, l_text_8@PAGEOFF
-    sub x15, x29, #168
+    sub x15, x29, #160
     str x14, [x15]
     add x14, x15, #8
     movz x9, #33
@@ -1318,10 +1236,9 @@ L5_4:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #160]
-    ldr x20, [sp, #152]
-    ldr x21, [sp, #144]
-    ldr x22, [sp, #136]
+    ldr x19, [sp, #144]
+    ldr x20, [sp, #136]
+    ldr x21, [sp, #128]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -1334,12 +1251,10 @@ L5_6:
     mov x1, x20
     bl _shutdown
     mov w15, w0
-    adrp x21, _lb_net_18socket_interrupted@PAGE
-    add x21, x21, _lb_net_18socket_interrupted@PAGEOFF
-    mov w22, w15
+    mov w21, w15
 L5_12:
     mov x10, #0
-    cmp w22, w10
+    cmp w21, w10
     cset w14, lt
     cbnz w14, L5_15
     b L5_23
@@ -1349,8 +1264,8 @@ L5_23:
 L5_15:
     bl _lb_net_12socket_errno
     mov w14, w0
-    ldrsw x15, [x21]
-    cmp w14, w15
+    movz x10, #4
+    cmp w14, w10
     cset w15, eq
 L5_16:
     and w14, w15, #255
@@ -1360,17 +1275,17 @@ L5_13:
     mov x0, x19
     mov x1, x20
     bl _shutdown
-    mov w22, w0
+    mov w21, w0
     b L5_12
 L5_14:
     mov x10, #0
-    cmp w22, w10
+    cmp w21, w10
     cset w14, eq
     mov x10, #0
     cmp w14, w10
     b.ne L5_18
 L5_17:
-    sub x19, x29, #88
+    sub x19, x29, #80
     bl _lb_net_12socket_errno
     mov w14, w0
     mov x0, x14
@@ -1379,7 +1294,7 @@ L5_17:
     str w14, [x19]
     adrp x14, l_text_9@PAGE
     add x14, x14, l_text_9@PAGEOFF
-    sub x15, x29, #184
+    sub x15, x29, #176
     str x14, [x15]
     add x14, x15, #8
     movz x9, #37
@@ -1399,10 +1314,9 @@ L5_17:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #160]
-    ldr x20, [sp, #152]
-    ldr x21, [sp, #144]
-    ldr x22, [sp, #136]
+    ldr x19, [sp, #144]
+    ldr x20, [sp, #136]
+    ldr x21, [sp, #128]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -1410,7 +1324,7 @@ L5_20:
     b L5_19
 L5_18:
 L5_19:
-    sub x14, x29, #88
+    sub x14, x29, #80
     add x15, x14, #24
     mov x9, #0
     strb w9, [x15]
@@ -1421,10 +1335,9 @@ L5_19:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #160]
-    ldr x20, [sp, #152]
-    ldr x21, [sp, #144]
-    ldr x22, [sp, #136]
+    ldr x19, [sp, #144]
+    ldr x20, [sp, #136]
+    ldr x21, [sp, #128]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -1435,17 +1348,14 @@ L5_19:
 _lb_net_Connection_guard:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #96
-    str x19, [sp, #72]
-    str x20, [sp, #64]
-    str x21, [sp, #56]
-    str x22, [sp, #48]
-    str x23, [sp, #40]
-    str x24, [sp, #32]
-    str x25, [sp, #24]
-    sub x16, x29, #80
+    sub sp, sp, #64
+    str x19, [sp, #40]
+    str x20, [sp, #32]
+    str x21, [sp, #24]
+    str x22, [sp, #16]
+    sub x16, x29, #56
     str x0, [x16]
-    sub x9, x29, #80
+    sub x9, x29, #56
     ldr x15, [x9]
     add x14, x15, #4
     ldrb w14, [x14]
@@ -1457,13 +1367,10 @@ L6_1:
 L6_2:
     mov x9, #0
     mov x0, x9
-    ldr x19, [sp, #72]
-    ldr x20, [sp, #64]
-    ldr x21, [sp, #56]
-    ldr x22, [sp, #48]
-    ldr x23, [sp, #40]
-    ldr x24, [sp, #32]
-    ldr x25, [sp, #24]
+    ldr x19, [sp, #40]
+    ldr x20, [sp, #32]
+    ldr x21, [sp, #24]
+    ldr x22, [sp, #16]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -1476,13 +1383,10 @@ L6_3:
 L6_5:
     movz x9, #1
     mov x0, x9
-    ldr x19, [sp, #72]
-    ldr x20, [sp, #64]
-    ldr x21, [sp, #56]
-    ldr x22, [sp, #48]
-    ldr x23, [sp, #40]
-    ldr x24, [sp, #32]
-    ldr x25, [sp, #24]
+    ldr x19, [sp, #40]
+    ldr x20, [sp, #32]
+    ldr x21, [sp, #24]
+    ldr x22, [sp, #16]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -1490,28 +1394,20 @@ L6_8:
     b L6_7
 L6_6:
 L6_7:
-    sub x21, x29, #84
+    sub x21, x29, #60
     movz x9, #1
     str w9, [x21]
-    adrp x22, _lb_net_12socket_level@PAGE
-    add x22, x22, _lb_net_12socket_level@PAGEOFF
-    ldrsw x14, [x22]
-    adrp x23, _lb_net_17no_sigpipe_option@PAGE
-    add x23, x23, _lb_net_17no_sigpipe_option@PAGEOFF
-    ldrsw x15, [x23]
     mov x0, x19
-    mov x1, x14
-    mov x2, x15
+    movz x1, #65535
+    movz x2, #4130
     mov x3, x21
     movz x4, #4
     bl _setsockopt
     mov w14, w0
-    adrp x24, _lb_net_18socket_interrupted@PAGE
-    add x24, x24, _lb_net_18socket_interrupted@PAGEOFF
-    mov w25, w14
+    mov w22, w14
 L6_9:
     mov x10, #0
-    cmp w25, w10
+    cmp w22, w10
     cset w14, lt
     cbnz w14, L6_12
     b L6_18
@@ -1521,27 +1417,25 @@ L6_18:
 L6_12:
     bl _lb_net_12socket_errno
     mov w14, w0
-    ldrsw x15, [x24]
-    cmp w14, w15
+    movz x10, #4
+    cmp w14, w10
     cset w15, eq
 L6_13:
     and w14, w15, #255
     cbnz w14, L6_10
     b L6_11
 L6_10:
-    ldrsw x14, [x22]
-    ldrsw x15, [x23]
     mov x0, x19
-    mov x1, x14
-    mov x2, x15
+    movz x1, #65535
+    movz x2, #4130
     mov x3, x21
     movz x4, #4
     bl _setsockopt
-    mov w25, w0
+    mov w22, w0
     b L6_9
 L6_11:
     mov x10, #0
-    cmp w25, w10
+    cmp w22, w10
     b.ne L6_15
 L6_14:
     movz x9, #1
@@ -1553,13 +1447,10 @@ L6_16:
     and w14, w14, #255
     mov x9, x14
     mov x0, x9
-    ldr x19, [sp, #72]
-    ldr x20, [sp, #64]
-    ldr x21, [sp, #56]
-    ldr x22, [sp, #48]
-    ldr x23, [sp, #40]
-    ldr x24, [sp, #32]
-    ldr x25, [sp, #24]
+    ldr x19, [sp, #40]
+    ldr x20, [sp, #32]
+    ldr x21, [sp, #24]
+    ldr x22, [sp, #16]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -1576,34 +1467,32 @@ L6_17:
 _lb_net_Connection_write:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #240
+    sub sp, sp, #224
     sub x16, x29, #24
     str x8, [x16]
-    str x19, [sp, #208]
-    str x20, [sp, #200]
-    str x21, [sp, #192]
-    str x22, [sp, #184]
-    str x23, [sp, #176]
-    str x24, [sp, #168]
-    str x25, [sp, #160]
-    sub x16, x29, #128
+    str x19, [sp, #192]
+    str x20, [sp, #184]
+    str x21, [sp, #176]
+    str x22, [sp, #168]
+    str x23, [sp, #160]
+    sub x16, x29, #112
     str x0, [x16]
-    sub x16, x29, #144
+    sub x16, x29, #128
     str x1, [x16]
     str x2, [x16, #8]
-    sub x9, x29, #128
+    sub x9, x29, #112
     ldr x19, [x9]
     mov x0, x19
-    sub x8, x29, #184
+    sub x8, x29, #168
     bl _lb_net_SocketHandle_require
-    sub x15, x29, #184
+    sub x15, x29, #168
     add x14, x15, #32
     ldrb w14, [x14]
     cbnz w14, L7_2
     b L7_1
 L7_2:
     add x14, x15, #8
-    sub x19, x29, #120
+    sub x19, x29, #104
     add x12, x19, #8
     mov x10, x14
     mov x11, x12
@@ -1621,27 +1510,25 @@ L7_2:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #208]
-    ldr x20, [sp, #200]
-    ldr x21, [sp, #192]
-    ldr x22, [sp, #184]
-    ldr x23, [sp, #176]
-    ldr x24, [sp, #168]
-    ldr x25, [sp, #160]
+    ldr x19, [sp, #192]
+    ldr x20, [sp, #184]
+    ldr x21, [sp, #176]
+    ldr x22, [sp, #168]
+    ldr x23, [sp, #160]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
 L7_3:
 L7_1:
     ldrsw x20, [x15]
-    sub x21, x29, #144
+    sub x21, x29, #128
     add x14, x21, #8
     ldr x22, [x14]
     mov x10, #0
     cmp x22, x10
     b.ne L7_5
 L7_4:
-    sub x14, x29, #120
+    sub x14, x29, #104
     mov x9, #0
     str x9, [x14]
     add x15, x14, #32
@@ -1654,13 +1541,11 @@ L7_4:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #208]
-    ldr x20, [sp, #200]
-    ldr x21, [sp, #192]
-    ldr x22, [sp, #184]
-    ldr x23, [sp, #176]
-    ldr x24, [sp, #168]
-    ldr x25, [sp, #160]
+    ldr x19, [sp, #192]
+    ldr x20, [sp, #184]
+    ldr x21, [sp, #176]
+    ldr x22, [sp, #168]
+    ldr x23, [sp, #160]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -1675,7 +1560,7 @@ L7_6:
     cmp w14, w10
     b.ne L7_9
 L7_8:
-    sub x19, x29, #120
+    sub x19, x29, #104
     add x14, x19, #8
     adrp x15, _lb_net_closed@PAGE
     add x15, x15, _lb_net_closed@PAGEOFF
@@ -1683,7 +1568,7 @@ L7_8:
     str w15, [x14]
     adrp x15, l_text_11@PAGE
     add x15, x15, l_text_11@PAGEOFF
-    sub x12, x29, #200
+    sub x12, x29, #184
     str x15, [x12]
     add x15, x12, #8
     movz x9, #21
@@ -1703,13 +1588,11 @@ L7_8:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #208]
-    ldr x20, [sp, #200]
-    ldr x21, [sp, #192]
-    ldr x22, [sp, #184]
-    ldr x23, [sp, #176]
-    ldr x24, [sp, #168]
-    ldr x25, [sp, #160]
+    ldr x19, [sp, #192]
+    ldr x20, [sp, #184]
+    ldr x21, [sp, #176]
+    ldr x22, [sp, #168]
+    ldr x23, [sp, #160]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -1717,33 +1600,27 @@ L7_11:
     b L7_10
 L7_9:
 L7_10:
-    adrp x14, _lb_net_14transfer_limit@PAGE
-    add x14, x14, _lb_net_14transfer_limit@PAGEOFF
-    ldr x14, [x14]
-    cmp x22, x14
+    movz x10, #16384, lsl #16
+    cmp x22, x10
     b.hs L7_13
 L7_12:
     mov x19, x22
     b L7_14
 L7_13:
-    mov x19, x14
+    movz x9, #16384, lsl #16
+    mov x19, x9
 L7_14:
     ldr x22, [x21]
-    adrp x23, _lb_net_10send_flags@PAGE
-    add x23, x23, _lb_net_10send_flags@PAGEOFF
-    ldrsw x14, [x23]
     mov x0, x20
     mov x1, x22
     mov x2, x19
-    mov x3, x14
+    mov x3, #0
     bl _lb_net_send
     mov x14, x0
-    adrp x24, _lb_net_18socket_interrupted@PAGE
-    add x24, x24, _lb_net_18socket_interrupted@PAGEOFF
-    mov x25, x14
+    mov x23, x14
 L7_15:
     mov x10, #0
-    cmp x25, x10
+    cmp x23, x10
     cset w21, lt
     cbnz w21, L7_18
     b L7_29
@@ -1753,27 +1630,26 @@ L7_29:
 L7_18:
     bl _lb_net_12socket_errno
     mov w14, w0
-    ldrsw x15, [x24]
-    cmp w14, w15
+    movz x10, #4
+    cmp w14, w10
     cset w14, eq
 L7_19:
     and w15, w14, #255
     cbnz w15, L7_16
     b L7_17
 L7_16:
-    ldrsw x14, [x23]
     mov x0, x20
     mov x1, x22
     mov x2, x19
-    mov x3, x14
+    mov x3, #0
     bl _lb_net_send
-    mov x25, x0
+    mov x23, x0
     b L7_15
 L7_17:
     cbnz w21, L7_20
     b L7_21
 L7_20:
-    sub x19, x29, #120
+    sub x19, x29, #104
     add x20, x19, #8
     bl _lb_net_12socket_errno
     mov w14, w0
@@ -1783,7 +1659,7 @@ L7_20:
     str w14, [x20]
     adrp x14, l_text_12@PAGE
     add x14, x14, l_text_12@PAGEOFF
-    sub x15, x29, #216
+    sub x15, x29, #200
     str x14, [x15]
     add x14, x15, #8
     movz x9, #34
@@ -1803,13 +1679,11 @@ L7_20:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #208]
-    ldr x20, [sp, #200]
-    ldr x21, [sp, #192]
-    ldr x22, [sp, #184]
-    ldr x23, [sp, #176]
-    ldr x24, [sp, #168]
-    ldr x25, [sp, #160]
+    ldr x19, [sp, #192]
+    ldr x20, [sp, #184]
+    ldr x21, [sp, #176]
+    ldr x22, [sp, #168]
+    ldr x23, [sp, #160]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -1818,10 +1692,10 @@ L7_23:
 L7_21:
 L7_22:
     mov x10, #0
-    cmp x25, x10
+    cmp x23, x10
     b.ne L7_25
 L7_24:
-    sub x19, x29, #120
+    sub x19, x29, #104
     add x14, x19, #8
     adrp x15, _lb_io_11no_progress@PAGE
     add x15, x15, _lb_io_11no_progress@PAGEOFF
@@ -1829,7 +1703,7 @@ L7_24:
     str w15, [x14]
     adrp x15, l_text_13@PAGE
     add x15, x15, l_text_13@PAGEOFF
-    sub x12, x29, #232
+    sub x12, x29, #216
     str x15, [x12]
     add x15, x12, #8
     movz x9, #37
@@ -1849,13 +1723,11 @@ L7_24:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #208]
-    ldr x20, [sp, #200]
-    ldr x21, [sp, #192]
-    ldr x22, [sp, #184]
-    ldr x23, [sp, #176]
-    ldr x24, [sp, #168]
-    ldr x25, [sp, #160]
+    ldr x19, [sp, #192]
+    ldr x20, [sp, #184]
+    ldr x21, [sp, #176]
+    ldr x22, [sp, #168]
+    ldr x23, [sp, #160]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -1863,8 +1735,8 @@ L7_27:
     b L7_26
 L7_25:
 L7_26:
-    sub x14, x29, #120
-    str x25, [x14]
+    sub x14, x29, #104
+    str x23, [x14]
     add x15, x14, #32
     mov x9, #0
     strb w9, [x15]
@@ -1875,13 +1747,11 @@ L7_26:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #208]
-    ldr x20, [sp, #200]
-    ldr x21, [sp, #192]
-    ldr x22, [sp, #184]
-    ldr x23, [sp, #176]
-    ldr x24, [sp, #168]
-    ldr x25, [sp, #160]
+    ldr x19, [sp, #192]
+    ldr x20, [sp, #184]
+    ldr x21, [sp, #176]
+    ldr x22, [sp, #168]
+    ldr x23, [sp, #160]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -1906,25 +1776,24 @@ _lb_net_Connection_read:
     str x21, [sp, #144]
     str x22, [sp, #136]
     str x23, [sp, #128]
-    str x24, [sp, #120]
-    sub x16, x29, #120
+    sub x16, x29, #112
     str x0, [x16]
-    sub x16, x29, #136
+    sub x16, x29, #128
     str x1, [x16]
     str x2, [x16, #8]
-    sub x9, x29, #120
+    sub x9, x29, #112
     ldr x14, [x9]
     mov x0, x14
-    sub x8, x29, #176
+    sub x8, x29, #168
     bl _lb_net_SocketHandle_require
-    sub x15, x29, #176
+    sub x15, x29, #168
     add x14, x15, #32
     ldrb w14, [x14]
     cbnz w14, L8_2
     b L8_1
 L8_2:
     add x14, x15, #8
-    sub x19, x29, #112
+    sub x19, x29, #104
     add x12, x19, #8
     mov x10, x14
     mov x11, x12
@@ -1947,21 +1816,20 @@ L8_2:
     ldr x21, [sp, #144]
     ldr x22, [sp, #136]
     ldr x23, [sp, #128]
-    ldr x24, [sp, #120]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
 L8_3:
 L8_1:
     ldrsw x19, [x15]
-    sub x14, x29, #136
+    sub x14, x29, #128
     add x12, x14, #8
     ldr x12, [x12]
     mov x10, #0
     cmp x12, x10
     b.ne L8_5
 L8_4:
-    sub x14, x29, #112
+    sub x14, x29, #104
     mov x9, #0
     str x9, [x14]
     add x15, x14, #32
@@ -1979,7 +1847,6 @@ L8_4:
     ldr x21, [sp, #144]
     ldr x22, [sp, #136]
     ldr x23, [sp, #128]
-    ldr x24, [sp, #120]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -1987,16 +1854,15 @@ L8_7:
     b L8_6
 L8_5:
 L8_6:
-    adrp x15, _lb_net_14transfer_limit@PAGE
-    add x15, x15, _lb_net_14transfer_limit@PAGEOFF
-    ldr x15, [x15]
-    cmp x12, x15
+    movz x10, #16384, lsl #16
+    cmp x12, x10
     b.hs L8_9
 L8_8:
     mov x20, x12
     b L8_10
 L8_9:
-    mov x20, x15
+    movz x9, #16384, lsl #16
+    mov x20, x9
 L8_10:
     ldr x21, [x14]
     mov x0, x19
@@ -2005,23 +1871,21 @@ L8_10:
     mov x3, #0
     bl _lb_net_recv
     mov x15, x0
-    adrp x22, _lb_net_18socket_interrupted@PAGE
-    add x22, x22, _lb_net_18socket_interrupted@PAGEOFF
-    mov x23, x15
+    mov x22, x15
 L8_11:
     mov x10, #0
-    cmp x23, x10
-    cset w24, lt
-    cbnz w24, L8_14
+    cmp x22, x10
+    cset w23, lt
+    cbnz w23, L8_14
     b L8_21
 L8_21:
-    mov w14, w24
+    mov w14, w23
     b L8_15
 L8_14:
     bl _lb_net_12socket_errno
     mov w14, w0
-    ldrsw x15, [x22]
-    cmp w14, w15
+    movz x10, #4
+    cmp w14, w10
     cset w14, eq
 L8_15:
     and w15, w14, #255
@@ -2033,13 +1897,13 @@ L8_12:
     mov x2, x20
     mov x3, #0
     bl _lb_net_recv
-    mov x23, x0
+    mov x22, x0
     b L8_11
 L8_13:
-    cbnz w24, L8_16
+    cbnz w23, L8_16
     b L8_17
 L8_16:
-    sub x19, x29, #112
+    sub x19, x29, #104
     add x20, x19, #8
     bl _lb_net_12socket_errno
     mov w14, w0
@@ -2049,7 +1913,7 @@ L8_16:
     str w14, [x20]
     adrp x14, l_text_15@PAGE
     add x14, x14, l_text_15@PAGEOFF
-    sub x15, x29, #192
+    sub x15, x29, #184
     str x14, [x15]
     add x14, x15, #8
     movz x9, #37
@@ -2074,7 +1938,6 @@ L8_16:
     ldr x21, [sp, #144]
     ldr x22, [sp, #136]
     ldr x23, [sp, #128]
-    ldr x24, [sp, #120]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -2082,8 +1945,8 @@ L8_19:
     b L8_18
 L8_17:
 L8_18:
-    sub x14, x29, #112
-    str x23, [x14]
+    sub x14, x29, #104
+    str x22, [x14]
     add x15, x14, #32
     mov x9, #0
     strb w9, [x15]
@@ -2099,7 +1962,6 @@ L8_18:
     ldr x21, [sp, #144]
     ldr x22, [sp, #136]
     ldr x23, [sp, #128]
-    ldr x24, [sp, #120]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -2344,28 +2206,27 @@ L10_7:
 _lb_net_Connection_13set_keepalive:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #176
+    sub sp, sp, #160
     sub x16, x29, #24
     str x8, [x16]
-    str x19, [sp, #144]
-    str x20, [sp, #136]
-    sub x16, x29, #80
+    str x19, [sp, #128]
+    sub x16, x29, #72
     str x0, [x16]
-    sub x16, x29, #96
+    sub x16, x29, #88
     str w1, [x16]
-    sub x9, x29, #80
+    sub x9, x29, #72
     ldr x14, [x9]
     mov x0, x14
-    sub x8, x29, #136
+    sub x8, x29, #128
     bl _lb_net_SocketHandle_require
-    sub x15, x29, #136
+    sub x15, x29, #128
     add x14, x15, #32
     ldrb w14, [x14]
     cbnz w14, L11_2
     b L11_1
 L11_2:
     add x14, x15, #8
-    sub x19, x29, #72
+    sub x19, x29, #64
     mov x10, x14
     mov x11, x19
     ldp x16, x17, [x10, #0]
@@ -2382,23 +2243,16 @@ L11_2:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #144]
-    ldr x20, [sp, #136]
+    ldr x19, [sp, #128]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
 L11_3:
 L11_1:
     ldrsw x14, [x15]
-    adrp x12, _lb_net_12socket_level@PAGE
-    add x12, x12, _lb_net_12socket_level@PAGEOFF
-    ldrsw x12, [x12]
-    adrp x13, _lb_net_16keepalive_option@PAGE
-    add x13, x13, _lb_net_16keepalive_option@PAGEOFF
-    ldrsw x13, [x13]
-    sub x19, x29, #96
-    ldrb w19, [x19]
-    cbnz w19, L11_4
+    sub x12, x29, #88
+    ldrb w12, [x12]
+    cbnz w12, L11_4
     b L11_5
 L11_4:
     movz x9, #1
@@ -2409,19 +2263,19 @@ L11_5:
     mov w15, w9
 L11_6:
     mov x0, x14
-    mov x1, x12
-    mov x2, x13
+    movz x1, #65535
+    movz x2, #8
     mov x3, x15
-    sub x8, x29, #168
+    sub x8, x29, #160
     bl _lb_net_18set_socket_integer
-    sub x20, x29, #168
-    add x19, x20, #24
-    ldrb w19, [x19]
-    cbnz w19, L11_8
+    sub x13, x29, #160
+    add x12, x13, #24
+    ldrb w12, [x12]
+    cbnz w12, L11_8
     b L11_7
 L11_8:
-    sub x19, x29, #72
-    mov x10, x20
+    sub x19, x29, #64
+    mov x10, x13
     mov x11, x19
     ldp x16, x17, [x10, #0]
     stp x16, x17, [x11, #0]
@@ -2437,14 +2291,13 @@ L11_8:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #144]
-    ldr x20, [sp, #136]
+    ldr x19, [sp, #128]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
 L11_9:
 L11_7:
-    sub x14, x29, #72
+    sub x14, x29, #64
     add x15, x14, #24
     mov x9, #0
     strb w9, [x15]
@@ -2455,8 +2308,7 @@ L11_7:
     bl _memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #144]
-    ldr x20, [sp, #136]
+    ldr x19, [sp, #128]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -2510,15 +2362,9 @@ L12_2:
 L12_3:
 L12_1:
     ldrsw x14, [x15]
-    adrp x12, _lb_net_12socket_level@PAGE
-    add x12, x12, _lb_net_12socket_level@PAGEOFF
-    ldrsw x12, [x12]
-    adrp x13, _lb_net_16keepalive_option@PAGE
-    add x13, x13, _lb_net_16keepalive_option@PAGEOFF
-    ldrsw x13, [x13]
     mov x0, x14
-    mov x1, x12
-    mov x2, x13
+    movz x1, #65535
+    movz x2, #8
     sub x8, x29, #160
     bl _lb_net_18get_socket_integer
     sub x12, x29, #160
@@ -2901,10 +2747,8 @@ L15_5:
 L15_6:
 L15_4:
     ldrsw x14, [x12]
-    adrp x15, _lb_net_16nonblocking_flag@PAGE
-    add x15, x15, _lb_net_16nonblocking_flag@PAGEOFF
-    ldrsw x15, [x15]
-    and w14, w14, w15
+    movz x10, #4
+    and w14, w14, w10
     mov x10, #0
     cmp w14, w10
     cset w14, eq
@@ -2984,14 +2828,11 @@ L16_2:
 L16_3:
 L16_1:
     ldrsw x14, [x15]
-    adrp x12, _lb_net_21receive_buffer_option@PAGE
-    add x12, x12, _lb_net_21receive_buffer_option@PAGEOFF
+    sub x12, x29, #88
     ldrsw x12, [x12]
-    sub x13, x29, #88
-    ldrsw x13, [x13]
     mov x0, x14
-    mov x1, x12
-    mov x2, x13
+    movz x1, #4098
+    mov x2, x12
     sub x8, x29, #160
     bl _lb_net_17set_socket_buffer
     sub x12, x29, #160
@@ -3088,15 +2929,9 @@ L17_2:
 L17_3:
 L17_1:
     ldrsw x14, [x15]
-    adrp x12, _lb_net_12socket_level@PAGE
-    add x12, x12, _lb_net_12socket_level@PAGEOFF
-    ldrsw x12, [x12]
-    adrp x13, _lb_net_21receive_buffer_option@PAGE
-    add x13, x13, _lb_net_21receive_buffer_option@PAGEOFF
-    ldrsw x13, [x13]
     mov x0, x14
-    mov x1, x12
-    mov x2, x13
+    movz x1, #65535
+    movz x2, #4098
     sub x8, x29, #160
     bl _lb_net_18get_socket_integer
     sub x12, x29, #160
@@ -3204,14 +3039,11 @@ L18_2:
 L18_3:
 L18_1:
     ldrsw x14, [x15]
-    adrp x12, _lb_net_18send_buffer_option@PAGE
-    add x12, x12, _lb_net_18send_buffer_option@PAGEOFF
+    sub x12, x29, #88
     ldrsw x12, [x12]
-    sub x13, x29, #88
-    ldrsw x13, [x13]
     mov x0, x14
-    mov x1, x12
-    mov x2, x13
+    movz x1, #4097
+    mov x2, x12
     sub x8, x29, #160
     bl _lb_net_17set_socket_buffer
     sub x12, x29, #160
@@ -3308,15 +3140,9 @@ L19_2:
 L19_3:
 L19_1:
     ldrsw x14, [x15]
-    adrp x12, _lb_net_12socket_level@PAGE
-    add x12, x12, _lb_net_12socket_level@PAGEOFF
-    ldrsw x12, [x12]
-    adrp x13, _lb_net_18send_buffer_option@PAGE
-    add x13, x13, _lb_net_18send_buffer_option@PAGEOFF
-    ldrsw x13, [x13]
     mov x0, x14
-    mov x1, x12
-    mov x2, x13
+    movz x1, #65535
+    movz x2, #4097
     sub x8, x29, #160
     bl _lb_net_18get_socket_integer
     sub x12, x29, #160

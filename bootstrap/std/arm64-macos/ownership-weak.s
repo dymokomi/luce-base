@@ -26,11 +26,8 @@ _lb_ownership_9weak_make:
     ldr x19, [x14]
     mov x0, x19
     bl _lb_ownership_11check_alive
-    adrp x14, _lb_ownership_immortal@PAGE
-    add x14, x14, _lb_ownership_immortal@PAGEOFF
-    ldrb w14, [x14]
     mov x0, x19
-    mov x1, x14
+    movz x1, #32
     bl _lb_ownership_has
     mov w14, w0
     mov x10, #0
@@ -97,11 +94,8 @@ L2_4:
 L2_1:
     mov x0, x20
     bl _lb_ownership_12check_thread
-    adrp x14, _lb_ownership_immortal@PAGE
-    add x14, x14, _lb_ownership_immortal@PAGEOFF
-    ldrb w14, [x14]
     mov x0, x20
-    mov x1, x14
+    movz x1, #32
     bl _lb_ownership_has
     mov w14, w0
     mov x10, #0
@@ -165,11 +159,8 @@ L3_4:
 L3_1:
     mov x0, x19
     bl _lb_ownership_12check_thread
-    adrp x14, _lb_ownership_immortal@PAGE
-    add x14, x14, _lb_ownership_immortal@PAGEOFF
-    ldrb w14, [x14]
     mov x0, x19
-    mov x1, x14
+    movz x1, #32
     bl _lb_ownership_has
     mov w14, w0
     mov x10, #0
@@ -221,11 +212,8 @@ L4_4:
 L4_1:
     mov x0, x19
     bl _lb_ownership_12check_thread
-    adrp x14, _lb_ownership_dead@PAGE
-    add x14, x14, _lb_ownership_dead@PAGEOFF
-    ldrb w14, [x14]
     mov x0, x19
-    mov x1, x14
+    movz x1, #8
     bl _lb_ownership_has
     mov w14, w0
     mov x10, #0

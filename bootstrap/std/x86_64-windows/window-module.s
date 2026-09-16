@@ -126,48 +126,16 @@ lb_window_supported:
     movq %rdx, 216(%rbp)
     movq %r8, 224(%rbp)
     movq %r9, 232(%rbp)
-    leaq lb_platform_macos(%rip), %rbx
-    movq %rbx, %r10
-    movzbl (%r10), %ebx
-    testl %ebx, %ebx
-    jne .L1_1
-    jmp .L1_8
-.L1_8:
-    movl %ebx, %r12d
-    jmp .L1_2
-.L1_1:
-    leaq lb_platform_arm64(%rip), %rbx
-    movq %rbx, %r10
-    movzbl (%r10), %r12d
 .L1_2:
-    movzbl %r12b, %ebx
-    testl %ebx, %ebx
-    jne .L1_9
-    jmp .L1_3
-.L1_9:
-    movl %ebx, %r12d
-    jmp .L1_4
 .L1_3:
-    leaq lb_platform_windows(%rip), %rbx
-    movq %rbx, %r10
-    movzbl (%r10), %ebx
-    testl %ebx, %ebx
-    jne .L1_5
-    jmp .L1_10
-.L1_10:
-    movl %ebx, %r12d
-    jmp .L1_6
 .L1_5:
-    leaq lb_platform_6x86_64(%rip), %rbx
-    movq %rbx, %r10
-    movzbl (%r10), %r12d
 .L1_6:
-    movzbl %r12b, %ebx
-    movl %ebx, %r12d
+    movl $1, %eax
+    movl %eax, %ebx
 .L1_4:
-    movzbl %r12b, %ebx
-    movzbl %bl, %ebx
-    movl %ebx, %eax
+    movzbl %bl, %r12d
+    movzbl %r12b, %r12d
+    movl %r12d, %eax
     movq 184(%rbp), %rdi
     movq 176(%rbp), %rsi
     movdqu 160(%rbp), %xmm6
@@ -185,15 +153,6 @@ lb_window_supported:
     leaq 192(%rbp), %rsp
     popq %rbp
     ret
-.L1_7:
-    leaq .Ltext_1(%rip), %rdi
-    leaq .Ltext_0(%rip), %rsi
-    movq %rdx, %r8
-    movq %rsi, %rdx
-    movq %rdi, %rcx
-    subq $32, %rsp
-    call lb_core_7trap_at
-    addq $32, %rsp
     .seh_endproc
 
     .p2align 4
@@ -3188,19 +3147,8 @@ lb_window_12check_thread:
     leaq 272(%rbp), %rsp
     popq %rbp
     ret
-.L14_4:
-    jmp .L14_3
 .L14_2:
 .L14_3:
-    leaq lb_platform_windows(%rip), %rbx
-    movq %rbx, %r10
-    movzbl (%r10), %ebx
-    testl %ebx, %ebx
-    jne .L14_8
-    jmp .L14_11
-.L14_11:
-    movl %ebx, %r12d
-    jmp .L14_9
 .L14_8:
     subq $32, %rsp
     call lb_thread_7is_main
@@ -3209,10 +3157,10 @@ lb_window_12check_thread:
     movl $0, %ecx
     cmpl %ecx, %ebx
     sete %al
-    movzbl %al, %r12d
+    movzbl %al, %ebx
 .L14_9:
-    movzbl %r12b, %ebx
-    testl %ebx, %ebx
+    movzbl %bl, %r12d
+    testl %r12d, %r12d
     jne .L14_5
     jmp .L14_6
 .L14_5:
@@ -3273,8 +3221,6 @@ lb_window_12check_thread:
     leaq 272(%rbp), %rsp
     popq %rbp
     ret
-.L14_10:
-    jmp .L14_7
 .L14_6:
 .L14_7:
     leaq 32(%rbp), %rbx

@@ -333,8 +333,8 @@ lb_io_10read_exact:
     b.cc 1f
     adrp x0, .Ltext_7
     add x0, x0, :lo12:.Ltext_7
-    adrp x1, .Ltext_82
-    add x1, x1, :lo12:.Ltext_82
+    adrp x1, .Ltext_81
+    add x1, x1, :lo12:.Ltext_81
     bl lb_core_7trap_at
 1:
     mov x15, x9
@@ -616,8 +616,8 @@ lb_io_9write_all:
     b.cc 1f
     adrp x0, .Ltext_12
     add x0, x0, :lo12:.Ltext_12
-    adrp x1, .Ltext_82
-    add x1, x1, :lo12:.Ltext_82
+    adrp x1, .Ltext_81
+    add x1, x1, :lo12:.Ltext_81
     bl lb_core_7trap_at
 1:
     mov x15, x9
@@ -1035,8 +1035,8 @@ lb_io_10copy_limit:
     b.cc 1f
     adrp x0, .Ltext_17
     add x0, x0, :lo12:.Ltext_17
-    adrp x1, .Ltext_82
-    add x1, x1, :lo12:.Ltext_82
+    adrp x1, .Ltext_81
+    add x1, x1, :lo12:.Ltext_81
     bl lb_core_7trap_at
 1:
     mov x14, x9
@@ -1088,8 +1088,8 @@ lb_io_10copy_limit:
     b.cc 1f
     adrp x0, .Ltext_16
     add x0, x0, :lo12:.Ltext_16
-    adrp x1, .Ltext_82
-    add x1, x1, :lo12:.Ltext_82
+    adrp x1, .Ltext_81
+    add x1, x1, :lo12:.Ltext_81
     bl lb_core_7trap_at
 1:
     mov x14, x9
@@ -1215,8 +1215,8 @@ lb_io_SliceReader_remaining:
     b.cs 1f
     adrp x0, .Ltext_20
     add x0, x0, :lo12:.Ltext_20
-    adrp x1, .Ltext_82
-    add x1, x1, :lo12:.Ltext_82
+    adrp x1, .Ltext_81
+    add x1, x1, :lo12:.Ltext_81
     bl lb_core_7trap_at
 1:
     mov x14, x9
@@ -1265,8 +1265,8 @@ lb_io_SliceReader_read:
     b.cs 1f
     adrp x0, .Ltext_20
     add x0, x0, :lo12:.Ltext_20
-    adrp x1, .Ltext_82
-    add x1, x1, :lo12:.Ltext_82
+    adrp x1, .Ltext_81
+    add x1, x1, :lo12:.Ltext_81
     bl lb_core_7trap_at
 1:
     mov x12, x9
@@ -1337,8 +1337,8 @@ lb_io_SliceReader_read:
     b.cc 1f
     adrp x0, .Ltext_22
     add x0, x0, :lo12:.Ltext_22
-    adrp x1, .Ltext_82
-    add x1, x1, :lo12:.Ltext_82
+    adrp x1, .Ltext_81
+    add x1, x1, :lo12:.Ltext_81
     bl lb_core_7trap_at
 1:
     mov x12, x9
@@ -1559,8 +1559,8 @@ lb_io_SliceWriter_write:
     b.cs 1f
     adrp x0, .Ltext_26
     add x0, x0, :lo12:.Ltext_26
-    adrp x1, .Ltext_82
-    add x1, x1, :lo12:.Ltext_82
+    adrp x1, .Ltext_81
+    add x1, x1, :lo12:.Ltext_81
     bl lb_core_7trap_at
 1:
     mov x21, x9
@@ -1663,8 +1663,8 @@ lb_io_SliceWriter_write:
     b.cc 1f
     adrp x0, .Ltext_29
     add x0, x0, :lo12:.Ltext_29
-    adrp x1, .Ltext_82
-    add x1, x1, :lo12:.Ltext_82
+    adrp x1, .Ltext_81
+    add x1, x1, :lo12:.Ltext_81
     bl lb_core_7trap_at
 1:
     mov x15, x9
@@ -1837,8 +1837,8 @@ lb_io_BufferedReader_buffered:
     b.cs 1f
     adrp x0, .Ltext_33
     add x0, x0, :lo12:.Ltext_33
-    adrp x1, .Ltext_82
-    add x1, x1, :lo12:.Ltext_82
+    adrp x1, .Ltext_81
+    add x1, x1, :lo12:.Ltext_81
     bl lb_core_7trap_at
 1:
     mov x14, x9
@@ -2031,8 +2031,8 @@ lb_io_BufferedReader_read:
     b.cs 1f
     adrp x0, .Ltext_33
     add x0, x0, :lo12:.Ltext_33
-    adrp x1, .Ltext_82
-    add x1, x1, :lo12:.Ltext_82
+    adrp x1, .Ltext_81
+    add x1, x1, :lo12:.Ltext_81
     bl lb_core_7trap_at
 1:
     mov x14, x9
@@ -2104,8 +2104,8 @@ lb_io_BufferedReader_read:
     b.cc 1f
     adrp x0, .Ltext_35
     add x0, x0, :lo12:.Ltext_35
-    adrp x1, .Ltext_82
-    add x1, x1, :lo12:.Ltext_82
+    adrp x1, .Ltext_81
+    add x1, x1, :lo12:.Ltext_81
     bl lb_core_7trap_at
 1:
     mov x14, x9
@@ -2376,8 +2376,8 @@ lb_io_BufferedWriter_flush:
     b.cs 1f
     adrp x0, .Ltext_41
     add x0, x0, :lo12:.Ltext_41
-    adrp x1, .Ltext_82
-    add x1, x1, :lo12:.Ltext_82
+    adrp x1, .Ltext_81
+    add x1, x1, :lo12:.Ltext_81
     bl lb_core_7trap_at
 1:
     mov x14, x9
@@ -2593,8 +2593,8 @@ lb_io_BufferedWriter_write:
     b.cs 1f
     adrp x0, .Ltext_43
     add x0, x0, :lo12:.Ltext_43
-    adrp x1, .Ltext_82
-    add x1, x1, :lo12:.Ltext_82
+    adrp x1, .Ltext_81
+    add x1, x1, :lo12:.Ltext_81
     bl lb_core_7trap_at
 1:
     mov x12, x9
@@ -2655,8 +2655,8 @@ lb_io_BufferedWriter_write:
     b.cc 1f
     adrp x0, .Ltext_45
     add x0, x0, :lo12:.Ltext_45
-    adrp x1, .Ltext_82
-    add x1, x1, :lo12:.Ltext_82
+    adrp x1, .Ltext_81
+    add x1, x1, :lo12:.Ltext_81
     bl lb_core_7trap_at
 1:
     mov x12, x9
@@ -3129,28 +3129,27 @@ lb_io_File_write:
 lb_io_StandardInput_read:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #224
+    sub sp, sp, #208
     sub x16, x29, #24
     str x8, [x16]
-    str x19, [sp, #192]
-    str x20, [sp, #184]
-    str x21, [sp, #176]
-    str x22, [sp, #168]
-    sub x16, x29, #104
+    str x19, [sp, #176]
+    str x20, [sp, #168]
+    str x21, [sp, #160]
+    sub x16, x29, #96
     str x0, [x16]
-    sub x16, x29, #120
+    sub x16, x29, #112
     str x1, [x16]
     str x2, [x16, #8]
-    sub x9, x29, #104
+    sub x9, x29, #96
     ldr x20, [x9]
-    sub x19, x29, #120
+    sub x19, x29, #112
     add x14, x19, #8
     ldr x14, [x14]
     mov x10, #0
     cmp x14, x10
     b.ne .L20_2
 .L20_1:
-    sub x14, x29, #96
+    sub x14, x29, #88
     mov x9, #0
     str x9, [x14]
     add x15, x14, #32
@@ -3163,10 +3162,9 @@ lb_io_StandardInput_read:
     bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #192]
-    ldr x20, [sp, #184]
-    ldr x21, [sp, #176]
-    ldr x22, [sp, #168]
+    ldr x19, [sp, #176]
+    ldr x20, [sp, #168]
+    ldr x21, [sp, #160]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -3182,29 +3180,27 @@ lb_io_StandardInput_read:
 .L20_6:
     mov x21, x14
 .L20_7:
-    adrp x22, lb_c_interrupted
-    add x22, x22, :lo12:lb_c_interrupted
 .L20_8:
 .L20_9:
     ldrsw x14, [x20]
     ldr x15, [x19]
-    sub x10, x29, #184
+    sub x10, x29, #176
     str w14, [x10]
-    sub x10, x29, #200
+    sub x10, x29, #192
     str x15, [x10]
-    sub x10, x29, #216
+    sub x10, x29, #208
     str x21, [x10]
     mov x0, x14
     mov x1, x15
     mov x2, x21
     bl read
     mov x14, x0
-.L20_32:
+.L20_29:
     mov x10, #0
     cmp x14, x10
     b.lt .L20_12
 .L20_11:
-    sub x15, x29, #96
+    sub x15, x29, #88
     str x14, [x15]
     add x12, x15, #32
     mov x9, #0
@@ -3216,10 +3212,9 @@ lb_io_StandardInput_read:
     bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #192]
-    ldr x20, [sp, #184]
-    ldr x21, [sp, #176]
-    ldr x22, [sp, #168]
+    ldr x19, [sp, #176]
+    ldr x20, [sp, #168]
+    ldr x21, [sp, #160]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -3227,30 +3222,18 @@ lb_io_StandardInput_read:
 .L20_13:
     bl lb_c_errno
     mov w14, w0
-    ldrsw x15, [x22]
-    cmp w14, w15
+    movz x10, #4
+    cmp w14, w10
     b.ne .L20_16
 .L20_15:
     b .L20_8
 .L20_16:
 .L20_17:
-    adrp x15, lb_platform_macos
-    add x15, x15, :lo12:lb_platform_macos
-    ldrb w15, [x15]
-    cbnz w15, .L20_22
-    b .L20_23
-.L20_22:
-    movz x9, #35
-    mov w15, w9
-    b .L20_24
-.L20_23:
-    movz x9, #11
-    mov w15, w9
-.L20_24:
-    cmp w14, w15
+    movz x10, #11
+    cmp w14, w10
     b.ne .L20_20
 .L20_19:
-    sub x19, x29, #96
+    sub x19, x29, #88
     add x14, x19, #8
     adrp x15, lb_io_11would_block
     add x15, x15, :lo12:lb_io_11would_block
@@ -3258,7 +3241,7 @@ lb_io_StandardInput_read:
     str w15, [x14]
     adrp x15, .Ltext_52
     add x15, x15, :lo12:.Ltext_52
-    sub x12, x29, #136
+    sub x12, x29, #128
     str x15, [x12]
     add x15, x12, #8
     movz x9, #26
@@ -3278,10 +3261,9 @@ lb_io_StandardInput_read:
     bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #192]
-    ldr x20, [sp, #184]
-    ldr x21, [sp, #176]
-    ldr x22, [sp, #168]
+    ldr x19, [sp, #176]
+    ldr x20, [sp, #168]
+    ldr x21, [sp, #160]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -3289,9 +3271,9 @@ lb_io_StandardInput_read:
 .L20_21:
     movz x10, #9
     cmp w14, w10
-    b.ne .L20_27
-.L20_26:
-    sub x19, x29, #96
+    b.ne .L20_24
+.L20_23:
+    sub x19, x29, #88
     add x14, x19, #8
     adrp x15, lb_io_closed
     add x15, x15, :lo12:lb_io_closed
@@ -3299,7 +3281,7 @@ lb_io_StandardInput_read:
     str w15, [x14]
     adrp x15, .Ltext_53
     add x15, x15, :lo12:.Ltext_53
-    sub x12, x29, #152
+    sub x12, x29, #144
     str x15, [x12]
     add x15, x12, #8
     movz x9, #24
@@ -3319,16 +3301,15 @@ lb_io_StandardInput_read:
     bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #192]
-    ldr x20, [sp, #184]
-    ldr x21, [sp, #176]
-    ldr x22, [sp, #168]
+    ldr x19, [sp, #176]
+    ldr x20, [sp, #168]
+    ldr x21, [sp, #160]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
-.L20_27:
-.L20_28:
-    sub x19, x29, #96
+.L20_24:
+.L20_25:
+    sub x19, x29, #88
     add x14, x19, #8
     adrp x15, lb_io_failed
     add x15, x15, :lo12:lb_io_failed
@@ -3336,7 +3317,7 @@ lb_io_StandardInput_read:
     str w15, [x14]
     adrp x15, .Ltext_54
     add x15, x15, :lo12:.Ltext_54
-    sub x12, x29, #168
+    sub x12, x29, #160
     str x15, [x12]
     add x15, x12, #8
     movz x9, #32
@@ -3356,10 +3337,9 @@ lb_io_StandardInput_read:
     bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #192]
-    ldr x20, [sp, #184]
-    ldr x21, [sp, #176]
-    ldr x22, [sp, #168]
+    ldr x19, [sp, #176]
+    ldr x20, [sp, #168]
+    ldr x21, [sp, #160]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -3709,43 +3689,32 @@ lb_io_path_user:
     str x20, [sp, #136]
     str x21, [sp, #128]
     sub x19, x29, #112
-    adrp x14, lb_platform_windows
-    add x14, x14, :lo12:lb_platform_windows
+    adrp x14, .Ltext_61
+    add x14, x14, :lo12:.Ltext_61
+    mov x0, x14
+    sub x8, x29, #136
+    bl lb_os_env
+    sub x15, x29, #136
+    add x14, x15, #16
     ldrb w14, [x14]
     cbnz w14, .L27_1
     b .L27_2
 .L27_1:
-    adrp x14, .Ltext_61
-    add x14, x14, :lo12:.Ltext_61
-    b .L27_3
-.L27_2:
-    adrp x14, .Ltext_62
-    add x14, x14, :lo12:.Ltext_62
-.L27_3:
-    mov x0, x14
-    sub x8, x29, #136
-    bl lb_os_env
-    sub x12, x29, #136
-    add x15, x12, #16
-    ldrb w15, [x15]
-    cbnz w15, .L27_4
-    b .L27_5
-.L27_4:
     sub x20, x29, #152
-    mov x10, x12
+    mov x10, x15
     mov x11, x20
     ldp x16, x17, [x10, #0]
     stp x16, x17, [x11, #0]
-    b .L27_6
-.L27_5:
+    b .L27_3
+.L27_2:
     sub x19, x29, #96
     add x14, x19, #16
     adrp x15, lb_io_14io_path_failed
     add x15, x15, :lo12:lb_io_14io_path_failed
     ldr w15, [x15]
     str w15, [x14]
-    adrp x15, .Ltext_63
-    add x15, x15, :lo12:.Ltext_63
+    adrp x15, .Ltext_62
+    add x15, x15, :lo12:.Ltext_62
     sub x12, x29, #168
     str x15, [x12]
     add x15, x12, #8
@@ -3772,8 +3741,8 @@ lb_io_path_user:
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
-.L27_7:
-.L27_6:
+.L27_4:
+.L27_3:
     mov x10, x20
     mov x11, x19
     ldp x16, x17, [x10, #0]
@@ -3799,9 +3768,9 @@ lb_io_path_user:
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
-.L27_8:
-    adrp x0, .Ltext_64
-    add x0, x0, :lo12:.Ltext_64
+.L27_5:
+    adrp x0, .Ltext_63
+    add x0, x0, :lo12:.Ltext_63
     adrp x1, .Ltext_0
     add x1, x1, :lo12:.Ltext_0
     bl lb_core_7trap_at
@@ -3871,8 +3840,8 @@ lb_io_path_home:
     ldp x29, x30, [sp], #16
     ret
 .L28_4:
-    adrp x0, .Ltext_65
-    add x0, x0, :lo12:.Ltext_65
+    adrp x0, .Ltext_64
+    add x0, x0, :lo12:.Ltext_64
     adrp x1, .Ltext_0
     add x1, x1, :lo12:.Ltext_0
     bl lb_core_7trap_at
@@ -3890,8 +3859,8 @@ lb_io_path_temp:
     str x20, [sp, #96]
     str x21, [sp, #88]
     sub x19, x29, #72
-    adrp x14, .Ltext_66
-    add x14, x14, :lo12:.Ltext_66
+    adrp x14, .Ltext_65
+    add x14, x14, :lo12:.Ltext_65
     mov x0, x14
     sub x8, x29, #96
     bl lb_os_env
@@ -3908,8 +3877,8 @@ lb_io_path_temp:
     stp x16, x17, [x11, #0]
     b .L29_3
 .L29_2:
-    adrp x14, .Ltext_67
-    add x14, x14, :lo12:.Ltext_67
+    adrp x14, .Ltext_66
+    add x14, x14, :lo12:.Ltext_66
     sub x15, x29, #128
     str x14, [x15]
     add x14, x15, #8
@@ -3950,8 +3919,8 @@ lb_io_path_temp:
     ldp x29, x30, [sp], #16
     ret
 .L29_5:
-    adrp x0, .Ltext_68
-    add x0, x0, :lo12:.Ltext_68
+    adrp x0, .Ltext_67
+    add x0, x0, :lo12:.Ltext_67
     adrp x1, .Ltext_0
     add x1, x1, :lo12:.Ltext_0
     bl lb_core_7trap_at
@@ -3975,8 +3944,8 @@ lb_io_path_config:
     str x24, [sp, #344]
     str x25, [sp, #336]
     str x26, [sp, #328]
-    adrp x14, .Ltext_69
-    add x14, x14, :lo12:.Ltext_69
+    adrp x14, .Ltext_68
+    add x14, x14, :lo12:.Ltext_68
     mov x0, x14
     sub x8, x29, #160
     bl lb_os_env
@@ -4079,10 +4048,10 @@ lb_io_path_config:
     movz x10, #9
     adds x9, x9, x10
     b.cc 1f
-    adrp x0, .Ltext_70
-    add x0, x0, :lo12:.Ltext_70
-    adrp x1, .Ltext_82
-    add x1, x1, :lo12:.Ltext_82
+    adrp x0, .Ltext_69
+    add x0, x0, :lo12:.Ltext_69
+    adrp x1, .Ltext_81
+    add x1, x1, :lo12:.Ltext_81
     bl lb_core_7trap_at
 1:
     mov x22, x9
@@ -4095,8 +4064,8 @@ lb_io_path_config:
     movz x9, #1
     movk x9, #3178, lsl #16
     str w9, [x14]
-    adrp x15, .Ltext_71
-    add x15, x15, :lo12:.Ltext_71
+    adrp x15, .Ltext_70
+    add x15, x15, :lo12:.Ltext_70
     add x12, x14, #8
     str x15, [x12]
     add x14, x14, #16
@@ -4113,10 +4082,10 @@ lb_io_path_config:
     cbnz x15, .L30_12
     b .L30_13
 .L30_13:
-    adrp x0, .Ltext_70
-    add x0, x0, :lo12:.Ltext_70
-    adrp x1, .Ltext_72
-    add x1, x1, :lo12:.Ltext_72
+    adrp x0, .Ltext_69
+    add x0, x0, :lo12:.Ltext_69
+    adrp x1, .Ltext_71
+    add x1, x1, :lo12:.Ltext_71
     bl lb_core_7trap_at
 .L30_12:
     ldr x12, [x15]
@@ -4145,8 +4114,8 @@ lb_io_path_config:
     movz x9, #1
     movk x9, #3178, lsl #16
     str w9, [x14]
-    adrp x15, .Ltext_73
-    add x15, x15, :lo12:.Ltext_73
+    adrp x15, .Ltext_72
+    add x15, x15, :lo12:.Ltext_72
     add x12, x14, #8
     str x15, [x12]
     add x14, x14, #16
@@ -4222,8 +4191,8 @@ lb_io_path_config:
     mov x2, x20
     bl lb_core_10format_put
     mov w14, w0
-    adrp x14, .Ltext_74
-    add x14, x14, :lo12:.Ltext_74
+    adrp x14, .Ltext_73
+    add x14, x14, :lo12:.Ltext_73
     mov x0, x22
     mov x1, x14
     movz x2, #8
@@ -4239,8 +4208,8 @@ lb_io_path_config:
     movz x9, #1
     movk x9, #3178, lsl #16
     str w9, [x14]
-    adrp x15, .Ltext_75
-    add x15, x15, :lo12:.Ltext_75
+    adrp x15, .Ltext_74
+    add x15, x15, :lo12:.Ltext_74
     add x12, x14, #8
     str x15, [x12]
     add x14, x14, #16
@@ -4329,8 +4298,8 @@ lb_io_path_config:
     ldp x29, x30, [sp], #16
     ret
 .L30_25:
-    adrp x0, .Ltext_76
-    add x0, x0, :lo12:.Ltext_76
+    adrp x0, .Ltext_75
+    add x0, x0, :lo12:.Ltext_75
     adrp x1, .Ltext_0
     add x1, x1, :lo12:.Ltext_0
     bl lb_core_7trap_at
@@ -4384,8 +4353,8 @@ lb_memory_move_0g1_u8:
     add x14, x15, #8
     movz x9, #19
     str x9, [x14]
-    adrp x14, .Ltext_77
-    add x14, x14, :lo12:.Ltext_77
+    adrp x14, .Ltext_76
+    add x14, x14, :lo12:.Ltext_76
     mov x0, x14
     mov x9, x15
     ldr x1, [x9]
@@ -4409,10 +4378,10 @@ lb_memory_move_0g1_u8:
     cbnz x14, .L31_9
     b .L31_10
 .L31_10:
-    adrp x0, .Ltext_78
-    add x0, x0, :lo12:.Ltext_78
-    adrp x1, .Ltext_79
-    add x1, x1, :lo12:.Ltext_79
+    adrp x0, .Ltext_77
+    add x0, x0, :lo12:.Ltext_77
+    adrp x1, .Ltext_78
+    add x1, x1, :lo12:.Ltext_78
     bl lb_core_7trap_at
 .L31_9:
     b .L31_8
@@ -4473,8 +4442,8 @@ lb_memory_copy_0g1_u8:
     add x14, x15, #8
     movz x9, #19
     str x9, [x14]
-    adrp x14, .Ltext_80
-    add x14, x14, :lo12:.Ltext_80
+    adrp x14, .Ltext_79
+    add x14, x14, :lo12:.Ltext_79
     mov x0, x14
     mov x9, x15
     ldr x1, [x9]
@@ -4498,10 +4467,10 @@ lb_memory_copy_0g1_u8:
     cbnz x14, .L32_9
     b .L32_10
 .L32_10:
-    adrp x0, .Ltext_81
-    add x0, x0, :lo12:.Ltext_81
-    adrp x1, .Ltext_79
-    add x1, x1, :lo12:.Ltext_79
+    adrp x0, .Ltext_80
+    add x0, x0, :lo12:.Ltext_80
+    adrp x1, .Ltext_78
+    add x1, x1, :lo12:.Ltext_78
     bl lb_core_7trap_at
 .L32_9:
     b .L32_8
@@ -4643,48 +4612,46 @@ lb_memory_copy_0g1_u8:
 .Ltext_60:
     .asciz "src/std/io.lucb:338:9"
 .Ltext_61:
-    .asciz "USERPROFILE"
-.Ltext_62:
     .asciz "HOME"
-.Ltext_63:
+.Ltext_62:
     .asciz "no home directory"
-.Ltext_64:
+.Ltext_63:
     .asciz "src/std/io.lucb:349:9"
-.Ltext_65:
+.Ltext_64:
     .asciz "src/std/io.lucb:352:9"
-.Ltext_66:
+.Ltext_65:
     .asciz "TMPDIR"
-.Ltext_67:
+.Ltext_66:
     .asciz "/tmp"
-.Ltext_68:
+.Ltext_67:
     .asciz "src/std/io.lucb:363:9"
-.Ltext_69:
+.Ltext_68:
     .asciz "XDG_CONFIG_HOME"
-.Ltext_70:
+.Ltext_69:
     .asciz "src/std/io.lucb:376:9"
-.Ltext_71:
+.Ltext_70:
     .asciz "memory.exhausted: the allocation size overflows"
-.Ltext_72:
+.Ltext_71:
     .asciz "memory.unset"
-.Ltext_73:
+.Ltext_72:
     .asciz "memory.exhausted"
-.Ltext_74:
+.Ltext_73:
     .asciz "/.config"
-.Ltext_75:
+.Ltext_74:
     .asciz "memory.exhausted: the formatted text does not fit its buffer"
-.Ltext_76:
+.Ltext_75:
     .asciz "src/std/io.lucb:377:9"
-.Ltext_77:
+.Ltext_76:
     .asciz "src/std/memory.lucb:334:9"
-.Ltext_78:
+.Ltext_77:
     .asciz "src/std/memory.lucb:336:9"
-.Ltext_79:
+.Ltext_78:
     .asciz "null_foreign"
-.Ltext_80:
+.Ltext_79:
     .asciz "src/std/memory.lucb:328:9"
-.Ltext_81:
+.Ltext_80:
     .asciz "src/std/memory.lucb:330:9"
-.Ltext_82:
+.Ltext_81:
     .asciz "integer overflow"
 
     .section .data.rel.ro,"aw"

@@ -6,32 +6,20 @@ _lb_memory_0init:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
     sub sp, sp, #16
-    adrp x14, _lb_platform_macos@PAGE
-    add x14, x14, _lb_platform_macos@PAGEOFF
-    ldrb w14, [x14]
-    cbnz w14, L0_1
-    b L0_2
-L0_1:
+    adrp x14, _lb_memory_17private_anonymous@PAGE
+    add x14, x14, _lb_memory_17private_anonymous@PAGEOFF
     movz x9, #4098
-    mov w14, w9
-    b L0_3
-L0_2:
-    movz x9, #34
-    mov w14, w9
-L0_3:
-    adrp x15, _lb_memory_17private_anonymous@PAGE
-    add x15, x15, _lb_memory_17private_anonymous@PAGEOFF
-    str w14, [x15]
-    adrp x15, _lb_memory_exhausted@PAGE
-    add x15, x15, _lb_memory_exhausted@PAGEOFF
+    str w9, [x14]
+    adrp x14, _lb_memory_exhausted@PAGE
+    add x14, x14, _lb_memory_exhausted@PAGEOFF
     movz x9, #1
     movk x9, #3178, lsl #16
-    str w9, [x15]
-    adrp x15, _lb_memory_unset@PAGE
-    add x15, x15, _lb_memory_unset@PAGEOFF
+    str w9, [x14]
+    adrp x14, _lb_memory_unset@PAGE
+    add x14, x14, _lb_memory_unset@PAGEOFF
     movz x9, #2
     movk x9, #3178, lsl #16
-    str w9, [x15]
+    str w9, [x14]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -2352,13 +2340,10 @@ L17_20:
     mov x22, x9
     sub x10, x29, #368
     str x22, [x10]
-    adrp x14, _lb_memory_17private_anonymous@PAGE
-    add x14, x14, _lb_memory_17private_anonymous@PAGEOFF
-    ldrsw x14, [x14]
     mov x0, #0
     mov x1, x22
     movz x2, #3
-    mov x3, x14
+    movz x3, #4098
     movn x4, #0
     mov x5, #0
     bl _mmap

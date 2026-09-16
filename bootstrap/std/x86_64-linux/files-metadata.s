@@ -461,8 +461,6 @@ lb_files_metadata:
     movq %rax, -536(%rbp)
     leaq -224(%rbp), %r14
     leaq -224(%rbp), %r13
-    leaq lb_c_interrupted(%rip), %rax
-    movq %rax, -544(%rbp)
 .L3_1:
 .L3_2:
     movq -536(%rbp), %r10
@@ -543,9 +541,8 @@ lb_files_metadata:
 .L3_9:
     call lb_c_errno@PLT
     movl %eax, %r12d
-    movq -544(%rbp), %r10
-    movslq (%r10), %r15
-    cmpl %r15d, %r12d
+    movl $4, %ecx
+    cmpl %ecx, %r12d
     sete %al
     movzbl %al, %r12d
     movl $0, %ecx
@@ -614,25 +611,23 @@ lb_files_19metadata_descriptor:
     movq %r12, -24(%rbp)
     movq %r13, -32(%rbp)
     movq %r14, -40(%rbp)
-    movq %r15, -48(%rbp)
-    movl %esi, -224(%rbp)
-    leaq -368(%rbp), %rbx
+    movl %esi, -216(%rbp)
+    leaq -360(%rbp), %rbx
     movq %rbx, %rdi
     xorl %esi, %esi
     movq $144, %rdx
     call memset@PLT
-    leaq -224(%rbp), %r12
-    leaq lb_c_interrupted(%rip), %r13
+    leaq -216(%rbp), %r12
 .L4_1:
 .L4_2:
     movq %r12, %r10
-    movslq (%r10), %r14
-    movl %r14d, %edi
+    movslq (%r10), %r13
+    movl %r13d, %edi
     movq %rbx, %rsi
     call fstat@PLT
-    movl %eax, %r14d
+    movl %eax, %r13d
     movl $0, %ecx
-    cmpl %ecx, %r14d
+    cmpl %ecx, %r13d
     jne .L4_5
 .L4_4:
     subq $144, %rsp
@@ -642,11 +637,11 @@ lb_files_19metadata_descriptor:
     movq %r10, %rsi
     movq $144, %rdx
     call memcpy@PLT
-    leaq -496(%rbp), %rdi
+    leaq -488(%rbp), %rdi
     call lb_files_14linux_metadata@PLT
     addq $144, %rsp
-    leaq -496(%rbp), %r12
-    leaq -208(%rbp), %r13
+    leaq -488(%rbp), %r12
+    leaq -200(%rbp), %r13
     movq %r12, %r10
     movq %r13, %r11
     movups 0(%r10), %xmm8
@@ -680,24 +675,22 @@ lb_files_19metadata_descriptor:
     movq -24(%rbp), %r12
     movq -32(%rbp), %r13
     movq -40(%rbp), %r14
-    movq -48(%rbp), %r15
     movq %rbp, %rsp
     popq %rbp
     ret
 .L4_5:
 .L4_6:
     call lb_c_errno@PLT
-    movl %eax, %r14d
-    movq %r13, %r10
-    movslq (%r10), %r15
-    cmpl %r15d, %r14d
+    movl %eax, %r13d
+    movl $4, %ecx
+    cmpl %ecx, %r13d
     sete %al
-    movzbl %al, %r14d
+    movzbl %al, %r13d
     movl $0, %ecx
-    cmpl %ecx, %r14d
+    cmpl %ecx, %r13d
     jne .L4_9
 .L4_8:
-    leaq -208(%rbp), %rbx
+    leaq -200(%rbp), %rbx
     movq $128, %rcx
     movq %rbx, %r12
     addq %rcx, %r12
@@ -709,7 +702,7 @@ lb_files_19metadata_descriptor:
     movq %r12, %r10
     movl %r13d, (%r10)
     leaq .Ltext_9(%rip), %r13
-    leaq -512(%rbp), %r14
+    leaq -504(%rbp), %r14
     movq %r14, %r10
     movq %r13, (%r10)
     movq $8, %rcx
@@ -739,7 +732,6 @@ lb_files_19metadata_descriptor:
     movq -24(%rbp), %r12
     movq -32(%rbp), %r13
     movq -40(%rbp), %r14
-    movq -48(%rbp), %r15
     movq %rbp, %rsp
     popq %rbp
     ret
@@ -753,7 +745,7 @@ lb_files_19metadata_descriptor:
 lb_files_11metadata_at:
     pushq %rbp
     movq %rsp, %rbp
-    subq $576, %rsp
+    subq $560, %rsp
     movq %rdi, -8(%rbp)
     movq %rbx, -16(%rbp)
     movq %r12, -24(%rbp)
@@ -771,14 +763,11 @@ lb_files_11metadata_at:
     jmp .L5_2
 .L5_1:
     movl $0, %eax
-    movl %eax, -568(%rbp)
+    movl %eax, %ebx
     jmp .L5_3
 .L5_2:
-    leaq lb_files_17at_no_follow_flag(%rip), %rbx
-    movq %rbx, %r10
-    movslq (%r10), %rbx
-    movl %ebx, %eax
-    movl %eax, -568(%rbp)
+    movl $256, %eax
+    movl %eax, %ebx
 .L5_3:
     leaq -400(%rbp), %r12
     movq %r12, %rdi
@@ -787,8 +776,6 @@ lb_files_11metadata_at:
     call memset@PLT
     leaq -224(%rbp), %r13
     leaq -240(%rbp), %r14
-    leaq lb_c_interrupted(%rip), %rax
-    movq %rax, -560(%rbp)
 .L5_4:
 .L5_5:
     movq %r13, %r10
@@ -799,7 +786,7 @@ lb_files_11metadata_at:
     movl %r15d, %edi
     movq -552(%rbp), %rsi
     movq %r12, %rdx
-    movl -568(%rbp), %ecx
+    movl %ebx, %ecx
     call fstatat@PLT
     movl %eax, %r15d
     movl $0, %ecx
@@ -859,13 +846,12 @@ lb_files_11metadata_at:
 .L5_9:
     call lb_c_errno@PLT
     movl %eax, %r15d
-    movq -560(%rbp), %r10
-    movslq (%r10), %rbx
-    cmpl %ebx, %r15d
+    movl $4, %ecx
+    cmpl %ecx, %r15d
     sete %al
-    movzbl %al, %ebx
+    movzbl %al, %r15d
     movl $0, %ecx
-    cmpl %ecx, %ebx
+    cmpl %ecx, %r15d
     jne .L5_12
 .L5_11:
     leaq -208(%rbp), %rbx

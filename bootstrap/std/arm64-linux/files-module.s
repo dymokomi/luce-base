@@ -7,471 +7,141 @@ lb_files_module_0init:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
     sub sp, sp, #16
-    adrp x14, lb_platform_wasm32
-    add x14, x14, :lo12:lb_platform_wasm32
-    ldrb w15, [x14]
-    cbnz w15, .L0_1
-    b .L0_2
-.L0_1:
-    movz x9, #1024, lsl #16
-    mov w15, w9
-    b .L0_3
-.L0_2:
+    adrp x14, lb_files_14read_only_flag
+    add x14, x14, :lo12:lb_files_14read_only_flag
     mov x9, #0
-    mov w15, w9
-.L0_3:
-    adrp x12, lb_files_14read_only_flag
-    add x12, x12, :lo12:lb_files_14read_only_flag
-    str w15, [x12]
-    ldrb w12, [x14]
-    cbnz w12, .L0_4
-    b .L0_5
-.L0_4:
-    movz x9, #4096, lsl #16
-    mov w15, w9
-    b .L0_6
-.L0_5:
+    str w9, [x14]
+    adrp x14, lb_files_10write_only
+    add x14, x14, :lo12:lb_files_10write_only
     movz x9, #1
-    mov w15, w9
-.L0_6:
-    adrp x12, lb_files_10write_only
-    add x12, x12, :lo12:lb_files_10write_only
-    str w15, [x12]
-    ldrb w12, [x14]
-    cbnz w12, .L0_7
-    b .L0_8
-.L0_7:
-    movz x9, #5120, lsl #16
-    mov w15, w9
-    b .L0_9
-.L0_8:
+    str w9, [x14]
+    adrp x14, lb_files_15read_write_flag
+    add x14, x14, :lo12:lb_files_15read_write_flag
     movz x9, #2
-    mov w15, w9
-.L0_9:
-    adrp x12, lb_files_15read_write_flag
-    add x12, x12, :lo12:lb_files_15read_write_flag
-    str w15, [x12]
-    ldrb w12, [x14]
-    cbnz w12, .L0_10
-    b .L0_11
-.L0_10:
-    movz x9, #4096
-    mov w15, w9
-    b .L0_12
-.L0_11:
-    adrp x15, lb_platform_windows
-    add x15, x15, :lo12:lb_platform_windows
-    ldrb w15, [x15]
-    cbnz w15, .L0_13
-    b .L0_14
-.L0_13:
-    movz x9, #256
-    mov w15, w9
-    b .L0_15
-.L0_14:
-    adrp x15, lb_platform_macos
-    add x15, x15, :lo12:lb_platform_macos
-    ldrb w15, [x15]
-    cbnz w15, .L0_16
-    b .L0_17
-.L0_16:
-    movz x9, #512
-    mov w15, w9
-    b .L0_18
-.L0_17:
+    str w9, [x14]
+    adrp x14, lb_files_create
+    add x14, x14, :lo12:lb_files_create
     movz x9, #64
-    mov w15, w9
-.L0_18:
-.L0_15:
-.L0_12:
-    adrp x12, lb_files_create
-    add x12, x12, :lo12:lb_files_create
-    str w15, [x12]
-    ldrb w12, [x14]
-    cbnz w12, .L0_19
-    b .L0_20
-.L0_19:
-    movz x9, #32768
-    mov w15, w9
-    b .L0_21
-.L0_20:
-    adrp x15, lb_platform_windows
-    add x15, x15, :lo12:lb_platform_windows
-    ldrb w15, [x15]
-    cbnz w15, .L0_22
-    b .L0_23
-.L0_22:
+    str w9, [x14]
+    adrp x14, lb_files_truncate
+    add x14, x14, :lo12:lb_files_truncate
     movz x9, #512
-    mov w15, w9
-    b .L0_24
-.L0_23:
-    adrp x15, lb_platform_macos
-    add x15, x15, :lo12:lb_platform_macos
-    ldrb w15, [x15]
-    cbnz w15, .L0_25
-    b .L0_26
-.L0_25:
-    movz x9, #1024
-    mov w15, w9
-    b .L0_27
-.L0_26:
-    movz x9, #512
-    mov w15, w9
-.L0_27:
-.L0_24:
-.L0_21:
-    adrp x12, lb_files_truncate
-    add x12, x12, :lo12:lb_files_truncate
-    str w15, [x12]
-    ldrb w12, [x14]
-    cbnz w12, .L0_28
-    b .L0_29
-.L0_28:
-    mov x9, #0
-    mov w15, w9
-    b .L0_30
-.L0_29:
-    adrp x15, lb_platform_windows
-    add x15, x15, :lo12:lb_platform_windows
-    ldrb w15, [x15]
-    cbnz w15, .L0_31
-    b .L0_32
-.L0_31:
-    movz x9, #128
-    mov w15, w9
-    b .L0_33
-.L0_32:
-    adrp x15, lb_platform_macos
-    add x15, x15, :lo12:lb_platform_macos
-    ldrb w15, [x15]
-    cbnz w15, .L0_34
-    b .L0_35
-.L0_34:
-    movz x9, #256, lsl #16
-    mov w15, w9
-    b .L0_36
-.L0_35:
+    str w9, [x14]
+    adrp x14, lb_files_13close_on_exec
+    add x14, x14, :lo12:lb_files_13close_on_exec
     movz x9, #8, lsl #16
-    mov w15, w9
-.L0_36:
-.L0_33:
-.L0_30:
-    adrp x12, lb_files_13close_on_exec
-    add x12, x12, :lo12:lb_files_13close_on_exec
-    str w15, [x12]
-    ldrb w12, [x14]
-    cbnz w12, .L0_37
-    b .L0_38
-.L0_37:
-    movz x9, #1
-    mov w15, w9
-    b .L0_39
-.L0_38:
-    adrp x15, lb_platform_windows
-    add x15, x15, :lo12:lb_platform_windows
-    ldrb w15, [x15]
-    cbnz w15, .L0_94
-    b .L0_43
-.L0_94:
-    mov w12, w15
-    b .L0_44
-.L0_43:
-    adrp x15, lb_platform_macos
-    add x15, x15, :lo12:lb_platform_macos
-    ldrb w12, [x15]
-.L0_44:
-    and w15, w12, #255
-    cbnz w15, .L0_40
-    b .L0_41
-.L0_40:
-    movz x9, #8
-    mov w15, w9
-    b .L0_42
-.L0_41:
+    str w9, [x14]
+    adrp x14, lb_files_11append_flag
+    add x14, x14, :lo12:lb_files_11append_flag
     movz x9, #1024
-    mov w15, w9
-.L0_42:
-.L0_39:
-    adrp x12, lb_files_11append_flag
-    add x12, x12, :lo12:lb_files_11append_flag
-    str w15, [x12]
-    ldrb w12, [x14]
-    cbnz w12, .L0_45
-    b .L0_46
-.L0_45:
-    movz x9, #16384
-    mov w15, w9
-    b .L0_47
-.L0_46:
-    adrp x15, lb_platform_windows
-    add x15, x15, :lo12:lb_platform_windows
-    ldrb w15, [x15]
-    cbnz w15, .L0_48
-    b .L0_49
-.L0_48:
-    movz x9, #1024
-    mov w15, w9
-    b .L0_50
-.L0_49:
-    adrp x15, lb_platform_macos
-    add x15, x15, :lo12:lb_platform_macos
-    ldrb w15, [x15]
-    cbnz w15, .L0_51
-    b .L0_52
-.L0_51:
-    movz x9, #2048
-    mov w15, w9
-    b .L0_53
-.L0_52:
+    str w9, [x14]
+    adrp x14, lb_files_14exclusive_flag
+    add x14, x14, :lo12:lb_files_14exclusive_flag
     movz x9, #128
-    mov w15, w9
-.L0_53:
-.L0_50:
-.L0_47:
-    adrp x12, lb_files_14exclusive_flag
-    add x12, x12, :lo12:lb_files_14exclusive_flag
-    str w15, [x12]
-    adrp x12, lb_platform_macos
-    add x12, x12, :lo12:lb_platform_macos
-    ldrb w13, [x12]
-    cbnz w13, .L0_95
-    b .L0_57
-.L0_95:
-    mov w15, w13
-    b .L0_58
-.L0_57:
-    ldrb w15, [x14]
-.L0_58:
-    and w13, w15, #255
-    cbnz w13, .L0_54
-    b .L0_55
-.L0_54:
-    movz x9, #4
-    mov w15, w9
-    b .L0_56
-.L0_55:
+    str w9, [x14]
+    adrp x14, lb_files_21nonblocking_open_flag
+    add x14, x14, :lo12:lb_files_21nonblocking_open_flag
     movz x9, #2048
-    mov w15, w9
-.L0_56:
-    adrp x13, lb_files_21nonblocking_open_flag
-    add x13, x13, :lo12:lb_files_21nonblocking_open_flag
-    str w15, [x13]
-    ldrb w13, [x14]
-    cbnz w13, .L0_59
-    b .L0_60
-.L0_59:
-    movz x9, #6
-    mov w15, w9
-    b .L0_61
-.L0_60:
-    ldrb w15, [x12]
-    cbnz w15, .L0_62
-    b .L0_63
-.L0_62:
-    movz x9, #35
-    mov w15, w9
-    b .L0_64
-.L0_63:
+    str w9, [x14]
+    adrp x14, lb_files_17would_block_errno
+    add x14, x14, :lo12:lb_files_17would_block_errno
     movz x9, #11
-    mov w15, w9
-.L0_64:
-.L0_61:
-    adrp x13, lb_files_17would_block_errno
-    add x13, x13, :lo12:lb_files_17would_block_errno
-    str w15, [x13]
-    adrp x13, lb_files_14transfer_limit
-    add x13, x13, :lo12:lb_files_14transfer_limit
+    str w9, [x14]
+    adrp x14, lb_files_14transfer_limit
+    add x14, x14, :lo12:lb_files_14transfer_limit
     movz x9, #16384, lsl #16
-    str x9, [x13]
-    ldrb w13, [x12]
-    cbnz w13, .L0_96
-    b .L0_68
-.L0_96:
-    mov w15, w13
-    b .L0_69
-.L0_68:
-    ldrb w15, [x14]
-.L0_69:
-    and w13, w15, #255
-    cbnz w13, .L0_65
-    b .L0_66
-.L0_65:
-    movn x9, #1
-    mov w15, w9
-    b .L0_67
-.L0_66:
+    str x9, [x14]
+    adrp x14, lb_files_20current_directory_fd
+    add x14, x14, :lo12:lb_files_20current_directory_fd
     movn x9, #99
-    mov w15, w9
-.L0_67:
-    adrp x13, lb_files_20current_directory_fd
-    add x13, x13, :lo12:lb_files_20current_directory_fd
-    str w15, [x13]
-    ldrb w13, [x14]
-    cbnz w13, .L0_70
-    b .L0_71
-.L0_70:
-    movz x9, #8192
-    mov w15, w9
-    b .L0_72
-.L0_71:
-    ldrb w15, [x12]
-    cbnz w15, .L0_73
-    b .L0_74
-.L0_73:
-    movz x9, #16, lsl #16
-    mov w15, w9
-    b .L0_75
-.L0_74:
-    adrp x15, lb_platform_arm64
-    add x15, x15, :lo12:lb_platform_arm64
-    ldrb w15, [x15]
-    cbnz w15, .L0_76
-    b .L0_77
-.L0_76:
+    str w9, [x14]
+    adrp x14, lb_files_14directory_flag
+    add x14, x14, :lo12:lb_files_14directory_flag
     movz x9, #16384
-    mov w15, w9
-    b .L0_78
-.L0_77:
-    movz x9, #1, lsl #16
-    mov w15, w9
-.L0_78:
-.L0_75:
-.L0_72:
-    adrp x13, lb_files_14directory_flag
-    add x13, x13, :lo12:lb_files_14directory_flag
-    str w15, [x13]
-    ldrb w13, [x14]
-    cbnz w13, .L0_79
-    b .L0_80
-.L0_79:
-    movz x9, #256, lsl #16
-    mov w15, w9
-    b .L0_81
-.L0_80:
-    ldrb w15, [x12]
-    cbnz w15, .L0_82
-    b .L0_83
-.L0_82:
-    movz x9, #256
-    mov w15, w9
-    b .L0_84
-.L0_83:
-    adrp x15, lb_platform_arm64
-    add x15, x15, :lo12:lb_platform_arm64
-    ldrb w15, [x15]
-    cbnz w15, .L0_85
-    b .L0_86
-.L0_85:
+    str w9, [x14]
+    adrp x14, lb_files_14no_follow_flag
+    add x14, x14, :lo12:lb_files_14no_follow_flag
     movz x9, #32768
-    mov w15, w9
-    b .L0_87
-.L0_86:
-    movz x9, #2, lsl #16
-    mov w15, w9
-.L0_87:
-.L0_84:
-.L0_81:
-    adrp x13, lb_files_14no_follow_flag
-    add x13, x13, :lo12:lb_files_14no_follow_flag
-    str w15, [x13]
-    ldrb w13, [x14]
-    cbnz w13, .L0_88
-    b .L0_89
-.L0_88:
-    movz x9, #1
-    mov w14, w9
-    b .L0_90
-.L0_89:
-    ldrb w14, [x12]
-    cbnz w14, .L0_91
-    b .L0_92
-.L0_91:
-    movz x9, #32
-    mov w14, w9
-    b .L0_93
-.L0_92:
+    str w9, [x14]
+    adrp x14, lb_files_17at_no_follow_flag
+    add x14, x14, :lo12:lb_files_17at_no_follow_flag
     movz x9, #256
-    mov w14, w9
-.L0_93:
-.L0_90:
-    adrp x15, lb_files_17at_no_follow_flag
-    add x15, x15, :lo12:lb_files_17at_no_follow_flag
-    str w14, [x15]
-    adrp x15, lb_files_missing
-    add x15, x15, :lo12:lb_files_missing
+    str w9, [x14]
+    adrp x14, lb_files_missing
+    add x14, x14, :lo12:lb_files_missing
     movz x9, #6
     movk x9, #3178, lsl #16
-    str w9, [x15]
-    adrp x15, lb_files_17permission_denied
-    add x15, x15, :lo12:lb_files_17permission_denied
+    str w9, [x14]
+    adrp x14, lb_files_17permission_denied
+    add x14, x14, :lo12:lb_files_17permission_denied
     movz x9, #18
     movk x9, #3178, lsl #16
-    str w9, [x15]
-    adrp x15, lb_files_14already_exists
-    add x15, x15, :lo12:lb_files_14already_exists
+    str w9, [x14]
+    adrp x14, lb_files_14already_exists
+    add x14, x14, :lo12:lb_files_14already_exists
     movz x9, #19
     movk x9, #3178, lsl #16
-    str w9, [x15]
-    adrp x15, lb_files_8no_space
-    add x15, x15, :lo12:lb_files_8no_space
+    str w9, [x14]
+    adrp x14, lb_files_8no_space
+    add x14, x14, :lo12:lb_files_8no_space
     movz x9, #20
     movk x9, #3178, lsl #16
-    str w9, [x15]
-    adrp x15, lb_files_11would_block
-    add x15, x15, :lo12:lb_files_11would_block
+    str w9, [x14]
+    adrp x14, lb_files_11would_block
+    add x14, x14, :lo12:lb_files_11would_block
     movz x9, #21
     movk x9, #3178, lsl #16
-    str w9, [x15]
-    adrp x15, lb_files_15invalid_options
-    add x15, x15, :lo12:lb_files_15invalid_options
+    str w9, [x14]
+    adrp x14, lb_files_15invalid_options
+    add x14, x14, :lo12:lb_files_15invalid_options
     movz x9, #22
     movk x9, #3178, lsl #16
-    str w9, [x15]
-    adrp x15, lb_files_9too_large
-    add x15, x15, :lo12:lb_files_9too_large
+    str w9, [x14]
+    adrp x14, lb_files_9too_large
+    add x14, x14, :lo12:lb_files_9too_large
     movz x9, #23
     movk x9, #3178, lsl #16
-    str w9, [x15]
-    adrp x15, lb_files_13not_directory
-    add x15, x15, :lo12:lb_files_13not_directory
+    str w9, [x14]
+    adrp x14, lb_files_13not_directory
+    add x14, x14, :lo12:lb_files_13not_directory
     movz x9, #25
     movk x9, #3178, lsl #16
-    str w9, [x15]
-    adrp x15, lb_files_12is_directory
-    add x15, x15, :lo12:lb_files_12is_directory
+    str w9, [x14]
+    adrp x14, lb_files_12is_directory
+    add x14, x14, :lo12:lb_files_12is_directory
     movz x9, #26
     movk x9, #3178, lsl #16
-    str w9, [x15]
-    adrp x15, lb_files_20read_only_filesystem
-    add x15, x15, :lo12:lb_files_20read_only_filesystem
+    str w9, [x14]
+    adrp x14, lb_files_20read_only_filesystem
+    add x14, x14, :lo12:lb_files_20read_only_filesystem
     movz x9, #27
     movk x9, #3178, lsl #16
-    str w9, [x15]
-    adrp x15, lb_files_9not_empty
-    add x15, x15, :lo12:lb_files_9not_empty
+    str w9, [x14]
+    adrp x14, lb_files_9not_empty
+    add x14, x14, :lo12:lb_files_9not_empty
     movz x9, #29
     movk x9, #3178, lsl #16
-    str w9, [x15]
-    adrp x15, lb_files_12cross_device
-    add x15, x15, :lo12:lb_files_12cross_device
+    str w9, [x14]
+    adrp x14, lb_files_12cross_device
+    add x14, x14, :lo12:lb_files_12cross_device
     movz x9, #30
     movk x9, #3178, lsl #16
-    str w9, [x15]
-    adrp x15, lb_files_12symlink_loop
-    add x15, x15, :lo12:lb_files_12symlink_loop
+    str w9, [x14]
+    adrp x14, lb_files_12symlink_loop
+    add x14, x14, :lo12:lb_files_12symlink_loop
     movz x9, #31
     movk x9, #3178, lsl #16
-    str w9, [x15]
-    adrp x15, lb_files_13name_too_long
-    add x15, x15, :lo12:lb_files_13name_too_long
+    str w9, [x14]
+    adrp x14, lb_files_13name_too_long
+    add x14, x14, :lo12:lb_files_13name_too_long
     movz x9, #32
     movk x9, #3178, lsl #16
-    str w9, [x15]
-    adrp x15, lb_files_failed
-    add x15, x15, :lo12:lb_files_failed
+    str w9, [x14]
+    adrp x14, lb_files_failed
+    add x14, x14, :lo12:lb_files_failed
     movz x9, #7
     movk x9, #3178, lsl #16
-    str w9, [x15]
+    str w9, [x14]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -667,8 +337,6 @@ lb_files_10next_entry:
     sub x16, x29, #112
     str x0, [x16]
     sub x19, x29, #112
-    adrp x20, lb_c_interrupted
-    add x20, x20, :lo12:lb_c_interrupted
 .L6_1:
 .L6_2:
     mov x0, #0
@@ -783,8 +451,8 @@ lb_files_10next_entry:
 .L6_6:
     bl lb_c_errno
     mov w14, w0
-    ldrsw x15, [x20]
-    cmp w14, w15
+    movz x10, #4
+    cmp w14, w10
     b.ne .L6_17
 .L6_16:
     b .L6_1

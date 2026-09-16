@@ -15,30 +15,18 @@ lb_sync_0init:
     add x14, x14, :lo12:lb_sync_8wake_all
     movz x9, #256
     str w9, [x14]
-    adrp x14, lb_platform_arm64
-    add x14, x14, :lo12:lb_platform_arm64
-    ldrb w14, [x14]
-    cbnz w14, .L0_1
-    b .L0_2
-.L0_1:
+    adrp x14, lb_sync_12futex_number
+    add x14, x14, :lo12:lb_sync_12futex_number
     movz x9, #98
-    mov x14, x9
-    b .L0_3
-.L0_2:
-    movz x9, #202
-    mov x14, x9
-.L0_3:
-    adrp x15, lb_sync_12futex_number
-    add x15, x15, :lo12:lb_sync_12futex_number
-    str x14, [x15]
-    adrp x15, lb_sync_18futex_wait_private
-    add x15, x15, :lo12:lb_sync_18futex_wait_private
+    str x9, [x14]
+    adrp x14, lb_sync_18futex_wait_private
+    add x14, x14, :lo12:lb_sync_18futex_wait_private
     movz x9, #128
-    str w9, [x15]
-    adrp x15, lb_sync_18futex_wake_private
-    add x15, x15, :lo12:lb_sync_18futex_wake_private
+    str w9, [x14]
+    adrp x14, lb_sync_18futex_wake_private
+    add x14, x14, :lo12:lb_sync_18futex_wake_private
     movz x9, #129
-    str w9, [x15]
+    str w9, [x14]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -51,15 +39,13 @@ lb_sync_0init:
 lb_sync_Mutex_lock:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #96
-    str x19, [sp, #72]
-    str x20, [sp, #64]
-    str x21, [sp, #56]
-    sub x16, x29, #48
+    sub sp, sp, #80
+    str x19, [sp, #56]
+    sub x16, x29, #32
     str x0, [x16]
-    sub x9, x29, #48
+    sub x9, x29, #32
     ldr x19, [x9]
-    sub x14, x29, #56
+    sub x14, x29, #40
     mov x10, #0
     movz x11, #1
     mov x17, x19
@@ -83,9 +69,7 @@ lb_sync_Mutex_lock:
     cbnz w14, .L1_1
     b .L1_2
 .L1_1:
-    ldr x19, [sp, #72]
-    ldr x20, [sp, #64]
-    ldr x21, [sp, #56]
+    ldr x19, [sp, #56]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -112,10 +96,6 @@ lb_sync_Mutex_lock:
 .L1_6:
     mov w14, w15
 .L1_7:
-    adrp x20, lb_sync_12futex_number
-    add x20, x20, :lo12:lb_sync_12futex_number
-    adrp x21, lb_sync_18futex_wait_private
-    add x21, x21, :lo12:lb_sync_18futex_wait_private
     mov w15, w14
 .L1_8:
     mov x10, #0
@@ -125,16 +105,14 @@ lb_sync_Mutex_lock:
     cmp w14, w10
     b.ne .L1_10
 .L1_9:
-    sub x10, x29, #72
+    sub x10, x29, #56
     str x19, [x10]
     movz x9, #2
-    sub x10, x29, #88
+    sub x10, x29, #72
     str w9, [x10]
-    ldr x14, [x20]
-    ldrsw x15, [x21]
-    mov x0, x14
+    movz x0, #98
     mov x1, x19
-    mov x2, x15
+    movz x2, #128
     movz x3, #2
     mov x4, #0
     bl syscall
@@ -150,9 +128,7 @@ lb_sync_Mutex_lock:
     mov w15, w9
     b .L1_8
 .L1_10:
-    ldr x19, [sp, #72]
-    ldr x20, [sp, #64]
-    ldr x21, [sp, #56]
+    ldr x19, [sp, #56]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -184,15 +160,9 @@ lb_sync_Mutex_unlock:
 .L2_1:
     sub x10, x29, #40
     str x15, [x10]
-    adrp x14, lb_sync_12futex_number
-    add x14, x14, :lo12:lb_sync_12futex_number
-    ldr x14, [x14]
-    adrp x12, lb_sync_18futex_wake_private
-    add x12, x12, :lo12:lb_sync_18futex_wake_private
-    ldrsw x12, [x12]
-    mov x0, x14
+    movz x0, #98
     mov x1, x15
-    mov x2, x12
+    movz x2, #129
     movz x3, #1
     bl syscall
     mov x14, x0
@@ -280,15 +250,9 @@ lb_sync_Condition_wait:
     str x21, [x10]
     sub x10, x29, #96
     str w19, [x10]
-    adrp x14, lb_sync_12futex_number
-    add x14, x14, :lo12:lb_sync_12futex_number
-    ldr x14, [x14]
-    adrp x15, lb_sync_18futex_wait_private
-    add x15, x15, :lo12:lb_sync_18futex_wait_private
-    ldrsw x15, [x15]
-    mov x0, x14
+    movz x0, #98
     mov x1, x21
-    mov x2, x15
+    movz x2, #128
     mov x3, x19
     mov x4, #0
     bl syscall
@@ -315,26 +279,20 @@ lb_sync_Condition_signal:
     sub x16, x29, #24
     str x0, [x16]
     sub x9, x29, #24
-    ldr x12, [x9]
+    ldr x14, [x9]
     movz x10, #1
-    mov x17, x12
+    mov x17, x14
 1:
     ldxr w9, [x17]
     add w11, w9, w10
     stlxr w16, w11, [x17]
     cbnz w16, 1b
-    mov w14, w9
+    mov w15, w9
     sub x10, x29, #40
-    str x12, [x10]
-    adrp x14, lb_sync_12futex_number
-    add x14, x14, :lo12:lb_sync_12futex_number
-    ldr x14, [x14]
-    adrp x15, lb_sync_18futex_wake_private
-    add x15, x15, :lo12:lb_sync_18futex_wake_private
-    ldrsw x15, [x15]
-    mov x0, x14
-    mov x1, x12
-    mov x2, x15
+    str x14, [x10]
+    movz x0, #98
+    mov x1, x14
+    movz x2, #129
     movz x3, #1
     bl syscall
     mov x14, x0
@@ -355,26 +313,20 @@ lb_sync_Condition_broadcast:
     sub x16, x29, #24
     str x0, [x16]
     sub x9, x29, #24
-    ldr x12, [x9]
+    ldr x14, [x9]
     movz x10, #1
-    mov x17, x12
+    mov x17, x14
 1:
     ldxr w9, [x17]
     add w11, w9, w10
     stlxr w16, w11, [x17]
     cbnz w16, 1b
-    mov w14, w9
+    mov w15, w9
     sub x10, x29, #40
-    str x12, [x10]
-    adrp x14, lb_sync_12futex_number
-    add x14, x14, :lo12:lb_sync_12futex_number
-    ldr x14, [x14]
-    adrp x15, lb_sync_18futex_wake_private
-    add x15, x15, :lo12:lb_sync_18futex_wake_private
-    ldrsw x15, [x15]
-    mov x0, x14
-    mov x1, x12
-    mov x2, x15
+    str x14, [x10]
+    movz x0, #98
+    mov x1, x14
+    movz x2, #129
     movz x3, #65535
     movk x3, #32767, lsl #16
     bl syscall
@@ -392,17 +344,15 @@ lb_sync_Condition_broadcast:
 lb_sync_Once_run:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #128
-    str x19, [sp, #104]
-    str x20, [sp, #96]
-    str x21, [sp, #88]
-    sub x16, x29, #48
+    sub sp, sp, #112
+    str x19, [sp, #88]
+    sub x16, x29, #32
     str x0, [x16]
-    sub x16, x29, #64
+    sub x16, x29, #48
     str x1, [x16]
-    sub x9, x29, #48
+    sub x9, x29, #32
     ldr x19, [x9]
-    sub x14, x29, #72
+    sub x14, x29, #56
     mov x10, #0
     movz x11, #1
     mov x17, x19
@@ -426,7 +376,7 @@ lb_sync_Once_run:
     cbnz w14, .L7_1
     b .L7_2
 .L7_1:
-    sub x14, x29, #64
+    sub x14, x29, #48
     ldr x14, [x14]
     mov x17, x14
     str x17, [sp, #-16]!
@@ -435,25 +385,17 @@ lb_sync_Once_run:
     movz x9, #2
     mov x10, x19
     stlr w9, [x10]
-    sub x10, x29, #88
+    sub x10, x29, #72
     str x19, [x10]
-    adrp x14, lb_sync_12futex_number
-    add x14, x14, :lo12:lb_sync_12futex_number
-    ldr x14, [x14]
-    adrp x15, lb_sync_18futex_wake_private
-    add x15, x15, :lo12:lb_sync_18futex_wake_private
-    ldrsw x15, [x15]
-    mov x0, x14
+    movz x0, #98
     mov x1, x19
-    mov x2, x15
+    movz x2, #129
     movz x3, #65535
     movk x3, #32767, lsl #16
     bl syscall
     mov x14, x0
 .L7_8:
-    ldr x19, [sp, #104]
-    ldr x20, [sp, #96]
-    ldr x21, [sp, #88]
+    ldr x19, [sp, #88]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -461,10 +403,6 @@ lb_sync_Once_run:
     b .L7_3
 .L7_2:
 .L7_3:
-    adrp x20, lb_sync_12futex_number
-    add x20, x20, :lo12:lb_sync_12futex_number
-    adrp x21, lb_sync_18futex_wait_private
-    add x21, x21, :lo12:lb_sync_18futex_wait_private
 .L7_5:
     mov x9, x19
     ldar w9, [x9]
@@ -476,16 +414,14 @@ lb_sync_Once_run:
     cmp w14, w10
     b.ne .L7_7
 .L7_6:
-    sub x10, x29, #104
+    sub x10, x29, #88
     str x19, [x10]
     movz x9, #1
-    sub x10, x29, #120
+    sub x10, x29, #104
     str w9, [x10]
-    ldr x14, [x20]
-    ldrsw x15, [x21]
-    mov x0, x14
+    movz x0, #98
     mov x1, x19
-    mov x2, x15
+    movz x2, #128
     movz x3, #1
     mov x4, #0
     bl syscall
@@ -493,9 +429,7 @@ lb_sync_Once_run:
 .L7_9:
     b .L7_5
 .L7_7:
-    ldr x19, [sp, #104]
-    ldr x20, [sp, #96]
-    ldr x21, [sp, #88]
+    ldr x19, [sp, #88]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -508,25 +442,19 @@ lb_sync_Once_run:
 lb_sync_Semaphore_acquire:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #112
-    str x19, [sp, #88]
-    str x20, [sp, #80]
-    str x21, [sp, #72]
-    str x22, [sp, #64]
-    str x23, [sp, #56]
-    sub x16, x29, #64
+    sub sp, sp, #96
+    str x19, [sp, #72]
+    str x20, [sp, #64]
+    str x21, [sp, #56]
+    sub x16, x29, #48
     str x0, [x16]
-    sub x9, x29, #64
-    ldr x23, [x9]
-    adrp x21, lb_sync_12futex_number
-    add x21, x21, :lo12:lb_sync_12futex_number
-    adrp x22, lb_sync_18futex_wait_private
-    add x22, x22, :lo12:lb_sync_18futex_wait_private
-    sub x19, x29, #72
+    sub x9, x29, #48
+    ldr x21, [x9]
+    sub x19, x29, #56
     add x20, x19, #4
 .L8_1:
 .L8_2:
-    mov x9, x23
+    mov x9, x21
     ldar w9, [x9]
     mov w14, w9
     mov x10, #0
@@ -546,7 +474,7 @@ lb_sync_Semaphore_acquire:
     mov w15, w9
     mov w10, w14
     mov w11, w15
-    mov x17, x23
+    mov x17, x21
 1:
     ldaxr w9, [x17]
     cmp w9, w10
@@ -565,11 +493,9 @@ lb_sync_Semaphore_acquire:
     cbnz w15, .L8_7
     b .L8_8
 .L8_7:
-    ldr x19, [sp, #88]
-    ldr x20, [sp, #80]
-    ldr x21, [sp, #72]
-    ldr x22, [sp, #64]
-    ldr x23, [sp, #56]
+    ldr x19, [sp, #72]
+    ldr x20, [sp, #64]
+    ldr x21, [sp, #56]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -577,16 +503,14 @@ lb_sync_Semaphore_acquire:
 .L8_9:
     b .L8_6
 .L8_5:
-    sub x10, x29, #88
-    str x23, [x10]
+    sub x10, x29, #72
+    str x21, [x10]
     mov x9, #0
-    sub x10, x29, #104
+    sub x10, x29, #88
     str w9, [x10]
-    ldr x14, [x21]
-    ldrsw x15, [x22]
-    mov x0, x14
-    mov x1, x23
-    mov x2, x15
+    movz x0, #98
+    mov x1, x21
+    movz x2, #128
     mov x3, #0
     mov x4, #0
     bl syscall
@@ -607,26 +531,20 @@ lb_sync_Semaphore_release:
     sub x16, x29, #24
     str x0, [x16]
     sub x9, x29, #24
-    ldr x12, [x9]
+    ldr x14, [x9]
     movz x10, #1
-    mov x17, x12
+    mov x17, x14
 1:
     ldxr w9, [x17]
     add w11, w9, w10
     stlxr w16, w11, [x17]
     cbnz w16, 1b
-    mov w14, w9
+    mov w15, w9
     sub x10, x29, #40
-    str x12, [x10]
-    adrp x14, lb_sync_12futex_number
-    add x14, x14, :lo12:lb_sync_12futex_number
-    ldr x14, [x14]
-    adrp x15, lb_sync_18futex_wake_private
-    add x15, x15, :lo12:lb_sync_18futex_wake_private
-    ldrsw x15, [x15]
-    mov x0, x14
-    mov x1, x12
-    mov x2, x15
+    str x14, [x10]
+    movz x0, #98
+    mov x1, x14
+    movz x2, #129
     movz x3, #1
     bl syscall
     mov x14, x0

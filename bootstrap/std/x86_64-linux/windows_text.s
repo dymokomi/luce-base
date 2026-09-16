@@ -16,7 +16,7 @@ lb_12windows_text_0init:
 lb_12windows_text_wide:
     pushq %rbp
     movq %rsp, %rbp
-    subq $352, %rsp
+    subq $336, %rsp
     movq %rdi, -8(%rbp)
     movq %rbx, -16(%rbp)
     movq %r12, -24(%rbp)
@@ -25,27 +25,19 @@ lb_12windows_text_wide:
     movq %r15, -48(%rbp)
     movq %rsi, -112(%rbp)
     movl %edx, -128(%rbp)
-    leaq lb_11windows_abi_9utf8_page(%rip), %rax
-    movq %rax, -272(%rbp)
-    movq -272(%rbp), %r10
-    movl (%r10), %r12d
-    leaq lb_11windows_abi_19reject_invalid_utf8(%rip), %rax
-    movq %rax, -280(%rbp)
-    movq -280(%rbp), %r10
-    movl (%r10), %r14d
-    leaq -112(%rbp), %r15
-    movq %r15, %r10
+    leaq -112(%rbp), %rbx
+    movq %rbx, %r10
     movq (%r10), %rax
-    movq %rax, -288(%rbp)
-    movl %r12d, %edi
-    movl %r14d, %esi
-    movq -288(%rbp), %rdx
+    movq %rax, -272(%rbp)
+    movl $65001, %edi
+    movl $8, %esi
+    movq -272(%rbp), %rdx
     movl $4294967295, %ecx
     movq $0, %r8
     movl $0, %r9d
     call MultiByteToWideChar@PLT
-    movl %eax, -296(%rbp)
-    movl -296(%rbp), %eax
+    movl %eax, -280(%rbp)
+    movl -280(%rbp), %eax
     movl $0, %ecx
     cmpl %ecx, %eax
     jg .L1_2
@@ -99,39 +91,39 @@ lb_12windows_text_wide:
 .L1_2:
 .L1_3:
     leaq -160(%rbp), %rax
-    movq %rax, -320(%rbp)
+    movq %rax, -304(%rbp)
     movq %fs:0, %rax
     addq lb_memory_allocator@GOTTPOFF(%rip), %rax
-    movq %rax, -328(%rbp)
-    movl -296(%rbp), %eax
+    movq %rax, -312(%rbp)
+    movl -280(%rbp), %eax
     movslq %eax, %rax
-    movq %rax, -336(%rbp)
+    movq %rax, -320(%rbp)
     leaq -208(%rbp), %rax
-    movq %rax, -344(%rbp)
-    movq -336(%rbp), %rax
+    movq %rax, -328(%rbp)
+    movq -320(%rbp), %rax
     movabsq $2305843009213693952, %rcx
     cmpq %rcx, %rax
     jbe .L1_6
 .L1_5:
-    movq -344(%rbp), %rax
+    movq -328(%rbp), %rax
     movq $16, %rcx
     movq %rax, %rbx
     addq %rcx, %rbx
     movl $208273409, %eax
     movq %rbx, %r10
     movl %eax, (%r10)
-    leaq .Ltext_1(%rip), %r14
+    leaq .Ltext_1(%rip), %r13
     movq $8, %rcx
     movq %rbx, %r12
     addq %rcx, %r12
     movq %r12, %r10
-    movq %r14, (%r10)
+    movq %r13, (%r10)
     movq $16, %rcx
     addq %rcx, %rbx
     movq $47, %rax
     movq %rbx, %r10
     movq %rax, (%r10)
-    movq -344(%rbp), %rax
+    movq -328(%rbp), %rax
     movq $40, %rcx
     movq %rax, %rbx
     addq %rcx, %rbx
@@ -140,19 +132,19 @@ lb_12windows_text_wide:
     movb %al, (%r10)
     jmp .L1_7
 .L1_6:
-    movq -336(%rbp), %rax
+    movq -320(%rbp), %rax
     movq $2, %rcx
-    movq %rax, %r15
-    imulq %rcx, %r15
-    movq -328(%rbp), %r10
-    movq (%r10), %r12
-    movq -328(%rbp), %rax
-    movq $8, %rcx
     movq %rax, %r14
-    addq %rcx, %r14
-    movq %r14, %r10
-    movq (%r10), %r14
-    testq %r14, %r14
+    imulq %rcx, %r14
+    movq -312(%rbp), %r10
+    movq (%r10), %r12
+    movq -312(%rbp), %rax
+    movq $8, %rcx
+    movq %rax, %r13
+    addq %rcx, %r13
+    movq %r13, %r10
+    movq (%r10), %r13
+    testq %r13, %r13
     jne .L1_8
     jmp .L1_9
 .L1_9:
@@ -160,38 +152,38 @@ lb_12windows_text_wide:
     leaq .Ltext_2(%rip), %rsi
     call lb_core_7trap_at@PLT
 .L1_8:
-    movq %r14, %r10
-    movq (%r10), %r13
+    movq %r13, %r10
+    movq (%r10), %r15
     movq %r12, %rsi
-    movq %r15, %rdx
+    movq %r14, %rdx
     movq $2, %rcx
     leaq -232(%rbp), %rdi
-    movq %r13, %r11
+    movq %r15, %r11
     call *%r11
     leaq -232(%rbp), %rbx
     movq $16, %rcx
-    movq %rbx, %r13
-    addq %rcx, %r13
-    movq %r13, %r10
-    movzbl (%r10), %r13d
+    movq %rbx, %r15
+    addq %rcx, %r15
+    movq %r15, %r10
+    movzbl (%r10), %r15d
     movq $0, %rcx
-    cmpq %rcx, %r15
+    cmpq %rcx, %r14
     setne %al
     movzbl %al, %eax
-    movl %eax, -304(%rbp)
+    movl %eax, -288(%rbp)
     movl $0, %ecx
-    cmpl %ecx, %r13d
+    cmpl %ecx, %r15d
     sete %al
-    movzbl %al, %r13d
-    movl -304(%rbp), %eax
-    andl %r13d, %eax
-    movl %eax, -312(%rbp)
-    movl -312(%rbp), %eax
+    movzbl %al, %r15d
+    movl -288(%rbp), %eax
+    andl %r15d, %eax
+    movl %eax, -296(%rbp)
+    movl -296(%rbp), %eax
     testl %eax, %eax
     jne .L1_10
     jmp .L1_11
 .L1_10:
-    movq -344(%rbp), %rax
+    movq -328(%rbp), %rax
     movq $16, %rcx
     movq %rax, %rbx
     addq %rcx, %rbx
@@ -209,7 +201,7 @@ lb_12windows_text_wide:
     movq $16, %rax
     movq %rbx, %r10
     movq %rax, (%r10)
-    movq -344(%rbp), %rax
+    movq -328(%rbp), %rax
     movq $40, %rcx
     movq %rax, %rbx
     addq %rcx, %rbx
@@ -220,16 +212,16 @@ lb_12windows_text_wide:
 .L1_11:
     movq %rbx, %r10
     movq (%r10), %r12
-    movq -344(%rbp), %r10
+    movq -328(%rbp), %r10
     movq %r12, (%r10)
-    movq -344(%rbp), %rax
+    movq -328(%rbp), %rax
     movq $8, %rcx
     movq %rax, %r12
     addq %rcx, %r12
-    movq -336(%rbp), %rax
+    movq -320(%rbp), %rax
     movq %r12, %r10
     movq %rax, (%r10)
-    movq -344(%rbp), %rax
+    movq -328(%rbp), %rax
     movq $40, %rcx
     movq %rax, %r12
     addq %rcx, %r12
@@ -237,7 +229,7 @@ lb_12windows_text_wide:
     movq %r12, %r10
     movb %al, (%r10)
 .L1_7:
-    movq -344(%rbp), %rax
+    movq -328(%rbp), %rax
     movq $40, %rcx
     movq %rax, %rbx
     addq %rcx, %rbx
@@ -247,7 +239,7 @@ lb_12windows_text_wide:
     jne .L1_13
     jmp .L1_12
 .L1_13:
-    movq -344(%rbp), %rax
+    movq -328(%rbp), %rax
     movq $16, %rcx
     movq %rax, %rbx
     addq %rcx, %rbx
@@ -282,40 +274,36 @@ lb_12windows_text_wide:
     ret
 .L1_14:
 .L1_12:
-    movq -344(%rbp), %r10
-    movq -320(%rbp), %r11
+    movq -328(%rbp), %r10
+    movq -304(%rbp), %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
-    movq -272(%rbp), %r10
-    movl (%r10), %ebx
-    movq -280(%rbp), %r10
-    movl (%r10), %r12d
-    movq -320(%rbp), %r10
-    movq (%r10), %r13
-    movl %ebx, %edi
-    movl %r12d, %esi
-    movq -288(%rbp), %rdx
+    movq -304(%rbp), %r10
+    movq (%r10), %rbx
+    movl $65001, %edi
+    movl $8, %esi
+    movq -272(%rbp), %rdx
     movl $4294967295, %ecx
-    movq %r13, %r8
-    movl -296(%rbp), %r9d
+    movq %rbx, %r8
+    movl -280(%rbp), %r9d
     call MultiByteToWideChar@PLT
-    movl %eax, %ebx
-    movl -296(%rbp), %eax
-    cmpl %ebx, %eax
+    movl %eax, %r12d
+    movl -280(%rbp), %eax
+    cmpl %r12d, %eax
     sete %al
-    movzbl %al, %ebx
+    movzbl %al, %r12d
     movl $0, %ecx
-    cmpl %ecx, %ebx
+    cmpl %ecx, %r12d
     jne .L1_16
 .L1_15:
-    leaq -248(%rbp), %rbx
-    movq -320(%rbp), %rax
+    leaq -248(%rbp), %r12
+    movq -304(%rbp), %rax
     movq $8, %rcx
-    movq %rax, %r12
-    addq %rcx, %r12
-    movq %r12, %r10
-    movq (%r10), %r12
-    movq %r12, %rax
+    movq %rax, %r13
+    addq %rcx, %r13
+    movq %r13, %r10
+    movq (%r10), %r13
+    movq %r13, %rax
     movq $2, %rcx
     mulq %rcx
     jnc 1f
@@ -323,17 +311,17 @@ lb_12windows_text_wide:
     leaq .Ltext_17(%rip), %rsi
     call lb_core_7trap_at@PLT
 1:
-    movq %rax, %r12
-    movq %rbx, %r10
-    movq %r13, (%r10)
+    movq %rax, %r13
+    movq %r12, %r10
+    movq %rbx, (%r10)
     movq $8, %rcx
-    movq %rbx, %r14
+    movq %r12, %r14
     addq %rcx, %r14
     movq %r14, %r10
-    movq %r12, (%r10)
-    movq -328(%rbp), %r10
-    movq (%r10), %r12
-    movq -328(%rbp), %rax
+    movq %r13, (%r10)
+    movq -312(%rbp), %r10
+    movq (%r10), %r13
+    movq -312(%rbp), %rax
     movq $8, %rcx
     movq %rax, %r14
     addq %rcx, %r14
@@ -344,15 +332,15 @@ lb_12windows_text_wide:
     jmp .L1_18
 .L1_19:
     movq $16, %rcx
-    movq %r14, %r13
-    addq %rcx, %r13
-    movq %r13, %r10
-    movq (%r10), %r13
-    movq %r12, %rdi
+    movq %r14, %rbx
+    addq %rcx, %rbx
     movq %rbx, %r10
+    movq (%r10), %rbx
+    movq %r13, %rdi
+    movq %r12, %r10
     movq 0(%r10), %rsi
     movq 8(%r10), %rdx
-    movq %r13, %r11
+    movq %rbx, %r11
     call *%r11
 .L1_18:
     leaq -96(%rbp), %rbx
@@ -404,7 +392,7 @@ lb_12windows_text_wide:
 .L1_16:
 .L1_17:
     leaq -96(%rbp), %rbx
-    movq -320(%rbp), %r10
+    movq -304(%rbp), %r10
     movq %rbx, %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
@@ -438,7 +426,7 @@ lb_12windows_text_wide:
 lb_12windows_text_narrow:
     pushq %rbp
     movq %rsp, %rbp
-    subq $400, %rsp
+    subq $384, %rsp
     movq %rdi, -8(%rbp)
     movq %rbx, -16(%rbp)
     movq %r12, -24(%rbp)
@@ -509,32 +497,24 @@ lb_12windows_text_narrow:
     jmp .L2_3
 .L2_2:
 .L2_3:
-    leaq lb_11windows_abi_9utf8_page(%rip), %rax
-    movq %rax, -328(%rbp)
-    movq -328(%rbp), %r10
-    movl (%r10), %r14d
-    leaq lb_11windows_abi_20reject_invalid_utf16(%rip), %rax
-    movq %rax, -336(%rbp)
-    movq -336(%rbp), %r10
-    movl (%r10), %r15d
     movq %rbx, %r10
     movq (%r10), %rax
-    movq %rax, -344(%rbp)
+    movq %rax, -328(%rbp)
     subq $16, %rsp
     movq $0, %rax
     movq %rax, 0(%rsp)
     movq $0, %rax
     movq %rax, 8(%rsp)
-    movl %r14d, %edi
-    movl %r15d, %esi
-    movq -344(%rbp), %rdx
+    movl $65001, %edi
+    movl $128, %esi
+    movq -328(%rbp), %rdx
     movl -320(%rbp), %ecx
     movq $0, %r8
     movl $0, %r9d
     call WideCharToMultiByte@PLT
     addq $16, %rsp
-    movl %eax, -352(%rbp)
-    movl -352(%rbp), %eax
+    movl %eax, -336(%rbp)
+    movl -336(%rbp), %eax
     movl $0, %ecx
     cmpl %ecx, %eax
     sete %al
@@ -606,14 +586,14 @@ lb_12windows_text_narrow:
 .L2_6:
 .L2_7:
     leaq -176(%rbp), %rax
-    movq %rax, -384(%rbp)
+    movq %rax, -368(%rbp)
     movq %fs:0, %rax
     addq lb_memory_allocator@GOTTPOFF(%rip), %rax
-    movq %rax, -392(%rbp)
-    movl -352(%rbp), %eax
+    movq %rax, -376(%rbp)
+    movl -336(%rbp), %eax
     movslq %eax, %rax
-    movq %rax, -360(%rbp)
-    movq -360(%rbp), %rax
+    movq %rax, -344(%rbp)
+    movq -344(%rbp), %rax
     movq $1, %rcx
     addq %rcx, %rax
     jnc 1f
@@ -623,12 +603,12 @@ lb_12windows_text_narrow:
 1:
     movq %rax, %rbx
     leaq -224(%rbp), %rax
-    movq %rax, -400(%rbp)
+    movq %rax, -384(%rbp)
     movabsq $4611686018427387904, %rcx
     cmpq %rcx, %rbx
     jbe .L2_12
 .L2_11:
-    movq -400(%rbp), %rax
+    movq -384(%rbp), %rax
     movq $16, %rcx
     movq %rax, %rbx
     addq %rcx, %rbx
@@ -646,7 +626,7 @@ lb_12windows_text_narrow:
     movq $47, %rax
     movq %rbx, %r10
     movq %rax, (%r10)
-    movq -400(%rbp), %rax
+    movq -384(%rbp), %rax
     movq $40, %rcx
     movq %rax, %rbx
     addq %rcx, %rbx
@@ -655,9 +635,9 @@ lb_12windows_text_narrow:
     movb %al, (%r10)
     jmp .L2_13
 .L2_12:
-    movq -392(%rbp), %r10
+    movq -376(%rbp), %r10
     movq (%r10), %r14
-    movq -392(%rbp), %rax
+    movq -376(%rbp), %rax
     movq $8, %rcx
     movq %rax, %r15
     addq %rcx, %r15
@@ -689,20 +669,20 @@ lb_12windows_text_narrow:
     cmpq %rcx, %rbx
     setne %al
     movzbl %al, %eax
-    movl %eax, -368(%rbp)
+    movl %eax, -352(%rbp)
     movl $0, %ecx
     cmpl %ecx, %r13d
     sete %al
     movzbl %al, %r13d
-    movl -368(%rbp), %eax
+    movl -352(%rbp), %eax
     andl %r13d, %eax
-    movl %eax, -376(%rbp)
-    movl -376(%rbp), %eax
+    movl %eax, -360(%rbp)
+    movl -360(%rbp), %eax
     testl %eax, %eax
     jne .L2_16
     jmp .L2_17
 .L2_16:
-    movq -400(%rbp), %rax
+    movq -384(%rbp), %rax
     movq $16, %rcx
     movq %rax, %rbx
     addq %rcx, %rbx
@@ -720,7 +700,7 @@ lb_12windows_text_narrow:
     movq $16, %rax
     movq %rbx, %r10
     movq %rax, (%r10)
-    movq -400(%rbp), %rax
+    movq -384(%rbp), %rax
     movq $40, %rcx
     movq %rax, %rbx
     addq %rcx, %rbx
@@ -731,15 +711,15 @@ lb_12windows_text_narrow:
 .L2_17:
     movq %r12, %r10
     movq (%r10), %r13
-    movq -400(%rbp), %r10
+    movq -384(%rbp), %r10
     movq %r13, (%r10)
-    movq -400(%rbp), %rax
+    movq -384(%rbp), %rax
     movq $8, %rcx
     movq %rax, %r13
     addq %rcx, %r13
     movq %r13, %r10
     movq %rbx, (%r10)
-    movq -400(%rbp), %rax
+    movq -384(%rbp), %rax
     movq $40, %rcx
     movq %rax, %r13
     addq %rcx, %r13
@@ -747,7 +727,7 @@ lb_12windows_text_narrow:
     movq %r13, %r10
     movb %al, (%r10)
 .L2_13:
-    movq -400(%rbp), %rax
+    movq -384(%rbp), %rax
     movq $40, %rcx
     movq %rax, %rbx
     addq %rcx, %rbx
@@ -757,7 +737,7 @@ lb_12windows_text_narrow:
     jne .L2_19
     jmp .L2_18
 .L2_19:
-    movq -400(%rbp), %rax
+    movq -384(%rbp), %rax
     movq $16, %rcx
     movq %rax, %rbx
     addq %rcx, %rbx
@@ -792,11 +772,11 @@ lb_12windows_text_narrow:
     ret
 .L2_20:
 .L2_18:
-    movq -400(%rbp), %r10
-    movq -384(%rbp), %r11
+    movq -384(%rbp), %r10
+    movq -368(%rbp), %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
-    movl -352(%rbp), %eax
+    movl -336(%rbp), %eax
     movl $0, %ecx
     cmpl %ecx, %eax
     setg %al
@@ -808,27 +788,23 @@ lb_12windows_text_narrow:
     movl %ebx, %r12d
     jmp .L2_25
 .L2_24:
-    movq -328(%rbp), %r10
-    movl (%r10), %ebx
-    movq -336(%rbp), %r10
-    movl (%r10), %r12d
-    movq -384(%rbp), %r10
-    movq (%r10), %r13
+    movq -368(%rbp), %r10
+    movq (%r10), %rbx
     subq $16, %rsp
     movq $0, %rax
     movq %rax, 0(%rsp)
     movq $0, %rax
     movq %rax, 8(%rsp)
-    movl %ebx, %edi
-    movl %r12d, %esi
-    movq -344(%rbp), %rdx
+    movl $65001, %edi
+    movl $128, %esi
+    movq -328(%rbp), %rdx
     movl -320(%rbp), %ecx
-    movq %r13, %r8
-    movl -352(%rbp), %r9d
+    movq %rbx, %r8
+    movl -336(%rbp), %r9d
     call WideCharToMultiByte@PLT
     addq $16, %rsp
     movl %eax, %ebx
-    movl -352(%rbp), %eax
+    movl -336(%rbp), %eax
     cmpl %ebx, %eax
     sete %al
     movzbl %al, %ebx
@@ -843,9 +819,9 @@ lb_12windows_text_narrow:
     jmp .L2_22
 .L2_21:
     leaq -264(%rbp), %rbx
-    movq -384(%rbp), %r10
+    movq -368(%rbp), %r10
     movq (%r10), %r12
-    movq -384(%rbp), %rax
+    movq -368(%rbp), %rax
     movq $8, %rcx
     movq %rax, %r13
     addq %rcx, %r13
@@ -858,9 +834,9 @@ lb_12windows_text_narrow:
     addq %rcx, %r12
     movq %r12, %r10
     movq %r13, (%r10)
-    movq -392(%rbp), %r10
+    movq -376(%rbp), %r10
     movq (%r10), %r12
-    movq -392(%rbp), %rax
+    movq -376(%rbp), %rax
     movq $8, %rcx
     movq %rax, %r13
     addq %rcx, %r13
@@ -930,22 +906,22 @@ lb_12windows_text_narrow:
     jmp .L2_23
 .L2_22:
 .L2_23:
-    movq -384(%rbp), %r10
+    movq -368(%rbp), %r10
     movq (%r10), %rbx
-    movq -384(%rbp), %rax
+    movq -368(%rbp), %rax
     movq $8, %rcx
     movq %rax, %r12
     addq %rcx, %r12
     movq %r12, %r10
     movq (%r10), %r12
-    movq -360(%rbp), %rax
+    movq -344(%rbp), %rax
     cmpq %r12, %rax
     jb 1f
     leaq .Ltext_14(%rip), %rdi
     leaq .Ltext_16(%rip), %rsi
     call lb_core_7trap_at@PLT
 1:
-    movq -360(%rbp), %rax
+    movq -344(%rbp), %rax
     movq %rax, %r13
     addq %rbx, %r13
     movl $0, %eax
@@ -960,7 +936,7 @@ lb_12windows_text_narrow:
     leaq .Ltext_16(%rip), %rsi
     call lb_core_7trap_at@PLT
 1:
-    movq -360(%rbp), %rax
+    movq -344(%rbp), %rax
     cmpq %r12, %rax
     jb 1f
     leaq .Ltext_15(%rip), %rdi
@@ -968,7 +944,7 @@ lb_12windows_text_narrow:
     call lb_core_7trap_at@PLT
 1:
     movq $0, %rax
-    movq -360(%rbp), %rcx
+    movq -344(%rbp), %rcx
     cmpq %rcx, %rax
     jbe .L2_29
 .L2_30:
@@ -981,7 +957,7 @@ lb_12windows_text_narrow:
     movq %rbx, (%r10)
     movq $8, %rcx
     addq %rcx, %r12
-    movq -360(%rbp), %rax
+    movq -344(%rbp), %rax
     movq %r12, %r10
     movq %rax, (%r10)
     leaq -312(%rbp), %r12
@@ -990,7 +966,7 @@ lb_12windows_text_narrow:
     movq $8, %rcx
     movq %r12, %r13
     addq %rcx, %r13
-    movq -360(%rbp), %rax
+    movq -344(%rbp), %rax
     movq %r13, %r10
     movq %rax, (%r10)
     leaq -96(%rbp), %r13

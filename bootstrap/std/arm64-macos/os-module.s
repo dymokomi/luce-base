@@ -6,89 +6,64 @@ _lb_os_module_0init:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
     sub sp, sp, #32
-    str x19, [sp, #8]
     adrp x14, _lb_os_failed@PAGE
     add x14, x14, _lb_os_failed@PAGEOFF
     movz x9, #12
     movk x9, #3178, lsl #16
     str w9, [x14]
-    adrp x14, _lb_platform_arm64@PAGE
-    add x14, x14, _lb_platform_arm64@PAGEOFF
-    ldrb w14, [x14]
-    adrp x15, _lb_os_arm64@PAGE
-    add x15, x15, _lb_os_arm64@PAGEOFF
-    strb w14, [x15]
-    adrp x14, _lb_platform_6x86_64@PAGE
-    add x14, x14, _lb_platform_6x86_64@PAGEOFF
-    ldrb w14, [x14]
-    adrp x15, _lb_os_6x86_64@PAGE
-    add x15, x15, _lb_os_6x86_64@PAGEOFF
-    strb w14, [x15]
-    adrp x14, _lb_platform_wasm32@PAGE
-    add x14, x14, _lb_platform_wasm32@PAGEOFF
-    ldrb w14, [x14]
-    adrp x15, _lb_os_wasm32@PAGE
-    add x15, x15, _lb_os_wasm32@PAGEOFF
-    strb w14, [x15]
-    adrp x19, _lb_platform_macos@PAGE
-    add x19, x19, _lb_platform_macos@PAGEOFF
-    ldrb w14, [x19]
-    adrp x15, _lb_os_macos@PAGE
-    add x15, x15, _lb_os_macos@PAGEOFF
-    strb w14, [x15]
-    adrp x14, _lb_platform_linux@PAGE
-    add x14, x14, _lb_platform_linux@PAGEOFF
-    ldrb w14, [x14]
-    adrp x15, _lb_os_linux@PAGE
-    add x15, x15, _lb_os_linux@PAGEOFF
-    strb w14, [x15]
-    adrp x14, _lb_platform_windows@PAGE
-    add x14, x14, _lb_platform_windows@PAGEOFF
-    ldrb w14, [x14]
-    adrp x15, _lb_os_windows@PAGE
-    add x15, x15, _lb_os_windows@PAGEOFF
-    strb w14, [x15]
-    adrp x14, _lb_platform_posix@PAGE
-    add x14, x14, _lb_platform_posix@PAGEOFF
-    ldrb w14, [x14]
-    adrp x15, _lb_os_posix@PAGE
-    add x15, x15, _lb_os_posix@PAGEOFF
-    strb w14, [x15]
-    adrp x14, _lb_platform_12pointer_bits@PAGE
-    add x14, x14, _lb_platform_12pointer_bits@PAGEOFF
-    ldr w14, [x14]
-    adrp x15, _lb_os_12pointer_bits@PAGE
-    add x15, x15, _lb_os_12pointer_bits@PAGEOFF
-    str w14, [x15]
-    adrp x14, _lb_platform_name@PAGE
-    add x14, x14, _lb_platform_name@PAGEOFF
-    adrp x15, _lb_os_name@PAGE
-    add x15, x15, _lb_os_name@PAGEOFF
-    mov x10, x14
-    mov x11, x15
+    adrp x14, _lb_os_arm64@PAGE
+    add x14, x14, _lb_os_arm64@PAGEOFF
+    movz x9, #1
+    strb w9, [x14]
+    adrp x14, _lb_os_6x86_64@PAGE
+    add x14, x14, _lb_os_6x86_64@PAGEOFF
+    mov x9, #0
+    strb w9, [x14]
+    adrp x14, _lb_os_wasm32@PAGE
+    add x14, x14, _lb_os_wasm32@PAGEOFF
+    mov x9, #0
+    strb w9, [x14]
+    adrp x14, _lb_os_macos@PAGE
+    add x14, x14, _lb_os_macos@PAGEOFF
+    movz x9, #1
+    strb w9, [x14]
+    adrp x14, _lb_os_linux@PAGE
+    add x14, x14, _lb_os_linux@PAGEOFF
+    mov x9, #0
+    strb w9, [x14]
+    adrp x14, _lb_os_windows@PAGE
+    add x14, x14, _lb_os_windows@PAGEOFF
+    mov x9, #0
+    strb w9, [x14]
+    adrp x14, _lb_os_posix@PAGE
+    add x14, x14, _lb_os_posix@PAGEOFF
+    movz x9, #1
+    strb w9, [x14]
+    adrp x14, _lb_os_12pointer_bits@PAGE
+    add x14, x14, _lb_os_12pointer_bits@PAGEOFF
+    movz x9, #64
+    str w9, [x14]
+    adrp x14, l_text_0@PAGE
+    add x14, x14, l_text_0@PAGEOFF
+    sub x15, x29, #32
+    str x14, [x15]
+    add x14, x15, #8
+    movz x9, #11
+    str x9, [x14]
+    adrp x14, _lb_os_name@PAGE
+    add x14, x14, _lb_os_name@PAGEOFF
+    mov x10, x15
+    mov x11, x14
     ldp x16, x17, [x10, #0]
     stp x16, x17, [x11, #0]
-    adrp x14, _lb_platform_9cpu_level@PAGE
-    add x14, x14, _lb_platform_9cpu_level@PAGEOFF
-    ldr w14, [x14]
-    adrp x15, _lb_os_9cpu_level@PAGE
-    add x15, x15, _lb_os_9cpu_level@PAGEOFF
-    str w14, [x15]
-    ldrb w14, [x19]
-    cbnz w14, L0_1
-    b L0_2
-L0_1:
+    adrp x14, _lb_os_9cpu_level@PAGE
+    add x14, x14, _lb_os_9cpu_level@PAGEOFF
+    movz x9, #1
+    str w9, [x14]
+    adrp x14, _lb_os_17processors_online@PAGE
+    add x14, x14, _lb_os_17processors_online@PAGEOFF
     movz x9, #58
-    mov w14, w9
-    b L0_3
-L0_2:
-    movz x9, #84
-    mov w14, w9
-L0_3:
-    adrp x15, _lb_os_17processors_online@PAGE
-    add x15, x15, _lb_os_17processors_online@PAGEOFF
-    str w14, [x15]
-    ldr x19, [sp, #8]
+    str w9, [x14]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -133,10 +108,10 @@ L1_6:
     add x12, x14, #1
     cmp x21, x12
     b.lo 1f
-    adrp x0, l_text_1@PAGE
-    add x0, x0, l_text_1@PAGEOFF
-    adrp x1, l_text_35@PAGE
-    add x1, x1, l_text_35@PAGEOFF
+    adrp x0, l_text_2@PAGE
+    add x0, x0, l_text_2@PAGEOFF
+    adrp x1, l_text_36@PAGE
+    add x1, x1, l_text_36@PAGEOFF
     bl _lb_core_7trap_at
 1:
     add x15, x15, x21
@@ -156,8 +131,8 @@ L1_7:
     add x14, x14, _lb_os_failed@PAGEOFF
     ldr w14, [x14]
     str w14, [x19]
-    adrp x14, l_text_2@PAGE
-    add x14, x14, l_text_2@PAGEOFF
+    adrp x14, l_text_3@PAGE
+    add x14, x14, l_text_3@PAGEOFF
     sub x15, x29, #120
     str x14, [x15]
     add x14, x15, #8
@@ -193,10 +168,10 @@ L1_9:
     mov x10, x22
     adds x9, x9, x10
     b.cc 1f
-    adrp x0, l_text_3@PAGE
-    add x0, x0, l_text_3@PAGEOFF
-    adrp x1, l_text_45@PAGE
-    add x1, x1, l_text_45@PAGEOFF
+    adrp x0, l_text_4@PAGE
+    add x0, x0, l_text_4@PAGEOFF
+    adrp x1, l_text_46@PAGE
+    add x1, x1, l_text_46@PAGEOFF
     bl _lb_core_7trap_at
 1:
     mov x14, x9
@@ -235,10 +210,10 @@ _lb_os_17cpu_level_running:
     ldp x29, x30, [sp], #16
     ret
 L2_1:
-    adrp x0, l_text_5@PAGE
-    add x0, x0, l_text_5@PAGEOFF
-    adrp x1, l_text_4@PAGE
-    add x1, x1, l_text_4@PAGEOFF
+    adrp x0, l_text_6@PAGE
+    add x0, x0, l_text_6@PAGEOFF
+    adrp x1, l_text_5@PAGE
+    add x1, x1, l_text_5@PAGEOFF
     bl _lb_core_7trap_at
 
     .p2align 2
@@ -248,10 +223,7 @@ _lb_os_cpus:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
     sub sp, sp, #16
-    adrp x14, _lb_os_17processors_online@PAGE
-    add x14, x14, _lb_os_17processors_online@PAGEOFF
-    ldrsw x14, [x14]
-    mov x0, x14
+    movz x0, #58
     bl _sysconf
     mov x14, x0
     mov x10, #0
@@ -270,10 +242,10 @@ L3_3:
     ldp x29, x30, [sp], #16
     ret
 L3_4:
-    adrp x0, l_text_15@PAGE
-    add x0, x0, l_text_15@PAGEOFF
-    adrp x1, l_text_4@PAGE
-    add x1, x1, l_text_4@PAGEOFF
+    adrp x0, l_text_16@PAGE
+    add x0, x0, l_text_16@PAGEOFF
+    adrp x1, l_text_5@PAGE
+    add x1, x1, l_text_5@PAGEOFF
     bl _lb_core_7trap_at
 
     .p2align 2
@@ -292,10 +264,10 @@ _lb_os_9page_size:
     ldp x29, x30, [sp], #16
     ret
 L4_1:
-    adrp x0, l_text_16@PAGE
-    add x0, x0, l_text_16@PAGEOFF
-    adrp x1, l_text_4@PAGE
-    add x1, x1, l_text_4@PAGEOFF
+    adrp x0, l_text_17@PAGE
+    add x0, x0, l_text_17@PAGEOFF
+    adrp x1, l_text_5@PAGE
+    add x1, x1, l_text_5@PAGEOFF
     bl _lb_core_7trap_at
 
     .p2align 2
@@ -384,10 +356,10 @@ L5_3:
     ldp x29, x30, [sp], #16
     ret
 L5_5:
-    adrp x0, l_text_17@PAGE
-    add x0, x0, l_text_17@PAGEOFF
-    adrp x1, l_text_4@PAGE
-    add x1, x1, l_text_4@PAGEOFF
+    adrp x0, l_text_18@PAGE
+    add x0, x0, l_text_18@PAGEOFF
+    adrp x1, l_text_5@PAGE
+    add x1, x1, l_text_5@PAGEOFF
     bl _lb_core_7trap_at
 
     .p2align 2
@@ -425,8 +397,8 @@ L6_1:
     add x14, x14, _lb_os_failed@PAGEOFF
     ldr w14, [x14]
     str w14, [x19]
-    adrp x14, l_text_18@PAGE
-    add x14, x14, l_text_18@PAGEOFF
+    adrp x14, l_text_19@PAGE
+    add x14, x14, l_text_19@PAGEOFF
     sub x15, x29, #112
     str x14, [x15]
     add x14, x15, #8
@@ -500,8 +472,8 @@ L7_1:
     add x14, x14, _lb_os_failed@PAGEOFF
     ldr w14, [x14]
     str w14, [x19]
-    adrp x14, l_text_19@PAGE
-    add x14, x14, l_text_19@PAGEOFF
+    adrp x14, l_text_20@PAGE
+    add x14, x14, l_text_20@PAGEOFF
     sub x15, x29, #96
     str x14, [x15]
     add x14, x15, #8
@@ -576,10 +548,10 @@ L8_2:
     cbnz x15, L8_4
     b L8_5
 L8_5:
-    adrp x0, l_text_22@PAGE
-    add x0, x0, l_text_22@PAGEOFF
-    adrp x1, l_text_21@PAGE
-    add x1, x1, l_text_21@PAGEOFF
+    adrp x0, l_text_23@PAGE
+    add x0, x0, l_text_23@PAGEOFF
+    adrp x1, l_text_22@PAGE
+    add x1, x1, l_text_22@PAGEOFF
     bl _lb_core_7trap_at
 L8_4:
     ldr x12, [x15]
@@ -606,8 +578,8 @@ L8_6:
     movz x9, #1
     movk x9, #3178, lsl #16
     str w9, [x14]
-    adrp x15, l_text_23@PAGE
-    add x15, x15, l_text_23@PAGEOFF
+    adrp x15, l_text_24@PAGE
+    add x15, x15, l_text_24@PAGEOFF
     add x12, x14, #8
     str x15, [x12]
     add x14, x14, #16
@@ -703,8 +675,8 @@ L8_14:
     add x15, x15, _lb_os_failed@PAGEOFF
     ldr w15, [x15]
     str w15, [x14]
-    adrp x15, l_text_25@PAGE
-    add x15, x15, l_text_25@PAGEOFF
+    adrp x15, l_text_26@PAGE
+    add x15, x15, l_text_26@PAGEOFF
     sub x12, x29, #248
     str x15, [x12]
     add x15, x12, #8
@@ -742,24 +714,24 @@ L8_13:
 L8_17:
     b L8_19
 L8_18:
-    adrp x14, l_text_4@PAGE
-    add x14, x14, l_text_4@PAGEOFF
+    adrp x14, l_text_5@PAGE
+    add x14, x14, l_text_5@PAGEOFF
     sub x15, x29, #264
     str x14, [x15]
     add x14, x15, #8
     movz x9, #11
     str x9, [x14]
-    adrp x14, l_text_26@PAGE
-    add x14, x14, l_text_26@PAGEOFF
+    adrp x14, l_text_27@PAGE
+    add x14, x14, l_text_27@PAGEOFF
     mov x0, x14
     mov x9, x15
     ldr x1, [x9]
     ldr x2, [x9, #8]
     bl _lb_core_12trap_text_at
-    adrp x0, l_text_26@PAGE
-    add x0, x0, l_text_26@PAGEOFF
-    adrp x1, l_text_4@PAGE
-    add x1, x1, l_text_4@PAGEOFF
+    adrp x0, l_text_27@PAGE
+    add x0, x0, l_text_27@PAGEOFF
+    adrp x1, l_text_5@PAGE
+    add x1, x1, l_text_5@PAGEOFF
     bl _lb_core_7trap_at
 L8_19:
     mov x0, x25
@@ -823,10 +795,10 @@ L9_2:
     cbnz x15, L9_4
     b L9_5
 L9_5:
-    adrp x0, l_text_28@PAGE
-    add x0, x0, l_text_28@PAGEOFF
-    adrp x1, l_text_21@PAGE
-    add x1, x1, l_text_21@PAGEOFF
+    adrp x0, l_text_29@PAGE
+    add x0, x0, l_text_29@PAGEOFF
+    adrp x1, l_text_22@PAGE
+    add x1, x1, l_text_22@PAGEOFF
     bl _lb_core_7trap_at
 L9_4:
     ldr x12, [x15]
@@ -853,8 +825,8 @@ L9_6:
     movz x9, #1
     movk x9, #3178, lsl #16
     str w9, [x14]
-    adrp x15, l_text_23@PAGE
-    add x15, x15, l_text_23@PAGEOFF
+    adrp x15, l_text_24@PAGE
+    add x15, x15, l_text_24@PAGEOFF
     add x12, x14, #8
     str x15, [x12]
     add x14, x14, #16
@@ -954,8 +926,8 @@ L9_14:
     add x15, x15, _lb_os_failed@PAGEOFF
     ldr w15, [x15]
     str w15, [x14]
-    adrp x15, l_text_30@PAGE
-    add x15, x15, l_text_30@PAGEOFF
+    adrp x15, l_text_31@PAGE
+    add x15, x15, l_text_31@PAGEOFF
     sub x12, x29, #240
     str x15, [x12]
     add x15, x12, #8
@@ -1016,10 +988,10 @@ L9_18:
     movz x10, #1
     adds x9, x9, x10
     b.cc 1f
-    adrp x0, l_text_32@PAGE
-    add x0, x0, l_text_32@PAGEOFF
-    adrp x1, l_text_45@PAGE
-    add x1, x1, l_text_45@PAGEOFF
+    adrp x0, l_text_33@PAGE
+    add x0, x0, l_text_33@PAGEOFF
+    adrp x1, l_text_46@PAGE
+    add x1, x1, l_text_46@PAGEOFF
     bl _lb_core_7trap_at
 1:
     mov x12, x9
@@ -1028,10 +1000,10 @@ L9_18:
 L9_19:
     cmp x15, x14
     b.lo 1f
-    adrp x0, l_text_33@PAGE
-    add x0, x0, l_text_33@PAGEOFF
-    adrp x1, l_text_35@PAGE
-    add x1, x1, l_text_35@PAGEOFF
+    adrp x0, l_text_34@PAGE
+    add x0, x0, l_text_34@PAGEOFF
+    adrp x1, l_text_36@PAGE
+    add x1, x1, l_text_36@PAGEOFF
     bl _lb_core_7trap_at
 1:
     add x12, x23, x15
@@ -1041,28 +1013,28 @@ L9_19:
     mov x9, #0
     cmp x9, x12
     b.lo 1f
-    adrp x0, l_text_34@PAGE
-    add x0, x0, l_text_34@PAGEOFF
-    adrp x1, l_text_35@PAGE
-    add x1, x1, l_text_35@PAGEOFF
+    adrp x0, l_text_35@PAGE
+    add x0, x0, l_text_35@PAGEOFF
+    adrp x1, l_text_36@PAGE
+    add x1, x1, l_text_36@PAGEOFF
     bl _lb_core_7trap_at
 1:
     cmp x15, x12
     b.lo 1f
-    adrp x0, l_text_34@PAGE
-    add x0, x0, l_text_34@PAGEOFF
-    adrp x1, l_text_35@PAGE
-    add x1, x1, l_text_35@PAGEOFF
+    adrp x0, l_text_35@PAGE
+    add x0, x0, l_text_35@PAGEOFF
+    adrp x1, l_text_36@PAGE
+    add x1, x1, l_text_36@PAGEOFF
     bl _lb_core_7trap_at
 1:
     mov x9, #0
     cmp x9, x15
     b.ls L9_22
 L9_23:
-    adrp x0, l_text_34@PAGE
-    add x0, x0, l_text_34@PAGEOFF
-    adrp x1, l_text_35@PAGE
-    add x1, x1, l_text_35@PAGEOFF
+    adrp x0, l_text_35@PAGE
+    add x0, x0, l_text_35@PAGEOFF
+    adrp x1, l_text_36@PAGE
+    add x1, x1, l_text_36@PAGEOFF
     bl _lb_core_7trap_at
 L9_22:
     sub x14, x29, #256
@@ -1126,8 +1098,8 @@ L10_1:
     add x14, x14, _lb_os_failed@PAGEOFF
     ldr w14, [x14]
     str w14, [x19]
-    adrp x14, l_text_36@PAGE
-    add x14, x14, l_text_36@PAGEOFF
+    adrp x14, l_text_37@PAGE
+    add x14, x14, l_text_37@PAGEOFF
     sub x15, x29, #96
     str x14, [x15]
     add x14, x15, #8
@@ -1187,10 +1159,10 @@ _lb_os_pid:
     ldp x29, x30, [sp], #16
     ret
 L11_1:
-    adrp x0, l_text_37@PAGE
-    add x0, x0, l_text_37@PAGEOFF
-    adrp x1, l_text_4@PAGE
-    add x1, x1, l_text_4@PAGEOFF
+    adrp x0, l_text_38@PAGE
+    add x0, x0, l_text_38@PAGEOFF
+    adrp x1, l_text_5@PAGE
+    add x1, x1, l_text_5@PAGEOFF
     bl _lb_core_7trap_at
 
     .p2align 2
@@ -1208,10 +1180,10 @@ _lb_os_10parent_pid:
     ldp x29, x30, [sp], #16
     ret
 L12_1:
-    adrp x0, l_text_38@PAGE
-    add x0, x0, l_text_38@PAGEOFF
-    adrp x1, l_text_4@PAGE
-    add x1, x1, l_text_4@PAGEOFF
+    adrp x0, l_text_39@PAGE
+    add x0, x0, l_text_39@PAGEOFF
+    adrp x1, l_text_5@PAGE
+    add x1, x1, l_text_5@PAGEOFF
     bl _lb_core_7trap_at
 
     .p2align 2
@@ -1243,10 +1215,10 @@ L13_2:
     cbnz x15, L13_4
     b L13_5
 L13_5:
-    adrp x0, l_text_39@PAGE
-    add x0, x0, l_text_39@PAGEOFF
-    adrp x1, l_text_21@PAGE
-    add x1, x1, l_text_21@PAGEOFF
+    adrp x0, l_text_40@PAGE
+    add x0, x0, l_text_40@PAGEOFF
+    adrp x1, l_text_22@PAGE
+    add x1, x1, l_text_22@PAGEOFF
     bl _lb_core_7trap_at
 L13_4:
     ldr x12, [x15]
@@ -1273,8 +1245,8 @@ L13_6:
     movz x9, #1
     movk x9, #3178, lsl #16
     str w9, [x14]
-    adrp x15, l_text_23@PAGE
-    add x15, x15, l_text_23@PAGEOFF
+    adrp x15, l_text_24@PAGE
+    add x15, x15, l_text_24@PAGEOFF
     add x12, x14, #8
     str x15, [x12]
     add x14, x14, #16
@@ -1372,8 +1344,8 @@ L13_14:
     add x15, x15, _lb_os_failed@PAGEOFF
     ldr w15, [x15]
     str w15, [x14]
-    adrp x15, l_text_41@PAGE
-    add x15, x15, l_text_41@PAGEOFF
+    adrp x15, l_text_42@PAGE
+    add x15, x15, l_text_42@PAGEOFF
     sub x12, x29, #240
     str x15, [x12]
     add x15, x12, #8
@@ -1433,10 +1405,10 @@ L13_18:
     movz x10, #1
     adds x9, x9, x10
     b.cc 1f
-    adrp x0, l_text_43@PAGE
-    add x0, x0, l_text_43@PAGEOFF
-    adrp x1, l_text_45@PAGE
-    add x1, x1, l_text_45@PAGEOFF
+    adrp x0, l_text_44@PAGE
+    add x0, x0, l_text_44@PAGEOFF
+    adrp x1, l_text_46@PAGE
+    add x1, x1, l_text_46@PAGEOFF
     bl _lb_core_7trap_at
 1:
     mov x15, x9
@@ -1447,28 +1419,28 @@ L13_19:
     mov x9, #0
     cmp x9, x15
     b.lo 1f
-    adrp x0, l_text_44@PAGE
-    add x0, x0, l_text_44@PAGEOFF
-    adrp x1, l_text_35@PAGE
-    add x1, x1, l_text_35@PAGEOFF
+    adrp x0, l_text_45@PAGE
+    add x0, x0, l_text_45@PAGEOFF
+    adrp x1, l_text_36@PAGE
+    add x1, x1, l_text_36@PAGEOFF
     bl _lb_core_7trap_at
 1:
     cmp x14, x15
     b.lo 1f
-    adrp x0, l_text_44@PAGE
-    add x0, x0, l_text_44@PAGEOFF
-    adrp x1, l_text_35@PAGE
-    add x1, x1, l_text_35@PAGEOFF
+    adrp x0, l_text_45@PAGE
+    add x0, x0, l_text_45@PAGEOFF
+    adrp x1, l_text_36@PAGE
+    add x1, x1, l_text_36@PAGEOFF
     bl _lb_core_7trap_at
 1:
     mov x9, #0
     cmp x9, x14
     b.ls L13_22
 L13_23:
-    adrp x0, l_text_44@PAGE
-    add x0, x0, l_text_44@PAGEOFF
-    adrp x1, l_text_35@PAGE
-    add x1, x1, l_text_35@PAGEOFF
+    adrp x0, l_text_45@PAGE
+    add x0, x0, l_text_45@PAGEOFF
+    adrp x1, l_text_36@PAGE
+    add x1, x1, l_text_36@PAGEOFF
     bl _lb_core_7trap_at
 L13_22:
     sub x15, x29, #256
@@ -1527,96 +1499,98 @@ _lb_os_exit:
 
     .section __TEXT,__const
 l_text_0:
-    .asciz "src/std/os/module.lucb:29:9"
+    .asciz "arm64-macos"
 l_text_1:
-    .asciz "src/std/os/module.lucb:34:13"
+    .asciz "src/std/os/module.lucb:29:9"
 l_text_2:
-    .asciz "operating system randomness is unavailable"
+    .asciz "src/std/os/module.lucb:34:13"
 l_text_3:
-    .asciz "src/std/os/module.lucb:37:9"
+    .asciz "operating system randomness is unavailable"
 l_text_4:
-    .asciz "unreachable"
+    .asciz "src/std/os/module.lucb:37:9"
 l_text_5:
-    .asciz "src/std/os/module.lucb:63:5"
+    .asciz "unreachable"
 l_text_6:
-    .asciz "shift count out of range"
+    .asciz "src/std/os/module.lucb:63:5"
 l_text_7:
-    .asciz "src/std/os/module.lucb:73:5"
+    .asciz "shift count out of range"
 l_text_8:
-    .asciz "src/std/os/module.lucb:74:5"
+    .asciz "src/std/os/module.lucb:73:5"
 l_text_9:
-    .asciz "src/std/os/module.lucb:75:5"
+    .asciz "src/std/os/module.lucb:74:5"
 l_text_10:
-    .asciz "src/std/os/module.lucb:77:5"
+    .asciz "src/std/os/module.lucb:75:5"
 l_text_11:
-    .asciz "src/std/os/module.lucb:78:5"
+    .asciz "src/std/os/module.lucb:77:5"
 l_text_12:
-    .asciz "src/std/os/module.lucb:79:5"
+    .asciz "src/std/os/module.lucb:78:5"
 l_text_13:
-    .asciz "src/std/os/module.lucb:80:5"
+    .asciz "src/std/os/module.lucb:79:5"
 l_text_14:
-    .asciz "src/std/os/module.lucb:85:5"
+    .asciz "src/std/os/module.lucb:80:5"
 l_text_15:
-    .asciz "src/std/os/module.lucb:96:5"
+    .asciz "src/std/os/module.lucb:85:5"
 l_text_16:
-    .asciz "src/std/os/module.lucb:103:5"
+    .asciz "src/std/os/module.lucb:96:5"
 l_text_17:
-    .asciz "src/std/os/module.lucb:111:5"
+    .asciz "src/std/os/module.lucb:103:5"
 l_text_18:
-    .asciz "the environment variable cannot be set"
+    .asciz "src/std/os/module.lucb:111:5"
 l_text_19:
-    .asciz "the environment variable cannot be unset"
+    .asciz "the environment variable cannot be set"
 l_text_20:
-    .asciz "memory.exhausted: the allocation size overflows"
+    .asciz "the environment variable cannot be unset"
 l_text_21:
-    .asciz "memory.unset"
+    .asciz "memory.exhausted: the allocation size overflows"
 l_text_22:
-    .asciz "src/std/os/module.lucb:140:5"
+    .asciz "memory.unset"
 l_text_23:
-    .asciz "memory.exhausted"
+    .asciz "src/std/os/module.lucb:140:5"
 l_text_24:
-    .asciz "src/std/os/module.lucb:143:9"
+    .asciz "memory.exhausted"
 l_text_25:
-    .asciz "the working directory cannot be read"
+    .asciz "src/std/os/module.lucb:143:9"
 l_text_26:
-    .asciz "src/std/os/module.lucb:145:5"
+    .asciz "the working directory cannot be read"
 l_text_27:
-    .asciz "src/std/os/module.lucb:146:5"
+    .asciz "src/std/os/module.lucb:145:5"
 l_text_28:
-    .asciz "src/std/os/module.lucb:153:5"
+    .asciz "src/std/os/module.lucb:146:5"
 l_text_29:
-    .asciz "src/std/os/module.lucb:158:13"
+    .asciz "src/std/os/module.lucb:153:5"
 l_text_30:
-    .asciz "the executable path cannot be read"
+    .asciz "src/std/os/module.lucb:158:13"
 l_text_31:
-    .asciz "src/std/os/module.lucb:160:9"
+    .asciz "the executable path cannot be read"
 l_text_32:
-    .asciz "src/std/os/module.lucb:161:13"
+    .asciz "src/std/os/module.lucb:160:9"
 l_text_33:
-    .asciz "src/std/os/module.lucb:168:5"
+    .asciz "src/std/os/module.lucb:161:13"
 l_text_34:
-    .asciz "src/std/os/module.lucb:169:5"
+    .asciz "src/std/os/module.lucb:168:5"
 l_text_35:
-    .asciz "index out of bounds"
+    .asciz "src/std/os/module.lucb:169:5"
 l_text_36:
-    .asciz "the directory cannot be entered"
+    .asciz "index out of bounds"
 l_text_37:
-    .asciz "src/std/os/module.lucb:184:5"
+    .asciz "the directory cannot be entered"
 l_text_38:
-    .asciz "src/std/os/module.lucb:189:5"
+    .asciz "src/std/os/module.lucb:184:5"
 l_text_39:
-    .asciz "src/std/os/module.lucb:199:5"
+    .asciz "src/std/os/module.lucb:189:5"
 l_text_40:
-    .asciz "src/std/os/module.lucb:201:9"
+    .asciz "src/std/os/module.lucb:199:5"
 l_text_41:
-    .asciz "the host name cannot be read"
+    .asciz "src/std/os/module.lucb:201:9"
 l_text_42:
-    .asciz "src/std/os/module.lucb:204:5"
+    .asciz "the host name cannot be read"
 l_text_43:
-    .asciz "src/std/os/module.lucb:205:9"
+    .asciz "src/std/os/module.lucb:204:5"
 l_text_44:
-    .asciz "src/std/os/module.lucb:206:5"
+    .asciz "src/std/os/module.lucb:205:9"
 l_text_45:
+    .asciz "src/std/os/module.lucb:206:5"
+l_text_46:
     .asciz "integer overflow"
 
     .section __DATA,__const

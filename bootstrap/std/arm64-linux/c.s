@@ -7,22 +7,10 @@ lb_c_0init:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
     sub sp, sp, #16
-    adrp x14, lb_platform_wasm32
-    add x14, x14, :lo12:lb_platform_wasm32
-    ldrb w14, [x14]
-    cbnz w14, .L0_1
-    b .L0_2
-.L0_1:
-    movz x9, #27
-    mov w14, w9
-    b .L0_3
-.L0_2:
+    adrp x14, lb_c_interrupted
+    add x14, x14, :lo12:lb_c_interrupted
     movz x9, #4
-    mov w14, w9
-.L0_3:
-    adrp x15, lb_c_interrupted
-    add x15, x15, :lo12:lb_c_interrupted
-    str w14, [x15]
+    str w9, [x14]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret

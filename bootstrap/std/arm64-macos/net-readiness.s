@@ -1754,27 +1754,24 @@ _lb_net_9wait_poll:
     bl _lb_net_10clear_poll
     sub x9, x29, #192
     str x9, [sp, #56]
-    sub x28, x29, #224
-    add x9, x28, #24
+    sub x27, x29, #224
+    add x9, x27, #24
     str x9, [sp, #48]
-    sub x27, x29, #176
-    add x9, x27, #8
+    sub x28, x29, #176
+    add x9, x28, #8
     str x9, [sp, #40]
     sub x26, x29, #264
     add x23, x26, #32
     add x24, x19, #8
     sub x9, x29, #296
-    str x9, [sp, #8]
-    ldr x9, [sp, #8]
+    str x9, [sp, #16]
+    ldr x9, [sp, #16]
     add x9, x9, #24
     str x9, [sp, #32]
     sub x9, x29, #352
-    str x9, [sp, #0]
-    ldr x9, [sp, #0]
+    str x9, [sp, #8]
+    ldr x9, [sp, #8]
     add x9, x9, #32
-    str x9, [sp, #16]
-    adrp x9, _lb_net_18socket_interrupted@PAGE
-    add x9, x9, _lb_net_18socket_interrupted@PAGEOFF
     str x9, [sp, #24]
 L17_1:
 L17_2:
@@ -1790,7 +1787,7 @@ L17_2:
 L17_5:
     sub x20, x29, #144
     add x14, x20, #8
-    mov x10, x28
+    mov x10, x27
     mov x11, x14
     ldp x16, x17, [x10, #0]
     stp x16, x17, [x11, #0]
@@ -1829,7 +1826,7 @@ L17_4:
     cbnz w20, L17_10
     b L17_8
 L17_10:
-    ldr x21, [x27]
+    ldr x21, [x28]
 L17_7:
     sub x8, x29, #264
     bl _lb_net_21monotonic_nanoseconds
@@ -1995,7 +1992,7 @@ L17_29:
 L17_35:
     sub x20, x29, #144
     add x14, x20, #8
-    ldr x10, [sp, #8]
+    ldr x10, [sp, #16]
     mov x11, x14
     ldp x16, x17, [x10, #0]
     stp x16, x17, [x11, #0]
@@ -2035,9 +2032,8 @@ L17_34:
 L17_37:
     bl _lb_net_12socket_errno
     mov w14, w0
-    ldr x9, [sp, #24]
-    ldrsw x15, [x9]
-    cmp w14, w15
+    movz x10, #4
+    cmp w14, w10
     b.ne L17_41
 L17_40:
     b L17_1
@@ -2127,16 +2123,16 @@ L17_47:
     cbnz w20, L17_52
     b L17_50
 L17_52:
-    ldr x20, [x27]
+    ldr x20, [x28]
 L17_49:
     sub x8, x29, #352
     bl _lb_net_21monotonic_nanoseconds
-    ldr x9, [sp, #16]
+    ldr x9, [sp, #24]
     ldrb w14, [x9]
     cbnz w14, L17_57
     b L17_56
 L17_57:
-    ldr x9, [sp, #0]
+    ldr x9, [sp, #8]
     add x14, x9, #8
     sub x20, x29, #144
     add x15, x20, #8
@@ -2174,7 +2170,7 @@ L17_57:
     ldp x29, x30, [sp], #16
     ret
 L17_56:
-    ldr x9, [sp, #0]
+    ldr x9, [sp, #8]
     ldr x14, [x9]
     cmp x14, x20
     b.lo L17_54
@@ -2476,28 +2472,15 @@ _lb_net_21monotonic_nanoseconds:
     sub x19, x29, #96
     mov x11, x19
     stp xzr, xzr, [x11, #0]
-    adrp x14, _lb_platform_macos@PAGE
-    add x14, x14, _lb_platform_macos@PAGEOFF
-    ldrb w14, [x14]
-    cbnz w14, L19_4
-    b L19_5
-L19_4:
-    movz x9, #6
-    mov w14, w9
-    b L19_6
-L19_5:
-    movz x9, #1
-    mov w14, w9
-L19_6:
-    mov x0, x14
+    movz x0, #6
     mov x1, x19
     bl _clock_gettime
-    mov w15, w0
+    mov w14, w0
     mov x10, #0
-    cmp w15, w10
-    cset w15, eq
+    cmp w14, w10
+    cset w14, eq
     mov x10, #0
-    cmp w15, w10
+    cmp w14, w10
     b.ne L19_2
 L19_1:
     sub x19, x29, #80
@@ -2533,7 +2516,7 @@ L19_1:
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
-L19_7:
+L19_4:
     b L19_3
 L19_2:
 L19_3:
@@ -2541,36 +2524,36 @@ L19_3:
     mov x10, #0
     cmp x14, x10
     cset w15, lt
-    cbnz w15, L19_25
-    b L19_11
-L19_25:
+    cbnz w15, L19_22
+    b L19_8
+L19_22:
     mov w12, w15
-    b L19_12
-L19_11:
+    b L19_9
+L19_8:
     add x15, x19, #8
     ldr x15, [x15]
     mov x10, #0
     cmp x15, x10
     cset w12, lt
-L19_12:
+L19_9:
     and w15, w12, #255
-    cbnz w15, L19_26
-    b L19_13
-L19_26:
+    cbnz w15, L19_23
+    b L19_10
+L19_23:
     mov w12, w15
-    b L19_14
-L19_13:
+    b L19_11
+L19_10:
     add x15, x19, #8
     ldr x15, [x15]
     movz x10, #51712
     movk x10, #15258, lsl #16
     cmp x15, x10
     cset w12, ge
-L19_14:
+L19_11:
     and w15, w12, #255
-    cbnz w15, L19_8
-    b L19_9
-L19_8:
+    cbnz w15, L19_5
+    b L19_6
+L19_5:
     sub x19, x29, #80
     add x14, x19, #8
     adrp x15, _lb_net_failed@PAGE
@@ -2604,10 +2587,10 @@ L19_8:
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
-L19_15:
-    b L19_10
-L19_9:
-L19_10:
+L19_12:
+    b L19_7
+L19_6:
+L19_7:
     sub x20, x29, #136
     mov x0, x14
     movz x1, #51712
@@ -2622,11 +2605,11 @@ L19_10:
     add x13, x13, #8
     strb w15, [x13]
     ldrb w15, [x13]
-    cbnz w15, L19_16
-    b L19_17
-L19_16:
-    b L19_18
-L19_17:
+    cbnz w15, L19_13
+    b L19_14
+L19_13:
+    b L19_15
+L19_14:
     sub x19, x29, #80
     add x14, x19, #8
     adrp x15, _lb_net_failed@PAGE
@@ -2660,8 +2643,8 @@ L19_17:
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
-L19_19:
-L19_18:
+L19_16:
+L19_15:
     add x14, x19, #8
     ldr x14, [x14]
     sub x20, x29, #176
@@ -2677,11 +2660,11 @@ L19_18:
     add x13, x13, #8
     strb w14, [x13]
     ldrb w14, [x13]
-    cbnz w14, L19_20
-    b L19_21
-L19_20:
-    b L19_22
-L19_21:
+    cbnz w14, L19_17
+    b L19_18
+L19_17:
+    b L19_19
+L19_18:
     sub x19, x29, #80
     add x14, x19, #8
     adrp x15, _lb_net_failed@PAGE
@@ -2715,8 +2698,8 @@ L19_21:
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
-L19_23:
-L19_22:
+L19_20:
+L19_19:
     sub x14, x29, #80
     str x15, [x14]
     add x12, x14, #32
@@ -2734,7 +2717,7 @@ L19_22:
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
-L19_24:
+L19_21:
     adrp x0, l_text_46@PAGE
     add x0, x0, l_text_46@PAGEOFF
     adrp x1, l_text_1@PAGE

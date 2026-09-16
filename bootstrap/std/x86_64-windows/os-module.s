@@ -38,8 +38,6 @@ lb_os_module_0init:
     .seh_savereg %rbx, 24
     movq %r12, 16(%rbp)
     .seh_savereg %r12, 16
-    movq %r13, 8(%rbp)
-    .seh_savereg %r13, 8
     .seh_endprologue
     movq %rcx, 224(%rbp)
     movq %rdx, 232(%rbp)
@@ -49,82 +47,61 @@ lb_os_module_0init:
     movl $208273420, %eax
     movq %rbx, %r10
     movl %eax, (%r10)
-    leaq lb_platform_arm64(%rip), %rbx
+    leaq lb_os_arm64(%rip), %rbx
+    movl $0, %eax
     movq %rbx, %r10
-    movzbl (%r10), %ebx
-    leaq lb_os_arm64(%rip), %r12
-    movq %r12, %r10
-    movb %bl, (%r10)
-    leaq lb_platform_6x86_64(%rip), %rbx
+    movb %al, (%r10)
+    leaq lb_os_6x86_64(%rip), %rbx
+    movl $1, %eax
     movq %rbx, %r10
-    movzbl (%r10), %ebx
-    leaq lb_os_6x86_64(%rip), %r12
-    movq %r12, %r10
-    movb %bl, (%r10)
-    leaq lb_platform_wasm32(%rip), %rbx
+    movb %al, (%r10)
+    leaq lb_os_wasm32(%rip), %rbx
+    movl $0, %eax
     movq %rbx, %r10
-    movzbl (%r10), %ebx
-    leaq lb_os_wasm32(%rip), %r12
-    movq %r12, %r10
-    movb %bl, (%r10)
-    leaq lb_platform_macos(%rip), %rbx
+    movb %al, (%r10)
+    leaq lb_os_macos(%rip), %rbx
+    movl $0, %eax
     movq %rbx, %r10
-    movzbl (%r10), %r12d
-    leaq lb_os_macos(%rip), %r13
-    movq %r13, %r10
-    movb %r12b, (%r10)
-    leaq lb_platform_linux(%rip), %r12
+    movb %al, (%r10)
+    leaq lb_os_linux(%rip), %rbx
+    movl $0, %eax
+    movq %rbx, %r10
+    movb %al, (%r10)
+    leaq lb_os_windows(%rip), %rbx
+    movl $1, %eax
+    movq %rbx, %r10
+    movb %al, (%r10)
+    leaq lb_os_posix(%rip), %rbx
+    movl $0, %eax
+    movq %rbx, %r10
+    movb %al, (%r10)
+    leaq lb_os_12pointer_bits(%rip), %rbx
+    movl $64, %eax
+    movq %rbx, %r10
+    movl %eax, (%r10)
+    leaq .Ltext_0(%rip), %rbx
+    leaq 0(%rbp), %r12
     movq %r12, %r10
-    movzbl (%r10), %r12d
-    leaq lb_os_linux(%rip), %r13
-    movq %r13, %r10
-    movb %r12b, (%r10)
-    leaq lb_platform_windows(%rip), %r12
+    movq %rbx, (%r10)
+    movq $8, %rcx
+    movq %r12, %rbx
+    addq %rcx, %rbx
+    movq $14, %rax
+    movq %rbx, %r10
+    movq %rax, (%r10)
+    leaq lb_os_name(%rip), %rbx
     movq %r12, %r10
-    movzbl (%r10), %r12d
-    leaq lb_os_windows(%rip), %r13
-    movq %r13, %r10
-    movb %r12b, (%r10)
-    leaq lb_platform_posix(%rip), %r12
-    movq %r12, %r10
-    movzbl (%r10), %r12d
-    leaq lb_os_posix(%rip), %r13
-    movq %r13, %r10
-    movb %r12b, (%r10)
-    leaq lb_platform_12pointer_bits(%rip), %r12
-    movq %r12, %r10
-    movl (%r10), %r12d
-    leaq lb_os_12pointer_bits(%rip), %r13
-    movq %r13, %r10
-    movl %r12d, (%r10)
-    leaq lb_platform_name(%rip), %r12
-    leaq lb_os_name(%rip), %r13
-    movq %r12, %r10
-    movq %r13, %r11
+    movq %rbx, %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
-    leaq lb_platform_9cpu_level(%rip), %r12
-    movq %r12, %r10
-    movl (%r10), %r12d
-    leaq lb_os_9cpu_level(%rip), %r13
-    movq %r13, %r10
-    movl %r12d, (%r10)
+    leaq lb_os_9cpu_level(%rip), %rbx
+    movl $1, %eax
     movq %rbx, %r10
-    movzbl (%r10), %ebx
-    testl %ebx, %ebx
-    jne .L0_1
-    jmp .L0_2
-.L0_1:
-    movl $58, %eax
-    movl %eax, %ebx
-    jmp .L0_3
-.L0_2:
+    movl %eax, (%r10)
+    leaq lb_os_17processors_online(%rip), %rbx
     movl $84, %eax
-    movl %eax, %ebx
-.L0_3:
-    leaq lb_os_17processors_online(%rip), %r12
-    movq %r12, %r10
-    movl %ebx, (%r10)
+    movq %rbx, %r10
+    movl %eax, (%r10)
     movq 200(%rbp), %rdi
     movq 192(%rbp), %rsi
     movdqu 176(%rbp), %xmm6
@@ -139,7 +116,6 @@ lb_os_module_0init:
     movdqu 32(%rbp), %xmm15
     movq 24(%rbp), %rbx
     movq 16(%rbp), %r12
-    movq 8(%rbp), %r13
     leaq 208(%rbp), %rsp
     popq %rbp
     ret
@@ -232,8 +208,8 @@ lb_os_12random_bytes:
     addq %rcx, %r12
     cmpq %r12, %r13
     jb 1f
-    leaq .Ltext_1(%rip), %rdi
-    leaq .Ltext_41(%rip), %rsi
+    leaq .Ltext_2(%rip), %rdi
+    leaq .Ltext_42(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
     movq %rdi, %rcx
@@ -273,7 +249,7 @@ lb_os_12random_bytes:
     movl (%r10), %r12d
     movq %rbx, %r10
     movl %r12d, (%r10)
-    leaq .Ltext_2(%rip), %r12
+    leaq .Ltext_3(%rip), %r12
     leaq 16(%rbp), %r13
     movq %r13, %r10
     movq %r12, (%r10)
@@ -334,8 +310,8 @@ lb_os_12random_bytes:
     movq 0(%rbp), %rcx
     addq %rcx, %rax
     jnc 1f
-    leaq .Ltext_3(%rip), %rdi
-    leaq .Ltext_42(%rip), %rsi
+    leaq .Ltext_4(%rip), %rdi
+    leaq .Ltext_43(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
     movq %rdi, %rcx
@@ -449,8 +425,8 @@ lb_os_17cpu_level_running:
     popq %rbp
     ret
 .L2_1:
-    leaq .Ltext_5(%rip), %rdi
-    leaq .Ltext_4(%rip), %rsi
+    leaq .Ltext_6(%rip), %rdi
+    leaq .Ltext_5(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
     movq %rdi, %rcx
@@ -849,8 +825,8 @@ lb_os_cpus:
     popq %rbp
     ret
 .L4_4:
-    leaq .Ltext_21(%rip), %rdi
-    leaq .Ltext_4(%rip), %rsi
+    leaq .Ltext_22(%rip), %rdi
+    leaq .Ltext_5(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
     movq %rdi, %rcx
@@ -930,8 +906,8 @@ lb_os_9page_size:
     popq %rbp
     ret
 .L5_1:
-    leaq .Ltext_22(%rip), %rdi
-    leaq .Ltext_4(%rip), %rsi
+    leaq .Ltext_23(%rip), %rdi
+    leaq .Ltext_5(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
     movq %rdi, %rcx
@@ -1034,8 +1010,8 @@ lb_os_env:
     popq %rbp
     ret
 .L6_1:
-    leaq .Ltext_23(%rip), %rdi
-    leaq .Ltext_4(%rip), %rsi
+    leaq .Ltext_24(%rip), %rdi
+    leaq .Ltext_5(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
     movq %rdi, %rcx
@@ -1247,8 +1223,8 @@ lb_os_7set_env:
     movq $2, %rcx
     mulq %rcx
     jnc 1f
-    leaq .Ltext_24(%rip), %rdi
-    leaq .Ltext_42(%rip), %rsi
+    leaq .Ltext_25(%rip), %rdi
+    leaq .Ltext_43(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
     movq %rdi, %rcx
@@ -1357,7 +1333,7 @@ lb_os_7set_env:
     movl (%r10), %r15d
     movq 72(%rbp), %r10
     movl %r15d, (%r10)
-    leaq .Ltext_25(%rip), %r15
+    leaq .Ltext_26(%rip), %r15
     leaq 224(%rbp), %rbx
     movq %rbx, %r10
     movq %r15, (%r10)
@@ -1398,8 +1374,8 @@ lb_os_7set_env:
     movq $2, %rcx
     mulq %rcx
     jnc 1f
-    leaq .Ltext_26(%rip), %rdi
-    leaq .Ltext_42(%rip), %rsi
+    leaq .Ltext_27(%rip), %rdi
+    leaq .Ltext_43(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
     movq %rdi, %rcx
@@ -1459,8 +1435,8 @@ lb_os_7set_env:
     movq $2, %rcx
     mulq %rcx
     jnc 1f
-    leaq .Ltext_26(%rip), %rdi
-    leaq .Ltext_42(%rip), %rsi
+    leaq .Ltext_27(%rip), %rdi
+    leaq .Ltext_43(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
     movq %rdi, %rcx
@@ -1565,8 +1541,8 @@ lb_os_7set_env:
     movq $2, %rcx
     mulq %rcx
     jnc 1f
-    leaq .Ltext_27(%rip), %rdi
-    leaq .Ltext_42(%rip), %rsi
+    leaq .Ltext_28(%rip), %rdi
+    leaq .Ltext_43(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
     movq %rdi, %rcx
@@ -1626,8 +1602,8 @@ lb_os_7set_env:
     movq $2, %rcx
     mulq %rcx
     jnc 1f
-    leaq .Ltext_27(%rip), %rdi
-    leaq .Ltext_42(%rip), %rsi
+    leaq .Ltext_28(%rip), %rdi
+    leaq .Ltext_43(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
     movq %rdi, %rcx
@@ -1720,8 +1696,8 @@ lb_os_7set_env:
     movq $2, %rcx
     mulq %rcx
     jnc 1f
-    leaq .Ltext_27(%rip), %rdi
-    leaq .Ltext_42(%rip), %rsi
+    leaq .Ltext_28(%rip), %rdi
+    leaq .Ltext_43(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
     movq %rdi, %rcx
@@ -1784,8 +1760,8 @@ lb_os_7set_env:
     movq $2, %rcx
     mulq %rcx
     jnc 1f
-    leaq .Ltext_27(%rip), %rdi
-    leaq .Ltext_42(%rip), %rsi
+    leaq .Ltext_28(%rip), %rdi
+    leaq .Ltext_43(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
     movq %rdi, %rcx
@@ -2053,7 +2029,7 @@ lb_os_9unset_env:
     movl 40(%rbp), %eax
     movq 48(%rbp), %r10
     movl %eax, (%r10)
-    leaq .Ltext_28(%rip), %rax
+    leaq .Ltext_29(%rip), %rax
     movq %rax, 32(%rbp)
     leaq 112(%rbp), %rbx
     movq 32(%rbp), %rax
@@ -2097,8 +2073,8 @@ lb_os_9unset_env:
     movq $2, %rcx
     mulq %rcx
     jnc 1f
-    leaq .Ltext_29(%rip), %rdi
-    leaq .Ltext_42(%rip), %rsi
+    leaq .Ltext_30(%rip), %rdi
+    leaq .Ltext_43(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
     movq %rdi, %rcx
@@ -2204,8 +2180,8 @@ lb_os_9unset_env:
     movq $2, %rcx
     mulq %rcx
     jnc 1f
-    leaq .Ltext_30(%rip), %rdi
-    leaq .Ltext_42(%rip), %rsi
+    leaq .Ltext_31(%rip), %rdi
+    leaq .Ltext_43(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
     movq %rdi, %rcx
@@ -2300,8 +2276,8 @@ lb_os_9unset_env:
     movq $2, %rcx
     mulq %rcx
     jnc 1f
-    leaq .Ltext_30(%rip), %rdi
-    leaq .Ltext_42(%rip), %rsi
+    leaq .Ltext_31(%rip), %rdi
+    leaq .Ltext_43(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
     movq %rdi, %rcx
@@ -2541,8 +2517,8 @@ lb_os_cwd:
     popq %rbp
     ret
 .L9_4:
-    leaq .Ltext_31(%rip), %rdi
-    leaq .Ltext_4(%rip), %rsi
+    leaq .Ltext_32(%rip), %rdi
+    leaq .Ltext_5(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
     movq %rdi, %rcx
@@ -2706,8 +2682,8 @@ lb_os_executable:
     popq %rbp
     ret
 .L10_4:
-    leaq .Ltext_32(%rip), %rdi
-    leaq .Ltext_4(%rip), %rsi
+    leaq .Ltext_33(%rip), %rdi
+    leaq .Ltext_5(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
     movq %rdi, %rcx
@@ -2871,7 +2847,7 @@ lb_os_10change_dir:
     movl 40(%rbp), %eax
     movq 48(%rbp), %r10
     movl %eax, (%r10)
-    leaq .Ltext_33(%rip), %rax
+    leaq .Ltext_34(%rip), %rax
     movq %rax, 32(%rbp)
     leaq 112(%rbp), %rbx
     movq 32(%rbp), %rax
@@ -2915,8 +2891,8 @@ lb_os_10change_dir:
     movq $2, %rcx
     mulq %rcx
     jnc 1f
-    leaq .Ltext_34(%rip), %rdi
-    leaq .Ltext_42(%rip), %rsi
+    leaq .Ltext_35(%rip), %rdi
+    leaq .Ltext_43(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
     movq %rdi, %rcx
@@ -3022,8 +2998,8 @@ lb_os_10change_dir:
     movq $2, %rcx
     mulq %rcx
     jnc 1f
-    leaq .Ltext_35(%rip), %rdi
-    leaq .Ltext_42(%rip), %rsi
+    leaq .Ltext_36(%rip), %rdi
+    leaq .Ltext_43(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
     movq %rdi, %rcx
@@ -3118,8 +3094,8 @@ lb_os_10change_dir:
     movq $2, %rcx
     mulq %rcx
     jnc 1f
-    leaq .Ltext_35(%rip), %rdi
-    leaq .Ltext_42(%rip), %rsi
+    leaq .Ltext_36(%rip), %rdi
+    leaq .Ltext_43(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
     movq %rdi, %rcx
@@ -3268,8 +3244,8 @@ lb_os_pid:
     popq %rbp
     ret
 .L12_1:
-    leaq .Ltext_36(%rip), %rdi
-    leaq .Ltext_4(%rip), %rsi
+    leaq .Ltext_37(%rip), %rdi
+    leaq .Ltext_5(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
     movq %rdi, %rcx
@@ -3341,8 +3317,8 @@ lb_os_10parent_pid:
     popq %rbp
     ret
 .L13_1:
-    leaq .Ltext_37(%rip), %rdi
-    leaq .Ltext_4(%rip), %rsi
+    leaq .Ltext_38(%rip), %rdi
+    leaq .Ltext_5(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
     movq %rdi, %rcx
@@ -3436,7 +3412,7 @@ lb_os_hostname:
     movl (%r10), %r13d
     movq %r12, %r10
     movl %r13d, (%r10)
-    leaq .Ltext_39(%rip), %r13
+    leaq .Ltext_40(%rip), %r13
     leaq 64(%rbp), %r14
     movq %r14, %r10
     movq %r13, (%r10)
@@ -3497,8 +3473,8 @@ lb_os_hostname:
     movq $257, %rcx
     cmpq %rcx, %r14
     jb 1f
-    leaq .Ltext_40(%rip), %rdi
-    leaq .Ltext_41(%rip), %rsi
+    leaq .Ltext_41(%rip), %rdi
+    leaq .Ltext_42(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
     movq %rdi, %rcx
@@ -3510,8 +3486,8 @@ lb_os_hostname:
     cmpq %r14, %rax
     jbe .L14_5
 .L14_6:
-    leaq .Ltext_40(%rip), %rdi
-    leaq .Ltext_41(%rip), %rsi
+    leaq .Ltext_41(%rip), %rdi
+    leaq .Ltext_42(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
     movq %rdi, %rcx
@@ -3647,8 +3623,8 @@ lb_os_hostname:
     popq %rbp
     ret
 .L14_10:
-    leaq .Ltext_40(%rip), %rdi
-    leaq .Ltext_4(%rip), %rsi
+    leaq .Ltext_41(%rip), %rdi
+    leaq .Ltext_5(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
     movq %rdi, %rcx
@@ -3739,90 +3715,92 @@ lb_os_exit:
 .Lvsign64:
     .quad -9223372036854775808, -9223372036854775808
 .Ltext_0:
-    .asciz "src/std/os/module.lucb:29:9"
+    .asciz "x86_64-windows"
 .Ltext_1:
-    .asciz "src/std/os/module.lucb:32:13"
+    .asciz "src/std/os/module.lucb:29:9"
 .Ltext_2:
-    .asciz "operating system randomness is unavailable"
+    .asciz "src/std/os/module.lucb:32:13"
 .Ltext_3:
-    .asciz "src/std/os/module.lucb:37:9"
+    .asciz "operating system randomness is unavailable"
 .Ltext_4:
-    .asciz "unreachable"
+    .asciz "src/std/os/module.lucb:37:9"
 .Ltext_5:
-    .asciz "src/std/os/module.lucb:62:9"
+    .asciz "unreachable"
 .Ltext_6:
-    .asciz "eax"
+    .asciz "src/std/os/module.lucb:62:9"
 .Ltext_7:
-    .asciz "x86_64"
+    .asciz "eax"
 .Ltext_8:
-    .asciz "cpuid\n"
+    .asciz "x86_64"
 .Ltext_9:
-    .asciz "ecx"
+    .asciz "cpuid\n"
 .Ltext_10:
-    .asciz "ebx"
+    .asciz "ecx"
 .Ltext_11:
-    .asciz "edx"
+    .asciz "ebx"
 .Ltext_12:
-    .asciz "shift count out of range"
+    .asciz "edx"
 .Ltext_13:
-    .asciz "src/std/os/module.lucb:73:5"
+    .asciz "shift count out of range"
 .Ltext_14:
-    .asciz "src/std/os/module.lucb:74:5"
+    .asciz "src/std/os/module.lucb:73:5"
 .Ltext_15:
-    .asciz "src/std/os/module.lucb:75:5"
+    .asciz "src/std/os/module.lucb:74:5"
 .Ltext_16:
-    .asciz "src/std/os/module.lucb:77:5"
+    .asciz "src/std/os/module.lucb:75:5"
 .Ltext_17:
-    .asciz "src/std/os/module.lucb:78:5"
+    .asciz "src/std/os/module.lucb:77:5"
 .Ltext_18:
-    .asciz "src/std/os/module.lucb:79:5"
+    .asciz "src/std/os/module.lucb:78:5"
 .Ltext_19:
-    .asciz "src/std/os/module.lucb:80:5"
+    .asciz "src/std/os/module.lucb:79:5"
 .Ltext_20:
-    .asciz "src/std/os/module.lucb:85:5"
+    .asciz "src/std/os/module.lucb:80:5"
 .Ltext_21:
-    .asciz "src/std/os/module.lucb:94:9"
+    .asciz "src/std/os/module.lucb:85:5"
 .Ltext_22:
-    .asciz "src/std/os/module.lucb:102:9"
+    .asciz "src/std/os/module.lucb:94:9"
 .Ltext_23:
-    .asciz "src/std/os/module.lucb:109:9"
+    .asciz "src/std/os/module.lucb:102:9"
 .Ltext_24:
-    .asciz "src/std/os/module.lucb:118:9"
+    .asciz "src/std/os/module.lucb:109:9"
 .Ltext_25:
-    .asciz "the environment variable cannot be set"
+    .asciz "src/std/os/module.lucb:118:9"
 .Ltext_26:
-    .asciz "src/std/os/module.lucb:121:13"
+    .asciz "the environment variable cannot be set"
 .Ltext_27:
-    .asciz "src/std/os/module.lucb:122:9"
+    .asciz "src/std/os/module.lucb:121:13"
 .Ltext_28:
-    .asciz "the environment variable cannot be unset"
+    .asciz "src/std/os/module.lucb:122:9"
 .Ltext_29:
-    .asciz "src/std/os/module.lucb:131:13"
+    .asciz "the environment variable cannot be unset"
 .Ltext_30:
-    .asciz "src/std/os/module.lucb:132:9"
+    .asciz "src/std/os/module.lucb:131:13"
 .Ltext_31:
-    .asciz "src/std/os/module.lucb:139:9"
+    .asciz "src/std/os/module.lucb:132:9"
 .Ltext_32:
-    .asciz "src/std/os/module.lucb:152:9"
+    .asciz "src/std/os/module.lucb:139:9"
 .Ltext_33:
-    .asciz "the directory cannot be entered"
+    .asciz "src/std/os/module.lucb:152:9"
 .Ltext_34:
-    .asciz "src/std/os/module.lucb:176:13"
+    .asciz "the directory cannot be entered"
 .Ltext_35:
-    .asciz "src/std/os/module.lucb:177:9"
+    .asciz "src/std/os/module.lucb:176:13"
 .Ltext_36:
-    .asciz "src/std/os/module.lucb:183:9"
+    .asciz "src/std/os/module.lucb:177:9"
 .Ltext_37:
-    .asciz "src/std/os/module.lucb:188:9"
+    .asciz "src/std/os/module.lucb:183:9"
 .Ltext_38:
-    .asciz "src/std/os/module.lucb:196:9"
+    .asciz "src/std/os/module.lucb:188:9"
 .Ltext_39:
-    .asciz "the host name cannot be read"
+    .asciz "src/std/os/module.lucb:196:9"
 .Ltext_40:
-    .asciz "src/std/os/module.lucb:198:9"
+    .asciz "the host name cannot be read"
 .Ltext_41:
-    .asciz "index out of bounds"
+    .asciz "src/std/os/module.lucb:198:9"
 .Ltext_42:
+    .asciz "index out of bounds"
+.Ltext_43:
     .asciz "integer overflow"
 
     .section .rdata,"dr"

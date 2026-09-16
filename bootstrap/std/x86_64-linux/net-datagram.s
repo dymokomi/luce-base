@@ -16,7 +16,7 @@ lb_net_datagram_0init:
 lb_net_Datagram_bind:
     pushq %rbp
     movq %rsp, %rbp
-    subq $432, %rsp
+    subq $400, %rsp
     movq %rdi, -8(%rbp)
     movq %rbx, -16(%rbp)
     movq %r12, -24(%rbp)
@@ -90,36 +90,32 @@ lb_net_Datagram_bind:
     movq %r14, %r10
     movl (%r10), %eax
     movl %eax, -400(%rbp)
-    leaq -224(%rbp), %rax
-    movq %rax, -424(%rbp)
-    leaq lb_net_datagram(%rip), %r15
-    movq %r15, %r10
-    movslq (%r10), %r15
+    leaq -224(%rbp), %rbx
     movq -392(%rbp), %r10
-    movzbl (%r10), %ebx
-    movl %r15d, %esi
-    movl %ebx, %edx
+    movzbl (%r10), %r15d
+    movl $2, %esi
+    movl %r15d, %edx
     leaq -272(%rbp), %rdi
     call lb_net_SocketHandle_create@PLT
-    leaq -272(%rbp), %r15
+    leaq -272(%rbp), %r13
     movq $40, %rcx
-    movq %r15, %rbx
-    addq %rcx, %rbx
-    movq %rbx, %r10
-    movzbl (%r10), %ebx
-    testl %ebx, %ebx
+    movq %r13, %r15
+    addq %rcx, %r15
+    movq %r15, %r10
+    movzbl (%r10), %r15d
+    testl %r15d, %r15d
     jne .L1_5
     jmp .L1_4
 .L1_5:
     movq $16, %rcx
-    movq %r15, %rbx
+    movq %r13, %rbx
     addq %rcx, %rbx
     leaq -96(%rbp), %r12
     movq $16, %rcx
-    movq %r12, %r13
-    addq %rcx, %r13
+    movq %r12, %r14
+    addq %rcx, %r14
     movq %rbx, %r10
-    movq %r13, %r11
+    movq %r14, %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
     movq 16(%r10), %rax
@@ -145,47 +141,47 @@ lb_net_Datagram_bind:
     ret
 .L1_6:
 .L1_4:
-    movq %r15, %r10
-    movq -424(%rbp), %r11
+    movq %r13, %r10
+    movq %rbx, %r11
     movq 0(%r10), %rax
     movq %rax, 0(%r11)
     movl 8(%r10), %eax
     movl %eax, 8(%r11)
-    movq -424(%rbp), %rsi
+    movq %rbx, %rsi
     leaq -312(%rbp), %rdi
     call lb_net_SocketHandle_require@PLT
-    leaq -312(%rbp), %r14
+    leaq -312(%rbp), %r15
     movq $32, %rcx
-    movq %r14, %rbx
-    addq %rcx, %rbx
-    movq %rbx, %r10
-    movzbl (%r10), %ebx
-    testl %ebx, %ebx
+    movq %r15, %r14
+    addq %rcx, %r14
+    movq %r14, %r10
+    movzbl (%r10), %r14d
+    testl %r14d, %r14d
     jne .L1_8
     jmp .L1_7
 .L1_8:
     movq $8, %rcx
-    movq %r14, %rbx
-    addq %rcx, %rbx
-    leaq -96(%rbp), %r12
+    movq %r15, %r12
+    addq %rcx, %r12
+    leaq -96(%rbp), %r13
     movq $16, %rcx
-    movq %r12, %r15
-    addq %rcx, %r15
-    movq %rbx, %r10
-    movq %r15, %r11
+    movq %r13, %r14
+    addq %rcx, %r14
+    movq %r12, %r10
+    movq %r14, %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
     movq 16(%r10), %rax
     movq %rax, 16(%r11)
     movq $40, %rcx
-    movq %r12, %rbx
-    addq %rcx, %rbx
+    movq %r13, %r12
+    addq %rcx, %r12
     movl $1, %eax
-    movq %rbx, %r10
+    movq %r12, %r10
     movb %al, (%r10)
-    movq -424(%rbp), %rdi
+    movq %rbx, %rdi
     call lb_net_SocketHandle_destroy@PLT
-    movq %r12, %rsi
+    movq %r13, %rsi
     movq -8(%rbp), %rdi
     movq $48, %rdx
     call memcpy@PLT
@@ -200,72 +196,63 @@ lb_net_Datagram_bind:
     ret
 .L1_9:
 .L1_7:
-    movq %r14, %r10
-    movslq (%r10), %rbx
+    movq %r15, %r10
+    movslq (%r10), %r13
     movq -392(%rbp), %r10
-    movzbl (%r10), %r15d
+    movzbl (%r10), %r14d
     movl $1, %ecx
-    cmpl %ecx, %r15d
+    cmpl %ecx, %r14d
     jne .L1_11
 .L1_10:
-    leaq lb_net_10ipv6_level(%rip), %r14
+    leaq -136(%rbp), %r14
     movq %r14, %r10
-    movslq (%r10), %r14
-    leaq lb_net_16ipv6_only_option(%rip), %r15
-    movq %r15, %r10
-    movslq (%r10), %r15
-    leaq -136(%rbp), %r12
-    movq %r12, %r10
-    movzbl (%r10), %r12d
-    testl %r12d, %r12d
+    movzbl (%r10), %r14d
+    testl %r14d, %r14d
     jne .L1_13
     jmp .L1_14
 .L1_13:
     movl $1, %eax
-    movl %eax, %r12d
+    movl %eax, %r14d
     jmp .L1_15
 .L1_14:
     movl $0, %eax
-    movl %eax, %r12d
+    movl %eax, %r14d
 .L1_15:
-    movl %ebx, %esi
-    movl %r14d, %edx
-    movl %r15d, %ecx
-    movl %r12d, %r8d
+    movl %r13d, %esi
+    movl $41, %edx
+    movl $26, %ecx
+    movl %r14d, %r8d
     leaq -344(%rbp), %rdi
     call lb_net_18set_socket_integer@PLT
-    leaq -344(%rbp), %r13
+    leaq -344(%rbp), %r12
     movq $24, %rcx
-    movq %r13, %rax
-    addq %rcx, %rax
-    movq %rax, -408(%rbp)
-    movq -408(%rbp), %r10
-    movzbl (%r10), %eax
-    movl %eax, -416(%rbp)
-    movl -416(%rbp), %eax
-    testl %eax, %eax
+    movq %r12, %r15
+    addq %rcx, %r15
+    movq %r15, %r10
+    movzbl (%r10), %r15d
+    testl %r15d, %r15d
     jne .L1_17
     jmp .L1_16
 .L1_17:
-    leaq -96(%rbp), %rbx
+    leaq -96(%rbp), %r13
     movq $16, %rcx
-    movq %rbx, %r12
-    addq %rcx, %r12
-    movq %r13, %r10
-    movq %r12, %r11
+    movq %r13, %r14
+    addq %rcx, %r14
+    movq %r12, %r10
+    movq %r14, %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
     movq 16(%r10), %rax
     movq %rax, 16(%r11)
     movq $40, %rcx
-    movq %rbx, %r12
-    addq %rcx, %r12
+    movq %r13, %r14
+    addq %rcx, %r14
     movl $1, %eax
-    movq %r12, %r10
+    movq %r14, %r10
     movb %al, (%r10)
-    movq -424(%rbp), %rdi
+    movq %rbx, %rdi
     call lb_net_SocketHandle_destroy@PLT
-    movq %rbx, %rsi
+    movq %r13, %rsi
     movq -8(%rbp), %rdi
     movq $48, %rdx
     call memcpy@PLT
@@ -283,7 +270,7 @@ lb_net_Datagram_bind:
     jmp .L1_12
 .L1_11:
 .L1_12:
-    movl %ebx, %edi
+    movl %r13d, %edi
     movq -384(%rbp), %rsi
     movl -400(%rbp), %edx
     call bind@PLT
@@ -296,42 +283,42 @@ lb_net_Datagram_bind:
     cmpl %ecx, %r12d
     jne .L1_20
 .L1_19:
-    leaq -96(%rbp), %rbx
+    leaq -96(%rbp), %r12
     movq $16, %rcx
-    movq %rbx, %r12
-    addq %rcx, %r12
-    call lb_net_12socket_errno@PLT
-    movl %eax, %r13d
-    movl %r13d, %edi
-    call lb_net_12socket_error@PLT
-    movl %eax, %r13d
-    movq %r12, %r10
-    movl %r13d, (%r10)
-    leaq .Ltext_0(%rip), %r13
-    leaq -360(%rbp), %r14
-    movq %r14, %r10
-    movq %r13, (%r10)
-    movq $8, %rcx
-    movq %r14, %r13
+    movq %r12, %r13
     addq %rcx, %r13
-    movq $46, %rax
+    call lb_net_12socket_errno@PLT
+    movl %eax, %r14d
+    movl %r14d, %edi
+    call lb_net_12socket_error@PLT
+    movl %eax, %r14d
     movq %r13, %r10
+    movl %r14d, (%r10)
+    leaq .Ltext_0(%rip), %r14
+    leaq -360(%rbp), %r15
+    movq %r15, %r10
+    movq %r14, (%r10)
+    movq $8, %rcx
+    movq %r15, %r14
+    addq %rcx, %r14
+    movq $46, %rax
+    movq %r14, %r10
     movq %rax, (%r10)
     movq $8, %rcx
-    addq %rcx, %r12
-    movq %r14, %r10
-    movq %r12, %r11
+    addq %rcx, %r13
+    movq %r15, %r10
+    movq %r13, %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
     movq $40, %rcx
-    movq %rbx, %r12
-    addq %rcx, %r12
+    movq %r12, %r13
+    addq %rcx, %r13
     movl $1, %eax
-    movq %r12, %r10
+    movq %r13, %r10
     movb %al, (%r10)
-    movq -424(%rbp), %rdi
+    movq %rbx, %rdi
     call lb_net_SocketHandle_destroy@PLT
-    movq %rbx, %rsi
+    movq %r12, %rsi
     movq -8(%rbp), %rdi
     movq $48, %rdx
     call memcpy@PLT
@@ -348,35 +335,35 @@ lb_net_Datagram_bind:
     jmp .L1_21
 .L1_20:
 .L1_21:
-    leaq -376(%rbp), %rbx
-    movq %rbx, %r11
+    leaq -376(%rbp), %r12
+    movq %r12, %r11
     pxor %xmm8, %xmm8
     movups %xmm8, 0(%r11)
-    movq -424(%rbp), %r10
-    movq %rbx, %r11
+    movq %rbx, %r10
+    movq %r12, %r11
     movq 0(%r10), %rax
     movq %rax, 0(%r11)
     movl 8(%r10), %eax
     movl %eax, 8(%r11)
     movq -392(%rbp), %r10
-    movzbl (%r10), %r12d
+    movzbl (%r10), %r13d
     movq $12, %rcx
-    movq %rbx, %r13
-    addq %rcx, %r13
-    movq %r13, %r10
-    movb %r12b, (%r10)
-    leaq -96(%rbp), %r12
-    movq %rbx, %r10
-    movq %r12, %r11
+    movq %r12, %r14
+    addq %rcx, %r14
+    movq %r14, %r10
+    movb %r13b, (%r10)
+    leaq -96(%rbp), %r13
+    movq %r12, %r10
+    movq %r13, %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
     movq $40, %rcx
-    movq %r12, %rbx
-    addq %rcx, %rbx
+    movq %r13, %r12
+    addq %rcx, %r12
     movl $0, %eax
-    movq %rbx, %r10
+    movq %r12, %r10
     movb %al, (%r10)
-    movq %r12, %rsi
+    movq %r13, %rsi
     movq -8(%rbp), %rdi
     movq $48, %rdx
     call memcpy@PLT
@@ -540,7 +527,7 @@ lb_net_Datagram_address:
 lb_net_Datagram_7send_to:
     pushq %rbp
     movq %rsp, %rbp
-    subq $352, %rsp
+    subq $336, %rsp
     movq %rdi, -8(%rbp)
     movq %rbx, -16(%rbp)
     movq %r12, -24(%rbp)
@@ -789,21 +776,19 @@ lb_net_Datagram_7send_to:
     movl (%r10), %eax
     movl %eax, -328(%rbp)
     movq %r12, %r10
-    movq (%r10), %rax
-    movq %rax, -336(%rbp)
+    movq (%r10), %r15
     movl -312(%rbp), %edi
-    movq -336(%rbp), %rsi
+    movq %r15, %rsi
     movq %r13, %rdx
     movl $0, %ecx
     movq -320(%rbp), %r8
     movl -328(%rbp), %r9d
     call lb_net_sendto@PLT
     movq %rax, %r14
-    leaq lb_net_18socket_interrupted(%rip), %r15
     movq %r14, %rax
-    movq %rax, -344(%rbp)
+    movq %rax, -336(%rbp)
 .L3_18:
-    movq -344(%rbp), %rax
+    movq -336(%rbp), %rax
     movq $0, %rcx
     cmpq %rcx, %rax
     setl %al
@@ -817,9 +802,8 @@ lb_net_Datagram_7send_to:
 .L3_21:
     call lb_net_12socket_errno@PLT
     movl %eax, %r12d
-    movq %r15, %r10
-    movslq (%r10), %r14
-    cmpl %r14d, %r12d
+    movl $4, %ecx
+    cmpl %ecx, %r12d
     sete %al
     movzbl %al, %r12d
 .L3_22:
@@ -829,7 +813,7 @@ lb_net_Datagram_7send_to:
     jmp .L3_20
 .L3_19:
     movl -312(%rbp), %edi
-    movq -336(%rbp), %rsi
+    movq %r15, %rsi
     movq %r13, %rdx
     movl $0, %ecx
     movq -320(%rbp), %r8
@@ -837,7 +821,7 @@ lb_net_Datagram_7send_to:
     call lb_net_sendto@PLT
     movq %rax, %rbx
     movq %rbx, %rax
-    movq %rax, -344(%rbp)
+    movq %rax, -336(%rbp)
     jmp .L3_18
 .L3_20:
     testl %ebx, %ebx
@@ -892,7 +876,7 @@ lb_net_Datagram_7send_to:
     jmp .L3_25
 .L3_24:
 .L3_25:
-    movq -344(%rbp), %rcx
+    movq -336(%rbp), %rcx
     cmpq %rcx, %r13
     sete %al
     movzbl %al, %ebx
@@ -973,7 +957,7 @@ lb_net_Datagram_7send_to:
 lb_net_Datagram_12receive_from:
     pushq %rbp
     movq %rsp, %rbp
-    subq $624, %rsp
+    subq $608, %rsp
     movq %rdi, -8(%rbp)
     movq %rbx, -16(%rbp)
     movq %r12, -24(%rbp)
@@ -1120,8 +1104,6 @@ lb_net_Datagram_12receive_from:
     movq $48, %rcx
     addq %rcx, %rax
     movq %rax, -592(%rbp)
-    leaq lb_net_18socket_interrupted(%rip), %rax
-    movq %rax, -616(%rbp)
 .L4_7:
 .L4_8:
     movq -552(%rbp), %r11
@@ -1169,9 +1151,8 @@ lb_net_Datagram_12receive_from:
 .L4_10:
     call lb_net_12socket_errno@PLT
     movl %eax, %ebx
-    movq -616(%rbp), %r10
-    movslq (%r10), %r12
-    cmpl %r12d, %ebx
+    movl $4, %ecx
+    cmpl %ecx, %ebx
     jne .L4_14
 .L4_13:
     jmp .L4_7
@@ -1223,49 +1204,36 @@ lb_net_Datagram_12receive_from:
     ret
 .L4_11:
 .L4_12:
-    leaq lb_platform_macos(%rip), %rbx
-    movq %rbx, %r10
-    movzbl (%r10), %ebx
-    testl %ebx, %ebx
-    jne .L4_18
-    jmp .L4_19
-.L4_18:
-    movl $16, %eax
-    movl %eax, %ebx
-    jmp .L4_20
-.L4_19:
-    movl $32, %eax
-    movl %eax, %ebx
-.L4_20:
     movl -600(%rbp), %eax
-    movl %eax, %r12d
-    andl %ebx, %r12d
+    movl $32, %ecx
+    movl %eax, %ebx
+    andl %ecx, %ebx
     movl $0, %ecx
-    cmpl %ecx, %r12d
+    cmpl %ecx, %ebx
     sete %al
-    movzbl %al, %r12d
+    movzbl %al, %ebx
     movl $0, %ecx
-    cmpl %ecx, %r12d
+    cmpl %ecx, %ebx
     sete %al
-    movzbl %al, %r12d
-    testl %r12d, %r12d
-    jne .L4_35
-    jmp .L4_24
-.L4_35:
-    movl %r12d, %ebx
-    jmp .L4_25
-.L4_24:
+    movzbl %al, %ebx
+    testl %ebx, %ebx
+    jne .L4_32
+    jmp .L4_21
+.L4_32:
+    movl %ebx, %r12d
+    jmp .L4_22
+.L4_21:
     movq -568(%rbp), %rax
     movq -536(%rbp), %rcx
     cmpq %rcx, %rax
     seta %al
-    movzbl %al, %ebx
-.L4_25:
-    movzbl %bl, %r12d
-    testl %r12d, %r12d
-    jne .L4_21
-    jmp .L4_22
-.L4_21:
+    movzbl %al, %r12d
+.L4_22:
+    movzbl %r12b, %ebx
+    testl %ebx, %ebx
+    jne .L4_18
+    jmp .L4_19
+.L4_18:
     leaq -112(%rbp), %rbx
     movq $32, %rcx
     movq %rbx, %r12
@@ -1310,13 +1278,13 @@ lb_net_Datagram_12receive_from:
     movq %rbp, %rsp
     popq %rbp
     ret
-.L4_22:
-.L4_23:
+.L4_19:
+.L4_20:
     movl -584(%rbp), %eax
     movl $28, %ecx
     cmpl %ecx, %eax
-    jbe .L4_28
-.L4_27:
+    jbe .L4_25
+.L4_24:
     leaq -112(%rbp), %rbx
     movq $32, %rcx
     movq %rbx, %r12
@@ -1361,8 +1329,8 @@ lb_net_Datagram_12receive_from:
     movq %rbp, %rsp
     popq %rbp
     ret
-.L4_28:
-.L4_29:
+.L4_25:
+.L4_26:
     leaq -448(%rbp), %r12
     movq -568(%rbp), %rax
     movq %r12, %r10
@@ -1378,9 +1346,9 @@ lb_net_Datagram_12receive_from:
     movq %rbx, %r10
     movzbl (%r10), %ebx
     testl %ebx, %ebx
-    jne .L4_32
-    jmp .L4_31
-.L4_32:
+    jne .L4_29
+    jmp .L4_28
+.L4_29:
     movq $24, %rcx
     movq %r13, %rbx
     addq %rcx, %rbx
@@ -1413,7 +1381,7 @@ lb_net_Datagram_12receive_from:
     movq %rbp, %rsp
     popq %rbp
     ret
-.L4_31:
+.L4_28:
     movq $8, %rcx
     movq %r12, %rbx
     addq %rcx, %rbx
@@ -1855,10 +1823,8 @@ lb_net_Datagram_14is_nonblocking:
 .L7_4:
     movq %r13, %r10
     movslq (%r10), %rbx
-    leaq lb_net_16nonblocking_flag(%rip), %r12
-    movq %r12, %r10
-    movslq (%r10), %r12
-    andl %r12d, %ebx
+    movl $2048, %ecx
+    andl %ecx, %ebx
     movl $0, %ecx
     cmpl %ecx, %ebx
     sete %al
@@ -1899,20 +1865,19 @@ lb_net_Datagram_14is_nonblocking:
 lb_net_Datagram_18set_receive_buffer:
     pushq %rbp
     movq %rsp, %rbp
-    subq $176, %rsp
+    subq $160, %rsp
     movq %rdi, -8(%rbp)
     movq %rbx, -16(%rbp)
     movq %r12, -24(%rbp)
     movq %r13, -32(%rbp)
-    movq %r14, -40(%rbp)
-    movq %rsi, -80(%rbp)
-    movl %edx, -96(%rbp)
-    leaq -80(%rbp), %r10
+    movq %rsi, -72(%rbp)
+    movl %edx, -88(%rbp)
+    leaq -72(%rbp), %r10
     movq (%r10), %rbx
     movq %rbx, %rsi
-    leaq -136(%rbp), %rdi
+    leaq -128(%rbp), %rdi
     call lb_net_SocketHandle_require@PLT
-    leaq -136(%rbp), %r12
+    leaq -128(%rbp), %r12
     movq $32, %rcx
     movq %r12, %rbx
     addq %rcx, %rbx
@@ -1925,7 +1890,7 @@ lb_net_Datagram_18set_receive_buffer:
     movq $8, %rcx
     movq %r12, %rbx
     addq %rcx, %rbx
-    leaq -72(%rbp), %r13
+    leaq -64(%rbp), %r13
     movq %rbx, %r10
     movq %r13, %r11
     movups 0(%r10), %xmm8
@@ -1946,7 +1911,6 @@ lb_net_Datagram_18set_receive_buffer:
     movq -16(%rbp), %rbx
     movq -24(%rbp), %r12
     movq -32(%rbp), %r13
-    movq -40(%rbp), %r14
     movq %rbp, %rsp
     popq %rbp
     ret
@@ -1954,18 +1918,15 @@ lb_net_Datagram_18set_receive_buffer:
 .L8_1:
     movq %r12, %r10
     movslq (%r10), %rbx
-    leaq lb_net_21receive_buffer_option(%rip), %r13
+    leaq -88(%rbp), %r13
     movq %r13, %r10
     movslq (%r10), %r13
-    leaq -96(%rbp), %r14
-    movq %r14, %r10
-    movslq (%r10), %r14
     movl %ebx, %esi
-    movl %r13d, %edx
-    movl %r14d, %ecx
-    leaq -168(%rbp), %rdi
+    movl $8, %edx
+    movl %r13d, %ecx
+    leaq -160(%rbp), %rdi
     call lb_net_17set_socket_buffer@PLT
-    leaq -168(%rbp), %r13
+    leaq -160(%rbp), %r13
     movq $24, %rcx
     movq %r13, %rbx
     addq %rcx, %rbx
@@ -1975,7 +1936,7 @@ lb_net_Datagram_18set_receive_buffer:
     jne .L8_5
     jmp .L8_4
 .L8_5:
-    leaq -72(%rbp), %rbx
+    leaq -64(%rbp), %rbx
     movq %r13, %r10
     movq %rbx, %r11
     movups 0(%r10), %xmm8
@@ -1996,13 +1957,12 @@ lb_net_Datagram_18set_receive_buffer:
     movq -16(%rbp), %rbx
     movq -24(%rbp), %r12
     movq -32(%rbp), %r13
-    movq -40(%rbp), %r14
     movq %rbp, %rsp
     popq %rbp
     ret
 .L8_6:
 .L8_4:
-    leaq -72(%rbp), %rbx
+    leaq -64(%rbp), %rbx
     movq $24, %rcx
     movq %rbx, %r12
     addq %rcx, %r12
@@ -2017,7 +1977,6 @@ lb_net_Datagram_18set_receive_buffer:
     movq -16(%rbp), %rbx
     movq -24(%rbp), %r12
     movq -32(%rbp), %r13
-    movq -40(%rbp), %r14
     movq %rbp, %rsp
     popq %rbp
     ret
@@ -2085,15 +2044,9 @@ lb_net_Datagram_14receive_buffer:
 .L9_1:
     movq %r12, %r10
     movslq (%r10), %rbx
-    leaq lb_net_12socket_level(%rip), %r13
-    movq %r13, %r10
-    movslq (%r10), %r13
-    leaq lb_net_21receive_buffer_option(%rip), %r14
-    movq %r14, %r10
-    movslq (%r10), %r14
     movl %ebx, %esi
-    movl %r13d, %edx
-    movl %r14d, %ecx
+    movl $1, %edx
+    movl $8, %ecx
     leaq -168(%rbp), %rdi
     call lb_net_18get_socket_integer@PLT
     leaq -168(%rbp), %r13
@@ -2173,20 +2126,19 @@ lb_net_Datagram_14receive_buffer:
 lb_net_Datagram_15set_send_buffer:
     pushq %rbp
     movq %rsp, %rbp
-    subq $176, %rsp
+    subq $160, %rsp
     movq %rdi, -8(%rbp)
     movq %rbx, -16(%rbp)
     movq %r12, -24(%rbp)
     movq %r13, -32(%rbp)
-    movq %r14, -40(%rbp)
-    movq %rsi, -80(%rbp)
-    movl %edx, -96(%rbp)
-    leaq -80(%rbp), %r10
+    movq %rsi, -72(%rbp)
+    movl %edx, -88(%rbp)
+    leaq -72(%rbp), %r10
     movq (%r10), %rbx
     movq %rbx, %rsi
-    leaq -136(%rbp), %rdi
+    leaq -128(%rbp), %rdi
     call lb_net_SocketHandle_require@PLT
-    leaq -136(%rbp), %r12
+    leaq -128(%rbp), %r12
     movq $32, %rcx
     movq %r12, %rbx
     addq %rcx, %rbx
@@ -2199,7 +2151,7 @@ lb_net_Datagram_15set_send_buffer:
     movq $8, %rcx
     movq %r12, %rbx
     addq %rcx, %rbx
-    leaq -72(%rbp), %r13
+    leaq -64(%rbp), %r13
     movq %rbx, %r10
     movq %r13, %r11
     movups 0(%r10), %xmm8
@@ -2220,7 +2172,6 @@ lb_net_Datagram_15set_send_buffer:
     movq -16(%rbp), %rbx
     movq -24(%rbp), %r12
     movq -32(%rbp), %r13
-    movq -40(%rbp), %r14
     movq %rbp, %rsp
     popq %rbp
     ret
@@ -2228,18 +2179,15 @@ lb_net_Datagram_15set_send_buffer:
 .L10_1:
     movq %r12, %r10
     movslq (%r10), %rbx
-    leaq lb_net_18send_buffer_option(%rip), %r13
+    leaq -88(%rbp), %r13
     movq %r13, %r10
     movslq (%r10), %r13
-    leaq -96(%rbp), %r14
-    movq %r14, %r10
-    movslq (%r10), %r14
     movl %ebx, %esi
-    movl %r13d, %edx
-    movl %r14d, %ecx
-    leaq -168(%rbp), %rdi
+    movl $7, %edx
+    movl %r13d, %ecx
+    leaq -160(%rbp), %rdi
     call lb_net_17set_socket_buffer@PLT
-    leaq -168(%rbp), %r13
+    leaq -160(%rbp), %r13
     movq $24, %rcx
     movq %r13, %rbx
     addq %rcx, %rbx
@@ -2249,7 +2197,7 @@ lb_net_Datagram_15set_send_buffer:
     jne .L10_5
     jmp .L10_4
 .L10_5:
-    leaq -72(%rbp), %rbx
+    leaq -64(%rbp), %rbx
     movq %r13, %r10
     movq %rbx, %r11
     movups 0(%r10), %xmm8
@@ -2270,13 +2218,12 @@ lb_net_Datagram_15set_send_buffer:
     movq -16(%rbp), %rbx
     movq -24(%rbp), %r12
     movq -32(%rbp), %r13
-    movq -40(%rbp), %r14
     movq %rbp, %rsp
     popq %rbp
     ret
 .L10_6:
 .L10_4:
-    leaq -72(%rbp), %rbx
+    leaq -64(%rbp), %rbx
     movq $24, %rcx
     movq %rbx, %r12
     addq %rcx, %r12
@@ -2291,7 +2238,6 @@ lb_net_Datagram_15set_send_buffer:
     movq -16(%rbp), %rbx
     movq -24(%rbp), %r12
     movq -32(%rbp), %r13
-    movq -40(%rbp), %r14
     movq %rbp, %rsp
     popq %rbp
     ret
@@ -2359,15 +2305,9 @@ lb_net_Datagram_11send_buffer:
 .L11_1:
     movq %r12, %r10
     movslq (%r10), %rbx
-    leaq lb_net_12socket_level(%rip), %r13
-    movq %r13, %r10
-    movslq (%r10), %r13
-    leaq lb_net_18send_buffer_option(%rip), %r14
-    movq %r14, %r10
-    movslq (%r10), %r14
     movl %ebx, %esi
-    movl %r13d, %edx
-    movl %r14d, %ecx
+    movl $1, %edx
+    movl $7, %ecx
     leaq -168(%rbp), %rdi
     call lb_net_18get_socket_integer@PLT
     leaq -168(%rbp), %r13

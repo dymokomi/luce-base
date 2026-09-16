@@ -403,23 +403,19 @@ lb_ownership_8color_of:
     movq %rsp, %rbp
     subq $32, %rsp
     movq %rbx, -8(%rbp)
-    movq %r12, -16(%rbp)
-    movq %rdi, -32(%rbp)
-    leaq -32(%rbp), %rbx
+    movq %rdi, -24(%rbp)
+    leaq -24(%rbp), %rbx
     movq %rbx, %r10
     movq (%r10), %rbx
     movq $8, %rcx
     addq %rcx, %rbx
     movq %rbx, %r10
     movzbl (%r10), %ebx
-    leaq lb_ownership_10color_mask(%rip), %r12
-    movq %r12, %r10
-    movzbl (%r10), %r12d
-    andl %r12d, %ebx
+    movl $3, %ecx
+    andl %ecx, %ebx
     movzbl %bl, %ebx
     movl %ebx, %eax
     movq -8(%rbp), %rbx
-    movq -16(%rbp), %r12
     movq %rbp, %rsp
     popq %rbp
     ret
@@ -447,13 +443,8 @@ lb_ownership_9set_color:
     addq %rcx, %rbx
     movq %rbx, %r10
     movzbl (%r10), %r12d
-    leaq lb_ownership_10color_mask(%rip), %r13
-    movq %r13, %r10
-    movzbl (%r10), %r13d
-    movl $4294967295, %ecx
-    xorl %ecx, %r13d
-    movzbl %r13b, %r13d
-    andl %r13d, %r12d
+    movl $252, %ecx
+    andl %ecx, %r12d
     leaq -56(%rbp), %r13
     movq %r13, %r10
     movzbl (%r10), %r13d
@@ -661,13 +652,11 @@ lb_ownership_12check_thread:
     leaq -40(%rbp), %rbx
     movq %rbx, %r10
     movq (%r10), %rbx
-    leaq lb_ownership_immortal(%rip), %r12
-    movq %r12, %r10
-    movzbl (%r10), %r12d
     leaq -72(%rbp), %r10
     movq %rbx, (%r10)
+    movl $32, %eax
     leaq -88(%rbp), %r10
-    movl %r12d, (%r10)
+    movl %eax, (%r10)
     movq $8, %rcx
     movq %rbx, %r12
     addq %rcx, %r12
@@ -766,13 +755,11 @@ lb_ownership_11check_alive:
     movq (%r10), %rbx
     movq %rbx, %rdi
     call lb_ownership_12check_thread@PLT
-    leaq lb_ownership_dead(%rip), %r12
-    movq %r12, %r10
-    movzbl (%r10), %r12d
     leaq -72(%rbp), %r10
     movq %rbx, (%r10)
+    movl $8, %eax
     leaq -88(%rbp), %r10
-    movl %r12d, (%r10)
+    movl %eax, (%r10)
     movq $8, %rcx
     movq %rbx, %r12
     addq %rcx, %r12
@@ -1305,13 +1292,11 @@ lb_ownership_retain:
     movq (%r10), %rbx
     movq %rbx, %rdi
     call lb_ownership_11check_alive@PLT
-    leaq lb_ownership_immortal(%rip), %r12
-    movq %r12, %r10
-    movzbl (%r10), %r12d
     leaq -64(%rbp), %r10
     movq %rbx, (%r10)
+    movl $32, %eax
     leaq -80(%rbp), %r10
-    movl %r12d, (%r10)
+    movl %eax, (%r10)
     movq $8, %rcx
     movq %rbx, %r12
     addq %rcx, %r12
@@ -1367,22 +1352,15 @@ lb_ownership_retain:
     movl %eax, %r13d
     movq %rbx, %r10
     movl %r13d, (%r10)
-    leaq lb_ownership_black(%rip), %r13
-    movq %r13, %r10
-    movzbl (%r10), %r13d
     leaq -104(%rbp), %r10
     movq %rbx, (%r10)
+    movl $0, %eax
     leaq -120(%rbp), %r10
-    movl %r13d, (%r10)
+    movl %eax, (%r10)
     movq %r12, %r10
     movzbl (%r10), %r13d
-    leaq lb_ownership_10color_mask(%rip), %r14
-    movq %r14, %r10
-    movzbl (%r10), %r14d
-    movl $4294967295, %ecx
-    xorl %ecx, %r14d
-    movzbl %r14b, %r14d
-    andl %r14d, %r13d
+    movl $252, %ecx
+    andl %ecx, %r13d
     leaq -120(%rbp), %r14
     movq %r14, %r10
     movzbl (%r10), %r14d
@@ -1421,13 +1399,11 @@ lb_ownership_release:
     movq (%r10), %rbx
     movq %rbx, %rdi
     call lb_ownership_12check_thread@PLT
-    leaq lb_ownership_immortal(%rip), %r12
-    movq %r12, %r10
-    movzbl (%r10), %r12d
     leaq -72(%rbp), %r10
     movq %rbx, (%r10)
+    movl $32, %eax
     leaq -88(%rbp), %r10
-    movl %r12d, (%r10)
+    movl %eax, (%r10)
     movq $8, %rcx
     movq %rbx, %r12
     addq %rcx, %r12
@@ -1470,13 +1446,11 @@ lb_ownership_release:
     jmp .L16_3
 .L16_2:
 .L16_3:
-    leaq lb_ownership_collecting(%rip), %r13
-    movq %r13, %r10
-    movzbl (%r10), %r13d
     leaq -72(%rbp), %r10
     movq %rbx, (%r10)
+    movl $16, %eax
     leaq -88(%rbp), %r10
-    movl %r13d, (%r10)
+    movl %eax, (%r10)
     movq %r12, %r10
     movzbl (%r10), %r13d
     movq %r14, %r10
@@ -1560,22 +1534,15 @@ lb_ownership_release:
 .L16_12:
     leaq -120(%rbp), %r10
     movq %rbx, (%r10)
-    leaq lb_ownership_black(%rip), %r13
-    movq %r13, %r10
-    movzbl (%r10), %r13d
     leaq -152(%rbp), %r10
     movq %rbx, (%r10)
+    movl $0, %eax
     leaq -168(%rbp), %r10
-    movl %r13d, (%r10)
+    movl %eax, (%r10)
     movq %r12, %r10
     movzbl (%r10), %r13d
-    leaq lb_ownership_10color_mask(%rip), %r14
-    movq %r14, %r10
-    movzbl (%r10), %r14d
-    movl $4294967295, %ecx
-    xorl %ecx, %r14d
-    movzbl %r14b, %r14d
-    andl %r14d, %r13d
+    movl $252, %ecx
+    andl %ecx, %r13d
     leaq -168(%rbp), %r14
     movq %r14, %r10
     movzbl (%r10), %r14d
@@ -1665,19 +1632,15 @@ lb_ownership_release:
     movq %r15, (%r10)
     movq %r12, %r10
     movzbl (%r10), %r14d
-    leaq lb_ownership_dead(%rip), %r15
-    movq %r15, %r10
-    movzbl (%r10), %r15d
-    orl %r15d, %r14d
+    movl $8, %ecx
+    orl %ecx, %r14d
     movq %r12, %r10
     movb %r14b, (%r10)
-    leaq lb_ownership_buffered(%rip), %r14
-    movq %r14, %r10
-    movzbl (%r10), %r14d
     leaq -184(%rbp), %r10
     movq %rbx, (%r10)
+    movl $4, %eax
     leaq -200(%rbp), %r10
-    movl %r14d, (%r10)
+    movl %eax, (%r10)
     movq %r12, %r10
     movzbl (%r10), %r14d
     leaq -200(%rbp), %r15
@@ -1757,13 +1720,11 @@ lb_ownership_13release_shell:
     movl %r12d, %r13d
     jmp .L17_5
 .L17_4:
-    leaq lb_ownership_dead(%rip), %r12
-    movq %r12, %r10
-    movzbl (%r10), %r12d
     leaq -168(%rbp), %r10
     movq %rbx, (%r10)
+    movl $8, %eax
     leaq -184(%rbp), %r10
-    movl %r12d, (%r10)
+    movl %eax, (%r10)
     movq $8, %rcx
     movq %rbx, %r12
     addq %rcx, %r12
@@ -1799,13 +1760,11 @@ lb_ownership_13release_shell:
     movl %r12d, %r13d
     jmp .L17_7
 .L17_6:
-    leaq lb_ownership_buffered(%rip), %r12
-    movq %r12, %r10
-    movzbl (%r10), %r12d
     leaq -168(%rbp), %r10
     movq %rbx, (%r10)
+    movl $4, %eax
     leaq -184(%rbp), %r10
-    movl %r12d, (%r10)
+    movl %eax, (%r10)
     movq $8, %rcx
     movq %rbx, %r12
     addq %rcx, %r12
@@ -1953,13 +1912,12 @@ lb_ownership_13release_shell:
 lb_ownership_19discard_unpublished:
     pushq %rbp
     movq %rsp, %rbp
-    subq $112, %rsp
+    subq $96, %rsp
     movq %rbx, -8(%rbp)
     movq %r12, -16(%rbp)
     movq %r13, -24(%rbp)
-    movq %r14, -32(%rbp)
-    movq %rdi, -48(%rbp)
-    leaq -48(%rbp), %rbx
+    movq %rdi, -40(%rbp)
+    leaq -40(%rbp), %rbx
     movq %rbx, %r10
     movq (%r10), %rbx
     movq %rbx, %rdi
@@ -2003,19 +1961,17 @@ lb_ownership_19discard_unpublished:
     movl %r12d, %r13d
     jmp .L18_7
 .L18_6:
-    leaq lb_ownership_buffered(%rip), %r12
-    movq %r12, %r10
-    movzbl (%r10), %r12d
-    leaq -80(%rbp), %r10
+    leaq -72(%rbp), %r10
     movq %rbx, (%r10)
-    leaq -96(%rbp), %r10
-    movl %r12d, (%r10)
+    movl $4, %eax
+    leaq -88(%rbp), %r10
+    movl %eax, (%r10)
     movq $8, %rcx
     movq %rbx, %r12
     addq %rcx, %r12
     movq %r12, %r10
     movzbl (%r10), %r12d
-    leaq -96(%rbp), %r13
+    leaq -88(%rbp), %r13
     movq %r13, %r10
     movzbl (%r10), %r13d
     andl %r13d, %r12d
@@ -2028,7 +1984,7 @@ lb_ownership_19discard_unpublished:
     sete %al
     movzbl %al, %r12d
     movzbl %r12b, %r13d
-    leaq -104(%rbp), %r10
+    leaq -96(%rbp), %r10
     movl %r13d, (%r10)
     jmp .L18_9
 .L18_8:
@@ -2043,7 +1999,7 @@ lb_ownership_19discard_unpublished:
     jmp .L18_2
 .L18_1:
     leaq .Ltext_33(%rip), %r12
-    leaq -64(%rbp), %r13
+    leaq -56(%rbp), %r13
     movq %r13, %r10
     movq %r12, (%r10)
     movq $8, %rcx
@@ -2083,10 +2039,8 @@ lb_ownership_19discard_unpublished:
     addq %rcx, %r12
     movq %r12, %r10
     movzbl (%r10), %r13d
-    leaq lb_ownership_dead(%rip), %r14
-    movq %r14, %r10
-    movzbl (%r10), %r14d
-    orl %r14d, %r13d
+    movl $8, %ecx
+    orl %ecx, %r13d
     movq %r12, %r10
     movb %r13b, (%r10)
     movq %rbx, %rdi
@@ -2094,7 +2048,6 @@ lb_ownership_19discard_unpublished:
     movq -8(%rbp), %rbx
     movq -16(%rbp), %r12
     movq -24(%rbp), %r13
-    movq -32(%rbp), %r14
     movq %rbp, %rsp
     popq %rbp
     ret
@@ -2105,13 +2058,12 @@ lb_ownership_19discard_unpublished:
 lb_ownership_abandon:
     pushq %rbp
     movq %rsp, %rbp
-    subq $96, %rsp
+    subq $80, %rsp
     movq %rbx, -8(%rbp)
     movq %r12, -16(%rbp)
     movq %r13, -24(%rbp)
-    movq %r14, -32(%rbp)
-    movq %rdi, -48(%rbp)
-    leaq -48(%rbp), %rbx
+    movq %rdi, -40(%rbp)
+    leaq -40(%rbp), %rbx
     movq %rbx, %r10
     movq (%r10), %rbx
     movq %rbx, %rdi
@@ -2152,22 +2104,18 @@ lb_ownership_abandon:
     addq %rcx, %r12
     movq %r12, %r10
     movzbl (%r10), %r13d
-    leaq lb_ownership_dead(%rip), %r14
-    movq %r14, %r10
-    movzbl (%r10), %r14d
-    orl %r14d, %r13d
+    movl $8, %ecx
+    orl %ecx, %r13d
     movq %r12, %r10
     movb %r13b, (%r10)
-    leaq lb_ownership_buffered(%rip), %r13
-    movq %r13, %r10
-    movzbl (%r10), %r13d
-    leaq -64(%rbp), %r10
+    leaq -56(%rbp), %r10
     movq %rbx, (%r10)
-    leaq -80(%rbp), %r10
-    movl %r13d, (%r10)
+    movl $4, %eax
+    leaq -72(%rbp), %r10
+    movl %eax, (%r10)
     movq %r12, %r10
     movzbl (%r10), %r12d
-    leaq -80(%rbp), %r13
+    leaq -72(%rbp), %r13
     movq %r13, %r10
     movzbl (%r10), %r13d
     andl %r13d, %r12d
@@ -2180,7 +2128,7 @@ lb_ownership_abandon:
     sete %al
     movzbl %al, %r12d
     movzbl %r12b, %r12d
-    leaq -88(%rbp), %r10
+    leaq -80(%rbp), %r10
     movl %r12d, (%r10)
     jmp .L19_5
 .L19_4:
@@ -2200,7 +2148,6 @@ lb_ownership_abandon:
     movq -8(%rbp), %rbx
     movq -16(%rbp), %r12
     movq -24(%rbp), %r13
-    movq -32(%rbp), %r14
     movq %rbp, %rsp
     popq %rbp
     ret

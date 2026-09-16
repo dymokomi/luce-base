@@ -84,34 +84,17 @@ _lb_gpu_supported:
     sub sp, sp, #32
     sub x16, x29, #32
     str w0, [x16]
-    adrp x14, _lb_platform_macos@PAGE
-    add x14, x14, _lb_platform_macos@PAGEOFF
-    ldrb w14, [x14]
-    cbnz w14, L1_1
-    b L1_8
-L1_8:
-    mov w15, w14
-    b L1_2
 L1_1:
-    adrp x14, _lb_platform_arm64@PAGE
-    add x14, x14, _lb_platform_arm64@PAGEOFF
-    ldrb w15, [x14]
 L1_2:
-    and w14, w15, #255
-    cbnz w14, L1_3
-    b L1_9
-L1_9:
-    mov w15, w14
-    b L1_4
 L1_3:
     sub x14, x29, #32
     ldrb w14, [x14]
     mov x10, #0
     cmp w14, w10
     cset w15, eq
-    cbnz w15, L1_10
+    cbnz w15, L1_8
     b L1_5
-L1_10:
+L1_8:
     mov w14, w15
     b L1_6
 L1_5:
@@ -129,12 +112,6 @@ L1_4:
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
-L1_7:
-    adrp x0, l_text_1@PAGE
-    add x0, x0, l_text_1@PAGEOFF
-    adrp x1, l_text_0@PAGE
-    add x1, x1, l_text_0@PAGEOFF
-    bl _lb_core_7trap_at
 
     .p2align 2
     .globl _lb_gpu_12check_thread

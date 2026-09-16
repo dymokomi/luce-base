@@ -37,37 +37,22 @@ lb_memory_0init:
     .seh_savexmm %xmm15, 16
     movq %rbx, 8(%rbp)
     .seh_savereg %rbx, 8
-    movq %r12, 0(%rbp)
-    .seh_savereg %r12, 0
     .seh_endprologue
     movq %rcx, 208(%rbp)
     movq %rdx, 216(%rbp)
     movq %r8, 224(%rbp)
     movq %r9, 232(%rbp)
-    leaq lb_platform_macos(%rip), %rbx
-    movq %rbx, %r10
-    movzbl (%r10), %ebx
-    testl %ebx, %ebx
-    jne .L0_1
-    jmp .L0_2
-.L0_1:
-    movl $4098, %eax
-    movl %eax, %ebx
-    jmp .L0_3
-.L0_2:
+    leaq lb_memory_17private_anonymous(%rip), %rbx
     movl $34, %eax
-    movl %eax, %ebx
-.L0_3:
-    leaq lb_memory_17private_anonymous(%rip), %r12
-    movq %r12, %r10
-    movl %ebx, (%r10)
-    leaq lb_memory_exhausted(%rip), %r12
-    movl $208273409, %eax
-    movq %r12, %r10
+    movq %rbx, %r10
     movl %eax, (%r10)
-    leaq lb_memory_unset(%rip), %r12
+    leaq lb_memory_exhausted(%rip), %rbx
+    movl $208273409, %eax
+    movq %rbx, %r10
+    movl %eax, (%r10)
+    leaq lb_memory_unset(%rip), %rbx
     movl $208273410, %eax
-    movq %r12, %r10
+    movq %rbx, %r10
     movl %eax, (%r10)
     movq 184(%rbp), %rdi
     movq 176(%rbp), %rsi
@@ -82,7 +67,6 @@ lb_memory_0init:
     movdqu 32(%rbp), %xmm14
     movdqu 16(%rbp), %xmm15
     movq 8(%rbp), %rbx
-    movq 0(%rbp), %r12
     leaq 192(%rbp), %rsp
     popq %rbp
     ret

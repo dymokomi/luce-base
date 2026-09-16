@@ -709,110 +709,75 @@ lb_thread_spawn:
     .seh_proc lb_thread_spawn
     pushq %rbp
     .seh_pushreg %rbp
-    subq $1040, %rsp
-    .seh_stackalloc 1040
+    subq $1008, %rsp
+    .seh_stackalloc 1008
     movq %rsp, %rbp
     .seh_setframe %rbp, 0
-    movq %rcx, 856(%rbp)
-    movq %rdi, 1032(%rbp)
-    .seh_savereg %rdi, 1032
-    movq %rsi, 1024(%rbp)
-    .seh_savereg %rsi, 1024
-    movdqu %xmm6, 1008(%rbp)
-    .seh_savexmm %xmm6, 1008
-    movdqu %xmm7, 992(%rbp)
-    .seh_savexmm %xmm7, 992
-    movdqu %xmm8, 976(%rbp)
-    .seh_savexmm %xmm8, 976
-    movdqu %xmm9, 960(%rbp)
-    .seh_savexmm %xmm9, 960
-    movdqu %xmm10, 944(%rbp)
-    .seh_savexmm %xmm10, 944
-    movdqu %xmm11, 928(%rbp)
-    .seh_savexmm %xmm11, 928
-    movdqu %xmm12, 912(%rbp)
-    .seh_savexmm %xmm12, 912
-    movdqu %xmm13, 896(%rbp)
-    .seh_savexmm %xmm13, 896
-    movdqu %xmm14, 880(%rbp)
-    .seh_savexmm %xmm14, 880
-    movdqu %xmm15, 864(%rbp)
-    .seh_savexmm %xmm15, 864
-    movq %rbx, 848(%rbp)
-    .seh_savereg %rbx, 848
-    movq %r12, 840(%rbp)
-    .seh_savereg %r12, 840
-    movq %r13, 832(%rbp)
-    .seh_savereg %r13, 832
-    movq %r14, 824(%rbp)
-    .seh_savereg %r14, 824
-    movq %r15, 816(%rbp)
-    .seh_savereg %r15, 816
+    movq %rcx, 824(%rbp)
+    movq %rdi, 1000(%rbp)
+    .seh_savereg %rdi, 1000
+    movq %rsi, 992(%rbp)
+    .seh_savereg %rsi, 992
+    movdqu %xmm6, 976(%rbp)
+    .seh_savexmm %xmm6, 976
+    movdqu %xmm7, 960(%rbp)
+    .seh_savexmm %xmm7, 960
+    movdqu %xmm8, 944(%rbp)
+    .seh_savexmm %xmm8, 944
+    movdqu %xmm9, 928(%rbp)
+    .seh_savexmm %xmm9, 928
+    movdqu %xmm10, 912(%rbp)
+    .seh_savexmm %xmm10, 912
+    movdqu %xmm11, 896(%rbp)
+    .seh_savexmm %xmm11, 896
+    movdqu %xmm12, 880(%rbp)
+    .seh_savexmm %xmm12, 880
+    movdqu %xmm13, 864(%rbp)
+    .seh_savexmm %xmm13, 864
+    movdqu %xmm14, 848(%rbp)
+    .seh_savexmm %xmm14, 848
+    movdqu %xmm15, 832(%rbp)
+    .seh_savexmm %xmm15, 832
+    movq %rbx, 816(%rbp)
+    .seh_savereg %rbx, 816
+    movq %r12, 808(%rbp)
+    .seh_savereg %r12, 808
+    movq %r13, 800(%rbp)
+    .seh_savereg %r13, 800
+    movq %r14, 792(%rbp)
+    .seh_savereg %r14, 792
+    movq %r15, 784(%rbp)
+    .seh_savereg %r15, 784
     .seh_endprologue
-    movq %rcx, 1056(%rbp)
-    movq %rdx, 1064(%rbp)
-    movq %r8, 1072(%rbp)
-    movq %r9, 1080(%rbp)
-    movq 1064(%rbp), %rax
-    movq %rax, 760(%rbp)
-    movq 1072(%rbp), %rax
-    movq %rax, 744(%rbp)
-    movq 1080(%rbp), %rax
+    movq %rcx, 1024(%rbp)
+    movq %rdx, 1032(%rbp)
+    movq %r8, 1040(%rbp)
+    movq %r9, 1048(%rbp)
+    movq 1032(%rbp), %rax
     movq %rax, 728(%rbp)
-    movq 1088(%rbp), %r10
-    leaq 712(%rbp), %r11
+    movq 1040(%rbp), %rax
+    movq %rax, 712(%rbp)
+    movq 1048(%rbp), %rax
+    movq %rax, 696(%rbp)
+    movq 1056(%rbp), %r10
+    leaq 680(%rbp), %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
-    leaq 696(%rbp), %rax
-    movq %rax, 40(%rbp)
-    leaq lb_memory_heap(%rip), %rax
+    leaq 664(%rbp), %rax
     movq %rax, 32(%rbp)
-    leaq lb_thread_9name_room(%rip), %rax
-    movq %rax, 88(%rbp)
-    movq 88(%rbp), %r10
-    movq (%r10), %r15
-    leaq 648(%rbp), %rax
+    leaq lb_memory_heap(%rip), %rax
     movq %rax, 24(%rbp)
-    movabsq $4611686018427387904, %rcx
-    cmpq %rcx, %r15
-    jbe .L4_2
-.L4_1:
-    movq 24(%rbp), %rax
-    movq $16, %rcx
-    movq %rax, %r12
-    addq %rcx, %r12
-    movl $208273409, %eax
-    movq %r12, %r10
-    movl %eax, (%r10)
-    leaq .Ltext_10(%rip), %r15
-    movq $8, %rcx
-    movq %r12, %r13
-    addq %rcx, %r13
-    movq %r13, %r10
-    movq %r15, (%r10)
-    movq $16, %rcx
-    addq %rcx, %r12
-    movq $47, %rax
-    movq %r12, %r10
-    movq %rax, (%r10)
-    movq 24(%rbp), %rax
-    movq $40, %rcx
-    movq %rax, %r12
-    addq %rcx, %r12
-    movl $1, %eax
-    movq %r12, %r10
-    movb %al, (%r10)
-    jmp .L4_3
+    leaq 616(%rbp), %r13
 .L4_2:
-    movq 32(%rbp), %r10
-    movq (%r10), %r12
-    movq 32(%rbp), %rax
+    movq 24(%rbp), %r10
+    movq (%r10), %r14
+    movq 24(%rbp), %rax
     movq $8, %rcx
-    movq %rax, %r13
-    addq %rcx, %r13
-    movq %r13, %r10
-    movq (%r10), %r13
-    testq %r13, %r13
+    addq %rcx, %rax
+    movq %rax, 56(%rbp)
+    movq 56(%rbp), %r10
+    movq (%r10), %r15
+    testq %r15, %r15
     jne .L4_4
     jmp .L4_5
 .L4_5:
@@ -825,68 +790,59 @@ lb_thread_spawn:
     call lb_core_7trap_at
     addq $32, %rsp
 .L4_4:
-    movq %r13, %r10
-    movq (%r10), %r14
+    movq %r15, %r10
+    movq (%r10), %r12
     subq $32, %rsp
-    movq %r12, %rax
+    movq %r14, %rax
     movq %rax, 8(%rsp)
-    movq %r15, %rax
+    movq $16, %rax
     movq %rax, 16(%rsp)
     movq $1, %rax
     movq %rax, 24(%rsp)
-    leaq 624(%rbp), %rax
+    leaq 592(%rbp), %rax
     movq %rax, (%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
     movq 16(%rsp), %r8
     movq 24(%rsp), %r9
-    movq %r14, %r11
+    movq %r12, %r11
     call *%r11
     addq $32, %rsp
-    leaq 624(%rbp), %rbx
+    leaq 592(%rbp), %rbx
     movq $16, %rcx
-    movq %rbx, %r14
-    addq %rcx, %r14
-    movq %r14, %r10
-    movzbl (%r10), %r14d
-    movq $0, %rcx
-    cmpq %rcx, %r15
-    setne %al
-    movzbl %al, %eax
-    movl %eax, 80(%rbp)
+    movq %rbx, %r12
+    addq %rcx, %r12
+    movq %r12, %r10
+    movzbl (%r10), %r12d
     movl $0, %ecx
-    cmpl %ecx, %r14d
+    cmpl %ecx, %r12d
     sete %al
-    movzbl %al, %r14d
-    movl 80(%rbp), %eax
-    andl %r14d, %eax
-    movl %eax, 72(%rbp)
-    movl 72(%rbp), %eax
-    testl %eax, %eax
+    movzbl %al, %r12d
+    movl $1, %ecx
+    andl %ecx, %r12d
+    testl %r12d, %r12d
     jne .L4_6
     jmp .L4_7
 .L4_6:
-    movq 24(%rbp), %rax
     movq $16, %rcx
-    movq %rax, %rbx
+    movq %r13, %rbx
     addq %rcx, %rbx
     movl $208273409, %eax
     movq %rbx, %r10
     movl %eax, (%r10)
     leaq .Ltext_13(%rip), %r12
     movq $8, %rcx
-    movq %rbx, %r13
-    addq %rcx, %r13
-    movq %r13, %r10
+    movq %rbx, %r14
+    addq %rcx, %r14
+    movq %r14, %r10
     movq %r12, (%r10)
     movq $16, %rcx
     addq %rcx, %rbx
     movq $16, %rax
     movq %rbx, %r10
     movq %rax, (%r10)
-    movq 24(%rbp), %rax
     movq $40, %rcx
-    movq %rax, %rbx
+    movq %r13, %rbx
     addq %rcx, %rbx
     movl $1, %eax
     movq %rbx, %r10
@@ -895,25 +851,23 @@ lb_thread_spawn:
 .L4_7:
     movq %rbx, %r10
     movq (%r10), %r12
-    movq 24(%rbp), %r10
+    movq %r13, %r10
     movq %r12, (%r10)
-    movq 24(%rbp), %rax
     movq $8, %rcx
-    movq %rax, %r12
+    movq %r13, %r12
     addq %rcx, %r12
+    movq $16, %rax
     movq %r12, %r10
-    movq %r15, (%r10)
-    movq 24(%rbp), %rax
+    movq %rax, (%r10)
     movq $40, %rcx
-    movq %rax, %r12
+    movq %r13, %r12
     addq %rcx, %r12
     movl $0, %eax
     movq %r12, %r10
     movb %al, (%r10)
 .L4_3:
-    movq 24(%rbp), %rax
     movq $40, %rcx
-    movq %rax, %rbx
+    movq %r13, %rbx
     addq %rcx, %rbx
     movq %rbx, %r10
     movzbl (%r10), %ebx
@@ -921,16 +875,15 @@ lb_thread_spawn:
     jne .L4_9
     jmp .L4_8
 .L4_9:
-    movq 24(%rbp), %rax
     movq $16, %rcx
-    movq %rax, %rbx
+    movq %r13, %rbx
     addq %rcx, %rbx
-    leaq 776(%rbp), %r12
+    leaq 744(%rbp), %r12
     movq $8, %rcx
-    movq %r12, %r13
-    addq %rcx, %r13
+    movq %r12, %r14
+    addq %rcx, %r14
     movq %rbx, %r10
-    movq %r13, %r11
+    movq %r14, %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
     movq 16(%r10), %rax
@@ -942,7 +895,7 @@ lb_thread_spawn:
     movq %rbx, %r10
     movb %al, (%r10)
     movq %r12, %rsi
-    movq 856(%rbp), %rdi
+    movq 824(%rbp), %rdi
     movq $40, %rdx
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -950,67 +903,51 @@ lb_thread_spawn:
     subq $32, %rsp
     call memcpy
     addq $32, %rsp
-    movq 856(%rbp), %rax
-    movq 1032(%rbp), %rdi
-    movq 1024(%rbp), %rsi
-    movdqu 1008(%rbp), %xmm6
-    movdqu 992(%rbp), %xmm7
-    movdqu 976(%rbp), %xmm8
-    movdqu 960(%rbp), %xmm9
-    movdqu 944(%rbp), %xmm10
-    movdqu 928(%rbp), %xmm11
-    movdqu 912(%rbp), %xmm12
-    movdqu 896(%rbp), %xmm13
-    movdqu 880(%rbp), %xmm14
-    movdqu 864(%rbp), %xmm15
-    movq 848(%rbp), %rbx
-    movq 840(%rbp), %r12
-    movq 832(%rbp), %r13
-    movq 824(%rbp), %r14
-    movq 816(%rbp), %r15
-    leaq 1040(%rbp), %rsp
+    movq 824(%rbp), %rax
+    movq 1000(%rbp), %rdi
+    movq 992(%rbp), %rsi
+    movdqu 976(%rbp), %xmm6
+    movdqu 960(%rbp), %xmm7
+    movdqu 944(%rbp), %xmm8
+    movdqu 928(%rbp), %xmm9
+    movdqu 912(%rbp), %xmm10
+    movdqu 896(%rbp), %xmm11
+    movdqu 880(%rbp), %xmm12
+    movdqu 864(%rbp), %xmm13
+    movdqu 848(%rbp), %xmm14
+    movdqu 832(%rbp), %xmm15
+    movq 816(%rbp), %rbx
+    movq 808(%rbp), %r12
+    movq 800(%rbp), %r13
+    movq 792(%rbp), %r14
+    movq 784(%rbp), %r15
+    leaq 1008(%rbp), %rsp
     popq %rbp
     ret
-.L4_10:
 .L4_8:
-    movq 24(%rbp), %r10
-    movq 40(%rbp), %r11
+    movq %r13, %r10
+    movq 32(%rbp), %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
-    leaq 712(%rbp), %rbx
+    leaq 680(%rbp), %rbx
     movq $8, %rcx
     movq %rbx, %r12
     addq %rcx, %r12
     movq %r12, %r10
     movq (%r10), %r12
-    movq 88(%rbp), %r10
-    movq (%r10), %r13
-    movq %r13, %rax
-    movq $1, %rcx
-    subq %rcx, %rax
-    jnc 1f
-    leaq .Ltext_14(%rip), %rdi
-    leaq .Ltext_39(%rip), %rsi
-    movq %rdx, %r8
-    movq %rsi, %rdx
-    movq %rdi, %rcx
-    subq $32, %rsp
-    call lb_core_7trap_at
-    addq $32, %rsp
-1:
-    movq %rax, %r13
-    cmpq %r13, %r12
+    movq $15, %rcx
+    cmpq %rcx, %r12
     jae .L4_12
 .L4_11:
     movq %r12, %rax
     movq %rax, 16(%rbp)
     jmp .L4_13
 .L4_12:
-    movq %r13, %rax
+    movq $15, %rax
     movq %rax, 16(%rbp)
 .L4_13:
     subq $64, %rsp
-    movq 40(%rbp), %r10
+    movq 32(%rbp), %r10
     leaq 32(%rsp), %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
@@ -1029,13 +966,13 @@ lb_thread_spawn:
     movq 16(%rsp), %r8
     call lb_memory_copy_0g1_u8
     addq $64, %rsp
-    movq 40(%rbp), %r10
+    movq 32(%rbp), %r10
     movq (%r10), %r12
-    movq 40(%rbp), %rax
+    movq 32(%rbp), %rax
     movq $8, %rcx
     addq %rcx, %rax
-    movq %rax, 64(%rbp)
-    movq 64(%rbp), %r10
+    movq %rax, 48(%rbp)
+    movq 48(%rbp), %r10
     movq (%r10), %r15
     movq 16(%rbp), %rax
     cmpq %r15, %rax
@@ -1054,12 +991,12 @@ lb_thread_spawn:
     movl $0, %eax
     movq %r12, %r10
     movb %al, (%r10)
-    leaq 584(%rbp), %r12
-    movq 32(%rbp), %r10
+    leaq 552(%rbp), %r12
+    movq 24(%rbp), %r10
     movq %r12, %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
-    leaq 544(%rbp), %rax
+    leaq 512(%rbp), %rax
     movq %rax, 8(%rbp)
     movq %r12, %r10
     movq (%r10), %r15
@@ -1089,7 +1026,7 @@ lb_thread_spawn:
     movq %rax, 16(%rsp)
     movq $8, %rax
     movq %rax, 24(%rsp)
-    leaq 520(%rbp), %rax
+    leaq 488(%rbp), %rax
     movq %rax, (%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
@@ -1098,7 +1035,7 @@ lb_thread_spawn:
     movq %rbx, %r11
     call *%r11
     addq $32, %rsp
-    leaq 520(%rbp), %r13
+    leaq 488(%rbp), %r13
     movq $16, %rcx
     movq %r13, %rbx
     addq %rcx, %rbx
@@ -1137,18 +1074,18 @@ lb_thread_spawn:
 .L4_18:
     movq %r13, %r10
     movq (%r10), %rbx
-    leaq 480(%rbp), %r12
+    leaq 448(%rbp), %r12
     movq %r12, %r11
     pxor %xmm8, %xmm8
     movups %xmm8, 0(%r11)
     movups %xmm8, 16(%r11)
     movq $0, 32(%r11)
-    leaq 760(%rbp), %r15
+    leaq 728(%rbp), %r15
     movq %r15, %r10
     movq (%r10), %r15
     movq %r12, %r10
     movq %r15, (%r10)
-    leaq 744(%rbp), %r15
+    leaq 712(%rbp), %r15
     movq %r15, %r10
     movq (%r10), %r15
     movq $8, %rcx
@@ -1159,7 +1096,7 @@ lb_thread_spawn:
     movq $16, %rcx
     movq %r12, %r14
     addq %rcx, %r14
-    movq 40(%rbp), %r10
+    movq 32(%rbp), %r10
     movq %r14, %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
@@ -1201,7 +1138,7 @@ lb_thread_spawn:
     movq $8, %rcx
     movq %rax, %rbx
     addq %rcx, %rbx
-    leaq 600(%rbp), %r12
+    leaq 568(%rbp), %r12
     movq %rbx, %r10
     movq %r12, %r11
     movups 0(%r10), %xmm8
@@ -1212,13 +1149,13 @@ lb_thread_spawn:
 .L4_21:
     movq 8(%rbp), %r10
     movq (%r10), %rax
-    movq %rax, 56(%rbp)
+    movq %rax, 40(%rbp)
     jmp .L4_15
 .L4_14:
-    leaq 464(%rbp), %rbx
-    movq 40(%rbp), %r10
+    leaq 432(%rbp), %rbx
+    movq 32(%rbp), %r10
     movq (%r10), %r12
-    movq 64(%rbp), %r10
+    movq 48(%rbp), %r10
     movq (%r10), %r13
     movq %rbx, %r10
     movq %r12, (%r10)
@@ -1227,13 +1164,9 @@ lb_thread_spawn:
     addq %rcx, %r12
     movq %r12, %r10
     movq %r13, (%r10)
-    movq 32(%rbp), %r10
+    movq 24(%rbp), %r10
     movq (%r10), %r12
-    movq 32(%rbp), %rax
-    movq $8, %rcx
-    movq %rax, %r13
-    addq %rcx, %r13
-    movq %r13, %r10
+    movq 56(%rbp), %r10
     movq (%r10), %r13
     testq %r13, %r13
     jne .L4_24
@@ -1259,7 +1192,7 @@ lb_thread_spawn:
     call *%r11
     addq $48, %rsp
 .L4_23:
-    leaq 776(%rbp), %rbx
+    leaq 744(%rbp), %rbx
     movq $8, %rcx
     movq %rbx, %r12
     addq %rcx, %r12
@@ -1269,7 +1202,7 @@ lb_thread_spawn:
     movq %r12, %r10
     movl %r13d, (%r10)
     leaq .Ltext_13(%rip), %r13
-    leaq 448(%rbp), %r14
+    leaq 416(%rbp), %r14
     movq %r14, %r10
     movq %r13, (%r10)
     movq $8, %rcx
@@ -1291,7 +1224,7 @@ lb_thread_spawn:
     movq %r12, %r10
     movb %al, (%r10)
     movq %rbx, %rsi
-    movq 856(%rbp), %rdi
+    movq 824(%rbp), %rdi
     movq $40, %rdx
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -1299,30 +1232,29 @@ lb_thread_spawn:
     subq $32, %rsp
     call memcpy
     addq $32, %rsp
-    movq 856(%rbp), %rax
-    movq 1032(%rbp), %rdi
-    movq 1024(%rbp), %rsi
-    movdqu 1008(%rbp), %xmm6
-    movdqu 992(%rbp), %xmm7
-    movdqu 976(%rbp), %xmm8
-    movdqu 960(%rbp), %xmm9
-    movdqu 944(%rbp), %xmm10
-    movdqu 928(%rbp), %xmm11
-    movdqu 912(%rbp), %xmm12
-    movdqu 896(%rbp), %xmm13
-    movdqu 880(%rbp), %xmm14
-    movdqu 864(%rbp), %xmm15
-    movq 848(%rbp), %rbx
-    movq 840(%rbp), %r12
-    movq 832(%rbp), %r13
-    movq 824(%rbp), %r14
-    movq 816(%rbp), %r15
-    leaq 1040(%rbp), %rsp
+    movq 824(%rbp), %rax
+    movq 1000(%rbp), %rdi
+    movq 992(%rbp), %rsi
+    movdqu 976(%rbp), %xmm6
+    movdqu 960(%rbp), %xmm7
+    movdqu 944(%rbp), %xmm8
+    movdqu 928(%rbp), %xmm9
+    movdqu 912(%rbp), %xmm10
+    movdqu 896(%rbp), %xmm11
+    movdqu 880(%rbp), %xmm12
+    movdqu 864(%rbp), %xmm13
+    movdqu 848(%rbp), %xmm14
+    movdqu 832(%rbp), %xmm15
+    movq 816(%rbp), %rbx
+    movq 808(%rbp), %r12
+    movq 800(%rbp), %r13
+    movq 792(%rbp), %r14
+    movq 784(%rbp), %r15
+    leaq 1008(%rbp), %rsp
     popq %rbp
     ret
-.L4_25:
 .L4_15:
-    leaq 320(%rbp), %r12
+    leaq 288(%rbp), %r12
     movq %r12, %r11
     pxor %xmm8, %xmm8
     movups %xmm8, 0(%r11)
@@ -1348,10 +1280,10 @@ lb_thread_spawn:
     cmpl %ecx, %r13d
     jne .L4_27
 .L4_26:
-    leaq 304(%rbp), %r12
-    movq 40(%rbp), %r10
+    leaq 272(%rbp), %r12
+    movq 32(%rbp), %r10
     movq (%r10), %r13
-    movq 64(%rbp), %r10
+    movq 48(%rbp), %r10
     movq (%r10), %r14
     movq %r12, %r10
     movq %r13, (%r10)
@@ -1360,23 +1292,19 @@ lb_thread_spawn:
     addq %rcx, %r13
     movq %r13, %r10
     movq %r14, (%r10)
-    movq 32(%rbp), %r10
+    movq 24(%rbp), %r10
     movq (%r10), %r13
-    movq 32(%rbp), %rax
-    movq $8, %rcx
-    addq %rcx, %rax
-    movq %rax, 48(%rbp)
-    movq 48(%rbp), %r10
-    movq (%r10), %r15
-    testq %r15, %r15
+    movq 56(%rbp), %r10
+    movq (%r10), %r14
+    testq %r14, %r14
     jne .L4_30
     jmp .L4_29
 .L4_30:
     movq $16, %rcx
-    movq %r15, %r14
-    addq %rcx, %r14
-    movq %r14, %r10
-    movq (%r10), %r14
+    movq %r14, %r15
+    addq %rcx, %r15
+    movq %r15, %r10
+    movq (%r10), %r15
     subq $48, %rsp
     movq %r13, %rax
     movq %rax, 0(%rsp)
@@ -1388,12 +1316,12 @@ lb_thread_spawn:
     movq %rax, 8(%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
-    movq %r14, %r11
+    movq %r15, %r11
     call *%r11
     addq $48, %rsp
 .L4_29:
-    leaq 288(%rbp), %r12
-    movq 56(%rbp), %rax
+    leaq 256(%rbp), %r12
+    movq 40(%rbp), %rax
     movq %r12, %r10
     movq %rax, (%r10)
     movq $8, %rcx
@@ -1402,9 +1330,9 @@ lb_thread_spawn:
     movq $40, %rax
     movq %r13, %r10
     movq %rax, (%r10)
-    movq 32(%rbp), %r10
+    movq 24(%rbp), %r10
     movq (%r10), %r13
-    movq 48(%rbp), %r10
+    movq 56(%rbp), %r10
     movq (%r10), %r14
     testq %r14, %r14
     jne .L4_32
@@ -1430,7 +1358,7 @@ lb_thread_spawn:
     call *%r11
     addq $48, %rsp
 .L4_31:
-    leaq 776(%rbp), %rbx
+    leaq 744(%rbp), %rbx
     movq $8, %rcx
     movq %rbx, %r12
     addq %rcx, %r12
@@ -1440,7 +1368,7 @@ lb_thread_spawn:
     movq %r12, %r10
     movl %r13d, (%r10)
     leaq .Ltext_20(%rip), %r13
-    leaq 272(%rbp), %r14
+    leaq 240(%rbp), %r14
     movq %r14, %r10
     movq %r13, (%r10)
     movq $8, %rcx
@@ -1462,7 +1390,7 @@ lb_thread_spawn:
     movq %r12, %r10
     movb %al, (%r10)
     movq %rbx, %rsi
-    movq 856(%rbp), %rdi
+    movq 824(%rbp), %rdi
     movq $40, %rdx
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -1470,39 +1398,37 @@ lb_thread_spawn:
     subq $32, %rsp
     call memcpy
     addq $32, %rsp
-    movq 856(%rbp), %rax
-    movq 1032(%rbp), %rdi
-    movq 1024(%rbp), %rsi
-    movdqu 1008(%rbp), %xmm6
-    movdqu 992(%rbp), %xmm7
-    movdqu 976(%rbp), %xmm8
-    movdqu 960(%rbp), %xmm9
-    movdqu 944(%rbp), %xmm10
-    movdqu 928(%rbp), %xmm11
-    movdqu 912(%rbp), %xmm12
-    movdqu 896(%rbp), %xmm13
-    movdqu 880(%rbp), %xmm14
-    movdqu 864(%rbp), %xmm15
-    movq 848(%rbp), %rbx
-    movq 840(%rbp), %r12
-    movq 832(%rbp), %r13
-    movq 824(%rbp), %r14
-    movq 816(%rbp), %r15
-    leaq 1040(%rbp), %rsp
+    movq 824(%rbp), %rax
+    movq 1000(%rbp), %rdi
+    movq 992(%rbp), %rsi
+    movdqu 976(%rbp), %xmm6
+    movdqu 960(%rbp), %xmm7
+    movdqu 944(%rbp), %xmm8
+    movdqu 928(%rbp), %xmm9
+    movdqu 912(%rbp), %xmm10
+    movdqu 896(%rbp), %xmm11
+    movdqu 880(%rbp), %xmm12
+    movdqu 864(%rbp), %xmm13
+    movdqu 848(%rbp), %xmm14
+    movdqu 832(%rbp), %xmm15
+    movq 816(%rbp), %rbx
+    movq 808(%rbp), %r12
+    movq 800(%rbp), %r13
+    movq 792(%rbp), %r14
+    movq 784(%rbp), %r15
+    leaq 1008(%rbp), %rsp
     popq %rbp
     ret
-.L4_33:
-    jmp .L4_28
 .L4_27:
 .L4_28:
-    leaq 728(%rbp), %r13
+    leaq 696(%rbp), %r13
     movq %r13, %r10
     movq (%r10), %r13
     movq $0, %rcx
     cmpq %rcx, %r13
     jbe .L4_35
 .L4_34:
-    leaq 96(%rbp), %r14
+    leaq 64(%rbp), %r14
     subq $32, %rsp
     movq %r14, %rax
     movq %rax, 0(%rsp)
@@ -1514,30 +1440,19 @@ lb_thread_spawn:
     movq %r14, %r10
     movl (%r10), %r14d
     movl %r14d, %r14d
-    jmp .L4_64
-.L4_63:
-    leaq .Ltext_1(%rip), %rdi
-    leaq .Ltext_0(%rip), %rsi
-    movq %rdx, %r8
-    movq %rsi, %rdx
-    movq %rdi, %rcx
-    subq $32, %rsp
-    call lb_core_7trap_at
-    addq $32, %rsp
 .L4_64:
-    leaq lb_thread_11least_stack(%rip), %r15
-    movq %r15, %r10
-    movq (%r10), %r15
-    cmpq %r15, %r13
+    movq $16384, %rcx
+    cmpq %rcx, %r13
     jbe .L4_38
 .L4_37:
-    movq %r13, %rbx
+    movq %r13, %r15
     jmp .L4_39
 .L4_38:
-    movq %r15, %rbx
+    movq $16384, %rax
+    movq %rax, %r15
 .L4_39:
     movq %r14, %rax
-    movq %rbx, %rcx
+    movq %r15, %rcx
     addq %rcx, %rax
     jnc 1f
     leaq .Ltext_21(%rip), %rdi
@@ -1563,7 +1478,7 @@ lb_thread_spawn:
     call lb_core_7trap_at
     addq $32, %rsp
 1:
-    movq %rax, %r15
+    movq %rax, %rbx
     movq $0, %rcx
     cmpq %rcx, %r14
     jne .L4_41
@@ -1577,11 +1492,11 @@ lb_thread_spawn:
     call lb_core_7trap_at
     addq $32, %rsp
 .L4_41:
-    movq %r15, %rax
+    movq %rbx, %rax
     xorl %edx, %edx
     divq %r14
-    movq %rax, %rbx
-    movq %rbx, %rax
+    movq %rax, %r13
+    movq %r13, %rax
     movq %r14, %rcx
     mulq %rcx
     jnc 1f
@@ -1594,23 +1509,23 @@ lb_thread_spawn:
     call lb_core_7trap_at
     addq $32, %rsp
 1:
-    movq %rax, %rbx
+    movq %rax, %r13
     subq $32, %rsp
     movq %r12, %rax
     movq %rax, 0(%rsp)
-    movq %rbx, %rax
+    movq %r13, %rax
     movq %rax, 8(%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
     call pthread_attr_setstacksize
     addq $32, %rsp
-    movl %eax, %ebx
+    movl %eax, %r13d
     movl $0, %ecx
-    cmpl %ecx, %ebx
+    cmpl %ecx, %r13d
     sete %al
-    movzbl %al, %ebx
+    movzbl %al, %r13d
     movl $0, %ecx
-    cmpl %ecx, %ebx
+    cmpl %ecx, %r13d
     jne .L4_43
 .L4_42:
     subq $32, %rsp
@@ -1620,10 +1535,10 @@ lb_thread_spawn:
     call pthread_attr_destroy
     addq $32, %rsp
     movl %eax, %ebx
-    leaq 256(%rbp), %rbx
-    movq 40(%rbp), %r10
+    leaq 224(%rbp), %rbx
+    movq 32(%rbp), %r10
     movq (%r10), %r13
-    movq 64(%rbp), %r10
+    movq 48(%rbp), %r10
     movq (%r10), %r14
     movq %rbx, %r10
     movq %r13, (%r10)
@@ -1632,20 +1547,16 @@ lb_thread_spawn:
     addq %rcx, %r13
     movq %r13, %r10
     movq %r14, (%r10)
-    movq 32(%rbp), %r10
+    movq 24(%rbp), %r10
     movq (%r10), %r13
-    movq 32(%rbp), %rax
-    movq $8, %rcx
-    movq %rax, %r14
-    addq %rcx, %r14
-    movq %r14, %r10
-    movq (%r10), %r15
-    testq %r15, %r15
+    movq 56(%rbp), %r10
+    movq (%r10), %r14
+    testq %r14, %r14
     jne .L4_46
     jmp .L4_45
 .L4_46:
     movq $16, %rcx
-    movq %r15, %r12
+    movq %r14, %r12
     addq %rcx, %r12
     movq %r12, %r10
     movq (%r10), %r12
@@ -1664,8 +1575,8 @@ lb_thread_spawn:
     call *%r11
     addq $48, %rsp
 .L4_45:
-    leaq 240(%rbp), %rbx
-    movq 56(%rbp), %rax
+    leaq 208(%rbp), %rbx
+    movq 40(%rbp), %rax
     movq %rbx, %r10
     movq %rax, (%r10)
     movq $8, %rcx
@@ -1674,9 +1585,9 @@ lb_thread_spawn:
     movq $40, %rax
     movq %r12, %r10
     movq %rax, (%r10)
-    movq 32(%rbp), %r10
+    movq 24(%rbp), %r10
     movq (%r10), %r12
-    movq %r14, %r10
+    movq 56(%rbp), %r10
     movq (%r10), %r13
     testq %r13, %r13
     jne .L4_48
@@ -1702,7 +1613,7 @@ lb_thread_spawn:
     call *%r11
     addq $48, %rsp
 .L4_47:
-    leaq 776(%rbp), %rbx
+    leaq 744(%rbp), %rbx
     movq $8, %rcx
     movq %rbx, %r12
     addq %rcx, %r12
@@ -1712,7 +1623,7 @@ lb_thread_spawn:
     movq %r12, %r10
     movl %r13d, (%r10)
     leaq .Ltext_26(%rip), %r13
-    leaq 224(%rbp), %r14
+    leaq 192(%rbp), %r14
     movq %r14, %r10
     movq %r13, (%r10)
     movq $8, %rcx
@@ -1734,7 +1645,7 @@ lb_thread_spawn:
     movq %r12, %r10
     movb %al, (%r10)
     movq %rbx, %rsi
-    movq 856(%rbp), %rdi
+    movq 824(%rbp), %rdi
     movq $40, %rdx
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -1742,35 +1653,33 @@ lb_thread_spawn:
     subq $32, %rsp
     call memcpy
     addq $32, %rsp
-    movq 856(%rbp), %rax
-    movq 1032(%rbp), %rdi
-    movq 1024(%rbp), %rsi
-    movdqu 1008(%rbp), %xmm6
-    movdqu 992(%rbp), %xmm7
-    movdqu 976(%rbp), %xmm8
-    movdqu 960(%rbp), %xmm9
-    movdqu 944(%rbp), %xmm10
-    movdqu 928(%rbp), %xmm11
-    movdqu 912(%rbp), %xmm12
-    movdqu 896(%rbp), %xmm13
-    movdqu 880(%rbp), %xmm14
-    movdqu 864(%rbp), %xmm15
-    movq 848(%rbp), %rbx
-    movq 840(%rbp), %r12
-    movq 832(%rbp), %r13
-    movq 824(%rbp), %r14
-    movq 816(%rbp), %r15
-    leaq 1040(%rbp), %rsp
+    movq 824(%rbp), %rax
+    movq 1000(%rbp), %rdi
+    movq 992(%rbp), %rsi
+    movdqu 976(%rbp), %xmm6
+    movdqu 960(%rbp), %xmm7
+    movdqu 944(%rbp), %xmm8
+    movdqu 928(%rbp), %xmm9
+    movdqu 912(%rbp), %xmm10
+    movdqu 896(%rbp), %xmm11
+    movdqu 880(%rbp), %xmm12
+    movdqu 864(%rbp), %xmm13
+    movdqu 848(%rbp), %xmm14
+    movdqu 832(%rbp), %xmm15
+    movq 816(%rbp), %rbx
+    movq 808(%rbp), %r12
+    movq 800(%rbp), %r13
+    movq 792(%rbp), %r14
+    movq 784(%rbp), %r15
+    leaq 1008(%rbp), %rsp
     popq %rbp
     ret
-.L4_49:
-    jmp .L4_44
 .L4_43:
 .L4_44:
     jmp .L4_36
 .L4_35:
 .L4_36:
-    leaq 216(%rbp), %rbx
+    leaq 184(%rbp), %rbx
     movq $0, %rax
     movq %rbx, %r10
     movq %rax, (%r10)
@@ -1782,7 +1691,7 @@ lb_thread_spawn:
     movq %rax, 8(%rsp)
     movq %r13, %rax
     movq %rax, 16(%rsp)
-    movq 56(%rbp), %rax
+    movq 40(%rbp), %rax
     movq %rax, 24(%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
@@ -1806,10 +1715,10 @@ lb_thread_spawn:
     cmpl %ecx, %r13d
     jne .L4_51
 .L4_50:
-    leaq 200(%rbp), %rbx
-    movq 40(%rbp), %r10
+    leaq 168(%rbp), %rbx
+    movq 32(%rbp), %r10
     movq (%r10), %r12
-    movq 64(%rbp), %r10
+    movq 48(%rbp), %r10
     movq (%r10), %r13
     movq %rbx, %r10
     movq %r12, (%r10)
@@ -1818,23 +1727,19 @@ lb_thread_spawn:
     addq %rcx, %r12
     movq %r12, %r10
     movq %r13, (%r10)
-    movq 32(%rbp), %r10
+    movq 24(%rbp), %r10
     movq (%r10), %r12
-    movq 32(%rbp), %rax
-    movq $8, %rcx
-    movq %rax, %r13
-    addq %rcx, %r13
-    movq %r13, %r10
-    movq (%r10), %r14
-    testq %r14, %r14
+    movq 56(%rbp), %r10
+    movq (%r10), %r13
+    testq %r13, %r13
     jne .L4_54
     jmp .L4_53
 .L4_54:
     movq $16, %rcx
-    movq %r14, %r15
-    addq %rcx, %r15
-    movq %r15, %r10
-    movq (%r10), %r15
+    movq %r13, %r14
+    addq %rcx, %r14
+    movq %r14, %r10
+    movq (%r10), %r14
     subq $48, %rsp
     movq %r12, %rax
     movq %rax, 0(%rsp)
@@ -1846,12 +1751,12 @@ lb_thread_spawn:
     movq %rax, 8(%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
-    movq %r15, %r11
+    movq %r14, %r11
     call *%r11
     addq $48, %rsp
 .L4_53:
-    leaq 184(%rbp), %rbx
-    movq 56(%rbp), %rax
+    leaq 152(%rbp), %rbx
+    movq 40(%rbp), %rax
     movq %rbx, %r10
     movq %rax, (%r10)
     movq $8, %rcx
@@ -1860,19 +1765,19 @@ lb_thread_spawn:
     movq $40, %rax
     movq %r12, %r10
     movq %rax, (%r10)
-    movq 32(%rbp), %r10
+    movq 24(%rbp), %r10
     movq (%r10), %r12
-    movq %r13, %r10
-    movq (%r10), %r14
-    testq %r14, %r14
+    movq 56(%rbp), %r10
+    movq (%r10), %r13
+    testq %r13, %r13
     jne .L4_56
     jmp .L4_55
 .L4_56:
     movq $16, %rcx
-    movq %r14, %r13
-    addq %rcx, %r13
-    movq %r13, %r10
-    movq (%r10), %r13
+    movq %r13, %r14
+    addq %rcx, %r14
+    movq %r14, %r10
+    movq (%r10), %r14
     subq $48, %rsp
     movq %r12, %rax
     movq %rax, 0(%rsp)
@@ -1884,11 +1789,11 @@ lb_thread_spawn:
     movq %rax, 8(%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
-    movq %r13, %r11
+    movq %r14, %r11
     call *%r11
     addq $48, %rsp
 .L4_55:
-    leaq 776(%rbp), %rbx
+    leaq 744(%rbp), %rbx
     movq $8, %rcx
     movq %rbx, %r12
     addq %rcx, %r12
@@ -1898,7 +1803,7 @@ lb_thread_spawn:
     movq %r12, %r10
     movl %r13d, (%r10)
     leaq .Ltext_20(%rip), %r13
-    leaq 168(%rbp), %r14
+    leaq 136(%rbp), %r14
     movq %r14, %r10
     movq %r13, (%r10)
     movq $8, %rcx
@@ -1920,7 +1825,7 @@ lb_thread_spawn:
     movq %r12, %r10
     movb %al, (%r10)
     movq %rbx, %rsi
-    movq 856(%rbp), %rdi
+    movq 824(%rbp), %rdi
     movq $40, %rdx
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -1928,29 +1833,27 @@ lb_thread_spawn:
     subq $32, %rsp
     call memcpy
     addq $32, %rsp
-    movq 856(%rbp), %rax
-    movq 1032(%rbp), %rdi
-    movq 1024(%rbp), %rsi
-    movdqu 1008(%rbp), %xmm6
-    movdqu 992(%rbp), %xmm7
-    movdqu 976(%rbp), %xmm8
-    movdqu 960(%rbp), %xmm9
-    movdqu 944(%rbp), %xmm10
-    movdqu 928(%rbp), %xmm11
-    movdqu 912(%rbp), %xmm12
-    movdqu 896(%rbp), %xmm13
-    movdqu 880(%rbp), %xmm14
-    movdqu 864(%rbp), %xmm15
-    movq 848(%rbp), %rbx
-    movq 840(%rbp), %r12
-    movq 832(%rbp), %r13
-    movq 824(%rbp), %r14
-    movq 816(%rbp), %r15
-    leaq 1040(%rbp), %rsp
+    movq 824(%rbp), %rax
+    movq 1000(%rbp), %rdi
+    movq 992(%rbp), %rsi
+    movdqu 976(%rbp), %xmm6
+    movdqu 960(%rbp), %xmm7
+    movdqu 944(%rbp), %xmm8
+    movdqu 928(%rbp), %xmm9
+    movdqu 912(%rbp), %xmm10
+    movdqu 896(%rbp), %xmm11
+    movdqu 880(%rbp), %xmm12
+    movdqu 864(%rbp), %xmm13
+    movdqu 848(%rbp), %xmm14
+    movdqu 832(%rbp), %xmm15
+    movq 816(%rbp), %rbx
+    movq 808(%rbp), %r12
+    movq 800(%rbp), %r13
+    movq 792(%rbp), %r14
+    movq 784(%rbp), %r15
+    leaq 1008(%rbp), %rsp
     popq %rbp
     ret
-.L4_57:
-    jmp .L4_52
 .L4_51:
 .L4_52:
     movq %rbx, %r10
@@ -1961,7 +1864,7 @@ lb_thread_spawn:
 .L4_58:
     jmp .L4_60
 .L4_59:
-    leaq 776(%rbp), %rbx
+    leaq 744(%rbp), %rbx
     movq $8, %rcx
     movq %rbx, %r12
     addq %rcx, %r12
@@ -1971,7 +1874,7 @@ lb_thread_spawn:
     movq %r12, %r10
     movl %r13d, (%r10)
     leaq .Ltext_20(%rip), %r13
-    leaq 152(%rbp), %r14
+    leaq 120(%rbp), %r14
     movq %r14, %r10
     movq %r13, (%r10)
     movq $8, %rcx
@@ -1993,7 +1896,7 @@ lb_thread_spawn:
     movq %r12, %r10
     movb %al, (%r10)
     movq %rbx, %rsi
-    movq 856(%rbp), %rdi
+    movq 824(%rbp), %rdi
     movq $40, %rdx
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -2001,35 +1904,34 @@ lb_thread_spawn:
     subq $32, %rsp
     call memcpy
     addq $32, %rsp
-    movq 856(%rbp), %rax
-    movq 1032(%rbp), %rdi
-    movq 1024(%rbp), %rsi
-    movdqu 1008(%rbp), %xmm6
-    movdqu 992(%rbp), %xmm7
-    movdqu 976(%rbp), %xmm8
-    movdqu 960(%rbp), %xmm9
-    movdqu 944(%rbp), %xmm10
-    movdqu 928(%rbp), %xmm11
-    movdqu 912(%rbp), %xmm12
-    movdqu 896(%rbp), %xmm13
-    movdqu 880(%rbp), %xmm14
-    movdqu 864(%rbp), %xmm15
-    movq 848(%rbp), %rbx
-    movq 840(%rbp), %r12
-    movq 832(%rbp), %r13
-    movq 824(%rbp), %r14
-    movq 816(%rbp), %r15
-    leaq 1040(%rbp), %rsp
+    movq 824(%rbp), %rax
+    movq 1000(%rbp), %rdi
+    movq 992(%rbp), %rsi
+    movdqu 976(%rbp), %xmm6
+    movdqu 960(%rbp), %xmm7
+    movdqu 944(%rbp), %xmm8
+    movdqu 928(%rbp), %xmm9
+    movdqu 912(%rbp), %xmm10
+    movdqu 896(%rbp), %xmm11
+    movdqu 880(%rbp), %xmm12
+    movdqu 864(%rbp), %xmm13
+    movdqu 848(%rbp), %xmm14
+    movdqu 832(%rbp), %xmm15
+    movq 816(%rbp), %rbx
+    movq 808(%rbp), %r12
+    movq 800(%rbp), %r13
+    movq 792(%rbp), %r14
+    movq 784(%rbp), %r15
+    leaq 1008(%rbp), %rsp
     popq %rbp
     ret
-.L4_61:
 .L4_60:
-    leaq 144(%rbp), %rbx
+    leaq 112(%rbp), %rbx
     movq %rbx, %r11
     movq $0, 0(%r11)
     movq %rbx, %r10
     movq %r12, (%r10)
-    leaq 776(%rbp), %r13
+    leaq 744(%rbp), %r13
     movq %rbx, %r10
     movq %r13, %r11
     movq 0(%r10), %rax
@@ -2041,7 +1943,7 @@ lb_thread_spawn:
     movq %rbx, %r10
     movb %al, (%r10)
     movq %r13, %rsi
-    movq 856(%rbp), %rdi
+    movq 824(%rbp), %rdi
     movq $40, %rdx
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -2049,36 +1951,27 @@ lb_thread_spawn:
     subq $32, %rsp
     call memcpy
     addq $32, %rsp
-    movq 856(%rbp), %rax
-    movq 1032(%rbp), %rdi
-    movq 1024(%rbp), %rsi
-    movdqu 1008(%rbp), %xmm6
-    movdqu 992(%rbp), %xmm7
-    movdqu 976(%rbp), %xmm8
-    movdqu 960(%rbp), %xmm9
-    movdqu 944(%rbp), %xmm10
-    movdqu 928(%rbp), %xmm11
-    movdqu 912(%rbp), %xmm12
-    movdqu 896(%rbp), %xmm13
-    movdqu 880(%rbp), %xmm14
-    movdqu 864(%rbp), %xmm15
-    movq 848(%rbp), %rbx
-    movq 840(%rbp), %r12
-    movq 832(%rbp), %r13
-    movq 824(%rbp), %r14
-    movq 816(%rbp), %r15
-    leaq 1040(%rbp), %rsp
+    movq 824(%rbp), %rax
+    movq 1000(%rbp), %rdi
+    movq 992(%rbp), %rsi
+    movdqu 976(%rbp), %xmm6
+    movdqu 960(%rbp), %xmm7
+    movdqu 944(%rbp), %xmm8
+    movdqu 928(%rbp), %xmm9
+    movdqu 912(%rbp), %xmm10
+    movdqu 896(%rbp), %xmm11
+    movdqu 880(%rbp), %xmm12
+    movdqu 864(%rbp), %xmm13
+    movdqu 848(%rbp), %xmm14
+    movdqu 832(%rbp), %xmm15
+    movq 816(%rbp), %rbx
+    movq 808(%rbp), %r12
+    movq 800(%rbp), %r13
+    movq 792(%rbp), %r14
+    movq 784(%rbp), %r15
+    leaq 1008(%rbp), %rsp
     popq %rbp
     ret
-.L4_62:
-    leaq .Ltext_30(%rip), %rdi
-    leaq .Ltext_0(%rip), %rsi
-    movq %rdx, %r8
-    movq %rsi, %rdx
-    movq %rdi, %rcx
-    subq $32, %rsp
-    call lb_core_7trap_at
-    addq $32, %rsp
     .seh_endproc
 
     .p2align 4

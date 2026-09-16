@@ -912,7 +912,6 @@ lb_window_Presentation_destroy:
     leaq 288(%rbp), %rsp
     popq %rbp
     ret
-.L5_4:
 .L5_3:
     subq $32, %rsp
     leaq 16(%rbp), %rax
@@ -975,15 +974,6 @@ lb_window_Presentation_destroy:
     movl $0, %eax
     movq %r13, %r10
     movb %al, (%r10)
-    leaq lb_platform_windows(%rip), %r13
-    movq %r13, %r10
-    movzbl (%r10), %r13d
-    testl %r13d, %r13d
-    jne .L5_12
-    jmp .L5_14
-.L5_14:
-    movl %r13d, %ebx
-    jmp .L5_13
 .L5_12:
     movq $14379, %rcx
     movq %r12, %rbx

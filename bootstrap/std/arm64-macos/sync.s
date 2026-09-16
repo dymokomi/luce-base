@@ -14,30 +14,18 @@ _lb_sync_0init:
     add x14, x14, _lb_sync_8wake_all@PAGEOFF
     movz x9, #256
     str w9, [x14]
-    adrp x14, _lb_platform_arm64@PAGE
-    add x14, x14, _lb_platform_arm64@PAGEOFF
-    ldrb w14, [x14]
-    cbnz w14, L0_1
-    b L0_2
-L0_1:
+    adrp x14, _lb_sync_12futex_number@PAGE
+    add x14, x14, _lb_sync_12futex_number@PAGEOFF
     movz x9, #98
-    mov x14, x9
-    b L0_3
-L0_2:
-    movz x9, #202
-    mov x14, x9
-L0_3:
-    adrp x15, _lb_sync_12futex_number@PAGE
-    add x15, x15, _lb_sync_12futex_number@PAGEOFF
-    str x14, [x15]
-    adrp x15, _lb_sync_18futex_wait_private@PAGE
-    add x15, x15, _lb_sync_18futex_wait_private@PAGEOFF
+    str x9, [x14]
+    adrp x14, _lb_sync_18futex_wait_private@PAGE
+    add x14, x14, _lb_sync_18futex_wait_private@PAGEOFF
     movz x9, #128
-    str w9, [x15]
-    adrp x15, _lb_sync_18futex_wake_private@PAGE
-    add x15, x15, _lb_sync_18futex_wake_private@PAGEOFF
+    str w9, [x14]
+    adrp x14, _lb_sync_18futex_wake_private@PAGE
+    add x14, x14, _lb_sync_18futex_wake_private@PAGEOFF
     movz x9, #129
-    str w9, [x15]
+    str w9, [x14]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -50,12 +38,11 @@ _lb_sync_Mutex_lock:
     mov x29, sp
     sub sp, sp, #80
     str x19, [sp, #56]
-    str x20, [sp, #48]
-    sub x16, x29, #40
+    sub x16, x29, #32
     str x0, [x16]
-    sub x9, x29, #40
+    sub x9, x29, #32
     ldr x19, [x9]
-    sub x14, x29, #48
+    sub x14, x29, #40
     mov x10, #0
     movz x11, #1
     mov x17, x19
@@ -80,7 +67,6 @@ _lb_sync_Mutex_lock:
     b L1_2
 L1_1:
     ldr x19, [sp, #56]
-    ldr x20, [sp, #48]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -107,8 +93,6 @@ L1_5:
 L1_6:
     mov w14, w15
 L1_7:
-    adrp x20, _lb_sync_16compare_and_wait@PAGE
-    add x20, x20, _lb_sync_16compare_and_wait@PAGEOFF
     mov w15, w14
 L1_8:
     mov x10, #0
@@ -118,13 +102,12 @@ L1_8:
     cmp w14, w10
     b.ne L1_10
 L1_9:
-    sub x10, x29, #64
+    sub x10, x29, #56
     str x19, [x10]
     movz x9, #2
-    sub x10, x29, #80
+    sub x10, x29, #72
     str w9, [x10]
-    ldr w14, [x20]
-    mov x0, x14
+    movz x0, #1
     mov x1, x19
     movz x2, #2
     mov x3, #0
@@ -142,7 +125,6 @@ L1_11:
     b L1_8
 L1_10:
     ldr x19, [sp, #56]
-    ldr x20, [sp, #48]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -172,10 +154,7 @@ _lb_sync_Mutex_unlock:
 L2_1:
     sub x10, x29, #40
     str x15, [x10]
-    adrp x14, _lb_sync_16compare_and_wait@PAGE
-    add x14, x14, _lb_sync_16compare_and_wait@PAGEOFF
-    ldr w14, [x14]
-    mov x0, x14
+    movz x0, #1
     mov x1, x15
     mov x2, #0
     bl ___ulock_wake
@@ -260,13 +239,10 @@ _lb_sync_Condition_wait:
     str x21, [x10]
     sub x10, x29, #96
     str w19, [x10]
-    adrp x14, _lb_sync_16compare_and_wait@PAGE
-    add x14, x14, _lb_sync_16compare_and_wait@PAGEOFF
-    ldr w14, [x14]
-    mov w15, w19
-    mov x0, x14
+    mov w14, w19
+    movz x0, #1
     mov x1, x21
-    mov x2, x15
+    mov x2, x14
     mov x3, #0
     bl ___ulock_wait
     mov w14, w0
@@ -290,22 +266,19 @@ _lb_sync_Condition_signal:
     sub x16, x29, #24
     str x0, [x16]
     sub x9, x29, #24
-    ldr x15, [x9]
+    ldr x14, [x9]
     movz x10, #1
-    mov x17, x15
+    mov x17, x14
 1:
     ldxr w9, [x17]
     add w11, w9, w10
     stlxr w16, w11, [x17]
     cbnz w16, 1b
-    mov w14, w9
+    mov w15, w9
     sub x10, x29, #40
-    str x15, [x10]
-    adrp x14, _lb_sync_16compare_and_wait@PAGE
-    add x14, x14, _lb_sync_16compare_and_wait@PAGEOFF
-    ldr w14, [x14]
-    mov x0, x14
-    mov x1, x15
+    str x14, [x10]
+    movz x0, #1
+    mov x1, x14
     mov x2, #0
     bl ___ulock_wake
     mov w14, w0
@@ -324,26 +297,19 @@ _lb_sync_Condition_broadcast:
     sub x16, x29, #24
     str x0, [x16]
     sub x9, x29, #24
-    ldr x12, [x9]
+    ldr x14, [x9]
     movz x10, #1
-    mov x17, x12
+    mov x17, x14
 1:
     ldxr w9, [x17]
     add w11, w9, w10
     stlxr w16, w11, [x17]
     cbnz w16, 1b
-    mov w14, w9
+    mov w15, w9
     sub x10, x29, #40
-    str x12, [x10]
-    adrp x14, _lb_sync_16compare_and_wait@PAGE
-    add x14, x14, _lb_sync_16compare_and_wait@PAGEOFF
-    ldr w14, [x14]
-    adrp x15, _lb_sync_8wake_all@PAGE
-    add x15, x15, _lb_sync_8wake_all@PAGEOFF
-    ldr w15, [x15]
-    orr w14, w14, w15
-    mov x0, x14
-    mov x1, x12
+    str x14, [x10]
+    movz x0, #257
+    mov x1, x14
     mov x2, #0
     bl ___ulock_wake
     mov w14, w0
@@ -360,14 +326,13 @@ _lb_sync_Once_run:
     mov x29, sp
     sub sp, sp, #112
     str x19, [sp, #88]
-    str x20, [sp, #80]
-    sub x16, x29, #40
+    sub x16, x29, #32
     str x0, [x16]
-    sub x16, x29, #56
+    sub x16, x29, #48
     str x1, [x16]
-    sub x9, x29, #40
+    sub x9, x29, #32
     ldr x19, [x9]
-    sub x14, x29, #64
+    sub x14, x29, #56
     mov x10, #0
     movz x11, #1
     mov x17, x19
@@ -391,7 +356,7 @@ _lb_sync_Once_run:
     cbnz w14, L7_1
     b L7_2
 L7_1:
-    sub x14, x29, #56
+    sub x14, x29, #48
     ldr x14, [x14]
     mov x17, x14
     str x17, [sp, #-16]!
@@ -400,23 +365,15 @@ L7_1:
     movz x9, #2
     mov x10, x19
     stlr w9, [x10]
-    sub x10, x29, #80
+    sub x10, x29, #72
     str x19, [x10]
-    adrp x14, _lb_sync_16compare_and_wait@PAGE
-    add x14, x14, _lb_sync_16compare_and_wait@PAGEOFF
-    ldr w14, [x14]
-    adrp x15, _lb_sync_8wake_all@PAGE
-    add x15, x15, _lb_sync_8wake_all@PAGEOFF
-    ldr w15, [x15]
-    orr w14, w14, w15
-    mov x0, x14
+    movz x0, #257
     mov x1, x19
     mov x2, #0
     bl ___ulock_wake
     mov w14, w0
 L7_8:
     ldr x19, [sp, #88]
-    ldr x20, [sp, #80]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -424,8 +381,6 @@ L7_4:
     b L7_3
 L7_2:
 L7_3:
-    adrp x20, _lb_sync_16compare_and_wait@PAGE
-    add x20, x20, _lb_sync_16compare_and_wait@PAGEOFF
 L7_5:
     mov x9, x19
     ldar w9, [x9]
@@ -437,13 +392,12 @@ L7_5:
     cmp w14, w10
     b.ne L7_7
 L7_6:
-    sub x10, x29, #96
+    sub x10, x29, #88
     str x19, [x10]
     movz x9, #1
-    sub x10, x29, #112
+    sub x10, x29, #104
     str w9, [x10]
-    ldr w14, [x20]
-    mov x0, x14
+    movz x0, #1
     mov x1, x19
     movz x2, #1
     mov x3, #0
@@ -453,7 +407,6 @@ L7_9:
     b L7_5
 L7_7:
     ldr x19, [sp, #88]
-    ldr x20, [sp, #80]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -468,18 +421,15 @@ _lb_sync_Semaphore_acquire:
     str x19, [sp, #72]
     str x20, [sp, #64]
     str x21, [sp, #56]
-    str x22, [sp, #48]
-    sub x16, x29, #56
+    sub x16, x29, #48
     str x0, [x16]
-    sub x9, x29, #56
-    ldr x22, [x9]
-    adrp x21, _lb_sync_16compare_and_wait@PAGE
-    add x21, x21, _lb_sync_16compare_and_wait@PAGEOFF
-    sub x19, x29, #64
+    sub x9, x29, #48
+    ldr x21, [x9]
+    sub x19, x29, #56
     add x20, x19, #4
 L8_1:
 L8_2:
-    mov x9, x22
+    mov x9, x21
     ldar w9, [x9]
     mov w14, w9
     mov x10, #0
@@ -499,7 +449,7 @@ L8_4:
     mov w15, w9
     mov w10, w14
     mov w11, w15
-    mov x17, x22
+    mov x17, x21
 1:
     ldaxr w9, [x17]
     cmp w9, w10
@@ -521,7 +471,6 @@ L8_7:
     ldr x19, [sp, #72]
     ldr x20, [sp, #64]
     ldr x21, [sp, #56]
-    ldr x22, [sp, #48]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -529,14 +478,13 @@ L8_8:
 L8_9:
     b L8_6
 L8_5:
-    sub x10, x29, #80
-    str x22, [x10]
+    sub x10, x29, #72
+    str x21, [x10]
     mov x9, #0
-    sub x10, x29, #96
+    sub x10, x29, #88
     str w9, [x10]
-    ldr w14, [x21]
-    mov x0, x14
-    mov x1, x22
+    movz x0, #1
+    mov x1, x21
     mov x2, #0
     mov x3, #0
     bl ___ulock_wait
@@ -555,22 +503,19 @@ _lb_sync_Semaphore_release:
     sub x16, x29, #24
     str x0, [x16]
     sub x9, x29, #24
-    ldr x15, [x9]
+    ldr x14, [x9]
     movz x10, #1
-    mov x17, x15
+    mov x17, x14
 1:
     ldxr w9, [x17]
     add w11, w9, w10
     stlxr w16, w11, [x17]
     cbnz w16, 1b
-    mov w14, w9
+    mov w15, w9
     sub x10, x29, #40
-    str x15, [x10]
-    adrp x14, _lb_sync_16compare_and_wait@PAGE
-    add x14, x14, _lb_sync_16compare_and_wait@PAGEOFF
-    ldr w14, [x14]
-    mov x0, x14
-    mov x1, x15
+    str x14, [x10]
+    movz x0, #1
+    mov x1, x14
     mov x2, #0
     bl ___ulock_wake
     mov w14, w0

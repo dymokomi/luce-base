@@ -953,7 +953,7 @@ lb_core_14trap_detail_at:
 lb_core_16write_diagnostic:
     pushq %rbp
     movq %rsp, %rbp
-    subq $176, %rsp
+    subq $160, %rsp
     movq %rbx, -8(%rbp)
     movq %r12, -16(%rbp)
     movq %r13, -24(%rbp)
@@ -973,8 +973,6 @@ lb_core_16write_diagnostic:
     movq $8, %rcx
     addq %rcx, %rax
     movq %rax, -152(%rbp)
-    leaq lb_c_interrupted(%rip), %rax
-    movq %rax, -160(%rbp)
     movq $0, %rax
     movq %rax, %r15
 .L9_1:
@@ -992,11 +990,11 @@ lb_core_16write_diagnostic:
     jae .L9_5
 .L9_4:
     movq -136(%rbp), %rax
-    movq %rax, -168(%rbp)
+    movq %rax, -160(%rbp)
     jmp .L9_6
 .L9_5:
     movq $1073741824, %rax
-    movq %rax, -168(%rbp)
+    movq %rax, -160(%rbp)
 .L9_6:
     movq %rbx, %r10
     movq (%r10), %r13
@@ -1034,12 +1032,12 @@ lb_core_16write_diagnostic:
     movl %eax, (%r10)
     leaq -104(%rbp), %r10
     movq %r12, (%r10)
-    movq -168(%rbp), %rax
+    movq -160(%rbp), %rax
     leaq -120(%rbp), %r10
     movq %rax, (%r10)
     movl $2, %edi
     movq %r12, %rsi
-    movq -168(%rbp), %rdx
+    movq -160(%rbp), %rdx
     call write@PLT
     movq %rax, %r12
     jmp .L9_20
@@ -1061,9 +1059,8 @@ lb_core_16write_diagnostic:
 .L9_12:
     call lb_c_errno@PLT
     movl %eax, %r13d
-    movq -160(%rbp), %r10
-    movslq (%r10), %r14
-    cmpl %r14d, %r13d
+    movl $4, %ecx
+    cmpl %ecx, %r13d
     sete %al
     movzbl %al, %r14d
 .L9_13:

@@ -185,10 +185,8 @@ lb_clipboard_10write_text:
     addq %rcx, %r12
     movq %r12, %r10
     movq (%r10), %r13
-    leaq lb_clipboard_10text_limit(%rip), %r14
-    movq %r14, %r10
-    movq (%r10), %r14
-    cmpq %r14, %r13
+    movq $1048576, %rcx
+    cmpq %rcx, %r13
     seta %al
     movzbl %al, %r13d
     testl %r13d, %r13d

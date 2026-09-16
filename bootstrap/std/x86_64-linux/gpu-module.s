@@ -71,66 +71,14 @@ lb_gpu_module_0init:
 lb_gpu_supported:
     pushq %rbp
     movq %rsp, %rbp
-    subq $32, %rsp
-    movq %rbx, -8(%rbp)
-    movq %r12, -16(%rbp)
-    movl %edi, -32(%rbp)
-    leaq lb_platform_macos(%rip), %rbx
-    movq %rbx, %r10
-    movzbl (%r10), %ebx
-    testl %ebx, %ebx
-    jne .L1_1
-    jmp .L1_8
-.L1_8:
-    movl %ebx, %r12d
-    jmp .L1_2
-.L1_1:
-    leaq lb_platform_arm64(%rip), %rbx
-    movq %rbx, %r10
-    movzbl (%r10), %r12d
+    subq $16, %rsp
+    movl %edi, -16(%rbp)
 .L1_2:
-    movzbl %r12b, %ebx
-    testl %ebx, %ebx
-    jne .L1_3
-    jmp .L1_9
-.L1_9:
-    movl %ebx, %r12d
-    jmp .L1_4
-.L1_3:
-    leaq -32(%rbp), %rbx
-    movq %rbx, %r10
-    movzbl (%r10), %ebx
-    movl $0, %ecx
-    cmpl %ecx, %ebx
-    sete %al
-    movzbl %al, %r12d
-    testl %r12d, %r12d
-    jne .L1_10
-    jmp .L1_5
-.L1_10:
-    movl %r12d, %ebx
-    jmp .L1_6
-.L1_5:
-    movl $1, %ecx
-    cmpl %ecx, %ebx
-    sete %al
-    movzbl %al, %r12d
-    movl %r12d, %ebx
-.L1_6:
-    movzbl %bl, %r12d
 .L1_4:
-    movzbl %r12b, %ebx
-    movzbl %bl, %ebx
-    movl %ebx, %eax
-    movq -8(%rbp), %rbx
-    movq -16(%rbp), %r12
+    movl $0, %eax
     movq %rbp, %rsp
     popq %rbp
     ret
-.L1_7:
-    leaq .Ltext_1(%rip), %rdi
-    leaq .Ltext_0(%rip), %rsi
-    call lb_core_7trap_at@PLT
 
     .p2align 4
     .globl lb_gpu_12check_thread

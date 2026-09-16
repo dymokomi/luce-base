@@ -516,7 +516,7 @@ lb_io_10read_exact:
     addq %rcx, %rax
     jnc 1f
     leaq .Ltext_7(%rip), %rdi
-    leaq .Ltext_83(%rip), %rsi
+    leaq .Ltext_82(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
     movq %rdi, %rcx
@@ -959,7 +959,7 @@ lb_io_9write_all:
     addq %rcx, %rax
     jnc 1f
     leaq .Ltext_12(%rip), %rdi
-    leaq .Ltext_83(%rip), %rsi
+    leaq .Ltext_82(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
     movq %rdi, %rcx
@@ -1571,7 +1571,7 @@ lb_io_10copy_limit:
     addq %rcx, %rax
     jnc 1f
     leaq .Ltext_17(%rip), %rdi
-    leaq .Ltext_83(%rip), %rsi
+    leaq .Ltext_82(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
     movq %rdi, %rcx
@@ -1647,7 +1647,7 @@ lb_io_10copy_limit:
     addq %rcx, %rax
     jnc 1f
     leaq .Ltext_16(%rip), %rdi
-    leaq .Ltext_83(%rip), %rsi
+    leaq .Ltext_82(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
     movq %rdi, %rcx
@@ -1892,7 +1892,7 @@ lb_io_SliceReader_remaining:
     subq %rcx, %rax
     jnc 1f
     leaq .Ltext_20(%rip), %rdi
-    leaq .Ltext_83(%rip), %rsi
+    leaq .Ltext_82(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
     movq %rdi, %rcx
@@ -2005,7 +2005,7 @@ lb_io_SliceReader_read:
     subq %rcx, %rax
     jnc 1f
     leaq .Ltext_20(%rip), %rdi
-    leaq .Ltext_83(%rip), %rsi
+    leaq .Ltext_82(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
     movq %rdi, %rcx
@@ -2125,7 +2125,7 @@ lb_io_SliceReader_read:
     addq %rcx, %rax
     jnc 1f
     leaq .Ltext_22(%rip), %rdi
-    leaq .Ltext_83(%rip), %rsi
+    leaq .Ltext_82(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
     movq %rdi, %rcx
@@ -2581,7 +2581,7 @@ lb_io_SliceWriter_write:
     subq %rcx, %rax
     jnc 1f
     leaq .Ltext_26(%rip), %rdi
-    leaq .Ltext_83(%rip), %rsi
+    leaq .Ltext_82(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
     movq %rdi, %rcx
@@ -2751,7 +2751,7 @@ lb_io_SliceWriter_write:
     addq %rcx, %rax
     jnc 1f
     leaq .Ltext_29(%rip), %rdi
-    leaq .Ltext_83(%rip), %rsi
+    leaq .Ltext_82(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
     movq %rdi, %rcx
@@ -3089,7 +3089,7 @@ lb_io_BufferedReader_buffered:
     subq %rcx, %rax
     jnc 1f
     leaq .Ltext_33(%rip), %rdi
-    leaq .Ltext_83(%rip), %rsi
+    leaq .Ltext_82(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
     movq %rdi, %rcx
@@ -3445,7 +3445,7 @@ lb_io_BufferedReader_read:
     subq %rcx, %rax
     jnc 1f
     leaq .Ltext_33(%rip), %rdi
-    leaq .Ltext_83(%rip), %rsi
+    leaq .Ltext_82(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
     movq %rdi, %rcx
@@ -3565,7 +3565,7 @@ lb_io_BufferedReader_read:
     addq %rcx, %rax
     jnc 1f
     leaq .Ltext_35(%rip), %rdi
-    leaq .Ltext_83(%rip), %rsi
+    leaq .Ltext_82(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
     movq %rdi, %rcx
@@ -4095,7 +4095,7 @@ lb_io_BufferedWriter_flush:
     subq %rcx, %rax
     jnc 1f
     leaq .Ltext_41(%rip), %rdi
-    leaq .Ltext_83(%rip), %rsi
+    leaq .Ltext_82(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
     movq %rdi, %rcx
@@ -4500,7 +4500,7 @@ lb_io_BufferedWriter_write:
     subq %rcx, %rax
     jnc 1f
     leaq .Ltext_43(%rip), %rdi
-    leaq .Ltext_83(%rip), %rsi
+    leaq .Ltext_82(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
     movq %rdi, %rcx
@@ -4605,7 +4605,7 @@ lb_io_BufferedWriter_write:
     addq %rcx, %rax
     jnc 1f
     leaq .Ltext_45(%rip), %rdi
-    leaq .Ltext_83(%rip), %rsi
+    leaq .Ltext_82(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
     movq %rdi, %rcx
@@ -5638,49 +5638,47 @@ lb_io_StandardInput_read:
     jbe .L20_6
 .L20_5:
     movq $1073741824, %rax
-    movq %rax, 0(%rbp)
+    movq %rax, 8(%rbp)
     jmp .L20_7
 .L20_6:
     movq %r12, %rax
-    movq %rax, 0(%rbp)
+    movq %rax, 8(%rbp)
 .L20_7:
-    movq 0(%rbp), %rax
+    movq 8(%rbp), %rax
     movq $2147483647, %rcx
     cmpq %rcx, %rax
     setb %al
     movzbl %al, %eax
-    movl %eax, 8(%rbp)
-    leaq lb_c_interrupted(%rip), %rax
-    movq %rax, 16(%rbp)
+    movl %eax, 16(%rbp)
 .L20_8:
 .L20_9:
     movq %r14, %r10
-    movslq (%r10), %r13
+    movslq (%r10), %r15
     movq 24(%rbp), %r10
-    movq (%r10), %r15
+    movq (%r10), %r13
     leaq 64(%rbp), %r10
-    movl %r13d, (%r10)
+    movl %r15d, (%r10)
     leaq 48(%rbp), %r10
-    movq %r15, (%r10)
-    movq 0(%rbp), %rax
+    movq %r13, (%r10)
+    movq 8(%rbp), %rax
     leaq 32(%rbp), %r10
     movq %rax, (%r10)
-    movl 8(%rbp), %eax
+    movl 16(%rbp), %eax
     testl %eax, %eax
-    jne .L20_31
-    jmp .L20_32
-.L20_31:
-    movq 0(%rbp), %rax
+    jne .L20_28
+    jmp .L20_29
+.L20_28:
+    movq 8(%rbp), %rax
     movq %rax, %rbx
-    jmp .L20_33
-.L20_32:
+    jmp .L20_30
+.L20_29:
     movq $2147483647, %rax
     movq %rax, %rbx
-.L20_33:
+.L20_30:
     subq $32, %rsp
-    movl %r13d, %eax
+    movl %r15d, %eax
     movq %rax, 0(%rsp)
-    movq %r15, %rax
+    movq %r13, %rax
     movq %rax, 8(%rsp)
     movl %ebx, %eax
     movq %rax, 16(%rsp)
@@ -5691,7 +5689,7 @@ lb_io_StandardInput_read:
     addq $32, %rsp
     movl %eax, %r12d
     movslq %r12d, %r12
-.L20_35:
+.L20_32:
     movq $0, %rcx
     cmpq %rcx, %r12
     jl .L20_12
@@ -5741,29 +5739,15 @@ lb_io_StandardInput_read:
     call lb_c_errno
     addq $32, %rsp
     movl %eax, %ebx
-    movq 16(%rbp), %r10
-    movslq (%r10), %r12
-    cmpl %r12d, %ebx
+    movl $4, %ecx
+    cmpl %ecx, %ebx
     jne .L20_16
 .L20_15:
     jmp .L20_8
 .L20_16:
 .L20_17:
-    leaq lb_platform_macos(%rip), %r12
-    movq %r12, %r10
-    movzbl (%r10), %r12d
-    testl %r12d, %r12d
-    jne .L20_22
-    jmp .L20_23
-.L20_22:
-    movl $35, %eax
-    movl %eax, %r12d
-    jmp .L20_24
-.L20_23:
-    movl $11, %eax
-    movl %eax, %r12d
-.L20_24:
-    cmpl %r12d, %ebx
+    movl $11, %ecx
+    cmpl %ecx, %ebx
     jne .L20_20
 .L20_19:
     leaq 152(%rbp), %rbx
@@ -5831,8 +5815,8 @@ lb_io_StandardInput_read:
 .L20_21:
     movl $9, %ecx
     cmpl %ecx, %ebx
-    jne .L20_27
-.L20_26:
+    jne .L20_24
+.L20_23:
     leaq 152(%rbp), %rbx
     movq $8, %rcx
     movq %rbx, %r12
@@ -5894,8 +5878,8 @@ lb_io_StandardInput_read:
     leaq 416(%rbp), %rsp
     popq %rbp
     ret
-.L20_27:
-.L20_28:
+.L20_24:
+.L20_25:
     leaq 152(%rbp), %rbx
     movq $8, %rcx
     movq %rbx, %r12
@@ -6799,18 +6783,7 @@ lb_io_path_user:
     movq %r8, 368(%rbp)
     movq %r9, 376(%rbp)
     leaq 56(%rbp), %r12
-    leaq lb_platform_windows(%rip), %rbx
-    movq %rbx, %r10
-    movzbl (%r10), %ebx
-    testl %ebx, %ebx
-    jne .L27_1
-    jmp .L27_2
-.L27_1:
     leaq .Ltext_61(%rip), %rbx
-    jmp .L27_3
-.L27_2:
-    leaq .Ltext_62(%rip), %rbx
-.L27_3:
     subq $32, %rsp
     movq %rbx, %rax
     movq %rax, 8(%rsp)
@@ -6820,23 +6793,23 @@ lb_io_path_user:
     movq 8(%rsp), %rdx
     call lb_os_env
     addq $32, %rsp
-    leaq 32(%rbp), %r14
+    leaq 32(%rbp), %r13
     movq $16, %rcx
-    movq %r14, %r13
-    addq %rcx, %r13
-    movq %r13, %r10
-    movzbl (%r10), %r13d
-    testl %r13d, %r13d
-    jne .L27_4
-    jmp .L27_5
-.L27_4:
+    movq %r13, %rbx
+    addq %rcx, %rbx
+    movq %rbx, %r10
+    movzbl (%r10), %ebx
+    testl %ebx, %ebx
+    jne .L27_1
+    jmp .L27_2
+.L27_1:
     leaq 16(%rbp), %rbx
-    movq %r14, %r10
+    movq %r13, %r10
     movq %rbx, %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
-    jmp .L27_6
-.L27_5:
+    jmp .L27_3
+.L27_2:
     leaq 72(%rbp), %rbx
     movq $16, %rcx
     movq %rbx, %r12
@@ -6846,7 +6819,7 @@ lb_io_path_user:
     movl (%r10), %r13d
     movq %r12, %r10
     movl %r13d, (%r10)
-    leaq .Ltext_63(%rip), %r13
+    leaq .Ltext_62(%rip), %r13
     leaq 0(%rbp), %r14
     movq %r14, %r10
     movq %r13, (%r10)
@@ -6897,8 +6870,8 @@ lb_io_path_user:
     leaq 336(%rbp), %rsp
     popq %rbp
     ret
-.L27_7:
-.L27_6:
+.L27_4:
+.L27_3:
     movq %rbx, %r10
     movq %r12, %r11
     movups 0(%r10), %xmm8
@@ -6943,8 +6916,8 @@ lb_io_path_user:
     leaq 336(%rbp), %rsp
     popq %rbp
     ret
-.L27_8:
-    leaq .Ltext_64(%rip), %rdi
+.L27_5:
+    leaq .Ltext_63(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -7109,7 +7082,7 @@ lb_io_path_home:
     popq %rbp
     ret
 .L28_4:
-    leaq .Ltext_65(%rip), %rdi
+    leaq .Ltext_64(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -7163,7 +7136,7 @@ lb_io_path_temp:
     movq %rdx, 344(%rbp)
     movq %r8, 352(%rbp)
     movq %r9, 360(%rbp)
-    leaq .Ltext_66(%rip), %rbx
+    leaq .Ltext_65(%rip), %rbx
     subq $32, %rsp
     movq %rbx, %rax
     movq %rax, 8(%rsp)
@@ -7237,7 +7210,7 @@ lb_io_path_temp:
     jmp .L29_3
 .L29_2:
 .L29_3:
-    leaq .Ltext_67(%rip), %rbx
+    leaq .Ltext_66(%rip), %rbx
     subq $32, %rsp
     movq %rbx, %rax
     movq %rax, 8(%rsp)
@@ -7311,7 +7284,7 @@ lb_io_path_temp:
     jmp .L29_11
 .L29_10:
 .L29_11:
-    leaq .Ltext_68(%rip), %rbx
+    leaq .Ltext_67(%rip), %rbx
     leaq 8(%rbp), %r12
     movq %r12, %r10
     movq %rbx, (%r10)
@@ -7354,7 +7327,7 @@ lb_io_path_temp:
     popq %rbp
     ret
 .L29_17:
-    leaq .Ltext_69(%rip), %rdi
+    leaq .Ltext_68(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -7414,7 +7387,7 @@ lb_io_path_config:
     movq %rdx, 632(%rbp)
     movq %r8, 640(%rbp)
     movq %r9, 648(%rbp)
-    leaq .Ltext_70(%rip), %rbx
+    leaq .Ltext_69(%rip), %rbx
     subq $32, %rsp
     movq %rbx, %rax
     movq %rax, 8(%rsp)
@@ -7588,8 +7561,8 @@ lb_io_path_config:
     movq $17, %rcx
     addq %rcx, %rax
     jnc 1f
-    leaq .Ltext_71(%rip), %rdi
-    leaq .Ltext_83(%rip), %rsi
+    leaq .Ltext_70(%rip), %rdi
+    leaq .Ltext_82(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
     movq %rdi, %rcx
@@ -7611,7 +7584,7 @@ lb_io_path_config:
     movl $208273409, %eax
     movq %rbx, %r10
     movl %eax, (%r10)
-    leaq .Ltext_72(%rip), %r13
+    leaq .Ltext_71(%rip), %r13
     movq $8, %rcx
     movq %rbx, %r14
     addq %rcx, %r14
@@ -7643,8 +7616,8 @@ lb_io_path_config:
     jne .L30_15
     jmp .L30_16
 .L30_16:
-    leaq .Ltext_71(%rip), %rdi
-    leaq .Ltext_73(%rip), %rsi
+    leaq .Ltext_70(%rip), %rdi
+    leaq .Ltext_72(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
     movq %rdi, %rcx
@@ -7700,7 +7673,7 @@ lb_io_path_config:
     movl $208273409, %eax
     movq %rbx, %r10
     movl %eax, (%r10)
-    leaq .Ltext_74(%rip), %r12
+    leaq .Ltext_73(%rip), %r12
     movq $8, %rcx
     movq %rbx, %r13
     addq %rcx, %r13
@@ -7841,7 +7814,7 @@ lb_io_path_config:
     call lb_core_10format_put
     addq $32, %rsp
     movl %eax, %r14d
-    leaq .Ltext_75(%rip), %r14
+    leaq .Ltext_74(%rip), %r14
     subq $32, %rsp
     movq %rbx, %rax
     movq %rax, 0(%rsp)
@@ -7869,7 +7842,7 @@ lb_io_path_config:
     movl $208273409, %eax
     movq %rbx, %r10
     movl %eax, (%r10)
-    leaq .Ltext_76(%rip), %r12
+    leaq .Ltext_75(%rip), %r12
     movq $8, %rcx
     movq %rbx, %r13
     addq %rcx, %r13
@@ -8011,7 +7984,7 @@ lb_io_path_config:
     popq %rbp
     ret
 .L30_28:
-    leaq .Ltext_77(%rip), %rdi
+    leaq .Ltext_76(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -8122,7 +8095,7 @@ lb_memory_move_0g1_u8:
     movq $19, %rax
     movq %r13, %r10
     movq %rax, (%r10)
-    leaq .Ltext_78(%rip), %r13
+    leaq .Ltext_77(%rip), %r13
     subq $48, %rsp
     movq %r13, %rax
     movq %rax, 0(%rsp)
@@ -8165,8 +8138,8 @@ lb_memory_move_0g1_u8:
     jne .L31_9
     jmp .L31_10
 .L31_10:
-    leaq .Ltext_79(%rip), %rdi
-    leaq .Ltext_80(%rip), %rsi
+    leaq .Ltext_78(%rip), %rdi
+    leaq .Ltext_79(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
     movq %rdi, %rcx
@@ -8301,7 +8274,7 @@ lb_memory_copy_0g1_u8:
     movq $19, %rax
     movq %r13, %r10
     movq %rax, (%r10)
-    leaq .Ltext_81(%rip), %r13
+    leaq .Ltext_80(%rip), %r13
     subq $48, %rsp
     movq %r13, %rax
     movq %rax, 0(%rsp)
@@ -8344,8 +8317,8 @@ lb_memory_copy_0g1_u8:
     jne .L32_9
     jmp .L32_10
 .L32_10:
-    leaq .Ltext_82(%rip), %rdi
-    leaq .Ltext_80(%rip), %rsi
+    leaq .Ltext_81(%rip), %rdi
+    leaq .Ltext_79(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
     movq %rdi, %rcx
@@ -8515,48 +8488,46 @@ lb_memory_copy_0g1_u8:
 .Ltext_61:
     .asciz "USERPROFILE"
 .Ltext_62:
-    .asciz "HOME"
-.Ltext_63:
     .asciz "no home directory"
-.Ltext_64:
+.Ltext_63:
     .asciz "src/std/io.lucb:349:9"
-.Ltext_65:
+.Ltext_64:
     .asciz "src/std/io.lucb:352:9"
-.Ltext_66:
+.Ltext_65:
     .asciz "TEMP"
-.Ltext_67:
+.Ltext_66:
     .asciz "TMP"
-.Ltext_68:
+.Ltext_67:
     .asciz "."
-.Ltext_69:
+.Ltext_68:
     .asciz "src/std/io.lucb:361:13"
-.Ltext_70:
+.Ltext_69:
     .asciz "APPDATA"
-.Ltext_71:
+.Ltext_70:
     .asciz "src/std/io.lucb:371:13"
-.Ltext_72:
+.Ltext_71:
     .asciz "memory.exhausted: the allocation size overflows"
-.Ltext_73:
+.Ltext_72:
     .asciz "memory.unset"
-.Ltext_74:
+.Ltext_73:
     .asciz "memory.exhausted"
-.Ltext_75:
+.Ltext_74:
     .asciz "/AppData/Roaming"
-.Ltext_76:
+.Ltext_75:
     .asciz "memory.exhausted: the formatted text does not fit its buffer"
-.Ltext_77:
+.Ltext_76:
     .asciz "src/std/io.lucb:372:13"
-.Ltext_78:
+.Ltext_77:
     .asciz "src/std/memory.lucb:334:9"
-.Ltext_79:
+.Ltext_78:
     .asciz "src/std/memory.lucb:336:9"
-.Ltext_80:
+.Ltext_79:
     .asciz "null_foreign"
-.Ltext_81:
+.Ltext_80:
     .asciz "src/std/memory.lucb:328:9"
-.Ltext_82:
+.Ltext_81:
     .asciz "src/std/memory.lucb:330:9"
-.Ltext_83:
+.Ltext_82:
     .asciz "integer overflow"
 
     .section .rdata,"dr"

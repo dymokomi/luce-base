@@ -31,50 +31,34 @@ lb_net_SocketHandle_create:
     movq %r14, -40(%rbp)
     movl %esi, -104(%rbp)
     movl %edx, -120(%rbp)
-    leaq lb_platform_macos(%rip), %rbx
+    leaq -120(%rbp), %rbx
     movq %rbx, %r10
     movzbl (%r10), %ebx
-    testl %ebx, %ebx
-    jne .L1_1
-    jmp .L1_2
+    movl $0, %ecx
+    cmpl %ecx, %ebx
+    jne .L1_2
 .L1_1:
-    movl $0, %eax
+    movl $2, %eax
     movl %eax, %ebx
     jmp .L1_3
 .L1_2:
-    leaq lb_net_20socket_close_on_exec(%rip), %rbx
-    movq %rbx, %r10
-    movslq (%r10), %rbx
+    movl $10, %eax
+    movl %eax, %ebx
 .L1_3:
-    leaq -120(%rbp), %r12
-    movq %r12, %r10
-    movzbl (%r10), %r12d
-    movl $0, %ecx
-    cmpl %ecx, %r12d
-    jne .L1_5
-.L1_4:
-    leaq lb_net_inet(%rip), %r12
+    leaq -104(%rbp), %r12
     movq %r12, %r10
     movslq (%r10), %r12
-    jmp .L1_6
-.L1_5:
-    leaq lb_net_inet6(%rip), %r12
-    movq %r12, %r10
-    movslq (%r10), %r12
-.L1_6:
-    leaq -104(%rbp), %r13
-    movq %r13, %r10
-    movslq (%r10), %r13
-    orl %ebx, %r13d
-    movl %r12d, %edi
-    movl %r13d, %esi
+    movl $524288, %ecx
+    orl %ecx, %r12d
+    movl %ebx, %edi
+    movl %r12d, %esi
     movl $0, %edx
     call socket@PLT
-    movl %eax, %r13d
+    movl %eax, %r12d
     movl $0, %ecx
-    cmpl %ecx, %r13d
-    jge .L1_8
-.L1_7:
+    cmpl %ecx, %r12d
+    jge .L1_5
+.L1_4:
     leaq -88(%rbp), %rbx
     movq $16, %rcx
     movq %rbx, %r12
@@ -120,41 +104,41 @@ lb_net_SocketHandle_create:
     movq %rbp, %rsp
     popq %rbp
     ret
-.L1_10:
-    jmp .L1_9
-.L1_8:
-.L1_9:
+.L1_7:
+    jmp .L1_6
+.L1_5:
+.L1_6:
     leaq -152(%rbp), %rbx
     movq %rbx, %r11
     movq $0, 0(%r11)
     movl $0, 8(%r11)
-    leaq -160(%rbp), %r12
-    movq %r12, %r10
-    movl %r13d, (%r10)
+    leaq -160(%rbp), %r13
+    movq %r13, %r10
+    movl %r12d, (%r10)
     movq $4, %rcx
-    movq %r12, %r14
+    movq %r13, %r14
     addq %rcx, %r14
     movl $1, %eax
     movq %r14, %r10
     movb %al, (%r10)
-    movq %r12, %r10
+    movq %r13, %r10
     movq %rbx, %r11
     movq 0(%r10), %rax
     movq %rax, 0(%r11)
-    leaq -88(%rbp), %r12
+    leaq -88(%rbp), %r13
     movq %rbx, %r10
-    movq %r12, %r11
+    movq %r13, %r11
     movq 0(%r10), %rax
     movq %rax, 0(%r11)
     movl 8(%r10), %eax
     movl %eax, 8(%r11)
     movq $40, %rcx
-    movq %r12, %rbx
+    movq %r13, %rbx
     addq %rcx, %rbx
     movl $0, %eax
     movq %rbx, %r10
     movb %al, (%r10)
-    movq %r12, %rsi
+    movq %r13, %rsi
     movq -8(%rbp), %rdi
     movq $48, %rdx
     call memcpy@PLT
@@ -166,7 +150,7 @@ lb_net_SocketHandle_create:
     movq %rbp, %rsp
     popq %rbp
     ret
-.L1_11:
+.L1_8:
     leaq .Ltext_2(%rip), %rdi
     leaq .Ltext_1(%rip), %rsi
     call lb_core_7trap_at@PLT
@@ -177,7 +161,7 @@ lb_net_SocketHandle_create:
 lb_net_SocketHandle_adopt:
     pushq %rbp
     movq %rsp, %rbp
-    subq $224, %rsp
+    subq $192, %rsp
     movq %rdi, -8(%rbp)
     movq %rbx, -16(%rbp)
     movq %r12, -24(%rbp)
@@ -240,59 +224,43 @@ lb_net_SocketHandle_adopt:
     jmp .L2_3
 .L2_2:
 .L2_3:
-    leaq lb_net_20get_descriptor_flags(%rip), %r12
-    movq %r12, %r10
-    movslq (%r10), %r13
     movl %ebx, %edi
-    movl %r13d, %esi
+    movl $1, %esi
     movl $0, %eax
     call fcntl@PLT
-    movl %eax, %r13d
-    leaq lb_net_18socket_interrupted(%rip), %r14
-    movl %r13d, %eax
-    movl %eax, -216(%rbp)
+    movl %eax, %r12d
 .L2_5:
-    movl -216(%rbp), %eax
     movl $0, %ecx
-    cmpl %ecx, %eax
+    cmpl %ecx, %r12d
     setl %al
-    movzbl %al, %eax
-    movl %eax, -192(%rbp)
-    movl -192(%rbp), %eax
-    testl %eax, %eax
+    movzbl %al, %r13d
+    testl %r13d, %r13d
     jne .L2_8
     jmp .L2_27
 .L2_27:
-    movl -192(%rbp), %eax
-    movl %eax, %r13d
+    movl %r13d, %r14d
     jmp .L2_9
 .L2_8:
     call lb_net_12socket_errno@PLT
-    movl %eax, %r13d
-    movq %r14, %r10
-    movslq (%r10), %r15
-    cmpl %r15d, %r13d
+    movl %eax, %r14d
+    movl $4, %ecx
+    cmpl %ecx, %r14d
     sete %al
-    movzbl %al, %r13d
+    movzbl %al, %r14d
 .L2_9:
-    movzbl %r13b, %r15d
+    movzbl %r14b, %r15d
     testl %r15d, %r15d
     jne .L2_6
     jmp .L2_7
 .L2_6:
-    movq %r12, %r10
-    movslq (%r10), %r13
     movl %ebx, %edi
-    movl %r13d, %esi
+    movl $1, %esi
     movl $0, %eax
     call fcntl@PLT
-    movl %eax, %r13d
-    movl %r13d, %eax
-    movl %eax, -216(%rbp)
+    movl %eax, %r12d
     jmp .L2_5
 .L2_7:
-    movl -192(%rbp), %eax
-    testl %eax, %eax
+    testl %r13d, %r13d
     jne .L2_10
     jmp .L2_11
 .L2_10:
@@ -350,74 +318,55 @@ lb_net_SocketHandle_adopt:
     jmp .L2_12
 .L2_11:
 .L2_12:
-    leaq lb_net_24descriptor_close_on_exec(%rip), %rax
-    movq %rax, -200(%rbp)
-    movq -200(%rbp), %r10
-    movslq (%r10), %r13
-    movl -216(%rbp), %ecx
-    movl %r13d, %r14d
-    andl %ecx, %r14d
+    movl $1, %ecx
+    movl %r12d, %r13d
+    andl %ecx, %r13d
     movl $0, %ecx
-    cmpl %ecx, %r14d
+    cmpl %ecx, %r13d
     jne .L2_15
 .L2_14:
-    leaq lb_net_20set_descriptor_flags(%rip), %r14
-    movq %r14, %r10
-    movslq (%r10), %r15
-    movl -216(%rbp), %ecx
-    movl %r13d, %r12d
-    orl %ecx, %r12d
-    movl %ebx, %edi
-    movl %r15d, %esi
-    movl %r12d, %edx
-    movl $0, %eax
-    call fcntl@PLT
-    movl %eax, %r12d
-    leaq lb_net_18socket_interrupted(%rip), %r15
-.L2_17:
-    movl $0, %ecx
-    cmpl %ecx, %r12d
-    setl %al
-    movzbl %al, %eax
-    movl %eax, -208(%rbp)
-    movl -208(%rbp), %eax
-    testl %eax, %eax
-    jne .L2_20
-    jmp .L2_28
-.L2_28:
-    movl -208(%rbp), %eax
-    movl %eax, %r12d
-    jmp .L2_21
-.L2_20:
-    call lb_net_12socket_errno@PLT
-    movl %eax, %r12d
-    movq %r15, %r10
-    movslq (%r10), %r13
-    cmpl %r13d, %r12d
-    sete %al
-    movzbl %al, %r12d
-.L2_21:
-    movzbl %r12b, %r13d
-    testl %r13d, %r13d
-    jne .L2_18
-    jmp .L2_19
-.L2_18:
-    movq %r14, %r10
-    movslq (%r10), %r12
-    movq -200(%rbp), %r10
-    movslq (%r10), %r13
-    movl -216(%rbp), %ecx
+    movl $1, %ecx
+    movl %r12d, %r13d
     orl %ecx, %r13d
     movl %ebx, %edi
-    movl %r12d, %esi
+    movl $2, %esi
     movl %r13d, %edx
     movl $0, %eax
     call fcntl@PLT
-    movl %eax, %r12d
+    movl %eax, %r14d
+.L2_17:
+    movl $0, %ecx
+    cmpl %ecx, %r14d
+    setl %al
+    movzbl %al, %r12d
+    testl %r12d, %r12d
+    jne .L2_20
+    jmp .L2_28
+.L2_28:
+    movl %r12d, %r14d
+    jmp .L2_21
+.L2_20:
+    call lb_net_12socket_errno@PLT
+    movl %eax, %r14d
+    movl $4, %ecx
+    cmpl %ecx, %r14d
+    sete %al
+    movzbl %al, %r14d
+.L2_21:
+    movzbl %r14b, %r15d
+    testl %r15d, %r15d
+    jne .L2_18
+    jmp .L2_19
+.L2_18:
+    movl %ebx, %edi
+    movl $2, %esi
+    movl %r13d, %edx
+    movl $0, %eax
+    call fcntl@PLT
+    movl %eax, %r14d
     jmp .L2_17
 .L2_19:
-    movl -208(%rbp), %eax
-    testl %eax, %eax
+    testl %r12d, %r12d
     jne .L2_22
     jmp .L2_23
 .L2_22:
@@ -804,7 +753,7 @@ lb_net_SocketHandle_destroy:
 lb_net_14socket_address:
     pushq %rbp
     movq %rsp, %rbp
-    subq $288, %rsp
+    subq $272, %rsp
     movq %rdi, -8(%rbp)
     movq %rbx, -16(%rbp)
     movq %r12, -24(%rbp)
@@ -826,60 +775,57 @@ lb_net_14socket_address:
     movl %eax, (%r10)
     leaq -120(%rbp), %r13
     movq %r13, %r10
-    movslq (%r10), %rax
-    movq %rax, -272(%rbp)
+    movslq (%r10), %r13
     leaq -136(%rbp), %r14
     movq %r14, %r10
     movzbl (%r10), %r14d
-    movl -272(%rbp), %edi
+    movl %r13d, %edi
     movq -264(%rbp), %rsi
     movq %r12, %rdx
     movl %r14d, %ecx
     call lb_net_13query_address@PLT
     movl %eax, %r15d
-    leaq lb_net_18socket_interrupted(%rip), %rbx
     movl %r15d, %eax
-    movl %eax, -280(%rbp)
+    movl %eax, -272(%rbp)
 .L6_1:
-    movl -280(%rbp), %eax
+    movl -272(%rbp), %eax
     movl $0, %ecx
     cmpl %ecx, %eax
     setl %al
-    movzbl %al, %r13d
-    testl %r13d, %r13d
+    movzbl %al, %ebx
+    testl %ebx, %ebx
     jne .L6_4
     jmp .L6_18
 .L6_18:
-    movl %r13d, %r15d
+    movl %ebx, %r15d
     jmp .L6_5
 .L6_4:
     call lb_net_12socket_errno@PLT
-    movl %eax, %r13d
-    movq %rbx, %r10
-    movslq (%r10), %r15
-    cmpl %r15d, %r13d
+    movl %eax, %ebx
+    movl $4, %ecx
+    cmpl %ecx, %ebx
     sete %al
     movzbl %al, %r15d
 .L6_5:
-    movzbl %r15b, %r13d
-    testl %r13d, %r13d
+    movzbl %r15b, %ebx
+    testl %ebx, %ebx
     jne .L6_2
     jmp .L6_3
 .L6_2:
     movl $28, %eax
     movq %r12, %r10
     movl %eax, (%r10)
-    movl -272(%rbp), %edi
+    movl %r13d, %edi
     movq -264(%rbp), %rsi
     movq %r12, %rdx
     movl %r14d, %ecx
     call lb_net_13query_address@PLT
-    movl %eax, %r13d
-    movl %r13d, %eax
-    movl %eax, -280(%rbp)
+    movl %eax, %ebx
+    movl %ebx, %eax
+    movl %eax, -272(%rbp)
     jmp .L6_1
 .L6_3:
-    movl -280(%rbp), %eax
+    movl -272(%rbp), %eax
     movl $0, %ecx
     cmpl %ecx, %eax
     sete %al
@@ -1149,7 +1095,7 @@ lb_net_13query_address:
 lb_net_18set_socket_integer:
     pushq %rbp
     movq %rsp, %rbp
-    subq $192, %rsp
+    subq $176, %rsp
     movq %rdi, -8(%rbp)
     movq %rbx, -16(%rbp)
     movq %r12, -24(%rbp)
@@ -1160,67 +1106,63 @@ lb_net_18set_socket_integer:
     movl %edx, -112(%rbp)
     movl %ecx, -128(%rbp)
     movl %r8d, -144(%rbp)
-    leaq -96(%rbp), %rax
-    movq %rax, -168(%rbp)
-    movq -168(%rbp), %r10
+    leaq -96(%rbp), %rbx
+    movq %rbx, %r10
     movslq (%r10), %rax
-    movq %rax, -176(%rbp)
+    movq %rax, -168(%rbp)
     leaq -112(%rbp), %r12
     movq %r12, %r10
-    movslq (%r10), %rax
-    movq %rax, -184(%rbp)
+    movslq (%r10), %r12
     leaq -128(%rbp), %r13
     movq %r13, %r10
     movslq (%r10), %r13
     leaq -144(%rbp), %r14
-    movl -176(%rbp), %edi
-    movl -184(%rbp), %esi
+    movl -168(%rbp), %edi
+    movl %r12d, %esi
     movl %r13d, %edx
     movq %r14, %rcx
     movl $4, %r8d
     call setsockopt@PLT
     movl %eax, %r15d
-    leaq lb_net_18socket_interrupted(%rip), %rbx
     movl %r15d, %eax
-    movl %eax, -192(%rbp)
+    movl %eax, -176(%rbp)
 .L8_1:
-    movl -192(%rbp), %eax
+    movl -176(%rbp), %eax
     movl $0, %ecx
     cmpl %ecx, %eax
     setl %al
-    movzbl %al, %r12d
-    testl %r12d, %r12d
+    movzbl %al, %ebx
+    testl %ebx, %ebx
     jne .L8_4
     jmp .L8_10
 .L8_10:
-    movl %r12d, %r15d
+    movl %ebx, %r15d
     jmp .L8_5
 .L8_4:
     call lb_net_12socket_errno@PLT
-    movl %eax, %r12d
-    movq %rbx, %r10
-    movslq (%r10), %r15
-    cmpl %r15d, %r12d
+    movl %eax, %ebx
+    movl $4, %ecx
+    cmpl %ecx, %ebx
     sete %al
     movzbl %al, %r15d
 .L8_5:
-    movzbl %r15b, %r12d
-    testl %r12d, %r12d
+    movzbl %r15b, %ebx
+    testl %ebx, %ebx
     jne .L8_2
     jmp .L8_3
 .L8_2:
-    movl -176(%rbp), %edi
-    movl -184(%rbp), %esi
+    movl -168(%rbp), %edi
+    movl %r12d, %esi
     movl %r13d, %edx
     movq %r14, %rcx
     movl $4, %r8d
     call setsockopt@PLT
-    movl %eax, %r12d
-    movl %r12d, %eax
-    movl %eax, -192(%rbp)
+    movl %eax, %ebx
+    movl %ebx, %eax
+    movl %eax, -176(%rbp)
     jmp .L8_1
 .L8_3:
-    movl -192(%rbp), %eax
+    movl -176(%rbp), %eax
     movl $0, %ecx
     cmpl %ecx, %eax
     sete %al

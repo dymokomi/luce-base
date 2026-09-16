@@ -6,22 +6,10 @@ _lb_c_0init:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
     sub sp, sp, #16
-    adrp x14, _lb_platform_wasm32@PAGE
-    add x14, x14, _lb_platform_wasm32@PAGEOFF
-    ldrb w14, [x14]
-    cbnz w14, L0_1
-    b L0_2
-L0_1:
-    movz x9, #27
-    mov w14, w9
-    b L0_3
-L0_2:
+    adrp x14, _lb_c_interrupted@PAGE
+    add x14, x14, _lb_c_interrupted@PAGEOFF
     movz x9, #4
-    mov w14, w9
-L0_3:
-    adrp x15, _lb_c_interrupted@PAGE
-    add x15, x15, _lb_c_interrupted@PAGEOFF
-    str w14, [x15]
+    str w9, [x14]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret

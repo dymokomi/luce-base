@@ -62,23 +62,18 @@ lb_ownership_13possible_root:
     mov x0, x19
     bl lb_ownership_8color_of
     mov w14, w0
-    adrp x15, lb_ownership_purple
-    add x15, x15, :lo12:lb_ownership_purple
-    ldrb w15, [x15]
-    cmp w14, w15
+    movz x10, #3
+    cmp w14, w10
     cset w14, eq
     mov x10, #0
     cmp w14, w10
     b.ne .L1_2
 .L1_1:
     mov x0, x19
-    mov x1, x15
+    movz x1, #3
     bl lb_ownership_9set_color
-    adrp x20, lb_ownership_buffered
-    add x20, x20, :lo12:lb_ownership_buffered
-    ldrb w14, [x20]
     mov x0, x19
-    mov x1, x14
+    movz x1, #4
     bl lb_ownership_has
     mov w14, w0
     mov x10, #0
@@ -87,8 +82,8 @@ lb_ownership_13possible_root:
 .L1_4:
     add x14, x19, #8
     ldrb w15, [x14]
-    ldrb w12, [x20]
-    orr w15, w15, w12
+    movz x10, #4
+    orr w15, w15, w10
     strb w15, [x14]
     sub x10, x29, #128
     str x19, [x10]
@@ -96,19 +91,19 @@ lb_ownership_13possible_root:
     ldr x0, [x0, :gottprel_lo12:lb_ownership_10root_count]
     mrs x16, tpidr_el0
     add x0, x16, x0
-    mov x21, x0
-    ldr x14, [x21]
+    mov x20, x0
+    ldr x14, [x20]
     adrp x0, :gottprel:lb_ownership_roots
     ldr x0, [x0, :gottprel_lo12:lb_ownership_roots]
     mrs x16, tpidr_el0
     add x0, x16, x0
-    mov x22, x0
-    add x23, x22, #8
-    ldr x15, [x23]
+    mov x21, x0
+    add x22, x21, #8
+    ldr x15, [x22]
     cmp x14, x15
     b.ne .L1_13
 .L1_12:
-    sub x20, x29, #144
+    sub x23, x29, #144
     adrp x24, lb_memory_heap
     add x24, x24, :lo12:lb_memory_heap
     mov x10, #0
@@ -130,9 +125,8 @@ lb_ownership_13possible_root:
     mov x25, x14
     b .L1_19
 .L1_18:
-    adrp x14, lb_ownership_15candidate_limit
-    add x14, x14, :lo12:lb_ownership_15candidate_limit
-    ldr x25, [x14]
+    movz x9, #1024
+    mov x25, x9
 .L1_19:
     sub x26, x29, #232
     movz x10, #2048, lsl #48
@@ -253,16 +247,16 @@ lb_ownership_13possible_root:
 .L1_16:
     sub x14, x29, #160
     mov x10, x14
-    mov x11, x20
+    mov x11, x23
     ldp x16, x17, [x10, #0]
     stp x16, x17, [x11, #0]
-    ldr x14, [x20]
-    add x15, x20, #8
+    ldr x14, [x23]
+    add x15, x23, #8
     ldr x15, [x15]
     mov x9, #0
     mov x12, x9
 .L1_29:
-    ldr x13, [x21]
+    ldr x13, [x20]
     cmp x12, x13
     b.hs .L1_31
 .L1_30:
@@ -276,8 +270,8 @@ lb_ownership_13possible_root:
 1:
     lsl x13, x12, #3
     add x25, x14, x13
-    ldr x26, [x22]
-    ldr x27, [x23]
+    ldr x26, [x21]
+    ldr x27, [x22]
     cmp x12, x27
     b.lo 1f
     adrp x0, .Ltext_6
@@ -293,13 +287,13 @@ lb_ownership_13possible_root:
     mov x12, x13
     b .L1_29
 .L1_31:
-    ldr x14, [x23]
+    ldr x14, [x22]
     mov x10, #0
     cmp x14, x10
     b.ls .L1_33
 .L1_32:
     sub x15, x29, #288
-    ldr x12, [x22]
+    ldr x12, [x21]
     mov x9, x14
     movz x10, #8
     umulh x11, x9, x10
@@ -335,16 +329,16 @@ lb_ownership_13possible_root:
     b .L1_34
 .L1_33:
 .L1_34:
-    mov x10, x20
-    mov x11, x22
+    mov x10, x23
+    mov x11, x21
     ldp x16, x17, [x10, #0]
     stp x16, x17, [x11, #0]
     b .L1_14
 .L1_13:
 .L1_14:
-    ldr x14, [x21]
-    ldr x15, [x22]
-    ldr x12, [x23]
+    ldr x14, [x20]
+    ldr x15, [x21]
+    ldr x12, [x22]
     cmp x14, x12
     b.lo 1f
     adrp x0, .Ltext_9
@@ -356,7 +350,7 @@ lb_ownership_13possible_root:
     lsl x14, x14, #3
     add x14, x15, x14
     str x19, [x14]
-    ldr x14, [x21]
+    ldr x14, [x20]
     mov x9, x14
     movz x10, #1
     adds x9, x9, x10
@@ -368,12 +362,10 @@ lb_ownership_13possible_root:
     bl lb_core_7trap_at
 1:
     mov x14, x9
-    str x14, [x21]
+    str x14, [x20]
 .L1_37:
-    adrp x15, lb_ownership_15candidate_limit
-    add x15, x15, :lo12:lb_ownership_15candidate_limit
-    ldr x15, [x15]
-    cmp x14, x15
+    movz x10, #1024
+    cmp x14, x10
     cset w15, hs
     cbnz w15, .L1_10
     b .L1_38
@@ -427,25 +419,22 @@ lb_ownership_13possible_root:
 lb_ownership_15visit_mark_gray:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #64
-    str x19, [sp, #40]
+    sub sp, sp, #80
+    str x19, [sp, #56]
     sub x16, x29, #40
     str x0, [x16]
     sub x16, x29, #56
     str x1, [x16]
     sub x14, x29, #40
     ldr x19, [x14]
-    adrp x14, lb_ownership_immortal
-    add x14, x14, :lo12:lb_ownership_immortal
-    ldrb w14, [x14]
     mov x0, x19
-    mov x1, x14
+    movz x1, #32
     bl lb_ownership_has
     mov w14, w0
     cbnz w14, .L2_1
     b .L2_2
 .L2_1:
-    ldr x19, [sp, #40]
+    ldr x19, [sp, #56]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -468,64 +457,44 @@ lb_ownership_15visit_mark_gray:
 1:
     mov w14, w9
     str w14, [x19]
-    mov x0, x19
-    bl lb_ownership_9mark_gray
-    ldr x19, [sp, #40]
-    mov sp, x29
-    ldp x29, x30, [sp], #16
-    ret
-
-    .size lb_ownership_15visit_mark_gray, .-lb_ownership_15visit_mark_gray
-
-    .p2align 2
-    .globl lb_ownership_9mark_gray
-    .type lb_ownership_9mark_gray, %function
-lb_ownership_9mark_gray:
-    stp x29, x30, [sp, #-16]!
-    mov x29, sp
-    sub sp, sp, #48
-    str x19, [sp, #24]
-    sub x16, x29, #40
-    str x0, [x16]
-    sub x14, x29, #40
-    ldr x19, [x14]
+    sub x10, x29, #72
+    str x19, [x10]
     mov x0, x19
     bl lb_ownership_8color_of
     mov w14, w0
-    adrp x15, lb_ownership_gray
-    add x15, x15, :lo12:lb_ownership_gray
-    ldrb w15, [x15]
-    cmp w14, w15
+    movz x10, #1
+    cmp w14, w10
     cset w14, eq
     mov x10, #0
     cmp w14, w10
-    b.ne .L3_2
-.L3_1:
+    b.ne .L2_6
+.L2_5:
     mov x0, x19
-    mov x1, x15
+    movz x1, #1
     bl lb_ownership_9set_color
     add x14, x19, #16
     ldr x14, [x14]
     add x14, x14, #40
     ldr x14, [x14]
-    adrp x12, :got:lb_ownership_15visit_mark_gray
-    ldr x12, [x12, :got_lo12:lb_ownership_15visit_mark_gray]
+    adrp x15, :got:lb_ownership_15visit_mark_gray
+    ldr x15, [x15, :got_lo12:lb_ownership_15visit_mark_gray]
     mov x17, x14
     str x17, [sp, #-16]!
     mov x0, x19
-    mov x1, x12
+    mov x1, x15
     mov x2, x19
     ldr x17, [sp], #16
     blr x17
-    b .L3_3
-.L3_2:
-.L3_3:
-    ldr x19, [sp, #24]
+    b .L2_7
+.L2_6:
+.L2_7:
+.L2_8:
+    ldr x19, [sp, #56]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
 
-    .size lb_ownership_9mark_gray, .-lb_ownership_9mark_gray
+    .size lb_ownership_15visit_mark_gray, .-lb_ownership_15visit_mark_gray
 
     .p2align 2
     .globl lb_ownership_10visit_scan
@@ -541,24 +510,21 @@ lb_ownership_10visit_scan:
     str x1, [x16]
     sub x14, x29, #40
     ldr x19, [x14]
-    adrp x14, lb_ownership_immortal
-    add x14, x14, :lo12:lb_ownership_immortal
-    ldrb w14, [x14]
     mov x0, x19
-    mov x1, x14
+    movz x1, #32
     bl lb_ownership_has
     mov w14, w0
-    cbnz w14, .L4_1
-    b .L4_2
-.L4_1:
+    cbnz w14, .L3_1
+    b .L3_2
+.L3_1:
     ldr x19, [sp, #40]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
-.L4_4:
-    b .L4_3
-.L4_2:
-.L4_3:
+.L3_4:
+    b .L3_3
+.L3_2:
+.L3_3:
     mov x0, x19
     bl lb_ownership_12check_thread
     mov x0, x19
@@ -584,24 +550,21 @@ lb_ownership_16visit_scan_black:
     str x1, [x16]
     sub x14, x29, #40
     ldr x19, [x14]
-    adrp x14, lb_ownership_immortal
-    add x14, x14, :lo12:lb_ownership_immortal
-    ldrb w14, [x14]
     mov x0, x19
-    mov x1, x14
+    movz x1, #32
     bl lb_ownership_has
     mov w14, w0
-    cbnz w14, .L5_1
-    b .L5_2
-.L5_1:
+    cbnz w14, .L4_1
+    b .L4_2
+.L4_1:
     ldr x19, [sp, #56]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
-.L5_4:
-    b .L5_3
-.L5_2:
-.L5_3:
+.L4_4:
+    b .L4_3
+.L4_2:
+.L4_3:
     mov x0, x19
     bl lb_ownership_12check_thread
     ldr w14, [x19]
@@ -620,37 +583,35 @@ lb_ownership_16visit_scan_black:
     mov x0, x19
     bl lb_ownership_8color_of
     mov w14, w0
-    adrp x15, lb_ownership_black
-    add x15, x15, :lo12:lb_ownership_black
-    ldrb w15, [x15]
-    cmp w14, w15
+    mov x10, #0
+    cmp w14, w10
     cset w14, eq
     mov x10, #0
     cmp w14, w10
-    b.ne .L5_6
-.L5_5:
+    b.ne .L4_6
+.L4_5:
     sub x10, x29, #72
     str x19, [x10]
     mov x0, x19
-    mov x1, x15
+    mov x1, #0
     bl lb_ownership_9set_color
     add x14, x19, #16
     ldr x14, [x14]
     add x14, x14, #40
     ldr x14, [x14]
-    adrp x12, :got:lb_ownership_16visit_scan_black
-    ldr x12, [x12, :got_lo12:lb_ownership_16visit_scan_black]
+    adrp x15, :got:lb_ownership_16visit_scan_black
+    ldr x15, [x15, :got_lo12:lb_ownership_16visit_scan_black]
     mov x17, x14
     str x17, [sp, #-16]!
     mov x0, x19
-    mov x1, x12
+    mov x1, x15
     mov x2, x19
     ldr x17, [sp], #16
     blr x17
-.L5_8:
-    b .L5_7
-.L5_6:
-.L5_7:
+.L4_8:
+    b .L4_7
+.L4_6:
+.L4_7:
     ldr x19, [sp, #56]
     mov sp, x29
     ldp x29, x30, [sp], #16
@@ -673,24 +634,19 @@ lb_ownership_scan:
     mov x0, x19
     bl lb_ownership_8color_of
     mov w14, w0
-    adrp x15, lb_ownership_gray
-    add x15, x15, :lo12:lb_ownership_gray
-    ldrb w15, [x15]
-    cmp w14, w15
-    b.ne .L6_2
-.L6_1:
+    movz x10, #1
+    cmp w14, w10
+    b.ne .L5_2
+.L5_1:
     ldr w14, [x19]
     mov x10, #0
     cmp w14, w10
-    b.ls .L6_5
-.L6_4:
+    b.ls .L5_5
+.L5_4:
     sub x10, x29, #56
     str x19, [x10]
-    adrp x14, lb_ownership_black
-    add x14, x14, :lo12:lb_ownership_black
-    ldrb w14, [x14]
     mov x0, x19
-    mov x1, x14
+    mov x1, #0
     bl lb_ownership_9set_color
     add x14, x19, #16
     ldr x14, [x14]
@@ -705,14 +661,11 @@ lb_ownership_scan:
     mov x2, x19
     ldr x17, [sp], #16
     blr x17
-.L6_7:
-    b .L6_6
-.L6_5:
-    adrp x14, lb_ownership_white
-    add x14, x14, :lo12:lb_ownership_white
-    ldrb w14, [x14]
+.L5_7:
+    b .L5_6
+.L5_5:
     mov x0, x19
-    mov x1, x14
+    movz x1, #2
     bl lb_ownership_9set_color
     add x14, x19, #16
     ldr x14, [x14]
@@ -727,10 +680,10 @@ lb_ownership_scan:
     mov x2, x19
     ldr x17, [sp], #16
     blr x17
-.L6_6:
-    b .L6_3
-.L6_2:
-.L6_3:
+.L5_6:
+    b .L5_3
+.L5_2:
+.L5_3:
     ldr x19, [sp, #40]
     mov sp, x29
     ldp x29, x30, [sp], #16
@@ -752,24 +705,21 @@ lb_ownership_12visit_gather:
     str x1, [x16]
     sub x14, x29, #40
     ldr x19, [x14]
-    adrp x14, lb_ownership_immortal
-    add x14, x14, :lo12:lb_ownership_immortal
-    ldrb w14, [x14]
     mov x0, x19
-    mov x1, x14
+    movz x1, #32
     bl lb_ownership_has
     mov w14, w0
-    cbnz w14, .L7_1
-    b .L7_2
-.L7_1:
+    cbnz w14, .L6_1
+    b .L6_2
+.L6_1:
     ldr x19, [sp, #40]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
-.L7_4:
-    b .L7_3
-.L7_2:
-.L7_3:
+.L6_4:
+    b .L6_3
+.L6_2:
+.L6_3:
     mov x0, x19
     bl lb_ownership_12check_thread
     mov x0, x19
@@ -805,38 +755,31 @@ lb_ownership_gather:
     mov x0, x19
     bl lb_ownership_8color_of
     mov w14, w0
-    adrp x15, lb_ownership_white
-    add x15, x15, :lo12:lb_ownership_white
-    ldrb w15, [x15]
-    cmp w14, w15
+    movz x10, #2
+    cmp w14, w10
     cset w14, eq
-    cbnz w14, .L8_4
-    b .L8_32
-.L8_32:
+    cbnz w14, .L7_4
+    b .L7_32
+.L7_32:
     mov w15, w14
-    b .L8_5
-.L8_4:
-    adrp x14, lb_ownership_collecting
-    add x14, x14, :lo12:lb_ownership_collecting
-    ldrb w14, [x14]
+    b .L7_5
+.L7_4:
     mov x0, x19
-    mov x1, x14
+    movz x1, #16
     bl lb_ownership_has
     mov w14, w0
     mov x10, #0
     cmp w14, w10
     cset w15, eq
-.L8_5:
+.L7_5:
     and w14, w15, #255
-    cbnz w14, .L8_1
-    b .L8_2
-.L8_1:
+    cbnz w14, .L7_1
+    b .L7_2
+.L7_1:
     add x14, x19, #8
     ldrb w15, [x14]
-    adrp x12, lb_ownership_collecting
-    add x12, x12, :lo12:lb_ownership_collecting
-    ldrb w12, [x12]
-    orr w15, w15, w12
+    movz x10, #16
+    orr w15, w15, w10
     strb w15, [x14]
     sub x10, x29, #128
     str x19, [x10]
@@ -854,15 +797,15 @@ lb_ownership_gather:
     add x22, x21, #8
     ldr x15, [x22]
     cmp x14, x15
-    b.ne .L8_7
-.L8_6:
+    b.ne .L7_7
+.L7_6:
     sub x23, x29, #144
     adrp x24, lb_memory_heap
     add x24, x24, :lo12:lb_memory_heap
     mov x10, #0
     cmp x15, x10
-    b.ls .L8_12
-.L8_11:
+    b.ls .L7_12
+.L7_11:
     mov x9, x15
     movz x10, #2
     umulh x11, x9, x10
@@ -876,16 +819,16 @@ lb_ownership_gather:
 1:
     mov x14, x9
     mov x25, x14
-    b .L8_13
-.L8_12:
+    b .L7_13
+.L7_12:
     movz x9, #256
     mov x25, x9
-.L8_13:
+.L7_13:
     sub x26, x29, #232
     movz x10, #2048, lsl #48
     cmp x25, x10
-    b.ls .L8_15
-.L8_14:
+    b.ls .L7_15
+.L7_14:
     add x14, x26, #16
     movz x9, #1
     movk x9, #3178, lsl #16
@@ -900,21 +843,21 @@ lb_ownership_gather:
     add x14, x26, #40
     movz x9, #1
     strb w9, [x14]
-    b .L8_16
-.L8_15:
+    b .L7_16
+.L7_15:
     lsl x27, x25, #3
     ldr x14, [x24]
     add x15, x24, #8
     ldr x15, [x15]
-    cbnz x15, .L8_17
-    b .L8_18
-.L8_18:
+    cbnz x15, .L7_17
+    b .L7_18
+.L7_18:
     adrp x0, .Ltext_11
     add x0, x0, :lo12:.Ltext_11
     adrp x1, .Ltext_2
     add x1, x1, :lo12:.Ltext_2
     bl lb_core_7trap_at
-.L8_17:
+.L7_17:
     ldr x12, [x15]
     mov x17, x12
     str x17, [sp, #-16]!
@@ -934,9 +877,9 @@ lb_ownership_gather:
     cmp w12, w10
     cset w12, eq
     and w12, w13, w12
-    cbnz w12, .L8_19
-    b .L8_20
-.L8_19:
+    cbnz w12, .L7_19
+    b .L7_20
+.L7_19:
     add x14, x26, #16
     movz x9, #1
     movk x9, #3178, lsl #16
@@ -951,8 +894,8 @@ lb_ownership_gather:
     add x14, x26, #40
     movz x9, #1
     strb w9, [x14]
-    b .L8_16
-.L8_20:
+    b .L7_16
+.L7_20:
     ldr x14, [x28]
     str x14, [x26]
     add x14, x26, #8
@@ -960,12 +903,12 @@ lb_ownership_gather:
     add x14, x26, #40
     mov x9, #0
     strb w9, [x14]
-.L8_16:
+.L7_16:
     add x14, x26, #40
     ldrb w14, [x14]
-    cbnz w14, .L8_22
-    b .L8_21
-.L8_22:
+    cbnz w14, .L7_22
+    b .L7_21
+.L7_22:
     add x14, x26, #16
     sub x15, x29, #184
     mov x10, x14
@@ -974,15 +917,15 @@ lb_ownership_gather:
     stp x16, x17, [x11, #0]
     ldr x16, [x10, #16]
     str x16, [x11, #16]
-    b .L8_9
-.L8_21:
+    b .L7_9
+.L7_21:
     sub x14, x29, #160
     mov x10, x26
     mov x11, x14
     ldp x16, x17, [x10, #0]
     stp x16, x17, [x11, #0]
-    b .L8_10
-.L8_9:
+    b .L7_10
+.L7_9:
     adrp x14, .Ltext_4
     add x14, x14, :lo12:.Ltext_4
     sub x15, x29, #272
@@ -997,7 +940,7 @@ lb_ownership_gather:
     ldr x1, [x9]
     ldr x2, [x9, #8]
     bl lb_core_12trap_text_at
-.L8_10:
+.L7_10:
     sub x14, x29, #160
     mov x10, x14
     mov x11, x23
@@ -1008,11 +951,11 @@ lb_ownership_gather:
     ldr x15, [x15]
     mov x9, #0
     mov x12, x9
-.L8_23:
+.L7_23:
     ldr x13, [x20]
     cmp x12, x13
-    b.hs .L8_25
-.L8_24:
+    b.hs .L7_25
+.L7_24:
     cmp x12, x15
     b.lo 1f
     adrp x0, .Ltext_13
@@ -1038,13 +981,13 @@ lb_ownership_gather:
     str x13, [x25]
     add x13, x12, #1
     mov x12, x13
-    b .L8_23
-.L8_25:
+    b .L7_23
+.L7_25:
     ldr x14, [x22]
     mov x10, #0
     cmp x14, x10
-    b.ls .L8_27
-.L8_26:
+    b.ls .L7_27
+.L7_26:
     sub x15, x29, #288
     ldr x12, [x21]
     mov x9, x14
@@ -1065,9 +1008,9 @@ lb_ownership_gather:
     ldr x12, [x24]
     add x13, x24, #8
     ldr x13, [x13]
-    cbnz x13, .L8_30
-    b .L8_29
-.L8_30:
+    cbnz x13, .L7_30
+    b .L7_29
+.L7_30:
     add x14, x13, #16
     ldr x14, [x14]
     mov x17, x14
@@ -1078,17 +1021,17 @@ lb_ownership_gather:
     ldr x2, [x9, #8]
     ldr x17, [sp], #16
     blr x17
-.L8_29:
-    b .L8_28
-.L8_27:
-.L8_28:
+.L7_29:
+    b .L7_28
+.L7_27:
+.L7_28:
     mov x10, x23
     mov x11, x21
     ldp x16, x17, [x10, #0]
     stp x16, x17, [x11, #0]
-    b .L8_8
-.L8_7:
-.L8_8:
+    b .L7_8
+.L7_7:
+.L7_8:
     ldr x14, [x20]
     ldr x15, [x21]
     ldr x12, [x22]
@@ -1116,7 +1059,7 @@ lb_ownership_gather:
 1:
     mov x14, x9
     str x14, [x20]
-.L8_31:
+.L7_31:
     add x14, x19, #16
     ldr x14, [x14]
     add x14, x14, #40
@@ -1130,9 +1073,9 @@ lb_ownership_gather:
     mov x2, x19
     ldr x17, [sp], #16
     blr x17
-    b .L8_3
-.L8_2:
-.L8_3:
+    b .L7_3
+.L7_2:
+.L7_3:
     ldr x19, [sp, #264]
     ldr x20, [sp, #256]
     ldr x21, [sp, #248]
@@ -1163,36 +1106,30 @@ lb_ownership_13visit_restore:
     str x1, [x16]
     sub x14, x29, #40
     ldr x19, [x14]
-    adrp x14, lb_ownership_immortal
-    add x14, x14, :lo12:lb_ownership_immortal
-    ldrb w14, [x14]
     mov x0, x19
-    mov x1, x14
+    movz x1, #32
     bl lb_ownership_has
     mov w14, w0
-    cbnz w14, .L9_1
-    b .L9_2
-.L9_1:
+    cbnz w14, .L8_1
+    b .L8_2
+.L8_1:
     ldr x19, [sp, #40]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
-.L9_4:
-    b .L9_3
-.L9_2:
-.L9_3:
+.L8_4:
+    b .L8_3
+.L8_2:
+.L8_3:
     mov x0, x19
     bl lb_ownership_12check_thread
-    adrp x14, lb_ownership_collecting
-    add x14, x14, :lo12:lb_ownership_collecting
-    ldrb w14, [x14]
     mov x0, x19
-    mov x1, x14
+    movz x1, #16
     bl lb_ownership_has
     mov w14, w0
-    cbnz w14, .L9_5
-    b .L9_6
-.L9_5:
+    cbnz w14, .L8_5
+    b .L8_6
+.L8_5:
     ldr w14, [x19]
     mov w9, w14
     movz x10, #1
@@ -1206,9 +1143,9 @@ lb_ownership_13visit_restore:
 1:
     mov w14, w9
     str w14, [x19]
-    b .L9_7
-.L9_6:
-.L9_7:
+    b .L8_7
+.L8_6:
+.L8_7:
     ldr x19, [sp, #40]
     mov sp, x29
     ldp x29, x30, [sp], #16
@@ -1222,72 +1159,66 @@ lb_ownership_13visit_restore:
 lb_ownership_collect:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #112
-    str x19, [sp, #88]
-    str x20, [sp, #80]
-    str x21, [sp, #72]
-    str x22, [sp, #64]
-    str x23, [sp, #56]
-    str x24, [sp, #48]
-    str x25, [sp, #40]
-    str x26, [sp, #32]
-    str x27, [sp, #24]
+    sub sp, sp, #128
+    str x19, [sp, #104]
+    str x20, [sp, #96]
+    str x21, [sp, #88]
+    str x22, [sp, #80]
+    str x23, [sp, #72]
+    str x24, [sp, #64]
+    str x25, [sp, #56]
+    str x26, [sp, #48]
+    str x27, [sp, #40]
     adrp x0, :gottprel:lb_ownership_17collector_running
     ldr x0, [x0, :gottprel_lo12:lb_ownership_17collector_running]
     mrs x16, tpidr_el0
     add x0, x16, x0
     mov x19, x0
     ldrb w14, [x19]
-    cbnz w14, .L10_1
-    b .L10_2
-.L10_1:
-    ldr x19, [sp, #88]
-    ldr x20, [sp, #80]
-    ldr x21, [sp, #72]
-    ldr x22, [sp, #64]
-    ldr x23, [sp, #56]
-    ldr x24, [sp, #48]
-    ldr x25, [sp, #40]
-    ldr x26, [sp, #32]
-    ldr x27, [sp, #24]
+    cbnz w14, .L9_1
+    b .L9_2
+.L9_1:
+    ldr x19, [sp, #104]
+    ldr x20, [sp, #96]
+    ldr x21, [sp, #88]
+    ldr x22, [sp, #80]
+    ldr x23, [sp, #72]
+    ldr x24, [sp, #64]
+    ldr x25, [sp, #56]
+    ldr x26, [sp, #48]
+    ldr x27, [sp, #40]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
-.L10_4:
-    b .L10_3
-.L10_2:
-.L10_3:
+.L9_4:
+    b .L9_3
+.L9_2:
+.L9_3:
     movz x9, #1
     strb w9, [x19]
-    adrp x20, lb_ownership_purple
-    add x20, x20, :lo12:lb_ownership_purple
-    adrp x21, lb_ownership_dead
-    add x21, x21, :lo12:lb_ownership_dead
-    adrp x22, lb_ownership_buffered
-    add x22, x22, :lo12:lb_ownership_buffered
     mov x9, #0
-    mov x23, x9
+    mov x20, x9
     mov x9, #0
-    mov x24, x9
-.L10_5:
+    mov x21, x9
+.L9_5:
     adrp x0, :gottprel:lb_ownership_10root_count
     ldr x0, [x0, :gottprel_lo12:lb_ownership_10root_count]
     mrs x16, tpidr_el0
     add x0, x16, x0
-    mov x25, x0
-    ldr x14, [x25]
-    cmp x24, x14
-    b.hs .L10_7
-.L10_6:
+    mov x22, x0
+    ldr x14, [x22]
+    cmp x21, x14
+    b.hs .L9_7
+.L9_6:
     adrp x0, :gottprel:lb_ownership_roots
     ldr x0, [x0, :gottprel_lo12:lb_ownership_roots]
     mrs x16, tpidr_el0
     add x0, x16, x0
-    mov x25, x0
-    ldr x14, [x25]
-    add x26, x25, #8
-    ldr x15, [x26]
-    cmp x24, x15
+    mov x22, x0
+    ldr x14, [x22]
+    add x23, x22, #8
+    ldr x15, [x23]
+    cmp x21, x15
     b.lo 1f
     adrp x0, .Ltext_21
     add x0, x0, :lo12:.Ltext_21
@@ -1295,49 +1226,48 @@ lb_ownership_collect:
     add x1, x1, :lo12:.Ltext_48
     bl lb_core_7trap_at
 1:
-    lsl x15, x24, #3
+    lsl x15, x21, #3
     add x14, x14, x15
-    ldr x27, [x14]
-    mov x0, x27
+    ldr x24, [x14]
+    mov x0, x24
     bl lb_ownership_8color_of
     mov w14, w0
-    ldrb w15, [x20]
-    cmp w14, w15
+    movz x10, #3
+    cmp w14, w10
     cset w14, eq
-    cbnz w14, .L10_11
-    b .L10_46
-.L10_46:
+    cbnz w14, .L9_11
+    b .L9_50
+.L9_50:
     mov w15, w14
-    b .L10_12
-.L10_11:
-    ldr w14, [x27]
+    b .L9_12
+.L9_11:
+    ldr w14, [x24]
     mov x10, #0
     cmp w14, w10
     cset w15, hi
-.L10_12:
+.L9_12:
     and w14, w15, #255
-    cbnz w14, .L10_13
-    b .L10_47
-.L10_47:
+    cbnz w14, .L9_13
+    b .L9_51
+.L9_51:
     mov w15, w14
-    b .L10_14
-.L10_13:
-    ldrb w14, [x21]
-    mov x0, x27
-    mov x1, x14
+    b .L9_14
+.L9_13:
+    mov x0, x24
+    movz x1, #8
     bl lb_ownership_has
     mov w14, w0
     mov x10, #0
     cmp w14, w10
     cset w15, eq
-.L10_14:
+.L9_14:
     and w14, w15, #255
-    cbnz w14, .L10_8
-    b .L10_9
-.L10_8:
-    ldr x14, [x25]
-    ldr x15, [x26]
-    cmp x23, x15
+    cbnz w14, .L9_8
+    b .L9_9
+.L9_8:
+    ldr x14, [x22]
+    ldr x15, [x23]
+    cmp x20, x15
     b.lo 1f
     adrp x0, .Ltext_22
     add x0, x0, :lo12:.Ltext_22
@@ -1345,37 +1275,36 @@ lb_ownership_collect:
     add x1, x1, :lo12:.Ltext_48
     bl lb_core_7trap_at
 1:
-    lsl x15, x23, #3
+    lsl x15, x20, #3
     add x14, x14, x15
-    str x27, [x14]
-    add x14, x23, #1
-    b .L10_10
-.L10_9:
-    add x14, x27, #8
+    str x24, [x14]
+    add x14, x20, #1
+    b .L9_10
+.L9_9:
+    add x14, x24, #8
     ldrb w15, [x14]
-    ldrb w12, [x22]
-    movn x10, #0
-    eor w12, w12, w10
-    and w12, w12, #255
-    and w15, w15, w12
+    movz x10, #251
+    and w15, w15, w10
     strb w15, [x14]
-    mov x0, x27
+    mov x0, x24
     bl lb_ownership_13release_shell
-    mov x14, x23
-.L10_10:
-    add x15, x24, #1
-    mov x23, x14
-    mov x24, x15
-    b .L10_5
-.L10_7:
-    str x23, [x25]
+    mov x14, x20
+.L9_10:
+    add x15, x21, #1
+    mov x20, x14
+    mov x21, x15
+    b .L9_5
+.L9_7:
+    str x20, [x22]
+    adrp x21, :got:lb_ownership_15visit_mark_gray
+    ldr x21, [x21, :got_lo12:lb_ownership_15visit_mark_gray]
     mov x9, #0
-    mov x20, x9
-.L10_15:
-    ldr x14, [x25]
-    cmp x20, x14
-    b.hs .L10_17
-.L10_16:
+    mov x23, x9
+.L9_15:
+    ldr x14, [x22]
+    cmp x23, x14
+    b.hs .L9_17
+.L9_16:
     adrp x0, :gottprel:lb_ownership_roots
     ldr x0, [x0, :gottprel_lo12:lb_ownership_roots]
     mrs x16, tpidr_el0
@@ -1384,7 +1313,7 @@ lb_ownership_collect:
     ldr x15, [x14]
     add x14, x14, #8
     ldr x14, [x14]
-    cmp x20, x14
+    cmp x23, x14
     b.lo 1f
     adrp x0, .Ltext_25
     add x0, x0, :lo12:.Ltext_25
@@ -1392,22 +1321,50 @@ lb_ownership_collect:
     add x1, x1, :lo12:.Ltext_48
     bl lb_core_7trap_at
 1:
-    lsl x14, x20, #3
+    lsl x14, x23, #3
     add x14, x15, x14
+    ldr x20, [x14]
+    sub x10, x29, #120
+    str x20, [x10]
+    mov x0, x20
+    bl lb_ownership_8color_of
+    mov w14, w0
+    movz x10, #1
+    cmp w14, w10
+    cset w14, eq
+    mov x10, #0
+    cmp w14, w10
+    b.ne .L9_47
+.L9_46:
+    mov x0, x20
+    movz x1, #1
+    bl lb_ownership_9set_color
+    add x14, x20, #16
     ldr x14, [x14]
-    mov x0, x14
-    bl lb_ownership_9mark_gray
-    add x14, x20, #1
-    mov x20, x14
-    b .L10_15
-.L10_17:
+    add x14, x14, #40
+    ldr x14, [x14]
+    mov x17, x14
+    str x17, [sp, #-16]!
+    mov x0, x20
+    mov x1, x21
+    mov x2, x20
+    ldr x17, [sp], #16
+    blr x17
+    b .L9_48
+.L9_47:
+.L9_48:
+.L9_49:
+    add x14, x23, #1
+    mov x23, x14
+    b .L9_15
+.L9_17:
     mov x9, #0
     mov x20, x9
-.L10_18:
-    ldr x14, [x25]
+.L9_18:
+    ldr x14, [x22]
     cmp x20, x14
-    b.hs .L10_20
-.L10_19:
+    b.hs .L9_20
+.L9_19:
     adrp x0, :gottprel:lb_ownership_roots
     ldr x0, [x0, :gottprel_lo12:lb_ownership_roots]
     mrs x16, tpidr_el0
@@ -1431,8 +1388,8 @@ lb_ownership_collect:
     bl lb_ownership_scan
     add x14, x20, #1
     mov x20, x14
-    b .L10_18
-.L10_20:
+    b .L9_18
+.L9_20:
     adrp x0, :gottprel:lb_ownership_11white_count
     ldr x0, [x0, :gottprel_lo12:lb_ownership_11white_count]
     mrs x16, tpidr_el0
@@ -1442,11 +1399,11 @@ lb_ownership_collect:
     str x9, [x20]
     mov x9, #0
     mov x21, x9
-.L10_21:
-    ldr x14, [x25]
+.L9_21:
+    ldr x14, [x22]
     cmp x21, x14
-    b.hs .L10_23
-.L10_22:
+    b.hs .L9_23
+.L9_22:
     adrp x0, :gottprel:lb_ownership_roots
     ldr x0, [x0, :gottprel_lo12:lb_ownership_roots]
     mrs x16, tpidr_el0
@@ -1470,26 +1427,24 @@ lb_ownership_collect:
     bl lb_ownership_gather
     add x14, x21, #1
     mov x21, x14
-    b .L10_21
-.L10_23:
-    adrp x14, lb_ownership_buffered
-    add x14, x14, :lo12:lb_ownership_buffered
+    b .L9_21
+.L9_23:
     mov x9, #0
-    mov x15, x9
-.L10_24:
-    ldr x12, [x25]
-    cmp x15, x12
-    b.hs .L10_26
-.L10_25:
+    mov x14, x9
+.L9_24:
+    ldr x15, [x22]
+    cmp x14, x15
+    b.hs .L9_26
+.L9_25:
     adrp x0, :gottprel:lb_ownership_roots
     ldr x0, [x0, :gottprel_lo12:lb_ownership_roots]
     mrs x16, tpidr_el0
     add x0, x16, x0
-    mov x12, x0
-    ldr x13, [x12]
-    add x12, x12, #8
-    ldr x12, [x12]
-    cmp x15, x12
+    mov x15, x0
+    ldr x12, [x15]
+    add x15, x15, #8
+    ldr x15, [x15]
+    cmp x14, x15
     b.lo 1f
     adrp x0, .Ltext_31
     add x0, x0, :lo12:.Ltext_31
@@ -1497,32 +1452,29 @@ lb_ownership_collect:
     add x1, x1, :lo12:.Ltext_48
     bl lb_core_7trap_at
 1:
-    lsl x12, x15, #3
-    add x12, x13, x12
-    ldr x12, [x12]
-    add x12, x12, #8
-    ldrb w13, [x12]
-    ldrb w21, [x14]
-    movn x10, #0
-    eor w21, w21, w10
-    and w21, w21, #255
-    and w13, w13, w21
-    strb w13, [x12]
-    add x12, x15, #1
-    mov x15, x12
-    b .L10_24
-.L10_26:
+    lsl x15, x14, #3
+    add x15, x12, x15
+    ldr x15, [x15]
+    add x15, x15, #8
+    ldrb w12, [x15]
+    movz x10, #251
+    and w12, w12, w10
+    strb w12, [x15]
+    add x15, x14, #1
+    mov x14, x15
+    b .L9_24
+.L9_26:
     mov x9, #0
-    str x9, [x25]
+    str x9, [x22]
     adrp x21, :got:lb_ownership_13visit_restore
     ldr x21, [x21, :got_lo12:lb_ownership_13visit_restore]
     mov x9, #0
-    mov x22, x9
-.L10_27:
+    mov x23, x9
+.L9_27:
     ldr x14, [x20]
-    cmp x22, x14
-    b.hs .L10_29
-.L10_28:
+    cmp x23, x14
+    b.hs .L9_29
+.L9_28:
     adrp x0, :gottprel:lb_ownership_whites
     ldr x0, [x0, :gottprel_lo12:lb_ownership_whites]
     mrs x16, tpidr_el0
@@ -1531,7 +1483,7 @@ lb_ownership_collect:
     ldr x15, [x14]
     add x14, x14, #8
     ldr x14, [x14]
-    cmp x22, x14
+    cmp x23, x14
     b.lo 1f
     adrp x0, .Ltext_33
     add x0, x0, :lo12:.Ltext_33
@@ -1539,7 +1491,7 @@ lb_ownership_collect:
     add x1, x1, :lo12:.Ltext_48
     bl lb_core_7trap_at
 1:
-    lsl x14, x22, #3
+    lsl x14, x23, #3
     add x14, x15, x14
     ldr x15, [x14]
     add x15, x15, #16
@@ -1555,10 +1507,10 @@ lb_ownership_collect:
     mov x2, x14
     ldr x17, [sp], #16
     blr x17
-    add x14, x22, #1
-    mov x22, x14
-    b .L10_27
-.L10_29:
+    add x14, x23, #1
+    mov x23, x14
+    b .L9_27
+.L9_29:
     adrp x21, .Ltext_38
     add x21, x21, :lo12:.Ltext_38
     sub x22, x29, #104
@@ -1567,11 +1519,11 @@ lb_ownership_collect:
     add x24, x24, :lo12:.Ltext_39
     mov x9, #0
     mov x25, x9
-.L10_30:
+.L9_30:
     ldr x14, [x20]
     cmp x25, x14
-    b.hs .L10_32
-.L10_31:
+    b.hs .L9_32
+.L9_31:
     adrp x0, :gottprel:lb_ownership_whites
     ldr x0, [x0, :gottprel_lo12:lb_ownership_whites]
     mrs x16, tpidr_el0
@@ -1595,10 +1547,10 @@ lb_ownership_collect:
     ldr x14, [x14]
     add x14, x14, #24
     ldr x14, [x14]
-    cbnz x14, .L10_36
-    b .L10_34
-.L10_36:
-.L10_33:
+    cbnz x14, .L9_36
+    b .L9_34
+.L9_36:
+.L9_33:
     ldr w15, [x26]
     mov w9, w15
     movz x10, #1
@@ -1619,8 +1571,8 @@ lb_ownership_collect:
     blr x17
     ldr w15, [x26]
     cmp w15, w27
-    b.ls .L10_38
-.L10_37:
+    b.ls .L9_38
+.L9_37:
     str x21, [x22]
     movz x9, #25
     str x9, [x23]
@@ -1629,9 +1581,9 @@ lb_ownership_collect:
     ldr x1, [x9]
     ldr x2, [x9, #8]
     bl lb_core_12trap_text_at
-    b .L10_39
-.L10_38:
-.L10_39:
+    b .L9_39
+.L9_38:
+.L9_39:
     ldr w14, [x26]
     mov w9, w14
     movz x10, #1
@@ -1645,20 +1597,20 @@ lb_ownership_collect:
 1:
     mov w14, w9
     str w14, [x26]
-    b .L10_35
-.L10_34:
-.L10_35:
+    b .L9_35
+.L9_34:
+.L9_35:
     add x14, x25, #1
     mov x25, x14
-    b .L10_30
-.L10_32:
+    b .L9_30
+.L9_32:
     mov x9, #0
     mov x21, x9
-.L10_40:
+.L9_40:
     ldr x14, [x20]
     cmp x21, x14
-    b.hs .L10_42
-.L10_41:
+    b.hs .L9_42
+.L9_41:
     adrp x0, :gottprel:lb_ownership_whites
     ldr x0, [x0, :gottprel_lo12:lb_ownership_whites]
     mrs x16, tpidr_el0
@@ -1690,17 +1642,15 @@ lb_ownership_collect:
     blr x17
     add x14, x21, #1
     mov x21, x14
-    b .L10_40
-.L10_42:
-    adrp x21, lb_ownership_dead
-    add x21, x21, :lo12:lb_ownership_dead
+    b .L9_40
+.L9_42:
     mov x9, #0
-    mov x22, x9
-.L10_43:
+    mov x21, x9
+.L9_43:
     ldr x14, [x20]
-    cmp x22, x14
-    b.hs .L10_45
-.L10_44:
+    cmp x21, x14
+    b.hs .L9_45
+.L9_44:
     adrp x0, :gottprel:lb_ownership_whites
     ldr x0, [x0, :gottprel_lo12:lb_ownership_whites]
     mrs x16, tpidr_el0
@@ -1709,7 +1659,7 @@ lb_ownership_collect:
     ldr x15, [x14]
     add x14, x14, #8
     ldr x14, [x14]
-    cmp x22, x14
+    cmp x21, x14
     b.lo 1f
     adrp x0, .Ltext_44
     add x0, x0, :lo12:.Ltext_44
@@ -1717,7 +1667,7 @@ lb_ownership_collect:
     add x1, x1, :lo12:.Ltext_48
     bl lb_core_7trap_at
 1:
-    lsl x14, x22, #3
+    lsl x14, x21, #3
     add x14, x15, x14
     ldr x14, [x14]
     adrp x0, :gottprel:lb_ownership_live
@@ -1741,27 +1691,27 @@ lb_ownership_collect:
     mov x9, #0
     str w9, [x14]
     add x15, x14, #8
-    ldrb w12, [x21]
-    strb w12, [x15]
+    movz x9, #8
+    strb w9, [x15]
     mov x0, x14
     bl lb_ownership_13release_shell
-    add x14, x22, #1
-    mov x22, x14
-    b .L10_43
-.L10_45:
+    add x14, x21, #1
+    mov x21, x14
+    b .L9_43
+.L9_45:
     mov x9, #0
     str x9, [x20]
     mov x9, #0
     strb w9, [x19]
-    ldr x19, [sp, #88]
-    ldr x20, [sp, #80]
-    ldr x21, [sp, #72]
-    ldr x22, [sp, #64]
-    ldr x23, [sp, #56]
-    ldr x24, [sp, #48]
-    ldr x25, [sp, #40]
-    ldr x26, [sp, #32]
-    ldr x27, [sp, #24]
+    ldr x19, [sp, #104]
+    ldr x20, [sp, #96]
+    ldr x21, [sp, #88]
+    ldr x22, [sp, #80]
+    ldr x23, [sp, #72]
+    ldr x24, [sp, #64]
+    ldr x25, [sp, #56]
+    ldr x26, [sp, #48]
+    ldr x27, [sp, #40]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret

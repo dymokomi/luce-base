@@ -1635,10 +1635,7 @@ L7_9:
     sub x22, x29, #192
     mov x11, x22
     stp xzr, xzr, [x11, #0]
-    adrp x14, _lb_net_inet@PAGE
-    add x14, x14, _lb_net_inet@PAGEOFF
-    ldrsw x14, [x14]
-    mov x0, x14
+    movz x0, #2
     movz x1, #16
     bl _lb_net_11family_word
     mov w14, w0
@@ -1700,10 +1697,7 @@ L7_6:
     stp xzr, xzr, [x11, #0]
     str xzr, [x11, #16]
     str wzr, [x11, #24]
-    adrp x14, _lb_net_inet6@PAGE
-    add x14, x14, _lb_net_inet6@PAGEOFF
-    ldrsw x14, [x14]
-    mov x0, x14
+    movz x0, #30
     movz x1, #28
     bl _lb_net_11family_word
     mov w14, w0
@@ -1834,67 +1828,52 @@ L8_3:
     movz x2, #2
     bl _memcpy
     mov x14, x0
-    cbnz x14, L8_31
-    b L8_32
-L8_32:
+    cbnz x14, L8_28
+    b L8_29
+L8_29:
     adrp x0, l_text_61@PAGE
     add x0, x0, l_text_61@PAGEOFF
     adrp x1, l_text_60@PAGE
     add x1, x1, l_text_60@PAGEOFF
     bl _lb_core_7trap_at
-L8_31:
+L8_28:
     ldrh w14, [x21]
     and w14, w14, #65535
     sub x10, x29, #416
     str w14, [x10]
-L8_34:
-    adrp x15, _lb_platform_macos@PAGE
-    add x15, x15, _lb_platform_macos@PAGEOFF
-    ldrb w15, [x15]
-    cbnz w15, L8_5
-    b L8_6
-L8_5:
-    and w15, w14, #65535
-L8_9:
-    lsr w12, w15, #8
-    and w12, w12, #65535
-    mov w12, w12
-    b L8_7
+L8_31:
+    and w21, w14, #65535
 L8_6:
-    and w15, w14, #65535
-    mov w12, w15
+    lsr w14, w21, #8
+    and w14, w14, #65535
+    mov w14, w14
+    movz x10, #2
+    cmp w14, w10
+    b.ne L8_8
 L8_7:
-    adrp x15, _lb_net_inet@PAGE
-    add x15, x15, _lb_net_inet@PAGEOFF
-    ldrsw x15, [x15]
-    cmp w15, w12
-    b.ne L8_11
-L8_10:
     movz x10, #16
     cmp w19, w10
-    cset w12, lo
-    cbnz w12, L8_55
-    b L8_16
-L8_55:
-    mov w14, w12
-    b L8_17
-L8_16:
-    and w19, w14, #65535
-    mov x0, x15
-    movz x1, #16
-    bl _lb_net_11family_word
-    mov w12, w0
-    cmp w19, w12
-    cset w12, eq
-    mov x10, #0
-    cmp w12, w10
-    cset w12, eq
-    mov w14, w12
-L8_17:
-    and w15, w14, #255
-    cbnz w15, L8_13
+    cset w14, lo
+    cbnz w14, L8_52
+    b L8_13
+L8_52:
+    mov w15, w14
     b L8_14
 L8_13:
+    movz x0, #2
+    movz x1, #16
+    bl _lb_net_11family_word
+    mov w14, w0
+    cmp w14, w21
+    cset w14, eq
+    mov x10, #0
+    cmp w14, w10
+    cset w15, eq
+L8_14:
+    and w14, w15, #255
+    cbnz w14, L8_10
+    b L8_11
+L8_10:
     sub x19, x29, #104
     add x14, x19, #24
     adrp x15, _lb_net_failed@PAGE
@@ -1929,8 +1908,8 @@ L8_13:
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
-L8_14:
-L8_15:
+L8_11:
+L8_12:
     sub x21, x29, #184
     sub x10, x29, #448
     str x20, [x10]
@@ -1940,15 +1919,15 @@ L8_15:
     movz x2, #16
     bl _memcpy
     mov x14, x0
-    cbnz x14, L8_35
-    b L8_36
-L8_36:
+    cbnz x14, L8_32
+    b L8_33
+L8_33:
     adrp x0, l_text_61@PAGE
     add x0, x0, l_text_61@PAGEOFF
     adrp x1, l_text_60@PAGE
     add x1, x1, l_text_60@PAGEOFF
     bl _lb_core_7trap_at
-L8_35:
+L8_32:
     sub x20, x29, #432
     mov x10, x19
     mov x11, x20
@@ -1958,7 +1937,7 @@ L8_35:
     sub x11, x29, #200
     ldp x16, x17, [x10, #0]
     stp x16, x17, [x11, #0]
-L8_38:
+L8_35:
     sub x14, x29, #200
     mov x10, x14
     mov x11, x21
@@ -1989,17 +1968,17 @@ L8_38:
     str w14, [x10]
     sub x14, x29, #480
     ldrh w14, [x14]
-L8_40:
+L8_37:
     lsl w15, w14, #8
     and w15, w15, #65535
-L8_42:
+L8_39:
     lsr w12, w14, #8
     and w12, w12, #65535
     orr w12, w12, w15
     and w12, w12, #65535
     sub x10, x29, #488
     str w12, [x10]
-L8_44:
+L8_41:
     add x14, x19, #18
     strh w12, [x14]
     sub x20, x29, #104
@@ -2025,39 +2004,35 @@ L8_44:
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
-L8_11:
-L8_12:
-    adrp x15, _lb_net_inet6@PAGE
-    add x15, x15, _lb_net_inet6@PAGEOFF
-    ldrsw x15, [x15]
-    cmp w15, w12
-    b.ne L8_21
-L8_20:
+L8_8:
+L8_9:
+    movz x10, #30
+    cmp w14, w10
+    b.ne L8_18
+L8_17:
     movz x10, #28
     cmp w19, w10
-    cset w12, lo
-    cbnz w12, L8_56
-    b L8_26
-L8_56:
-    mov w14, w12
-    b L8_27
-L8_26:
-    and w19, w14, #65535
-    mov x0, x15
-    movz x1, #28
-    bl _lb_net_11family_word
-    mov w12, w0
-    cmp w19, w12
-    cset w12, eq
-    mov x10, #0
-    cmp w12, w10
-    cset w12, eq
-    mov w14, w12
-L8_27:
-    and w15, w14, #255
-    cbnz w15, L8_23
+    cset w14, lo
+    cbnz w14, L8_53
+    b L8_23
+L8_53:
+    mov w15, w14
     b L8_24
 L8_23:
+    movz x0, #30
+    movz x1, #28
+    bl _lb_net_11family_word
+    mov w14, w0
+    cmp w14, w21
+    cset w14, eq
+    mov x10, #0
+    cmp w14, w10
+    cset w15, eq
+L8_24:
+    and w14, w15, #255
+    cbnz w14, L8_20
+    b L8_21
+L8_20:
     sub x19, x29, #104
     add x14, x19, #24
     adrp x15, _lb_net_failed@PAGE
@@ -2092,8 +2067,8 @@ L8_23:
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
-L8_24:
-L8_25:
+L8_21:
+L8_22:
     sub x21, x29, #292
     sub x10, x29, #536
     str x20, [x10]
@@ -2103,15 +2078,15 @@ L8_25:
     movz x2, #28
     bl _memcpy
     mov x14, x0
-    cbnz x14, L8_45
-    b L8_46
-L8_46:
+    cbnz x14, L8_42
+    b L8_43
+L8_43:
     adrp x0, l_text_61@PAGE
     add x0, x0, l_text_61@PAGEOFF
     adrp x1, l_text_60@PAGE
     add x1, x1, l_text_60@PAGEOFF
     bl _lb_core_7trap_at
-L8_45:
+L8_42:
     sub x20, x29, #516
     mov x10, x19
     mov x11, x20
@@ -2129,7 +2104,7 @@ L8_45:
     str x16, [x11, #16]
     ldr w16, [x10, #24]
     str w16, [x11, #24]
-L8_48:
+L8_45:
     sub x14, x29, #320
     mov x10, x14
     mov x11, x21
@@ -2167,17 +2142,17 @@ L8_48:
     str w14, [x10]
     sub x14, x29, #480
     ldrh w14, [x14]
-L8_50:
+L8_47:
     lsl w15, w14, #8
     and w15, w15, #65535
-L8_52:
+L8_49:
     lsr w12, w14, #8
     and w12, w12, #65535
     orr w12, w12, w15
     and w12, w12, #65535
     sub x10, x29, #576
     str w12, [x10]
-L8_54:
+L8_51:
     add x14, x20, #18
     strh w12, [x14]
     add x14, x21, #24
@@ -2207,8 +2182,8 @@ L8_54:
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
-L8_21:
-L8_22:
+L8_18:
+L8_19:
     sub x19, x29, #104
     add x14, x19, #24
     adrp x15, _lb_net_failed@PAGE

@@ -369,10 +369,8 @@ _lb_ownership_8color_of:
     ldr x14, [x14]
     add x14, x14, #8
     ldrb w14, [x14]
-    adrp x15, _lb_ownership_10color_mask@PAGE
-    add x15, x15, _lb_ownership_10color_mask@PAGEOFF
-    ldrb w15, [x15]
-    and w14, w14, w15
+    movz x10, #3
+    and w14, w14, w10
     and w14, w14, #255
     mov x9, x14
     mov x0, x9
@@ -401,13 +399,8 @@ _lb_ownership_9set_color:
     ldr x14, [x14]
     add x14, x14, #8
     ldrb w15, [x14]
-    adrp x12, _lb_ownership_10color_mask@PAGE
-    add x12, x12, _lb_ownership_10color_mask@PAGEOFF
-    ldrb w12, [x12]
-    movn x10, #0
-    eor w12, w12, w10
-    and w12, w12, #255
-    and w15, w15, w12
+    movz x10, #252
+    and w15, w15, w10
     sub x12, x29, #48
     ldrb w12, [x12]
     orr w15, w15, w12
@@ -595,13 +588,11 @@ _lb_ownership_12check_thread:
     str x0, [x16]
     sub x14, x29, #40
     ldr x14, [x14]
-    adrp x15, _lb_ownership_immortal@PAGE
-    add x15, x15, _lb_ownership_immortal@PAGEOFF
-    ldrb w15, [x15]
     sub x10, x29, #72
     str x14, [x10]
+    movz x9, #32
     sub x10, x29, #88
-    str w15, [x10]
+    str w9, [x10]
     add x15, x14, #8
     ldrb w15, [x15]
     sub x12, x29, #88
@@ -681,13 +672,11 @@ _lb_ownership_11check_alive:
     ldr x19, [x14]
     mov x0, x19
     bl _lb_ownership_12check_thread
-    adrp x14, _lb_ownership_dead@PAGE
-    add x14, x14, _lb_ownership_dead@PAGEOFF
-    ldrb w14, [x14]
     sub x10, x29, #72
     str x19, [x10]
+    movz x9, #8
     sub x10, x29, #88
-    str w14, [x10]
+    str w9, [x10]
     add x14, x19, #8
     ldrb w14, [x14]
     sub x15, x29, #88
@@ -1131,13 +1120,11 @@ _lb_ownership_retain:
     ldr x19, [x14]
     mov x0, x19
     bl _lb_ownership_11check_alive
-    adrp x14, _lb_ownership_immortal@PAGE
-    add x14, x14, _lb_ownership_immortal@PAGEOFF
-    ldrb w14, [x14]
     sub x10, x29, #56
     str x19, [x10]
+    movz x9, #32
     sub x10, x29, #72
-    str w14, [x10]
+    str w9, [x10]
     add x14, x19, #8
     ldrb w15, [x14]
     sub x12, x29, #72
@@ -1186,21 +1173,14 @@ L15_3:
 1:
     mov w15, w9
     str w15, [x19]
-    adrp x15, _lb_ownership_black@PAGE
-    add x15, x15, _lb_ownership_black@PAGEOFF
-    ldrb w15, [x15]
     sub x10, x29, #96
     str x19, [x10]
+    mov x9, #0
     sub x10, x29, #112
-    str w15, [x10]
+    str w9, [x10]
     ldrb w15, [x14]
-    adrp x12, _lb_ownership_10color_mask@PAGE
-    add x12, x12, _lb_ownership_10color_mask@PAGEOFF
-    ldrb w12, [x12]
-    movn x10, #0
-    eor w12, w12, w10
-    and w12, w12, #255
-    and w15, w15, w12
+    movz x10, #252
+    and w15, w15, w10
     sub x12, x29, #112
     ldrb w12, [x12]
     orr w15, w15, w12
@@ -1235,13 +1215,11 @@ _lb_ownership_release:
     ldr x19, [x14]
     mov x0, x19
     bl _lb_ownership_12check_thread
-    adrp x14, _lb_ownership_immortal@PAGE
-    add x14, x14, _lb_ownership_immortal@PAGEOFF
-    ldrb w14, [x14]
     sub x10, x29, #72
     str x19, [x10]
+    movz x9, #32
     sub x10, x29, #88
-    str w14, [x10]
+    str w9, [x10]
     add x20, x19, #8
     ldrb w14, [x20]
     sub x15, x29, #88
@@ -1277,13 +1255,11 @@ L16_4:
     b L16_3
 L16_2:
 L16_3:
-    adrp x14, _lb_ownership_collecting@PAGE
-    add x14, x14, _lb_ownership_collecting@PAGEOFF
-    ldrb w14, [x14]
     sub x10, x29, #72
     str x19, [x10]
+    movz x9, #16
     sub x10, x29, #88
-    str w14, [x10]
+    str w9, [x10]
     ldrb w14, [x20]
     ldrb w12, [x15]
     and w14, w14, w12
@@ -1360,21 +1336,14 @@ L16_7:
 L16_12:
     sub x10, x29, #120
     str x19, [x10]
-    adrp x14, _lb_ownership_black@PAGE
-    add x14, x14, _lb_ownership_black@PAGEOFF
-    ldrb w14, [x14]
     sub x10, x29, #152
     str x19, [x10]
+    mov x9, #0
     sub x10, x29, #168
-    str w14, [x10]
+    str w9, [x10]
     ldrb w14, [x20]
-    adrp x15, _lb_ownership_10color_mask@PAGE
-    add x15, x15, _lb_ownership_10color_mask@PAGEOFF
-    ldrb w15, [x15]
-    movn x10, #0
-    eor w15, w15, w10
-    and w15, w15, #255
-    and w14, w14, w15
+    movz x10, #252
+    and w14, w14, w10
     sub x15, x29, #168
     ldrb w15, [x15]
     orr w14, w14, w15
@@ -1452,18 +1421,14 @@ L16_21:
     mov x15, x9
     str x15, [x14]
     ldrb w14, [x20]
-    adrp x15, _lb_ownership_dead@PAGE
-    add x15, x15, _lb_ownership_dead@PAGEOFF
-    ldrb w15, [x15]
-    orr w14, w14, w15
+    movz x10, #8
+    orr w14, w14, w10
     strb w14, [x20]
-    adrp x14, _lb_ownership_buffered@PAGE
-    add x14, x14, _lb_ownership_buffered@PAGEOFF
-    ldrb w14, [x14]
     sub x10, x29, #184
     str x19, [x10]
+    movz x9, #4
     sub x10, x29, #200
-    str w14, [x10]
+    str w9, [x10]
     ldrb w14, [x20]
     sub x15, x29, #200
     ldrb w15, [x15]
@@ -1534,13 +1499,11 @@ L17_17:
     mov w15, w14
     b L17_5
 L17_4:
-    adrp x14, _lb_ownership_dead@PAGE
-    add x14, x14, _lb_ownership_dead@PAGEOFF
-    ldrb w14, [x14]
     sub x10, x29, #184
     str x19, [x10]
+    movz x9, #8
     sub x10, x29, #200
-    str w14, [x10]
+    str w9, [x10]
     add x14, x19, #8
     ldrb w14, [x14]
     sub x15, x29, #200
@@ -1571,13 +1534,11 @@ L17_18:
     mov w15, w14
     b L17_7
 L17_6:
-    adrp x14, _lb_ownership_buffered@PAGE
-    add x14, x14, _lb_ownership_buffered@PAGEOFF
-    ldrb w14, [x14]
     sub x10, x29, #184
     str x19, [x10]
+    movz x9, #4
     sub x10, x29, #200
-    str w14, [x10]
+    str w9, [x10]
     add x14, x19, #8
     ldrb w14, [x14]
     sub x15, x29, #200
@@ -1728,13 +1689,11 @@ L18_11:
     mov w15, w14
     b L18_7
 L18_6:
-    adrp x14, _lb_ownership_buffered@PAGE
-    add x14, x14, _lb_ownership_buffered@PAGEOFF
-    ldrb w14, [x14]
     sub x10, x29, #72
     str x19, [x10]
+    movz x9, #4
     sub x10, x29, #88
-    str w14, [x10]
+    str w9, [x10]
     add x14, x19, #8
     ldrb w14, [x14]
     sub x15, x29, #88
@@ -1798,10 +1757,8 @@ L18_3:
     str w9, [x19]
     add x14, x19, #8
     ldrb w15, [x14]
-    adrp x12, _lb_ownership_dead@PAGE
-    add x12, x12, _lb_ownership_dead@PAGEOFF
-    ldrb w12, [x12]
-    orr w15, w15, w12
+    movz x10, #8
+    orr w15, w15, w10
     strb w15, [x14]
     mov x0, x19
     bl _lb_ownership_13release_shell
@@ -1855,18 +1812,14 @@ _lb_ownership_abandon:
     str w9, [x19]
     add x14, x19, #8
     ldrb w15, [x14]
-    adrp x12, _lb_ownership_dead@PAGE
-    add x12, x12, _lb_ownership_dead@PAGEOFF
-    ldrb w12, [x12]
-    orr w15, w15, w12
+    movz x10, #8
+    orr w15, w15, w10
     strb w15, [x14]
-    adrp x15, _lb_ownership_buffered@PAGE
-    add x15, x15, _lb_ownership_buffered@PAGEOFF
-    ldrb w15, [x15]
     sub x10, x29, #56
     str x19, [x10]
+    movz x9, #4
     sub x10, x29, #72
-    str w15, [x10]
+    str w9, [x10]
     ldrb w14, [x14]
     sub x15, x29, #72
     ldrb w15, [x15]

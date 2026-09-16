@@ -376,12 +376,11 @@ lb_files_metadata:
     str x20, [sp, #488]
     str x21, [sp, #480]
     str x22, [sp, #472]
-    str x23, [sp, #464]
-    sub x16, x29, #240
+    sub x16, x29, #232
     str x0, [x16]
-    sub x16, x29, #256
+    sub x16, x29, #248
     str w1, [x16]
-    sub x19, x29, #384
+    sub x19, x29, #376
     mov x11, x19
     stp xzr, xzr, [x11, #0]
     stp xzr, xzr, [x11, #16]
@@ -391,11 +390,9 @@ lb_files_metadata:
     stp xzr, xzr, [x11, #80]
     stp xzr, xzr, [x11, #96]
     stp xzr, xzr, [x11, #112]
-    sub x20, x29, #256
-    sub x22, x29, #240
-    sub x21, x29, #240
-    adrp x23, lb_c_interrupted
-    add x23, x23, :lo12:lb_c_interrupted
+    sub x20, x29, #248
+    sub x22, x29, #232
+    sub x21, x29, #232
 .L3_1:
 .L3_2:
     ldrb w14, [x20]
@@ -421,10 +418,10 @@ lb_files_metadata:
 .L3_7:
     mov x9, x19
     mov x0, x9
-    sub x8, x29, #512
+    sub x8, x29, #504
     bl lb_files_20linux_arm64_metadata
-    sub x14, x29, #512
-    sub x20, x29, #224
+    sub x14, x29, #504
+    sub x20, x29, #216
     mov x10, x14
     mov x11, x20
     ldp x16, x17, [x10, #0]
@@ -457,7 +454,6 @@ lb_files_metadata:
     ldr x20, [sp, #488]
     ldr x21, [sp, #480]
     ldr x22, [sp, #472]
-    ldr x23, [sp, #464]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -465,14 +461,14 @@ lb_files_metadata:
 .L3_9:
     bl lb_c_errno
     mov w14, w0
-    ldrsw x15, [x23]
-    cmp w14, w15
+    movz x10, #4
+    cmp w14, w10
     cset w14, eq
     mov x10, #0
     cmp w14, w10
     b.ne .L3_12
 .L3_11:
-    sub x19, x29, #224
+    sub x19, x29, #216
     add x20, x19, #128
     bl lb_c_errno
     mov w14, w0
@@ -482,7 +478,7 @@ lb_files_metadata:
     str w14, [x20]
     adrp x14, .Ltext_7
     add x14, x14, :lo12:.Ltext_7
-    sub x15, x29, #528
+    sub x15, x29, #520
     str x14, [x15]
     add x14, x15, #8
     movz x9, #31
@@ -506,7 +502,6 @@ lb_files_metadata:
     ldr x20, [sp, #488]
     ldr x21, [sp, #480]
     ldr x22, [sp, #472]
-    ldr x23, [sp, #464]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -527,10 +522,9 @@ lb_files_19metadata_descriptor:
     str x8, [x16]
     str x19, [sp, #464]
     str x20, [sp, #456]
-    str x21, [sp, #448]
-    sub x16, x29, #224
+    sub x16, x29, #216
     str w0, [x16]
-    sub x19, x29, #352
+    sub x19, x29, #344
     mov x11, x19
     stp xzr, xzr, [x11, #0]
     stp xzr, xzr, [x11, #16]
@@ -540,9 +534,7 @@ lb_files_19metadata_descriptor:
     stp xzr, xzr, [x11, #80]
     stp xzr, xzr, [x11, #96]
     stp xzr, xzr, [x11, #112]
-    sub x20, x29, #224
-    adrp x21, lb_c_interrupted
-    add x21, x21, :lo12:lb_c_interrupted
+    sub x20, x29, #216
 .L4_1:
 .L4_2:
     ldrsw x14, [x20]
@@ -556,10 +548,10 @@ lb_files_19metadata_descriptor:
 .L4_4:
     mov x9, x19
     mov x0, x9
-    sub x8, x29, #480
+    sub x8, x29, #472
     bl lb_files_20linux_arm64_metadata
-    sub x14, x29, #480
-    sub x20, x29, #208
+    sub x14, x29, #472
+    sub x20, x29, #200
     mov x10, x14
     mov x11, x20
     ldp x16, x17, [x10, #0]
@@ -590,7 +582,6 @@ lb_files_19metadata_descriptor:
     ldr x0, [x16]
     ldr x19, [sp, #464]
     ldr x20, [sp, #456]
-    ldr x21, [sp, #448]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -598,14 +589,14 @@ lb_files_19metadata_descriptor:
 .L4_6:
     bl lb_c_errno
     mov w14, w0
-    ldrsw x15, [x21]
-    cmp w14, w15
+    movz x10, #4
+    cmp w14, w10
     cset w14, eq
     mov x10, #0
     cmp w14, w10
     b.ne .L4_9
 .L4_8:
-    sub x19, x29, #208
+    sub x19, x29, #200
     add x20, x19, #128
     bl lb_c_errno
     mov w14, w0
@@ -615,7 +606,7 @@ lb_files_19metadata_descriptor:
     str w14, [x20]
     adrp x14, .Ltext_9
     add x14, x14, :lo12:.Ltext_9
-    sub x15, x29, #496
+    sub x15, x29, #488
     str x14, [x15]
     add x14, x15, #8
     movz x9, #36
@@ -637,7 +628,6 @@ lb_files_19metadata_descriptor:
     ldr x0, [x16]
     ldr x19, [sp, #464]
     ldr x20, [sp, #456]
-    ldr x21, [sp, #448]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -660,14 +650,13 @@ lb_files_11metadata_at:
     str x20, [sp, #504]
     str x21, [sp, #496]
     str x22, [sp, #488]
-    str x23, [sp, #480]
-    sub x16, x29, #240
+    sub x16, x29, #232
     str w0, [x16]
-    sub x16, x29, #256
+    sub x16, x29, #248
     str x1, [x16]
-    sub x16, x29, #272
+    sub x16, x29, #264
     str w2, [x16]
-    sub x14, x29, #272
+    sub x14, x29, #264
     ldrb w14, [x14]
     cbnz w14, .L5_1
     b .L5_2
@@ -676,11 +665,10 @@ lb_files_11metadata_at:
     mov w19, w9
     b .L5_3
 .L5_2:
-    adrp x14, lb_files_17at_no_follow_flag
-    add x14, x14, :lo12:lb_files_17at_no_follow_flag
-    ldrsw x19, [x14]
+    movz x9, #256
+    mov w19, w9
 .L5_3:
-    sub x20, x29, #400
+    sub x20, x29, #392
     mov x11, x20
     stp xzr, xzr, [x11, #0]
     stp xzr, xzr, [x11, #16]
@@ -690,10 +678,8 @@ lb_files_11metadata_at:
     stp xzr, xzr, [x11, #80]
     stp xzr, xzr, [x11, #96]
     stp xzr, xzr, [x11, #112]
-    sub x21, x29, #240
-    sub x22, x29, #256
-    adrp x23, lb_c_interrupted
-    add x23, x23, :lo12:lb_c_interrupted
+    sub x21, x29, #232
+    sub x22, x29, #248
 .L5_4:
 .L5_5:
     ldrsw x14, [x21]
@@ -710,10 +696,10 @@ lb_files_11metadata_at:
 .L5_7:
     mov x9, x20
     mov x0, x9
-    sub x8, x29, #528
+    sub x8, x29, #520
     bl lb_files_20linux_arm64_metadata
-    sub x14, x29, #528
-    sub x19, x29, #224
+    sub x14, x29, #520
+    sub x19, x29, #216
     mov x10, x14
     mov x11, x19
     ldp x16, x17, [x10, #0]
@@ -746,7 +732,6 @@ lb_files_11metadata_at:
     ldr x20, [sp, #504]
     ldr x21, [sp, #496]
     ldr x22, [sp, #488]
-    ldr x23, [sp, #480]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -754,14 +739,14 @@ lb_files_11metadata_at:
 .L5_9:
     bl lb_c_errno
     mov w14, w0
-    ldrsw x15, [x23]
-    cmp w14, w15
+    movz x10, #4
+    cmp w14, w10
     cset w14, eq
     mov x10, #0
     cmp w14, w10
     b.ne .L5_12
 .L5_11:
-    sub x19, x29, #224
+    sub x19, x29, #216
     add x20, x19, #128
     bl lb_c_errno
     mov w14, w0
@@ -771,7 +756,7 @@ lb_files_11metadata_at:
     str w14, [x20]
     adrp x14, .Ltext_11
     add x14, x14, :lo12:.Ltext_11
-    sub x15, x29, #544
+    sub x15, x29, #536
     str x14, [x15]
     add x14, x15, #8
     movz x9, #42
@@ -795,7 +780,6 @@ lb_files_11metadata_at:
     ldr x20, [sp, #504]
     ldr x21, [sp, #496]
     ldr x22, [sp, #488]
-    ldr x23, [sp, #480]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret

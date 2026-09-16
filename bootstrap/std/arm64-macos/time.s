@@ -6,26 +6,14 @@ _lb_time_0init:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
     sub sp, sp, #16
-    adrp x14, _lb_platform_macos@PAGE
-    add x14, x14, _lb_platform_macos@PAGEOFF
-    ldrb w14, [x14]
-    cbnz w14, L0_1
-    b L0_2
-L0_1:
+    adrp x14, _lb_time_monotonic@PAGE
+    add x14, x14, _lb_time_monotonic@PAGEOFF
     movz x9, #6
-    mov w14, w9
-    b L0_3
-L0_2:
-    movz x9, #1
-    mov w14, w9
-L0_3:
-    adrp x15, _lb_time_monotonic@PAGE
-    add x15, x15, _lb_time_monotonic@PAGEOFF
-    str w14, [x15]
-    adrp x15, _lb_time_realtime@PAGE
-    add x15, x15, _lb_time_realtime@PAGEOFF
+    str w9, [x14]
+    adrp x14, _lb_time_realtime@PAGE
+    add x14, x14, _lb_time_realtime@PAGEOFF
     mov x9, #0
-    str w9, [x15]
+    str w9, [x14]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -62,14 +50,12 @@ _lb_time_now:
     cbnz w14, L1_2
     b L1_3
 L1_2:
-    adrp x14, _lb_time_monotonic@PAGE
-    add x14, x14, _lb_time_monotonic@PAGEOFF
-    ldrsw x14, [x14]
+    movz x9, #6
+    mov w14, w9
     b L1_4
 L1_3:
-    adrp x14, _lb_time_realtime@PAGE
-    add x14, x14, _lb_time_realtime@PAGEOFF
-    ldrsw x14, [x14]
+    mov x9, #0
+    mov w14, w9
 L1_4:
     mov x0, x14
     mov x1, x19

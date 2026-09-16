@@ -147,10 +147,8 @@ lb_gpu_22vulkan_windows_support:
     call vkGetPhysicalDeviceWin32PresentationSupportKHR
     addq $32, %rsp
     movl %eax, %ebx
-    leaq lb_gpu_8VK_FALSE(%rip), %r12
-    movq %r12, %r10
-    movl (%r10), %r12d
-    cmpl %r12d, %ebx
+    movl $0, %ecx
+    cmpl %ecx, %ebx
     sete %al
     movzbl %al, %ebx
     movl $0, %ecx
@@ -242,26 +240,24 @@ lb_gpu_22vulkan_windows_surface:
     movq 560(%rbp), %rax
     leaq 232(%rbp), %r10
     movq %rax, 0(%r10)
-    leaq 192(%rbp), %r12
-    leaq 152(%rbp), %r13
-    movq %r13, %r11
+    leaq 192(%rbp), %rbx
+    leaq 152(%rbp), %r12
+    movq %r12, %r11
     pxor %xmm8, %xmm8
     movups %xmm8, 0(%r11)
     movups %xmm8, 16(%r11)
     movq $0, 32(%r11)
-    leaq lb_gpu_47VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR(%rip), %rbx
-    movq %rbx, %r10
-    movl (%r10), %ebx
-    movq %r13, %r10
-    movl %ebx, (%r10)
+    movl $1000009000, %eax
+    movq %r12, %r10
+    movl %eax, (%r10)
     subq $32, %rsp
     movq $0, %rax
     movq %rax, 0(%rsp)
     movq 0(%rsp), %rcx
     call GetModuleHandleW
     addq $32, %rsp
-    movq %rax, %rbx
-    testq %rbx, %rbx
+    movq %rax, %r13
+    testq %r13, %r13
     jne .L2_1
     jmp .L2_2
 .L2_2:
@@ -275,10 +271,10 @@ lb_gpu_22vulkan_windows_surface:
     addq $32, %rsp
 .L2_1:
     movq $24, %rcx
-    movq %r13, %r14
+    movq %r12, %r14
     addq %rcx, %r14
     movq %r14, %r10
-    movq %rbx, (%r10)
+    movq %r13, (%r10)
     leaq 232(%rbp), %r14
     subq $32, %rsp
     movq %r14, %rax
@@ -354,14 +350,14 @@ lb_gpu_22vulkan_windows_surface:
     movq (%r10), %rax
     movq %rax, 48(%rbp)
     movq $32, %rcx
-    movq %r13, %rax
+    movq %r12, %rax
     addq %rcx, %rax
     movq %rax, 40(%rbp)
     movq 48(%rbp), %rax
     movq 40(%rbp), %r10
     movq %rax, (%r10)
-    movq %r13, %r10
-    movq %r12, %r11
+    movq %r12, %r10
+    movq %rbx, %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
     movups 16(%r10), %xmm8
@@ -381,7 +377,7 @@ lb_gpu_22vulkan_windows_surface:
     subq $32, %rsp
     movq 16(%rbp), %rax
     movq %rax, 0(%rsp)
-    movq %r12, %rax
+    movq %rbx, %rax
     movq %rax, 8(%rsp)
     movq $0, %rax
     movq %rax, 16(%rsp)
@@ -394,15 +390,15 @@ lb_gpu_22vulkan_windows_surface:
     call vkCreateWin32SurfaceKHR
     addq $32, %rsp
     movl %eax, 8(%rbp)
-    leaq .Ltext_4(%rip), %rbx
+    leaq .Ltext_4(%rip), %r13
     leaq 88(%rbp), %r14
     movq %r14, %r10
-    movq %rbx, (%r10)
+    movq %r13, (%r10)
     movq $8, %rcx
-    movq %r14, %rbx
-    addq %rcx, %rbx
+    movq %r14, %r13
+    addq %rcx, %r13
     movq $47, %rax
-    movq %rbx, %r10
+    movq %r13, %r10
     movq %rax, (%r10)
     subq $48, %rsp
     movl 8(%rbp), %eax
@@ -422,11 +418,11 @@ lb_gpu_22vulkan_windows_surface:
     addq $48, %rsp
     leaq 56(%rbp), %r14
     movq $24, %rcx
-    movq %r14, %rbx
-    addq %rcx, %rbx
-    movq %rbx, %r10
-    movzbl (%r10), %ebx
-    testl %ebx, %ebx
+    movq %r14, %r13
+    addq %rcx, %r13
+    movq %r13, %r10
+    movzbl (%r10), %r13d
+    testl %r13d, %r13d
     jne .L2_7
     jmp .L2_6
 .L2_7:

@@ -1037,14 +1037,12 @@ lb_net_ResolverQuery_open:
     cbnz w12, .L5_11
     b .L5_12
 .L5_11:
-    adrp x14, lb_net_inet
-    add x14, x14, :lo12:lb_net_inet
-    ldrsw x14, [x14]
+    movz x9, #2
+    mov w14, w9
     b .L5_13
 .L5_12:
-    adrp x14, lb_net_inet6
-    add x14, x14, :lo12:lb_net_inet6
-    ldrsw x14, [x14]
+    movz x9, #10
+    mov w14, w9
 .L5_13:
     mov w19, w14
     b .L5_3
@@ -1060,11 +1058,9 @@ lb_net_ResolverQuery_open:
     stp xzr, xzr, [x11, #32]
     add x14, x21, #4
     str w19, [x14]
-    adrp x14, lb_net_stream
-    add x14, x14, :lo12:lb_net_stream
-    ldrsw x14, [x14]
-    add x15, x21, #8
-    str w14, [x15]
+    add x14, x21, #8
+    movz x9, #1
+    str w9, [x14]
     mov x10, x21
     mov x11, x20
     ldp x16, x17, [x10, #0]
@@ -1216,27 +1212,24 @@ lb_net_ResolverQuery_open:
 lb_net_17resolved_endpoint:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #416
+    sub sp, sp, #400
     sub x16, x29, #24
     str x8, [x16]
-    str x19, [sp, #384]
-    str x20, [sp, #376]
-    str x21, [sp, #368]
-    str x22, [sp, #360]
-    sub x16, x29, #104
+    str x19, [sp, #368]
+    str x20, [sp, #360]
+    str x21, [sp, #352]
+    sub x16, x29, #96
     str x0, [x16]
-    sub x16, x29, #120
+    sub x16, x29, #112
     str w1, [x16]
-    sub x16, x29, #136
+    sub x16, x29, #128
     str w2, [x16]
-    sub x14, x29, #104
+    sub x14, x29, #96
     ldr x19, [x14]
     add x20, x19, #4
     ldrsw x14, [x20]
-    adrp x21, lb_net_inet
-    add x21, x21, :lo12:lb_net_inet
-    ldrsw x15, [x21]
-    cmp w14, w15
+    movz x10, #2
+    cmp w14, w10
     cset w14, eq
     cbnz w14, .L6_33
     b .L6_1
@@ -1245,10 +1238,8 @@ lb_net_17resolved_endpoint:
     b .L6_2
 .L6_1:
     ldrsw x14, [x20]
-    adrp x15, lb_net_inet6
-    add x15, x15, :lo12:lb_net_inet6
-    ldrsw x15, [x15]
-    cmp w14, w15
+    movz x10, #10
+    cmp w14, w10
     cset w15, eq
 .L6_2:
     and w14, w15, #255
@@ -1264,10 +1255,8 @@ lb_net_17resolved_endpoint:
 .L6_6:
     add x14, x19, #8
     ldrsw x14, [x14]
-    adrp x15, lb_net_stream
-    add x15, x15, :lo12:lb_net_stream
-    ldrsw x15, [x15]
-    cmp w14, w15
+    movz x10, #1
+    cmp w14, w10
     cset w14, eq
     mov x10, #0
     cmp w14, w10
@@ -1280,7 +1269,7 @@ lb_net_17resolved_endpoint:
     mov w15, w14
     b .L6_9
 .L6_8:
-    sub x14, x29, #136
+    sub x14, x29, #128
     ldrsw x14, [x14]
     mov x10, #0
     cmp w14, w10
@@ -1308,12 +1297,12 @@ lb_net_17resolved_endpoint:
     cbnz w14, .L6_3
     b .L6_4
 .L6_3:
-    sub x19, x29, #164
+    sub x19, x29, #156
     mov x11, x19
     stp xzr, xzr, [x11, #0]
     str xzr, [x11, #16]
     str wzr, [x11, #24]
-    sub x20, x29, #84
+    sub x20, x29, #76
     mov x10, x19
     mov x11, x20
     ldp x16, x17, [x10, #0]
@@ -1329,10 +1318,9 @@ lb_net_17resolved_endpoint:
     bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #384]
-    ldr x20, [sp, #376]
-    ldr x21, [sp, #368]
-    ldr x22, [sp, #360]
+    ldr x19, [sp, #368]
+    ldr x20, [sp, #360]
+    ldr x21, [sp, #352]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -1348,12 +1336,12 @@ lb_net_17resolved_endpoint:
 .L6_13:
     b .L6_15
 .L6_14:
-    sub x19, x29, #192
+    sub x19, x29, #184
     mov x11, x19
     stp xzr, xzr, [x11, #0]
     str xzr, [x11, #16]
     str wzr, [x11, #24]
-    sub x20, x29, #84
+    sub x20, x29, #76
     mov x10, x19
     mov x11, x20
     ldp x16, x17, [x10, #0]
@@ -1369,30 +1357,29 @@ lb_net_17resolved_endpoint:
     bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #384]
-    ldr x20, [sp, #376]
-    ldr x21, [sp, #368]
-    ldr x22, [sp, #360]
+    ldr x19, [sp, #368]
+    ldr x20, [sp, #360]
+    ldr x21, [sp, #352]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
 .L6_16:
 .L6_15:
-    sub x22, x29, #216
+    sub x21, x29, #208
     add x15, x19, #16
     ldr w15, [x15]
     mov x0, x14
     mov x1, x15
-    sub x8, x29, #320
+    sub x8, x29, #312
     bl lb_net_14decode_address
-    sub x12, x29, #320
+    sub x12, x29, #312
     add x15, x12, #48
     ldrb w15, [x15]
     cbnz w15, .L6_20
     b .L6_19
 .L6_20:
     add x14, x12, #24
-    sub x15, x29, #264
+    sub x15, x29, #256
     mov x10, x14
     mov x11, x15
     ldp x16, x17, [x10, #0]
@@ -1401,7 +1388,7 @@ lb_net_17resolved_endpoint:
     str x16, [x11, #16]
     b .L6_17
 .L6_19:
-    sub x19, x29, #240
+    sub x19, x29, #232
     mov x10, x12
     mov x11, x19
     ldp x16, x17, [x10, #0]
@@ -1410,12 +1397,12 @@ lb_net_17resolved_endpoint:
     str x16, [x11, #16]
     b .L6_18
 .L6_17:
-    sub x19, x29, #348
+    sub x19, x29, #340
     mov x11, x19
     stp xzr, xzr, [x11, #0]
     str xzr, [x11, #16]
     str wzr, [x11, #24]
-    sub x20, x29, #84
+    sub x20, x29, #76
     mov x10, x19
     mov x11, x20
     ldp x16, x17, [x10, #0]
@@ -1431,24 +1418,23 @@ lb_net_17resolved_endpoint:
     bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #384]
-    ldr x20, [sp, #376]
-    ldr x21, [sp, #368]
-    ldr x22, [sp, #360]
+    ldr x19, [sp, #368]
+    ldr x20, [sp, #360]
+    ldr x21, [sp, #352]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
 .L6_21:
 .L6_18:
     mov x10, x19
-    mov x11, x22
+    mov x11, x21
     ldp x16, x17, [x10, #0]
     stp x16, x17, [x11, #0]
     ldr x16, [x10, #16]
     str x16, [x11, #16]
     ldrsw x14, [x20]
-    ldrsw x15, [x21]
-    cmp w14, w15
+    movz x10, #2
+    cmp w14, w10
     cset w14, eq
     cbnz w14, .L6_22
     b .L6_37
@@ -1456,7 +1442,7 @@ lb_net_17resolved_endpoint:
     mov w15, w14
     b .L6_23
 .L6_22:
-    ldrb w14, [x22]
+    ldrb w14, [x21]
     mov x10, #0
     cmp w14, w10
     cset w15, eq
@@ -1469,10 +1455,8 @@ lb_net_17resolved_endpoint:
     b .L6_25
 .L6_24:
     ldrsw x14, [x20]
-    adrp x15, lb_net_inet6
-    add x15, x15, :lo12:lb_net_inet6
-    ldrsw x15, [x15]
-    cmp w14, w15
+    movz x10, #10
+    cmp w14, w10
     cset w14, eq
     cbnz w14, .L6_26
     b .L6_39
@@ -1480,7 +1464,7 @@ lb_net_17resolved_endpoint:
     mov w15, w14
     b .L6_27
 .L6_26:
-    ldrb w14, [x22]
+    ldrb w14, [x21]
     movz x10, #1
     cmp w14, w10
     cset w15, eq
@@ -1494,12 +1478,12 @@ lb_net_17resolved_endpoint:
     cmp w14, w10
     b.ne .L6_29
 .L6_28:
-    sub x19, x29, #376
+    sub x19, x29, #368
     mov x11, x19
     stp xzr, xzr, [x11, #0]
     str xzr, [x11, #16]
     str wzr, [x11, #24]
-    sub x20, x29, #84
+    sub x20, x29, #76
     mov x10, x19
     mov x11, x20
     ldp x16, x17, [x10, #0]
@@ -1515,10 +1499,9 @@ lb_net_17resolved_endpoint:
     bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #384]
-    ldr x20, [sp, #376]
-    ldr x21, [sp, #368]
-    ldr x22, [sp, #360]
+    ldr x19, [sp, #368]
+    ldr x20, [sp, #360]
+    ldr x21, [sp, #352]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -1526,12 +1509,12 @@ lb_net_17resolved_endpoint:
     b .L6_30
 .L6_29:
 .L6_30:
-    add x14, x22, #18
-    sub x15, x29, #120
+    add x14, x21, #18
+    sub x15, x29, #112
     ldrh w15, [x15]
     strh w15, [x14]
-    sub x19, x29, #404
-    mov x10, x22
+    sub x19, x29, #396
+    mov x10, x21
     mov x11, x19
     ldp x16, x17, [x10, #0]
     stp x16, x17, [x11, #0]
@@ -1540,7 +1523,7 @@ lb_net_17resolved_endpoint:
     add x14, x19, #24
     movz x9, #1
     strb w9, [x14]
-    sub x20, x29, #84
+    sub x20, x29, #76
     mov x10, x19
     mov x11, x20
     ldp x16, x17, [x10, #0]
@@ -1556,10 +1539,9 @@ lb_net_17resolved_endpoint:
     bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #384]
-    ldr x20, [sp, #376]
-    ldr x21, [sp, #368]
-    ldr x22, [sp, #360]
+    ldr x19, [sp, #368]
+    ldr x20, [sp, #360]
+    ldr x21, [sp, #352]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret

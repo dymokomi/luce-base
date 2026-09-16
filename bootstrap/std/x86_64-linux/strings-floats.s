@@ -1461,32 +1461,18 @@ lb_strings_NumericLocale_create:
     movq %r13, -32(%rbp)
     movq %r14, -40(%rbp)
     movq %r15, -48(%rbp)
-    leaq lb_platform_macos(%rip), %rbx
-    movq %rbx, %r10
-    movzbl (%r10), %ebx
-    testl %ebx, %ebx
+    leaq .Ltext_12(%rip), %rbx
+    movl $2, %edi
+    movq %rbx, %rsi
+    movq $0, %rdx
+    call newlocale@PLT
+    movq %rax, %rbx
+    testq %rbx, %rbx
     jne .L5_1
     jmp .L5_2
 .L5_1:
-    movl $16, %eax
-    movl %eax, %ebx
     jmp .L5_3
 .L5_2:
-    movl $2, %eax
-    movl %eax, %ebx
-.L5_3:
-    leaq .Ltext_12(%rip), %r12
-    movl %ebx, %edi
-    movq %r12, %rsi
-    movq $0, %rdx
-    call newlocale@PLT
-    movq %rax, %r12
-    testq %r12, %r12
-    jne .L5_4
-    jmp .L5_5
-.L5_4:
-    jmp .L5_6
-.L5_5:
     leaq -88(%rbp), %rbx
     movq $8, %rcx
     movq %rbx, %r13
@@ -1495,17 +1481,17 @@ lb_strings_NumericLocale_create:
     movl %eax, %r12d
     movl $12, %ecx
     cmpl %ecx, %r12d
-    jne .L5_8
-.L5_7:
+    jne .L5_5
+.L5_4:
     leaq lb_memory_exhausted(%rip), %r12
     movq %r12, %r10
     movl (%r10), %r12d
-    jmp .L5_9
-.L5_8:
+    jmp .L5_6
+.L5_5:
     leaq lb_strings_17conversion_failed(%rip), %r12
     movq %r12, %r10
     movl (%r10), %r12d
-.L5_9:
+.L5_6:
     movq %r13, %r10
     movl %r12d, (%r10)
     leaq .Ltext_13(%rip), %r14
@@ -1544,23 +1530,23 @@ lb_strings_NumericLocale_create:
     movq %rbp, %rsp
     popq %rbp
     ret
-.L5_10:
-.L5_6:
-    leaq -112(%rbp), %rbx
-    movq %rbx, %r11
+.L5_7:
+.L5_3:
+    leaq -112(%rbp), %r12
+    movq %r12, %r11
     movq $0, 0(%r11)
-    movq %rbx, %r10
-    movq %r12, (%r10)
+    movq %r12, %r10
+    movq %rbx, (%r10)
     leaq -88(%rbp), %r13
-    movq %rbx, %r10
+    movq %r12, %r10
     movq %r13, %r11
     movq 0(%r10), %rax
     movq %rax, 0(%r11)
     movq $32, %rcx
-    movq %r13, %rbx
-    addq %rcx, %rbx
+    movq %r13, %r12
+    addq %rcx, %r12
     movl $0, %eax
-    movq %rbx, %r10
+    movq %r12, %r10
     movb %al, (%r10)
     movq %r13, %rsi
     movq -8(%rbp), %rdi
@@ -1575,7 +1561,7 @@ lb_strings_NumericLocale_create:
     movq %rbp, %rsp
     popq %rbp
     ret
-.L5_11:
+.L5_8:
     leaq .Ltext_14(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     call lb_core_7trap_at@PLT

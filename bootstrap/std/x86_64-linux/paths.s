@@ -26,45 +26,26 @@ lb_paths_separator:
     movl $47, %ecx
     cmpl %ecx, %ebx
     sete %al
-    movzbl %al, %r12d
-    testl %r12d, %r12d
+    movzbl %al, %ebx
+    testl %ebx, %ebx
     jne .L1_6
     jmp .L1_1
 .L1_6:
-    movl %r12d, %ebx
+    movl %ebx, %r12d
     jmp .L1_2
 .L1_1:
-    leaq lb_platform_windows(%rip), %r12
-    movq %r12, %r10
-    movzbl (%r10), %r12d
-    testl %r12d, %r12d
-    jne .L1_3
-    jmp .L1_7
-.L1_7:
-    movl %r12d, %ebx
-    jmp .L1_4
-.L1_3:
-    movl $92, %ecx
-    cmpl %ecx, %ebx
-    sete %al
-    movzbl %al, %r12d
-    movl %r12d, %ebx
 .L1_4:
-    movzbl %bl, %r12d
-    movl %r12d, %ebx
+    movl $0, %eax
+    movl %eax, %r12d
 .L1_2:
-    movzbl %bl, %r12d
-    movzbl %r12b, %r12d
-    movl %r12d, %eax
+    movzbl %r12b, %ebx
+    movzbl %bl, %ebx
+    movl %ebx, %eax
     movq -8(%rbp), %rbx
     movq -16(%rbp), %r12
     movq %rbp, %rsp
     popq %rbp
     ret
-.L1_5:
-    leaq .Ltext_1(%rip), %rdi
-    leaq .Ltext_0(%rip), %rsi
-    call lb_core_7trap_at@PLT
 
     .p2align 4
     .globl lb_paths_14last_separator

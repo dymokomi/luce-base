@@ -52,26 +52,22 @@ lb_process_20termination_received:
 lb_process_25termination_posix_install:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #160
+    sub sp, sp, #144
     sub x16, x29, #24
     str x8, [x16]
-    str x19, [sp, #128]
-    str x20, [sp, #120]
-    str x21, [sp, #112]
-    str x22, [sp, #104]
+    str x19, [sp, #112]
+    str x20, [sp, #104]
+    str x21, [sp, #96]
     adrp x19, lb_process_18previous_interrupt
     add x19, x19, :lo12:lb_process_18previous_interrupt
-    adrp x20, lb_process_16interrupt_signal
-    add x20, x20, :lo12:lb_process_16interrupt_signal
-    ldrsw x14, [x20]
-    adrp x21, :got:lb_process_20termination_received
-    ldr x21, [x21, :got_lo12:lb_process_20termination_received]
-    mov x0, x14
-    mov x1, x21
+    adrp x20, :got:lb_process_20termination_received
+    ldr x20, [x20, :got_lo12:lb_process_20termination_received]
+    movz x0, #2
+    mov x1, x20
     bl signal
     mov x14, x0
     str x14, [x19]
-    sub x10, x29, #136
+    sub x10, x29, #128
     str x14, [x10]
     cbnz x14, .L2_12
     b .L2_10
@@ -81,7 +77,7 @@ lb_process_25termination_posix_install:
     cmp x14, x10
     cset w15, eq
     and w15, w15, #255
-    sub x10, x29, #144
+    sub x10, x29, #136
     str w15, [x10]
     b .L2_15
 .L2_13:
@@ -89,7 +85,7 @@ lb_process_25termination_posix_install:
 .L2_10:
 .L2_11:
     mov x9, #0
-    sub x10, x29, #144
+    sub x10, x29, #136
     str w9, [x10]
     mov x9, #0
     mov w15, w9
@@ -104,14 +100,14 @@ lb_process_25termination_posix_install:
     cbnz w15, .L2_1
     b .L2_2
 .L2_1:
-    sub x19, x29, #88
+    sub x19, x29, #80
     adrp x14, lb_process_failed
     add x14, x14, :lo12:lb_process_failed
     ldr w14, [x14]
     str w14, [x19]
     adrp x14, .Ltext_2
     add x14, x14, :lo12:.Ltext_2
-    sub x15, x29, #104
+    sub x15, x29, #96
     str x14, [x15]
     add x14, x15, #8
     movz x9, #37
@@ -131,10 +127,9 @@ lb_process_25termination_posix_install:
     bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #128]
-    ldr x20, [sp, #120]
-    ldr x21, [sp, #112]
-    ldr x22, [sp, #104]
+    ldr x19, [sp, #112]
+    ldr x20, [sp, #104]
+    ldr x21, [sp, #96]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -142,17 +137,14 @@ lb_process_25termination_posix_install:
     b .L2_3
 .L2_2:
 .L2_3:
-    adrp x22, lb_process_18previous_terminate
-    add x22, x22, :lo12:lb_process_18previous_terminate
-    adrp x14, lb_process_16terminate_signal
-    add x14, x14, :lo12:lb_process_16terminate_signal
-    ldrsw x14, [x14]
-    mov x0, x14
-    mov x1, x21
+    adrp x21, lb_process_18previous_terminate
+    add x21, x21, :lo12:lb_process_18previous_terminate
+    movz x0, #15
+    mov x1, x20
     bl signal
     mov x14, x0
-    str x14, [x22]
-    sub x10, x29, #136
+    str x14, [x21]
+    sub x10, x29, #128
     str x14, [x10]
     cbnz x14, .L2_19
     b .L2_17
@@ -162,7 +154,7 @@ lb_process_25termination_posix_install:
     cmp x14, x10
     cset w15, eq
     and w15, w15, #255
-    sub x10, x29, #152
+    sub x10, x29, #144
     str w15, [x10]
     b .L2_22
 .L2_20:
@@ -170,7 +162,7 @@ lb_process_25termination_posix_install:
 .L2_17:
 .L2_18:
     mov x9, #0
-    sub x10, x29, #152
+    sub x10, x29, #144
     str w9, [x10]
     mov x9, #0
     mov w15, w9
@@ -185,43 +177,41 @@ lb_process_25termination_posix_install:
     cbnz w15, .L2_5
     b .L2_6
 .L2_5:
-    ldrsw x14, [x20]
-    ldr x15, [x19]
-    mov x0, x14
-    mov x1, x15
+    ldr x14, [x19]
+    movz x0, #2
+    mov x1, x14
     bl signal
     mov x14, x0
-    sub x21, x29, #88
+    sub x20, x29, #80
     adrp x14, lb_process_failed
     add x14, x14, :lo12:lb_process_failed
     ldr w14, [x14]
-    str w14, [x21]
+    str w14, [x20]
     adrp x14, .Ltext_3
     add x14, x14, :lo12:.Ltext_3
-    sub x15, x29, #120
+    sub x15, x29, #112
     str x14, [x15]
     add x14, x15, #8
     movz x9, #38
     str x9, [x14]
-    add x14, x21, #8
+    add x14, x20, #8
     mov x10, x15
     mov x11, x14
     ldp x16, x17, [x10, #0]
     stp x16, x17, [x11, #0]
-    add x14, x21, #24
+    add x14, x20, #24
     movz x9, #1
     strb w9, [x14]
-    mov x1, x21
+    mov x1, x20
     sub x16, x29, #24
     ldr x0, [x16]
     movz x2, #32
     bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #128]
-    ldr x20, [sp, #120]
-    ldr x21, [sp, #112]
-    ldr x22, [sp, #104]
+    ldr x19, [sp, #112]
+    ldr x20, [sp, #104]
+    ldr x21, [sp, #96]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -229,7 +219,7 @@ lb_process_25termination_posix_install:
     b .L2_7
 .L2_6:
 .L2_7:
-    sub x14, x29, #88
+    sub x14, x29, #80
     add x15, x14, #24
     mov x9, #0
     strb w9, [x15]
@@ -240,10 +230,9 @@ lb_process_25termination_posix_install:
     bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #128]
-    ldr x20, [sp, #120]
-    ldr x21, [sp, #112]
-    ldr x22, [sp, #104]
+    ldr x19, [sp, #112]
+    ldr x20, [sp, #104]
+    ldr x21, [sp, #96]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -257,24 +246,18 @@ lb_process_25termination_posix_restore:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
     sub sp, sp, #16
-    adrp x14, lb_process_16interrupt_signal
-    add x14, x14, :lo12:lb_process_16interrupt_signal
-    ldrsw x14, [x14]
-    adrp x15, lb_process_18previous_interrupt
-    add x15, x15, :lo12:lb_process_18previous_interrupt
-    ldr x15, [x15]
-    mov x0, x14
-    mov x1, x15
+    adrp x14, lb_process_18previous_interrupt
+    add x14, x14, :lo12:lb_process_18previous_interrupt
+    ldr x14, [x14]
+    movz x0, #2
+    mov x1, x14
     bl signal
     mov x14, x0
-    adrp x14, lb_process_16terminate_signal
-    add x14, x14, :lo12:lb_process_16terminate_signal
-    ldrsw x14, [x14]
-    adrp x15, lb_process_18previous_terminate
-    add x15, x15, :lo12:lb_process_18previous_terminate
-    ldr x15, [x15]
-    mov x0, x14
-    mov x1, x15
+    adrp x14, lb_process_18previous_terminate
+    add x14, x14, :lo12:lb_process_18previous_terminate
+    ldr x14, [x14]
+    movz x0, #15
+    mov x1, x14
     bl signal
     mov x14, x0
     mov sp, x29

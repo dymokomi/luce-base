@@ -43,60 +43,14 @@ lb_window_module_0init:
 lb_window_supported:
     pushq %rbp
     movq %rsp, %rbp
-    subq $16, %rsp
-    movq %rbx, -8(%rbp)
-    movq %r12, -16(%rbp)
-    leaq lb_platform_macos(%rip), %rbx
-    movq %rbx, %r10
-    movzbl (%r10), %ebx
-    testl %ebx, %ebx
-    jne .L1_1
-    jmp .L1_8
-.L1_8:
-    movl %ebx, %r12d
-    jmp .L1_2
-.L1_1:
-    leaq lb_platform_arm64(%rip), %rbx
-    movq %rbx, %r10
-    movzbl (%r10), %r12d
 .L1_2:
-    movzbl %r12b, %ebx
-    testl %ebx, %ebx
-    jne .L1_9
-    jmp .L1_3
-.L1_9:
-    movl %ebx, %r12d
-    jmp .L1_4
 .L1_3:
-    leaq lb_platform_windows(%rip), %rbx
-    movq %rbx, %r10
-    movzbl (%r10), %ebx
-    testl %ebx, %ebx
-    jne .L1_5
-    jmp .L1_10
-.L1_10:
-    movl %ebx, %r12d
-    jmp .L1_6
-.L1_5:
-    leaq lb_platform_6x86_64(%rip), %rbx
-    movq %rbx, %r10
-    movzbl (%r10), %r12d
 .L1_6:
-    movzbl %r12b, %ebx
-    movl %ebx, %r12d
 .L1_4:
-    movzbl %r12b, %ebx
-    movzbl %bl, %ebx
-    movl %ebx, %eax
-    movq -8(%rbp), %rbx
-    movq -16(%rbp), %r12
+    movl $0, %eax
     movq %rbp, %rsp
     popq %rbp
     ret
-.L1_7:
-    leaq .Ltext_1(%rip), %rdi
-    leaq .Ltext_0(%rip), %rsi
-    call lb_core_7trap_at@PLT
 
     .p2align 4
     .globl lb_window_Window_open

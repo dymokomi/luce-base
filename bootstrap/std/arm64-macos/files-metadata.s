@@ -403,21 +403,18 @@ _lb_files_metadata:
     str x20, [sp, #504]
     str x21, [sp, #496]
     str x22, [sp, #488]
-    str x23, [sp, #480]
-    sub x16, x29, #240
+    sub x16, x29, #232
     str x0, [x16]
-    sub x16, x29, #256
+    sub x16, x29, #248
     str w1, [x16]
-    sub x19, x29, #400
+    sub x19, x29, #392
     mov x0, x19
     mov x1, #0
     movz x2, #144
     bl _memset
-    sub x20, x29, #256
-    sub x22, x29, #240
-    sub x21, x29, #240
-    adrp x23, _lb_c_interrupted@PAGE
-    add x23, x23, _lb_c_interrupted@PAGEOFF
+    sub x20, x29, #248
+    sub x22, x29, #232
+    sub x21, x29, #232
 L3_1:
 L3_2:
     ldrb w14, [x20]
@@ -443,10 +440,10 @@ L3_6:
 L3_7:
     mov x9, x19
     mov x0, x9
-    sub x8, x29, #528
+    sub x8, x29, #520
     bl _lb_files_12mac_metadata
-    sub x14, x29, #528
-    sub x20, x29, #224
+    sub x14, x29, #520
+    sub x20, x29, #216
     mov x10, x14
     mov x11, x20
     ldp x16, x17, [x10, #0]
@@ -479,7 +476,6 @@ L3_7:
     ldr x20, [sp, #504]
     ldr x21, [sp, #496]
     ldr x22, [sp, #488]
-    ldr x23, [sp, #480]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -487,14 +483,14 @@ L3_8:
 L3_9:
     bl _lb_c_errno
     mov w14, w0
-    ldrsw x15, [x23]
-    cmp w14, w15
+    movz x10, #4
+    cmp w14, w10
     cset w14, eq
     mov x10, #0
     cmp w14, w10
     b.ne L3_12
 L3_11:
-    sub x19, x29, #224
+    sub x19, x29, #216
     add x20, x19, #128
     bl _lb_c_errno
     mov w14, w0
@@ -504,7 +500,7 @@ L3_11:
     str w14, [x20]
     adrp x14, l_text_7@PAGE
     add x14, x14, l_text_7@PAGEOFF
-    sub x15, x29, #544
+    sub x15, x29, #536
     str x14, [x15]
     add x14, x15, #8
     movz x9, #31
@@ -528,7 +524,6 @@ L3_11:
     ldr x20, [sp, #504]
     ldr x21, [sp, #496]
     ldr x22, [sp, #488]
-    ldr x23, [sp, #480]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -547,17 +542,14 @@ _lb_files_19metadata_descriptor:
     str x8, [x16]
     str x19, [sp, #480]
     str x20, [sp, #472]
-    str x21, [sp, #464]
-    sub x16, x29, #224
+    sub x16, x29, #216
     str w0, [x16]
-    sub x19, x29, #368
+    sub x19, x29, #360
     mov x0, x19
     mov x1, #0
     movz x2, #144
     bl _memset
-    sub x20, x29, #224
-    adrp x21, _lb_c_interrupted@PAGE
-    add x21, x21, _lb_c_interrupted@PAGEOFF
+    sub x20, x29, #216
 L4_1:
 L4_2:
     ldrsw x14, [x20]
@@ -571,10 +563,10 @@ L4_2:
 L4_4:
     mov x9, x19
     mov x0, x9
-    sub x8, x29, #496
+    sub x8, x29, #488
     bl _lb_files_12mac_metadata
-    sub x14, x29, #496
-    sub x20, x29, #208
+    sub x14, x29, #488
+    sub x20, x29, #200
     mov x10, x14
     mov x11, x20
     ldp x16, x17, [x10, #0]
@@ -605,7 +597,6 @@ L4_4:
     ldr x0, [x16]
     ldr x19, [sp, #480]
     ldr x20, [sp, #472]
-    ldr x21, [sp, #464]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -613,14 +604,14 @@ L4_5:
 L4_6:
     bl _lb_c_errno
     mov w14, w0
-    ldrsw x15, [x21]
-    cmp w14, w15
+    movz x10, #4
+    cmp w14, w10
     cset w14, eq
     mov x10, #0
     cmp w14, w10
     b.ne L4_9
 L4_8:
-    sub x19, x29, #208
+    sub x19, x29, #200
     add x20, x19, #128
     bl _lb_c_errno
     mov w14, w0
@@ -630,7 +621,7 @@ L4_8:
     str w14, [x20]
     adrp x14, l_text_9@PAGE
     add x14, x14, l_text_9@PAGEOFF
-    sub x15, x29, #512
+    sub x15, x29, #504
     str x14, [x15]
     add x14, x15, #8
     movz x9, #36
@@ -652,7 +643,6 @@ L4_8:
     ldr x0, [x16]
     ldr x19, [sp, #480]
     ldr x20, [sp, #472]
-    ldr x21, [sp, #464]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -673,14 +663,13 @@ _lb_files_11metadata_at:
     str x20, [sp, #520]
     str x21, [sp, #512]
     str x22, [sp, #504]
-    str x23, [sp, #496]
-    sub x16, x29, #240
+    sub x16, x29, #232
     str w0, [x16]
-    sub x16, x29, #256
+    sub x16, x29, #248
     str x1, [x16]
-    sub x16, x29, #272
+    sub x16, x29, #264
     str w2, [x16]
-    sub x14, x29, #272
+    sub x14, x29, #264
     ldrb w14, [x14]
     cbnz w14, L5_1
     b L5_2
@@ -689,19 +678,16 @@ L5_1:
     mov w19, w9
     b L5_3
 L5_2:
-    adrp x14, _lb_files_17at_no_follow_flag@PAGE
-    add x14, x14, _lb_files_17at_no_follow_flag@PAGEOFF
-    ldrsw x19, [x14]
+    movz x9, #32
+    mov w19, w9
 L5_3:
-    sub x20, x29, #416
+    sub x20, x29, #408
     mov x0, x20
     mov x1, #0
     movz x2, #144
     bl _memset
-    sub x21, x29, #240
-    sub x22, x29, #256
-    adrp x23, _lb_c_interrupted@PAGE
-    add x23, x23, _lb_c_interrupted@PAGEOFF
+    sub x21, x29, #232
+    sub x22, x29, #248
 L5_4:
 L5_5:
     ldrsw x14, [x21]
@@ -718,10 +704,10 @@ L5_5:
 L5_7:
     mov x9, x20
     mov x0, x9
-    sub x8, x29, #544
+    sub x8, x29, #536
     bl _lb_files_12mac_metadata
-    sub x14, x29, #544
-    sub x19, x29, #224
+    sub x14, x29, #536
+    sub x19, x29, #216
     mov x10, x14
     mov x11, x19
     ldp x16, x17, [x10, #0]
@@ -754,7 +740,6 @@ L5_7:
     ldr x20, [sp, #520]
     ldr x21, [sp, #512]
     ldr x22, [sp, #504]
-    ldr x23, [sp, #496]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -762,14 +747,14 @@ L5_8:
 L5_9:
     bl _lb_c_errno
     mov w14, w0
-    ldrsw x15, [x23]
-    cmp w14, w15
+    movz x10, #4
+    cmp w14, w10
     cset w14, eq
     mov x10, #0
     cmp w14, w10
     b.ne L5_12
 L5_11:
-    sub x19, x29, #224
+    sub x19, x29, #216
     add x20, x19, #128
     bl _lb_c_errno
     mov w14, w0
@@ -779,7 +764,7 @@ L5_11:
     str w14, [x20]
     adrp x14, l_text_11@PAGE
     add x14, x14, l_text_11@PAGEOFF
-    sub x15, x29, #560
+    sub x15, x29, #552
     str x14, [x15]
     add x14, x15, #8
     movz x9, #42
@@ -803,7 +788,6 @@ L5_11:
     ldr x20, [sp, #520]
     ldr x21, [sp, #512]
     ldr x22, [sp, #504]
-    ldr x23, [sp, #496]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret

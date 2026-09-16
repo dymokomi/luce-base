@@ -93,29 +93,27 @@ lb_files_14exists_checked:
     movl $0, %esi
     call access@PLT
     movl %eax, %r12d
-    leaq lb_c_interrupted(%rip), %r13
 .L2_1:
     movl $0, %ecx
     cmpl %ecx, %r12d
     setl %al
-    movzbl %al, %r14d
-    testl %r14d, %r14d
+    movzbl %al, %r13d
+    testl %r13d, %r13d
     jne .L2_4
     jmp .L2_17
 .L2_17:
-    movl %r14d, %r15d
+    movl %r13d, %r14d
     jmp .L2_5
 .L2_4:
     call lb_c_errno@PLT
-    movl %eax, %r14d
-    movq %r13, %r10
-    movslq (%r10), %r15
-    cmpl %r15d, %r14d
+    movl %eax, %r13d
+    movl $4, %ecx
+    cmpl %ecx, %r13d
     sete %al
-    movzbl %al, %r15d
+    movzbl %al, %r14d
 .L2_5:
-    movzbl %r15b, %r14d
-    testl %r14d, %r14d
+    movzbl %r14b, %r13d
+    testl %r13d, %r13d
     jne .L2_2
     jmp .L2_3
 .L2_2:
@@ -319,24 +317,6 @@ lb_files_16create_directory:
     jmp .L3_3
 .L3_2:
 .L3_3:
-    leaq lb_platform_macos(%rip), %r12
-    movq %r12, %r10
-    movzbl (%r10), %r12d
-    testl %r12d, %r12d
-    jne .L3_5
-    jmp .L3_6
-.L3_5:
-    leaq -80(%rbp), %r12
-    movq %r12, %r10
-    movq (%r10), %r12
-    movl %ebx, %r13d
-    movzwl %r13w, %r13d
-    movq %r12, %rdi
-    movl %r13d, %esi
-    call mkdir@PLT
-    movl %eax, %r12d
-    jmp .L3_7
-.L3_6:
     leaq -80(%rbp), %r12
     movq %r12, %r10
     movq (%r10), %r12
@@ -344,15 +324,14 @@ lb_files_16create_directory:
     movl %ebx, %esi
     call mkdir@PLT
     movl %eax, %r12d
-.L3_7:
     movl $0, %ecx
     cmpl %ecx, %r12d
     sete %al
-    movzbl %al, %ebx
+    movzbl %al, %r12d
     movl $0, %ecx
-    cmpl %ecx, %ebx
-    jne .L3_9
-.L3_8:
+    cmpl %ecx, %r12d
+    jne .L3_6
+.L3_5:
     leaq -64(%rbp), %rbx
     call lb_c_errno@PLT
     movl %eax, %r12d
@@ -395,10 +374,10 @@ lb_files_16create_directory:
     movq %rbp, %rsp
     popq %rbp
     ret
-.L3_11:
-    jmp .L3_10
-.L3_9:
-.L3_10:
+.L3_8:
+    jmp .L3_7
+.L3_6:
+.L3_7:
     leaq -64(%rbp), %rbx
     movq $24, %rcx
     movq %rbx, %r12
@@ -633,19 +612,16 @@ lb_files_rename:
     movl %eax, %ebx
     jmp .L6_3
 .L6_2:
-    leaq lb_files_20current_directory_fd(%rip), %rbx
+    leaq -80(%rbp), %rbx
     movq %rbx, %r10
-    movslq (%r10), %rbx
-    leaq -80(%rbp), %r12
+    movq (%r10), %rbx
+    leaq -96(%rbp), %r12
     movq %r12, %r10
     movq (%r10), %r12
-    leaq -96(%rbp), %r13
-    movq %r13, %r10
-    movq (%r10), %r13
-    movl %ebx, %edi
-    movq %r12, %rsi
-    movl %ebx, %edx
-    movq %r13, %rcx
+    movl $4294967196, %edi
+    movq %rbx, %rsi
+    movl $4294967196, %edx
+    movq %r12, %rcx
     movl $1, %r8d
     call renameat2@PLT
     movl %eax, %ebx
@@ -834,19 +810,16 @@ lb_files_16create_hard_link:
     movq %r13, -32(%rbp)
     movq %rsi, -80(%rbp)
     movq %rdx, -96(%rbp)
-    leaq lb_files_20current_directory_fd(%rip), %rbx
+    leaq -80(%rbp), %rbx
     movq %rbx, %r10
-    movslq (%r10), %rbx
-    leaq -80(%rbp), %r12
+    movq (%r10), %rbx
+    leaq -96(%rbp), %r12
     movq %r12, %r10
     movq (%r10), %r12
-    leaq -96(%rbp), %r13
-    movq %r13, %r10
-    movq (%r10), %r13
-    movl %ebx, %edi
-    movq %r12, %rsi
-    movl %ebx, %edx
-    movq %r13, %rcx
+    movl $4294967196, %edi
+    movq %rbx, %rsi
+    movl $4294967196, %edx
+    movq %r12, %rcx
     movl $0, %r8d
     call linkat@PLT
     movl %eax, %ebx
@@ -929,7 +902,7 @@ lb_files_16create_hard_link:
 lb_files_12read_symlink:
     pushq %rbp
     movq %rsp, %rbp
-    subq $592, %rsp
+    subq $576, %rsp
     movq %rdi, -8(%rbp)
     movq %rbx, -16(%rbp)
     movq %r12, -24(%rbp)
@@ -1013,17 +986,17 @@ lb_files_12read_symlink:
 .L9_4:
 .L9_3:
     leaq -184(%rbp), %rax
-    movq %rax, -544(%rbp)
+    movq %rax, -536(%rbp)
     movq %fs:0, %rax
     addq lb_memory_allocator@GOTTPOFF(%rip), %rax
-    movq %rax, -552(%rbp)
+    movq %rax, -544(%rbp)
     leaq -232(%rbp), %rax
-    movq %rax, -560(%rbp)
+    movq %rax, -552(%rbp)
     movabsq $4611686018427387904, %rcx
     cmpq %rcx, %r12
     jbe .L9_6
 .L9_5:
-    movq -560(%rbp), %rax
+    movq -552(%rbp), %rax
     movq $16, %rcx
     movq %rax, %r12
     addq %rcx, %r12
@@ -1041,7 +1014,7 @@ lb_files_12read_symlink:
     movq $47, %rax
     movq %r12, %r10
     movq %rax, (%r10)
-    movq -560(%rbp), %rax
+    movq -552(%rbp), %rax
     movq $40, %rcx
     movq %rax, %r12
     addq %rcx, %r12
@@ -1050,9 +1023,9 @@ lb_files_12read_symlink:
     movb %al, (%r10)
     jmp .L9_7
 .L9_6:
-    movq -552(%rbp), %r10
+    movq -544(%rbp), %r10
     movq (%r10), %r13
-    movq -552(%rbp), %rax
+    movq -544(%rbp), %rax
     movq $8, %rcx
     movq %rax, %r14
     addq %rcx, %r14
@@ -1097,7 +1070,7 @@ lb_files_12read_symlink:
     jne .L9_10
     jmp .L9_11
 .L9_10:
-    movq -560(%rbp), %rax
+    movq -552(%rbp), %rax
     movq $16, %rcx
     movq %rax, %rbx
     addq %rcx, %rbx
@@ -1115,7 +1088,7 @@ lb_files_12read_symlink:
     movq $16, %rax
     movq %rbx, %r10
     movq %rax, (%r10)
-    movq -560(%rbp), %rax
+    movq -552(%rbp), %rax
     movq $40, %rcx
     movq %rax, %rbx
     addq %rcx, %rbx
@@ -1126,15 +1099,15 @@ lb_files_12read_symlink:
 .L9_11:
     movq %rbx, %r10
     movq (%r10), %r13
-    movq -560(%rbp), %r10
+    movq -552(%rbp), %r10
     movq %r13, (%r10)
-    movq -560(%rbp), %rax
+    movq -552(%rbp), %rax
     movq $8, %rcx
     movq %rax, %r13
     addq %rcx, %r13
     movq %r13, %r10
     movq %r12, (%r10)
-    movq -560(%rbp), %rax
+    movq -552(%rbp), %rax
     movq $40, %rcx
     movq %rax, %r13
     addq %rcx, %r13
@@ -1142,7 +1115,7 @@ lb_files_12read_symlink:
     movq %r13, %r10
     movb %al, (%r10)
 .L9_7:
-    movq -560(%rbp), %rax
+    movq -552(%rbp), %rax
     movq $40, %rcx
     movq %rax, %rbx
     addq %rcx, %rbx
@@ -1152,7 +1125,7 @@ lb_files_12read_symlink:
     jne .L9_13
     jmp .L9_12
 .L9_13:
-    movq -560(%rbp), %rax
+    movq -552(%rbp), %rax
     movq $16, %rcx
     movq %rax, %rbx
     addq %rcx, %rbx
@@ -1187,16 +1160,16 @@ lb_files_12read_symlink:
     ret
 .L9_14:
 .L9_12:
-    movq -560(%rbp), %r10
-    movq -544(%rbp), %r11
+    movq -552(%rbp), %r10
+    movq -536(%rbp), %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
     leaq -112(%rbp), %rbx
     movq %rbx, %r10
     movq (%r10), %rbx
-    movq -544(%rbp), %r10
+    movq -536(%rbp), %r10
     movq (%r10), %r12
-    movq -544(%rbp), %rax
+    movq -536(%rbp), %rax
     movq $8, %rcx
     addq %rcx, %rax
     movq %rax, -520(%rbp)
@@ -1207,53 +1180,47 @@ lb_files_12read_symlink:
     movq %r14, %rdx
     call readlink@PLT
     movq %rax, %r12
-    leaq lb_c_interrupted(%rip), %r14
     movq %r12, %rax
-    movq %rax, -568(%rbp)
+    movq %rax, -560(%rbp)
 .L9_15:
-    movq -568(%rbp), %rax
+    movq -560(%rbp), %rax
     movq $0, %rcx
     cmpq %rcx, %rax
     setl %al
-    movzbl %al, %eax
-    movl %eax, -528(%rbp)
-    movl -528(%rbp), %eax
-    testl %eax, %eax
+    movzbl %al, %r14d
+    testl %r14d, %r14d
     jne .L9_18
     jmp .L9_51
 .L9_51:
-    movl -528(%rbp), %eax
-    movl %eax, %r12d
+    movl %r14d, %r15d
     jmp .L9_19
 .L9_18:
     call lb_c_errno@PLT
-    movl %eax, %r12d
-    movq %r14, %r10
-    movslq (%r10), %r15
-    cmpl %r15d, %r12d
+    movl %eax, %r15d
+    movl $4, %ecx
+    cmpl %ecx, %r15d
     sete %al
-    movzbl %al, %r12d
+    movzbl %al, %r15d
 .L9_19:
-    movzbl %r12b, %r15d
-    testl %r15d, %r15d
+    movzbl %r15b, %r12d
+    testl %r12d, %r12d
     jne .L9_16
     jmp .L9_17
 .L9_16:
-    movq -544(%rbp), %r10
+    movq -536(%rbp), %r10
     movq (%r10), %r12
     movq -520(%rbp), %r10
-    movq (%r10), %r15
+    movq (%r10), %r14
     movq %rbx, %rdi
     movq %r12, %rsi
-    movq %r15, %rdx
+    movq %r14, %rdx
     call readlink@PLT
     movq %rax, %r12
     movq %r12, %rax
-    movq %rax, -568(%rbp)
+    movq %rax, -560(%rbp)
     jmp .L9_15
 .L9_17:
-    movl -528(%rbp), %eax
-    testl %eax, %eax
+    testl %r14d, %r14d
     jne .L9_20
     jmp .L9_21
 .L9_20:
@@ -1291,7 +1258,7 @@ lb_files_12read_symlink:
     movq %r12, %r10
     movb %al, (%r10)
     leaq -288(%rbp), %r12
-    movq -544(%rbp), %r10
+    movq -536(%rbp), %r10
     movq (%r10), %r14
     movq -520(%rbp), %r10
     movq (%r10), %r15
@@ -1302,9 +1269,9 @@ lb_files_12read_symlink:
     addq %rcx, %r14
     movq %r14, %r10
     movq %r15, (%r10)
-    movq -552(%rbp), %r10
+    movq -544(%rbp), %r10
     movq (%r10), %r14
-    movq -552(%rbp), %rax
+    movq -544(%rbp), %rax
     movq $8, %rcx
     movq %rax, %r15
     addq %rcx, %r15
@@ -1343,7 +1310,7 @@ lb_files_12read_symlink:
     jmp .L9_22
 .L9_21:
 .L9_22:
-    movq -568(%rbp), %rax
+    movq -560(%rbp), %rax
     movq -496(%rbp), %rcx
     cmpq %rcx, %rax
     jbe .L9_27
@@ -1380,7 +1347,7 @@ lb_files_12read_symlink:
     movq %r12, %r10
     movb %al, (%r10)
     leaq -320(%rbp), %r12
-    movq -544(%rbp), %r10
+    movq -536(%rbp), %r10
     movq (%r10), %r14
     movq -520(%rbp), %r10
     movq (%r10), %r15
@@ -1391,9 +1358,9 @@ lb_files_12read_symlink:
     addq %rcx, %r14
     movq %r14, %r10
     movq %r15, (%r10)
-    movq -552(%rbp), %r10
+    movq -544(%rbp), %r10
     movq (%r10), %r14
-    movq -552(%rbp), %rax
+    movq -544(%rbp), %rax
     movq $8, %rcx
     movq %rax, %r15
     addq %rcx, %r15
@@ -1433,8 +1400,8 @@ lb_files_12read_symlink:
 .L9_27:
 .L9_28:
     leaq -336(%rbp), %rax
-    movq %rax, -576(%rbp)
-    movq -568(%rbp), %rax
+    movq %rax, -568(%rbp)
+    movq -560(%rbp), %rax
     movq $1, %rcx
     addq %rcx, %rax
     jnc 1f
@@ -1444,12 +1411,12 @@ lb_files_12read_symlink:
 1:
     movq %rax, %r14
     leaq -384(%rbp), %rax
-    movq %rax, -584(%rbp)
+    movq %rax, -576(%rbp)
     movabsq $4611686018427387904, %rcx
     cmpq %rcx, %r14
     jbe .L9_33
 .L9_32:
-    movq -584(%rbp), %rax
+    movq -576(%rbp), %rax
     movq $16, %rcx
     movq %rax, %rbx
     addq %rcx, %rbx
@@ -1467,7 +1434,7 @@ lb_files_12read_symlink:
     movq $47, %rax
     movq %rbx, %r10
     movq %rax, (%r10)
-    movq -584(%rbp), %rax
+    movq -576(%rbp), %rax
     movq $40, %rcx
     movq %rax, %rbx
     addq %rcx, %rbx
@@ -1476,9 +1443,9 @@ lb_files_12read_symlink:
     movb %al, (%r10)
     jmp .L9_34
 .L9_33:
-    movq -552(%rbp), %r10
+    movq -544(%rbp), %r10
     movq (%r10), %rbx
-    movq -552(%rbp), %rax
+    movq -544(%rbp), %rax
     movq $8, %rcx
     movq %rax, %r12
     addq %rcx, %r12
@@ -1510,12 +1477,12 @@ lb_files_12read_symlink:
     cmpq %rcx, %r14
     setne %al
     movzbl %al, %eax
-    movl %eax, -536(%rbp)
+    movl %eax, -528(%rbp)
     movl $0, %ecx
     cmpl %ecx, %r13d
     sete %al
     movzbl %al, %r13d
-    movl -536(%rbp), %eax
+    movl -528(%rbp), %eax
     movl %r13d, %ecx
     movl %eax, %r13d
     andl %ecx, %r13d
@@ -1523,7 +1490,7 @@ lb_files_12read_symlink:
     jne .L9_37
     jmp .L9_38
 .L9_37:
-    movq -584(%rbp), %rax
+    movq -576(%rbp), %rax
     movq $16, %rcx
     movq %rax, %rbx
     addq %rcx, %rbx
@@ -1541,7 +1508,7 @@ lb_files_12read_symlink:
     movq $16, %rax
     movq %rbx, %r10
     movq %rax, (%r10)
-    movq -584(%rbp), %rax
+    movq -576(%rbp), %rax
     movq $40, %rcx
     movq %rax, %rbx
     addq %rcx, %rbx
@@ -1552,15 +1519,15 @@ lb_files_12read_symlink:
 .L9_38:
     movq %r15, %r10
     movq (%r10), %rbx
-    movq -584(%rbp), %r10
+    movq -576(%rbp), %r10
     movq %rbx, (%r10)
-    movq -584(%rbp), %rax
+    movq -576(%rbp), %rax
     movq $8, %rcx
     movq %rax, %rbx
     addq %rcx, %rbx
     movq %rbx, %r10
     movq %r14, (%r10)
-    movq -584(%rbp), %rax
+    movq -576(%rbp), %rax
     movq $40, %rcx
     movq %rax, %rbx
     addq %rcx, %rbx
@@ -1568,7 +1535,7 @@ lb_files_12read_symlink:
     movq %rbx, %r10
     movb %al, (%r10)
 .L9_34:
-    movq -584(%rbp), %rax
+    movq -576(%rbp), %rax
     movq $40, %rcx
     movq %rax, %rbx
     addq %rcx, %rbx
@@ -1578,7 +1545,7 @@ lb_files_12read_symlink:
     jne .L9_40
     jmp .L9_39
 .L9_40:
-    movq -584(%rbp), %rax
+    movq -576(%rbp), %rax
     movq $16, %rcx
     movq %rax, %rbx
     addq %rcx, %rbx
@@ -1599,7 +1566,7 @@ lb_files_12read_symlink:
     movq %rbx, %r10
     movb %al, (%r10)
     leaq -424(%rbp), %rbx
-    movq -544(%rbp), %r10
+    movq -536(%rbp), %r10
     movq (%r10), %r13
     movq -520(%rbp), %r10
     movq (%r10), %r14
@@ -1610,9 +1577,9 @@ lb_files_12read_symlink:
     addq %rcx, %r13
     movq %r13, %r10
     movq %r14, (%r10)
-    movq -552(%rbp), %r10
+    movq -544(%rbp), %r10
     movq (%r10), %r13
-    movq -552(%rbp), %rax
+    movq -544(%rbp), %rax
     movq $8, %rcx
     movq %rax, %r14
     addq %rcx, %r14
@@ -1649,39 +1616,39 @@ lb_files_12read_symlink:
     ret
 .L9_43:
 .L9_39:
-    movq -584(%rbp), %r10
-    movq -576(%rbp), %r11
+    movq -576(%rbp), %r10
+    movq -568(%rbp), %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
-    movq -576(%rbp), %r10
+    movq -568(%rbp), %r10
     movq 0(%r10), %rdi
     movq 8(%r10), %rsi
-    movq -544(%rbp), %r10
+    movq -536(%rbp), %r10
     movq 0(%r10), %rdx
     movq 8(%r10), %rcx
-    movq -568(%rbp), %r8
+    movq -560(%rbp), %r8
     call lb_memory_copy_0g1_u8@PLT
-    movq -576(%rbp), %r10
+    movq -568(%rbp), %r10
     movq (%r10), %rbx
-    movq -576(%rbp), %rax
+    movq -568(%rbp), %rax
     movq $8, %rcx
     movq %rax, %r12
     addq %rcx, %r12
     movq %r12, %r10
     movq (%r10), %r13
-    movq -568(%rbp), %rax
+    movq -560(%rbp), %rax
     cmpq %r13, %rax
     jb 1f
     leaq .Ltext_21(%rip), %rdi
     leaq .Ltext_23(%rip), %rsi
     call lb_core_7trap_at@PLT
 1:
-    movq -568(%rbp), %rcx
+    movq -560(%rbp), %rcx
     addq %rcx, %rbx
     movl $0, %eax
     movq %rbx, %r10
     movb %al, (%r10)
-    movq -576(%rbp), %r10
+    movq -568(%rbp), %r10
     movq (%r10), %r13
     movq %r12, %r10
     movq (%r10), %rbx
@@ -1694,7 +1661,7 @@ lb_files_12read_symlink:
     leaq .Ltext_23(%rip), %rsi
     call lb_core_7trap_at@PLT
 1:
-    movq -568(%rbp), %rax
+    movq -560(%rbp), %rax
     cmpq %rbx, %rax
     jb 1f
     leaq .Ltext_22(%rip), %rdi
@@ -1702,7 +1669,7 @@ lb_files_12read_symlink:
     call lb_core_7trap_at@PLT
 1:
     movq $0, %rax
-    movq -568(%rbp), %rcx
+    movq -560(%rbp), %rcx
     cmpq %rcx, %rax
     jbe .L9_44
 .L9_45:
@@ -1715,7 +1682,7 @@ lb_files_12read_symlink:
     movq %r13, (%r10)
     movq $8, %rcx
     addq %rcx, %rbx
-    movq -568(%rbp), %rax
+    movq -560(%rbp), %rax
     movq %rbx, %r10
     movq %rax, (%r10)
     leaq -456(%rbp), %rbx
@@ -1724,7 +1691,7 @@ lb_files_12read_symlink:
     movq $8, %rcx
     movq %rbx, %r12
     addq %rcx, %r12
-    movq -568(%rbp), %rax
+    movq -560(%rbp), %rax
     movq %r12, %r10
     movq %rax, (%r10)
     leaq -96(%rbp), %r12
@@ -1739,7 +1706,7 @@ lb_files_12read_symlink:
     movq %rbx, %r10
     movb %al, (%r10)
     leaq -472(%rbp), %rbx
-    movq -544(%rbp), %r10
+    movq -536(%rbp), %r10
     movq (%r10), %r14
     movq -520(%rbp), %r10
     movq (%r10), %r15
@@ -1750,9 +1717,9 @@ lb_files_12read_symlink:
     addq %rcx, %r14
     movq %r14, %r10
     movq %r15, (%r10)
-    movq -552(%rbp), %r10
+    movq -544(%rbp), %r10
     movq (%r10), %r14
-    movq -552(%rbp), %rax
+    movq -544(%rbp), %rax
     movq $8, %rcx
     movq %rax, %r15
     addq %rcx, %r15

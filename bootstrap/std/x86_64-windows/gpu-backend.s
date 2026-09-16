@@ -295,15 +295,6 @@ lb_gpu_19backend_device_open:
     movq %r9, 376(%rbp)
     movq 360(%rbp), %rax
     movl %eax, 64(%rbp)
-    leaq lb_platform_windows(%rip), %rbx
-    movq %rbx, %r10
-    movzbl (%r10), %ebx
-    testl %ebx, %ebx
-    jne .L2_4
-    jmp .L2_11
-.L2_11:
-    movl %ebx, %r12d
-    jmp .L2_5
 .L2_4:
     leaq 64(%rbp), %rbx
     movq %rbx, %r10
@@ -311,10 +302,10 @@ lb_gpu_19backend_device_open:
     movl $2, %ecx
     cmpl %ecx, %ebx
     sete %al
-    movzbl %al, %r12d
+    movzbl %al, %ebx
 .L2_5:
-    movzbl %r12b, %ebx
-    testl %ebx, %ebx
+    movzbl %bl, %r12d
+    testl %r12d, %r12d
     jne .L2_1
     jmp .L2_2
 .L2_1:
@@ -382,7 +373,6 @@ lb_gpu_19backend_device_open:
     leaq 336(%rbp), %rsp
     popq %rbp
     ret
-.L2_8:
 .L2_6:
     movq %r12, %r10
     movq (%r10), %rbx
@@ -424,8 +414,6 @@ lb_gpu_19backend_device_open:
     leaq 336(%rbp), %rsp
     popq %rbp
     ret
-.L2_9:
-    jmp .L2_3
 .L2_2:
 .L2_3:
     leaq 80(%rbp), %rbx
@@ -488,15 +476,6 @@ lb_gpu_19backend_device_open:
     leaq 336(%rbp), %rsp
     popq %rbp
     ret
-.L2_10:
-    leaq .Ltext_4(%rip), %rdi
-    leaq .Ltext_1(%rip), %rsi
-    movq %rdx, %r8
-    movq %rsi, %rdx
-    movq %rdi, %rcx
-    subq $32, %rsp
-    call lb_core_7trap_at
-    addq $32, %rsp
     .seh_endproc
 
     .p2align 4
@@ -546,15 +525,6 @@ lb_gpu_22backend_device_destroy:
     movl %eax, 32(%rbp)
     movq 264(%rbp), %rax
     movq %rax, 16(%rbp)
-    leaq lb_platform_windows(%rip), %rbx
-    movq %rbx, %r10
-    movzbl (%r10), %ebx
-    testl %ebx, %ebx
-    jne .L3_4
-    jmp .L3_7
-.L3_7:
-    movl %ebx, %r12d
-    jmp .L3_5
 .L3_4:
     leaq 32(%rbp), %rbx
     movq %rbx, %r10
@@ -562,10 +532,10 @@ lb_gpu_22backend_device_destroy:
     movl $2, %ecx
     cmpl %ecx, %ebx
     sete %al
-    movzbl %al, %r12d
+    movzbl %al, %ebx
 .L3_5:
-    movzbl %r12b, %ebx
-    testl %ebx, %ebx
+    movzbl %bl, %r12d
+    testl %r12d, %r12d
     jne .L3_1
     jmp .L3_2
 .L3_1:
@@ -595,8 +565,6 @@ lb_gpu_22backend_device_destroy:
     leaq 240(%rbp), %rsp
     popq %rbp
     ret
-.L3_6:
-    jmp .L3_3
 .L3_2:
 .L3_3:
     leaq .Ltext_5(%rip), %rbx

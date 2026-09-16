@@ -280,16 +280,6 @@ lb_gpu_12check_thread:
     movzbl %r12b, %r12d
     leaq 8(%rbp), %r10
     movl %r12d, (%r10)
-    jmp .L2_14
-.L2_13:
-    leaq .Ltext_1(%rip), %rdi
-    leaq .Ltext_0(%rip), %rsi
-    movq %rdx, %r8
-    movq %rsi, %rdx
-    movq %rdi, %rcx
-    subq $32, %rsp
-    call lb_core_7trap_at
-    addq $32, %rsp
 .L2_14:
     movl $0, %ecx
     cmpl %ecx, %r12d
@@ -352,19 +342,8 @@ lb_gpu_12check_thread:
     leaq 304(%rbp), %rsp
     popq %rbp
     ret
-.L2_4:
-    jmp .L2_3
 .L2_2:
 .L2_3:
-    leaq lb_platform_windows(%rip), %rbx
-    movq %rbx, %r10
-    movzbl (%r10), %ebx
-    testl %ebx, %ebx
-    jne .L2_8
-    jmp .L2_16
-.L2_16:
-    movl %ebx, %r12d
-    jmp .L2_9
 .L2_8:
     subq $32, %rsp
     call lb_thread_7is_main
@@ -373,10 +352,10 @@ lb_gpu_12check_thread:
     movl $0, %ecx
     cmpl %ecx, %ebx
     sete %al
-    movzbl %al, %r12d
+    movzbl %al, %ebx
 .L2_9:
-    movzbl %r12b, %ebx
-    testl %ebx, %ebx
+    movzbl %bl, %r12d
+    testl %r12d, %r12d
     jne .L2_5
     jmp .L2_6
 .L2_5:
@@ -437,8 +416,6 @@ lb_gpu_12check_thread:
     leaq 304(%rbp), %rsp
     popq %rbp
     ret
-.L2_10:
-    jmp .L2_7
 .L2_6:
 .L2_7:
     leaq 64(%rbp), %rbx

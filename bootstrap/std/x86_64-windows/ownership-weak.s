@@ -112,13 +112,10 @@ lb_ownership_9weak_make:
     movq 0(%rsp), %rcx
     call lb_ownership_11check_alive
     addq $32, %rsp
-    leaq lb_ownership_immortal(%rip), %r12
-    movq %r12, %r10
-    movzbl (%r10), %r12d
     subq $32, %rsp
     movq %rbx, %rax
     movq %rax, 0(%rsp)
-    movl %r12d, %eax
+    movl $32, %eax
     movq %rax, 8(%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
@@ -258,13 +255,10 @@ lb_ownership_9weak_copy:
     movq 0(%rsp), %rcx
     call lb_ownership_12check_thread
     addq $32, %rsp
-    leaq lb_ownership_immortal(%rip), %r13
-    movq %r13, %r10
-    movzbl (%r10), %r13d
     subq $32, %rsp
     movq %r12, %rax
     movq %rax, 0(%rsp)
-    movl %r13d, %eax
+    movl $32, %eax
     movq %rax, 8(%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
@@ -401,13 +395,10 @@ lb_ownership_9weak_drop:
     movq 0(%rsp), %rcx
     call lb_ownership_12check_thread
     addq $32, %rsp
-    leaq lb_ownership_immortal(%rip), %r12
-    movq %r12, %r10
-    movzbl (%r10), %r12d
     subq $32, %rsp
     movq %rbx, %rax
     movq %rax, 0(%rsp)
-    movl %r12d, %eax
+    movl $32, %eax
     movq %rax, 8(%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
@@ -531,13 +522,10 @@ lb_ownership_8weak_get:
     movq 0(%rsp), %rcx
     call lb_ownership_12check_thread
     addq $32, %rsp
-    leaq lb_ownership_dead(%rip), %r12
-    movq %r12, %r10
-    movzbl (%r10), %r12d
     subq $32, %rsp
     movq %rbx, %rax
     movq %rax, 0(%rsp)
-    movl %r12d, %eax
+    movl $8, %eax
     movq %rax, 8(%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx

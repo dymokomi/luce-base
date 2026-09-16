@@ -47,55 +47,14 @@ _lb_window_supported:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
     sub sp, sp, #16
-    adrp x14, _lb_platform_macos@PAGE
-    add x14, x14, _lb_platform_macos@PAGEOFF
-    ldrb w14, [x14]
-    cbnz w14, L1_1
-    b L1_8
-L1_8:
-    mov w15, w14
-    b L1_2
 L1_1:
-    adrp x14, _lb_platform_arm64@PAGE
-    add x14, x14, _lb_platform_arm64@PAGEOFF
-    ldrb w15, [x14]
 L1_2:
-    and w14, w15, #255
-    cbnz w14, L1_9
-    b L1_3
-L1_9:
-    mov w15, w14
-    b L1_4
-L1_3:
-    adrp x14, _lb_platform_windows@PAGE
-    add x14, x14, _lb_platform_windows@PAGEOFF
-    ldrb w14, [x14]
-    cbnz w14, L1_5
-    b L1_10
-L1_10:
-    mov w15, w14
-    b L1_6
-L1_5:
-    adrp x14, _lb_platform_6x86_64@PAGE
-    add x14, x14, _lb_platform_6x86_64@PAGEOFF
-    ldrb w15, [x14]
-L1_6:
-    and w14, w15, #255
-    mov w15, w14
 L1_4:
-    and w14, w15, #255
-    and w14, w14, #255
-    mov x9, x14
+    movz x9, #1
     mov x0, x9
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
-L1_7:
-    adrp x0, l_text_1@PAGE
-    add x0, x0, l_text_1@PAGEOFF
-    adrp x1, l_text_0@PAGE
-    add x1, x1, l_text_0@PAGEOFF
-    bl _lb_core_7trap_at
 
     .p2align 2
     .globl _lb_window_Window_open

@@ -708,22 +708,8 @@ lb_net_12socket_error:
     leaq 8(%rbp), %rbx
     movq %rbx, %r10
     movslq (%r10), %rbx
-    leaq lb_platform_macos(%rip), %rbx
-    movq %rbx, %r10
-    movzbl (%r10), %ebx
-    testl %ebx, %ebx
-    jne .L1_80
-    jmp .L1_81
-.L1_80:
-    movl $35, %eax
-    movl %eax, %r12d
-    jmp .L1_82
-.L1_81:
-    movl $11, %eax
-    movl %eax, %r12d
-.L1_82:
-    movl %r12d, %r13d
-    cmpl %r13d, %ebx
+    movl $11, %ecx
+    cmpl %ecx, %ebx
     jne .L1_78
 .L1_77:
     leaq lb_io_11would_block(%rip), %rbx
@@ -748,7 +734,7 @@ lb_net_12socket_error:
     leaq 224(%rbp), %rsp
     popq %rbp
     ret
-.L1_83:
+.L1_80:
     jmp .L1_79
 .L1_78:
 .L1_79:
@@ -761,9 +747,9 @@ lb_net_12socket_error:
     movzbl %al, %ebx
     movl %ebx, %r12d
     testl %ebx, %ebx
-    jne .L1_88
-    jmp .L1_87
-.L1_87:
+    jne .L1_85
+    jmp .L1_84
+.L1_84:
     leaq 8(%rbp), %rbx
     movq %rbx, %r10
     movslq (%r10), %rbx
@@ -771,128 +757,68 @@ lb_net_12socket_error:
     cmpl %ecx, %ebx
     sete %al
     movzbl %al, %r12d
-.L1_88:
+.L1_85:
     movzbl %r12b, %ebx
     movl %ebx, %r12d
     testl %ebx, %ebx
-    jne .L1_90
-    jmp .L1_89
-.L1_89:
+    jne .L1_87
+    jmp .L1_86
+.L1_86:
     leaq 8(%rbp), %rbx
     movq %rbx, %r10
     movslq (%r10), %rbx
-    leaq lb_platform_macos(%rip), %rbx
+    movl $104, %ecx
+    cmpl %ecx, %ebx
+    sete %al
+    movzbl %al, %r12d
+.L1_87:
+    movzbl %r12b, %ebx
+    movl %ebx, %r12d
+    testl %ebx, %ebx
+    jne .L1_89
+    jmp .L1_88
+.L1_88:
+    leaq 8(%rbp), %rbx
     movq %rbx, %r10
-    movzbl (%r10), %ebx
+    movslq (%r10), %rbx
+    movl $107, %ecx
+    cmpl %ecx, %ebx
+    sete %al
+    movzbl %al, %r12d
+.L1_89:
+    movzbl %r12b, %ebx
+    movl %ebx, %r12d
     testl %ebx, %ebx
     jne .L1_91
-    jmp .L1_92
-.L1_91:
-    movl $54, %eax
-    movl %eax, %r12d
-    jmp .L1_93
-.L1_92:
-    movl $104, %eax
-    movl %eax, %r12d
-.L1_93:
-    movl %r12d, %r13d
-    cmpl %r13d, %ebx
-    sete %al
-    movzbl %al, %r13d
-    movl %r13d, %r12d
+    jmp .L1_90
 .L1_90:
-    movzbl %r12b, %ebx
-    movl %ebx, %r12d
-    testl %ebx, %ebx
-    jne .L1_95
-    jmp .L1_94
-.L1_94:
     leaq 8(%rbp), %rbx
     movq %rbx, %r10
     movslq (%r10), %rbx
-    leaq lb_platform_macos(%rip), %rbx
-    movq %rbx, %r10
-    movzbl (%r10), %ebx
-    testl %ebx, %ebx
-    jne .L1_96
-    jmp .L1_97
-.L1_96:
-    movl $57, %eax
-    movl %eax, %r12d
-    jmp .L1_98
-.L1_97:
-    movl $107, %eax
-    movl %eax, %r12d
-.L1_98:
-    movl %r12d, %r13d
-    cmpl %r13d, %ebx
+    movl $108, %ecx
+    cmpl %ecx, %ebx
     sete %al
-    movzbl %al, %r13d
-    movl %r13d, %r12d
-.L1_95:
+    movzbl %al, %r12d
+.L1_91:
     movzbl %r12b, %ebx
     movl %ebx, %r12d
     testl %ebx, %ebx
-    jne .L1_100
-    jmp .L1_99
-.L1_99:
+    jne .L1_93
+    jmp .L1_92
+.L1_92:
     leaq 8(%rbp), %rbx
     movq %rbx, %r10
     movslq (%r10), %rbx
-    leaq lb_platform_macos(%rip), %rbx
-    movq %rbx, %r10
-    movzbl (%r10), %ebx
-    testl %ebx, %ebx
-    jne .L1_101
-    jmp .L1_102
-.L1_101:
-    movl $58, %eax
-    movl %eax, %r12d
-    jmp .L1_103
-.L1_102:
-    movl $108, %eax
-    movl %eax, %r12d
-.L1_103:
-    movl %r12d, %r13d
-    cmpl %r13d, %ebx
+    movl $102, %ecx
+    cmpl %ecx, %ebx
     sete %al
-    movzbl %al, %r13d
-    movl %r13d, %r12d
-.L1_100:
-    movzbl %r12b, %ebx
-    movl %ebx, %r12d
-    testl %ebx, %ebx
-    jne .L1_105
-    jmp .L1_104
-.L1_104:
-    leaq 8(%rbp), %rbx
-    movq %rbx, %r10
-    movslq (%r10), %rbx
-    leaq lb_platform_macos(%rip), %rbx
-    movq %rbx, %r10
-    movzbl (%r10), %ebx
-    testl %ebx, %ebx
-    jne .L1_106
-    jmp .L1_107
-.L1_106:
-    movl $52, %eax
-    movl %eax, %r12d
-    jmp .L1_108
-.L1_107:
-    movl $102, %eax
-    movl %eax, %r12d
-.L1_108:
-    movl %r12d, %r13d
-    cmpl %r13d, %ebx
-    sete %al
-    movzbl %al, %r13d
-    movl %r13d, %r12d
-.L1_105:
+    movzbl %al, %r12d
+.L1_93:
     movzbl %r12b, %ebx
     testl %ebx, %ebx
-    jne .L1_84
-    jmp .L1_85
-.L1_84:
+    jne .L1_81
+    jmp .L1_82
+.L1_81:
     leaq lb_net_closed(%rip), %rbx
     movq %rbx, %r10
     movl (%r10), %ebx
@@ -915,31 +841,17 @@ lb_net_12socket_error:
     leaq 224(%rbp), %rsp
     popq %rbp
     ret
-.L1_109:
-    jmp .L1_86
-.L1_85:
-.L1_86:
+.L1_94:
+    jmp .L1_83
+.L1_82:
+.L1_83:
     leaq 8(%rbp), %rbx
     movq %rbx, %r10
     movslq (%r10), %rbx
-    leaq lb_platform_macos(%rip), %rbx
-    movq %rbx, %r10
-    movzbl (%r10), %ebx
-    testl %ebx, %ebx
-    jne .L1_113
-    jmp .L1_114
-.L1_113:
-    movl $60, %eax
-    movl %eax, %r12d
-    jmp .L1_115
-.L1_114:
-    movl $110, %eax
-    movl %eax, %r12d
-.L1_115:
-    movl %r12d, %r13d
-    cmpl %r13d, %ebx
-    jne .L1_111
-.L1_110:
+    movl $110, %ecx
+    cmpl %ecx, %ebx
+    jne .L1_96
+.L1_95:
     leaq lb_net_9timed_out(%rip), %rbx
     movq %rbx, %r10
     movl (%r10), %ebx
@@ -962,31 +874,17 @@ lb_net_12socket_error:
     leaq 224(%rbp), %rsp
     popq %rbp
     ret
-.L1_116:
-    jmp .L1_112
-.L1_111:
-.L1_112:
+.L1_98:
+    jmp .L1_97
+.L1_96:
+.L1_97:
     leaq 8(%rbp), %rbx
     movq %rbx, %r10
     movslq (%r10), %rbx
-    leaq lb_platform_macos(%rip), %rbx
-    movq %rbx, %r10
-    movzbl (%r10), %ebx
-    testl %ebx, %ebx
-    jne .L1_120
-    jmp .L1_121
-.L1_120:
-    movl $89, %eax
-    movl %eax, %r12d
-    jmp .L1_122
-.L1_121:
-    movl $125, %eax
-    movl %eax, %r12d
-.L1_122:
-    movl %r12d, %r13d
-    cmpl %r13d, %ebx
-    jne .L1_118
-.L1_117:
+    movl $125, %ecx
+    cmpl %ecx, %ebx
+    jne .L1_100
+.L1_99:
     leaq lb_net_cancelled(%rip), %rbx
     movq %rbx, %r10
     movl (%r10), %ebx
@@ -1009,31 +907,17 @@ lb_net_12socket_error:
     leaq 224(%rbp), %rsp
     popq %rbp
     ret
-.L1_123:
-    jmp .L1_119
-.L1_118:
-.L1_119:
+.L1_102:
+    jmp .L1_101
+.L1_100:
+.L1_101:
     leaq 8(%rbp), %rbx
     movq %rbx, %r10
     movslq (%r10), %rbx
-    leaq lb_platform_macos(%rip), %rbx
-    movq %rbx, %r10
-    movzbl (%r10), %ebx
-    testl %ebx, %ebx
-    jne .L1_127
-    jmp .L1_128
-.L1_127:
-    movl $61, %eax
-    movl %eax, %r12d
-    jmp .L1_129
-.L1_128:
-    movl $111, %eax
-    movl %eax, %r12d
-.L1_129:
-    movl %r12d, %r13d
-    cmpl %r13d, %ebx
-    jne .L1_125
-.L1_124:
+    movl $111, %ecx
+    cmpl %ecx, %ebx
+    jne .L1_104
+.L1_103:
     leaq lb_net_18connection_refused(%rip), %rbx
     movq %rbx, %r10
     movl (%r10), %ebx
@@ -1056,122 +940,63 @@ lb_net_12socket_error:
     leaq 224(%rbp), %rsp
     popq %rbp
     ret
-.L1_130:
-    jmp .L1_126
-.L1_125:
-.L1_126:
+.L1_106:
+    jmp .L1_105
+.L1_104:
+.L1_105:
     leaq 8(%rbp), %rbx
     movq %rbx, %r10
     movslq (%r10), %rbx
-    leaq lb_platform_macos(%rip), %rbx
-    movq %rbx, %r10
-    movzbl (%r10), %ebx
-    testl %ebx, %ebx
-    jne .L1_134
-    jmp .L1_135
-.L1_134:
-    movl $50, %eax
-    movl %eax, %r12d
-    jmp .L1_136
-.L1_135:
-    movl $100, %eax
-    movl %eax, %r12d
-.L1_136:
-    movl %r12d, %r13d
-    cmpl %r13d, %ebx
+    movl $100, %ecx
+    cmpl %ecx, %ebx
     sete %al
-    movzbl %al, %r13d
-    movl %r13d, %ebx
-    testl %r13d, %r13d
-    jne .L1_138
-    jmp .L1_137
-.L1_137:
+    movzbl %al, %ebx
+    movl %ebx, %r12d
+    testl %ebx, %ebx
+    jne .L1_111
+    jmp .L1_110
+.L1_110:
     leaq 8(%rbp), %rbx
     movq %rbx, %r10
     movslq (%r10), %rbx
-    leaq lb_platform_macos(%rip), %rbx
-    movq %rbx, %r10
-    movzbl (%r10), %ebx
-    testl %ebx, %ebx
-    jne .L1_139
-    jmp .L1_140
-.L1_139:
-    movl $51, %eax
-    movl %eax, %r12d
-    jmp .L1_141
-.L1_140:
-    movl $101, %eax
-    movl %eax, %r12d
-.L1_141:
-    movl %r12d, %r13d
-    cmpl %r13d, %ebx
+    movl $101, %ecx
+    cmpl %ecx, %ebx
     sete %al
-    movzbl %al, %r13d
-    movl %r13d, %ebx
-.L1_138:
-    movzbl %bl, %r12d
-    movl %r12d, %ebx
-    testl %r12d, %r12d
-    jne .L1_143
-    jmp .L1_142
-.L1_142:
+    movzbl %al, %r12d
+.L1_111:
+    movzbl %r12b, %ebx
+    movl %ebx, %r12d
+    testl %ebx, %ebx
+    jne .L1_113
+    jmp .L1_112
+.L1_112:
     leaq 8(%rbp), %rbx
     movq %rbx, %r10
     movslq (%r10), %rbx
-    leaq lb_platform_macos(%rip), %rbx
-    movq %rbx, %r10
-    movzbl (%r10), %ebx
-    testl %ebx, %ebx
-    jne .L1_144
-    jmp .L1_145
-.L1_144:
-    movl $64, %eax
-    movl %eax, %r12d
-    jmp .L1_146
-.L1_145:
-    movl $112, %eax
-    movl %eax, %r12d
-.L1_146:
-    movl %r12d, %r13d
-    cmpl %r13d, %ebx
+    movl $112, %ecx
+    cmpl %ecx, %ebx
     sete %al
-    movzbl %al, %r13d
-    movl %r13d, %ebx
-.L1_143:
-    movzbl %bl, %r12d
-    movl %r12d, %ebx
-    testl %r12d, %r12d
-    jne .L1_148
-    jmp .L1_147
-.L1_147:
+    movzbl %al, %r12d
+.L1_113:
+    movzbl %r12b, %ebx
+    movl %ebx, %r12d
+    testl %ebx, %ebx
+    jne .L1_115
+    jmp .L1_114
+.L1_114:
     leaq 8(%rbp), %rbx
     movq %rbx, %r10
     movslq (%r10), %rbx
-    leaq lb_platform_macos(%rip), %rbx
-    movq %rbx, %r10
-    movzbl (%r10), %ebx
-    testl %ebx, %ebx
-    jne .L1_149
-    jmp .L1_150
-.L1_149:
-    movl $65, %eax
-    movl %eax, %r12d
-    jmp .L1_151
-.L1_150:
-    movl $113, %eax
-    movl %eax, %r12d
-.L1_151:
-    movl %r12d, %r13d
-    cmpl %r13d, %ebx
+    movl $113, %ecx
+    cmpl %ecx, %ebx
     sete %al
-    movzbl %al, %r13d
-    movl %r13d, %ebx
-.L1_148:
-    movzbl %bl, %r12d
-    testl %r12d, %r12d
-    jne .L1_131
-    jmp .L1_132
-.L1_131:
+    movzbl %al, %r12d
+.L1_115:
+    movzbl %r12b, %ebx
+    testl %ebx, %ebx
+    jne .L1_107
+    jmp .L1_108
+.L1_107:
     leaq lb_net_19network_unreachable(%rip), %rbx
     movq %rbx, %r10
     movl (%r10), %ebx
@@ -1194,31 +1019,17 @@ lb_net_12socket_error:
     leaq 224(%rbp), %rsp
     popq %rbp
     ret
-.L1_152:
-    jmp .L1_133
-.L1_132:
-.L1_133:
+.L1_116:
+    jmp .L1_109
+.L1_108:
+.L1_109:
     leaq 8(%rbp), %rbx
     movq %rbx, %r10
     movslq (%r10), %rbx
-    leaq lb_platform_macos(%rip), %rbx
-    movq %rbx, %r10
-    movzbl (%r10), %ebx
-    testl %ebx, %ebx
-    jne .L1_156
-    jmp .L1_157
-.L1_156:
-    movl $48, %eax
-    movl %eax, %r12d
-    jmp .L1_158
-.L1_157:
-    movl $98, %eax
-    movl %eax, %r12d
-.L1_158:
-    movl %r12d, %r13d
-    cmpl %r13d, %ebx
-    jne .L1_154
-.L1_153:
+    movl $98, %ecx
+    cmpl %ecx, %ebx
+    jne .L1_118
+.L1_117:
     leaq lb_net_14address_in_use(%rip), %rbx
     movq %rbx, %r10
     movl (%r10), %ebx
@@ -1241,31 +1052,17 @@ lb_net_12socket_error:
     leaq 224(%rbp), %rsp
     popq %rbp
     ret
-.L1_159:
-    jmp .L1_155
-.L1_154:
-.L1_155:
+.L1_120:
+    jmp .L1_119
+.L1_118:
+.L1_119:
     leaq 8(%rbp), %rbx
     movq %rbx, %r10
     movslq (%r10), %rbx
-    leaq lb_platform_macos(%rip), %rbx
-    movq %rbx, %r10
-    movzbl (%r10), %ebx
-    testl %ebx, %ebx
-    jne .L1_163
-    jmp .L1_164
-.L1_163:
-    movl $49, %eax
-    movl %eax, %r12d
-    jmp .L1_165
-.L1_164:
-    movl $99, %eax
-    movl %eax, %r12d
-.L1_165:
-    movl %r12d, %r13d
-    cmpl %r13d, %ebx
-    jne .L1_161
-.L1_160:
+    movl $99, %ecx
+    cmpl %ecx, %ebx
+    jne .L1_122
+.L1_121:
     leaq lb_net_19address_unavailable(%rip), %rbx
     movq %rbx, %r10
     movl (%r10), %ebx
@@ -1288,10 +1085,10 @@ lb_net_12socket_error:
     leaq 224(%rbp), %rsp
     popq %rbp
     ret
-.L1_166:
-    jmp .L1_162
-.L1_161:
-.L1_162:
+.L1_124:
+    jmp .L1_123
+.L1_122:
+.L1_123:
     leaq 8(%rbp), %rbx
     movq %rbx, %r10
     movslq (%r10), %rbx
@@ -1301,9 +1098,9 @@ lb_net_12socket_error:
     movzbl %al, %ebx
     movl %ebx, %r12d
     testl %ebx, %ebx
-    jne .L1_171
-    jmp .L1_170
-.L1_170:
+    jne .L1_129
+    jmp .L1_128
+.L1_128:
     leaq 8(%rbp), %rbx
     movq %rbx, %r10
     movslq (%r10), %rbx
@@ -1311,12 +1108,12 @@ lb_net_12socket_error:
     cmpl %ecx, %ebx
     sete %al
     movzbl %al, %r12d
-.L1_171:
+.L1_129:
     movzbl %r12b, %ebx
     testl %ebx, %ebx
-    jne .L1_167
-    jmp .L1_168
-.L1_167:
+    jne .L1_125
+    jmp .L1_126
+.L1_125:
     leaq lb_net_17permission_denied(%rip), %rbx
     movq %rbx, %r10
     movl (%r10), %ebx
@@ -1339,10 +1136,10 @@ lb_net_12socket_error:
     leaq 224(%rbp), %rsp
     popq %rbp
     ret
-.L1_172:
-    jmp .L1_169
-.L1_168:
-.L1_169:
+.L1_130:
+    jmp .L1_127
+.L1_126:
+.L1_127:
     leaq 8(%rbp), %rbx
     movq %rbx, %r10
     movslq (%r10), %rbx
@@ -1352,9 +1149,9 @@ lb_net_12socket_error:
     movzbl %al, %ebx
     movl %ebx, %r12d
     testl %ebx, %ebx
-    jne .L1_177
-    jmp .L1_176
-.L1_176:
+    jne .L1_135
+    jmp .L1_134
+.L1_134:
     leaq 8(%rbp), %rbx
     movq %rbx, %r10
     movslq (%r10), %rbx
@@ -1362,13 +1159,13 @@ lb_net_12socket_error:
     cmpl %ecx, %ebx
     sete %al
     movzbl %al, %r12d
-.L1_177:
+.L1_135:
     movzbl %r12b, %ebx
     movl %ebx, %r12d
     testl %ebx, %ebx
-    jne .L1_179
-    jmp .L1_178
-.L1_178:
+    jne .L1_137
+    jmp .L1_136
+.L1_136:
     leaq 8(%rbp), %rbx
     movq %rbx, %r10
     movslq (%r10), %rbx
@@ -1376,41 +1173,26 @@ lb_net_12socket_error:
     cmpl %ecx, %ebx
     sete %al
     movzbl %al, %r12d
-.L1_179:
+.L1_137:
     movzbl %r12b, %ebx
     movl %ebx, %r12d
     testl %ebx, %ebx
-    jne .L1_181
-    jmp .L1_180
-.L1_180:
+    jne .L1_139
+    jmp .L1_138
+.L1_138:
     leaq 8(%rbp), %rbx
     movq %rbx, %r10
     movslq (%r10), %rbx
-    leaq lb_platform_macos(%rip), %rbx
-    movq %rbx, %r10
-    movzbl (%r10), %ebx
-    testl %ebx, %ebx
-    jne .L1_182
-    jmp .L1_183
-.L1_182:
-    movl $55, %eax
-    movl %eax, %r12d
-    jmp .L1_184
-.L1_183:
-    movl $105, %eax
-    movl %eax, %r12d
-.L1_184:
-    movl %r12d, %r13d
-    cmpl %r13d, %ebx
+    movl $105, %ecx
+    cmpl %ecx, %ebx
     sete %al
-    movzbl %al, %r13d
-    movl %r13d, %r12d
-.L1_181:
+    movzbl %al, %r12d
+.L1_139:
     movzbl %r12b, %ebx
     testl %ebx, %ebx
-    jne .L1_173
-    jmp .L1_174
-.L1_173:
+    jne .L1_131
+    jmp .L1_132
+.L1_131:
     leaq lb_net_18resource_exhausted(%rip), %rbx
     movq %rbx, %r10
     movl (%r10), %ebx
@@ -1433,31 +1215,17 @@ lb_net_12socket_error:
     leaq 224(%rbp), %rsp
     popq %rbp
     ret
-.L1_185:
-    jmp .L1_175
-.L1_174:
-.L1_175:
+.L1_140:
+    jmp .L1_133
+.L1_132:
+.L1_133:
     leaq 8(%rbp), %rbx
     movq %rbx, %r10
     movslq (%r10), %rbx
-    leaq lb_platform_macos(%rip), %rbx
-    movq %rbx, %r10
-    movzbl (%r10), %ebx
-    testl %ebx, %ebx
-    jne .L1_189
-    jmp .L1_190
-.L1_189:
-    movl $53, %eax
-    movl %eax, %r12d
-    jmp .L1_191
-.L1_190:
-    movl $103, %eax
-    movl %eax, %r12d
-.L1_191:
-    movl %r12d, %r13d
-    cmpl %r13d, %ebx
-    jne .L1_187
-.L1_186:
+    movl $103, %ecx
+    cmpl %ecx, %ebx
+    jne .L1_142
+.L1_141:
     leaq lb_net_18connection_aborted(%rip), %rbx
     movq %rbx, %r10
     movl (%r10), %ebx
@@ -1480,31 +1248,17 @@ lb_net_12socket_error:
     leaq 224(%rbp), %rsp
     popq %rbp
     ret
-.L1_192:
-    jmp .L1_188
-.L1_187:
-.L1_188:
+.L1_144:
+    jmp .L1_143
+.L1_142:
+.L1_143:
     leaq 8(%rbp), %rbx
     movq %rbx, %r10
     movslq (%r10), %rbx
-    leaq lb_platform_macos(%rip), %rbx
-    movq %rbx, %r10
-    movzbl (%r10), %ebx
-    testl %ebx, %ebx
-    jne .L1_196
-    jmp .L1_197
-.L1_196:
-    movl $40, %eax
-    movl %eax, %r12d
-    jmp .L1_198
-.L1_197:
-    movl $90, %eax
-    movl %eax, %r12d
-.L1_198:
-    movl %r12d, %r13d
-    cmpl %r13d, %ebx
-    jne .L1_194
-.L1_193:
+    movl $90, %ecx
+    cmpl %ecx, %ebx
+    jne .L1_146
+.L1_145:
     leaq lb_net_17message_too_large(%rip), %rbx
     movq %rbx, %r10
     movl (%r10), %ebx
@@ -1527,10 +1281,10 @@ lb_net_12socket_error:
     leaq 224(%rbp), %rsp
     popq %rbp
     ret
-.L1_199:
-    jmp .L1_195
-.L1_194:
-.L1_195:
+.L1_148:
+    jmp .L1_147
+.L1_146:
+.L1_147:
     leaq 8(%rbp), %rbx
     movq %rbx, %r10
     movslq (%r10), %rbx
@@ -1540,95 +1294,50 @@ lb_net_12socket_error:
     movzbl %al, %ebx
     movl %ebx, %r12d
     testl %ebx, %ebx
-    jne .L1_204
-    jmp .L1_203
-.L1_203:
+    jne .L1_153
+    jmp .L1_152
+.L1_152:
     leaq 8(%rbp), %rbx
     movq %rbx, %r10
     movslq (%r10), %rbx
-    leaq lb_platform_macos(%rip), %rbx
-    movq %rbx, %r10
-    movzbl (%r10), %ebx
-    testl %ebx, %ebx
-    jne .L1_205
-    jmp .L1_206
-.L1_205:
-    movl $38, %eax
-    movl %eax, %r12d
-    jmp .L1_207
-.L1_206:
-    movl $88, %eax
-    movl %eax, %r12d
-.L1_207:
-    movl %r12d, %r13d
-    cmpl %r13d, %ebx
+    movl $88, %ecx
+    cmpl %ecx, %ebx
     sete %al
-    movzbl %al, %r13d
-    movl %r13d, %r12d
-.L1_204:
+    movzbl %al, %r12d
+.L1_153:
     movzbl %r12b, %ebx
     movl %ebx, %r12d
     testl %ebx, %ebx
-    jne .L1_209
-    jmp .L1_208
-.L1_208:
+    jne .L1_155
+    jmp .L1_154
+.L1_154:
     leaq 8(%rbp), %rbx
     movq %rbx, %r10
     movslq (%r10), %rbx
-    leaq lb_platform_macos(%rip), %rbx
-    movq %rbx, %r10
-    movzbl (%r10), %ebx
-    testl %ebx, %ebx
-    jne .L1_210
-    jmp .L1_211
-.L1_210:
-    movl $39, %eax
-    movl %eax, %r12d
-    jmp .L1_212
-.L1_211:
-    movl $89, %eax
-    movl %eax, %r12d
-.L1_212:
-    movl %r12d, %r13d
-    cmpl %r13d, %ebx
+    movl $89, %ecx
+    cmpl %ecx, %ebx
     sete %al
-    movzbl %al, %r13d
-    movl %r13d, %r12d
-.L1_209:
+    movzbl %al, %r12d
+.L1_155:
     movzbl %r12b, %ebx
     movl %ebx, %r12d
     testl %ebx, %ebx
-    jne .L1_214
-    jmp .L1_213
-.L1_213:
+    jne .L1_157
+    jmp .L1_156
+.L1_156:
     leaq 8(%rbp), %rbx
     movq %rbx, %r10
     movslq (%r10), %rbx
-    leaq lb_platform_macos(%rip), %rbx
-    movq %rbx, %r10
-    movzbl (%r10), %ebx
-    testl %ebx, %ebx
-    jne .L1_215
-    jmp .L1_216
-.L1_215:
-    movl $41, %eax
-    movl %eax, %r12d
-    jmp .L1_217
-.L1_216:
-    movl $91, %eax
-    movl %eax, %r12d
-.L1_217:
-    movl %r12d, %r13d
-    cmpl %r13d, %ebx
+    movl $91, %ecx
+    cmpl %ecx, %ebx
     sete %al
-    movzbl %al, %r13d
-    movl %r13d, %r12d
-.L1_214:
+    movzbl %al, %r12d
+.L1_157:
     movzbl %r12b, %ebx
     testl %ebx, %ebx
-    jne .L1_200
-    jmp .L1_201
-.L1_200:
+    jne .L1_149
+    jmp .L1_150
+.L1_149:
     leaq lb_net_15invalid_options(%rip), %rbx
     movq %rbx, %r10
     movl (%r10), %ebx
@@ -1651,209 +1360,105 @@ lb_net_12socket_error:
     leaq 224(%rbp), %rsp
     popq %rbp
     ret
-.L1_218:
-    jmp .L1_202
-.L1_201:
-.L1_202:
+.L1_158:
+    jmp .L1_151
+.L1_150:
+.L1_151:
     leaq 8(%rbp), %rbx
     movq %rbx, %r10
     movslq (%r10), %rbx
-    leaq lb_platform_macos(%rip), %rbx
-    movq %rbx, %r10
-    movzbl (%r10), %ebx
-    testl %ebx, %ebx
-    jne .L1_222
-    jmp .L1_223
-.L1_222:
-    movl $42, %eax
-    movl %eax, %r12d
-    jmp .L1_224
-.L1_223:
-    movl $92, %eax
-    movl %eax, %r12d
-.L1_224:
-    movl %r12d, %r13d
-    cmpl %r13d, %ebx
+    movl $92, %ecx
+    cmpl %ecx, %ebx
     sete %al
-    movzbl %al, %r13d
-    movl %r13d, %ebx
-    testl %r13d, %r13d
-    jne .L1_226
-    jmp .L1_225
-.L1_225:
+    movzbl %al, %ebx
+    movl %ebx, %r12d
+    testl %ebx, %ebx
+    jne .L1_163
+    jmp .L1_162
+.L1_162:
     leaq 8(%rbp), %rbx
     movq %rbx, %r10
     movslq (%r10), %rbx
-    leaq lb_platform_macos(%rip), %rbx
-    movq %rbx, %r10
-    movzbl (%r10), %ebx
-    testl %ebx, %ebx
-    jne .L1_227
-    jmp .L1_228
-.L1_227:
-    movl $43, %eax
-    movl %eax, %r12d
-    jmp .L1_229
-.L1_228:
-    movl $93, %eax
-    movl %eax, %r12d
-.L1_229:
-    movl %r12d, %r13d
-    cmpl %r13d, %ebx
+    movl $93, %ecx
+    cmpl %ecx, %ebx
     sete %al
-    movzbl %al, %r13d
-    movl %r13d, %ebx
-.L1_226:
-    movzbl %bl, %r12d
-    movl %r12d, %ebx
-    testl %r12d, %r12d
-    jne .L1_231
-    jmp .L1_230
-.L1_230:
+    movzbl %al, %r12d
+.L1_163:
+    movzbl %r12b, %ebx
+    movl %ebx, %r12d
+    testl %ebx, %ebx
+    jne .L1_165
+    jmp .L1_164
+.L1_164:
     leaq 8(%rbp), %rbx
     movq %rbx, %r10
     movslq (%r10), %rbx
-    leaq lb_platform_macos(%rip), %rbx
-    movq %rbx, %r10
-    movzbl (%r10), %ebx
-    testl %ebx, %ebx
-    jne .L1_232
-    jmp .L1_233
-.L1_232:
-    movl $44, %eax
-    movl %eax, %r12d
-    jmp .L1_234
-.L1_233:
-    movl $94, %eax
-    movl %eax, %r12d
-.L1_234:
-    movl %r12d, %r13d
-    cmpl %r13d, %ebx
+    movl $94, %ecx
+    cmpl %ecx, %ebx
     sete %al
-    movzbl %al, %r13d
-    movl %r13d, %ebx
-.L1_231:
-    movzbl %bl, %r12d
-    movl %r12d, %ebx
-    testl %r12d, %r12d
-    jne .L1_236
-    jmp .L1_235
-.L1_235:
+    movzbl %al, %r12d
+.L1_165:
+    movzbl %r12b, %ebx
+    movl %ebx, %r12d
+    testl %ebx, %ebx
+    jne .L1_167
+    jmp .L1_166
+.L1_166:
     leaq 8(%rbp), %rbx
     movq %rbx, %r10
     movslq (%r10), %rbx
-    leaq lb_platform_macos(%rip), %rbx
-    movq %rbx, %r10
-    movzbl (%r10), %ebx
-    testl %ebx, %ebx
-    jne .L1_237
-    jmp .L1_238
-.L1_237:
-    movl $45, %eax
-    movl %eax, %r12d
-    jmp .L1_239
-.L1_238:
-    movl $95, %eax
-    movl %eax, %r12d
-.L1_239:
-    movl %r12d, %r13d
-    cmpl %r13d, %ebx
+    movl $95, %ecx
+    cmpl %ecx, %ebx
     sete %al
-    movzbl %al, %r13d
-    movl %r13d, %ebx
-.L1_236:
-    movzbl %bl, %r12d
-    movl %r12d, %ebx
-    testl %r12d, %r12d
-    jne .L1_241
-    jmp .L1_240
-.L1_240:
+    movzbl %al, %r12d
+.L1_167:
+    movzbl %r12b, %ebx
+    movl %ebx, %r12d
+    testl %ebx, %ebx
+    jne .L1_169
+    jmp .L1_168
+.L1_168:
     leaq 8(%rbp), %rbx
     movq %rbx, %r10
     movslq (%r10), %rbx
-    leaq lb_platform_macos(%rip), %rbx
-    movq %rbx, %r10
-    movzbl (%r10), %ebx
-    testl %ebx, %ebx
-    jne .L1_242
-    jmp .L1_243
-.L1_242:
-    movl $46, %eax
-    movl %eax, %r12d
-    jmp .L1_244
-.L1_243:
-    movl $96, %eax
-    movl %eax, %r12d
-.L1_244:
-    movl %r12d, %r13d
-    cmpl %r13d, %ebx
+    movl $96, %ecx
+    cmpl %ecx, %ebx
     sete %al
-    movzbl %al, %r13d
-    movl %r13d, %ebx
-.L1_241:
-    movzbl %bl, %r12d
-    movl %r12d, %ebx
-    testl %r12d, %r12d
-    jne .L1_246
-    jmp .L1_245
-.L1_245:
+    movzbl %al, %r12d
+.L1_169:
+    movzbl %r12b, %ebx
+    movl %ebx, %r12d
+    testl %ebx, %ebx
+    jne .L1_171
+    jmp .L1_170
+.L1_170:
     leaq 8(%rbp), %rbx
     movq %rbx, %r10
     movslq (%r10), %rbx
-    leaq lb_platform_macos(%rip), %rbx
-    movq %rbx, %r10
-    movzbl (%r10), %ebx
-    testl %ebx, %ebx
-    jne .L1_247
-    jmp .L1_248
-.L1_247:
-    movl $47, %eax
-    movl %eax, %r12d
-    jmp .L1_249
-.L1_248:
-    movl $97, %eax
-    movl %eax, %r12d
-.L1_249:
-    movl %r12d, %r13d
-    cmpl %r13d, %ebx
+    movl $97, %ecx
+    cmpl %ecx, %ebx
     sete %al
-    movzbl %al, %r13d
-    movl %r13d, %ebx
-.L1_246:
-    movzbl %bl, %r12d
-    movl %r12d, %ebx
-    testl %r12d, %r12d
-    jne .L1_251
-    jmp .L1_250
-.L1_250:
+    movzbl %al, %r12d
+.L1_171:
+    movzbl %r12b, %ebx
+    movl %ebx, %r12d
+    testl %ebx, %ebx
+    jne .L1_173
+    jmp .L1_172
+.L1_172:
     leaq 8(%rbp), %rbx
     movq %rbx, %r10
     movslq (%r10), %rbx
-    leaq lb_platform_macos(%rip), %rbx
-    movq %rbx, %r10
-    movzbl (%r10), %ebx
-    testl %ebx, %ebx
-    jne .L1_252
-    jmp .L1_253
-.L1_252:
-    movl $78, %eax
-    movl %eax, %r12d
-    jmp .L1_254
-.L1_253:
-    movl $38, %eax
-    movl %eax, %r12d
-.L1_254:
-    movl %r12d, %r13d
-    cmpl %r13d, %ebx
+    movl $38, %ecx
+    cmpl %ecx, %ebx
     sete %al
-    movzbl %al, %r13d
-    movl %r13d, %ebx
-.L1_251:
-    movzbl %bl, %r12d
-    testl %r12d, %r12d
-    jne .L1_219
-    jmp .L1_220
-.L1_219:
+    movzbl %al, %r12d
+.L1_173:
+    movzbl %r12b, %ebx
+    testl %ebx, %ebx
+    jne .L1_159
+    jmp .L1_160
+.L1_159:
     leaq lb_net_unsupported(%rip), %rbx
     movq %rbx, %r10
     movl (%r10), %ebx
@@ -1876,10 +1481,10 @@ lb_net_12socket_error:
     leaq 224(%rbp), %rsp
     popq %rbp
     ret
-.L1_255:
-    jmp .L1_221
-.L1_220:
-.L1_221:
+.L1_174:
+    jmp .L1_161
+.L1_160:
+.L1_161:
     leaq lb_net_failed(%rip), %rbx
     movq %rbx, %r10
     movl (%r10), %ebx
@@ -1902,7 +1507,7 @@ lb_net_12socket_error:
     leaq 224(%rbp), %rsp
     popq %rbp
     ret
-.L1_256:
+.L1_175:
     leaq .Ltext_1(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     movq %rdx, %r8

@@ -8,7 +8,6 @@ lb_sync_0init:
     movq %rsp, %rbp
     subq $16, %rsp
     movq %rbx, -8(%rbp)
-    movq %r12, -16(%rbp)
     leaq lb_sync_16compare_and_wait(%rip), %rbx
     movl $1, %eax
     movq %rbx, %r10
@@ -17,33 +16,19 @@ lb_sync_0init:
     movl $256, %eax
     movq %rbx, %r10
     movl %eax, (%r10)
-    leaq lb_platform_arm64(%rip), %rbx
-    movq %rbx, %r10
-    movzbl (%r10), %ebx
-    testl %ebx, %ebx
-    jne .L0_1
-    jmp .L0_2
-.L0_1:
-    movq $98, %rax
-    movq %rax, %rbx
-    jmp .L0_3
-.L0_2:
+    leaq lb_sync_12futex_number(%rip), %rbx
     movq $202, %rax
-    movq %rax, %rbx
-.L0_3:
-    leaq lb_sync_12futex_number(%rip), %r12
-    movq %r12, %r10
-    movq %rbx, (%r10)
-    leaq lb_sync_18futex_wait_private(%rip), %r12
+    movq %rbx, %r10
+    movq %rax, (%r10)
+    leaq lb_sync_18futex_wait_private(%rip), %rbx
     movl $128, %eax
-    movq %r12, %r10
+    movq %rbx, %r10
     movl %eax, (%r10)
-    leaq lb_sync_18futex_wake_private(%rip), %r12
+    leaq lb_sync_18futex_wake_private(%rip), %rbx
     movl $129, %eax
-    movq %r12, %r10
+    movq %rbx, %r10
     movl %eax, (%r10)
     movq -8(%rbp), %rbx
-    movq -16(%rbp), %r12
     movq %rbp, %rsp
     popq %rbp
     ret
@@ -54,16 +39,15 @@ lb_sync_0init:
 lb_sync_Mutex_lock:
     pushq %rbp
     movq %rsp, %rbp
-    subq $96, %rsp
+    subq $80, %rsp
     movq %rbx, -8(%rbp)
     movq %r12, -16(%rbp)
     movq %r13, -24(%rbp)
     movq %r14, -32(%rbp)
-    movq %r15, -40(%rbp)
-    movq %rdi, -48(%rbp)
-    leaq -48(%rbp), %r10
+    movq %rdi, -40(%rbp)
+    leaq -40(%rbp), %r10
     movq (%r10), %r14
-    leaq -56(%rbp), %rbx
+    leaq -48(%rbp), %rbx
     movl $0, %eax
     movl $1, %ecx
     movq %r14, %r10
@@ -91,7 +75,6 @@ lb_sync_Mutex_lock:
     movq -16(%rbp), %r12
     movq -24(%rbp), %r13
     movq -32(%rbp), %r14
-    movq -40(%rbp), %r15
     movq %rbp, %rsp
     popq %rbp
     ret
@@ -115,30 +98,24 @@ lb_sync_Mutex_lock:
 .L1_6:
     movl %r12d, %ebx
 .L1_7:
-    leaq lb_sync_12futex_number(%rip), %r12
-    leaq lb_sync_18futex_wait_private(%rip), %r13
-    movl %ebx, %r15d
+    movl %ebx, %r12d
 .L1_8:
     movl $0, %ecx
-    cmpl %ecx, %r15d
+    cmpl %ecx, %r12d
     sete %al
     movzbl %al, %ebx
     movl $0, %ecx
     cmpl %ecx, %ebx
     jne .L1_10
 .L1_9:
-    leaq -72(%rbp), %r10
+    leaq -64(%rbp), %r10
     movq %r14, (%r10)
     movl $2, %eax
-    leaq -88(%rbp), %r10
+    leaq -80(%rbp), %r10
     movl %eax, (%r10)
-    movq %r12, %r10
-    movq (%r10), %rbx
-    movq %r13, %r10
-    movslq (%r10), %r15
-    movq %rbx, %rdi
+    movq $202, %rdi
     movq %r14, %rsi
-    movl %r15d, %edx
+    movl $128, %edx
     movl $2, %ecx
     movq $0, %r8
     movl $0, %eax
@@ -148,14 +125,13 @@ lb_sync_Mutex_lock:
     movl $2, %ecx
     movq %r14, %r10
     xchgl %ecx, (%r10)
-    movl %ecx, %r15d
+    movl %ecx, %r12d
     jmp .L1_8
 .L1_10:
     movq -8(%rbp), %rbx
     movq -16(%rbp), %r12
     movq -24(%rbp), %r13
     movq -32(%rbp), %r14
-    movq -40(%rbp), %r15
     movq %rbp, %rsp
     popq %rbp
     ret
@@ -169,9 +145,8 @@ lb_sync_Mutex_unlock:
     subq $48, %rsp
     movq %rbx, -8(%rbp)
     movq %r12, -16(%rbp)
-    movq %r13, -24(%rbp)
-    movq %rdi, -32(%rbp)
-    leaq -32(%rbp), %r10
+    movq %rdi, -24(%rbp)
+    leaq -24(%rbp), %r10
     movq (%r10), %r12
     movl $0, %ecx
     movq %r12, %r10
@@ -181,17 +156,11 @@ lb_sync_Mutex_unlock:
     cmpl %ecx, %ebx
     jne .L2_2
 .L2_1:
-    leaq -48(%rbp), %r10
+    leaq -40(%rbp), %r10
     movq %r12, (%r10)
-    leaq lb_sync_12futex_number(%rip), %rbx
-    movq %rbx, %r10
-    movq (%r10), %rbx
-    leaq lb_sync_18futex_wake_private(%rip), %r13
-    movq %r13, %r10
-    movslq (%r10), %r13
-    movq %rbx, %rdi
+    movq $202, %rdi
     movq %r12, %rsi
-    movl %r13d, %edx
+    movl $129, %edx
     movl $1, %ecx
     movl $0, %eax
     call syscall@PLT
@@ -202,7 +171,6 @@ lb_sync_Mutex_unlock:
 .L2_3:
     movq -8(%rbp), %rbx
     movq -16(%rbp), %r12
-    movq -24(%rbp), %r13
     movq %rbp, %rsp
     popq %rbp
     ret
@@ -259,37 +227,29 @@ lb_sync_Mutex_8try_lock:
 lb_sync_Condition_wait:
     pushq %rbp
     movq %rsp, %rbp
-    subq $96, %rsp
+    subq $80, %rsp
     movq %rbx, -8(%rbp)
     movq %r12, -16(%rbp)
     movq %r13, -24(%rbp)
-    movq %r14, -32(%rbp)
-    movq %r15, -40(%rbp)
-    movq %rdi, -48(%rbp)
-    movq %rsi, -64(%rbp)
-    leaq -48(%rbp), %r10
-    movq (%r10), %r15
-    movq %r15, %r10
+    movq %rdi, -32(%rbp)
+    movq %rsi, -48(%rbp)
+    leaq -32(%rbp), %r10
+    movq (%r10), %r13
+    movq %r13, %r10
     movl (%r10), %eax
     movl %eax, %ebx
-    leaq -64(%rbp), %r12
+    leaq -48(%rbp), %r12
     movq %r12, %r10
     movq (%r10), %r12
     movq %r12, %rdi
     call lb_sync_Mutex_unlock@PLT
+    leaq -64(%rbp), %r10
+    movq %r13, (%r10)
     leaq -80(%rbp), %r10
-    movq %r15, (%r10)
-    leaq -96(%rbp), %r10
     movl %ebx, (%r10)
-    leaq lb_sync_12futex_number(%rip), %r13
-    movq %r13, %r10
-    movq (%r10), %r13
-    leaq lb_sync_18futex_wait_private(%rip), %r14
-    movq %r14, %r10
-    movslq (%r10), %r14
-    movq %r13, %rdi
-    movq %r15, %rsi
-    movl %r14d, %edx
+    movq $202, %rdi
+    movq %r13, %rsi
+    movl $128, %edx
     movl %ebx, %ecx
     movq $0, %r8
     movl $0, %eax
@@ -301,8 +261,6 @@ lb_sync_Condition_wait:
     movq -8(%rbp), %rbx
     movq -16(%rbp), %r12
     movq -24(%rbp), %r13
-    movq -32(%rbp), %r14
-    movq -40(%rbp), %r15
     movq %rbp, %rsp
     popq %rbp
     ret
@@ -316,25 +274,18 @@ lb_sync_Condition_signal:
     subq $48, %rsp
     movq %rbx, -8(%rbp)
     movq %r12, -16(%rbp)
-    movq %r13, -24(%rbp)
-    movq %rdi, -32(%rbp)
-    leaq -32(%rbp), %r10
-    movq (%r10), %r13
-    movl $1, %ecx
-    movq %r13, %r10
-    lock xaddl %ecx, (%r10)
-    movl %ecx, %ebx
-    leaq -48(%rbp), %r10
-    movq %r13, (%r10)
-    leaq lb_sync_12futex_number(%rip), %rbx
-    movq %rbx, %r10
+    movq %rdi, -24(%rbp)
+    leaq -24(%rbp), %r10
     movq (%r10), %rbx
-    leaq lb_sync_18futex_wake_private(%rip), %r12
-    movq %r12, %r10
-    movslq (%r10), %r12
-    movq %rbx, %rdi
-    movq %r13, %rsi
-    movl %r12d, %edx
+    movl $1, %ecx
+    movq %rbx, %r10
+    lock xaddl %ecx, (%r10)
+    movl %ecx, %r12d
+    leaq -40(%rbp), %r10
+    movq %rbx, (%r10)
+    movq $202, %rdi
+    movq %rbx, %rsi
+    movl $129, %edx
     movl $1, %ecx
     movl $0, %eax
     call syscall@PLT
@@ -342,7 +293,6 @@ lb_sync_Condition_signal:
 .L5_1:
     movq -8(%rbp), %rbx
     movq -16(%rbp), %r12
-    movq -24(%rbp), %r13
     movq %rbp, %rsp
     popq %rbp
     ret
@@ -356,25 +306,18 @@ lb_sync_Condition_broadcast:
     subq $48, %rsp
     movq %rbx, -8(%rbp)
     movq %r12, -16(%rbp)
-    movq %r13, -24(%rbp)
-    movq %rdi, -32(%rbp)
-    leaq -32(%rbp), %r10
-    movq (%r10), %r13
-    movl $1, %ecx
-    movq %r13, %r10
-    lock xaddl %ecx, (%r10)
-    movl %ecx, %ebx
-    leaq -48(%rbp), %r10
-    movq %r13, (%r10)
-    leaq lb_sync_12futex_number(%rip), %rbx
-    movq %rbx, %r10
+    movq %rdi, -24(%rbp)
+    leaq -24(%rbp), %r10
     movq (%r10), %rbx
-    leaq lb_sync_18futex_wake_private(%rip), %r12
-    movq %r12, %r10
-    movslq (%r10), %r12
-    movq %rbx, %rdi
-    movq %r13, %rsi
-    movl %r12d, %edx
+    movl $1, %ecx
+    movq %rbx, %r10
+    lock xaddl %ecx, (%r10)
+    movl %ecx, %r12d
+    leaq -40(%rbp), %r10
+    movq %rbx, (%r10)
+    movq $202, %rdi
+    movq %rbx, %rsi
+    movl $129, %edx
     movl $2147483647, %ecx
     movl $0, %eax
     call syscall@PLT
@@ -382,7 +325,6 @@ lb_sync_Condition_broadcast:
 .L6_1:
     movq -8(%rbp), %rbx
     movq -16(%rbp), %r12
-    movq -24(%rbp), %r13
     movq %rbp, %rsp
     popq %rbp
     ret
@@ -393,17 +335,16 @@ lb_sync_Condition_broadcast:
 lb_sync_Once_run:
     pushq %rbp
     movq %rsp, %rbp
-    subq $128, %rsp
+    subq $112, %rsp
     movq %rbx, -8(%rbp)
     movq %r12, -16(%rbp)
     movq %r13, -24(%rbp)
     movq %r14, -32(%rbp)
-    movq %r15, -40(%rbp)
-    movq %rdi, -48(%rbp)
-    movq %rsi, -64(%rbp)
-    leaq -48(%rbp), %r10
+    movq %rdi, -40(%rbp)
+    movq %rsi, -56(%rbp)
+    leaq -40(%rbp), %r10
     movq (%r10), %r14
-    leaq -72(%rbp), %rbx
+    leaq -64(%rbp), %rbx
     movl $0, %eax
     movl $1, %ecx
     movq %r14, %r10
@@ -427,7 +368,7 @@ lb_sync_Once_run:
     jne .L7_1
     jmp .L7_2
 .L7_1:
-    leaq -64(%rbp), %rbx
+    leaq -56(%rbp), %rbx
     movq %rbx, %r10
     movq (%r10), %rbx
     movq %rbx, %r11
@@ -435,17 +376,11 @@ lb_sync_Once_run:
     movl $2, %eax
     movq %r14, %r10
     movl %eax, (%r10)
-    leaq -88(%rbp), %r10
+    leaq -80(%rbp), %r10
     movq %r14, (%r10)
-    leaq lb_sync_12futex_number(%rip), %rbx
-    movq %rbx, %r10
-    movq (%r10), %rbx
-    leaq lb_sync_18futex_wake_private(%rip), %r12
-    movq %r12, %r10
-    movslq (%r10), %r12
-    movq %rbx, %rdi
+    movq $202, %rdi
     movq %r14, %rsi
-    movl %r12d, %edx
+    movl $129, %edx
     movl $2147483647, %ecx
     movl $0, %eax
     call syscall@PLT
@@ -455,7 +390,6 @@ lb_sync_Once_run:
     movq -16(%rbp), %r12
     movq -24(%rbp), %r13
     movq -32(%rbp), %r14
-    movq -40(%rbp), %r15
     movq %rbp, %rsp
     popq %rbp
     ret
@@ -463,37 +397,31 @@ lb_sync_Once_run:
     jmp .L7_3
 .L7_2:
 .L7_3:
-    leaq lb_sync_12futex_number(%rip), %rbx
-    leaq lb_sync_18futex_wait_private(%rip), %r12
 .L7_5:
     movq %r14, %r10
     movl (%r10), %eax
-    movl %eax, %r13d
+    movl %eax, %ebx
     movl $2, %ecx
-    cmpl %ecx, %r13d
+    cmpl %ecx, %ebx
     sete %al
-    movzbl %al, %r13d
+    movzbl %al, %ebx
     movl $0, %ecx
-    cmpl %ecx, %r13d
+    cmpl %ecx, %ebx
     jne .L7_7
 .L7_6:
-    leaq -104(%rbp), %r10
+    leaq -96(%rbp), %r10
     movq %r14, (%r10)
     movl $1, %eax
-    leaq -120(%rbp), %r10
+    leaq -112(%rbp), %r10
     movl %eax, (%r10)
-    movq %rbx, %r10
-    movq (%r10), %r13
-    movq %r12, %r10
-    movslq (%r10), %r15
-    movq %r13, %rdi
+    movq $202, %rdi
     movq %r14, %rsi
-    movl %r15d, %edx
+    movl $128, %edx
     movl $1, %ecx
     movq $0, %r8
     movl $0, %eax
     call syscall@PLT
-    movq %rax, %r13
+    movq %rax, %rbx
 .L7_9:
     jmp .L7_5
 .L7_7:
@@ -501,7 +429,6 @@ lb_sync_Once_run:
     movq -16(%rbp), %r12
     movq -24(%rbp), %r13
     movq -32(%rbp), %r14
-    movq -40(%rbp), %r15
     movq %rbp, %rsp
     popq %rbp
     ret
@@ -512,7 +439,7 @@ lb_sync_Once_run:
 lb_sync_Semaphore_acquire:
     pushq %rbp
     movq %rsp, %rbp
-    subq $112, %rsp
+    subq $96, %rsp
     movq %rbx, -8(%rbp)
     movq %r12, -16(%rbp)
     movq %r13, -24(%rbp)
@@ -520,11 +447,7 @@ lb_sync_Semaphore_acquire:
     movq %r15, -40(%rbp)
     movq %rdi, -48(%rbp)
     leaq -48(%rbp), %r10
-    movq (%r10), %r15
-    leaq lb_sync_12futex_number(%rip), %rax
-    movq %rax, -104(%rbp)
-    leaq lb_sync_18futex_wait_private(%rip), %rax
-    movq %rax, -112(%rbp)
+    movq (%r10), %r13
     leaq -56(%rbp), %rbx
     movq $4, %rcx
     movq %rbx, %rax
@@ -532,7 +455,7 @@ lb_sync_Semaphore_acquire:
     movq %rax, -96(%rbp)
 .L8_1:
 .L8_2:
-    movq %r15, %r10
+    movq %r13, %r10
     movl (%r10), %eax
     movl %eax, %r14d
     movl $0, %ecx
@@ -547,19 +470,19 @@ lb_sync_Semaphore_acquire:
     leaq .Ltext_3(%rip), %rsi
     call lb_core_7trap_at@PLT
 1:
-    movl %eax, %r13d
+    movl %eax, %r15d
     movl %r14d, %eax
-    movl %r13d, %ecx
-    movq %r15, %r10
+    movl %r15d, %ecx
+    movq %r13, %r10
     lock cmpxchgl %ecx, (%r10)
-    movl %eax, %r13d
-    cmpl %r13d, %r14d
+    movl %eax, %r15d
+    cmpl %r15d, %r14d
     sete %al
     movzbl %al, %r12d
     movq %rbx, %r10
     movb %r12b, (%r10)
     movq -96(%rbp), %r10
-    movl %r13d, (%r10)
+    movl %r15d, (%r10)
     movq %rbx, %r10
     movzbl (%r10), %r12d
     movzbl %r12b, %r12d
@@ -580,17 +503,13 @@ lb_sync_Semaphore_acquire:
     jmp .L8_6
 .L8_5:
     leaq -72(%rbp), %r10
-    movq %r15, (%r10)
+    movq %r13, (%r10)
     movl $0, %eax
     leaq -88(%rbp), %r10
     movl %eax, (%r10)
-    movq -104(%rbp), %r10
-    movq (%r10), %r12
-    movq -112(%rbp), %r10
-    movslq (%r10), %r13
-    movq %r12, %rdi
-    movq %r15, %rsi
-    movl %r13d, %edx
+    movq $202, %rdi
+    movq %r13, %rsi
+    movl $128, %edx
     movl $0, %ecx
     movq $0, %r8
     movl $0, %eax
@@ -609,25 +528,18 @@ lb_sync_Semaphore_release:
     subq $48, %rsp
     movq %rbx, -8(%rbp)
     movq %r12, -16(%rbp)
-    movq %r13, -24(%rbp)
-    movq %rdi, -32(%rbp)
-    leaq -32(%rbp), %r10
-    movq (%r10), %r13
-    movl $1, %ecx
-    movq %r13, %r10
-    lock xaddl %ecx, (%r10)
-    movl %ecx, %ebx
-    leaq -48(%rbp), %r10
-    movq %r13, (%r10)
-    leaq lb_sync_12futex_number(%rip), %rbx
-    movq %rbx, %r10
+    movq %rdi, -24(%rbp)
+    leaq -24(%rbp), %r10
     movq (%r10), %rbx
-    leaq lb_sync_18futex_wake_private(%rip), %r12
-    movq %r12, %r10
-    movslq (%r10), %r12
-    movq %rbx, %rdi
-    movq %r13, %rsi
-    movl %r12d, %edx
+    movl $1, %ecx
+    movq %rbx, %r10
+    lock xaddl %ecx, (%r10)
+    movl %ecx, %r12d
+    leaq -40(%rbp), %r10
+    movq %rbx, (%r10)
+    movq $202, %rdi
+    movq %rbx, %rsi
+    movl $129, %edx
     movl $1, %ecx
     movl $0, %eax
     call syscall@PLT
@@ -635,7 +547,6 @@ lb_sync_Semaphore_release:
 .L9_1:
     movq -8(%rbp), %rbx
     movq -16(%rbp), %r12
-    movq -24(%rbp), %r13
     movq %rbp, %rsp
     popq %rbp
     ret

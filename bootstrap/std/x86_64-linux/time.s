@@ -8,30 +8,15 @@ lb_time_0init:
     movq %rsp, %rbp
     subq $16, %rsp
     movq %rbx, -8(%rbp)
-    movq %r12, -16(%rbp)
-    leaq lb_platform_macos(%rip), %rbx
-    movq %rbx, %r10
-    movzbl (%r10), %ebx
-    testl %ebx, %ebx
-    jne .L0_1
-    jmp .L0_2
-.L0_1:
-    movl $6, %eax
-    movl %eax, %ebx
-    jmp .L0_3
-.L0_2:
+    leaq lb_time_monotonic(%rip), %rbx
     movl $1, %eax
-    movl %eax, %ebx
-.L0_3:
-    leaq lb_time_monotonic(%rip), %r12
-    movq %r12, %r10
-    movl %ebx, (%r10)
-    leaq lb_time_realtime(%rip), %r12
+    movq %rbx, %r10
+    movl %eax, (%r10)
+    leaq lb_time_realtime(%rip), %rbx
     movl $0, %eax
-    movq %r12, %r10
+    movq %rbx, %r10
     movl %eax, (%r10)
     movq -8(%rbp), %rbx
-    movq -16(%rbp), %r12
     movq %rbp, %rsp
     popq %rbp
     ret
@@ -76,14 +61,12 @@ lb_time_now:
     jne .L1_2
     jmp .L1_3
 .L1_2:
-    leaq lb_time_monotonic(%rip), %r12
-    movq %r12, %r10
-    movslq (%r10), %r12
+    movl $1, %eax
+    movl %eax, %r12d
     jmp .L1_4
 .L1_3:
-    leaq lb_time_realtime(%rip), %r12
-    movq %r12, %r10
-    movslq (%r10), %r12
+    movl $0, %eax
+    movl %eax, %r12d
 .L1_4:
     movl %r12d, %edi
     movq %rbx, %rsi

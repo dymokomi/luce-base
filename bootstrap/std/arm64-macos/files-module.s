@@ -6,471 +6,141 @@ _lb_files_module_0init:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
     sub sp, sp, #16
-    adrp x14, _lb_platform_wasm32@PAGE
-    add x14, x14, _lb_platform_wasm32@PAGEOFF
-    ldrb w15, [x14]
-    cbnz w15, L0_1
-    b L0_2
-L0_1:
-    movz x9, #1024, lsl #16
-    mov w15, w9
-    b L0_3
-L0_2:
+    adrp x14, _lb_files_14read_only_flag@PAGE
+    add x14, x14, _lb_files_14read_only_flag@PAGEOFF
     mov x9, #0
-    mov w15, w9
-L0_3:
-    adrp x12, _lb_files_14read_only_flag@PAGE
-    add x12, x12, _lb_files_14read_only_flag@PAGEOFF
-    str w15, [x12]
-    ldrb w12, [x14]
-    cbnz w12, L0_4
-    b L0_5
-L0_4:
-    movz x9, #4096, lsl #16
-    mov w15, w9
-    b L0_6
-L0_5:
+    str w9, [x14]
+    adrp x14, _lb_files_10write_only@PAGE
+    add x14, x14, _lb_files_10write_only@PAGEOFF
     movz x9, #1
-    mov w15, w9
-L0_6:
-    adrp x12, _lb_files_10write_only@PAGE
-    add x12, x12, _lb_files_10write_only@PAGEOFF
-    str w15, [x12]
-    ldrb w12, [x14]
-    cbnz w12, L0_7
-    b L0_8
-L0_7:
-    movz x9, #5120, lsl #16
-    mov w15, w9
-    b L0_9
-L0_8:
+    str w9, [x14]
+    adrp x14, _lb_files_15read_write_flag@PAGE
+    add x14, x14, _lb_files_15read_write_flag@PAGEOFF
     movz x9, #2
-    mov w15, w9
-L0_9:
-    adrp x12, _lb_files_15read_write_flag@PAGE
-    add x12, x12, _lb_files_15read_write_flag@PAGEOFF
-    str w15, [x12]
-    ldrb w12, [x14]
-    cbnz w12, L0_10
-    b L0_11
-L0_10:
-    movz x9, #4096
-    mov w15, w9
-    b L0_12
-L0_11:
-    adrp x15, _lb_platform_windows@PAGE
-    add x15, x15, _lb_platform_windows@PAGEOFF
-    ldrb w15, [x15]
-    cbnz w15, L0_13
-    b L0_14
-L0_13:
-    movz x9, #256
-    mov w15, w9
-    b L0_15
-L0_14:
-    adrp x15, _lb_platform_macos@PAGE
-    add x15, x15, _lb_platform_macos@PAGEOFF
-    ldrb w15, [x15]
-    cbnz w15, L0_16
-    b L0_17
-L0_16:
+    str w9, [x14]
+    adrp x14, _lb_files_create@PAGE
+    add x14, x14, _lb_files_create@PAGEOFF
     movz x9, #512
-    mov w15, w9
-    b L0_18
-L0_17:
-    movz x9, #64
-    mov w15, w9
-L0_18:
-L0_15:
-L0_12:
-    adrp x12, _lb_files_create@PAGE
-    add x12, x12, _lb_files_create@PAGEOFF
-    str w15, [x12]
-    ldrb w12, [x14]
-    cbnz w12, L0_19
-    b L0_20
-L0_19:
-    movz x9, #32768
-    mov w15, w9
-    b L0_21
-L0_20:
-    adrp x15, _lb_platform_windows@PAGE
-    add x15, x15, _lb_platform_windows@PAGEOFF
-    ldrb w15, [x15]
-    cbnz w15, L0_22
-    b L0_23
-L0_22:
-    movz x9, #512
-    mov w15, w9
-    b L0_24
-L0_23:
-    adrp x15, _lb_platform_macos@PAGE
-    add x15, x15, _lb_platform_macos@PAGEOFF
-    ldrb w15, [x15]
-    cbnz w15, L0_25
-    b L0_26
-L0_25:
+    str w9, [x14]
+    adrp x14, _lb_files_truncate@PAGE
+    add x14, x14, _lb_files_truncate@PAGEOFF
     movz x9, #1024
-    mov w15, w9
-    b L0_27
-L0_26:
-    movz x9, #512
-    mov w15, w9
-L0_27:
-L0_24:
-L0_21:
-    adrp x12, _lb_files_truncate@PAGE
-    add x12, x12, _lb_files_truncate@PAGEOFF
-    str w15, [x12]
-    ldrb w12, [x14]
-    cbnz w12, L0_28
-    b L0_29
-L0_28:
-    mov x9, #0
-    mov w15, w9
-    b L0_30
-L0_29:
-    adrp x15, _lb_platform_windows@PAGE
-    add x15, x15, _lb_platform_windows@PAGEOFF
-    ldrb w15, [x15]
-    cbnz w15, L0_31
-    b L0_32
-L0_31:
-    movz x9, #128
-    mov w15, w9
-    b L0_33
-L0_32:
-    adrp x15, _lb_platform_macos@PAGE
-    add x15, x15, _lb_platform_macos@PAGEOFF
-    ldrb w15, [x15]
-    cbnz w15, L0_34
-    b L0_35
-L0_34:
+    str w9, [x14]
+    adrp x14, _lb_files_13close_on_exec@PAGE
+    add x14, x14, _lb_files_13close_on_exec@PAGEOFF
     movz x9, #256, lsl #16
-    mov w15, w9
-    b L0_36
-L0_35:
-    movz x9, #8, lsl #16
-    mov w15, w9
-L0_36:
-L0_33:
-L0_30:
-    adrp x12, _lb_files_13close_on_exec@PAGE
-    add x12, x12, _lb_files_13close_on_exec@PAGEOFF
-    str w15, [x12]
-    ldrb w12, [x14]
-    cbnz w12, L0_37
-    b L0_38
-L0_37:
-    movz x9, #1
-    mov w15, w9
-    b L0_39
-L0_38:
-    adrp x15, _lb_platform_windows@PAGE
-    add x15, x15, _lb_platform_windows@PAGEOFF
-    ldrb w15, [x15]
-    cbnz w15, L0_94
-    b L0_43
-L0_94:
-    mov w12, w15
-    b L0_44
-L0_43:
-    adrp x15, _lb_platform_macos@PAGE
-    add x15, x15, _lb_platform_macos@PAGEOFF
-    ldrb w12, [x15]
-L0_44:
-    and w15, w12, #255
-    cbnz w15, L0_40
-    b L0_41
-L0_40:
+    str w9, [x14]
+    adrp x14, _lb_files_11append_flag@PAGE
+    add x14, x14, _lb_files_11append_flag@PAGEOFF
     movz x9, #8
-    mov w15, w9
-    b L0_42
-L0_41:
-    movz x9, #1024
-    mov w15, w9
-L0_42:
-L0_39:
-    adrp x12, _lb_files_11append_flag@PAGE
-    add x12, x12, _lb_files_11append_flag@PAGEOFF
-    str w15, [x12]
-    ldrb w12, [x14]
-    cbnz w12, L0_45
-    b L0_46
-L0_45:
-    movz x9, #16384
-    mov w15, w9
-    b L0_47
-L0_46:
-    adrp x15, _lb_platform_windows@PAGE
-    add x15, x15, _lb_platform_windows@PAGEOFF
-    ldrb w15, [x15]
-    cbnz w15, L0_48
-    b L0_49
-L0_48:
-    movz x9, #1024
-    mov w15, w9
-    b L0_50
-L0_49:
-    adrp x15, _lb_platform_macos@PAGE
-    add x15, x15, _lb_platform_macos@PAGEOFF
-    ldrb w15, [x15]
-    cbnz w15, L0_51
-    b L0_52
-L0_51:
+    str w9, [x14]
+    adrp x14, _lb_files_14exclusive_flag@PAGE
+    add x14, x14, _lb_files_14exclusive_flag@PAGEOFF
     movz x9, #2048
-    mov w15, w9
-    b L0_53
-L0_52:
-    movz x9, #128
-    mov w15, w9
-L0_53:
-L0_50:
-L0_47:
-    adrp x12, _lb_files_14exclusive_flag@PAGE
-    add x12, x12, _lb_files_14exclusive_flag@PAGEOFF
-    str w15, [x12]
-    adrp x12, _lb_platform_macos@PAGE
-    add x12, x12, _lb_platform_macos@PAGEOFF
-    ldrb w13, [x12]
-    cbnz w13, L0_95
-    b L0_57
-L0_95:
-    mov w15, w13
-    b L0_58
-L0_57:
-    ldrb w15, [x14]
-L0_58:
-    and w13, w15, #255
-    cbnz w13, L0_54
-    b L0_55
-L0_54:
+    str w9, [x14]
+    adrp x14, _lb_files_21nonblocking_open_flag@PAGE
+    add x14, x14, _lb_files_21nonblocking_open_flag@PAGEOFF
     movz x9, #4
-    mov w15, w9
-    b L0_56
-L0_55:
-    movz x9, #2048
-    mov w15, w9
-L0_56:
-    adrp x13, _lb_files_21nonblocking_open_flag@PAGE
-    add x13, x13, _lb_files_21nonblocking_open_flag@PAGEOFF
-    str w15, [x13]
-    ldrb w13, [x14]
-    cbnz w13, L0_59
-    b L0_60
-L0_59:
-    movz x9, #6
-    mov w15, w9
-    b L0_61
-L0_60:
-    ldrb w15, [x12]
-    cbnz w15, L0_62
-    b L0_63
-L0_62:
+    str w9, [x14]
+    adrp x14, _lb_files_17would_block_errno@PAGE
+    add x14, x14, _lb_files_17would_block_errno@PAGEOFF
     movz x9, #35
-    mov w15, w9
-    b L0_64
-L0_63:
-    movz x9, #11
-    mov w15, w9
-L0_64:
-L0_61:
-    adrp x13, _lb_files_17would_block_errno@PAGE
-    add x13, x13, _lb_files_17would_block_errno@PAGEOFF
-    str w15, [x13]
-    adrp x13, _lb_files_14transfer_limit@PAGE
-    add x13, x13, _lb_files_14transfer_limit@PAGEOFF
+    str w9, [x14]
+    adrp x14, _lb_files_14transfer_limit@PAGE
+    add x14, x14, _lb_files_14transfer_limit@PAGEOFF
     movz x9, #16384, lsl #16
-    str x9, [x13]
-    ldrb w13, [x12]
-    cbnz w13, L0_96
-    b L0_68
-L0_96:
-    mov w15, w13
-    b L0_69
-L0_68:
-    ldrb w15, [x14]
-L0_69:
-    and w13, w15, #255
-    cbnz w13, L0_65
-    b L0_66
-L0_65:
+    str x9, [x14]
+    adrp x14, _lb_files_20current_directory_fd@PAGE
+    add x14, x14, _lb_files_20current_directory_fd@PAGEOFF
     movn x9, #1
-    mov w15, w9
-    b L0_67
-L0_66:
-    movn x9, #99
-    mov w15, w9
-L0_67:
-    adrp x13, _lb_files_20current_directory_fd@PAGE
-    add x13, x13, _lb_files_20current_directory_fd@PAGEOFF
-    str w15, [x13]
-    ldrb w13, [x14]
-    cbnz w13, L0_70
-    b L0_71
-L0_70:
-    movz x9, #8192
-    mov w15, w9
-    b L0_72
-L0_71:
-    ldrb w15, [x12]
-    cbnz w15, L0_73
-    b L0_74
-L0_73:
+    str w9, [x14]
+    adrp x14, _lb_files_14directory_flag@PAGE
+    add x14, x14, _lb_files_14directory_flag@PAGEOFF
     movz x9, #16, lsl #16
-    mov w15, w9
-    b L0_75
-L0_74:
-    adrp x15, _lb_platform_arm64@PAGE
-    add x15, x15, _lb_platform_arm64@PAGEOFF
-    ldrb w15, [x15]
-    cbnz w15, L0_76
-    b L0_77
-L0_76:
-    movz x9, #16384
-    mov w15, w9
-    b L0_78
-L0_77:
-    movz x9, #1, lsl #16
-    mov w15, w9
-L0_78:
-L0_75:
-L0_72:
-    adrp x13, _lb_files_14directory_flag@PAGE
-    add x13, x13, _lb_files_14directory_flag@PAGEOFF
-    str w15, [x13]
-    ldrb w13, [x14]
-    cbnz w13, L0_79
-    b L0_80
-L0_79:
-    movz x9, #256, lsl #16
-    mov w15, w9
-    b L0_81
-L0_80:
-    ldrb w15, [x12]
-    cbnz w15, L0_82
-    b L0_83
-L0_82:
+    str w9, [x14]
+    adrp x14, _lb_files_14no_follow_flag@PAGE
+    add x14, x14, _lb_files_14no_follow_flag@PAGEOFF
     movz x9, #256
-    mov w15, w9
-    b L0_84
-L0_83:
-    adrp x15, _lb_platform_arm64@PAGE
-    add x15, x15, _lb_platform_arm64@PAGEOFF
-    ldrb w15, [x15]
-    cbnz w15, L0_85
-    b L0_86
-L0_85:
-    movz x9, #32768
-    mov w15, w9
-    b L0_87
-L0_86:
-    movz x9, #2, lsl #16
-    mov w15, w9
-L0_87:
-L0_84:
-L0_81:
-    adrp x13, _lb_files_14no_follow_flag@PAGE
-    add x13, x13, _lb_files_14no_follow_flag@PAGEOFF
-    str w15, [x13]
-    ldrb w13, [x14]
-    cbnz w13, L0_88
-    b L0_89
-L0_88:
-    movz x9, #1
-    mov w14, w9
-    b L0_90
-L0_89:
-    ldrb w14, [x12]
-    cbnz w14, L0_91
-    b L0_92
-L0_91:
+    str w9, [x14]
+    adrp x14, _lb_files_17at_no_follow_flag@PAGE
+    add x14, x14, _lb_files_17at_no_follow_flag@PAGEOFF
     movz x9, #32
-    mov w14, w9
-    b L0_93
-L0_92:
-    movz x9, #256
-    mov w14, w9
-L0_93:
-L0_90:
-    adrp x15, _lb_files_17at_no_follow_flag@PAGE
-    add x15, x15, _lb_files_17at_no_follow_flag@PAGEOFF
-    str w14, [x15]
-    adrp x15, _lb_files_missing@PAGE
-    add x15, x15, _lb_files_missing@PAGEOFF
+    str w9, [x14]
+    adrp x14, _lb_files_missing@PAGE
+    add x14, x14, _lb_files_missing@PAGEOFF
     movz x9, #6
     movk x9, #3178, lsl #16
-    str w9, [x15]
-    adrp x15, _lb_files_17permission_denied@PAGE
-    add x15, x15, _lb_files_17permission_denied@PAGEOFF
+    str w9, [x14]
+    adrp x14, _lb_files_17permission_denied@PAGE
+    add x14, x14, _lb_files_17permission_denied@PAGEOFF
     movz x9, #18
     movk x9, #3178, lsl #16
-    str w9, [x15]
-    adrp x15, _lb_files_14already_exists@PAGE
-    add x15, x15, _lb_files_14already_exists@PAGEOFF
+    str w9, [x14]
+    adrp x14, _lb_files_14already_exists@PAGE
+    add x14, x14, _lb_files_14already_exists@PAGEOFF
     movz x9, #19
     movk x9, #3178, lsl #16
-    str w9, [x15]
-    adrp x15, _lb_files_8no_space@PAGE
-    add x15, x15, _lb_files_8no_space@PAGEOFF
+    str w9, [x14]
+    adrp x14, _lb_files_8no_space@PAGE
+    add x14, x14, _lb_files_8no_space@PAGEOFF
     movz x9, #20
     movk x9, #3178, lsl #16
-    str w9, [x15]
-    adrp x15, _lb_files_11would_block@PAGE
-    add x15, x15, _lb_files_11would_block@PAGEOFF
+    str w9, [x14]
+    adrp x14, _lb_files_11would_block@PAGE
+    add x14, x14, _lb_files_11would_block@PAGEOFF
     movz x9, #21
     movk x9, #3178, lsl #16
-    str w9, [x15]
-    adrp x15, _lb_files_15invalid_options@PAGE
-    add x15, x15, _lb_files_15invalid_options@PAGEOFF
+    str w9, [x14]
+    adrp x14, _lb_files_15invalid_options@PAGE
+    add x14, x14, _lb_files_15invalid_options@PAGEOFF
     movz x9, #22
     movk x9, #3178, lsl #16
-    str w9, [x15]
-    adrp x15, _lb_files_9too_large@PAGE
-    add x15, x15, _lb_files_9too_large@PAGEOFF
+    str w9, [x14]
+    adrp x14, _lb_files_9too_large@PAGE
+    add x14, x14, _lb_files_9too_large@PAGEOFF
     movz x9, #23
     movk x9, #3178, lsl #16
-    str w9, [x15]
-    adrp x15, _lb_files_13not_directory@PAGE
-    add x15, x15, _lb_files_13not_directory@PAGEOFF
+    str w9, [x14]
+    adrp x14, _lb_files_13not_directory@PAGE
+    add x14, x14, _lb_files_13not_directory@PAGEOFF
     movz x9, #25
     movk x9, #3178, lsl #16
-    str w9, [x15]
-    adrp x15, _lb_files_12is_directory@PAGE
-    add x15, x15, _lb_files_12is_directory@PAGEOFF
+    str w9, [x14]
+    adrp x14, _lb_files_12is_directory@PAGE
+    add x14, x14, _lb_files_12is_directory@PAGEOFF
     movz x9, #26
     movk x9, #3178, lsl #16
-    str w9, [x15]
-    adrp x15, _lb_files_20read_only_filesystem@PAGE
-    add x15, x15, _lb_files_20read_only_filesystem@PAGEOFF
+    str w9, [x14]
+    adrp x14, _lb_files_20read_only_filesystem@PAGE
+    add x14, x14, _lb_files_20read_only_filesystem@PAGEOFF
     movz x9, #27
     movk x9, #3178, lsl #16
-    str w9, [x15]
-    adrp x15, _lb_files_9not_empty@PAGE
-    add x15, x15, _lb_files_9not_empty@PAGEOFF
+    str w9, [x14]
+    adrp x14, _lb_files_9not_empty@PAGE
+    add x14, x14, _lb_files_9not_empty@PAGEOFF
     movz x9, #29
     movk x9, #3178, lsl #16
-    str w9, [x15]
-    adrp x15, _lb_files_12cross_device@PAGE
-    add x15, x15, _lb_files_12cross_device@PAGEOFF
+    str w9, [x14]
+    adrp x14, _lb_files_12cross_device@PAGE
+    add x14, x14, _lb_files_12cross_device@PAGEOFF
     movz x9, #30
     movk x9, #3178, lsl #16
-    str w9, [x15]
-    adrp x15, _lb_files_12symlink_loop@PAGE
-    add x15, x15, _lb_files_12symlink_loop@PAGEOFF
+    str w9, [x14]
+    adrp x14, _lb_files_12symlink_loop@PAGE
+    add x14, x14, _lb_files_12symlink_loop@PAGEOFF
     movz x9, #31
     movk x9, #3178, lsl #16
-    str w9, [x15]
-    adrp x15, _lb_files_13name_too_long@PAGE
-    add x15, x15, _lb_files_13name_too_long@PAGEOFF
+    str w9, [x14]
+    adrp x14, _lb_files_13name_too_long@PAGE
+    add x14, x14, _lb_files_13name_too_long@PAGEOFF
     movz x9, #32
     movk x9, #3178, lsl #16
-    str w9, [x15]
-    adrp x15, _lb_files_failed@PAGE
-    add x15, x15, _lb_files_failed@PAGEOFF
+    str w9, [x14]
+    adrp x14, _lb_files_failed@PAGE
+    add x14, x14, _lb_files_failed@PAGEOFF
     movz x9, #7
     movk x9, #3178, lsl #16
-    str w9, [x15]
+    str w9, [x14]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -654,8 +324,6 @@ _lb_files_10next_entry:
     sub x16, x29, #112
     str x0, [x16]
     sub x19, x29, #112
-    adrp x20, _lb_c_interrupted@PAGE
-    add x20, x20, _lb_c_interrupted@PAGEOFF
 L6_1:
 L6_2:
     mov x0, #0
@@ -733,8 +401,8 @@ L6_5:
 L6_6:
     bl _lb_c_errno
     mov w14, w0
-    ldrsw x15, [x20]
-    cmp w14, w15
+    movz x10, #4
+    cmp w14, w10
     b.ne L6_12
 L6_11:
     b L6_1

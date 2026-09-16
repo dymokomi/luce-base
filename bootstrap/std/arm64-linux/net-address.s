@@ -325,8 +325,8 @@ lb_net_SocketAddress_parse:
     b.cc 1f
     adrp x0, .Ltext_6
     add x0, x0, :lo12:.Ltext_6
-    adrp x1, .Ltext_43
-    add x1, x1, :lo12:.Ltext_43
+    adrp x1, .Ltext_41
+    add x1, x1, :lo12:.Ltext_41
     bl lb_core_7trap_at
 1:
     mov x15, x9
@@ -339,8 +339,8 @@ lb_net_SocketAddress_parse:
     b.cc 1f
     adrp x0, .Ltext_7
     add x0, x0, :lo12:.Ltext_7
-    adrp x1, .Ltext_43
-    add x1, x1, :lo12:.Ltext_43
+    adrp x1, .Ltext_41
+    add x1, x1, :lo12:.Ltext_41
     bl lb_core_7trap_at
 1:
     mov x15, x9
@@ -408,8 +408,8 @@ lb_net_SocketAddress_parse:
     b.cc 1f
     adrp x0, .Ltext_8
     add x0, x0, :lo12:.Ltext_8
-    adrp x1, .Ltext_43
-    add x1, x1, :lo12:.Ltext_43
+    adrp x1, .Ltext_41
+    add x1, x1, :lo12:.Ltext_41
     bl lb_core_7trap_at
 1:
     mov x22, x9
@@ -574,8 +574,8 @@ lb_net_SocketAddress_parse:
     b.cc 1f
     adrp x0, .Ltext_14
     add x0, x0, :lo12:.Ltext_14
-    adrp x1, .Ltext_43
-    add x1, x1, :lo12:.Ltext_43
+    adrp x1, .Ltext_41
+    add x1, x1, :lo12:.Ltext_41
     bl lb_core_7trap_at
 1:
     mov x14, x9
@@ -627,8 +627,8 @@ lb_net_SocketAddress_parse:
     b.cc 1f
     adrp x0, .Ltext_15
     add x0, x0, :lo12:.Ltext_15
-    adrp x1, .Ltext_43
-    add x1, x1, :lo12:.Ltext_43
+    adrp x1, .Ltext_41
+    add x1, x1, :lo12:.Ltext_41
     bl lb_core_7trap_at
 1:
     mov x23, x9
@@ -1130,8 +1130,8 @@ lb_net_SocketAddress_format:
     b.cc 1f
     adrp x0, .Ltext_22
     add x0, x0, :lo12:.Ltext_22
-    adrp x1, .Ltext_43
-    add x1, x1, :lo12:.Ltext_43
+    adrp x1, .Ltext_41
+    add x1, x1, :lo12:.Ltext_41
     bl lb_core_7trap_at
 1:
     mov x14, x9
@@ -1651,10 +1651,7 @@ lb_net_SocketAddress_12write_native:
     sub x22, x29, #192
     mov x11, x22
     stp xzr, xzr, [x11, #0]
-    adrp x14, lb_net_inet
-    add x14, x14, :lo12:lb_net_inet
-    ldrsw x14, [x14]
-    mov x0, x14
+    movz x0, #2
     movz x1, #16
     bl lb_net_11family_word
     mov w14, w0
@@ -1716,10 +1713,7 @@ lb_net_SocketAddress_12write_native:
     stp xzr, xzr, [x11, #0]
     str xzr, [x11, #16]
     str wzr, [x11, #24]
-    adrp x14, lb_net_inet6
-    add x14, x14, :lo12:lb_net_inet6
-    ldrsw x14, [x14]
-    mov x0, x14
+    movz x0, #10
     movz x1, #28
     bl lb_net_11family_word
     mov w14, w0
@@ -1852,75 +1846,57 @@ lb_net_14decode_address:
     movz x2, #2
     bl memcpy
     mov x14, x0
-    cbnz x14, .L8_31
-    b .L8_32
-.L8_32:
-    adrp x0, .Ltext_61
-    add x0, x0, :lo12:.Ltext_61
-    adrp x1, .Ltext_60
-    add x1, x1, :lo12:.Ltext_60
+    cbnz x14, .L8_26
+    b .L8_27
+.L8_27:
+    adrp x0, .Ltext_60
+    add x0, x0, :lo12:.Ltext_60
+    adrp x1, .Ltext_59
+    add x1, x1, :lo12:.Ltext_59
     bl lb_core_7trap_at
-.L8_31:
+.L8_26:
     ldrh w14, [x21]
     and w14, w14, #65535
     sub x10, x29, #416
     str w14, [x10]
-.L8_34:
-    adrp x15, lb_platform_macos
-    add x15, x15, :lo12:lb_platform_macos
-    ldrb w15, [x15]
-    cbnz w15, .L8_5
-    b .L8_6
+.L8_29:
+    and w21, w14, #65535
+    mov w15, w21
+    movz x10, #2
+    cmp w15, w10
+    b.ne .L8_6
 .L8_5:
-    and w15, w14, #65535
-.L8_9:
-    lsr w12, w15, #8
-    and w12, w12, #65535
-    mov w12, w12
-    b .L8_7
-.L8_6:
-    and w15, w14, #65535
-    mov w12, w15
-.L8_7:
-    adrp x15, lb_net_inet
-    add x15, x15, :lo12:lb_net_inet
-    ldrsw x15, [x15]
-    cmp w15, w12
-    b.ne .L8_11
-.L8_10:
     movz x10, #16
     cmp w19, w10
-    cset w12, lo
-    cbnz w12, .L8_55
-    b .L8_16
-.L8_55:
-    mov w14, w12
-    b .L8_17
-.L8_16:
-    and w19, w14, #65535
-    mov x0, x15
+    cset w14, lo
+    cbnz w14, .L8_50
+    b .L8_11
+.L8_50:
+    mov w15, w14
+    b .L8_12
+.L8_11:
+    movz x0, #2
     movz x1, #16
     bl lb_net_11family_word
-    mov w12, w0
-    cmp w19, w12
-    cset w12, eq
+    mov w14, w0
+    cmp w21, w14
+    cset w14, eq
     mov x10, #0
-    cmp w12, w10
-    cset w12, eq
-    mov w14, w12
-.L8_17:
-    and w15, w14, #255
-    cbnz w15, .L8_13
-    b .L8_14
-.L8_13:
+    cmp w14, w10
+    cset w15, eq
+.L8_12:
+    and w14, w15, #255
+    cbnz w14, .L8_8
+    b .L8_9
+.L8_8:
     sub x19, x29, #104
     add x14, x19, #24
     adrp x15, lb_net_failed
     add x15, x15, :lo12:lb_net_failed
     ldr w15, [x15]
     str w15, [x14]
-    adrp x15, .Ltext_39
-    add x15, x15, :lo12:.Ltext_39
+    adrp x15, .Ltext_37
+    add x15, x15, :lo12:.Ltext_37
     sub x12, x29, #168
     str x15, [x12]
     add x15, x12, #8
@@ -1947,8 +1923,8 @@ lb_net_14decode_address:
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
-.L8_14:
-.L8_15:
+.L8_9:
+.L8_10:
     sub x21, x29, #184
     sub x10, x29, #448
     str x20, [x10]
@@ -1958,15 +1934,15 @@ lb_net_14decode_address:
     movz x2, #16
     bl memcpy
     mov x14, x0
-    cbnz x14, .L8_35
-    b .L8_36
-.L8_36:
-    adrp x0, .Ltext_61
-    add x0, x0, :lo12:.Ltext_61
-    adrp x1, .Ltext_60
-    add x1, x1, :lo12:.Ltext_60
+    cbnz x14, .L8_30
+    b .L8_31
+.L8_31:
+    adrp x0, .Ltext_60
+    add x0, x0, :lo12:.Ltext_60
+    adrp x1, .Ltext_59
+    add x1, x1, :lo12:.Ltext_59
     bl lb_core_7trap_at
-.L8_35:
+.L8_30:
     sub x20, x29, #432
     mov x10, x19
     mov x11, x20
@@ -1976,7 +1952,7 @@ lb_net_14decode_address:
     sub x11, x29, #200
     ldp x16, x17, [x10, #0]
     stp x16, x17, [x11, #0]
-.L8_38:
+.L8_33:
     sub x14, x29, #200
     mov x10, x14
     mov x11, x21
@@ -2007,17 +1983,17 @@ lb_net_14decode_address:
     str w14, [x10]
     sub x14, x29, #480
     ldrh w14, [x14]
-.L8_40:
+.L8_35:
     lsl w15, w14, #8
     and w15, w15, #65535
-.L8_42:
+.L8_37:
     lsr w12, w14, #8
     and w12, w12, #65535
     orr w12, w12, w15
     and w12, w12, #65535
     sub x10, x29, #488
     str w12, [x10]
-.L8_44:
+.L8_39:
     add x14, x19, #18
     strh w12, [x14]
     sub x20, x29, #104
@@ -2043,47 +2019,43 @@ lb_net_14decode_address:
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
-.L8_11:
-.L8_12:
-    adrp x15, lb_net_inet6
-    add x15, x15, :lo12:lb_net_inet6
-    ldrsw x15, [x15]
-    cmp w15, w12
-    b.ne .L8_21
-.L8_20:
+.L8_6:
+.L8_7:
+    movz x10, #10
+    cmp w15, w10
+    b.ne .L8_16
+.L8_15:
     movz x10, #28
     cmp w19, w10
-    cset w12, lo
-    cbnz w12, .L8_56
-    b .L8_26
-.L8_56:
-    mov w14, w12
-    b .L8_27
-.L8_26:
-    and w19, w14, #65535
-    mov x0, x15
+    cset w14, lo
+    cbnz w14, .L8_51
+    b .L8_21
+.L8_51:
+    mov w15, w14
+    b .L8_22
+.L8_21:
+    movz x0, #10
     movz x1, #28
     bl lb_net_11family_word
-    mov w12, w0
-    cmp w19, w12
-    cset w12, eq
+    mov w14, w0
+    cmp w21, w14
+    cset w14, eq
     mov x10, #0
-    cmp w12, w10
-    cset w12, eq
-    mov w14, w12
-.L8_27:
-    and w15, w14, #255
-    cbnz w15, .L8_23
-    b .L8_24
-.L8_23:
+    cmp w14, w10
+    cset w15, eq
+.L8_22:
+    and w14, w15, #255
+    cbnz w14, .L8_18
+    b .L8_19
+.L8_18:
     sub x19, x29, #104
     add x14, x19, #24
     adrp x15, lb_net_failed
     add x15, x15, :lo12:lb_net_failed
     ldr w15, [x15]
     str w15, [x14]
-    adrp x15, .Ltext_40
-    add x15, x15, :lo12:.Ltext_40
+    adrp x15, .Ltext_38
+    add x15, x15, :lo12:.Ltext_38
     sub x12, x29, #264
     str x15, [x12]
     add x15, x12, #8
@@ -2110,8 +2082,8 @@ lb_net_14decode_address:
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
-.L8_24:
-.L8_25:
+.L8_19:
+.L8_20:
     sub x21, x29, #292
     sub x10, x29, #536
     str x20, [x10]
@@ -2121,15 +2093,15 @@ lb_net_14decode_address:
     movz x2, #28
     bl memcpy
     mov x14, x0
-    cbnz x14, .L8_45
-    b .L8_46
-.L8_46:
-    adrp x0, .Ltext_61
-    add x0, x0, :lo12:.Ltext_61
-    adrp x1, .Ltext_60
-    add x1, x1, :lo12:.Ltext_60
+    cbnz x14, .L8_40
+    b .L8_41
+.L8_41:
+    adrp x0, .Ltext_60
+    add x0, x0, :lo12:.Ltext_60
+    adrp x1, .Ltext_59
+    add x1, x1, :lo12:.Ltext_59
     bl lb_core_7trap_at
-.L8_45:
+.L8_40:
     sub x20, x29, #516
     mov x10, x19
     mov x11, x20
@@ -2147,7 +2119,7 @@ lb_net_14decode_address:
     str x16, [x11, #16]
     ldr w16, [x10, #24]
     str w16, [x11, #24]
-.L8_48:
+.L8_43:
     sub x14, x29, #320
     mov x10, x14
     mov x11, x21
@@ -2185,17 +2157,17 @@ lb_net_14decode_address:
     str w14, [x10]
     sub x14, x29, #480
     ldrh w14, [x14]
-.L8_50:
+.L8_45:
     lsl w15, w14, #8
     and w15, w15, #65535
-.L8_52:
+.L8_47:
     lsr w12, w14, #8
     and w12, w12, #65535
     orr w12, w12, w15
     and w12, w12, #65535
     sub x10, x29, #576
     str w12, [x10]
-.L8_54:
+.L8_49:
     add x14, x20, #18
     strh w12, [x14]
     add x14, x21, #24
@@ -2225,16 +2197,16 @@ lb_net_14decode_address:
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
-.L8_21:
-.L8_22:
+.L8_16:
+.L8_17:
     sub x19, x29, #104
     add x14, x19, #24
     adrp x15, lb_net_failed
     add x15, x15, :lo12:lb_net_failed
     ldr w15, [x15]
     str w15, [x14]
-    adrp x15, .Ltext_41
-    add x15, x15, :lo12:.Ltext_41
+    adrp x15, .Ltext_39
+    add x15, x15, :lo12:.Ltext_39
     sub x12, x29, #384
     str x15, [x12]
     add x15, x12, #8
@@ -2377,10 +2349,10 @@ lb_net_21parse_endpoint_number:
     cmp w21, w22
     b.eq .L9_17
 .L9_18:
-    adrp x0, .Ltext_44
-    add x0, x0, :lo12:.Ltext_44
-    adrp x1, .Ltext_43
-    add x1, x1, :lo12:.Ltext_43
+    adrp x0, .Ltext_42
+    add x0, x0, :lo12:.Ltext_42
+    adrp x1, .Ltext_41
+    add x1, x1, :lo12:.Ltext_41
     bl lb_core_7trap_at
 .L9_17:
     mov w14, w22
@@ -2388,10 +2360,10 @@ lb_net_21parse_endpoint_number:
     mov w10, w14
     subs w9, w9, w10
     b.cs 1f
-    adrp x0, .Ltext_45
-    add x0, x0, :lo12:.Ltext_45
-    adrp x1, .Ltext_43
-    add x1, x1, :lo12:.Ltext_43
+    adrp x0, .Ltext_43
+    add x0, x0, :lo12:.Ltext_43
+    adrp x1, .Ltext_41
+    add x1, x1, :lo12:.Ltext_41
     bl lb_core_7trap_at
 1:
     mov w21, w9
@@ -2427,10 +2399,10 @@ lb_net_21parse_endpoint_number:
     mul x9, x9, x10
     cmp x9, w9, uxtw
     b.eq 1f
-    adrp x0, .Ltext_47
-    add x0, x0, :lo12:.Ltext_47
-    adrp x1, .Ltext_43
-    add x1, x1, :lo12:.Ltext_43
+    adrp x0, .Ltext_45
+    add x0, x0, :lo12:.Ltext_45
+    adrp x1, .Ltext_41
+    add x1, x1, :lo12:.Ltext_41
     bl lb_core_7trap_at
 1:
     mov w21, w9
@@ -2438,10 +2410,10 @@ lb_net_21parse_endpoint_number:
     mov w10, w21
     adds w9, w9, w10
     b.cc 1f
-    adrp x0, .Ltext_47
-    add x0, x0, :lo12:.Ltext_47
-    adrp x1, .Ltext_43
-    add x1, x1, :lo12:.Ltext_43
+    adrp x0, .Ltext_45
+    add x0, x0, :lo12:.Ltext_45
+    adrp x1, .Ltext_41
+    add x1, x1, :lo12:.Ltext_41
     bl lb_core_7trap_at
 1:
     mov w21, w9
@@ -2504,8 +2476,8 @@ lb_net_22render_endpoint_number:
     movz x10, #10
     cmp x15, x10
     b.lo 1f
-    adrp x0, .Ltext_49
-    add x0, x0, :lo12:.Ltext_49
+    adrp x0, .Ltext_47
+    add x0, x0, :lo12:.Ltext_47
     adrp x1, .Ltext_11
     add x1, x1, :lo12:.Ltext_11
     bl lb_core_7trap_at
@@ -2522,10 +2494,10 @@ lb_net_22render_endpoint_number:
     cmp w13, w20
     b.eq .L10_6
 .L10_7:
-    adrp x0, .Ltext_49
-    add x0, x0, :lo12:.Ltext_49
-    adrp x1, .Ltext_43
-    add x1, x1, :lo12:.Ltext_43
+    adrp x0, .Ltext_47
+    add x0, x0, :lo12:.Ltext_47
+    adrp x1, .Ltext_41
+    add x1, x1, :lo12:.Ltext_41
     bl lb_core_7trap_at
 .L10_6:
     strb w20, [x12]
@@ -2561,17 +2533,17 @@ lb_net_22render_endpoint_number:
     movz x10, #1
     subs x9, x9, x10
     b.cs 1f
-    adrp x0, .Ltext_52
-    add x0, x0, :lo12:.Ltext_52
-    adrp x1, .Ltext_43
-    add x1, x1, :lo12:.Ltext_43
+    adrp x0, .Ltext_50
+    add x0, x0, :lo12:.Ltext_50
+    adrp x1, .Ltext_41
+    add x1, x1, :lo12:.Ltext_41
     bl lb_core_7trap_at
 1:
     mov x14, x9
     cmp x15, x12
     b.lo 1f
-    adrp x0, .Ltext_53
-    add x0, x0, :lo12:.Ltext_53
+    adrp x0, .Ltext_51
+    add x0, x0, :lo12:.Ltext_51
     adrp x1, .Ltext_11
     add x1, x1, :lo12:.Ltext_11
     bl lb_core_7trap_at
@@ -2580,8 +2552,8 @@ lb_net_22render_endpoint_number:
     movz x10, #10
     cmp x14, x10
     b.lo 1f
-    adrp x0, .Ltext_53
-    add x0, x0, :lo12:.Ltext_53
+    adrp x0, .Ltext_51
+    add x0, x0, :lo12:.Ltext_51
     adrp x1, .Ltext_11
     add x1, x1, :lo12:.Ltext_11
     bl lb_core_7trap_at
@@ -2687,8 +2659,8 @@ lb_memory_move_0g1_u8:
     add x14, x15, #8
     movz x9, #19
     str x9, [x14]
-    adrp x14, .Ltext_58
-    add x14, x14, :lo12:.Ltext_58
+    adrp x14, .Ltext_57
+    add x14, x14, :lo12:.Ltext_57
     mov x0, x14
     mov x9, x15
     ldr x1, [x9]
@@ -2712,10 +2684,10 @@ lb_memory_move_0g1_u8:
     cbnz x14, .L12_9
     b .L12_10
 .L12_10:
-    adrp x0, .Ltext_59
-    add x0, x0, :lo12:.Ltext_59
-    adrp x1, .Ltext_60
-    add x1, x1, :lo12:.Ltext_60
+    adrp x0, .Ltext_58
+    add x0, x0, :lo12:.Ltext_58
+    adrp x1, .Ltext_59
+    add x1, x1, :lo12:.Ltext_59
     bl lb_core_7trap_at
 .L12_9:
     b .L12_8
@@ -2750,10 +2722,10 @@ lb_memory_read_0g1_u16:
     cbnz x14, .L13_1
     b .L13_2
 .L13_2:
-    adrp x0, .Ltext_61
-    add x0, x0, :lo12:.Ltext_61
-    adrp x1, .Ltext_60
-    add x1, x1, :lo12:.Ltext_60
+    adrp x0, .Ltext_60
+    add x0, x0, :lo12:.Ltext_60
+    adrp x1, .Ltext_59
+    add x1, x1, :lo12:.Ltext_59
     bl lb_core_7trap_at
 .L13_1:
     ldrh w14, [x19]
@@ -2765,8 +2737,8 @@ lb_memory_read_0g1_u16:
     ldp x29, x30, [sp], #16
     ret
 .L13_3:
-    adrp x0, .Ltext_62
-    add x0, x0, :lo12:.Ltext_62
+    adrp x0, .Ltext_61
+    add x0, x0, :lo12:.Ltext_61
     adrp x1, .Ltext_1
     add x1, x1, :lo12:.Ltext_1
     bl lb_core_7trap_at
@@ -2795,10 +2767,10 @@ lb_memory_read_0g1_net_NativeIpv4Address:
     cbnz x14, .L14_1
     b .L14_2
 .L14_2:
-    adrp x0, .Ltext_61
-    add x0, x0, :lo12:.Ltext_61
-    adrp x1, .Ltext_60
-    add x1, x1, :lo12:.Ltext_60
+    adrp x0, .Ltext_60
+    add x0, x0, :lo12:.Ltext_60
+    adrp x1, .Ltext_59
+    add x1, x1, :lo12:.Ltext_59
     bl lb_core_7trap_at
 .L14_1:
     sub x20, x29, #48
@@ -2815,8 +2787,8 @@ lb_memory_read_0g1_net_NativeIpv4Address:
     ldp x29, x30, [sp], #16
     ret
 .L14_3:
-    adrp x0, .Ltext_62
-    add x0, x0, :lo12:.Ltext_62
+    adrp x0, .Ltext_61
+    add x0, x0, :lo12:.Ltext_61
     adrp x1, .Ltext_1
     add x1, x1, :lo12:.Ltext_1
     bl lb_core_7trap_at
@@ -2847,10 +2819,10 @@ lb_memory_read_0g1_net_NativeIpv6Address:
     cbnz x14, .L15_1
     b .L15_2
 .L15_2:
-    adrp x0, .Ltext_61
-    add x0, x0, :lo12:.Ltext_61
-    adrp x1, .Ltext_60
-    add x1, x1, :lo12:.Ltext_60
+    adrp x0, .Ltext_60
+    add x0, x0, :lo12:.Ltext_60
+    adrp x1, .Ltext_59
+    add x1, x1, :lo12:.Ltext_59
     bl lb_core_7trap_at
 .L15_1:
     sub x20, x29, #68
@@ -2875,8 +2847,8 @@ lb_memory_read_0g1_net_NativeIpv6Address:
     ldp x29, x30, [sp], #16
     ret
 .L15_3:
-    adrp x0, .Ltext_62
-    add x0, x0, :lo12:.Ltext_62
+    adrp x0, .Ltext_61
+    add x0, x0, :lo12:.Ltext_61
     adrp x1, .Ltext_1
     add x1, x1, :lo12:.Ltext_1
     bl lb_core_7trap_at
@@ -2963,56 +2935,54 @@ lb_memory_read_0g1_net_NativeIpv6Address:
 .Ltext_36:
     .asciz "the socket address is shorter than its family field"
 .Ltext_37:
-    .asciz "shift count out of range"
-.Ltext_38:
-    .asciz "src/std/net/address.lucb:107:5"
-.Ltext_39:
     .asciz "the IPv4 socket address has an invalid layout"
-.Ltext_40:
+.Ltext_38:
     .asciz "the IPv6 socket address has an invalid layout"
-.Ltext_41:
+.Ltext_39:
     .asciz "the socket address is not IPv4 or IPv6"
-.Ltext_42:
+.Ltext_40:
     .asciz "src/std/net/address.lucb:118:5"
-.Ltext_43:
+.Ltext_41:
     .asciz "integer overflow"
-.Ltext_44:
+.Ltext_42:
     .asciz "src/std/net/address.lucb:127:9"
-.Ltext_45:
+.Ltext_43:
     .asciz "src/std/net/address.lucb:128:9"
-.Ltext_46:
+.Ltext_44:
     .asciz "division by zero"
-.Ltext_47:
+.Ltext_45:
     .asciz "src/std/net/address.lucb:130:9"
-.Ltext_48:
+.Ltext_46:
     .asciz "src/std/net/address.lucb:131:5"
-.Ltext_49:
+.Ltext_47:
     .asciz "src/std/net/address.lucb:138:9"
-.Ltext_50:
+.Ltext_48:
     .asciz "src/std/net/address.lucb:139:9"
-.Ltext_51:
+.Ltext_49:
     .asciz "src/std/net/address.lucb:140:9"
-.Ltext_52:
+.Ltext_50:
     .asciz "src/std/net/address.lucb:145:9"
-.Ltext_53:
+.Ltext_51:
     .asciz "src/std/net/address.lucb:146:9"
-.Ltext_54:
+.Ltext_52:
     .asciz "src/std/net/address.lucb:147:9"
-.Ltext_55:
+.Ltext_53:
     .asciz "src/std/net/address.lucb:148:5"
-.Ltext_56:
+.Ltext_54:
+    .asciz "shift count out of range"
+.Ltext_55:
     .asciz "src/std/net/address.lucb:152:5"
-.Ltext_57:
+.Ltext_56:
     .asciz "src/std/net/address.lucb:155:5"
-.Ltext_58:
+.Ltext_57:
     .asciz "src/std/memory.lucb:334:9"
-.Ltext_59:
+.Ltext_58:
     .asciz "src/std/memory.lucb:336:9"
-.Ltext_60:
+.Ltext_59:
     .asciz "null_foreign"
-.Ltext_61:
+.Ltext_60:
     .asciz "src/std/memory.lucb:344:5"
-.Ltext_62:
+.Ltext_61:
     .asciz "src/std/memory.lucb:345:5"
 
     .section .data.rel.ro,"aw"

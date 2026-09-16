@@ -119,11 +119,9 @@ lb_gpu_13vulkan_shader:
     movups %xmm8, 0(%r11)
     movups %xmm8, 16(%r11)
     movq $0, 32(%r11)
-    leaq lb_gpu_43VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO(%rip), %r13
-    movq %r13, %r10
-    movl (%r10), %r13d
+    movl $16, %eax
     movq %r12, %r10
-    movl %r13d, (%r10)
+    movl %eax, (%r10)
     leaq 136(%rbp), %r13
     movq $8, %rcx
     movq %r13, %r14
@@ -333,151 +331,117 @@ lb_gpu_15vulkan_pipeline:
     .seh_proc lb_gpu_15vulkan_pipeline
     pushq %rbp
     .seh_pushreg %rbp
-    movq $4176, %rax
-    call ___chkstk_ms
-    subq $4176, %rsp
-    .seh_stackalloc 4176
+    subq $3584, %rsp
+    .seh_stackalloc 3584
     movq %rsp, %rbp
     .seh_setframe %rbp, 0
-    movq %rcx, 3992(%rbp)
-    movq %rdi, 4168(%rbp)
-    .seh_savereg %rdi, 4168
-    movq %rsi, 4160(%rbp)
-    .seh_savereg %rsi, 4160
-    movdqu %xmm6, 4144(%rbp)
-    .seh_savexmm %xmm6, 4144
-    movdqu %xmm7, 4128(%rbp)
-    .seh_savexmm %xmm7, 4128
-    movdqu %xmm8, 4112(%rbp)
-    .seh_savexmm %xmm8, 4112
-    movdqu %xmm9, 4096(%rbp)
-    .seh_savexmm %xmm9, 4096
-    movdqu %xmm10, 4080(%rbp)
-    .seh_savexmm %xmm10, 4080
-    movdqu %xmm11, 4064(%rbp)
-    .seh_savexmm %xmm11, 4064
-    movdqu %xmm12, 4048(%rbp)
-    .seh_savexmm %xmm12, 4048
-    movdqu %xmm13, 4032(%rbp)
-    .seh_savexmm %xmm13, 4032
-    movdqu %xmm14, 4016(%rbp)
-    .seh_savexmm %xmm14, 4016
-    movdqu %xmm15, 4000(%rbp)
-    .seh_savexmm %xmm15, 4000
-    movq %rbx, 3984(%rbp)
-    .seh_savereg %rbx, 3984
-    movq %r12, 3976(%rbp)
-    .seh_savereg %r12, 3976
-    movq %r13, 3968(%rbp)
-    .seh_savereg %r13, 3968
-    movq %r14, 3960(%rbp)
-    .seh_savereg %r14, 3960
-    movq %r15, 3952(%rbp)
-    .seh_savereg %r15, 3952
+    movq %rcx, 3400(%rbp)
+    movq %rdi, 3576(%rbp)
+    .seh_savereg %rdi, 3576
+    movq %rsi, 3568(%rbp)
+    .seh_savereg %rsi, 3568
+    movdqu %xmm6, 3552(%rbp)
+    .seh_savexmm %xmm6, 3552
+    movdqu %xmm7, 3536(%rbp)
+    .seh_savexmm %xmm7, 3536
+    movdqu %xmm8, 3520(%rbp)
+    .seh_savexmm %xmm8, 3520
+    movdqu %xmm9, 3504(%rbp)
+    .seh_savexmm %xmm9, 3504
+    movdqu %xmm10, 3488(%rbp)
+    .seh_savexmm %xmm10, 3488
+    movdqu %xmm11, 3472(%rbp)
+    .seh_savexmm %xmm11, 3472
+    movdqu %xmm12, 3456(%rbp)
+    .seh_savexmm %xmm12, 3456
+    movdqu %xmm13, 3440(%rbp)
+    .seh_savexmm %xmm13, 3440
+    movdqu %xmm14, 3424(%rbp)
+    .seh_savexmm %xmm14, 3424
+    movdqu %xmm15, 3408(%rbp)
+    .seh_savexmm %xmm15, 3408
+    movq %rbx, 3392(%rbp)
+    .seh_savereg %rbx, 3392
+    movq %r12, 3384(%rbp)
+    .seh_savereg %r12, 3384
+    movq %r13, 3376(%rbp)
+    .seh_savereg %r13, 3376
+    movq %r14, 3368(%rbp)
+    .seh_savereg %r14, 3368
+    movq %r15, 3360(%rbp)
+    .seh_savereg %r15, 3360
     .seh_endprologue
-    movq %rcx, 4192(%rbp)
-    movq %rdx, 4200(%rbp)
-    movq %r8, 4208(%rbp)
-    movq %r9, 4216(%rbp)
-    movq 4200(%rbp), %rax
-    movq %rax, 3904(%rbp)
-    movq 4208(%rbp), %rax
-    movq %rax, 3888(%rbp)
-    leaq 3816(%rbp), %rax
-    movq %rax, 1064(%rbp)
-    leaq 3744(%rbp), %r12
-    leaq 3708(%rbp), %r13
+    movq %rcx, 3600(%rbp)
+    movq %rdx, 3608(%rbp)
+    movq %r8, 3616(%rbp)
+    movq %r9, 3624(%rbp)
+    movq 3608(%rbp), %rax
+    movq %rax, 3312(%rbp)
+    movq 3616(%rbp), %rax
+    movq %rax, 3296(%rbp)
+    leaq 3224(%rbp), %rax
+    movq %rax, 472(%rbp)
+    leaq 3152(%rbp), %r12
+    leaq 3116(%rbp), %r13
     movq %r13, %r11
     pxor %xmm8, %xmm8
     movups %xmm8, 0(%r11)
     movups %xmm8, 16(%r11)
     movl $0, 32(%r11)
-    leaq 3888(%rbp), %rax
-    movq %rax, 1056(%rbp)
-    movq 1056(%rbp), %r10
+    leaq 3296(%rbp), %rax
+    movq %rax, 464(%rbp)
+    movq 464(%rbp), %r10
     movq (%r10), %rax
-    movq %rax, 1048(%rbp)
-    movq 1048(%rbp), %rax
+    movq %rax, 456(%rbp)
+    movq 456(%rbp), %rax
     movq $40, %rcx
     addq %rcx, %rax
-    movq %rax, 1040(%rbp)
-    movq 1040(%rbp), %r10
+    movq %rax, 448(%rbp)
+    movq 448(%rbp), %r10
     movl (%r10), %eax
-    movl %eax, 1032(%rbp)
+    movl %eax, 440(%rbp)
     movq $4, %rcx
-    movq %r13, %rax
-    addq %rcx, %rax
-    movq %rax, 1024(%rbp)
-    movl 1032(%rbp), %eax
-    movq 1024(%rbp), %r10
+    movq %r13, %r14
+    addq %rcx, %r14
+    movl 440(%rbp), %eax
+    movq %r14, %r10
     movl %eax, (%r10)
-    leaq lb_gpu_21VK_SAMPLE_COUNT_1_BIT(%rip), %rax
-    movq %rax, 1016(%rbp)
-    movq 1016(%rbp), %r10
-    movl (%r10), %eax
-    movl %eax, 1008(%rbp)
     movq $8, %rcx
-    movq %r13, %rax
-    addq %rcx, %rax
-    movq %rax, 1000(%rbp)
-    movl 1008(%rbp), %eax
-    movq 1000(%rbp), %r10
+    movq %r13, %r14
+    addq %rcx, %r14
+    movl $1, %eax
+    movq %r14, %r10
     movl %eax, (%r10)
-    leaq lb_gpu_27VK_ATTACHMENT_LOAD_OP_CLEAR(%rip), %rax
-    movq %rax, 992(%rbp)
-    movq 992(%rbp), %r10
-    movl (%r10), %eax
-    movl %eax, 984(%rbp)
     movq $12, %rcx
-    movq %r13, %rax
-    addq %rcx, %rax
-    movq %rax, 976(%rbp)
-    movl 984(%rbp), %eax
-    movq 976(%rbp), %r10
+    movq %r13, %r14
+    addq %rcx, %r14
+    movl $1, %eax
+    movq %r14, %r10
     movl %eax, (%r10)
-    leaq lb_gpu_28VK_ATTACHMENT_STORE_OP_STORE(%rip), %rax
-    movq %rax, 968(%rbp)
-    movq 968(%rbp), %r10
-    movl (%r10), %eax
-    movl %eax, 960(%rbp)
     movq $16, %rcx
-    movq %r13, %rax
-    addq %rcx, %rax
-    movq %rax, 952(%rbp)
-    movl 960(%rbp), %eax
-    movq 952(%rbp), %r10
+    movq %r13, %r14
+    addq %rcx, %r14
+    movl $0, %eax
+    movq %r14, %r10
     movl %eax, (%r10)
-    leaq lb_gpu_31VK_ATTACHMENT_LOAD_OP_DONT_CARE(%rip), %rax
-    movq %rax, 944(%rbp)
-    movq 944(%rbp), %r10
-    movl (%r10), %eax
-    movl %eax, 936(%rbp)
     movq $20, %rcx
-    movq %r13, %rax
-    addq %rcx, %rax
-    movq %rax, 928(%rbp)
-    movl 936(%rbp), %eax
-    movq 928(%rbp), %r10
+    movq %r13, %r14
+    addq %rcx, %r14
+    movl $2, %eax
+    movq %r14, %r10
     movl %eax, (%r10)
-    leaq lb_gpu_32VK_ATTACHMENT_STORE_OP_DONT_CARE(%rip), %rax
-    movq %rax, 920(%rbp)
-    movq 920(%rbp), %r10
-    movl (%r10), %eax
-    movl %eax, 912(%rbp)
     movq $24, %rcx
-    movq %r13, %rbx
-    addq %rcx, %rbx
-    movl 912(%rbp), %eax
-    movq %rbx, %r10
+    movq %r13, %r14
+    addq %rcx, %r14
+    movl $1, %eax
+    movq %r14, %r10
     movl %eax, (%r10)
-    leaq lb_gpu_31VK_IMAGE_LAYOUT_PRESENT_SRC_KHR(%rip), %rbx
-    movq %rbx, %r10
-    movl (%r10), %ebx
     movq $32, %rcx
     movq %r13, %r14
     addq %rcx, %r14
+    movl $1000001002, %eax
     movq %r14, %r10
-    movl %ebx, (%r10)
+    movl %eax, (%r10)
     movq %r13, %r10
     movq %r12, %r11
     movups 0(%r10), %xmm8
@@ -486,62 +450,58 @@ lb_gpu_15vulkan_pipeline:
     movups %xmm8, 16(%r11)
     movl 32(%r10), %eax
     movl %eax, 32(%r11)
-    leaq 3672(%rbp), %rbx
-    movq %rbx, %r11
+    leaq 3080(%rbp), %r13
+    movq %r13, %r11
     pxor %xmm8, %xmm8
     movups %xmm8, 0(%r11)
     movups %xmm8, 16(%r11)
     movl $0, 32(%r11)
-    leaq lb_gpu_20VK_FORMAT_D32_SFLOAT(%rip), %r13
-    movq %r13, %r10
-    movl (%r10), %r13d
     movq $4, %rcx
-    movq %rbx, %r14
+    movq %r13, %r14
     addq %rcx, %r14
+    movl $126, %eax
     movq %r14, %r10
-    movl %r13d, (%r10)
+    movl %eax, (%r10)
     movq $8, %rcx
-    movq %rbx, %r13
-    addq %rcx, %r13
-    movl 1008(%rbp), %eax
-    movq %r13, %r10
+    movq %r13, %r14
+    addq %rcx, %r14
+    movl $1, %eax
+    movq %r14, %r10
     movl %eax, (%r10)
     movq $12, %rcx
-    movq %rbx, %r13
-    addq %rcx, %r13
-    movl 984(%rbp), %eax
-    movq %r13, %r10
+    movq %r13, %r14
+    addq %rcx, %r14
+    movl $1, %eax
+    movq %r14, %r10
     movl %eax, (%r10)
     movq $16, %rcx
-    movq %rbx, %r13
-    addq %rcx, %r13
-    movl 912(%rbp), %eax
-    movq %r13, %r10
+    movq %r13, %r14
+    addq %rcx, %r14
+    movl $1, %eax
+    movq %r14, %r10
     movl %eax, (%r10)
     movq $20, %rcx
-    movq %rbx, %r13
-    addq %rcx, %r13
-    movl 936(%rbp), %eax
-    movq %r13, %r10
+    movq %r13, %r14
+    addq %rcx, %r14
+    movl $2, %eax
+    movq %r14, %r10
     movl %eax, (%r10)
     movq $24, %rcx
-    movq %rbx, %r13
-    addq %rcx, %r13
-    movl 912(%rbp), %eax
-    movq %r13, %r10
-    movl %eax, (%r10)
-    leaq lb_gpu_48VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL(%rip), %r13
-    movq %r13, %r10
-    movl (%r10), %r13d
-    movq $32, %rcx
-    movq %rbx, %r14
+    movq %r13, %r14
     addq %rcx, %r14
+    movl $1, %eax
     movq %r14, %r10
-    movl %r13d, (%r10)
+    movl %eax, (%r10)
+    movq $32, %rcx
+    movq %r13, %r14
+    addq %rcx, %r14
+    movl $3, %eax
+    movq %r14, %r10
+    movl %eax, (%r10)
     movq $36, %rcx
     movq %r12, %r14
     addq %rcx, %r14
-    movq %rbx, %r10
+    movq %r13, %r10
     movq %r14, %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
@@ -550,7 +510,7 @@ lb_gpu_15vulkan_pipeline:
     movl 32(%r10), %eax
     movl %eax, 32(%r11)
     movq %r12, %r10
-    movq 1064(%rbp), %r11
+    movq 472(%rbp), %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
     movups 16(%r10), %xmm8
@@ -561,28 +521,25 @@ lb_gpu_15vulkan_pipeline:
     movups %xmm8, 48(%r11)
     movq 64(%r10), %rax
     movq %rax, 64(%r11)
-    leaq 3664(%rbp), %rbx
-    leaq 3656(%rbp), %r12
-    movq %r12, %r11
+    leaq 3072(%rbp), %r12
+    leaq 3064(%rbp), %r13
+    movq %r13, %r11
     movq $0, 0(%r11)
     movl $0, %eax
-    movq %r12, %r10
+    movq %r13, %r10
     movl %eax, (%r10)
-    leaq lb_gpu_40VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL(%rip), %r14
-    movq %r14, %r10
-    movl (%r10), %r14d
     movq $4, %rcx
-    movq %r12, %rax
-    addq %rcx, %rax
-    movq %rax, 904(%rbp)
-    movq 904(%rbp), %r10
-    movl %r14d, (%r10)
-    movq %r12, %r10
-    movq %rbx, %r11
+    movq %r13, %r14
+    addq %rcx, %r14
+    movl $2, %eax
+    movq %r14, %r10
+    movl %eax, (%r10)
+    movq %r13, %r10
+    movq %r12, %r11
     movq 0(%r10), %rax
     movq %rax, 0(%r11)
-    leaq 3648(%rbp), %r12
-    leaq 3640(%rbp), %r14
+    leaq 3056(%rbp), %r13
+    leaq 3048(%rbp), %r14
     movq %r14, %r11
     movq $0, 0(%r11)
     movl $1, %eax
@@ -591,42 +548,45 @@ lb_gpu_15vulkan_pipeline:
     movq $4, %rcx
     movq %r14, %rax
     addq %rcx, %rax
-    movq %rax, 896(%rbp)
-    movq 896(%rbp), %r10
-    movl %r13d, (%r10)
+    movq %rax, 432(%rbp)
+    movl $3, %eax
+    movq 432(%rbp), %r10
+    movl %eax, (%r10)
     movq %r14, %r10
-    movq %r12, %r11
+    movq %r13, %r11
     movq 0(%r10), %rax
     movq %rax, 0(%r11)
-    leaq 3568(%rbp), %r13
-    leaq 3496(%rbp), %r14
-    movq %r14, %r11
+    leaq 2976(%rbp), %r14
+    leaq 2904(%rbp), %rax
+    movq %rax, 424(%rbp)
+    movq 424(%rbp), %r11
     pxor %xmm8, %xmm8
     movups %xmm8, 0(%r11)
     movups %xmm8, 16(%r11)
     movups %xmm8, 32(%r11)
     movups %xmm8, 48(%r11)
     movq $0, 64(%r11)
+    movq 424(%rbp), %rax
     movq $24, %rcx
-    movq %r14, %rax
-    addq %rcx, %rax
-    movq %rax, 888(%rbp)
+    movq %rax, %rbx
+    addq %rcx, %rbx
     movl $1, %eax
-    movq 888(%rbp), %r10
+    movq %rbx, %r10
     movl %eax, (%r10)
+    movq 424(%rbp), %rax
     movq $32, %rcx
-    movq %r14, %rax
-    addq %rcx, %rax
-    movq %rax, 880(%rbp)
-    movq 880(%rbp), %r10
-    movq %rbx, (%r10)
-    movq $48, %rcx
-    movq %r14, %rbx
+    movq %rax, %rbx
     addq %rcx, %rbx
     movq %rbx, %r10
     movq %r12, (%r10)
-    movq %r14, %r10
-    movq %r13, %r11
+    movq 424(%rbp), %rax
+    movq $48, %rcx
+    movq %rax, %rbx
+    addq %rcx, %rbx
+    movq %rbx, %r10
+    movq %r13, (%r10)
+    movq 424(%rbp), %r10
+    movq %r14, %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
     movups 16(%r10), %xmm8
@@ -637,62 +597,40 @@ lb_gpu_15vulkan_pipeline:
     movups %xmm8, 48(%r11)
     movq 64(%r10), %rax
     movq %rax, 64(%r11)
-    leaq 3468(%rbp), %rbx
-    leaq 3440(%rbp), %r12
+    leaq 2876(%rbp), %rbx
+    leaq 2848(%rbp), %r12
     movq %r12, %r11
     pxor %xmm8, %xmm8
     movups %xmm8, 0(%r11)
     movq $0, 16(%r11)
     movl $0, 24(%r11)
-    leaq lb_gpu_19VK_SUBPASS_EXTERNAL(%rip), %r14
-    movq %r14, %r10
-    movl (%r10), %r14d
+    movl $4294967295, %eax
     movq %r12, %r10
-    movl %r14d, (%r10)
-    movq $4, %rcx
-    movq %r12, %r14
-    addq %rcx, %r14
-    movl $0, %eax
-    movq %r14, %r10
     movl %eax, (%r10)
-    leaq lb_gpu_45VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT(%rip), %r14
-    movq %r14, %r10
-    movl (%r10), %r14d
-    leaq lb_gpu_42VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT(%rip), %rax
-    movq %rax, 872(%rbp)
-    movq 872(%rbp), %r10
-    movl (%r10), %eax
-    movl %eax, 864(%rbp)
-    movl 864(%rbp), %ecx
-    orl %ecx, %r14d
+    movq $4, %rcx
+    movq %r12, %r13
+    addq %rcx, %r13
+    movl $0, %eax
+    movq %r13, %r10
+    movl %eax, (%r10)
     movq $8, %rcx
-    movq %r12, %rax
-    addq %rcx, %rax
-    movq %rax, 856(%rbp)
-    movq 856(%rbp), %r10
-    movl %r14d, (%r10)
+    movq %r12, %r13
+    addq %rcx, %r13
+    movl $1280, %eax
+    movq %r13, %r10
+    movl %eax, (%r10)
     movq $12, %rcx
-    movq %r12, %rax
-    addq %rcx, %rax
-    movq %rax, 848(%rbp)
-    movq 848(%rbp), %r10
-    movl %r14d, (%r10)
-    leaq lb_gpu_36VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT(%rip), %r14
-    movq %r14, %r10
-    movl (%r10), %r14d
-    leaq lb_gpu_44VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT(%rip), %rax
-    movq %rax, 840(%rbp)
-    movq 840(%rbp), %r10
-    movl (%r10), %eax
-    movl %eax, 832(%rbp)
-    movl 832(%rbp), %ecx
-    orl %ecx, %r14d
+    movq %r12, %r13
+    addq %rcx, %r13
+    movl $1280, %eax
+    movq %r13, %r10
+    movl %eax, (%r10)
     movq $20, %rcx
-    movq %r12, %rax
-    addq %rcx, %rax
-    movq %rax, 824(%rbp)
-    movq 824(%rbp), %r10
-    movl %r14d, (%r10)
+    movq %r12, %r13
+    addq %rcx, %r13
+    movl $1280, %eax
+    movq %r13, %r10
+    movl %eax, (%r10)
     movq %r12, %r10
     movq %rbx, %r11
     movups 0(%r10), %xmm8
@@ -701,61 +639,56 @@ lb_gpu_15vulkan_pipeline:
     movq %rax, 16(%r11)
     movl 24(%r10), %eax
     movl %eax, 24(%r11)
-    leaq 3376(%rbp), %r12
-    leaq 3312(%rbp), %r14
-    movq %r14, %r11
+    leaq 2784(%rbp), %r12
+    leaq 2720(%rbp), %r13
+    movq %r13, %r11
     pxor %xmm8, %xmm8
     movups %xmm8, 0(%r11)
     movups %xmm8, 16(%r11)
     movups %xmm8, 32(%r11)
     movups %xmm8, 48(%r11)
-    leaq lb_gpu_41VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO(%rip), %rax
-    movq %rax, 816(%rbp)
-    movq 816(%rbp), %r10
-    movl (%r10), %eax
-    movl %eax, 808(%rbp)
-    movl 808(%rbp), %eax
-    movq %r14, %r10
+    movl $38, %eax
+    movq %r13, %r10
     movl %eax, (%r10)
     movq $20, %rcx
-    movq %r14, %rax
+    movq %r13, %rax
     addq %rcx, %rax
-    movq %rax, 800(%rbp)
+    movq %rax, 416(%rbp)
     movl $2, %eax
-    movq 800(%rbp), %r10
+    movq 416(%rbp), %r10
     movl %eax, (%r10)
     movq $24, %rcx
-    movq %r14, %rax
+    movq %r13, %rax
     addq %rcx, %rax
-    movq %rax, 792(%rbp)
-    movq 1064(%rbp), %rax
-    movq 792(%rbp), %r10
+    movq %rax, 408(%rbp)
+    movq 472(%rbp), %rax
+    movq 408(%rbp), %r10
     movq %rax, (%r10)
     movq $32, %rcx
-    movq %r14, %rax
+    movq %r13, %rax
     addq %rcx, %rax
-    movq %rax, 784(%rbp)
+    movq %rax, 400(%rbp)
     movl $1, %eax
-    movq 784(%rbp), %r10
+    movq 400(%rbp), %r10
     movl %eax, (%r10)
     movq $40, %rcx
-    movq %r14, %rax
+    movq %r13, %rax
     addq %rcx, %rax
-    movq %rax, 776(%rbp)
-    movq 776(%rbp), %r10
-    movq %r13, (%r10)
+    movq %rax, 392(%rbp)
+    movq 392(%rbp), %r10
+    movq %r14, (%r10)
     movq $48, %rcx
-    movq %r14, %r13
-    addq %rcx, %r13
+    movq %r13, %r14
+    addq %rcx, %r14
     movl $1, %eax
-    movq %r13, %r10
+    movq %r14, %r10
     movl %eax, (%r10)
     movq $56, %rcx
-    movq %r14, %r13
-    addq %rcx, %r13
-    movq %r13, %r10
-    movq %rbx, (%r10)
+    movq %r13, %r14
+    addq %rcx, %r14
     movq %r14, %r10
+    movq %rbx, (%r10)
+    movq %r13, %r10
     movq %r12, %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
@@ -765,20 +698,20 @@ lb_gpu_15vulkan_pipeline:
     movups %xmm8, 32(%r11)
     movups 48(%r10), %xmm8
     movups %xmm8, 48(%r11)
-    leaq 3904(%rbp), %rbx
+    leaq 3312(%rbp), %rbx
     movq %rbx, %r10
     movq (%r10), %rax
-    movq %rax, 768(%rbp)
-    movq 768(%rbp), %rax
+    movq %rax, 384(%rbp)
+    movq 384(%rbp), %rax
     movq $16, %rcx
     addq %rcx, %rax
-    movq %rax, 760(%rbp)
-    movq 760(%rbp), %r10
+    movq %rax, 376(%rbp)
+    movq 376(%rbp), %r10
     movq (%r10), %r14
-    movq 1048(%rbp), %rax
+    movq 456(%rbp), %rax
     movq $48, %rcx
     addq %rcx, %rax
-    movq %rax, 752(%rbp)
+    movq %rax, 368(%rbp)
     subq $32, %rsp
     movq %r14, %rax
     movq %rax, 0(%rsp)
@@ -786,7 +719,7 @@ lb_gpu_15vulkan_pipeline:
     movq %rax, 8(%rsp)
     movq $0, %rax
     movq %rax, 16(%rsp)
-    movq 752(%rbp), %rax
+    movq 368(%rbp), %rax
     movq %rax, 24(%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
@@ -796,7 +729,7 @@ lb_gpu_15vulkan_pipeline:
     addq $32, %rsp
     movl %eax, %r12d
     leaq .Ltext_5(%rip), %r14
-    leaq 3296(%rbp), %r15
+    leaq 2704(%rbp), %r15
     movq %r15, %r10
     movq %r14, (%r10)
     movq $8, %rcx
@@ -814,14 +747,14 @@ lb_gpu_15vulkan_pipeline:
     movups %xmm8, 0(%r11)
     leaq 32(%rsp), %rax
     movq %rax, 16(%rsp)
-    leaq 3264(%rbp), %rax
+    leaq 2672(%rbp), %rax
     movq %rax, (%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
     movq 16(%rsp), %r8
     call lb_gpu_12vulkan_check
     addq $48, %rsp
-    leaq 3264(%rbp), %r14
+    leaq 2672(%rbp), %r14
     movq $24, %rcx
     movq %r14, %r12
     addq %rcx, %r12
@@ -831,7 +764,7 @@ lb_gpu_15vulkan_pipeline:
     jne .L2_2
     jmp .L2_1
 .L2_2:
-    leaq 3920(%rbp), %rbx
+    leaq 3328(%rbp), %rbx
     movq %r14, %r10
     movq %rbx, %r11
     movups 0(%r10), %xmm8
@@ -845,7 +778,7 @@ lb_gpu_15vulkan_pipeline:
     movq %r12, %r10
     movb %al, (%r10)
     movq %rbx, %rsi
-    movq 3992(%rbp), %rdi
+    movq 3400(%rbp), %rdi
     movq $32, %rdx
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -853,31 +786,31 @@ lb_gpu_15vulkan_pipeline:
     subq $32, %rsp
     call memcpy
     addq $32, %rsp
-    movq 3992(%rbp), %rax
-    movq 4168(%rbp), %rdi
-    movq 4160(%rbp), %rsi
-    movdqu 4144(%rbp), %xmm6
-    movdqu 4128(%rbp), %xmm7
-    movdqu 4112(%rbp), %xmm8
-    movdqu 4096(%rbp), %xmm9
-    movdqu 4080(%rbp), %xmm10
-    movdqu 4064(%rbp), %xmm11
-    movdqu 4048(%rbp), %xmm12
-    movdqu 4032(%rbp), %xmm13
-    movdqu 4016(%rbp), %xmm14
-    movdqu 4000(%rbp), %xmm15
-    movq 3984(%rbp), %rbx
-    movq 3976(%rbp), %r12
-    movq 3968(%rbp), %r13
-    movq 3960(%rbp), %r14
-    movq 3952(%rbp), %r15
-    leaq 4176(%rbp), %rsp
+    movq 3400(%rbp), %rax
+    movq 3576(%rbp), %rdi
+    movq 3568(%rbp), %rsi
+    movdqu 3552(%rbp), %xmm6
+    movdqu 3536(%rbp), %xmm7
+    movdqu 3520(%rbp), %xmm8
+    movdqu 3504(%rbp), %xmm9
+    movdqu 3488(%rbp), %xmm10
+    movdqu 3472(%rbp), %xmm11
+    movdqu 3456(%rbp), %xmm12
+    movdqu 3440(%rbp), %xmm13
+    movdqu 3424(%rbp), %xmm14
+    movdqu 3408(%rbp), %xmm15
+    movq 3392(%rbp), %rbx
+    movq 3384(%rbp), %r12
+    movq 3376(%rbp), %r13
+    movq 3368(%rbp), %r14
+    movq 3360(%rbp), %r15
+    leaq 3584(%rbp), %rsp
     popq %rbp
     ret
 .L2_3:
 .L2_1:
-    leaq 3240(%rbp), %r12
-    leaq 3216(%rbp), %r14
+    leaq 2648(%rbp), %r12
+    leaq 2624(%rbp), %r14
     movq %r14, %r11
     pxor %xmm8, %xmm8
     movups %xmm8, 0(%r11)
@@ -885,79 +818,70 @@ lb_gpu_15vulkan_pipeline:
     movl $0, %eax
     movq %r14, %r10
     movl %eax, (%r10)
-    leaq lb_gpu_33VK_DESCRIPTOR_TYPE_STORAGE_BUFFER(%rip), %r15
-    movq %r15, %r10
-    movl (%r10), %r15d
     movq $4, %rcx
-    movq %r14, %rax
-    addq %rcx, %rax
-    movq %rax, 744(%rbp)
-    movq 744(%rbp), %r10
-    movl %r15d, (%r10)
-    movq $8, %rcx
-    movq %r14, %rax
-    addq %rcx, %rax
-    movq %rax, 736(%rbp)
-    movl $1, %eax
-    movq 736(%rbp), %r10
+    movq %r14, %r15
+    addq %rcx, %r15
+    movl $7, %eax
+    movq %r15, %r10
     movl %eax, (%r10)
-    leaq lb_gpu_28VK_SHADER_STAGE_FRAGMENT_BIT(%rip), %rax
-    movq %rax, 728(%rbp)
-    movq 728(%rbp), %r10
-    movl (%r10), %r15d
+    movq $8, %rcx
+    movq %r14, %r15
+    addq %rcx, %r15
+    movl $1, %eax
+    movq %r15, %r10
+    movl %eax, (%r10)
     movq $12, %rcx
-    movq %r14, %rbx
-    addq %rcx, %rbx
-    movq %rbx, %r10
-    movl %r15d, (%r10)
+    movq %r14, %r15
+    addq %rcx, %r15
+    movl $16, %eax
+    movq %r15, %r10
+    movl %eax, (%r10)
     movq %r14, %r10
     movq %r12, %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
     movq 16(%r10), %rax
     movq %rax, 16(%r11)
-    leaq 3184(%rbp), %rbx
-    leaq 3152(%rbp), %r14
-    movq %r14, %r11
+    leaq 2592(%rbp), %r14
+    leaq 2560(%rbp), %r15
+    movq %r15, %r11
     pxor %xmm8, %xmm8
     movups %xmm8, 0(%r11)
     movups %xmm8, 16(%r11)
-    leaq lb_gpu_51VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO(%rip), %r15
-    movq %r15, %r10
-    movl (%r10), %r15d
-    movq %r14, %r10
-    movl %r15d, (%r10)
-    movq $20, %rcx
-    movq %r14, %r15
-    addq %rcx, %r15
-    movl $1, %eax
+    movl $32, %eax
     movq %r15, %r10
     movl %eax, (%r10)
+    movq $20, %rcx
+    movq %r15, %rbx
+    addq %rcx, %rbx
+    movl $1, %eax
+    movq %rbx, %r10
+    movl %eax, (%r10)
     movq $24, %rcx
-    movq %r14, %r15
-    addq %rcx, %r15
-    movq %r15, %r10
+    movq %r15, %rbx
+    addq %rcx, %rbx
+    movq %rbx, %r10
     movq %r12, (%r10)
-    movq %r14, %r10
-    movq %rbx, %r11
+    movq %r15, %r10
+    movq %r14, %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
     movups 16(%r10), %xmm8
     movups %xmm8, 16(%r11)
-    movq 760(%rbp), %r10
-    movq (%r10), %r12
-    movq 1048(%rbp), %rax
+    movq 376(%rbp), %r10
+    movq (%r10), %rbx
+    movq 456(%rbp), %rax
     movq $56, %rcx
-    movq %rax, %r14
-    addq %rcx, %r14
+    movq %rax, %r12
+    addq %rcx, %r12
     subq $32, %rsp
-    movq %r12, %rax
-    movq %rax, 0(%rsp)
     movq %rbx, %rax
+    movq %rax, 0(%rsp)
+    movq %r14, %rax
     movq %rax, 8(%rsp)
     movq $0, %rax
     movq %rax, 16(%rsp)
-    movq %r14, %rax
+    movq %r12, %rax
     movq %rax, 24(%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
@@ -966,15 +890,15 @@ lb_gpu_15vulkan_pipeline:
     call vkCreateDescriptorSetLayout
     addq $32, %rsp
     movl %eax, %ebx
-    leaq .Ltext_6(%rip), %r12
-    leaq 3136(%rbp), %r15
+    leaq .Ltext_6(%rip), %r14
+    leaq 2544(%rbp), %r15
     movq %r15, %r10
-    movq %r12, (%r10)
+    movq %r14, (%r10)
     movq $8, %rcx
-    movq %r15, %r12
-    addq %rcx, %r12
+    movq %r15, %r14
+    addq %rcx, %r14
     movq $43, %rax
-    movq %r12, %r10
+    movq %r14, %r10
     movq %rax, (%r10)
     subq $48, %rsp
     movl %ebx, %eax
@@ -985,16 +909,16 @@ lb_gpu_15vulkan_pipeline:
     movups %xmm8, 0(%r11)
     leaq 32(%rsp), %rax
     movq %rax, 16(%rsp)
-    leaq 3104(%rbp), %rax
+    leaq 2512(%rbp), %rax
     movq %rax, (%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
     movq 16(%rsp), %r8
     call lb_gpu_12vulkan_check
     addq $48, %rsp
-    leaq 3104(%rbp), %r12
+    leaq 2512(%rbp), %r14
     movq $24, %rcx
-    movq %r12, %rbx
+    movq %r14, %rbx
     addq %rcx, %rbx
     movq %rbx, %r10
     movzbl (%r10), %ebx
@@ -1002,21 +926,21 @@ lb_gpu_15vulkan_pipeline:
     jne .L2_5
     jmp .L2_4
 .L2_5:
-    leaq 3920(%rbp), %rbx
-    movq %r12, %r10
+    leaq 3328(%rbp), %rbx
+    movq %r14, %r10
     movq %rbx, %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
     movq 16(%r10), %rax
     movq %rax, 16(%r11)
     movq $24, %rcx
-    movq %rbx, %r13
-    addq %rcx, %r13
+    movq %rbx, %r12
+    addq %rcx, %r12
     movl $1, %eax
-    movq %r13, %r10
+    movq %r12, %r10
     movb %al, (%r10)
     movq %rbx, %rsi
-    movq 3992(%rbp), %rdi
+    movq 3400(%rbp), %rdi
     movq $32, %rdx
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -1024,62 +948,59 @@ lb_gpu_15vulkan_pipeline:
     subq $32, %rsp
     call memcpy
     addq $32, %rsp
-    movq 3992(%rbp), %rax
-    movq 4168(%rbp), %rdi
-    movq 4160(%rbp), %rsi
-    movdqu 4144(%rbp), %xmm6
-    movdqu 4128(%rbp), %xmm7
-    movdqu 4112(%rbp), %xmm8
-    movdqu 4096(%rbp), %xmm9
-    movdqu 4080(%rbp), %xmm10
-    movdqu 4064(%rbp), %xmm11
-    movdqu 4048(%rbp), %xmm12
-    movdqu 4032(%rbp), %xmm13
-    movdqu 4016(%rbp), %xmm14
-    movdqu 4000(%rbp), %xmm15
-    movq 3984(%rbp), %rbx
-    movq 3976(%rbp), %r12
-    movq 3968(%rbp), %r13
-    movq 3960(%rbp), %r14
-    movq 3952(%rbp), %r15
-    leaq 4176(%rbp), %rsp
+    movq 3400(%rbp), %rax
+    movq 3576(%rbp), %rdi
+    movq 3568(%rbp), %rsi
+    movdqu 3552(%rbp), %xmm6
+    movdqu 3536(%rbp), %xmm7
+    movdqu 3520(%rbp), %xmm8
+    movdqu 3504(%rbp), %xmm9
+    movdqu 3488(%rbp), %xmm10
+    movdqu 3472(%rbp), %xmm11
+    movdqu 3456(%rbp), %xmm12
+    movdqu 3440(%rbp), %xmm13
+    movdqu 3424(%rbp), %xmm14
+    movdqu 3408(%rbp), %xmm15
+    movq 3392(%rbp), %rbx
+    movq 3384(%rbp), %r12
+    movq 3376(%rbp), %r13
+    movq 3368(%rbp), %r14
+    movq 3360(%rbp), %r15
+    leaq 3584(%rbp), %rsp
     popq %rbp
     ret
 .L2_6:
 .L2_4:
-    leaq 3088(%rbp), %rbx
-    leaq 3072(%rbp), %r12
-    movq %r12, %r11
+    leaq 2496(%rbp), %rbx
+    leaq 2480(%rbp), %r14
+    movq %r14, %r11
     movq $0, 0(%r11)
     movl $0, 8(%r11)
-    movq 728(%rbp), %r10
-    movl (%r10), %r15d
-    movq %r12, %r10
-    movl %r15d, (%r10)
+    movl $16, %eax
+    movq %r14, %r10
+    movl %eax, (%r10)
     movq $8, %rcx
-    movq %r12, %r15
+    movq %r14, %r15
     addq %rcx, %r15
     movl $32, %eax
     movq %r15, %r10
     movl %eax, (%r10)
-    movq %r12, %r10
+    movq %r14, %r10
     movq %rbx, %r11
     movq 0(%r10), %rax
     movq %rax, 0(%r11)
     movl 8(%r10), %eax
     movl %eax, 8(%r11)
-    leaq 3024(%rbp), %r12
-    leaq 2976(%rbp), %r15
+    leaq 2432(%rbp), %r14
+    leaq 2384(%rbp), %r15
     movq %r15, %r11
     pxor %xmm8, %xmm8
     movups %xmm8, 0(%r11)
     movups %xmm8, 16(%r11)
     movups %xmm8, 32(%r11)
-    leaq lb_gpu_45VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO(%rip), %r13
-    movq %r13, %r10
-    movl (%r10), %r13d
+    movl $30, %eax
     movq %r15, %r10
-    movl %r13d, (%r10)
+    movl %eax, (%r10)
     movq $20, %rcx
     movq %r15, %r13
     addq %rcx, %r13
@@ -1090,7 +1011,7 @@ lb_gpu_15vulkan_pipeline:
     movq %r15, %r13
     addq %rcx, %r13
     movq %r13, %r10
-    movq %r14, (%r10)
+    movq %r12, (%r10)
     movq $32, %rcx
     movq %r15, %r13
     addq %rcx, %r13
@@ -1103,27 +1024,27 @@ lb_gpu_15vulkan_pipeline:
     movq %r13, %r10
     movq %rbx, (%r10)
     movq %r15, %r10
-    movq %r12, %r11
+    movq %r14, %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
     movups 16(%r10), %xmm8
     movups %xmm8, 16(%r11)
     movups 32(%r10), %xmm8
     movups %xmm8, 32(%r11)
-    movq 760(%rbp), %r10
+    movq 376(%rbp), %r10
     movq (%r10), %rbx
-    movq 1048(%rbp), %rax
+    movq 456(%rbp), %rax
     movq $64, %rcx
     addq %rcx, %rax
-    movq %rax, 720(%rbp)
+    movq %rax, 360(%rbp)
     subq $32, %rsp
     movq %rbx, %rax
     movq %rax, 0(%rsp)
-    movq %r12, %rax
+    movq %r14, %rax
     movq %rax, 8(%rsp)
     movq $0, %rax
     movq %rax, 16(%rsp)
-    movq 720(%rbp), %rax
+    movq 360(%rbp), %rax
     movq %rax, 24(%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
@@ -1132,15 +1053,15 @@ lb_gpu_15vulkan_pipeline:
     call vkCreatePipelineLayout
     addq $32, %rsp
     movl %eax, %ebx
-    leaq .Ltext_7(%rip), %r12
-    leaq 2960(%rbp), %r15
+    leaq .Ltext_7(%rip), %r14
+    leaq 2368(%rbp), %r15
     movq %r15, %r10
-    movq %r12, (%r10)
+    movq %r14, (%r10)
     movq $8, %rcx
-    movq %r15, %r12
-    addq %rcx, %r12
+    movq %r15, %r14
+    addq %rcx, %r14
     movq $47, %rax
-    movq %r12, %r10
+    movq %r14, %r10
     movq %rax, (%r10)
     subq $48, %rsp
     movl %ebx, %eax
@@ -1151,16 +1072,16 @@ lb_gpu_15vulkan_pipeline:
     movups %xmm8, 0(%r11)
     leaq 32(%rsp), %rax
     movq %rax, 16(%rsp)
-    leaq 2928(%rbp), %rax
+    leaq 2336(%rbp), %rax
     movq %rax, (%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
     movq 16(%rsp), %r8
     call lb_gpu_12vulkan_check
     addq $48, %rsp
-    leaq 2928(%rbp), %r12
+    leaq 2336(%rbp), %r14
     movq $24, %rcx
-    movq %r12, %rbx
+    movq %r14, %rbx
     addq %rcx, %rbx
     movq %rbx, %r10
     movzbl (%r10), %ebx
@@ -1168,21 +1089,21 @@ lb_gpu_15vulkan_pipeline:
     jne .L2_8
     jmp .L2_7
 .L2_8:
-    leaq 3920(%rbp), %rbx
-    movq %r12, %r10
+    leaq 3328(%rbp), %rbx
+    movq %r14, %r10
     movq %rbx, %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
     movq 16(%r10), %rax
     movq %rax, 16(%r11)
     movq $24, %rcx
-    movq %rbx, %r13
-    addq %rcx, %r13
+    movq %rbx, %r12
+    addq %rcx, %r12
     movl $1, %eax
-    movq %r13, %r10
+    movq %r12, %r10
     movb %al, (%r10)
     movq %rbx, %rsi
-    movq 3992(%rbp), %rdi
+    movq 3400(%rbp), %rdi
     movq $32, %rdx
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -1190,31 +1111,31 @@ lb_gpu_15vulkan_pipeline:
     subq $32, %rsp
     call memcpy
     addq $32, %rsp
-    movq 3992(%rbp), %rax
-    movq 4168(%rbp), %rdi
-    movq 4160(%rbp), %rsi
-    movdqu 4144(%rbp), %xmm6
-    movdqu 4128(%rbp), %xmm7
-    movdqu 4112(%rbp), %xmm8
-    movdqu 4096(%rbp), %xmm9
-    movdqu 4080(%rbp), %xmm10
-    movdqu 4064(%rbp), %xmm11
-    movdqu 4048(%rbp), %xmm12
-    movdqu 4032(%rbp), %xmm13
-    movdqu 4016(%rbp), %xmm14
-    movdqu 4000(%rbp), %xmm15
-    movq 3984(%rbp), %rbx
-    movq 3976(%rbp), %r12
-    movq 3968(%rbp), %r13
-    movq 3960(%rbp), %r14
-    movq 3952(%rbp), %r15
-    leaq 4176(%rbp), %rsp
+    movq 3400(%rbp), %rax
+    movq 3576(%rbp), %rdi
+    movq 3568(%rbp), %rsi
+    movdqu 3552(%rbp), %xmm6
+    movdqu 3536(%rbp), %xmm7
+    movdqu 3520(%rbp), %xmm8
+    movdqu 3504(%rbp), %xmm9
+    movdqu 3488(%rbp), %xmm10
+    movdqu 3472(%rbp), %xmm11
+    movdqu 3456(%rbp), %xmm12
+    movdqu 3440(%rbp), %xmm13
+    movdqu 3424(%rbp), %xmm14
+    movdqu 3408(%rbp), %xmm15
+    movq 3392(%rbp), %rbx
+    movq 3384(%rbp), %r12
+    movq 3376(%rbp), %r13
+    movq 3368(%rbp), %r14
+    movq 3360(%rbp), %r15
+    leaq 3584(%rbp), %rsp
     popq %rbp
     ret
 .L2_9:
 .L2_7:
     leaq lb_gpu_17vulkan_vert_words(%rip), %rbx
-    leaq 2912(%rbp), %r12
+    leaq 2320(%rbp), %r12
     movq %r12, %r10
     movq %rbx, (%r10)
     movq $8, %rcx
@@ -1224,7 +1145,7 @@ lb_gpu_15vulkan_pipeline:
     movq %rbx, %r10
     movq %rax, (%r10)
     subq $48, %rsp
-    movq 768(%rbp), %rax
+    movq 384(%rbp), %rax
     movq %rax, 8(%rsp)
     movq %r12, %r10
     leaq 32(%rsp), %r11
@@ -1232,14 +1153,14 @@ lb_gpu_15vulkan_pipeline:
     movups %xmm8, 0(%r11)
     leaq 32(%rsp), %rax
     movq %rax, 16(%rsp)
-    leaq 2872(%rbp), %rax
+    leaq 2280(%rbp), %rax
     movq %rax, (%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
     movq 16(%rsp), %r8
     call lb_gpu_13vulkan_shader
     addq $48, %rsp
-    leaq 2872(%rbp), %r12
+    leaq 2280(%rbp), %r12
     movq $32, %rcx
     movq %r12, %rbx
     addq %rcx, %rbx
@@ -1252,7 +1173,7 @@ lb_gpu_15vulkan_pipeline:
     movq $8, %rcx
     movq %r12, %rbx
     addq %rcx, %rbx
-    leaq 3920(%rbp), %r13
+    leaq 3328(%rbp), %r13
     movq %rbx, %r10
     movq %r13, %r11
     movups 0(%r10), %xmm8
@@ -1266,7 +1187,7 @@ lb_gpu_15vulkan_pipeline:
     movq %rbx, %r10
     movb %al, (%r10)
     movq %r13, %rsi
-    movq 3992(%rbp), %rdi
+    movq 3400(%rbp), %rdi
     movq $32, %rdx
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -1274,25 +1195,25 @@ lb_gpu_15vulkan_pipeline:
     subq $32, %rsp
     call memcpy
     addq $32, %rsp
-    movq 3992(%rbp), %rax
-    movq 4168(%rbp), %rdi
-    movq 4160(%rbp), %rsi
-    movdqu 4144(%rbp), %xmm6
-    movdqu 4128(%rbp), %xmm7
-    movdqu 4112(%rbp), %xmm8
-    movdqu 4096(%rbp), %xmm9
-    movdqu 4080(%rbp), %xmm10
-    movdqu 4064(%rbp), %xmm11
-    movdqu 4048(%rbp), %xmm12
-    movdqu 4032(%rbp), %xmm13
-    movdqu 4016(%rbp), %xmm14
-    movdqu 4000(%rbp), %xmm15
-    movq 3984(%rbp), %rbx
-    movq 3976(%rbp), %r12
-    movq 3968(%rbp), %r13
-    movq 3960(%rbp), %r14
-    movq 3952(%rbp), %r15
-    leaq 4176(%rbp), %rsp
+    movq 3400(%rbp), %rax
+    movq 3576(%rbp), %rdi
+    movq 3568(%rbp), %rsi
+    movdqu 3552(%rbp), %xmm6
+    movdqu 3536(%rbp), %xmm7
+    movdqu 3520(%rbp), %xmm8
+    movdqu 3504(%rbp), %xmm9
+    movdqu 3488(%rbp), %xmm10
+    movdqu 3472(%rbp), %xmm11
+    movdqu 3456(%rbp), %xmm12
+    movdqu 3440(%rbp), %xmm13
+    movdqu 3424(%rbp), %xmm14
+    movdqu 3408(%rbp), %xmm15
+    movq 3392(%rbp), %rbx
+    movq 3384(%rbp), %r12
+    movq 3376(%rbp), %r13
+    movq 3368(%rbp), %r14
+    movq 3360(%rbp), %r15
+    leaq 3584(%rbp), %rsp
     popq %rbp
     ret
 .L2_12:
@@ -1300,7 +1221,7 @@ lb_gpu_15vulkan_pipeline:
     movq %r12, %r10
     movq (%r10), %rbx
     leaq lb_gpu_17vulkan_frag_words(%rip), %r14
-    leaq 2856(%rbp), %r15
+    leaq 2264(%rbp), %r15
     movq %r15, %r10
     movq %r14, (%r10)
     movq $8, %rcx
@@ -1310,7 +1231,7 @@ lb_gpu_15vulkan_pipeline:
     movq %r14, %r10
     movq %rax, (%r10)
     subq $48, %rsp
-    movq 768(%rbp), %rax
+    movq 384(%rbp), %rax
     movq %rax, 8(%rsp)
     movq %r15, %r10
     leaq 32(%rsp), %r11
@@ -1318,14 +1239,14 @@ lb_gpu_15vulkan_pipeline:
     movups %xmm8, 0(%r11)
     leaq 32(%rsp), %rax
     movq %rax, 16(%rsp)
-    leaq 2816(%rbp), %rax
+    leaq 2224(%rbp), %rax
     movq %rax, (%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
     movq 16(%rsp), %r8
     call lb_gpu_13vulkan_shader
     addq $48, %rsp
-    leaq 2816(%rbp), %r15
+    leaq 2224(%rbp), %r15
     movq $32, %rcx
     movq %r15, %r14
     addq %rcx, %r14
@@ -1338,7 +1259,7 @@ lb_gpu_15vulkan_pipeline:
     movq $8, %rcx
     movq %r15, %r12
     addq %rcx, %r12
-    leaq 3920(%rbp), %r13
+    leaq 3328(%rbp), %r13
     movq %r12, %r10
     movq %r13, %r11
     movups 0(%r10), %xmm8
@@ -1351,7 +1272,7 @@ lb_gpu_15vulkan_pipeline:
     movl $1, %eax
     movq %r12, %r10
     movb %al, (%r10)
-    movq 760(%rbp), %r10
+    movq 376(%rbp), %r10
     movq (%r10), %r12
     subq $32, %rsp
     movq %r12, %rax
@@ -1366,7 +1287,7 @@ lb_gpu_15vulkan_pipeline:
     call vkDestroyShaderModule
     addq $32, %rsp
     movq %r13, %rsi
-    movq 3992(%rbp), %rdi
+    movq 3400(%rbp), %rdi
     movq $32, %rdx
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -1374,134 +1295,120 @@ lb_gpu_15vulkan_pipeline:
     subq $32, %rsp
     call memcpy
     addq $32, %rsp
-    movq 3992(%rbp), %rax
-    movq 4168(%rbp), %rdi
-    movq 4160(%rbp), %rsi
-    movdqu 4144(%rbp), %xmm6
-    movdqu 4128(%rbp), %xmm7
-    movdqu 4112(%rbp), %xmm8
-    movdqu 4096(%rbp), %xmm9
-    movdqu 4080(%rbp), %xmm10
-    movdqu 4064(%rbp), %xmm11
-    movdqu 4048(%rbp), %xmm12
-    movdqu 4032(%rbp), %xmm13
-    movdqu 4016(%rbp), %xmm14
-    movdqu 4000(%rbp), %xmm15
-    movq 3984(%rbp), %rbx
-    movq 3976(%rbp), %r12
-    movq 3968(%rbp), %r13
-    movq 3960(%rbp), %r14
-    movq 3952(%rbp), %r15
-    leaq 4176(%rbp), %rsp
+    movq 3400(%rbp), %rax
+    movq 3576(%rbp), %rdi
+    movq 3568(%rbp), %rsi
+    movdqu 3552(%rbp), %xmm6
+    movdqu 3536(%rbp), %xmm7
+    movdqu 3520(%rbp), %xmm8
+    movdqu 3504(%rbp), %xmm9
+    movdqu 3488(%rbp), %xmm10
+    movdqu 3472(%rbp), %xmm11
+    movdqu 3456(%rbp), %xmm12
+    movdqu 3440(%rbp), %xmm13
+    movdqu 3424(%rbp), %xmm14
+    movdqu 3408(%rbp), %xmm15
+    movq 3392(%rbp), %rbx
+    movq 3384(%rbp), %r12
+    movq 3376(%rbp), %r13
+    movq 3368(%rbp), %r14
+    movq 3360(%rbp), %r15
+    leaq 3584(%rbp), %rsp
     popq %rbp
     ret
 .L2_15:
 .L2_13:
     movq %r15, %r10
     movq (%r10), %rax
-    movq %rax, 712(%rbp)
-    leaq 2720(%rbp), %rax
-    movq %rax, 704(%rbp)
-    leaq 2624(%rbp), %rax
-    movq %rax, 696(%rbp)
-    leaq 2576(%rbp), %rax
-    movq %rax, 688(%rbp)
-    movq 688(%rbp), %r11
+    movq %rax, 352(%rbp)
+    leaq 2128(%rbp), %rax
+    movq %rax, 344(%rbp)
+    leaq 2032(%rbp), %rax
+    movq %rax, 336(%rbp)
+    leaq 1984(%rbp), %r14
+    movq %r14, %r11
     pxor %xmm8, %xmm8
     movups %xmm8, 0(%r11)
     movups %xmm8, 16(%r11)
     movups %xmm8, 32(%r11)
-    leaq lb_gpu_51VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO(%rip), %rax
-    movq %rax, 680(%rbp)
-    movq 680(%rbp), %r10
-    movl (%r10), %eax
-    movl %eax, 672(%rbp)
-    movl 672(%rbp), %eax
-    movq 688(%rbp), %r10
+    movl $18, %eax
+    movq %r14, %r10
     movl %eax, (%r10)
-    leaq lb_gpu_26VK_SHADER_STAGE_VERTEX_BIT(%rip), %rax
-    movq %rax, 664(%rbp)
-    movq 664(%rbp), %r10
-    movl (%r10), %eax
-    movl %eax, 656(%rbp)
-    movq 688(%rbp), %rax
     movq $20, %rcx
+    movq %r14, %rax
     addq %rcx, %rax
-    movq %rax, 648(%rbp)
-    movl 656(%rbp), %eax
-    movq 648(%rbp), %r10
+    movq %rax, 328(%rbp)
+    movl $1, %eax
+    movq 328(%rbp), %r10
     movl %eax, (%r10)
-    movq 688(%rbp), %rax
     movq $24, %rcx
+    movq %r14, %rax
     addq %rcx, %rax
-    movq %rax, 640(%rbp)
-    movq 640(%rbp), %r10
+    movq %rax, 320(%rbp)
+    movq 320(%rbp), %r10
     movq %rbx, (%r10)
     leaq .Ltext_8(%rip), %rax
-    movq %rax, 632(%rbp)
-    movq 688(%rbp), %rax
+    movq %rax, 312(%rbp)
     movq $32, %rcx
+    movq %r14, %rax
     addq %rcx, %rax
-    movq %rax, 624(%rbp)
-    movq 632(%rbp), %rax
-    movq 624(%rbp), %r10
+    movq %rax, 304(%rbp)
+    movq 312(%rbp), %rax
+    movq 304(%rbp), %r10
     movq %rax, (%r10)
-    movq 688(%rbp), %r10
-    movq 696(%rbp), %r11
+    movq %r14, %r10
+    movq 336(%rbp), %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
     movups 16(%r10), %xmm8
     movups %xmm8, 16(%r11)
     movups 32(%r10), %xmm8
     movups %xmm8, 32(%r11)
-    leaq 2528(%rbp), %rax
-    movq %rax, 616(%rbp)
-    movq 616(%rbp), %r11
+    leaq 1936(%rbp), %rax
+    movq %rax, 296(%rbp)
+    movq 296(%rbp), %r11
     pxor %xmm8, %xmm8
     movups %xmm8, 0(%r11)
     movups %xmm8, 16(%r11)
     movups %xmm8, 32(%r11)
-    movl 672(%rbp), %eax
-    movq 616(%rbp), %r10
+    movl $18, %eax
+    movq 296(%rbp), %r10
     movl %eax, (%r10)
-    movq 728(%rbp), %r10
-    movl (%r10), %eax
-    movl %eax, 608(%rbp)
-    movq 616(%rbp), %rax
+    movq 296(%rbp), %rax
     movq $20, %rcx
-    addq %rcx, %rax
-    movq %rax, 600(%rbp)
-    movl 608(%rbp), %eax
-    movq 600(%rbp), %r10
+    movq %rax, %r14
+    addq %rcx, %r14
+    movl $16, %eax
+    movq %r14, %r10
     movl %eax, (%r10)
-    movq 616(%rbp), %rax
+    movq 296(%rbp), %rax
     movq $24, %rcx
-    addq %rcx, %rax
-    movq %rax, 592(%rbp)
-    movq 712(%rbp), %rax
-    movq 592(%rbp), %r10
+    movq %rax, %r14
+    addq %rcx, %r14
+    movq 352(%rbp), %rax
+    movq %r14, %r10
     movq %rax, (%r10)
-    movq 616(%rbp), %rax
+    movq 296(%rbp), %rax
     movq $32, %rcx
-    addq %rcx, %rax
-    movq %rax, 584(%rbp)
-    movq 632(%rbp), %rax
-    movq 584(%rbp), %r10
+    movq %rax, %r14
+    addq %rcx, %r14
+    movq 312(%rbp), %rax
+    movq %r14, %r10
     movq %rax, (%r10)
-    movq 696(%rbp), %rax
+    movq 336(%rbp), %rax
     movq $48, %rcx
     addq %rcx, %rax
-    movq %rax, 576(%rbp)
-    movq 616(%rbp), %r10
-    movq 576(%rbp), %r11
+    movq %rax, 288(%rbp)
+    movq 296(%rbp), %r10
+    movq 288(%rbp), %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
     movups 16(%r10), %xmm8
     movups %xmm8, 16(%r11)
     movups 32(%r10), %xmm8
     movups %xmm8, 32(%r11)
-    movq 696(%rbp), %r10
-    movq 704(%rbp), %r11
+    movq 336(%rbp), %r10
+    movq 344(%rbp), %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
     movups 16(%r10), %xmm8
@@ -1514,295 +1421,92 @@ lb_gpu_15vulkan_pipeline:
     movups %xmm8, 64(%r11)
     movups 80(%r10), %xmm8
     movups %xmm8, 80(%r11)
-    leaq 2512(%rbp), %rax
-    movq %rax, 568(%rbp)
-    leaq 2496(%rbp), %rax
-    movq %rax, 560(%rbp)
-    movq 560(%rbp), %r11
+    leaq 1920(%rbp), %rax
+    movq %rax, 280(%rbp)
+    leaq 1904(%rbp), %rax
+    movq %rax, 272(%rbp)
+    movq 272(%rbp), %r11
     movq $0, 0(%r11)
     movl $0, 8(%r11)
-    movq 560(%rbp), %rax
+    movq 272(%rbp), %rax
     movq $4, %rcx
-    addq %rcx, %rax
-    movq %rax, 552(%rbp)
+    movq %rax, %r14
+    addq %rcx, %r14
     movl $32, %eax
-    movq 552(%rbp), %r10
+    movq %r14, %r10
     movl %eax, (%r10)
-    movq 560(%rbp), %r10
-    movq 568(%rbp), %r11
+    movq 272(%rbp), %r10
+    movq 280(%rbp), %r11
     movq 0(%r10), %rax
     movq %rax, 0(%r11)
     movl 8(%r10), %eax
     movl %eax, 8(%r11)
-    leaq 2464(%rbp), %rax
-    movq %rax, 544(%rbp)
-    leaq 2432(%rbp), %rax
-    movq %rax, 536(%rbp)
-    leaq 2416(%rbp), %rax
-    movq %rax, 528(%rbp)
-    movq 528(%rbp), %r11
-    pxor %xmm8, %xmm8
-    movups %xmm8, 0(%r11)
-    movl $0, %eax
-    movq 528(%rbp), %r10
-    movl %eax, (%r10)
-    leaq lb_gpu_29VK_FORMAT_R32G32B32A32_SFLOAT(%rip), %rax
-    movq %rax, 520(%rbp)
-    movq 520(%rbp), %r10
-    movl (%r10), %eax
-    movl %eax, 512(%rbp)
-    movq 528(%rbp), %rax
-    movq $8, %rcx
-    addq %rcx, %rax
-    movq %rax, 504(%rbp)
-    movl 512(%rbp), %eax
-    movq 504(%rbp), %r10
-    movl %eax, (%r10)
-    movq 528(%rbp), %rax
-    movq $12, %rcx
-    addq %rcx, %rax
-    movq %rax, 496(%rbp)
-    movl $0, %eax
-    movq 496(%rbp), %r10
-    movl %eax, (%r10)
-    movq 528(%rbp), %r10
-    movq 536(%rbp), %r11
-    movups 0(%r10), %xmm8
-    movups %xmm8, 0(%r11)
-    leaq 2400(%rbp), %rax
-    movq %rax, 488(%rbp)
-    movq 488(%rbp), %r11
-    pxor %xmm8, %xmm8
-    movups %xmm8, 0(%r11)
-    movl $1, %eax
-    movq 488(%rbp), %r10
-    movl %eax, (%r10)
-    movq 488(%rbp), %rax
-    movq $8, %rcx
-    addq %rcx, %rax
-    movq %rax, 480(%rbp)
-    movl 512(%rbp), %eax
-    movq 480(%rbp), %r10
-    movl %eax, (%r10)
-    movq 488(%rbp), %rax
-    movq $12, %rcx
-    addq %rcx, %rax
-    movq %rax, 472(%rbp)
-    movl $16, %eax
-    movq 472(%rbp), %r10
-    movl %eax, (%r10)
-    movq 536(%rbp), %rax
-    movq $16, %rcx
-    addq %rcx, %rax
-    movq %rax, 464(%rbp)
-    movq 488(%rbp), %r10
-    movq 464(%rbp), %r11
-    movups 0(%r10), %xmm8
-    movups %xmm8, 0(%r11)
-    movq 536(%rbp), %r10
-    movq 544(%rbp), %r11
-    movups 0(%r10), %xmm8
-    movups %xmm8, 0(%r11)
-    movups 16(%r10), %xmm8
-    movups %xmm8, 16(%r11)
-    leaq 2352(%rbp), %rax
-    movq %rax, 456(%rbp)
-    leaq 2304(%rbp), %rax
-    movq %rax, 448(%rbp)
-    movq 448(%rbp), %r11
-    pxor %xmm8, %xmm8
-    movups %xmm8, 0(%r11)
-    movups %xmm8, 16(%r11)
-    movups %xmm8, 32(%r11)
-    leaq lb_gpu_57VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO(%rip), %rax
-    movq %rax, 440(%rbp)
-    movq 440(%rbp), %r10
-    movl (%r10), %eax
-    movl %eax, 432(%rbp)
-    movl 432(%rbp), %eax
-    movq 448(%rbp), %r10
-    movl %eax, (%r10)
-    movq 448(%rbp), %rax
-    movq $20, %rcx
-    addq %rcx, %rax
-    movq %rax, 424(%rbp)
-    movl $1, %eax
-    movq 424(%rbp), %r10
-    movl %eax, (%r10)
-    movq 448(%rbp), %rax
-    movq $24, %rcx
-    addq %rcx, %rax
-    movq %rax, 416(%rbp)
-    movq 568(%rbp), %rax
-    movq 416(%rbp), %r10
-    movq %rax, (%r10)
-    movq 448(%rbp), %rax
-    movq $32, %rcx
-    addq %rcx, %rax
-    movq %rax, 408(%rbp)
-    movl $2, %eax
-    movq 408(%rbp), %r10
-    movl %eax, (%r10)
-    movq 448(%rbp), %rax
-    movq $40, %rcx
-    addq %rcx, %rax
-    movq %rax, 400(%rbp)
-    movq 544(%rbp), %rax
-    movq 400(%rbp), %r10
-    movq %rax, (%r10)
-    movq 448(%rbp), %r10
-    movq 456(%rbp), %r11
-    movups 0(%r10), %xmm8
-    movups %xmm8, 0(%r11)
-    movups 16(%r10), %xmm8
-    movups %xmm8, 16(%r11)
-    movups 32(%r10), %xmm8
-    movups %xmm8, 32(%r11)
-    leaq 2272(%rbp), %rax
-    movq %rax, 392(%rbp)
-    leaq 2240(%rbp), %rax
-    movq %rax, 384(%rbp)
-    movq 384(%rbp), %r11
-    pxor %xmm8, %xmm8
-    movups %xmm8, 0(%r11)
-    movups %xmm8, 16(%r11)
-    leaq lb_gpu_59VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO(%rip), %rax
-    movq %rax, 376(%rbp)
-    movq 376(%rbp), %r10
-    movl (%r10), %eax
-    movl %eax, 368(%rbp)
-    movl 368(%rbp), %eax
-    movq 384(%rbp), %r10
-    movl %eax, (%r10)
-    leaq lb_gpu_35VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST(%rip), %rax
-    movq %rax, 360(%rbp)
-    movq 360(%rbp), %r10
-    movl (%r10), %eax
-    movl %eax, 352(%rbp)
-    movq 384(%rbp), %rax
-    movq $20, %rcx
-    addq %rcx, %rax
-    movq %rax, 344(%rbp)
-    movl 352(%rbp), %eax
-    movq 344(%rbp), %r10
-    movl %eax, (%r10)
-    movq 384(%rbp), %r10
-    movq 392(%rbp), %r11
-    movups 0(%r10), %xmm8
-    movups %xmm8, 0(%r11)
-    movups 16(%r10), %xmm8
-    movups %xmm8, 16(%r11)
-    leaq 2192(%rbp), %rax
-    movq %rax, 336(%rbp)
-    leaq 2144(%rbp), %rax
-    movq %rax, 328(%rbp)
-    movq 328(%rbp), %r11
-    pxor %xmm8, %xmm8
-    movups %xmm8, 0(%r11)
-    movups %xmm8, 16(%r11)
-    movups %xmm8, 32(%r11)
-    leaq lb_gpu_53VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO(%rip), %rax
-    movq %rax, 320(%rbp)
-    movq 320(%rbp), %r10
-    movl (%r10), %eax
-    movl %eax, 312(%rbp)
-    movl 312(%rbp), %eax
-    movq 328(%rbp), %r10
-    movl %eax, (%r10)
-    movq 328(%rbp), %rax
-    movq $20, %rcx
-    addq %rcx, %rax
-    movq %rax, 304(%rbp)
-    movl $1, %eax
-    movq 304(%rbp), %r10
-    movl %eax, (%r10)
-    movq 328(%rbp), %rax
-    movq $32, %rcx
-    addq %rcx, %rax
-    movq %rax, 296(%rbp)
-    movl $1, %eax
-    movq 296(%rbp), %r10
-    movl %eax, (%r10)
-    movq 328(%rbp), %r10
-    movq 336(%rbp), %r11
-    movups 0(%r10), %xmm8
-    movups %xmm8, 0(%r11)
-    movups 16(%r10), %xmm8
-    movups %xmm8, 16(%r11)
-    movups 32(%r10), %xmm8
-    movups %xmm8, 32(%r11)
-    leaq 2080(%rbp), %rax
-    movq %rax, 288(%rbp)
-    leaq 2016(%rbp), %rax
-    movq %rax, 280(%rbp)
-    movq 280(%rbp), %r11
-    pxor %xmm8, %xmm8
-    movups %xmm8, 0(%r11)
-    movups %xmm8, 16(%r11)
-    movups %xmm8, 32(%r11)
-    movups %xmm8, 48(%r11)
-    leaq lb_gpu_58VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO(%rip), %rax
-    movq %rax, 272(%rbp)
-    movq 272(%rbp), %r10
-    movl (%r10), %eax
-    movl %eax, 264(%rbp)
-    movl 264(%rbp), %eax
-    movq 280(%rbp), %r10
-    movl %eax, (%r10)
-    movl $1065353216, %eax
-    movd %eax, %xmm12
-    movq 280(%rbp), %rax
-    movq $56, %rcx
-    addq %rcx, %rax
+    leaq 1872(%rbp), %rax
+    movq %rax, 264(%rbp)
+    leaq 1840(%rbp), %r14
+    leaq 1824(%rbp), %rax
     movq %rax, 256(%rbp)
-    movq 256(%rbp), %r10
-    movss %xmm12, (%r10)
-    movq 280(%rbp), %r10
-    movq 288(%rbp), %r11
-    movups 0(%r10), %xmm8
-    movups %xmm8, 0(%r11)
-    movups 16(%r10), %xmm8
-    movups %xmm8, 16(%r11)
-    movups 32(%r10), %xmm8
-    movups %xmm8, 32(%r11)
-    movups 48(%r10), %xmm8
-    movups %xmm8, 48(%r11)
-    leaq 1968(%rbp), %rax
-    movq %rax, 248(%rbp)
-    leaq 1920(%rbp), %rax
-    movq %rax, 240(%rbp)
-    movq 240(%rbp), %r11
+    movq 256(%rbp), %r11
     pxor %xmm8, %xmm8
     movups %xmm8, 0(%r11)
-    movups %xmm8, 16(%r11)
-    movups %xmm8, 32(%r11)
-    leaq lb_gpu_56VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO(%rip), %rax
-    movq %rax, 232(%rbp)
-    movq 232(%rbp), %r10
-    movl (%r10), %eax
-    movl %eax, 224(%rbp)
-    movl 224(%rbp), %eax
+    movl $0, %eax
+    movq 256(%rbp), %r10
+    movl %eax, (%r10)
+    movq 256(%rbp), %rax
+    movq $8, %rcx
+    addq %rcx, %rax
+    movq %rax, 248(%rbp)
+    movl $109, %eax
+    movq 248(%rbp), %r10
+    movl %eax, (%r10)
+    movq 256(%rbp), %rax
+    movq $12, %rcx
+    addq %rcx, %rax
+    movq %rax, 240(%rbp)
+    movl $0, %eax
     movq 240(%rbp), %r10
     movl %eax, (%r10)
-    movq 1016(%rbp), %r10
-    movl (%r10), %eax
-    movl %eax, 216(%rbp)
-    movq 240(%rbp), %rax
-    movq $20, %rcx
+    movq 256(%rbp), %r10
+    movq %r14, %r11
+    movups 0(%r10), %xmm8
+    movups %xmm8, 0(%r11)
+    leaq 1808(%rbp), %rax
+    movq %rax, 232(%rbp)
+    movq 232(%rbp), %r11
+    pxor %xmm8, %xmm8
+    movups %xmm8, 0(%r11)
+    movl $1, %eax
+    movq 232(%rbp), %r10
+    movl %eax, (%r10)
+    movq 232(%rbp), %rax
+    movq $8, %rcx
+    addq %rcx, %rax
+    movq %rax, 224(%rbp)
+    movl $109, %eax
+    movq 224(%rbp), %r10
+    movl %eax, (%r10)
+    movq 232(%rbp), %rax
+    movq $12, %rcx
+    addq %rcx, %rax
+    movq %rax, 216(%rbp)
+    movl $16, %eax
+    movq 216(%rbp), %r10
+    movl %eax, (%r10)
+    movq $16, %rcx
+    movq %r14, %rax
     addq %rcx, %rax
     movq %rax, 208(%rbp)
-    movl 216(%rbp), %eax
-    movq 208(%rbp), %r10
-    movl %eax, (%r10)
-    movq 240(%rbp), %r10
-    movq 248(%rbp), %r11
+    movq 232(%rbp), %r10
+    movq 208(%rbp), %r11
+    movups 0(%r10), %xmm8
+    movups %xmm8, 0(%r11)
+    movq %r14, %r10
+    movq 264(%rbp), %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
     movups 16(%r10), %xmm8
     movups %xmm8, 16(%r11)
-    movups 32(%r10), %xmm8
-    movups %xmm8, 32(%r11)
-    leaq 1816(%rbp), %rax
+    leaq 1760(%rbp), %rax
     movq %rax, 200(%rbp)
     leaq 1712(%rbp), %rax
     movq %rax, 192(%rbp)
@@ -1811,32 +1515,181 @@ lb_gpu_15vulkan_pipeline:
     movups %xmm8, 0(%r11)
     movups %xmm8, 16(%r11)
     movups %xmm8, 32(%r11)
+    movl $19, %eax
+    movq 192(%rbp), %r10
+    movl %eax, (%r10)
+    movq 192(%rbp), %rax
+    movq $20, %rcx
+    movq %rax, %r14
+    addq %rcx, %r14
+    movl $1, %eax
+    movq %r14, %r10
+    movl %eax, (%r10)
+    movq 192(%rbp), %rax
+    movq $24, %rcx
+    movq %rax, %r14
+    addq %rcx, %r14
+    movq 280(%rbp), %rax
+    movq %r14, %r10
+    movq %rax, (%r10)
+    movq 192(%rbp), %rax
+    movq $32, %rcx
+    movq %rax, %r14
+    addq %rcx, %r14
+    movl $2, %eax
+    movq %r14, %r10
+    movl %eax, (%r10)
+    movq 192(%rbp), %rax
+    movq $40, %rcx
+    movq %rax, %r14
+    addq %rcx, %r14
+    movq 264(%rbp), %rax
+    movq %r14, %r10
+    movq %rax, (%r10)
+    movq 192(%rbp), %r10
+    movq 200(%rbp), %r11
+    movups 0(%r10), %xmm8
+    movups %xmm8, 0(%r11)
+    movups 16(%r10), %xmm8
+    movups %xmm8, 16(%r11)
+    movups 32(%r10), %xmm8
+    movups %xmm8, 32(%r11)
+    leaq 1680(%rbp), %rax
+    movq %rax, 184(%rbp)
+    leaq 1648(%rbp), %r14
+    movq %r14, %r11
+    pxor %xmm8, %xmm8
+    movups %xmm8, 0(%r11)
+    movups %xmm8, 16(%r11)
+    movl $20, %eax
+    movq %r14, %r10
+    movl %eax, (%r10)
+    movq $20, %rcx
+    movq %r14, %rax
+    addq %rcx, %rax
+    movq %rax, 176(%rbp)
+    movl $3, %eax
+    movq 176(%rbp), %r10
+    movl %eax, (%r10)
+    movq %r14, %r10
+    movq 184(%rbp), %r11
+    movups 0(%r10), %xmm8
+    movups %xmm8, 0(%r11)
+    movups 16(%r10), %xmm8
+    movups %xmm8, 16(%r11)
+    leaq 1600(%rbp), %rax
+    movq %rax, 168(%rbp)
+    leaq 1552(%rbp), %r14
+    movq %r14, %r11
+    pxor %xmm8, %xmm8
+    movups %xmm8, 0(%r11)
+    movups %xmm8, 16(%r11)
+    movups %xmm8, 32(%r11)
+    movl $22, %eax
+    movq %r14, %r10
+    movl %eax, (%r10)
+    movq $20, %rcx
+    movq %r14, %rax
+    addq %rcx, %rax
+    movq %rax, 160(%rbp)
+    movl $1, %eax
+    movq 160(%rbp), %r10
+    movl %eax, (%r10)
+    movq $32, %rcx
+    movq %r14, %rax
+    addq %rcx, %rax
+    movq %rax, 152(%rbp)
+    movl $1, %eax
+    movq 152(%rbp), %r10
+    movl %eax, (%r10)
+    movq %r14, %r10
+    movq 168(%rbp), %r11
+    movups 0(%r10), %xmm8
+    movups %xmm8, 0(%r11)
+    movups 16(%r10), %xmm8
+    movups %xmm8, 16(%r11)
+    movups 32(%r10), %xmm8
+    movups %xmm8, 32(%r11)
+    leaq 1488(%rbp), %rax
+    movq %rax, 144(%rbp)
+    leaq 1424(%rbp), %r14
+    movq %r14, %r11
+    pxor %xmm8, %xmm8
+    movups %xmm8, 0(%r11)
+    movups %xmm8, 16(%r11)
+    movups %xmm8, 32(%r11)
+    movups %xmm8, 48(%r11)
+    movl $23, %eax
+    movq %r14, %r10
+    movl %eax, (%r10)
+    movl $1065353216, %eax
+    movd %eax, %xmm12
+    movq $56, %rcx
+    movq %r14, %rax
+    addq %rcx, %rax
+    movq %rax, 136(%rbp)
+    movq 136(%rbp), %r10
+    movss %xmm12, (%r10)
+    movq %r14, %r10
+    movq 144(%rbp), %r11
+    movups 0(%r10), %xmm8
+    movups %xmm8, 0(%r11)
+    movups 16(%r10), %xmm8
+    movups %xmm8, 16(%r11)
+    movups 32(%r10), %xmm8
+    movups %xmm8, 32(%r11)
+    movups 48(%r10), %xmm8
+    movups %xmm8, 48(%r11)
+    leaq 1376(%rbp), %rax
+    movq %rax, 128(%rbp)
+    leaq 1328(%rbp), %r14
+    movq %r14, %r11
+    pxor %xmm8, %xmm8
+    movups %xmm8, 0(%r11)
+    movups %xmm8, 16(%r11)
+    movups %xmm8, 32(%r11)
+    movl $24, %eax
+    movq %r14, %r10
+    movl %eax, (%r10)
+    movq $20, %rcx
+    movq %r14, %rax
+    addq %rcx, %rax
+    movq %rax, 120(%rbp)
+    movl $1, %eax
+    movq 120(%rbp), %r10
+    movl %eax, (%r10)
+    movq %r14, %r10
+    movq 128(%rbp), %r11
+    movups 0(%r10), %xmm8
+    movups %xmm8, 0(%r11)
+    movups 16(%r10), %xmm8
+    movups %xmm8, 16(%r11)
+    movups 32(%r10), %xmm8
+    movups %xmm8, 32(%r11)
+    leaq 1224(%rbp), %rax
+    movq %rax, 112(%rbp)
+    leaq 1120(%rbp), %r14
+    movq %r14, %r11
+    pxor %xmm8, %xmm8
+    movups %xmm8, 0(%r11)
+    movups %xmm8, 16(%r11)
+    movups %xmm8, 32(%r11)
     movups %xmm8, 48(%r11)
     movups %xmm8, 64(%r11)
     movups %xmm8, 80(%r11)
     movq $0, 96(%r11)
-    leaq lb_gpu_58VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO(%rip), %rax
-    movq %rax, 184(%rbp)
-    movq 184(%rbp), %r10
-    movl (%r10), %eax
-    movl %eax, 176(%rbp)
-    movl 176(%rbp), %eax
-    movq 192(%rbp), %r10
+    movl $25, %eax
+    movq %r14, %r10
     movl %eax, (%r10)
-    leaq lb_gpu_18VK_COMPARE_OP_LESS(%rip), %rax
-    movq %rax, 168(%rbp)
-    movq 168(%rbp), %r10
-    movl (%r10), %eax
-    movl %eax, 160(%rbp)
-    movq 192(%rbp), %rax
     movq $28, %rcx
+    movq %r14, %rax
     addq %rcx, %rax
-    movq %rax, 152(%rbp)
-    movl 160(%rbp), %eax
-    movq 152(%rbp), %r10
+    movq %rax, 104(%rbp)
+    movl $1, %eax
+    movq 104(%rbp), %r10
     movl %eax, (%r10)
-    movq 192(%rbp), %r10
-    movq 200(%rbp), %r11
+    movq %r14, %r10
+    movq 112(%rbp), %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
     movups 16(%r10), %xmm8
@@ -1851,124 +1704,85 @@ lb_gpu_15vulkan_pipeline:
     movups %xmm8, 80(%r11)
     movq 96(%r10), %rax
     movq %rax, 96(%r11)
-    leaq 1680(%rbp), %rax
-    movq %rax, 144(%rbp)
-    leaq 1648(%rbp), %rax
-    movq %rax, 136(%rbp)
-    movq 136(%rbp), %r11
+    leaq 1088(%rbp), %rax
+    movq %rax, 96(%rbp)
+    leaq 1056(%rbp), %r14
+    movq %r14, %r11
     pxor %xmm8, %xmm8
     movups %xmm8, 0(%r11)
     movups %xmm8, 16(%r11)
-    leaq lb_gpu_7VK_TRUE(%rip), %rax
-    movq %rax, 128(%rbp)
-    movq 128(%rbp), %r10
-    movl (%r10), %r14d
-    movq 136(%rbp), %r10
-    movl %r14d, (%r10)
-    leaq lb_gpu_25VK_BLEND_FACTOR_SRC_ALPHA(%rip), %r14
-    movq %r14, %r10
-    movl (%r10), %r14d
-    movq 136(%rbp), %rax
-    movq $4, %rcx
-    addq %rcx, %rax
-    movq %rax, 120(%rbp)
-    movq 120(%rbp), %r10
-    movl %r14d, (%r10)
-    leaq lb_gpu_35VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA(%rip), %rax
-    movq %rax, 112(%rbp)
-    movq 112(%rbp), %r10
-    movl (%r10), %eax
-    movl %eax, 104(%rbp)
-    movq 136(%rbp), %rax
-    movq $8, %rcx
-    movq %rax, %r14
-    addq %rcx, %r14
-    movl 104(%rbp), %eax
+    movl $1, %eax
     movq %r14, %r10
     movl %eax, (%r10)
-    leaq lb_gpu_19VK_BLEND_FACTOR_ONE(%rip), %r14
-    movq %r14, %r10
-    movl (%r10), %r14d
-    movq 136(%rbp), %rax
-    movq $16, %rcx
-    addq %rcx, %rax
-    movq %rax, 96(%rbp)
-    movq 96(%rbp), %r10
-    movl %r14d, (%r10)
-    movq 136(%rbp), %rax
-    movq $20, %rcx
+    movq $4, %rcx
+    movq %r14, %rax
     addq %rcx, %rax
     movq %rax, 88(%rbp)
-    movl 104(%rbp), %eax
+    movl $6, %eax
     movq 88(%rbp), %r10
     movl %eax, (%r10)
-    leaq lb_gpu_24VK_COLOR_COMPONENT_R_BIT(%rip), %rax
+    movq $8, %rcx
+    movq %r14, %rax
+    addq %rcx, %rax
     movq %rax, 80(%rbp)
+    movl $7, %eax
     movq 80(%rbp), %r10
-    movl (%r10), %eax
-    movl %eax, 72(%rbp)
-    leaq lb_gpu_24VK_COLOR_COMPONENT_G_BIT(%rip), %r14
-    movq %r14, %r10
-    movl (%r10), %r14d
-    movl 72(%rbp), %eax
-    orl %r14d, %eax
-    movl %eax, 64(%rbp)
-    leaq lb_gpu_24VK_COLOR_COMPONENT_B_BIT(%rip), %r14
-    movq %r14, %r10
-    movl (%r10), %r14d
-    movl 64(%rbp), %eax
-    orl %r14d, %eax
-    movl %eax, 56(%rbp)
-    leaq lb_gpu_24VK_COLOR_COMPONENT_A_BIT(%rip), %r14
-    movq %r14, %r10
-    movl (%r10), %r14d
-    movl 56(%rbp), %eax
-    orl %r14d, %eax
-    movl %eax, 48(%rbp)
-    movq 136(%rbp), %rax
-    movq $28, %rcx
-    movq %rax, %r14
-    addq %rcx, %r14
-    movl 48(%rbp), %eax
-    movq %r14, %r10
     movl %eax, (%r10)
-    movq 136(%rbp), %r10
-    movq 144(%rbp), %r11
+    movq $16, %rcx
+    movq %r14, %rax
+    addq %rcx, %rax
+    movq %rax, 72(%rbp)
+    movl $1, %eax
+    movq 72(%rbp), %r10
+    movl %eax, (%r10)
+    movq $20, %rcx
+    movq %r14, %rax
+    addq %rcx, %rax
+    movq %rax, 64(%rbp)
+    movl $7, %eax
+    movq 64(%rbp), %r10
+    movl %eax, (%r10)
+    movq $28, %rcx
+    movq %r14, %rax
+    addq %rcx, %rax
+    movq %rax, 56(%rbp)
+    movl $15, %eax
+    movq 56(%rbp), %r10
+    movl %eax, (%r10)
+    movq %r14, %r10
+    movq 96(%rbp), %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
     movups 16(%r10), %xmm8
     movups %xmm8, 16(%r11)
-    leaq 1592(%rbp), %rax
-    movq %rax, 40(%rbp)
-    leaq 1536(%rbp), %rax
-    movq %rax, 32(%rbp)
-    movq 32(%rbp), %r11
+    leaq 1000(%rbp), %rax
+    movq %rax, 48(%rbp)
+    leaq 944(%rbp), %r14
+    movq %r14, %r11
     pxor %xmm8, %xmm8
     movups %xmm8, 0(%r11)
     movups %xmm8, 16(%r11)
     movups %xmm8, 32(%r11)
     movq $0, 48(%r11)
-    leaq lb_gpu_56VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO(%rip), %r14
-    movq %r14, %r10
-    movl (%r10), %r14d
-    movq 32(%rbp), %r10
-    movl %r14d, (%r10)
-    movq 32(%rbp), %rax
-    movq $28, %rcx
-    movq %rax, %r14
-    addq %rcx, %r14
-    movl $1, %eax
+    movl $26, %eax
     movq %r14, %r10
     movl %eax, (%r10)
-    movq 32(%rbp), %rax
+    movq $28, %rcx
+    movq %r14, %rax
+    addq %rcx, %rax
+    movq %rax, 40(%rbp)
+    movl $1, %eax
+    movq 40(%rbp), %r10
+    movl %eax, (%r10)
     movq $32, %rcx
-    movq %rax, %r14
-    addq %rcx, %r14
-    movq 144(%rbp), %rax
-    movq %r14, %r10
-    movq %rax, (%r10)
+    movq %r14, %rax
+    addq %rcx, %rax
+    movq %rax, 32(%rbp)
+    movq 96(%rbp), %rax
     movq 32(%rbp), %r10
-    movq 40(%rbp), %r11
+    movq %rax, (%r10)
+    movq %r14, %r10
+    movq 48(%rbp), %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
     movups 16(%r10), %xmm8
@@ -1977,63 +1791,56 @@ lb_gpu_15vulkan_pipeline:
     movups %xmm8, 32(%r11)
     movq 48(%r10), %rax
     movq %rax, 48(%r11)
-    leaq 1528(%rbp), %rax
+    leaq 936(%rbp), %rax
     movq %rax, 24(%rbp)
-    leaq 1520(%rbp), %r14
-    leaq lb_gpu_25VK_DYNAMIC_STATE_VIEWPORT(%rip), %r12
-    movq %r12, %r10
-    movl (%r10), %r12d
-    movq %r14, %r10
-    movl %r12d, (%r10)
-    leaq lb_gpu_24VK_DYNAMIC_STATE_SCISSOR(%rip), %r12
-    movq %r12, %r10
-    movl (%r10), %r12d
-    movq $4, %rcx
-    movq %r14, %rax
-    addq %rcx, %rax
+    leaq 928(%rbp), %rax
     movq %rax, 16(%rbp)
+    movl $0, %eax
     movq 16(%rbp), %r10
-    movl %r12d, (%r10)
+    movl %eax, (%r10)
+    movq 16(%rbp), %rax
+    movq $4, %rcx
+    movq %rax, %r14
+    addq %rcx, %r14
+    movl $1, %eax
     movq %r14, %r10
+    movl %eax, (%r10)
+    movq 16(%rbp), %r10
     movq 24(%rbp), %r11
     movq 0(%r10), %rax
     movq %rax, 0(%r11)
-    leaq 1488(%rbp), %r12
-    leaq 1456(%rbp), %rax
+    leaq 896(%rbp), %rax
     movq %rax, 8(%rbp)
-    movq 8(%rbp), %r11
+    leaq 864(%rbp), %r14
+    movq %r14, %r11
     pxor %xmm8, %xmm8
     movups %xmm8, 0(%r11)
     movups %xmm8, 16(%r11)
-    leaq lb_gpu_52VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO(%rip), %r14
-    movq %r14, %r10
-    movl (%r10), %r14d
-    movq 8(%rbp), %r10
-    movl %r14d, (%r10)
-    movq 8(%rbp), %rax
-    movq $20, %rcx
-    movq %rax, %r14
-    addq %rcx, %r14
-    movl $2, %eax
+    movl $27, %eax
     movq %r14, %r10
     movl %eax, (%r10)
-    movq 8(%rbp), %rax
+    movq $20, %rcx
+    movq %r14, %r13
+    addq %rcx, %r13
+    movl $2, %eax
+    movq %r13, %r10
+    movl %eax, (%r10)
     movq $24, %rcx
-    movq %rax, %r14
-    addq %rcx, %r14
+    movq %r14, %r13
+    addq %rcx, %r13
     movq 24(%rbp), %rax
-    movq %r14, %r10
+    movq %r13, %r10
     movq %rax, (%r10)
-    movq 8(%rbp), %r10
-    movq %r12, %r11
+    movq %r14, %r10
+    movq 8(%rbp), %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
     movups 16(%r10), %xmm8
     movups %xmm8, 16(%r11)
-    leaq 1312(%rbp), %rax
+    leaq 720(%rbp), %rax
     movq %rax, 0(%rbp)
-    leaq 1168(%rbp), %r14
-    movq %r14, %rdi
+    leaq 576(%rbp), %r13
+    movq %r13, %rdi
     xorl %esi, %esi
     movq $144, %rdx
     movq %rdx, %r8
@@ -2042,92 +1849,91 @@ lb_gpu_15vulkan_pipeline:
     subq $32, %rsp
     call memset
     addq $32, %rsp
-    leaq lb_gpu_47VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO(%rip), %r13
-    movq %r13, %r10
-    movl (%r10), %r13d
-    movq %r14, %r10
-    movl %r13d, (%r10)
-    movq $20, %rcx
-    movq %r14, %r13
-    addq %rcx, %r13
-    movl $2, %eax
+    movl $28, %eax
     movq %r13, %r10
     movl %eax, (%r10)
+    movq $20, %rcx
+    movq %r13, %r14
+    addq %rcx, %r14
+    movl $2, %eax
+    movq %r14, %r10
+    movl %eax, (%r10)
     movq $24, %rcx
-    movq %r14, %r13
-    addq %rcx, %r13
-    movq 704(%rbp), %rax
-    movq %r13, %r10
+    movq %r13, %r14
+    addq %rcx, %r14
+    movq 344(%rbp), %rax
+    movq %r14, %r10
     movq %rax, (%r10)
     movq $32, %rcx
-    movq %r14, %r13
-    addq %rcx, %r13
-    movq 456(%rbp), %rax
-    movq %r13, %r10
+    movq %r13, %r14
+    addq %rcx, %r14
+    movq 200(%rbp), %rax
+    movq %r14, %r10
     movq %rax, (%r10)
     movq $40, %rcx
-    movq %r14, %r13
-    addq %rcx, %r13
-    movq 392(%rbp), %rax
-    movq %r13, %r10
+    movq %r13, %r14
+    addq %rcx, %r14
+    movq 184(%rbp), %rax
+    movq %r14, %r10
     movq %rax, (%r10)
     movq $56, %rcx
-    movq %r14, %r13
-    addq %rcx, %r13
-    movq 336(%rbp), %rax
-    movq %r13, %r10
+    movq %r13, %r14
+    addq %rcx, %r14
+    movq 168(%rbp), %rax
+    movq %r14, %r10
     movq %rax, (%r10)
     movq $64, %rcx
-    movq %r14, %r13
-    addq %rcx, %r13
-    movq 288(%rbp), %rax
-    movq %r13, %r10
+    movq %r13, %r14
+    addq %rcx, %r14
+    movq 144(%rbp), %rax
+    movq %r14, %r10
     movq %rax, (%r10)
     movq $72, %rcx
-    movq %r14, %r13
-    addq %rcx, %r13
-    movq 248(%rbp), %rax
-    movq %r13, %r10
+    movq %r13, %r14
+    addq %rcx, %r14
+    movq 128(%rbp), %rax
+    movq %r14, %r10
     movq %rax, (%r10)
     movq $80, %rcx
-    movq %r14, %r13
-    addq %rcx, %r13
-    movq 200(%rbp), %rax
-    movq %r13, %r10
+    movq %r13, %r14
+    addq %rcx, %r14
+    movq 112(%rbp), %rax
+    movq %r14, %r10
     movq %rax, (%r10)
     movq $88, %rcx
-    movq %r14, %r13
-    addq %rcx, %r13
-    movq 40(%rbp), %rax
-    movq %r13, %r10
+    movq %r13, %r14
+    addq %rcx, %r14
+    movq 48(%rbp), %rax
+    movq %r14, %r10
     movq %rax, (%r10)
     movq $96, %rcx
-    movq %r14, %r13
-    addq %rcx, %r13
-    movq %r13, %r10
-    movq %r12, (%r10)
-    movq 720(%rbp), %r10
-    movq (%r10), %r12
+    movq %r13, %r14
+    addq %rcx, %r14
+    movq 8(%rbp), %rax
+    movq %r14, %r10
+    movq %rax, (%r10)
+    movq 360(%rbp), %r10
+    movq (%r10), %r14
     movq $104, %rcx
-    movq %r14, %r13
-    addq %rcx, %r13
-    movq %r13, %r10
-    movq %r12, (%r10)
-    movq 752(%rbp), %r10
+    movq %r13, %r12
+    addq %rcx, %r12
+    movq %r12, %r10
+    movq %r14, (%r10)
+    movq 368(%rbp), %r10
     movq (%r10), %r12
     movq $112, %rcx
-    movq %r14, %r13
-    addq %rcx, %r13
-    movq %r13, %r10
+    movq %r13, %r14
+    addq %rcx, %r14
+    movq %r14, %r10
     movq %r12, (%r10)
     movq $136, %rcx
-    movq %r14, %r12
+    movq %r13, %r12
     addq %rcx, %r12
     movl $4294967295, %eax
     movq %r12, %r10
     movl %eax, (%r10)
     movq 0(%rbp), %rdi
-    movq %r14, %rsi
+    movq %r13, %rsi
     movq $144, %rdx
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -2135,9 +1941,9 @@ lb_gpu_15vulkan_pipeline:
     subq $32, %rsp
     call memcpy
     addq $32, %rsp
-    movq 760(%rbp), %r10
+    movq 376(%rbp), %r10
     movq (%r10), %r12
-    movq 1048(%rbp), %rax
+    movq 456(%rbp), %rax
     movq $72, %rcx
     movq %rax, %r13
     addq %rcx, %r13
@@ -2162,7 +1968,7 @@ lb_gpu_15vulkan_pipeline:
     addq $48, %rsp
     movl %eax, %r12d
     leaq .Ltext_12(%rip), %r13
-    leaq 1152(%rbp), %r14
+    leaq 560(%rbp), %r14
     movq %r14, %r10
     movq %r13, (%r10)
     movq $8, %rcx
@@ -2180,14 +1986,14 @@ lb_gpu_15vulkan_pipeline:
     movups %xmm8, 0(%r11)
     leaq 32(%rsp), %rax
     movq %rax, 16(%rsp)
-    leaq 1120(%rbp), %rax
+    leaq 528(%rbp), %rax
     movq %rax, (%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
     movq 16(%rsp), %r8
     call lb_gpu_12vulkan_check
     addq $48, %rsp
-    leaq 1120(%rbp), %r13
+    leaq 528(%rbp), %r13
     movq $24, %rcx
     movq %r13, %r12
     addq %rcx, %r12
@@ -2197,7 +2003,7 @@ lb_gpu_15vulkan_pipeline:
     jne .L2_17
     jmp .L2_16
 .L2_17:
-    leaq 3920(%rbp), %r12
+    leaq 3328(%rbp), %r12
     movq %r13, %r10
     movq %r12, %r11
     movups 0(%r10), %xmm8
@@ -2210,12 +2016,12 @@ lb_gpu_15vulkan_pipeline:
     movl $1, %eax
     movq %r14, %r10
     movb %al, (%r10)
-    movq 760(%rbp), %r10
+    movq 376(%rbp), %r10
     movq (%r10), %r14
     subq $32, %rsp
     movq %r14, %rax
     movq %rax, 0(%rsp)
-    movq 712(%rbp), %rax
+    movq 352(%rbp), %rax
     movq %rax, 8(%rsp)
     movq $0, %rax
     movq %rax, 16(%rsp)
@@ -2224,7 +2030,7 @@ lb_gpu_15vulkan_pipeline:
     movq 16(%rsp), %r8
     call vkDestroyShaderModule
     addq $32, %rsp
-    movq 760(%rbp), %r10
+    movq 376(%rbp), %r10
     movq (%r10), %r14
     subq $32, %rsp
     movq %r14, %rax
@@ -2239,7 +2045,7 @@ lb_gpu_15vulkan_pipeline:
     call vkDestroyShaderModule
     addq $32, %rsp
     movq %r12, %rsi
-    movq 3992(%rbp), %rdi
+    movq 3400(%rbp), %rdi
     movq $32, %rdx
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -2247,46 +2053,46 @@ lb_gpu_15vulkan_pipeline:
     subq $32, %rsp
     call memcpy
     addq $32, %rsp
-    movq 3992(%rbp), %rax
-    movq 4168(%rbp), %rdi
-    movq 4160(%rbp), %rsi
-    movdqu 4144(%rbp), %xmm6
-    movdqu 4128(%rbp), %xmm7
-    movdqu 4112(%rbp), %xmm8
-    movdqu 4096(%rbp), %xmm9
-    movdqu 4080(%rbp), %xmm10
-    movdqu 4064(%rbp), %xmm11
-    movdqu 4048(%rbp), %xmm12
-    movdqu 4032(%rbp), %xmm13
-    movdqu 4016(%rbp), %xmm14
-    movdqu 4000(%rbp), %xmm15
-    movq 3984(%rbp), %rbx
-    movq 3976(%rbp), %r12
-    movq 3968(%rbp), %r13
-    movq 3960(%rbp), %r14
-    movq 3952(%rbp), %r15
-    leaq 4176(%rbp), %rsp
+    movq 3400(%rbp), %rax
+    movq 3576(%rbp), %rdi
+    movq 3568(%rbp), %rsi
+    movdqu 3552(%rbp), %xmm6
+    movdqu 3536(%rbp), %xmm7
+    movdqu 3520(%rbp), %xmm8
+    movdqu 3504(%rbp), %xmm9
+    movdqu 3488(%rbp), %xmm10
+    movdqu 3472(%rbp), %xmm11
+    movdqu 3456(%rbp), %xmm12
+    movdqu 3440(%rbp), %xmm13
+    movdqu 3424(%rbp), %xmm14
+    movdqu 3408(%rbp), %xmm15
+    movq 3392(%rbp), %rbx
+    movq 3384(%rbp), %r12
+    movq 3376(%rbp), %r13
+    movq 3368(%rbp), %r14
+    movq 3360(%rbp), %r15
+    leaq 3584(%rbp), %rsp
     popq %rbp
     ret
 .L2_18:
 .L2_16:
-    movq 200(%rbp), %rax
+    movq 112(%rbp), %rax
     movq $20, %rcx
     movq %rax, %r12
     addq %rcx, %r12
-    movq 128(%rbp), %r10
-    movl (%r10), %r13d
+    movl $1, %eax
     movq %r12, %r10
-    movl %r13d, (%r10)
-    movq 200(%rbp), %rax
+    movl %eax, (%r10)
+    movq 112(%rbp), %rax
     movq $24, %rcx
     movq %rax, %r12
     addq %rcx, %r12
+    movl $1, %eax
     movq %r12, %r10
-    movl %r13d, (%r10)
-    movq 760(%rbp), %r10
+    movl %eax, (%r10)
+    movq 376(%rbp), %r10
     movq (%r10), %r12
-    movq 1048(%rbp), %rax
+    movq 456(%rbp), %rax
     movq $80, %rcx
     movq %rax, %r13
     addq %rcx, %r13
@@ -2311,7 +2117,7 @@ lb_gpu_15vulkan_pipeline:
     addq $48, %rsp
     movl %eax, %r12d
     leaq .Ltext_13(%rip), %r13
-    leaq 1104(%rbp), %r14
+    leaq 512(%rbp), %r14
     movq %r14, %r10
     movq %r13, (%r10)
     movq $8, %rcx
@@ -2329,14 +2135,14 @@ lb_gpu_15vulkan_pipeline:
     movups %xmm8, 0(%r11)
     leaq 32(%rsp), %rax
     movq %rax, 16(%rsp)
-    leaq 1072(%rbp), %rax
+    leaq 480(%rbp), %rax
     movq %rax, (%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
     movq 16(%rsp), %r8
     call lb_gpu_12vulkan_check
     addq $48, %rsp
-    leaq 1072(%rbp), %r13
+    leaq 480(%rbp), %r13
     movq $24, %rcx
     movq %r13, %r12
     addq %rcx, %r12
@@ -2346,7 +2152,7 @@ lb_gpu_15vulkan_pipeline:
     jne .L2_20
     jmp .L2_19
 .L2_20:
-    leaq 3920(%rbp), %r12
+    leaq 3328(%rbp), %r12
     movq %r13, %r10
     movq %r12, %r11
     movups 0(%r10), %xmm8
@@ -2359,12 +2165,12 @@ lb_gpu_15vulkan_pipeline:
     movl $1, %eax
     movq %r14, %r10
     movb %al, (%r10)
-    movq 760(%rbp), %r10
+    movq 376(%rbp), %r10
     movq (%r10), %r14
     subq $32, %rsp
     movq %r14, %rax
     movq %rax, 0(%rsp)
-    movq 712(%rbp), %rax
+    movq 352(%rbp), %rax
     movq %rax, 8(%rsp)
     movq $0, %rax
     movq %rax, 16(%rsp)
@@ -2373,7 +2179,7 @@ lb_gpu_15vulkan_pipeline:
     movq 16(%rsp), %r8
     call vkDestroyShaderModule
     addq $32, %rsp
-    movq 760(%rbp), %r10
+    movq 376(%rbp), %r10
     movq (%r10), %r14
     subq $32, %rsp
     movq %r14, %rax
@@ -2388,7 +2194,7 @@ lb_gpu_15vulkan_pipeline:
     call vkDestroyShaderModule
     addq $32, %rsp
     movq %r12, %rsi
-    movq 3992(%rbp), %rdi
+    movq 3400(%rbp), %rdi
     movq $32, %rdx
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -2396,35 +2202,35 @@ lb_gpu_15vulkan_pipeline:
     subq $32, %rsp
     call memcpy
     addq $32, %rsp
-    movq 3992(%rbp), %rax
-    movq 4168(%rbp), %rdi
-    movq 4160(%rbp), %rsi
-    movdqu 4144(%rbp), %xmm6
-    movdqu 4128(%rbp), %xmm7
-    movdqu 4112(%rbp), %xmm8
-    movdqu 4096(%rbp), %xmm9
-    movdqu 4080(%rbp), %xmm10
-    movdqu 4064(%rbp), %xmm11
-    movdqu 4048(%rbp), %xmm12
-    movdqu 4032(%rbp), %xmm13
-    movdqu 4016(%rbp), %xmm14
-    movdqu 4000(%rbp), %xmm15
-    movq 3984(%rbp), %rbx
-    movq 3976(%rbp), %r12
-    movq 3968(%rbp), %r13
-    movq 3960(%rbp), %r14
-    movq 3952(%rbp), %r15
-    leaq 4176(%rbp), %rsp
+    movq 3400(%rbp), %rax
+    movq 3576(%rbp), %rdi
+    movq 3568(%rbp), %rsi
+    movdqu 3552(%rbp), %xmm6
+    movdqu 3536(%rbp), %xmm7
+    movdqu 3520(%rbp), %xmm8
+    movdqu 3504(%rbp), %xmm9
+    movdqu 3488(%rbp), %xmm10
+    movdqu 3472(%rbp), %xmm11
+    movdqu 3456(%rbp), %xmm12
+    movdqu 3440(%rbp), %xmm13
+    movdqu 3424(%rbp), %xmm14
+    movdqu 3408(%rbp), %xmm15
+    movq 3392(%rbp), %rbx
+    movq 3384(%rbp), %r12
+    movq 3376(%rbp), %r13
+    movq 3368(%rbp), %r14
+    movq 3360(%rbp), %r15
+    leaq 3584(%rbp), %rsp
     popq %rbp
     ret
 .L2_21:
 .L2_19:
-    movq 760(%rbp), %r10
+    movq 376(%rbp), %r10
     movq (%r10), %r12
     subq $32, %rsp
     movq %r12, %rax
     movq %rax, 0(%rsp)
-    movq 712(%rbp), %rax
+    movq 352(%rbp), %rax
     movq %rax, 8(%rsp)
     movq $0, %rax
     movq %rax, 16(%rsp)
@@ -2433,7 +2239,7 @@ lb_gpu_15vulkan_pipeline:
     movq 16(%rsp), %r8
     call vkDestroyShaderModule
     addq $32, %rsp
-    movq 760(%rbp), %r10
+    movq 376(%rbp), %r10
     movq (%r10), %r12
     subq $32, %rsp
     movq %r12, %rax
@@ -2447,7 +2253,7 @@ lb_gpu_15vulkan_pipeline:
     movq 16(%rsp), %r8
     call vkDestroyShaderModule
     addq $32, %rsp
-    leaq 3920(%rbp), %r12
+    leaq 3328(%rbp), %r12
     movq $24, %rcx
     movq %r12, %r13
     addq %rcx, %r13
@@ -2455,7 +2261,7 @@ lb_gpu_15vulkan_pipeline:
     movq %r13, %r10
     movb %al, (%r10)
     movq %r12, %rsi
-    movq 3992(%rbp), %rdi
+    movq 3400(%rbp), %rdi
     movq $32, %rdx
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -2463,25 +2269,25 @@ lb_gpu_15vulkan_pipeline:
     subq $32, %rsp
     call memcpy
     addq $32, %rsp
-    movq 3992(%rbp), %rax
-    movq 4168(%rbp), %rdi
-    movq 4160(%rbp), %rsi
-    movdqu 4144(%rbp), %xmm6
-    movdqu 4128(%rbp), %xmm7
-    movdqu 4112(%rbp), %xmm8
-    movdqu 4096(%rbp), %xmm9
-    movdqu 4080(%rbp), %xmm10
-    movdqu 4064(%rbp), %xmm11
-    movdqu 4048(%rbp), %xmm12
-    movdqu 4032(%rbp), %xmm13
-    movdqu 4016(%rbp), %xmm14
-    movdqu 4000(%rbp), %xmm15
-    movq 3984(%rbp), %rbx
-    movq 3976(%rbp), %r12
-    movq 3968(%rbp), %r13
-    movq 3960(%rbp), %r14
-    movq 3952(%rbp), %r15
-    leaq 4176(%rbp), %rsp
+    movq 3400(%rbp), %rax
+    movq 3576(%rbp), %rdi
+    movq 3568(%rbp), %rsi
+    movdqu 3552(%rbp), %xmm6
+    movdqu 3536(%rbp), %xmm7
+    movdqu 3520(%rbp), %xmm8
+    movdqu 3504(%rbp), %xmm9
+    movdqu 3488(%rbp), %xmm10
+    movdqu 3472(%rbp), %xmm11
+    movdqu 3456(%rbp), %xmm12
+    movdqu 3440(%rbp), %xmm13
+    movdqu 3424(%rbp), %xmm14
+    movdqu 3408(%rbp), %xmm15
+    movq 3392(%rbp), %rbx
+    movq 3384(%rbp), %r12
+    movq 3376(%rbp), %r13
+    movq 3368(%rbp), %r14
+    movq 3360(%rbp), %r15
+    leaq 3584(%rbp), %rsp
     popq %rbp
     ret
     .seh_endproc

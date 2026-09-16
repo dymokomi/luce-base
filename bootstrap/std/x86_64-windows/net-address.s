@@ -601,7 +601,7 @@ lb_net_SocketAddress_parse:
     addq %rcx, %rax
     jnc 1f
     leaq .Ltext_6(%rip), %rdi
-    leaq .Ltext_43(%rip), %rsi
+    leaq .Ltext_41(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
     movq %rdi, %rcx
@@ -618,7 +618,7 @@ lb_net_SocketAddress_parse:
     addq %rcx, %rax
     jnc 1f
     leaq .Ltext_7(%rip), %rdi
-    leaq .Ltext_43(%rip), %rsi
+    leaq .Ltext_41(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
     movq %rdi, %rcx
@@ -712,7 +712,7 @@ lb_net_SocketAddress_parse:
     addq %rcx, %rax
     jnc 1f
     leaq .Ltext_8(%rip), %rdi
-    leaq .Ltext_43(%rip), %rsi
+    leaq .Ltext_41(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
     movq %rdi, %rcx
@@ -961,7 +961,7 @@ lb_net_SocketAddress_parse:
     addq %rcx, %rax
     jnc 1f
     leaq .Ltext_14(%rip), %rdi
-    leaq .Ltext_43(%rip), %rsi
+    leaq .Ltext_41(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
     movq %rdi, %rcx
@@ -1031,7 +1031,7 @@ lb_net_SocketAddress_parse:
     addq %rcx, %rax
     jnc 1f
     leaq .Ltext_15(%rip), %rdi
-    leaq .Ltext_43(%rip), %rsi
+    leaq .Ltext_41(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
     movq %rdi, %rcx
@@ -1884,7 +1884,7 @@ lb_net_SocketAddress_format:
     addq %rcx, %rax
     jnc 1f
     leaq .Ltext_22(%rip), %rdi
-    leaq .Ltext_43(%rip), %rsi
+    leaq .Ltext_41(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
     movq %rdi, %rcx
@@ -2833,11 +2833,8 @@ lb_net_SocketAddress_12write_native:
     movq %r15, %r11
     pxor %xmm8, %xmm8
     movups %xmm8, 0(%r11)
-    leaq lb_net_inet(%rip), %r13
-    movq %r13, %r10
-    movslq (%r10), %r13
     subq $32, %rsp
-    movl %r13d, %eax
+    movl $2, %eax
     movq %rax, 0(%rsp)
     movl $16, %eax
     movq %rax, 8(%rsp)
@@ -2946,11 +2943,8 @@ lb_net_SocketAddress_12write_native:
     movups %xmm8, 0(%r11)
     movq $0, 16(%r11)
     movl $0, 24(%r11)
-    leaq lb_net_inet6(%rip), %rbx
-    movq %rbx, %r10
-    movslq (%r10), %rbx
     subq $32, %rsp
-    movl %ebx, %eax
+    movl $23, %eax
     movq %rax, 0(%rsp)
     movl $28, %eax
     movq %rax, 8(%rsp)
@@ -3187,16 +3181,14 @@ lb_net_14decode_address:
 .L8_3:
     leaq 472(%rbp), %r12
     movq %r12, %r10
-    movq (%r10), %rax
-    movq %rax, 8(%rbp)
-    movq 8(%rbp), %rax
+    movq (%r10), %r12
     leaq 192(%rbp), %r10
-    movq %rax, (%r10)
+    movq %r12, (%r10)
     leaq 190(%rbp), %r13
     subq $32, %rsp
     movq %r13, %rax
     movq %rax, 0(%rsp)
-    movq 8(%rbp), %rax
+    movq %r12, %rax
     movq %rax, 8(%rsp)
     movq $2, %rax
     movq %rax, 16(%rsp)
@@ -3207,63 +3199,45 @@ lb_net_14decode_address:
     addq $32, %rsp
     movq %rax, %r14
     testq %r14, %r14
-    jne .L8_31
-    jmp .L8_32
-.L8_32:
-    leaq .Ltext_61(%rip), %rdi
-    leaq .Ltext_60(%rip), %rsi
+    jne .L8_26
+    jmp .L8_27
+.L8_27:
+    leaq .Ltext_60(%rip), %rdi
+    leaq .Ltext_59(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
     movq %rdi, %rcx
     subq $32, %rsp
     call lb_core_7trap_at
     addq $32, %rsp
-.L8_31:
+.L8_26:
     movq %r13, %r10
     movzwl (%r10), %r14d
     movzwl %r14w, %r14d
     leaq 176(%rbp), %r10
     movl %r14d, (%r10)
-.L8_34:
-    leaq lb_platform_macos(%rip), %r13
-    movq %r13, %r10
-    movzbl (%r10), %r13d
-    testl %r13d, %r13d
-    jne .L8_5
-    jmp .L8_6
+.L8_29:
+    movzwl %r14w, %r13d
+    movl %r13d, %eax
+    movq %rax, 8(%rbp)
+    movl 8(%rbp), %eax
+    movl $2, %ecx
+    cmpl %ecx, %eax
+    jne .L8_6
 .L8_5:
-    movzwl %r14w, %r13d
-.L8_9:
-    movl $8, %ecx
-    movl %r13d, %r15d
-    shrl %cl, %r15d
-    movzwl %r15w, %r15d
-    movl %r15d, %r15d
-    jmp .L8_7
-.L8_6:
-    movzwl %r14w, %r13d
-    movl %r13d, %r15d
-.L8_7:
-    leaq lb_net_inet(%rip), %r13
-    movq %r13, %r10
-    movslq (%r10), %r13
-    cmpl %r15d, %r13d
-    jne .L8_11
-.L8_10:
     movl $16, %ecx
     cmpl %ecx, %ebx
     setb %al
-    movzbl %al, %r12d
-    testl %r12d, %r12d
-    jne .L8_55
-    jmp .L8_16
-.L8_55:
-    movl %r12d, %ebx
-    jmp .L8_17
-.L8_16:
-    movzwl %r14w, %ebx
+    movzbl %al, %r14d
+    testl %r14d, %r14d
+    jne .L8_50
+    jmp .L8_11
+.L8_50:
+    movl %r14d, %ebx
+    jmp .L8_12
+.L8_11:
     subq $32, %rsp
-    movl %r13d, %eax
+    movl $2, %eax
     movq %rax, 0(%rsp)
     movl $16, %eax
     movq %rax, 8(%rsp)
@@ -3271,20 +3245,20 @@ lb_net_14decode_address:
     movq 8(%rsp), %rdx
     call lb_net_11family_word
     addq $32, %rsp
-    movl %eax, %r12d
-    cmpl %r12d, %ebx
+    movl %eax, %ebx
+    cmpl %ebx, %r13d
     sete %al
     movzbl %al, %ebx
     movl $0, %ecx
     cmpl %ecx, %ebx
     sete %al
     movzbl %al, %ebx
-.L8_17:
-    movzbl %bl, %r12d
-    testl %r12d, %r12d
-    jne .L8_13
-    jmp .L8_14
-.L8_13:
+.L8_12:
+    movzbl %bl, %r13d
+    testl %r13d, %r13d
+    jne .L8_8
+    jmp .L8_9
+.L8_8:
     leaq 488(%rbp), %rbx
     movq $24, %rcx
     movq %rbx, %r12
@@ -3294,7 +3268,7 @@ lb_net_14decode_address:
     movl (%r10), %r13d
     movq %r12, %r10
     movl %r13d, (%r10)
-    leaq .Ltext_39(%rip), %r13
+    leaq .Ltext_37(%rip), %r13
     leaq 424(%rbp), %r14
     movq %r14, %r10
     movq %r13, (%r10)
@@ -3346,17 +3320,16 @@ lb_net_14decode_address:
     leaq 768(%rbp), %rsp
     popq %rbp
     ret
-.L8_14:
-.L8_15:
-    leaq 408(%rbp), %r13
-    movq 8(%rbp), %rax
+.L8_9:
+.L8_10:
+    leaq 408(%rbp), %r14
     leaq 144(%rbp), %r10
-    movq %rax, (%r10)
+    movq %r12, (%r10)
     leaq 128(%rbp), %rbx
     subq $32, %rsp
     movq %rbx, %rax
     movq %rax, 0(%rsp)
-    movq 8(%rbp), %rax
+    movq %r12, %rax
     movq %rax, 8(%rsp)
     movq $16, %rax
     movq %rax, 16(%rsp)
@@ -3365,20 +3338,20 @@ lb_net_14decode_address:
     movq 16(%rsp), %r8
     call memcpy
     addq $32, %rsp
-    movq %rax, %r12
-    testq %r12, %r12
-    jne .L8_35
-    jmp .L8_36
-.L8_36:
-    leaq .Ltext_61(%rip), %rdi
-    leaq .Ltext_60(%rip), %rsi
+    movq %rax, %r13
+    testq %r13, %r13
+    jne .L8_30
+    jmp .L8_31
+.L8_31:
+    leaq .Ltext_60(%rip), %rdi
+    leaq .Ltext_59(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
     movq %rdi, %rcx
     subq $32, %rsp
     call lb_core_7trap_at
     addq $32, %rsp
-.L8_35:
+.L8_30:
     leaq 160(%rbp), %r12
     movq %rbx, %r10
     movq %r12, %r11
@@ -3388,10 +3361,10 @@ lb_net_14decode_address:
     leaq 392(%rbp), %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
-.L8_38:
+.L8_33:
     leaq 392(%rbp), %rbx
     movq %rbx, %r10
-    movq %r13, %r11
+    movq %r14, %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
     leaq 368(%rbp), %r12
@@ -3400,7 +3373,7 @@ lb_net_14decode_address:
     movups %xmm8, 0(%r11)
     movq $0, 16(%r11)
     movq $4, %rcx
-    movq %r13, %rbx
+    movq %r14, %rbx
     addq %rcx, %rbx
     movq %rbx, %r10
     movl (%r10), %ebx
@@ -3428,7 +3401,7 @@ lb_net_14decode_address:
     movzbl 16(%r10), %eax
     movb %al, 16(%r11)
     movq $2, %rcx
-    movq %r13, %rbx
+    movq %r14, %rbx
     addq %rcx, %rbx
     movq %rbx, %r10
     movzwl (%r10), %ebx
@@ -3437,12 +3410,12 @@ lb_net_14decode_address:
     leaq 112(%rbp), %rbx
     movq %rbx, %r10
     movzwl (%r10), %ebx
-.L8_40:
+.L8_35:
     movl $8, %ecx
     movl %ebx, %r13d
     shll %cl, %r13d
     movzwl %r13w, %r13d
-.L8_42:
+.L8_37:
     movl $8, %ecx
     movl %ebx, %r14d
     shrl %cl, %r14d
@@ -3451,7 +3424,7 @@ lb_net_14decode_address:
     movzwl %r14w, %r14d
     leaq 104(%rbp), %r10
     movl %r14d, (%r10)
-.L8_44:
+.L8_39:
     movq $18, %rcx
     movq %r12, %rbx
     addq %rcx, %rbx
@@ -3500,28 +3473,26 @@ lb_net_14decode_address:
     leaq 768(%rbp), %rsp
     popq %rbp
     ret
-.L8_11:
-.L8_12:
-    leaq lb_net_inet6(%rip), %r12
-    movq %r12, %r10
-    movslq (%r10), %r12
-    cmpl %r15d, %r12d
-    jne .L8_21
-.L8_20:
+.L8_6:
+.L8_7:
+    movl 8(%rbp), %eax
+    movl $23, %ecx
+    cmpl %ecx, %eax
+    jne .L8_16
+.L8_15:
     movl $28, %ecx
     cmpl %ecx, %ebx
     setb %al
-    movzbl %al, %r13d
-    testl %r13d, %r13d
-    jne .L8_56
-    jmp .L8_26
-.L8_56:
-    movl %r13d, %ebx
-    jmp .L8_27
-.L8_26:
-    movzwl %r14w, %ebx
+    movzbl %al, %r14d
+    testl %r14d, %r14d
+    jne .L8_51
+    jmp .L8_21
+.L8_51:
+    movl %r14d, %ebx
+    jmp .L8_22
+.L8_21:
     subq $32, %rsp
-    movl %r12d, %eax
+    movl $23, %eax
     movq %rax, 0(%rsp)
     movl $28, %eax
     movq %rax, 8(%rsp)
@@ -3529,20 +3500,20 @@ lb_net_14decode_address:
     movq 8(%rsp), %rdx
     call lb_net_11family_word
     addq $32, %rsp
-    movl %eax, %r13d
-    cmpl %r13d, %ebx
+    movl %eax, %ebx
+    cmpl %ebx, %r13d
     sete %al
     movzbl %al, %ebx
     movl $0, %ecx
     cmpl %ecx, %ebx
     sete %al
     movzbl %al, %ebx
-.L8_27:
-    movzbl %bl, %r12d
-    testl %r12d, %r12d
-    jne .L8_23
-    jmp .L8_24
-.L8_23:
+.L8_22:
+    movzbl %bl, %r13d
+    testl %r13d, %r13d
+    jne .L8_18
+    jmp .L8_19
+.L8_18:
     leaq 488(%rbp), %rbx
     movq $24, %rcx
     movq %rbx, %r12
@@ -3552,7 +3523,7 @@ lb_net_14decode_address:
     movl (%r10), %r13d
     movq %r12, %r10
     movl %r13d, (%r10)
-    leaq .Ltext_40(%rip), %r13
+    leaq .Ltext_38(%rip), %r13
     leaq 328(%rbp), %r14
     movq %r14, %r10
     movq %r13, (%r10)
@@ -3604,17 +3575,16 @@ lb_net_14decode_address:
     leaq 768(%rbp), %rsp
     popq %rbp
     ret
-.L8_24:
-.L8_25:
-    leaq 300(%rbp), %r13
-    movq 8(%rbp), %rax
+.L8_19:
+.L8_20:
+    leaq 300(%rbp), %r14
     leaq 56(%rbp), %r10
-    movq %rax, (%r10)
+    movq %r12, (%r10)
     leaq 28(%rbp), %rbx
     subq $32, %rsp
     movq %rbx, %rax
     movq %rax, 0(%rsp)
-    movq 8(%rbp), %rax
+    movq %r12, %rax
     movq %rax, 8(%rsp)
     movq $28, %rax
     movq %rax, 16(%rsp)
@@ -3623,20 +3593,20 @@ lb_net_14decode_address:
     movq 16(%rsp), %r8
     call memcpy
     addq $32, %rsp
-    movq %rax, %r12
-    testq %r12, %r12
-    jne .L8_45
-    jmp .L8_46
-.L8_46:
-    leaq .Ltext_61(%rip), %rdi
-    leaq .Ltext_60(%rip), %rsi
+    movq %rax, %r13
+    testq %r13, %r13
+    jne .L8_40
+    jmp .L8_41
+.L8_41:
+    leaq .Ltext_60(%rip), %rdi
+    leaq .Ltext_59(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
     movq %rdi, %rcx
     subq $32, %rsp
     call lb_core_7trap_at
     addq $32, %rsp
-.L8_45:
+.L8_40:
     leaq 76(%rbp), %r12
     movq %rbx, %r10
     movq %r12, %r11
@@ -3654,10 +3624,10 @@ lb_net_14decode_address:
     movq %rax, 16(%r11)
     movl 24(%r10), %eax
     movl %eax, 24(%r11)
-.L8_48:
+.L8_43:
     leaq 272(%rbp), %rbx
     movq %rbx, %r10
-    movq %r13, %r11
+    movq %r14, %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
     movq 16(%r10), %rax
@@ -3678,13 +3648,13 @@ lb_net_14decode_address:
     movq %rbx, %r10
     movb %al, (%r10)
     movq $8, %rcx
-    movq %r13, %r12
+    movq %r14, %r12
     addq %rcx, %r12
     movq $1, %rcx
-    movq %rbx, %r14
-    addq %rcx, %r14
+    movq %rbx, %r13
+    addq %rcx, %r13
     movq %r12, %r10
-    movq %r14, %r11
+    movq %r13, %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
     movq %rbx, %r10
@@ -3694,7 +3664,7 @@ lb_net_14decode_address:
     movzbl 16(%r10), %eax
     movb %al, 16(%r11)
     movq $2, %rcx
-    movq %r13, %rbx
+    movq %r14, %rbx
     addq %rcx, %rbx
     movq %rbx, %r10
     movzwl (%r10), %ebx
@@ -3703,28 +3673,28 @@ lb_net_14decode_address:
     leaq 112(%rbp), %rbx
     movq %rbx, %r10
     movzwl (%r10), %ebx
-.L8_50:
+.L8_45:
     movl $8, %ecx
     movl %ebx, %r12d
     shll %cl, %r12d
     movzwl %r12w, %r12d
-.L8_52:
+.L8_47:
     movl $8, %ecx
-    movl %ebx, %r14d
-    shrl %cl, %r14d
-    movzwl %r14w, %r14d
-    orl %r12d, %r14d
-    movzwl %r14w, %r14d
+    movl %ebx, %r13d
+    shrl %cl, %r13d
+    movzwl %r13w, %r13d
+    orl %r12d, %r13d
+    movzwl %r13w, %r13d
     leaq 16(%rbp), %r10
-    movl %r14d, (%r10)
-.L8_54:
+    movl %r13d, (%r10)
+.L8_49:
     movq $18, %rcx
     movq %r15, %rbx
     addq %rcx, %rbx
     movq %rbx, %r10
-    movw %r14w, (%r10)
+    movw %r13w, (%r10)
     movq $24, %rcx
-    movq %r13, %rbx
+    movq %r14, %rbx
     addq %rcx, %rbx
     movq %rbx, %r10
     movl (%r10), %ebx
@@ -3776,8 +3746,8 @@ lb_net_14decode_address:
     leaq 768(%rbp), %rsp
     popq %rbp
     ret
-.L8_21:
-.L8_22:
+.L8_16:
+.L8_17:
     leaq 488(%rbp), %rbx
     movq $24, %rcx
     movq %rbx, %r12
@@ -3787,7 +3757,7 @@ lb_net_14decode_address:
     movl (%r10), %r13d
     movq %r12, %r10
     movl %r13d, (%r10)
-    leaq .Ltext_41(%rip), %r13
+    leaq .Ltext_39(%rip), %r13
     leaq 208(%rbp), %r14
     movq %r14, %r10
     movq %r13, (%r10)
@@ -4043,8 +4013,8 @@ lb_net_21parse_endpoint_number:
     cmpl %r13d, %r12d
     je .L9_17
 .L9_18:
-    leaq .Ltext_44(%rip), %rdi
-    leaq .Ltext_43(%rip), %rsi
+    leaq .Ltext_42(%rip), %rdi
+    leaq .Ltext_41(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
     movq %rdi, %rcx
@@ -4057,8 +4027,8 @@ lb_net_21parse_endpoint_number:
     movl %ebx, %ecx
     subl %ecx, %eax
     jnc 1f
-    leaq .Ltext_45(%rip), %rdi
-    leaq .Ltext_43(%rip), %rsi
+    leaq .Ltext_43(%rip), %rdi
+    leaq .Ltext_41(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
     movq %rdi, %rcx
@@ -4113,8 +4083,8 @@ lb_net_21parse_endpoint_number:
     movl $10, %ecx
     mull %ecx
     jnc 1f
-    leaq .Ltext_47(%rip), %rdi
-    leaq .Ltext_43(%rip), %rsi
+    leaq .Ltext_45(%rip), %rdi
+    leaq .Ltext_41(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
     movq %rdi, %rcx
@@ -4127,8 +4097,8 @@ lb_net_21parse_endpoint_number:
     movl %r12d, %ecx
     addl %ecx, %eax
     jnc 1f
-    leaq .Ltext_47(%rip), %rdi
-    leaq .Ltext_43(%rip), %rsi
+    leaq .Ltext_45(%rip), %rdi
+    leaq .Ltext_41(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
     movq %rdi, %rcx
@@ -4257,7 +4227,7 @@ lb_net_22render_endpoint_number:
     movq $10, %rcx
     cmpq %rcx, %r13
     jb 1f
-    leaq .Ltext_49(%rip), %rdi
+    leaq .Ltext_47(%rip), %rdi
     leaq .Ltext_11(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -4284,8 +4254,8 @@ lb_net_22render_endpoint_number:
     cmpl %ebx, %r15d
     je .L10_6
 .L10_7:
-    leaq .Ltext_49(%rip), %rdi
-    leaq .Ltext_43(%rip), %rsi
+    leaq .Ltext_47(%rip), %rdi
+    leaq .Ltext_41(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
     movq %rdi, %rcx
@@ -4336,8 +4306,8 @@ lb_net_22render_endpoint_number:
     movq $1, %rcx
     subq %rcx, %rax
     jnc 1f
-    leaq .Ltext_52(%rip), %rdi
-    leaq .Ltext_43(%rip), %rsi
+    leaq .Ltext_50(%rip), %rdi
+    leaq .Ltext_41(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
     movq %rdi, %rcx
@@ -4348,7 +4318,7 @@ lb_net_22render_endpoint_number:
     movq %rax, 8(%rbp)
     cmpq %r13, %r12
     jb 1f
-    leaq .Ltext_53(%rip), %rdi
+    leaq .Ltext_51(%rip), %rdi
     leaq .Ltext_11(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -4364,7 +4334,7 @@ lb_net_22render_endpoint_number:
     movq $10, %rcx
     cmpq %rcx, %rax
     jb 1f
-    leaq .Ltext_53(%rip), %rdi
+    leaq .Ltext_51(%rip), %rdi
     leaq .Ltext_11(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -4607,7 +4577,7 @@ lb_memory_move_0g1_u8:
     movq $19, %rax
     movq %r13, %r10
     movq %rax, (%r10)
-    leaq .Ltext_58(%rip), %r13
+    leaq .Ltext_57(%rip), %r13
     subq $48, %rsp
     movq %r13, %rax
     movq %rax, 0(%rsp)
@@ -4650,8 +4620,8 @@ lb_memory_move_0g1_u8:
     jne .L12_9
     jmp .L12_10
 .L12_10:
-    leaq .Ltext_59(%rip), %rdi
-    leaq .Ltext_60(%rip), %rsi
+    leaq .Ltext_58(%rip), %rdi
+    leaq .Ltext_59(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
     movq %rdi, %rcx
@@ -4752,8 +4722,8 @@ lb_memory_read_0g1_u16:
     jne .L13_1
     jmp .L13_2
 .L13_2:
-    leaq .Ltext_61(%rip), %rdi
-    leaq .Ltext_60(%rip), %rsi
+    leaq .Ltext_60(%rip), %rdi
+    leaq .Ltext_59(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
     movq %rdi, %rcx
@@ -4783,7 +4753,7 @@ lb_memory_read_0g1_u16:
     popq %rbp
     ret
 .L13_3:
-    leaq .Ltext_62(%rip), %rdi
+    leaq .Ltext_61(%rip), %rdi
     leaq .Ltext_1(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -4863,8 +4833,8 @@ lb_memory_read_0g1_net_NativeIpv4Address:
     jne .L14_1
     jmp .L14_2
 .L14_2:
-    leaq .Ltext_61(%rip), %rdi
-    leaq .Ltext_60(%rip), %rsi
+    leaq .Ltext_60(%rip), %rdi
+    leaq .Ltext_59(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
     movq %rdi, %rcx
@@ -4905,7 +4875,7 @@ lb_memory_read_0g1_net_NativeIpv4Address:
     popq %rbp
     ret
 .L14_3:
-    leaq .Ltext_62(%rip), %rdi
+    leaq .Ltext_61(%rip), %rdi
     leaq .Ltext_1(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -4985,8 +4955,8 @@ lb_memory_read_0g1_net_NativeIpv6Address:
     jne .L15_1
     jmp .L15_2
 .L15_2:
-    leaq .Ltext_61(%rip), %rdi
-    leaq .Ltext_60(%rip), %rsi
+    leaq .Ltext_60(%rip), %rdi
+    leaq .Ltext_59(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
     movq %rdi, %rcx
@@ -5031,7 +5001,7 @@ lb_memory_read_0g1_net_NativeIpv6Address:
     popq %rbp
     ret
 .L15_3:
-    leaq .Ltext_62(%rip), %rdi
+    leaq .Ltext_61(%rip), %rdi
     leaq .Ltext_1(%rip), %rsi
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -5129,56 +5099,54 @@ lb_memory_read_0g1_net_NativeIpv6Address:
 .Ltext_36:
     .asciz "the socket address is shorter than its family field"
 .Ltext_37:
-    .asciz "shift count out of range"
-.Ltext_38:
-    .asciz "src/std/net/address.lucb:107:5"
-.Ltext_39:
     .asciz "the IPv4 socket address has an invalid layout"
-.Ltext_40:
+.Ltext_38:
     .asciz "the IPv6 socket address has an invalid layout"
-.Ltext_41:
+.Ltext_39:
     .asciz "the socket address is not IPv4 or IPv6"
-.Ltext_42:
+.Ltext_40:
     .asciz "src/std/net/address.lucb:118:5"
-.Ltext_43:
+.Ltext_41:
     .asciz "integer overflow"
-.Ltext_44:
+.Ltext_42:
     .asciz "src/std/net/address.lucb:127:9"
-.Ltext_45:
+.Ltext_43:
     .asciz "src/std/net/address.lucb:128:9"
-.Ltext_46:
+.Ltext_44:
     .asciz "division by zero"
-.Ltext_47:
+.Ltext_45:
     .asciz "src/std/net/address.lucb:130:9"
-.Ltext_48:
+.Ltext_46:
     .asciz "src/std/net/address.lucb:131:5"
-.Ltext_49:
+.Ltext_47:
     .asciz "src/std/net/address.lucb:138:9"
-.Ltext_50:
+.Ltext_48:
     .asciz "src/std/net/address.lucb:139:9"
-.Ltext_51:
+.Ltext_49:
     .asciz "src/std/net/address.lucb:140:9"
-.Ltext_52:
+.Ltext_50:
     .asciz "src/std/net/address.lucb:145:9"
-.Ltext_53:
+.Ltext_51:
     .asciz "src/std/net/address.lucb:146:9"
-.Ltext_54:
+.Ltext_52:
     .asciz "src/std/net/address.lucb:147:9"
-.Ltext_55:
+.Ltext_53:
     .asciz "src/std/net/address.lucb:148:5"
-.Ltext_56:
+.Ltext_54:
+    .asciz "shift count out of range"
+.Ltext_55:
     .asciz "src/std/net/address.lucb:152:5"
-.Ltext_57:
+.Ltext_56:
     .asciz "src/std/net/address.lucb:155:5"
-.Ltext_58:
+.Ltext_57:
     .asciz "src/std/memory.lucb:334:9"
-.Ltext_59:
+.Ltext_58:
     .asciz "src/std/memory.lucb:336:9"
-.Ltext_60:
+.Ltext_59:
     .asciz "null_foreign"
-.Ltext_61:
+.Ltext_60:
     .asciz "src/std/memory.lucb:344:5"
-.Ltext_62:
+.Ltext_61:
     .asciz "src/std/memory.lucb:345:5"
 
     .section .rdata,"dr"

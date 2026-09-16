@@ -171,10 +171,8 @@ L2_1:
     sub x19, x29, #88
     add x20, x19, #8
     ldr x14, [x20]
-    adrp x15, _lb_clipboard_10text_limit@PAGE
-    add x15, x15, _lb_clipboard_10text_limit@PAGEOFF
-    ldr x15, [x15]
-    cmp x14, x15
+    movz x10, #16, lsl #16
+    cmp x14, x10
     cset w14, hi
     cbnz w14, L2_22
     b L2_7

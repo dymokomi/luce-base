@@ -324,10 +324,8 @@ L2_15:
     movz x2, #4
     bl _objc_msgSend
     mov x20, x0
-    adrp x15, _lb_clipboard_10text_limit@PAGE
-    add x15, x15, _lb_clipboard_10text_limit@PAGEOFF
-    ldr x15, [x15]
-    cmp x20, x15
+    movz x10, #16, lsl #16
+    cmp x20, x10
     b.ls L2_18
 L2_17:
     sub x20, x29, #104

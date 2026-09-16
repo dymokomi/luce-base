@@ -1632,88 +1632,86 @@ lb_core_16write_diagnostic:
     .seh_proc lb_core_16write_diagnostic
     pushq %rbp
     .seh_pushreg %rbp
-    subq $304, %rsp
-    .seh_stackalloc 304
+    subq $288, %rsp
+    .seh_stackalloc 288
     movq %rsp, %rbp
     .seh_setframe %rbp, 0
-    movq %rdi, 296(%rbp)
-    .seh_savereg %rdi, 296
-    movq %rsi, 288(%rbp)
-    .seh_savereg %rsi, 288
-    movdqu %xmm6, 272(%rbp)
-    .seh_savexmm %xmm6, 272
-    movdqu %xmm7, 256(%rbp)
-    .seh_savexmm %xmm7, 256
-    movdqu %xmm8, 240(%rbp)
-    .seh_savexmm %xmm8, 240
-    movdqu %xmm9, 224(%rbp)
-    .seh_savexmm %xmm9, 224
-    movdqu %xmm10, 208(%rbp)
-    .seh_savexmm %xmm10, 208
-    movdqu %xmm11, 192(%rbp)
-    .seh_savexmm %xmm11, 192
-    movdqu %xmm12, 176(%rbp)
-    .seh_savexmm %xmm12, 176
-    movdqu %xmm13, 160(%rbp)
-    .seh_savexmm %xmm13, 160
-    movdqu %xmm14, 144(%rbp)
-    .seh_savexmm %xmm14, 144
-    movdqu %xmm15, 128(%rbp)
-    .seh_savexmm %xmm15, 128
-    movq %rbx, 120(%rbp)
-    .seh_savereg %rbx, 120
-    movq %r12, 112(%rbp)
-    .seh_savereg %r12, 112
-    movq %r13, 104(%rbp)
-    .seh_savereg %r13, 104
-    movq %r14, 96(%rbp)
-    .seh_savereg %r14, 96
-    movq %r15, 88(%rbp)
-    .seh_savereg %r15, 88
+    movq %rdi, 280(%rbp)
+    .seh_savereg %rdi, 280
+    movq %rsi, 272(%rbp)
+    .seh_savereg %rsi, 272
+    movdqu %xmm6, 256(%rbp)
+    .seh_savexmm %xmm6, 256
+    movdqu %xmm7, 240(%rbp)
+    .seh_savexmm %xmm7, 240
+    movdqu %xmm8, 224(%rbp)
+    .seh_savexmm %xmm8, 224
+    movdqu %xmm9, 208(%rbp)
+    .seh_savexmm %xmm9, 208
+    movdqu %xmm10, 192(%rbp)
+    .seh_savexmm %xmm10, 192
+    movdqu %xmm11, 176(%rbp)
+    .seh_savexmm %xmm11, 176
+    movdqu %xmm12, 160(%rbp)
+    .seh_savexmm %xmm12, 160
+    movdqu %xmm13, 144(%rbp)
+    .seh_savexmm %xmm13, 144
+    movdqu %xmm14, 128(%rbp)
+    .seh_savexmm %xmm14, 128
+    movdqu %xmm15, 112(%rbp)
+    .seh_savexmm %xmm15, 112
+    movq %rbx, 104(%rbp)
+    .seh_savereg %rbx, 104
+    movq %r12, 96(%rbp)
+    .seh_savereg %r12, 96
+    movq %r13, 88(%rbp)
+    .seh_savereg %r13, 88
+    movq %r14, 80(%rbp)
+    .seh_savereg %r14, 80
+    movq %r15, 72(%rbp)
+    .seh_savereg %r15, 72
     .seh_endprologue
-    movq %rcx, 320(%rbp)
-    movq %rdx, 328(%rbp)
-    movq %r8, 336(%rbp)
-    movq %r9, 344(%rbp)
-    movq 320(%rbp), %r10
-    leaq 72(%rbp), %r11
+    movq %rcx, 304(%rbp)
+    movq %rdx, 312(%rbp)
+    movq %r8, 320(%rbp)
+    movq %r9, 328(%rbp)
+    movq 304(%rbp), %r10
+    leaq 56(%rbp), %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
-    leaq 72(%rbp), %rbx
+    leaq 56(%rbp), %rbx
     movq $8, %rcx
     movq %rbx, %rax
     addq %rcx, %rax
-    movq %rax, 48(%rbp)
-    leaq 56(%rbp), %rax
     movq %rax, 32(%rbp)
-    movq 32(%rbp), %rax
+    leaq 40(%rbp), %rax
+    movq %rax, 16(%rbp)
+    movq 16(%rbp), %rax
     movq $8, %rcx
     addq %rcx, %rax
-    movq %rax, 24(%rbp)
-    leaq lb_c_interrupted(%rip), %rax
-    movq %rax, 16(%rbp)
+    movq %rax, 8(%rbp)
     movq $0, %rax
     movq %rax, %r15
 .L10_1:
-    movq 48(%rbp), %r10
+    movq 32(%rbp), %r10
     movq (%r10), %r14
     cmpq %r14, %r15
     jae .L10_3
 .L10_2:
     movq %r14, %rax
     subq %r15, %rax
-    movq %rax, 40(%rbp)
-    movq 40(%rbp), %rax
+    movq %rax, 24(%rbp)
+    movq 24(%rbp), %rax
     movq $1073741824, %rcx
     cmpq %rcx, %rax
     jae .L10_5
 .L10_4:
-    movq 40(%rbp), %rax
-    movq %rax, 8(%rbp)
+    movq 24(%rbp), %rax
+    movq %rax, 0(%rbp)
     jmp .L10_6
 .L10_5:
     movq $1073741824, %rax
-    movq %rax, 8(%rbp)
+    movq %rax, 0(%rbp)
 .L10_6:
     movq %rbx, %r10
     movq (%r10), %r13
@@ -1756,17 +1754,17 @@ lb_core_16write_diagnostic:
 .L10_7:
     movq %r15, %r12
     addq %r13, %r12
-    movq 32(%rbp), %r10
+    movq 16(%rbp), %r10
     movq %r12, (%r10)
-    movq 40(%rbp), %rax
-    movq 24(%rbp), %r10
+    movq 24(%rbp), %rax
+    movq 8(%rbp), %r10
     movq %rax, (%r10)
     subq $32, %rsp
     movl $2, %eax
     movq %rax, 0(%rsp)
     movq %r12, %rax
     movq %rax, 8(%rsp)
-    movq 8(%rbp), %rax
+    movq 0(%rbp), %rax
     movq %rax, 16(%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
@@ -1789,9 +1787,8 @@ lb_core_16write_diagnostic:
     call lb_c_errno
     addq $32, %rsp
     movl %eax, %r13d
-    movq 16(%rbp), %r10
-    movslq (%r10), %r14
-    cmpl %r14d, %r13d
+    movl $4, %ecx
+    cmpl %ecx, %r13d
     sete %al
     movzbl %al, %r13d
 .L10_13:
@@ -1809,24 +1806,24 @@ lb_core_16write_diagnostic:
     cmpq %rcx, %r12
     jg .L10_16
 .L10_15:
-    movq 296(%rbp), %rdi
-    movq 288(%rbp), %rsi
-    movdqu 272(%rbp), %xmm6
-    movdqu 256(%rbp), %xmm7
-    movdqu 240(%rbp), %xmm8
-    movdqu 224(%rbp), %xmm9
-    movdqu 208(%rbp), %xmm10
-    movdqu 192(%rbp), %xmm11
-    movdqu 176(%rbp), %xmm12
-    movdqu 160(%rbp), %xmm13
-    movdqu 144(%rbp), %xmm14
-    movdqu 128(%rbp), %xmm15
-    movq 120(%rbp), %rbx
-    movq 112(%rbp), %r12
-    movq 104(%rbp), %r13
-    movq 96(%rbp), %r14
-    movq 88(%rbp), %r15
-    leaq 304(%rbp), %rsp
+    movq 280(%rbp), %rdi
+    movq 272(%rbp), %rsi
+    movdqu 256(%rbp), %xmm6
+    movdqu 240(%rbp), %xmm7
+    movdqu 224(%rbp), %xmm8
+    movdqu 208(%rbp), %xmm9
+    movdqu 192(%rbp), %xmm10
+    movdqu 176(%rbp), %xmm11
+    movdqu 160(%rbp), %xmm12
+    movdqu 144(%rbp), %xmm13
+    movdqu 128(%rbp), %xmm14
+    movdqu 112(%rbp), %xmm15
+    movq 104(%rbp), %rbx
+    movq 96(%rbp), %r12
+    movq 88(%rbp), %r13
+    movq 80(%rbp), %r14
+    movq 72(%rbp), %r15
+    leaq 288(%rbp), %rsp
     popq %rbp
     ret
 .L10_18:
@@ -1850,24 +1847,24 @@ lb_core_16write_diagnostic:
     movq %r13, %r15
     jmp .L10_1
 .L10_3:
-    movq 296(%rbp), %rdi
-    movq 288(%rbp), %rsi
-    movdqu 272(%rbp), %xmm6
-    movdqu 256(%rbp), %xmm7
-    movdqu 240(%rbp), %xmm8
-    movdqu 224(%rbp), %xmm9
-    movdqu 208(%rbp), %xmm10
-    movdqu 192(%rbp), %xmm11
-    movdqu 176(%rbp), %xmm12
-    movdqu 160(%rbp), %xmm13
-    movdqu 144(%rbp), %xmm14
-    movdqu 128(%rbp), %xmm15
-    movq 120(%rbp), %rbx
-    movq 112(%rbp), %r12
-    movq 104(%rbp), %r13
-    movq 96(%rbp), %r14
-    movq 88(%rbp), %r15
-    leaq 304(%rbp), %rsp
+    movq 280(%rbp), %rdi
+    movq 272(%rbp), %rsi
+    movdqu 256(%rbp), %xmm6
+    movdqu 240(%rbp), %xmm7
+    movdqu 224(%rbp), %xmm8
+    movdqu 208(%rbp), %xmm9
+    movdqu 192(%rbp), %xmm10
+    movdqu 176(%rbp), %xmm11
+    movdqu 160(%rbp), %xmm12
+    movdqu 144(%rbp), %xmm13
+    movdqu 128(%rbp), %xmm14
+    movdqu 112(%rbp), %xmm15
+    movq 104(%rbp), %rbx
+    movq 96(%rbp), %r12
+    movq 88(%rbp), %r13
+    movq 80(%rbp), %r14
+    movq 72(%rbp), %r15
+    leaq 288(%rbp), %rsp
     popq %rbp
     ret
     .seh_endproc

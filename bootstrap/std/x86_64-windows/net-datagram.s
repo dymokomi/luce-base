@@ -62,80 +62,80 @@ lb_net_Datagram_bind:
     .seh_proc lb_net_Datagram_bind
     pushq %rbp
     .seh_pushreg %rbp
-    subq $656, %rsp
-    .seh_stackalloc 656
+    subq $624, %rsp
+    .seh_stackalloc 624
     movq %rsp, %rbp
     .seh_setframe %rbp, 0
-    movq %rcx, 472(%rbp)
-    movq %rdi, 648(%rbp)
-    .seh_savereg %rdi, 648
-    movq %rsi, 640(%rbp)
-    .seh_savereg %rsi, 640
-    movdqu %xmm6, 624(%rbp)
-    .seh_savexmm %xmm6, 624
-    movdqu %xmm7, 608(%rbp)
-    .seh_savexmm %xmm7, 608
-    movdqu %xmm8, 592(%rbp)
-    .seh_savexmm %xmm8, 592
-    movdqu %xmm9, 576(%rbp)
-    .seh_savexmm %xmm9, 576
-    movdqu %xmm10, 560(%rbp)
-    .seh_savexmm %xmm10, 560
-    movdqu %xmm11, 544(%rbp)
-    .seh_savexmm %xmm11, 544
-    movdqu %xmm12, 528(%rbp)
-    .seh_savexmm %xmm12, 528
-    movdqu %xmm13, 512(%rbp)
-    .seh_savexmm %xmm13, 512
-    movdqu %xmm14, 496(%rbp)
-    .seh_savexmm %xmm14, 496
-    movdqu %xmm15, 480(%rbp)
-    .seh_savexmm %xmm15, 480
-    movq %rbx, 464(%rbp)
-    .seh_savereg %rbx, 464
-    movq %r12, 456(%rbp)
-    .seh_savereg %r12, 456
-    movq %r13, 448(%rbp)
-    .seh_savereg %r13, 448
-    movq %r14, 440(%rbp)
-    .seh_savereg %r14, 440
-    movq %r15, 432(%rbp)
-    .seh_savereg %r15, 432
+    movq %rcx, 440(%rbp)
+    movq %rdi, 616(%rbp)
+    .seh_savereg %rdi, 616
+    movq %rsi, 608(%rbp)
+    .seh_savereg %rsi, 608
+    movdqu %xmm6, 592(%rbp)
+    .seh_savexmm %xmm6, 592
+    movdqu %xmm7, 576(%rbp)
+    .seh_savexmm %xmm7, 576
+    movdqu %xmm8, 560(%rbp)
+    .seh_savexmm %xmm8, 560
+    movdqu %xmm9, 544(%rbp)
+    .seh_savexmm %xmm9, 544
+    movdqu %xmm10, 528(%rbp)
+    .seh_savexmm %xmm10, 528
+    movdqu %xmm11, 512(%rbp)
+    .seh_savexmm %xmm11, 512
+    movdqu %xmm12, 496(%rbp)
+    .seh_savexmm %xmm12, 496
+    movdqu %xmm13, 480(%rbp)
+    .seh_savexmm %xmm13, 480
+    movdqu %xmm14, 464(%rbp)
+    .seh_savexmm %xmm14, 464
+    movdqu %xmm15, 448(%rbp)
+    .seh_savexmm %xmm15, 448
+    movq %rbx, 432(%rbp)
+    .seh_savereg %rbx, 432
+    movq %r12, 424(%rbp)
+    .seh_savereg %r12, 424
+    movq %r13, 416(%rbp)
+    .seh_savereg %r13, 416
+    movq %r14, 408(%rbp)
+    .seh_savereg %r14, 408
+    movq %r15, 400(%rbp)
+    .seh_savereg %r15, 400
     .seh_endprologue
-    movq %rcx, 672(%rbp)
-    movq %rdx, 680(%rbp)
-    movq %r8, 688(%rbp)
-    movq %r9, 696(%rbp)
-    movq 680(%rbp), %r10
-    leaq 344(%rbp), %r11
+    movq %rcx, 640(%rbp)
+    movq %rdx, 648(%rbp)
+    movq %r8, 656(%rbp)
+    movq %r9, 664(%rbp)
+    movq 648(%rbp), %r10
+    leaq 312(%rbp), %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
     movq 16(%r10), %rax
     movq %rax, 16(%r11)
-    movq 688(%rbp), %rax
-    movl %eax, 328(%rbp)
-    leaq 300(%rbp), %rax
-    movq %rax, 48(%rbp)
-    movq 48(%rbp), %r11
+    movq 656(%rbp), %rax
+    movl %eax, 296(%rbp)
+    leaq 268(%rbp), %rax
+    movq %rax, 16(%rbp)
+    movq 16(%rbp), %r11
     pxor %xmm8, %xmm8
     movups %xmm8, 0(%r11)
     movq $0, 16(%r11)
     movl $0, 24(%r11)
-    leaq 344(%rbp), %rax
-    movq %rax, 40(%rbp)
+    leaq 312(%rbp), %rax
+    movq %rax, 8(%rbp)
     subq $32, %rsp
-    movq 40(%rbp), %rax
+    movq 8(%rbp), %rax
     movq %rax, 8(%rsp)
-    movq 48(%rbp), %rax
+    movq 16(%rbp), %rax
     movq %rax, 16(%rsp)
-    leaq 256(%rbp), %rax
+    leaq 224(%rbp), %rax
     movq %rax, (%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
     movq 16(%rsp), %r8
     call lb_net_SocketAddress_12write_native
     addq $32, %rsp
-    leaq 256(%rbp), %r14
+    leaq 224(%rbp), %r14
     movq $32, %rcx
     movq %r14, %r13
     addq %rcx, %r13
@@ -148,7 +148,7 @@ lb_net_Datagram_bind:
     movq $8, %rcx
     movq %r14, %rbx
     addq %rcx, %rbx
-    leaq 368(%rbp), %r12
+    leaq 336(%rbp), %r12
     movq $32, %rcx
     movq %r12, %r13
     addq %rcx, %r13
@@ -165,7 +165,7 @@ lb_net_Datagram_bind:
     movq %rbx, %r10
     movb %al, (%r10)
     movq %r12, %rsi
-    movq 472(%rbp), %rdi
+    movq 440(%rbp), %rdi
     movq $64, %rdx
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -173,70 +173,66 @@ lb_net_Datagram_bind:
     subq $32, %rsp
     call memcpy
     addq $32, %rsp
-    movq 472(%rbp), %rax
-    movq 648(%rbp), %rdi
-    movq 640(%rbp), %rsi
-    movdqu 624(%rbp), %xmm6
-    movdqu 608(%rbp), %xmm7
-    movdqu 592(%rbp), %xmm8
-    movdqu 576(%rbp), %xmm9
-    movdqu 560(%rbp), %xmm10
-    movdqu 544(%rbp), %xmm11
-    movdqu 528(%rbp), %xmm12
-    movdqu 512(%rbp), %xmm13
-    movdqu 496(%rbp), %xmm14
-    movdqu 480(%rbp), %xmm15
-    movq 464(%rbp), %rbx
-    movq 456(%rbp), %r12
-    movq 448(%rbp), %r13
-    movq 440(%rbp), %r14
-    movq 432(%rbp), %r15
-    leaq 656(%rbp), %rsp
+    movq 440(%rbp), %rax
+    movq 616(%rbp), %rdi
+    movq 608(%rbp), %rsi
+    movdqu 592(%rbp), %xmm6
+    movdqu 576(%rbp), %xmm7
+    movdqu 560(%rbp), %xmm8
+    movdqu 544(%rbp), %xmm9
+    movdqu 528(%rbp), %xmm10
+    movdqu 512(%rbp), %xmm11
+    movdqu 496(%rbp), %xmm12
+    movdqu 480(%rbp), %xmm13
+    movdqu 464(%rbp), %xmm14
+    movdqu 448(%rbp), %xmm15
+    movq 432(%rbp), %rbx
+    movq 424(%rbp), %r12
+    movq 416(%rbp), %r13
+    movq 408(%rbp), %r14
+    movq 400(%rbp), %r15
+    leaq 624(%rbp), %rsp
     popq %rbp
     ret
 .L1_3:
 .L1_1:
     movq %r14, %r10
     movl (%r10), %eax
-    movl %eax, 32(%rbp)
-    leaq 232(%rbp), %rax
-    movq %rax, 8(%rbp)
-    leaq lb_net_datagram(%rip), %r15
-    movq %r15, %r10
-    movslq (%r10), %r15
-    movq 40(%rbp), %r10
-    movzbl (%r10), %ebx
+    movl %eax, 0(%rbp)
+    leaq 200(%rbp), %rbx
+    movq 8(%rbp), %r10
+    movzbl (%r10), %r15d
     subq $32, %rsp
-    movl %r15d, %eax
+    movl $2, %eax
     movq %rax, 8(%rsp)
-    movl %ebx, %eax
+    movl %r15d, %eax
     movq %rax, 16(%rsp)
-    leaq 176(%rbp), %rax
+    leaq 144(%rbp), %rax
     movq %rax, (%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
     movq 16(%rsp), %r8
     call lb_net_SocketHandle_create
     addq $32, %rsp
-    leaq 176(%rbp), %r15
+    leaq 144(%rbp), %r13
     movq $48, %rcx
-    movq %r15, %rbx
-    addq %rcx, %rbx
-    movq %rbx, %r10
-    movzbl (%r10), %ebx
-    testl %ebx, %ebx
+    movq %r13, %r15
+    addq %rcx, %r15
+    movq %r15, %r10
+    movzbl (%r10), %r15d
+    testl %r15d, %r15d
     jne .L1_5
     jmp .L1_4
 .L1_5:
     movq $24, %rcx
-    movq %r15, %rbx
+    movq %r13, %rbx
     addq %rcx, %rbx
-    leaq 368(%rbp), %r12
+    leaq 336(%rbp), %r12
     movq $32, %rcx
-    movq %r12, %r13
-    addq %rcx, %r13
+    movq %r12, %r14
+    addq %rcx, %r14
     movq %rbx, %r10
-    movq %r13, %r11
+    movq %r14, %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
     movq 16(%r10), %rax
@@ -248,7 +244,7 @@ lb_net_Datagram_bind:
     movq %rbx, %r10
     movb %al, (%r10)
     movq %r12, %rsi
-    movq 472(%rbp), %rdi
+    movq 440(%rbp), %rdi
     movq $64, %rdx
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -256,81 +252,81 @@ lb_net_Datagram_bind:
     subq $32, %rsp
     call memcpy
     addq $32, %rsp
-    movq 472(%rbp), %rax
-    movq 648(%rbp), %rdi
-    movq 640(%rbp), %rsi
-    movdqu 624(%rbp), %xmm6
-    movdqu 608(%rbp), %xmm7
-    movdqu 592(%rbp), %xmm8
-    movdqu 576(%rbp), %xmm9
-    movdqu 560(%rbp), %xmm10
-    movdqu 544(%rbp), %xmm11
-    movdqu 528(%rbp), %xmm12
-    movdqu 512(%rbp), %xmm13
-    movdqu 496(%rbp), %xmm14
-    movdqu 480(%rbp), %xmm15
-    movq 464(%rbp), %rbx
-    movq 456(%rbp), %r12
-    movq 448(%rbp), %r13
-    movq 440(%rbp), %r14
-    movq 432(%rbp), %r15
-    leaq 656(%rbp), %rsp
+    movq 440(%rbp), %rax
+    movq 616(%rbp), %rdi
+    movq 608(%rbp), %rsi
+    movdqu 592(%rbp), %xmm6
+    movdqu 576(%rbp), %xmm7
+    movdqu 560(%rbp), %xmm8
+    movdqu 544(%rbp), %xmm9
+    movdqu 528(%rbp), %xmm10
+    movdqu 512(%rbp), %xmm11
+    movdqu 496(%rbp), %xmm12
+    movdqu 480(%rbp), %xmm13
+    movdqu 464(%rbp), %xmm14
+    movdqu 448(%rbp), %xmm15
+    movq 432(%rbp), %rbx
+    movq 424(%rbp), %r12
+    movq 416(%rbp), %r13
+    movq 408(%rbp), %r14
+    movq 400(%rbp), %r15
+    leaq 624(%rbp), %rsp
     popq %rbp
     ret
 .L1_6:
 .L1_4:
-    movq %r15, %r10
-    movq 8(%rbp), %r11
+    movq %r13, %r10
+    movq %rbx, %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
     movq 16(%r10), %rax
     movq %rax, 16(%r11)
     subq $32, %rsp
-    movq 8(%rbp), %rax
+    movq %rbx, %rax
     movq %rax, 8(%rsp)
-    leaq 136(%rbp), %rax
+    leaq 104(%rbp), %rax
     movq %rax, (%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
     call lb_net_SocketHandle_require
     addq $32, %rsp
-    leaq 136(%rbp), %r14
+    leaq 104(%rbp), %r15
     movq $32, %rcx
-    movq %r14, %rbx
-    addq %rcx, %rbx
-    movq %rbx, %r10
-    movzbl (%r10), %ebx
-    testl %ebx, %ebx
+    movq %r15, %r14
+    addq %rcx, %r14
+    movq %r14, %r10
+    movzbl (%r10), %r14d
+    testl %r14d, %r14d
     jne .L1_8
     jmp .L1_7
 .L1_8:
     movq $8, %rcx
-    movq %r14, %rbx
-    addq %rcx, %rbx
-    leaq 368(%rbp), %r12
+    movq %r15, %r12
+    addq %rcx, %r12
+    leaq 336(%rbp), %r13
     movq $32, %rcx
-    movq %r12, %r15
-    addq %rcx, %r15
-    movq %rbx, %r10
-    movq %r15, %r11
+    movq %r13, %r14
+    addq %rcx, %r14
+    movq %r12, %r10
+    movq %r14, %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
     movq 16(%r10), %rax
     movq %rax, 16(%r11)
     movq $56, %rcx
-    movq %r12, %rbx
-    addq %rcx, %rbx
+    movq %r13, %r12
+    addq %rcx, %r12
     movl $1, %eax
-    movq %rbx, %r10
+    movq %r12, %r10
     movb %al, (%r10)
     subq $32, %rsp
-    movq 8(%rbp), %rax
+    movq %rbx, %rax
     movq %rax, 0(%rsp)
     movq 0(%rsp), %rcx
     call lb_net_SocketHandle_destroy
     addq $32, %rsp
-    movq %r12, %rsi
-    movq 472(%rbp), %rdi
+    movq %r13, %rsi
+    movq 440(%rbp), %rdi
     movq $64, %rdx
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -338,67 +334,61 @@ lb_net_Datagram_bind:
     subq $32, %rsp
     call memcpy
     addq $32, %rsp
-    movq 472(%rbp), %rax
-    movq 648(%rbp), %rdi
-    movq 640(%rbp), %rsi
-    movdqu 624(%rbp), %xmm6
-    movdqu 608(%rbp), %xmm7
-    movdqu 592(%rbp), %xmm8
-    movdqu 576(%rbp), %xmm9
-    movdqu 560(%rbp), %xmm10
-    movdqu 544(%rbp), %xmm11
-    movdqu 528(%rbp), %xmm12
-    movdqu 512(%rbp), %xmm13
-    movdqu 496(%rbp), %xmm14
-    movdqu 480(%rbp), %xmm15
-    movq 464(%rbp), %rbx
-    movq 456(%rbp), %r12
-    movq 448(%rbp), %r13
-    movq 440(%rbp), %r14
-    movq 432(%rbp), %r15
-    leaq 656(%rbp), %rsp
+    movq 440(%rbp), %rax
+    movq 616(%rbp), %rdi
+    movq 608(%rbp), %rsi
+    movdqu 592(%rbp), %xmm6
+    movdqu 576(%rbp), %xmm7
+    movdqu 560(%rbp), %xmm8
+    movdqu 544(%rbp), %xmm9
+    movdqu 528(%rbp), %xmm10
+    movdqu 512(%rbp), %xmm11
+    movdqu 496(%rbp), %xmm12
+    movdqu 480(%rbp), %xmm13
+    movdqu 464(%rbp), %xmm14
+    movdqu 448(%rbp), %xmm15
+    movq 432(%rbp), %rbx
+    movq 424(%rbp), %r12
+    movq 416(%rbp), %r13
+    movq 408(%rbp), %r14
+    movq 400(%rbp), %r15
+    leaq 624(%rbp), %rsp
     popq %rbp
     ret
 .L1_9:
 .L1_7:
-    movq %r14, %r10
-    movq (%r10), %rbx
-    movq 40(%rbp), %r10
-    movzbl (%r10), %r15d
+    movq %r15, %r10
+    movq (%r10), %r13
+    movq 8(%rbp), %r10
+    movzbl (%r10), %r14d
     movl $1, %ecx
-    cmpl %ecx, %r15d
+    cmpl %ecx, %r14d
     jne .L1_11
 .L1_10:
-    leaq lb_net_10ipv6_level(%rip), %r14
+    leaq 296(%rbp), %r14
     movq %r14, %r10
-    movslq (%r10), %r14
-    leaq lb_net_16ipv6_only_option(%rip), %r15
-    movq %r15, %r10
-    movslq (%r10), %r15
-    leaq 328(%rbp), %r12
-    movq %r12, %r10
-    movzbl (%r10), %r12d
-    testl %r12d, %r12d
+    movzbl (%r10), %r14d
+    testl %r14d, %r14d
     jne .L1_13
     jmp .L1_14
 .L1_13:
     movl $1, %eax
-    movl %eax, %r12d
+    movl %eax, %r14d
     jmp .L1_15
 .L1_14:
     movl $0, %eax
-    movl %eax, %r12d
+    movl %eax, %r14d
 .L1_15:
     subq $48, %rsp
-    movq %rbx, %rax
+    movq %r13, %rax
     movq %rax, 8(%rsp)
-    movl %r14d, %eax
+    movl $41, %eax
     movq %rax, 16(%rsp)
-    movl %r15d, %eax
+    movl $27, %eax
     movq %rax, 24(%rsp)
-    movl %r12d, %eax
+    movl %r14d, %eax
     movq %rax, 32(%rsp)
-    leaq 104(%rbp), %rax
+    leaq 72(%rbp), %rax
     movq %rax, (%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
@@ -406,43 +396,40 @@ lb_net_Datagram_bind:
     movq 24(%rsp), %r9
     call lb_net_18set_socket_integer
     addq $48, %rsp
-    leaq 104(%rbp), %r13
+    leaq 72(%rbp), %r12
     movq $24, %rcx
-    movq %r13, %rax
-    addq %rcx, %rax
-    movq %rax, 24(%rbp)
-    movq 24(%rbp), %r10
-    movzbl (%r10), %eax
-    movl %eax, 16(%rbp)
-    movl 16(%rbp), %eax
-    testl %eax, %eax
+    movq %r12, %r15
+    addq %rcx, %r15
+    movq %r15, %r10
+    movzbl (%r10), %r15d
+    testl %r15d, %r15d
     jne .L1_17
     jmp .L1_16
 .L1_17:
-    leaq 368(%rbp), %rbx
+    leaq 336(%rbp), %r13
     movq $32, %rcx
-    movq %rbx, %r12
-    addq %rcx, %r12
-    movq %r13, %r10
-    movq %r12, %r11
+    movq %r13, %r14
+    addq %rcx, %r14
+    movq %r12, %r10
+    movq %r14, %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
     movq 16(%r10), %rax
     movq %rax, 16(%r11)
     movq $56, %rcx
-    movq %rbx, %r12
-    addq %rcx, %r12
+    movq %r13, %r14
+    addq %rcx, %r14
     movl $1, %eax
-    movq %r12, %r10
+    movq %r14, %r10
     movb %al, (%r10)
     subq $32, %rsp
-    movq 8(%rbp), %rax
+    movq %rbx, %rax
     movq %rax, 0(%rsp)
     movq 0(%rsp), %rcx
     call lb_net_SocketHandle_destroy
     addq $32, %rsp
-    movq %rbx, %rsi
-    movq 472(%rbp), %rdi
+    movq %r13, %rsi
+    movq 440(%rbp), %rdi
     movq $64, %rdx
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -450,25 +437,25 @@ lb_net_Datagram_bind:
     subq $32, %rsp
     call memcpy
     addq $32, %rsp
-    movq 472(%rbp), %rax
-    movq 648(%rbp), %rdi
-    movq 640(%rbp), %rsi
-    movdqu 624(%rbp), %xmm6
-    movdqu 608(%rbp), %xmm7
-    movdqu 592(%rbp), %xmm8
-    movdqu 576(%rbp), %xmm9
-    movdqu 560(%rbp), %xmm10
-    movdqu 544(%rbp), %xmm11
-    movdqu 528(%rbp), %xmm12
-    movdqu 512(%rbp), %xmm13
-    movdqu 496(%rbp), %xmm14
-    movdqu 480(%rbp), %xmm15
-    movq 464(%rbp), %rbx
-    movq 456(%rbp), %r12
-    movq 448(%rbp), %r13
-    movq 440(%rbp), %r14
-    movq 432(%rbp), %r15
-    leaq 656(%rbp), %rsp
+    movq 440(%rbp), %rax
+    movq 616(%rbp), %rdi
+    movq 608(%rbp), %rsi
+    movdqu 592(%rbp), %xmm6
+    movdqu 576(%rbp), %xmm7
+    movdqu 560(%rbp), %xmm8
+    movdqu 544(%rbp), %xmm9
+    movdqu 528(%rbp), %xmm10
+    movdqu 512(%rbp), %xmm11
+    movdqu 496(%rbp), %xmm12
+    movdqu 480(%rbp), %xmm13
+    movdqu 464(%rbp), %xmm14
+    movdqu 448(%rbp), %xmm15
+    movq 432(%rbp), %rbx
+    movq 424(%rbp), %r12
+    movq 416(%rbp), %r13
+    movq 408(%rbp), %r14
+    movq 400(%rbp), %r15
+    leaq 624(%rbp), %rsp
     popq %rbp
     ret
 .L1_18:
@@ -477,11 +464,11 @@ lb_net_Datagram_bind:
 .L1_11:
 .L1_12:
     subq $32, %rsp
-    movq %rbx, %rax
+    movq %r13, %rax
     movq %rax, 0(%rsp)
-    movq 48(%rbp), %rax
+    movq 16(%rbp), %rax
     movq %rax, 8(%rsp)
-    movl 32(%rbp), %eax
+    movl 0(%rbp), %eax
     movq %rax, 16(%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
@@ -497,53 +484,53 @@ lb_net_Datagram_bind:
     cmpl %ecx, %r12d
     jne .L1_20
 .L1_19:
-    leaq 368(%rbp), %rbx
+    leaq 336(%rbp), %r12
     movq $32, %rcx
-    movq %rbx, %r12
-    addq %rcx, %r12
+    movq %r12, %r13
+    addq %rcx, %r13
     subq $32, %rsp
     call lb_net_12socket_errno
     addq $32, %rsp
-    movl %eax, %r13d
+    movl %eax, %r14d
     subq $32, %rsp
-    movl %r13d, %eax
+    movl %r14d, %eax
     movq %rax, 0(%rsp)
     movq 0(%rsp), %rcx
     call lb_net_12socket_error
     addq $32, %rsp
-    movl %eax, %r13d
-    movq %r12, %r10
-    movl %r13d, (%r10)
-    leaq .Ltext_0(%rip), %r13
-    leaq 88(%rbp), %r14
-    movq %r14, %r10
-    movq %r13, (%r10)
-    movq $8, %rcx
-    movq %r14, %r13
-    addq %rcx, %r13
-    movq $46, %rax
+    movl %eax, %r14d
     movq %r13, %r10
+    movl %r14d, (%r10)
+    leaq .Ltext_0(%rip), %r14
+    leaq 56(%rbp), %r15
+    movq %r15, %r10
+    movq %r14, (%r10)
+    movq $8, %rcx
+    movq %r15, %r14
+    addq %rcx, %r14
+    movq $46, %rax
+    movq %r14, %r10
     movq %rax, (%r10)
     movq $8, %rcx
-    addq %rcx, %r12
-    movq %r14, %r10
-    movq %r12, %r11
+    addq %rcx, %r13
+    movq %r15, %r10
+    movq %r13, %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
     movq $56, %rcx
-    movq %rbx, %r12
-    addq %rcx, %r12
+    movq %r12, %r13
+    addq %rcx, %r13
     movl $1, %eax
-    movq %r12, %r10
+    movq %r13, %r10
     movb %al, (%r10)
     subq $32, %rsp
-    movq 8(%rbp), %rax
+    movq %rbx, %rax
     movq %rax, 0(%rsp)
     movq 0(%rsp), %rcx
     call lb_net_SocketHandle_destroy
     addq $32, %rsp
-    movq %rbx, %rsi
-    movq 472(%rbp), %rdi
+    movq %r12, %rsi
+    movq 440(%rbp), %rdi
     movq $64, %rdx
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -551,64 +538,64 @@ lb_net_Datagram_bind:
     subq $32, %rsp
     call memcpy
     addq $32, %rsp
-    movq 472(%rbp), %rax
-    movq 648(%rbp), %rdi
-    movq 640(%rbp), %rsi
-    movdqu 624(%rbp), %xmm6
-    movdqu 608(%rbp), %xmm7
-    movdqu 592(%rbp), %xmm8
-    movdqu 576(%rbp), %xmm9
-    movdqu 560(%rbp), %xmm10
-    movdqu 544(%rbp), %xmm11
-    movdqu 528(%rbp), %xmm12
-    movdqu 512(%rbp), %xmm13
-    movdqu 496(%rbp), %xmm14
-    movdqu 480(%rbp), %xmm15
-    movq 464(%rbp), %rbx
-    movq 456(%rbp), %r12
-    movq 448(%rbp), %r13
-    movq 440(%rbp), %r14
-    movq 432(%rbp), %r15
-    leaq 656(%rbp), %rsp
+    movq 440(%rbp), %rax
+    movq 616(%rbp), %rdi
+    movq 608(%rbp), %rsi
+    movdqu 592(%rbp), %xmm6
+    movdqu 576(%rbp), %xmm7
+    movdqu 560(%rbp), %xmm8
+    movdqu 544(%rbp), %xmm9
+    movdqu 528(%rbp), %xmm10
+    movdqu 512(%rbp), %xmm11
+    movdqu 496(%rbp), %xmm12
+    movdqu 480(%rbp), %xmm13
+    movdqu 464(%rbp), %xmm14
+    movdqu 448(%rbp), %xmm15
+    movq 432(%rbp), %rbx
+    movq 424(%rbp), %r12
+    movq 416(%rbp), %r13
+    movq 408(%rbp), %r14
+    movq 400(%rbp), %r15
+    leaq 624(%rbp), %rsp
     popq %rbp
     ret
 .L1_22:
     jmp .L1_21
 .L1_20:
 .L1_21:
-    leaq 56(%rbp), %rbx
-    movq %rbx, %r11
+    leaq 24(%rbp), %r12
+    movq %r12, %r11
     pxor %xmm8, %xmm8
     movups %xmm8, 0(%r11)
     movups %xmm8, 16(%r11)
-    movq 8(%rbp), %r10
-    movq %rbx, %r11
+    movq %rbx, %r10
+    movq %r12, %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
     movq 16(%r10), %rax
     movq %rax, 16(%r11)
-    movq 40(%rbp), %r10
-    movzbl (%r10), %r12d
+    movq 8(%rbp), %r10
+    movzbl (%r10), %r13d
     movq $24, %rcx
-    movq %rbx, %r13
-    addq %rcx, %r13
-    movq %r13, %r10
-    movb %r12b, (%r10)
-    leaq 368(%rbp), %r12
-    movq %rbx, %r10
-    movq %r12, %r11
+    movq %r12, %r14
+    addq %rcx, %r14
+    movq %r14, %r10
+    movb %r13b, (%r10)
+    leaq 336(%rbp), %r13
+    movq %r12, %r10
+    movq %r13, %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
     movups 16(%r10), %xmm8
     movups %xmm8, 16(%r11)
     movq $56, %rcx
-    movq %r12, %rbx
-    addq %rcx, %rbx
+    movq %r13, %r12
+    addq %rcx, %r12
     movl $0, %eax
-    movq %rbx, %r10
+    movq %r12, %r10
     movb %al, (%r10)
-    movq %r12, %rsi
-    movq 472(%rbp), %rdi
+    movq %r13, %rsi
+    movq 440(%rbp), %rdi
     movq $64, %rdx
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -616,25 +603,25 @@ lb_net_Datagram_bind:
     subq $32, %rsp
     call memcpy
     addq $32, %rsp
-    movq 472(%rbp), %rax
-    movq 648(%rbp), %rdi
-    movq 640(%rbp), %rsi
-    movdqu 624(%rbp), %xmm6
-    movdqu 608(%rbp), %xmm7
-    movdqu 592(%rbp), %xmm8
-    movdqu 576(%rbp), %xmm9
-    movdqu 560(%rbp), %xmm10
-    movdqu 544(%rbp), %xmm11
-    movdqu 528(%rbp), %xmm12
-    movdqu 512(%rbp), %xmm13
-    movdqu 496(%rbp), %xmm14
-    movdqu 480(%rbp), %xmm15
-    movq 464(%rbp), %rbx
-    movq 456(%rbp), %r12
-    movq 448(%rbp), %r13
-    movq 440(%rbp), %r14
-    movq 432(%rbp), %r15
-    leaq 656(%rbp), %rsp
+    movq 440(%rbp), %rax
+    movq 616(%rbp), %rdi
+    movq 608(%rbp), %rsi
+    movdqu 592(%rbp), %xmm6
+    movdqu 576(%rbp), %xmm7
+    movdqu 560(%rbp), %xmm8
+    movdqu 544(%rbp), %xmm9
+    movdqu 528(%rbp), %xmm10
+    movdqu 512(%rbp), %xmm11
+    movdqu 496(%rbp), %xmm12
+    movdqu 480(%rbp), %xmm13
+    movdqu 464(%rbp), %xmm14
+    movdqu 448(%rbp), %xmm15
+    movq 432(%rbp), %rbx
+    movq 424(%rbp), %r12
+    movq 416(%rbp), %r13
+    movq 408(%rbp), %r14
+    movq 400(%rbp), %r15
+    leaq 624(%rbp), %rsp
     popq %rbp
     ret
 .L1_23:
@@ -902,74 +889,74 @@ lb_net_Datagram_7send_to:
     .seh_proc lb_net_Datagram_7send_to
     pushq %rbp
     .seh_pushreg %rbp
-    subq $528, %rsp
-    .seh_stackalloc 528
+    subq $512, %rsp
+    .seh_stackalloc 512
     movq %rsp, %rbp
     .seh_setframe %rbp, 0
-    movq %rcx, 344(%rbp)
-    movq %rdi, 520(%rbp)
-    .seh_savereg %rdi, 520
-    movq %rsi, 512(%rbp)
-    .seh_savereg %rsi, 512
-    movdqu %xmm6, 496(%rbp)
-    .seh_savexmm %xmm6, 496
-    movdqu %xmm7, 480(%rbp)
-    .seh_savexmm %xmm7, 480
-    movdqu %xmm8, 464(%rbp)
-    .seh_savexmm %xmm8, 464
-    movdqu %xmm9, 448(%rbp)
-    .seh_savexmm %xmm9, 448
-    movdqu %xmm10, 432(%rbp)
-    .seh_savexmm %xmm10, 432
-    movdqu %xmm11, 416(%rbp)
-    .seh_savexmm %xmm11, 416
-    movdqu %xmm12, 400(%rbp)
-    .seh_savexmm %xmm12, 400
-    movdqu %xmm13, 384(%rbp)
-    .seh_savexmm %xmm13, 384
-    movdqu %xmm14, 368(%rbp)
-    .seh_savexmm %xmm14, 368
-    movdqu %xmm15, 352(%rbp)
-    .seh_savexmm %xmm15, 352
-    movq %rbx, 336(%rbp)
-    .seh_savereg %rbx, 336
-    movq %r12, 328(%rbp)
-    .seh_savereg %r12, 328
-    movq %r13, 320(%rbp)
-    .seh_savereg %r13, 320
-    movq %r14, 312(%rbp)
-    .seh_savereg %r14, 312
-    movq %r15, 304(%rbp)
-    .seh_savereg %r15, 304
+    movq %rcx, 328(%rbp)
+    movq %rdi, 504(%rbp)
+    .seh_savereg %rdi, 504
+    movq %rsi, 496(%rbp)
+    .seh_savereg %rsi, 496
+    movdqu %xmm6, 480(%rbp)
+    .seh_savexmm %xmm6, 480
+    movdqu %xmm7, 464(%rbp)
+    .seh_savexmm %xmm7, 464
+    movdqu %xmm8, 448(%rbp)
+    .seh_savexmm %xmm8, 448
+    movdqu %xmm9, 432(%rbp)
+    .seh_savexmm %xmm9, 432
+    movdqu %xmm10, 416(%rbp)
+    .seh_savexmm %xmm10, 416
+    movdqu %xmm11, 400(%rbp)
+    .seh_savexmm %xmm11, 400
+    movdqu %xmm12, 384(%rbp)
+    .seh_savexmm %xmm12, 384
+    movdqu %xmm13, 368(%rbp)
+    .seh_savexmm %xmm13, 368
+    movdqu %xmm14, 352(%rbp)
+    .seh_savexmm %xmm14, 352
+    movdqu %xmm15, 336(%rbp)
+    .seh_savexmm %xmm15, 336
+    movq %rbx, 320(%rbp)
+    .seh_savereg %rbx, 320
+    movq %r12, 312(%rbp)
+    .seh_savereg %r12, 312
+    movq %r13, 304(%rbp)
+    .seh_savereg %r13, 304
+    movq %r14, 296(%rbp)
+    .seh_savereg %r14, 296
+    movq %r15, 288(%rbp)
+    .seh_savereg %r15, 288
     .seh_endprologue
-    movq %rcx, 544(%rbp)
-    movq %rdx, 552(%rbp)
-    movq %r8, 560(%rbp)
-    movq %r9, 568(%rbp)
-    movq 552(%rbp), %rax
-    movq %rax, 264(%rbp)
-    movq 560(%rbp), %r10
-    leaq 248(%rbp), %r11
+    movq %rcx, 528(%rbp)
+    movq %rdx, 536(%rbp)
+    movq %r8, 544(%rbp)
+    movq %r9, 552(%rbp)
+    movq 536(%rbp), %rax
+    movq %rax, 248(%rbp)
+    movq 544(%rbp), %r10
+    leaq 232(%rbp), %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
-    movq 568(%rbp), %r10
-    leaq 224(%rbp), %r11
+    movq 552(%rbp), %r10
+    leaq 208(%rbp), %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
     movq 16(%r10), %rax
     movq %rax, 16(%r11)
-    leaq 264(%rbp), %r10
+    leaq 248(%rbp), %r10
     movq (%r10), %r12
     subq $32, %rsp
     movq %r12, %rax
     movq %rax, 8(%rsp)
-    leaq 184(%rbp), %rax
+    leaq 168(%rbp), %rax
     movq %rax, (%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
     call lb_net_SocketHandle_require
     addq $32, %rsp
-    leaq 184(%rbp), %r13
+    leaq 168(%rbp), %r13
     movq $32, %rcx
     movq %r13, %rbx
     addq %rcx, %rbx
@@ -982,7 +969,7 @@ lb_net_Datagram_7send_to:
     movq $8, %rcx
     movq %r13, %rbx
     addq %rcx, %rbx
-    leaq 272(%rbp), %r12
+    leaq 256(%rbp), %r12
     movq %rbx, %r10
     movq %r12, %r11
     movups 0(%r10), %xmm8
@@ -996,7 +983,7 @@ lb_net_Datagram_7send_to:
     movq %rbx, %r10
     movb %al, (%r10)
     movq %r12, %rsi
-    movq 344(%rbp), %rdi
+    movq 328(%rbp), %rdi
     movq $32, %rdx
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -1004,33 +991,33 @@ lb_net_Datagram_7send_to:
     subq $32, %rsp
     call memcpy
     addq $32, %rsp
-    movq 344(%rbp), %rax
-    movq 520(%rbp), %rdi
-    movq 512(%rbp), %rsi
-    movdqu 496(%rbp), %xmm6
-    movdqu 480(%rbp), %xmm7
-    movdqu 464(%rbp), %xmm8
-    movdqu 448(%rbp), %xmm9
-    movdqu 432(%rbp), %xmm10
-    movdqu 416(%rbp), %xmm11
-    movdqu 400(%rbp), %xmm12
-    movdqu 384(%rbp), %xmm13
-    movdqu 368(%rbp), %xmm14
-    movdqu 352(%rbp), %xmm15
-    movq 336(%rbp), %rbx
-    movq 328(%rbp), %r12
-    movq 320(%rbp), %r13
-    movq 312(%rbp), %r14
-    movq 304(%rbp), %r15
-    leaq 528(%rbp), %rsp
+    movq 328(%rbp), %rax
+    movq 504(%rbp), %rdi
+    movq 496(%rbp), %rsi
+    movdqu 480(%rbp), %xmm6
+    movdqu 464(%rbp), %xmm7
+    movdqu 448(%rbp), %xmm8
+    movdqu 432(%rbp), %xmm9
+    movdqu 416(%rbp), %xmm10
+    movdqu 400(%rbp), %xmm11
+    movdqu 384(%rbp), %xmm12
+    movdqu 368(%rbp), %xmm13
+    movdqu 352(%rbp), %xmm14
+    movdqu 336(%rbp), %xmm15
+    movq 320(%rbp), %rbx
+    movq 312(%rbp), %r12
+    movq 304(%rbp), %r13
+    movq 296(%rbp), %r14
+    movq 288(%rbp), %r15
+    leaq 512(%rbp), %rsp
     popq %rbp
     ret
 .L3_3:
 .L3_1:
     movq %r13, %r10
     movq (%r10), %rax
-    movq %rax, 40(%rbp)
-    leaq 224(%rbp), %r14
+    movq %rax, 24(%rbp)
+    leaq 208(%rbp), %r14
     movq %r14, %r10
     movzbl (%r10), %r15d
     movq $24, %rcx
@@ -1045,14 +1032,14 @@ lb_net_Datagram_7send_to:
     cmpl %ecx, %r15d
     jne .L3_5
 .L3_4:
-    leaq 272(%rbp), %rbx
+    leaq 256(%rbp), %rbx
     leaq lb_net_15invalid_options(%rip), %r12
     movq %r12, %r10
     movl (%r10), %r12d
     movq %rbx, %r10
     movl %r12d, (%r10)
     leaq .Ltext_4(%rip), %r12
-    leaq 168(%rbp), %r13
+    leaq 152(%rbp), %r13
     movq %r13, %r10
     movq %r12, (%r10)
     movq $8, %rcx
@@ -1075,7 +1062,7 @@ lb_net_Datagram_7send_to:
     movq %r12, %r10
     movb %al, (%r10)
     movq %rbx, %rsi
-    movq 344(%rbp), %rdi
+    movq 328(%rbp), %rdi
     movq $32, %rdx
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -1083,25 +1070,25 @@ lb_net_Datagram_7send_to:
     subq $32, %rsp
     call memcpy
     addq $32, %rsp
-    movq 344(%rbp), %rax
-    movq 520(%rbp), %rdi
-    movq 512(%rbp), %rsi
-    movdqu 496(%rbp), %xmm6
-    movdqu 480(%rbp), %xmm7
-    movdqu 464(%rbp), %xmm8
-    movdqu 448(%rbp), %xmm9
-    movdqu 432(%rbp), %xmm10
-    movdqu 416(%rbp), %xmm11
-    movdqu 400(%rbp), %xmm12
-    movdqu 384(%rbp), %xmm13
-    movdqu 368(%rbp), %xmm14
-    movdqu 352(%rbp), %xmm15
-    movq 336(%rbp), %rbx
-    movq 328(%rbp), %r12
-    movq 320(%rbp), %r13
-    movq 312(%rbp), %r14
-    movq 304(%rbp), %r15
-    leaq 528(%rbp), %rsp
+    movq 328(%rbp), %rax
+    movq 504(%rbp), %rdi
+    movq 496(%rbp), %rsi
+    movdqu 480(%rbp), %xmm6
+    movdqu 464(%rbp), %xmm7
+    movdqu 448(%rbp), %xmm8
+    movdqu 432(%rbp), %xmm9
+    movdqu 416(%rbp), %xmm10
+    movdqu 400(%rbp), %xmm11
+    movdqu 384(%rbp), %xmm12
+    movdqu 368(%rbp), %xmm13
+    movdqu 352(%rbp), %xmm14
+    movdqu 336(%rbp), %xmm15
+    movq 320(%rbp), %rbx
+    movq 312(%rbp), %r12
+    movq 304(%rbp), %r13
+    movq 296(%rbp), %r14
+    movq 288(%rbp), %r15
+    leaq 512(%rbp), %rsp
     popq %rbp
     ret
 .L3_7:
@@ -1119,7 +1106,7 @@ lb_net_Datagram_7send_to:
     movq $65527, %rax
     movq %rax, %rbx
 .L3_10:
-    leaq 248(%rbp), %r12
+    leaq 232(%rbp), %r12
     movq $8, %rcx
     movq %r12, %r13
     addq %rcx, %r13
@@ -1128,14 +1115,14 @@ lb_net_Datagram_7send_to:
     cmpq %rbx, %r13
     jbe .L3_12
 .L3_11:
-    leaq 272(%rbp), %rbx
+    leaq 256(%rbp), %rbx
     leaq lb_net_17message_too_large(%rip), %r12
     movq %r12, %r10
     movl (%r10), %r12d
     movq %rbx, %r10
     movl %r12d, (%r10)
     leaq .Ltext_5(%rip), %r12
-    leaq 152(%rbp), %r13
+    leaq 136(%rbp), %r13
     movq %r13, %r10
     movq %r12, (%r10)
     movq $8, %rcx
@@ -1158,7 +1145,7 @@ lb_net_Datagram_7send_to:
     movq %r12, %r10
     movb %al, (%r10)
     movq %rbx, %rsi
-    movq 344(%rbp), %rdi
+    movq 328(%rbp), %rdi
     movq $32, %rdx
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -1166,34 +1153,34 @@ lb_net_Datagram_7send_to:
     subq $32, %rsp
     call memcpy
     addq $32, %rsp
-    movq 344(%rbp), %rax
-    movq 520(%rbp), %rdi
-    movq 512(%rbp), %rsi
-    movdqu 496(%rbp), %xmm6
-    movdqu 480(%rbp), %xmm7
-    movdqu 464(%rbp), %xmm8
-    movdqu 448(%rbp), %xmm9
-    movdqu 432(%rbp), %xmm10
-    movdqu 416(%rbp), %xmm11
-    movdqu 400(%rbp), %xmm12
-    movdqu 384(%rbp), %xmm13
-    movdqu 368(%rbp), %xmm14
-    movdqu 352(%rbp), %xmm15
-    movq 336(%rbp), %rbx
-    movq 328(%rbp), %r12
-    movq 320(%rbp), %r13
-    movq 312(%rbp), %r14
-    movq 304(%rbp), %r15
-    leaq 528(%rbp), %rsp
+    movq 328(%rbp), %rax
+    movq 504(%rbp), %rdi
+    movq 496(%rbp), %rsi
+    movdqu 480(%rbp), %xmm6
+    movdqu 464(%rbp), %xmm7
+    movdqu 448(%rbp), %xmm8
+    movdqu 432(%rbp), %xmm9
+    movdqu 416(%rbp), %xmm10
+    movdqu 400(%rbp), %xmm11
+    movdqu 384(%rbp), %xmm12
+    movdqu 368(%rbp), %xmm13
+    movdqu 352(%rbp), %xmm14
+    movdqu 336(%rbp), %xmm15
+    movq 320(%rbp), %rbx
+    movq 312(%rbp), %r12
+    movq 304(%rbp), %r13
+    movq 296(%rbp), %r14
+    movq 288(%rbp), %r15
+    leaq 512(%rbp), %rsp
     popq %rbp
     ret
 .L3_14:
     jmp .L3_13
 .L3_12:
 .L3_13:
-    leaq 124(%rbp), %rax
-    movq %rax, 32(%rbp)
-    movq 32(%rbp), %r11
+    leaq 108(%rbp), %rax
+    movq %rax, 16(%rbp)
+    movq 16(%rbp), %r11
     pxor %xmm8, %xmm8
     movups %xmm8, 0(%r11)
     movq $0, 16(%r11)
@@ -1201,16 +1188,16 @@ lb_net_Datagram_7send_to:
     subq $32, %rsp
     movq %r14, %rax
     movq %rax, 8(%rsp)
-    movq 32(%rbp), %rax
+    movq 16(%rbp), %rax
     movq %rax, 16(%rsp)
-    leaq 80(%rbp), %rax
+    leaq 64(%rbp), %rax
     movq %rax, (%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
     movq 16(%rsp), %r8
     call lb_net_SocketAddress_12write_native
     addq $32, %rsp
-    leaq 80(%rbp), %rbx
+    leaq 64(%rbp), %rbx
     movq $32, %rcx
     movq %rbx, %r15
     addq %rcx, %r15
@@ -1223,7 +1210,7 @@ lb_net_Datagram_7send_to:
     movq $8, %rcx
     movq %rbx, %r12
     addq %rcx, %r12
-    leaq 272(%rbp), %r13
+    leaq 256(%rbp), %r13
     movq %r12, %r10
     movq %r13, %r11
     movups 0(%r10), %xmm8
@@ -1237,7 +1224,7 @@ lb_net_Datagram_7send_to:
     movq %r12, %r10
     movb %al, (%r10)
     movq %r13, %rsi
-    movq 344(%rbp), %rdi
+    movq 328(%rbp), %rdi
     movq $32, %rdx
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -1245,47 +1232,46 @@ lb_net_Datagram_7send_to:
     subq $32, %rsp
     call memcpy
     addq $32, %rsp
-    movq 344(%rbp), %rax
-    movq 520(%rbp), %rdi
-    movq 512(%rbp), %rsi
-    movdqu 496(%rbp), %xmm6
-    movdqu 480(%rbp), %xmm7
-    movdqu 464(%rbp), %xmm8
-    movdqu 448(%rbp), %xmm9
-    movdqu 432(%rbp), %xmm10
-    movdqu 416(%rbp), %xmm11
-    movdqu 400(%rbp), %xmm12
-    movdqu 384(%rbp), %xmm13
-    movdqu 368(%rbp), %xmm14
-    movdqu 352(%rbp), %xmm15
-    movq 336(%rbp), %rbx
-    movq 328(%rbp), %r12
-    movq 320(%rbp), %r13
-    movq 312(%rbp), %r14
-    movq 304(%rbp), %r15
-    leaq 528(%rbp), %rsp
+    movq 328(%rbp), %rax
+    movq 504(%rbp), %rdi
+    movq 496(%rbp), %rsi
+    movdqu 480(%rbp), %xmm6
+    movdqu 464(%rbp), %xmm7
+    movdqu 448(%rbp), %xmm8
+    movdqu 432(%rbp), %xmm9
+    movdqu 416(%rbp), %xmm10
+    movdqu 400(%rbp), %xmm11
+    movdqu 384(%rbp), %xmm12
+    movdqu 368(%rbp), %xmm13
+    movdqu 352(%rbp), %xmm14
+    movdqu 336(%rbp), %xmm15
+    movq 320(%rbp), %rbx
+    movq 312(%rbp), %r12
+    movq 304(%rbp), %r13
+    movq 296(%rbp), %r14
+    movq 288(%rbp), %r15
+    leaq 512(%rbp), %rsp
     popq %rbp
     ret
 .L3_17:
 .L3_15:
     movq %rbx, %r10
     movl (%r10), %eax
-    movl %eax, 24(%rbp)
+    movl %eax, 8(%rbp)
     movq %r12, %r10
-    movq (%r10), %rax
-    movq %rax, 16(%rbp)
+    movq (%r10), %r15
     subq $48, %rsp
-    movq 40(%rbp), %rax
+    movq 24(%rbp), %rax
     movq %rax, 0(%rsp)
-    movq 16(%rbp), %rax
+    movq %r15, %rax
     movq %rax, 8(%rsp)
     movq %r13, %rax
     movq %rax, 16(%rsp)
     movl $0, %eax
     movq %rax, 24(%rsp)
-    movq 32(%rbp), %rax
+    movq 16(%rbp), %rax
     movq %rax, 32(%rsp)
-    movl 24(%rbp), %eax
+    movl 8(%rbp), %eax
     movq %rax, 40(%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
@@ -1294,11 +1280,10 @@ lb_net_Datagram_7send_to:
     call lb_net_sendto
     addq $48, %rsp
     movq %rax, %r14
-    leaq lb_net_18socket_interrupted(%rip), %r15
     movq %r14, %rax
-    movq %rax, 8(%rbp)
+    movq %rax, 0(%rbp)
 .L3_18:
-    movq 8(%rbp), %rax
+    movq 0(%rbp), %rax
     movq $0, %rcx
     cmpq %rcx, %rax
     setl %al
@@ -1314,9 +1299,8 @@ lb_net_Datagram_7send_to:
     call lb_net_12socket_errno
     addq $32, %rsp
     movl %eax, %r12d
-    movq %r15, %r10
-    movslq (%r10), %r14
-    cmpl %r14d, %r12d
+    movl $10004, %ecx
+    cmpl %ecx, %r12d
     sete %al
     movzbl %al, %r12d
 .L3_22:
@@ -1326,17 +1310,17 @@ lb_net_Datagram_7send_to:
     jmp .L3_20
 .L3_19:
     subq $48, %rsp
-    movq 40(%rbp), %rax
+    movq 24(%rbp), %rax
     movq %rax, 0(%rsp)
-    movq 16(%rbp), %rax
+    movq %r15, %rax
     movq %rax, 8(%rsp)
     movq %r13, %rax
     movq %rax, 16(%rsp)
     movl $0, %eax
     movq %rax, 24(%rsp)
-    movq 32(%rbp), %rax
+    movq 16(%rbp), %rax
     movq %rax, 32(%rsp)
-    movl 24(%rbp), %eax
+    movl 8(%rbp), %eax
     movq %rax, 40(%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
@@ -1346,14 +1330,14 @@ lb_net_Datagram_7send_to:
     addq $48, %rsp
     movq %rax, %rbx
     movq %rbx, %rax
-    movq %rax, 8(%rbp)
+    movq %rax, 0(%rbp)
     jmp .L3_18
 .L3_20:
     testl %ebx, %ebx
     jne .L3_23
     jmp .L3_24
 .L3_23:
-    leaq 272(%rbp), %rbx
+    leaq 256(%rbp), %rbx
     subq $32, %rsp
     call lb_net_12socket_errno
     addq $32, %rsp
@@ -1368,7 +1352,7 @@ lb_net_Datagram_7send_to:
     movq %rbx, %r10
     movl %r12d, (%r10)
     leaq .Ltext_6(%rip), %r12
-    leaq 64(%rbp), %r13
+    leaq 48(%rbp), %r13
     movq %r13, %r10
     movq %r12, (%r10)
     movq $8, %rcx
@@ -1391,7 +1375,7 @@ lb_net_Datagram_7send_to:
     movq %r12, %r10
     movb %al, (%r10)
     movq %rbx, %rsi
-    movq 344(%rbp), %rdi
+    movq 328(%rbp), %rdi
     movq $32, %rdx
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -1399,32 +1383,32 @@ lb_net_Datagram_7send_to:
     subq $32, %rsp
     call memcpy
     addq $32, %rsp
-    movq 344(%rbp), %rax
-    movq 520(%rbp), %rdi
-    movq 512(%rbp), %rsi
-    movdqu 496(%rbp), %xmm6
-    movdqu 480(%rbp), %xmm7
-    movdqu 464(%rbp), %xmm8
-    movdqu 448(%rbp), %xmm9
-    movdqu 432(%rbp), %xmm10
-    movdqu 416(%rbp), %xmm11
-    movdqu 400(%rbp), %xmm12
-    movdqu 384(%rbp), %xmm13
-    movdqu 368(%rbp), %xmm14
-    movdqu 352(%rbp), %xmm15
-    movq 336(%rbp), %rbx
-    movq 328(%rbp), %r12
-    movq 320(%rbp), %r13
-    movq 312(%rbp), %r14
-    movq 304(%rbp), %r15
-    leaq 528(%rbp), %rsp
+    movq 328(%rbp), %rax
+    movq 504(%rbp), %rdi
+    movq 496(%rbp), %rsi
+    movdqu 480(%rbp), %xmm6
+    movdqu 464(%rbp), %xmm7
+    movdqu 448(%rbp), %xmm8
+    movdqu 432(%rbp), %xmm9
+    movdqu 416(%rbp), %xmm10
+    movdqu 400(%rbp), %xmm11
+    movdqu 384(%rbp), %xmm12
+    movdqu 368(%rbp), %xmm13
+    movdqu 352(%rbp), %xmm14
+    movdqu 336(%rbp), %xmm15
+    movq 320(%rbp), %rbx
+    movq 312(%rbp), %r12
+    movq 304(%rbp), %r13
+    movq 296(%rbp), %r14
+    movq 288(%rbp), %r15
+    leaq 512(%rbp), %rsp
     popq %rbp
     ret
 .L3_26:
     jmp .L3_25
 .L3_24:
 .L3_25:
-    movq 8(%rbp), %rcx
+    movq 0(%rbp), %rcx
     cmpq %rcx, %r13
     sete %al
     movzbl %al, %ebx
@@ -1432,14 +1416,14 @@ lb_net_Datagram_7send_to:
     cmpl %ecx, %ebx
     jne .L3_28
 .L3_27:
-    leaq 272(%rbp), %rbx
+    leaq 256(%rbp), %rbx
     leaq lb_net_failed(%rip), %r12
     movq %r12, %r10
     movl (%r10), %r12d
     movq %rbx, %r10
     movl %r12d, (%r10)
     leaq .Ltext_7(%rip), %r12
-    leaq 48(%rbp), %r13
+    leaq 32(%rbp), %r13
     movq %r13, %r10
     movq %r12, (%r10)
     movq $8, %rcx
@@ -1462,7 +1446,7 @@ lb_net_Datagram_7send_to:
     movq %r12, %r10
     movb %al, (%r10)
     movq %rbx, %rsi
-    movq 344(%rbp), %rdi
+    movq 328(%rbp), %rdi
     movq $32, %rdx
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -1470,32 +1454,32 @@ lb_net_Datagram_7send_to:
     subq $32, %rsp
     call memcpy
     addq $32, %rsp
-    movq 344(%rbp), %rax
-    movq 520(%rbp), %rdi
-    movq 512(%rbp), %rsi
-    movdqu 496(%rbp), %xmm6
-    movdqu 480(%rbp), %xmm7
-    movdqu 464(%rbp), %xmm8
-    movdqu 448(%rbp), %xmm9
-    movdqu 432(%rbp), %xmm10
-    movdqu 416(%rbp), %xmm11
-    movdqu 400(%rbp), %xmm12
-    movdqu 384(%rbp), %xmm13
-    movdqu 368(%rbp), %xmm14
-    movdqu 352(%rbp), %xmm15
-    movq 336(%rbp), %rbx
-    movq 328(%rbp), %r12
-    movq 320(%rbp), %r13
-    movq 312(%rbp), %r14
-    movq 304(%rbp), %r15
-    leaq 528(%rbp), %rsp
+    movq 328(%rbp), %rax
+    movq 504(%rbp), %rdi
+    movq 496(%rbp), %rsi
+    movdqu 480(%rbp), %xmm6
+    movdqu 464(%rbp), %xmm7
+    movdqu 448(%rbp), %xmm8
+    movdqu 432(%rbp), %xmm9
+    movdqu 416(%rbp), %xmm10
+    movdqu 400(%rbp), %xmm11
+    movdqu 384(%rbp), %xmm12
+    movdqu 368(%rbp), %xmm13
+    movdqu 352(%rbp), %xmm14
+    movdqu 336(%rbp), %xmm15
+    movq 320(%rbp), %rbx
+    movq 312(%rbp), %r12
+    movq 304(%rbp), %r13
+    movq 296(%rbp), %r14
+    movq 288(%rbp), %r15
+    leaq 512(%rbp), %rsp
     popq %rbp
     ret
 .L3_30:
     jmp .L3_29
 .L3_28:
 .L3_29:
-    leaq 272(%rbp), %rbx
+    leaq 256(%rbp), %rbx
     movq $24, %rcx
     movq %rbx, %r12
     addq %rcx, %r12
@@ -1503,7 +1487,7 @@ lb_net_Datagram_7send_to:
     movq %r12, %r10
     movb %al, (%r10)
     movq %rbx, %rsi
-    movq 344(%rbp), %rdi
+    movq 328(%rbp), %rdi
     movq $32, %rdx
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -1511,25 +1495,25 @@ lb_net_Datagram_7send_to:
     subq $32, %rsp
     call memcpy
     addq $32, %rsp
-    movq 344(%rbp), %rax
-    movq 520(%rbp), %rdi
-    movq 512(%rbp), %rsi
-    movdqu 496(%rbp), %xmm6
-    movdqu 480(%rbp), %xmm7
-    movdqu 464(%rbp), %xmm8
-    movdqu 448(%rbp), %xmm9
-    movdqu 432(%rbp), %xmm10
-    movdqu 416(%rbp), %xmm11
-    movdqu 400(%rbp), %xmm12
-    movdqu 384(%rbp), %xmm13
-    movdqu 368(%rbp), %xmm14
-    movdqu 352(%rbp), %xmm15
-    movq 336(%rbp), %rbx
-    movq 328(%rbp), %r12
-    movq 320(%rbp), %r13
-    movq 312(%rbp), %r14
-    movq 304(%rbp), %r15
-    leaq 528(%rbp), %rsp
+    movq 328(%rbp), %rax
+    movq 504(%rbp), %rdi
+    movq 496(%rbp), %rsi
+    movdqu 480(%rbp), %xmm6
+    movdqu 464(%rbp), %xmm7
+    movdqu 448(%rbp), %xmm8
+    movdqu 432(%rbp), %xmm9
+    movdqu 416(%rbp), %xmm10
+    movdqu 400(%rbp), %xmm11
+    movdqu 384(%rbp), %xmm12
+    movdqu 368(%rbp), %xmm13
+    movdqu 352(%rbp), %xmm14
+    movdqu 336(%rbp), %xmm15
+    movq 320(%rbp), %rbx
+    movq 312(%rbp), %r12
+    movq 304(%rbp), %r13
+    movq 296(%rbp), %r14
+    movq 288(%rbp), %r15
+    leaq 512(%rbp), %rsp
     popq %rbp
     ret
     .seh_endproc
@@ -2488,64 +2472,62 @@ lb_net_Datagram_18set_receive_buffer:
     .seh_proc lb_net_Datagram_18set_receive_buffer
     pushq %rbp
     .seh_pushreg %rbp
-    subq $352, %rsp
-    .seh_stackalloc 352
+    subq $336, %rsp
+    .seh_stackalloc 336
     movq %rsp, %rbp
     .seh_setframe %rbp, 0
-    movq %rcx, 168(%rbp)
-    movq %rdi, 344(%rbp)
-    .seh_savereg %rdi, 344
-    movq %rsi, 336(%rbp)
-    .seh_savereg %rsi, 336
-    movdqu %xmm6, 320(%rbp)
-    .seh_savexmm %xmm6, 320
-    movdqu %xmm7, 304(%rbp)
-    .seh_savexmm %xmm7, 304
-    movdqu %xmm8, 288(%rbp)
-    .seh_savexmm %xmm8, 288
-    movdqu %xmm9, 272(%rbp)
-    .seh_savexmm %xmm9, 272
-    movdqu %xmm10, 256(%rbp)
-    .seh_savexmm %xmm10, 256
-    movdqu %xmm11, 240(%rbp)
-    .seh_savexmm %xmm11, 240
-    movdqu %xmm12, 224(%rbp)
-    .seh_savexmm %xmm12, 224
-    movdqu %xmm13, 208(%rbp)
-    .seh_savexmm %xmm13, 208
-    movdqu %xmm14, 192(%rbp)
-    .seh_savexmm %xmm14, 192
-    movdqu %xmm15, 176(%rbp)
-    .seh_savexmm %xmm15, 176
-    movq %rbx, 160(%rbp)
-    .seh_savereg %rbx, 160
-    movq %r12, 152(%rbp)
-    .seh_savereg %r12, 152
-    movq %r13, 144(%rbp)
-    .seh_savereg %r13, 144
-    movq %r14, 136(%rbp)
-    .seh_savereg %r14, 136
+    movq %rcx, 152(%rbp)
+    movq %rdi, 328(%rbp)
+    .seh_savereg %rdi, 328
+    movq %rsi, 320(%rbp)
+    .seh_savereg %rsi, 320
+    movdqu %xmm6, 304(%rbp)
+    .seh_savexmm %xmm6, 304
+    movdqu %xmm7, 288(%rbp)
+    .seh_savexmm %xmm7, 288
+    movdqu %xmm8, 272(%rbp)
+    .seh_savexmm %xmm8, 272
+    movdqu %xmm9, 256(%rbp)
+    .seh_savexmm %xmm9, 256
+    movdqu %xmm10, 240(%rbp)
+    .seh_savexmm %xmm10, 240
+    movdqu %xmm11, 224(%rbp)
+    .seh_savexmm %xmm11, 224
+    movdqu %xmm12, 208(%rbp)
+    .seh_savexmm %xmm12, 208
+    movdqu %xmm13, 192(%rbp)
+    .seh_savexmm %xmm13, 192
+    movdqu %xmm14, 176(%rbp)
+    .seh_savexmm %xmm14, 176
+    movdqu %xmm15, 160(%rbp)
+    .seh_savexmm %xmm15, 160
+    movq %rbx, 144(%rbp)
+    .seh_savereg %rbx, 144
+    movq %r12, 136(%rbp)
+    .seh_savereg %r12, 136
+    movq %r13, 128(%rbp)
+    .seh_savereg %r13, 128
     .seh_endprologue
-    movq %rcx, 368(%rbp)
-    movq %rdx, 376(%rbp)
-    movq %r8, 384(%rbp)
-    movq %r9, 392(%rbp)
-    movq 376(%rbp), %rax
-    movq %rax, 96(%rbp)
-    movq 384(%rbp), %rax
-    movl %eax, 80(%rbp)
-    leaq 96(%rbp), %r10
+    movq %rcx, 352(%rbp)
+    movq %rdx, 360(%rbp)
+    movq %r8, 368(%rbp)
+    movq %r9, 376(%rbp)
+    movq 360(%rbp), %rax
+    movq %rax, 88(%rbp)
+    movq 368(%rbp), %rax
+    movl %eax, 72(%rbp)
+    leaq 88(%rbp), %r10
     movq (%r10), %rbx
     subq $32, %rsp
     movq %rbx, %rax
     movq %rax, 8(%rsp)
-    leaq 40(%rbp), %rax
+    leaq 32(%rbp), %rax
     movq %rax, (%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
     call lb_net_SocketHandle_require
     addq $32, %rsp
-    leaq 40(%rbp), %r12
+    leaq 32(%rbp), %r12
     movq $32, %rcx
     movq %r12, %rbx
     addq %rcx, %rbx
@@ -2558,7 +2540,7 @@ lb_net_Datagram_18set_receive_buffer:
     movq $8, %rcx
     movq %r12, %rbx
     addq %rcx, %rbx
-    leaq 104(%rbp), %r13
+    leaq 96(%rbp), %r13
     movq %rbx, %r10
     movq %r13, %r11
     movups 0(%r10), %xmm8
@@ -2572,7 +2554,7 @@ lb_net_Datagram_18set_receive_buffer:
     movq %rbx, %r10
     movb %al, (%r10)
     movq %r13, %rsi
-    movq 168(%rbp), %rdi
+    movq 152(%rbp), %rdi
     movq $32, %rdx
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -2580,44 +2562,40 @@ lb_net_Datagram_18set_receive_buffer:
     subq $32, %rsp
     call memcpy
     addq $32, %rsp
-    movq 168(%rbp), %rax
-    movq 344(%rbp), %rdi
-    movq 336(%rbp), %rsi
-    movdqu 320(%rbp), %xmm6
-    movdqu 304(%rbp), %xmm7
-    movdqu 288(%rbp), %xmm8
-    movdqu 272(%rbp), %xmm9
-    movdqu 256(%rbp), %xmm10
-    movdqu 240(%rbp), %xmm11
-    movdqu 224(%rbp), %xmm12
-    movdqu 208(%rbp), %xmm13
-    movdqu 192(%rbp), %xmm14
-    movdqu 176(%rbp), %xmm15
-    movq 160(%rbp), %rbx
-    movq 152(%rbp), %r12
-    movq 144(%rbp), %r13
-    movq 136(%rbp), %r14
-    leaq 352(%rbp), %rsp
+    movq 152(%rbp), %rax
+    movq 328(%rbp), %rdi
+    movq 320(%rbp), %rsi
+    movdqu 304(%rbp), %xmm6
+    movdqu 288(%rbp), %xmm7
+    movdqu 272(%rbp), %xmm8
+    movdqu 256(%rbp), %xmm9
+    movdqu 240(%rbp), %xmm10
+    movdqu 224(%rbp), %xmm11
+    movdqu 208(%rbp), %xmm12
+    movdqu 192(%rbp), %xmm13
+    movdqu 176(%rbp), %xmm14
+    movdqu 160(%rbp), %xmm15
+    movq 144(%rbp), %rbx
+    movq 136(%rbp), %r12
+    movq 128(%rbp), %r13
+    leaq 336(%rbp), %rsp
     popq %rbp
     ret
 .L8_3:
 .L8_1:
     movq %r12, %r10
     movq (%r10), %rbx
-    leaq lb_net_21receive_buffer_option(%rip), %r13
+    leaq 72(%rbp), %r13
     movq %r13, %r10
     movslq (%r10), %r13
-    leaq 80(%rbp), %r14
-    movq %r14, %r10
-    movslq (%r10), %r14
     subq $32, %rsp
     movq %rbx, %rax
     movq %rax, 8(%rsp)
-    movl %r13d, %eax
+    movl $4098, %eax
     movq %rax, 16(%rsp)
-    movl %r14d, %eax
+    movl %r13d, %eax
     movq %rax, 24(%rsp)
-    leaq 8(%rbp), %rax
+    leaq 0(%rbp), %rax
     movq %rax, (%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
@@ -2625,7 +2603,7 @@ lb_net_Datagram_18set_receive_buffer:
     movq 24(%rsp), %r9
     call lb_net_17set_socket_buffer
     addq $32, %rsp
-    leaq 8(%rbp), %r13
+    leaq 0(%rbp), %r13
     movq $24, %rcx
     movq %r13, %rbx
     addq %rcx, %rbx
@@ -2635,7 +2613,7 @@ lb_net_Datagram_18set_receive_buffer:
     jne .L8_5
     jmp .L8_4
 .L8_5:
-    leaq 104(%rbp), %rbx
+    leaq 96(%rbp), %rbx
     movq %r13, %r10
     movq %rbx, %r11
     movups 0(%r10), %xmm8
@@ -2649,7 +2627,7 @@ lb_net_Datagram_18set_receive_buffer:
     movq %r12, %r10
     movb %al, (%r10)
     movq %rbx, %rsi
-    movq 168(%rbp), %rdi
+    movq 152(%rbp), %rdi
     movq $32, %rdx
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -2657,29 +2635,28 @@ lb_net_Datagram_18set_receive_buffer:
     subq $32, %rsp
     call memcpy
     addq $32, %rsp
-    movq 168(%rbp), %rax
-    movq 344(%rbp), %rdi
-    movq 336(%rbp), %rsi
-    movdqu 320(%rbp), %xmm6
-    movdqu 304(%rbp), %xmm7
-    movdqu 288(%rbp), %xmm8
-    movdqu 272(%rbp), %xmm9
-    movdqu 256(%rbp), %xmm10
-    movdqu 240(%rbp), %xmm11
-    movdqu 224(%rbp), %xmm12
-    movdqu 208(%rbp), %xmm13
-    movdqu 192(%rbp), %xmm14
-    movdqu 176(%rbp), %xmm15
-    movq 160(%rbp), %rbx
-    movq 152(%rbp), %r12
-    movq 144(%rbp), %r13
-    movq 136(%rbp), %r14
-    leaq 352(%rbp), %rsp
+    movq 152(%rbp), %rax
+    movq 328(%rbp), %rdi
+    movq 320(%rbp), %rsi
+    movdqu 304(%rbp), %xmm6
+    movdqu 288(%rbp), %xmm7
+    movdqu 272(%rbp), %xmm8
+    movdqu 256(%rbp), %xmm9
+    movdqu 240(%rbp), %xmm10
+    movdqu 224(%rbp), %xmm11
+    movdqu 208(%rbp), %xmm12
+    movdqu 192(%rbp), %xmm13
+    movdqu 176(%rbp), %xmm14
+    movdqu 160(%rbp), %xmm15
+    movq 144(%rbp), %rbx
+    movq 136(%rbp), %r12
+    movq 128(%rbp), %r13
+    leaq 336(%rbp), %rsp
     popq %rbp
     ret
 .L8_6:
 .L8_4:
-    leaq 104(%rbp), %rbx
+    leaq 96(%rbp), %rbx
     movq $24, %rcx
     movq %rbx, %r12
     addq %rcx, %r12
@@ -2687,7 +2664,7 @@ lb_net_Datagram_18set_receive_buffer:
     movq %r12, %r10
     movb %al, (%r10)
     movq %rbx, %rsi
-    movq 168(%rbp), %rdi
+    movq 152(%rbp), %rdi
     movq $32, %rdx
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -2695,24 +2672,23 @@ lb_net_Datagram_18set_receive_buffer:
     subq $32, %rsp
     call memcpy
     addq $32, %rsp
-    movq 168(%rbp), %rax
-    movq 344(%rbp), %rdi
-    movq 336(%rbp), %rsi
-    movdqu 320(%rbp), %xmm6
-    movdqu 304(%rbp), %xmm7
-    movdqu 288(%rbp), %xmm8
-    movdqu 272(%rbp), %xmm9
-    movdqu 256(%rbp), %xmm10
-    movdqu 240(%rbp), %xmm11
-    movdqu 224(%rbp), %xmm12
-    movdqu 208(%rbp), %xmm13
-    movdqu 192(%rbp), %xmm14
-    movdqu 176(%rbp), %xmm15
-    movq 160(%rbp), %rbx
-    movq 152(%rbp), %r12
-    movq 144(%rbp), %r13
-    movq 136(%rbp), %r14
-    leaq 352(%rbp), %rsp
+    movq 152(%rbp), %rax
+    movq 328(%rbp), %rdi
+    movq 320(%rbp), %rsi
+    movdqu 304(%rbp), %xmm6
+    movdqu 288(%rbp), %xmm7
+    movdqu 272(%rbp), %xmm8
+    movdqu 256(%rbp), %xmm9
+    movdqu 240(%rbp), %xmm10
+    movdqu 224(%rbp), %xmm11
+    movdqu 208(%rbp), %xmm12
+    movdqu 192(%rbp), %xmm13
+    movdqu 176(%rbp), %xmm14
+    movdqu 160(%rbp), %xmm15
+    movq 144(%rbp), %rbx
+    movq 136(%rbp), %r12
+    movq 128(%rbp), %r13
+    leaq 336(%rbp), %rsp
     popq %rbp
     ret
     .seh_endproc
@@ -2840,18 +2816,12 @@ lb_net_Datagram_14receive_buffer:
 .L9_1:
     movq %r12, %r10
     movq (%r10), %rbx
-    leaq lb_net_12socket_level(%rip), %r13
-    movq %r13, %r10
-    movslq (%r10), %r13
-    leaq lb_net_21receive_buffer_option(%rip), %r14
-    movq %r14, %r10
-    movslq (%r10), %r14
     subq $32, %rsp
     movq %rbx, %rax
     movq %rax, 8(%rsp)
-    movl %r13d, %eax
+    movl $65535, %eax
     movq %rax, 16(%rsp)
-    movl %r14d, %eax
+    movl $4098, %eax
     movq %rax, 24(%rsp)
     leaq 8(%rbp), %rax
     movq %rax, (%rsp)
@@ -2978,64 +2948,62 @@ lb_net_Datagram_15set_send_buffer:
     .seh_proc lb_net_Datagram_15set_send_buffer
     pushq %rbp
     .seh_pushreg %rbp
-    subq $352, %rsp
-    .seh_stackalloc 352
+    subq $336, %rsp
+    .seh_stackalloc 336
     movq %rsp, %rbp
     .seh_setframe %rbp, 0
-    movq %rcx, 168(%rbp)
-    movq %rdi, 344(%rbp)
-    .seh_savereg %rdi, 344
-    movq %rsi, 336(%rbp)
-    .seh_savereg %rsi, 336
-    movdqu %xmm6, 320(%rbp)
-    .seh_savexmm %xmm6, 320
-    movdqu %xmm7, 304(%rbp)
-    .seh_savexmm %xmm7, 304
-    movdqu %xmm8, 288(%rbp)
-    .seh_savexmm %xmm8, 288
-    movdqu %xmm9, 272(%rbp)
-    .seh_savexmm %xmm9, 272
-    movdqu %xmm10, 256(%rbp)
-    .seh_savexmm %xmm10, 256
-    movdqu %xmm11, 240(%rbp)
-    .seh_savexmm %xmm11, 240
-    movdqu %xmm12, 224(%rbp)
-    .seh_savexmm %xmm12, 224
-    movdqu %xmm13, 208(%rbp)
-    .seh_savexmm %xmm13, 208
-    movdqu %xmm14, 192(%rbp)
-    .seh_savexmm %xmm14, 192
-    movdqu %xmm15, 176(%rbp)
-    .seh_savexmm %xmm15, 176
-    movq %rbx, 160(%rbp)
-    .seh_savereg %rbx, 160
-    movq %r12, 152(%rbp)
-    .seh_savereg %r12, 152
-    movq %r13, 144(%rbp)
-    .seh_savereg %r13, 144
-    movq %r14, 136(%rbp)
-    .seh_savereg %r14, 136
+    movq %rcx, 152(%rbp)
+    movq %rdi, 328(%rbp)
+    .seh_savereg %rdi, 328
+    movq %rsi, 320(%rbp)
+    .seh_savereg %rsi, 320
+    movdqu %xmm6, 304(%rbp)
+    .seh_savexmm %xmm6, 304
+    movdqu %xmm7, 288(%rbp)
+    .seh_savexmm %xmm7, 288
+    movdqu %xmm8, 272(%rbp)
+    .seh_savexmm %xmm8, 272
+    movdqu %xmm9, 256(%rbp)
+    .seh_savexmm %xmm9, 256
+    movdqu %xmm10, 240(%rbp)
+    .seh_savexmm %xmm10, 240
+    movdqu %xmm11, 224(%rbp)
+    .seh_savexmm %xmm11, 224
+    movdqu %xmm12, 208(%rbp)
+    .seh_savexmm %xmm12, 208
+    movdqu %xmm13, 192(%rbp)
+    .seh_savexmm %xmm13, 192
+    movdqu %xmm14, 176(%rbp)
+    .seh_savexmm %xmm14, 176
+    movdqu %xmm15, 160(%rbp)
+    .seh_savexmm %xmm15, 160
+    movq %rbx, 144(%rbp)
+    .seh_savereg %rbx, 144
+    movq %r12, 136(%rbp)
+    .seh_savereg %r12, 136
+    movq %r13, 128(%rbp)
+    .seh_savereg %r13, 128
     .seh_endprologue
-    movq %rcx, 368(%rbp)
-    movq %rdx, 376(%rbp)
-    movq %r8, 384(%rbp)
-    movq %r9, 392(%rbp)
-    movq 376(%rbp), %rax
-    movq %rax, 96(%rbp)
-    movq 384(%rbp), %rax
-    movl %eax, 80(%rbp)
-    leaq 96(%rbp), %r10
+    movq %rcx, 352(%rbp)
+    movq %rdx, 360(%rbp)
+    movq %r8, 368(%rbp)
+    movq %r9, 376(%rbp)
+    movq 360(%rbp), %rax
+    movq %rax, 88(%rbp)
+    movq 368(%rbp), %rax
+    movl %eax, 72(%rbp)
+    leaq 88(%rbp), %r10
     movq (%r10), %rbx
     subq $32, %rsp
     movq %rbx, %rax
     movq %rax, 8(%rsp)
-    leaq 40(%rbp), %rax
+    leaq 32(%rbp), %rax
     movq %rax, (%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
     call lb_net_SocketHandle_require
     addq $32, %rsp
-    leaq 40(%rbp), %r12
+    leaq 32(%rbp), %r12
     movq $32, %rcx
     movq %r12, %rbx
     addq %rcx, %rbx
@@ -3048,7 +3016,7 @@ lb_net_Datagram_15set_send_buffer:
     movq $8, %rcx
     movq %r12, %rbx
     addq %rcx, %rbx
-    leaq 104(%rbp), %r13
+    leaq 96(%rbp), %r13
     movq %rbx, %r10
     movq %r13, %r11
     movups 0(%r10), %xmm8
@@ -3062,7 +3030,7 @@ lb_net_Datagram_15set_send_buffer:
     movq %rbx, %r10
     movb %al, (%r10)
     movq %r13, %rsi
-    movq 168(%rbp), %rdi
+    movq 152(%rbp), %rdi
     movq $32, %rdx
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -3070,44 +3038,40 @@ lb_net_Datagram_15set_send_buffer:
     subq $32, %rsp
     call memcpy
     addq $32, %rsp
-    movq 168(%rbp), %rax
-    movq 344(%rbp), %rdi
-    movq 336(%rbp), %rsi
-    movdqu 320(%rbp), %xmm6
-    movdqu 304(%rbp), %xmm7
-    movdqu 288(%rbp), %xmm8
-    movdqu 272(%rbp), %xmm9
-    movdqu 256(%rbp), %xmm10
-    movdqu 240(%rbp), %xmm11
-    movdqu 224(%rbp), %xmm12
-    movdqu 208(%rbp), %xmm13
-    movdqu 192(%rbp), %xmm14
-    movdqu 176(%rbp), %xmm15
-    movq 160(%rbp), %rbx
-    movq 152(%rbp), %r12
-    movq 144(%rbp), %r13
-    movq 136(%rbp), %r14
-    leaq 352(%rbp), %rsp
+    movq 152(%rbp), %rax
+    movq 328(%rbp), %rdi
+    movq 320(%rbp), %rsi
+    movdqu 304(%rbp), %xmm6
+    movdqu 288(%rbp), %xmm7
+    movdqu 272(%rbp), %xmm8
+    movdqu 256(%rbp), %xmm9
+    movdqu 240(%rbp), %xmm10
+    movdqu 224(%rbp), %xmm11
+    movdqu 208(%rbp), %xmm12
+    movdqu 192(%rbp), %xmm13
+    movdqu 176(%rbp), %xmm14
+    movdqu 160(%rbp), %xmm15
+    movq 144(%rbp), %rbx
+    movq 136(%rbp), %r12
+    movq 128(%rbp), %r13
+    leaq 336(%rbp), %rsp
     popq %rbp
     ret
 .L10_3:
 .L10_1:
     movq %r12, %r10
     movq (%r10), %rbx
-    leaq lb_net_18send_buffer_option(%rip), %r13
+    leaq 72(%rbp), %r13
     movq %r13, %r10
     movslq (%r10), %r13
-    leaq 80(%rbp), %r14
-    movq %r14, %r10
-    movslq (%r10), %r14
     subq $32, %rsp
     movq %rbx, %rax
     movq %rax, 8(%rsp)
-    movl %r13d, %eax
+    movl $4097, %eax
     movq %rax, 16(%rsp)
-    movl %r14d, %eax
+    movl %r13d, %eax
     movq %rax, 24(%rsp)
-    leaq 8(%rbp), %rax
+    leaq 0(%rbp), %rax
     movq %rax, (%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
@@ -3115,7 +3079,7 @@ lb_net_Datagram_15set_send_buffer:
     movq 24(%rsp), %r9
     call lb_net_17set_socket_buffer
     addq $32, %rsp
-    leaq 8(%rbp), %r13
+    leaq 0(%rbp), %r13
     movq $24, %rcx
     movq %r13, %rbx
     addq %rcx, %rbx
@@ -3125,7 +3089,7 @@ lb_net_Datagram_15set_send_buffer:
     jne .L10_5
     jmp .L10_4
 .L10_5:
-    leaq 104(%rbp), %rbx
+    leaq 96(%rbp), %rbx
     movq %r13, %r10
     movq %rbx, %r11
     movups 0(%r10), %xmm8
@@ -3139,7 +3103,7 @@ lb_net_Datagram_15set_send_buffer:
     movq %r12, %r10
     movb %al, (%r10)
     movq %rbx, %rsi
-    movq 168(%rbp), %rdi
+    movq 152(%rbp), %rdi
     movq $32, %rdx
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -3147,29 +3111,28 @@ lb_net_Datagram_15set_send_buffer:
     subq $32, %rsp
     call memcpy
     addq $32, %rsp
-    movq 168(%rbp), %rax
-    movq 344(%rbp), %rdi
-    movq 336(%rbp), %rsi
-    movdqu 320(%rbp), %xmm6
-    movdqu 304(%rbp), %xmm7
-    movdqu 288(%rbp), %xmm8
-    movdqu 272(%rbp), %xmm9
-    movdqu 256(%rbp), %xmm10
-    movdqu 240(%rbp), %xmm11
-    movdqu 224(%rbp), %xmm12
-    movdqu 208(%rbp), %xmm13
-    movdqu 192(%rbp), %xmm14
-    movdqu 176(%rbp), %xmm15
-    movq 160(%rbp), %rbx
-    movq 152(%rbp), %r12
-    movq 144(%rbp), %r13
-    movq 136(%rbp), %r14
-    leaq 352(%rbp), %rsp
+    movq 152(%rbp), %rax
+    movq 328(%rbp), %rdi
+    movq 320(%rbp), %rsi
+    movdqu 304(%rbp), %xmm6
+    movdqu 288(%rbp), %xmm7
+    movdqu 272(%rbp), %xmm8
+    movdqu 256(%rbp), %xmm9
+    movdqu 240(%rbp), %xmm10
+    movdqu 224(%rbp), %xmm11
+    movdqu 208(%rbp), %xmm12
+    movdqu 192(%rbp), %xmm13
+    movdqu 176(%rbp), %xmm14
+    movdqu 160(%rbp), %xmm15
+    movq 144(%rbp), %rbx
+    movq 136(%rbp), %r12
+    movq 128(%rbp), %r13
+    leaq 336(%rbp), %rsp
     popq %rbp
     ret
 .L10_6:
 .L10_4:
-    leaq 104(%rbp), %rbx
+    leaq 96(%rbp), %rbx
     movq $24, %rcx
     movq %rbx, %r12
     addq %rcx, %r12
@@ -3177,7 +3140,7 @@ lb_net_Datagram_15set_send_buffer:
     movq %r12, %r10
     movb %al, (%r10)
     movq %rbx, %rsi
-    movq 168(%rbp), %rdi
+    movq 152(%rbp), %rdi
     movq $32, %rdx
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -3185,24 +3148,23 @@ lb_net_Datagram_15set_send_buffer:
     subq $32, %rsp
     call memcpy
     addq $32, %rsp
-    movq 168(%rbp), %rax
-    movq 344(%rbp), %rdi
-    movq 336(%rbp), %rsi
-    movdqu 320(%rbp), %xmm6
-    movdqu 304(%rbp), %xmm7
-    movdqu 288(%rbp), %xmm8
-    movdqu 272(%rbp), %xmm9
-    movdqu 256(%rbp), %xmm10
-    movdqu 240(%rbp), %xmm11
-    movdqu 224(%rbp), %xmm12
-    movdqu 208(%rbp), %xmm13
-    movdqu 192(%rbp), %xmm14
-    movdqu 176(%rbp), %xmm15
-    movq 160(%rbp), %rbx
-    movq 152(%rbp), %r12
-    movq 144(%rbp), %r13
-    movq 136(%rbp), %r14
-    leaq 352(%rbp), %rsp
+    movq 152(%rbp), %rax
+    movq 328(%rbp), %rdi
+    movq 320(%rbp), %rsi
+    movdqu 304(%rbp), %xmm6
+    movdqu 288(%rbp), %xmm7
+    movdqu 272(%rbp), %xmm8
+    movdqu 256(%rbp), %xmm9
+    movdqu 240(%rbp), %xmm10
+    movdqu 224(%rbp), %xmm11
+    movdqu 208(%rbp), %xmm12
+    movdqu 192(%rbp), %xmm13
+    movdqu 176(%rbp), %xmm14
+    movdqu 160(%rbp), %xmm15
+    movq 144(%rbp), %rbx
+    movq 136(%rbp), %r12
+    movq 128(%rbp), %r13
+    leaq 336(%rbp), %rsp
     popq %rbp
     ret
     .seh_endproc
@@ -3330,18 +3292,12 @@ lb_net_Datagram_11send_buffer:
 .L11_1:
     movq %r12, %r10
     movq (%r10), %rbx
-    leaq lb_net_12socket_level(%rip), %r13
-    movq %r13, %r10
-    movslq (%r10), %r13
-    leaq lb_net_18send_buffer_option(%rip), %r14
-    movq %r14, %r10
-    movslq (%r10), %r14
     subq $32, %rsp
     movq %rbx, %rax
     movq %rax, 8(%rsp)
-    movl %r13d, %eax
+    movl $65535, %eax
     movq %rax, 16(%rsp)
-    movl %r14d, %eax
+    movl $4097, %eax
     movq %rax, 24(%rsp)
     leaq 8(%rbp), %rax
     movq %rax, (%rsp)

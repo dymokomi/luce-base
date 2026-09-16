@@ -23,43 +23,24 @@ _lb_paths_separator:
     ldrb w14, [x14]
     movz x10, #47
     cmp w14, w10
-    cset w15, eq
-    cbnz w15, L1_6
+    cset w14, eq
+    cbnz w14, L1_6
     b L1_1
 L1_6:
-    mov w14, w15
+    mov w15, w14
     b L1_2
 L1_1:
-    adrp x15, _lb_platform_windows@PAGE
-    add x15, x15, _lb_platform_windows@PAGEOFF
-    ldrb w15, [x15]
-    cbnz w15, L1_3
-    b L1_7
-L1_7:
-    mov w14, w15
-    b L1_4
-L1_3:
-    movz x10, #92
-    cmp w14, w10
-    cset w15, eq
-    mov w14, w15
 L1_4:
-    and w15, w14, #255
-    mov w14, w15
+    mov x9, #0
+    mov w15, w9
 L1_2:
-    and w15, w14, #255
-    and w15, w15, #255
-    mov x9, x15
+    and w14, w15, #255
+    and w14, w14, #255
+    mov x9, x14
     mov x0, x9
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
-L1_5:
-    adrp x0, l_text_1@PAGE
-    add x0, x0, l_text_1@PAGEOFF
-    adrp x1, l_text_0@PAGE
-    add x1, x1, l_text_0@PAGEOFF
-    bl _lb_core_7trap_at
 
     .p2align 2
     .globl _lb_paths_14last_separator

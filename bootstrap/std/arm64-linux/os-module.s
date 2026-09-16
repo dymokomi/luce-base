@@ -7,89 +7,64 @@ lb_os_module_0init:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
     sub sp, sp, #32
-    str x19, [sp, #8]
     adrp x14, lb_os_failed
     add x14, x14, :lo12:lb_os_failed
     movz x9, #12
     movk x9, #3178, lsl #16
     str w9, [x14]
-    adrp x14, lb_platform_arm64
-    add x14, x14, :lo12:lb_platform_arm64
-    ldrb w14, [x14]
-    adrp x15, lb_os_arm64
-    add x15, x15, :lo12:lb_os_arm64
-    strb w14, [x15]
-    adrp x14, lb_platform_6x86_64
-    add x14, x14, :lo12:lb_platform_6x86_64
-    ldrb w14, [x14]
-    adrp x15, lb_os_6x86_64
-    add x15, x15, :lo12:lb_os_6x86_64
-    strb w14, [x15]
-    adrp x14, lb_platform_wasm32
-    add x14, x14, :lo12:lb_platform_wasm32
-    ldrb w14, [x14]
-    adrp x15, lb_os_wasm32
-    add x15, x15, :lo12:lb_os_wasm32
-    strb w14, [x15]
-    adrp x19, lb_platform_macos
-    add x19, x19, :lo12:lb_platform_macos
-    ldrb w14, [x19]
-    adrp x15, lb_os_macos
-    add x15, x15, :lo12:lb_os_macos
-    strb w14, [x15]
-    adrp x14, lb_platform_linux
-    add x14, x14, :lo12:lb_platform_linux
-    ldrb w14, [x14]
-    adrp x15, lb_os_linux
-    add x15, x15, :lo12:lb_os_linux
-    strb w14, [x15]
-    adrp x14, lb_platform_windows
-    add x14, x14, :lo12:lb_platform_windows
-    ldrb w14, [x14]
-    adrp x15, lb_os_windows
-    add x15, x15, :lo12:lb_os_windows
-    strb w14, [x15]
-    adrp x14, lb_platform_posix
-    add x14, x14, :lo12:lb_platform_posix
-    ldrb w14, [x14]
-    adrp x15, lb_os_posix
-    add x15, x15, :lo12:lb_os_posix
-    strb w14, [x15]
-    adrp x14, lb_platform_12pointer_bits
-    add x14, x14, :lo12:lb_platform_12pointer_bits
-    ldr w14, [x14]
-    adrp x15, lb_os_12pointer_bits
-    add x15, x15, :lo12:lb_os_12pointer_bits
-    str w14, [x15]
-    adrp x14, lb_platform_name
-    add x14, x14, :lo12:lb_platform_name
-    adrp x15, lb_os_name
-    add x15, x15, :lo12:lb_os_name
-    mov x10, x14
-    mov x11, x15
+    adrp x14, lb_os_arm64
+    add x14, x14, :lo12:lb_os_arm64
+    movz x9, #1
+    strb w9, [x14]
+    adrp x14, lb_os_6x86_64
+    add x14, x14, :lo12:lb_os_6x86_64
+    mov x9, #0
+    strb w9, [x14]
+    adrp x14, lb_os_wasm32
+    add x14, x14, :lo12:lb_os_wasm32
+    mov x9, #0
+    strb w9, [x14]
+    adrp x14, lb_os_macos
+    add x14, x14, :lo12:lb_os_macos
+    mov x9, #0
+    strb w9, [x14]
+    adrp x14, lb_os_linux
+    add x14, x14, :lo12:lb_os_linux
+    movz x9, #1
+    strb w9, [x14]
+    adrp x14, lb_os_windows
+    add x14, x14, :lo12:lb_os_windows
+    mov x9, #0
+    strb w9, [x14]
+    adrp x14, lb_os_posix
+    add x14, x14, :lo12:lb_os_posix
+    movz x9, #1
+    strb w9, [x14]
+    adrp x14, lb_os_12pointer_bits
+    add x14, x14, :lo12:lb_os_12pointer_bits
+    movz x9, #64
+    str w9, [x14]
+    adrp x14, .Ltext_0
+    add x14, x14, :lo12:.Ltext_0
+    sub x15, x29, #32
+    str x14, [x15]
+    add x14, x15, #8
+    movz x9, #11
+    str x9, [x14]
+    adrp x14, lb_os_name
+    add x14, x14, :lo12:lb_os_name
+    mov x10, x15
+    mov x11, x14
     ldp x16, x17, [x10, #0]
     stp x16, x17, [x11, #0]
-    adrp x14, lb_platform_9cpu_level
-    add x14, x14, :lo12:lb_platform_9cpu_level
-    ldr w14, [x14]
-    adrp x15, lb_os_9cpu_level
-    add x15, x15, :lo12:lb_os_9cpu_level
-    str w14, [x15]
-    ldrb w14, [x19]
-    cbnz w14, .L0_1
-    b .L0_2
-.L0_1:
-    movz x9, #58
-    mov w14, w9
-    b .L0_3
-.L0_2:
+    adrp x14, lb_os_9cpu_level
+    add x14, x14, :lo12:lb_os_9cpu_level
+    movz x9, #1
+    str w9, [x14]
+    adrp x14, lb_os_17processors_online
+    add x14, x14, :lo12:lb_os_17processors_online
     movz x9, #84
-    mov w14, w9
-.L0_3:
-    adrp x15, lb_os_17processors_online
-    add x15, x15, :lo12:lb_os_17processors_online
-    str w14, [x15]
-    ldr x19, [sp, #8]
+    str w9, [x14]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -136,10 +111,10 @@ lb_os_12random_bytes:
     add x12, x14, #1
     cmp x21, x12
     b.lo 1f
-    adrp x0, .Ltext_1
-    add x0, x0, :lo12:.Ltext_1
-    adrp x1, .Ltext_35
-    add x1, x1, :lo12:.Ltext_35
+    adrp x0, .Ltext_2
+    add x0, x0, :lo12:.Ltext_2
+    adrp x1, .Ltext_36
+    add x1, x1, :lo12:.Ltext_36
     bl lb_core_7trap_at
 1:
     add x15, x15, x21
@@ -159,8 +134,8 @@ lb_os_12random_bytes:
     add x14, x14, :lo12:lb_os_failed
     ldr w14, [x14]
     str w14, [x19]
-    adrp x14, .Ltext_2
-    add x14, x14, :lo12:.Ltext_2
+    adrp x14, .Ltext_3
+    add x14, x14, :lo12:.Ltext_3
     sub x15, x29, #120
     str x14, [x15]
     add x14, x15, #8
@@ -196,10 +171,10 @@ lb_os_12random_bytes:
     mov x10, x22
     adds x9, x9, x10
     b.cc 1f
-    adrp x0, .Ltext_3
-    add x0, x0, :lo12:.Ltext_3
-    adrp x1, .Ltext_45
-    add x1, x1, :lo12:.Ltext_45
+    adrp x0, .Ltext_4
+    add x0, x0, :lo12:.Ltext_4
+    adrp x1, .Ltext_46
+    add x1, x1, :lo12:.Ltext_46
     bl lb_core_7trap_at
 1:
     mov x14, x9
@@ -240,10 +215,10 @@ lb_os_17cpu_level_running:
     ldp x29, x30, [sp], #16
     ret
 .L2_1:
-    adrp x0, .Ltext_5
-    add x0, x0, :lo12:.Ltext_5
-    adrp x1, .Ltext_4
-    add x1, x1, :lo12:.Ltext_4
+    adrp x0, .Ltext_6
+    add x0, x0, :lo12:.Ltext_6
+    adrp x1, .Ltext_5
+    add x1, x1, :lo12:.Ltext_5
     bl lb_core_7trap_at
 
     .size lb_os_17cpu_level_running, .-lb_os_17cpu_level_running
@@ -255,10 +230,7 @@ lb_os_cpus:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
     sub sp, sp, #16
-    adrp x14, lb_os_17processors_online
-    add x14, x14, :lo12:lb_os_17processors_online
-    ldrsw x14, [x14]
-    mov x0, x14
+    movz x0, #84
     bl sysconf
     mov x14, x0
     mov x10, #0
@@ -277,10 +249,10 @@ lb_os_cpus:
     ldp x29, x30, [sp], #16
     ret
 .L3_4:
-    adrp x0, .Ltext_15
-    add x0, x0, :lo12:.Ltext_15
-    adrp x1, .Ltext_4
-    add x1, x1, :lo12:.Ltext_4
+    adrp x0, .Ltext_16
+    add x0, x0, :lo12:.Ltext_16
+    adrp x1, .Ltext_5
+    add x1, x1, :lo12:.Ltext_5
     bl lb_core_7trap_at
 
     .size lb_os_cpus, .-lb_os_cpus
@@ -301,10 +273,10 @@ lb_os_9page_size:
     ldp x29, x30, [sp], #16
     ret
 .L4_1:
-    adrp x0, .Ltext_16
-    add x0, x0, :lo12:.Ltext_16
-    adrp x1, .Ltext_4
-    add x1, x1, :lo12:.Ltext_4
+    adrp x0, .Ltext_17
+    add x0, x0, :lo12:.Ltext_17
+    adrp x1, .Ltext_5
+    add x1, x1, :lo12:.Ltext_5
     bl lb_core_7trap_at
 
     .size lb_os_9page_size, .-lb_os_9page_size
@@ -395,10 +367,10 @@ lb_os_env:
     ldp x29, x30, [sp], #16
     ret
 .L5_5:
-    adrp x0, .Ltext_17
-    add x0, x0, :lo12:.Ltext_17
-    adrp x1, .Ltext_4
-    add x1, x1, :lo12:.Ltext_4
+    adrp x0, .Ltext_18
+    add x0, x0, :lo12:.Ltext_18
+    adrp x1, .Ltext_5
+    add x1, x1, :lo12:.Ltext_5
     bl lb_core_7trap_at
 
     .size lb_os_env, .-lb_os_env
@@ -438,8 +410,8 @@ lb_os_7set_env:
     add x14, x14, :lo12:lb_os_failed
     ldr w14, [x14]
     str w14, [x19]
-    adrp x14, .Ltext_18
-    add x14, x14, :lo12:.Ltext_18
+    adrp x14, .Ltext_19
+    add x14, x14, :lo12:.Ltext_19
     sub x15, x29, #112
     str x14, [x15]
     add x14, x15, #8
@@ -515,8 +487,8 @@ lb_os_9unset_env:
     add x14, x14, :lo12:lb_os_failed
     ldr w14, [x14]
     str w14, [x19]
-    adrp x14, .Ltext_19
-    add x14, x14, :lo12:.Ltext_19
+    adrp x14, .Ltext_20
+    add x14, x14, :lo12:.Ltext_20
     sub x15, x29, #96
     str x14, [x15]
     add x14, x15, #8
@@ -593,10 +565,10 @@ lb_os_cwd:
     cbnz x15, .L8_4
     b .L8_5
 .L8_5:
-    adrp x0, .Ltext_22
-    add x0, x0, :lo12:.Ltext_22
-    adrp x1, .Ltext_21
-    add x1, x1, :lo12:.Ltext_21
+    adrp x0, .Ltext_23
+    add x0, x0, :lo12:.Ltext_23
+    adrp x1, .Ltext_22
+    add x1, x1, :lo12:.Ltext_22
     bl lb_core_7trap_at
 .L8_4:
     ldr x12, [x15]
@@ -623,8 +595,8 @@ lb_os_cwd:
     movz x9, #1
     movk x9, #3178, lsl #16
     str w9, [x14]
-    adrp x15, .Ltext_23
-    add x15, x15, :lo12:.Ltext_23
+    adrp x15, .Ltext_24
+    add x15, x15, :lo12:.Ltext_24
     add x12, x14, #8
     str x15, [x12]
     add x14, x14, #16
@@ -720,8 +692,8 @@ lb_os_cwd:
     add x15, x15, :lo12:lb_os_failed
     ldr w15, [x15]
     str w15, [x14]
-    adrp x15, .Ltext_25
-    add x15, x15, :lo12:.Ltext_25
+    adrp x15, .Ltext_26
+    add x15, x15, :lo12:.Ltext_26
     sub x12, x29, #248
     str x15, [x12]
     add x15, x12, #8
@@ -759,24 +731,24 @@ lb_os_cwd:
 .L8_17:
     b .L8_19
 .L8_18:
-    adrp x14, .Ltext_4
-    add x14, x14, :lo12:.Ltext_4
+    adrp x14, .Ltext_5
+    add x14, x14, :lo12:.Ltext_5
     sub x15, x29, #264
     str x14, [x15]
     add x14, x15, #8
     movz x9, #11
     str x9, [x14]
-    adrp x14, .Ltext_26
-    add x14, x14, :lo12:.Ltext_26
+    adrp x14, .Ltext_27
+    add x14, x14, :lo12:.Ltext_27
     mov x0, x14
     mov x9, x15
     ldr x1, [x9]
     ldr x2, [x9, #8]
     bl lb_core_12trap_text_at
-    adrp x0, .Ltext_26
-    add x0, x0, :lo12:.Ltext_26
-    adrp x1, .Ltext_4
-    add x1, x1, :lo12:.Ltext_4
+    adrp x0, .Ltext_27
+    add x0, x0, :lo12:.Ltext_27
+    adrp x1, .Ltext_5
+    add x1, x1, :lo12:.Ltext_5
     bl lb_core_7trap_at
 .L8_19:
     mov x0, x25
@@ -843,10 +815,10 @@ lb_os_executable:
     cbnz x15, .L9_4
     b .L9_5
 .L9_5:
-    adrp x0, .Ltext_28
-    add x0, x0, :lo12:.Ltext_28
-    adrp x1, .Ltext_21
-    add x1, x1, :lo12:.Ltext_21
+    adrp x0, .Ltext_29
+    add x0, x0, :lo12:.Ltext_29
+    adrp x1, .Ltext_22
+    add x1, x1, :lo12:.Ltext_22
     bl lb_core_7trap_at
 .L9_4:
     ldr x12, [x15]
@@ -873,8 +845,8 @@ lb_os_executable:
     movz x9, #1
     movk x9, #3178, lsl #16
     str w9, [x14]
-    adrp x15, .Ltext_23
-    add x15, x15, :lo12:.Ltext_23
+    adrp x15, .Ltext_24
+    add x15, x15, :lo12:.Ltext_24
     add x12, x14, #8
     str x15, [x12]
     add x14, x14, #16
@@ -932,8 +904,8 @@ lb_os_executable:
     mov x11, x19
     ldp x16, x17, [x10, #0]
     stp x16, x17, [x11, #0]
-    adrp x14, .Ltext_29
-    add x14, x14, :lo12:.Ltext_29
+    adrp x14, .Ltext_30
+    add x14, x14, :lo12:.Ltext_30
     ldr x23, [x19]
     add x15, x19, #8
     ldr x24, [x15]
@@ -941,10 +913,10 @@ lb_os_executable:
     movz x10, #1
     subs x9, x9, x10
     b.cs 1f
-    adrp x0, .Ltext_30
-    add x0, x0, :lo12:.Ltext_30
-    adrp x1, .Ltext_45
-    add x1, x1, :lo12:.Ltext_45
+    adrp x0, .Ltext_31
+    add x0, x0, :lo12:.Ltext_31
+    adrp x1, .Ltext_46
+    add x1, x1, :lo12:.Ltext_46
     bl lb_core_7trap_at
 1:
     mov x15, x9
@@ -983,8 +955,8 @@ lb_os_executable:
     add x15, x15, :lo12:lb_os_failed
     ldr w15, [x15]
     str w15, [x14]
-    adrp x15, .Ltext_32
-    add x15, x15, :lo12:.Ltext_32
+    adrp x15, .Ltext_33
+    add x15, x15, :lo12:.Ltext_33
     sub x12, x29, #240
     str x15, [x12]
     add x15, x12, #8
@@ -1018,10 +990,10 @@ lb_os_executable:
 .L9_13:
     cmp x14, x24
     b.lo 1f
-    adrp x0, .Ltext_33
-    add x0, x0, :lo12:.Ltext_33
-    adrp x1, .Ltext_35
-    add x1, x1, :lo12:.Ltext_35
+    adrp x0, .Ltext_34
+    add x0, x0, :lo12:.Ltext_34
+    adrp x1, .Ltext_36
+    add x1, x1, :lo12:.Ltext_36
     bl lb_core_7trap_at
 1:
     add x15, x23, x14
@@ -1031,28 +1003,28 @@ lb_os_executable:
     mov x9, #0
     cmp x9, x15
     b.lo 1f
-    adrp x0, .Ltext_34
-    add x0, x0, :lo12:.Ltext_34
-    adrp x1, .Ltext_35
-    add x1, x1, :lo12:.Ltext_35
+    adrp x0, .Ltext_35
+    add x0, x0, :lo12:.Ltext_35
+    adrp x1, .Ltext_36
+    add x1, x1, :lo12:.Ltext_36
     bl lb_core_7trap_at
 1:
     cmp x14, x15
     b.lo 1f
-    adrp x0, .Ltext_34
-    add x0, x0, :lo12:.Ltext_34
-    adrp x1, .Ltext_35
-    add x1, x1, :lo12:.Ltext_35
+    adrp x0, .Ltext_35
+    add x0, x0, :lo12:.Ltext_35
+    adrp x1, .Ltext_36
+    add x1, x1, :lo12:.Ltext_36
     bl lb_core_7trap_at
 1:
     mov x9, #0
     cmp x9, x14
     b.ls .L9_17
 .L9_18:
-    adrp x0, .Ltext_34
-    add x0, x0, :lo12:.Ltext_34
-    adrp x1, .Ltext_35
-    add x1, x1, :lo12:.Ltext_35
+    adrp x0, .Ltext_35
+    add x0, x0, :lo12:.Ltext_35
+    adrp x1, .Ltext_36
+    add x1, x1, :lo12:.Ltext_36
     bl lb_core_7trap_at
 .L9_17:
     sub x15, x29, #256
@@ -1119,8 +1091,8 @@ lb_os_10change_dir:
     add x14, x14, :lo12:lb_os_failed
     ldr w14, [x14]
     str w14, [x19]
-    adrp x14, .Ltext_36
-    add x14, x14, :lo12:.Ltext_36
+    adrp x14, .Ltext_37
+    add x14, x14, :lo12:.Ltext_37
     sub x15, x29, #96
     str x14, [x15]
     add x14, x15, #8
@@ -1182,10 +1154,10 @@ lb_os_pid:
     ldp x29, x30, [sp], #16
     ret
 .L11_1:
-    adrp x0, .Ltext_37
-    add x0, x0, :lo12:.Ltext_37
-    adrp x1, .Ltext_4
-    add x1, x1, :lo12:.Ltext_4
+    adrp x0, .Ltext_38
+    add x0, x0, :lo12:.Ltext_38
+    adrp x1, .Ltext_5
+    add x1, x1, :lo12:.Ltext_5
     bl lb_core_7trap_at
 
     .size lb_os_pid, .-lb_os_pid
@@ -1205,10 +1177,10 @@ lb_os_10parent_pid:
     ldp x29, x30, [sp], #16
     ret
 .L12_1:
-    adrp x0, .Ltext_38
-    add x0, x0, :lo12:.Ltext_38
-    adrp x1, .Ltext_4
-    add x1, x1, :lo12:.Ltext_4
+    adrp x0, .Ltext_39
+    add x0, x0, :lo12:.Ltext_39
+    adrp x1, .Ltext_5
+    add x1, x1, :lo12:.Ltext_5
     bl lb_core_7trap_at
 
     .size lb_os_10parent_pid, .-lb_os_10parent_pid
@@ -1242,10 +1214,10 @@ lb_os_hostname:
     cbnz x15, .L13_4
     b .L13_5
 .L13_5:
-    adrp x0, .Ltext_39
-    add x0, x0, :lo12:.Ltext_39
-    adrp x1, .Ltext_21
-    add x1, x1, :lo12:.Ltext_21
+    adrp x0, .Ltext_40
+    add x0, x0, :lo12:.Ltext_40
+    adrp x1, .Ltext_22
+    add x1, x1, :lo12:.Ltext_22
     bl lb_core_7trap_at
 .L13_4:
     ldr x12, [x15]
@@ -1272,8 +1244,8 @@ lb_os_hostname:
     movz x9, #1
     movk x9, #3178, lsl #16
     str w9, [x14]
-    adrp x15, .Ltext_23
-    add x15, x15, :lo12:.Ltext_23
+    adrp x15, .Ltext_24
+    add x15, x15, :lo12:.Ltext_24
     add x12, x14, #8
     str x15, [x12]
     add x14, x14, #16
@@ -1371,8 +1343,8 @@ lb_os_hostname:
     add x15, x15, :lo12:lb_os_failed
     ldr w15, [x15]
     str w15, [x14]
-    adrp x15, .Ltext_41
-    add x15, x15, :lo12:.Ltext_41
+    adrp x15, .Ltext_42
+    add x15, x15, :lo12:.Ltext_42
     sub x12, x29, #240
     str x15, [x12]
     add x15, x12, #8
@@ -1432,10 +1404,10 @@ lb_os_hostname:
     movz x10, #1
     adds x9, x9, x10
     b.cc 1f
-    adrp x0, .Ltext_43
-    add x0, x0, :lo12:.Ltext_43
-    adrp x1, .Ltext_45
-    add x1, x1, :lo12:.Ltext_45
+    adrp x0, .Ltext_44
+    add x0, x0, :lo12:.Ltext_44
+    adrp x1, .Ltext_46
+    add x1, x1, :lo12:.Ltext_46
     bl lb_core_7trap_at
 1:
     mov x15, x9
@@ -1446,28 +1418,28 @@ lb_os_hostname:
     mov x9, #0
     cmp x9, x15
     b.lo 1f
-    adrp x0, .Ltext_44
-    add x0, x0, :lo12:.Ltext_44
-    adrp x1, .Ltext_35
-    add x1, x1, :lo12:.Ltext_35
+    adrp x0, .Ltext_45
+    add x0, x0, :lo12:.Ltext_45
+    adrp x1, .Ltext_36
+    add x1, x1, :lo12:.Ltext_36
     bl lb_core_7trap_at
 1:
     cmp x14, x15
     b.lo 1f
-    adrp x0, .Ltext_44
-    add x0, x0, :lo12:.Ltext_44
-    adrp x1, .Ltext_35
-    add x1, x1, :lo12:.Ltext_35
+    adrp x0, .Ltext_45
+    add x0, x0, :lo12:.Ltext_45
+    adrp x1, .Ltext_36
+    add x1, x1, :lo12:.Ltext_36
     bl lb_core_7trap_at
 1:
     mov x9, #0
     cmp x9, x14
     b.ls .L13_22
 .L13_23:
-    adrp x0, .Ltext_44
-    add x0, x0, :lo12:.Ltext_44
-    adrp x1, .Ltext_35
-    add x1, x1, :lo12:.Ltext_35
+    adrp x0, .Ltext_45
+    add x0, x0, :lo12:.Ltext_45
+    adrp x1, .Ltext_36
+    add x1, x1, :lo12:.Ltext_36
     bl lb_core_7trap_at
 .L13_22:
     sub x15, x29, #256
@@ -1530,96 +1502,98 @@ lb_os_exit:
 
     .section .rodata
 .Ltext_0:
-    .asciz "src/std/os/module.lucb:29:9"
+    .asciz "arm64-linux"
 .Ltext_1:
-    .asciz "src/std/os/module.lucb:34:13"
+    .asciz "src/std/os/module.lucb:29:9"
 .Ltext_2:
-    .asciz "operating system randomness is unavailable"
+    .asciz "src/std/os/module.lucb:34:13"
 .Ltext_3:
-    .asciz "src/std/os/module.lucb:37:9"
+    .asciz "operating system randomness is unavailable"
 .Ltext_4:
-    .asciz "unreachable"
+    .asciz "src/std/os/module.lucb:37:9"
 .Ltext_5:
-    .asciz "src/std/os/module.lucb:63:5"
+    .asciz "unreachable"
 .Ltext_6:
-    .asciz "shift count out of range"
+    .asciz "src/std/os/module.lucb:63:5"
 .Ltext_7:
-    .asciz "src/std/os/module.lucb:73:5"
+    .asciz "shift count out of range"
 .Ltext_8:
-    .asciz "src/std/os/module.lucb:74:5"
+    .asciz "src/std/os/module.lucb:73:5"
 .Ltext_9:
-    .asciz "src/std/os/module.lucb:75:5"
+    .asciz "src/std/os/module.lucb:74:5"
 .Ltext_10:
-    .asciz "src/std/os/module.lucb:77:5"
+    .asciz "src/std/os/module.lucb:75:5"
 .Ltext_11:
-    .asciz "src/std/os/module.lucb:78:5"
+    .asciz "src/std/os/module.lucb:77:5"
 .Ltext_12:
-    .asciz "src/std/os/module.lucb:79:5"
+    .asciz "src/std/os/module.lucb:78:5"
 .Ltext_13:
-    .asciz "src/std/os/module.lucb:80:5"
+    .asciz "src/std/os/module.lucb:79:5"
 .Ltext_14:
-    .asciz "src/std/os/module.lucb:85:5"
+    .asciz "src/std/os/module.lucb:80:5"
 .Ltext_15:
-    .asciz "src/std/os/module.lucb:96:5"
+    .asciz "src/std/os/module.lucb:85:5"
 .Ltext_16:
-    .asciz "src/std/os/module.lucb:103:5"
+    .asciz "src/std/os/module.lucb:96:5"
 .Ltext_17:
-    .asciz "src/std/os/module.lucb:111:5"
+    .asciz "src/std/os/module.lucb:103:5"
 .Ltext_18:
-    .asciz "the environment variable cannot be set"
+    .asciz "src/std/os/module.lucb:111:5"
 .Ltext_19:
-    .asciz "the environment variable cannot be unset"
+    .asciz "the environment variable cannot be set"
 .Ltext_20:
-    .asciz "memory.exhausted: the allocation size overflows"
+    .asciz "the environment variable cannot be unset"
 .Ltext_21:
-    .asciz "memory.unset"
+    .asciz "memory.exhausted: the allocation size overflows"
 .Ltext_22:
-    .asciz "src/std/os/module.lucb:140:5"
+    .asciz "memory.unset"
 .Ltext_23:
-    .asciz "memory.exhausted"
+    .asciz "src/std/os/module.lucb:140:5"
 .Ltext_24:
-    .asciz "src/std/os/module.lucb:143:9"
+    .asciz "memory.exhausted"
 .Ltext_25:
-    .asciz "the working directory cannot be read"
+    .asciz "src/std/os/module.lucb:143:9"
 .Ltext_26:
-    .asciz "src/std/os/module.lucb:145:5"
+    .asciz "the working directory cannot be read"
 .Ltext_27:
-    .asciz "src/std/os/module.lucb:146:5"
+    .asciz "src/std/os/module.lucb:145:5"
 .Ltext_28:
-    .asciz "src/std/os/module.lucb:153:5"
+    .asciz "src/std/os/module.lucb:146:5"
 .Ltext_29:
-    .asciz "/proc/self/exe"
+    .asciz "src/std/os/module.lucb:153:5"
 .Ltext_30:
-    .asciz "src/std/os/module.lucb:163:9"
+    .asciz "/proc/self/exe"
 .Ltext_31:
-    .asciz "src/std/os/module.lucb:165:13"
+    .asciz "src/std/os/module.lucb:163:9"
 .Ltext_32:
-    .asciz "the executable path cannot be read"
+    .asciz "src/std/os/module.lucb:165:13"
 .Ltext_33:
-    .asciz "src/std/os/module.lucb:168:5"
+    .asciz "the executable path cannot be read"
 .Ltext_34:
-    .asciz "src/std/os/module.lucb:169:5"
+    .asciz "src/std/os/module.lucb:168:5"
 .Ltext_35:
-    .asciz "index out of bounds"
+    .asciz "src/std/os/module.lucb:169:5"
 .Ltext_36:
-    .asciz "the directory cannot be entered"
+    .asciz "index out of bounds"
 .Ltext_37:
-    .asciz "src/std/os/module.lucb:184:5"
+    .asciz "the directory cannot be entered"
 .Ltext_38:
-    .asciz "src/std/os/module.lucb:189:5"
+    .asciz "src/std/os/module.lucb:184:5"
 .Ltext_39:
-    .asciz "src/std/os/module.lucb:199:5"
+    .asciz "src/std/os/module.lucb:189:5"
 .Ltext_40:
-    .asciz "src/std/os/module.lucb:201:9"
+    .asciz "src/std/os/module.lucb:199:5"
 .Ltext_41:
-    .asciz "the host name cannot be read"
+    .asciz "src/std/os/module.lucb:201:9"
 .Ltext_42:
-    .asciz "src/std/os/module.lucb:204:5"
+    .asciz "the host name cannot be read"
 .Ltext_43:
-    .asciz "src/std/os/module.lucb:205:9"
+    .asciz "src/std/os/module.lucb:204:5"
 .Ltext_44:
-    .asciz "src/std/os/module.lucb:206:5"
+    .asciz "src/std/os/module.lucb:205:9"
 .Ltext_45:
+    .asciz "src/std/os/module.lucb:206:5"
+.Ltext_46:
     .asciz "integer overflow"
 
     .section .data.rel.ro,"aw"

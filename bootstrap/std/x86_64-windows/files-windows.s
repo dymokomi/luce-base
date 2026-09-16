@@ -4533,11 +4533,8 @@ lb_files_12windows_open:
     movl %eax, %r13d
 .L8_9:
 .L8_6:
-    leaq lb_files_create(%rip), %r14
-    movq %r14, %r10
-    movslq (%r10), %r14
     movl 104(%rbp), %eax
-    movl %r14d, %ecx
+    movl $256, %ecx
     movl %eax, %r14d
     andl %ecx, %r14d
     movl $0, %ecx
@@ -4548,11 +4545,8 @@ lb_files_12windows_open:
     cmpl %ecx, %r14d
     jne .L8_11
 .L8_10:
-    leaq lb_files_14exclusive_flag(%rip), %r14
-    movq %r14, %r10
-    movslq (%r10), %r14
     movl 104(%rbp), %eax
-    movl %r14d, %ecx
+    movl $1024, %ecx
     movl %eax, %r14d
     andl %ecx, %r14d
     movl $0, %ecx
@@ -5459,11 +5453,8 @@ lb_files_12windows_open:
     jmp .L8_55
 .L8_54:
 .L8_55:
-    leaq lb_files_truncate(%rip), %r13
-    movq %r13, %r10
-    movslq (%r10), %r13
     movl 104(%rbp), %eax
-    movl %r13d, %ecx
+    movl $512, %ecx
     movl %eax, %r13d
     andl %ecx, %r13d
     movl $0, %ecx
@@ -7421,11 +7412,9 @@ lb_files_16windows_relative:
     movq %rbx, %r10
     movslq (%r10), %rax
     movq %rax, 136(%rbp)
-    leaq lb_files_20current_directory_fd(%rip), %r12
-    movq %r12, %r10
-    movslq (%r10), %r12
     movl 136(%rbp), %eax
-    cmpl %r12d, %eax
+    movl $4294967196, %ecx
+    cmpl %ecx, %eax
     sete %al
     movzbl %al, %r12d
     testl %r12d, %r12d

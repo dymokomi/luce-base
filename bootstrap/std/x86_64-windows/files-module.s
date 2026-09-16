@@ -6,564 +6,175 @@ lb_files_module_0init:
     .seh_proc lb_files_module_0init
     pushq %rbp
     .seh_pushreg %rbp
-    subq $208, %rsp
-    .seh_stackalloc 208
+    subq $192, %rsp
+    .seh_stackalloc 192
     movq %rsp, %rbp
     .seh_setframe %rbp, 0
-    movq %rdi, 200(%rbp)
-    .seh_savereg %rdi, 200
-    movq %rsi, 192(%rbp)
-    .seh_savereg %rsi, 192
-    movdqu %xmm6, 176(%rbp)
-    .seh_savexmm %xmm6, 176
-    movdqu %xmm7, 160(%rbp)
-    .seh_savexmm %xmm7, 160
-    movdqu %xmm8, 144(%rbp)
-    .seh_savexmm %xmm8, 144
-    movdqu %xmm9, 128(%rbp)
-    .seh_savexmm %xmm9, 128
-    movdqu %xmm10, 112(%rbp)
-    .seh_savexmm %xmm10, 112
-    movdqu %xmm11, 96(%rbp)
-    .seh_savexmm %xmm11, 96
-    movdqu %xmm12, 80(%rbp)
-    .seh_savexmm %xmm12, 80
-    movdqu %xmm13, 64(%rbp)
-    .seh_savexmm %xmm13, 64
-    movdqu %xmm14, 48(%rbp)
-    .seh_savexmm %xmm14, 48
-    movdqu %xmm15, 32(%rbp)
-    .seh_savexmm %xmm15, 32
-    movq %rbx, 24(%rbp)
-    .seh_savereg %rbx, 24
-    movq %r12, 16(%rbp)
-    .seh_savereg %r12, 16
-    movq %r13, 8(%rbp)
-    .seh_savereg %r13, 8
-    movq %r14, 0(%rbp)
-    .seh_savereg %r14, 0
+    movq %rdi, 184(%rbp)
+    .seh_savereg %rdi, 184
+    movq %rsi, 176(%rbp)
+    .seh_savereg %rsi, 176
+    movdqu %xmm6, 160(%rbp)
+    .seh_savexmm %xmm6, 160
+    movdqu %xmm7, 144(%rbp)
+    .seh_savexmm %xmm7, 144
+    movdqu %xmm8, 128(%rbp)
+    .seh_savexmm %xmm8, 128
+    movdqu %xmm9, 112(%rbp)
+    .seh_savexmm %xmm9, 112
+    movdqu %xmm10, 96(%rbp)
+    .seh_savexmm %xmm10, 96
+    movdqu %xmm11, 80(%rbp)
+    .seh_savexmm %xmm11, 80
+    movdqu %xmm12, 64(%rbp)
+    .seh_savexmm %xmm12, 64
+    movdqu %xmm13, 48(%rbp)
+    .seh_savexmm %xmm13, 48
+    movdqu %xmm14, 32(%rbp)
+    .seh_savexmm %xmm14, 32
+    movdqu %xmm15, 16(%rbp)
+    .seh_savexmm %xmm15, 16
+    movq %rbx, 8(%rbp)
+    .seh_savereg %rbx, 8
     .seh_endprologue
-    movq %rcx, 224(%rbp)
-    movq %rdx, 232(%rbp)
-    movq %r8, 240(%rbp)
-    movq %r9, 248(%rbp)
-    leaq lb_platform_wasm32(%rip), %rbx
-    movq %rbx, %r10
-    movzbl (%r10), %r12d
-    testl %r12d, %r12d
-    jne .L0_1
-    jmp .L0_2
-.L0_1:
-    movl $67108864, %eax
-    movl %eax, %r12d
-    jmp .L0_3
-.L0_2:
+    movq %rcx, 208(%rbp)
+    movq %rdx, 216(%rbp)
+    movq %r8, 224(%rbp)
+    movq %r9, 232(%rbp)
+    leaq lb_files_14read_only_flag(%rip), %rbx
     movl $0, %eax
-    movl %eax, %r12d
-.L0_3:
-    leaq lb_files_14read_only_flag(%rip), %r13
-    movq %r13, %r10
-    movl %r12d, (%r10)
     movq %rbx, %r10
-    movzbl (%r10), %r13d
-    testl %r13d, %r13d
-    jne .L0_4
-    jmp .L0_5
-.L0_4:
-    movl $268435456, %eax
-    movl %eax, %r12d
-    jmp .L0_6
-.L0_5:
+    movl %eax, (%r10)
+    leaq lb_files_10write_only(%rip), %rbx
     movl $1, %eax
-    movl %eax, %r12d
-.L0_6:
-    leaq lb_files_10write_only(%rip), %r13
-    movq %r13, %r10
-    movl %r12d, (%r10)
     movq %rbx, %r10
-    movzbl (%r10), %r13d
-    testl %r13d, %r13d
-    jne .L0_7
-    jmp .L0_8
-.L0_7:
-    movl $335544320, %eax
-    movl %eax, %r12d
-    jmp .L0_9
-.L0_8:
+    movl %eax, (%r10)
+    leaq lb_files_15read_write_flag(%rip), %rbx
     movl $2, %eax
-    movl %eax, %r12d
-.L0_9:
-    leaq lb_files_15read_write_flag(%rip), %r13
-    movq %r13, %r10
-    movl %r12d, (%r10)
     movq %rbx, %r10
-    movzbl (%r10), %r13d
-    testl %r13d, %r13d
-    jne .L0_10
-    jmp .L0_11
-.L0_10:
-    movl $4096, %eax
-    movl %eax, %r12d
-    jmp .L0_12
-.L0_11:
-    leaq lb_platform_windows(%rip), %r12
-    movq %r12, %r10
-    movzbl (%r10), %r12d
-    testl %r12d, %r12d
-    jne .L0_13
-    jmp .L0_14
-.L0_13:
+    movl %eax, (%r10)
+    leaq lb_files_create(%rip), %rbx
     movl $256, %eax
-    movl %eax, %r12d
-    jmp .L0_15
-.L0_14:
-    leaq lb_platform_macos(%rip), %r12
-    movq %r12, %r10
-    movzbl (%r10), %r12d
-    testl %r12d, %r12d
-    jne .L0_16
-    jmp .L0_17
-.L0_16:
-    movl $512, %eax
-    movl %eax, %r12d
-    jmp .L0_18
-.L0_17:
-    movl $64, %eax
-    movl %eax, %r12d
-.L0_18:
-.L0_15:
-.L0_12:
-    leaq lb_files_create(%rip), %r13
-    movq %r13, %r10
-    movl %r12d, (%r10)
     movq %rbx, %r10
-    movzbl (%r10), %r13d
-    testl %r13d, %r13d
-    jne .L0_19
-    jmp .L0_20
-.L0_19:
-    movl $32768, %eax
-    movl %eax, %r12d
-    jmp .L0_21
-.L0_20:
-    leaq lb_platform_windows(%rip), %r12
-    movq %r12, %r10
-    movzbl (%r10), %r12d
-    testl %r12d, %r12d
-    jne .L0_22
-    jmp .L0_23
-.L0_22:
+    movl %eax, (%r10)
+    leaq lb_files_truncate(%rip), %rbx
     movl $512, %eax
-    movl %eax, %r12d
-    jmp .L0_24
-.L0_23:
-    leaq lb_platform_macos(%rip), %r12
-    movq %r12, %r10
-    movzbl (%r10), %r12d
-    testl %r12d, %r12d
-    jne .L0_25
-    jmp .L0_26
-.L0_25:
-    movl $1024, %eax
-    movl %eax, %r12d
-    jmp .L0_27
-.L0_26:
-    movl $512, %eax
-    movl %eax, %r12d
-.L0_27:
-.L0_24:
-.L0_21:
-    leaq lb_files_truncate(%rip), %r13
-    movq %r13, %r10
-    movl %r12d, (%r10)
     movq %rbx, %r10
-    movzbl (%r10), %r13d
-    testl %r13d, %r13d
-    jne .L0_28
-    jmp .L0_29
-.L0_28:
-    movl $0, %eax
-    movl %eax, %r12d
-    jmp .L0_30
-.L0_29:
-    leaq lb_platform_windows(%rip), %r12
-    movq %r12, %r10
-    movzbl (%r10), %r12d
-    testl %r12d, %r12d
-    jne .L0_31
-    jmp .L0_32
-.L0_31:
+    movl %eax, (%r10)
+    leaq lb_files_13close_on_exec(%rip), %rbx
     movl $128, %eax
-    movl %eax, %r12d
-    jmp .L0_33
-.L0_32:
-    leaq lb_platform_macos(%rip), %r12
-    movq %r12, %r10
-    movzbl (%r10), %r12d
-    testl %r12d, %r12d
-    jne .L0_34
-    jmp .L0_35
-.L0_34:
-    movl $16777216, %eax
-    movl %eax, %r12d
-    jmp .L0_36
-.L0_35:
-    movl $524288, %eax
-    movl %eax, %r12d
-.L0_36:
-.L0_33:
-.L0_30:
-    leaq lb_files_13close_on_exec(%rip), %r13
-    movq %r13, %r10
-    movl %r12d, (%r10)
     movq %rbx, %r10
-    movzbl (%r10), %r13d
-    testl %r13d, %r13d
-    jne .L0_37
-    jmp .L0_38
-.L0_37:
-    movl $1, %eax
-    movl %eax, %r12d
-    jmp .L0_39
-.L0_38:
-    leaq lb_platform_windows(%rip), %r12
-    movq %r12, %r10
-    movzbl (%r10), %r12d
-    testl %r12d, %r12d
-    jne .L0_94
-    jmp .L0_43
-.L0_94:
-    movl %r12d, %r13d
-    jmp .L0_44
-.L0_43:
-    leaq lb_platform_macos(%rip), %r12
-    movq %r12, %r10
-    movzbl (%r10), %r13d
-.L0_44:
-    movzbl %r13b, %r12d
-    testl %r12d, %r12d
-    jne .L0_40
-    jmp .L0_41
-.L0_40:
+    movl %eax, (%r10)
+    leaq lb_files_11append_flag(%rip), %rbx
     movl $8, %eax
-    movl %eax, %r12d
-    jmp .L0_42
-.L0_41:
+    movq %rbx, %r10
+    movl %eax, (%r10)
+    leaq lb_files_14exclusive_flag(%rip), %rbx
     movl $1024, %eax
-    movl %eax, %r12d
-.L0_42:
-.L0_39:
-    leaq lb_files_11append_flag(%rip), %r13
-    movq %r13, %r10
-    movl %r12d, (%r10)
     movq %rbx, %r10
-    movzbl (%r10), %r13d
-    testl %r13d, %r13d
-    jne .L0_45
-    jmp .L0_46
-.L0_45:
-    movl $16384, %eax
-    movl %eax, %r12d
-    jmp .L0_47
-.L0_46:
-    leaq lb_platform_windows(%rip), %r12
-    movq %r12, %r10
-    movzbl (%r10), %r12d
-    testl %r12d, %r12d
-    jne .L0_48
-    jmp .L0_49
-.L0_48:
-    movl $1024, %eax
-    movl %eax, %r12d
-    jmp .L0_50
-.L0_49:
-    leaq lb_platform_macos(%rip), %r12
-    movq %r12, %r10
-    movzbl (%r10), %r12d
-    testl %r12d, %r12d
-    jne .L0_51
-    jmp .L0_52
-.L0_51:
+    movl %eax, (%r10)
+    leaq lb_files_21nonblocking_open_flag(%rip), %rbx
     movl $2048, %eax
-    movl %eax, %r12d
-    jmp .L0_53
-.L0_52:
-    movl $128, %eax
-    movl %eax, %r12d
-.L0_53:
-.L0_50:
-.L0_47:
-    leaq lb_files_14exclusive_flag(%rip), %r13
-    movq %r13, %r10
-    movl %r12d, (%r10)
-    leaq lb_platform_macos(%rip), %r13
-    movq %r13, %r10
-    movzbl (%r10), %r14d
-    testl %r14d, %r14d
-    jne .L0_95
-    jmp .L0_57
-.L0_95:
-    movl %r14d, %r12d
-    jmp .L0_58
-.L0_57:
     movq %rbx, %r10
-    movzbl (%r10), %r12d
-.L0_58:
-    movzbl %r12b, %r14d
-    testl %r14d, %r14d
-    jne .L0_54
-    jmp .L0_55
-.L0_54:
-    movl $4, %eax
-    movl %eax, %r12d
-    jmp .L0_56
-.L0_55:
-    movl $2048, %eax
-    movl %eax, %r12d
-.L0_56:
-    leaq lb_files_21nonblocking_open_flag(%rip), %r14
-    movq %r14, %r10
-    movl %r12d, (%r10)
-    movq %rbx, %r10
-    movzbl (%r10), %r14d
-    testl %r14d, %r14d
-    jne .L0_59
-    jmp .L0_60
-.L0_59:
-    movl $6, %eax
-    movl %eax, %r12d
-    jmp .L0_61
-.L0_60:
-    movq %r13, %r10
-    movzbl (%r10), %r12d
-    testl %r12d, %r12d
-    jne .L0_62
-    jmp .L0_63
-.L0_62:
-    movl $35, %eax
-    movl %eax, %r12d
-    jmp .L0_64
-.L0_63:
+    movl %eax, (%r10)
+    leaq lb_files_17would_block_errno(%rip), %rbx
     movl $11, %eax
-    movl %eax, %r12d
-.L0_64:
-.L0_61:
-    leaq lb_files_17would_block_errno(%rip), %r14
-    movq %r14, %r10
-    movl %r12d, (%r10)
-    leaq lb_files_14transfer_limit(%rip), %r14
+    movq %rbx, %r10
+    movl %eax, (%r10)
+    leaq lb_files_14transfer_limit(%rip), %rbx
     movq $1073741824, %rax
-    movq %r14, %r10
+    movq %rbx, %r10
     movq %rax, (%r10)
-    movq %r13, %r10
-    movzbl (%r10), %r14d
-    testl %r14d, %r14d
-    jne .L0_96
-    jmp .L0_68
-.L0_96:
-    movl %r14d, %r12d
-    jmp .L0_69
-.L0_68:
-    movq %rbx, %r10
-    movzbl (%r10), %r12d
-.L0_69:
-    movzbl %r12b, %r14d
-    testl %r14d, %r14d
-    jne .L0_65
-    jmp .L0_66
-.L0_65:
-    movl $4294967294, %eax
-    movl %eax, %r12d
-    jmp .L0_67
-.L0_66:
+    leaq lb_files_20current_directory_fd(%rip), %rbx
     movl $4294967196, %eax
-    movl %eax, %r12d
-.L0_67:
-    leaq lb_files_20current_directory_fd(%rip), %r14
-    movq %r14, %r10
-    movl %r12d, (%r10)
     movq %rbx, %r10
-    movzbl (%r10), %r14d
-    testl %r14d, %r14d
-    jne .L0_70
-    jmp .L0_71
-.L0_70:
-    movl $8192, %eax
-    movl %eax, %r12d
-    jmp .L0_72
-.L0_71:
-    movq %r13, %r10
-    movzbl (%r10), %r12d
-    testl %r12d, %r12d
-    jne .L0_73
-    jmp .L0_74
-.L0_73:
-    movl $1048576, %eax
-    movl %eax, %r12d
-    jmp .L0_75
-.L0_74:
-    leaq lb_platform_arm64(%rip), %r12
-    movq %r12, %r10
-    movzbl (%r10), %r12d
-    testl %r12d, %r12d
-    jne .L0_76
-    jmp .L0_77
-.L0_76:
-    movl $16384, %eax
-    movl %eax, %r12d
-    jmp .L0_78
-.L0_77:
+    movl %eax, (%r10)
+    leaq lb_files_14directory_flag(%rip), %rbx
     movl $65536, %eax
-    movl %eax, %r12d
-.L0_78:
-.L0_75:
-.L0_72:
-    leaq lb_files_14directory_flag(%rip), %r14
-    movq %r14, %r10
-    movl %r12d, (%r10)
     movq %rbx, %r10
-    movzbl (%r10), %r14d
-    testl %r14d, %r14d
-    jne .L0_79
-    jmp .L0_80
-.L0_79:
-    movl $16777216, %eax
-    movl %eax, %r12d
-    jmp .L0_81
-.L0_80:
-    movq %r13, %r10
-    movzbl (%r10), %r12d
-    testl %r12d, %r12d
-    jne .L0_82
-    jmp .L0_83
-.L0_82:
-    movl $256, %eax
-    movl %eax, %r12d
-    jmp .L0_84
-.L0_83:
-    leaq lb_platform_arm64(%rip), %r12
-    movq %r12, %r10
-    movzbl (%r10), %r12d
-    testl %r12d, %r12d
-    jne .L0_85
-    jmp .L0_86
-.L0_85:
-    movl $32768, %eax
-    movl %eax, %r12d
-    jmp .L0_87
-.L0_86:
+    movl %eax, (%r10)
+    leaq lb_files_14no_follow_flag(%rip), %rbx
     movl $131072, %eax
-    movl %eax, %r12d
-.L0_87:
-.L0_84:
-.L0_81:
-    leaq lb_files_14no_follow_flag(%rip), %r14
-    movq %r14, %r10
-    movl %r12d, (%r10)
     movq %rbx, %r10
-    movzbl (%r10), %r14d
-    testl %r14d, %r14d
-    jne .L0_88
-    jmp .L0_89
-.L0_88:
-    movl $1, %eax
-    movl %eax, %ebx
-    jmp .L0_90
-.L0_89:
-    movq %r13, %r10
-    movzbl (%r10), %ebx
-    testl %ebx, %ebx
-    jne .L0_91
-    jmp .L0_92
-.L0_91:
-    movl $32, %eax
-    movl %eax, %ebx
-    jmp .L0_93
-.L0_92:
+    movl %eax, (%r10)
+    leaq lb_files_17at_no_follow_flag(%rip), %rbx
     movl $256, %eax
-    movl %eax, %ebx
-.L0_93:
-.L0_90:
-    leaq lb_files_17at_no_follow_flag(%rip), %r12
-    movq %r12, %r10
-    movl %ebx, (%r10)
-    leaq lb_files_missing(%rip), %r12
+    movq %rbx, %r10
+    movl %eax, (%r10)
+    leaq lb_files_missing(%rip), %rbx
     movl $208273414, %eax
-    movq %r12, %r10
+    movq %rbx, %r10
     movl %eax, (%r10)
-    leaq lb_files_17permission_denied(%rip), %r12
+    leaq lb_files_17permission_denied(%rip), %rbx
     movl $208273426, %eax
-    movq %r12, %r10
+    movq %rbx, %r10
     movl %eax, (%r10)
-    leaq lb_files_14already_exists(%rip), %r12
+    leaq lb_files_14already_exists(%rip), %rbx
     movl $208273427, %eax
-    movq %r12, %r10
+    movq %rbx, %r10
     movl %eax, (%r10)
-    leaq lb_files_8no_space(%rip), %r12
+    leaq lb_files_8no_space(%rip), %rbx
     movl $208273428, %eax
-    movq %r12, %r10
+    movq %rbx, %r10
     movl %eax, (%r10)
-    leaq lb_files_11would_block(%rip), %r12
+    leaq lb_files_11would_block(%rip), %rbx
     movl $208273429, %eax
-    movq %r12, %r10
+    movq %rbx, %r10
     movl %eax, (%r10)
-    leaq lb_files_15invalid_options(%rip), %r12
+    leaq lb_files_15invalid_options(%rip), %rbx
     movl $208273430, %eax
-    movq %r12, %r10
+    movq %rbx, %r10
     movl %eax, (%r10)
-    leaq lb_files_9too_large(%rip), %r12
+    leaq lb_files_9too_large(%rip), %rbx
     movl $208273431, %eax
-    movq %r12, %r10
+    movq %rbx, %r10
     movl %eax, (%r10)
-    leaq lb_files_13not_directory(%rip), %r12
+    leaq lb_files_13not_directory(%rip), %rbx
     movl $208273433, %eax
-    movq %r12, %r10
+    movq %rbx, %r10
     movl %eax, (%r10)
-    leaq lb_files_12is_directory(%rip), %r12
+    leaq lb_files_12is_directory(%rip), %rbx
     movl $208273434, %eax
-    movq %r12, %r10
+    movq %rbx, %r10
     movl %eax, (%r10)
-    leaq lb_files_20read_only_filesystem(%rip), %r12
+    leaq lb_files_20read_only_filesystem(%rip), %rbx
     movl $208273435, %eax
-    movq %r12, %r10
+    movq %rbx, %r10
     movl %eax, (%r10)
-    leaq lb_files_9not_empty(%rip), %r12
+    leaq lb_files_9not_empty(%rip), %rbx
     movl $208273437, %eax
-    movq %r12, %r10
+    movq %rbx, %r10
     movl %eax, (%r10)
-    leaq lb_files_12cross_device(%rip), %r12
+    leaq lb_files_12cross_device(%rip), %rbx
     movl $208273438, %eax
-    movq %r12, %r10
+    movq %rbx, %r10
     movl %eax, (%r10)
-    leaq lb_files_12symlink_loop(%rip), %r12
+    leaq lb_files_12symlink_loop(%rip), %rbx
     movl $208273439, %eax
-    movq %r12, %r10
+    movq %rbx, %r10
     movl %eax, (%r10)
-    leaq lb_files_13name_too_long(%rip), %r12
+    leaq lb_files_13name_too_long(%rip), %rbx
     movl $208273440, %eax
-    movq %r12, %r10
+    movq %rbx, %r10
     movl %eax, (%r10)
-    leaq lb_files_failed(%rip), %r12
+    leaq lb_files_failed(%rip), %rbx
     movl $208273415, %eax
-    movq %r12, %r10
+    movq %rbx, %r10
     movl %eax, (%r10)
-    movq 200(%rbp), %rdi
-    movq 192(%rbp), %rsi
-    movdqu 176(%rbp), %xmm6
-    movdqu 160(%rbp), %xmm7
-    movdqu 144(%rbp), %xmm8
-    movdqu 128(%rbp), %xmm9
-    movdqu 112(%rbp), %xmm10
-    movdqu 96(%rbp), %xmm11
-    movdqu 80(%rbp), %xmm12
-    movdqu 64(%rbp), %xmm13
-    movdqu 48(%rbp), %xmm14
-    movdqu 32(%rbp), %xmm15
-    movq 24(%rbp), %rbx
-    movq 16(%rbp), %r12
-    movq 8(%rbp), %r13
-    movq 0(%rbp), %r14
-    leaq 208(%rbp), %rsp
+    movq 184(%rbp), %rdi
+    movq 176(%rbp), %rsi
+    movdqu 160(%rbp), %xmm6
+    movdqu 144(%rbp), %xmm7
+    movdqu 128(%rbp), %xmm8
+    movdqu 112(%rbp), %xmm9
+    movdqu 96(%rbp), %xmm10
+    movdqu 80(%rbp), %xmm11
+    movdqu 64(%rbp), %xmm12
+    movdqu 48(%rbp), %xmm13
+    movdqu 32(%rbp), %xmm14
+    movdqu 16(%rbp), %xmm15
+    movq 8(%rbp), %rbx
+    leaq 192(%rbp), %rsp
     popq %rbp
     ret
     .seh_endproc

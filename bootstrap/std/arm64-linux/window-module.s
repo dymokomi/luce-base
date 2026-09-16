@@ -50,55 +50,15 @@ lb_window_supported:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
     sub sp, sp, #16
-    adrp x14, lb_platform_macos
-    add x14, x14, :lo12:lb_platform_macos
-    ldrb w14, [x14]
-    cbnz w14, .L1_1
-    b .L1_8
-.L1_8:
-    mov w15, w14
-    b .L1_2
-.L1_1:
-    adrp x14, lb_platform_arm64
-    add x14, x14, :lo12:lb_platform_arm64
-    ldrb w15, [x14]
 .L1_2:
-    and w14, w15, #255
-    cbnz w14, .L1_9
-    b .L1_3
-.L1_9:
-    mov w15, w14
-    b .L1_4
 .L1_3:
-    adrp x14, lb_platform_windows
-    add x14, x14, :lo12:lb_platform_windows
-    ldrb w14, [x14]
-    cbnz w14, .L1_5
-    b .L1_10
-.L1_10:
-    mov w15, w14
-    b .L1_6
-.L1_5:
-    adrp x14, lb_platform_6x86_64
-    add x14, x14, :lo12:lb_platform_6x86_64
-    ldrb w15, [x14]
 .L1_6:
-    and w14, w15, #255
-    mov w15, w14
 .L1_4:
-    and w14, w15, #255
-    and w14, w14, #255
-    mov x9, x14
+    mov x9, #0
     mov x0, x9
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
-.L1_7:
-    adrp x0, .Ltext_1
-    add x0, x0, :lo12:.Ltext_1
-    adrp x1, .Ltext_0
-    add x1, x1, :lo12:.Ltext_0
-    bl lb_core_7trap_at
 
     .size lb_window_supported, .-lb_window_supported
 

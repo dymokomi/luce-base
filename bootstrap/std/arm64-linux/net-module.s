@@ -11,174 +11,62 @@ lb_net_module_0init:
     add x14, x14, :lo12:lb_net_inet
     movz x9, #2
     str w9, [x14]
-    adrp x14, lb_platform_windows
-    add x14, x14, :lo12:lb_platform_windows
-    ldrb w15, [x14]
-    cbnz w15, .L0_1
-    b .L0_2
-.L0_1:
-    movz x9, #23
-    mov w15, w9
-    b .L0_3
-.L0_2:
-    adrp x15, lb_platform_macos
-    add x15, x15, :lo12:lb_platform_macos
-    ldrb w15, [x15]
-    cbnz w15, .L0_4
-    b .L0_5
-.L0_4:
-    movz x9, #30
-    mov w15, w9
-    b .L0_6
-.L0_5:
+    adrp x14, lb_net_inet6
+    add x14, x14, :lo12:lb_net_inet6
     movz x9, #10
-    mov w15, w9
-.L0_6:
-.L0_3:
-    adrp x12, lb_net_inet6
-    add x12, x12, :lo12:lb_net_inet6
-    str w15, [x12]
-    adrp x12, lb_net_stream
-    add x12, x12, :lo12:lb_net_stream
+    str w9, [x14]
+    adrp x14, lb_net_stream
+    add x14, x14, :lo12:lb_net_stream
     movz x9, #1
-    str w9, [x12]
-    adrp x12, lb_net_datagram
-    add x12, x12, :lo12:lb_net_datagram
+    str w9, [x14]
+    adrp x14, lb_net_datagram
+    add x14, x14, :lo12:lb_net_datagram
     movz x9, #2
-    str w9, [x12]
-    adrp x12, lb_net_20socket_close_on_exec
-    add x12, x12, :lo12:lb_net_20socket_close_on_exec
+    str w9, [x14]
+    adrp x14, lb_net_20socket_close_on_exec
+    add x14, x14, :lo12:lb_net_20socket_close_on_exec
     movz x9, #8, lsl #16
-    str w9, [x12]
-    adrp x12, lb_net_20get_descriptor_flags
-    add x12, x12, :lo12:lb_net_20get_descriptor_flags
+    str w9, [x14]
+    adrp x14, lb_net_20get_descriptor_flags
+    add x14, x14, :lo12:lb_net_20get_descriptor_flags
     movz x9, #1
-    str w9, [x12]
-    adrp x12, lb_net_20set_descriptor_flags
-    add x12, x12, :lo12:lb_net_20set_descriptor_flags
+    str w9, [x14]
+    adrp x14, lb_net_20set_descriptor_flags
+    add x14, x14, :lo12:lb_net_20set_descriptor_flags
     movz x9, #2
-    str w9, [x12]
-    adrp x12, lb_net_24descriptor_close_on_exec
-    add x12, x12, :lo12:lb_net_24descriptor_close_on_exec
+    str w9, [x14]
+    adrp x14, lb_net_24descriptor_close_on_exec
+    add x14, x14, :lo12:lb_net_24descriptor_close_on_exec
     movz x9, #1
-    str w9, [x12]
-    adrp x12, lb_platform_macos
-    add x12, x12, :lo12:lb_platform_macos
-    ldrb w13, [x12]
-    cbnz w13, .L0_30
-    b .L0_10
-.L0_30:
-    mov w15, w13
-    b .L0_11
-.L0_10:
-    ldrb w15, [x14]
-.L0_11:
-    and w13, w15, #255
-    cbnz w13, .L0_7
-    b .L0_8
-.L0_7:
-    movz x9, #65535
-    mov w15, w9
-    b .L0_9
-.L0_8:
+    str w9, [x14]
+    adrp x14, lb_net_12socket_level
+    add x14, x14, :lo12:lb_net_12socket_level
     movz x9, #1
-    mov w15, w9
-.L0_9:
-    adrp x13, lb_net_12socket_level
-    add x13, x13, :lo12:lb_net_12socket_level
-    str w15, [x13]
-    ldrb w13, [x12]
-    cbnz w13, .L0_31
-    b .L0_15
-.L0_31:
-    mov w15, w13
-    b .L0_16
-.L0_15:
-    ldrb w15, [x14]
-.L0_16:
-    and w13, w15, #255
-    cbnz w13, .L0_12
-    b .L0_13
-.L0_12:
-    movz x9, #4
-    mov w15, w9
-    b .L0_14
-.L0_13:
+    str w9, [x14]
+    adrp x14, lb_net_20reuse_address_option
+    add x14, x14, :lo12:lb_net_20reuse_address_option
     movz x9, #2
-    mov w15, w9
-.L0_14:
-    adrp x13, lb_net_20reuse_address_option
-    add x13, x13, :lo12:lb_net_20reuse_address_option
-    str w15, [x13]
-    adrp x13, lb_net_10ipv6_level
-    add x13, x13, :lo12:lb_net_10ipv6_level
+    str w9, [x14]
+    adrp x14, lb_net_10ipv6_level
+    add x14, x14, :lo12:lb_net_10ipv6_level
     movz x9, #41
-    str w9, [x13]
-    ldrb w13, [x12]
-    cbnz w13, .L0_32
-    b .L0_20
-.L0_32:
-    mov w15, w13
-    b .L0_21
-.L0_20:
-    ldrb w15, [x14]
-.L0_21:
-    and w13, w15, #255
-    cbnz w13, .L0_17
-    b .L0_18
-.L0_17:
-    movz x9, #27
-    mov w15, w9
-    b .L0_19
-.L0_18:
+    str w9, [x14]
+    adrp x14, lb_net_16ipv6_only_option
+    add x14, x14, :lo12:lb_net_16ipv6_only_option
     movz x9, #26
-    mov w15, w9
-.L0_19:
-    adrp x13, lb_net_16ipv6_only_option
-    add x13, x13, :lo12:lb_net_16ipv6_only_option
-    str w15, [x13]
-    adrp x13, lb_net_17no_sigpipe_option
-    add x13, x13, :lo12:lb_net_17no_sigpipe_option
+    str w9, [x14]
+    adrp x14, lb_net_17no_sigpipe_option
+    add x14, x14, :lo12:lb_net_17no_sigpipe_option
     movz x9, #4130
-    str w9, [x13]
-    ldrb w13, [x12]
-    cbnz w13, .L0_33
-    b .L0_25
-.L0_33:
-    mov w15, w13
-    b .L0_26
-.L0_25:
-    ldrb w15, [x14]
-.L0_26:
-    and w12, w15, #255
-    cbnz w12, .L0_22
-    b .L0_23
-.L0_22:
-    mov x9, #0
-    mov w15, w9
-    b .L0_24
-.L0_23:
+    str w9, [x14]
+    adrp x14, lb_net_10send_flags
+    add x14, x14, :lo12:lb_net_10send_flags
     movz x9, #16384
-    mov w15, w9
-.L0_24:
-    adrp x12, lb_net_10send_flags
-    add x12, x12, :lo12:lb_net_10send_flags
-    str w15, [x12]
-    ldrb w12, [x14]
-    cbnz w12, .L0_27
-    b .L0_28
-.L0_27:
-    movz x9, #10004
-    mov w14, w9
-    b .L0_29
-.L0_28:
-    adrp x14, lb_c_interrupted
-    add x14, x14, :lo12:lb_c_interrupted
-    ldrsw x14, [x14]
-.L0_29:
-    adrp x15, lb_net_18socket_interrupted
-    add x15, x15, :lo12:lb_net_18socket_interrupted
-    str w14, [x15]
+    str w9, [x14]
+    adrp x14, lb_net_18socket_interrupted
+    add x14, x14, :lo12:lb_net_18socket_interrupted
+    movz x9, #4
+    str w9, [x14]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -224,40 +112,16 @@ lb_net_12info_address:
     sub sp, sp, #32
     sub x16, x29, #32
     str x0, [x16]
-    adrp x14, lb_platform_macos
-    add x14, x14, :lo12:lb_platform_macos
-    ldrb w14, [x14]
-    cbnz w14, .L2_7
-    b .L2_4
-.L2_7:
-    mov w15, w14
-    b .L2_5
-.L2_4:
-    adrp x14, lb_platform_windows
-    add x14, x14, :lo12:lb_platform_windows
-    ldrb w15, [x14]
-.L2_5:
-    and w14, w15, #255
-    cbnz w14, .L2_1
-    b .L2_2
-.L2_1:
-    sub x14, x29, #32
-    ldr x14, [x14]
-    add x14, x14, #32
-    ldr x14, [x14]
-    b .L2_3
-.L2_2:
     sub x14, x29, #32
     ldr x14, [x14]
     add x14, x14, #24
     ldr x14, [x14]
-.L2_3:
     mov x9, x14
     mov x0, x9
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
-.L2_6:
+.L2_1:
     adrp x0, .Ltext_2
     add x0, x0, :lo12:.Ltext_2
     adrp x1, .Ltext_0

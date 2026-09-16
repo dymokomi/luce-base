@@ -213,8 +213,13 @@ fallible result are small structs the runtime header defines through macros.
 
 The standard modules are compiled once, into `lib/luce-base/<target>/libstd-c.a`,
 and a program declares what it reaches through the `linked` signatures of
-`prelude`; only generic instances are emitted with the program. Three things
-stay with the backend because no Base body can
+`prelude`; only generic instances are emitted with the program. Each member
+initialises its own globals from the target's initialiser section, in link
+order, so no initialiser may read another member's: a constant the checker can
+evaluate (`platform.windows`, `os.name`, `6 if platform.macos else 1`) is
+written as the value it denotes by both backends, the C emitter as a static
+initialiser and the lowerer by folding constant reads and constant
+conditionals. Three things stay with the backend because no Base body can
 spell them: `atomic.fence`, the `luce` facts about the use site, and the C
 standard streams. Every C name is qualified by its module (`lb_files_read`,
 `lb_memory_allocator`, `lb_io_Location`), so two modules may declare the same

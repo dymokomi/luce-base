@@ -52,19 +52,15 @@ lb_process_25termination_posix_install:
     movq %r12, -24(%rbp)
     movq %r13, -32(%rbp)
     movq %r14, -40(%rbp)
-    movq %r15, -48(%rbp)
     leaq lb_process_18previous_interrupt(%rip), %rbx
-    leaq lb_process_16interrupt_signal(%rip), %r12
-    movq %r12, %r10
-    movslq (%r10), %r13
-    movq lb_process_20termination_received@GOTPCREL(%rip), %r14
-    movl %r13d, %edi
-    movq %r14, %rsi
+    movq lb_process_20termination_received@GOTPCREL(%rip), %r12
+    movl $2, %edi
+    movq %r12, %rsi
     call signal@PLT
     movq %rax, %r13
     movq %rbx, %r10
     movq %r13, (%r10)
-    leaq -128(%rbp), %r10
+    leaq -120(%rbp), %r10
     movq %r13, (%r10)
     testq %r13, %r13
     jne .L2_12
@@ -74,38 +70,38 @@ lb_process_25termination_posix_install:
     movq $-1, %rcx
     cmpq %rcx, %r13
     sete %al
-    movzbl %al, %r15d
-    movzbl %r15b, %r15d
-    leaq -136(%rbp), %r10
-    movl %r15d, (%r10)
+    movzbl %al, %r14d
+    movzbl %r14b, %r14d
+    leaq -128(%rbp), %r10
+    movl %r14d, (%r10)
     jmp .L2_15
 .L2_13:
     jmp .L2_11
 .L2_10:
 .L2_11:
     movl $0, %eax
-    leaq -136(%rbp), %r10
+    leaq -128(%rbp), %r10
     movl %eax, (%r10)
     movl $0, %eax
-    movl %eax, %r15d
+    movl %eax, %r14d
     jmp .L2_15
 .L2_14:
     leaq .Ltext_1(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     call lb_core_7trap_at@PLT
 .L2_15:
-    testl %r15d, %r15d
+    testl %r14d, %r14d
     jne .L2_1
     jmp .L2_2
 .L2_1:
-    leaq -80(%rbp), %rbx
+    leaq -72(%rbp), %rbx
     leaq lb_process_failed(%rip), %r12
     movq %r12, %r10
     movl (%r10), %r12d
     movq %rbx, %r10
     movl %r12d, (%r10)
     leaq .Ltext_2(%rip), %r12
-    leaq -96(%rbp), %r13
+    leaq -88(%rbp), %r13
     movq %r13, %r10
     movq %r12, (%r10)
     movq $8, %rcx
@@ -136,7 +132,6 @@ lb_process_25termination_posix_install:
     movq -24(%rbp), %r12
     movq -32(%rbp), %r13
     movq -40(%rbp), %r14
-    movq -48(%rbp), %r15
     movq %rbp, %rsp
     popq %rbp
     ret
@@ -145,87 +140,82 @@ lb_process_25termination_posix_install:
 .L2_2:
 .L2_3:
     leaq lb_process_18previous_terminate(%rip), %r13
-    leaq lb_process_16terminate_signal(%rip), %r15
-    movq %r15, %r10
-    movslq (%r10), %r15
-    movl %r15d, %edi
-    movq %r14, %rsi
+    movl $15, %edi
+    movq %r12, %rsi
     call signal@PLT
-    movq %rax, %r15
+    movq %rax, %r14
     movq %r13, %r10
-    movq %r15, (%r10)
-    leaq -128(%rbp), %r10
-    movq %r15, (%r10)
-    testq %r15, %r15
+    movq %r14, (%r10)
+    leaq -120(%rbp), %r10
+    movq %r14, (%r10)
+    testq %r14, %r14
     jne .L2_19
     jmp .L2_17
 .L2_19:
 .L2_16:
     movq $-1, %rcx
-    cmpq %rcx, %r15
+    cmpq %rcx, %r14
     sete %al
-    movzbl %al, %r13d
-    movzbl %r13b, %r13d
-    leaq -144(%rbp), %r10
-    movl %r13d, (%r10)
+    movzbl %al, %r12d
+    movzbl %r12b, %r12d
+    leaq -136(%rbp), %r10
+    movl %r12d, (%r10)
     jmp .L2_22
 .L2_20:
     jmp .L2_18
 .L2_17:
 .L2_18:
     movl $0, %eax
-    leaq -144(%rbp), %r10
+    leaq -136(%rbp), %r10
     movl %eax, (%r10)
     movl $0, %eax
-    movl %eax, %r13d
+    movl %eax, %r12d
     jmp .L2_22
 .L2_21:
     leaq .Ltext_1(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     call lb_core_7trap_at@PLT
 .L2_22:
-    testl %r13d, %r13d
+    testl %r12d, %r12d
     jne .L2_5
     jmp .L2_6
 .L2_5:
-    movq %r12, %r10
-    movslq (%r10), %r13
     movq %rbx, %r10
-    movq (%r10), %r14
-    movl %r13d, %edi
-    movq %r14, %rsi
+    movq (%r10), %r12
+    movl $2, %edi
+    movq %r12, %rsi
     call signal@PLT
     movq %rax, %rbx
-    leaq -80(%rbp), %r13
-    leaq lb_process_failed(%rip), %r14
-    movq %r14, %r10
-    movl (%r10), %r14d
+    leaq -72(%rbp), %r12
+    leaq lb_process_failed(%rip), %r13
     movq %r13, %r10
-    movl %r14d, (%r10)
-    leaq .Ltext_3(%rip), %r14
-    leaq -112(%rbp), %r15
-    movq %r15, %r10
-    movq %r14, (%r10)
-    movq $8, %rcx
-    movq %r15, %r14
-    addq %rcx, %r14
-    movq $38, %rax
+    movl (%r10), %r13d
+    movq %r12, %r10
+    movl %r13d, (%r10)
+    leaq .Ltext_3(%rip), %r13
+    leaq -104(%rbp), %r14
     movq %r14, %r10
+    movq %r13, (%r10)
+    movq $8, %rcx
+    movq %r14, %r13
+    addq %rcx, %r13
+    movq $38, %rax
+    movq %r13, %r10
     movq %rax, (%r10)
     movq $8, %rcx
-    movq %r13, %r14
-    addq %rcx, %r14
-    movq %r15, %r10
-    movq %r14, %r11
+    movq %r12, %r13
+    addq %rcx, %r13
+    movq %r14, %r10
+    movq %r13, %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
     movq $24, %rcx
-    movq %r13, %r14
-    addq %rcx, %r14
+    movq %r12, %r13
+    addq %rcx, %r13
     movl $1, %eax
-    movq %r14, %r10
+    movq %r13, %r10
     movb %al, (%r10)
-    movq %r13, %rsi
+    movq %r12, %rsi
     movq -8(%rbp), %rdi
     movq $32, %rdx
     call memcpy@PLT
@@ -234,7 +224,6 @@ lb_process_25termination_posix_install:
     movq -24(%rbp), %r12
     movq -32(%rbp), %r13
     movq -40(%rbp), %r14
-    movq -48(%rbp), %r15
     movq %rbp, %rsp
     popq %rbp
     ret
@@ -242,7 +231,7 @@ lb_process_25termination_posix_install:
     jmp .L2_7
 .L2_6:
 .L2_7:
-    leaq -80(%rbp), %rbx
+    leaq -72(%rbp), %rbx
     movq $24, %rcx
     movq %rbx, %r12
     addq %rcx, %r12
@@ -258,7 +247,6 @@ lb_process_25termination_posix_install:
     movq -24(%rbp), %r12
     movq -32(%rbp), %r13
     movq -40(%rbp), %r14
-    movq -48(%rbp), %r15
     movq %rbp, %rsp
     popq %rbp
     ret
@@ -271,29 +259,21 @@ lb_process_25termination_posix_restore:
     movq %rsp, %rbp
     subq $16, %rsp
     movq %rbx, -8(%rbp)
-    movq %r12, -16(%rbp)
-    leaq lb_process_16interrupt_signal(%rip), %rbx
+    leaq lb_process_18previous_interrupt(%rip), %rbx
     movq %rbx, %r10
-    movslq (%r10), %rbx
-    leaq lb_process_18previous_interrupt(%rip), %r12
-    movq %r12, %r10
-    movq (%r10), %r12
-    movl %ebx, %edi
-    movq %r12, %rsi
+    movq (%r10), %rbx
+    movl $2, %edi
+    movq %rbx, %rsi
     call signal@PLT
     movq %rax, %rbx
-    leaq lb_process_16terminate_signal(%rip), %rbx
+    leaq lb_process_18previous_terminate(%rip), %rbx
     movq %rbx, %r10
-    movslq (%r10), %rbx
-    leaq lb_process_18previous_terminate(%rip), %r12
-    movq %r12, %r10
-    movq (%r10), %r12
-    movl %ebx, %edi
-    movq %r12, %rsi
+    movq (%r10), %rbx
+    movl $15, %edi
+    movq %rbx, %rsi
     call signal@PLT
     movq %rax, %rbx
     movq -8(%rbp), %rbx
-    movq -16(%rbp), %r12
     movq %rbp, %rsp
     popq %rbp
     ret

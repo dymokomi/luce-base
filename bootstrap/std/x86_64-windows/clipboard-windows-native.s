@@ -192,18 +192,15 @@ lb_clipboard_8win_read:
     ret
 .L1_2:
 .L1_3:
-    leaq lb_clipboard_12unicode_text(%rip), %rbx
-    movq %rbx, %r10
-    movl (%r10), %r12d
     subq $32, %rsp
-    movl %r12d, %eax
+    movl $13, %eax
     movq %rax, 0(%rsp)
     movq 0(%rsp), %rcx
     call IsClipboardFormatAvailable
     addq $32, %rsp
-    movl %eax, %r12d
+    movl %eax, %ebx
     movl $0, %ecx
-    cmpl %ecx, %r12d
+    cmpl %ecx, %ebx
     jne .L1_6
 .L1_5:
     leaq .Ltext_1(%rip), %rbx
@@ -342,16 +339,14 @@ lb_clipboard_8win_read:
     ret
 .L1_6:
 .L1_7:
-    movq %rbx, %r10
-    movl (%r10), %r12d
     subq $32, %rsp
-    movl %r12d, %eax
+    movl $13, %eax
     movq %rax, 0(%rsp)
     movq 0(%rsp), %rcx
     call GetClipboardData
     addq $32, %rsp
-    movq %rax, 8(%rbp)
-    movq 8(%rbp), %rax
+    movq %rax, 16(%rbp)
+    movq 16(%rbp), %rax
     testq %rax, %rax
     jne .L1_12
     jmp .L1_13
@@ -425,20 +420,20 @@ lb_clipboard_8win_read:
     ret
 .L1_14:
     subq $32, %rsp
-    movq 8(%rbp), %rax
+    movq 16(%rbp), %rax
     movq %rax, 0(%rsp)
     movq 0(%rsp), %rcx
     call GlobalSize
     addq $32, %rsp
-    movq %rax, %rbx
+    movq %rax, %r12
 .L1_17:
     movq $2, %rcx
-    movq %rbx, %rax
+    movq %r12, %rax
     xorl %edx, %edx
     divq %rcx
-    movq %rax, 64(%rbp)
+    movq %rax, %r13
     subq $32, %rsp
-    movq 8(%rbp), %rax
+    movq 16(%rbp), %rax
     movq %rax, 0(%rsp)
     movq 0(%rsp), %rcx
     call GlobalLock
@@ -516,56 +511,53 @@ lb_clipboard_8win_read:
     popq %rbp
     ret
 .L1_20:
-    leaq lb_clipboard_10text_limit(%rip), %rbx
     movq $0, %rax
-    movq %rax, %r15
+    movq %rax, %r12
 .L1_22:
-    movq 64(%rbp), %rcx
-    cmpq %rcx, %r15
+    cmpq %r13, %r12
     setb %al
-    movzbl %al, %r12d
-    testl %r12d, %r12d
+    movzbl %al, %r15d
+    testl %r15d, %r15d
     jne .L1_25
     jmp .L1_54
 .L1_54:
-    movl %r12d, %r13d
+    movl %r15d, %ebx
     jmp .L1_26
 .L1_25:
-    movq %rbx, %r10
-    movq (%r10), %r12
-    cmpq %r12, %r15
+    movq $1048576, %rcx
+    cmpq %rcx, %r12
     setbe %al
-    movzbl %al, %r13d
+    movzbl %al, %ebx
 .L1_26:
-    movzbl %r13b, %r12d
-    testl %r12d, %r12d
+    movzbl %bl, %r15d
+    testl %r15d, %r15d
     jne .L1_27
     jmp .L1_55
 .L1_55:
-    movl %r12d, %r13d
+    movl %r15d, %ebx
     jmp .L1_28
 .L1_27:
     movq $2, %rcx
-    movq %r15, %r12
-    imulq %rcx, %r12
-    addq %r14, %r12
-    movq %r12, %r10
-    movzwl (%r10), %r12d
+    movq %r12, %rbx
+    imulq %rcx, %rbx
+    addq %r14, %rbx
+    movq %rbx, %r10
+    movzwl (%r10), %ebx
     movl $0, %ecx
-    cmpl %ecx, %r12d
+    cmpl %ecx, %ebx
     sete %al
-    movzbl %al, %r12d
+    movzbl %al, %ebx
     movl $0, %ecx
-    cmpl %ecx, %r12d
+    cmpl %ecx, %ebx
     sete %al
-    movzbl %al, %r13d
+    movzbl %al, %ebx
 .L1_28:
-    movzbl %r13b, %r12d
-    testl %r12d, %r12d
+    movzbl %bl, %r15d
+    testl %r15d, %r15d
     jne .L1_23
     jmp .L1_24
 .L1_23:
-    movq %r15, %rax
+    movq %r12, %rax
     movq $1, %rcx
     addq %rcx, %rax
     jnc 1f
@@ -578,29 +570,26 @@ lb_clipboard_8win_read:
     call lb_core_7trap_at
     addq $32, %rsp
 1:
-    movq %rax, %r12
-    movq %r12, %r15
+    movq %rax, %rbx
+    movq %rbx, %r12
     jmp .L1_22
 .L1_24:
-    movq 64(%rbp), %rax
-    cmpq %r15, %rax
+    cmpq %r12, %r13
     sete %al
     movzbl %al, %ebx
     testl %ebx, %ebx
     jne .L1_56
     jmp .L1_32
 .L1_56:
-    movl %ebx, %r12d
+    movl %ebx, %r13d
     jmp .L1_33
 .L1_32:
-    leaq lb_clipboard_10text_limit(%rip), %rbx
-    movq %rbx, %r10
-    movq (%r10), %rbx
-    cmpq %rbx, %r15
+    movq $1048576, %rcx
+    cmpq %rcx, %r12
     seta %al
-    movzbl %al, %r12d
+    movzbl %al, %r13d
 .L1_33:
-    movzbl %r12b, %ebx
+    movzbl %r13b, %ebx
     testl %ebx, %ebx
     jne .L1_29
     jmp .L1_30
@@ -637,7 +626,7 @@ lb_clipboard_8win_read:
     movq %r12, %r10
     movb %al, (%r10)
     subq $32, %rsp
-    movq 8(%rbp), %rax
+    movq 16(%rbp), %rax
     movq %rax, 0(%rsp)
     movq 0(%rsp), %rcx
     call GlobalUnlock
@@ -680,38 +669,38 @@ lb_clipboard_8win_read:
 .L1_30:
 .L1_31:
     leaq 320(%rbp), %rax
-    movq %rax, 56(%rbp)
+    movq %rax, 64(%rbp)
     movl _tls_index(%rip), %eax
     movq %gs:88, %r11
     movq (%r11,%rax,8), %rax
     leaq lb_memory_allocator@SECREL32(%rax), %rax
-    movq %rax, 48(%rbp)
-    movq 48(%rbp), %r10
+    movq %rax, 56(%rbp)
+    movq 56(%rbp), %r10
+    movq 64(%rbp), %r11
+    movups 0(%r10), %xmm8
+    movups %xmm8, 0(%r11)
+    leaq lb_memory_heap(%rip), %r15
+    movq %r15, %r10
     movq 56(%rbp), %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
-    leaq lb_memory_heap(%rip), %r13
-    movq %r13, %r10
-    movq 48(%rbp), %r11
-    movups 0(%r10), %xmm8
-    movups %xmm8, 0(%r11)
     leaq 304(%rbp), %rax
-    movq %rax, 0(%rbp)
-    leaq 288(%rbp), %r13
-    movq %r13, %r10
+    movq %rax, 8(%rbp)
+    leaq 288(%rbp), %r15
+    movq %r15, %r10
     movq %r14, (%r10)
     movq $8, %rcx
-    movq %r13, %rax
+    movq %r15, %rax
     addq %rcx, %rax
+    movq %rax, 48(%rbp)
+    movq 48(%rbp), %r10
+    movq %r12, (%r10)
+    leaq lb_clipboard_failed(%rip), %rax
     movq %rax, 40(%rbp)
     movq 40(%rbp), %r10
-    movq %r15, (%r10)
-    leaq lb_clipboard_failed(%rip), %rax
-    movq %rax, 32(%rbp)
-    movq 32(%rbp), %r10
     movl (%r10), %ebx
     subq $48, %rsp
-    movq %r13, %r10
+    movq %r15, %r10
     leaq 32(%rsp), %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
@@ -726,9 +715,9 @@ lb_clipboard_8win_read:
     movq 16(%rsp), %r8
     call lb_12windows_text_narrow
     addq $48, %rsp
-    leaq 240(%rbp), %r13
+    leaq 240(%rbp), %r15
     movq $40, %rcx
-    movq %r13, %rbx
+    movq %r15, %rbx
     addq %rcx, %rbx
     movq %rbx, %r10
     movzbl (%r10), %ebx
@@ -737,30 +726,30 @@ lb_clipboard_8win_read:
     jmp .L1_35
 .L1_36:
     movq $16, %rcx
-    movq %r13, %rbx
+    movq %r15, %rbx
     addq %rcx, %rbx
-    leaq 472(%rbp), %r14
+    leaq 472(%rbp), %r12
     movq $24, %rcx
-    movq %r14, %r15
-    addq %rcx, %r15
+    movq %r12, %r14
+    addq %rcx, %r14
     movq %rbx, %r10
-    movq %r15, %r11
+    movq %r14, %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
     movq 16(%r10), %rax
     movq %rax, 16(%r11)
     movq $48, %rcx
-    movq %r14, %rbx
+    movq %r12, %rbx
     addq %rcx, %rbx
     movl $1, %eax
     movq %rbx, %r10
     movb %al, (%r10)
-    movq 56(%rbp), %r10
-    movq 48(%rbp), %r11
+    movq 64(%rbp), %r10
+    movq 56(%rbp), %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
     subq $32, %rsp
-    movq 8(%rbp), %rax
+    movq 16(%rbp), %rax
     movq %rax, 0(%rsp)
     movq 0(%rsp), %rcx
     call GlobalUnlock
@@ -770,7 +759,7 @@ lb_clipboard_8win_read:
     call CloseClipboard
     addq $32, %rsp
     movl %eax, %ebx
-    movq %r14, %rsi
+    movq %r12, %rsi
     movq 568(%rbp), %rdi
     movq $56, %rdx
     movq %rdx, %r8
@@ -801,55 +790,53 @@ lb_clipboard_8win_read:
     popq %rbp
     ret
 .L1_35:
-    movq %r13, %r10
-    movq 0(%rbp), %r11
+    movq %r15, %r10
+    movq 8(%rbp), %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
-    movq 0(%rbp), %rax
+    movq 8(%rbp), %rax
     movq $8, %rcx
     movq %rax, %rbx
     addq %rcx, %rbx
     movq %rbx, %r10
-    movq (%r10), %r14
-    leaq lb_clipboard_10text_limit(%rip), %r15
-    movq %r15, %r10
-    movq (%r10), %r15
-    cmpq %r15, %r14
+    movq (%r10), %r12
+    movq $1048576, %rcx
+    cmpq %rcx, %r12
     jbe .L1_39
 .L1_38:
     leaq 472(%rbp), %rbx
     movq $24, %rcx
-    movq %rbx, %r13
-    addq %rcx, %r13
-    movq 32(%rbp), %r10
+    movq %rbx, %r14
+    addq %rcx, %r14
+    movq 40(%rbp), %r10
     movl (%r10), %r15d
-    movq %r13, %r10
+    movq %r14, %r10
     movl %r15d, (%r10)
     leaq .Ltext_8(%rip), %r15
-    leaq 224(%rbp), %r12
-    movq %r12, %r10
+    leaq 224(%rbp), %r13
+    movq %r13, %r10
     movq %r15, (%r10)
     movq $8, %rcx
-    movq %r12, %r15
+    movq %r13, %r15
     addq %rcx, %r15
     movq $28, %rax
     movq %r15, %r10
     movq %rax, (%r10)
     movq $8, %rcx
-    addq %rcx, %r13
-    movq %r12, %r10
-    movq %r13, %r11
+    addq %rcx, %r14
+    movq %r13, %r10
+    movq %r14, %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
     movq $48, %rcx
-    movq %rbx, %r12
-    addq %rcx, %r12
+    movq %rbx, %r13
+    addq %rcx, %r13
     movl $1, %eax
-    movq %r12, %r10
+    movq %r13, %r10
     movb %al, (%r10)
-    movq 0(%rbp), %r10
-    movq (%r10), %r12
-    movq %r14, %rax
+    movq 8(%rbp), %r10
+    movq (%r10), %r13
+    movq %r12, %rax
     movq $1, %rcx
     addq %rcx, %rax
     jnc 1f
@@ -862,41 +849,41 @@ lb_clipboard_8win_read:
     call lb_core_7trap_at
     addq $32, %rsp
 1:
-    movq %rax, %r13
+    movq %rax, %r14
     leaq 208(%rbp), %r15
     movq %r15, %r10
-    movq %r12, (%r10)
+    movq %r13, (%r10)
     movq $8, %rcx
     addq %rcx, %r15
     movq %r15, %r10
-    movq %r13, (%r10)
+    movq %r14, (%r10)
     leaq 192(%rbp), %r15
     movq %r15, %r10
-    movq %r12, (%r10)
-    movq $8, %rcx
-    movq %r15, %r12
-    addq %rcx, %r12
-    movq %r12, %r10
     movq %r13, (%r10)
-    movq 48(%rbp), %r10
-    movq (%r10), %r12
-    movq 48(%rbp), %rax
     movq $8, %rcx
-    movq %rax, %r13
+    movq %r15, %r13
     addq %rcx, %r13
     movq %r13, %r10
+    movq %r14, (%r10)
+    movq 56(%rbp), %r10
     movq (%r10), %r13
-    testq %r13, %r13
+    movq 56(%rbp), %rax
+    movq $8, %rcx
+    movq %rax, %r14
+    addq %rcx, %r14
+    movq %r14, %r10
+    movq (%r10), %r14
+    testq %r14, %r14
     jne .L1_42
     jmp .L1_41
 .L1_42:
     movq $16, %rcx
-    movq %r13, %r14
-    addq %rcx, %r14
-    movq %r14, %r10
-    movq (%r10), %r14
+    movq %r14, %r12
+    addq %rcx, %r12
+    movq %r12, %r10
+    movq (%r10), %r12
     subq $48, %rsp
-    movq %r12, %rax
+    movq %r13, %rax
     movq %rax, 0(%rsp)
     movq %r15, %r10
     leaq 32(%rsp), %r11
@@ -906,16 +893,16 @@ lb_clipboard_8win_read:
     movq %rax, 8(%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
-    movq %r14, %r11
+    movq %r12, %r11
     call *%r11
     addq $48, %rsp
 .L1_41:
-    movq 56(%rbp), %r10
-    movq 48(%rbp), %r11
+    movq 64(%rbp), %r10
+    movq 56(%rbp), %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
     subq $32, %rsp
-    movq 8(%rbp), %rax
+    movq 16(%rbp), %rax
     movq %rax, 0(%rsp)
     movq 0(%rsp), %rcx
     call GlobalUnlock
@@ -958,7 +945,7 @@ lb_clipboard_8win_read:
 .L1_39:
 .L1_40:
     subq $48, %rsp
-    movq 0(%rbp), %r10
+    movq 8(%rbp), %r10
     leaq 32(%rsp), %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
@@ -984,8 +971,8 @@ lb_clipboard_8win_read:
     movq %r13, %r12
     addq %rcx, %r12
     leaq 472(%rbp), %rax
-    movq %rax, 24(%rbp)
-    movq 24(%rbp), %rax
+    movq %rax, 32(%rbp)
+    movq 32(%rbp), %rax
     movq $24, %rcx
     movq %rax, %r15
     addq %rcx, %r15
@@ -995,14 +982,14 @@ lb_clipboard_8win_read:
     movups %xmm8, 0(%r11)
     movq 16(%r10), %rax
     movq %rax, 16(%r11)
-    movq 24(%rbp), %rax
+    movq 32(%rbp), %rax
     movq $48, %rcx
     movq %rax, %r12
     addq %rcx, %r12
     movl $1, %eax
     movq %r12, %r10
     movb %al, (%r10)
-    movq 0(%rbp), %r10
+    movq 8(%rbp), %r10
     movq (%r10), %r12
     movq %rbx, %r10
     movq (%r10), %r15
@@ -1035,9 +1022,9 @@ lb_clipboard_8win_read:
     addq %rcx, %r12
     movq %r12, %r10
     movq %r15, (%r10)
-    movq 48(%rbp), %r10
+    movq 56(%rbp), %r10
     movq (%r10), %r12
-    movq 48(%rbp), %rax
+    movq 56(%rbp), %rax
     movq $8, %rcx
     movq %rax, %r15
     addq %rcx, %r15
@@ -1067,12 +1054,12 @@ lb_clipboard_8win_read:
     call *%r11
     addq $48, %rsp
 .L1_46:
-    movq 56(%rbp), %r10
-    movq 48(%rbp), %r11
+    movq 64(%rbp), %r10
+    movq 56(%rbp), %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
     subq $32, %rsp
-    movq 8(%rbp), %rax
+    movq 16(%rbp), %rax
     movq %rax, 0(%rsp)
     movq 0(%rsp), %rcx
     call GlobalUnlock
@@ -1082,7 +1069,7 @@ lb_clipboard_8win_read:
     call CloseClipboard
     addq $32, %rsp
     movl %eax, %ebx
-    movq 24(%rbp), %rsi
+    movq 32(%rbp), %rsi
     movq 568(%rbp), %rdi
     movq $56, %rdx
     movq %rdx, %r8
@@ -1114,21 +1101,21 @@ lb_clipboard_8win_read:
     ret
 .L1_44:
     leaq 472(%rbp), %rax
-    movq %rax, 16(%rbp)
+    movq %rax, 24(%rbp)
     movq %r13, %r10
-    movq 16(%rbp), %r11
+    movq 24(%rbp), %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
     movq 16(%r10), %rax
     movq %rax, 16(%r11)
-    movq 16(%rbp), %rax
+    movq 24(%rbp), %rax
     movq $48, %rcx
     movq %rax, %r14
     addq %rcx, %r14
     movl $0, %eax
     movq %r14, %r10
     movb %al, (%r10)
-    movq 0(%rbp), %r10
+    movq 8(%rbp), %r10
     movq (%r10), %r14
     movq %rbx, %r10
     movq (%r10), %r15
@@ -1161,9 +1148,9 @@ lb_clipboard_8win_read:
     addq %rcx, %r14
     movq %r14, %r10
     movq %r15, (%r10)
-    movq 48(%rbp), %r10
+    movq 56(%rbp), %r10
     movq (%r10), %r14
-    movq 48(%rbp), %rax
+    movq 56(%rbp), %rax
     movq $8, %rcx
     movq %rax, %r15
     addq %rcx, %r15
@@ -1193,12 +1180,12 @@ lb_clipboard_8win_read:
     call *%r11
     addq $48, %rsp
 .L1_49:
-    movq 56(%rbp), %r10
-    movq 48(%rbp), %r11
+    movq 64(%rbp), %r10
+    movq 56(%rbp), %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
     subq $32, %rsp
-    movq 8(%rbp), %rax
+    movq 16(%rbp), %rax
     movq %rax, 0(%rsp)
     movq 0(%rsp), %rcx
     call GlobalUnlock
@@ -1208,7 +1195,7 @@ lb_clipboard_8win_read:
     call CloseClipboard
     addq $32, %rsp
     movl %eax, %ebx
-    movq 16(%rbp), %rsi
+    movq 24(%rbp), %rsi
     movq 568(%rbp), %rdi
     movq $56, %rdx
     movq %rdx, %r8
@@ -2174,11 +2161,8 @@ lb_clipboard_9win_write:
     movl %ebx, %r12d
     jmp .L2_36
 .L2_35:
-    leaq lb_clipboard_12unicode_text(%rip), %rbx
-    movq %rbx, %r10
-    movl (%r10), %ebx
     subq $32, %rsp
-    movl %ebx, %eax
+    movl $13, %eax
     movq %rax, 0(%rsp)
     movq 0(%rbp), %rax
     movq %rax, 8(%rsp)

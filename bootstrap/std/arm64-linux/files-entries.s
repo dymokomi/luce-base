@@ -73,26 +73,23 @@ lb_files_exists:
 lb_files_14exists_checked:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #128
+    sub sp, sp, #112
     sub x16, x29, #24
     str x8, [x16]
-    str x19, [sp, #96]
-    str x20, [sp, #88]
-    str x21, [sp, #80]
-    sub x16, x29, #104
+    str x19, [sp, #80]
+    str x20, [sp, #72]
+    sub x16, x29, #96
     str x0, [x16]
-    sub x14, x29, #104
+    sub x14, x29, #96
     ldr x19, [x14]
     mov x0, x19
     mov x1, #0
     bl access
     mov w14, w0
-    adrp x20, lb_c_interrupted
-    add x20, x20, :lo12:lb_c_interrupted
-    mov w21, w14
+    mov w20, w14
 .L2_1:
     mov x10, #0
-    cmp w21, w10
+    cmp w20, w10
     cset w14, lt
     cbnz w14, .L2_4
     b .L2_17
@@ -102,8 +99,8 @@ lb_files_14exists_checked:
 .L2_4:
     bl lb_c_errno
     mov w14, w0
-    ldrsw x15, [x20]
-    cmp w14, w15
+    movz x10, #4
+    cmp w14, w10
     cset w15, eq
 .L2_5:
     and w14, w15, #255
@@ -113,14 +110,14 @@ lb_files_14exists_checked:
     mov x0, x19
     mov x1, #0
     bl access
-    mov w21, w0
+    mov w20, w0
     b .L2_1
 .L2_3:
     mov x10, #0
-    cmp w21, w10
+    cmp w20, w10
     b.ne .L2_7
 .L2_6:
-    sub x14, x29, #88
+    sub x14, x29, #80
     movz x9, #1
     strb w9, [x14]
     add x15, x14, #32
@@ -133,9 +130,8 @@ lb_files_14exists_checked:
     bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #96]
-    ldr x20, [sp, #88]
-    ldr x21, [sp, #80]
+    ldr x19, [sp, #80]
+    ldr x20, [sp, #72]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -162,7 +158,7 @@ lb_files_14exists_checked:
     cbnz w15, .L2_10
     b .L2_11
 .L2_10:
-    sub x14, x29, #88
+    sub x14, x29, #80
     mov x9, #0
     strb w9, [x14]
     add x15, x14, #32
@@ -175,9 +171,8 @@ lb_files_14exists_checked:
     bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #96]
-    ldr x20, [sp, #88]
-    ldr x21, [sp, #80]
+    ldr x19, [sp, #80]
+    ldr x20, [sp, #72]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -185,7 +180,7 @@ lb_files_14exists_checked:
     b .L2_12
 .L2_11:
 .L2_12:
-    sub x19, x29, #88
+    sub x19, x29, #80
     add x20, x19, #8
     mov x0, x14
     bl lb_files_14classify_error
@@ -193,7 +188,7 @@ lb_files_14exists_checked:
     str w15, [x20]
     adrp x15, .Ltext_2
     add x15, x15, :lo12:.Ltext_2
-    sub x12, x29, #120
+    sub x12, x29, #112
     str x15, [x12]
     add x15, x12, #8
     movz x9, #31
@@ -213,9 +208,8 @@ lb_files_14exists_checked:
     bl memcpy
     sub x16, x29, #24
     ldr x0, [x16]
-    ldr x19, [sp, #96]
-    ldr x20, [sp, #88]
-    ldr x21, [sp, #80]
+    ldr x19, [sp, #80]
+    ldr x20, [sp, #72]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -283,36 +277,19 @@ lb_files_16create_directory:
     b .L3_3
 .L3_2:
 .L3_3:
-    adrp x15, lb_platform_macos
-    add x15, x15, :lo12:lb_platform_macos
-    ldrb w15, [x15]
-    cbnz w15, .L3_5
-    b .L3_6
-.L3_5:
-    sub x15, x29, #80
-    ldr x15, [x15]
-    mov w12, w14
-    and w12, w12, #65535
-    mov x0, x15
-    mov x1, x12
-    bl mkdir
-    mov w15, w0
-    b .L3_7
-.L3_6:
     sub x15, x29, #80
     ldr x15, [x15]
     mov x0, x15
     mov x1, x14
     bl mkdir
     mov w15, w0
-.L3_7:
     mov x10, #0
     cmp w15, w10
-    cset w14, eq
+    cset w15, eq
     mov x10, #0
-    cmp w14, w10
-    b.ne .L3_9
-.L3_8:
+    cmp w15, w10
+    b.ne .L3_6
+.L3_5:
     sub x19, x29, #64
     bl lb_c_errno
     mov w14, w0
@@ -346,10 +323,10 @@ lb_files_16create_directory:
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
-.L3_11:
-    b .L3_10
-.L3_9:
-.L3_10:
+.L3_8:
+    b .L3_7
+.L3_6:
+.L3_7:
     sub x14, x29, #64
     add x15, x14, #24
     mov x9, #0
@@ -557,17 +534,14 @@ lb_files_rename:
     mov w14, w0
     b .L6_3
 .L6_2:
-    adrp x14, lb_files_20current_directory_fd
-    add x14, x14, :lo12:lb_files_20current_directory_fd
-    ldrsw x14, [x14]
-    sub x15, x29, #80
+    sub x14, x29, #80
+    ldr x14, [x14]
+    sub x15, x29, #96
     ldr x15, [x15]
-    sub x12, x29, #96
-    ldr x12, [x12]
-    mov x0, x14
-    mov x1, x15
-    mov x2, x14
-    mov x3, x12
+    movn x0, #99
+    mov x1, x14
+    movn x2, #99
+    mov x3, x15
     movz x4, #1
     bl renameat2
     mov w14, w0
@@ -734,17 +708,14 @@ lb_files_16create_hard_link:
     str x0, [x16]
     sub x16, x29, #96
     str x1, [x16]
-    adrp x14, lb_files_20current_directory_fd
-    add x14, x14, :lo12:lb_files_20current_directory_fd
-    ldrsw x14, [x14]
-    sub x15, x29, #80
+    sub x14, x29, #80
+    ldr x14, [x14]
+    sub x15, x29, #96
     ldr x15, [x15]
-    sub x12, x29, #96
-    ldr x12, [x12]
-    mov x0, x14
-    mov x1, x15
-    mov x2, x14
-    mov x3, x12
+    movn x0, #99
+    mov x1, x14
+    movn x2, #99
+    mov x3, x15
     mov x4, #0
     bl linkat
     mov w14, w0
@@ -1028,12 +999,10 @@ lb_files_12read_symlink:
     mov x2, x15
     bl readlink
     mov x14, x0
-    adrp x25, lb_c_interrupted
-    add x25, x25, :lo12:lb_c_interrupted
-    mov x26, x14
+    mov x25, x14
 .L9_15:
     mov x10, #0
-    cmp x26, x10
+    cmp x25, x10
     cset w23, lt
     cbnz w23, .L9_18
     b .L9_51
@@ -1043,8 +1012,8 @@ lb_files_12read_symlink:
 .L9_18:
     bl lb_c_errno
     mov w14, w0
-    ldrsw x15, [x25]
-    cmp w14, w15
+    movz x10, #4
+    cmp w14, w10
     cset w14, eq
 .L9_19:
     and w15, w14, #255
@@ -1057,7 +1026,7 @@ lb_files_12read_symlink:
     mov x1, x14
     mov x2, x15
     bl readlink
-    mov x26, x0
+    mov x25, x0
     b .L9_15
 .L9_17:
     cbnz w23, .L9_20
@@ -1131,7 +1100,7 @@ lb_files_12read_symlink:
     b .L9_22
 .L9_21:
 .L9_22:
-    cmp x26, x19
+    cmp x25, x19
     b.ls .L9_27
 .L9_26:
     sub x19, x29, #136
@@ -1201,7 +1170,7 @@ lb_files_12read_symlink:
 .L9_27:
 .L9_28:
     sub x19, x29, #376
-    mov x9, x26
+    mov x9, x25
     movz x10, #1
     adds x9, x9, x10
     b.cc 1f
@@ -1254,8 +1223,8 @@ lb_files_12read_symlink:
     sub x8, x29, #448
     ldr x17, [sp], #16
     blr x17
-    sub x25, x29, #448
-    add x12, x25, #16
+    sub x26, x29, #448
+    add x12, x26, #16
     ldrb w12, [x12]
     mov x10, #0
     cmp x20, x10
@@ -1283,7 +1252,7 @@ lb_files_12read_symlink:
     strb w9, [x14]
     b .L9_34
 .L9_38:
-    ldr x14, [x25]
+    ldr x14, [x26]
     str x14, [x23]
     add x14, x23, #8
     str x20, [x14]
@@ -1361,12 +1330,12 @@ lb_files_12read_symlink:
     mov x9, x21
     ldr x2, [x9]
     ldr x3, [x9, #8]
-    mov x4, x26
+    mov x4, x25
     bl lb_memory_copy_0g1_u8
     ldr x14, [x19]
     add x15, x19, #8
     ldr x12, [x15]
-    cmp x26, x12
+    cmp x25, x12
     b.lo 1f
     adrp x0, .Ltext_21
     add x0, x0, :lo12:.Ltext_21
@@ -1374,7 +1343,7 @@ lb_files_12read_symlink:
     add x1, x1, :lo12:.Ltext_23
     bl lb_core_7trap_at
 1:
-    add x14, x14, x26
+    add x14, x14, x25
     mov x9, #0
     strb w9, [x14]
     ldr x12, [x19]
@@ -1389,7 +1358,7 @@ lb_files_12read_symlink:
     add x1, x1, :lo12:.Ltext_23
     bl lb_core_7trap_at
 1:
-    cmp x26, x14
+    cmp x25, x14
     b.lo 1f
     adrp x0, .Ltext_22
     add x0, x0, :lo12:.Ltext_22
@@ -1398,7 +1367,7 @@ lb_files_12read_symlink:
     bl lb_core_7trap_at
 1:
     mov x9, #0
-    cmp x9, x26
+    cmp x9, x25
     b.ls .L9_44
 .L9_45:
     adrp x0, .Ltext_22
@@ -1410,11 +1379,11 @@ lb_files_12read_symlink:
     sub x14, x29, #480
     str x12, [x14]
     add x14, x14, #8
-    str x26, [x14]
+    str x25, [x14]
     sub x14, x29, #496
     str x12, [x14]
     add x15, x14, #8
-    str x26, [x15]
+    str x25, [x15]
     sub x19, x29, #136
     mov x10, x14
     mov x11, x19

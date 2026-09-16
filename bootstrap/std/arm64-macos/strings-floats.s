@@ -1284,48 +1284,35 @@ _lb_strings_NumericLocale_create:
     str x19, [sp, #80]
     str x20, [sp, #72]
     str x21, [sp, #64]
-    adrp x14, _lb_platform_macos@PAGE
-    add x14, x14, _lb_platform_macos@PAGEOFF
-    ldrb w14, [x14]
-    cbnz w14, L5_1
-    b L5_2
-L5_1:
-    movz x9, #16
-    mov w14, w9
-    b L5_3
-L5_2:
-    movz x9, #2
-    mov w14, w9
-L5_3:
-    adrp x15, l_text_12@PAGE
-    add x15, x15, l_text_12@PAGEOFF
-    mov x0, x14
-    mov x1, x15
+    adrp x14, l_text_12@PAGE
+    add x14, x14, l_text_12@PAGEOFF
+    movz x0, #16
+    mov x1, x14
     mov x2, #0
     bl _newlocale
     mov x19, x0
-    cbnz x19, L5_4
-    b L5_5
-L5_4:
-    b L5_6
-L5_5:
+    cbnz x19, L5_1
+    b L5_2
+L5_1:
+    b L5_3
+L5_2:
     sub x19, x29, #88
     add x20, x19, #8
     bl _lb_c_errno
     mov w14, w0
     movz x10, #12
     cmp w14, w10
-    b.ne L5_8
-L5_7:
+    b.ne L5_5
+L5_4:
     adrp x14, _lb_memory_exhausted@PAGE
     add x14, x14, _lb_memory_exhausted@PAGEOFF
     ldr w14, [x14]
-    b L5_9
-L5_8:
+    b L5_6
+L5_5:
     adrp x14, _lb_strings_17conversion_failed@PAGE
     add x14, x14, _lb_strings_17conversion_failed@PAGEOFF
     ldr w14, [x14]
-L5_9:
+L5_6:
     str w14, [x20]
     adrp x15, l_text_13@PAGE
     add x15, x15, l_text_13@PAGEOFF
@@ -1355,8 +1342,8 @@ L5_9:
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
-L5_10:
-L5_6:
+L5_7:
+L5_3:
     sub x20, x29, #112
     mov x11, x20
     str xzr, [x11, #0]
@@ -1382,7 +1369,7 @@ L5_6:
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
-L5_11:
+L5_8:
     adrp x0, l_text_14@PAGE
     add x0, x0, l_text_14@PAGEOFF
     adrp x1, l_text_0@PAGE

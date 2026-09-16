@@ -446,23 +446,15 @@ lb_math32_log1p:
 lb_math32_expm1:
     pushq %rbp
     movq %rsp, %rbp
-    subq $48, %rsp
+    subq $32, %rsp
     movq %rbx, -8(%rbp)
-    movq %r12, -16(%rbp)
-    movq %r13, -24(%rbp)
-    movss %xmm0, -40(%rbp)
-    leaq -40(%rbp), %rbx
+    movss %xmm0, -24(%rbp)
+    leaq -24(%rbp), %rbx
     movq %rbx, %r10
     movss (%r10), %xmm12
     movd %xmm12, %ebx
-    leaq lb_math32_9sign_mask(%rip), %r12
-    movq %r12, %r10
-    movl (%r10), %r12d
-    leaq lb_math32_13exponent_mask(%rip), %r13
-    movq %r13, %r10
-    movl (%r10), %r13d
-    orl %r13d, %r12d
-    cmpl %r12d, %ebx
+    movl $4286578688, %ecx
+    cmpl %ecx, %ebx
     jne .L16_2
 .L16_1:
     movl $1065353216, %eax
@@ -472,8 +464,6 @@ lb_math32_expm1:
     movd %eax, %xmm12
     movaps %xmm12, %xmm0
     movq -8(%rbp), %rbx
-    movq -16(%rbp), %r12
-    movq -24(%rbp), %r13
     movq %rbp, %rsp
     popq %rbp
     ret
@@ -486,8 +476,6 @@ lb_math32_expm1:
     movaps %xmm0, %xmm13
     movaps %xmm13, %xmm0
     movq -8(%rbp), %rbx
-    movq -16(%rbp), %r12
-    movq -24(%rbp), %r13
     movq %rbp, %rsp
     popq %rbp
     ret
@@ -599,9 +587,8 @@ lb_math32_9next_down:
     subq $80, %rsp
     movq %rbx, -8(%rbp)
     movq %r12, -16(%rbp)
-    movq %r13, -24(%rbp)
-    movss %xmm0, -40(%rbp)
-    leaq -40(%rbp), %rbx
+    movss %xmm0, -32(%rbp)
+    leaq -32(%rbp), %rbx
     movq %rbx, %r10
     movss (%r10), %xmm12
     leaq lb_math32_infinity(%rip), %rbx
@@ -612,23 +599,19 @@ lb_math32_9next_down:
     movd %xmm14, %eax
     xorl $2147483648, %eax
     movd %eax, %xmm14
-    leaq -56(%rbp), %r10
+    leaq -48(%rbp), %r10
     movss %xmm13, (%r10)
-    leaq -72(%rbp), %r10
+    leaq -64(%rbp), %r10
     movss %xmm14, (%r10)
     movd %xmm13, %ebx
-    leaq lb_math32_14magnitude_mask(%rip), %r12
-    movq %r12, %r10
-    movl (%r10), %r12d
-    andl %r12d, %ebx
+    movl $2147483647, %ecx
+    andl %ecx, %ebx
     movd %xmm14, %r12d
-    leaq lb_math32_9sign_mask(%rip), %r13
-    movq %r13, %r10
-    movl (%r10), %r13d
-    andl %r13d, %r12d
+    movl $2147483648, %ecx
+    andl %ecx, %r12d
     orl %r12d, %ebx
     movd %ebx, %xmm13
-    leaq -80(%rbp), %r10
+    leaq -72(%rbp), %r10
     movss %xmm13, (%r10)
     jmp .L20_3
 .L20_2:
@@ -643,7 +626,6 @@ lb_math32_9next_down:
     movaps %xmm14, %xmm0
     movq -8(%rbp), %rbx
     movq -16(%rbp), %r12
-    movq -24(%rbp), %r13
     movq %rbp, %rsp
     popq %rbp
     ret
@@ -683,11 +665,10 @@ lb_math32_frexp:
     leaq -88(%rbp), %r10
     movss %xmm12, (%r10)
     movd %xmm12, %ebx
-    leaq lb_math32_13exponent_mask(%rip), %r12
-    movq %r12, %r10
-    movl (%r10), %r12d
-    andl %r12d, %ebx
-    cmpl %ebx, %r12d
+    movl $2139095040, %ecx
+    andl %ecx, %ebx
+    movl $2139095040, %ecx
+    cmpl %ecx, %ebx
     sete %al
     movzbl %al, %ebx
     movl $0, %ecx
@@ -853,48 +834,43 @@ lb_math32_modf:
 lb_math32_remainder:
     pushq %rbp
     movq %rsp, %rbp
-    subq $112, %rsp
+    subq $96, %rsp
     movq %rbx, -8(%rbp)
     movq %r12, -16(%rbp)
-    movq %r13, -24(%rbp)
-    movss %xmm0, -40(%rbp)
-    movss %xmm1, -56(%rbp)
-    leaq -40(%rbp), %rbx
+    movss %xmm0, -32(%rbp)
+    movss %xmm1, -48(%rbp)
+    leaq -32(%rbp), %rbx
     movq %rbx, %r10
     movss (%r10), %xmm8
-    movss %xmm8, -104(%rbp)
-    leaq -56(%rbp), %rbx
+    movss %xmm8, -96(%rbp)
+    leaq -48(%rbp), %rbx
     movq %rbx, %r10
     movss (%r10), %xmm12
-    movss -104(%rbp), %xmm0
+    movss -96(%rbp), %xmm0
     movaps %xmm12, %xmm1
     call remainderf@PLT
     movaps %xmm0, %xmm12
     movd %xmm12, %ebx
-    leaq lb_math32_14magnitude_mask(%rip), %r12
-    movq %r12, %r10
-    movl (%r10), %r12d
-    andl %r12d, %ebx
+    movl $2147483647, %ecx
+    andl %ecx, %ebx
     movl $0, %ecx
     cmpl %ecx, %ebx
     jne .L24_2
 .L24_1:
-    leaq -72(%rbp), %r10
+    leaq -64(%rbp), %r10
     movss %xmm12, (%r10)
-    movss -104(%rbp), %xmm8
-    leaq -88(%rbp), %r10
+    movss -96(%rbp), %xmm8
+    leaq -80(%rbp), %r10
     movss %xmm8, (%r10)
-    movss -104(%rbp), %xmm8
+    movss -96(%rbp), %xmm8
     movd %xmm8, %r12d
-    leaq lb_math32_9sign_mask(%rip), %r13
-    movq %r13, %r10
-    movl (%r10), %r13d
-    andl %r13d, %r12d
+    movl $2147483648, %ecx
+    andl %ecx, %r12d
     movl %r12d, %ecx
     movl %ebx, %r12d
     orl %ecx, %r12d
     movd %r12d, %xmm13
-    leaq -96(%rbp), %r10
+    leaq -88(%rbp), %r10
     movss %xmm13, (%r10)
     jmp .L24_6
 .L24_5:
@@ -909,7 +885,6 @@ lb_math32_remainder:
     movaps %xmm12, %xmm0
     movq -8(%rbp), %rbx
     movq -16(%rbp), %r12
-    movq -24(%rbp), %r13
     movq %rbp, %rsp
     popq %rbp
     ret
@@ -1181,26 +1156,20 @@ lb_math32_6is_nan:
     movq %rsp, %rbp
     subq $32, %rsp
     movq %rbx, -8(%rbp)
-    movq %r12, -16(%rbp)
-    movss %xmm0, -32(%rbp)
-    leaq -32(%rbp), %rbx
+    movss %xmm0, -24(%rbp)
+    leaq -24(%rbp), %rbx
     movq %rbx, %r10
     movss (%r10), %xmm12
     movd %xmm12, %ebx
-    leaq lb_math32_14magnitude_mask(%rip), %r12
-    movq %r12, %r10
-    movl (%r10), %r12d
-    andl %r12d, %ebx
-    leaq lb_math32_13exponent_mask(%rip), %r12
-    movq %r12, %r10
-    movl (%r10), %r12d
-    cmpl %r12d, %ebx
+    movl $2147483647, %ecx
+    andl %ecx, %ebx
+    movl $2139095040, %ecx
+    cmpl %ecx, %ebx
     seta %al
     movzbl %al, %ebx
     movzbl %bl, %ebx
     movl %ebx, %eax
     movq -8(%rbp), %rbx
-    movq -16(%rbp), %r12
     movq %rbp, %rsp
     popq %rbp
     ret
@@ -1217,17 +1186,15 @@ lb_math32_9is_finite:
     movq %rsp, %rbp
     subq $32, %rsp
     movq %rbx, -8(%rbp)
-    movq %r12, -16(%rbp)
-    movss %xmm0, -32(%rbp)
-    leaq -32(%rbp), %rbx
+    movss %xmm0, -24(%rbp)
+    leaq -24(%rbp), %rbx
     movq %rbx, %r10
     movss (%r10), %xmm12
     movd %xmm12, %ebx
-    leaq lb_math32_13exponent_mask(%rip), %r12
-    movq %r12, %r10
-    movl (%r10), %r12d
-    andl %r12d, %ebx
-    cmpl %ebx, %r12d
+    movl $2139095040, %ecx
+    andl %ecx, %ebx
+    movl $2139095040, %ecx
+    cmpl %ecx, %ebx
     sete %al
     movzbl %al, %ebx
     movl $0, %ecx
@@ -1237,7 +1204,6 @@ lb_math32_9is_finite:
     movzbl %bl, %ebx
     movl %ebx, %eax
     movq -8(%rbp), %rbx
-    movq -16(%rbp), %r12
     movq %rbp, %rsp
     popq %rbp
     ret
@@ -1254,26 +1220,20 @@ lb_math32_11is_infinite:
     movq %rsp, %rbp
     subq $32, %rsp
     movq %rbx, -8(%rbp)
-    movq %r12, -16(%rbp)
-    movss %xmm0, -32(%rbp)
-    leaq -32(%rbp), %rbx
+    movss %xmm0, -24(%rbp)
+    leaq -24(%rbp), %rbx
     movq %rbx, %r10
     movss (%r10), %xmm12
     movd %xmm12, %ebx
-    leaq lb_math32_14magnitude_mask(%rip), %r12
-    movq %r12, %r10
-    movl (%r10), %r12d
-    andl %r12d, %ebx
-    leaq lb_math32_13exponent_mask(%rip), %r12
-    movq %r12, %r10
-    movl (%r10), %r12d
-    cmpl %r12d, %ebx
+    movl $2147483647, %ecx
+    andl %ecx, %ebx
+    movl $2139095040, %ecx
+    cmpl %ecx, %ebx
     sete %al
     movzbl %al, %ebx
     movzbl %bl, %ebx
     movl %ebx, %eax
     movq -8(%rbp), %rbx
-    movq -16(%rbp), %r12
     movq %rbp, %rsp
     popq %rbp
     ret
@@ -1290,16 +1250,13 @@ lb_math32_signbit:
     movq %rsp, %rbp
     subq $32, %rsp
     movq %rbx, -8(%rbp)
-    movq %r12, -16(%rbp)
-    movss %xmm0, -32(%rbp)
-    leaq -32(%rbp), %rbx
+    movss %xmm0, -24(%rbp)
+    leaq -24(%rbp), %rbx
     movq %rbx, %r10
     movss (%r10), %xmm12
     movd %xmm12, %ebx
-    leaq lb_math32_9sign_mask(%rip), %r12
-    movq %r12, %r10
-    movl (%r10), %r12d
-    andl %r12d, %ebx
+    movl $2147483648, %ecx
+    andl %ecx, %ebx
     movl $0, %ecx
     cmpl %ecx, %ebx
     sete %al
@@ -1311,7 +1268,6 @@ lb_math32_signbit:
     movzbl %bl, %ebx
     movl %ebx, %eax
     movq -8(%rbp), %rbx
-    movq -16(%rbp), %r12
     movq %rbp, %rsp
     popq %rbp
     ret
@@ -1328,20 +1284,16 @@ lb_math32_abs:
     movq %rsp, %rbp
     subq $32, %rsp
     movq %rbx, -8(%rbp)
-    movq %r12, -16(%rbp)
-    movss %xmm0, -32(%rbp)
-    leaq -32(%rbp), %rbx
+    movss %xmm0, -24(%rbp)
+    leaq -24(%rbp), %rbx
     movq %rbx, %r10
     movss (%r10), %xmm12
     movd %xmm12, %ebx
-    leaq lb_math32_14magnitude_mask(%rip), %r12
-    movq %r12, %r10
-    movl (%r10), %r12d
-    andl %r12d, %ebx
+    movl $2147483647, %ecx
+    andl %ecx, %ebx
     movd %ebx, %xmm12
     movaps %xmm12, %xmm0
     movq -8(%rbp), %rbx
-    movq -16(%rbp), %r12
     movq %rbp, %rsp
     popq %rbp
     ret
@@ -1356,34 +1308,28 @@ lb_math32_abs:
 lb_math32_copysign:
     pushq %rbp
     movq %rsp, %rbp
-    subq $64, %rsp
+    subq $48, %rsp
     movq %rbx, -8(%rbp)
     movq %r12, -16(%rbp)
-    movq %r13, -24(%rbp)
-    movss %xmm0, -40(%rbp)
-    movss %xmm1, -56(%rbp)
-    leaq -40(%rbp), %rbx
+    movss %xmm0, -32(%rbp)
+    movss %xmm1, -48(%rbp)
+    leaq -32(%rbp), %rbx
     movq %rbx, %r10
     movss (%r10), %xmm12
     movd %xmm12, %ebx
-    leaq lb_math32_14magnitude_mask(%rip), %r12
-    movq %r12, %r10
-    movl (%r10), %r12d
-    andl %r12d, %ebx
-    leaq -56(%rbp), %r12
+    movl $2147483647, %ecx
+    andl %ecx, %ebx
+    leaq -48(%rbp), %r12
     movq %r12, %r10
     movss (%r10), %xmm12
     movd %xmm12, %r12d
-    leaq lb_math32_9sign_mask(%rip), %r13
-    movq %r13, %r10
-    movl (%r10), %r13d
-    andl %r13d, %r12d
+    movl $2147483648, %ecx
+    andl %ecx, %r12d
     orl %r12d, %ebx
     movd %ebx, %xmm12
     movaps %xmm12, %xmm0
     movq -8(%rbp), %rbx
     movq -16(%rbp), %r12
-    movq -24(%rbp), %r13
     movq %rbp, %rsp
     popq %rbp
     ret
@@ -1398,28 +1344,23 @@ lb_math32_copysign:
 lb_math32_sign:
     pushq %rbp
     movq %rsp, %rbp
-    subq $64, %rsp
+    subq $48, %rsp
     movq %rbx, -8(%rbp)
-    movq %r12, -16(%rbp)
-    movss %xmm0, -32(%rbp)
-    leaq -32(%rbp), %rbx
+    movss %xmm0, -24(%rbp)
+    leaq -24(%rbp), %rbx
     movq %rbx, %r10
     movss (%r10), %xmm12
-    leaq -48(%rbp), %r10
+    leaq -40(%rbp), %r10
     movss %xmm12, (%r10)
     movd %xmm12, %ebx
-    leaq lb_math32_14magnitude_mask(%rip), %r12
-    movq %r12, %r10
-    movl (%r10), %r12d
-    andl %r12d, %ebx
-    leaq lb_math32_13exponent_mask(%rip), %r12
-    movq %r12, %r10
-    movl (%r10), %r12d
-    cmpl %r12d, %ebx
+    movl $2147483647, %ecx
+    andl %ecx, %ebx
+    movl $2139095040, %ecx
+    cmpl %ecx, %ebx
     seta %al
     movzbl %al, %ebx
     movzbl %bl, %ebx
-    leaq -56(%rbp), %r10
+    leaq -48(%rbp), %r10
     movl %ebx, (%r10)
     jmp .L41_15
 .L41_14:
@@ -1433,7 +1374,6 @@ lb_math32_sign:
 .L41_1:
     movaps %xmm12, %xmm0
     movq -8(%rbp), %rbx
-    movq -16(%rbp), %r12
     movq %rbp, %rsp
     popq %rbp
     ret
@@ -1457,7 +1397,6 @@ lb_math32_sign:
     movd %eax, %xmm12
     movaps %xmm12, %xmm0
     movq -8(%rbp), %rbx
-    movq -16(%rbp), %r12
     movq %rbp, %rsp
     popq %rbp
     ret
@@ -1476,7 +1415,6 @@ lb_math32_sign:
     movd %eax, %xmm12
     movaps %xmm12, %xmm0
     movq -8(%rbp), %rbx
-    movq -16(%rbp), %r12
     movq %rbp, %rsp
     popq %rbp
     ret
@@ -1486,7 +1424,6 @@ lb_math32_sign:
 .L41_11:
     movaps %xmm12, %xmm0
     movq -8(%rbp), %rbx
-    movq -16(%rbp), %r12
     movq %rbp, %rsp
     popq %rbp
     ret
@@ -1501,41 +1438,36 @@ lb_math32_sign:
 lb_math32_min:
     pushq %rbp
     movq %rsp, %rbp
-    subq $112, %rsp
+    subq $96, %rsp
     movq %rbx, -8(%rbp)
     movq %r12, -16(%rbp)
     movq %r13, -24(%rbp)
     movq %r14, -32(%rbp)
-    movq %r15, -40(%rbp)
-    movss %xmm0, -56(%rbp)
-    movss %xmm1, -72(%rbp)
-    leaq -56(%rbp), %rbx
+    movss %xmm0, -48(%rbp)
+    movss %xmm1, -64(%rbp)
+    leaq -48(%rbp), %rbx
     movq %rbx, %r10
     movss (%r10), %xmm12
-    leaq -88(%rbp), %r10
+    leaq -80(%rbp), %r10
     movss %xmm12, (%r10)
     movd %xmm12, %ebx
-    leaq lb_math32_14magnitude_mask(%rip), %r12
-    movq %r12, %r10
-    movl (%r10), %r12d
-    movl %ebx, %r13d
-    andl %r12d, %r13d
-    leaq lb_math32_13exponent_mask(%rip), %r14
-    movq %r14, %r10
-    movl (%r10), %r14d
-    cmpl %r14d, %r13d
+    movl $2147483647, %ecx
+    movl %ebx, %r12d
+    andl %ecx, %r12d
+    movl $2139095040, %ecx
+    cmpl %ecx, %r12d
     seta %al
-    movzbl %al, %r13d
-    movzbl %r13b, %r13d
-    leaq -96(%rbp), %r10
-    movl %r13d, (%r10)
+    movzbl %al, %r12d
+    movzbl %r12b, %r12d
+    leaq -88(%rbp), %r10
+    movl %r12d, (%r10)
     jmp .L42_20
 .L42_19:
     leaq .Ltext_35(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     call lb_core_7trap_at@PLT
 .L42_20:
-    testl %r13d, %r13d
+    testl %r12d, %r12d
     jne .L42_1
     jmp .L42_2
 .L42_1:
@@ -1544,7 +1476,6 @@ lb_math32_min:
     movq -16(%rbp), %r12
     movq -24(%rbp), %r13
     movq -32(%rbp), %r14
-    movq -40(%rbp), %r15
     movq %rbp, %rsp
     popq %rbp
     ret
@@ -1552,27 +1483,29 @@ lb_math32_min:
     jmp .L42_3
 .L42_2:
 .L42_3:
-    leaq -72(%rbp), %r13
-    movq %r13, %r10
+    leaq -64(%rbp), %r12
+    movq %r12, %r10
     movss (%r10), %xmm13
-    leaq -88(%rbp), %r10
+    leaq -80(%rbp), %r10
     movss %xmm13, (%r10)
-    movd %xmm13, %r13d
-    movl %r12d, %r15d
-    andl %r13d, %r15d
-    cmpl %r14d, %r15d
+    movd %xmm13, %r12d
+    movl $2147483647, %ecx
+    movl %r12d, %r13d
+    andl %ecx, %r13d
+    movl $2139095040, %ecx
+    cmpl %ecx, %r13d
     seta %al
-    movzbl %al, %r15d
-    movzbl %r15b, %r15d
-    leaq -104(%rbp), %r10
-    movl %r15d, (%r10)
+    movzbl %al, %r13d
+    movzbl %r13b, %r13d
+    leaq -96(%rbp), %r10
+    movl %r13d, (%r10)
     jmp .L42_22
 .L42_21:
     leaq .Ltext_35(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     call lb_core_7trap_at@PLT
 .L42_22:
-    testl %r15d, %r15d
+    testl %r13d, %r13d
     jne .L42_5
     jmp .L42_6
 .L42_5:
@@ -1581,7 +1514,6 @@ lb_math32_min:
     movq -16(%rbp), %r12
     movq -24(%rbp), %r13
     movq -32(%rbp), %r14
-    movq -40(%rbp), %r15
     movq %rbp, %rsp
     popq %rbp
     ret
@@ -1595,12 +1527,12 @@ lb_math32_min:
     sete %al
     setnp %cl
     andb %cl, %al
-    movzbl %al, %r12d
-    testl %r12d, %r12d
+    movzbl %al, %r13d
+    testl %r13d, %r13d
     jne .L42_12
     jmp .L42_23
 .L42_23:
-    movl %r12d, %r14d
+    movl %r13d, %r14d
     jmp .L42_13
 .L42_12:
     ucomiss %xmm14, %xmm13
@@ -1609,20 +1541,19 @@ lb_math32_min:
     andb %cl, %al
     movzbl %al, %r14d
 .L42_13:
-    movzbl %r14b, %r12d
-    testl %r12d, %r12d
+    movzbl %r14b, %r13d
+    testl %r13d, %r13d
     jne .L42_9
     jmp .L42_10
 .L42_9:
-    movl %ebx, %r12d
-    orl %r13d, %r12d
-    movd %r12d, %xmm12
+    movl %ebx, %r13d
+    orl %r12d, %r13d
+    movd %r13d, %xmm12
     movaps %xmm12, %xmm0
     movq -8(%rbp), %rbx
     movq -16(%rbp), %r12
     movq -24(%rbp), %r13
     movq -32(%rbp), %r14
-    movq -40(%rbp), %r15
     movq %rbp, %rsp
     popq %rbp
     ret
@@ -1646,7 +1577,6 @@ lb_math32_min:
     movq -16(%rbp), %r12
     movq -24(%rbp), %r13
     movq -32(%rbp), %r14
-    movq -40(%rbp), %r15
     movq %rbp, %rsp
     popq %rbp
     ret
@@ -1661,41 +1591,36 @@ lb_math32_min:
 lb_math32_max:
     pushq %rbp
     movq %rsp, %rbp
-    subq $112, %rsp
+    subq $96, %rsp
     movq %rbx, -8(%rbp)
     movq %r12, -16(%rbp)
     movq %r13, -24(%rbp)
     movq %r14, -32(%rbp)
-    movq %r15, -40(%rbp)
-    movss %xmm0, -56(%rbp)
-    movss %xmm1, -72(%rbp)
-    leaq -56(%rbp), %rbx
+    movss %xmm0, -48(%rbp)
+    movss %xmm1, -64(%rbp)
+    leaq -48(%rbp), %rbx
     movq %rbx, %r10
     movss (%r10), %xmm12
-    leaq -88(%rbp), %r10
+    leaq -80(%rbp), %r10
     movss %xmm12, (%r10)
     movd %xmm12, %ebx
-    leaq lb_math32_14magnitude_mask(%rip), %r12
-    movq %r12, %r10
-    movl (%r10), %r12d
-    movl %ebx, %r13d
-    andl %r12d, %r13d
-    leaq lb_math32_13exponent_mask(%rip), %r14
-    movq %r14, %r10
-    movl (%r10), %r14d
-    cmpl %r14d, %r13d
+    movl $2147483647, %ecx
+    movl %ebx, %r12d
+    andl %ecx, %r12d
+    movl $2139095040, %ecx
+    cmpl %ecx, %r12d
     seta %al
-    movzbl %al, %r13d
-    movzbl %r13b, %r13d
-    leaq -96(%rbp), %r10
-    movl %r13d, (%r10)
+    movzbl %al, %r12d
+    movzbl %r12b, %r12d
+    leaq -88(%rbp), %r10
+    movl %r12d, (%r10)
     jmp .L43_20
 .L43_19:
     leaq .Ltext_35(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     call lb_core_7trap_at@PLT
 .L43_20:
-    testl %r13d, %r13d
+    testl %r12d, %r12d
     jne .L43_1
     jmp .L43_2
 .L43_1:
@@ -1704,7 +1629,6 @@ lb_math32_max:
     movq -16(%rbp), %r12
     movq -24(%rbp), %r13
     movq -32(%rbp), %r14
-    movq -40(%rbp), %r15
     movq %rbp, %rsp
     popq %rbp
     ret
@@ -1712,27 +1636,29 @@ lb_math32_max:
     jmp .L43_3
 .L43_2:
 .L43_3:
-    leaq -72(%rbp), %r13
-    movq %r13, %r10
+    leaq -64(%rbp), %r12
+    movq %r12, %r10
     movss (%r10), %xmm13
-    leaq -88(%rbp), %r10
+    leaq -80(%rbp), %r10
     movss %xmm13, (%r10)
-    movd %xmm13, %r13d
-    movl %r12d, %r15d
-    andl %r13d, %r15d
-    cmpl %r14d, %r15d
+    movd %xmm13, %r12d
+    movl $2147483647, %ecx
+    movl %r12d, %r13d
+    andl %ecx, %r13d
+    movl $2139095040, %ecx
+    cmpl %ecx, %r13d
     seta %al
-    movzbl %al, %r15d
-    movzbl %r15b, %r15d
-    leaq -104(%rbp), %r10
-    movl %r15d, (%r10)
+    movzbl %al, %r13d
+    movzbl %r13b, %r13d
+    leaq -96(%rbp), %r10
+    movl %r13d, (%r10)
     jmp .L43_22
 .L43_21:
     leaq .Ltext_35(%rip), %rdi
     leaq .Ltext_0(%rip), %rsi
     call lb_core_7trap_at@PLT
 .L43_22:
-    testl %r15d, %r15d
+    testl %r13d, %r13d
     jne .L43_5
     jmp .L43_6
 .L43_5:
@@ -1741,7 +1667,6 @@ lb_math32_max:
     movq -16(%rbp), %r12
     movq -24(%rbp), %r13
     movq -32(%rbp), %r14
-    movq -40(%rbp), %r15
     movq %rbp, %rsp
     popq %rbp
     ret
@@ -1755,12 +1680,12 @@ lb_math32_max:
     sete %al
     setnp %cl
     andb %cl, %al
-    movzbl %al, %r12d
-    testl %r12d, %r12d
+    movzbl %al, %r13d
+    testl %r13d, %r13d
     jne .L43_12
     jmp .L43_23
 .L43_23:
-    movl %r12d, %r14d
+    movl %r13d, %r14d
     jmp .L43_13
 .L43_12:
     ucomiss %xmm14, %xmm13
@@ -1769,20 +1694,19 @@ lb_math32_max:
     andb %cl, %al
     movzbl %al, %r14d
 .L43_13:
-    movzbl %r14b, %r12d
-    testl %r12d, %r12d
+    movzbl %r14b, %r13d
+    testl %r13d, %r13d
     jne .L43_9
     jmp .L43_10
 .L43_9:
-    movl %ebx, %r12d
-    andl %r13d, %r12d
-    movd %r12d, %xmm12
+    movl %ebx, %r13d
+    andl %r12d, %r13d
+    movd %r13d, %xmm12
     movaps %xmm12, %xmm0
     movq -8(%rbp), %rbx
     movq -16(%rbp), %r12
     movq -24(%rbp), %r13
     movq -32(%rbp), %r14
-    movq -40(%rbp), %r15
     movq %rbp, %rsp
     popq %rbp
     ret
@@ -1806,7 +1730,6 @@ lb_math32_max:
     movq -16(%rbp), %r12
     movq -24(%rbp), %r13
     movq -32(%rbp), %r14
-    movq -40(%rbp), %r15
     movq %rbp, %rsp
     popq %rbp
     ret
@@ -1821,16 +1744,15 @@ lb_math32_max:
 lb_math32_clamp:
     pushq %rbp
     movq %rsp, %rbp
-    subq $96, %rsp
+    subq $80, %rsp
     movq %rbx, -8(%rbp)
-    movq %r12, -16(%rbp)
-    movss %xmm0, -32(%rbp)
-    movss %xmm1, -48(%rbp)
-    movss %xmm2, -64(%rbp)
-    leaq -48(%rbp), %rbx
+    movss %xmm0, -24(%rbp)
+    movss %xmm1, -40(%rbp)
+    movss %xmm2, -56(%rbp)
+    leaq -40(%rbp), %rbx
     movq %rbx, %r10
     movss (%r10), %xmm12
-    leaq -64(%rbp), %rbx
+    leaq -56(%rbp), %rbx
     movq %rbx, %r10
     movss (%r10), %xmm13
     ucomiss %xmm12, %xmm13
@@ -1844,24 +1766,20 @@ lb_math32_clamp:
     leaq .Ltext_44(%rip), %rsi
     call lb_core_7trap_at@PLT
 .L44_1:
-    leaq -32(%rbp), %rbx
+    leaq -24(%rbp), %rbx
     movq %rbx, %r10
     movss (%r10), %xmm14
-    leaq -80(%rbp), %r10
+    leaq -72(%rbp), %r10
     movss %xmm14, (%r10)
     movd %xmm14, %ebx
-    leaq lb_math32_14magnitude_mask(%rip), %r12
-    movq %r12, %r10
-    movl (%r10), %r12d
-    andl %r12d, %ebx
-    leaq lb_math32_13exponent_mask(%rip), %r12
-    movq %r12, %r10
-    movl (%r10), %r12d
-    cmpl %r12d, %ebx
+    movl $2147483647, %ecx
+    andl %ecx, %ebx
+    movl $2139095040, %ecx
+    cmpl %ecx, %ebx
     seta %al
     movzbl %al, %ebx
     movzbl %bl, %ebx
-    leaq -88(%rbp), %r10
+    leaq -80(%rbp), %r10
     movl %ebx, (%r10)
     jmp .L44_15
 .L44_14:
@@ -1875,7 +1793,6 @@ lb_math32_clamp:
 .L44_3:
     movaps %xmm14, %xmm0
     movq -8(%rbp), %rbx
-    movq -16(%rbp), %r12
     movq %rbp, %rsp
     popq %rbp
     ret
@@ -1909,7 +1826,6 @@ lb_math32_clamp:
 .L44_9:
     movaps %xmm13, %xmm0
     movq -8(%rbp), %rbx
-    movq -16(%rbp), %r12
     movq %rbp, %rsp
     popq %rbp
     ret

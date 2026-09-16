@@ -26,11 +26,8 @@ lb_ownership_9weak_make:
     movq (%r10), %rbx
     movq %rbx, %rdi
     call lb_ownership_11check_alive@PLT
-    leaq lb_ownership_immortal(%rip), %r12
-    movq %r12, %r10
-    movzbl (%r10), %r12d
     movq %rbx, %rdi
-    movl %r12d, %esi
+    movl $32, %esi
     call lb_ownership_has@PLT
     movl %eax, %r12d
     movl $0, %ecx
@@ -102,11 +99,8 @@ lb_ownership_9weak_copy:
 .L2_1:
     movq %r12, %rdi
     call lb_ownership_12check_thread@PLT
-    leaq lb_ownership_immortal(%rip), %r13
-    movq %r13, %r10
-    movzbl (%r10), %r13d
     movq %r12, %rdi
-    movl %r13d, %esi
+    movl $32, %esi
     call lb_ownership_has@PLT
     movl %eax, %r13d
     movl $0, %ecx
@@ -176,11 +170,8 @@ lb_ownership_9weak_drop:
 .L3_1:
     movq %rbx, %rdi
     call lb_ownership_12check_thread@PLT
-    leaq lb_ownership_immortal(%rip), %r12
-    movq %r12, %r10
-    movzbl (%r10), %r12d
     movq %rbx, %rdi
-    movl %r12d, %esi
+    movl $32, %esi
     call lb_ownership_has@PLT
     movl %eax, %r12d
     movl $0, %ecx
@@ -239,11 +230,8 @@ lb_ownership_8weak_get:
 .L4_1:
     movq %rbx, %rdi
     call lb_ownership_12check_thread@PLT
-    leaq lb_ownership_dead(%rip), %r12
-    movq %r12, %r10
-    movzbl (%r10), %r12d
     movq %rbx, %rdi
-    movl %r12d, %esi
+    movl $8, %esi
     call lb_ownership_has@PLT
     movl %eax, %r12d
     movl $0, %ecx

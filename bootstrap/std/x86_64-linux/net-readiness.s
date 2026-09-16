@@ -2115,20 +2115,20 @@ lb_net_9wait_poll:
     leaq -136(%rbp), %rax
     movq %rax, -304(%rbp)
     leaq -168(%rbp), %rax
-    movq %rax, -384(%rbp)
-    movq -384(%rbp), %rax
+    movq %rax, -376(%rbp)
+    movq -376(%rbp), %rax
     movq $24, %rcx
     addq %rcx, %rax
     movq %rax, -320(%rbp)
     leaq -120(%rbp), %rax
-    movq %rax, -392(%rbp)
-    movq -392(%rbp), %rax
+    movq %rax, -384(%rbp)
+    movq -384(%rbp), %rax
     movq $8, %rcx
     addq %rcx, %rax
     movq %rax, -328(%rbp)
     leaq -208(%rbp), %rax
-    movq %rax, -400(%rbp)
-    movq -400(%rbp), %rax
+    movq %rax, -392(%rbp)
+    movq -392(%rbp), %rax
     movq $32, %rcx
     addq %rcx, %rax
     movq %rax, -344(%rbp)
@@ -2137,18 +2137,16 @@ lb_net_9wait_poll:
     addq %rcx, %rax
     movq %rax, -352(%rbp)
     leaq -240(%rbp), %rax
-    movq %rax, -408(%rbp)
-    movq -408(%rbp), %rax
+    movq %rax, -400(%rbp)
+    movq -400(%rbp), %rax
     movq $24, %rcx
     addq %rcx, %rax
     movq %rax, -360(%rbp)
     leaq -296(%rbp), %rax
-    movq %rax, -416(%rbp)
-    movq -416(%rbp), %rax
+    movq %rax, -408(%rbp)
+    movq -408(%rbp), %rax
     movq $32, %rcx
     addq %rcx, %rax
-    movq %rax, -376(%rbp)
-    leaq lb_net_18socket_interrupted(%rip), %rax
     movq %rax, -368(%rbp)
 .L17_1:
 .L17_2:
@@ -2168,7 +2166,7 @@ lb_net_9wait_poll:
     movq $8, %rcx
     movq %r12, %r13
     addq %rcx, %r13
-    movq -384(%rbp), %r10
+    movq -376(%rbp), %r10
     movq %r13, %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
@@ -2206,7 +2204,7 @@ lb_net_9wait_poll:
     jne .L17_10
     jmp .L17_8
 .L17_10:
-    movq -392(%rbp), %r10
+    movq -384(%rbp), %r10
     movq (%r10), %r12
 .L17_7:
     leaq -208(%rbp), %rdi
@@ -2217,7 +2215,7 @@ lb_net_9wait_poll:
     jne .L17_12
     jmp .L17_11
 .L17_12:
-    movq -400(%rbp), %rax
+    movq -392(%rbp), %rax
     movq $8, %rcx
     movq %rax, %r12
     addq %rcx, %r12
@@ -2255,7 +2253,7 @@ lb_net_9wait_poll:
     popq %rbp
     ret
 .L17_11:
-    movq -400(%rbp), %r10
+    movq -392(%rbp), %r10
     movq (%r10), %r13
     cmpq %r13, %r12
     jbe .L17_15
@@ -2390,7 +2388,7 @@ lb_net_9wait_poll:
     movq $8, %rcx
     movq %r12, %r13
     addq %rcx, %r13
-    movq -408(%rbp), %r10
+    movq -400(%rbp), %r10
     movq %r13, %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
@@ -2426,9 +2424,8 @@ lb_net_9wait_poll:
 .L17_37:
     call lb_net_12socket_errno@PLT
     movl %eax, %r12d
-    movq -368(%rbp), %r10
-    movslq (%r10), %r13
-    cmpl %r13d, %r12d
+    movl $4, %ecx
+    cmpl %ecx, %r12d
     jne .L17_41
 .L17_40:
     jmp .L17_1
@@ -2520,18 +2517,18 @@ lb_net_9wait_poll:
     jne .L17_52
     jmp .L17_50
 .L17_52:
-    movq -392(%rbp), %r10
+    movq -384(%rbp), %r10
     movq (%r10), %r12
 .L17_49:
     leaq -296(%rbp), %rdi
     call lb_net_21monotonic_nanoseconds@PLT
-    movq -376(%rbp), %r10
+    movq -368(%rbp), %r10
     movzbl (%r10), %r13d
     testl %r13d, %r13d
     jne .L17_57
     jmp .L17_56
 .L17_57:
-    movq -416(%rbp), %rax
+    movq -408(%rbp), %rax
     movq $8, %rcx
     movq %rax, %r12
     addq %rcx, %r12
@@ -2569,7 +2566,7 @@ lb_net_9wait_poll:
     popq %rbp
     ret
 .L17_56:
-    movq -416(%rbp), %r10
+    movq -408(%rbp), %r10
     movq (%r10), %r13
     cmpq %r12, %r13
     jb .L17_54
@@ -2943,30 +2940,16 @@ lb_net_21monotonic_nanoseconds:
     movq %rbx, %r11
     pxor %xmm8, %xmm8
     movups %xmm8, 0(%r11)
-    leaq lb_platform_macos(%rip), %r12
-    movq %r12, %r10
-    movzbl (%r10), %r12d
-    testl %r12d, %r12d
-    jne .L19_4
-    jmp .L19_5
-.L19_4:
-    movl $6, %eax
-    movl %eax, %r12d
-    jmp .L19_6
-.L19_5:
-    movl $1, %eax
-    movl %eax, %r12d
-.L19_6:
-    movl %r12d, %edi
+    movl $1, %edi
     movq %rbx, %rsi
     call clock_gettime@PLT
-    movl %eax, %r13d
+    movl %eax, %r12d
     movl $0, %ecx
-    cmpl %ecx, %r13d
+    cmpl %ecx, %r12d
     sete %al
-    movzbl %al, %r13d
+    movzbl %al, %r12d
     movl $0, %ecx
-    cmpl %ecx, %r13d
+    cmpl %ecx, %r12d
     jne .L19_2
 .L19_1:
     leaq -88(%rbp), %rbx
@@ -3013,7 +2996,7 @@ lb_net_21monotonic_nanoseconds:
     movq %rbp, %rsp
     popq %rbp
     ret
-.L19_7:
+.L19_4:
     jmp .L19_3
 .L19_2:
 .L19_3:
@@ -3024,12 +3007,12 @@ lb_net_21monotonic_nanoseconds:
     setl %al
     movzbl %al, %r13d
     testl %r13d, %r13d
-    jne .L19_25
-    jmp .L19_11
-.L19_25:
+    jne .L19_22
+    jmp .L19_8
+.L19_22:
     movl %r13d, %r14d
-    jmp .L19_12
-.L19_11:
+    jmp .L19_9
+.L19_8:
     movq $8, %rcx
     movq %rbx, %r13
     addq %rcx, %r13
@@ -3039,15 +3022,15 @@ lb_net_21monotonic_nanoseconds:
     cmpq %rcx, %r13
     setl %al
     movzbl %al, %r14d
-.L19_12:
+.L19_9:
     movzbl %r14b, %r13d
     testl %r13d, %r13d
-    jne .L19_26
-    jmp .L19_13
-.L19_26:
+    jne .L19_23
+    jmp .L19_10
+.L19_23:
     movl %r13d, %r14d
-    jmp .L19_14
-.L19_13:
+    jmp .L19_11
+.L19_10:
     movq $8, %rcx
     movq %rbx, %r13
     addq %rcx, %r13
@@ -3057,12 +3040,12 @@ lb_net_21monotonic_nanoseconds:
     cmpq %rcx, %r13
     setge %al
     movzbl %al, %r14d
-.L19_14:
+.L19_11:
     movzbl %r14b, %r13d
     testl %r13d, %r13d
-    jne .L19_8
-    jmp .L19_9
-.L19_8:
+    jne .L19_5
+    jmp .L19_6
+.L19_5:
     leaq -88(%rbp), %rbx
     movq $8, %rcx
     movq %rbx, %r12
@@ -3107,10 +3090,10 @@ lb_net_21monotonic_nanoseconds:
     movq %rbp, %rsp
     popq %rbp
     ret
-.L19_15:
-    jmp .L19_10
-.L19_9:
-.L19_10:
+.L19_12:
+    jmp .L19_7
+.L19_6:
+.L19_7:
     leaq -144(%rbp), %r13
     movq %r12, %rdi
     movq $1000000000, %rsi
@@ -3130,11 +3113,11 @@ lb_net_21monotonic_nanoseconds:
     movq %r15, %r10
     movzbl (%r10), %r14d
     testl %r14d, %r14d
-    jne .L19_16
-    jmp .L19_17
-.L19_16:
-    jmp .L19_18
-.L19_17:
+    jne .L19_13
+    jmp .L19_14
+.L19_13:
+    jmp .L19_15
+.L19_14:
     leaq -88(%rbp), %rbx
     movq $8, %rcx
     movq %rbx, %r12
@@ -3179,8 +3162,8 @@ lb_net_21monotonic_nanoseconds:
     movq %rbp, %rsp
     popq %rbp
     ret
-.L19_19:
-.L19_18:
+.L19_16:
+.L19_15:
     movq $8, %rcx
     movq %rbx, %r12
     addq %rcx, %r12
@@ -3205,11 +3188,11 @@ lb_net_21monotonic_nanoseconds:
     movq %r15, %r10
     movzbl (%r10), %r12d
     testl %r12d, %r12d
-    jne .L19_20
-    jmp .L19_21
-.L19_20:
-    jmp .L19_22
-.L19_21:
+    jne .L19_17
+    jmp .L19_18
+.L19_17:
+    jmp .L19_19
+.L19_18:
     leaq -88(%rbp), %rbx
     movq $8, %rcx
     movq %rbx, %r12
@@ -3254,8 +3237,8 @@ lb_net_21monotonic_nanoseconds:
     movq %rbp, %rsp
     popq %rbp
     ret
-.L19_23:
-.L19_22:
+.L19_20:
+.L19_19:
     leaq -88(%rbp), %rbx
     movq %rbx, %r10
     movq %r14, (%r10)
@@ -3278,7 +3261,7 @@ lb_net_21monotonic_nanoseconds:
     movq %rbp, %rsp
     popq %rbp
     ret
-.L19_24:
+.L19_21:
     leaq .Ltext_46(%rip), %rdi
     leaq .Ltext_1(%rip), %rsi
     call lb_core_7trap_at@PLT

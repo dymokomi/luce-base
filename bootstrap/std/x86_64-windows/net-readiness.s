@@ -3480,61 +3480,61 @@ lb_net_9wait_poll:
     .seh_proc lb_net_9wait_poll
     pushq %rbp
     .seh_pushreg %rbp
-    subq $592, %rsp
-    .seh_stackalloc 592
+    subq $576, %rsp
+    .seh_stackalloc 576
     movq %rsp, %rbp
     .seh_setframe %rbp, 0
-    movq %rcx, 408(%rbp)
-    movq %rdi, 584(%rbp)
-    .seh_savereg %rdi, 584
-    movq %rsi, 576(%rbp)
-    .seh_savereg %rsi, 576
-    movdqu %xmm6, 560(%rbp)
-    .seh_savexmm %xmm6, 560
-    movdqu %xmm7, 544(%rbp)
-    .seh_savexmm %xmm7, 544
-    movdqu %xmm8, 528(%rbp)
-    .seh_savexmm %xmm8, 528
-    movdqu %xmm9, 512(%rbp)
-    .seh_savexmm %xmm9, 512
-    movdqu %xmm10, 496(%rbp)
-    .seh_savexmm %xmm10, 496
-    movdqu %xmm11, 480(%rbp)
-    .seh_savexmm %xmm11, 480
-    movdqu %xmm12, 464(%rbp)
-    .seh_savexmm %xmm12, 464
-    movdqu %xmm13, 448(%rbp)
-    .seh_savexmm %xmm13, 448
-    movdqu %xmm14, 432(%rbp)
-    .seh_savexmm %xmm14, 432
-    movdqu %xmm15, 416(%rbp)
-    .seh_savexmm %xmm15, 416
-    movq %rbx, 400(%rbp)
-    .seh_savereg %rbx, 400
-    movq %r12, 392(%rbp)
-    .seh_savereg %r12, 392
-    movq %r13, 384(%rbp)
-    .seh_savereg %r13, 384
-    movq %r14, 376(%rbp)
-    .seh_savereg %r14, 376
-    movq %r15, 368(%rbp)
-    .seh_savereg %r15, 368
+    movq %rcx, 392(%rbp)
+    movq %rdi, 568(%rbp)
+    .seh_savereg %rdi, 568
+    movq %rsi, 560(%rbp)
+    .seh_savereg %rsi, 560
+    movdqu %xmm6, 544(%rbp)
+    .seh_savexmm %xmm6, 544
+    movdqu %xmm7, 528(%rbp)
+    .seh_savexmm %xmm7, 528
+    movdqu %xmm8, 512(%rbp)
+    .seh_savexmm %xmm8, 512
+    movdqu %xmm9, 496(%rbp)
+    .seh_savexmm %xmm9, 496
+    movdqu %xmm10, 480(%rbp)
+    .seh_savexmm %xmm10, 480
+    movdqu %xmm11, 464(%rbp)
+    .seh_savexmm %xmm11, 464
+    movdqu %xmm12, 448(%rbp)
+    .seh_savexmm %xmm12, 448
+    movdqu %xmm13, 432(%rbp)
+    .seh_savexmm %xmm13, 432
+    movdqu %xmm14, 416(%rbp)
+    .seh_savexmm %xmm14, 416
+    movdqu %xmm15, 400(%rbp)
+    .seh_savexmm %xmm15, 400
+    movq %rbx, 384(%rbp)
+    .seh_savereg %rbx, 384
+    movq %r12, 376(%rbp)
+    .seh_savereg %r12, 376
+    movq %r13, 368(%rbp)
+    .seh_savereg %r13, 368
+    movq %r14, 360(%rbp)
+    .seh_savereg %r14, 360
+    movq %r15, 352(%rbp)
+    .seh_savereg %r15, 352
     .seh_endprologue
-    movq %rcx, 608(%rbp)
-    movq %rdx, 616(%rbp)
-    movq %r8, 624(%rbp)
-    movq %r9, 632(%rbp)
-    movq 616(%rbp), %r10
-    leaq 312(%rbp), %r11
-    movups 0(%r10), %xmm8
-    movups %xmm8, 0(%r11)
-    movq 624(%rbp), %r10
+    movq %rcx, 592(%rbp)
+    movq %rdx, 600(%rbp)
+    movq %r8, 608(%rbp)
+    movq %r9, 616(%rbp)
+    movq 600(%rbp), %r10
     leaq 296(%rbp), %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
-    movq 632(%rbp), %rax
-    movq %rax, 280(%rbp)
-    leaq 312(%rbp), %rbx
+    movq 608(%rbp), %r10
+    leaq 280(%rbp), %r11
+    movups 0(%r10), %xmm8
+    movups %xmm8, 0(%r11)
+    movq 616(%rbp), %rax
+    movq %rax, 264(%rbp)
+    leaq 296(%rbp), %rbx
     subq $48, %rsp
     movq %rbx, %r10
     leaq 32(%rsp), %r11
@@ -3545,65 +3545,63 @@ lb_net_9wait_poll:
     movq 0(%rsp), %rcx
     call lb_net_10clear_poll
     addq $48, %rsp
-    leaq 280(%rbp), %rax
-    movq %rax, 112(%rbp)
-    leaq 248(%rbp), %rax
-    movq %rax, 40(%rbp)
-    movq 40(%rbp), %rax
-    movq $24, %rcx
-    addq %rcx, %rax
+    leaq 264(%rbp), %rax
     movq %rax, 96(%rbp)
-    leaq 296(%rbp), %rax
+    leaq 232(%rbp), %rax
     movq %rax, 32(%rbp)
     movq 32(%rbp), %rax
-    movq $8, %rcx
-    addq %rcx, %rax
-    movq %rax, 88(%rbp)
-    leaq 208(%rbp), %rax
-    movq %rax, 24(%rbp)
-    movq 24(%rbp), %rax
-    movq $32, %rcx
-    addq %rcx, %rax
-    movq %rax, 72(%rbp)
-    leaq 176(%rbp), %rax
-    movq %rax, 16(%rbp)
-    movq 16(%rbp), %rax
     movq $24, %rcx
     addq %rcx, %rax
-    movq %rax, 64(%rbp)
-    leaq 120(%rbp), %rax
-    movq %rax, 8(%rbp)
-    movq 8(%rbp), %rax
+    movq %rax, 80(%rbp)
+    leaq 280(%rbp), %rax
+    movq %rax, 24(%rbp)
+    movq 24(%rbp), %rax
+    movq $8, %rcx
+    addq %rcx, %rax
+    movq %rax, 72(%rbp)
+    leaq 192(%rbp), %rax
+    movq %rax, 16(%rbp)
+    movq 16(%rbp), %rax
     movq $32, %rcx
     addq %rcx, %rax
-    movq %rax, 48(%rbp)
-    leaq lb_net_18socket_interrupted(%rip), %rax
     movq %rax, 56(%rbp)
+    leaq 160(%rbp), %rax
+    movq %rax, 8(%rbp)
+    movq 8(%rbp), %rax
+    movq $24, %rcx
+    addq %rcx, %rax
+    movq %rax, 48(%rbp)
+    leaq 104(%rbp), %rax
+    movq %rax, 0(%rbp)
+    movq 0(%rbp), %rax
+    movq $32, %rcx
+    addq %rcx, %rax
+    movq %rax, 40(%rbp)
 .L17_1:
 .L17_2:
-    movq 112(%rbp), %r10
+    movq 96(%rbp), %r10
     movq (%r10), %rax
-    movq %rax, 104(%rbp)
+    movq %rax, 88(%rbp)
     subq $32, %rsp
-    movq 104(%rbp), %rax
+    movq 88(%rbp), %rax
     movq %rax, 8(%rsp)
-    leaq 248(%rbp), %rax
+    leaq 232(%rbp), %rax
     movq %rax, (%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
     call lb_net_18check_cancellation
     addq $32, %rsp
-    movq 96(%rbp), %r10
+    movq 80(%rbp), %r10
     movzbl (%r10), %r14d
     testl %r14d, %r14d
     jne .L17_5
     jmp .L17_4
 .L17_5:
-    leaq 328(%rbp), %r12
+    leaq 312(%rbp), %r12
     movq $8, %rcx
     movq %r12, %r13
     addq %rcx, %r13
-    movq 40(%rbp), %r10
+    movq 32(%rbp), %r10
     movq %r13, %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
@@ -3626,7 +3624,7 @@ lb_net_9wait_poll:
     call lb_net_10clear_poll
     addq $48, %rsp
     movq %r12, %rsi
-    movq 408(%rbp), %rdi
+    movq 392(%rbp), %rdi
     movq $40, %rdx
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -3634,56 +3632,56 @@ lb_net_9wait_poll:
     subq $32, %rsp
     call memcpy
     addq $32, %rsp
-    movq 408(%rbp), %rax
-    movq 584(%rbp), %rdi
-    movq 576(%rbp), %rsi
-    movdqu 560(%rbp), %xmm6
-    movdqu 544(%rbp), %xmm7
-    movdqu 528(%rbp), %xmm8
-    movdqu 512(%rbp), %xmm9
-    movdqu 496(%rbp), %xmm10
-    movdqu 480(%rbp), %xmm11
-    movdqu 464(%rbp), %xmm12
-    movdqu 448(%rbp), %xmm13
-    movdqu 432(%rbp), %xmm14
-    movdqu 416(%rbp), %xmm15
-    movq 400(%rbp), %rbx
-    movq 392(%rbp), %r12
-    movq 384(%rbp), %r13
-    movq 376(%rbp), %r14
-    movq 368(%rbp), %r15
-    leaq 592(%rbp), %rsp
+    movq 392(%rbp), %rax
+    movq 568(%rbp), %rdi
+    movq 560(%rbp), %rsi
+    movdqu 544(%rbp), %xmm6
+    movdqu 528(%rbp), %xmm7
+    movdqu 512(%rbp), %xmm8
+    movdqu 496(%rbp), %xmm9
+    movdqu 480(%rbp), %xmm10
+    movdqu 464(%rbp), %xmm11
+    movdqu 448(%rbp), %xmm12
+    movdqu 432(%rbp), %xmm13
+    movdqu 416(%rbp), %xmm14
+    movdqu 400(%rbp), %xmm15
+    movq 384(%rbp), %rbx
+    movq 376(%rbp), %r12
+    movq 368(%rbp), %r13
+    movq 360(%rbp), %r14
+    movq 352(%rbp), %r15
+    leaq 576(%rbp), %rsp
     popq %rbp
     ret
 .L17_4:
-    movq 88(%rbp), %r10
+    movq 72(%rbp), %r10
     movzbl (%r10), %eax
-    movl %eax, 80(%rbp)
-    movl 80(%rbp), %eax
+    movl %eax, 64(%rbp)
+    movl 64(%rbp), %eax
     testl %eax, %eax
     jne .L17_10
     jmp .L17_8
 .L17_10:
-    movq 32(%rbp), %r10
+    movq 24(%rbp), %r10
     movq (%r10), %r12
 .L17_7:
     subq $32, %rsp
-    leaq 208(%rbp), %rax
+    leaq 192(%rbp), %rax
     movq %rax, (%rsp)
     movq 0(%rsp), %rcx
     call lb_net_21monotonic_nanoseconds
     addq $32, %rsp
-    movq 72(%rbp), %r10
+    movq 56(%rbp), %r10
     movzbl (%r10), %r13d
     testl %r13d, %r13d
     jne .L17_12
     jmp .L17_11
 .L17_12:
-    movq 24(%rbp), %rax
+    movq 16(%rbp), %rax
     movq $8, %rcx
     movq %rax, %r12
     addq %rcx, %r12
-    leaq 328(%rbp), %r13
+    leaq 312(%rbp), %r13
     movq $8, %rcx
     movq %r13, %r14
     addq %rcx, %r14
@@ -3710,7 +3708,7 @@ lb_net_9wait_poll:
     call lb_net_10clear_poll
     addq $48, %rsp
     movq %r13, %rsi
-    movq 408(%rbp), %rdi
+    movq 392(%rbp), %rdi
     movq $40, %rdx
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -3718,29 +3716,29 @@ lb_net_9wait_poll:
     subq $32, %rsp
     call memcpy
     addq $32, %rsp
-    movq 408(%rbp), %rax
-    movq 584(%rbp), %rdi
-    movq 576(%rbp), %rsi
-    movdqu 560(%rbp), %xmm6
-    movdqu 544(%rbp), %xmm7
-    movdqu 528(%rbp), %xmm8
-    movdqu 512(%rbp), %xmm9
-    movdqu 496(%rbp), %xmm10
-    movdqu 480(%rbp), %xmm11
-    movdqu 464(%rbp), %xmm12
-    movdqu 448(%rbp), %xmm13
-    movdqu 432(%rbp), %xmm14
-    movdqu 416(%rbp), %xmm15
-    movq 400(%rbp), %rbx
-    movq 392(%rbp), %r12
-    movq 384(%rbp), %r13
-    movq 376(%rbp), %r14
-    movq 368(%rbp), %r15
-    leaq 592(%rbp), %rsp
+    movq 392(%rbp), %rax
+    movq 568(%rbp), %rdi
+    movq 560(%rbp), %rsi
+    movdqu 544(%rbp), %xmm6
+    movdqu 528(%rbp), %xmm7
+    movdqu 512(%rbp), %xmm8
+    movdqu 496(%rbp), %xmm9
+    movdqu 480(%rbp), %xmm10
+    movdqu 464(%rbp), %xmm11
+    movdqu 448(%rbp), %xmm12
+    movdqu 432(%rbp), %xmm13
+    movdqu 416(%rbp), %xmm14
+    movdqu 400(%rbp), %xmm15
+    movq 384(%rbp), %rbx
+    movq 376(%rbp), %r12
+    movq 368(%rbp), %r13
+    movq 360(%rbp), %r14
+    movq 352(%rbp), %r15
+    leaq 576(%rbp), %rsp
     popq %rbp
     ret
 .L17_11:
-    movq 24(%rbp), %r10
+    movq 16(%rbp), %r10
     movq (%r10), %r13
     cmpq %r13, %r12
     jbe .L17_15
@@ -3809,7 +3807,7 @@ lb_net_9wait_poll:
     movl $4294967295, %eax
     movl %eax, %r13d
 .L17_9:
-    movq 104(%rbp), %rax
+    movq 88(%rbp), %rax
     movq $0, %rcx
     cmpq %rcx, %rax
     sete %al
@@ -3879,25 +3877,25 @@ lb_net_9wait_poll:
     addq $48, %rsp
     movl %eax, %r12d
     subq $32, %rsp
-    movq 104(%rbp), %rax
+    movq 88(%rbp), %rax
     movq %rax, 8(%rsp)
-    leaq 176(%rbp), %rax
+    leaq 160(%rbp), %rax
     movq %rax, (%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
     call lb_net_18check_cancellation
     addq $32, %rsp
-    movq 64(%rbp), %r10
+    movq 48(%rbp), %r10
     movzbl (%r10), %r14d
     testl %r14d, %r14d
     jne .L17_35
     jmp .L17_34
 .L17_35:
-    leaq 328(%rbp), %r12
+    leaq 312(%rbp), %r12
     movq $8, %rcx
     movq %r12, %r13
     addq %rcx, %r13
-    movq 16(%rbp), %r10
+    movq 8(%rbp), %r10
     movq %r13, %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
@@ -3920,7 +3918,7 @@ lb_net_9wait_poll:
     call lb_net_10clear_poll
     addq $48, %rsp
     movq %r12, %rsi
-    movq 408(%rbp), %rdi
+    movq 392(%rbp), %rdi
     movq $40, %rdx
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -3928,25 +3926,25 @@ lb_net_9wait_poll:
     subq $32, %rsp
     call memcpy
     addq $32, %rsp
-    movq 408(%rbp), %rax
-    movq 584(%rbp), %rdi
-    movq 576(%rbp), %rsi
-    movdqu 560(%rbp), %xmm6
-    movdqu 544(%rbp), %xmm7
-    movdqu 528(%rbp), %xmm8
-    movdqu 512(%rbp), %xmm9
-    movdqu 496(%rbp), %xmm10
-    movdqu 480(%rbp), %xmm11
-    movdqu 464(%rbp), %xmm12
-    movdqu 448(%rbp), %xmm13
-    movdqu 432(%rbp), %xmm14
-    movdqu 416(%rbp), %xmm15
-    movq 400(%rbp), %rbx
-    movq 392(%rbp), %r12
-    movq 384(%rbp), %r13
-    movq 376(%rbp), %r14
-    movq 368(%rbp), %r15
-    leaq 592(%rbp), %rsp
+    movq 392(%rbp), %rax
+    movq 568(%rbp), %rdi
+    movq 560(%rbp), %rsi
+    movdqu 544(%rbp), %xmm6
+    movdqu 528(%rbp), %xmm7
+    movdqu 512(%rbp), %xmm8
+    movdqu 496(%rbp), %xmm9
+    movdqu 480(%rbp), %xmm10
+    movdqu 464(%rbp), %xmm11
+    movdqu 448(%rbp), %xmm12
+    movdqu 432(%rbp), %xmm13
+    movdqu 416(%rbp), %xmm14
+    movdqu 400(%rbp), %xmm15
+    movq 384(%rbp), %rbx
+    movq 376(%rbp), %r12
+    movq 368(%rbp), %r13
+    movq 360(%rbp), %r14
+    movq 352(%rbp), %r15
+    leaq 576(%rbp), %rsp
     popq %rbp
     ret
 .L17_34:
@@ -3958,15 +3956,14 @@ lb_net_9wait_poll:
     call lb_net_12socket_errno
     addq $32, %rsp
     movl %eax, %r12d
-    movq 56(%rbp), %r10
-    movslq (%r10), %r13
-    cmpl %r13d, %r12d
+    movl $10004, %ecx
+    cmpl %ecx, %r12d
     jne .L17_41
 .L17_40:
     jmp .L17_1
 .L17_41:
 .L17_42:
-    leaq 328(%rbp), %r12
+    leaq 312(%rbp), %r12
     movq $8, %rcx
     movq %r12, %r13
     addq %rcx, %r13
@@ -3984,7 +3981,7 @@ lb_net_9wait_poll:
     movq %r13, %r10
     movl %r14d, (%r10)
     leaq .Ltext_36(%rip), %r14
-    leaq 160(%rbp), %r15
+    leaq 144(%rbp), %r15
     movq %r15, %r10
     movq %r14, (%r10)
     movq $8, %rcx
@@ -4016,7 +4013,7 @@ lb_net_9wait_poll:
     call lb_net_10clear_poll
     addq $48, %rsp
     movq %r12, %rsi
-    movq 408(%rbp), %rdi
+    movq 392(%rbp), %rdi
     movq $40, %rdx
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -4024,25 +4021,25 @@ lb_net_9wait_poll:
     subq $32, %rsp
     call memcpy
     addq $32, %rsp
-    movq 408(%rbp), %rax
-    movq 584(%rbp), %rdi
-    movq 576(%rbp), %rsi
-    movdqu 560(%rbp), %xmm6
-    movdqu 544(%rbp), %xmm7
-    movdqu 528(%rbp), %xmm8
-    movdqu 512(%rbp), %xmm9
-    movdqu 496(%rbp), %xmm10
-    movdqu 480(%rbp), %xmm11
-    movdqu 464(%rbp), %xmm12
-    movdqu 448(%rbp), %xmm13
-    movdqu 432(%rbp), %xmm14
-    movdqu 416(%rbp), %xmm15
-    movq 400(%rbp), %rbx
-    movq 392(%rbp), %r12
-    movq 384(%rbp), %r13
-    movq 376(%rbp), %r14
-    movq 368(%rbp), %r15
-    leaq 592(%rbp), %rsp
+    movq 392(%rbp), %rax
+    movq 568(%rbp), %rdi
+    movq 560(%rbp), %rsi
+    movdqu 544(%rbp), %xmm6
+    movdqu 528(%rbp), %xmm7
+    movdqu 512(%rbp), %xmm8
+    movdqu 496(%rbp), %xmm9
+    movdqu 480(%rbp), %xmm10
+    movdqu 464(%rbp), %xmm11
+    movdqu 448(%rbp), %xmm12
+    movdqu 432(%rbp), %xmm13
+    movdqu 416(%rbp), %xmm14
+    movdqu 400(%rbp), %xmm15
+    movq 384(%rbp), %rbx
+    movq 376(%rbp), %r12
+    movq 368(%rbp), %r13
+    movq 360(%rbp), %r14
+    movq 352(%rbp), %r15
+    leaq 576(%rbp), %rsp
     popq %rbp
     ret
 .L17_38:
@@ -4052,7 +4049,7 @@ lb_net_9wait_poll:
     jle .L17_46
 .L17_45:
     movslq %r12d, %rbx
-    leaq 328(%rbp), %r13
+    leaq 312(%rbp), %r13
     movq %r13, %r10
     movq %rbx, (%r10)
     movq $32, %rcx
@@ -4062,7 +4059,7 @@ lb_net_9wait_poll:
     movq %rbx, %r10
     movb %al, (%r10)
     movq %r13, %rsi
-    movq 408(%rbp), %rdi
+    movq 392(%rbp), %rdi
     movq $40, %rdx
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -4070,54 +4067,54 @@ lb_net_9wait_poll:
     subq $32, %rsp
     call memcpy
     addq $32, %rsp
-    movq 408(%rbp), %rax
-    movq 584(%rbp), %rdi
-    movq 576(%rbp), %rsi
-    movdqu 560(%rbp), %xmm6
-    movdqu 544(%rbp), %xmm7
-    movdqu 528(%rbp), %xmm8
-    movdqu 512(%rbp), %xmm9
-    movdqu 496(%rbp), %xmm10
-    movdqu 480(%rbp), %xmm11
-    movdqu 464(%rbp), %xmm12
-    movdqu 448(%rbp), %xmm13
-    movdqu 432(%rbp), %xmm14
-    movdqu 416(%rbp), %xmm15
-    movq 400(%rbp), %rbx
-    movq 392(%rbp), %r12
-    movq 384(%rbp), %r13
-    movq 376(%rbp), %r14
-    movq 368(%rbp), %r15
-    leaq 592(%rbp), %rsp
+    movq 392(%rbp), %rax
+    movq 568(%rbp), %rdi
+    movq 560(%rbp), %rsi
+    movdqu 544(%rbp), %xmm6
+    movdqu 528(%rbp), %xmm7
+    movdqu 512(%rbp), %xmm8
+    movdqu 496(%rbp), %xmm9
+    movdqu 480(%rbp), %xmm10
+    movdqu 464(%rbp), %xmm11
+    movdqu 448(%rbp), %xmm12
+    movdqu 432(%rbp), %xmm13
+    movdqu 416(%rbp), %xmm14
+    movdqu 400(%rbp), %xmm15
+    movq 384(%rbp), %rbx
+    movq 376(%rbp), %r12
+    movq 368(%rbp), %r13
+    movq 360(%rbp), %r14
+    movq 352(%rbp), %r15
+    leaq 576(%rbp), %rsp
     popq %rbp
     ret
 .L17_46:
 .L17_47:
-    movl 80(%rbp), %eax
+    movl 64(%rbp), %eax
     testl %eax, %eax
     jne .L17_52
     jmp .L17_50
 .L17_52:
-    movq 32(%rbp), %r10
+    movq 24(%rbp), %r10
     movq (%r10), %r12
 .L17_49:
     subq $32, %rsp
-    leaq 120(%rbp), %rax
+    leaq 104(%rbp), %rax
     movq %rax, (%rsp)
     movq 0(%rsp), %rcx
     call lb_net_21monotonic_nanoseconds
     addq $32, %rsp
-    movq 48(%rbp), %r10
+    movq 40(%rbp), %r10
     movzbl (%r10), %r13d
     testl %r13d, %r13d
     jne .L17_57
     jmp .L17_56
 .L17_57:
-    movq 8(%rbp), %rax
+    movq 0(%rbp), %rax
     movq $8, %rcx
     movq %rax, %r12
     addq %rcx, %r12
-    leaq 328(%rbp), %r13
+    leaq 312(%rbp), %r13
     movq $8, %rcx
     movq %r13, %r14
     addq %rcx, %r14
@@ -4144,7 +4141,7 @@ lb_net_9wait_poll:
     call lb_net_10clear_poll
     addq $48, %rsp
     movq %r13, %rsi
-    movq 408(%rbp), %rdi
+    movq 392(%rbp), %rdi
     movq $40, %rdx
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -4152,34 +4149,34 @@ lb_net_9wait_poll:
     subq $32, %rsp
     call memcpy
     addq $32, %rsp
-    movq 408(%rbp), %rax
-    movq 584(%rbp), %rdi
-    movq 576(%rbp), %rsi
-    movdqu 560(%rbp), %xmm6
-    movdqu 544(%rbp), %xmm7
-    movdqu 528(%rbp), %xmm8
-    movdqu 512(%rbp), %xmm9
-    movdqu 496(%rbp), %xmm10
-    movdqu 480(%rbp), %xmm11
-    movdqu 464(%rbp), %xmm12
-    movdqu 448(%rbp), %xmm13
-    movdqu 432(%rbp), %xmm14
-    movdqu 416(%rbp), %xmm15
-    movq 400(%rbp), %rbx
-    movq 392(%rbp), %r12
-    movq 384(%rbp), %r13
-    movq 376(%rbp), %r14
-    movq 368(%rbp), %r15
-    leaq 592(%rbp), %rsp
+    movq 392(%rbp), %rax
+    movq 568(%rbp), %rdi
+    movq 560(%rbp), %rsi
+    movdqu 544(%rbp), %xmm6
+    movdqu 528(%rbp), %xmm7
+    movdqu 512(%rbp), %xmm8
+    movdqu 496(%rbp), %xmm9
+    movdqu 480(%rbp), %xmm10
+    movdqu 464(%rbp), %xmm11
+    movdqu 448(%rbp), %xmm12
+    movdqu 432(%rbp), %xmm13
+    movdqu 416(%rbp), %xmm14
+    movdqu 400(%rbp), %xmm15
+    movq 384(%rbp), %rbx
+    movq 376(%rbp), %r12
+    movq 368(%rbp), %r13
+    movq 360(%rbp), %r14
+    movq 352(%rbp), %r15
+    leaq 576(%rbp), %rsp
     popq %rbp
     ret
 .L17_56:
-    movq 8(%rbp), %r10
+    movq 0(%rbp), %r10
     movq (%r10), %r13
     cmpq %r12, %r13
     jb .L17_54
 .L17_53:
-    leaq 328(%rbp), %rbx
+    leaq 312(%rbp), %rbx
     movq $0, %rax
     movq %rbx, %r10
     movq %rax, (%r10)
@@ -4190,7 +4187,7 @@ lb_net_9wait_poll:
     movq %r12, %r10
     movb %al, (%r10)
     movq %rbx, %rsi
-    movq 408(%rbp), %rdi
+    movq 392(%rbp), %rdi
     movq $40, %rdx
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -4198,25 +4195,25 @@ lb_net_9wait_poll:
     subq $32, %rsp
     call memcpy
     addq $32, %rsp
-    movq 408(%rbp), %rax
-    movq 584(%rbp), %rdi
-    movq 576(%rbp), %rsi
-    movdqu 560(%rbp), %xmm6
-    movdqu 544(%rbp), %xmm7
-    movdqu 528(%rbp), %xmm8
-    movdqu 512(%rbp), %xmm9
-    movdqu 496(%rbp), %xmm10
-    movdqu 480(%rbp), %xmm11
-    movdqu 464(%rbp), %xmm12
-    movdqu 448(%rbp), %xmm13
-    movdqu 432(%rbp), %xmm14
-    movdqu 416(%rbp), %xmm15
-    movq 400(%rbp), %rbx
-    movq 392(%rbp), %r12
-    movq 384(%rbp), %r13
-    movq 376(%rbp), %r14
-    movq 368(%rbp), %r15
-    leaq 592(%rbp), %rsp
+    movq 392(%rbp), %rax
+    movq 568(%rbp), %rdi
+    movq 560(%rbp), %rsi
+    movdqu 544(%rbp), %xmm6
+    movdqu 528(%rbp), %xmm7
+    movdqu 512(%rbp), %xmm8
+    movdqu 496(%rbp), %xmm9
+    movdqu 480(%rbp), %xmm10
+    movdqu 464(%rbp), %xmm11
+    movdqu 448(%rbp), %xmm12
+    movdqu 432(%rbp), %xmm13
+    movdqu 416(%rbp), %xmm14
+    movdqu 400(%rbp), %xmm15
+    movq 384(%rbp), %rbx
+    movq 376(%rbp), %r12
+    movq 368(%rbp), %r13
+    movq 360(%rbp), %r14
+    movq 352(%rbp), %r15
+    leaq 576(%rbp), %rsp
     popq %rbp
     ret
 .L17_54:
@@ -4760,22 +4757,8 @@ lb_net_21monotonic_nanoseconds:
     movq %rbx, %r11
     pxor %xmm8, %xmm8
     movups %xmm8, 0(%r11)
-    leaq lb_platform_macos(%rip), %r12
-    movq %r12, %r10
-    movzbl (%r10), %r12d
-    testl %r12d, %r12d
-    jne .L19_4
-    jmp .L19_5
-.L19_4:
-    movl $6, %eax
-    movl %eax, %r12d
-    jmp .L19_6
-.L19_5:
-    movl $1, %eax
-    movl %eax, %r12d
-.L19_6:
     subq $32, %rsp
-    movl %r12d, %eax
+    movl $1, %eax
     movq %rax, 0(%rsp)
     movq %rbx, %rax
     movq %rax, 8(%rsp)
@@ -4783,13 +4766,13 @@ lb_net_21monotonic_nanoseconds:
     movq 8(%rsp), %rdx
     call clock_gettime
     addq $32, %rsp
-    movl %eax, %r13d
+    movl %eax, %r12d
     movl $0, %ecx
-    cmpl %ecx, %r13d
+    cmpl %ecx, %r12d
     sete %al
-    movzbl %al, %r13d
+    movzbl %al, %r12d
     movl $0, %ecx
-    cmpl %ecx, %r13d
+    cmpl %ecx, %r12d
     jne .L19_2
 .L19_1:
     leaq 136(%rbp), %rbx
@@ -4853,7 +4836,7 @@ lb_net_21monotonic_nanoseconds:
     leaq 400(%rbp), %rsp
     popq %rbp
     ret
-.L19_7:
+.L19_4:
     jmp .L19_3
 .L19_2:
 .L19_3:
@@ -4864,12 +4847,12 @@ lb_net_21monotonic_nanoseconds:
     setl %al
     movzbl %al, %r13d
     testl %r13d, %r13d
-    jne .L19_25
-    jmp .L19_11
-.L19_25:
+    jne .L19_22
+    jmp .L19_8
+.L19_22:
     movl %r13d, %r14d
-    jmp .L19_12
-.L19_11:
+    jmp .L19_9
+.L19_8:
     movq $8, %rcx
     movq %rbx, %r13
     addq %rcx, %r13
@@ -4879,15 +4862,15 @@ lb_net_21monotonic_nanoseconds:
     cmpq %rcx, %r13
     setl %al
     movzbl %al, %r14d
-.L19_12:
+.L19_9:
     movzbl %r14b, %r13d
     testl %r13d, %r13d
-    jne .L19_26
-    jmp .L19_13
-.L19_26:
+    jne .L19_23
+    jmp .L19_10
+.L19_23:
     movl %r13d, %r14d
-    jmp .L19_14
-.L19_13:
+    jmp .L19_11
+.L19_10:
     movq $8, %rcx
     movq %rbx, %r13
     addq %rcx, %r13
@@ -4897,12 +4880,12 @@ lb_net_21monotonic_nanoseconds:
     cmpq %rcx, %r13
     setge %al
     movzbl %al, %r14d
-.L19_14:
+.L19_11:
     movzbl %r14b, %r13d
     testl %r13d, %r13d
-    jne .L19_8
-    jmp .L19_9
-.L19_8:
+    jne .L19_5
+    jmp .L19_6
+.L19_5:
     leaq 136(%rbp), %rbx
     movq $8, %rcx
     movq %rbx, %r12
@@ -4964,10 +4947,10 @@ lb_net_21monotonic_nanoseconds:
     leaq 400(%rbp), %rsp
     popq %rbp
     ret
-.L19_15:
-    jmp .L19_10
-.L19_9:
-.L19_10:
+.L19_12:
+    jmp .L19_7
+.L19_6:
+.L19_7:
     leaq 80(%rbp), %r13
     subq $32, %rsp
     movq %r12, %rax
@@ -4997,11 +4980,11 @@ lb_net_21monotonic_nanoseconds:
     movq %r15, %r10
     movzbl (%r10), %r14d
     testl %r14d, %r14d
-    jne .L19_16
-    jmp .L19_17
-.L19_16:
-    jmp .L19_18
-.L19_17:
+    jne .L19_13
+    jmp .L19_14
+.L19_13:
+    jmp .L19_15
+.L19_14:
     leaq 136(%rbp), %rbx
     movq $8, %rcx
     movq %rbx, %r12
@@ -5063,8 +5046,8 @@ lb_net_21monotonic_nanoseconds:
     leaq 400(%rbp), %rsp
     popq %rbp
     ret
-.L19_19:
-.L19_18:
+.L19_16:
+.L19_15:
     movq $8, %rcx
     movq %rbx, %r12
     addq %rcx, %r12
@@ -5099,11 +5082,11 @@ lb_net_21monotonic_nanoseconds:
     movq %r15, %r10
     movzbl (%r10), %r12d
     testl %r12d, %r12d
-    jne .L19_20
-    jmp .L19_21
-.L19_20:
-    jmp .L19_22
-.L19_21:
+    jne .L19_17
+    jmp .L19_18
+.L19_17:
+    jmp .L19_19
+.L19_18:
     leaq 136(%rbp), %rbx
     movq $8, %rcx
     movq %rbx, %r12
@@ -5165,8 +5148,8 @@ lb_net_21monotonic_nanoseconds:
     leaq 400(%rbp), %rsp
     popq %rbp
     ret
-.L19_23:
-.L19_22:
+.L19_20:
+.L19_19:
     leaq 136(%rbp), %rbx
     movq %rbx, %r10
     movq %r14, (%r10)
@@ -5206,7 +5189,7 @@ lb_net_21monotonic_nanoseconds:
     leaq 400(%rbp), %rsp
     popq %rbp
     ret
-.L19_24:
+.L19_21:
     leaq .Ltext_46(%rip), %rdi
     leaq .Ltext_1(%rip), %rsi
     movq %rdx, %r8

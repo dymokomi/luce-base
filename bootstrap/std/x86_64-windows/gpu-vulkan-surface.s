@@ -601,11 +601,9 @@ lb_gpu_19vulkan_surface_open:
     pxor %xmm8, %xmm8
     movups %xmm8, 0(%r11)
     movq $0, 16(%r11)
-    leaq lb_gpu_42VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO(%rip), %r14
-    movq %r14, %r10
-    movl (%r10), %r14d
+    movl $39, %eax
     movq 16(%rbp), %r10
-    movl %r14d, (%r10)
+    movl %eax, (%r10)
     movq 32(%rbp), %r10
     movl (%r10), %r14d
     movq 16(%rbp), %rax
@@ -745,11 +743,9 @@ lb_gpu_19vulkan_surface_open:
     pxor %xmm8, %xmm8
     movups %xmm8, 0(%r11)
     movups %xmm8, 16(%r11)
-    leaq lb_gpu_46VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO(%rip), %r14
-    movq %r14, %r10
-    movl (%r10), %r14d
+    movl $40, %eax
     movq %r13, %r10
-    movl %r14d, (%r10)
+    movl %eax, (%r10)
     movq %r15, %r10
     movq (%r10), %r14
     movq $16, %rcx
@@ -887,11 +883,9 @@ lb_gpu_19vulkan_surface_open:
     pxor %xmm8, %xmm8
     movups %xmm8, 0(%r11)
     movq $0, 16(%r11)
-    leaq lb_gpu_39VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO(%rip), %r13
-    movq %r13, %r10
-    movl (%r10), %r13d
+    movl $9, %eax
     movq %r12, %r10
-    movl %r13d, (%r10)
+    movl %eax, (%r10)
     movq %r12, %r10
     movq %rbx, %r11
     movups 0(%r10), %xmm8
@@ -1129,11 +1123,9 @@ lb_gpu_17vulkan_image_view:
     movups %xmm8, 32(%r11)
     movups %xmm8, 48(%r11)
     movups %xmm8, 64(%r11)
-    leaq lb_gpu_40VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO(%rip), %r13
-    movq %r13, %r10
-    movl (%r10), %r13d
+    movl $15, %eax
     movq %r12, %r10
-    movl %r13d, (%r10)
+    movl %eax, (%r10)
     leaq 272(%rbp), %r13
     movq %r13, %r10
     movq (%r10), %r13
@@ -1142,14 +1134,12 @@ lb_gpu_17vulkan_image_view:
     addq %rcx, %r14
     movq %r14, %r10
     movq %r13, (%r10)
-    leaq lb_gpu_21VK_IMAGE_VIEW_TYPE_2D(%rip), %r13
-    movq %r13, %r10
-    movl (%r10), %r13d
     movq $32, %rcx
-    movq %r12, %r14
-    addq %rcx, %r14
-    movq %r14, %r10
-    movl %r13d, (%r10)
+    movq %r12, %r13
+    addq %rcx, %r13
+    movl $1, %eax
+    movq %r13, %r10
+    movl %eax, (%r10)
     leaq 256(%rbp), %r13
     movq %r13, %r10
     movl (%r10), %r13d
@@ -1368,67 +1358,67 @@ lb_gpu_16vulkan_swapchain:
     .seh_proc lb_gpu_16vulkan_swapchain
     pushq %rbp
     .seh_pushreg %rbp
-    subq $3232, %rsp
-    .seh_stackalloc 3232
+    subq $3136, %rsp
+    .seh_stackalloc 3136
     movq %rsp, %rbp
     .seh_setframe %rbp, 0
-    movq %rcx, 3048(%rbp)
-    movq %rdi, 3224(%rbp)
-    .seh_savereg %rdi, 3224
-    movq %rsi, 3216(%rbp)
-    .seh_savereg %rsi, 3216
-    movdqu %xmm6, 3200(%rbp)
-    .seh_savexmm %xmm6, 3200
-    movdqu %xmm7, 3184(%rbp)
-    .seh_savexmm %xmm7, 3184
-    movdqu %xmm8, 3168(%rbp)
-    .seh_savexmm %xmm8, 3168
-    movdqu %xmm9, 3152(%rbp)
-    .seh_savexmm %xmm9, 3152
-    movdqu %xmm10, 3136(%rbp)
-    .seh_savexmm %xmm10, 3136
-    movdqu %xmm11, 3120(%rbp)
-    .seh_savexmm %xmm11, 3120
-    movdqu %xmm12, 3104(%rbp)
-    .seh_savexmm %xmm12, 3104
-    movdqu %xmm13, 3088(%rbp)
-    .seh_savexmm %xmm13, 3088
-    movdqu %xmm14, 3072(%rbp)
-    .seh_savexmm %xmm14, 3072
-    movdqu %xmm15, 3056(%rbp)
-    .seh_savexmm %xmm15, 3056
-    movq %rbx, 3040(%rbp)
-    .seh_savereg %rbx, 3040
-    movq %r12, 3032(%rbp)
-    .seh_savereg %r12, 3032
-    movq %r13, 3024(%rbp)
-    .seh_savereg %r13, 3024
-    movq %r14, 3016(%rbp)
-    .seh_savereg %r14, 3016
-    movq %r15, 3008(%rbp)
-    .seh_savereg %r15, 3008
+    movq %rcx, 2952(%rbp)
+    movq %rdi, 3128(%rbp)
+    .seh_savereg %rdi, 3128
+    movq %rsi, 3120(%rbp)
+    .seh_savereg %rsi, 3120
+    movdqu %xmm6, 3104(%rbp)
+    .seh_savexmm %xmm6, 3104
+    movdqu %xmm7, 3088(%rbp)
+    .seh_savexmm %xmm7, 3088
+    movdqu %xmm8, 3072(%rbp)
+    .seh_savexmm %xmm8, 3072
+    movdqu %xmm9, 3056(%rbp)
+    .seh_savexmm %xmm9, 3056
+    movdqu %xmm10, 3040(%rbp)
+    .seh_savexmm %xmm10, 3040
+    movdqu %xmm11, 3024(%rbp)
+    .seh_savexmm %xmm11, 3024
+    movdqu %xmm12, 3008(%rbp)
+    .seh_savexmm %xmm12, 3008
+    movdqu %xmm13, 2992(%rbp)
+    .seh_savexmm %xmm13, 2992
+    movdqu %xmm14, 2976(%rbp)
+    .seh_savexmm %xmm14, 2976
+    movdqu %xmm15, 2960(%rbp)
+    .seh_savexmm %xmm15, 2960
+    movq %rbx, 2944(%rbp)
+    .seh_savereg %rbx, 2944
+    movq %r12, 2936(%rbp)
+    .seh_savereg %r12, 2936
+    movq %r13, 2928(%rbp)
+    .seh_savereg %r13, 2928
+    movq %r14, 2920(%rbp)
+    .seh_savereg %r14, 2920
+    movq %r15, 2912(%rbp)
+    .seh_savereg %r15, 2912
     .seh_endprologue
-    movq %rcx, 3248(%rbp)
-    movq %rdx, 3256(%rbp)
-    movq %r8, 3264(%rbp)
-    movq %r9, 3272(%rbp)
-    movq 3256(%rbp), %rax
-    movq %rax, 2960(%rbp)
-    movq 3264(%rbp), %rax
-    movq %rax, 2944(%rbp)
-    movq 3272(%rbp), %rax
-    movl %eax, 2928(%rbp)
-    movq 3280(%rbp), %rax
-    movl %eax, 2912(%rbp)
-    leaq 2960(%rbp), %rbx
+    movq %rcx, 3152(%rbp)
+    movq %rdx, 3160(%rbp)
+    movq %r8, 3168(%rbp)
+    movq %r9, 3176(%rbp)
+    movq 3160(%rbp), %rax
+    movq %rax, 2864(%rbp)
+    movq 3168(%rbp), %rax
+    movq %rax, 2848(%rbp)
+    movq 3176(%rbp), %rax
+    movl %eax, 2832(%rbp)
+    movq 3184(%rbp), %rax
+    movl %eax, 2816(%rbp)
+    leaq 2864(%rbp), %rbx
     movq %rbx, %r10
     movq (%r10), %rax
-    movq %rax, 792(%rbp)
-    movq 792(%rbp), %rax
+    movq %rax, 696(%rbp)
+    movq 696(%rbp), %rax
     movq $16, %rcx
     addq %rcx, %rax
-    movq %rax, 784(%rbp)
-    movq 784(%rbp), %r10
+    movq %rax, 688(%rbp)
+    movq 688(%rbp), %r10
     movq (%r10), %r13
     subq $32, %rsp
     movq %r13, %rax
@@ -1438,7 +1428,7 @@ lb_gpu_16vulkan_swapchain:
     addq $32, %rsp
     movl %eax, %r13d
     leaq .Ltext_12(%rip), %r14
-    leaq 2896(%rbp), %r15
+    leaq 2800(%rbp), %r15
     movq %r15, %r10
     movq %r14, (%r10)
     movq $8, %rcx
@@ -1456,14 +1446,14 @@ lb_gpu_16vulkan_swapchain:
     movups %xmm8, 0(%r11)
     leaq 32(%rsp), %rax
     movq %rax, 16(%rsp)
-    leaq 2864(%rbp), %rax
+    leaq 2768(%rbp), %rax
     movq %rax, (%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
     movq 16(%rsp), %r8
     call lb_gpu_12vulkan_check
     addq $48, %rsp
-    leaq 2864(%rbp), %r14
+    leaq 2768(%rbp), %r14
     movq $24, %rcx
     movq %r14, %r13
     addq %rcx, %r13
@@ -1473,7 +1463,7 @@ lb_gpu_16vulkan_swapchain:
     jne .L3_2
     jmp .L3_1
 .L3_2:
-    leaq 2976(%rbp), %rbx
+    leaq 2880(%rbp), %rbx
     movq %r14, %r10
     movq %rbx, %r11
     movups 0(%r10), %xmm8
@@ -1487,7 +1477,7 @@ lb_gpu_16vulkan_swapchain:
     movq %r12, %r10
     movb %al, (%r10)
     movq %rbx, %rsi
-    movq 3048(%rbp), %rdi
+    movq 2952(%rbp), %rdi
     movq $32, %rdx
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -1495,64 +1485,64 @@ lb_gpu_16vulkan_swapchain:
     subq $32, %rsp
     call memcpy
     addq $32, %rsp
-    movq 3048(%rbp), %rax
-    movq 3224(%rbp), %rdi
-    movq 3216(%rbp), %rsi
-    movdqu 3200(%rbp), %xmm6
-    movdqu 3184(%rbp), %xmm7
-    movdqu 3168(%rbp), %xmm8
-    movdqu 3152(%rbp), %xmm9
-    movdqu 3136(%rbp), %xmm10
-    movdqu 3120(%rbp), %xmm11
-    movdqu 3104(%rbp), %xmm12
-    movdqu 3088(%rbp), %xmm13
-    movdqu 3072(%rbp), %xmm14
-    movdqu 3056(%rbp), %xmm15
-    movq 3040(%rbp), %rbx
-    movq 3032(%rbp), %r12
-    movq 3024(%rbp), %r13
-    movq 3016(%rbp), %r14
-    movq 3008(%rbp), %r15
-    leaq 3232(%rbp), %rsp
+    movq 2952(%rbp), %rax
+    movq 3128(%rbp), %rdi
+    movq 3120(%rbp), %rsi
+    movdqu 3104(%rbp), %xmm6
+    movdqu 3088(%rbp), %xmm7
+    movdqu 3072(%rbp), %xmm8
+    movdqu 3056(%rbp), %xmm9
+    movdqu 3040(%rbp), %xmm10
+    movdqu 3024(%rbp), %xmm11
+    movdqu 3008(%rbp), %xmm12
+    movdqu 2992(%rbp), %xmm13
+    movdqu 2976(%rbp), %xmm14
+    movdqu 2960(%rbp), %xmm15
+    movq 2944(%rbp), %rbx
+    movq 2936(%rbp), %r12
+    movq 2928(%rbp), %r13
+    movq 2920(%rbp), %r14
+    movq 2912(%rbp), %r15
+    leaq 3136(%rbp), %rsp
     popq %rbp
     ret
 .L3_3:
 .L3_1:
-    leaq 2944(%rbp), %r13
+    leaq 2848(%rbp), %r13
     movq %r13, %r10
     movq (%r10), %rax
-    movq %rax, 776(%rbp)
+    movq %rax, 680(%rbp)
     subq $32, %rsp
-    movq 792(%rbp), %rax
+    movq 696(%rbp), %rax
     movq %rax, 0(%rsp)
-    movq 776(%rbp), %rax
+    movq 680(%rbp), %rax
     movq %rax, 8(%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
     call lb_gpu_24vulkan_swapchain_destroy
     addq $32, %rsp
-    leaq 2812(%rbp), %rax
-    movq %rax, 768(%rbp)
-    movq 768(%rbp), %r11
+    leaq 2716(%rbp), %rax
+    movq %rax, 672(%rbp)
+    movq 672(%rbp), %r11
     pxor %xmm8, %xmm8
     movups %xmm8, 0(%r11)
     movups %xmm8, 16(%r11)
     movups %xmm8, 32(%r11)
     movl $0, 48(%r11)
-    movq 792(%rbp), %rax
+    movq 696(%rbp), %rax
     movq $8, %rcx
     addq %rcx, %rax
-    movq %rax, 760(%rbp)
-    movq 760(%rbp), %r10
+    movq %rax, 664(%rbp)
+    movq 664(%rbp), %r10
     movq (%r10), %r12
-    movq 776(%rbp), %r10
+    movq 680(%rbp), %r10
     movq (%r10), %r15
     subq $32, %rsp
     movq %r12, %rax
     movq %rax, 0(%rsp)
     movq %r15, %rax
     movq %rax, 8(%rsp)
-    movq 768(%rbp), %rax
+    movq 672(%rbp), %rax
     movq %rax, 16(%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
@@ -1561,7 +1551,7 @@ lb_gpu_16vulkan_swapchain:
     addq $32, %rsp
     movl %eax, %r12d
     leaq .Ltext_13(%rip), %r15
-    leaq 2792(%rbp), %r14
+    leaq 2696(%rbp), %r14
     movq %r14, %r10
     movq %r15, (%r10)
     movq $8, %rcx
@@ -1579,14 +1569,14 @@ lb_gpu_16vulkan_swapchain:
     movups %xmm8, 0(%r11)
     leaq 32(%rsp), %rax
     movq %rax, 16(%rsp)
-    leaq 2760(%rbp), %rax
+    leaq 2664(%rbp), %rax
     movq %rax, (%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
     movq 16(%rsp), %r8
     call lb_gpu_12vulkan_check
     addq $48, %rsp
-    leaq 2760(%rbp), %r14
+    leaq 2664(%rbp), %r14
     movq $24, %rcx
     movq %r14, %r12
     addq %rcx, %r12
@@ -1596,7 +1586,7 @@ lb_gpu_16vulkan_swapchain:
     jne .L3_5
     jmp .L3_4
 .L3_5:
-    leaq 2976(%rbp), %r12
+    leaq 2880(%rbp), %r12
     movq %r14, %r10
     movq %r12, %r11
     movups 0(%r10), %xmm8
@@ -1610,16 +1600,16 @@ lb_gpu_16vulkan_swapchain:
     movq %r15, %r10
     movb %al, (%r10)
     subq $32, %rsp
-    movq 792(%rbp), %rax
+    movq 696(%rbp), %rax
     movq %rax, 0(%rsp)
-    movq 776(%rbp), %rax
+    movq 680(%rbp), %rax
     movq %rax, 8(%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
     call lb_gpu_24vulkan_swapchain_destroy
     addq $32, %rsp
     movq %r12, %rsi
-    movq 3048(%rbp), %rdi
+    movq 2952(%rbp), %rdi
     movq $32, %rdx
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -1627,69 +1617,69 @@ lb_gpu_16vulkan_swapchain:
     subq $32, %rsp
     call memcpy
     addq $32, %rsp
-    movq 3048(%rbp), %rax
-    movq 3224(%rbp), %rdi
-    movq 3216(%rbp), %rsi
-    movdqu 3200(%rbp), %xmm6
-    movdqu 3184(%rbp), %xmm7
-    movdqu 3168(%rbp), %xmm8
-    movdqu 3152(%rbp), %xmm9
-    movdqu 3136(%rbp), %xmm10
-    movdqu 3120(%rbp), %xmm11
-    movdqu 3104(%rbp), %xmm12
-    movdqu 3088(%rbp), %xmm13
-    movdqu 3072(%rbp), %xmm14
-    movdqu 3056(%rbp), %xmm15
-    movq 3040(%rbp), %rbx
-    movq 3032(%rbp), %r12
-    movq 3024(%rbp), %r13
-    movq 3016(%rbp), %r14
-    movq 3008(%rbp), %r15
-    leaq 3232(%rbp), %rsp
+    movq 2952(%rbp), %rax
+    movq 3128(%rbp), %rdi
+    movq 3120(%rbp), %rsi
+    movdqu 3104(%rbp), %xmm6
+    movdqu 3088(%rbp), %xmm7
+    movdqu 3072(%rbp), %xmm8
+    movdqu 3056(%rbp), %xmm9
+    movdqu 3040(%rbp), %xmm10
+    movdqu 3024(%rbp), %xmm11
+    movdqu 3008(%rbp), %xmm12
+    movdqu 2992(%rbp), %xmm13
+    movdqu 2976(%rbp), %xmm14
+    movdqu 2960(%rbp), %xmm15
+    movq 2944(%rbp), %rbx
+    movq 2936(%rbp), %r12
+    movq 2928(%rbp), %r13
+    movq 2920(%rbp), %r14
+    movq 2912(%rbp), %r15
+    leaq 3136(%rbp), %rsp
     popq %rbp
     ret
 .L3_6:
 .L3_4:
-    leaq 2752(%rbp), %rax
-    movq %rax, 752(%rbp)
-    movq 768(%rbp), %rax
+    leaq 2656(%rbp), %rax
+    movq %rax, 656(%rbp)
+    movq 672(%rbp), %rax
     movq $8, %rcx
     movq %rax, %r14
     addq %rcx, %r14
     movq %r14, %r10
-    movq 752(%rbp), %r11
+    movq 656(%rbp), %r11
     movq 0(%r10), %rax
     movq %rax, 0(%r11)
-    movq 752(%rbp), %r10
+    movq 656(%rbp), %r10
     movl (%r10), %r14d
     movl $4294967295, %ecx
     cmpl %ecx, %r14d
     jne .L3_8
 .L3_7:
-    movq 768(%rbp), %rax
+    movq 672(%rbp), %rax
     movq $16, %rcx
     movq %rax, %r14
     addq %rcx, %r14
     movq %r14, %r10
     movl (%r10), %r15d
     movl %r15d, %r15d
-    leaq 2928(%rbp), %rax
-    movq %rax, 744(%rbp)
-    movq 744(%rbp), %r10
+    leaq 2832(%rbp), %rax
+    movq %rax, 648(%rbp)
+    movq 648(%rbp), %r10
     movl (%r10), %eax
-    movl %eax, 736(%rbp)
-    movl 736(%rbp), %eax
+    movl %eax, 640(%rbp)
+    movl 640(%rbp), %eax
     movl %eax, %eax
-    movq %rax, 728(%rbp)
-    movq 768(%rbp), %rax
+    movq %rax, 632(%rbp)
+    movq 672(%rbp), %rax
     movq $24, %rcx
     addq %rcx, %rax
-    movq %rax, 720(%rbp)
-    movq 720(%rbp), %r10
+    movq %rax, 624(%rbp)
+    movq 624(%rbp), %r10
     movl (%r10), %r13d
     movl %r13d, %r13d
     subq $32, %rsp
-    movq 728(%rbp), %rax
+    movq 632(%rbp), %rax
     movq %rax, 0(%rsp)
     movq %r13, %rax
     movq %rax, 8(%rsp)
@@ -1697,21 +1687,21 @@ lb_gpu_16vulkan_swapchain:
     movq 8(%rsp), %rdx
     call lb_gpu_10canvas_min
     addq $32, %rsp
-    movq %rax, 712(%rbp)
+    movq %rax, 616(%rbp)
     subq $32, %rsp
     movq %r15, %rax
     movq %rax, 0(%rsp)
-    movq 712(%rbp), %rax
+    movq 616(%rbp), %rax
     movq %rax, 8(%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
     call lb_gpu_10canvas_max
     addq $32, %rsp
-    movq %rax, 704(%rbp)
-    movl 704(%rbp), %eax
-    movq 752(%rbp), %r10
+    movq %rax, 608(%rbp)
+    movl 608(%rbp), %eax
+    movq 656(%rbp), %r10
     movl %eax, (%r10)
-    movq 752(%rbp), %rax
+    movq 656(%rbp), %rax
     movq $4, %rcx
     movq %rax, %r13
     addq %rcx, %r13
@@ -1720,11 +1710,11 @@ lb_gpu_16vulkan_swapchain:
     movq %r14, %r10
     movl (%r10), %r14d
     movl %r14d, %r14d
-    leaq 2912(%rbp), %r15
+    leaq 2816(%rbp), %r15
     movq %r15, %r10
     movl (%r10), %r15d
     movl %r15d, %r15d
-    movq 720(%rbp), %rax
+    movq 624(%rbp), %rax
     movq $4, %rcx
     movq %rax, %rbx
     addq %rcx, %rbx
@@ -1753,14 +1743,14 @@ lb_gpu_16vulkan_swapchain:
     movq %rax, %rbx
     movq %r13, %r10
     movl %ebx, (%r10)
-    movl 704(%rbp), %eax
-    movl %eax, 0(%rbp)
+    movl 608(%rbp), %eax
+    movl %eax, 8(%rbp)
     jmp .L3_9
 .L3_8:
     movl %r14d, %eax
-    movl %eax, 0(%rbp)
+    movl %eax, 8(%rbp)
 .L3_9:
-    movl 0(%rbp), %eax
+    movl 8(%rbp), %eax
     movl $0, %ecx
     cmpl %ecx, %eax
     sete %al
@@ -1772,7 +1762,7 @@ lb_gpu_16vulkan_swapchain:
     movl %r13d, %r14d
     jmp .L3_14
 .L3_13:
-    movq 752(%rbp), %rax
+    movq 656(%rbp), %rax
     movq $4, %rcx
     movq %rax, %r13
     addq %rcx, %r13
@@ -1788,7 +1778,7 @@ lb_gpu_16vulkan_swapchain:
     jne .L3_10
     jmp .L3_11
 .L3_10:
-    leaq 2976(%rbp), %rbx
+    leaq 2880(%rbp), %rbx
     movq $24, %rcx
     movq %rbx, %r12
     addq %rcx, %r12
@@ -1796,7 +1786,7 @@ lb_gpu_16vulkan_swapchain:
     movq %r12, %r10
     movb %al, (%r10)
     movq %rbx, %rsi
-    movq 3048(%rbp), %rdi
+    movq 2952(%rbp), %rdi
     movq $32, %rdx
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -1804,32 +1794,32 @@ lb_gpu_16vulkan_swapchain:
     subq $32, %rsp
     call memcpy
     addq $32, %rsp
-    movq 3048(%rbp), %rax
-    movq 3224(%rbp), %rdi
-    movq 3216(%rbp), %rsi
-    movdqu 3200(%rbp), %xmm6
-    movdqu 3184(%rbp), %xmm7
-    movdqu 3168(%rbp), %xmm8
-    movdqu 3152(%rbp), %xmm9
-    movdqu 3136(%rbp), %xmm10
-    movdqu 3120(%rbp), %xmm11
-    movdqu 3104(%rbp), %xmm12
-    movdqu 3088(%rbp), %xmm13
-    movdqu 3072(%rbp), %xmm14
-    movdqu 3056(%rbp), %xmm15
-    movq 3040(%rbp), %rbx
-    movq 3032(%rbp), %r12
-    movq 3024(%rbp), %r13
-    movq 3016(%rbp), %r14
-    movq 3008(%rbp), %r15
-    leaq 3232(%rbp), %rsp
+    movq 2952(%rbp), %rax
+    movq 3128(%rbp), %rdi
+    movq 3120(%rbp), %rsi
+    movdqu 3104(%rbp), %xmm6
+    movdqu 3088(%rbp), %xmm7
+    movdqu 3072(%rbp), %xmm8
+    movdqu 3056(%rbp), %xmm9
+    movdqu 3040(%rbp), %xmm10
+    movdqu 3024(%rbp), %xmm11
+    movdqu 3008(%rbp), %xmm12
+    movdqu 2992(%rbp), %xmm13
+    movdqu 2976(%rbp), %xmm14
+    movdqu 2960(%rbp), %xmm15
+    movq 2944(%rbp), %rbx
+    movq 2936(%rbp), %r12
+    movq 2928(%rbp), %r13
+    movq 2920(%rbp), %r14
+    movq 2912(%rbp), %r15
+    leaq 3136(%rbp), %rsp
     popq %rbp
     ret
 .L3_15:
     jmp .L3_12
 .L3_11:
 .L3_12:
-    movl 0(%rbp), %eax
+    movl 8(%rbp), %eax
     movl $16384, %ecx
     cmpl %ecx, %eax
     seta %al
@@ -1841,7 +1831,7 @@ lb_gpu_16vulkan_swapchain:
     movl %r13d, %r14d
     jmp .L3_20
 .L3_19:
-    movq 752(%rbp), %rax
+    movq 656(%rbp), %rax
     movq $4, %rcx
     movq %rax, %r13
     addq %rcx, %r13
@@ -1857,14 +1847,14 @@ lb_gpu_16vulkan_swapchain:
     jne .L3_16
     jmp .L3_17
 .L3_16:
-    leaq 2976(%rbp), %rbx
+    leaq 2880(%rbp), %rbx
     leaq lb_gpu_17surface_too_large(%rip), %r12
     movq %r12, %r10
     movl (%r10), %r12d
     movq %rbx, %r10
     movl %r12d, (%r10)
     leaq .Ltext_14(%rip), %r12
-    leaq 2736(%rbp), %r13
+    leaq 2640(%rbp), %r13
     movq %r13, %r10
     movq %r12, (%r10)
     movq $8, %rcx
@@ -1887,16 +1877,16 @@ lb_gpu_16vulkan_swapchain:
     movq %r12, %r10
     movb %al, (%r10)
     subq $32, %rsp
-    movq 792(%rbp), %rax
+    movq 696(%rbp), %rax
     movq %rax, 0(%rsp)
-    movq 776(%rbp), %rax
+    movq 680(%rbp), %rax
     movq %rax, 8(%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
     call lb_gpu_24vulkan_swapchain_destroy
     addq $32, %rsp
     movq %rbx, %rsi
-    movq 3048(%rbp), %rdi
+    movq 2952(%rbp), %rdi
     movq $32, %rdx
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -1904,42 +1894,39 @@ lb_gpu_16vulkan_swapchain:
     subq $32, %rsp
     call memcpy
     addq $32, %rsp
-    movq 3048(%rbp), %rax
-    movq 3224(%rbp), %rdi
-    movq 3216(%rbp), %rsi
-    movdqu 3200(%rbp), %xmm6
-    movdqu 3184(%rbp), %xmm7
-    movdqu 3168(%rbp), %xmm8
-    movdqu 3152(%rbp), %xmm9
-    movdqu 3136(%rbp), %xmm10
-    movdqu 3120(%rbp), %xmm11
-    movdqu 3104(%rbp), %xmm12
-    movdqu 3088(%rbp), %xmm13
-    movdqu 3072(%rbp), %xmm14
-    movdqu 3056(%rbp), %xmm15
-    movq 3040(%rbp), %rbx
-    movq 3032(%rbp), %r12
-    movq 3024(%rbp), %r13
-    movq 3016(%rbp), %r14
-    movq 3008(%rbp), %r15
-    leaq 3232(%rbp), %rsp
+    movq 2952(%rbp), %rax
+    movq 3128(%rbp), %rdi
+    movq 3120(%rbp), %rsi
+    movdqu 3104(%rbp), %xmm6
+    movdqu 3088(%rbp), %xmm7
+    movdqu 3072(%rbp), %xmm8
+    movdqu 3056(%rbp), %xmm9
+    movdqu 3040(%rbp), %xmm10
+    movdqu 3024(%rbp), %xmm11
+    movdqu 3008(%rbp), %xmm12
+    movdqu 2992(%rbp), %xmm13
+    movdqu 2976(%rbp), %xmm14
+    movdqu 2960(%rbp), %xmm15
+    movq 2944(%rbp), %rbx
+    movq 2936(%rbp), %r12
+    movq 2928(%rbp), %r13
+    movq 2920(%rbp), %r14
+    movq 2912(%rbp), %r15
+    leaq 3136(%rbp), %rsp
     popq %rbp
     ret
 .L3_21:
     jmp .L3_18
 .L3_17:
 .L3_18:
-    movq 768(%rbp), %rax
+    movq 672(%rbp), %rax
     movq $48, %rcx
     movq %rax, %r13
     addq %rcx, %r13
     movq %r13, %r10
     movl (%r10), %r13d
-    leaq lb_gpu_35VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT(%rip), %rax
-    movq %rax, 696(%rbp)
-    movq 696(%rbp), %r10
-    movl (%r10), %r15d
-    andl %r15d, %r13d
+    movl $16, %ecx
+    andl %ecx, %r13d
     movl $0, %ecx
     cmpl %ecx, %r13d
     sete %al
@@ -1948,37 +1935,35 @@ lb_gpu_16vulkan_swapchain:
     jne .L3_174
     jmp .L3_25
 .L3_174:
-    movl %r13d, %r15d
+    movl %r13d, %r14d
     jmp .L3_26
 .L3_25:
-    movq 768(%rbp), %rax
+    movq 672(%rbp), %rax
     movq $44, %rcx
     movq %rax, %r13
     addq %rcx, %r13
     movq %r13, %r10
     movl (%r10), %r13d
-    leaq lb_gpu_33VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR(%rip), %r15
-    movq %r15, %r10
-    movl (%r10), %r15d
-    andl %r15d, %r13d
+    movl $1, %ecx
+    andl %ecx, %r13d
     movl $0, %ecx
     cmpl %ecx, %r13d
     sete %al
-    movzbl %al, %r15d
+    movzbl %al, %r14d
 .L3_26:
-    movzbl %r15b, %r13d
+    movzbl %r14b, %r13d
     testl %r13d, %r13d
     jne .L3_22
     jmp .L3_23
 .L3_22:
-    leaq 2976(%rbp), %rbx
+    leaq 2880(%rbp), %rbx
     leaq lb_gpu_unavailable(%rip), %r12
     movq %r12, %r10
     movl (%r10), %r12d
     movq %rbx, %r10
     movl %r12d, (%r10)
     leaq .Ltext_15(%rip), %r12
-    leaq 2720(%rbp), %r13
+    leaq 2624(%rbp), %r13
     movq %r13, %r10
     movq %r12, (%r10)
     movq $8, %rcx
@@ -2001,16 +1986,16 @@ lb_gpu_16vulkan_swapchain:
     movq %r12, %r10
     movb %al, (%r10)
     subq $32, %rsp
-    movq 792(%rbp), %rax
+    movq 696(%rbp), %rax
     movq %rax, 0(%rsp)
-    movq 776(%rbp), %rax
+    movq 680(%rbp), %rax
     movq %rax, 8(%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
     call lb_gpu_24vulkan_swapchain_destroy
     addq $32, %rsp
     movq %rbx, %rsi
-    movq 3048(%rbp), %rdi
+    movq 2952(%rbp), %rdi
     movq $32, %rdx
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -2018,46 +2003,46 @@ lb_gpu_16vulkan_swapchain:
     subq $32, %rsp
     call memcpy
     addq $32, %rsp
-    movq 3048(%rbp), %rax
-    movq 3224(%rbp), %rdi
-    movq 3216(%rbp), %rsi
-    movdqu 3200(%rbp), %xmm6
-    movdqu 3184(%rbp), %xmm7
-    movdqu 3168(%rbp), %xmm8
-    movdqu 3152(%rbp), %xmm9
-    movdqu 3136(%rbp), %xmm10
-    movdqu 3120(%rbp), %xmm11
-    movdqu 3104(%rbp), %xmm12
-    movdqu 3088(%rbp), %xmm13
-    movdqu 3072(%rbp), %xmm14
-    movdqu 3056(%rbp), %xmm15
-    movq 3040(%rbp), %rbx
-    movq 3032(%rbp), %r12
-    movq 3024(%rbp), %r13
-    movq 3016(%rbp), %r14
-    movq 3008(%rbp), %r15
-    leaq 3232(%rbp), %rsp
+    movq 2952(%rbp), %rax
+    movq 3128(%rbp), %rdi
+    movq 3120(%rbp), %rsi
+    movdqu 3104(%rbp), %xmm6
+    movdqu 3088(%rbp), %xmm7
+    movdqu 3072(%rbp), %xmm8
+    movdqu 3056(%rbp), %xmm9
+    movdqu 3040(%rbp), %xmm10
+    movdqu 3024(%rbp), %xmm11
+    movdqu 3008(%rbp), %xmm12
+    movdqu 2992(%rbp), %xmm13
+    movdqu 2976(%rbp), %xmm14
+    movdqu 2960(%rbp), %xmm15
+    movq 2944(%rbp), %rbx
+    movq 2936(%rbp), %r12
+    movq 2928(%rbp), %r13
+    movq 2920(%rbp), %r14
+    movq 2912(%rbp), %r15
+    leaq 3136(%rbp), %rsp
     popq %rbp
     ret
 .L3_27:
     jmp .L3_24
 .L3_23:
 .L3_24:
-    leaq 2716(%rbp), %rax
-    movq %rax, 688(%rbp)
+    leaq 2620(%rbp), %rax
+    movq %rax, 600(%rbp)
     movl $0, %eax
-    movq 688(%rbp), %r10
+    movq 600(%rbp), %r10
     movl %eax, (%r10)
-    movq 760(%rbp), %r10
+    movq 664(%rbp), %r10
+    movq (%r10), %r14
+    movq 680(%rbp), %r10
     movq (%r10), %r15
-    movq 776(%rbp), %r10
-    movq (%r10), %rbx
     subq $32, %rsp
-    movq %r15, %rax
+    movq %r14, %rax
     movq %rax, 0(%rsp)
-    movq %rbx, %rax
+    movq %r15, %rax
     movq %rax, 8(%rsp)
-    movq 688(%rbp), %rax
+    movq 600(%rbp), %rax
     movq %rax, 16(%rsp)
     movq $0, %rax
     movq %rax, 24(%rsp)
@@ -2067,34 +2052,34 @@ lb_gpu_16vulkan_swapchain:
     movq 24(%rsp), %r9
     call vkGetPhysicalDeviceSurfaceFormatsKHR
     addq $32, %rsp
-    movl %eax, %ebx
+    movl %eax, %r14d
     leaq .Ltext_16(%rip), %r15
-    leaq 2696(%rbp), %r14
-    movq %r14, %r10
+    leaq 2600(%rbp), %rbx
+    movq %rbx, %r10
     movq %r15, (%r10)
     movq $8, %rcx
-    movq %r14, %r15
+    movq %rbx, %r15
     addq %rcx, %r15
     movq $38, %rax
     movq %r15, %r10
     movq %rax, (%r10)
     subq $48, %rsp
-    movl %ebx, %eax
+    movl %r14d, %eax
     movq %rax, 8(%rsp)
-    movq %r14, %r10
+    movq %rbx, %r10
     leaq 32(%rsp), %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
     leaq 32(%rsp), %rax
     movq %rax, 16(%rsp)
-    leaq 2664(%rbp), %rax
+    leaq 2568(%rbp), %rax
     movq %rax, (%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
     movq 16(%rsp), %r8
     call lb_gpu_12vulkan_check
     addq $48, %rsp
-    leaq 2664(%rbp), %r14
+    leaq 2568(%rbp), %r14
     movq $24, %rcx
     movq %r14, %rbx
     addq %rcx, %rbx
@@ -2104,7 +2089,7 @@ lb_gpu_16vulkan_swapchain:
     jne .L3_29
     jmp .L3_28
 .L3_29:
-    leaq 2976(%rbp), %rbx
+    leaq 2880(%rbp), %rbx
     movq %r14, %r10
     movq %rbx, %r11
     movups 0(%r10), %xmm8
@@ -2118,16 +2103,16 @@ lb_gpu_16vulkan_swapchain:
     movq %r12, %r10
     movb %al, (%r10)
     subq $32, %rsp
-    movq 792(%rbp), %rax
+    movq 696(%rbp), %rax
     movq %rax, 0(%rsp)
-    movq 776(%rbp), %rax
+    movq 680(%rbp), %rax
     movq %rax, 8(%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
     call lb_gpu_24vulkan_swapchain_destroy
     addq $32, %rsp
     movq %rbx, %rsi
-    movq 3048(%rbp), %rdi
+    movq 2952(%rbp), %rdi
     movq $32, %rdx
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -2135,48 +2120,48 @@ lb_gpu_16vulkan_swapchain:
     subq $32, %rsp
     call memcpy
     addq $32, %rsp
-    movq 3048(%rbp), %rax
-    movq 3224(%rbp), %rdi
-    movq 3216(%rbp), %rsi
-    movdqu 3200(%rbp), %xmm6
-    movdqu 3184(%rbp), %xmm7
-    movdqu 3168(%rbp), %xmm8
-    movdqu 3152(%rbp), %xmm9
-    movdqu 3136(%rbp), %xmm10
-    movdqu 3120(%rbp), %xmm11
-    movdqu 3104(%rbp), %xmm12
-    movdqu 3088(%rbp), %xmm13
-    movdqu 3072(%rbp), %xmm14
-    movdqu 3056(%rbp), %xmm15
-    movq 3040(%rbp), %rbx
-    movq 3032(%rbp), %r12
-    movq 3024(%rbp), %r13
-    movq 3016(%rbp), %r14
-    movq 3008(%rbp), %r15
-    leaq 3232(%rbp), %rsp
+    movq 2952(%rbp), %rax
+    movq 3128(%rbp), %rdi
+    movq 3120(%rbp), %rsi
+    movdqu 3104(%rbp), %xmm6
+    movdqu 3088(%rbp), %xmm7
+    movdqu 3072(%rbp), %xmm8
+    movdqu 3056(%rbp), %xmm9
+    movdqu 3040(%rbp), %xmm10
+    movdqu 3024(%rbp), %xmm11
+    movdqu 3008(%rbp), %xmm12
+    movdqu 2992(%rbp), %xmm13
+    movdqu 2976(%rbp), %xmm14
+    movdqu 2960(%rbp), %xmm15
+    movq 2944(%rbp), %rbx
+    movq 2936(%rbp), %r12
+    movq 2928(%rbp), %r13
+    movq 2920(%rbp), %r14
+    movq 2912(%rbp), %r15
+    leaq 3136(%rbp), %rsp
     popq %rbp
     ret
 .L3_30:
 .L3_28:
-    leaq 2648(%rbp), %rax
-    movq %rax, 128(%rbp)
+    leaq 2552(%rbp), %rax
+    movq %rax, 120(%rbp)
     movl _tls_index(%rip), %eax
     movq %gs:88, %r11
     movq (%r11,%rax,8), %rax
     leaq lb_memory_allocator@SECREL32(%rax), %rax
-    movq %rax, 120(%rbp)
-    movq 688(%rbp), %r10
+    movq %rax, 112(%rbp)
+    movq 600(%rbp), %r10
     movl (%r10), %ebx
     movl %ebx, %eax
-    movq %rax, 112(%rbp)
-    leaq 2600(%rbp), %rax
     movq %rax, 104(%rbp)
-    movq 112(%rbp), %rax
+    leaq 2504(%rbp), %rax
+    movq %rax, 96(%rbp)
+    movq 104(%rbp), %rax
     movabsq $576460752303423488, %rcx
     cmpq %rcx, %rax
     jbe .L3_32
 .L3_31:
-    movq 104(%rbp), %rax
+    movq 96(%rbp), %rax
     movq $16, %rcx
     movq %rax, %rbx
     addq %rcx, %rbx
@@ -2194,7 +2179,7 @@ lb_gpu_16vulkan_swapchain:
     movq $47, %rax
     movq %rbx, %r10
     movq %rax, (%r10)
-    movq 104(%rbp), %rax
+    movq 96(%rbp), %rax
     movq $40, %rcx
     movq %rax, %rbx
     addq %rcx, %rbx
@@ -2203,13 +2188,13 @@ lb_gpu_16vulkan_swapchain:
     movb %al, (%r10)
     jmp .L3_33
 .L3_32:
-    movq 112(%rbp), %rax
+    movq 104(%rbp), %rax
     movq $8, %rcx
     movq %rax, %r14
     imulq %rcx, %r14
-    movq 120(%rbp), %r10
+    movq 112(%rbp), %r10
     movq (%r10), %rbx
-    movq 120(%rbp), %rax
+    movq 112(%rbp), %rax
     movq $8, %rcx
     movq %rax, %r13
     addq %rcx, %r13
@@ -2237,7 +2222,7 @@ lb_gpu_16vulkan_swapchain:
     movq %rax, 16(%rsp)
     movq $4, %rax
     movq %rax, 24(%rsp)
-    leaq 2576(%rbp), %rax
+    leaq 2480(%rbp), %rax
     movq %rax, (%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
@@ -2246,7 +2231,7 @@ lb_gpu_16vulkan_swapchain:
     movq %r15, %r11
     call *%r11
     addq $32, %rsp
-    leaq 2576(%rbp), %r12
+    leaq 2480(%rbp), %r12
     movq $16, %rcx
     movq %r12, %r15
     addq %rcx, %r15
@@ -2256,20 +2241,20 @@ lb_gpu_16vulkan_swapchain:
     cmpq %rcx, %r14
     setne %al
     movzbl %al, %eax
-    movl %eax, 680(%rbp)
+    movl %eax, 592(%rbp)
     movl $0, %ecx
     cmpl %ecx, %r15d
     sete %al
     movzbl %al, %r15d
-    movl 680(%rbp), %eax
+    movl 592(%rbp), %eax
     andl %r15d, %eax
-    movl %eax, 672(%rbp)
-    movl 672(%rbp), %eax
+    movl %eax, 584(%rbp)
+    movl 584(%rbp), %eax
     testl %eax, %eax
     jne .L3_36
     jmp .L3_37
 .L3_36:
-    movq 104(%rbp), %rax
+    movq 96(%rbp), %rax
     movq $16, %rcx
     movq %rax, %rbx
     addq %rcx, %rbx
@@ -2287,7 +2272,7 @@ lb_gpu_16vulkan_swapchain:
     movq $16, %rax
     movq %rbx, %r10
     movq %rax, (%r10)
-    movq 104(%rbp), %rax
+    movq 96(%rbp), %rax
     movq $40, %rcx
     movq %rax, %rbx
     addq %rcx, %rbx
@@ -2298,16 +2283,16 @@ lb_gpu_16vulkan_swapchain:
 .L3_37:
     movq %r12, %r10
     movq (%r10), %rbx
-    movq 104(%rbp), %r10
+    movq 96(%rbp), %r10
     movq %rbx, (%r10)
-    movq 104(%rbp), %rax
+    movq 96(%rbp), %rax
     movq $8, %rcx
     movq %rax, %rbx
     addq %rcx, %rbx
-    movq 112(%rbp), %rax
+    movq 104(%rbp), %rax
     movq %rbx, %r10
     movq %rax, (%r10)
-    movq 104(%rbp), %rax
+    movq 96(%rbp), %rax
     movq $40, %rcx
     movq %rax, %rbx
     addq %rcx, %rbx
@@ -2315,7 +2300,7 @@ lb_gpu_16vulkan_swapchain:
     movq %rbx, %r10
     movb %al, (%r10)
 .L3_33:
-    movq 104(%rbp), %rax
+    movq 96(%rbp), %rax
     movq $40, %rcx
     movq %rax, %rbx
     addq %rcx, %rbx
@@ -2325,11 +2310,11 @@ lb_gpu_16vulkan_swapchain:
     jne .L3_39
     jmp .L3_38
 .L3_39:
-    movq 104(%rbp), %rax
+    movq 96(%rbp), %rax
     movq $16, %rcx
     movq %rax, %rbx
     addq %rcx, %rbx
-    leaq 2976(%rbp), %r12
+    leaq 2880(%rbp), %r12
     movq %rbx, %r10
     movq %r12, %r11
     movups 0(%r10), %xmm8
@@ -2343,16 +2328,16 @@ lb_gpu_16vulkan_swapchain:
     movq %rbx, %r10
     movb %al, (%r10)
     subq $32, %rsp
-    movq 792(%rbp), %rax
+    movq 696(%rbp), %rax
     movq %rax, 0(%rsp)
-    movq 776(%rbp), %rax
+    movq 680(%rbp), %rax
     movq %rax, 8(%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
     call lb_gpu_24vulkan_swapchain_destroy
     addq $32, %rsp
     movq %r12, %rsi
-    movq 3048(%rbp), %rdi
+    movq 2952(%rbp), %rdi
     movq $32, %rdx
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -2360,48 +2345,48 @@ lb_gpu_16vulkan_swapchain:
     subq $32, %rsp
     call memcpy
     addq $32, %rsp
-    movq 3048(%rbp), %rax
-    movq 3224(%rbp), %rdi
-    movq 3216(%rbp), %rsi
-    movdqu 3200(%rbp), %xmm6
-    movdqu 3184(%rbp), %xmm7
-    movdqu 3168(%rbp), %xmm8
-    movdqu 3152(%rbp), %xmm9
-    movdqu 3136(%rbp), %xmm10
-    movdqu 3120(%rbp), %xmm11
-    movdqu 3104(%rbp), %xmm12
-    movdqu 3088(%rbp), %xmm13
-    movdqu 3072(%rbp), %xmm14
-    movdqu 3056(%rbp), %xmm15
-    movq 3040(%rbp), %rbx
-    movq 3032(%rbp), %r12
-    movq 3024(%rbp), %r13
-    movq 3016(%rbp), %r14
-    movq 3008(%rbp), %r15
-    leaq 3232(%rbp), %rsp
+    movq 2952(%rbp), %rax
+    movq 3128(%rbp), %rdi
+    movq 3120(%rbp), %rsi
+    movdqu 3104(%rbp), %xmm6
+    movdqu 3088(%rbp), %xmm7
+    movdqu 3072(%rbp), %xmm8
+    movdqu 3056(%rbp), %xmm9
+    movdqu 3040(%rbp), %xmm10
+    movdqu 3024(%rbp), %xmm11
+    movdqu 3008(%rbp), %xmm12
+    movdqu 2992(%rbp), %xmm13
+    movdqu 2976(%rbp), %xmm14
+    movdqu 2960(%rbp), %xmm15
+    movq 2944(%rbp), %rbx
+    movq 2936(%rbp), %r12
+    movq 2928(%rbp), %r13
+    movq 2920(%rbp), %r14
+    movq 2912(%rbp), %r15
+    leaq 3136(%rbp), %rsp
     popq %rbp
     ret
 .L3_40:
 .L3_38:
-    movq 104(%rbp), %r10
-    movq 128(%rbp), %r11
+    movq 96(%rbp), %r10
+    movq 120(%rbp), %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
-    movq 760(%rbp), %r10
+    movq 664(%rbp), %r10
     movq (%r10), %rbx
-    movq 776(%rbp), %r10
+    movq 680(%rbp), %r10
     movq (%r10), %r12
-    movq 128(%rbp), %r10
+    movq 120(%rbp), %r10
     movq (%r10), %rax
-    movq %rax, 664(%rbp)
+    movq %rax, 576(%rbp)
     subq $32, %rsp
     movq %rbx, %rax
     movq %rax, 0(%rsp)
     movq %r12, %rax
     movq %rax, 8(%rsp)
-    movq 688(%rbp), %rax
+    movq 600(%rbp), %rax
     movq %rax, 16(%rsp)
-    movq 664(%rbp), %rax
+    movq 576(%rbp), %rax
     movq %rax, 24(%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
@@ -2411,7 +2396,7 @@ lb_gpu_16vulkan_swapchain:
     addq $32, %rsp
     movl %eax, %ebx
     leaq .Ltext_19(%rip), %r12
-    leaq 2560(%rbp), %r14
+    leaq 2464(%rbp), %r14
     movq %r14, %r10
     movq %r12, (%r10)
     movq $8, %rcx
@@ -2429,14 +2414,14 @@ lb_gpu_16vulkan_swapchain:
     movups %xmm8, 0(%r11)
     leaq 32(%rsp), %rax
     movq %rax, 16(%rsp)
-    leaq 2528(%rbp), %rax
+    leaq 2432(%rbp), %rax
     movq %rax, (%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
     movq 16(%rsp), %r8
     call lb_gpu_12vulkan_check
     addq $48, %rsp
-    leaq 2528(%rbp), %r12
+    leaq 2432(%rbp), %r12
     movq $24, %rcx
     movq %r12, %rbx
     addq %rcx, %rbx
@@ -2446,23 +2431,23 @@ lb_gpu_16vulkan_swapchain:
     jne .L3_42
     jmp .L3_41
 .L3_42:
-    leaq 2976(%rbp), %rax
-    movq %rax, 656(%rbp)
+    leaq 2880(%rbp), %rax
+    movq %rax, 568(%rbp)
     movq %r12, %r10
-    movq 656(%rbp), %r11
+    movq 568(%rbp), %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
     movq 16(%r10), %rax
     movq %rax, 16(%r11)
-    movq 656(%rbp), %rax
+    movq 568(%rbp), %rax
     movq $24, %rcx
     movq %rax, %r14
     addq %rcx, %r14
     movl $1, %eax
     movq %r14, %r10
     movb %al, (%r10)
-    leaq 2512(%rbp), %r14
-    movq 128(%rbp), %rax
+    leaq 2416(%rbp), %r14
+    movq 120(%rbp), %rax
     movq $8, %rcx
     movq %rax, %r15
     addq %rcx, %r15
@@ -2482,7 +2467,7 @@ lb_gpu_16vulkan_swapchain:
     addq $32, %rsp
 1:
     movq %rax, %r15
-    movq 664(%rbp), %rax
+    movq 576(%rbp), %rax
     movq %r14, %r10
     movq %rax, (%r10)
     movq $8, %rcx
@@ -2490,9 +2475,9 @@ lb_gpu_16vulkan_swapchain:
     addq %rcx, %rbx
     movq %rbx, %r10
     movq %r15, (%r10)
-    movq 120(%rbp), %r10
+    movq 112(%rbp), %r10
     movq (%r10), %rbx
-    movq 120(%rbp), %rax
+    movq 112(%rbp), %rax
     movq $8, %rcx
     movq %rax, %r15
     addq %rcx, %r15
@@ -2523,16 +2508,16 @@ lb_gpu_16vulkan_swapchain:
     addq $48, %rsp
 .L3_43:
     subq $32, %rsp
-    movq 792(%rbp), %rax
+    movq 696(%rbp), %rax
     movq %rax, 0(%rsp)
-    movq 776(%rbp), %rax
+    movq 680(%rbp), %rax
     movq %rax, 8(%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
     call lb_gpu_24vulkan_swapchain_destroy
     addq $32, %rsp
-    movq 656(%rbp), %rsi
-    movq 3048(%rbp), %rdi
+    movq 568(%rbp), %rsi
+    movq 2952(%rbp), %rdi
     movq $32, %rdx
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -2540,63 +2525,55 @@ lb_gpu_16vulkan_swapchain:
     subq $32, %rsp
     call memcpy
     addq $32, %rsp
-    movq 3048(%rbp), %rax
-    movq 3224(%rbp), %rdi
-    movq 3216(%rbp), %rsi
-    movdqu 3200(%rbp), %xmm6
-    movdqu 3184(%rbp), %xmm7
-    movdqu 3168(%rbp), %xmm8
-    movdqu 3152(%rbp), %xmm9
-    movdqu 3136(%rbp), %xmm10
-    movdqu 3120(%rbp), %xmm11
-    movdqu 3104(%rbp), %xmm12
-    movdqu 3088(%rbp), %xmm13
-    movdqu 3072(%rbp), %xmm14
-    movdqu 3056(%rbp), %xmm15
-    movq 3040(%rbp), %rbx
-    movq 3032(%rbp), %r12
-    movq 3024(%rbp), %r13
-    movq 3016(%rbp), %r14
-    movq 3008(%rbp), %r15
-    leaq 3232(%rbp), %rsp
+    movq 2952(%rbp), %rax
+    movq 3128(%rbp), %rdi
+    movq 3120(%rbp), %rsi
+    movdqu 3104(%rbp), %xmm6
+    movdqu 3088(%rbp), %xmm7
+    movdqu 3072(%rbp), %xmm8
+    movdqu 3056(%rbp), %xmm9
+    movdqu 3040(%rbp), %xmm10
+    movdqu 3024(%rbp), %xmm11
+    movdqu 3008(%rbp), %xmm12
+    movdqu 2992(%rbp), %xmm13
+    movdqu 2976(%rbp), %xmm14
+    movdqu 2960(%rbp), %xmm15
+    movq 2944(%rbp), %rbx
+    movq 2936(%rbp), %r12
+    movq 2928(%rbp), %r13
+    movq 2920(%rbp), %r14
+    movq 2912(%rbp), %r15
+    leaq 3136(%rbp), %rsp
     popq %rbp
     ret
 .L3_45:
 .L3_41:
-    movq 688(%rbp), %r10
+    movq 600(%rbp), %r10
     movl (%r10), %ebx
     movl %ebx, %eax
-    movq %rax, 648(%rbp)
-    movq 128(%rbp), %rax
+    movq %rax, 560(%rbp)
+    movq 120(%rbp), %rax
     movq $8, %rcx
     movq %rax, %r12
     addq %rcx, %r12
     movq %r12, %r10
     movq (%r10), %rax
-    movq %rax, 640(%rbp)
-    leaq lb_gpu_33VK_COLOR_SPACE_SRGB_NONLINEAR_KHR(%rip), %rax
-    movq %rax, 632(%rbp)
-    leaq lb_gpu_23VK_FORMAT_B8G8R8A8_SRGB(%rip), %rax
-    movq %rax, 624(%rbp)
-    leaq lb_gpu_23VK_FORMAT_R8G8B8A8_SRGB(%rip), %rax
-    movq %rax, 616(%rbp)
-    leaq lb_gpu_19VK_FORMAT_UNDEFINED(%rip), %rax
-    movq %rax, 608(%rbp)
+    movq %rax, 552(%rbp)
     movl $0, %eax
-    movl %eax, 96(%rbp)
+    movl %eax, %r14d
     movq $0, %rax
-    movq %rax, %r14
+    movq %rax, %r15
 .L3_46:
-    movq 648(%rbp), %rcx
-    cmpq %rcx, %r14
+    movq 560(%rbp), %rcx
+    cmpq %rcx, %r15
     jb .L3_47
 .L3_175:
-    movl 96(%rbp), %eax
+    movl %r14d, %eax
     movl %eax, 88(%rbp)
     jmp .L3_49
 .L3_47:
-    movq 640(%rbp), %rcx
-    cmpq %rcx, %r14
+    movq 552(%rbp), %rcx
+    cmpq %rcx, %r15
     jb 1f
     leaq .Ltext_21(%rip), %rdi
     leaq .Ltext_52(%rip), %rsi
@@ -2608,9 +2585,9 @@ lb_gpu_16vulkan_swapchain:
     addq $32, %rsp
 1:
     movq $8, %rcx
-    movq %r14, %r13
+    movq %r15, %r13
     imulq %rcx, %r13
-    movq 664(%rbp), %rax
+    movq 576(%rbp), %rax
     movq %r13, %rcx
     movq %rax, %r13
     addq %rcx, %r13
@@ -2619,16 +2596,14 @@ lb_gpu_16vulkan_swapchain:
     addq %rcx, %rbx
     movq %rbx, %r10
     movl (%r10), %ebx
-    movq 632(%rbp), %r10
-    movl (%r10), %r15d
-    cmpl %r15d, %ebx
+    movl $0, %ecx
+    cmpl %ecx, %ebx
     jne .L3_51
 .L3_50:
     movq %r13, %r10
     movl (%r10), %ebx
-    movq 624(%rbp), %r10
-    movl (%r10), %r15d
-    cmpl %r15d, %ebx
+    movl $50, %ecx
+    cmpl %ecx, %ebx
     sete %al
     movzbl %al, %ebx
     testl %ebx, %ebx
@@ -2640,9 +2615,8 @@ lb_gpu_16vulkan_swapchain:
 .L3_56:
     movq %r13, %r10
     movl (%r10), %ebx
-    movq 616(%rbp), %r10
-    movl (%r10), %r12d
-    cmpl %r12d, %ebx
+    movl $43, %ecx
+    cmpl %ecx, %ebx
     sete %al
     movzbl %al, %r12d
 .L3_57:
@@ -2662,30 +2636,26 @@ lb_gpu_16vulkan_swapchain:
 .L3_55:
     movq %r13, %r10
     movl (%r10), %ebx
-    movq 608(%rbp), %r10
-    movl (%r10), %r12d
-    cmpl %r12d, %ebx
+    movl $0, %ecx
+    cmpl %ecx, %ebx
     jne .L3_60
 .L3_59:
-    movl %r15d, %ebx
+    movl $50, %eax
+    movl %eax, %r14d
     jmp .L3_61
 .L3_60:
-    movl 96(%rbp), %eax
-    movl %eax, %ebx
 .L3_61:
-    movl %ebx, %r12d
+    movl %r14d, %ebx
     jmp .L3_52
 .L3_51:
-    movl 96(%rbp), %eax
-    movl %eax, %r12d
+    movl %r14d, %ebx
 .L3_52:
 .L3_48:
     movq $1, %rcx
-    movq %r14, %rbx
-    addq %rcx, %rbx
-    movl %r12d, %eax
-    movl %eax, 96(%rbp)
-    movq %rbx, %r14
+    movq %r15, %r12
+    addq %rcx, %r12
+    movl %ebx, %r14d
+    movq %r12, %r15
     jmp .L3_46
 .L3_49:
     movl 88(%rbp), %eax
@@ -2693,14 +2663,14 @@ lb_gpu_16vulkan_swapchain:
     cmpl %ecx, %eax
     jne .L3_63
 .L3_62:
-    leaq 2976(%rbp), %rbx
+    leaq 2880(%rbp), %rbx
     leaq lb_gpu_unavailable(%rip), %r12
     movq %r12, %r10
     movl (%r10), %r12d
     movq %rbx, %r10
     movl %r12d, (%r10)
     leaq .Ltext_25(%rip), %r12
-    leaq 2496(%rbp), %r13
+    leaq 2400(%rbp), %r13
     movq %r13, %r10
     movq %r12, (%r10)
     movq $8, %rcx
@@ -2722,8 +2692,8 @@ lb_gpu_16vulkan_swapchain:
     movl $1, %eax
     movq %r12, %r10
     movb %al, (%r10)
-    leaq 2480(%rbp), %r12
-    movq 128(%rbp), %rax
+    leaq 2384(%rbp), %r12
+    movq 120(%rbp), %rax
     movq $8, %rcx
     movq %rax, %r13
     addq %rcx, %r13
@@ -2743,7 +2713,7 @@ lb_gpu_16vulkan_swapchain:
     addq $32, %rsp
 1:
     movq %rax, %r13
-    movq 664(%rbp), %rax
+    movq 576(%rbp), %rax
     movq %r12, %r10
     movq %rax, (%r10)
     movq $8, %rcx
@@ -2751,9 +2721,9 @@ lb_gpu_16vulkan_swapchain:
     addq %rcx, %r14
     movq %r14, %r10
     movq %r13, (%r10)
-    movq 120(%rbp), %r10
+    movq 112(%rbp), %r10
     movq (%r10), %r13
-    movq 120(%rbp), %rax
+    movq 112(%rbp), %rax
     movq $8, %rcx
     movq %rax, %r14
     addq %rcx, %r14
@@ -2784,16 +2754,16 @@ lb_gpu_16vulkan_swapchain:
     addq $48, %rsp
 .L3_65:
     subq $32, %rsp
-    movq 792(%rbp), %rax
+    movq 696(%rbp), %rax
     movq %rax, 0(%rsp)
-    movq 776(%rbp), %rax
+    movq 680(%rbp), %rax
     movq %rax, 8(%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
     call lb_gpu_24vulkan_swapchain_destroy
     addq $32, %rsp
     movq %rbx, %rsi
-    movq 3048(%rbp), %rdi
+    movq 2952(%rbp), %rdi
     movq $32, %rdx
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -2801,32 +2771,32 @@ lb_gpu_16vulkan_swapchain:
     subq $32, %rsp
     call memcpy
     addq $32, %rsp
-    movq 3048(%rbp), %rax
-    movq 3224(%rbp), %rdi
-    movq 3216(%rbp), %rsi
-    movdqu 3200(%rbp), %xmm6
-    movdqu 3184(%rbp), %xmm7
-    movdqu 3168(%rbp), %xmm8
-    movdqu 3152(%rbp), %xmm9
-    movdqu 3136(%rbp), %xmm10
-    movdqu 3120(%rbp), %xmm11
-    movdqu 3104(%rbp), %xmm12
-    movdqu 3088(%rbp), %xmm13
-    movdqu 3072(%rbp), %xmm14
-    movdqu 3056(%rbp), %xmm15
-    movq 3040(%rbp), %rbx
-    movq 3032(%rbp), %r12
-    movq 3024(%rbp), %r13
-    movq 3016(%rbp), %r14
-    movq 3008(%rbp), %r15
-    leaq 3232(%rbp), %rsp
+    movq 2952(%rbp), %rax
+    movq 3128(%rbp), %rdi
+    movq 3120(%rbp), %rsi
+    movdqu 3104(%rbp), %xmm6
+    movdqu 3088(%rbp), %xmm7
+    movdqu 3072(%rbp), %xmm8
+    movdqu 3056(%rbp), %xmm9
+    movdqu 3040(%rbp), %xmm10
+    movdqu 3024(%rbp), %xmm11
+    movdqu 3008(%rbp), %xmm12
+    movdqu 2992(%rbp), %xmm13
+    movdqu 2976(%rbp), %xmm14
+    movdqu 2960(%rbp), %xmm15
+    movq 2944(%rbp), %rbx
+    movq 2936(%rbp), %r12
+    movq 2928(%rbp), %r13
+    movq 2920(%rbp), %r14
+    movq 2912(%rbp), %r15
+    leaq 3136(%rbp), %rsp
     popq %rbp
     ret
 .L3_67:
     jmp .L3_64
 .L3_63:
 .L3_64:
-    movq 768(%rbp), %r10
+    movq 672(%rbp), %r10
     movl (%r10), %ebx
     movl %ebx, %eax
     movl $1, %ecx
@@ -2842,7 +2812,7 @@ lb_gpu_16vulkan_swapchain:
     addq $32, %rsp
 1:
     movl %eax, %ebx
-    movq 768(%rbp), %rax
+    movq 672(%rbp), %rax
     movq $4, %rcx
     movq %rax, %r12
     addq %rcx, %r12
@@ -2872,8 +2842,8 @@ lb_gpu_16vulkan_swapchain:
     jmp .L3_70
 .L3_69:
 .L3_70:
-    leaq 2376(%rbp), %r12
-    leaq 2272(%rbp), %r13
+    leaq 2280(%rbp), %r12
+    leaq 2176(%rbp), %r13
     movq %r13, %r11
     pxor %xmm8, %xmm8
     movups %xmm8, 0(%r11)
@@ -2883,12 +2853,10 @@ lb_gpu_16vulkan_swapchain:
     movups %xmm8, 64(%r11)
     movups %xmm8, 80(%r11)
     movq $0, 96(%r11)
-    leaq lb_gpu_43VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR(%rip), %r14
-    movq %r14, %r10
-    movl (%r10), %r14d
+    movl $1000001000, %eax
     movq %r13, %r10
-    movl %r14d, (%r10)
-    movq 776(%rbp), %r10
+    movl %eax, (%r10)
+    movq 680(%rbp), %r10
     movq (%r10), %r14
     movq $24, %rcx
     movq %r13, %r15
@@ -2906,18 +2874,16 @@ lb_gpu_16vulkan_swapchain:
     movl 88(%rbp), %eax
     movq %r14, %r10
     movl %eax, (%r10)
-    leaq lb_gpu_33VK_COLOR_SPACE_SRGB_NONLINEAR_KHR(%rip), %r14
-    movq %r14, %r10
-    movl (%r10), %r14d
     movq $40, %rcx
-    movq %r13, %r15
-    addq %rcx, %r15
-    movq %r15, %r10
-    movl %r14d, (%r10)
+    movq %r13, %r14
+    addq %rcx, %r14
+    movl $0, %eax
+    movq %r14, %r10
+    movl %eax, (%r10)
     movq $44, %rcx
     movq %r13, %r14
     addq %rcx, %r14
-    movq 752(%rbp), %r10
+    movq 656(%rbp), %r10
     movq %r14, %r11
     movq 0(%r10), %rax
     movq %rax, 0(%r11)
@@ -2927,14 +2893,13 @@ lb_gpu_16vulkan_swapchain:
     movl $1, %eax
     movq %r14, %r10
     movl %eax, (%r10)
-    movq 696(%rbp), %r10
-    movl (%r10), %r14d
     movq $56, %rcx
-    movq %r13, %r15
-    addq %rcx, %r15
-    movq %r15, %r10
-    movl %r14d, (%r10)
-    movq 768(%rbp), %rax
+    movq %r13, %r14
+    addq %rcx, %r14
+    movl $16, %eax
+    movq %r14, %r10
+    movl %eax, (%r10)
+    movq 672(%rbp), %rax
     movq $40, %rcx
     movq %rax, %r14
     addq %rcx, %r14
@@ -2945,30 +2910,24 @@ lb_gpu_16vulkan_swapchain:
     addq %rcx, %r15
     movq %r15, %r10
     movl %r14d, (%r10)
-    leaq lb_gpu_33VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR(%rip), %r14
-    movq %r14, %r10
-    movl (%r10), %r14d
     movq $84, %rcx
-    movq %r13, %r15
-    addq %rcx, %r15
-    movq %r15, %r10
-    movl %r14d, (%r10)
-    leaq lb_gpu_24VK_PRESENT_MODE_FIFO_KHR(%rip), %r14
+    movq %r13, %r14
+    addq %rcx, %r14
+    movl $1, %eax
     movq %r14, %r10
-    movl (%r10), %r14d
+    movl %eax, (%r10)
     movq $88, %rcx
-    movq %r13, %r15
-    addq %rcx, %r15
-    movq %r15, %r10
-    movl %r14d, (%r10)
-    leaq lb_gpu_7VK_TRUE(%rip), %r14
+    movq %r13, %r14
+    addq %rcx, %r14
+    movl $2, %eax
     movq %r14, %r10
-    movl (%r10), %r14d
+    movl %eax, (%r10)
     movq $92, %rcx
-    movq %r13, %r15
-    addq %rcx, %r15
-    movq %r15, %r10
-    movl %r14d, (%r10)
+    movq %r13, %r14
+    addq %rcx, %r14
+    movl $1, %eax
+    movq %r14, %r10
+    movl %eax, (%r10)
     movq %r13, %r10
     movq %r12, %r11
     movups 0(%r10), %xmm8
@@ -2985,12 +2944,12 @@ lb_gpu_16vulkan_swapchain:
     movups %xmm8, 80(%r11)
     movq 96(%r10), %rax
     movq %rax, 96(%r11)
-    movq 784(%rbp), %r10
+    movq 688(%rbp), %r10
     movq (%r10), %r13
-    movq 776(%rbp), %rax
+    movq 680(%rbp), %rax
     movq $8, %rcx
     addq %rcx, %rax
-    movq %rax, 600(%rbp)
+    movq %rax, 544(%rbp)
     subq $32, %rsp
     movq %r13, %rax
     movq %rax, 0(%rsp)
@@ -2998,7 +2957,7 @@ lb_gpu_16vulkan_swapchain:
     movq %rax, 8(%rsp)
     movq $0, %rax
     movq %rax, 16(%rsp)
-    movq 600(%rbp), %rax
+    movq 544(%rbp), %rax
     movq %rax, 24(%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
@@ -3008,7 +2967,7 @@ lb_gpu_16vulkan_swapchain:
     addq $32, %rsp
     movl %eax, %r12d
     leaq .Ltext_28(%rip), %r13
-    leaq 2256(%rbp), %r15
+    leaq 2160(%rbp), %r15
     movq %r15, %r10
     movq %r13, (%r10)
     movq $8, %rcx
@@ -3026,14 +2985,14 @@ lb_gpu_16vulkan_swapchain:
     movups %xmm8, 0(%r11)
     leaq 32(%rsp), %rax
     movq %rax, 16(%rsp)
-    leaq 2224(%rbp), %rax
+    leaq 2128(%rbp), %rax
     movq %rax, (%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
     movq 16(%rsp), %r8
     call lb_gpu_12vulkan_check
     addq $48, %rsp
-    leaq 2224(%rbp), %r13
+    leaq 2128(%rbp), %r13
     movq $24, %rcx
     movq %r13, %r12
     addq %rcx, %r12
@@ -3043,7 +3002,7 @@ lb_gpu_16vulkan_swapchain:
     jne .L3_74
     jmp .L3_73
 .L3_74:
-    leaq 2976(%rbp), %rbx
+    leaq 2880(%rbp), %rbx
     movq %r13, %r10
     movq %rbx, %r11
     movups 0(%r10), %xmm8
@@ -3056,8 +3015,8 @@ lb_gpu_16vulkan_swapchain:
     movl $1, %eax
     movq %r12, %r10
     movb %al, (%r10)
-    leaq 2208(%rbp), %r12
-    movq 128(%rbp), %rax
+    leaq 2112(%rbp), %r12
+    movq 120(%rbp), %rax
     movq $8, %rcx
     movq %rax, %r14
     addq %rcx, %r14
@@ -3077,7 +3036,7 @@ lb_gpu_16vulkan_swapchain:
     addq $32, %rsp
 1:
     movq %rax, %r14
-    movq 664(%rbp), %rax
+    movq 576(%rbp), %rax
     movq %r12, %r10
     movq %rax, (%r10)
     movq $8, %rcx
@@ -3085,9 +3044,9 @@ lb_gpu_16vulkan_swapchain:
     addq %rcx, %r15
     movq %r15, %r10
     movq %r14, (%r10)
-    movq 120(%rbp), %r10
+    movq 112(%rbp), %r10
     movq (%r10), %r14
-    movq 120(%rbp), %rax
+    movq 112(%rbp), %rax
     movq $8, %rcx
     movq %rax, %r15
     addq %rcx, %r15
@@ -3118,16 +3077,16 @@ lb_gpu_16vulkan_swapchain:
     addq $48, %rsp
 .L3_75:
     subq $32, %rsp
-    movq 792(%rbp), %rax
+    movq 696(%rbp), %rax
     movq %rax, 0(%rsp)
-    movq 776(%rbp), %rax
+    movq 680(%rbp), %rax
     movq %rax, 8(%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
     call lb_gpu_24vulkan_swapchain_destroy
     addq $32, %rsp
     movq %rbx, %rsi
-    movq 3048(%rbp), %rdi
+    movq 2952(%rbp), %rdi
     movq $32, %rdx
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -3135,77 +3094,73 @@ lb_gpu_16vulkan_swapchain:
     subq $32, %rsp
     call memcpy
     addq $32, %rsp
-    movq 3048(%rbp), %rax
-    movq 3224(%rbp), %rdi
-    movq 3216(%rbp), %rsi
-    movdqu 3200(%rbp), %xmm6
-    movdqu 3184(%rbp), %xmm7
-    movdqu 3168(%rbp), %xmm8
-    movdqu 3152(%rbp), %xmm9
-    movdqu 3136(%rbp), %xmm10
-    movdqu 3120(%rbp), %xmm11
-    movdqu 3104(%rbp), %xmm12
-    movdqu 3088(%rbp), %xmm13
-    movdqu 3072(%rbp), %xmm14
-    movdqu 3056(%rbp), %xmm15
-    movq 3040(%rbp), %rbx
-    movq 3032(%rbp), %r12
-    movq 3024(%rbp), %r13
-    movq 3016(%rbp), %r14
-    movq 3008(%rbp), %r15
-    leaq 3232(%rbp), %rsp
+    movq 2952(%rbp), %rax
+    movq 3128(%rbp), %rdi
+    movq 3120(%rbp), %rsi
+    movdqu 3104(%rbp), %xmm6
+    movdqu 3088(%rbp), %xmm7
+    movdqu 3072(%rbp), %xmm8
+    movdqu 3056(%rbp), %xmm9
+    movdqu 3040(%rbp), %xmm10
+    movdqu 3024(%rbp), %xmm11
+    movdqu 3008(%rbp), %xmm12
+    movdqu 2992(%rbp), %xmm13
+    movdqu 2976(%rbp), %xmm14
+    movdqu 2960(%rbp), %xmm15
+    movq 2944(%rbp), %rbx
+    movq 2936(%rbp), %r12
+    movq 2928(%rbp), %r13
+    movq 2920(%rbp), %r14
+    movq 2912(%rbp), %r15
+    leaq 3136(%rbp), %rsp
     popq %rbp
     ret
 .L3_77:
 .L3_73:
-    movq 776(%rbp), %rax
+    movq 680(%rbp), %rax
     movq $32, %rcx
     movq %rax, %rbx
     addq %rcx, %rbx
-    movl 0(%rbp), %eax
+    movl 8(%rbp), %eax
     movq %rbx, %r10
     movl %eax, (%r10)
-    movq 776(%rbp), %rax
+    movq 680(%rbp), %rax
     movq $36, %rcx
-    addq %rcx, %rax
-    movq %rax, 592(%rbp)
-    movq 752(%rbp), %rax
+    movq %rax, %r12
+    addq %rcx, %r12
+    movq 656(%rbp), %rax
     movq $4, %rcx
     addq %rcx, %rax
-    movq %rax, 584(%rbp)
-    movq 584(%rbp), %r10
+    movq %rax, 536(%rbp)
+    movq 536(%rbp), %r10
     movl (%r10), %eax
-    movl %eax, 576(%rbp)
-    movl 576(%rbp), %eax
-    movq 592(%rbp), %r10
+    movl %eax, 528(%rbp)
+    movl 528(%rbp), %eax
+    movq %r12, %r10
     movl %eax, (%r10)
-    movq 776(%rbp), %rax
+    movq 680(%rbp), %rax
     movq $40, %rcx
     movq %rax, %r15
     addq %rcx, %r15
     movl 88(%rbp), %eax
     movq %r15, %r10
     movl %eax, (%r10)
-    movq 792(%rbp), %rax
-    leaq 1240(%rbp), %r10
+    movq 696(%rbp), %rax
+    leaq 1144(%rbp), %r10
     movq %rax, (%r10)
-    movq 776(%rbp), %rax
-    leaq 1224(%rbp), %r10
+    movq 680(%rbp), %rax
+    leaq 1128(%rbp), %r10
     movq %rax, (%r10)
-    leaq 1208(%rbp), %r15
+    leaq 1112(%rbp), %r15
     movq %r15, %r11
     movq $0, 0(%r11)
     movl $0, 8(%r11)
-    movq 760(%rbp), %r10
+    movq 664(%rbp), %r10
     movq (%r10), %r13
-    leaq lb_gpu_20VK_FORMAT_D32_SFLOAT(%rip), %rax
-    movq %rax, 200(%rbp)
-    movq 200(%rbp), %r10
-    movl (%r10), %r12d
     subq $32, %rsp
     movq %r13, %rax
     movq %rax, 0(%rsp)
-    movl %r12d, %eax
+    movl $126, %eax
     movq %rax, 8(%rsp)
     movq %r15, %rax
     movq %rax, 16(%rsp)
@@ -3215,26 +3170,24 @@ lb_gpu_16vulkan_swapchain:
     call vkGetPhysicalDeviceFormatProperties
     addq $32, %rsp
     movq $4, %rcx
-    movq %r15, %r12
-    addq %rcx, %r12
-    movq %r12, %r10
-    movl (%r10), %r12d
-    leaq lb_gpu_46VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT(%rip), %r13
+    movq %r15, %r13
+    addq %rcx, %r13
     movq %r13, %r10
     movl (%r10), %r13d
-    andl %r13d, %r12d
+    movl $512, %ecx
+    andl %ecx, %r13d
     movl $0, %ecx
-    cmpl %ecx, %r12d
+    cmpl %ecx, %r13d
     jne .L3_156
 .L3_155:
-    leaq 1256(%rbp), %rbx
+    leaq 1160(%rbp), %rbx
     leaq lb_gpu_unavailable(%rip), %r12
     movq %r12, %r10
     movl (%r10), %r12d
     movq %rbx, %r10
     movl %r12d, (%r10)
     leaq .Ltext_47(%rip), %r12
-    leaq 1192(%rbp), %r13
+    leaq 1096(%rbp), %r13
     movq %r13, %r10
     movq %r12, (%r10)
     movq $8, %rcx
@@ -3257,7 +3210,7 @@ lb_gpu_16vulkan_swapchain:
     movq %r12, %r10
     movb %al, (%r10)
     movq %rbx, %r10
-    leaq 2176(%rbp), %r11
+    leaq 2080(%rbp), %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
     movups 16(%r10), %xmm8
@@ -3267,11 +3220,11 @@ lb_gpu_16vulkan_swapchain:
     jmp .L3_157
 .L3_156:
 .L3_157:
-    leaq 1104(%rbp), %rax
-    movq %rax, 192(%rbp)
-    leaq 1016(%rbp), %rax
-    movq %rax, 184(%rbp)
-    movq 184(%rbp), %r11
+    leaq 1008(%rbp), %rax
+    movq %rax, 168(%rbp)
+    leaq 920(%rbp), %rax
+    movq %rax, 160(%rbp)
+    movq 160(%rbp), %r11
     pxor %xmm8, %xmm8
     movups %xmm8, 0(%r11)
     movups %xmm8, 16(%r11)
@@ -3279,95 +3232,87 @@ lb_gpu_16vulkan_swapchain:
     movups %xmm8, 48(%r11)
     movups %xmm8, 64(%r11)
     movq $0, 80(%r11)
-    leaq lb_gpu_35VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO(%rip), %r15
-    movq %r15, %r10
-    movl (%r10), %r15d
-    movq 184(%rbp), %r10
-    movl %r15d, (%r10)
-    leaq lb_gpu_16VK_IMAGE_TYPE_2D(%rip), %r15
-    movq %r15, %r10
-    movl (%r10), %r15d
-    movq 184(%rbp), %rax
+    movl $14, %eax
+    movq 160(%rbp), %r10
+    movl %eax, (%r10)
+    movq 160(%rbp), %rax
     movq $20, %rcx
-    movq %rax, %r12
-    addq %rcx, %r12
-    movq %r12, %r10
-    movl %r15d, (%r10)
-    movq 200(%rbp), %r10
-    movl (%r10), %r12d
-    movq 184(%rbp), %rax
+    addq %rcx, %rax
+    movq %rax, 152(%rbp)
+    movl $1, %eax
+    movq 152(%rbp), %r10
+    movl %eax, (%r10)
+    movq 160(%rbp), %rax
     movq $24, %rcx
-    movq %rax, %r15
-    addq %rcx, %r15
-    movq %r15, %r10
-    movl %r12d, (%r10)
-    leaq 1000(%rbp), %r12
-    movq %r12, %r11
+    addq %rcx, %rax
+    movq %rax, 144(%rbp)
+    movl $126, %eax
+    movq 144(%rbp), %r10
+    movl %eax, (%r10)
+    leaq 904(%rbp), %rax
+    movq %rax, 136(%rbp)
+    movq 136(%rbp), %r11
     movq $0, 0(%r11)
     movl $0, 8(%r11)
     movq %rbx, %r10
-    movl (%r10), %r15d
+    movl (%r10), %r13d
+    movq 136(%rbp), %r10
+    movl %r13d, (%r10)
     movq %r12, %r10
-    movl %r15d, (%r10)
-    movq 592(%rbp), %r10
-    movl (%r10), %r15d
+    movl (%r10), %r13d
+    movq 136(%rbp), %rax
     movq $4, %rcx
-    movq %r12, %rax
-    addq %rcx, %rax
-    movq %rax, 176(%rbp)
-    movq 176(%rbp), %r10
-    movl %r15d, (%r10)
+    movq %rax, %r15
+    addq %rcx, %r15
+    movq %r15, %r10
+    movl %r13d, (%r10)
+    movq 136(%rbp), %rax
     movq $8, %rcx
-    movq %r12, %rax
-    addq %rcx, %rax
-    movq %rax, 168(%rbp)
+    movq %rax, %r13
+    addq %rcx, %r13
     movl $1, %eax
-    movq 168(%rbp), %r10
+    movq %r13, %r10
     movl %eax, (%r10)
-    movq 184(%rbp), %rax
+    movq 160(%rbp), %rax
     movq $28, %rcx
-    addq %rcx, %rax
-    movq %rax, 160(%rbp)
-    movq %r12, %r10
-    movq 160(%rbp), %r11
+    movq %rax, %r13
+    addq %rcx, %r13
+    movq 136(%rbp), %r10
+    movq %r13, %r11
     movq 0(%r10), %rax
     movq %rax, 0(%r11)
     movl 8(%r10), %eax
     movl %eax, 8(%r11)
-    movq 184(%rbp), %rax
+    movq 160(%rbp), %rax
     movq $40, %rcx
-    movq %rax, %r12
-    addq %rcx, %r12
+    movq %rax, %r13
+    addq %rcx, %r13
     movl $1, %eax
-    movq %r12, %r10
+    movq %r13, %r10
     movl %eax, (%r10)
-    movq 184(%rbp), %rax
+    movq 160(%rbp), %rax
     movq $44, %rcx
-    movq %rax, %r12
-    addq %rcx, %r12
+    movq %rax, %r13
+    addq %rcx, %r13
     movl $1, %eax
-    movq %r12, %r10
+    movq %r13, %r10
     movl %eax, (%r10)
-    leaq lb_gpu_21VK_SAMPLE_COUNT_1_BIT(%rip), %r12
-    movq %r12, %r10
-    movl (%r10), %r12d
-    movq 184(%rbp), %rax
+    movq 160(%rbp), %rax
     movq $48, %rcx
-    addq %rcx, %rax
-    movq %rax, 152(%rbp)
-    movq 152(%rbp), %r10
-    movl %r12d, (%r10)
-    leaq lb_gpu_43VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT(%rip), %r12
-    movq %r12, %r10
-    movl (%r10), %r12d
-    movq 184(%rbp), %rax
+    movq %rax, %r13
+    addq %rcx, %r13
+    movl $1, %eax
+    movq %r13, %r10
+    movl %eax, (%r10)
+    movq 160(%rbp), %rax
     movq $56, %rcx
-    addq %rcx, %rax
-    movq %rax, 144(%rbp)
-    movq 144(%rbp), %r10
-    movl %r12d, (%r10)
-    movq 184(%rbp), %r10
-    movq 192(%rbp), %r11
+    movq %rax, %r13
+    addq %rcx, %r13
+    movl $32, %eax
+    movq %r13, %r10
+    movl %eax, (%r10)
+    movq 160(%rbp), %r10
+    movq 168(%rbp), %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
     movups 16(%r10), %xmm8
@@ -3380,20 +3325,20 @@ lb_gpu_16vulkan_swapchain:
     movups %xmm8, 64(%r11)
     movq 80(%r10), %rax
     movq %rax, 80(%r11)
-    movq 784(%rbp), %r10
-    movq (%r10), %r12
-    movq 776(%rbp), %rax
+    movq 688(%rbp), %r10
+    movq (%r10), %r13
+    movq 680(%rbp), %rax
     movq $88, %rcx
     addq %rcx, %rax
-    movq %rax, 136(%rbp)
+    movq %rax, 128(%rbp)
     subq $32, %rsp
-    movq %r12, %rax
+    movq %r13, %rax
     movq %rax, 0(%rsp)
-    movq 192(%rbp), %rax
+    movq 168(%rbp), %rax
     movq %rax, 8(%rsp)
     movq $0, %rax
     movq %rax, 16(%rsp)
-    movq 136(%rbp), %rax
+    movq 128(%rbp), %rax
     movq %rax, 24(%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
@@ -3401,45 +3346,45 @@ lb_gpu_16vulkan_swapchain:
     movq 24(%rsp), %r9
     call vkCreateImage
     addq $32, %rsp
-    movl %eax, %r12d
+    movl %eax, %r13d
     leaq .Ltext_48(%rip), %r15
-    leaq 984(%rbp), %r13
-    movq %r13, %r10
+    leaq 888(%rbp), %r14
+    movq %r14, %r10
     movq %r15, (%r10)
     movq $8, %rcx
-    movq %r13, %r15
+    movq %r14, %r15
     addq %rcx, %r15
     movq $43, %rax
     movq %r15, %r10
     movq %rax, (%r10)
     subq $48, %rsp
-    movl %r12d, %eax
+    movl %r13d, %eax
     movq %rax, 8(%rsp)
-    movq %r13, %r10
+    movq %r14, %r10
     leaq 32(%rsp), %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
     leaq 32(%rsp), %rax
     movq %rax, 16(%rsp)
-    leaq 952(%rbp), %rax
+    leaq 856(%rbp), %rax
     movq %rax, (%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
     movq 16(%rsp), %r8
     call lb_gpu_12vulkan_check
     addq $48, %rsp
-    leaq 952(%rbp), %r13
+    leaq 856(%rbp), %r14
     movq $24, %rcx
-    movq %r13, %r12
-    addq %rcx, %r12
-    movq %r12, %r10
-    movzbl (%r10), %r12d
-    testl %r12d, %r12d
+    movq %r14, %r13
+    addq %rcx, %r13
+    movq %r13, %r10
+    movzbl (%r10), %r13d
+    testl %r13d, %r13d
     jne .L3_160
     jmp .L3_159
 .L3_160:
-    leaq 1256(%rbp), %rbx
-    movq %r13, %r10
+    leaq 1160(%rbp), %rbx
+    movq %r14, %r10
     movq %rbx, %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
@@ -3452,7 +3397,7 @@ lb_gpu_16vulkan_swapchain:
     movq %r12, %r10
     movb %al, (%r10)
     movq %rbx, %r10
-    leaq 2176(%rbp), %r11
+    leaq 2080(%rbp), %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
     movups 16(%r10), %xmm8
@@ -3460,14 +3405,14 @@ lb_gpu_16vulkan_swapchain:
     jmp .L3_171
 .L3_161:
 .L3_159:
-    leaq 928(%rbp), %rbx
+    leaq 832(%rbp), %rbx
     movq %rbx, %r11
     pxor %xmm8, %xmm8
     movups %xmm8, 0(%r11)
     movq $0, 16(%r11)
-    movq 784(%rbp), %r10
+    movq 688(%rbp), %r10
     movq (%r10), %r12
-    movq 136(%rbp), %r10
+    movq 128(%rbp), %r10
     movq (%r10), %r13
     subq $32, %rsp
     movq %r12, %rax
@@ -3481,15 +3426,12 @@ lb_gpu_16vulkan_swapchain:
     movq 16(%rsp), %r8
     call vkGetImageMemoryRequirements
     addq $32, %rsp
-    movq 776(%rbp), %rax
+    movq 680(%rbp), %rax
     movq $96, %rcx
-    movq %rax, %r13
-    addq %rcx, %r13
-    leaq lb_gpu_35VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT(%rip), %r12
-    movq %r12, %r10
-    movl (%r10), %r12d
+    movq %rax, %r12
+    addq %rcx, %r12
     subq $64, %rsp
-    movq 792(%rbp), %rax
+    movq 696(%rbp), %rax
     movq %rax, 8(%rsp)
     movq %rbx, %r10
     leaq 32(%rsp), %r11
@@ -3499,9 +3441,9 @@ lb_gpu_16vulkan_swapchain:
     movq %rax, 16(%r11)
     leaq 32(%rsp), %rax
     movq %rax, 16(%rsp)
-    movl %r12d, %eax
+    movl $1, %eax
     movq %rax, 24(%rsp)
-    leaq 888(%rbp), %rax
+    leaq 792(%rbp), %rax
     movq %rax, (%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
@@ -3509,9 +3451,9 @@ lb_gpu_16vulkan_swapchain:
     movq 24(%rsp), %r9
     call lb_gpu_13vulkan_memory
     addq $64, %rsp
-    leaq 888(%rbp), %r12
+    leaq 792(%rbp), %r13
     movq $32, %rcx
-    movq %r12, %rbx
+    movq %r13, %rbx
     addq %rcx, %rbx
     movq %rbx, %r10
     movzbl (%r10), %ebx
@@ -3520,23 +3462,23 @@ lb_gpu_16vulkan_swapchain:
     jmp .L3_162
 .L3_163:
     movq $8, %rcx
-    movq %r12, %rbx
+    movq %r13, %rbx
     addq %rcx, %rbx
-    leaq 1256(%rbp), %r13
+    leaq 1160(%rbp), %r12
     movq %rbx, %r10
-    movq %r13, %r11
+    movq %r12, %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
     movq 16(%r10), %rax
     movq %rax, 16(%r11)
     movq $24, %rcx
-    movq %r13, %rbx
+    movq %r12, %rbx
     addq %rcx, %rbx
     movl $1, %eax
     movq %rbx, %r10
     movb %al, (%r10)
-    movq %r13, %r10
-    leaq 2176(%rbp), %r11
+    movq %r12, %r10
+    leaq 2080(%rbp), %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
     movups 16(%r10), %xmm8
@@ -3544,22 +3486,22 @@ lb_gpu_16vulkan_swapchain:
     jmp .L3_171
 .L3_164:
 .L3_162:
+    movq %r13, %r10
+    movq (%r10), %rbx
     movq %r12, %r10
-    movq (%r10), %rbx
-    movq %r13, %r10
     movq %rbx, (%r10)
-    movq 784(%rbp), %r10
+    movq 688(%rbp), %r10
     movq (%r10), %rbx
-    movq 136(%rbp), %r10
-    movq (%r10), %r15
-    movq %r13, %r10
+    movq 128(%rbp), %r10
     movq (%r10), %r14
+    movq %r12, %r10
+    movq (%r10), %r15
     subq $32, %rsp
     movq %rbx, %rax
     movq %rax, 0(%rsp)
-    movq %r15, %rax
-    movq %rax, 8(%rsp)
     movq %r14, %rax
+    movq %rax, 8(%rsp)
+    movq %r15, %rax
     movq %rax, 16(%rsp)
     movq $0, %rax
     movq %rax, 24(%rsp)
@@ -3571,7 +3513,7 @@ lb_gpu_16vulkan_swapchain:
     addq $32, %rsp
     movl %eax, %ebx
     leaq .Ltext_49(%rip), %r14
-    leaq 872(%rbp), %r15
+    leaq 776(%rbp), %r15
     movq %r15, %r10
     movq %r14, (%r10)
     movq $8, %rcx
@@ -3589,14 +3531,14 @@ lb_gpu_16vulkan_swapchain:
     movups %xmm8, 0(%r11)
     leaq 32(%rsp), %rax
     movq %rax, 16(%rsp)
-    leaq 840(%rbp), %rax
+    leaq 744(%rbp), %rax
     movq %rax, (%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
     movq 16(%rsp), %r8
     call lb_gpu_12vulkan_check
     addq $48, %rsp
-    leaq 840(%rbp), %r14
+    leaq 744(%rbp), %r14
     movq $24, %rcx
     movq %r14, %rbx
     addq %rcx, %rbx
@@ -3606,7 +3548,7 @@ lb_gpu_16vulkan_swapchain:
     jne .L3_166
     jmp .L3_165
 .L3_166:
-    leaq 1256(%rbp), %rbx
+    leaq 1160(%rbp), %rbx
     movq %r14, %r10
     movq %rbx, %r11
     movups 0(%r10), %xmm8
@@ -3620,7 +3562,7 @@ lb_gpu_16vulkan_swapchain:
     movq %r12, %r10
     movb %al, (%r10)
     movq %rbx, %r10
-    leaq 2176(%rbp), %r11
+    leaq 2080(%rbp), %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
     movups 16(%r10), %xmm8
@@ -3628,27 +3570,22 @@ lb_gpu_16vulkan_swapchain:
     jmp .L3_171
 .L3_167:
 .L3_165:
-    movq 776(%rbp), %rax
+    movq 680(%rbp), %rax
     movq $104, %rcx
-    movq %rax, %r14
-    addq %rcx, %r14
-    movq 136(%rbp), %r10
+    movq %rax, %r12
+    addq %rcx, %r12
+    movq 128(%rbp), %r10
     movq (%r10), %rbx
-    movq 200(%rbp), %r10
-    movl (%r10), %r12d
-    leaq lb_gpu_25VK_IMAGE_ASPECT_DEPTH_BIT(%rip), %r13
-    movq %r13, %r10
-    movl (%r10), %r13d
     subq $48, %rsp
-    movq 792(%rbp), %rax
+    movq 696(%rbp), %rax
     movq %rax, 8(%rsp)
     movq %rbx, %rax
     movq %rax, 16(%rsp)
-    movl %r12d, %eax
+    movl $126, %eax
     movq %rax, 24(%rsp)
-    movl %r13d, %eax
+    movl $2, %eax
     movq %rax, 32(%rsp)
-    leaq 800(%rbp), %rax
+    leaq 704(%rbp), %rax
     movq %rax, (%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
@@ -3656,9 +3593,9 @@ lb_gpu_16vulkan_swapchain:
     movq 24(%rsp), %r9
     call lb_gpu_17vulkan_image_view
     addq $48, %rsp
-    leaq 800(%rbp), %r12
+    leaq 704(%rbp), %r13
     movq $32, %rcx
-    movq %r12, %rbx
+    movq %r13, %rbx
     addq %rcx, %rbx
     movq %rbx, %r10
     movzbl (%r10), %ebx
@@ -3667,23 +3604,23 @@ lb_gpu_16vulkan_swapchain:
     jmp .L3_168
 .L3_169:
     movq $8, %rcx
-    movq %r12, %rbx
+    movq %r13, %rbx
     addq %rcx, %rbx
-    leaq 1256(%rbp), %r13
+    leaq 1160(%rbp), %r12
     movq %rbx, %r10
-    movq %r13, %r11
+    movq %r12, %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
     movq 16(%r10), %rax
     movq %rax, 16(%r11)
     movq $24, %rcx
-    movq %r13, %rbx
+    movq %r12, %rbx
     addq %rcx, %rbx
     movl $1, %eax
     movq %rbx, %r10
     movb %al, (%r10)
-    movq %r13, %r10
-    leaq 2176(%rbp), %r11
+    movq %r12, %r10
+    leaq 2080(%rbp), %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
     movups 16(%r10), %xmm8
@@ -3691,25 +3628,25 @@ lb_gpu_16vulkan_swapchain:
     jmp .L3_171
 .L3_170:
 .L3_168:
-    movq %r12, %r10
-    movq (%r10), %rbx
-    movq %r14, %r10
-    movq %rbx, (%r10)
-    leaq 1256(%rbp), %rbx
-    movq $24, %rcx
-    movq %rbx, %r13
-    addq %rcx, %r13
-    movl $0, %eax
     movq %r13, %r10
+    movq (%r10), %rbx
+    movq %r12, %r10
+    movq %rbx, (%r10)
+    leaq 1160(%rbp), %rbx
+    movq $24, %rcx
+    movq %rbx, %r14
+    addq %rcx, %r14
+    movl $0, %eax
+    movq %r14, %r10
     movb %al, (%r10)
     movq %rbx, %r10
-    leaq 2176(%rbp), %r11
+    leaq 2080(%rbp), %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
     movups 16(%r10), %xmm8
     movups %xmm8, 16(%r11)
 .L3_171:
-    leaq 2176(%rbp), %r12
+    leaq 2080(%rbp), %r12
     movq $24, %rcx
     movq %r12, %rbx
     addq %rcx, %rbx
@@ -3719,7 +3656,7 @@ lb_gpu_16vulkan_swapchain:
     jne .L3_79
     jmp .L3_78
 .L3_79:
-    leaq 2976(%rbp), %rbx
+    leaq 2880(%rbp), %rbx
     movq %r12, %r10
     movq %rbx, %r11
     movups 0(%r10), %xmm8
@@ -3732,8 +3669,8 @@ lb_gpu_16vulkan_swapchain:
     movl $1, %eax
     movq %r13, %r10
     movb %al, (%r10)
-    leaq 2160(%rbp), %r13
-    movq 128(%rbp), %rax
+    leaq 2064(%rbp), %r13
+    movq 120(%rbp), %rax
     movq $8, %rcx
     movq %rax, %r14
     addq %rcx, %r14
@@ -3753,7 +3690,7 @@ lb_gpu_16vulkan_swapchain:
     addq $32, %rsp
 1:
     movq %rax, %r14
-    movq 664(%rbp), %rax
+    movq 576(%rbp), %rax
     movq %r13, %r10
     movq %rax, (%r10)
     movq $8, %rcx
@@ -3761,9 +3698,9 @@ lb_gpu_16vulkan_swapchain:
     addq %rcx, %r15
     movq %r15, %r10
     movq %r14, (%r10)
-    movq 120(%rbp), %r10
+    movq 112(%rbp), %r10
     movq (%r10), %r14
-    movq 120(%rbp), %rax
+    movq 112(%rbp), %rax
     movq $8, %rcx
     movq %rax, %r15
     addq %rcx, %r15
@@ -3794,16 +3731,16 @@ lb_gpu_16vulkan_swapchain:
     addq $48, %rsp
 .L3_80:
     subq $32, %rsp
-    movq 792(%rbp), %rax
+    movq 696(%rbp), %rax
     movq %rax, 0(%rsp)
-    movq 776(%rbp), %rax
+    movq 680(%rbp), %rax
     movq %rax, 8(%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
     call lb_gpu_24vulkan_swapchain_destroy
     addq $32, %rsp
     movq %rbx, %rsi
-    movq 3048(%rbp), %rdi
+    movq 2952(%rbp), %rdi
     movq $32, %rdx
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -3811,42 +3748,42 @@ lb_gpu_16vulkan_swapchain:
     subq $32, %rsp
     call memcpy
     addq $32, %rsp
-    movq 3048(%rbp), %rax
-    movq 3224(%rbp), %rdi
-    movq 3216(%rbp), %rsi
-    movdqu 3200(%rbp), %xmm6
-    movdqu 3184(%rbp), %xmm7
-    movdqu 3168(%rbp), %xmm8
-    movdqu 3152(%rbp), %xmm9
-    movdqu 3136(%rbp), %xmm10
-    movdqu 3120(%rbp), %xmm11
-    movdqu 3104(%rbp), %xmm12
-    movdqu 3088(%rbp), %xmm13
-    movdqu 3072(%rbp), %xmm14
-    movdqu 3056(%rbp), %xmm15
-    movq 3040(%rbp), %rbx
-    movq 3032(%rbp), %r12
-    movq 3024(%rbp), %r13
-    movq 3016(%rbp), %r14
-    movq 3008(%rbp), %r15
-    leaq 3232(%rbp), %rsp
+    movq 2952(%rbp), %rax
+    movq 3128(%rbp), %rdi
+    movq 3120(%rbp), %rsi
+    movdqu 3104(%rbp), %xmm6
+    movdqu 3088(%rbp), %xmm7
+    movdqu 3072(%rbp), %xmm8
+    movdqu 3056(%rbp), %xmm9
+    movdqu 3040(%rbp), %xmm10
+    movdqu 3024(%rbp), %xmm11
+    movdqu 3008(%rbp), %xmm12
+    movdqu 2992(%rbp), %xmm13
+    movdqu 2976(%rbp), %xmm14
+    movdqu 2960(%rbp), %xmm15
+    movq 2944(%rbp), %rbx
+    movq 2936(%rbp), %r12
+    movq 2928(%rbp), %r13
+    movq 2920(%rbp), %r14
+    movq 2912(%rbp), %r15
+    leaq 3136(%rbp), %rsp
     popq %rbp
     ret
 .L3_82:
 .L3_78:
     subq $32, %rsp
-    movq 792(%rbp), %rax
+    movq 696(%rbp), %rax
     movq %rax, 8(%rsp)
-    movq 776(%rbp), %rax
+    movq 680(%rbp), %rax
     movq %rax, 16(%rsp)
-    leaq 2128(%rbp), %rax
+    leaq 2032(%rbp), %rax
     movq %rax, (%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
     movq 16(%rsp), %r8
     call lb_gpu_15vulkan_pipeline
     addq $32, %rsp
-    leaq 2128(%rbp), %r12
+    leaq 2032(%rbp), %r12
     movq $24, %rcx
     movq %r12, %rbx
     addq %rcx, %rbx
@@ -3856,7 +3793,7 @@ lb_gpu_16vulkan_swapchain:
     jne .L3_84
     jmp .L3_83
 .L3_84:
-    leaq 2976(%rbp), %rbx
+    leaq 2880(%rbp), %rbx
     movq %r12, %r10
     movq %rbx, %r11
     movups 0(%r10), %xmm8
@@ -3869,8 +3806,8 @@ lb_gpu_16vulkan_swapchain:
     movl $1, %eax
     movq %r13, %r10
     movb %al, (%r10)
-    leaq 2112(%rbp), %r13
-    movq 128(%rbp), %rax
+    leaq 2016(%rbp), %r13
+    movq 120(%rbp), %rax
     movq $8, %rcx
     movq %rax, %r14
     addq %rcx, %r14
@@ -3890,7 +3827,7 @@ lb_gpu_16vulkan_swapchain:
     addq $32, %rsp
 1:
     movq %rax, %r14
-    movq 664(%rbp), %rax
+    movq 576(%rbp), %rax
     movq %r13, %r10
     movq %rax, (%r10)
     movq $8, %rcx
@@ -3898,9 +3835,9 @@ lb_gpu_16vulkan_swapchain:
     addq %rcx, %r15
     movq %r15, %r10
     movq %r14, (%r10)
-    movq 120(%rbp), %r10
+    movq 112(%rbp), %r10
     movq (%r10), %r14
-    movq 120(%rbp), %rax
+    movq 112(%rbp), %rax
     movq $8, %rcx
     movq %rax, %r15
     addq %rcx, %r15
@@ -3931,16 +3868,16 @@ lb_gpu_16vulkan_swapchain:
     addq $48, %rsp
 .L3_85:
     subq $32, %rsp
-    movq 792(%rbp), %rax
+    movq 696(%rbp), %rax
     movq %rax, 0(%rsp)
-    movq 776(%rbp), %rax
+    movq 680(%rbp), %rax
     movq %rax, 8(%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
     call lb_gpu_24vulkan_swapchain_destroy
     addq $32, %rsp
     movq %rbx, %rsi
-    movq 3048(%rbp), %rdi
+    movq 2952(%rbp), %rdi
     movq $32, %rdx
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -3948,42 +3885,42 @@ lb_gpu_16vulkan_swapchain:
     subq $32, %rsp
     call memcpy
     addq $32, %rsp
-    movq 3048(%rbp), %rax
-    movq 3224(%rbp), %rdi
-    movq 3216(%rbp), %rsi
-    movdqu 3200(%rbp), %xmm6
-    movdqu 3184(%rbp), %xmm7
-    movdqu 3168(%rbp), %xmm8
-    movdqu 3152(%rbp), %xmm9
-    movdqu 3136(%rbp), %xmm10
-    movdqu 3120(%rbp), %xmm11
-    movdqu 3104(%rbp), %xmm12
-    movdqu 3088(%rbp), %xmm13
-    movdqu 3072(%rbp), %xmm14
-    movdqu 3056(%rbp), %xmm15
-    movq 3040(%rbp), %rbx
-    movq 3032(%rbp), %r12
-    movq 3024(%rbp), %r13
-    movq 3016(%rbp), %r14
-    movq 3008(%rbp), %r15
-    leaq 3232(%rbp), %rsp
+    movq 2952(%rbp), %rax
+    movq 3128(%rbp), %rdi
+    movq 3120(%rbp), %rsi
+    movdqu 3104(%rbp), %xmm6
+    movdqu 3088(%rbp), %xmm7
+    movdqu 3072(%rbp), %xmm8
+    movdqu 3056(%rbp), %xmm9
+    movdqu 3040(%rbp), %xmm10
+    movdqu 3024(%rbp), %xmm11
+    movdqu 3008(%rbp), %xmm12
+    movdqu 2992(%rbp), %xmm13
+    movdqu 2976(%rbp), %xmm14
+    movdqu 2960(%rbp), %xmm15
+    movq 2944(%rbp), %rbx
+    movq 2936(%rbp), %r12
+    movq 2928(%rbp), %r13
+    movq 2920(%rbp), %r14
+    movq 2912(%rbp), %r15
+    leaq 3136(%rbp), %rsp
     popq %rbp
     ret
 .L3_87:
 .L3_83:
     movl $0, %eax
-    movq 688(%rbp), %r10
-    movl %eax, (%r10)
-    movq 784(%rbp), %r10
-    movq (%r10), %rbx
     movq 600(%rbp), %r10
+    movl %eax, (%r10)
+    movq 688(%rbp), %r10
+    movq (%r10), %rbx
+    movq 544(%rbp), %r10
     movq (%r10), %r12
     subq $32, %rsp
     movq %rbx, %rax
     movq %rax, 0(%rsp)
     movq %r12, %rax
     movq %rax, 8(%rsp)
-    movq 688(%rbp), %rax
+    movq 600(%rbp), %rax
     movq %rax, 16(%rsp)
     movq $0, %rax
     movq %rax, 24(%rsp)
@@ -3995,7 +3932,7 @@ lb_gpu_16vulkan_swapchain:
     addq $32, %rsp
     movl %eax, %ebx
     leaq .Ltext_32(%rip), %r12
-    leaq 2096(%rbp), %r13
+    leaq 2000(%rbp), %r13
     movq %r13, %r10
     movq %r12, (%r10)
     movq $8, %rcx
@@ -4013,14 +3950,14 @@ lb_gpu_16vulkan_swapchain:
     movups %xmm8, 0(%r11)
     leaq 32(%rsp), %rax
     movq %rax, 16(%rsp)
-    leaq 2064(%rbp), %rax
+    leaq 1968(%rbp), %rax
     movq %rax, (%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
     movq 16(%rsp), %r8
     call lb_gpu_12vulkan_check
     addq $48, %rsp
-    leaq 2064(%rbp), %r12
+    leaq 1968(%rbp), %r12
     movq $24, %rcx
     movq %r12, %rbx
     addq %rcx, %rbx
@@ -4030,7 +3967,7 @@ lb_gpu_16vulkan_swapchain:
     jne .L3_89
     jmp .L3_88
 .L3_89:
-    leaq 2976(%rbp), %rbx
+    leaq 2880(%rbp), %rbx
     movq %r12, %r10
     movq %rbx, %r11
     movups 0(%r10), %xmm8
@@ -4043,8 +3980,8 @@ lb_gpu_16vulkan_swapchain:
     movl $1, %eax
     movq %r13, %r10
     movb %al, (%r10)
-    leaq 2048(%rbp), %r13
-    movq 128(%rbp), %rax
+    leaq 1952(%rbp), %r13
+    movq 120(%rbp), %rax
     movq $8, %rcx
     movq %rax, %r14
     addq %rcx, %r14
@@ -4064,7 +4001,7 @@ lb_gpu_16vulkan_swapchain:
     addq $32, %rsp
 1:
     movq %rax, %r14
-    movq 664(%rbp), %rax
+    movq 576(%rbp), %rax
     movq %r13, %r10
     movq %rax, (%r10)
     movq $8, %rcx
@@ -4072,9 +4009,9 @@ lb_gpu_16vulkan_swapchain:
     addq %rcx, %r15
     movq %r15, %r10
     movq %r14, (%r10)
-    movq 120(%rbp), %r10
+    movq 112(%rbp), %r10
     movq (%r10), %r14
-    movq 120(%rbp), %rax
+    movq 112(%rbp), %rax
     movq $8, %rcx
     movq %rax, %r15
     addq %rcx, %r15
@@ -4105,16 +4042,16 @@ lb_gpu_16vulkan_swapchain:
     addq $48, %rsp
 .L3_90:
     subq $32, %rsp
-    movq 792(%rbp), %rax
+    movq 696(%rbp), %rax
     movq %rax, 0(%rsp)
-    movq 776(%rbp), %rax
+    movq 680(%rbp), %rax
     movq %rax, 8(%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
     call lb_gpu_24vulkan_swapchain_destroy
     addq $32, %rsp
     movq %rbx, %rsi
-    movq 3048(%rbp), %rdi
+    movq 2952(%rbp), %rdi
     movq $32, %rdx
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -4122,36 +4059,36 @@ lb_gpu_16vulkan_swapchain:
     subq $32, %rsp
     call memcpy
     addq $32, %rsp
-    movq 3048(%rbp), %rax
-    movq 3224(%rbp), %rdi
-    movq 3216(%rbp), %rsi
-    movdqu 3200(%rbp), %xmm6
-    movdqu 3184(%rbp), %xmm7
-    movdqu 3168(%rbp), %xmm8
-    movdqu 3152(%rbp), %xmm9
-    movdqu 3136(%rbp), %xmm10
-    movdqu 3120(%rbp), %xmm11
-    movdqu 3104(%rbp), %xmm12
-    movdqu 3088(%rbp), %xmm13
-    movdqu 3072(%rbp), %xmm14
-    movdqu 3056(%rbp), %xmm15
-    movq 3040(%rbp), %rbx
-    movq 3032(%rbp), %r12
-    movq 3024(%rbp), %r13
-    movq 3016(%rbp), %r14
-    movq 3008(%rbp), %r15
-    leaq 3232(%rbp), %rsp
+    movq 2952(%rbp), %rax
+    movq 3128(%rbp), %rdi
+    movq 3120(%rbp), %rsi
+    movdqu 3104(%rbp), %xmm6
+    movdqu 3088(%rbp), %xmm7
+    movdqu 3072(%rbp), %xmm8
+    movdqu 3056(%rbp), %xmm9
+    movdqu 3040(%rbp), %xmm10
+    movdqu 3024(%rbp), %xmm11
+    movdqu 3008(%rbp), %xmm12
+    movdqu 2992(%rbp), %xmm13
+    movdqu 2976(%rbp), %xmm14
+    movdqu 2960(%rbp), %xmm15
+    movq 2944(%rbp), %rbx
+    movq 2936(%rbp), %r12
+    movq 2928(%rbp), %r13
+    movq 2920(%rbp), %r14
+    movq 2912(%rbp), %r15
+    leaq 3136(%rbp), %rsp
     popq %rbp
     ret
 .L3_92:
 .L3_88:
-    leaq 2032(%rbp), %rax
+    leaq 1936(%rbp), %rax
     movq %rax, 80(%rbp)
-    movq 688(%rbp), %r10
+    movq 600(%rbp), %r10
     movl (%r10), %ebx
     movl %ebx, %eax
     movq %rax, 72(%rbp)
-    leaq 1984(%rbp), %rax
+    leaq 1888(%rbp), %rax
     movq %rax, 64(%rbp)
     movq 72(%rbp), %rax
     movabsq $576460752303423488, %rcx
@@ -4189,9 +4126,9 @@ lb_gpu_16vulkan_swapchain:
     movq $8, %rcx
     movq %rax, %r12
     imulq %rcx, %r12
-    movq 120(%rbp), %r10
+    movq 112(%rbp), %r10
     movq (%r10), %rbx
-    movq 120(%rbp), %rax
+    movq 112(%rbp), %rax
     movq $8, %rcx
     movq %rax, %r15
     addq %rcx, %r15
@@ -4219,7 +4156,7 @@ lb_gpu_16vulkan_swapchain:
     movq %rax, 16(%rsp)
     movq $8, %rax
     movq %rax, 24(%rsp)
-    leaq 1960(%rbp), %rax
+    leaq 1864(%rbp), %rax
     movq %rax, (%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
@@ -4228,7 +4165,7 @@ lb_gpu_16vulkan_swapchain:
     movq %r13, %r11
     call *%r11
     addq $32, %rsp
-    leaq 1960(%rbp), %r14
+    leaq 1864(%rbp), %r14
     movq $16, %rcx
     movq %r14, %r13
     addq %rcx, %r13
@@ -4238,12 +4175,12 @@ lb_gpu_16vulkan_swapchain:
     cmpq %rcx, %r12
     setne %al
     movzbl %al, %eax
-    movl %eax, 568(%rbp)
+    movl %eax, 520(%rbp)
     movl $0, %ecx
     cmpl %ecx, %r13d
     sete %al
     movzbl %al, %r13d
-    movl 568(%rbp), %eax
+    movl 520(%rbp), %eax
     movl %r13d, %ecx
     movl %eax, %r13d
     andl %ecx, %r13d
@@ -4311,7 +4248,7 @@ lb_gpu_16vulkan_swapchain:
     movq $16, %rcx
     movq %rax, %rbx
     addq %rcx, %rbx
-    leaq 2976(%rbp), %r12
+    leaq 2880(%rbp), %r12
     movq %rbx, %r10
     movq %r12, %r11
     movups 0(%r10), %xmm8
@@ -4324,8 +4261,8 @@ lb_gpu_16vulkan_swapchain:
     movl $1, %eax
     movq %rbx, %r10
     movb %al, (%r10)
-    leaq 1944(%rbp), %rbx
-    movq 128(%rbp), %rax
+    leaq 1848(%rbp), %rbx
+    movq 120(%rbp), %rax
     movq $8, %rcx
     movq %rax, %r13
     addq %rcx, %r13
@@ -4345,7 +4282,7 @@ lb_gpu_16vulkan_swapchain:
     addq $32, %rsp
 1:
     movq %rax, %r13
-    movq 664(%rbp), %rax
+    movq 576(%rbp), %rax
     movq %rbx, %r10
     movq %rax, (%r10)
     movq $8, %rcx
@@ -4353,9 +4290,9 @@ lb_gpu_16vulkan_swapchain:
     addq %rcx, %r14
     movq %r14, %r10
     movq %r13, (%r10)
-    movq 120(%rbp), %r10
+    movq 112(%rbp), %r10
     movq (%r10), %r13
-    movq 120(%rbp), %rax
+    movq 112(%rbp), %rax
     movq $8, %rcx
     movq %rax, %r14
     addq %rcx, %r14
@@ -4386,16 +4323,16 @@ lb_gpu_16vulkan_swapchain:
     addq $48, %rsp
 .L3_102:
     subq $32, %rsp
-    movq 792(%rbp), %rax
+    movq 696(%rbp), %rax
     movq %rax, 0(%rsp)
-    movq 776(%rbp), %rax
+    movq 680(%rbp), %rax
     movq %rax, 8(%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
     call lb_gpu_24vulkan_swapchain_destroy
     addq $32, %rsp
     movq %r12, %rsi
-    movq 3048(%rbp), %rdi
+    movq 2952(%rbp), %rdi
     movq $32, %rdx
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -4403,25 +4340,25 @@ lb_gpu_16vulkan_swapchain:
     subq $32, %rsp
     call memcpy
     addq $32, %rsp
-    movq 3048(%rbp), %rax
-    movq 3224(%rbp), %rdi
-    movq 3216(%rbp), %rsi
-    movdqu 3200(%rbp), %xmm6
-    movdqu 3184(%rbp), %xmm7
-    movdqu 3168(%rbp), %xmm8
-    movdqu 3152(%rbp), %xmm9
-    movdqu 3136(%rbp), %xmm10
-    movdqu 3120(%rbp), %xmm11
-    movdqu 3104(%rbp), %xmm12
-    movdqu 3088(%rbp), %xmm13
-    movdqu 3072(%rbp), %xmm14
-    movdqu 3056(%rbp), %xmm15
-    movq 3040(%rbp), %rbx
-    movq 3032(%rbp), %r12
-    movq 3024(%rbp), %r13
-    movq 3016(%rbp), %r14
-    movq 3008(%rbp), %r15
-    leaq 3232(%rbp), %rsp
+    movq 2952(%rbp), %rax
+    movq 3128(%rbp), %rdi
+    movq 3120(%rbp), %rsi
+    movdqu 3104(%rbp), %xmm6
+    movdqu 3088(%rbp), %xmm7
+    movdqu 3072(%rbp), %xmm8
+    movdqu 3056(%rbp), %xmm9
+    movdqu 3040(%rbp), %xmm10
+    movdqu 3024(%rbp), %xmm11
+    movdqu 3008(%rbp), %xmm12
+    movdqu 2992(%rbp), %xmm13
+    movdqu 2976(%rbp), %xmm14
+    movdqu 2960(%rbp), %xmm15
+    movq 2944(%rbp), %rbx
+    movq 2936(%rbp), %r12
+    movq 2928(%rbp), %r13
+    movq 2920(%rbp), %r14
+    movq 2912(%rbp), %r15
+    leaq 3136(%rbp), %rsp
     popq %rbp
     ret
 .L3_104:
@@ -4430,21 +4367,21 @@ lb_gpu_16vulkan_swapchain:
     movq 80(%rbp), %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
-    movq 784(%rbp), %r10
+    movq 688(%rbp), %r10
     movq (%r10), %rbx
-    movq 600(%rbp), %r10
+    movq 544(%rbp), %r10
     movq (%r10), %r12
     movq 80(%rbp), %r10
     movq (%r10), %rax
-    movq %rax, 560(%rbp)
+    movq %rax, 512(%rbp)
     subq $32, %rsp
     movq %rbx, %rax
     movq %rax, 0(%rsp)
     movq %r12, %rax
     movq %rax, 8(%rsp)
-    movq 688(%rbp), %rax
+    movq 600(%rbp), %rax
     movq %rax, 16(%rsp)
-    movq 560(%rbp), %rax
+    movq 512(%rbp), %rax
     movq %rax, 24(%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
@@ -4454,7 +4391,7 @@ lb_gpu_16vulkan_swapchain:
     addq $32, %rsp
     movl %eax, %ebx
     leaq .Ltext_35(%rip), %r12
-    leaq 1928(%rbp), %r14
+    leaq 1832(%rbp), %r14
     movq %r14, %r10
     movq %r12, (%r10)
     movq $8, %rcx
@@ -4472,14 +4409,14 @@ lb_gpu_16vulkan_swapchain:
     movups %xmm8, 0(%r11)
     leaq 32(%rsp), %rax
     movq %rax, 16(%rsp)
-    leaq 1896(%rbp), %rax
+    leaq 1800(%rbp), %rax
     movq %rax, (%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
     movq 16(%rsp), %r8
     call lb_gpu_12vulkan_check
     addq $48, %rsp
-    leaq 1896(%rbp), %r12
+    leaq 1800(%rbp), %r12
     movq $24, %rcx
     movq %r12, %rbx
     addq %rcx, %rbx
@@ -4489,30 +4426,30 @@ lb_gpu_16vulkan_swapchain:
     jne .L3_106
     jmp .L3_105
 .L3_106:
-    leaq 2976(%rbp), %rax
-    movq %rax, 552(%rbp)
+    leaq 2880(%rbp), %rax
+    movq %rax, 504(%rbp)
     movq %r12, %r10
-    movq 552(%rbp), %r11
+    movq 504(%rbp), %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
     movq 16(%r10), %rax
     movq %rax, 16(%r11)
-    movq 552(%rbp), %rax
+    movq 504(%rbp), %rax
     movq $24, %rcx
     movq %rax, %r14
     addq %rcx, %r14
     movl $1, %eax
     movq %r14, %r10
     movb %al, (%r10)
-    leaq 1880(%rbp), %r14
+    leaq 1784(%rbp), %r14
     movq 80(%rbp), %rax
     movq $8, %rcx
     addq %rcx, %rax
-    movq %rax, 544(%rbp)
-    movq 544(%rbp), %r10
+    movq %rax, 496(%rbp)
+    movq 496(%rbp), %r10
     movq (%r10), %rax
-    movq %rax, 536(%rbp)
-    movq 536(%rbp), %rax
+    movq %rax, 488(%rbp)
+    movq 488(%rbp), %rax
     movq $8, %rcx
     mulq %rcx
     jnc 1f
@@ -4525,23 +4462,23 @@ lb_gpu_16vulkan_swapchain:
     call lb_core_7trap_at
     addq $32, %rsp
 1:
-    movq %rax, 528(%rbp)
-    movq 560(%rbp), %rax
+    movq %rax, 480(%rbp)
+    movq 512(%rbp), %rax
     movq %r14, %r10
     movq %rax, (%r10)
     movq $8, %rcx
     movq %r14, %rbx
     addq %rcx, %rbx
-    movq 528(%rbp), %rax
+    movq 480(%rbp), %rax
     movq %rbx, %r10
     movq %rax, (%r10)
-    movq 120(%rbp), %r10
+    movq 112(%rbp), %r10
     movq (%r10), %rbx
-    movq 120(%rbp), %rax
+    movq 112(%rbp), %rax
     movq $8, %rcx
     addq %rcx, %rax
-    movq %rax, 520(%rbp)
-    movq 520(%rbp), %r10
+    movq %rax, 472(%rbp)
+    movq 472(%rbp), %r10
     movq (%r10), %r15
     testq %r15, %r15
     jne .L3_108
@@ -4567,8 +4504,8 @@ lb_gpu_16vulkan_swapchain:
     call *%r11
     addq $48, %rsp
 .L3_107:
-    leaq 1864(%rbp), %rbx
-    movq 128(%rbp), %rax
+    leaq 1768(%rbp), %rbx
+    movq 120(%rbp), %rax
     movq $8, %rcx
     movq %rax, %r12
     addq %rcx, %r12
@@ -4588,7 +4525,7 @@ lb_gpu_16vulkan_swapchain:
     addq $32, %rsp
 1:
     movq %rax, %r12
-    movq 664(%rbp), %rax
+    movq 576(%rbp), %rax
     movq %rbx, %r10
     movq %rax, (%r10)
     movq $8, %rcx
@@ -4596,9 +4533,9 @@ lb_gpu_16vulkan_swapchain:
     addq %rcx, %r13
     movq %r13, %r10
     movq %r12, (%r10)
-    movq 120(%rbp), %r10
+    movq 112(%rbp), %r10
     movq (%r10), %r12
-    movq 520(%rbp), %r10
+    movq 472(%rbp), %r10
     movq (%r10), %r13
     testq %r13, %r13
     jne .L3_110
@@ -4625,16 +4562,16 @@ lb_gpu_16vulkan_swapchain:
     addq $48, %rsp
 .L3_109:
     subq $32, %rsp
-    movq 792(%rbp), %rax
+    movq 696(%rbp), %rax
     movq %rax, 0(%rsp)
-    movq 776(%rbp), %rax
+    movq 680(%rbp), %rax
     movq %rax, 8(%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
     call lb_gpu_24vulkan_swapchain_destroy
     addq $32, %rsp
-    movq 552(%rbp), %rsi
-    movq 3048(%rbp), %rdi
+    movq 504(%rbp), %rsi
+    movq 2952(%rbp), %rdi
     movq $32, %rdx
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -4642,39 +4579,39 @@ lb_gpu_16vulkan_swapchain:
     subq $32, %rsp
     call memcpy
     addq $32, %rsp
-    movq 3048(%rbp), %rax
-    movq 3224(%rbp), %rdi
-    movq 3216(%rbp), %rsi
-    movdqu 3200(%rbp), %xmm6
-    movdqu 3184(%rbp), %xmm7
-    movdqu 3168(%rbp), %xmm8
-    movdqu 3152(%rbp), %xmm9
-    movdqu 3136(%rbp), %xmm10
-    movdqu 3120(%rbp), %xmm11
-    movdqu 3104(%rbp), %xmm12
-    movdqu 3088(%rbp), %xmm13
-    movdqu 3072(%rbp), %xmm14
-    movdqu 3056(%rbp), %xmm15
-    movq 3040(%rbp), %rbx
-    movq 3032(%rbp), %r12
-    movq 3024(%rbp), %r13
-    movq 3016(%rbp), %r14
-    movq 3008(%rbp), %r15
-    leaq 3232(%rbp), %rsp
+    movq 2952(%rbp), %rax
+    movq 3128(%rbp), %rdi
+    movq 3120(%rbp), %rsi
+    movdqu 3104(%rbp), %xmm6
+    movdqu 3088(%rbp), %xmm7
+    movdqu 3072(%rbp), %xmm8
+    movdqu 3056(%rbp), %xmm9
+    movdqu 3040(%rbp), %xmm10
+    movdqu 3024(%rbp), %xmm11
+    movdqu 3008(%rbp), %xmm12
+    movdqu 2992(%rbp), %xmm13
+    movdqu 2976(%rbp), %xmm14
+    movdqu 2960(%rbp), %xmm15
+    movq 2944(%rbp), %rbx
+    movq 2936(%rbp), %r12
+    movq 2928(%rbp), %r13
+    movq 2920(%rbp), %r14
+    movq 2912(%rbp), %r15
+    leaq 3136(%rbp), %rsp
     popq %rbp
     ret
 .L3_111:
 .L3_105:
-    movq 776(%rbp), %rax
+    movq 680(%rbp), %rax
     movq $16, %rcx
     addq %rcx, %rax
     movq %rax, 56(%rbp)
     leaq lb_memory_heap(%rip), %r14
-    movq 688(%rbp), %r10
+    movq 600(%rbp), %r10
     movl (%r10), %ebx
     movl %ebx, %eax
     movq %rax, 48(%rbp)
-    leaq 1816(%rbp), %rax
+    leaq 1720(%rbp), %rax
     movq %rax, 40(%rbp)
     movq 48(%rbp), %rax
     movabsq $144115188075855872, %rcx
@@ -4741,7 +4678,7 @@ lb_gpu_16vulkan_swapchain:
     movq %rax, 16(%rsp)
     movq $8, %rax
     movq %rax, 24(%rsp)
-    leaq 1792(%rbp), %rax
+    leaq 1696(%rbp), %rax
     movq %rax, (%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
@@ -4750,7 +4687,7 @@ lb_gpu_16vulkan_swapchain:
     movq %r14, %r11
     call *%r11
     addq $32, %rsp
-    leaq 1792(%rbp), %r15
+    leaq 1696(%rbp), %r15
     movq $16, %rcx
     movq %r15, %r14
     addq %rcx, %r14
@@ -4760,12 +4697,12 @@ lb_gpu_16vulkan_swapchain:
     cmpq %rcx, %r12
     setne %al
     movzbl %al, %eax
-    movl %eax, 512(%rbp)
+    movl %eax, 464(%rbp)
     movl $0, %ecx
     cmpl %ecx, %r14d
     sete %al
     movzbl %al, %r14d
-    movl 512(%rbp), %eax
+    movl 464(%rbp), %eax
     movl %r14d, %ecx
     movl %eax, %r14d
     andl %ecx, %r14d
@@ -4833,22 +4770,22 @@ lb_gpu_16vulkan_swapchain:
     movq $16, %rcx
     movq %rax, %rbx
     addq %rcx, %rbx
-    leaq 2976(%rbp), %rax
-    movq %rax, 504(%rbp)
+    leaq 2880(%rbp), %rax
+    movq %rax, 456(%rbp)
     movq %rbx, %r10
-    movq 504(%rbp), %r11
+    movq 456(%rbp), %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
     movq 16(%r10), %rax
     movq %rax, 16(%r11)
-    movq 504(%rbp), %rax
+    movq 456(%rbp), %rax
     movq $24, %rcx
     movq %rax, %rbx
     addq %rcx, %rbx
     movl $1, %eax
     movq %rbx, %r10
     movb %al, (%r10)
-    leaq 1776(%rbp), %rbx
+    leaq 1680(%rbp), %rbx
     movq 80(%rbp), %rax
     movq $8, %rcx
     movq %rax, %r13
@@ -4869,7 +4806,7 @@ lb_gpu_16vulkan_swapchain:
     addq $32, %rsp
 1:
     movq %rax, %r13
-    movq 560(%rbp), %rax
+    movq 512(%rbp), %rax
     movq %rbx, %r10
     movq %rax, (%r10)
     movq $8, %rcx
@@ -4877,9 +4814,9 @@ lb_gpu_16vulkan_swapchain:
     addq %rcx, %r14
     movq %r14, %r10
     movq %r13, (%r10)
-    movq 120(%rbp), %r10
+    movq 112(%rbp), %r10
     movq (%r10), %r13
-    movq 120(%rbp), %rax
+    movq 112(%rbp), %rax
     movq $8, %rcx
     movq %rax, %r14
     addq %rcx, %r14
@@ -4909,8 +4846,8 @@ lb_gpu_16vulkan_swapchain:
     call *%r11
     addq $48, %rsp
 .L3_121:
-    leaq 1760(%rbp), %rbx
-    movq 128(%rbp), %rax
+    leaq 1664(%rbp), %rbx
+    movq 120(%rbp), %rax
     movq $8, %rcx
     movq %rax, %r12
     addq %rcx, %r12
@@ -4930,7 +4867,7 @@ lb_gpu_16vulkan_swapchain:
     addq $32, %rsp
 1:
     movq %rax, %r12
-    movq 664(%rbp), %rax
+    movq 576(%rbp), %rax
     movq %rbx, %r10
     movq %rax, (%r10)
     movq $8, %rcx
@@ -4938,7 +4875,7 @@ lb_gpu_16vulkan_swapchain:
     addq %rcx, %r13
     movq %r13, %r10
     movq %r12, (%r10)
-    movq 120(%rbp), %r10
+    movq 112(%rbp), %r10
     movq (%r10), %r12
     movq %r14, %r10
     movq (%r10), %r13
@@ -4967,16 +4904,16 @@ lb_gpu_16vulkan_swapchain:
     addq $48, %rsp
 .L3_123:
     subq $32, %rsp
-    movq 792(%rbp), %rax
+    movq 696(%rbp), %rax
     movq %rax, 0(%rsp)
-    movq 776(%rbp), %rax
+    movq 680(%rbp), %rax
     movq %rax, 8(%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
     call lb_gpu_24vulkan_swapchain_destroy
     addq $32, %rsp
-    movq 504(%rbp), %rsi
-    movq 3048(%rbp), %rdi
+    movq 456(%rbp), %rsi
+    movq 2952(%rbp), %rdi
     movq $32, %rdx
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -4984,25 +4921,25 @@ lb_gpu_16vulkan_swapchain:
     subq $32, %rsp
     call memcpy
     addq $32, %rsp
-    movq 3048(%rbp), %rax
-    movq 3224(%rbp), %rdi
-    movq 3216(%rbp), %rsi
-    movdqu 3200(%rbp), %xmm6
-    movdqu 3184(%rbp), %xmm7
-    movdqu 3168(%rbp), %xmm8
-    movdqu 3152(%rbp), %xmm9
-    movdqu 3136(%rbp), %xmm10
-    movdqu 3120(%rbp), %xmm11
-    movdqu 3104(%rbp), %xmm12
-    movdqu 3088(%rbp), %xmm13
-    movdqu 3072(%rbp), %xmm14
-    movdqu 3056(%rbp), %xmm15
-    movq 3040(%rbp), %rbx
-    movq 3032(%rbp), %r12
-    movq 3024(%rbp), %r13
-    movq 3016(%rbp), %r14
-    movq 3008(%rbp), %r15
-    leaq 3232(%rbp), %rsp
+    movq 2952(%rbp), %rax
+    movq 3128(%rbp), %rdi
+    movq 3120(%rbp), %rsi
+    movdqu 3104(%rbp), %xmm6
+    movdqu 3088(%rbp), %xmm7
+    movdqu 3072(%rbp), %xmm8
+    movdqu 3056(%rbp), %xmm9
+    movdqu 3040(%rbp), %xmm10
+    movdqu 3024(%rbp), %xmm11
+    movdqu 3008(%rbp), %xmm12
+    movdqu 2992(%rbp), %xmm13
+    movdqu 2976(%rbp), %xmm14
+    movdqu 2960(%rbp), %xmm15
+    movq 2944(%rbp), %rbx
+    movq 2936(%rbp), %r12
+    movq 2928(%rbp), %r13
+    movq 2920(%rbp), %r14
+    movq 2912(%rbp), %r15
+    leaq 3136(%rbp), %rsp
     popq %rbp
     ret
 .L3_125:
@@ -5011,119 +4948,113 @@ lb_gpu_16vulkan_swapchain:
     movq 56(%rbp), %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
-    movq 688(%rbp), %r10
+    movq 600(%rbp), %r10
     movl (%r10), %ebx
     movl %ebx, %eax
-    movq %rax, 496(%rbp)
+    movq %rax, 448(%rbp)
     movq 56(%rbp), %rax
     movq $8, %rcx
     addq %rcx, %rax
-    movq %rax, 488(%rbp)
+    movq %rax, 440(%rbp)
     movq 80(%rbp), %rax
     movq $8, %rcx
-    movq %rax, %r13
-    addq %rcx, %r13
-    leaq lb_gpu_25VK_IMAGE_ASPECT_COLOR_BIT(%rip), %rax
-    movq %rax, 440(%rbp)
-    leaq 1720(%rbp), %rax
-    movq %rax, 24(%rbp)
-    movq 24(%rbp), %rax
+    addq %rcx, %rax
+    movq %rax, 416(%rbp)
+    leaq 1624(%rbp), %rax
+    movq %rax, 32(%rbp)
+    movq 32(%rbp), %rax
     movq $32, %rcx
     addq %rcx, %rax
-    movq %rax, 432(%rbp)
-    leaq 1672(%rbp), %rax
-    movq %rax, 416(%rbp)
-    leaq 1656(%rbp), %rax
-    movq %rax, 408(%rbp)
-    movq 776(%rbp), %rax
+    movq %rax, 384(%rbp)
+    leaq 1576(%rbp), %rax
+    movq %rax, 368(%rbp)
+    leaq 1560(%rbp), %rax
+    movq %rax, 360(%rbp)
+    movq 680(%rbp), %rax
     movq $104, %rcx
     addq %rcx, %rax
-    movq %rax, 400(%rbp)
-    movq 408(%rbp), %rax
-    movq $8, %rcx
-    addq %rcx, %rax
-    movq %rax, 392(%rbp)
-    leaq 1592(%rbp), %rax
-    movq %rax, 384(%rbp)
-    leaq 1528(%rbp), %rax
-    movq %rax, 376(%rbp)
-    leaq lb_gpu_41VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO(%rip), %rax
-    movq %rax, 368(%rbp)
-    movq 776(%rbp), %rax
-    movq $48, %rcx
-    addq %rcx, %rax
-    movq %rax, 360(%rbp)
-    movq 376(%rbp), %rax
-    movq $24, %rcx
-    addq %rcx, %rax
     movq %rax, 352(%rbp)
-    movq 376(%rbp), %rax
-    movq $32, %rcx
+    movq 360(%rbp), %rax
+    movq $8, %rcx
     addq %rcx, %rax
     movq %rax, 344(%rbp)
-    movq 376(%rbp), %rax
-    movq $40, %rcx
-    addq %rcx, %rax
+    leaq 1496(%rbp), %rax
     movq %rax, 336(%rbp)
-    movq 376(%rbp), %rax
+    leaq 1432(%rbp), %rax
+    movq %rax, 328(%rbp)
+    movq 680(%rbp), %rax
     movq $48, %rcx
     addq %rcx, %rax
-    movq %rax, 328(%rbp)
-    movq 376(%rbp), %rax
-    movq $52, %rcx
-    addq %rcx, %rax
     movq %rax, 320(%rbp)
-    movq 376(%rbp), %rax
-    movq $56, %rcx
+    movq 328(%rbp), %rax
+    movq $24, %rcx
     addq %rcx, %rax
     movq %rax, 312(%rbp)
-    leaq .Ltext_43(%rip), %rax
+    movq 328(%rbp), %rax
+    movq $32, %rcx
+    addq %rcx, %rax
     movq %rax, 304(%rbp)
-    leaq 1512(%rbp), %rax
+    movq 328(%rbp), %rax
+    movq $40, %rcx
+    addq %rcx, %rax
     movq %rax, 296(%rbp)
-    movq 296(%rbp), %rax
-    movq $8, %rcx
+    movq 328(%rbp), %rax
+    movq $48, %rcx
     addq %rcx, %rax
     movq %rax, 288(%rbp)
-    leaq 1480(%rbp), %rax
+    movq 328(%rbp), %rax
+    movq $52, %rcx
+    addq %rcx, %rax
+    movq %rax, 280(%rbp)
+    movq 328(%rbp), %rax
+    movq $56, %rcx
+    addq %rcx, %rax
+    movq %rax, 272(%rbp)
+    leaq .Ltext_43(%rip), %rax
+    movq %rax, 264(%rbp)
+    leaq 1416(%rbp), %rax
+    movq %rax, 256(%rbp)
+    movq 256(%rbp), %rax
+    movq $8, %rcx
+    addq %rcx, %rax
+    movq %rax, 248(%rbp)
+    leaq 1384(%rbp), %rax
+    movq %rax, 24(%rbp)
+    movq 24(%rbp), %rax
+    movq $24, %rcx
+    addq %rcx, %rax
+    movq %rax, 240(%rbp)
+    leaq 1328(%rbp), %rax
+    movq %rax, 224(%rbp)
+    leaq 1304(%rbp), %rax
+    movq %rax, 216(%rbp)
+    leaq .Ltext_45(%rip), %rax
+    movq %rax, 208(%rbp)
+    leaq 1288(%rbp), %rax
+    movq %rax, 200(%rbp)
+    movq 200(%rbp), %rax
+    movq $8, %rcx
+    addq %rcx, %rax
+    movq %rax, 192(%rbp)
+    leaq 1256(%rbp), %rax
     movq %rax, 16(%rbp)
     movq 16(%rbp), %rax
     movq $24, %rcx
     addq %rcx, %rax
-    movq %rax, 280(%rbp)
-    leaq 1424(%rbp), %rax
-    movq %rax, 264(%rbp)
-    leaq 1400(%rbp), %rax
-    movq %rax, 256(%rbp)
-    leaq lb_gpu_39VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO(%rip), %rax
-    movq %rax, 248(%rbp)
-    leaq .Ltext_45(%rip), %rax
-    movq %rax, 240(%rbp)
-    leaq 1384(%rbp), %rax
-    movq %rax, 232(%rbp)
-    movq 232(%rbp), %rax
-    movq $8, %rcx
-    addq %rcx, %rax
-    movq %rax, 224(%rbp)
-    leaq 1352(%rbp), %rax
-    movq %rax, 8(%rbp)
-    movq 8(%rbp), %rax
-    movq $24, %rcx
-    addq %rcx, %rax
-    movq %rax, 216(%rbp)
+    movq %rax, 184(%rbp)
     movq $0, %rax
     movq %rax, %r15
 .L3_126:
-    movq 496(%rbp), %rcx
+    movq 448(%rbp), %rcx
     cmpq %rcx, %r15
     jae .L3_129
 .L3_127:
     movq 56(%rbp), %r10
     movq (%r10), %r14
-    movq 488(%rbp), %r10
+    movq 440(%rbp), %r10
     movq (%r10), %rax
-    movq %rax, 480(%rbp)
-    movq 480(%rbp), %rcx
+    movq %rax, 432(%rbp)
+    movq 432(%rbp), %rcx
     cmpq %rcx, %r15
     jb 1f
     leaq .Ltext_38(%rip), %rdi
@@ -5138,13 +5069,13 @@ lb_gpu_16vulkan_swapchain:
     movq $32, %rcx
     movq %r15, %rax
     imulq %rcx, %rax
-    movq %rax, 472(%rbp)
-    movq 472(%rbp), %rcx
+    movq %rax, 424(%rbp)
+    movq 424(%rbp), %rcx
     addq %rcx, %r14
-    movq %r13, %r10
+    movq 416(%rbp), %r10
     movq (%r10), %rax
-    movq %rax, 464(%rbp)
-    movq 464(%rbp), %rcx
+    movq %rax, 408(%rbp)
+    movq 408(%rbp), %rcx
     cmpq %rcx, %r15
     jb 1f
     leaq .Ltext_38(%rip), %rdi
@@ -5159,18 +5090,18 @@ lb_gpu_16vulkan_swapchain:
     movq $8, %rcx
     movq %r15, %rax
     imulq %rcx, %rax
-    movq %rax, 456(%rbp)
-    movq 560(%rbp), %rax
-    movq 456(%rbp), %rcx
+    movq %rax, 400(%rbp)
+    movq 512(%rbp), %rax
+    movq 400(%rbp), %rcx
     addq %rcx, %rax
-    movq %rax, 448(%rbp)
-    movq 448(%rbp), %r10
+    movq %rax, 392(%rbp)
+    movq 392(%rbp), %r10
     movq (%r10), %rbx
     movq %r14, %r10
     movq %rbx, (%r10)
     movq 56(%rbp), %r10
     movq (%r10), %rbx
-    movq 488(%rbp), %r10
+    movq 440(%rbp), %r10
     movq (%r10), %r14
     cmpq %r14, %r15
     jb 1f
@@ -5183,28 +5114,25 @@ lb_gpu_16vulkan_swapchain:
     call lb_core_7trap_at
     addq $32, %rsp
 1:
-    movq 472(%rbp), %rax
+    movq 424(%rbp), %rax
     movq %rbx, %rcx
     movq %rax, %rbx
     addq %rcx, %rbx
     movq $8, %rcx
-    movq %rbx, %rax
-    addq %rcx, %rax
-    movq %rax, 32(%rbp)
-    movq 448(%rbp), %r10
+    movq %rbx, %r14
+    addq %rcx, %r14
+    movq 392(%rbp), %r10
     movq (%r10), %rbx
-    movq 440(%rbp), %r10
-    movl (%r10), %r14d
     subq $48, %rsp
-    movq 792(%rbp), %rax
+    movq 696(%rbp), %rax
     movq %rax, 8(%rsp)
     movq %rbx, %rax
     movq %rax, 16(%rsp)
     movl 88(%rbp), %eax
     movq %rax, 24(%rsp)
-    movl %r14d, %eax
+    movl $1, %eax
     movq %rax, 32(%rsp)
-    leaq 1720(%rbp), %rax
+    leaq 1624(%rbp), %rax
     movq %rax, (%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
@@ -5212,33 +5140,33 @@ lb_gpu_16vulkan_swapchain:
     movq 24(%rsp), %r9
     call lb_gpu_17vulkan_image_view
     addq $48, %rsp
-    movq 432(%rbp), %r10
+    movq 384(%rbp), %r10
     movzbl (%r10), %ebx
     testl %ebx, %ebx
     jne .L3_131
     jmp .L3_130
 .L3_131:
-    movq 24(%rbp), %rax
+    movq 32(%rbp), %rax
     movq $8, %rcx
     movq %rax, %rbx
     addq %rcx, %rbx
-    leaq 2976(%rbp), %rax
-    movq %rax, 424(%rbp)
+    leaq 2880(%rbp), %rax
+    movq %rax, 376(%rbp)
     movq %rbx, %r10
-    movq 424(%rbp), %r11
+    movq 376(%rbp), %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
     movq 16(%r10), %rax
     movq %rax, 16(%r11)
-    movq 424(%rbp), %rax
+    movq 376(%rbp), %rax
     movq $24, %rcx
     movq %rax, %rbx
     addq %rcx, %rbx
     movl $1, %eax
     movq %rbx, %r10
     movb %al, (%r10)
-    leaq 1704(%rbp), %rbx
-    movq 464(%rbp), %rax
+    leaq 1608(%rbp), %rbx
+    movq 408(%rbp), %rax
     movq $8, %rcx
     mulq %rcx
     jnc 1f
@@ -5252,7 +5180,7 @@ lb_gpu_16vulkan_swapchain:
     addq $32, %rsp
 1:
     movq %rax, %r13
-    movq 560(%rbp), %rax
+    movq 512(%rbp), %rax
     movq %rbx, %r10
     movq %rax, (%r10)
     movq $8, %rcx
@@ -5260,9 +5188,9 @@ lb_gpu_16vulkan_swapchain:
     addq %rcx, %r14
     movq %r14, %r10
     movq %r13, (%r10)
-    movq 120(%rbp), %r10
+    movq 112(%rbp), %r10
     movq (%r10), %r13
-    movq 120(%rbp), %rax
+    movq 112(%rbp), %rax
     movq $8, %rcx
     movq %rax, %r14
     addq %rcx, %r14
@@ -5292,8 +5220,8 @@ lb_gpu_16vulkan_swapchain:
     call *%r11
     addq $48, %rsp
 .L3_132:
-    leaq 1688(%rbp), %rbx
-    movq 128(%rbp), %rax
+    leaq 1592(%rbp), %rbx
+    movq 120(%rbp), %rax
     movq $8, %rcx
     movq %rax, %r12
     addq %rcx, %r12
@@ -5313,7 +5241,7 @@ lb_gpu_16vulkan_swapchain:
     addq $32, %rsp
 1:
     movq %rax, %r12
-    movq 664(%rbp), %rax
+    movq 576(%rbp), %rax
     movq %rbx, %r10
     movq %rax, (%r10)
     movq $8, %rcx
@@ -5321,7 +5249,7 @@ lb_gpu_16vulkan_swapchain:
     addq %rcx, %r13
     movq %r13, %r10
     movq %r12, (%r10)
-    movq 120(%rbp), %r10
+    movq 112(%rbp), %r10
     movq (%r10), %r12
     movq %r14, %r10
     movq (%r10), %r13
@@ -5350,16 +5278,16 @@ lb_gpu_16vulkan_swapchain:
     addq $48, %rsp
 .L3_134:
     subq $32, %rsp
-    movq 792(%rbp), %rax
+    movq 696(%rbp), %rax
     movq %rax, 0(%rsp)
-    movq 776(%rbp), %rax
+    movq 680(%rbp), %rax
     movq %rax, 8(%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
     call lb_gpu_24vulkan_swapchain_destroy
     addq $32, %rsp
-    movq 424(%rbp), %rsi
-    movq 3048(%rbp), %rdi
+    movq 376(%rbp), %rsi
+    movq 2952(%rbp), %rdi
     movq $32, %rdx
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -5367,36 +5295,36 @@ lb_gpu_16vulkan_swapchain:
     subq $32, %rsp
     call memcpy
     addq $32, %rsp
-    movq 3048(%rbp), %rax
-    movq 3224(%rbp), %rdi
-    movq 3216(%rbp), %rsi
-    movdqu 3200(%rbp), %xmm6
-    movdqu 3184(%rbp), %xmm7
-    movdqu 3168(%rbp), %xmm8
-    movdqu 3152(%rbp), %xmm9
-    movdqu 3136(%rbp), %xmm10
-    movdqu 3120(%rbp), %xmm11
-    movdqu 3104(%rbp), %xmm12
-    movdqu 3088(%rbp), %xmm13
-    movdqu 3072(%rbp), %xmm14
-    movdqu 3056(%rbp), %xmm15
-    movq 3040(%rbp), %rbx
-    movq 3032(%rbp), %r12
-    movq 3024(%rbp), %r13
-    movq 3016(%rbp), %r14
-    movq 3008(%rbp), %r15
-    leaq 3232(%rbp), %rsp
+    movq 2952(%rbp), %rax
+    movq 3128(%rbp), %rdi
+    movq 3120(%rbp), %rsi
+    movdqu 3104(%rbp), %xmm6
+    movdqu 3088(%rbp), %xmm7
+    movdqu 3072(%rbp), %xmm8
+    movdqu 3056(%rbp), %xmm9
+    movdqu 3040(%rbp), %xmm10
+    movdqu 3024(%rbp), %xmm11
+    movdqu 3008(%rbp), %xmm12
+    movdqu 2992(%rbp), %xmm13
+    movdqu 2976(%rbp), %xmm14
+    movdqu 2960(%rbp), %xmm15
+    movq 2944(%rbp), %rbx
+    movq 2936(%rbp), %r12
+    movq 2928(%rbp), %r13
+    movq 2920(%rbp), %r14
+    movq 2912(%rbp), %r15
+    leaq 3136(%rbp), %rsp
     popq %rbp
     ret
 .L3_136:
 .L3_130:
-    movq 24(%rbp), %r10
-    movq (%r10), %rbx
     movq 32(%rbp), %r10
+    movq (%r10), %rbx
+    movq %r14, %r10
     movq %rbx, (%r10)
     movq 56(%rbp), %r10
     movq (%r10), %rbx
-    movq 488(%rbp), %r10
+    movq 440(%rbp), %r10
     movq (%r10), %r12
     cmpq %r12, %r15
     jb 1f
@@ -5409,7 +5337,7 @@ lb_gpu_16vulkan_swapchain:
     call lb_core_7trap_at
     addq $32, %rsp
 1:
-    movq 472(%rbp), %rax
+    movq 424(%rbp), %rax
     movq %rbx, %rcx
     movq %rax, %rbx
     addq %rcx, %rbx
@@ -5417,47 +5345,46 @@ lb_gpu_16vulkan_swapchain:
     addq %rcx, %rbx
     movq %rbx, %r10
     movq (%r10), %rbx
-    movq 408(%rbp), %r10
+    movq 360(%rbp), %r10
     movq %rbx, (%r10)
-    movq 400(%rbp), %r10
+    movq 352(%rbp), %r10
     movq (%r10), %rbx
-    movq 392(%rbp), %r10
+    movq 344(%rbp), %r10
     movq %rbx, (%r10)
-    movq 408(%rbp), %r10
-    movq 416(%rbp), %r11
+    movq 360(%rbp), %r10
+    movq 368(%rbp), %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
-    movq 376(%rbp), %r11
+    movq 328(%rbp), %r11
     pxor %xmm8, %xmm8
     movups %xmm8, 0(%r11)
     movups %xmm8, 16(%r11)
     movups %xmm8, 32(%r11)
     movups %xmm8, 48(%r11)
-    movq 368(%rbp), %r10
-    movl (%r10), %ebx
-    movq 376(%rbp), %r10
-    movl %ebx, (%r10)
-    movq 360(%rbp), %r10
-    movq (%r10), %rbx
-    movq 352(%rbp), %r10
-    movq %rbx, (%r10)
-    movl $2, %eax
-    movq 344(%rbp), %r10
-    movl %eax, (%r10)
-    movq 416(%rbp), %rax
-    movq 336(%rbp), %r10
-    movq %rax, (%r10)
-    movl 0(%rbp), %eax
+    movl $37, %eax
     movq 328(%rbp), %r10
     movl %eax, (%r10)
-    movl 576(%rbp), %eax
     movq 320(%rbp), %r10
+    movq (%r10), %rbx
+    movq 312(%rbp), %r10
+    movq %rbx, (%r10)
+    movl $2, %eax
+    movq 304(%rbp), %r10
+    movl %eax, (%r10)
+    movq 368(%rbp), %rax
+    movq 296(%rbp), %r10
+    movq %rax, (%r10)
+    movl 8(%rbp), %eax
+    movq 288(%rbp), %r10
+    movl %eax, (%r10)
+    movl 528(%rbp), %eax
+    movq 280(%rbp), %r10
     movl %eax, (%r10)
     movl $1, %eax
-    movq 312(%rbp), %r10
+    movq 272(%rbp), %r10
     movl %eax, (%r10)
-    movq 376(%rbp), %r10
-    movq 384(%rbp), %r11
+    movq 328(%rbp), %r10
+    movq 336(%rbp), %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
     movups 16(%r10), %xmm8
@@ -5466,13 +5393,13 @@ lb_gpu_16vulkan_swapchain:
     movups %xmm8, 32(%r11)
     movups 48(%r10), %xmm8
     movups %xmm8, 48(%r11)
-    movq 784(%rbp), %r10
+    movq 688(%rbp), %r10
     movq (%r10), %rbx
     movq 56(%rbp), %r10
     movq (%r10), %r12
-    movq 488(%rbp), %r10
-    movq (%r10), %r14
-    cmpq %r14, %r15
+    movq 440(%rbp), %r10
+    movq (%r10), %r13
+    cmpq %r13, %r15
     jb 1f
     leaq .Ltext_42(%rip), %rdi
     leaq .Ltext_52(%rip), %rsi
@@ -5483,7 +5410,7 @@ lb_gpu_16vulkan_swapchain:
     call lb_core_7trap_at
     addq $32, %rsp
 1:
-    movq 472(%rbp), %rax
+    movq 424(%rbp), %rax
     movq %r12, %rcx
     movq %rax, %r12
     addq %rcx, %r12
@@ -5492,7 +5419,7 @@ lb_gpu_16vulkan_swapchain:
     subq $32, %rsp
     movq %rbx, %rax
     movq %rax, 0(%rsp)
-    movq 384(%rbp), %rax
+    movq 336(%rbp), %rax
     movq %rax, 8(%rsp)
     movq $0, %rax
     movq %rax, 16(%rsp)
@@ -5505,51 +5432,51 @@ lb_gpu_16vulkan_swapchain:
     call vkCreateFramebuffer
     addq $32, %rsp
     movl %eax, %ebx
-    movq 304(%rbp), %rax
-    movq 296(%rbp), %r10
+    movq 264(%rbp), %rax
+    movq 256(%rbp), %r10
     movq %rax, (%r10)
     movq $41, %rax
-    movq 288(%rbp), %r10
+    movq 248(%rbp), %r10
     movq %rax, (%r10)
     subq $48, %rsp
     movl %ebx, %eax
     movq %rax, 8(%rsp)
-    movq 296(%rbp), %r10
+    movq 256(%rbp), %r10
     leaq 32(%rsp), %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
     leaq 32(%rsp), %rax
     movq %rax, 16(%rsp)
-    leaq 1480(%rbp), %rax
+    leaq 1384(%rbp), %rax
     movq %rax, (%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
     movq 16(%rsp), %r8
     call lb_gpu_12vulkan_check
     addq $48, %rsp
-    movq 280(%rbp), %r10
+    movq 240(%rbp), %r10
     movzbl (%r10), %ebx
     testl %ebx, %ebx
     jne .L3_138
     jmp .L3_137
 .L3_138:
-    leaq 2976(%rbp), %rax
-    movq %rax, 272(%rbp)
-    movq 16(%rbp), %r10
-    movq 272(%rbp), %r11
+    leaq 2880(%rbp), %rax
+    movq %rax, 232(%rbp)
+    movq 24(%rbp), %r10
+    movq 232(%rbp), %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
     movq 16(%r10), %rax
     movq %rax, 16(%r11)
-    movq 272(%rbp), %rax
+    movq 232(%rbp), %rax
     movq $24, %rcx
     movq %rax, %r12
     addq %rcx, %r12
     movl $1, %eax
     movq %r12, %r10
     movb %al, (%r10)
-    leaq 1464(%rbp), %r12
-    movq 464(%rbp), %rax
+    leaq 1368(%rbp), %r12
+    movq 408(%rbp), %rax
     movq $8, %rcx
     mulq %rcx
     jnc 1f
@@ -5563,7 +5490,7 @@ lb_gpu_16vulkan_swapchain:
     addq $32, %rsp
 1:
     movq %rax, %r13
-    movq 560(%rbp), %rax
+    movq 512(%rbp), %rax
     movq %r12, %r10
     movq %rax, (%r10)
     movq $8, %rcx
@@ -5571,9 +5498,9 @@ lb_gpu_16vulkan_swapchain:
     addq %rcx, %r14
     movq %r14, %r10
     movq %r13, (%r10)
-    movq 120(%rbp), %r10
+    movq 112(%rbp), %r10
     movq (%r10), %r13
-    movq 120(%rbp), %rax
+    movq 112(%rbp), %rax
     movq $8, %rcx
     movq %rax, %r14
     addq %rcx, %r14
@@ -5603,8 +5530,8 @@ lb_gpu_16vulkan_swapchain:
     call *%r11
     addq $48, %rsp
 .L3_139:
-    leaq 1448(%rbp), %rbx
-    movq 128(%rbp), %rax
+    leaq 1352(%rbp), %rbx
+    movq 120(%rbp), %rax
     movq $8, %rcx
     movq %rax, %r12
     addq %rcx, %r12
@@ -5624,7 +5551,7 @@ lb_gpu_16vulkan_swapchain:
     addq $32, %rsp
 1:
     movq %rax, %r12
-    movq 664(%rbp), %rax
+    movq 576(%rbp), %rax
     movq %rbx, %r10
     movq %rax, (%r10)
     movq $8, %rcx
@@ -5632,7 +5559,7 @@ lb_gpu_16vulkan_swapchain:
     addq %rcx, %r13
     movq %r13, %r10
     movq %r12, (%r10)
-    movq 120(%rbp), %r10
+    movq 112(%rbp), %r10
     movq (%r10), %r12
     movq %r14, %r10
     movq (%r10), %r13
@@ -5661,16 +5588,16 @@ lb_gpu_16vulkan_swapchain:
     addq $48, %rsp
 .L3_141:
     subq $32, %rsp
-    movq 792(%rbp), %rax
+    movq 696(%rbp), %rax
     movq %rax, 0(%rsp)
-    movq 776(%rbp), %rax
+    movq 680(%rbp), %rax
     movq %rax, 8(%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
     call lb_gpu_24vulkan_swapchain_destroy
     addq $32, %rsp
-    movq 272(%rbp), %rsi
-    movq 3048(%rbp), %rdi
+    movq 232(%rbp), %rsi
+    movq 2952(%rbp), %rdi
     movq $32, %rdx
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -5678,50 +5605,49 @@ lb_gpu_16vulkan_swapchain:
     subq $32, %rsp
     call memcpy
     addq $32, %rsp
-    movq 3048(%rbp), %rax
-    movq 3224(%rbp), %rdi
-    movq 3216(%rbp), %rsi
-    movdqu 3200(%rbp), %xmm6
-    movdqu 3184(%rbp), %xmm7
-    movdqu 3168(%rbp), %xmm8
-    movdqu 3152(%rbp), %xmm9
-    movdqu 3136(%rbp), %xmm10
-    movdqu 3120(%rbp), %xmm11
-    movdqu 3104(%rbp), %xmm12
-    movdqu 3088(%rbp), %xmm13
-    movdqu 3072(%rbp), %xmm14
-    movdqu 3056(%rbp), %xmm15
-    movq 3040(%rbp), %rbx
-    movq 3032(%rbp), %r12
-    movq 3024(%rbp), %r13
-    movq 3016(%rbp), %r14
-    movq 3008(%rbp), %r15
-    leaq 3232(%rbp), %rsp
+    movq 2952(%rbp), %rax
+    movq 3128(%rbp), %rdi
+    movq 3120(%rbp), %rsi
+    movdqu 3104(%rbp), %xmm6
+    movdqu 3088(%rbp), %xmm7
+    movdqu 3072(%rbp), %xmm8
+    movdqu 3056(%rbp), %xmm9
+    movdqu 3040(%rbp), %xmm10
+    movdqu 3024(%rbp), %xmm11
+    movdqu 3008(%rbp), %xmm12
+    movdqu 2992(%rbp), %xmm13
+    movdqu 2976(%rbp), %xmm14
+    movdqu 2960(%rbp), %xmm15
+    movq 2944(%rbp), %rbx
+    movq 2936(%rbp), %r12
+    movq 2928(%rbp), %r13
+    movq 2920(%rbp), %r14
+    movq 2912(%rbp), %r15
+    leaq 3136(%rbp), %rsp
     popq %rbp
     ret
 .L3_143:
 .L3_137:
-    movq 256(%rbp), %r11
+    movq 216(%rbp), %r11
     pxor %xmm8, %xmm8
     movups %xmm8, 0(%r11)
     movq $0, 16(%r11)
-    movq 248(%rbp), %r10
-    movl (%r10), %ebx
-    movq 256(%rbp), %r10
-    movl %ebx, (%r10)
-    movq 256(%rbp), %r10
-    movq 264(%rbp), %r11
+    movl $9, %eax
+    movq 216(%rbp), %r10
+    movl %eax, (%r10)
+    movq 216(%rbp), %r10
+    movq 224(%rbp), %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
     movq 16(%r10), %rax
     movq %rax, 16(%r11)
-    movq 784(%rbp), %r10
+    movq 688(%rbp), %r10
     movq (%r10), %rbx
     movq 56(%rbp), %r10
     movq (%r10), %r12
-    movq 488(%rbp), %r10
-    movq (%r10), %r14
-    cmpq %r14, %r15
+    movq 440(%rbp), %r10
+    movq (%r10), %r13
+    cmpq %r13, %r15
     jb 1f
     leaq .Ltext_44(%rip), %rdi
     leaq .Ltext_52(%rip), %rsi
@@ -5732,7 +5658,7 @@ lb_gpu_16vulkan_swapchain:
     call lb_core_7trap_at
     addq $32, %rsp
 1:
-    movq 472(%rbp), %rax
+    movq 424(%rbp), %rax
     movq %r12, %rcx
     movq %rax, %r12
     addq %rcx, %r12
@@ -5741,7 +5667,7 @@ lb_gpu_16vulkan_swapchain:
     subq $32, %rsp
     movq %rbx, %rax
     movq %rax, 0(%rsp)
-    movq 264(%rbp), %rax
+    movq 224(%rbp), %rax
     movq %rax, 8(%rsp)
     movq $0, %rax
     movq %rax, 16(%rsp)
@@ -5754,51 +5680,51 @@ lb_gpu_16vulkan_swapchain:
     call vkCreateSemaphore
     addq $32, %rsp
     movl %eax, %ebx
-    movq 240(%rbp), %rax
-    movq 232(%rbp), %r10
+    movq 208(%rbp), %rax
+    movq 200(%rbp), %r10
     movq %rax, (%r10)
     movq $52, %rax
-    movq 224(%rbp), %r10
+    movq 192(%rbp), %r10
     movq %rax, (%r10)
     subq $48, %rsp
     movl %ebx, %eax
     movq %rax, 8(%rsp)
-    movq 232(%rbp), %r10
+    movq 200(%rbp), %r10
     leaq 32(%rsp), %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
     leaq 32(%rsp), %rax
     movq %rax, 16(%rsp)
-    leaq 1352(%rbp), %rax
+    leaq 1256(%rbp), %rax
     movq %rax, (%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
     movq 16(%rsp), %r8
     call lb_gpu_12vulkan_check
     addq $48, %rsp
-    movq 216(%rbp), %r10
+    movq 184(%rbp), %r10
     movzbl (%r10), %ebx
     testl %ebx, %ebx
     jne .L3_145
     jmp .L3_144
 .L3_145:
-    leaq 2976(%rbp), %rax
-    movq %rax, 208(%rbp)
-    movq 8(%rbp), %r10
-    movq 208(%rbp), %r11
+    leaq 2880(%rbp), %rax
+    movq %rax, 176(%rbp)
+    movq 16(%rbp), %r10
+    movq 176(%rbp), %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
     movq 16(%r10), %rax
     movq %rax, 16(%r11)
-    movq 208(%rbp), %rax
+    movq 176(%rbp), %rax
     movq $24, %rcx
     movq %rax, %r12
     addq %rcx, %r12
     movl $1, %eax
     movq %r12, %r10
     movb %al, (%r10)
-    leaq 1336(%rbp), %r12
-    movq 464(%rbp), %rax
+    leaq 1240(%rbp), %r12
+    movq 408(%rbp), %rax
     movq $8, %rcx
     mulq %rcx
     jnc 1f
@@ -5812,7 +5738,7 @@ lb_gpu_16vulkan_swapchain:
     addq $32, %rsp
 1:
     movq %rax, %r13
-    movq 560(%rbp), %rax
+    movq 512(%rbp), %rax
     movq %r12, %r10
     movq %rax, (%r10)
     movq $8, %rcx
@@ -5820,9 +5746,9 @@ lb_gpu_16vulkan_swapchain:
     addq %rcx, %r14
     movq %r14, %r10
     movq %r13, (%r10)
-    movq 120(%rbp), %r10
+    movq 112(%rbp), %r10
     movq (%r10), %r13
-    movq 120(%rbp), %rax
+    movq 112(%rbp), %rax
     movq $8, %rcx
     movq %rax, %r14
     addq %rcx, %r14
@@ -5852,8 +5778,8 @@ lb_gpu_16vulkan_swapchain:
     call *%r11
     addq $48, %rsp
 .L3_146:
-    leaq 1320(%rbp), %rbx
-    movq 128(%rbp), %rax
+    leaq 1224(%rbp), %rbx
+    movq 120(%rbp), %rax
     movq $8, %rcx
     movq %rax, %r12
     addq %rcx, %r12
@@ -5873,7 +5799,7 @@ lb_gpu_16vulkan_swapchain:
     addq $32, %rsp
 1:
     movq %rax, %r12
-    movq 664(%rbp), %rax
+    movq 576(%rbp), %rax
     movq %rbx, %r10
     movq %rax, (%r10)
     movq $8, %rcx
@@ -5881,7 +5807,7 @@ lb_gpu_16vulkan_swapchain:
     addq %rcx, %r13
     movq %r13, %r10
     movq %r12, (%r10)
-    movq 120(%rbp), %r10
+    movq 112(%rbp), %r10
     movq (%r10), %r12
     movq %r14, %r10
     movq (%r10), %r13
@@ -5910,16 +5836,16 @@ lb_gpu_16vulkan_swapchain:
     addq $48, %rsp
 .L3_148:
     subq $32, %rsp
-    movq 792(%rbp), %rax
+    movq 696(%rbp), %rax
     movq %rax, 0(%rsp)
-    movq 776(%rbp), %rax
+    movq 680(%rbp), %rax
     movq %rax, 8(%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
     call lb_gpu_24vulkan_swapchain_destroy
     addq $32, %rsp
-    movq 208(%rbp), %rsi
-    movq 3048(%rbp), %rdi
+    movq 176(%rbp), %rsi
+    movq 2952(%rbp), %rdi
     movq $32, %rdx
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -5927,25 +5853,25 @@ lb_gpu_16vulkan_swapchain:
     subq $32, %rsp
     call memcpy
     addq $32, %rsp
-    movq 3048(%rbp), %rax
-    movq 3224(%rbp), %rdi
-    movq 3216(%rbp), %rsi
-    movdqu 3200(%rbp), %xmm6
-    movdqu 3184(%rbp), %xmm7
-    movdqu 3168(%rbp), %xmm8
-    movdqu 3152(%rbp), %xmm9
-    movdqu 3136(%rbp), %xmm10
-    movdqu 3120(%rbp), %xmm11
-    movdqu 3104(%rbp), %xmm12
-    movdqu 3088(%rbp), %xmm13
-    movdqu 3072(%rbp), %xmm14
-    movdqu 3056(%rbp), %xmm15
-    movq 3040(%rbp), %rbx
-    movq 3032(%rbp), %r12
-    movq 3024(%rbp), %r13
-    movq 3016(%rbp), %r14
-    movq 3008(%rbp), %r15
-    leaq 3232(%rbp), %rsp
+    movq 2952(%rbp), %rax
+    movq 3128(%rbp), %rdi
+    movq 3120(%rbp), %rsi
+    movdqu 3104(%rbp), %xmm6
+    movdqu 3088(%rbp), %xmm7
+    movdqu 3072(%rbp), %xmm8
+    movdqu 3056(%rbp), %xmm9
+    movdqu 3040(%rbp), %xmm10
+    movdqu 3024(%rbp), %xmm11
+    movdqu 3008(%rbp), %xmm12
+    movdqu 2992(%rbp), %xmm13
+    movdqu 2976(%rbp), %xmm14
+    movdqu 2960(%rbp), %xmm15
+    movq 2944(%rbp), %rbx
+    movq 2936(%rbp), %r12
+    movq 2928(%rbp), %r13
+    movq 2920(%rbp), %r14
+    movq 2912(%rbp), %r15
+    leaq 3136(%rbp), %rsp
     popq %rbp
     ret
 .L3_150:
@@ -5957,14 +5883,14 @@ lb_gpu_16vulkan_swapchain:
     movq %rbx, %r15
     jmp .L3_126
 .L3_129:
-    movq 776(%rbp), %rax
+    movq 680(%rbp), %rax
     movq $136, %rcx
     movq %rax, %rbx
     addq %rcx, %rbx
     movl $0, %eax
     movq %rbx, %r10
     movb %al, (%r10)
-    leaq 1304(%rbp), %rbx
+    leaq 1208(%rbp), %rbx
     movq 80(%rbp), %rax
     movq $8, %rcx
     movq %rax, %r12
@@ -5985,7 +5911,7 @@ lb_gpu_16vulkan_swapchain:
     addq $32, %rsp
 1:
     movq %rax, %r12
-    movq 560(%rbp), %rax
+    movq 512(%rbp), %rax
     movq %rbx, %r10
     movq %rax, (%r10)
     movq $8, %rcx
@@ -5993,9 +5919,9 @@ lb_gpu_16vulkan_swapchain:
     addq %rcx, %r13
     movq %r13, %r10
     movq %r12, (%r10)
-    movq 120(%rbp), %r10
+    movq 112(%rbp), %r10
     movq (%r10), %r12
-    movq 120(%rbp), %rax
+    movq 112(%rbp), %rax
     movq $8, %rcx
     movq %rax, %r13
     addq %rcx, %r13
@@ -6025,8 +5951,8 @@ lb_gpu_16vulkan_swapchain:
     call *%r11
     addq $48, %rsp
 .L3_151:
-    leaq 1288(%rbp), %rbx
-    movq 128(%rbp), %rax
+    leaq 1192(%rbp), %rbx
+    movq 120(%rbp), %rax
     movq $8, %rcx
     movq %rax, %r12
     addq %rcx, %r12
@@ -6046,7 +5972,7 @@ lb_gpu_16vulkan_swapchain:
     addq $32, %rsp
 1:
     movq %rax, %r12
-    movq 664(%rbp), %rax
+    movq 576(%rbp), %rax
     movq %rbx, %r10
     movq %rax, (%r10)
     movq $8, %rcx
@@ -6054,7 +5980,7 @@ lb_gpu_16vulkan_swapchain:
     addq %rcx, %r14
     movq %r14, %r10
     movq %r12, (%r10)
-    movq 120(%rbp), %r10
+    movq 112(%rbp), %r10
     movq (%r10), %r12
     movq %r13, %r10
     movq (%r10), %r14
@@ -6082,7 +6008,7 @@ lb_gpu_16vulkan_swapchain:
     call *%r11
     addq $48, %rsp
 .L3_153:
-    leaq 2976(%rbp), %rbx
+    leaq 2880(%rbp), %rbx
     movq $24, %rcx
     movq %rbx, %r12
     addq %rcx, %r12
@@ -6090,7 +6016,7 @@ lb_gpu_16vulkan_swapchain:
     movq %r12, %r10
     movb %al, (%r10)
     movq %rbx, %rsi
-    movq 3048(%rbp), %rdi
+    movq 2952(%rbp), %rdi
     movq $32, %rdx
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -6098,25 +6024,25 @@ lb_gpu_16vulkan_swapchain:
     subq $32, %rsp
     call memcpy
     addq $32, %rsp
-    movq 3048(%rbp), %rax
-    movq 3224(%rbp), %rdi
-    movq 3216(%rbp), %rsi
-    movdqu 3200(%rbp), %xmm6
-    movdqu 3184(%rbp), %xmm7
-    movdqu 3168(%rbp), %xmm8
-    movdqu 3152(%rbp), %xmm9
-    movdqu 3136(%rbp), %xmm10
-    movdqu 3120(%rbp), %xmm11
-    movdqu 3104(%rbp), %xmm12
-    movdqu 3088(%rbp), %xmm13
-    movdqu 3072(%rbp), %xmm14
-    movdqu 3056(%rbp), %xmm15
-    movq 3040(%rbp), %rbx
-    movq 3032(%rbp), %r12
-    movq 3024(%rbp), %r13
-    movq 3016(%rbp), %r14
-    movq 3008(%rbp), %r15
-    leaq 3232(%rbp), %rsp
+    movq 2952(%rbp), %rax
+    movq 3128(%rbp), %rdi
+    movq 3120(%rbp), %rsi
+    movdqu 3104(%rbp), %xmm6
+    movdqu 3088(%rbp), %xmm7
+    movdqu 3072(%rbp), %xmm8
+    movdqu 3056(%rbp), %xmm9
+    movdqu 3040(%rbp), %xmm10
+    movdqu 3024(%rbp), %xmm11
+    movdqu 3008(%rbp), %xmm12
+    movdqu 2992(%rbp), %xmm13
+    movdqu 2976(%rbp), %xmm14
+    movdqu 2960(%rbp), %xmm15
+    movq 2944(%rbp), %rbx
+    movq 2936(%rbp), %r12
+    movq 2928(%rbp), %r13
+    movq 2920(%rbp), %r14
+    movq 2912(%rbp), %r15
+    leaq 3136(%rbp), %rsp
     popq %rbp
     ret
     .seh_endproc

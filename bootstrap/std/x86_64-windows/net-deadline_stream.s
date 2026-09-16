@@ -36,42 +36,15 @@ lb_net_15deadline_stream_0init:
     .seh_savexmm %xmm15, 16
     movq %rbx, 8(%rbp)
     .seh_savereg %rbx, 8
-    movq %r12, 0(%rbp)
-    .seh_savereg %r12, 0
     .seh_endprologue
     movq %rcx, 208(%rbp)
     movq %rdx, 216(%rbp)
     movq %r8, 224(%rbp)
     movq %r9, 232(%rbp)
-    leaq lb_platform_windows(%rip), %rbx
-    movq %rbx, %r10
-    movzbl (%r10), %ebx
-    testl %ebx, %ebx
-    jne .L0_1
-    jmp .L0_2
-.L0_1:
+    leaq lb_net_14dont_wait_flag(%rip), %rbx
     movl $0, %eax
-    movl %eax, %ebx
-    jmp .L0_3
-.L0_2:
-    leaq lb_platform_macos(%rip), %rbx
     movq %rbx, %r10
-    movzbl (%r10), %ebx
-    testl %ebx, %ebx
-    jne .L0_4
-    jmp .L0_5
-.L0_4:
-    movl $128, %eax
-    movl %eax, %ebx
-    jmp .L0_6
-.L0_5:
-    movl $64, %eax
-    movl %eax, %ebx
-.L0_6:
-.L0_3:
-    leaq lb_net_14dont_wait_flag(%rip), %r12
-    movq %r12, %r10
-    movl %ebx, (%r10)
+    movl %eax, (%r10)
     movq 184(%rbp), %rdi
     movq 176(%rbp), %rsi
     movdqu 160(%rbp), %xmm6
@@ -85,7 +58,6 @@ lb_net_15deadline_stream_0init:
     movdqu 32(%rbp), %xmm14
     movdqu 16(%rbp), %xmm15
     movq 8(%rbp), %rbx
-    movq 0(%rbp), %r12
     leaq 192(%rbp), %rsp
     popq %rbp
     ret
@@ -612,18 +584,16 @@ lb_net_DeadlineStream_read:
     popq %rbp
     ret
 .L2_12:
-    leaq lb_net_14transfer_limit(%rip), %r12
-    movq %r12, %r10
-    movq (%r10), %r12
-    cmpq %r12, %r13
+    movq $1073741824, %rcx
+    cmpq %rcx, %r13
     jae .L2_16
 .L2_15:
     movq %r13, %rax
-    movq %rax, 8(%rbp)
+    movq %rax, 16(%rbp)
     jmp .L2_17
 .L2_16:
-    movq %r12, %rax
-    movq %rax, 8(%rbp)
+    movq $1073741824, %rax
+    movq %rax, 16(%rbp)
 .L2_17:
     movq $8, %rcx
     movq %rbx, %r13
@@ -632,18 +602,16 @@ lb_net_DeadlineStream_read:
     movq %rbx, %r14
     addq %rcx, %r14
     leaq 88(%rbp), %rax
-    movq %rax, 0(%rbp)
-    movq 0(%rbp), %rax
+    movq %rax, 8(%rbp)
+    movq 8(%rbp), %rax
     movq $24, %rcx
     addq %rcx, %rax
     movq %rax, 32(%rbp)
-    leaq lb_net_14dont_wait_flag(%rip), %rax
-    movq %rax, 24(%rbp)
     leaq 56(%rbp), %r12
     movq $24, %rcx
     movq %r12, %rax
     addq %rcx, %rax
-    movq %rax, 16(%rbp)
+    movq %rax, 24(%rbp)
 .L2_18:
 .L2_19:
     movq %r14, %r10
@@ -674,7 +642,7 @@ lb_net_DeadlineStream_read:
     movq $8, %rcx
     movq %rbx, %r12
     addq %rcx, %r12
-    movq 0(%rbp), %r10
+    movq 8(%rbp), %r10
     movq %r12, %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
@@ -719,16 +687,14 @@ lb_net_DeadlineStream_read:
 .L2_21:
     movq 40(%rbp), %r10
     movq (%r10), %rbx
-    movq 24(%rbp), %r10
-    movslq (%r10), %r15
     subq $32, %rsp
     movq 48(%rbp), %rax
     movq %rax, 0(%rsp)
     movq %rbx, %rax
     movq %rax, 8(%rsp)
-    movq 8(%rbp), %rax
+    movq 16(%rbp), %rax
     movq %rax, 16(%rsp)
-    movl %r15d, %eax
+    movl $0, %eax
     movq %rax, 24(%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
@@ -811,7 +777,7 @@ lb_net_DeadlineStream_read:
     movq 24(%rsp), %r9
     call lb_net_20await_transfer_retry
     addq $64, %rsp
-    movq 16(%rbp), %r10
+    movq 24(%rbp), %r10
     movzbl (%r10), %ebx
     testl %ebx, %ebx
     jne .L2_29
@@ -873,57 +839,57 @@ lb_net_DeadlineStream_write:
     .seh_proc lb_net_DeadlineStream_write
     pushq %rbp
     .seh_pushreg %rbp
-    subq $576, %rsp
-    .seh_stackalloc 576
+    subq $560, %rsp
+    .seh_stackalloc 560
     movq %rsp, %rbp
     .seh_setframe %rbp, 0
-    movq %rcx, 392(%rbp)
-    movq %rdi, 568(%rbp)
-    .seh_savereg %rdi, 568
-    movq %rsi, 560(%rbp)
-    .seh_savereg %rsi, 560
-    movdqu %xmm6, 544(%rbp)
-    .seh_savexmm %xmm6, 544
-    movdqu %xmm7, 528(%rbp)
-    .seh_savexmm %xmm7, 528
-    movdqu %xmm8, 512(%rbp)
-    .seh_savexmm %xmm8, 512
-    movdqu %xmm9, 496(%rbp)
-    .seh_savexmm %xmm9, 496
-    movdqu %xmm10, 480(%rbp)
-    .seh_savexmm %xmm10, 480
-    movdqu %xmm11, 464(%rbp)
-    .seh_savexmm %xmm11, 464
-    movdqu %xmm12, 448(%rbp)
-    .seh_savexmm %xmm12, 448
-    movdqu %xmm13, 432(%rbp)
-    .seh_savexmm %xmm13, 432
-    movdqu %xmm14, 416(%rbp)
-    .seh_savexmm %xmm14, 416
-    movdqu %xmm15, 400(%rbp)
-    .seh_savexmm %xmm15, 400
-    movq %rbx, 384(%rbp)
-    .seh_savereg %rbx, 384
-    movq %r12, 376(%rbp)
-    .seh_savereg %r12, 376
-    movq %r13, 368(%rbp)
-    .seh_savereg %r13, 368
-    movq %r14, 360(%rbp)
-    .seh_savereg %r14, 360
-    movq %r15, 352(%rbp)
-    .seh_savereg %r15, 352
+    movq %rcx, 376(%rbp)
+    movq %rdi, 552(%rbp)
+    .seh_savereg %rdi, 552
+    movq %rsi, 544(%rbp)
+    .seh_savereg %rsi, 544
+    movdqu %xmm6, 528(%rbp)
+    .seh_savexmm %xmm6, 528
+    movdqu %xmm7, 512(%rbp)
+    .seh_savexmm %xmm7, 512
+    movdqu %xmm8, 496(%rbp)
+    .seh_savexmm %xmm8, 496
+    movdqu %xmm9, 480(%rbp)
+    .seh_savexmm %xmm9, 480
+    movdqu %xmm10, 464(%rbp)
+    .seh_savexmm %xmm10, 464
+    movdqu %xmm11, 448(%rbp)
+    .seh_savexmm %xmm11, 448
+    movdqu %xmm12, 432(%rbp)
+    .seh_savexmm %xmm12, 432
+    movdqu %xmm13, 416(%rbp)
+    .seh_savexmm %xmm13, 416
+    movdqu %xmm14, 400(%rbp)
+    .seh_savexmm %xmm14, 400
+    movdqu %xmm15, 384(%rbp)
+    .seh_savexmm %xmm15, 384
+    movq %rbx, 368(%rbp)
+    .seh_savereg %rbx, 368
+    movq %r12, 360(%rbp)
+    .seh_savereg %r12, 360
+    movq %r13, 352(%rbp)
+    .seh_savereg %r13, 352
+    movq %r14, 344(%rbp)
+    .seh_savereg %r14, 344
+    movq %r15, 336(%rbp)
+    .seh_savereg %r15, 336
     .seh_endprologue
-    movq %rcx, 592(%rbp)
-    movq %rdx, 600(%rbp)
-    movq %r8, 608(%rbp)
-    movq %r9, 616(%rbp)
-    movq 600(%rbp), %rax
-    movq %rax, 304(%rbp)
-    movq 608(%rbp), %r10
-    leaq 288(%rbp), %r11
+    movq %rcx, 576(%rbp)
+    movq %rdx, 584(%rbp)
+    movq %r8, 592(%rbp)
+    movq %r9, 600(%rbp)
+    movq 584(%rbp), %rax
+    movq %rax, 288(%rbp)
+    movq 592(%rbp), %r10
+    leaq 272(%rbp), %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
-    leaq 304(%rbp), %r10
+    leaq 288(%rbp), %r10
     movq (%r10), %rbx
     movq %rbx, %r10
     movq (%r10), %r12
@@ -933,7 +899,7 @@ lb_net_DeadlineStream_write:
 .L3_1:
     jmp .L3_3
 .L3_2:
-    leaq 312(%rbp), %rbx
+    leaq 296(%rbp), %rbx
     movq $8, %rcx
     movq %rbx, %r12
     addq %rcx, %r12
@@ -943,7 +909,7 @@ lb_net_DeadlineStream_write:
     movq %r12, %r10
     movl %r13d, (%r10)
     leaq .Ltext_2(%rip), %r13
-    leaq 272(%rbp), %r14
+    leaq 256(%rbp), %r14
     movq %r14, %r10
     movq %r13, (%r10)
     movq $8, %rcx
@@ -965,7 +931,7 @@ lb_net_DeadlineStream_write:
     movq %r12, %r10
     movb %al, (%r10)
     movq %rbx, %rsi
-    movq 392(%rbp), %rdi
+    movq 376(%rbp), %rdi
     movq $40, %rdx
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -973,38 +939,38 @@ lb_net_DeadlineStream_write:
     subq $32, %rsp
     call memcpy
     addq $32, %rsp
-    movq 392(%rbp), %rax
-    movq 568(%rbp), %rdi
-    movq 560(%rbp), %rsi
-    movdqu 544(%rbp), %xmm6
-    movdqu 528(%rbp), %xmm7
-    movdqu 512(%rbp), %xmm8
-    movdqu 496(%rbp), %xmm9
-    movdqu 480(%rbp), %xmm10
-    movdqu 464(%rbp), %xmm11
-    movdqu 448(%rbp), %xmm12
-    movdqu 432(%rbp), %xmm13
-    movdqu 416(%rbp), %xmm14
-    movdqu 400(%rbp), %xmm15
-    movq 384(%rbp), %rbx
-    movq 376(%rbp), %r12
-    movq 368(%rbp), %r13
-    movq 360(%rbp), %r14
-    movq 352(%rbp), %r15
-    leaq 576(%rbp), %rsp
+    movq 376(%rbp), %rax
+    movq 552(%rbp), %rdi
+    movq 544(%rbp), %rsi
+    movdqu 528(%rbp), %xmm6
+    movdqu 512(%rbp), %xmm7
+    movdqu 496(%rbp), %xmm8
+    movdqu 480(%rbp), %xmm9
+    movdqu 464(%rbp), %xmm10
+    movdqu 448(%rbp), %xmm11
+    movdqu 432(%rbp), %xmm12
+    movdqu 416(%rbp), %xmm13
+    movdqu 400(%rbp), %xmm14
+    movdqu 384(%rbp), %xmm15
+    movq 368(%rbp), %rbx
+    movq 360(%rbp), %r12
+    movq 352(%rbp), %r13
+    movq 344(%rbp), %r14
+    movq 336(%rbp), %r15
+    leaq 560(%rbp), %rsp
     popq %rbp
     ret
 .L3_3:
     subq $32, %rsp
     movq %r12, %rax
     movq %rax, 8(%rsp)
-    leaq 232(%rbp), %rax
+    leaq 216(%rbp), %rax
     movq %rax, (%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
     call lb_net_SocketHandle_require
     addq $32, %rsp
-    leaq 232(%rbp), %r14
+    leaq 216(%rbp), %r14
     movq $32, %rcx
     movq %r14, %r13
     addq %rcx, %r13
@@ -1017,7 +983,7 @@ lb_net_DeadlineStream_write:
     movq $8, %rcx
     movq %r14, %rbx
     addq %rcx, %rbx
-    leaq 312(%rbp), %r12
+    leaq 296(%rbp), %r12
     movq $8, %rcx
     movq %r12, %r13
     addq %rcx, %r13
@@ -1034,7 +1000,7 @@ lb_net_DeadlineStream_write:
     movq %rbx, %r10
     movb %al, (%r10)
     movq %r12, %rsi
-    movq 392(%rbp), %rdi
+    movq 376(%rbp), %rdi
     movq $40, %rdx
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -1042,34 +1008,34 @@ lb_net_DeadlineStream_write:
     subq $32, %rsp
     call memcpy
     addq $32, %rsp
-    movq 392(%rbp), %rax
-    movq 568(%rbp), %rdi
-    movq 560(%rbp), %rsi
-    movdqu 544(%rbp), %xmm6
-    movdqu 528(%rbp), %xmm7
-    movdqu 512(%rbp), %xmm8
-    movdqu 496(%rbp), %xmm9
-    movdqu 480(%rbp), %xmm10
-    movdqu 464(%rbp), %xmm11
-    movdqu 448(%rbp), %xmm12
-    movdqu 432(%rbp), %xmm13
-    movdqu 416(%rbp), %xmm14
-    movdqu 400(%rbp), %xmm15
-    movq 384(%rbp), %rbx
-    movq 376(%rbp), %r12
-    movq 368(%rbp), %r13
-    movq 360(%rbp), %r14
-    movq 352(%rbp), %r15
-    leaq 576(%rbp), %rsp
+    movq 376(%rbp), %rax
+    movq 552(%rbp), %rdi
+    movq 544(%rbp), %rsi
+    movdqu 528(%rbp), %xmm6
+    movdqu 512(%rbp), %xmm7
+    movdqu 496(%rbp), %xmm8
+    movdqu 480(%rbp), %xmm9
+    movdqu 464(%rbp), %xmm10
+    movdqu 448(%rbp), %xmm11
+    movdqu 432(%rbp), %xmm12
+    movdqu 416(%rbp), %xmm13
+    movdqu 400(%rbp), %xmm14
+    movdqu 384(%rbp), %xmm15
+    movq 368(%rbp), %rbx
+    movq 360(%rbp), %r12
+    movq 352(%rbp), %r13
+    movq 344(%rbp), %r14
+    movq 336(%rbp), %r15
+    leaq 560(%rbp), %rsp
     popq %rbp
     ret
 .L3_5:
     movq %r14, %r10
     movq (%r10), %rax
-    movq %rax, 64(%rbp)
-    leaq 288(%rbp), %rax
-    movq %rax, 56(%rbp)
-    movq 56(%rbp), %rax
+    movq %rax, 48(%rbp)
+    leaq 272(%rbp), %rax
+    movq %rax, 40(%rbp)
+    movq 40(%rbp), %rax
     movq $8, %rcx
     movq %rax, %r13
     addq %rcx, %r13
@@ -1079,7 +1045,7 @@ lb_net_DeadlineStream_write:
     cmpq %rcx, %r13
     jne .L3_9
 .L3_8:
-    leaq 312(%rbp), %rbx
+    leaq 296(%rbp), %rbx
     movq $0, %rax
     movq %rbx, %r10
     movq %rax, (%r10)
@@ -1090,7 +1056,7 @@ lb_net_DeadlineStream_write:
     movq %r12, %r10
     movb %al, (%r10)
     movq %rbx, %rsi
-    movq 392(%rbp), %rdi
+    movq 376(%rbp), %rdi
     movq $40, %rdx
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -1098,25 +1064,25 @@ lb_net_DeadlineStream_write:
     subq $32, %rsp
     call memcpy
     addq $32, %rsp
-    movq 392(%rbp), %rax
-    movq 568(%rbp), %rdi
-    movq 560(%rbp), %rsi
-    movdqu 544(%rbp), %xmm6
-    movdqu 528(%rbp), %xmm7
-    movdqu 512(%rbp), %xmm8
-    movdqu 496(%rbp), %xmm9
-    movdqu 480(%rbp), %xmm10
-    movdqu 464(%rbp), %xmm11
-    movdqu 448(%rbp), %xmm12
-    movdqu 432(%rbp), %xmm13
-    movdqu 416(%rbp), %xmm14
-    movdqu 400(%rbp), %xmm15
-    movq 384(%rbp), %rbx
-    movq 376(%rbp), %r12
-    movq 368(%rbp), %r13
-    movq 360(%rbp), %r14
-    movq 352(%rbp), %r15
-    leaq 576(%rbp), %rsp
+    movq 376(%rbp), %rax
+    movq 552(%rbp), %rdi
+    movq 544(%rbp), %rsi
+    movdqu 528(%rbp), %xmm6
+    movdqu 512(%rbp), %xmm7
+    movdqu 496(%rbp), %xmm8
+    movdqu 480(%rbp), %xmm9
+    movdqu 464(%rbp), %xmm10
+    movdqu 448(%rbp), %xmm11
+    movdqu 432(%rbp), %xmm12
+    movdqu 416(%rbp), %xmm13
+    movdqu 400(%rbp), %xmm14
+    movdqu 384(%rbp), %xmm15
+    movq 368(%rbp), %rbx
+    movq 360(%rbp), %r12
+    movq 352(%rbp), %r13
+    movq 344(%rbp), %r14
+    movq 336(%rbp), %r15
+    leaq 560(%rbp), %rsp
     popq %rbp
     ret
 .L3_9:
@@ -1124,13 +1090,13 @@ lb_net_DeadlineStream_write:
     subq $32, %rsp
     movq %r12, %rax
     movq %rax, 8(%rsp)
-    leaq 200(%rbp), %rax
+    leaq 184(%rbp), %rax
     movq %rax, (%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
     call lb_net_19require_nonblocking
     addq $32, %rsp
-    leaq 200(%rbp), %r15
+    leaq 184(%rbp), %r15
     movq $24, %rcx
     movq %r15, %r14
     addq %rcx, %r14
@@ -1140,7 +1106,7 @@ lb_net_DeadlineStream_write:
     jne .L3_13
     jmp .L3_12
 .L3_13:
-    leaq 312(%rbp), %rbx
+    leaq 296(%rbp), %rbx
     movq $8, %rcx
     movq %rbx, %r12
     addq %rcx, %r12
@@ -1157,7 +1123,7 @@ lb_net_DeadlineStream_write:
     movq %r12, %r10
     movb %al, (%r10)
     movq %rbx, %rsi
-    movq 392(%rbp), %rdi
+    movq 376(%rbp), %rdi
     movq $40, %rdx
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -1165,40 +1131,40 @@ lb_net_DeadlineStream_write:
     subq $32, %rsp
     call memcpy
     addq $32, %rsp
-    movq 392(%rbp), %rax
-    movq 568(%rbp), %rdi
-    movq 560(%rbp), %rsi
-    movdqu 544(%rbp), %xmm6
-    movdqu 528(%rbp), %xmm7
-    movdqu 512(%rbp), %xmm8
-    movdqu 496(%rbp), %xmm9
-    movdqu 480(%rbp), %xmm10
-    movdqu 464(%rbp), %xmm11
-    movdqu 448(%rbp), %xmm12
-    movdqu 432(%rbp), %xmm13
-    movdqu 416(%rbp), %xmm14
-    movdqu 400(%rbp), %xmm15
-    movq 384(%rbp), %rbx
-    movq 376(%rbp), %r12
-    movq 368(%rbp), %r13
-    movq 360(%rbp), %r14
-    movq 352(%rbp), %r15
-    leaq 576(%rbp), %rsp
+    movq 376(%rbp), %rax
+    movq 552(%rbp), %rdi
+    movq 544(%rbp), %rsi
+    movdqu 528(%rbp), %xmm6
+    movdqu 512(%rbp), %xmm7
+    movdqu 496(%rbp), %xmm8
+    movdqu 480(%rbp), %xmm9
+    movdqu 464(%rbp), %xmm10
+    movdqu 448(%rbp), %xmm11
+    movdqu 432(%rbp), %xmm12
+    movdqu 416(%rbp), %xmm13
+    movdqu 400(%rbp), %xmm14
+    movdqu 384(%rbp), %xmm15
+    movq 368(%rbp), %rbx
+    movq 360(%rbp), %r12
+    movq 352(%rbp), %r13
+    movq 344(%rbp), %r14
+    movq 336(%rbp), %r15
+    leaq 560(%rbp), %rsp
     popq %rbp
     ret
 .L3_12:
     movq $8, %rcx
     movq %rbx, %rax
     addq %rcx, %rax
-    movq %rax, 48(%rbp)
+    movq %rax, 32(%rbp)
     movq $24, %rcx
     movq %rbx, %rax
     addq %rcx, %rax
-    movq %rax, 40(%rbp)
-    movq 40(%rbp), %r10
+    movq %rax, 24(%rbp)
+    movq 24(%rbp), %r10
     movq (%r10), %r15
     subq $48, %rsp
-    movq 48(%rbp), %r10
+    movq 32(%rbp), %r10
     leaq 32(%rsp), %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
@@ -1206,14 +1172,14 @@ lb_net_DeadlineStream_write:
     movq %rax, 8(%rsp)
     movq %r15, %rax
     movq %rax, 16(%rsp)
-    leaq 168(%rbp), %rax
+    leaq 152(%rbp), %rax
     movq %rax, (%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
     movq 16(%rsp), %r8
     call lb_net_15check_operation
     addq $48, %rsp
-    leaq 168(%rbp), %r14
+    leaq 152(%rbp), %r14
     movq $24, %rcx
     movq %r14, %r15
     addq %rcx, %r15
@@ -1223,7 +1189,7 @@ lb_net_DeadlineStream_write:
     jne .L3_16
     jmp .L3_15
 .L3_16:
-    leaq 312(%rbp), %rbx
+    leaq 296(%rbp), %rbx
     movq $8, %rcx
     movq %rbx, %r12
     addq %rcx, %r12
@@ -1240,7 +1206,7 @@ lb_net_DeadlineStream_write:
     movq %r12, %r10
     movb %al, (%r10)
     movq %rbx, %rsi
-    movq 392(%rbp), %rdi
+    movq 376(%rbp), %rdi
     movq $40, %rdx
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -1248,25 +1214,25 @@ lb_net_DeadlineStream_write:
     subq $32, %rsp
     call memcpy
     addq $32, %rsp
-    movq 392(%rbp), %rax
-    movq 568(%rbp), %rdi
-    movq 560(%rbp), %rsi
-    movdqu 544(%rbp), %xmm6
-    movdqu 528(%rbp), %xmm7
-    movdqu 512(%rbp), %xmm8
-    movdqu 496(%rbp), %xmm9
-    movdqu 480(%rbp), %xmm10
-    movdqu 464(%rbp), %xmm11
-    movdqu 448(%rbp), %xmm12
-    movdqu 432(%rbp), %xmm13
-    movdqu 416(%rbp), %xmm14
-    movdqu 400(%rbp), %xmm15
-    movq 384(%rbp), %rbx
-    movq 376(%rbp), %r12
-    movq 368(%rbp), %r13
-    movq 360(%rbp), %r14
-    movq 352(%rbp), %r15
-    leaq 576(%rbp), %rsp
+    movq 376(%rbp), %rax
+    movq 552(%rbp), %rdi
+    movq 544(%rbp), %rsi
+    movdqu 528(%rbp), %xmm6
+    movdqu 512(%rbp), %xmm7
+    movdqu 496(%rbp), %xmm8
+    movdqu 480(%rbp), %xmm9
+    movdqu 464(%rbp), %xmm10
+    movdqu 448(%rbp), %xmm11
+    movdqu 432(%rbp), %xmm12
+    movdqu 416(%rbp), %xmm13
+    movdqu 400(%rbp), %xmm14
+    movdqu 384(%rbp), %xmm15
+    movq 368(%rbp), %rbx
+    movq 360(%rbp), %r12
+    movq 352(%rbp), %r13
+    movq 344(%rbp), %r14
+    movq 336(%rbp), %r15
+    leaq 560(%rbp), %rsp
     popq %rbp
     ret
 .L3_15:
@@ -1281,7 +1247,7 @@ lb_net_DeadlineStream_write:
     cmpl %ecx, %ebx
     jne .L3_19
 .L3_18:
-    leaq 312(%rbp), %rbx
+    leaq 296(%rbp), %rbx
     movq $8, %rcx
     movq %rbx, %r12
     addq %rcx, %r12
@@ -1291,7 +1257,7 @@ lb_net_DeadlineStream_write:
     movq %r12, %r10
     movl %r13d, (%r10)
     leaq .Ltext_4(%rip), %r13
-    leaq 152(%rbp), %r14
+    leaq 136(%rbp), %r14
     movq %r14, %r10
     movq %r13, (%r10)
     movq $8, %rcx
@@ -1313,7 +1279,7 @@ lb_net_DeadlineStream_write:
     movq %r12, %r10
     movb %al, (%r10)
     movq %rbx, %rsi
-    movq 392(%rbp), %rdi
+    movq 376(%rbp), %rdi
     movq $40, %rdx
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -1321,87 +1287,81 @@ lb_net_DeadlineStream_write:
     subq $32, %rsp
     call memcpy
     addq $32, %rsp
-    movq 392(%rbp), %rax
-    movq 568(%rbp), %rdi
-    movq 560(%rbp), %rsi
-    movdqu 544(%rbp), %xmm6
-    movdqu 528(%rbp), %xmm7
-    movdqu 512(%rbp), %xmm8
-    movdqu 496(%rbp), %xmm9
-    movdqu 480(%rbp), %xmm10
-    movdqu 464(%rbp), %xmm11
-    movdqu 448(%rbp), %xmm12
-    movdqu 432(%rbp), %xmm13
-    movdqu 416(%rbp), %xmm14
-    movdqu 400(%rbp), %xmm15
-    movq 384(%rbp), %rbx
-    movq 376(%rbp), %r12
-    movq 368(%rbp), %r13
-    movq 360(%rbp), %r14
-    movq 352(%rbp), %r15
-    leaq 576(%rbp), %rsp
+    movq 376(%rbp), %rax
+    movq 552(%rbp), %rdi
+    movq 544(%rbp), %rsi
+    movdqu 528(%rbp), %xmm6
+    movdqu 512(%rbp), %xmm7
+    movdqu 496(%rbp), %xmm8
+    movdqu 480(%rbp), %xmm9
+    movdqu 464(%rbp), %xmm10
+    movdqu 448(%rbp), %xmm11
+    movdqu 432(%rbp), %xmm12
+    movdqu 416(%rbp), %xmm13
+    movdqu 400(%rbp), %xmm14
+    movdqu 384(%rbp), %xmm15
+    movq 368(%rbp), %rbx
+    movq 360(%rbp), %r12
+    movq 352(%rbp), %r13
+    movq 344(%rbp), %r14
+    movq 336(%rbp), %r15
+    leaq 560(%rbp), %rsp
     popq %rbp
     ret
 .L3_19:
 .L3_20:
-    leaq lb_net_14transfer_limit(%rip), %rbx
-    movq %rbx, %r10
-    movq (%r10), %rbx
-    cmpq %rbx, %r13
+    movq $1073741824, %rcx
+    cmpq %rcx, %r13
     jae .L3_23
 .L3_22:
-    movq %r13, %rax
-    movq %rax, 16(%rbp)
+    movq %r13, %rbx
     jmp .L3_24
 .L3_23:
-    movq %rbx, %rax
-    movq %rax, 16(%rbp)
+    movq $1073741824, %rax
+    movq %rax, %rbx
 .L3_24:
-    leaq 120(%rbp), %rax
+    leaq 104(%rbp), %r14
+    movq $24, %rcx
+    movq %r14, %rax
+    addq %rcx, %rax
+    movq %rax, 16(%rbp)
+    leaq 56(%rbp), %rax
     movq %rax, 8(%rbp)
     movq 8(%rbp), %rax
     movq $24, %rcx
-    addq %rcx, %rax
-    movq %rax, 32(%rbp)
-    leaq lb_net_10send_flags(%rip), %r13
-    leaq lb_net_14dont_wait_flag(%rip), %r14
-    leaq 72(%rbp), %rax
-    movq %rax, 0(%rbp)
-    movq 0(%rbp), %rax
-    movq $24, %rcx
-    addq %rcx, %rax
-    movq %rax, 24(%rbp)
+    movq %rax, %r13
+    addq %rcx, %r13
 .L3_25:
 .L3_26:
-    movq 40(%rbp), %r10
-    movq (%r10), %rbx
+    movq 24(%rbp), %r10
+    movq (%r10), %r15
     subq $48, %rsp
-    movq 48(%rbp), %r10
+    movq 32(%rbp), %r10
     leaq 32(%rsp), %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
     leaq 32(%rsp), %rax
     movq %rax, 8(%rsp)
-    movq %rbx, %rax
+    movq %r15, %rax
     movq %rax, 16(%rsp)
-    leaq 120(%rbp), %rax
+    leaq 104(%rbp), %rax
     movq %rax, (%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
     movq 16(%rsp), %r8
     call lb_net_15check_operation
     addq $48, %rsp
-    movq 32(%rbp), %r10
-    movzbl (%r10), %ebx
-    testl %ebx, %ebx
+    movq 16(%rbp), %r10
+    movzbl (%r10), %r15d
+    testl %r15d, %r15d
     jne .L3_29
     jmp .L3_28
 .L3_29:
-    leaq 312(%rbp), %rbx
+    leaq 296(%rbp), %rbx
     movq $8, %rcx
     movq %rbx, %r12
     addq %rcx, %r12
-    movq 8(%rbp), %r10
+    movq %r14, %r10
     movq %r12, %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
@@ -1414,7 +1374,7 @@ lb_net_DeadlineStream_write:
     movq %r12, %r10
     movb %al, (%r10)
     movq %rbx, %rsi
-    movq 392(%rbp), %rdi
+    movq 376(%rbp), %rdi
     movq $40, %rdx
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -1422,43 +1382,38 @@ lb_net_DeadlineStream_write:
     subq $32, %rsp
     call memcpy
     addq $32, %rsp
-    movq 392(%rbp), %rax
-    movq 568(%rbp), %rdi
-    movq 560(%rbp), %rsi
-    movdqu 544(%rbp), %xmm6
-    movdqu 528(%rbp), %xmm7
-    movdqu 512(%rbp), %xmm8
-    movdqu 496(%rbp), %xmm9
-    movdqu 480(%rbp), %xmm10
-    movdqu 464(%rbp), %xmm11
-    movdqu 448(%rbp), %xmm12
-    movdqu 432(%rbp), %xmm13
-    movdqu 416(%rbp), %xmm14
-    movdqu 400(%rbp), %xmm15
-    movq 384(%rbp), %rbx
-    movq 376(%rbp), %r12
-    movq 368(%rbp), %r13
-    movq 360(%rbp), %r14
-    movq 352(%rbp), %r15
-    leaq 576(%rbp), %rsp
+    movq 376(%rbp), %rax
+    movq 552(%rbp), %rdi
+    movq 544(%rbp), %rsi
+    movdqu 528(%rbp), %xmm6
+    movdqu 512(%rbp), %xmm7
+    movdqu 496(%rbp), %xmm8
+    movdqu 480(%rbp), %xmm9
+    movdqu 464(%rbp), %xmm10
+    movdqu 448(%rbp), %xmm11
+    movdqu 432(%rbp), %xmm12
+    movdqu 416(%rbp), %xmm13
+    movdqu 400(%rbp), %xmm14
+    movdqu 384(%rbp), %xmm15
+    movq 368(%rbp), %rbx
+    movq 360(%rbp), %r12
+    movq 352(%rbp), %r13
+    movq 344(%rbp), %r14
+    movq 336(%rbp), %r15
+    leaq 560(%rbp), %rsp
     popq %rbp
     ret
 .L3_28:
-    movq 56(%rbp), %r10
-    movq (%r10), %rbx
-    movq %r13, %r10
-    movslq (%r10), %r12
-    movq %r14, %r10
-    movslq (%r10), %r15
-    orl %r15d, %r12d
+    movq 40(%rbp), %r10
+    movq (%r10), %r15
     subq $32, %rsp
-    movq 64(%rbp), %rax
+    movq 48(%rbp), %rax
     movq %rax, 0(%rsp)
-    movq %rbx, %rax
+    movq %r15, %rax
     movq %rax, 8(%rsp)
-    movq 16(%rbp), %rax
+    movq %rbx, %rax
     movq %rax, 16(%rsp)
-    movl %r12d, %eax
+    movl $0, %eax
     movq %rax, 24(%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
@@ -1466,22 +1421,22 @@ lb_net_DeadlineStream_write:
     movq 24(%rsp), %r9
     call lb_net_send
     addq $32, %rsp
-    movq %rax, %rbx
+    movq %rax, %r15
     movq $0, %rcx
-    cmpq %rcx, %rbx
+    cmpq %rcx, %r15
     jle .L3_32
 .L3_31:
-    leaq 312(%rbp), %r12
-    movq %r12, %r10
-    movq %rbx, (%r10)
+    leaq 296(%rbp), %rbx
+    movq %rbx, %r10
+    movq %r15, (%r10)
     movq $32, %rcx
-    movq %r12, %r13
-    addq %rcx, %r13
+    movq %rbx, %r12
+    addq %rcx, %r12
     movl $0, %eax
-    movq %r13, %r10
+    movq %r12, %r10
     movb %al, (%r10)
-    movq %r12, %rsi
-    movq 392(%rbp), %rdi
+    movq %rbx, %rsi
+    movq 376(%rbp), %rdi
     movq $40, %rdx
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -1489,34 +1444,34 @@ lb_net_DeadlineStream_write:
     subq $32, %rsp
     call memcpy
     addq $32, %rsp
-    movq 392(%rbp), %rax
-    movq 568(%rbp), %rdi
-    movq 560(%rbp), %rsi
-    movdqu 544(%rbp), %xmm6
-    movdqu 528(%rbp), %xmm7
-    movdqu 512(%rbp), %xmm8
-    movdqu 496(%rbp), %xmm9
-    movdqu 480(%rbp), %xmm10
-    movdqu 464(%rbp), %xmm11
-    movdqu 448(%rbp), %xmm12
-    movdqu 432(%rbp), %xmm13
-    movdqu 416(%rbp), %xmm14
-    movdqu 400(%rbp), %xmm15
-    movq 384(%rbp), %rbx
-    movq 376(%rbp), %r12
-    movq 368(%rbp), %r13
-    movq 360(%rbp), %r14
-    movq 352(%rbp), %r15
-    leaq 576(%rbp), %rsp
+    movq 376(%rbp), %rax
+    movq 552(%rbp), %rdi
+    movq 544(%rbp), %rsi
+    movdqu 528(%rbp), %xmm6
+    movdqu 512(%rbp), %xmm7
+    movdqu 496(%rbp), %xmm8
+    movdqu 480(%rbp), %xmm9
+    movdqu 464(%rbp), %xmm10
+    movdqu 448(%rbp), %xmm11
+    movdqu 432(%rbp), %xmm12
+    movdqu 416(%rbp), %xmm13
+    movdqu 400(%rbp), %xmm14
+    movdqu 384(%rbp), %xmm15
+    movq 368(%rbp), %rbx
+    movq 360(%rbp), %r12
+    movq 352(%rbp), %r13
+    movq 344(%rbp), %r14
+    movq 336(%rbp), %r15
+    leaq 560(%rbp), %rsp
     popq %rbp
     ret
 .L3_32:
 .L3_33:
     movq $0, %rcx
-    cmpq %rcx, %rbx
+    cmpq %rcx, %r15
     jne .L3_36
 .L3_35:
-    leaq 312(%rbp), %rbx
+    leaq 296(%rbp), %rbx
     movq $8, %rcx
     movq %rbx, %r12
     addq %rcx, %r12
@@ -1526,7 +1481,7 @@ lb_net_DeadlineStream_write:
     movq %r12, %r10
     movl %r13d, (%r10)
     leaq .Ltext_5(%rip), %r13
-    leaq 104(%rbp), %r14
+    leaq 88(%rbp), %r14
     movq %r14, %r10
     movq %r13, (%r10)
     movq $8, %rcx
@@ -1548,7 +1503,7 @@ lb_net_DeadlineStream_write:
     movq %r12, %r10
     movb %al, (%r10)
     movq %rbx, %rsi
-    movq 392(%rbp), %rdi
+    movq 376(%rbp), %rdi
     movq $40, %rdx
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -1556,25 +1511,25 @@ lb_net_DeadlineStream_write:
     subq $32, %rsp
     call memcpy
     addq $32, %rsp
-    movq 392(%rbp), %rax
-    movq 568(%rbp), %rdi
-    movq 560(%rbp), %rsi
-    movdqu 544(%rbp), %xmm6
-    movdqu 528(%rbp), %xmm7
-    movdqu 512(%rbp), %xmm8
-    movdqu 496(%rbp), %xmm9
-    movdqu 480(%rbp), %xmm10
-    movdqu 464(%rbp), %xmm11
-    movdqu 448(%rbp), %xmm12
-    movdqu 432(%rbp), %xmm13
-    movdqu 416(%rbp), %xmm14
-    movdqu 400(%rbp), %xmm15
-    movq 384(%rbp), %rbx
-    movq 376(%rbp), %r12
-    movq 368(%rbp), %r13
-    movq 360(%rbp), %r14
-    movq 352(%rbp), %r15
-    leaq 576(%rbp), %rsp
+    movq 376(%rbp), %rax
+    movq 552(%rbp), %rdi
+    movq 544(%rbp), %rsi
+    movdqu 528(%rbp), %xmm6
+    movdqu 512(%rbp), %xmm7
+    movdqu 496(%rbp), %xmm8
+    movdqu 480(%rbp), %xmm9
+    movdqu 464(%rbp), %xmm10
+    movdqu 448(%rbp), %xmm11
+    movdqu 432(%rbp), %xmm12
+    movdqu 416(%rbp), %xmm13
+    movdqu 400(%rbp), %xmm14
+    movdqu 384(%rbp), %xmm15
+    movq 368(%rbp), %rbx
+    movq 360(%rbp), %r12
+    movq 352(%rbp), %r13
+    movq 344(%rbp), %r14
+    movq 336(%rbp), %r15
+    leaq 560(%rbp), %rsp
     popq %rbp
     ret
 .L3_36:
@@ -1582,25 +1537,25 @@ lb_net_DeadlineStream_write:
     subq $32, %rsp
     call lb_net_12socket_errno
     addq $32, %rsp
-    movl %eax, %ebx
-    movq 40(%rbp), %r10
-    movq (%r10), %r12
+    movl %eax, %r12d
+    movq 24(%rbp), %r10
+    movq (%r10), %r15
     subq $64, %rsp
-    movq 64(%rbp), %rax
+    movq 48(%rbp), %rax
     movq %rax, 8(%rsp)
     movl $1, %eax
     movq %rax, 16(%rsp)
-    movl %ebx, %eax
+    movl %r12d, %eax
     movq %rax, 24(%rsp)
-    movq 48(%rbp), %r10
+    movq 32(%rbp), %r10
     leaq 48(%rsp), %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
     leaq 48(%rsp), %rax
     movq %rax, 32(%rsp)
-    movq %r12, %rax
+    movq %r15, %rax
     movq %rax, 40(%rsp)
-    leaq 72(%rbp), %rax
+    leaq 56(%rbp), %rax
     movq %rax, (%rsp)
     movq 0(%rsp), %rcx
     movq 8(%rsp), %rdx
@@ -1608,17 +1563,17 @@ lb_net_DeadlineStream_write:
     movq 24(%rsp), %r9
     call lb_net_20await_transfer_retry
     addq $64, %rsp
-    movq 24(%rbp), %r10
-    movzbl (%r10), %ebx
-    testl %ebx, %ebx
+    movq %r13, %r10
+    movzbl (%r10), %r12d
+    testl %r12d, %r12d
     jne .L3_40
     jmp .L3_39
 .L3_40:
-    leaq 312(%rbp), %rbx
+    leaq 296(%rbp), %rbx
     movq $8, %rcx
     movq %rbx, %r12
     addq %rcx, %r12
-    movq 0(%rbp), %r10
+    movq 8(%rbp), %r10
     movq %r12, %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
@@ -1631,7 +1586,7 @@ lb_net_DeadlineStream_write:
     movq %r12, %r10
     movb %al, (%r10)
     movq %rbx, %rsi
-    movq 392(%rbp), %rdi
+    movq 376(%rbp), %rdi
     movq $40, %rdx
     movq %rdx, %r8
     movq %rsi, %rdx
@@ -1639,25 +1594,25 @@ lb_net_DeadlineStream_write:
     subq $32, %rsp
     call memcpy
     addq $32, %rsp
-    movq 392(%rbp), %rax
-    movq 568(%rbp), %rdi
-    movq 560(%rbp), %rsi
-    movdqu 544(%rbp), %xmm6
-    movdqu 528(%rbp), %xmm7
-    movdqu 512(%rbp), %xmm8
-    movdqu 496(%rbp), %xmm9
-    movdqu 480(%rbp), %xmm10
-    movdqu 464(%rbp), %xmm11
-    movdqu 448(%rbp), %xmm12
-    movdqu 432(%rbp), %xmm13
-    movdqu 416(%rbp), %xmm14
-    movdqu 400(%rbp), %xmm15
-    movq 384(%rbp), %rbx
-    movq 376(%rbp), %r12
-    movq 368(%rbp), %r13
-    movq 360(%rbp), %r14
-    movq 352(%rbp), %r15
-    leaq 576(%rbp), %rsp
+    movq 376(%rbp), %rax
+    movq 552(%rbp), %rdi
+    movq 544(%rbp), %rsi
+    movdqu 528(%rbp), %xmm6
+    movdqu 512(%rbp), %xmm7
+    movdqu 496(%rbp), %xmm8
+    movdqu 480(%rbp), %xmm9
+    movdqu 464(%rbp), %xmm10
+    movdqu 448(%rbp), %xmm11
+    movdqu 432(%rbp), %xmm12
+    movdqu 416(%rbp), %xmm13
+    movdqu 400(%rbp), %xmm14
+    movdqu 384(%rbp), %xmm15
+    movq 368(%rbp), %rbx
+    movq 360(%rbp), %r12
+    movq 352(%rbp), %r13
+    movq 344(%rbp), %r14
+    movq 336(%rbp), %r15
+    leaq 560(%rbp), %rsp
     popq %rbp
     ret
 .L3_39:
@@ -1727,10 +1682,8 @@ lb_net_20await_transfer_retry:
     leaq 88(%rbp), %rbx
     movq %rbx, %r10
     movslq (%r10), %rbx
-    leaq lb_net_18socket_interrupted(%rip), %r12
-    movq %r12, %r10
-    movslq (%r10), %r12
-    cmpl %r12d, %ebx
+    movl $10004, %ecx
+    cmpl %ecx, %ebx
     jne .L4_2
 .L4_1:
     leaq 136(%rbp), %rbx

@@ -908,24 +908,21 @@ _lb_core_16write_diagnostic:
     str x23, [sp, #104]
     str x24, [sp, #96]
     str x25, [sp, #88]
-    str x26, [sp, #80]
-    sub x16, x29, #96
+    sub x16, x29, #88
     str x0, [x16]
     str x1, [x16, #8]
-    sub x19, x29, #96
+    sub x19, x29, #88
     add x20, x19, #8
-    sub x21, x29, #112
+    sub x21, x29, #104
     add x22, x21, #8
-    adrp x23, _lb_c_interrupted@PAGE
-    add x23, x23, _lb_c_interrupted@PAGEOFF
     mov x9, #0
-    mov x24, x9
+    mov x23, x9
 L9_1:
     ldr x14, [x20]
-    cmp x24, x14
+    cmp x23, x14
     b.hs L9_3
 L9_2:
-    sub x15, x14, x24
+    sub x15, x14, x23
     movz x10, #16384, lsl #16
     cmp x15, x10
     b.hs L9_5
@@ -936,9 +933,9 @@ L9_5:
     movz x9, #16384, lsl #16
     mov x12, x9
 L9_6:
-    ldr x25, [x19]
+    ldr x24, [x19]
     add x13, x14, #1
-    cmp x24, x13
+    cmp x23, x13
     b.lo 1f
     adrp x0, l_text_7@PAGE
     add x0, x0, l_text_7@PAGEOFF
@@ -954,7 +951,7 @@ L9_6:
     add x1, x1, l_text_8@PAGEOFF
     bl _lb_core_7trap_at
 1:
-    cmp x24, x14
+    cmp x23, x14
     b.ls L9_7
 L9_8:
     adrp x0, l_text_7@PAGE
@@ -963,21 +960,21 @@ L9_8:
     add x1, x1, l_text_8@PAGEOFF
     bl _lb_core_7trap_at
 L9_7:
-    add x14, x24, x25
+    add x14, x23, x24
     str x14, [x21]
     str x15, [x22]
     movz x9, #2
-    sub x10, x29, #128
+    sub x10, x29, #120
     str w9, [x10]
-    sub x10, x29, #144
+    sub x10, x29, #136
     str x14, [x10]
-    sub x10, x29, #160
+    sub x10, x29, #152
     str x12, [x10]
     movz x0, #2
     mov x1, x14
     mov x2, x12
     bl _write
-    mov x26, x0
+    mov x25, x0
     b L9_20
 L9_19:
     adrp x0, l_text_2@PAGE
@@ -987,7 +984,7 @@ L9_19:
     bl _lb_core_7trap_at
 L9_20:
     mov x10, #0
-    cmp x26, x10
+    cmp x25, x10
     cset w14, lt
     cbnz w14, L9_12
     b L9_21
@@ -997,8 +994,8 @@ L9_21:
 L9_12:
     bl _lb_c_errno
     mov w14, w0
-    ldrsw x15, [x23]
-    cmp w14, w15
+    movz x10, #4
+    cmp w14, w10
     cset w15, eq
 L9_13:
     and w14, w15, #255
@@ -1011,7 +1008,7 @@ L9_14:
 L9_10:
 L9_11:
     mov x10, #0
-    cmp x26, x10
+    cmp x25, x10
     b.gt L9_16
 L9_15:
     ldr x19, [sp, #136]
@@ -1021,7 +1018,6 @@ L9_15:
     ldr x23, [sp, #104]
     ldr x24, [sp, #96]
     ldr x25, [sp, #88]
-    ldr x26, [sp, #80]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret
@@ -1029,8 +1025,8 @@ L9_18:
     b L9_17
 L9_16:
 L9_17:
-    mov x9, x26
-    mov x10, x24
+    mov x9, x25
+    mov x10, x23
     adds x9, x9, x10
     b.cc 1f
     adrp x0, l_text_9@PAGE
@@ -1040,7 +1036,7 @@ L9_17:
     bl _lb_core_7trap_at
 1:
     mov x14, x9
-    mov x24, x14
+    mov x23, x14
     b L9_1
 L9_3:
     ldr x19, [sp, #136]
@@ -1050,7 +1046,6 @@ L9_3:
     ldr x23, [sp, #104]
     ldr x24, [sp, #96]
     ldr x25, [sp, #88]
-    ldr x26, [sp, #80]
     mov sp, x29
     ldp x29, x30, [sp], #16
     ret

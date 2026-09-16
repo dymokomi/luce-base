@@ -1862,14 +1862,12 @@ lb_net_ResolverQuery_open:
     jne .L5_14
     jmp .L5_15
 .L5_14:
-    leaq lb_net_inet(%rip), %rbx
-    movq %rbx, %r10
-    movslq (%r10), %rbx
+    movl $2, %eax
+    movl %eax, %ebx
     jmp .L5_16
 .L5_15:
-    leaq lb_net_inet6(%rip), %rbx
-    movq %rbx, %r10
-    movslq (%r10), %rbx
+    movl $23, %eax
+    movl %eax, %ebx
 .L5_16:
     movl %ebx, %r12d
     jmp .L5_6
@@ -1889,14 +1887,12 @@ lb_net_ResolverQuery_open:
     addq %rcx, %r14
     movq %r14, %r10
     movl %r12d, (%r10)
-    leaq lb_net_stream(%rip), %r14
-    movq %r14, %r10
-    movslq (%r10), %r14
     movq $8, %rcx
-    movq %r13, %r15
-    addq %rcx, %r15
-    movq %r15, %r10
-    movl %r14d, (%r10)
+    movq %r13, %r14
+    addq %rcx, %r14
+    movl $1, %eax
+    movq %r14, %r10
+    movl %eax, (%r10)
     movq %r13, %r10
     movq %rbx, %r11
     movups 0(%r10), %xmm8
@@ -2204,30 +2200,25 @@ lb_net_17resolved_endpoint:
     movq %rax, 8(%rbp)
     movq 8(%rbp), %r10
     movslq (%r10), %r13
-    leaq lb_net_inet(%rip), %rax
-    movq %rax, 0(%rbp)
-    movq 0(%rbp), %r10
-    movslq (%r10), %r15
-    cmpl %r15d, %r13d
+    movl $2, %ecx
+    cmpl %ecx, %r13d
     sete %al
     movzbl %al, %r13d
     testl %r13d, %r13d
     jne .L6_33
     jmp .L6_1
 .L6_33:
-    movl %r13d, %r15d
+    movl %r13d, %r14d
     jmp .L6_2
 .L6_1:
     movq 8(%rbp), %r10
     movslq (%r10), %r13
-    leaq lb_net_inet6(%rip), %r15
-    movq %r15, %r10
-    movslq (%r10), %r15
-    cmpl %r15d, %r13d
+    movl $23, %ecx
+    cmpl %ecx, %r13d
     sete %al
-    movzbl %al, %r15d
+    movzbl %al, %r14d
 .L6_2:
-    movzbl %r15b, %r13d
+    movzbl %r14b, %r13d
     movzbl %r13b, %r13d
     movl $0, %ecx
     cmpl %ecx, %r13d
@@ -2237,7 +2228,7 @@ lb_net_17resolved_endpoint:
     jne .L6_34
     jmp .L6_6
 .L6_34:
-    movl %r13d, %r15d
+    movl %r13d, %r14d
     jmp .L6_7
 .L6_6:
     movq $8, %rcx
@@ -2245,23 +2236,21 @@ lb_net_17resolved_endpoint:
     addq %rcx, %r13
     movq %r13, %r10
     movslq (%r10), %r13
-    leaq lb_net_stream(%rip), %r15
-    movq %r15, %r10
-    movslq (%r10), %r15
-    cmpl %r15d, %r13d
+    movl $1, %ecx
+    cmpl %ecx, %r13d
     sete %al
     movzbl %al, %r13d
     movl $0, %ecx
     cmpl %ecx, %r13d
     sete %al
-    movzbl %al, %r15d
+    movzbl %al, %r14d
 .L6_7:
-    movzbl %r15b, %r13d
+    movzbl %r14b, %r13d
     testl %r13d, %r13d
     jne .L6_35
     jmp .L6_8
 .L6_35:
-    movl %r13d, %r15d
+    movl %r13d, %r14d
     jmp .L6_9
 .L6_8:
     leaq 288(%rbp), %r13
@@ -2270,32 +2259,32 @@ lb_net_17resolved_endpoint:
     movl $0, %ecx
     cmpl %ecx, %r13d
     sete %al
-    movzbl %al, %r15d
+    movzbl %al, %r14d
     movl $0, %ecx
-    cmpl %ecx, %r15d
+    cmpl %ecx, %r14d
     sete %al
-    movzbl %al, %r15d
-    testl %r15d, %r15d
+    movzbl %al, %r14d
+    testl %r14d, %r14d
     jne .L6_10
     jmp .L6_36
 .L6_36:
-    movl %r15d, %r13d
+    movl %r14d, %r13d
     jmp .L6_11
 .L6_10:
     movq 8(%rbp), %r10
-    movslq (%r10), %r15
-    cmpl %r15d, %r13d
+    movslq (%r10), %r14
+    cmpl %r14d, %r13d
     sete %al
-    movzbl %al, %r15d
+    movzbl %al, %r14d
     movl $0, %ecx
-    cmpl %ecx, %r15d
+    cmpl %ecx, %r14d
     sete %al
-    movzbl %al, %r15d
-    movl %r15d, %r13d
+    movzbl %al, %r14d
+    movl %r14d, %r13d
 .L6_11:
-    movzbl %r13b, %r15d
+    movzbl %r13b, %r14d
 .L6_9:
-    movzbl %r15b, %r13d
+    movzbl %r14b, %r13d
     testl %r13d, %r13d
     jne .L6_3
     jmp .L6_4
@@ -2409,16 +2398,16 @@ lb_net_17resolved_endpoint:
     ret
 .L6_16:
 .L6_15:
-    leaq 208(%rbp), %r14
+    leaq 208(%rbp), %r15
     movq $16, %rcx
-    movq %rbx, %r15
-    addq %rcx, %r15
-    movq %r15, %r10
-    movl (%r10), %r15d
+    movq %rbx, %r14
+    addq %rcx, %r14
+    movq %r14, %r10
+    movl (%r10), %r14d
     subq $32, %rsp
     movq %r13, %rax
     movq %rax, 8(%rsp)
-    movl %r15d, %eax
+    movl %r14d, %eax
     movq %rax, 16(%rsp)
     leaq 104(%rbp), %rax
     movq %rax, (%rsp)
@@ -2429,11 +2418,11 @@ lb_net_17resolved_endpoint:
     addq $32, %rsp
     leaq 104(%rbp), %r12
     movq $48, %rcx
-    movq %r12, %r15
-    addq %rcx, %r15
-    movq %r15, %r10
-    movzbl (%r10), %r15d
-    testl %r15d, %r15d
+    movq %r12, %r14
+    addq %rcx, %r14
+    movq %r14, %r10
+    movzbl (%r10), %r14d
+    testl %r14d, %r14d
     jne .L6_20
     jmp .L6_19
 .L6_20:
@@ -2506,16 +2495,15 @@ lb_net_17resolved_endpoint:
 .L6_21:
 .L6_18:
     movq %rbx, %r10
-    movq %r14, %r11
+    movq %r15, %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)
     movq 16(%r10), %rax
     movq %rax, 16(%r11)
     movq 8(%rbp), %r10
     movslq (%r10), %r12
-    movq 0(%rbp), %r10
-    movslq (%r10), %r13
-    cmpl %r13d, %r12d
+    movl $2, %ecx
+    cmpl %ecx, %r12d
     sete %al
     movzbl %al, %r12d
     testl %r12d, %r12d
@@ -2525,7 +2513,7 @@ lb_net_17resolved_endpoint:
     movl %r12d, %ebx
     jmp .L6_23
 .L6_22:
-    movq %r14, %r10
+    movq %r15, %r10
     movzbl (%r10), %ebx
     movl $0, %ecx
     cmpl %ecx, %ebx
@@ -2542,10 +2530,8 @@ lb_net_17resolved_endpoint:
 .L6_24:
     movq 8(%rbp), %r10
     movslq (%r10), %rbx
-    leaq lb_net_inet6(%rip), %r12
-    movq %r12, %r10
-    movslq (%r10), %r12
-    cmpl %r12d, %ebx
+    movl $23, %ecx
+    cmpl %ecx, %ebx
     sete %al
     movzbl %al, %ebx
     testl %ebx, %ebx
@@ -2555,7 +2541,7 @@ lb_net_17resolved_endpoint:
     movl %ebx, %r12d
     jmp .L6_27
 .L6_26:
-    movq %r14, %r10
+    movq %r15, %r10
     movzbl (%r10), %ebx
     movl $1, %ecx
     cmpl %ecx, %ebx
@@ -2620,7 +2606,7 @@ lb_net_17resolved_endpoint:
 .L6_29:
 .L6_30:
     movq $18, %rcx
-    movq %r14, %rbx
+    movq %r15, %rbx
     addq %rcx, %rbx
     leaq 304(%rbp), %r12
     movq %r12, %r10
@@ -2628,7 +2614,7 @@ lb_net_17resolved_endpoint:
     movq %rbx, %r10
     movw %r12w, (%r10)
     leaq 20(%rbp), %rbx
-    movq %r14, %r10
+    movq %r15, %r10
     movq %rbx, %r11
     movups 0(%r10), %xmm8
     movups %xmm8, 0(%r11)

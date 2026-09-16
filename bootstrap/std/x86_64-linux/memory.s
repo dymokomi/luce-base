@@ -8,34 +8,19 @@ lb_memory_0init:
     movq %rsp, %rbp
     subq $16, %rsp
     movq %rbx, -8(%rbp)
-    movq %r12, -16(%rbp)
-    leaq lb_platform_macos(%rip), %rbx
-    movq %rbx, %r10
-    movzbl (%r10), %ebx
-    testl %ebx, %ebx
-    jne .L0_1
-    jmp .L0_2
-.L0_1:
-    movl $4098, %eax
-    movl %eax, %ebx
-    jmp .L0_3
-.L0_2:
+    leaq lb_memory_17private_anonymous(%rip), %rbx
     movl $34, %eax
-    movl %eax, %ebx
-.L0_3:
-    leaq lb_memory_17private_anonymous(%rip), %r12
-    movq %r12, %r10
-    movl %ebx, (%r10)
-    leaq lb_memory_exhausted(%rip), %r12
-    movl $208273409, %eax
-    movq %r12, %r10
+    movq %rbx, %r10
     movl %eax, (%r10)
-    leaq lb_memory_unset(%rip), %r12
+    leaq lb_memory_exhausted(%rip), %rbx
+    movl $208273409, %eax
+    movq %rbx, %r10
+    movl %eax, (%r10)
+    leaq lb_memory_unset(%rip), %rbx
     movl $208273410, %eax
-    movq %r12, %r10
+    movq %rbx, %r10
     movl %eax, (%r10)
     movq -8(%rbp), %rbx
-    movq -16(%rbp), %r12
     movq %rbp, %rsp
     popq %rbp
     ret
@@ -2628,13 +2613,10 @@ lb_memory_PageAllocator_allocate:
     movq %rax, %r13
     leaq -360(%rbp), %r10
     movq %r13, (%r10)
-    leaq lb_memory_17private_anonymous(%rip), %r14
-    movq %r14, %r10
-    movslq (%r10), %r14
     movq $0, %rdi
     movq %r13, %rsi
     movl $3, %edx
-    movl %r14d, %ecx
+    movl $34, %ecx
     movl $4294967295, %r8d
     movq $0, %r9
     call mmap@PLT
